@@ -366,7 +366,58 @@ module SyncUnify =
         $"fast path should answer most accepted unifications ({answeredWhenAccepted} of {asyncAccepted})"
     }
 
-  let tests = testList "SyncUnify" [ agreesWithAsyncPath ]
+  /// `argFitsWithNothingToBind` saying yes promises that the unifier accepts and binds nothing,
+  /// type variables inside an Option's or a list's type args included.
+  let fitsMeansUnifiesUnchanged =
+    testTask "a value that fits with nothing to bind unifies and binds nothing" {
+      let! (exeState : RT.ExecutionState) = executionStateFor pmPT false
+      let optionOf t =
+        RT.TCustomType(RT.NameResolution.ok (LibExecution.Dval.optionType ()), [ t ])
+      let expected =
+        expectations
+        @ [ optionOf (RT.TVariable "a")
+            optionOf RT.TInt64
+            optionOf (RT.TList(RT.TVariable "a"))
+            RT.TList(RT.TTuple(RT.TVariable "a", RT.TVariable "b", [])) ]
+      let actualsWithOptions =
+        actuals
+        @ [ LibExecution.Dval.optionSome RT.KTInt64 (RT.DInt64 1L)
+            LibExecution.Dval.optionSome RT.KTString (RT.DString "s")
+            LibExecution.Dval.optionNone RT.KTInt64
+            RT.DList(
+              RT.ValueType.Known(
+                RT.KTTuple(
+                  RT.ValueType.Known RT.KTString,
+                  RT.ValueType.Known RT.KTInt64,
+                  []
+                )
+              ),
+              RT.Items([])
+            ) ]
+      let mutable fitted = 0
+      for tst in symbolTables do
+        for e in expected do
+          for actual in actualsWithOptions do
+            if LibExecution.TypeChecker.argFitsWithNothingToBind tst e actual then
+              fitted <- fitted + 1
+              let! unified =
+                LibExecution.TypeChecker.checkFnParam
+                  exeState.types
+                  (RT.FQFnName.fqBuiltin "test" 0)
+                  tst
+                  0
+                  "p"
+                  e
+                  actual
+                |> Ply.toTask
+              Expect.equal
+                unified
+                (Ok tst)
+                $"fits, so unifies unchanged: {e} vs {actual} under {tst}"
+      Expect.isGreaterThan fitted 0 "some pairs fit"
+    }
+
+  let tests = testList "SyncUnify" [ agreesWithAsyncPath; fitsMeansUnifiesUnchanged ]
 
 
 module AliasChecks =
@@ -1672,6 +1723,7 @@ let callCrate(): String = {q}.guarded({q}.Crate {{ crateDepth{r} = 1 }})"
       let! _ =
         LibDB.Inserts.insertAndApplyOps
           [ PT.PackageOp.Deprecate(
+              boxImplAt,
               PT.Reference.PackageTraitImpl boxImpl,
               PT.DeprecationKind.Obsolete,
               "bound memo test",

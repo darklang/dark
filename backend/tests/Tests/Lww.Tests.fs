@@ -220,12 +220,14 @@ let private deprecationsSettleByWhenTheyWereSaid =
     [ testTask "the newer statement wins, whichever arrived last" {
         let fn = aFn 1L
         let target = PT.Reference.PackageFn fn.hash
+        let at : PT.PackageLocation =
+          { owner = "Tests"; modules = [ "Lww" ]; name = "said" }
 
         // Said harmful at t2, said fine again at... no: said fine at t1, harmful at t2. The harmful
         // one is newer, so it is the answer either way round.
         let harmful =
-          PT.PackageOp.Deprecate(target, PT.DeprecationKind.Harmful, "no", None)
-        let fine = PT.PackageOp.Undeprecate(target, None)
+          PT.PackageOp.Deprecate(at, target, PT.DeprecationKind.Harmful, "no", None)
+        let fine = PT.PackageOp.Undeprecate(at, target, None)
 
         do!
           applyInOrder
@@ -233,15 +235,15 @@ let private deprecationsSettleByWhenTheyWereSaid =
               (fine, "2026-01-01T00:00:01.000Z")
               (harmful, "2026-01-01T00:00:02.000Z") ]
 
-        let! inOrder = Queries.getCurrentDeprecation fn.hash PT.ItemKind.Fn
+        let! inOrder = Queries.getCurrentDeprecation at fn.hash PT.ItemKind.Fn
         Expect.isSome inOrder "said harmful last, so it is harmful"
 
         // The same two ops, reaching a second store the other way round.
         let fn2 = aFn 2L
         let target2 = PT.Reference.PackageFn fn2.hash
         let harmful2 =
-          PT.PackageOp.Deprecate(target2, PT.DeprecationKind.Harmful, "no", None)
-        let fine2 = PT.PackageOp.Undeprecate(target2, None)
+          PT.PackageOp.Deprecate(at, target2, PT.DeprecationKind.Harmful, "no", None)
+        let fine2 = PT.PackageOp.Undeprecate(at, target2, None)
 
         do!
           applyInOrder
@@ -249,7 +251,7 @@ let private deprecationsSettleByWhenTheyWereSaid =
               (harmful2, "2026-01-01T00:00:02.000Z")
               (fine2, "2026-01-01T00:00:01.000Z") ]
 
-        let! reordered = Queries.getCurrentDeprecation fn2.hash PT.ItemKind.Fn
+        let! reordered = Queries.getCurrentDeprecation at fn2.hash PT.ItemKind.Fn
         Expect.isSome
           reordered
           "and it is still harmful when the older op arrives second"

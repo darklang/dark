@@ -1,0 +1,165 @@
+#!/usr/bin/env python3
+"""Writes backend/src/Prelude/NormalizationData.fs, the Unicode tables `Normalization` reads.
+
+    scripts/build/generate-normalization-data           write the file
+    scripts/build/generate-normalization-data --check   fail if the file is not what this writes
+
+It reads UnicodeData.txt and DerivedNormalizationProps.txt for VERSION from unicode/VERSION/,
+gzipped. To move to a new version, download those two files from
+https://www.unicode.org/Public/<version>/ucd/, gzip them into unicode/<version>/, set VERSION and
+run this.
+
+VERSION is the Unicode version of the ICU in the dev container (ICU 74 is Unicode 15.1), so the
+tests can compare against `String.Normalize` there codepoint by codepoint. Moving it forward is
+safe: Unicode never changes the normal form of a character it has already assigned.
+
+Everything is worked out here and written as arrays of constants, which the compiler stores as
+data, so the tables cost nothing to load.
+"""
+import gzip
+import os
+import sys
+
+VERSION = "15.1.0"
+HERE = os.path.dirname(os.path.abspath(__file__))
+OUT = os.path.normpath(
+  os.path.join(HERE, "..", "..", "backend", "src", "Prelude", "NormalizationData.fs"))
+
+# A form's bit is set when its quick check (UAX #15 section 9) fails on the codepoint: No or Maybe.
+FAILS = {"NFD_QC": 0x100, "NFKD_QC": 0x200, "NFC_QC": 0x400, "NFKC_QC": 0x800}
+
+S_BASE, V_BASE, T_BASE = 0xAC00, 0x1161, 0x11A7
+S_COUNT = 19 * 21 * 28
+
+
+def read(name):
+  with gzip.open(os.path.join(HERE, "unicode", VERSION, name + ".gz"), "rt", encoding="utf-8") as f:
+    return f.read()
+
+
+def codepoint_range(field):
+  first, _, last = field.partition("..")
+  return range(int(first, 16), int(last or first, 16) + 1)
+
+
+def render():
+  quick_check = {}  # codepoint -> fail bits
+  excluded = set()
+  for line in read("DerivedNormalizationProps.txt").splitlines():
+    fields = [f.strip() for f in line.split("#")[0].split(";")]
+    if len(fields) >= 2 and fields[1] == "Full_Composition_Exclusion":
+      excluded.update(codepoint_range(fields[0]))
+    if len(fields) >= 3 and fields[1] in FAILS:
+      for cp in codepoint_range(fields[0]):
+        quick_check[cp] = quick_check.get(cp, 0) | FAILS[fields[1]]
+
+  combining_class = {}
+  canonical_one, compat_one = {}, {}  # one level deep, as UnicodeData has them
+  for line in read("UnicodeData.txt").splitlines():
+    fields = line.split(";")
+    cp = int(fields[0], 16)
+    if int(fields[3]):
+      combining_class[cp] = int(fields[3])
+    if fields[5]:
+      parts = fields[5].split()
+      if parts[0].startswith("<"):
+        compat_one[cp] = [int(p, 16) for p in parts[1:]]
+      else:
+        canonical_one[cp] = [int(p, 16) for p in parts]
+
+  def full(tables, cp):
+    for t in tables:
+      if cp in t:
+        return [d for c in t[cp] for d in full(tables, c)]
+    return [cp]
+
+  canonical = {cp: full([canonical_one], cp) for cp in canonical_one}
+  compat = {}
+  for cp in sorted(canonical_one.keys() | compat_one.keys()):
+    mapping = full([compat_one, canonical_one], cp)
+    if mapping != canonical.get(cp):
+      compat[cp] = mapping
+  compositions = sorted(
+    (to[0], to[1], cp) for cp, to in canonical_one.items() if len(to) == 2 and cp not in excluded)
+
+  # Check the arithmetic Hangul rules against the file's quick-check values.
+  for cp in (S_BASE, S_BASE + S_COUNT - 1):
+    assert quick_check[cp] & FAILS["NFD_QC"] and quick_check[cp] & FAILS["NFKD_QC"]
+  for cp in (V_BASE, T_BASE + 1):
+    assert quick_check[cp] & FAILS["NFC_QC"]
+
+  properties = []
+  for cp in range(0x110000):
+    row = (cp, combining_class.get(cp, 0), quick_check.get(cp, 0))
+    if not properties or properties[-1][1:] != row[1:]:
+      properties.append(row)
+
+  def decompositions(t):
+    return [(cp, len(t[cp]), *t[cp]) for cp in sorted(t)]
+
+  def fmt(row, decimal):
+    return "; ".join(str(n) if i in decimal else f"0x{n:X}" for i, n in enumerate(row))
+
+  def table(name, doc, rows, decimal=()):
+    body = "\n     ".join(fmt(row, decimal) for row in rows)
+    return f"/// {doc}\nlet {name} =\n  [| {body} |]\n"
+
+  return "\n".join([
+    f"""/// GENERATED, DO NOT EDIT. To change it, change scripts/build/generate-normalization-data and run
+/// it; `scripts/build/generate-normalization-data --check` (in pre-push and CI) fails when this file
+/// is not exactly what it writes.
+///
+/// Unicode {VERSION}'s normalization data, for `Normalization`: each codepoint's canonical
+/// combining class and quick-check results, the canonical and compatibility decompositions, and
+/// the pairs that compose. From UnicodeData.txt and DerivedNormalizationProps.txt (quick checks and
+/// Full_Composition_Exclusion), kept gzipped in scripts/build/unicode/{VERSION}/. Hangul syllables
+/// are left out: they decompose and compose by arithmetic, in `Normalization`.
+///
+/// Every table is a flat array of rows, one row per line, which the compiler stores as data.
+module NormalizationData
+
+let unicodeVersion = "{VERSION}"
+
+/// The quick-check bits in `properties`: set when that form's quick check fails on the
+/// codepoint (NFD_QC or NFKD_QC is No, NFC_QC or NFKC_QC is No or Maybe).
+[<Literal>]
+let nfdFails = 0x{FAILS["NFD_QC"]:X}
+
+[<Literal>]
+let nfkdFails = 0x{FAILS["NFKD_QC"]:X}
+
+[<Literal>]
+let nfcFails = 0x{FAILS["NFC_QC"]:X}
+
+[<Literal>]
+let nfkcFails = 0x{FAILS["NFKC_QC"]:X}
+""",
+    table("properties",
+          "Each row: the first codepoint of a range, the range's combining class, its quick-check bits.",
+          properties, decimal=(1,)),
+    table("canonicalDecompositions",
+          "Each row: a codepoint, how many codepoints it fully decomposes into, then those.",
+          decompositions(canonical), decimal=(1,)),
+    table("compatibilityDecompositions",
+          "Each row as in `canonicalDecompositions`, where the compatibility decomposition differs.",
+          decompositions(compat), decimal=(1,)),
+    table("compositions",
+          "Each row: two codepoints, then the primary composite they compose to. Sorted by the pair.",
+          compositions),
+  ])
+
+
+def main():
+  text = render()
+  if sys.argv[1:] == ["--check"]:
+    with open(OUT, encoding="utf-8") as f:
+      if f.read() != text:
+        sys.exit(f"{OUT} is not what scripts/build/generate-normalization-data writes: run it")
+  elif sys.argv[1:]:
+    sys.exit(__doc__)
+  else:
+    with open(OUT, "w", encoding="utf-8", newline="\n") as f:
+      f.write(text)
+
+
+main()

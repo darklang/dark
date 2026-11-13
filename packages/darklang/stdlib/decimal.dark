@@ -362,12 +362,15 @@ let fromFloat32(f: Float32): Stdlib.Option.Option<Decimal> =
 /// Parse <param s> as a decimal, keeping the places written:
 /// {{Decimal.parse("19.99") == Ok(19.99dec)}}, {{Decimal.parse("-1.10")}} keeps 2 places.
 /// Accepts an exponent ({{"1.5e3"}}, {{"1e-5"}}), the form <fn Float.toString> uses
-/// for very large and very small values. Refuses anything it cannot hold exactly:
+/// for very large and very small values, and, like <fn Float.parse>, a leading `+`
+/// and a missing whole part ({{".5"}}). Refuses anything it cannot hold exactly:
 /// more than 28 places, or more than 96 bits, is {{Error(OutOfRange)}}, never a
 /// rounded value.
 let parse(s: String): Stdlib.Result.Result<Decimal, ParseError> =
   let negative = Stdlib.String.startsWith(s, "-")
-  let unsigned = if negative then Stdlib.String.dropFirst(s, 1) else s
+  let unsigned =
+    if negative || Stdlib.String.startsWith(s, "+") then Stdlib.String.dropFirst(s, 1)
+    else s
   let body = Stdlib.String.toLowercase(unsigned)
 
   let isDigits(t: String): Bool =
@@ -396,6 +399,7 @@ let parse(s: String): Stdlib.Result.Result<Decimal, ParseError> =
   let (whole, fraction) =
     match Stdlib.String.split(mantissa, ".") with
     | [ w ] -> (w, "0")
+    | [ "", f ] -> ("0", f)
     | [ w, f ] -> (w, f)
     | _ -> ("", "")
   let places =

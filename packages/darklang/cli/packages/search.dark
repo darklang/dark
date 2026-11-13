@@ -260,6 +260,19 @@ let moduleHit(ranker: Ranker, modules: List<String>, lowerName: String): Int64 =
   if hit then 0 else 1
 
 
+// A name's rank, counting the module it is in: a module named by a word of the query
+// is asking for what is in it, so `table` finds `Table.print` beside `tableRows` rather
+// than under `currentExecutablePath`, which only spells "table" inside a longer word.
+let rankInModule(ranker: Ranker, modules: List<String>, lowerName: String): Int64 =
+  let byName = rankLowered(ranker, lowerName)
+  let moduleName =
+    modules
+    |> Stdlib.List.last
+    |> Stdlib.Option.withDefault("")
+    |> Stdlib.String.toLowercase
+  if byName > 2 && Stdlib.List.contains(ranker.words, moduleName) then 2 else byName
+
+
 // Who an item is likely for, as a sort key: Stdlib first, then other owners'
 // packages, then the rest of Darklang (the CLI, the tools), which a program rarely
 // calls.
@@ -289,7 +302,7 @@ let rankKey(
   name: String)
   : String =
   let lowerName = Stdlib.String.toLowercase(name)
-  let mr = Stdlib.display(rankLowered(ranker, lowerName))
+  let mr = Stdlib.display(rankInModule(ranker, modules, lowerName))
   let mh = Stdlib.display(moduleHit(ranker, modules, lowerName))
   let path =
     [ [owner], modules, [name] ]
@@ -375,6 +388,16 @@ let bestItemKey(
     Stdlib.String.first(
       rankKey(ranker, item.location.owner, item.location.modules, item.location.name),
       rankKeyHead)
+
+
+// Whether nothing found is named by the query, so every hit matched on its doc comment.
+let onlyDocMatches(
+  ranker: Ranker,
+  locations: List<LanguageTools.ProgramTypes.PackageLocation>)
+  : Bool =
+  locations
+  |> Stdlib.List.all(fun l ->
+    rankInModule(ranker, l.modules, Stdlib.String.toLowercase(l.name)) == 4)
 
 
 let bestModuleRank(query: String, modules: List<List<String>>): Int64 =
@@ -1320,6 +1343,18 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
                 impls = ranked(ranker, results.impls)
                 tests = ranked(ranker, results.tests) }
 
+          let named =
+            Stdlib.List.flatten(
+              [ results.types |> Stdlib.List.map(fun i -> i.location)
+                results.values |> Stdlib.List.map(fun i -> i.location)
+                results.fns |> Stdlib.List.map(fun i -> i.location) ])
+          if Stdlib.List.isEmpty(typed) && onlyDocMatches(ranker, named) then
+            Stdlib.printErrorLine(
+              Stdlib.Cli.UI.Colors.hint(
+                $"  (no name matches `{queryText}`; these mention it in their docs)"))
+          else
+            ()
+
           // Suffix orders sections on a rank tie. Modules are navigation, not the
           // usual discovery target, so they sort last - a wall of namespace
           // matches shouldn't precede an equally-ranked fn/type/value hit.
@@ -1344,7 +1379,7 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
             match tag with
             | "function" ->
               renderSection("function", resultCap, results.fns, fun item ->
-                let mark = Query.deprecationMarker(depSets, item.entity.hash)
+                let mark = Query.deprecationMarkerAt(depSets, item.location, item.entity.hash)
                 let ctx = contextFor(state.currentBranchId, item)
                 let sigBody = Signatures.formatFn(ctx, item.entity)
                 let badge =
@@ -1355,21 +1390,21 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
                 withOptionalDoc(parsed.withDocs, line, item.entity.description))
             | "value" ->
               renderSection("value", resultCap, results.values, fun item ->
-                let mark = Query.deprecationMarker(depSets, item.entity.hash)
+                let mark = Query.deprecationMarkerAt(depSets, item.location, item.entity.hash)
                 withOptionalDoc(parsed.withDocs, $"{fullPathOf(item)}{mark}", item.entity.description))
             | "type" ->
               renderSection("type", resultCap, results.types, fun item ->
-                let mark = Query.deprecationMarker(depSets, item.entity.hash)
+                let mark = Query.deprecationMarkerAt(depSets, item.location, item.entity.hash)
                 let ctx = contextFor(state.currentBranchId, item)
                 let defn = Signatures.formatType(ctx, fullPathOf(item), item.entity)
                 withOptionalDoc(parsed.withDocs, $"{defn}{mark}", item.entity.description))
             | "trait" ->
               renderSection("trait", resultCap, results.traits, fun item ->
-                let mark = Query.deprecationMarker(depSets, item.entity.hash)
+                let mark = Query.deprecationMarkerAt(depSets, item.location, item.entity.hash)
                 withOptionalDoc(parsed.withDocs, $"{fullPathOf(item)}{mark}", item.entity.description))
             | "impl" ->
               renderSection("impl", resultCap, results.impls, fun item ->
-                let mark = Query.deprecationMarker(depSets, item.entity.hash)
+                let mark = Query.deprecationMarkerAt(depSets, item.location, item.entity.hash)
                 let ctx = contextFor(state.currentBranchId, item)
                 // The call first, as it is written (`a % b`, `Stdlib.display(v)`): the impl's own
                 // path is never where a call goes, so it comes after.
@@ -1382,7 +1417,7 @@ let executeQuery(state: Cli.AppState, args: List<String>): Cli.AppState =
                 withOptionalDoc(parsed.withDocs, line, item.entity.description))
             | "test" ->
               renderSection("test", resultCap, results.tests, fun item ->
-                let mark = Query.deprecationMarker(depSets, item.entity.hash)
+                let mark = Query.deprecationMarkerAt(depSets, item.location, item.entity.hash)
                 withOptionalDoc(parsed.withDocs, $"{fullPathOf(item)}{mark}", item.entity.description))
             | "module" ->
               if (Stdlib.List.isEmpty(parsed.entityTypes)) && (Stdlib.Bool.not(Stdlib.List.isEmpty(results.submodules))) then

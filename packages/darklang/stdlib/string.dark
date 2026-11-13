@@ -1,5 +1,8 @@
 module Darklang.Stdlib.String
 
+// Strings are always normalized (NFC), so text that looks the same is the same String, however it
+// was built and wherever it came from: decoded bytes, JSON, stdin, the environment. Use Bytes for
+// exact bytes.
 
 /// Returns a string containing a single '\n'
 val newline = "\n"
@@ -425,7 +428,7 @@ let lastIndexOf(
 /// Returns <param string> repeated <param count> times, or {{""}} if <param count>
 /// is 0 or less. Use <fn String.checkedRepeat> to get an error for a negative count.
 let repeat(string: String, count: Int64): String =
-  if count <= 0 then "" else Builtin.stringRepeat(string, count)
+  Builtin.stringRepeat(string, count)
 
 
 /// What <fn String.checkedRepeat> returns for a count below 0, or past 2147483647

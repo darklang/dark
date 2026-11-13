@@ -176,15 +176,23 @@ module Trait =
 module TraitImpl =
   let find branch = findItem branch "impl"
 
-  /// Every impl hash <param branch> binds at some name: what makes an impl dispatchable there.
-  let liveHashes (branch : PT.BranchId) : Ply<HashSet<string>> =
+  /// Which of <param hashes> <param branch> binds at some name: what makes an impl dispatchable
+  /// there. Looked up by hash, not by listing every impl the branch binds, which reads the whole
+  /// locations table.
+  let liveAmong
+    (branch : PT.BranchId)
+    (hashes : List<string>)
+    : Ply<HashSet<string>> =
     uply {
       let! rows =
         Sql.query (
           overVisible
-            "SELECT DISTINCT item_hash FROM visible WHERE item_type = 'impl' AND item_hash <> ''"
+            "SELECT DISTINCT item_hash FROM visible
+             WHERE item_type = 'impl' AND item_hash IN (SELECT value FROM json_each(@hashes))"
         )
-        |> Sql.parameters (Layers.sqlParams branch true)
+        |> Sql.parameters (
+          ("hashes", Sql.string (jsonStrings hashes)) :: Layers.sqlParams branch true
+        )
         |> Sql.executeAsync (fun read -> read.string "item_hash")
       return HashSet<string>(rows)
     }
@@ -509,9 +517,17 @@ let private searchRows
     else
       "l.name LIKE '%' || @searchText || '%'"
 
+  // A plural matches its singular too: `split lines` finds `splitOnNewline`. The token is
+  // matched as a substring, so the stem still matches the plural.
+  let stem (tok : string) : string =
+    if tok.Length > 3 && tok.EndsWith "s" && not (tok.EndsWith "ss") then
+      tok.Substring(0, tok.Length - 1)
+    else
+      tok
+
   let tokenParams =
     if useTokenSearch then
-      matchTokens |> List.mapi (fun i tok -> $"tok{i}", Sql.string tok)
+      matchTokens |> List.mapi (fun i tok -> $"tok{i}", Sql.string (stem tok))
     else
       []
 

@@ -2034,19 +2034,20 @@ module PackageOp =
         | None -> ""
       $"Unbind {path}{was}"
 
-    | Deprecate(target, kind, _message, _restating) ->
+    | Deprecate(loc, target, kind, _message, _restating) ->
       let kindStr =
         match kind with
         | SupersededBy(_) -> "superseded-by"
         | Harmful -> "harmful"
         | Obsolete -> "obsolete"
-      // Was just "Deprecate (obsolete)" — the kind, and no hint WHAT got deprecated.
+      let path = PackageLocation.packageLocation(loc)
       let hash = LanguageTools.ProgramTypes.Reference.hash(target)
-      $"Deprecate [{LanguageTools.ProgramTypes.hashToShort(hash)}] ({kindStr})"
+      $"Deprecate {path} [{LanguageTools.ProgramTypes.hashToShort(hash)}] ({kindStr})"
 
-    | Undeprecate(target, _restating) ->
+    | Undeprecate(loc, target, _restating) ->
+      let path = PackageLocation.packageLocation(loc)
       let hash = LanguageTools.ProgramTypes.Reference.hash(target)
-      $"Undeprecate [{LanguageTools.ProgramTypes.hashToShort(hash)}]"
+      $"Undeprecate {path} [{LanguageTools.ProgramTypes.hashToShort(hash)}]"
 
     | Rename(oldLocation, newLocation, _target, _references, _stamp) ->
       let oldName = PackageLocation.packageLocation(oldLocation)

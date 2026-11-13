@@ -52,3 +52,37 @@ module AreIdentical =
 
   test differentContents =
     compareWith("same contents", "same contentz") |> Stdlib.Test.equal(false)
+
+
+module WriteErrors =
+  // An existing file cannot be a parent directory. Keep mkdir's structured error.
+  test parentIsFile =
+    Stdlib.Cli.File.withTemp(fun filename ->
+      Stdlib.Cli.FileSystem.writeFile(filename + "/child/file", Stdlib.Utf8.encode("x"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Cli.FileSystem.FileError.NotFound)))
+    |> Builtin.unwrap
+
+  // Parent creation succeeds, but opening a directory as a file fails.
+  test targetIsDirectory =
+    Stdlib.Cli.File.withTemp(fun filename ->
+      let directory = filename + "-dir"
+      let _ = Stdlib.Cli.Dir.create(directory) |> Builtin.unwrap
+      let result = Stdlib.Cli.FileSystem.writeFile(directory, Stdlib.Utf8.encode("x"))
+      let _ = Stdlib.Cli.Dir.delete(directory) |> Builtin.unwrap
+      result |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Cli.FileSystem.FileError.OsAccessDenied)))
+    |> Builtin.unwrap
+
+
+module ListErrors =
+  test missingDirectory =
+    Stdlib.Cli.FileSystem.listDirectory("/nonexistent-dark-test-dir")
+    |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.Cli.FileSystem.FileError.NotFound))
+
+  test existingDirectory =
+    Stdlib.Cli.Dir.withTemp(fun dir ->
+      let _ = Stdlib.Cli.File.writeText(dir + "/a.txt", "x") |> Builtin.unwrap
+      Stdlib.Cli.FileSystem.listDirectory(dir)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ dir + "/a.txt" ])))
+    |> Builtin.unwrap

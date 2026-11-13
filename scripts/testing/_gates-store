@@ -266,7 +266,7 @@ gate_backups_restore() {
   [[ "$fail" -eq 0 ]]
 }
 
-# --- old-store-resets: a store from before per-branch names opens, backed up and refilled -------
+# --- old-store-resets: a store with older package tables opens, backed up and refilled ----------
 # Its package tables cannot be carried across, so the first open resets them. What has to hold:
 # a fresh backup is taken whatever older backups the folder holds, it says where, the packages come
 # back from the build, config and traces are kept, and a stored branch that is gone falls back to
@@ -284,7 +284,13 @@ gate_old_store_resets() {
     # shellcheck disable=SC2012  # need mtime order; no filename here has a space
     CLI=$(ls -t clis/darklang-alpha-*-linux-x64 2>/dev/null | head -1 || true)
   fi
-  [[ -x "$CLI" ]] || { echo "old-store-resets: no published CLI (pass one, or build with scripts/build/build-release-cli-exes.sh)" >&2; exit 2; }
+  if [[ ! -x "$CLI" ]]; then
+    echo "old-store-resets: no published CLI (pass one, or build with scripts/build/build-release-cli-exes.sh)" >&2
+    # CI builds one before the gates run, so missing there is a failure.
+    [[ "${CI:-}" == "true" ]] && exit 2
+    echo "old-store-resets: skipped: it needs a CLI with an embedded seed, which the debug build is not; scripts/run-tests --published runs it" >&2
+    exit "$SKIP"
+  fi
   ROOT=$(realpath -m rundir/old-store-test)
   pass=0; fail=0
   ok()  { pass=$((pass+1)); printf '  ok   %s\n' "$1"; }
@@ -319,7 +325,7 @@ gate_old_store_resets() {
 
   echo "== the first open resets it"
   opened=$(x eval 'Stdlib.List.length([1, 2, 3])')
-  want "it says the store predates per-branch names" "predates per-branch names" "$opened"
+  want "it says the package tables are an older shape" "package tables are an older shape" "$opened"
   want "and names the backup" "copied to .*data\.db\.before-layers-" "$opened"
   want "and the packages are back" "^3$" "$(tail -1 <<<"$opened")"
 
@@ -335,7 +341,22 @@ gate_old_store_resets() {
 
   echo "== the next open is an ordinary one"
   again=$(x eval 1)
-  if grep -q "predates" <<<"$again"; then bad "it does not reset again" "$again"; else ok "it does not reset again"; fi
+  if grep -q "older shape" <<<"$again"; then bad "it does not reset again" "$again"; else ok "it does not reset again"; fi
+
+  # Deprecations once keyed on content alone, and their ops carry no name to key them by now, so a
+  # store whose `deprecations` has no name columns resets too, with everything else current.
+  echo "== a store with content-keyed deprecations resets too"
+  sqlite3 "$DB" "
+    DROP TABLE deprecations;
+    CREATE TABLE deprecations (branch_id TEXT NOT NULL, draft INTEGER NOT NULL, item_hash TEXT NOT NULL,
+      item_kind TEXT NOT NULL, state TEXT NOT NULL, annotation_blob BLOB, live INTEGER NOT NULL DEFAULT 1,
+      origin_ts TEXT NOT NULL, op_id TEXT NOT NULL);
+    DROP TABLE IF EXISTS store_stamp_v0;"
+  reopened=$(x eval 'Stdlib.List.length([1, 2])')
+  want "it says the package tables are an older shape" "package tables are an older shape" "$reopened"
+  want "and the packages are back" "^2$" "$(tail -1 <<<"$reopened")"
+  want "and deprecations are keyed on the name" "^1$" "$(sqlite3 "$DB" "SELECT COUNT(*) FROM pragma_table_info('deprecations') WHERE name = 'owner'")"
+  want "config is still kept" "^yes$" "$(sqlite3 "$DB" "SELECT value FROM config_v0 WHERE key = 'gate.kept'")"
 
   echo
   echo "passed: $pass   failed: $fail"
@@ -549,6 +570,19 @@ DARK
     fi
   done
   HOME="${WORK%/.darklang}"
+
+  # --- case 3: a save with a type error reports the error, not the calls it left unresolved ---
+  saved=$($CLI fn Stachu.Fit.broken - 2>&1 <<'DARK' | clean || true
+(xs: List<(String * Int64)>): List<(String * Int64)> =
+  xs |> Stdlib.List.sortBy(fun (_, c) -> -c)
+DARK
+)
+  if [[ "$saved" != *"type error"* || "$saved" == *"[traitcalls]"* ]]; then
+    echo "trait-checker-vs-dispatch: a save with a type error should show the type error and no"
+    echo "  [traitcalls] line. It answered:"
+    echo "    ${saved//$'\n'/$'\n'    }"
+    exit 1
+  fi
 
   echo "trait-checker-vs-dispatch: a live implementation types and runs ($live); once it is"
   echo "  deprecated the checker refuses the save with MissingImpl, as dispatch does; and a saved"

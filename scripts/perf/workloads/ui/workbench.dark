@@ -4,9 +4,13 @@
 // Home's items, the badges and SCM status, the view, and the full paint as a string. Nothing is
 // written to a terminal.
 //
-// PERF_ITERS=n opens Code at Darklang.Stdlib.List with `map` selected, then presses Down and Up in
-// turn n times. Each press is what the CLI does per key: `onKey`, `refresh`, the view, and the diff
-// against the last frame. `gate` runs this at 1 and 1+N, so the setup cancels.
+// PERF_ITERS=n presses n keys, per PERF_UI:
+//   keypress  Code at Darklang.Stdlib.List with `map` selected, Down and Up in turn: the same two items
+//   keyWalk   the same start, Down every time: n items, each seen for the first time
+//   homeKey   Home, Down and Up in turn
+//   moduleKey Code at Darklang.Stdlib on its first module, Down every time: n modules, each new
+// Each press is what the CLI does per key: `onKey`, `refresh`, the view, and the diff against the last
+// frame. `gate` runs this at 1 and 1+N, so the setup cancels.
 let iters(): Int64 =
   match Stdlib.Env.get("PERF_ITERS") with
   | Some(s) ->
@@ -44,13 +48,37 @@ let select(s: Screen, name: String): Screen =
 let openItem(s: Screen, name: String): Screen =
   press(select(s, name), Stdlib.Cli.Stdin.Key.Key.Enter, Stdlib.Option.Option.None)
 
-let pressN(s: Screen, n: Int64, bytes: Int64): Int64 =
+// The bytes painted, or -1 once a Down did not move: the list ran out, and the rest would be repeats.
+let pressN(s: Screen, n: Int64, bytes: Int64, alternate: Bool): Int64 =
   if n <= 0 then
     bytes
   else
-    let key = if n % 2 == 0 then Stdlib.Cli.Stdin.Key.Key.UpArrow else Stdlib.Cli.Stdin.Key.Key.DownArrow
+    let up = alternate && (n % 2 == 0)
+    let key = if up then Stdlib.Cli.Stdin.Key.Key.UpArrow else Stdlib.Cli.Stdin.Key.Key.DownArrow
     let next = press(s, key, Stdlib.Option.Option.None)
-    pressN(next, n - 1, bytes + next.bytes)
+    if Stdlib.Bool.not(up) && next.state.selected == s.state.selected then
+      0 - 1
+    else
+      pressN(next, n - 1, bytes + next.bytes, alternate)
+
+let selectedName(s: Screen): String =
+  match Stdlib.List.getAt(s.state.items, s.state.selected) with
+  | Some(it) -> it.name
+  | None -> ""
+
+let firstModule(s: Screen): Screen =
+  match Stdlib.List.findFirstIndex(s.state.items, fun it -> it.isModule) with
+  | Some(i) -> present(s.state, { s.state with selected = i }, s.terminal)
+  | None -> s
+
+let measure(start: Screen, n: Int64, alternate: Bool): Unit =
+  let t0 = Darklang.Cli.Telemetry.now()
+  let bytes = pressN(start, n, 0, alternate)
+  let t1 = Darklang.Cli.Telemetry.now()
+  if bytes < 0 then
+    Stdlib.printLine("ran out of items after " + (selectedName(start)))
+  else
+    Stdlib.printLine("elapsed_ms=" + (Stdlib.display(t1 - t0)) + " keys=" + (Stdlib.display(n)) + " bytes=" + (Stdlib.display(bytes)))
 
 let branchId = Darklang.SCM.Branch.mainBranchId
 let draft = Darklang.SCM.Draft.read()
@@ -70,22 +98,26 @@ let home =
 let first = Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize(Stdlib.Cli.Tui.TerminalSession.init(), size, c.view(home, size))
 let screen = Screen { state = home, terminal = first.state, bytes = Stdlib.String.length(first.output) }
 let n = iters()
+let workload = Stdlib.Env.get("PERF_UI") |> Stdlib.Option.withDefault("keypress")
 
 if n == 0 then
   Stdlib.printLine("first frame " + (Stdlib.display(screen.bytes)) + " bytes")
+else if workload == "homeKey" then
+  measure(screen, n, true)
 else
   let code = press(screen, Stdlib.Cli.Stdin.Key.Key.D2, Stdlib.Option.Option.Some("2"))
-  let list = openItem(openItem(openItem(code, "Darklang"), "Stdlib"), "List")
-  let atMap = select(list, "map")
-  let onMap =
-    match Stdlib.List.getAt(atMap.state.items, atMap.state.selected) with
-    | Some(it) -> it.name == "map"
-    | None -> false
-  // Without this a renamed module would quietly measure keys on Home instead.
-  if Stdlib.Bool.not(onMap) then
-    Stdlib.printLine("did not reach Darklang.Stdlib.List.map")
+  let stdlib = openItem(openItem(code, "Darklang"), "Stdlib")
+  if workload == "moduleKey" then
+    let start = firstModule(stdlib)
+    // Without this a reshaped Stdlib would quietly measure keys somewhere else.
+    if Stdlib.Bool.not(start.state.items |> Stdlib.List.any(fun it -> it.isModule)) then
+      Stdlib.printLine("no modules in Darklang.Stdlib")
+    else
+      measure(start, n, false)
   else
-    let t0 = Darklang.Cli.Telemetry.now()
-    let bytes = pressN(atMap, n, 0)
-    let t1 = Darklang.Cli.Telemetry.now()
-    Stdlib.printLine("elapsed_ms=" + (Stdlib.display(t1 - t0)) + " keys=" + (Stdlib.display(n)) + " bytes=" + (Stdlib.display(bytes)))
+    let atMap = select(openItem(stdlib, "List"), "map")
+    // Without this a renamed module would quietly measure keys on Home instead.
+    if selectedName(atMap) != "map" then
+      Stdlib.printLine("did not reach Darklang.Stdlib.List.map")
+    else
+      measure(atMap, n, workload != "keyWalk")

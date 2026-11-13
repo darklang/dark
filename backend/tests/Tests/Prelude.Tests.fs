@@ -226,6 +226,45 @@ let graphemeTests =
               $"endsWith {s} {suffix}"
       }
 
+      test "splitEgcs agrees with splitting the clusters" {
+        let referenceSplit (s : string) (sep : string) : List<string> =
+          let sepClusters = reference sep
+          let n = List.length sepClusters
+          let part (current : List<string>) = String.concat "" (List.rev current)
+          let rec go (rest : List<string>) (current : List<string>) acc =
+            match rest with
+            | [] -> List.rev (part current :: acc)
+            | _ when List.truncate n rest = sepClusters ->
+              go (List.skip n rest) [] (part current :: acc)
+            | c :: tail -> go tail (c :: current) acc
+          go (reference s) [] []
+        // Long runs of simple chars around the joining pieces, which the walks step over at once.
+        let long =
+          [ for s in List.take 300 samples ->
+              String.replicate 40 "ab" + s + String.replicate 40 "c" + s ]
+        let separators = List.ofArray pieces @ [ "ab"; "a\r"; "\u0301x"; "c\r\n" ]
+        for s in samples @ long do
+          for sep in separators do
+            Expect.equal
+              (String.splitEgcs s sep)
+              (referenceSplit s sep)
+              $"split {s} {sep}"
+      }
+
+      test "the walks agree with StringInfo over long runs of simple chars" {
+        for s in List.take 300 samples do
+          let s = String.replicate 40 "ab" + s + String.replicate 40 "c" + s
+          let clusters = reference s
+          let len = int64 clusters.Length
+          Expect.equal (String.lengthInEgcs s) clusters.Length $"length {s}"
+          for first in [ 0L; 1L; 39L; 40L; 41L; 79L; 80L; 81L; len - 2L; len ] do
+            for last in [ 40L; 80L; 81L; 120L; len - 1L; len ] do
+              Expect.equal
+                (String.sliceEgcs s first last)
+                (referenceSlice s first last)
+                $"slice {s} {first} {last}"
+      }
+
       testMany
         "egcs on the joining pieces"
         String.egcs

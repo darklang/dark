@@ -129,7 +129,7 @@ let unescape (source : string) : string =
           builder.Append source[index] |> ignore
           index <- index + 1
       builder.ToString()
-  decoded.Normalize()
+  String.normalize decoded
 
 /// Does the raw inner text of a regular string/char contain an invalid escape?
 let hasInvalidEscape (content : string) : bool =
@@ -951,7 +951,7 @@ let tokenize
           let (spannedToken, nextIndex, nextPosition) =
             emit
               (TStringLit(
-                (input.Substring(index + 3, endIndex - index - 6)).Normalize()
+                String.normalize (input.Substring(index + 3, endIndex - index - 6))
               ))
               index
               endIndex
@@ -962,7 +962,9 @@ let tokenize
           let (spannedToken, nextIndex, nextPosition) =
             emit
               (TStringLit(
-                (input.Substring(index + 3, inputLength - index - 3)).Normalize()
+                String.normalize (
+                  input.Substring(index + 3, inputLength - index - 3)
+                )
               ))
               index
               inputLength
@@ -1136,7 +1138,16 @@ let tokenize
           let endIndex = scanToLineEnd (index + 2)
           let (spannedToken, nextIndex, nextPosition) =
             emit TInterpString index endIndex position
-          addDiagnostic spannedToken.range "unterminated interpolated string"
+          // `{f(xs, \", \")}`: the braces hold code, where a string is a plain `"…"`, and
+          // the escaped quote opens a string that never closes.
+          let line = input.Substring(index, endIndex - index)
+          let openBrace = line.IndexOf('{')
+          let message =
+            if openBrace >= 0 && line.IndexOf("\\\"", openBrace) >= 0 then
+              "inside `{…}` in an interpolated string, write a string as plain \"…\", not \\\"…\\\""
+            else
+              "unterminated interpolated string"
+          addDiagnostic spannedToken.range message
           go nextIndex nextPosition (spannedToken :: tokensRev)
       else
         match refused |> List.tryFind (fun (text, _) -> matchesAt text index) with

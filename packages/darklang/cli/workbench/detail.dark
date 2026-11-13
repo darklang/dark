@@ -250,20 +250,21 @@ let testOutcomeLines(
 let selectedFunctionTestRows(state: State): List<String> =
   match Stdlib.List.getAt(state.items, state.selected) with
   | Some(item) when item.kind == "fn" ->
-    let modulePath = Packages.modulePathOf(state.location)
-    let results = Packages.Query.searchExactMatch(state.branchId, modulePath, item.name)
-    match results.fns with
-    | [i, ...] ->
-      // ":" not "dark ": the workbench owns the terminal, and its command
-      // bar runs registered commands in-frame.
-      Packages.View.testRows(
-        state.branchId,
-        i.location,
-        LanguageTools.ProgramTypes.ItemKind.Fn,
-        ":",
-        sectionHeading("tests"))
-    | [] -> []
+    let results = Packages.Query.searchExactMatch(state.branchId, Packages.modulePathOf(state.location), item.name)
+    functionTestRows(state.branchId, results, itemDependents(item.kind, results))
   | _ -> []
+
+/// <fn selectedFunctionTestRows>, from a lookup and a dependents read the caller already made.
+let functionTestRows(
+  branchId: Uuid,
+  results: LanguageTools.ProgramTypes.Search.SearchResults,
+  dependents: List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>)
+  : List<String> =
+  match results.fns with
+  // ":" not "dark ": the workbench owns the terminal, and its command
+  // bar runs registered commands in-frame.
+  | [_, ...] -> Packages.View.testRowsFrom(branchId, dependents, ":", sectionHeading("tests"))
+  | [] -> []
 
 /// The source/detail of the currently-selected item, as lines for the Inspect pane.
 let detailLines(state: State): List<String> =
@@ -482,16 +483,16 @@ let itemMeta(
   item: BodyItem,
   results: LanguageTools.ProgramTypes.Search.SearchResults)
   : String =
-  let hashOpt =
-    if item.kind == "fn" then results.fns |> Stdlib.List.head |> Stdlib.Option.map(fun i -> i.entity.hash)
-    else if item.kind == "type" then results.types |> Stdlib.List.head |> Stdlib.Option.map(fun i -> i.entity.hash)
-    else if item.kind == "trait" then results.traits |> Stdlib.List.head |> Stdlib.Option.map(fun i -> i.entity.hash)
-    else if item.kind == "impl" then results.impls |> Stdlib.List.head |> Stdlib.Option.map(fun i -> i.entity.hash)
-    else if item.kind == "test" then results.tests |> Stdlib.List.head |> Stdlib.Option.map(fun i -> i.entity.hash)
-    else results.values |> Stdlib.List.head |> Stdlib.Option.map(fun i -> i.entity.hash)
+  let itemAt =
+    if item.kind == "fn" then results.fns |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.location, i.entity.hash))
+    else if item.kind == "type" then results.types |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.location, i.entity.hash))
+    else if item.kind == "trait" then results.traits |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.location, i.entity.hash))
+    else if item.kind == "impl" then results.impls |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.location, i.entity.hash))
+    else if item.kind == "test" then results.tests |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.location, i.entity.hash))
+    else results.values |> Stdlib.List.head |> Stdlib.Option.map(fun i -> (i.location, i.entity.hash))
   let short =
-    match hashOpt with
-    | Some(h) -> LanguageTools.ProgramTypes.hashToShort(h)
+    match itemAt with
+    | Some((_, h)) -> LanguageTools.ProgramTypes.hashToShort(h)
     | None -> "?"
   let kindLabel =
     if item.kind == "fn" then "fn"
@@ -502,10 +503,10 @@ let itemMeta(
     else "value"
   // Real deprecation status (same read path as the tree badge).
   let deprecation =
-    match hashOpt with
-    | Some(h) ->
+    match itemAt with
+    | Some((location, h)) ->
       let sets = Packages.Query.loadDeprecationSets(state.branchId)
-      if Packages.Query.isDeprecated(sets, h) then
+      if Packages.Query.isDeprecatedAtLocation(sets, location, h) then
         "  " + (Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.yellow, "⚠ deprecated"))
       else ""
     | None -> ""
@@ -582,8 +583,9 @@ let inspectPageLines(state: State): List<String> =
       let src = highlightSourceLines(itemLines(state, item, results))
       // The order a reader wants: what this is, the code, what running it needs, who it touches.
       // The keys that act on it are in the footer, so they are not repeated here.
-      let refs = Stdlib.String.split(referencesFrom(state, modulePath, item.name, item.kind, results), "\n")
-      let tests = selectedFunctionTestRows(state)
+      let dependents = itemDependents(item.kind, results)
+      let refs = Stdlib.String.split(referencesFrom(state, modulePath, item.name, item.kind, results, dependents), "\n")
+      let tests = if item.kind == "fn" then functionTestRows(state.branchId, results, dependents) else []
       Stdlib.List.flatten(
         [ [ itemMeta(state, item, results), "" ]
           src
@@ -612,18 +614,21 @@ let matterPageLines(state: State): List<String> =
   else
     inspectPageLines(state)
 
-/// Build the item page when the Code view is showing one it was not built for. Kept on the
-/// state, so the frames in between draw it rather than reading the store again.
+/// How many item pages the Code view keeps, so moving back over the last few draws them again.
+val previewsKept = 16
+
+/// Build the item page when the Code view is showing one it has not built. Kept on the state, so
+/// the frames in between, and a move back to it, draw it rather than reading the store again.
 let refreshPreview(next: State): State =
   if next.activeView != vMatter then
-    { next with preview = Stdlib.Option.Option.None }
+    { next with previews = [] }
   else
     let key = previewKey(next)
-    match next.preview with
-    | Some(p) when p.key == key -> next
-    | _ ->
-      { next with
-          preview = Stdlib.Option.Option.Some(PreviewCache { key = key, lines = matterPageLines(next) }) }
+    if Stdlib.List.any(next.previews, fun p -> p.key == key) then
+      next
+    else
+      let page = PreviewCache { key = key, lines = matterPageLines(next) }
+      { next with previews = Stdlib.List.take(Stdlib.List.prepend(next.previews, page), previewsKept) }
 
 /// The preview content for the selected item in the current view. One function so the preview pane, its
 /// scroll bounds, and the full-screen reader all agree. SCM previews depend on the active section.
@@ -641,9 +646,10 @@ let previewLines(state: State): List<String> =
     // Matter folds in the old Inspect: its preview IS the item page (source + meta + references + actions).
     // The flat lenses are the exception: their items are full paths, and the item page resolves a leaf
     // against where you're standing, so it would report every one of them as missing.
-    match state.preview with
-    | Some(p) when p.key == previewKey(state) -> p.lines
-    | _ -> matterPageLines(state)
+    let key = previewKey(state)
+    match Stdlib.List.findFirst(state.previews, fun p -> p.key == key) with
+    | Some(p) -> p.lines
+    | None -> matterPageLines(state)
   else if state.activeView == vTraces then Stdlib.String.split(traceDetail(state), "\n")
   else if state.activeView == vDocs then Stdlib.String.split(docContent(state), "\n")
   else

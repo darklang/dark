@@ -107,10 +107,11 @@ let private docIn
       p cmd "$within" (Docs.within part)
       Layers.bind cmd branch true)
 
-/// The deprecation <param branch> sees standing on an item.
+/// The deprecation <param branch> sees standing on an item at a name.
 let private deprecationIn
   (ctx : Ctx)
   (branch : PT.BranchId)
+  (loc : PT.PackageLocation)
   (target : PT.Reference)
   : Task<Option<PT.DeprecationKind * string>> =
   task {
@@ -120,8 +121,10 @@ let private deprecationIn
         ctx
         (Layers.view "$" Layers.deprecations
          + " SELECT CASE WHEN state = 'deprecated' THEN annotation_blob ELSE NULL END
-             FROM visible WHERE item_hash = $item_hash AND item_kind = $item_kind")
+             FROM visible WHERE owner = $owner AND modules = $modules AND name = $name
+               AND item_hash = $item_hash AND item_kind = $item_kind")
         (fun cmd ->
+          pLoc cmd loc
           p cmd "$item_hash" h
           p cmd "$item_kind" (target.kind.toString ())
           Layers.bind cmd branch true)
@@ -157,11 +160,11 @@ let private restateOrDrop
             | PT.PackageOp.UpdateDoc(loc, part, text, _, _) ->
               let! said = docIn ctx branch loc part
               return said <> Some text
-            | PT.PackageOp.Deprecate(target, kind, message, _) ->
-              let! standing = deprecationIn ctx branch target
+            | PT.PackageOp.Deprecate(loc, target, kind, message, _) ->
+              let! standing = deprecationIn ctx branch loc target
               return standing <> Some(kind, message)
-            | PT.PackageOp.Undeprecate(target, _) ->
-              let! standing = deprecationIn ctx branch target
+            | PT.PackageOp.Undeprecate(loc, target, _) ->
+              let! standing = deprecationIn ctx branch loc target
               return standing <> None
             | _ -> return false
           }
@@ -269,6 +272,7 @@ let inTransaction (f : Ctx -> Task<'a>) : Task<'a> =
     do
       use pragma = conn.CreateCommand()
       pragma.CommandText <- "PRAGMA busy_timeout=5000;"
+      Telemetry.count "sql.init"
       pragma.ExecuteNonQuery() |> ignore<int>
     use tx = conn.BeginTransaction()
     let ctx = newCtx conn
@@ -353,6 +357,38 @@ let carryDependencyNames
             | None when row.owner = "" -> latest 0 row.hash
             | None -> row.hash
           { row with itemHash = toHash; hash = callee }))
+    // A name the new body already reaches its callee through keeps what the body says. Copying the
+    // previous version's row for that name too would leave a second row on the callee's old hash,
+    // and a caller repointed twice in one save (once for each of two edited names it reaches) then
+    // reads as still calling the old version.
+    let tos =
+      repoints
+      |> List.map (fun r -> let (Hash h) = r.toRef.hash in [ h ])
+      |> List.distinct
+    let! own =
+      Sql.query
+        "SELECT d.item_hash, d.depends_on_item_type, d.depends_on_owner, d.depends_on_modules,
+                d.depends_on_name
+         FROM json_each(@tos) j JOIN package_dependencies d
+           ON d.item_hash = json_extract(j.value, '$[0]')
+         WHERE d.depends_on_owner <> ''"
+      |> Sql.parameters [ "tos", Sql.string (jsonRows tos) ]
+      |> Sql.executeAsync (fun read ->
+        (read.string "item_hash",
+         read.string "depends_on_item_type",
+         read.string "depends_on_owner",
+         read.string "depends_on_modules",
+         read.string "depends_on_name"))
+    let ownNames = Set.ofList own
+    let rows =
+      rows
+      |> List.filter (fun (row : PackageOpPlayback.DependencyRow) ->
+        row.owner = ""
+        || not (
+          Set.contains
+            (row.itemHash, row.kind, row.owner, row.modules, row.name)
+            ownNames
+        ))
     if not (List.isEmpty rows) then
       do!
         inTransaction (fun ctx ->

@@ -110,9 +110,12 @@ let keepsAnOpItCannotRead =
 
     // A Deprecate in the draft as well, so the discard drops a row from every layered table.
     let target = PT.Reference.PackageFn(hashBoundTo editOps "u")
+    let uAt : PT.PackageLocation =
+      { owner = "Darklang"; modules = [ m ]; name = "u" }
     let! _ =
       Inserts.insertAndApplyOps
         [ PT.PackageOp.Deprecate(
+            uAt,
             target,
             PT.DeprecationKind.Harmful,
             "draft test",
@@ -127,7 +130,10 @@ let keepsAnOpItCannotRead =
     let! afterHash = liveHash m "u"
     Expect.equal afterHash committedHash "the discard still did its job"
     let! deprecated =
-      LibDB.Queries.getCurrentDeprecation (hashBoundTo editOps "u") PT.ItemKind.Fn
+      LibDB.Queries.getCurrentDeprecation
+        uAt
+        (hashBoundTo editOps "u")
+        PT.ItemKind.Fn
     Expect.isNone deprecated "and took the deprecation with it"
 
     for id in [ alienCommitted; alienDraft ] do

@@ -165,6 +165,7 @@ let main (args : string array) : int =
     let tests =
       [ // core
         Tests.Prelude.tests
+        Tests.Normalization.tests
         Tests.ProgramTypesToRuntimeTypes.tests
         Tests.Interpreter.tests
         Tests.Scheduler.tests

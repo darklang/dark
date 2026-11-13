@@ -13,6 +13,8 @@
     <Compile Include="Regex.fs" />
     <Compile Include="Tuple2.fs" />
     <Compile Include="UTF8.fs" />
+    <Compile Include="NormalizationData.fs" />
+    <Compile Include="Normalization.fs" />
     <Compile Include="String.fs" />
     <Compile Include="TextWidth.fs" />
     <Compile Include="Lookup.fs" />

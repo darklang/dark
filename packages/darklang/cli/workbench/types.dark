@@ -263,10 +263,11 @@ type State =
     matter: MatterState
     /// In-view find-as-you-type filter (`f`); "" = no filter. Narrows the current list by substring.
     filter: String
-    /// The Code view's item page, built on the transition (`refreshPreview`). It reads the store
-    /// several times over, so building it per frame cost every scroll and command-bar key the
-    /// same as moving to a new item. `None` whenever the store may have moved under it.
-    preview: Stdlib.Option.Option<PreviewCache>
+    /// The Code view's item pages, newest first, built on the transition (`refreshPreview`). A page
+    /// reads the store several times over, so building it per frame cost every scroll and
+    /// command-bar key the same as moving to a new item, and keeping only the last one rebuilt it
+    /// on every move back. Empty whenever the store may have moved under them.
+    previews: List<PreviewCache>
     branchId: Uuid }
 
 /// A single-line text entry. `action` tags what Enter does (e.g. "commit").

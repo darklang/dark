@@ -2536,7 +2536,7 @@ and parseInterpString (state : ParserState) (i : int) : WT.Expr * int =
       // triple-quoted `$"""…"""` stays raw but is NFC-normalized (like `unescape`)
       // so both lowerings see canonical bytes.
       let segText =
-        if triple then deDoubled.Normalize() else Lexer.unescape deDoubled
+        if triple then String.normalize deDoubled else Lexer.unescape deDoubled
       contents.Add(WT.StringText(rangeAt textStart endOff, segText))
   while go && k < m do
     let atClose =
@@ -3058,6 +3058,19 @@ and private parseLambdaParamList
     (patsRev, m)
   else
     let (p, m2) = parseLetPattern state m
+    // `fun (u: Unit) ->`: say it once and read past the type, so the rest of the lambda
+    // does not turn into a run of follow-on errors
+    let m2 =
+      if tok state m2 = TColon then
+        err
+          state
+          DiagnosticCode.unexpected
+          m2
+          "a lambda's parameters take no type annotation; write `fun u ->`"
+        let (_, afterType) = parseTypeRef state (m2 + 1)
+        afterType
+      else
+        m2
     let patsRev = p :: patsRev
     if tok state m2 = TComma then
       parseLambdaParamList state patsRev (m2 + 1)
@@ -3338,10 +3351,18 @@ and private parseDictEntries
     if kAfterKey <= k then
       errExpected state k "a dict entry 'key: value'"
       (entriesRev, k)
-    elif tok state kAfterKey <> TColon then
+    elif tok state kAfterKey <> TColon && tok state kAfterKey <> TEquals then
       errExpected state kAfterKey "`:` between a dict key and its value"
       (entriesRev, k)
     else
+      // `key = value` is a record field written in a dict. Say so once and read on as if it
+      // were `:`, so the rest of the dict does not turn into a screenful of follow-on errors.
+      if tok state kAfterKey = TEquals then
+        err
+          state
+          DiagnosticCode.expected
+          kAfterKey
+          "a dict entry is `\"key\": value`, with a `:`; `=` is for record fields"
       let colonR = rng state kAfterKey
       let (value, k2) = parseExpr state (kAfterKey + 1)
       let entriesRev =
@@ -4704,7 +4725,11 @@ let private parseSyntaxWithRootScope
           message = m
           related = []
           hint = None })
-    { result with diagnostics = lexDiagnostics @ result.diagnostics }
+    // in source order, so the first error printed is the first one in the file
+    { result with
+        diagnostics =
+          lexDiagnostics @ result.diagnostics
+          |> List.sortBy (fun d -> (d.range.start.row, d.range.start.column)) }
 
 let private parseRecovering
   (rootScope : ItemScope)

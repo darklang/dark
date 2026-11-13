@@ -854,38 +854,26 @@ let private stampedWith
 
 
 /// What dispatch on <param branch> may pick among <param impls>: the ones the branch binds at a name,
-/// not deprecated there, each stamped with its op's time. One query per branch for the bound set,
-/// cached with everything else, where asking each impl's names cost a query or two per impl.
-let private candidatesOn =
-  let live =
-    Caching.withCache (fun (branch : PT.BranchId) ->
-      PMPT.TraitImpl.liveHashes branch |> Ply.map Some)
-  let stamps : ref<Option<Map<string, string>>> = ref None
-  Caching.register (fun () -> stamps.Value <- None)
-  fun (branch : PT.BranchId) (impls : List<PT.TraitImpl.TraitImpl>) ->
-    uply {
-      let! bound = live branch
-      let! deprecated = Queries.getDeprecatedTraitImplHashesFor branch
-      let! stampMap =
-        match stamps.Value with
-        | Some m -> Ply m
-        | None ->
-          uply {
-            let! m = Queries.getTraitImplStamps ()
-            stamps.Value <- Some m
-            return m
-          }
-      let isCandidate (i : PT.TraitImpl.TraitImpl) =
-        let (Hash h) = i.hash
-        (bound |> Option.exists (fun b -> b.Contains h))
-        && not (Set.contains h deprecated)
-      return
-        impls
-        |> List.filter isCandidate
-        |> List.choose PT2RT.ImplCandidate.ofImpl
-        |> List.distinctBy (fun c -> c.source)
-        |> List.map (stampedWith stampMap)
-    }
+/// not deprecated there, each stamped with its op's time.
+let private candidatesOn
+  (branch : PT.BranchId)
+  (impls : List<PT.TraitImpl.TraitImpl>)
+  : Ply<List<RT.ImplCandidate>> =
+  uply {
+    let hashes = impls |> List.map (fun i -> let (Hash h) = i.hash in h)
+    let! bound = PMPT.TraitImpl.liveAmong branch hashes
+    let! deprecated = Queries.getDeprecatedTraitImplHashesFor branch
+    let! stampMap = Queries.getTraitImplStampsFor hashes
+    let isCandidate (i : PT.TraitImpl.TraitImpl) =
+      let (Hash h) = i.hash
+      bound.Contains h && not (Set.contains h deprecated)
+    return
+      impls
+      |> List.filter isCandidate
+      |> List.choose PT2RT.ImplCandidate.ofImpl
+      |> List.distinctBy (fun c -> c.source)
+      |> List.map (stampedWith stampMap)
+  }
 
 
 // TODO: bring back eager loading

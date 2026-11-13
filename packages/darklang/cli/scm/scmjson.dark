@@ -186,9 +186,11 @@ let changeKind(
   existed: Bool,
   previous: List<LanguageTools.ProgramTypes.Hash>)
   : String =
-  match previous with
-  | [] -> if existed then "updated" else "new"
-  | [prev, ...] ->
+  // a name saved more than once in the draft but never committed is still new
+  match (existed, previous) with
+  | (false, _) -> "new"
+  | (true, []) -> "updated"
+  | (true, [prev, ...]) ->
     if b.itemType != "fn" then
       "updated"
     else
