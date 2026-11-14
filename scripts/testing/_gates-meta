@@ -142,5 +142,24 @@ gate_perf_probes_run() {
   done
 
   echo "  ran ${#probes[@]} probe(s), ${#failed[@]} failed"
+
+  # scripts/perf/http has no other caller either. Its own HOME: it grants permissions.
+  started=$SECONDS
+  work=$(realpath -m rundir/perf-http)/.darklang
+  rm -rf "$work"
+  mkdir -p "$work/logs"
+  scripts/testing/_copy-store "$work/data.db"
+  sqlite3 "$work/data.db" "DELETE FROM config_v0;"
+  out=$(HOME="${work%/.darklang}" scripts/perf/http --cli "$(realpath "$CLI")" -n 20 -c 2 -p 1 < /dev/null 2>&1)
+  rc=$?
+  elapsed=$(( SECONDS - started ))
+  if [[ $rc -ne 0 ]]; then
+    failed+=("scripts/perf/http")
+    echo "  FAIL scripts/perf/http (exit $rc, ${elapsed}s)"
+    printf "%s\n" "$out" | sed "s/^/        /"
+  else
+    echo "  ok   scripts/perf/http (${elapsed}s)"
+  fi
+
   [[ ${#failed[@]} -eq 0 ]]
 }

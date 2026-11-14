@@ -50,7 +50,8 @@ let serve(port: Stdlib.Net.Port): Int64 =
   match
     Stdlib.HttpServer.serve(
       (Stdlib.HttpServer.Config.Config
-        { port = port
+        { address = "127.0.0.1"
+          port = port
           maxBodyBytes = 1048576
           injectStandardHeaders = true
           canonicalizeFromForwardedProto = false
