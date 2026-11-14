@@ -10,7 +10,7 @@ type Error =
 
 /// Result of a stat() call.
 type StatResult =
-  { mode: Int64
+  { mode: FileMode
     size: Int64
     mtimeSec: Int64 }
 
@@ -89,14 +89,91 @@ impl Inspect for ExitCode =
     $"ExitCode({code.__exitCode})"
 
 
+/// An open file descriptor, as <fn openFile> hands one back; the field is not for constructing
+/// directly.
+type Fd =
+  { __fd: BigInt }
+
+
+impl Display for Fd =
+  /// The descriptor's number, {{3}}
+  let display(fd: Fd): String =
+    Stdlib.display(fd.__fd)
+
+
+impl Inspect for Fd =
+  /// {{Fd(3)}}: the field is private, so not the record
+  let inspect(fd: Fd): String =
+    $"Fd({fd.__fd})"
+
+
+/// A file mode, 0 to 65535: permission bits, and in a <type StatResult> the file type too.
+/// Build one with <fn FileMode.fromInt64>, or name one (<val Modes.defaultFile>); the field is
+/// not for constructing directly.
+type FileMode =
+  { __mode: Int64 }
+
+
+module FileMode =
+  /// Returns {{Ok}} the mode <param n>, or {{Error}} an
+  /// <type Stdlib.Math.OutOfRange> if it is not between 0 and 65535.
+  let fromInt64(n: Int64): Result<FileMode, Math.OutOfRange> =
+    Math.__inRange("file mode", 0, 65535, n, fun v -> FileMode { __mode = v })
+
+
+  /// The number of <param mode>
+  let toInt64(mode: FileMode): Int64 =
+    mode.__mode
+
+
+  /// The read, write and execute bits of <param mode>, for owner, group and others
+  let permissions(mode: FileMode): FileMode =
+    FileMode { __mode = mode.__mode & 511 }
+
+
+  /// The file type bits of <param mode>, to compare with <val StatMode.ifdir>
+  let fileType(mode: FileMode): FileMode =
+    FileMode { __mode = mode.__mode & 61440 }
+
+
+  let __octal(n: Int64): String =
+    let rest = Int64.checkedDivide(n, 8) |> Result.withDefault(0)
+    let digit = display(n & 7)
+    if rest == 0 then digit else __octal(rest) + digit
+
+
+impl Display for FileMode =
+  /// The mode in octal, {{0644}}
+  let display(mode: FileMode): String =
+    "0" + __octal(mode.__mode)
+
+
+impl Inspect for FileMode =
+  /// {{FileMode(0644)}}: the field is private, so not the record
+  let inspect(mode: FileMode): String =
+    $"FileMode({display(mode)})"
+
+
 /// Standard permission modes
 module Modes =
   /// 0755 — owner rwx, group rx, others rx
-  val defaultDir = 493
+  val defaultDir = FileMode { __mode = 493 }
 
 
   /// 0644 — owner rw, group r, others r
-  val defaultFile = 420
+  val defaultFile = FileMode { __mode = 420 }
+
+
+  /// 0600 — owner rw only
+  val ownerOnly = FileMode { __mode = 384 }
+
+
+  /// 0700 — owner rwx only
+  val ownerOnlyDir = FileMode { __mode = 448 }
+
+
+  /// 0, for an open that creates nothing
+  val none = FileMode { __mode = 0 }
 
 
 // -- Open flags ---------------------------------------------------
@@ -116,32 +193,34 @@ module OpenFlags =
 
 /// Open a file. Read-only opens follow symlinks when the target is permitted; writes do not.
 /// Returns a file descriptor or an I/O error. Permission denials raise.
-let openFile(path: String, flags: Int64, mode: Int64): Result<BigInt, Error> =
-  Builtin.syscallOpen(path, flags, mode) |> Result.mapError(__fromErrno)
+let openFile(path: String, flags: Int64, mode: FileMode): Result<Fd, Error> =
+  Builtin.syscallOpen(path, flags, mode.__mode)
+  |> Result.map(fun fd -> Fd { __fd = fd })
+  |> Result.mapError(__fromErrno)
 
 
 /// Read up to `count` bytes from an open file descriptor.
-let fdRead(fd: BigInt, count: Int64): Result<Bytes, Error> =
-  Builtin.syscallRead(fd, count) |> Result.mapError(__fromErrno)
+let fdRead(fd: Fd, count: Int64): Result<Bytes, Error> =
+  Builtin.syscallRead(fd.__fd, count) |> Result.mapError(__fromErrno)
 
 
 /// Write <param bytes> to an open file descriptor. Returns the number
 /// of bytes written.
-let fdWrite(fd: BigInt, bytes: Bytes): Result<Int64, Error> =
+let fdWrite(fd: Fd, bytes: Bytes): Result<Int64, Error> =
   __writeAll(
-    (fun chunk -> Builtin.syscallWrite(fd, chunk) |> Result.mapError(__fromErrno)),
+    (fun chunk -> Builtin.syscallWrite(fd.__fd, chunk) |> Result.mapError(__fromErrno)),
     bytes,
     0)
 
 
 /// Close an open file descriptor.
-let fdClose(fd: BigInt): Result<Unit, Error> =
-  Builtin.syscallClose(fd) |> Result.mapError(__fromErrno)
+let fdClose(fd: Fd): Result<Unit, Error> =
+  Builtin.syscallClose(fd.__fd) |> Result.mapError(__fromErrno)
 
 
 /// Read all bytes from a file descriptor until EOF.
 /// Accumulates chunks (as Bytes) and concats once at EOF.
-let fdReadAll(fd: BigInt, acc: List<Bytes>): Result<Bytes, Error> =
+let fdReadAll(fd: Fd, acc: List<Bytes>): Result<Bytes, Error> =
   fdRead(fd, 4096)
   |> Result.andThen(fun chunk ->
     if Bytes.length(chunk) == 0 then
@@ -151,8 +230,8 @@ let fdReadAll(fd: BigInt, acc: List<Bytes>): Result<Bytes, Error> =
 
 
 /// Seek to a byte offset from the start of an open file.
-let fdSeekFromStart(fd: BigInt, offset: Int64): Result<Int64, Error> =
-  Builtin.syscallLseek(fd, offset, 0) |> Result.mapError(__fromErrno)
+let fdSeekFromStart(fd: Fd, offset: Int64): Result<Int64, Error> =
+  Builtin.syscallLseek(fd.__fd, offset, 0) |> Result.mapError(__fromErrno)
 
 
 /// Stat a file. Returns mode, size, and modification time.
@@ -175,8 +254,8 @@ let chdir(path: String): Result<Unit, Error> =
 
 
 /// Create a directory
-let mkdir(path: String, mode: Int64): Result<Unit, Error> =
-  Builtin.syscallMkdir(path, mode) |> Result.mapError(__fromErrno)
+let mkdir(path: String, mode: FileMode): Result<Unit, Error> =
+  Builtin.syscallMkdir(path, mode.__mode) |> Result.mapError(__fromErrno)
 
 
 /// Remove an empty directory
@@ -195,8 +274,8 @@ let rename(oldpath: String, newpath: String): Result<Unit, Error> =
 
 
 /// Change file permissions
-let chmod(path: String, mode: Int64): Result<Unit, Error> =
-  Builtin.syscallChmod(path, mode) |> Result.mapError(__fromErrno)
+let chmod(path: String, mode: FileMode): Result<Unit, Error> =
+  Builtin.syscallChmod(path, mode.__mode) |> Result.mapError(__fromErrno)
 
 
 /// Update atime and mtime to now.
@@ -231,7 +310,7 @@ let isSymlink(path: String): Result<Bool, Error> =
 
 
 /// Create a unique temporary file. Returns (fd, path).
-let mkstemp(prefix: String): Result<(BigInt * String), Error> =
+let mkstemp(prefix: String): Result<(Fd * String), Error> =
   __tempFile(prefix)
 
 
@@ -249,13 +328,13 @@ type Lock =
 
 
 /// Take or release an advisory lock on the open file <param fd>.
-let flock(fd: BigInt, lock: Lock): Result<Unit, Error> =
+let flock(fd: Fd, lock: Lock): Result<Unit, Error> =
   let operation =
     match lock with
     | Exclusive -> 2
     | Unlock -> 8
 
-  Builtin.syscallFlock(fd, operation) |> Result.mapError(__fromErrno)
+  Builtin.syscallFlock(fd.__fd, operation) |> Result.mapError(__fromErrno)
 
 
 /// Get the owner username of a file.
@@ -351,11 +430,15 @@ module Errno =
 /// Stat file-type mask and constants
 module StatMode =
   /// S_IFMT — bitmask for the file type fields
-  val ifmt = 61440
+  val ifmt = FileMode { __mode = 61440 }
 
 
   /// S_IFDIR — directory
-  val ifdir = 16384
+  val ifdir = FileMode { __mode = 16384 }
+
+
+  /// S_IFREG — regular file
+  val ifreg = FileMode { __mode = 32768 }
 
 
 /// Sleep for the given number of milliseconds.
@@ -371,7 +454,7 @@ let isDirectory(path: String): Bool =
   | Ok(true) -> false
   | _ ->
     match stat(path) with
-    | Ok(result) -> result.mode & StatMode.ifmt == StatMode.ifdir
+    | Ok(result) -> FileMode.fileType(result.mode) == StatMode.ifdir
     | Error(_) -> false
 
 
@@ -538,7 +621,7 @@ let __byteRange(width: Int64): Int64 =
 
 
 type __KernelMetadata =
-  { mode: Int64
+  { mode: FileMode
     size: Int64
     mtimeSec: Int64
     uid: Int64
@@ -560,7 +643,7 @@ let __kernelMetadata(bytes: Bytes): Result<__KernelMetadata, Int64> =
             __kernelField(bytes, __abiStatInodeOffset(), 8)
             |> Result.map(fun inode ->
               __KernelMetadata
-                { mode = mode
+                { mode = FileMode { __mode = mode }
                   size = size
                   mtimeSec = mtime
                   uid = uid
@@ -604,8 +687,8 @@ let __kernelEntries(bytes: Bytes, reversed: List<String>): Result<List<String>, 
 
 
 /// Directory iteration and record decoding over single-call kernel primitives.
-let __directoryReadAll(fd: BigInt, reversed: List<String>): Result<List<String>, Int64> =
-  match Builtin.syscallGetdents(fd, 32768) with
+let __directoryReadAll(fd: Fd, reversed: List<String>): Result<List<String>, Int64> =
+  match Builtin.syscallGetdents(fd.__fd, 32768) with
   | Error(e) -> if e == 4 then __directoryReadAll(fd, reversed) else Result.Error(e)
   | Ok(bytes) ->
     if Bytes.length(bytes) == 0 then
@@ -617,7 +700,7 @@ let __directoryReadAll(fd: BigInt, reversed: List<String>): Result<List<String>,
 
 
 let __directoryList(path: String): Result<List<String>, Error> =
-  match openFile(path, __abiOpenDirectory(), 0) with
+  match openFile(path, __abiOpenDirectory(), Modes.none) with
   | Error(e) -> Result.Error(e)
   | Ok(fd) ->
     let result = __directoryReadAll(fd, []) |> Result.mapError(__fromErrno)
@@ -1296,13 +1379,13 @@ let __tempRetry(create: Int64 -> Result<'a, Error>, remaining: Int64): Result<'a
 
 /// Suffix creation and collision policy are shared Dark algorithms. O_EXCL is
 /// what makes creation safe; randomness alone does not protect against races.
-let __tempFile(prefix: String): Result<(BigInt * String), Error> =
+let __tempFile(prefix: String): Result<(Fd * String), Error> =
   __tempRetry(
     (fun _ ->
        __tempCandidate(prefix)
        |> Result.andThen(fun path ->
          let flags = 2 | __abiOpenCreate() | __abiOpenExclusive()
-         openFile(path, flags, 384) |> Result.map(fun fd -> (fd, path)))),
+         openFile(path, flags, Modes.ownerOnly) |> Result.map(fun fd -> (fd, path)))),
     100)
 
 
@@ -1310,7 +1393,7 @@ let __tempDirectory(prefix: String): Result<String, Error> =
   __tempRetry(
     (fun _ ->
        __tempCandidate(prefix)
-       |> Result.andThen(fun path -> mkdir(path, 448) |> Result.map(fun _ -> path))),
+       |> Result.andThen(fun path -> mkdir(path, Modes.ownerOnlyDir) |> Result.map(fun _ -> path))),
     100)
 
 
