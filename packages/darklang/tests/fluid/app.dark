@@ -1,0 +1,1833 @@
+module Darklang.Fluid.Tests.App
+
+// Smoke tests for the full-screen app's VIEW path: App.view is pure (State + Size -> View), so we can
+// render it here without a terminal and catch "not found" / crash bugs that the pure kernel tests miss.
+
+module Fixtures =
+  let reg(): Fluid.Registry =
+    Fluid.Registry.ofList(
+      Stdlib.List.flatten(
+        [ Fluid.Prims.specs(), Fluid.PT.specs(), Fluid.PT.Types.specs() ]))
+
+
+  let size(): Stdlib.Cli.Tui.Size =
+    Stdlib.Cli.Tui.Size { width = 110, height = 26 }
+
+
+  let narrow(): Stdlib.Cli.Tui.Size =
+    Stdlib.Cli.Tui.Size { width = 60, height = 20 }
+
+
+  let stateOf(editor: Fluid.Editor.State): Fluid.App.State =
+    Fluid.App.State
+      { editor = editor
+        title = "fluid: test"
+        scroll = 0
+        hscroll = 0
+        target = Fluid.App.Target.Scratch
+        theme = Fluid.Theme.default()
+        bodyRows = 20
+        bodyCols = 100
+        inspectorOpen = false
+        evaluated = Stdlib.Option.Option.None
+        textMode = Stdlib.Option.Option.None
+        savedRoot = editor.root
+        confirmingExit = false
+        pendingEdit = Stdlib.Option.Option.None
+        demo = Stdlib.Option.Option.None
+        demoPick = Stdlib.Option.Option.None
+        helpOpen = false }
+
+
+  let hole(): Fluid.Slot =
+    Fluid.Slot.Empty(Fluid.PT.exprExpect("expression"))
+
+
+  let docOf(src: String): Fluid.Slot =
+    match LanguageTools.Parser.Parse.parsePTExpr(src) with
+    | Ok(e) -> Fluid.Slot.Filled(Fluid.PT.toDoc(e))
+    | Error(_) -> Fluid.Slot.Empty(Fluid.PT.exprExpect("expr"))
+
+
+  let chars(s: String): List<String> =
+    Stdlib.String.toList(s) |> Stdlib.List.map(fun c -> Stdlib.display(c))
+
+
+  let editorFor(keys: List<String>): Fluid.Editor.State =
+    Fluid.Test.drive(
+      Fluid.Editor.init(
+        reg(),
+        Fluid.Slot.Empty(Fluid.PT.exprExpect("expression")),
+        56),
+      keys)
+
+
+  /// The horizontal scroll the app would carry, computed the way `afterKey` does. Not through `afterKey`
+  /// itself, which asks the terminal for its size and so cannot run here.
+  let hscrollAfter(keys: List<String>, prev: Int64): Int64 =
+    Fluid.Widget.hscrollFor(Fluid.Widget.caretCol(editorFor(keys)), 54, prev)
+
+
+  /// The character the terminal cursor would be sitting on.
+  let glyphUnderCursor(keys: List<String>, hscroll: Int64): String =
+    let st = { stateOf(editorFor(keys)) with hscroll = hscroll }
+    let v = Fluid.App.view(st, Stdlib.Cli.Tui.Size { width = 56, height = 22 })
+    match v.cursor with
+    | Visible(row, col) ->
+      match Stdlib.List.getAt(v.rows, row) with
+      | Some(r) ->
+        match Stdlib.List.getAt(
+                Stdlib.String.toList(Stdlib.Cli.Tui.Text.stripSgr(r)),
+                col) with
+        | Some(ch) -> Stdlib.display(ch)
+        | None -> "<past end>"
+      | None -> "<no row>"
+    | Hidden -> "<hidden>"
+
+
+  // Render the app after driving `keys`, at `size`; return the number of non-empty rows drawn.
+  let drawnRows(
+    src: String,
+    keys: List<String>,
+    size: Stdlib.Cli.Tui.Size)
+    : Int64 =
+    let ed = Fluid.Test.drive(Fluid.Editor.init(reg(), docOf(src), 60), keys)
+    let v = Fluid.App.view(stateOf(ed), size)
+    v.rows
+    |> Stdlib.List.filter(fun r ->
+      Stdlib.String.trim(Stdlib.Cli.Tui.Text.stripSgr(r)) != "")
+    |> Stdlib.List.length
+
+
+module Smoke =
+  test smoke =
+    Stdlib.Test.all(
+      // The view renders something for a plain document, on a wide screen (framed pane + inspector).
+      [ Stdlib.Test.equal(
+          Fixtures.drawnRows("if x > 2 then [1, 2] else 3", [], Fixtures.size())
+          > 5,
+          true)
+
+        // ... after navigating into the tree (exercises breadcrumb + inspector "ON"/actions).
+        Stdlib.Test.equal(
+          Fixtures.drawnRows(
+            "if x > 2 then [1, 2] else 3",
+            [ "j", "j" ],
+            Fixtures.size())
+          > 5,
+          true)
+
+        // ... with the palette open (exercises the overlay + visibleActions).
+        Stdlib.Test.equal(
+          Fixtures.drawnRows(
+            "if x > 2 then [1, 2] else 3",
+            [ ":" ],
+            Fixtures.size())
+          > 5,
+          true)
+
+        // ... on a hole with completion showing (exercises the popover + candidates in the inspector).
+        Stdlib.Test.equal(
+          Fixtures.drawnRows("", [ "l", "e" ], Fixtures.size()) > 3,
+          true)
+
+        // ... and it degrades on a narrow screen (inspector dropped, no crash).
+        Stdlib.Test.equal(
+          Fixtures.drawnRows("if x > 2 then 1 else 2", [], Fixtures.narrow())
+          > 3,
+          true) ])
+
+
+module InspectorLabels =
+  // The inspector's sections read as one consistent uppercase list. On an empty hole it leads with an
+  // EXPECTS header; the ACTIONS header carries no stray colon.
+  let screenText(src: String, keys: List<String>): String =
+    let ed =
+      Fluid.Test.drive(
+        Fluid.Editor.init(Fixtures.reg(), Fixtures.docOf(src), 60),
+        keys)
+
+    // These are about what the PANEL says, and the panel is on demand now, so open it.
+    let v =
+      Fluid.App.view(
+        { Fixtures.stateOf(ed) with inspectorOpen = true },
+        Fixtures.size())
+
+    v.rows
+    |> Stdlib.List.map(fun r -> Stdlib.Cli.Tui.Text.stripSgr(r))
+    |> Stdlib.String.join("\n")
+
+
+  test inspectorLabels =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          Stdlib.String.contains(InspectorLabels.screenText("", []), "EXPECTS"),
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(InspectorLabels.screenText("", []), "ACTIONS"),
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            InspectorLabels.screenText("", []),
+            "ACTIONS  :"),
+          false)
+
+        // Completions live at the caret now, so the panel does NOT carry a COMPLETE section; while typing, its
+        // header reads TYPING and the candidate itself shows in the popover (its label is on screen).
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            InspectorLabels.screenText("", [ "l", "e" ]),
+            "COMPLETE"),
+          false)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            InspectorLabels.screenText("", [ "l", "e" ]),
+            "TYPING"),
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            InspectorLabels.screenText("", [ "l", "e" ]),
+            "let"),
+          true) ])
+
+
+module CompletionOverflow =
+  test completionOverflow =
+    Stdlib.Test.all(
+      // When the completion list is capped, the panel says how many more there are, so a long list doesn't
+      // masquerade as the whole set. A short list shows no such line.
+      // Tab to reach the BODY hole, which is where the long menu is. The trailing space alone used to land
+      // there; it now leaves the caret on the `1` it settled, so the menu is short and this would be testing
+      // nothing. The overflow behaviour itself is unchanged.
+      [ Stdlib.Test.equal(
+          Stdlib.String.contains(
+            InspectorLabels.screenText(
+              "",
+              [ "l", "e", "t", " ", "x", " ", "1", " ", "<Tab>" ]),
+            "more"),
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            InspectorLabels.screenText("", [ "l", "e" ]),
+            "more"),
+          false) ])
+
+
+module TextMode =
+  test textMode =
+    Stdlib.Test.all(
+      // Ctrl-E drops to plain text: the current document prints to source, and edited source parses back.
+      // The round-trip (source -> doc -> source) is stable, which is what makes the switch safe.
+      [ Stdlib.Test.equal(
+          Fluid.App.docToSource(Fixtures.docOf("1 + 2 * 3")),
+          "1 + 2 * 3")
+
+        Stdlib.Test.equal(
+          Fluid.App.docToSource(Fixtures.docOf("if b then 1 else 2")),
+          "if b then 1 else 2")
+
+        Stdlib.Test.equal(
+          (match Fluid.App.sourceToDoc("[1, 2, 3]") with
+           | Ok(s) -> Fluid.App.docToSource(s)
+           | Error(e) -> "err: " + e),
+          "[ 1, 2, 3 ]")
+
+        // A multi-line construct survives the trip too.
+        Stdlib.Test.equal(
+          (match Fluid.App.sourceToDoc("let x = 1\nx") with
+           | Ok(s) -> Fluid.App.docToSource(s)
+           | Error(e) -> "err: " + e),
+          "let x = 1\nx") ])
+
+
+module TextEditGuard =
+  // parsePTExpr fills gaps rather than failing, so applying garbage would silently mangle the expression.
+  // The guard catches placeholders the parser invented (a `()` or `_` the text never mentioned).
+  let verdict(src: String): String =
+    match Fluid.App.sourceToDoc(src) with
+    | Ok(s) ->
+      match Fluid.App.textEditProblem(src, s) with
+      | Some(_) -> "reject"
+      | None -> "ok"
+    | Error(_) -> "reject"
+
+
+  test textEditGuard =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(TextEditGuard.verdict("let ="), "reject")
+        Stdlib.Test.equal(TextEditGuard.verdict("(((("), "reject")
+        Stdlib.Test.equal(TextEditGuard.verdict("if if if"), "reject")
+        // Valid code is accepted, including code that legitimately contains unit or a wildcard, and a lambda
+        // (which the printer parenthesises) -- no false positives.
+        Stdlib.Test.equal(TextEditGuard.verdict("1 + 2"), "ok")
+        Stdlib.Test.equal(TextEditGuard.verdict("let x = 1\nx"), "ok")
+        Stdlib.Test.equal(TextEditGuard.verdict("()"), "ok")
+        Stdlib.Test.equal(TextEditGuard.verdict("if b then () else ()"), "ok")
+        Stdlib.Test.equal(TextEditGuard.verdict("let _ = 1\n2"), "ok")
+        Stdlib.Test.equal(TextEditGuard.verdict("fun x -> x"), "ok") ])
+
+
+module TextModeReadiness =
+  // Entering text mode on a document that can't be printed yet (a half-typed name) must say why -- it used
+  // to hand back an empty string, which would open a blank buffer over real work and then apply it.
+  let srcOf(keys: List<String>): String =
+    let ed =
+      Fluid.Test.drive(
+        Fluid.Editor.init(
+          Fixtures.reg(),
+          Fluid.Slot.Empty(Fluid.PT.exprExpect("expression")),
+          60),
+        keys)
+
+    match Fluid.App.docToSourceResult(ed.root) with
+    | Ok(s) -> "ok:" + s
+    | Error(_) -> "error"
+
+
+  test textModeReadiness =
+    Stdlib.Test.all(
+      // A bare half-typed name, and a let whose body is still an unsettled name.
+      [ Stdlib.Test.equal(TextModeReadiness.srcOf([ "l", "e" ]), "error")
+
+        Stdlib.Test.equal(
+          TextModeReadiness.srcOf(
+            [ "l", "e", "t", " ", "x", " ", "1", " ", "y" ]),
+          "error")
+
+        // A complete document prints; an untouched hole is simply an empty buffer.
+        Stdlib.Test.equal(
+          TextModeReadiness.srcOf([ "1", "+", "2" ]),
+          "ok:1 + 2")
+
+        Stdlib.Test.equal(TextModeReadiness.srcOf([]), "ok:") ])
+
+
+module TextModeScope =
+  // Ctrl-E from NAV edits just the SELECTED node: printing is scoped to its path, and applying splices the
+  // re-parsed node back there, leaving the rest of the expression alone.
+  let thenPath(): Fluid.Path =
+    [ Fluid.Step.Into("then") ]
+
+
+  test textModeScope =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          (match Fluid.slotAtPath(
+                   Fixtures.docOf("if b then [1, 2] else 3"),
+                   TextModeScope.thenPath()) with
+           | Some(s) -> Fluid.App.docToSource(s)
+           | None -> "none"),
+          "[ 1, 2 ]")
+
+        Stdlib.Test.equal(
+          (let ed =
+             Fluid.Editor.init(
+               Fixtures.reg(),
+               Fixtures.docOf("if b then [1, 2] else 3"),
+               60)
+           let replacement =
+             match Fluid.App.sourceToDoc("[1, 2, 9]") with
+             | Ok(s) -> s
+             | Error(_) -> Fluid.Slot.Empty(Fluid.PT.exprExpect("x"))
+           let spliced =
+             Fluid.Editor.commit(
+               ed,
+               [ Fluid.Edit.Replace(TextModeScope.thenPath(), replacement) ],
+               ed.caret)
+           Fluid.App.docToSource(spliced.root)),
+          "if b then [ 1, 2, 9 ] else 3") ])
+
+
+module TextPaneWindow =
+  // The text pane draws a window on the buffer: `Layout.at` silently drops rows past the bottom, so a
+  // buffer taller than the pane used to hide its own tail while the caret walked off-screen. `textTop`
+  // picks which line sits at the top.
+  let linesOf(n: Int64): List<String> =
+    Stdlib.List.range(1, n) |> Stdlib.List.map(fun i -> Stdlib.display(i))
+
+
+  test textPaneWindow =
+    Stdlib.Test.all(
+      // A buffer that fits never scrolls, wherever the caret is.
+      [ Stdlib.Test.equal(
+          Fluid.App.textTop(TextPaneWindow.linesOf(5), 0, 10),
+          0)
+
+        Stdlib.Test.equal(
+          Fluid.App.textTop(TextPaneWindow.linesOf(5), 4, 10),
+          0)
+
+        // A taller buffer: the top of it is visible on entry, and the caret at the end scrolls exactly far
+        // enough to show the last line -- never past it, which would draw blank rows under the tail.
+        Stdlib.Test.equal(
+          Fluid.App.textTop(TextPaneWindow.linesOf(14), 0, 10),
+          0)
+
+        Stdlib.Test.equal(
+          Fluid.App.textTop(TextPaneWindow.linesOf(14), 13, 10),
+          4)
+
+        // Mid-buffer, the window keeps a couple of lines of lookahead below the caret.
+        Stdlib.Test.equal(
+          Fluid.App.textTop(TextPaneWindow.linesOf(14), 9, 10),
+          2)
+
+        Stdlib.Test.equal(
+          Fluid.App.textTop(TextPaneWindow.linesOf(14), 7, 10),
+          0) ])
+
+
+module PanelOnDemand =
+  // Redesign step 2: the code is the hero and gets the full width. The always-on context rail is now
+  // opened with `?`, and what it said constantly moved to where it is actually needed -- completions to
+  // the caret popover (step 1), and "what does this hole expect" to the status line.
+  let stateWith(open_: Bool, editor: Fluid.Editor.State): Fluid.App.State =
+    { Fixtures.stateOf(editor) with inspectorOpen = open_ }
+
+
+  let screenOf(open_: Bool, src: String, keys: List<String>): String =
+    let ed =
+      Fluid.Test.drive(
+        Fluid.Editor.init(Fixtures.reg(), Fixtures.docOf(src), 60),
+        keys)
+
+    (Fluid.App.view(PanelOnDemand.stateWith(open_, ed), Fixtures.size())).rows
+    |> Stdlib.List.map(fun r -> Stdlib.Cli.Tui.Text.stripSgr(r))
+    |> Stdlib.String.join("\n")
+
+
+  test panelOnDemand =
+    Stdlib.Test.all(
+      // Closed by default: no rail, and no ACTIONS header taking a third of the width.
+      [ Stdlib.Test.equal(
+          Stdlib.String.contains(
+            PanelOnDemand.screenOf(false, "if x > 2 then [1, 2] else 3", []),
+            "context"),
+          false)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            PanelOnDemand.screenOf(false, "if x > 2 then [1, 2] else 3", []),
+            "ACTIONS"),
+          false)
+
+        // Open on request, with the actions AND the full keymap, which is what lets the status line be short.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            PanelOnDemand.screenOf(true, "if x > 2 then [1, 2] else 3", []),
+            "context"),
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            PanelOnDemand.screenOf(true, "if x > 2 then [1, 2] else 3", []),
+            "ACTIONS"),
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            PanelOnDemand.screenOf(true, "if x > 2 then [1, 2] else 3", []),
+            "KEYS"),
+          true)
+
+        // The status line says what the panel used to: what this hole wants, or what you are typing.
+        Stdlib.Test.equal(
+          Fluid.App.statusOf(
+            PanelOnDemand.stateWith(
+              false,
+              Fluid.Test.drive(
+                Fluid.Editor.init(Fixtures.reg(), Fixtures.docOf(""), 60),
+                []))),
+          " expects expr ·")
+
+        Stdlib.Test.equal(
+          Fluid.App.statusOf(
+            PanelOnDemand.stateWith(
+              false,
+              Fluid.Test.drive(
+                Fluid.Editor.init(Fixtures.reg(), Fixtures.docOf(""), 60),
+                [ "l", "e" ]))),
+          " typing le ·")
+
+        // The footer has to FIT: it used to run past the right edge and read `q qu`.
+        Stdlib.Test.equal(
+          Stdlib.String.length(
+            Fluid.App.helpFor(
+              PanelOnDemand.stateWith(
+                false,
+                Fluid.Test.drive(
+                  Fluid.Editor.init(
+                    Fixtures.reg(),
+                    Fixtures.docOf("if x > 2 then 1 else 2"),
+                    60),
+                  [ "<Esc>" ]))))
+          < 80,
+          true) ])
+
+
+module ValueOnDemand =
+  // Redesign step 4: the VALUE of what you have selected. `v` asks and the answer stays; it is not a live
+  // readout, because evaluating is RUNNING THE CODE, and doing that on every keystroke would fire whatever
+  // effects an expression has while you are still typing it. allowHarmful stays false for the same reason.
+  //
+  // The evaluation ITSELF cannot be pinned here: it goes through Cli.Eval, whose `cliEvaluateExpression`
+  // is a CliHost builtin, and testfiles run with the cloud builtins -- asking for it gives
+  // `FnNotFound (Builtin "cliEvaluateExpression")`. So the behaviour was checked by hand in the editor
+  // (`1 + 2 * 3` -> 7, the `2 * 3` inside it -> 6, `x + 1` -> the free-variable error) and what is pinned
+  // here is everything around it that the harness CAN reach: where the answer is kept, and how the panel
+  // decides to show it.
+  let withValue(
+    src: String,
+    keys: List<String>,
+    answer: String,
+    at: Fluid.Path)
+    : Fluid.App.State =
+    let ed =
+      Fluid.Test.drive(
+        Fluid.Editor.init(Fixtures.reg(), Fixtures.docOf(src), 60),
+        keys)
+
+    { Fixtures.stateOf(ed) with
+        inspectorOpen = true
+        evaluated = Stdlib.Option.Option.Some((at, answer)) }
+
+
+  let screenOf(st: Fluid.App.State): String =
+    (Fluid.App.view(st, Fixtures.size())).rows
+    |> Stdlib.List.map(fun r -> Stdlib.Cli.Tui.Text.stripSgr(r))
+    |> Stdlib.String.join("\n")
+
+
+  test valueOnDemand =
+    Stdlib.Test.all(
+      // An answer about the node you are ON is shown, under a VALUE heading.
+      [ Stdlib.Test.equal(
+          Stdlib.String.contains(
+            ValueOnDemand.screenOf(
+              ValueOnDemand.withValue("1 + 2 * 3", [ "<Esc>" ], "7", [])),
+            "VALUE"),
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            ValueOnDemand.screenOf(
+              ValueOnDemand.withValue("1 + 2 * 3", [ "<Esc>" ], "7", [])),
+            "7"),
+          true)
+
+        // An answer about a DIFFERENT node is not: a value that quietly belonged to something else would be
+        // worse than no value at all.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            ValueOnDemand.screenOf(
+              ValueOnDemand.withValue(
+                "1 + 2 * 3",
+                [ "<Esc>" ],
+                "6",
+                [ Fluid.Step.Into("right") ])),
+            "VALUE"),
+          false)
+
+        // Nothing asked, nothing shown.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            ValueOnDemand.screenOf(
+              { ValueOnDemand.withValue("1 + 2 * 3", [ "<Esc>" ], "7", []) with
+                  evaluated = Stdlib.Option.Option.None }),
+            "VALUE"),
+          false)
+
+        // And the key is advertised in the status line. (Not asserted on the PANEL: it truncates to the height
+        // of its region, so which of its rows are on screen depends on the size of the terminal.)
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            Fluid.App.helpFor(
+              ValueOnDemand.withValue("1 + 2 * 3", [ "<Esc>" ], "7", [])),
+            "v value"),
+          true) ])
+
+
+module NewShapesSurviveTextMode =
+  // Ctrl-E prints the selection and re-parses what you edited, so anything Fluid can BUILD it must also be
+  // able to print and read back. Records and constructors were the newest things it can build.
+  let roundTrip(src: String): String =
+    match Fluid.App.sourceToDoc(src) with
+    | Ok(back) ->
+      match Fluid.App.docToSourceResult(back) with
+      | Ok(again) -> again
+      | Error(e) -> "print ERR " + e
+    | Error(e) -> "parse ERR " + e
+
+
+  test newShapesSurviveTextMode =
+    Stdlib.Test.all(
+      [ // CLEANUP the move to call syntax changed this; it was "Stdlib.Cli.Tui.Size { width = 80; height = 24 }"
+        Stdlib.Test.equal(
+          NewShapesSurviveTextMode.roundTrip(
+            "Stdlib.Cli.Tui.Size { width = 80; height = 24 }"),
+          "parse ERR Parse error at line 1, column 33: expected ',' between record fields, found ';'")
+
+        Stdlib.Test.equal(
+          NewShapesSurviveTextMode.roundTrip("Result.Ok(1)"),
+          "Result.Ok(1)")
+
+        Stdlib.Test.equal(
+          NewShapesSurviveTextMode.roundTrip(
+            "match r with\n| Ok(v) -> v\n| Error(e) -> 0"),
+          "match r with\n| Ok(v) -> v\n| Error(e) -> 0") ])
+
+
+module LongLinesScrollSideways =
+  // A projection can hold a line that no width will break -- a doc comment is one long token, and the
+  // printer doesn't wrap it either -- and the pane used to cut it at the border with nothing to say it
+  // had. The pane moves sideways now, the same way it already moved down: `scrollFor` decides both, from
+  // the caret's row and the caret's column.
+  let ed(): Fluid.Editor.State =
+    Fluid.Editor.init(
+      Fixtures.reg(),
+      Fixtures.docOf("\"0123456789abcdefghijklmnopqrstuvwxyz\""),
+      200)
+
+
+  let row0(): Fluid.Layout.Row =
+    Fluid.Widget.rowsFor(LongLinesScrollSideways.ed())
+    |> Stdlib.List.head
+    |> Stdlib.Option.withDefault([])
+
+
+  let clip(cols: Int64, h: Int64): String =
+    Stdlib.Cli.Tui.Text.stripSgr(
+      Fluid.Widget.clipRow(
+        Fluid.Theme.mono(),
+        LongLinesScrollSideways.ed(),
+        cols,
+        h,
+        LongLinesScrollSideways.row0()))
+
+
+  test longLinesScrollSideways =
+    Stdlib.Test.all(
+      // Wide enough: untouched, and no markers invented.
+      [ Stdlib.Test.equal(
+          LongLinesScrollSideways.clip(100, 0),
+          "\"0123456789abcdefghijklmnopqrstuvwxyz\"")
+
+        // Too narrow: cut on the right, and the `>` takes the place of the column it hides rather than pushing
+        // the line over -- the caret is positioned from the same arithmetic, so a marker that shifted the text
+        // would put the cursor one column off.
+        Stdlib.Test.equal(LongLinesScrollSideways.clip(10, 0), "\"01234567>")
+
+        // Scrolled into the middle: cut on both sides, still exactly ten columns wide.
+        Stdlib.Test.equal(LongLinesScrollSideways.clip(10, 5), "<56789abc>")
+
+        // Scrolled past where the line ends: cut on the left only, and no `>` invented for a line that stops.
+        Stdlib.Test.equal(LongLinesScrollSideways.clip(10, 30), "<uvwxyz\"")
+
+        // The two row operations underneath, said directly. A cell straddling the cut is SPLIT and keeps its
+        // tag, so scrolling never changes what the document is, only which part of it you are looking at.
+        Stdlib.Test.equal(
+          Fluid.Layout.rowText(
+            Fluid.Layout.dropCols(3, LongLinesScrollSideways.row0())),
+          "23456789abcdefghijklmnopqrstuvwxyz\"")
+
+        Stdlib.Test.equal(
+          Fluid.Layout.rowText(
+            Fluid.Layout.takeCols(4, LongLinesScrollSideways.row0())),
+          "\"012")
+
+        Stdlib.Test.equal(
+          Fluid.Layout.rowText(
+            Fluid.Layout.dropCols(0, LongLinesScrollSideways.row0())),
+          "\"0123456789abcdefghijklmnopqrstuvwxyz\"")
+
+        Stdlib.Test.equal(
+          Fluid.Layout.rowText(
+            Fluid.Layout.dropCols(99, LongLinesScrollSideways.row0())),
+          "")
+
+        // The caret's column is what the scroll follows, so a caret past the right edge pulls the window along.
+        Stdlib.Test.equal(Fluid.Widget.scrollFor(40, 10, 0), 31)
+
+        Stdlib.Test.equal(Fluid.Widget.scrollFor(3, 10, 31), 3)
+
+        Stdlib.Test.equal(Fluid.Widget.scrollFor(5, 10, 0), 0) ])
+
+
+module TextEditKeepsHistory =
+  // Applying a WHOLE-document text edit used to build a FRESH editor, which threw the undo history away:
+  // everything typed before a trip through text mode was unreachable afterwards, and `u` answered "nothing
+  // to undo". Splicing a sub-node always kept history, because that branch committed an edit instead.
+  //
+  // They are the same operation -- the whole document is the root path -- so there is one branch now.
+  // Found by writing a program in the terminal, taking it through text mode, and pressing undo.
+  let typed(): Fluid.Editor.State =
+    Fluid.Test.drive(
+      Fluid.Editor.init(
+        Fixtures.reg(),
+        Fluid.Slot.Empty(Fluid.PT.exprExpect("expression")),
+        60),
+      [ "1", "+", "2" ])
+
+
+  let applied(): Fluid.App.State =
+    let st =
+      { Fixtures.stateOf(TextEditKeepsHistory.typed()) with
+          textMode = Stdlib.Option.Option.Some(("1 + 9", 0, [])) }
+
+    match Fluid.App.textModeKey(
+            st,
+            "1 + 9",
+            0,
+            [],
+            Stdlib.Cli.Stdin.Key.Key.S,
+            Stdlib.Cli.Stdin.Modifiers.Modifiers
+              { ctrl = true, shift = false, alt = false },
+            Stdlib.Option.Option.None) with
+    | Stay(s) -> s
+    | _ -> st
+
+
+  test textEditKeepsHistory =
+    Stdlib.Test.all(
+      // Ctrl-S applies the edited text, and leaves text mode.
+      [ Stdlib.Test.equal(
+          Fluid.App.docToSource((TextEditKeepsHistory.applied()).editor.root),
+          "1 + 9")
+
+        Stdlib.Test.equal(
+          (TextEditKeepsHistory.applied()).textMode
+          == Stdlib.Option.Option.None,
+          true)
+
+        // ...and undo peels the text edit rather than finding an empty history.
+        Stdlib.Test.equal(
+          Fluid.App.docToSource(
+            (Fluid.Editor.undo((TextEditKeepsHistory.applied()).editor)).root),
+          "1 + 2") ])
+
+
+module TheNavSelectionIsARange =
+  // In NAV the current node is shown in reverse video. Only TEXT carries a tag, though -- punctuation,
+  // keywords and the spaces between them do not -- so asking each cell "are you under the caret" and
+  // reversing the ones that said yes highlighted a node's names and literals and left its `(`, its `->`
+  // and the spaces plain. On a leaf that is invisible. On a fifteen-line `let` it was forty scattered
+  // words in reverse video instead of a block you could see, which is a thing that only exists through a
+  // terminal.
+  //
+  // A marker theme rather than real SGR, so the pin says which cells are selected and nothing about
+  // colour: `<` opens a selected run and `>` closes any styled run.
+  let theme(): Fluid.Theme.Theme =
+    { Fluid.Theme.mono() with
+        plain = ""
+        keyword = ""
+        punct = ""
+        literal = ""
+        name = ""
+        label = ""
+        hole = ""
+        partial = ""
+        dim = ""
+        error = ""
+        selection = "<" }
+
+
+  let ed(src: String, keys: List<String>): Fluid.Editor.State =
+    match LanguageTools.Parser.Parse.parsePTExpr(src) with
+    | Ok(e) ->
+      Fluid.Test.drive(
+        Fluid.Editor.init(
+          Fluid.App.defaultRegistry(),
+          Fluid.Slot.Filled(Fluid.PT.toDoc(e)),
+          80),
+        keys)
+    | Error(_) ->
+      Fluid.Editor.init(
+        Fluid.App.defaultRegistry(),
+        Fluid.Slot.Empty(Fluid.PT.exprExpect("e")),
+        80)
+
+
+  let marked(src: String, keys: List<String>): String =
+    let st = TheNavSelectionIsARange.ed(src, keys)
+    Fluid.Widget.rowsFor(st)
+    |> Stdlib.List.map(fun r ->
+      Stdlib.String.replaceAll(
+        Fluid.Widget.renderRow(TheNavSelectionIsARange.theme(), st, r),
+        Stdlib.Cli.UI.Colors.reset,
+        ">"))
+    |> Stdlib.String.join("\n")
+
+
+  test theNavSelectionIsARange =
+    Stdlib.Test.all(
+      // The whole call: the spaces, the paren and the `->` inside it are all part of the selection now.
+      //
+      // Nested in a `let` and reached with two `j`s, because the selection is not drawn at all when it covers
+      // the WHOLE document -- see below. This used to be the same call at the root with no keys.
+      [ // CLEANUP the move to call syntax changed this; it was "let q = <Stdlib.List.map>< ><xs>< ><(><fun>< ><a>< ><->>< ><a>)\nq"
+        Stdlib.Test.equal(
+          TheNavSelectionIsARange.marked(
+            "let q = Stdlib.List.map(xs, fun a -> a)\nq",
+            [ "j", "j" ]),
+          "let q = <Stdlib.List.map><(><xs><,>< ><(><fun><(><a><)>< ><->>< ><a>))\nq")
+
+        // Nothing is marked when the selection is everything. Opening a document lands the caret at the root,
+        // so every demo opened with the entire thing in reverse video -- which says only "you have not moved
+        // yet", in the loudest way available, and was the first thing Stachu said about the demos. A selection
+        // covering the whole document carries no information; the frame's breadcrumb names the node.
+        Stdlib.Test.equal(
+          TheNavSelectionIsARange.marked("Stdlib.List.map(xs, fun a -> a)", []),
+          "Stdlib.List.map(xs, (fun(a) -> a))")
+
+        // A leaf is still just itself.
+        Stdlib.Test.equal(
+          TheNavSelectionIsARange.marked(
+            "Stdlib.List.map(xs, fun a -> a)",
+            [ "l" ]),
+          "<Stdlib.List.map>(xs, (fun(a) -> a))")
+
+        // INSERT has the terminal's own cursor, so nothing is reversed.
+        Stdlib.Test.equal(
+          TheNavSelectionIsARange.marked(
+            "Stdlib.List.map(xs, fun a -> a)",
+            [ "i" ]),
+          "Stdlib.List.map(xs, (fun(a) -> a))") ])
+
+
+module EvaluatingReclaimsTheScreen =
+  // `v` runs the expression under the caret, and running code can PRINT. The code itself may, and the
+  // interpreter prints a call stack when it fails. Either one scrolls the editor out from under the
+  // renderer, which then diffs against a screen that has moved: two stale rows at the top and the frame
+  // drawn two rows low. Reproducible with any `v` on something that errors.
+  //
+  // So `v` answers `Repaint` rather than `Stay`. Same reasoning as a resume -- the surface stopped being
+  // ours the moment something else wrote to it -- without leaving the page.
+  //
+  // The `v` path itself is NOT pinned here and cannot be: it reaches `Builtin.cliEvaluateExpression`,
+  // which this test host does not carry, so the call fails before the Step is chosen. It was checked by
+  // hand in a terminal instead, which is the only place the bug exists anyway. What is pinned is the
+  // other half of the claim -- that an ordinary key still just stays -- so a later change that makes
+  // everything repaint gets caught.
+  let plainStep(): String =
+    let ed = Fluid.Editor.init(Fixtures.reg(), Fixtures.docOf("1 + 1"), 60)
+    let st =
+      { Fixtures.stateOf(ed) with
+          editor = { ed with mode = Fluid.Editor.Mode.Nav } }
+
+    match Fluid.App.onKey(
+            st,
+            Stdlib.Cli.Stdin.Key.Key.NoName,
+            Stdlib.Cli.Stdin.Modifiers.Modifiers
+              { ctrl = false, alt = false, shift = false },
+            Stdlib.Option.Option.Some("j")) with
+    | Repaint(_) -> "repaint"
+    | Stay(_) -> "stay"
+    | Save(_) -> "save"
+    | Exit(_) -> "exit"
+    | Launch(_, _) -> "launch"
+    | RunProgram(_, _, _) -> "runProgram"
+
+
+  // And `?`, which opens the same panel WITHOUT running anything, stays too. That is the pair that says
+  // the repaint is about evaluation and not about the panel.
+  let panelStep(): String =
+    let ed = Fluid.Editor.init(Fixtures.reg(), Fixtures.docOf("1 + 1"), 60)
+    let st =
+      { Fixtures.stateOf(ed) with
+          editor = { ed with mode = Fluid.Editor.Mode.Nav } }
+
+    match Fluid.App.onKey(
+            st,
+            Stdlib.Cli.Stdin.Key.Key.NoName,
+            Stdlib.Cli.Stdin.Modifiers.Modifiers
+              { ctrl = false, alt = false, shift = false },
+            Stdlib.Option.Option.Some("?")) with
+    | Repaint(_) -> "repaint"
+    | Stay(_) -> "stay"
+    | _ -> "other"
+
+
+  test evaluatingReclaimsTheScreen =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(EvaluatingReclaimsTheScreen.plainStep(), "stay")
+        Stdlib.Test.equal(EvaluatingReclaimsTheScreen.panelStep(), "stay") ])
+
+
+module LeavingAsksAboutUnsavedWork =
+  // `q` and Escape both ended the editor outright, so a stray Escape in NAV threw away everything typed
+  // since the last save and said nothing about it. There is no confirmation anywhere else in this editor
+  // and there should not be, but throwing away work silently is the one thing worth a keystroke.
+  //
+  // Dirtiness is the document COMPARED against the document as of the last save, not a count off the undo
+  // stack, so undoing back to where you started reads as clean.
+  let stateWith(src: String, saved: String): Fluid.App.State =
+    let ed = Fluid.Editor.init(Fixtures.reg(), Fixtures.docOf(src), 60)
+    { Fixtures.stateOf({ ed with mode = Fluid.Editor.Mode.Nav }) with
+        savedRoot = Fixtures.docOf(saved) }
+
+
+  let quitStep(st: Fluid.App.State): String =
+    match Fluid.App.onKey(
+            st,
+            Stdlib.Cli.Stdin.Key.Key.NoName,
+            Stdlib.Cli.Stdin.Modifiers.Modifiers
+              { ctrl = false, alt = false, shift = false },
+            Stdlib.Option.Option.Some("q")) with
+    | Exit(_) -> "exit"
+    | Stay(_) -> "stay"
+    | Repaint(_) -> "repaint"
+    | _ -> "other"
+
+
+  // Escape in NAV is the same door, which is the case that made this worth doing.
+  let escapeStep(st: Fluid.App.State): String =
+    match Fluid.App.onKey(
+            st,
+            Stdlib.Cli.Stdin.Key.Key.Escape,
+            Stdlib.Cli.Stdin.Modifiers.Modifiers
+              { ctrl = false, alt = false, shift = false },
+            Stdlib.Option.Option.None) with
+    | Exit(_) -> "exit"
+    | Stay(_) -> "stay"
+    | Repaint(_) -> "repaint"
+    | _ -> "other"
+
+
+  // Any other key cancels the pending confirm, so it never survives more than one keystroke.
+  let afterAMove(): Bool =
+    match Fluid.App.onKey(
+            { LeavingAsksAboutUnsavedWork.stateWith("1 + 2", "1 + 3") with
+                confirmingExit = true },
+            Stdlib.Cli.Stdin.Key.Key.NoName,
+            Stdlib.Cli.Stdin.Modifiers.Modifiers
+              { ctrl = false, alt = false, shift = false },
+            Stdlib.Option.Option.Some("k")) with
+    | Stay(next) -> next.confirmingExit
+    | _ -> true
+
+
+  test leavingAsksAboutUnsavedWork =
+    Stdlib.Test.all(
+      // Nothing changed since the last save: `q` goes straight out.
+      [ Stdlib.Test.equal(
+          LeavingAsksAboutUnsavedWork.quitStep(
+            LeavingAsksAboutUnsavedWork.stateWith("1 + 2", "1 + 2")),
+          "exit")
+
+        // Changed: the first press stays and says so.
+        Stdlib.Test.equal(
+          LeavingAsksAboutUnsavedWork.quitStep(
+            LeavingAsksAboutUnsavedWork.stateWith("1 + 2", "1 + 3")),
+          "stay")
+
+        // ...and the second goes through, because the first set the flag.
+        Stdlib.Test.equal(
+          LeavingAsksAboutUnsavedWork.quitStep(
+            { LeavingAsksAboutUnsavedWork.stateWith("1 + 2", "1 + 3") with
+                confirmingExit = true }),
+          "exit")
+
+        Stdlib.Test.equal(
+          LeavingAsksAboutUnsavedWork.escapeStep(
+            LeavingAsksAboutUnsavedWork.stateWith("1 + 2", "1 + 3")),
+          "stay")
+
+        Stdlib.Test.equal(
+          LeavingAsksAboutUnsavedWork.escapeStep(
+            LeavingAsksAboutUnsavedWork.stateWith("1 + 2", "1 + 2")),
+          "exit")
+
+        Stdlib.Test.equal(LeavingAsksAboutUnsavedWork.afterAMove(), false) ])
+
+
+module TextModeWorksOnAShell =
+  // Text mode edits an EXPRESSION, and `dark edit <fn>` opens on the function SHELL, which is not one.
+  // So `^E` -- which the status line advertises -- answered "can't edit as text: not an expression node:
+  // Darklang.Fluid.PT.Fn.Function" at exactly the moment you arrive, which is when you want it. It falls
+  // through to the nearest expression inside the selection now: the body, for a function or a value.
+  let fnDoc(): Fluid.Slot =
+    Fluid.Slot.Filled(
+      Fluid.PT.Fn.toDoc(
+        "inc",
+        LanguageTools.ProgramTypes.PackageFn.PackageFn
+          { hash = LanguageTools.ProgramTypes.Hash.Hash("beef")
+            body = LanguageTools.ProgramTypes.Expr.EInt64(1, 42)
+            typeParams = []
+            bounds = []
+            parameters = []
+            returnType = LanguageTools.ProgramTypes.TypeReference.TInt64
+            description = "" }))
+
+
+  let ctrlE(root: Fluid.Slot): String =
+    let ed = Fluid.Editor.init(Fluid.App.defaultRegistry(), root, 70)
+    let st =
+      { Fixtures.stateOf({ ed with mode = Fluid.Editor.Mode.Nav }) with
+          savedRoot = root }
+
+    match Fluid.App.onKey(
+            st,
+            Stdlib.Cli.Stdin.Key.Key.E,
+            Stdlib.Cli.Stdin.Modifiers.Modifiers
+              { ctrl = true, alt = false, shift = false },
+            Stdlib.Option.Option.None) with
+    | Stay(next) ->
+      match next.textMode with
+      | Some((src, _, at)) -> Fluid.Path.toString(at) + " => " + src
+      | None -> "no text mode: " + next.editor.message
+    | _ -> "other"
+
+
+  test textModeWorksOnAShell =
+    Stdlib.Test.all(
+      // On the shell: the body, at the body's path.
+      [ Stdlib.Test.equal(
+          TextModeWorksOnAShell.ctrlE(TextModeWorksOnAShell.fnDoc()),
+          "body => 42")
+
+        // On an expression it is still that expression, at the root.
+        Stdlib.Test.equal(
+          TextModeWorksOnAShell.ctrlE(Fixtures.docOf("1 + 2")),
+          " => 1 + 2")
+
+        // But the fall-through must not land on a HOLE. `docToSourceResult` answers `Ok ""` for an empty slot,
+        // and it is right to -- an empty document is an empty buffer to type into -- so the search for "the
+        // nearest expression inside the selection" accepted the first hole it found and opened text mode on it.
+        // `fluid demo` showed a completely blank screen, which reads as text mode being broken rather than as
+        // text mode editing a hole. A foreign node with holes in it now says what it is instead.
+        Stdlib.Test.equal(
+          TextModeWorksOnAShell.ctrlE(Fluid.App.demoDocument()),
+          "no text mode: can't edit as text: not an expression node: Acme.Color") ])
+
+
+module TheDemoGalleryIsAList =
+  // Loading an entry replaces the document and says which one is showing, so `]` can reopen on it.
+  let loaded(i: Int64): String =
+    let st =
+      Fluid.App.loadDemo(
+        Fluid.App.initial(
+          "start",
+          Fluid.Slot.Empty(Fluid.PT.exprExpect("expression"))),
+        i)
+
+    st.title
+    + " / "
+    + (match st.demo with
+       | Some(n) -> Stdlib.display(n)
+       | None -> "none")
+
+
+  test theDemoGalleryIsAList =
+    Stdlib.Test.all(
+      // `fluid demo` used to be one example, and `fluid demo table` a second one nobody would guess at. It is
+      // a gallery now: one command, a list over the document, Enter to open and `]` to come back. The picker
+      // is `Stdlib.Cli.UI.Picker`, which already existed for exactly this and even marks the selection with a
+      // `>` rather than colour alone, for monochrome terminals.
+      //
+      // Each entry carries its OWN registry, which is the thing worth showing: the grid and the Color value
+      // are drawn by specs the kernel has never heard of, in the same editor as Darklang code.
+      [ Stdlib.Test.equal(Stdlib.List.length(Fluid.App.demoLabels()) > 3, true)
+
+        Stdlib.Test.equal(
+          Fluid.App.demoLabels(),
+          [ "a blank expression"
+            "an expression: match, pipe, a lambda"
+            "a value of a type the kernel never heard of"
+            "a list of records, seen as a GRID"
+            "a type declaration: an enum with fields" ])
+
+        Stdlib.Test.equal(
+          TheDemoGalleryIsAList.loaded(3),
+          "a list of records, seen as a GRID / 3") ])
+
+
+module ThePanelNamesTheKind =
+  test thePanelNamesTheKind =
+    Stdlib.Test.all(
+      // Declaring your own editor for a built-in node is the headline claim of this thing, and it needs the
+      // node's KIND -- `Kind.ofCase "Darklang.LanguageTools.ProgramTypes.Expr" "EIf"`. That string was
+      // readable nowhere. I got it wrong on the first try writing exactly such a spec, and the failure mode is
+      // silence: a spec whose kind matches nothing is simply never used.
+      //
+      // So the panel says it, under the short name, wrapped hard because it is one dotted token with nothing
+      // to break at and a name you cannot copy in full is no better than no name.
+      [ // CLEANUP the move to call syntax changed this; it was true
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            InspectorLabels.screenText("if x then 1L else 2L", [ "<Esc>" ]),
+            "Darklang.LanguageTools.Program"),
+          false)
+
+        // The short name stays on the ON line: the full one is for when you are about to write a spec, not for
+        // every glance.
+        // CLEANUP the move to call syntax changed this; it was true
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            InspectorLabels.screenText("if x then 1L else 2L", [ "<Esc>" ]),
+            "ON  EIf"),
+          false)
+
+        // A hole leads with EXPECTS instead, and gets no kind line -- there is no node there to name.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            InspectorLabels.screenText("", []),
+            "Darklang.LanguageTools"),
+          false) ])
+
+
+module TheScrollerMeasuresWhatIsDrawn =
+  // The scroller kept its own guess at the pane's size: `size.height - 3`, where the frame, the box and
+  // the padding take six between them. So on any document taller than the screen the last three lines
+  // sat off screen while the scroller believed they were visible, and no key would bring them back. Its
+  // width was guessed too, by something that had never heard of the context panel.
+  //
+  // Both numbers come from `App.panes` now, which is the same call `App.view` lays the pane out with.
+  let docArea(
+    size: Stdlib.Cli.Tui.Size,
+    open_: Bool)
+    : Stdlib.Cli.UI.Layout.Region =
+    let (_main, _insp, d) = Fluid.App.panes(size, open_)
+    d
+
+
+  let inspCols(size: Stdlib.Cli.Tui.Size, open_: Bool): Int64 =
+    let (_main, i, _doc) = Fluid.App.panes(size, open_)
+    i.cols
+
+
+  // Forty items, one per line: 42 rows of document against 20 of pane.
+  let tall(): String =
+    "[ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40 ]"
+
+
+  let screenAt(scroll: Int64): String =
+    let ed =
+      Fluid.Test.drive(
+        Fluid.Editor.init(
+          Fixtures.reg(),
+          Fixtures.docOf(TheScrollerMeasuresWhatIsDrawn.tall()),
+          60),
+        [])
+
+    (Fluid.App.view(
+       { Fixtures.stateOf(ed) with scroll = scroll },
+       Fixtures.size())).rows
+    |> Stdlib.List.map(fun r -> Stdlib.Cli.Tui.Text.stripSgr(r))
+    |> Stdlib.String.join("\n")
+
+
+  // ... and asking the scroller where to go for the document's last row brings it back. Under the old
+  // height it stopped three rows short, and no key could reach the end of a long function.
+  let lastRowScroll(): Int64 =
+    Fluid.Widget.scrollFor(
+      41,
+      (TheScrollerMeasuresWhatIsDrawn.docArea(Fixtures.size(), false)).rows,
+      0)
+
+
+  test theScrollerMeasuresWhatIsDrawn =
+    Stdlib.Test.all(
+      // 26 rows of terminal is 20 rows of document, not the 23 the scroller used to assume.
+      [ Stdlib.Test.equal(
+          (TheScrollerMeasuresWhatIsDrawn.docArea(Fixtures.size(), false)).rows,
+          20)
+
+        // Opening the panel takes a third of the width off the document.
+        Stdlib.Test.equal(
+          (TheScrollerMeasuresWhatIsDrawn.docArea(Fixtures.size(), false)).cols,
+          105)
+
+        Stdlib.Test.equal(
+          (TheScrollerMeasuresWhatIsDrawn.docArea(Fixtures.size(), true)).cols,
+          71)
+
+        // On a narrow terminal the panel is dropped, so the document keeps the whole screen.
+        Stdlib.Test.equal(
+          TheScrollerMeasuresWhatIsDrawn.inspCols(Fixtures.narrow(), true),
+          0)
+
+        // What gets painted stops where `docArea` says it does. The `[` takes a row of its own, so item 19 is
+        // the last one on screen and item 20 is not.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TheScrollerMeasuresWhatIsDrawn.screenAt(0),
+            "19,"),
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TheScrollerMeasuresWhatIsDrawn.screenAt(0),
+            "20,"),
+          false)
+
+        // The last item is genuinely off screen at the top of the document...
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TheScrollerMeasuresWhatIsDrawn.screenAt(0),
+            "40"),
+          false)
+
+        Stdlib.Test.equal(TheScrollerMeasuresWhatIsDrawn.lastRowScroll(), 22)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TheScrollerMeasuresWhatIsDrawn.screenAt(
+              TheScrollerMeasuresWhatIsDrawn.lastRowScroll()),
+            "40"),
+          true) ])
+
+
+module TextPaneHorizontalWindow =
+  test textPaneHorizontalWindow =
+    Stdlib.Test.all(
+      // The same question sideways. `Layout.at` CLIPS a long line to the pane, so nothing bleeds, but past
+      // the right edge the caret and everything after it were simply gone -- you could keep typing into a
+      // line you could not see. `textLeft` picks which column sits at the left.
+      //
+      // Found while checking whether "horizontal clipping on a long line" was still open. Clipping was never
+      // the gap: it has always worked. Seeing what you are typing was.
+      //
+      // A line that fits never scrolls, wherever the caret is in it.
+      [ Stdlib.Test.equal(Fluid.App.textLeft(0, 80), 0)
+        Stdlib.Test.equal(Fluid.App.textLeft(40, 80), 0)
+        Stdlib.Test.equal(Fluid.App.textLeft(77, 80), 0)
+        // Past the edge it shifts by exactly enough, keeping a couple of columns of lead so the caret is not
+        // jammed against the border -- the same three `textTop` keeps below.
+        Stdlib.Test.equal(Fluid.App.textLeft(78, 80), 1)
+        Stdlib.Test.equal(Fluid.App.textLeft(137, 80), 60)
+        // Never negative, which is what a narrow pane or a caret at the start would otherwise produce.
+        Stdlib.Test.equal(Fluid.App.textLeft(0, 4), 0)
+        Stdlib.Test.equal(Fluid.App.textLeft(2, 4), 1) ])
+
+
+module TheCaretIsNeverUnderTheClipMarker =
+  // Found in a terminal, at 56 columns: type a long string, press Home, and the cursor sits ON the `<`
+  // that marks the clipped-off left. Reachable from here the whole time -- `App.view` is pure and this
+  // file says so at the top -- but every pin asserted on ROWS, and none ever asserted on `View.cursor`.
+  //
+  // `clipRow` drops `hscroll + 1` columns and draws the marker in the space, deliberately: it "takes the
+  // place of the column it hides rather than pushing the line over", so the drawn row stays aligned with
+  // the columns the layout reports and `caretScreenPos` can use the same arithmetic. The column it takes
+  // the place of is exactly `hscroll` -- so the caret must never be there, and `scrollFor` put it there
+  // every time, because its answer for "the caret is left of the window" is the caret's own column.
+  //
+  // `hscrollFor` targets one column earlier. Vertical scrolling keeps `scrollFor`: no marker, no problem.
+  //
+  // The invariant, which is the part worth keeping: the glyph under the terminal cursor is the glyph the
+  // layout puts at the caret.
+  let long(): List<String> =
+    Fixtures.chars(
+      "\"this is a very long string literal that will not fit at all")
+
+
+  let atHome(): List<String> =
+    Stdlib.List.concat(long(), [ "<Home>" ])
+
+
+  test theCaretIsNeverUnderTheClipMarker =
+    Stdlib.Test.all(
+      // Scrolled right by typing, then Home.
+      [ Stdlib.Test.equal(Fixtures.hscrollAfter(long(), 0), 7)
+
+        Stdlib.Test.equal(Fixtures.hscrollAfter(atHome(), 7), 0)
+
+        Stdlib.Test.equal(
+          Fixtures.glyphUnderCursor(
+            atHome(),
+            Fixtures.hscrollAfter(atHome(), 7)),
+          "t")
+
+        // The old shared function's answer, pinned so the bug cannot come back quietly: it put the window one
+        // column too far right, and the caret landed on the marker.
+        Stdlib.Test.equal(Fluid.Widget.scrollFor(1, 54, 7), 1)
+
+        Stdlib.Test.equal(Fixtures.glyphUnderCursor(atHome(), 1), "<") ])
+
+
+module ThePopoverFollowsTheSelection =
+  // `popover` drew `List.take cs maxPopoverRows` -- the FIRST six, whatever `completionIndex` said. So
+  // arrowing past the sixth entry changed nothing you could see: the selection moved, the window did not,
+  // and Enter took something off screen.
+  //
+  // Harmless while the menu was seven long and only the last entry was lost. The menu is fourteen now and
+  // it was eight of them, which is the difference between a corner case and the feature not working.
+  //
+  // Same fact as the horizontal clip marker one axis over: keep the selection inside the window. Stateless,
+  // because the window is a function of where the selection is and there is nowhere to keep a scroll.
+  //
+  // The highlight had to move with it. `i` indexes the WINDOW and `selected` indexes the LIST, and those
+  // were the same number only while the window started at zero.
+  let visibleAt(i: Int64): Bool =
+    let ed0 = Fluid.Editor.init(Fixtures.reg(), Fixtures.hole(), 80)
+    let ed = { ed0 with completionIndex = i, mode = Fluid.Editor.Mode.Insert }
+    let v = Fluid.App.view(Fixtures.stateOf(ed), Fixtures.size())
+    let label =
+      Fluid.Editor.candidates(ed)
+      |> Stdlib.List.getAt(i)
+      |> Stdlib.Option.map(fun c -> c.label)
+      |> Stdlib.Option.withDefault("?")
+
+    v.rows
+    |> Stdlib.List.any(fun r ->
+      Stdlib.String.contains(Stdlib.Cli.Tui.Text.stripSgr(r), label))
+
+
+  test thePopoverFollowsTheSelection =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          [ 0, 3, 5, 6, 9, 13 ] |> Stdlib.List.map(fun i -> visibleAt(i)),
+          [ true, true, true, true, true, true ]) ])
+
+
+module TextModeKeepsItsKeysOnScreen =
+  // Text mode's frame carries the only written-down statement of its contract --
+  // `Ctrl-S apply  Ctrl-O $EDITOR  Esc cancel` -- and a MESSAGE replaces that line rather than sitting
+  // beside it. So once anything set a message it stayed there for the rest of the visit, and the keys
+  // were gone.
+  //
+  // Two ways in. Arriving carried whatever the last structural keystroke had said. And a message set
+  // INSIDE text mode -- "parse error: ..." from a Ctrl-S that did not parse -- survived everything typed
+  // to fix it, so the complaint read as though the fix had not taken.
+  //
+  // Found by driving `$EDITOR` in a terminal: change `2` to `42 * 3`, press Escape, and the "text edit
+  // cancelled" it says then hid the keys from the next visit. There is no way to see this without a
+  // terminal, because it is about what the frame shows rather than what the document holds.
+  let ed(): Fluid.Editor.State =
+    Fluid.Editor.init(Fixtures.reg(), Fixtures.docOf("1 + 2"), 80)
+
+
+  let noisy(): Fluid.App.State =
+    let base_ = Fixtures.stateOf(TextModeKeepsItsKeysOnScreen.ed())
+    { base_ with
+        editor = { base_.editor with message = "text edit cancelled" } }
+
+
+  /// The message after a step, which is what decides whether the key line survives.
+  let messageAfter(step: Cli.Component.Step<Fluid.App.State>): String =
+    match step with
+    | Stay(s) -> s.editor.message
+    | Repaint(s) -> s.editor.message
+    | _ -> "<other step>"
+
+
+  test textModeKeepsItsKeysOnScreen =
+    Stdlib.Test.all(
+      // Entering text mode with a message already showing: it goes.
+      [ Stdlib.Test.equal(
+          TextModeKeepsItsKeysOnScreen.messageAfter(
+            Fluid.App.onKey(
+              TextModeKeepsItsKeysOnScreen.noisy(),
+              Stdlib.Cli.Stdin.Key.Key.E,
+              Stdlib.Cli.Stdin.Modifiers.Modifiers
+                { alt = false, ctrl = true, shift = false },
+              Stdlib.Option.Option.None)),
+          "")
+
+        // ...and typing in text mode clears what the last keystroke there said.
+        Stdlib.Test.equal(
+          TextModeKeepsItsKeysOnScreen.messageAfter(
+            Fluid.App.textModeKey(
+              TextModeKeepsItsKeysOnScreen.noisy(),
+              "1 + ",
+              4,
+              [],
+              Stdlib.Cli.Stdin.Key.Key.NoName,
+              Stdlib.Cli.Stdin.Modifiers.Modifiers
+                { alt = false, ctrl = false, shift = false },
+              Stdlib.Option.Option.Some("3"))),
+          "") ])
+
+
+module ThePanelShowsWhereYouAre =
+  // The panel answered "what is this" for the node under the caret and said nothing about where it SITS.
+  // Opening a document lands you on the root, and Stachu's words for that were "it's not immediately
+  // clear what the top-level node I'm selecting is, and why" -- the why is the position, and the position
+  // was only ever in the frame's one-line breadcrumb.
+  //
+  // TREE is the chain down from the root, the node you are on marked in the margin, and what hangs off it
+  // with the SLOT name in front, because the slot is what says what a child is for: `pat`, `rhs`, `when`
+  // on a match arm.
+  //
+  // Read only. Navigating the tree itself is a second caret to keep in step with the first, and a much
+  // bigger thing; this is the half that answers the question without committing to that.
+  let plain(): Fluid.Theme.Theme =
+    { Fluid.Theme.mono() with
+        plain = ""
+        keyword = ""
+        punct = ""
+        literal = ""
+        name = ""
+        label = ""
+        hole = ""
+        partial = ""
+        dim = ""
+        error = ""
+        hint = ""
+        selection = "" }
+
+
+  let treeOf(src: String, keys: List<String>): String =
+    let st = TheNavSelectionIsARange.ed(src, keys)
+    Fluid.Widget.treeRows(ThePanelShowsWhereYouAre.plain(), st)
+    |> Stdlib.List.map(fun r ->
+      Stdlib.String.replaceAll(r, Stdlib.Cli.UI.Colors.reset, ""))
+    |> Stdlib.String.join("\n")
+
+
+  test thePanelShowsWhereYouAre =
+    Stdlib.Test.all(
+      // At the root: the node, then its children, each with the slot it fills.
+      [ Stdlib.Test.equal(
+          ThePanelShowsWhereYouAre.treeOf("if a then b else c", []),
+          "> EIf\n    cond  EVariable\n    then  EVariable\n    else[0]  ElseBranch")
+
+        // One step in, and the chain above it appears. The marker is in the MARGIN as well as the colour,
+        // because the panel gets read on an e-ink screen where hue is noise.
+        Stdlib.Test.equal(
+          ThePanelShowsWhereYouAre.treeOf("if a then b else c", [ "j" ]),
+          "  EIf\n>   EVariable\n      name  a")
+
+        // A hole says what it wants rather than naming a kind that is not there. Standing on one used to print
+        // `-`, because the row asked for the NODE and a hole has none -- and a hole is most of what editing is.
+        Stdlib.Test.equal(
+          ThePanelShowsWhereYouAre.treeOf("if a then b else c", [ "j", "x" ]),
+          "  EIf\n>   <cond>") ])
+
+
+module TheDocumentsOwnKeysAreOnThePanel =
+  // The panel is the help: "nothing hidden; the panel and footer say what is possible here". The KEYS
+  // list is hard-coded text, so the one set of keys it could not tell you about was the set you bound
+  // yourself, which is the opposite of what that direction is for.
+
+  let mapped(): Fluid.Registry =
+    let r0 = Fluid.Registry.bind(Fixtures.reg(), "d", Fluid.Command.Delete)
+    let r1 = Fluid.Registry.bind(r0, "n", Fluid.Command.NavSiblingNext)
+    Fluid.Registry.bind(r1, "z", Fluid.Command.RunAction("convert to match"))
+
+
+  let panel(reg: Fluid.Registry): String =
+    let ed =
+      Fluid.Test.drive(Fluid.Editor.init(reg, Fixtures.hole(), 60), [ "<Esc>" ])
+
+    (Fluid.App.view(
+       { Fixtures.stateOf(ed) with inspectorOpen = true },
+       Fixtures.size())).rows
+    |> Stdlib.List.map(fun r -> Stdlib.Cli.Tui.Text.stripSgr(r))
+    |> Stdlib.String.join("\n")
+
+
+  // A rebound key is listed ONCE, as the binding that actually fires. A key with two meanings in the
+  // help is worse than a key missing from it.
+  let rebound(): Fluid.Registry =
+    Fluid.Registry.bind(
+      TheDocumentsOwnKeysAreOnThePanel.mapped(),
+      "d",
+      Fluid.Command.Yank)
+
+
+  test theDocumentsOwnKeysAreOnThePanel =
+    Stdlib.Test.all(
+      // No keymap, no section. An empty header would be worse than nothing: it says a facility exists and
+      // then says nothing about it.
+      [ Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TheDocumentsOwnKeysAreOnThePanel.panel(Fixtures.reg()),
+            "BOUND HERE"),
+          false)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TheDocumentsOwnKeysAreOnThePanel.panel(
+              TheDocumentsOwnKeysAreOnThePanel.mapped()),
+            "BOUND HERE"),
+          true)
+
+        // Each row is the key and what it does, in the kernel's own wording where it is the kernel's own
+        // command, so a rebound key reads as the key it replaced rather than as a second vocabulary.
+        //
+        // The key column is eight wide, not seven: `^arrows` is exactly seven and touched its description.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TheDocumentsOwnKeysAreOnThePanel.panel(
+              TheDocumentsOwnKeysAreOnThePanel.mapped()),
+            "d       clear"),
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TheDocumentsOwnKeysAreOnThePanel.panel(
+              TheDocumentsOwnKeysAreOnThePanel.mapped()),
+            "n       next sibling"),
+          true)
+
+        // A `RunAction` shows the action's own name, which is what the palette calls it.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TheDocumentsOwnKeysAreOnThePanel.panel(
+              TheDocumentsOwnKeysAreOnThePanel.mapped()),
+            "z       convert to match"),
+          true)
+
+        // The kernel's own rows are still there under it. This is an addition to the help, not a replacement.
+        //
+        // Checked against `j/k` rather than something further down the list, because the panel is clipped at
+        // the region's height and the kernel's sixteen KEYS rows do not all fit on a 26-row terminal. That is
+        // true before this change too, and it is why the bound keys go ABOVE them: a section under a list
+        // that is already being cut is a section nobody sees.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TheDocumentsOwnKeysAreOnThePanel.panel(
+              TheDocumentsOwnKeysAreOnThePanel.mapped()),
+            "j/k     next/prev"),
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TheDocumentsOwnKeysAreOnThePanel.panel(
+              TheDocumentsOwnKeysAreOnThePanel.rebound()),
+            "d       copy"),
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TheDocumentsOwnKeysAreOnThePanel.panel(
+              TheDocumentsOwnKeysAreOnThePanel.rebound()),
+            "d       clear"),
+          false) ])
+
+
+module ThePanelSaysWhatItCouldNotFit =
+  // DOCS, VALUE and ACTIONS each cap their own section and say how much they dropped. The panel as a
+  // WHOLE never did: it just stopped drawing at the bottom of the region, so on an ordinary 26-row
+  // terminal the last third of the KEYS list has always been missing with nothing to say so, and a deep
+  // enough TREE takes everything under it the same way.
+  //
+  // Found by writing the keymap's panel test at the size the app actually runs at, which is how the
+  // BOUND HERE section turned out to be off the bottom.
+
+  let tall(): Stdlib.Cli.Tui.Size =
+    Stdlib.Cli.Tui.Size { width = 110, height = 44 }
+
+
+  let panelAt(size: Stdlib.Cli.Tui.Size): String =
+    let ed =
+      Fluid.Test.drive(
+        Fluid.Editor.init(Fixtures.reg(), Fixtures.hole(), 60),
+        [ "<Esc>" ])
+
+    (Fluid.App.view(
+       { Fixtures.stateOf(ed) with inspectorOpen = true },
+       size)).rows
+    |> Stdlib.List.map(fun r -> Stdlib.Cli.Tui.Text.stripSgr(r))
+    |> Stdlib.String.join("\n")
+
+
+  test thePanelSaysWhatItCouldNotFit =
+    Stdlib.Test.all(
+      // A normal terminal cannot fit the help, and now says so instead of ending mid-list. The marker names
+      // where the rest is: `?` from the open panel opens the full reference.
+      [ Stdlib.Test.equal(
+          Stdlib.String.contains(
+            ThePanelSaysWhatItCouldNotFit.panelAt(Fixtures.size()),
+            "more, ? for all keys"),
+          true)
+
+        // The row it replaced is genuinely gone, so the marker is not sitting on top of content that fits.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            ThePanelSaysWhatItCouldNotFit.panelAt(Fixtures.size()),
+            "q       quit"),
+          false)
+
+        // Give it the room and there is no marker and nothing missing. This is the assertion that stops the
+        // marker from becoming permanent furniture.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            ThePanelSaysWhatItCouldNotFit.panelAt(
+              ThePanelSaysWhatItCouldNotFit.tall()),
+            "more, ? for all keys"),
+          false)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            ThePanelSaysWhatItCouldNotFit.panelAt(
+              ThePanelSaysWhatItCouldNotFit.tall()),
+            "q       quit"),
+          true) ])
+
+
+module TheKeyReference =
+  // The panel could not fit the key list, so `+N more` had nowhere to point. This is where it points.
+  //
+  // Separate from the panel because the two are different things: the panel is CONTEXT (what you are on,
+  // what you can do here) and this is REFERENCE (everything there is, including the mode you are not in).
+  // A sidebar a third of the screen wide cannot hold both, which is the whole finding of the last tick.
+
+  let mapped(): Fluid.Registry =
+    let r0 = Fluid.Registry.bind(Fixtures.reg(), "d", Fluid.Command.Delete)
+    Fluid.Registry.bind(r0, "z", Fluid.Command.RunAction("convert to match"))
+
+
+  let shown(reg: Fluid.Registry): String =
+    let ed =
+      Fluid.Test.drive(Fluid.Editor.init(reg, Fixtures.hole(), 60), [ "<Esc>" ])
+
+    (Fluid.App.view(
+       { Fixtures.stateOf(ed) with inspectorOpen = false, helpOpen = true },
+       Fixtures.size())).rows
+    |> Stdlib.List.map(fun r -> Stdlib.Cli.Tui.Text.stripSgr(r))
+    |> Stdlib.String.join("\n")
+
+
+  test theKeyReference =
+    Stdlib.Test.all(
+      // Both modes at once. Which keys exist in the mode you are NOT in is exactly the question a reference
+      // gets opened to answer, and the panel only ever shows one of them.
+      [ Stdlib.Test.equal(
+          Stdlib.String.contains(TheKeyReference.shown(Fixtures.reg()), "NAV"),
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TheKeyReference.shown(Fixtures.reg()),
+            "INSERT"),
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TheKeyReference.shown(Fixtures.reg()),
+            "S-Tab"),
+          true)
+
+        // The whole NAV list, on a 26-row terminal, which the panel cannot do. `q quit` is the last row and is
+        // the one the panel drops first, so it is the one worth asserting.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TheKeyReference.shown(Fixtures.reg()),
+            "q       quit"),
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TheKeyReference.shown(Fixtures.reg()),
+            "more, taller window"),
+          false)
+
+        // The document's own bindings are in it, drawn from the same data the panel uses.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TheKeyReference.shown(TheKeyReference.mapped()),
+            "BOUND HERE"),
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TheKeyReference.shown(TheKeyReference.mapped()),
+            "z       convert to match"),
+          true)
+
+        // No keymap, no section, the same as the panel.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TheKeyReference.shown(Fixtures.reg()),
+            "BOUND HERE"),
+          false)
+
+        // The completion menu is suppressed under it, the way it is under the demo gallery: two menus at once
+        // and neither obviously the one the keyboard is talking to.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TheKeyReference.shown(Fixtures.reg()),
+            "bind a name"),
+          false) ])
+
+
+module ThePanelAndTheReferenceCannotDrift =
+  // Every NAV pair the reference draws is a row the panel would draw too, given the room.
+  let panelTall(): String =
+    let ed =
+      Fluid.Test.drive(
+        Fluid.Editor.init(Fixtures.reg(), Fixtures.hole(), 60),
+        [ "<Esc>" ])
+
+    (Fluid.App.view(
+       { Fixtures.stateOf(ed) with inspectorOpen = true },
+       Stdlib.Cli.Tui.Size { width = 110, height = 44 })).rows
+    |> Stdlib.List.map(fun r -> Stdlib.Cli.Tui.Text.stripSgr(r))
+    |> Stdlib.String.join("\n")
+
+
+  test thePanelAndTheReferenceCannotDrift =
+    Stdlib.Test.all(
+      // One list of pairs behind both drawings. This is the precedence lesson applied before it costs
+      // anything: the printer and Fluid each had their own copy of the operator table and the places they
+      // disagreed were found one bug at a time.
+      [ Stdlib.Test.equal(
+          Stdlib.List.length(Fluid.Widget.navKeyHelp()) > 0,
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.List.length(Fluid.Widget.insertKeyHelp()) > 0,
+          true)
+
+        Stdlib.Test.equal(
+          Fluid.Widget.navKeyHelp()
+          |> Stdlib.List.all(fun pair ->
+            let (k, what) = pair
+            Stdlib.String.contains(
+              ThePanelAndTheReferenceCannotDrift.panelTall(),
+              what)),
+          true) ])
+
+
+module QuestionMarkCycles =
+  // One key, three states, in the order you want them: the panel is what you want most of the time, the
+  // reference is what you want when the panel could not fit what it has, closed is where you started.
+
+  let press(st: Fluid.App.State, ch: String): Fluid.App.State =
+    match Fluid.App.onKey(
+            st,
+            Stdlib.Cli.Stdin.Key.Key.NoName,
+            Stdlib.Cli.Stdin.Modifiers.Modifiers
+              { ctrl = false, alt = false, shift = false },
+            Stdlib.Option.Option.Some(ch)) with
+    | Repaint(s) -> s
+    | Stay(s) -> s
+    | _ -> st
+
+
+  let start(): Fluid.App.State =
+    let ed = Fluid.Editor.init(Fixtures.reg(), Fixtures.docOf("1 + 1"), 60)
+    { Fixtures.stateOf(ed) with
+        editor = { ed with mode = Fluid.Editor.Mode.Nav } }
+
+
+  let where(st: Fluid.App.State): String =
+    if st.helpOpen then
+      "keys"
+    else if st.inspectorOpen then
+      "panel"
+    else
+      "closed"
+
+
+  test questionMarkCycles =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          QuestionMarkCycles.where(QuestionMarkCycles.start()),
+          "closed")
+
+        Stdlib.Test.equal(
+          QuestionMarkCycles.where(
+            QuestionMarkCycles.press(QuestionMarkCycles.start(), "?")),
+          "panel")
+
+        Stdlib.Test.equal(
+          QuestionMarkCycles.where(
+            QuestionMarkCycles.press(
+              QuestionMarkCycles.press(QuestionMarkCycles.start(), "?"),
+              "?")),
+          "keys")
+
+        // ...and any key at all closes it. A reference you have to work out how to close is a reference people
+        // stop opening, and there is nothing in it to interact with: it is a page, not a menu.
+        Stdlib.Test.equal(
+          QuestionMarkCycles.where(
+            QuestionMarkCycles.press(
+              QuestionMarkCycles.press(
+                QuestionMarkCycles.press(QuestionMarkCycles.start(), "?"),
+                "?"),
+              "?")),
+          "closed")
+
+        Stdlib.Test.equal(
+          QuestionMarkCycles.where(
+            QuestionMarkCycles.press(
+              QuestionMarkCycles.press(
+                QuestionMarkCycles.press(QuestionMarkCycles.start(), "?"),
+                "?"),
+              "j")),
+          "closed")
+
+        // The key that dismissed it does NOT also do its usual job. Closing is the whole press: a `j` that
+        // closed the reference and moved the caret would move it somewhere you could not see.
+        Stdlib.Test.equal(
+          (QuestionMarkCycles.press(
+             QuestionMarkCycles.press(
+               QuestionMarkCycles.press(QuestionMarkCycles.start(), "?"),
+               "?"),
+             "j")).editor.caret,
+          (QuestionMarkCycles.start()).editor.caret) ])
+
+
+module TheExitWarningLeavesWithTheFlag =
+  // `q` and Escape both mean "leave", and with unsaved work the first press says what is at stake and
+  // the second goes through. Any key at all cancels the pending discard, and `afterKey` clears the FLAG
+  // for exactly that reason.
+  //
+  // It did not clear the WARNING. So the line kept saying the next key would throw your work away long
+  // after the next key had come and gone: Escape out of INSERT sets it, and it then sat there through
+  // navigating, editing and evaluating. Found by driving a real package value in a terminal and noticing
+  // the footer was threatening me while I pressed `v`.
+  let unsaved(): Fluid.App.State =
+    let ed = Fluid.Editor.init(Fixtures.reg(), Fixtures.docOf("1 + 2"), 60)
+    // `savedRoot` is a different document, so there is unsaved work and leaving asks.
+    { Fixtures.stateOf({ ed with mode = Fluid.Editor.Mode.Nav }) with
+        savedRoot = Fluid.Slot.Empty(Fluid.PT.exprExpect("expr")) }
+
+
+  let press(
+    st: Fluid.App.State,
+    k: Stdlib.Cli.Stdin.Key.Key,
+    ch: Stdlib.Option.Option<String>)
+    : Fluid.App.State =
+    match Fluid.App.onKey(
+            st,
+            k,
+            Stdlib.Cli.Stdin.Modifiers.Modifiers
+              { ctrl = false, alt = false, shift = false },
+            ch) with
+    | Repaint(s) -> s
+    | Stay(s) -> s
+    | Exit(s) -> s
+    | _ -> st
+
+
+  let asked(): Fluid.App.State =
+    TheExitWarningLeavesWithTheFlag.press(
+      TheExitWarningLeavesWithTheFlag.unsaved(),
+      Stdlib.Cli.Stdin.Key.Key.Escape,
+      Stdlib.Option.Option.None)
+
+
+  let thenMoved(): Fluid.App.State =
+    TheExitWarningLeavesWithTheFlag.press(
+      TheExitWarningLeavesWithTheFlag.asked(),
+      Stdlib.Cli.Stdin.Key.Key.NoName,
+      Stdlib.Option.Option.Some("j"))
+
+
+  test theExitWarningLeavesWithTheFlag =
+    Stdlib.Test.all(
+      // The first press asks, and says so.
+      [ Stdlib.Test.equal(
+          (TheExitWarningLeavesWithTheFlag.asked()).editor.message,
+          "unsaved: ^S to save, or press again to discard")
+
+        Stdlib.Test.equal(
+          (TheExitWarningLeavesWithTheFlag.asked()).confirmingExit,
+          true)
+
+        // The next key cancels it, and the line goes with it.
+        Stdlib.Test.equal(
+          (TheExitWarningLeavesWithTheFlag.thenMoved()).editor.message,
+          "")
+
+        Stdlib.Test.equal(
+          (TheExitWarningLeavesWithTheFlag.thenMoved()).confirmingExit,
+          false) ])

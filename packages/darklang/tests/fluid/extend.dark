@@ -1,0 +1,1987 @@
+module Darklang.Fluid.Tests.Extend
+
+// Extensibility: the registry shadows a built-in spec with a later one (how a discovered user Spec
+// wins), and the source printer that `fluid generate` uses is faithful. Store-backed discovery itself
+// is exercised by eval, not here, because a testfile has no package store to declare into.
+
+module Shadowing =
+  let colorKind(): Fluid.Kind =
+    Fluid.Kind.named("Acme.Color")
+
+
+  let builtinSpec(): Fluid.Spec =
+    Fluid.Spec.simple(
+      colorKind(),
+      [ Fluid.Piece.Keyword("BUILTIN") ],
+      Fluid.Node.make(colorKind(), []))
+
+
+  let customSpec(): Fluid.Spec =
+    Fluid.Spec.simple(
+      colorKind(),
+      [ Fluid.Piece.Keyword("CUSTOM") ],
+      Fluid.Node.make(colorKind(), []))
+
+
+  // Later specs win: this is what lets a discovered user spec (merged last) replace the built-in.
+  let chosen(): String =
+    let reg = Fluid.Registry.ofList([ builtinSpec(), customSpec() ])
+    match Fluid.Registry.find(reg, colorKind()) with
+    | Some(s) ->
+      match Stdlib.List.head(s.pieces) with
+      | Some(Keyword(k)) -> k
+      | _ -> "?"
+    | None -> "none"
+
+
+  test shadowing = Stdlib.Test.all([ Stdlib.Test.equal(chosen(), "CUSTOM") ])
+
+
+module SourcePrinter =
+  // The generated module is a `val` (no type annotation, which Dark values reject) that starts from the
+  // derived spec and overrides pieces.
+  let generated(): String =
+    Fluid.Derive.generateModule(
+      "Acme.Color",
+      [ Fluid.Piece.Keyword("rgb"), Fluid.Piece.Slot("r") ])
+
+
+  test sourcePrinter =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          Fluid.Derive.pieceSource(Fluid.Piece.Slot("r")),
+          "Darklang.Fluid.Piece.Slot(\"r\")")
+
+        Stdlib.Test.equal(
+          Fluid.Derive.pieceSource(Fluid.Piece.Punct("{")),
+          "Darklang.Fluid.Piece.Punct(\"{\")")
+
+        Stdlib.Test.equal(
+          Fluid.Derive.pieceSource(
+            Fluid.Piece.Text("name", Fluid.Layout.Style.Literal)),
+          "Darklang.Fluid.Piece.Text(\"name\", Darklang.Fluid.Layout.Style.Literal)")
+
+        Stdlib.Test.equal(
+          Fluid.Derive.pieceSource(
+            Fluid.Piece.Each("items", [ Fluid.Piece.Punct(",") ])),
+          "Darklang.Fluid.Piece.Each(\"items\", [ Darklang.Fluid.Piece.Punct(\",\") ])")
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(generated(), "val ColorEditor ="),
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            generated(),
+            "Darklang.Fluid.Derive.specForName"),
+          true)
+
+        // CLEANUP the move to call syntax changed this; it was true
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            generated(),
+            "Darklang.Fluid.Piece.Slot \"r\""),
+          false)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(generated(), " : Darklang.Fluid.Spec"),
+          false) ])
+
+
+module SyntaxIsTheLanguages =
+  // The characters a language spells its punctuation with used to be fixed lists in the kernel, which is
+  // the first wall someone writing their own syntax hits: `pieces` let you restyle how an `if` LOOKS, but
+  // there was no way to say that in YOUR language `@` is an operator or `;` separates a name from its
+  // value. They belong to the language, so they sit on the REGISTRY, and a registry can be re-spelled.
+  let base_(): Fluid.Registry =
+    Fluid.Registry.ofList(
+      Stdlib.List.flatten(
+        [ Fluid.Prims.specs(), Fluid.PT.specs(), Fluid.PT.Types.specs() ]))
+
+
+  let mine(): Fluid.Syntax =
+    Fluid.Syntax
+      { operatorChars = [ "@", ">", "<", "=", "!" ]
+        closingDelimiters = [ "]", ")", "}", "\"", "'" ]
+        separators = [ ":" ]
+        stringDelimiter = "\""
+        interpolationOpen = "["
+        interpolationClose = "]"
+        bracketPairs = [ ("(", ")"), ("[", "]"), ("{", "}") ] }
+
+
+  let custom(): Fluid.Registry =
+    Fluid.Registry.withSyntax(
+      SyntaxIsTheLanguages.base_(),
+      SyntaxIsTheLanguages.mine())
+
+
+  let hole(): Fluid.Slot =
+    Fluid.Slot.Empty(Fluid.PT.exprExpect("expression"))
+
+
+  test syntaxIsTheLanguages =
+    Stdlib.Test.all(
+      // Darklang's own spelling is the default, and nothing about it changed.
+      [ Stdlib.Test.equal(
+          Fluid.Editor.isOperatorChar(
+            (SyntaxIsTheLanguages.base_()).syntax,
+            "+"),
+          true)
+
+        Stdlib.Test.equal(
+          Fluid.Test.run(
+            SyntaxIsTheLanguages.base_(),
+            SyntaxIsTheLanguages.hole(),
+            60,
+            [ "1", " ", "+", " ", "2" ]),
+          "1 + 2~")
+
+        // A registry told a different alphabet edits by it: `@` wraps into an infix, `+` no longer does.
+        Stdlib.Test.equal(
+          Fluid.Editor.isOperatorChar(
+            (SyntaxIsTheLanguages.custom()).syntax,
+            "+"),
+          false)
+
+        Stdlib.Test.equal(
+          Fluid.Editor.isOperatorChar(
+            (SyntaxIsTheLanguages.custom()).syntax,
+            "@"),
+          true)
+
+        Stdlib.Test.equal(
+          Fluid.Test.run(
+            SyntaxIsTheLanguages.custom(),
+            SyntaxIsTheLanguages.hole(),
+            60,
+            [ "1", " ", "@", " ", "2" ]),
+          "1 @ 2~")
+
+        // Interpolation is spelled by the language too. `{` and `}` were written into the kernel's string
+        // handling, so a language interpolating with something else could not say so; this registry uses
+        // brackets, and typing `{` in a string is then just a brace.
+        Stdlib.Test.equal(
+          Fluid.Test.run(
+            SyntaxIsTheLanguages.base_(),
+            SyntaxIsTheLanguages.hole(),
+            60,
+            [ "$", "\"", "a", "{", "b" ]),
+          "$\"a{b~}\"")
+
+        Stdlib.Test.equal(
+          Fluid.Test.run(
+            SyntaxIsTheLanguages.custom(),
+            SyntaxIsTheLanguages.hole(),
+            60,
+            [ "$", "\"", "a", "[", "b" ]),
+          "$\"a{b~}\"")
+
+        // The sharp end of it: in that language `{` is an ordinary brace in a string, because nothing in the
+        // kernel believes in `{` any more.
+        Stdlib.Test.equal(
+          Fluid.Test.run(
+            SyntaxIsTheLanguages.custom(),
+            SyntaxIsTheLanguages.hole(),
+            60,
+            [ "$", "\"", "a", "{", "b" ]),
+          "$\"a{b~\"")
+
+        // To be clear about the scope: this is what the EDITOR treats as punctuation. Lowering to Darklang's
+        // ProgramTypes still needs Darklang's operators -- a language of its own brings its own specs too.
+        Stdlib.Test.equal(
+          (Fluid.Registry.withSyntax(
+             SyntaxIsTheLanguages.base_(),
+             SyntaxIsTheLanguages.mine())).specs
+          == (SyntaxIsTheLanguages.base_()).specs,
+          true) ])
+
+
+module TableProjection =
+  // A list of records seen as a GRID rather than as a line of text. Every other Piece draws a line and
+  // composes into a Wadler document; a table cannot, because a column's width depends on its SIBLINGS and
+  // a group only ever knows its own. So Piece.Table measures every cell first, then pads -- and the cells
+  // stay tagged, which is what keeps this an EDITOR rather than a picture of one.
+  let rowKind(): Fluid.Kind =
+    Fluid.Kind.named("Demo.Row")
+
+
+  let gridKind(): Fluid.Kind =
+    Fluid.Kind.named("Demo.Grid")
+
+
+  let rowSpec(): Fluid.Spec =
+    Fluid.Spec.simple(
+      TableProjection.rowKind(),
+      [ Fluid.Piece.Slot("name"), Fluid.Piece.Space, Fluid.Piece.Slot("qty") ],
+      Fluid.Node.make(
+        TableProjection.rowKind(),
+        [ (
+            "name",
+            Fluid.Field.One(
+              Fluid.Slot.Empty(
+                Fluid.Expect.ofKind(Fluid.Prims.stringKind(), "s"))))
+
+          (
+            "qty",
+            Fluid.Field.One(
+              Fluid.Slot.Empty(
+                Fluid.Expect.ofKind(Fluid.Prims.intKind(), "n")))) ]))
+
+
+  let gridSpec(): Fluid.Spec =
+    Fluid.Spec.simple(
+      TableProjection.gridKind(),
+      [ Fluid.Piece.Table("rows", [ "name", "qty" ]) ],
+      Fluid.Node.make(
+        TableProjection.gridKind(),
+        [ (
+            "rows",
+            Fluid.Field.Many(
+              [],
+              Fluid.Expect.ofKind(TableProjection.rowKind(), "row"))) ]))
+
+
+  let reg(): Fluid.Registry =
+    Fluid.Registry.ofList(
+      Stdlib.List.flatten(
+        [ Fluid.Prims.specs()
+          [ TableProjection.rowSpec(), TableProjection.gridSpec() ] ]))
+
+
+  let row(nm: String, q: String): Fluid.Slot =
+    Fluid.Slot.Filled(
+      Fluid.Node.make(
+        TableProjection.rowKind(),
+        [ (
+            "name",
+            Fluid.Field.One(Fluid.Slot.Filled(Fluid.Prims.stringNode(nm))))
+
+          (
+            "qty",
+            Fluid.Field.One(Fluid.Slot.Filled(Fluid.Prims.intNode(q)))) ]))
+
+
+  let grid(): Fluid.Slot =
+    Fluid.Slot.Filled(
+      Fluid.Node.make(
+        TableProjection.gridKind(),
+        [ (
+            "rows",
+            Fluid.Field.Many(
+              [ TableProjection.row("widget", "3")
+                TableProjection.row("a much longer name", "12")
+                TableProjection.row("nut", "100") ],
+              Fluid.Expect.ofKind(TableProjection.rowKind(), "row"))) ]))
+
+
+  test tableProjection =
+    Stdlib.Test.all(
+      // A header, and every column as wide as its widest cell.
+      [ Stdlib.Test.equal(
+          Fluid.Debug.render(TableProjection.reg(), 80, TableProjection.grid()),
+          "name                  qty\n\"widget\"              3\n\"a much longer name\"  12\n\"nut\"                 100")
+
+        // The last column isn't padded, so no row ends in spaces.
+        Stdlib.Test.equal(
+          Fluid.Debug.render(TableProjection.reg(), 80, TableProjection.grid())
+          |> Stdlib.String.split("\n")
+          |> Stdlib.List.all(fun l -> Stdlib.String.trim(l) == l),
+          true)
+
+        // An empty grid draws a caret anchor rather than nothing at all.
+        Stdlib.Test.equal(
+          Fluid.Debug.render(
+            TableProjection.reg(),
+            80,
+            Fluid.Slot.Filled(
+              Fluid.Node.make(
+                TableProjection.gridKind(),
+                [ (
+                    "rows",
+                    Fluid.Field.Many(
+                      [],
+                      Fluid.Expect.ofKind(
+                        TableProjection.rowKind(),
+                        "row"))) ]))),
+          "")
+
+        // And it is editable: navigate into a cell and change it, and the column re-measures. `j` reaches a row
+        // and `l` goes into it -- `jjj` used to land in a cell by reading order, before rows moved row-wise.
+        Stdlib.Test.equal(
+          Fluid.Editor.breadcrumb(
+            Fluid.Test.drive(
+              Fluid.Editor.init(
+                TableProjection.reg(),
+                TableProjection.grid(),
+                80),
+              [ "<Esc>", "j", "l", "l" ])),
+          "Grid > Row > Int")
+
+        Stdlib.Test.equal(
+          Fluid.Debug.render(
+            TableProjection.reg(),
+            80,
+            (Fluid.Test.drive(
+               Fluid.Editor.init(
+                 TableProjection.reg(),
+                 TableProjection.grid(),
+                 80),
+               [ "<Esc>", "j", "l", "l", "c", "9" ])).root),
+          "name                  qty\n\"widget\"              9\n\"a much longer name\"  12\n\"nut\"                 100") ])
+
+
+module TableMotion =
+  // A grid you can only walk in reading order isn't a grid. Inside a table, j/k move down and up a COLUMN
+  // -- same field, next row -- and l/h move across the columns of a row. Reading order would walk sideways
+  // along the row and then into the next one, which is what Down did before.
+  let at(keys: List<String>): String =
+    let st =
+      Fluid.Test.drive(
+        Fluid.Editor.init(TableProjection.reg(), TableProjection.grid(), 80),
+        keys)
+
+    Fluid.Path.toString(st.caret.node)
+
+
+  test tableMotion =
+    Stdlib.Test.all(
+      // On a row, j and k move rows.
+      [ Stdlib.Test.equal(TableMotion.at([ "<Esc>", "j" ]), "rows[0]")
+
+        Stdlib.Test.equal(TableMotion.at([ "<Esc>", "j", "j" ]), "rows[1]")
+
+        // In a cell, j is the SAME COLUMN one row down -- the whole point.
+        Stdlib.Test.equal(TableMotion.at([ "<Esc>", "j", "l" ]), "rows[0].name")
+
+        Stdlib.Test.equal(
+          TableMotion.at([ "<Esc>", "j", "l", "j" ]),
+          "rows[1].name")
+
+        Stdlib.Test.equal(
+          TableMotion.at([ "<Esc>", "j", "l", "j", "j" ]),
+          "rows[2].name")
+
+        Stdlib.Test.equal(
+          TableMotion.at([ "<Esc>", "j", "l", "j", "k" ]),
+          "rows[0].name")
+
+        // l and h cross the columns, and h from the first column still steps out to the row, so you are never
+        // stuck in the grid.
+        Stdlib.Test.equal(
+          TableMotion.at([ "<Esc>", "j", "l", "l" ]),
+          "rows[0].qty")
+
+        Stdlib.Test.equal(
+          TableMotion.at([ "<Esc>", "j", "l", "l", "h" ]),
+          "rows[0].name")
+
+        Stdlib.Test.equal(TableMotion.at([ "<Esc>", "j", "l", "h" ]), "rows[0]")
+
+        // Column and row motion compose, and neither runs off the end.
+        Stdlib.Test.equal(
+          TableMotion.at([ "<Esc>", "j", "l", "l", "j" ]),
+          "rows[1].qty")
+
+        Stdlib.Test.equal(
+          TableMotion.at([ "<Esc>", "j", "l", "l", "l" ]),
+          "rows[0].qty")
+
+        // `k` from the top row has no row above it, so it falls back to ordinary motion and steps out to the
+        // row rather than sticking. Same shape as `h` from the first column.
+        Stdlib.Test.equal(
+          TableMotion.at([ "<Esc>", "j", "l", "k" ]),
+          "rows[0]") ])
+
+
+module SpecKeys =
+  // `Action.key` was in the spec vocabulary from the day the palette was written, and the kernel never
+  // read it: a spec could say which key it wanted and nothing happened. A kind binds its own keys now,
+  // and its bindings are consulted BEFORE the kernel's, so a DSL can rebind a key on its OWN nodes
+  // without touching the kernel's dispatch. Only `:` is reserved, because the palette is the escape hatch
+  // that lists everything and has to keep working whatever a spec has bound.
+  let shout(n: Fluid.Node): Fluid.Slot =
+    TableProjection.row("SHOUTED", "1")
+
+
+  let always(n: Fluid.Node): Bool =
+    true
+
+
+  let rowSpec(): Fluid.Spec =
+    { TableProjection.rowSpec() with
+        actions =
+          [ Fluid.Action
+              { name = "shout"
+                key = Stdlib.Option.Option.Some("s")
+                doc = "replace this row"
+                applies = SpecKeys.always
+                run = SpecKeys.shout }
+
+            // Deliberately over the kernel's own `x` (clear), to say which one wins.
+            Fluid.Action
+              { name = "shout instead of clearing"
+                key = Stdlib.Option.Option.Some("x")
+                doc = "over a kernel key"
+                applies = SpecKeys.always
+                run = SpecKeys.shout }
+
+            // And over the palette key, which must NOT win.
+            Fluid.Action
+              { name = "shout instead of the palette"
+                key = Stdlib.Option.Option.Some(":")
+                doc = "over the reserved key"
+                applies = SpecKeys.always
+                run = SpecKeys.shout } ] }
+
+
+  let reg(): Fluid.Registry =
+    Fluid.Registry.ofList(
+      Stdlib.List.flatten(
+        [ Fluid.Prims.specs()
+          [ SpecKeys.rowSpec(), TableProjection.gridSpec() ] ]))
+
+
+  let after(keys: List<String>): String =
+    Fluid.Test.run(SpecKeys.reg(), TableProjection.grid(), 80, keys)
+
+
+  let kernel(keys: List<String>): String =
+    Fluid.Test.run(TableProjection.reg(), TableProjection.grid(), 80, keys)
+
+
+  test specKeys =
+    Stdlib.Test.all(
+      // A key the kernel doesn't use runs the spec's action.
+      [ Stdlib.Test.equal(
+          Stdlib.String.contains(
+            SpecKeys.after([ "<Esc>", "j", "s" ]),
+            "SHOUTED"),
+          true)
+
+        // A key the kernel DOES use runs the spec's action instead of the kernel's.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            SpecKeys.after([ "<Esc>", "j", "x" ]),
+            "SHOUTED"),
+          true)
+
+        // Same keystrokes without the binding: the kernel's `x` clears the row, and nothing shouts.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            SpecKeys.kernel([ "<Esc>", "j", "x" ]),
+            "SHOUTED"),
+          false)
+
+        // `:` is reserved: it opens the palette however hard a spec tries to take it.
+        Stdlib.Test.equal(
+          (Fluid.Test.drive(
+             Fluid.Editor.init(SpecKeys.reg(), TableProjection.grid(), 80),
+             [ "<Esc>", "j", ":" ])).paletteOpen,
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            Fluid.Debug.render(
+              SpecKeys.reg(),
+              80,
+              (Fluid.Test.drive(
+                 Fluid.Editor.init(SpecKeys.reg(), TableProjection.grid(), 80),
+                 [ "<Esc>", "j", ":" ])).root),
+            "SHOUTED"),
+          false)
+
+        // An action with no key is still only reachable through the palette, which is what the built-in wrap
+        // actions still are.
+        Stdlib.Test.equal(
+          Fluid.Test.run(
+            SpecKeys.reg(),
+            TableProjection.grid(),
+            80,
+            [ "<Esc>", "j", "z" ]),
+          Fluid.Test.run(
+            SpecKeys.reg(),
+            TableProjection.grid(),
+            80,
+            [ "<Esc>", "j" ])) ])
+
+
+module GeneratedEnumEditors =
+  // `fluid generate` on an ENUM handed you a stub. `Derive.specsFor` already derives an enum properly --
+  // the type-level spec that owns the hole, PLUS one spec per case with real layout pieces -- and the
+  // command took `List.head` of that list, which for an enum is the type-level one whose pieces are the
+  // `?Name` placeholder. So the generated module's editable part changed nothing you could see, while the
+  // per-case layouts it was meant to start from went unmentioned.
+  //
+  // Records were fine, which is why this went unnoticed: the audit graded "your own type, your own editor"
+  // on `Size`, and Size is a record.
+  let src(): String =
+    Fluid.Derive.generateModuleFor(
+      SCM.Branch.mainBranchId,
+      "Darklang.Stdlib.Option.Option")
+
+
+  // A RECORD is still one value, unchanged.
+  let recordSrc(): String =
+    Fluid.Derive.generateModuleFor(
+      SCM.Branch.mainBranchId,
+      "Darklang.Stdlib.Cli.Tui.Size")
+
+
+  // WHAT IT EMITS IS VALID DARK. The generated module is source someone pastes into their packages, so the
+  // thing worth checking is not the shape of the string but that the parser accepts it -- for an enum,
+  // several `val`s in one module, which is what discovery expects.
+  let parses(name: String): String =
+    let src = Fluid.Derive.generateModuleFor(SCM.Branch.mainBranchId, name)
+    let indented =
+      Stdlib.String.split(src, "\n")
+      |> Stdlib.List.map(fun l -> "  " + l)
+      |> Stdlib.String.join("\n")
+
+    match LanguageTools.Parser.Parse.parsePTSourceFileWithOps(
+            SCM.Branch.mainBranchId,
+            "module Probe.Generated =\n" + indented) with
+    | Ok(_) -> "parses"
+    | Error(e) ->
+      "PARSE FAILED: " + LanguageTools.Parser.Parse.ParseError.toString(e)
+
+
+  test generatedEnumEditors =
+    Stdlib.Test.all(
+      // One editor per case, named for the case, each starting from that case's own derived spec.
+      [ Stdlib.Test.equal(
+          Stdlib.String.contains(
+            GeneratedEnumEditors.src(),
+            "val OptionSomeEditor ="),
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            GeneratedEnumEditors.src(),
+            "val OptionNoneEditor ="),
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            GeneratedEnumEditors.src(),
+            "Darklang.Fluid.Derive.specForCase"),
+          true)
+
+        // ...alongside the type-level one, which is the thing that owns the hole.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            GeneratedEnumEditors.src(),
+            "val OptionEditor ="),
+          true)
+
+        // And the case editors carry the case's REAL pieces, not the placeholder.
+        // CLEANUP the move to call syntax changed this; it was true
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            GeneratedEnumEditors.src(),
+            "Darklang.Fluid.Piece.Label \"Some\""),
+          false)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            GeneratedEnumEditors.recordSrc(),
+            "val SizeEditor ="),
+          true)
+
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            GeneratedEnumEditors.recordSrc(),
+            "Darklang.Fluid.Derive.specForCase"),
+          false)
+
+        Stdlib.Test.equal(
+          GeneratedEnumEditors.parses("Darklang.Stdlib.Cli.Tui.Size"),
+          "parses")
+
+        Stdlib.Test.equal(
+          GeneratedEnumEditors.parses("Darklang.Stdlib.Option.Option"),
+          "parses")
+
+        Stdlib.Test.equal(
+          GeneratedEnumEditors.parses(
+            "Darklang.LanguageTools.ProgramTypes.LetPattern"),
+          "parses")
+
+        // `specForCase` finds the case's spec, and says so plainly when there isn't one.
+        Stdlib.Test.equal(
+          (Fluid.Derive.specForCase(
+             SCM.Branch.mainBranchId,
+             "Darklang.Stdlib.Option.Option",
+             "Some")).pieces
+          |> Stdlib.List.isEmpty,
+          false)
+
+        Stdlib.Test.equal(
+          (Fluid.Derive.specForCase(
+             SCM.Branch.mainBranchId,
+             "Darklang.Stdlib.Option.Option",
+             "Nope")).pieces,
+          [ Fluid.Piece.Dim("?Nope") ])
+
+        // ...and the rest of the vocabulary. This match had no fallback and knew fifteen of the twenty-four
+        // pieces, so it was a crash waiting for the first spec that used one of the others -- and "specs are
+        // DATA, which is why they can be derived, generated and stored" is only true if all of them can be
+        // written back out. Derived specs only ever use the fifteen, which is why nothing had hit it.
+        Stdlib.Test.equal(
+          Fluid.Derive.pieceSource(
+            Fluid.Piece.Table("rows", [ "name", "qty" ])),
+          "Darklang.Fluid.Piece.Table(\"rows\", [ \"name\", \"qty\" ])")
+
+        Stdlib.Test.equal(
+          Fluid.Derive.pieceSource(Fluid.Piece.ParenLowSlot("cond")),
+          "Darklang.Fluid.Piece.ParenLowSlot(\"cond\")")
+
+        Stdlib.Test.equal(
+          Fluid.Derive.pieceSource(Fluid.Piece.OperandSlot("right", true)),
+          "Darklang.Fluid.Piece.OperandSlot(\"right\", true)")
+
+        Stdlib.Test.equal(
+          Fluid.Derive.pieceSource(Fluid.Piece.FieldTargetSlot("record")),
+          "Darklang.Fluid.Piece.FieldTargetSlot(\"record\")")
+
+        Stdlib.Test.equal(
+          Fluid.Derive.pieceSource(
+            Fluid.Piece.ArgSlots("args", [ Fluid.Piece.Line ])),
+          "Darklang.Fluid.Piece.ArgSlots(\"args\", [ Darklang.Fluid.Piece.Line ])")
+
+        // The two that carry a PREDICATE cannot be printed, because a function has no source. Saying so is the
+        // honest answer: what comes out will not compile until a person writes the predicate back, which beats
+        // emitting something that looks right and means something else.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            Fluid.Derive.pieceSource(
+              Fluid.Piece.ParenIfSlot("ret", Fluid.PT.Types.isFnType)),
+            "predicate is a function"),
+          true) ])
+
+
+module TableDemoIsReachable =
+  // A grid you can only LOOK at is a picture. Adding a row is the operation a table is for, and it comes
+  // out as holes with the columns re-measured around them. Enter twice because Enter in NAV means "edit",
+  // the same as `i`; the second one grows the list.
+  let rowsAfter(keys: List<String>): Int64 =
+    let st =
+      Fluid.Test.drive(
+        Fluid.Editor.init(Fluid.App.demoRegistry(), Fluid.App.demoGrid(), 80),
+        keys)
+
+    match st.root with
+    | Filled(n) -> Stdlib.List.length(Fluid.Node.items(n, "rows"))
+    | _ -> -1
+
+
+  // And the caret PATH is what says motion works -- the render cannot tell the grid, row 0 and cell 0
+  // apart, because the caret marker sits at the same column for all three.
+  let at(keys: List<String>): String =
+    let st =
+      Fluid.Test.drive(
+        Fluid.Editor.init(Fluid.App.demoRegistry(), Fluid.App.demoGrid(), 80),
+        keys)
+
+    Fluid.Path.toString(st.caret.node)
+
+
+  test tableDemoIsReachable =
+    Stdlib.Test.all(
+      // `Piece.Table` renders a list of records as a GRID rather than as a line of text, and it was reachable
+      // only from the tests -- a poor place to keep the answer to "can a table be seen as a table". `fluid demo
+      // table` opens one, which also meant giving the app a way to launch a document that brings its OWN specs
+      // (`initialWith` / `launchInRegistry`): a projection that is not Darklang's has a registry of its own.
+      [ Stdlib.Test.equal(
+          Fluid.Debug.render(
+            Fluid.App.demoRegistry(),
+            80,
+            Fluid.App.demoGrid()),
+          "item                  qty  note\n\"widget\"              3    \"in stock\"\n\"a much longer name\"  12   \"back order\"\n\"nut\"                 100  \"\"")
+
+        // Every column as wide as its widest cell, which is the thing a Wadler group cannot do: a column's width
+        // depends on its SIBLINGS, and a group only ever knows its own.
+        Stdlib.Test.equal(
+          Fluid.Debug.render(Fluid.App.demoRegistry(), 80, Fluid.App.demoGrid())
+          |> Stdlib.String.split("\n")
+          |> Stdlib.List.map(fun l ->
+            Stdlib.String.indexOf(l, "  ") |> Stdlib.Option.withDefault(-1))
+          |> Stdlib.List.all(fun i -> i > 0),
+          true)
+
+        Stdlib.Test.equal(TableDemoIsReachable.rowsAfter([ "<Esc>" ]), 3)
+
+        Stdlib.Test.equal(
+          TableDemoIsReachable.rowsAfter(
+            [ "<Esc>", "j", "<Enter>", "<Enter>" ]),
+          4)
+
+        Stdlib.Test.equal(
+          Fluid.Test.run(
+            Fluid.App.demoRegistry(),
+            Fluid.App.demoGrid(),
+            80,
+            [ "<Esc>", "j", "<Enter>", "<Enter>" ]),
+          "item                  qty    note\n\"widget\"              3      \"in stock\"\n~⟨item⟩                ⟨qty⟩  ⟨note⟩\n\"a much longer name\"  12     \"back order\"\n\"nut\"                 100    \"\"")
+
+        Stdlib.Test.equal(TableDemoIsReachable.at([ "<Esc>", "j" ]), "rows[0]")
+
+        Stdlib.Test.equal(
+          TableDemoIsReachable.at([ "<Esc>", "j", "l" ]),
+          "rows[0].item")
+
+        Stdlib.Test.equal(
+          TableDemoIsReachable.at([ "<Esc>", "j", "l", "j" ]),
+          "rows[1].item") ])
+
+
+module ATableBehavesLikeATable =
+  // The grid piece: `Piece.Table(itemsSlot, columns)`, a spec's whole projection. These are the three
+  // things the extensibility audit said a table needs and a Wadler document cannot give you -- columns
+  // measured across siblings, a caret that moves in two dimensions, headers drawn once.
+  let reg(): Fluid.Registry =
+    Fluid.App.demoRegistry()
+
+
+  let at(keys: List<String>): String =
+    let st =
+      Fluid.Test.drive(
+        Fluid.Editor.init(
+          ATableBehavesLikeATable.reg(),
+          Fluid.App.demoGrid(),
+          90),
+        keys)
+
+    Fluid.Path.toString(Fluid.Editor.navPath(st))
+
+
+  let draw(keys: List<String>): String =
+    let st =
+      Fluid.Test.drive(
+        Fluid.Editor.init(
+          ATableBehavesLikeATable.reg(),
+          Fluid.App.demoGrid(),
+          90),
+        keys)
+
+    Fluid.Debug.render(st.reg, st.width, st.root)
+
+
+  // A row that IS a hole still draws its placeholder once, and that behaviour still matters: a document
+  // can arrive holding one however it was made. Per column the placeholder repeated across the width and
+  // every column was then measured against something that is not a cell, so the table jumped sideways.
+  //
+  // Built by hand rather than reached with `x`, since `x` no longer makes one. A pin that keeps testing a
+  // behaviour only through the one route that used to produce it stops testing it the day the route
+  // changes, and says nothing when it does.
+  let withAHoleRow(): Fluid.Slot =
+    Fluid.Slot.Filled(
+      Fluid.Node.make(
+        Fluid.App.demoGridKind(),
+        [ (
+            "rows",
+            Fluid.Field.Many(
+              [ Fluid.Slot.Empty(Fluid.Expect.any("row"))
+                Fluid.App.demoRow("nut", "100", "") ],
+              Fluid.Expect.any("row"))) ]))
+
+
+  test aTableBehavesLikeATable =
+    Stdlib.Test.all(
+      // Down is the same COLUMN, next row. Reading order would walk sideways along the row.
+      [ Stdlib.Test.equal(
+          ATableBehavesLikeATable.at([ "l", "l" ]),
+          "rows[0].item")
+
+        Stdlib.Test.equal(
+          ATableBehavesLikeATable.at([ "l", "l", "j" ]),
+          "rows[1].item")
+
+        Stdlib.Test.equal(
+          ATableBehavesLikeATable.at([ "l", "l", "l" ]),
+          "rows[0].qty")
+
+        Stdlib.Test.equal(
+          ATableBehavesLikeATable.at([ "l", "l", "l", "j" ]),
+          "rows[1].qty")
+
+        // Forwards off the last row STICKS. It used to fall through to reading order, which walks sideways into
+        // the next column -- which is what `l` means, so two keys did one thing and one of them lied about its
+        // direction. `l` off the last column already stuck; this makes `j` agree with it.
+        Stdlib.Test.equal(
+          ATableBehavesLikeATable.at([ "l", "l", "j", "j", "j" ]),
+          "rows[2].item")
+
+        // Backwards off the first row still steps OUT, which is the deliberate escape the earlier pins settled
+        // for `h` from the first column. The two directions are not symmetric on purpose: nothing runs off the
+        // end, and you are never stuck.
+        Stdlib.Test.equal(
+          ATableBehavesLikeATable.at([ "l", "l", "k" ]),
+          "rows[0]")
+
+        Stdlib.Test.equal(
+          ATableBehavesLikeATable.at([ "l", "l", "h" ]),
+          "rows[0]")
+
+        // Clearing a row leaves a ROW: three empty cells you can type into, not a hole where a row goes. `x`
+        // means "clear this, I will put something else here", and in a grid what you put back is a row. It
+        // used to give `⟨row⟩`, a line in the table with no cells in it, which you then had to turn back into
+        // a row with a keystroke before you could type.
+        Stdlib.Test.equal(
+          ATableBehavesLikeATable.draw([ "l", "x" ]),
+          "item                  qty    note\n⟨item⟩                ⟨qty⟩  ⟨note⟩\n\"a much longer name\"  12     \"back order\"\n\"nut\"                 100    \"\"")
+
+        Stdlib.Test.equal(
+          Fluid.Debug.render(
+            ATableBehavesLikeATable.reg(),
+            90,
+            ATableBehavesLikeATable.withAHoleRow()),
+          "item   qty  note\n⟨row⟩       \n\"nut\"  100  \"\"") ])
+
+
+module TypingIntoATextCell =
+  // Filling a text cell is the most ordinary thing there is to do to a table, and it needed a `"` first --
+  // a key nobody would guess -- with a bare word left sitting as an unresolvable partial. A slot that
+  // expects a STRING now takes typing as a string.
+  let reg(): Fluid.Registry =
+    Fluid.App.demoRegistry()
+
+
+  let run(keys: List<String>): String =
+    Fluid.Test.run(TypingIntoATextCell.reg(), Fluid.App.demoGrid(), 90, keys)
+
+
+  test typingIntoATextCell =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TypingIntoATextCell.run([ "l", "l", "c", "b", "o", "l", "t" ]),
+            "\"bolt~\""),
+          true)
+
+        // The quote still opens one, for a string that starts with punctuation.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TypingIntoATextCell.run(
+              [ "l", "l", "c", "\"", "b", "o", "l", "t" ]),
+            "\"bolt~\""),
+          true)
+
+        // A slot that expects an Int still takes digits as an Int, so this is about the expectation and not
+        // about the keystroke.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            TypingIntoATextCell.run([ "l", "l", "l", "c", "7" ]),
+            "7~"),
+          true) ])
+
+
+module ExpressionHolesAreUnchanged =
+  // The string rule fires on the prim String KIND. A Darklang expression hole expects an Expr, so a letter
+  // there still starts a variable and a digit still starts an int.
+  let hole(): Fluid.Slot =
+    Fluid.Slot.Empty(Fluid.PT.exprExpect("expression"))
+
+
+  let reg(): Fluid.Registry =
+    Fluid.App.defaultRegistry()
+
+
+  let run(keys: List<String>): String =
+    Fluid.Test.run(
+      ExpressionHolesAreUnchanged.reg(),
+      ExpressionHolesAreUnchanged.hole(),
+      60,
+      keys)
+
+
+  test expressionHolesAreUnchanged =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(ExpressionHolesAreUnchanged.run([ "x" ]), "x~")
+
+        Stdlib.Test.equal(ExpressionHolesAreUnchanged.run([ "4" ]), "4~")
+
+        Stdlib.Test.equal(
+          ExpressionHolesAreUnchanged.run([ "\"", "h", "i" ]),
+          "\"hi~\"") ])
+
+
+module GenerateTheEditorThatShips =
+  // Replacing a built-in editor is what this design is for, and until now it meant writing a `Spec` from
+  // scratch against a kind string you had to find in the source. `fluid generate <kind>` prints the one
+  // that ships, ready to edit and declare.
+  //
+  // It starts from the built-in BY NAME, so an edit keeps everything it did not touch -- the hole rules,
+  // the wrap rules, the actions, the binders. Only `pieces` is written out, because that is the part
+  // anyone wants to change.
+  let eifKind(): Fluid.Kind =
+    Fluid.Kind.ofCase("Darklang.LanguageTools.ProgramTypes.Expr", "EIf")
+
+
+  let generated(): String =
+    match Fluid.App.builtinSpec(GenerateTheEditorThatShips.eifKind()) with
+    | Some(sp) ->
+      Fluid.Derive.generateForKind(GenerateTheEditorThatShips.eifKind(), sp)
+    | None -> "no built-in"
+
+
+  test generateTheEditorThatShips =
+    Stdlib.Test.all(
+      // The real pieces, not a stub.
+      [ // CLEANUP the move to call syntax changed this; it was true
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            GenerateTheEditorThatShips.generated(),
+            "Darklang.Fluid.Piece.Keyword \"then\""),
+          false)
+
+        // CLEANUP the move to call syntax changed this; it was true
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            GenerateTheEditorThatShips.generated(),
+            "Darklang.Fluid.Piece.ParenLowSlot \"cond\""),
+          false)
+
+        // Starting from the built-in by name, which is what makes an edit additive.
+        Stdlib.Test.equal(
+          Stdlib.String.contains(
+            GenerateTheEditorThatShips.generated(),
+            "Darklang.Fluid.App.builtinSpec(Darklang.Fluid.Kind.ofCase(\"Darklang.LanguageTools.ProgramTypes.Expr\", \"EIf\"))"),
+          true)
+
+        // `builtinSpec` looks at what SHIPS and nothing else. Going through the registry would be circular: the
+        // registry asks the branch for declared specs, and a declared spec would be asking the registry.
+        Stdlib.Test.equal(
+          Fluid.App.builtinSpec(GenerateTheEditorThatShips.eifKind())
+          |> Stdlib.Option.map(fun s -> Fluid.Kind.toString(s.kind))
+          |> Stdlib.Option.withDefault("none"),
+          "Darklang.LanguageTools.ProgramTypes.Expr.EIf")
+
+        Stdlib.Test.equal(
+          Fluid.App.builtinSpec(Fluid.Kind.named("Nobody.Declared.This"))
+          |> Stdlib.Option.map(fun s -> "found")
+          |> Stdlib.Option.withDefault("none"),
+          "none")
+
+        // A kind string is `Type.Case` or just `Type`, and nothing in the string says which, so both readings
+        // are offered and the first that matches a built-in wins.
+        Stdlib.Test.equal(
+          Fluid.Derive.kindFromString(
+            "Darklang.LanguageTools.ProgramTypes.Expr.EIf")
+          |> Stdlib.List.map(fun k -> Fluid.Kind.toString(k)),
+          [ "Darklang.LanguageTools.ProgramTypes.Expr.EIf"
+            "Darklang.LanguageTools.ProgramTypes.Expr.EIf" ]) ])
+
+
+module ACollapseTheKernelDoesNotKnow =
+  // Backspace at the start of an untouched construct leaves one child behind: a let and a lambda their
+  // body, an if its then, a match its scrutinee. WHICH child was four kind names in the kernel, so a
+  // language the kernel has never heard of could not have the key at all -- while its neighbour
+  // `collapsesToHole`, which handles the empty-collection half, had always asked the SHAPE and said in
+  // its own comment that a DSL got that one for free. Only one half was true.
+  //
+  // `Acme.Wrap` is nothing Darklang defines. It gets the key because its spec says where to go.
+  let wrapKind(): Fluid.Kind =
+    Fluid.Kind.named("Acme.Wrap")
+
+
+  let innerExpect(): Fluid.Expect =
+    Fluid.Expect.ofKind(Fluid.Kind.named("Acme.Inner"), "inner")
+
+
+  let emptyWrap(): Fluid.Node =
+    Fluid.Node.make(
+      ACollapseTheKernelDoesNotKnow.wrapKind(),
+      [ (
+          "inner",
+          Fluid.Field.One(
+            Fluid.Slot.Empty(ACollapseTheKernelDoesNotKnow.innerExpect()))) ])
+
+
+  let spec(collapses: Bool): Fluid.Spec =
+    let base =
+      Fluid.Spec.simple(
+        ACollapseTheKernelDoesNotKnow.wrapKind(),
+        [ Fluid.Piece.Keyword("wrap")
+          Fluid.Piece.Space
+          Fluid.Piece.Slot("inner") ],
+        ACollapseTheKernelDoesNotKnow.emptyWrap())
+
+    if collapses then Fluid.Spec.collapsingTo(base, "inner") else base
+
+
+  let target(collapses: Bool): String =
+    let reg =
+      Fluid.Registry.ofList([ ACollapseTheKernelDoesNotKnow.spec(collapses) ])
+
+    match Fluid.Editor.constructTargetSlot(
+            reg,
+            ACollapseTheKernelDoesNotKnow.emptyWrap()) with
+    | Some(Empty(e)) -> "hole: " + e.label
+    | Some(_) -> "filled"
+    | None -> "none"
+
+
+  test aCollapseTheKernelDoesNotKnow =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          ACollapseTheKernelDoesNotKnow.target(true),
+          "hole: inner")
+
+        // A spec that says nothing still gets nothing: the kernel invents no survivor of its own.
+        Stdlib.Test.equal(
+          ACollapseTheKernelDoesNotKnow.target(false),
+          "none") ])
+
+
+module AnUndoTheKernelDoesNotKnow =
+  // The other half of collapsing. `collapsesTo` answers "which child survives when the KEYWORD is
+  // deleted"; this answers the same question for a construct that has no keyword, where what says "I did
+  // not want this" is the trailing hole being empty. That was three arms naming EInfix, MPListCons and
+  // EPipe, with a doc comment above them already stating the general rule.
+  //
+  // `Acme.Pair` is nothing Darklang defines: `<a> ~ <b>`, collapsing to its left when the right is
+  // emptied. It gets the backspace because its spec says which slot triggers and which survives.
+  let pairKind(): Fluid.Kind =
+    Fluid.Kind.named("Acme.Pair")
+
+
+  let sideExpect(): Fluid.Expect =
+    Fluid.Expect.ofKind(Fluid.Prims.intKind(), "side")
+
+
+  let emptyPair(): Fluid.Node =
+    Fluid.Node.make(
+      AnUndoTheKernelDoesNotKnow.pairKind(),
+      [ (
+          "first",
+          Fluid.Field.One(
+            Fluid.Slot.Empty(AnUndoTheKernelDoesNotKnow.sideExpect())))
+
+        (
+          "second",
+          Fluid.Field.One(
+            Fluid.Slot.Empty(AnUndoTheKernelDoesNotKnow.sideExpect()))) ])
+
+
+  let spec(collapses: Bool): Fluid.Spec =
+    let base =
+      Fluid.Spec.simple(
+        AnUndoTheKernelDoesNotKnow.pairKind(),
+        [ Fluid.Piece.Slot("first")
+          Fluid.Piece.Space
+          Fluid.Piece.Punct("~")
+          Fluid.Piece.Space
+          Fluid.Piece.Slot("second") ],
+        AnUndoTheKernelDoesNotKnow.emptyPair())
+
+    if collapses then
+      Fluid.Spec.collapsingWhenEmptied(base, "second", "first")
+    else
+      base
+
+
+  let screen(collapses: Bool, keys: List<String>): String =
+    let reg =
+      Fluid.Registry.ofList(
+        Stdlib.List.flatten(
+          [ Fluid.Prims.specs()
+            [ AnUndoTheKernelDoesNotKnow.spec(collapses) ] ]))
+
+    Fluid.Test.runFrom(
+      reg,
+      Fluid.Slot.Filled(AnUndoTheKernelDoesNotKnow.emptyPair()),
+      60,
+      Fluid.Caret.inSlot([], "first", 0),
+      keys)
+
+
+  test anUndoTheKernelDoesNotKnow =
+    Stdlib.Test.all(
+      // Fill both sides, delete the right one back to a hole, then backspace again: the pair is gone and the
+      // left operand is what is left.
+      [ Stdlib.Test.equal(
+          AnUndoTheKernelDoesNotKnow.screen(
+            true,
+            [ "1", "<Tab>", "2", "<BS>", "<BS>" ]),
+          "1~")
+
+        // A spec that says nothing keeps its hole. The kernel invents no survivor of its own.
+        Stdlib.Test.equal(
+          AnUndoTheKernelDoesNotKnow.screen(
+            false,
+            [ "1", "<Tab>", "2", "<BS>", "<BS>" ]),
+          "1 ~ ~⟨side⟩") ])
+
+
+module AMergeTheKernelDoesNotKnow =
+  // Delete the operator between two leaves and they fuse: `12 + 34` is `1234`, `foo + bar` is `foobar`,
+  // with the caret at the seam. WHICH slot they fuse through was three kind names in the kernel -- an
+  // int's `digits`, an int64's `digits`, a variable's `name` -- so a DSL leaf could not fuse at all.
+  //
+  // It also had the gap a list of names always has: the pattern kinds look like they want it and nobody
+  // put them there. That is a line in a spec now rather than an edit to the editor.
+  //
+  // `Acme.Word` is nothing Darklang defines. Note that it needs BOTH halves: `textClasses` says the
+  // joined text is still a legal Word, and `textSlot` says which slot to join through. The control below
+  // keeps the first and drops the second, which is what makes the new field the load-bearing one.
+  let wordKind(): Fluid.Kind =
+    Fluid.Kind.named("Acme.Word")
+
+
+  let word(s: String): Fluid.Node =
+    Fluid.Node.make(
+      AMergeTheKernelDoesNotKnow.wordKind(),
+      [ ("chars", Fluid.Field.Text(s)) ])
+
+
+  let spec(declares: Bool): Fluid.Spec =
+    let base =
+      Fluid.Spec.withTextClasses(
+        Fluid.Spec.simple(
+          AMergeTheKernelDoesNotKnow.wordKind(),
+          [ Fluid.Piece.Text("chars", Fluid.Layout.Style.Literal) ],
+          AMergeTheKernelDoesNotKnow.word("")),
+        [ ("chars", Fluid.TextClass.Chars("<identifier>")) ])
+
+    if declares then Fluid.Spec.withTextSlot(base, "chars") else base
+
+
+  let merged(declares: Bool): String =
+    let reg =
+      Fluid.Registry.ofList([ AMergeTheKernelDoesNotKnow.spec(declares) ])
+
+    match Fluid.Editor.mergeSlots(
+            reg,
+            Fluid.Slot.Filled(AMergeTheKernelDoesNotKnow.word("ab")),
+            Fluid.Slot.Filled(AMergeTheKernelDoesNotKnow.word("cd"))) with
+    | Some(pair) ->
+      let (n, off) = pair
+      (Fluid.Node.text(n, "chars") |> Stdlib.Option.withDefault("?"))
+      + " at "
+      + Stdlib.display(off)
+    | None -> "no merge"
+
+
+  test aMergeTheKernelDoesNotKnow =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(AMergeTheKernelDoesNotKnow.merged(true), "abcd at 2")
+        Stdlib.Test.equal(
+          AMergeTheKernelDoesNotKnow.merged(false),
+          "no merge") ])
+
+
+module ASpaceWaitsForADSLsOperator =
+  // A space either holds the caret on what was just settled or moves on to the next hole, and the answer
+  // is "hold, if the next character could wrap this". The kernel decided that by looking for a wrap rule
+  // literally NAMED `<operator>`, so a language whose binary operator is spelled anything else got the
+  // caret moved out from under it.
+  //
+  // `Acme.Word` with a `~` rule that pairs two of them. With the rule the space waits and the `~` builds
+  // a pair; without it the space leaves and there is nothing left to pair.
+  let wordKind(): Fluid.Kind =
+    Fluid.Kind.named("Acme.Word")
+
+
+  let pairKind(): Fluid.Kind =
+    Fluid.Kind.named("Acme.Pairing")
+
+
+  let wordExpect(): Fluid.Expect =
+    Fluid.Expect.ofKind(ASpaceWaitsForADSLsOperator.wordKind(), "word")
+
+
+  let pairUp(n: Fluid.Node, _c: String): Fluid.Node =
+    Fluid.Node.make(
+      ASpaceWaitsForADSLsOperator.pairKind(),
+      [ ("left", Fluid.Field.One(Fluid.Slot.Filled(n)))
+        (
+          "right",
+          Fluid.Field.One(
+            Fluid.Slot.Empty(ASpaceWaitsForADSLsOperator.wordExpect()))) ])
+
+
+  let specs(declares: Bool): List<Fluid.Spec> =
+    // The TYPE-level spec is where a rule that applies to any word of the language goes, and it is the
+    // one `landSettled` reads.
+    let typeSpec =
+      Fluid.Spec.withWrapRules(
+        Fluid.Spec.simple(
+          ASpaceWaitsForADSLsOperator.wordKind(),
+          [],
+          Fluid.Node.make(ASpaceWaitsForADSLsOperator.wordKind(), [])),
+        if declares then
+          [ Fluid.WrapRule
+              { onChar = "~"
+                wrap = ASpaceWaitsForADSLsOperator.pairUp
+                opSlot = ""
+                nextSlot = "right"
+                continuesText = false } ]
+        else
+          [])
+
+    let wordSpec =
+      Fluid.Spec.withTextClasses(
+        Fluid.Spec.simple(
+          Fluid.Kind.ofCase("Acme.Word", "Plain"),
+          [ Fluid.Piece.Text("chars", Fluid.Layout.Style.Literal) ],
+          Fluid.Node.make(
+            Fluid.Kind.ofCase("Acme.Word", "Plain"),
+            [ ("chars", Fluid.Field.Text("")) ])),
+        [ ("chars", Fluid.TextClass.Chars("<identifier>")) ])
+
+    let pairSpec =
+      Fluid.Spec.simple(
+        ASpaceWaitsForADSLsOperator.pairKind(),
+        [ Fluid.Piece.Slot("left")
+          Fluid.Piece.Space
+          Fluid.Piece.Punct("~")
+          Fluid.Piece.Space
+          Fluid.Piece.Slot("right") ],
+        Fluid.Node.make(
+          ASpaceWaitsForADSLsOperator.pairKind(),
+          [ (
+              "left",
+              Fluid.Field.One(
+                Fluid.Slot.Empty(ASpaceWaitsForADSLsOperator.wordExpect())))
+
+            (
+              "right",
+              Fluid.Field.One(
+                Fluid.Slot.Empty(ASpaceWaitsForADSLsOperator.wordExpect()))) ]))
+
+    [ typeSpec, wordSpec, pairSpec ]
+
+
+  let screen(declares: Bool, keys: List<String>): String =
+    let reg = Fluid.Registry.ofList(ASpaceWaitsForADSLsOperator.specs(declares))
+
+    // From the END of the `a`, because that is where a space is the question. `Test.run` starts at
+    // offset 0, where a space is just a space.
+    Fluid.Test.runFrom(
+      reg,
+      Fluid.Slot.Filled(
+        Fluid.Node.make(
+          Fluid.Kind.ofCase("Acme.Word", "Plain"),
+          [ ("chars", Fluid.Field.Text("a")) ])),
+      60,
+      Fluid.Caret.inText([], "chars", 1),
+      keys)
+
+
+  test aSpaceWaitsForADSLsOperator =
+    Stdlib.Test.all(
+      // A space, then the DSL's own operator: the space waited, so the `~` had something to pair.
+      [ Stdlib.Test.equal(
+          ASpaceWaitsForADSLsOperator.screen(true, [ " ", "~" ]),
+          "a ~ ~⟨word⟩")
+
+        // Without the rule the space has nothing to wait for, so `a` stays alone and the `~` finds nothing.
+        Stdlib.Test.equal(
+          ASpaceWaitsForADSLsOperator.screen(false, [ " ", "~" ]),
+          "a~") ])
+
+
+module AReorderTheKernelDoesNotKnow =
+  // Ctrl-Left and Ctrl-Right move a node along the sequence it sits in. The kernel asks the CARET which
+  // sequence that is rather than naming any kind, so a DSL's own Many gets reordering with no spec field
+  // and nothing declared.
+  //
+  // `Acme.Row` holds `cells`, and nothing in Darklang has heard of it.
+  let rowKind(): Fluid.Kind =
+    Fluid.Kind.named("Acme.Row")
+
+
+  let cellExpect(): Fluid.Expect =
+    Fluid.Expect.ofKind(Fluid.Prims.intKind(), "cell")
+
+
+  let row(): Fluid.Node =
+    Fluid.Node.make(
+      AReorderTheKernelDoesNotKnow.rowKind(),
+      [ (
+          "cells",
+          Fluid.Field.Many(
+            [ Fluid.Slot.Filled(Fluid.Prims.intNode("1"))
+              Fluid.Slot.Filled(Fluid.Prims.intNode("2"))
+              Fluid.Slot.Filled(Fluid.Prims.intNode("3")) ],
+            AReorderTheKernelDoesNotKnow.cellExpect())) ])
+
+
+  let spec(): Fluid.Spec =
+    Fluid.Spec.simple(
+      AReorderTheKernelDoesNotKnow.rowKind(),
+      [ Fluid.Piece.Punct("<")
+        Fluid.Piece.Each("cells", [ Fluid.Piece.Punct("|") ])
+        Fluid.Piece.Punct(">") ],
+      AReorderTheKernelDoesNotKnow.row())
+
+
+  let screen(keys: List<String>): String =
+    let reg =
+      Fluid.Registry.ofList(
+        Stdlib.List.flatten(
+          [ Fluid.Prims.specs(), [ AReorderTheKernelDoesNotKnow.spec() ] ]))
+
+    Fluid.Test.runFrom(
+      reg,
+      Fluid.Slot.Filled(AReorderTheKernelDoesNotKnow.row()),
+      60,
+      Fluid.Caret.inText(Fluid.Path.item([], "cells", 2), "digits", 1),
+      keys)
+
+
+  test aReorderTheKernelDoesNotKnow =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(AReorderTheKernelDoesNotKnow.screen([]), "<1|2|3~>")
+
+        Stdlib.Test.equal(
+          AReorderTheKernelDoesNotKnow.screen([ "<C-Left>" ]),
+          "<1|3~|2>")
+
+        Stdlib.Test.equal(
+          AReorderTheKernelDoesNotKnow.screen([ "<C-Left>", "<C-Left>" ]),
+          "<3~|1|2>")
+
+        // Back where it started, because the caret went with it.
+        Stdlib.Test.equal(
+          AReorderTheKernelDoesNotKnow.screen([ "<C-Left>", "<C-Right>" ]),
+          "<1|2|3~>") ])
+
+
+module AKeywordSlotTheKernelDoesNotKnow =
+  // A slot drawn behind a keyword only when it HAS something in it -- a match arm's guard is the Darklang
+  // one -- can be opened by typing that keyword. The word lives in the pieces and never on screen while
+  // the slot is empty, so nothing could type it. The kernel reads it back out of the pieces, so a DSL
+  // gets this by drawing the slot that way and declaring nothing else.
+  //
+  // `Acme.Rule` is `name unless <exceptions> => body`, and nothing in Darklang defines it.
+  let ruleKind(): Fluid.Kind =
+    Fluid.Kind.named("Acme.Rule")
+
+
+  let wordKind(): Fluid.Kind =
+    Fluid.Kind.named("Acme.Word")
+
+
+  let wordExpect(label: String): Fluid.Expect =
+    Fluid.Expect.ofKind(AKeywordSlotTheKernelDoesNotKnow.wordKind(), label)
+
+
+  let word(s: String): Fluid.Node =
+    Fluid.Node.make(
+      AKeywordSlotTheKernelDoesNotKnow.wordKind(),
+      [ ("chars", Fluid.Field.Text(s)) ])
+
+
+  let rule(): Fluid.Node =
+    Fluid.Node.make(
+      AKeywordSlotTheKernelDoesNotKnow.ruleKind(),
+      [ (
+          "name",
+          Fluid.Field.One(
+            Fluid.Slot.Filled(AKeywordSlotTheKernelDoesNotKnow.word("ab"))))
+
+        (
+          "unless",
+          Fluid.Field.Many(
+            [],
+            AKeywordSlotTheKernelDoesNotKnow.wordExpect("exception")))
+
+        (
+          "body",
+          Fluid.Field.One(
+            Fluid.Slot.Empty(
+              AKeywordSlotTheKernelDoesNotKnow.wordExpect("body")))) ])
+
+
+  let specs(drawsKeyword: Bool): List<Fluid.Spec> =
+    let wordSpec =
+      Fluid.Spec.simple(
+        AKeywordSlotTheKernelDoesNotKnow.wordKind(),
+        [ Fluid.Piece.Text("chars", Fluid.Layout.Style.Name) ],
+        AKeywordSlotTheKernelDoesNotKnow.word(""))
+
+    let ruleSpec =
+      Fluid.Spec.simple(
+        AKeywordSlotTheKernelDoesNotKnow.ruleKind(),
+        [ Fluid.Piece.Slot("name")
+          if drawsKeyword then
+            Fluid.Piece.EachWrapped("unless", " unless", [], "")
+          else
+            Fluid.Piece.EachWrapped("unless", " ", [], "")
+
+          Fluid.Piece.Space
+          Fluid.Piece.Punct("=>")
+          Fluid.Piece.Space
+          Fluid.Piece.Slot("body") ],
+        AKeywordSlotTheKernelDoesNotKnow.rule())
+
+    [ wordSpec, ruleSpec ]
+
+
+  let screen(drawsKeyword: Bool, keys: List<String>): String =
+    // From the BODY, because that is where the word arrives: the guard's keyword is typed in the arm's
+    // right-hand side, and it is the arm that has the guard.
+    Fluid.Test.runFrom(
+      Fluid.Registry.ofList(
+        AKeywordSlotTheKernelDoesNotKnow.specs(drawsKeyword)),
+      Fluid.Slot.Filled(AKeywordSlotTheKernelDoesNotKnow.rule()),
+      60,
+      Fluid.Caret.inSlot([], "body", 0),
+      keys)
+
+
+  test aKeywordSlotTheKernelDoesNotKnow =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          AKeywordSlotTheKernelDoesNotKnow.screen(true, []),
+          "ab => ~⟨body⟩")
+
+        Stdlib.Test.equal(
+          AKeywordSlotTheKernelDoesNotKnow.screen(
+            true,
+            [ "u", "n", "l", "e", "s", "s", " " ]),
+          "ab unless ~⟨exception⟩ => ⟨body⟩")
+
+        // The same spec with no WORD in front of the slot: there is no keyword to name, so `unless` is a name
+        // being typed in the body and stays one.
+        Stdlib.Test.equal(
+          AKeywordSlotTheKernelDoesNotKnow.screen(
+            false,
+            [ "u", "n", "l", "e", "s", "s", " " ]),
+          "ab => unless~") ])
+
+
+module ATwoCharacterOperatorTheKernelDoesNotKnow =
+  // A construct that draws a two-character operator has already put BOTH characters on the screen, so the
+  // second one, typed into the empty slot the first one led to, is a no-op rather than content. Darklang
+  // has two of these: the `>` of a pipe's `|>` and the second `:` of a cons pattern's `::`. Both used to be
+  // kernel branches naming EPipe and MPListCons, which is exactly the wall a DSL with its own two-character
+  // operator hits -- the rule existed and there was no way to claim it.
+  //
+  // Now it comes off the pieces. `Acme.Rule` is `name => body`, and nothing in Darklang defines it.
+  let wordKind(): Fluid.Kind =
+    Fluid.Kind.named("Acme.RuleWord")
+
+
+  let ruleKind(): Fluid.Kind =
+    Fluid.Kind.named("Acme.Rule")
+
+
+  let wordExpect(label: String): Fluid.Expect =
+    Fluid.Expect.ofKind(
+      ATwoCharacterOperatorTheKernelDoesNotKnow.wordKind(),
+      label)
+
+
+  let word(s: String): Fluid.Node =
+    Fluid.Node.make(
+      ATwoCharacterOperatorTheKernelDoesNotKnow.wordKind(),
+      [ ("chars", Fluid.Field.Text(s)) ])
+
+
+  let rule(): Fluid.Node =
+    Fluid.Node.make(
+      ATwoCharacterOperatorTheKernelDoesNotKnow.ruleKind(),
+      [ (
+          "name",
+          Fluid.Field.One(
+            Fluid.Slot.Filled(
+              ATwoCharacterOperatorTheKernelDoesNotKnow.word("ab"))))
+
+        (
+          "body",
+          Fluid.Field.One(
+            Fluid.Slot.Empty(
+              ATwoCharacterOperatorTheKernelDoesNotKnow.wordExpect("body")))) ])
+
+
+  // The operator is a parameter, so the same construct can be re-spelled and the rule follows the spelling.
+  let specs(arrow: String): List<Fluid.Spec> =
+    let wordSpec =
+      Fluid.Spec.simple(
+        ATwoCharacterOperatorTheKernelDoesNotKnow.wordKind(),
+        [ Fluid.Piece.Text("chars", Fluid.Layout.Style.Name) ],
+        ATwoCharacterOperatorTheKernelDoesNotKnow.word(""))
+
+    let ruleSpec =
+      Fluid.Spec.simple(
+        ATwoCharacterOperatorTheKernelDoesNotKnow.ruleKind(),
+        [ Fluid.Piece.Slot("name")
+          Fluid.Piece.Space
+          Fluid.Piece.Punct(arrow)
+          Fluid.Piece.Space
+          Fluid.Piece.Slot("body") ],
+        ATwoCharacterOperatorTheKernelDoesNotKnow.rule())
+
+    [ wordSpec, ruleSpec ]
+
+
+  let screen(arrow: String, keys: List<String>): String =
+    Fluid.Test.runFrom(
+      Fluid.Registry.ofList(
+        ATwoCharacterOperatorTheKernelDoesNotKnow.specs(arrow)),
+      Fluid.Slot.Filled(ATwoCharacterOperatorTheKernelDoesNotKnow.rule()),
+      60,
+      Fluid.Caret.inSlot([], "body", 0),
+      keys)
+
+
+  test aTwoCharacterOperatorTheKernelDoesNotKnow =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          ATwoCharacterOperatorTheKernelDoesNotKnow.screen("=>", []),
+          "ab => ~⟨body⟩")
+
+        // The tail of the operator: already drawn, so it goes nowhere.
+        Stdlib.Test.equal(
+          ATwoCharacterOperatorTheKernelDoesNotKnow.screen("=>", [ ">" ]),
+          "ab => ~⟨body⟩")
+
+        // An operator with no meaning in Darklang at all gets the same treatment, which is the point.
+        Stdlib.Test.equal(
+          ATwoCharacterOperatorTheKernelDoesNotKnow.screen("~>", [ ">" ]),
+          "ab ~> ~⟨body⟩")
+
+        // Anything else is content.
+        Stdlib.Test.equal(
+          ATwoCharacterOperatorTheKernelDoesNotKnow.screen("=>", [ "z" ]),
+          "ab => z~")
+
+        // The FIRST character is not swallowed. That one is what a person types to BUILD the construct, and
+        // typing it again means something (a second `|` on a fresh pipe is the `||` operator). Only the tail is
+        // redundant by construction.
+        Stdlib.Test.equal(
+          ATwoCharacterOperatorTheKernelDoesNotKnow.screen("=>", [ "=" ]),
+          "ab => =~")
+
+        // A ONE-character operator has no tail, so nothing is swallowed after it.
+        Stdlib.Test.equal(
+          ATwoCharacterOperatorTheKernelDoesNotKnow.screen("=", [ ">" ]),
+          "ab = >~") ])
+
+
+module ADocumentKeymap =
+  // The half of the keymap a spec cannot reach. A spec's `Action.run` is `Node -> Slot`, so everything a
+  // kind can bind is a replacement of the node under the caret: no motions, no mode switches, and no way
+  // to say "in THIS document, `d` means delete" regardless of what the caret is on.
+  //
+  // `Registry.keymap` is document-level and sits next to `syntax`, which is the same move for the same
+  // reason: the kernel used to hard-code the brackets, and it still hard-codes `j`/`k`/`h`/`l`/`x`/`y` in
+  // one chain nothing outside it can reach.
+
+  let base(): Fluid.Registry =
+    Fluid.Registry.ofList(
+      Stdlib.List.flatten(
+        [ Fluid.Prims.specs(), Fluid.PT.specs(), Fluid.PT.Types.specs() ]))
+
+
+  let hole(): Fluid.Slot =
+    Fluid.Slot.Empty(Fluid.PT.exprExpect("expression"))
+
+
+  let chars(s: String): List<String> =
+    Stdlib.String.toList(s) |> Stdlib.List.map(fun c -> Stdlib.display(c))
+
+
+  let mapped(): Fluid.Registry =
+    let r0 =
+      Fluid.Registry.bind(ADocumentKeymap.base(), "d", Fluid.Command.Delete)
+
+    let r1 = Fluid.Registry.bind(r0, "n", Fluid.Command.NavSiblingNext)
+    // Deliberately over the palette, which must NOT give it up.
+    Fluid.Registry.bind(r1, ":", Fluid.Command.Delete)
+
+
+  let aList(keys: List<String>): List<String> =
+    Stdlib.List.flatten(
+      [ ADocumentKeymap.chars("[1, 2, 3")
+        [ "<Esc>", "<Esc>", "K", "K" ]
+        keys ])
+
+
+  let plain(keys: List<String>): String =
+    Fluid.Test.run(
+      ADocumentKeymap.base(),
+      ADocumentKeymap.hole(),
+      60,
+      ADocumentKeymap.aList(keys))
+
+
+  let bound(keys: List<String>): String =
+    Fluid.Test.run(
+      ADocumentKeymap.mapped(),
+      ADocumentKeymap.hole(),
+      60,
+      ADocumentKeymap.aList(keys))
+
+
+  // Specific beats general. `EIf` binds `m` to "convert to match" on its own nodes, and a document keymap
+  // that also binds `m` loses. The other order would make a kind's own actions unreachable with nothing on
+  // screen to say why.
+  let overM(): Fluid.Registry =
+    Fluid.Registry.bind(ADocumentKeymap.base(), "m", Fluid.Command.Delete)
+
+
+  let anIf(keys: List<String>): List<String> =
+    Stdlib.List.flatten(
+      [ ADocumentKeymap.chars("if "), [ "<Esc>", "<Esc>", "h" ], keys ])
+
+
+  // `RunAction` is why the command list does not have to grow forever: anything a spec can already do
+  // stays in the spec, and the keymap gives it a different key.
+  let byName(): Fluid.Registry =
+    Fluid.Registry.bind(
+      ADocumentKeymap.base(),
+      "z",
+      Fluid.Command.RunAction("convert to match"))
+
+
+  test aDocumentKeymap =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(ADocumentKeymap.plain([]), "[ ~1, 2, 3 ]")
+
+        // `d` is not a kernel key and no spec binds it, so without a keymap it does nothing at all. This is the
+        // case that makes the next one say something.
+        Stdlib.Test.equal(ADocumentKeymap.plain([ "d" ]), "[ ~1, 2, 3 ]")
+
+        Stdlib.Test.equal(ADocumentKeymap.bound([ "d" ]), "[ ~⟨item⟩, 2, 3 ]")
+
+        // A MOTION, which is the thing no `Action` can express: `n` moves to the next sibling and edits nothing.
+        Stdlib.Test.equal(ADocumentKeymap.bound([ "n" ]), "[ 1, ~2, 3 ]")
+
+        Stdlib.Test.equal(
+          ADocumentKeymap.bound([ "n", "d" ]),
+          "[ 1, ~⟨item⟩, 3 ]")
+
+        // Binding new keys does not take the kernel's away; the keymap sits in front of that chain, it does not
+        // replace it.
+        Stdlib.Test.equal(ADocumentKeymap.bound([ "x" ]), "[ ~⟨item⟩, 2, 3 ]")
+
+        // `:` is reserved here for the same reason it is reserved for spec bindings: the palette lists
+        // everything and has to keep working whatever has been bound.
+        Stdlib.Test.equal(
+          (Fluid.Test.drive(
+             Fluid.Editor.init(
+               ADocumentKeymap.mapped(),
+               ADocumentKeymap.hole(),
+               60),
+             ADocumentKeymap.aList([ ":" ]))).paletteOpen,
+          true)
+
+        Stdlib.Test.equal(
+          Fluid.Test.run(
+            ADocumentKeymap.overM(),
+            ADocumentKeymap.hole(),
+            60,
+            ADocumentKeymap.anIf([ "m" ])),
+          "match ~⟨cond⟩ with\n| true -> ⟨then⟩\n| false -> ⟨else⟩")
+
+        Stdlib.Test.equal(
+          Fluid.Test.messageAfter(
+            ADocumentKeymap.overM(),
+            ADocumentKeymap.hole(),
+            60,
+            ADocumentKeymap.anIf([ "m" ])),
+          "convert to match")
+
+        Stdlib.Test.equal(
+          Fluid.Test.run(
+            ADocumentKeymap.byName(),
+            ADocumentKeymap.hole(),
+            60,
+            ADocumentKeymap.anIf([ "z" ])),
+          "match ~⟨cond⟩ with\n| true -> ⟨then⟩\n| false -> ⟨else⟩")
+
+        // ...and where the action does not exist it says so, rather than doing nothing. A key that was bound and
+        // did nothing is the failure mode worth a message.
+        Stdlib.Test.equal(
+          Fluid.Test.run(
+            ADocumentKeymap.byName(),
+            ADocumentKeymap.hole(),
+            60,
+            Stdlib.List.flatten(
+              [ ADocumentKeymap.chars("[1, 2")
+                [ "<Esc>", "<Esc>", "K", "K", "z" ] ])),
+          "[ ~1, 2 ]")
+
+        Stdlib.Test.equal(
+          Fluid.Test.messageAfter(
+            ADocumentKeymap.byName(),
+            ADocumentKeymap.hole(),
+            60,
+            Stdlib.List.flatten(
+              [ ADocumentKeymap.chars("[1, 2")
+                [ "<Esc>", "<Esc>", "K", "K", "z" ] ])),
+          "no action here called convert to match") ])
+
+
+module ATemplateTheKernelDoesNotKnow =
+  // Text with holes in it is not Darklang's interpolated string. It is a template language, a query with
+  // bind parameters, a document with embedded code. The two characters that open and close a hole have
+  // been on the registry for a while, and the construct and its text case have been on the spec; the rest
+  // of the names stayed in the kernel, so a DSL could declare its content segmented and still only work
+  // if it happened to call its parts `segments`, its text `text` and its hole `expr`.
+  //
+  // `Acme.Template` is `<<text{hole}text>>` and shares none of those names.
+  let tplKind(): Fluid.Kind =
+    Fluid.Kind.named("Acme.Template")
+
+
+  let pieceType(): String =
+    "Acme.Piece"
+
+
+  let chunkKind(): Fluid.Kind =
+    Fluid.Kind.ofCase(ATemplateTheKernelDoesNotKnow.pieceType(), "Chunk")
+
+
+  let holeKind(): Fluid.Kind =
+    Fluid.Kind.ofCase(ATemplateTheKernelDoesNotKnow.pieceType(), "Hole")
+
+
+  let pieceExpect(): Fluid.Expect =
+    Fluid.Expect.ofKind(
+      Fluid.Kind.named(ATemplateTheKernelDoesNotKnow.pieceType()),
+      "piece")
+
+
+  let chunk(s: String): Fluid.Node =
+    Fluid.Node.make(
+      ATemplateTheKernelDoesNotKnow.chunkKind(),
+      [ ("chars", Fluid.Field.Text(s)) ])
+
+
+  let tpl(): Fluid.Node =
+    Fluid.Node.make(
+      ATemplateTheKernelDoesNotKnow.tplKind(),
+      [ (
+          "pieces",
+          Fluid.Field.Many(
+            [ Fluid.Slot.Filled(ATemplateTheKernelDoesNotKnow.chunk("")) ],
+            ATemplateTheKernelDoesNotKnow.pieceExpect())) ])
+
+
+  let specs(): List<Fluid.Spec> =
+    let tplSpec =
+      Fluid.Spec.withSegments(
+        Fluid.Spec.simple(
+          ATemplateTheKernelDoesNotKnow.tplKind(),
+          [ Fluid.Piece.Flat(
+              [ Fluid.Piece.Punct("<<")
+                Fluid.Piece.Each("pieces", [])
+                Fluid.Piece.Punct(">>") ]) ],
+          ATemplateTheKernelDoesNotKnow.tpl()),
+        "pieces",
+        "Chunk",
+        "chars",
+        "Hole",
+        "fill")
+
+    let chunkSpec =
+      Fluid.Spec.simple(
+        ATemplateTheKernelDoesNotKnow.chunkKind(),
+        [ Fluid.Piece.QuietText("chars", Fluid.Layout.Style.Literal) ],
+        ATemplateTheKernelDoesNotKnow.chunk(""))
+
+    let holeSpec =
+      Fluid.Spec.simple(
+        ATemplateTheKernelDoesNotKnow.holeKind(),
+        [ Fluid.Piece.Punct("{")
+          Fluid.Piece.Slot("fill")
+          Fluid.Piece.Punct("}") ],
+        Fluid.Node.make(
+          ATemplateTheKernelDoesNotKnow.holeKind(),
+          [ (
+              "fill",
+              Fluid.Field.One(Fluid.Slot.Empty(Fluid.Expect.any("fill")))) ]))
+
+    Stdlib.List.flatten(
+      [ Fluid.Prims.specs(), [ tplSpec, chunkSpec, holeSpec ] ])
+
+
+  let screen(keys: List<String>): String =
+    Fluid.Test.runFrom(
+      Fluid.Registry.ofList(ATemplateTheKernelDoesNotKnow.specs()),
+      Fluid.Slot.Filled(ATemplateTheKernelDoesNotKnow.tpl()),
+      60,
+      Fluid.Caret.inText(Fluid.Path.item([], "pieces", 0), "chars", 0),
+      keys)
+
+
+  let chars(s: String): List<String> =
+    Stdlib.String.toList(s) |> Stdlib.List.map(fun c -> Stdlib.display(c))
+
+
+  test aTemplateTheKernelDoesNotKnow =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(ATemplateTheKernelDoesNotKnow.screen([]), "<<~>>")
+
+        Stdlib.Test.equal(
+          ATemplateTheKernelDoesNotKnow.screen(
+            ATemplateTheKernelDoesNotKnow.chars("hi")),
+          "<<hi~>>")
+
+        // `{` splits the chunk and drops a hole between the halves. This is the branch that used to build a
+        // `StringInterpolation` with an `expr` slot and a `StringText` with a `text` slot, by name.
+        Stdlib.Test.equal(
+          ATemplateTheKernelDoesNotKnow.screen(
+            ATemplateTheKernelDoesNotKnow.chars("hi{")),
+          "<<hi{~⟨fill⟩}>>")
+
+        Stdlib.Test.equal(
+          ATemplateTheKernelDoesNotKnow.screen(
+            ATemplateTheKernelDoesNotKnow.chars("hi{1")),
+          "<<hi{1~}>>")
+
+        // `}` steps out of the hole into the chunk after it, and typing continues there.
+        Stdlib.Test.equal(
+          ATemplateTheKernelDoesNotKnow.screen(
+            ATemplateTheKernelDoesNotKnow.chars("hi{1}")),
+          "<<hi{1}~>>")
+
+        Stdlib.Test.equal(
+          ATemplateTheKernelDoesNotKnow.screen(
+            ATemplateTheKernelDoesNotKnow.chars("hi{1}yo")),
+          "<<hi{1}yo~>>") ])
+
+
+module ABinaryOperatorTheKernelDoesNotKnow =
+  // Precedence, association and the `(`/`)` rotations all used to spell `left`, `right` and `op` in the
+  // kernel. The operand PAIR had been spec data for a while and the operator slot had not, which is the
+  // same half-data shape `Segments` had: declarable in part, which reads as declarable and is not.
+  //
+  // `Acme.Join` is `a <> b` with its slots called `head`, `tail` and `glue`.
+  let atomKind(): Fluid.Kind =
+    Fluid.Kind.named("Acme.Atom")
+
+
+  let joinKind(): Fluid.Kind =
+    Fluid.Kind.named("Acme.Join")
+
+
+  let anyExpect(label: String): Fluid.Expect =
+    Fluid.Expect.ofKind(ABinaryOperatorTheKernelDoesNotKnow.atomKind(), label)
+
+
+  let atom(s: String): Fluid.Node =
+    Fluid.Node.make(
+      ABinaryOperatorTheKernelDoesNotKnow.atomKind(),
+      [ ("chars", Fluid.Field.Text(s)) ])
+
+
+  let join(l: Fluid.Node, r: Fluid.Node): Fluid.Node =
+    Fluid.Node.make(
+      ABinaryOperatorTheKernelDoesNotKnow.joinKind(),
+      [ ("head", Fluid.Field.One(Fluid.Slot.Filled(l)))
+        ("glue", Fluid.Field.Text("<>"))
+        ("tail", Fluid.Field.One(Fluid.Slot.Filled(r))) ])
+
+
+  let specs(): List<Fluid.Spec> =
+    let atomSpec =
+      Fluid.Spec.simple(
+        ABinaryOperatorTheKernelDoesNotKnow.atomKind(),
+        [ Fluid.Piece.Text("chars", Fluid.Layout.Style.Name) ],
+        ABinaryOperatorTheKernelDoesNotKnow.atom(""))
+
+    let joinSpec =
+      Fluid.Spec.withOperands(
+        Fluid.Spec.simple(
+          ABinaryOperatorTheKernelDoesNotKnow.joinKind(),
+          [ Fluid.Piece.Slot("head")
+            Fluid.Piece.Space
+            Fluid.Piece.Text("glue", Fluid.Layout.Style.Punct)
+            Fluid.Piece.Space
+            Fluid.Piece.Slot("tail") ],
+          ABinaryOperatorTheKernelDoesNotKnow.join(
+            ABinaryOperatorTheKernelDoesNotKnow.atom(""),
+            ABinaryOperatorTheKernelDoesNotKnow.atom(""))),
+        "head",
+        "tail",
+        "glue")
+
+    Stdlib.List.flatten([ Fluid.Prims.specs(), [ atomSpec, joinSpec ] ])
+
+
+  // `a <> (b <> c)`, which is the shape `)` ungroups and `(` groups back.
+  let nested(): Fluid.Node =
+    ABinaryOperatorTheKernelDoesNotKnow.join(
+      ABinaryOperatorTheKernelDoesNotKnow.atom("a"),
+      ABinaryOperatorTheKernelDoesNotKnow.join(
+        ABinaryOperatorTheKernelDoesNotKnow.atom("b"),
+        ABinaryOperatorTheKernelDoesNotKnow.atom("c")))
+
+
+  let leftLeaning(): Fluid.Node =
+    ABinaryOperatorTheKernelDoesNotKnow.join(
+      ABinaryOperatorTheKernelDoesNotKnow.join(
+        ABinaryOperatorTheKernelDoesNotKnow.atom("a"),
+        ABinaryOperatorTheKernelDoesNotKnow.atom("b")),
+      ABinaryOperatorTheKernelDoesNotKnow.atom("c"))
+
+
+  let on(n: Fluid.Node, keys: List<String>): String =
+    let st =
+      Fluid.Test.drive(
+        Fluid.Editor.init(
+          Fluid.Registry.ofList(ABinaryOperatorTheKernelDoesNotKnow.specs()),
+          Fluid.Slot.Filled(n),
+          60),
+        keys)
+
+    Fluid.Debug.withCaret(st.reg, st.width, st.root, st.caret)
+
+
+  test aBinaryOperatorTheKernelDoesNotKnow =
+    Stdlib.Test.all(
+      // The drawings, so the rotations below are read against something.
+      [ Stdlib.Test.equal(
+          ABinaryOperatorTheKernelDoesNotKnow.on(
+            ABinaryOperatorTheKernelDoesNotKnow.nested(),
+            [ "<Esc>" ]),
+          "~a <> b <> c")
+
+        Stdlib.Test.equal(
+          ABinaryOperatorTheKernelDoesNotKnow.on(
+            ABinaryOperatorTheKernelDoesNotKnow.leftLeaning(),
+            [ "<Esc>" ]),
+          "~a <> b <> c")
+
+        // `)` ungroups: the right-leaning tree becomes the left-leaning one. Both PRINT the same here, because
+        // this spec draws no parens, so the test is that the EDIT lands rather than that the text changes.
+        Stdlib.Test.equal(
+          ABinaryOperatorTheKernelDoesNotKnow.on(
+            ABinaryOperatorTheKernelDoesNotKnow.nested(),
+            [ "<Esc>", ")" ]),
+          "~a <> b <> c")
+
+        // ...and it is a real edit, so undo takes it back and the message does not say it refused.
+        Stdlib.Test.equal(
+          Fluid.Test.messageAfter(
+            Fluid.Registry.ofList(ABinaryOperatorTheKernelDoesNotKnow.specs()),
+            Fluid.Slot.Filled(ABinaryOperatorTheKernelDoesNotKnow.nested()),
+            60,
+            [ "<Esc>", ")" ]),
+          "")
+
+        // `(` on the left-leaning one is the other direction.
+        Stdlib.Test.equal(
+          Fluid.Test.messageAfter(
+            Fluid.Registry.ofList(ABinaryOperatorTheKernelDoesNotKnow.specs()),
+            Fluid.Slot.Filled(
+              ABinaryOperatorTheKernelDoesNotKnow.leftLeaning()),
+            60,
+            [ "<Esc>", "(" ]),
+          "")
+
+        // A construct with no `operands` refuses both, which is what says the rotations are reading the spec
+        // rather than the shape of the tree.
+        Stdlib.Test.equal(
+          Fluid.Test.messageAfter(
+            Fluid.Registry.ofList(ABinaryOperatorTheKernelDoesNotKnow.specs()),
+            Fluid.Slot.Filled(ABinaryOperatorTheKernelDoesNotKnow.atom("a")),
+            60,
+            [ "<Esc>", ")" ]),
+          "nothing to ungroup here") ])

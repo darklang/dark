@@ -1,0 +1,801 @@
+/// The Fluid editor as a widget: `view: State -> Region -> List<Span>`, `onKey` is `Editor.onKey`.
+///
+/// Colours are decided here, from `Layout.Style` names, so the kernel and the layout stay monochrome and
+/// testable. The caret in INSERT is the terminal's own cursor (the app sets it from `caretScreenPos`);
+/// in NAV the whole current node is shown in reverse video, which is the "selection" visual from the
+/// TUI principles, distinct from the cursor.
+module Darklang.Fluid.Widget
+
+// Colour now comes from a `Theme`; see theme.dark. The kernel and layout stay monochrome.
+
+/// Is this cell part of the node the NAV caret is on?
+/// Is this cell inside the selection? The selection is the caret's node, or the whole sibling run
+/// between the caret and the anchor when `V` has started one.
+let underNavCaret(st: Editor.State, c: Layout.Cell): Bool =
+  match st.mode with
+  | Insert -> false
+  | Nav ->
+    match c.tag with
+    | Some(t) ->
+      match st.anchor with
+      | None -> Layout.tagMatches(t, st.caret.node, st.caret.part)
+      | Some(_) ->
+        // A range is a set of whole nodes, so the PART does not narrow it the way it does for one.
+        Editor.selectedPaths(st) |> Stdlib.List.any(fun p -> Path.isPrefixOf(p, t.node))
+    | None -> false
+
+
+let renderCell(theme: Theme.Theme, c: Layout.Cell, selected: Bool): String =
+  let sgr = Theme.styleColor(theme, c.style)
+  let opening = if selected then theme.selection + sgr else sgr
+  if opening == "" then c.text else opening + c.text + Stdlib.Cli.UI.Colors.reset
+
+
+/// The selection is a RANGE on each row, not a set of cells.
+///
+/// Only text carries a tag -- punctuation, keywords and the spaces between them do not -- so asking each
+/// cell "are you under the caret" and reversing the ones that said yes highlighted a node's names and
+/// literals and left its `let`, its `=` and its `match` plain. On a leaf that is invisible. On a
+/// fifteen-line `let` it was forty scattered words in reverse video instead of a block you could see.
+/// Everything between the first and last selected cell on a row is selected, which is what selecting a
+/// subtree means.
+/// ...and nothing is marked when the selection is the WHOLE document, because that carries no
+/// information. Opening a document lands the caret at the root, so every demo opened with the entire
+/// thing marked -- which says only "you have not moved yet" and says it in the loudest way available.
+/// The frame's breadcrumb already names the node.
+let selectionWorthDrawing(st: Editor.State): Bool =
+  // ...unless a RANGE is being made, where marking is the whole point even at the root.
+  Stdlib.Option.isSome(st.anchor) || Stdlib.Bool.not(Stdlib.List.isEmpty(Editor.navPath(st)))
+
+
+let renderRow(theme: Theme.Theme, st: Editor.State, row: Layout.Row): String =
+  let flags =
+    if selectionWorthDrawing(st) then
+      row |> Stdlib.List.map(fun c -> underNavCaret(st, c))
+    else
+      row |> Stdlib.List.map(fun _c -> false)
+
+  match Stdlib.List.findFirstIndex(flags, fun b -> b) with
+  | None ->
+    row
+    |> Stdlib.List.map(fun c -> renderCell(theme, c, false))
+    |> Stdlib.String.join("")
+  | Some(first) ->
+    let n = Stdlib.List.length(flags)
+    let fromEnd =
+      Stdlib.List.findFirstIndex(Stdlib.List.reverse(flags), fun b -> b)
+      |> Stdlib.Option.withDefault(0)
+
+    let last = n - 1 - fromEnd
+    row
+    |> Stdlib.List.indexedMap(fun(i, c) -> renderCell(theme, c, i >= first && i <= last))
+    |> Stdlib.String.join("")
+
+
+/// The first visible row, so the caret's row is on screen.
+let scrollFor(caretRow: Int64, height: Int64, scroll: Int64): Int64 =
+  if height <= 0 then
+    0
+  else if caretRow < scroll then
+    caretRow
+  else if caretRow >= scroll + height then
+    caretRow - height + 1
+  else
+    scroll
+
+
+/// `scrollFor`, for the HORIZONTAL axis, where the left clip marker eats a column.
+///
+/// `clipRow` drops `hscroll + 1` columns and draws a `<` in the space, deliberately: the marker "takes
+/// the place of the column it hides rather than pushing the line over", so the drawn row stays aligned
+/// with the columns the layout reports and `caretScreenPos` can use the same arithmetic.
+///
+/// The column it takes the place of is exactly column `hscroll`. So the caret must never BE there, and
+/// `scrollFor` put it there every time you scrolled left, because its answer for "the caret is left of
+/// the window" is the caret's own column. Home in a long string drew the caret ON the `<`.
+///
+/// One column earlier instead. At column 1 that gives 0, which means no marker at all and the whole row
+/// from its start, which is what Home should show anyway.
+let hscrollFor(caretCol: Int64, width: Int64, hscroll: Int64): Int64 =
+  if caretCol < hscroll + 1 then
+    Stdlib.max(0, caretCol - 1)
+  else
+    scrollFor(caretCol, width, hscroll)
+
+
+/// The layout the widget draws: the kernel's, at the kernel's width.
+let rowsFor(st: Editor.State): List<Layout.Row> =
+  Editor.layout(st)
+
+
+// --- One layout per pass ---
+//
+// `rowsFor` lays the whole document out, and on a 45-line function that is 225ms. Everything below used
+// to call it for itself: `caretRow` and `caretCol` one each in `afterKey`, then `view`, `popover` and
+// `caretScreenPos` one each in the render. Five layouts of the same state for one keystroke, and a
+// measured 1.5 SECONDS per key on that function against 120ms on a three-line one.
+//
+// So the functions that need the layout take it, and the two callers work it out once. The `st`-only
+// forms are kept for callers with one question to ask, where a second layout is not being paid for.
+
+/// Where the caret is in `rows`, as (row, column).
+let caretPosIn(rows: List<Layout.Row>, st: Editor.State): Option<(Int64 * Int64)> =
+  Layout.locate(rows, st.caret.node, st.caret.part, st.caret.offset)
+
+
+/// Screen position of the caret inside `region`, given the scroll in force -- vertical AND horizontal.
+let caretScreenPosIn(
+  rows: List<Layout.Row>,
+  st: Editor.State,
+  region: Stdlib.Cli.UI.Layout.Region,
+  scroll: Int64,
+  hscroll: Int64)
+  : Option<(Int64 * Int64)> =
+  match caretPosIn(rows, st) with
+  | Some((r, c)) ->
+    let screenRow = region.top + (r - scroll)
+    let screenCol = region.left + (c - hscroll)
+    if
+      r - scroll >= 0 && r - scroll < region.rows && c - hscroll >= 0 && c - hscroll < region.cols
+    then
+      Option.Some((screenRow, screenCol))
+    else
+      Option.None
+  | None -> Option.None
+
+
+let caretScreenPos(
+  st: Editor.State,
+  region: Stdlib.Cli.UI.Layout.Region,
+  scroll: Int64,
+  hscroll: Int64)
+  : Option<(Int64 * Int64)> =
+  caretScreenPosIn(rowsFor(st), st, region, scroll, hscroll)
+
+
+/// Where the caret's row is in the layout, for scrolling.
+let caretRowIn(rows: List<Layout.Row>, st: Editor.State): Int64 =
+  match caretPosIn(rows, st) with
+  | Some((r, _)) -> r
+  | None -> 0
+
+
+let caretRow(st: Editor.State): Int64 =
+  caretRowIn(rowsFor(st), st)
+
+
+/// Where the caret's COLUMN is, for the same reason. A projection can hold a line no width will break --
+/// a doc comment is one long token, and the printer doesn't wrap it either -- so the pane has to be able
+/// to move sideways rather than silently cut at the border.
+let caretColIn(rows: List<Layout.Row>, st: Editor.State): Int64 =
+  match caretPosIn(rows, st) with
+  | Some((_, c)) -> c
+  | None -> 0
+
+
+let caretCol(st: Editor.State): Int64 =
+  caretColIn(rowsFor(st), st)
+
+
+/// One row, windowed to the columns on screen, with a marker where it was cut. The marker takes the place
+/// of the column it hides rather than pushing the line over, so what is on screen stays aligned with what
+/// the layout says the columns are -- the caret is positioned from the same arithmetic.
+let clipRow(
+  theme: Theme.Theme,
+  st: Editor.State,
+  cols: Int64,
+  hscroll: Int64,
+  row: Layout.Row)
+  : String =
+  let marker(s: String): String = Stdlib.Cli.UI.Colors.colorize(theme.dim, s)
+  let cutLeft = hscroll > 0 && Layout.rowWidth(row) > hscroll
+  let dropped = Layout.dropCols((if cutLeft then hscroll + 1 else hscroll), row)
+  let avail = cols - (if cutLeft then 1 else 0)
+  let cutRight = Layout.rowWidth(dropped) > avail
+  let body = Layout.takeCols((if cutRight then avail - 1 else avail), dropped)
+  let left = if cutLeft then marker("<") else ""
+  let right = if cutRight then marker(">") else ""
+  left + renderRow(theme, st, body) + right
+
+
+let viewOf(
+  rows: List<Layout.Row>,
+  theme: Theme.Theme,
+  st: Editor.State,
+  region: Stdlib.Cli.UI.Layout.Region,
+  scroll: Int64,
+  hscroll: Int64)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  rows
+  |> Stdlib.List.drop(scroll)
+  |> Stdlib.List.take(region.rows)
+  |> Stdlib.List.indexedMap(fun(i, row) ->
+    Stdlib.Cli.UI.Layout.at(region, i, 0, clipRow(theme, st, region.cols, hscroll, row)))
+  |> Stdlib.List.flatten
+
+
+let view(
+  theme: Theme.Theme,
+  st: Editor.State,
+  region: Stdlib.Cli.UI.Layout.Region,
+  scroll: Int64,
+  hscroll: Int64)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  viewOf(rowsFor(st), theme, st, region, scroll, hscroll)
+
+
+/// The completion popover: up to `maxRows` candidates under the caret, the selected one in reverse video.
+val maxPopoverRows = 6
+
+
+let popoverOf(
+  rows: List<Layout.Row>,
+  theme: Theme.Theme,
+  st: Editor.State,
+  region: Stdlib.Cli.UI.Layout.Region,
+  scroll: Int64,
+  hscroll: Int64)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  let cs = Editor.candidates(st)
+  match cs with
+  | [] -> []
+  | _ ->
+    match caretScreenPosIn(rows, st, region, scroll, hscroll) with
+    | None -> []
+    | Some((screenRow, screenCol)) ->
+      let row0 = screenRow - region.top
+      let col0 = Stdlib.max(0, screenCol - region.left)
+      // The window FOLLOWS the selection. It used to be the first six whatever `completionIndex` said, so
+      // arrowing past the sixth entry changed nothing you could see: the selection moved, the window did
+      // not, and Enter took something off screen. Harmless while the menu was seven long and the last one
+      // was the only casualty; the menu is fourteen now and it was eight.
+      //
+      // Same fact as the horizontal clip marker, one axis over: keep the selection inside the window.
+      // Stateless, because there is nowhere to keep a popover scroll and nothing needs one -- the window
+      // is a function of where the selection is.
+      // No row highlighted while nothing is chosen: the menu offers without promising. An OFFER still
+      // highlights its first row, because Enter takes it -- the highlight and what Enter does have to
+      // agree, which is the whole complaint this fixes.
+      let selected =
+        if st.completionIndex >= 0 then
+          Stdlib.clamp(st.completionIndex, 0, Stdlib.List.length(cs) - 1)
+        else
+          match Stdlib.List.head(cs) with
+          | Some(c) -> if c.fromContext then 0 else -1
+          | None -> -1
+
+      let start = if selected < maxPopoverRows then 0 else selected - maxPopoverRows + 1
+      let shown =
+        cs
+        |> Stdlib.List.drop(start)
+        |> Stdlib.List.take(maxPopoverRows)
+
+      let extra = Stdlib.List.length(cs) - start - Stdlib.List.length(shown)
+      // A trailing "+N more" row counts what is BELOW the window, so it shrinks as you scroll into it.
+      let moreText = if extra > 0 then " +" + Stdlib.display(extra) + " more" else ""
+      let labelWidth(c: Editor.Candidate): Int64 =
+        Stdlib.String.displayWidth(c.label + "  " + c.detail)
+
+      let widest =
+        shown
+        |> Stdlib.List.fold(Stdlib.String.displayWidth(moreText), fun(acc, c) ->
+          Stdlib.max(acc, labelWidth(c)))
+
+      let bodyRows = Stdlib.List.length(shown) + (if extra > 0 then 1 else 0)
+      // Below the caret when there is room, above otherwise.
+      let below = row0 + 1 + bodyRows <= region.rows
+      let startRow = if below then row0 + 1 else row0 - bodyRows
+      let candSpans =
+        shown
+        |> Stdlib.List.indexedMap(fun(i, c) ->
+          let line =
+            Stdlib.Cli.Tui.Text.fitToWidth(
+              " " + c.label + "  " + Stdlib.Cli.UI.Colors.dimText(c.detail),
+              widest + 2)
+
+          // `i` indexes the WINDOW; `selected` indexes the whole list.
+          let style = if start + i == selected then theme.menuSelected else theme.menu
+          Stdlib.Cli.UI.Layout.at(
+            region,
+            startRow + i,
+            col0,
+            Stdlib.Cli.UI.Colors.colorize(style, line)))
+        |> Stdlib.List.flatten
+
+      let moreSpan =
+        if extra > 0 then
+          let line =
+            Stdlib.Cli.Tui.Text.fitToWidth(" " + Stdlib.Cli.UI.Colors.dimText(moreText), widest + 2)
+
+          Stdlib.Cli.UI.Layout.at(
+            region,
+            startRow + Stdlib.List.length(shown),
+            col0,
+            Stdlib.Cli.UI.Colors.colorize(theme.menu, line))
+        else
+          []
+
+      Stdlib.List.concat(candSpans, moreSpan)
+
+
+/// The command palette overlay, a small centered list of the actions on the current node.
+let palette(
+  theme: Theme.Theme,
+  st: Editor.State,
+  region: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  if Stdlib.Bool.not(st.paletteOpen) then
+    []
+  else
+    let actions = Editor.visibleActions(st)
+    let selected = Stdlib.clamp(st.paletteIndex, 0, Stdlib.max(0, Stdlib.List.length(actions) - 1))
+    let rows =
+      actions
+      |> Stdlib.List.map(fun a ->
+        // An action bound to a key says so, so you learn the key by using the palette and then stop
+        // needing the palette.
+        let binding =
+          match a.key with
+          | Some(k) -> "  " + Stdlib.Cli.UI.Colors.dimText("[" + k + "]")
+          | None -> ""
+
+        " " + a.name + binding + "  " + Stdlib.Cli.UI.Colors.dimText(a.doc))
+
+    let widest =
+      rows
+      |> Stdlib.List.fold(24, fun(acc, r) -> Stdlib.max(acc, Stdlib.Cli.Tui.Text.styledWidth(r)))
+
+    let boxW = Stdlib.min(region.cols - 2, widest + 2)
+    // The prompt shows the filter so it reads like a command palette.
+    let title = " : " + st.paletteFilter
+    let top = 1
+    let left = 2
+    let header =
+      Stdlib.Cli.UI.Layout.at(
+        region,
+        top,
+        left,
+        Stdlib.Cli.UI.Colors.colorize(
+          Stdlib.Cli.UI.Colors.purpleBg,
+          Stdlib.Cli.Tui.Text.fitToWidth(title, boxW)))
+
+    let body =
+      rows
+      |> Stdlib.List.indexedMap(fun(i, r) ->
+        let style = if i == selected then theme.menuSelected else theme.menu
+        Stdlib.Cli.UI.Layout.at(
+          region,
+          top + 1 + i,
+          left,
+          Stdlib.Cli.UI.Colors.colorize(style, Stdlib.Cli.Tui.Text.fitToWidth(r, boxW))))
+      |> Stdlib.List.flatten
+
+    Stdlib.List.concat(header, body)
+
+
+/// The context line above the document: the breadcrumb on the left, what the caret is on at the right.
+let statusLine(
+  theme: Theme.Theme,
+  st: Editor.State,
+  region: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  let crumb = Editor.breadcrumb(st)
+  let hint = Editor.expectHint(st)
+  let hintStyled = Stdlib.Cli.UI.Colors.colorize(theme.hint, hint)
+  let hintW = Stdlib.String.displayWidth(hint)
+  let gap = Stdlib.max(1, region.cols - Stdlib.String.displayWidth(crumb) - hintW - 1)
+  let line =
+    Stdlib.Cli.UI.Colors.colorize(theme.breadcrumb, crumb)
+    + Stdlib.String.repeat(" ", gap)
+    + hintStyled
+
+  Stdlib.Cli.UI.Layout.at(region, 0, 0, line)
+
+
+/// The right-hand context panel: what the caret is on, what it expects, the actions available here (with
+/// how to reach them), and the keys for the current mode. Makes each keystroke legible -- you can see
+/// what's possible without remembering it.
+let inspector(
+  theme: Theme.Theme,
+  st: Editor.State,
+  region: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  inspectorWith(theme, st, region, [])
+
+
+/// The panel, plus whatever the app has to add: the DOCS behind the node's hash, and whatever `v` last
+/// evaluated. Passed in rather than computed here, for two different reasons. Running the code is an
+/// action someone asked for, not something a render should set off. And docs are a fact about DARKLANG
+/// packages -- this widget draws whatever language the registry describes, so it must not know what a
+/// package is.
+/// The document around the caret, as a tree: the chain down from the root, the node you are on, and what
+/// hangs off it.
+///
+/// The panel answers "what is this" for the node under the caret and said nothing about where it SITS.
+/// Opening a document lands you on the root with everything selected, and Stachu's words for that were
+/// "it's not immediately clear what the top-level node I'm selecting is, and why" -- the why is the
+/// position, and the position was only ever in the frame's one-line breadcrumb.
+///
+/// Read only. He also floated navigating the tree itself, which is a second caret to keep in step with
+/// the first and a much bigger thing; this is the half that answers the question without committing to
+/// that.
+///
+/// Each child is `slot  Kind`, because the slot name is what says what the child is FOR: `pat`, `rhs`,
+/// `when` on a match arm. A hole shows what it wants instead.
+let treeRows(theme: Theme.Theme, st: Editor.State): List<String> =
+  let dim(s: String): String = Stdlib.Cli.UI.Colors.colorize(theme.dim, s)
+  let here = Editor.navPath(st)
+  let depth = Stdlib.List.length(here)
+  let pad(n: Int64): String = Stdlib.String.repeat("  ", n)
+
+  // Asked of the SLOT, not the node: standing on a hole, there is no node to name and the row said `-`.
+  // A hole is a real place to be standing -- it is most of what editing is -- so it says what it wants,
+  // the same as the children below do.
+  let nameAt(p: Path): String =
+    match slotAtPath(st.root, p) with
+    | Some(Filled(n)) -> Editor.crumbName(n)
+    | Some(Empty(e)) -> "<" + e.label + ">"
+    | Some(Partial(t, _)) -> t + "..."
+    | None -> "-"
+
+  // Root down to the parent, one line each, indented by depth.
+  let ancestors =
+    Stdlib.List.range(0, depth)
+    |> Stdlib.List.filter(fun i -> i < depth)
+    |> Stdlib.List.map(fun i -> dim("  " + pad(i) + nameAt(Stdlib.List.take(here, i))))
+
+  // Marked in the margin as well as coloured. The panel is read on an e-ink screen where hue is noise,
+  // and "which of these lines am I on" is the whole question this section answers.
+  let selfRow = Stdlib.Cli.UI.Colors.colorize(theme.hint, "> " + pad(depth) + nameAt(here))
+  let childRows =
+    match nodeAtPath(st.root, here) with
+    | Some(n) ->
+      n.fields
+      |> Stdlib.List.filter(fun f ->
+        let (name, _) = f
+        Stdlib.Bool.not(Stdlib.String.startsWith(name, "_")))
+      |> Stdlib.List.map(fun f ->
+        let (name, fld) = f
+        // A value long enough to run off the panel tells you less than one you can read the end of: the
+        // panel is a fixed third of the screen and cannot wrap a dotted name at anything.
+        let clip(t: String): String =
+          if Stdlib.String.length(t) > 18 then
+            Stdlib.String.slice(t, 0, 15) + "..."
+          else
+            t
+
+        let describe(sl: Slot): String =
+          match sl with
+          | Filled(c) -> Editor.crumbName(c)
+          | Empty(e) -> "<" + e.label + ">"
+          | Partial(t, _) -> clip(t + "...")
+
+        match fld with
+        | Text(t) ->
+          [ dim("  " + pad(depth + 1) + name + "  " + (if t == "" then "<empty>" else clip(t))) ]
+        | One(sl) -> [ dim("  " + pad(depth + 1) + name + "  " + describe(sl)) ]
+        | Many(items, _) ->
+          items
+          |> Stdlib.List.indexedMap(fun(i, sl) ->
+            dim("  " + pad(depth + 1) + name + "[" + Stdlib.display(i) + "]  " + describe(sl))))
+      |> Stdlib.List.flatten
+    | None -> []
+
+  // Capped: the panel is a third of the screen and a wide record would push everything under it off.
+  let shown = childRows |> Stdlib.List.take(8)
+  let hidden = Stdlib.List.length(childRows) - 8
+  let tail =
+    if hidden > 0 then
+      [ dim("  " + pad(depth + 1) + "+" + Stdlib.display(hidden) + " more") ]
+    else
+      []
+
+  Stdlib.List.flatten([ ancestors, [ selfRow ], shown, tail ])
+
+
+/// The key help, as data, so the panel and the full reference cannot drift apart. They did not yet; this
+/// is the same lesson the precedence table taught, applied before it costs anything.
+///
+/// Second element is short because the panel is a third of the screen and its widest surviving row is 29
+/// columns. The reference has room for more and deliberately does not use it: two wordings for one key is
+/// exactly the drift being avoided.
+let navKeyHelp(): List<(String * String)> =
+  [ ("j/k", "next/prev")
+    ("J/K", "next/prev sibling")
+    ("h/l", "out/in")
+    // Tab moves between HOLES in nav too, which is how you get to the next thing that needs filling
+    // rather than the next node in reading order. It was listed for INSERT and not here, so the panel
+    // said it did not exist in the mode you are in when you open a document.
+    ("Tab", "next hole")
+    ("i c", "edit / change")
+    ("V", "select a range")
+    ("o", "another list item")
+    ("x", "clear")
+    ("y p", "copy / paste")
+    // Reordering is what a projectional editor can do that a text editor cannot do cleanly, so it is
+    // worth a line here rather than only in the actions list.
+    ("^arrows", "move along its list")
+    ("u ^r", "undo / redo")
+    (":", "actions")
+    ("v", "evaluate this")
+    ("^E", "edit as text")
+    ("^S", "save")
+    ("?", "this list")
+    ("q", "quit") ]
+
+
+/// The bindings that actually fire, oldest live binding first.
+///
+/// `Registry.bind` puts a new binding in FRONT so it shadows an earlier one for the same key, which makes
+/// the raw list most-recent-first and lets it name a key twice. Help that gives one key two meanings is
+/// worse than help that omits it. A rebound key therefore moves to where its NEW binding sits rather than
+/// staying where the one it replaced was.
+let effectiveKeymap(reg: Registry): List<KeyBinding> =
+  reg.keymap
+  |> Stdlib.List.fold([], fun(acc, b) ->
+    if acc |> Stdlib.List.any(fun e -> e.key == b.key) then
+      acc
+    else
+      Stdlib.List.concat([ b ], acc))
+
+
+let insertKeyHelp(): List<(String * String)> =
+  [ ("Tab", "next hole")
+    ("S-Tab", "previous hole")
+    // Listed because it did not exist until someone renamed a function in a terminal and found that the
+    // only way to remove a character was from the right of it.
+    ("Del", "delete forwards")
+    // Both worked and neither was written down anywhere. Driving the editor in a terminal I walked a
+    // 285-character doc comment with 135 presses of Right, because nothing on screen said End was there.
+    ("Home/End", "start / end of the line")
+    // "next item" was doing a lot of work: Enter is also how a list GROWS -- a new match arm, a new
+    // record field, a new row in a grid -- and that is the operation you reach for most in a table.
+    ("Enter", "accept / add an item")
+    ("^arrows", "move along its list")
+    ("^E", "edit as text")
+    ("^S", "save")
+    ("Esc", "back to nav") ]
+
+
+/// Every key there is, drawn over the document.
+///
+/// The panel is a sidebar and cannot hold this. Eighteen NAV rows plus a tree plus the actions list does
+/// not fit a 26-row terminal, which is why the panel's last row says how much it dropped; this is where
+/// that row points. The list itself is the same data the panel draws, so the two cannot drift.
+///
+/// Both modes at once, deliberately. Which keys exist in the mode you are NOT in is exactly the question
+/// a reference is opened to answer, and the panel already only ever shows one of them.
+let keyReference(
+  theme: Theme.Theme,
+  st: Editor.State,
+  region: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  let dim(x: String): String = Stdlib.Cli.UI.Colors.colorize(theme.dim, x)
+  let head(x: String): String =
+    Stdlib.Cli.UI.Colors.colorize(theme.dim + Stdlib.Cli.UI.Colors.bold, x)
+
+  let boundPairs =
+    effectiveKeymap(st.reg) |> Stdlib.List.map(fun b -> (b.key, Command.label(b.command)))
+
+  let left = Stdlib.List.flatten([ [ ("NAV", "") ], navKeyHelp() ])
+  let right =
+    match boundPairs with
+    | [] -> Stdlib.List.flatten([ [ ("INSERT", "") ], insertKeyHelp() ])
+    | pairs ->
+      Stdlib.List.flatten(
+        [ [ ("INSERT", "") ], insertKeyHelp(), [ ("", ""), ("BOUND HERE", "") ], pairs ])
+
+  // The whole region's height, not a margin inside it. This exists because the panel could not fit the
+  // key list, so a reference that keeps a decorative gap and clips the last two rows would be the same
+  // bug wearing a box.
+  let rowsNeeded = Stdlib.max(Stdlib.List.length(left), Stdlib.List.length(right)) + 2
+  let rows = Stdlib.min(rowsNeeded, Stdlib.max(6, region.rows))
+  let cols = Stdlib.min(72, Stdlib.max(24, region.cols - 6))
+  let top = region.top + Stdlib.max(0, (region.rows - rows) / 2)
+  let boxLeft = region.left + Stdlib.max(0, (region.cols - cols) / 2)
+  let box = Stdlib.Cli.UI.Layout.Region { top = top, left = boxLeft, rows = rows, cols = cols }
+  let inner = Stdlib.Cli.UI.Box.inner(box)
+  let colWidth = Stdlib.max(12, (inner.cols - 1) / 2)
+
+  // A header is a header in both columns; only the key rows get the key/description shape.
+  let cell(pair: (String * String), width: Int64): String =
+    let (k, what) = pair
+    if k == "" then
+      TextEdit.padEndToWidth("", width)
+    else if what == "" then
+      TextEdit.padEndToWidth(
+        head(k),
+        width + (Stdlib.String.length(head(k)) - Stdlib.String.length(k)))
+    else
+      dim(TextEdit.padEndToWidth(" " + TextEdit.padEndToWidth(k, 8) + what, width))
+
+  let lineCount = Stdlib.max(Stdlib.List.length(left), Stdlib.List.length(right))
+  let allRows =
+    Stdlib.List.range(0, lineCount - 1)
+    |> Stdlib.List.map(fun i ->
+      let l = Stdlib.List.getAt(left, i) |> Stdlib.Option.withDefault(("", ""))
+      let r = Stdlib.List.getAt(right, i) |> Stdlib.Option.withDefault(("", ""))
+      cell(l, colWidth) + " " + cell(r, colWidth))
+
+  // ...and if even the whole screen is not enough, say so rather than stopping mid-list. Same convention
+  // as the panel, and for the same reason: the last row of a cut list reads as the end of the list.
+  let over = Stdlib.List.length(allRows) - inner.rows
+  let body =
+    if over <= 0 then
+      allRows
+    else
+      Stdlib.List.concat(
+        Stdlib.List.take(allRows, Stdlib.max(0, inner.rows - 1)),
+        [ dim(" +" + Stdlib.display(over + 1) + " more, taller window") ])
+
+  Stdlib.List.flatten(
+    [ Stdlib.Cli.UI.Box.draw(box, "keys -- any key closes", Stdlib.Cli.UI.Focus.Focused)
+      body
+      |> Stdlib.List.indexedMap(fun(i, line) ->
+        if i < inner.rows then Stdlib.Cli.UI.Layout.at(inner, i, 0, line) else [])
+      |> Stdlib.List.flatten ])
+
+
+let inspectorWith(
+  theme: Theme.Theme,
+  st: Editor.State,
+  region: Stdlib.Cli.UI.Layout.Region,
+  extraRows: List<String>)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  let dim(s: String): String = Stdlib.Cli.UI.Colors.colorize(theme.dim, s)
+  let head(s: String): String =
+    Stdlib.Cli.UI.Colors.colorize(theme.dim + Stdlib.Cli.UI.Colors.bold, s)
+
+  let node =
+    match nodeAtPath(st.root, st.caret.node) with
+    | Some(n) -> Editor.crumbName(n)
+    | None -> "-"
+
+  let expecting = Editor.expectHint(st)
+  let actions = Editor.visibleActions(st)
+  let actionLines =
+    if Stdlib.List.isEmpty(actions) then
+      [ dim("  (none here)") ]
+    else
+      let shown =
+        actions
+        |> Stdlib.List.take(7)
+        |> Stdlib.List.map(fun a ->
+          // A bound action shows its key instead of the bullet: the panel is the help, so a key that
+          // exists and isn't written here may as well not exist.
+          let lead =
+            match a.key with
+            | Some(k) -> Stdlib.Cli.UI.Colors.colorize(theme.keyword, k)
+            | None -> Stdlib.Cli.UI.Colors.colorize(theme.keyword, "•")
+
+          "  " + lead + " " + a.name)
+
+      // Seven actions with nothing after them read as all of them. `:` opens the full list.
+      let hidden = Stdlib.List.length(actions) - 7
+      if hidden > 0 then
+        Stdlib.List.concat(shown, [ dim("  +" + Stdlib.display(hidden) + " more, : for all") ])
+      else
+        shown
+
+  // Completions are shown at the caret (a popover), not here, so the panel never lists them twice.
+  // The "expects" line only earns its space when the caret is on a hole; on a node the ON line says it.
+  let inHole =
+    match Editor.slotUnder(st) with
+    | Some(Empty(_)) -> true
+    | Some(Partial(_, _)) -> true
+    | _ -> false
+
+  let headerRows =
+    if inHole then
+      // Present "expects X" / "typing X" as an uppercase header + value, matching the ON / ACTIONS /
+      // COMPLETE sections so the panel reads as one consistent list rather than a stray sentence.
+      let words = Stdlib.String.split(expecting, " ")
+      let ehead =
+        Stdlib.List.head(words)
+        |> Stdlib.Option.withDefault("")
+        |> Stdlib.String.toUppercase
+
+      let eval =
+        words
+        |> Stdlib.List.drop(1)
+        |> Stdlib.String.join(" ")
+
+      [ head(ehead) + "  " + eval, "" ]
+    else
+      // The full KIND under the short name. It is the string a spec has to name to replace this node's
+      // editor, and there was nowhere to read it: `Kind.ofCase "Darklang.LanguageTools.ProgramTypes.Expr"
+      // "EIf"` is not something anyone guesses, and a spec whose kind matches nothing is ignored in
+      // silence. Declaring your own editor for a built-in is the headline claim of this thing, so the
+      // string it needs belongs where you are standing when you decide to.
+      //
+      // Hard-wrapped, not word-wrapped: it is one long dotted token with no spaces to break at, and a
+      // name you cannot copy in full is no better than no name.
+      let fullKind =
+        nodeAtPath(st.root, st.caret.node)
+        |> Stdlib.Option.map(fun n -> Kind.toString(n.kind))
+        |> Stdlib.Option.withDefault("-")
+
+      Stdlib.List.flatten(
+        [ [ head("ON") + "  " + node ]
+          Stdlib.Cli.Tui.Text.wrapAtColumn(fullKind, Stdlib.max(8, region.cols - 2))
+          |> Stdlib.List.map(fun l -> dim("  " + l))
+
+          [ "" ] ])
+
+  // The panel is also the help: the status line carries only the keys you reach for constantly, and the
+  // rest live here, which is what makes trimming that line honest rather than a loss.
+  let keyRow(pair: (String * String)): String =
+    let (k, what) = pair
+    // Eight, not seven. `^arrows` is exactly seven wide, so at seven it touched its own description:
+    // `^arrowsmove along its list`. The hard-coded rows this replaced had a literal space after it and
+    // therefore sat one column right of everything else; eight lines them all up and keeps the gap.
+    dim("  " + TextEdit.padEndToWidth(k, 8) + what)
+
+  let keyRows =
+    let pairs =
+      match st.mode with
+      | Nav -> navKeyHelp()
+      | Insert -> insertKeyHelp()
+
+    Stdlib.List.flatten([ [ "", head("KEYS") ], pairs |> Stdlib.List.map(keyRow) ])
+
+  // Keys the DOCUMENT bound. A hard-coded KEYS list means the one set of
+  // keys the panel cannot tell you about is the set you added yourself, which is the opposite of what
+  // "nothing hidden" is for. Shown in both modes, because a keymap is not a NAV thing; the keys simply
+  // do not fire until you are in NAV, the same as the kernel's.
+  let boundRows =
+    match st.reg.keymap with
+    | [] -> []
+    | _ ->
+      let rows =
+        effectiveKeymap(st.reg)
+        |> Stdlib.List.map(fun b ->
+          let key = TextEdit.padEndToWidth(b.key, 8)
+          dim("  " + key + Command.label(b.command)))
+
+      Stdlib.List.flatten([ [ "", head("BOUND HERE") ], rows ])
+
+  // TREE before ACTIONS: where you are is what you read first when you open the panel, and what you can
+  // do here only means something once you know what "here" is.
+  let rows =
+    Stdlib.List.flatten(
+      [ headerRows
+        extraRows
+        [ head("TREE") ]
+        treeRows(theme, st)
+        [ "" ]
+        [ head("ACTIONS") ]
+        actionLines
+        // BEFORE the kernel's KEYS, not after. The panel is clipped at the region's height, and the
+        // kernel's list is sixteen rows: on a 26-row terminal a section after it is off the bottom, so
+        // the keys you bound yourself would be the ones you could never see. Found by a test that
+        // rendered at the same size the app does rather than at the size my probe used.
+        boundRows
+        keyRows ])
+
+  // Say when the panel could not fit what it has, the way DOCS, VALUE and ACTIONS each already do for
+  // their own section. Every one of those carries the same reason written three ways: six rows of a
+  // longer answer with nothing after them reads as the whole answer.
+  //
+  // The panel as a WHOLE never did. The outer clip below just dropped whatever ran past the bottom, so
+  // on an ordinary 26-row terminal the last third of the KEYS list has always been missing with nothing
+  // to say so, and a deep enough TREE takes everything under it with no sign either. "Nothing hidden"
+  // was false in the one place whose whole job is to say what is possible here.
+  let overflow = Stdlib.List.length(rows) - region.rows
+  let fitted =
+    if overflow <= 0 then
+      rows
+    else
+      // The marker takes a row of its own, so it has to count itself.
+      Stdlib.List.concat(
+        Stdlib.List.take(rows, Stdlib.max(0, region.rows - 1)),
+        [ dim("  +" + Stdlib.display(overflow + 1) + " more, ? for all keys") ])
+
+  fitted
+  |> Stdlib.List.indexedMap(fun(i, line) ->
+    if i < region.rows then Stdlib.Cli.UI.Layout.at(region, i, 0, line) else [])
+  |> Stdlib.List.flatten
+
+
+let onKey(st: Editor.State, kp: Stdlib.Cli.UI.Widget.KeyPress): Editor.Outcome =
+  Editor.onKey(st, kp)
