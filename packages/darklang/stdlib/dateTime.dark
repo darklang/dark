@@ -298,9 +298,11 @@ let __fromParts(
 
 
 /// Parses a UTC date and time in {{YYYY-MM-DDTHH:mm:ssZ}} or {{YYYY-MM-DDTHH:mm:ss.fffZ}} format,
-/// returning {{Result<DateTime, String>}}.
+/// or a plain {{YYYY-MM-DD}} date as midnight UTC, returning {{Result<DateTime, String>}}.
 let parse(s: String): Result<DateTime, String> =
   match String.toList(s) with
+  | [y1, y2, y3, y4, '-', mo1, mo2, '-', d1, d2] ->
+    __fromParts([ y1, y2, y3, y4 ], [ mo1, mo2 ], [ d1, d2 ], [], [], [], [])
   | [y1, y2, y3, y4, '-', mo1, mo2, '-', d1, d2, 'T', h1, h2, ':', mi1, mi2, ':', s1, s2, 'Z'] ->
     __fromParts(
       [ y1, y2, y3, y4 ],
