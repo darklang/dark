@@ -57,11 +57,12 @@ let printTraceHint(state: AppState, location: PackageLocation): Unit =
 
 let execute(state: AppState, args: List<String>): AppState =
   let branchId = state.currentBranchId
+  let wantsText = Stdlib.List.contains(args, "--text")
   let named =
-    match args with
+    match Stdlib.List.filter(args, fun a -> a != "--text") with
     | [name] -> Result.Ok((name, Option.None))
     | [name, file] -> Result.Ok((name, Option.Some(file)))
-    | _ -> Result.Error("usage: dark edit <name> [file]")
+    | _ -> Result.Error("usage: dark edit <name> [file] [--text]")
 
   match named with
   | Error(e) ->
@@ -106,92 +107,99 @@ let execute(state: AppState, args: List<String>): AppState =
 
             failed(state)
           | Available ->
-            match View.rawSource(branchId, location) with
-            | Error(e) ->
-              Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot edit {name}: {e}"))
-              failed(state)
-            | Ok(before) ->
-              match Stdlib.Cli.Dir.createTemp() with
+            // Functions, types and values open in the structural editor; `--text` forces $EDITOR.
+            match location, wantsText with
+            | Function(_), false -> Fluid.App.editFn(state, name)
+            | Type(_), false -> Fluid.App.editType(state, name)
+            | Value(_), false -> Fluid.App.editValue(state, name)
+            | _ ->
+              match View.rawSource(branchId, location) with
               | Error(e) ->
-                Stdlib.printErrorLine(
-                  Stdlib.Cli.UI.Colors.error(
-                    $"Cannot edit {name}: no temp directory ({e.message})"))
-
+                Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot edit {name}: {e}"))
                 failed(state)
-              | Ok(dir) ->
-                let path = $"{dir}/{loc.name}.dark"
-                match Stdlib.Cli.File.writeText(path, before) with
+              | Ok(before) ->
+                match Stdlib.Cli.Dir.createTemp() with
                 | Error(e) ->
                   Stdlib.printErrorLine(
                     Stdlib.Cli.UI.Colors.error(
-                      $"Cannot edit {name}: could not write {path} ({e.message})"))
+                      $"Cannot edit {name}: no temp directory ({e.message})"))
 
                   failed(state)
-                | Ok(_) ->
-                  let editor = editorCommand()
-                  match Stdlib.Cli.Process.runInteractive(editor, [ path ]) with
+                | Ok(dir) ->
+                  let path = $"{dir}/{loc.name}.dark"
+                  match Stdlib.Cli.File.writeText(path, before) with
                   | Error(e) ->
-                    printErr($"Could not run `{editor}`: {e.message}")
                     Stdlib.printErrorLine(
-                      Stdlib.Cli.UI.Colors.dimText(
-                        $"  Set $EDITOR, or edit {path} and run `dark edit {name} {path}`."))
+                      Stdlib.Cli.UI.Colors.error(
+                        $"Cannot edit {name}: could not write {path} ({e.message})"))
 
                     failed(state)
-                  | Ok(code) when code != 0 ->
-                    // A non-zero editor is how you say "forget it" in most of them. The store
-                    // is left alone and so is the file, so a long edit is not thrown away on a
-                    // stray exit code.
-                    Stdlib.printErrorLine(
-                      $"`{editor}` exited {Stdlib.display(code)}; nothing applied.")
-
-                    Stdlib.printErrorLine(
-                      Stdlib.Cli.UI.Colors.dimText($"  Your edit is still at {path}."))
-
-                    state
                   | Ok(_) ->
-                    match Stdlib.Cli.File.readText(path) with
+                    let editor = editorCommand()
+                    match Stdlib.Cli.Process.runInteractive(editor, [ path ]) with
                     | Error(e) ->
-                      printErr($"Could not read back {path}: {e.message}")
+                      printErr($"Could not run `{editor}`: {e.message}")
+                      Stdlib.printErrorLine(
+                        Stdlib.Cli.UI.Colors.dimText(
+                          $"  Set $EDITOR, or edit {path} and run `dark edit {name} {path}`."))
+
                       failed(state)
-                    | Ok(after) ->
-                      if Stdlib.String.trim(after) == Stdlib.String.trim(before) then
-                        let _ = Stdlib.Cli.Dir.deleteRecursive(dir)
-                        Stdlib.printLine(Stdlib.Cli.UI.Colors.success("no change."))
-                        state
-                      else
-                        let result = applyFile(state, loc, path)
+                    | Ok(code) when code != 0 ->
+                      // A non-zero editor is how you say "forget it" in most of them. The store
+                      // is left alone and so is the file, so a long edit is not thrown away on a
+                      // stray exit code.
+                      Stdlib.printErrorLine(
+                        $"`{editor}` exited {Stdlib.display(code)}; nothing applied.")
 
-                        // Whether the apply LANDED, asked by comparing against what the item was
-                        // BEFORE. Comparing against what you typed would be wrong nearly always,
-                        // since the store pretty-prints; comparing against the old source is
-                        // robust, because anything landing changes it.
-                        //
-                        // The temp file is the only copy of an interactive edit, so it survives
-                        // a rejection and the path is printed. On success it goes: a temp path
-                        // after every edit is clutter you learn to skip, and clutter you skip is
-                        // where a real warning goes to hide.
-                        let landed =
-                          match View.rawSource(branchId, location) with
-                          | Ok(now) -> Stdlib.String.trim(now) != Stdlib.String.trim(before)
-                          | Error(_) -> false
+                      Stdlib.printErrorLine(
+                        Stdlib.Cli.UI.Colors.dimText($"  Your edit is still at {path}."))
 
-                        let _ =
-                          if landed then
-                            printTraceHint(result, location)
-                            Stdlib.Cli.Dir.deleteRecursive(dir) |> Stdlib.Result.toOption
-                          else
-                            Stdlib.printErrorLine(
-                              Stdlib.Cli.UI.Colors.dimText(
-                                $"  nothing landed; your edit is still at {path}"))
+                      state
+                    | Ok(_) ->
+                      match Stdlib.Cli.File.readText(path) with
+                      | Error(e) ->
+                        printErr($"Could not read back {path}: {e.message}")
+                        failed(state)
+                      | Ok(after) ->
+                        if Stdlib.String.trim(after) == Stdlib.String.trim(before) then
+                          let _ = Stdlib.Cli.Dir.deleteRecursive(dir)
+                          Stdlib.printLine(Stdlib.Cli.UI.Colors.success("no change."))
+                          state
+                        else
+                          let result = applyFile(state, loc, path)
 
-                            Option.None
+                          // Whether the apply LANDED, asked by comparing against what the item was
+                          // BEFORE. Comparing against what you typed would be wrong nearly always,
+                          // since the store pretty-prints; comparing against the old source is
+                          // robust, because anything landing changes it.
+                          //
+                          // The temp file is the only copy of an interactive edit, so it survives
+                          // a rejection and the path is printed. On success it goes: a temp path
+                          // after every edit is clutter you learn to skip, and clutter you skip is
+                          // where a real warning goes to hide.
+                          let landed =
+                            match View.rawSource(branchId, location) with
+                            | Ok(now) -> Stdlib.String.trim(now) != Stdlib.String.trim(before)
+                            | Error(_) -> false
 
-                        result
+                          let _ =
+                            if landed then
+                              printTraceHint(result, location)
+                              Stdlib.Cli.Dir.deleteRecursive(dir) |> Stdlib.Result.toOption
+                            else
+                              Stdlib.printErrorLine(
+                                Stdlib.Cli.UI.Colors.dimText(
+                                  $"  nothing landed; your edit is still at {path}"))
+
+                              Option.None
+
+                          result
 
 
 let help(_state: AppState): String =
   [ ""
-    "  dark edit <name>           open $EDITOR on the declaration, apply on save"
+    "  dark edit <name>           open the structural editor (fn, type, value), save applies"
+    "  dark edit <name> --text    open $EDITOR on the declaration instead"
     "  dark edit <name> <file>    apply that file instead (no editor, for scripts)"
     ""
     "  The file holds one declaration, the same form `dark module` takes."

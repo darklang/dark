@@ -1309,6 +1309,8 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       // Reads the implementations of a trait on the branch. Fully qualified, like `nav` and
       // `find-values` above, rather than relying on the bare-name fallback to the stdlib.
       "impls", [ "Darklang.Stdlib.Add" ]
+      // Prints an editor module for a type; every other form opens the full-screen editor.
+      "fluid", [ "generate"; "Darklang.Stdlib.Cli.Tui.Size" ]
       // The sweep's own test, so this check does not depend on migrated suites.
       "test", [ "run"; "Tests.Sweep.passes" ] ]
 

@@ -1,0 +1,399 @@
+/// A runtime VALUE as a document, and back.
+///
+/// Everything else in Fluid projects a program: an expression, a type declaration, a function shell.
+/// This projects a `Dval` -- the thing a program produced, or the thing you want to hand one. It is the
+/// half the design doc calls out as missing (7.D, "editing a runtime value of type T needs Dval <-> Node")
+/// and the reason a value of your own type could be drawn in the demo and saved nowhere.
+///
+/// The SHAPE is not new. `demoDocument` has been building it by hand since the first week: a node kinded
+/// by the type's name, one field per record field, prim leaves from `Prims`. This says how to get there
+/// from a real value rather than a hand-written one, which is what makes the projection reachable.
+///
+/// Not a spec. The specs already exist -- `Derive` builds one for any type from its declaration, and
+/// `Prims` covers the leaves -- so a value document draws and edits with what is already there. This is
+/// only the conversion.
+module Darklang.Fluid.Value
+
+type Dval = LanguageTools.RuntimeTypes.Dval
+
+
+/// A leaf's text, kinded so `Prims` draws and edits it.
+///
+/// An integer carries its WIDTH in a hidden field. Every width draws as the same digits -- on screen `1`
+/// is `1` whether it came from an Int8 or a UInt128 -- but going back has to put it in the right case,
+/// and a document that has forgotten is a document that cannot round trip. `_`-prefixed fields are
+/// skipped by the drawing and by `firstEditable`, which is how `_hash` and `_doc` already ride along.
+let intLeafOf(width: String, s: String): Node =
+  // One writer of the `_w` convention, in `Prims`, because the other writer is the editor: a digit
+  // typed into a sized slot has to produce the same node this does, or a value drawn and then edited
+  // stops round-tripping. They disagreed once already.
+  Prims.intNodeOfWidth((if width == "Int64" then "" else width), s)
+
+
+let intLeaf(s: String): Node =
+  intLeafOf("Int64", s)
+
+
+let strLeaf(s: String): Node =
+  Prims.stringNode(s)
+
+
+/// The kind a named type projects to: the type's full location name.
+///
+/// A runtime type carries a content hash rather than a name -- that is what content addressing means --
+/// so this is a store lookup. It is deliberately NOT the printer's `typeNameWith`, which shortens for
+/// display: this name is a KEY. `Derive.specsForName` feeds it to `parsePackageLocation` to find the
+/// declaration a spec is built from, and `Option` does not resolve where `Darklang.Stdlib.Option.Option`
+/// does. Two jobs that look like one: what to call a type on screen, and what to look it up by.
+let typeKeyName(branchId: Uuid, t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName): String =
+  match t with
+  | Package(hash) ->
+    let locations = LanguageTools.PackageManager.Type.locations(branchId, hash)
+    match LanguageTools.PackageManager.pickLocation(
+            LanguageTools.PackageManager.PickContext
+              { currentModule = [], preferredLocation = Option.None },
+            locations) with
+    | Some(l) ->
+      Stdlib.String.join(Stdlib.List.flatten([ [ l.owner ], l.modules, [ l.name ] ]), ".")
+    // Not in the store. A hash is still a name -- it is the one the value itself carries -- and drawing
+    // it says more than an empty kind would.
+    | None -> LanguageTools.RuntimeTypes.hashToString(hash)
+
+
+let namedKind(branchId: Uuid, t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName): Kind =
+  Kind.named(typeKeyName(branchId, t))
+
+
+/// A value as a document.
+///
+/// The integer widths all project to the same `Int` leaf, deliberately: on screen `1` is `1` whether it
+/// came from an Int8 or an Int64, and the width lives in the TYPE rather than in the digits. Going back
+/// is where the width matters, and `toDval` is given it.
+let ofDval(branchId: Uuid, v: Dval): Node =
+  match v with
+  | DUnit -> Prims.unitNode()
+  | DBool(b) -> Prims.boolNode(b)
+  | DString(s) -> strLeaf(s)
+  | DChar(c) -> strLeaf(Stdlib.display(c))
+  | DFloat64(f) ->
+    // Split on the point: the leaf draws `whole` and `fraction` as two slots, and putting the whole
+    // rendering in the first one made a document that read `1.5` and rebuilt as `1.5.0`.
+    let str = Stdlib.display(f)
+    match Stdlib.String.split(str, ".") with
+    | [w, fr] -> Prims.floatNode(w, fr)
+    | _ -> Prims.floatNode(str, "0")
+  | DInt8(i) -> intLeafOf("Int8", Stdlib.display(i))
+  | DUInt8(i) -> intLeafOf("UInt8", Stdlib.display(i))
+  | DInt16(i) -> intLeafOf("Int16", Stdlib.display(i))
+  | DUInt16(i) -> intLeafOf("UInt16", Stdlib.display(i))
+  | DInt32(i) -> intLeafOf("Int32", Stdlib.display(i))
+  | DUInt32(i) -> intLeafOf("UInt32", Stdlib.display(i))
+  | DInt64(i) -> intLeafOf("Int64", Stdlib.display(i))
+  | DUInt64(i) -> intLeafOf("UInt64", Stdlib.display(i))
+  | DInt128(i) -> intLeafOf("Int128", Stdlib.display(i))
+  | DUInt128(i) -> intLeafOf("UInt128", Stdlib.display(i))
+  | DBigInt(i) -> intLeafOf("BigInt", Stdlib.display(i))
+  | DFloat32(f) -> Prims.opaqueNode(Stdlib.display(f) + "f32")
+  | DDecimal(d) -> Prims.opaqueNode(Stdlib.display(d) + "dec")
+  | DUuid(u) -> strLeaf(Stdlib.display(u))
+  | DDateTime(d) -> strLeaf(Stdlib.display(d))
+  | DList(_, items) ->
+    // A list whose items are ALL records of the SAME type is a TABLE, not a list of records.
+    //
+    // This is the one place a value document deliberately draws something other than what the printer
+    // writes, and it is the reason to have a value document at all: `[Log { reps = 20; note = "am" },
+    // Log { reps = 15; note = "pm" }]` is a spreadsheet that has been written out as source, and the
+    // grid is what a person filling it in wants. Stachu's phrase for it is "a table seen as an Excel
+    // table". A list of anything else, or of records that disagree about their type, stays a list.
+    let rowType =
+      match items with
+      | [] -> Option.None
+      | [first, ...] ->
+        match first with
+        | DRecord(_, t, _, _) ->
+          let name = typeKeyName(branchId, t)
+          let allSame =
+            items
+            |> Stdlib.List.all(fun i ->
+              match i with
+              | DRecord(_, t2, _, _) -> typeKeyName(branchId, t2) == name
+              | _ -> false)
+
+          if allSame then Option.Some(name) else Option.None
+        | _ -> Option.None
+
+    let rows = items |> Stdlib.List.map(fun i -> Slot.Filled(ofDval(branchId, i)))
+    match rowType with
+    | Some(name) ->
+      Node.make(
+        Derive.tableKindFor(name),
+        [ ("items", Field.Many(rows, Expect.ofKind(Kind.named(name), Derive.shortName(name)))) ])
+    | None -> Prims.listNode(rows, Expect.any("item"))
+  | DTuple(a, b, rest) ->
+    Prims.tupleNode(
+      Stdlib.List.flatten([ [ a, b ], rest ])
+      |> Stdlib.List.map(fun i -> Slot.Filled(ofDval(branchId, i))))
+  | DRecord(_, sourceTypeName, _, fields) ->
+    // One field per entry, named as the type names it. Order comes from the Dict, which is the order the
+    // record was built in; a spec derived from the DECLARATION draws them in declared order regardless.
+    Node.make(
+      namedKind(branchId, sourceTypeName),
+      fields
+      |> Stdlib.Dict.toList
+      |> Stdlib.List.map(fun pair ->
+        let (name, fv) = pair
+        (name, Field.One(Slot.Filled(ofDval(branchId, fv))))))
+  | DEnum(_, sourceTypeName, _, caseName, fields) ->
+    // One slot per field, named the way `Derive` names them, because `Derive` is what draws this: a
+    // labelled field by its label and an unlabelled one by position. A value carries the fields and not
+    // their labels, so the labels come from the DECLARATION -- the same lookup the kind name needs.
+    //
+    // Through `Derive.enumFieldSlot` rather than a second copy of the `f0` convention, since a spec that
+    // named its slots one way and a value that filled them another would draw every field as a hole and
+    // say nothing about why. That is exactly what the first version of this did.
+    let typeName = typeKeyName(branchId, sourceTypeName)
+    let declaredFields =
+      match LanguageTools.PackageManager.Type.find(
+              branchId,
+              LanguageTools.ProgramTypes.parsePackageLocation(typeName)) with
+      | Some(hash) ->
+        match LanguageTools.PackageManager.Type.get(hash) with
+        | Some(pt) ->
+          match pt.declaration.definition with
+          | Enum(cases) ->
+            match cases |> Stdlib.List.findFirst(fun c -> c.name == caseName) with
+            | Some(c) -> c.fields
+            | None -> []
+          | _ -> []
+        | None -> []
+      | None -> []
+
+    Node.make(
+      Kind.ofCase(typeName, caseName),
+      fields
+      |> Stdlib.List.indexedMap(fun(i, f) ->
+        let slotName =
+          match Stdlib.List.getAt(declaredFields, i) with
+          | Some(df) -> Derive.enumFieldSlot(i, df)
+          | None -> "f" + Stdlib.display(i)
+
+        (slotName, Field.One(Slot.Filled(ofDval(branchId, f))))))
+  | DDict(_, _, entries) ->
+    Prims.dictNode(
+      entries
+      |> Stdlib.Dict.toList
+      |> Stdlib.List.map(fun pair ->
+        let (k, dv) = pair
+        Slot.Filled(
+          Prims.dictPairNode(Slot.Filled(ofDval(branchId, k)), Slot.Filled(ofDval(branchId, dv))))))
+  // Not projected, and each for its own reason rather than for lack of trying: a function has no
+  // written form to edit, a database is a reference to something the editor does not hold, and a blob
+  // or a stream is a handle whose contents are not here. They draw as opaque and say what they are.
+  | DApplicable(_) -> Prims.opaqueNode("<function>")
+  | DBytes(_) -> Prims.opaqueNode("<bytes>")
+  | DStreamStub(_) -> Prims.opaqueNode("<stream>")
+
+
+// ============================================================================
+// ...and back.
+// ============================================================================
+
+/// The hash a kind's name resolves to, for rebuilding a record or an enum.
+let typeHashFor(
+  branchId: Uuid,
+  typeName: String)
+  : Option<LanguageTools.RuntimeTypes.FQTypeName.FQTypeName> =
+  match LanguageTools.PackageManager.Type.find(
+          branchId,
+          LanguageTools.ProgramTypes.parsePackageLocation(typeName)) with
+  | Some(h) ->
+    Option.Some(
+      LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(
+        LanguageTools.RuntimeTypes.Hash.Hash(LanguageTools.ProgramTypes.hashToString(h))))
+  | None -> Option.None
+
+
+/// An integer leaf, back in the width it came from.
+let intOfWidth(width: String, digits: String): Result<Dval, String> =
+  let bad(): Result<Dval, String> = Result.Error("not a " + width + ": " + digits)
+  match width with
+  | "Int8" ->
+    match Stdlib.Int8.parse(digits) with
+    | Ok(i) -> Result.Ok(Dval.DInt8(i))
+    | Error(_) -> bad()
+  | "UInt8" ->
+    match Stdlib.UInt8.parse(digits) with
+    | Ok(i) -> Result.Ok(Dval.DUInt8(i))
+    | Error(_) -> bad()
+  | "Int16" ->
+    match Stdlib.Int16.parse(digits) with
+    | Ok(i) -> Result.Ok(Dval.DInt16(i))
+    | Error(_) -> bad()
+  | "UInt16" ->
+    match Stdlib.UInt16.parse(digits) with
+    | Ok(i) -> Result.Ok(Dval.DUInt16(i))
+    | Error(_) -> bad()
+  | "Int32" ->
+    match Stdlib.Int32.parse(digits) with
+    | Ok(i) -> Result.Ok(Dval.DInt32(i))
+    | Error(_) -> bad()
+  | "UInt32" ->
+    match Stdlib.UInt32.parse(digits) with
+    | Ok(i) -> Result.Ok(Dval.DUInt32(i))
+    | Error(_) -> bad()
+  | "Int64" ->
+    match Stdlib.Int64.parse(digits) with
+    | Ok(i) -> Result.Ok(Dval.DInt64(i))
+    | Error(_) -> bad()
+  | "UInt64" ->
+    match Stdlib.UInt64.parse(digits) with
+    | Ok(i) -> Result.Ok(Dval.DUInt64(i))
+    | Error(_) -> bad()
+  | "Int128" ->
+    match Stdlib.Int128.parse(digits) with
+    | Ok(i) -> Result.Ok(Dval.DInt128(i))
+    | Error(_) -> bad()
+  | "UInt128" ->
+    match Stdlib.UInt128.parse(digits) with
+    | Ok(i) -> Result.Ok(Dval.DUInt128(i))
+    | Error(_) -> bad()
+  | "BigInt" ->
+    match Stdlib.BigInt.parse(digits) with
+    | Ok(i) -> Result.Ok(Dval.DBigInt(i))
+    | Error(_) -> bad()
+  | _ ->
+    match Stdlib.Int64.parse(digits) with
+    | Ok(i) -> Result.Ok(Dval.DInt64(i))
+    | Error(_) -> bad()
+
+
+/// A document back to a value.
+///
+/// Reports what is missing rather than guessing. A hole is not a value and never will be, so the error
+/// names the slot: this is the same contract `PT.Fn.fromDoc` has, and the same reason -- a save that
+/// silently invented a zero would be worse than one that refuses.
+let toDval(branchId: Uuid, n: Node): Result<Dval, String> =
+  let slotValue(slot: Slot, what: String): Result<Dval, String> =
+    match slot with
+    | Filled(child) -> toDval(branchId, child)
+    | Empty(e) -> Result.Error("hole: " + e.label)
+    | Partial(t, _) -> Result.Error("unresolved: " + t)
+
+  let text(slot: String): String = Node.text(n, slot) |> Stdlib.Option.withDefault("")
+  match Kind.typeName(n.kind) with
+  | "Unit" -> Result.Ok(Dval.DUnit)
+  | "Bool" -> Result.Ok(Dval.DBool(text("value") == "true"))
+  | "String" -> Result.Ok(Dval.DString(text("body")))
+  | "Int" -> intOfWidth(text("_w"), text("digits"))
+  | "Float" ->
+    let whole = text("whole")
+    let frac = text("fraction")
+    match Stdlib.Float64.parse(whole + "." + (if frac == "" then "0" else frac)) with
+    | Ok(f) -> Result.Ok(Dval.DFloat64(f))
+    | Error(_) -> Result.Error("not a float: " + whole + "." + frac)
+  | "Dict" ->
+    // Drawn, but not rebuilt. A dict key in the runtime is a whole Dval (`DictKey of Dval`), and the
+    // Dark mirror writes that as `Dict<Dval, Dval>` -- which Dark's own string-keyed `Dict` cannot
+    // hold, so a dict cannot be constructed from Dark at all, never mind round-tripped. Refusing by
+    // name beats falling through to "not a type in this branch: Dict", which is what it did.
+    Result.Error("a dict cannot be rebuilt yet: its keys are values, not text")
+  | "Opaque" -> Result.Error("nothing to rebuild from: " + text("source"))
+  | "List" ->
+    Node.items(n, "items")
+    |> Stdlib.List.map(fun s -> slotValue(s, "item"))
+    |> Stdlib.Result.collect
+    |> Stdlib.Result.map(fun vs -> Dval.DList(LanguageTools.RuntimeTypes.ValueType.Unknown, vs))
+  | "Tuple" ->
+    match Node.items(n, "items")
+          |> Stdlib.List.map(fun s -> slotValue(s, "item"))
+          |> Stdlib.Result.collect with
+    | Ok([a, b, ...rest]) -> Result.Ok(Dval.DTuple(a, b, rest))
+    | Ok(_) -> Result.Error("a tuple needs two members")
+    | Error(e) -> Result.Error(e)
+  | typeName when Stdlib.Option.isSome(Derive.tableRowTypeName(typeName)) ->
+    // A grid is a LIST. The table kind is a drawing decision and nothing else; the value it came from
+    // and the value it goes back to are the same `DList` a plain list would give.
+    Node.items(n, "items")
+    |> Stdlib.List.map(fun s -> slotValue(s, "row"))
+    |> Stdlib.Result.collect
+    |> Stdlib.Result.map(fun vs -> Dval.DList(LanguageTools.RuntimeTypes.ValueType.Unknown, vs))
+  | typeName ->
+    // A named type: a record if the kind has no case, an enum case if it has one. The hash comes back
+    // from the store by the same name the kind carries, which is why that name is the full location and
+    // not the shortened one.
+    match typeHashFor(branchId, typeName) with
+    | None -> Result.Error("not a type in this branch: " + typeName)
+    | Some(hash) ->
+      match n.kind.case with
+      | Some(caseName) ->
+        // Fields in the order the spec drew them, which is the order the node carries them.
+        n.fields
+        |> Stdlib.List.filter(fun f ->
+          let (name, _) = f
+          Stdlib.Bool.not(Stdlib.String.startsWith(name, "_")))
+        |> Stdlib.List.map(fun f ->
+          let (name, fld) = f
+          match fld with
+          | One(s) -> slotValue(s, name)
+          | _ -> Result.Error("an enum field is one slot: " + name))
+        |> Stdlib.Result.collect
+        |> Stdlib.Result.map(fun vs -> Dval.DEnum(hash, hash, [], caseName, vs))
+      | None ->
+        n.fields
+        |> Stdlib.List.filter(fun f ->
+          let (name, _) = f
+          Stdlib.Bool.not(Stdlib.String.startsWith(name, "_")))
+        |> Stdlib.List.map(fun f ->
+          let (name, fld) = f
+          match fld with
+          | One(s) -> slotValue(s, name) |> Stdlib.Result.map(fun v -> (name, v))
+          | _ -> Result.Error("a record field is one slot: " + name))
+        |> Stdlib.Result.collect
+        |> Stdlib.Result.map(fun pairs -> Dval.DRecord(hash, hash, [], Stdlib.Dict.fromList(pairs)))
+
+
+// ============================================================================
+// The specs a value document needs.
+// ============================================================================
+
+/// Every named type the document mentions, in the order it meets them.
+///
+/// A value drawn from a type nobody derived a spec for draws as an unknown kind -- which looks exactly
+/// like a bug in the projection, because the node is right and there is nothing to draw it with. So the
+/// entry point derives specs for the types the value ACTUALLY contains, which it can only know by
+/// walking the document; there is no declaration to read them off.
+///
+/// `Derive` is not wired into the registry as a fallback: `fluid generate` prints a spec, and the
+/// registry only ever holds specs that were written or discovered. Wiring it in as a fallback would be
+/// the bigger change -- every unknown kind would start hitting the store -- so this asks for the ones
+/// it needs instead.
+let typeNamesIn(n: Node): List<String> =
+  let fromSlot(s: Slot): List<String> =
+    match s with
+    | Filled(child) -> typeNamesIn(child)
+    | _ -> []
+
+  let here =
+    match n.kind.typ with
+    // A table kind is `[T]`, and what has to be derived is T: the row spec draws the cells, and `T`'s
+    // own derivation is what produces the table spec in the first place.
+    | Named(name) ->
+      match Derive.tableRowTypeName(name) with
+      | Some(row) -> [ row ]
+      | None -> [ name ]
+    | Prim(_) -> []
+
+  let below =
+    n.fields
+    |> Stdlib.List.map(fun f ->
+      let (_, fld) = f
+      match fld with
+      | Text(_) -> []
+      | One(s) -> fromSlot(s)
+      | Many(items, _) ->
+        items
+        |> Stdlib.List.map(fromSlot)
+        |> Stdlib.List.flatten)
+    |> Stdlib.List.flatten
+
+  Stdlib.List.concat(here, below) |> Stdlib.List.unique

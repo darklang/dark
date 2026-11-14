@@ -23,6 +23,16 @@ let evaluateValue(
   Builtin.cliEvaluateExpression(accountID, branchId, expr, allowHarmful)
 
 
+/// Evaluate an expression and hand back the value it produced, as a `Dval`.
+let evaluateToDval(
+  accountID: Option<Uuid>,
+  branchId: Uuid,
+  expr: String)
+  : Result<LanguageTools.RuntimeTypes.Dval, ExecutionError.ExecutionError> =
+  evaluateValue(accountID, branchId, expr, Harmful.Halt)
+  |> Stdlib.Result.map(fun value -> LanguageTools.RuntimeTypes.reflect(value))
+
+
 /// Evaluate an expression, keeping errors structured for the caller.
 let evaluateRaw(
   accountID: Option<Uuid>,

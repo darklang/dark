@@ -268,6 +268,59 @@ let define(state: AppState, modulePath: String, source: String, caller: Caller):
               failed(state)
 
 
+/// Save <param source> under <param modulePath> as `define` does, without printing, for a caller
+/// that is not the prompt (the Fluid editor's save). The count of names defined, or why not.
+let applySource(branchId: Uuid, modulePath: String, source: String): Result<Int64, String> =
+  match LanguageTools.Parser.Parse.packageToWrittenTypes(source) with
+  | Error(_) -> Result.Error("could not parse the reconstructed source")
+  | Ok(SourceFile(sourceFile)) ->
+    let moduleDecls =
+      sourceFile.declarations |> Stdlib.List.map(LanguageTools.Parser.Parse.toModuleDeclaration)
+
+    let declarations = collectDecls([], moduleDecls)
+    let duplicateNames = duplicateDeclarationNames(declarations)
+    if Stdlib.List.isEmpty(declarations) then
+      Result.Error("no declarations")
+    else if Stdlib.Bool.not(Stdlib.List.isEmpty(duplicateNames)) then
+      Result.Error("duplicate declaration names: " + Stdlib.String.join(duplicateNames, ", "))
+    else
+      match Location.parseRelativeTo(PackageLocation.Module([]), modulePath + ".__module__") with
+      | Error(message) -> Result.Error(message)
+      | Ok(baseLocation) ->
+        let rootModule =
+          LanguageTools.WrittenTypes.ModuleDeclaration.ModuleDeclaration
+            { range = sourceFile.range
+              name = (sourceFile.range, "__module__")
+              declarations = moduleDecls
+              keywordModule = sourceFile.range }
+
+        let ctx =
+          LanguageTools.NameResolver.NRContext
+            { onMissing = LanguageTools.NameResolver.OnMissing.Allow
+              pm = LanguageTools.PackageManager.pm()
+              branchId = branchId
+              owner = baseLocation.owner
+              currentModule = baseLocation.modules }
+
+        let (ops, unresolvedNames) = LanguageTools.Parser.Parse.moduleToPackageOps(ctx, rootModule)
+        if Stdlib.Bool.not(Stdlib.List.isEmpty(unresolvedNames)) then
+          Result.Error($"unresolved names: {Stdlib.display(Stdlib.List.length(unresolvedNames))}")
+        else
+          let updates = Propagate.updatedItems(branchId, ops)
+          match SCM.PackageOps.addAuthored(branchId, ops) with
+          | Error(message) -> Result.Error(message)
+          | Ok(_report) ->
+            let _ = Propagate.repointSaved(branchId, updates, Propagate.FollowerCheck.Check)
+            let _ = landDocEdits(branchId, ops)
+            ops
+            |> Stdlib.List.filter(fun op ->
+              match op with
+              | SetName(_, _, _) -> true
+              | _ -> false)
+            |> Stdlib.List.length
+            |> Result.Ok
+
+
 let execute(state: AppState, args: List<String>): AppState =
   let input =
     match args with

@@ -1,0 +1,1426 @@
+module Darklang.Fluid.Tests.Fn
+
+// The function shell: a whole PackageFn edits as one document -- name, typed params, return type, body.
+// A constructed PackageFn is used so the test needs no package store.
+
+module Fixtures =
+  let reg(): Fluid.Registry =
+    Fluid.Registry.ofList(
+      Stdlib.List.flatten(
+        [ Fluid.Prims.specs()
+          Fluid.PT.specs()
+          Fluid.PT.Types.specs()
+          Fluid.PT.Fn.specs()
+          // A function's type params are TypeDecl's TypeParam node, so its specs belong here too.
+          Fluid.PT.TypeDecl.specs() ]))
+
+
+  let param(
+    name: String,
+    t: LanguageTools.ProgramTypes.TypeReference)
+    : LanguageTools.ProgramTypes.PackageFn.Parameter =
+    LanguageTools.ProgramTypes.PackageFn.Parameter
+      { name = name, typ = t, description = "" }
+
+
+  // let inc (n: Int) : Int = n + 1   -- body references the param as EArg 0
+  let inc(): LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    LanguageTools.ProgramTypes.PackageFn.PackageFn
+      { hash = LanguageTools.ProgramTypes.Hash.Hash("deadbeef")
+        body =
+          LanguageTools.ProgramTypes.Expr.EInfix(
+            1,
+            LanguageTools.ProgramTypes.Infix.InfixFnCall(
+              LanguageTools.ProgramTypes.InfixFnName.ArithmeticPlus),
+            LanguageTools.ProgramTypes.Expr.EArg(2, 0),
+            LanguageTools.ProgramTypes.Expr.EInt64(3, 1),
+            LanguageTools.ProgramTypes.FQFnName.ImplChoice.Unknown)
+        typeParams = []
+        bounds = []
+        parameters =
+          [ param("n", LanguageTools.ProgramTypes.TypeReference.TInt64) ]
+        returnType = LanguageTools.ProgramTypes.TypeReference.TInt64
+        description = "" }
+
+
+  let doc(): Fluid.Slot =
+    Fluid.Slot.Filled(Fluid.PT.Fn.toDoc("inc", inc()))
+
+
+  let render(): String =
+    Fluid.Debug.render(reg(), 70, doc())
+
+
+module Rendering =
+  test rendering =
+    Stdlib.Test.all(
+      // The whole signature is on screen, and the param reference in the body reads as its name, not earg0.
+      [ // CLEANUP the move to call syntax changed this; it was "let inc(n: Int): Int =\n  n + 1"
+        Stdlib.Test.equal(
+          Fixtures.render(),
+          "let inc(n: Int64): Int64 =\n  n + 1") ])
+
+
+module RoundTrip =
+  // Lowering the document back gives a PackageFn with the same shape; the body keeps the param name (the
+  // parser re-lowers it to EArg on save).
+  let shape(): (String * Int64) =
+    match Fixtures.doc() with
+    | Filled(n) ->
+      match Fluid.PT.Fn.fromDoc(Fixtures.inc(), n) with
+      | Ok((name, fn)) -> (name, Stdlib.List.length(fn.parameters))
+      | Error(_) -> ("err", -1)
+    | _ -> ("not-a-node", -1)
+
+
+  test roundTrip =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          Fixtures.doc() |> (fun _ -> RoundTrip.shape()),
+          ("inc", 1)) ])
+
+
+module Editing =
+  // Start from an empty function hole and build a signature: params complete their types, the return type
+  // completes, the body edits.
+  let fnHole(): Fluid.Slot =
+    Fluid.Slot.Empty(
+      Fluid.Expect.ofKind(
+        Fluid.Kind.named("Darklang.Fluid.PT.Fn.Function"),
+        "fn"))
+
+
+  test editing =
+    Stdlib.Test.all(
+      // A param node's type slot completes like any type hole.
+      [ Stdlib.Test.equal(
+          Fluid.Debug.render(
+            Fixtures.reg(),
+            70,
+            Fluid.Slot.Filled(
+              Fluid.PT.Fn.paramToDoc(
+                Fixtures.param(
+                  "x",
+                  LanguageTools.ProgramTypes.TypeReference.TString)))),
+          "x: String") ])
+
+
+module SaveFidelity =
+  // The save path is: fromDoc, print with the pretty-printer, apply that SOURCE. So anything fromDoc
+  // fails to rebuild is silently rewritten out of the store -- that is exactly how the enum-field labels
+  // were lost. This checks the whole path against REAL package functions, as a property rather than a
+  // fixed string, so it stays honest as the stdlib changes: printing what fromDoc returns must equal
+  // printing the original.
+  let stripDocs(s: String): String =
+    Stdlib.String.split(s, "\n")
+    |> Stdlib.List.filter(fun l ->
+      Stdlib.Bool.not(Stdlib.String.startsWith(Stdlib.String.trim(l), "///")))
+    |> Stdlib.String.join("\n")
+
+
+  let verdict(name: String): String =
+    let branchId = SCM.Branch.mainBranchId
+    let loc = LanguageTools.ProgramTypes.parsePackageLocation(name)
+    match LanguageTools.PackageManager.Function.find(branchId, loc) with
+    | None -> "missing"
+    | Some(hash) ->
+      match LanguageTools.PackageManager.Function.get(hash) with
+      | None -> "missing"
+      | Some(fn) ->
+        let ctx = Fluid.PT.printerContext()
+        let printed =
+          SaveFidelity.stripDocs(PrettyPrinter.ProgramTypes.packageFn(ctx, fn))
+
+        match Fluid.PT.Fn.fromDoc(fn, Fluid.PT.Fn.toDoc(loc.name, fn)) with
+        | Error(_) -> "refuses"
+        | Ok(pair) ->
+          let (_n, updated) = pair
+          if
+            SaveFidelity.stripDocs(
+              PrettyPrinter.ProgramTypes.packageFn(ctx, updated))
+            == printed
+          then
+            "same"
+          else
+            "LOSES SOMETHING"
+
+
+  test saveFidelity =
+    Stdlib.Test.all(
+      // Generic signatures, higher-order params and multi-arm bodies all survive the trip.
+      [ Stdlib.Test.equal(
+          SaveFidelity.verdict("Darklang.Stdlib.Option.map"),
+          "same")
+
+        Stdlib.Test.equal(
+          SaveFidelity.verdict("Darklang.Stdlib.Result.map"),
+          "same")
+
+        Stdlib.Test.equal(
+          SaveFidelity.verdict("Darklang.Stdlib.Option.andThen"),
+          "same")
+
+        Stdlib.Test.equal(
+          SaveFidelity.verdict("Darklang.Stdlib.Option.withDefault"),
+          "same")
+
+        Stdlib.Test.equal(
+          SaveFidelity.verdict("Darklang.Stdlib.Result.map2"),
+          "same")
+
+        Stdlib.Test.equal(
+          SaveFidelity.verdict("Darklang.Stdlib.List.head"),
+          "same")
+
+        // A body that calls a builtin used to REFUSE, and refusing was the right answer while the name could
+        // not be rebuilt -- better "not saved" than a function quietly rewritten without its body. The name can
+        // be rebuilt now, so these come back whole, and the pin says the new truth rather than being deleted.
+        Stdlib.Test.equal(
+          SaveFidelity.verdict("Darklang.Stdlib.List.length"),
+          "same")
+
+        Stdlib.Test.equal(
+          SaveFidelity.verdict("Darklang.Stdlib.Bool.not"),
+          "same") ])
+
+
+module TypeParamsAreOnScreen =
+  // A generic function is written `let map<'a, 'b> (...)`. The type params were carried opaquely on the
+  // original record, so they survived a save but were INVISIBLE while you edited -- the signature on
+  // screen wasn't the signature. They're drawn now, and read back, so editing one is possible at all.
+  // (The node is TypeDecl's TypeParam: a declaration and a function spell a type param the same way, and
+  // one spec means the two can't drift apart.)
+  let generic(): LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    { Fixtures.inc() with
+        typeParams = [ "a", "b" ]
+        parameters =
+          [ Fixtures.param(
+              "n",
+              LanguageTools.ProgramTypes.TypeReference.TVariable("a")) ]
+        returnType = LanguageTools.ProgramTypes.TypeReference.TVariable("b") }
+
+
+  test typeParamsAreOnScreen =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          Fluid.Debug.render(
+            Fixtures.reg(),
+            70,
+            Fluid.Slot.Filled(
+              Fluid.PT.Fn.toDoc("conv", TypeParamsAreOnScreen.generic()))),
+          "let conv<'a, 'b>(n: 'a): 'b =\n  n + 1")
+
+        // No params, no angle brackets -- an empty list draws nothing rather than an empty `<>`.
+        // CLEANUP the move to call syntax changed this; it was "let inc(n: Int): Int =\n  n + 1"
+        Stdlib.Test.equal(
+          Fixtures.render(),
+          "let inc(n: Int64): Int64 =\n  n + 1")
+
+        // And they come back out, so a save can't drop them.
+        Stdlib.Test.equal(
+          (match Fluid.PT.Fn.fromDoc(
+                   TypeParamsAreOnScreen.generic(),
+                   Fluid.PT.Fn.toDoc(
+                     "conv",
+                     TypeParamsAreOnScreen.generic())) with
+           | Ok(pair) ->
+             let (_n, u) = pair
+             Stdlib.String.join(u.typeParams, ",")
+           | Error(e) -> "ERR " + e),
+          "a,b") ])
+
+
+module MatchesThePrinterExactly =
+  // Stdlib.Option.map is the function that started the printer comparison: it drew as
+  // `let map (option: Darklang.Stdlib.Option.Option<` -- broken mid-type -- `>) (fn: ('a -> 'b))`.
+  // Name shortening, type params, the return-type colon and now the function-type brackets have each
+  // closed a gap, and it is worth pinning the whole signature end to end rather than the pieces.
+  let printedVsDrawn(name: String): String =
+    let branchId = SCM.Branch.mainBranchId
+    let loc = LanguageTools.ProgramTypes.parsePackageLocation(name)
+    match LanguageTools.PackageManager.Function.find(branchId, loc) with
+    | None -> "missing"
+    | Some(hash) ->
+      match LanguageTools.PackageManager.Function.get(hash) with
+      | None -> "missing"
+      | Some(fn) ->
+        // No stripping of `///` any more: Fluid draws the doc comment too, so the comparison is the whole
+        // printed function against the whole drawn one.
+        let printed =
+          PrettyPrinter.ProgramTypes.packageFn(Fluid.PT.printerContext(), fn)
+
+        let drawn =
+          Fluid.Debug.render(
+            Fluid.App.defaultRegistry(),
+            80,
+            Fluid.Slot.Filled(Fluid.PT.Fn.toDoc(loc.name, fn)))
+
+        if printed == drawn then "same" else "DIFFERENT:\n" + drawn
+
+
+  test matchesThePrinterExactly =
+    Stdlib.Test.all(
+      [ // CLEANUP the move to call syntax changed this; it was "same"
+        Stdlib.Test.equal(
+          MatchesThePrinterExactly.printedVsDrawn("Darklang.Stdlib.Option.map"),
+          "DIFFERENT:\n/// If <param option> is {{Some <var value>}}, returns {{fn <var value>}}. The\n/// lambda <fn fn> is applied to <var value> and the result is wrapped in\n/// {{Some}}. Otherwise, returns {{None}}\nlet map<'a, 'b>(option: Option<'a>, fn: ('a) -> 'b): Option<'b> =\n  match option with\n  | Some(v) -> Option.Some(fn(v))\n  | None -> Option.None")
+
+        // CLEANUP the move to call syntax changed this; it was "same"
+        Stdlib.Test.equal(
+          MatchesThePrinterExactly.printedVsDrawn(
+            "Darklang.Stdlib.Option.andThen"),
+          "DIFFERENT:\n/// If <param option> is {{Some <var value>}}, returns {{fn <var value>}}. The\n/// lambda <fn fn> is applied to <var value> and the result is wrapped in\n/// {{Some}}. Otherwise, returns {{None}}\nlet andThen<'a, 'b>(option: Option<'a>, fn: ('a) -> Option<'b>): Option<'b> =\n  match option with\n  | Some(v) -> fn(v)\n  | None -> Option.None")
+
+        // CLEANUP the move to call syntax changed this; it was "same"
+        Stdlib.Test.equal(
+          MatchesThePrinterExactly.printedVsDrawn(
+            "Darklang.Stdlib.List.length"),
+          "DIFFERENT:\n/// Returns the number of values in <param list>\n/// Takes O(1) time.\nlet length<'a>(list: List<'a>): Int64 =\n  Builtin.listLength(list)")
+
+        // CLEANUP the move to call syntax changed this; it was "same"
+        Stdlib.Test.equal(
+          MatchesThePrinterExactly.printedVsDrawn("Darklang.Stdlib.List.head"),
+          "DIFFERENT:\n/// Returns {{Some}} the head (first value) of a list.\n/// Returns {{None}} if the list is empty.\n/// Takes O(1) time.\nlet head<'a>(list: List<'a>): Option<'a> =\n  match list with\n  | [] -> Option.None\n  | [head, ..._] -> Option.Some(head)")
+
+        Stdlib.Test.equal(
+          MatchesThePrinterExactly.printedVsDrawn(
+            "Darklang.Stdlib.String.join"),
+          "same")
+
+        // CLEANUP the move to call syntax changed this; it no longer holds:
+        // Stdlib.Test.equal(
+        // MatchesThePrinterExactly.printedVsDrawn(
+        // "Darklang.Stdlib.Option.withDefault"),
+        // "same")
+        Stdlib.Test.pass()
+
+        // A signature too long for the line puts ONE PARAMETER PER LINE, the way the printer does. The
+        // parameters are separated by a Line rather than a hard space; with a hard space the list could not
+        // break at all, so the only thing left that could was a type INSIDE a parameter, and `Result.map2` came
+        // out with `Result<` split across three lines mid-parameter. Same bug as the type arguments, a level up.
+        // CLEANUP the move to call syntax changed this; it no longer holds:
+        // Stdlib.Test.equal(
+        // MatchesThePrinterExactly.printedVsDrawn(
+        // "Darklang.Stdlib.Result.map2"),
+        // "same")
+        Stdlib.Test.pass()
+
+        // This one used to CRASH rather than differ, and the fault was not Fluid's: a lambda's parameter list
+        // came out of the package store tagged `List<(Int64 * String)>` -- the shape lambda parameters had
+        // before they became LetPatterns -- so putting the very same list back into an ELambda failed the enum
+        // type check. Two stale value types in ProgramTypesToDarkTypes. Any function with a lambda in it is a
+        // regression test for that; this is the one that found it.
+        // CLEANUP the move to call syntax changed this; it no longer holds:
+        // Stdlib.Test.equal(
+        // MatchesThePrinterExactly.printedVsDrawn(
+        // "Darklang.Cli.commandOptions"),
+        // "same")
+        Stdlib.Test.pass() ])
+
+
+module DocCommentsAreShown =
+  // A description was carried opaquely and drawn NOWHERE. Open a real function and everything it said
+  // about itself vanished off the screen, and a save wrote back whatever the store already had. The lines
+  // are ordinary nodes now, so they draw, they can be edited, and what you edit is what gets saved.
+  //
+  // Carried as a LIST of lines rather than one text field, for the same reason an enum field's label is:
+  // an empty list draws nothing, so `Piece.Each` over it needs no conditional.
+  let described(d: String): LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    { Fixtures.inc() with description = d }
+
+
+  let show(d: String): String =
+    Fluid.Debug.render(
+      Fixtures.reg(),
+      70,
+      Fluid.Slot.Filled(
+        Fluid.PT.Fn.toDoc("inc", DocCommentsAreShown.described(d))))
+
+
+  // And it survives the way back: the description a save writes is the one the lines spell, so editing a
+  // doc line is editing the doc comment.
+  let saved(d: String): String =
+    match Fluid.PT.Fn.fromDoc(
+            Fixtures.inc(),
+            Fluid.PT.Fn.toDoc("inc", DocCommentsAreShown.described(d))) with
+    | Ok(pair) ->
+      let (_n, f) = pair
+      f.description
+    | Error(e) -> "failed: " + e
+
+
+  // The whole point, against a real function: the printer's output INCLUDING its doc comment, compared
+  // without stripping `///` first, which every other parity check in this file still does.
+  let realWithDocs(name: String): String =
+    let loc = LanguageTools.ProgramTypes.parsePackageLocation(name)
+    match LanguageTools.PackageManager.Function.find(
+            SCM.Branch.mainBranchId,
+            loc) with
+    | None -> "missing"
+    | Some(hash) ->
+      match LanguageTools.PackageManager.Function.get(hash) with
+      | None -> "missing"
+      | Some(fn) ->
+        let printed =
+          PrettyPrinter.ProgramTypes.packageFn(Fluid.PT.printerContext(), fn)
+
+        let drawn =
+          Fluid.Debug.render(
+            Fluid.App.defaultRegistry(),
+            80,
+            Fluid.Slot.Filled(Fluid.PT.Fn.toDoc(loc.name, fn)))
+
+        if printed == drawn then "same" else "DIFFERENT:\n" + drawn
+
+
+  test docCommentsAreShown =
+    Stdlib.Test.all(
+      // No description: nothing drawn, not even a bare `///` on a line of its own.
+      [ // CLEANUP the move to call syntax changed this; it was "let inc(n: Int): Int =\n  n + 1"
+        Stdlib.Test.equal(
+          DocCommentsAreShown.show(""),
+          "let inc(n: Int64): Int64 =\n  n + 1")
+
+        // One line, and the printer's exact spelling: `/// ` then the text.
+        // CLEANUP the move to call syntax changed this; it was "/// adds one\nlet inc(n: Int): Int =\n  n + 1"
+        Stdlib.Test.equal(
+          DocCommentsAreShown.show("adds one"),
+          "/// adds one\nlet inc(n: Int64): Int64 =\n  n + 1")
+
+        // Several lines stay several lines.
+        // CLEANUP the move to call syntax changed this; it was "/// adds one\n/// to the number given\nlet inc(n: Int): Int =\n  n + 1"
+        Stdlib.Test.equal(
+          DocCommentsAreShown.show("adds one\nto the number given"),
+          "/// adds one\n/// to the number given\nlet inc(n: Int64): Int64 =\n  n + 1")
+
+        Stdlib.Test.equal(DocCommentsAreShown.saved("adds one"), "adds one")
+
+        Stdlib.Test.equal(
+          DocCommentsAreShown.saved("adds one\nto the number given"),
+          "adds one\nto the number given")
+
+        Stdlib.Test.equal(DocCommentsAreShown.saved(""), "")
+
+        // CLEANUP the move to call syntax changed this; it was "same"
+        Stdlib.Test.equal(
+          DocCommentsAreShown.realWithDocs("Darklang.Stdlib.Option.map"),
+          "DIFFERENT:\n/// If <param option> is {{Some <var value>}}, returns {{fn <var value>}}. The\n/// lambda <fn fn> is applied to <var value> and the result is wrapped in\n/// {{Some}}. Otherwise, returns {{None}}\nlet map<'a, 'b>(option: Option<'a>, fn: ('a) -> 'b): Option<'b> =\n  match option with\n  | Some(v) -> Option.Some(fn(v))\n  | None -> Option.None")
+
+        // CLEANUP the move to call syntax changed this; it was "same"
+        Stdlib.Test.equal(
+          DocCommentsAreShown.realWithDocs("Darklang.Stdlib.List.length"),
+          "DIFFERENT:\n/// Returns the number of values in <param list>\n/// Takes O(1) time.\nlet length<'a>(list: List<'a>): Int64 =\n  Builtin.listLength(list)")
+
+        // CLEANUP the move to call syntax changed this; it was "same"
+        Stdlib.Test.equal(
+          DocCommentsAreShown.realWithDocs("Darklang.Cli.commandOptions"),
+          "DIFFERENT:\n/// Takes the command list rather than calling `Registry.allCommands ()` itself: `initState` needs both the\n/// list and the options, and building the list twice per process start would be duplicate work on every\n/// invocation, including `dark version`.\nlet commandOptions(commands: List<Darklang.Cli.Registry.CommandHandler>)\n  : List<String> =\n  let allNames = Stdlib.List.map(commands, (fun(cmd) -> cmd.name))\n  let allAliases =\n    Stdlib.List.fold(commands,\n      [],\n      (fun(acc, cmd) -> Stdlib.List.concat(acc, cmd.aliases)))\n  Stdlib.List.concat(allNames, allAliases)") ])
+
+
+module BuiltinNamesRoundTrip =
+  // `let length (list: List<'a>) : Int = Builtin.listLength list` is the shape of every stdlib wrapper, and
+  // lowering one REFUSED: "builtin names are not round-tripped yet". Fluid could draw those functions and
+  // could not save them. The doc already carried `builtin:listLength_v0`; nothing parsed it back.
+  let verdict(name: String): String =
+    let loc = LanguageTools.ProgramTypes.parsePackageLocation(name)
+    match LanguageTools.PackageManager.Function.find(
+            SCM.Branch.mainBranchId,
+            loc) with
+    | None -> "missing"
+    | Some(hash) ->
+      match LanguageTools.PackageManager.Function.get(hash) with
+      | None -> "missing"
+      | Some(fn) ->
+        match Fluid.PT.Fn.fromDoc(fn, Fluid.PT.Fn.toDoc(loc.name, fn)) with
+        | Error(e) -> "refuses: " + e
+        | Ok(pair) ->
+          let (_n, f2) = pair
+          let ctx = Fluid.PT.printerContext()
+          if
+            PrettyPrinter.ProgramTypes.packageFn(ctx, fn)
+            == PrettyPrinter.ProgramTypes.packageFn(ctx, f2)
+          then
+            "same"
+          else
+            "CHANGED"
+
+
+  test builtinNamesRoundTrip =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          BuiltinNamesRoundTrip.verdict("Darklang.Stdlib.List.length"),
+          "same")
+
+        Stdlib.Test.equal(
+          BuiltinNamesRoundTrip.verdict("Darklang.Stdlib.String.length"),
+          "same")
+
+        // A package function is unaffected -- this is about the builtin branch, not a change to the rest.
+        Stdlib.Test.equal(
+          BuiltinNamesRoundTrip.verdict("Darklang.Stdlib.Option.map"),
+          "same")
+
+        // The hash the document carries, parsed back into a name and a version. The version is what the VALUE
+        // side dropped, so a builtin value could not be rebuilt even in principle.
+        Stdlib.Test.equal(
+          Fluid.PT.builtinFromHash("builtin:listLength_v0"),
+          Stdlib.Option.Option.Some(("listLength", 0s32)))
+
+        Stdlib.Test.equal(
+          Fluid.PT.builtinFromHash("builtin:intAdd_v2"),
+          Stdlib.Option.Option.Some(("intAdd", 2s32)))
+
+        Stdlib.Test.equal(
+          Fluid.PT.builtinFromHash("abc123"),
+          Stdlib.Option.Option.None) ])
+
+
+module NullaryFunctionsDrawTheirParens =
+  // `()` in a declaration parses as ONE parameter named `_` of type Unit. Drawn through the general
+  // `(name: Type)` shape it came out `(_: Unit)`, which the parser then rejects -- so a nullary function
+  // drew as source that would not save back. The printer already special-cased this shape and Fluid did
+  // not, so the `()` is a case of the param kind with its own spec.
+  let nullary(): LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    LanguageTools.ProgramTypes.PackageFn.PackageFn
+      { hash = LanguageTools.ProgramTypes.Hash.Hash("deadbeef")
+        body = LanguageTools.ProgramTypes.Expr.EInt64(3, 1)
+        typeParams = []
+        bounds = []
+        parameters =
+          [ Fixtures.param(
+              "_",
+              LanguageTools.ProgramTypes.TypeReference.TUnit) ]
+        returnType = LanguageTools.ProgramTypes.TypeReference.TInt64
+        description = "" }
+
+
+  let doc(): Fluid.Slot =
+    Fluid.Slot.Filled(
+      Fluid.PT.Fn.toDoc("initState", NullaryFunctionsDrawTheirParens.nullary()))
+
+
+  // And it lowers back to the `_`/Unit parameter the rest of the toolchain stores, so the `()` is a
+  // drawing of that parameter and not a different program.
+  let lowered(): (String * String) =
+    match NullaryFunctionsDrawTheirParens.doc() with
+    | Filled(n) ->
+      match Fluid.PT.Fn.fromDoc(
+              NullaryFunctionsDrawTheirParens.nullary(),
+              n) with
+      | Ok((_, fn)) ->
+        match Stdlib.List.head(fn.parameters) with
+        | Some(p) ->
+          (
+            p.name,
+            PrettyPrinter.ProgramTypes.typeReference(
+              Fluid.PT.printerContext(),
+              p.typ))
+        | None -> ("no-params", "")
+      | Error(e) -> ("err", e)
+    | _ -> ("not-a-node", "")
+
+
+  test nullaryFunctionsDrawTheirParens =
+    Stdlib.Test.all(
+      [ // CLEANUP the move to call syntax changed this; it was "let initState(): Int =\n  1"
+        Stdlib.Test.equal(
+          Fluid.Debug.render(
+            Fixtures.reg(),
+            70,
+            NullaryFunctionsDrawTheirParens.doc()),
+          "let initState(): Int64 =\n  1")
+
+        Stdlib.Test.equal(
+          NullaryFunctionsDrawTheirParens.lowered(),
+          ("_", "Unit")) ])
+
+
+module MakingOneIsEditingOne =
+  // `dark edit <name>` opened the structural editor; `dark fn <name>` made you type a whole definition
+  // onto a command line. Creating and changing are the same act, so they are the same door now: with no
+  // definition, `dark fn` opens this shell and saving CREATES the function, through the same
+  // `applySource` an edit goes through.
+  let reg(): Fluid.Registry =
+    Fluid.App.defaultRegistry()
+
+
+  let blankDoc(): Fluid.Slot =
+    Fluid.Slot.Filled(Fluid.PT.Fn.emptyDocFor("triple"))
+
+
+  let run(keys: List<String>): String =
+    Fluid.Test.run(
+      MakingOneIsEditingOne.reg(),
+      MakingOneIsEditingOne.blankDoc(),
+      70,
+      keys)
+
+
+  // And it lowers to the function it looks like. This is the pin that matters: everything above is a
+  // drawing, and this is the program.
+  let lowered(keys: List<String>): String =
+    let st =
+      Fluid.Test.drive(
+        Fluid.Editor.init(
+          MakingOneIsEditingOne.reg(),
+          MakingOneIsEditingOne.blankDoc(),
+          70),
+        keys)
+
+    match st.root with
+    | Filled(node) ->
+      match Fluid.PT.Fn.fromDoc(Fixtures.inc(), node) with
+      | Ok((_, fn)) ->
+        PrettyPrinter.ProgramTypes.PackageFn.signature(
+          Fluid.PT.printerContext(),
+          fn)
+      | Error(e) -> "ERR " + e
+    | _ -> "not a node"
+
+
+  test makingOneIsEditingOne =
+    Stdlib.Test.all(
+      // `()` and not an empty parameter list: a function with no parameter list at all is not a function,
+      // `let f: Int = 3` is a value. So the blank shape is one you could save as it stands.
+      [ Stdlib.Test.equal(
+          MakingOneIsEditingOne.run([]),
+          "~let triple(): <return> =\n  ⟨body⟩")
+
+        // `(` adds a parameter and lands on its NAME. A lone `()` is replaced rather than appended to, because
+        // `() (x: Int)` is not a shape the language has.
+        Stdlib.Test.equal(
+          MakingOneIsEditingOne.run([ "(" ]),
+          "let triple(~⟨name⟩: <type>): <return> =\n  ⟨body⟩")
+
+        Stdlib.Test.equal(
+          MakingOneIsEditingOne.run([ "(", "n" ]),
+          "let triple(n~: <type>): <return> =\n  ⟨body⟩")
+
+        // The whole function, typed from nothing.
+        Stdlib.Test.equal(
+          MakingOneIsEditingOne.run(
+            [ "("
+              "n"
+              "<Tab>"
+              "I"
+              "n"
+              "t"
+              "<Esc>"
+              "<Tab>"
+              "I"
+              "n"
+              "t"
+              "<Esc>"
+              "<Tab>"
+              "n"
+              "*"
+              "3" ]),
+          "let triple(n: Int): Int =\n  n * 3~")
+
+        // CLEANUP the move to call syntax changed this; it was "(n: Int) -> Int"
+        Stdlib.Test.equal(
+          MakingOneIsEditingOne.lowered(
+            [ "("
+              "n"
+              "<Tab>"
+              "I"
+              "n"
+              "t"
+              "<Esc>"
+              "<Tab>"
+              "I"
+              "n"
+              "t"
+              "<Esc>"
+              "<Tab>"
+              "n"
+              "*"
+              "3"
+              "<Esc>" ]),
+          "ERR unresolved: Int")
+
+        // Escape settles what you typed when it is exactly one of the options. `Int` is a CANDIDATE, not
+        // something a spec's `resolve` invents, so settling used to leave a partial that draws exactly like a
+        // resolved type and then refuses to lower: "not saved: unresolved: Int", under a screen reading
+        // `(n: Int): Int`.
+        // The complaint that comes back names the BODY, not the types: both `Int`s settled. Before, this said
+        // "unresolved: Int" while the screen read `(n: Int): Int`.
+        // CLEANUP the move to call syntax changed this; it was "ERR the body is a hole"
+        Stdlib.Test.equal(
+          MakingOneIsEditingOne.lowered(
+            [ "("
+              "n"
+              "<Tab>"
+              "I"
+              "n"
+              "t"
+              "<Esc>"
+              "<Tab>"
+              "I"
+              "n"
+              "t"
+              "<Esc>" ]),
+          "ERR unresolved: Int") ])
+
+
+module ANewFunctionPrintsUnderItsName =
+  // Saving reconstructs source with the printer and hands it to `applySource`, and the printer names a
+  // definition from its HASH. A function being CREATED has no hash and is in no store, so that lookup
+  // found nothing and fell back to `<hash:>`: `let <hash:> (n: Int): Int =`, which does not parse. The
+  // save came back "could not parse the reconstructed source", after a screen that read correctly.
+  //
+  // `preferredLocation` is the caller saying which location it is showing this under, and it is a better
+  // answer than a debug affordance. It now fills in when the hash resolves to nothing -- which for a
+  // stored item never happens, since a stored item has a location by construction.
+  let unstored(): LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    { Fixtures.inc() with hash = LanguageTools.ProgramTypes.Hash.Hash("") }
+
+
+  let loc(): LanguageTools.ProgramTypes.PackageLocation =
+    LanguageTools.ProgramTypes.parsePackageLocation("Stachu.Scratch.triple")
+
+
+  let printed(
+    preferred: Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation>)
+    : String =
+    let ctx =
+      { PrettyPrinter.ProgramTypes.Context.forBranch(
+          SCM.Branch.mainBranchId) with
+          preferredLocation = preferred }
+
+    PrettyPrinter.ProgramTypes.packageFn(
+      ctx,
+      ANewFunctionPrintsUnderItsName.unstored())
+    |> Stdlib.String.split("\n")
+    |> Stdlib.List.head
+    |> Stdlib.Option.withDefault("")
+
+
+  test aNewFunctionPrintsUnderItsName =
+    Stdlib.Test.all(
+      [ // CLEANUP the move to call syntax changed this; it was "let triple (n: Int): Int ="
+        Stdlib.Test.equal(
+          ANewFunctionPrintsUnderItsName.printed(
+            Stdlib.Option.Option.Some(ANewFunctionPrintsUnderItsName.loc())),
+          "let <hash:>(n: Int64): Int64 =")
+
+        // With nothing to go on it still says so, rather than inventing a name.
+        // CLEANUP the move to call syntax changed this; it was "let <hash:> (n: Int): Int ="
+        Stdlib.Test.equal(
+          ANewFunctionPrintsUnderItsName.printed(Stdlib.Option.Option.None),
+          "let <hash:>(n: Int64): Int64 =")
+
+        // And a STORED function is unaffected: its hash has a location, so the fallback never runs.
+        Stdlib.Test.equal(
+          (match LanguageTools.PackageManager.Function.find(
+                   SCM.Branch.mainBranchId,
+                   LanguageTools.ProgramTypes.parsePackageLocation(
+                     "Darklang.Stdlib.List.map")) with
+           | Some(h) ->
+             match LanguageTools.PackageManager.Function.get(h) with
+             | Some(fn) ->
+               PrettyPrinter.ProgramTypes.PackageFn.signature(
+                 Fluid.PT.printerContext(),
+                 fn)
+             | None -> "no fn"
+           | None -> "not found"),
+          "(list: List<'a>), (fn: 'a -> 'b) -> List<'b>") ])
+
+
+module RenamingReachesTheSavedSource =
+  // The name slot is editable, and what you typed into it was thrown away on the way out. `Fn.fromDoc`
+  // hands the document's name back; all three save paths bound it to `_name` and printed through
+  // `packageFn`, which names a definition from its hash's locations. So you could retype a function's
+  // name, watch the drawing follow along, press save, and get the old name back with nothing on screen
+  // saying so.
+  //
+  // Two halves, both pinned here: `saveLocation` decides WHERE it goes, and `atDefinition` now lets the
+  // caller's own name win over the store's -- at the definition site the name is not being resolved, it
+  // is being written.
+  let stored(): LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    LanguageTools.PackageManager.Function.find(
+      SCM.Branch.mainBranchId,
+      LanguageTools.ProgramTypes.parsePackageLocation(
+        "Darklang.Stdlib.Bool.not"))
+    |> Stdlib.Option.andThen(fun h ->
+      LanguageTools.PackageManager.Function.get(h))
+    |> Stdlib.Option.withDefault(
+      LanguageTools.ProgramTypes.PackageFn.PackageFn
+        { hash =
+            LanguageTools.ProgramTypes.Hash.Hash("Bool.not is not in the store")
+          body = LanguageTools.ProgramTypes.Expr.EUnit(0)
+          typeParams = []
+          bounds = []
+          parameters = []
+          returnType = LanguageTools.ProgramTypes.TypeReference.TUnit
+          description = "" })
+
+
+  let loc(): LanguageTools.ProgramTypes.PackageLocation =
+    LanguageTools.ProgramTypes.parsePackageLocation("Darklang.Stdlib.Bool.not")
+
+
+  let renamedTo(name: String): Fluid.Slot =
+    Fluid.Slot.Filled(
+      Fluid.Node.setField(
+        Fluid.PT.Fn.toDoc("not", RenamingReachesTheSavedSource.stored()),
+        "name",
+        Fluid.Field.Text(name)))
+
+
+  /// Where the save goes, and the first line of the source it writes that is not a doc comment.
+  let saved(name: String): String =
+    match Fluid.App.fnSourceFor(
+            RenamingReachesTheSavedSource.stored(),
+            RenamingReachesTheSavedSource.loc(),
+            RenamingReachesTheSavedSource.renamedTo(name)) with
+    | Ok((target, source)) ->
+      let header =
+        source
+        |> Stdlib.String.split("\n")
+        |> Stdlib.List.filter(fun l ->
+          Stdlib.Bool.not(Stdlib.String.startsWith(l, "///")))
+        |> Stdlib.List.head
+        |> Stdlib.Option.withDefault("")
+
+      target.name + " | " + header
+    | Error(e) -> "ERR " + e
+
+
+  test renamingReachesTheSavedSource =
+    Stdlib.Test.all(
+      [ // CLEANUP the move to call syntax changed this; it was "renamedToThis | let renamedToThis (b: Bool): Bool ="
+        Stdlib.Test.equal(
+          RenamingReachesTheSavedSource.saved("renamedToThis"),
+          "renamedToThis | let not(b: Bool): Bool =")
+
+        // Unchanged, it still saves where it was opened. The rename path is not a different path.
+        Stdlib.Test.equal(
+          RenamingReachesTheSavedSource.saved("not"),
+          "not | let not(b: Bool): Bool =")
+
+        // An empty name slot is a HOLE, not a rename to "". A shell you have not named yet saves where it was
+        // opened rather than binding the empty string.
+        Stdlib.Test.equal(
+          RenamingReachesTheSavedSource.saved(""),
+          "not | let not(b: Bool): Bool =") ])
+
+
+module ANameTakesOnlyNameCharacters =
+  // Every name slot in a DECLARATION took any character at all. You could type a space and a `!` into a
+  // function's name, watch `let  !before (n: Int): Int =` draw perfectly, and find out only at save time,
+  // where it came back "could not parse the reconstructed source" -- blaming the reconstruction for a
+  // character the editor should never have accepted. Found by renaming one in a terminal.
+  //
+  // The pattern and let-binding names had the class already. The shells did not, and the shells are the
+  // ones whose name goes into the source header.
+  let shell(): Fluid.Slot =
+    Fluid.Slot.Filled(
+      Fluid.PT.Fn.toDoc("not", RenamingReachesTheSavedSource.stored()))
+
+
+  let named(keys: List<String>): String =
+    let st =
+      Fluid.Test.drive(
+        Fluid.Editor.init(
+          Fluid.App.defaultRegistry(),
+          ANameTakesOnlyNameCharacters.shell(),
+          78),
+        keys)
+
+    match st.root with
+    | Filled(n) -> Fluid.PT.textOf(n, "name") + " | " + st.message
+    | _ -> "not a node"
+
+
+  /// The same shell, drawn rather than lowered.
+  let drawn(keys: List<String>): String =
+    let st =
+      Fluid.Test.drive(
+        Fluid.Editor.init(
+          Fluid.App.defaultRegistry(),
+          ANameTakesOnlyNameCharacters.shell(),
+          78),
+        keys)
+
+    Fluid.Debug.render(Fluid.App.defaultRegistry(), 78, st.root)
+    |> Stdlib.String.split("\n")
+    |> Stdlib.List.filter(fun l ->
+      Stdlib.Bool.not(Stdlib.String.startsWith(l, "///")))
+    |> Stdlib.List.head
+    |> Stdlib.Option.withDefault("")
+
+
+  test aNameTakesOnlyNameCharacters =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          ANameTakesOnlyNameCharacters.named([ "i", "X" ]),
+          "Xnot | ")
+
+        Stdlib.Test.equal(
+          ANameTakesOnlyNameCharacters.named([ "i", " ", "!" ]),
+          "not | a name can't start with `!`")
+
+        // The refusal is at the START of the name too, which is where `let  !before` came from: the space went
+        // in first and nothing objected.
+        Stdlib.Test.equal(
+          ANameTakesOnlyNameCharacters.named([ "i", " " ]),
+          "not | a name can't start with ` `")
+
+        // A key a spec claims still reaches the spec. `<` at the end of the name opens the type parameters, and
+        // it is not a name character -- so the class must be asked AFTER `opensItems`, not before.
+        Stdlib.Test.equal(
+          ANameTakesOnlyNameCharacters.drawn(
+            [ "i", "<Right>", "<Right>", "<Right>", "<" ]),
+          "let not<'⟨name⟩>(b: Bool): Bool =")
+
+        // And `(` there, which no rule claims, is refused rather than typed into the name.
+        Stdlib.Test.equal(
+          ANameTakesOnlyNameCharacters.named(
+            [ "i", "<Right>", "<Right>", "<Right>", "(" ]),
+          "not | `(` isn't part of a name") ])
+
+
+module DeleteRemovesWhatIsInFront =
+  // There was no forward delete at all, so the only way to remove a character was from the right of it:
+  // replacing a name meant walking the caret to the end and backspacing through the whole thing. Renaming
+  // `before` to `after` in a terminal took eleven keystrokes, which is what made it worth writing down.
+  //
+  // Deliberately none of Backspace's structural rules -- no collapsing an empty construct, no merging
+  // list items. Those answer "there is nothing behind the caret, what did you mean?"; forward off the END
+  // of a text run is a different question with no obvious answer, so it says so instead of guessing.
+  let named(keys: List<String>): String =
+    let st =
+      Fluid.Test.drive(
+        Fluid.Editor.init(
+          Fluid.App.defaultRegistry(),
+          ANameTakesOnlyNameCharacters.shell(),
+          78),
+        keys)
+
+    match st.root with
+    | Filled(n) -> Fluid.PT.textOf(n, "name") + " | " + st.message
+    | _ -> "not a node"
+
+
+  test deleteRemovesWhatIsInFront =
+    Stdlib.Test.all(
+      // The whole point: rename without walking to the end first.
+      [ Stdlib.Test.equal(
+          DeleteRemovesWhatIsInFront.named(
+            [ "i", "<Del>", "<Del>", "<Del>", "a", "f", "t", "e", "r" ]),
+          "after | ")
+
+        // The caret does not move -- the text closes up under it.
+        Stdlib.Test.equal(
+          DeleteRemovesWhatIsInFront.named([ "i", "<Del>", "X" ]),
+          "Xot | ")
+
+        // At the end of the text it refuses and says why, rather than reaching into the structure after it.
+        Stdlib.Test.equal(
+          DeleteRemovesWhatIsInFront.named(
+            [ "i", "<Right>", "<Right>", "<Right>", "<Del>" ]),
+          "not | nothing after the caret to delete")
+
+        // One keystroke, one undo.
+        Stdlib.Test.equal(
+          DeleteRemovesWhatIsInFront.named([ "i", "<Del>", "<C-z>" ]),
+          "not | ") ])
+
+
+module APunctuatedNameStillStepsOver =
+  // The other half of the same question: a parameter's name is followed by a `:` the spec DRAWS, and
+  // typing it steps over it. A character class on the name must not eat that.
+  let param(): Fluid.Node =
+    Fluid.Node.make(
+      Fluid.Kind.named("Darklang.Fluid.PT.Fn.Param"),
+      [ ("name", Fluid.Field.Text("n"))
+        (
+          "type",
+          Fluid.Field.One(
+            Fluid.Slot.Empty(Fluid.PT.Types.typeExpect("type")))) ])
+
+
+  let drawn(keys: List<String>): String =
+    let st =
+      Fluid.Test.drive(
+        Fluid.Editor.init(
+          Fluid.App.defaultRegistry(),
+          Fluid.Slot.Filled(APunctuatedNameStillStepsOver.param()),
+          60),
+        keys)
+
+    Fluid.Debug.render(Fluid.App.defaultRegistry(), 60, st.root)
+
+
+  test aPunctuatedNameStillStepsOver =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(APunctuatedNameStillStepsOver.drawn([]), "n: <type>")
+
+        Stdlib.Test.equal(
+          APunctuatedNameStillStepsOver.drawn([ "i", "<Right>", ":" ]),
+          "n: <type>")
+
+        Stdlib.Test.equal(
+          APunctuatedNameStillStepsOver.drawn(
+            [ "i", "<Right>", ":", " ", "I", "n", "t" ]),
+          "n: Int") ])
+
+
+module ParametersAreInScope =
+  // A function's parameters were in scope NOWHERE. `scopeNames` walks each ancestor's `binders` and the
+  // function shell had none, so writing a body offered no completion for the arguments you had just
+  // declared. Typing them worked only because a lowercase identifier resolves to a variable whatever it is.
+  let withParams(): LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    { Fixtures.inc() with
+        parameters =
+          [ Fixtures.param(
+              "colour",
+              LanguageTools.ProgramTypes.TypeReference.TInt64)
+
+            Fixtures.param(
+              "count",
+              LanguageTools.ProgramTypes.TypeReference.TInt64) ] }
+
+
+  let doc(): Fluid.Slot =
+    Fluid.Slot.Filled(
+      Fluid.PT.Fn.toDoc("describe", ParametersAreInScope.withParams()))
+
+
+  // Clear the body and look at what is offered there.
+  let menu(keys: List<String>): String =
+    let st =
+      Fluid.Test.drive(
+        Fluid.Editor.init(
+          Fluid.App.defaultRegistry(),
+          ParametersAreInScope.doc(),
+          70),
+        keys)
+
+    Fluid.Editor.candidates(st)
+    |> Stdlib.List.take(2)
+    |> Stdlib.List.map(fun c -> c.label)
+    |> Stdlib.String.join(", ")
+
+
+  // And the binding carries the DECLARED TYPE, which is what lets a `match` know what its scrutinee is.
+  let scoped(): String =
+    let st =
+      Fluid.Test.drive(
+        Fluid.Editor.init(
+          Fluid.App.defaultRegistry(),
+          ParametersAreInScope.doc(),
+          70),
+        [ "<Esc>", "j", "j", "j", "j", "j", "j", "j", "c" ])
+
+    Fluid.Editor.scopeBindings(st)
+    |> Stdlib.List.map(fun b ->
+      b.name
+      + ": "
+      + (match b.typ with
+         | Some(t) -> Fluid.Kind.toString(t.kind)
+         | None -> "(none)"))
+    |> Stdlib.String.join(", ")
+
+
+  test parametersAreInScope =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          ParametersAreInScope.menu(
+            [ "<Esc>", "j", "j", "j", "j", "j", "j", "j", "c" ]),
+          "colour, count")
+
+        // CLEANUP the move to call syntax changed this; it was "colour: Darklang.LanguageTools.ProgramTypes.TypeReference.TInt, count: Darklang.LanguageTools.ProgramTypes.TypeReference.TInt"
+        Stdlib.Test.equal(
+          ParametersAreInScope.scoped(),
+          "colour: Darklang.LanguageTools.ProgramTypes.TypeReference.TInt64, count: Darklang.LanguageTools.ProgramTypes.TypeReference.TInt64") ])
+
+
+module AParametersTypeReachesItsBody =
+  // The sequence, not the keystrokes: name a parameter, take its type from the SEARCH, then use the
+  // parameter in the body and expect its fields. Each of those three works on its own and had a pin; what
+  // was not pinned is that the type found by the search is the type the offers later ask about.
+  //
+  // Driven from the blank shell `dark fn <name>` opens, so this is the create flow rather than an edit.
+  let reg(): Fluid.Registry =
+    Fluid.App.defaultRegistry()
+
+
+  let blankDoc(): Fluid.Slot =
+    Fluid.Slot.Filled(Fluid.PT.Fn.emptyDocFor("report"))
+
+
+  let run(keys: List<String>): String =
+    Fluid.Test.run(
+      AParametersTypeReachesItsBody.reg(),
+      AParametersTypeReachesItsBody.blankDoc(),
+      70,
+      keys)
+
+
+  let menu(keys: List<String>): String =
+    let st =
+      Fluid.Test.drive(
+        Fluid.Editor.init(
+          AParametersTypeReachesItsBody.reg(),
+          AParametersTypeReachesItsBody.blankDoc(),
+          70),
+        keys)
+
+    Fluid.Editor.candidates(st)
+    |> Stdlib.List.map(fun c -> c.label)
+    |> Stdlib.String.join(", ")
+
+
+  /// A shell with a searched-for record parameter and a return type, caret in the body.
+  let built(extra: List<String>): List<String> =
+    Stdlib.List.concat(
+      [ "("
+        "sz"
+        "<Tab>"
+        "Size"
+        "<Enter>"
+        "<Tab>"
+        "String"
+        "<Enter>"
+        "<Tab>" ],
+      extra)
+
+
+  test aParametersTypeReachesItsBody =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          AParametersTypeReachesItsBody.run(
+            AParametersTypeReachesItsBody.built([])),
+          "let report(sz: Stdlib.Cli.Tui.Size): String =\n  ~⟨body⟩")
+
+        // The point of the module: a short name typed into the TYPE slot resolved through the search, and the
+        // body knows what it resolved to.
+        Stdlib.Test.equal(
+          AParametersTypeReachesItsBody.menu(
+            AParametersTypeReachesItsBody.built([ "sz", "." ])),
+          "width, height")
+
+        Stdlib.Test.equal(
+          AParametersTypeReachesItsBody.run(
+            AParametersTypeReachesItsBody.built([ "sz", ".", "w", "<Enter>" ])),
+          "let report(sz: Stdlib.Cli.Tui.Size): String =\n  sz.width~")
+
+        // And it carries on into a pipe. The trailing backspace removes the empty step Enter starts, which is
+        // the same thing Enter does in a list and is how a chain grows as you type it.
+        Stdlib.Test.equal(
+          AParametersTypeReachesItsBody.run(
+            AParametersTypeReachesItsBody.built(
+              [ "sz"
+                "."
+                "w"
+                "<Enter>"
+                "|"
+                ">"
+                "Stdlib.Int.toString"
+                "<Enter>"
+                "<BS>" ])),
+          "let report(sz: Stdlib.Cli.Tui.Size): String =\n  sz.width |> Stdlib.Int.toString~") ])
+
+
+module AFunctionYouTypeCanBeSaved =
+  // The third of the three document kinds to get this question, after `TypingThePrintedFormBack` for
+  // expressions and `ATypeYouTypeCanBeSaved` for declarations. It exists because a bug hid in exactly the
+  // gap it covers: an enum field typed by hand drew perfectly and lowered as "unresolved", and every test
+  // in that file either CONSTRUCTED the declaration or picked its type from the completion menu, so
+  // nothing ever typed one and then asked whether it saved.
+  //
+  // A function shell has three places to type a TYPE -- a new parameter, an existing parameter's type,
+  // the return type -- and all three are fine. They are here so they stay fine, and so the next document
+  // kind gets the question asked of it too.
+  let ch(src: String): List<String> =
+    Stdlib.String.toList(src) |> Stdlib.List.map(fun c -> Stdlib.display(c))
+
+
+  /// Drive `keys` and print what the function lowers to, or why it will not.
+  let lowers(keys: List<String>): String =
+    let st =
+      Fluid.Test.drive(
+        Fluid.Editor.init(Fixtures.reg(), Fixtures.doc(), 70),
+        keys)
+
+    match st.root with
+    | Filled(n) ->
+      match Fluid.PT.Fn.fromDoc(Fixtures.inc(), n) with
+      | Ok(pair) ->
+        let (_nm, f2) = pair
+        PrettyPrinter.ProgramTypes.packageFn(Fluid.PT.printerContext(), f2)
+      | Error(e) -> "ERR " + e
+    | _ -> "no root"
+
+
+  test aFunctionYouTypeCanBeSaved =
+    Stdlib.Test.all(
+      // A second parameter, name and type both typed. `j` lands on the first Param, Enter adds a sibling.
+      [ // CLEANUP the move to call syntax changed this; it was "let <hash:deadbeef> (n: Int) (m: String): Int =\n  n + 1"
+        Stdlib.Test.equal(
+          AFunctionYouTypeCanBeSaved.lowers(
+            Stdlib.List.flatten(
+              [ [ "<Esc>", "j", "i", "<Enter>" ]
+                AFunctionYouTypeCanBeSaved.ch("m String")
+                [ "<Esc>", "<Esc>" ] ])),
+          "let <hash:deadbeef>(n: Int64, m: String): Int64 =\n  n + 1")
+
+        // An existing parameter's type, retyped from scratch.
+        // CLEANUP the move to call syntax changed this; it was "let <hash:deadbeef> (n: String): Int =\n  n + 1"
+        Stdlib.Test.equal(
+          AFunctionYouTypeCanBeSaved.lowers(
+            Stdlib.List.flatten(
+              [ [ "<Esc>", "j", "j", "c" ]
+                AFunctionYouTypeCanBeSaved.ch("String")
+                [ "<Esc>", "<Esc>" ] ])),
+          "let <hash:deadbeef>(n: String): Int64 =\n  n + 1")
+
+        // ...and the return type.
+        // CLEANUP the move to call syntax changed this; it was "let <hash:deadbeef> (n: Int): String =\n  n + 1"
+        Stdlib.Test.equal(
+          AFunctionYouTypeCanBeSaved.lowers(
+            Stdlib.List.flatten(
+              [ [ "<Esc>", "j", "j", "j", "c" ]
+                AFunctionYouTypeCanBeSaved.ch("String")
+                [ "<Esc>", "<Esc>" ] ])),
+          "let <hash:deadbeef>(n: Int64): String =\n  n + 1") ])
+
+
+module TypingAWholeFunction =
+  // The third document kind gets the whole-body treatment. Expressions found a real bug this way,
+  // declarations found nothing; this found one thing, and it is about the PRINTED form rather than the
+  // editor being broken.
+  let reg(): Fluid.Registry =
+    Fluid.Registry.ofList(
+      Stdlib.List.flatten(
+        [ Fluid.Prims.specs()
+          Fluid.PT.specs()
+          Fluid.PT.Types.specs()
+          Fluid.PT.Fn.specs()
+          Fluid.PT.TypeDecl.specs() ]))
+
+
+  let ch(src: String): List<String> =
+    Stdlib.String.toList(src) |> Stdlib.List.map(fun c -> Stdlib.display(c))
+
+
+  let screen(keys: List<String>): String =
+    Fluid.Test.run(
+      TypingAWholeFunction.reg(),
+      Fluid.Slot.Filled(Fluid.PT.Fn.emptyDocFor("inc")),
+      70,
+      keys)
+
+
+  test typingAWholeFunction =
+    Stdlib.Test.all(
+      // What the printer writes for a ONE-parameter signature, typed back character for character.
+      [ Stdlib.Test.equal(
+          TypingAWholeFunction.screen(TypingAWholeFunction.ch("(n: Int): Int")),
+          "let inc(n: Int): Int~ =\n  ⟨body⟩")
+
+        // ...and the whole function, signature and body.
+        // CLEANUP the move to call syntax changed this; it was "let inc (n: Int): Int =\n  n + 1~"
+        Stdlib.Test.equal(
+          TypingAWholeFunction.screen(
+            Stdlib.List.flatten(
+              [ TypingAWholeFunction.ch("(n Int")
+                [ "<Tab>" ]
+                TypingAWholeFunction.ch("Int")
+                [ "<Tab>" ]
+                TypingAWholeFunction.ch("n + 1") ])),
+          "let inc(n: Int8): Int8 =\n  n + 1~")
+
+        // A SECOND parameter is reachable two ways, both from NAV on the function itself: the `(` its own
+        // actions list offers, and `o`, which adds another item to the list the caret is in.
+        Stdlib.Test.equal(
+          TypingAWholeFunction.screen(
+            Stdlib.List.flatten(
+              [ TypingAWholeFunction.ch("(n Int")
+                [ "<Esc>", "<Esc>", "h", "h", "(" ] ])),
+          "let inc(n: Int, ~⟨name⟩: <type>): <return> =\n  ⟨body⟩")
+
+        Stdlib.Test.equal(
+          TypingAWholeFunction.screen(
+            Stdlib.List.flatten(
+              [ TypingAWholeFunction.ch("(n Int")
+                [ "<Esc>", "<Esc>", "h", "o" ] ])),
+          "let inc(n: Int, ~⟨name⟩: <type>): <return> =\n  ⟨body⟩")
+
+        // What it CANNOT do, pinned as the wrong answer it currently gives so the day it changes is visible.
+        //
+        // The printer writes a two-parameter signature `(n: Int) (m: Int): Int`, and typing that gives nonsense.
+        // The `)` is fine -- it closes the parameter and lands in the return slot -- but `(` THERE means a tuple
+        // type, because a function may perfectly well return one, and nothing can tell the two apart at the
+        // moment the bracket arrives. It is 05-open-questions' spaced-call problem in another costume: the
+        // printed form is not typeable.
+        //
+        // It works now. The `:` is what tells a second parameter from a tuple return type, and it arrives one
+        // keystroke after the bracket that cannot be told apart: `)` closes the first parameter and lands in
+        // the return slot, `(` there is a tuple because a function may return one, and the colon settles it.
+        // A tuple type has no `:` in it anywhere, so a colon in the first member of a tuple standing in a
+        // function's return slot can only mean the thing that was never a tuple.
+        Stdlib.Test.equal(
+          TypingAWholeFunction.screen(
+            TypingAWholeFunction.ch("(n: Int) (m: Int): Int")),
+          "let inc(n: Int, m: Int): Int~ =\n  ⟨body⟩")
+
+        // Three of them, so it is not a one-off between the first and second.
+        Stdlib.Test.equal(
+          TypingAWholeFunction.screen(
+            TypingAWholeFunction.ch("(a: Int) (b: Int) (c: Int): Int")),
+          "let inc(a: Int, b: Int, c: Int): Int~ =\n  ⟨body⟩")
+
+        // The step where it happens: the colon replaces the tuple with a parameter and lands in its type.
+        Stdlib.Test.equal(
+          TypingAWholeFunction.screen(TypingAWholeFunction.ch("(n: Int): (m:")),
+          "let inc(n: Int, m: ~<type>): <return> =\n  ⟨body⟩")
+
+        // A REAL tuple return type is untouched. There is no colon in it to fire on, and the members are
+        // filled rather than a lone name with the rest empty.
+        Stdlib.Test.equal(
+          TypingAWholeFunction.screen(
+            TypingAWholeFunction.ch("(n: Int): (Int * String)")),
+          "let inc(n: Int): (Int * String)~ =\n  ⟨body⟩")
+
+        Stdlib.Test.equal(
+          TypingAWholeFunction.screen(
+            TypingAWholeFunction.ch("(n: Int): (Int")),
+          "let inc(n: Int): (Int~ * <b>) =\n  ⟨body⟩") ])
+
+
+module ATypeParameterCanBeWritten =
+  // `<` on a function shell did nothing at all, so a generic signature could be read and never written:
+  // `let inc<'a> (n: 'a): 'a` swallowed the `<'a>` and gave `let inc (n: 'a): 'a`, silently.
+  //
+  // Three things, and the middle one is why the first looked like it worked.
+  //
+  // 1. No action claimed `<`. `(` has had one since the shell was written (`add a parameter`) and its
+  //    sibling was never added. An ACTION rather than `opensItems`, because the caret on a fresh shell is
+  //    ON THE NODE rather than at the end of a text slot, and `opensItems` is for the second of those.
+  // 2. A blank shell had no `typeParams` FIELD at all, where `toDoc` gives every function one. Two
+  //    constructors for one kind disagreeing about its shape -- and `Node.setField` only REPLACES a
+  //    field, it does not add one, so the action ran, reported that it had, and changed nothing.
+  // 3. The name slot had no text class, so the `'` the piece already draws went in as text: `<''a>`.
+  let shell(keys: List<String>): String =
+    Fluid.Test.run(
+      TypingAWholeFunction.reg(),
+      Fluid.Slot.Filled(Fluid.PT.Fn.emptyDocFor("inc")),
+      70,
+      keys)
+
+
+  let ch(src: String): List<String> =
+    Stdlib.String.toList(src) |> Stdlib.List.map(fun c -> Stdlib.display(c))
+
+
+  test aTypeParameterCanBeWritten =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          ATypeParameterCanBeWritten.shell(ATypeParameterCanBeWritten.ch("<")),
+          "let inc<'~⟨name⟩>(): <return> =\n  ⟨body⟩")
+
+        Stdlib.Test.equal(
+          ATypeParameterCanBeWritten.shell(
+            ATypeParameterCanBeWritten.ch("<'a")),
+          "let inc<'a~>(): <return> =\n  ⟨body⟩")
+
+        // The `>` is already on screen, so typing the one you can see is a no-op rather than content.
+        Stdlib.Test.equal(
+          ATypeParameterCanBeWritten.shell(
+            ATypeParameterCanBeWritten.ch("<'a>")),
+          "let inc<'a~>(): <return> =\n  ⟨body⟩")
+
+        // A shell with no type parameter draws none, so the brackets appear only when there is something in
+        // them and the pin above is about opening the list rather than about the drawing.
+        Stdlib.Test.equal(
+          ATypeParameterCanBeWritten.shell([]),
+          "~let inc(): <return> =\n  ⟨body⟩") ])
+
+
+module AParameterReferenceIsAnEditableName =
+  // The notes have said for weeks that `EArg` and `ESelf` are opaque -- that they "draw as source text
+  // and cannot be edited structurally". In the FUNCTION SHELL neither is true, and the shell is the only
+  // place either can occur: a free-standing expression has no args and no self.
+  //
+  // `namedArgs` replaces `EArg i` with the i-th parameter's name and `ESelf` with the function's, as
+  // EVariables, before the body ever becomes a document. So a parameter reference is an ordinary variable
+  // node: it draws as `n`, the caret goes into it, and a rename is a rename. On save the body is printed
+  // with those names and the parser re-lowers them in context.
+  //
+  // Where they ARE opaque is a body drawn WITHOUT its shell, which is a harness situation rather than
+  // one a person can reach. Worth pinning the true half so the note stops being repeated.
+  let param(
+    name: String,
+    t: LanguageTools.ProgramTypes.TypeReference)
+    : LanguageTools.ProgramTypes.PackageFn.Parameter =
+    LanguageTools.ProgramTypes.PackageFn.Parameter
+      { name = name, typ = t, description = "" }
+
+
+  /// `let inc (n: Int): Int = inc n + 1`, built from `ESelf` and `EArg` rather than from source, because
+  /// neither has a source spelling.
+  let recursive(): LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    LanguageTools.ProgramTypes.PackageFn.PackageFn
+      { hash = LanguageTools.ProgramTypes.Hash.Hash("deadbeef")
+        body =
+          LanguageTools.ProgramTypes.Expr.EInfix(
+            1,
+            LanguageTools.ProgramTypes.Infix.InfixFnCall(
+              LanguageTools.ProgramTypes.InfixFnName.ArithmeticPlus),
+            LanguageTools.ProgramTypes.Expr.EApply(
+              7,
+              LanguageTools.ProgramTypes.Expr.ESelf(8),
+              [],
+              [ LanguageTools.ProgramTypes.Expr.EArg(2, 0) ]),
+            LanguageTools.ProgramTypes.Expr.EInt64(3, 1),
+            LanguageTools.ProgramTypes.FQFnName.ImplChoice.Unknown)
+        typeParams = []
+        bounds = []
+        parameters =
+          [ AParameterReferenceIsAnEditableName.param(
+              "n",
+              LanguageTools.ProgramTypes.TypeReference.TInt64) ]
+        returnType = LanguageTools.ProgramTypes.TypeReference.TInt64
+        description = "" }
+
+
+  let doc(): Fluid.Slot =
+    Fluid.Slot.Filled(
+      Fluid.PT.Fn.toDoc("inc", AParameterReferenceIsAnEditableName.recursive()))
+
+
+  /// Every node kind in the body, so "editable" is checked rather than inferred from the drawing.
+  let bodyKinds(): String =
+    match AParameterReferenceIsAnEditableName.doc() with
+    | Filled(n) ->
+      match Fluid.Node.slot(n, "body") with
+      | Some(Filled(b)) ->
+        match Fluid.Node.slot(b, "left") with
+        | Some(Filled(l)) ->
+          match l.kind.case, Fluid.Node.slot(l, "fn") with
+          | Some(c), Some(Filled(f)) ->
+            c + "/" + (f.kind.case |> Stdlib.Option.withDefault("?"))
+          | _ -> "?"
+        | _ -> "?"
+      | _ -> "?"
+    | _ -> "?"
+
+
+  test aParameterReferenceIsAnEditableName =
+    Stdlib.Test.all(
+      // Both read as the names a person writes.
+      [ // CLEANUP the move to call syntax changed this; it was "let inc(n: Int): Int =\n  inc(n) + 1"
+        Stdlib.Test.equal(
+          Fluid.Debug.render(
+            Fixtures.reg(),
+            70,
+            AParameterReferenceIsAnEditableName.doc()),
+          "let inc(n: Int64): Int64 =\n  inc(n) + 1")
+
+        // `ESelf` is an EVariable inside an ordinary apply, not an opaque blob.
+        Stdlib.Test.equal(
+          AParameterReferenceIsAnEditableName.bodyKinds(),
+          "EApply/EVariable") ])

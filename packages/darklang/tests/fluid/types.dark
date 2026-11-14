@@ -1,0 +1,242 @@
+module Darklang.Fluid.Tests.Types
+
+// Fluid edits types too, not just expressions: TypeReference round-trips through the document, and a type
+// hole builds real types from keystrokes with completion.
+
+module Fixtures =
+  let reg(): Fluid.Registry =
+    Fluid.Registry.ofList(
+      Stdlib.List.flatten(
+        [ Fluid.Prims.specs(), Fluid.PT.specs(), Fluid.PT.Types.specs() ]))
+
+
+  let hole(): Fluid.Slot =
+    Fluid.Slot.Empty(Fluid.PT.Types.typeExpect("type"))
+
+
+  let rt(t: LanguageTools.ProgramTypes.TypeReference): Bool =
+    match Fluid.PT.Types.fromDoc(Fluid.PT.Types.toDoc(t)) with
+    | Ok(t2) -> t2 == t
+    | Error(_) -> false
+
+
+  let render(t: LanguageTools.ProgramTypes.TypeReference): String =
+    Fluid.Debug.render(reg(), 60, Fluid.Slot.Filled(Fluid.PT.Types.toDoc(t)))
+
+
+  let edit(keys: List<String>): String =
+    Fluid.Test.run(reg(), hole(), 60, keys)
+
+
+module RoundTrips =
+  test roundTrips =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          Fixtures.rt(LanguageTools.ProgramTypes.TypeReference.TInt64),
+          true)
+
+        Stdlib.Test.equal(
+          Fixtures.rt(LanguageTools.ProgramTypes.TypeReference.TString),
+          true)
+
+        Stdlib.Test.equal(
+          Fixtures.rt(
+            LanguageTools.ProgramTypes.TypeReference.TList(
+              LanguageTools.ProgramTypes.TypeReference.TInt64)),
+          true)
+
+        Stdlib.Test.equal(
+          Fixtures.rt(
+            LanguageTools.ProgramTypes.TypeReference.TDict(
+              LanguageTools.ProgramTypes.TypeReference.TString,
+              LanguageTools.ProgramTypes.TypeReference.TList(
+                LanguageTools.ProgramTypes.TypeReference.TInt64))),
+          true)
+
+        Stdlib.Test.equal(
+          Fixtures.rt(
+            LanguageTools.ProgramTypes.TypeReference.TTuple(
+              LanguageTools.ProgramTypes.TypeReference.TInt64,
+              LanguageTools.ProgramTypes.TypeReference.TString,
+              [ LanguageTools.ProgramTypes.TypeReference.TBool ])),
+          true)
+
+        Stdlib.Test.equal(
+          Fixtures.rt(
+            LanguageTools.ProgramTypes.TypeReference.TFn(
+              [ LanguageTools.ProgramTypes.TypeReference.TInt64
+                LanguageTools.ProgramTypes.TypeReference.TString ],
+              LanguageTools.ProgramTypes.TypeReference.TBool)),
+          true)
+
+        Stdlib.Test.equal(
+          Fixtures.rt(LanguageTools.ProgramTypes.TypeReference.TVariable("a")),
+          true) ])
+
+
+module Rendering =
+  test rendering =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          Fixtures.render(
+            LanguageTools.ProgramTypes.TypeReference.TList(
+              LanguageTools.ProgramTypes.TypeReference.TInt64)),
+          "List<Int64>")
+
+        Stdlib.Test.equal(
+          Fixtures.render(
+            LanguageTools.ProgramTypes.TypeReference.TDict(
+              LanguageTools.ProgramTypes.TypeReference.TString,
+              LanguageTools.ProgramTypes.TypeReference.TInt64)),
+          "Dict<String, Int64>")
+
+        // Bare, like the printer: a function type is bracketed only when nested inside another one.
+        Stdlib.Test.equal(
+          Fixtures.render(
+            LanguageTools.ProgramTypes.TypeReference.TFn(
+              [ LanguageTools.ProgramTypes.TypeReference.TInt64 ],
+              LanguageTools.ProgramTypes.TypeReference.TBool)),
+          "(Int64) -> Bool")
+
+        Stdlib.Test.equal(
+          Fixtures.render(
+            LanguageTools.ProgramTypes.TypeReference.TTuple(
+              LanguageTools.ProgramTypes.TypeReference.TInt64,
+              LanguageTools.ProgramTypes.TypeReference.TString,
+              [])),
+          "(Int64 * String)") ])
+
+
+module Glyphs =
+  test glyphs =
+    Stdlib.Test.all(
+      // A blank that wants a TYPE is drawn with angle brackets, so you know to type a type, not a value.
+      [ Stdlib.Test.equal(
+          Fluid.Debug.render(Fixtures.reg(), 40, Fixtures.hole()),
+          "<type>") ])
+
+
+module Editing =
+  test editing =
+    Stdlib.Test.all(
+      // A type name completes exact-first: "Int64" gives Int64, not something longer.
+      [ Stdlib.Test.equal(
+          Fixtures.edit([ "I", "n", "t", "6", "4", "<Enter>" ]),
+          "~Int64")
+
+        // `[` builds a List with a hole for the element; then the element completes.
+        Stdlib.Test.equal(
+          Fixtures.edit([ "[", "S", "t", "r", "i", "n", "g", "<Enter>" ]),
+          "List<~String>")
+
+        // Containers come from completion and nest.
+        Stdlib.Test.equal(
+          Fixtures.edit(
+            [ "L"
+              "i"
+              "s"
+              "t"
+              "<Enter>"
+              "I"
+              "n"
+              "t"
+              "6"
+              "4"
+              "<Enter>" ]),
+          "List<~Int64>")
+
+        // A lowercase identifier with no match resolves to a type variable, drawn with its quote.
+        Stdlib.Test.equal(Fixtures.edit([ "a", "<Esc>" ]), "'~a") ])
+
+
+module TypeVariablesCarryTheirQuote =
+  test typeVariablesCarryTheirQuote =
+    Stdlib.Test.all(
+      // A type variable is WRITTEN with its quote: both pretty-printers emit `"'" ++ varName`. Fluid drew a
+      // bare `a`, so a generic signature on screen -- `List<a>` for Stdlib.List.length -- wasn't the signature
+      // the printer would write, and wasn't valid to read back either.
+      [ Stdlib.Test.equal(
+          Fixtures.render(
+            LanguageTools.ProgramTypes.TypeReference.TVariable("a")),
+          "'a")
+
+        Stdlib.Test.equal(
+          Fixtures.render(
+            LanguageTools.ProgramTypes.TypeReference.TList(
+              LanguageTools.ProgramTypes.TypeReference.TVariable("a"))),
+          "List<'a>")
+
+        // And now that the screen says `'a`, that is what people type. The quote opens the variable and the
+        // letters land in its name; typing the bare letter still works and settles to the same thing.
+        Stdlib.Test.equal(Fixtures.edit([ "'", "a" ]), "'a~")
+
+        Stdlib.Test.equal(
+          Fixtures.edit([ "L", "i", "s", "t", " ", "'", "a" ]),
+          "List<'a~>")
+
+        // Both spellings resolve to a real TVariable, not a partial nothing can lower.
+        Stdlib.Test.equal(
+          (match Fluid.Test.drive(
+                   Fluid.Editor.init(Fixtures.reg(), Fixtures.hole(), 60),
+                   [ "'", "a" ]) with
+           | st ->
+             match st.root with
+             | Filled(n) -> n.kind.case |> Stdlib.Option.withDefault("?")
+             | Partial(t, _) -> "partial " + t
+             | Empty(_) -> "empty"),
+          "TVariable") ])
+
+
+module FunctionTypeParens =
+  // Fluid always bracketed a function type, so a parameter read `(fn: ('a -> 'b))`. The printer's brackets
+  // are CONTEXTUAL -- a function type is written bare and gets them only when nested inside another one --
+  // and that is a fact about the CHILD, so the spec now hands ParenIf the test rather than the piece
+  // deciding for itself. It is the general form of OperandSlot, ParenLowSlot and FieldTargetSlot, which
+  // could move onto it later.
+  let tv(n: String): LanguageTools.ProgramTypes.TypeReference =
+    LanguageTools.ProgramTypes.TypeReference.TVariable(n)
+
+
+  let fn(
+    args: List<LanguageTools.ProgramTypes.TypeReference>,
+    ret: LanguageTools.ProgramTypes.TypeReference)
+    : LanguageTools.ProgramTypes.TypeReference =
+    LanguageTools.ProgramTypes.TypeReference.TFn(args, ret)
+
+
+  test functionTypeParens =
+    Stdlib.Test.all(
+      // Bare on its own, bracketed when nested -- each one checked against the printer.
+      [ Stdlib.Test.equal(
+          Fixtures.render(
+            FunctionTypeParens.fn(
+              [ FunctionTypeParens.tv("a") ],
+              FunctionTypeParens.tv("b"))),
+          "('a) -> 'b")
+
+        Stdlib.Test.equal(
+          Fixtures.render(
+            FunctionTypeParens.fn(
+              [ FunctionTypeParens.tv("a") ],
+              FunctionTypeParens.fn(
+                [ FunctionTypeParens.tv("b") ],
+                FunctionTypeParens.tv("c")))),
+          "('a) -> (('b) -> 'c)")
+
+        Stdlib.Test.equal(
+          Fixtures.render(
+            FunctionTypeParens.fn(
+              [ FunctionTypeParens.fn(
+                  [ FunctionTypeParens.tv("a") ],
+                  FunctionTypeParens.tv("b")) ],
+              FunctionTypeParens.tv("c"))),
+          "((('a) -> 'b)) -> 'c")
+
+        // And a function type inside something that isn't one needs nothing.
+        Stdlib.Test.equal(
+          Fixtures.render(
+            LanguageTools.ProgramTypes.TypeReference.TList(
+              FunctionTypeParens.fn(
+                [ FunctionTypeParens.tv("a") ],
+                FunctionTypeParens.tv("b")))),
+          "List<('a) -> 'b>") ])

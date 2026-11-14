@@ -1,0 +1,1700 @@
+/// `dark fluid`: the structured editor as a full-screen app.
+///
+/// For now it opens a demo document so the kernel can be driven by hand; opening a package item comes with
+/// the PT client. The terminal lifecycle belongs to `Cli.Component`.
+module Darklang.Fluid.App
+
+/// What the editor is editing, so save knows how to write it back.
+type Target =
+  /// A demo or a bare `fluid expr`: nothing to save to.
+  | Scratch
+  /// A package function's body: the original fn, its location, and where the body sits in the document.
+  | FnBody(
+    fn: LanguageTools.ProgramTypes.PackageFn.PackageFn,
+    location: LanguageTools.ProgramTypes.PackageLocation)
+  /// A package type's declaration: the original type and its location.
+  | TypeDef(
+    typ: LanguageTools.ProgramTypes.PackageType.PackageType,
+    location: LanguageTools.ProgramTypes.PackageLocation)
+  /// A package value's body.
+  | ValueDef(
+    value: LanguageTools.ProgramTypes.PackageValue.PackageValue,
+    location: LanguageTools.ProgramTypes.PackageLocation)
+  /// A RUNTIME value, drawn from what an expression produced. It has nowhere to save to, and that is
+  /// the open design question rather than an oversight: the other four targets are all CODE -- a
+  /// function body, a declaration, a value's body expression -- and a value is none of those. A case
+  /// of its own so the refusal can say that, instead of `Scratch` telling you to try `fluid fn`.
+  | RuntimeValue(source: String)
+
+
+/// A type declaration to edit: an enum whose cases carry fields, which is the shape that could be READ
+/// and not written until `opensItems` landed.
+let demoEnumDecl(): Slot =
+  let field(
+    t: LanguageTools.ProgramTypes.TypeReference)
+    : LanguageTools.ProgramTypes.TypeDeclaration.EnumField =
+    LanguageTools.ProgramTypes.TypeDeclaration.EnumField
+      { typ = t, label = Option.None, description = "" }
+
+  let case(
+    nm: String,
+    fs: List<LanguageTools.ProgramTypes.TypeDeclaration.EnumField>)
+    : LanguageTools.ProgramTypes.TypeDeclaration.EnumCase =
+    LanguageTools.ProgramTypes.TypeDeclaration.EnumCase { name = nm, fields = fs, description = "" }
+
+  let pt =
+    LanguageTools.ProgramTypes.PackageType.PackageType
+      { hash = LanguageTools.ProgramTypes.Hash.Hash("demo")
+        declaration =
+          LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration
+            { typeParams = []
+              bounds = []
+              definition =
+                LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum(
+                  [ case("Circle", [ field(LanguageTools.ProgramTypes.TypeReference.TInt64) ])
+                    case(
+                      "Rect",
+                      [ field(LanguageTools.ProgramTypes.TypeReference.TInt64)
+                        field(LanguageTools.ProgramTypes.TypeReference.TInt64) ])
+
+                    case("Point", []) ]) }
+        description =
+          "a small enum. `| Circle(Int64)` is typeable: name it, then a space opens its fields." }
+
+  Slot.Filled(PT.TypeDecl.toDoc("Shape", pt))
+
+
+/// The gallery `fluid demo` opens.
+///
+/// Each entry carries its OWN registry, which is half the point: the grid and the Color value are drawn
+/// by specs the kernel has never heard of, and they sit in the same editor as Darklang code.
+let demos(): List<(String * Registry * Slot)> =
+  let parsed =
+    match LanguageTools.Parser.Parse.parsePTExpr(
+            "match Stdlib.List.head(xs) with\n| Some(v) -> v |> (fun n -> n + 1)\n| None -> 0") with
+    | Ok(e) -> Slot.Filled(PT.toDoc(e))
+    | Error(_) -> Slot.Empty(PT.exprExpect("expression"))
+
+  [ ("a blank expression", defaultRegistry(), Slot.Empty(PT.exprExpect("expression")))
+    ("an expression: match, pipe, a lambda", defaultRegistry(), parsed)
+    ("a value of a type the kernel never heard of", defaultRegistry(), demoDocument())
+    ("a list of records, seen as a GRID", demoRegistry(), demoGrid())
+    ("a type declaration: an enum with fields", defaultRegistry(), demoEnumDecl()) ]
+
+
+let demoLabels(): List<String> =
+  demos()
+  |> Stdlib.List.map(fun d ->
+    let (n, _reg, _root) = d
+    n)
+
+
+type State =
+  { editor: Editor.State
+    title: String
+    scroll: Int64
+    /// The leftmost column on screen. A projection can hold a line no width will break -- a doc comment
+    /// is one long token -- so the pane moves sideways rather than cutting at the border with no sign.
+    hscroll: Int64
+    target: Target
+    theme: Theme.Theme
+    /// Rows the body had at the last key, so scrolling can be computed outside `view`.
+    bodyRows: Int64
+    /// Columns it had, for the same reason, so horizontal scrolling is decided the same way.
+    bodyCols: Int64
+    /// The last thing `v` evaluated: the node it was asked about, and what came back. Kept rather than
+    /// recomputed, because evaluating is RUNNING THE CODE -- doing that on every keystroke would fire
+    /// whatever effects the expression has while you are still typing it.
+    evaluated: Option<(Path * String)>
+    /// The context panel, off by default. The redesign's bet: the code is the hero and deserves the full
+    /// width, with the panel there when you ask for it. What it used to show always is now either at the
+    /// caret (completions) or in the status line (what's expected here).
+    inspectorOpen: Bool
+    /// When Some, we've dropped into plain-text editing: the pretty-printed source, the caret offset into
+    /// it, and the path it came from (the selected node in NAV, the whole document otherwise). Confirm
+    /// re-parses and splices it back at that path; cancel discards it.
+    textMode: Option<(String * Int64 * Path)>
+    /// The document as it was when it was last SAVED (or opened). Leaving compares against this, so
+    /// closing an editor with unfinished work in it asks first.
+    savedRoot: Slot
+    /// Set when leaving was refused because of unsaved work, so the next press goes through. Cleared by
+    /// `afterKey`, which every other key funnels through, so it never survives more than one keystroke.
+    confirmingExit: Bool
+    /// A file handed to `$EDITOR`, waiting to be read back. Set when the editor is launched and cleared by
+    /// `refresh` when the CLI hands the terminal back -- the read cannot happen in `view`, which has to be
+    /// a pure function of state for frame diffing to be sound.
+    pendingEdit: Option<String>
+    /// Which entry of the demo gallery is showing, if this editor was opened by `fluid demo`. `]` and `[`
+    /// walk the gallery, so trying the different things Fluid can project is one command and two keys
+    /// rather than one command per example.
+    demo: Option<Int64>
+    /// The gallery list, when it is showing. `Stdlib.Cli.UI.Picker` already does this job -- labels in, a
+    /// chosen index out -- so this is the widget rather than another list-with-a-cursor.
+    demoPick: Option<Stdlib.Cli.UI.Picker.State>
+    /// The full key reference, drawn over the document. Separate from `inspectorOpen` because the panel is
+    /// CONTEXT (what you are on, what you can do here) and this is REFERENCE (everything there is,
+    /// including the mode you are not in), and a sidebar a third of the screen wide cannot hold both.
+    helpOpen: Bool }
+
+
+/// A worked example: a VALUE of a made-up Color type. Its blanks are field values (expressions), labelled
+/// by the field they fill, so `g = ⟨g⟩` reads as "put g's value here", not "a type goes here".
+let demoDocument(): Slot =
+  let intE = Expect.ofKind(Prims.intKind(), "g")
+  let strE = Expect.ofKind(Prims.stringKind(), "name")
+  Slot.Filled(
+    Node.make(
+      Kind.named("Acme.Color"),
+      [ ("r", Field.One(Slot.Filled(Prims.intNode("255"))))
+        ("g", Field.One(Slot.Empty(intE)))
+        ("b", Field.One(Slot.Filled(Prims.intNode("0"))))
+        ("name", Field.One(Slot.Empty(strE)))
+        (
+          "tags",
+          Field.Many(
+            [ Slot.Filled(Prims.stringNode("warm")), Slot.Empty(Expect.any("tag")) ],
+            Expect.any("tag"))) ]))
+
+
+// --- The table demo ---
+//
+// `Piece.Table` renders a list of records as a GRID: every other piece draws a line and composes into a
+// Wadler document, and a table cannot, because a column's width depends on its SIBLINGS and a group only
+// ever knows its own. It was reachable only from the tests, which is a poor place to keep the answer to
+// "can a table be seen as a table". `fluid demo table` opens one.
+
+val demoRowType = "Demo.Row"
+
+val demoGridType = "Demo.Grid"
+
+
+let demoRowKind(): Kind =
+  Kind.named(demoRowType)
+
+
+let demoGridKind(): Kind =
+  Kind.named(demoGridType)
+
+
+let demoRowSpec(): Spec =
+  Spec.simple(
+    demoRowKind(),
+    [ Piece.Slot("item"), Piece.Space, Piece.Slot("qty"), Piece.Space, Piece.Slot("note") ],
+    Node.make(
+      demoRowKind(),
+      [ ("item", Field.One(Slot.Empty(Expect.ofKind(Prims.stringKind(), "item"))))
+        ("qty", Field.One(Slot.Empty(Expect.ofKind(Prims.intKind(), "qty"))))
+        ("note", Field.One(Slot.Empty(Expect.ofKind(Prims.stringKind(), "note")))) ]))
+
+
+let demoGridSpec(): Spec =
+  Spec.simple(
+    demoGridKind(),
+    [ Piece.Table("rows", [ "item", "qty", "note" ]) ],
+    Node.make(demoGridKind(), [ ("rows", Field.Many([], Expect.ofKind(demoRowKind(), "row"))) ]))
+
+
+let demoRegistry(): Registry =
+  Registry.ofList(Stdlib.List.flatten([ Prims.specs(), [ demoRowSpec(), demoGridSpec() ] ]))
+
+
+let demoRow(item: String, qty: String, note: String): Slot =
+  Slot.Filled(
+    Node.make(
+      demoRowKind(),
+      [ ("item", Field.One(Slot.Filled(Prims.stringNode(item))))
+        ("qty", Field.One(Slot.Filled(Prims.intNode(qty))))
+        ("note", Field.One(Slot.Filled(Prims.stringNode(note)))) ]))
+
+
+let demoGrid(): Slot =
+  Slot.Filled(
+    Node.make(
+      demoGridKind(),
+      [ (
+          "rows",
+          Field.Many(
+            [ demoRow("widget", "3", "in stock")
+              demoRow("a much longer name", "12", "back order")
+              demoRow("nut", "100", "") ],
+            Expect.ofKind(demoRowKind(), "row"))) ]))
+
+
+/// Specs a person has declared: any package value of type `Darklang.Fluid.Spec`, found by type. This is
+/// how you swap or add an editor for a type -- declare one `val` of type Spec anywhere and it is picked
+/// up here, shadowing the built-in for that kind (discovered specs are merged last, and `Registry.find`
+/// takes the last match).
+let discoveredSpecs(branchId: Uuid): List<Spec> =
+  match Cli.Packages.FindValues.resolveTypeHash(
+          branchId,
+          Cli.Packages.PackageLocation.Module([]),
+          "Darklang.Fluid.Spec") with
+  | Ok(typeHash) ->
+    LanguageTools.PackageManager.Value.findByType(branchId, "", typeHash)
+    |> Stdlib.List.map(fun found -> found.value)
+  | Error(_) -> []
+
+
+/// Every editor that ships, with nothing anyone has declared.
+///
+/// Separate from `registryFor` because a generated editor STARTS from one of these, and going through the
+/// registry to find it would be circular: the registry asks the branch for declared specs, and the
+/// declared spec would be asking the registry.
+let builtinSpecs(): List<Spec> =
+  Stdlib.List.flatten(
+    [ Prims.specs()
+      PT.specs()
+      PT.Types.specs()
+      PT.Fn.specs()
+      PT.TypeDecl.specs()
+      PT.Value.specs() ])
+
+
+/// The editor that ships for `kind`, if one does. What `fluid generate` writes into the value it emits,
+/// so an edited editor keeps everything it did not change.
+let builtinSpec(kind: Kind): Option<Spec> =
+  builtinSpecs()
+  |> Stdlib.List.reverse
+  |> Stdlib.List.findFirst(fun s -> s.kind == kind)
+
+
+/// Built-in specs (prims + PT), then whatever the user has declared on this branch.
+let registryFor(branchId: Uuid): Registry =
+  Registry.ofList(Stdlib.List.concat(builtinSpecs(), discoveredSpecs(branchId)))
+
+
+let defaultRegistry(): Registry =
+  registryFor(SCM.Branch.mainBranchId)
+
+
+/// The body of a package function as a document, plus what save needs; or why not.
+let fnTarget(name: String): Result<(Slot * Target), String> =
+  let branchId = SCM.Branch.mainBranchId
+  let location = LanguageTools.ProgramTypes.parsePackageLocation(name)
+  match LanguageTools.PackageManager.Function.find(branchId, location) with
+  | Some(hash) ->
+    match LanguageTools.PackageManager.Function.get(hash) with
+    | Some(fn) ->
+      Result.Ok((Slot.Filled(PT.Fn.toDoc(location.name, fn)), Target.FnBody(fn, location)))
+    | None -> Result.Error($"no function with that hash: {name}")
+  | None -> Result.Error($"no function named {name}")
+
+
+/// A function that does not exist yet, as a document to fill in.
+///
+/// There is no separate create path: saving reconstructs source and hands it to the same `applySource`
+/// that an edit uses, and that adds a declaration to a module exactly the way `dark module` does. So a new
+/// function and a changed one go through one route, and `dark fn <name>` with nothing after it can open
+/// the editor instead of asking you to type a definition onto a command line.
+let newFnTarget(location: LanguageTools.ProgramTypes.PackageLocation): (Slot * Target) =
+  let blank =
+    LanguageTools.ProgramTypes.PackageFn.PackageFn
+      { hash = LanguageTools.ProgramTypes.Hash.Hash("")
+        body = LanguageTools.ProgramTypes.Expr.EUnit(0)
+        typeParams = []
+        parameters = []
+        returnType = LanguageTools.ProgramTypes.TypeReference.TUnit
+        description = ""
+        bounds = [] }
+
+  (Slot.Filled(PT.Fn.emptyDocFor(location.name)), Target.FnBody(blank, location))
+
+
+let launchTarget(cliState: Cli.AppState, title: String, root: Slot, target: Target): Cli.AppState =
+  match Stdlib.Cli.Tui.TerminalSupport.current() with
+  | Available -> Cli.Component.launch(cliState, component, initialFor(title, root, target))
+  | Unavailable(reason) ->
+    Stdlib.printLine($"fluid needs a terminal: {reason}")
+    Stdlib.printLine(Debug.render(defaultRegistry(), 80, root))
+    cliState
+
+
+/// Launch a document that brings its OWN specs (a grid, a language of its own).
+/// Load gallery entry `i`, keeping the frame, the theme and the pane sizes. Everything about the
+/// DOCUMENT is replaced; everything about the window is not.
+let loadDemo(st: State, i: Int64): State =
+  match Stdlib.List.getAt(demos(), i) with
+  | Some(entry) ->
+    let (nm, reg, root) = entry
+    { st with
+        editor = Editor.init(reg, root, st.editor.width)
+        title = nm
+        scroll = 0
+        hscroll = 0
+        savedRoot = root
+        evaluated = Option.None
+        demo = Option.Some(i)
+        demoPick = Option.None
+        helpOpen = false }
+  | None -> st
+
+
+/// Launch a state that has already been prepared, for the gallery, which opens with a document loaded
+/// AND the list showing over it.
+let launchPrepared(cliState: Cli.AppState, st: State): Cli.AppState =
+  match Stdlib.Cli.Tui.TerminalSupport.current() with
+  | Available -> Cli.Component.launch(cliState, component, st)
+  | Unavailable(reason) ->
+    Stdlib.printLine($"fluid needs a terminal: {reason}")
+    cliState
+
+
+let launchInRegistry(
+  cliState: Cli.AppState,
+  reg: Registry,
+  title: String,
+  root: Slot)
+  : Cli.AppState =
+  match Stdlib.Cli.Tui.TerminalSupport.current() with
+  | Available ->
+    Cli.Component.launch(cliState, component, initialWith(reg, title, root, Target.Scratch))
+  | Unavailable(reason) ->
+    Stdlib.printLine($"fluid needs a terminal: {reason}")
+    Stdlib.printLine(Debug.render(reg, 80, root))
+    cliState
+
+
+let launchWith(cliState: Cli.AppState, title: String, root: Slot): Cli.AppState =
+  launchTarget(cliState, title, root, Target.Scratch)
+
+
+/// Open a package function's body in Fluid. This is what `dark edit <fn>` calls on a terminal, and what
+/// `dark fluid fn <name>` calls. Returns the CLI state unchanged (the editor owns the terminal until it
+/// exits); on a lookup failure it says why and returns.
+let editFn(cliState: Cli.AppState, name: String): Cli.AppState =
+  match fnTarget(name) with
+  | Ok((root, target)) -> launchTarget(cliState, $"fluid: {name}", root, target)
+  | Error(err) ->
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"fluid: {err}"))
+    cliState
+
+
+/// The same for a type and a value. Three kinds, one door: `dark <kind> <name>` with nothing after it
+/// opens the editor, and `dark edit <name>` opens the same editor on what is already there.
+let newTypeTarget(location: LanguageTools.ProgramTypes.PackageLocation): (Slot * Target) =
+  let blank =
+    LanguageTools.ProgramTypes.PackageType.PackageType
+      { hash = LanguageTools.ProgramTypes.Hash.Hash("")
+        declaration =
+          LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration
+            { typeParams = []
+              bounds = []
+              definition =
+                LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias(
+                  LanguageTools.ProgramTypes.TypeReference.TUnit) }
+        description = "" }
+
+  (Slot.Filled(PT.TypeDecl.emptyDocFor(location.name)), Target.TypeDef(blank, location))
+
+
+let newValueTarget(location: LanguageTools.ProgramTypes.PackageLocation): (Slot * Target) =
+  let blank =
+    LanguageTools.ProgramTypes.PackageValue.PackageValue
+      { hash = LanguageTools.ProgramTypes.Hash.Hash("")
+        body = LanguageTools.ProgramTypes.Expr.EUnit(0)
+        description = "" }
+
+  (Slot.Filled(PT.Value.emptyDocFor(location.name)), Target.ValueDef(blank, location))
+
+
+/// Open a function that does not exist yet. `dark fn <name>` with no definition lands here.
+let createFn(
+  cliState: Cli.AppState,
+  location: LanguageTools.ProgramTypes.PackageLocation)
+  : Cli.AppState =
+  let (root, target) = newFnTarget(location)
+  let full =
+    Stdlib.String.join(
+      Stdlib.List.flatten([ [ location.owner ], location.modules, [ location.name ] ]),
+      ".")
+
+  launchTarget(cliState, $"fluid: {full} (new)", root, target)
+
+
+let createType(
+  cliState: Cli.AppState,
+  location: LanguageTools.ProgramTypes.PackageLocation)
+  : Cli.AppState =
+  let (root, target) = newTypeTarget(location)
+  let full =
+    Stdlib.String.join(
+      Stdlib.List.flatten([ [ location.owner ], location.modules, [ location.name ] ]),
+      ".")
+
+  launchTarget(cliState, $"fluid: {full} (new)", root, target)
+
+
+let createValue(
+  cliState: Cli.AppState,
+  location: LanguageTools.ProgramTypes.PackageLocation)
+  : Cli.AppState =
+  let (root, target) = newValueTarget(location)
+  let full =
+    Stdlib.String.join(
+      Stdlib.List.flatten([ [ location.owner ], location.modules, [ location.name ] ]),
+      ".")
+
+  launchTarget(cliState, $"fluid: {full} (new)", root, target)
+
+
+/// The registry a VALUE document needs: the usual one, plus a derived spec for every named type the
+/// document actually contains.
+///
+/// Derived rather than declared, and derived from the DOCUMENT rather than from a type the caller named,
+/// because a value's types are only knowable by looking at the value: `Some([1, 2])` needs `Option`, and
+/// nothing said so up front. A type with no spec draws as an unknown kind, which on screen is
+/// indistinguishable from a projection bug.
+let registryForValue(branchId: Uuid, n: Node): Registry =
+  Registry.addAll(
+    registryFor(branchId),
+    Value.typeNamesIn(n)
+    |> Stdlib.List.map(fun tn -> Derive.specsForName(branchId, tn))
+    |> Stdlib.List.flatten)
+
+
+/// A value, ready to open: the document, the registry that draws it, and what save should say.
+///
+/// Split from `evalTarget` so it can be tested. The testfile harness registers every builtin group
+/// except `CliHost`, so anything that evaluates cannot run there at all -- and that would have left the
+/// whole entry point unpinned over one builtin call. This is the rest of it.
+let valueTargetFor(
+  branchId: Uuid,
+  source: String,
+  dval: LanguageTools.RuntimeTypes.Dval)
+  : (Registry * Slot * Target) =
+  let node = Value.ofDval(branchId, dval)
+  (registryForValue(branchId, node), Slot.Filled(node), Target.RuntimeValue(source))
+
+
+/// Evaluate `source` and open what it PRODUCED, as a document.
+///
+/// The other entry points all open code. This one opens the output of code, which is the half of the
+/// design that had a conversion (`Value.ofDval`) and no way to reach it.
+let evalTarget(source: String): Result<(Registry * Slot * Target), String> =
+  let branchId = SCM.Branch.mainBranchId
+  match Cli.Eval.evaluateToDval(Option.None, branchId, source) with
+  | Ok(dval) -> Result.Ok(valueTargetFor(branchId, source, dval))
+  | Error(err) -> Result.Error(Cli.ExecutionError.toString(Option.None, branchId, err))
+
+
+/// `fluid eval <source>`: evaluate, then edit the value.
+let editEval(cliState: Cli.AppState, source: String): Cli.AppState =
+  match evalTarget(source) with
+  | Ok((reg, root, target)) ->
+    match Stdlib.Cli.Tui.TerminalSupport.current() with
+    | Available ->
+      Cli.Component.launch(cliState, component, initialWith(reg, $"fluid: {source}", root, target))
+    | Unavailable(reason) ->
+      // Same fallback the other launchers use: without a terminal, say why and print the document.
+      Stdlib.printLine($"fluid needs a terminal: {reason}")
+      Stdlib.printLine(Debug.render(reg, 80, root))
+      cliState
+  | Error(err) ->
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"fluid: {err}"))
+    cliState
+
+
+let typeTarget(name: String): Result<(Slot * Target), String> =
+  let branchId = SCM.Branch.mainBranchId
+  let location = LanguageTools.ProgramTypes.parsePackageLocation(name)
+  match LanguageTools.PackageManager.Type.find(branchId, location) with
+  | Some(hash) ->
+    match LanguageTools.PackageManager.Type.get(hash) with
+    | Some(pt) ->
+      Result.Ok((Slot.Filled(PT.TypeDecl.toDoc(location.name, pt)), Target.TypeDef(pt, location)))
+    | None -> Result.Error($"no type with that hash: {name}")
+  | None -> Result.Error($"no type named {name}")
+
+
+let editType(cliState: Cli.AppState, name: String): Cli.AppState =
+  match typeTarget(name) with
+  | Ok((root, target)) -> launchTarget(cliState, $"fluid: {name}", root, target)
+  | Error(err) ->
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"fluid: {err}"))
+    cliState
+
+
+let valueTarget(name: String): Result<(Slot * Target), String> =
+  let branchId = SCM.Branch.mainBranchId
+  let location = LanguageTools.ProgramTypes.parsePackageLocation(name)
+  match LanguageTools.PackageManager.Value.find(branchId, location) with
+  | Some(hash) ->
+    match LanguageTools.PackageManager.Value.get(hash) with
+    | Some(pv) ->
+      Result.Ok((Slot.Filled(PT.Value.toDoc(location.name, pv)), Target.ValueDef(pv, location)))
+    | None -> Result.Error($"no value with that hash: {name}")
+  | None -> Result.Error($"no value named {name}")
+
+
+let editValue(cliState: Cli.AppState, name: String): Cli.AppState =
+  match valueTarget(name) with
+  | Ok((root, target)) -> launchTarget(cliState, $"fluid: {name}", root, target)
+  | Error(err) ->
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"fluid: {err}"))
+    cliState
+
+
+// --- Saving ---
+//
+// Three save paths that were the same eight lines three times, and carried the same bug three times:
+// `fromDoc` hands back the name the DOCUMENT spells and every caller dropped it on the floor. The source
+// is then printed through `packageFn`, whose name comes from the hash's locations, so you could retype a
+// function's name, watch the drawing follow along, save, and get the old name back with nothing on screen
+// saying so. The name slot is editable; discarding what is typed into it is data loss.
+
+/// Where a save writes. The name in the document wins: it is an editable slot, and what you typed there
+/// is what you meant. The location it was opened at is only the default, for a document whose name slot
+/// is empty (a shell that has not been named yet -- that is a hole, not a rename to "").
+///
+/// A rename BINDS the new name. It does not unbind the old one, because there is no op that does: names
+/// are bindings onto content-addressed items and `SetName` is the only one there is. So a rename in the
+/// editor leaves the old name pointing at the old content, which is the store's own rename semantics and
+/// not a thing this function gets to decide.
+let saveLocation(
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  docName: String)
+  : LanguageTools.ProgramTypes.PackageLocation =
+  if docName == "" then location else { location with name = docName }
+
+
+/// The context a save prints through. `preferredLocation` is how `packageFn` learns which of a hash's
+/// names to write, and after a rename that is the NEW one.
+let saveContext(
+  location: LanguageTools.ProgramTypes.PackageLocation)
+  : PrettyPrinter.ProgramTypes.Context =
+  { PrettyPrinter.ProgramTypes.Context.forModule(
+      SCM.Branch.mainBranchId,
+      Stdlib.List.prepend(location.modules, location.owner)) with
+      preferredLocation = Option.Some(location) }
+
+
+/// Apply reconstructed source in place, through the same ops path `dark module` uses
+/// (`ModuleCommand.applySource`, which does not print). Returns the name it landed under.
+let applyAt(
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  source: String)
+  : Result<String, String> =
+  let moduleArg =
+    "/" + Stdlib.String.join(Stdlib.List.concat([ location.owner ], location.modules), ".")
+
+  match Cli.Packages.ModuleCommand.applySource(SCM.Branch.mainBranchId, moduleArg, source) with
+  | Ok(_) -> Result.Ok(location.name)
+  | Error(err) -> Result.Error(err)
+
+
+/// The source a save would write, and where it would write it -- separated from the writing so the
+/// decision is checkable without a store round trip.
+let valueSourceFor(
+  pv: LanguageTools.ProgramTypes.PackageValue.PackageValue,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  root: Slot)
+  : Result<(LanguageTools.ProgramTypes.PackageLocation * String), String> =
+  match root with
+  | Filled(n) ->
+    match PT.Value.fromDoc(pv, n) with
+    | Ok((name, updated)) ->
+      let target = saveLocation(location, name)
+      Result.Ok((target, PrettyPrinter.ProgramTypes.packageValue(saveContext(target), updated)))
+    | Error(err) -> Result.Error(err)
+  | _ -> Result.Error("nothing to save")
+
+
+let saveValue(
+  pv: LanguageTools.ProgramTypes.PackageValue.PackageValue,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  root: Slot)
+  : Result<String, String> =
+  match valueSourceFor(pv, location, root) with
+  | Ok((target, source)) -> applyAt(target, source)
+  | Error(err) -> Result.Error(err)
+
+
+let typeSourceFor(
+  pt: LanguageTools.ProgramTypes.PackageType.PackageType,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  root: Slot)
+  : Result<(LanguageTools.ProgramTypes.PackageLocation * String), String> =
+  match root with
+  | Filled(n) ->
+    match PT.TypeDecl.fromDoc(pt, n) with
+    | Ok((name, updated)) ->
+      let target = saveLocation(location, name)
+      Result.Ok((target, PrettyPrinter.ProgramTypes.packageType(saveContext(target), updated)))
+    | Error(err) -> Result.Error(err)
+  | _ -> Result.Error("nothing to save")
+
+
+let saveType(
+  pt: LanguageTools.ProgramTypes.PackageType.PackageType,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  root: Slot)
+  : Result<String, String> =
+  match typeSourceFor(pt, location, root) with
+  | Ok((target, source)) -> applyAt(target, source)
+  | Error(err) -> Result.Error(err)
+
+
+/// Reconstruct a package function's source with the edited signature and body, and say where it goes.
+let fnSourceFor(
+  fn: LanguageTools.ProgramTypes.PackageFn.PackageFn,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  root: Slot)
+  : Result<(LanguageTools.ProgramTypes.PackageLocation * String), String> =
+  match root with
+  | Filled(n) ->
+    match PT.Fn.fromDoc(fn, n) with
+    | Ok((name, updated)) ->
+      let target = saveLocation(location, name)
+      Result.Ok((target, PrettyPrinter.ProgramTypes.packageFn(saveContext(target), updated)))
+    | Error(err) -> Result.Error(err)
+  | _ -> Result.Error("nothing to save")
+
+
+/// Reconstruct a package function's source with the edited body and apply it in place, through the same
+/// ops path `dark module` uses (`ModuleCommand.applySource`, which does not print). Returns how it went.
+let saveFnBody(
+  fn: LanguageTools.ProgramTypes.PackageFn.PackageFn,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  root: Slot)
+  : Result<String, String> =
+  match fnSourceFor(fn, location, root) with
+  | Ok((target, source)) -> applyAt(target, source)
+  | Error(err) -> Result.Error(err)
+
+
+/// The three regions the editor draws into: the framed code pane, the context panel, and the document
+/// inside the pane. The panel is dropped on a narrow terminal so the code always has room, and an
+/// `inspArea` of no width is how the caller knows that happened.
+///
+/// One computation, because there were three. The scroller kept its own guesses at the document's
+/// height and width: `size.height - 3`, where the frame, the box and the padding take six between
+/// them, so the last three lines of every document sat off screen while the scroller believed they
+/// were visible; and a width that had never heard of the panel, which takes a third of the screen.
+/// A 35-line function was editable to line 32 and no further.
+let panes(
+  size: Stdlib.Cli.Tui.Size,
+  inspectorOpen: Bool)
+  : (Stdlib.Cli.UI.Layout.Region * Stdlib.Cli.UI.Layout.Region * Stdlib.Cli.UI.Layout.Region) =
+  let full = Stdlib.Cli.UI.Chrome.bodyRegion(size)
+  let inspW = if inspectorOpen && full.cols >= 72 then Stdlib.min(34, full.cols / 3) else 0
+  let mainCols = full.cols - inspW
+  let mainArea =
+    Stdlib.Cli.UI.Layout.Region
+      { top = full.top, left = full.left, rows = full.rows, cols = mainCols }
+
+  let inspArea =
+    Stdlib.Cli.UI.Layout.Region
+      { top = full.top, left = full.left + mainCols, rows = full.rows, cols = inspW }
+
+  // The document sits inside the box, with a blank column and row of breathing room.
+  let boxInner = Stdlib.Cli.UI.Box.inner(mainArea)
+  let doc =
+    Stdlib.Cli.UI.Layout.Region
+      { top = boxInner.top + 1
+        left = boxInner.left + 2
+        rows = Stdlib.max(1, boxInner.rows - 1)
+        cols = Stdlib.max(1, boxInner.cols - 3) }
+
+  (mainArea, inspArea, doc)
+
+
+/// The state for a document edited with a GIVEN registry, rather than the one the branch derives. A
+/// projection that is not Darklang's -- a grid, a DSL -- brings its own specs, so it needs a way in.
+let initialWith(reg: Registry, title: String, root: Slot, target: Target): State =
+  let size = Stdlib.Cli.Tui.TerminalSession.currentSize()
+  let (_main, _insp, docArea) = panes(size, false)
+  let width = Stdlib.max(20, docArea.cols)
+  State
+    { editor = Editor.init(reg, root, width)
+      title = title
+      scroll = 0
+      hscroll = 0
+      target = target
+      theme = Theme.default()
+      bodyRows = docArea.rows
+      bodyCols = docArea.cols
+      inspectorOpen = false
+      evaluated = Option.None
+      textMode = Option.None
+      savedRoot = root
+      confirmingExit = false
+      pendingEdit = Option.None
+      demo = Option.None
+      demoPick = Option.None
+      helpOpen = false }
+
+
+/// The module the document being edited lives in, so names on screen read the way they read in the
+/// source: standing in `Darklang.LanguageTools.ProgramTypes`, `Darklang.LanguageTools.ID` is `ID`. Every
+/// target already carries its location, so there is nothing to look up.
+let moduleOf(target: Target): List<String> =
+  match target with
+  | Scratch -> []
+  | FnBody(_, loc) -> Stdlib.List.concat([ loc.owner ], loc.modules)
+  | TypeDef(_, loc) -> Stdlib.List.concat([ loc.owner ], loc.modules)
+  | ValueDef(_, loc) -> Stdlib.List.concat([ loc.owner ], loc.modules)
+  | RuntimeValue(_) -> []
+
+
+let initialFor(title: String, root: Slot, target: Target): State =
+  let size = Stdlib.Cli.Tui.TerminalSession.currentSize()
+  let (_main, _insp, docArea) = panes(size, false)
+  let width = Stdlib.max(20, docArea.cols)
+  State
+    { editor = Editor.init(Registry.inModule(defaultRegistry(), moduleOf(target)), root, width)
+      title = title
+      scroll = 0
+      hscroll = 0
+      target = target
+      theme = Theme.default()
+      bodyRows = docArea.rows
+      bodyCols = docArea.cols
+      inspectorOpen = false
+      evaluated = Option.None
+      textMode = Option.None
+      savedRoot = root
+      confirmingExit = false
+      pendingEdit = Option.None
+      demo = Option.None
+      demoPick = Option.None
+      helpOpen = false }
+
+
+let initial(title: String, root: Slot): State =
+  initialFor(title, root, Target.Scratch)
+
+
+let modeBadge(st: State): String =
+  match st.editor.mode with
+  | Insert -> "INSERT"
+  | Nav -> "NAV"
+
+
+/// The footer keys, chosen for exactly where the caret is: the completion menu, the palette, a hole, or a
+/// node. Most-relevant first, so a glance tells you what the next keystroke can be.
+/// What the always-on panel used to say, in one line: what this hole expects, or what you are on. The
+/// breadcrumb is already in the pane title, so it isn't repeated here.
+let statusOf(st: State): String =
+  match Editor.slotUnder(st.editor) with
+  | Some(Empty(e)) -> " expects " + e.label + " ·"
+  | Some(Partial(t, _)) -> " typing " + t + " ·"
+  | _ -> ""
+
+
+let helpFor(st: State): String =
+  match st.editor.mode with
+  | Insert ->
+    if Stdlib.Bool.not(Stdlib.List.isEmpty(Editor.candidates(st.editor))) then
+      statusOf(st) + " Enter accept  Tab next  Up/Down choose  Esc nav"
+    else
+      statusOf(st) + " type to edit  Tab/Shift-Tab holes  ^E text  Esc nav  ^S save"
+  | Nav ->
+    if st.editor.paletteOpen then
+      " type filter  Up/Down move  Enter run  Esc close"
+    else
+      let hasActions = Stdlib.Bool.not(Stdlib.List.isEmpty(Editor.paletteActions(st.editor)))
+      let actionsKey = if hasActions then "  : actions" else ""
+      // `?` cycles rather than toggles now, so the footer has to name the NEXT state or it lies: pressing
+      // `?` with the panel open no longer hides anything, it opens the full reference.
+      let panelKey = if st.inspectorOpen then "  ? keys" else "  ? panel"
+      let evalKey = "  v value"
+      // Only the keys reached for constantly. The rest are in the panel, which `?` opens -- the status
+      // line used to run past the right edge and read `q qu`.
+      let demoKey = if Stdlib.Option.isSome(st.demo) then "  ] demos" else ""
+      statusOf(st)
+      + " j/k nav  h/l in/out  i edit  c change"
+      + actionsKey
+      + evalKey
+      + demoKey
+      + panelKey
+      + "  q quit"
+
+
+/// Which buffer line sits at the top of the text pane. The pane shows `rows` lines, so a taller buffer
+/// needs a window; this picks the smallest scroll that keeps the caret row visible with a couple of lines
+/// of lookahead below it, and never scrolls past the end of the buffer.
+let textTop(lines: List<String>, crow: Int64, rows: Int64): Int64 =
+  let maxTop = Stdlib.max(0, Stdlib.List.length(lines) - rows)
+  let want = Stdlib.max(0, crow - rows + 3)
+  Stdlib.min(want, maxTop)
+
+
+/// How far LEFT the text window has scrolled, so the caret column stays on screen.
+///
+/// `Layout.at` clips a long line to the pane, which stops it bleeding but does not help you see what you
+/// are typing: past the right edge the caret and everything after it were simply gone. The same problem
+/// `textTop` solves downwards, and the same shape of answer -- keep a few columns of lead so the caret is
+/// not jammed against the edge.
+let textLeft(ccol: Int64, cols: Int64): Int64 =
+  Stdlib.max(0, ccol - cols + 3)
+
+
+let view(st: State, size: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.View =
+  match st.textMode with
+  | Some((buf, caret, _path)) ->
+    let msg = st.editor.message
+    let base_ =
+      Stdlib.Cli.UI.Chrome.frame(st.title, "TEXT", " Ctrl-S apply  Ctrl-O $EDITOR  Esc cancel")
+
+    let framed = if msg == "" then base_ else Stdlib.Cli.UI.Chrome.withMessage(base_, msg)
+    let full = Stdlib.Cli.UI.Chrome.bodyRegion(size)
+    let boxInner = Stdlib.Cli.UI.Box.inner(full)
+    let region =
+      Stdlib.Cli.UI.Layout.Region
+        { top = boxInner.top + 1
+          left = boxInner.left + 2
+          rows = Stdlib.max(1, boxInner.rows - 1)
+          cols = Stdlib.max(1, boxInner.cols - 3) }
+
+    let lines = Stdlib.String.split(buf, "\n")
+    let before = Stdlib.String.slice(buf, 0, caret)
+    let bls = Stdlib.String.split(before, "\n")
+    let crow = Stdlib.List.length(bls) - 1
+    let ccol =
+      Stdlib.List.last(bls)
+      |> Stdlib.Option.map(fun s -> Stdlib.String.length(s))
+      |> Stdlib.Option.withDefault(0)
+
+    // The pane is a window on the buffer, not the whole of it. Rows past the bottom are dropped by
+    // `Layout.at`, so a tall expression used to hide its own tail while the caret walked off-screen and
+    // typed into lines nobody could see. Scroll the window to keep the caret row in it.
+    let top = textTop(lines, crow, region.rows)
+    let left = textLeft(ccol, region.cols)
+    let textSpans =
+      lines
+      |> Stdlib.List.drop(top)
+      |> Stdlib.List.take(region.rows)
+      |> Stdlib.List.indexedMap(fun(i, line) ->
+        // Every row shifts by the same amount, so the columns still line up with each other and with the
+        // caret. Dropping from a line shorter than the shift leaves nothing, which is what should be
+        // there.
+        let shifted = Stdlib.String.dropFirst(line, left)
+        Stdlib.Cli.UI.Layout.at(region, i, 0, shifted))
+      |> Stdlib.List.flatten
+
+    let total = Stdlib.List.length(lines)
+    let paneTitle =
+      if total > region.rows then
+        $"fluid · text  {Stdlib.display(crow + 1)}/{Stdlib.display(total)}"
+      else
+        "fluid · text"
+
+    let body =
+      Stdlib.List.flatten(
+        [ Stdlib.Cli.UI.Box.draw(full, paneTitle, Stdlib.Cli.UI.Focus.Focused), textSpans ])
+
+    let v = Stdlib.Cli.UI.Chrome.view(framed, size, fun _region -> body)
+    // The caret shifts with the text, the same way it shifts with `top` vertically. Without this the
+    // window scrolled and the cursor stayed where it was.
+    { v with
+        cursor =
+          Stdlib.Cli.Tui.Cursor.Visible(
+            region.top + (crow - top) - 1,
+            region.left + (ccol - left) - 1) }
+  | None ->
+    let base_ = Stdlib.Cli.UI.Chrome.frame(st.title, modeBadge(st), helpFor(st))
+    let toned =
+      match st.editor.mode with
+      | Insert -> Stdlib.Cli.UI.Chrome.withBadgeTone(base_, Stdlib.Cli.UI.Chrome.Tone.Active)
+      | Nav -> base_
+
+    let framed =
+      if st.editor.message == "" then
+        toned
+      else
+        Stdlib.Cli.UI.Chrome.withMessage(toned, st.editor.message)
+
+    // Use the screen: a framed edit pane on the left with the document padded inside it, and a context
+    // panel on the right. Same arithmetic the scroller uses, because it is the same question.
+    let (mainArea, inspArea, region) = panes(size, st.inspectorOpen)
+    let showInspector = inspArea.cols > 0
+    let paneTitle = "fluid · " + Editor.breadcrumb(st.editor)
+    // Completions live at the caret, always: a floating popover under (or over) the cursor, so the menu is
+    // where your eyes already are rather than off in a side panel. The inspector no longer lists them.
+    // The gallery owns the screen while it is up. The first entry is a blank expression, whose completion
+    // menu drew straight through the list behind it -- two menus at once, and neither obviously the one
+    // the keyboard was talking to.
+    // ONE layout for the whole pass. `rowsFor` is the expensive thing in here -- 225ms on a 45-line
+    // function -- and the popover, the document and the cursor all used to ask for their own.
+    let rows = Widget.rowsFor(st.editor)
+    let popoverSpans =
+      // The reference owns the screen the same way the gallery does, and for the same reason: two menus at
+      // once, neither obviously the one the keyboard is talking to.
+      if Stdlib.Option.isSome(st.demoPick) || st.helpOpen then
+        []
+      else
+        Widget.popoverOf(rows, st.theme, st.editor, region, st.scroll, st.hscroll)
+
+    let mainSpans =
+      Stdlib.List.flatten(
+        [ Stdlib.Cli.UI.Box.draw(mainArea, paneTitle, Stdlib.Cli.UI.Focus.Focused)
+          Widget.viewOf(rows, st.theme, st.editor, region, st.scroll, st.hscroll)
+          popoverSpans
+          Widget.palette(st.theme, st.editor, region)
+          match st.demoPick with
+          | Some(pick) ->
+            // A centred list over the document, so what you pick lands where you are already looking.
+            let rows =
+              Stdlib.min(Stdlib.List.length(demoLabels()) + 2, Stdlib.max(6, region.rows - 4))
+
+            let cols = Stdlib.min(60, Stdlib.max(24, region.cols - 6))
+            let top = region.top + Stdlib.max(0, (region.rows - rows) / 2)
+            let left = region.left + Stdlib.max(0, (region.cols - cols) / 2)
+            let box =
+              Stdlib.Cli.UI.Layout.Region { top = top, left = left, rows = rows, cols = cols }
+
+            let inner = Stdlib.Cli.UI.Box.inner(box)
+            Stdlib.List.flatten(
+              [ Stdlib.Cli.UI.Box.draw(
+                  box,
+                  "fluid demo -- Enter opens, Esc closes, ] reopens",
+                  Stdlib.Cli.UI.Focus.Focused)
+
+                Stdlib.Cli.UI.Picker.view(pick, inner) ])
+          | None -> [] ])
+
+    let inspSpans =
+      if showInspector then
+        // What the node under the caret IS, when it carries a hash: its signature and its doc comment. Every
+        // package item stores a description and nothing in the editor has ever shown one, so this is where
+        // they finally surface. It is a lookup by hash, not a guess from a name, and it only appears for the
+        // nodes that carry one.
+        let docWidth = Stdlib.max(8, (Stdlib.Cli.UI.Box.inner(inspArea)).cols - 2)
+        let docRows =
+          match nodeAtPath(st.editor.root, st.editor.caret.node) with
+          | Some(n) ->
+            match PT.nodeDocs(n) with
+            | Some(t) ->
+              let (dname, dsig, ddoc) = t
+              let sigRows =
+                if dsig == "" then
+                  []
+                else
+                  Stdlib.String.split(dsig, "\n")
+                  |> Stdlib.List.map(fun l -> Stdlib.Cli.Tui.Text.wrapAtWords(l, docWidth))
+                  |> Stdlib.List.flatten
+                  |> Stdlib.List.take(4)
+                  |> Stdlib.List.map(fun l -> "  " + Stdlib.Cli.UI.Colors.colorize(st.theme.dim, l))
+
+              let docLines =
+                if ddoc == "" then
+                  []
+                else
+                  Stdlib.List.concat(
+                    [ "" ],
+                    Stdlib.Cli.Tui.Text.wrapAtWords(ddoc, docWidth)
+                    |> Stdlib.List.take(6)
+                    |> Stdlib.List.map(fun l -> "  " + l))
+
+              Stdlib.List.flatten(
+                [ [ Stdlib.Cli.UI.Colors.colorize(
+                      st.theme.dim + Stdlib.Cli.UI.Colors.bold,
+                      "DOCS") ]
+
+                  [ "  " + dname ]
+                  sigRows
+                  docLines
+                  [ "" ] ])
+            | None -> []
+          | None -> []
+
+        // What `v` last evaluated, and only if it is still about the node you are on -- a value that quietly
+        // belonged to something else would be worse than no value at all.
+        let valueRows =
+          match st.evaluated with
+          | Some((path, answer)) ->
+            if path == Editor.navPath(st.editor) then
+              // WRAPPED to the panel, not cut by it. The panel is a fixed width, so a long answer -- and an
+              // error message is usually the longest thing here -- was sliced mid-word with nothing to say
+              // it had been: `can't print that yet: unr`. An error you cannot read is worse than no error.
+              let wrapWidth = Stdlib.max(8, (Stdlib.Cli.UI.Box.inner(inspArea)).cols - 2)
+              let wrapped =
+                Stdlib.String.split(answer, "\n")
+                |> Stdlib.List.map(fun l -> Stdlib.Cli.Tui.Text.wrapAtWords(l, wrapWidth))
+                |> Stdlib.List.flatten
+
+              // ...and say when there is more, the way the completion popover does. Six rows of a longer
+              // answer with nothing after them reads as the whole answer.
+              let hidden = Stdlib.List.length(wrapped) - 6
+              let more =
+                if hidden > 0 then
+                  [ Stdlib.Cli.UI.Colors.colorize(
+                      st.theme.dim,
+                      "  +" + Stdlib.display(hidden) + " more") ]
+                else
+                  []
+
+              Stdlib.List.flatten(
+                [ [ Stdlib.Cli.UI.Colors.colorize(
+                      st.theme.dim + Stdlib.Cli.UI.Colors.bold,
+                      "VALUE") ]
+
+                  wrapped
+                  |> Stdlib.List.take(6)
+                  |> Stdlib.List.map(fun l -> "  " + l)
+
+                  more
+                  [ "" ] ])
+            else
+              []
+          | None -> []
+
+        Stdlib.List.concat(
+          Stdlib.Cli.UI.Box.draw(inspArea, "context", Stdlib.Cli.UI.Focus.Unfocused),
+          Widget.inspectorWith(
+            st.theme,
+            st.editor,
+            Stdlib.Cli.UI.Box.inner(inspArea),
+            Stdlib.List.concat(docRows, valueRows)))
+      else
+        []
+
+    let helpSpans = if st.helpOpen then Widget.keyReference(st.theme, st.editor, region) else []
+    let body = Stdlib.List.flatten([ mainSpans, inspSpans, helpSpans ])
+    let v = Stdlib.Cli.UI.Chrome.view(framed, size, fun _region -> body)
+    match st.editor.mode with
+    | Insert ->
+      match Widget.caretScreenPosIn(rows, st.editor, region, st.scroll, st.hscroll) with
+      | Some((row, col)) -> { v with cursor = Stdlib.Cli.Tui.Cursor.Visible(row - 1, col - 1) }
+      | None -> v
+    | Nav -> v
+
+
+let afterKey(st: State, editor: Editor.State): State =
+  // Measured now rather than at startup: the panel opens and closes and the terminal gets resized, and
+  // a window remembered from `initial` is wrong the moment either happens.
+  let (_main, _insp, docArea) =
+    panes(Stdlib.Cli.Tui.TerminalSession.currentSize(), st.inspectorOpen)
+
+  // The width the DOCUMENT is laid out against, not just the window scrolled over it. It was set once at
+  // `init` and never again, so a resize moved the box and the text stayed where it was: a three-stage
+  // pipe typed at 200 columns kept its one line at 90 and got cut off, when breaking at the `|>`s is
+  // exactly what its spec says to do. The scroll window beside it had always been re-measured here, and
+  // the comment above already gave the reason for both.
+  //
+  // Before the caret is measured, not after: the row and column it reports are positions in the LAYOUT,
+  // so measuring them at the old width and scrolling to them at the new one leaves the pane parked where
+  // the text used to be. Which is what it did -- the reflowed lines were there, scrolled off to the left.
+  // Any key at all cancels a pending "press again to discard", and the WARNING has to go with it. The
+  // flag was cleared here and the message was not, so the line kept saying the next key would throw your
+  // work away long after the next key had come and gone -- Escape out of INSERT sets it, and it then sat
+  // there through navigating, editing and evaluating.
+  //
+  // Only when the flag was actually set: a message written by anything else is not this one's to clear.
+  let cleared = if st.confirmingExit then { editor with message = "" } else editor
+  let ed = { cleared with width = Stdlib.max(20, docArea.cols) }
+  // One layout, two questions. Two calls here meant two full layouts of the same document per key.
+  let rows = Widget.rowsFor(ed)
+  let row = Widget.caretRowIn(rows, ed)
+  let col = Widget.caretColIn(rows, ed)
+  { st with
+      editor = ed
+      bodyRows = docArea.rows
+      bodyCols = docArea.cols
+      scroll = Widget.scrollFor(row, docArea.rows, st.scroll)
+      hscroll = Widget.hscrollFor(col, docArea.cols, st.hscroll)
+      confirmingExit = false }
+
+
+/// Is there work here that has not been saved?
+///
+/// Compared against the document as of the last save rather than counted off the undo stack, so undoing
+/// back to where you started reads as clean, which is the truth.
+let hasUnsavedWork(st: State, editor: Editor.State): Bool =
+  editor.root != st.savedRoot
+
+
+/// Leaving. `q` and Escape both end up here, and both used to end the editor outright, so a stray Escape
+/// in NAV threw away everything typed since the last save with nothing said. The first press says what is
+/// at stake and the second goes through: the one place in this editor where a key deliberately does
+/// nothing the first time.
+let wantsExit(st: State, editor: Editor.State): Cli.Component.Step<State> =
+  if st.confirmingExit || Stdlib.Bool.not(hasUnsavedWork(st, editor)) then
+    Cli.Component.Step.Exit(afterKey(st, editor))
+  else
+    Cli.Component.Step.Stay(
+      { afterKey(
+          st,
+          { editor with message = "unsaved: ^S to save, or press again to discard" }) with
+          confirmingExit = true })
+
+
+/// The current document as Dark source, or why it can't be printed yet (a half-typed name, a hole). An
+/// empty document is fine -- that's just an empty buffer to type into.
+let docToSourceResult(root: Slot): Result<String, String> =
+  match root with
+  | Filled(n) ->
+    match PT.fromDoc(n) with
+    | Ok(e) -> Result.Ok(PrettyPrinter.ProgramTypes.expr(PT.printerContext(), e))
+    | Error(err) -> Result.Error(err)
+  | Empty(_) -> Result.Ok("")
+  | Partial(t, _) -> Result.Error($"finish typing `{t}` first")
+
+
+/// The current document as Dark source; empty when it can't be printed. For callers that have a document
+/// they know is complete.
+let docToSource(root: Slot): String =
+  match docToSourceResult(root) with
+  | Ok(src) -> src
+  | Error(_) -> ""
+
+
+/// Does the document contain a node of any of these kind-cases, anywhere?
+let docContainsCase(root: Slot, cases: List<String>): Bool =
+  match Slot.node(root) with
+  | None -> false
+  | Some(n) ->
+    let here =
+      match n.kind.case with
+      | Some(c) -> Stdlib.List.contains(cases, c)
+      | None -> false
+
+    if here then
+      true
+    else
+      n.fields
+      |> Stdlib.List.findFirst(fun f ->
+        let (_, fld) = f
+        match fld with
+        | Text(_) -> false
+        | One(s) -> docContainsCase(s, cases)
+        | Many(items, _) ->
+          items
+          |> Stdlib.List.findFirst(fun s -> docContainsCase(s, cases))
+          |> Stdlib.Option.isSome)
+      |> Stdlib.Option.isSome
+
+
+/// `parsePTExpr` is error-tolerant: it fills gaps with `()` and `_` rather than failing, so `let =`
+/// silently becomes `let _ = ()`. That would quietly mangle your expression on apply. This catches the
+/// invented placeholders -- a unit or wildcard in the result that the text you typed never mentioned.
+/// It's a guard on the observed failure, not a real validity check; that wants parser-level errors.
+let textEditProblem(src: String, root: Slot): Option<String> =
+  if docContainsCase(root, [ "Opaque" ]) then
+    Option.Some("that text didn't parse cleanly")
+  else if
+    docContainsCase(root, [ "EUnit", "MPUnit" ])
+    && Stdlib.Bool.not(Stdlib.String.contains(src, "()"))
+  then
+    Option.Some("that text didn't parse cleanly (it filled in `()`)")
+  else if
+    docContainsCase(root, [ "LPWildcard", "MPWildcard" ])
+    && Stdlib.Bool.not(Stdlib.String.contains(src, "_"))
+  then
+    Option.Some("that text didn't parse cleanly (it filled in `_`)")
+  else
+    Option.None
+
+
+/// Parse edited text back into a document, or the parse error.
+let sourceToDoc(src: String): Result<Slot, String> =
+  match LanguageTools.Parser.Parse.parsePTExpr(src) with
+  | Ok(e) -> Result.Ok(Slot.Filled(PT.toDoc(e)))
+  | Error(err) -> Result.Error(LanguageTools.Parser.Parse.ParseError.toString(err))
+
+
+/// Keys while in plain-text editing: type/backspace/newline edit the buffer; Ctrl-S re-parses it back into
+/// the structural editor (staying in text mode with a message if it doesn't parse); Escape discards it.
+let textModeKey(
+  st: State,
+  buf: String,
+  caret: Int64,
+  path: Path,
+  key: Stdlib.Cli.Stdin.Key.Key,
+  modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers,
+  keyChar: Option<String>)
+  : Cli.Component.Step<State> =
+  let stay(b: String, c: Int64): Cli.Component.Step<State> =
+    // Typing clears whatever the last keystroke said. The message is where "text edit cancelled" and
+    // "parse error: ..." land, and it sat in the footer through everything typed afterwards -- which for
+    // a parse error means the complaint stays on screen while you fix it, and reads as though the fix had
+    // not taken.
+    Cli.Component.Step.Stay(
+      { st with textMode = Option.Some((b, c, path)), editor = { st.editor with message = "" } })
+
+  let len = Stdlib.String.length(buf)
+  // A multi-line buffer needs vertical and line-wise motion. Without it the caret could only walk one
+  // character at a time, so anything the printer wrapped over several lines was unusable.
+  let lineStartOf(c: Int64): Int64 =
+    let bls = Stdlib.String.split(Stdlib.String.slice(buf, 0, c), "\n")
+    let col =
+      Stdlib.List.last(bls)
+      |> Stdlib.Option.map(fun s -> Stdlib.String.length(s))
+      |> Stdlib.Option.withDefault(0)
+
+    c - col
+
+  let lineEndOf(c: Int64): Int64 =
+    match Stdlib.String.indexOf(Stdlib.String.dropFirst(buf, c), "\n") with
+    | Some(i) -> c + i
+    | None -> len
+
+  // Moving up or down keeps the column where it can, and lands at the end of a shorter line otherwise.
+  let vertical(down: Bool): Cli.Component.Step<State> =
+    let ls = lineStartOf(caret)
+    let col = caret - ls
+    if down then
+      let le = lineEndOf(caret)
+      if le >= len then
+        stay(buf, len)
+      else
+        let nextStart = le + 1
+        stay(buf, Stdlib.min(lineEndOf(nextStart), nextStart + col))
+    else if ls == 0 then
+      stay(buf, 0)
+    else
+      let prevStart = lineStartOf(ls - 1)
+      stay(buf, Stdlib.min(ls - 1, prevStart + col))
+
+  match key with
+  | Escape ->
+    Cli.Component.Step.Stay(
+      { st with
+          textMode = Option.None
+          editor = { st.editor with message = "text edit cancelled" } })
+  | LeftArrow -> stay(buf, Stdlib.max(0, caret - 1))
+  | RightArrow -> stay(buf, Stdlib.min(len, caret + 1))
+  | UpArrow -> vertical(false)
+  | DownArrow -> vertical(true)
+  | Home -> stay(buf, lineStartOf(caret))
+  | End -> stay(buf, lineEndOf(caret))
+  | Backspace ->
+    if caret <= 0 then
+      stay(buf, caret)
+    else
+      stay(Stdlib.String.slice(buf, 0, caret - 1) + Stdlib.String.dropFirst(buf, caret), caret - 1)
+  | Enter ->
+    stay(Stdlib.String.slice(buf, 0, caret) + "\n" + Stdlib.String.dropFirst(buf, caret), caret + 1)
+  | _ ->
+    if modifiers.ctrl then
+      match key with
+      | S ->
+        match sourceToDoc(buf) with
+        | Ok(root) ->
+          match textEditProblem(buf, root) with
+          | Some(problem) ->
+            // Stay in text mode with the text intact, rather than applying something invented.
+            Cli.Component.Step.Stay({ st with editor = { st.editor with message = problem } })
+          | None ->
+            // Splice the re-parsed node back where it came from, leaving the rest of the document alone.
+            // The WHOLE document is the same operation at the root path, and it used to be a separate
+            // branch that built a FRESH editor -- which threw the undo history away. Everything typed
+            // before a trip through text mode was unreachable afterwards: `u` said "nothing to undo".
+            let spliced = Editor.commit(st.editor, [ Edit.Replace(path, root) ], st.editor.caret)
+            Cli.Component.Step.Stay(
+              { st with
+                  textMode = Option.None
+                  editor =
+                    { spliced with
+                        caret = Editor.navCaretFor(spliced.root, path)
+                        message = "back to structure" } })
+        | Error(err) ->
+          Cli.Component.Step.Stay(
+            { st with editor = { st.editor with message = $"parse error: {err}" } })
+      | O ->
+        // Hand the buffer to `$EDITOR`. Text mode is the escape hatch from structure editing; this is the
+        // escape hatch from text mode, for anything a one-line-at-a-time buffer is the wrong tool for.
+        // `Step.Launch` already means "hand off to a foreground command and come back here", so the editor
+        // gets the real terminal rather than a pipe, and the file is read back on resume.
+        match Stdlib.Cli.File.createTemp() with
+        | Error(e) ->
+          Cli.Component.Step.Stay(
+            { st with
+                editor = { st.editor with message = $"could not make a temp file: {e.message}" } })
+        | Ok(tmp) ->
+          match Stdlib.Cli.File.writeText(tmp, buf) with
+          | Error(e) ->
+            Cli.Component.Step.Stay(
+              { st with
+                  editor = { st.editor with message = $"could not write {tmp}: {e.message}" } })
+          | Ok(_) ->
+            // `Step.Launch` would have been wrong: it looks its string up in the CLI's COMMAND TABLE, so
+            // `vi /tmp/x` is a command named `vi /tmp/x` that does not exist. `RunProgram` spawns a real
+            // program with the real terminal.
+            let editor = Stdlib.Cli.Env.get("EDITOR") |> Stdlib.Option.withDefault("vi")
+            Cli.Component.Step.RunProgram(
+              { st with pendingEdit = Option.Some(tmp) },
+              editor,
+              [ tmp ])
+      | _ -> Cli.Component.Step.Stay(st)
+    else
+      match keyChar with
+      | Some(c) ->
+        stay(
+          Stdlib.String.slice(buf, 0, caret) + c + Stdlib.String.dropFirst(buf, caret),
+          caret + Stdlib.String.length(c))
+      | None -> Cli.Component.Step.Stay(st)
+
+
+/// Evaluate the selected node and keep the answer. The whole document when nothing is selected, so `v` on
+/// a scratch expression tells you what it comes to.
+let evaluateSelection(st: State): State =
+  let settled = Editor.resolvePartial(st.editor) |> Stdlib.Option.withDefault(st.editor)
+  let scope =
+    match settled.mode with
+    | Nav -> Editor.navPath(settled)
+    | Insert -> []
+
+  let scoped = slotAtPath(settled.root, scope) |> Stdlib.Option.withDefault(settled.root)
+  match docToSourceResult(scoped) with
+  // "can't EVALUATE that", not "can't print that": `v` on a return type answered `can't print that yet:
+  // not an expression node: ...TypeReference.TInt`, which blames the printer for the fact that a type is
+  // not something you can run.
+  | Error(err) ->
+    // The KIND, not the fully qualified kind. `docToSourceResult` names the node it refused, which for a
+    // type is `Darklang.LanguageTools.ProgramTypes.TypeReference.TCustomType` -- sixty characters that
+    // wrap over four lines of a 32-column panel and say nothing the last segment does not. The `ON` line
+    // above it carries the full name on purpose, because that is the handle for replacing an editor; this
+    // is a sentence about what went wrong.
+    // Only the NAME after the colon. Splitting the whole sentence would have left
+    // "can't evaluate that: TCustomType", which drops the reason and keeps the noun.
+    let short =
+      match Stdlib.String.split(err, ": ") with
+      | [reason, name] ->
+        match Stdlib.String.split(name, ".") |> Stdlib.List.last with
+        | Some(seg) -> reason + ": " + (if seg == "" then name else seg)
+        | None -> err
+      | _ -> err
+
+    { st with evaluated = Option.Some((scope, "can't evaluate that: " + short)) }
+  | Ok(src) ->
+    if Stdlib.String.trim(src) == "" then
+      { st with evaluated = Option.Some((scope, "nothing to evaluate")) }
+    else
+      // allowHarmful stays FALSE: this runs while someone is editing, and an editor should not be a way to
+      // set off the dangerous things by accident.
+      let answer =
+        match Cli.Eval.evaluateRaw(
+                Option.None,
+                SCM.Branch.mainBranchId,
+                src,
+                [],
+                Cli.Eval.Harmful.Halt) with
+        | Ok(Some(printed)) -> printed
+        | Ok(None) -> "(no value)"
+        | Error(e) ->
+          "error: " + Cli.ExecutionError.toString(Option.None, SCM.Branch.mainBranchId, e)
+
+      { st with evaluated = Option.Some((scope, answer)) }
+
+
+let onKey(
+  st: State,
+  key: Stdlib.Cli.Stdin.Key.Key,
+  modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers,
+  keyChar: Option<String>)
+  : Cli.Component.Step<State> =
+  let kp = Stdlib.Cli.UI.Widget.press(key, modifiers, keyChar)
+  match st.demoPick with
+  | Some(pick) ->
+    // The gallery owns the keyboard while it is up, the way the palette does.
+    match Stdlib.Cli.UI.Picker.onKey(pick, kp) with
+    | Handled(p2) -> Cli.Component.Step.Stay({ st with demoPick = Option.Some(p2) })
+    | Emitted(_p, msg) ->
+      match msg with
+      | Chose(i) -> Cli.Component.Step.Repaint(loadDemo(st, i))
+      | Cancelled -> Cli.Component.Step.Stay({ st with demoPick = Option.None })
+    | Ignored -> Cli.Component.Step.Stay(st)
+  | None ->
+    match st.textMode with
+    | Some((buf, caret, path)) -> textModeKey(st, buf, caret, path, key, modifiers, keyChar)
+    | None ->
+      // Ctrl-E drops into plain-text editing of the current expression. Settle what's being typed first, so a
+      // half-finished name doesn't make the document unprintable; if it still can't print, say why rather than
+      // opening an empty buffer over the top of real work.
+      if
+        keyChar == Option.Some("v")
+        && st.editor.mode == Editor.Mode.Nav
+        && Stdlib.Bool.not(st.editor.paletteOpen)
+      then
+        // Evaluating is an ACTION, not a live readout: `v` asks, and the answer stays until you ask again.
+        // Repaint, not Stay: running the expression can PRINT. The code itself may, and the interpreter prints
+        // a call stack when it fails, and either one scrolls the editor out from under the renderer -- which
+        // then diffs against a screen that has moved and leaves two stale rows at the top. The surface is not
+        // ours any more once something else has written to it.
+        // Through `afterKey`, because opening the panel takes a third of the width off the document and the
+        // document has to be laid out again for it. Straight to `Step` and it was not: the box narrowed and
+        // the text stayed where it was, cut off at the new edge.
+        let opened = { evaluateSelection(st) with inspectorOpen = true }
+        Cli.Component.Step.Repaint(afterKey(opened, opened.editor))
+      else if
+        keyChar == Option.Some("]")
+        && st.editor.mode == Editor.Mode.Nav
+        && Stdlib.Bool.not(st.editor.paletteOpen)
+        && Stdlib.Option.isSome(st.demo)
+      then
+        // Back to the gallery, sitting on whatever is showing rather than at the top.
+        let at = st.demo |> Stdlib.Option.withDefault(0)
+        let pick = Stdlib.Cli.UI.Picker.moveTo(Stdlib.Cli.UI.Picker.make(demoLabels()), at)
+        Cli.Component.Step.Stay({ st with demoPick = Option.Some(pick) })
+      else if st.helpOpen && st.editor.mode == Editor.Mode.Nav then
+        // The reference owns the keyboard while it is up, and ANY key dismisses it. A reference you have to
+        // work out how to close is a reference people stop opening, and there is nothing in it to interact
+        // with: it is a page, not a menu.
+        let closed = { st with helpOpen = false }
+        Cli.Component.Step.Stay(afterKey(closed, closed.editor))
+      else if
+        keyChar == Option.Some("?")
+        && st.editor.mode == Editor.Mode.Nav
+        && Stdlib.Bool.not(st.editor.paletteOpen)
+      then
+        // NAV only: in INSERT a `?` is a character you are typing.
+        //
+        // One key, three states, in the order you want them: the panel is the thing you want most of the
+        // time, the reference is the thing you want when the panel could not fit what it has, and closed is
+        // where you started. The panel's overflow row says `? for all keys`, which is this.
+        let cycled =
+          if Stdlib.Bool.not(st.inspectorOpen) then
+            { st with inspectorOpen = true }
+          else
+            { st with inspectorOpen = false, helpOpen = true }
+
+        Cli.Component.Step.Stay(afterKey(cycled, cycled.editor))
+      else if modifiers.ctrl && key == Stdlib.Cli.Stdin.Key.Key.E then
+        let settled = Editor.resolvePartial(st.editor) |> Stdlib.Option.withDefault(st.editor)
+        // From NAV, edit just the selected node; otherwise the whole document. Editing one branch of a big
+        // expression as text beats editing all of it.
+        let scope =
+          match settled.mode with
+          | Nav -> Editor.navPath(settled)
+          | Insert -> []
+
+        let scoped = slotAtPath(settled.root, scope) |> Stdlib.Option.withDefault(settled.root)
+
+        // Text mode edits an EXPRESSION, and `dark edit <fn>` opens on the function SHELL, which is not one.
+        // So the escape hatch the status line advertises did not work at the moment you arrive, which is when
+        // you want it. Fall through to the nearest expression inside the selection -- the body, for a function
+        // or a value -- rather than refusing. A type declaration still has none, and still says so.
+        let target =
+          match docToSourceResult(scoped) with
+          | Ok(src) -> Option.Some((src, scope))
+          | Error(_) ->
+            Editor.nodePaths(settled.root)
+            |> Stdlib.List.filter(fun p -> Path.isPrefixOf(scope, p) && p != scope)
+            |> Stdlib.List.filterMap(fun p ->
+              // A FILLED node only. `docToSourceResult` answers `Ok ""` for an empty slot, and it is right to
+              // -- an empty document is an empty buffer to type into -- but as a fall-through TARGET that is
+              // wrong: it silently scopes you to some hole and shows a blank screen. `fluid demo` did exactly
+              // that, because the Color value has holes in it, and the blank buffer looked like text mode
+              // being broken rather than like text mode editing a hole.
+              match slotAtPath(settled.root, p) with
+              | Some(Filled(innerNode)) ->
+                match docToSourceResult(Slot.Filled(innerNode)) with
+                | Ok(src) -> Option.Some((src, p))
+                | Error(_) -> Option.None
+              | _ -> Option.None)
+            |> Stdlib.List.head
+
+        match target with
+        | Some(pair) ->
+          let (src, at) = pair
+
+          // Arriving with a clean footer. A message REPLACES the text frame's key line, so whatever the last
+          // structural keystroke said would sit on top of `Ctrl-S apply  Ctrl-O $EDITOR  Esc cancel` for the
+          // whole visit -- and those keys are the only place text mode's contract is written down.
+          Cli.Component.Step.Stay(
+            { st with
+                editor = { settled with message = "" }
+                textMode = Option.Some((src, 0, at)) })
+        | None ->
+          match docToSourceResult(scoped) with
+          | Error(err) ->
+            Cli.Component.Step.Stay(
+              { st with editor = { settled with message = $"can't edit as text: {err}" } })
+          | Ok(_) -> Cli.Component.Step.Stay(st)
+      else
+        match Widget.onKey(st.editor, kp) with
+        | Handled(e) -> Cli.Component.Step.Stay(afterKey(st, e))
+        | Emitted(e, msg) ->
+          match msg with
+          | Back -> wantsExit(st, e)
+          // Repaint, not Stay, on every branch that actually SAVES. Applying an edit propagates it, and
+          // propagation reports what it repointed -- "Propagated to 39 dependents:" and a grouped list -- which
+          // it should, at a prompt. It lands on the terminal the editor is holding, so the editor takes the
+          // screen back afterwards. Same as `v`, and for the same reason: the surface stopped being ours the
+          // moment something else wrote to it.
+          | Save(root) ->
+            match st.target with
+            // Nothing ran, so nothing wrote to the screen.
+            | Scratch ->
+              Cli.Component.Step.Stay(
+                afterKey(
+                  st,
+                  { e with message = "nothing to save this to (try `fluid fn <name>`)" }))
+            | RuntimeValue(_) ->
+              Cli.Component.Step.Stay(
+                afterKey(
+                  st,
+                  { e with
+                      message =
+                        "a runtime value has nowhere to save to yet: every target is code" }))
+            | FnBody(fn, location) ->
+              match saveFnBody(fn, location, root) with
+              | Ok(name) ->
+                Cli.Component.Step.Repaint(
+                  { afterKey(st, { e with message = $"saved {name}" }) with savedRoot = root })
+              | Error(err) ->
+                Cli.Component.Step.Repaint(afterKey(st, { e with message = $"not saved: {err}" }))
+            | TypeDef(pt, location) ->
+              match saveType(pt, location, root) with
+              | Ok(name) ->
+                Cli.Component.Step.Repaint(
+                  { afterKey(st, { e with message = $"saved {name}" }) with savedRoot = root })
+              | Error(err) ->
+                Cli.Component.Step.Repaint(afterKey(st, { e with message = $"not saved: {err}" }))
+            | ValueDef(pv, location) ->
+              match saveValue(pv, location, root) with
+              | Ok(name) ->
+                Cli.Component.Step.Repaint(
+                  { afterKey(st, { e with message = $"saved {name}" }) with savedRoot = root })
+              | Error(err) ->
+                Cli.Component.Step.Repaint(afterKey(st, { e with message = $"not saved: {err}" }))
+        | Ignored ->
+          let ch = keyChar |> Stdlib.Option.withDefault("")
+          match st.editor.mode with
+          | Nav -> if ch == "q" then wantsExit(st, st.editor) else Cli.Component.Step.Stay(st)
+          | Insert -> Cli.Component.Step.Stay(st)
+
+
+/// After a transition, and after the CLI hands the terminal back from a launched command. The one thing
+/// Fluid derives outside `view`: what `$EDITOR` left in the file it was given.
+let refresh(prev: State, next: State): State =
+  match next.pendingEdit with
+  | None -> next
+  | Some(path) ->
+    let cleared = { next with pendingEdit = Option.None }
+    match Stdlib.Cli.File.readText(path) with
+    | Error(e) ->
+      { cleared with
+          editor = { cleared.editor with message = $"could not read {path}: {e.message}" } }
+    | Ok(text) ->
+      match cleared.textMode with
+      | Some((_buf, _caret, p)) ->
+        // The caret goes to the start rather than being guessed at: the text came from another program and
+        // the old offset means nothing in it.
+        { cleared with
+            textMode = Option.Some((Stdlib.String.trimEnd(text), 0, p))
+            editor = { cleared.editor with message = "back from $EDITOR" } }
+      | None -> cleared
+
+
+val component =
+  Cli.Component.Component
+    { view = view
+      onKey = onKey
+      save = Cli.Component.noSave
+      refresh = refresh
+      onStoreChanged = Cli.Component.ignoreStore }
+
+
+// --- Command ---
+
+let execute(cliState: Cli.AppState, args: List<String>): Cli.AppState =
+  match args with
+  // Bare `fluid` is a scratch EXPRESSION: an empty expression, the most common thing to try. The blank
+  // is a value you type (a number, a string, `let`, `if`...), not a type.
+  | [] -> launchWith(cliState, "scratch expression", Slot.Empty(PT.exprExpect("expression")))
+  | ["demo"] ->
+    // Opens ON the first entry with the gallery over it, so one command reaches every example.
+    let st0 =
+      initialWith(
+        defaultRegistry(),
+        "fluid demo",
+        Slot.Empty(PT.exprExpect("expression")),
+        Target.Scratch)
+
+    let loaded = loadDemo(st0, 0)
+    launchPrepared(
+      cliState,
+      { loaded with demoPick = Option.Some(Stdlib.Cli.UI.Picker.make(demoLabels())) })
+  | ["demo", "table"] -> launchInRegistry(cliState, demoRegistry(), "example grid", demoGrid())
+  | ["expr"] -> launchWith(cliState, "scratch expression", Slot.Empty(PT.exprExpect("expression")))
+  | ["expr", ...rest] ->
+    let src = Stdlib.String.join(rest, " ")
+    match LanguageTools.Parser.Parse.parsePTExpr(src) with
+    | Ok(e) -> launchWith(cliState, "scratch expression", Slot.Filled(PT.toDoc(e)))
+    | Error(err) ->
+      Stdlib.printLine(
+        Stdlib.Cli.UI.Colors.error(
+          $"fluid: could not parse that expression: {LanguageTools.Parser.Parse.ParseError.toString(err)}"))
+
+      cliState
+  | ["eval"] ->
+    Stdlib.printLine(Stdlib.Cli.UI.Colors.error("fluid: eval needs an expression to evaluate"))
+    cliState
+  | ["eval", ...rest] -> editEval(cliState, Stdlib.String.join(rest, " "))
+  | ["fn", name] -> editFn(cliState, name)
+  | ["type", name] -> editType(cliState, name)
+  | ["value", name] -> editValue(cliState, name)
+  | ["generate", typeName] ->
+    // A KIND first: `fluid generate Darklang.LanguageTools.ProgramTypes.Expr.EIf` prints the editor that
+    // SHIPS for `if`, ready to edit and declare. Replacing a built-in is the thing this design is for, and
+    // it used to mean writing a Spec from scratch against a kind string you had to find in the source.
+    // The panel names that string now; this turns it into the editor.
+    match Derive.kindFromString(typeName)
+          |> Stdlib.List.filterMap(fun k -> builtinSpec(k) |> Stdlib.Option.map(fun sp -> (k, sp)))
+          |> Stdlib.List.head with
+    | Some(pair) ->
+      let (k, sp) = pair
+      Stdlib.printLine(Derive.generateForKind(k, sp))
+      cliState
+    | None ->
+      // Otherwise a TYPE, whose editor is derived from its declaration. Print it so a person can redirect it
+      // or pipe it into `dark module`; it needs no other wiring, discovery finds it by type.
+      let branchId = SCM.Branch.mainBranchId
+      // An ENUM needs one editor per case, not just the type-level one that owns the hole. Asking for the
+      // head of the derived list gave you `Piece.Dim "?Option"` and nothing to edit.
+      match Derive.specsForName(branchId, typeName) with
+      | [] ->
+        Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"fluid: no type named {typeName}"))
+        cliState
+      | _ ->
+        Stdlib.printLine(Derive.generateModuleFor(branchId, typeName))
+        cliState
+  | ["render"] ->
+    // Without a terminal: the example value, laid out at 80 columns, as text.
+    Stdlib.printLine(Debug.render(defaultRegistry(), 80, demoDocument()))
+    cliState
+  | other ->
+    let word = Stdlib.List.head(other) |> Stdlib.Option.withDefault("")
+    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"fluid: unknown argument \"{word}\""))
+
+    Stdlib.printErrorLine(
+      "Try: fluid, fluid expr <source>, fluid eval <source>, fluid fn|type|value <name>, fluid generate <Type>, fluid demo, fluid demo table.")
+
+    { cliState with exitCode = 1 }
+
+
+let help(_state: Cli.AppState): String =
+  [ "A structural editor for Darklang code. You edit a tree, not text; blanks are ⟨labelled⟩ and you"
+    "fill them by typing or picking from the menu."
+    ""
+    "Usage: fluid [expr [<source>] | eval <source> | fn <name> | type <name> | value <name> | generate <Type|Kind> | demo]"
+    ""
+    "What you can edit:"
+    "  fluid                  a scratch EXPRESSION (type a value: 5, \"hi\", let, if, a fn call)"
+    "  fluid expr <source>    that expression, parsed, in the editor"
+    "  fluid eval <source>    the VALUE that expression produces, as a document you can edit"
+    "  fluid fn <name>        a function: its name, typed parameters, return type, and body"
+    "  fluid type <name>      a type declaration: record fields, enum cases, or an alias"
+    "  fluid value <name>     a package value: its body expression"
+    "  fluid generate <Type>  print an editable editor module for one of your types"
+    "  fluid generate <Kind>  print the editor that SHIPS for a node, to edit and declare"
+    "                         (the kind is on the `?` panel, under the node's name)"
+    "  fluid demo             a GALLERY of worked examples: pick one, `]` for the list again"
+    "  fluid demo table       straight to the grid one (a list of records seen as a table)"
+    ""
+    "In a VALUE or expression, a blank wants an expression -- a number, a string, a call."
+    "In a TYPE, a blank wants a type -- Int64, List<String>, and so on."
+    ""
+    "INSERT: type into text and holes; Tab/Shift-Tab move between holes; arrows move; Esc to NAV."
+    "NAV:    j/k move; h/l in/out; i edit; c change; x clear; y/p copy; : actions; u undo; q quit."
+    "BOTH:   Ctrl with an arrow moves the thing under the caret along the list it is in --"
+    "        left/up towards the start, right/down towards the end, either axis."
+    ""
+    "`dark edit <name>` opens a function, type, or value here too." ]
+  |> Stdlib.String.join("\n")
+
+
+let complete(_state: Cli.AppState, _args: List<String>): List<Cli.Completion.CompletionItem> =
+  []

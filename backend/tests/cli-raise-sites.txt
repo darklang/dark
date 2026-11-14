@@ -62,6 +62,8 @@
 1 Darklang.Cli.Workbench.execute Darklang.Stdlib.Cli.Sys.hostname
 1 Darklang.Cli.Workbench.loadBuiltinItems Darklang.Stdlib.List.sort
 1 Darklang.Cli.runInteractiveLoop Darklang.Stdlib.Host.await
+1 Darklang.Fluid.Layout.newline Darklang.Stdlib.String.repeat
+1 Darklang.Fluid.PT.gid Darklang.Stdlib.Int64.random
 1 Darklang.GitHub.__fetchString Darklang.Stdlib.HttpClient.get
 1 Darklang.LanguageTools.AtRestTypeChecker.Items.toUInt64 Builtin.unwrap
 1 Darklang.LanguageTools.AtRestTypeChecker.Run.checkQuery Darklang.Stdlib.List.parallelMap
@@ -72,7 +74,6 @@
 1 Darklang.LanguageTools.PackageManager.Test.Worker.read Builtin.unwrap
 1 Darklang.LanguageTools.PackageManager.Test.Worker.read Darklang.Stdlib.Cli.FileSystem.readFile
 1 Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot Builtin.pmTestWithStoreSnapshot
-1 Darklang.LanguageTools.RuntimeTypesToProgramTypes.gid Darklang.Stdlib.Int64.random
 1 Darklang.LanguageTools.WrittenTypesToProgramTypes.gidAt Darklang.Stdlib.Int64.random
 1 Darklang.PrettyPrinter.ProgramTypes.expr Darklang.Stdlib.Pretty.render
 1 Darklang.PrettyPrinter.ProgramTypes.flat Darklang.Stdlib.Pretty.render
@@ -87,6 +88,7 @@
 1 Darklang.SCM.PartialCommit.stringGt Darklang.Stdlib.List.sort
 2 Darklang.Cli.Packages.Edit.execute Darklang.Stdlib.Cli.Dir.deleteRecursive
 2 Darklang.Cli.Packages.Signatures.namedLike Darklang.Stdlib.List.sort
+2 Darklang.Fluid.Project.piece Darklang.Stdlib.String.repeat
 2 Darklang.LanguageTools.AtRestTypeChecker.Generate.orPattern Darklang.Stdlib.List.sort
 2 Darklang.PrettyPrinter.ProgramTypes.packageTypeNamed Darklang.Stdlib.Pretty.render
 3 Darklang.Cli.Completion.completeFilesystemPath Darklang.Stdlib.Cli.FileSystem.getDirectoryContents

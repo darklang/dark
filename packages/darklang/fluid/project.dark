@@ -1,0 +1,894 @@
+/// From a document and a registry to a tagged layout.
+///
+/// The one place that turns `Piece`s into `Layout.Doc`. Holes and partials are drawn here, generically, so
+/// no spec ever has to know what a hole looks like; a spec only says where its slots go.
+module Darklang.Fluid.Project
+
+/// How a hole is drawn: its label between these.
+val holeOpen = "⟨"
+
+
+val holeClose = "⟩"
+
+
+/// A hole that wants a TYPE is drawn with angle brackets, like a generic: `<Int>`. A hole that wants a
+/// value or expression keeps the round brackets: `⟨cond⟩`. The glyph tells you, at a glance, whether to
+/// type a value or a type.
+val typeTypeName = "Darklang.LanguageTools.ProgramTypes.TypeReference"
+
+
+/// An empty TEXT field, drawn the way an empty SLOT is: its label between the hole brackets.
+///
+/// It used to be the bare slot name in hole style, so the glyph the comment above promises -- the one
+/// that tells you at a glance what to type -- was missing from exactly the places where the thing to
+/// type is free text. `/// text` for a doc line nobody has written yet is indistinguishable from a doc
+/// line that says "text", `let name` from a function actually called `name`, and `1.fraction` from
+/// something that is not a number at all.
+///
+/// Colour was carrying it, which is not enough: it is gone in the debug rendering every test reads, and
+/// it is unreliable on an e-ink screen. It fooled me too -- a store sweep reported 267 of 267 functions
+/// differing, all of them drawn `let name`, and I read that as the editor being broken rather than as a
+/// placeholder.
+let emptyTextLabel(tag: Layout.Tag, slotName: String): Layout.Doc =
+  Layout.tagged(tag, Layout.Style.Hole, holeOpen + slotName + holeClose)
+
+
+let wantsType(e: Expect): Bool =
+  match e.kind with
+  | Some(k) ->
+    match k.typ with
+    | Named(n) -> n == typeTypeName
+    | Prim(_) -> false
+  | None -> false
+
+
+let tagFor(path: Path, part: Part): Layout.Tag =
+  Layout.Tag { node = path, part = part }
+
+
+// --- Precedence-aware parenthesisation ---
+//
+// None of this is Fluid's. The table, the two named powers, the swallowing-construct list and both
+// parenthesisation rules live in `LanguageTools.Precedence`, and both the printer and the editor read
+// them from there. Fluid's job is only to hand the shared rules the two things it can see on a document
+// node: which constructor it is, and what an infix's operator text says.
+//
+// It used to reach through `PrettyPrinter.ProgramTypes` for all of this, which worked but had the arrow
+// pointing the wrong way -- an editor asking a printer what `*` binds like -- and it still carried its
+// own copy of the swallowing-construct list. Two hand-written readings of one language fact drift; the
+// name shorteners already had.
+
+val selfDelimitingPower = 100
+
+val swallowingPower = 0
+
+
+/// The expression cases that swallow whatever follows them.
+val swallowingCases = [ "EIf", "EMatch", "ELet", "ELambda", "EPipe", "EStatement" ]
+
+
+val infixes =
+  [ LanguageTools.ProgramTypes.Infix.BinOp(LanguageTools.ProgramTypes.BinaryOperation.BinOpOr)
+    LanguageTools.ProgramTypes.Infix.BinOp(LanguageTools.ProgramTypes.BinaryOperation.BinOpAnd)
+    LanguageTools.ProgramTypes.Infix.InfixFnCall(
+      LanguageTools.ProgramTypes.InfixFnName.ArithmeticPlus)
+
+    LanguageTools.ProgramTypes.Infix.InfixFnCall(
+      LanguageTools.ProgramTypes.InfixFnName.ArithmeticMinus)
+
+    LanguageTools.ProgramTypes.Infix.InfixFnCall(
+      LanguageTools.ProgramTypes.InfixFnName.ArithmeticMultiply)
+
+    LanguageTools.ProgramTypes.Infix.InfixFnCall(
+      LanguageTools.ProgramTypes.InfixFnName.ArithmeticDivide)
+
+    LanguageTools.ProgramTypes.Infix.InfixFnCall(
+      LanguageTools.ProgramTypes.InfixFnName.ArithmeticModulo)
+
+    LanguageTools.ProgramTypes.Infix.InfixFnCall(
+      LanguageTools.ProgramTypes.InfixFnName.ArithmeticPower)
+
+    LanguageTools.ProgramTypes.Infix.InfixFnCall(LanguageTools.ProgramTypes.InfixFnName.BitwiseAnd)
+    LanguageTools.ProgramTypes.Infix.InfixFnCall(LanguageTools.ProgramTypes.InfixFnName.BitwiseOr)
+    LanguageTools.ProgramTypes.Infix.InfixFnCall(LanguageTools.ProgramTypes.InfixFnName.BitwiseXor)
+    LanguageTools.ProgramTypes.Infix.InfixFnCall(LanguageTools.ProgramTypes.InfixFnName.ShiftLeft)
+    LanguageTools.ProgramTypes.Infix.InfixFnCall(LanguageTools.ProgramTypes.InfixFnName.ShiftRight)
+    LanguageTools.ProgramTypes.Infix.InfixFnCall(
+      LanguageTools.ProgramTypes.InfixFnName.ComparisonGreaterThan)
+
+    LanguageTools.ProgramTypes.Infix.InfixFnCall(
+      LanguageTools.ProgramTypes.InfixFnName.ComparisonGreaterThanOrEqual)
+
+    LanguageTools.ProgramTypes.Infix.InfixFnCall(
+      LanguageTools.ProgramTypes.InfixFnName.ComparisonLessThan)
+
+    LanguageTools.ProgramTypes.Infix.InfixFnCall(
+      LanguageTools.ProgramTypes.InfixFnName.ComparisonLessThanOrEqual)
+
+    LanguageTools.ProgramTypes.Infix.InfixFnCall(
+      LanguageTools.ProgramTypes.InfixFnName.ComparisonEquals)
+
+    LanguageTools.ProgramTypes.Infix.InfixFnCall(
+      LanguageTools.ProgramTypes.InfixFnName.ComparisonNotEquals) ]
+
+
+/// (binding power, right-associative) for an operator, by its written form. The table itself is the
+/// printer's; an operator not written yet binds like `+`.
+let infixPowerOf(op: String): (Int64 * Bool) =
+  match Stdlib.List.findFirst(infixes, fun i -> PrettyPrinter.ProgramTypes.infix(i) == op) with
+  | Some(i) -> PrettyPrinter.ProgramTypes.infixPower(i)
+  | None -> (8, false)
+
+
+let powerOfCase(case: String, opText: String): Int64 =
+  if case == "EInfix" then
+    let (p, _) = infixPowerOf(opText)
+    p
+  else if Stdlib.List.contains(swallowingCases, case) then
+    swallowingPower
+  else
+    selfDelimitingPower
+
+
+/// Looser than its parent always needs parens; at equal power it depends on the side.
+let operandNeedsParensAt(
+  operandPower: Int64,
+  parentPower: Int64,
+  parentIsRightAssoc: Bool,
+  isRightOperand: Bool)
+  : Bool =
+  if operandPower < parentPower then
+    true
+  else if operandPower == parentPower then
+    if parentIsRightAssoc then Stdlib.Bool.not(isRightOperand) else isRightOperand
+  else
+    false
+
+
+/// How tightly a node binds. The constructor name and the operator text are all the shared rule needs,
+/// so there is no per-consumer list here any more.
+let nodePower(n: Node): Int64 =
+  match n.kind.case with
+  // `Opaque` is the escape hatch for anything `toDoc` cannot take apart, and it holds whatever source the
+  // printer gave for it. The shared table has never heard of it, so it fell to the default, and the
+  // default is `selfDelimitingPower` -- the one answer a blob of arbitrary text must not get. Drawn as an
+  // argument it lost its parentheses: `f (g<Int> x)` became `f g<Int> x`, which reads back as three
+  // arguments to `f`.
+  //
+  // It belongs here rather than in the shared table. `Opaque` is a fact about this editor, not about
+  // Darklang, and `swallowingCases` next door is a list of language constructs.
+  //
+  // ...unless the blob is ONE TOKEN, which is self-delimiting by construction: nothing around it can
+  // split it, so brackets add nothing. `EArg` is drawn opaque and its source is a single name, so every
+  // reference to a parameter was bracketed -- as an argument, in a record field, as a pipe head. Measured
+  // against the store: 4,276 of 5,379 function bodies differed from the printer, and this one bracket was
+  // the whole of it in nearly all of them.
+  //
+  // "Has a space in it" is the test because the printer is the thing that produced the text, and it puts
+  // spaces around every operator it writes. `g<Int> x` has one and keeps its brackets; `earg0` does not.
+  | Some("Opaque") ->
+    let src = Node.text(n, "source") |> Stdlib.Option.withDefault("")
+    if Stdlib.String.contains(src, " ") then
+      swallowingPower
+    else
+      selfDelimitingPower
+  | _ ->
+    powerOfCase(
+      n.kind.case |> Stdlib.Option.withDefault(""),
+      Node.text(n, "op") |> Stdlib.Option.withDefault("+"))
+
+
+/// Does a node need parentheses as a function argument?
+let argNeedsParens(n: Node): Bool =
+  let isApplication = n.kind.case == Option.Some("EApply")
+  // A lambda draws its own parentheses, so the argument position must not add a second pair. This flag
+  // was in the shared rule already, put there for the printer, and Fluid passed `false` because its
+  // lambda did not carry them. Now it does, and the two say the same thing for the same reason.
+  let selfParenthesises = n.kind.case == Option.Some("ELambda")
+  if isApplication then
+    true
+  else if selfParenthesises then
+    false
+  else
+    nodePower(n) < selfDelimitingPower
+
+
+let operandNeedsParens(
+  operand: Node,
+  parentPower: Int64,
+  parentRightAssoc: Bool,
+  isRight: Bool)
+  : Bool =
+  operandNeedsParensAt(nodePower(operand), parentPower, parentRightAssoc, isRight)
+
+
+/// A parenthesised doc, its continuation lined up one past the opening bracket, which is what the
+/// printer's own `parens` helper does.
+///
+/// This used to NOT nest, and the note explaining why said that copying the printer put an extra column on
+/// expressions -- a match inside an `if` condition came out with every arm indented one space. That was a
+/// true observation with the wrong cause attached. The printer does not parenthesise a match in an `if`
+/// condition AT ALL; Fluid does, and on purpose, because the bare form is a sentence you have to parse
+/// yourself. So copying the nest applied it to a bracket the printer never draws, and the orphaned column
+/// was the tell.
+///
+/// The two questions are separate and now answered separately: this one nests, and `ParenLowSlot` -- the
+/// one place Fluid draws a bracket the printer would not -- uses `parenNoNest` below. Measured rather than
+/// argued: this is 85 of the 89 functions in a 1,070-function store sweep that drew differently, about 8%
+/// of the store, all of it a single column on an argument's continuation lines.
+let parenIf(cond: Bool, d: Layout.Doc): Layout.Doc =
+  if cond then
+    Layout.concatAll([ Layout.punct("("), Layout.nest(1, d), Layout.punct(")") ])
+  else
+    d
+
+
+/// Parentheses that do NOT indent what they hold. For a bracket Fluid draws and the printer does not: the
+/// column would have no counterpart in the printed form, which is where the extra space on a match's arms
+/// came from.
+let parenNoNest(cond: Bool, d: Layout.Doc): Layout.Doc =
+  if cond then
+    Layout.concatAll([ Layout.punct("("), d, Layout.punct(")") ])
+  else
+    d
+
+
+/// A child slot, wherever it is. `parent` is the path of the node that owns the slot; `part` is how that
+/// node refers to it; `childPath` is where a node inside it lives.
+/// The COLUMNS a table draws for `slotName`, if this spec draws it as one. Column-wise motion needs the
+/// order, and the Table piece is the only thing that has it.
+let tableColumnsFor(ps: List<Piece>, slotName: String): List<String> =
+  ps
+  |> Stdlib.List.map(fun p ->
+    match p with
+    | Table(s, cols) -> if s == slotName then cols else []
+    | Group(inner) -> tableColumnsFor(inner, slotName)
+    | Choose(_, _, a, b) -> tableColumnsFor(Stdlib.List.concat(a, b), slotName)
+    | WhenEmpty(_, a, b) -> tableColumnsFor(Stdlib.List.concat(a, b), slotName)
+    | Flat(inner) -> tableColumnsFor(inner, slotName)
+    | Nest(_, inner) -> tableColumnsFor(inner, slotName)
+    | _ -> [])
+  |> Stdlib.List.flatten
+
+
+/// The punctuation a spec draws BEFORE EACH ITEM of `slotName`, if it draws one -- the `|` of a match's
+/// cases. Typing that character after a finished item should start the next item, and the only thing that
+/// knows a field is written that way is the spec that writes it. Asking the projection means a DSL that
+/// separates its items some other way gets the same behaviour for free.
+let itemLeadPunct(ps: List<Piece>, slotName: String): Option<String> =
+  ps
+  |> Stdlib.List.map(fun p ->
+    match p with
+    | EachWith(s, before, _) ->
+      if s == slotName then
+        before
+        |> Stdlib.List.filterMap(fun b ->
+          match b with
+          | Punct(t) -> Option.Some(t)
+          | _ -> Option.None)
+      else
+        []
+    | Group(inner) -> itemLeadPunct(inner, slotName) |> Stdlib.Option.toList
+    | Choose(_, _, a, b) ->
+      itemLeadPunct(Stdlib.List.concat(a, b), slotName) |> Stdlib.Option.toList
+    | WhenEmpty(_, a, b) ->
+      itemLeadPunct(Stdlib.List.concat(a, b), slotName) |> Stdlib.Option.toList
+    | Flat(inner) -> itemLeadPunct(inner, slotName) |> Stdlib.Option.toList
+    | Nest(_, inner) -> itemLeadPunct(inner, slotName) |> Stdlib.Option.toList
+    | _ -> [])
+  |> Stdlib.List.flatten
+  |> Stdlib.List.head
+
+
+/// The punctuation a spec draws BETWEEN the items of `slotName`, if it draws one -- the `,` of a list, the
+/// `;` of a record's fields. Typing it after a finished item should start the next one, and only the spec
+/// knows which character that is: `,` was written into the kernel twice, so a DSL separating its items with
+/// `;` could not have this at all.
+let itemSepPunct(ps: List<Piece>, slotName: String): Option<String> =
+  let firstPunct(sep: List<Piece>): List<String> =
+    sep
+    |> Stdlib.List.filterMap(fun b ->
+      match b with
+      | Punct(t) -> Option.Some(t)
+      | _ -> Option.None)
+
+  ps
+  |> Stdlib.List.map(fun p ->
+    match p with
+    | Each(s, sep) -> if s == slotName then firstPunct(sep) else []
+    | EachWith(s, _, sep) -> if s == slotName then firstPunct(sep) else []
+    | EachWrapped(s, _, sep, _) -> if s == slotName then firstPunct(sep) else []
+    | ArgSlots(s, sep) -> if s == slotName then firstPunct(sep) else []
+    | Group(inner) -> itemSepPunct(inner, slotName) |> Stdlib.Option.toList
+    | Choose(_, _, a, b) -> itemSepPunct(Stdlib.List.concat(a, b), slotName) |> Stdlib.Option.toList
+    | WhenEmpty(_, a, b) -> itemSepPunct(Stdlib.List.concat(a, b), slotName) |> Stdlib.Option.toList
+    | Flat(inner) -> itemSepPunct(inner, slotName) |> Stdlib.Option.toList
+    | Nest(_, inner) -> itemSepPunct(inner, slotName) |> Stdlib.Option.toList
+    | _ -> [])
+  |> Stdlib.List.flatten
+  |> Stdlib.List.head
+
+
+/// Is `slotName`'s list separated by nothing but a space?
+///
+/// `fun a b -> ...` and `f x y` write their items with a space between them and no punctuation, so the
+/// space is the separator and typing one means "on to the next item". Read off the pieces rather than
+/// named here, so a DSL whose list is written the same way gets the same key.
+///
+/// A HARD line is deliberately not whitespace for this purpose: items that each take their own line
+/// (a record type's fields) are grown with Enter, and a space inside one of them is just a space.
+let itemSepIsSpace(ps: List<Piece>, slotName: String): Bool =
+  let spaceOnly(sep: List<Piece>): Bool =
+    Stdlib.Bool.not(Stdlib.List.isEmpty(sep))
+    && (sep
+        |> Stdlib.List.all(fun b ->
+          match b with
+          | Space -> true
+          | Line -> true
+          | SoftLine -> true
+          | _ -> false))
+
+  ps
+  |> Stdlib.List.map(fun p ->
+    match p with
+    | Each(s, sep) -> if s == slotName then [ spaceOnly(sep) ] else []
+    // Lead-only forms write the space in FRONT of each item (`f x y`), which is the same separator seen
+    // from the other side.
+    | EachWith(s, lead, sep) ->
+      if s == slotName then
+        [ if Stdlib.List.isEmpty(sep) then spaceOnly(lead) else spaceOnly(sep) ]
+      else
+        []
+    | EachWrapped(s, _, sep, _) -> if s == slotName then [ spaceOnly(sep) ] else []
+    | ArgSlots(s, sep) -> if s == slotName then [ spaceOnly(sep) ] else []
+    | Group(inner) -> [ itemSepIsSpace(inner, slotName) ]
+    | Choose(_, _, a, b) -> [ itemSepIsSpace(Stdlib.List.concat(a, b), slotName) ]
+    | WhenEmpty(_, a, b) -> [ itemSepIsSpace(Stdlib.List.concat(a, b), slotName) ]
+    | Flat(inner) -> [ itemSepIsSpace(inner, slotName) ]
+    | Nest(_, inner) -> [ itemSepIsSpace(inner, slotName) ]
+    | _ -> [])
+  |> Stdlib.List.flatten
+  |> Stdlib.List.any(fun b -> b)
+
+
+/// Is `slotName` drawn as a call's ARGUMENTS rather than as a sequence?
+///
+/// `ArgSlots` is its own piece for a reason: arguments are written by typing them one after another, and
+/// every other list a spec draws -- a list's items, a record's fields, a match's arms, a lambda's params --
+/// is a sequence you grow deliberately. Enter grows a sequence; it has no business adding an argument.
+let isArgSlots(ps: List<Piece>, slotName: String): Bool =
+  ps
+  |> Stdlib.List.any(fun p ->
+    match p with
+    | ArgSlots(s, _) -> s == slotName
+    | Group(inner) -> isArgSlots(inner, slotName)
+    | Choose(_, _, a, b) -> isArgSlots(Stdlib.List.concat(a, b), slotName)
+    | WhenEmpty(_, a, b) -> isArgSlots(Stdlib.List.concat(a, b), slotName)
+    | Flat(inner) -> isArgSlots(inner, slotName)
+    | Nest(_, inner) -> isArgSlots(inner, slotName)
+    | _ -> false)
+
+
+/// Every punctuation string a spec draws, anywhere in its pieces. Used to ask whether a construct draws
+/// the closer you just typed, which is how a `}` on its own line is recognised as this record's.
+let punctTexts(ps: List<Piece>): List<String> =
+  ps
+  |> Stdlib.List.map(fun p ->
+    match p with
+    | Punct(t) -> [ t ]
+    | Each(_, sep) -> punctTexts(sep)
+    | EachWith(_, lead, sep) -> Stdlib.List.concat(punctTexts(lead), punctTexts(sep))
+    | EachWrapped(_, openP, sep, closeP) ->
+      Stdlib.List.flatten([ [ openP ], punctTexts(sep), [ closeP ] ])
+    | ArgSlots(_, sep) -> punctTexts(sep)
+    | Group(inner) -> punctTexts(inner)
+    | Choose(_, _, a, b) -> punctTexts(Stdlib.List.concat(a, b))
+    | WhenEmpty(_, a, b) -> punctTexts(Stdlib.List.concat(a, b))
+    | Flat(inner) -> punctTexts(inner)
+    | Nest(_, inner) -> punctTexts(inner)
+    | _ -> [])
+  |> Stdlib.List.flatten
+
+
+/// The single child slot a piece occupies, if it is one.
+///
+/// FIVE pieces draw one child: a plain `Slot` and the four that add parentheses under some condition.
+/// The scans below used to match `Slot` alone, so the moment a slot gained a paren rule it stopped being
+/// a slot as far as they were concerned: putting `ParenLowSlot` on a record field's value made the `=`
+/// in front of it invisible to `slotLeadPunct`, and typing the `=` the editor had already drawn built an
+/// infix instead of stepping over it.
+///
+/// A list slot is deliberately not here. `itemLeadPunct` asks the same question of `Each` and friends,
+/// and the answer is about the punctuation between ITEMS, which is a different fact.
+let childSlotOf(p: Piece): Option<String> =
+  match p with
+  | Slot(s) -> Option.Some(s)
+  | ParenIfSlot(s, _) -> Option.Some(s)
+  | OperandSlot(s, _) -> Option.Some(s)
+  | ParenLowSlot(s) -> Option.Some(s)
+  | FieldTargetSlot(s) -> Option.Some(s)
+  | _ -> Option.None
+
+
+/// The text slot a spec draws as the LABEL of `valueSlot`: the last name-ish text written before it.
+/// A record field draws `name = ⟨value⟩`, so the label of `value` is `name`.
+///
+/// `labelScan` carries the walk: the last label seen so far, and the answer once `valueSlot`'s own `Slot`
+/// piece is reached. Returning both is what lets a nested group hand its state back to the level above.
+let labelScan(
+  ps: List<Piece>,
+  valueSlot: String,
+  seen: Option<String>)
+  : (Option<String> * Option<String>) =
+  Stdlib.List.fold(ps, (seen, Option.None), fun(acc, p) ->
+    let (last, found) = acc
+    if Stdlib.Option.isSome(found) then
+      acc
+    else
+      match p with
+      | NameText(s, _) -> (Option.Some(s), found)
+      | FieldText(s, _) -> (Option.Some(s), found)
+      | Text(s, _) -> (Option.Some(s), found)
+      | Group(inner) -> labelScan(inner, valueSlot, last)
+      | Choose(_, _, a, b) -> labelScan(Stdlib.List.concat(a, b), valueSlot, last)
+      | WhenEmpty(_, a, b) -> labelScan(Stdlib.List.concat(a, b), valueSlot, last)
+      | Flat(inner) -> labelScan(inner, valueSlot, last)
+      | Nest(_, inner) -> labelScan(inner, valueSlot, last)
+      | _ ->
+        match childSlotOf(p) with
+        | Some(s) -> if s == valueSlot then (last, last) else (last, found)
+        | None -> acc)
+
+
+let labelTextSlot(ps: List<Piece>, valueSlot: String): Option<String> =
+  let (_, found) = labelScan(ps, valueSlot, Option.None)
+  found
+
+
+/// The punctuation a spec draws IMMEDIATELY BEFORE `slotName`: the `::` of a cons pattern, the `->` of a
+/// match arm. `itemLeadPunct` is the same question for a list's items; this one is for a single slot.
+///
+/// "Immediately" ignores whitespace but not another slot, so `head :: tail` leads `tail` with `::` and
+/// nothing leads `head`. What it is for: recognising the punctuation the construct has already put on the
+/// screen, so typing the rest of it is a no-op rather than content.
+///
+/// Only a `Slot` piece counts as the target. A TEXT slot's leading punctuation is part of what you type
+/// into it -- a doc comment's `///` sits in front of prose that may perfectly well start with a slash.
+let slotPunctScan(
+  ps: List<Piece>,
+  slotName: String,
+  seen: Option<String>)
+  : (Option<String> * Option<String>) =
+  Stdlib.List.fold(ps, (seen, Option.None), fun(acc, p) ->
+    let (last, found) = acc
+    if Stdlib.Option.isSome(found) then
+      acc
+    else
+      match p with
+      | Punct(t) -> (Option.Some(t), found)
+      | Group(inner) -> slotPunctScan(inner, slotName, last)
+      | Choose(_, _, a, b) -> slotPunctScan(Stdlib.List.concat(a, b), slotName, last)
+      | WhenEmpty(_, a, b) -> slotPunctScan(Stdlib.List.concat(a, b), slotName, last)
+      | Flat(inner) -> slotPunctScan(inner, slotName, last)
+      | Nest(_, inner) -> slotPunctScan(inner, slotName, last)
+      | _ ->
+        match childSlotOf(p) with
+        | Some(s) -> if s == slotName then (last, last) else (Option.None, found)
+        | None -> acc)
+
+
+/// Every single-child slot a spec draws, in the order it draws them.
+///
+/// Flattened through the layout wrappers, which carry no slots of their own.
+let childSlotsInOrder(ps: List<Piece>): List<String> =
+  ps
+  |> Stdlib.List.map(fun p ->
+    match p with
+    | Group(inner) -> childSlotsInOrder(inner)
+    | Flat(inner) -> childSlotsInOrder(inner)
+    | Nest(_, inner) -> childSlotsInOrder(inner)
+    | _ ->
+      match childSlotOf(p) with
+      | Some(s) -> [ s ]
+      | None -> [])
+  |> Stdlib.List.flatten
+
+
+/// The next single-child slot a spec draws AFTER `slotName`, if there is one.
+///
+/// For the question "is the character I just typed the punctuation between this slot and the next one".
+/// A dict TYPE draws `Dict<key, value>`: the `,` belongs to the construct, and typing it at the end of
+/// the key should step over it rather than landing in the value as text. The kernel answered that from a
+/// fixed list of separator characters, which could hold `=` and `:` and could not hold `,` without also
+/// claiming the comma that adds a list item.
+let nextChildSlotAfter(ps: List<Piece>, slotName: String): Option<String> =
+  let all = childSlotsInOrder(ps)
+  match Stdlib.List.findFirstIndex(all, fun s -> s == slotName) with
+  | Some(i) -> Stdlib.List.getAt(all, i + 1)
+  | None -> Option.None
+
+
+let slotLeadPunct(ps: List<Piece>, slotName: String): Option<String> =
+  let (_, found) = slotPunctScan(ps, slotName, Option.None)
+  found
+
+
+/// Which of a node's list slots are drawn as TABLES. Row-wise motion needs this: inside a grid, Down
+/// means "same column, next row" rather than "the next node in reading order", and the only thing that
+/// knows a slot is a grid is the spec that draws it.
+let tableSlots(ps: List<Piece>): List<String> =
+  ps
+  |> Stdlib.List.map(fun p ->
+    match p with
+    | Table(slotName, _) -> [ slotName ]
+    | Group(inner) -> tableSlots(inner)
+    | Choose(_, _, a, b) -> tableSlots(Stdlib.List.concat(a, b))
+    | WhenEmpty(_, a, b) -> tableSlots(Stdlib.List.concat(a, b))
+    | Flat(inner) -> tableSlots(inner)
+    | Nest(_, inner) -> tableSlots(inner)
+    | _ -> [])
+  |> Stdlib.List.flatten
+
+
+let slot(reg: Registry, parent: Path, part: Part, childPath: Path, s: Slot): Layout.Doc =
+  match s with
+  | Empty(e) ->
+    let (o, c) = if wantsType(e) then ("<", ">") else (holeOpen, holeClose)
+    Layout.tagged(tagFor(parent, part), Layout.Style.Hole, o + e.label + c)
+  | Partial(text, _) ->
+    let shown = if text == "" then "…" else text
+    Layout.tagged(tagFor(parent, part), Layout.Style.Partial, shown)
+  | Filled(n) -> node(reg, childPath, n)
+
+
+/// Interpret one piece for the node at `path`.
+let piece(reg: Registry, path: Path, n: Node, p: Piece): Layout.Doc =
+  match p with
+  // An EMPTY text slot is a hole, and is styled as one. It draws its own name as the placeholder rather
+  // than `â¨nameâ©` -- there is text to type here, not a slot to fill -- but it is the same kind of unfinished
+  // thing, and Tab walks the cells that are styled `Hole`. While these were Dim, Tab stepped straight over
+  // an unnamed record field to its value, so `{ r with name = ... }` could be built but the field could
+  // not be named. `;` landed on it, because adding a sibling lands structurally; Tab did not, because Tab
+  // reads the layout. One of the two was wrong and it was Tab's view of what counts.
+  | Text(slotName, style) ->
+    let tag = tagFor(path, Part.InText(slotName))
+    match Node.text(n, slotName) with
+    | Some(t) -> if t == "" then emptyTextLabel(tag, slotName) else Layout.tagged(tag, style, t)
+    | None -> Layout.styledText(Layout.Style.Error, "?" + slotName)
+  | NameText(slotName, style) ->
+    let tag = tagFor(path, Part.InText(slotName))
+    match Node.text(n, slotName) with
+    | Some(t) ->
+      if t == "" then
+        emptyTextLabel(tag, slotName)
+      else
+        Layout.tagged(tag, style, PT.displayNameIn(reg.currentModule, t))
+    | None -> Layout.styledText(Layout.Style.Error, "?" + slotName)
+  | FieldText(slotName, style) ->
+    let tag = tagFor(path, Part.InText(slotName))
+    match Node.text(n, slotName) with
+    | Some(t) ->
+      if t == "" then
+        emptyTextLabel(tag, slotName)
+      else
+        Layout.tagged(tag, style, PrettyPrinter.formatFieldName(t))
+    | None -> Layout.styledText(Layout.Style.Error, "?" + slotName)
+  | QuietText(slotName, style) ->
+    let tag = tagFor(path, Part.InText(slotName))
+    match Node.text(n, slotName) with
+    | Some(t) ->
+      // Empty draws a zero-width tagged cell: nothing to read, but the caret still has somewhere to land.
+      if t == "" then Layout.tagged(tag, style, "") else Layout.tagged(tag, style, t)
+    | None -> Layout.styledText(Layout.Style.Error, "?" + slotName)
+  // Tagged with the node that DRAWS it, so `AfterNode` reaches past a construct's own closing bracket.
+  // The tag's path is whichever node the projection is standing on, which is exactly the right owner: a
+  // list's `]` is the list's, while the `,` between its items belongs to the list too and not to either
+  // item, so an item's extent still stops at its own content.
+  | Punct(s) -> Layout.tagged(tagFor(path, Part.Decoration), Layout.Style.Punct, s)
+  | Keyword(s) -> Layout.keyword(s)
+  | Label(s) -> Layout.tagged(tagFor(path, Part.OnNode), Layout.Style.Keyword, s)
+  | Dim(s) -> Layout.dim(s)
+  | Slot(slotName) ->
+    match Node.slot(n, slotName) with
+    | Some(s) -> slot(reg, path, Part.InSlot(slotName), Path.child(path, slotName), s)
+    | None -> Layout.styledText(Layout.Style.Error, "?" + slotName)
+  | LineOrHard(slotName, mustBreak) ->
+    let hard =
+      match Node.slot(n, slotName) with
+      | Some(Filled(c)) -> mustBreak(c)
+      | _ -> false
+
+    if hard then Layout.Doc.HardLine else Layout.Doc.Line
+  | ParenIfSlot(slotName, needsParens) ->
+    match Node.slot(n, slotName) with
+    | Some(s) ->
+      let d = slot(reg, path, Part.InSlot(slotName), Path.child(path, slotName), s)
+      let wrap =
+        match s with
+        | Filled(c) -> needsParens(c)
+        | _ -> false
+
+      parenIf(wrap, d)
+    | None -> Layout.Doc.Empty
+  | ParenIfEach(slotName, sep, needsParens) ->
+    let sepDoc = pieces(reg, path, n, sep)
+    let docs =
+      Node.items(n, slotName)
+      |> Stdlib.List.indexedMap(fun(i, s) ->
+        let d = slot(reg, path, Part.InItem(slotName, i), Path.item(path, slotName, i), s)
+        let wrap =
+          match s with
+          | Filled(c) -> needsParens(c)
+          | _ -> false
+
+        parenIf(wrap, d))
+
+    Layout.join(docs, sepDoc)
+  | Table(slotName, columns) ->
+    match Node.items(n, slotName) with
+    | [] -> Layout.tagged(tagFor(path, Part.OnNode), Layout.Style.Dim, "")
+    | items ->
+      // The cell for one item and one column: the item is a record node, the column is a field in it.
+      let cellOf(i: Int64, s: Slot, col: String, c: Int64): Layout.Doc =
+        let itemPath = Path.item(path, slotName, i)
+        match s with
+        | Filled(itemNode) ->
+          match Node.slot(itemNode, col) with
+          | Some(childSlot) ->
+            slot(reg, itemPath, Part.InSlot(col), Path.child(itemPath, col), childSlot)
+          | None -> Layout.Doc.Empty
+        // A row that is itself a hole has no cells to put in the columns. Its placeholder is drawn ONCE,
+        // in the first column: drawn per column it repeated `â¨rowâ©` across the whole width, and every column
+        // was then measured against a placeholder that is not a cell. Clearing a row made the table jump.
+        | _ ->
+          if c == 0 then
+            slot(reg, path, Part.InItem(slotName, i), itemPath, s)
+          else
+            Layout.Doc.Empty
+
+      let rows =
+        items
+        |> Stdlib.List.indexedMap(fun(i, s) ->
+          columns |> Stdlib.List.indexedMap(fun(c, col) -> cellOf(i, s, col, c)))
+
+      // A column is as wide as its widest cell, header included. This is the measuring pass that a Wadler
+      // group cannot do for you: a group knows its own width and nothing about its siblings.
+      let widths =
+        columns
+        |> Stdlib.List.indexedMap(fun(c, col) ->
+          let cellWidths =
+            rows
+            |> Stdlib.List.filterMap(fun r ->
+              Stdlib.List.getAt(r, c) |> Stdlib.Option.map(fun d -> Layout.flatWidth(d)))
+
+          Stdlib.List.fold(cellWidths, Stdlib.String.displayWidth(col), fun(a, b) ->
+            Stdlib.max(a, b)))
+
+      let lastCol = Stdlib.List.length(columns) - 1
+      // The last column isn't padded: padding it would leave trailing spaces on every row.
+      let pad(d: Layout.Doc, w: Int64, c: Int64): Layout.Doc =
+        if c >= lastCol then
+          d
+        else
+          let gap = Stdlib.max(0, w - Layout.flatWidth(d))
+          Layout.concat(d, Layout.text(Stdlib.String.repeat(" ", gap)))
+
+      let sep = Layout.text("  ")
+      let headerDoc =
+        columns
+        |> Stdlib.List.indexedMap(fun(c, col) ->
+          let w = Stdlib.List.getAt(widths, c) |> Stdlib.Option.withDefault(0)
+          if c >= lastCol then
+            Layout.styledText(Layout.Style.Dim, col)
+          else
+            Layout.concat(
+              Layout.styledText(Layout.Style.Dim, col),
+              Layout.text(
+                Stdlib.String.repeat(" ", Stdlib.max(0, w - Stdlib.String.displayWidth(col))))))
+        |> (fun ds -> Layout.join(ds, sep))
+
+      let rowDocs =
+        rows
+        |> Stdlib.List.map(fun r ->
+          r
+          |> Stdlib.List.indexedMap(fun(c, d) ->
+            pad(d, Stdlib.List.getAt(widths, c) |> Stdlib.Option.withDefault(0), c))
+          |> (fun ds -> Layout.join(ds, sep)))
+
+      Layout.join(Stdlib.List.concat([ headerDoc ], rowDocs), Layout.Doc.HardLine)
+  | Each(slotName, sep) ->
+    match Node.items(n, slotName) with
+    | [] ->
+      // An empty collection (`[]`, `()`) has nothing to tag, so a caret on the node can't be located.
+      // Emit a zero-width tagged anchor so the caret has somewhere to sit between the brackets.
+      Layout.tagged(tagFor(path, Part.OnNode), Layout.Style.Dim, "")
+    | items ->
+      let sepDoc = pieces(reg, path, n, sep)
+      let docs =
+        items
+        |> Stdlib.List.indexedMap(fun(i, s) ->
+          slot(reg, path, Part.InItem(slotName, i), Path.item(path, slotName, i), s))
+
+      Layout.join(docs, sepDoc)
+  | EachWith(slotName, before, sep) ->
+    let sepDoc = pieces(reg, path, n, sep)
+    let beforeDoc = pieces(reg, path, n, before)
+    let items =
+      Node.items(n, slotName)
+      |> Stdlib.List.indexedMap(fun(i, s) ->
+        Layout.concat(
+          beforeDoc,
+          slot(reg, path, Part.InItem(slotName, i), Path.item(path, slotName, i), s)))
+
+    Layout.join(items, sepDoc)
+  | EachWrapped(slotName, openP, sep, closeP) ->
+    match Node.items(n, slotName) with
+    | [] -> Layout.Doc.Empty
+    | items ->
+      let sepDoc = pieces(reg, path, n, sep)
+      let docs =
+        items
+        |> Stdlib.List.indexedMap(fun(i, s) ->
+          slot(reg, path, Part.InItem(slotName, i), Path.item(path, slotName, i), s))
+
+      if closeP == "" then
+        // No closing delimiter, so there is nothing to put on a line of its own, and the opener is a WORD
+        // rather than a bracket -- an enum case's ` of `. It wants a Line (a space that can become a
+        // break), not a SoftLine: with the bracket shape, a case broke as `| TTuple of ` with a trailing
+        // space, and then a line holding nothing but indentation where the closing SoftLine fired.
+        // TWO groups, like the printer. The outer one decides whether the whole case fits after its `of`;
+        // the inner one then decides, at the new indent, whether the FIELDS fit on one line. With a single
+        // group they broke together, so `| EFloat of ID * Sign * String * String` -- which fits perfectly
+        // well once indented -- came out one field per line.
+        // Drawn as a KEYWORD, not as punctuation, because that is what it is. `prevKeyword` only sees
+        // cells styled that way, so the ` of` the editor draws for you was invisible to the rule that
+        // throws away a keyword you type back -- and `| Delayed of Int`, typed the way the source spells
+        // it, came out `| Delayed of ofInt`. Every other drawn keyword (`then`, `else`, `with`) already
+        // clears itself; this one was drawn by a different piece and so missed out.
+        Layout.group(
+          Layout.concatAll(
+            [ Layout.keyword(openP)
+              Layout.nest(
+                2,
+                Layout.concat(Layout.Doc.Line, Layout.group(Layout.join(docs, sepDoc)))) ]))
+      else
+        Layout.group(
+          Layout.concatAll(
+            [ Layout.punct(openP)
+              Layout.nest(2, Layout.concat(Layout.Doc.SoftLine, Layout.join(docs, sepDoc)))
+              Layout.Doc.SoftLine
+              Layout.punct(closeP) ]))
+  | ArgSlots(slotName, sep) ->
+    let sepDoc = pieces(reg, path, n, sep)
+    let docs =
+      Node.items(n, slotName)
+      |> Stdlib.List.indexedMap(fun(i, s) ->
+        slot(reg, path, Part.InItem(slotName, i), Path.item(path, slotName, i), s))
+
+    Layout.join(docs, sepDoc)
+  | OperandSlot(slotName, isRight) ->
+    match Node.slot(n, slotName) with
+    | Some(s) ->
+      let (pp, pra) = infixPowerOf(Node.text(n, "op") |> Stdlib.Option.withDefault("+"))
+      let d = slot(reg, path, Part.InSlot(slotName), Path.child(path, slotName), s)
+      let needs =
+        match Slot.node(s) with
+        | Some(child) -> operandNeedsParens(child, pp, pra, isRight)
+        | None -> false
+
+      parenIf(needs, d)
+    | None -> Layout.styledText(Layout.Style.Error, "?" + slotName)
+  | ParenLowSlot(slotName) ->
+    match Node.slot(n, slotName) with
+    | Some(s) ->
+      let d = slot(reg, path, Part.InSlot(slotName), Path.child(path, slotName), s)
+      let needs =
+        match Slot.node(s) with
+        | Some(child) -> nodePower(child) == 0
+        | None -> false
+
+      parenNoNest(needs, d)
+    | None -> Layout.styledText(Layout.Style.Error, "?" + slotName)
+  | FieldTargetSlot(slotName) ->
+    match Node.slot(n, slotName) with
+    | Some(s) ->
+      let d = slot(reg, path, Part.InSlot(slotName), Path.child(path, slotName), s)
+      // Matches the printer: a variable or a field-access chain reads bare (`r.x`, `r.a.b`); anything
+      // else -- a list, a call, an operator expression -- is parenthesised (`([1]).x`).
+      //
+      // ...and an OPAQUE node whose source is one token, which is what a parameter reference is. The
+      // printer's own list gained `EArg` for exactly this reason and Fluid's did not, so every
+      // `state.field` in a function body drew as `(earg0).field`: 1,131 of 5,379 bodies, which is all
+      // that was left of a divergence that started at 4,276.
+      let needs =
+        match Slot.node(s) with
+        | Some(child) ->
+          match child.kind.case with
+          | Some("EVariable") -> false
+          | Some("ERecordFieldAccess") -> false
+          | Some("Opaque") -> nodePower(child) != selfDelimitingPower
+          | _ -> true
+        | None -> false
+
+      // `parenNoNest`, matching the printer: a field access closes its bracket and carries on with the
+      // `.field` on the same line, so what is inside is not a continuation that has to hang past the `(`.
+      // With the nest, `(f / a / b).types` indented one column further than the printed form. Four
+      // functions in the store, and the last mechanical difference between the two drawings.
+      parenNoNest(needs, d)
+    | None -> Layout.styledText(Layout.Style.Error, "?" + slotName)
+  | Group(ps) -> Layout.group(pieces(reg, path, n, ps))
+  // The one place a Choose actually chooses. An unfilled slot takes the `whenFalse` shape: a hole is not
+  // an `if`, and the layout a hole gets should be the one the value that replaces it will usually get.
+  | WhenEmpty(slotName, whenEmpty, otherwise) ->
+    let empty = Stdlib.List.isEmpty(Node.items(n, slotName))
+    pieces(reg, path, n, if empty then whenEmpty else otherwise)
+  | Choose(slotName, pick, whenTrue, whenFalse) ->
+    let chosen =
+      match Node.slot(n, slotName) with
+      | Some(Filled(c)) -> if pick(c) then whenTrue else whenFalse
+      | _ -> whenFalse
+
+    pieces(reg, path, n, chosen)
+  | Flat(ps) -> Layout.forced(pieces(reg, path, n, ps))
+  | Nest(k, ps) -> Layout.nest(k, pieces(reg, path, n, ps))
+  | Line -> Layout.Doc.Line
+  | HardLine -> Layout.Doc.HardLine
+  | SoftLine -> Layout.Doc.SoftLine
+  | Space -> Layout.space()
+
+
+let pieces(reg: Registry, path: Path, n: Node, ps: List<Piece>): Layout.Doc =
+  ps
+  |> Stdlib.List.map(fun p -> piece(reg, path, n, p))
+  |> Layout.concatAll
+
+
+/// When no spec claims a kind: `Kind { f = ...; g = ... }`, so an unspecced node is visible, not lost.
+let fallbackPieces(n: Node): List<Piece> =
+  let fieldPieces =
+    n.fields
+    |> Stdlib.List.map(fun f ->
+      let (name, fld) = f
+      match fld with
+      | Text(_) -> [ Piece.Dim(name + " = "), Piece.Text(name, Layout.Style.Plain) ]
+      | One(_) -> [ Piece.Dim(name + " = "), Piece.Slot(name) ]
+      | Many(_, _) ->
+        [ Piece.Dim(name + " = [")
+          Piece.Each(name, [ Piece.Punct(","), Piece.Line ])
+          Piece.Punct("]") ])
+
+  let joined =
+    fieldPieces
+    |> Stdlib.List.fold([], fun(acc, ps) ->
+      match acc with
+      | [] -> ps
+      | _ -> Stdlib.List.flatten([ acc, [ Piece.Punct(","), Piece.Line ], ps ]))
+
+  [ Piece.Group(
+      [ Piece.Label(Kind.toString(n.kind))
+        Piece.Space
+        Piece.Punct("{")
+        Piece.Nest(2, Stdlib.List.concat([ Piece.Line ], joined))
+        Piece.Line
+        Piece.Punct("}") ]) ]
+
+
+/// Project one node at `path`.
+let node(reg: Registry, path: Path, n: Node): Layout.Doc =
+  let ps =
+    match Registry.find(reg, n.kind) with
+    | Some(spec) -> spec.pieces
+    | None -> fallbackPieces(n)
+
+  pieces(reg, path, n, ps)
+
+
+/// Project the whole document. The root slot, when it is a hole or partial, is tagged as
+/// `InSlot ""` on the (absent) node at `[]`, which is also what `Caret.slotPath` treats as the root.
+let root(reg: Registry, r: Slot): Layout.Doc =
+  slot(reg, [], Part.InSlot(""), [], r)
+
+
+/// Project and lay out.
+let render(reg: Registry, width: Int64, r: Slot): List<Layout.Row> =
+  Layout.render(width, root(reg, r))

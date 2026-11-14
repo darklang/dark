@@ -1,0 +1,112 @@
+/// Grapheme-indexed string edits. Offsets everywhere in Fluid count graphemes, because that is what a
+/// Dark `Char` is and what Left/Right should step over.
+module Darklang.Fluid.TextEdit
+
+let insertAt(s: String, offset: Int64, piece: String): String =
+  let n = Stdlib.String.length(s)
+  let at = Stdlib.clamp(offset, 0, n)
+  Stdlib.String.slice(s, 0, at) + piece + Stdlib.String.dropFirst(s, at)
+
+
+/// Remove the grapheme before `offset`.
+let removeBefore(s: String, offset: Int64): String =
+  if offset <= 0 then
+    s
+  else
+    let n = Stdlib.String.length(s)
+    let at = Stdlib.clamp(offset, 0, n)
+    Stdlib.String.slice(s, 0, at - 1) + Stdlib.String.dropFirst(s, at)
+
+
+/// Remove the grapheme at `offset`.
+let removeAt(s: String, offset: Int64): String =
+  let n = Stdlib.String.length(s)
+  if offset < 0 || offset >= n then
+    s
+  else
+    Stdlib.String.slice(s, 0, offset) + Stdlib.String.dropFirst(s, offset + 1)
+
+
+let isDigitString(c: String): Bool =
+  match Stdlib.String.toList(c) with
+  | [ch] -> Stdlib.Char.isDigit(ch)
+  | _ -> false
+
+
+let isLetterString(c: String): Bool =
+  match Stdlib.String.toList(c) with
+  | [ch] -> Stdlib.Char.isLetter(ch)
+  | _ -> false
+
+
+/// Pad <param s> with trailing spaces to at least <param width> display cells.
+let padEndToWidth(s: String, width: Int64): String =
+  let padding = width - Stdlib.String.displayWidth(s)
+  if padding <= 0 then s else s + Stdlib.String.repeat(" ", padding)
+
+
+/// Source text back to the string it denotes, the inverse of the printer's escaping.
+///
+/// Lenient: an unknown escape (`\q`) and a trailing backslash come back as written, so text
+/// halfway through being typed is not an error.
+let unescape(s: String): String =
+  let hexValue = fun c ->
+    match Stdlib.Char.toAsciiCode(c) with
+    | Some(code) ->
+      let code = Stdlib.Int64.fromUInt8(code)
+      if code >= 48 && code <= 57 then
+        code - 48
+      else if code >= 97 && code <= 102 then
+        code - 87
+      else if code >= 65 && code <= 70 then
+        code - 55
+      else
+        0
+    | None -> 0
+
+  let controlChar = fun n ->
+    Stdlib.Char.fromCodepoint(Stdlib.UInt32.fromInt64(n) |> Stdlib.Option.withDefault(32u32))
+    |> Stdlib.Option.map(fun c -> Stdlib.String.fromChar(c))
+
+  let simpleEscape = fun ch ->
+    match ch with
+    | "n" -> Option.Some("\n")
+    | "t" -> Option.Some("\t")
+    | "r" -> Option.Some("\r")
+    | "a" -> controlChar(7)
+    | "b" -> controlChar(8)
+    | "v" -> controlChar(11)
+    | "f" -> controlChar(12)
+    | "\\" -> Option.Some("\\")
+    | "\"" -> Option.Some("\"")
+    | "'" -> Option.Some("'")
+    | _ -> Option.None
+
+  // mode: 0 plain, 1 after a backslash, 2 want the first hex digit of `\xNN`, 3 the second
+  let step = fun(st, c) ->
+    let (out, mode, pending) = st
+    let ch = Stdlib.display(c)
+    if mode == 0 then
+      if ch == "\\" then (out, 1, 0) else (out + ch, 0, 0)
+    else if mode == 1 then
+      if ch == "x" then
+        (out, 2, 0)
+      else
+        match simpleEscape(ch) with
+        | Some(decoded) -> (out + decoded, 0, 0)
+        | None -> (out + "\\" + ch, 0, 0)
+    else if mode == 2 then
+      (out, 3, hexValue(c))
+    else
+      let code = pending * 16 + hexValue(c)
+      match controlChar(code) with
+      | Some(decoded) -> (out + decoded, 0, 0)
+      | None -> (out, 0, 0)
+
+  let (out, mode, _pending) = Stdlib.List.fold(Stdlib.String.toList(s), ("", 0, 0), step)
+  if mode == 1 then
+    out + "\\"
+  else if mode == 2 || mode == 3 then
+    out + "\\x"
+  else
+    out

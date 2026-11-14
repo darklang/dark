@@ -189,6 +189,11 @@ let handleKeyInput(
         | [] ->
           // The workbench is the experience: leaving it leaves the CLI, no classic-prompt fallback.
           { state with isExiting = true }
+      | RunProgram(program, args) ->
+        // The program is not a page: when it exits this page is still the one the user is on.
+        newApp.onTerminate()
+        let _exit = Stdlib.Cli.Process.runInteractive(program, args)
+        { state with currentPage = Page.SubApp(newApp.onResume()) }
       | LaunchCommand(cmd) ->
         // Release this app's surface before the replacement command takes ownership, and push this page so the
         // launched page's exit returns here.
