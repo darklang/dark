@@ -1,5 +1,6 @@
 /// `dark compile <expression>`: compile an expression to a native binary with the Darklang
-/// compiler (darklang/compiler) and run it. Package items the expression names are
+/// compiler (darklang/compiler) and run it. `dark compile <fn> -o <file>`: write an
+/// executable that calls a package fn with its command-line arguments. Package items are
 /// read from this instance's main branch through `Darklang.Compiler.PackageServer`, which
 /// this command serves on port 9098 for as long as the compile takes.
 module Darklang.Cli.Compile
@@ -64,13 +65,58 @@ let check(names: List<String>): Result<Stdlib.Cli.Process.Output, String> =
   withServer(Stdlib.List.concat([ "--check" ], names))
 
 
+// `Stdlib.Cli.__argv` is the compiler's own: argument <i>, after the program's name.
+val argsFn =
+  [ "let commandLineArgs(i: Int64, acc: List<String>): List<String> ="
+    "  match Stdlib.Cli.__argv(i) with"
+    "  | Some(a) -> commandLineArgs(i + 1, Stdlib.List.prepend(acc, a))"
+    "  | None -> Stdlib.List.reverse(acc)" ]
+  |> Stdlib.String.join("\n")
+
+
+/// What an executable of the package fn <param name> runs: the fn called with the
+/// command-line arguments if it takes `List<String>`, or with nothing if it takes nothing.
+let entryExpression(name: String): Result<String, String> =
+  let branchId = Compiler.PackageServer.branchId
+  let fnName = TraceVerbs.canonicalFnName(branchId, name)
+  let found =
+    LanguageTools.PackageManager.Function.find(
+      branchId,
+      LanguageTools.ProgramTypes.parsePackageLocation(fnName))
+    |> Stdlib.Option.andThen(fun hash -> LanguageTools.PackageManager.Function.get(hash))
+
+  match found with
+  | None -> Result.Error($"No package fn named {name}.")
+  | Some(fn) ->
+    match fn.parameters |> Stdlib.List.map(fun p -> p.typ) with
+    | [] -> Result.Ok($"{fnName}()")
+    | [TUnit] -> Result.Ok($"{fnName}()")
+    | [TList(TString)] -> Result.Ok($"{argsFn}\n{fnName}(commandLineArgs(0, []))")
+    | _ ->
+      let signature =
+        Packages.Signatures.formatFn(Packages.Signatures.rootContext(branchId, []), fn)
+
+      Result.Error(
+        $"{name}{signature} can't be an executable yet: it needs to take List<String>, or nothing.")
+
+
+/// Compile the package fn <param name> to an executable at <param output>.
+let executable(name: String, output: String): Result<Stdlib.Cli.Process.Output, String> =
+  entryExpression(name)
+  |> Stdlib.Result.andThen(fun expr ->
+    withServer([ "--allow-internal", "-q", "-o", output, "-e", "--", expr ]))
+
+
 let execute(state: AppState, args: List<String>): AppState =
   let result =
     match args with
     | ["--check"] -> Result.Error("Usage: compile --check <fn>...")
     | ["--check", ...names] -> check(names)
+    | [name, "-o", output] -> executable(name, output)
+    | ["-o", output, name] -> executable(name, output)
     | [expr] -> run(expr)
-    | _ -> Result.Error("Usage: compile <expression> | compile --check <fn>...")
+    | _ ->
+      Result.Error("Usage: compile <expression> | compile <fn> -o <file> | compile --check <fn>...")
 
   match result with
   | Ok(output) ->
@@ -92,14 +138,19 @@ let complete(_state: AppState, _args: List<String>): List<Completion.CompletionI
 
 let help(_state: AppState): String =
   [ "Compile an expression to a native binary with the Darklang compiler, run it, and print"
-    "what it prints. Package fns it calls come from this instance's main branch."
+    "what it prints, or compile a package fn to an executable. Package fns come from this"
+    "instance's main branch."
     ""
     "Usage: compile <expression>"
+    "       compile <fn> -o <file>    write an executable: `./file a b` prints what"
+    "                                 `eval '<fn>([\"a\", \"b\"])'` prints. The fn takes"
+    "                                 List<String>, or nothing."
     "       compile --check <fn>...   does each package fn compile, and if not, why not"
     ""
     "Experimental. The compiler is pinned; DARK_COMPILER overrides where it is found."
     ""
     "Example:"
     "  compile 'Stdlib.List.length(Darklang.Cli.Http.Serve.usageLines())'"
+    "  compile Stdlib.Cli.Path.join -o join"
     "  compile --check Stdlib.English.toOrdinal Stdlib.Decimal.scale" ]
   |> Stdlib.String.join("\n")
