@@ -1154,7 +1154,6 @@ module Instruction =
         [ "exprId", DUInt64 l.exprId
           "patterns",
           l.patterns
-          |> NEList.toList
           |> List.map LetPattern.toDT
           |> Dval.list (LetPattern.knownType ())
           "registersToCloseOver",

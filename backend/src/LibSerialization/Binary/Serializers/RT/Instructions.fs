@@ -192,7 +192,10 @@ module MatchPattern =
 module LambdaImpl =
   let write (w : BinaryWriter) (l : LambdaImpl) =
     w.Write(l.exprId : uint64)
-    NEList.write LetPattern.write w l.patterns
+    NEList.write
+      LetPattern.write
+      w
+      (NEList.ofListUnsafe "LambdaImpl.patterns" [] l.patterns)
     List.write
       w
       (fun w (copyFrom, copyTo) ->
@@ -205,7 +208,7 @@ module LambdaImpl =
 
   let read (version : uint32) (r : BinaryReader) : LambdaImpl =
     let exprId = r.ReadUInt64()
-    let patterns = NEList.read (LetPattern.read version) r
+    let patterns = NEList.read (LetPattern.read version) r |> NEList.toList
     let registersToCloseOver =
       List.read r (fun r ->
         let copyFrom = r.ReadInt32()

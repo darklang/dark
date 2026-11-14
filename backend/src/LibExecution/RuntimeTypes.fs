@@ -1555,8 +1555,9 @@ and LambdaImpl =
     // CLEANUP maybe incldue word 'source' or something in this field name?
     exprId : id
 
-    /// How should the arguments be deconstructed?
-    patterns : NEList<LetPattern>
+    /// How should the arguments be deconstructed? One or more: a list rather than an `NEList`,
+    /// because every call binds them as a list.
+    patterns : List<LetPattern>
 
     /// When the lambda is defined,
     /// we need to "close over" any symbols 'above' that are referenced.
