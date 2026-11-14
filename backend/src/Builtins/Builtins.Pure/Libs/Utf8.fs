@@ -18,8 +18,7 @@ let fns () : List<BuiltInFn> =
       description = "Encodes <param s> as UTF-8."
       fn =
         (function
-        | _, _, _, [| DString s |] ->
-          Bytes.newEphemeral (Encoding.UTF8.GetBytes s) |> Ply
+        | _, _, _, [| DString s |] -> Bytes.newEphemeral (Encoding.UTF8.GetBytes s)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -43,7 +42,7 @@ let fns () : List<BuiltInFn> =
           Bytes.withBytes state ref (fun bs ->
             try
               let s = (new UTF8Encoding(false, true)).GetString(bs)
-              Ply(ok (DString(String.normalizeOutside s)))
+              (ok (DString(String.normalizeOutside s)))
             with :? DecoderFallbackException as e ->
               // Not `e.Message`: the CLI is built with `UseSystemResourceKeys`, so that is a
               // resource key such as `Argument_InvalidCodePageBytesIndex`. Say where the bad
@@ -55,7 +54,7 @@ let fns () : List<BuiltInFn> =
                   bytes
                   |> Array.map (fun b -> b.ToString("X2"))
                   |> String.concat " "
-              Ply(err (DString $"Invalid UTF-8 at byte {e.Index}: {unknown}")))
+              (err (DString $"Invalid UTF-8 at byte {e.Index}: {unknown}")))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -75,7 +74,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [| DBytes ref |] ->
           Bytes.withBytes state ref (fun bs ->
-            Ply(DString(String.normalizeOutside (Encoding.UTF8.GetString bs))))
+            (DString(String.normalizeOutside (Encoding.UTF8.GetString bs))))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

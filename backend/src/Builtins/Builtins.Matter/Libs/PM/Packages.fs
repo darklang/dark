@@ -22,6 +22,7 @@ module RTPM = LibDB.RuntimeTypes
 module PMPT = LibDB.ProgramTypes
 module Execution = LibExecution.Execution
 module PackageRefs = LibExecution.PackageRefs
+module Pending = LibExecution.Pending
 
 
 let private repointListKT =
@@ -61,17 +62,12 @@ let private cutoffFromDT (value : Dval) =
 
 /// Persist a computed cascade on its branch, marked as PROPAGATED, not authored: it's the only
 /// point at which the difference is known.
-let persistPropagation
-  (branch : PT.BranchId)
-  (ops : List<PT.PackageOp>)
-  : Ply<unit> =
-  uply {
-    do! LibDB.Queries.ensureAuthoringClockIsCurrent ()
-    let! names = LibDB.ReferenceNames.captureForStorage branch ops
-    let ops = ops @ names
-    let! _ = LibDB.Inserts.authorOn branch "propagation" ops
-    return ()
-  }
+let persistPropagation (branch : PT.BranchId) (ops : List<PT.PackageOp>) : unit =
+  LibDB.Queries.ensureAuthoringClockIsCurrent ()
+  let names = LibDB.ReferenceNames.captureForStorage branch ops
+  let ops = ops @ names
+  let _ = LibDB.Inserts.authorOn branch "propagation" ops
+  ()
 
 
 /// The `kind` parameter of `pmFind`, `pmLocations` and `pmGet`. A function, not a value: its type
@@ -88,7 +84,7 @@ let findOn
   (branch : PT.BranchId)
   (kind : PT.ItemKind)
   (location : PT.PackageLocation)
-  : Ply<Option<PT.Hash>> =
+  : Option<PT.Hash> =
   match kind with
   | PT.ItemKind.Type -> PMPT.Type.find branch location
   | PT.ItemKind.Value -> PMPT.Value.find branch location
@@ -106,55 +102,51 @@ let rebind
   (loc : PT.PackageLocation)
   (kind : PT.ItemKind)
   (hash : PT.Hash)
-  : Ply<Result<unit, string>> =
-  uply {
-    let! exists =
-      uply {
-        match kind with
-        | PT.ItemKind.Type ->
-          let! t = LibDB.PackageManager.pt.getType hash
-          return Option.isSome t
-        | PT.ItemKind.Fn ->
-          let! f = LibDB.PackageManager.pt.getFn hash
-          return Option.isSome f
-        | PT.ItemKind.Value ->
-          let! v = LibDB.PackageManager.pt.getValue hash
-          return Option.isSome v
-        | PT.ItemKind.Trait ->
-          let! t = LibDB.PackageManager.pt.getTrait hash
-          return Option.isSome t
-        | PT.ItemKind.TraitImpl ->
-          let! i = LibDB.PackageManager.pt.getTraitImpl hash
-          return Option.isSome i
-        | PT.ItemKind.Test ->
-          let! test = LibDB.PackageManager.pt.getTest hash
-          return Option.isSome test
-      }
+  : Result<unit, string> =
+  let exists =
+    match kind with
+    | PT.ItemKind.Type ->
+      let t = LibDB.PackageManager.pt.getType hash
+      Option.isSome t
+    | PT.ItemKind.Fn ->
+      let f = LibDB.PackageManager.pt.getFn hash
+      Option.isSome f
+    | PT.ItemKind.Value ->
+      let v = LibDB.PackageManager.pt.getValue hash
+      Option.isSome v
+    | PT.ItemKind.Trait ->
+      let t = LibDB.PackageManager.pt.getTrait hash
+      Option.isSome t
+    | PT.ItemKind.TraitImpl ->
+      let i = LibDB.PackageManager.pt.getTraitImpl hash
+      Option.isSome i
+    | PT.ItemKind.Test ->
+      let test = LibDB.PackageManager.pt.getTest hash
+      Option.isSome test
 
-    if not exists then
-      return Error "no item with that hash in the store"
-    else
-      let reference = PT.Reference.fromHashAndKind (hash, kind)
+  if not exists then
+    Error "no item with that hash in the store"
+  else
+    let reference = PT.Reference.fromHashAndKind (hash, kind)
 
-      // A repeated restore is a new binding decision, even if its hash existed before.
-      let decisionId =
-        let mods = String.concat "." loc.modules
-        let now = System.DateTime.UtcNow.ToString("o")
-        $"rebind:{loc.owner}.{mods}.{loc.name}:{hash}:{now}"
+    // A repeated restore is a new binding decision, even if its hash existed before.
+    let decisionId =
+      let mods = String.concat "." loc.modules
+      let now = System.DateTime.UtcNow.ToString("o")
+      $"rebind:{loc.owner}.{mods}.{loc.name}:{hash}:{now}"
 
-      let ops =
-        [ PT.PackageOp.Decision(
-            decisionId,
-            loc,
-            "restore version",
-            PT.DecisionKind.Override reference
-          ) ]
+    let ops =
+      [ PT.PackageOp.Decision(
+          decisionId,
+          loc,
+          "restore version",
+          PT.DecisionKind.Override reference
+        ) ]
 
-      // A rebind a person forced.
-      let! _ = LibDB.Inserts.authorOn branch "resolution" ops
+    // A rebind a person forced.
+    let _ = LibDB.Inserts.authorOn branch "resolution" ops
 
-      return Ok()
-  }
+    Ok()
 
 
 /// Repoint every caller of one of <param fromHashes> at <param toHash>, on <param branch>, persist
@@ -167,41 +159,36 @@ let repoint
   (kind : PT.ItemKind)
   (fromHashes : List<PT.Hash>)
   (toHash : PT.Hash)
-  : Ply<Result<List<PT.PropagateRepoint>, string>> =
-  uply {
-    let! result = LibDB.Propagation.propagate branch location kind fromHashes toHash
-    match result with
-    | Error e -> return Error e
-    | Ok None -> return Ok []
-    | Ok(Some(propagationResult, ops)) ->
-      do! persistPropagation branch ops
-      let moved = propagationResult.repoints
-      do!
-        LibDB.Inserts.carryDependencyNames
-          (fromHashes |> List.map (fun h -> (location, kind, h, toHash)))
-          moved
-      let! failure =
-        moved
-        |> Ply.List.foldSequentially
-          (fun failure r ->
-            match failure with
-            | Some _ -> uply { return failure }
-            | None ->
-              uply {
-                let! now = findOn branch r.toRef.kind r.location
-                if now <> Some r.toRef.hash then
-                  let! rebound = rebind branch r.location r.toRef.kind r.toRef.hash
-                  match rebound with
-                  | Error e -> return Some e
-                  | Ok() -> return None
-                else
-                  return None
-              })
-          None
-      match failure with
-      | Some e -> return Error e
-      | None -> return Ok moved
-  }
+  : Result<List<PT.PropagateRepoint>, string> =
+  let result = LibDB.Propagation.propagate branch location kind fromHashes toHash
+  match result with
+  | Error e -> Error e
+  | Ok None -> Ok []
+  | Ok(Some(propagationResult, ops)) ->
+    persistPropagation branch ops
+    let moved = propagationResult.repoints
+    LibDB.Inserts.carryDependencyNames
+      (fromHashes |> List.map (fun h -> (location, kind, h, toHash)))
+      moved
+    let failure =
+      moved
+      |> List.fold
+        (fun failure r ->
+          match failure with
+          | Some _ -> (failure)
+          | None ->
+            let now = findOn branch r.toRef.kind r.location
+            if now <> Some r.toRef.hash then
+              let rebound = rebind branch r.location r.toRef.kind r.toRef.hash
+              match rebound with
+              | Error e -> Some e
+              | Ok() -> None
+            else
+              None)
+        None
+    match failure with
+    | Some e -> Error e
+    | None -> Ok moved
 
 
 /// `pmLocations`: every name a hash of <param kind> is bound to, seen from <param branchId>.
@@ -225,51 +212,48 @@ let private locationsFn (pm : PT.PackageManager) : BuiltInFn =
     fn =
       (function
       | _, _, _, [| DUuid branchId; kindDval; hashDval |] ->
-        uply {
-          let branch = branchOfParam branchId
-          let kind = PT2DT.ItemKind.fromDT kindDval
-          let hash = PT2DT.Hash.fromDT hashDval
+        let branch = branchOfParam branchId
+        let kind = PT2DT.ItemKind.fromDT kindDval
+        let hash = PT2DT.Hash.fromDT hashDval
 
-          // The caller's own manager first: it knows a script's declarations, which the store does
-          // not, and main's names come before a branch's. Then the names the branch adds.
-          let fromPm, onBranch, everNamed =
-            match kind with
-            | PT.ItemKind.Type ->
-              pm.getTypeLocations,
-              PMPT.Type.getLocations branch,
-              PMPT.Type.getLocationsEverNamed branch
-            | PT.ItemKind.Value ->
-              pm.getValueLocations,
-              PMPT.Value.getLocations branch,
-              PMPT.Value.getLocationsEverNamed branch
-            | PT.ItemKind.Fn ->
-              pm.getFnLocations,
-              PMPT.Fn.getLocations branch,
-              PMPT.Fn.getLocationsEverNamed branch
-            | PT.ItemKind.Trait ->
-              pm.getTraitLocations,
-              PMPT.Trait.getLocations branch,
-              PMPT.Trait.getLocationsEverNamed branch
-            | PT.ItemKind.TraitImpl ->
-              pm.getTraitImplLocations,
-              PMPT.TraitImpl.getLocations branch,
-              PMPT.TraitImpl.getLocationsEverNamed branch
-            | PT.ItemKind.Test ->
-              pm.getTestLocations,
-              PMPT.Test.getLocations branch,
-              PMPT.Test.getLocationsEverNamed branch
+        // The caller's own manager first: it knows a script's declarations, which the store does
+        // not, and main's names come before a branch's. Then the names the branch adds.
+        let fromPm, onBranch, everNamed =
+          match kind with
+          | PT.ItemKind.Type ->
+            pm.getTypeLocations,
+            PMPT.Type.getLocations branch,
+            PMPT.Type.getLocationsEverNamed branch
+          | PT.ItemKind.Value ->
+            pm.getValueLocations,
+            PMPT.Value.getLocations branch,
+            PMPT.Value.getLocationsEverNamed branch
+          | PT.ItemKind.Fn ->
+            pm.getFnLocations,
+            PMPT.Fn.getLocations branch,
+            PMPT.Fn.getLocationsEverNamed branch
+          | PT.ItemKind.Trait ->
+            pm.getTraitLocations,
+            PMPT.Trait.getLocations branch,
+            PMPT.Trait.getLocationsEverNamed branch
+          | PT.ItemKind.TraitImpl ->
+            pm.getTraitImplLocations,
+            PMPT.TraitImpl.getLocations branch,
+            PMPT.TraitImpl.getLocationsEverNamed branch
+          | PT.ItemKind.Test ->
+            pm.getTestLocations,
+            PMPT.Test.getLocations branch,
+            PMPT.Test.getLocationsEverNamed branch
 
-          let! first = fromPm hash
-          let! more = if branch.IsMain then Ply [] else onBranch hash
-          let named =
-            first @ (more |> List.filter (fun l -> not (List.contains l first)))
-          let! result = if List.isEmpty named then everNamed hash else Ply named
+        let first = fromPm hash
+        let more = if branch.IsMain then [] else onBranch hash
+        let named =
+          first @ (more |> List.filter (fun l -> not (List.contains l first)))
+        let result = if List.isEmpty named then everNamed hash else named
 
-          return
-            result
-            |> List.map PT2DT.PackageLocation.toDT
-            |> Dval.list (KTCustomType((PT2DT.PackageLocation.typeName ()), []))
-        }
+        result
+        |> List.map PT2DT.PackageLocation.toDT
+        |> Dval.list (KTCustomType((PT2DT.PackageLocation.typeName ()), []))
       | _ -> incorrectArgs ())
     previewable = Impure
     callEffects = set [ Effect.PackageRead ]
@@ -297,16 +281,11 @@ let private findFn () : BuiltInFn =
     fn =
       (function
       | _, _, _, [| DUuid branchId; kindDval; location |] ->
-        uply {
-          let kind = PT2DT.ItemKind.fromDT kindDval
-          let location = PT2DT.PackageLocation.fromDT location
-          let branch = branchOfParam branchId
-          let! result = findOn branch kind location
-          return
-            result
-            |> Option.map PT2DT.Hash.toDT
-            |> Dval.option (PT2DT.Hash.knownType ())
-        }
+        let kind = PT2DT.ItemKind.fromDT kindDval
+        let location = PT2DT.PackageLocation.fromDT location
+        let branch = branchOfParam branchId
+        let result = findOn branch kind location
+        result |> Option.map PT2DT.Hash.toDT |> Dval.option (PT2DT.Hash.knownType ())
       | _ -> incorrectArgs ())
     previewable = Impure
     callEffects = set [ Effect.PackageRead ]
@@ -332,29 +311,22 @@ let private bindingsNamedFn () : BuiltInFn =
     fn =
       (function
       | _, _, _, [| DUuid branchId; DList(_, Items names) |] ->
-        uply {
-          let names =
-            names
-            |> List.choose (function
-              | DString n -> Some n
-              | _ -> None)
-          let! found = PMPT.bindingsNamed (branchOfParam branchId) names
-          return
-            found
-            |> List.map (fun (location, kind) ->
-              DTuple(
-                PT2DT.PackageLocation.toDT location,
-                PT2DT.ItemKind.toDT kind,
-                []
-              ))
-            |> Dval.list (
-              KTTuple(
-                ValueType.Known(PT2DT.PackageLocation.knownType ()),
-                ValueType.Known(PT2DT.ItemKind.knownType ()),
-                []
-              )
-            )
-        }
+        let names =
+          names
+          |> List.choose (function
+            | DString n -> Some n
+            | _ -> None)
+        let found = PMPT.bindingsNamed (branchOfParam branchId) names
+        found
+        |> List.map (fun (location, kind) ->
+          DTuple(PT2DT.PackageLocation.toDT location, PT2DT.ItemKind.toDT kind, []))
+        |> Dval.list (
+          KTTuple(
+            ValueType.Known(PT2DT.PackageLocation.knownType ()),
+            ValueType.Known(PT2DT.ItemKind.knownType ()),
+            []
+          )
+        )
       | _ -> incorrectArgs ())
     previewable = Impure
     callEffects = set [ Effect.PackageRead ]
@@ -383,31 +355,26 @@ let private getFn (pm : PT.PackageManager) : BuiltInFn =
     fn =
       (function
       | _, _, _, [| kindDval; hashDval |] ->
-        uply {
-          let hash = PT2DT.Hash.fromDT hashDval
-          match PT2DT.ItemKind.fromDT kindDval with
-          | PT.ItemKind.Type ->
-            let! item = pm.getType hash
-            return
-              foundItem (PT2DT.PackageType.typeName ()) PT2DT.PackageType.toDT item
-          | PT.ItemKind.Value ->
-            let! item = pm.getValue hash
-            return
-              foundItem (PT2DT.PackageValue.typeName ()) PT2DT.PackageValue.toDT item
-          | PT.ItemKind.Fn ->
-            let! item = pm.getFn hash
-            return foundItem (PT2DT.PackageFn.typeName ()) PT2DT.PackageFn.toDT item
-          | PT.ItemKind.Trait ->
-            let! item = pm.getTrait hash
-            return foundItem (PT2DT.Trait.typeName ()) PT2DT.Trait.toDT item
-          | PT.ItemKind.TraitImpl ->
-            let! item = pm.getTraitImpl hash
-            return foundItem (PT2DT.TraitImpl.typeName ()) PT2DT.TraitImpl.toDT item
-          | PT.ItemKind.Test ->
-            let! item = pm.getTest hash
-            return
-              foundItem (PT2DT.PackageTest.typeName ()) PT2DT.PackageTest.toDT item
-        }
+        let hash = PT2DT.Hash.fromDT hashDval
+        match PT2DT.ItemKind.fromDT kindDval with
+        | PT.ItemKind.Type ->
+          let item = pm.getType hash
+          foundItem (PT2DT.PackageType.typeName ()) PT2DT.PackageType.toDT item
+        | PT.ItemKind.Value ->
+          let item = pm.getValue hash
+          foundItem (PT2DT.PackageValue.typeName ()) PT2DT.PackageValue.toDT item
+        | PT.ItemKind.Fn ->
+          let item = pm.getFn hash
+          foundItem (PT2DT.PackageFn.typeName ()) PT2DT.PackageFn.toDT item
+        | PT.ItemKind.Trait ->
+          let item = pm.getTrait hash
+          foundItem (PT2DT.Trait.typeName ()) PT2DT.Trait.toDT item
+        | PT.ItemKind.TraitImpl ->
+          let item = pm.getTraitImpl hash
+          foundItem (PT2DT.TraitImpl.typeName ()) PT2DT.TraitImpl.toDT item
+        | PT.ItemKind.Test ->
+          let item = pm.getTest hash
+          foundItem (PT2DT.PackageTest.typeName ()) PT2DT.PackageTest.toDT item
       | _ -> incorrectArgs ())
     previewable = Impure
     callEffects = set [ Effect.PackageRead ]
@@ -441,15 +408,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| valueTypeDval |] ->
-          uply {
-            let vt = RT2DT.ValueType.fromDT valueTypeDval
-            let! valueIds = RTPM.Value.findByValueType vt
-            return
-              DList(
-                VT.known (PT2DT.Hash.knownType ()),
-                Items(valueIds |> List.map RT2DT.Hash.toDT)
-              )
-          }
+          let vt = RT2DT.ValueType.fromDT valueTypeDval
+          let valueIds = RTPM.Value.findByValueType vt
+          DList(
+            VT.known (PT2DT.Hash.knownType ()),
+            Items(valueIds |> List.map RT2DT.Hash.toDT)
+          )
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -472,11 +436,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| hashDval |] ->
-          uply {
-            let (PT.Hash h) = PT2DT.Hash.fromDT hashDval
-            let! evaluated = RTPM.Value.isEvaluated (Hash h)
-            return DBool evaluated
-          }
+          let (PT.Hash h) = PT2DT.Hash.fromDT hashDval
+          let evaluated = RTPM.Value.isEvaluated (Hash h)
+          DBool evaluated
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -502,18 +464,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | exeState, _, _, [| DUuid branchId; traitHash |] ->
-          uply {
-            let (PT.Hash h) = PT2DT.Hash.fromDT traitHash
-            let! candidates =
-              exeState.fns.implCandidates
-                (LibExecution.Branching.BranchId.Id branchId)
-                (LibExecution.RuntimeTypes.Hash h)
-            return
-              DList(
-                VT.known (RT2DT.ImplCandidate.knownType ()),
-                Items(candidates |> List.map RT2DT.ImplCandidate.toDT)
-              )
-          }
+          let (PT.Hash h) = PT2DT.Hash.fromDT traitHash
+          let candidates =
+            exeState.fns.implCandidates
+              (LibExecution.Branching.BranchId.Id branchId)
+              (LibExecution.RuntimeTypes.Hash h)
+          DList(
+            VT.known (RT2DT.ImplCandidate.knownType ()),
+            Items(candidates |> List.map RT2DT.ImplCandidate.toDT)
+          )
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -553,7 +512,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           |> Option.map (fun (traitHash, methodName) ->
             DTuple(PT2DT.Hash.toDT (PT.Hash traitHash), DString methodName, []))
           |> Dval.option innerType
-          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -575,22 +533,21 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | exeState, _, _, [| hashDval |] ->
-          uply {
-            let (PT.Hash hash) = PT2DT.Hash.fromDT hashDval
-            let valueName = FQValueName.Package(Hash hash)
-            let instrs : Instructions =
-              { registerCount = 1
-                instructions = [ LoadValue(0, valueName) ]
-                resultIn = 0 }
+          let (PT.Hash hash) = PT2DT.Hash.fromDT hashDval
+          let valueName = FQValueName.Package(Hash hash)
+          let instrs : Instructions =
+            { registerCount = 1
+              instructions = [ LoadValue(0, valueName) ]
+              resultIn = 0 }
 
-            let! result = Execution.executeExpr exeState instrs
+          Execution.executeExpr exeState instrs
+          |> Pending.map (fun result ->
             match result with
             | Ok dval ->
               match Dval.toValueType dval with
-              | ValueType.Known kt -> return Dval.optionSome kt dval
-              | ValueType.Unknown -> return Dval.optionSome KTUnit dval
-            | Error _ -> return Dval.optionNone KTUnit
-          }
+              | ValueType.Known kt -> Dval.optionSome kt dval
+              | ValueType.Unknown -> Dval.optionSome KTUnit dval
+            | Error _ -> Dval.optionNone KTUnit)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead; Effect.Native ]
@@ -610,14 +567,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| hashDval |] ->
-          uply {
-            let! item = pm.getFn (PT2DT.Hash.fromDT hashDval)
-            return
-              foundItem
-                (PT2DT.PackageFn.typeName ())
-                (fun fn -> PT2DT.PackageFn.toDT { fn with body = PT.EUnit 0UL })
-                item
-          }
+          let item = pm.getFn (PT2DT.Hash.fromDT hashDval)
+          foundItem
+            (PT2DT.PackageFn.typeName ())
+            (fun fn -> PT2DT.PackageFn.toDT { fn with body = PT.EUnit 0UL })
+            item
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -644,23 +598,21 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString hash; DString entryName |] ->
-          uply {
-            let okKT = KTFn(NEList.singleton ValueType.Unknown, ValueType.Unknown)
-            let err (msg : string) = Dval.resultError okKT KTString (DString msg)
-            match! pm.getFn (PT.Hash hash) with
-            | Some _ ->
-              let namedFn : ApplicableNamedFn =
-                { name = FQFnName.Package(Hash hash)
-                  typeSymbolTable = TST.empty
-                  typeArgs = []
-                  // Whoever applies this supplies the frame access.
-                  approvalName = Some entryName
-                  access = None
-                  argsSoFar = []
-                  boundImpls = [] }
-              return Dval.resultOk okKT KTString (DApplicable(AppNamedFn namedFn))
-            | None -> return err $"No function with hash {hash}"
-          }
+          let okKT = KTFn(NEList.singleton ValueType.Unknown, ValueType.Unknown)
+          let err (msg : string) = Dval.resultError okKT KTString (DString msg)
+          match pm.getFn (PT.Hash hash) with
+          | Some _ ->
+            let namedFn : ApplicableNamedFn =
+              { name = FQFnName.Package(Hash hash)
+                typeSymbolTable = TST.empty
+                typeArgs = []
+                // Whoever applies this supplies the frame access.
+                approvalName = Some entryName
+                access = None
+                argsSoFar = []
+                boundImpls = [] }
+            Dval.resultOk okKT KTString (DApplicable(AppNamedFn namedFn))
+          | None -> err $"No function with hash {hash}"
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -691,48 +643,45 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | exeState, vm, _, [| DApplicable applicable; arg |] ->
-          uply {
-            let asRoot =
-              LibDB.PolicyStore.rootState
-                exeState
-                vm.activeAccess
-                (LibDB.PolicyStore.rootOf applicable)
-            let ok (dv : Dval) =
-              DEnum(
-                Dval.resultType (),
-                Dval.resultType (),
-                [ ValueType.Unknown; ValueType.Known KTString ],
-                "Ok",
-                [ dv ]
-              )
-            let err (message : string) =
-              DEnum(
-                Dval.resultType (),
-                Dval.resultType (),
-                [ ValueType.Unknown; ValueType.Known KTString ],
-                "Error",
-                [ DString message ]
-              )
-            // Two kinds of failure, and both have to come back as a value. A runtime error is
-            // the expected one. An F#-side raise -- `Exception.raiseInternal` from a builtin,
-            // say, reporting a store that cannot answer -- is not, and it used to unwind
-            // whoever called this: a live view whose `update` hit one lost the whole host loop
-            // and the terminal with it, instead of showing the error in a band. The callers of
-            // this builtin are precisely the ones that cannot let user code unwind them
-            // (`LanguageTools.Live.call`), so `applyCatching` catches both. Running out of memory is
-            // the exception: it exits, as everywhere else in the runtime.
-            match!
-              Execution.applyCatching asRoot vm.threadID asRoot.access applicable arg
-            with
-            | Ok dv -> return ok dv
+          let asRoot =
+            LibDB.PolicyStore.rootState
+              exeState
+              vm.activeAccess
+              (LibDB.PolicyStore.rootOf applicable)
+          let ok (dv : Dval) =
+            DEnum(
+              Dval.resultType (),
+              Dval.resultType (),
+              [ ValueType.Unknown; ValueType.Known KTString ],
+              "Ok",
+              [ dv ]
+            )
+          let err (message : string) =
+            DEnum(
+              Dval.resultType (),
+              Dval.resultType (),
+              [ ValueType.Unknown; ValueType.Known KTString ],
+              "Error",
+              [ DString message ]
+            )
+          // Two kinds of failure, and both have to come back as a value. A runtime error is
+          // the expected one. An F#-side raise -- `Exception.raiseInternal` from a builtin,
+          // say, reporting a store that cannot answer -- is not, and it used to unwind
+          // whoever called this: a live view whose `update` hit one lost the whole host loop
+          // and the terminal with it, instead of showing the error in a band. The callers of
+          // this builtin are precisely the ones that cannot let user code unwind them
+          // (`LanguageTools.Live.call`), so `applyCatching` catches both. Running out of memory is
+          // the exception: it exits, as everywhere else in the runtime.
+          Execution.applyCatching asRoot vm.threadID asRoot.access applicable arg
+          |> Pending.map (fun caught ->
+            match caught with
+            | Ok dv -> ok dv
             | Error Execution.OutOfStack ->
-              let! message =
-                Execution.runtimeErrorMessage
-                  asRoot
-                  (RuntimeError.UncaughtException(Execution.outOfStackMessage, []))
-              return err message
-            | Error(Execution.Failed message) -> return err message
-          }
+              Execution.runtimeErrorMessage
+                asRoot
+                (RuntimeError.UncaughtException(Execution.outOfStackMessage, []))
+              |> Pending.map err
+            | Error(Execution.Failed message) -> err message)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -752,14 +701,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         function
         | _, _, _, [| DUuid branchId; query as DRecord(_, _, _, _fields) |] ->
-          uply {
-            let searchQuery = PT2DT.Search.SearchQuery.fromDT query
-            // Through the branch's view, so a branch's items show up in ls/view/tree/search, not just
-            // eval.
-            let pm = LibDB.PackageManager.ptForBranch (branchOfParam branchId)
-            let! results = pm.search searchQuery
-            return PT2DT.Search.SearchResults.toDT results
-          }
+          let searchQuery = PT2DT.Search.SearchQuery.fromDT query
+          // Through the branch's view, so a branch's items show up in ls/view/tree/search, not just
+          // eval.
+          let pm = LibDB.PackageManager.ptForBranch (branchOfParam branchId)
+          let results = pm.search searchQuery
+          PT2DT.Search.SearchResults.toDT results
         | _ -> incorrectArgs ()
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -790,36 +737,33 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         function
         | _, _, _, [| DUuid branchId; query as DRecord(_, _, _, _fields) |] ->
-          uply {
-            let searchQuery = PT2DT.Search.SearchQuery.fromDT query
-            // Through the branch's view, not a scope to walk up. Straight to the store rather than
-            // through `ptForBranch`'s `search`: that one reads and decodes every matched item's
-            // definition and patches its docs, and this answer is names and hashes, which are the same
-            // either way.
-            let! results =
-              PMPT.searchNamesAndHashes (branchOfParam branchId) searchQuery
+          let searchQuery = PT2DT.Search.SearchQuery.fromDT query
+          // Through the branch's view, not a scope to walk up. Straight to the store rather than
+          // through `ptForBranch`'s `search`: that one reads and decodes every matched item's
+          // definition and patches its docs, and this answer is names and hashes, which are the same
+          // either way.
+          let results =
+            PMPT.searchNamesAndHashes (branchOfParam branchId) searchQuery
 
 
-            let pairKT =
-              KTTuple(VT.string, ValueType.Known(PT2DT.Hash.knownType ()), [])
+          let pairKT =
+            KTTuple(VT.string, ValueType.Known(PT2DT.Hash.knownType ()), [])
 
-            let pairs (items : List<string * PT.Hash>) =
-              items
-              |> List.map (fun (name, hash) ->
-                DTuple(DString name, PT2DT.Hash.toDT hash, []))
-              |> Dval.list pairKT
+          let pairs (items : List<string * PT.Hash>) =
+            items
+            |> List.map (fun (name, hash) ->
+              DTuple(DString name, PT2DT.Hash.toDT hash, []))
+            |> Dval.list pairKT
 
-            return
-              DTuple(
-                toDList results.submodules,
-                pairs results.types,
-                [ pairs results.values
-                  pairs results.fns
-                  pairs results.traits
-                  pairs results.impls
-                  pairs results.tests ]
-              )
-          }
+          DTuple(
+            toDList results.submodules,
+            pairs results.types,
+            [ pairs results.values
+              pairs results.fns
+              pairs results.traits
+              pairs results.impls
+              pairs results.tests ]
+          )
         | _ -> incorrectArgs ()
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -844,15 +788,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | exeState, _, _, [| hashDval |] ->
-          uply {
-            let (PT.Hash hashStr) = PT2DT.Hash.fromDT hashDval
-            match! exeState.fns.package (Hash hashStr) with
-            | None -> return Dval.optionNone (RT2DT.Instructions.knownType ())
-            | Some rtFn ->
-              return
-                RT2DT.Instructions.toDT rtFn.body
-                |> Dval.optionSome (RT2DT.Instructions.knownType ())
-          }
+          let (PT.Hash hashStr) = PT2DT.Hash.fromDT hashDval
+          match exeState.fns.package (Hash hashStr) with
+          | None -> Dval.optionNone (RT2DT.Instructions.knownType ())
+          | Some rtFn ->
+            RT2DT.Instructions.toDT rtFn.body
+            |> Dval.optionSome (RT2DT.Instructions.knownType ())
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -883,14 +824,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUuid branchGuid; locationDval; itemKindDval; hashDval |] ->
-          uply {
-            let loc = PT2DT.PackageLocation.fromDT locationDval
-            let kind = PT2DT.ItemKind.fromDT itemKindDval
-            let hash = PT2DT.Hash.fromDT hashDval
-            match! rebind (branchOfParam branchGuid) loc kind hash with
-            | Ok() -> return Dval.resultOk KTUnit KTString DUnit
-            | Error e -> return DString e |> Dval.resultError KTUnit KTString
-          }
+          let loc = PT2DT.PackageLocation.fromDT locationDval
+          let kind = PT2DT.ItemKind.fromDT itemKindDval
+          let hash = PT2DT.Hash.fromDT hashDval
+          match rebind (branchOfParam branchGuid) loc kind hash with
+          | Ok() -> Dval.resultOk KTUnit KTString DUnit
+          | Error e -> DString e |> Dval.resultError KTUnit KTString
         | _ -> incorrectArgs ())
       previewable = Impure
       // It authors an op. `Decision`/`Override` is a write whatever the name suggests, and this one
@@ -927,36 +866,33 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUuid branchGuid; DList(_, Items(targets)) |] ->
-          uply {
-            let branch = branchOfParam branchGuid
-            let targets : List<LibDB.Queries.LocationTarget> =
-              targets
-              |> List.map (function
-                | DTuple(location, kind, []) ->
-                  { location = PT2DT.PackageLocation.fromDT location
-                    itemKind = PT2DT.ItemKind.fromDT kind
-                    hashes = [] }
-                | v ->
-                  Exception.raiseInternal "Invalid dependency target" [ "value", v ])
-            let! state = LibDB.ReferenceNames.load branch
-            let! dependents =
-              LibDB.ReferenceDependencies.dependents state branch targets
-            let tupleKT =
-              KTTuple(
-                VT.known (PT2DT.Hash.knownType ()),
-                VT.known (PT2DT.PackageLocation.knownType ()),
-                [ VT.known (PT2DT.ItemKind.knownType ()) ]
-              )
-            return
-              dependents
-              |> List.map (fun d ->
-                DTuple(
-                  PT2DT.Hash.toDT d.itemHash,
-                  PT2DT.PackageLocation.toDT d.itemLocation,
-                  [ PT2DT.ItemKind.toDT d.itemKind ]
-                ))
-              |> Dval.list tupleKT
-          }
+          let branch = branchOfParam branchGuid
+          let targets : List<LibDB.Queries.LocationTarget> =
+            targets
+            |> List.map (function
+              | DTuple(location, kind, []) ->
+                { location = PT2DT.PackageLocation.fromDT location
+                  itemKind = PT2DT.ItemKind.fromDT kind
+                  hashes = [] }
+              | v ->
+                Exception.raiseInternal "Invalid dependency target" [ "value", v ])
+          let state = LibDB.ReferenceNames.load branch
+          let dependents =
+            LibDB.ReferenceDependencies.dependents state branch targets
+          let tupleKT =
+            KTTuple(
+              VT.known (PT2DT.Hash.knownType ()),
+              VT.known (PT2DT.PackageLocation.knownType ()),
+              [ VT.known (PT2DT.ItemKind.knownType ()) ]
+            )
+          dependents
+          |> List.map (fun d ->
+            DTuple(
+              PT2DT.Hash.toDT d.itemHash,
+              PT2DT.PackageLocation.toDT d.itemLocation,
+              [ PT2DT.ItemKind.toDT d.itemKind ]
+            ))
+          |> Dval.list tupleKT
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -977,26 +913,23 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUuid branch |] ->
-          uply {
-            let! bindings =
-              LibDB.ReferenceDependencies.liveBindings (branchOfParam branch)
-            return
-              bindings
-              |> Map.toList
-              |> List.map (fun (location, target) ->
-                DTuple(
-                  PT2DT.PackageLocation.toDT location,
-                  PT2DT.Reference.toDT target,
-                  []
-                ))
-              |> Dval.list (
-                KTTuple(
-                  VT.known (PT2DT.PackageLocation.knownType ()),
-                  VT.known (PT2DT.Reference.knownType ()),
-                  []
-                )
-              )
-          }
+          let bindings =
+            LibDB.ReferenceDependencies.liveBindings (branchOfParam branch)
+          bindings
+          |> Map.toList
+          |> List.map (fun (location, target) ->
+            DTuple(
+              PT2DT.PackageLocation.toDT location,
+              PT2DT.Reference.toDT target,
+              []
+            ))
+          |> Dval.list (
+            KTTuple(
+              VT.known (PT2DT.PackageLocation.knownType ()),
+              VT.known (PT2DT.Reference.knownType ()),
+              []
+            )
+          )
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -1032,34 +965,31 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUuid branch; DList(_, Items(sources)) |] ->
-          uply {
-            let sources = referenceSourcesFromDT sources
-            let! edges =
-              LibDB.ReferenceDependencies.namedReferences
-                (branchOfParam branch)
-                sources
-            let edgeKT =
-              KTTuple(
-                VT.known (PT2DT.PackageLocation.knownType ()),
-                VT.known (PT2DT.Reference.knownType ()),
-                [ VT.known (PT2DT.Reference.knownType ())
-                  VT.known (PT2DT.PackageLocation.knownType ()) ]
-              )
-            let listKT = KTList(VT.known edgeKT)
-            match edges with
-            | Error message ->
-              return Dval.resultError listKT KTString (DString message)
-            | Ok edges ->
-              let values =
-                edges
-                |> List.map (fun (location, caller, target, name) ->
-                  DTuple(
-                    PT2DT.PackageLocation.toDT location,
-                    PT2DT.Reference.toDT caller,
-                    [ PT2DT.Reference.toDT target; PT2DT.PackageLocation.toDT name ]
-                  ))
-              return Dval.resultOk listKT KTString (Dval.list edgeKT values)
-          }
+          let sources = referenceSourcesFromDT sources
+          let edges =
+            LibDB.ReferenceDependencies.namedReferences
+              (branchOfParam branch)
+              sources
+          let edgeKT =
+            KTTuple(
+              VT.known (PT2DT.PackageLocation.knownType ()),
+              VT.known (PT2DT.Reference.knownType ()),
+              [ VT.known (PT2DT.Reference.knownType ())
+                VT.known (PT2DT.PackageLocation.knownType ()) ]
+            )
+          let listKT = KTList(VT.known edgeKT)
+          match edges with
+          | Error message -> Dval.resultError listKT KTString (DString message)
+          | Ok edges ->
+            let values =
+              edges
+              |> List.map (fun (location, caller, target, name) ->
+                DTuple(
+                  PT2DT.PackageLocation.toDT location,
+                  PT2DT.Reference.toDT caller,
+                  [ PT2DT.Reference.toDT target; PT2DT.PackageLocation.toDT name ]
+                ))
+            Dval.resultOk listKT KTString (Dval.list edgeKT values)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -1094,49 +1024,46 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUuid branch; DList(_, Items(changed)) |] ->
-          uply {
-            let changed = referenceSourcesFromDT changed
-            let! result =
-              LibDB.ReferenceDependencies.dependencyReview
-                (branchOfParam branch)
-                changed
-            let location = VT.known (PT2DT.PackageLocation.knownType ())
-            let reference = VT.known (PT2DT.Reference.knownType ())
-            let staleKT =
-              KTTuple(location, reference, [ reference; location; reference ])
-            let repointKT = KTTuple(location, location, [])
-            let resultKT =
-              KTTuple(
-                VT.known (KTList(VT.known staleKT)),
-                VT.known (KTList(VT.known repointKT)),
-                []
-              )
-            match result with
-            | Error message ->
-              return Dval.resultError resultKT KTString (DString message)
-            | Ok(stale, repoints) ->
-              let stale =
-                stale
-                |> List.map (fun ((usage, caller, target, dependency), current) ->
-                  DTuple(
-                    PT2DT.PackageLocation.toDT usage,
-                    PT2DT.Reference.toDT caller,
-                    [ PT2DT.Reference.toDT target
-                      PT2DT.PackageLocation.toDT dependency
-                      PT2DT.Reference.toDT current ]
-                  ))
-                |> Dval.list staleKT
-              let repoints =
-                repoints
-                |> List.map (fun (usage, dependency) ->
-                  DTuple(
-                    PT2DT.PackageLocation.toDT usage,
-                    PT2DT.PackageLocation.toDT dependency,
-                    []
-                  ))
-                |> Dval.list repointKT
-              return Dval.resultOk resultKT KTString (DTuple(stale, repoints, []))
-          }
+          let changed = referenceSourcesFromDT changed
+          let result =
+            LibDB.ReferenceDependencies.dependencyReview
+              (branchOfParam branch)
+              changed
+          let location = VT.known (PT2DT.PackageLocation.knownType ())
+          let reference = VT.known (PT2DT.Reference.knownType ())
+          let staleKT =
+            KTTuple(location, reference, [ reference; location; reference ])
+          let repointKT = KTTuple(location, location, [])
+          let resultKT =
+            KTTuple(
+              VT.known (KTList(VT.known staleKT)),
+              VT.known (KTList(VT.known repointKT)),
+              []
+            )
+          match result with
+          | Error message -> Dval.resultError resultKT KTString (DString message)
+          | Ok(stale, repoints) ->
+            let stale =
+              stale
+              |> List.map (fun ((usage, caller, target, dependency), current) ->
+                DTuple(
+                  PT2DT.PackageLocation.toDT usage,
+                  PT2DT.Reference.toDT caller,
+                  [ PT2DT.Reference.toDT target
+                    PT2DT.PackageLocation.toDT dependency
+                    PT2DT.Reference.toDT current ]
+                ))
+              |> Dval.list staleKT
+            let repoints =
+              repoints
+              |> List.map (fun (usage, dependency) ->
+                DTuple(
+                  PT2DT.PackageLocation.toDT usage,
+                  PT2DT.PackageLocation.toDT dependency,
+                  []
+                ))
+              |> Dval.list repointKT
+            Dval.resultOk resultKT KTString (DTuple(stale, repoints, []))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -1163,25 +1090,22 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUuid branchGuid; DBool inherited; before |] ->
-          uply {
-            let before = cutoffFromDT before
-            let! operations =
-              LibDB.OpHistory.revisionOperations
-                (branchOfParam branchGuid)
-                inherited
-                before
-            return
-              operations
-              |> List.map (fun (id, stamp, op) ->
-                DTuple(DString id, DString stamp, [ PT2DT.PackageOp.toDT op ]))
-              |> Dval.list (
-                KTTuple(
-                  VT.known KTString,
-                  VT.known KTString,
-                  [ VT.known (KTCustomType(PT2DT.PackageOp.typeName (), [])) ]
-                )
-              )
-          }
+          let before = cutoffFromDT before
+          let operations =
+            LibDB.OpHistory.revisionOperations
+              (branchOfParam branchGuid)
+              inherited
+              before
+          operations
+          |> List.map (fun (id, stamp, op) ->
+            DTuple(DString id, DString stamp, [ PT2DT.PackageOp.toDT op ]))
+          |> Dval.list (
+            KTTuple(
+              VT.known KTString,
+              VT.known KTString,
+              [ VT.known (KTCustomType(PT2DT.PackageOp.typeName (), [])) ]
+            )
+          )
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -1205,18 +1129,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUuid branchGuid; DList(_, Items(targets)); before |] ->
-          uply {
-            let before = cutoffFromDT before
-            let! snapshots =
-              LibDB.ReferenceNames.overrides
-                (branchOfParam branchGuid)
-                (List.map PT2DT.Reference.fromDT targets)
-                before
-            return
-              snapshots
-              |> List.map PT2DT.ReferenceNamesSnapshot.toDT
-              |> Dval.list (PT2DT.ReferenceNamesSnapshot.knownType ())
-          }
+          let before = cutoffFromDT before
+          let snapshots =
+            LibDB.ReferenceNames.overrides
+              (branchOfParam branchGuid)
+              (List.map PT2DT.Reference.fromDT targets)
+              before
+          snapshots
+          |> List.map PT2DT.ReferenceNamesSnapshot.toDT
+          |> Dval.list (PT2DT.ReferenceNamesSnapshot.knownType ())
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -1247,7 +1168,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               op
             |> List.map PT2DT.ReferenceNamesSnapshot.toDT
             |> Dval.list (PT2DT.ReferenceNamesSnapshot.knownType ())
-            |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -1272,14 +1192,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DList(_, Items(sources)) |] ->
-          uply {
-            let sources = referenceSourcesFromDT sources
-            let! snapshots = LibDB.ReferenceNamesContent.storedSnapshots sources
-            return
-              snapshots
-              |> List.map PT2DT.ReferenceNamesSnapshot.toDT
-              |> Dval.list (PT2DT.ReferenceNamesSnapshot.knownType ())
-          }
+          let sources = referenceSourcesFromDT sources
+          let snapshots = LibDB.ReferenceNamesContent.storedSnapshots sources
+          snapshots
+          |> List.map PT2DT.ReferenceNamesSnapshot.toDT
+          |> Dval.list (PT2DT.ReferenceNamesSnapshot.knownType ())
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -1322,37 +1239,34 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
              sourceItemKindDval
              DList(_, Items(fromSourceHashDvals))
              toSourceHashDval |] ->
-          uply {
-            let sourceLocation = PT2DT.PackageLocation.fromDT sourceLocation
-            let sourceItemKind = PT2DT.ItemKind.fromDT sourceItemKindDval
-            let fromSourceHashes = fromSourceHashDvals |> List.map PT2DT.Hash.fromDT
+          let sourceLocation = PT2DT.PackageLocation.fromDT sourceLocation
+          let sourceItemKind = PT2DT.ItemKind.fromDT sourceItemKindDval
+          let fromSourceHashes = fromSourceHashDvals |> List.map PT2DT.Hash.fromDT
 
-            // The branch this propagation runs on, from the caller. Every Dark call site passes
-            // `state.currentBranchId`, which is what keeps a branch's cascade off main.
-            let! result =
-              repoint
-                (branchOfParam branchId)
-                sourceLocation
-                sourceItemKind
-                fromSourceHashes
-                (PT2DT.Hash.fromDT toSourceHashDval)
+          // The branch this propagation runs on, from the caller. Every Dark call site passes
+          // `state.currentBranchId`, which is what keeps a branch's cascade off main.
+          let result =
+            repoint
+              (branchOfParam branchId)
+              sourceLocation
+              sourceItemKind
+              fromSourceHashes
+              (PT2DT.Hash.fromDT toSourceHashDval)
 
-            match result with
-            | Ok repoints ->
-              // A repointed value is a new version with no result yet, and a value with no
-              // result reads as missing. Authoring evaluates the values it lands
-              // (`PackageOps.authorOps`); the versions a cascade makes need the same, or a
-              // live caller that follows the cascade fails until something else evaluates them.
-              if not (List.isEmpty repoints) then
-                do! PackageOps.evaluateLandedValues exeState
-              let repointsDval =
-                repoints
-                |> List.map PT2DT.PropagateRepoint.toDT
-                |> Dval.list (PT2DT.PropagateRepoint.knownType ())
-              return Dval.resultOk repointListKT KTString repointsDval
-            | Error errMsg ->
-              return Dval.resultError repointListKT KTString (DString errMsg)
-          }
+          match result with
+          | Ok repoints ->
+            // A repointed value is a new version with no result yet, and a value with no
+            // result reads as missing. Authoring evaluates the values it lands
+            // (`PackageOps.authorOps`); the versions a cascade makes need the same, or a
+            // live caller that follows the cascade fails until something else evaluates them.
+            if not (List.isEmpty repoints) then
+              PackageOps.evaluateLandedValues exeState
+            let repointsDval =
+              repoints
+              |> List.map PT2DT.PropagateRepoint.toDT
+              |> Dval.list (PT2DT.PropagateRepoint.knownType ())
+            Dval.resultOk repointListKT KTString repointsDval
+          | Error errMsg -> Dval.resultError repointListKT KTString (DString errMsg)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects =
@@ -1390,20 +1304,17 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUuid branchId |] ->
-          uply {
-            let! sets = LibDB.Queries.getDeprecationSetsFor (PT.BranchId.Id branchId)
-            let hashListDval (hashes : Set<PT.Hash>) =
-              hashes
-              |> Set.toList
-              |> List.map PT2DT.Hash.toDT
-              |> Dval.list (PT2DT.Hash.knownType ())
-            return
-              DTuple(
-                hashListDval sets.allDeprecated,
-                hashListDval sets.hidden,
-                [ sets.names |> Set.toList |> List.map DString |> Dval.list KTString ]
-              )
-          }
+          let sets = LibDB.Queries.getDeprecationSetsFor (PT.BranchId.Id branchId)
+          let hashListDval (hashes : Set<PT.Hash>) =
+            hashes
+            |> Set.toList
+            |> List.map PT2DT.Hash.toDT
+            |> Dval.list (PT2DT.Hash.knownType ())
+          DTuple(
+            hashListDval sets.allDeprecated,
+            hashListDval sets.hidden,
+            [ sets.names |> Set.toList |> List.map DString |> Dval.list KTString ]
+          )
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -1422,15 +1333,13 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUuid branchId; DList(_, Items(modulePath)) |] ->
-          uply {
-            let modulePath =
-              modulePath
-              |> List.map (function
-                | DString s -> s
-                | _ -> incorrectArgs ())
-            let! paths = PMPT.implPathsBelow (branchOfParam branchId) modulePath
-            return toDList paths
-          }
+          let modulePath =
+            modulePath
+            |> List.map (function
+              | DString s -> s
+              | _ -> incorrectArgs ())
+          let paths = PMPT.implPathsBelow (branchOfParam branchId) modulePath
+          toDList paths
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -1453,17 +1362,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DList(_, Items(hashes)) |] ->
-          uply {
-            let! counts =
-              hashes |> List.map PT2DT.Hash.fromDT |> LibDB.Queries.callerCounts
-            return
-              counts
-              |> List.map (fun (hash, n) ->
-                DTuple(PT2DT.Hash.toDT hash, DInt64 n, []))
-              |> Dval.list (
-                KTTuple(VT.known (PT2DT.Hash.knownType ()), VT.int64, [])
-              )
-          }
+          let counts =
+            hashes |> List.map PT2DT.Hash.fromDT |> LibDB.Queries.callerCounts
+          counts
+          |> List.map (fun (hash, n) -> DTuple(PT2DT.Hash.toDT hash, DInt64 n, []))
+          |> Dval.list (KTTuple(VT.known (PT2DT.Hash.knownType ()), VT.int64, []))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -1504,29 +1407,26 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUuid branchId; locationDval; hashDval; itemKindDval |] ->
-          uply {
-            let hash = PT2DT.Hash.fromDT hashDval
-            let itemKind = PT2DT.ItemKind.fromDT itemKindDval
-            let! result =
-              LibDB.Queries.getCurrentDeprecationFor
-                (PT.BranchId.Id branchId)
-                (PT2DT.PackageLocation.fromDT locationDval)
-                hash
-                itemKind
-            let tupleKT =
-              KTTuple(
-                VT.known (PT2DT.DeprecationKind.knownType ()),
-                VT.known KTString,
-                []
-              )
-            match result with
-            | None -> return Dval.optionNone tupleKT
-            | Some(kind, message) ->
-              return
-                Dval.optionSome
-                  tupleKT
-                  (DTuple(PT2DT.DeprecationKind.toDT kind, DString message, []))
-          }
+          let hash = PT2DT.Hash.fromDT hashDval
+          let itemKind = PT2DT.ItemKind.fromDT itemKindDval
+          let result =
+            LibDB.Queries.getCurrentDeprecationFor
+              (PT.BranchId.Id branchId)
+              (PT2DT.PackageLocation.fromDT locationDval)
+              hash
+              itemKind
+          let tupleKT =
+            KTTuple(
+              VT.known (PT2DT.DeprecationKind.knownType ()),
+              VT.known KTString,
+              []
+            )
+          match result with
+          | None -> Dval.optionNone tupleKT
+          | Some(kind, message) ->
+            Dval.optionSome
+              tupleKT
+              (DTuple(PT2DT.DeprecationKind.toDT kind, DString message, []))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -1551,18 +1451,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUuid branchId; location |] ->
-          uply {
-            let location = PT2DT.PackageLocation.fromDT location
-            let! docs = LibDB.Docs.docsAt (branchOfParam branchId) location
+          let location = PT2DT.PackageLocation.fromDT location
+          let docs = LibDB.Docs.docsAt (branchOfParam branchId) location
 
-            let partKT = VT.known (PT2DT.DocPart.knownType ())
+          let partKT = VT.known (PT2DT.DocPart.knownType ())
 
-            return
-              docs
-              |> List.map (fun (part, text) ->
-                DTuple(PT2DT.DocPart.toDT part, DString text, []))
-              |> fun rows -> DList(VT.tuple partKT VT.string [], Items(rows))
-          }
+          docs
+          |> List.map (fun (part, text) ->
+            DTuple(PT2DT.DocPart.toDT part, DString text, []))
+          |> fun rows -> DList(VT.tuple partKT VT.string [], Items(rows))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]

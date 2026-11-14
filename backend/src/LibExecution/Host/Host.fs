@@ -14,7 +14,6 @@ module LibExecution.Host
 
 open System.Runtime.InteropServices
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 

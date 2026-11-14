@@ -232,16 +232,10 @@ let private parkOn (p : Scheduler.Process) : unit =
   | None -> ()
 
 /// Wait for `p`, parking the calling process when there is one.
-let private awaitProcess (vm : VMState) (p : Scheduler.Process) : Ply<Dval> =
+let private awaitProcess (vm : VMState) (p : Scheduler.Process) : Dval =
   let task = p.completion.Task
-  if task.IsCompletedSuccessfully then
-    Ply(resultOf vm task.Result)
-  else
-    parkOn p
-    uply {
-      let! result = task
-      return resultOf vm result
-    }
+  if not task.IsCompletedSuccessfully then parkOn p
+  task |> LibExecution.Pending.map (resultOf vm)
 
 
 let fns () : List<BuiltInFn> =
@@ -263,7 +257,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUnit |] ->
           let rows = LibExecution.HostRegistry.list () |> List.map machineProcessToDT
-          DList(ValueType.Known(machineProcessType ()), Items(rows)) |> Ply
+          DList(ValueType.Known(machineProcessType ()), Items(rows))
         | _ -> incorrectArgs ())
       previewable = Impure
       deprecated = NotDeprecated
@@ -284,7 +278,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUnit |] ->
           let rows = snapshot () |> List.map summaryToDT
-          DList(ValueType.Known(summaryType ()), Items(rows)) |> Ply
+          DList(ValueType.Known(summaryType ()), Items(rows))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ LibExecution.Effects.Effect.TraceRead ]
@@ -306,7 +300,7 @@ let fns () : List<BuiltInFn> =
           let found = snapshot () |> List.tryFind (fun p -> p.id = id)
           let detailType =
             KTCustomType(typ PackageRefs.Type.LanguageTools.Exec.detail, [])
-          Dval.option detailType (found |> Option.map detailToDT) |> Ply
+          Dval.option detailType (found |> Option.map detailToDT)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ LibExecution.Effects.Effect.TraceRead ]
@@ -323,7 +317,7 @@ let fns () : List<BuiltInFn> =
         + "count)."
       fn =
         (function
-        | _, _, _, [| DUnit |] -> Dval.dint64 (int64 Scheduler.defaultWorkers) |> Ply
+        | _, _, _, [| DUnit |] -> Dval.dint64 (int64 Scheduler.defaultWorkers)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -363,7 +357,7 @@ let fns () : List<BuiltInFn> =
               vm.activeAccess,
               ?stats = InterpreterStats.ForProcess vm.stats
             )
-          handleOf p.id |> Ply
+          handleOf p.id
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ LibExecution.Effects.Effect.Concurrency ]
@@ -391,7 +385,7 @@ let fns () : List<BuiltInFn> =
             find vm Scheduler.Scheduler.CurrentOrShared (pidOfHandle vm handle)
           with
           | Running p -> awaitProcess vm p
-          | Finished result -> Ply(resultOf vm result)
+          | Finished result -> (resultOf vm result)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ LibExecution.Effects.Effect.Raise ]
@@ -420,20 +414,20 @@ let fns () : List<BuiltInFn> =
           let some (result : ExecutionResult) =
             optionOfAny (Some(resultOf vm result))
           match find vm sched (pidOfHandle vm handle) with
-          | Finished result -> Ply(some result)
+          | Finished result -> (some result)
           | Running p ->
             let task = p.completion.Task
             if task.IsCompletedSuccessfully then
-              Ply(some task.Result)
+              (some task.Result)
             elif ms <= 0L then
-              Ply(optionOfAny None)
+              (optionOfAny None)
             else
               parkOn p
-              uply {
-                match! sched.AwaitWithin(p, int ms) with
-                | Some result -> return some result
-                | None -> return optionOfAny None
-              }
+              sched.AwaitWithin(p, int ms)
+              |> LibExecution.Pending.map (fun result ->
+                match result with
+                | Some result -> some result
+                | None -> optionOfAny None)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ LibExecution.Effects.Effect.Raise ]
@@ -483,7 +477,7 @@ let fns () : List<BuiltInFn> =
             |> List.choose (fun h ->
               s.Find(pidOfHandle vm h) |> Option.map (fun p -> h, p))
           match forgotten, procs with
-          | Some(h, result), _ -> Ply(DTuple(h, resultOf vm result, []))
+          | Some(h, result), _ -> (DTuple(h, resultOf vm result, []))
           | None, [] ->
             RuntimeError.UncaughtException("select needs at least one handle", [])
             |> raiseRTE vm.threadID
@@ -493,25 +487,22 @@ let fns () : List<BuiltInFn> =
             match
               procs |> List.tryFind (fun (_, p) -> p.completion.Task.IsCompleted)
             with
-            | Some done' -> Ply(answer done')
+            | Some done' -> (answer done')
             | None ->
-              uply {
-                let! first =
-                  System.Threading.Tasks.Task.WhenAny(
-                    procs
-                    |> List.map (fun (_, p) ->
-                      p.completion.Task :> System.Threading.Tasks.Task)
-                  )
+              System.Threading.Tasks.Task.WhenAny(
+                procs
+                |> List.map (fun (_, p) ->
+                  p.completion.Task :> System.Threading.Tasks.Task)
+              )
+              |> LibExecution.Pending.map (fun first ->
                 match
                   procs
                   |> List.tryFind (fun (_, p) ->
                     obj.ReferenceEquals(p.completion.Task, first))
                 with
-                | Some won -> return answer won
+                | Some won -> answer won
                 | None ->
-                  return
-                    Exception.raiseInternal "select: the winner is not a handle" []
-              }
+                  Exception.raiseInternal "select: the winner is not a handle" [])
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ LibExecution.Effects.Effect.Raise ]
@@ -531,7 +522,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUuid id; DBool hard |] ->
           let sched = Scheduler.Scheduler.CurrentOrShared
-          DBool(if hard then sched.Kill id else sched.Cancel id) |> Ply
+          DBool(if hard then sched.Kill id else sched.Cancel id)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ LibExecution.Effects.Effect.TraceWrite ]

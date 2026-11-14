@@ -4,7 +4,6 @@ module LibDB.Sqlite
 // To be reviewed by someone with more DB expertise.
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 open Microsoft.Data.Sqlite
 open Fumble
 
@@ -190,21 +189,6 @@ module Sql =
   /// builtins invisible, which is most of it, and makes SQL time easy to mistake for interpreter cost.
   ///
   /// Gated, and per-statement rather than per-row: a timestamp costs ~1.27 us on an HPET clocksource.
-  let inline private timedTask (name : string) (f : unit -> Task<'a>) : Task<'a> =
-    if not (Telemetry.isEnabled ()) then
-      f ()
-    else
-      task {
-        Telemetry.count name
-        let t0 = System.Diagnostics.Stopwatch.GetTimestamp()
-        let! r = f ()
-        let t1 = System.Diagnostics.Stopwatch.GetTimestamp()
-        Telemetry.addUs
-          "sql.total"
-          ((t1 - t0) * 1_000_000L / System.Diagnostics.Stopwatch.Frequency)
-        return r
-      }
-
   let inline private timedSync (name : string) (f : unit -> 'a) : 'a =
     if not (Telemetry.isEnabled ()) then
       f ()
@@ -273,93 +257,51 @@ module Sql =
       raiseIfStoreCondition err
       Exception.raiseInternal (msg err) [ "err", err ]
 
-  let executeNonQueryAsync props =
-    timedTask "sql.nonQuery" (fun () ->
-      Sql.executeNonQueryAsync props
-      |> Async.StartImmediateAsTask
-      |> Task.map (function
-        | Ok n -> n
-        | Error(e : exn) ->
-          raiseIfStoreCondition e
-          raise e))
+  /// A statement's count of rows changed.
+  let executeCount props : int =
+    timedSync "sql.nonQuery" (fun () -> Sql.executeNonQuery props)
+    |> unwrapDb (fun err -> $"Database statement failed: {err}")
 
-  let executeRowAsync (reader : RowReader -> 't) (props : Sql.SqlProps) : Task<'t> =
-    task {
-      let! r =
-        timedTask "sql.row" (fun () ->
-          Sql.executeAsync reader props |> Async.StartImmediateAsTask)
-      match
-        unwrapDb (fun err -> $"SQL query failed in executeRowAsync: {err.Message}") r
-      with
-      | [ a ] -> return a
-      | [] -> return Exception.raiseInternal $"No results; expected 1" []
-      | list ->
-        return
-          Exception.raiseInternal $"Too many results, expected 1" [ "actual", list ]
-    }
+  let executeRow (reader : RowReader -> 't) (props : Sql.SqlProps) : 't =
+    let r = timedSync "sql.row" (fun () -> Sql.execute reader props)
+    match
+      unwrapDb (fun err -> $"SQL query failed in executeRow: {err.Message}") r
+    with
+    | [ a ] -> a
+    | [] -> Exception.raiseInternal $"No results; expected 1" []
+    | list ->
+      Exception.raiseInternal $"Too many results, expected 1" [ "actual", list ]
 
-  let executeRowOptionAsync
+  let executeRowOption
     (reader : RowReader -> 't)
     (props : Sql.SqlProps)
-    : Task<Option<'t>> =
-    task {
-      let! r =
-        timedTask "sql.rowOption" (fun () ->
-          Sql.executeAsync reader props |> Async.StartImmediateAsTask)
-      match
-        unwrapDb
-          (fun err -> $"SQL query failed in executeRowOptionAsync: {err.Message}")
-          r
-      with
-      | [ a ] -> return Some a
-      | [] -> return None
-      | list ->
-        return
-          Exception.raiseInternal
-            $"Too many results, expected 0 or 1"
-            [ "actual", list ]
-    }
-
-  let executeAsync rr props =
-    timedTask "sql.rows" (fun () ->
-      Sql.executeAsync rr props |> Async.StartImmediateAsTask)
-    |> Task.map (fun r ->
-      match r with
-      | Ok v -> v
-      | Error err ->
-        raiseIfStoreCondition err
-        Exception.raiseInternal $"SQL query failed: {err}" [ "error", err ])
-
-  let executeRowsSync (reader : RowReader -> 't) (props : Sql.SqlProps) : List<'t> =
-    timedSync "sql.rowsSync" (fun () -> Sql.execute reader props)
-    |> unwrapDb (fun err -> $"SQL query failed in executeRowsSync: {err}")
-
-  let executeExistsSync (props : Sql.SqlProps) : bool =
+    : Option<'t> =
+    let r = timedSync "sql.rowOption" (fun () -> Sql.execute reader props)
     match
-      timedSync "sql.existsSync" (fun () ->
-        Sql.execute (fun read -> read.bool 0) props)
-      |> unwrapDb (fun err -> $"Database query failed in executeExistsSync: {err}")
+      unwrapDb (fun err -> $"SQL query failed in executeRowOption: {err.Message}") r
+    with
+    | [ a ] -> Some a
+    | [] -> None
+    | list ->
+      Exception.raiseInternal $"Too many results, expected 0 or 1" [ "actual", list ]
+
+  let executeRows rr props =
+    timedSync "sql.rows" (fun () -> Sql.execute rr props)
+    |> unwrapDb (fun err -> $"SQL query failed: {err}")
+
+  let executeExists (props : Sql.SqlProps) : bool =
+    match
+      timedSync "sql.exists" (fun () -> Sql.execute (fun read -> read.bool 0) props)
+      |> unwrapDb (fun err -> $"Database query failed in executeExists: {err}")
     with
     | [ true ] -> true
     | [] -> false
     | result ->
       Exception.raiseInternal "Too many results, expected 1" [ "actual", result ]
 
-  let executeStatementAsync (props : Sql.SqlProps) : Task<unit> =
-    task {
-      let! r =
-        timedTask "sql.statement" (fun () ->
-          Sql.executeNonQueryAsync props |> Async.StartImmediateAsTask)
-      r
-      |> unwrapDb (fun err ->
-        $"Database statement failed in executeStatementAsync: {err}")
-      |> ignore<int>
-    }
-
-  let executeStatementSync (props : Sql.SqlProps) : unit =
-    timedSync "sql.statementSync" (fun () -> Sql.executeNonQuery props)
-    |> unwrapDb (fun err ->
-      $"Database statement failed in executeStatementSync: {err}")
+  let executeStatement (props : Sql.SqlProps) : unit =
+    timedSync "sql.statement" (fun () -> Sql.executeNonQuery props)
+    |> unwrapDb (fun err -> $"Database statement failed in executeStatement: {err}")
     |> ignore<int>
 
   /// Execute multiple SQL statements in one write transaction synchronously: each statement

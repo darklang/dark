@@ -105,9 +105,9 @@ let private sortedByKeyLanding
   (vm : VMState)
   (vt : ValueType)
   (keyed : List<struct (Dval * Dval)>)
-  : Ply<Dval> =
+  : Dval =
   if not (List.exists (fun (struct (_, v)) -> Pending.isPromise v) keyed) then
-    Ply(sortedByKey vt keyed)
+    (sortedByKey vt keyed)
   else
     let entries = Array.ofList keyed
     let keyAt i =
@@ -122,9 +122,9 @@ let private sortedByKeyLanding
       if DvalComparator.compareDvalInt (keyAt byKey[j - 1]) (keyAt byKey[j]) = 0 then
         tied[byKey[j - 1]] <- true
         tied[byKey[j]] <- true
-    let rec landTied (i : int) : Ply<Dval> =
+    let rec landTied (i : int) : Dval =
       if i = entries.Length then
-        Ply(sortedByKey vt (List.ofArray entries))
+        (sortedByKey vt (List.ofArray entries))
       else
         match entries[i] with
         | struct (k, (DPromise _ as v)) when tied[i] ->
@@ -218,8 +218,8 @@ let private sortByLessThan
   (lessThan : Applicable)
   (vt : ValueType)
   (items : List<Dval>)
-  : Ply<Dval> =
-  let rec sortK (xs : List<Dval>) (k : List<Dval> -> Ply<Dval>) : Ply<Dval> =
+  : Dval =
+  let rec sortK (xs : List<Dval>) (k : List<Dval> -> Dval) : Dval =
     match xs with
     | []
     | [ _ ] -> k xs
@@ -231,8 +231,8 @@ let private sortByLessThan
     (left : List<Dval>)
     (right : List<Dval>)
     (acc : List<Dval>)
-    (k : List<Dval> -> Ply<Dval>)
-    : Ply<Dval> =
+    (k : List<Dval> -> Dval)
+    : Dval =
     match left, right with
     | [], rest
     | rest, [] -> k (List.rev acc @ rest)
@@ -247,7 +247,7 @@ let private sortByLessThan
             Exception.raiseInternal
               "Compare.lessThan answered a non-Bool during List.sort"
               [ "answer", other ]))
-  sortK items (fun sorted -> Ply(DList(vt, Items(sorted))))
+  sortK items (fun sorted -> (DList(vt, Items(sorted))))
 
 
 let fns () : List<BuiltInFn> =
@@ -271,12 +271,12 @@ let fns () : List<BuiltInFn> =
           // The value so far goes to the next step as it is: calling the lambda with a read
           // in flight is not a use of it.
           if DvalList.isEmpty items then
-            Ply init
+            init
           else
             let mutable rest = DvalList.tail items
-            let rec next (stepped : Dval) : Ply<Dval> =
+            let rec next (stepped : Dval) : Dval =
               if DvalList.isEmpty rest then
-                Ply stepped
+                stepped
               else
                 let elem = DvalList.head rest
                 rest <- DvalList.tail rest
@@ -304,13 +304,13 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, [], [| DList(_, items); DInt64 count |] ->
           if count <= 0L then
-            Ply(DList(VT.unknown, DvalList.empty))
+            (DList(VT.unknown, DvalList.empty))
           else
             // The element ValueType is merged from what was actually taken, not inherited from the
             // source list. That is what the Dark version did -- it rebuilt the prefix with `prepend` --
             // and a prefix can be narrower than the whole.
             let taken = int (min count (int64 (DvalList.length items)))
-            Ply(mappedList vm (DvalList.take taken items))
+            (mappedList vm (DvalList.take taken items))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -328,11 +328,11 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DList(vt, items) as list; DInt64 count |] ->
           if count <= 0L then
-            Ply list
+            list
           elif count >= int64 (DvalList.length items) then
-            Ply(DList(VT.unknown, DvalList.empty))
+            (DList(VT.unknown, DvalList.empty))
           else
-            Ply(DList(vt, DvalList.drop (int count) items))
+            (DList(vt, DvalList.drop (int count) items))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -352,18 +352,13 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DList(vt, l) as list; DInt64 index; value |] ->
           if index < 0L || index >= int64 (DvalList.length l) then
-            Ply list
+            list
           else
             let replaced = DvalList.set (int index) value l
             match VT.mergeDval vt value with
-            | Ok merged -> Ply(DList(merged, replaced))
+            | Ok merged -> (DList(merged, replaced))
             | Error() ->
-              Ply(
-                TypeChecker.DvalCreator.list
-                  vm.threadID
-                  vt
-                  (DvalList.toList replaced)
-              )
+              (TypeChecker.DvalCreator.list vm.threadID vt (DvalList.toList replaced))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -405,7 +400,7 @@ let fns () : List<BuiltInFn> =
                       Dval.dint64 (index + int64 k))
                   [ DList(VT.int64, DvalList.ofArray indices); DList(vt, chunk) ]
                 member _.Absorb(acc, _, spread) = resultsOnto acc spread
-                member _.Finish acc = Ply(mappedList vm (DvalList.ofRevList acc)) }
+                member _.Finish acc = (mappedList vm (DvalList.ofRevList acc)) }
             []
             items
         | _ -> incorrectArgs ())
@@ -493,7 +488,7 @@ let fns () : List<BuiltInFn> =
                   | DEnum(_, _, _, "None", []) -> Spread.Next acc
                   | other -> raiseRTE vm.threadID (notAnOption other)
                 member _.Absorb(acc, _, spread) = resultsOnto acc spread
-                member _.Finish acc = Ply(mappedList vm (DvalList.ofRevList acc)) }
+                member _.Finish acc = (mappedList vm (DvalList.ofRevList acc)) }
             []
             items
         | _ -> incorrectArgs ())
@@ -521,7 +516,7 @@ let fns () : List<BuiltInFn> =
               (DvalList.toArray (DvalList.take count listB))
           // `mappedList` merges the tuples' own ValueTypes, so the element type comes out
           // `KTTuple(a, b)` without naming it here.
-          Ply(mappedList vm (DvalList.ofArray pairs))
+          (mappedList vm (DvalList.ofArray pairs))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -568,7 +563,7 @@ let fns () : List<BuiltInFn> =
                         (DvalList.drop (int index) bs)
                     ) ]
                 member _.Absorb(acc, _, spread) = resultsOnto acc spread
-                member _.Finish acc = Ply(mappedList vm (DvalList.ofRevList acc)) }
+                member _.Finish acc = mappedList vm (DvalList.ofRevList acc) }
             []
             (DvalList.take count listA)
         | _ -> incorrectArgs ())
@@ -597,7 +592,7 @@ let fns () : List<BuiltInFn> =
             { new OverList<List<Dval>>(state, vm, app, vt, "listMap") with
                 member _.Step(acc, _, mapped) = Spread.Next(mapped :: acc)
                 member _.Absorb(acc, _, spread) = resultsOnto acc spread
-                member _.Finish acc = Ply(mappedList vm (DvalList.ofRevList acc)) }
+                member _.Finish acc = (mappedList vm (DvalList.ofRevList acc)) }
             []
             items
         | _ -> incorrectArgs ())
@@ -628,7 +623,7 @@ let fns () : List<BuiltInFn> =
                   | DBool keep -> Spread.Next(if keep then elem :: acc else acc)
                   | other -> raiseRTE vm.threadID (predicateNotBool other)
                 member _.Absorb(acc, _, spread) = resultsOnto acc spread
-                member _.Finish acc = Ply(DList(vt, DvalList.ofRevList acc)) }
+                member _.Finish acc = (DList(vt, DvalList.ofRevList acc)) }
             []
             items
         | _ -> incorrectArgs ())
@@ -649,19 +644,16 @@ let fns () : List<BuiltInFn> =
           // An empty range keeps an unknown element type, which is what the Dark version did: it
           // returned the literal `[]`, and only `prepend` ever made it a `List<Int64>`.
           if highest < lowest then
-            Ply(DList(VT.unknown, DvalList.empty))
+            (DList(VT.unknown, DvalList.empty))
           else
             let span = uint64 (highest - lowest)
             // Past what an array holds, a range ran out of memory as a cons list too.
             if span >= uint64 System.Array.MaxLength then
               raise (System.OutOfMemoryException())
-            Ply(
-              DList(
-                VT.int64,
-                DvalList.init (int span + 1) (fun i ->
-                  Dval.dint64 (lowest + int64 i))
-              )
-            )
+            (DList(
+              VT.int64,
+              DvalList.init (int span + 1) (fun i -> Dval.dint64 (lowest + int64 i))
+            ))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = set [ LibExecution.Effects.Effect.Raise ]
@@ -698,7 +690,7 @@ let fns () : List<BuiltInFn> =
                   | _ -> Spread.NotAnAnswer
                 member _.Absorb(nothing, _, _) = nothing
                 member _.Found _ = DBool true
-                member _.Finish _ = Ply(DBool false) }
+                member _.Finish _ = (DBool false) }
             DUnit
             items
         | _ -> incorrectArgs ())
@@ -722,7 +714,7 @@ let fns () : List<BuiltInFn> =
           // incompatible types; so does this, so a heterogeneous list still reports the same
           // error it always did: at the first element whose type does not merge.
           match Dval.listContains items value with
-          | ValueSome found -> Ply(DBool found)
+          | ValueSome found -> (DBool found)
           | ValueNone ->
             let vtValue = Dval.toValueType value
             match
@@ -772,7 +764,7 @@ let fns () : List<BuiltInFn> =
                   | _ -> Spread.NotAnAnswer
                 member _.Absorb(nothing, _, _) = nothing
                 member _.Found found = option (Some found)
-                member _.Finish _ = Ply(option None) }
+                member _.Finish _ = (option None) }
             DUnit
             items
         | _ -> incorrectArgs ())
@@ -788,7 +780,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns true if <param list> has no values"
       fn =
         (function
-        | _, _, _, [| DList(_, l) |] -> Ply(DBool(DvalList.isEmpty l))
+        | _, _, _, [| DList(_, l) |] -> (DBool(DvalList.isEmpty l))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -802,7 +794,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the number of values in <param list>"
       fn =
         (function
-        | _, _, _, [| DList(_, l) |] -> Ply(Dval.dint64 (int64 (DvalList.length l)))
+        | _, _, _, [| DList(_, l) |] -> (Dval.dint64 (int64 (DvalList.length l)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -826,7 +818,7 @@ let fns () : List<BuiltInFn> =
               let seen =
                 System.Collections.Generic.HashSet<Dval>(Dval.equalityComparer)
               l |> DvalList.toArray |> Array.filter seen.Add |> DvalList.ofArray
-          DList(vt, unique) |> Ply
+          DList(vt, unique)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -853,41 +845,37 @@ let fns () : List<BuiltInFn> =
             list
             |> DvalComparator.sortWith DvalComparator.compareDvalInt
             |> (fun l -> DList(vt, Items(l)))
-            |> Ply
           match vt, list with
           | ValueType.Known(KTCustomType _ as self), _ :: _ :: _ ->
-            uply {
-              let compareTrait =
-                Hash(LibExecution.PackageRefs.Trait.Stdlib.Traits.compare ())
-              let! candidates =
-                exeState.fns.implCandidates exeState.branchId compareTrait
-              match LibExecution.Traits.select candidates self with
-              | LibExecution.Traits.Selected c ->
-                match Map.tryFind "lessThan" c.methods with
-                | Some fnHash ->
-                  let lessThan =
-                    AppNamedFn
-                      { name = FQFnName.Package fnHash
-                        typeSymbolTable = TST.empty
-                        typeArgs = []
-                        approvalName = None
-                        access = None
-                        argsSoFar = []
-                        boundImpls = [] }
-                  return! sortByLessThan vm lessThan vt list
-                | None -> return! structural ()
-              | LibExecution.Traits.NoImpl -> return! structural ()
-              | LibExecution.Traits.Ambiguous cs ->
-                return
-                  RTE.Trait(
-                    RTE.Traits.DispatchAmbiguous(
-                      FQTraitName.Package compareTrait,
-                      vt,
-                      cs |> List.map (fun c -> c.source)
-                    )
-                  )
-                  |> raiseRTE vm.threadID
-            }
+            let compareTrait =
+              Hash(LibExecution.PackageRefs.Trait.Stdlib.Traits.compare ())
+            let candidates =
+              exeState.fns.implCandidates exeState.branchId compareTrait
+            match LibExecution.Traits.select candidates self with
+            | LibExecution.Traits.Selected c ->
+              match Map.tryFind "lessThan" c.methods with
+              | Some fnHash ->
+                let lessThan =
+                  AppNamedFn
+                    { name = FQFnName.Package fnHash
+                      typeSymbolTable = TST.empty
+                      typeArgs = []
+                      approvalName = None
+                      access = None
+                      argsSoFar = []
+                      boundImpls = [] }
+                sortByLessThan vm lessThan vt list
+              | None -> structural ()
+            | LibExecution.Traits.NoImpl -> structural ()
+            | LibExecution.Traits.Ambiguous cs ->
+              RTE.Trait(
+                RTE.Traits.DispatchAmbiguous(
+                  FQTraitName.Package compareTrait,
+                  vt,
+                  cs |> List.map (fun c -> c.source)
+                )
+              )
+              |> raiseRTE vm.threadID
           | _ -> structural ()
         | _ -> incorrectArgs ())
       // Impure, like `sortBy`: it can call a person's `Compare` implementation.
@@ -910,14 +898,12 @@ let fns () : List<BuiltInFn> =
           // When the types conflict, `DvalCreator.list` re-checks the elements to name the one at
           // fault.
           match TypeChecker.DvalCreator.tryConcat vt1 l1 vt2 l2 with
-          | ValueSome concatenated -> Ply concatenated
+          | ValueSome concatenated -> concatenated
           | ValueNone ->
-            Ply(
-              TypeChecker.DvalCreator.list
-                vm.threadID
-                vt1
-                (DvalList.toList (DvalList.append l1 l2))
-            )
+            (TypeChecker.DvalCreator.list
+              vm.threadID
+              vt1
+              (DvalList.toList (DvalList.append l1 l2)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -936,14 +922,12 @@ let fns () : List<BuiltInFn> =
           // Native because every list built by a fold goes through here, once per element, and the
           // Dark version had to build a one-element list to append.
           match TypeChecker.DvalCreator.tryPrepend vt l value with
-          | ValueSome prepended -> Ply prepended
+          | ValueSome prepended -> prepended
           | ValueNone ->
-            Ply(
-              TypeChecker.DvalCreator.list
-                vm.threadID
-                vt
-                (DvalList.toList (DvalList.cons value l))
-            )
+            (TypeChecker.DvalCreator.list
+              vm.threadID
+              vt
+              (DvalList.toList (DvalList.cons value l)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -961,14 +945,12 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DList(vt, l); value |] ->
           // Native for the same reason as `prepend`.
           match VT.mergeDval vt value with
-          | Ok merged -> Ply(DList(merged, DvalList.snoc l value))
+          | Ok merged -> (DList(merged, DvalList.snoc l value))
           | Error() ->
-            Ply(
-              TypeChecker.DvalCreator.list
-                vm.threadID
-                vt
-                (DvalList.toList (DvalList.snoc l value))
-            )
+            (TypeChecker.DvalCreator.list
+              vm.threadID
+              vt
+              (DvalList.toList (DvalList.snoc l value)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -1005,14 +987,12 @@ let fns () : List<BuiltInFn> =
                 | other -> DvalList.snoc acc other)
               DvalList.empty
           match inner with
-          | Ok vt -> Ply(DList(vt, items))
+          | Ok vt -> (DList(vt, items))
           | Error() ->
-            Ply(
-              TypeChecker.DvalCreator.list
-                vm.threadID
-                VT.unknown
-                (DvalList.toList items)
-            )
+            (TypeChecker.DvalCreator.list
+              vm.threadID
+              VT.unknown
+              (DvalList.toList items))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -1029,9 +1009,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DList(vt, l); DInt64 index |] ->
-          Ply(
-            TypeChecker.DvalCreator.option vm.threadID vt (DvalList.tryItem index l)
-          )
+          (TypeChecker.DvalCreator.option vm.threadID vt (DvalList.tryItem index l))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -1048,7 +1026,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DList(vt, l) |] ->
           // Reordering can't change the element type and every element was checked on the way in, so no
           // type check is needed. Native because `map` and `filter` both end in a reverse.
-          Ply(DList(vt, DvalList.rev l))
+          (DList(vt, DvalList.rev l))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

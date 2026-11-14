@@ -78,67 +78,58 @@ let private failureText (failures : List<LibDB.Seed.ValueEvaluationError>) : str
 /// Stabilize, store and fold through the guarded path, then -- on main -- re-resolve the draft around
 /// what landed, and evaluate new values.
 let private authorOpsWith
-  (insert :
-    PT.BranchId
-      -> List<PT.PackageOp>
-      -> System.Threading.Tasks.Task<Result<int64, string>>)
+  (insert : PT.BranchId -> List<PT.PackageOp> -> Result<int64, string>)
   (exeState : ExecutionState)
   (pm : PT.PackageManager)
   (branchId : PT.BranchId)
   (ops : List<PT.PackageOp>)
-  : Ply<Result<int64, string>> =
-  uply {
-    // New edits sort after everything already stored, commits included, whatever this process's
-    // clock last saw.
-    do! LibDB.Queries.ensureAuthoringClockIsCurrent ()
+  : Result<int64, string> =
+  // New edits sort after everything already stored, commits included, whatever this process's
+  // clock last saw.
+  LibDB.Queries.ensureAuthoringClockIsCurrent ()
 
-    // Refuse, rather than write: a merged or archived branch must not be REVIVED by an edit landing
-    // on it. A workbench still holding the id after a merge in another shell would otherwise put its
-    // next edit on a branch nothing will ever merge again.
-    let! finished =
+  // Refuse, rather than write: a merged or archived branch must not be REVIVED by an edit landing
+  // on it. A workbench still holding the id after a merge in another shell would otherwise put its
+  // next edit on a branch nothing will ever merge again.
+  let finished =
+    if branchId.IsMain then false else LibDB.Branches.isFinished branchId
+  if finished then
+    Error
+      $"branch {branchId} has been merged or archived; `dark switch <name>` starts a new one"
+  else
+    if not branchId.IsMain then
+      LibDB.Branches.registerIfNew branchId "" PT.BranchId.Main
+
+    // Stabilize before inserting. Raw ops carry provisional hashes, so their SetName targets would
+    // too, and the only thing that repairs those is `WipRefresh.refresh` rewriting the draft.
+    let stabilizedOps = LibDB.HashStabilization.computeRealHashes ops
+    // The store keeps one body per content hash. Two callers with that hash can still use
+    // different aliases, such as `double` and `twice`. Save each caller's reference names before
+    // storing the shared body.
+    let referenceNames =
+      LibDB.ReferenceNames.captureForStorage branchId stabilizedOps
+    let stabilizedOps = stabilizedOps @ referenceNames
+
+    // These package changes came from running Dark code, so they land through the guarded path:
+    // reserved bundled names and placeholder hashes are rejected here.
+    match insert branchId stabilizedOps with
+    | Error reason -> Error reason
+    | Ok insertedCount ->
+      // Refresh main's draft: re-resolve names and recompute SCC-aware hashes now that new items
+      // exist. This is the forward-ref case: an earlier draft item that references THIS one.
       if branchId.IsMain then
-        System.Threading.Tasks.Task.FromResult false
-      else
-        LibDB.Branches.isFinished branchId
-    if finished then
-      return
-        Error
-          $"branch {branchId} has been merged or archived; `dark switch <name>` starts a new one"
-    else
-      if not branchId.IsMain then
-        do! LibDB.Branches.registerIfNew branchId "" PT.BranchId.Main
+        let _refreshed = LibDB.WipRefresh.refresh pm
+        ()
 
-      // Stabilize before inserting. Raw ops carry provisional hashes, so their SetName targets would
-      // too, and the only thing that repairs those is `WipRefresh.refresh` rewriting the draft.
-      let stabilizedOps = LibDB.HashStabilization.computeRealHashes ops
-      // The store keeps one body per content hash. Two callers with that hash can still use
-      // different aliases, such as `double` and `twice`. Save each caller's reference names before
-      // storing the shared body.
-      let! referenceNames =
-        LibDB.ReferenceNames.captureForStorage branchId stabilizedOps
-      let stabilizedOps = stabilizedOps @ referenceNames
+      // Evaluate the values whose result is still missing, once, with no effects allowed
+      // (`Execution.evaluateValue`). A value that fails is reported, and the caller takes its
+      // binding back out (`SCM.PackageOps`), so it is refused rather than saved.
+      let evaluated =
+        LibDB.Seed.evaluateAllValues exeState.builtins LibDB.PackageManager.rt
 
-      // These package changes came from running Dark code, so they land through the guarded path:
-      // reserved bundled names and placeholder hashes are rejected here.
-      match! insert branchId stabilizedOps with
-      | Error reason -> return Error reason
-      | Ok insertedCount ->
-        // Refresh main's draft: re-resolve names and recompute SCC-aware hashes now that new items
-        // exist. This is the forward-ref case: an earlier draft item that references THIS one.
-        if branchId.IsMain then
-          let! _refreshed = LibDB.WipRefresh.refresh pm
-          ()
-
-        // Evaluate the values whose result is still missing, once, with no effects allowed
-        // (`Execution.evaluateValue`). A value that fails is reported, and the caller takes its
-        // binding back out (`SCM.PackageOps`), so it is refused rather than saved.
-        let! evaluated =
-          LibDB.Seed.evaluateAllValues exeState.builtins LibDB.PackageManager.rt
-
-        match ownEvaluationFailures ops evaluated with
-        | [] -> return Ok insertedCount
-        | failures -> return Error(failureText failures)
-  }
+      match ownEvaluationFailures ops evaluated with
+      | [] -> Ok insertedCount
+      | failures -> Error(failureText failures)
 
 
 let authorOps = authorOpsWith LibDB.Inserts.insertUntrustedOps
@@ -146,19 +137,14 @@ let authorOps = authorOpsWith LibDB.Inserts.insertUntrustedOps
 
 /// Evaluate the values a merge just folded into main. What fails stays unevaluated, as it would
 /// after any fold.
-let evaluateLandedValues (exeState : ExecutionState) : Ply<unit> =
-  uply {
-    let builtins : Builtins =
-      { values = exeState.values.builtIn; fns = exeState.fns.builtIn }
-    let! _ = LibDB.Seed.evaluateAllValues builtins LibDB.PackageManager.rt
-    return ()
-  }
+let evaluateLandedValues (exeState : ExecutionState) : unit =
+  let builtins : Builtins =
+    { values = exeState.values.builtIn; fns = exeState.fns.builtIn }
+  let _ = LibDB.Seed.evaluateAllValues builtins LibDB.PackageManager.rt
+  ()
 
 let private addOpsFn
-  (insert :
-    PT.BranchId
-      -> List<PT.PackageOp>
-      -> System.Threading.Tasks.Task<Result<int64, string>>)
+  (insert : PT.BranchId -> List<PT.PackageOp> -> Result<int64, string>)
   (pm : PT.PackageManager)
   : BuiltInFn =
   { name = fn "scmAddOps" 0
@@ -178,17 +164,13 @@ let private addOpsFn
       let resultError = Dval.resultError KTInt64 KTString
       (function
       | exeState, _, _, [| DUuid branchId; DList(_vtTODO, Items(ops)) |] ->
-        uply {
-          try
-            let ops = ops |> List.choose PT2DT.PackageOp.fromDT
-            match!
-              authorOpsWith insert exeState pm (PT.BranchId.Id branchId) ops
-            with
-            | Ok n -> return resultOk (Dval.dint64 (int64 n))
-            | Error message -> return resultError (Dval.string message)
-          with ex ->
-            return resultError (Dval.string ex.Message)
-        }
+        try
+          let ops = ops |> List.choose PT2DT.PackageOp.fromDT
+          match authorOpsWith insert exeState pm (PT.BranchId.Id branchId) ops with
+          | Ok n -> resultOk (Dval.dint64 (int64 n))
+          | Error message -> resultError (Dval.string message)
+        with ex ->
+          resultError (Dval.string ex.Message)
       | _ -> incorrectArgs ())
     previewable = Impure
     callEffects = set [ Effect.PackageWrite ]
@@ -211,14 +193,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DList(_vt, Items(ops)) |] ->
-          uply {
-            let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
-            let stabilized = LibDB.HashStabilization.computeRealHashes ptOps
-            return
-              Dval.list
-                (packageOpKT ())
-                (stabilized |> List.map PT2DT.PackageOp.toDT)
-          }
+          let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
+          let stabilized = LibDB.HashStabilization.computeRealHashes ptOps
+          Dval.list (packageOpKT ()) (stabilized |> List.map PT2DT.PackageOp.toDT)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -250,10 +227,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | exeState, _, _, [| DList(_vt, Items(ops)) |] ->
-          uply {
-            let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
-            let! resolved, unresolved =
-              TraitCalls.resolveTraitCalls exeState exeState.branchId pm None ptOps
+          let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
+          TraitCalls.resolveTraitCalls exeState exeState.branchId pm None ptOps
+          |> LibExecution.Pending.map (fun (resolved, unresolved) ->
             let callTypeName = unresolvedTraitCallTypeName ()
             let callKT = KTCustomType(callTypeName, [])
             let encodeCall call =
@@ -264,23 +240,19 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 | TraitCalls.Operator(at, op) ->
                   "Operator", [ DUInt64 at; PT2DT.InfixFnName.toDT op ]
               DEnum(callTypeName, callTypeName, [], caseName, fields)
-            return
-              DTuple(
-                Dval.list
-                  (packageOpKT ())
-                  (resolved |> List.map PT2DT.PackageOp.toDT),
-                Dval.list
-                  (KTTuple(VT.string, VT.list (VT.known callKT), []))
-                  (unresolved
-                   |> List.map (fun (name, calls) ->
-                     DTuple(
-                       DString name,
-                       Dval.list callKT (List.map encodeCall calls),
-                       []
-                     ))),
-                []
-              )
-          }
+            DTuple(
+              Dval.list (packageOpKT ()) (resolved |> List.map PT2DT.PackageOp.toDT),
+              Dval.list
+                (KTTuple(VT.string, VT.list (VT.known callKT), []))
+                (unresolved
+                 |> List.map (fun (name, calls) ->
+                   DTuple(
+                     DString name,
+                     Dval.list callKT (List.map encodeCall calls),
+                     []
+                   ))),
+              []
+            ))
         | _ -> incorrectArgs ())
       // Reads the store's implementations and stamps, so two calls on either side of someone
       // else's `impl` do not agree.
@@ -303,7 +275,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUnit |] ->
-          uply { return DUuid (LibDB.PackageManager.currentBranchId ()).Guid }
+          (DUuid (LibDB.PackageManager.currentBranchId ()).Guid)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -327,20 +299,17 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUnit |] ->
-          uply {
-            let! c = LibDB.StoreHealth.counts ()
-            let typeName = FQTypeName.fqPackage (PackageRefs.Type.SCM.storeHealth ())
-            return
-              DRecord(
-                typeName,
-                typeName,
-                [],
-                RecordFields.ofList
-                  [ "futureStamped", DInt64 c.futureStamped
-                    "unfolded", DInt64 c.unfolded
-                    "danglingBindings", DInt64 c.danglingBindings ]
-              )
-          }
+          let c = LibDB.StoreHealth.counts ()
+          let typeName = FQTypeName.fqPackage (PackageRefs.Type.SCM.storeHealth ())
+          DRecord(
+            typeName,
+            typeName,
+            [],
+            RecordFields.ofList
+              [ "futureStamped", DInt64 c.futureStamped
+                "unfolded", DInt64 c.unfolded
+                "danglingBindings", DInt64 c.danglingBindings ]
+          )
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -361,10 +330,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUnit |] ->
-          uply {
-            LibDB.Caching.invalidateAll ()
-            return DUnit
-          }
+          LibDB.Caching.invalidateAll ()
+          DUnit
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Runtime ]

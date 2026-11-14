@@ -25,7 +25,7 @@ let fns () : List<BuiltInFn> =
       fn =
         function
         | _, _, _, [| DChar c1; DChar c2 |] ->
-          String.compareByCodepoint c1 c2 < 0 |> DBool |> Ply
+          String.compareByCodepoint c1 c2 < 0 |> DBool
         | _ -> incorrectArgs ()
       previewable = Pure
       callEffects = Set.empty
@@ -41,7 +41,7 @@ let fns () : List<BuiltInFn> =
       fn =
         function
         | _, _, _, [| DChar c1; DChar c2 |] ->
-          String.compareByCodepoint c1 c2 <= 0 |> DBool |> Ply
+          String.compareByCodepoint c1 c2 <= 0 |> DBool
         | _ -> incorrectArgs ()
       previewable = Pure
       callEffects = Set.empty
@@ -56,7 +56,7 @@ let fns () : List<BuiltInFn> =
       fn =
         function
         | _, _, _, [| DChar c1; DChar c2 |] ->
-          String.compareByCodepoint c1 c2 > 0 |> DBool |> Ply
+          String.compareByCodepoint c1 c2 > 0 |> DBool
         | _ -> incorrectArgs ()
       previewable = Pure
       callEffects = Set.empty
@@ -72,7 +72,7 @@ let fns () : List<BuiltInFn> =
       fn =
         function
         | _, _, _, [| DChar c1; DChar c2 |] ->
-          String.compareByCodepoint c1 c2 >= 0 |> DBool |> Ply
+          String.compareByCodepoint c1 c2 >= 0 |> DBool
         | _ -> incorrectArgs ()
       previewable = Pure
       callEffects = Set.empty
@@ -86,7 +86,7 @@ let fns () : List<BuiltInFn> =
       description = "Stringify <param c>"
       fn =
         (function
-        | _, _, _, [| DChar c |] -> Ply(DString c)
+        | _, _, _, [| DChar c |] -> (DString c)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -103,7 +103,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DChar c |] ->
-          Ply(Dval.char (Builtins.Pure.CaseMapping.charToUppercase c))
+          (Dval.char (Builtins.Pure.CaseMapping.charToUppercase c))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -120,7 +120,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DChar c |] ->
-          Ply(Dval.char (Builtins.Pure.CaseMapping.charToLowercase c))
+          (Dval.char (Builtins.Pure.CaseMapping.charToLowercase c))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -139,8 +139,8 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [| DUInt32 cp |] ->
           match System.Text.Rune.TryCreate(cp) with
-          | true, rune -> Dval.optionSome KTChar (Dval.char (rune.ToString())) |> Ply
-          | false, _ -> Dval.optionNone KTChar |> Ply
+          | true, rune -> Dval.optionSome KTChar (Dval.char (rune.ToString()))
+          | false, _ -> Dval.optionNone KTChar
         | _ -> incorrectArgs ()
       previewable = Pure
       callEffects = Set.empty
@@ -157,7 +157,7 @@ let fns () : List<BuiltInFn> =
       fn =
         function
         | _, _, _, [| DUInt32 c |] ->
-          Ply(DBool(checkCodepoint System.Text.Rune.IsLetter c))
+          (DBool(checkCodepoint System.Text.Rune.IsLetter c))
         | _ -> incorrectArgs ()
       previewable = Pure
       callEffects = Set.empty
@@ -174,7 +174,7 @@ let fns () : List<BuiltInFn> =
       fn =
         function
         | _, _, _, [| DUInt32 c |] ->
-          Ply(DBool(checkCodepoint System.Text.Rune.IsWhiteSpace c))
+          (DBool(checkCodepoint System.Text.Rune.IsWhiteSpace c))
         | _ -> incorrectArgs ()
       previewable = Pure
       callEffects = Set.empty
@@ -191,7 +191,7 @@ let fns () : List<BuiltInFn> =
       fn =
         function
         | _, _, _, [| DUInt32 c |] ->
-          Ply(DBool(checkCodepoint System.Text.Rune.IsLetterOrDigit c))
+          (DBool(checkCodepoint System.Text.Rune.IsLetterOrDigit c))
         | _ -> incorrectArgs ()
       previewable = Pure
       callEffects = Set.empty

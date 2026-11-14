@@ -7,6 +7,8 @@
 /// `RuntimeTypes.fs`.
 module LibExecution.Stream
 
+open System.Threading.Tasks
+
 open Prelude
 
 open LibExecution.RuntimeTypes
@@ -84,7 +86,7 @@ let private once (disposer : (unit -> unit) option) : (unit -> unit) option =
 /// efficiently yield a whole chunk per pull.
 let newFromIO
   (elemType : ValueType)
-  (next : unit -> Ply.Ply<Option<Dval>>)
+  (next : unit -> ValueTask<Option<Dval>>)
   (disposer : (unit -> unit) option)
   : Dval =
   wrapImpl (FromIO(next, elemType, once disposer, None))
@@ -94,42 +96,47 @@ let newFromIO
 /// [readChunk]. The `nextChunk` callback fills up to `maxBytes` into
 /// a fresh byte[] and returns it (or None on exhaustion). Consumers
 /// that want full-chunk bytes — `streamToBytes`, SSE byte
-/// accumulators — bypass per-byte Ply/Dval boxing by calling
+/// accumulators — bypass per-byte Dval boxing by calling
 /// `readChunk` instead of `readNext`. The `next` path stays
 /// available so `streamNext` returns one DUInt8 at a time as before
 /// — the implementation synthesises single-byte pulls from the
 /// chunk buffer.
 let newChunked
   (elemType : ValueType)
-  (nextChunk : int -> Ply.Ply<Option<byte[]>>)
+  (nextChunk : int -> ValueTask<Option<byte[]>>)
   (disposer : (unit -> unit) option)
   : Dval =
   // Maintain a small carry buffer so single-byte `next` pulls can
   // be served from the chunks that `nextChunk` returned.
   let carry = ref [||]
   let carryPos = ref 0
-  let next () : Ply.Ply<Option<Dval>> =
-    uply {
-      if carryPos.Value >= carry.Value.Length then
-        // Refill from the underlying chunked producer. 8 KB mirrors
-        // the socket-read buffer size we use across the codebase.
-        let! chunk = nextChunk 8192
-        match chunk with
-        | None -> return None
-        | Some buf ->
-          carry.Value <- buf
-          carryPos.Value <- 0
-          if buf.Length = 0 then
-            return None
-          else
-            let b = buf[0]
-            carryPos.Value <- 1
-            return Some(RuntimeTypes.Dval.duint8 b)
+  let fromCarry () =
+    let b = carry.Value[carryPos.Value]
+    carryPos.Value <- carryPos.Value + 1
+    Some(RuntimeTypes.Dval.duint8 b)
+  let refill (chunk : Option<byte[]>) =
+    match chunk with
+    | Some buf when buf.Length > 0 ->
+      carry.Value <- buf
+      carryPos.Value <- 0
+      fromCarry ()
+    | _ -> None
+  let next () : ValueTask<Option<Dval>> =
+    if carryPos.Value < carry.Value.Length then
+      ValueTask<_>(fromCarry ())
+    else
+      // Refill from the underlying chunked producer. 8 KB mirrors
+      // the socket-read buffer size we use across the codebase.
+      let chunk = nextChunk 8192
+      if chunk.IsCompletedSuccessfully then
+        ValueTask<_>(refill chunk.Result)
       else
-        let b = carry.Value[carryPos.Value]
-        carryPos.Value <- carryPos.Value + 1
-        return Some(RuntimeTypes.Dval.duint8 b)
-    }
+        let landed : Task<Option<Dval>> =
+          task {
+            let! chunk = chunk
+            return refill chunk
+          }
+        ValueTask<Option<Dval>>(landed)
   wrapImpl (FromIO(next, elemType, once disposer, Some nextChunk))
 
 
@@ -151,7 +158,7 @@ type PullStep =
     next : (Dval -> PullStep) *
     looks : bool
   /// Native IO under way; continue with what it lands.
-  | Wait of Ply.Ply<PullStep>
+  | Wait of Task<PullStep>
 
 /// Continue a step with what to do once its pull is done.
 let rec private andThen (step : PullStep) (k : Option<Dval> -> PullStep) : PullStep =
@@ -159,10 +166,10 @@ let rec private andThen (step : PullStep) (k : Option<Dval> -> PullStep) : PullS
   | Pulled r -> k r
   | Apply(app, arg, next, looks) ->
     Apply(app, arg, (fun dv -> andThen (next dv) k), looks)
-  | Wait ply ->
+  | Wait t ->
     Wait(
-      uply {
-        let! landed = ply
+      task {
+        let! landed = t
         return andThen landed k
       }
     )
@@ -176,11 +183,11 @@ let rec private pull (impl : StreamImpl) : PullStep =
   match impl with
   | FromIO(next, _elemType, _disposer, _nextChunk) ->
     let p = next ()
-    match Ply.trySync p with
-    | ValueSome r -> Pulled r
-    | ValueNone ->
+    if p.IsCompletedSuccessfully then
+      Pulled p.Result
+    else
       Wait(
-        uply {
+        task {
           let! r = p
           return Pulled r
         }
@@ -281,12 +288,12 @@ let pullNext (dv : Dval) : PullStep =
 /// A pull driven to its end here, for F# callers with no process to run Dark code in (tests,
 /// the benchmark scenarios, the HTTP client's own byte streams). Loud on a node that needs Dark
 /// code: that stream has to be pulled from a Dark process, through the stream builtins.
-let rec private runNative (step : PullStep) : Ply.Ply<Option<Dval>> =
+let rec private runNative (step : PullStep) : Task<Option<Dval>> =
   match step with
-  | Pulled r -> Ply r
-  | Wait ply ->
-    uply {
-      let! landed = ply
+  | Pulled r -> Task.FromResult r
+  | Wait t ->
+    task {
+      let! landed = t
       return! runNative landed
     }
   | Apply _ ->
@@ -298,7 +305,7 @@ let rec private runNative (step : PullStep) : Ply.Ply<Option<Dval>> =
 /// Pull the next element from a stream that runs no Dark code. Returns [None] when the
 /// stream is exhausted; subsequent calls after exhaustion return [None]. The stream
 /// builtins drive [pullNext] themselves; this is for F# code that owns a native stream.
-let readNext (dv : Dval) : Ply.Ply<Option<Dval>> = runNative (pullNext dv)
+let readNext (dv : Dval) : Task<Option<Dval>> = runNative (pullNext dv)
 
 
 /// Pull up to `maxBytes` bytes from a byte stream as one chunk.
@@ -310,10 +317,9 @@ let readNext (dv : Dval) : Ply.Ply<Option<Dval>> = runNative (pullNext dv)
 /// code; `streamToBytes` drives the transform case itself.
 ///
 /// Used by `streamToBytes` and SSE byte accumulators to amortise the
-/// Ply-continuation cost across whole chunks rather than paying it
-/// per byte.
-let readChunk (maxBytes : int) (dv : Dval) : Ply.Ply<Option<byte[]>> =
-  uply {
+/// per-pull cost across whole chunks rather than paying it per byte.
+let readChunk (maxBytes : int) (dv : Dval) : Task<Option<byte[]>> =
+  task {
     match dv with
     | DStream(impl, disposed, _) ->
       if disposed.Value then
@@ -343,10 +349,7 @@ let readChunk (maxBytes : int) (dv : Dval) : Ply.Ply<Option<byte[]>> =
               collected.WriteByte b
               bytesSoFar <- bytesSoFar + 1
             | Some _ ->
-              return
-                Exception.raiseInternal
-                  "readChunk: expected Stream<UInt8> element"
-                  []
+              Exception.raiseInternal "readChunk: expected Stream<UInt8> element" []
             | None -> keepGoing <- false
           if bytesSoFar = 0 then
             disposed.Value <- true

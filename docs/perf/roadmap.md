@@ -556,7 +556,7 @@ fix is to stop content-hashing before resolution, using the location-derived pla
 The check that should catch it is dead. In four places in `TypeChecker.fs` the code matches `vt`,
 binds the catch-all as `known`, and then calls `ValueType.merge known vt` -- merging a value with
 itself, which always succeeds. Three of those predate this campaign; the fourth is
-`updateTypeArgsSync`, which reproduced the idiom when extracting the synchronous twin. Letting
+`updateTypeArgs`, which reproduced the idiom when extracting the synchronous twin. Letting
 parameterised types onto the fast path did not widen the exposure, since the async path ran the same
 self-merge, but the fix is now a four-site change.
 

@@ -46,7 +46,7 @@ let fns () : List<BuiltInFn> =
             | "Sha256" -> SHA256.HashData span
             | "Sha384" -> SHA384.HashData span
             | _ -> incorrectArgs ()
-          Bytes.withBytes state ref (fun data -> Ply(Bytes.newEphemeral (hash data)))
+          Bytes.withBytes state ref (fun data -> (Bytes.newEphemeral (hash data)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -70,16 +70,14 @@ let fns () : List<BuiltInFn> =
           let a = System.Text.Encoding.UTF8.GetBytes presented
           let b = System.Text.Encoding.UTF8.GetBytes expected
           if a.Length <> b.Length then
-            Ply(DBool false)
+            (DBool false)
           else
-            Ply(
-              DBool(
-                CryptographicOperations.FixedTimeEquals(
-                  System.ReadOnlySpan(a),
-                  System.ReadOnlySpan(b)
-                )
+            (DBool(
+              CryptographicOperations.FixedTimeEquals(
+                System.ReadOnlySpan(a),
+                System.ReadOnlySpan(b)
               )
-            )
+            ))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

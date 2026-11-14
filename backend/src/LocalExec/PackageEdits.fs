@@ -19,7 +19,6 @@
 module LocalExec.PackageEdits
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -57,32 +56,28 @@ let private sha256 (text : string) : string =
   |> System.Convert.ToHexString
 
 /// Every op the store holds, in order: anything that writes one moves it.
-let private fingerprint () : Task<string> =
-  task {
-    let! rows =
-      Sql.query "SELECT id || '|' || branch_id AS op FROM package_ops ORDER BY rowid"
-      |> Sql.executeAsync (fun read -> read.string "op")
-    let all = String.concat "\n" rows
-    return $"{List.length rows}:{sha256 all}"
-  }
+let private fingerprint () : string =
+  let rows =
+    Sql.query "SELECT id || '|' || branch_id AS op FROM package_ops ORDER BY rowid"
+    |> Sql.executeRows (fun read -> read.string "op")
+  let all = String.concat "\n" rows
+  $"{List.length rows}:{sha256 all}"
 
 /// Say what the store now holds: <param files> (`LoadPackagesFromDisk.files`) and its ops.
-let writeRecord (files : List<string * string>) : Task<unit> =
-  task {
-    let! fingerprint = fingerprint ()
-    let path = recordPath ()
-    do
-      use stream = System.IO.File.Create(path + ".tmp")
-      use w = new System.Text.Json.Utf8JsonWriter(stream)
-      w.WriteStartObject()
-      w.WriteString("fingerprint", fingerprint)
-      w.WriteStartObject("files")
-      for (file, text) in files do
-        w.WriteString(System.IO.Path.GetRelativePath(root (), file), text)
-      w.WriteEndObject()
-      w.WriteEndObject()
-    System.IO.File.Move(path + ".tmp", path, true)
-  }
+let writeRecord (files : List<string * string>) : unit =
+  let fingerprint = fingerprint ()
+  let path = recordPath ()
+  do
+    use stream = System.IO.File.Create(path + ".tmp")
+    use w = new System.Text.Json.Utf8JsonWriter(stream)
+    w.WriteStartObject()
+    w.WriteString("fingerprint", fingerprint)
+    w.WriteStartObject("files")
+    for (file, text) in files do
+      w.WriteString(System.IO.Path.GetRelativePath(root (), file), text)
+    w.WriteEndObject()
+    w.WriteEndObject()
+  System.IO.File.Move(path + ".tmp", path, true)
 
 let private readRecord () : string * Map<string, string> =
   let text =
@@ -247,56 +242,52 @@ let rec private diff
 // ------------------------------------------------------------------
 
 /// How many live items depend on what <param change> names now, transitively.
-let private dependents (change : Change) : Task<int64> =
-  task {
-    // An impl is at its trait's name in its type's module (`WT.implMemberPath`), and its methods
-    // are the fns in the module below that.
-    let places =
-      match change.kind, change.modules with
-      | "impl", owner :: modules ->
-        let trait_, typeName =
-          match change.name.Split('.') |> List.ofArray |> List.rev with
-          | trait_ :: typeName -> trait_, dotted (List.rev typeName)
-          | [] -> refuse $"can't read the impl {change.name}"
-        let inType =
-          if List.tryLast modules = Some typeName then
-            modules
-          else
-            modules @ [ typeName ]
-        [ [ owner; String.concat "." inType; trait_ ]
-          [ owner; String.concat "." (inType @ [ trait_ ]); "" ] ]
-      | _, owner :: modules ->
-        [ [ owner; String.concat "." modules; change.name.Trim('`') ] ]
-      | _ -> []
-    let! roots =
-      Sql.query
-        "SELECT l.item_hash FROM json_each(@places) j JOIN locations l
-           ON l.owner = json_extract(j.value, '$[0]')
-          AND l.modules = json_extract(j.value, '$[1]')
-          AND (json_extract(j.value, '$[2]') = '' OR l.name = json_extract(j.value, '$[2]'))
-         WHERE l.branch_id = @main AND l.live = 1"
-      |> Sql.parameters
-        [ "places", Sql.string (jsonRows places)
-          "main", Sql.string (string PT.BranchId.Main) ]
-      |> Sql.executeAsync (fun read -> read.string "item_hash")
-    if List.isEmpty roots then
-      return
-        refuse
-          $"the store has nothing at {dotted (change.modules @ [ change.name ])}, which it was loaded with"
-    let roots = jsonRows (roots |> List.map (fun r -> [ r ]))
-    return!
-      Sql.query
-        "WITH RECURSIVE dep(h) AS (
-           SELECT json_extract(value, '$[0]') FROM json_each(@roots)
-           UNION
-           SELECT d.item_hash FROM package_dependencies d JOIN dep ON d.depends_on_hash = dep.h)
-         SELECT COUNT(DISTINCT l.item_hash) AS n FROM dep JOIN locations l
-           ON l.item_hash = dep.h AND l.live = 1 AND l.branch_id = @main
-         WHERE dep.h NOT IN (SELECT json_extract(value, '$[0]') FROM json_each(@roots))"
-      |> Sql.parameters
-        [ "roots", Sql.string roots; "main", Sql.string (string PT.BranchId.Main) ]
-      |> Sql.executeRowAsync (fun read -> read.int64 "n")
-  }
+let private dependents (change : Change) : int64 =
+  // An impl is at its trait's name in its type's module (`WT.implMemberPath`), and its methods
+  // are the fns in the module below that.
+  let places =
+    match change.kind, change.modules with
+    | "impl", owner :: modules ->
+      let trait_, typeName =
+        match change.name.Split('.') |> List.ofArray |> List.rev with
+        | trait_ :: typeName -> trait_, dotted (List.rev typeName)
+        | [] -> refuse $"can't read the impl {change.name}"
+      let inType =
+        if List.tryLast modules = Some typeName then
+          modules
+        else
+          modules @ [ typeName ]
+      [ [ owner; String.concat "." inType; trait_ ]
+        [ owner; String.concat "." (inType @ [ trait_ ]); "" ] ]
+    | _, owner :: modules ->
+      [ [ owner; String.concat "." modules; change.name.Trim('`') ] ]
+    | _ -> []
+  let roots =
+    Sql.query
+      "SELECT l.item_hash FROM json_each(@places) j JOIN locations l
+         ON l.owner = json_extract(j.value, '$[0]')
+        AND l.modules = json_extract(j.value, '$[1]')
+        AND (json_extract(j.value, '$[2]') = '' OR l.name = json_extract(j.value, '$[2]'))
+       WHERE l.branch_id = @main AND l.live = 1"
+    |> Sql.parameters
+      [ "places", Sql.string (jsonRows places)
+        "main", Sql.string (string PT.BranchId.Main) ]
+    |> Sql.executeRows (fun read -> read.string "item_hash")
+  if List.isEmpty roots then
+    refuse
+      $"the store has nothing at {dotted (change.modules @ [ change.name ])}, which it was loaded with"
+  let roots = jsonRows (roots |> List.map (fun r -> [ r ]))
+  Sql.query
+    "WITH RECURSIVE dep(h) AS (
+       SELECT json_extract(value, '$[0]') FROM json_each(@roots)
+       UNION
+       SELECT d.item_hash FROM package_dependencies d JOIN dep ON d.depends_on_hash = dep.h)
+     SELECT COUNT(DISTINCT l.item_hash) AS n FROM dep JOIN locations l
+       ON l.item_hash = dep.h AND l.live = 1 AND l.branch_id = @main
+     WHERE dep.h NOT IN (SELECT json_extract(value, '$[0]') FROM json_each(@roots))"
+  |> Sql.parameters
+    [ "roots", Sql.string roots; "main", Sql.string (string PT.BranchId.Main) ]
+  |> Sql.executeRow (fun read -> read.int64 "n")
 
 
 /// The state `defineBundled` runs in: the CLI's builtins, with `scmAddOps` the one that lets
@@ -304,8 +295,8 @@ let private dependents (change : Change) : Task<int64> =
 let private exeState () : RT.ExecutionState =
   let builtins = Builtins.allWith PM.pt
   let addOps = Builtins.Matter.Libs.PM.PackageOps.bundledAddOps PM.pt
-  let notify _ _ _ _ = uply { return () }
-  let reportException _ _ _ _ = uply { return () }
+  let notify _ _ _ _ = ()
+  let reportException _ _ _ _ = ()
   let fns =
     builtins.fns
     |> Seq.map (fun kv ->
@@ -325,102 +316,91 @@ let private exeState () : RT.ExecutionState =
           LibExecution.Permissions.Policy.allowAll }
 
 
-let private applyEdits () : Ply<string> =
-  uply {
-    let started = System.Diagnostics.Stopwatch.StartNew()
-    let recorded, recordedFiles = readRecord ()
-    let! now = fingerprint ()
-    if now <> recorded then refuse "the store's ops changed since it was loaded"
-    let files = LoadPackagesFromDisk.files ()
-    let current =
-      files
-      |> List.map (fun (file, text) ->
-        (System.IO.Path.GetRelativePath(root (), file), text))
-      |> Map.ofList
-    recordedFiles
-    |> Map.tryFindKey (fun file _ -> not (Map.containsKey file current))
-    |> Option.iter (fun file -> refuse $"{file} was deleted")
+let private applyEdits () : string =
+  let started = System.Diagnostics.Stopwatch.StartNew()
+  let recorded, recordedFiles = readRecord ()
+  let now = fingerprint ()
+  if now <> recorded then refuse "the store's ops changed since it was loaded"
+  let files = LoadPackagesFromDisk.files ()
+  let current =
+    files
+    |> List.map (fun (file, text) ->
+      (System.IO.Path.GetRelativePath(root (), file), text))
+    |> Map.ofList
+  recordedFiles
+  |> Map.tryFindKey (fun file _ -> not (Map.containsKey file current))
+  |> Option.iter (fun file -> refuse $"{file} was deleted")
 
-    let work =
-      current
-      |> Map.toList
-      |> List.choose (fun (file, text) ->
-        let before = Map.tryFind file recordedFiles
-        if before = Some text then
-          None
-        else
-          let modules, news = parse file text
-          let oldModules, olds =
-            match before with
-            | Some b -> parse file b
-            | None -> (modules, [])
-          if oldModules <> modules then refuse $"{file}'s module line changed"
-          match diff modules olds news with
-          | _, [] -> None
-          | source, changes -> Some(file, modules, source, changes))
+  let work =
+    current
+    |> Map.toList
+    |> List.choose (fun (file, text) ->
+      let before = Map.tryFind file recordedFiles
+      if before = Some text then
+        None
+      else
+        let modules, news = parse file text
+        let oldModules, olds =
+          match before with
+          | Some b -> parse file b
+          | None -> (modules, [])
+        if oldModules <> modules then refuse $"{file}'s module line changed"
+        match diff modules olds news with
+        | _, [] -> None
+        | source, changes -> Some(file, modules, source, changes))
 
-    let! counts =
-      work
-      |> List.collect (fun (_, _, _, changes) -> changes)
-      |> List.filter (fun c -> not c.added && c.kind <> "test")
-      |> Task.mapSequentially (fun c ->
-        task {
-          let! n = dependents c
-          if c.kind = "type" && n > typeDependentsLimit then
-            refuse
-              $"type {dotted (c.modules @ [ c.name ])} changed and {n} items depend on it"
-          return n
-        })
-    let total = List.sum counts
-    if total > dependentsLimit then
-      refuse $"the changes have {total} dependents, over {dependentsLimit}"
+  let counts =
+    work
+    |> List.collect (fun (_, _, _, changes) -> changes)
+    |> List.filter (fun c -> not c.added && c.kind <> "test")
+    |> List.map (fun c ->
+      let n = dependents c
+      if c.kind = "type" && n > typeDependentsLimit then
+        refuse
+          $"type {dotted (c.modules @ [ c.name ])} changed and {n} items depend on it"
+      n)
+  let total = List.sum counts
+  if total > dependentsLimit then
+    refuse $"the changes have {total} dependents, over {dependentsLimit}"
 
-    if not (List.isEmpty work) then
-      let state = exeState ()
-      let define =
-        match
-          PM.resolveFnRef "Darklang.Cli.Packages.ModuleCommand.defineBundled"
-        with
-        | Some fn -> fn
-        | None ->
-          refuse "the store has no Darklang.Cli.Packages.ModuleCommand.defineBundled"
-      do!
-        work
-        |> Ply.List.iterSequentially (fun (file, modules, source, _) ->
-          uply {
-            let args =
-              NEList.ofList
-                (RT.DString("/" + String.concat "." modules))
-                [ RT.DString source ]
-            match! Exe.executeFunction state define [] args with
-            | Ok(RT.DInt64 0L) -> ()
-            | Ok _ -> refuse $"`dark module` did not apply {file}"
-            | Error(rte, _) ->
-              let! message = Exe.runtimeErrorMessage state rte
-              refuse $"`dark module` did not apply {file}: {message}"
-          })
+  if not (List.isEmpty work) then
+    let state = exeState ()
+    let define =
+      match PM.resolveFnRef "Darklang.Cli.Packages.ModuleCommand.defineBundled" with
+      | Some fn -> fn
+      | None ->
+        refuse "the store has no Darklang.Cli.Packages.ModuleCommand.defineBundled"
+    work
+    |> List.iter (fun (file, modules, source, _) ->
+      let args =
+        NEList.ofList
+          (RT.DString("/" + String.concat "." modules))
+          [ RT.DString source ]
+      // LocalExec runs on its own thread, outside any scheduler, so waiting in place is safe.
+      match (Exe.executeFunction state define [] args).Result with
+      | Ok(RT.DInt64 0L) -> ()
+      | Ok _ -> refuse $"`dark module` did not apply {file}"
+      | Error(rte, _) ->
+        let message = (Exe.runtimeErrorMessage state rte).Result
+        refuse $"`dark module` did not apply {file}: {message}")
 
-      let! _ = LibDB.Inserts.commitAllAsBaseline "package reload (baseline)"
-      do! LibDB.PackageRefsGenerator.generate true
-      match! LibDB.Seed.evaluateAllValues (Builtins.all ()) PM.rt with
-      | Ok() -> ()
-      | Error _ -> refuse "some values failed to evaluate"
+    let _ = LibDB.Inserts.commitAllAsBaseline "package reload (baseline)"
+    LibDB.PackageRefsGenerator.generate true
+    match LibDB.Seed.evaluateAllValues (Builtins.all ()) PM.rt with
+    | Ok() -> ()
+    | Error _ -> refuse "some values failed to evaluate"
 
-    do! writeRecord files
-    let decls = work |> List.sumBy (fun (_, _, _, changes) -> List.length changes)
-    return
-      $"applied {decls} declaration(s) from {List.length work} file(s), {total} dependent(s), in {started.Elapsed.TotalSeconds:F1}s; no full reload"
-  }
+  writeRecord files
+  let decls = work |> List.sumBy (fun (_, _, _, changes) -> List.length changes)
+  $"applied {decls} declaration(s) from {List.length work} file(s), {total} dependent(s), in {started.Elapsed.TotalSeconds:F1}s; no full reload"
 
 
 /// Apply the edits, and say in a line starting `packages:` which path the build took.
-let apply () : Ply<Result<unit, string>> =
-  uply {
-    try
-      let! said = applyEdits ()
-      print $"packages: {said}"
-      return Ok()
-    with Refused reason ->
-      print $"packages: full reload: {reason}"
-      return Error reason
-  }
+let apply () : Result<unit, string> =
+  try
+    let said = applyEdits ()
+    print $"packages: {said}"
+    Ok()
+  with Refused reason ->
+    print $"packages: full reload: {reason}"
+    Error reason

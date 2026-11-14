@@ -10,7 +10,6 @@
 module LibDB.ScmBranches
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -60,10 +59,10 @@ let private empty : Info =
 let private run
   (sql : string)
   (parameters : List<string * Microsoft.Data.Sqlite.SqliteParameter>)
-  : Task<List<Info>> =
+  : List<Info> =
   Sql.query sql
   |> Sql.parameters parameters
-  |> Sql.executeAsync (fun read ->
+  |> Sql.executeRows (fun read ->
     { empty with
         id = read.string "id"
         name = read.string "name"
@@ -71,14 +70,14 @@ let private run
         merged = read.int64 "merged" <> 0L })
 
 
-let query (q : Query) : Task<List<Info>> =
+let query (q : Query) : List<Info> =
   match q with
   | All ->
     Sql.query
       "SELECT b.id, b.name, b.parent_id, b.merged_at IS NOT NULL AS merged,
               (SELECT count(*) FROM package_ops p WHERE p.branch_id = b.id) AS ops
        FROM branches b WHERE b.archived_at IS NULL ORDER BY b.created_at DESC"
-    |> Sql.executeAsync (fun read ->
+    |> Sql.executeRows (fun read ->
       { empty with
           id = read.string "id"
           name = read.string "name"
@@ -107,15 +106,13 @@ let query (q : Query) : Task<List<Info>> =
       [ "id", Sql.string id ]
 
   | NameBasesOf id ->
-    task {
-      let! bases =
-        Sql.query
-          "SELECT owner, modules, name, base_hash FROM branch_name_bases WHERE branch_id = @id"
-        |> Sql.parameters [ "id", Sql.string id ]
-        |> Sql.executeAsync (fun read ->
-          { owner = read.string "owner"
-            modules = read.string "modules"
-            name = read.string "name"
-            baseHash = read.string "base_hash" })
-      return [ { empty with id = id; nameBases = bases } ]
-    }
+    let bases =
+      Sql.query
+        "SELECT owner, modules, name, base_hash FROM branch_name_bases WHERE branch_id = @id"
+      |> Sql.parameters [ "id", Sql.string id ]
+      |> Sql.executeRows (fun read ->
+        { owner = read.string "owner"
+          modules = read.string "modules"
+          name = read.string "name"
+          baseHash = read.string "base_hash" })
+    [ { empty with id = id; nameBases = bases } ]

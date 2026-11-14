@@ -96,40 +96,23 @@ let sliceEphemeral (parent : EphemeralBytes) (start : int) (count : int) : Dval 
 /// bigger array gets a copy of its own bytes instead (see
 /// [EphemeralBytes.ToArray]); builtins that only read a span match `Ephemeral`
 /// first and skip that.
-let readBytes (state : ExecutionState) (ref : BytesRef) : Ply.Ply<byte[]> =
-  uply {
-    match ref with
-    | Ephemeral eph -> return eph.ToArray()
-    | Persistent(hash, _length) when hash = emptyHash -> return [||]
-    | Persistent(hash, _length) ->
-      let! got = state.blobs.get hash
-      match got with
-      | Some bs -> return bs
-      | None ->
-        return
-          Exception.raiseInternal
-            "persistent blob missing in package_blobs"
-            [ "hash", hash ]
-  }
-
-
-/// `readBytes`, then `k`, without a builder when the bytes are in hand. An ephemeral blob
-/// (nearly every blob a builtin sees: a string just encoded, a body just received) carries
-/// its bytes, so `k` runs at once and what it returns is the answer; only a persistent blob
-/// enters `uply` to wait for the store. For a builtin body, so the common path is a value.
-let withBytes
-  (state : ExecutionState)
-  (ref : BytesRef)
-  (k : byte[] -> Ply.Ply<Dval>)
-  : Ply.Ply<Dval> =
+let readBytes (state : ExecutionState) (ref : BytesRef) : byte[] =
   match ref with
-  | Ephemeral eph -> k (eph.ToArray())
-  | Persistent(hash, _) when hash = emptyHash -> k [||]
-  | Persistent _ ->
-    uply {
-      let! bytes = readBytes state ref
-      return! k bytes
-    }
+  | Ephemeral eph -> eph.ToArray()
+  | Persistent(hash, _length) when hash = emptyHash -> [||]
+  | Persistent(hash, _length) ->
+    let got = state.blobs.get hash
+    match got with
+    | Some bs -> bs
+    | None ->
+      Exception.raiseInternal
+        "persistent blob missing in package_blobs"
+        [ "hash", hash ]
+
+
+/// `k` of the bytes `ref` holds.
+let withBytes (state : ExecutionState) (ref : BytesRef) (k : byte[] -> Dval) : Dval =
+  k (readBytes state ref)
 
 
 /// [Dval.rewriteWith] leaf handler that promotes a `DBytes(Ephemeral _)`:
@@ -138,20 +121,18 @@ let withBytes
 /// walker keeps descending. Can't fail to find bytes — they travel with
 /// the value.
 let promoteEphemeralLeaf
-  (insert : string -> byte[] -> Ply.Ply<unit>)
+  (insert : string -> byte[] -> unit)
   (dv : Dval)
-  : Ply.Ply<Dval option> =
-  uply {
-    match dv with
-    | DBytes(Ephemeral eph) ->
-      // A view saves its own bytes, not the array it shares.
-      let bs = eph.ToArray()
-      let h = eph.ContentHash
-      let n : int64 = System.Convert.ToInt64 bs.Length
-      do! insert h bs
-      return Some(DBytes(Persistent(h, n)))
-    | _ -> return None
-  }
+  : Dval option =
+  match dv with
+  | DBytes(Ephemeral eph) ->
+    // A view saves its own bytes, not the array it shares.
+    let bs = eph.ToArray()
+    let h = eph.ContentHash
+    let n : int64 = System.Convert.ToInt64 bs.Length
+    insert h bs
+    Some(DBytes(Persistent(h, n)))
+  | _ -> None
 
 
 /// Promote any ephemeral blobs reachable from [dv] to persistent:
@@ -171,8 +152,5 @@ let promoteEphemeralLeaf
 /// delegated to [Dval.rewriteWith] — we only describe the leaf substitution
 /// here. A lambda closing over an ephemeral blob has its capture
 /// environment promoted along with the rest of the value graph.
-let promote
-  (insert : string -> byte[] -> Ply.Ply<unit>)
-  (dv : Dval)
-  : Ply.Ply<Dval> =
+let promote (insert : string -> byte[] -> unit) (dv : Dval) : Dval =
   dv |> Dval.rewriteWith (promoteEphemeralLeaf insert)

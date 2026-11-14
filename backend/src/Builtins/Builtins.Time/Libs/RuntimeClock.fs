@@ -24,7 +24,6 @@ let fns () =
       | _, _, _, [| DUnit |] ->
         NodaTime.SystemClock.Instance.GetCurrentInstant().ToUnixTimeTicks()
         |> Dval.dint64
-        |> Ply
       | _ -> incorrectArgs ())
     make
       "runtimeMonotonicCounter"
@@ -32,13 +31,11 @@ let fns () =
       (TTuple(TInt64, TInt64, []))
       (function
        | _, _, _, [| DUnit |] ->
-         Ply(
-           DTuple(
-             Dval.dint64 (int64 (System.Diagnostics.Stopwatch.GetTimestamp())),
-             Dval.dint64 (int64 System.Diagnostics.Stopwatch.Frequency),
-             []
-           )
-         )
+         (DTuple(
+           Dval.dint64 (int64 (System.Diagnostics.Stopwatch.GetTimestamp())),
+           Dval.dint64 (int64 System.Diagnostics.Stopwatch.Frequency),
+           []
+         ))
        | _ -> incorrectArgs ())
     // `Task.Delay` throws on a negative delay, or one past about 49 days.
     { (make
@@ -47,11 +44,11 @@ let fns () =
         TUnit
         (function
          | _, _, _, [| DInt64 ticks |] ->
-           uply {
-             let delay = System.TimeSpan.FromTicks ticks
-             do! System.Threading.Tasks.Task.Delay delay
+           task {
+             do! System.Threading.Tasks.Task.Delay(System.TimeSpan.FromTicks ticks)
              return DUnit
            }
+           |> LibExecution.Pending.ofTask
          | _ -> incorrectArgs ())) with
         callEffects = set [ Effect.Clock; Effect.Raise ] } ]
 

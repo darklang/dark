@@ -33,111 +33,105 @@ let private wtModuleToOps
   (pm : PT.PackageManager)
   (onMissing : NR.OnMissing)
   (modul : WTPackageModule)
-  : Ply<List<PT.PackageOp>> =
-  uply {
-    let! types =
-      modul.types
-      |> Ply.List.mapSequentially (fun typ ->
-        WT2PT.PackageType.toPT
-          pm
-          onMissing
-          (WT2PT.PackageType.Name.toModules typ.name)
-          typ)
-
-    // Types in this file are not in `pm` yet. Give them real hashes in a
-    // temporary overlay so functions, values, and tests can resolve same-file
-    // types. The overlay does not save ops.
-    let nameBasedHash = PackageLocation.placeholderHash
-    let typeOps : List<PT.PackageOp> =
-      [ for (wtType, ptType) in List.zip modul.types types do
-          yield PT.PackageOp.AddType ptType
-          let loc = WT2PT.PackageType.Name.toLocation wtType.name
-          yield PT.PackageOp.SetName(loc, PT.PackageType(nameBasedHash loc), None) ]
-    let pmWithTypes =
-      if List.isEmpty typeOps then
+  : List<PT.PackageOp> =
+  let types =
+    modul.types
+    |> List.map (fun typ ->
+      WT2PT.PackageType.toPT
         pm
-      else
-        typeOps
-        |> HashStabilization.computeRealHashes
-        |> LibDB.PackageManager.withExtraOps pm
+        onMissing
+        (WT2PT.PackageType.Name.toModules typ.name)
+        typ)
 
-    let! fns =
-      modul.fns
-      |> Ply.List.mapSequentially (fun fn ->
-        WT2PT.PackageFn.toPT
-          builtins
-          pmWithTypes
-          onMissing
-          (WT2PT.PackageFn.Name.toModules fn.name)
-          fn)
+  // Types in this file are not in `pm` yet. Give them real hashes in a
+  // temporary overlay so functions, values, and tests can resolve same-file
+  // types. The overlay does not save ops.
+  let nameBasedHash = PackageLocation.placeholderHash
+  let typeOps : List<PT.PackageOp> =
+    [ for (wtType, ptType) in List.zip modul.types types do
+        yield PT.PackageOp.AddType ptType
+        let loc = WT2PT.PackageType.Name.toLocation wtType.name
+        yield PT.PackageOp.SetName(loc, PT.PackageType(nameBasedHash loc), None) ]
+  let pmWithTypes =
+    if List.isEmpty typeOps then
+      pm
+    else
+      typeOps
+      |> HashStabilization.computeRealHashes
+      |> LibDB.PackageManager.withExtraOps pm
 
-    let! values =
-      modul.values
-      |> Ply.List.mapSequentially (fun value ->
-        WT2PT.PackageValue.toPT
-          builtins
-          pmWithTypes
-          onMissing
-          (WT2PT.PackageValue.Name.toModules value.name)
-          value)
+  let fns =
+    modul.fns
+    |> List.map (fun fn ->
+      WT2PT.PackageFn.toPT
+        builtins
+        pmWithTypes
+        onMissing
+        (WT2PT.PackageFn.Name.toModules fn.name)
+        fn)
 
-    let! traits =
-      modul.traits
-      |> Ply.List.mapSequentially (fun t ->
-        WT2PT.Trait.toPT pm onMissing (t.name.owner :: t.name.modules) t)
+  let values =
+    modul.values
+    |> List.map (fun value ->
+      WT2PT.PackageValue.toPT
+        builtins
+        pmWithTypes
+        onMissing
+        (WT2PT.PackageValue.Name.toModules value.name)
+        value)
 
-    let! impls =
-      modul.impls
-      |> Ply.List.mapSequentially (fun i ->
-        // Method targets resolve from the impl's own module: its member path.
-        WT2PT.TraitImpl.toPT
-          builtins
-          pm
-          onMissing
-          (i.name.owner :: i.name.modules @ [ i.name.name ])
-          i)
-    let! tests =
-      modul.tests
-      |> Ply.List.mapSequentially (fun test ->
-        uply {
-          let currentModule = WT2PT.PackageTest.Name.toModules test.name
-          return!
-            WT2PT.PackageTest.toPT builtins pmWithTypes onMissing currentModule test
-        })
+  let traits =
+    modul.traits
+    |> List.map (fun t ->
+      WT2PT.Trait.toPT pm onMissing (t.name.owner :: t.name.modules) t)
 
-    // Emit the original type ops once. The temporary overlay used stabilized
-    // copies; the final load pass replaces these SetName placeholders.
-    let ops : List<PT.PackageOp> =
-      [ yield! typeOps
+  let impls =
+    modul.impls
+    |> List.map (fun i ->
+      // Method targets resolve from the impl's own module: its member path.
+      WT2PT.TraitImpl.toPT
+        builtins
+        pm
+        onMissing
+        (i.name.owner :: i.name.modules @ [ i.name.name ])
+        i)
+  let tests =
+    modul.tests
+    |> List.map (fun test ->
+      let currentModule = WT2PT.PackageTest.Name.toModules test.name
+      WT2PT.PackageTest.toPT builtins pmWithTypes onMissing currentModule test)
 
-        for (wtValue, ptValue) in List.zip modul.values values do
-          yield PT.PackageOp.AddValue ptValue
-          let loc = WT2PT.PackageValue.Name.toLocation wtValue.name
-          yield PT.PackageOp.SetName(loc, PT.PackageValue(nameBasedHash loc), None)
+  // Emit the original type ops once. The temporary overlay used stabilized
+  // copies; the final load pass replaces these SetName placeholders.
+  let ops : List<PT.PackageOp> =
+    [ yield! typeOps
 
-        for (wtFn, ptFn) in List.zip modul.fns fns do
-          yield PT.PackageOp.AddFn ptFn
-          let loc = WT2PT.PackageFn.Name.toLocation wtFn.name
-          yield PT.PackageOp.SetName(loc, PT.PackageFn(nameBasedHash loc), None)
+      for (wtValue, ptValue) in List.zip modul.values values do
+        yield PT.PackageOp.AddValue ptValue
+        let loc = WT2PT.PackageValue.Name.toLocation wtValue.name
+        yield PT.PackageOp.SetName(loc, PT.PackageValue(nameBasedHash loc), None)
 
-        for (wtTrait, ptTrait) in List.zip modul.traits traits do
-          yield PT.PackageOp.AddTrait ptTrait
-          let loc = WT2PT.Trait.Name.toLocation wtTrait.name
-          yield PT.PackageOp.SetName(loc, PT.PackageTrait(nameBasedHash loc), None)
+      for (wtFn, ptFn) in List.zip modul.fns fns do
+        yield PT.PackageOp.AddFn ptFn
+        let loc = WT2PT.PackageFn.Name.toLocation wtFn.name
+        yield PT.PackageOp.SetName(loc, PT.PackageFn(nameBasedHash loc), None)
 
-        for (wtImpl, ptImpl) in List.zip modul.impls impls do
-          yield PT.PackageOp.AddTraitImpl ptImpl
-          let loc = WT2PT.TraitImpl.Name.toLocation wtImpl.name
-          yield
-            PT.PackageOp.SetName(loc, PT.PackageTraitImpl(nameBasedHash loc), None)
+      for (wtTrait, ptTrait) in List.zip modul.traits traits do
+        yield PT.PackageOp.AddTrait ptTrait
+        let loc = WT2PT.Trait.Name.toLocation wtTrait.name
+        yield PT.PackageOp.SetName(loc, PT.PackageTrait(nameBasedHash loc), None)
 
-        for (wtTest, ptTest) in List.zip modul.tests tests do
-          yield PT.PackageOp.AddTest ptTest
-          let loc = WT2PT.PackageTest.Name.toLocation wtTest.name
-          yield PT.PackageOp.SetName(loc, PT.PackageTest(nameBasedHash loc), None) ]
+      for (wtImpl, ptImpl) in List.zip modul.impls impls do
+        yield PT.PackageOp.AddTraitImpl ptImpl
+        let loc = WT2PT.TraitImpl.Name.toLocation wtImpl.name
+        yield PT.PackageOp.SetName(loc, PT.PackageTraitImpl(nameBasedHash loc), None)
 
-    return ops
-  }
+      for (wtTest, ptTest) in List.zip modul.tests tests do
+        yield PT.PackageOp.AddTest ptTest
+        let loc = WT2PT.PackageTest.Name.toLocation wtTest.name
+        yield PT.PackageOp.SetName(loc, PT.PackageTest(nameBasedHash loc), None) ]
+
+  ops
 
 // --- classify package declarations from a parsed package file ---
 //
@@ -245,25 +239,21 @@ let parse
   (pm : PT.PackageManager)
   (onMissing : NR.OnMissing)
   (contents : string)
-  : Ply<Result<List<PT.PackageOp>, List<string>>> =
-  uply {
-    match P.parseFor Validation.Package contents with
-    | Error diagnostics ->
-      return Error(diagnostics |> List.map (P.renderDiagnostic contents))
-    | Ok validated ->
-      let (modul, packageErrors) = packageDecls validated
-      match packageErrors with
-      | [] ->
-        let! ops = wtModuleToOps builtins pm onMissing modul
-        return Ok ops
-      | errors ->
-        return
-          Error(
-            errors
-            |> List.map (fun (r, msg) ->
-              $"error at {r.start.row + 1}:{r.start.column + 1}: {msg}")
-          )
-  }
+  : Result<List<PT.PackageOp>, List<string>> =
+  match P.parseFor Validation.Package contents with
+  | Error diagnostics -> Error(diagnostics |> List.map (P.renderDiagnostic contents))
+  | Ok validated ->
+    let (modul, packageErrors) = packageDecls validated
+    match packageErrors with
+    | [] ->
+      let ops = wtModuleToOps builtins pm onMissing modul
+      Ok ops
+    | errors ->
+      Error(
+        errors
+        |> List.map (fun (r, msg) ->
+          $"error at {r.start.row + 1}:{r.start.column + 1}: {msg}")
+      )
 
 
 /// Each call in <param ops> to a fn or value that does not exist, as "Item calls Name". The

@@ -3,7 +3,6 @@
 module Builtins.CliHost.Libs.Cli
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 
 open Prelude
@@ -84,338 +83,317 @@ let private declarationsToModule
   (scriptName : string)
   (parameters : List<string>)
   (validated : Validation.ValidatedSourceFile)
-  : Ply<Utils.CliScript.PTCliScriptModule> =
-  uply {
-    let sourceItems =
-      validated
-      |> Validation.ValidatedSourceFile.toWrittenTypes
-      |> WTSourceFile.items
-    let builtins = state.builtins
-    let baseModules = if scriptName = "" then [] else [ scriptName ]
+  : Utils.CliScript.PTCliScriptModule =
+  let sourceItems =
+    validated |> Validation.ValidatedSourceFile.toWrittenTypes |> WTSourceFile.items
+  let builtins = state.builtins
+  let baseModules = if scriptName = "" then [] else [ scriptName ]
 
-    // Build WT package declarations + top-level expressions.
-    let fnList =
-      sourceItems
-      |> List.choose (function
-        | WTSourceFile.Fn(declPath, fn) ->
-          Some(WT.packageFn owner (baseModules @ declPath) fn)
-        | _ -> None)
-    let typeList =
-      sourceItems
-      |> List.choose (function
-        | WTSourceFile.Type(declPath, t) ->
-          Some(WT.packageType owner (baseModules @ declPath) t)
-        | _ -> None)
-    let valueList =
-      sourceItems
-      |> List.choose (function
-        | WTSourceFile.Value(declPath, v) ->
-          Some(WT.packageValue owner (baseModules @ declPath) v)
-        | _ -> None)
-    let traitList =
-      sourceItems
-      |> List.choose (function
-        | WTSourceFile.Trait(declPath, t) ->
-          Some(WT.packageTrait owner (baseModules @ declPath) t)
-        | _ -> None)
-    let implList =
-      sourceItems
-      |> List.choose (function
-        | WTSourceFile.Impl(memberPath, impl) ->
-          Some(WT.packageImpl owner (baseModules @ memberPath) impl)
-        | _ -> None)
-    // Each trailing expr keeps its module path, so an expr inside `module M =`
-    // can still resolve M's declarations by short name. Test decls are produced only by
-    // test-mode parsing, not the CLI path, so `Test` and `Assertion` items are not collected.
-    let wtExprs =
-      sourceItems
-      |> List.choose (function
-        | WTSourceFile.Expr(declPath, e) -> Some(baseModules @ declPath, e)
-        | _ -> None)
+  // Build WT package declarations + top-level expressions.
+  let fnList =
+    sourceItems
+    |> List.choose (function
+      | WTSourceFile.Fn(declPath, fn) ->
+        Some(WT.packageFn owner (baseModules @ declPath) fn)
+      | _ -> None)
+  let typeList =
+    sourceItems
+    |> List.choose (function
+      | WTSourceFile.Type(declPath, t) ->
+        Some(WT.packageType owner (baseModules @ declPath) t)
+      | _ -> None)
+  let valueList =
+    sourceItems
+    |> List.choose (function
+      | WTSourceFile.Value(declPath, v) ->
+        Some(WT.packageValue owner (baseModules @ declPath) v)
+      | _ -> None)
+  let traitList =
+    sourceItems
+    |> List.choose (function
+      | WTSourceFile.Trait(declPath, t) ->
+        Some(WT.packageTrait owner (baseModules @ declPath) t)
+      | _ -> None)
+  let implList =
+    sourceItems
+    |> List.choose (function
+      | WTSourceFile.Impl(memberPath, impl) ->
+        Some(WT.packageImpl owner (baseModules @ memberPath) impl)
+      | _ -> None)
+  // Each trailing expr keeps its module path, so an expr inside `module M =`
+  // can still resolve M's declarations by short name. Test decls are produced only by
+  // test-mode parsing, not the CLI path, so `Test` and `Assertion` items are not collected.
+  let wtExprs =
+    sourceItems
+    |> List.choose (function
+      | WTSourceFile.Expr(declPath, e) -> Some(baseModules @ declPath, e)
+      | _ -> None)
 
-    let onMissing = NRslv.OnMissing.Allow
+  let onMissing = NRslv.OnMissing.Allow
 
-    // Graft locations are derived from names only, so they're identical across
-    // both lowering passes (pass 2 keeps each decl's name, changing only body/hash).
-    let fnLocations =
-      fnList |> List.map (fun f -> WT2PT.PackageFn.Name.toLocation f.name)
-    let typeLocations =
-      typeList |> List.map (fun t -> WT2PT.PackageType.Name.toLocation t.name)
-    let valueLocations =
-      valueList |> List.map (fun v -> WT2PT.PackageValue.Name.toLocation v.name)
-    let traitLocations =
-      traitList |> List.map (fun t -> WT2PT.Trait.Name.toLocation t.name)
-    let implLocations =
-      implList |> List.map (fun i -> WT2PT.TraitImpl.Name.toLocation i.name)
+  // Graft locations are derived from names only, so they're identical across
+  // both lowering passes (pass 2 keeps each decl's name, changing only body/hash).
+  let fnLocations =
+    fnList |> List.map (fun f -> WT2PT.PackageFn.Name.toLocation f.name)
+  let typeLocations =
+    typeList |> List.map (fun t -> WT2PT.PackageType.Name.toLocation t.name)
+  let valueLocations =
+    valueList |> List.map (fun v -> WT2PT.PackageValue.Name.toLocation v.name)
+  let traitLocations =
+    traitList |> List.map (fun t -> WT2PT.Trait.Name.toLocation t.name)
+  let implLocations =
+    implList |> List.map (fun i -> WT2PT.TraitImpl.Name.toLocation i.name)
 
-    // Where each node starts in the source, by node id, so the checker's findings can give a
-    // line. The final lowering of the functions and of the expressions fills it.
-    let sourceRanges = System.Collections.Generic.Dictionary<id, WT.Range>()
+  // Where each node starts in the source, by node id, so the checker's findings can give a
+  // line. The final lowering of the functions and of the expressions fills it.
+  let sourceRanges = System.Collections.Generic.Dictionary<id, WT.Range>()
 
-    let lowerFns ranges pm =
-      fnList
-      |> Ply.List.mapSequentially (fun fn ->
-        WT2PT.PackageFn.toPTWithRanges
+  let lowerFns ranges pm =
+    fnList
+    |> List.map (fun fn ->
+      WT2PT.PackageFn.toPTWithRanges
+        builtins
+        pm
+        onMissing
+        (WT2PT.PackageFn.Name.toModules fn.name)
+        ranges
+        fn)
+  let lowerTypes pm =
+    typeList
+    |> List.map (fun t ->
+      WT2PT.PackageType.toPT
+        pm
+        onMissing
+        (WT2PT.PackageType.Name.toModules t.name)
+        t)
+  let lowerValues pm =
+    valueList
+    |> List.map (fun v ->
+      WT2PT.PackageValue.toPT
+        builtins
+        pm
+        onMissing
+        (WT2PT.PackageValue.Name.toModules v.name)
+        v)
+  let lowerTraits pm =
+    traitList
+    |> List.map (fun t ->
+      WT2PT.Trait.toPT pm onMissing (t.name.owner :: t.name.modules) t)
+  let lowerImpls pm =
+    implList
+    |> List.map (fun i ->
+      WT2PT.TraitImpl.toPT
+        builtins
+        pm
+        onMissing
+        (i.name.owner :: i.name.modules @ [ i.name.name ])
+        i)
+
+  // WT2PT leaves each declaration with an empty `Hash ""`, and the graft below
+  // keys declarations by hash, so each needs a distinct one before it can be
+  // grafted. Use a location placeholder, not a content hash: a hash taken
+  // before resolution is computed over unresolved references, which serialise
+  // without their names, so two declarations differing only in which sibling
+  // they mention would hash the same and the graft would keep one of them.
+  let stampFn (f : PT.PackageFn.PackageFn) loc =
+    { f with hash = PackageLocation.placeholderHash loc }
+  let stampType (t : PT.PackageType.PackageType) loc =
+    { t with hash = PackageLocation.placeholderHash loc }
+  let stampValue (v : PT.PackageValue.PackageValue) loc =
+    { v with hash = PackageLocation.placeholderHash loc }
+  let stampTrait (t : PT.Trait.Trait) loc =
+    { t with hash = PackageLocation.placeholderHash loc }
+  let stampImpl (i : PT.TraitImpl.TraitImpl) loc =
+    { i with hash = PackageLocation.placeholderHash loc }
+
+  // Pass 1: lower against the base pm (intra-script refs unresolved, allowed).
+  //
+  // `ptForBranch`: names resolve as the run's branch sees them. A branch's own content is in the
+  // shared content tables, so what a name resolves to runs by hash on any branch.
+  //
+  // Approvals authorize an exact version; they never select which code runs.
+  let pm0 = LibDB.PackageManager.ptForBranch state.branchId
+  let fns1 = lowerFns None pm0 |> (fun fns -> List.map2 stampFn fns fnLocations)
+  let types1 = lowerTypes pm0 |> (fun ts -> List.map2 stampType ts typeLocations)
+  let values1 = lowerValues pm0 |> (fun vs -> List.map2 stampValue vs valueLocations)
+  let traits1 = lowerTraits pm0 |> (fun ts -> List.map2 stampTrait ts traitLocations)
+  let impls1 = lowerImpls pm0 |> (fun is -> List.map2 stampImpl is implLocations)
+
+  // Graft the script's own declarations into the pm, keyed by location.
+  let pm1 =
+    pm0
+    |> PT.PackageManager.withExtras
+      (List.zip types1 typeLocations)
+      (List.zip values1 valueLocations)
+      (List.zip fns1 fnLocations)
+      (List.zip traits1 traitLocations)
+      (List.zip impls1 implLocations)
+
+  // Pass 2: re-lower with the grafted pm so intra-script references resolve.
+  let fns2 =
+    lowerFns (Some sourceRanges) pm1
+    |> (fun fns -> List.map2 stampFn fns fnLocations)
+  let types2 = lowerTypes pm1 |> (fun ts -> List.map2 stampType ts typeLocations)
+  let values2 = lowerValues pm1 |> (fun vs -> List.map2 stampValue vs valueLocations)
+  let traits2 = lowerTraits pm1 |> (fun ts -> List.map2 stampTrait ts traitLocations)
+  let impls2 = lowerImpls pm1 |> (fun is -> List.map2 stampImpl is implLocations)
+
+  // References are resolved now, so hash for real. That keeps script
+  // declarations content-addressed: one structurally identical to a package
+  // declaration lands on the same hash, and a rename changes nothing.
+  //
+  // Pass-2 bodies still reference siblings by placeholder, so the hashes have
+  // to be computed in dependency order with each sibling's real hash
+  // substituted in. Stabilization does exactly that, batching SCCs, so
+  // mutually recursive script declarations work too.
+  let stabilization =
+    HashStabilization.stabilize
+      AstTransformer.emptyMapping
+      { types =
+          List.map2
+            (fun (t : PT.PackageType.PackageType) loc ->
+              PackageLocation.toFQN loc, (t, t.hash, loc))
+            types2
+            typeLocations
+          |> Map.ofList
+        fns =
+          List.map2
+            (fun (f : PT.PackageFn.PackageFn) loc ->
+              PackageLocation.toFQN loc, (f, f.hash, loc))
+            fns2
+            fnLocations
+          |> Map.ofList
+        values =
+          List.map2
+            (fun (v : PT.PackageValue.PackageValue) loc ->
+              PackageLocation.toFQN loc, (v, v.hash, loc))
+            values2
+            valueLocations
+          |> Map.ofList
+        traits =
+          List.map2
+            (fun (t : PT.Trait.Trait) loc ->
+              PackageLocation.toFQN loc, (t, t.hash, loc))
+            traits2
+            traitLocations
+          |> Map.ofList
+        impls =
+          List.map2
+            (fun (i : PT.TraitImpl.TraitImpl) loc ->
+              PackageLocation.toFQN loc, (i, i.hash, loc))
+            impls2
+            implLocations
+          |> Map.ofList }
+
+  let finalHash (current : PT.Hash) (loc : PT.PackageLocation) : PT.Hash =
+    Map.tryFind (PackageLocation.toFQN loc) stabilization.fqnHashes
+    |> Option.defaultValue current
+
+  // Rewrite each body so its sibling references point at the final hashes.
+  let fns =
+    List.map2
+      (fun (f : PT.PackageFn.PackageFn) loc ->
+        { AstTransformer.transformFn stabilization.mapping f with
+            hash = finalHash f.hash loc })
+      fns2
+      fnLocations
+  let types =
+    List.map2
+      (fun (t : PT.PackageType.PackageType) loc ->
+        { AstTransformer.transformType stabilization.mapping t with
+            hash = finalHash t.hash loc })
+      types2
+      typeLocations
+  let values =
+    List.map2
+      (fun (v : PT.PackageValue.PackageValue) loc ->
+        { AstTransformer.transformValue stabilization.mapping v with
+            hash = finalHash v.hash loc })
+      values2
+      valueLocations
+  let traits =
+    List.map2
+      (fun (t : PT.Trait.Trait) loc ->
+        { AstTransformer.transformTrait stabilization.mapping t with
+            hash = finalHash t.hash loc })
+      traits2
+      traitLocations
+  let impls =
+    List.map2
+      (fun (i : PT.TraitImpl.TraitImpl) loc ->
+        { AstTransformer.transformImpl stabilization.mapping i with
+            hash = finalHash i.hash loc })
+      impls2
+      implLocations
+
+  // Graft the final declarations for the expressions' lowering, so their refs
+  // match the returned decls exactly.
+  let pm2 =
+    pm0
+    |> PT.PackageManager.withExtras
+      (List.zip types typeLocations)
+      (List.zip values valueLocations)
+      (List.zip fns fnLocations)
+      (List.zip traits traitLocations)
+      (List.zip impls implLocations)
+
+  // Register the same declarations so a runtime error can still name them. The
+  // error outlives this graft: the CLI renders it once execution has returned,
+  // and the pretty-printer turns hashes back into names by asking where a hash
+  // is bound.
+  LibDB.EphemeralPackages.register
+    (List.map2
+      (fun (t : PT.PackageType.PackageType) loc -> t.hash, loc)
+      types
+      typeLocations)
+    (List.map2
+      (fun (v : PT.PackageValue.PackageValue) loc -> v.hash, loc)
+      values
+      valueLocations)
+    (List.map2 (fun (f : PT.PackageFn.PackageFn) loc -> f.hash, loc) fns fnLocations)
+    (List.map2 (fun (t : PT.Trait.Trait) loc -> t.hash, loc) traits traitLocations)
+    (List.map2
+      (fun (i : PT.TraitImpl.TraitImpl) loc -> i.hash, loc)
+      impls
+      implLocations)
+
+  // Script expressions take `args` as a parameter; eval expressions run directly.
+  let expressionContext =
+    { WT2PT.Context.currentFnName = None
+      WT2PT.Context.argMap =
+        parameters |> List.mapi (fun index name -> name, index) |> Map.ofList
+      WT2PT.Context.localBindings = Set.empty
+      WT2PT.Context.sourceRanges = Some sourceRanges }
+  let exprs =
+    wtExprs
+    |> List.map (fun (modules, e) ->
+      let expr =
+        WT2PT.Expr.toPT
           builtins
-          pm
+          pm2
           onMissing
-          (WT2PT.PackageFn.Name.toModules fn.name)
-          ranges
-          fn)
-    let lowerTypes pm =
-      typeList
-      |> Ply.List.mapSequentially (fun t ->
-        WT2PT.PackageType.toPT
-          pm
-          onMissing
-          (WT2PT.PackageType.Name.toModules t.name)
-          t)
-    let lowerValues pm =
-      valueList
-      |> Ply.List.mapSequentially (fun v ->
-        WT2PT.PackageValue.toPT
-          builtins
-          pm
-          onMissing
-          (WT2PT.PackageValue.Name.toModules v.name)
-          v)
-    let lowerTraits pm =
-      traitList
-      |> Ply.List.mapSequentially (fun t ->
-        WT2PT.Trait.toPT pm onMissing (t.name.owner :: t.name.modules) t)
-    let lowerImpls pm =
-      implList
-      |> Ply.List.mapSequentially (fun i ->
-        WT2PT.TraitImpl.toPT
-          builtins
-          pm
-          onMissing
-          (i.name.owner :: i.name.modules @ [ i.name.name ])
-          i)
+          (owner :: modules)
+          expressionContext
+          e
+      match parameters with
+      | [] -> expr
+      | first :: rest ->
+        let parameter name = PT.LPVariable(gid (), name)
+        PT.ELambda(
+          gid (),
+          NEList.ofList (parameter first) (List.map parameter rest),
+          expr
+        ))
 
-    // WT2PT leaves each declaration with an empty `Hash ""`, and the graft below
-    // keys declarations by hash, so each needs a distinct one before it can be
-    // grafted. Use a location placeholder, not a content hash: a hash taken
-    // before resolution is computed over unresolved references, which serialise
-    // without their names, so two declarations differing only in which sibling
-    // they mention would hash the same and the graft would keep one of them.
-    let stampFn (f : PT.PackageFn.PackageFn) loc =
-      { f with hash = PackageLocation.placeholderHash loc }
-    let stampType (t : PT.PackageType.PackageType) loc =
-      { t with hash = PackageLocation.placeholderHash loc }
-    let stampValue (v : PT.PackageValue.PackageValue) loc =
-      { v with hash = PackageLocation.placeholderHash loc }
-    let stampTrait (t : PT.Trait.Trait) loc =
-      { t with hash = PackageLocation.placeholderHash loc }
-    let stampImpl (i : PT.TraitImpl.TraitImpl) loc =
-      { i with hash = PackageLocation.placeholderHash loc }
-
-    // Pass 1: lower against the base pm (intra-script refs unresolved, allowed).
-    //
-    // `ptForBranch`: names resolve as the run's branch sees them. A branch's own content is in the
-    // shared content tables, so what a name resolves to runs by hash on any branch.
-    //
-    // Approvals authorize an exact version; they never select which code runs.
-    let pm0 = LibDB.PackageManager.ptForBranch state.branchId
-    let! fns1 =
-      lowerFns None pm0 |> Ply.map (fun fns -> List.map2 stampFn fns fnLocations)
-    let! types1 =
-      lowerTypes pm0 |> Ply.map (fun ts -> List.map2 stampType ts typeLocations)
-    let! values1 =
-      lowerValues pm0 |> Ply.map (fun vs -> List.map2 stampValue vs valueLocations)
-    let! traits1 =
-      lowerTraits pm0 |> Ply.map (fun ts -> List.map2 stampTrait ts traitLocations)
-    let! impls1 =
-      lowerImpls pm0 |> Ply.map (fun is -> List.map2 stampImpl is implLocations)
-
-    // Graft the script's own declarations into the pm, keyed by location.
-    let pm1 =
-      pm0
-      |> PT.PackageManager.withExtras
-        (List.zip types1 typeLocations)
-        (List.zip values1 valueLocations)
-        (List.zip fns1 fnLocations)
-        (List.zip traits1 traitLocations)
-        (List.zip impls1 implLocations)
-
-    // Pass 2: re-lower with the grafted pm so intra-script references resolve.
-    let! fns2 =
-      lowerFns (Some sourceRanges) pm1
-      |> Ply.map (fun fns -> List.map2 stampFn fns fnLocations)
-    let! types2 =
-      lowerTypes pm1 |> Ply.map (fun ts -> List.map2 stampType ts typeLocations)
-    let! values2 =
-      lowerValues pm1 |> Ply.map (fun vs -> List.map2 stampValue vs valueLocations)
-    let! traits2 =
-      lowerTraits pm1 |> Ply.map (fun ts -> List.map2 stampTrait ts traitLocations)
-    let! impls2 =
-      lowerImpls pm1 |> Ply.map (fun is -> List.map2 stampImpl is implLocations)
-
-    // References are resolved now, so hash for real. That keeps script
-    // declarations content-addressed: one structurally identical to a package
-    // declaration lands on the same hash, and a rename changes nothing.
-    //
-    // Pass-2 bodies still reference siblings by placeholder, so the hashes have
-    // to be computed in dependency order with each sibling's real hash
-    // substituted in. Stabilization does exactly that, batching SCCs, so
-    // mutually recursive script declarations work too.
-    let stabilization =
-      HashStabilization.stabilize
-        AstTransformer.emptyMapping
-        { types =
-            List.map2
-              (fun (t : PT.PackageType.PackageType) loc ->
-                PackageLocation.toFQN loc, (t, t.hash, loc))
-              types2
-              typeLocations
-            |> Map.ofList
-          fns =
-            List.map2
-              (fun (f : PT.PackageFn.PackageFn) loc ->
-                PackageLocation.toFQN loc, (f, f.hash, loc))
-              fns2
-              fnLocations
-            |> Map.ofList
-          values =
-            List.map2
-              (fun (v : PT.PackageValue.PackageValue) loc ->
-                PackageLocation.toFQN loc, (v, v.hash, loc))
-              values2
-              valueLocations
-            |> Map.ofList
-          traits =
-            List.map2
-              (fun (t : PT.Trait.Trait) loc ->
-                PackageLocation.toFQN loc, (t, t.hash, loc))
-              traits2
-              traitLocations
-            |> Map.ofList
-          impls =
-            List.map2
-              (fun (i : PT.TraitImpl.TraitImpl) loc ->
-                PackageLocation.toFQN loc, (i, i.hash, loc))
-              impls2
-              implLocations
-            |> Map.ofList }
-
-    let finalHash (current : PT.Hash) (loc : PT.PackageLocation) : PT.Hash =
-      Map.tryFind (PackageLocation.toFQN loc) stabilization.fqnHashes
-      |> Option.defaultValue current
-
-    // Rewrite each body so its sibling references point at the final hashes.
-    let fns =
-      List.map2
-        (fun (f : PT.PackageFn.PackageFn) loc ->
-          { AstTransformer.transformFn stabilization.mapping f with
-              hash = finalHash f.hash loc })
-        fns2
-        fnLocations
-    let types =
-      List.map2
-        (fun (t : PT.PackageType.PackageType) loc ->
-          { AstTransformer.transformType stabilization.mapping t with
-              hash = finalHash t.hash loc })
-        types2
-        typeLocations
-    let values =
-      List.map2
-        (fun (v : PT.PackageValue.PackageValue) loc ->
-          { AstTransformer.transformValue stabilization.mapping v with
-              hash = finalHash v.hash loc })
-        values2
-        valueLocations
-    let traits =
-      List.map2
-        (fun (t : PT.Trait.Trait) loc ->
-          { AstTransformer.transformTrait stabilization.mapping t with
-              hash = finalHash t.hash loc })
-        traits2
-        traitLocations
-    let impls =
-      List.map2
-        (fun (i : PT.TraitImpl.TraitImpl) loc ->
-          { AstTransformer.transformImpl stabilization.mapping i with
-              hash = finalHash i.hash loc })
-        impls2
-        implLocations
-
-    // Graft the final declarations for the expressions' lowering, so their refs
-    // match the returned decls exactly.
-    let pm2 =
-      pm0
-      |> PT.PackageManager.withExtras
-        (List.zip types typeLocations)
-        (List.zip values valueLocations)
-        (List.zip fns fnLocations)
-        (List.zip traits traitLocations)
-        (List.zip impls implLocations)
-
-    // Register the same declarations so a runtime error can still name them. The
-    // error outlives this graft: the CLI renders it once execution has returned,
-    // and the pretty-printer turns hashes back into names by asking where a hash
-    // is bound.
-    LibDB.EphemeralPackages.register
-      (List.map2
-        (fun (t : PT.PackageType.PackageType) loc -> t.hash, loc)
-        types
-        typeLocations)
-      (List.map2
-        (fun (v : PT.PackageValue.PackageValue) loc -> v.hash, loc)
-        values
-        valueLocations)
-      (List.map2
-        (fun (f : PT.PackageFn.PackageFn) loc -> f.hash, loc)
-        fns
-        fnLocations)
-      (List.map2 (fun (t : PT.Trait.Trait) loc -> t.hash, loc) traits traitLocations)
-      (List.map2
-        (fun (i : PT.TraitImpl.TraitImpl) loc -> i.hash, loc)
-        impls
-        implLocations)
-
-    // Script expressions take `args` as a parameter; eval expressions run directly.
-    let expressionContext =
-      { WT2PT.Context.currentFnName = None
-        WT2PT.Context.argMap =
-          parameters |> List.mapi (fun index name -> name, index) |> Map.ofList
-        WT2PT.Context.localBindings = Set.empty
-        WT2PT.Context.sourceRanges = Some sourceRanges }
-    let! exprs =
-      wtExprs
-      |> Ply.List.mapSequentially (fun (modules, e) ->
-        uply {
-          let! expr =
-            WT2PT.Expr.toPT
-              builtins
-              pm2
-              onMissing
-              (owner :: modules)
-              expressionContext
-              e
-          match parameters with
-          | [] -> return expr
-          | first :: rest ->
-            let parameter name = PT.LPVariable(gid (), name)
-            return
-              PT.ELambda(
-                gid (),
-                NEList.ofList (parameter first) (List.map parameter rest),
-                expr
-              )
-        })
-
-    let emptyDefs : Utils.CliScript.Definitions =
-      { types = []; values = []; fns = [] }
-    return
-      { Utils.CliScript.PTCliScriptModule.types = types
-        values = values
-        fns = fns
-        traits = traits
-        impls = impls
-        submodules = emptyDefs
-        exprs = exprs
-        sourceRanges = sourceRanges }
-  }
+  let emptyDefs : Utils.CliScript.Definitions = { types = []; values = []; fns = [] }
+  { Utils.CliScript.PTCliScriptModule.types = types
+    values = values
+    fns = fns
+    traits = traits
+    impls = impls
+    submodules = emptyDefs
+    exprs = exprs
+    sourceRanges = sourceRanges }
 
 /// In a script, a top-level `let` value is a statement, so every function after it is nested in
 /// it, and a nested function can't call one defined below it. Caught here, where the run would
@@ -491,89 +469,87 @@ let private parseCliSource
   (scriptName : string)
   (parameters : List<string>)
   (code : string)
-  : Ply<Result<Utils.CliScript.PTCliScriptModule, List<P.Diagnostic>>> =
-  uply {
-    match P.parseFor Validation.Script code with
-    | Error diagnostics -> return Error diagnostics
-    | Ok validated ->
-      // Reserve `args` at the script root. Module members such as `Util.args`
-      // do not conflict with the script input.
-      let reservedDeclarations =
+  : Result<Utils.CliScript.PTCliScriptModule, List<P.Diagnostic>> =
+  match P.parseFor Validation.Script code with
+  | Error diagnostics -> Error diagnostics
+  | Ok validated ->
+    // Reserve `args` at the script root. Module members such as `Util.args`
+    // do not conflict with the script input.
+    let reservedDeclarations =
+      validated
+      |> Validation.ValidatedSourceFile.toWrittenTypes
+      |> WTSourceFile.items
+      |> List.choose (function
+        | WTSourceFile.Value([], value) -> Some(value.name, "value")
+        | WTSourceFile.Fn([], fn) -> Some(fn.name, "function")
+        | _ -> None)
+      |> List.choose (fun (name, kind) ->
+        if List.contains name.name parameters then
+          Some(
+            { code = "SCRIPT-RESERVED-NAME"
+              severity = P.DiagError
+              range = name.range
+              message =
+                $"`{name.name}` contains script arguments; choose another name for this {kind}."
+              related = []
+              hint =
+                Some
+                  "Read command-line arguments from `args`, or rename your declaration." }
+            : P.Diagnostic
+          )
+        else
+          None)
+    match reservedDeclarations with
+    | _ :: _ -> Error reservedDeclarations
+    | [] ->
+      let m = declarationsToModule state owner scriptName parameters validated
+      // Report unresolved traits and methods here; dispatch would otherwise skip
+      // these impls and fail later at the call.
+      let implDecls =
         validated
         |> Validation.ValidatedSourceFile.toWrittenTypes
         |> WTSourceFile.items
         |> List.choose (function
-          | WTSourceFile.Value([], value) -> Some(value.name, "value")
-          | WTSourceFile.Fn([], fn) -> Some(fn.name, "function")
+          | WTSourceFile.Impl(_, impl) -> Some impl
           | _ -> None)
-        |> List.choose (fun (name, kind) ->
-          if List.contains name.name parameters then
-            Some(
-              { code = "SCRIPT-RESERVED-NAME"
-                severity = P.DiagError
-                range = name.range
-                message =
-                  $"`{name.name}` contains script arguments; choose another name for this {kind}."
-                related = []
-                hint =
-                  Some
-                    "Read command-line arguments from `args`, or rename your declaration." }
-              : P.Diagnostic
-            )
-          else
-            None)
-      match reservedDeclarations with
-      | _ :: _ -> return Error reservedDeclarations
-      | [] ->
-        let! m = declarationsToModule state owner scriptName parameters validated
-        // Report unresolved traits and methods here; dispatch would otherwise skip
-        // these impls and fail later at the call.
-        let implDecls =
-          validated
-          |> Validation.ValidatedSourceFile.toWrittenTypes
-          |> WTSourceFile.items
-          |> List.choose (function
-            | WTSourceFile.Impl(_, impl) -> Some impl
-            | _ -> None)
-        let unresolved =
-          List.zip implDecls m.impls
-          |> List.collect (fun (decl, impl) ->
-            let traitProblem =
-              match impl.trait_.resolved with
+      let unresolved =
+        List.zip implDecls m.impls
+        |> List.collect (fun (decl, impl) ->
+          let traitProblem =
+            match impl.trait_.resolved with
+            | Error _ ->
+              let written = String.concat "." impl.trait_.originalName
+              [ ({ code = "RESOLVE-TRAIT"
+                   severity = P.DiagError
+                   range = decl.trait_.range
+                   message = $"Trait `{written}` couldn't be found"
+                   related = []
+                   hint =
+                     Some
+                       "name the trait in full, e.g. `Stdlib.Add`, or declare it above" }
+                : P.Diagnostic) ]
+            | Ok _ -> []
+          let methodProblems =
+            impl.methods
+            |> List.choose (fun (m, nr) ->
+              match nr.resolved with
               | Error _ ->
-                let written = String.concat "." impl.trait_.originalName
-                [ ({ code = "RESOLVE-TRAIT"
-                     severity = P.DiagError
-                     range = decl.trait_.range
-                     message = $"Trait `{written}` couldn't be found"
-                     related = []
-                     hint =
-                       Some
-                         "name the trait in full, e.g. `Stdlib.Add`, or declare it above" }
-                  : P.Diagnostic) ]
-              | Ok _ -> []
-            let methodProblems =
-              impl.methods
-              |> List.choose (fun (m, nr) ->
-                match nr.resolved with
-                | Error _ ->
-                  let written = String.concat "." nr.originalName
-                  Some(
-                    { code = "RESOLVE-IMPL-METHOD"
-                      severity = P.DiagError
-                      range = decl.range
-                      message =
-                        $"Method `{m}` names `{written}`, which couldn't be found"
-                      related = []
-                      hint = None }
-                    : P.Diagnostic
-                  )
-                | Ok _ -> None)
-            traitProblem @ methodProblems)
-        match unresolved @ callsToLaterNestedFns parameters m with
-        | [] -> return Ok m
-        | diagnostics -> return Error diagnostics
-  }
+                let written = String.concat "." nr.originalName
+                Some(
+                  { code = "RESOLVE-IMPL-METHOD"
+                    severity = P.DiagError
+                    range = decl.range
+                    message =
+                      $"Method `{m}` names `{written}`, which couldn't be found"
+                    related = []
+                    hint = None }
+                  : P.Diagnostic
+                )
+              | Ok _ -> None)
+          traitProblem @ methodProblems)
+      match unresolved @ callsToLaterNestedFns parameters m with
+      | [] -> Ok m
+      | diagnostics -> Error diagnostics
 
 /// Parse a script with `args` available in top-level expressions.
 let parseCliScript
@@ -581,7 +557,7 @@ let parseCliScript
   (owner : string)
   (scriptName : string)
   (code : string)
-  : Ply<Result<Utils.CliScript.PTCliScriptModule, List<P.Diagnostic>>> =
+  : Result<Utils.CliScript.PTCliScriptModule, List<P.Diagnostic>> =
   parseCliSource state owner scriptName [ "args" ] code
 
 
@@ -591,7 +567,7 @@ let parseCliScript
 let parseCliExpr
   (state : RT.ExecutionState)
   (expression : string)
-  : Ply<Result<Utils.CliScript.PTCliScriptModule, List<P.Diagnostic>>> =
+  : Result<Utils.CliScript.PTCliScriptModule, List<P.Diagnostic>> =
   parseCliSource state "" "" [] expression
 
 
@@ -785,6 +761,12 @@ let private reportedNodeIds (report : Dval) : List<id> =
     | Some(DEnum(_, _, _, "Some", [ DUInt64 nodeId ])) -> Some nodeId
     | _ -> None)
 
+let rec private sequence (exprs : List<PT.Expr>) : PT.Expr =
+  match exprs with
+  | [] -> PT.EUnit(gid ())
+  | [ last ] -> last
+  | first :: rest -> PT.EStatement(gid (), first, sequence rest)
+
 /// Type-check a parsed script or eval expression without running any of it. Returns the
 /// checker's report when it found a definite error, which stops the run before its first
 /// effect; otherwise None, and the run goes ahead with its runtime checks.
@@ -804,8 +786,8 @@ let private checkGuest
   (state : RT.ExecutionState)
   (input : LibDB.Traces.ScriptOrEvalInput)
   (script : Utils.CliScript.PTCliScriptModule)
-  : Ply<Option<ExecutionError.ExecutionError>> =
-  uply {
+  : Task<Option<ExecutionError.ExecutionError>> =
+  task {
     let isScript =
       match input with
       | LibDB.Traces.RunScript _ -> true
@@ -817,11 +799,6 @@ let private checkGuest
         match expr with
         | PT.ELambda(_, _, body) when isScript -> body
         | _ -> expr)
-    let rec sequence (exprs : List<PT.Expr>) : PT.Expr =
-      match exprs with
-      | [] -> PT.EUnit(gid ())
-      | [ last ] -> last
-      | first :: rest -> PT.EStatement(gid (), first, sequence rest)
     let parameter : PT.PackageFn.Parameter =
       if isScript then
         { name = "args"; typ = PT.TList PT.TString; description = "" }
@@ -903,14 +880,17 @@ let private hasStatements (script : Utils.CliScript.PTCliScriptModule) : bool =
 let private prepareGuest
   (state : RT.ExecutionState)
   (input : LibDB.Traces.ScriptOrEvalInput)
-  (parse : Ply<Result<Utils.CliScript.PTCliScriptModule, List<P.Diagnostic>>>)
+  (parse : Result<Utils.CliScript.PTCliScriptModule, List<P.Diagnostic>>)
   (source : string)
-  : Ply<Result<Utils.CliScript.PTCliScriptModule, ExecutionError.ExecutionError>> =
-  uply {
-    match! parse with
+  : Task<Result<Utils.CliScript.PTCliScriptModule, ExecutionError.ExecutionError>> =
+  task {
+    match parse with
     | Ok script ->
       let! refusal =
-        if hasStatements script then checkGuest state input script else Ply None
+        if hasStatements script then
+          checkGuest state input script
+        else
+          Task.FromResult None
       match refusal with
       | Some refusal -> return Error refusal
       | None -> return Ok script
@@ -930,9 +910,9 @@ let private prepareGuest
 let private guestTry
   (resultError : Dval -> Dval)
   (toError : RT.RuntimeError.Error -> ExecutionError.ExecutionError)
-  (body : unit -> Ply<Dval>)
-  : Ply<Dval> =
-  uply {
+  (body : unit -> Task<Dval>)
+  : Task<Dval> =
+  task {
     try
       let! result = body ()
       return result
@@ -989,6 +969,23 @@ let childState
       blobs = { get = pm.getBytes; persist = pm.persistBytes } }
 
 
+/// The script's expressions, awaited in order; the first error ends the script.
+let rec private runInOrder
+  (executeExpression : Option<id> -> RT.Instructions -> Task<RT.ExecutionResult>)
+  (instrs : List<id * RT.Instructions>)
+  : Task<RT.ExecutionResult> =
+  task {
+    match instrs with
+    | [] -> return Ok DUnit
+    | [ (_, last) ] -> return! executeExpression None last
+    | (exprId, instr) :: rest ->
+      // Separate top-level expressions obey the same sequencing rule as
+      // EStatement inside a block, including its runtime error and trace.
+      match! executeExpression (Some exprId) instr with
+      | Error _ as failed -> return failed
+      | Ok _ -> return! runInOrder executeExpression rest
+  }
+
 /// `execute`, with the tracer handed in rather than chosen here.
 ///
 /// A view supplies one (`cliViewTrace`): it answers every effect from a recorded trace's log,
@@ -1000,8 +997,8 @@ let executeWith
   (mod' : Utils.CliScript.PTCliScriptModule)
   (input : LibDB.Traces.ScriptOrEvalInput)
   (suppliedTracer : Option<Tracing.T>)
-  : Ply<RT.ExecutionResult> =
-  uply {
+  : Task<RT.ExecutionResult> =
+  task {
     let types =
       List.concat
         [ mod'.types |> List.map PT2RT.PackageType.toRT
@@ -1109,7 +1106,7 @@ let executeWith
       childState parentState { pm with getValue = getValue } tracer.executionTracing
     let getValue =
       Exe.evaluatingValueReader
-        (fun hash -> Ply(Map.tryFind hash definitions))
+        (fun hash -> Map.tryFind hash definitions)
         pm.getValue
         stateWith
     let scriptState () = stateWith getValue
@@ -1119,7 +1116,7 @@ let executeWith
     executionId
     |> Option.iter (fun id ->
       LibDB.Traces.Foreground.set
-        { id = id; flush = fun () -> tracer.storeTraceResults state |> Ply.toTask })
+        { id = id; flush = fun () -> tracer.storeTraceResults state })
 
     match mod'.exprs with
     | [] ->
@@ -1160,7 +1157,7 @@ let executeWith
       let runOne
         (statement : Option<id>)
         (instr : RT.Instructions)
-        : Ply<RT.ExecutionResult> =
+        : Task<RT.ExecutionResult> =
         let instr =
           match statement with
           | Some exprId ->
@@ -1179,8 +1176,8 @@ let executeWith
               Some parent.id,
               keepResult = false
             )
-          uply { return! s.Await child }
-        | _ -> uply { return! Exe.executeExpr state instr }
+          task { return! s.Await child }
+        | _ -> task { return! Exe.executeExpr state instr }
 
       let runEntry =
         match input with
@@ -1189,7 +1186,7 @@ let executeWith
           let argument =
             Dval.list KTString (List.map (String.normalizeOutside >> DString) args)
           fun statement entry ->
-            uply {
+            task {
               // This creates the function; the script body runs in runOne below.
               match! Exe.executeExpr state entry with
               | Error _ as failed -> return failed
@@ -1203,25 +1200,8 @@ let executeWith
                     [ "value", value ]
             }
 
-      // Awaited in order, and the first error ends the script.
-      let rec runInOrder
-        (executeExpression : Option<id> -> RT.Instructions -> Ply<RT.ExecutionResult>)
-        (instrs : List<id * RT.Instructions>)
-        : Ply<RT.ExecutionResult> =
-        uply {
-          match instrs with
-          | [] -> return Ok DUnit
-          | [ (_, last) ] -> return! executeExpression None last
-          | (exprId, instr) :: rest ->
-            // Separate top-level expressions obey the same sequencing rule as
-            // EStatement inside a block, including its runtime error and trace.
-            match! executeExpression (Some exprId) instr with
-            | Error _ as failed -> return failed
-            | Ok _ -> return! runInOrder executeExpression rest
-        }
-
       let! result =
-        uply {
+        task {
           try
             match! runInOrder runOne valueInstrs with
             | Error _ as failed -> return failed
@@ -1253,13 +1233,13 @@ let executeWith
         match refused, executionId, priorStatus with
         | Some _, Some id, Some prior -> LibDB.Traces.setStatus id prior
         | _ ->
-          do! tracer.storeTraceResults state
+          tracer.storeTraceResults state
           // What it answered, beside what it was given: the two halves a run's row is
           // for. A run that failed has no answer to record. Prepared first, like everything
           // else stored: a script can hand back an ephemeral blob.
           match executionId, result with
           | Some id, Ok dv ->
-            let! prepared =
+            let prepared =
               Tracing.prepareDvalForStorage (Tracing.TraceStorage.keepBytesIn id) dv
             LibDB.Traces.setResult id prepared
             LibDB.Traces.setStatus id LibDB.Traces.Done
@@ -1274,7 +1254,7 @@ let execute
   (parentState : RT.ExecutionState)
   (mod' : Utils.CliScript.PTCliScriptModule)
   (input : LibDB.Traces.ScriptOrEvalInput)
-  : Ply<RT.ExecutionResult> =
+  : Task<RT.ExecutionResult> =
   executeWith parentState mod' input None
 
 /// Create a branch-specific execution state for parsing.
@@ -1282,6 +1262,45 @@ let execute
 /// `allowHarmful` is passed in rather than inherited from `parentState` so
 /// callers can turn on the escape hatch per-invocation (e.g. when Dark-side
 /// `run --allow-harmful` reaches `cliParseAndExecuteScript`).
+/// The trusted UI callback asked about <param rules> for the script <param name>: as a process of
+/// its own when there is a scheduler, so a key or a budget wake-up resumes the prompt and never
+/// the suspended guest.
+let private askThrough
+  (branchState : RT.ExecutionState)
+  (callerAccess : Permission.Access)
+  (name : string)
+  (callback : RT.Applicable)
+  (rules : List<string>)
+  : Task<int64> =
+  let argument =
+    DTuple(DString name, DList(VT.string, Items(List.map DString rules)), [])
+  let answer =
+    match Scheduler.Scheduler.Current, Scheduler.Scheduler.CurrentProcess with
+    | Some scheduler, Some parent ->
+      let state = { branchState with access = callerAccess }
+      let instructions = Exe.instructionsForApply callback argument
+      let child =
+        scheduler.Spawn(
+          state,
+          (None, instructions),
+          Scheduler.EntryExpr,
+          Some parent.id,
+          keepResult = false
+        )
+      scheduler.Await child
+    | _ ->
+      Exe.executeApplicable
+        branchState
+        callerAccess
+        callback
+        (NEList.singleton argument)
+  task {
+    match! answer with
+    | Ok(DInt64 choice) -> return choice
+    | _ -> return 0L
+  }
+
+
 let createBranchState (parentState : RT.ExecutionState) (allowHarmful : bool) =
   let state = childState parentState pmRT Exe.noTracing
   { state with allowHarmful = allowHarmful }
@@ -1372,6 +1391,256 @@ let private reviewIdentity filename code (mod' : Utils.CliScript.PTCliScriptModu
         .ToLowerInvariant()
     "script:" + System.IO.Path.GetFullPath filename, hash, true
 
+/// Runs a parsed script under its guest state: `dark run` and `eval` start from the host's
+/// configured deny-by-default policy. Missing or corrupt state remains locked down (see
+/// PolicyStore.instancePolicy).
+let private runGuest
+  (exeState : RT.ExecutionState)
+  (callerAccess : Permission.Access)
+  (branchState : RT.ExecutionState)
+  (runGrants : Permission.Policy)
+  (denied : ResizeArray<RT.PermissionDenialRecord>)
+  (ask : Option<RT.Applicable>)
+  (filename : string)
+  (code : string)
+  (input : LibDB.Traces.ScriptOrEvalInput)
+  (resultOk : Dval -> Dval)
+  (resultError : Dval -> Dval)
+  (mod' : Utils.CliScript.PTCliScriptModule)
+  : Task<Dval> =
+  let guest = createGuestState exeState callerAccess mod' input
+  let exeState =
+    { guest with
+        deniedRequests = denied
+        access = Permission.Access.grantRun runGrants guest.access }
+  let name, hash, script = reviewIdentity filename code mod'
+  let localFns = mod'.fns @ mod'.submodules.fns
+  let load hash =
+    match localFns |> List.tryFind (fun fn -> fn.hash = hash) with
+    | Some fn -> Some fn
+    | None -> LibDB.PackagePermissions.Load.fromStore.fn hash
+  let known =
+    LibDB.PermissionReview.preflight
+      load
+      exeState.packagePolicy
+      (scriptEntryBodies mod')
+  let ask = ask |> Option.map (askThrough branchState callerAccess name)
+  let cancelledResult = resultError (ExecutionError.toDT ExecutionError.Cancelled)
+  let finish cancelled execResult =
+    match execResult with
+    | Ok result -> resultOk (RT2DT.Dval.toDT result)
+    | Error _ when cancelled () -> cancelledResult
+    | Error(e, callStack) ->
+      ExecutionError.classify denied e
+      |> ExecutionError.withCallStack callStack
+      |> ExecutionError.toDT
+      |> resultError
+  task {
+    let! configured =
+      LibDB.PermissionReview.configure exeState name hash script known ask
+    let exeState, cancelled = configured
+    if cancelled () then
+      return cancelledResult
+    else
+      let! execResult = execute exeState mod' input
+      return finish cancelled execResult
+  }
+
+
+/// The body of `cliParseAndExecuteScript`.
+let private runScript
+  (exeState : RT.ExecutionState)
+  (callerAccess : Permission.Access)
+  (resultOk : Dval -> Dval)
+  (resultError : Dval -> Dval)
+  (accountIDDval : Dval)
+  (branchId : System.Guid)
+  (filename : string)
+  (code : string)
+  (scriptArgs : List<Dval>)
+  (allowHarmful : bool)
+  (sandbox : bool)
+  (runGrantsValue : Dval)
+  (askValue : Dval)
+  : Task<Dval> =
+  task {
+    let ask =
+      match askValue with
+      | DEnum(_, _, _, "None", []) -> None
+      | DEnum(_, _, _, "Some", [ DApplicable callback ]) -> Some callback
+      | _ -> incorrectArgs ()
+    let runGrants = PolicyDT.Policy.fromDT runGrantsValue
+    let grants, denies = Permission.Policy.rules runGrants
+    if
+      (ask.IsSome || not (List.isEmpty grants && List.isEmpty denies))
+      && not exeState.canManagePolicies
+    then
+      RT.RuntimeError.UncaughtException(
+        "run approvals require the trusted dark run command",
+        []
+      )
+      |> RT.raiseUntargetedRTE
+    // Attribute the run to the calling account so the trace
+    // insert can stamp `traces.account_id`. None passes through
+    // (anonymous runs, tests).
+    let accountID = C2DT.Option.fromDT D.uuid accountIDDval
+    // `allowHarmful` belongs on the state the BODY runs under, not only on the parse state below:
+    // the Harmful gate fires in the interpreter, so setting it on a state that never executes
+    // leaves `--allow-harmful` parsed, threaded, and inert.
+    let branchId = PT.BranchId.Id branchId
+
+    let exeState =
+      { exeState with
+          accountID = accountID
+          branchId = branchId
+          allowHarmful = allowHarmful }
+    // Use branch-specific state for parsing so name resolution uses the right branch.
+    // Parsing keeps the host's access (`run` and `eval` alike): it is
+    // host-side name resolution over the package store, done by the
+    // trusted CLI on the user's behalf before any guest code runs, so it
+    // must not depend on what the operator granted the guest. With a
+    // deny-all instance policy (a deleted policy file) the script must
+    // still parse and then have its body denied with an actionable
+    // message, not fail opaquely at parse. Only the script *body* runs
+    // under the guest state built below.
+    let branchState = createBranchState exeState allowHarmful
+    // Denials raised under the guest state land here; a run that ends
+    // on one is reported as `Denied` so the CLI can offer the rule.
+    let denied = ResizeArray<RT.PermissionDenialRecord>()
+
+    return!
+      guestTry resultError (ExecutionError.classify denied) (fun () ->
+        task {
+          // No module for the script's own declarations. A module named
+          // after the file put the whole path into every name the
+          // runtime prints back (`CliScript.rundir/tmp/x.dark.Celsius`),
+          // and it buys nothing: one script runs per process, and two
+          // that declare the same thing share a hash anyway. The
+          // filename reaches traces via `RunScript`.
+          let input =
+            LibDB.Traces.RunScript(
+              filename,
+              code,
+              List.map D.string scriptArgs,
+              { allowHarmful = allowHarmful; sandbox = sandbox }
+            )
+          let! parsedScript =
+            prepareGuest
+              branchState
+              input
+              (parseScriptOrEvalInput branchState input)
+              code
+
+          match parsedScript with
+          | Ok mod' ->
+            return!
+              runGuest
+                exeState
+                callerAccess
+                branchState
+                runGrants
+                denied
+                ask
+                filename
+                code
+                input
+                resultOk
+                resultError
+                mod'
+          | Error pe -> return resultError (ExecutionError.toDT pe)
+        })
+  }
+
+
+/// The body of `testRunIsolated`.
+let private runIsolated
+  (state : RT.ExecutionState)
+  (vm : RT.VMState)
+  (branch : Dval)
+  (timeout : int64)
+  (columns : int64)
+  (rows : int64)
+  (callback : RT.ApplicableNamedFn)
+  (argument : Dval)
+  (workerHash : string)
+  : Task<Dval> =
+  let wrap caseName value =
+    DEnum(
+      Dval.resultType (),
+      Dval.resultType (),
+      [ ValueType.Unknown; ValueType.Known KTString ],
+      caseName,
+      [ value ]
+    )
+  let fail message = Task.FromResult(wrap "Error" (DString message))
+  let target =
+    match callback.name, callback.argsSoFar, callback.typeArgs with
+    | FQFnName.Package(Hash hash), [], [] -> Some hash
+    | _ -> None
+  if not state.test.isPackageTest then
+    fail "Test.Process.run is only available inside a package test"
+  elif
+    timeout < 1L
+    || timeout > 600000L
+    || columns < 1L
+    || columns > 10000L
+    || rows < 1L
+    || rows > 10000L
+  then
+    fail
+      "Invalid isolated test options: timeout must be 1..600000 ms and dimensions 1..10000"
+  else
+    match target with
+    | None ->
+      fail "Isolated tests require an unapplied, non-generic package function"
+    | Some hash ->
+      let branchId =
+        match branch with
+        | DEnum(_, _, _, "Some", [ DUuid id ]) -> id
+        | _ -> state.branchId.Guid
+      let request : LibDB.TestProcess.Request =
+        { accountID = state.accountID
+          target = LibDB.TestProcess.Target.TestCallback(hash, argument) }
+      let access =
+        match callback.access with
+        | None -> vm.activeAccess
+        | Some captured ->
+          vm.activeAccess |> LibExecution.Permissions.Access.constrainBy captured
+      let shape (output : LibDB.TestProcess.Outcome) =
+        let result =
+          output.result
+          |> Dval.option (
+            KTCustomType(Dval.resultType (), [ ValueType.Unknown; VT.string ])
+          )
+        wrap
+          "Ok"
+          (DTuple(
+            result,
+            DString(String.normalizeOutside output.stdout),
+            [ DString(String.normalizeOutside output.stderr)
+              Dval.dint64 (int64 output.exitCode)
+              DList(VT.string, Items(List.map DString output.cleanupErrors)) ]
+          ))
+      task {
+        let! outcome =
+          LibDB.TestProcess.run
+            (LibDB.TestProcess.Copy LibDB.Sqlite.Backup.toTestBaseline)
+            state
+            vm
+            access
+            branchId
+            workerHash
+            request
+            (int timeout)
+            (int columns)
+            (int rows)
+        return
+          match outcome with
+          | Error message -> wrap "Error" (DString message)
+          | Ok output -> shape output
+      }
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "testRunIsolated" 0
       typeParams = [ "a"; "b" ]
@@ -1415,87 +1684,17 @@ let fns () : List<BuiltInFn> =
              DApplicable(AppNamedFn { name = FQFnName.Package(Hash workerHash)
                                       argsSoFar = []
                                       typeArgs = [] }) |] ->
-          uply {
-            let wrap caseName value =
-              DEnum(
-                Dval.resultType (),
-                Dval.resultType (),
-                [ ValueType.Unknown; ValueType.Known KTString ],
-                caseName,
-                [ value ]
-              )
-            let fail message = wrap "Error" (DString message)
-            if not state.test.isPackageTest then
-              return fail "Test.Process.run is only available inside a package test"
-            elif
-              timeout < 1L
-              || timeout > 600000L
-              || columns < 1L
-              || columns > 10000L
-              || rows < 1L
-              || rows > 10000L
-            then
-              return
-                fail
-                  "Invalid isolated test options: timeout must be 1..600000 ms and dimensions 1..10000"
-            else
-              let branchId =
-                match branch with
-                | DEnum(_, _, _, "Some", [ DUuid id ]) -> id
-                | _ -> state.branchId.Guid
-              match callback.name, callback.argsSoFar, callback.typeArgs with
-              | FQFnName.Package(Hash hash), [], [] ->
-                let request : LibDB.TestProcess.Request =
-                  { accountID = state.accountID
-                    target = LibDB.TestProcess.Target.TestCallback(hash, argument) }
-                let access =
-                  match callback.access with
-                  | None -> vm.activeAccess
-                  | Some captured ->
-                    vm.activeAccess
-                    |> LibExecution.Permissions.Access.constrainBy captured
-                let! outcome =
-                  LibDB.TestProcess.run
-                    (LibDB.TestProcess.Copy LibDB.Sqlite.Backup.toTestBaseline)
-                    state
-                    vm
-                    access
-                    branchId
-                    workerHash
-                    request
-                    (int timeout)
-                    (int columns)
-                    (int rows)
-                match outcome with
-                | Error message -> return fail message
-                | Ok output ->
-                  let result =
-                    output.result
-                    |> Dval.option (
-                      KTCustomType(
-                        Dval.resultType (),
-                        [ ValueType.Unknown; VT.string ]
-                      )
-                    )
-                  return
-                    wrap
-                      "Ok"
-                      (DTuple(
-                        result,
-                        DString(String.normalizeOutside output.stdout),
-                        [ DString(String.normalizeOutside output.stderr)
-                          Dval.dint64 (int64 output.exitCode)
-                          DList(
-                            VT.string,
-                            Items(List.map DString output.cleanupErrors)
-                          ) ]
-                      ))
-
-              | _ ->
-                return
-                  fail
-                    "Isolated tests require an unapplied, non-generic package function"
-          }
+          runIsolated
+            state
+            vm
+            branch
+            timeout
+            columns
+            rows
+            callback
+            argument
+            workerHash
+          |> LibExecution.Pending.ofTask
         | _, _, _, _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Native ]
@@ -1553,165 +1752,21 @@ let fns () : List<BuiltInFn> =
              DBool sandbox
              runGrantsValue
              askValue |] ->
-          uply {
-            let ask =
-              match askValue with
-              | DEnum(_, _, _, "None", []) -> None
-              | DEnum(_, _, _, "Some", [ DApplicable callback ]) -> Some callback
-              | _ -> incorrectArgs ()
-            let callerAccess = callerVM.activeAccess
-            let runGrants = PolicyDT.Policy.fromDT runGrantsValue
-            let grants, denies = Permission.Policy.rules runGrants
-            if
-              (ask.IsSome || not (List.isEmpty grants && List.isEmpty denies))
-              && not exeState.canManagePolicies
-            then
-              RT.RuntimeError.UncaughtException(
-                "run approvals require the trusted dark run command",
-                []
-              )
-              |> RT.raiseUntargetedRTE
-            // Attribute the run to the calling account so the trace
-            // insert can stamp `traces.account_id`. None passes through
-            // (anonymous runs, tests).
-            let accountID = C2DT.Option.fromDT D.uuid accountIDDval
-            // `allowHarmful` belongs on the state the BODY runs under, not only on the parse state below:
-            // the Harmful gate fires in the interpreter, so setting it on a state that never executes
-            // leaves `--allow-harmful` parsed, threaded, and inert.
-            let branchId = PT.BranchId.Id branchId
-
-            let exeState =
-              { exeState with
-                  accountID = accountID
-                  branchId = branchId
-                  allowHarmful = allowHarmful }
-            // Use branch-specific state for parsing so name resolution uses the right branch.
-            // Parsing keeps the host's access (`run` and `eval` alike): it is
-            // host-side name resolution over the package store, done by the
-            // trusted CLI on the user's behalf before any guest code runs, so it
-            // must not depend on what the operator granted the guest. With a
-            // deny-all instance policy (a deleted policy file) the script must
-            // still parse and then have its body denied with an actionable
-            // message, not fail opaquely at parse. Only the script *body* runs
-            // under the guest state built below.
-            let branchState = createBranchState exeState allowHarmful
-            // Denials raised under the guest state land here; a run that ends
-            // on one is reported as `Denied` so the CLI can offer the rule.
-            let denied = ResizeArray<RT.PermissionDenialRecord>()
-
-            return!
-              guestTry resultError (ExecutionError.classify denied) (fun () ->
-                uply {
-                  // No module for the script's own declarations. A module named
-                  // after the file put the whole path into every name the
-                  // runtime prints back (`CliScript.rundir/tmp/x.dark.Celsius`),
-                  // and it buys nothing: one script runs per process, and two
-                  // that declare the same thing share a hash anyway. The
-                  // filename reaches traces via `RunScript`.
-                  let input =
-                    LibDB.Traces.RunScript(
-                      filename,
-                      code,
-                      List.map D.string scriptArgs,
-                      { allowHarmful = allowHarmful; sandbox = sandbox }
-                    )
-                  let! parsedScript =
-                    prepareGuest
-                      branchState
-                      input
-                      (parseScriptOrEvalInput branchState input)
-                      code
-
-                  match parsedScript with
-                  | Ok mod' ->
-                    // `dark run` and `eval` start from the host's configured
-                    // deny-by-default policy. Missing or corrupt state remains
-                    // locked down (see PolicyStore.instancePolicy).
-                    let guest = createGuestState exeState callerAccess mod' input
-                    let exeState =
-                      { guest with
-                          deniedRequests = denied
-                          access = Permission.Access.grantRun runGrants guest.access }
-                    let name, hash, script = reviewIdentity filename code mod'
-                    let localFns = mod'.fns @ mod'.submodules.fns
-                    let load hash =
-                      match localFns |> List.tryFind (fun fn -> fn.hash = hash) with
-                      | Some fn -> Ply(Some fn)
-                      | None -> LibDB.PackagePermissions.Load.fromStore.fn hash
-                    let! known =
-                      LibDB.PermissionReview.preflight
-                        load
-                        exeState.packagePolicy
-                        (scriptEntryBodies mod')
-                    let ask =
-                      ask
-                      |> Option.map (fun callback ->
-                        fun rules ->
-                          uply {
-                            let argument =
-                              DTuple(
-                                DString name,
-                                DList(VT.string, Items(List.map DString rules)),
-                                []
-                              )
-                            let! answer =
-                              match
-                                Scheduler.Scheduler.Current,
-                                Scheduler.Scheduler.CurrentProcess
-                              with
-                              | Some scheduler, Some parent ->
-                                // A terminal prompt has its own VM/process. A key or budget
-                                // wake-up must resume the prompt, never the suspended guest.
-                                let state =
-                                  { branchState with access = callerAccess }
-                                let instructions =
-                                  Exe.instructionsForApply callback argument
-                                let child =
-                                  scheduler.Spawn(
-                                    state,
-                                    (None, instructions),
-                                    Scheduler.EntryExpr,
-                                    Some parent.id,
-                                    keepResult = false
-                                  )
-                                uply { return! scheduler.Await child }
-                              | _ ->
-                                Exe.executeApplicable
-                                  branchState
-                                  callerAccess
-                                  callback
-                                  (NEList.singleton argument)
-                            match answer with
-                            | Ok(DInt64 choice) -> return choice
-                            | _ -> return 0L
-                          })
-                    let! exeState, cancelled =
-                      LibDB.PermissionReview.configure
-                        exeState
-                        name
-                        hash
-                        script
-                        known
-                        ask
-                    if cancelled () then
-                      return
-                        resultError (ExecutionError.toDT ExecutionError.Cancelled)
-                    else
-                      let! execResult = execute exeState mod' input
-                      match execResult with
-                      | Ok result -> return resultOk (RT2DT.Dval.toDT result)
-                      | Error _ when cancelled () ->
-                        return
-                          resultError (ExecutionError.toDT ExecutionError.Cancelled)
-                      | Error(e, callStack) ->
-                        return
-                          ExecutionError.classify denied e
-                          |> ExecutionError.withCallStack callStack
-                          |> ExecutionError.toDT
-                          |> resultError
-                  | Error pe -> return resultError (ExecutionError.toDT pe)
-                })
-          }
+          runScript
+            exeState
+            callerVM.activeAccess
+            resultOk
+            resultError
+            accountIDDval
+            branchId
+            filename
+            code
+            scriptArgs
+            allowHarmful
+            sandbox
+            runGrantsValue
+            askValue
+          |> LibExecution.Pending.ofTask
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Native ]
@@ -1777,7 +1832,7 @@ let fns () : List<BuiltInFn> =
              DUuid branchId
              DString traceID
              DList(_, Items(focusRows)) |] ->
-          uply {
+          task {
             // Parsing and replay must use the same account as the invoking CLI or editor.
             let exeState =
               { exeState with accountID = C2DT.Option.fromDT D.uuid accountIDDval }
@@ -1910,8 +1965,8 @@ let fns () : List<BuiltInFn> =
                 System.Collections.Generic.Dictionary<struct (System.Guid * int64), RT.Dval>)
               (lastByExpr : System.Collections.Generic.Dictionary<int64, RT.Dval>)
               (problem : Option<ReplayStop.ReplayStop>)
-              : Ply<Dval> =
-              uply {
+              : Task<Dval> =
+              task {
                 do!
                   Pending.allFinished (
                     seq {
@@ -1936,7 +1991,7 @@ let fns () : List<BuiltInFn> =
             match System.Guid.TryParse traceID with
             | false, _ -> return emptyAnswer (Some(ReplayStop.InvalidId))
             | true, id ->
-              match! LibDB.Traces.get id with
+              match LibDB.Traces.get id with
               | None -> return emptyAnswer (Some(ReplayStop.TraceNotFound))
               | Some run ->
                 // Only a run whose input is source can be replayed from the CLI. A served
@@ -1944,7 +1999,7 @@ let fns () : List<BuiltInFn> =
                 // is the next piece of this.
                 match run.cli with
                 | Some input ->
-                  let! log = LibDB.Traces.viewLog id
+                  let log = LibDB.Traces.viewLog id
                   let collected =
                     System.Collections.Generic.Dictionary<struct (System.Guid * int64), RT.Dval>()
                   let frames =
@@ -1961,7 +2016,7 @@ let fns () : List<BuiltInFn> =
                         accountID = accountID
                         branchId = PT.BranchId.Id branchId }
                   let branchState = createBranchState exeState false
-                  let! parsed = parseScriptOrEvalInput branchState input
+                  let parsed = parseScriptOrEvalInput branchState input
                   match parsed with
                   | Error _ ->
                     return emptyAnswer (Some(ReplayStop.InputNoLongerParses))
@@ -1969,7 +2024,7 @@ let fns () : List<BuiltInFn> =
                     let viewState =
                       createGuestState exeState callerVM.activeAccess mod' input
                     let! problem =
-                      uply {
+                      task {
                         try
                           match! executeWith viewState mod' input (Some tracer) with
                           | Ok _ -> return None
@@ -1986,7 +2041,7 @@ let fns () : List<BuiltInFn> =
                   match run.entryHash with
                   | None -> return emptyAnswer (Some(ReplayStop.MissingHandler))
                   | Some hash ->
-                    let! log = LibDB.Traces.viewLog id
+                    let log = LibDB.Traces.viewLog id
                     let collected =
                       System.Collections.Generic.Dictionary<struct (System.Guid *
                       int64), RT.Dval>()
@@ -2009,7 +2064,7 @@ let fns () : List<BuiltInFn> =
                       { PolicyStore.rootState exeState exeState.access [ Hash hash ] with
                           tracing = tracer.executionTracing }
                     let! problem =
-                      uply {
+                      task {
                         try
                           match!
                             Exe.executeApplicable
@@ -2025,6 +2080,7 @@ let fns () : List<BuiltInFn> =
                       }
                     return! answerOf frames collected lastByExpr problem
           }
+          |> LibExecution.Pending.ofTask
         | _ -> incorrectArgs ())
       previewable = Impure
       // Reading a recorded run, and running pure code over it: the effects it would have made
@@ -2071,7 +2127,7 @@ let fns () : List<BuiltInFn> =
           callerVM,
           [],
           [| accountIDDval; DUuid branchId; DString expression; DBool allowHarmful |] ->
-          uply {
+          task {
             // Attribute the run to the calling account so the trace
             // insert can stamp `traces.account_id`.
             let accountID = C2DT.Option.fromDT D.uuid accountIDDval
@@ -2089,7 +2145,7 @@ let fns () : List<BuiltInFn> =
 
             return!
               guestTry resultError (ExecutionError.classify denied) (fun () ->
-                uply {
+                task {
                   // Parsing can raise (e.g. deep VM failures); keep it inside
                   // guestTry so its exceptions hit the Unhandled net. `eval` is
                   // single-expression only; parse failures surface a precise
@@ -2133,6 +2189,7 @@ let fns () : List<BuiltInFn> =
                   | Error pe -> return resultError (ExecutionError.toDT pe)
                 })
           }
+          |> LibExecution.Pending.ofTask
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Native ]

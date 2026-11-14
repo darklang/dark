@@ -4,7 +4,6 @@ module LibSerialization.Binary.Serialization
 open System
 open System.IO
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 open Prelude
 
 module RT = LibExecution.RuntimeTypes

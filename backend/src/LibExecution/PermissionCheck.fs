@@ -9,6 +9,8 @@
 /// scoped honestly, such as arbitrary SQLite SQL, are `Native` instead.
 module LibExecution.PermissionCheck
 
+open System.Threading.Tasks
+
 open Prelude
 open LibExecution.RuntimeTypes
 module Permission = LibExecution.Permissions
@@ -166,9 +168,9 @@ let performHostWithAccess
   (_vm : VMState)
   (access : Permission.Access)
   (op : Host.Operation)
-  : Ply<Result<Host.Response, Host.Failure>> =
+  : Task<Result<Host.Response, Host.Failure>> =
   let rec perform () =
-    uply {
+    task {
       let current = state.permissionAccess access
       let! outcome = Host.performInSession state.descriptorSession.Value current op
       match outcome with
@@ -180,7 +182,7 @@ let performHostWithAccess
           match state.requestPermission with
           | Some ask when Permission.Access.canApprove request current ->
             ask access request resource
-          | _ -> Ply false
+          | _ -> Task.FromResult false
         // A denied host operation has done no work. Recheck this operation
         // after the user responds; never rerun the script or earlier effects.
         if approved then
@@ -192,8 +194,8 @@ let performHostWithAccess
 
 /// Resolve approval for ambient effects before entering the synchronous builtin
 /// path. Scoped effects ask at their host operation, where resources are known.
-let approveBuiltinEffects state vm effects builtinName : Ply<unit> =
-  uply {
+let approveBuiltinEffects state vm effects builtinName : Task<unit> =
+  task {
     for effect in Effect.permissionEffects effects do
       if not (Effect.isScoped effect) then
         let request = Permission.Request.ofAmbientEffect effect builtinName
@@ -209,7 +211,7 @@ let performHost
   (state : ExecutionState)
   (vm : VMState)
   (op : Host.Operation)
-  : Ply<Result<Host.Response, Host.Failure>> =
+  : Task<Result<Host.Response, Host.Failure>> =
   performHostWithAccess state vm vm.activeAccess op
 
 /// Check ambient effects against an explicitly supplied access. Builtins that

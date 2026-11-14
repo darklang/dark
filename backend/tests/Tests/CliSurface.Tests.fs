@@ -6,7 +6,6 @@ module Tests.CliSurface
 
 open Expecto
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open Fumble
@@ -71,8 +70,8 @@ let private reusesCompiledFunctions =
     task {
       let state = executionState target
       let hash = RT.Hash(LibExecution.PackageRefs.Fn.Cli.executeCliCommand ())
-      let! first = state.fns.package hash |> Ply.toTask
-      let! second = state.fns.package hash |> Ply.toTask
+      let first = state.fns.package hash
+      let second = state.fns.package hash
       match first, second with
       | Some first, Some second ->
         Expect.isTrue
@@ -486,29 +485,24 @@ let private eachCommandKeepsItsStreams =
   instanceTest
     "each command puts its answer on stdout, the rest on stderr, and its verdict in the exit code"
     (fun target ->
+      let rec check rows faults =
+        task {
+          match rows with
+          | [] -> return List.rev faults
+          | (args, code, out, err) :: rest ->
+            let! (stdout, stderr, status) = runCliStreams target args
+            let stdout = CliDsl.plain stdout
+            let stderr = CliDsl.plain stderr
+            let found =
+              [ (if status <> code then Some $"exit {status}, not {code}" else None)
+                streamFault "stdout" out err stdout
+                streamFault "stderr" err out stderr ]
+              |> List.choose (fun fault -> fault)
+            let printed = $"""dark {String.concat " " args}"""
+            return!
+              check rest (List.map (fun f -> $"  {printed} -> {f}") found @ faults)
+        }
       task {
-        let rec check rows faults =
-          task {
-            match rows with
-            | [] -> return List.rev faults
-            | (args, code, out, err) :: rest ->
-              let! (stdout, stderr, status) = runCliStreams target args
-              let stdout = CliDsl.plain stdout
-              let stderr = CliDsl.plain stderr
-              let found =
-                [ (if status <> code then
-                     Some $"exit {status}, not {code}"
-                   else
-                     None)
-                  streamFault "stdout" out err stdout
-                  streamFault "stderr" err out stderr ]
-                |> List.choose (fun fault -> fault)
-              let printed = $"""dark {String.concat " " args}"""
-              return!
-                check
-                  rest
-                  (List.map (fun f -> $"  {printed} -> {f}") found @ faults)
-          }
 
         let! faults = check streamRows []
         if not (List.isEmpty faults) then

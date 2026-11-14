@@ -1345,87 +1345,82 @@ module Search =
 /// for whatever reasons.
 type PackageManager =
   {
-    findType : PackageLocation -> Ply<Option<FQTypeName.Package>>
-    findValue : PackageLocation -> Ply<Option<FQValueName.Package>>
-    findFn : PackageLocation -> Ply<Option<FQFnName.Package>>
-    findTrait : PackageLocation -> Ply<Option<FQTraitName.Package>>
-    findTraitImpl : PackageLocation -> Ply<Option<Hash>>
-    findTest : PackageLocation -> Ply<Option<Hash>>
+    findType : PackageLocation -> Option<FQTypeName.Package>
+    findValue : PackageLocation -> Option<FQValueName.Package>
+    findFn : PackageLocation -> Option<FQFnName.Package>
+    findTrait : PackageLocation -> Option<FQTraitName.Package>
+    findTraitImpl : PackageLocation -> Option<Hash>
+    findTest : PackageLocation -> Option<Hash>
 
-    search : Search.SearchQuery -> Ply<Search.SearchResults>
+    search : Search.SearchQuery -> Search.SearchResults
 
     // CLEANUP why does the PT one even need these?
-    getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
-    getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
-    getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
-    getTrait : FQTraitName.Package -> Ply<Option<Trait.Trait>>
-    getTraitImpl : Hash -> Ply<Option<TraitImpl.TraitImpl>>
-    getTest : Hash -> Ply<Option<PackageTest.PackageTest>>
+    getType : FQTypeName.Package -> Option<PackageType.PackageType>
+    getValue : FQValueName.Package -> Option<PackageValue.PackageValue>
+    getFn : FQFnName.Package -> Option<PackageFn.PackageFn>
+    getTrait : FQTraitName.Package -> Option<Trait.Trait>
+    getTraitImpl : Hash -> Option<TraitImpl.TraitImpl>
+    getTest : Hash -> Option<PackageTest.PackageTest>
 
     // Reverse lookups — returns ALL locations for a hash
-    getTypeLocations : FQTypeName.Package -> Ply<List<PackageLocation>>
-    getValueLocations : FQValueName.Package -> Ply<List<PackageLocation>>
-    getFnLocations : FQFnName.Package -> Ply<List<PackageLocation>>
-    getTraitLocations : FQTraitName.Package -> Ply<List<PackageLocation>>
-    getTraitImplLocations : Hash -> Ply<List<PackageLocation>>
-    getTestLocations : Hash -> Ply<List<PackageLocation>>
+    getTypeLocations : FQTypeName.Package -> List<PackageLocation>
+    getValueLocations : FQValueName.Package -> List<PackageLocation>
+    getFnLocations : FQFnName.Package -> List<PackageLocation>
+    getTraitLocations : FQTraitName.Package -> List<PackageLocation>
+    getTraitImplLocations : Hash -> List<PackageLocation>
+    getTestLocations : Hash -> List<PackageLocation>
 
     /// Every impl of a trait this manager holds. Not filtered for liveness; the RT
     /// conversion checks each impl's location still binds it.
-    impls : FQTraitName.Package -> Ply<List<TraitImpl.TraitImpl>>
+    impls : FQTraitName.Package -> List<TraitImpl.TraitImpl>
 
     /// Every impl, of any trait, that has a method of this name. For receiver
     /// calls (`p.show`).
-    implsWithMethod : string -> Ply<List<TraitImpl.TraitImpl>>
+    implsWithMethod : string -> List<TraitImpl.TraitImpl>
 
     /// The last segment of every trait name this manager can answer for. A gate
     /// in front of `findTrait`: the name resolver tries every qualified fn name as
     /// `Trait.method` first, and this says in one cached set whether any trait is
     /// called that, instead of one location query per scope.
-    traitNames : unit -> Ply<HashSet<string>>
-
-    init : Ply<unit>
+    traitNames : unit -> HashSet<string>
   }
 
 
   static member empty =
-    { findType = fun _ -> Ply None
-      findFn = fun _ -> Ply None
-      findValue = fun _ -> Ply None
-      findTrait = fun _ -> Ply None
-      findTraitImpl = fun _ -> Ply None
-      findTest = fun _ -> Ply None
+    { findType = fun _ -> None
+      findFn = fun _ -> None
+      findValue = fun _ -> None
+      findTrait = fun _ -> None
+      findTraitImpl = fun _ -> None
+      findTest = fun _ -> None
 
       search =
         fun _ ->
-          Ply
-            { submodules = []
-              types = []
-              values = []
-              fns = []
-              traits = []
-              impls = []
-              tests = [] }
+          { submodules = []
+            types = []
+            values = []
+            fns = []
+            traits = []
+            impls = []
+            tests = [] }
 
-      getType = fun _ -> Ply None
-      getFn = fun _ -> Ply None
-      getValue = fun _ -> Ply None
-      getTrait = fun _ -> Ply None
-      getTraitImpl = fun _ -> Ply None
-      getTest = fun _ -> Ply None
+      getType = fun _ -> None
+      getFn = fun _ -> None
+      getValue = fun _ -> None
+      getTrait = fun _ -> None
+      getTraitImpl = fun _ -> None
+      getTest = fun _ -> None
 
-      getTypeLocations = fun _ -> Ply []
-      getValueLocations = fun _ -> Ply []
-      getFnLocations = fun _ -> Ply []
-      getTraitLocations = fun _ -> Ply []
-      getTraitImplLocations = fun _ -> Ply []
+      getTypeLocations = fun _ -> []
+      getValueLocations = fun _ -> []
+      getFnLocations = fun _ -> []
+      getTraitLocations = fun _ -> []
+      getTraitImplLocations = fun _ -> []
 
-      impls = fun _ -> Ply []
-      implsWithMethod = fun _ -> Ply []
-      traitNames = fun () -> Ply(HashSet())
-      getTestLocations = fun _ -> Ply []
-
-      init = uply { return () } }
+      impls = fun _ -> []
+      implsWithMethod = fun _ -> []
+      traitNames = fun () -> (HashSet())
+      getTestLocations = fun _ -> [] }
 
 
   /// A layer's `traitNames`: its own names over the layer below's. The union is
@@ -1434,25 +1429,23 @@ type PackageManager =
   /// are never written after they are handed out.
   static member unionTraitNames
     (own : HashSet<string>)
-    (below : unit -> Ply<HashSet<string>>)
-    : unit -> Ply<HashSet<string>> =
+    (below : unit -> HashSet<string>)
+    : unit -> HashSet<string> =
     let mutable last : Option<HashSet<string> * HashSet<string>> = None
     fun () ->
-      uply {
-        let! belowNames = below ()
-        match last with
-        | Some(b, u) when obj.ReferenceEquals(b, belowNames) -> return u
-        | _ ->
-          let u =
-            if own.Count = 0 then
-              belowNames
-            else
-              let u = HashSet<string>(belowNames)
-              u.UnionWith own
-              u
-          last <- Some(belowNames, u)
-          return u
-      }
+      let belowNames = below ()
+      match last with
+      | Some(b, u) when obj.ReferenceEquals(b, belowNames) -> u
+      | _ ->
+        let u =
+          if own.Count = 0 then
+            belowNames
+          else
+            let u = HashSet<string>(belowNames)
+            u.UnionWith own
+            u
+        last <- Some(belowNames, u)
+        u
 
   /// Allows you to side-load a few 'extras' in-memory, along
   /// the normal fetching functionality. (Mostly helpful for tests)
@@ -1520,27 +1513,25 @@ type PackageManager =
 
     let find
       (own : Map<PackageLocation, Hash>)
-      (below : PackageLocation -> Ply<Option<Hash>>)
+      (below : PackageLocation -> Option<Hash>)
       =
       fun location ->
         match Map.tryFind location own with
-        | Some hash -> Ply(Some hash)
+        | Some hash -> (Some hash)
         | None -> below location
-    let get (own : Map<Hash, 'item>) (below : Hash -> Ply<Option<'item>>) =
+    let get (own : Map<Hash, 'item>) (below : Hash -> Option<'item>) =
       fun hash ->
         match Map.tryFind hash own with
-        | Some item -> Ply(Some item)
+        | Some item -> (Some item)
         | None -> below hash
     let locations
       (own : Map<Hash, List<PackageLocation>>)
-      (below : Hash -> Ply<List<PackageLocation>>)
+      (below : Hash -> List<PackageLocation>)
       =
       fun hash ->
-        uply {
-          let local = Map.tryFind hash own |> Option.defaultValue []
-          let! fallback = below hash
-          return local @ fallback
-        }
+        let local = Map.tryFind hash own |> Option.defaultValue []
+        let fallback = below hash
+        local @ fallback
 
     { findType = find typeLocationToHash pm.findType
       findValue = find valueLocationToHash pm.findValue
@@ -1568,32 +1559,26 @@ type PackageManager =
 
       impls =
         fun traitHash ->
-          uply {
-            let! below = pm.impls traitHash
-            let own =
-              impls
-              |> List.map fst
-              |> List.filter (fun i ->
-                match i.trait_.resolved with
-                | Ok { name = FQTraitName.Package t } -> t = traitHash
-                | _ -> false)
-            return own @ below
-          }
+          let below = pm.impls traitHash
+          let own =
+            impls
+            |> List.map fst
+            |> List.filter (fun i ->
+              match i.trait_.resolved with
+              | Ok { name = FQTraitName.Package t } -> t = traitHash
+              | _ -> false)
+          own @ below
       implsWithMethod =
         fun methodName ->
-          uply {
-            let! below = pm.implsWithMethod methodName
-            let own =
-              impls
-              |> List.map fst
-              |> List.filter (fun i ->
-                i.methods |> List.exists (fun (m, _) -> m = methodName))
-            return own @ below
-          }
+          let below = pm.implsWithMethod methodName
+          let own =
+            impls
+            |> List.map fst
+            |> List.filter (fun i ->
+              i.methods |> List.exists (fun (m, _) -> m = methodName))
+          own @ below
 
-      getTestLocations = pm.getTestLocations
-
-      init = pm.init }
+      getTestLocations = pm.getTestLocations }
 
 
 

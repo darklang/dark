@@ -7,7 +7,6 @@
 module Tests.PermissionEscape
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Expecto
 open Prelude
@@ -46,7 +45,7 @@ let private clockCall : PT.Expr =
 let private storeUnevaluated (name : string) (body : PT.Expr) : Task<PT.Hash> =
   task {
     let value = makeValue body
-    let! (_ : int64) =
+    let (_ : int64) =
       Inserts.insertAndApplyOps
         [ PT.PackageOp.AddValue value
           PT.PackageOp.SetName(loc name, PT.PackageValue value.hash, None) ]
@@ -56,11 +55,11 @@ let private storeUnevaluated (name : string) (body : PT.Expr) : Task<PT.Hash> =
 let private isUnevaluated (PT.Hash hash) : Task<bool> =
   Sql.query "SELECT rt_dval IS NULL AS n FROM package_values WHERE hash = @hash"
   |> Sql.parameters [ "hash", Sql.string hash ]
-  |> Sql.executeRowAsync (fun read -> read.int64 "n")
-  |> Task.map (fun n -> n = 1L)
+  |> Sql.executeRow (fun read -> read.int64 "n")
+  |> fun n -> Task.FromResult((n = 1L))
 
 let private evaluate () : Task<Result<unit, List<Seed.ValueEvaluationError>>> =
-  Seed.evaluateAllValues (localBuiltIns pmPT) pmRT
+  Seed.evaluateAllValues (localBuiltIns pmPT) pmRT |> Task.FromResult
 
 /// Did evaluation report a failure for THIS value? Evaluation sweeps every
 /// pending value in the store, so an unrelated one must not decide the test.
@@ -111,9 +110,9 @@ let testPureBodyIsEvaluated =
         (eStr [ strText "a"; strInterp (eStr [ strText "b" ]) ])
     let! result = evaluate ()
     Expect.isNone (failureFor hash result) "a pure body evaluates"
-    let! (stored : Option<RT.PackageValue.PackageValue>) =
+    let (stored : Option<RT.PackageValue.PackageValue>) =
       let (PT.Hash h) = hash
-      LibDB.RuntimeTypes.Value.get (RT.Hash h) |> Ply.toTask
+      LibDB.RuntimeTypes.Value.get (RT.Hash h)
     match stored with
     | Some value -> Expect.equal value.body (RT.DString "ab") "evaluated, not folded"
     | None -> failtest "an evaluated value is stored"
@@ -132,7 +131,7 @@ let testEffectInCalledFnIsRefused =
         body = clockCall
         description = ""
         bounds = [] }
-    let! (_ : int64) =
+    let (_ : int64) =
       Inserts.insertAndApplyOps
         [ PT.PackageOp.AddFn clockFn
           PT.PackageOp.SetName(loc "readsClock", PT.PackageFn clockFn.hash, None) ]

@@ -8,7 +8,6 @@
 module LibDB.ScmDeps
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -43,14 +42,12 @@ let private run
   (sql : string)
   (parameters : List<string * Microsoft.Data.Sqlite.SqliteParameter>)
   (read : RowReader -> Option<Edge>)
-  : Task<List<Edge>> =
-  task {
-    let! rows = Sql.query sql |> Sql.parameters parameters |> Sql.executeAsync read
-    return List.choose identity rows
-  }
+  : List<Edge> =
+  let rows = Sql.query sql |> Sql.parameters parameters |> Sql.executeRows read
+  List.choose identity rows
 
 
-let query (q : Query) : Task<List<Edge>> =
+let query (q : Query) : List<Edge> =
   match q with
   | Of hash ->
     run
@@ -66,7 +63,7 @@ let query (q : Query) : Task<List<Edge>> =
 
   | Closure hashes ->
     if List.isEmpty hashes then
-      Task.FromResult []
+      []
     else
       let ps = hashes |> List.mapi (fun i h -> $"h{i}", Sql.string h)
       let slots = ps |> List.map (fun (k, _) -> "@" + k) |> String.concat ", "

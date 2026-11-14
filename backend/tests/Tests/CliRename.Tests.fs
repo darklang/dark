@@ -2,7 +2,6 @@
 module Tests.CliRename
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 open Expecto
 
 module RT = LibExecution.RuntimeTypes
@@ -426,20 +425,20 @@ let refreshedRenameSnapshotsSurviveAProjectionRebuild =
             "Tests.RefreshLog.caller"
             "(): Int64 = Tests.RefreshLog.foo() + Tests.RefreshLog.later()"
         do! run state [ "rename"; "Tests.RefreshLog.foo"; "Tests.RefreshLog.bar" ]
-        let! before = LibDB.Queries.getDraftOps ()
+        let before = LibDB.Queries.getDraftOps ()
         let rename =
           before
           |> List.find (function
             | LibExecution.ProgramTypes.PackageOp.Rename _ -> true
             | _ -> false)
           |> Option.defaultWith (fun () -> failtest "expected a draft rename")
-        let! stamps = LibDB.Queries.getWipOpOriginTs ()
+        let stamps = LibDB.Queries.getWipOpOriginTs ()
         let stamp = Map.find (LibDB.Inserts.computeOpHash rename) stamps
         Expect.isSome stamp "the rename has an authoring time"
         // This new binding must stay after the rename, even if refreshing the rename changes its ID.
         do! fn state "Tests.RefreshLog.foo" "(): Int64 = 86809"
         do! fn state "Tests.RefreshLog.later" "(): Int64 = 2"
-        let! after = LibDB.Queries.getDraftOps ()
+        let after = LibDB.Queries.getDraftOps ()
         let updated =
           after
           |> List.find (function
@@ -450,17 +449,17 @@ let refreshedRenameSnapshotsSurviveAProjectionRebuild =
           updated
           rename
           "refresh updates the snapshot's caller version"
-        let! stamps = LibDB.Queries.getWipOpOriginTs ()
+        let stamps = LibDB.Queries.getWipOpOriginTs ()
         Expect.equal
           (Map.find (LibDB.Inserts.computeOpHash updated) stamps)
           stamp
           "the renamed op keeps its authoring time"
-        let! _ = LibDB.Seed.rebuildProjections ()
-        let! _ =
+        let _ = LibDB.Seed.rebuildProjections ()
+        let _ =
           LibDB.Seed.evaluateAllValues
             (Builtins.CliHost.Libs.Cli.builtinsToUse ())
             LibDB.PackageManager.rt
-        let! invalid = LibDB.ReferenceNamesContent.validate after
+        let invalid = LibDB.ReferenceNamesContent.validate after
         Expect.isNone
           invalid
           "all snapshots still have matching content after rebuilding from the canonical log"

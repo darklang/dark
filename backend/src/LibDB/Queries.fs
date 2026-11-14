@@ -1,7 +1,6 @@
 module LibDB.Queries
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.ProgramTypes
@@ -15,16 +14,14 @@ module BS = LibSerialization.Binary.Serialization
 
 
 /// Make sure new edits get timestamps after everything already saved.
-let ensureAuthoringClockIsCurrent () : Task<unit> =
-  task {
-    let! latest =
-      Sql.query
-        "SELECT MAX(stamp) AS stamp FROM
-         (SELECT MAX(origin_ts) AS stamp FROM package_ops
-          UNION ALL SELECT MAX(origin_ts) AS stamp FROM commits)"
-      |> Sql.executeRowAsync (fun row -> row.stringOrNone "stamp")
-    latest |> Option.iter OriginTs.observe
-  }
+let ensureAuthoringClockIsCurrent () : unit =
+  let latest =
+    Sql.query
+      "SELECT MAX(stamp) AS stamp FROM
+       (SELECT MAX(origin_ts) AS stamp FROM package_ops
+        UNION ALL SELECT MAX(origin_ts) AS stamp FROM commits)"
+    |> Sql.executeRow (fun row -> row.stringOrNone "stamp")
+  latest |> Option.iter OriginTs.observe
 
 
 /// A dependency relationship between package items.
@@ -35,26 +32,23 @@ type PackageDep = { itemHash : Hash; itemKind : PT.ItemKind }
 
 /// Get Hashes that the given item depends on (forward dependencies / "what does this
 /// use?" / uses)
-let getDependencies (itemHash : Hash) : Task<List<PackageDep>> =
-  task {
-    let (Hash itemHashStr) = itemHash
+let getDependencies (itemHash : Hash) : List<PackageDep> =
+  let (Hash itemHashStr) = itemHash
 
-    return!
-      Sql.query
-        """
-        SELECT DISTINCT pd.depends_on_hash, l.item_type
-        FROM package_dependencies pd
-        INNER JOIN locations l ON pd.depends_on_hash = l.item_hash
-        WHERE pd.item_hash = @item_hash
-          AND pd.depends_on_item_type = l.item_type
-          AND l.live = 1
-        ORDER BY pd.depends_on_hash
-        """
-      |> Sql.parameters [ "item_hash", Sql.string itemHashStr ]
-      |> Sql.executeAsync (fun read ->
-        { itemHash = Hash(read.string "depends_on_hash")
-          itemKind = read.string "item_type" |> PT.ItemKind.fromString })
-  }
+  Sql.query
+    """
+      SELECT DISTINCT pd.depends_on_hash, l.item_type
+      FROM package_dependencies pd
+      INNER JOIN locations l ON pd.depends_on_hash = l.item_hash
+      WHERE pd.item_hash = @item_hash
+        AND pd.depends_on_item_type = l.item_type
+        AND l.live = 1
+      ORDER BY pd.depends_on_hash
+      """
+  |> Sql.parameters [ "item_hash", Sql.string itemHashStr ]
+  |> Sql.executeRows (fun read ->
+    { itemHash = Hash(read.string "depends_on_hash")
+      itemKind = read.string "item_type" |> PT.ItemKind.fromString })
 
 
 /// A dependent found via location-keyed lookup, paired with its own active location, so
@@ -78,11 +72,9 @@ type LocationTarget =
 /// Both sides bind their targets as one JSON parameter and join it, which is what lets SQLite use the
 /// location index and the hash index: a row-value `IN` over an `OR` of the two scanned every edge in
 /// the store, on every level of every propagation.
-let getDependentHashesByTargets
-  (targets : List<LocationTarget>)
-  : Task<List<string>> =
+let getDependentHashesByTargets (targets : List<LocationTarget>) : List<string> =
   if List.isEmpty targets then
-    Task.FromResult []
+    []
   else
     let locations =
       targets
@@ -113,7 +105,7 @@ let getDependentHashesByTargets
     |> Sql.parameters
       [ "locations", Sql.string (jsonRows locations)
         "hashes", Sql.string (jsonRows hashes) ]
-    |> Sql.executeAsync (fun read -> read.string "item_hash")
+    |> Sql.executeRows (fun read -> read.string "item_hash")
 
 
 /// Group (key, value) pairs into a list-valued map, preserving order within each key.
@@ -135,34 +127,32 @@ let private groupToMap
 let getLiveLocationsForHashes
   (branch : PT.BranchId)
   (hashes : List<string>)
-  : Task<Map<string, List<PT.ItemKind * PT.PackageLocation>>> =
-  task {
-    if List.isEmpty hashes then
-      return Map.empty
-    else
-      let ps = hashes |> List.mapi (fun i h -> ($"h_{i}", Sql.string h))
-      let inClause = hashes |> List.mapi (fun i _ -> $"@h_{i}") |> String.concat ", "
+  : Map<string, List<PT.ItemKind * PT.PackageLocation>> =
+  if List.isEmpty hashes then
+    Map.empty
+  else
+    let ps = hashes |> List.mapi (fun i h -> ($"h_{i}", Sql.string h))
+    let inClause = hashes |> List.mapi (fun i _ -> $"@h_{i}") |> String.concat ", "
 
-      let! rows =
-        Sql.query (
-          Layers.view "@" Layers.locations
-          + $"""
+    let rows =
+      Sql.query (
+        Layers.view "@" Layers.locations
+        + $"""
           SELECT item_hash, item_type, owner, modules, name
           FROM visible
           WHERE item_hash IN ({inClause})
           """
-        )
-        |> Sql.parameters (ps @ Layers.sqlParams branch true)
-        |> Sql.executeAsync (fun read ->
-          let modulesStr = read.string "modules"
-          read.string "item_hash",
-          (read.string "item_type" |> PT.ItemKind.fromString,
-           { owner = read.string "owner"
-             modules = PackageLocation.modulesOfColumn modulesStr
-             name = read.string "name" }))
+      )
+      |> Sql.parameters (ps @ Layers.sqlParams branch true)
+      |> Sql.executeRows (fun read ->
+        let modulesStr = read.string "modules"
+        read.string "item_hash",
+        (read.string "item_type" |> PT.ItemKind.fromString,
+         { owner = read.string "owner"
+           modules = PackageLocation.modulesOfColumn modulesStr
+           name = read.string "name" }))
 
-      return groupToMap rows
-  }
+    groupToMap rows
 
 
 
@@ -175,42 +165,36 @@ let getLiveLocationsForHashes
 ///
 /// Also returns the id of every row read, decodable or not, which is what
 /// `Inserts.rewriteDraftIfUnchanged` checks the draft against.
-let getDraftOpsWithIds () : Task<List<System.Guid> * List<PT.PackageOp>> =
-  task {
-    let! rows =
-      Sql.query
-        $"SELECT id, op_blob FROM package_ops WHERE {Inserts.mainDraftWhere}
-          ORDER BY rowid"
-      |> Sql.executeAsync (fun read ->
-        let id = read.uuid "id"
-        (id, BS.PT.PackageOp.tryDeserialize id (read.bytes "op_blob")))
-    return (List.map fst rows, List.choose snd rows)
-  }
+let getDraftOpsWithIds () : List<System.Guid> * List<PT.PackageOp> =
+  let rows =
+    Sql.query
+      $"SELECT id, op_blob FROM package_ops WHERE {Inserts.mainDraftWhere}
+        ORDER BY rowid"
+    |> Sql.executeRows (fun read ->
+      let id = read.uuid "id"
+      (id, BS.PT.PackageOp.tryDeserialize id (read.bytes "op_blob")))
+  (List.map fst rows, List.choose snd rows)
 
-let getDraftOps () : Task<List<PT.PackageOp>> =
-  task {
-    let! (_, ops) = getDraftOpsWithIds ()
-    return ops
-  }
+let getDraftOps () : List<PT.PackageOp> =
+  let (_, ops) = getDraftOpsWithIds ()
+  ops
 
 
 /// Map of WIP op id -> its current origin_ts, so WipRefresh can PRESERVE authoring stamps
 /// across a discard+reinsert: an op that survives re-stabilization unchanged keeps its
 /// original stamp. Without it a whole-store reinsert pushes `lastOriginTs` into the future
 /// (the clock advances ~1ms per op), which makes the next genuine update look stale to LWW.
-let getWipOpOriginTs () : Task<Map<System.Guid, string>> =
-  task {
-    let! rows =
-      Sql.query
-        """
+let getWipOpOriginTs () : Map<System.Guid, string> =
+  let rows =
+    Sql.query
+      """
         SELECT id, origin_ts
         FROM package_ops
         WHERE branch_id = @main
         """
-      |> Sql.parameters [ "main", Sql.string (string PT.BranchId.Main) ]
-      |> Sql.executeAsync (fun read -> (read.uuid "id", read.string "origin_ts"))
-    return Map.ofList rows
-  }
+    |> Sql.parameters [ "main", Sql.string (string PT.BranchId.Main) ]
+    |> Sql.executeRows (fun read -> (read.uuid "id", read.string "origin_ts"))
+  Map.ofList rows
 
 
 /// What deprecation stands for an item at a name as <param branchId> sees it: None when it is not
@@ -220,7 +204,7 @@ let getCurrentDeprecationFor
   (location : PT.PackageLocation)
   (itemHash : Hash)
   (itemKind : PT.ItemKind)
-  : Task<Option<PT.DeprecationKind * string>> =
+  : Option<PT.DeprecationKind * string> =
   Deprecations.standing branchId location itemHash itemKind
 
 /// <fn getCurrentDeprecationFor> on main.
@@ -228,7 +212,7 @@ let getCurrentDeprecation
   (location : PT.PackageLocation)
   (itemHash : Hash)
   (itemKind : PT.ItemKind)
-  : Task<Option<PT.DeprecationKind * string>> =
+  : Option<PT.DeprecationKind * string> =
   Deprecations.standing PT.BranchId.Main location itemHash itemKind
 
 
@@ -245,60 +229,55 @@ type DeprecationSets =
   { allDeprecated : Set<Hash>; hidden : Set<Hash>; names : Set<string> }
 
 /// <param branchId>'s deprecation sets.
-let getDeprecationSetsFor (branchId : PT.BranchId) : Task<DeprecationSets> =
-  task {
-    let! rows = Deprecations.deprecatedIn branchId
-    let! atNames = Deprecations.deprecatedNamesIn branchId
-    let names =
-      atNames
-      |> List.map (fun r ->
-        let path = if r.modules = "" then r.owner else $"{r.owner}.{r.modules}"
-        $"{path}.{r.name}#{r.hash}")
-      |> Set.ofList
-    let deprecatedStrs = rows |> List.map (fun (h, _, _) -> h) |> Set.ofList
-    if Set.isEmpty deprecatedStrs then
-      return { allDeprecated = Set.empty; hidden = Set.empty; names = names }
-    else
-      // (target, caller) pairs -- "target" is deprecated by construction.
-      // Caller is live iff it's not itself in deprecatedStrs.
-      let! edges =
-        Sql.query
-          """
+let getDeprecationSetsFor (branchId : PT.BranchId) : DeprecationSets =
+  let rows = Deprecations.deprecatedIn branchId
+  let atNames = Deprecations.deprecatedNamesIn branchId
+  let names =
+    atNames
+    |> List.map (fun r ->
+      let path = if r.modules = "" then r.owner else $"{r.owner}.{r.modules}"
+      $"{path}.{r.name}#{r.hash}")
+    |> Set.ofList
+  let deprecatedStrs = rows |> List.map (fun (h, _, _) -> h) |> Set.ofList
+  if Set.isEmpty deprecatedStrs then
+    { allDeprecated = Set.empty; hidden = Set.empty; names = names }
+  else
+    // (target, caller) pairs -- "target" is deprecated by construction.
+    // Caller is live iff it's not itself in deprecatedStrs.
+    let edges =
+      Sql.query
+        """
           SELECT depends_on_hash AS target, item_hash AS caller
           FROM package_dependencies
           WHERE depends_on_hash IN (SELECT value FROM json_each(@hashes))
           """
-        |> Sql.parameters
-          [ "hashes", Sql.string (jsonStrings (Set.toList deprecatedStrs)) ]
-        |> Sql.executeAsync (fun read ->
-          (read.string "target", read.string "caller"))
+      |> Sql.parameters
+        [ "hashes", Sql.string (jsonStrings (Set.toList deprecatedStrs)) ]
+      |> Sql.executeRows (fun read -> (read.string "target", read.string "caller"))
 
-      let hasLiveCaller =
-        edges
-        |> List.filter (fun (_, caller) -> not (Set.contains caller deprecatedStrs))
-        |> List.map fst
-        |> Set.ofList
+    let hasLiveCaller =
+      edges
+      |> List.filter (fun (_, caller) -> not (Set.contains caller deprecatedStrs))
+      |> List.map fst
+      |> Set.ofList
 
-      return
-        { allDeprecated = deprecatedStrs |> Set.map Hash
-          hidden =
-            deprecatedStrs
-            |> Set.filter (fun h -> not (Set.contains h hasLiveCaller))
-            |> Set.map Hash
-          names = names }
-  }
+    { allDeprecated = deprecatedStrs |> Set.map Hash
+      hidden =
+        deprecatedStrs
+        |> Set.filter (fun h -> not (Set.contains h hasLiveCaller))
+        |> Set.map Hash
+      names = names }
 
 /// How many items call each of <param hashes>, for ranking search results by use. A caller
 /// counts when some name holds it now and it is not a test or in a `Tests` module, so old
 /// versions and test fixtures do not count. Hashes nothing calls are left out.
-let callerCounts (hashes : List<Hash>) : Task<List<Hash * int64>> =
-  task {
-    if List.isEmpty hashes then
-      return []
-    else
-      let! rows =
-        Sql.query
-          """
+let callerCounts (hashes : List<Hash>) : List<Hash * int64> =
+  if List.isEmpty hashes then
+    []
+  else
+    let rows =
+      Sql.query
+        """
           SELECT d.depends_on_hash AS target, COUNT(DISTINCT d.item_hash) AS callers
           FROM package_dependencies d
           WHERE d.depends_on_hash IN (SELECT value FROM json_each(@hashes))
@@ -310,51 +289,42 @@ let callerCounts (hashes : List<Hash>) : Task<List<Hash * int64>> =
                 AND ('.' || l.modules || '.') NOT LIKE '%.Tests.%')
           GROUP BY d.depends_on_hash
           """
-        |> Sql.parameters
-          [ "hashes",
-            Sql.string (jsonStrings (hashes |> List.map (fun (Hash h) -> h))) ]
-        |> Sql.executeAsync (fun read ->
-          (Hash(read.string "target"), read.int64 "callers"))
-      return rows
-  }
+      |> Sql.parameters
+        [ "hashes", Sql.string (jsonStrings (hashes |> List.map (fun (Hash h) -> h))) ]
+      |> Sql.executeRows (fun read ->
+        (Hash(read.string "target"), read.int64 "callers"))
+    rows
 
 /// When each impl was added, by the stamp of its `AddTraitImpl` op. Selection orders two
 /// impls of one trait for one type by it (`LibExecution.Lww`), so the same call picks the
 /// same impl on every instance. A row written before the column answers "", and a pair of
 /// unstamped rivals is reported rather than picked.
-let getTraitImplStamps () : Task<Map<string, string>> =
-  task {
-    let! rows =
-      Sql.query "SELECT hash, origin_ts FROM package_trait_impls"
-      |> Sql.executeAsync (fun read -> (read.string "hash", read.string "origin_ts"))
-    return Map.ofList rows
-  }
+let getTraitImplStamps () : Map<string, string> =
+  let rows =
+    Sql.query "SELECT hash, origin_ts FROM package_trait_impls"
+    |> Sql.executeRows (fun read -> (read.string "hash", read.string "origin_ts"))
+  Map.ofList rows
 
 /// `getTraitImplStamps` for <param hashes> only.
-let getTraitImplStampsFor (hashes : List<string>) : Task<Map<string, string>> =
-  task {
-    let! rows =
-      Sql.query
-        "SELECT hash, origin_ts FROM package_trait_impls
-         WHERE hash IN (SELECT value FROM json_each(@hashes))"
-      |> Sql.parameters [ "hashes", Sql.string (jsonStrings hashes) ]
-      |> Sql.executeAsync (fun read -> (read.string "hash", read.string "origin_ts"))
-    return Map.ofList rows
-  }
+let getTraitImplStampsFor (hashes : List<string>) : Map<string, string> =
+  let rows =
+    Sql.query
+      "SELECT hash, origin_ts FROM package_trait_impls
+       WHERE hash IN (SELECT value FROM json_each(@hashes))"
+    |> Sql.parameters [ "hashes", Sql.string (jsonStrings hashes) ]
+    |> Sql.executeRows (fun read -> (read.string "hash", read.string "origin_ts"))
+  Map.ofList rows
 
 
 /// The impls <param branchId> sees deprecated. A deprecated impl is not a dispatch candidate:
 /// deprecating one of two rivals is how the ambiguity finding says to settle it. The candidate path
 /// and the display path both read this, so `dark view` and dispatch agree on a branch.
-let getDeprecatedTraitImplHashesFor (branchId : PT.BranchId) : Task<Set<string>> =
-  task {
-    let! rows = Deprecations.deprecatedIn branchId
-    return
-      rows
-      |> List.choose (fun (h, kind, _) ->
-        if kind = PT.ItemKind.TraitImpl.toString () then Some h else None)
-      |> Set.ofList
-  }
+let getDeprecatedTraitImplHashesFor (branchId : PT.BranchId) : Set<string> =
+  let rows = Deprecations.deprecatedIn branchId
+  rows
+  |> List.choose (fun (h, kind, _) ->
+    if kind = PT.ItemKind.TraitImpl.toString () then Some h else None)
+  |> Set.ofList
 
 
 /// The fns marked Harmful, read synchronously.
@@ -366,7 +336,7 @@ let getDeprecatedTraitImplHashesFor (branchId : PT.BranchId) : Task<Set<string>>
 /// package call after any `dark fn` in a tab hung there for good.
 let getHarmfulFnHashesSync () : Set<Hash> =
   // Harmful is about the code, not the name: any name saying it marks the content.
-  Deprecations.deprecatedNamesSync PT.BranchId.Main
+  Deprecations.deprecatedNames PT.BranchId.Main
   |> List.choose (fun r ->
     match r.blob with
     | Some blob when
@@ -376,5 +346,4 @@ let getHarmfulFnHashesSync () : Set<Hash> =
     | _ -> None)
   |> Set.ofList
 
-let getHarmfulFnHashes () : Task<Set<Hash>> =
-  Task.FromResult(getHarmfulFnHashesSync ())
+let getHarmfulFnHashes () : Set<Hash> = (getHarmfulFnHashesSync ())

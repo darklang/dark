@@ -2,7 +2,6 @@
 module LibDB.ReferenceNamesContent
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 open Fumble
 open Prelude
 open LibDB.Sqlite
@@ -92,17 +91,15 @@ let refreshNames before after =
       | None -> location)
 
 let private read table deserialize visit (hash : PT.Hash) =
-  task {
-    let (PT.Hash value) = hash
-    let! bytes =
-      Sql.query $"SELECT pt_def FROM {table} WHERE hash = @hash"
-      |> Sql.parameters [ "hash", Sql.string value ]
-      |> Sql.executeRowOptionAsync (fun row -> row.bytes "pt_def")
-    return bytes |> Option.map (deserialize hash >> capture visit)
-  }
+  let (PT.Hash value) = hash
+  let bytes =
+    Sql.query $"SELECT pt_def FROM {table} WHERE hash = @hash"
+    |> Sql.parameters [ "hash", Sql.string value ]
+    |> Sql.executeRowOption (fun row -> row.bytes "pt_def")
+  bytes |> Option.map (deserialize hash >> capture visit)
 
 /// Read a stored declaration and collect the package names its references use.
-let storedNames target : Task<Option<Names>> =
+let storedNames target : Option<Names> =
   match target with
   | PT.PackageType hash ->
     read "package_types" BS.PT.PackageType.deserialize AT.transformType hash
@@ -120,86 +117,67 @@ let storedNames target : Task<Option<Names>> =
 /// `storedNames` of each distinct target, read once each, in order.
 let storedNamesEach
   (targets : List<PT.Reference>)
-  : Task<List<PT.Reference * Option<Names>>> =
+  : List<PT.Reference * Option<Names>> =
   targets
   |> List.distinct
-  |> Ply.List.mapSequentially (fun target ->
-    uply {
-      let! names = storedNames target
-      return (target, names)
-    })
-  |> Ply.toTask
+  |> List.map (fun target ->
+    let names = storedNames target
+    (target, names))
 
 /// Read the names from stored declaration bodies, before branch metadata is applied.
 let storedSnapshots (sources : List<PT.PackageLocation * PT.Reference>) =
-  task {
-    let sources = List.distinct sources
-    let! originals = sources |> List.map snd |> storedNamesEach
-    let originals = Map.ofList originals
-    return
-      sources
-      |> List.choose (fun (location, target) ->
-        Microsoft.FSharp.Collections.Map.find target originals
-        |> Option.map (fun names ->
-          ({ location = location
-             target = target
-             names = names
-             restating = None }
-          : PT.ReferenceNamesSnapshot)))
-  }
+  let sources = List.distinct sources
+  let originals = sources |> List.map snd |> storedNamesEach
+  let originals = Map.ofList originals
+  sources
+  |> List.choose (fun (location, target) ->
+    Microsoft.FSharp.Collections.Map.find target originals
+    |> Option.map (fun names ->
+      ({ location = location; target = target; names = names; restating = None }
+      : PT.ReferenceNamesSnapshot)))
 
 /// Check the snapshots before any operations are saved.
 /// Each snapshot must list the declaration's references in the same order.
 /// The declaration can already be stored or be part of this batch.
-let validate (ops : List<PT.PackageOp>) : Task<Option<string>> =
-  task {
-    let snapshots = ops |> List.collect PT.packageOpReferenceSnapshots
-    if List.isEmpty snapshots then
-      return None
-    else
-      let bodies =
-        ops
-        |> List.choose declaration
-        |> List.fold
-          (fun map (target, names) ->
-            if Map.containsKey target map then map else Map.add target names map)
-          Map.empty
-      // Stops reading at the first problem.
-      let! _, problem =
-        snapshots
-        |> Ply.List.foldSequentially
-          (fun (storedByTarget, problem) snapshot ->
-            uply {
-              if Option.isSome problem then
-                return (storedByTarget, problem)
+let validate (ops : List<PT.PackageOp>) : Option<string> =
+  let snapshots = ops |> List.collect PT.packageOpReferenceSnapshots
+  if List.isEmpty snapshots then
+    None
+  else
+    let bodies =
+      ops
+      |> List.choose declaration
+      |> List.fold
+        (fun map (target, names) ->
+          if Map.containsKey target map then map else Map.add target names map)
+        Map.empty
+    // Stops reading at the first problem.
+    let _, problem =
+      snapshots
+      |> List.fold
+        (fun (storedByTarget, problem) snapshot ->
+          if Option.isSome problem then
+            (storedByTarget, problem)
+          else
+            let target = snapshot.target
+            let names = snapshot.names
+            let storedByTarget =
+              if Map.containsKey target storedByTarget then
+                storedByTarget
               else
-                let target = snapshot.target
-                let names = snapshot.names
-                let! storedByTarget =
-                  if Map.containsKey target storedByTarget then
-                    Ply storedByTarget
-                  else
-                    uply {
-                      let! stored = storedNames target
-                      return Map.add target stored storedByTarget
-                    }
-                let stored =
-                  Microsoft.FSharp.Collections.Map.find target storedByTarget
-                let original =
-                  stored |> Option.orElseWith (fun () -> Map.tryFind target bodies)
-                let problem =
-                  match original with
-                  | None ->
-                    Some
-                      "reference snapshot names a declaration that is not available"
-                  | Some original when List.map fst original <> List.map fst names ->
-                    Some
-                      "reference snapshot does not match the declaration's references"
-                  | Some _ -> None
-                return (storedByTarget, problem)
-            })
-          (Map.empty, None)
-        |> Ply.toTask
-      return problem
-
-  }
+                let stored = storedNames target
+                Map.add target stored storedByTarget
+            let stored = Microsoft.FSharp.Collections.Map.find target storedByTarget
+            let original =
+              stored |> Option.orElseWith (fun () -> Map.tryFind target bodies)
+            let problem =
+              match original with
+              | None ->
+                Some "reference snapshot names a declaration that is not available"
+              | Some original when List.map fst original <> List.map fst names ->
+                Some
+                  "reference snapshot does not match the declaration's references"
+              | Some _ -> None
+            (storedByTarget, problem))
+        (Map.empty, None)
+    problem

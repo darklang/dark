@@ -381,8 +381,7 @@ let fns () : List<BuiltInFn> =
           | Ok(pieces, matches) ->
             DTuple(Dval.list KTString pieces, Dval.list matchKT matches, [])
             |> Dval.resultOk okKT errorKT
-            |> Ply
-          | Error e -> errorToDT e |> Dval.resultError okKT errorKT |> Ply
+          | Error e -> errorToDT e |> Dval.resultError okKT errorKT
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

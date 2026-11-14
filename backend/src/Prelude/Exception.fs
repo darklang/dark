@@ -1,8 +1,6 @@
 module Exception
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
-open FSharp.Control.Tasks.Affine.Unsafe
 
 // ----------------------
 // Exceptions

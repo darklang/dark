@@ -1524,9 +1524,7 @@ let fns () : List<BuiltInFn> =
             | Some pf ->
               Dval.optionSome pfKT (WrittenTypesToDarkTypes.parsedFileToDT pf)
             | None -> Dval.optionNone pfKT
-          Ply(
-            DTuple(tree, WrittenTypesToDarkTypes.diagnosticsToDT r.diagnostics, [])
-          )
+          (DTuple(tree, WrittenTypesToDarkTypes.diagnosticsToDT r.diagnostics, []))
         (function
         | _, _, _, [| DEnum(_, _, [], "Script", []); DString sourceCode |] ->
           toDT (P.parseScript sourceCode)

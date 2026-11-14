@@ -19,7 +19,6 @@ open Expecto
 open LibExecution.HostTypes
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open System.IO
 open System.IO.Compression
@@ -115,37 +114,32 @@ module Internal =
 let parseSingleTestFromFile
   (filename : string)
   (test : string)
-  : Ply<Internal.Test.PTTest> =
-  uply {
-    let! (state : RT.ExecutionState) = executionStateFor pmPT true
+  : Internal.Test.PTTest =
+  let (state : RT.ExecutionState) = executionStateFor pmPT true
 
-    let name =
-      RT.FQFnName.fqPackage (PackageRefs.Fn.Internal.Test.parseSingleTestFromFile ())
+  let name =
+    RT.FQFnName.fqPackage (PackageRefs.Fn.Internal.Test.parseSingleTestFromFile ())
 
-    let args = NEList.ofList (RT.DString filename) [ RT.DString test ]
-    let! execResult = LibExecution.Execution.executeFunction state name [] args
+  let args = NEList.ofList (RT.DString filename) [ RT.DString test ]
+  let execResult = (LibExecution.Execution.executeFunction state name [] args).Result
 
-    match execResult with
-    | Ok dval ->
-      match C2DT.Result.fromDT identity dval identity with
-      | Ok testVal -> return Internal.Test.fromDT testVal
-      | Error(RT.DString errMsg) ->
-        return
-          Exception.raiseInternal
-            $"Error parsing test: {errMsg}"
-            [ "filename", filename; "test", test ]
-      | Error _ ->
-        return
-          Exception.raiseInternal
-            "Invalid error format from parseSingleTestFromFile"
-            [ "dval", dval ]
-    | Error(rte, _) ->
-      let! rteString = Exe.rteToString RT2DT.RuntimeError.toDT state rte
-      return
-        Exception.raiseInternal
-          "Error executing parseSingleTestFromFile function"
-          [ "error", rteString ]
-  }
+  match execResult with
+  | Ok dval ->
+    match C2DT.Result.fromDT identity dval identity with
+    | Ok testVal -> Internal.Test.fromDT testVal
+    | Error(RT.DString errMsg) ->
+      Exception.raiseInternal
+        $"Error parsing test: {errMsg}"
+        [ "filename", filename; "test", test ]
+    | Error _ ->
+      Exception.raiseInternal
+        "Invalid error format from parseSingleTestFromFile"
+        [ "dval", dval ]
+  | Error(rte, _) ->
+    let rteString = (Exe.rteToString RT2DT.RuntimeError.toDT state rte).Result
+    Exception.raiseInternal
+      "Error executing parseSingleTestFromFile function"
+      [ "error", rteString ]
 
 let makeTest versionName filename =
   // Parse the file contents now, rather than later, so that tests that refer to
@@ -211,17 +205,16 @@ let makeTest versionName filename =
       skiptest $"underscore test - {testName}"
     else
       // Set up the canvas
-      let! exeState = executionStateFor pmPT true
+      let exeState = executionStateFor pmPT true
 
       // Parse the Dark code
-      let! (test : Internal.Test.PTTest) =
+      let (test : Internal.Test.PTTest) =
         darkCode
         |> String.replace "URL" $"{host}/{versionName}/{testName}"
         // CLEANUP: this doesn't use the correct length, as it might be latin1 or
         // compressed
         |> String.replace "LENGTH" (string response.body.Length)
         |> parseSingleTestFromFile "httpclient.tests.fs"
-        |> Ply.toTask
 
       // Run the handler (call the HTTP client)
       // Note: this will update the corresponding value in `testCases` with the
@@ -629,21 +622,22 @@ module StreamDvalTests =
     : RT.Dval * bool ref =
     let mutable buffered : byte[] = [||]
     let mutable bufferPos = 0
-    let next () : Ply<Option<RT.Dval>> =
-      uply {
-        if bufferPos >= buffered.Length then
-          let! chunk = HostHttp.readChunk head.handle 8192
-          match chunk with
-          | None -> return None
-          | Some bytes ->
-            buffered <- bytes
-            bufferPos <- 1
-            return Some(RT.DUInt8 bytes[0])
-        else
-          let b = buffered[bufferPos]
-          bufferPos <- bufferPos + 1
-          return Some(RT.DUInt8 b)
-      }
+    let next () : ValueTask<Option<RT.Dval>> =
+      if bufferPos >= buffered.Length then
+        let pulled : Task<Option<RT.Dval>> =
+          task {
+            match! HostHttp.readChunk head.handle 8192 with
+            | None -> return None
+            | Some bytes ->
+              buffered <- bytes
+              bufferPos <- 1
+              return Some(RT.DUInt8 bytes[0])
+          }
+        ValueTask<Option<RT.Dval>>(pulled)
+      else
+        let b = buffered[bufferPos]
+        bufferPos <- bufferPos + 1
+        ValueTask<_>(Some(RT.DUInt8 b))
     let disposerRan = ref false
     let disposer () =
       disposerRan.Value <- true
@@ -656,7 +650,7 @@ module StreamDvalTests =
       use ms = new System.IO.MemoryStream()
       let mutable keepGoing = true
       while keepGoing do
-        let! pulled = Stream.readNext s |> Ply.toTask
+        let! pulled = Stream.readNext s
         match pulled with
         | Some(RT.DUInt8 b) -> ms.WriteByte b
         | Some _ -> Exception.raiseInternal "expected DUInt8" []
@@ -742,7 +736,7 @@ module StreamDvalTests =
             | _ -> failtest "expected DStream"
             Expect.isTrue disposerRan.Value "disposer runs on explicit close"
             // Subsequent pulls yield None.
-            let! after = Stream.readNext s |> Ply.toTask
+            let! after = Stream.readNext s
             Expect.equal after None "closed stream yields None"
         } ]
 

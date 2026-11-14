@@ -25,7 +25,6 @@ module LibExecution.Scheduler
 
 open System.Threading
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -250,7 +249,7 @@ type Scheduler(quantum : int64) =
   let runnable = System.Collections.Generic.Queue<Process>()
   // Touched by the scheduler thread (dispatch) and by builtins subscribing, which run on the
   // scheduler thread in the ordinary case but on a pool thread when the process is inside a
-  // builtin that re-entered the interpreter and is continuing on a Ply continuation.
+  // builtin that re-entered the interpreter and is continuing on a task continuation.
   let sync = obj ()
   let subscriptions = ResizeArray<Subscription>()
   /// Keys that arrived while nobody was waiting for one, for the next `Key` subscriber.
@@ -906,8 +905,6 @@ type Scheduler(quantum : int64) =
         |> List.map (fun (k, v) -> k, Execution.metadataValueString v)
       try
         p.exeState.reportException p.exeState p.vm metadata ex
-        |> Ply.toTask
-        |> ignore<Task<unit>>
       with _ ->
         ()
       let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))

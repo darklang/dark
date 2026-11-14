@@ -94,8 +94,7 @@ let private reviewUniverse =
   |> Map.ofList
 
 let private loadFromUniverse : PackagePermissions.Load =
-  { fn = fun hash -> Ply(Map.tryFind hash reviewUniverse)
-    value = fun _ -> Ply None }
+  { fn = (fun hash -> Map.tryFind hash reviewUniverse); value = (fun _ -> None) }
 
 let private reviewUnder
   explicitPolicy
@@ -112,7 +111,6 @@ let private reviewUnder
     explicitPolicy
     acknowledgeIncomplete
     acknowledgeChange
-  |> Ply.toTask
 
 let private review previousApproval hash acknowledgeIncomplete acknowledgeChange =
   reviewUnder None previousApproval hash acknowledgeIncomplete acknowledgeChange
@@ -242,13 +240,9 @@ module ValueReferences =
   let private readingValue (valueHash : string) : Requirements.Result =
     let root = unitFn "reads-value" (ePackageValue valueHash)
     let load : PackagePermissions.Load =
-      { fn = fun h -> Ply(if h = root.hash then Some root else None)
-        value = fun h -> Ply(Map.tryFind h values) }
-    let closure =
-      PackagePermissions.loadClosure load root.hash
-      |> Ply.toTask
-      |> Async.AwaitTask
-      |> Async.RunSynchronously
+      { fn = fun h -> (if h = root.hash then Some root else None)
+        value = fun h -> (Map.tryFind h values) }
+    let closure = PackagePermissions.loadClosure load root.hash
     Requirements.forFunction testEffects closure root.hash
 
   let tests =
@@ -351,7 +345,7 @@ let reviewApprovesACallerOfACallbackTakingDependency =
     // refused this and told the user to acknowledge a lower bound, while the
     // function's own badge said `complete` -- and it hit every caller of
     // `List.map`, which is most of the package tree.
-    let! reviewed = review None "uses-map-like" false false
+    let reviewed = review None "uses-map-like" false false
     match reviewed with
     | Ok(PackagePermissions.Review.Approvable _) -> ()
     | other -> failtest $"expected an approvable review, got {other}"
@@ -359,7 +353,7 @@ let reviewApprovesACallerOfACallbackTakingDependency =
 
 let reviewAcceptsAnUnchangedContract =
   testTask "an identical permission contract under a new hash is approvable" {
-    let! reviewed = review (Some "v1") "v2" false false
+    let reviewed = review (Some "v1") "v2" false false
     match reviewed with
     | Ok(PackagePermissions.Review.Approvable policies) ->
       Expect.equal
@@ -375,7 +369,7 @@ let reviewAcceptsAnUnchangedContract =
 
 let reviewApprovesTheRootUnderExplicitRules =
   testTask "only the named root receives a policy" {
-    let! reviewed = reviewUnder (Some consumerRules) None "caller" false false
+    let reviewed = reviewUnder (Some consumerRules) None "caller" false false
     match reviewed with
     | Ok(PackagePermissions.Review.Approvable policies) ->
       Expect.equal
@@ -385,7 +379,7 @@ let reviewApprovesTheRootUnderExplicitRules =
     | other -> failtest $"expected Approvable, got {other}"
     // Explicit rules bound an incomplete closure without an acknowledgement:
     // the consumer chose the bound rather than accepting an inferred one.
-    let! dynamic = reviewUnder (Some consumerRules) None "dynamic" false false
+    let dynamic = reviewUnder (Some consumerRules) None "dynamic" false false
     match dynamic with
     | Ok(PackagePermissions.Review.Approvable policies) ->
       Expect.equal policies [ "dynamic", consumerRules ] "bounded by the rules given"
@@ -396,7 +390,7 @@ let reviewAcceptsRestrictiveRules =
   testTask "narrow rules are accepted even when analysis predicts more effects" {
     let clockOnly =
       Permission.Policy.allowEffects (Set.singleton Effect.Effect.Clock)
-    let! reviewed = reviewUnder (Some clockOnly) None "caller" false false
+    let reviewed = reviewUnder (Some clockOnly) None "caller" false false
     match reviewed with
     | Ok(PackagePermissions.Review.Approvable policies) ->
       Expect.equal policies [ "caller", clockOnly ] "runtime checks missing access"
@@ -405,7 +399,7 @@ let reviewAcceptsRestrictiveRules =
 
 let reviewRefusesAWidenedContractWithoutAcknowledgment =
   testTask "a version whose requirements widen needs an explicit contract review" {
-    let! reviewed = review (Some "v1") "wider" false false
+    let reviewed = review (Some "v1") "wider" false false
     match reviewed with
     | Ok(PackagePermissions.Review.ContractChanged differences) ->
       Expect.equal
@@ -417,7 +411,7 @@ let reviewRefusesAWidenedContractWithoutAcknowledgment =
         "the host reports structured old and new requirement sets"
     | other -> failtest $"expected ContractChanged, got {other}"
     // The acknowledgment is the review: with it, the same version is approvable.
-    let! acknowledged = review (Some "v1") "wider" false true
+    let acknowledged = review (Some "v1") "wider" false true
     match acknowledged with
     | Ok(PackagePermissions.Review.Approvable _) -> ()
     | other -> failtest $"expected Approvable after acknowledgment, got {other}"
@@ -425,9 +419,9 @@ let reviewRefusesAWidenedContractWithoutAcknowledgment =
 
 let reviewRejectsAnIncompleteClosure =
   testTask "an incomplete analysis is refused unless a human accepts the lower bound" {
-    let! reviewed = review None "dynamic" false false
+    let reviewed = review None "dynamic" false false
     Expect.isError reviewed "a dynamic call the walk cannot follow blocks approval"
-    let! acknowledged = review None "dynamic" true false
+    let acknowledged = review None "dynamic" true false
     match acknowledged with
     | Ok(PackagePermissions.Review.Approvable policies) ->
       Expect.equal
@@ -435,7 +429,7 @@ let reviewRejectsAnIncompleteClosure =
         [ Permission.Policy.denyAll ]
         "unknown effects never become automatic grants"
     | other -> failtest $"expected Approvable after acknowledgment, got {other}"
-    let! unknown = review None "missing" true true
+    let unknown = review None "missing" true true
     Expect.isError unknown "an unknown hash cannot be approved"
   }
 
@@ -601,7 +595,7 @@ let testBodiesUseTransitiveCacheSafetyAnalysis =
   testTask "cache safety checks a test body's transitive calls" {
     let analyze (body : PT.Expr) : System.Threading.Tasks.Task<Requirements.Result> =
       PackagePermissions.cacheSafetyForExpression loadFromUniverse testEffects body
-      |> Ply.toTask
+      |> System.Threading.Tasks.Task.FromResult
 
     let! (safe : Requirements.Result) = analyze (callBuiltin "listMap")
     Expect.isTrue safe.complete "the pure builtin is classified"
@@ -644,22 +638,18 @@ let batchedCacheSafetyMatchesOneBodyAtATime =
       List.init fnCount (fun i -> unitFn $"fn{i}" (randomBody ()))
       |> List.map (fun fn -> fn.hash, fn)
       |> Map.ofList
-    let loadFn hash = Ply(Map.tryFind hash universe)
-    let load : PackagePermissions.Load = { fn = loadFn; value = fun _ -> Ply None }
+    let loadFn hash = (Map.tryFind hash universe)
+    let load : PackagePermissions.Load = { fn = loadFn; value = fun _ -> None }
 
     let verdicts = System.Collections.Generic.HashSet<bool>()
     for _ in 1..20 do
       let bodies = List.init (1 + random.Next 30) (fun _ -> randomBody ())
-      let! analyses, closure =
-        PackagePermissions.analyzeExpressions load bodies |> Ply.toTask
+      let analyses, closure = PackagePermissions.analyzeExpressions load bodies
       let together =
         analyses |> List.map (Requirements.forExpression testEffects closure)
-      let! (alone : List<Requirements.Result>) =
+      let (alone : List<Requirements.Result>) =
         bodies
-        |> Ply.List.mapSequentially (
-          PackagePermissions.cacheSafetyForExpression load testEffects
-        )
-        |> Ply.toTask
+        |> List.map (PackagePermissions.cacheSafetyForExpression load testEffects)
       Expect.equal together alone "sharing the closure changes no answer"
       for r in together do
         verdicts.Add(r.complete && Set.isEmpty r.requiredEffects) |> ignore<bool>
@@ -670,12 +660,11 @@ let cacheSafetyRejectsBranchDependentRendering =
   testTask "a permission-free branch-dependent builtin is not cache-safe" {
     let callEffectsFor (name, version) =
       if name = "toRepr" then None else testEffects (name, version)
-    let! (result : Requirements.Result) =
+    let (result : Requirements.Result) =
       PackagePermissions.cacheSafetyForExpression
         loadFromUniverse
         callEffectsFor
         (callBuiltin "toRepr")
-      |> Ply.toTask
     Expect.isFalse result.complete "rendering depends on the current branch"
     Expect.isEmpty result.requiredEffects "this is not a permission effect"
   }
@@ -691,8 +680,7 @@ let preflightCollectsOnlyCertainRequests =
         loadFromUniverse.fn
         (fun _ _ -> None)
         expressions
-      |> Ply.toTask
-    let! known = collect [ env "A"; env "B"; env "A"; read "/tmp/report" ]
+    let known = collect [ env "A"; env "B"; env "A"; read "/tmp/report" ]
     Expect.equal (List.length known) 3 "one batch with duplicates removed"
     let wrapper =
       { unitFn
@@ -700,8 +688,8 @@ let preflightCollectsOnlyCertainRequests =
           (eApply (eBuiltinFn "runtimeEnvironmentGet" 0) [] [ eVar "name" ]) with
           parameters =
             NEList.singleton { name = "name"; typ = PT.TString; description = "" } }
-    let load hash = Ply(if hash = wrapper.hash then Some wrapper else None)
-    let! wrapped =
+    let load hash = (if hash = wrapper.hash then Some wrapper else None)
+    let wrapped =
       LibDB.PermissionReview.preflight
         load
         (fun _ _ -> None)
@@ -709,20 +697,19 @@ let preflightCollectsOnlyCertainRequests =
             (ePackageFn "environment-wrapper")
             []
             [ eStr [ strText "THROUGH_WRAPPER" ] ] ]
-      |> Ply.toTask
     Expect.equal (List.length wrapped) 1 "named parameters retain literal arguments"
 
-    let! deferred = collect [ eLambda (gid ()) [ lpVar "x" ] (env "SECRET") ]
+    let deferred = collect [ eLambda (gid ()) [ lpVar "x" ] (env "SECRET") ]
     Expect.isEmpty deferred "returning a callback does not execute it"
-    let! dynamic = collect [ eApply (eVar "callback") [] [ eUnit () ]; env "LATER" ]
+    let dynamic = collect [ eApply (eVar "callback") [] [ eUnit () ]; env "LATER" ]
     Expect.isEmpty dynamic "unknown calls defer subsequent requests to runtime"
 
-    let! conditional =
+    let conditional =
       collect [ eIf (eVar "condition") (env "SECRET") (Some(eUnit ())); env "LATER" ]
     Expect.isEmpty conditional "unknown branches are checked at runtime"
-    let! chosen = collect [ eIf (eBool true) (env "A") (Some(env "SECRET")) ]
+    let chosen = collect [ eIf (eBool true) (env "A") (Some(env "SECRET")) ]
     Expect.equal (List.length chosen) 1 "only the literal branch is included"
-    let! stopped = collect [ PT.EUnwrap(gid (), env "FIRST"); env "LATER" ]
+    let stopped = collect [ PT.EUnwrap(gid (), env "FIRST"); env "LATER" ]
     Expect.equal (List.length stopped) 1 "a possible early return stops preflight"
 
     let openPath flags =
@@ -734,7 +721,7 @@ let preflightCollectsOnlyCertainRequests =
       [ LibExecution.HostPosix.O_CREAT
         LibExecution.HostPosix.O_TRUNC
         LibExecution.HostPosix.O_APPEND ] do
-      let! requests = collect [ openPath (int64 flag) ]
+      let requests = collect [ openPath (int64 flag) ]
       Expect.equal
         (requests
          |> List.map (fun (r : LibDB.PermissionReview.KnownRequest) -> r.request)
@@ -992,8 +979,8 @@ module OpenEffects =
 
 let effectReasonsFollowDependencies =
   testTask "effect explanations retain call paths and incompleteness" {
-    let! (result : Requirements.Result), reasons =
-      PackagePermissions.explain loadFromUniverse testEffects "caller" |> Ply.toTask
+    let (result : Requirements.Result), reasons =
+      PackagePermissions.explain loadFromUniverse testEffects "caller"
     Expect.isTrue result.complete "known calls remain complete"
     Expect.equal
       (reasons |> List.map fst |> Set.ofList)
@@ -1009,8 +996,8 @@ let effectReasonsFollowDependencies =
         (Some "Builtin.syscallGettimeofday")
         "ends at effect"
     | None -> failtest "missing clock explanation"
-    let! (dynamic : Requirements.Result), _ =
-      PackagePermissions.explain loadFromUniverse testEffects "dynamic" |> Ply.toTask
+    let (dynamic : Requirements.Result), _ =
+      PackagePermissions.explain loadFromUniverse testEffects "dynamic"
     Expect.isFalse dynamic.complete "unknown callbacks stay visible"
   }
 
@@ -1030,13 +1017,12 @@ let cliRaiseSitesMatchTheBaseline =
       (TestUtils.TestUtils.builtins TestUtils.TestUtils.pmPT).fns
       |> Seq.map (fun (KeyValue(k, b)) -> (k.name, k.version), b.callEffects)
       |> Map.ofSeq
-    let! names = LibDB.Raises.allFnNames () |> Ply.toTask
-    let! closure =
+    let names = LibDB.Raises.allFnNames ()
+    let closure =
       LibDB.RaiseSites.closure
         LibConfig.Dirs.sourceRootDir
         names
         PackagePermissions.Load.fromStore
-      |> Ply.toTask
     let found =
       (LibDB.RaiseSites.find (fun key -> Map.tryFind key effects) names closure)
         .sites

@@ -1,7 +1,6 @@
 module Builtins.Pure.Libs.Bool
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
@@ -18,7 +17,7 @@ let fns () : List<BuiltInFn> =
         + "and {{false}} if <param b> is {{true}}"
       fn =
         (function
-        | _, _, _, [| DBool b |] -> Ply(Dval.bool (not b))
+        | _, _, _, [| DBool b |] -> (Dval.bool (not b))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

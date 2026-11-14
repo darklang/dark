@@ -10,7 +10,6 @@
 module Tests.CliPackages
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Expecto
 

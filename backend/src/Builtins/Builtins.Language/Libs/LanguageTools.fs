@@ -81,11 +81,9 @@ let fns () : List<BuiltInFn> =
             |> LibExecution.Permissions.HttpRule.normalize
             |> Result.toOption
             |> Option.map PermissionsDT.HttpRule.toDT
-          Ply(
-            Dval.option
-              (KTCustomType(PermissionsDT.HttpRule.typeName (), []))
-              normalized
-          )
+          (Dval.option
+            (KTCustomType(PermissionsDT.HttpRule.typeName (), []))
+            normalized)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -107,7 +105,7 @@ let fns () : List<BuiltInFn> =
             |> List.sortBy fst
             |> List.map (fun (name, data) -> builtinValueToDT name data)
 
-          DList(VT.customType (builtinValue ()) [], Items(vals)) |> Ply
+          DList(VT.customType (builtinValue ()) [], Items(vals))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -130,7 +128,7 @@ let fns () : List<BuiltInFn> =
             |> List.sortBy fst
             |> List.map (fun (name, data) -> builtinFnToDT name data)
 
-          DList(VT.customType (builtinFn ()) [], Items(fns)) |> Ply
+          DList(VT.customType (builtinFn ()) [], Items(fns))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -149,7 +147,7 @@ let fns () : List<BuiltInFn> =
             match exeState.fns.builtIn.TryGetValue name with
             | true, data -> Some(builtinFnToDT name data)
             | false, _ -> None
-          value |> Dval.option (KTCustomType(builtinFn (), [])) |> Ply
+          value |> Dval.option (KTCustomType(builtinFn (), []))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty

@@ -167,25 +167,22 @@ let calls
     analysis.names
 
 /// A hash with several names keeps the first in order.
-let private namesOf query : Ply<Map<PT.Hash, string>> =
-  uply {
-    let! rows =
-      query
-      |> Sql.executeAsync (fun read ->
-        (read.string "item_hash",
-         read.string "owner",
-         read.string "modules",
-         read.string "name"))
-    return
-      rows
-      |> List.map (fun (h, o, m, n) ->
-        (PT.Hash h, (if m = "" then $"{o}.{n}" else $"{o}.{m}.{n}")))
-      |> List.groupBy fst
-      |> Map.map (fun named -> named |> List.map snd |> List.min)
-  }
+let private namesOf query : Map<PT.Hash, string> =
+  let rows =
+    query
+    |> Sql.executeRows (fun read ->
+      (read.string "item_hash",
+       read.string "owner",
+       read.string "modules",
+       read.string "name"))
+  rows
+  |> List.map (fun (h, o, m, n) ->
+    (PT.Hash h, (if m = "" then $"{o}.{n}" else $"{o}.{m}.{n}")))
+  |> List.groupBy fst
+  |> Map.map (fun named -> named |> List.map snd |> List.min)
 
 /// The live name of each fn in <hashes>.
-let fnNames (hashes : List<PT.Hash>) : Ply<Map<PT.Hash, string>> =
+let fnNames (hashes : List<PT.Hash>) : Map<PT.Hash, string> =
   Sql.query
     "SELECT item_hash, owner, modules, name FROM locations
      WHERE live = 1 AND item_type = 'fn'
@@ -195,7 +192,7 @@ let fnNames (hashes : List<PT.Hash>) : Ply<Map<PT.Hash, string>> =
   |> namesOf
 
 /// Every live fn's name, for a pass over the whole store.
-let allFnNames () : Ply<Map<PT.Hash, string>> =
+let allFnNames () : Map<PT.Hash, string> =
   Sql.query
     "SELECT item_hash, owner, modules, name FROM locations
      WHERE live = 1 AND item_hash <> '' AND item_type = 'fn'"

@@ -90,7 +90,7 @@ let fns () : List<BuiltInFn> =
       description = "Get the square root of a float"
       fn =
         (function
-        | _, _, _, [| DFloat64 a |] -> Ply(DFloat64(System.Math.Sqrt a))
+        | _, _, _, [| DFloat64 a |] -> (DFloat64(System.Math.Sqrt a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -119,9 +119,9 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString s |] ->
           try
-            float (s) |> DFloat64 |> resultOk |> Ply
+            float (s) |> DFloat64 |> resultOk
           with :? System.FormatException ->
-            ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
+            ParseError.BadFormat |> ParseError.toDT |> resultError
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -136,7 +136,7 @@ let fns () : List<BuiltInFn> =
         "Stringify <param float> as the shortest decimal that parses back to the same value, e.g. `1.5`, `0.30000000000000004`, `1e+16`, `1e-5`."
       fn =
         (function
-        | _, _, _, [| DFloat64 f |] -> Ply(DString(Dval.float64ToString f))
+        | _, _, _, [| DFloat64 f |] -> (DString(Dval.float64ToString f))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -155,7 +155,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DFloat64 a |] ->
-          System.BitConverter.DoubleToUInt64Bits a |> DUInt64 |> Ply
+          System.BitConverter.DoubleToUInt64Bits a |> DUInt64
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

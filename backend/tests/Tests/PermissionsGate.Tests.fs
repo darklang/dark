@@ -50,7 +50,7 @@ let private dummyVM () =
 
 let denied =
   testTask "an effectful builtin is denied by a deny-all policy" {
-    let! exeState = executionStateFor TestValues.pm false
+    let exeState = executionStateFor TestValues.pm false
     let! actual =
       LibExecution.Execution.executeExpr (denyAll exeState) (clockCall ())
     expectDenied [ "clock" ] actual
@@ -58,14 +58,14 @@ let denied =
 
 let allowed =
   testTask "the gate permits an effect under an allow-all policy" {
-    let! exeState = executionStateFor TestValues.pm false // allow-all access
+    let exeState = executionStateFor TestValues.pm false // allow-all access
     let! actual = LibExecution.Execution.executeExpr exeState (clockCall ())
     expectNotDenied actual
   }
 
 let nativeDenied =
   testTask "a native builtin is denied by restricted execution" {
-    let! exeState = executionStateFor TestValues.pm false
+    let exeState = executionStateFor TestValues.pm false
     let! actual =
       LibExecution.Execution.executeExpr (denyAll exeState) (nativeCall ())
     expectDenied [ "raw POSIX operation" ] actual
@@ -73,14 +73,14 @@ let nativeDenied =
 
 let nativeAllowedByAllowAll =
   testTask "allow-all explicitly permits a native builtin" {
-    let! exeState = executionStateFor TestValues.pm false
+    let exeState = executionStateFor TestValues.pm false
     let! actual = LibExecution.Execution.executeExpr exeState (nativeCall ())
     expectNotDenied actual
   }
 
 let newRunPolicyDenies =
   testTask "the run policy attenuates an allow-all instance" {
-    let! (exeState : RT.ExecutionState) = executionStateFor TestValues.pm false
+    let (exeState : RT.ExecutionState) = executionStateFor TestValues.pm false
     let access =
       exeState.access
       |> LibExecution.Permissions.Access.restrict
@@ -136,8 +136,8 @@ let private namedState instance restriction approvals fns =
   task {
     let byHash =
       fns |> List.map (fun (f : PT.PackageFn.PackageFn) -> f.hash, f) |> Map.ofList
-    let pm = { TestValues.pm with getFn = fun h -> Ply(Map.tryFind h byHash) }
-    let! state = executionStateFor pm false
+    let pm = { TestValues.pm with getFn = fun h -> (Map.tryFind h byHash) }
+    let state = executionStateFor pm false
     return
       withApprovals approvals state
       |> LibExecution.Execution.setInstancePolicy instance
@@ -329,7 +329,10 @@ let private refusesAsAdmin
   : System.Threading.Tasks.Task<bool> =
   task {
     try
-      let! _ = builtin.fn (struct (state, dummyVM (), [], [||])) |> Ply.toTask
+      let! _ =
+        LibExecution.Pending.toTask (
+          builtin.fn (struct (state, dummyVM (), [], [||]))
+        )
       return false
     with
     | RT.RuntimeErrorException(_, RTE.Error.UncaughtException(message, _)) when
@@ -361,7 +364,7 @@ let private hostOnlyPolicyBuiltins =
 
 let everyPolicyBuiltinRefusesGuestCode =
   testTask "every policy builtin but the named reads refuses guest code" {
-    let! (guest : RT.ExecutionState) = executionStateFor TestValues.pm false
+    let (guest : RT.ExecutionState) = executionStateFor TestValues.pm false
     let trusted = { guest with canManagePolicies = true }
     let all = Builtins.Matter.Libs.PM.Permissions.fns ()
     Expect.equal
@@ -382,7 +385,7 @@ let everyPolicyBuiltinRefusesGuestCode =
 /// The reads guest code may call answer it, rather than refusing it as administration.
 let guestCannotGrantRunAccess =
   testTask "guest code cannot supply temporary run grants" {
-    let! guest = executionStateFor TestValues.pm false
+    let guest = executionStateFor TestValues.pm false
     let builtin =
       Builtins.CliHost.Libs.Cli.fns ()
       |> List.find (fun b -> b.name.name = "cliParseAndExecuteScript")
@@ -399,7 +402,10 @@ let guestCannotGrantRunAccess =
          LibExecution.Dval.optionNone RT.KTUnit |]
     let mutable refused = false
     try
-      let! _ = builtin.fn (struct (guest, dummyVM (), [], args)) |> Ply.toTask
+      let! _ =
+        LibExecution.Pending.toTask (
+          builtin.fn (struct (guest, dummyVM (), [], args))
+        )
       ()
     with RT.RuntimeErrorException(_, RTE.Error.UncaughtException(message, _)) ->
       refused <-
@@ -409,7 +415,7 @@ let guestCannotGrantRunAccess =
 
 let guestCodeCanCallPolicyReads =
   testTask "guest code can still call the policy reads" {
-    let! (guest : RT.ExecutionState) = executionStateFor TestValues.pm false
+    let (guest : RT.ExecutionState) = executionStateFor TestValues.pm false
     Expect.isFalse guest.canManagePolicies "the state is a guest's"
     let byName =
       Builtins.Matter.Libs.PM.Permissions.fns ()
@@ -419,7 +425,9 @@ let guestCodeCanCallPolicyReads =
       let! refuses = refusesAsAdmin guest byName[name]
       Expect.isFalse refuses $"{name} does not refuse guest code"
     let call name args =
-      byName[name].fn (struct (guest, dummyVM (), [], args)) |> Ply.toTask
+      LibExecution.Pending.toTask (
+        byName[name].fn (struct (guest, dummyVM (), [], args))
+      )
     let hash = "permissions-guest-read-unapproved"
     let! approvals =
       call "pmPolicyApprovals" [| LibExecution.Dval.optionNone RT.KTUuid |]
@@ -441,7 +449,7 @@ let guestCodeCanCallPolicyReads =
 /// Every way the host builds a state for guest code clears the flag, whatever the caller had.
 let guestStatesCannotManagePolicies =
   testTask "every guest state constructor withholds policy administration" {
-    let! (base' : RT.ExecutionState) = executionStateFor TestValues.pm false
+    let (base' : RT.ExecutionState) = executionStateFor TestValues.pm false
     let trusted = { base' with canManagePolicies = true }
     let root =
       RT.Hash "0000000000000000000000000000000000000000000000000000000000000000"
@@ -461,7 +469,7 @@ let guestStatesCannotManagePolicies =
 
 let guestFileApiCannotReachPolicyStore =
   testTask "guest filesystem access cannot reach host policy state" {
-    let! exeState = executionStateFor TestValues.pm false
+    let exeState = executionStateFor TestValues.pm false
     let vm = dummyVM ()
     match LibDB.LocalFile.path "policies.bin" with
     | Error message -> Expect.equal 1 2 message
@@ -486,7 +494,7 @@ let guestFileApiCannotReachPolicyStore =
 
 let evaluatedNamedFnInContainerCannotWidenReentry =
   testTask "a named fn captures access before being nested in a container" {
-    let! exeState = executionStateFor TestValues.pm false
+    let exeState = executionStateFor TestValues.pm false
     let expr =
       eList [ eBuiltinFn "syscallGettimeofday" 0 ]
       |> PT2RT.Expr.toRT Map.empty 0 None
@@ -503,7 +511,6 @@ let evaluatedNamedFnInContainerCannotWidenReentry =
           exeState.access
           (RT.AppNamedFn namedFn)
           (NEList.singleton RT.DUnit)
-        |> Ply.toTask
       // The nested callback kept the restricted creator access.
       expectDenied [] actual
     | other -> Expect.equal 1 2 $"expected a one-element function list, got {other}"
@@ -512,13 +519,13 @@ let evaluatedNamedFnInContainerCannotWidenReentry =
 
 let interactiveReviewIsScopedAndTemporary =
   testTask "interactive grants resume an operation and expire with the run" {
-    let! (original : RT.ExecutionState) = executionStateFor TestValues.pm false
+    let (original : RT.ExecutionState) = executionStateFor TestValues.pm false
     let guest = denyAll original
     let mutable prompts = 0
     let ask rules =
       prompts <- prompts + 1
       Expect.equal rules [ "env read 'DARK_REVIEW_TEST'" ] "exact request shown"
-      Ply 1L
+      System.Threading.Tasks.Task.FromResult 1L
     let! (reviewed : RT.ExecutionState), _ =
       LibDB.PermissionReview.configure
         guest
@@ -527,7 +534,6 @@ let interactiveReviewIsScopedAndTemporary =
         false
         []
         (Some ask)
-      |> Ply.toTask
     let expr =
       eApply
         (eBuiltinFn "runtimeEnvironmentGet" 0)
@@ -546,7 +552,7 @@ let interactiveReviewIsScopedAndTemporary =
 let interactiveReviewCannotOverrideRestrictions =
   testTask
     "interactive review never overrides explicit denies or mandatory restrictions" {
-    let! (original : RT.ExecutionState) = executionStateFor TestValues.pm false
+    let (original : RT.ExecutionState) = executionStateFor TestValues.pm false
     for layer in [ P.Layer.Instance; P.Layer.Run; P.Layer.Value "saved" ] do
       let policy =
         if layer = P.Layer.Instance then
@@ -558,7 +564,7 @@ let interactiveReviewCannotOverrideRestrictions =
       let mutable prompts = 0
       let ask _ =
         prompts <- prompts + 1
-        Ply 1L
+        System.Threading.Tasks.Task.FromResult 1L
       let! reviewed, _ =
         LibDB.PermissionReview.configure
           guest
@@ -567,7 +573,6 @@ let interactiveReviewCannotOverrideRestrictions =
           false
           []
           (Some ask)
-        |> Ply.toTask
       let! result = LibExecution.Execution.executeExpr reviewed (clockCall ())
       expectDenied [] result
       Expect.equal prompts 0 "an approval prompt cannot remove this restriction"
@@ -575,7 +580,7 @@ let interactiveReviewCannotOverrideRestrictions =
 
 let preflightReviewIsOneBatch =
   testTask "preflight approves exact known access in one batch before execution" {
-    let! (original : RT.ExecutionState) = executionStateFor TestValues.pm false
+    let (original : RT.ExecutionState) = executionStateFor TestValues.pm false
     let request name =
       P.Request.env P.AccessKind.Read name
       |> Result.defaultWith (fun error -> failtest error)
@@ -584,7 +589,7 @@ let preflightReviewIsOneBatch =
     let ask (rules : List<string>) =
       prompts <- prompts + 1
       Expect.equal rules.Length 2 "one batch"
-      Ply 1L
+      System.Threading.Tasks.Task.FromResult 1L
     let! (reviewed : RT.ExecutionState), _ =
       LibDB.PermissionReview.configure
         (denyAll original)
@@ -593,7 +598,6 @@ let preflightReviewIsOneBatch =
         false
         (List.map LibDB.PermissionReview.atRoot requests)
         (Some ask)
-      |> Ply.toTask
     Expect.equal prompts 1 "before any body execution"
     for request in requests do
       Expect.isTrue
@@ -618,14 +622,13 @@ let preflightKeepsNamedEntryApprovals =
       [ fn "report" envBody; fn "outer" (call "report" "report") ]
       |> List.map (fun f -> f.hash, f)
       |> Map.ofList
-    let load hash = Ply(Map.tryFind hash functions)
+    let load hash = (Map.tryFind hash functions)
     let policyFor name _ =
       Some(if name = Some "Me.report" then grant else P.Policy.denyAll)
-    let! original = executionStateFor TestValues.pm false
+    let original = executionStateFor TestValues.pm false
     let guest = { denyAll original with packagePolicy = policyFor }
-    let collect expr =
-      LibDB.PermissionReview.preflight load policyFor [ expr ] |> Ply.toTask
-    let! direct = collect (call "report" "report")
+    let collect expr = LibDB.PermissionReview.preflight load policyFor [ expr ]
+    let direct = collect (call "report" "report")
     let expected : LibDB.PermissionReview.KnownRequest =
       { request = request; entry = Some(Some "Me.report", RT.Hash "report") }
     Expect.equal direct [ expected ] "preflight retains the approval identity"
@@ -637,8 +640,7 @@ let preflightKeepsNamedEntryApprovals =
         true
         direct
         None
-      |> Ply.toTask
-    let! nested = collect (call "outer" "outer")
+    let nested = collect (call "outer" "outer")
     Expect.equal
       (nested
        |> List.map (fun (item : LibDB.PermissionReview.KnownRequest) -> item.entry))
@@ -654,7 +656,6 @@ let preflightKeepsNamedEntryApprovals =
           true
           nested
           None
-        |> Ply.toTask
       ()
     with RT.RuntimeErrorException(_, RTE.Error.UncaughtException(message, _)) ->
       denied <- message.Contains "permission denied"
@@ -664,7 +665,7 @@ let preflightKeepsNamedEntryApprovals =
 let pendingReviewStopsLaterEffects =
   testTask
     "a pending permission question stops later effects and cancellation stops the run" {
-    let! (original : RT.ExecutionState) = executionStateFor TestValues.pm false
+    let (original : RT.ExecutionState) = executionStateFor TestValues.pm false
     let builtins = System.Collections.Generic.Dictionary(original.fns.builtIn)
     let envBuiltin =
       builtins.Values |> Seq.find (fun fn -> fn.name.name = "runtimeEnvironmentGet")
@@ -689,7 +690,7 @@ let pendingReviewStopsLaterEffects =
     let asked = System.Threading.Tasks.TaskCompletionSource<unit>()
     let ask _ =
       asked.SetResult()
-      uply { return! answer.Task }
+      answer.Task
     let! (reviewed : RT.ExecutionState), _ =
       LibDB.PermissionReview.configure
         guest
@@ -698,7 +699,6 @@ let pendingReviewStopsLaterEffects =
         false
         []
         (Some ask)
-      |> Ply.toTask
     let get name =
       eApply (eBuiltinFn "runtimeEnvironmentGet" 0) [] [ eStr [ strText name ] ]
     let expr =

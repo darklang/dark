@@ -220,9 +220,8 @@ let private toPT (e : WT.Expr) : PT.Expr =
       argMap = Map.empty
       localBindings = Set.empty
       sourceRanges = None }
-  (WT2PT.Expr.toPT emptyBuiltins PT.PackageManager.empty NR.OnMissing.Allow [] ctx e
-   |> Ply.toTask)
-    .Result
+  WT2PT.Expr.toPT emptyBuiltins PT.PackageManager.empty NR.OnMissing.Allow [] ctx e
+
 
 let private toPTWithInModule
   (currentModule : List<string>)
@@ -231,9 +230,8 @@ let private toPTWithInModule
   (e : WT.Expr)
   : PT.Expr =
   let emptyBuiltins : RTT.Builtins = LibExecution.Builtin.make [] []
-  (WT2PT.Expr.toPT emptyBuiltins pm NR.OnMissing.Allow currentModule context e
-   |> Ply.toTask)
-    .Result
+  WT2PT.Expr.toPT emptyBuiltins pm NR.OnMissing.Allow currentModule context e
+
 
 let private toPTWith
   (pm : PT.PackageManager)
@@ -296,8 +294,7 @@ let private desugarTests =
 let private loweringRegressionTests =
   let globalMapPM : PT.PackageManager =
     { PT.PackageManager.empty with
-        findFn =
-          fun _ -> Prelude.uply { return Some(PT.FQFnName.package "global-map") } }
+        findFn = fun _ -> Some(PT.FQFnName.package "global-map") }
   let context args locals : WT2PT.Context =
     { currentFnName = Some [ "Darklang"; "Test"; "outer" ]
       argMap = args
@@ -1334,13 +1331,8 @@ let private primTypeDriftTests =
         "every primTypes and primTypeAliases entry parses to exactly its recorded primitive case"
         (fun _ ->
           let lower (t : WT.TypeReference) =
-            (WT2PT.TypeReference.toPT
-              PT.PackageManager.empty
-              NR.OnMissing.Allow
-              []
-              t
-             |> Ply.toTask)
-              .Result
+            WT2PT.TypeReference.toPT PT.PackageManager.empty NR.OnMissing.Allow [] t
+
           for (name, ctor) in WT.primTypes @ WT.primTypeAliases do
             // lowering erases ranges, so comparing the lowered PT compares the *case*:
             // the parser (via primTypeFromName) must map `name` to the case `ctor` builds.
@@ -1657,13 +1649,11 @@ let tests =
     "LibParser"
     [ testCase "a call to a missing fn is named for the reload to refuse" (fun _ ->
         let ops =
-          (LibParser.Package.parse
+          LibParser.Package.parse
             (LibExecution.Builtin.make [] [])
             PT.PackageManager.empty
             NR.OnMissing.Allow
             "module Me.Probe =\n  let f(x: Int64): Int64 = Me.Gone.g(x)\n  let h(x: Int64): Int64 = x"
-           |> Ply.toTask)
-            .Result
         match ops with
         | Ok ops ->
           Expect.equal
@@ -1676,40 +1666,34 @@ let tests =
       testCase "private names reach package lookup" (fun _ ->
         for name in [ "__helper"; "__helper_v0" ] do
           let result =
-            (NR.resolveFnName
+            NR.resolveFnName
               Set.empty
               PT.PackageManager.empty
               NR.OnMissing.Allow
               []
               (WT.Unresolved(NEList.singleton name))
-             |> Ply.toTask)
-              .Result
           Expect.equal
             result.resolved
             (Error PT.NameResolutionError.NotFound)
             $"valid private function: {name}"
         for name in [ "__Buffer"; "__Buffer_v0" ] do
           let result =
-            (NR.resolveTypeName
+            NR.resolveTypeName
               PT.PackageManager.empty
               NR.OnMissing.Allow
               []
               (WT.Unresolved(NEList.singleton name))
-             |> Ply.toTask)
-              .Result
           Expect.equal
             result.resolved
             (Error PT.NameResolutionError.NotFound)
             $"valid private type: {name}"
         let invalid =
-          (NR.resolveFnName
+          NR.resolveFnName
             Set.empty
             PT.PackageManager.empty
             NR.OnMissing.Allow
             []
             (WT.Unresolved(NEList.singleton "_helper"))
-           |> Ply.toTask)
-            .Result
         Expect.equal
           invalid.resolved
           (Error PT.NameResolutionError.InvalidName)

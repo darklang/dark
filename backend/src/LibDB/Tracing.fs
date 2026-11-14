@@ -97,7 +97,7 @@ type T =
     /// ephemeral blob ref dies when the request scope pops, so its bytes are kept with the trace
     /// before anything is serialized; without that a trace records refs to bytes that are gone
     /// and `traces inspect` cannot reconstruct a request body.
-    storeTraceResults : RT.ExecutionState -> Ply.Ply<unit>
+    storeTraceResults : RT.ExecutionState -> unit
 
     /// Whether this run gets a row of its own. A view does not: looking at a run is not a run.
     enabled : bool
@@ -124,14 +124,12 @@ module FnNameCache =
              WHERE item_hash = @hash AND item_type = 'fn'
              LIMIT 1"
           |> Sql.parameters [ "hash", Sql.string hash ]
-          |> Sql.executeRowOptionAsync (fun read ->
+          |> Sql.executeRowOption (fun read ->
             let owner = read.string "owner"
             let modules = read.string "modules"
             let name = read.string "name"
             let modules = if modules = "" then "" else $"{modules}."
             $"{owner}.{modules}{name}")
-          |> Async.AwaitTask
-          |> Async.RunSynchronously
           |> Ok
         with ex ->
           printErr $"[tracing] FnNameCache failed to resolve {hash}: {ex.Message}"
@@ -592,20 +590,12 @@ module ReplayCheck =
   /// same contents are already equal. Every function value is replaced by Unit, so
   /// any function matches any other: the trace can't record what a function captures.
   let private asStored (builtin : string) (args : List<RT.Dval>) : List<RT.Dval> =
-    let leaf (dv : RT.Dval) : Ply.Ply<RT.Dval option> =
-      uply {
-        match dv with
-        | RT.DStream(impl, _, _) -> return Some(RTToDT.Dval.streamStubDT impl)
-        | RT.DApplicable _ -> return Some RT.DUnit
-        | _ -> return None
-      }
-    Redact.args builtin args
-    |> List.map (fun dv ->
-      match Ply.trySync (RT.Dval.rewriteWith leaf dv) with
-      | ValueSome dv -> dv
-      // Every arm above returns without waiting, so this cannot happen; if it ever does, the
-      // argument is kept as it was rather than guessed at, and may then fail to match.
-      | ValueNone -> dv)
+    let leaf (dv : RT.Dval) : RT.Dval option =
+      match dv with
+      | RT.DStream(impl, _, _) -> Some(RTToDT.Dval.streamStubDT impl)
+      | RT.DApplicable _ -> Some RT.DUnit
+      | _ -> None
+    Redact.args builtin args |> List.map (RT.Dval.rewriteWith leaf)
 
   let private brief (dv : RT.Dval) : string =
     let s = LibExecution.Dval.toDebugString dv
@@ -860,8 +850,8 @@ module TraceRetention =
       Sql.query
         "SELECT 1 AS n FROM pragma_freelist_count, pragma_page_count
          WHERE freelist_count * 4 > page_count"
-      |> Sql.executeExistsSync
-    if worth then Sql.query "VACUUM" |> Sql.executeStatementSync
+      |> Sql.executeExists
+    if worth then Sql.query "VACUUM" |> Sql.executeStatement
 
   /// How many entries the floor protects. Without a bound the floor grows with every entry
   /// there has ever been, and an entry is a concrete path: `keep = 20` kept 120 traces after a
@@ -893,12 +883,11 @@ module TraceRetention =
                   ELSE t.handler_desc
                 END AS entry
          FROM traces t ORDER BY t.timestamp DESC, t.rowid DESC"
-      |> Sql.executeAsync (fun read ->
+      |> Sql.executeRows (fun read ->
         read.string "id",
         read.int64 "bytes",
         read.int "needed" = 1,
         read.string "entry")
-      |> fun t -> t.Result
     // Walk newest to oldest, keeping until a cap is hit; everything older goes. The newest
     // stays even over the byte cap alone, so a run's own trace survives its own store.
     //
@@ -944,8 +933,7 @@ module TraceRetention =
       else
         let (count, total) =
           Sql.query "SELECT COUNT(*) AS n, COALESCE(SUM(bytes), 0) AS b FROM traces"
-          |> Sql.executeRowAsync (fun read -> read.int64 "n", read.int64 "b")
-          |> fun t -> t.Result
+          |> Sql.executeRow (fun read -> read.int64 "n", read.int64 "b")
         let overCount = caps.keep > 0L && count > caps.keep
         let overBytes = caps.maxBytes > 0L && total > caps.maxBytes
         if not overCount && not overBytes then
@@ -963,21 +951,19 @@ module TraceStorage =
   /// Where `prepareDvalForStorage` keeps a blob captured after its trace was stored, such as a
   /// served response's body: in `trace_blobs` under that trace, counted in what it weighs. Only a
   /// blob the trace did not already hold adds to the weight.
-  let keepBytesIn (traceId : System.Guid) : string -> byte[] -> Ply.Ply<unit> =
+  let keepBytesIn (traceId : System.Guid) : string -> byte[] -> unit =
     fun hash bytes ->
-      uply {
-        // One write: the blob, and the weight only when the blob was new to this trace.
-        Sql.executeTransactionSync
-          [ "INSERT OR IGNORE INTO trace_blobs (trace_id, hash, bytes)
-             VALUES (@traceId, @hash, @bytes)",
-            [ [ "traceId", Sql.string (string traceId)
-                "hash", Sql.string hash
-                "bytes", Sql.bytes bytes ] ]
-            "UPDATE traces SET bytes = bytes + @n WHERE id = @traceId AND changes() > 0",
-            [ [ "traceId", Sql.string (string traceId)
-                "n", Sql.int64 (int64 bytes.Length) ] ] ]
-        |> ignore<List<int>>
-      }
+      // One write: the blob, and the weight only when the blob was new to this trace.
+      Sql.executeTransactionSync
+        [ "INSERT OR IGNORE INTO trace_blobs (trace_id, hash, bytes)
+           VALUES (@traceId, @hash, @bytes)",
+          [ [ "traceId", Sql.string (string traceId)
+              "hash", Sql.string hash
+              "bytes", Sql.bytes bytes ] ]
+          "UPDATE traces SET bytes = bytes + @n WHERE id = @traceId AND changes() > 0",
+          [ [ "traceId", Sql.string (string traceId)
+              "n", Sql.int64 (int64 bytes.Length) ] ] ]
+      |> ignore<List<int>>
 
 
   /// Serialize a list of args as a single Dval (DList Unknown args) so
@@ -1214,17 +1200,15 @@ module TraceStorage =
 /// so nested DStream values (inside lists, records, closures, ...) are
 /// stubbed just like top-level ones.
 let prepareDvalForStorage
-  (keep : string -> byte[] -> Ply.Ply<unit>)
+  (keep : string -> byte[] -> unit)
   (dv : RT.Dval)
-  : Ply.Ply<RT.Dval> =
+  : RT.Dval =
   let promoteBytes = Bytes.promoteEphemeralLeaf keep
   dv
   |> RT.Dval.rewriteWith (fun dv ->
-    uply {
-      match dv with
-      | RT.DStream(impl, _, _) -> return Some(RTToDT.Dval.streamStubDT impl)
-      | _ -> return! promoteBytes dv
-    })
+    match dv with
+    | RT.DStream(impl, _, _) -> Some(RTToDT.Dval.streamStubDT impl)
+    | _ -> promoteBytes dv)
 
 
 /// Walk every captured Dval through [prepareDvalForStorage]. Mutates
@@ -1233,23 +1217,20 @@ let prepareDvalForStorage
 let private prepareTraceForStorage
   (inputDval : RT.Dval)
   (events : CompletedEvent[])
-  : Ply.Ply<RT.Dval * List<string * byte[]>> =
-  uply {
-    let blobs = System.Collections.Generic.Dictionary<string, byte[]>()
-    let keep (hash : string) (bytes : byte[]) : Ply.Ply<unit> =
-      blobs[hash] <- bytes
-      Ply.Ply(())
-    let prep = prepareDvalForStorage keep
-    let! preparedInput = prep inputDval
-    for i in 0 .. events.Length - 1 do
-      let ev = events[i]
-      let! preparedArgs = ev.args |> Ply.List.mapSequentially prep
-      let! preparedResult = prep ev.result
-      events[i] <- { ev with args = preparedArgs; result = preparedResult }
+  : RT.Dval * List<string * byte[]> =
+  let blobs = System.Collections.Generic.Dictionary<string, byte[]>()
+  let keep (hash : string) (bytes : byte[]) : unit =
+    blobs[hash] <- bytes
+    (())
+  let prep = prepareDvalForStorage keep
+  let preparedInput = prep inputDval
+  for i in 0 .. events.Length - 1 do
+    let ev = events[i]
+    let preparedArgs = ev.args |> List.map prep
+    let preparedResult = prep ev.result
+    events[i] <- { ev with args = preparedArgs; result = preparedResult }
 
-    return
-      (preparedInput, blobs |> Seq.map (fun kv -> kv.Key, kv.Value) |> List.ofSeq)
-  }
+  (preparedInput, blobs |> Seq.map (fun kv -> kv.Key, kv.Value) |> List.ofSeq)
 
 
 /// Shared helper: store a trace to SQLite with error handling. Runs
@@ -1264,72 +1245,70 @@ let private storeTrace
   (inputDval : RT.Dval)
   (state : TracerState)
   (exeState : RT.ExecutionState)
-  : Ply.Ply<unit> =
-  uply {
-    // Trace detail OFF must be a true no-op: `prepareTraceForStorage` (below) hashes every captured
-    // ephemeral blob, and a request body can be megabytes. Bail here so neither the walk nor the store
-    // runs. This is the single choke point for both the sqlite and CLI tracers (the serve uses the CLI one).
-    if TraceDetail.current () = TraceDetail.Off then
-      return ()
-    else
+  : unit =
+  // Trace detail OFF must be a true no-op: `prepareTraceForStorage` (below) hashes every captured
+  // ephemeral blob, and a request body can be megabytes. Bail here so neither the walk nor the store
+  // runs. This is the single choke point for both the sqlite and CLI tracers (the serve uses the CLI one).
+  if TraceDetail.current () = TraceDetail.Off then
+    ()
+  else
 
-      let traceIdStr = string traceID
-      use _span = Telemetry.span "trace.store" [ "traceId", traceIdStr ]
-      // A copy taken under the lock: a run suspended by Ctrl-C stores while its processes may
-      // still be recording, and the copy is what gets prepared and written.
-      let struct (events, dropped, nextSeq, fns, loopPasses) =
-        lock state.sync (fun () ->
-          struct (state.events.ToArray(),
-                  state.dropped,
-                  state.nextSeq,
-                  addedUpByFunction state.fns,
-                  System.Collections.Generic.Dictionary(state.loopPasses)))
-      if dropped > 0 then
-        Telemetry.event
-          "trace.truncated"
-          [ "kept", string events.Length; "dropped", string dropped ]
-      try
-        let! (preparedInput, blobs) = prepareTraceForStorage inputDval events
-        TraceStorage.store
-          traceID
-          handlerDesc
-          inputVarName
-          preparedInput
-          blobs
-          // A truncated trace carries a final marker row rather than just ending. Without it the trace
-          // reads as complete, and "the call I'm looking for isn't here" is indistinguishable from "it
-          // never happened" -- which is the one thing a debugging aid must never be ambiguous about.
-          (if dropped > 0 then
-             (List.ofArray events)
-             @ [ { callId = newCallId ()
-                   fnName =
-                     $"trace truncated: {dropped} further calls not recorded (cap {state.maxEvents}, raise with DARK_CONFIG_TRACE_MAX_EVENTS)"
-                   args = []
-                   result = RT.DUnit
-                   durationMs = 0L
-                   processId = System.Guid.Empty
-                   seq = nextSeq
-                   ord = -1L } ]
-           else
-             List.ofArray events)
-          fns
-          loopPasses
-          exeState.accountID
-          state.elapsed.ElapsedMilliseconds
-          caps
-      with ex ->
-        let inner =
-          match ex.InnerException with
-          | null -> ""
-          | e -> $" ({e.Message})"
-        System.Console.Error.WriteLine
-          $"[tracing] Failed to store trace: {ex.Message}{inner}"
-        Telemetry.event
-          "trace.storeFailed"
-          [ "traceId", traceIdStr
-            "exception", ex.GetType().FullName
-            "message", ex.Message ]
-  }
+    let traceIdStr = string traceID
+    use _span = Telemetry.span "trace.store" [ "traceId", traceIdStr ]
+    // A copy taken under the lock: a run suspended by Ctrl-C stores while its processes may
+    // still be recording, and the copy is what gets prepared and written.
+    let struct (events, dropped, nextSeq, fns, loopPasses) =
+      lock state.sync (fun () ->
+        struct (state.events.ToArray(),
+                state.dropped,
+                state.nextSeq,
+                addedUpByFunction state.fns,
+                System.Collections.Generic.Dictionary(state.loopPasses)))
+    if dropped > 0 then
+      Telemetry.event
+        "trace.truncated"
+        [ "kept", string events.Length; "dropped", string dropped ]
+    try
+      let (preparedInput, blobs) = prepareTraceForStorage inputDval events
+      TraceStorage.store
+        traceID
+        handlerDesc
+        inputVarName
+        preparedInput
+        blobs
+        // A truncated trace carries a final marker row rather than just ending. Without it the trace
+        // reads as complete, and "the call I'm looking for isn't here" is indistinguishable from "it
+        // never happened" -- which is the one thing a debugging aid must never be ambiguous about.
+        (if dropped > 0 then
+           (List.ofArray events)
+           @ [ { callId = newCallId ()
+                 fnName =
+                   $"trace truncated: {dropped} further calls not recorded (cap {state.maxEvents}, raise with DARK_CONFIG_TRACE_MAX_EVENTS)"
+                 args = []
+                 result = RT.DUnit
+                 durationMs = 0L
+                 processId = System.Guid.Empty
+                 seq = nextSeq
+                 ord = -1L } ]
+         else
+           List.ofArray events)
+        fns
+        loopPasses
+        exeState.accountID
+        state.elapsed.ElapsedMilliseconds
+        caps
+    with ex ->
+      let inner =
+        match ex.InnerException with
+        | null -> ""
+        | e -> $" ({e.Message})"
+      System.Console.Error.WriteLine
+        $"[tracing] Failed to store trace: {ex.Message}{inner}"
+      Telemetry.event
+        "trace.storeFailed"
+        [ "traceId", traceIdStr
+          "exception", ex.GetType().FullName
+          "message", ex.Message ]
 
 
 let createCliTracer
@@ -1350,7 +1329,7 @@ let createCliTracer
   if TraceDetail.current () = TraceDetail.Off then
     { enabled = false
       executionTracing = Exe.noTracing
-      storeTraceResults = fun _ -> uply { return () } }
+      storeTraceResults = fun _ -> () }
   else
     { enabled = true
       executionTracing = executionTracingFor state System.Guid.Empty
@@ -1566,19 +1545,11 @@ let createViewTracer
       let args =
         RT.DList(LibExecution.ValueType.unknownTODO, RT.Items(List.ofArray args))
       let savedBytes dv =
-        uply {
-          match dv with
-          | RT.DBytes(RT.Ephemeral eph) ->
-            return Some(RT.DBytes(RT.Persistent(eph.ContentHash, int64 eph.count)))
-          | _ -> return None
-        }
-      let keyArgs =
-        match Ply.trySync (RT.Dval.rewriteWith savedBytes args) with
-        | ValueSome dv -> dv
-        | ValueNone ->
-          Exception.raiseInternal
-            "trace lookup normalization unexpectedly suspended"
-            []
+        match dv with
+        | RT.DBytes(RT.Ephemeral eph) ->
+          Some(RT.DBytes(RT.Persistent(eph.ContentHash, int64 eph.count)))
+        | _ -> None
+      let keyArgs = RT.Dval.rewriteWith savedBytes args
       let argsBytes = BinarySer.RT.Dval.serialize "trace_fn_calls.args" keyArgs
       let key = name + "\u0000" + System.Convert.ToBase64String argsBytes
       lock answersGate (fun () ->
@@ -1757,5 +1728,5 @@ let createViewTracer
   // `enabled = false` is doing real work: it is what stops the host giving this run a row of
   // its own, and what makes the store a no-op.
   { enabled = false
-    storeTraceResults = fun _ -> uply { return () }
+    storeTraceResults = fun _ -> ()
     executionTracing = viewTracing () }

@@ -59,59 +59,52 @@ module Response =
   let parseHttpResponseFields
     (state : RT.ExecutionState)
     (fields : RT.RecordFields)
-    : Ply<HttpResponse> =
-    uply {
-      let code = RT.RecordFields.tryFind "statusCode" fields
-      let headers = RT.RecordFields.tryFind "headers" fields
-      let body = RT.RecordFields.tryFind "body" fields
+    : HttpResponse =
+    let code = RT.RecordFields.tryFind "statusCode" fields
+    let headers = RT.RecordFields.tryFind "headers" fields
+    let body = RT.RecordFields.tryFind "body" fields
 
-      match code, headers, body with
-      | Some(RT.DInt64 code),
-        Some(RT.DList(_, RT.Items(headers))),
-        Some(RT.DBytes bodyRef) ->
-        let headers =
-          headers
-          |> List.fold
-            (fun acc v ->
-              match acc, v with
-              | Ok acc, RT.DTuple(RT.DString k, RT.DString v, []) ->
-                Ok((k, v) :: acc)
-              // Deliberately don't include the header value in the error message as we show it to users
-              | Ok _, _ -> Error $"Header must be a string"
-              | Error _, _ -> acc)
-            (Ok [])
+    match code, headers, body with
+    | Some(RT.DInt64 code),
+      Some(RT.DList(_, RT.Items(headers))),
+      Some(RT.DBytes bodyRef) ->
+      let headers =
+        headers
+        |> List.fold
+          (fun acc v ->
+            match acc, v with
+            | Ok acc, RT.DTuple(RT.DString k, RT.DString v, []) -> Ok((k, v) :: acc)
+            // Deliberately don't include the header value in the error message as we show it to users
+            | Ok _, _ -> Error $"Header must be a string"
+            | Error _, _ -> acc)
+          (Ok [])
 
-        match headers with
-        | Ok headers ->
-          let! body = Bytes.readBytes state bodyRef
-          // `statusCode` is an `Int64`; narrowing a value outside Int32 range
-          // with `int` would wrap, so reject it as an application error instead.
-          if
-            code < int64 System.Int32.MinValue || code > int64 System.Int32.MaxValue
-          then
-            return
-              { statusCode = 500
-                headers = [ "Content-Type", "text/plain; charset=utf-8" ]
-                body = UTF8.toBytes "Application error: statusCode out of range" }
-          else
-            return
-              { statusCode = int code
-                headers = lowercaseHeaderKeys headers
-                body = body }
-        | Error msg ->
-          return
-            { statusCode = 500
-              headers = [ "Content-Type", "text/plain; charset=utf-8" ]
-              body = UTF8.toBytes msg }
-
-      | _incorrectFieldTypes ->
-        return
+      match headers with
+      | Ok headers ->
+        let body = Bytes.readBytes state bodyRef
+        // `statusCode` is an `Int64`; narrowing a value outside Int32 range
+        // with `int` would wrap, so reject it as an application error instead.
+        if
+          code < int64 System.Int32.MinValue || code > int64 System.Int32.MaxValue
+        then
           { statusCode = 500
             headers = [ "Content-Type", "text/plain; charset=utf-8" ]
-            body =
-              UTF8.toBytes
-                "Application error: expected a Http.Response, but its fields were the wrong type" }
-    }
+            body = UTF8.toBytes "Application error: statusCode out of range" }
+        else
+          { statusCode = int code
+            headers = lowercaseHeaderKeys headers
+            body = body }
+      | Error msg ->
+        { statusCode = 500
+          headers = [ "Content-Type", "text/plain; charset=utf-8" ]
+          body = UTF8.toBytes msg }
+
+    | _incorrectFieldTypes ->
+      { statusCode = 500
+        headers = [ "Content-Type", "text/plain; charset=utf-8" ]
+        body =
+          UTF8.toBytes
+            "Application error: expected a Http.Response, but its fields were the wrong type" }
 
   let private wrongTypeResponse
     (state : RT.ExecutionState)
@@ -152,7 +145,7 @@ module Response =
       match result with
       | RT.DRecord(RT.FQTypeName.Package hash, _, [], fields) ->
         if hash = RT.Hash(PackageRefs.Type.Stdlib.Http.response ()) then
-          return! parseHttpResponseFields state fields |> Ply.toTask
+          return parseHttpResponseFields state fields
         else
           return! wrongTypeResponse state result
 

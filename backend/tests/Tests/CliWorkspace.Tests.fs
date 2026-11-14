@@ -9,7 +9,6 @@
 module Tests.CliWorkspace
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Expecto
 
@@ -1555,7 +1554,7 @@ let private pollIgnoresAnOpUntilItIsApplied =
 
         let! watch = pollQuiet state watch
 
-        let! _ = LibDB.Seed.applyUnappliedOps ()
+        let _ = LibDB.Seed.applyUnappliedOps ()
 
         let! (_, change) = pollChange state watch "the folded op was not reported"
         let! names =
@@ -1966,9 +1965,7 @@ let private liveValuesStayBounded =
         let! out = runCli target [ "eval"; "Tests.LiveBound.inc(41)" ]
         Expect.stringContains out "42" "the call ran"
         // pin the recorded duration: the limits are the point, not how fast this box ran it
-        do!
-          Sql.query "UPDATE traces SET duration_ms = 10"
-          |> Sql.executeStatementAsync
+        Sql.query "UPDATE traces SET duration_ms = 10" |> Sql.executeStatement
 
         let within (ms : string) (fns : string) =
           $"""match Darklang.LanguageTools.Live.Values.replayWithin({ms}, {fns}, (Darklang.Cli.initState()).accountID, Darklang.SCM.Branch.mainBranchId, Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "Tests", modules = ["LiveBound"], name = "inc" }}) with

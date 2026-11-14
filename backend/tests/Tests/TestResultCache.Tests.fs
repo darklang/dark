@@ -8,7 +8,6 @@ module Tests.TestResultCache
 open Expecto
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -137,15 +136,15 @@ let oldStoreKeepsItsResults =
           try
             LibDB.Releases.applySchemaTables (schemaSql ())
 
-            let! stored = TestResults.get key
+            let stored = TestResults.get key
             Expect.equal stored (Some "\"Passed\"") "the old pass is read back"
 
-            let! other =
+            let other =
               TestResults.get { key with runtime = "another-build:judge-hash" }
             Expect.equal other None "another runtime is a different key"
 
-            do! TestResults.put key "{\"Failed\":[[\"no\"]]}"
-            let! replaced = TestResults.get key
+            TestResults.put key "{\"Failed\":[[\"no\"]]}"
+            let replaced = TestResults.get key
             Expect.equal
               replaced
               (Some "{\"Failed\":[[\"no\"]]}")
@@ -168,16 +167,16 @@ let manyMatchesOneAtATime =
           LibDB.Sqlite.Sql.useStoreForTesting dbPath
           try
             let other = { key with test = "other-test-hash" }
-            do! TestResults.put key "\"Passed\""
-            do! TestResults.put other "{\"Failed\":[[\"no\"]]}"
+            TestResults.put key "\"Passed\""
+            TestResults.put other "{\"Failed\":[[\"no\"]]}"
             let keys =
               [ other
                 { key with test = "missing" }
                 key
                 { key with branch = "another-branch" }
                 other ]
-            let! many = TestResults.getMany keys
-            let! single = keys |> Task.mapSequentially TestResults.get
+            let many = TestResults.getMany keys
+            let single = keys |> List.map TestResults.get
             Expect.equal many single "same answers as one read per key"
             Expect.equal
               many
@@ -187,7 +186,7 @@ let manyMatchesOneAtATime =
                 None
                 Some "{\"Failed\":[[\"no\"]]}" ]
               "in the order asked"
-            let! none = TestResults.getMany []
+            let none = TestResults.getMany []
             Expect.equal none [] "no keys, no results"
           finally
             LibDB.Sqlite.Sql.resetStoreForTesting ()

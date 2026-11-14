@@ -3,7 +3,6 @@
 module Builtins.Cli.Libs.Output
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
@@ -24,7 +23,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString str |] ->
           print str
-          Ply DUnit
+          DUnit
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Stdout ]
@@ -44,7 +43,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString str |] ->
           NonBlockingConsole.writeErrLine str
-          Ply DUnit
+          DUnit
         | _ -> incorrectArgs ())
       previewable = Impure
       // Printing, like stdout: output to the person's own terminal, which the default policy
@@ -62,7 +61,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString str |] ->
           printInline str
-          Ply DUnit
+          DUnit
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Stdout ]
@@ -80,7 +79,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString str |] ->
           NonBlockingConsole.writeErrInline str
-          Ply DUnit
+          DUnit
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Stdout ]
@@ -95,7 +94,7 @@ let fns () : List<BuiltInFn> =
         "Start capturing standard output and standard error into an in-memory buffer instead of printing them. Pair with <fn stdoutCaptureStop>. Used to run a command and show its output in-frame. Returns false if a capture was already open, in which case the existing one is left untouched and this call captured nothing."
       fn =
         (function
-        | _, _, _, [| DUnit |] -> DBool(NonBlockingConsole.startCapture ()) |> Ply
+        | _, _, _, [| DUnit |] -> DBool(NonBlockingConsole.startCapture ())
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Stdout ]
@@ -112,7 +111,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUnit |] ->
           let captured = NonBlockingConsole.stopCapture ()
-          Ply(DString(String.normalizeOutside captured))
+          (DString(String.normalizeOutside captured))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Stdout ]

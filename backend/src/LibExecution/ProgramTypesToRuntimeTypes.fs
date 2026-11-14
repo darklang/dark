@@ -1507,65 +1507,53 @@ module ImplCandidate =
   /// at all is not live: the store keeps every version's content, and only the
   /// bound ones are impls. (A script's own impls never reach here; the script
   /// host grafts them with `withExtraImpls`.)
-  let private live
-    (pm : PT.PackageManager)
-    (impl : PT.TraitImpl.TraitImpl)
-    : Ply<bool> =
-    uply {
-      match! pm.getTraitImplLocations impl.hash with
-      | [] -> return false
-      | locs ->
-        let! bound = Ply.List.mapSequentially pm.findTraitImpl locs
-        return bound |> List.exists (fun b -> b = Some impl.hash)
-    }
+  let private live (pm : PT.PackageManager) (impl : PT.TraitImpl.TraitImpl) : bool =
+    match pm.getTraitImplLocations impl.hash with
+    | [] -> false
+    | locs ->
+      let bound = List.map pm.findTraitImpl locs
+      bound |> List.exists (fun b -> b = Some impl.hash)
 
   let private ofImpls
     (pm : PT.PackageManager)
     (impls : List<PT.TraitImpl.TraitImpl>)
-    : Ply<List<RT.ImplCandidate>> =
-    uply {
-      let! live = impls |> Ply.List.filterSequentially (live pm)
-      // A branch overlay and the store can both offer the same item; one hash is one impl.
-      return live |> List.choose ofImpl |> List.distinctBy (fun c -> c.source)
-    }
+    : List<RT.ImplCandidate> =
+    let live = impls |> List.filter (live pm)
+    // A branch overlay and the store can both offer the same item; one hash is one impl.
+    live |> List.choose ofImpl |> List.distinctBy (fun c -> c.source)
 
   let ofPackageManager
     (pm : PT.PackageManager)
     (traitHash : RT.FQTraitName.Package)
-    : Ply<List<RT.ImplCandidate>> =
-    uply {
-      let (RT.Hash h) = traitHash
-      let! impls = pm.impls (PT.Hash h)
-      return! ofImpls pm impls
-    }
+    : List<RT.ImplCandidate> =
+    let (RT.Hash h) = traitHash
+    let impls = pm.impls (PT.Hash h)
+    ofImpls pm impls
 
   let ofPackageManagerByMethod
     (pm : PT.PackageManager)
     (methodName : string)
-    : Ply<List<RT.ImplCandidate>> =
-    uply {
-      let! impls = pm.implsWithMethod methodName
-      return! ofImpls pm impls
-    }
+    : List<RT.ImplCandidate> =
+    let impls = pm.implsWithMethod methodName
+    ofImpls pm impls
 
 
 module PackageManager =
   let toRT (pm : PT.PackageManager) : RT.PackageManager =
     let toPT (RT.Hash h) : PT.Hash = PT.Hash h
-    { getType =
-        fun id -> pm.getType (toPT id) |> Ply.map (Option.map PackageType.toRT)
+    { getType = fun id -> pm.getType (toPT id) |> (Option.map PackageType.toRT)
       // A value's runtime form is its result, and only the interpreter produces that
       // (`Execution.evaluateValue`), which a conversion cannot run. A caller with values that
       // are not in the store evaluates them itself (`Execution.evaluatingValueReader`).
-      getValue = fun _ -> Ply None
-      getFn = fun id -> pm.getFn (toPT id) |> Ply.map (Option.map PackageFn.toRT)
-      getTrait = fun id -> pm.getTrait (toPT id) |> Ply.map (Option.map Trait.toRT)
+      getValue = fun _ -> None
+      getFn = fun id -> pm.getFn (toPT id) |> (Option.map PackageFn.toRT)
+      getTrait = fun id -> pm.getTrait (toPT id) |> (Option.map Trait.toRT)
 
       // PT PackageManager has no blob channel — it's purely location-
       // based name resolution. Transient wrappers return None; the
       // real blob lookup comes from the canonical RT PM.
-      getBytes = fun _ -> Ply None
-      persistBytes = fun _ _ -> uply { return () }
+      getBytes = fun _ -> None
+      persistBytes = fun _ _ -> ()
 
       // PT PackageManager doesn't surface deprecation state; transient
       // wrappers (tests, in-memory flows) have no branch chain anyway.
@@ -1575,6 +1563,4 @@ module PackageManager =
       implCandidates = fun _ traitHash -> ImplCandidate.ofPackageManager pm traitHash
       implCandidatesByMethod = fun _ m -> ImplCandidate.ofPackageManagerByMethod pm m
       implSelectionMemo = RT.ImplSelectionMemo.create ()
-      implGeneration = fun () -> 0
-
-      init = pm.init }
+      implGeneration = fun () -> 0 }

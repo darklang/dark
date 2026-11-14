@@ -9,7 +9,6 @@ module Tests.CliTraceVerbs
 
 open Expecto
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open Fumble
@@ -25,7 +24,7 @@ module Traces = LibDB.Traces
 
 let private latest () : Task<Traces.Trace> =
   task {
-    let! rows = Traces.list 1
+    let rows = Traces.list 1
     match rows with
     | e :: _ -> return e
     | [] -> return failtest "no execution was recorded"
@@ -61,12 +60,12 @@ let private setColumn (id : System.Guid) (column : string) value : unit =
   Sql.query
     $"UPDATE trace_cli_invocations SET {column} = @value WHERE trace_id = @id"
   |> Sql.parameters [ "value", value; "id", Sql.uuid id ]
-  |> Sql.executeStatementSync
+  |> Sql.executeStatement
 
 let private hasInvocation (id : System.Guid) : bool =
   Sql.query "SELECT 1 AS n FROM trace_cli_invocations WHERE trace_id = @id"
   |> Sql.parameters [ "id", Sql.uuid id ]
-  |> Sql.executeExistsSync
+  |> Sql.executeExists
 
 let private scriptOrEvalInputPersistence =
   cliTestWithFreshTraces
@@ -83,16 +82,16 @@ let private scriptOrEvalInputPersistence =
           )
         for input in [ Traces.EvalExpression("1 + 2", true); script ] do
           let id = storeInvocation (Some input)
-          let! read = Traces.getCliInput id
+          let read = Traces.getCliInput id
           Expect.equal read (Some input) "the invocation reads back whole"
-          let! row = Traces.get id
+          let row = Traces.get id
           Expect.equal (row |> Option.bind _.cli) (Some input) "and through the row"
 
         let served = storeInvocation None
         Expect.isFalse
           (hasInvocation served)
           "a served request stores no invocation"
-        let! read = Traces.getCliInput served
+        let read = Traces.getCliInput served
         Expect.isNone read "so it has none to read"
 
         // Reject incomplete or invalid invocation rows.
@@ -109,21 +108,21 @@ let private scriptOrEvalInputPersistence =
           Expect.throws
             (fun () -> setColumn id column bad)
             $"the store refuses a missing or malformed {column}"
-        let! read = Traces.getCliInput id
+        let read = Traces.getCliInput id
         Expect.equal read (Some script) "and the invocation is left whole"
 
         // Removing the retired warning mode preserves recorded invocations.
         Sql.query
           "ALTER TABLE trace_cli_invocations ADD COLUMN warn_permissions INTEGER NOT NULL DEFAULT 0"
-        |> Sql.executeStatementSync
+        |> Sql.executeStatement
         LibDB.Releases.removeTraceWarningColumn ()
         LibDB.Releases.removeTraceWarningColumn ()
-        let! afterCleanup = Traces.getCliInput id
+        let afterCleanup = Traces.getCliInput id
         Expect.equal afterCleanup (Some script) "cleanup preserves the invocation"
         let obsoleteColumn =
           Sql.query
             "SELECT 1 FROM pragma_table_info('trace_cli_invocations') WHERE name = 'warn_permissions'"
-          |> Sql.executeExistsSync
+          |> Sql.executeExists
         Expect.isFalse obsoleteColumn "the retired column is absent"
 
         // The reader must also reject malformed argument bytes.
@@ -133,7 +132,7 @@ let private scriptOrEvalInputPersistence =
             [| 0x01uy; 0x00uy; 0x00uy; 0x00uy; 0x01uy; 0xFFuy |] ] do
           let id = storeInvocation (Some script)
           setColumn id "args" (Sql.bytes bad)
-          let! read = Traces.getCliInput id
+          let read = Traces.getCliInput id
           Expect.isNone read "malformed arguments are refused"
 
         LibDB.Tracing.TraceRetention.deleteTraces [ string id ]
@@ -158,14 +157,13 @@ let private invocationCountsTowardsTraceWeight =
           let! _, exitCode = runCliWithExit state [ "run"; path; argument ]
           Expect.equal exitCode 0L "the script runs"
           let! (recorded : Traces.Trace) = latest ()
-          let! bytes =
+          let bytes =
             Sql.query
               "SELECT t.bytes, LENGTH(i.args) AS args
                FROM traces t JOIN trace_cli_invocations i ON i.trace_id = t.id
                WHERE t.id = @id"
             |> Sql.parameters [ "id", Sql.uuid recorded.id ]
-            |> Sql.executeRowAsync (fun read ->
-              read.int64 "bytes", read.int64 "args")
+            |> Sql.executeRow (fun read -> read.int64 "bytes", read.int64 "args")
           let weight, args = bytes
           Expect.isGreaterThan args 50_000L "the argument is saved"
           Expect.isGreaterThanOrEqual
@@ -235,7 +233,7 @@ let private legacyScriptDoesNotGuessItsInput =
             ((plain output).Split('\n')
              |> Array.exists (fun line -> line = "LEGACY_EFFECT"))
             "legacy source is never guessed into a live run"
-        let! (row : Option<Traces.Trace>) = Traces.get id
+        let (row : Option<Traces.Trace>) = Traces.get id
         Expect.equal
           (row |> Option.map (fun row -> row.status))
           (Some Traces.Suspended)
@@ -322,11 +320,11 @@ let private suspendThenResume =
                 && System.DateTime.UtcNow < deadline do
             do! Task.Delay 10
           Expect.isTrue (System.IO.File.Exists started) "the run reached the pause"
-          let! suspended = Traces.Foreground.suspend ()
+          let suspended = Traces.Foreground.suspend ()
           Expect.isSome suspended "the foreground run was suspended"
           let! e = latest ()
           Expect.equal e.status Traces.Suspended "and marked so"
-          let! log = Traces.log e.id
+          let log = Traces.log e.id
           Expect.equal
             (log
              |> List.filter (fun (_, _, _, call) -> call.builtin = "uuidGenerate")
@@ -416,7 +414,7 @@ let private replayRefusesADivergedEffect =
         let! _ =
           runCli state [ "eval"; "Stdlib.printLine(\"to \" + Tests.Exec.target())" ]
         let! recorded = latest ()
-        let! logBefore = Traces.log recorded.id
+        let logBefore = Traces.log recorded.id
         do! fn state "Tests.Exec.target" "() : String = \"divergeProd\""
         do! commit state "target v2"
         let! refused = runCli state [ "exec"; "resume"; prefixOf recorded ]
@@ -433,12 +431,12 @@ let private replayRefusesADivergedEffect =
         Expect.isFalse
           (refused.Contains "[replayed] to divergeProd")
           "and never echoes output the old run did not produce"
-        let! after = Traces.get recorded.id
+        let after = Traces.get recorded.id
         Expect.equal
           (after |> Option.map (fun e -> e.status))
           (Some recorded.status)
           "the run is left with the status it had"
-        let! logAfter = Traces.log recorded.id
+        let logAfter = Traces.log recorded.id
         Expect.equal
           (List.length logAfter)
           (List.length logBefore)
@@ -466,9 +464,9 @@ let private retentionKeepsTheNewestAndTheSuspended =
         // the fourth store, which is the one past the cap.
         LibDB.Tracing.TraceRetention.resetSpacingForTesting ()
         let! _ = runCli state [ "eval"; "4" ]
-        let! traces =
+        let traces =
           Sql.query "SELECT id FROM traces ORDER BY timestamp"
-          |> Sql.executeAsync (fun read -> read.string "id")
+          |> Sql.executeRows (fun read -> read.string "id")
         Expect.isTrue
           (List.contains (string first.id) traces)
           "the suspended run's trace is kept whatever its age"
@@ -476,7 +474,7 @@ let private retentionKeepsTheNewestAndTheSuspended =
           (List.length traces)
           3
           "at most the cap plus the exempt one"
-        let! rows = Traces.list 10
+        let rows = Traces.list 10
         Expect.isTrue
           (rows |> List.exists (fun e -> e.id = first.id))
           "the suspended execution is still listed"
@@ -498,9 +496,9 @@ let private byteCapSparesTheRunThatTrippedIt =
         let! _ = runCli state [ "eval"; "Stdlib.printLine(\"two\")" ]
         let! newest = latest ()
         let went = LibDB.Tracing.TraceRetention.prune None (Some 1L)
-        let! traces =
+        let traces =
           Sql.query "SELECT id FROM traces"
-          |> Sql.executeAsync (fun read -> read.string "id")
+          |> Sql.executeRows (fun read -> read.string "id")
         Expect.equal went 1 "the older one went"
         Expect.equal
           traces
@@ -526,24 +524,20 @@ let private retentionKeepsTheNewestOfEachEntry =
             "t3", "GET /a?q=1", "2026-09-01T00:00:03Z"
             "t4", "GET /a?q=2", "2026-09-01T00:00:04Z"
             "t5", "GET /b", "2026-09-01T00:00:05Z" ]
-        do!
-          rows
-          |> List.map (fun (id, desc, ts) ->
-            Sql.query
-              "INSERT INTO traces (id, root_tlid, handler_desc, timestamp, input_name, input_value)
-               VALUES (@id, 0, @desc, @ts, 'expression', x'')"
-            |> Sql.parameters
-              [ "id", Sql.string id; "desc", Sql.string desc; "ts", Sql.string ts ]
-            |> Sql.executeStatementAsync
-            |> Task.map ignore<unit>)
-          |> Task.WhenAll
-          |> Task.map ignore<unit[]>
+        rows
+        |> List.iter (fun (id, desc, ts) ->
+          Sql.query
+            "INSERT INTO traces (id, root_tlid, handler_desc, timestamp, input_name, input_value)
+             VALUES (@id, 0, @desc, @ts, 'expression', x'')"
+          |> Sql.parameters
+            [ "id", Sql.string id; "desc", Sql.string desc; "ts", Sql.string ts ]
+          |> Sql.executeStatement)
 
         // Keep one. Without the floor that is `t5` alone.
         let went = LibDB.Tracing.TraceRetention.prune (Some 1L) None
-        let! left =
+        let left =
           Sql.query "SELECT id FROM traces ORDER BY id"
-          |> Sql.executeAsync (fun read -> read.string "id")
+          |> Sql.executeRows (fun read -> read.string "id")
 
         Expect.equal went 2 "the two older runs of an entry went"
         Expect.equal
@@ -582,11 +576,11 @@ let private manualDeletesSweepOrphanedRows =
         let! _ =
           runCli state [ "eval"; "Stdlib.Utf8.encode(\"held by the trace\")" ]
 
-        let! tables =
+        let tables =
           Sql.query
             "SELECT name FROM sqlite_master
              WHERE type = 'table' AND name LIKE 'trace%' AND name <> 'traces'"
-          |> Sql.executeAsync (fun read -> read.string "name")
+          |> Sql.executeRows (fun read -> read.string "name")
         Expect.equal
           (List.sort tables)
           (List.sort LibDB.Tracing.TraceRetention.perTraceTables)
@@ -596,9 +590,7 @@ let private manualDeletesSweepOrphanedRows =
           tables
           |> List.map (fun table ->
             Sql.query $"SELECT COUNT(*) AS n FROM {table} WHERE {clause}"
-            |> Sql.executeRowAsync (fun read -> read.int64 "n"))
-          |> Task.WhenAll
-          |> Task.map List.ofArray
+            |> Sql.executeRow (fun read -> read.int64 "n"))
         let live = "trace_id IN (SELECT id FROM traces)"
         let orphaned = "trace_id NOT IN (SELECT id FROM traces)"
 
@@ -606,22 +598,21 @@ let private manualDeletesSweepOrphanedRows =
         let plant (suffix : string) =
           task {
             for table in tables do
-              let! columns =
+              let columns =
                 Sql.query $"SELECT name FROM pragma_table_info('{table}')"
-                |> Sql.executeAsync (fun read -> read.string "name")
+                |> Sql.executeRows (fun read -> read.string "name")
               let selected =
                 columns
                 |> List.map (fun c -> if c = "trace_id" then "@orphan" else c)
                 |> String.concat ", "
               let columnList = String.concat ", " columns
-              do!
-                Sql.query
-                  $"INSERT INTO {table} ({columnList})
-                    SELECT {selected} FROM {table}
-                    WHERE trace_id = (SELECT trace_id FROM {table} WHERE {live} LIMIT 1)"
-                |> Sql.parameters [ "orphan", Sql.string $"gone-{suffix}" ]
-                |> Sql.executeStatementAsync
-            let! planted = count orphaned
+              Sql.query
+                $"INSERT INTO {table} ({columnList})
+                  SELECT {selected} FROM {table}
+                  WHERE trace_id = (SELECT trace_id FROM {table} WHERE {live} LIMIT 1)"
+              |> Sql.parameters [ "orphan", Sql.string $"gone-{suffix}" ]
+              |> Sql.executeStatement
+            let planted = count orphaned
             Expect.all
               planted
               (fun n -> n > 0L)
@@ -637,12 +628,12 @@ let private manualDeletesSweepOrphanedRows =
         for args in forms do
           let name = String.concat " " args
           do! plant name
-          let! liveBefore = count live
+          let liveBefore = count live
           let! _ = runCli state ([ "traces"; "delete" ] @ args @ [ "--yes" ])
-          let! left = count orphaned
+          let left = count orphaned
           Expect.all left (fun n -> n = 0L) $"traces delete {name} took the orphans"
           if name = "--keep 100" then
-            let! liveAfter = count live
+            let liveAfter = count live
             Expect.equal liveAfter liveBefore "and left every live row"
       })
 
@@ -664,9 +655,9 @@ let private byteCapActsBelowFiftyTraces =
         LibDB.Tracing.TraceRetention.resetSpacingForTesting ()
         let! _ = runCli state [ "eval"; "Stdlib.printLine(\"two\")" ]
         let! newest = latest ()
-        let! traces =
+        let traces =
           Sql.query "SELECT id FROM traces"
-          |> Sql.executeAsync (fun read -> read.string "id")
+          |> Sql.executeRows (fun read -> read.string "id")
         Expect.equal
           traces
           [ string newest.id ]
@@ -682,25 +673,21 @@ let private theFloorIsBounded =
     (fun state ->
       task {
         let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
-        do!
-          [ 1..30 ]
-          |> List.map (fun i ->
-            Sql.query
-              "INSERT INTO traces (id, root_tlid, handler_desc, timestamp, input_name, input_value)
-               VALUES (@id, 0, @desc, @ts, 'request', x'')"
-            |> Sql.parameters
-              [ "id", Sql.string $"p{i:D2}"
-                "desc", Sql.string $"GET /hello/{i}"
-                "ts", Sql.string $"2026-09-01T00:00:{i:D2}Z" ]
-            |> Sql.executeStatementAsync
-            |> Task.map ignore<unit>)
-          |> Task.WhenAll
-          |> Task.map ignore<unit[]>
+        [ 1..30 ]
+        |> List.iter (fun i ->
+          Sql.query
+            "INSERT INTO traces (id, root_tlid, handler_desc, timestamp, input_name, input_value)
+             VALUES (@id, 0, @desc, @ts, 'request', x'')"
+          |> Sql.parameters
+            [ "id", Sql.string $"p{i:D2}"
+              "desc", Sql.string $"GET /hello/{i}"
+              "ts", Sql.string $"2026-09-01T00:00:{i:D2}Z" ]
+          |> Sql.executeStatement)
 
         let went = LibDB.Tracing.TraceRetention.prune (Some 1L) None
-        let! left =
+        let left =
           Sql.query "SELECT id FROM traces ORDER BY id"
-          |> Sql.executeAsync (fun read -> read.string "id")
+          |> Sql.executeRows (fun read -> read.string "id")
 
         Expect.equal
           (List.length left)
@@ -733,41 +720,39 @@ let private hashReadsAreKeptOnceAndOutliveTheStore =
         let! out = runCli state [ "eval"; expr ]
         Expect.stringContains out "true, true" "the eval read the fn twice"
         let! e = latest ()
-        let! rows =
+        let rows =
           Sql.query
             "SELECT result FROM trace_fn_calls WHERE trace_id = @t AND fn_hash = 'pmGet'"
           |> Sql.parameters [ "t", Sql.uuid e.id ]
-          |> Sql.executeAsync (fun read -> read.string "result")
+          |> Sql.executeRows (fun read -> read.string "result")
         let referred = List.distinct rows
         Expect.equal (List.length rows) 2 "both reads were logged"
         Expect.equal (List.length referred) 1 "and both refer to one kept answer"
-        let! kept =
+        let kept =
           Sql.query
             "SELECT COUNT(*) AS n FROM trace_blobs WHERE trace_id = @t AND hash = @h"
           |> Sql.parameters
             [ "t", Sql.string (string e.id)
               "h", Sql.string (referred |> List.head |> Option.defaultValue "") ]
-          |> Sql.executeRowAsync (fun read -> read.int64 "n")
+          |> Sql.executeRow (fun read -> read.int64 "n")
         Expect.equal kept 1L "kept once, with the trace"
 
         // The item leaves the store, as a dev reload does to an edited fn's old hash. `Int128.sqrt`
         // because nothing the CLI itself runs calls it, so only the replay can notice it is gone.
-        let! fnHash =
+        let fnHash =
           Sql.query
             "SELECT item_hash FROM locations WHERE owner = 'Darklang' AND modules = 'Stdlib.Int128'
              AND name = 'sqrt' AND item_type = 'fn' AND live = 1"
-          |> Sql.executeRowAsync (fun read -> read.string "item_hash")
+          |> Sql.executeRow (fun read -> read.string "item_hash")
         let saved = "test_saved_package_function"
-        do! Sql.query $"DROP TABLE IF EXISTS {saved}" |> Sql.executeStatementAsync
-        do!
-          Sql.query
-            $"CREATE TABLE {saved} AS SELECT * FROM package_functions WHERE hash = @h"
-          |> Sql.parameters [ "h", Sql.string fnHash ]
-          |> Sql.executeStatementAsync
-        do!
-          Sql.query "DELETE FROM package_functions WHERE hash = @h"
-          |> Sql.parameters [ "h", Sql.string fnHash ]
-          |> Sql.executeStatementAsync
+        Sql.query $"DROP TABLE IF EXISTS {saved}" |> Sql.executeStatement
+        Sql.query
+          $"CREATE TABLE {saved} AS SELECT * FROM package_functions WHERE hash = @h"
+        |> Sql.parameters [ "h", Sql.string fnHash ]
+        |> Sql.executeStatement
+        Sql.query "DELETE FROM package_functions WHERE hash = @h"
+        |> Sql.parameters [ "h", Sql.string fnHash ]
+        |> Sql.executeStatement
         LibDB.Caching.invalidateAll ()
         let! prefix = latestPrefix ()
         let! inspected = runCli state [ "traces"; "inspect"; prefix ]
@@ -779,10 +764,9 @@ let private hashReadsAreKeptOnceAndOutliveTheStore =
               "Darklang.LanguageTools.PackageManager.getItem"
               prefix ]
         // Put it back before asserting, so a failure here leaves the next test a whole store.
-        do!
-          Sql.query $"INSERT OR IGNORE INTO package_functions SELECT * FROM {saved}"
-          |> Sql.executeStatementAsync
-        do! Sql.query $"DROP TABLE {saved}" |> Sql.executeStatementAsync
+        Sql.query $"INSERT OR IGNORE INTO package_functions SELECT * FROM {saved}"
+        |> Sql.executeStatement
+        Sql.query $"DROP TABLE {saved}" |> Sql.executeStatement
         LibDB.Caching.invalidateAll ()
 
         Expect.stringContains
@@ -803,26 +787,26 @@ let private aTracesBytesGoWithIt =
     "a blob a trace captured is kept with the trace and deleted with it"
     (fun state ->
       task {
-        let! sharedBefore =
+        let sharedBefore =
           Sql.query "SELECT COUNT(*) AS n FROM package_blobs"
-          |> Sql.executeRowAsync (fun read -> read.int64 "n")
+          |> Sql.executeRow (fun read -> read.int64 "n")
         let! _ =
           runCli state [ "eval"; "Stdlib.Utf8.encode(\"held by the trace\")" ]
         let! e = latest ()
-        let! kept =
+        let kept =
           Sql.query "SELECT hash, bytes FROM trace_blobs WHERE trace_id = @t"
           |> Sql.parameters [ "t", Sql.string (string e.id) ]
-          |> Sql.executeAsync (fun read -> read.string "hash", read.bytes "bytes")
-        let! sharedAfter =
+          |> Sql.executeRows (fun read -> read.string "hash", read.bytes "bytes")
+        let sharedAfter =
           Sql.query "SELECT COUNT(*) AS n FROM package_blobs"
-          |> Sql.executeRowAsync (fun read -> read.int64 "n")
+          |> Sql.executeRow (fun read -> read.int64 "n")
         match kept with
         | [ (hash, bytes) ] ->
           Expect.equal
             (System.Text.Encoding.UTF8.GetString bytes)
             "held by the trace"
             "the answer's bytes are kept with the trace"
-          let! read = LibDB.RuntimeTypes.Bytes.get hash |> Ply.toTask
+          let read = LibDB.RuntimeTypes.Bytes.get hash
           Expect.equal read (Some bytes) "and a read by hash finds them there"
         | other ->
           failtest $"expected one blob kept with the trace, got {List.length other}"
@@ -830,10 +814,10 @@ let private aTracesBytesGoWithIt =
 
         let! prefix = latestPrefix ()
         let! _ = runCli state [ "traces"; "delete"; prefix; "--yes" ]
-        let! left =
+        let left =
           Sql.query "SELECT COUNT(*) AS n FROM trace_blobs WHERE trace_id = @t"
           |> Sql.parameters [ "t", Sql.string (string e.id) ]
-          |> Sql.executeRowAsync (fun read -> read.int64 "n")
+          |> Sql.executeRow (fun read -> read.int64 "n")
         Expect.equal left 0L "deleting the trace took its blob"
       })
 
@@ -865,10 +849,10 @@ let private deletingEveryTraceEmptiesEveryTraceTable =
         let! _ =
           runCli state [ "eval"; "Stdlib.String.toBlob(\"held by the trace\")" ]
 
-        let! tables =
+        let tables =
           Sql.query
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'trace%' ORDER BY name"
-          |> Sql.executeAsync (fun read -> read.string "name")
+          |> Sql.executeRows (fun read -> read.string "name")
         Expect.isGreaterThanOrEqual
           (List.length tables)
           5
@@ -876,17 +860,17 @@ let private deletingEveryTraceEmptiesEveryTraceTable =
 
         let countRows (table : string) =
           Sql.query $"SELECT COUNT(*) AS n FROM {table}"
-          |> Sql.executeRowAsync (fun read -> read.int64 "n")
+          |> Sql.executeRow (fun read -> read.int64 "n")
 
         for table in tables do
-          let! before = countRows table
+          let before = countRows table
           Expect.isGreaterThan before 0L $"{table} has rows before the delete"
 
         let! cleared = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
         Expect.stringContains cleared "cleared 3 traces" "the delete ran"
 
         for table in tables do
-          let! after = countRows table
+          let after = countRows table
           Expect.equal after 0L $"{table} is empty after the delete"
       })
 
@@ -920,16 +904,16 @@ let private replayEchoesAndRefuses =
               [ "eval"
                 "let h = Stdlib.Cli.Process.spawn(\"sleep 0\")\nStdlib.Cli.Process.terminate(h)" ]
           let! spawned = latest ()
-          let! logBefore = Traces.log spawned.id
+          let logBefore = Traces.log spawned.id
           let! refused = runCli state [ "exec"; "resume"; prefixOf spawned ]
           Expect.stringContains refused "cannot resume past step" "the resume stops"
           Expect.stringContains refused "runtimeChildStart" "naming the call"
-          let! after = Traces.get spawned.id
+          let after = Traces.get spawned.id
           Expect.equal
             (after |> Option.map (fun e -> e.status))
             (Some spawned.status)
             "and the run is left with the status it had"
-          let! logAfter = Traces.log spawned.id
+          let logAfter = Traces.log spawned.id
           Expect.equal
             (List.length logAfter)
             (List.length logBefore)
@@ -971,11 +955,11 @@ let private pureLoopPassesAreCounted =
         Expect.stringContains ran "5" "the run went round five times"
 
         let! latest' = latest ()
-        let! counted =
+        let counted =
           Sql.query
             "SELECT passes FROM trace_loops WHERE trace_id = @t ORDER BY passes DESC LIMIT 1"
           |> Sql.parameters [ "t", Sql.string (string latest'.id) ]
-          |> Sql.executeRowOptionAsync (fun read -> read.int64 "passes")
+          |> Sql.executeRowOption (fun read -> read.int64 "passes")
 
         match counted with
         | None ->
@@ -1011,19 +995,13 @@ let private aFunctionThatRanAndWentIsNotATypo =
         // Two rows the store cannot resolve: one that kept its name, and one that kept only its
         // hash, which is what the index holds once the code is gone.
         let goneHash = String.replicate 64 "a"
-        do!
-          [ "Gone.Module.vanished", goneHash; goneHash, goneHash ]
-          |> List.map (fun (name, hash) ->
-            Sql.query
-              "INSERT INTO trace_fns (trace_id, fn_name, fn_hash) VALUES (@t, @n, @h)"
-            |> Sql.parameters
-              [ "t", Sql.string traceId
-                "n", Sql.string name
-                "h", Sql.string hash ]
-            |> Sql.executeStatementAsync
-            |> Task.map ignore<unit>)
-          |> Task.WhenAll
-          |> Task.map ignore<unit[]>
+        [ "Gone.Module.vanished", goneHash; goneHash, goneHash ]
+        |> List.iter (fun (name, hash) ->
+          Sql.query
+            "INSERT INTO trace_fns (trace_id, fn_name, fn_hash) VALUES (@t, @n, @h)"
+          |> Sql.parameters
+            [ "t", Sql.string traceId; "n", Sql.string name; "h", Sql.string hash ]
+          |> Sql.executeStatement)
 
         let! gone = runCli state [ "traces"; "show"; "Gone.Module.vanished" ]
         Expect.stringContains
@@ -1085,9 +1063,9 @@ let private deletingATraceTakesItsLoopCounts =
         let countRows () =
           Sql.query "SELECT COUNT(*) as c FROM trace_loops WHERE trace_id = @t"
           |> Sql.parameters [ "t", Sql.string traceId ]
-          |> Sql.executeRowAsync (fun read -> read.int64 "c")
+          |> Sql.executeRow (fun read -> read.int64 "c")
 
-        let! before = countRows ()
+        let before = countRows ()
         Expect.isGreaterThan
           before
           0L
@@ -1097,13 +1075,13 @@ let private deletingATraceTakesItsLoopCounts =
         // cancel and exit 0, which is how this test passed its first run against code that
         // deleted nothing.
         let! _ = runCli state [ "traces"; "delete"; traceId; "--yes" ]
-        let! after = countRows ()
+        let after = countRows ()
         Expect.equal after 0L "the loop rows went with the trace"
 
-        let! stillThere =
+        let stillThere =
           Sql.query "SELECT COUNT(*) as c FROM traces WHERE id = @t"
           |> Sql.parameters [ "t", Sql.string traceId ]
-          |> Sql.executeRowAsync (fun read -> read.int64 "c")
+          |> Sql.executeRow (fun read -> read.int64 "c")
         Expect.equal stillThere 0L "and so did the trace, so the delete really ran"
       })
 
@@ -1241,10 +1219,10 @@ let private servedRequestsKeepNoCredentials =
         let query = secret "query"
         let bearer = secret "bearer"
         let cookie = secret "cookie"
-        let! exeState = executionStateFor pmPT true
+        let exeState = executionStateFor pmPT true
         let source =
           $"fun request -> {{ Darklang.Stdlib.Http.responseWithText(200, \"ok\") with headers = [(\"Set-Cookie\", \"sid={setCookie}\")] }}"
-        let! ptExpr = parsePTExpr source
+        let ptExpr = parsePTExpr source
         let! router =
           LibExecution.Execution.executeExpr
             exeState
@@ -1293,12 +1271,12 @@ let private servedRequestsKeepNoCredentials =
             serving.Wait 2000 |> ignore<bool>
           with _ ->
             ()
-        let! rows =
+        let rows =
           Sql.query
             "SELECT handler_desc, input_value, COALESCE(result_value, X'') AS result_value FROM traces
              WHERE handler_desc LIKE @probe"
           |> Sql.parameters [ "probe", Sql.string $"%%probe-{marker}%%" ]
-          |> Sql.executeAsync (fun read ->
+          |> Sql.executeRows (fun read ->
             read.string "handler_desc",
             read.bytes "input_value",
             read.bytes "result_value")
@@ -1347,13 +1325,13 @@ let private secretsAreNotInTheLog =
               [ "eval"
                 "match Stdlib.Env.get(\"DARK_TEST_SECRET\") with | Some(v) -> Stdlib.printLine(Stdlib.display(Stdlib.String.length(v))) | None -> Stdlib.printLine(\"unset\")" ]
           let! e = latest ()
-          let! rows =
+          let rows =
             Sql.query
               "SELECT c.fn_hash, c.args, r.bytes AS result FROM trace_fn_calls c
                JOIN trace_blobs r ON r.trace_id = c.trace_id AND r.hash = c.result
                WHERE c.trace_id = @t"
             |> Sql.parameters [ "t", Sql.string (string e.id) ]
-            |> Sql.executeAsync (fun read ->
+            |> Sql.executeRows (fun read ->
               (read.stringOrNone "fn_hash" |> Option.defaultValue ""),
               read.bytes "args",
               read.bytes "result")
@@ -1390,9 +1368,7 @@ let private viewMatchesUnsavedBytes =
     let bytes = LibExecution.Bytes.newEphemeral [| 1uy; 2uy; 3uy |]
     let nested = RT.DTuple(RT.DUnit, bytes, [])
     let args = RT.DList(LibExecution.ValueType.unknownTODO, RT.Items [ nested ])
-    let! saved =
-      LibDB.Tracing.prepareDvalForStorage (fun _ _ -> uply { return () }) args
-      |> Ply.toTask
+    let saved = LibDB.Tracing.prepareDvalForStorage (fun _ _ -> ()) args
     let serialized =
       LibSerialization.Binary.Serialization.RT.Dval.serialize "test" saved
     let tracer =

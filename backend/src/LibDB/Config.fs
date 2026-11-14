@@ -10,7 +10,6 @@
 module LibDB.Config
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Fumble
 open LibDB.Sqlite
@@ -18,49 +17,43 @@ open LibDB.Sqlite
 open Prelude
 
 /// The value for `key`, or None if unset.
-let get (key : string) : Task<string option> =
+let get (key : string) : string option =
   Sql.query "SELECT value FROM config_v0 WHERE key = @key"
   |> Sql.parameters [ "key", Sql.string key ]
-  |> Sql.executeRowOptionAsync (fun read -> read.string "value")
+  |> Sql.executeRowOption (fun read -> read.string "value")
 
 /// The values of several keys in one query, keyed by name; unset keys are absent.
 /// For a startup that reads a handful of settings: one round trip, not one per key.
-let getMany (keys : List<string>) : Task<Map<string, string>> =
-  task {
-    let names = keys |> List.mapi (fun i _ -> $"@k{i}") |> String.concat ", "
-    let! rows =
-      Sql.query $"SELECT key, value FROM config_v0 WHERE key IN ({names})"
-      |> Sql.parameters (keys |> List.mapi (fun i k -> $"k{i}", Sql.string k))
-      |> Sql.executeAsync (fun read -> read.string "key", read.string "value")
-    return Map.ofList rows
-  }
+let getMany (keys : List<string>) : Map<string, string> =
+  let names = keys |> List.mapi (fun i _ -> $"@k{i}") |> String.concat ", "
+  let rows =
+    Sql.query $"SELECT key, value FROM config_v0 WHERE key IN ({names})"
+    |> Sql.parameters (keys |> List.mapi (fun i k -> $"k{i}", Sql.string k))
+    |> Sql.executeRows (fun read -> read.string "key", read.string "value")
+  Map.ofList rows
 
 /// Set `key` to `value` (upsert).
-let set (key : string) (value : string) : Task<unit> =
-  task {
-    let! (_ : int) =
-      Sql.query
-        """
+let set (key : string) (value : string) : unit =
+  let (_ : int) =
+    Sql.query
+      """
         INSERT INTO config_v0 (key, value) VALUES (@key, @value)
         ON CONFLICT(key) DO UPDATE SET value = @value
         """
-      |> Sql.parameters [ "key", Sql.string key; "value", Sql.string value ]
-      |> Sql.executeNonQueryAsync
+    |> Sql.parameters [ "key", Sql.string key; "value", Sql.string value ]
+    |> Sql.executeCount
 
-    return ()
-  }
+  ()
 
 
 /// Forget `key`, so whatever reads it falls back to its default. A no-op if it is not set.
-let unset (key : string) : Task<unit> =
-  task {
-    let! (_ : int) =
-      Sql.query "DELETE FROM config_v0 WHERE key = @key"
-      |> Sql.parameters [ "key", Sql.string key ]
-      |> Sql.executeNonQueryAsync
+let unset (key : string) : unit =
+  let (_ : int) =
+    Sql.query "DELETE FROM config_v0 WHERE key = @key"
+    |> Sql.parameters [ "key", Sql.string key ]
+    |> Sql.executeCount
 
-    return ()
-  }
+  ()
 
 
 /// The keys a person sets with `dark config set`. Each is read by something: the boot
@@ -192,41 +185,39 @@ let checkUnset (key : string) : Result<unit, string> =
 /// what a person set. Both used to live in `cli-config.json` beside the store, written by Dark,
 /// so the first time the store has no id, the file's id and name move in, and the file is left
 /// alone. Every later call is one read.
-let ensureInstance () : Task<unit> =
-  task {
-    match! get "instance.id" with
-    | Some _ -> return ()
-    | None ->
-      let fromFile =
-        try
-          let dir = System.IO.Path.GetDirectoryName LibDB.Sqlite.currentDbPath
-          let path = System.IO.Path.Combine(dir, "cli-config.json")
-          if System.IO.File.Exists path then
-            use doc =
-              System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText path)
-            let field (name : string) =
-              match doc.RootElement.TryGetProperty name with
-              | true, v when v.ValueKind = System.Text.Json.JsonValueKind.String ->
-                match v.GetString() with
-                | null
-                | "" -> None
-                | s -> Some s
-              | _ -> None
-            [ "instance.id"; "instance.name" ]
-            |> List.choose (fun k -> field k |> Option.map (fun v -> k, v))
-            |> Map.ofList
-          else
-            Map.empty
-        with _ ->
+let ensureInstance () : unit =
+  match get "instance.id" with
+  | Some _ -> ()
+  | None ->
+    let fromFile =
+      try
+        let dir = System.IO.Path.GetDirectoryName LibDB.Sqlite.currentDbPath
+        let path = System.IO.Path.Combine(dir, "cli-config.json")
+        if System.IO.File.Exists path then
+          use doc =
+            System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText path)
+          let field (name : string) =
+            match doc.RootElement.TryGetProperty name with
+            | true, v when v.ValueKind = System.Text.Json.JsonValueKind.String ->
+              match v.GetString() with
+              | null
+              | "" -> None
+              | s -> Some s
+            | _ -> None
+          [ "instance.id"; "instance.name" ]
+          |> List.choose (fun k -> field k |> Option.map (fun v -> k, v))
+          |> Map.ofList
+        else
           Map.empty
-      match Map.tryFind "instance.name" fromFile with
-      | Some name ->
-        match! get "instance.name" with
-        | Some _ -> ()
-        | None -> do! set "instance.name" name
-      | None -> ()
-      let id =
-        Map.tryFind "instance.id" fromFile
-        |> Option.defaultWith (fun () -> string (System.Guid.NewGuid()))
-      do! set "instance.id" id
-  }
+      with _ ->
+        Map.empty
+    match Map.tryFind "instance.name" fromFile with
+    | Some name ->
+      match get "instance.name" with
+      | Some _ -> ()
+      | None -> set "instance.name" name
+    | None -> ()
+    let id =
+      Map.tryFind "instance.id" fromFile
+      |> Option.defaultWith (fun () -> string (System.Guid.NewGuid()))
+    set "instance.id" id

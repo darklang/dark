@@ -50,7 +50,7 @@ let private checkedOp
           with
           | :? System.OverflowException -> error "Overflow"
           | :? System.DivideByZeroException -> error "DivisionByZero"
-        Ply result
+        result
       | _ -> incorrectArgs ())
     previewable = Pure
     callEffects = Set.empty
@@ -78,7 +78,7 @@ let fns () : List<BuiltInFn> =
             ||| (bigint (uint32 bits[1]) <<< 32)
             ||| bigint (uint32 bits[0])
           let unscaled = if d < 0m then -magnitude else magnitude
-          DTuple(Dval.bigInt unscaled, Dval.dint64 (int64 d.Scale), []) |> Ply
+          DTuple(Dval.bigInt unscaled, Dval.dint64 (int64 d.Scale), [])
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -98,7 +98,7 @@ let fns () : List<BuiltInFn> =
           let unscaled = DarkBigInt.toBigInt unscaled
           let magnitude = bigint.Abs unscaled
           if scale < 0L || scale > 28L || magnitude >= magnitudeLimit then
-            Dval.optionNone KTDecimal |> Ply
+            Dval.optionNone KTDecimal
           else
             let word (shift : int) = int (uint32 ((magnitude >>> shift) &&& mask32))
             System.Decimal(
@@ -110,7 +110,6 @@ let fns () : List<BuiltInFn> =
             )
             |> DDecimal
             |> Dval.optionSome KTDecimal
-            |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

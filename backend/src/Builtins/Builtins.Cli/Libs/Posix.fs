@@ -46,25 +46,25 @@ let private asResult
   (vm : VMState)
   (op : Host.Operation)
   (ok : Host.Response -> Dval)
-  : Ply<Dval> =
+  : Dval =
   Interpreter.requestHost vm op (fun outcome ->
     match outcome with
-    | Ok response -> Ply(Dval.resultOk kt (posixErrorKT ()) (ok response))
-    | Error e -> Ply(Dval.resultError kt (posixErrorKT ()) (dPosixError e)))
+    | Ok response -> (Dval.resultOk kt (posixErrorKT ()) (ok response))
+    | Error e -> (Dval.resultError kt (posixErrorKT ()) (dPosixError e)))
 
 /// Run one posix lookup whose failure is simply absence: `Option<String>`.
 let private posixOption
   (vm : VMState)
   (op : HostTypes.PosixOp)
   (text : Host.Response -> Option<string>)
-  : Ply<Dval> =
+  : Dval =
   Interpreter.requestHost vm (Host.Operation.Posix op) (fun outcome ->
     match outcome with
     | Ok response ->
       match text response with
-      | Some v -> Ply(Dval.optionSome KTString (DString v))
-      | None -> Ply(Dval.optionNone KTString)
-    | Error _ -> Ply(Dval.optionNone KTString))
+      | Some v -> (Dval.optionSome KTString (DString v))
+      | None -> (Dval.optionNone KTString)
+    | Error _ -> (Dval.optionNone KTString))
 
 let private unitOk (_ : Host.Response) : Dval = DUnit
 
@@ -74,11 +74,11 @@ let private syscallResult
   (vm : VMState)
   (op : HostTypes.PosixOp)
   (ok : Host.Response -> Dval)
-  : Ply<Dval> =
+  : Dval =
   Interpreter.requestHost vm (Host.Operation.Posix op) (fun outcome ->
     match outcome with
-    | Ok response -> Ply(Dval.resultOk kt KTInt64 (ok response))
-    | Error e -> Ply(Dval.resultError kt KTInt64 (Dval.dint64 (int64 e.errno))))
+    | Ok response -> (Dval.resultOk kt KTInt64 (ok response))
+    | Error e -> (Dval.resultError kt KTInt64 (Dval.dint64 (int64 e.errno))))
 
 let private fileEffects = set [ Effect.FileRead; Effect.FileWrite ]
 
@@ -105,7 +105,7 @@ let fns () : List<BuiltInFn> =
             elif System.OperatingSystem.IsMacOS() then "darwin"
             elif System.OperatingSystem.IsWindows() then "windows"
             else "linux"
-          Ply(DString os)
+          (DString os)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -121,7 +121,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUnit |] ->
           let arch =
             System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture
-          Ply(DString(arch.ToString().ToLowerInvariant()))
+          (DString(arch.ToString().ToLowerInvariant()))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -477,7 +477,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the current process ID via kernel getpid()"
       fn =
         (function
-        | _, _, _, [| DUnit |] -> Dval.dint64 (int64 (HostPosix.getpid ())) |> Ply
+        | _, _, _, [| DUnit |] -> Dval.dint64 (int64 (HostPosix.getpid ()))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -491,7 +491,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the current user ID via kernel getuid()"
       fn =
         (function
-        | _, _, _, [| DUnit |] -> Dval.dint64 (int64 (HostPosix.getuid ())) |> Ply
+        | _, _, _, [| DUnit |] -> Dval.dint64 (int64 (HostPosix.getuid ()))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty

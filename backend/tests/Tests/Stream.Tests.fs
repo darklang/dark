@@ -8,7 +8,6 @@ module Tests.Stream
 open Expecto
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -30,16 +29,16 @@ module StreamLog = TestUtils.LibTest.StreamLog
 
 /// Pull-fn over a mutable list cell. Used to back streamOfList +
 /// streamImplOfList without duplicating the closure body.
-let private listPullFn (items : List<RT.Dval>) : (unit -> Ply<Option<RT.Dval>>) =
+let private listPullFn
+  (items : List<RT.Dval>)
+  : (unit -> System.Threading.Tasks.ValueTask<Option<RT.Dval>>) =
   let remaining = ref items
   fun () ->
-    uply {
-      match remaining.Value with
-      | head :: tail ->
-        remaining.Value <- tail
-        return Some head
-      | [] -> return None
-    }
+    match remaining.Value with
+    | head :: tail ->
+      remaining.Value <- tail
+      System.Threading.Tasks.ValueTask<_>(Some head)
+    | [] -> System.Threading.Tasks.ValueTask<_>(None)
 
 /// Build a DStream backed by an in-memory list (used at the FromIO
 /// leaf level). For composing transforms beneath a single root, use
@@ -62,8 +61,7 @@ let private streamImplOfList
 
 let private wrap (impl : RT.StreamImpl) : RT.Dval = Stream.wrapImpl impl
 
-let private pull (s : RT.Dval) : Task<Option<RT.Dval>> =
-  Stream.readNext s |> Ply.toTask
+let private pull (s : RT.Dval) : Task<Option<RT.Dval>> = Stream.readNext s
 
 /// Drain a stream to a list. Pulls until None.
 let private drain (s : RT.Dval) : Task<List<RT.Dval>> =
@@ -71,7 +69,7 @@ let private drain (s : RT.Dval) : Task<List<RT.Dval>> =
     let acc = ResizeArray<RT.Dval>()
     let mutable keepGoing = true
     while keepGoing do
-      let! r = Stream.readNext s |> Ply.toTask
+      let! r = Stream.readNext s
       match r with
       | Some v -> acc.Add v
       | None -> keepGoing <- false
@@ -405,8 +403,8 @@ let gcFinalizesMidDrainStream =
       let disposer () = disposerRan.Value <- true
       let dv = Stream.newFromIO VT.int64 next (Some disposer)
       // Pull 2 of 3 elements, then return the weak ref.
-      let pulled1 = (Stream.readNext dv |> Ply.toTask).Result
-      let pulled2 = (Stream.readNext dv |> Ply.toTask).Result
+      let pulled1 = (Stream.readNext dv).Result
+      let pulled2 = (Stream.readNext dv).Result
       Expect.equal pulled1 (Some(RT.DInt64 1L)) "first pull"
       Expect.equal pulled2 (Some(RT.DInt64 2L)) "second pull"
       System.WeakReference<RT.Dval>(dv)
@@ -421,7 +419,7 @@ let gcSkipsFinalizerAfterStreamClose =
   test "stream: finalizer doesn't re-fire disposer when close already ran" {
     let disposeCount = ref 0
     let makeWeakRef () : System.WeakReference<RT.Dval> =
-      let next () : Ply<Option<RT.Dval>> = uply { return None }
+      let next () = System.Threading.Tasks.ValueTask<Option<RT.Dval>>(None)
       let disposer () = disposeCount.Value <- disposeCount.Value + 1
       let dv = Stream.newFromIO VT.int64 next (Some disposer)
       // Replicate streamClose: flip disposed, walk impl chain.
@@ -451,24 +449,24 @@ let gcSkipsFinalizerAfterStreamClose =
 // the same source via newStreamChunked's synthesised `next`.
 
 /// A nextChunk callback that yields each entry of `buffers` once, then None.
-let private chunkPullFn (buffers : List<byte[]>) : (int -> Ply<Option<byte[]>>) =
+let private chunkPullFn
+  (buffers : List<byte[]>)
+  : (int -> System.Threading.Tasks.ValueTask<Option<byte[]>>) =
   let remaining = ref buffers
   fun (_ : int) ->
-    uply {
-      match remaining.Value with
-      | head :: tail ->
-        remaining.Value <- tail
-        return Some head
-      | [] -> return None
-    }
+    match remaining.Value with
+    | head :: tail ->
+      remaining.Value <- tail
+      System.Threading.Tasks.ValueTask<_>(Some head)
+    | [] -> System.Threading.Tasks.ValueTask<_>(None)
 
 let chunkedDrainMatchesByteDrain =
   testTask
     "chunked drain: readStreamChunk returns the same bytes readStreamNext would" {
     let buf = [| 0x01uy; 0x02uy; 0x03uy; 0x04uy; 0x05uy; 0x06uy; 0x07uy; 0x08uy |]
     let s = Stream.newChunked VT.uint8 (chunkPullFn [ buf ]) None
-    let! first = Stream.readChunk 4096 s |> Ply.toTask
-    let! second = Stream.readChunk 4096 s |> Ply.toTask
+    let! first = Stream.readChunk 4096 s
+    let! second = Stream.readChunk 4096 s
     Expect.equal first (Some buf) "first chunk comes through intact"
     Expect.equal second None "second call returns None on exhaustion"
   }
@@ -494,9 +492,9 @@ let chunkedDrainFallsBackToByteWise =
         VT.uint8
         (listPullFn [ RT.DUInt8 0xAAuy; RT.DUInt8 0xBBuy; RT.DUInt8 0xCCuy ])
         None
-    let! chunk = Stream.readChunk 4096 s |> Ply.toTask
+    let! chunk = Stream.readChunk 4096 s
     Expect.equal chunk (Some [| 0xAAuy; 0xBBuy; 0xCCuy |]) "all bytes collected"
-    let! after = Stream.readChunk 4096 s |> Ply.toTask
+    let! after = Stream.readChunk 4096 s
     Expect.equal after None "exhausted"
   }
 

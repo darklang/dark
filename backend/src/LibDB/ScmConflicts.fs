@@ -9,7 +9,6 @@
 module LibDB.ScmConflicts
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -65,11 +64,9 @@ let private run
   (sql : string)
   (parameters : List<string * Microsoft.Data.Sqlite.SqliteParameter>)
   (read : RowReader -> Option<Row>)
-  : Task<List<Row>> =
-  task {
-    let! rows = Sql.query sql |> Sql.parameters parameters |> Sql.executeAsync read
-    return List.choose identity rows
-  }
+  : List<Row> =
+  let rows = Sql.query sql |> Sql.parameters parameters |> Sql.executeRows read
+  List.choose identity rows
 
 let private orEmpty (read : RowReader) (col : string) : string =
   read.stringOrNone col |> Option.defaultValue ""
@@ -98,7 +95,7 @@ let private idOnly (read : RowReader) : Option<Row> =
 let private branchParam (branchId : uuid) = Sql.string (string branchId)
 
 
-let query (q : Query) : Task<List<Row>> =
+let query (q : Query) : List<Row> =
   match q with
   | Pending branchId ->
     run

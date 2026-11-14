@@ -8,7 +8,6 @@
 module LibDB.ScmOps
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -219,39 +218,36 @@ let private readRow (cols : string) (read : RowReader) : Option<Row> =
 
 /// The ops <param f> selects, at most <param limit> of them (a negative limit means all of them).
 /// A limit of 0 counts the matches instead. The stamp cases ignore the limit and answer one row.
-let query (f : Filter) (limit : int64) : Task<Page> =
-  task {
-    match stampSql f with
-    | Some sql ->
-      let! ts =
-        Sql.query sql
-        |> Sql.executeRowAsync (fun read ->
-          read.stringOrNone "ts" |> Option.defaultValue "")
-      return
-        { total = 1L
-          ops = [ { id = ""; ts = ts; sizeBytes = 0L; source = ""; op = None } ] }
-    | None ->
-      let s = shape f
-      if limit = 0L then
-        let! n =
-          Sql.query (s.prefix + " SELECT count(*) AS n " + s.from)
-          |> Sql.parameters s.parameters
-          |> Sql.executeRowAsync (fun read -> read.int64 "n")
-        return { total = n; ops = [] }
-      else
-        let! rows =
-          Sql.query (
-            s.prefix
-            + " SELECT "
-            + s.cols
-            + " "
-            + s.from
-            + " "
-            + s.order
-            + " LIMIT @limit"
-          )
-          |> Sql.parameters (("limit", Sql.int64 limit) :: s.parameters)
-          |> Sql.executeAsync (readRow s.cols)
-        let ops = List.choose identity rows
-        return { total = int64 (List.length ops); ops = ops }
-  }
+let query (f : Filter) (limit : int64) : Page =
+  match stampSql f with
+  | Some sql ->
+    let ts =
+      Sql.query sql
+      |> Sql.executeRow (fun read ->
+        read.stringOrNone "ts" |> Option.defaultValue "")
+    { total = 1L
+      ops = [ { id = ""; ts = ts; sizeBytes = 0L; source = ""; op = None } ] }
+  | None ->
+    let s = shape f
+    if limit = 0L then
+      let n =
+        Sql.query (s.prefix + " SELECT count(*) AS n " + s.from)
+        |> Sql.parameters s.parameters
+        |> Sql.executeRow (fun read -> read.int64 "n")
+      { total = n; ops = [] }
+    else
+      let rows =
+        Sql.query (
+          s.prefix
+          + " SELECT "
+          + s.cols
+          + " "
+          + s.from
+          + " "
+          + s.order
+          + " LIMIT @limit"
+        )
+        |> Sql.parameters (("limit", Sql.int64 limit) :: s.parameters)
+        |> Sql.executeRows (readRow s.cols)
+      let ops = List.choose identity rows
+      { total = int64 (List.length ops); ops = ops }

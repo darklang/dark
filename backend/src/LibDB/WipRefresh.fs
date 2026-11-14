@@ -7,7 +7,6 @@
 module LibDB.WipRefresh
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -18,88 +17,85 @@ module PackageLocation = LibDB.PackageLocation
 
 
 /// Resolve missing references using each declaration's owner and module.
-/// The steps run through `Ply.List.mapSequentially`, which is iterative, so a large draft doesn't
+/// The steps run through `List.map`, which is iterative, so a large draft doesn't
 /// build up nested tasks.
 let private reResolveAllItems
   (pm : PT.PackageManager)
   (ops : List<PT.PackageOp>)
-  : Task<List<PT.PackageOp>> =
-  task {
-    let! referenceNames = ReferenceNames.load PT.BranchId.Main
-    let referenceNames =
-      ops
-      // For a -> b -> c, copy reference names back from c to b, then b to a.
-      // That gives the original declaration the names used after both renames.
-      |> List.rev
-      |> List.fold
-        (fun state op ->
-          match op with
-          | PT.PackageOp.Rename(oldLocation, newLocation, target, _, _) ->
-            match Map.tryFind (newLocation, target) state with
-            | Some names -> Map.add (oldLocation, target) names state
-            | None -> state
-          | _ -> state)
-        referenceNames
-    // The declaration of an Add+SetName pair, re-resolved where it is bound; None for anything else.
-    let reResolve
-      (declaration : PT.PackageOp)
-      (binding : PT.PackageOp)
-      : Option<unit -> Ply<PT.PackageOp>> =
-      match declaration, binding with
-      | PT.PackageOp.AddType t, PT.PackageOp.SetName(loc, PT.PackageType _, _) ->
-        Some(fun () ->
-          ReferenceNames.patchType referenceNames loc t
-          |> DR.reResolveType pm loc.owner loc.modules
-          |> Ply.map PT.PackageOp.AddType)
-      | PT.PackageOp.AddFn f, PT.PackageOp.SetName(loc, PT.PackageFn _, _) ->
-        Some(fun () ->
-          ReferenceNames.patchFn referenceNames loc f
-          |> DR.reResolveFn pm loc.owner loc.modules
-          |> Ply.map PT.PackageOp.AddFn)
-      | PT.PackageOp.AddValue v, PT.PackageOp.SetName(loc, PT.PackageValue _, _) ->
-        Some(fun () ->
-          ReferenceNames.patchValue referenceNames loc v
-          |> DR.reResolveValue pm loc.owner loc.modules
-          |> Ply.map PT.PackageOp.AddValue)
-      | PT.PackageOp.AddTrait t, PT.PackageOp.SetName(loc, PT.PackageTrait _, _) ->
-        Some(fun () ->
-          ReferenceNames.patchTrait referenceNames loc t
-          |> DR.reResolveTrait pm loc.owner loc.modules
-          |> Ply.map PT.PackageOp.AddTrait)
-      | PT.PackageOp.AddTraitImpl impl,
-        PT.PackageOp.SetName(loc, PT.PackageTraitImpl _, _) ->
-        Some(fun () ->
-          ReferenceNames.patchImpl referenceNames loc impl
-          |> DR.reResolveImpl pm loc.owner loc.modules loc.name
-          |> Ply.map PT.PackageOp.AddTraitImpl)
-      | PT.PackageOp.AddTest test, PT.PackageOp.SetName(loc, PT.PackageTest _, _) ->
-        Some(fun () ->
-          ReferenceNames.patchTest referenceNames loc test
-          |> DR.reResolveTest pm loc.owner loc.modules
-          |> Ply.map PT.PackageOp.AddTest)
-      | _ -> None
+  : List<PT.PackageOp> =
+  let referenceNames = ReferenceNames.load PT.BranchId.Main
+  let referenceNames =
+    ops
+    // For a -> b -> c, copy reference names back from c to b, then b to a.
+    // That gives the original declaration the names used after both renames.
+    |> List.rev
+    |> List.fold
+      (fun state op ->
+        match op with
+        | PT.PackageOp.Rename(oldLocation, newLocation, target, _, _) ->
+          match Map.tryFind (newLocation, target) state with
+          | Some names -> Map.add (oldLocation, target) names state
+          | None -> state
+        | _ -> state)
+      referenceNames
+  // The declaration of an Add+SetName pair, re-resolved where it is bound; None for anything else.
+  let reResolve
+    (declaration : PT.PackageOp)
+    (binding : PT.PackageOp)
+    : Option<unit -> PT.PackageOp> =
+    match declaration, binding with
+    | PT.PackageOp.AddType t, PT.PackageOp.SetName(loc, PT.PackageType _, _) ->
+      Some(fun () ->
+        ReferenceNames.patchType referenceNames loc t
+        |> DR.reResolveType pm loc.owner loc.modules
+        |> PT.PackageOp.AddType)
+    | PT.PackageOp.AddFn f, PT.PackageOp.SetName(loc, PT.PackageFn _, _) ->
+      Some(fun () ->
+        ReferenceNames.patchFn referenceNames loc f
+        |> DR.reResolveFn pm loc.owner loc.modules
+        |> PT.PackageOp.AddFn)
+    | PT.PackageOp.AddValue v, PT.PackageOp.SetName(loc, PT.PackageValue _, _) ->
+      Some(fun () ->
+        ReferenceNames.patchValue referenceNames loc v
+        |> DR.reResolveValue pm loc.owner loc.modules
+        |> PT.PackageOp.AddValue)
+    | PT.PackageOp.AddTrait t, PT.PackageOp.SetName(loc, PT.PackageTrait _, _) ->
+      Some(fun () ->
+        ReferenceNames.patchTrait referenceNames loc t
+        |> DR.reResolveTrait pm loc.owner loc.modules
+        |> PT.PackageOp.AddTrait)
+    | PT.PackageOp.AddTraitImpl impl,
+      PT.PackageOp.SetName(loc, PT.PackageTraitImpl _, _) ->
+      Some(fun () ->
+        ReferenceNames.patchImpl referenceNames loc impl
+        |> DR.reResolveImpl pm loc.owner loc.modules loc.name
+        |> PT.PackageOp.AddTraitImpl)
+    | PT.PackageOp.AddTest test, PT.PackageOp.SetName(loc, PT.PackageTest _, _) ->
+      Some(fun () ->
+        ReferenceNames.patchTest referenceNames loc test
+        |> DR.reResolveTest pm loc.owner loc.modules
+        |> PT.PackageOp.AddTest)
+    | _ -> None
 
-    // One step per Add+SetName pair or other op, in order; each yields the ops it is rewritten to.
-    let rec steps (acc : List<unit -> Ply<List<PT.PackageOp>>>) ops =
-      match ops with
-      | [] -> List.rev acc
-      | op :: rest ->
-        let paired =
-          match rest with
-          | binding :: afterPair ->
-            reResolve op binding
-            |> Option.map (fun declaration -> (binding, declaration, afterPair))
-          | [] -> None
-        match paired with
-        | Some(binding, declaration, afterPair) ->
-          let step () = declaration () |> Ply.map (fun d -> [ d; binding ])
-          steps (step :: acc) afterPair
-        | None -> steps ((fun () -> Ply [ op ]) :: acc) rest
+  // One step per Add+SetName pair or other op, in order; each yields the ops it is rewritten to.
+  let rec steps (acc : List<unit -> List<PT.PackageOp>>) ops =
+    match ops with
+    | [] -> List.rev acc
+    | op :: rest ->
+      let paired =
+        match rest with
+        | binding :: afterPair ->
+          reResolve op binding
+          |> Option.map (fun declaration -> (binding, declaration, afterPair))
+        | [] -> None
+      match paired with
+      | Some(binding, declaration, afterPair) ->
+        let step () = declaration () |> (fun d -> [ d; binding ])
+        steps (step :: acc) afterPair
+      | None -> steps ((fun () -> [ op ]) :: acc) rest
 
-    let! rewritten =
-      steps [] ops |> Ply.List.mapSequentially (fun step -> step ()) |> Ply.toTask
-    return List.concat rewritten
-  }
+  let rewritten = steps [] ops |> List.map (fun step -> step ())
+  List.concat rewritten
 
 
 /// Find each declaration's name after the renames that follow it.
@@ -323,105 +319,92 @@ let private refreshSnapshots before after =
 /// Save the refreshed draft only if nobody has changed it since we read it.
 /// Return the number of new hashes, or None if another edit means we need to retry.
 let private refreshOnce
-  (afterRead : unit -> Task<unit>)
+  (afterRead : unit -> unit)
   (pm : PT.PackageManager)
-  : Task<Option<int64>> =
-  task {
-    // Only the draft: committed ops never go through stabilization.
-    let! (draftIds, wipOps) = Queries.getDraftOpsWithIds ()
-    do! afterRead ()
+  : Option<int64> =
+  // Only the draft: committed ops never go through stabilization.
+  let (draftIds, wipOps) = Queries.getDraftOpsWithIds ()
+  afterRead ()
 
-    if List.isEmpty wipOps then
-      return Some 0L
+  if List.isEmpty wipOps then
+    Some 0L
+  else
+    // Refresh live declarations, retaining inactive revisions for undo.
+    let activeOps, restore = refreshableOps wipOps
+    let reResolvedOps = reResolveAllItems pm activeOps
+
+    // These declarations were hashed when saved. If resolving references changed
+    // nothing, we can skip recalculating their hashes and rewriting the draft.
+    if reResolvedOps = activeOps then
+      Some 0L
     else
-      // Refresh live declarations, retaining inactive revisions for undo.
-      let activeOps, restore = refreshableOps wipOps
-      let! reResolvedOps = reResolveAllItems pm activeOps
 
-      // These declarations were hashed when saved. If resolving references changed
-      // nothing, we can skip recalculating their hashes and rewriting the draft.
-      if reResolvedOps = activeOps then
-        return Some 0L
+      // Recalculate hashes together so mutually recursive declarations stay connected.
+      let stabilizedOps =
+        stabilizeAtCurrentNames reResolvedOps |> restore |> refreshSnapshots wipOps
+
+      // Compare the hashes referenced by SetName operations before and after refresh.
+      let oldHashes = HS.extractAllHashes wipOps |> Set.ofList
+      let newHashes = HS.extractAllHashes stabilizedOps |> Set.ofList
+
+      // Check the operation count too, so removing older declarations counts as a change.
+      // Use the binding hashes rather than temporary hashes on Add operations.
+      if oldHashes = newHashes && List.length stabilizedOps = List.length wipOps then
+        Some 0L
       else
+        // Count the new hashes introduced by refresh.
+        let changedCount = Set.difference newHashes oldHashes |> Set.count |> int64
 
-        // Recalculate hashes together so mutually recursive declarations stay connected.
-        let stabilizedOps =
-          stabilizeAtCurrentNames reResolvedOps |> restore |> refreshSnapshots wipOps
-
-        // Compare the hashes referenced by SetName operations before and after refresh.
-        let oldHashes = HS.extractAllHashes wipOps |> Set.ofList
-        let newHashes = HS.extractAllHashes stabilizedOps |> Set.ofList
-
-        // Check the operation count too, so removing older declarations counts as a change.
-        // Use the binding hashes rather than temporary hashes on Add operations.
-        if
-          oldHashes = newHashes && List.length stabilizedOps = List.length wipOps
-        then
-          return Some 0L
-        else
-          // Count the new hashes introduced by refresh.
-          let changedCount = Set.difference newHashes oldHashes |> Set.count |> int64
-
-          // Replace the draft in one transaction so a failure cannot leave it half-written.
-          // Preserve timestamps even when an operation's ID changes, so earlier edits
-          // keep their place in history. The operations remain uncommitted.
-          // A write failure reaches the caller instead of reporting that nothing changed.
-          let! preserveTs = Queries.getWipOpOriginTs ()
-          let preserveTs =
-            List.zip wipOps stabilizedOps
-            |> List.fold
-              (fun stamps (oldOp, newOp) ->
-                match Map.tryFind (Inserts.computeOpHash oldOp) preserveTs with
-                | Some ts -> Map.add (Inserts.computeOpHash newOp) ts stamps
-                | None -> stamps)
-              preserveTs
-          // Resolving forward references can make two bodies identical.
-          // Save their reference names before those bodies are combined.
-          let! referenceOps =
-            ReferenceNames.captureForStorage PT.BranchId.Main stabilizedOps
-          let stabilizedOps = stabilizedOps @ referenceOps
-          match!
-            Inserts.rewriteDraftIfUnchanged
-              draftIds
-              wipOps
-              (fun opId ->
-                match Map.tryFind opId preserveTs with
-                | Some ts -> ts
-                | None -> Inserts.nextOriginTs ())
-              stabilizedOps
-          with
-          | Some _ -> return Some changedCount
-          | None -> return None
-  }
+        // Replace the draft in one transaction so a failure cannot leave it half-written.
+        // Preserve timestamps even when an operation's ID changes, so earlier edits
+        // keep their place in history. The operations remain uncommitted.
+        // A write failure reaches the caller instead of reporting that nothing changed.
+        let preserveTs = Queries.getWipOpOriginTs ()
+        let preserveTs =
+          List.zip wipOps stabilizedOps
+          |> List.fold
+            (fun stamps (oldOp, newOp) ->
+              match Map.tryFind (Inserts.computeOpHash oldOp) preserveTs with
+              | Some ts -> Map.add (Inserts.computeOpHash newOp) ts stamps
+              | None -> stamps)
+            preserveTs
+        // Resolving forward references can make two bodies identical.
+        // Save their reference names before those bodies are combined.
+        let referenceOps =
+          ReferenceNames.captureForStorage PT.BranchId.Main stabilizedOps
+        let stabilizedOps = stabilizedOps @ referenceOps
+        match
+          Inserts.rewriteDraftIfUnchanged
+            draftIds
+            wipOps
+            (fun opId ->
+              match Map.tryFind opId preserveTs with
+              | Some ts -> ts
+              | None -> Inserts.nextOriginTs ())
+            stabilizedOps
+        with
+        | Some _ -> Some changedCount
+        | None -> None
 
 /// Run afterRead between reading and rewriting the draft, so tests can save
 /// another edit at that point and check that refresh retries safely.
-let refreshWith
-  (afterRead : unit -> Task<unit>)
-  (pm : PT.PackageManager)
-  : Task<int64> =
-  Telemetry.timeTask "author.wipRefresh" [] (fun () ->
-    task {
-      // Retry if another edit changed the draft while we were refreshing it.
-      // Stop after ten attempts rather than retrying indefinitely.
-      let rec attempt (attempts : int) : Task<int64> =
-        task {
-          match! refreshOnce afterRead pm with
-          | Some n -> return n
-          | None when attempts < 10 -> return! attempt (attempts + 1)
-          | None ->
-            // The edit is already saved; refreshing the surrounding draft is what failed.
-            // This message follows "Could not save <item>:", so explain that distinction.
-            return
-              Exception.raiseInternal
-                ("it is stored, but the draft kept changing while names across it were "
-                 + $"being re-resolved ({attempts} tries), usually another save or your own "
-                 + "editor, so references waiting on it may not be linked yet. Run the same "
-                 + "save again to finish.")
-                []
-        }
-      return! attempt 1
-    })
+let refreshWith (afterRead : unit -> unit) (pm : PT.PackageManager) : int64 =
+  Telemetry.time "author.wipRefresh" [] (fun () ->
+    // Retry if another edit changed the draft while we were refreshing it.
+    // Stop after ten attempts rather than retrying indefinitely.
+    let rec attempt (attempts : int) : int64 =
+      match refreshOnce afterRead pm with
+      | Some n -> n
+      | None when attempts < 10 -> attempt (attempts + 1)
+      | None ->
+        // The edit is already saved; refreshing the surrounding draft is what failed.
+        // This message follows "Could not save <item>:", so explain that distinction.
+        Exception.raiseInternal
+          ("it is stored, but the draft kept changing while names across it were "
+           + $"being re-resolved ({attempts} tries), usually another save or your own "
+           + "editor, so references waiting on it may not be linked yet. Run the same "
+           + "save again to finish.")
+          []
+    attempt 1)
 
-let refresh (pm : PT.PackageManager) : Task<int64> =
-  refreshWith (fun () -> Task.FromResult()) pm
+let refresh (pm : PT.PackageManager) : int64 = refreshWith (fun () -> ()) pm

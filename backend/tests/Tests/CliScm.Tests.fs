@@ -5,7 +5,6 @@ module Tests.CliScm
 
 open Expecto
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open Fumble
@@ -417,11 +416,11 @@ let private archivingABranchCommitsItsEvent =
 
         // The real assertion. "clean" is what `status` prints when the draft is empty AND when it
         // cannot see the archived branch's ops at all, so ask the draft directly.
-        let! pending =
+        let pending =
           Sql.query
             "SELECT count(*) AS n FROM package_ops
            WHERE commit_hash IS NULL AND branch_id = '00000000-0000-0000-0000-000000000001'"
-          |> Sql.executeRowAsync (fun read -> read.int64 "n")
+          |> Sql.executeRow (fun read -> read.int64 "n")
         Expect.equal
           pending
           0L
@@ -706,13 +705,13 @@ let private aBranchDiscardLeavesNoDanglingTags =
           runCli state [ "fn"; "Tests.Dangle.g"; "(): Int64 = Tests.Dangle.f()" ]
         do! discardAll state
 
-        let! dangling =
+        let dangling =
           Sql.query
             "SELECT count(*) AS n FROM locations l
            WHERE l.branch_id <> '00000000-0000-0000-0000-000000000001'
              AND NOT EXISTS (SELECT 1 FROM package_ops p
                              WHERE p.id = l.op_id AND p.branch_id = l.branch_id)"
-          |> Sql.executeRowAsync (fun read -> read.int64 "n")
+          |> Sql.executeRow (fun read -> read.int64 "n")
         Expect.equal dangling 0L "every surviving binding points at a real op"
 
         let! status = runCli state [ "status" ]
@@ -1058,21 +1057,19 @@ let private resetWorkedExample () : Task<unit> =
   task {
     let messages = "('money helpers', 'cents in mills')"
 
-    do!
-      execSql
-        $"DELETE FROM package_ops WHERE commit_hash IN
-            (SELECT hash FROM commits WHERE message IN {messages})"
+    execSql
+      $"DELETE FROM package_ops WHERE commit_hash IN
+          (SELECT hash FROM commits WHERE message IN {messages})"
 
-    do! execSql $"DELETE FROM commits WHERE message IN {messages}"
+    execSql $"DELETE FROM commits WHERE message IN {messages}"
 
-    do!
-      execSql
-        "DELETE FROM package_ops WHERE commit_hash IS NULL
-           AND branch_id = '00000000-0000-0000-0000-000000000001'
-           AND id IN (SELECT DISTINCT l.op_id FROM locations l
-                      WHERE l.owner = 'Ux' AND l.modules = 'Money')"
+    execSql
+      "DELETE FROM package_ops WHERE commit_hash IS NULL
+         AND branch_id = '00000000-0000-0000-0000-000000000001'
+         AND id IN (SELECT DISTINCT l.op_id FROM locations l
+                    WHERE l.owner = 'Ux' AND l.modules = 'Money')"
 
-    do! execSql "DELETE FROM locations WHERE owner = 'Ux' AND modules = 'Money'"
+    execSql "DELETE FROM locations WHERE owner = 'Ux' AND modules = 'Money'"
 
   }
 
@@ -1085,7 +1082,7 @@ let private theWorkedExampleWorks =
       // Commit whatever else is uncommitted: the example claims counts ("2 items
       // changed"), which are only about the example if the draft starts empty.
       // Committing is non-destructive; discarding would take other tests' work with it.
-      let! _ = LibDB.Inserts.commitAllAsBaseline "worked-example setup"
+      let _ = LibDB.Inserts.commitAllAsBaseline "worked-example setup"
 
       let! doc = runCli state [ "docs"; "scm" ]
       let steps = parseWorkedExample doc
@@ -1821,7 +1818,7 @@ let private recordConflict
   (modules : string)
   (name : string)
   (autoResolvedTo : string)
-  : Task<unit> =
+  : unit =
   LibDB.ScmActions.recordConflicts
     branchId
     [ { LibDB.ScmDetect.Conflict.id = id
@@ -1888,7 +1885,7 @@ let private aConflictCloseThatFailsIsReported =
         let mainId = LibExecution.ProgramTypes.BranchId.Main
 
         // ack: no candidates needed.
-        do! recordConflict mainId "ackfail001" "Tests" "CloseFails" "acked" "aaa"
+        recordConflict mainId "ackfail001" "Tests" "CloseFails" "acked" "aaa"
         let! (ackOut, ackStatus) =
           withActionStoppedAt "conflict.status" (fun () ->
             runCliWithStatus state [ "conflicts"; "ack"; "ackfail001" ])
@@ -1919,33 +1916,32 @@ let private aConflictCloseThatFailsIsReported =
         let! (LibExecution.ProgramTypes.Hash real) =
           findPackageFn "Tests.CloseFails.f"
         let other = String.replicate 64 "0"
-        do!
-          LibDB.ScmActions.recordConflicts
-            mainId
-            [ { LibDB.ScmDetect.Conflict.id = "ovrfail001"
-                owner = "Tests"
-                modules = "CloseFails"
-                name = "f"
-                itemType = "fn"
-                part = ""
-                kind = "same-name-different-hash"
-                candidates =
-                  [ { side = "local"
-                      hash = real
-                      removed = false
-                      text = ""
-                      originTs = "2026-01-01T00:00:00.000Z"
-                      author = "" }
-                    { side = "incoming"
-                      hash = other
-                      removed = false
-                      text = ""
-                      originTs = "2026-01-02T00:00:00.000Z"
-                      author = "" } ]
-                autoResolvedTo = other
-                reason = "test"
-                status = "pending"
-                resolvedBy = "" } ]
+        LibDB.ScmActions.recordConflicts
+          mainId
+          [ { LibDB.ScmDetect.Conflict.id = "ovrfail001"
+              owner = "Tests"
+              modules = "CloseFails"
+              name = "f"
+              itemType = "fn"
+              part = ""
+              kind = "same-name-different-hash"
+              candidates =
+                [ { side = "local"
+                    hash = real
+                    removed = false
+                    text = ""
+                    originTs = "2026-01-01T00:00:00.000Z"
+                    author = "" }
+                  { side = "incoming"
+                    hash = other
+                    removed = false
+                    text = ""
+                    originTs = "2026-01-02T00:00:00.000Z"
+                    author = "" } ]
+              autoResolvedTo = other
+              reason = "test"
+              status = "pending"
+              resolvedBy = "" } ]
         let! (ovrOut, ovrStatus) =
           withActionStoppedAt "conflict.status" (fun () ->
             runCliWithStatus state [ "conflicts"; "override"; "ovrfail001"; "A" ])
@@ -1958,9 +1954,9 @@ let private aConflictCloseThatFailsIsReported =
         // is asserted; that the failure is reported, and that settling again finishes, is.
         let status () =
           task {
-            let! rows =
+            let rows =
               Sql.query "SELECT status FROM conflicts WHERE id = 'ovrfail001'"
-              |> Sql.executeAsync (fun read -> read.string "status")
+              |> Sql.executeRows (fun read -> read.string "status")
             return String.concat "," rows
           }
         let! (againOut, againStatus) =
@@ -1969,9 +1965,8 @@ let private aConflictCloseThatFailsIsReported =
         let! afterRetry = status ()
         Expect.equal afterRetry "overridden" "and closes it"
 
-        do!
-          Sql.query "DELETE FROM conflicts WHERE modules = 'CloseFails'"
-          |> Sql.executeStatementAsync
+        Sql.query "DELETE FROM conflicts WHERE modules = 'CloseFails'"
+        |> Sql.executeStatement
         do! discardAll state
       })
 
@@ -2280,15 +2275,14 @@ let private conflictsBelongToTheBranchTheyHappenedOn =
       let branchId = LibDB.PackageManager.currentBranchId ()
       Expect.isFalse branchId.IsMain "switch put us on a real branch"
 
-      do! recordConflict branchId "cnfbranch01" "Zz" "Confl" "f" "bbb"
-      do!
-        recordConflict
-          LibExecution.ProgramTypes.BranchId.Main
-          "cnfmain0001"
-          "Zz"
-          "Confl"
-          "f"
-          "bbb"
+      recordConflict branchId "cnfbranch01" "Zz" "Confl" "f" "bbb"
+      recordConflict
+        LibExecution.ProgramTypes.BranchId.Main
+        "cnfmain0001"
+        "Zz"
+        "Confl"
+        "f"
+        "bbb"
 
       // Each branch has its own list. Dropping the branch filter from `pending`
       // shows both here.
@@ -2567,9 +2561,9 @@ let overrideByNameAnswersThePendingConflict =
           "same"
           hash
 
-      do! record "r2first001" "aaa"
+      record "r2first001" "aaa"
       do! run state [ "conflicts"; "ack"; "r2first001" ]
-      do! record "r2second02" "bbb"
+      record "r2second02" "bbb"
 
       // By NAME: the settled one must not be what answers.
       let! answered = runCliPlain state [ "conflicts"; "ack"; "Tests.Confl2.same" ]
@@ -2655,14 +2649,13 @@ let private anOverrideOnABranchLeavesMainsConflictOpen =
         do! commit state "override scope: first"
         do! fn state "Tests.OverrideScope.x" "(): Int64 = 2"
         do! commit state "override scope: second"
-        do!
-          recordConflict
-            LibExecution.ProgramTypes.BranchId.Main
-            "ovscope001"
-            "Tests"
-            "OverrideScope"
-            "x"
-            "aaa"
+        recordConflict
+          LibExecution.ProgramTypes.BranchId.Main
+          "ovscope001"
+          "Tests"
+          "OverrideScope"
+          "x"
+          "aaa"
 
         // Keeping the branch's version is authored as an override, folded on the branch.
         do! switch state "override-scope"
@@ -2679,13 +2672,13 @@ let private anOverrideOnABranchLeavesMainsConflictOpen =
             "the branch keeps its version"
         do! onMain state
 
-        let! status =
+        let status =
           countSql
             "SELECT COUNT(*) AS n FROM conflicts WHERE id = 'ovscope001' AND status = 'pending'"
             []
         Expect.equal status 1L "main's conflict is still pending"
         do! run state [ "branch"; "archive"; "override-scope" ]
-        do! execSql "DELETE FROM conflicts WHERE id = 'ovscope001'"
+        execSql "DELETE FROM conflicts WHERE id = 'ovscope001'"
       })
 
 

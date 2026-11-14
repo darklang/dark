@@ -56,26 +56,26 @@ let private numeric (op : int) (rest : BuiltInFnSig) : BuiltInFnSig =
       | [| a |] -> NumOps.unary op a
       | _ -> NumOps.Unsupported
     match outcome with
-    | NumOps.Value v -> Ply v
+    | NumOps.Value v -> v
     | NumOps.Raises e -> raiseRTE vm.threadID e
     | NumOps.Unsupported -> rest call
 
 
 /// `unwrap` of a value with no read in flight at its top.
-let private unwrapLanded (vm : VMState) (dval : Dval) : Ply<Dval> =
+let private unwrapLanded (vm : VMState) (dval : Dval) : Dval =
   match dval with
 
   // Success: extract `Some` out of an Option
   | DEnum(FQTypeName.Package(Hash id), _, _, "Some", [ value ]) when
     id = PackageRefs.Type.Stdlib.option ()
     ->
-    Ply value
+    value
 
   // Success: extract `Ok` out of a Result
   | DEnum(FQTypeName.Package(Hash id), _, _, "Ok", [ value ]) when
     id = PackageRefs.Type.Stdlib.result ()
     ->
-    Ply value
+    value
 
   // Error: expected Some, got None
   | DEnum(FQTypeName.Package(Hash id), _, _, "None", []) when
@@ -106,7 +106,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns true if the two value are equal"
       fn =
         (function
-        | _, vm, _, [| a; b |] -> equalsBuiltinImpl vm a b |> Dval.bool |> Ply
+        | _, vm, _, [| a; b |] -> equalsBuiltinImpl vm a b |> Dval.bool
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -120,7 +120,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns true if the two value are not equal"
       fn =
         (function
-        | _, vm, _, [| a; b |] -> equalsBuiltinImpl vm a b |> not |> Dval.bool |> Ply
+        | _, vm, _, [| a; b |] -> equalsBuiltinImpl vm a b |> not |> Dval.bool
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -140,7 +140,7 @@ let fns () : List<BuiltInFn> =
           // `+` concatenates Strings (`impl Add for String`), and this builtin is what `+`
           // lowers to while the package refs are not generated yet, which is how the stdlib's
           // own string concatenation loads on a fresh tree.
-          | _, _, _, [| DString a; DString b |] -> Ply(DString(String.append a b))
+          | _, _, _, [| DString a; DString b |] -> (DString(String.append a b))
           | call -> notNumbers call)
       previewable = Pure
       callEffects = set [ LibExecution.Effects.Effect.Raise ]
@@ -368,11 +368,11 @@ let fns () : List<BuiltInFn> =
           | DEnum(FQTypeName.Package(Hash id), _, _, "Some", [ value ]) when
             id = PackageRefs.Type.Stdlib.option ()
             ->
-            Ply value
+            value
           | DEnum(FQTypeName.Package(Hash id), _, _, "Ok", [ value ]) when
             id = PackageRefs.Type.Stdlib.result ()
             ->
-            Ply value
+            value
           | _ -> Interpreter.withValue vm read (fun landed -> unwrapLanded vm landed)
         | _, vm, _, [| dval |] -> unwrapLanded vm dval
 
@@ -396,7 +396,7 @@ let fns () : List<BuiltInFn> =
         "Returns <param value>, once it is a value: a read still in flight is waited for here"
       fn =
         (function
-        | _, _, _, [| value |] -> Ply value
+        | _, _, _, [| value |] -> value
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

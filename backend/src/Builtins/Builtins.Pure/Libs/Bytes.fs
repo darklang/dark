@@ -24,7 +24,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the length of <param bytes> in bytes."
       fn =
         (function
-        | _, _, _, [| DBytes ref |] -> Ply(Dval.dint64 ref.Length)
+        | _, _, _, [| DBytes ref |] -> (Dval.dint64 ref.Length)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -44,9 +44,8 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DBytes(Ephemeral eph); DInt64 count |] ->
           let n = max 0L (min count (int64 eph.count))
           let prefix = eph.Span.Slice(0, int n).ToArray()
-          Ply(Dval.optionSome KTBytes (Bytes.newEphemeral prefix))
-        | _, _, _, [| DBytes(Persistent _); DInt64 _ |] ->
-          Ply(Dval.optionNone KTBytes)
+          (Dval.optionSome KTBytes (Bytes.newEphemeral prefix))
+        | _, _, _, [| DBytes(Persistent _); DInt64 _ |] -> (Dval.optionNone KTBytes)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -79,29 +78,24 @@ let fns () : List<BuiltInFn> =
           // A local buffer that only this builtin writes, before `newEphemeral` takes
           // it. Uninitialized, since every byte of it is written below.
           let result = System.GC.AllocateUninitializedArray<byte>(int total)
-          let copyAt (offset : int) (item : Dval) : Ply<int> =
+          let copyAt (offset : int) (item : Dval) : int =
             match item with
             | DBytes(Ephemeral eph) ->
               eph.Span.CopyTo(System.Span<byte>(result, offset, eph.count))
-              Ply(offset + eph.count)
+              (offset + eph.count)
             | DBytes ref ->
-              uply {
-                let! bs = Bytes.readBytes state ref
-                if int64 bs.Length <> ref.Length then
-                  return
-                    Exception.raiseInternal
-                      "bytesConcat: saved bytes are not the length their reference says"
-                      [ "expected", ref.Length; "actual", bs.Length ]
-                else
-                  System.Array.Copy(bs, 0, result, offset, bs.Length)
-                  return offset + bs.Length
-              }
+              let bs = Bytes.readBytes state ref
+              if int64 bs.Length <> ref.Length then
+                Exception.raiseInternal
+                  "bytesConcat: saved bytes are not the length their reference says"
+                  [ "expected", ref.Length; "actual", bs.Length ]
+              else
+                System.Array.Copy(bs, 0, result, offset, bs.Length)
+                offset + bs.Length
             | item ->
               Exception.raiseInternal "bytesConcat: expected DBytes" [ "item", item ]
-          uply {
-            let! _ = Ply.List.foldSequentially copyAt 0 items
-            return Bytes.newEphemeral result
-          }
+          let _ = List.fold copyAt 0 items
+          Bytes.newEphemeral result
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -126,13 +120,13 @@ let fns () : List<BuiltInFn> =
           let len = int64 eph.count
           let safeStart = max 0L (min startD len)
           let safeLen = max 0L (min lenD (len - safeStart))
-          Ply(Bytes.sliceEphemeral eph (int safeStart) (int safeLen))
+          (Bytes.sliceEphemeral eph (int safeStart) (int safeLen))
         | state, _, _, [| DBytes ref; DInt64 startD; DInt64 lenD |] ->
           Bytes.withBytes state ref (fun bs ->
             let len = int64 bs.Length
             let safeStart = max 0L (min startD len)
             let safeLen = max 0L (min lenD (len - safeStart))
-            Ply(Bytes.newEphemeral (Array.sub bs (int safeStart) (int safeLen))))
+            (Bytes.newEphemeral (Array.sub bs (int safeStart) (int safeLen))))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -152,17 +146,15 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DBytes(Ephemeral eph); DInt64 index |] ->
           if index >= 0L && index < int64 eph.count then
-            Ply(
-              Dval.optionSome KTUInt8 (Dval.uint8 eph.buffer[eph.offset + int index])
-            )
+            (Dval.optionSome KTUInt8 (Dval.uint8 eph.buffer[eph.offset + int index]))
           else
-            Ply(Dval.optionNone KTUInt8)
+            (Dval.optionNone KTUInt8)
         | state, _, _, [| DBytes ref; DInt64 index |] ->
           Bytes.withBytes state ref (fun bs ->
             if index >= 0L && index < int64 bs.Length then
-              Ply(Dval.optionSome KTUInt8 (Dval.uint8 bs[int index]))
+              (Dval.optionSome KTUInt8 (Dval.uint8 bs[int index]))
             else
-              Ply(Dval.optionNone KTUInt8))
+              (Dval.optionNone KTUInt8))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -185,18 +177,18 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DBytes(Ephemeral eph); DUInt8 b; DInt64 startD |] ->
           if startD >= 0L && startD < int64 eph.count then
             match System.MemoryExtensions.IndexOf(eph.Span.Slice(int startD), b) with
-            | -1 -> Ply(Dval.optionNone KTInt64)
-            | i -> Ply(Dval.optionSome KTInt64 (Dval.dint64 (startD + int64 i)))
+            | -1 -> (Dval.optionNone KTInt64)
+            | i -> (Dval.optionSome KTInt64 (Dval.dint64 (startD + int64 i)))
           else
-            Ply(Dval.optionNone KTInt64)
+            (Dval.optionNone KTInt64)
         | state, _, _, [| DBytes ref; DUInt8 b; DInt64 startD |] ->
           Bytes.withBytes state ref (fun bs ->
             if startD >= 0L && startD < int64 bs.Length then
               match System.Array.IndexOf(bs, b, int startD) with
-              | -1 -> Ply(Dval.optionNone KTInt64)
-              | i -> Ply(Dval.optionSome KTInt64 (Dval.dint64 (int64 i)))
+              | -1 -> (Dval.optionNone KTInt64)
+              | i -> (Dval.optionSome KTInt64 (Dval.dint64 (int64 i)))
             else
-              Ply(Dval.optionNone KTInt64))
+              (Dval.optionNone KTInt64))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -222,18 +214,18 @@ let fns () : List<BuiltInFn> =
                 b
               )
             with
-            | -1 -> Ply(Dval.optionNone KTInt64)
-            | i -> Ply(Dval.optionSome KTInt64 (Dval.dint64 (int64 i)))
+            | -1 -> (Dval.optionNone KTInt64)
+            | i -> (Dval.optionSome KTInt64 (Dval.dint64 (int64 i)))
           else
-            Ply(Dval.optionNone KTInt64)
+            (Dval.optionNone KTInt64)
         | state, _, _, [| DBytes ref; DUInt8 b; DInt64 startD |] ->
           Bytes.withBytes state ref (fun bs ->
             if startD >= 0L && startD < int64 bs.Length then
               match System.Array.LastIndexOf(bs, b, int startD) with
-              | -1 -> Ply(Dval.optionNone KTInt64)
-              | i -> Ply(Dval.optionSome KTInt64 (Dval.dint64 (int64 i)))
+              | -1 -> (Dval.optionNone KTInt64)
+              | i -> (Dval.optionSome KTInt64 (Dval.dint64 (int64 i)))
             else
-              Ply(Dval.optionNone KTInt64))
+              (Dval.optionNone KTInt64))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -257,10 +249,10 @@ let fns () : List<BuiltInFn> =
             match
               System.MemoryExtensions.IndexOf(eph.Span.Slice(int start), seg.Span)
             with
-            | -1 -> Ply(Dval.optionNone KTInt64)
-            | i -> Ply(Dval.optionSome KTInt64 (Dval.dint64 (start + int64 i)))
+            | -1 -> (Dval.optionNone KTInt64)
+            | i -> (Dval.optionSome KTInt64 (Dval.dint64 (start + int64 i)))
           else
-            Ply(Dval.optionNone KTInt64)
+            (Dval.optionNone KTInt64)
         | state, _, _, [| DBytes ref; DBytes segmentRef; DInt64 start |] ->
           Bytes.withBytes state ref (fun bs ->
             Bytes.withBytes state segmentRef (fun segment ->
@@ -273,10 +265,10 @@ let fns () : List<BuiltInFn> =
                     System.ReadOnlySpan<byte> segment
                   )
                 with
-                | -1 -> Ply(Dval.optionNone KTInt64)
-                | i -> Ply(Dval.optionSome KTInt64 (Dval.dint64 (start + int64 i)))
+                | -1 -> (Dval.optionNone KTInt64)
+                | i -> (Dval.optionSome KTInt64 (Dval.dint64 (start + int64 i)))
               else
-                Ply(Dval.optionNone KTInt64)))
+                (Dval.optionNone KTInt64)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -291,7 +283,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, _, _, [| DBytes ref |] ->
-          Bytes.withBytes state ref (fun bs -> Ply(Dval.byteArrayToDvalList bs))
+          Bytes.withBytes state ref (fun bs -> (Dval.byteArrayToDvalList bs))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -307,7 +299,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DList(_, Items(items)) |] ->
           let bs = Dval.dlistToByteArray items
-          Bytes.newEphemeral bs |> Ply
+          Bytes.newEphemeral bs
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

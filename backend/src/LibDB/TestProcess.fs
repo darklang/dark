@@ -1,6 +1,8 @@
 /// Shared transport for isolated package tests and explicit test callbacks.
 module LibDB.TestProcess
 
+open System.Threading.Tasks
+
 open Prelude
 open LibExecution.RuntimeTypes
 
@@ -30,31 +32,27 @@ module private Carried =
   module Bytes = LibExecution.Bytes
 
   /// The value with its unsaved Bytes swapped for references, and their contents.
-  let detach (dv : Dval) : Ply<Dval * List<string * byte[]>> =
-    uply {
-      let found = System.Collections.Generic.Dictionary<string, byte[]>()
-      let! detached =
-        Bytes.promote
-          (fun hash bytes ->
-            found[hash] <- bytes
-            Ply(()))
-          dv
-      return detached, [ for KeyValue(hash, bytes) in found -> hash, bytes ]
-    }
+  let detach (dv : Dval) : Dval * List<string * byte[]> =
+    let found = System.Collections.Generic.Dictionary<string, byte[]>()
+    let detached =
+      Bytes.promote
+        (fun hash bytes ->
+          found[hash] <- bytes
+          (()))
+        dv
+    detached, [ for KeyValue(hash, bytes) in found -> hash, bytes ]
 
-  let attach (contents : List<string * byte[]>) (dv : Dval) : Ply<Dval> =
+  let attach (contents : List<string * byte[]>) (dv : Dval) : Dval =
     if List.isEmpty contents then
-      Ply dv
+      dv
     else
       let byHash = Map contents
       dv
       |> Dval.rewriteWith (fun dv ->
-        uply {
-          match dv with
-          | DBytes(Persistent(hash, _)) ->
-            return Map.tryFind hash byHash |> Option.map Bytes.newEphemeral
-          | _ -> return None
-        })
+        match dv with
+        | DBytes(Persistent(hash, _)) ->
+          Map.tryFind hash byHash |> Option.map Bytes.newEphemeral
+        | _ -> None)
 
   let write (w : System.IO.BinaryWriter) (dv : Dval, contents) : unit =
     Value.write w dv
@@ -78,31 +76,27 @@ module Request =
   module Binary = LibSerialization.Binary.Serializers.Common
 
   // Requests live only for this process launch; parent and worker use the same build.
-  let serialize (request : Request) : Ply<byte[]> =
-    uply {
-      let! target =
-        match request.target with
-        | Target.PackageTest hash -> Ply(Choice1Of2 hash)
-        | Target.TestCallback(hash, argument) ->
-          Carried.detach argument
-          |> Ply.map (fun carried -> Choice2Of2(hash, carried))
-      return
-        LibSerialization.Binary.Serialization.makeSerializer
-          (fun writer () ->
-            Binary.Option.write writer Binary.Guid.write request.accountID
-            match target with
-            | Choice1Of2 hash ->
-              Binary.String.write writer "PackageTest"
-              Binary.String.write writer hash
-            | Choice2Of2(hash, carried) ->
-              Binary.String.write writer "TestCallback"
-              Binary.String.write writer hash
-              Carried.write writer carried)
-          "test worker request"
-          ()
-    }
+  let serialize (request : Request) : byte[] =
+    let target =
+      match request.target with
+      | Target.PackageTest hash -> (Choice1Of2 hash)
+      | Target.TestCallback(hash, argument) ->
+        Carried.detach argument |> (fun carried -> Choice2Of2(hash, carried))
+    LibSerialization.Binary.Serialization.makeSerializer
+      (fun writer () ->
+        Binary.Option.write writer Binary.Guid.write request.accountID
+        match target with
+        | Choice1Of2 hash ->
+          Binary.String.write writer "PackageTest"
+          Binary.String.write writer hash
+        | Choice2Of2(hash, carried) ->
+          Binary.String.write writer "TestCallback"
+          Binary.String.write writer hash
+          Carried.write writer carried)
+      "test worker request"
+      ()
 
-  let deserialize (bytes : byte[]) : Ply<Request> =
+  let deserialize (bytes : byte[]) : Request =
     let accountID, target =
       LibSerialization.Binary.Serialization.makeDeserializer
         (fun reader ->
@@ -117,29 +111,22 @@ module Request =
           accountID, target)
         "test worker request"
         bytes
-    uply {
-      match target with
-      | Choice1Of2 hash ->
-        return { accountID = accountID; target = Target.PackageTest hash }
-      | Choice2Of2(hash, (argument, contents)) ->
-        let! argument = Carried.attach contents argument
-        return
-          { accountID = accountID; target = Target.TestCallback(hash, argument) }
-    }
+    match target with
+    | Choice1Of2 hash -> { accountID = accountID; target = Target.PackageTest hash }
+    | Choice2Of2(hash, (argument, contents)) ->
+      let argument = Carried.attach contents argument
+      { accountID = accountID; target = Target.TestCallback(hash, argument) }
 
 /// What a worker hands back: the outcome, with any unsaved Bytes carried beside it.
 module WorkerResult =
-  let serialize (result : Dval) : Ply<byte[]> =
-    uply {
-      let! carried = Carried.detach result
-      return
-        LibSerialization.Binary.Serialization.makeSerializer
-          Carried.write
-          "test result"
-          carried
-    }
+  let serialize (result : Dval) : byte[] =
+    let carried = Carried.detach result
+    LibSerialization.Binary.Serialization.makeSerializer
+      Carried.write
+      "test result"
+      carried
 
-  let deserialize (bytes : byte[]) : Ply<Dval> =
+  let deserialize (bytes : byte[]) : Dval =
     let dv, contents =
       LibSerialization.Binary.Serialization.makeDeserializer
         Carried.read
@@ -160,9 +147,9 @@ let private reruns =
 
 let withStoreSnapshot
   (snapshot : Host.FileSnapshot)
-  (run : System.Guid -> Ply<'a>)
-  : Ply<'a> =
-  uply {
+  (run : System.Guid -> Task<'a>)
+  : Task<'a> =
+  task {
     use snapshot = snapshot
     let id = System.Guid.NewGuid()
     runs[id] <- snapshot
@@ -313,10 +300,10 @@ let private runOnce
   (timeoutMs : int)
   (columns : int)
   (rows : int)
-  : Ply<Result<Outcome, string>> =
-  uply {
+  : Task<Result<Outcome, string>> =
+  task {
     try
-      let! request = Request.serialize request
+      let request = Request.serialize request
       use buffer = new System.IO.MemoryStream()
       use writer = new System.IO.BinaryWriter(buffer)
       LibSerialization.Binary.Serializers.Permissions.writeExecutionAccess
@@ -389,7 +376,7 @@ let private runOnce
       match outcome with
       | Error error -> return Error error.message
       | Ok(Host.Response.WorkspaceProcessOutcome(code, stdout, stderr, result, errors)) ->
-        let! result = result |> Ply.Option.map WorkerResult.deserialize
+        let result = result |> Option.map WorkerResult.deserialize
         return
           Ok
             { exitCode = code
@@ -415,8 +402,8 @@ let run
   (timeoutMs : int)
   (columns : int)
   (rows : int)
-  : Ply<Result<Outcome, string>> =
-  uply {
+  : Task<Result<Outcome, string>> =
+  task {
     // Keep the marker outside the workspace so it survives cleanup. Check it
     // even if the worker failed or timed out after attempting a write.
     let marker =

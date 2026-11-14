@@ -15,7 +15,6 @@
 module Tests.CliInstance
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -226,11 +225,10 @@ and runRawWithBytes
 
     if not p.HasExited then
       p.Kill true
-      return
-        Expecto.Tests.failtestf
-          "timed out after %A: dark %s"
-          commandTimeout
-          (String.concat " " args)
+      Expecto.Tests.failtestf
+        "timed out after %A: dark %s"
+        commandTimeout
+        (String.concat " " args)
 
     let! out = stdout
     let! err = stderr

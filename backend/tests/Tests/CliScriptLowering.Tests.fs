@@ -9,7 +9,6 @@ module Tests.CliScriptLowering
 
 open Expecto
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -30,14 +29,11 @@ let private scriptInput code args =
   )
 
 
-let private parse (code : string) : Task<CliScript.PTCliScriptModule> =
-  task {
-    let! state = executionStateFor pmPT false
-    let! result = Cli.parseCliScript state "Tests" "script" code |> Ply.toTask
-    match result with
-    | Ok m -> return m
-    | Error diags -> return failtest $"Parse failed: %A{diags}"
-  }
+let private parse (code : string) : CliScript.PTCliScriptModule =
+  let state = executionStateFor pmPT false
+  match Cli.parseCliScript state "Tests" "script" code with
+  | Ok m -> m
+  | Error diags -> failtest $"Parse failed: %A{diags}"
 
 let private hashes (items : List<PT.Hash>) : List<string> =
   items |> List.map (fun (PT.Hash h) -> h)
@@ -58,7 +54,7 @@ let private firstParamTypeHash (fn : PT.PackageFn.PackageFn) : string =
 /// calling `takesB`'s body. Hashing after resolution is what keeps them apart.
 let private testUnresolvedRefsDoNotCollide =
   testTask "declarations differing only in an unresolved ref stay distinct" {
-    let! (m : CliScript.PTCliScriptModule) =
+    let (m : CliScript.PTCliScriptModule) =
       parse
         "type TA = { a: String }\n\
          type TB = { b: Int64 }\n\
@@ -85,7 +81,7 @@ let private testUnresolvedRefsDoNotCollide =
 /// writing the same function twice under two names defines it once.
 let private testIdenticalDeclarationsShareAHash =
   testTask "structurally identical declarations share one hash" {
-    let! (m : CliScript.PTCliScriptModule) =
+    let (m : CliScript.PTCliScriptModule) =
       parse
         "let alpha (x: Int64) : Int64 = x + 1\n\
          let beta (x: Int64) : Int64 = x + 1\n\
@@ -103,7 +99,7 @@ let private testIdenticalDeclarationsShareAHash =
 /// plain dependency order.
 let private testMutuallyRecursiveDeclarations =
   testTask "mutually recursive fns hash as a batch" {
-    let! (m : CliScript.PTCliScriptModule) =
+    let (m : CliScript.PTCliScriptModule) =
       parse
         "let isEven (n: Int64) : Bool = if n == 0 then true else isOdd (n - 1)\n\
          let isOdd (n: Int64) : Bool = if n == 0 then false else isEven (n - 1)\n\
@@ -124,8 +120,8 @@ let private testMutuallyRecursiveDeclarations =
 /// script declarations by location instead of content would have cost this.
 let private testScriptTypeUnifiesWithPackageType =
   testTask "a script type matching a package type shares its hash" {
-    let! (m : CliScript.PTCliScriptModule) = parse "type MyErr = | BadFormat\n0"
-    let! (reference : CliScript.PTCliScriptModule) =
+    let (m : CliScript.PTCliScriptModule) = parse "type MyErr = | BadFormat\n0"
+    let (reference : CliScript.PTCliScriptModule) =
       parse
         "let f (e: Darklang.Stdlib.BigInt.ParseError) : Int64 = 1\n\
          0"
@@ -152,13 +148,12 @@ let private testScriptTypeUnifiesWithPackageType =
 /// string: the string needs CLI dispatch, which `tests/cli/evalAndRun.dark` drives.
 let private testDeclarationsAreNameableAfterLowering =
   testTask "lowered declarations can be resolved back to their names" {
-    let! (m : CliScript.PTCliScriptModule) =
+    let (m : CliScript.PTCliScriptModule) =
       parse "type Celsius = { degrees: Int64 }\n0"
 
     match m.types with
     | [ celsius ] ->
-      let! locations =
-        LibDB.PackageManager.pt.getTypeLocations celsius.hash |> Ply.toTask
+      let locations = LibDB.PackageManager.pt.getTypeLocations celsius.hash
       let names = locations |> List.map (fun (l : PT.PackageLocation) -> l.name)
       Expect.contains names "Celsius" "the script's type is reachable by hash"
     | _ -> failtest "expected exactly one script type"
@@ -174,12 +169,11 @@ let private testDeclarationsAreNameableAfterLowering =
 /// rename `Stdlib.BigInt.ParseError` for the rest of the process.
 let private testRegistryDoesNotDisplaceStoredNames =
   testTask "a script's name does not displace the store's" {
-    let! (m : CliScript.PTCliScriptModule) = parse "type MyErr = | BadFormat\n0"
+    let (m : CliScript.PTCliScriptModule) = parse "type MyErr = | BadFormat\n0"
 
     match m.types with
     | [ myErr ] ->
-      let! locations =
-        LibDB.PackageManager.pt.getTypeLocations myErr.hash |> Ply.toTask
+      let locations = LibDB.PackageManager.pt.getTypeLocations myErr.hash
       let names = locations |> List.map (fun (l : PT.PackageLocation) -> l.name)
       // Same shape as the stdlib `ParseError`s, so the store names this hash.
       Expect.contains names "ParseError" "the stored name is still there"
@@ -201,10 +195,10 @@ let private testMiddleStatementErrorStopsTheScript =
       + ""
       + ""
 
-    let! mod' = parse code
-    let! state = executionStateFor pmPT false
+    let mod' = parse code
+    let state = executionStateFor pmPT false
     // `execute` takes no branch here: the execution state already carries it.
-    let! result = Cli.execute state mod' (scriptInput code []) |> Ply.toTask
+    let! result = Cli.execute state mod' (scriptInput code [])
 
     match result with
     | Ok dval -> failtest $"expected the failure to surface, got %A{dval}"
@@ -219,13 +213,12 @@ let private testTopLevelSequencing =
   |> List.map (fun (mode, isEval) ->
     let run code =
       task {
-        let! state = executionStateFor pmPT false
-        let! parsed =
+        let state = executionStateFor pmPT false
+        let parsed =
           (if isEval then
              Cli.parseCliExpr state code
            else
              Cli.parseCliScript state "Tests" "sequence" code)
-          |> Ply.toTask
         let mod' =
           match parsed with
           | Ok mod' -> mod'
@@ -235,7 +228,7 @@ let private testTopLevelSequencing =
             LibDB.Traces.EvalExpression(code, false)
           else
             scriptInput code []
-        let! result = Cli.execute state mod' source |> Ply.toTask
+        let! result = Cli.execute state mod' source
         return result, state.test.sideEffectCount
       }
 
@@ -292,9 +285,9 @@ let private testTopLevelSequencing =
 let private scriptValueExecution =
   let accepts name code expected expectedEffects =
     testTask name {
-      let! state = executionStateFor pmPT false
-      let! script = parse code
-      let! result = Cli.execute state script (scriptInput code []) |> Ply.toTask
+      let state = executionStateFor pmPT false
+      let script = parse code
+      let! result = Cli.execute state script (scriptInput code [])
       Expect.equal result (Ok expected) "computed values reach their callers"
       Expect.equal state.test.sideEffectCount expectedEffects "initializers run once"
     }
@@ -330,17 +323,17 @@ let private scriptValueExecution =
       testTask "a failed initializer stops later effects" {
         let code =
           "val bad = 1 / 0\nval later = Builtin.testIncrementSideEffectCounter(2)\nBuiltin.testIncrementSideEffectCounter(3)"
-        let! state = executionStateFor pmPT false
-        let! script = parse code
-        let! result = Cli.execute state script (scriptInput code []) |> Ply.toTask
+        let state = executionStateFor pmPT false
+        let script = parse code
+        let! result = Cli.execute state script (scriptInput code [])
         Expect.isError result "the initializer's error reaches the caller"
         Expect.equal state.test.sideEffectCount 0 "execution stops at the error"
       }
       testTask "cyclic initializers fail without substituting Unit" {
         let code = "val first = second\nval second = first\nfirst"
-        let! state = executionStateFor pmPT false
-        let! script = parse code
-        let! result = Cli.execute state script (scriptInput code []) |> Ply.toTask
+        let state = executionStateFor pmPT false
+        let script = parse code
+        let! result = Cli.execute state script (scriptInput code [])
         match result with
         | Error(RT.RuntimeError.ValueNotFound _, _) -> ()
         | other -> failtest $"Expected an unavailable cyclic value, got %A{other}"
@@ -348,9 +341,9 @@ let private scriptValueExecution =
       testTask "initializers are pure, whatever the script may do" {
         // The test state allows every effect, so only the value's own ceiling can refuse.
         let code = "val now = Builtin.syscallGettimeofday()\nnow"
-        let! state = executionStateFor pmPT false
-        let! script = parse code
-        let! result = Cli.execute state script (scriptInput code []) |> Ply.toTask
+        let state = executionStateFor pmPT false
+        let script = parse code
+        let! result = Cli.execute state script (scriptInput code [])
         Expect.isError result "a value initializer cannot perform an effect"
         Expect.isTrue
           (state.deniedRequests
@@ -361,10 +354,10 @@ let private scriptValueExecution =
 
 let private testScriptArgumentsAreInvocationSpecific =
   testTask "a parsed script receives each invocation's arguments" {
-    let! (script : CliScript.PTCliScriptModule) = parse "args"
-    let! state = executionStateFor pmPT false
+    let (script : CliScript.PTCliScriptModule) = parse "args"
+    let state = executionStateFor pmPT false
     for args in [ []; [ "two"; ""; "a b"; "é" ] ] do
-      let! result = Cli.execute state script (scriptInput "args" args) |> Ply.toTask
+      let! result = Cli.execute state script (scriptInput "args" args)
       Expect.equal
         result
         (Ok(LibExecution.Dval.list RT.KTString (List.map RT.DString args)))
@@ -374,9 +367,9 @@ let private testScriptArgumentsAreInvocationSpecific =
 
 let private testScriptInputNamesAreReserved =
   testTask "scripts reserve root args but allow qualified and local bindings" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     for code in [ "val args = 42\n0"; "let args(): Int64 = 42\n0" ] do
-      let! parsed = Cli.parseCliScript state "Tests" "script" code |> Ply.toTask
+      let parsed = Cli.parseCliScript state "Tests" "script" code
       match parsed with
       | Error [ (diagnostic : LibParser.Parser.Diagnostic) ] ->
         Expect.equal diagnostic.code "SCRIPT-RESERVED-NAME" "a targeted diagnostic"
@@ -386,35 +379,34 @@ let private testScriptInputNamesAreReserved =
       [ "let count(args: List<String>): Int64 = 0\ncount(args)"
         "let count(): Int64 =\n  let args = 42\n  args\ncount()"
         "trait ReadArgs<'a> =\n  let args(v: 'a): Int64\nimpl ReadArgs for Int64 =\n  let args(v: Int64): Int64 = v\n0" ] do
-      let! parsed = Cli.parseCliScript state "Tests" "script" code |> Ply.toTask
+      let parsed = Cli.parseCliScript state "Tests" "script" code
       Expect.isOk parsed "parameters, local bindings and impl methods remain legal"
 
     for code in
       [ "module Nested =\n  let args(): Int64 = 42\nNested.args()"
         "module Nested =\n  val args = 42\nif args == [\"input\"] then Nested.args else 0" ] do
-      let! script = parse code
-      let! result =
-        Cli.execute state script (scriptInput code [ "input" ]) |> Ply.toTask
+      let script = parse code
+      let! result = Cli.execute state script (scriptInput code [ "input" ])
       Expect.equal
         result
         (Ok(LibExecution.RuntimeTypes.DInt64 42L))
         "qualified args declarations coexist with script input"
 
     for code in [ "val args = 42\nargs"; "let args(): Int64 = 42\nargs()" ] do
-      let! parsed = Cli.parseCliExpr state code |> Ply.toTask
+      let parsed = Cli.parseCliExpr state code
       Expect.isOk parsed "eval may declare values and functions named args"
   }
 
 
 let private testCallToALaterNestedFnIsNamed =
-  testTask "a script names a call to a function nested below it, before running" {
-    let! state = executionStateFor pmPT false
+  test "a script names a call to a function nested below it, before running" {
+    let state = executionStateFor pmPT false
     let code =
       "let limit = 0\n"
       + "let isEven(n: Int64): Bool = if n <= limit then true else isOdd(n - 1)\n"
       + "let isOdd(n: Int64): Bool = if n <= 0 then false else isEven(n - 1)\n"
       + "isEven(4)"
-    let! parsed = Cli.parseCliScript state "Tests" "script" code |> Ply.toTask
+    let parsed = Cli.parseCliScript state "Tests" "script" code
     match parsed with
     | Error [ (diagnostic : LibParser.Parser.Diagnostic) ] ->
       Expect.equal
@@ -434,7 +426,7 @@ let private testCallToALaterNestedFnIsNamed =
       + "let double(x: Int64): Int64 = x * limit\n"
       + "let quadruple(x: Int64): Int64 = double(double(x))\n"
       + "quadruple(3)"
-    let! parsed = Cli.parseCliScript state "Tests" "script" earlierOnly |> Ply.toTask
+    let parsed = Cli.parseCliScript state "Tests" "script" earlierOnly
     Expect.isOk parsed "a nested function may call the ones above it"
   }
 

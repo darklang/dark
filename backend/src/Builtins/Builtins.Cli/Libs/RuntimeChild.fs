@@ -22,9 +22,9 @@ let private make name parameters result kt body : BuiltInFn =
         let op, shape = body values
         Interpreter.requestHost vm op (fun outcome ->
           match outcome with
-          | Ok response -> Ply(Dval.resultOk kt KTInt64 (shape response))
+          | Ok response -> (Dval.resultOk kt KTInt64 (shape response))
           | Error error ->
-            Ply(Dval.resultError kt KTInt64 (Dval.dint64 (int64 error.errno)))))
+            (Dval.resultError kt KTInt64 (Dval.dint64 (int64 error.errno)))))
     previewable = Impure
     // Host checks the retained executable/argv grant, including on pipe uses.
     callEffects = set [ Effect.Process ]
@@ -139,14 +139,12 @@ let fns () =
                 )
               Interpreter.requestHost vm op (fun outcome ->
                 match outcome with
-                | Ok _ -> Ply(Dval.resultOk KTUnit KTInt64 DUnit)
+                | Ok _ -> (Dval.resultOk KTUnit KTInt64 DUnit)
                 | Error error ->
-                  Ply(
-                    Dval.resultError
-                      KTUnit
-                      KTInt64
-                      (Dval.dint64 (int64 error.errno))
-                  )))
+                  (Dval.resultError
+                    KTUnit
+                    KTInt64
+                    (Dval.dint64 (int64 error.errno)))))
           | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty

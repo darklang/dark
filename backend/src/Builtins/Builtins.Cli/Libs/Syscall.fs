@@ -16,8 +16,8 @@ module Builtin = LibExecution.Builtin
 let private perform kt vm op shape =
   Interpreter.requestHost vm (Host.Operation.Posix op) (fun result ->
     match result with
-    | Ok response -> Ply(Dval.resultOk kt KTInt64 (shape response))
-    | Error e -> Ply(Dval.resultError kt KTInt64 (Dval.dint64 (int64 e.errno))))
+    | Ok response -> (Dval.resultOk kt KTInt64 (shape response))
+    | Error e -> (Dval.resultError kt KTInt64 (Dval.dint64 (int64 e.errno))))
 
 let private make name parameters result _kt body : BuiltInFn =
   { name = fn name 0
@@ -204,13 +204,7 @@ let fns () : List<BuiltInFn> =
               (fun outcome ->
                 match outcome with
                 | Ok(Op.Response.KernelSleep(rc, remaining)) ->
-                  Ply(
-                    DTuple(
-                      Dval.dint64 (int64 rc),
-                      Bytes.newEphemeral remaining,
-                      []
-                    )
-                  )
+                  (DTuple(Dval.dint64 (int64 rc), Bytes.newEphemeral remaining, []))
                 | _ -> incorrectArgs ())
           | _ -> incorrectArgs ())
       previewable = Impure

@@ -9,7 +9,6 @@
 module Tests.Lww
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Expecto
 
@@ -199,7 +198,7 @@ let private applyInOrder (pairs : List<PT.PackageOp * string>) : Task<unit> =
         (LibSerialization.Hashing.Hashing.computeOpRowId op, ts))
       |> Map.ofList
 
-    let! _ =
+    let _ =
       Inserts.authorWith
         PT.BranchId.Main
         "op"
@@ -235,7 +234,7 @@ let private deprecationsSettleByWhenTheyWereSaid =
               (fine, "2026-01-01T00:00:01.000Z")
               (harmful, "2026-01-01T00:00:02.000Z") ]
 
-        let! inOrder = Queries.getCurrentDeprecation at fn.hash PT.ItemKind.Fn
+        let inOrder = Queries.getCurrentDeprecation at fn.hash PT.ItemKind.Fn
         Expect.isSome inOrder "said harmful last, so it is harmful"
 
         // The same two ops, reaching a second store the other way round.
@@ -251,7 +250,7 @@ let private deprecationsSettleByWhenTheyWereSaid =
               (harmful2, "2026-01-01T00:00:02.000Z")
               (fine2, "2026-01-01T00:00:01.000Z") ]
 
-        let! reordered = Queries.getCurrentDeprecation at fn2.hash PT.ItemKind.Fn
+        let reordered = Queries.getCurrentDeprecation at fn2.hash PT.ItemKind.Fn
         Expect.isSome
           reordered
           "and it is still harmful when the older op arrives second"

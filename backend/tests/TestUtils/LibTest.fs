@@ -4,7 +4,6 @@ module TestUtils.LibTest
 // useful for testing
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
@@ -15,6 +14,7 @@ module PT = LibExecution.ProgramTypes
 module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PackageRefs = LibExecution.PackageRefs
+module Pending = LibExecution.Pending
 
 
 /// Awaits a test can release by hand, so a scheduler test can decide the order things finish in.
@@ -112,11 +112,7 @@ let fns () : List<BuiltInFn> =
         "Waits until the test releases this gate (`LibTest.Gates.release`)."
       fn =
         (function
-        | _, _, _, [| DInt64 n |] ->
-          uply {
-            do! Gates.wait n
-            return DUnit
-          }
+        | _, _, _, [| DInt64 n |] -> Gates.wait n |> Pending.map (fun () -> DUnit)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -132,11 +128,7 @@ let fns () : List<BuiltInFn> =
         "A read in flight until the test releases its gate; answers the gate number."
       fn =
         (function
-        | _, _, _, [| DInt64 n |] ->
-          uply {
-            do! Gates.wait n
-            return DInt64 n
-          }
+        | _, _, _, [| DInt64 n |] -> Gates.wait n |> Pending.map (fun () -> DInt64 n)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ LibExecution.Effects.Effect.PackageRead ]
@@ -154,7 +146,7 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DInt64 n |] ->
           let site = (vm.callFrames.Find vm.currentFrameID).executionPoint
           let name = FQFnName.Builtin(FQFnName.builtin "testRawRead" 0)
-          Ply(DPromise(Promise(RawReads.task n, name, site)))
+          (DPromise(Promise(RawReads.task n, name, site)))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -172,10 +164,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DInt64 n; value |] ->
-          uply {
-            do! Gates.wait n
-            return value
-          }
+          Gates.wait n |> Pending.map (fun () -> value)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ LibExecution.Effects.Effect.PackageRead ]
@@ -193,16 +182,18 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DList(_, Items(items)) |] ->
           let remaining = ref items
-          let next () : Ply<Option<Dval>> =
-            uply {
-              do! Task.Delay 1
-              match remaining.Value with
-              | [] -> return None
-              | first :: rest ->
-                remaining.Value <- rest
-                return Some first
-            }
-          LibExecution.Stream.newFromIO (VT.known KTInt64) next None |> Ply
+          let next () : ValueTask<Option<Dval>> =
+            let pulled : Task<Option<Dval>> =
+              task {
+                do! Task.Delay 1
+                match remaining.Value with
+                | [] -> return None
+                | first :: rest ->
+                  remaining.Value <- rest
+                  return Some first
+              }
+            ValueTask<Option<Dval>>(pulled)
+          LibExecution.Stream.newFromIO (VT.known KTInt64) next None
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -220,17 +211,15 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString label; DList(_, Items(items)) |] ->
           let remaining = ref items
-          let next () : Ply<Option<Dval>> =
-            uply {
-              StreamLog.record label "pull"
-              match remaining.Value with
-              | [] -> return None
-              | first :: rest ->
-                remaining.Value <- rest
-                return Some first
-            }
+          let next () : ValueTask<Option<Dval>> =
+            StreamLog.record label "pull"
+            match remaining.Value with
+            | [] -> ValueTask<_>(None)
+            | first :: rest ->
+              remaining.Value <- rest
+              ValueTask<_>(Some first)
           let dispose () = StreamLog.record label "dispose"
-          LibExecution.Stream.newFromIO (VT.known KTInt64) next (Some dispose) |> Ply
+          LibExecution.Stream.newFromIO (VT.known KTInt64) next (Some dispose)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -244,12 +233,10 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DInt64 n |] ->
-          uply {
-            do! Gates.wait n
-            return
-              RuntimeError.UncaughtException($"read {n} failed", [])
-              |> raiseUntargetedRTE
-          }
+          Gates.wait n
+          |> Pending.map (fun () ->
+            RuntimeError.UncaughtException($"read {n} failed", [])
+            |> raiseUntargetedRTE)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects =
@@ -267,7 +254,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString s |] ->
           Trace.record s
-          Ply DUnit
+          DUnit
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -275,8 +262,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "testIncrementSideEffectCounter" 0
       typeParams = []
-      parameters =
-        [ Param.make "passThru" (TVariable "a") "Ply which will be returned" ]
+      parameters = [ Param.make "passThru" (TVariable "a") "which will be returned" ]
       returnType = TVariable "a"
       description =
         "Increases the side effect counter by one, to test real-world side-effects. Returns its argument."
@@ -284,7 +270,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [| arg |] ->
           state.test.sideEffectCount <- state.test.sideEffectCount + 1
-          Ply(arg)
+          (arg)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

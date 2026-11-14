@@ -5,7 +5,6 @@
 module Tests.Config
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Expecto
 open Prelude
@@ -18,31 +17,31 @@ let tests =
   testList
     "LibDB.Config"
     [ testTask "set then get round-trips" {
-        do! Config.set "test.config.k1" "hello"
-        let! v = Config.get "test.config.k1"
+        Config.set "test.config.k1" "hello"
+        let v = Config.get "test.config.k1"
         Expect.equal v (Some "hello") "get returns the value that was set"
       }
 
       testTask "an unset key resolves to None" {
-        let! v = Config.get "test.config.definitely-absent-xyz"
+        let v = Config.get "test.config.definitely-absent-xyz"
         Expect.equal v None "absent key -> None"
       }
 
       testTask "set is an upsert (a second set overwrites)" {
-        do! Config.set "test.config.k2" "a"
-        do! Config.set "test.config.k2" "b"
-        let! v = Config.get "test.config.k2"
+        Config.set "test.config.k2" "a"
+        Config.set "test.config.k2" "b"
+        let v = Config.get "test.config.k2"
         Expect.equal v (Some "b") "the later value wins"
       }
 
       testTask "unset forgets a key, and an unset key is not an empty one" {
-        do! Config.set "test.config.k3" ""
-        let! empty = Config.get "test.config.k3"
+        Config.set "test.config.k3" ""
+        let empty = Config.get "test.config.k3"
         Expect.equal empty (Some "") "set to empty is Some empty"
-        do! Config.unset "test.config.k3"
-        let! gone = Config.get "test.config.k3"
+        Config.unset "test.config.k3"
+        let gone = Config.get "test.config.k3"
         Expect.equal gone None "unset is None"
-        do! Config.unset "test.config.k3"
+        Config.unset "test.config.k3"
       }
 
       test "checkUnset refuses only what has no default to go back to" {
@@ -99,10 +98,10 @@ let tests =
       }
 
       testTask "instance.id is made once, and kept" {
-        do! Config.ensureInstance ()
-        let! first = Config.get "instance.id"
-        do! Config.ensureInstance ()
-        let! second = Config.get "instance.id"
+        Config.ensureInstance ()
+        let first = Config.get "instance.id"
+        Config.ensureInstance ()
+        let second = Config.get "instance.id"
         Expect.isSome first "an id is made"
         Expect.equal second first "and never changes"
       } ]

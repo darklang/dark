@@ -18,6 +18,57 @@ module VT = ValueType
 exception ReadFailed of read : Promise * failure : exn
 
 
+/// What a builtin that has to wait returns: `t`, started already. The interpreter takes it
+/// where the builtin returns. A read is handed on as a promise; anything else parks the
+/// process until `t` lands, so writes stay in program order.
+let ofTask (t : Task<Dval>) : Dval =
+  if t.IsCompletedSuccessfully then t.Result else DPromise(Promise t)
+
+/// The task, when `dv` is a builtin's wait (`ofTask`).
+[<return : Struct>]
+let inline (|Wait|_|) (dv : Dval) : Task<Dval> voption =
+  match dv with
+  | DPromise p when p.IsWait -> ValueSome p.Task
+  | _ -> ValueNone
+
+let inline isWait (dv : Dval) : bool =
+  match dv with
+  | Wait _ -> true
+  | _ -> false
+
+/// `dv` as a task, for host code that has to wait for what a builtin or a run answered.
+let rec toTask (dv : Dval) : Task<Dval> =
+  match dv with
+  | Wait t ->
+    task {
+      let! v = t
+      return! toTask v
+    }
+  | v -> Task.FromResult v
+
+/// `f` of what `t` lands as, for a builtin to return: right away when `t` has already finished.
+let map (f : 'a -> Dval) (t : Task<'a>) : Dval =
+  if t.IsCompletedSuccessfully then
+    f t.Result
+  else
+    task {
+      let! v = t
+      return! toTask (f v)
+    }
+    |> ofTask
+
+/// `k` of what `dv` lands as: right away for a value, once its task lands for a wait.
+let andThen (k : Dval -> Dval) (dv : Dval) : Dval =
+  match dv with
+  | Wait _ ->
+    task {
+      let! v = toTask dv
+      return! toTask (k v)
+    }
+    |> ofTask
+  | v -> k v
+
+
 let inline isPromise (dv : Dval) : bool =
   match dv with
   | DPromise _ -> true
@@ -125,7 +176,7 @@ let readFailure (p : Promise) (t : Task<Dval>) : exn =
 /// by the first (what `ps` shows), landing as `rebuild` of it once they all have, the first to
 /// fail in order failing it. Reads already landed are not carried: then it is just `rebuild`.
 /// `rebuild` builds the value as its instruction would have from values, so its checks hold.
-let built (rebuild : Dval -> Ply<Dval>) (dv : Dval) : Dval =
+let built (rebuild : Dval -> Dval) (dv : Dval) : Dval =
   let reads =
     if holdsPromise dv then
       children dv
@@ -137,13 +188,8 @@ let built (rebuild : Dval -> Ply<Dval>) (dv : Dval) : Dval =
       []
   match reads with
   | [] -> dv
-  | first :: _ when
-    List.forall (fun (p : Promise) -> p.Task.IsCompletedSuccessfully) reads
-    ->
-    let rebuilt = rebuild (fill dv)
-    match Ply.trySync rebuilt with
-    | ValueSome v -> v
-    | ValueNone -> DPromise(Promise(Ply.toTask rebuilt, first.Fn, first.Site))
+  | _ when List.forall (fun (p : Promise) -> p.Task.IsCompletedSuccessfully) reads ->
+    rebuild (fill dv)
   | first :: _ ->
     let landed =
       task {
@@ -154,12 +200,12 @@ let built (rebuild : Dval -> Ply<Dval>) (dv : Dval) : Dval =
               TaskContinuationOptions.ExecuteSynchronously
             )
           if not t.IsCompletedSuccessfully then raise (readFailure p t)
-        return! Ply.toTask (rebuild (fill dv))
+        return rebuild (fill dv)
       }
     DPromise(Promise(landed, first.Fn, first.Site, dv))
 
 /// `built`, for a value that needs no checking again (a builtin's result, a list's tail).
-let wrap (dv : Dval) : Dval = built (fun d -> Ply d) dv
+let wrap (dv : Dval) : Dval = built (fun d -> d) dv
 
 /// What a pattern or a field access can look at without waiting: a shell, or `dv` itself.
 let inline peek (dv : Dval) : Dval =
@@ -183,11 +229,7 @@ let rec private mentionsTypeVariable (t : TypeReference) : bool =
 /// `dv`, a builtin's result typed `t`, held as it should be when reads went in: every
 /// container along `t` that holds one, innermost first, a promise of its own, landing as
 /// `rebuild` of it. Only where `t` mentions a type variable can a read have ended up.
-let rec wrapAlong
-  (rebuild : Dval -> Ply<Dval>)
-  (t : TypeReference)
-  (dv : Dval)
-  : Dval =
+let rec wrapAlong (rebuild : Dval -> Dval) (t : TypeReference) (dv : Dval) : Dval =
   if not (mentionsTypeVariable t) then
     dv
   else

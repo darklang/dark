@@ -107,7 +107,6 @@ let fns () : List<BuiltInFn> =
             |> Instant.FromUnixTimeTicks
             |> DarkDateTime.fromInstant
             |> DDateTime
-            |> Ply
           with
           | :? System.ArgumentOutOfRangeException
           | :? System.OverflowException ->
@@ -136,8 +135,7 @@ let fns () : List<BuiltInFn> =
           match parseIso s with
           | Some instant ->
             Dval.optionSome KTDateTime (DDateTime(DarkDateTime.fromInstant instant))
-            |> Ply
-          | None -> Dval.optionNone KTDateTime |> Ply
+          | None -> Dval.optionNone KTDateTime
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -153,7 +151,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DDateTime d |] ->
-          (DarkDateTime.toInstant d).ToUnixTimeTicks() |> int64 |> Dval.dint64 |> Ply
+          (DarkDateTime.toInstant d).ToUnixTimeTicks() |> int64 |> Dval.dint64
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -171,7 +169,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDateTime d |] ->
           let pattern = if d.Millisecond <> 0 then isoMilliseconds else isoSeconds
-          pattern.Format d |> DString |> Ply
+          pattern.Format d |> DString
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

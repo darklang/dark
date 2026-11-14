@@ -88,7 +88,7 @@ val childGone =
 
 /// Tcl that waits until the child has started, then returns.
 ///
-/// "Started" is the `cli.pmInit` line in the child's telemetry log: the CLI writes it once
+/// "Started" is the `cli.keepLocalEdits` line in the child's telemetry log: the CLI writes it once
 /// the runtime and packages are loaded, just before it runs the command. Nothing on the
 /// screen says that, since `eval` prints nothing until its answer. The child is also
 /// watched, so one that dies before it is ready says so at once instead of after the
@@ -105,7 +105,7 @@ let awaitStartup(telemetryLog: String): List<String> =
     + quoted(telemetryLog)
     + "]} {\n    set f [open "
     + quoted(telemetryLog)
-    + "]; set seen [read $f]; close $f\n    if {[string first \"\\\"cli.pmInit\\\"\" $seen] >= 0} break\n  }\n  if {$gone} { puts \"\\nEXITED BEFORE: the CLI was ready\"; exit 3 }\n  if {[clock milliseconds] > $ready_by} { puts \"\\nTIMED OUT waiting for the CLI to start\"; exit 2 }\n  after 50\n}" ]
+    + "]; set seen [read $f]; close $f\n    if {[string first \"\\\"cli.keepLocalEdits\\\"\" $seen] >= 0} break\n  }\n  if {$gone} { puts \"\\nEXITED BEFORE: the CLI was ready\"; exit 3 }\n  if {[clock milliseconds] > $ready_by} { puts \"\\nTIMED OUT waiting for the CLI to start\"; exit 2 }\n  after 50\n}" ]
 
 
 /// Write an expect script to `path` and run it: Ok with its output if it exits 0.

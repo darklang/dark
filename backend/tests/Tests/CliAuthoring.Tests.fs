@@ -9,7 +9,6 @@
 module Tests.CliAuthoring
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Expecto
 open Prelude
@@ -1454,7 +1453,7 @@ let unresolvedTraitCallNamesWithoutOriginalText =
     (fun target ->
       task {
         let pm = TestUtils.TestUtils.pmPT
-        let! parsed =
+        let parsed =
           LibParser.Package.parse
             (TestUtils.TestUtils.localBuiltIns pm)
             pm
@@ -1463,7 +1462,6 @@ let unresolvedTraitCallNamesWithoutOriginalText =
 let pending(n: Int64): String =
   Stdlib.Display.display(Tests.TraitWarningMissing.call(n))
 """
-          |> Ply.toTask
         let ops =
           match parsed with
           | Ok ops -> LibDB.HashStabilization.computeRealHashes ops
@@ -1507,7 +1505,6 @@ let pending(n: Int64): String =
               pm
               None
               withoutOriginalText
-            |> Ply.toTask
           Expect.equal
             (unresolved
              |> List.map (fun (name, calls) ->

@@ -13,7 +13,6 @@
 module Builtins.Pure.Libs.Stream
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -26,6 +25,7 @@ module Bytes = LibExecution.Bytes
 module Interpreter = LibExecution.Interpreter
 module Permissions = LibExecution.Permissions
 module Stream = LibExecution.Stream
+module Pending = LibExecution.Pending
 
 
 let varA = TVariable "a"
@@ -37,10 +37,7 @@ let varA = TVariable "a"
 /// to Unknown for anything non-leaf, which broke `streamToList<T>`
 /// when T was a package type (empty-result case got KTUnit tagged,
 /// diverging from the return annotation).
-let private resolveElemVT
-  (state : ExecutionState)
-  (t : TypeReference)
-  : Ply<ValueType> =
+let private resolveElemVT (state : ExecutionState) (t : TypeReference) : ValueType =
   LibExecution.RuntimeTypes.TypeReference.toVT
     state.types
     LibExecution.RuntimeTypes.TST.empty
@@ -50,16 +47,11 @@ let private resolveElemVT
 /// Fallback-aware KnownType helper for callsites that need a
 /// KnownType directly (Dval.list, Dval.option). Unknown -> KTUnit,
 /// matching prior behaviour.
-let private resolveElemKT
-  (state : ExecutionState)
-  (t : TypeReference)
-  : Ply<KnownType> =
-  uply {
-    let! vt = resolveElemVT state t
-    match vt with
-    | ValueType.Known kt -> return kt
-    | ValueType.Unknown -> return KTUnit
-  }
+let private resolveElemKT (state : ExecutionState) (t : TypeReference) : KnownType =
+  let vt = resolveElemVT state t
+  match vt with
+  | ValueType.Known kt -> kt
+  | ValueType.Unknown -> KTUnit
 
 
 /// A transform's callable, with the access of the frame building the transform folded in.
@@ -88,9 +80,9 @@ let private narrowedBy
 /// `map`); native IO is waited for. `k` gets the pulled element, which can be a read in flight.
 let rec private drivePull
   (vm : VMState)
-  (k : Option<Dval> -> Ply<Dval>)
+  (k : Option<Dval> -> Dval)
   (step : Stream.PullStep)
-  : Ply<Dval> =
+  : Dval =
   match step with
   | Stream.Pulled r -> k r
   | Stream.Apply(app, arg, next, looks) ->
@@ -99,11 +91,7 @@ let rec private drivePull
         Interpreter.withValue vm dv (fun v -> drivePull vm k (next v))
       else
         drivePull vm k (next dv))
-  | Stream.Wait ply ->
-    uply {
-      let! landed = ply
-      return! drivePull vm k landed
-    }
+  | Stream.Wait t -> t |> Pending.map (drivePull vm k)
 
 
 let fns () : List<BuiltInFn> =
@@ -116,27 +104,23 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, _, [ elemType ], [| DList(elemVT, Items(items)) |] ->
-          uply {
-            // A stream is consumed by pulling, so its position is state that each pull moves.
-            let remaining = ref items
-            let nextFn () : Ply<Option<Dval>> =
-              uply {
-                match remaining.Value with
-                | head :: tail ->
-                  remaining.Value <- tail
-                  return Some head
-                | [] -> return None
-              }
-            // Prefer the runtime ValueType of the list elements; fall
-            // back to the declared type parameter when the list was
-            // empty (ValueType.Unknown). Goes through the full type
-            // table so custom types resolve correctly.
-            let! inferredElem =
-              match elemVT with
-              | ValueType.Unknown -> resolveElemVT state elemType
-              | known -> Ply known
-            return Stream.newFromIO inferredElem nextFn None
-          }
+          // A stream is consumed by pulling, so its position is state that each pull moves.
+          let remaining = ref items
+          let nextFn () : ValueTask<Option<Dval>> =
+            match remaining.Value with
+            | head :: tail ->
+              remaining.Value <- tail
+              ValueTask<_>(Some head)
+            | [] -> ValueTask<_>(None)
+          // Prefer the runtime ValueType of the list elements; fall
+          // back to the declared type parameter when the list was
+          // empty (ValueType.Unknown). Goes through the full type
+          // table so custom types resolve correctly.
+          let inferredElem =
+            match elemVT with
+            | ValueType.Unknown -> resolveElemVT state elemType
+            | known -> known
+          Stream.newFromIO inferredElem nextFn None
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -166,13 +150,11 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, [ _; outputType ], [| initialState; DApplicable app |] ->
-          uply {
-            let! elemType = resolveElemVT state outputType
-            // The step runs on later pulls, as a frame of whoever is pulling; the access this
-            // frame holds now is folded into it (`narrowedBy`).
-            let step = narrowedBy vm.activeAccess app
-            return Stream.wrapImpl (Unfold(step, ref initialState, elemType))
-          }
+          let elemType = resolveElemVT state outputType
+          // The step runs on later pulls, as a frame of whoever is pulling; the access this
+          // frame holds now is folded into it (`narrowedBy`).
+          let step = narrowedBy vm.activeAccess app
+          Stream.wrapImpl (Unfold(step, ref initialState, elemType))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -190,15 +172,8 @@ let fns () : List<BuiltInFn> =
         | state, vm, [ elemType ], [| s |] ->
           // The element type first: it can wait (a package type), and a request has to be the
           // body's first move or come after the pull's own wait, never after this one.
-          match Ply.trySync (resolveElemKT state elemType) with
-          | ValueSome elemKT ->
-            drivePull vm (fun r -> Ply(Dval.option elemKT r)) (Stream.pullNext s)
-          | ValueNone ->
-            uply {
-              let! elemKT = resolveElemKT state elemType
-              return!
-                drivePull vm (fun r -> Ply(Dval.option elemKT r)) (Stream.pullNext s)
-            }
+          let elemKT = (resolveElemKT state elemType)
+          drivePull vm (fun r -> (Dval.option elemKT r)) (Stream.pullNext s)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -219,15 +194,13 @@ let fns () : List<BuiltInFn> =
           // Prefer the first drained element's actual ValueType: it captures the lambda's
           // real return type even when the wrapper couldn't tell us via a `'b` bind. Fall
           // back to the declared type-arg for empty results.
-          let finish () : Ply<Dval> =
+          let finish () : Dval =
             if collected.Count > 0 then
-              Ply(DList(Dval.toValueType collected[0], Items(List.ofSeq collected)))
+              (DList(Dval.toValueType collected[0], Items(List.ofSeq collected)))
             else
-              uply {
-                let! elemVT = resolveElemVT state elemType
-                return DList(elemVT, Items([]))
-              }
-          let rec onPulled (r : Option<Dval>) : Ply<Dval> =
+              let elemVT = resolveElemVT state elemType
+              DList(elemVT, Items([]))
+          let rec onPulled (r : Option<Dval>) : Dval =
             match r with
             | Some item ->
               collected.Add item
@@ -249,25 +222,23 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DStream(FromIO(_, _, _, Some _), _, _) as s |] ->
-          uply {
-            // An IO-backed byte stream (HttpClient.stream) hands back a whole buffer per
-            // pull instead of boxing one DUInt8 per byte.
+          // An IO-backed byte stream (HttpClient.stream) hands back a whole buffer per
+          // pull instead of boxing one DUInt8 per byte.
+          task {
             use collected = new System.IO.MemoryStream()
-            // A loop, not a recursive uply: chunks that are already buffered complete
-            // synchronously, and recursing on each would grow the stack with the stream.
             let mutable keepGoing = true
             while keepGoing do
-              let! chunk = Stream.readChunk (64 * 1024) s
-              match chunk with
+              match! Stream.readChunk (64 * 1024) s with
               | Some buf -> collected.Write(buf, 0, buf.Length)
               | None -> keepGoing <- false
             return Bytes.newEphemeral (collected.ToArray())
           }
+          |> Pending.ofTask
         | _, vm, _, [| DStream _ as s |] ->
           // Anything else (a transform chain, an in-memory stream) is pulled a byte at a time;
           // a transform's callable runs as a frame of this process.
           let collected = new System.IO.MemoryStream()
-          let rec onPulled (r : Option<Dval>) : Ply<Dval> =
+          let rec onPulled (r : Option<Dval>) : Dval =
             match r with
             | Some(DPromise _ as read) ->
               Interpreter.withValue vm read (fun b -> onPulled (Some b))
@@ -281,7 +252,7 @@ let fns () : List<BuiltInFn> =
             | None ->
               let bytes = collected.ToArray()
               collected.Dispose()
-              Ply(Bytes.newEphemeral bytes)
+              (Bytes.newEphemeral bytes)
           drivePull vm onPulled (Stream.pullNext s)
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -305,13 +276,13 @@ let fns () : List<BuiltInFn> =
           // close so IO sources (HTTP response, file handle, ...) are
           // released promptly. No Monitor: the Dark VM is single-
           // threaded per pull, and concurrent streamClose+readStream
-          // races would fight Ply's thread-hopping continuations
+          // races would fight thread-hopping task continuations
           // (Monitor.Exit throws across threads). Idempotent via the
           // disposed flag.
           if not disposed.Value then
             disposed.Value <- true
             Stream.disposeImpl impl
-          DUnit |> Ply
+          DUnit
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -341,13 +312,10 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, [ _; outputType ], [| DStream(src, _, _); DApplicable app |] ->
-          uply {
-            let! elemType = resolveElemVT state outputType
-            // The callable runs as a frame of whoever drains; this frame's access is folded
-            // into it now (`narrowedBy`).
-            return
-              Stream.wrapImpl (Mapped(src, narrowedBy vm.activeAccess app, elemType))
-          }
+          let elemType = resolveElemVT state outputType
+          // The callable runs as a frame of whoever drains; this frame's access is folded
+          // into it now (`narrowedBy`).
+          Stream.wrapImpl (Mapped(src, narrowedBy vm.activeAccess app, elemType))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -372,7 +340,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DStream(src, _, _); DApplicable app |] ->
           // As `streamMap`.
-          Stream.wrapImpl (Filtered(src, narrowedBy vm.activeAccess app)) |> Ply
+          Stream.wrapImpl (Filtered(src, narrowedBy vm.activeAccess app))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -394,7 +362,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DStream(src, _, _); DInt64 n |] ->
           // A negative n becomes an empty stream; pullStreamImpl treats remaining<=0 as done.
           let clamped = max 0L n
-          Stream.wrapImpl (Take(src, clamped, ref clamped)) |> Ply
+          Stream.wrapImpl (Take(src, clamped, ref clamped))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -421,7 +389,7 @@ let fns () : List<BuiltInFn> =
                 Exception.raiseInternal
                   "streamConcat: expected List<Stream>"
                   [ "got", other ])
-          Stream.wrapImpl (Concat(ref impls)) |> Ply
+          Stream.wrapImpl (Concat(ref impls))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty

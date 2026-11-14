@@ -138,64 +138,62 @@ module TypeReference =
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (t : WT.TypeReference)
-    : Ply<PT.TypeReference> =
+    : PT.TypeReference =
     let toPT = toPT pm onMissing currentModule
-    uply {
-      match t with
-      | WT.TUnit _ -> return PT.TUnit
-      | WT.TBool _ -> return PT.TBool
-      | WT.TInt8 _ -> return PT.TInt8
-      | WT.TUInt8 _ -> return PT.TUInt8
-      | WT.TInt16 _ -> return PT.TInt16
-      | WT.TUInt16 _ -> return PT.TUInt16
-      | WT.TInt32 _ -> return PT.TInt32
-      | WT.TUInt32 _ -> return PT.TUInt32
-      | WT.TInt64 _ -> return PT.TInt64
-      | WT.TUInt64 _ -> return PT.TUInt64
-      | WT.TInt128 _ -> return PT.TInt128
-      | WT.TUInt128 _ -> return PT.TUInt128
-      | WT.TBigInt _ -> return PT.TBigInt
-      | WT.TFloat64 _ -> return PT.TFloat64
-      | WT.TFloat32 _ -> return PT.TFloat32
-      | WT.TDecimal _ -> return PT.TDecimal
-      | WT.TChar _ -> return PT.TChar
-      | WT.TString _ -> return PT.TString
-      | WT.TDateTime _ -> return PT.TDateTime
-      | WT.TUuid _ -> return PT.TUuid
-      | WT.TBytes _ -> return PT.TBytes
+    match t with
+    | WT.TUnit _ -> PT.TUnit
+    | WT.TBool _ -> PT.TBool
+    | WT.TInt8 _ -> PT.TInt8
+    | WT.TUInt8 _ -> PT.TUInt8
+    | WT.TInt16 _ -> PT.TInt16
+    | WT.TUInt16 _ -> PT.TUInt16
+    | WT.TInt32 _ -> PT.TInt32
+    | WT.TUInt32 _ -> PT.TUInt32
+    | WT.TInt64 _ -> PT.TInt64
+    | WT.TUInt64 _ -> PT.TUInt64
+    | WT.TInt128 _ -> PT.TInt128
+    | WT.TUInt128 _ -> PT.TUInt128
+    | WT.TBigInt _ -> PT.TBigInt
+    | WT.TFloat64 _ -> PT.TFloat64
+    | WT.TFloat32 _ -> PT.TFloat32
+    | WT.TDecimal _ -> PT.TDecimal
+    | WT.TChar _ -> PT.TChar
+    | WT.TString _ -> PT.TString
+    | WT.TDateTime _ -> PT.TDateTime
+    | WT.TUuid _ -> PT.TUuid
+    | WT.TBytes _ -> PT.TBytes
 
-      | WT.TList(_, _, _, inner, _) -> return! toPT inner |> Ply.map PT.TList
+    | WT.TList(_, _, _, inner, _) -> toPT inner |> PT.TList
 
-      | WT.TDict(_, _, _, key, _, value, _) ->
-        let! key = toPT key
-        let! value = toPT value
-        return PT.TDict(key, value)
+    | WT.TDict(_, _, _, key, _, value, _) ->
+      let key = toPT key
+      let value = toPT value
+      PT.TDict(key, value)
 
-      | WT.TVariable(_, _, (_, name)) -> return PT.TVariable name
+    | WT.TVariable(_, _, (_, name)) -> PT.TVariable name
 
-      | WT.TTuple(_, first, _, second, rest, _, _) ->
-        let! firstType = toPT first
-        let! secondType = toPT second
-        let! otherTypes = Ply.List.mapSequentially (fun (_, t) -> toPT t) rest
-        return PT.TTuple(firstType, secondType, otherTypes)
+    | WT.TTuple(_, first, _, second, rest, _, _) ->
+      let firstType = toPT first
+      let secondType = toPT second
+      let otherTypes = List.map (fun (_, t) -> toPT t) rest
+      PT.TTuple(firstType, secondType, otherTypes)
 
-      | WT.TFn(_, args, ret) ->
-        let! argTypes = Ply.List.mapSequentially (fun (t, _) -> toPT t) args
-        let! returnType = toPT ret
-        let paramTypes = neListOrSingleton PT.TUnit argTypes
-        return PT.TFn(paramTypes, returnType)
+    | WT.TFn(_, args, ret) ->
+      let argTypes = List.map (fun (t, _) -> toPT t) args
+      let returnType = toPT ret
+      let paramTypes = neListOrSingleton PT.TUnit argTypes
+      PT.TFn(paramTypes, returnType)
 
-      | WT.TCustom q ->
-        // A few builtin types take a type arg and parse as a custom `Name<T>`,
-        // but lower to a dedicated PT case (not a package type reference).
-        match q.modules, q.typ.name, q.typeArgs with
-        | [], "Stream", [ inner ] -> return! toPT inner |> Ply.map PT.TStream
-        | _ ->
-          let! resolved =
-            NR.resolveTypeName pm onMissing currentModule (qualifiedTypeName q)
-          let! typeArgs = Ply.List.mapSequentially toPT q.typeArgs
-          return PT.TCustomType(resolved, typeArgs)
-    }
+    | WT.TCustom q ->
+      // A few builtin types take a type arg and parse as a custom `Name<T>`,
+      // but lower to a dedicated PT case (not a package type reference).
+      match q.modules, q.typ.name, q.typeArgs with
+      | [], "Stream", [ inner ] -> toPT inner |> PT.TStream
+      | _ ->
+        let resolved =
+          NR.resolveTypeName pm onMissing currentModule (qualifiedTypeName q)
+        let typeArgs = List.map toPT q.typeArgs
+        PT.TCustomType(resolved, typeArgs)
 
 module Bound =
   let toPT
@@ -203,24 +201,15 @@ module Bound =
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (b : WT.Bound)
-    : Ply<PT.Bound> =
-    uply {
-      let! resolved =
-        NR.resolveTraitName pm onMissing currentModule (qualifiedTypeName b.trait_)
-      let! typeArgs =
-        Ply.List.mapSequentially
-          (TypeReference.toPT pm onMissing currentModule)
-          b.trait_.typeArgs
-      return { param = b.param; trait_ = { trait_ = resolved; typeArgs = typeArgs } }
-    }
+    : PT.Bound =
+    let resolved =
+      NR.resolveTraitName pm onMissing currentModule (qualifiedTypeName b.trait_)
+    let typeArgs =
+      List.map (TypeReference.toPT pm onMissing currentModule) b.trait_.typeArgs
+    { param = b.param; trait_ = { trait_ = resolved; typeArgs = typeArgs } }
 
-  let listToPT
-    pm
-    onMissing
-    currentModule
-    (bs : List<WT.Bound>)
-    : Ply<List<PT.Bound>> =
-    Ply.List.mapSequentially (toPT pm onMissing currentModule) bs
+  let listToPT pm onMissing currentModule (bs : List<WT.Bound>) : List<PT.Bound> =
+    List.map (toPT pm onMissing currentModule) bs
 
 module BinaryOperation =
   let toPT (binop : WT.BinaryOperation) : PT.BinaryOperation =
@@ -403,9 +392,9 @@ module Expr =
     (currentModule : List<string>)
     (names : List<string>)
     (caseName : string) // used for errors
-    : Ply<PT.NameResolution<PT.FQTypeName.FQTypeName>> =
+    : PT.NameResolution<PT.FQTypeName.FQTypeName> =
     match names with
-    | [] -> Ply({ originalName = [ caseName ]; resolved = Error NRE.InvalidName })
+    | [] -> ({ originalName = [ caseName ]; resolved = Error NRE.InvalidName })
     | head :: tail ->
       let name = NEList.ofList head tail |> WT.Unresolved
       NR.resolveTypeName pm onMissing currentModule name
@@ -438,15 +427,13 @@ module Expr =
     (currentModule : List<string>)
     (context : Context)
     (e : WT.Expr)
-    : Ply<PT.Expr> =
+    : PT.Expr =
     match context.sourceRanges with
     | None -> lowerExpr builtins pm onMissing currentModule context e
     | Some ranges ->
-      uply {
-        let! expr = lowerExpr builtins pm onMissing currentModule context e
-        ranges[PT.Expr.toID expr] <- WT.exprRange e
-        return expr
-      }
+      let expr = lowerExpr builtins pm onMissing currentModule context e
+      ranges[PT.Expr.toID expr] <- WT.exprRange e
+      expr
 
   and private lowerExpr
     (builtins : RT.Builtins)
@@ -455,431 +442,402 @@ module Expr =
     (currentModule : List<string>)
     (context : Context)
     (e : WT.Expr)
-    : Ply<PT.Expr> =
+    : PT.Expr =
     let toPT ctx = toPT builtins pm onMissing currentModule ctx
     // TypeReference lowering under this call's pm/onMissing/currentModule.
     let typeRefToPT = TypeReference.toPT pm onMissing currentModule
-    uply {
-      match e with
-      | WT.EChar(_, contents, _, _) ->
-        return
-          PT.EChar(
-            gid (),
-            // Normalize like strings so canonically equal chars compare equal.
-            (match contents with
-             | Some(_, s) -> String.normalize s
-             | None -> "")
-          )
-      | WT.EInt64(_, (_, num), _) -> return PT.EInt64(gid (), num)
-      | WT.EUInt64(_, (_, num), _) -> return PT.EUInt64(gid (), num)
-      | WT.EInt8(_, (_, num), _) -> return PT.EInt8(gid (), num)
-      | WT.EUInt8(_, (_, num), _) -> return PT.EUInt8(gid (), num)
-      | WT.EInt16(_, (_, num), _) -> return PT.EInt16(gid (), num)
-      | WT.EUInt16(_, (_, num), _) -> return PT.EUInt16(gid (), num)
-      | WT.EInt32(_, (_, num), _) -> return PT.EInt32(gid (), num)
-      | WT.EUInt32(_, (_, num), _) -> return PT.EUInt32(gid (), num)
-      | WT.EInt128(_, (_, num), _) -> return PT.EInt128(gid (), num)
-      | WT.EUInt128(_, (_, num), _) -> return PT.EUInt128(gid (), num)
-      | WT.EBigInt(_, (_, num)) -> return PT.EBigInt(gid (), num)
-      | WT.EString(_, _, segments, _, _) ->
-        let! segments =
-          Ply.List.mapSequentially
-            (stringSegmentToPT builtins pm onMissing currentModule context)
-            segments
-        return PT.EString(gid (), segments)
-      | WT.EFloat64(_, neg, whole, fraction) ->
-        return
-          PT.EFloat64(gid (), (if neg then Negative else Positive), whole, fraction)
-      | WT.EFloat32(_, neg, whole, fraction) ->
-        return
-          PT.EFloat32(gid (), (if neg then Negative else Positive), whole, fraction)
-      | WT.EDecimal(_, d) -> return PT.EDecimal(gid (), d)
-      | WT.EBool(_, b) -> return PT.EBool(gid (), b)
-      | WT.EUnit _ -> return PT.EUnit(gid ())
-      | WT.EVariable(_, var) ->
-        let id = gid ()
-        // Function args and local bindings take precedence over package names.
-        match Map.tryFind var context.argMap with
-        | Some index -> return PT.EArg(id, index)
-        | None when Set.contains var context.localBindings ->
-          return PT.EVariable(id, var)
-        | None ->
-          // Bare names resolve value-first, then function, then local variable.
-          let! value =
-            resolveValueAllow
+    match e with
+    | WT.EChar(_, contents, _, _) ->
+      PT.EChar(
+        gid (),
+        // Normalize like strings so canonically equal chars compare equal.
+        (match contents with
+         | Some(_, s) -> String.normalize s
+         | None -> "")
+      )
+    | WT.EInt64(_, (_, num), _) -> PT.EInt64(gid (), num)
+    | WT.EUInt64(_, (_, num), _) -> PT.EUInt64(gid (), num)
+    | WT.EInt8(_, (_, num), _) -> PT.EInt8(gid (), num)
+    | WT.EUInt8(_, (_, num), _) -> PT.EUInt8(gid (), num)
+    | WT.EInt16(_, (_, num), _) -> PT.EInt16(gid (), num)
+    | WT.EUInt16(_, (_, num), _) -> PT.EUInt16(gid (), num)
+    | WT.EInt32(_, (_, num), _) -> PT.EInt32(gid (), num)
+    | WT.EUInt32(_, (_, num), _) -> PT.EUInt32(gid (), num)
+    | WT.EInt128(_, (_, num), _) -> PT.EInt128(gid (), num)
+    | WT.EUInt128(_, (_, num), _) -> PT.EUInt128(gid (), num)
+    | WT.EBigInt(_, (_, num)) -> PT.EBigInt(gid (), num)
+    | WT.EString(_, _, segments, _, _) ->
+      let segments =
+        List.map
+          (stringSegmentToPT builtins pm onMissing currentModule context)
+          segments
+      PT.EString(gid (), segments)
+    | WT.EFloat64(_, neg, whole, fraction) ->
+      PT.EFloat64(gid (), (if neg then Negative else Positive), whole, fraction)
+    | WT.EFloat32(_, neg, whole, fraction) ->
+      PT.EFloat32(gid (), (if neg then Negative else Positive), whole, fraction)
+    | WT.EDecimal(_, d) -> PT.EDecimal(gid (), d)
+    | WT.EBool(_, b) -> PT.EBool(gid (), b)
+    | WT.EUnit _ -> PT.EUnit(gid ())
+    | WT.EVariable(_, var) ->
+      let id = gid ()
+      // Function args and local bindings take precedence over package names.
+      match Map.tryFind var context.argMap with
+      | Some index -> PT.EArg(id, index)
+      | None when Set.contains var context.localBindings -> PT.EVariable(id, var)
+      | None ->
+        // Bare names resolve value-first, then function, then local variable.
+        let value =
+          resolveValueAllow
+            builtins
+            pm
+            currentModule
+            (WT.Unresolved(NEList.singleton var))
+        match value.resolved with
+        | Ok _ -> PT.EValue(id, value)
+        | Error _ ->
+          let fnResult =
+            resolveFnAllow
               builtins
               pm
               currentModule
               (WT.Unresolved(NEList.singleton var))
-          match value.resolved with
-          | Ok _ -> return PT.EValue(id, value)
+          match fnResult.resolved with
+          | Ok _ -> PT.EFnName(id, fnResult, [], [])
+          | Error _ -> PT.EVariable(id, var)
+    | WT.ERecordFieldAccess(_, obj, (_, fieldname), _) ->
+      let id = gid ()
+      // When we have field access like `Module.fn`, try to resolve as qualified
+      // function or value name first, since the parser treats dotted identifiers
+      // as field access rather than qualified names.
+      let rec extractPath (expr : WT.Expr) : Option<NEList<string>> =
+        match expr with
+        | WT.EVariable(_, name) -> Some(NEList.singleton name)
+        | WT.ERecordFieldAccess(_, inner, (_, field), _) ->
+          extractPath inner |> Option.map (fun path -> NEList.pushBack field path)
+        | _ -> None
+
+      match extractPath obj with
+      | Some basePath ->
+        // If the first path segment is local, this is field access, not a
+        // package lookup.
+        let firstPart = basePath.head
+        if
+          Set.contains firstPart context.localBindings
+          || Map.containsKey firstPart context.argMap
+        then
+          let obj = toPT context obj
+          PT.ERecordFieldAccess(id, obj, fieldname)
+        else
+          let fullPath = NEList.pushBack fieldname basePath
+          // Qualified bare names resolve value-first, then function.
+          let valueResult =
+            resolveValueAllow builtins pm currentModule (WT.Unresolved fullPath)
+          match valueResult.resolved with
+          | Ok _ -> PT.EValue(id, valueResult)
           | Error _ ->
-            let! fnResult =
-              resolveFnAllow
-                builtins
-                pm
-                currentModule
-                (WT.Unresolved(NEList.singleton var))
+            let fnResult =
+              resolveFnAllow builtins pm currentModule (WT.Unresolved fullPath)
             match fnResult.resolved with
-            | Ok _ -> return PT.EFnName(id, fnResult, [], [])
-            | Error _ -> return PT.EVariable(id, var)
-      | WT.ERecordFieldAccess(_, obj, (_, fieldname), _) ->
-        let id = gid ()
-        // When we have field access like `Module.fn`, try to resolve as qualified
-        // function or value name first, since the parser treats dotted identifiers
-        // as field access rather than qualified names.
-        let rec extractPath (expr : WT.Expr) : Option<NEList<string>> =
-          match expr with
-          | WT.EVariable(_, name) -> Some(NEList.singleton name)
-          | WT.ERecordFieldAccess(_, inner, (_, field), _) ->
-            extractPath inner |> Option.map (fun path -> NEList.pushBack field path)
-          | _ -> None
-
-        match extractPath obj with
-        | Some basePath ->
-          // If the first path segment is local, this is field access, not a
-          // package lookup.
-          let firstPart = basePath.head
-          if
-            Set.contains firstPart context.localBindings
-            || Map.containsKey firstPart context.argMap
-          then
-            let! obj = toPT context obj
-            return PT.ERecordFieldAccess(id, obj, fieldname)
-          else
-            let fullPath = NEList.pushBack fieldname basePath
-            // Qualified bare names resolve value-first, then function.
-            let! valueResult =
-              resolveValueAllow builtins pm currentModule (WT.Unresolved fullPath)
-            match valueResult.resolved with
-            | Ok _ -> return PT.EValue(id, valueResult)
+            | Ok _ -> PT.EFnName(id, fnResult, [], [])
             | Error _ ->
-              let! fnResult =
-                resolveFnAllow builtins pm currentModule (WT.Unresolved fullPath)
-              match fnResult.resolved with
-              | Ok _ -> return PT.EFnName(id, fnResult, [], [])
-              | Error _ ->
-                let! obj = toPT context obj
-                return PT.ERecordFieldAccess(id, obj, fieldname)
+              let obj = toPT context obj
+              PT.ERecordFieldAccess(id, obj, fieldname)
+      | None ->
+        let obj = toPT context obj
+        PT.ERecordFieldAccess(id, obj, fieldname)
+    | WT.EApply(_, (WT.EFnName(_, q) as callee), typeArgs, args) ->
+      let id = gid ()
+      let name = qualifiedFnName q
+      let processedTypeArgs = List.map typeRefToPT typeArgs
+      // Every Darklang fn has at least one parameter, so a call always has at
+      // least one arg. A type-args-only `f<T>` with no args is not a call: when
+      // it names a fn it is that fn as a value, specialised to the type args
+      // (below). Anything else gets the implicit unit arg.
+      let processedArgs =
+        match args with
+        | [] -> (NEList.singleton (PT.EUnit(gid ())))
+        | h :: t -> NEList.map (toPT context) (NEList.ofList h t)
+
+      // Arguments and local bindings shadow package functions in calls, just
+      // as they do for bare references. Only an unshadowed callee resolves as
+      // self/package function first. The callee gets its own id, distinct from
+      // the wrapping EApply's.
+      match name with
+      | WT.Unresolved { head = varName; tail = [] } ->
+        match Map.tryFind varName context.argMap with
+        | Some index ->
+          PT.EApply(id, PT.EArg(gid (), index), processedTypeArgs, processedArgs)
+        | None when Set.contains varName context.localBindings ->
+          PT.EApply(
+            id,
+            PT.EVariable(gid (), varName),
+            processedTypeArgs,
+            processedArgs
+          )
         | None ->
-          let! obj = toPT context obj
-          return PT.ERecordFieldAccess(id, obj, fieldname)
-      | WT.EApply(_, (WT.EFnName(_, q) as callee), typeArgs, args) ->
-        let id = gid ()
-        let name = qualifiedFnName q
-        let! processedTypeArgs = Ply.List.mapSequentially typeRefToPT typeArgs
-        // Every Darklang fn has at least one parameter, so a call always has at
-        // least one arg. A type-args-only `f<T>` with no args is not a call: when
-        // it names a fn it is that fn as a value, specialised to the type args
-        // (below). Anything else gets the implicit unit arg.
-        let! processedArgs =
-          match args with
-          | [] -> Ply(NEList.singleton (PT.EUnit(gid ())))
-          | h :: t -> Ply.NEList.mapSequentially (toPT context) (NEList.ofList h t)
-
-        // Arguments and local bindings shadow package functions in calls, just
-        // as they do for bare references. Only an unshadowed callee resolves as
-        // self/package function first. The callee gets its own id, distinct from
-        // the wrapping EApply's.
+          let isSelfCall =
+            match context.currentFnName with
+            | Some currentFnName -> currentModule @ [ varName ] = currentFnName
+            | None -> false
+          if isSelfCall then
+            PT.EApply(id, PT.ESelf(gid ()), processedTypeArgs, processedArgs)
+          else
+            // Applied names resolve function-first, then value, after lexical
+            // bindings and self-recursion have had a chance to shadow them.
+            let fnName = resolveFnAllow builtins pm currentModule name
+            match fnName.resolved with
+            | Ok _ when List.isEmpty args && not (List.isEmpty typeArgs) ->
+              PT.EFnName(id, fnName, [], processedTypeArgs)
+            | Ok _ ->
+              PT.EApply(
+                id,
+                PT.EFnName(gid (), fnName, [], []),
+                processedTypeArgs,
+                processedArgs
+              )
+            | Error _ ->
+              let valueName = resolveValueAllow builtins pm currentModule name
+              let callee =
+                match valueName.resolved with
+                | Ok _ -> PT.EValue(gid (), valueName)
+                | Error _ -> PT.EVariable(gid (), varName)
+              PT.EApply(id, callee, processedTypeArgs, processedArgs)
+      | _ ->
+        // Qualified callees also resolve function-first. Fall back to the
+        // value-first path when no function matches, preserving bare-reference
+        // behavior while allowing `Mod.f x` to call the function even when a
+        // same-named value exists.
+        let fnNameResolved = resolveFnAllow builtins pm currentModule name
+        match fnNameResolved.resolved with
+        | Ok _ when List.isEmpty args && not (List.isEmpty typeArgs) ->
+          PT.EFnName(id, fnNameResolved, [], processedTypeArgs)
+        | Ok _ ->
+          PT.EApply(
+            id,
+            PT.EFnName(gid (), fnNameResolved, [], []),
+            processedTypeArgs,
+            processedArgs
+          )
+        | Error _ ->
+          let expr = toPT context callee
+          PT.EApply(id, expr, processedTypeArgs, processedArgs)
+    | WT.EApply(_, lhs, typeArgs, args) ->
+      let id = gid ()
+      let name = toPT context lhs
+      let typeArgs = List.map typeRefToPT typeArgs
+      let args =
+        match args with
+        | [] -> (NEList.singleton (PT.EUnit(gid ())))
+        | h :: t -> NEList.map (toPT context) (NEList.ofList h t)
+      PT.EApply(id, name, typeArgs, args)
+    | WT.EFnName(_, q) ->
+      let id = gid ()
+      let name = qualifiedFnName q
+      // A bare qualified name like `Mod.Subtract.foo` could be a package value or a
+      // function. The parser uses a fn-name node so it can preserve module
+      // ranges, but non-applied references still resolve value-first. Operator
+      // `KnownBuiltin` names are always functions,
+      // so skip the value lookup. Keep the failed resolution (don't discard it).
+      let valueResolved =
         match name with
-        | WT.Unresolved { head = varName; tail = [] } ->
-          match Map.tryFind varName context.argMap with
-          | Some index ->
-            return
-              PT.EApply(id, PT.EArg(gid (), index), processedTypeArgs, processedArgs)
-          | None when Set.contains varName context.localBindings ->
-            return
-              PT.EApply(
-                id,
-                PT.EVariable(gid (), varName),
-                processedTypeArgs,
-                processedArgs
-              )
-          | None ->
-            let isSelfCall =
-              match context.currentFnName with
-              | Some currentFnName -> currentModule @ [ varName ] = currentFnName
-              | None -> false
-            if isSelfCall then
-              return
-                PT.EApply(id, PT.ESelf(gid ()), processedTypeArgs, processedArgs)
-            else
-              // Applied names resolve function-first, then value, after lexical
-              // bindings and self-recursion have had a chance to shadow them.
-              let! fnName = resolveFnAllow builtins pm currentModule name
-              match fnName.resolved with
-              | Ok _ when List.isEmpty args && not (List.isEmpty typeArgs) ->
-                return PT.EFnName(id, fnName, [], processedTypeArgs)
-              | Ok _ ->
-                return
-                  PT.EApply(
-                    id,
-                    PT.EFnName(gid (), fnName, [], []),
-                    processedTypeArgs,
-                    processedArgs
-                  )
-              | Error _ ->
-                let! valueName = resolveValueAllow builtins pm currentModule name
-                let callee =
-                  match valueName.resolved with
-                  | Ok _ -> PT.EValue(gid (), valueName)
-                  | Error _ -> PT.EVariable(gid (), varName)
-                return PT.EApply(id, callee, processedTypeArgs, processedArgs)
-        | _ ->
-          // Qualified callees also resolve function-first. Fall back to the
-          // value-first path when no function matches, preserving bare-reference
-          // behavior while allowing `Mod.f x` to call the function even when a
-          // same-named value exists.
-          let! fnNameResolved = resolveFnAllow builtins pm currentModule name
-          match fnNameResolved.resolved with
-          | Ok _ when List.isEmpty args && not (List.isEmpty typeArgs) ->
-            return PT.EFnName(id, fnNameResolved, [], processedTypeArgs)
-          | Ok _ ->
-            return
-              PT.EApply(
-                id,
-                PT.EFnName(gid (), fnNameResolved, [], []),
-                processedTypeArgs,
-                processedArgs
-              )
-          | Error _ ->
-            let! expr = toPT context callee
-            return PT.EApply(id, expr, processedTypeArgs, processedArgs)
-      | WT.EApply(_, lhs, typeArgs, args) ->
-        let id = gid ()
-        let! name = toPT context lhs
-        let! typeArgs = Ply.List.mapSequentially typeRefToPT typeArgs
-        let! args =
-          match args with
-          | [] -> Ply(NEList.singleton (PT.EUnit(gid ())))
-          | h :: t -> Ply.NEList.mapSequentially (toPT context) (NEList.ofList h t)
-        return PT.EApply(id, name, typeArgs, args)
-      | WT.EFnName(_, q) ->
-        let id = gid ()
-        let name = qualifiedFnName q
-        // A bare qualified name like `Mod.Subtract.foo` could be a package value or a
-        // function. The parser uses a fn-name node so it can preserve module
-        // ranges, but non-applied references still resolve value-first. Operator
-        // `KnownBuiltin` names are always functions,
-        // so skip the value lookup. Keep the failed resolution (don't discard it).
-        let! valueResolved =
-          match name with
-          | WT.Unresolved _ ->
-            uply {
-              let! v = resolveValueAllow builtins pm currentModule name
-              return Some v
-            }
-          | WT.KnownBuiltin _ -> uply { return None }
-        match valueResolved with
-        | Some value when
-          (match value.resolved with
-           | Ok _ -> true
-           | Error _ -> false)
-          ->
-          return PT.EValue(id, value)
-        | _ ->
-          let! fnName = resolveFnAllow builtins pm currentModule name
-          match fnName.resolved, valueResolved with
-          | Ok _, _ -> return PT.EFnName(id, fnName, [], [])
-          // A bare qualified name that resolves to neither value nor fn returns
-          // EValue(Error),
-          // so DeferredResolver can later refresh forward references to values.
-          // KnownBuiltin operator names stay EFnName.
-          | Error _, Some value -> return PT.EValue(id, value)
-          | Error _, None -> return PT.EFnName(id, fnName, [], [])
-      | WT.ELambda(_, pats, body, _, _) ->
-        let id = gid ()
-        // Lambda params do not inherit function arg slots. The enclosing
-        // function's args become ordinary locals so the lambda closes over them.
-        let lambdaContext =
-          { context with
-              argMap = Map.empty
-              localBindings =
-                Set.union context.localBindings (context.argMap |> Map.keys |> Set) }
-        // Blank (`___`) params parse as empty-name vars; drop them.
-        let kept =
-          pats
-          |> List.filter (fun p ->
-            match p with
-            | WT.LPVariable(_, "") -> false
-            | _ -> true)
-        let (finalContext, ptPats) =
-          kept |> foldMapContext LetPattern.toPT lambdaContext
-        let! body = toPT finalContext body
-        let patsNel = neListOrSingleton (PT.LPUnit(gid ())) ptPats
-        return PT.ELambda(id, patsNel, body)
-      | WT.ELet(_, pat, rhs, body, _, _) ->
-        let id = gid ()
-        // A let binder is not in scope in its rhs. For a let-bound lambda, an
-        // unresolved reference to the binding name therefore stays EVariable
-        // (and becomes recursion at runtime), while a package fn/value resolves
-        // normally so the runtime can report the ambiguity.
-        //
-        // The one inherited context that can pre-empt that distinction is ESelf:
-        // when the nested binding has the enclosing package fn's name, resolve it
-        // normally instead of treating it as an unconditional outer self-call.
-        let rhsContext =
-          match pat, rhs, context.currentFnName with
-          | WT.LPVariable(_, name), WT.ELambda _, Some qualifiedName when
-            List.tryLast qualifiedName = Some name
-            ->
-            { context with currentFnName = None }
-          | _ -> context
-        let! rhs = toPT rhsContext rhs
-        let (newContext, ptPat) = LetPattern.toPT context pat
-        let! body = toPT newContext body
-        return PT.ELet(id, ptPat, rhs, body)
-      | WT.EUnwrap(_, operand, _) ->
-        let id = gid ()
-        let! operand = toPT context operand
-        return PT.EUnwrap(id, operand)
-
-      | WT.EIf(_, cond, thenExpr, elseExpr, _, _, _) ->
-        let id = gid ()
-        let! cond = toPT context cond
-        let! thenExpr = toPT context thenExpr
-        let! elseExpr =
-          uply {
-            match elseExpr with
-            | Some value ->
-              let! newValue = toPT context value
-              return Some newValue
-            | None -> return None
-          }
-        return PT.EIf(id, cond, thenExpr, elseExpr)
-      | WT.EList(_, contents, _, _) ->
-        let id = gid ()
-        let! exprs =
-          contents |> List.map fst |> Ply.List.mapSequentially (toPT context)
-        return PT.EList(id, exprs)
-      | WT.ETuple(_, first, _, second, rest, _, _) ->
-        let id = gid ()
-        let! first = toPT context first
-        let! second = toPT context second
-        let! theRest = Ply.List.mapSequentially (fun (_, e) -> toPT context e) rest
-        return PT.ETuple(id, first, second, theRest)
-      | WT.EDict(_, contents, _, _, _) ->
-        let id = gid ()
-        let! pairs =
-          contents
-          |> Ply.List.mapSequentially (fun (_, k, _, v) ->
-            uply {
-              let! k = toPT context k
-              let! v = toPT context v
-              return (k, v)
-            })
-        return PT.EDict(id, pairs)
-      | WT.ERecord(_, tn, fields, _, _) ->
-        let id = gid ()
-        let entries = fields |> List.map (fun (_, (_, name), v) -> (name, v))
-        let! typeName =
-          NR.resolveTypeName pm onMissing currentModule (qualifiedTypeName tn)
-        let! flds =
-          entries
-          |> Ply.List.mapSequentially (fun (fieldName, fieldExpr) ->
-            uply {
-              let! fieldExpr = toPT context fieldExpr
-              return (fieldName, fieldExpr)
-            })
-        let! typeArgs = Ply.List.mapSequentially typeRefToPT tn.typeArgs
-        return PT.ERecord(id, typeName, typeArgs, flds)
-      | WT.ERecordUpdate(_, record, updates, _, _, _) ->
-        let id = gid ()
-        let! record = toPT context record
-        let lowered = updates |> List.map (fun ((_, name), _, v) -> (name, v))
-        let! updatesPT =
-          match lowered with
-          | [] -> Ply(NEList.singleton ("_", PT.EUnit(gid ())))
-          | h :: t ->
-            (h :: t)
-            |> Ply.List.mapSequentially (fun (name, e) ->
-              uply {
-                let! e = toPT context e
-                return (name, e)
-              })
-            |> Ply.map (NEList.ofListUnsafe "record update" [])
-        return PT.ERecordUpdate(id, record, updatesPT)
-      | WT.EPipe(_, expr, pipeExprs) ->
-        let id = gid ()
-        let! expr = toPT context expr
-        let! rest =
-          pipeExprs
-          |> Ply.List.mapSequentially (fun (pipeRange, pipeExpr) ->
-            uply {
-              let! stage =
-                pipeExprToPT builtins pm onMissing currentModule context pipeExpr
-              // From the `|>`, which is where the stage's line starts.
-              noteRange context (pipeExprID stage) pipeRange
-              return stage
-            })
-        return PT.EPipe(id, expr, rest)
-      // An unqualified uppercase name (`Red`, `X`) parses as a zero-field enum,
-      // but it is ambiguous: it could be an enum case or an uppercase-bound
-      // variable (values/fns are lowercase, so never those). Lower it to an
-      // EVariable so name resolution disambiguates. Left as an EEnum, a
-      // variable ref would be forced into enum-case resolution and fail.
-      | WT.EEnum(_, tn, (_, caseName), fields, _) when
-        List.isEmpty (enumTypeNameForCase tn caseName) && List.isEmpty fields
+        | WT.Unresolved _ ->
+          let v = resolveValueAllow builtins pm currentModule name
+          Some v
+        | WT.KnownBuiltin _ -> (None)
+      match valueResolved with
+      | Some value when
+        (match value.resolved with
+         | Ok _ -> true
+         | Error _ -> false)
         ->
-        return! toPT context (WT.EVariable(WT.synthRange, caseName))
-      | WT.EEnum(_, tn, (_, caseName), fields, _) ->
-        let id = gid ()
-        let! typeName =
-          resolveTypeName
-            pm
-            onMissing
-            currentModule
-            (enumTypeNameForCase tn caseName)
-            caseName
-        let! exprs = Ply.List.mapSequentially (toPT context) fields
-        let! typeArgs = Ply.List.mapSequentially typeRefToPT tn.typeArgs
-        return PT.EEnum(id, typeName, typeArgs, caseName, exprs)
-      | WT.EMatch(_, mexpr, cases, _, _) ->
-        let id = gid ()
-        let! mexpr = toPT context mexpr
-        let! cases =
-          Ply.List.mapSequentially
-            (fun (case : WT.MatchCase) ->
-              uply {
-                let (patternContext, mp) = MatchPattern.toPT context case.pat
-                noteRange context (matchPatternID mp) (WT.mpRange case.pat)
-                // `| Result.Ok(x)`: the qualifier must name a type
-                let! (_ : List<PT.NameResolution<PT.FQTypeName.FQTypeName>>) =
-                  MatchPattern.qualifiedCases case.pat
-                  |> Ply.List.mapSequentially (fun (path, caseName) ->
-                    resolveTypeName pm onMissing currentModule path caseName)
-                let! whenCondition =
-                  uply {
-                    match case.whenCondition with
-                    | Some(_, whenExpr) ->
-                      let! whenExpr = toPT patternContext whenExpr
-                      return Some whenExpr
-                    | None -> return None
-                  }
-                let! expr = toPT patternContext case.rhs
-                let result : PT.MatchCase =
-                  { pat = mp; whenCondition = whenCondition; rhs = expr }
-                return result
-              })
-            cases
+        PT.EValue(id, value)
+      | _ ->
+        let fnName = resolveFnAllow builtins pm currentModule name
+        match fnName.resolved, valueResolved with
+        | Ok _, _ -> PT.EFnName(id, fnName, [], [])
+        // A bare qualified name that resolves to neither value nor fn returns
+        // EValue(Error),
+        // so DeferredResolver can later refresh forward references to values.
+        // KnownBuiltin operator names stay EFnName.
+        | Error _, Some value -> PT.EValue(id, value)
+        | Error _, None -> PT.EFnName(id, fnName, [], [])
+    | WT.ELambda(_, pats, body, _, _) ->
+      let id = gid ()
+      // Lambda params do not inherit function arg slots. The enclosing
+      // function's args become ordinary locals so the lambda closes over them.
+      let lambdaContext =
+        { context with
+            argMap = Map.empty
+            localBindings =
+              Set.union context.localBindings (context.argMap |> Map.keys |> Set) }
+      // Blank (`___`) params parse as empty-name vars; drop them.
+      let kept =
+        pats
+        |> List.filter (fun p ->
+          match p with
+          | WT.LPVariable(_, "") -> false
+          | _ -> true)
+      let (finalContext, ptPats) =
+        kept |> foldMapContext LetPattern.toPT lambdaContext
+      let body = toPT finalContext body
+      let patsNel = neListOrSingleton (PT.LPUnit(gid ())) ptPats
+      PT.ELambda(id, patsNel, body)
+    | WT.ELet(_, pat, rhs, body, _, _) ->
+      let id = gid ()
+      // A let binder is not in scope in its rhs. For a let-bound lambda, an
+      // unresolved reference to the binding name therefore stays EVariable
+      // (and becomes recursion at runtime), while a package fn/value resolves
+      // normally so the runtime can report the ambiguity.
+      //
+      // The one inherited context that can pre-empt that distinction is ESelf:
+      // when the nested binding has the enclosing package fn's name, resolve it
+      // normally instead of treating it as an unconditional outer self-call.
+      let rhsContext =
+        match pat, rhs, context.currentFnName with
+        | WT.LPVariable(_, name), WT.ELambda _, Some qualifiedName when
+          List.tryLast qualifiedName = Some name
+          ->
+          { context with currentFnName = None }
+        | _ -> context
+      let rhs = toPT rhsContext rhs
+      let (newContext, ptPat) = LetPattern.toPT context pat
+      let body = toPT newContext body
+      PT.ELet(id, ptPat, rhs, body)
+    | WT.EUnwrap(_, operand, _) ->
+      let id = gid ()
+      let operand = toPT context operand
+      PT.EUnwrap(id, operand)
 
-        return PT.EMatch(id, mexpr, cases)
-      | WT.EInfix(_, (_, infixOp), arg1, arg2) ->
-        let id = gid ()
-        let! arg1 = toPT context arg1
-        let! arg2 = toPT context arg2
-        // Nothing to say yet: the parser has no types. The save resolves it.
-        return PT.EInfix(id, Infix.toPT infixOp, arg1, arg2, PT.FQFnName.Unknown)
-      | WT.EStatement(_, first, next) ->
-        let! first = toPT context first
-        let! next = toPT context next
-        return PT.EStatement(gid (), first, next)
-      | WT.EError _ ->
-        return
-          Exception.raiseInternal
-            "parse-error hole (EError) reached lowering"
-            [ "hint", box "validate the WrittenTypes tree before lowering" ]
-    }
+    | WT.EIf(_, cond, thenExpr, elseExpr, _, _, _) ->
+      let id = gid ()
+      let cond = toPT context cond
+      let thenExpr = toPT context thenExpr
+      let elseExpr =
+        match elseExpr with
+        | Some value ->
+          let newValue = toPT context value
+          Some newValue
+        | None -> None
+      PT.EIf(id, cond, thenExpr, elseExpr)
+    | WT.EList(_, contents, _, _) ->
+      let id = gid ()
+      let exprs = contents |> List.map fst |> List.map (toPT context)
+      PT.EList(id, exprs)
+    | WT.ETuple(_, first, _, second, rest, _, _) ->
+      let id = gid ()
+      let first = toPT context first
+      let second = toPT context second
+      let theRest = List.map (fun (_, e) -> toPT context e) rest
+      PT.ETuple(id, first, second, theRest)
+    | WT.EDict(_, contents, _, _, _) ->
+      let id = gid ()
+      let pairs =
+        contents
+        |> List.map (fun (_, k, _, v) ->
+          let k = toPT context k
+          let v = toPT context v
+          (k, v))
+      PT.EDict(id, pairs)
+    | WT.ERecord(_, tn, fields, _, _) ->
+      let id = gid ()
+      let entries = fields |> List.map (fun (_, (_, name), v) -> (name, v))
+      let typeName =
+        NR.resolveTypeName pm onMissing currentModule (qualifiedTypeName tn)
+      let flds =
+        entries
+        |> List.map (fun (fieldName, fieldExpr) ->
+          let fieldExpr = toPT context fieldExpr
+          (fieldName, fieldExpr))
+      let typeArgs = List.map typeRefToPT tn.typeArgs
+      PT.ERecord(id, typeName, typeArgs, flds)
+    | WT.ERecordUpdate(_, record, updates, _, _, _) ->
+      let id = gid ()
+      let record = toPT context record
+      let lowered = updates |> List.map (fun ((_, name), _, v) -> (name, v))
+      let updatesPT =
+        match lowered with
+        | [] -> (NEList.singleton ("_", PT.EUnit(gid ())))
+        | h :: t ->
+          (h :: t)
+          |> List.map (fun (name, e) ->
+            let e = toPT context e
+            (name, e))
+          |> (NEList.ofListUnsafe "record update" [])
+      PT.ERecordUpdate(id, record, updatesPT)
+    | WT.EPipe(_, expr, pipeExprs) ->
+      let id = gid ()
+      let expr = toPT context expr
+      let rest =
+        pipeExprs
+        |> List.map (fun (pipeRange, pipeExpr) ->
+          let stage =
+            pipeExprToPT builtins pm onMissing currentModule context pipeExpr
+          // From the `|>`, which is where the stage's line starts.
+          noteRange context (pipeExprID stage) pipeRange
+          stage)
+      PT.EPipe(id, expr, rest)
+    // An unqualified uppercase name (`Red`, `X`) parses as a zero-field enum,
+    // but it is ambiguous: it could be an enum case or an uppercase-bound
+    // variable (values/fns are lowercase, so never those). Lower it to an
+    // EVariable so name resolution disambiguates. Left as an EEnum, a
+    // variable ref would be forced into enum-case resolution and fail.
+    | WT.EEnum(_, tn, (_, caseName), fields, _) when
+      List.isEmpty (enumTypeNameForCase tn caseName) && List.isEmpty fields
+      ->
+      toPT context (WT.EVariable(WT.synthRange, caseName))
+    | WT.EEnum(_, tn, (_, caseName), fields, _) ->
+      let id = gid ()
+      let typeName =
+        resolveTypeName
+          pm
+          onMissing
+          currentModule
+          (enumTypeNameForCase tn caseName)
+          caseName
+      let exprs = List.map (toPT context) fields
+      let typeArgs = List.map typeRefToPT tn.typeArgs
+      PT.EEnum(id, typeName, typeArgs, caseName, exprs)
+    | WT.EMatch(_, mexpr, cases, _, _) ->
+      let id = gid ()
+      let mexpr = toPT context mexpr
+      let cases =
+        List.map
+          (fun (case : WT.MatchCase) ->
+            let (patternContext, mp) = MatchPattern.toPT context case.pat
+            noteRange context (matchPatternID mp) (WT.mpRange case.pat)
+            // `| Result.Ok(x)`: the qualifier must name a type
+            let (_ : List<PT.NameResolution<PT.FQTypeName.FQTypeName>>) =
+              MatchPattern.qualifiedCases case.pat
+              |> List.map (fun (path, caseName) ->
+                resolveTypeName pm onMissing currentModule path caseName)
+            let whenCondition =
+              match case.whenCondition with
+              | Some(_, whenExpr) ->
+                let whenExpr = toPT patternContext whenExpr
+                Some whenExpr
+              | None -> None
+            let expr = toPT patternContext case.rhs
+            let result : PT.MatchCase =
+              { pat = mp; whenCondition = whenCondition; rhs = expr }
+            result)
+          cases
+
+      PT.EMatch(id, mexpr, cases)
+    | WT.EInfix(_, (_, infixOp), arg1, arg2) ->
+      let id = gid ()
+      let arg1 = toPT context arg1
+      let arg2 = toPT context arg2
+      // Nothing to say yet: the parser has no types. The save resolves it.
+      PT.EInfix(id, Infix.toPT infixOp, arg1, arg2, PT.FQFnName.Unknown)
+    | WT.EStatement(_, first, next) ->
+      let first = toPT context first
+      let next = toPT context next
+      PT.EStatement(gid (), first, next)
+    | WT.EError _ ->
+      Exception.raiseInternal
+        "parse-error hole (EError) reached lowering"
+        [ "hint", box "validate the WrittenTypes tree before lowering" ]
 
   and stringSegmentToPT
     (builtins : RT.Builtins)
@@ -888,31 +846,26 @@ module Expr =
     (currentModule : List<string>)
     (context : Context)
     (segment : WT.StringSegment)
-    : Ply<PT.StringSegment> =
+    : PT.StringSegment =
     match segment with
     // Normalize literal text to match string tokenization.
-    | WT.StringText(_, text) -> Ply(PT.StringText(String.normalize text))
+    | WT.StringText(_, text) -> (PT.StringText(String.normalize text))
     | WT.StringInterpolation(_, expr, _, _) ->
-      uply {
-        let! interpolated = toPT builtins pm onMissing currentModule context expr
-        let! conversion =
-          resolveFnAllow
-            builtins
-            pm
-            currentModule
-            (WT.Unresolved(
-              NEList.ofList "Darklang" [ "Stdlib"; "Display"; "display" ]
-            ))
-        return
-          PT.StringInterpolation(
-            PT.EApply(
-              gid (),
-              PT.EFnName(gid (), conversion, [], []),
-              [],
-              NEList.singleton interpolated
-            )
-          )
-      }
+      let interpolated = toPT builtins pm onMissing currentModule context expr
+      let conversion =
+        resolveFnAllow
+          builtins
+          pm
+          currentModule
+          (WT.Unresolved(NEList.ofList "Darklang" [ "Stdlib"; "Display"; "display" ]))
+      PT.StringInterpolation(
+        PT.EApply(
+          gid (),
+          PT.EFnName(gid (), conversion, [], []),
+          [],
+          NEList.singleton interpolated
+        )
+      )
 
   and pipeExprToPT
     (builtins : RT.Builtins)
@@ -921,95 +874,90 @@ module Expr =
     (currentModule : List<string>)
     (context : Context)
     (pipeExpr : WT.PipeExpr)
-    : Ply<PT.PipeExpr> =
+    : PT.PipeExpr =
     let toPT ctx = toPT builtins pm onMissing currentModule ctx
 
-    uply {
-      match pipeExpr with
-      | WT.EPipeVariableOrFnCall(_, name) ->
-        let id = gid ()
-        // Arguments and locals shadow package functions in pipe segments too.
-        // Only an unshadowed bare name resolves function-first.
-        if
-          Map.containsKey name context.argMap
-          || Set.contains name context.localBindings
-        then
-          return PT.EPipeVariable(id, name, [])
-        else
-          let! resolved =
-            resolveFnAllow
-              builtins
-              pm
-              currentModule
-              (WT.Name.Unresolved(NEList.singleton name))
-          return
-            match resolved.resolved with
-            | Ok _ -> PT.EPipeFnCall(id, resolved, [], [], [])
-            | Error _ -> PT.EPipeVariable(id, name, [])
-
-      | WT.EPipeLambda(_, pats, body, _, _) ->
-        let id = gid ()
-        // Lambda params do not inherit function arg slots. The enclosing
-        // function's args become ordinary locals so the lambda closes over them.
-        let lambdaContext =
-          { context with
-              argMap = Map.empty
-              localBindings =
-                Set.union context.localBindings (context.argMap |> Map.keys |> Set) }
-        let kept =
-          pats
-          |> List.filter (fun p ->
-            match p with
-            | WT.LPVariable(_, "") -> false
-            | _ -> true)
-        let (finalContext, ptPats) =
-          kept |> foldMapContext LetPattern.toPT lambdaContext
-        let! body = toPT finalContext body
-        let patsNel = neListOrSingleton (PT.LPUnit(gid ())) ptPats
-        return PT.EPipeLambda(id, patsNel, body)
-
-      | WT.EPipeFnCall(_, q, typeArgs, args) ->
-        let id = gid ()
-        let name = qualifiedFnName q
-        match name, typeArgs with
-        | WT.Unresolved { head = varName; tail = [] }, [] ->
-          // A bare pipe segment with args might be a function call or a variable
-          // application. Resolve function-first, then fall back to variable.
-          let! args = Ply.List.mapSequentially (toPT context) args
-          if
-            Map.containsKey varName context.argMap
-            || Set.contains varName context.localBindings
-          then
-            return PT.EPipeVariable(id, varName, args)
-          else
-            let! fnName = resolveFnAllow builtins pm currentModule name
-            match fnName.resolved with
-            | Ok _ -> return PT.EPipeFnCall(id, fnName, [], args, [])
-            | Error _ -> return PT.EPipeVariable(id, varName, args)
-        | _ ->
-          // Missing names use Allow here, like other fn-name lowering. Package
-          // loading can continue and unresolved names are handled later.
-          let! fnName = resolveFnAllow builtins pm currentModule name
-          let! typeArgs =
-            Ply.List.mapSequentially
-              (TypeReference.toPT pm onMissing currentModule)
-              typeArgs
-          let! args = Ply.List.mapSequentially (toPT context) args
-          // `[]`, as the parser's `EFnName` sites do: the checker has not run yet.
-          return PT.EPipeFnCall(id, fnName, typeArgs, args, [])
-
-      | WT.EPipeEnum(_, tn, (_, caseName), fields, _) ->
-        let id = gid ()
-        let! typeName =
-          resolveTypeName
+    match pipeExpr with
+    | WT.EPipeVariableOrFnCall(_, name) ->
+      let id = gid ()
+      // Arguments and locals shadow package functions in pipe segments too.
+      // Only an unshadowed bare name resolves function-first.
+      if
+        Map.containsKey name context.argMap
+        || Set.contains name context.localBindings
+      then
+        PT.EPipeVariable(id, name, [])
+      else
+        let resolved =
+          resolveFnAllow
+            builtins
             pm
-            onMissing
             currentModule
-            (enumTypeNameForCase tn caseName)
-            caseName
-        let! fields = Ply.List.mapSequentially (toPT context) fields
-        return PT.EPipeEnum(id, typeName, caseName, fields)
-    }
+            (WT.Name.Unresolved(NEList.singleton name))
+        match resolved.resolved with
+        | Ok _ -> PT.EPipeFnCall(id, resolved, [], [], [])
+        | Error _ -> PT.EPipeVariable(id, name, [])
+
+    | WT.EPipeLambda(_, pats, body, _, _) ->
+      let id = gid ()
+      // Lambda params do not inherit function arg slots. The enclosing
+      // function's args become ordinary locals so the lambda closes over them.
+      let lambdaContext =
+        { context with
+            argMap = Map.empty
+            localBindings =
+              Set.union context.localBindings (context.argMap |> Map.keys |> Set) }
+      let kept =
+        pats
+        |> List.filter (fun p ->
+          match p with
+          | WT.LPVariable(_, "") -> false
+          | _ -> true)
+      let (finalContext, ptPats) =
+        kept |> foldMapContext LetPattern.toPT lambdaContext
+      let body = toPT finalContext body
+      let patsNel = neListOrSingleton (PT.LPUnit(gid ())) ptPats
+      PT.EPipeLambda(id, patsNel, body)
+
+    | WT.EPipeFnCall(_, q, typeArgs, args) ->
+      let id = gid ()
+      let name = qualifiedFnName q
+      match name, typeArgs with
+      | WT.Unresolved { head = varName; tail = [] }, [] ->
+        // A bare pipe segment with args might be a function call or a variable
+        // application. Resolve function-first, then fall back to variable.
+        let args = List.map (toPT context) args
+        if
+          Map.containsKey varName context.argMap
+          || Set.contains varName context.localBindings
+        then
+          PT.EPipeVariable(id, varName, args)
+        else
+          let fnName = resolveFnAllow builtins pm currentModule name
+          match fnName.resolved with
+          | Ok _ -> PT.EPipeFnCall(id, fnName, [], args, [])
+          | Error _ -> PT.EPipeVariable(id, varName, args)
+      | _ ->
+        // Missing names use Allow here, like other fn-name lowering. Package
+        // loading can continue and unresolved names are handled later.
+        let fnName = resolveFnAllow builtins pm currentModule name
+        let typeArgs =
+          List.map (TypeReference.toPT pm onMissing currentModule) typeArgs
+        let args = List.map (toPT context) args
+        // `[]`, as the parser's `EFnName` sites do: the checker has not run yet.
+        PT.EPipeFnCall(id, fnName, typeArgs, args, [])
+
+    | WT.EPipeEnum(_, tn, (_, caseName), fields, _) ->
+      let id = gid ()
+      let typeName =
+        resolveTypeName
+          pm
+          onMissing
+          currentModule
+          (enumTypeNameForCase tn caseName)
+          caseName
+      let fields = List.map (toPT context) fields
+      PT.EPipeEnum(id, typeName, caseName, fields)
 
 
 module TypeDeclaration =
@@ -1019,11 +967,9 @@ module TypeDeclaration =
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (f : WT.TypeDeclaration.RecordField)
-      : Ply<PT.TypeDeclaration.RecordField> =
-      uply {
-        let! typ = TypeReference.toPT pm onMissing currentModule f.typ
-        return { name = f.name; typ = typ; description = f.description }
-      }
+      : PT.TypeDeclaration.RecordField =
+      let typ = TypeReference.toPT pm onMissing currentModule f.typ
+      { name = f.name; typ = typ; description = f.description }
 
   module EnumField =
     let toPT
@@ -1031,11 +977,9 @@ module TypeDeclaration =
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (f : WT.TypeDeclaration.EnumField)
-      : Ply<PT.TypeDeclaration.EnumField> =
-      uply {
-        let! typ = TypeReference.toPT pm onMissing currentModule f.typ
-        return { typ = typ; label = f.label; description = f.description }
-      }
+      : PT.TypeDeclaration.EnumField =
+      let typ = TypeReference.toPT pm onMissing currentModule f.typ
+      { typ = typ; label = f.label; description = f.description }
 
   module EnumCase =
     let toPT
@@ -1043,14 +987,9 @@ module TypeDeclaration =
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (c : WT.TypeDeclaration.EnumCase)
-      : Ply<PT.TypeDeclaration.EnumCase> =
-      uply {
-        let! fields =
-          Ply.List.mapSequentially
-            (EnumField.toPT pm onMissing currentModule)
-            c.fields
-        return { name = c.name; fields = fields; description = c.description }
-      }
+      : PT.TypeDeclaration.EnumCase =
+      let fields = List.map (EnumField.toPT pm onMissing currentModule) c.fields
+      { name = c.name; fields = fields; description = c.description }
 
   module Definition =
     let toPT
@@ -1058,27 +997,19 @@ module TypeDeclaration =
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (d : WT.TypeDeclaration.Definition)
-      : Ply<PT.TypeDeclaration.Definition> =
-      uply {
-        match d with
-        | WT.TypeDeclaration.Alias typ ->
-          let! typ = TypeReference.toPT pm onMissing currentModule typ
-          return PT.TypeDeclaration.Alias typ
+      : PT.TypeDeclaration.Definition =
+      match d with
+      | WT.TypeDeclaration.Alias typ ->
+        let typ = TypeReference.toPT pm onMissing currentModule typ
+        PT.TypeDeclaration.Alias typ
 
-        | WT.TypeDeclaration.Record fields ->
-          let! fields =
-            Ply.NEList.mapSequentially
-              (RecordField.toPT pm onMissing currentModule)
-              fields
-          return PT.TypeDeclaration.Record fields
+      | WT.TypeDeclaration.Record fields ->
+        let fields = NEList.map (RecordField.toPT pm onMissing currentModule) fields
+        PT.TypeDeclaration.Record fields
 
-        | WT.TypeDeclaration.Enum cases ->
-          let! cases =
-            Ply.NEList.mapSequentially
-              (EnumCase.toPT pm onMissing currentModule)
-              cases
-          return PT.TypeDeclaration.Enum cases
-      }
+      | WT.TypeDeclaration.Enum cases ->
+        let cases = NEList.map (EnumCase.toPT pm onMissing currentModule) cases
+        PT.TypeDeclaration.Enum cases
 
 
   let toPT
@@ -1086,12 +1017,10 @@ module TypeDeclaration =
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (d : WT.TypeDeclaration.T)
-    : Ply<PT.TypeDeclaration.T> =
-    uply {
-      let! def = Definition.toPT pm onMissing currentModule d.definition
-      let! bounds = Bound.listToPT pm onMissing currentModule d.bounds
-      return { typeParams = d.typeParams; bounds = bounds; definition = def }
-    }
+    : PT.TypeDeclaration.T =
+    let def = Definition.toPT pm onMissing currentModule d.definition
+    let bounds = Bound.listToPT pm onMissing currentModule d.bounds
+    { typeParams = d.typeParams; bounds = bounds; definition = def }
 
 
 module PackageRefs = LibExecution.PackageRefs
@@ -1116,13 +1045,9 @@ module PackageType =
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (pt : WT.PackageType.PackageType)
-    : Ply<PT.PackageType.PackageType> =
-    uply {
-      let! declaration =
-        TypeDeclaration.toPT pm onMissing currentModule pt.declaration
-      return
-        { hash = Hash ""; description = pt.description; declaration = declaration }
-    }
+    : PT.PackageType.PackageType =
+    let declaration = TypeDeclaration.toPT pm onMissing currentModule pt.declaration
+    { hash = Hash ""; description = pt.description; declaration = declaration }
 
 module Trait =
   module Name =
@@ -1134,52 +1059,42 @@ module Trait =
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (t : WT.PackageTrait.PackageTrait)
-    : Ply<PT.Trait.Trait> =
-    uply {
-      let! bounds = Bound.listToPT pm onMissing currentModule t.bounds
-      let! methods =
-        t.methods
-        |> Ply.List.mapSequentially (fun m ->
-          uply {
-            let! parameters =
-              Ply.NEList.mapSequentially
-                (fun (p : WT.PackageFn.Parameter) ->
-                  uply {
-                    let! typ = TypeReference.toPT pm onMissing currentModule p.typ
-                    return
-                      ({ name = p.name; typ = typ; description = p.description }
-                      : PT.PackageFn.Parameter)
-                  })
-                m.parameters
-            let! returnType =
-              TypeReference.toPT pm onMissing currentModule m.returnType
-            let! methodBounds = Bound.listToPT pm onMissing currentModule m.bounds
-            return
-              ({ name = m.name
-                 typeParams = m.typeParams
-                 bounds = methodBounds
-                 parameters = parameters
-                 returnType = returnType
-                 description = m.description }
-              : PT.Trait.Method)
-          })
-      return
-        { hash = PT.Hash ""
-          typeParams = NEList.ofListWithDefault "a" t.typeParams
-          bounds = bounds
-          methods =
-            NEList.ofListWithDefault
-              ({ name = "_"
-                 typeParams = []
-                 bounds = []
-                 parameters =
-                   NEList.singleton { name = "_"; typ = PT.TUnit; description = "" }
-                 returnType = PT.TUnit
-                 description = "" }
-              : PT.Trait.Method)
-              methods
-          description = t.description }
-    }
+    : PT.Trait.Trait =
+    let bounds = Bound.listToPT pm onMissing currentModule t.bounds
+    let methods =
+      t.methods
+      |> List.map (fun m ->
+        let parameters =
+          NEList.map
+            (fun (p : WT.PackageFn.Parameter) ->
+              let typ = TypeReference.toPT pm onMissing currentModule p.typ
+              ({ name = p.name; typ = typ; description = p.description }
+              : PT.PackageFn.Parameter))
+            m.parameters
+        let returnType = TypeReference.toPT pm onMissing currentModule m.returnType
+        let methodBounds = Bound.listToPT pm onMissing currentModule m.bounds
+        ({ name = m.name
+           typeParams = m.typeParams
+           bounds = methodBounds
+           parameters = parameters
+           returnType = returnType
+           description = m.description }
+        : PT.Trait.Method))
+    { hash = PT.Hash ""
+      typeParams = NEList.ofListWithDefault "a" t.typeParams
+      bounds = bounds
+      methods =
+        NEList.ofListWithDefault
+          ({ name = "_"
+             typeParams = []
+             bounds = []
+             parameters =
+               NEList.singleton { name = "_"; typ = PT.TUnit; description = "" }
+             returnType = PT.TUnit
+             description = "" }
+          : PT.Trait.Method)
+          methods
+      description = t.description }
 
 
 module TraitImpl =
@@ -1193,39 +1108,32 @@ module TraitImpl =
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (i : WT.PackageTraitImpl.PackageTraitImpl)
-    : Ply<PT.TraitImpl.TraitImpl> =
-    uply {
-      let! trait_ =
-        NR.resolveTraitName pm onMissing currentModule (qualifiedTypeName i.trait_)
-      let! traitTypeArgs =
-        Ply.List.mapSequentially
-          (TypeReference.toPT pm onMissing currentModule)
-          i.trait_.typeArgs
-      let! self = TypeReference.toPT pm onMissing currentModule i.forType
-      let! bounds = Bound.listToPT pm onMissing currentModule i.bounds
-      let! methods =
-        i.methods
-        |> Ply.List.mapSequentially (fun (name, target) ->
-          uply {
-            let! fn =
-              NR.resolveFnName
-                (BuiltinNames.fns builtins)
-                pm
-                onMissing
-                currentModule
-                target
-            return (name, fn)
-          })
-      return
-        { hash = PT.Hash ""
-          trait_ = trait_
-          traitTypeArgs = traitTypeArgs
-          self = self
-          typeParams = i.typeParams
-          bounds = bounds
-          methods = methods
-          description = i.description }
-    }
+    : PT.TraitImpl.TraitImpl =
+    let trait_ =
+      NR.resolveTraitName pm onMissing currentModule (qualifiedTypeName i.trait_)
+    let traitTypeArgs =
+      List.map (TypeReference.toPT pm onMissing currentModule) i.trait_.typeArgs
+    let self = TypeReference.toPT pm onMissing currentModule i.forType
+    let bounds = Bound.listToPT pm onMissing currentModule i.bounds
+    let methods =
+      i.methods
+      |> List.map (fun (name, target) ->
+        let fn =
+          NR.resolveFnName
+            (BuiltinNames.fns builtins)
+            pm
+            onMissing
+            currentModule
+            target
+        (name, fn))
+    { hash = PT.Hash ""
+      trait_ = trait_
+      traitTypeArgs = traitTypeArgs
+      self = self
+      typeParams = i.typeParams
+      bounds = bounds
+      methods = methods
+      description = i.description }
 
 
 module PackageValue =
@@ -1242,7 +1150,7 @@ module PackageValue =
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (c : WT.PackageValue.PackageValue)
-    : Ply<PT.PackageValue.PackageValue> =
+    : PT.PackageValue.PackageValue =
     toPTNoting builtins pm onMissing currentModule None c
 
   /// `toPT`, noting where each expression came from in <param sourceRanges>.
@@ -1253,16 +1161,14 @@ module PackageValue =
     (currentModule : List<string>)
     (sourceRanges : Option<System.Collections.Generic.Dictionary<id, WT.Range>>)
     (c : WT.PackageValue.PackageValue)
-    : Ply<PT.PackageValue.PackageValue> =
-    uply {
-      let context =
-        { currentFnName = None
-          argMap = Map.empty
-          localBindings = Set.empty
-          sourceRanges = sourceRanges }
-      let! body = Expr.toPT builtins pm onMissing currentModule context c.body
-      return { hash = Hash ""; description = c.description; body = body }
-    }
+    : PT.PackageValue.PackageValue =
+    let context =
+      { currentFnName = None
+        argMap = Map.empty
+        localBindings = Set.empty
+        sourceRanges = sourceRanges }
+    let body = Expr.toPT builtins pm onMissing currentModule context c.body
+    { hash = Hash ""; description = c.description; body = body }
 
 
 module PackageTest =
@@ -1279,7 +1185,7 @@ module PackageTest =
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (test : WT.PackageTest.PackageTest)
-    : Ply<PT.PackageTest.PackageTest> =
+    : PT.PackageTest.PackageTest =
     toPTNoting builtins pm onMissing currentModule None test
 
   /// `toPT`, noting where each expression came from in <param sourceRanges>.
@@ -1290,23 +1196,20 @@ module PackageTest =
     (currentModule : List<string>)
     (sourceRanges : Option<System.Collections.Generic.Dictionary<id, WT.Range>>)
     (test : WT.PackageTest.PackageTest)
-    : Ply<PT.PackageTest.PackageTest> =
-    uply {
-      let context =
-        { currentFnName = None
-          argMap = Map.empty
-          localBindings = Set.empty
-          sourceRanges = sourceRanges }
-      let! body = Expr.toPT builtins pm onMissing currentModule context test.body
-      return
-        { hash = Hash ""
-          description = test.description
-          body = body
-          expectedError =
-            test.expectedError
-            |> Option.map (function
-              | WT.RuntimeError message -> PT.ExpectedError.RuntimeError message) }
-    }
+    : PT.PackageTest.PackageTest =
+    let context =
+      { currentFnName = None
+        argMap = Map.empty
+        localBindings = Set.empty
+        sourceRanges = sourceRanges }
+    let body = Expr.toPT builtins pm onMissing currentModule context test.body
+    { hash = Hash ""
+      description = test.description
+      body = body
+      expectedError =
+        test.expectedError
+        |> Option.map (function
+          | WT.RuntimeError message -> PT.ExpectedError.RuntimeError message) }
 
 
 module PackageFn =
@@ -1323,11 +1226,9 @@ module PackageFn =
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (p : WT.PackageFn.Parameter)
-      : Ply<PT.PackageFn.Parameter> =
-      uply {
-        let! typ = TypeReference.toPT pm onMissing currentModule p.typ
-        return { name = p.name; typ = typ; description = p.description }
-      }
+      : PT.PackageFn.Parameter =
+      let typ = TypeReference.toPT pm onMissing currentModule p.typ
+      { name = p.name; typ = typ; description = p.description }
 
   /// Collect TVariable names from a PT TypeReference.
   /// Used to discover implicit function type parameters from declared
@@ -1363,47 +1264,42 @@ module PackageFn =
     (currentModule : List<string>)
     (sourceRanges : Option<System.Collections.Generic.Dictionary<id, WT.Range>>)
     (fn : WT.PackageFn.PackageFn)
-    : Ply<PT.PackageFn.PackageFn> =
-    uply {
-      let! parameters =
-        Ply.NEList.mapSequentially
-          (Parameter.toPT pm onMissing currentModule)
-          fn.parameters
-      let! returnType = TypeReference.toPT pm onMissing currentModule fn.returnType
-      let argMap =
-        fn.parameters
+    : PT.PackageFn.PackageFn =
+    let parameters =
+      NEList.map (Parameter.toPT pm onMissing currentModule) fn.parameters
+    let returnType = TypeReference.toPT pm onMissing currentModule fn.returnType
+    let argMap =
+      fn.parameters
+      |> NEList.toList
+      |> List.mapi (fun i param -> param.name, i)
+      |> Map.ofList
+    let context =
+      { currentFnName = Some(currentModule @ [ fn.name.name ])
+        argMap = argMap
+        localBindings = Set.empty
+        sourceRanges = sourceRanges }
+    let body = Expr.toPT builtins pm onMissing currentModule context fn.body
+
+    // Explicit typeParams stay first because callers pass positional type
+    // args in that order. Discovered names append in first-seen order.
+    let explicitTypeParams = fn.typeParams
+    let implicitTypeParams =
+      let fromParams =
+        parameters
         |> NEList.toList
-        |> List.mapi (fun i param -> param.name, i)
-        |> Map.ofList
-      let context =
-        { currentFnName = Some(currentModule @ [ fn.name.name ])
-          argMap = argMap
-          localBindings = Set.empty
-          sourceRanges = sourceRanges }
-      let! body = Expr.toPT builtins pm onMissing currentModule context fn.body
+        |> List.fold (fun acc p -> collectTVars acc p.typ) []
+      let withReturn = collectTVars fromParams returnType
+      withReturn |> List.filter (fun n -> not (List.contains n explicitTypeParams))
+    let allTypeParams = explicitTypeParams @ implicitTypeParams
+    let bounds = Bound.listToPT pm onMissing currentModule fn.bounds
 
-      // Explicit typeParams stay first because callers pass positional type
-      // args in that order. Discovered names append in first-seen order.
-      let explicitTypeParams = fn.typeParams
-      let implicitTypeParams =
-        let fromParams =
-          parameters
-          |> NEList.toList
-          |> List.fold (fun acc p -> collectTVars acc p.typ) []
-        let withReturn = collectTVars fromParams returnType
-        withReturn |> List.filter (fun n -> not (List.contains n explicitTypeParams))
-      let allTypeParams = explicitTypeParams @ implicitTypeParams
-      let! bounds = Bound.listToPT pm onMissing currentModule fn.bounds
-
-      return
-        { hash = Hash ""
-          parameters = parameters
-          returnType = returnType
-          description = fn.description
-          body = body
-          typeParams = allTypeParams
-          bounds = bounds }
-    }
+    { hash = Hash ""
+      parameters = parameters
+      returnType = returnType
+      description = fn.description
+      body = body
+      typeParams = allTypeParams
+      bounds = bounds }
 
   let toPT
     (builtins : RT.Builtins)
@@ -1411,5 +1307,5 @@ module PackageFn =
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (fn : WT.PackageFn.PackageFn)
-    : Ply<PT.PackageFn.PackageFn> =
+    : PT.PackageFn.PackageFn =
     toPTWithRanges builtins pm onMissing currentModule None fn

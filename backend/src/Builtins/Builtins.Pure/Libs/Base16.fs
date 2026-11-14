@@ -22,7 +22,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [| DBytes ref |] ->
           Bytes.withBytes state ref (fun bs ->
-            Ply(DString(System.Convert.ToHexString(bs))))
+            (DString(System.Convert.ToHexString(bs))))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -50,12 +50,10 @@ let fns () : List<BuiltInFn> =
           match notHex with
           | Some r ->
             err $"Invalid hex string: '{r}' is not a hex digit (0-9, a-f, A-F)"
-            |> Ply
           | None when s.Length % 2 <> 0 ->
             err
               $"Invalid hex string: it has {s.Length} digits, and each byte takes two"
-            |> Ply
-          | None -> ok (Bytes.newEphemeral (System.Convert.FromHexString s)) |> Ply
+          | None -> ok (Bytes.newEphemeral (System.Convert.FromHexString s))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

@@ -65,7 +65,7 @@ let private tableExists (name : string) : bool =
       WHERE type = 'table'
         AND name = @name"
   |> Sql.parameters [ "name", Sql.string name ]
-  |> Sql.executeExistsSync
+  |> Sql.executeExists
 
 
 let private storedHash () : Option<string> =
@@ -92,16 +92,16 @@ let private storedHash () : Option<string> =
 let private dropProjectionTables () : unit =
   // FK off for the drop (a child projection may FK a parent we're keeping); connection-scoped, so
   // the next connection (which replays the schema) gets the default back.
-  Sql.query "PRAGMA foreign_keys = OFF" |> Sql.executeStatementSync
+  Sql.query "PRAGMA foreign_keys = OFF" |> Sql.executeStatement
   for t in LibDB.Seed.projectionTables do
-    Sql.query (sprintf "DROP TABLE IF EXISTS \"%s\"" t) |> Sql.executeStatementSync
+    Sql.query (sprintf "DROP TABLE IF EXISTS \"%s\"" t) |> Sql.executeStatement
 
 /// Mark every op unapplied so the next `Seed.growIfNeeded` re-folds the whole log into the freshly
 /// recreated projections. Re-folding (with value evaluation) needs the runtime, which the migration
 /// phase doesn't have — so we defer the fold to startup, exactly like a fresh seed does.
 let private markOpsUnapplied () : unit =
   if tableExists "package_ops_applied_through" then
-    Sql.query LibDB.AppliedOps.reset |> Sql.executeStatementSync
+    Sql.query LibDB.AppliedOps.reset |> Sql.executeStatement
 
 let private opCount () : int =
   if tableExists "package_ops" then
@@ -119,10 +119,10 @@ let private writeHash (hash : string) : unit =
   Sql.query
     "CREATE TABLE IF NOT EXISTS schema_state_v0
      (id INTEGER PRIMARY KEY, hash TEXT NOT NULL)"
-  |> Sql.executeStatementSync
+  |> Sql.executeStatement
   Sql.query "INSERT OR REPLACE INTO schema_state_v0 (id, hash) VALUES (0, @hash)"
   |> Sql.parameters [ "hash", Sql.string hash ]
-  |> Sql.executeStatementSync
+  |> Sql.executeStatement
 
 
 /// The TABLES from the schema, and the hash dance around them. Indexes are NOT applied here:

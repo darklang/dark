@@ -68,7 +68,7 @@ let private policyFn
   (parameters : List<BuiltInParam>)
   (returnType : TypeReference)
   (description : string)
-  (impl : ExecutionState -> Dval[] -> Ply<Dval>)
+  (impl : ExecutionState -> Dval[] -> Dval)
   : BuiltInFn =
   { name = fn name 0
     typeParams = []
@@ -90,7 +90,7 @@ let private hostOnly
   (parameters : List<BuiltInParam>)
   (returnType : TypeReference)
   (description : string)
-  (impl : ExecutionState -> Dval[] -> Ply<Dval>)
+  (impl : ExecutionState -> Dval[] -> Dval)
   : BuiltInFn =
   policyFn name parameters returnType description (fun state args ->
     if not state.canManagePolicies then policyAdminError ()
@@ -110,8 +110,7 @@ let fns () : List<BuiltInFn> =
        + "or unreadable policy state is represented as deny-all.")
       (fun _ args ->
         match args with
-        | [| DUnit |] ->
-          uply { return PolicyStore.instancePolicy () |> PolicyToDT.Policy.toDT }
+        | [| DUnit |] -> (PolicyStore.instancePolicy () |> PolicyToDT.Policy.toDT)
         | _ -> incorrectArgs ())
 
     hostOnly
@@ -123,12 +122,10 @@ let fns () : List<BuiltInFn> =
         match args with
         | [| DUnit |] ->
           let snapshot = PolicyStore.get ()
-          Ply(
-            DTuple(
-              DString(PolicyStore.reviewToken snapshot),
-              PolicyToDT.Policy.toDT snapshot.instance,
-              []
-            )
+          DTuple(
+            DString(PolicyStore.reviewToken snapshot),
+            PolicyToDT.Policy.toDT snapshot.instance,
+            []
           )
         | _ -> incorrectArgs ())
 
@@ -142,7 +139,7 @@ let fns () : List<BuiltInFn> =
       "Canonicalize a file rule using the same host path semantics as policy commits."
       (fun _ args ->
         match args with
-        | [| rule |] -> Ply(rule |> PolicyToDT.Rule.fromDT |> PolicyToDT.Rule.toDT)
+        | [| rule |] -> rule |> PolicyToDT.Rule.fromDT |> PolicyToDT.Rule.toDT
         | _ -> incorrectArgs ())
 
     hostOnly
@@ -154,15 +151,13 @@ let fns () : List<BuiltInFn> =
       (fun _ args ->
         match args with
         | [| DString expected; policy |] ->
-          uply {
-            match
-              PolicyStore.commitInstancePolicy
-                expected
-                (PolicyToDT.Policy.fromDT policy)
-            with
-            | Ok() -> return DUnit
-            | Error message -> return Exception.raiseStoreCondition message []
-          }
+          match
+            PolicyStore.commitInstancePolicy
+              expected
+              (PolicyToDT.Policy.fromDT policy)
+          with
+          | Ok() -> DUnit
+          | Error message -> Exception.raiseStoreCondition message []
         | _ -> incorrectArgs ())
 
     // Read this account's approvals once. Dark selects and formats the entries.
@@ -178,24 +173,21 @@ let fns () : List<BuiltInFn> =
       (fun _ args ->
         match args with
         | [| accountIDDval |] ->
-          uply {
-            let snapshot = PolicyStore.get ()
-            let entries =
-              PolicyStore.namedApprovalsInStore (accountIDOf accountIDDval) snapshot
-              |> Map.toList
-              |> List.map (fun (name, approval) ->
-                PolicyToDT.Approval.toDT
-                  approval.hash
-                  (Some name)
-                  (Some approval.policy)
-                  (if approval.explicitRules then Some approval.policy else None))
-            return
-              DTuple(
-                DString(PolicyStore.reviewToken snapshot),
-                DList(VT.known (PolicyToDT.Approval.knownType ()), Items entries),
-                []
-              )
-          }
+          let snapshot = PolicyStore.get ()
+          let entries =
+            PolicyStore.namedApprovalsInStore (accountIDOf accountIDDval) snapshot
+            |> Map.toList
+            |> List.map (fun (name, approval) ->
+              PolicyToDT.Approval.toDT
+                approval.hash
+                (Some name)
+                (Some approval.policy)
+                (if approval.explicitRules then Some approval.policy else None))
+          DTuple(
+            DString(PolicyStore.reviewToken snapshot),
+            DList(VT.known (PolicyToDT.Approval.knownType ()), Items entries),
+            []
+          )
         | _ -> incorrectArgs ())
 
     // Read-only; the Workbench uses it to explain effective access.
@@ -206,8 +198,7 @@ let fns () : List<BuiltInFn> =
       "Whether a package function is bundled first-party code. Read-only."
       (fun state args ->
         match args with
-        | [| DString hash |] ->
-          uply { return DBool(state.isBundledPackageFn (Hash hash)) }
+        | [| DString hash |] -> (DBool(state.isBundledPackageFn (Hash hash)))
         | _ -> incorrectArgs ())
 
     hostOnly
@@ -225,21 +216,19 @@ let fns () : List<BuiltInFn> =
       (fun _ args ->
         match args with
         | [| accountIDDval; target |] ->
-          uply {
-            let accountID = accountIDOf accountIDDval
-            match PolicyToDT.ApprovalTarget.fromDT target with
-            | PolicyToDT.ApprovalTarget.Names(expected, names) ->
-              match PolicyStore.removeApprovals accountID expected names with
-              | Ok() -> ()
-              | Error message -> Exception.raiseStoreCondition message []
-            | PolicyToDT.ApprovalTarget.EditPolicy(name, expected, policy) ->
-              match
-                PolicyStore.commitApprovalPolicy accountID name expected policy
-              with
-              | Ok() -> ()
-              | Error message -> Exception.raiseStoreCondition message []
-            return DUnit
-          }
+          let accountID = accountIDOf accountIDDval
+          match PolicyToDT.ApprovalTarget.fromDT target with
+          | PolicyToDT.ApprovalTarget.Names(expected, names) ->
+            match PolicyStore.removeApprovals accountID expected names with
+            | Ok() -> ()
+            | Error message -> Exception.raiseStoreCondition message []
+          | PolicyToDT.ApprovalTarget.EditPolicy(name, expected, policy) ->
+            match
+              PolicyStore.commitApprovalPolicy accountID name expected policy
+            with
+            | Ok() -> ()
+            | Error message -> Exception.raiseStoreCondition message []
+          DUnit
         | _ -> incorrectArgs ())
 
     hostOnly
@@ -250,10 +239,8 @@ let fns () : List<BuiltInFn> =
       (fun state args ->
         match args with
         | [| DUnit |] ->
-          uply {
-            let fingerprint = (builtinEffects state).fingerprint
-            return DBool(PolicyStore.approvalsAreStale fingerprint)
-          }
+          let fingerprint = (builtinEffects state).fingerprint
+          DBool(PolicyStore.approvalsAreStale fingerprint)
         | _ -> incorrectArgs ())
 
     hostOnly
@@ -280,37 +267,34 @@ let fns () : List<BuiltInFn> =
              DString hash
              rulesDval
              DBool acknowledgeIncomplete |] ->
-          uply {
-            let rules = CommonToDT.Option.fromDT PolicyToDT.Policy.fromDT rulesDval
-            let effects = builtinEffects state
-            let! result =
-              PackagePermissions.reviewVersionForName
-                PackagePermissions.Load.fromStore
-                effects.callEffectsFor
-                (accountIDOf accountIDDval)
-                location
-                expected
-                hash
-                rules
-                acknowledgeIncomplete
-                effects.fingerprint
-            let reasonKT = PolicyToDT.ApprovalReviewReason.knownType ()
-            return
-              CommonToDT.Result.toDT
-                (KTTuple(VT.bool, VT.known (KTList(VT.known reasonKT)), []))
-                KTString
-                result
-                (fun (needsSave, reasons) ->
-                  DTuple(
-                    DBool needsSave,
-                    DList(
-                      VT.known reasonKT,
-                      Items(List.map PolicyToDT.ApprovalReviewReason.toDT reasons)
-                    ),
-                    []
-                  ))
-                DString
-          }
+          let rules = CommonToDT.Option.fromDT PolicyToDT.Policy.fromDT rulesDval
+          let effects = builtinEffects state
+          let result =
+            PackagePermissions.reviewVersionForName
+              PackagePermissions.Load.fromStore
+              effects.callEffectsFor
+              (accountIDOf accountIDDval)
+              location
+              expected
+              hash
+              rules
+              acknowledgeIncomplete
+              effects.fingerprint
+          let reasonKT = PolicyToDT.ApprovalReviewReason.knownType ()
+          CommonToDT.Result.toDT
+            (KTTuple(VT.bool, VT.known (KTList(VT.known reasonKT)), []))
+            KTString
+            result
+            (fun (needsSave, reasons) ->
+              DTuple(
+                DBool needsSave,
+                DList(
+                  VT.known reasonKT,
+                  Items(List.map PolicyToDT.ApprovalReviewReason.toDT reasons)
+                ),
+                []
+              ))
+            DString
         | _ -> incorrectArgs ())
 
     hostOnly
@@ -351,43 +335,39 @@ let fns () : List<BuiltInFn> =
              rulesDval
              DBool acknowledgeIncomplete
              DBool acknowledgeContractChange |] ->
-          uply {
-            let failureKT = PolicyToDT.ApprovalFailure.knownType ()
-            let effects = builtinEffects state
-            let rules =
-              match rulesDval with
-              | DEnum(_, _, _, "None", []) -> None
-              | DEnum(_, _, _, "Some", [ policy ]) ->
-                Some(PolicyToDT.Policy.fromDT policy)
-              | _ -> incorrectArgs ()
-            match!
-              PackagePermissions.approveVersionForName
-                PackagePermissions.Load.fromStore
-                effects.callEffectsFor
-                (accountIDOf accountIDDval)
-                location
-                expected
-                hash
-                rules
-                acknowledgeIncomplete
-                acknowledgeContractChange
-                effects.fingerprint
-            with
-            | Ok PackagePermissions.ApprovalOutcome.Approved ->
-              return Dval.resultOk KTUnit failureKT DUnit
-            | Ok(PackagePermissions.ApprovalOutcome.ContractChanged differences) ->
-              return
-                Dval.resultError
-                  KTUnit
-                  failureKT
-                  (PolicyToDT.ApprovalFailure.contractChanged differences)
-            | Error message ->
-              return
-                Dval.resultError
-                  KTUnit
-                  failureKT
-                  (PolicyToDT.ApprovalFailure.refused message)
-          }
+          let failureKT = PolicyToDT.ApprovalFailure.knownType ()
+          let effects = builtinEffects state
+          let rules =
+            match rulesDval with
+            | DEnum(_, _, _, "None", []) -> None
+            | DEnum(_, _, _, "Some", [ policy ]) ->
+              Some(PolicyToDT.Policy.fromDT policy)
+            | _ -> incorrectArgs ()
+          match
+            PackagePermissions.approveVersionForName
+              PackagePermissions.Load.fromStore
+              effects.callEffectsFor
+              (accountIDOf accountIDDval)
+              location
+              expected
+              hash
+              rules
+              acknowledgeIncomplete
+              acknowledgeContractChange
+              effects.fingerprint
+          with
+          | Ok PackagePermissions.ApprovalOutcome.Approved ->
+            Dval.resultOk KTUnit failureKT DUnit
+          | Ok(PackagePermissions.ApprovalOutcome.ContractChanged differences) ->
+            Dval.resultError
+              KTUnit
+              failureKT
+              (PolicyToDT.ApprovalFailure.contractChanged differences)
+          | Error message ->
+            Dval.resultError
+              KTUnit
+              failureKT
+              (PolicyToDT.ApprovalFailure.refused message)
         | _ -> incorrectArgs ())
 
     policyFn
@@ -408,33 +388,28 @@ let fns () : List<BuiltInFn> =
       (fun state args ->
         match args with
         | [| DString hash |] ->
-          uply {
-            let! result, reasons =
-              PackagePermissions.explain
-                PackagePermissions.Load.fromStore
-                (builtinEffects state).callEffectsFor
-                hash
-            let itemType = KTCustomType(EffectsToDT.Effect.typeName (), [])
-            let values =
-              reasons
-              |> List.map (fun (effect, path) ->
-                DTuple(
-                  EffectsToDT.Effect.toDT effect,
-                  DList(VT.string, Items(List.map DString path)),
-                  []
-                ))
-            return
+          let result, reasons =
+            PackagePermissions.explain
+              PackagePermissions.Load.fromStore
+              (builtinEffects state).callEffectsFor
+              hash
+          let itemType = KTCustomType(EffectsToDT.Effect.typeName (), [])
+          let values =
+            reasons
+            |> List.map (fun (effect, path) ->
               DTuple(
-                DBool result.complete,
-                DList(
-                  VT.known (
-                    KTTuple(VT.known itemType, VT.known (KTList VT.string), [])
-                  ),
-                  Items values
-                ),
+                EffectsToDT.Effect.toDT effect,
+                DList(VT.string, Items(List.map DString path)),
                 []
-              )
-          }
+              ))
+          DTuple(
+            DBool result.complete,
+            DList(
+              VT.known (KTTuple(VT.known itemType, VT.known (KTList VT.string), [])),
+              Items values
+            ),
+            []
+          )
         | _ -> incorrectArgs ())
 
     policyFn
@@ -449,19 +424,12 @@ let fns () : List<BuiltInFn> =
       (fun state args ->
         match args with
         | [| DString hashStr |] ->
-          uply {
-            let! result =
-              PackagePermissions.permissionRequirements
-                PackagePermissions.Load.fromStore
-                (builtinEffects state).callEffectsFor
-                hashStr
-            return
-              DTuple(
-                EffectsToDT.toDT result.requiredEffects,
-                DBool result.complete,
-                []
-              )
-          }
+          let result =
+            PackagePermissions.permissionRequirements
+              PackagePermissions.Load.fromStore
+              (builtinEffects state).callEffectsFor
+              hashStr
+          DTuple(EffectsToDT.toDT result.requiredEffects, DBool result.complete, [])
         | _ -> incorrectArgs ()) ]
 
 

@@ -1,7 +1,6 @@
 module Task
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 let map (f : 'a -> 'b) (v : Task<'a>) : Task<'b> =
   task {

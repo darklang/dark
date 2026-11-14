@@ -233,124 +233,107 @@ let private settle
   (c : Detect.Conflict)
   (op : PT.PackageOp)
   (resolvedBy : string)
-  : Ply<Result<unit, Actions.Failure>> =
-  uply {
-    match! PackageOps.authorOps exeState pm branchId [ op ] with
-    | Error e -> return Error(Actions.Failed e)
-    | Ok _ -> return! Actions.setConflictStatus c.id "overridden" resolvedBy
-  }
+  : Result<unit, Actions.Failure> =
+  match PackageOps.authorOps exeState pm branchId [ op ] with
+  | Error e -> Error(Actions.Failed e)
+  | Ok _ -> Actions.setConflictStatus c.id "overridden" resolvedBy
 
 let private resolve
   (exeState : ExecutionState)
   (pm : PT.PackageManager)
   (r : Dval)
-  : Ply<Result<unit, Actions.Failure>> =
-  uply {
-    let withConflict
-      (id : string)
-      (f : Detect.Conflict -> Ply<Result<unit, Actions.Failure>>)
-      : Ply<Result<unit, Actions.Failure>> =
-      uply {
-        match! Actions.conflictById id with
-        | None -> return Error(Actions.Refused Actions.NoSuchConflict)
-        | Some c -> return! f c
-      }
+  : Result<unit, Actions.Failure> =
+  let withConflict
+    (id : string)
+    (f : Detect.Conflict -> Result<unit, Actions.Failure>)
+    : Result<unit, Actions.Failure> =
+    match Actions.conflictById id with
+    | None -> Error(Actions.Refused Actions.NoSuchConflict)
+    | Some c -> f c
 
-    match r with
-    | DEnum(_, _, _, "KeepMine", [ DUuid b; DString o; DString m; DString n ]) ->
-      return! Actions.keepMine (branch b) o m n
-    | DEnum(_, _, _, "TakeTheirs", [ DUuid b; DString o; DString m; DString n ]) ->
-      return! Actions.takeTheirs (branch b) o m n
-    | DEnum(_, _, _, "Ack", [ DString id ]) ->
-      return! Actions.setConflictStatus id "acked" ""
-    | DEnum(_, _, _, "Supersede", [ DString id; DString liveHash ]) ->
-      return! Actions.setConflictStatus id "superseded" liveHash
+  match r with
+  | DEnum(_, _, _, "KeepMine", [ DUuid b; DString o; DString m; DString n ]) ->
+    Actions.keepMine (branch b) o m n
+  | DEnum(_, _, _, "TakeTheirs", [ DUuid b; DString o; DString m; DString n ]) ->
+    Actions.takeTheirs (branch b) o m n
+  | DEnum(_, _, _, "Ack", [ DString id ]) -> Actions.setConflictStatus id "acked" ""
+  | DEnum(_, _, _, "Supersede", [ DString id; DString liveHash ]) ->
+    Actions.setConflictStatus id "superseded" liveHash
 
-    | DEnum(_, _, _, "Override", [ DUuid b; DString id; DString hash ]) ->
-      // Refused rather than binding a name to nothing: `Hash ""` corrupts a binding in a way no
-      // later fold undoes.
-      if hash = "" then
-        return Error(Actions.Refused Actions.NoVersion)
-      else
-        return!
-          withConflict id (fun c ->
-            uply {
-              let location = Actions.locationOfConflict c
-              let chosen = PT.Hash hash
-              // A `Decision` carrying the conflict id: distinct from the losing `SetName` (which the
-              // log already holds), and idempotent, so settling twice is one op.
-              let op =
-                PT.PackageOp.Decision(
-                  c.id,
-                  location,
-                  "",
-                  PT.DecisionKind.Override(referenceOf c.itemType chosen)
-                )
-              match! settle exeState pm (branch b) c op hash with
-              | Error e -> return Error e
-              | Ok() ->
-                // Cascade, the way an edit does: an override rebinds the NAME, and the callers that
-                // followed the losing version would otherwise go on calling it by hash.
-                let losers =
-                  c.candidates
-                  |> List.choose (fun cand ->
-                    if cand.hash = hash || cand.hash = "" then
-                      None
-                    else
-                      Some(PT.Hash cand.hash))
-                let kind =
-                  match c.itemType with
-                  | "type" -> PT.ItemKind.Type
-                  | "value" -> PT.ItemKind.Value
-                  | "trait" -> PT.ItemKind.Trait
-                  | "impl" -> PT.ItemKind.TraitImpl
-                  | "test" -> PT.ItemKind.Test
-                  | _ -> PT.ItemKind.Fn
-                let! _ = Packages.repoint (branch b) location kind losers chosen
-                return ok ()
-            })
+  | DEnum(_, _, _, "Override", [ DUuid b; DString id; DString hash ]) ->
+    // Refused rather than binding a name to nothing: `Hash ""` corrupts a binding in a way no
+    // later fold undoes.
+    if hash = "" then
+      Error(Actions.Refused Actions.NoVersion)
+    else
+      withConflict id (fun c ->
+        let location = Actions.locationOfConflict c
+        let chosen = PT.Hash hash
+        // A `Decision` carrying the conflict id: distinct from the losing `SetName` (which the
+        // log already holds), and idempotent, so settling twice is one op.
+        let op =
+          PT.PackageOp.Decision(
+            c.id,
+            location,
+            "",
+            PT.DecisionKind.Override(referenceOf c.itemType chosen)
+          )
+        match settle exeState pm (branch b) c op hash with
+        | Error e -> Error e
+        | Ok() ->
+          // Cascade, the way an edit does: an override rebinds the NAME, and the callers that
+          // followed the losing version would otherwise go on calling it by hash.
+          let losers =
+            c.candidates
+            |> List.choose (fun cand ->
+              if cand.hash = hash || cand.hash = "" then
+                None
+              else
+                Some(PT.Hash cand.hash))
+          let kind =
+            match c.itemType with
+            | "type" -> PT.ItemKind.Type
+            | "value" -> PT.ItemKind.Value
+            | "trait" -> PT.ItemKind.Trait
+            | "impl" -> PT.ItemKind.TraitImpl
+            | "test" -> PT.ItemKind.Test
+            | _ -> PT.ItemKind.Fn
+          let _ = Packages.repoint (branch b) location kind losers chosen
+          ok ())
 
-    | DEnum(_, _, _, "TakeRemoval", [ DUuid b; DString id; previous ]) ->
-      return!
-        withConflict id (fun c ->
-          // `previous` is what the name holds now, so the op says what it ended.
-          let op =
-            PT.PackageOp.Unbind(
-              Actions.locationOfConflict c,
-              optionString previous |> Option.map PT.Hash
-            )
-          settle exeState pm (branch b) c op "")
+  | DEnum(_, _, _, "TakeRemoval", [ DUuid b; DString id; previous ]) ->
+    withConflict id (fun c ->
+      // `previous` is what the name holds now, so the op says what it ended.
+      let op =
+        PT.PackageOp.Unbind(
+          Actions.locationOfConflict c,
+          optionString previous |> Option.map PT.Hash
+        )
+      settle exeState pm (branch b) c op "")
 
-    | DEnum(_, _, _, "Reword", [ DUuid b; DString id; DString text ]) ->
-      return!
-        withConflict id (fun c ->
-          uply {
-            match Actions.docPartOfKey c.part with
-            | None -> return Error(Actions.Refused(Actions.UnreadablePart c.part))
-            | Some part ->
-              // `previous` names the text being replaced, so the op reads as an ordinary edit
-              // made on top of what this store holds.
-              let previous =
-                c.candidates
-                |> List.tryFind (fun cand -> cand.side = "local")
-                |> Option.bind (fun cand ->
-                  if cand.text = "" then
-                    None
-                  else
-                    Some(Actions.hashOfText cand.text))
-              let op =
-                PT.PackageOp.UpdateDoc(
-                  Actions.locationOfConflict c,
-                  part,
-                  text,
-                  previous,
-                  None
-                )
-              return! settle exeState pm (branch b) c op ""
-          })
+  | DEnum(_, _, _, "Reword", [ DUuid b; DString id; DString text ]) ->
+    withConflict id (fun c ->
+      match Actions.docPartOfKey c.part with
+      | None -> Error(Actions.Refused(Actions.UnreadablePart c.part))
+      | Some part ->
+        // `previous` names the text being replaced, so the op reads as an ordinary edit
+        // made on top of what this store holds.
+        let previous =
+          c.candidates
+          |> List.tryFind (fun cand -> cand.side = "local")
+          |> Option.bind (fun cand ->
+            if cand.text = "" then None else Some(Actions.hashOfText cand.text))
+        let op =
+          PT.PackageOp.UpdateDoc(
+            Actions.locationOfConflict c,
+            part,
+            text,
+            previous,
+            None
+          )
+        settle exeState pm (branch b) c op "")
 
-    | other -> return Exception.raiseInternal "unknown Resolution" [ "got", other ]
-  }
+  | other -> Exception.raiseInternal "unknown Resolution" [ "got", other ]
 
 
 let fns (pm : PT.PackageManager) : List<BuiltInFn> =
@@ -369,25 +352,22 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DRecord(_, _, _, f) |] ->
-          uply {
-            let scope =
-              match field f "scope" with
-              | DEnum(_, _, _, "Whole", []) -> Actions.Whole
-              | DEnum(_, _, _, "Only", [ DList(_, Items(ids)) ]) ->
-                Actions.Only(strings ids)
-              | other ->
-                Exception.raiseInternal "unknown CommitScope" [ "got", other ]
-            let branchId =
-              match field f "branchId" with
-              | DUuid g -> branch g
-              | other -> Exception.raiseInternal "expected a Uuid" [ "got", other ]
-            let collapse =
-              match field f "collapse" with
-              | DBool b -> b
-              | _ -> false
-            let! r = Actions.commit branchId (str f "message") scope collapse
-            return outcome (kt Refs.committed) committedToDT r
-          }
+          let scope =
+            match field f "scope" with
+            | DEnum(_, _, _, "Whole", []) -> Actions.Whole
+            | DEnum(_, _, _, "Only", [ DList(_, Items(ids)) ]) ->
+              Actions.Only(strings ids)
+            | other -> Exception.raiseInternal "unknown CommitScope" [ "got", other ]
+          let branchId =
+            match field f "branchId" with
+            | DUuid g -> branch g
+            | other -> Exception.raiseInternal "expected a Uuid" [ "got", other ]
+          let collapse =
+            match field f "collapse" with
+            | DBool b -> b
+            | _ -> false
+          let r = Actions.commit branchId (str f "message") scope collapse
+          outcome (kt Refs.committed) committedToDT r
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
@@ -408,24 +388,21 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| action |] ->
-          uply {
-            let done' = outcome (kt Refs.branchDone) branchDoneToDT
-            match action with
-            | DEnum(_, _, _, "Start", [ DString name; DUuid parent ]) ->
-              let! d = Actions.start name (branch parent)
-              return done' (Ok d)
-            | DEnum(_, _, _, "Rename", [ DUuid b; DString name ]) ->
-              let! r = Actions.rename (branch b) name
-              return done' r
-            | DEnum(_, _, _, "Switch", [ DUuid b ]) ->
-              let! d = Actions.switchTo (branch b)
-              return done' (Ok d)
-            | DEnum(_, _, _, "Archive", [ DUuid b ]) ->
-              let! r = Actions.archive (branch b)
-              return done' r
-            | other ->
-              return Exception.raiseInternal "unknown BranchAction" [ "got", other ]
-          }
+          let done' = outcome (kt Refs.branchDone) branchDoneToDT
+          match action with
+          | DEnum(_, _, _, "Start", [ DString name; DUuid parent ]) ->
+            let d = Actions.start name (branch parent)
+            done' (Ok d)
+          | DEnum(_, _, _, "Rename", [ DUuid b; DString name ]) ->
+            let r = Actions.rename (branch b) name
+            done' r
+          | DEnum(_, _, _, "Switch", [ DUuid b ]) ->
+            let d = Actions.switchTo (branch b)
+            done' (Ok d)
+          | DEnum(_, _, _, "Archive", [ DUuid b ]) ->
+            let r = Actions.archive (branch b)
+            done' r
+          | other -> Exception.raiseInternal "unknown BranchAction" [ "got", other ]
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
@@ -448,50 +425,39 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | exeState, _, _, [| action |] ->
-          uply {
-            let reconciled = outcome (kt Refs.reconciled) reconciledToDT
-            // One repoint, on the branch: a whole propagation, as an edit there would make.
-            let repointOn
-              (b : System.Guid)
-              (rp : Actions.Repoint)
-              : System.Threading.Tasks.Task<unit> =
-              uply {
-                let! _ =
-                  Packages.repoint
-                    (branch b)
-                    rp.dependency
-                    rp.kind
-                    [ rp.fromHash ]
-                    rp.toHash
-                return ()
-              }
-              |> Ply.toTask
-            match action with
-            | DEnum(_, _, _, "IntoParent", [ DUuid b; repoints ]) ->
-              let repoints = listOf repointFromDT repoints
-              let! r =
-                Actions.merge (branch b) repoints (repointOn b) (fun () ->
-                  PackageOps.evaluateLandedValues exeState |> Ply.toTask)
-              return reconciled r
-            | DEnum(_, _, _, "Rebase", [ DUuid b; repoints ]) ->
-              let repoints = listOf repointFromDT repoints
-              let! r = Actions.rebase (branch b) repoints (repointOn b)
-              return reconciled r
-            | DEnum(_, _, _, "Preview", [ DUuid b ]) ->
-              let! conflicts = Actions.preview (branch b)
-              return
-                reconciled (
-                  Ok
-                    { Actions.Reconciled.moved = 0L
-                      conflicts = conflicts
-                      diverged = []
-                      repointed = []
-                      commit = ""
-                      warning = "" }
-                )
-            | other ->
-              return Exception.raiseInternal "unknown MergeAction" [ "got", other ]
-          }
+          let reconciled = outcome (kt Refs.reconciled) reconciledToDT
+          // One repoint, on the branch: a whole propagation, as an edit there would make.
+          let repointOn (b : System.Guid) (rp : Actions.Repoint) : unit =
+            Packages.repoint
+              (branch b)
+              rp.dependency
+              rp.kind
+              [ rp.fromHash ]
+              rp.toHash
+            |> ignore<Result<List<PT.PropagateRepoint>, string>>
+          match action with
+          | DEnum(_, _, _, "IntoParent", [ DUuid b; repoints ]) ->
+            let repoints = listOf repointFromDT repoints
+            let r =
+              Actions.merge (branch b) repoints (repointOn b) (fun () ->
+                PackageOps.evaluateLandedValues exeState)
+            reconciled r
+          | DEnum(_, _, _, "Rebase", [ DUuid b; repoints ]) ->
+            let repoints = listOf repointFromDT repoints
+            let r = Actions.rebase (branch b) repoints (repointOn b)
+            reconciled r
+          | DEnum(_, _, _, "Preview", [ DUuid b ]) ->
+            let conflicts = Actions.preview (branch b)
+            reconciled (
+              Ok
+                { Actions.Reconciled.moved = 0L
+                  conflicts = conflicts
+                  diverged = []
+                  repointed = []
+                  commit = ""
+                  warning = "" }
+            )
+          | other -> Exception.raiseInternal "unknown MergeAction" [ "got", other ]
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
@@ -513,10 +479,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUuid b; what |] ->
-          uply {
-            let! r = Actions.discard (branch b) (discardWhatFromDT what)
-            return outcome KTInt64 (fun n -> DInt64(int64 n)) r
-          }
+          let r = Actions.discard (branch b) (discardWhatFromDT what)
+          outcome KTInt64 (fun n -> DInt64(int64 n)) r
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
@@ -536,10 +500,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | exeState, _, _, [| r |] ->
-          uply {
-            let! result = resolve exeState pm r
-            return outcome KTUnit (fun () -> DUnit) result
-          }
+          let result = resolve exeState pm r
+          outcome KTUnit (fun () -> DUnit) result
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
@@ -577,7 +539,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               incomingLabel
               local
               (listOf removalFromDT (field f "removals"))
-          Ply(conflictList (divergences @ removals))
+          (conflictList (divergences @ removals))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -599,7 +561,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString aTs; DString aHash; DString bTs; DString bHash |] ->
-          Ply(DBool(LibExecution.Lww.incomingWins aTs aHash bTs bHash))
+          (DBool(LibExecution.Lww.incomingWins aTs aHash bTs bHash))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

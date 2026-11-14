@@ -64,7 +64,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString text |] ->
-          text |> TextWidth.ofString |> int64 |> Dval.dint64 |> Ply
+          text |> TextWidth.ofString |> int64 |> Dval.dint64
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -79,7 +79,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString a; DString b |] ->
-          Ply(DInt64(int64 (String.compareByCodepoint a b)))
+          (DInt64(int64 (String.compareByCodepoint a b)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -94,7 +94,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString s |] ->
-          s |> String.mapEgcs Dval.char |> Dval.list KTChar |> Ply
+          s |> String.mapEgcs Dval.char |> Dval.list KTChar
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -138,7 +138,7 @@ let fns () : List<BuiltInFn> =
                 at <- String.nextEgcMatch s search copied &offset &index
               sb.Append(s, copied, s.Length - copied).ToString()
           // A replacement can start with a mark that composes with what precedes it.
-          replaced |> String.normalize |> DString |> Ply
+          replaced |> String.normalize |> DString
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -155,7 +155,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString s |] ->
-          Ply(DString(Builtins.Pure.CaseMapping.toUppercase s))
+          (DString(Builtins.Pure.CaseMapping.toUppercase s))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -172,7 +172,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString s |] ->
-          Ply(DString(Builtins.Pure.CaseMapping.toLowercase s))
+          (DString(Builtins.Pure.CaseMapping.toLowercase s))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -186,7 +186,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the length of the string"
       fn =
         (function
-        | _, _, _, [| DStr s |] -> s.EgcCount |> int64 |> Dval.dint64 |> Ply
+        | _, _, _, [| DStr s |] -> s.EgcCount |> int64 |> Dval.dint64
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -210,7 +210,7 @@ let fns () : List<BuiltInFn> =
               (RuntimeError.BigInts.RepeatCount(int64 System.Int32.MaxValue))
               (DInt64 count)
           else
-            DString(String.repeat s (int (max count 0L))) |> Ply
+            DString(String.repeat s (int (max count 0L)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = set [ LibExecution.Effects.Effect.Raise ]
@@ -227,7 +227,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         // TODO add fuzzer to ensure all strings are normalized no matter what we do to them.
-        | _, _, _, [| DStr s1; DStr s2 |] -> Ply(DStr(DarkString.append s1 s2))
+        | _, _, _, [| DStr s1; DStr s2 |] -> (DStr(DarkString.append s1 s2))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -246,9 +246,9 @@ let fns () : List<BuiltInFn> =
           if String.isCharwise s then
             let chars = s.ToCharArray()
             System.Array.Reverse chars
-            Ply(DString(System.String chars))
+            (DString(System.String chars))
           else
-            String.egcsReversed s |> String.concat "" |> DString |> Ply
+            String.egcsReversed s |> String.concat "" |> DString
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -277,7 +277,7 @@ let fns () : List<BuiltInFn> =
             else
               String.splitEgcs s sep
 
-          parts |> List.map DString |> Dval.list KTString |> Ply
+          parts |> List.map DString |> Dval.list KTString
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -311,7 +311,6 @@ let fns () : List<BuiltInFn> =
               |> raiseRTE vm.threadID)
           |> String.joinNormalized sep
           |> DString
-          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -329,7 +328,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString s; DInt64 countD |] ->
           // The Dark version was two `String.length` calls, two comparisons and a `slice`.
-          Ply(DString(String.dropFirstEgcs s countD))
+          (DString(String.dropFirstEgcs s countD))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -343,7 +342,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns true if <param s> is the empty string"
       fn =
         (function
-        | _, _, _, [| DString s |] -> Ply(DBool(s.Length = 0))
+        | _, _, _, [| DString s |] -> (DBool(s.Length = 0))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -361,7 +360,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DString subject; DString prefix |] ->
           // Exactly what the Dark version computed -- `slice subject 0 (length prefix) == prefix` --
           // but without the three package calls, and without walking either string to its end.
-          Ply(DBool(String.startsWithEgcs subject prefix))
+          (DBool(String.startsWithEgcs subject prefix))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -377,7 +376,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString subject; DString suffix |] ->
-          Ply(DBool(String.endsWithEgcs subject suffix))
+          (DBool(String.endsWithEgcs subject suffix))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -400,7 +399,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DString s; DInt64 firstD; DInt64 lastD |] ->
           // Normalizing the indices here rather than in the Dark wrapper, which built a lambda and
           // applied it twice to do exactly this. That wrapper is a bare forwarder now, so it elides.
-          String.sliceEgcs s firstD lastD |> DString |> Ply
+          String.sliceEgcs s firstD lastD |> DString
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -418,7 +417,7 @@ let fns () : List<BuiltInFn> =
         + "{{\"\\n\"}}"
       fn =
         (function
-        | _, _, _, [| DString toTrim |] -> toTrim.Trim() |> DString |> Ply
+        | _, _, _, [| DString toTrim |] -> toTrim.Trim() |> DString
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -436,7 +435,7 @@ let fns () : List<BuiltInFn> =
         + "{{\"\\n\"}}"
       fn =
         (function
-        | _, _, _, [| DString toTrim |] -> Ply(DString(toTrim.TrimStart()))
+        | _, _, _, [| DString toTrim |] -> (DString(toTrim.TrimStart()))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -454,7 +453,7 @@ let fns () : List<BuiltInFn> =
         + "{{\"\\n\"}}."
       fn =
         (function
-        | _, _, _, [| DString toTrim |] -> Ply(DString(toTrim.TrimEnd()))
+        | _, _, _, [| DString toTrim |] -> (DString(toTrim.TrimEnd()))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -474,9 +473,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString lookingIn; DString searchingFor |] ->
-          Ply(
-            DBool(searchingFor = "" || String.egcIndexOf lookingIn searchingFor >= 0)
-          )
+          (DBool(searchingFor = "" || String.egcIndexOf lookingIn searchingFor >= 0))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -500,7 +497,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString str; DString search |] ->
           let index = if search = "" then 0 else String.egcIndexOf str search
-          Ply(Dval.dint64 (int64 index))
+          (Dval.dint64 (int64 index))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -525,7 +522,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DStr str; DString search |] ->
           let index =
             if search = "" then str.EgcCount else egcLastIndexOf str.Value search
-          Ply(Dval.dint64 (int64 index))
+          (Dval.dint64 (int64 index))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -547,7 +544,6 @@ let fns () : List<BuiltInFn> =
           |> Seq.map (fun rune -> DUInt32(uint32 rune.Value))
           |> Seq.toList
           |> Dval.list KTUInt32
-          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -578,7 +574,7 @@ let fns () : List<BuiltInFn> =
             count <- count + 1
             i <- i + (if isPair then 2 else 1)
 
-          count |> int64 |> Dval.dint64 |> Ply
+          count |> int64 |> Dval.dint64
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -598,8 +594,8 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString s; DInt64 index |] ->
           match utf8ByteAt s index with
-          | Some b -> Dval.optionSome KTUInt8 (Dval.uint8 b) |> Ply
-          | None -> Dval.optionNone KTUInt8 |> Ply
+          | Some b -> Dval.optionSome KTUInt8 (Dval.uint8 b)
+          | None -> Dval.optionNone KTUInt8
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

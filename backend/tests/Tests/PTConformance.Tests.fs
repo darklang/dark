@@ -11,7 +11,6 @@ module Tests.PTConformance
 open Expecto
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -202,7 +201,7 @@ let conformance =
 
     for (name, hash) in pinned do
       if not (Map.containsKey name accepted) then
-        let! darkType = LibDB.ProgramTypes.Type.get (PT.Hash hash) |> Ply.toTask
+        let darkType = LibDB.ProgramTypes.Type.get (PT.Hash hash)
 
         match darkType, findFsharp fsharpTypes name with
         | None, _ ->
