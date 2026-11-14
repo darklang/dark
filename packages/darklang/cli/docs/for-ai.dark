@@ -40,7 +40,6 @@ Save the module again to change it.
   eval 'Stdlib.List.length([1, 2])'                # one expression
   status                                           # what changed
   commit "message" -y                              # record it
-  run app.dark [args]                              # a file instead; `docs scripts`
 
 `search` takes `--fn`, `--type`, `--val` or `--test` to narrow, and `--with-docs`
 for full comments. To find a function by what it takes and returns, search the

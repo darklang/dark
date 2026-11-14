@@ -6,6 +6,10 @@ let content(): String =
 """
   + SyntaxAtAGlance.content()
   + """
+A program you keep, test or call from other code goes in the package tree:
+save a module and run its `main` by name (`docs for-ai`). A script file suits
+a one-off.
+
 Save your code in a .dark file and run it with `dark run <file> [args...]`.
 
 For example, save this as greet.dark:
