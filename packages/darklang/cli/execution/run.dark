@@ -404,16 +404,23 @@ let complete(_state: AppState, args: List<String>): List<Completion.CompletionIt
 
 
 let help(_state: AppState): String =
-  [ "Usage: run-script [options] <path or function> [args...]"
-    "Execute a Dark script file, or a package function by name."
+  [ "Usage: run-script [options] <function or path> [args...]"
+    "Run a package function by name, or a Dark script file."
+    ""
+    "A package function runs by name when it takes a List<String> or nothing."
+    "The words after its name are the list, and the Int64 it returns is the"
+    "exit code (Unit is 0). It reads stdin and files as a script does:"
+    "  let main(args: List<String>): Int64 = ...    // saved as Me.Todo.main"
+    "  run-script Me.Todo.main add \"oat milk\"      // args = [\"add\", \"oat milk\"]"
+    "A function with other parameters goes through eval."
     ""
     "Examples:"
-    "  run-script script.dark            - Run a script"
-    "  run-script script.dark a b c      - Run with args"
+    "  run-script Me.Todo.main list      - Run a package function"
+    "  run-script script.dark a b c      - Run a script file with args"
     "  run-script --stats script.dark    - Run and report what it cost"
     ""
-    "Everything after the path is passed unchanged, including flags and --."
-    "See `docs scripts` for arguments, exit codes and permissions."
+    "Everything after the name or path is passed unchanged, including flags and --."
+    "Saving and testing a module: `docs for-ai`. Script files: `docs scripts`."
     ""
     "At a terminal: Allow this run / Remember for this code version / Cancel."
     "Access Dark can see before starting is reviewed in one prompt; other access"
@@ -429,12 +436,5 @@ let help(_state: AppState): String =
     "  --stats            - Also report what the run cost: allocation, time, instructions,"
     "                       calls and frame pushes, net of the measuring harness, tagged"
     "                       with the build they came from. Includes parsing the script;"
-    "                       call Perf.measure inside it to measure the work alone."
-    ""
-    "A function as a command: a package function runs the same way, by name, when it"
-    "takes a List<String> or nothing. The words after its name are the list, and the"
-    "Int64 it returns is the exit code (Unit is 0):"
-    "  let main(args: List<String>): Int64 = ...    // saved as Me.Todo.main"
-    "  run-script Me.Todo.main add \"oat milk\"      // args = [\"add\", \"oat milk\"]"
-    "A function with other parameters goes through eval." ]
+    "                       call Perf.measure inside it to measure the work alone." ]
   |> Stdlib.String.join("\n")
