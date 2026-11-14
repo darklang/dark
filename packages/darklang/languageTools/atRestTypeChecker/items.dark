@@ -194,11 +194,18 @@ let finish(s: Solve.State, itemAt: Option<Int64>, scheme: Model.Scheme): Outcome
     | Checked -> Option.Some({ scheme with typ = Solve.zonk(s, scheme.typ) })
     | _ -> Option.None
 
-  // Same gate as the scheme above, and the same reason.
+  // Same gate as the scheme above, and the same reason. A bare number's type is the exception:
+  // it was settled where it stands, and leaving it an Int64 would only move the error to its run.
   let resolutions =
     match verdict with
     | Checked -> Stdlib.List.reverse(s.resolutions)
-    | _ -> []
+    | _ ->
+      s.resolutions
+      |> Stdlib.List.reverse
+      |> Stdlib.List.filter(fun r ->
+        match r with
+        | Literal(_, _) -> true
+        | _ -> false)
 
   Outcome
     { verdict = verdict

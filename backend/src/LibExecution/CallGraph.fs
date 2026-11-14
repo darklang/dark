@@ -220,6 +220,13 @@ let private analyzeWith
     let visit = walk env argsInScope
     match expr with
     | PT.EInt64(_, n) -> Argument.Int64 n
+    // A bare number the save gave a smaller type is the same number.
+    | PT.EInt8(_, n) -> Argument.Int64(int64 n)
+    | PT.EUInt8(_, n) -> Argument.Int64(int64 n)
+    | PT.EInt16(_, n) -> Argument.Int64(int64 n)
+    | PT.EUInt16(_, n) -> Argument.Int64(int64 n)
+    | PT.EInt32(_, n) -> Argument.Int64(int64 n)
+    | PT.EUInt32(_, n) -> Argument.Int64(int64 n)
     | PT.EArg(_, i) ->
       if argsInScope then argument (Argument.Parameter i) else Argument.Unknown
     | PT.EVariable(_, name) ->

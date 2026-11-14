@@ -102,6 +102,12 @@ type Binder =
   | Poly(Int64)
 
 
+/// A number written without a suffix, as written.
+type NumberLiteral =
+  | Integer(Int64)
+  | Float(Sign, String, String)
+
+
 /// A requirement generated from syntax for Solve to check.
 /// Order matters: establish a called function's type before checking its arguments,
 /// so a lambda passed as an argument can use the expected parameter types.
@@ -206,6 +212,10 @@ type Constraint =
   /// the required number of type arguments, and be valid in their positions.
   /// This includes checking types used as dictionary keys.
   | WellFormed(at: Option<Int64>, typ: Ty)
+  /// A number written without a suffix takes the numeric type of its slot, <param typ>, and
+  /// must fit in it. Deferred while that type is unknown; Int64 or Float64 if nothing says.
+  /// <param site> is the slot, for a mismatch.
+  | Literal(at: Int64, typ: Ty, value: NumberLiteral, site: Site)
 
 
 /// A reusable inferred type. Each use replaces quantified variables with fresh
@@ -244,6 +254,9 @@ type Resolution =
   /// passed along rather than discharged. This is what threads a bound through a generic
   /// that calls another generic.
   | CallerBoundDeferred(at: Int64, param: String, trait_: ProgramTypes.Hash, fromParam: String)
+  /// A number written without a suffix took this type from its slot. Only when that is not
+  /// the default, Int64 or Float64: the save writes the literal as if it had the suffix.
+  | Literal(at: Int64, typ: Ty)
 
 
 /// Whether a named function has a signature the checker can use.

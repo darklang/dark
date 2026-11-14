@@ -116,7 +116,10 @@ let private authorOpsWith
       // Refresh main's draft: re-resolve names and recompute SCC-aware hashes now that new items
       // exist. This is the forward-ref case: an earlier draft item that references THIS one.
       if branchId.IsMain then
-        let _refreshed = LibDB.WipRefresh.refresh pm
+        let _refreshed =
+          LibDB.WipRefresh.refreshRetyping
+            (TraitCalls.retype exeState branchId pm)
+            pm
         ()
 
       // Evaluate the values whose result is still missing, once, with no effects allowed

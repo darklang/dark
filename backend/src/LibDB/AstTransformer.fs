@@ -41,6 +41,10 @@ type HashMapping =
     /// name node. The other half of `resolvedImpls`: that one says what a call in a bounded fn's
     /// BODY defers to, this one says which implementation the CALLER's type argument implies.
     boundImpls : Map<id, List<PT.FQFnName.BoundImpl>>
+
+    /// The type the SAVE worked out for each number written without a suffix, by its node,
+    /// where that is not Int64 or Float64. `f(0)` is stored as `f(0u16)` was.
+    literalTypes : Map<id, PT.TypeReference>
   }
 
 let emptyMapping : HashMapping =
@@ -48,7 +52,68 @@ let emptyMapping : HashMapping =
     byHash = Map.empty
     referenceName = None
     resolvedImpls = Map.empty
-    boundImpls = Map.empty }
+    boundImpls = Map.empty
+    literalTypes = Map.empty }
+
+
+/// A bare integer as <param typ>, as an expression and as a pattern; None when it doesn't fit.
+let private sizedInt
+  (typ : PT.TypeReference)
+  (id : id)
+  (n : int64)
+  : Option<PT.Expr * PT.MatchPattern> =
+  let within (lo : int64) (hi : int64) = n >= lo && n <= hi
+  match typ with
+  | PT.TInt8 when within -128L 127L ->
+    Some(PT.EInt8(id, int8 n), PT.MPInt8(id, int8 n))
+  | PT.TUInt8 when within 0L 255L ->
+    Some(PT.EUInt8(id, uint8 n), PT.MPUInt8(id, uint8 n))
+  | PT.TInt16 when within -32768L 32767L ->
+    Some(PT.EInt16(id, int16 n), PT.MPInt16(id, int16 n))
+  | PT.TUInt16 when within 0L 65535L ->
+    Some(PT.EUInt16(id, uint16 n), PT.MPUInt16(id, uint16 n))
+  | PT.TInt32 when within -2147483648L 2147483647L ->
+    Some(PT.EInt32(id, int32 n), PT.MPInt32(id, int32 n))
+  | PT.TUInt32 when within 0L 4294967295L ->
+    Some(PT.EUInt32(id, uint32 n), PT.MPUInt32(id, uint32 n))
+  | PT.TUInt64 when n >= 0L ->
+    Some(PT.EUInt64(id, uint64 n), PT.MPUInt64(id, uint64 n))
+  | PT.TInt128 ->
+    let v = System.Int128.op_Implicit n
+    Some(PT.EInt128(id, v), PT.MPInt128(id, v))
+  | PT.TUInt128 when n >= 0L ->
+    let v = System.UInt128.op_Implicit (uint64 n)
+    Some(PT.EUInt128(id, v), PT.MPUInt128(id, v))
+  | PT.TBigInt ->
+    let v = System.Numerics.BigInteger n
+    Some(PT.EBigInt(id, v), PT.MPBigInt(id, v))
+  | _ -> None
+
+let rec private transformPattern
+  (mapping : HashMapping)
+  (pat : PT.MatchPattern)
+  : PT.MatchPattern =
+  let r = transformPattern mapping
+  match pat with
+  | PT.MPInt64(id, n) ->
+    Map.tryFind id mapping.literalTypes
+    |> Option.bind (fun t -> sizedInt t id n)
+    |> Option.map snd
+    |> Option.defaultValue pat
+  | PT.MPFloat64(id, sign, whole, fraction) when
+    Map.tryFind id mapping.literalTypes = Some PT.TFloat32
+    ->
+    PT.MPFloat32(id, sign, whole, fraction)
+  | PT.MPList(id, pats) -> PT.MPList(id, List.map r pats)
+  | PT.MPListCons(id, head, tail) -> PT.MPListCons(id, r head, r tail)
+  | PT.MPTuple(id, first, second, rest) ->
+    PT.MPTuple(id, r first, r second, List.map r rest)
+  | PT.MPEnum(id, caseName, fields) -> PT.MPEnum(id, caseName, List.map r fields)
+  | PT.MPOr(id, pats) -> PT.MPOr(id, NEList.map r pats)
+  | PT.MPAs(id, inner, name) -> PT.MPAs(id, r inner, name)
+  | PT.MPRecord(id, fields) ->
+    PT.MPRecord(id, fields |> List.map (fun (name, p) -> (name, r p)))
+  | _ -> pat
 
 let private replaceHash
   (mapping : HashMapping)
@@ -245,7 +310,7 @@ and private transformMatchCase
   (mapping : HashMapping)
   (case : PT.MatchCase)
   : PT.MatchCase =
-  { pat = case.pat // Patterns don't contain UUID references
+  { pat = transformPattern mapping case.pat
     whenCondition = case.whenCondition |> Option.map (transformExpr mapping)
     rhs = transformExpr mapping case.rhs }
 
@@ -312,18 +377,27 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
   | PT.EUInt16 _
   | PT.EInt32 _
   | PT.EUInt32 _
-  | PT.EInt64 _
   | PT.EUInt64 _
   | PT.EInt128 _
   | PT.EUInt128 _
   | PT.EBigInt _
-  | PT.EFloat64 _
   | PT.EFloat32 _
   | PT.EDecimal _
   | PT.EChar _
   | PT.EVariable _
   | PT.EArg _
   | PT.ESelf _ -> expr
+
+  | PT.EInt64(id, n) ->
+    Map.tryFind id mapping.literalTypes
+    |> Option.bind (fun t -> sizedInt t id n)
+    |> Option.map fst
+    |> Option.defaultValue expr
+  | PT.EFloat64(id, sign, whole, fraction) ->
+    if Map.tryFind id mapping.literalTypes = Some PT.TFloat32 then
+      PT.EFloat32(id, sign, whole, fraction)
+    else
+      expr
 
   | PT.EString(id, segments) ->
     PT.EString(id, segments |> List.map (transformStringSegment mapping))
@@ -505,6 +579,33 @@ let transformTest
   (test : PT.PackageTest.PackageTest)
   : PT.PackageTest.PackageTest =
   { test with body = transformExpr mapping test.body }
+
+/// An expression that is no package item's body, such as `dark eval`'s.
+let transformBareExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
+  transformExpr mapping expr
+
+/// Whether <param expr> holds a number written without a suffix, in an expression or a pattern:
+/// one whose type only the at-rest checker can work out.
+let rec hasBareNumber (expr : PT.Expr) : bool =
+  let rec inPattern (pat : PT.MatchPattern) =
+    match pat with
+    | PT.MPInt64 _
+    | PT.MPFloat64 _ -> true
+    | PT.MPList(_, pats)
+    | PT.MPEnum(_, _, pats) -> List.exists inPattern pats
+    | PT.MPListCons(_, head, tail) -> inPattern head || inPattern tail
+    | PT.MPTuple(_, first, second, rest) ->
+      inPattern first || inPattern second || List.exists inPattern rest
+    | PT.MPOr(_, pats) -> pats |> NEList.toList |> List.exists inPattern
+    | PT.MPAs(_, inner, _) -> inPattern inner
+    | PT.MPRecord(_, fields) -> fields |> List.exists (snd >> inPattern)
+    | _ -> false
+  match expr with
+  | PT.EInt64 _
+  | PT.EFloat64 _ -> true
+  | PT.EMatch(_, _, cases) when cases |> List.exists (fun c -> inPattern c.pat) ->
+    true
+  | _ -> LibExecution.ProgramTypesAst.subExprs expr |> List.exists hasBareNumber
 
 let private transformTypeDefinition
   (mapping : HashMapping)

@@ -222,6 +222,7 @@ let aRefreshDoesNotEatAnAuthorThatLandedMidway =
           if opened = 1 then
             (authorIntoMain $"module Darklang.{m}\n\nlet callee(): Int64 = 41")
               .Wait())
+        (fun ops -> ops)
         pmPT
     Expect.equal
       opened

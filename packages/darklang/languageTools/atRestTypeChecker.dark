@@ -90,6 +90,8 @@ type IssueCode =
   | NonExhaustiveMatch
   /// A match case that earlier cases already cover, so it never runs
   | UnreachableMatchCase
+  /// A bare number that doesn't fit the type its slot wants
+  | NumberOutOfRange
   | UnsupportedConstruct
 
 
@@ -226,6 +228,8 @@ type Context =
   | UnaryMinusOperandNotSignedNumeric
   | BitwiseNotOperandNotInteger
   | CheckerUnavailable(String)
+  /// A bare number, as written, and the smallest and largest values of the type it was given
+  | NumberOutOfRange(value: String, min: String, max: String)
 
 
 type Issue =
@@ -441,6 +445,7 @@ let issueCodeToString(code: IssueCode): String =
   | AmbiguousType -> "AmbiguousType"
   | NonExhaustiveMatch -> "NonExhaustiveMatch"
   | UnreachableMatchCase -> "UnreachableMatchCase"
+  | NumberOutOfRange -> "NumberOutOfRange"
   | UnsupportedConstruct -> "UnsupportedConstruct"
 
 
@@ -688,6 +693,7 @@ let contextToStringWith(
   | UnaryMinusOperandNotSignedNumeric -> "Unary minus requires a signed integer or Float64 operand"
   | BitwiseNotOperandNotInteger -> "Bitwise NOT requires an integer operand"
   | CheckerUnavailable(detail) -> $"The at-rest checker could not run: {detail}"
+  | NumberOutOfRange(value, min, max) -> $"`{value}` doesn't fit ({min} to {max})"
   | TraitNeeded(traitHash, method) ->
     let traitName =
       match customTypeName(traitHash) with
@@ -884,6 +890,16 @@ let issueToStringWith(customTypeName: ProgramTypes.Hash -> Option<String>, issue
     | None -> Option.None
 
   match issue.context, issue.code, actualName with
+  | NumberOutOfRange(value, min, max), _, _ ->
+    let typ =
+      issue.expected
+      |> Stdlib.Option.map(fun t -> staticTypeToStringWith(customTypeName, t))
+      |> Stdlib.Option.withDefault("its type")
+
+    if min == "0" && Stdlib.String.startsWith(value, "-") then
+      $"{typ} can't be negative: `{value}`"
+    else
+      $"`{value}` doesn't fit in {typ} ({min} to {max})"
   | EnumRequiredForPattern, InvalidPattern, _ when Stdlib.Option.isSome(issue.expected) ->
     let matched =
       issue.expected

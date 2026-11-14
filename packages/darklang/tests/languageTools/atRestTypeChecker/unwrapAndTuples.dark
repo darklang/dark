@@ -200,7 +200,7 @@ module PostfixUnwrap =
         check(
           "let f(u: Unit): Stdlib.Option.Option<Int64> = (fun x -> Some(x? + 1))(4)",
           "f")
-        |> Stdlib.Test.equal("failed:InvalidUnwrap") ])
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
 
 
   // Infer get's field and ? requirements separately for each call. It can accept
