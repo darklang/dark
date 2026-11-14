@@ -47,11 +47,11 @@ let prefix(id: String): String =
 
 /// Author, commit and approve one function, so a run of it records and a view of it
 /// replays.
-let authored(i: Instance.T, name: String, body: String): Stdlib.Test.Result =
+let authored(i: Instance.T, name: String, body: String, rules: String): Stdlib.Test.Result =
   Stdlib.Test.all(
     [ Traces.step(i, [ "fn", name, body ])
       Traces.step(i, [ "commit", name, "-y" ])
-      Traces.step(i, [ "permissions", "approve", name, "--yes" ]) ])
+      Traces.step(i, [ "permissions", "approve", name, rules, "--yes" ]) ])
 
 
 // ─── resume, fork, rerun ────────────────────────────────────────────────────
@@ -377,7 +377,7 @@ test showReplaysAFunctionWithoutPerforming = Traces.withTraces(fun i ->
     authored(
       i,
       "Tests.Prev.greet",
-      "(name: String): String =\n  let upper = Stdlib.String.toUppercase(name)\n  let shouted = Stdlib.String.append(upper, \"!\")\n  let _ = Stdlib.printLine(shouted)\n  shouted")
+      "(name: String): String =\n  let upper = Stdlib.String.toUppercase(name)\n  let shouted = Stdlib.String.append(upper, \"!\")\n  let _ = Stdlib.printLine(shouted)\n  shouted", "stdout")
 
   let ran = Instance.said(i, [ "eval", "Tests.Prev.greet(\"bob\")" ])
   // The index knows which runs went through the function, where the call itself is
@@ -416,7 +416,7 @@ test showServesASpawnedChildFromTheLog = Traces.withTraces(fun i ->
     authored(
       i,
       "Tests.Prev.conc",
-      "(): String =\n  let h = Stdlib.Exec.spawn(fun () -> Stdlib.display(Stdlib.Uuid.generate()))\n  Stdlib.Exec.await(h)")
+      "(): String =\n  let h = Stdlib.Exec.spawn(fun () -> Stdlib.display(Stdlib.Uuid.generate()))\n  Stdlib.Exec.await(h)", "concurrency; random")
 
   let recorded =
     lines(Instance.output(i, [ "eval", "Tests.Prev.conc()" ]))
@@ -446,7 +446,7 @@ test identicalCallsKeepTheirOwnValues = Traces.withTraces(fun i ->
     authored(
       i,
       "Tests.Prev.two",
-      "(): String =\n  let a = Stdlib.display(Stdlib.Uuid.generate())\n  let b = Stdlib.display(Stdlib.Uuid.generate())\n  $\"{a} {b}\"")
+      "(): String =\n  let a = Stdlib.display(Stdlib.Uuid.generate())\n  let b = Stdlib.display(Stdlib.Uuid.generate())\n  $\"{a} {b}\"", "random")
 
   let ran = lastLine(i, [ "eval", "Tests.Prev.two()" ])
   let viewed = Instance.output(i, [ "traces", "show", "Tests.Prev.two" ])
@@ -486,7 +486,7 @@ test showUsesTheViewersApprovals = Traces.withTraces(fun i ->
     authored(
       i,
       "Tests.PreviewAccount.value",
-      "(): String = Stdlib.display(Stdlib.Uuid.generate())")
+      "(): String = Stdlib.display(Stdlib.Uuid.generate())", "random")
 
   let recorded =
     Stdlib.String.replaceAll(
@@ -520,7 +520,7 @@ test recursionIsALoopAndEmptyIterationsStaySilent = Traces.withTraces(fun i ->
     authored(
       i,
       "Tests.Prev.fact",
-      "(n: Int64): Int64 =\n  if n <= 1 then\n    1\n  else\n    let sub = Tests.Prev.fact(n - 1)\n    n * sub")
+      "(n: Int64): Int64 =\n  if n <= 1 then\n    1\n  else\n    let sub = Tests.Prev.fact(n - 1)\n    n * sub", "deny all")
 
   let ran = Instance.said(i, [ "eval", "Tests.Prev.fact(5)" ])
 
@@ -581,7 +581,7 @@ test everyIterationOfALoopIsReachable = Traces.withTraces(fun i ->
     authored(
       i,
       "Tests.Prev.scaled",
-      "(n: Int64): Int64 =\n  Stdlib.List.range(1, n)\n  |> Stdlib.List.map(fun i ->\n    let big = i * 100\n    big)\n  |> Stdlib.List.length")
+      "(n: Int64): Int64 =\n  Stdlib.List.range(1, n)\n  |> Stdlib.List.map(fun i ->\n    let big = i * 100\n    big)\n  |> Stdlib.List.length", "deny all")
 
   let ran = Instance.said(i, [ "eval", "Tests.Prev.scaled(30)" ])
 
@@ -637,7 +637,7 @@ test fnsNamesWhatRunsWentThrough = Traces.withTraces(fun i ->
     authored(
       i,
       "Tests.Prev.counted",
-      "(xs: List<Int64>): Int64 =\n  Stdlib.List.length(xs)")
+      "(xs: List<Int64>): Int64 =\n  Stdlib.List.length(xs)", "deny all")
 
   let ran = Instance.said(i, [ "eval", "Tests.Prev.counted([1, 2, 3])" ])
   let listed = Instance.said(i, [ "traces", "fns" ])
@@ -672,8 +672,8 @@ test fnsNamesWhatRunsWentThrough = Traces.withTraces(fun i ->
 test viewAndEditPointAtTheRunsThatWentThrough = Traces.withTraces(fun i ->
   let defined =
     Stdlib.Test.all(
-      [ authored(i, "Tests.Prev.doubled", "(n: Int64): Int64 =\n  n * 2")
-        authored(i, "Tests.Prev.unrun", "(n: Int64): Int64 =\n  n * 5") ])
+      [ authored(i, "Tests.Prev.doubled", "(n: Int64): Int64 =\n  n * 2", "deny all")
+        authored(i, "Tests.Prev.unrun", "(n: Int64): Int64 =\n  n * 5", "deny all") ])
 
   let ran = Instance.said(i, [ "eval", "Tests.Prev.doubled(4)" ])
   let viewed = Instance.said(i, [ "view", "Tests.Prev.doubled" ])
@@ -718,7 +718,7 @@ test twoNamesForOneFunctionFindTheSameRuns = Traces.withTraces(fun i ->
 
         Traces.step(
           i,
-          [ "permissions", "approve", "Tests.Prev.tripled", "--yes" ]) ])
+          [ "permissions", "approve", "Tests.Prev.tripled", "deny all", "--yes" ]) ])
 
   let ran = Instance.said(i, [ "eval", "Tests.Prev.tripled(4)" ])
   let other = Instance.said(i, [ "traces", "calls", "Tests.Other.tripled" ])
@@ -787,7 +787,7 @@ test callsSaysHowOftenAndHowLongEachRunWasInTheFunction =
       authored(
         i,
         "Tests.Prev.fib",
-        "(n: Int64): Int64 =\n  if n < 2 then n else Tests.Prev.fib(n - 1) + Tests.Prev.fib(n - 2)")
+        "(n: Int64): Int64 =\n  if n < 2 then n else Tests.Prev.fib(n - 1) + Tests.Prev.fib(n - 2)", "deny all")
 
     let ran = Instance.said(i, [ "eval", "Tests.Prev.fib(10)" ])
     let listed = Instance.said(i, [ "traces", "calls", "Tests.Prev.fib" ])

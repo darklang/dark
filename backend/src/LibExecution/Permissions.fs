@@ -9,6 +9,20 @@ open Prelude
 
 module Effect = LibExecution.Effects
 
+/// Why an approval needs another review. The host checks; Dark formats the messages.
+[<RequireQualifiedAccess>]
+type ApprovalReviewReason =
+  /// The previously approved version could not be loaded for comparison.
+  | ApprovedVersionUnavailable of string
+  /// The function's type parameters, parameters, or return type changed.
+  | FunctionTypeChanged
+  /// The host could not determine all required permissions.
+  | PermissionAnalysisIncomplete
+  /// The function requires a different set of permissions.
+  | RequiredPermissionsChanged of
+    before : List<Effect.Effect> *
+    after : List<Effect.Effect>
+
 [<RequireQualifiedAccess>]
 type Scope<'a> =
   | All

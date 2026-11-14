@@ -573,7 +573,9 @@ let private manualDeletesSweepOrphanedRows =
              + "  |> Stdlib.List.length")
         do! commit state "looped"
         let! _ =
-          runCli state [ "permissions"; "approve"; "Tests.Prev.looped"; "--yes" ]
+          runCli
+            state
+            [ "permissions"; "approve"; "Tests.Prev.looped"; "deny all"; "--yes" ]
         // A loop, a logged call and a captured blob, so every table has live rows to copy.
         let! _ = runCli state [ "eval"; "Tests.Prev.looped(4)" ]
         let! _ = runCli state [ "eval"; twoUuids ]
@@ -854,7 +856,9 @@ let private deletingEveryTraceEmptiesEveryTraceTable =
              + "")
         do! commit state "looped"
         let! _ =
-          runCli state [ "permissions"; "approve"; "Tests.Prev.looped"; "--yes" ]
+          runCli
+            state
+            [ "permissions"; "approve"; "Tests.Prev.looped"; "deny all"; "--yes" ]
         // A loop, a logged call and a captured blob, so every table has rows to leave behind.
         let! _ = runCli state [ "eval"; "Tests.Prev.looped(4)" ]
         let! _ = runCli state [ "eval"; twoUuids ]
@@ -960,7 +964,9 @@ let private pureLoopPassesAreCounted =
              + "")
         do! commit state "pure"
         let! _ =
-          runCli state [ "permissions"; "approve"; "Tests.Prev.pure"; "--yes" ]
+          runCli
+            state
+            [ "permissions"; "approve"; "Tests.Prev.pure"; "deny all"; "--yes" ]
         let! ran = runCli state [ "eval"; "Tests.Prev.pure(5)" ]
         Expect.stringContains ran "5" "the run went round five times"
 
@@ -1068,7 +1074,9 @@ let private deletingATraceTakesItsLoopCounts =
              + "")
         do! commit state "looped"
         let! _ =
-          runCli state [ "permissions"; "approve"; "Tests.Prev.looped"; "--yes" ]
+          runCli
+            state
+            [ "permissions"; "approve"; "Tests.Prev.looped"; "deny all"; "--yes" ]
         let! _ = runCli state [ "eval"; "Tests.Prev.looped(4)" ]
 
         let! latest' = latest ()

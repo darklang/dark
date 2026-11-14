@@ -344,7 +344,7 @@ module Type =
       let rule = p [] "Rule"
       let policy = p [] "Policy"
       let approvalFailure = p [] "ApprovalFailure"
-      let policyEdit = p [] "PolicyEdit"
+      let approvalReviewReason = p [] "ApprovalReviewReason"
       let approvalTarget = p [] "ApprovalTarget"
       let approval = p [] "Approval"
 

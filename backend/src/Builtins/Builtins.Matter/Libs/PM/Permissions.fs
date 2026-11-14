@@ -117,103 +117,84 @@ let fns () : List<BuiltInFn> =
     hostOnly
       "pmPolicyReviewToken"
       [ Param.make "unit" TUnit "" ]
-      TString
-      "Identity of the policy to review before confirming a named approval."
+      (TTuple(TString, policyType, []))
+      "One consistent instance policy and the identity required to commit its edit."
       (fun _ args ->
         match args with
-        | [| DUnit |] -> Ply(DString(PolicyStore.reviewToken (PolicyStore.get ())))
+        | [| DUnit |] ->
+          let snapshot = PolicyStore.get ()
+          Ply(
+            DTuple(
+              DString(PolicyStore.reviewToken snapshot),
+              PolicyToDT.Policy.toDT snapshot.instance,
+              []
+            )
+          )
+        | _ -> incorrectArgs ())
+
+    hostOnly
+      "pmPolicyNormalizeRule"
+      [ Param.make
+          "rule"
+          (TCustomType(NR.ok (PolicyToDT.Rule.typeName ()), []))
+          "A user-entered permission rule" ]
+      (TCustomType(NR.ok (PolicyToDT.Rule.typeName ()), []))
+      "Canonicalize a file rule using the same host path semantics as policy commits."
+      (fun _ args ->
+        match args with
+        | [| rule |] -> Ply(rule |> PolicyToDT.Rule.fromDT |> PolicyToDT.Rule.toDT)
         | _ -> incorrectArgs ())
 
     hostOnly
       "pmPolicyEditInstance"
-      [ Param.make
-          "edit"
-          (TCustomType(NR.ok (PolicyToDT.PolicyEdit.typeName ()), []))
-          "Replace the whole policy, or add and remove rules" ]
+      [ Param.make "expected" TString "Identity of the reviewed snapshot"
+        Param.make "policy" policyType "The policy calculated by Dark" ]
       TUnit
-      ("Atomically change the host-owned instance permission policy: replace it "
-       + "whole, or add allow and deny rules and remove rules (removals apply first). "
-       + "Host-only.")
+      "Commit the instance policy calculated by the trusted CLI, refusing a stale snapshot."
       (fun _ args ->
         match args with
-        | [| edit |] ->
+        | [| DString expected; policy |] ->
           uply {
-            match PolicyToDT.PolicyEdit.fromDT edit with
-            | PolicyToDT.PolicyEdit.Replace policy ->
-              PolicyStore.setInstancePolicy policy
-            | PolicyToDT.PolicyEdit.Change(allow, deny, remove) ->
-              PolicyStore.editInstancePolicy allow deny remove
-            return DUnit
+            match
+              PolicyStore.commitInstancePolicy
+                expected
+                (PolicyToDT.Policy.fromDT policy)
+            with
+            | Ok() -> return DUnit
+            | Error message -> return Exception.raiseStoreCondition message []
           }
         | _ -> incorrectArgs ())
 
-    hostOnly
-      "pmPolicyListPackages"
+    // Read this account's approvals once. Dark selects and formats the entries.
+    policyFn
+      "pmPolicyApprovals"
       [ accountParam ]
-      (TList TString)
-      "List immutable package-function hashes with a locally stored consumer approval."
+      (TTuple(
+        TString,
+        TList(TCustomType(NR.ok (PolicyToDT.Approval.typeName ()), [])),
+        []
+      ))
+      "One account's named approvals and the snapshot identity required for an atomic edit. Read-only."
       (fun _ args ->
         match args with
         | [| accountIDDval |] ->
           uply {
-            let hashes =
-              PolicyStore.approvedVersions (accountIDOf accountIDDval)
-              |> Map.toList
-              |> List.map snd
-              |> List.distinct
-              |> List.map DString
-            return DList(VT.string, Items(hashes))
-          }
-        | _ -> incorrectArgs ())
-
-    // Read-only policy metadata. This remains a Native effect, but does not
-    // require the command-scoped authority reserved for policy mutations;
-    // the Workbench needs it while inspecting a function. It reveals only what
-    // guest code could already read: the names approved and the hashes they
-    // point at, and, for a hash the caller names, its stored and explicit
-    // policy. The full list of approved hashes stays host-only
-    // (pmPolicyListPackages).
-    policyFn
-      "pmPolicyApprovals"
-      [ accountParam
-        Param.make
-          "hash"
-          (TypeReference.option TString)
-          ("One immutable package-function hash to look up, or None for every "
-           + "name with an approved version") ]
-      (TList(TCustomType(NR.ok (PolicyToDT.Approval.typeName ()), [])))
-      ("Approvals as this account sees them, one per (hash, name): the hash, the "
-       + "logical name approved at it, its stored consumer policy, and the rules "
-       + "written when it was approved as a root. With a hash, the entries for "
-       + "that hash (one with no name when no name points at it); with None, one "
-       + "entry per approved name, in name order. Hashes are host metadata, not "
-       + "user-facing. Read-only.")
-      (fun _ args ->
-        match args with
-        | [| accountIDDval; hashDval |] ->
-          uply {
-            let accountID = accountIDOf accountIDDval
-            let policies = PolicyStore.packagePolicies accountID
-            let entry (hash : string) (name : Option<string>) : Dval =
-              PolicyToDT.Approval.toDT
-                hash
-                name
-                (name |> Option.bind (fun n -> Map.tryFind n policies))
-                (name |> Option.bind (PolicyStore.explicitApproval accountID))
-            let named = PolicyStore.approvedVersions accountID |> Map.toList
+            let snapshot = PolicyStore.get ()
             let entries =
-              match CommonToDT.Option.fromDT D.string hashDval with
-              | None ->
-                named |> List.map (fun (name, hash) -> entry hash (Some name))
-              | Some hash ->
-                match
-                  named |> List.filter (fun (_, approved) -> approved = hash)
-                with
-                | [] -> [ entry hash None ]
-                | names ->
-                  names |> List.map (fun (name, _) -> entry hash (Some name))
+              PolicyStore.namedApprovalsInStore (accountIDOf accountIDDval) snapshot
+              |> Map.toList
+              |> List.map (fun (name, approval) ->
+                PolicyToDT.Approval.toDT
+                  approval.hash
+                  (Some name)
+                  (Some approval.policy)
+                  (if approval.explicitRules then Some approval.policy else None))
             return
-              DList(VT.known (PolicyToDT.Approval.knownType ()), Items(entries))
+              DTuple(
+                DString(PolicyStore.reviewToken snapshot),
+                DList(VT.known (PolicyToDT.Approval.knownType ()), Items entries),
+                []
+              )
           }
         | _ -> incorrectArgs ())
 
@@ -230,29 +211,33 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
 
     hostOnly
-      "pmPolicyWithdraw"
+      "pmPolicyRemove"
       [ accountParam
         Param.make
           "target"
           (TCustomType(NR.ok (PolicyToDT.ApprovalTarget.typeName ()), []))
-          "A name, to withdraw its approved version; or a hash, to revoke its approval" ]
+          "Reviewed names to remove, or an edit to a saved policy" ]
       TUnit
-      ("Take an approval back. By name: withdraw the version approved for that "
-       + "logical function name; the hash's approval stays. By hash: remove the "
-       + "local consumer approval of that package-function hash, and the "
-       + "dependencies no other approved root still needs. Host-only.")
+      ("Remove the saved names selected by Dark, or commit the policy edit "
+       + "calculated by the trusted CLI. Edits compare the reviewed store identity "
+       + "atomically and preserve the approved code version and fingerprint. "
+       + "Host-only.")
       (fun _ args ->
         match args with
         | [| accountIDDval; target |] ->
           uply {
             let accountID = accountIDOf accountIDDval
             match PolicyToDT.ApprovalTarget.fromDT target with
-            | PolicyToDT.ApprovalTarget.Name location ->
-              PolicyStore.unapproveVersion accountID location
-            | PolicyToDT.ApprovalTarget.Hash hash ->
-              // Dependency-aware revoke: drop only the policies no other approved
-              // root still needs (see PolicyStore.revokePackageRoot).
-              PolicyStore.revokePackageRoot accountID hash
+            | PolicyToDT.ApprovalTarget.Names(expected, names) ->
+              match PolicyStore.removeApprovals accountID expected names with
+              | Ok() -> ()
+              | Error message -> Exception.raiseStoreCondition message []
+            | PolicyToDT.ApprovalTarget.EditPolicy(name, expected, policy) ->
+              match
+                PolicyStore.commitApprovalPolicy accountID name expected policy
+              with
+              | Ok() -> ()
+              | Error message -> Exception.raiseStoreCondition message []
             return DUnit
           }
         | _ -> incorrectArgs ())
@@ -268,6 +253,63 @@ let fns () : List<BuiltInFn> =
           uply {
             let fingerprint = (builtinEffects state).fingerprint
             return DBool(PolicyStore.approvalsAreStale fingerprint)
+          }
+        | _ -> incorrectArgs ())
+
+    hostOnly
+      "pmPolicyReviewVersion"
+      [ accountParam
+        locationParam
+        Param.make "expected" TString "Policy identity from before review"
+        Param.make "hash" TString "The code version to review"
+        Param.make "rules" (TypeReference.option policyType) "Proposed rules"
+        Param.make "acknowledgeIncomplete" TBool "Accept incomplete analysis" ]
+      (TypeReference.result
+        (TTuple(
+          TBool,
+          TList(TCustomType(NR.ok (PolicyToDT.ApprovalReviewReason.typeName ()), [])),
+          []
+        ))
+        TString)
+      "Return whether the approval needs saving and its review reasons, without writing."
+      (fun state args ->
+        match args with
+        | [| accountIDDval
+             DString location
+             DString expected
+             DString hash
+             rulesDval
+             DBool acknowledgeIncomplete |] ->
+          uply {
+            let rules = CommonToDT.Option.fromDT PolicyToDT.Policy.fromDT rulesDval
+            let effects = builtinEffects state
+            let! result =
+              PackagePermissions.reviewVersionForName
+                PackagePermissions.Load.fromStore
+                effects.callEffectsFor
+                (accountIDOf accountIDDval)
+                location
+                expected
+                hash
+                rules
+                acknowledgeIncomplete
+                effects.fingerprint
+            let reasonKT = PolicyToDT.ApprovalReviewReason.knownType ()
+            return
+              CommonToDT.Result.toDT
+                (KTTuple(VT.bool, VT.known (KTList(VT.known reasonKT)), []))
+                KTString
+                result
+                (fun (needsSave, reasons) ->
+                  DTuple(
+                    DBool needsSave,
+                    DList(
+                      VT.known reasonKT,
+                      Items(List.map PolicyToDT.ApprovalReviewReason.toDT reasons)
+                    ),
+                    []
+                  ))
+                DString
           }
         | _ -> incorrectArgs ())
 

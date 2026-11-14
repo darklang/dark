@@ -1382,8 +1382,14 @@ let sub(x: Int64, y: Int64): Int64 = x - y
             [ "module"; "Tests.RunFn"; sourceFile ]
             0L
             "author the program"
-        do! run state [ "permissions"; "approve"; "Tests.RunFn.main"; "--yes" ]
-        do! run state [ "permissions"; "approve"; "Tests.RunFn.hello"; "--yes" ]
+        do!
+          run
+            state
+            [ "permissions"; "approve"; "Tests.RunFn.main"; "stdout"; "--yes" ]
+        do!
+          run
+            state
+            [ "permissions"; "approve"; "Tests.RunFn.hello"; "stdout"; "--yes" ]
         do!
           shows
             state

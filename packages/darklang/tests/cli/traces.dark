@@ -738,7 +738,7 @@ test showDoesNotPerformAWrite = withTraces(fun i ->
             "Test.ShowPerform.mark"
             "(v: String): Stdlib.Result.Result<Unit, String> = Darklang.LanguageTools.LocalStore.configSet(\"test.show.perform.probe\", v)" ])
 
-        step(i, [ "permissions", "approve", "Test.ShowPerform.mark", "--yes" ])
+        step(i, [ "permissions", "approve", "Test.ShowPerform.mark", "package-write", "--yes" ])
 
         step(i, [ "eval", "Test.ShowPerform.mark(\"recorded\")" ])
 
@@ -786,7 +786,7 @@ test showDoesNotPerformAWriteInsideMap = withTraces(fun i ->
   let approved =
     step(
       i,
-      [ "permissions", "approve", "Test.ShowPerformMap.markAll", "--yes" ])
+      [ "permissions", "approve", "Test.ShowPerformMap.markAll", "package-write", "--yes" ])
 
   let ran = step(i, [ "eval", "Test.ShowPerformMap.markAll([\"recorded\"])" ])
   let before =

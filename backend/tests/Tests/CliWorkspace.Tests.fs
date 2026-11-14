@@ -351,7 +351,10 @@ let approvalsNameTheirDependencies =
           state
           "Tests.DepName.measure"
           "(): Int64 = Stdlib.String.length(\"probe\")"
-      do! run state [ "permissions"; "approve"; "Tests.DepName.measure"; "--yes" ]
+      do!
+        run
+          state
+          [ "permissions"; "approve"; "Tests.DepName.measure"; "deny all"; "--yes" ]
       do!
         shows
           state
@@ -418,12 +421,22 @@ let namedApprovalWorkflow =
               "env read DARK_PERMISSION_ONE"
               "--yes" ]
         do!
+          shows
+            state
+            [ "eval"; "Tests.Grants.second(\"DARK_PERMISSION_TWO\")" ]
+            "None"
+            "updating the same code preserves its previous grants"
+        do!
+          run
+            state
+            [ "permissions"; "remove"; "--for"; "Tests.Grants.second"; "all" ]
+        do!
           refuses
             state
             [ "eval"; "Tests.Grants.second(\"DARK_PERMISSION_TWO\")" ]
             "permission denied"
             "None"
-            "updating the same code replaces its rules"
+            "removing the all rule retains only the added narrow grant"
         do!
           run state [ "permissions"; "deny"; "env"; "read"; "DARK_PERMISSION_ONE" ]
         do!
@@ -448,7 +461,7 @@ let namedApprovalWorkflow =
               "--yes" ]
         Expect.stringContains
           approved
-          "remembered access"
+          "Saved permissions"
           $"read-only approval: {approved}"
         do!
           shows
@@ -464,6 +477,87 @@ let namedApprovalWorkflow =
             "the second alias is listed too"
         do! discardAll state
       })
+
+/// Saved file rules use absolute paths. Removal must resolve the input the same way.
+let permissionRemovalCanonicalizesPaths =
+  instanceTest "permission removal matches equivalent file paths" (fun state ->
+    task {
+      do! run state [ "permissions"; "clear" ]
+      do! fn state "Tests.PathGrants.read" "(): Int64 = 1"
+      let paths =
+        [ "/tmp/dark-permission-path", "/tmp/./dark-permission-path"
+          "./dark-permission-path", "dark-permission-path"
+          "~/dark-permission-path", "~/./dark-permission-path" ]
+      for index, (saved, removed) in List.indexed paths do
+        for access in [ "read"; "write" ] do
+          for edit in [ "allow"; "deny" ] do
+            do! run state [ "permissions"; edit; "file"; access; saved ]
+          do! run state [ "permissions"; "remove"; "file"; access; removed ]
+          let! listed = runCliPlain state [ "permissions"; "list" ]
+          Expect.isFalse
+            (listed.Contains "dark-permission-path")
+            $"instance removal matched {removed}: {listed}"
+          do!
+            run
+              state
+              [ "permissions"
+                "approve"
+                "--for"
+                "Tests.PathGrants.read"
+                $"env read PATH_PREVIEW_KEEP; file {access} {saved}; deny file {access} {saved}"
+                "--yes" ]
+          for command in [ "update"; "approve" ] do
+            let! preview =
+              runCliPlain
+                state
+                [ "permissions"
+                  command
+                  "Tests.PathGrants.read"
+                  $"file {access} {removed}; deny file {access} {removed}"
+                  "--yes" ]
+            Expect.stringContains
+              preview
+              "Already approved; no changes."
+              "equivalent paths add no rules"
+            Expect.isFalse
+              (preview.Contains "\nChanges\n")
+              "no false additions or removals"
+          let extra = $"PATH_PREVIEW_ADDED_{index}_{access}"
+          let! changed =
+            runCliPlain
+              state
+              [ "permissions"
+                "update"
+                "Tests.PathGrants.read"
+                $"env read {extra}; file {access} {removed}; deny file {access} {removed}"
+                "--yes" ]
+          Expect.stringContains
+            changed
+            "+ allow env read"
+            "real additions are shown"
+          Expect.isFalse (changed.Contains "+ allow file") "no duplicate file grant"
+          Expect.isFalse (changed.Contains "+ deny file") "no duplicate file deny"
+          do!
+            run
+              state
+              [ "permissions"
+                "remove"
+                "--for"
+                "Tests.PathGrants.read"
+                "file"
+                access
+                removed ]
+          let! shown =
+            runCliPlain state [ "permissions"; "show"; "Tests.PathGrants.read" ]
+          Expect.isFalse
+            (shown.Contains "dark-permission-path")
+            $"named removal matched {removed}: {shown}"
+          Expect.stringContains
+            shown
+            "PATH_PREVIEW_KEEP"
+            "removal preserves unrelated rules"
+      do! discardAll state
+    })
 
 let nestedEvaluationKeepsRestrictions =
   Tests.CliInstance.instanceTest
@@ -569,7 +663,11 @@ let foldCallbackKeepsItsAccess =
           do!
             run
               state
-              [ "permissions"; "approve"; "Tests.FoldAccess." + name; "--yes" ]
+              [ "permissions"
+                "approve"
+                "Tests.FoldAccess." + name
+                "clock"
+                "--yes" ]
         do!
           shows
             state
@@ -607,13 +705,16 @@ let storeReadsRequirePackageRead =
 /// A remembered approval must not hide edits to the current function.
 let approvalsDoNotOverrideCurrentCode =
   instanceTest
-    "a run uses current code before and after withdrawing approval"
+    "a run uses current code before and after removing approval"
     (fun state ->
       task {
         do! start state
         do! fn state "Tests.Appr.rate" "() : Int64 = 6101"
         do! commit state "rate v1"
-        do! run state [ "permissions"; "approve"; "Tests.Appr.rate"; "--yes" ]
+        do!
+          run
+            state
+            [ "permissions"; "approve"; "Tests.Appr.rate"; "deny all"; "--yes" ]
         do!
           shows
             state
@@ -638,21 +739,20 @@ let approvalsDoNotOverrideCurrentCode =
             state
             "Tests.Appr.rate()"
             "6102"
-            "withdrawing approval does not change the code that runs"
+            "removing approval does not change the code that runs"
         do! discardAll state
       })
 
-/// Withdrawing what was never approved says so, rather than reporting a release that did not
-/// happen.
+/// Removing an unknown approval reports that nothing was removed.
 let unapprovingAnUnapprovedNameSaysSo =
-  instanceTest "withdrawing an approval nobody made says so" (fun state ->
+  instanceTest "removing an approval nobody made says so" (fun state ->
     task {
       do!
         shows
           state
           [ "permissions"; "unapprove"; "Tests.Appr.neverApproved" ]
           "has no remembered approval"
-          "an unmatched name withdraws nothing and says so"
+          "an unmatched name removes nothing and says so"
     })
 
 
@@ -2064,6 +2164,7 @@ let tests : List<Test> =
     storeReadsRequirePackageRead
     approvalsNameTheirDependencies
     namedApprovalWorkflow
+    permissionRemovalCanonicalizesPaths
     nestedEvaluationCannotResetCallerAccess
     nestedEvaluationKeepsRestrictions
     temporaryRunApproval

@@ -256,26 +256,135 @@ let reapprovingASharedHashKeepsTheOtherNamesApproved =
     Expect.equal (approved "Acme.a") (Some "H") "the first name is still approved"
     Expect.equal (approved "Acme.b") (Some "H") "the second name is approved"
     // Explicit hash revocation removes every name approved for that hash.
-    let revoked = PolicyStore.revokeRootInStore accountID "H" store
+    let revoked =
+      PolicyStore.removeApprovalsInStore
+        accountID
+        (PolicyStore.reviewToken store)
+        [ "Acme.a"; "Acme.b" ]
+        store
+      |> Result.defaultWith failtest
     Expect.isEmpty revoked.approvals "revoking the hash removes every named approval"
   }
 
-let instanceEditsAddAndRemoveInOnePass =
-  test "an instance-policy edit removes first, then adds, in one pass" {
-    let clock = Permission.Rule.Effect LibExecution.Effects.Effect.Clock
-    let random = Permission.Rule.Effect LibExecution.Effects.Effect.Random
-    let stdout = Permission.Rule.Effect LibExecution.Effects.Effect.Stdout
-    let policy = Permission.Policy.create [ clock; random ] [ stdout ]
+let instancePolicyCommitsPreserveApprovals =
+  test "instance policy commits preserve approvals and reject stale snapshots" {
+    let named = approval "H" Permission.Policy.allowAll "fp"
+    let store =
+      { PolicyStore.empty with approvals = Map.ofList [ scoped "Acme.a", named ] }
+    let token = PolicyStore.reviewToken store
     let edited =
-      PolicyStore.applyInstanceEdit [ stdout ] [ clock ] [ random; stdout ] policy
-    let allow, deny = Permission.Policy.rules edited
-    Expect.equal allow [ clock; stdout ] "random removed, stdout appended to allow"
+      PolicyStore.commitInstancePolicyInStore token Permission.Policy.allowAll store
+      |> Result.defaultWith failtest
+    Expect.equal edited.approvals store.approvals "named grants are preserved"
     Expect.equal
-      deny
-      [ clock ]
-      "stdout removed from deny before being added to allow"
-    let cleared = PolicyStore.applyInstanceEdit [] [] [ clock; stdout ] edited
-    Expect.equal (Permission.Policy.rules cleared) ([], []) "removal hits both lists"
+      edited.instance
+      Permission.Policy.allowAll
+      "the calculated policy is stored"
+    Expect.isError
+      (PolicyStore.commitInstancePolicyInStore token Permission.Policy.denyAll edited)
+      "another editor's committed policy cannot be overwritten"
+  }
+
+let selectedApprovalRemovalIsAtomicAndScoped =
+  test "selected approval removals are atomic and account scoped" {
+    let named = approval "H" Permission.Policy.allowAll "fp"
+    let account = Some(System.Guid.NewGuid())
+    let store =
+      { PolicyStore.empty with
+          instance = Permission.Policy.allowAll
+          approvals =
+            Map.ofList
+              [ scoped "Acme.a", named
+                scoped "Acme.b", named
+                (account, "Acme.a"), named ] }
+    let token = PolicyStore.reviewToken store
+    let edited =
+      PolicyStore.removeApprovalsInStore None token [ "Acme.a"; "Acme.b" ] store
+      |> Result.defaultWith failtest
+    Expect.equal
+      edited.approvals
+      (Map.ofList [ (account, "Acme.a"), named ])
+      "only the selected account's names are removed"
+    Expect.equal edited.instance store.instance "instance unchanged"
+    Expect.equal
+      (PolicyStore.namedApprovalsInStore account store)
+      (Map.ofList [ "Acme.a", named ])
+      "snapshot is account scoped"
+    Expect.isError
+      (PolicyStore.removeApprovalsInStore None token [ "Acme.a" ] edited)
+      "a stale selection cannot erase a newer decision"
+  }
+
+/// Editing rules keeps the approved version and its permission-analysis fingerprint.
+let committingSavedPoliciesPreservesReviewIdentity =
+  test "committing saved policies preserves identity and rejects stale snapshots" {
+    let clock = Permission.Rule.Effect Effect.Effect.Clock
+    let random = Permission.Rule.Effect Effect.Effect.Random
+    let native = Permission.Rule.Effect Effect.Effect.Native
+    let key = scoped "Acme.Tools.run"
+    let saved =
+      { approval
+          "old-code"
+          (Permission.Policy.create [ clock; random ] [ native ])
+          "old-fingerprint" with
+          explicitRules = false }
+    let otherAccount = Some(System.Guid.NewGuid()), "Acme.Tools.run"
+    let otherName = scoped "Acme.Tools.alias"
+    let store =
+      { PolicyStore.empty with
+          instance = Permission.Policy.allowAll
+          approvals =
+            Map.ofList [ key, saved; otherAccount, saved; otherName, saved ] }
+    let expected = PolicyStore.reviewToken store
+    let next = Permission.Policy.create [ random ] [ native ]
+    let commit current policy =
+      PolicyStore.commitApprovalPolicyInStore
+        None
+        "Acme.Tools.run"
+        expected
+        policy
+        current
+    let edited =
+      match commit store next with
+      | Ok edited -> edited
+      | Error message -> failtest message
+    let current = edited.approvals[key]
+    Expect.equal current.policy next "stores the policy calculated by Dark"
+    Expect.equal current.hash saved.hash "does not approve current code"
+    Expect.equal
+      current.fingerprint
+      saved.fingerprint
+      "does not refresh stale analysis"
+    Expect.isTrue current.explicitRules "the edited policy stays explicit on update"
+    Expect.equal edited.instance store.instance "instance unchanged"
+    Expect.equal edited.approvals[otherAccount] saved "another account unchanged"
+    Expect.equal edited.approvals[otherName] saved "an identical alias unchanged"
+    let concurrent =
+      [ edited
+        { store with instance = Permission.Policy.denyAll }
+        { store with approvals = Map.remove key store.approvals }
+        { store with
+            approvals = Map.add key { saved with hash = "new-code" } store.approvals }
+        { store with
+            approvals =
+              Map.add key { saved with fingerprint = "new-analysis" } store.approvals } ]
+    for changed in concurrent do
+      Expect.isError
+        (commit changed next)
+        "a stale snapshot cannot overwrite a newer decision"
+    Expect.isError
+      (PolicyStore.commitApprovalPolicyInStore None "Missing.fn" expected next store)
+      "an edit cannot create an approval for an unreviewed name"
+    let empty =
+      match commit store Permission.Policy.denyAll with
+      | Ok edited -> edited.approvals[key]
+      | Error message -> failtest message
+    Expect.equal
+      empty.policy
+      Permission.Policy.denyAll
+      "an empty edited policy can be committed"
+    Expect.equal empty.hash saved.hash "empty approval keeps the reviewed version"
+    Expect.isTrue empty.explicitRules "bare approve cannot resurrect inferred access"
   }
 
 let approvalAndReviewedVersionAreOneTransaction =
@@ -287,7 +396,7 @@ let approvalAndReviewedVersionAreOneTransaction =
     let narrower = { broad with policy = Permission.Policy.denyAll }
     let changed =
       [ { store with approvals = Map.add key narrower store.approvals }
-        PolicyStore.revokeRootInStore None "same-code" store
+        { store with approvals = Map.remove key store.approvals }
         { store with instance = Permission.Policy.allowAll } ]
     for current in changed do
       Expect.isError
@@ -408,7 +517,9 @@ let tests =
       policyStoreRoundTripsVersionedPolicies
       policyStoreRejectsTrailingData
       reapprovingASharedHashKeepsTheOtherNamesApproved
-      instanceEditsAddAndRemoveInOnePass
+      instancePolicyCommitsPreserveApprovals
+      selectedApprovalRemovalIsAtomicAndScoped
+      committingSavedPoliciesPreservesReviewIdentity
       policyStoreRejectsOlderFormat
       seedClassifiesTheFileFailClosed
       linkedPolicyAncestorsNeedRoot

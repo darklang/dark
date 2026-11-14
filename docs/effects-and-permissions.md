@@ -192,7 +192,26 @@ You cannot limit access to one recording or report.
 
 #### Saved approvals and ongoing runs
 
-- Choosing Remember adds to the saved access for the same code version. The approve and update commands can replace those rules.
+- Choosing Remember or using `permissions approve --for <fn> <rules>` adds to the saved
+access for the same code version, preserving explicit denies. `approve` requires
+explicit rules, including when repeating it with `--yes`. Missing rules save
+nothing and never prompt; effect-free functions need no approval. Repeating an
+explicit approval with the same version, rules, and current analysis returns
+"Already approved; no changes" without prompting or writing.
+- `permissions remove --for <name> <rules>` removes exact rules from a saved
+approval without changing other rules, its reviewed code version, or instance
+permissions. Missing rules refuse the entire edit. Rules are removed from both
+the allow and deny lists when present in both.
+- `permissions remove --for <name> --all` forgets that name's entire saved
+approval. `--all` cannot be combined with individual rules; plain `all` removes
+only a saved `all` rule. A name can also be `script:/absolute/path` from the
+approval list.
+- Changed code does not inherit the old approval. `permissions update <fn>` shows
+the previous rules, changes, and resulting access before one confirmation.
+Explicit grants carry forward and additional rules are added to them. Inferred
+effects are recomputed for changed code. Declining saves nothing; `--yes` skips
+the confirmation. An unchanged approval also returns without a prompt or write;
+changed code and outdated analysis still require review.
 - Running a function uses its current code on the selected branch. An approval never makes it run an older version.
 - Scripts appear in the approval list as `script:/absolute/path.`
 - Runs already in progress keep their starting code and generally keep their starting permissions.
@@ -213,22 +232,27 @@ To change them:
 - permissions allow, deny and remove edit instance rules.
 - permissions set replaces all instance rules.
 - permissions clear removes instance rules but leaves saved approvals in place.
-- permissions approve saves access for a named function.
+- permissions approve adds access for a named function and the same code version.
+- permissions remove --for <name> <rules> removes specific saved rules.
+- permissions remove --for <name> --all forgets all saved access for that name.
 - permissions update reviews its current version again.
-- permissions unapprove removes its saved approval.
+- permissions unapprove is an alias for remove --for <name> --all.
 - permissions revoke-package <hash> removes every named approval for that version.
 
 For example:
 
 - dark permissions allow file read /reports
 - dark permissions deny file read /private
-- dark permissions approve Me.reports.report 'file read /reports'
+- dark permissions approve --for Me.reports.report 'file read /reports'
 - dark run --allow 'file read /reports' report.dark
-- dark permissions unapprove Me.reports.report
+- dark permissions remove --for Me.reports.report --all
 
-Without explicit rules, approve uses the effects Dark found. This can give broad access, such as reading files in general. Supply rules when you want to limit access to particular files or hosts.
+`permissions approve` grants only the rules you supply. Omitting rules reports
+"No permission rules specified" and saves nothing, even with `--yes`. For an
+effect-free function, it also explains that no approval is necessary. Use
+`permissions requirements <fn>` to inspect what access a function may need.
 
-if analysis is incomplete, you can supply rules yourself or confirm an approval that gives no extra access. Dark does not guess which permissions the unknown effects need.
+If analysis is incomplete, choose explicit rules to bound access. Dark does not guess which permissions the unknown effects need.
 
 Removing an approval does not remove access allowed by other rules. Use a deny rule to block access regardless of approvals.
 
