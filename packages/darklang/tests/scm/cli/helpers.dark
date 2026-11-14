@@ -34,19 +34,19 @@ let runWithEnv(
   dark: Cli.Tests.Instance.T,
   env: List<(String * String)>,
   args: List<String>)
-  : (Int64 * String * String) =
+  : (UInt8 * String * String) =
   match Stdlib.Cli.Process.runWithEnv(
           dark.cli,
           args,
           Stdlib.List.concat(Cli.Tests.Instance.env(dark), env)) with
-  | Error(e) -> (-1, "", $"could not run: {e}")
+  | Error(e) -> (127, "", $"could not run: {e}")
   | Ok(out) -> (out.exitCode, out.stdout, out.stdout + out.stderr)
 
 
 let exec(
   dark: Cli.Tests.Instance.T,
   args: List<String>)
-  : (Int64 * String * String) =
+  : (UInt8 * String * String) =
   runWithEnv(dark, [], args)
 
 

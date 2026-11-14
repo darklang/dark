@@ -1449,7 +1449,7 @@ let processDenialOffersAnyArguments =
       try
         System.IO.File.WriteAllText(
           sourceFile,
-          "let go(): Int64 =\n"
+          "let go(): UInt8 =\n"
           + "  match Stdlib.Cli.Process.run(\"/bin/echo\", [ \"$(printf injected)\" ]) with\n"
           + "  | Ok(out) -> out.exitCode\n"
           + "  | Error(_) -> 1\n"

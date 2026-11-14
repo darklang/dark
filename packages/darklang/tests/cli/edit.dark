@@ -45,7 +45,7 @@ let runWithStdin(
   instance: Instance.T,
   args: List<String>,
   source: String)
-  : (Int64 * String) =
+  : (UInt8 * String) =
   let environmentArgs =
     Instance.env(instance)
     |> Stdlib.List.map(fun((name, value)) -> name + "=" + value)

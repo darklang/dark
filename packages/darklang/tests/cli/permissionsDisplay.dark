@@ -108,7 +108,7 @@ module PermissionsDisplay =
 module Denials =
   /// Exit code and both streams, without colors. Line by line, since `stripSgr` also
   /// drops newlines.
-  let deny(i: Instance.T, args: List<String>): (Int64 * String) =
+  let deny(i: Instance.T, args: List<String>): (UInt8 * String) =
     let (code, out) = Instance.ran(i, args)
     let lines =
       Stdlib.String.split(out, "\n")
@@ -117,7 +117,7 @@ module Denials =
 
 
   /// A `run` of a script holding `source`.
-  let runScript(i: Instance.T, source: String): (Int64 * String) =
+  let runScript(i: Instance.T, source: String): (UInt8 * String) =
     let path = $"{Instance.home(i)}/denied.dark"
     let _ = Stdlib.Cli.File.writeText(path, source)
     deny(i, [ "run", path ])

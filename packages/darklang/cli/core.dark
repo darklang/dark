@@ -82,7 +82,7 @@ type AppState =
     /// command, a failed `eval`, and the `--json` failure paths do, so scripts and agents can
     /// branch on the exit rather than parse prose. (Most commands still report failure in prose
     /// only; they set this as they are touched.)
-    exitCode: Int64 }
+    exitCode: UInt8 }
 
 
 /// What the prompt shows to your left: where you are in the package tree, and WHICH BRANCH, when you're on

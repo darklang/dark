@@ -47,7 +47,7 @@ test capturesOutputAndExit =
            "/bin/sh",
            [ "-c", "printf out; printf err >&2; exit 7" ]) with
    | Ok(output) -> (output.exitCode, output.stdout, output.stderr)
-   | Error(_) -> (-1, "", ""))
+   | Error(_) -> (127, "", ""))
   |> Stdlib.Test.equal((7, "out", "err"))
 
 
@@ -61,7 +61,7 @@ test runBytesKeepsRawOutput =
        output.exitCode,
        Stdlib.Base16.encode(output.stdout),
        Stdlib.Base16.encode(output.stderr))
-   | Error(_) -> (-1, "", ""))
+   | Error(_) -> (127, "", ""))
   |> Stdlib.Test.equal((3, "FF61", "FE"))
 
 
@@ -100,7 +100,7 @@ test executeInDirectoryWithBytes =
 test closesStdin =
   (match Stdlib.Cli.Process.run("/bin/cat", []) with
    | Ok(output) -> (output.exitCode, output.stdout)
-   | Error(_) -> (-1, ""))
+   | Error(_) -> (127, ""))
   |> Stdlib.Test.equal((0, ""))
 
 
@@ -223,4 +223,5 @@ test closedStdinReturnsFailure =
   let _ = readUntilReady(handle, "", 500)
   let response = Stdlib.Cli.Process.communicate(handle, "input")
   let _ = Stdlib.Cli.Process.terminate(handle)
-  response.exitCode |> Stdlib.Test.equal(-1)
+  // could not run: 127, as a shell says it
+  response.exitCode |> Stdlib.Test.equal(127)

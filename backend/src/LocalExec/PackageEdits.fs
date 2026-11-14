@@ -380,7 +380,7 @@ let private applyEdits () : string =
         LibExecution.HostEvents.runHere (fun () ->
           Exe.executeFunction state define [] args)
       with
-      | Ok(RT.DInt64 0L) -> ()
+      | Ok(RT.DUInt8 0uy) -> ()
       | Ok _ -> refuse $"`dark module` did not apply {file}"
       | Error(rte, _) ->
         let message =
