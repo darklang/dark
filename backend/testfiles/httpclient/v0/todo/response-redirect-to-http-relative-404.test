@@ -19,7 +19,7 @@ Location: /v0/invalid-url
     {response with headers = respHeaders}) =
   Darklang.Stdlib.HttpClient.Response
     { body = "intentionally not found"
-      statusCode = 404
+      statusCode = Darklang.Stdlib.Http.Status.notFound
       error = ""
       headers =
         [

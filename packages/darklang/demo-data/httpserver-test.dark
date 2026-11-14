@@ -3,7 +3,7 @@ module Darklang.DemoData.HttpServerTest
 // Test handlers and router for the HTTP server
 
 let helloHandlerFn(req: Stdlib.Http.Request): Stdlib.Http.Response =
-  Stdlib.Http.responseWithText(200, "Hello, World!")
+  Stdlib.Http.responseWithText(Stdlib.Http.Status.ok, "Hello, World!")
 
 
 val helloHandler =
@@ -12,7 +12,7 @@ val helloHandler =
 
 let echoHandlerFn(req: Stdlib.Http.Request): Stdlib.Http.Response =
   let bodyText = Stdlib.Utf8.decodeWithReplacement(req.body)
-  Stdlib.Http.responseWithText(200, bodyText)
+  Stdlib.Http.responseWithText(Stdlib.Http.Status.ok, bodyText)
 
 
 val echoHandler =
@@ -20,7 +20,7 @@ val echoHandler =
 
 
 let rootHandlerFn(req: Stdlib.Http.Request): Stdlib.Http.Response =
-  Stdlib.Http.responseWithText(200, "Welcome to Darklang HTTP Server!")
+  Stdlib.Http.responseWithText(Stdlib.Http.Status.ok, "Welcome to Darklang HTTP Server!")
 
 
 val rootHandler = Stdlib.HttpServer.Handler { route = "/", method = "GET", handler = rootHandlerFn }

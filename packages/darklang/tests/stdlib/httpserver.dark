@@ -10,10 +10,10 @@ let routeNotes(
   : (Int64 * String) =
   let handlers =
     [ Stdlib.HttpServer.get("/notes", fun req ->
-        Stdlib.Http.responseWithText(200, "list"))
+        Stdlib.Http.responseWithText(Stdlib.Http.Status.ok, "list"))
 
       Stdlib.HttpServer.post("/notes", fun req ->
-        Stdlib.Http.responseWithText(200, "created")) ]
+        Stdlib.Http.responseWithText(Stdlib.Http.Status.ok, "created")) ]
 
   let response =
     Stdlib.HttpServer.routeRequest(
@@ -24,7 +24,9 @@ let routeNotes(
           headers = headers
           body = Stdlib.Bytes.empty })
 
-  (response.statusCode, Stdlib.Utf8.decodeWithReplacement(response.body))
+  (
+    Stdlib.Http.Status.toInt64(response.statusCode),
+    Stdlib.Utf8.decodeWithReplacement(response.body))
 
 
 // The request's `method` picks the handler, and a header that looks like a
@@ -47,19 +49,21 @@ test routes =
   Stdlib.Test.all(
     [ (Stdlib.HttpServer.get("/ping", fun req ->
          Stdlib.Http.Response
-           { statusCode = 200, headers = [], body = Stdlib.Bytes.empty })).route
+           { statusCode = Stdlib.Http.Status.ok
+             headers = []
+             body = Stdlib.Bytes.empty })).route
       |> Stdlib.Test.equal("/ping")
 
       (Stdlib.HttpServer.get("/ping", fun req ->
          Stdlib.Http.Response
-           { statusCode = 200
+           { statusCode = Stdlib.Http.Status.ok
              headers = []
              body = Stdlib.Bytes.empty })).method
       |> Stdlib.Test.equal("GET")
 
       (Stdlib.HttpServer.post("/ops", fun req ->
          Stdlib.Http.Response
-           { statusCode = 200
+           { statusCode = Stdlib.Http.Status.ok
              headers = []
              body = Stdlib.Bytes.empty })).method
       |> Stdlib.Test.equal("POST") ])

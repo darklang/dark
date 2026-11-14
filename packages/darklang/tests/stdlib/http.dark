@@ -56,7 +56,7 @@ let expected(
   body: String)
   : Stdlib.Http.Response =
   Stdlib.Http.Response
-    { statusCode = statusCode
+    { statusCode = Stdlib.Http.Status.fromInt64(statusCode) |> Builtin.unwrap
       headers = headers
       body = Stdlib.Utf8.encode(body) }
 
@@ -77,11 +77,11 @@ test responseBuilders =
       |> Stdlib.Test.equal(
         expected(400, [], "Your request resulted in an error"))
 
-      Stdlib.Http.response(200, Stdlib.Utf8.encode("test"))
+      Stdlib.Http.response(Stdlib.Http.Status.ok, Stdlib.Utf8.encode("test"))
       |> Stdlib.Test.equal(expected(200, [], "test"))
 
       Stdlib.Http.responseWithHeaders(
-        200,
+        Stdlib.Http.Status.ok,
         [ ("Content-Type", "text/html; charset=utf-8") ],
         Stdlib.Utf8.encode("test"))
       |> Stdlib.Test.equal(
@@ -96,18 +96,18 @@ test responseBuilders =
       Stdlib.Http.success(Stdlib.Utf8.encode("test"))
       |> Stdlib.Test.equal(expected(200, [], "test"))
 
-      Stdlib.Http.responseWithHtml(200, "test")
+      Stdlib.Http.responseWithHtml(Stdlib.Http.Status.ok, "test")
       |> Stdlib.Test.equal(
         expected(200, [ ("Content-Type", "text/html; charset=utf-8") ], "test"))
 
-      Stdlib.Http.responseWithText(200, "test")
+      Stdlib.Http.responseWithText(Stdlib.Http.Status.ok, "test")
       |> Stdlib.Test.equal(
         expected(
           200,
           [ ("Content-Type", "text/plain; charset=utf-8") ],
           "test"))
 
-      Stdlib.Http.responseWithJson(200, "test")
+      Stdlib.Http.responseWithJson(Stdlib.Http.Status.ok, "test")
       |> Stdlib.Test.equal(
         expected(200, [ ("Content-Type", "application/json") ], "test")) ])
 
@@ -387,16 +387,29 @@ test statusReason =
 test namedResponses =
   Stdlib.Test.all(
     [ (Stdlib.Http.success(Stdlib.Bytes.empty)).statusCode
+      |> Stdlib.Http.Status.toInt64
       |> Stdlib.Test.equal(200)
 
-      (Stdlib.Http.redirectTo("/x")).statusCode |> Stdlib.Test.equal(302)
+      (Stdlib.Http.redirectTo("/x")).statusCode
+      |> Stdlib.Http.Status.toInt64
+      |> Stdlib.Test.equal(302)
 
-      (Stdlib.Http.badRequest("no")).statusCode |> Stdlib.Test.equal(400)
+      (Stdlib.Http.badRequest("no")).statusCode
+      |> Stdlib.Http.Status.toInt64
+      |> Stdlib.Test.equal(400)
 
-      (Stdlib.Http.unauthorized()).statusCode |> Stdlib.Test.equal(401)
+      (Stdlib.Http.unauthorized()).statusCode
+      |> Stdlib.Http.Status.toInt64
+      |> Stdlib.Test.equal(401)
 
-      (Stdlib.Http.forbidden()).statusCode |> Stdlib.Test.equal(403)
+      (Stdlib.Http.forbidden()).statusCode
+      |> Stdlib.Http.Status.toInt64
+      |> Stdlib.Test.equal(403)
 
-      (Stdlib.Http.notFound()).statusCode |> Stdlib.Test.equal(404)
+      (Stdlib.Http.notFound()).statusCode
+      |> Stdlib.Http.Status.toInt64
+      |> Stdlib.Test.equal(404)
 
-      (Stdlib.Http.serverError("no")).statusCode |> Stdlib.Test.equal(500) ])
+      (Stdlib.Http.serverError("no")).statusCode
+      |> Stdlib.Http.Status.toInt64
+      |> Stdlib.Test.equal(500) ])

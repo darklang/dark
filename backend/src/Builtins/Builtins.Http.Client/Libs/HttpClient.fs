@@ -43,6 +43,13 @@ let responseErrorType () =
 let streamResponseType () =
   FQTypeName.fqPackage (PackageRefs.Type.Stdlib.HttpClient.streamResponse ())
 
+/// The response's status as an `Http.Status`. RFC 9110 has a client read a status outside
+/// 100-599 as a 5xx, so such a status is 500.
+let private statusOf (code : int) : Dval =
+  let code = if code >= 100 && code <= 599 then code else 500
+  let typ = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Http.status ())
+  DRecord(typ, typ, [], RecordFields.ofList [ "__status", Dval.dint64 (int64 code) ])
+
 
 module BadHeader =
   let toDT (err : HostTypes.HttpBadHeader) : Dval =
@@ -209,7 +216,7 @@ let fns () : List<BuiltInFn> =
               | Ok response ->
                 let typ = responseOKType ()
                 let fields =
-                  [ ("statusCode", Dval.dint64 (int64 response.statusCode))
+                  [ ("statusCode", statusOf response.statusCode)
                     ("headers", headersToDval response.headers)
                     ("body", Bytes.newEphemeral response.body) ]
                 Ply(resultOk (DRecord(typ, typ, [], RecordFields.ofList fields)))))
@@ -277,7 +284,7 @@ let fns () : List<BuiltInFn> =
 
                 let typ = streamResponseType ()
                 let fields =
-                  [ ("statusCode", Dval.dint64 (int64 head.statusCode))
+                  [ ("statusCode", statusOf head.statusCode)
                     ("headers", headersToDval head.headers)
                     ("body", body) ]
                 Ply(resultOk (DRecord(typ, typ, [], RecordFields.ofList fields)))))

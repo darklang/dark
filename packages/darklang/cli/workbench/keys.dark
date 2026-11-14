@@ -171,7 +171,7 @@ let handleReaderKey(
   // A page is the terminal height less the chrome, so it lands roughly where your eye already is. Reading a
   // 200-line doc one line at a time is not reading.
   let (_w, h) = Terminal.getSize()
-  let page = Stdlib.max(1, h - 6)
+  let page = Stdlib.max(1, Stdlib.Int64.fromUInt16(h) - 6)
   let pageUp = Step.Continue({ state with detailScroll = Stdlib.max(0, state.detailScroll - page) })
   let pageDown = Step.Continue({ state with detailScroll = state.detailScroll + page })
   match key with

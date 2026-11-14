@@ -180,7 +180,7 @@ module Display =
     hint: String,
     size: Stdlib.Cli.Tui.Size)
     : Stdlib.Cli.Tui.View =
-    let width = Stdlib.max(1, size.width)
+    let width = Stdlib.max(1, Stdlib.Int64.fromUInt16(size.width))
     let beforeCursor =
       styledPrefix(locationStr) + Stdlib.String.slice(state.text, 0, state.cursorPosition)
 

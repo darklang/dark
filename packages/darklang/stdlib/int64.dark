@@ -146,7 +146,8 @@ let fromInt16(i: Int16): Int64 =
 
 /// Converts a <type UInt16> to an <type Int64>.
 let fromUInt16(i: UInt16): Int64 =
-  BigInt.toInt64(BigInt.fromUInt16(i)) |> Builtin.unwrap
+  // every UInt16 fits
+  BigInt.toInt64(BigInt.fromUInt16(i)) |> Option.withDefault(0)
 
 
 /// Converts an <type Int32> to an <type Int64>.

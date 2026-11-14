@@ -66,7 +66,7 @@ let renderScrollableLines(
 /// actually goes, so any column the tree doesn't need belongs to it.
 let matterSplitFor(state: State): Int64 =
   let (w, _h) = Terminal.getSize()
-  let w = if w < 24 then 80 else w
+  let w = if w < 24u16 then 80 else Stdlib.Int64.fromUInt16(w)
   let longest =
     state.items
     |> Stdlib.List.map(fun i -> Stdlib.String.displayWidth(i.name))
@@ -97,7 +97,7 @@ let matterSplitFor(state: State): Int64 =
 /// diff lines until each wrapped in two. Home has no preview.
 let previewInnerWidth(state: State): Int64 =
   let (w, _h) = Terminal.getSize()
-  let w = if w < 24 then 80 else w
+  let w = if w < 24u16 then 80 else Stdlib.Int64.fromUInt16(w)
   let pct = if state.activeView == vMatter then matterSplitFor(state) else 55
   // Only the width matters here; the rows and position are placeholders.
   let body = Stdlib.Cli.UI.Layout.Region { top = 1, left = 1, rows = 1, cols = w }
