@@ -425,7 +425,7 @@ module Registry =
       ("format", "Format .dark files", [ "fmt" ], acceptsFormat, Cli.Format.execute, Cli.Format.help, Cli.Format.complete)
       ("run-script", "Run a Dark script file, or a package function by name", [ "run" ], acceptsRunScript, Cli.Run.execute, Cli.Run.help, Cli.Run.complete)
       ("eval", "Evaluate a Dark expression", [], acceptsEval, Cli.Eval.execute, Cli.Eval.help, Cli.Eval.complete)
-      ("compile", "Compile an expression to native code and run it (experimental)", [], acceptsCompile, Cli.Compile.execute, Cli.Compile.help, Cli.Compile.complete)
+      ("compile", "Compile an expression to native code and run it, or a fn to an executable (experimental)", [], acceptsCompile, Cli.Compile.execute, Cli.Compile.help, Cli.Compile.complete)
       ("view", "View details of a module, type, value, fn, trait, impl or test", [], acceptsView, Packages.View.execute, Packages.View.help, Packages.View.complete)
       ("tree", "Display package hierarchy in tree format", [ "packages" ], acceptsTree, Packages.Tree.execute, Packages.Tree.help, Packages.Tree.complete)
       ("search", "Search modules, types, functions, values, traits, impls and tests", [], acceptsSearch, Packages.Search.execute, Packages.Search.help, Packages.Search.complete)
