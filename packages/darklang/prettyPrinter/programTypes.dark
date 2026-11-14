@@ -164,7 +164,10 @@ type Context =
     /// lambda and pattern variable. A fn or value can't be written bare as one of these.
     localNames: Dict<String, Unit>
     /// The bindings of every name the file being printed uses, when `dark format` has read them.
-    knownBindings: Option<KnownBindings> }
+    knownBindings: Option<KnownBindings>
+    /// The sized numbers to print without their suffix, by node id, because a bare number would
+    /// take the same type there. None until the declaration being printed works it out.
+    bareNumbers: Option<Dict<String, Bool>> }
 
 
 module Context =
@@ -188,7 +191,8 @@ module Context =
         spellings = Stdlib.Dict.empty
         textParts = Stdlib.Dict.empty
         localNames = Stdlib.Dict.empty
-        knownBindings = Option.None }
+        knownBindings = Option.None
+        bareNumbers = Option.None }
 
 
   val forMain = forBranch(SCM.Branch.mainBranchId)
@@ -219,12 +223,36 @@ module Context =
         spellings = Stdlib.Dict.empty
         textParts = Stdlib.Dict.empty
         localNames = Stdlib.Dict.empty
-        knownBindings = Option.None }
+        knownBindings = Option.None
+        bareNumbers = Option.None }
 
 
   let toPickContext(ctx: Context): LanguageTools.PackageManager.PickContext =
     LanguageTools.PackageManager.PickContext
       { currentModule = ctx.currentModule, preferredLocation = ctx.preferredLocation }
+
+
+/// Whether <param id>, a sized number, prints without its suffix.
+let suffix(ctx: Context, id: Int64, written: String): String =
+  if Stdlib.Dict.containsKey(bareNumbers(ctx), Stdlib.display(id)) then
+    ""
+  else
+    written
+
+
+let bareNumbers(ctx: Context): Dict<String, Bool> =
+  Stdlib.Option.withDefault(ctx.bareNumbers, Dict {})
+
+
+/// <param ctx> knowing which of the sized numbers in <param op> need no suffix, unless it already
+/// does (`dark format` works it out for a whole file).
+let withBareNumbers(ctx: Context, op: LanguageTools.ProgramTypes.PackageOp): Context =
+  match ctx.bareNumbers with
+  | Some(_) -> ctx
+  | None ->
+    { ctx with
+        bareNumbers =
+          Option.Some(LanguageTools.AtRestTypeChecker.Suffixes.droppable(ctx.branchId, [ op ])) }
 
 
 let packageNameWithContext(
@@ -1199,25 +1227,37 @@ let matchPatternConsChain(
 
 
 let matchPattern(mp: LanguageTools.ProgramTypes.MatchPattern): String =
+  matchPatternBare(Dict {}, mp)
+
+
+/// <fn matchPattern>, without the suffix of each sized number in <param bare>.
+let matchPatternBare(
+  bare: Dict<String, Bool>,
+  mp: LanguageTools.ProgramTypes.MatchPattern)
+  : String =
+  let suffix(id: Int64, written: String): String =
+    if Stdlib.Dict.containsKey(bare, Stdlib.display(id)) then "" else written
+
+  let matchPattern(mp: LanguageTools.ProgramTypes.MatchPattern): String = matchPatternBare(bare, mp)
   match mp with
   | MPVariable(_id, name) -> formatName(name)
   | MPUnit(_id) -> "()"
   | MPBool(_id, b) -> Stdlib.display(b)
-  | MPInt8(_id, i) -> Stdlib.display(i) + "s8"
-  | MPUInt8(_id, i) -> Stdlib.display(i) + "u8"
-  | MPInt16(_id, i) -> Stdlib.display(i) + "s16"
-  | MPUInt16(_id, i) -> Stdlib.display(i) + "u16"
-  | MPInt32(_id, i) -> Stdlib.display(i) + "s32"
-  | MPUInt32(_id, i) -> Stdlib.display(i) + "u32"
+  | MPInt8(id, i) -> Stdlib.display(i) + suffix(id, "s8")
+  | MPUInt8(id, i) -> Stdlib.display(i) + suffix(id, "u8")
+  | MPInt16(id, i) -> Stdlib.display(i) + suffix(id, "s16")
+  | MPUInt16(id, i) -> Stdlib.display(i) + suffix(id, "u16")
+  | MPInt32(id, i) -> Stdlib.display(i) + suffix(id, "s32")
+  | MPUInt32(id, i) -> Stdlib.display(i) + suffix(id, "u32")
   | MPInt64(_id, i) -> Stdlib.display(i)
-  | MPUInt64(_id, i) -> Stdlib.display(i) + "u64"
-  | MPInt128(_id, i) -> Stdlib.display(i) + "s128"
-  | MPUInt128(_id, i) -> Stdlib.display(i) + "u128"
+  | MPUInt64(id, i) -> Stdlib.display(i) + suffix(id, "u64")
+  | MPInt128(id, i) -> Stdlib.display(i) + suffix(id, "s128")
+  | MPUInt128(id, i) -> Stdlib.display(i) + suffix(id, "u128")
   | MPBigInt(_id, i) -> Stdlib.display(i) + "z"
   | MPFloat64(_id, sign, whole, remainder) ->
     PrettyPrinter.sign(sign) + floatDigits(whole, remainder)
-  | MPFloat32(_id, sign, whole, remainder) ->
-    PrettyPrinter.sign(sign) + floatDigits(whole, remainder) + "f32"
+  | MPFloat32(id, sign, whole, remainder) ->
+    PrettyPrinter.sign(sign) + floatDigits(whole, remainder) + suffix(id, "f32")
   | MPDecimal(_id, d) -> $"{Stdlib.display(d)}dec"
   | MPChar(_id, c) -> $"'{escapeCharLiteral(c)}'"
   | MPString(_id, s) -> $"\"{escapeSpecialCharacters(s)}\""
@@ -1244,7 +1284,7 @@ let matchPattern(mp: LanguageTools.ProgramTypes.MatchPattern): String =
     // an or-pattern or `as` inside a tuple needs its own parentheses: `(1 | 2, x)`
     // is an or of `1` and the tuple `(2, x)`
     Stdlib.List.concat([ first, second ], theRest)
-    |> Stdlib.List.map(fun item -> matchPatternGrouped(item))
+    |> Stdlib.List.map(fun item -> matchPatternGrouped(bare, item))
     |> Stdlib.String.join(", ")
     |> (fun parts -> "(" + parts + ")")
   | MPEnum(_id, caseName, fieldPats) ->
@@ -1279,21 +1319,24 @@ let matchPattern(mp: LanguageTools.ProgramTypes.MatchPattern): String =
 
 
 /// A match arm's pattern: `| Some(a), None ->`, a tuple without parentheses of its own.
-let armPattern(mp: LanguageTools.ProgramTypes.MatchPattern): String =
+let armPattern(bare: Dict<String, Bool>, mp: LanguageTools.ProgramTypes.MatchPattern): String =
   match mp with
   | MPTuple(_, first, second, theRest) ->
     Stdlib.List.concat([ first, second ], theRest)
-    |> Stdlib.List.map(fun item -> matchPatternGrouped(item))
+    |> Stdlib.List.map(fun item -> matchPatternGrouped(bare, item))
     |> Stdlib.String.join(", ")
-  | _ -> matchPattern(mp)
+  | _ -> matchPatternBare(bare, mp)
 
 
 /// A match pattern where it sits among commas, wrapped when it is an or-pattern
 /// or an `as`, which would otherwise take in the commas around it.
-let matchPatternGrouped(mp: LanguageTools.ProgramTypes.MatchPattern): String =
+let matchPatternGrouped(
+  bare: Dict<String, Bool>,
+  mp: LanguageTools.ProgramTypes.MatchPattern)
+  : String =
   match mp with
-  | MPOr(_, _) | MPAs(_, _, _) -> "(" + matchPattern(mp) + ")"
-  | _ -> matchPattern(mp)
+  | MPOr(_, _) | MPAs(_, _, _) -> "(" + matchPatternBare(bare, mp) + ")"
+  | _ -> matchPatternBare(bare, mp)
 
 
 let binaryOperation(b: LanguageTools.ProgramTypes.BinaryOperation): String =
@@ -2292,11 +2335,12 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
                   alternatives
                   |> Stdlib.List.map(fun alt ->
                     match alt with
-                    | MPAs(_, _, _) -> Stdlib.Pretty.text("(" + matchPattern(alt) + ")")
-                    | _ -> Stdlib.Pretty.text(matchPattern(alt)))
+                    | MPAs(_, _, _) ->
+                      Stdlib.Pretty.text("(" + matchPatternBare(bareNumbers(ctx), alt) + ")")
+                    | _ -> Stdlib.Pretty.text(matchPatternBare(bareNumbers(ctx), alt)))
                   |> Stdlib.Pretty.join(
                     Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.Doc.Line, Stdlib.Pretty.text("| ")))))
-            | _ -> Stdlib.Pretty.text($"| {armPattern(case.pat)}")
+            | _ -> Stdlib.Pretty.text($"| {armPattern(bareNumbers(ctx), case.pat)}")
 
           Stdlib.Pretty.hang(
             2,
@@ -2738,21 +2782,21 @@ let exprString(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
   | EValue(_id, value) -> NameResolution.valueName(ctx, value)
   | EUnit(_id) -> "()"
   | EBool(_id, b) -> Stdlib.display(b)
-  | EInt8(_id, i) -> Stdlib.display(i) + "s8"
-  | EUInt8(_id, i) -> Stdlib.display(i) + "u8"
-  | EInt16(_id, i) -> Stdlib.display(i) + "s16"
-  | EUInt16(_id, i) -> Stdlib.display(i) + "u16"
-  | EInt32(_id, i) -> Stdlib.display(i) + "s32"
-  | EUInt32(_id, i) -> Stdlib.display(i) + "u32"
+  | EInt8(id, i) -> Stdlib.display(i) + suffix(ctx, id, "s8")
+  | EUInt8(id, i) -> Stdlib.display(i) + suffix(ctx, id, "u8")
+  | EInt16(id, i) -> Stdlib.display(i) + suffix(ctx, id, "s16")
+  | EUInt16(id, i) -> Stdlib.display(i) + suffix(ctx, id, "u16")
+  | EInt32(id, i) -> Stdlib.display(i) + suffix(ctx, id, "s32")
+  | EUInt32(id, i) -> Stdlib.display(i) + suffix(ctx, id, "u32")
   | EInt64(_id, i) -> Stdlib.display(i)
-  | EUInt64(_id, i) -> Stdlib.display(i) + "u64"
-  | EInt128(_id, i) -> Stdlib.display(i) + "s128"
-  | EUInt128(_id, i) -> Stdlib.display(i) + "u128"
+  | EUInt64(id, i) -> Stdlib.display(i) + suffix(ctx, id, "u64")
+  | EInt128(id, i) -> Stdlib.display(i) + suffix(ctx, id, "s128")
+  | EUInt128(id, i) -> Stdlib.display(i) + suffix(ctx, id, "u128")
   | EBigInt(_id, i) -> Stdlib.display(i) + "z"
   | EFloat64(_id, sign, whole, remainder) ->
     PrettyPrinter.sign(sign) + floatDigits(whole, remainder)
-  | EFloat32(_id, sign, whole, remainder) ->
-    PrettyPrinter.sign(sign) + floatDigits(whole, remainder) + "f32"
+  | EFloat32(id, sign, whole, remainder) ->
+    PrettyPrinter.sign(sign) + floatDigits(whole, remainder) + suffix(ctx, id, "f32")
   | EDecimal(_id, d) -> $"{Stdlib.display(d)}dec"
   | EChar(_id, c) -> "'" + escapeCharLiteral(c) + "'"
   | EString(id, segments) ->
@@ -3041,7 +3085,10 @@ let packageValueNamed(
   namePart: String,
   p: LanguageTools.ProgramTypes.PackageValue.PackageValue)
   : String =
-  let ctx = { ctx with localNames = nameSet(boundNames(p.body)) }
+  let ctx =
+    { withBareNumbers(ctx, LanguageTools.ProgramTypes.PackageOp.AddValue(p)) with
+        localNames = nameSet(boundNames(p.body)) }
+
   let doc = letBindingDoc(ctx, $"val {namePart} =", p.body)
   formatDocComment(p.description) + Stdlib.Pretty.render(ctx.width, doc)
 
@@ -3086,7 +3133,10 @@ let packageTestNamed(
   name: String,
   test: LanguageTools.ProgramTypes.PackageTest.PackageTest)
   : String =
-  let ctx = { ctx with localNames = nameSet(boundNames(test.body)) }
+  let ctx =
+    { withBareNumbers(ctx, LanguageTools.ProgramTypes.PackageOp.AddTest(test)) with
+        localNames = nameSet(boundNames(test.body)) }
+
   let docComment = formatDocComment(test.description)
   match test.expectedError with
   | None ->
@@ -3199,6 +3249,7 @@ let packageFnNamed(
   namePart: String,
   p: LanguageTools.ProgramTypes.PackageFn.PackageFn)
   : String =
+  let ctx = withBareNumbers(ctx, LanguageTools.ProgramTypes.PackageOp.AddFn(p))
   // `<'a>` only when it says something: the parser adds the type variables the parameters and
   // return type use, in the order they appear, so a list that is exactly those is left off.
   let implicit =
