@@ -8,6 +8,11 @@
 1 Darklang.Cli.Format.formatFiles Darklang.Stdlib.Cli.File.readText
 1 Darklang.Cli.Format.formatFiles Darklang.Stdlib.List.parallelMap
 1 Darklang.Cli.Format.settle Darklang.Stdlib.Cli.File.writeText
+1 Darklang.Cli.Generate.argumentSource Darklang.Stdlib.Cli.Dir.listFullPaths
+1 Darklang.Cli.Generate.argumentSource Darklang.Stdlib.Cli.File.exists
+1 Darklang.Cli.Generate.argumentSource Darklang.Stdlib.List.sort
+1 Darklang.Cli.Generate.fetchToBytes Darklang.Stdlib.HttpClient.get
+1 Darklang.Cli.Generate.writeArtifacts Darklang.Stdlib.Cli.File.writeText
 1 Darklang.Cli.Http.Serve.execute Darklang.Stdlib.HttpServer.serve
 1 Darklang.Cli.Http.Serve.execute Darklang.Stdlib.HttpServer.serveLive
 1 Darklang.Cli.Installation.Config.getDarklangHomeDir Darklang.Stdlib.Cli.Unix.getHomeDirectory
@@ -85,6 +90,8 @@
 1 Darklang.PrettyPrinter.__escapeGrapheme Darklang.Stdlib.Int64.fromUInt32
 1 Darklang.SCM.PackageOps.readRevisionOps Builtin.unwrap
 1 Darklang.SCM.PartialCommit.stringGt Darklang.Stdlib.List.sort
+2 Darklang.Cli.Generate.argumentSource Darklang.Stdlib.Cli.File.readBytes
+2 Darklang.Cli.Generate.argumentSource Darklang.Stdlib.Cli.FileSystem.isDirectory
 2 Darklang.Cli.Packages.Edit.execute Darklang.Stdlib.Cli.Dir.deleteRecursive
 2 Darklang.Cli.Packages.Signatures.namedLike Darklang.Stdlib.List.sort
 2 Darklang.LanguageTools.AtRestTypeChecker.Generate.orPattern Darklang.Stdlib.List.sort

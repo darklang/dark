@@ -1327,6 +1327,7 @@ let private unsafeWithArguments : Map<string, string> =
       "val", "ditto"
       "type", "ditto"
       "module", "ditto"
+      "generate", "ditto: it stages what a generator writes"
       "trait", "ditto"
       "impl", "ditto"
       "rename", "moves an item other tests may be naming"

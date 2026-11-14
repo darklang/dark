@@ -134,6 +134,8 @@ module Registry =
 
   let acceptsModule(): Accepts.Accepts = Accepts.between(2, 2, [])
 
+  let acceptsGenerate(): Accepts.Accepts = Accepts.text(0)
+
   let acceptsEdit(): Accepts.Accepts = Accepts.between(1, 2, [])
 
   let acceptsRename(): Accepts.Accepts = Accepts.between(2, 2, [])
@@ -435,6 +437,7 @@ module Registry =
       ("trait", "Create a new trait", [], acceptsTrait, Packages.TraitCommand.execute, Packages.TraitCommand.help, Packages.TraitCommand.complete)
       ("impl", "Implement a trait for a type", [], acceptsImpl, Packages.ImplCommand.execute, Packages.ImplCommand.help, Packages.ImplCommand.complete)
       ("module", "Define multiple package declarations", [], acceptsModule, Packages.ModuleCommand.execute, Packages.ModuleCommand.help, Packages.ModuleCommand.complete)
+      ("generate", "Run a generator: a fn that writes Dark, staged like typed code", [], acceptsGenerate, Cli.Generate.execute, Cli.Generate.help, Cli.Generate.complete)
       ("edit", "Change an item without retyping it", [], acceptsEdit, Packages.Edit.execute, Packages.Edit.help, Packages.Edit.complete)
       ("rename", "Give an item a different name (its content and callers are untouched)", [], acceptsRename, Packages.Rename.execute, Packages.Rename.help, Packages.Rename.complete)
       ("hash", "Show hash of a package item", [], acceptsHash, Packages.Hash.execute, Packages.Hash.help, Packages.Hash.complete)
@@ -611,6 +614,7 @@ module Registry =
           "impl"
           "impls"
           "module"
+          "generate"
           "edit"
           "rename"
           "hash"

@@ -133,6 +133,18 @@ module RangedInt =
 /// The value `serialize` found with no JSON form.
 exception CannotSerialize of Dval
 
+/// The resolved name, not the written one: a value built through an alias carries the alias first.
+let private isOptionEnum (dv : Dval) : bool =
+  match dv with
+  | DEnum(_, resolvedTypeName, _, _, _) ->
+    resolvedTypeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.option ())
+  | _ -> false
+
+let private isNoneValue (dv : Dval) : bool =
+  match dv with
+  | DEnum(_, _, _, "None", []) -> isOptionEnum dv
+  | _ -> false
+
 let rec serialize (w : Utf8JsonWriter) (dv : Dval) : unit =
   let r = serialize w
   match dv with
@@ -194,6 +206,13 @@ let rec serialize (w : Utf8JsonWriter) (dv : Dval) : unit =
         | _ -> raise (CannotSerialize dv)))
 
   // Enums and Records
+  //
+  // `Option` is written the way other systems write it: `Some v` is `v`, `None` is `null`,
+  // and a `None` record field is left out. One layer is all this carries: `Some None`,
+  // `Some ()` and `None` are all `null`, and parse back as `None`.
+  | DEnum(_, _, _, "Some", [ inner ]) when isOptionEnum dv -> r inner
+  | DEnum(_, _, _, "None", []) when isOptionEnum dv -> w.WriteNullValue()
+
   | DEnum(_, _, _, caseName, fields) ->
     w.writeObject (fun () ->
       w.WritePropertyName caseName
@@ -207,8 +226,9 @@ let rec serialize (w : Utf8JsonWriter) (dv : Dval) : unit =
       w.writeObject (fun () ->
         fields
         |> RecordFields.iter (fun fieldName dval ->
-          w.WritePropertyName fieldName
-          r dval))
+          if not (isNoneValue dval) then
+            w.WritePropertyName fieldName
+            r dval))
 
   // Not supported
   | DApplicable _
@@ -525,6 +545,14 @@ let private integer
 /// What a record field of type `Option` parses from when the JSON leaves it out or is `null`.
 let private noneJson : JsonElement = JsonDocument.Parse("{\"None\":[]}").RootElement
 
+/// `{"Some":[..]}` or `{"None":[]}`, the tagged form, which still parses.
+let private isTaggedOption (j : JsonElement) : bool =
+  j.ValueKind = JsonValueKind.Object
+  && (match j.EnumerateObject() |> Seq.map (fun p -> p.Name) |> Seq.toList with
+      | [ "Some" ]
+      | [ "None" ] -> true
+      | _ -> false)
+
 
 let parse
   (threadID : ThreadID)
@@ -666,6 +694,11 @@ let parse
       |> Seq.toList
       |> Ply.List.flatten
       |> Ply.map (TypeChecker.DvalCreator.dict threadID VT.string VT.unknownTODO)
+
+    | TCustomType({ resolved = Ok(FQTypeName.Package(Hash h)) }, [ inner ]), _ when
+      h = PackageRefs.Type.Stdlib.option () && not (isTaggedOption j)
+      ->
+      optionValue typ inner pathSoFar j
 
     | TCustomType({ resolved = Ok typeName }, _), jsonValueKind when
       (RangedInt.find typeName).IsSome
@@ -820,9 +853,7 @@ let parse
                       raiseError (
                         ParseError.RecordMissingField(def.name, pathSoFar)
                       )
-                    | [ field ], Some inner ->
-                      optionField typ inner path field.Value
-                    | [ field ], None -> convert typ path field.Value
+                    | [ field ], _ -> convert typ path field.Value
                     | _ ->
                       raiseError (
                         ParseError.RecordDuplicateField(def.name, pathSoFar)
@@ -876,24 +907,15 @@ let parse
     | TDict _, _
     | TCustomType _, _ -> raiseCantMatchWithType typ j pathSoFar
 
-  /// A present `Option` field. `null` is `None`, `{"Some":[..]}` and `{"None":[]}` are read as
-  /// `serialize` writes them, and any other value is the `Some`.
-  and optionField
+  /// An `Option` not in the tagged form: `null` is `None`, and any other value is the `Some`.
+  and optionValue
     (typ : TypeReference)
     (inner : TypeReference)
     (path : JsonPath.JsonPath)
     (j : JsonElement)
     : Ply<Dval> =
-    let asWritten =
-      j.ValueKind = JsonValueKind.Object
-      && (match j.EnumerateObject() |> Seq.map (fun p -> p.Name) |> Seq.toList with
-          | [ "Some" ]
-          | [ "None" ] -> true
-          | _ -> false)
     if j.ValueKind = JsonValueKind.Null then
       convert typ path noneJson
-    else if asWritten then
-      convert typ path j
     else
       uply {
         let! value = convert inner path j

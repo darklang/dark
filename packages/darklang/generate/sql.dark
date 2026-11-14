@@ -1,0 +1,255 @@
+module Darklang.Generate.Sql
+
+// Row types from a SQL schema dump (SQLite dialect; `sqlite3 app.db .schema > schema.sql`).
+//
+// One record per `CREATE TABLE`, named after the table in the singular, with a field
+// per column typed by SQLite's affinity rules: INT* is `Int64`, REAL/FLOAT/DOUBLE and
+// NUMERIC/DECIMAL are `Float`, TEXT/CHAR/CLOB/DATE/TIME are `String`, BLOB (or no type)
+// is `Bytes`, BOOL* is `Bool`. A column without `NOT NULL` or `PRIMARY KEY` is an
+// `Option`. Dark code does not open SQLite databases, so only the types are written.
+//
+// The parser reads the dump as text: it finds each `CREATE TABLE`, takes the balanced
+// parenthesis after the name, splits on top-level commas, and skips table constraints
+// (`PRIMARY KEY (...)`, `FOREIGN KEY`, `UNIQUE`, `CHECK`, `CONSTRAINT`). Views,
+// indexes and triggers are ignored.
+
+type ColumnType =
+  | Int64
+  | Float
+  | String
+  | Bytes
+  | Bool
+
+
+type Column =
+  { name: String
+    typ: ColumnType
+    required: Bool }
+
+
+type Table =
+  { name: String
+    columns: List<Column> }
+
+
+let stripQuotes(s: String): String =
+  let t = Stdlib.String.trim(s)
+  let unwrap(x: String, open_: String, close: String): String =
+    if
+      Stdlib.String.startsWith(x, open_)
+      && Stdlib.String.endsWith(x, close)
+      && Stdlib.String.length(x) >= 2
+    then
+      Stdlib.String.slice(x, 1, Stdlib.String.length(x) - 1)
+    else
+      x
+
+  unwrap(unwrap(unwrap(unwrap(t, "\"", "\""), "`", "`"), "[", "]"), "'", "'")
+
+
+/// The first token and the rest: up to whitespace, or, for a quoted name (`"display
+/// name"`, `[display name]`, a backtick), up to the closing quote inclusive.
+let nextToken(s: String): (String * String) =
+  let trimmed = Stdlib.String.trim(s)
+  let chars = Stdlib.String.toList(trimmed)
+  let closing =
+    match chars with
+    | ['"', ...] -> Option.Some('"')
+    | ['`', ...] -> Option.Some('`')
+    | ['[', ...] -> Option.Some(']')
+    | _ -> Option.None
+
+  let token =
+    match closing with
+    | Some(q) ->
+      let inner = Stdlib.List.drop(chars, 1) |> Stdlib.List.takeWhile(fun c -> c != q)
+      Stdlib.String.fromList(
+        Stdlib.List.flatten(
+          [ [ Stdlib.List.head(chars) |> Stdlib.Option.withDefault(q) ], inner, [ q ] ]))
+    | None ->
+      chars
+      |> Stdlib.List.takeWhile(fun c -> Stdlib.Bool.not(Stdlib.Char.isWhitespace(c)))
+      |> Stdlib.String.fromList
+
+  (token, Stdlib.String.dropFirst(trimmed, Stdlib.String.length(token)))
+
+
+/// Split on commas that are not inside parentheses.
+let splitTopLevel(s: String): List<String> =
+  let (parts, current, _) =
+    Stdlib.String.toList(s)
+    |> Stdlib.List.fold(([], [], 0), fun((parts, current, depth), c) ->
+      if c == '(' then
+        (parts, Stdlib.List.append(current, c), depth + 1)
+      else if c == ')' then
+        (parts, Stdlib.List.append(current, c), depth - 1)
+      else if c == ',' && depth == 0 then
+        (Stdlib.List.append(parts, Stdlib.String.fromList(current)), [], depth)
+      else
+        (parts, Stdlib.List.append(current, c), depth))
+
+  Stdlib.List.append(parts, Stdlib.String.fromList(current))
+  |> Stdlib.List.map(Stdlib.String.trim)
+  |> Stdlib.List.filter(fun p -> p != "")
+
+
+/// The text between the first `(` and its matching `)`, and the text before it.
+let balanced(s: String): Option<(String * String)> =
+  match Stdlib.String.indexOf(s, "(") with
+  | None -> Option.None
+  | Some(start) ->
+    let before = Stdlib.String.slice(s, 0, start)
+    let after = Stdlib.String.dropFirst(s, start + 1)
+    let (_, body, found) =
+      Stdlib.String.toList(after)
+      |> Stdlib.List.fold((1, [], false), fun((depth, acc, done_), c) ->
+        if done_ then
+          (depth, acc, true)
+        else if c == '(' then
+          (depth + 1, Stdlib.List.append(acc, c), false)
+        else if c == ')' then
+          if depth == 1 then
+            (0, acc, true)
+          else
+            (depth - 1, Stdlib.List.append(acc, c), false)
+        else
+          (depth, Stdlib.List.append(acc, c), false))
+
+    if found then
+      Option.Some((before, Stdlib.String.fromList(body)))
+    else
+      Option.None
+
+
+let columnType(declared: String): ColumnType =
+  let t = Stdlib.String.toUppercase(declared)
+  let has(s: String): Bool = Stdlib.String.contains(t, s)
+  if has("INT") then
+    ColumnType.Int64
+  else if has("BOOL") then
+    ColumnType.Bool
+  else if has("CHAR") || has("CLOB") || has("TEXT") then
+    ColumnType.String
+  else if has("DATE") || has("TIME") then
+    ColumnType.String
+  else if has("REAL") || has("FLOA") || has("DOUB") then
+    ColumnType.Float
+  else if has("NUM") || has("DEC") then
+    ColumnType.Float
+  else if t == "" then
+    ColumnType.Bytes
+  else if has("BLOB") then
+    ColumnType.Bytes
+  else
+    ColumnType.String
+
+
+let isTableConstraint(definition: String): Bool =
+  let lower = Stdlib.String.toLowercase(Stdlib.String.trim(definition))
+  [ "primary key", "foreign key", "unique", "check", "constraint" ]
+  |> Stdlib.List.any(fun k -> Stdlib.String.startsWith(lower, k))
+
+
+let parseColumn(definition: String): Option<Column> =
+  if isTableConstraint(definition) then
+    Option.None
+  else
+    let (rawName, rest) = nextToken(definition)
+    let (rawType, constraints) = nextToken(rest)
+    let declaredType =
+      // `VARCHAR(255)`: the affinity is in the word, not the size.
+      Stdlib.String.split(rawType, "(")
+      |> Stdlib.List.head
+      |> Stdlib.Option.withDefault(rawType)
+
+    let lower = Stdlib.String.toLowercase(rawType + " " + constraints)
+    let required =
+      Stdlib.String.contains(lower, "not null") || Stdlib.String.contains(lower, "primary key")
+
+    Option.Some(
+      Column { name = stripQuotes(rawName), typ = columnType(declaredType), required = required })
+
+
+/// Every `CREATE TABLE` in <param dump>, in order.
+let tablesOf(dump: String): List<Table> =
+  let lower = Stdlib.String.toLowercase(dump)
+  let marker = "create table"
+
+  // Every position where `create table` begins; each is walked independently.
+  let positions =
+    Stdlib.String.toList(lower)
+    |> Stdlib.List.indexedMap(fun(i, _) -> i)
+    |> Stdlib.List.filter(fun i ->
+      Stdlib.String.startsWith(Stdlib.String.dropFirst(lower, i), marker))
+
+  positions
+  |> Stdlib.List.filterMap(fun at ->
+    let after = Stdlib.String.dropFirst(dump, at + Stdlib.String.length(marker))
+    match balanced(after) with
+    | None -> Option.None
+    | Some((head, body)) ->
+      let headLower = Stdlib.String.toLowercase(head)
+      let nameText =
+        match Stdlib.String.indexOf(headLower, "if not exists") with
+        | Some(i) -> Stdlib.String.dropFirst(head, i + 13)
+        | None -> head
+
+      let name = stripQuotes(nameText)
+      let columns = splitTopLevel(body) |> Stdlib.List.filterMap(parseColumn)
+      if name == "" || Stdlib.List.isEmpty(columns) then
+        Option.None
+      else
+        Option.Some(Table { name = name, columns = columns }))
+
+
+let typeText(c: Column): String =
+  let base =
+    match c.typ with
+    | Int64 -> "Int64"
+    | Float -> "Float"
+    | String -> "String"
+    | Bytes -> "Bytes"
+    | Bool -> "Bool"
+
+  if c.required then base else $"Stdlib.Option.Option<{base}>"
+
+
+/// The singular of a table name, for the record: `users` -> `User`.
+let recordName(table: String): String =
+  let t = Source.typeName(table)
+  if Stdlib.String.endsWith(t, "ies") && Stdlib.String.length(t) > 3 then
+    Stdlib.String.dropLast(t, 3) + "y"
+  else if
+    Stdlib.String.endsWith(t, "s")
+    && Stdlib.Bool.not(Stdlib.String.endsWith(t, "ss"))
+    && Stdlib.String.length(t) > 2
+  then
+    Stdlib.String.dropLast(t, 1)
+  else
+    t
+
+
+let tableSource(t: Table): String =
+  let name = recordName(t.name)
+  let fields =
+    t.columns
+    |> Stdlib.List.map(fun c ->
+      let field = Source.identifier(c.name)
+      let note = if field != c.name then Option.Some($"column \"{c.name}\"") else Option.None
+      Source.field(field, typeText(c), note))
+
+  Source.recordType(name, fields)
+
+
+/// Row types for every table in <param dump>, a SQL schema as `sqlite3 x.db .schema`
+/// prints it.
+let schemaTypes(dump: Bytes): Run =
+  match Generate.text("dump", dump) with
+  | Error(e) -> failed([ e ])
+  | Ok(text) ->
+    match tablesOf(text) with
+    | [] ->
+      failed(
+        [ "the dump has no CREATE TABLE statements; "
+          + "`sqlite3 app.db .schema > schema.sql` writes the form this reads" ])
+    | tables -> ofSource(Source.module_(tables |> Stdlib.List.map(tableSource)))

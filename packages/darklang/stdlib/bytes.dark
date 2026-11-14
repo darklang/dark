@@ -234,3 +234,16 @@ let fromList(bytes: List<UInt8>): Bytes =
 /// Returns <param bytes> with its bytes in the opposite order.
 let reverse(bytes: Bytes): Bytes =
   fromList(List.reverse(toList(bytes)))
+
+
+/// Stores <param bytes> in the package store, content-addressed, and returns the hash
+/// they live under, which is what <fn load> takes. The same bytes persist to the same
+/// hash, so this is safe to repeat. A generator's input file is stored this way once,
+/// and the saved generator names it by hash.
+let persist(bytes: Bytes): String =
+  Builtin.bytesPersist(bytes)
+
+
+/// The persistent bytes stored under <param hash>, or None when the store has no such row.
+let load(hash: String): Option<Bytes> =
+  Builtin.bytesLoad(hash)
