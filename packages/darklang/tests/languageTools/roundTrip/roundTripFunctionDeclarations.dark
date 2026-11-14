@@ -91,3 +91,44 @@ test functionDeclarations =
         "keyword-named fn, and a call to it",
         "let `match`(s: String): String = s\nlet g(): String = `match`(\"x\")",
         "let `match`(s: String): String =\n  s\n\nlet g(): String =\n  `match`(\"x\")") ])
+
+
+// A sized number prints bare where a bare one would be stored the same, and keeps its suffix
+// elsewhere. Each re-parse hashes as the first parse did.
+test suffixesOnlyWhereNeeded =
+  Stdlib.Test.all(
+    [ roundTripWith(
+        "let f(x: UInt8): UInt8 = x",
+        "an argument",
+        "let g(): UInt8 = f(40u8)",
+        "let g(): UInt8 =\n  f(40)")
+
+      roundTrip(
+        "a comparison",
+        "let isZero(c: UInt8): Bool = c == 0u8",
+        "let isZero(c: UInt8): Bool =\n  c == 0")
+
+      roundTrip(
+        "a pattern",
+        "let name(c: UInt8): String =\n  match c with\n  | 0u8 -> \"zero\"\n  | _ -> \"other\"",
+        "let name(c: UInt8): String =\n  match c with\n  | 0 -> \"zero\"\n  | _ -> \"other\"")
+
+      roundTrip(
+        "list elements",
+        "let bytes(): List<UInt8> = [ 0u8, 255u8, 16u8 ]",
+        "let bytes(): List<UInt8> =\n  [ 0, 255, 16 ]")
+
+      roundTrip(
+        "a Float32",
+        "let half(): Float32 = 0.5f32",
+        "let half(): Float32 =\n  0.5")
+
+      roundTrip(
+        "kept where nothing says",
+        "let count(): Int64 = Stdlib.List.length([ 1u8 ])",
+        "let count(): Int64 =\n  Stdlib.List.length([ 1u8 ])")
+
+      roundTrip(
+        "kept where it is the only one",
+        "let n(): Bool =\n  let x = 1u8\n  x == x",
+        "let n(): Bool =\n  let x = 1u8\n  x == x") ])
