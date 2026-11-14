@@ -306,6 +306,10 @@ module Instruction =
           w.Write(keyReg : int)
           w.Write(valueReg : int))
         entries
+    | CreateSet(createTo, items) ->
+      w.Write 26uy
+      w.Write(createTo : int)
+      List.write w (fun w reg -> w.Write(reg : int)) items
     | CreateRecord(createTo, typeName, typeArgs, fields) ->
       w.Write 13uy
       w.Write(createTo : int)
@@ -500,6 +504,10 @@ module Instruction =
       let exprId = r.ReadUInt64()
       let reg = r.ReadInt32()
       TraceExpr(exprId, reg)
+    | 26uy ->
+      let createTo = r.ReadInt32()
+      let items = List.read r (fun r -> r.ReadInt32())
+      CreateSet(createTo, items)
     | b -> raiseFormatError $"Invalid Instruction tag: {b}"
 
 

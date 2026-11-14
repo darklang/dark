@@ -285,6 +285,7 @@ let isNonExpansive(expr: ProgramTypes.Expr): Bool =
       | StringText(_) -> true
       | StringInterpolation(e) -> isNonExpansive(e))
   | EList(_, elements) -> Stdlib.List.all(elements, fun e -> isNonExpansive(e))
+  | ESet(_, elements) -> Stdlib.List.all(elements, fun e -> isNonExpansive(e))
   | EDict(_, entries) ->
     Stdlib.List.all(entries, fun((key, value)) -> isNonExpansive(key) && isNonExpansive(value))
   | ETuple(_, first, second, rest) ->
@@ -597,6 +598,7 @@ let infer(scope: Scope, expr: ProgramTypes.Expr): (Model.Ty * Model.Constraint) 
   | EInt64(_, _) -> (Model.Ty.TInt64, nothing())
   | EBigInt(_, _) -> (Model.Ty.TBigInt, nothing())
   | EList(id, elements) -> inferList(scope, id, elements)
+  | ESet(id, elements) -> inferSet(scope, id, elements)
   | EIf(id, condition, thenExpr, elseExpr) -> inferIf(scope, id, condition, thenExpr, elseExpr)
   | EEnum(id, typeName, typeArgs, caseName, fields) ->
     inferEnum(scope, id, typeName, typeArgs, caseName, fields)
@@ -1188,6 +1190,36 @@ let inferDict(
         all(Stdlib.List.map(entries, fun((k, _)) -> check(scope, key, Site.Expression, k)))
         all(Stdlib.List.map(entries, fun((_, v)) -> check(scope, value, Site.Expression, v)))
         Model.Constraint.DictKey(id, key) ]))
+
+
+/// Give all set elements one shared type, which must be one a dict key could have:
+/// a set keeps its elements in the order dict keys are kept in. An element written
+/// twice as the same constant is reported, as a repeated dict key is.
+let inferSet(
+  scope: Scope,
+  id: Int64,
+  elements: List<ProgramTypes.Expr>)
+  : (Model.Ty * Model.Constraint) =
+  let element = var(id, Model.Role.Element)
+  let problems =
+    elements
+    |> Stdlib.List.filterMap(fun e -> constantDictKey(e))
+    |> duplicates
+    |> Stdlib.List.map(fun k ->
+      report(
+        Types.error(
+          IssueCode.DuplicateSetElement,
+          at(id),
+          noType(),
+          noType(),
+          Context.Duplicate(k, DuplicateSite.InSetLiteral))))
+
+  (
+    Model.Ty.TSet(element),
+    all(
+      [ all(problems)
+        all(Stdlib.List.map(elements, fun e -> check(scope, element, Site.Expression, e)))
+        Model.Constraint.DictKey(id, element) ]))
 
 
 /// Use the enclosing package function's type for an ESelf reference, or report

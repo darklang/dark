@@ -360,6 +360,23 @@ module RuntimeError =
           ES.ValueType(actualType)
           ES.String(".") ]
 
+    | Set(err) ->
+      match err with
+      | TriedToAddMismatchedData(expectedType, actualType, actualValue) ->
+        [ ES.String("Cannot add ")
+          ES.IndefiniteArticle
+          ES.ValueType(actualType)
+          ES.String(" (")
+          ES.FullValue(actualValue)
+          ES.String(") to a set of ")
+          ES.ValueType(expectedType)
+          ES.String(".") ]
+      | UnsupportedElementType(_elementType, value) ->
+        [ ES.String("Cannot put ")
+          ES.FullValue(value)
+          ES.String(" in a set. Functions, streams,")
+          ES.String(" and values containing them cannot be set elements.") ]
+
     | Let(PatternDoesNotMatch(dval, pat)) ->
       [ ES.String("Could not deconstruct value ")
         ES.FullValue(dval)

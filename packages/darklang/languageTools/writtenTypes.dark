@@ -106,6 +106,13 @@ module TypeReference =
       value: TypeReference.TypeReference,
       closeBrace: Range)
 
+    | TSet(
+      Range,
+      keywordSet: Range,
+      openBracket: Range,
+      typ: TypeReference.TypeReference,
+      closeBracket: Range)
+
     | TTuple(
       Range,
       first: TypeReference,
@@ -322,6 +329,13 @@ type Expr =
     symbolOpenBrace: Range,
     symbolCloseBrace: Range)
 
+  | ESet(
+    Range,
+    contents: List<Expr>,
+    keywordSet: Range,
+    symbolOpenBrace: Range,
+    symbolCloseBrace: Range)
+
   | ETuple(
     Range,
     first: Expr,
@@ -464,6 +478,7 @@ module Expr =
     | EChar(range, _, _, _) -> range
     | EList(range, _, _, _) -> range
     | EDict(range, _, _, _, _) -> range
+    | ESet(range, _, _, _, _) -> range
     | ETuple(range, _, _, _, _, _, _) -> range
     | ERecord(range, _, _, _, _) -> range
     | ERecordUpdate(range, _, _, _, _, _) -> range

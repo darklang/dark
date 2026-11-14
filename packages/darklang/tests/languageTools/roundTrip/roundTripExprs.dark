@@ -417,6 +417,35 @@ test exprsDictLiteral =
         "Dict { Stdlib.display(1): 1 }") ])
 
 
+test exprsSetLiteral =
+  Stdlib.Test.all(
+    [ roundTrip("empty set", "Set { }", "Set {}")
+
+      roundTrip("one-element set", "Set { 1 }", "Set { 1 }")
+
+      roundTrip("string set", "Set { \"a\", \"b\" }", "Set { \"a\", \"b\" }")
+
+      // The literal keeps the order it was written in; the set orders it when built.
+      roundTrip("unsorted set", "Set { 3, 1, 2 }", "Set { 3, 1, 2 }")
+
+      roundTrip("repeated element", "Set { 1, 1 }", "Set { 1, 1 }")
+
+      roundTrip("trailing comma", "Set { 1, 2, }", "Set { 1, 2 }")
+
+      roundTrip("newline-separated set", "Set {\n  1\n  2\n}", "Set { 1, 2 }")
+
+      roundTrip("set of tuples", "Set { (1, \"a\") }", "Set { (1, \"a\") }")
+
+      roundTrip("nested set", "Set { Set { 1 } }", "Set { Set { 1 } }")
+
+      roundTrip(
+        "set with a computed element",
+        "Set { Stdlib.display(1) }",
+        "Set { Stdlib.display(1) }")
+
+      roundTrip("set in a list", "[ Set { 1 } ]", "[ Set { 1 } ]") ])
+
+
 test exprsTupleLiterals =
   Stdlib.Test.all(
     [ // tuple literals

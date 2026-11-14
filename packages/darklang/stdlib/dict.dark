@@ -93,20 +93,23 @@ let mergeWith(left: Dict<'k, 'v>, right: Dict<'k, 'v>, fn: ('k, 'v, 'v) -> 'v): 
     | None -> set(acc, key, rightValue))
 
 
-/// Keeps the entries of <param dict> whose key is also a key of <param keep>.
-/// The values always come from <param dict>:
-/// {{intersectKeys (Dict { "a": 1, "b": 2 }) (Dict { "b": true })}}
+/// Keeps the entries of <param dict> whose key is in <param keep>:
+/// {{intersectKeys (Dict { "a": 1, "b": 2 }) (Set { "b" })}}
 /// is {{Dict { "b": 2 }}}. The opposite of <fn Dict.differenceKeys>.
-let intersectKeys(dict: Dict<'k, 'v>, keep: Dict<'k, 'b>): Dict<'k, 'v> =
-  filter(dict, fun(k, _) -> containsKey(keep, k))
+let intersectKeys(dict: Dict<'k, 'v>, keep: Set<'k>): Dict<'k, 'v> =
+  filter(dict, fun(k, _) -> Set.contains(keep, k))
 
 
-/// Keeps the entries of <param dict> whose key is not a key of <param drop>.
-/// The values always come from <param dict>:
-/// {{differenceKeys (Dict { "a": 1, "b": 2 }) (Dict { "b": true })}}
+/// Keeps the entries of <param dict> whose key is not in <param drop>:
+/// {{differenceKeys (Dict { "a": 1, "b": 2 }) (Set { "b" })}}
 /// is {{Dict { "a": 1 }}}. The opposite of <fn Dict.intersectKeys>.
-let differenceKeys(dict: Dict<'k, 'v>, drop: Dict<'k, 'b>): Dict<'k, 'v> =
-  filter(dict, fun(k, _) -> Bool.not(containsKey(drop, k)))
+let differenceKeys(dict: Dict<'k, 'v>, drop: Set<'k>): Dict<'k, 'v> =
+  filter(dict, fun(k, _) -> Bool.not(Set.contains(drop, k)))
+
+
+/// Returns <param dict>'s keys as a <type Set>
+let keySet(dict: Dict<'k, 'v>): Set<'k> =
+  Set.fromList(keys(dict))
 
 
 /// Returns <param dict>'s keys in a <type List>, in key order

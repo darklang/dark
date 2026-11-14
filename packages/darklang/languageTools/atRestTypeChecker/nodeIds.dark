@@ -44,6 +44,7 @@ let children(node: Node): (Option<Int64> * List<Node>) =
       (id, Stdlib.List.append(letNodes(parameters), Node.Expression(body)))
     | EApply(_, callee, _, args) -> (id, exprNodes(Stdlib.List.prepend(args, callee)))
     | EList(_, elements) -> (id, exprNodes(elements))
+    | ESet(_, elements) -> (id, exprNodes(elements))
     | EDict(_, entries) ->
       (id, exprNodes(Stdlib.List.flatten(Stdlib.List.map(entries, fun((k, v)) -> [ k, v ]))))
     | ERecord(_, _, _, fields) -> (id, exprNodes(Stdlib.List.map(fields, fun((_, v)) -> v)))
@@ -216,6 +217,7 @@ let typeChildren(typ: ProgramTypes.TypeReference): List<ProgramTypes.TypeReferen
   match typ with
   | TStream(inner) -> [ inner ]
   | TList(inner) -> [ inner ]
+  | TSet(inner) -> [ inner ]
   | TDict(key, value) -> [ key, value ]
   | TTuple(first, second, rest) -> Stdlib.List.concat([ first, second ], rest)
   | TCustomType(_, typeArgs) -> typeArgs
@@ -289,6 +291,8 @@ let visit(node: Node, ids: List<Int64>, next: List<Node>): (List<Int64> * List<N
         Stdlib.List.prepend(ids, ProgramTypes.Expr.toID(e)),
         pushExprs(args, Stdlib.List.prepend(next, Node.Expression(callee))))
     | EList(_, elements) ->
+      (Stdlib.List.prepend(ids, ProgramTypes.Expr.toID(e)), pushExprs(elements, next))
+    | ESet(_, elements) ->
       (Stdlib.List.prepend(ids, ProgramTypes.Expr.toID(e)), pushExprs(elements, next))
     | EDict(_, entries) ->
       (

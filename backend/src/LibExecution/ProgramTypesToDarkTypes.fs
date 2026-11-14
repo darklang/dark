@@ -424,6 +424,7 @@ module TypeReference =
           DList(VT.known (knownType ()), Items(List.map toDT theRest)) ]
 
       | PT.TDict(key, value) -> "TDict", [ toDT key; toDT value ]
+      | PT.TSet inner -> "TSet", [ toDT inner ]
 
       | PT.TCustomType(typeName, typeArgs) ->
         "TCustomType",
@@ -474,6 +475,7 @@ module TypeReference =
       PT.TTuple(fromDT first, fromDT second, List.map fromDT theRest)
 
     | DEnum(_, _, [], "TDict", [ key; value ]) -> PT.TDict(fromDT key, fromDT value)
+    | DEnum(_, _, [], "TSet", [ inner ]) -> PT.TSet(fromDT inner)
 
     | DEnum(_, _, [], "TCustomType", [ typeName; DList(_vtTODO, Items(typeArgs)) ]) ->
       PT.TCustomType(
@@ -972,6 +974,11 @@ module Expr =
             Items(pairs |> List.map (fun (k, v) -> DTuple(toDT k, toDT v, [])))
           ) ]
 
+      | PT.ESet(id, items) ->
+        "ESet",
+        [ DInt64(int64 id)
+          DList(VT.known (knownType ()), Items(List.map toDT items)) ]
+
       | PT.ETuple(id, first, second, theRest) ->
         "ETuple",
         [ DInt64(int64 id)
@@ -1190,6 +1197,8 @@ module Expr =
           | DTuple(k, v, _) -> [ (fromDT k, fromDT v) ]
           | _ -> [])
       PT.EDict(uint64 id, pairs)
+    | DEnum(_, _, [], "ESet", [ DInt64 id; DList(_vtTODO, Items items) ]) ->
+      PT.ESet(uint64 id, List.map fromDT items)
 
 
     | DEnum(_,

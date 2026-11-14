@@ -124,6 +124,7 @@ type TypeReference =
   | TTuple(TypeReference, TypeReference, List<TypeReference>)
   | TList(TypeReference)
   | TDict(key: TypeReference, value: TypeReference)
+  | TSet(TypeReference)
   | TCustomType(NameResolution<FQTypeName.FQTypeName>, typeArgs: List<TypeReference>)
   | TFn(List<TypeReference>, TypeReference)
   | TVariable(String)
@@ -158,6 +159,7 @@ type KnownType =
   | KTTuple(ValueType, ValueType, List<ValueType>)
   | KTList(ValueType)
   | KTDict(key: ValueType, value: ValueType)
+  | KTSet(ValueType)
   | KTFn(List<ValueType>, ValueType)
   | KTCustomType(FQTypeName.FQTypeName, typeArgs: List<ValueType>)
 
@@ -242,6 +244,7 @@ type Instruction =
   | CreateTuple(createTo: Register, first: Register, second: Register, theRest: List<Register>)
   | CreateList(createTo: Register, itemsToAdd: List<Register>)
   | CreateDict(createTo: Register, entries: List<(Register * Register)>)
+  | CreateSet(createTo: Register, items: List<Register>)
   | CreateRecord(
     createTo: Register,
     typeName: FQTypeName.FQTypeName,
@@ -340,6 +343,7 @@ type Dval =
   | DTuple(Dval, Dval, List<Dval>)
   | DList(ValueType, List<Dval>)
   | DDict(keyType: ValueType, valueType: ValueType, entries: DictMap)
+  | DSet(elementType: ValueType, elements: Set<Dval>)
 
   | DRecord(
     sourceTypeName: FQTypeName.FQTypeName,

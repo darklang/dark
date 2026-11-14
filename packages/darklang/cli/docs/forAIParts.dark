@@ -448,6 +448,9 @@ let syntax(): String =
 - Dicts and records use commas or newlines, never semicolons:
   `Dict { "a": 1, "b": 2 }`, `Point { x = 1, y = 2 }`,
   `type Point = { x: Int64, y: Int64 }`, `{ point with x = 3, y = 4 }`.
+- Sets: `Set { 1, 2, 3 }`, type `Set<Int64>`, ops in `Stdlib.Set` (`contains`,
+  `add`, `remove`, `union`, `intersection`, `difference`, `isSubset`, `map`,
+  `filter`, `fold`). A repeat is kept once; there are no set patterns.
 - Char literals use single quotes: 'a', '\n', '\t', 'A' (a String uses
   double quotes; "a" is not 'a')
 - Tuples destructure inline in `let` and in lambda params:

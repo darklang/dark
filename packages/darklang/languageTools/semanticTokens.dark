@@ -146,7 +146,7 @@ module TypeReference =
       | TDateTime(r)
       | TBytes(r) ->
         [ makeToken(r, TokenType.TypeName) ]
-      | TStream(_r, rk, ro, t, rc) | TList(_r, rk, ro, t, rc) ->
+      | TStream(_r, rk, ro, t, rc) | TList(_r, rk, ro, t, rc) | TSet(_r, rk, ro, t, rc) ->
         Stdlib.List.flatten(
           [ [ makeToken(rk, TokenType.Keyword) ]
             [ makeToken(ro, TokenType.Symbol) ]
@@ -834,6 +834,17 @@ module Expr =
         [ makeToken(symbolOpenBrace, TokenType.Symbol) ]
         // a = 1 ; b = 2 ; c = 3
         contents
+        // }
+        [ makeToken(symbolCloseBrace, TokenType.Symbol) ] ]
+      |> Stdlib.List.flatten
+
+    | ESet(_range, items, keywordSet, symbolOpenBrace, symbolCloseBrace) ->
+      [ // Set
+        [ makeToken(keywordSet, TokenType.Keyword) ]
+        // {
+        [ makeToken(symbolOpenBrace, TokenType.Symbol) ]
+        // 1, 2, 3
+        items |> Stdlib.List.map(fun item -> Expr.tokenize(item)) |> Stdlib.List.flatten
         // }
         [ makeToken(symbolCloseBrace, TokenType.Symbol) ] ]
       |> Stdlib.List.flatten
