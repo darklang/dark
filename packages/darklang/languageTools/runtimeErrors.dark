@@ -10,13 +10,16 @@ module TypeChecking =
     | TypeArgLength(typeName: FQTypeName.FQTypeName, expected: Int32, actual: Int32)
     | TypeArg(typeName: FQTypeName.FQTypeName, typeArgIndex: Int32, typeArgCount: Int32)
 
+
   type ReverseTypeCheckPath = List<TypeCheckPathPart>
+
 
 module Bools =
   type Error =
     | AndOnlySupportsBooleans(gotLeft: ValueType, gotRight: ValueType)
     | OrOnlySupportsBooleans(gotRight: ValueType, gotLeft: ValueType)
     | ConditionRequiresBool(actualValueType: ValueType, actualValue: Dval)
+
 
 module BigInts =
   type OutOfRangeKind =
@@ -34,6 +37,7 @@ module BigInts =
     | BigIntToInt64(min: Int64, max: Int64)
     | BigIntToInt32(min: Int64, max: Int64)
 
+
   type Error =
     | DivideByZeroError
     | OutOfRange(kind: OutOfRangeKind, value: Dval)
@@ -41,9 +45,11 @@ module BigInts =
     | NegativeModulus
     | ZeroModulus
 
+
 module Strings =
   type Error =
     | NonStringInInterpolation(vt: ValueType, dv: Dval)
+
 
 module Lists =
   type Error =
@@ -55,6 +61,7 @@ module Lists =
     /// A sort met a value with no order: Bytes, a function or a stream.
     | CannotSort(value: Dval)
 
+
 module Dicts =
   type Error =
     | TriedToAddMismatchedData(
@@ -62,25 +69,22 @@ module Dicts =
       expectedType: ValueType,
       actualType: ValueType,
       actualValue: Dval)
-
     | UnsupportedKeyType(keyType: ValueType, key: Dval)
-
     /// A key that is or holds a NaN. NaN is not equal to itself, so no lookup
     /// could find it.
     | NaNKey(key: Dval)
+    | MismatchedKeyType(expectedType: ValueType, actualType: ValueType, actualKey: Dval)
 
-    | MismatchedKeyType(
-      expectedType: ValueType,
-      actualType: ValueType,
-      actualKey: Dval)
 
 module Lets =
   type Error =
     | PatternDoesNotMatch(dval: Dval, pat: LetPattern)
 
+
 module Matches =
   type Error =
     | MatchUnmatched(unmatchedValue: Dval)
+
 
 module Enums =
   type Error =
@@ -89,11 +93,7 @@ module Enums =
       caseName: String,
       expectedFieldCount: Int64,
       actualFieldCount: Int64)
-
-    | ConstructionCaseNotFound(
-      typeName: FQTypeName.FQTypeName,
-      caseName: String)
-
+    | ConstructionCaseNotFound(typeName: FQTypeName.FQTypeName, caseName: String)
     | ConstructionFieldOfWrongType(
       caseName: String,
       fieldIndex: Int64,
@@ -101,6 +101,7 @@ module Enums =
       expectedType: ValueType,
       actualType: ValueType,
       actualValue: Dval)
+
 
 module Records =
   type Error =
@@ -136,32 +137,51 @@ module Records =
     /// Invalid or out-of-range tuple index, such as `t.0` or `t.x`.
     | FieldAccessTupleIndexOutOfRange(fieldName: String, tupleLength: Int64)
 
+
 module Applications =
   type Error =
     | ExpectedApplicableButNot(actualType: ValueType, actualValue: Dval)
-
     | WrongNumberOfTypeArgsForFn(fn: FQFnName.FQFnName, expected: Int64, actual: Int64)
     | CannotApplyTypeArgsMoreThanOnce
     | TooManyArgsForFn(fn: FQFnName.FQFnName, expected: Int64, actual: Int64)
     | TooFewArgsForFn(fn: FQFnName.FQFnName, expected: Int64, actual: Int64)
-    | FnParameterNotExpectedType(fnName : FQFnName.FQFnName, paramIndex: Int64, paramName : String, declaredType : Stdlib.Option.Option<TypeReference>, expectedType : ValueType, actualType : ValueType, actualValue : Dval)
-    | FnResultNotExpectedType(fnName : FQFnName.FQFnName, declaredType : Stdlib.Option.Option<TypeReference>, expectedType : ValueType, actualType : ValueType, actualValue : Dval)
-
-    | LambdaResultNotExpectedType(fnName : FQFnName.FQFnName, paramIndex: Int64, paramName : String, declaredType : Stdlib.Option.Option<TypeReference>, expectedType : ValueType, actualType : ValueType, actualValue : Dval)
-
+    | FnParameterNotExpectedType(
+      fnName: FQFnName.FQFnName,
+      paramIndex: Int64,
+      paramName: String,
+      declaredType: Stdlib.Option.Option<TypeReference>,
+      expectedType: ValueType,
+      actualType: ValueType,
+      actualValue: Dval)
+    | FnResultNotExpectedType(
+      fnName: FQFnName.FQFnName,
+      declaredType: Stdlib.Option.Option<TypeReference>,
+      expectedType: ValueType,
+      actualType: ValueType,
+      actualValue: Dval)
+    | LambdaResultNotExpectedType(
+      fnName: FQFnName.FQFnName,
+      paramIndex: Int64,
+      paramName: String,
+      declaredType: Stdlib.Option.Option<TypeReference>,
+      expectedType: ValueType,
+      actualType: ValueType,
+      actualValue: Dval)
     | CannotApplyTypeArgsToLambda
     | TooManyArgsForLambda(lambdaExprId: ID, expected: Int64, actual: Int64)
     | TooFewArgsForLambda(lambdaExprId: ID, expected: Int64, actual: Int64)
     | LambdaNotAvailable(lambdaExprId: ID)
 
+
 module Statements =
   type Error =
     /// `exprId` is the statement, so whatever has the source can say where it is.
     | FirstExpressionMustBeUnit(
-        exprId: ID,
-        expectedType: ValueType,
-        actualType: ValueType,
-        actualValue: Dval)
+      exprId: ID,
+      expectedType: ValueType,
+      actualType: ValueType,
+      actualValue: Dval)
+
 
 module Unwraps =
   type Error =
@@ -172,20 +192,19 @@ module Unwraps =
     | UnwrapContainerMismatch(actual: Dval)
     | UnwrapOperandNotContainer(actual: Dval)
 
+
 module Jsons =
   type Error =
     | UnsupportedType(TypeReference)
     | CannotSerializeValue(Dval)
+
 
 module Traits =
   type Error =
     /// No impl of the trait for the self type is visible on this branch
     | MissingImpl(trait_: FQTraitName.FQTraitName, self: ValueType)
     /// More than one impl of the trait for the self type is visible
-    | DispatchAmbiguous(
-      trait_: FQTraitName.FQTraitName,
-      self: ValueType,
-      candidates: List<Hash>)
+    | DispatchAmbiguous(trait_: FQTraitName.FQTraitName, self: ValueType, candidates: List<Hash>)
     /// `x.m` where `x` has no field `m` and several traits have a method `m` for its type
     | MethodAmbiguous(method_: String, self: ValueType, traits: List<FQTraitName.FQTraitName>)
     /// The self type could not be determined at the call
@@ -195,59 +214,43 @@ module Traits =
     /// The trait itself is not in the package manager
     | TraitNotFound(trait_: FQTraitName.FQTraitName)
 
+
 module CLIs =
   type Error =
     | NoExpressionsToExecute
     | NonIntReturned(actuallyReturned: Dval)
+
 
 type Error =
   | Bool(Bools.Error)
   | BigInt(BigInts.Error)
   | DecimalOutOfRange
   | String(Strings.Error)
-
   | List(Lists.Error)
   | Dict(Dicts.Error)
-
   | Let(Lets.Error)
   | VariableNotFound(attemptedVarName: String)
-
   | EqualityCheckOnIncompatibleTypes(left: ValueType, right: ValueType)
   | NumericOperationOnIncompatibleTypes(left: ValueType, right: ValueType)
-
   | IfConditionNotBool(actualValue: Dval, actualValueType: ValueType)
-
   | Match(Matches.Error)
-
   | ParseTimeNameResolution(originalName: List<String>, error: NameResolutionError)
-
   | TypeNotFound(name: FQTypeName.FQTypeName)
   | FnNotFound(name: FQFnName.FQFnName)
   | ValueNotFound(name: FQValueName.FQValueName)
-
   /// Invoked a package fn whose content hash is marked `Harmful` via a
   /// Deprecate op. Override with --allow-harmful on run/eval.
   | DeprecatedItemHalted(target: FQFnName.Package)
-
   | WrongNumberOfTypeArgsForType(fn: FQTypeName.FQTypeName, expected: Int64, actual: Int64)
-
   | Enum(Enums.Error)
   | Record(Records.Error)
-
   | Apply(Applications.Error)
-
   | Unwrap(Unwraps.Error)
-
   | Json(Jsons.Error)
-
   | Trait(Traits.Error)
-
   | CLI(CLIs.Error)
-
   | Statement(Statements.Error)
-
-  | UncaughtException(msg : String, metadata : List<(String * Dval)>)
-
+  | UncaughtException(msg: String, metadata: List<(String * Dval)>)
   /// Something the person running the program can resolve once told, with the sentence that tells
   /// them: an approval names a version the store no longer holds, the policy file cannot be trusted.
   | Condition(message: String)

@@ -1,7 +1,7 @@
 module Darklang.Cli.Logo
 
-
-val logo = $"""
+val logo =
+  """
   ????      ??????
 ????????   ????????
 ????????   ????????
@@ -18,8 +18,10 @@ val logo = $"""
  ???        ??????
  """
 
+
 // Alternative logo using lower half blocks - kept for potential future use
-val logoBlock = $"""
+val logoBlock =
+  """
   ▄▄▄▄      ▄▄▄▄▄▄
 ▄▄▄▄▄▄▄▄   ▄▄▄▄▄▄▄▄
 ▄▄▄▄▄▄▄▄   ▄▄▄▄▄▄▄▄
@@ -38,9 +40,7 @@ val logoBlock = $"""
 
 
 let combineLogoAndText(logoStr: String, textLines: List<String>, color: String): String =
-  let logoLines =
-    (Stdlib.String.split(logoStr, "\n"))
-
+  let logoLines = Stdlib.String.split(logoStr, "\n")
   let maxLogoWidth =
     logoLines
     |> Stdlib.List.map(Stdlib.String.displayWidth)
@@ -57,18 +57,23 @@ let combineLogoAndText(logoStr: String, textLines: List<String>, color: String):
 
   let logoHeight = Stdlib.List.length(paddedLogoLines)
   let textHeight = Stdlib.List.length(textLines)
-
   let targetHeight = if logoHeight > textHeight then logoHeight else textHeight
 
   let finalLogoLines =
     if logoHeight < targetHeight then
       let totalPadding = targetHeight - logoHeight
-      let paddingTop = (totalPadding / 2)
+      let paddingTop = totalPadding / 2
       let paddingBottom = totalPadding - paddingTop
-      let emptyLogoLine = (Stdlib.String.checkedRepeat(" ", maxLogoWidth) |> Stdlib.Result.withDefault(""))
-      let topEmpty = (Stdlib.List.checkedRepeat(paddingTop, emptyLogoLine) |> Stdlib.Result.withDefault([]))
-      let bottomEmpty = (Stdlib.List.checkedRepeat(paddingBottom, emptyLogoLine) |> Stdlib.Result.withDefault([]))
-      Stdlib.List.flatten([topEmpty, paddedLogoLines, bottomEmpty])
+      let emptyLogoLine =
+        Stdlib.String.checkedRepeat(" ", maxLogoWidth) |> Stdlib.Result.withDefault("")
+
+      let topEmpty =
+        Stdlib.List.checkedRepeat(paddingTop, emptyLogoLine) |> Stdlib.Result.withDefault([])
+
+      let bottomEmpty =
+        Stdlib.List.checkedRepeat(paddingBottom, emptyLogoLine) |> Stdlib.Result.withDefault([])
+
+      Stdlib.List.flatten([ topEmpty, paddedLogoLines, bottomEmpty ])
     else
       paddedLogoLines
 
@@ -77,14 +82,16 @@ let combineLogoAndText(logoStr: String, textLines: List<String>, color: String):
       let totalPadding = targetHeight - textHeight
       let paddingTop = totalPadding / 2
       let paddingBottom = totalPadding - paddingTop
-      let topEmpty = (Stdlib.List.checkedRepeat(paddingTop, "") |> Stdlib.Result.withDefault([]))
-      let bottomEmpty = (Stdlib.List.checkedRepeat(paddingBottom, "") |> Stdlib.Result.withDefault([]))
-      Stdlib.List.flatten([topEmpty, textLines, bottomEmpty])
+      let topEmpty = Stdlib.List.checkedRepeat(paddingTop, "") |> Stdlib.Result.withDefault([])
+
+      let bottomEmpty =
+        Stdlib.List.checkedRepeat(paddingBottom, "") |> Stdlib.Result.withDefault([])
+
+      Stdlib.List.flatten([ topEmpty, textLines, bottomEmpty ])
     else
       textLines
 
   let spacing = "    "
-
   match Stdlib.List.zip(finalLogoLines, finalTextLines) with
   | Ok(zipped) ->
     zipped

@@ -7,7 +7,6 @@ module Darklang.Stdlib
 //   impl Add for Vec =
 //     let add (a: Vec) (b: Vec) : Vec = Vec { x = a.x + b.x, y = a.y + b.y }
 
-
 /// `a + b`
 trait Add<'a> =
   let add(a: 'a, b: 'a): 'a
@@ -35,7 +34,7 @@ trait Modulo<'a> =
 
 /// `a ** b`
 trait Power<'a> =
-  let power(`base`: 'a, exponent: 'a): 'a
+  let power(base: 'a, exponent: 'a): 'a
 
 
 /// `-a`
@@ -103,10 +102,10 @@ trait Compare<'a> =
   let greaterThanOrEqualTo(a: 'a, b: 'a): Bool
 
 
+// TODO: Add Display for Unit, List and tuples.
 /// Text for a person: `p.display`, or `Display.display(p)`. A type has it only when someone
 /// writes an impl, and that impl decides what to show. String interpolation uses it, and
 /// falls back to <fn Stdlib.inspect> for a type without one.
-// TODO: Add Display for Unit, List and tuples.
 trait Display<'a> =
   let display(v: 'a): String
 
@@ -127,11 +126,13 @@ trait Inspect<'a> =
 // the thing worth deleting.
 
 /// The larger of two values of any type with a `Compare` impl
-let max<'a: Compare>(a: 'a, b: 'a): 'a = if a > b then a else b
+let max<'a: Compare>(a: 'a, b: 'a): 'a =
+  if a > b then a else b
 
 
 /// The smaller of two values of any type with a `Compare` impl
-let min<'a: Compare>(a: 'a, b: 'a): 'a = if a < b then a else b
+let min<'a: Compare>(a: 'a, b: 'a): 'a =
+  if a < b then a else b
 
 
 /// The distance of <param value> from zero. A fixed-width minimum wraps back to itself, since it
@@ -146,22 +147,26 @@ let abs<'a: Compare + Negate + Zero>(value: 'a): 'a =
 let clamp<'a: Compare>(value: 'a, limitA: 'a, limitB: 'a): 'a =
   let low = if limitA < limitB then limitA else limitB
   let high = if limitA > limitB then limitA else limitB
-  if value < low then low
-  else if value > high then high
-  else value
+  if value < low then
+    low
+  else if value > high then
+    high
+  else
+    value
 
 
 /// <param xs> added up from <param seed>: `Stdlib.sum 0 [ 1, 2 ]` is `3`. The seed is what
 /// `[]` sums to, which is why it is an argument and not `Zero.zero`.
 let sum<'a: Add>(seed: 'a, xs: List<'a>): 'a =
-  Stdlib.List.fold(xs, seed, fun(acc, x) -> acc + x)
+  List.fold(xs, seed, fun(acc, x) -> acc + x)
 
 
 /// <param xs> multiplied together from <param seed>, for any type with a `Multiply`
 let product<'a: Multiply>(seed: 'a, xs: List<'a>): 'a =
-  Stdlib.List.fold(xs, seed, fun(acc, x) -> acc * x)
+  List.fold(xs, seed, fun(acc, x) -> acc * x)
 
 
 /// <param v> as text for a person, for any type with a `Display`. <fn Stdlib.inspect>
 /// shows any value.
-let display<'a: Display>(v: 'a): String = Display.display(v)
+let display<'a: Display>(v: 'a): String =
+  Display.display(v)

@@ -4,9 +4,9 @@ module Darklang.Cli.Tests.DocsForAI
 // call after, so it stays short; the reference sections are one more word away.
 
 let subtopic(name: String): String =
-  match Darklang.Cli.Docs.Command.Topics.findTopic("for-ai") with
+  match Cli.Docs.Command.Topics.findTopic("for-ai") with
   | Some(topic) ->
-    match Darklang.Cli.Docs.Command.Topics.findIn(topic.subtopics, name) with
+    match Cli.Docs.Command.Topics.findIn(topic.subtopics, name) with
     | Some(sub) ->
       let content = sub.content
       content()
@@ -16,7 +16,7 @@ let subtopic(name: String): String =
 
 // About 4,500 characters on its own; the limit leaves room for the syntax-at-a-glance block.
 test forAIStaysShort =
-  let size = Stdlib.String.length(Darklang.Cli.Docs.ForAI.content())
+  let size = Stdlib.String.length(Cli.Docs.ForAI.content())
   Stdlib.Test.expect(size < 7000, $"docs for-ai is {size} characters")
 
 
@@ -37,108 +37,145 @@ test movedSectionsAreOneWordAway =
         $"docs for-ai {name} has {phrase}"))
     |> Stdlib.List.append(
       Stdlib.Test.expect(
-        Stdlib.String.contains(Darklang.Cli.Docs.ForAI.content(), "docs for-ai tests"),
+        Stdlib.String.contains(Cli.Docs.ForAI.content(), "docs for-ai tests"),
         "docs for-ai names its parts")))
 
 
-test unknownPartIsRefused =
-  Instance.withInstance(fun i ->
-    let (code, out) = Instance.ran(i, [ "docs", "for-ai", "zzz" ])
+test unknownPartIsRefused = Instance.withInstance(fun i ->
+  let (code, out) = Instance.ran(i, [ "docs", "for-ai", "zzz" ])
+  Stdlib.Test.all(
+    [ Stdlib.Test.expect(code != 0, "an unknown part fails")
+      Instance.says(out, "docs for-ai tests", "and lists the parts")
 
-    Stdlib.Test.all(
-      [ Stdlib.Test.expect(code != 0, "an unknown part fails")
-        Instance.says(out, "docs for-ai tests", "and lists the parts")
-        Instance.says(Instance.said(i, [ "docs", "for-ai", "tests" ]), "## Package tests", "a part prints") ]))
+      Instance.says(
+        Instance.said(i, [ "docs", "for-ai", "tests" ]),
+        "## Package tests",
+        "a part prints") ]))
 
 
 // One call prints every part asked for, each once and under its own header, so an agent
 // needs two turns at most: the main page, then the parts it names.
-test severalPartsInOneCall =
-  Instance.withInstance(fun i ->
-    let (code, out) =
-      Instance.ran(i, [ "docs", "for-ai", "tests", "scm", "perms", "permissions" ])
+test severalPartsInOneCall = Instance.withInstance(fun i ->
+  let (code, out) =
+    Instance.ran(
+      i,
+      [ "docs", "for-ai", "tests", "scm", "perms", "permissions" ])
 
-    Stdlib.Test.all(
-      [ Stdlib.Test.expect(code == 0, "several parts print")
-        Instance.says(out, "# Darklang AI: tests", "the first part")
-        Instance.says(out, "# Darklang AI: scm", "the second part")
-        Instance.says(out, "# Darklang AI: permissions", "a part named by its alias")
-        Stdlib.Test.expect(
-          Stdlib.List.length(Stdlib.String.split(out, "# Darklang AI: permissions")) == 2,
-          "a part named twice prints once")
-        Stdlib.Test.expect(
-          Stdlib.String.contains(
-            Darklang.Cli.Docs.ForAI.content(),
-            "docs for-ai tests http-server"),
-          "the main page says parts and topics can be fetched together") ]))
+  Stdlib.Test.all(
+    [ Stdlib.Test.expect(code == 0, "several parts print")
+      Instance.says(out, "# Darklang AI: tests", "the first part")
+
+      Instance.says(out, "# Darklang AI: scm", "the second part")
+
+      Instance.says(
+        out,
+        "# Darklang AI: permissions",
+        "a part named by its alias")
+
+      Stdlib.Test.expect(
+        Stdlib.List.length(
+          Stdlib.String.split(out, "# Darklang AI: permissions"))
+        == 2,
+        "a part named twice prints once")
+
+      Stdlib.Test.expect(
+        Stdlib.String.contains(
+          Cli.Docs.ForAI.content(),
+          "docs for-ai tests http-server"),
+        "the main page says parts and topics can be fetched together") ]))
 
 
 // Another topic joins the parts in the same call; naming one prints the main page first.
-test otherTopicsJoinInOneCall =
-  Instance.withInstance(fun i ->
-    let (code, out) = Instance.ran(i, [ "docs", "for-ai", "http-server", "tests" ])
-    let (scriptsCode, scripts) = Instance.ran(i, [ "docs", "scripts", "syntax" ])
+test otherTopicsJoinInOneCall = Instance.withInstance(fun i ->
+  let (code, out) =
+    Instance.ran(i, [ "docs", "for-ai", "http-server", "tests" ])
 
-    Stdlib.Test.all(
-      [ Stdlib.Test.expect(code == 0, "a part and another topic print")
-        Instance.says(out, "# Darklang AI Quick Reference", "with the main page")
-        Instance.says(out, "# HTTP Server", "and the other topic")
-        Instance.says(out, "# Darklang AI: tests", "and the part")
-        Stdlib.Test.expect(scriptsCode == 0, "two topics print")
-        Instance.says(scripts, "# Running .dark scripts", "the first topic")
-        Instance.says(scripts, "## Basics", "and the second")
-        Stdlib.Test.expect(
-          Stdlib.Bool.not(
-            Stdlib.String.contains(
-              Instance.said(i, [ "docs", "for-ai", "tests" ]),
-              "# Darklang AI Quick Reference")),
-          "parts alone leave the main page out") ]))
+  let (scriptsCode, scripts) = Instance.ran(i, [ "docs", "scripts", "syntax" ])
+  Stdlib.Test.all(
+    [ Stdlib.Test.expect(code == 0, "a part and another topic print")
+      Instance.says(out, "# Darklang AI Quick Reference", "with the main page")
+      Instance.says(out, "# HTTP Server", "and the other topic")
+      Instance.says(out, "# Darklang AI: tests", "and the part")
+      Stdlib.Test.expect(scriptsCode == 0, "two topics print")
+      Instance.says(scripts, "# Running .dark scripts", "the first topic")
+      Instance.says(scripts, "## Basics", "and the second")
+      Stdlib.Test.expect(
+        Stdlib.Bool.not(
+          Stdlib.String.contains(
+            Instance.said(i, [ "docs", "for-ai", "tests" ]),
+            "# Darklang AI Quick Reference")),
+        "parts alone leave the main page out") ]))
 
 
-test unknownPartsAreNamed =
-  Instance.withInstance(fun i ->
-    let (code, out) = Instance.ran(i, [ "docs", "for-ai", "tests", "zzz", "yyy" ])
+test unknownPartsAreNamed = Instance.withInstance(fun i ->
+  let (code, out) = Instance.ran(i, [ "docs", "for-ai", "tests", "zzz", "yyy" ])
+  Stdlib.Test.all(
+    [ Stdlib.Test.expect(code != 0, "a call with an unknown part fails")
+      Instance.says(
+        out,
+        "Unknown parts of docs for-ai: zzz, yyy",
+        "and names every unknown part")
 
-    Stdlib.Test.all(
-      [ Stdlib.Test.expect(code != 0, "a call with an unknown part fails")
-        Instance.says(out, "Unknown parts of docs for-ai: zzz, yyy", "and names every unknown part")
-        Instance.says(out, "docs for-ai permissions", "and lists the parts")
-        Stdlib.Test.expect(
-          Stdlib.Bool.not(Stdlib.String.contains(out, "## Package tests")),
-          "and prints none of them") ]))
+      Instance.says(out, "docs for-ai permissions", "and lists the parts")
+      Stdlib.Test.expect(
+        Stdlib.Bool.not(Stdlib.String.contains(out, "## Package tests")),
+        "and prints none of them") ]))
 
 
 // `docs for-ai` says which values `Stdlib.display` takes, that interpolation falls back to
 // `Stdlib.inspect`, and that lists, tuples and Unit have no `Display`. If that changes, the
 // sentence needs changing.
-test displayAdviceHolds =
-  Instance.withInstance(fun i ->
-    let (code, out) = Instance.ran(i, [ "eval", "Stdlib.display([1, 2])" ])
+test displayAdviceHolds = Instance.withInstance(fun i ->
+  let (code, out) = Instance.ran(i, [ "eval", "Stdlib.display([1, 2])" ])
+  Stdlib.Test.all(
+    [ Stdlib.Test.expect(code != 0, "a list has no Display")
+      Instance.says(out, "has no implementation", "and the error says so")
+      Stdlib.display(Stdlib.Option.Option.Some(3))
+      |> Stdlib.Test.equal("Some(3)")
 
-    Stdlib.Test.all(
-      [ Stdlib.Test.expect(code != 0, "a list has no Display")
-        Instance.says(out, "has no implementation", "and the error says so")
-        Stdlib.display(Some(3)) |> Stdlib.Test.equal("Some(3)")
-        Stdlib.display<Result<Int64, String>>(Ok(3)) |> Stdlib.Test.equal("Ok(3)")
-        Stdlib.inspect([1, 2]) |> Stdlib.Test.equal("[1, 2]")
-        $"{[1, 2]}" |> Stdlib.Test.equal("[1, 2]") ]))
+      Stdlib.display<Result<Int64, String>>(Stdlib.Result.Result.Ok(3))
+      |> Stdlib.Test.equal("Ok(3)")
+
+      Stdlib.inspect([ 1, 2 ]) |> Stdlib.Test.equal("[1, 2]")
+
+      $"{[ 1, 2 ]}" |> Stdlib.Test.equal("[1, 2]") ]))
 
 
 // Each function the main page lists by name is one a program can call.
 test listedFunctionsExist =
   let names =
-    [ "Stdlib.Int64.parse", "Stdlib.Float.parse", "Stdlib.Int64.toFloat", "Stdlib.Float.round"
-      "Stdlib.abs", "Stdlib.min", "Stdlib.max"
-      "Stdlib.String.split", "Stdlib.String.join", "Stdlib.String.trim", "Stdlib.String.toList"
-      "Stdlib.String.padStart", "Stdlib.List.range", "Stdlib.List.getAt", "Stdlib.List.contains"
-      "Stdlib.Int64.random", "Stdlib.List.randomElement", "Stdlib.Cli.Stdin.readLineOrEnd"
-      "Stdlib.Cli.Posix.sleep", "Stdlib.DateTime.now" ]
-  let page = Darklang.Cli.Docs.ForAI.content()
+    [ "Stdlib.Int64.parse"
+      "Stdlib.Float.parse"
+      "Stdlib.Int64.toFloat"
+      "Stdlib.Float.round"
+      "Stdlib.abs"
+      "Stdlib.min"
+      "Stdlib.max"
+      "Stdlib.String.split"
+      "Stdlib.String.join"
+      "Stdlib.String.trim"
+      "Stdlib.String.toList"
+      "Stdlib.String.padStart"
+      "Stdlib.List.range"
+      "Stdlib.List.getAt"
+      "Stdlib.List.contains"
+      "Stdlib.Int64.random"
+      "Stdlib.List.randomElement"
+      "Stdlib.Cli.Stdin.readLineOrEnd"
+      "Stdlib.Cli.Posix.sleep"
+      "Stdlib.DateTime.now" ]
+
+  let page = Cli.Docs.ForAI.content()
   Instance.withInstance(fun i ->
-    let (code, out) = Instance.ran(i, Stdlib.List.concat([ "search", "--exact" ], names))
+    let (code, out) =
+      Instance.ran(i, Stdlib.List.concat([ "search", "--exact" ], names))
+
     Stdlib.Test.all(
       [ Instance.exitedWith(code, 0, "every name is found")
-        Stdlib.Test.expect(Stdlib.Bool.not(Stdlib.String.contains(out, "No results")), "no name is missing")
+        Stdlib.Test.expect(
+          Stdlib.Bool.not(Stdlib.String.contains(out, "No results")),
+          "no name is missing")
+
         Stdlib.Test.expect(
           Stdlib.List.all(names, fun n -> Stdlib.String.contains(page, n)),
           "the page names each one") ]))

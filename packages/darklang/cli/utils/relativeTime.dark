@@ -13,8 +13,7 @@ let ago(then_: DateTime): String =
   // On one line deliberately: a `-` starting a continuation line at the same column reads as a new
   // statement (it could be a negative literal), so the split form would silently become two expressions.
   let now = Stdlib.DateTime.toSeconds(Stdlib.DateTime.now())
-  let seconds = now - (Stdlib.DateTime.toSeconds(then_))
-
+  let seconds = now - Stdlib.DateTime.toSeconds(then_)
   let plural(n: Int64, unit: String): String =
     let s = if n == 1 then "" else "s"
     $"{Stdlib.display(n)} {unit}{s} ago"
@@ -36,4 +35,4 @@ let ago(then_: DateTime): String =
 
 /// The relative form, or the exact stamp when `long` is set.
 let stamp(long: Bool, t: DateTime): String =
-  if long then Stdlib.display(t) else RelativeTime.ago(t)
+  if long then Stdlib.display(t) else ago(t)

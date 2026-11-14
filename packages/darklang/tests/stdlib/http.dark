@@ -49,11 +49,10 @@ module Darklang.Stdlib.Http.Tests
 //   => raises "Expected `SameSite` to be `Strict`, `Lax`, or `None`, but it was `\"allthesecures\"`"
 //   Stdlib.Http.setCookie "myCookie" "myVal" { Fake = "fake"}
 //   => raises "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was Fake"
-
 // The response a builder should return, with a text body.
 let expected(
   statusCode: Int64,
-  headers: List<String * String>,
+  headers: List<(String * String)>,
   body: String)
   : Stdlib.Http.Response =
   Stdlib.Http.Response
@@ -61,90 +60,113 @@ let expected(
       headers = headers
       body = Stdlib.Utf8.encode(body) }
 
+
 // Build a request with an empty body.
 let request(
   url: String,
-  headers: List<String * String>)
+  headers: List<(String * String)>)
   : Stdlib.Http.Request =
   Stdlib.Http.Request
     { method = "GET", url = url, headers = headers, body = Stdlib.Bytes.empty }
+
 
 // Compare response builders with their expected fields.
 test responseBuilders =
   Stdlib.Test.all(
     [ Stdlib.Http.badRequest("Your request resulted in an error")
-      |> Stdlib.Test.equal(expected(400, [], "Your request resulted in an error"))
+      |> Stdlib.Test.equal(
+        expected(400, [], "Your request resulted in an error"))
+
       Stdlib.Http.response(200, Stdlib.Utf8.encode("test"))
       |> Stdlib.Test.equal(expected(200, [], "test"))
+
       Stdlib.Http.responseWithHeaders(
         200,
         [ ("Content-Type", "text/html; charset=utf-8") ],
         Stdlib.Utf8.encode("test"))
       |> Stdlib.Test.equal(
         expected(200, [ ("Content-Type", "text/html; charset=utf-8") ], "test"))
-      Stdlib.Http.notFound()
-      |> Stdlib.Test.equal(expected(404, [], ""))
-      Stdlib.Http.unauthorized()
-      |> Stdlib.Test.equal(expected(401, [], ""))
-      Stdlib.Http.forbidden()
-      |> Stdlib.Test.equal(expected(403, [], ""))
+
+      Stdlib.Http.notFound() |> Stdlib.Test.equal(expected(404, [], ""))
+
+      Stdlib.Http.unauthorized() |> Stdlib.Test.equal(expected(401, [], ""))
+
+      Stdlib.Http.forbidden() |> Stdlib.Test.equal(expected(403, [], ""))
+
       Stdlib.Http.success(Stdlib.Utf8.encode("test"))
       |> Stdlib.Test.equal(expected(200, [], "test"))
+
       Stdlib.Http.responseWithHtml(200, "test")
       |> Stdlib.Test.equal(
         expected(200, [ ("Content-Type", "text/html; charset=utf-8") ], "test"))
+
       Stdlib.Http.responseWithText(200, "test")
       |> Stdlib.Test.equal(
-        expected(200, [ ("Content-Type", "text/plain; charset=utf-8") ], "test"))
+        expected(
+          200,
+          [ ("Content-Type", "text/plain; charset=utf-8") ],
+          "test"))
+
       Stdlib.Http.responseWithJson(200, "test")
       |> Stdlib.Test.equal(
         expected(200, [ ("Content-Type", "application/json") ], "test")) ])
+
 
 test redirectTo =
   Stdlib.Test.all(
     [ Stdlib.Http.redirectTo("")
       |> Stdlib.Test.equal(expected(302, [ ("Location", "") ], ""))
+
       Stdlib.Http.redirectTo("bad url")
       |> Stdlib.Test.equal(expected(302, [ ("Location", "bad url") ], ""))
+
       Stdlib.Http.redirectTo("http://someothersite.com")
       |> Stdlib.Test.equal(
         expected(302, [ ("Location", "http://someothersite.com") ], ""))
+
       Stdlib.Http.redirectTo("/relativeUrl")
-      |> Stdlib.Test.equal(expected(302, [ ("Location", "/relativeUrl") ], "")) ])
+      |> Stdlib.Test.equal(
+        expected(302, [ ("Location", "/relativeUrl") ], "")) ])
+
 
 // parseQueryString: ports the old _middleware.dark fixture.
 test parseQueryString =
   Stdlib.Test.all(
     [ Stdlib.Http.parseQueryString("https://darklang.com?x=6&x=7&myString=todo")
       |> Stdlib.Test.equal(
-        (Stdlib.Dict.fromEntries(
-          [ ("x", "7"), ("myString", "todo") ])))
+        Stdlib.Dict.fromEntries([ ("x", "7"), ("myString", "todo") ]))
+
       // No query string → empty dict.
       Stdlib.Http.parseQueryString("https://darklang.com")
       |> Stdlib.Test.equal(Stdlib.Dict.empty)
+
       // Empty query string → empty dict.
       Stdlib.Http.parseQueryString("https://darklang.com?")
       |> Stdlib.Test.equal(Stdlib.Dict.empty)
+
       // Bare keys (no `=`) get empty-string values.
       Stdlib.Http.parseQueryString("https://darklang.com?flag")
-      |> Stdlib.Test.equal(
-        Stdlib.Dict.fromEntries([ ("flag", "") ]))
+      |> Stdlib.Test.equal(Stdlib.Dict.fromEntries([ ("flag", "") ]))
+
       // `=` inside a value is preserved.
       Stdlib.Http.parseQueryString("https://x?token=a=b")
-      |> Stdlib.Test.equal(
-        Stdlib.Dict.fromEntries([ ("token", "a=b") ]))
+      |> Stdlib.Test.equal(Stdlib.Dict.fromEntries([ ("token", "a=b") ]))
+
       // Keys and values are both decoded.
       // The fragment is not part of the query.
       Stdlib.Http.parseQueryString("https://x?a=1#top")
       |> Stdlib.Test.equal(Stdlib.Dict.fromEntries([ ("a", "1") ]))
+
       Stdlib.Http.parseQueryString("/path?a=1")
       |> Stdlib.Test.equal(Stdlib.Dict.fromEntries([ ("a", "1") ]))
+
       Stdlib.Http.parseQueryString("http://[bad/p?a=1")
       |> Stdlib.Test.equal(Stdlib.Dict.fromEntries([ ("a", "1") ]))
+
       Stdlib.Http.parseQueryString("https://x?q=List+map&n=A%2FB")
       |> Stdlib.Test.equal(
-        (Stdlib.Dict.fromEntries(
-          [ ("q", "List map"), ("n", "A/B") ]))) ])
+        Stdlib.Dict.fromEntries([ ("q", "List map"), ("n", "A/B") ])) ])
+
 
 test urlDecode =
   Stdlib.Test.all(
@@ -173,41 +195,54 @@ test urlDecode =
       Stdlib.Http.urlDecode("50%zz") |> Stdlib.Test.equal("50%zz")
       Stdlib.Http.urlDecode("") |> Stdlib.Test.equal("") ])
 
+
 test queryParams =
   Stdlib.Test.all(
     [ Stdlib.Http.Request.queryParams(request("/s?q=List+map&n=A%2FB", []))
       |> Stdlib.Test.equal([ ("q", "List map"), ("n", "A/B") ])
+
       // A field splits at its FIRST `=` only, so a value may hold one: base64
       // padding and a nested query string both do.
       Stdlib.Http.Request.queryParam(request("/s?q=a=b", []), "q")
-      |> Stdlib.Test.equal(Some("a=b"))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a=b"))
+
       // Only the first `?` separates the query string; a later one is part of a
       // value.
       Stdlib.Http.Request.queryParams(request("/s?a=1?b=2", []))
       |> Stdlib.Test.equal([ ("a", "1?b=2") ])
+
       // An encoded separator stays inside its value. The server hands over the RAW
       // url so `urlDecode` here is the only decoder; decoded twice, `%26` becomes a
       // real `&` and this reads as two.
       Stdlib.Http.Request.queryParams(request("/s?owner=a%26b", []))
       |> Stdlib.Test.equal([ ("owner", "a&b") ])
+
       // Same for an encoded `=`: it belongs to the value, not to the key/value
       // split.
       Stdlib.Http.Request.queryParam(request("/s?q=a%3Db", []), "q")
-      |> Stdlib.Test.equal(Some("a=b"))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a=b"))
+
       // A client may send `[`, `]` or `|` unescaped; they are read, not refused.
       Stdlib.Http.Request.queryParams(
         request("http://localhost:9000/s?a[]=1&b=x|y", []))
       |> Stdlib.Test.equal([ ("a[]", "1"), ("b", "x|y") ])
+
       // Empty fields are skipped, as in parseQueryString.
       Stdlib.Http.Request.queryParams(request("/s?a=1&&b", []))
       |> Stdlib.Test.equal([ ("a", "1"), ("b", "") ])
-      Stdlib.Http.Request.queryParams(request("/s?", [])) |> Stdlib.Test.equal([])
+
+      Stdlib.Http.Request.queryParams(request("/s?", []))
+      |> Stdlib.Test.equal([])
+
       // The host comes from the client's Host header; a bad one must not hide
       // the query.
-      Stdlib.Http.Request.queryParams(request("http://999.1.1.1:8000/x?y=1", []))
+      Stdlib.Http.Request.queryParams(
+        request("http://999.1.1.1:8000/x?y=1", []))
       |> Stdlib.Test.equal([ ("y", "1") ])
+
       Stdlib.Http.Request.queryParams(request("http://a b:x/x?y=1", []))
       |> Stdlib.Test.equal([ ("y", "1") ]) ])
+
 
 test requestHeader =
   Stdlib.Test.all(
@@ -216,96 +251,152 @@ test requestHeader =
       Stdlib.Http.Request.header(
         request("/", [ ("Authorization", "Bearer t") ]),
         "authorization")
-      |> Stdlib.Test.equal(Some("Bearer t"))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Bearer t"))
+
       Stdlib.Http.Request.header(
         request("/", [ ("authorization", "Bearer t") ]),
         "AUTHORIZATION")
-      |> Stdlib.Test.equal(Some("Bearer t"))
-      Stdlib.Http.Request.header(
-        request("/", [ ("X-Thing", "v") ]),
-        "x-other")
-      |> Stdlib.Test.equal(None)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Bearer t"))
+
+      Stdlib.Http.Request.header(request("/", [ ("X-Thing", "v") ]), "x-other")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       // A repeated header is legal. The first wins, which is what `queryParam` does
       // too.
       Stdlib.Http.Request.header(
         request("/", [ ("Accept", "one"), ("accept", "two") ]),
         "Accept")
-      |> Stdlib.Test.equal(Some("one")) ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("one")) ])
+
 
 test parseHeaders =
   Stdlib.Test.all(
     [ Stdlib.Http.parseHeaders("x: y")
       |> Stdlib.Test.equal(Stdlib.Dict.fromEntries([ ("x", "y") ]))
+
       // Multi-line, CRLF-tolerant.
       Stdlib.Http.parseHeaders("Content-Type: text/plain\r\nContent-Length: 42")
       |> Stdlib.Test.equal(
-        (Stdlib.Dict.fromEntries(
-          [ ("Content-Type", "text/plain"), ("Content-Length", "42") ])))
+        Stdlib.Dict.fromEntries(
+          [ ("Content-Type", "text/plain"), ("Content-Length", "42") ]))
+
       // `:` inside the value is preserved.
       Stdlib.Http.parseHeaders("X-Url: https://x?a=b")
       |> Stdlib.Test.equal(
         Stdlib.Dict.fromEntries([ ("X-Url", "https://x?a=b") ]))
+
       // Blank lines + whitespace tolerance.
       Stdlib.Http.parseHeaders("\n  Foo:  bar  \n\n")
-      |> Stdlib.Test.equal(
-        Stdlib.Dict.fromEntries([ ("Foo", "bar") ]))
+      |> Stdlib.Test.equal(Stdlib.Dict.fromEntries([ ("Foo", "bar") ]))
+
       // Empty input → empty dict.
       Stdlib.Http.parseHeaders("") |> Stdlib.Test.equal(Stdlib.Dict.empty) ])
 
 
 test statusFromInt64 =
   Stdlib.Test.all(
-    [ Stdlib.Http.Status.fromInt64(404) |> Stdlib.Test.equal(Ok(Stdlib.Http.Status.notFound))
-      (Stdlib.Http.Status.fromInt64(100)) |> Stdlib.Result.map(Stdlib.Http.Status.toInt64)
-      |> Stdlib.Test.equal(Ok(100))
-      (Stdlib.Http.Status.fromInt64(599)) |> Stdlib.Result.map(Stdlib.Http.Status.toInt64)
-      |> Stdlib.Test.equal(Ok(599))
+    [ Stdlib.Http.Status.fromInt64(404)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Stdlib.Http.Status.notFound))
+
+      Stdlib.Http.Status.fromInt64(100)
+      |> Stdlib.Result.map(Stdlib.Http.Status.toInt64)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(100))
+
+      Stdlib.Http.Status.fromInt64(599)
+      |> Stdlib.Result.map(Stdlib.Http.Status.toInt64)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(599))
+
       Stdlib.Http.Status.fromInt64(99)
       |> Stdlib.Result.mapError(Stdlib.display)
-      |> Stdlib.Test.equal(Error("99 is not a valid HTTP status (100 to 599)"))
-      Stdlib.Http.Status.fromInt64(600) |> Stdlib.Result.isError |> Stdlib.Test.equal(true) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          "99 is not a valid HTTP status (100 to 599)"))
+
+      Stdlib.Http.Status.fromInt64(600)
+      |> Stdlib.Result.isError
+      |> Stdlib.Test.equal(true) ])
+
 
 test statusNamed =
   Stdlib.Test.all(
-    [ Stdlib.Http.Status.toInt64(Stdlib.Http.Status.ok) |> Stdlib.Test.equal(200)
-      Stdlib.Http.Status.toInt64(Stdlib.Http.Status.noContent) |> Stdlib.Test.equal(204)
-      Stdlib.Http.Status.toInt64(Stdlib.Http.Status.found) |> Stdlib.Test.equal(302)
-      Stdlib.Http.Status.toInt64(Stdlib.Http.Status.tooManyRequests) |> Stdlib.Test.equal(429)
+    [ Stdlib.Http.Status.toInt64(Stdlib.Http.Status.ok)
+      |> Stdlib.Test.equal(200)
+
+      Stdlib.Http.Status.toInt64(Stdlib.Http.Status.noContent)
+      |> Stdlib.Test.equal(204)
+
+      Stdlib.Http.Status.toInt64(Stdlib.Http.Status.found)
+      |> Stdlib.Test.equal(302)
+
+      Stdlib.Http.Status.toInt64(Stdlib.Http.Status.tooManyRequests)
+      |> Stdlib.Test.equal(429)
+
       Stdlib.Http.Status.toInt64(Stdlib.Http.Status.internalServerError)
       |> Stdlib.Test.equal(500)
+
       Stdlib.display(Stdlib.Http.Status.notFound) |> Stdlib.Test.equal("404") ])
+
 
 test statusInspect =
   Stdlib.Test.all(
-    [ Stdlib.inspect(Stdlib.Http.Status.notFound) |> Stdlib.Test.equal("Status(404)")
-      Stdlib.inspect([ Stdlib.Http.Status.ok ]) |> Stdlib.Test.equal("[Status(200)]")
-      $"{Some(Stdlib.Http.Status.created)}" |> Stdlib.Test.equal("Some(Status(201))") ])
+    [ Stdlib.inspect(Stdlib.Http.Status.notFound)
+      |> Stdlib.Test.equal("Status(404)")
+
+      Stdlib.inspect([ Stdlib.Http.Status.ok ])
+      |> Stdlib.Test.equal("[Status(200)]")
+
+      $"{Stdlib.Option.Option.Some(Stdlib.Http.Status.created)}"
+      |> Stdlib.Test.equal("Some(Status(201))") ])
+
 
 test statusClasses =
   Stdlib.Test.all(
-    [ Stdlib.Http.Status.isSuccess(Stdlib.Http.Status.created) |> Stdlib.Test.equal(true)
-      Stdlib.Http.Status.isSuccess(Stdlib.Http.Status.found) |> Stdlib.Test.equal(false)
-      Stdlib.Http.Status.isRedirect(Stdlib.Http.Status.notModified) |> Stdlib.Test.equal(true)
-      Stdlib.Http.Status.isClientError(Stdlib.Http.Status.conflict) |> Stdlib.Test.equal(true)
+    [ Stdlib.Http.Status.isSuccess(Stdlib.Http.Status.created)
+      |> Stdlib.Test.equal(true)
+
+      Stdlib.Http.Status.isSuccess(Stdlib.Http.Status.found)
+      |> Stdlib.Test.equal(false)
+
+      Stdlib.Http.Status.isRedirect(Stdlib.Http.Status.notModified)
+      |> Stdlib.Test.equal(true)
+
+      Stdlib.Http.Status.isClientError(Stdlib.Http.Status.conflict)
+      |> Stdlib.Test.equal(true)
+
       Stdlib.Http.Status.isClientError(Stdlib.Http.Status.gatewayTimeout)
       |> Stdlib.Test.equal(false)
+
       Stdlib.Http.Status.isServerError(Stdlib.Http.Status.serviceUnavailable)
       |> Stdlib.Test.equal(true) ])
 
+
 test statusReason =
   Stdlib.Test.all(
-    [ Stdlib.Http.Status.reason(Stdlib.Http.Status.notFound) |> Stdlib.Test.equal("Not Found")
-      Stdlib.Http.Status.reason(Stdlib.Http.Status.ok) |> Stdlib.Test.equal("OK")
-      (Stdlib.Http.Status.fromInt64(418)) |> Stdlib.Result.map(Stdlib.Http.Status.reason)
-      |> Stdlib.Test.equal(Ok("")) ])
+    [ Stdlib.Http.Status.reason(Stdlib.Http.Status.notFound)
+      |> Stdlib.Test.equal("Not Found")
+
+      Stdlib.Http.Status.reason(Stdlib.Http.Status.ok)
+      |> Stdlib.Test.equal("OK")
+
+      Stdlib.Http.Status.fromInt64(418)
+      |> Stdlib.Result.map(Stdlib.Http.Status.reason)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("")) ])
+
 
 // The fixed-status helpers carry the number their name says.
 test namedResponses =
   Stdlib.Test.all(
-    [ (Stdlib.Http.success(Stdlib.Bytes.empty)).statusCode |> Stdlib.Test.equal(200)
+    [ (Stdlib.Http.success(Stdlib.Bytes.empty)).statusCode
+      |> Stdlib.Test.equal(200)
+
       (Stdlib.Http.redirectTo("/x")).statusCode |> Stdlib.Test.equal(302)
+
       (Stdlib.Http.badRequest("no")).statusCode |> Stdlib.Test.equal(400)
+
       (Stdlib.Http.unauthorized()).statusCode |> Stdlib.Test.equal(401)
+
       (Stdlib.Http.forbidden()).statusCode |> Stdlib.Test.equal(403)
+
       (Stdlib.Http.notFound()).statusCode |> Stdlib.Test.equal(404)
+
       (Stdlib.Http.serverError("no")).statusCode |> Stdlib.Test.equal(500) ])

@@ -11,19 +11,19 @@ let commitRow(c: SCM.Commits.Commit): List<String> =
   let ops = Stdlib.display(SCM.PackageOps.opCountIn(c.hash))
   [ SCM.Conflicts.shortHash(c.hash), ops, c.message ]
 
+
 /// Whether a commit listing shows housekeeping commits: archive markers with no authored work.
 /// `--all` asks for them.
 type Housekeeping =
   | Show
   | Hide
 
+
 module Housekeeping =
   /// {{Show}} when <param asked>, the way `commits` reads `--all`.
-  let showIf(asked: Bool): Darklang.Cli.Commits.Housekeeping =
-    if asked then
-      Darklang.Cli.Commits.Housekeeping.Show
-    else
-      Darklang.Cli.Commits.Housekeeping.Hide
+  let showIf(asked: Bool): Housekeeping =
+    if asked then Housekeeping.Show else Housekeeping.Hide
+
 
 let executeList(state: AppState, limit: Int64, housekeeping: Housekeeping): AppState =
   // This branch's commits, not the store's: on a branch, main's commits are not "mine", and the workbench
@@ -39,41 +39,32 @@ let executeList(state: AppState, limit: Int64, housekeeping: Housekeeping): AppS
       (SCM.PackageOps.commitsOnBranch(branchId, limit), 0)
     else
       let window = SCM.PackageOps.commitsOnBranch(branchId, limit + 60)
-
-      let kept =
-        window
-        |> Stdlib.List.filter(fun c ->
-          Stdlib.Bool.not(c.housekeeping))
-
-      let hiddenCount = (Stdlib.List.length(window)) - (Stdlib.List.length(kept))
+      let kept = window |> Stdlib.List.filter(fun c -> Stdlib.Bool.not(c.housekeeping))
+      let hiddenCount = Stdlib.List.length(window) - Stdlib.List.length(kept)
       (Stdlib.List.take(kept, limit), hiddenCount)
 
   if Stdlib.List.isEmpty(commits) then
-    Cli.printOk("no commits yet -- `dark commit` makes one from your draft.")
+    printOk("no commits yet -- `dark commit` makes one from your draft.")
     state
   else
     let shown = Stdlib.List.length(commits)
 
     // "commit(s)" when the count is right there reads as a program that did not bother. It knows.
-    let counted = Cli.Text.plural(total, "commit")
-
+    let counted = Text.plural(total, "commit")
     let header =
       if shown >= total then
         counted
       else
         $"{counted} - showing the {Stdlib.display(shown)} most recent"
 
-    Cli.printOk(header)
-
-    Stdlib.Cli.UI.Table.print(
-      [ "commit", "ops", "message" ],
-      commits |> Stdlib.List.map(commitRow))
-
+    printOk(header)
+    Stdlib.Cli.UI.Table.print([ "commit", "ops", "message" ], commits |> Stdlib.List.map(commitRow))
     if hidden > 0 then
-      Cli.printHint(
+      printHint(
         $"  {Stdlib.display(hidden)} housekeeping commit(s) (branch archives) hidden -- `dark commits --all` shows them")
 
     state
+
 
 /// `dark commits --detailed`: the same commits, each followed by the ops it contains.
 ///
@@ -86,12 +77,11 @@ let executeDetailed(state: AppState, limit: Int64, housekeeping: Housekeeping): 
       SCM.PackageOps.commitsOnBranch(state.currentBranchId, limit)
     else
       SCM.PackageOps.commitsOnBranch(state.currentBranchId, limit + 60)
-      |> Stdlib.List.filter(fun c ->
-        Stdlib.Bool.not(c.housekeeping))
+      |> Stdlib.List.filter(fun c -> Stdlib.Bool.not(c.housekeeping))
       |> (fun kept -> Stdlib.List.take(kept, limit))
 
   if Stdlib.List.isEmpty(commits) then
-    Cli.printOk("no commits yet -- `dark commit` makes one from your draft.")
+    printOk("no commits yet -- `dark commit` makes one from your draft.")
     state
   else
     commits
@@ -99,21 +89,18 @@ let executeDetailed(state: AppState, limit: Int64, housekeeping: Housekeeping): 
       let n = SCM.PackageOps.opCountIn(c.hash)
       let msg = if c.message == "" then "(no message)" else c.message
       Stdlib.printLine("")
-      Cli.printOk($"commit {SCM.Conflicts.shortHash(c.hash)}  {msg}")
-
-      Stdlib.printLine(
-        $"  at {c.originTs} -- {Cli.Text.plural(n, "op")}")
-
+      printOk($"commit {SCM.Conflicts.shortHash(c.hash)}  {msg}")
+      Stdlib.printLine($"  at {c.originTs} -- {Text.plural(n, "op")}")
       SCM.PackageOps.opsInCommitLimited(c.hash, 50)
       |> Stdlib.List.iter(fun op ->
         Stdlib.printLine(
           $"    {PrettyPrinter.ProgramTypes.PackageOp.packageOp(state.currentBranchId, op)}"))
 
       if n > 50 then
-        Cli.printHint(
-          $"    ... {Stdlib.display(n - 50)} more -- `dark ops` walks the log in full."))
+        printHint($"    ... {Stdlib.display(n - 50)} more -- `dark ops` walks the log in full."))
 
     state
+
 
 let help(_state: AppState): String =
   [ ""
@@ -127,61 +114,57 @@ let help(_state: AppState): String =
     "  anything. `dark ops` is the log itself." ]
   |> Stdlib.String.join("\n")
 
+
 /// Every commit, as the machine-readable shape. Same data the table renders.
 let commitRows(limit: Int64): List<ScmJson.CommitRowJson> =
   SCM.PackageOps.commitsOnBranch(SCM.PackageOps.currentBranch(), limit)
   |> Stdlib.List.map(fun c ->
     ScmJson.CommitRowJson
-      { hash = c.hash
-        message = c.message
-        ops = SCM.PackageOps.opCountIn(c.hash) })
+      { hash = c.hash, message = c.message, ops = SCM.PackageOps.opCountIn(c.hash) })
+
 
 let execute(state: AppState, args: List<String>): AppState =
   let wantsJson = ScmJson.wantsJson(args)
   let args = ScmJson.stripJson(args)
   let detailed = Stdlib.List.contains(args, "--detailed")
   let housekeeping = Housekeeping.showIf(Stdlib.List.contains(args, "--all"))
-
-  let args =
-    args |> Stdlib.List.filter(fun a -> a != "--detailed" && a != "--all")
+  let args = args |> Stdlib.List.filter(fun a -> a != "--detailed" && a != "--all")
 
   // Parsed ONCE, before the shapes split, so `--json` and `--detailed` refuse a junk argument the same
   // way the pretty path does rather than defaulting it to 20 and answering as though nothing was asked.
   let limit =
     match args with
-    | [ n ] -> Stdlib.Int64.parse(n) |> Stdlib.Result.toOption
-    | _ -> Stdlib.Option.Option.Some(20)
+    | [n] -> Stdlib.Int64.parse(n) |> Stdlib.Result.toOption
+    | _ -> Option.Some(20)
 
   // A branch name is the thing people put here, because `dark log <branch>` takes one. Answering with
   // the help, or defaulting the count, would be answering plausibly rather than refusing.
-  match (args, limit) with
-  | ([ n ], Some(l)) when l <= 0 ->
-    Cli.printErr($"`dark commits` takes a positive count; got {n}.")
-    Cli.failed(state)
-  | ([ n ], None) ->
-    Cli.printErr("`dark commits` takes a count, not a branch name.")
-    Cli.printHint("  this branch's commits:  dark commits")
-    Cli.printHint($"  that branch's history:  dark log {n}")
-    Cli.failed(state)
-  | (_, _) ->
+  match args, limit with
+  | [n], Some(l) when l <= 0 ->
+    printErr($"`dark commits` takes a positive count; got {n}.")
+    failed(state)
+  | [n], None ->
+    printErr("`dark commits` takes a count, not a branch name.")
+    printHint("  this branch's commits:  dark commits")
+    printHint($"  that branch's history:  dark log {n}")
+    failed(state)
+  | _, _ ->
+    let limit = limit |> Stdlib.Option.withDefault(20)
+    if wantsJson then
+      exitWith(state, printJson(ScmJson.commitsJson(commitRows(limit))))
+    else if detailed then
+      executeDetailed(state, limit, housekeeping)
+    else
+      match args with
+      // `limit` above already parsed the count and refused anything that isn't one, so both shapes here are
+      // the same call.
+      | [] -> executeList(state, limit, housekeeping)
+      | [_n] -> executeList(state, limit, housekeeping)
+      | _ ->
+        printErr("`dark commits` takes at most a count.")
+        Stdlib.printErrorLine(help(state))
+        failed(state)
 
-  let limit = limit |> Stdlib.Option.withDefault(20)
-
-  if wantsJson then
-    Cli.exitWith(state, Cli.printJson(ScmJson.commitsJson(commitRows(limit))))
-  else if detailed then
-    executeDetailed(state, limit, housekeeping)
-  else
-
-  match args with
-  // `limit` above already parsed the count and refused anything that isn't one, so both shapes here are
-  // the same call.
-  | [] -> executeList(state, limit, housekeeping)
-  | [ _n ] -> executeList(state, limit, housekeeping)
-  | _ ->
-    Cli.printErr("`dark commits` takes at most a count.")
-    Stdlib.printErrorLine(help(state))
-    Cli.failed(state)
 
 /// Print a commit: its metadata, then the ops it committed.
 let showCommit(state: AppState, c: SCM.Commits.Commit): Unit =
@@ -189,10 +172,10 @@ let showCommit(state: AppState, c: SCM.Commits.Commit): Unit =
   let msg = if c.message == "" then "(no message)" else c.message
   // The same short ids the `commits` table shows, so a person can carry one between the two
   // without noticing they differ. Both ids still take a longer prefix on input.
-  Cli.printOk($"commit {SCM.Conflicts.shortHash(c.hash)}")
+  printOk($"commit {SCM.Conflicts.shortHash(c.hash)}")
   Stdlib.printLine($"  {msg}")
   Stdlib.printLine($"  at {c.originTs}")
-  Stdlib.printLine($"  {Cli.Text.plural(n, "op")} in this commit")
+  Stdlib.printLine($"  {Text.plural(n, "op")} in this commit")
 
   // The commit this one follows. Worth a line rather than a lookup: an id is derived from its parent as
   // well as its contents, so "which one came before" is part of what the id MEANS here. Silent for the
@@ -208,25 +191,24 @@ let showCommit(state: AppState, c: SCM.Commits.Commit): Unit =
   // Capped. The seed commit holds ~17k ops, and printing all of them fetches every blob to flood a
   // terminal nobody can read back. The count above already said how many there are.
   let shown = SCM.PackageOps.opsInCommitLimited(c.hash, 50)
-
   shown
   |> Stdlib.List.iter(fun op ->
-    Stdlib.printLine(
-      PrettyPrinter.ProgramTypes.PackageOp.packageOp(state.currentBranchId, op)))
+    Stdlib.printLine(PrettyPrinter.ProgramTypes.PackageOp.packageOp(state.currentBranchId, op)))
 
   if n > 50 then
     Stdlib.printErrorLine("")
-    Cli.printHint(
-      $"  showing the first 50 of {Stdlib.display(n)} -- `dark ops` walks the log in full.")
+    printHint($"  showing the first 50 of {Stdlib.display(n)} -- `dark ops` walks the log in full.")
+
 
 let helpShow(_state: AppState): String =
-  [     ""
+  [ ""
     "  dark show <commit>     the commit's message, author, and the ops in it"
     "  dark show <op-id>      pretty-print one op"
     ""
     "  Both take a prefix. `dark commits` lists commits, `dark ops` lists ops."
     "  For a package item it's `dark view <name>`." ]
   |> Stdlib.String.join("\n")
+
 
 /// `dark show <id>`: a commit hash or an op id, whichever the prefix matches. Commits are checked first
 /// because their hashes are short and hand-typed, and an op id that also prefixes a commit is a collision
@@ -235,8 +217,8 @@ let executeShow(state: AppState, args: List<String>): AppState =
   match args with
   | [] ->
     Stdlib.printErrorLine(helpShow(state))
-    Cli.failed(state)
-  | [ prefix ] ->
+    failed(state)
+  | [prefix] ->
     match SCM.Commits.byHashPrefix(prefix) with
     | Some(c) ->
       showCommit(state, c)
@@ -244,16 +226,16 @@ let executeShow(state: AppState, args: List<String>): AppState =
     | None ->
       match SCM.PackageOps.getByIdPrefix(prefix) with
       | [] ->
-        Cli.printErr($"nothing matching {prefix} -- not a commit, not an op.")
+        printErr($"nothing matching {prefix} -- not a commit, not an op.")
         // A dotted argument is someone asking about an ITEM, and `view` is the command for that.
         // Answering only with the commit/op vocabulary sends them to two listings that cannot hold
         // what they asked for.
         if Stdlib.String.contains(prefix, ".") then
-          Cli.printHint($"  looks like an item name -- try `dark view {prefix}`.")
+          printHint($"  looks like an item name -- try `dark view {prefix}`.")
         else
-          Cli.printHint("  `dark commits` lists commits, `dark ops` lists ops.")
+          printHint("  `dark commits` lists commits, `dark ops` lists ops.")
 
-        Cli.failed(state)
+        failed(state)
       | ops ->
         ops
         |> Stdlib.List.iter(fun op ->
@@ -263,12 +245,10 @@ let executeShow(state: AppState, args: List<String>): AppState =
         state
   | _ ->
     Stdlib.printErrorLine(helpShow(state))
-    Cli.failed(state)
+    failed(state)
+
 
 /// Shared by `commits` and `show`, whose arguments are a count and a hash. Neither is worth offering:
 /// a count has no candidates, and a hash prefix is what `dark commits` just printed.
-let complete(
-  _state: AppState,
-  _args: List<String>)
-  : List<Completion.CompletionItem> =
+let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
   []

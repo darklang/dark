@@ -5,10 +5,9 @@ module Darklang.LanguageTools.Exec
 ///
 /// Every process is a wrapped VM the scheduler steps; the table's rows are copies taken on
 /// the scheduler thread, never references into a running VM.
-
 /// What a process was started on.
 type Entry =
-  | Function(LanguageTools.RuntimeTypes.FQFnName.FQFnName)
+  | Function(RuntimeTypes.FQFnName.FQFnName)
   | Expr
 
 
@@ -18,9 +17,9 @@ type ParkedOn =
   /// run. The text names the operation and its resource (`file-read /some/path`).
   | Host(String)
   /// A builtin that had to wait: `sleep`, the script an `eval` runs.
-  | Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin)
+  | Builtin(RuntimeTypes.FQFnName.Builtin)
   /// A package function call that had to wait.
-  | PackageFn(LanguageTools.RuntimeTypes.FQFnName.Package)
+  | PackageFn(RuntimeTypes.FQFnName.Package)
   /// A lambda application that had to wait.
   | Lambda
   /// The interpreter waiting on the store for a type or value.
@@ -35,7 +34,7 @@ type Status =
   | Runnable
   | Parked(ParkedOn)
   | Done
-  | Failed(LanguageTools.RuntimeTypes.RuntimeError.Error)
+  | Failed(RuntimeTypes.RuntimeError.Error)
 
 
 type Summary =
@@ -43,7 +42,7 @@ type Summary =
     entry: Entry
     status: Status
     /// The process that spawned this one, if any (an `eval` expression's is the CLI's).
-    parent: Stdlib.Option.Option<Uuid>
+    parent: Option<Uuid>
     started: DateTime
     /// How many instructions it has run.
     instructionsTaken: Int64
@@ -54,7 +53,7 @@ type Summary =
 
 
 /// One activation on a process's stack.
-type ExecutionPoint = LanguageTools.RuntimeTypes.ExecutionPoint
+type ExecutionPoint = RuntimeTypes.ExecutionPoint
 
 
 type Detail =
@@ -85,7 +84,7 @@ let machineList(): List<MachineProcess> =
 
 
 /// One process in detail, or `None` for an id nobody has.
-let inspect(id: Uuid): Stdlib.Option.Option<Detail> =
+let inspect(id: Uuid): Option<Detail> =
   Builtin.execInspect(id)
 
 

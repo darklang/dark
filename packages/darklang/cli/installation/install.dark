@@ -1,44 +1,43 @@
 module Darklang.Cli.Installation.Install
 
-
 /// Check if a flag is present in args (supports both --flag and -f forms)
 let hasFlag(args: List<String>, longFlag: String, shortFlag: String): Bool =
-  (Stdlib.List.contains(args, longFlag)) || (Stdlib.List.contains(args, shortFlag))
+  Stdlib.List.contains(args, longFlag) || Stdlib.List.contains(args, shortFlag)
 
 
 let execute(state: AppState, args: List<String>): AppState =
-  let host = (Stdlib.Cli.Host.getRuntimeHost()) |> Builtin.unwrap
-  let confirm = Cli.Confirm.assumeIf(hasFlag(args, "--yes", "-y"))
-  match Installation.System.installedBinaryPath(host) with
+  let host = Stdlib.Cli.Host.getRuntimeHost() |> Builtin.unwrap
+  let confirm = Confirm.assumeIf(hasFlag(args, "--yes", "-y"))
+  match System.installedBinaryPath(host) with
   | Error(e) ->
     Stdlib.printErrorLine(View.formatError(e))
-    Cli.failed(state)
+    failed(state)
   | Ok(target) ->
-
-  if Installation.System.isRunningInstalled(target) then
-    Stdlib.printLine(View.formatSuccess($"Already installed at {target}"))
-    state
-  else
-    let go =
-      if Installation.System.isInstalled(target) then
-        Cli.Prompt.confirmExplicit(
-          confirm,
-          $"A dark is already installed at {target}. Replace it with this one? (y/n): ")
-      else
-        true
-
-    if go then
-      match Installation.System.installFromCurrentBinary(host) with
-      | Ok(message) ->
-        Stdlib.printLine(View.formatSuccess(message))
-        state
-      | Error(e) ->
-        Stdlib.printErrorLine(View.formatError(e))
-        { state with exitCode = 1 }
+    if System.isRunningInstalled(target) then
+      Stdlib.printLine(View.formatSuccess($"Already installed at {target}"))
+      state
     else
-      Cli.printErr("Nothing installed.")
-      Cli.printHint("  dark install --yes replaces it without asking")
-      Cli.failed(state)
+      let go =
+        if System.isInstalled(target) then
+          Prompt.confirmExplicit(
+            confirm,
+            $"A dark is already installed at {target}. Replace it with this one? (y/n): ")
+        else
+          true
+
+      if go then
+        match System.installFromCurrentBinary(host) with
+        | Ok(message) ->
+          Stdlib.printLine(View.formatSuccess(message))
+          state
+        | Error(e) ->
+          Stdlib.printErrorLine(View.formatError(e))
+          { state with exitCode = 1 }
+      else
+        printErr("Nothing installed.")
+        printHint("  dark install --yes replaces it without asking")
+        failed(state)
+
 
 let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
   []

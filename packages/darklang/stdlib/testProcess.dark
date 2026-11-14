@@ -8,39 +8,46 @@ type Options =
     columns: Int64
     rows: Int64 }
 
+
 type Output<'a> =
-  { result: Stdlib.Result.Result<'a, String>
+  { result: Result.Result<'a, String>
     stdout: String
     stderr: String
     exitCode: Int64
     cleanupErrors: List<String> }
 
+
 let defaults(): Options =
-  Options
-    { branch = None, timeoutMs = 120000, columns = 80, rows = 24 }
+  Options { branch = Option.None, timeoutMs = 120000, columns = 80, rows = 24 }
+
 
 /// Run a named, unapplied package function with explicit arguments. The default
 /// branch is the current test's branch. Stdin is EOF; stdout and stderr are
 /// captured separately from the typed result. Requires Native and a running test.
 /// The timeout covers worker execution and output collection, after the store copy.
-let run<'a, 'b>(
-  options: Options,
-  callback: 'a -> 'b,
-  argument: 'a)
-  : Stdlib.Result.Result<Output<'b>, String> =
+let run(options: Options, callback: 'a -> 'b, argument: 'a): Result.Result<Output<'b>, String> =
   Builtin.testRunIsolated(
-    options.branch, options.timeoutMs, options.columns, options.rows,
-    callback, argument, LanguageTools.PackageManager.Test.Worker.main)
-  |> Stdlib.Result.andThen(fun((result, stdout, stderr, exitCode, cleanupErrors)) ->
+    options.branch,
+    options.timeoutMs,
+    options.columns,
+    options.rows,
+    callback,
+    argument,
+    LanguageTools.PackageManager.Test.Worker.main)
+  |> Result.andThen(fun((result, stdout, stderr, exitCode, cleanupErrors)) ->
     match result with
     | None ->
-      Stdlib.String.join(
-        (Stdlib.List.concat(
-          [ $"Isolated test exited {Stdlib.display(exitCode)} without a result:"
-            stdout
-            stderr ],
-          cleanupErrors)),
+      String.join(
+        List.concat(
+          [ $"Isolated test exited {display(exitCode)} without a result:", stdout, stderr ],
+          cleanupErrors),
         "\n")
-      |> Error
+      |> Result.Result.Error
     | Some(result) ->
-      Ok(Output { result = result, stdout = stdout, stderr = stderr, exitCode = exitCode, cleanupErrors = cleanupErrors }))
+      Result.Result.Ok(
+        Output
+          { result = result
+            stdout = stdout
+            stderr = stderr
+            exitCode = exitCode
+            cleanupErrors = cleanupErrors }))

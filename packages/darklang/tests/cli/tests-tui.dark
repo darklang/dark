@@ -6,20 +6,20 @@ module Darklang.Cli.Tests.TestSuite
 
 // ── Workbench canvas (spans -> rows) ──
 
-let canvasRegion(): Darklang.Stdlib.Cli.UI.Layout.Region =
-  Darklang.Stdlib.Cli.UI.Layout.Region { top = 1, left = 1, rows = 4, cols = 10 }
+let canvasRegion(): Stdlib.Cli.UI.Layout.Region =
+  Stdlib.Cli.UI.Layout.Region { top = 1, left = 1, rows = 4, cols = 10 }
 
 
-let canvasRow(spans: List<Darklang.Stdlib.Cli.UI.Layout.Span>): String =
-  Darklang.Stdlib.Cli.UI.Canvas.compose(10, 2, spans)
+let canvasRow(spans: List<Stdlib.Cli.UI.Layout.Span>): String =
+  Stdlib.Cli.UI.Canvas.compose(10, 2, spans)
   |> Stdlib.List.head
   |> Stdlib.Option.withDefault("")
-  |> Darklang.Stdlib.Cli.Tui.Text.stripSgr
+  |> Stdlib.Cli.Tui.Text.stripSgr
 
 
 test canvasPlacesSpans =
   let region = canvasRegion()
-  let spans = Darklang.Stdlib.Cli.UI.Layout.at(region, 0, 2, "hi")
+  let spans = Stdlib.Cli.UI.Layout.at(region, 0, 2, "hi")
   let row = canvasRow(spans)
 
   // No trailing pad: the renderer erases each row before writing it, so padding would be bytes on the wire
@@ -34,8 +34,9 @@ test canvasLayersLaterSpans =
   let region = canvasRegion()
   let spans =
     Stdlib.List.flatten(
-      [ Darklang.Stdlib.Cli.UI.Layout.at(region, 0, 0, "aaaaa")
-        Darklang.Stdlib.Cli.UI.Layout.at(region, 0, 2, "BB") ])
+      [ Stdlib.Cli.UI.Layout.at(region, 0, 0, "aaaaa")
+        Stdlib.Cli.UI.Layout.at(region, 0, 2, "BB") ])
+
   let row = canvasRow(spans)
 
   // The later span wins. Where it lands inside an earlier one, the earlier one's right-hand remainder is
@@ -52,8 +53,9 @@ test canvasWideGlyphOccupiesTwoColumns =
   let region = canvasRegion()
   let spans =
     Stdlib.List.flatten(
-      [ Darklang.Stdlib.Cli.UI.Layout.at(region, 0, 0, "界")
-        Darklang.Stdlib.Cli.UI.Layout.at(region, 0, 2, "X") ])
+      [ Stdlib.Cli.UI.Layout.at(region, 0, 0, "界")
+        Stdlib.Cli.UI.Layout.at(region, 0, 2, "X") ])
+
   let row = canvasRow(spans)
 
   // The wide glyph eats two cells, so the next span still lands where it was asked to: no gap, no overlap.
@@ -67,8 +69,9 @@ test canvasStylingIsZeroWidth =
   let region = canvasRegion()
   let spans =
     Stdlib.List.flatten(
-      [ Darklang.Stdlib.Cli.UI.Layout.at(region, 0, 0, Stdlib.Cli.UI.Colors.info("ab"))
-        Darklang.Stdlib.Cli.UI.Layout.at(region, 0, 2, "cd") ])
+      [ Stdlib.Cli.UI.Layout.at(region, 0, 0, Stdlib.Cli.UI.Colors.info("ab"))
+        Stdlib.Cli.UI.Layout.at(region, 0, 2, "cd") ])
+
   let row = canvasRow(spans)
 
   // Colour codes carry no width, so the second span is not pushed sideways by them.
@@ -80,9 +83,8 @@ test canvasStylingIsZeroWidth =
 
 test canvasUntouchedRowsAreEmpty =
   let region = canvasRegion()
-  let spans = Darklang.Stdlib.Cli.UI.Layout.at(region, 0, 0, "x")
-  let rows = Darklang.Stdlib.Cli.UI.Canvas.compose(10, 3, spans)
-
+  let spans = Stdlib.Cli.UI.Layout.at(region, 0, 0, "x")
+  let rows = Stdlib.Cli.UI.Canvas.compose(10, 3, spans)
   match Stdlib.List.getAt(rows, 1) with
   | Some(second) ->
     // Rows nobody painted stay empty so they compare equal frame to frame and cost no redraw.
@@ -99,16 +101,19 @@ test textClipsByColumnsNotCharacters =
   let clipped = Stdlib.Cli.Tui.Text.clipToWidth("\u001b[31mabcdef", 3)
 
   // SGR carries no width, so 3 columns means 3 visible characters, styling retained.
-  if Stdlib.Cli.Tui.Text.stripSgr(clipped) == "abc" && Stdlib.String.contains(clipped, "\u001b[31m") then
+  if
+    Stdlib.Cli.Tui.Text.stripSgr(clipped) == "abc"
+    && Stdlib.String.contains(clipped, "\u001b[31m")
+  then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected styled clip to 'abc', got '{Stdlib.Cli.Tui.Text.stripSgr(clipped)}'")
+    Stdlib.Test.fail(
+      $"Expected styled clip to 'abc', got '{Stdlib.Cli.Tui.Text.stripSgr(clipped)}'")
 
 
 test textNeverSplitsAWideGlyph =
   // Two double-width glyphs in three columns: the second cannot fit, and half of it must not be emitted.
   let clipped = Stdlib.Cli.Tui.Text.clipToWidth("界界", 3)
-
   if Stdlib.String.displayWidth(clipped) == 2 then
     Stdlib.Test.Result.Pass
   else
@@ -119,11 +124,11 @@ test textNeverSplitsAWideGlyph =
 test textDropsNonSgrEscapes =
   // A cursor-forward escape in dynamic content must not survive into a row: rows are text, not commands.
   let clipped = Stdlib.Cli.Tui.Text.clipToWidth("a\u001b[5Cb", 10)
-
   if clipped == "ab" then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected non-SGR escapes to be stripped, got '{clipped}'")
+    Stdlib.Test.fail(
+      $"Expected non-SGR escapes to be stripped, got '{clipped}'")
 
 
 test textWrapReappliesStyleAcrossRows =
@@ -132,21 +137,22 @@ test textWrapReappliesStyleAcrossRows =
   let second = Stdlib.List.getAt(rows, 1) |> Stdlib.Option.withDefault("")
 
   // The renderer resets style after every row, so a style spanning a wrap has to be restated on the next.
-  if Stdlib.List.length(rows) == 2
-     && Stdlib.Cli.Tui.Text.stripSgr(first) == "ab"
-     && Stdlib.Cli.Tui.Text.stripSgr(second) == "cd"
-     && Stdlib.String.contains(second, "\u001b[31m")
+  if
+    Stdlib.List.length(rows) == 2
+    && Stdlib.Cli.Tui.Text.stripSgr(first) == "ab"
+    && Stdlib.Cli.Tui.Text.stripSgr(second) == "cd"
+    && Stdlib.String.contains(second, "\u001b[31m")
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail("Expected wrapped rows to carry the active style onto the continuation row")
+    Stdlib.Test.fail(
+      "Expected wrapped rows to carry the active style onto the continuation row")
 
 
 test textCursorAfterFullRowWraps =
   // Text that exactly fills the width leaves the cursor at the start of the following row, matching what
   // the terminal does. Prompt cursor placement depends on this.
   let (_rows, row, column) = Stdlib.Cli.Tui.Text.wrapWithCursor("abcd", "", 4)
-
   if row == 1 && column == 0 then
     Stdlib.Test.Result.Pass
   else
@@ -154,14 +160,14 @@ test textCursorAfterFullRowWraps =
       $"Expected (1, 0), got ({Stdlib.display(row)}, {Stdlib.display(column)})")
 
 
-
 test promptCursorFollowsWordWrap =
   // At 10 columns "> echo hello world" draws as "> echo", "hello", "world": the cursor belongs after
   // "world", not where a column wrap would have put it.
-  let state = Darklang.Cli.Prompt.Editing.setText(Darklang.Cli.Prompt.initState(), "echo hello world")
-  let size = Stdlib.Cli.Tui.Size { width = 10, height = 5 }
-  let view = Darklang.Cli.Prompt.Display.viewAtSize(state, "", "", size)
+  let state =
+    Cli.Prompt.Editing.setText(Cli.Prompt.initState(), "echo hello world")
 
+  let size = Stdlib.Cli.Tui.Size { width = 10, height = 5 }
+  let view = Cli.Prompt.Display.viewAtSize(state, "", "", size)
   match view.cursor with
   | Visible(row, column) ->
     if row == 2 && column == 5 then
@@ -171,10 +177,10 @@ test promptCursorFollowsWordWrap =
         $"Expected (2, 5), got ({Stdlib.display(row)}, {Stdlib.display(column)})")
   | Hidden -> Stdlib.Test.fail("Expected a visible cursor")
 
+
 test textFitPadsByColumnsNotCharacters =
   // A wide glyph is one character in two columns, so padding by character count comes out short.
   let fitted = Stdlib.Cli.Tui.Text.fitToWidth("界a", 6)
-
   if Stdlib.String.displayWidth(fitted) == 6 then
     Stdlib.Test.Result.Pass
   else
@@ -185,33 +191,39 @@ test textFitPadsByColumnsNotCharacters =
 test textFitIgnoresStylingWhenPadding =
   // Styling costs no columns, so a styled row pads to what its plain text would.
   let fitted = Stdlib.Cli.Tui.Text.fitToWidth("\u001b[31mab\u001b[0m", 5)
-
   if Stdlib.Cli.Tui.Text.stripSgr(fitted) == "ab   " then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected 'ab' padded to 5 columns, got '{Stdlib.Cli.Tui.Text.stripSgr(fitted)}'")
+    Stdlib.Test.fail(
+      $"Expected 'ab' padded to 5 columns, got '{Stdlib.Cli.Tui.Text.stripSgr(fitted)}'")
 
 
 test textWrapAtWordsBreaksAtSpaces =
   // The word wrapper stays in Dark, measuring whole words.
   let rows = Stdlib.Cli.Tui.Text.wrapAtWords("alpha beta gamma", 11)
-
   if rows == [ "alpha beta", "gamma" ] then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected a break at the space, got {Stdlib.String.join(rows, " | ")}")
+    Stdlib.Test.fail(
+      $"Expected a break at the space, got {Stdlib.String.join(rows, " | ")}")
 
 
 // -- InlineFrame: relative addressing, the part that can wreck scrollback --
 
 let inlineView(rows: List<String>): Stdlib.Cli.Tui.View =
-  Stdlib.Cli.Tui.View { rows = rows, cursor = Stdlib.Cli.Tui.Cursor.Hidden, mode = Stdlib.Cli.Tui.ViewMode.Inline }
+  Stdlib.Cli.Tui.View
+    { rows = rows
+      cursor = Stdlib.Cli.Tui.Cursor.Hidden
+      mode = Stdlib.Cli.Tui.ViewMode.Inline }
 
 
 test inlineFrameEmitsNothingWhenUnchanged =
   let view = inlineView([ "a", "b" ])
   let output =
-    Stdlib.Cli.Tui.InlineFrame.renderAtWidth(20, Stdlib.Option.Option.Some(view), view)
+    Stdlib.Cli.Tui.InlineFrame.renderAtWidth(
+      20,
+      Stdlib.Option.Option.Some(view),
+      view)
 
   // An unchanged frame must write literally nothing, or an idle prompt would still churn the terminal.
   if output == "" then
@@ -224,22 +236,30 @@ test inlineFrameMovesRelativeToPreviousCursor =
   let previous = inlineView([ "a", "b" ])
   let next = inlineView([ "a", "B" ])
   let output =
-    Stdlib.Cli.Tui.InlineFrame.renderAtWidth(20, Stdlib.Option.Option.Some(previous), next)
+    Stdlib.Cli.Tui.InlineFrame.renderAtWidth(
+      20,
+      Stdlib.Option.Option.Some(previous),
+      next)
 
   // Only the changed row is rewritten, and it's addressed by moving from where the last frame left the
   // cursor rather than by absolute position, because inline rows travel with scrollback.
-  if Stdlib.String.contains(output, "B")
-     && Stdlib.Bool.not(Stdlib.String.contains(output, "a"))
+  if
+    Stdlib.String.contains(output, "B")
+    && Stdlib.Bool.not(Stdlib.String.contains(output, "a"))
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected only the changed inline row to be rewritten, got '{output}'")
+    Stdlib.Test.fail(
+      $"Expected only the changed inline row to be rewritten, got '{output}'")
 
 
 // -- TerminalSession lifecycle, through the `Prepared` seam that exists so this needs no real terminal --
 
 let fullscreenView(rows: List<String>): Stdlib.Cli.Tui.View =
-  Stdlib.Cli.Tui.View { rows = rows, cursor = Stdlib.Cli.Tui.Cursor.Hidden, mode = Stdlib.Cli.Tui.ViewMode.Fullscreen }
+  Stdlib.Cli.Tui.View
+    { rows = rows
+      cursor = Stdlib.Cli.Tui.Cursor.Hidden
+      mode = Stdlib.Cli.Tui.ViewMode.Fullscreen }
 
 
 test sessionTakesAlternateScreenOnFirstPresent =
@@ -252,14 +272,19 @@ test sessionTakesAlternateScreenOnFirstPresent =
   if Stdlib.String.contains(prepared.output, "\u001b[?1049h") then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail("Expected the first fullscreen present to enter the alternate screen")
+    Stdlib.Test.fail(
+      "Expected the first fullscreen present to enter the alternate screen")
 
 
 test sessionSecondIdenticalPresentIsSilent =
   let size = Stdlib.Cli.Tui.Size { width = 20, height = 5 }
   let view = fullscreenView([ "hello" ])
   let first =
-    Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize(Stdlib.Cli.Tui.TerminalSession.init(), size, view)
+    Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize(
+      Stdlib.Cli.Tui.TerminalSession.init(),
+      size,
+      view)
+
   let second =
     Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize(first.state, size, view)
 
@@ -267,7 +292,8 @@ test sessionSecondIdenticalPresentIsSilent =
   if second.output == "" then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected a repeat present to emit nothing, got '{second.output}'")
+    Stdlib.Test.fail(
+      $"Expected a repeat present to emit nothing, got '{second.output}'")
 
 
 test sessionStopRestoresOnlyWhenRunning =
@@ -277,11 +303,15 @@ test sessionStopRestoresOnlyWhenRunning =
       Stdlib.Cli.Tui.TerminalSession.init(),
       size,
       fullscreenView([ "hello" ]))
+
   let stopped = Stdlib.Cli.Tui.TerminalSession.prepareStop(started.state)
   let stoppedAgain = Stdlib.Cli.Tui.TerminalSession.prepareStop(stopped.state)
 
   // Stopping a live session leaves the alternate screen; stopping an already-stopped one is a no-op.
-  if Stdlib.String.contains(stopped.output, "\u001b[?1049l") && stoppedAgain.output == "" then
+  if
+    Stdlib.String.contains(stopped.output, "\u001b[?1049l")
+    && stoppedAgain.output == ""
+  then
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail("Expected stop to restore once and then be a no-op")
@@ -290,39 +320,39 @@ test sessionStopRestoresOnlyWhenRunning =
 // ── Workbench: every view renders ──
 
 /// A workbench state good enough to render, without touching the terminal.
-let workbenchState(): Darklang.Cli.Workbench.State =
-  Darklang.Cli.Workbench.initialState(
-    Darklang.SCM.Branch.mainBranchId,
+let workbenchState(): Cli.Workbench.State =
+  Cli.Workbench.initialState(
+    SCM.Branch.mainBranchId,
     Stdlib.Option.Option.None,
     "test-instance",
-    Darklang.Cli.Workbench.Updates.Manual)
+    Cli.Workbench.Updates.Manual)
 
 
 /// Render one view and report whether it produced a plausible frame.
 let rendersView(viewIndex: Int64): Bool =
-  let state = { (workbenchState()) with activeView = viewIndex }
+  let state = { workbenchState() with activeView = viewIndex }
   let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
-  let view = Darklang.Cli.Workbench.viewAtSize(state, size)
+  let view = Cli.Workbench.viewAtSize(state, size)
   // A frame is `height` rows, and a view that drew nothing at all is a bug even if it didn't crash.
-  (Stdlib.List.length(view.rows) == 40)
-  && (view.rows |> Stdlib.List.any(fun r -> (Stdlib.Cli.Tui.Text.stripSgr(r)) != ""))
+  Stdlib.List.length(view.rows) == 40
+  && (view.rows
+      |> Stdlib.List.any(fun r -> Stdlib.Cli.Tui.Text.stripSgr(r) != ""))
 
 
 /// The same for Matter's lenses. `Changed` is the interesting one: it reads the draft rather than the
 /// package tree, so it is a different code path from the other two rather than a filter over the same one.
-let rendersMatterLens(lens: Darklang.Cli.Workbench.Lens): Bool =
+let rendersMatterLens(lens: Cli.Workbench.Lens): Bool =
   let base = workbenchState()
-
   let state =
     { base with
-        activeView = Darklang.Cli.Workbench.vMatter
-        matter = Darklang.Cli.Workbench.MatterState { lens = lens } }
+        activeView = Cli.Workbench.vMatter
+        matter = Cli.Workbench.MatterState { lens = lens } }
 
   let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
-  let view = Darklang.Cli.Workbench.viewAtSize(state, size)
-
-  (Stdlib.List.length(view.rows) == 40)
-  && (view.rows |> Stdlib.List.any(fun r -> (Stdlib.Cli.Tui.Text.stripSgr(r)) != ""))
+  let view = Cli.Workbench.viewAtSize(state, size)
+  Stdlib.List.length(view.rows) == 40
+  && (view.rows
+      |> Stdlib.List.any(fun r -> Stdlib.Cli.Tui.Text.stripSgr(r) != ""))
 
 
 /// Matter's ITEM PAGE: the preview for a selected leaf, which is meta + source + access + references.
@@ -335,7 +365,7 @@ let rendersMatterLens(lens: Darklang.Cli.Workbench.Lens): Bool =
 let rendersMatterItemPage(path: List<String>): Bool =
   let base = workbenchState()
   let loc = Packages.PackageLocation.Module(path)
-  let items = Darklang.Cli.Workbench.loadItems(Darklang.SCM.Branch.mainBranchId, loc)
+  let items = Cli.Workbench.loadItems(SCM.Branch.mainBranchId, loc)
 
   // A path with no leaves would render the empty case and prove nothing, so say so rather than pass.
   if Stdlib.List.isEmpty(items) then
@@ -343,31 +373,35 @@ let rendersMatterItemPage(path: List<String>): Bool =
   else
     let state =
       { base with
-          activeView = Darklang.Cli.Workbench.vMatter
+          activeView = Cli.Workbench.vMatter
           location = loc
           items = items
           selected = 0
           focus = Stdlib.Cli.UI.SplitPane.Focus.Second }
 
     let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
-    let view = Darklang.Cli.Workbench.viewAtSize(state, size)
-
-    (Stdlib.List.length(view.rows) == 40)
-    && (view.rows |> Stdlib.List.any(fun r -> (Stdlib.Cli.Tui.Text.stripSgr(r)) != ""))
+    let view = Cli.Workbench.viewAtSize(state, size)
+    Stdlib.List.length(view.rows) == 40
+    && (view.rows
+        |> Stdlib.List.any(fun r -> Stdlib.Cli.Tui.Text.stripSgr(r) != ""))
 
 
 test workbenchItemPageRenders =
   // A module of fns, and one of types + values, because the item page branches on what the leaf IS.
-  let paths = [ [ "Darklang", "Stdlib", "List" ], [ "Darklang", "Stdlib", "Option" ] ]
+  let paths =
+    [ [ "Darklang", "Stdlib", "List" ], [ "Darklang", "Stdlib", "Option" ] ]
 
   let broken =
-    paths |> Stdlib.List.filter(fun p -> Stdlib.Bool.not(rendersMatterItemPage(p)))
+    paths
+    |> Stdlib.List.filter(fun p -> Stdlib.Bool.not(rendersMatterItemPage(p)))
 
   if Stdlib.List.isEmpty(broken) then
     Stdlib.Test.Result.Pass
   else
     let names =
-      broken |> Stdlib.List.map(fun p -> Stdlib.String.join(p, ".")) |> Stdlib.String.join(", ")
+      broken
+      |> Stdlib.List.map(fun p -> Stdlib.String.join(p, "."))
+      |> Stdlib.String.join(", ")
 
     Stdlib.Test.fail($"the item page drew nothing at: {names}")
 
@@ -378,38 +412,40 @@ test workbenchItemPageRenders =
 test workbenchItemReaderShowsNoRawEscapes =
   let base = workbenchState()
   let loc = Packages.PackageLocation.Module([ "Darklang", "Stdlib", "List" ])
-  let items = Darklang.Cli.Workbench.loadItems(Darklang.SCM.Branch.mainBranchId, loc)
-
+  let items = Cli.Workbench.loadItems(SCM.Branch.mainBranchId, loc)
   match Stdlib.List.findFirstIndex(items, fun i -> i.kind == "fn") with
   | None -> Stdlib.Test.fail("Darklang.Stdlib.List has no fn to open")
   | Some(idx) ->
     let state =
       { base with
-          activeView = Darklang.Cli.Workbench.vMatter
+          activeView = Cli.Workbench.vMatter
           location = loc
           items = items
           selected = idx
           focus = Stdlib.Cli.UI.SplitPane.Focus.First }
 
     let opened = (wbKey(state, Stdlib.Cli.Stdin.Key.Key.Enter)).state
-
     match opened.reading with
     | None -> Stdlib.Test.fail("⏎ on a fn did not open the reader")
     | Some(_) ->
       let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
       let rows =
-        (Darklang.Cli.Workbench.viewAtSize(opened, size)).rows
+        (Cli.Workbench.viewAtSize(opened, size)).rows
         |> Stdlib.List.map(fun r -> Stdlib.Cli.Tui.Text.stripSgr(r))
 
       let raw =
         rows
         |> Stdlib.List.filter(fun r ->
-          (Stdlib.String.contains(r, "\u001b"))
-          || (Stdlib.String.contains(r, "[0m"))
-          || (Stdlib.String.contains(r, "[2m")))
+          Stdlib.String.contains(r, "\u001b")
+          || Stdlib.String.contains(r, "[0m")
+          || Stdlib.String.contains(r, "[2m"))
 
-      if Stdlib.Bool.not(Stdlib.List.any(rows, fun r -> Stdlib.String.contains(r, "access"))) then
-        Stdlib.Test.fail("the reader did not show the fn's access block, so this proved nothing")
+      if
+        Stdlib.Bool.not(
+          Stdlib.List.any(rows, fun r -> Stdlib.String.contains(r, "access")))
+      then
+        Stdlib.Test.fail(
+          "the reader did not show the fn's access block, so this proved nothing")
       else if Stdlib.List.isEmpty(raw) then
         Stdlib.Test.Result.Pass
       else
@@ -429,22 +465,26 @@ let rendersPreview(viewIndex: Int64): Bool =
   let state = { base with activeView = viewIndex }
   // A pane reads the SELECTED item, so a view with an empty list exercises only its empty case. That is
   // still worth running (it is the case a fresh store hits), and the item page has its own test.
-  let lines = Darklang.Cli.Workbench.previewLines(state)
+  let lines = Cli.Workbench.previewLines(state)
   // Any list at all, including an empty one, means it returned rather than raised. A pane that throws
   // takes this down loudly, which is the point.
-  (Stdlib.List.length(lines)) >= 0
+  Stdlib.List.length(lines) >= 0
 
 
 test workbenchPreviewsRender =
   let broken =
-    Darklang.Cli.Workbench.viewSpecs
+    Cli.Workbench.viewSpecs
     |> Stdlib.List.map(fun spec -> Stdlib.Tuple2.first(spec))
     |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(rendersPreview(i)))
 
   if Stdlib.List.isEmpty(broken) then
     Stdlib.Test.Result.Pass
   else
-    let names = broken |> Stdlib.List.map(Stdlib.display) |> Stdlib.String.join(", ")
+    let names =
+      broken
+      |> Stdlib.List.map(Stdlib.display)
+      |> Stdlib.String.join(", ")
+
     Stdlib.Test.fail($"preview panes that drew nothing: {names}")
 
 
@@ -452,9 +492,9 @@ test workbenchPreviewsRender =
 /// remaining "same view, different list" switch, and `rendersView` only ever draws the default.
 test workbenchSectionsRender =
   let brokenLenses =
-    [ Darklang.Cli.Workbench.Lens.WholeTree
-      Darklang.Cli.Workbench.Lens.ValuesOnly
-      Darklang.Cli.Workbench.Lens.Changed ]
+    [ Cli.Workbench.Lens.WholeTree
+      Cli.Workbench.Lens.ValuesOnly
+      Cli.Workbench.Lens.Changed ]
     |> Stdlib.List.filter(fun l -> Stdlib.Bool.not(rendersMatterLens(l)))
 
   if Stdlib.List.isEmpty(brokenLenses) then
@@ -470,14 +510,18 @@ test workbenchEveryViewRenders =
   // takes the whole suite down (the harness does not catch runtime errors) -- caught either way,
   // just louder.
   let broken =
-    Darklang.Cli.Workbench.viewSpecs
+    Cli.Workbench.viewSpecs
     |> Stdlib.List.map(fun spec -> Stdlib.Tuple2.first(spec))
     |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(rendersView(i)))
 
   if Stdlib.List.isEmpty(broken) then
     Stdlib.Test.Result.Pass
   else
-    let names = broken |> Stdlib.List.map(Stdlib.display) |> Stdlib.String.join(", ")
+    let names =
+      broken
+      |> Stdlib.List.map(Stdlib.display)
+      |> Stdlib.String.join(", ")
+
     Stdlib.Test.fail($"Views produced no frame: {names}")
 
 
@@ -488,90 +532,106 @@ test workbenchDiffLinesRenderThroughPipe =
   let rendered =
     [ Stdlib.Diff.DiffLine.Added("let added = 1")
       Stdlib.Diff.DiffLine.Removed("let removed = 2") ]
-    |> Darklang.Cli.Workbench.renderDiffLines(workbenchState())
+    |> Cli.Workbench.renderDiffLines(workbenchState())
+
   let plain =
     rendered
     |> Stdlib.List.map(Stdlib.Cli.Tui.Text.stripSgr)
     |> Stdlib.String.join("\n")
+
   if
-    (Stdlib.List.length(rendered) == 2)
-    && (Stdlib.String.contains(plain, "+ let added = 1"))
-    && (Stdlib.String.contains(plain, "- let removed = 2"))
+    Stdlib.List.length(rendered) == 2
+    && Stdlib.String.contains(plain, "+ let added = 1")
+    && Stdlib.String.contains(plain, "- let removed = 2")
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail("Expected piped diff lines to render additions and removals")
+    Stdlib.Test.fail(
+      "Expected piped diff lines to render additions and removals")
 
 
 test workbenchModuleInspectPreviewsChildren =
   // `LanguageTools` and its child `AtRestTypeChecker`, because the subject only has to be a
   // module under `Darklang` that itself holds a child module. It used to be `LspExtension` and
   // `FileSystemProvider`, which moved to `later/` with the Language Server.
-  let location =
-    Darklang.Cli.Packages.PackageLocation.Module([ "Darklang" ])
-  let items =
-    Darklang.Cli.Workbench.loadItems(
-      Darklang.SCM.Branch.mainBranchId,
-      location)
+  let location = Cli.Packages.PackageLocation.Module([ "Darklang" ])
+  let items = Cli.Workbench.loadItems(SCM.Branch.mainBranchId, location)
   let selected =
     Stdlib.List.findFirstIndex(items, fun item -> item.name == "LanguageTools")
     |> Stdlib.Option.withDefault(0)
+
   let state =
-    { (workbenchState()) with
-        activeView = Darklang.Cli.Workbench.vMatter
+    { workbenchState() with
+        activeView = Cli.Workbench.vMatter
         location = location
         items = items
         selected = selected }
+
   let plain =
-    Darklang.Cli.Workbench.previewLines(state)
+    Cli.Workbench.previewLines(state)
     |> Stdlib.List.map(Stdlib.Cli.Tui.Text.stripSgr)
     |> Stdlib.String.join("\n")
+
   if
-    (Stdlib.String.contains(plain, "LanguageTools/"))
-    && (Stdlib.String.contains(plain, "AtRestTypeChecker/"))
-    && (Stdlib.String.contains(plain, "modules · "))
-    && (Stdlib.String.contains(plain, "enter"))
+    Stdlib.String.contains(plain, "LanguageTools/")
+    && Stdlib.String.contains(plain, "AtRestTypeChecker/")
+    && Stdlib.String.contains(plain, "modules · ")
+    && Stdlib.String.contains(plain, "enter")
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail("Expected Inspect to preview a module's immediate children, grouped by kind")
+    Stdlib.Test.fail(
+      "Expected Inspect to preview a module's immediate children, grouped by kind")
 
 
 /// The item page is built once per selection and drawn from `previews` after that: a scroll
 /// draws the page it already has, a move to the next item builds a new one, and a move back
 /// draws the first one again.
 test workbenchPageBuiltOncePerSelection =
-  let location = Darklang.Cli.Packages.PackageLocation.Module([ "Darklang", "Stdlib", "List" ])
+  let location =
+    Cli.Packages.PackageLocation.Module([ "Darklang", "Stdlib", "List" ])
+
   let start = workbenchState()
-  let items = Darklang.Cli.Workbench.loadItems(Darklang.SCM.Branch.mainBranchId, location)
+  let items = Cli.Workbench.loadItems(SCM.Branch.mainBranchId, location)
   let selected =
     Stdlib.List.findFirstIndex(items, fun item -> item.name == "map")
     |> Stdlib.Option.withDefault(0)
+
   let onMap =
-    Darklang.Cli.Workbench.refresh(
+    Cli.Workbench.refresh(
       start,
       { start with
-          activeView = Darklang.Cli.Workbench.vMatter
+          activeView = Cli.Workbench.vMatter
           location = location
           items = items
           selected = selected })
+
   let planted =
     { onMap with
         previews =
-          [ Darklang.Cli.Workbench.PreviewCache
-              { key = Darklang.Cli.Workbench.previewKey(onMap), lines = [ "planted" ] } ] }
+          [ Cli.Workbench.PreviewCache
+              { key = Cli.Workbench.previewKey(onMap)
+                lines = [ "planted" ] } ] }
+
   let scrolled =
-    Darklang.Cli.Workbench.refresh(planted, { planted with detailScroll = 3 })
+    Cli.Workbench.refresh(planted, { planted with detailScroll = 3 })
+
   let moved =
-    Darklang.Cli.Workbench.refresh(planted, { planted with selected = planted.selected + 1 })
+    Cli.Workbench.refresh(
+      planted,
+      { planted with selected = planted.selected + 1 })
+
   let back =
-    Darklang.Cli.Workbench.refresh(moved, { moved with selected = planted.selected })
-  if (Darklang.Cli.Workbench.previewLines(scrolled)) != [ "planted" ] then
-    Stdlib.Test.fail("a scroll rebuilt the item page instead of drawing the one it had")
-  else if (Darklang.Cli.Workbench.previewLines(moved)) == [ "planted" ] then
+    Cli.Workbench.refresh(moved, { moved with selected = planted.selected })
+
+  if Cli.Workbench.previewLines(scrolled) != [ "planted" ] then
+    Stdlib.Test.fail(
+      "a scroll rebuilt the item page instead of drawing the one it had")
+  else if Cli.Workbench.previewLines(moved) == [ "planted" ] then
     Stdlib.Test.fail("moving to the next item drew the previous item's page")
-  else if (Darklang.Cli.Workbench.previewLines(back)) != [ "planted" ] then
-    Stdlib.Test.fail("moving back rebuilt the item page instead of drawing the one it had")
+  else if Cli.Workbench.previewLines(back) != [ "planted" ] then
+    Stdlib.Test.fail(
+      "moving back rebuilt the item page instead of drawing the one it had")
   else
     Stdlib.Test.Result.Pass
 
@@ -579,22 +639,25 @@ test workbenchPageBuiltOncePerSelection =
 /// Saving from the workbench's editor shows the saved version on the next frame, though the
 /// item list (names only) is the same before and after.
 test workbenchPageFollowsYourSave =
-  let start = { (workbenchState()) with activeView = Darklang.Cli.Workbench.vMatter }
-  let save(state: Darklang.Cli.Workbench.State, src: String): Darklang.Cli.Workbench.State =
+  let start = { workbenchState() with activeView = Cli.Workbench.vMatter }
+  let save(state: Cli.Workbench.State, src: String): Cli.Workbench.State =
     let editing =
-      Darklang.Cli.Workbench.EditingState
+      Cli.Workbench.EditingState
         { kind = "fn"
           nameStr = "answer"
           targetModule = [ "Tests", "WorkbenchPage" ]
           buf = Stdlib.Cli.UI.Editor.fromText(src)
           err = "" }
-    match Darklang.Cli.Workbench.saveEditing(state, editing) with
-    | Continue(next) -> Darklang.Cli.Workbench.refresh(state, next)
+
+    match Cli.Workbench.saveEditing(state, editing) with
+    | Continue(next) -> Cli.Workbench.refresh(state, next)
     | _ -> state
-  let page(state: Darklang.Cli.Workbench.State): String =
-    Darklang.Cli.Workbench.previewLines(state)
+
+  let page(state: Cli.Workbench.State): String =
+    Cli.Workbench.previewLines(state)
     |> Stdlib.List.map(Stdlib.Cli.Tui.Text.stripSgr)
     |> Stdlib.String.join("\n")
+
   // Fresh numbers each run: the store outlives the test, and saving a body the name has held
   // before is a revert, which is a different path.
   let n = Stdlib.Int64.random(100000, 999999)
@@ -606,46 +669,46 @@ test workbenchPageFollowsYourSave =
   if Stdlib.Bool.not(Stdlib.String.contains(firstPage, before)) then
     Stdlib.Test.fail("the first save's page did not show it: " + firstPage)
   else if Stdlib.Bool.not(Stdlib.String.contains(secondPage, after)) then
-    Stdlib.Test.fail("the page went on showing the version before the save: " + secondPage)
+    Stdlib.Test.fail(
+      "the page went on showing the version before the save: " + secondPage)
   else
     Stdlib.Test.Result.Pass
 
 
 test workbenchRunTestsAreLastInInspect =
   let location =
-    Darklang.Cli.Packages.PackageLocation.Module(
-      [ "Darklang", "Stdlib", "Float" ])
-  let items =
-    Darklang.Cli.Workbench.loadItems(
-      Darklang.SCM.Branch.mainBranchId,
-      location)
+    Cli.Packages.PackageLocation.Module([ "Darklang", "Stdlib", "Float" ])
+
+  let items = Cli.Workbench.loadItems(SCM.Branch.mainBranchId, location)
   let selected =
     Stdlib.List.findFirstIndex(items, fun item -> item.name == "sqrt")
     |> Stdlib.Option.withDefault(0)
+
   let state =
-    { (workbenchState()) with
-        activeView = Darklang.Cli.Workbench.vMatter
+    { workbenchState() with
+        activeView = Cli.Workbench.vMatter
         location = location
         items = items
         selected = selected }
+
   let nonblank =
-    Darklang.Cli.Workbench.previewLines(state)
+    Cli.Workbench.previewLines(state)
     |> Stdlib.List.map(Stdlib.Cli.Tui.Text.stripSgr)
     |> Stdlib.List.filter(fun line -> Stdlib.String.trim(line) != "")
-  let last =
-    Stdlib.Option.withDefault(Stdlib.List.last(nonblank), "")
 
+  let last = Stdlib.Option.withDefault(Stdlib.List.last(nonblank), "")
   let hasWorkbenchHeading = Stdlib.List.contains(nonblank, "tests")
   let hasListingHeading = Stdlib.List.contains(nonblank, "⊢ Tests:")
   let testRows =
     nonblank
-    |> Stdlib.List.filter(fun line -> Stdlib.String.contains(line, "Float.Tests.sqrt"))
+    |> Stdlib.List.filter(fun line ->
+      Stdlib.String.contains(line, "Float.Tests.sqrt"))
 
   if
     hasWorkbenchHeading
-    && (Stdlib.Bool.not(hasListingHeading))
-    && ((Stdlib.List.length(testRows)) == 1)
-    && (Stdlib.String.contains(last, "`:test run` runs them"))
+    && Stdlib.Bool.not(hasListingHeading)
+    && Stdlib.List.length(testRows) == 1
+    && Stdlib.String.contains(last, "`:test run` runs them")
   then
     Stdlib.Test.Result.Pass
   else
@@ -661,74 +724,85 @@ type WbAction =
   | Exited
   | Launched(command: String)
 
+
 type WbResult =
-  { state: Darklang.Cli.Workbench.State
+  { state: Cli.Workbench.State
     action: WbAction }
+
 
 /// One keypress through the workbench's dispatcher in a plain-view context.
 /// Keep the action beside the state: encoding Exit as a fake status
 /// message hid an unexpected Launch.
 let wbPress(
-  state: Darklang.Cli.Workbench.State,
+  state: Cli.Workbench.State,
   key: Stdlib.Cli.Stdin.Key.Key,
   keyChar: Stdlib.Option.Option<String>)
   : WbResult =
-  let mods = Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false, ctrl = false, shift = false }
-  match Darklang.Cli.Workbench.handleKey(state, key, mods, keyChar) with
+  let mods =
+    Stdlib.Cli.Stdin.Modifiers.Modifiers
+      { alt = false, ctrl = false, shift = false }
+
+  match Cli.Workbench.handleKey(state, key, mods, keyChar) with
   | Continue(s) -> WbResult { state = s, action = WbAction.Continued }
   | Exit(s) -> WbResult { state = s, action = WbAction.Exited }
   | Launch(s, cmd) -> WbResult { state = s, action = WbAction.Launched(cmd) }
 
+
 /// A printable key.
-let wbChar(state: Darklang.Cli.Workbench.State, c: String): WbResult =
+let wbChar(state: Cli.Workbench.State, c: String): WbResult =
   wbPress(state, Stdlib.Cli.Stdin.Key.Key.NoName, Stdlib.Option.Option.Some(c))
 
-let wbKey(
-  state: Darklang.Cli.Workbench.State,
-  k: Stdlib.Cli.Stdin.Key.Key)
-  : WbResult =
+
+let wbKey(state: Cli.Workbench.State, k: Stdlib.Cli.Stdin.Key.Key): WbResult =
   wbPress(state, k, Stdlib.Option.Option.None)
+
 
 /// Move the nav cursor to a semantic row through the real key handler.
 /// Tests care that REPL is reachable, not how many rows follow Code today.
 /// The walking arrows depend on the nav's shape at the terminal size the
 /// test runs under: along the strip, down the overlay.
 let wbMoveNavbarTo(
-  state: Darklang.Cli.Workbench.State,
-  matches: Darklang.Cli.Workbench.NavbarRow -> Bool)
-  : Darklang.Cli.Workbench.State =
-  let rows = Darklang.Cli.Workbench.navbarRows(state, 0, 0)
+  state: Cli.Workbench.State,
+  matches: Cli.Workbench.NavbarRow -> Bool)
+  : Cli.Workbench.State =
+  let rows = Cli.Workbench.navbarRows(state, 0, 0)
   match Stdlib.List.findFirstIndex(rows, matches) with
   | None -> state
   | Some(target) ->
     let delta = target - state.navbarSel
     let steps = if delta < 0 then 0 - delta else delta
-    let strip = Darklang.Cli.Workbench.navFitsNow()
+    let strip = Cli.Workbench.navFitsNow()
     let key =
       if delta < 0 then
-        (if strip then Stdlib.Cli.Stdin.Key.Key.LeftArrow
-         else Stdlib.Cli.Stdin.Key.Key.UpArrow)
+        if strip then
+          Stdlib.Cli.Stdin.Key.Key.LeftArrow
+        else
+          Stdlib.Cli.Stdin.Key.Key.UpArrow
+      else if strip then
+        Stdlib.Cli.Stdin.Key.Key.RightArrow
       else
-        (if strip then Stdlib.Cli.Stdin.Key.Key.RightArrow
-         else Stdlib.Cli.Stdin.Key.Key.DownArrow)
+        Stdlib.Cli.Stdin.Key.Key.DownArrow
+
     if steps == 0 then
       state
     else
       Stdlib.List.range(1, steps)
       |> Stdlib.List.fold(state, fun(s, _) -> (wbKey(s, key)).state)
 
+
 let wbMoveNavbarToDest(
-  state: Darklang.Cli.Workbench.State,
-  dest: Darklang.Cli.Workbench.Dest)
-  : Darklang.Cli.Workbench.State =
+  state: Cli.Workbench.State,
+  dest: Cli.Workbench.Dest)
+  : Cli.Workbench.State =
   wbMoveNavbarTo(state, fun row -> row.dest == dest)
+
 
 /// Is the nav cursor on the destination we expected?
 let wbNavbarSelectionIsDest(
-  state: Darklang.Cli.Workbench.State,
-  dest: Darklang.Cli.Workbench.Dest)
+  state: Cli.Workbench.State,
+  dest: Cli.Workbench.Dest)
   : Bool =
-  let rows = Darklang.Cli.Workbench.navbarRows(state, 0, 0)
+  let rows = Cli.Workbench.navbarRows(state, 0, 0)
   match Stdlib.List.getAt(rows, state.navbarSel) with
   | Some(row) -> row.dest == dest
   | None -> false
@@ -743,78 +817,89 @@ test workbenchNavbarNavigation =
   // so it needs no terminal.
   let s0 = workbenchState()
   let atStart =
-    (s0.focus == Stdlib.Cli.UI.SplitPane.Focus.First)
-    && (s0.activeView == Darklang.Cli.Workbench.vHome)
+    s0.focus == Stdlib.Cli.UI.SplitPane.Focus.First
+    && s0.activeView == Cli.Workbench.vHome
+
   // 2 → Code, landing on the tree with the content focused.
   let r1 = wbChar(s0, "2")
   let s1 = r1.state
   let jumped =
-    (r1.action == WbAction.Continued)
-    && (s1.activeView == Darklang.Cli.Workbench.vMatter)
-    && (Stdlib.Bool.not(Darklang.Cli.Workbench.navbarFocused(s1)))
-    && (s1.focus == Stdlib.Cli.UI.SplitPane.Focus.First)
+    r1.action == WbAction.Continued
+    && s1.activeView == Cli.Workbench.vMatter
+    && Stdlib.Bool.not(Cli.Workbench.navbarFocused(s1))
+    && s1.focus == Stdlib.Cli.UI.SplitPane.Focus.First
+
   // Esc at the top of the tree → back to Home, where 2 was pressed, content focused.
   let r2 = wbKey(s1, Stdlib.Cli.Stdin.Key.Key.Escape)
   let s2 = r2.state
   let backedOut =
-    (r2.action == WbAction.Continued)
-    && (s2.activeView == Darklang.Cli.Workbench.vHome)
-    && (Stdlib.Bool.not(Darklang.Cli.Workbench.navbarFocused(s2)))
-    && (Stdlib.List.isEmpty(s2.back))
+    r2.action == WbAction.Continued
+    && s2.activeView == Cli.Workbench.vHome
+    && Stdlib.Bool.not(Cli.Workbench.navbarFocused(s2))
+    && Stdlib.List.isEmpty(s2.back)
+
   // ` takes the nav, with the cursor on where you are.
   let s2n = (wbChar(s2, "`")).state
   let navTaken =
-    (Darklang.Cli.Workbench.navbarFocused(s2n))
-    && (wbNavbarSelectionIsDest(
+    Cli.Workbench.navbarFocused(s2n)
+    && wbNavbarSelectionIsDest(
       s2n,
-      Darklang.Cli.Workbench.mkDest(Darklang.Cli.Workbench.vHome, 0)))
+      Cli.Workbench.mkDest(Cli.Workbench.vHome, 0))
+
   let atRepl =
-    wbMoveNavbarToDest(
-      s2n,
-      Darklang.Cli.Workbench.mkDest(Darklang.Cli.Workbench.vScratch, 0))
+    wbMoveNavbarToDest(s2n, Cli.Workbench.mkDest(Cli.Workbench.vScratch, 0))
+
   let r3 = wbKey(atRepl, Stdlib.Cli.Stdin.Key.Key.Enter)
   let s3 = r3.state
   let toRepl =
-    (r3.action == WbAction.Continued)
-    && (s3.activeView == Darklang.Cli.Workbench.vScratch)
-    && (Stdlib.Bool.not(Darklang.Cli.Workbench.navbarFocused(s3)))
-    && (s3.input == Stdlib.Option.Option.None)
+    r3.action == WbAction.Continued
+    && s3.activeView == Cli.Workbench.vScratch
+    && Stdlib.Bool.not(Cli.Workbench.navbarFocused(s3))
+    && s3.input == Stdlib.Option.Option.None
+
   // The nav is one row per view: nothing under Changes, whichever section it is on.
-  let rows = Darklang.Cli.Workbench.navbarRows(s3, 0, 0)
+  let rows = Cli.Workbench.navbarRows(s3, 0, 0)
   let flat =
-    (Stdlib.Bool.not(Stdlib.List.any(rows, fun r -> r.label == "History")))
-    && (Stdlib.List.length(rows)
-        == Stdlib.List.length(Darklang.Cli.Workbench.visibleWorkspacesIn(Darklang.Cli.Workbench.visibleViews(s3))))
+    Stdlib.Bool.not(Stdlib.List.any(rows, fun r -> r.label == "History"))
+    && Stdlib.List.length(rows)
+       == Stdlib.List.length(
+         Cli.Workbench.visibleWorkspacesIn(Cli.Workbench.visibleViews(s3)))
+
   // ⏎ on Changes goes there and takes the content: there is nothing to expand.
   let s4 = (wbChar(s3, "`")).state
   let atChanges =
-    wbMoveNavbarToDest(s4, Darklang.Cli.Workbench.mkDest(Darklang.Cli.Workbench.vSCM, 0))
+    wbMoveNavbarToDest(s4, Cli.Workbench.mkDest(Cli.Workbench.vSCM, 0))
+
   let s5 = (wbKey(atChanges, Stdlib.Cli.Stdin.Key.Key.Enter)).state
   let entered =
-    (s5.activeView == Darklang.Cli.Workbench.vSCM)
-    && (Stdlib.Bool.not(Darklang.Cli.Workbench.navbarFocused(s5)))
+    s5.activeView == Cli.Workbench.vSCM
+    && Stdlib.Bool.not(Cli.Workbench.navbarFocused(s5))
+
   // `3` again stays: there is nothing under Changes to step to.
   let s6 = (wbChar(s5, "3")).state
-  let cycled = (s6.activeView == Darklang.Cli.Workbench.vSCM) && (s6.items == s5.items)
+  let cycled = s6.activeView == Cli.Workbench.vSCM && s6.items == s5.items
   let s6b = (wbChar(s6, "]")).state
   let s6c = (wbChar(s6b, "[")).state
   let stepped =
-    (s6b.activeView == Darklang.Cli.Workbench.vSCM) && (s6c.activeView == Darklang.Cli.Workbench.vSCM)
+    s6b.activeView == Cli.Workbench.vSCM && s6c.activeView == Cli.Workbench.vSCM
+
   // Leaving and coming back by number returns to the view.
   let s7 = (wbChar((wbChar(s6c, "2")).state, "3")).state
-  let remembered = s7.activeView == Darklang.Cli.Workbench.vSCM
+  let remembered = s7.activeView == Cli.Workbench.vSCM
   // Errors has no nav row: `E` from Traces opens it, Traces stays lit, `5` comes back.
-  let errors = Darklang.Cli.Workbench.extViewIndex("errors")
+  let errors = Cli.Workbench.extViewIndex("errors")
   let s8 = (wbChar((wbChar(s7, "5")).state, "E")).state
   let tracesRow =
-    Stdlib.List.findFirstIndex(
-      Darklang.Cli.Workbench.navbarRows(s8, 0, 0),
-      fun r -> r.label == "Traces")
+    Stdlib.List.findFirstIndex(Cli.Workbench.navbarRows(s8, 0, 0), fun r ->
+      r.label == "Traces")
     |> Stdlib.Option.withDefault(0 - 1)
+
   let errorsCovered =
-    (s8.activeView == errors)
-    && (Darklang.Cli.Workbench.activeRow(s8, Darklang.Cli.Workbench.navbarRows(s8, 0, 0)) == tracesRow)
-    && ((wbChar(s8, "5")).state.activeView == Darklang.Cli.Workbench.vTraces)
+    s8.activeView == errors
+    && Cli.Workbench.activeRow(s8, Cli.Workbench.navbarRows(s8, 0, 0))
+       == tracesRow
+    && (wbChar(s8, "5")).state.activeView == Cli.Workbench.vTraces
+
   // Assert q's action directly instead of smuggling it through `message`.
   let r9 = wbChar(s7, "q")
   let quits = r9.action == WbAction.Exited
@@ -831,21 +916,28 @@ test workbenchNavbarNavigation =
       (remembered, "a view's number key returns to it")
       (errorsCovered, "E opens Errors from Traces, Traces stays lit, 6 returns")
       (quits, "q quits") ]
+
   let failed =
     checks
     |> Stdlib.List.filter(fun c ->
       let (ok, _l) = c
       Stdlib.Bool.not(ok))
-    |> Stdlib.List.map(fun c -> let (_ok, l) = c in l)
-  if Stdlib.List.isEmpty(failed) then Stdlib.Test.Result.Pass
-  else Stdlib.Test.fail($"Navigation broke: {Stdlib.String.join(failed, "; ")}")
+    |> Stdlib.List.map(fun c ->
+      let (_ok, l) = c
+      l)
+
+  if Stdlib.List.isEmpty(failed) then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail($"Navigation broke: {Stdlib.String.join(failed, "; ")}")
 
 
 // ── REPL session bindings ──
 
 /// Shorthand for a captured binding (one holding a value rather than an expression).
-let bound(name: String, source: String): Darklang.Cli.Repl.Binding =
-  Darklang.Cli.Repl.Binding { name = name, source = source, value = source, captured = true }
+let bound(name: String, source: String): Cli.Repl.Binding =
+  Cli.Repl.Binding
+    { name = name, source = source, value = source, captured = true }
 
 
 test replParsesLetBinding =
@@ -853,7 +945,10 @@ test replParsesLetBinding =
   // expression all have to fall through to being evaluated rather than silently binding something wrong.
   let cases =
     [ ("let x = 1", Stdlib.Option.Option.Some(("x", "1")))
-      ("  let  ys  =  [ 1, 2 ]  ", Stdlib.Option.Option.Some(("ys", "[ 1, 2 ]")))
+      (
+        "  let  ys  =  [ 1, 2 ]  ",
+        Stdlib.Option.Option.Some(("ys", "[ 1, 2 ]")))
+
       ("let _priv = 3", Stdlib.Option.Option.Some(("_priv", "3")))
       ("let x2 = x + 1", Stdlib.Option.Option.Some(("x2", "x + 1")))
       // The right-hand side keeps its own `=`, so a record or a lambda body survives.
@@ -867,28 +962,38 @@ test replParsesLetBinding =
       // A wrapped declaration binds, rhs and all - a pasted chain never reaches here, because
       // `splitStatements` has already separated it into one statement per binding.
       ("let xs = [ 1\n  2 ]", Stdlib.Option.Option.Some(("xs", "[ 1\n  2 ]"))) ]
+
   let wrong =
     cases
     |> Stdlib.List.filter(fun c ->
       let (input, expected) = c
-      (Darklang.Cli.Repl.parseLetBinding(input)) != expected)
-    |> Stdlib.List.map(fun c -> let (input, _e) = c in input)
+      Cli.Repl.parseLetBinding(input) != expected)
+    |> Stdlib.List.map(fun c ->
+      let (input, _e) = c
+      input)
+
   if Stdlib.List.isEmpty(wrong) then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"parseLetBinding wrong for: {Stdlib.String.join(wrong, " | ")}")
+    Stdlib.Test.fail(
+      $"parseLetBinding wrong for: {Stdlib.String.join(wrong, " | ")}")
 
 
 test replInjectsBindingChain =
   // The chain is what makes a binding survive to the next expression; order matters, because a later
   // binding is allowed to refer to an earlier one.
-  let empty = Darklang.Cli.Repl.withBindings([], "x + 1")
-  let one = Darklang.Cli.Repl.withBindings([ bound("x", "42") ], "x + 1")
+  let empty = Cli.Repl.withBindings([], "x + 1")
+
+  let one = Cli.Repl.withBindings([ bound("x", "42") ], "x + 1")
+
   let two =
-    Darklang.Cli.Repl.withBindings([ bound("x", "42"), bound("y", "x + 1") ], "y * 2")
-  if (empty == "x + 1")
-     && (one == "let x = 42\nx + 1")
-     && (two == "let x = 42\nlet y = x + 1\ny * 2") then
+    Cli.Repl.withBindings([ bound("x", "42"), bound("y", "x + 1") ], "y * 2")
+
+  if
+    empty == "x + 1"
+    && one == "let x = 42\nx + 1"
+    && two == "let x = 42\nlet y = x + 1\ny * 2"
+  then
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail($"Unexpected binding chain: '{one}' / '{two}'")
@@ -897,27 +1002,42 @@ test replInjectsBindingChain =
 test replUncapturedRebindMovesLast =
   // An uncaptured binding holds an EXPRESSION, so it must sit after anything it references. Rebinding it in
   // place produced `let a = d` above `let d = ...`, which left `d` undefined and wedged the session.
-  let mk = (fun(n, s, c) -> Darklang.Cli.Repl.Binding { name = n, source = s, value = s, captured = c })
+  let mk = fun(n, s, c) ->
+    Cli.Repl.Binding { name = n, source = s, value = s, captured = c }
+
   let after =
-    Darklang.Cli.Repl.upsert(
+    Cli.Repl.upsert(
       [ mk("a", "1", true), mk("d", "Stdlib.DateTime.now()", false) ],
       mk("a", "d", false))
-  let order = after |> Stdlib.List.map(fun b -> b.name) |> Stdlib.String.join(",")
+
+  let order =
+    after
+    |> Stdlib.List.map(fun b -> b.name)
+    |> Stdlib.String.join(",")
+
   if order == "d,a" then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected the uncaptured rebind to move last (d,a), got {order}")
+    Stdlib.Test.fail(
+      $"Expected the uncaptured rebind to move last (d,a), got {order}")
 
 
 test replRebindKeepsPosition =
   // Rebinding `x` must not move it after `y`, or `y`'s chain entry would reference an undefined name.
   let after =
-    Darklang.Cli.Repl.upsert(
-      [ bound("x", "1"), bound("y", "x + 1") ],
-      bound("x", "99"))
-  let names = after |> Stdlib.List.map(fun b -> b.name) |> Stdlib.String.join(",")
-  let sources = after |> Stdlib.List.map(fun b -> b.source) |> Stdlib.String.join(",")
-  if (names == "x,y") && (sources == "99,x + 1") then
+    Cli.Repl.upsert([ bound("x", "1"), bound("y", "x + 1") ], bound("x", "99"))
+
+  let names =
+    after
+    |> Stdlib.List.map(fun b -> b.name)
+    |> Stdlib.String.join(",")
+
+  let sources =
+    after
+    |> Stdlib.List.map(fun b -> b.source)
+    |> Stdlib.String.join(",")
+
+  if names == "x,y" && sources == "99,x + 1" then
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail($"Expected x rebound in place, got {names} = {sources}")
@@ -926,9 +1046,11 @@ test replRebindKeepsPosition =
 test replReadsCapturedValue =
   // `captureValue` reports through a tagged string; anything that isn't an `ok:` means "hold the expression
   // instead", including an empty result.
-  if (Darklang.Cli.Repl.readCaptured("ok:[1, 2]") == Stdlib.Option.Option.Some("[1, 2]"))
-     && (Darklang.Cli.Repl.readCaptured("err:no literal") == Stdlib.Option.Option.None)
-     && (Darklang.Cli.Repl.readCaptured("") == Stdlib.Option.Option.None) then
+  if
+    Cli.Repl.readCaptured("ok:[1, 2]") == Stdlib.Option.Option.Some("[1, 2]")
+    && Cli.Repl.readCaptured("err:no literal") == Stdlib.Option.Option.None
+    && Cli.Repl.readCaptured("") == Stdlib.Option.Option.None
+  then
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail("readCaptured did not round-trip the ok:/err: tagging")
@@ -940,41 +1062,56 @@ test replSplitsPastedStatements =
   // expression stays whole while a chain separates.
   let cases =
     [ ("let a = 21\na * 2", [ "let a = 21", "a * 2" ])
-      ("Stdlib.List.map(xs,\n  fun x -> x * 2)", [ "Stdlib.List.map(xs,\n  fun x -> x * 2)" ])
+      (
+        "Stdlib.List.map(xs,\n  fun x -> x * 2)",
+        [ "Stdlib.List.map(xs,\n  fun x -> x * 2)" ])
+
       // A blank line closes a statement rather than joining across it.
       ("let a = 1\n\nlet b = 2", [ "let a = 1", "let b = 2" ])
       ("one line", [ "one line" ])
       ("", []) ]
+
   let wrong =
     cases
     |> Stdlib.List.filter(fun c ->
       let (input, expected) = c
-      (Darklang.Cli.Repl.splitStatements(input)) != expected)
-    |> Stdlib.List.map(fun c -> let (input, _e) = c in Stdlib.inspect(input))
+      Cli.Repl.splitStatements(input) != expected)
+    |> Stdlib.List.map(fun c ->
+      let (input, _e) = c
+      Stdlib.inspect(input))
+
   if Stdlib.List.isEmpty(wrong) then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"splitStatements wrong for: {Stdlib.String.join(wrong, " | ")}")
+    Stdlib.Test.fail(
+      $"splitStatements wrong for: {Stdlib.String.join(wrong, " | ")}")
 
 
 test replCapturesRealValues =
   // The end of the round-trip that matters: a value goes out as source you could paste back in. Enums are
   // in here because they're what a REPL actually produces, and they only render as names because
   // `dvalToExpr` resolves the type's package location.
-  let branch = Darklang.SCM.Branch.mainBranchId
+  let branch = SCM.Branch.mainBranchId
   let cases =
-    [ (Darklang.Cli.Repl.captureValue(branch, 42), "ok:42")
-      (Darklang.Cli.Repl.captureValue(branch, [ 1, 2 ]), "ok:[ 1, 2 ]")
-      (Darklang.Cli.Repl.captureValue(branch, "hi"), "ok:\"hi\"")
+    [ (Cli.Repl.captureValue(branch, 42), "ok:42")
+      (Cli.Repl.captureValue(branch, [ 1, 2 ]), "ok:[ 1, 2 ]")
+      (Cli.Repl.captureValue(branch, "hi"), "ok:\"hi\"")
       // An enum renders under a shortened package name, so `Option.Some(1)`. That and the
       // fully-qualified spelling both parse back to the same value, which is what matters here: the
       // property is that the output is source you could paste in, not that it is spelled one way.
-      (Darklang.Cli.Repl.captureValue(branch, Stdlib.Option.Option.Some(1)),
-       "ok:Option.Some(1)") ]
+      (
+        Cli.Repl.captureValue(branch, Stdlib.Option.Option.Some(1)),
+        "ok:Option.Some(1)") ]
+
   let wrong =
     cases
-    |> Stdlib.List.filter(fun c -> let (got, want) = c in got != want)
-    |> Stdlib.List.map(fun c -> let (got, want) = c in $"{want} -> {got}")
+    |> Stdlib.List.filter(fun c ->
+      let (got, want) = c
+      got != want)
+    |> Stdlib.List.map(fun c ->
+      let (got, want) = c
+      $"{want} -> {got}")
+
   if Stdlib.List.isEmpty(wrong) then
     Stdlib.Test.Result.Pass
   else
@@ -986,35 +1123,46 @@ test workbenchCapturesStrayOutput =
   // frame after it lands that many rows off, which reads as two overlapping copies of the Stdlib.Cli.UI. It's easy to
   // hit: eval can print a call stack when a function fails. `captureOutputAnd` returns the value AND the output, so a caller gets the result without
   // letting the print through.
-  let (value, out) =
-    Darklang.Cli.Workbench.captureOutputAnd(fun () ->
-      Stdlib.printLine("this must not reach the terminal")
-      41 + 1)
-  if (value == 42) && (Stdlib.String.contains(out, "must not reach")) then
+  let (value, out) = Cli.Workbench.captureOutputAnd(fun () ->
+    Stdlib.printLine("this must not reach the terminal")
+    41 + 1)
+
+  if value == 42 && Stdlib.String.contains(out, "must not reach") then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected 42 and the captured line, got {Stdlib.display(value)} / '{out}'")
+    Stdlib.Test.fail(
+      $"Expected 42 and the captured line, got {Stdlib.display(value)} / '{out}'")
 
 
 /// Does rendering view `viewIndex` put `marker` on the screen?
 let viewShows(viewIndex: Int64, marker: String): Bool =
   let state =
-    Darklang.Cli.Workbench.focusNavbar(
-      { (workbenchState()) with activeView = viewIndex })
-  let view = Darklang.Cli.Workbench.viewAtSize(state, Stdlib.Cli.Tui.Size { width = 160, height = 40 })
+    Cli.Workbench.focusNavbar({ workbenchState() with activeView = viewIndex })
+
+  let view =
+    Cli.Workbench.viewAtSize(
+      state,
+      Stdlib.Cli.Tui.Size { width = 160, height = 40 })
+
   view.rows
-  |> Stdlib.List.any(fun r -> Stdlib.String.contains(Stdlib.Cli.Tui.Text.stripSgr(r), marker))
+  |> Stdlib.List.any(fun r ->
+    Stdlib.String.contains(Stdlib.Cli.Tui.Text.stripSgr(r), marker))
 
 
 /// `viewShows`, with the CONTENT holding the keyboard: the footer then carries the
 /// view's own hints rather than the nav's.
 let contentShows(viewIndex: Int64, marker: String): Bool =
   let state =
-    Darklang.Cli.Workbench.focusContent(
-      { (workbenchState()) with activeView = viewIndex })
-  let view = Darklang.Cli.Workbench.viewAtSize(state, Stdlib.Cli.Tui.Size { width = 160, height = 40 })
+    Cli.Workbench.focusContent({ workbenchState() with activeView = viewIndex })
+
+  let view =
+    Cli.Workbench.viewAtSize(
+      state,
+      Stdlib.Cli.Tui.Size { width = 160, height = 40 })
+
   view.rows
-  |> Stdlib.List.any(fun r -> Stdlib.String.contains(Stdlib.Cli.Tui.Text.stripSgr(r), marker))
+  |> Stdlib.List.any(fun r ->
+    Stdlib.String.contains(Stdlib.Cli.Tui.Text.stripSgr(r), marker))
 
 
 test workbenchViewsShowTheirChrome =
@@ -1027,29 +1175,45 @@ test workbenchViewsShowTheirChrome =
     // Markers have to be unique to the band: something the context row
     // doesn't say. `2 Code` and `6 Traces` are numbered items on the strip,
     // which nothing else draws.
-    [ (Darklang.Cli.Workbench.vSCM, "3 Changes", "nav: Changes is one numbered item")
-      (Darklang.Cli.Workbench.vTraces, "5 Traces", "nav: Traces is its own item, not Activity")
-      (Darklang.Cli.Workbench.vScratch, "to type", "REPL title row")
-      (Darklang.Cli.Workbench.vMatter, "packages", "Code's root breadcrumb")
-      (Darklang.Cli.Workbench.vHome, "recent commits", "Home's recent work")
-      (Darklang.Cli.Workbench.vHome, "2 Code", "nav: a numbered workspace") ]
+    [ (Cli.Workbench.vSCM, "3 Changes", "nav: Changes is one numbered item")
+      (
+        Cli.Workbench.vTraces,
+        "5 Traces",
+        "nav: Traces is its own item, not Activity")
+
+      (Cli.Workbench.vScratch, "to type", "REPL title row")
+      (Cli.Workbench.vMatter, "packages", "Code's root breadcrumb")
+      (Cli.Workbench.vHome, "recent commits", "Home's recent work")
+      (Cli.Workbench.vHome, "2 Code", "nav: a numbered workspace") ]
+
   // With the content focused, the footer is the view's: Changes advertises commit, and Home the
   // branch verbs it took over from the old Branches section.
   let contentChecks =
-    [ (Darklang.Cli.Workbench.vSCM, "commit", "footer: Changes offers commit")
-      (Darklang.Cli.Workbench.vHome, "merge", "footer: Home offers the branch verbs") ]
+    [ (Cli.Workbench.vSCM, "commit", "footer: Changes offers commit")
+      (Cli.Workbench.vHome, "merge", "footer: Home offers the branch verbs") ]
+
   let missing =
     Stdlib.List.concat(
-      (checks
-       |> Stdlib.List.filter(fun c -> let (v, marker, _label) = c in Stdlib.Bool.not(viewShows(v, marker)))
-       |> Stdlib.List.map(fun c -> let (_v, _m, label) = c in label)),
-      (contentChecks
-       |> Stdlib.List.filter(fun c -> let (v, marker, _label) = c in Stdlib.Bool.not(contentShows(v, marker)))
-       |> Stdlib.List.map(fun c -> let (_v, _m, label) = c in label)))
+      checks
+      |> Stdlib.List.filter(fun c ->
+        let (v, marker, _label) = c
+        Stdlib.Bool.not(viewShows(v, marker)))
+      |> Stdlib.List.map(fun c ->
+        let (_v, _m, label) = c
+        label),
+      contentChecks
+      |> Stdlib.List.filter(fun c ->
+        let (v, marker, _label) = c
+        Stdlib.Bool.not(contentShows(v, marker)))
+      |> Stdlib.List.map(fun c ->
+        let (_v, _m, label) = c
+        label))
+
   if Stdlib.List.isEmpty(missing) then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Missing from the rendered frame: {Stdlib.String.join(missing, ", ")}")
+    Stdlib.Test.fail(
+      $"Missing from the rendered frame: {Stdlib.String.join(missing, ", ")}")
 
 
 /// Home has no hidden inspector, and even a wide terminal gets one nav row.
@@ -1059,63 +1223,121 @@ test workbenchHomeOverview =
   let state =
     { base with
         items =
-          [ Darklang.Cli.Workbench.homeHeader("recent commits")
-            Darklang.Cli.Workbench.BodyItem
-              { name = longTitle, kind = "home-commit", isModule = false
+          [ Cli.Workbench.homeHeader("recent commits")
+            Cli.Workbench.BodyItem
+              { name = longTitle
+                kind = "home-commit"
+                isModule = false
                 desc = "Alex · yesterday" } ]
         selected = 1 }
+
   let plain =
-    (Darklang.Cli.Workbench.viewAtSize(state,
-      Stdlib.Cli.Tui.Size { width = 120, height = 24 })).rows
+    (Cli.Workbench.viewAtSize(
+       state,
+       Stdlib.Cli.Tui.Size { width = 120, height = 24 })).rows
     |> Stdlib.List.map(Stdlib.Cli.Tui.Text.stripSgr)
     |> Stdlib.String.join("\n")
+
   let narrow =
-    (Darklang.Cli.Workbench.viewAtSize(state,
-      Stdlib.Cli.Tui.Size { width = 80, height = 24 })).rows
+    (Cli.Workbench.viewAtSize(
+       state,
+       Stdlib.Cli.Tui.Size { width = 80, height = 24 })).rows
     |> Stdlib.List.map(Stdlib.Cli.Tui.Text.stripSgr)
     |> Stdlib.String.join("\n")
+
   let right = (wbKey(state, Stdlib.Cli.Stdin.Key.Key.RightArrow)).state
   let tab = (wbKey(state, Stdlib.Cli.Stdin.Key.Key.Tab)).state
   let back = (wbKey(tab, Stdlib.Cli.Stdin.Key.Key.Tab)).state
   let scm =
-    Darklang.Cli.Workbench.focusNavbar(
-      { state with activeView = Darklang.Cli.Workbench.vSCM })
+    Cli.Workbench.focusNavbar({ state with activeView = Cli.Workbench.vSCM })
+
   let nav =
-    Darklang.Cli.Workbench.renderNavStrip(scm, 0, 0,
+    Cli.Workbench.renderNavStrip(
+      scm,
+      0,
+      0,
       Stdlib.Cli.UI.Layout.Region { top = 1, left = 1, rows = 4, cols = 120 })
-  let labels = nav |> Stdlib.List.map(fun span -> span.text) |> Stdlib.String.join(" ")
-  let opened(kind: String): Darklang.Cli.Workbench.State =
+
+  let labels =
+    nav
+    |> Stdlib.List.map(fun span -> span.text)
+    |> Stdlib.String.join(" ")
+
+  let opened(kind: String): Cli.Workbench.State =
     let summary =
       { state with
           items =
-            [ Darklang.Cli.Workbench.BodyItem
+            [ Cli.Workbench.BodyItem
                 { name = "summary", kind = kind, isModule = false, desc = "" } ]
           selected = 0 }
+
     (wbKey(summary, Stdlib.Cli.Stdin.Key.Key.Enter)).state
-  let openSummary(kind: String): Darklang.Cli.Workbench.Dest =
-    Darklang.Cli.Workbench.activeDest(opened(kind))
+
+  let openSummary(kind: String): Cli.Workbench.Dest =
+    Cli.Workbench.activeDest(opened(kind))
+
   let opensReader(kind: String): Bool =
     match (opened(kind)).reading with
     | Some(_) -> true
     | None -> false
+
   let checks =
-    [ (Stdlib.String.contains(plain, longTitle), "Home uses the full width for a commit")
-      (Stdlib.String.contains(plain, "Alex · yesterday"), "commit metadata remains visible")
-      (Stdlib.Bool.not(Stdlib.String.contains(plain, "Welcome")), "no welcome inspector")
-      (Stdlib.Bool.not(Stdlib.String.contains(narrow, "⏎ go · esc")), "no startup menu overlay")
-      (right.focus == Stdlib.Cli.UI.SplitPane.Focus.First, "right cannot focus a hidden pane")
-      (Darklang.Cli.Workbench.navbarFocused(tab), "tab opens navigation")
-      (back.focus == Stdlib.Cli.UI.SplitPane.Focus.First, "tab returns to the list")
-      (Stdlib.List.all(nav, fun span -> span.row == 0), "navigation uses one row")
-      (Stdlib.Bool.not(Stdlib.String.contains(labels, "History")), "the nav has no row for a section")
-      ((wbChar(scm, "3")).state.activeView == Darklang.Cli.Workbench.vSCM,
-       "3 again stays on Changes")
-      (opensReader("home-more-commits"), "more commits opens the commit list in the reader")
-      (openSummary("home-conflicts") == Darklang.Cli.Workbench.mkDest(Darklang.Cli.Workbench.vSCM, 0),
-       "the conflict summary opens Changes, where the conflicts are") ]
+    [ (
+        Stdlib.String.contains(plain, longTitle),
+        "Home uses the full width for a commit")
+
+      (
+        Stdlib.String.contains(plain, "Alex · yesterday"),
+        "commit metadata remains visible")
+
+      (
+        Stdlib.Bool.not(Stdlib.String.contains(plain, "Welcome")),
+        "no welcome inspector")
+
+      (
+        Stdlib.Bool.not(Stdlib.String.contains(narrow, "⏎ go · esc")),
+        "no startup menu overlay")
+
+      (
+        right.focus == Stdlib.Cli.UI.SplitPane.Focus.First,
+        "right cannot focus a hidden pane")
+
+      (Cli.Workbench.navbarFocused(tab), "tab opens navigation")
+      (
+        back.focus == Stdlib.Cli.UI.SplitPane.Focus.First,
+        "tab returns to the list")
+
+      (
+        Stdlib.List.all(nav, fun span -> span.row == 0),
+        "navigation uses one row")
+
+      (
+        Stdlib.Bool.not(Stdlib.String.contains(labels, "History")),
+        "the nav has no row for a section")
+
+      (
+        (wbChar(scm, "3")).state.activeView == Cli.Workbench.vSCM,
+        "3 again stays on Changes")
+
+      (
+        opensReader("home-more-commits"),
+        "more commits opens the commit list in the reader")
+
+      (
+        openSummary("home-conflicts")
+        == Cli.Workbench.mkDest(Cli.Workbench.vSCM, 0),
+        "the conflict summary opens Changes, where the conflicts are") ]
+
   let failures =
-    checks |> Stdlib.List.filterMap(fun check ->
+    checks
+    |> Stdlib.List.filterMap(fun check ->
       let (ok, label) = check
-      if ok then Stdlib.Option.Option.None else Stdlib.Option.Option.Some(label))
-  if Stdlib.List.isEmpty(failures) then Stdlib.Test.Result.Pass
-  else Stdlib.Test.fail(Stdlib.String.join(failures, "; "))
+      if ok then
+        Stdlib.Option.Option.None
+      else
+        Stdlib.Option.Option.Some(label))
+
+  if Stdlib.List.isEmpty(failures) then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(Stdlib.String.join(failures, "; "))

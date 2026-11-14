@@ -4,12 +4,12 @@
 /// and write these. One module because they all need both primitives.
 module Darklang.LanguageTools.LocalStore
 
-
 /// The path of this instance's package store, for showing and for finding what lives beside it.
 /// The store itself is read and changed only through the typed package and SCM functions.
 ///
 /// The store moves per instance (its HOME, a test's copy), so nothing may cache this.
-let path(): String = Builtin.localDbPath()
+let path(): String =
+  Builtin.localDbPath()
 
 
 /// Read a setting. `None` when the key is not set, which every caller treats as the default
@@ -17,7 +17,8 @@ let path(): String = Builtin.localDbPath()
 ///
 /// Keys are namespaced by whoever owns them (`sync.*`, `current_branch`, `exec.*`), and the
 /// namespace is the contract. `Seed.export` strips this table wholesale, so nothing here travels.
-let configGet(key: String): Stdlib.Option.Option<String> = Builtin.configGet(key)
+let configGet(key: String): Option<String> =
+  Builtin.configGet(key)
 
 
 /// Write a setting (`Some`), or unset it (`None`) so its reader falls back to the default. Local
@@ -27,28 +28,32 @@ let configGet(key: String): Stdlib.Option.Option<String> = Builtin.configGet(key
 /// take, and the keys it writes itself (`current_branch` moves with `SCM.PackageOps.selectBranch`,
 /// `instance.id` is made once). The Error says why, ready to print. Keys under `test.` are free
 /// for tests.
-let __configWrite(key: String, value: Stdlib.Option.Option<String>): Stdlib.Result.Result<Unit, String> =
+let __configWrite(key: String, value: Option<String>): Result<Unit, String> =
   Builtin.configSet(key, value)
 
 
 /// Write a setting. See `__configWrite` for what is refused.
-let configSet(key: String, value: String): Stdlib.Result.Result<Unit, String> =
-  __configWrite(key, Stdlib.Option.Option.Some(value))
+let configSet(key: String, value: String): Result<Unit, String> =
+  __configWrite(key, Option.Some(value))
 
 
 /// Unset a setting, so its reader falls back to the default. Unsetting a key that is not set is
 /// fine; the keys only the runtime writes are refused.
-let configUnset(key: String): Stdlib.Result.Result<Unit, String> =
-  __configWrite(key, Stdlib.Option.Option.None)
+let configUnset(key: String): Result<Unit, String> =
+  __configWrite(key, Option.None)
 
 
 /// The keys `config get` reads: every setting a person sets, and `instance.id`.
-let configKeys(): List<String> = Builtin.configKeys()
+let configKeys(): List<String> =
+  Builtin.configKeys()
 
 
 /// One copy of the store: a backup in the folder beside it, or a snapshot written elsewhere.
 /// The path is for showing; an action names a backup by its name.
-type Backup = { name: String, path: String, bytes: Int64 }
+type Backup =
+  { name: String
+    path: String
+    bytes: Int64 }
 
 
 /// What `backups` does. Each answers with the backups it is about.
@@ -75,10 +80,10 @@ type BackupAction =
 /// backups, so this never builds a path. Every copy goes through SQLite's online-backup API rather
 /// than a file copy: the store path is guarded (a guest must not read or replace the host's store),
 /// and a copy of `data.db` alone would miss whatever is still in the WAL.
-let backups(action: BackupAction): Stdlib.Result.Result<List<Backup>, String> =
+let backups(action: BackupAction): Result<List<Backup>, String> =
   Builtin.storeBackup(action)
 
 
 /// Write a copy of this instance's store to <param path>, WAL included.
-let snapshotTo(path: String): Stdlib.Result.Result<Unit, String> =
+let snapshotTo(path: String): Result<Unit, String> =
   backups(BackupAction.SnapshotTo(path)) |> Stdlib.Result.map(fun _ -> ())

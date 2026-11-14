@@ -14,37 +14,37 @@
 /// This file holds the helpers; the tests are grouped by command in the files beside it.
 module Darklang.SCM.Tests.Cli
 
-
 // ─── running a test ─────────────────────────────────────────────────────────
 
 /// Run the steps against a fresh store, which is thrown away afterwards. Every step runs, in
 /// order, and the test fails if any of them did.
 let scenario(
-  steps: Darklang.Cli.Tests.Instance.T -> List<Stdlib.Test.Result>)
+  steps: Cli.Tests.Instance.T -> List<Stdlib.Test.Result>)
   : Stdlib.Test.Result =
-  Darklang.Cli.Tests.Instance.withInstance(fun dark -> Stdlib.Test.all(steps(dark)))
+  Cli.Tests.Instance.withInstance(fun dark -> Stdlib.Test.all(steps(dark)))
+
 
 let shown(args: List<String>): String =
-  "dark " + (Stdlib.String.join(args, " "))
+  "dark " + Stdlib.String.join(args, " ")
+
 
 /// Run `dark <args>` with extra environment variables. Gives the exit code, stdout, and both
 /// streams together.
 let runWithEnv(
-  dark: Darklang.Cli.Tests.Instance.T,
+  dark: Cli.Tests.Instance.T,
   env: List<(String * String)>,
   args: List<String>)
   : (Int64 * String * String) =
-  match
-    Stdlib.Cli.Process.runWithEnv(
-      dark.cli,
-      args,
-      Stdlib.List.concat(Darklang.Cli.Tests.Instance.env(dark), env))
-  with
+  match Stdlib.Cli.Process.runWithEnv(
+          dark.cli,
+          args,
+          Stdlib.List.concat(Cli.Tests.Instance.env(dark), env)) with
   | Error(e) -> (-1, "", $"could not run: {e}")
   | Ok(out) -> (out.exitCode, out.stdout, out.stdout + out.stderr)
 
+
 let exec(
-  dark: Darklang.Cli.Tests.Instance.T,
+  dark: Cli.Tests.Instance.T,
   args: List<String>)
   : (Int64 * String * String) =
   runWithEnv(dark, [], args)
@@ -53,42 +53,51 @@ let exec(
 // ─── setup steps ────────────────────────────────────────────────────────────
 
 /// Run `dark <args>`. It must succeed; if it doesn't, the test fails at this step.
-let run(dark: Darklang.Cli.Tests.Instance.T, args: List<String>): Stdlib.Test.Result =
+let run(dark: Cli.Tests.Instance.T, args: List<String>): Stdlib.Test.Result =
   let (code, _, said) = exec(dark, args)
-
   if code == 0 then
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail($"`{shown(args)}` exited {Stdlib.display(code)}: {said}")
 
+
 /// `dark fn <name> <body>`: save a function.
-let save(dark: Darklang.Cli.Tests.Instance.T, name: String, body: String): Stdlib.Test.Result =
+let save(
+  dark: Cli.Tests.Instance.T,
+  name: String,
+  body: String)
+  : Stdlib.Test.Result =
   run(dark, [ "fn", name, body ])
+
 
 /// Save a function that takes nothing and returns <param number>.
 let saveNumber(
-  dark: Darklang.Cli.Tests.Instance.T,
+  dark: Cli.Tests.Instance.T,
   name: String,
   number: String)
   : Stdlib.Test.Result =
   save(dark, name, $"(): Int64 = {number}")
 
+
 /// `dark commit <message> -y`: commit the whole draft without asking.
-let commit(dark: Darklang.Cli.Tests.Instance.T, message: String): Stdlib.Test.Result =
+let commit(dark: Cli.Tests.Instance.T, message: String): Stdlib.Test.Result =
   run(dark, [ "commit", message, "-y" ])
 
+
 /// `dark switch <branch>`: move onto a branch, starting it if it is new.
-let switch(dark: Darklang.Cli.Tests.Instance.T, branch: String): Stdlib.Test.Result =
+let switch(dark: Cli.Tests.Instance.T, branch: String): Stdlib.Test.Result =
   run(dark, [ "switch", branch ])
 
+
 /// `dark merge <branch> -y`: merge a branch into its parent without asking.
-let merge(dark: Darklang.Cli.Tests.Instance.T, branch: String): Stdlib.Test.Result =
+let merge(dark: Cli.Tests.Instance.T, branch: String): Stdlib.Test.Result =
   run(dark, [ "merge", branch, "-y" ])
+
 
 /// The usual setup for a conflict: branch `feat` changes <param name> and commits, then main
 /// changes it too and commits. Main's edit is the newer one. Leaves you on main.
 let featThenMainEdit(
-  dark: Darklang.Cli.Tests.Instance.T,
+  dark: Cli.Tests.Instance.T,
   name: String,
   onFeat: String,
   onMain: String)
@@ -106,54 +115,58 @@ let featThenMainEdit(
 
 /// `dark <args>` prints <param needle> (on stdout or stderr).
 let says(
-  dark: Darklang.Cli.Tests.Instance.T,
+  dark: Cli.Tests.Instance.T,
   args: List<String>,
   needle: String,
   why: String)
   : Stdlib.Test.Result =
   let (code, _, said) = exec(dark, args)
-
   if Stdlib.String.contains(said, needle) then
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
       $"{why}: `{shown(args)}` should say '{needle}'. It said (exit {Stdlib.display(code)}): {said}")
 
+
 /// `dark <args>` prints something, and it does not include <param needle>.
 let doesNotSay(
-  dark: Darklang.Cli.Tests.Instance.T,
+  dark: Cli.Tests.Instance.T,
   args: List<String>,
   needle: String,
   why: String)
   : Stdlib.Test.Result =
   let (_, _, said) = exec(dark, args)
-
   if Stdlib.String.trim(said) == "" then
-    Stdlib.Test.fail($"{why}: `{shown(args)}` printed nothing, so its silence proves nothing")
+    Stdlib.Test.fail(
+      $"{why}: `{shown(args)}` printed nothing, so its silence proves nothing")
   else if Stdlib.String.contains(said, needle) then
-    Stdlib.Test.fail($"{why}: `{shown(args)}` should not say '{needle}'. It said: {said}")
+    Stdlib.Test.fail(
+      $"{why}: `{shown(args)}` should not say '{needle}'. It said: {said}")
   else
     Stdlib.Test.Result.Pass
 
+
 /// `dark <args>` fails (nonzero exit) and its output includes <param reason>.
 let refuses(
-  dark: Darklang.Cli.Tests.Instance.T,
+  dark: Cli.Tests.Instance.T,
   args: List<String>,
   reason: String,
   why: String)
   : Stdlib.Test.Result =
   let (code, _, said) = exec(dark, args)
-
   if code == 0 then
-    Stdlib.Test.fail($"{why}: `{shown(args)}` should refuse, but exited 0: {said}")
+    Stdlib.Test.fail(
+      $"{why}: `{shown(args)}` should refuse, but exited 0: {said}")
   else if Stdlib.String.contains(said, reason) then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"{why}: `{shown(args)}` refused without saying '{reason}': {said}")
+    Stdlib.Test.fail(
+      $"{why}: `{shown(args)}` refused without saying '{reason}': {said}")
+
 
 /// `dark <flags> eval <expr>` prints exactly <param expected>, with extra environment <param env>.
 let evalsWith(
-  dark: Darklang.Cli.Tests.Instance.T,
+  dark: Cli.Tests.Instance.T,
   env: List<(String * String)>,
   flags: List<String>,
   expr: String,
@@ -162,25 +175,26 @@ let evalsWith(
   : Stdlib.Test.Result =
   let args = Stdlib.List.concat(flags, [ "eval", expr ])
   let (code, out, said) = runWithEnv(dark, env, args)
-
-  if (code == 0) && ((Stdlib.String.trim(out)) == expected) then
+  if code == 0 && Stdlib.String.trim(out) == expected then
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
       $"{why}: `{shown(args)}` should print {expected}. It said (exit {Stdlib.display(code)}): {said}")
 
+
 /// `dark eval <expr>` prints exactly <param expected>, on the branch you are on.
 let evals(
-  dark: Darklang.Cli.Tests.Instance.T,
+  dark: Cli.Tests.Instance.T,
   expr: String,
   expected: String,
   why: String)
   : Stdlib.Test.Result =
   evalsWith(dark, [], [], expr, expected, why)
 
+
 /// `dark --branch <branch> eval <expr>` prints exactly <param expected>.
 let evalsOn(
-  dark: Darklang.Cli.Tests.Instance.T,
+  dark: Cli.Tests.Instance.T,
   branch: String,
   expr: String,
   expected: String,
@@ -188,40 +202,49 @@ let evalsOn(
   : Stdlib.Test.Result =
   evalsWith(dark, [], [ "--branch", branch ], expr, expected, why)
 
+
 let notFoundWith(
-  dark: Darklang.Cli.Tests.Instance.T,
+  dark: Cli.Tests.Instance.T,
   flags: List<String>,
   expr: String,
   why: String)
   : Stdlib.Test.Result =
   let args = Stdlib.List.concat(flags, [ "eval", expr ])
   let (code, _, said) = exec(dark, args)
-
-  if (code != 0) && (Stdlib.String.contains(said, "not found")) then
+  if code != 0 && Stdlib.String.contains(said, "not found") then
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
       $"{why}: `{shown(args)}` should say the name is not found. It said (exit {Stdlib.display(code)}): {said}")
 
+
 /// `dark eval <expr>` fails because a name in it does not exist on the branch you are on.
-let notFound(dark: Darklang.Cli.Tests.Instance.T, expr: String, why: String): Stdlib.Test.Result =
+let notFound(
+  dark: Cli.Tests.Instance.T,
+  expr: String,
+  why: String)
+  : Stdlib.Test.Result =
   notFoundWith(dark, [], expr, why)
+
 
 /// The same, on another branch: `dark --branch <branch> eval <expr>`.
 let notFoundOn(
-  dark: Darklang.Cli.Tests.Instance.T,
+  dark: Cli.Tests.Instance.T,
   branch: String,
   expr: String,
   why: String)
   : Stdlib.Test.Result =
   notFoundWith(dark, [ "--branch", branch ], expr, why)
 
+
 /// Two values are equal.
 let same(actual: 'a, expected: 'a, why: String): Stdlib.Test.Result =
   if actual == expected then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"{why}: expected {Stdlib.inspect(expected)}, got {Stdlib.inspect(actual)}")
+    Stdlib.Test.fail(
+      $"{why}: expected {Stdlib.inspect(expected)}, got {Stdlib.inspect(actual)}")
+
 
 /// A bug we know about. <param shouldBe> checks what SHOULD happen, so it fails today and this
 /// passes. When the bug is fixed, <param shouldBe> passes and this fails, asking for the wrapper
@@ -237,9 +260,8 @@ let bugToday(bug: String, shouldBe: Stdlib.Test.Result): Stdlib.Test.Result =
 // ─── reading --json ─────────────────────────────────────────────────────────
 
 /// The last line of stdout as JSON, or `Null` when it is not JSON.
-let json(dark: Darklang.Cli.Tests.Instance.T, args: List<String>): Stdlib.AltJson.Json =
+let json(dark: Cli.Tests.Instance.T, args: List<String>): Stdlib.AltJson.Json =
   let (_, out, _) = exec(dark, args)
-
   let line =
     out
     |> Stdlib.String.trim
@@ -251,17 +273,22 @@ let json(dark: Darklang.Cli.Tests.Instance.T, args: List<String>): Stdlib.AltJso
   | Ok(j) -> j
   | Error(_) -> Stdlib.AltJson.Json.Null
 
+
 let field(j: Stdlib.AltJson.Json, name: String): Stdlib.AltJson.Json =
-  Darklang.Cli.Tests.JsonShapes.field(j, name)
+  Cli.Tests.JsonShapes.field(j, name)
+
 
 let rows(j: Stdlib.AltJson.Json): List<Stdlib.AltJson.Json> =
-  Darklang.Cli.Tests.JsonShapes.rows(j)
+  Cli.Tests.JsonShapes.rows(j)
+
 
 let text(j: Stdlib.AltJson.Json, name: String): String =
-  Darklang.Cli.Tests.JsonShapes.string(j, name)
+  Cli.Tests.JsonShapes.string(j, name)
+
 
 let number(j: Stdlib.AltJson.Json, name: String): Int64 =
-  Darklang.Cli.Tests.JsonShapes.int(j, name)
+  Cli.Tests.JsonShapes.int(j, name)
+
 
 let flag(j: Stdlib.AltJson.Json, name: String): Bool =
   field(j, name) == Stdlib.AltJson.Json.Bool(true)
@@ -270,8 +297,9 @@ let flag(j: Stdlib.AltJson.Json, name: String): Bool =
 // ─── the draft ──────────────────────────────────────────────────────────────
 
 /// `dark status --json`.
-let status(dark: Darklang.Cli.Tests.Instance.T): Stdlib.AltJson.Json =
+let status(dark: Cli.Tests.Instance.T): Stdlib.AltJson.Json =
   json(dark, [ "status", "--json" ])
+
 
 /// What a `status --json` says the draft changes, one line per name, sorted:
 /// `new Tests.A.f`, `updated Tests.A.f`, or `followed Tests.A.caller` for a caller that was
@@ -279,42 +307,59 @@ let status(dark: Darklang.Cli.Tests.Instance.T): Stdlib.AltJson.Json =
 let draftIn(s: Stdlib.AltJson.Json): List<String> =
   rows(field(s, "changed"))
   |> Stdlib.List.map(fun row ->
-    let change = if flag(row, "followed") then "followed" else text(row, "change")
+    let change =
+      if flag(row, "followed") then "followed" else text(row, "change")
+
     $"{change} {text(row, "name")}")
   |> Stdlib.List.sort
 
+
 /// What the draft changes on the branch you are on.
-let draft(dark: Darklang.Cli.Tests.Instance.T): List<String> =
+let draft(dark: Cli.Tests.Instance.T): List<String> =
   draftIn(status(dark))
 
+
 /// What the draft changes on another branch.
-let draftOn(dark: Darklang.Cli.Tests.Instance.T, branch: String): List<String> =
+let draftOn(dark: Cli.Tests.Instance.T, branch: String): List<String> =
   draftIn(json(dark, [ "--branch", branch, "status", "--json" ]))
 
+
 /// How many draft entries point at a version of a name that the name no longer has.
-let staleCallers(dark: Darklang.Cli.Tests.Instance.T): Int64 =
+let staleCallers(dark: Cli.Tests.Instance.T): Int64 =
   number(status(dark), "constraints")
 
-/// The draft holds nothing.
-let draftIsEmpty(dark: Darklang.Cli.Tests.Instance.T, why: String): Stdlib.Test.Result =
-  let s = status(dark)
 
-  if (number(s, "draftOps") == 0) && (Stdlib.List.isEmpty(rows(field(s, "changed")))) then
+/// The draft holds nothing.
+let draftIsEmpty(dark: Cli.Tests.Instance.T, why: String): Stdlib.Test.Result =
+  let s = status(dark)
+  if
+    number(s, "draftOps") == 0 && Stdlib.List.isEmpty(rows(field(s, "changed")))
+  then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"{why}: the draft should be empty, status says {Stdlib.AltJson.format(s)}")
+    Stdlib.Test.fail(
+      $"{why}: the draft should be empty, status says {Stdlib.AltJson.format(s)}")
+
 
 /// The draft holds something.
-let draftIsNotEmpty(dark: Darklang.Cli.Tests.Instance.T, why: String): Stdlib.Test.Result =
+let draftIsNotEmpty(
+  dark: Cli.Tests.Instance.T,
+  why: String)
+  : Stdlib.Test.Result =
   let s = status(dark)
-
   if number(s, "draftOps") > 0 then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"{why}: the draft should hold something, status says {Stdlib.AltJson.format(s)}")
+    Stdlib.Test.fail(
+      $"{why}: the draft should hold something, status says {Stdlib.AltJson.format(s)}")
+
 
 /// `status` says you are on <param expected>.
-let onBranch(dark: Darklang.Cli.Tests.Instance.T, expected: String, why: String): Stdlib.Test.Result =
+let onBranch(
+  dark: Cli.Tests.Instance.T,
+  expected: String,
+  why: String)
+  : Stdlib.Test.Result =
   same(text(status(dark), "branch"), expected, why)
 
 
@@ -325,7 +370,6 @@ let onBranch(dark: Darklang.Cli.Tests.Instance.T, expected: String, why: String)
 let conflictLine(c: Stdlib.AltJson.Json): String =
   let winner = text(c, "autoResolvedTo")
   let sides = rows(field(c, "candidates"))
-
   let kept =
     sides
     |> Stdlib.List.findFirst(fun s -> text(s, "hash") == winner)
@@ -349,52 +393,66 @@ let conflictLine(c: Stdlib.AltJson.Json): String =
 
   $"{name}: {kept} kept over {lost} ({text(c, "reason")})"
 
+
 /// The conflicts a `--json` command reports, one sentence each, sorted.
-let conflictsReportedBy(dark: Darklang.Cli.Tests.Instance.T, args: List<String>): List<String> =
+let conflictsReportedBy(
+  dark: Cli.Tests.Instance.T,
+  args: List<String>)
+  : List<String> =
   rows(field(json(dark, args), "conflicts"))
   |> Stdlib.List.map(conflictLine)
   |> Stdlib.List.sort
 
+
 /// The conflicts recorded and not yet settled, on the branch you are on.
-let conflicts(dark: Darklang.Cli.Tests.Instance.T): List<String> =
+let conflicts(dark: Cli.Tests.Instance.T): List<String> =
   conflictsReportedBy(dark, [ "conflicts", "--json" ])
 
+
 /// The conflicts merging <param branch> would record, without merging it.
-let mergePreview(dark: Darklang.Cli.Tests.Instance.T, branch: String): List<String> =
+let mergePreview(dark: Cli.Tests.Instance.T, branch: String): List<String> =
   conflictsReportedBy(dark, [ "conflicts", "branch", branch, "--json" ])
 
+
 /// The conflict ids a `--json` command reports, in order.
-let conflictIds(dark: Darklang.Cli.Tests.Instance.T, args: List<String>): List<String> =
-  rows(field(json(dark, args), "conflicts")) |> Stdlib.List.map(fun c -> text(c, "id"))
+let conflictIds(dark: Cli.Tests.Instance.T, args: List<String>): List<String> =
+  rows(field(json(dark, args), "conflicts"))
+  |> Stdlib.List.map(fun c -> text(c, "id"))
 
 
 // ─── history and branches ───────────────────────────────────────────────────
 
 /// Commit messages from a `--json` listing, newest first, leaving out the store's own baseline.
-let commitMessages(dark: Darklang.Cli.Tests.Instance.T, args: List<String>): List<String> =
+let commitMessages(
+  dark: Cli.Tests.Instance.T,
+  args: List<String>)
+  : List<String> =
   rows(json(dark, args))
   |> Stdlib.List.map(fun c -> text(c, "message"))
   |> Stdlib.List.filter(fun m -> m != "package reload (baseline)")
 
+
 /// Commit messages on the branch you are on, newest first.
-let commits(dark: Darklang.Cli.Tests.Instance.T): List<String> =
+let commits(dark: Cli.Tests.Instance.T): List<String> =
   commitMessages(dark, [ "commits", "--json" ])
 
+
 /// Commit messages on main, newest first, from wherever you are.
-let commitsOnMain(dark: Darklang.Cli.Tests.Instance.T): List<String> =
+let commitsOnMain(dark: Cli.Tests.Instance.T): List<String> =
   commitMessages(dark, [ "--branch", "main", "commits", "--json" ])
 
+
 /// The newest commit's id.
-let newestCommit(dark: Darklang.Cli.Tests.Instance.T): String =
+let newestCommit(dark: Cli.Tests.Instance.T): String =
   rows(json(dark, [ "commits", "--json" ]))
   |> Stdlib.List.head
   |> Stdlib.Option.map(fun c -> text(c, "hash"))
   |> Stdlib.Option.withDefault("")
 
-/// The newest op's id, from the last line of `ops 1` (`ops` has no `--json`).
-let newestOp(dark: Darklang.Cli.Tests.Instance.T): String =
-  let (_, out, _) = exec(dark, [ "ops", "1" ])
 
+/// The newest op's id, from the last line of `ops 1` (`ops` has no `--json`).
+let newestOp(dark: Cli.Tests.Instance.T): String =
+  let (_, out, _) = exec(dark, [ "ops", "1" ])
   out
   |> Stdlib.String.trim
   |> Stdlib.String.split("\n")
@@ -404,17 +462,22 @@ let newestOp(dark: Darklang.Cli.Tests.Instance.T): String =
   |> Stdlib.List.head
   |> Stdlib.Option.withDefault("")
 
-/// How many lines of `show <newest commit>` set <param name>.
-let timesNewestCommitSets(dark: Darklang.Cli.Tests.Instance.T, name: String): Int64 =
-  let (_, out, _) = exec(dark, [ "show", newestCommit(dark) ])
 
+/// How many lines of `show <newest commit>` set <param name>.
+let timesNewestCommitSets(dark: Cli.Tests.Instance.T, name: String): Int64 =
+  let (_, out, _) = exec(dark, [ "show", newestCommit(dark) ])
   out
   |> Stdlib.String.split("\n")
-  |> Stdlib.List.filter(fun l -> Stdlib.String.startsWith(l, $"SetName {name} "))
+  |> Stdlib.List.filter(fun l ->
+    Stdlib.String.startsWith(l, $"SetName {name} "))
   |> Stdlib.List.length
 
+
 /// Branches from a `--json` listing as `name <- parent`, sorted, with ` [merged]` on merged ones.
-let branchesListedBy(dark: Darklang.Cli.Tests.Instance.T, args: List<String>): List<String> =
+let branchesListedBy(
+  dark: Cli.Tests.Instance.T,
+  args: List<String>)
+  : List<String> =
   let listed = rows(json(dark, args))
 
   // `parentName` is empty when the parent is main, which has no row of its own.
@@ -433,10 +496,12 @@ let branchesListedBy(dark: Darklang.Cli.Tests.Instance.T, args: List<String>): L
     $"{text(b, "name")} <- {parentOf(b)}{merged}")
   |> Stdlib.List.sort
 
+
 /// `dark branches --json`, as `name <- parent` lines.
-let branches(dark: Darklang.Cli.Tests.Instance.T): List<String> =
+let branches(dark: Cli.Tests.Instance.T): List<String> =
   branchesListedBy(dark, [ "branches", "--json" ])
 
+
 /// `dark branches --all --json`.
-let allBranches(dark: Darklang.Cli.Tests.Instance.T): List<String> =
+let allBranches(dark: Cli.Tests.Instance.T): List<String> =
   branchesListedBy(dark, [ "branches", "--all", "--json" ])

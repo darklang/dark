@@ -3,21 +3,23 @@
 /// The helpers are in `helpers.dark`.
 module Darklang.SCM.Tests.Cli
 
-
 test savingAFunctionRepointsItsCallers =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.helper", "1")
       save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 10")
       commit(dark, "base")
-
       says(
         dark,
         [ "fn", "Tests.App.helper", "(): Int64 = 2" ],
         "Tests.App.caller follows",
         "the save names the caller it repointed")
-      same(draft(dark), [ "followed Tests.App.caller", "updated Tests.App.helper" ], "status marks the caller as following")
-      evals(dark, "Tests.App.caller()", "12", "the caller runs the new helper")
 
+      same(
+        draft(dark),
+        [ "followed Tests.App.caller", "updated Tests.App.helper" ],
+        "status marks the caller as following")
+
+      evals(dark, "Tests.App.caller()", "12", "the caller runs the new helper")
       commit(dark, "edit")
       draftIsEmpty(dark, "both commit together") ])
 
@@ -28,16 +30,17 @@ test callersOfCallersFollowOnABranchAndThroughTheMerge =
       save(dark, "Tests.App.g", "(): Int64 = Tests.App.f() + 10")
       save(dark, "Tests.App.h", "(): Int64 = Tests.App.g() + 100")
       commit(dark, "base: h calls g, g calls f")
-
       switch(dark, "feat")
       saveNumber(dark, "Tests.App.f", "2")
       evals(dark, "Tests.App.h()", "112", "h, two calls away, runs the new f")
       same(
         draft(dark),
-        [ "followed Tests.App.g", "followed Tests.App.h", "updated Tests.App.f" ],
+        [ "followed Tests.App.g"
+          "followed Tests.App.h"
+          "updated Tests.App.f" ],
         "both callers follow")
-      commit(dark, "feat changes f")
 
+      commit(dark, "feat changes f")
       switch(dark, "main")
       evals(dark, "Tests.App.h()", "111", "main still runs the old f")
       merge(dark, "feat")
@@ -50,26 +53,25 @@ test editsOnABranchOffABranchFollowAllTheWayToMain =
     [ saveNumber(dark, "Tests.App.f", "1")
       save(dark, "Tests.App.g", "(): Int64 = Tests.App.f() + 10")
       commit(dark, "base: g calls f")
-
       switch(dark, "feat")
       save(dark, "Tests.App.x", "(): Int64 = Tests.App.g() + 100")
       commit(dark, "feat adds x calling g")
-
       switch(dark, "sub")
       saveNumber(dark, "Tests.App.f", "2")
       evals(dark, "Tests.App.g()", "12", "on sub, g follows the new f")
       evals(dark, "Tests.App.x()", "112", "and so does feat's x")
       same(
         draft(dark),
-        [ "followed Tests.App.g", "followed Tests.App.x", "updated Tests.App.f" ],
+        [ "followed Tests.App.g"
+          "followed Tests.App.x"
+          "updated Tests.App.f" ],
         "both callers are in sub's draft")
-      commit(dark, "sub changes f")
 
+      commit(dark, "sub changes f")
       switch(dark, "feat")
       merge(dark, "sub")
       evals(dark, "Tests.App.x()", "112", "merged into feat, x still follows")
       draftIsEmpty(dark, "with nothing left in feat's draft")
-
       switch(dark, "main")
       merge(dark, "feat")
       evals(dark, "Tests.App.f()", "2", "on main, f is the new version")
@@ -83,20 +85,26 @@ test aCallerFollowsAFunctionChangedBackAndForthOnMain =
     [ saveNumber(dark, "Tests.App.f", "1")
       save(dark, "Tests.App.g", "(): Int64 = Tests.App.f() * 10")
       commit(dark, "base: g calls f")
-
       saveNumber(dark, "Tests.App.f", "2")
       evals(dark, "Tests.App.g()", "20", "f is 2")
       saveNumber(dark, "Tests.App.f", "1")
       evals(dark, "Tests.App.g()", "10", "f is back to 1")
       saveNumber(dark, "Tests.App.f", "2")
       evals(dark, "Tests.App.g()", "20", "f is 2 again")
-
       commit(dark, "f is 2")
       saveNumber(dark, "Tests.App.f", "1")
       commit(dark, "f is 1")
       saveNumber(dark, "Tests.App.f", "2")
-      evals(dark, "Tests.App.g()", "20", "the same back and forth across commits")
-      same(draft(dark), [ "followed Tests.App.g", "updated Tests.App.f" ], "g follows in the draft") ])
+      evals(
+        dark,
+        "Tests.App.g()",
+        "20",
+        "the same back and forth across commits")
+
+      same(
+        draft(dark),
+        [ "followed Tests.App.g", "updated Tests.App.f" ],
+        "g follows in the draft") ])
 
 
 test aCallerFollowsAFunctionChangedBackAndForthOnABranch =
@@ -104,15 +112,17 @@ test aCallerFollowsAFunctionChangedBackAndForthOnABranch =
     [ saveNumber(dark, "Tests.App.f", "1")
       save(dark, "Tests.App.g", "(): Int64 = Tests.App.f() * 10")
       commit(dark, "base: g calls f")
-
       switch(dark, "feat")
       saveNumber(dark, "Tests.App.f", "2")
       saveNumber(dark, "Tests.App.f", "1")
       saveNumber(dark, "Tests.App.f", "2")
       evals(dark, "Tests.App.g()", "20", "after 2, 1, 2, g runs f = 2")
-      same(draft(dark), [ "updated Tests.App.f", "updated Tests.App.g" ], "both are in the branch's draft")
-      commit(dark, "feat changes f")
+      same(
+        draft(dark),
+        [ "updated Tests.App.f", "updated Tests.App.g" ],
+        "both are in the branch's draft")
 
+      commit(dark, "feat changes f")
       switch(dark, "main")
       merge(dark, "feat")
       evals(dark, "Tests.App.f()", "2", "the merge lands f = 2")
@@ -127,46 +137,57 @@ test aCallerFollowsAFunctionChangedBackAndForthOnABranch =
 // reload does not have.
 test savingAFunctionAndItsCalleeTogetherLeavesNoStaleCaller =
   scenario(fun dark ->
-    let path = Darklang.Cli.Tests.Instance.home(dark) + "/pair.dark"
+    let path = Cli.Tests.Instance.home(dark) + "/pair.dark"
     let write(source: String): Stdlib.Test.Result =
       match Stdlib.Cli.File.writeAtomic(path, source) with
       | Ok(_) -> Stdlib.Test.Result.Pass
       | Error(e) -> Stdlib.Test.fail($"could not write {path}: {e.message}")
+
     [ write("let b(x: Int64): Int64 = x + 1\nlet a(x: Int64): Int64 = b(x) * 2")
       run(dark, [ "module", "/Tests.Pair", path ])
       save(dark, "Tests.App.c", "(x: Int64): Int64 = Tests.Pair.a(x) + 100")
       commit(dark, "base")
+      write(
+        "let b(x: Int64): Int64 = x + 10\nlet a(x: Int64): Int64 = b(x) * 3")
 
-      write("let b(x: Int64): Int64 = x + 10\nlet a(x: Int64): Int64 = b(x) * 3")
       run(dark, [ "module", "/Tests.Pair", path ])
       evals(dark, "Tests.App.c(1)", "133", "the caller runs both edits")
       same(staleCallers(dark), 0, "and nothing reads as on an old version") ])
 
 
 /// A helper return-type change must expose an incompatible saved Display.
-test savedDisplayMustMatchTheChangedReturnType =
-  scenario(fun dark ->
-    let caller = "(n: Int64): String = $\"<{Tests.ReturnChange.h(n)}>\""
-    [ save(dark, "Tests.ReturnChange.h", "(n: Int64): String = $\"{n}\"")
-      save(dark, "Tests.ReturnChange.a", caller)
-      run(dark, [ "typecheck", "Tests.ReturnChange" ])
-      save(
-        dark,
-        "Tests.ReturnChange.h",
-        "(n: Int64): Result<String, String> = Ok($\"{n}\")")
-      (let (code, _, audit) = exec(dark, [ "typecheck", "Tests.ReturnChange" ])
-       Stdlib.Test.all(
-         [ same(code, 1, "the stale implementation fails the audit")
-           Darklang.Cli.Tests.Instance.says(
-             audit, "Tests.ReturnChange.a", "the audit names the caller")
-           Darklang.Cli.Tests.Instance.says(
-             audit, "expected String", "the saved Display expects String")
-           Darklang.Cli.Tests.Instance.says(
-             audit, "Result", "the helper now returns Result") ]))
-      save(dark, "Tests.ReturnChange.a", caller)
-      run(dark, [ "typecheck", "Tests.ReturnChange" ])
-      evals(
-        dark,
-        "Tests.ReturnChange.a(1)",
-        "<Ok(1)>",
-        "the re-saved caller uses Result's Display") ])
+test savedDisplayMustMatchTheChangedReturnType = scenario(fun dark ->
+  let caller = "(n: Int64): String = $\"<{Tests.ReturnChange.h(n)}>\""
+  [ save(dark, "Tests.ReturnChange.h", "(n: Int64): String = $\"{n}\"")
+    save(dark, "Tests.ReturnChange.a", caller)
+    run(dark, [ "typecheck", "Tests.ReturnChange" ])
+    save(
+      dark,
+      "Tests.ReturnChange.h",
+      "(n: Int64): Result<String, String> = Ok($\"{n}\")")
+
+    (let (code, _, audit) = exec(dark, [ "typecheck", "Tests.ReturnChange" ])
+     Stdlib.Test.all(
+       [ same(code, 1, "the stale implementation fails the audit")
+         Cli.Tests.Instance.says(
+           audit,
+           "Tests.ReturnChange.a",
+           "the audit names the caller")
+
+         Cli.Tests.Instance.says(
+           audit,
+           "expected String",
+           "the saved Display expects String")
+
+         Cli.Tests.Instance.says(
+           audit,
+           "Result",
+           "the helper now returns Result") ]))
+
+    save(dark, "Tests.ReturnChange.a", caller)
+    run(dark, [ "typecheck", "Tests.ReturnChange" ])
+    evals(
+      dark,
+      "Tests.ReturnChange.a(1)",
+      "<Ok(1)>",
+      "the re-saved caller uses Result's Display") ])

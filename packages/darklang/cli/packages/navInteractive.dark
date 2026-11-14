@@ -6,14 +6,18 @@ type NavItem =
     entityType: EntityType
     location: PackageLocation }
 
+
 type Display =
   | JustName
   | Source
-  // | AST  // future: show AST view
+
+
+// | AST  // future: show AST view
 
 type Mode =
   | Nav
   | Search
+
 
 type State =
   { items: List<NavItem>
@@ -35,7 +39,7 @@ type State =
 /// A running navigation model and its process-local presentation state.
 type Session =
   { state: State
-    terminal: Darklang.Stdlib.Cli.Tui.TerminalSession.State }
+    terminal: Stdlib.Cli.Tui.TerminalSession.State }
 
 
 /// Navigation regions derived from one terminal-size sample.
@@ -69,18 +73,9 @@ let helpSections(mode: Mode, display: Display): List<String> =
       "Space Hide view"
       "PgUp/PgDn Preview"
       "Esc Close" ]
-  | Search, JustName ->
-    [ "Type to search"
-      "↑↓ Select"
-      "Space View"
-      "Enter Choose"
-      "Esc Back" ]
+  | Search, JustName -> [ "Type to search", "↑↓ Select", "Space View", "Enter Choose", "Esc Back" ]
   | Search, Source ->
-    [ "Type to search"
-      "↑↓ Select"
-      "Space Hide view"
-      "PgUp/PgDn Preview"
-      "Esc Back" ]
+    [ "Type to search", "↑↓ Select", "Space Hide view", "PgUp/PgDn Preview", "Esc Back" ]
 
 
 let packHelpRows(
@@ -90,43 +85,21 @@ let packHelpRows(
   rows: List<String>)
   : List<String> =
   match sections with
-  | [] ->
-    if current == "" then rows
-    else Stdlib.List.append(rows, current)
+  | [] -> if current == "" then rows else Stdlib.List.append(rows, current)
   | [section, ...remaining] ->
-    let candidate =
-      if current == "" then section
-      else current + " • " + section
-
+    let candidate = if current == "" then section else current + " • " + section
     if Stdlib.String.displayWidth(candidate) <= width then
       packHelpRows(width, remaining, candidate, rows)
     else if current != "" then
-      packHelpRows(
-        width,
-        sections,
-        "",
-        Stdlib.List.append(rows, current))
+      packHelpRows(width, sections, "", Stdlib.List.append(rows, current))
     else
-      let wrapped =
-        Darklang.Stdlib.Cli.Tui.Text.wrapAtColumn(section, width)
-      packHelpRows(
-        width,
-        remaining,
-        "",
-        Stdlib.List.concat(rows, wrapped))
+      let wrapped = Stdlib.Cli.Tui.Text.wrapAtColumn(section, width)
+      packHelpRows(width, remaining, "", Stdlib.List.concat(rows, wrapped))
 
 
 /// Fit navigation help into complete rows without truncating an action.
-let helpRowsAtWidth(
-  mode: Mode,
-  display: Display,
-  width: Int64)
-  : List<String> =
-  packHelpRows(
-    Stdlib.max(1, width),
-    helpSections(mode, display),
-    "",
-    [])
+let helpRowsAtWidth(mode: Mode, display: Display, width: Int64): List<String> =
+  packHelpRows(Stdlib.max(1, width), helpSections(mode, display), "", [])
 
 
 /// How nav items name what they point at: a listing of one module shows `map`, a search across
@@ -135,6 +108,7 @@ type Names =
   | Short
   | Full
 
+
 /// The leaf kinds of a result set as nav items, in `Glyphs.kindOrder`. <param names> is the only
 /// thing a listing of one module and a search across the tree disagree about. The submodule row is
 /// each caller's own, because they ask different questions of `results`.
@@ -142,9 +116,7 @@ let leafNavItems(
   results: LanguageTools.ProgramTypes.Search.SearchResults,
   names: Names)
   : List<NavItem> =
-  let nameOf(
-    location: LanguageTools.ProgramTypes.PackageLocation)
-    : String =
+  let nameOf(location: LanguageTools.ProgramTypes.PackageLocation): String =
     match names with
     | Short -> location.name
     | Full -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(location)
@@ -152,32 +124,50 @@ let leafNavItems(
   let types =
     results.types
     |> Stdlib.List.map(fun t ->
-      NavItem { name = nameOf(t.location), entityType = EntityType.Type, location = PackageLocation.Type(t.location) })
+      NavItem
+        { name = nameOf(t.location)
+          entityType = EntityType.Type
+          location = PackageLocation.Type(t.location) })
 
   let functions =
     results.fns
     |> Stdlib.List.map(fun fn ->
-      NavItem { name = nameOf(fn.location), entityType = EntityType.Function, location = PackageLocation.Function(fn.location) })
+      NavItem
+        { name = nameOf(fn.location)
+          entityType = EntityType.Function
+          location = PackageLocation.Function(fn.location) })
 
   let values =
     results.values
     |> Stdlib.List.map(fun v ->
-      NavItem { name = nameOf(v.location), entityType = EntityType.Value, location = PackageLocation.Value(v.location) })
+      NavItem
+        { name = nameOf(v.location)
+          entityType = EntityType.Value
+          location = PackageLocation.Value(v.location) })
 
   let traits =
     results.traits
     |> Stdlib.List.map(fun t ->
-      NavItem { name = nameOf(t.location), entityType = EntityType.Trait, location = PackageLocation.Trait(t.location) })
+      NavItem
+        { name = nameOf(t.location)
+          entityType = EntityType.Trait
+          location = PackageLocation.Trait(t.location) })
 
   let impls =
     results.impls
     |> Stdlib.List.map(fun i ->
-      NavItem { name = nameOf(i.location), entityType = EntityType.Impl, location = PackageLocation.Impl(i.location) })
+      NavItem
+        { name = nameOf(i.location)
+          entityType = EntityType.Impl
+          location = PackageLocation.Impl(i.location) })
 
   let tests =
     results.tests
     |> Stdlib.List.map(fun test ->
-      NavItem { name = nameOf(test.location), entityType = EntityType.Test, location = PackageLocation.Test(test.location) })
+      NavItem
+        { name = nameOf(test.location)
+          entityType = EntityType.Test
+          location = PackageLocation.Test(test.location) })
 
   Stdlib.List.flatten([ types, functions, values, traits, impls, tests ])
 
@@ -187,11 +177,13 @@ let buildNavItemsFromResults(
   modulePath: List<String>)
   : List<NavItem> =
   let currentPathLength = Stdlib.List.length(modulePath)
-
   let submodules =
-    (Query.getDirectSubmodules(results, currentPathLength))
+    Query.getDirectSubmodules(results, currentPathLength)
     |> Stdlib.List.map(fun name ->
-      NavItem { name = name, entityType = EntityType.Module, location = PackageLocation.Module(Stdlib.List.append(modulePath, name)) })
+      NavItem
+        { name = name
+          entityType = EntityType.Module
+          location = PackageLocation.Module(Stdlib.List.append(modulePath, name)) })
 
   Stdlib.List.flatten([ submodules, leafNavItems(results, Names.Short) ])
 
@@ -203,7 +195,6 @@ let buildState(branchId: Uuid, location: PackageLocation): State =
   // Get all entities in this location
   let results = Query.withoutInternal(Query.allDirectDescendants(branchId, modulePath))
   let allItems = buildNavItemsFromResults(results, modulePath)
-
   State
     { items = allItems
       selectedIndex = 0
@@ -217,28 +208,21 @@ let buildState(branchId: Uuid, location: PackageLocation): State =
       focusScrollOffset = 0
       branchId = branchId }
 
+
 // Load truncated focus rows without printing them.
-let loadFocusRows(
-  branchId: Uuid,
-  location: PackageLocation)
-  : List<String> =
+let loadFocusRows(branchId: Uuid, location: PackageLocation): List<String> =
   let maxItemsPerCategory = 3
   let maxTotalLines = 12
-
   match location with
   | Module(path) ->
     let results = Query.withoutInternal(Query.allDirectDescendants(branchId, path))
-    let locationStr = Packages.formatLocation(location)
-
+    let locationStr = formatLocation(location)
     let currentPathLength = Stdlib.List.length(path)
     let directSubmodules = Query.getDirectSubmodules(results, currentPathLength)
-
     let (submoduleRows, lineCount) =
       if Stdlib.Bool.not(Stdlib.List.isEmpty(directSubmodules)) then
         let itemsToShow = Stdlib.List.take(directSubmodules, maxItemsPerCategory)
-
-        let remaining = (Stdlib.List.length(directSubmodules)) - maxItemsPerCategory
-
+        let remaining = Stdlib.List.length(directSubmodules) - maxItemsPerCategory
         let remainingRows =
           if remaining > 0 then
             [ $"  ... and {Stdlib.display(remaining)} more modules" ]
@@ -246,11 +230,10 @@ let loadFocusRows(
             []
 
         let rows =
-          Stdlib.List.flatten([
-            [ Display.getSectionHeader("submodule") ]
-            itemsToShow |> Stdlib.List.map(fun name -> $"  {name}/")
-            remainingRows
-          ])
+          Stdlib.List.flatten(
+            [ [ Display.getSectionHeader("submodule") ]
+              itemsToShow |> Stdlib.List.map(fun name -> $"  {name}/")
+              remainingRows ])
 
         (rows, 1 + Stdlib.List.length(rows))
       else
@@ -260,22 +243,19 @@ let loadFocusRows(
       if lineCount < maxTotalLines then
         let remainingLines = maxTotalLines - lineCount
         let itemsPerRemaining = Stdlib.min(2, remainingLines)
-
         if Stdlib.Bool.not(Stdlib.List.isEmpty(results.types)) && itemsPerRemaining > 0 then
           let typesToShow = Stdlib.List.take(results.types, itemsPerRemaining)
-
-          let remaining = (Stdlib.List.length(results.types)) - itemsPerRemaining
+          let remaining = Stdlib.List.length(results.types) - itemsPerRemaining
           let remainingRows =
             if remaining > 0 then
               [ $"  ... and {Stdlib.display(remaining)} more types" ]
             else
               []
 
-          Stdlib.List.flatten([
-            [ Display.getSectionHeader("type") ]
-            typesToShow |> Stdlib.List.map(fun item -> $"  {item.location.name}")
-            remainingRows
-          ])
+          Stdlib.List.flatten(
+            [ [ Display.getSectionHeader("type") ]
+              typesToShow |> Stdlib.List.map(fun item -> $"  {item.location.name}")
+              remainingRows ])
         else
           []
       else
@@ -290,57 +270,33 @@ let loadFocusRows(
 /// Refresh derived focus content after a state transition.
 let refreshFocusRows(navState: State): State =
   match navState.display with
-  | JustName ->
-    { navState with
-        focusRows = []
-        focusScrollOffset = 0 }
+  | JustName -> { navState with focusRows = [], focusScrollOffset = 0 }
   | Source ->
     let rows =
       match Stdlib.List.getAt(navState.items, navState.selectedIndex) with
-      | Some(selectedItem) ->
-        loadFocusRows(navState.branchId, selectedItem.location)
+      | Some(selectedItem) -> loadFocusRows(navState.branchId, selectedItem.location)
       | None -> []
 
-    { navState with
-        focusRows = rows
-        focusScrollOffset = 0 }
+    { navState with focusRows = rows, focusScrollOffset = 0 }
 
 
 /// Calculate navigation regions for the complete terminal viewport.
-let layout(
-  navState: State,
-  size: Darklang.Stdlib.Cli.Tui.Size)
-  : Layout =
+let layout(navState: State, size: Stdlib.Cli.Tui.Size): Layout =
   let width = Stdlib.max(1, size.width)
   let contentHeight = Stdlib.max(1, size.height)
-
   let headerHeight =
     match navState.mode with
     | Nav -> 2
     | Search -> 4
 
-  let helpHeight =
-    helpRowsAtWidth(navState.mode, navState.display, width)
-    |> Stdlib.List.length
-
+  let helpHeight = helpRowsAtWidth(navState.mode, navState.display, width) |> Stdlib.List.length
   let hasFocus =
-    navState.display == Display.Source
-    && Stdlib.Bool.not(Stdlib.List.isEmpty(navState.focusRows))
+    navState.display == Display.Source && Stdlib.Bool.not(Stdlib.List.isEmpty(navState.focusRows))
 
-  let availableBodyHeight =
-    Stdlib.max(
-      0,
-      contentHeight - headerHeight - helpHeight)
-
-  let sideBySide =
-    hasFocus && width >= 120 && availableBodyHeight >= 5
-
-  let bodyHeight =
-    availableBodyHeight - (if sideBySide then 1 else 0)
-
-  let desiredFocusHeight =
-    if hasFocus then Stdlib.List.length(navState.focusRows) + 1 else 0
-
+  let availableBodyHeight = Stdlib.max(0, contentHeight - headerHeight - helpHeight)
+  let sideBySide = hasFocus && width >= 120 && availableBodyHeight >= 5
+  let bodyHeight = availableBodyHeight - (if sideBySide then 1 else 0)
+  let desiredFocusHeight = if hasFocus then Stdlib.List.length(navState.focusRows) + 1 else 0
   let maximumStackedFocusHeight =
     Stdlib.Int64.checkedDivide(bodyHeight * 60, 100) |> Stdlib.Result.withDefault(0)
 
@@ -350,51 +306,38 @@ let layout(
     else
       Stdlib.min(desiredFocusHeight, maximumStackedFocusHeight)
 
-  let itemViewportHeight =
-    if sideBySide then bodyHeight else bodyHeight - focusHeight
+  let itemViewportHeight = if sideBySide then bodyHeight else bodyHeight - focusHeight
 
   let listWidth =
     if sideBySide then
-      Stdlib.max(
-        30,
-        (Stdlib.Int64.checkedDivide((width - 1) * 2, 5) |> Stdlib.Result.withDefault(0)))
+      Stdlib.max(30, Stdlib.Int64.checkedDivide((width - 1) * 2, 5) |> Stdlib.Result.withDefault(0))
     else
       width
 
-  let focusWidth =
-    if sideBySide then width - listWidth - 1 else width
-
-  Layout {
-    width = width
-    contentHeight = contentHeight
-    bodyHeight = bodyHeight
-    helpHeight = helpHeight
-    itemViewportHeight = itemViewportHeight
-    focusHeight = focusHeight
-    focusContentHeight = Stdlib.max(0, focusHeight - 1)
-    sideBySide = sideBySide
-    listWidth = listWidth
-    focusWidth = focusWidth
-  }
+  let focusWidth = if sideBySide then width - listWidth - 1 else width
+  Layout
+    { width = width
+      contentHeight = contentHeight
+      bodyHeight = bodyHeight
+      helpHeight = helpHeight
+      itemViewportHeight = itemViewportHeight
+      focusHeight = focusHeight
+      focusContentHeight = Stdlib.max(0, focusHeight - 1)
+      sideBySide = sideBySide
+      listWidth = listWidth
+      focusWidth = focusWidth }
 
 
 /// Build the complete desired navigation view for one terminal-size sample.
-let viewAtSize(
-  navState: State,
-  size: Darklang.Stdlib.Cli.Tui.Size)
-  : Darklang.Stdlib.Cli.Tui.View =
+let viewAtSize(navState: State, size: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.View =
   let regions = layout(navState, size)
-  let clip = fun text -> Darklang.Stdlib.Cli.Tui.Text.clipToWidth(text, regions.width)
-  let itemClip =
-    fun text ->
-      Darklang.Stdlib.Cli.Tui.Text.clipToWidth(text, regions.listWidth)
-  let focusClip =
-    fun text ->
-      Darklang.Stdlib.Cli.Tui.Text.clipToWidth(text, regions.focusWidth)
+  let clip = fun text -> Stdlib.Cli.Tui.Text.clipToWidth(text, regions.width)
+  let itemClip = fun text -> Stdlib.Cli.Tui.Text.clipToWidth(text, regions.listWidth)
+  let focusClip = fun text -> Stdlib.Cli.Tui.Text.clipToWidth(text, regions.focusWidth)
   let horizontalRule(line: String): String =
-    (Stdlib.String.checkedRepeat(line, regions.width) |> Stdlib.Result.withDefault(""))
-  let locationStr = Packages.formatLocation(navState.currentLocation)
+    Stdlib.String.checkedRepeat(line, regions.width) |> Stdlib.Result.withDefault("")
 
+  let locationStr = formatLocation(navState.currentLocation)
   let headerPrefix =
     match navState.mode with
     | Nav -> "🗂️"
@@ -416,40 +359,30 @@ let viewAtSize(
         clip($"  {navState.searchQuery}_")
         horizontalRule("━") ]
 
-  let totalItems = (Stdlib.List.length(navState.items))
-
+  let totalItems = Stdlib.List.length(navState.items)
   let itemRows =
     if regions.itemViewportHeight <= 0 then
       []
     else if totalItems == 0 then
       [ "  (empty directory)" ]
     else
-      let maxOffset =
-        Stdlib.max(0, totalItems - regions.itemViewportHeight)
+      let maxOffset = Stdlib.max(0, totalItems - regions.itemViewportHeight)
       let desiredOffset =
         if navState.selectedIndex < navState.scrollOffset then
           navState.selectedIndex
-        else if
-          navState.selectedIndex
-          >= navState.scrollOffset + regions.itemViewportHeight
-        then
+        else if navState.selectedIndex >= navState.scrollOffset + regions.itemViewportHeight then
           navState.selectedIndex - regions.itemViewportHeight + 1
         else
           navState.scrollOffset
-      let startIndex =
-        Stdlib.min(maxOffset, Stdlib.max(0, desiredOffset))
-      let endIndex =
-        Stdlib.min(
-          startIndex + regions.itemViewportHeight,
-          totalItems)
 
+      let startIndex = Stdlib.min(maxOffset, Stdlib.max(0, desiredOffset))
+      let endIndex = Stdlib.min(startIndex + regions.itemViewportHeight, totalItems)
       navState.items
       |> Stdlib.List.drop(startIndex)
       |> Stdlib.List.take(endIndex - startIndex)
       |> Stdlib.List.indexedMap(fun(relativeIndex, item) ->
         let absoluteIndex = startIndex + relativeIndex
         let isSelected = absoluteIndex == navState.selectedIndex
-
         let icon = Display.getIcon(item.entityType)
         let cursor = if isSelected then "> " else "  "
         let nameDisplay =
@@ -477,20 +410,16 @@ let viewAtSize(
       []
     else
       let totalRows = Stdlib.List.length(navState.focusRows)
-      let maxOffset =
-        Stdlib.max(0, totalRows - regions.focusContentHeight)
-      let offset =
-        Stdlib.min(
-          maxOffset,
-          Stdlib.max(0, navState.focusScrollOffset))
+      let maxOffset = Stdlib.max(0, totalRows - regions.focusContentHeight)
+      let offset = Stdlib.min(maxOffset, Stdlib.max(0, navState.focusScrollOffset))
       let visibleRows =
         navState.focusRows
         |> Stdlib.List.drop(offset)
         |> Stdlib.List.take(regions.focusContentHeight)
         |> Stdlib.List.map(focusClip)
+
       let startRow = if totalRows == 0 then 0 else offset + 1
-      let endRow =
-        Stdlib.min(totalRows, offset + Stdlib.List.length(visibleRows))
+      let endRow = Stdlib.min(totalRows, offset + Stdlib.List.length(visibleRows))
       let position =
         if totalRows > regions.focusContentHeight then
           let startText = Stdlib.display(startRow)
@@ -499,124 +428,79 @@ let viewAtSize(
           $"Preview {startText}-{endText} of {totalText} • PgUp/PgDn scroll"
         else
           $"Preview • {Stdlib.display(totalRows)} rows"
+
       let heading =
         if regions.sideBySide then
           Stdlib.Cli.UI.Colors.hint(focusClip(position))
         else
           Stdlib.Cli.UI.Colors.hint(focusClip("─ " + position))
+
       Stdlib.List.prepend(visibleRows, heading)
 
   let helpRows =
     let styledRows =
-      helpRowsAtWidth(
-        navState.mode,
-        navState.display,
-        regions.width)
+      helpRowsAtWidth(navState.mode, navState.display, regions.width)
       |> Stdlib.List.map(Stdlib.Cli.UI.Colors.hint)
-    Darklang.Stdlib.Cli.Tui.Layout.fitRows(regions.helpHeight, styledRows)
 
-  let fittedItemRows =
-    Darklang.Stdlib.Cli.Tui.Layout.fitRows(
-      regions.itemViewportHeight,
-      itemRows)
+    Stdlib.Cli.Tui.Layout.fitRows(regions.helpHeight, styledRows)
 
-  let fittedFocusRows =
-    Darklang.Stdlib.Cli.Tui.Layout.fitRows(
-      regions.focusHeight,
-      focusRows)
-
+  let fittedItemRows = Stdlib.Cli.Tui.Layout.fitRows(regions.itemViewportHeight, itemRows)
+  let fittedFocusRows = Stdlib.Cli.Tui.Layout.fitRows(regions.focusHeight, focusRows)
   let bodyRows =
     if regions.sideBySide then
-      Stdlib.List.map2Shortest(
-        fittedItemRows,
-        fittedFocusRows,
-        fun(itemRow, focusRow) ->
-          Darklang.Stdlib.Cli.Tui.Text.fitToWidth(
-            itemRow,
-            regions.listWidth)
-          + Stdlib.Cli.UI.Colors.dimText("│")
-          + focusClip(" " + focusRow))
+      Stdlib.List.map2Shortest(fittedItemRows, fittedFocusRows, fun(itemRow, focusRow) ->
+        Stdlib.Cli.Tui.Text.fitToWidth(itemRow, regions.listWidth)
+        + Stdlib.Cli.UI.Colors.dimText("│")
+        + focusClip(" " + focusRow))
     else
       Stdlib.List.concat(fittedItemRows, fittedFocusRows)
 
-  let footerRuleRows =
-    if regions.sideBySide then [ horizontalRule("─") ] else []
-
+  let footerRuleRows = if regions.sideBySide then [ horizontalRule("─") ] else []
   let rows =
-    let desiredRows =
-      Stdlib.List.flatten([
-        headerRows
-        bodyRows
-        footerRuleRows
-        helpRows
-      ])
-    Darklang.Stdlib.Cli.Tui.Layout.fitRows(regions.contentHeight, desiredRows)
+    let desiredRows = Stdlib.List.flatten([ headerRows, bodyRows, footerRuleRows, helpRows ])
+    Stdlib.Cli.Tui.Layout.fitRows(regions.contentHeight, desiredRows)
 
-  Darklang.Stdlib.Cli.Tui.View {
-    rows = rows
-    cursor = Darklang.Stdlib.Cli.Tui.Cursor.Hidden
-    mode = Darklang.Stdlib.Cli.Tui.ViewMode.Fullscreen
-  }
+  Stdlib.Cli.Tui.View
+    { rows = rows
+      cursor = Stdlib.Cli.Tui.Cursor.Hidden
+      mode = Stdlib.Cli.Tui.ViewMode.Fullscreen }
 
 
 /// Start navigation and present its first complete frame.
-let start(
-  navState: State)
-  : Stdlib.Result.Result<Session, String> =
-  let size = Darklang.Stdlib.Cli.Tui.TerminalSession.currentSize()
-  match
-    Darklang.Stdlib.Cli.Tui.TerminalSession.startAtSize(
-      size,
-      viewAtSize(navState, size))
-  with
-  | Ok(terminal) ->
-    Session { state = navState, terminal = terminal }
-    |> Stdlib.Result.Result.Ok
-  | Error(message) ->
-    Stdlib.Result.Result.Error(message)
+let start(navState: State): Result<Session, String> =
+  let size = Stdlib.Cli.Tui.TerminalSession.currentSize()
+  match Stdlib.Cli.Tui.TerminalSession.startAtSize(size, viewAtSize(navState, size)) with
+  | Ok(terminal) -> Session { state = navState, terminal = terminal } |> Result.Ok
+  | Error(message) -> Result.Error(message)
 
 
 /// Present the next navigation model using an already sampled terminal size.
-let presentAtSize(
-  session: Session,
-  size: Darklang.Stdlib.Cli.Tui.Size,
-  navState: State)
-  : Session =
+let presentAtSize(session: Session, size: Stdlib.Cli.Tui.Size, navState: State): Session =
   let terminal =
-    Darklang.Stdlib.Cli.Tui.TerminalSession.presentAtSize(
-      session.terminal,
-      size,
-      viewAtSize(navState, size))
+    Stdlib.Cli.Tui.TerminalSession.presentAtSize(session.terminal, size, viewAtSize(navState, size))
 
   Session { state = navState, terminal = terminal }
 
 
 /// Present the next navigation model while retaining renderer history.
 let presentState(session: Session, navState: State): Session =
-  let size = Darklang.Stdlib.Cli.Tui.TerminalSession.currentSize()
+  let size = Stdlib.Cli.Tui.TerminalSession.currentSize()
   presentAtSize(session, size, navState)
 
 
 /// Put a presented navigation model back into the CLI application state.
-let show(
-  state: Cli.AppState,
-  session: Session,
-  navState: State)
-  : Cli.AppState =
-  { state with
-      currentPage = Page.InteractiveNav(presentState(session, navState)) }
+let show(state: AppState, session: Session, navState: State): AppState =
+  { state with currentPage = Page.InteractiveNav(presentState(session, navState)) }
 
 
 /// Put a navigation model presented at an existing size sample into CLI state.
 let showAtSize(
-  state: Cli.AppState,
+  state: AppState,
   session: Session,
-  size: Darklang.Stdlib.Cli.Tui.Size,
+  size: Stdlib.Cli.Tui.Size,
   navState: State)
-  : Cli.AppState =
-  { state with
-      currentPage =
-        Page.InteractiveNav(presentAtSize(session, size, navState)) }
+  : AppState =
+  { state with currentPage = Page.InteractiveNav(presentAtSize(session, size, navState)) }
 
 
 let scrollOffsetForSelection(
@@ -640,23 +524,14 @@ let scrollOffsetForSelection(
     Stdlib.min(maxOffset, Stdlib.max(0, offset))
 
 
-let withFocusScrollOffset(
-  navState: State,
-  focusContentHeight: Int64,
-  offset: Int64)
-  : State =
-  let maxOffset =
-    Stdlib.max(
-      0,
-      Stdlib.List.length(navState.focusRows) - focusContentHeight)
-  { navState with
-      focusScrollOffset =
-        Stdlib.min(maxOffset, Stdlib.max(0, offset)) }
+let withFocusScrollOffset(navState: State, focusContentHeight: Int64, offset: Int64): State =
+  let maxOffset = Stdlib.max(0, Stdlib.List.length(navState.focusRows) - focusContentHeight)
+  { navState with focusScrollOffset = Stdlib.min(maxOffset, Stdlib.max(0, offset)) }
 
 
 // Navigation helper functions
 let moveUp(navState: State, viewportHeight: Int64): State =
-  let totalItems = (Stdlib.List.length(navState.items))
+  let totalItems = Stdlib.List.length(navState.items)
   if totalItems > 0 then
     let newIndex =
       if navState.selectedIndex > 0 then
@@ -665,21 +540,15 @@ let moveUp(navState: State, viewportHeight: Int64): State =
         totalItems - 1
 
     let newScrollOffset =
-      scrollOffsetForSelection(
-        newIndex,
-        navState.scrollOffset,
-        viewportHeight,
-        totalItems)
+      scrollOffsetForSelection(newIndex, navState.scrollOffset, viewportHeight, totalItems)
 
-    { navState with
-        selectedIndex = newIndex
-        scrollOffset = newScrollOffset }
-    |> refreshFocusRows
+    { navState with selectedIndex = newIndex, scrollOffset = newScrollOffset } |> refreshFocusRows
   else
     navState
 
+
 let moveDown(navState: State, viewportHeight: Int64): State =
-  let totalItems = (Stdlib.List.length(navState.items))
+  let totalItems = Stdlib.List.length(navState.items)
   if totalItems > 0 then
     let newIndex =
       if navState.selectedIndex < totalItems - 1 then
@@ -688,44 +557,27 @@ let moveDown(navState: State, viewportHeight: Int64): State =
         0
 
     let newScrollOffset =
-      scrollOffsetForSelection(
-        newIndex,
-        navState.scrollOffset,
-        viewportHeight,
-        totalItems)
+      scrollOffsetForSelection(newIndex, navState.scrollOffset, viewportHeight, totalItems)
 
-    { navState with
-        selectedIndex = newIndex
-        scrollOffset = newScrollOffset }
-    |> refreshFocusRows
+    { navState with selectedIndex = newIndex, scrollOffset = newScrollOffset } |> refreshFocusRows
   else
     navState
 
-let exitToMainPrompt(
-  state: Cli.AppState,
-  session: Session)
-  : Cli.AppState =
-  let _stoppedTerminal =
-    Darklang.Stdlib.Cli.Tui.TerminalSession.stop(session.terminal)
 
-  { state with
-      currentPage = Page.MainPrompt
-      prompt = Prompt.Editing.clear(state.prompt) }
+let exitToMainPrompt(state: AppState, session: Session): AppState =
+  let _stoppedTerminal = Stdlib.Cli.Tui.TerminalSession.stop(session.terminal)
+  { state with currentPage = Page.MainPrompt, prompt = Prompt.Editing.clear(state.prompt) }
 
-let selectAndExit(
-  state: Cli.AppState,
-  session: Session)
-  : Cli.AppState =
+
+let selectAndExit(state: AppState, session: Session): AppState =
   let navState = session.state
-  let totalItems = (Stdlib.List.length(navState.items))
-
+  let totalItems = Stdlib.List.length(navState.items)
   if totalItems > 0 then
     match Stdlib.List.getAt(navState.items, navState.selectedIndex) with
     | Some(selectedItem) ->
-      let _stoppedTerminal =
-        Darklang.Stdlib.Cli.Tui.TerminalSession.stop(session.terminal)
+      let _stoppedTerminal = Stdlib.Cli.Tui.TerminalSession.stop(session.terminal)
       let newState = Nav.navTo(state, selectedItem.location)
-      let locationStr = Packages.formatLocation(selectedItem.location)
+      let locationStr = formatLocation(selectedItem.location)
       Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"Selected: {locationStr}"))
       { newState with
           currentPage = Page.MainPrompt
@@ -734,13 +586,10 @@ let selectAndExit(
   else
     exitToMainPrompt(state, session)
 
-let navigateIntoModule(
-  state: Cli.AppState,
-  session: Session)
-  : Cli.AppState =
-  let navState = session.state
-  let totalItems = (Stdlib.List.length(navState.items))
 
+let navigateIntoModule(state: AppState, session: Session): AppState =
+  let navState = session.state
+  let totalItems = Stdlib.List.length(navState.items)
   if totalItems > 0 then
     match Stdlib.List.getAt(navState.items, navState.selectedIndex) with
     | Some(selectedItem) ->
@@ -754,32 +603,29 @@ let navigateIntoModule(
   else
     state
 
-let navigateToParent(
-  state: Cli.AppState,
-  session: Session)
-  : Cli.AppState =
-  let navState = session.state
 
-  match Traversal.applySegment(navState.branchId, navState.currentLocation, Traversal.PathSegment.Up) with
+let navigateToParent(state: AppState, session: Session): AppState =
+  let navState = session.state
+  match Traversal.applySegment(
+          navState.branchId,
+          navState.currentLocation,
+          Traversal.PathSegment.Up) with
   | Ok(parentLocation) ->
     let newState = Nav.navTo(state, parentLocation)
     let newNavState = buildState(navState.branchId, parentLocation)
     show(newState, session, newNavState)
   | Error(_) -> state
 
+
 // Perform search and update items based on query
 let performSearch(navState: State): State =
   if Stdlib.String.isEmpty(navState.searchQuery) then
     // Empty query - restore all items
-    { navState with
-        items = navState.allItems
-        selectedIndex = 0
-        scrollOffset = 0 }
+    { navState with items = navState.allItems, selectedIndex = 0, scrollOffset = 0 }
     |> refreshFocusRows
   else
     // Search through package system
     let currentModule = modulePathOf(navState.currentLocation)
-
     let query =
       LanguageTools.ProgramTypes.Search.SearchQuery
         { currentModule = currentModule
@@ -795,47 +641,47 @@ let performSearch(navState: State): State =
     let moduleItems =
       results.submodules
       |> Stdlib.List.map(fun modulePath ->
-        NavItem { name = Stdlib.String.join(modulePath, "."), entityType = EntityType.Module, location = PackageLocation.Module(modulePath) })
+        NavItem
+          { name = Stdlib.String.join(modulePath, ".")
+            entityType = EntityType.Module
+            location = PackageLocation.Module(modulePath) })
 
     // No tests, as `dark search` leaves them out by default; this mode has no
     // flag to ask for them, and browsing a module still lists its tests.
     let withoutTests = { results with tests = [] }
     let searchItems = Stdlib.List.flatten([ moduleItems, leafNavItems(withoutTests, Names.Full) ])
+    { navState with items = searchItems, selectedIndex = 0, scrollOffset = 0 } |> refreshFocusRows
 
-    { navState with
-        items = searchItems
-        selectedIndex = 0
-        scrollOffset = 0 }
-    |> refreshFocusRows
 
 // Common key handlers
 let handleNavKeys(
   navState: State,
   key: Stdlib.Cli.Stdin.Key.Key,
   viewportHeight: Int64)
-  : Stdlib.Option.Option<State> =
+  : Option<State> =
   match key with
-  | UpArrow -> Stdlib.Option.Option.Some(moveUp(navState, viewportHeight))
-  | DownArrow -> Stdlib.Option.Option.Some(moveDown(navState, viewportHeight))
-  | _ -> Stdlib.Option.Option.None
+  | UpArrow -> Option.Some(moveUp(navState, viewportHeight))
+  | DownArrow -> Option.Some(moveDown(navState, viewportHeight))
+  | _ -> Option.None
+
 
 let toggleDisplay(navState: State): State =
   let newDisplay =
     match navState.display with
     | JustName -> Display.Source
     | Source -> Display.JustName
-  { navState with display = newDisplay }
-  |> refreshFocusRows
+
+  { navState with display = newDisplay } |> refreshFocusRows
+
 
 // Mode-specific key handlers
 let handleSearchKeys(
-  state: Cli.AppState,
+  state: AppState,
   key: Stdlib.Cli.Stdin.Key.Key,
-  keyChar: Stdlib.Option.Option<String>,
+  keyChar: Option<String>,
   session: Session)
-  : Stdlib.Option.Option<Cli.AppState> =
+  : Option<AppState> =
   let navState = session.state
-
   match key with
   | Escape ->
     let newNavState =
@@ -846,104 +692,96 @@ let handleSearchKeys(
           selectedIndex = 0
           scrollOffset = 0 }
       |> refreshFocusRows
-    Stdlib.Option.Option.Some(show(state, session, newNavState))
 
+    Option.Some(show(state, session, newNavState))
   | Backspace ->
     let newQuery =
       if Stdlib.String.length(navState.searchQuery) > 0 then
         Stdlib.String.dropLast(navState.searchQuery, 1)
       else
         ""
+
     let newNavState = { navState with searchQuery = newQuery }
     let searchedNavState = performSearch(newNavState)
-    Stdlib.Option.Option.Some(show(state, session, searchedNavState))
-
+    Option.Some(show(state, session, searchedNavState))
   | Spacebar ->
     let newNavState = toggleDisplay(navState)
-    Stdlib.Option.Option.Some(show(state, session, newNavState))
-
-  | Enter ->
-    Stdlib.Option.Option.Some(selectAndExit(state, session))
-
+    Option.Some(show(state, session, newNavState))
+  | Enter -> Option.Some(selectAndExit(state, session))
   | _ ->
     match keyChar with
     | Some(char) ->
       let newQuery = navState.searchQuery + char
       let newNavState = { navState with searchQuery = newQuery }
       let searchedNavState = performSearch(newNavState)
-      Stdlib.Option.Option.Some(show(state, session, searchedNavState))
-    | None -> Stdlib.Option.Option.None
+      Option.Some(show(state, session, searchedNavState))
+    | None -> Option.None
+
 
 let handleNavModeKeys(
-  state: Cli.AppState,
+  state: AppState,
   key: Stdlib.Cli.Stdin.Key.Key,
-  keyChar: Stdlib.Option.Option<String>,
+  keyChar: Option<String>,
   session: Session)
-  : Stdlib.Option.Option<Cli.AppState> =
+  : Option<AppState> =
   let navState = session.state
-
   match key with
   | Spacebar ->
     let newNavState = toggleDisplay(navState)
-    Stdlib.Option.Option.Some(show(state, session, newNavState))
-
-  | RightArrow -> Stdlib.Option.Option.Some(navigateIntoModule(state, session))
-  | LeftArrow -> Stdlib.Option.Option.Some(navigateToParent(state, session))
-
-  | Enter -> Stdlib.Option.Option.Some(selectAndExit(state, session))
-
-  | Escape -> Stdlib.Option.Option.Some(exitToMainPrompt(state, session))
-
+    Option.Some(show(state, session, newNavState))
+  | RightArrow -> Option.Some(navigateIntoModule(state, session))
+  | LeftArrow -> Option.Some(navigateToParent(state, session))
+  | Enter -> Option.Some(selectAndExit(state, session))
+  | Escape -> Option.Some(exitToMainPrompt(state, session))
   | _ ->
     match keyChar with
     | Some("/") ->
       let newNavState = { navState with mode = Mode.Search }
-      Stdlib.Option.Option.Some(show(state, session, newNavState))
-    | _ -> Stdlib.Option.Option.None
+      Option.Some(show(state, session, newNavState))
+    | _ -> Option.None
+
 
 // Handle key input for interactive navigation.
 let handleKey(
-  state: Cli.AppState,
+  state: AppState,
   key: Stdlib.Cli.Stdin.Key.Key,
-  keyChar: Stdlib.Option.Option<String>,
+  keyChar: Option<String>,
   session: Session)
-  : Cli.AppState =
+  : AppState =
   let navState = session.state
-  let size = Darklang.Stdlib.Cli.Tui.TerminalSession.currentSize()
+  let size = Stdlib.Cli.Tui.TerminalSession.currentSize()
   let regions = layout(navState, size)
   let viewportHeight = regions.itemViewportHeight
-  let previewPageSize =
-    Stdlib.max(1, regions.focusContentHeight - 1)
-
+  let previewPageSize = Stdlib.max(1, regions.focusContentHeight - 1)
   let previewResult =
     match navState.display, key with
     | Source, PageUp ->
-      Stdlib.Option.Option.Some(withFocusScrollOffset(
+      Option.Some(
+        withFocusScrollOffset(
           navState,
           regions.focusContentHeight,
           navState.focusScrollOffset - previewPageSize))
     | Source, PageDown ->
-      Stdlib.Option.Option.Some(withFocusScrollOffset(
+      Option.Some(
+        withFocusScrollOffset(
           navState,
           regions.focusContentHeight,
           navState.focusScrollOffset + previewPageSize))
-    | Source, Home ->
-      Stdlib.Option.Option.Some(withFocusScrollOffset(navState, regions.focusContentHeight, 0))
+    | Source, Home -> Option.Some(withFocusScrollOffset(navState, regions.focusContentHeight, 0))
     | Source, End ->
-      Stdlib.Option.Option.Some(withFocusScrollOffset(
+      Option.Some(
+        withFocusScrollOffset(
           navState,
           regions.focusContentHeight,
           Stdlib.List.length(navState.focusRows)))
-    | _, _ -> Stdlib.Option.Option.None
+    | _, _ -> Option.None
 
   match previewResult with
-  | Some(newNavState) ->
-    showAtSize(state, session, size, newNavState)
+  | Some(newNavState) -> showAtSize(state, session, size, newNavState)
   | None ->
     // Try common item-navigation keys next.
     match handleNavKeys(navState, key, viewportHeight) with
-    | Some(newNavState) ->
-      showAtSize(state, session, size, newNavState)
+    | Some(newNavState) -> showAtSize(state, session, size, newNavState)
     | None ->
       // Try mode-specific handlers.
       let modeResult =

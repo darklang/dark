@@ -9,20 +9,27 @@ val newline = "\n"
 
 
 /// Returns {{true}} if <param s> is the empty string {{""}}
-let isEmpty(s: String): Bool = Builtin.stringIsEmpty(s)
+let isEmpty(s: String): Bool =
+  Builtin.stringIsEmpty(s)
 
 
 /// Iterate over each Char (EGC, not byte) in the string, performing the
 /// operation in <param fn> on each one.
 let map(s: String, fn: Char -> Char): String =
-  s |> String.toList |> List.map(fn) |> String.fromList
+  s
+  |> toList
+  |> List.map(fn)
+  |> fromList
 
 
 /// Keeps the Chars (EGC, not byte) of <param s> where <param fn> returns
 /// {{true}}, and removes the rest.
 /// Example: {{filter "a1b2" Char.isDigit}} returns {{"12"}}.
 let filter(s: String, fn: Char -> Bool): String =
-  s |> String.toList |> List.filter(fn) |> String.fromList
+  s
+  |> toList
+  |> List.filter(fn)
+  |> fromList
 
 
 /// Removes or changes each Char (EGC, not byte) of <param s>. When <param fn>
@@ -30,20 +37,28 @@ let filter(s: String, fn: Char -> Bool): String =
 /// is replaced by {{c}}.
 /// Example: turning {{"a-b"}} into {{"AB"}} by removing {{'-'}} and uppercasing
 /// the letters.
-let filterMap(s: String, fn: Char -> Option.Option<Char>): String =
-  s |> String.toList |> List.filterMap(fn) |> String.fromList
+let filterMap(s: String, fn: Char -> Option<Char>): String =
+  s
+  |> toList
+  |> List.filterMap(fn)
+  |> fromList
 
 
 /// Replaces each Char (EGC, not byte) of <param s> with a string. <param fn>
 /// can return an empty string to remove the Char, or several characters.
 /// Example: doubling each letter turns {{"abc"}} into {{"aabbcc"}}.
 let flatMap(s: String, fn: Char -> String): String =
-  let pieces = s |> String.toList |> List.map(fn)
-  String.join(pieces, "")
+  let pieces =
+    s
+    |> toList
+    |> List.map(fn)
+
+  join(pieces, "")
 
 
 /// Returns the list of Characters (EGC, not byte) in the string
-let toList(s: String): List<Char> = Builtin.stringToList(s)
+let toList(s: String): List<Char> =
+  Builtin.stringToList(s)
 
 
 /// Replace every <param searchFor> in <param s> with <param replaceWith>. Matches
@@ -59,7 +74,8 @@ let replaceAll(s: String, searchFor: String, replaceWith: String): String =
 /// Turkish {{"İ"}}. Characters with no case, emoji among them, are left as they are.
 /// <fn Stdlib.Char.toUppercase> maps one Char to one Char instead, and leaves
 /// {{'ß'}} alone.
-let toUppercase(s: String): String = Builtin.stringToUppercase(s)
+let toUppercase(s: String): String =
+  Builtin.stringToUppercase(s)
 
 
 /// Returns <param s> lowercased by Unicode's full case mapping, the same on every
@@ -67,7 +83,8 @@ let toUppercase(s: String): String = Builtin.stringToUppercase(s)
 /// Turkish {{"ı"}}, and {{"İ"}} becomes {{"i̇"}}, an i and a combining dot. A Greek
 /// {{"Σ"}} that ends a word becomes the final {{"ς"}}: {{"ΟΔΟΣ"}} is {{"οδος"}}.
 /// <fn Stdlib.Char.toLowercase> maps one Char to one Char instead.
-let toLowercase(s: String): String = Builtin.stringToLowercase(s)
+let toLowercase(s: String): String =
+  Builtin.stringToLowercase(s)
 
 
 /// Returns <param s> with its first character uppercased, by the same full case mapping
@@ -76,20 +93,23 @@ let toLowercase(s: String): String = Builtin.stringToLowercase(s)
 /// The first character is the first whole Char (EGC), so an accent that follows it
 /// stays with it. An empty string, or one that starts with no case, comes back unchanged.
 let capitalize(s: String): String =
-  String.toUppercase(String.slice(s, 0, 1)) + String.dropFirst(s, 1)
+  toUppercase(slice(s, 0, 1)) + dropFirst(s, 1)
 
 
 // TODO: UInt?
 /// Returns the length of the string
-let length(s: String): Int64 = Builtin.stringLength(s)
+let length(s: String): Int64 =
+  Builtin.stringLength(s)
 
 
 /// Return the Unicode codepoints in <param s>.
-let toCodepoints(s: String): List<UInt32> = Builtin.stringToCodepoints(s)
+let toCodepoints(s: String): List<UInt32> =
+  Builtin.stringToCodepoints(s)
 
 
 /// Return the number of Unicode codepoints in <param s>.
-let codepointLength(s: String): Int64 = Builtin.stringCodepointLength(s)
+let codepointLength(s: String): Int64 =
+  Builtin.stringCodepointLength(s)
 
 
 /// How many cells <param s> occupies in a fixed-width grid.
@@ -109,20 +129,25 @@ let displayWidth(s: String): Int64 =
 ///
 /// Names the builtin rather than interpolating, because this is what `"a" + "b"` runs through
 /// (`impl Add for String` below) and the interpreter answers the builtin without a call.
-let append(s1: String, s2: String): String = Builtin.stringAppend(s1, s2)
+let append(s1: String, s2: String): String =
+  Builtin.stringAppend(s1, s2)
+
 
 /// `"a" + "b"` is `"ab"`
 impl Add for String =
   let add = Stdlib.String.append
 
+
 /// ...and the empty string is what `+` starts from
 impl Zero for String =
-  let zero(): String = ""
+  let zero(): String =
+    ""
 
 
 /// Concatenates the two strings by prepending <param s2> to <param s1> and
 /// returns the joined string
-let prepend(s1: String, s2: String): String = s2 + s1
+let prepend(s1: String, s2: String): String =
+  s2 + s1
 
 
 /// Turns a string into a prettified slug: lowercase roman alphanumerics joined by hyphens.
@@ -134,20 +159,19 @@ let prepend(s1: String, s2: String): String = s2 + s1
 /// Was a builtin until `Stdlib.Regex` existed; its own comment had said for years that this
 /// belonged here. The vertical tab is called out separately because `\s` does not cover it.
 let slugify(s: String): String =
-  let lowered = Stdlib.String.toLowercase(s)
-
+  let lowered = toLowercase(s)
   let slug =
-    Stdlib.Regex.replaceAll(lowered, "([^a-z0-9\\s_-]|\\x0b)+", "")
-    |> Stdlib.Result.andThen(fun kept ->
-      Stdlib.Regex.replaceAll(Stdlib.String.trim(kept), "[-_\\s]+", "-"))
+    Regex.replaceAll(lowered, "([^a-z0-9\\s_-]|\\x0b)+", "")
+    |> Result.andThen(fun kept -> Regex.replaceAll(trim(kept), "[-_\\s]+", "-"))
 
   // Both patterns are fixed and valid, so only input too large to match in time fails,
   // and an empty slug is the one that is still safe in a URL.
-  Stdlib.Result.withDefault(slug, "")
+  Result.withDefault(slug, "")
 
 
 /// Reverses <param string>
-let reverse(string: String): String = Builtin.stringReverse(string)
+let reverse(string: String): String =
+  Builtin.stringReverse(string)
 
 
 /// Splits a string at the separator, returning a list of strings without the separator.
@@ -160,19 +184,16 @@ let split(string: String, separator: String): List<String> =
 /// {{Some (before, after)}}. Unlike {{split}}, the {{after}} half retains any further
 /// occurrences of the separator — useful for parsing `key=value` rows where the value
 /// may itself contain `=`. Returns {{None}} if the separator is empty or not found.
-let splitFirst(
-  string: String,
-  separator: String)
-  : Option.Option<(String * String)> =
+let splitFirst(string: String, separator: String): Option<(String * String)> =
   if separator == "" then
-    Option.Option.None
+    Option.None
   else
-    match String.indexOf(string, separator) with
-    | None -> Option.Option.None
+    match indexOf(string, separator) with
+    | None -> Option.None
     | Some(i) ->
-      let before = String.first(string, i)
-      let after = String.dropFirst(string, i + String.length(separator))
-      Option.Option.Some((before, after))
+      let before = first(string, i)
+      let after = dropFirst(string, i + length(separator))
+      Option.Some((before, after))
 
 
 /// Splits <param string> in two at the **last** <param separator>.
@@ -180,19 +201,16 @@ let splitFirst(
 /// {{Some ("archive.tar", "gz")}}.
 /// Returns {{None}} if <param separator> is not in the string, or is empty.
 /// See <fn splitFirst> to split at the first one instead.
-let splitLast(
-  string: String,
-  separator: String)
-  : Option.Option<(String * String)> =
+let splitLast(string: String, separator: String): Option<(String * String)> =
   if separator == "" then
-    Option.Option.None
+    Option.None
   else
-    match String.lastIndexOf(string, separator) with
-    | None -> Option.Option.None
+    match lastIndexOf(string, separator) with
+    | None -> Option.None
     | Some(i) ->
-      let before = String.first(string, i)
-      let after = String.dropFirst(string, i + String.length(separator))
-      Option.Option.Some((before, after))
+      let before = first(string, i)
+      let after = dropFirst(string, i + length(separator))
+      Option.Some((before, after))
 
 
 /// Splits <param string> at <param separator> into **at most** <param n> pieces.
@@ -200,19 +218,15 @@ let splitLast(
 /// useful for parsing rows of structured data where the value field may contain
 /// the separator. If <param n> <= 1, the separator is empty, or the separator
 /// is not found, returns {{[string]}} unchanged.
-let splitN(
-  string: String,
-  separator: String,
-  n: Int64)
-  : List<String> =
+let splitN(string: String, separator: String, n: Int64): List<String> =
   if n <= 1 || separator == "" then
     [ string ]
   else
-    match String.indexOf(string, separator) with
+    match indexOf(string, separator) with
     | None -> [ string ]
     | Some(i) ->
-      let before = String.first(string, i)
-      let rest = String.dropFirst(string, i + String.length(separator))
+      let before = first(string, i)
+      let rest = dropFirst(string, i + length(separator))
       List.prepend(String.splitN(rest, separator, n - 1), before)
 
 
@@ -223,34 +237,31 @@ let join(l: List<String>, separator: String): String =
 
 /// Returns the list of characters as a string
 let fromList(lst: List<Char>): String =
-  join(List.map(lst, fun c -> Stdlib.display(c)), "")
+  join(List.map(lst, fun c -> display(c)), "")
 
 
 /// Converts a <type Char> to a <type String>
-let fromChar(c: Char): String = Stdlib.display(c)
+let fromChar(c: Char): String =
+  display(c)
 
 
 /// Generate a random alphanumeric <type String> of length <param length>.
 /// Charset is {{[A-Za-z0-9]}} (62 chars). Errors if <param length> is negative.
-let random(length: Int64): Result.Result<String, String> =
+let random(length: Int64): Result<String, String> =
   if length < 0 then
-    Result.Result.Error(
-      $"Expected `length` to be positive, but it was `{length |> Stdlib.display}`")
+    Result.Error($"Expected `length` to be positive, but it was `{length |> display}`")
   else
-    let characters =
-      "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-    let randomChar =
-      fun _ ->
-        (let index = Stdlib.Int64.random(0, (String.length(characters)) - 1)
-         String.slice(characters, index, index + 1))
+    let characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    let randomChar = fun _ ->
+      let index = Int64.random(0, String.length(characters) - 1)
+      slice(characters, index, index + 1)
 
     let result =
-      (List.range(0, length - 1))
+      List.range(0, length - 1)
       |> List.map(fun _ -> randomChar())
-      |> String.join("")
+      |> join("")
 
-    Result.Result.Ok(result)
+    Result.Ok(result)
 
 
 /// Checks if <param lookingIn> contains <param searchingFor> as whole Chars (EGC, not
@@ -261,8 +272,8 @@ let contains(lookingIn: String, searchingFor: String): Bool =
 
 /// Returns the substring of <param string> between the <param from> and <param to> indices.
 /// Negative indices start counting from the end of <param string>.
-let slice(string: String, from: Int64, `to`: Int64): String =
-  Builtin.stringSlice(string, from, `to`)
+let slice(string: String, from: Int64, to: Int64): String =
+  Builtin.stringSlice(string, from, to)
 
 
 /// Returns the first <param characterCount> characters of <param string>, as a <type String>.
@@ -271,32 +282,36 @@ let slice(string: String, from: Int64, `to`: Int64): String =
 let first(string: String, characterCount: Int64): String =
   if characterCount < 0 then
     ""
-  else if characterCount > String.length(string) then
+  else if characterCount > length(string) then
     string
   else
-    String.slice(string, 0, characterCount)
+    slice(string, 0, characterCount)
 
 
 /// Returns the last <param characterCount> characters of <param string>, as a <type String>.
 /// If <param characterCount> is longer than <param string>, returns <param string>.
 /// If <param characterCount> is negative, returns the empty string.
 let last(string: String, characterCount: Int64): String =
-  let len = String.length(string)
-
-  if characterCount < 0 then ""
-  else if characterCount > len then string
-  else String.slice(string, len - characterCount, len)
+  let len = length(string)
+  if characterCount < 0 then
+    ""
+  else if characterCount > len then
+    string
+  else
+    slice(string, len - characterCount, len)
 
 
 /// Returns all but the last <param characterCount> characters of <param string>, as a <type String>.
 /// If <param characterCount> is longer than <param string>, returns the empty string.
 /// If <param characterCount> is negative, returns <param string>.
 let dropLast(string: String, characterCount: Int64): String =
-  let len = String.length(string)
-
-  if characterCount < 0 then string
-  else if characterCount > len then ""
-  else String.slice(string, 0, len - characterCount)
+  let len = length(string)
+  if characterCount < 0 then
+    string
+  else if characterCount > len then
+    ""
+  else
+    slice(string, 0, len - characterCount)
 
 
 /// Returns all but the first <param characterCount> characters of <param string>, as a <type String>.
@@ -314,12 +329,11 @@ let dropFirst(string: String, characterCount: Int64): String =
 ///
 /// Counts characters, not display cells. To line up columns of text, use `Stdlib.Text.padStartToWidth`.
 let padStart(string: String, padWith: Char, goalLength: Int64): String =
-  let padCount = goalLength - String.length(string)
-
+  let padCount = goalLength - length(string)
   if padCount <= 0 then
     string
   else
-    (String.checkedRepeat(String.fromChar(padWith), padCount) |> Result.withDefault("")) + string
+    (checkedRepeat(fromChar(padWith), padCount) |> Result.withDefault("")) + string
 
 
 /// If <param string> is shorter than <param goalLength> characters, returns a
@@ -330,12 +344,11 @@ let padStart(string: String, padWith: Char, goalLength: Int64): String =
 ///
 /// Counts characters, not display cells. To line up columns of text, use `Stdlib.Text.padEndToWidth`.
 let padEnd(string: String, padWith: Char, goalLength: Int64): String =
-  let padCount = goalLength - String.length(string)
-
+  let padCount = goalLength - length(string)
   if padCount <= 0 then
     string
   else
-    string + (String.checkedRepeat(String.fromChar(padWith), padCount) |> Result.withDefault(""))
+    string + (checkedRepeat(fromChar(padWith), padCount) |> Result.withDefault(""))
 
 
 // TODO: re-write in dark
@@ -343,26 +356,29 @@ let padEnd(string: String, padWith: Char, goalLength: Int64): String =
 /// removed. 'whitespace' here means all Unicode characters with the
 /// {{White_Space}} property, which includes {{" "}}, {{"\t"}} and
 /// {{"\n"}}.
-let trim(str: String): String = Builtin.stringTrim(str)
+let trim(str: String): String =
+  Builtin.stringTrim(str)
 
 
 // TODO: re-write in dark
 /// Returns a copy of <param str> with all leading whitespace removed. 'whitespace'
 /// here means all Unicode characters with the {{White_Space}} property, which
 /// includes {{" "}}, {{"\t"}} and {{"\n"}}.
-let trimStart(str: String): String = Builtin.stringTrimStart(str)
+let trimStart(str: String): String =
+  Builtin.stringTrimStart(str)
 
 
 // TODO: re-write in dark
 /// Returns a copy of <param str> with all trailing whitespace removed.
 /// 'whitespace' here means all Unicode characters with the {{White_Space}}
 /// property, which includes {{" "}}, {{"\t"}} and {{"\n"}}.
-let trimEnd(str: String): String = Builtin.stringTrimEnd(str)
+let trimEnd(str: String): String =
+  Builtin.stringTrimEnd(str)
 
 
 /// Return the byte at <param index> in <param str>'s UTF-8 encoding.
 /// Returns {{None}} when <param index> is outside the encoding.
-let getByteAt(str: String, index: Int64): Option.Option<UInt8> =
+let getByteAt(str: String, index: Int64): Option<UInt8> =
   Builtin.stringGetByteAt(str, index)
 
 
@@ -379,50 +395,41 @@ let endsWith(subject: String, suffix: String): Bool =
 /// Removes <param prefix> from the start of <param subject>.
 /// Example: {{stripPrefix "--verbose" "--"}} returns {{Some "verbose"}}.
 /// Returns {{None}} if <param subject> does not start with <param prefix>.
-let stripPrefix(subject: String, prefix: String): Option.Option<String> =
-  let n = String.length(prefix)
-
-  if String.first(subject, n) == prefix then
-    Option.Option.Some(String.dropFirst(subject, n))
+let stripPrefix(subject: String, prefix: String): Option<String> =
+  let n = length(prefix)
+  if first(subject, n) == prefix then
+    Option.Some(dropFirst(subject, n))
   else
-    Option.Option.None
+    Option.None
 
 
 /// Removes <param suffix> from the end of <param subject>.
 /// Example: {{stripSuffix "notes.txt" ".txt"}} returns {{Some "notes"}}.
 /// Returns {{None}} if <param subject> does not end with <param suffix>.
-let stripSuffix(subject: String, suffix: String): Option.Option<String> =
-  let len = String.length(subject)
-  let start = len - String.length(suffix)
-
-  if start >= 0 && String.slice(subject, start, len) == suffix then
-    Option.Option.Some(String.slice(subject, 0, start))
+let stripSuffix(subject: String, suffix: String): Option<String> =
+  let len = length(subject)
+  let start = len - length(suffix)
+  if start >= 0 && slice(subject, start, len) == suffix then
+    Option.Some(slice(subject, 0, start))
   else
-    Option.Option.None
+    Option.None
 
 
 /// Returns {{Some index}} of the first <param searchFor> in <param str>, counted in
 /// Chars (EGC, not byte) like {{length}}, {{slice}} and {{dropFirst}}. Returns {{None}}
 /// if <param searchFor> does not occur. Matches whole Chars only: {{"👍"}} is not found
 /// in {{"👍🏽"}}.
-let indexOf(str: String, searchFor: String): Option.Option<Int64> =
+let indexOf(str: String, searchFor: String): Option<Int64> =
   let idx = Builtin.stringIndexOf(str, searchFor)
-  if idx == -1 then Option.Option.None else Option.Option.Some(idx)
+  if idx == -1 then Option.None else Option.Some(idx)
 
 
 /// Returns {{Some index}} of the last <param searchFor> in <param str>, counted in Chars
 /// (EGC, not byte). Returns {{None}} if <param searchFor> does not occur. Matches whole
 /// Chars only, as <fn indexOf> does.
-let lastIndexOf(
-  str: String,
-  searchFor: String)
-  : Option.Option<Int64> =
+let lastIndexOf(str: String, searchFor: String): Option<Int64> =
   let lastIndex = Builtin.stringLastIndexOf(str, searchFor)
-
-  if lastIndex == -1 then
-    Option.Option.None
-  else
-    Option.Option.Some(lastIndex)
+  if lastIndex == -1 then Option.None else Option.Some(lastIndex)
 
 
 /// Returns <param string> repeated <param count> times, or {{""}} if <param count>
@@ -436,16 +443,17 @@ type RepeatError =
   | NegativeCount
   | TooLong
 
+
 /// Returns {{Ok}} <param string> repeated <param count> times, or
 /// {{Error NegativeCount}} if <param count> is below 0, or {{Error TooLong}} if it
 /// is past 2147483647, where <fn String.repeat> raises. A count of 0 gives {{Ok ""}}.
-let checkedRepeat(string: String, count: Int64): Result.Result<String, RepeatError> =
+let checkedRepeat(string: String, count: Int64): Result<String, RepeatError> =
   if count < 0 then
-    Result.Result.Error(RepeatError.NegativeCount)
+    Result.Error(RepeatError.NegativeCount)
   else if count > 2147483647 then
-    Result.Result.Error(RepeatError.TooLong)
+    Result.Error(RepeatError.TooLong)
   else
-    Result.Result.Ok(repeat(string, count))
+    Result.Ok(repeat(string, count))
 
 
 /// Splits the given <param str> at each line ending (LF or CRLF) and returns a
@@ -455,47 +463,60 @@ let splitOnNewline(str: String): List<String> =
   if str == "" then
     []
   else
-    str |> String.replaceAll("\r\n", "\n") |> String.split("\n")
+    str
+    |> replaceAll("\r\n", "\n")
+    |> split("\n")
 
 
 /// Returns {{Some char}} of the first character of <param str>, or returns {{None}} if <param str> is empty.
-let head(str: String): Option.Option<Char> =
-  str |> String.slice(0, 1) |> String.toList |> List.head
+let head(str: String): Option<Char> =
+  str
+  |> slice(0, 1)
+  |> toList
+  |> List.head
 
 
 /// Returns {{Some c}} for the character at <param index> (0-based, EGC, not
 /// byte), or {{None}} if <param index> is negative or past the end.
-let charAt(str: String, index: Int64): Option.Option<Char> =
+let charAt(str: String, index: Int64): Option<Char> =
   // `slice` counts a negative index from the end, so it is ruled out first. No string is long
   // enough to reach the index where `index + 1` overflows.
   if index < 0 then
-    Option.Option.None
+    Option.None
   else
     match Int64.checkedAdd(index, 1) with
-    | Ok(next) -> str |> String.slice(index, next) |> String.toList |> List.head
-    | Error(_) -> Option.Option.None
+    | Ok(next) ->
+      str
+      |> slice(index, next)
+      |> toList
+      |> List.head
+    | Error(_) -> Option.None
 
 
 /// Orders two strings by code point: negative when <param a> sorts first, 0 when they
 /// are equal, positive when <param b> does. Only the sign is meaningful. Code point
 /// order is also UTF-8 byte order. It is not language-aware, so two machines order the
 /// same pair the same way.
-let compare(a: String, b: String): Int64 = Builtin.stringCompare(a, b)
+let compare(a: String, b: String): Int64 =
+  Builtin.stringCompare(a, b)
 
 
 /// `"a" < "b"`, and with it `Stdlib.max`, `min` and `clamp` on Strings.
 impl Compare for String =
-  let lessThan(a: String, b: String): Bool = (Stdlib.String.compare(a, b)) < 0
+  let lessThan(a: String, b: String): Bool =
+    compare(a, b) < 0
 
   let lessThanOrEqualTo(a: String, b: String): Bool =
-    (Stdlib.String.compare(a, b)) <= 0
+    compare(a, b) <= 0
 
-  let greaterThan(a: String, b: String): Bool = (Stdlib.String.compare(a, b)) > 0
+  let greaterThan(a: String, b: String): Bool =
+    compare(a, b) > 0
 
   let greaterThanOrEqualTo(a: String, b: String): Bool =
-    (Stdlib.String.compare(a, b)) >= 0
+    compare(a, b) >= 0
 
 
 /// A String is already text
 impl Display for String =
-  let display(s: String): String = s
+  let display(s: String): String =
+    s

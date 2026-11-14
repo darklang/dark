@@ -13,38 +13,40 @@ module Darklang.SCM.Draft
 /// The current draft, as anything describing it needs to see it.
 type Picture =
   { /// Every name the draft touches, in authoring order.
-    bindings: List<SCM.Conflicts.Binding>
+    bindings: List<Conflicts.Binding>
     /// Of those, the fully-qualified names whose CURRENT binding propagation wrote rather than a person.
     /// Held as the raw name list because that's the shape the membership test wants.
     propagated: List<String>
     /// The fully-qualified names the draft removes. Not bindings, so not in `bindings`.
     removed: List<String>
     /// What would repoint if you committed right now.
-    repoints: List<SCM.PackageOps.Repoint>
-    conflicts: List<SCM.Conflicts.Conflict>
+    repoints: List<PackageOps.Repoint>
+    conflicts: List<Conflicts.Conflict>
     /// A COUNT, never a list. Constraints are a standing property of the STORE rather than of this draft,
     /// so a list here is something you learn to scroll past while a count points at a command.
     constraints: Int64
     ops: Int64 }
 
+
 /// Read the whole picture. One call, five reads, and the only place they happen.
 let read(unit: Unit): Picture =
-  let bindings = SCM.PackageOps.draftBindings()
-  let review = SCM.PackageOps.dependencyReview(bindings)
+  let bindings = PackageOps.draftBindings()
+  let review = PackageOps.dependencyReview(bindings)
   // A review that fails repoints nothing; `pendingConstraints.blocked` says why.
   let (_, repoints) = review |> Stdlib.Result.withDefault(([], []))
   let pendingConstraints =
-    SCM.Constraints.pendingWithOutdated(
-      review |> Stdlib.Result.map(fun((stale, _)) -> SCM.Constraints.outdatedFindings(stale)))
+    Constraints.pendingWithOutdated(
+      review |> Stdlib.Result.map(fun((stale, _)) -> Constraints.outdatedFindings(stale)))
 
   Picture
     { bindings = bindings
-      removed = SCM.PackageOps.draftRemovals()
-      propagated = SCM.PackageOps.propagatedNames()
-      repoints = SCM.PackageOps.repointsFromReview(repoints)
-      conflicts = SCM.Conflicts.pending()
+      removed = PackageOps.draftRemovals()
+      propagated = PackageOps.propagatedNames()
+      repoints = PackageOps.repointsFromReview(repoints)
+      conflicts = Conflicts.pending()
       constraints = Stdlib.List.length(pendingConstraints.findings)
-      ops = SCM.PackageOps.draftOpCount() }
+      ops = PackageOps.draftOpCount() }
+
 
 /// Just the counts, for the hot path.
 ///
@@ -63,56 +65,63 @@ type Counts =
     constraintsFromDraft: Int64
     ops: Int64 }
 
+
 let counts(unit: Unit): Counts =
-  let bindings = SCM.PackageOps.draftBindings()
-  let review = SCM.PackageOps.dependencyReview(bindings)
+  let bindings = PackageOps.draftBindings()
+  let review = PackageOps.dependencyReview(bindings)
   // A review that fails repoints nothing; `pendingConstraints.blocked` says why.
   let (_, repoints) = review |> Stdlib.Result.withDefault(([], []))
   let pendingConstraints =
-    SCM.Constraints.pendingWithOutdated(
-      review |> Stdlib.Result.map(fun((stale, _)) -> SCM.Constraints.outdatedFindings(stale)))
-  let propagated = SCM.PackageOps.propagatedNames()
-  let draftNames =
-    bindings |> Stdlib.List.map(fun b -> SCM.Conflicts.fqn(b.owner, b.modules, b.name))
+    Constraints.pendingWithOutdated(
+      review |> Stdlib.Result.map(fun((stale, _)) -> Constraints.outdatedFindings(stale)))
+
+  let propagated = PackageOps.propagatedNames()
+  let draftNames = bindings |> Stdlib.List.map(fun b -> Conflicts.fqn(b.owner, b.modules, b.name))
   let fromDraft =
     pendingConstraints.findings
     |> Stdlib.List.filter(fun f ->
-      (Stdlib.List.contains(draftNames, SCM.Constraints.fqnOf(f.dependency)))
-      || (Stdlib.List.contains(draftNames, SCM.Constraints.fqnOf(f.usage))))
+      Stdlib.List.contains(draftNames, Constraints.fqnOf(f.dependency))
+      || Stdlib.List.contains(draftNames, Constraints.fqnOf(f.usage)))
 
   Counts
     { changed = Stdlib.List.length(bindings)
       followed =
         bindings
         |> Stdlib.List.filter(fun b ->
-          Stdlib.List.contains(propagated, SCM.Conflicts.fqn(b.owner, b.modules, b.name)))
+          Stdlib.List.contains(propagated, Conflicts.fqn(b.owner, b.modules, b.name)))
         |> Stdlib.List.length
-      removed = Stdlib.List.length(SCM.PackageOps.draftRemovals())
+      removed = Stdlib.List.length(PackageOps.draftRemovals())
       repoints = Stdlib.List.length(repoints)
-      conflicts = SCM.Conflicts.pendingCount()
+      conflicts = Conflicts.pendingCount()
       constraints = Stdlib.List.length(pendingConstraints.findings)
       constraintsFromDraft = Stdlib.List.length(fromDraft)
-      ops = SCM.PackageOps.draftOpCount() }
+      ops = PackageOps.draftOpCount() }
+
 
 /// Did PROPAGATION write this name's current binding, rather than a person?
 ///
 /// The split the whole draft view turns on: an entry that followed your edit is otherwise indistinguishable
 /// from one you made.
-let followed(p: Picture, b: SCM.Conflicts.Binding): Bool =
-  Stdlib.List.contains(p.propagated, SCM.Conflicts.fqn(b.owner, b.modules, b.name))
+let followed(p: Picture, b: Conflicts.Binding): Bool =
+  Stdlib.List.contains(p.propagated, Conflicts.fqn(b.owner, b.modules, b.name))
+
 
 /// How many of the changed names followed something rather than being edited by you.
 let followedCount(p: Picture): Int64 =
-  p.bindings |> Stdlib.List.filter(fun b -> followed(p, b)) |> Stdlib.List.length
+  p.bindings
+  |> Stdlib.List.filter(fun b -> followed(p, b))
+  |> Stdlib.List.length
+
 
 /// How many you actually authored.
 let authoredCount(p: Picture): Int64 =
-  (Stdlib.List.length(p.bindings)) - (followedCount(p))
+  Stdlib.List.length(p.bindings) - followedCount(p)
+
 
 /// Everything waiting on a person right now: divergences the fold settled and standing findings. One
 /// number, because they're one question ("is anything waiting on me?").
 let needsYouCount(p: Picture): Int64 =
-  (Stdlib.List.length(p.conflicts)) + p.constraints
+  Stdlib.List.length(p.conflicts) + p.constraints
 
 
 // Rewriting MAIN's draft: dropping ops you authored but have not committed. Each is one action in F#
@@ -121,31 +130,28 @@ let needsYouCount(p: Picture): Int64 =
 // cannot decode is never deleted: what is skipped for reading must never be dropped for writing.
 
 /// Drop the in-memory package caches, for a caller that knows the store moved under it.
-let invalidateCaches(): Unit = Builtin.scmInvalidateCaches()
+let invalidateCaches(): Unit =
+  Builtin.scmInvalidateCaches()
+
 
 /// Drop main's draft entirely. Returns how many ops went.
-let discardAll(): Stdlib.Result.Result<Int64, String> =
-  SCM.PackageOps.discardOn(SCM.Branch.mainBranchId, SCM.Actions.DiscardWhat.All)
+let discardAll(): Result<Int64, String> =
+  PackageOps.discardOn(Branch.mainBranchId, Actions.DiscardWhat.All)
+
 
 /// Drop ONE name's uncommitted bindings from main's draft, leaving the rest alone. The content stays.
-let discardName(
-  owner: String,
-  modules: List<String>,
-  name: String)
-  : Stdlib.Result.Result<Int64, String> =
-  SCM.PackageOps.discardOn(
-    SCM.Branch.mainBranchId,
-    SCM.Actions.DiscardWhat.Name(
-      LanguageTools.ProgramTypes.PackageLocation
-        { owner = owner
-          modules = modules
-          name = name }
-    ))
+let discardName(owner: String, modules: List<String>, name: String): Result<Int64, String> =
+  PackageOps.discardOn(
+    Branch.mainBranchId,
+    Actions.DiscardWhat.Name(
+      LanguageTools.ProgramTypes.PackageLocation { owner = owner, modules = modules, name = name }))
+
 
 /// Collapse main's draft's superseded NAMINGS: for each name keep the binding that wrote the row the
 /// name has now, drop the earlier ones. Content stays, so a re-fold produces the same store.
-let collapse(): Stdlib.Result.Result<Int64, String> =
-  SCM.PackageOps.discardOn(SCM.Branch.mainBranchId, SCM.Actions.DiscardWhat.Collapse)
+let collapse(): Result<Int64, String> =
+  PackageOps.discardOn(Branch.mainBranchId, Actions.DiscardWhat.Collapse)
+
 
 /// The content hash a reference points at, as text.
 let referenceHash(r: LanguageTools.ProgramTypes.Reference): String =

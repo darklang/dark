@@ -8,7 +8,6 @@
 /// The whole layer, and why it doesn't flicker: `dark docs terminal-ui`.
 module Darklang.Stdlib.Cli.Tui
 
-
 /// Current terminal viewport dimensions.
 type Size =
   { width: Int64

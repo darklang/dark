@@ -11,7 +11,7 @@ let getSize(): (Int64 * Int64) =
 /// edge does, and a printer that could reach for this would stop being reproducible in a test or
 /// sizeable to a pane. `getSize` is the one place the builtin is reached.
 let displayOptions(): PrettyPrinter.DisplayOptions =
-  let (cols, _rows) = Terminal.getSize()
+  let (cols, _rows) = getSize()
   PrettyPrinter.DisplayOptions.atWidth(cols)
 
 
@@ -39,7 +39,6 @@ let renderValue(
   dv: LanguageTools.RuntimeTypes.Dval)
   : String =
   let palette = if color then Terminal.palette() else PrettyPrinter.Palette.plain
-
   let opts =
     { PrettyPrinter.DisplayOptions.default with
         width = width

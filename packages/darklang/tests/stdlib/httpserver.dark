@@ -4,27 +4,42 @@ module Darklang.Stdlib.HttpServer.Tests
 
 // Route a request to /notes through a GET and a POST handler, returning the
 // status and body text.
-let routeNotes(method: String, headers: List<String * String>): (Int64 * String) =
+let routeNotes(
+  method: String,
+  headers: List<(String * String)>)
+  : (Int64 * String) =
   let handlers =
-    [ Stdlib.HttpServer.get("/notes", fun req -> Stdlib.Http.responseWithText(200, "list"))
-      Stdlib.HttpServer.post("/notes", fun req -> Stdlib.Http.responseWithText(200, "created")) ]
+    [ Stdlib.HttpServer.get("/notes", fun req ->
+        Stdlib.Http.responseWithText(200, "list"))
+
+      Stdlib.HttpServer.post("/notes", fun req ->
+        Stdlib.Http.responseWithText(200, "created")) ]
 
   let response =
     Stdlib.HttpServer.routeRequest(
       handlers,
       Stdlib.Http.Request
-        { method = method, url = "/notes", headers = headers, body = Stdlib.Bytes.empty })
+        { method = method
+          url = "/notes"
+          headers = headers
+          body = Stdlib.Bytes.empty })
 
   (response.statusCode, Stdlib.Utf8.decodeWithReplacement(response.body))
+
 
 // The request's `method` picks the handler, and a header that looks like a
 // method does not.
 test routeRequestByMethod =
   Stdlib.Test.all(
     [ routeNotes("GET", []) |> Stdlib.Test.equal((200, "list"))
+
       routeNotes("POST", []) |> Stdlib.Test.equal((200, "created"))
-      routeNotes("GET", [ ("x-http-method", "POST") ]) |> Stdlib.Test.equal((200, "list"))
-      (Stdlib.Tuple2.first(routeNotes("DELETE", []))) |> Stdlib.Test.equal(404) ])
+
+      routeNotes("GET", [ ("x-http-method", "POST") ])
+      |> Stdlib.Test.equal((200, "list"))
+
+      Stdlib.Tuple2.first(routeNotes("DELETE", [])) |> Stdlib.Test.equal(404) ])
+
 
 // `get`/`post` build the Handler a record literal would, so a route table reads as
 // routes.
@@ -34,14 +49,21 @@ test routes =
          Stdlib.Http.Response
            { statusCode = 200, headers = [], body = Stdlib.Bytes.empty })).route
       |> Stdlib.Test.equal("/ping")
+
       (Stdlib.HttpServer.get("/ping", fun req ->
          Stdlib.Http.Response
-           { statusCode = 200, headers = [], body = Stdlib.Bytes.empty })).method
+           { statusCode = 200
+             headers = []
+             body = Stdlib.Bytes.empty })).method
       |> Stdlib.Test.equal("GET")
+
       (Stdlib.HttpServer.post("/ops", fun req ->
          Stdlib.Http.Response
-           { statusCode = 200, headers = [], body = Stdlib.Bytes.empty })).method
+           { statusCode = 200
+             headers = []
+             body = Stdlib.Bytes.empty })).method
       |> Stdlib.Test.equal("POST") ])
+
 
 test getPath =
   [ ("/users/42?x=1", "/users/42")
@@ -64,7 +86,6 @@ test getPath =
     ("*", "/*") ]
   |> Stdlib.List.map(fun pair ->
     let (url, expected) = pair
-
     Stdlib.HttpServer.getPath(
       Stdlib.Http.Request
         { method = "GET", url = url, headers = [], body = Stdlib.Bytes.empty })

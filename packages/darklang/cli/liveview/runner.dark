@@ -20,6 +20,7 @@ module Darklang.Cli.LiveView.Runner
 let timerMs(intervalMs: Int64): Int64 =
   intervalMs
 
+
 /// One tick, then wait for the next, or for the store to move under the step.
 let loop(
   name: String,
@@ -46,7 +47,6 @@ let loop(
   match Stdlib.Host.await(specs) with
   | StoreChanged(change) when LanguageTools.Live.affects(change, lg.entry) ->
     let refreshed = LanguageTools.Live.refresh(branchId, lg)
-
     match LanguageTools.Live.transition(lg, refreshed) with
     | Some(line) -> Stdlib.printLine($"{name}: {line}")
     | None -> ()
@@ -61,15 +61,10 @@ let loop(
     loop(name, branchId, lg, state, intervalMs, live)
   | _ -> loop(name, branchId, lg, state, intervalMs, live)
 
+
 /// Run <param stepName> over <param init> every <param intervalMs>, forever. What a daemon
 /// entrypoint calls after claiming its pidfile. <param live> follows edits to the step.
-let run(
-  name: String,
-  stepName: String,
-  init: 's,
-  intervalMs: Int64,
-  live: Bool)
-  : Int64 =
+let run(name: String, stepName: String, init: 's, intervalMs: Int64, live: Bool): Int64 =
   match LanguageTools.Live.locationOfName(stepName) with
   | None ->
     Stdlib.printLine($"{name}: {stepName} is not a package fn name")
@@ -78,7 +73,6 @@ let run(
     Stdlib.Host.begin()
     let branchId = SCM.PackageOps.currentBranch()
     let lg = LanguageTools.Live.refresh(branchId, LanguageTools.Live.start(entry))
-
     match lg.hash with
     | None ->
       let why =
@@ -87,4 +81,3 @@ let run(
       Stdlib.printLine($"{name}: {why}")
       1
     | Some(_) -> loop(name, branchId, lg, init, intervalMs, live)
-

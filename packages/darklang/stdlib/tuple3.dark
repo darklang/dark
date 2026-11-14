@@ -1,6 +1,5 @@
 module Darklang.Stdlib.Tuple3
 
-
 /// Returns a triple with the given values
 let create(first: 'a, second: 'b, third: 'c): ('a * 'b * 'c) =
   (first, second, third)

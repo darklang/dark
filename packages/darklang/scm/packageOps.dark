@@ -18,13 +18,9 @@ module Darklang.SCM.PackageOps
 // Dark lets several files contribute to one module and see each other's definitions unqualified, so
 // the split is physical only: no new silo, and `package_ops` still has exactly one owner.
 
-
 /// Add a list of package ops to the database (immediately live on the given branch).
 /// Returns the number of inserted ops on success (duplicates are skipped), or an error message on failure.
-let add(
-  branchId: Uuid,
-  ops: List<LanguageTools.ProgramTypes.PackageOp>)
-  : Stdlib.Result.Result<Int64, String> =
+let add(branchId: Uuid, ops: List<LanguageTools.ProgramTypes.PackageOp>): Result<Int64, String> =
   Builtin.scmAddOps(branchId, Lineage.recordPrevious(branchId, ops))
 
 
@@ -42,12 +38,10 @@ let add(
 let addAuthored(
   branchId: Uuid,
   ops: List<LanguageTools.ProgramTypes.PackageOp>)
-  : Stdlib.Result.Result<LanguageTools.AtRestTypeChecker.Report, String> =
+  : Result<LanguageTools.AtRestTypeChecker.Report, String> =
   let duplicates = LanguageTools.PackageManager.duplicateDeclarations(ops)
-
   if Stdlib.Bool.not(Stdlib.List.isEmpty(duplicates)) then
-    Stdlib.Result.Result.Error(
-      "Declared more than once: " + (Stdlib.String.join(duplicates, ", ")))
+    Result.Error("Declared more than once: " + Stdlib.String.join(duplicates, ", "))
   else
     let stabilizedOps =
       ops
@@ -63,10 +57,9 @@ let addAuthored(
     | [] ->
       match added with
       | Ok(_) ->
-        Stdlib.Result.Result.Ok(
-          LanguageTools.AtRestTypeChecker.checkPackageOpsOn(branchId, stabilizedOps))
-      | Error(message) -> Stdlib.Result.Result.Error(message)
-    | failed -> Stdlib.Result.Result.Error(takeBackFailedValues(branchId, stabilizedOps, added, failed))
+        Result.Ok(LanguageTools.AtRestTypeChecker.checkPackageOpsOn(branchId, stabilizedOps))
+      | Error(message) -> Result.Error(message)
+    | failed -> Result.Error(takeBackFailedValues(branchId, stabilizedOps, added, failed))
 
 
 /// Unbind the values a save could not evaluate, and say what that left. A batch (`dark module`,
@@ -74,11 +67,10 @@ let addAuthored(
 let takeBackFailedValues(
   branchId: Uuid,
   ops: List<LanguageTools.ProgramTypes.PackageOp>,
-  added: Stdlib.Result.Result<Int64, String>,
+  added: Result<Int64, String>,
   failed: List<(LanguageTools.ProgramTypes.PackageLocation * String)>)
   : String =
   let failedLocations = failed |> Stdlib.List.map(fun((loc, _)) -> loc)
-
   let names =
     failedLocations
     |> Stdlib.List.map(PrettyPrinter.ProgramTypes.PackageLocation.packageLocation)
@@ -95,11 +87,10 @@ let takeBackFailedValues(
       match op with
       | SetName(loc, _, _) ->
         if Stdlib.List.contains(failedLocations, loc) then
-          Stdlib.Option.Option.None
+          Option.None
         else
-          Stdlib.Option.Option.Some(
-            PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc))
-      | _ -> Stdlib.Option.Option.None)
+          Option.Some(PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc))
+      | _ -> Option.None)
 
   let keptNote =
     match kept with
@@ -128,11 +119,11 @@ let unevaluatedValuesBoundBy(
       match liveBindingFor(branchId, loc) with
       | Some(b) ->
         if b.itemType == "value" && Stdlib.Bool.not(valueEvaluated(b.hash)) then
-          Stdlib.Option.Option.Some((loc, b.hash))
+          Option.Some((loc, b.hash))
         else
-          Stdlib.Option.Option.None
-      | None -> Stdlib.Option.Option.None
-    | _ -> Stdlib.Option.Option.None)
+          Option.None
+      | None -> Option.None
+    | _ -> Option.None)
 
 
 /// Whether the value at <param hash> has a stored runtime value: false when its evaluation never ran
@@ -149,27 +140,28 @@ let valueEvaluated(hash: String): Bool =
 let unbind(
   branchId: Uuid,
   bindings: List<(LanguageTools.ProgramTypes.PackageLocation * String)>)
-  : Stdlib.Result.Result<Int64, String> =
+  : Result<Int64, String> =
   let hashes = bindings |> Stdlib.List.map(fun((_, hash)) -> hash)
-
   let isOneOf(op: LanguageTools.ProgramTypes.PackageOp): Bool =
     match op with
     | SetName(loc, target, _) ->
       let hash =
-        LanguageTools.ProgramTypes.hashToString(
-          LanguageTools.ProgramTypes.Reference.hash(target))
+        LanguageTools.ProgramTypes.hashToString(LanguageTools.ProgramTypes.Reference.hash(target))
 
       Stdlib.List.contains(bindings, (loc, hash))
     | SetReferenceNames(loc, target, _, _) ->
-      Stdlib.List.contains(bindings,
-        (loc, LanguageTools.ProgramTypes.hashToString(LanguageTools.ProgramTypes.Reference.hash(target))))
-    | AddValue(v) ->
-      Stdlib.List.contains(hashes, LanguageTools.ProgramTypes.hashToString(v.hash))
+      Stdlib.List.contains(
+        bindings,
+        (
+          loc,
+          LanguageTools.ProgramTypes.hashToString(
+            LanguageTools.ProgramTypes.Reference.hash(target))))
+    | AddValue(v) -> Stdlib.List.contains(hashes, LanguageTools.ProgramTypes.hashToString(v.hash))
     | _ -> false
 
   // The draft's ops (on a branch, its own) that say one of these bindings, dropped as one action.
   let rows =
-    if SCM.Branch.isMain(branchId) then
+    if Branch.isMain(branchId) then
       draftOpRowsFor(branchId)
     else
       Branches.ownOpRows(branchId)
@@ -177,7 +169,7 @@ let unbind(
   let ids =
     decodeOpRowEntries(rows)
     |> Stdlib.List.filterMap(fun((id, _, op)) ->
-      if isOneOf(op) then Stdlib.Option.Option.Some(id) else Stdlib.Option.Option.None)
+      if isOneOf(op) then Option.Some(id) else Option.None)
 
   dropBranchOps(branchId, ids)
 
@@ -186,7 +178,6 @@ let unbind(
 // This module OWNS every read of `package_ops`. Callers (the `dark ops` CLI, doctor) go through the typed
 // functions below and never hand-roll SQL. The reads go through one builtin, `scmOps`, and the SQL lives
 // with it in F# (`LibDB.ScmOps`), which also decodes the op blobs. What to make of the answer stays here.
-
 
 /// Which ops `query` is asked for. Every op is on one branch; main is a branch like any other.
 type OpFilter =
@@ -230,21 +221,25 @@ type OpRow =
     sizeBytes: Int64
     source: String
     /// The op, decoded. None where the case reads ids only, and for an op this build cannot read.
-    op: Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageOp> }
+    op: Option<LanguageTools.ProgramTypes.PackageOp> }
 
 
 /// What `query` answers with. `total` counts every match when the limit was 0 (and `ops` is then
 /// empty); otherwise it is how many rows came back.
-type OpPage = { total: Int64, ops: List<OpRow> }
+type OpPage =
+  { total: Int64
+    ops: List<OpRow> }
 
 
 /// The ops <param filter> selects, at most <param limit> of them; a negative limit means all of them,
 /// and 0 asks only for the count.
-let query(filter: OpFilter, limit: Int64): OpPage = Builtin.scmOps(filter, limit)
+let query(filter: OpFilter, limit: Int64): OpPage =
+  Builtin.scmOps(filter, limit)
 
 
 /// Every row <param filter> selects.
-let rowsOf(filter: OpFilter): List<OpRow> = (query(filter, -1)).ops
+let rowsOf(filter: OpFilter): List<OpRow> =
+  (query(filter, -1)).ops
 
 
 /// The ids of every op <param filter> selects, in its order.
@@ -253,7 +248,8 @@ let idsOf(filter: OpFilter): List<String> =
 
 
 /// How many ops <param filter> selects.
-let countOf(filter: OpFilter): Int64 = (query(filter, 0)).total
+let countOf(filter: OpFilter): Int64 =
+  (query(filter, 0)).total
 
 
 /// The `ts` of a one-row stamp case.
@@ -273,7 +269,7 @@ type OpSummary =
     /// is. `None` for an op this build's deserializer cannot read, which a store that has
     /// taken ops from elsewhere holds on purpose; the row still lists, it just cannot
     /// describe itself.
-    op: Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageOp> }
+    op: Option<LanguageTools.ProgramTypes.PackageOp> }
 
 
 /// What a branch REF resolved to. A DU rather than an Option because "no such branch" and "that could be

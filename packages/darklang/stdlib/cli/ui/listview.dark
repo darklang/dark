@@ -5,42 +5,39 @@
 module Darklang.Stdlib.Cli.UI.ListView
 
 let render(region: Layout.Region, displayLines: List<String>, selected: Int64): List<Layout.Span> =
-  let total = Stdlib.List.length(displayLines)
+  let total = List.length(displayLines)
   if total == 0 then
     []
   else
     // Bottom-anchored viewport: once the selection passes the last visible row, scroll so it stays on screen.
     let visible = region.rows
-    let scrollOffset = Stdlib.max(0, selected - visible + 1)
+    let scrollOffset = max(0, selected - visible + 1)
 
     // The scrollbar owns the last column when there is one, so a full-width row does not sit under
     // the thumb.
-    let textWidth =
-      if total > region.rows then
-        Stdlib.max(0, region.cols - 1)
-      else
-        region.cols
-
+    let textWidth = if total > region.rows then max(0, region.cols - 1) else region.cols
     let rows =
       displayLines
-      |> Stdlib.List.indexedMap(fun(i, l) -> (i, l))
-      |> Stdlib.List.drop(scrollOffset)
-      |> Stdlib.List.take(visible)
-      |> Stdlib.List.map(fun pair ->
+      |> List.indexedMap(fun(i, l) -> (i, l))
+      |> List.drop(scrollOffset)
+      |> List.take(visible)
+      |> List.map(fun pair ->
         let (i, l) = pair
         // Marked, not silently cut. These are names, and a row that just stops reads as the whole
         // one: "Accept the parent's changes in" looks complete to anyone who has not seen the pane
         // wider.
         Layout.at(region, i - scrollOffset, 0, Tui.Text.clipMarked(l, textWidth)))
-      |> Stdlib.List.flatten
+      |> List.flatten
 
     // Scrollbar thumb, only when the list is taller than the pane.
     let thumb =
       if total > region.rows then
         let thumbRow =
-          Stdlib.Int64.checkedDivide(selected * (region.rows - 1), Stdlib.max(1, total - 1)) |> Stdlib.Result.withDefault(0)
+          Int64.checkedDivide(selected * (region.rows - 1), max(1, total - 1))
+          |> Result.withDefault(0)
+
         Layout.at(region, thumbRow, region.cols - 1, Colors.colorize(Colors.cyan, "▐"))
       else
         []
 
-    Stdlib.List.flatten([ rows, thumb ])
+    List.flatten([ rows, thumb ])

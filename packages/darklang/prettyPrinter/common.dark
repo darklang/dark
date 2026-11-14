@@ -15,8 +15,7 @@ let indent(s: String): String =
 
 
 let indentByLevel(level: Int64, s: String): String =
-  let indentStr = (Stdlib.String.checkedRepeat("  ", level) |> Stdlib.Result.withDefault(""))
-
+  let indentStr = Stdlib.String.checkedRepeat("  ", level) |> Stdlib.Result.withDefault("")
   s
   |> Stdlib.String.split("\n")
   |> Stdlib.List.map(fun line ->
@@ -113,13 +112,11 @@ let __codepointEscape(cp: Int64): String =
 /// written raw it would read as one, so it is always escaped.
 let __escapeGrapheme(g: String, quote: String): String =
   let codepoints = Stdlib.String.toCodepoints(g) |> Stdlib.List.map(Stdlib.Int64.fromUInt32)
-
   match codepoints with
   | [cp] when cp < 128 -> __escapeAscii(cp, g, quote)
   | [] -> g
   | [first, ...] ->
     let asciiFirst = first < 128
-
     codepoints
     |> Stdlib.List.indexedMap(fun(i, cp) ->
       let one =
@@ -140,7 +137,6 @@ let __escapeGrapheme(g: String, quote: String): String =
 /// (as `\uXXXX`) and the quote escaped.
 let escapeLiteral(s: String, quote: String): String =
   let plain = if quote == "'" then __plainForChar else __plainForString
-
   if s == "" || __matchesWhole(s, plain) then
     s
   else
@@ -175,11 +171,12 @@ let hasBareShape(name: String): Bool =
   let first = Stdlib.Regex.Limit.First
   let textOnly = Stdlib.Regex.Collect.TextOnly
   match Stdlib.Regex.scan(name, bareAsciiName, first, textOnly) with
-  | Ok(([ _, _ ], _)) -> true
+  | Ok(([_, _], _)) -> true
   | _ ->
     match Stdlib.Regex.scan(name, bareName, first, textOnly) with
-    | Ok(([ _, _ ], _)) -> true
+    | Ok(([_, _], _)) -> true
     | _ -> false
+
 
 /// Format a name (a variable, parameter or declaration) for source output.
 /// Two reasons a name needs backticks:
@@ -199,13 +196,16 @@ let formatName(name: String): String =
   else
     $"`{name}`"
 
+
 /// Format a name where only a name can go: a record field, or after a `.`. A keyword
 /// needs no backticks there. `_`, `true` and `false` still do, since they read as a
 /// wildcard or a literal.
 let formatFieldName(name: String): String =
   if name == "" then
     "___"
-  else if hasBareShape(name) && Stdlib.Bool.not(Stdlib.List.contains([ "_", "true", "false" ], name)) then
+  else if
+    hasBareShape(name) && Stdlib.Bool.not(Stdlib.List.contains([ "_", "true", "false" ], name))
+  then
     name
   else
     $"`{name}`"

@@ -10,52 +10,59 @@ module Darklang.Cli.Packages.Impls
 let describeSelf(branchId: Uuid, self: LanguageTools.RuntimeTypes.TypeReference): String =
   PrettyPrinter.RuntimeTypes.typeReference(branchId, self)
 
+
 let traitHashAt(
   branchId: Uuid,
-  currentLocation: Packages.PackageLocation,
+  currentLocation: PackageLocation,
   traitPath: String)
-  : Stdlib.Result.Result<LanguageTools.ProgramTypes.Hash, String> =
+  : Result<LanguageTools.ProgramTypes.Hash, String> =
   match Traversal.traverse(branchId, currentLocation, traitPath) with
-  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Error(e) -> Result.Error(e)
   | Ok(Trait(loc)) ->
     match LanguageTools.PackageManager.Trait.find(branchId, loc) with
-    | Some(h) -> Stdlib.Result.Result.Ok(h)
-    | None -> Stdlib.Result.Result.Error($"Trait not found: {traitPath}")
-  | Ok(_) -> Stdlib.Result.Result.Error($"{traitPath} is not a trait.")
+    | Some(h) -> Result.Ok(h)
+    | None -> Result.Error($"Trait not found: {traitPath}")
+  | Ok(_) -> Result.Error($"{traitPath} is not a trait.")
+
 
 /// The trait as written, then under `Stdlib.` (the operator traits are what
 /// most people ask about, and `impls Add` should just work).
 let resolveTrait(
-  state: Cli.AppState,
+  state: AppState,
   traitPath: String)
-  : Stdlib.Result.Result<LanguageTools.ProgramTypes.Hash, String> =
+  : Result<LanguageTools.ProgramTypes.Hash, String> =
   // An operator is the trait it lowers to, as in `dark search %`: `impls +` is `impls Add`.
   // `==` and the Bool operators alias to fn names rather than traits, so they keep the symbol.
   let traitPath =
-    match Packages.Search.operatorAlias(traitPath) with
-    | Some(name) when (Stdlib.String.first(name, 1)) != (Stdlib.String.toLowercase(Stdlib.String.first(name, 1))) ->
+    match Search.operatorAlias(traitPath) with
+    | Some(name)
+      when Stdlib.String.first(name, 1) != Stdlib.String.toLowercase(Stdlib.String.first(name, 1)) ->
       name
     | _ -> traitPath
 
   match traitHashAt(state.currentBranchId, state.packageData.currentLocation, traitPath) with
-  | Ok(h) -> Stdlib.Result.Result.Ok(h)
+  | Ok(h) -> Result.Ok(h)
   | Error(msg) ->
-    if Stdlib.String.startsWith(traitPath, "Stdlib.") || Stdlib.String.startsWith(traitPath, "Darklang.") then
-      Stdlib.Result.Result.Error(msg)
+    if
+      Stdlib.String.startsWith(traitPath, "Stdlib.")
+      || Stdlib.String.startsWith(traitPath, "Darklang.")
+    then
+      Result.Error(msg)
     else
-      match traitHashAt(state.currentBranchId, state.packageData.currentLocation, $"Stdlib.{traitPath}") with
-      | Ok(h) -> Stdlib.Result.Result.Ok(h)
-      | Error(_) -> Stdlib.Result.Result.Error(msg)
+      match traitHashAt(
+              state.currentBranchId,
+              state.packageData.currentLocation,
+              $"Stdlib.{traitPath}") with
+      | Ok(h) -> Result.Ok(h)
+      | Error(_) -> Result.Error(msg)
+
 
 /// Where code calls an implementation's methods: through its trait, never at the impl's
 /// own path. A fn beside the trait named for the method is the shorter call, so
 /// `impl Display for Int64` gives `[Stdlib.display]`, which is what someone looking for
 /// `Stdlib.Int64.toString` wanted; otherwise it is the trait's own, `Stdlib.Add.add`.
 /// Empty when the trait is unresolved.
-let methodCalls(
-  branchId: Uuid,
-  i: LanguageTools.ProgramTypes.TraitImpl.TraitImpl)
-  : List<String> =
+let methodCalls(branchId: Uuid, i: LanguageTools.ProgramTypes.TraitImpl.TraitImpl): List<String> =
   match traitLocation(i) with
   | Some(loc) ->
     i.methods |> Stdlib.List.map(fun((method, _)) -> methodCallName(branchId, loc, method))
@@ -65,10 +72,10 @@ let methodCalls(
 /// Where the trait of <param i> lives, when it resolved.
 let traitLocation(
   i: LanguageTools.ProgramTypes.TraitImpl.TraitImpl)
-  : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
+  : Option<LanguageTools.ProgramTypes.PackageLocation> =
   match i.trait_.resolved with
   | Ok(r) -> r.location
-  | Error(_) -> Stdlib.Option.Option.None
+  | Error(_) -> Option.None
 
 
 /// The name a call to <param method> of the trait at <param loc> uses: the fn beside the trait
@@ -80,15 +87,13 @@ let methodCallName(
   method: String)
   : String =
   let written =
-    match (loc.owner, loc.modules) with
-    | ("Darklang", ["Stdlib", ...rest]) -> Stdlib.List.prepend(rest, "Stdlib")
+    match loc.owner, loc.modules with
+    | "Darklang", ["Stdlib", ...rest] -> Stdlib.List.prepend(rest, "Stdlib")
     | _ -> Stdlib.List.prepend(loc.modules, loc.owner)
 
   let beside =
     LanguageTools.ProgramTypes.PackageLocation
-      { owner = loc.owner
-        modules = loc.modules
-        name = method }
+      { owner = loc.owner, modules = loc.modules, name = method }
 
   match LanguageTools.PackageManager.Function.find(branchId, beside) with
   | Some(_) -> Stdlib.String.join(Stdlib.List.append(written, method), ".")
@@ -100,29 +105,29 @@ let methodCallName(
 let operatorSyntax(
   loc: LanguageTools.ProgramTypes.PackageLocation,
   method: String)
-  : Stdlib.Option.Option<String> =
+  : Option<String> =
   if loc.owner == "Darklang" && loc.modules == [ "Stdlib" ] then
     match method with
-    | "add" -> Stdlib.Option.Option.Some("a + b")
-    | "subtract" -> Stdlib.Option.Option.Some("a - b")
-    | "multiply" -> Stdlib.Option.Option.Some("a * b")
-    | "divide" -> Stdlib.Option.Option.Some("a / b")
-    | "modulo" -> Stdlib.Option.Option.Some("a % b")
-    | "power" -> Stdlib.Option.Option.Some("a ** b")
-    | "negate" -> Stdlib.Option.Option.Some("-a")
-    | "bitwiseAnd" -> Stdlib.Option.Option.Some("a & b")
-    | "bitwiseOr" -> Stdlib.Option.Option.Some("a | b")
-    | "bitwiseXor" -> Stdlib.Option.Option.Some("a ^ b")
-    | "bitwiseNot" -> Stdlib.Option.Option.Some("~a")
-    | "shiftLeft" -> Stdlib.Option.Option.Some("a << b")
-    | "shiftRight" -> Stdlib.Option.Option.Some("a >> b")
-    | "lessThan" -> Stdlib.Option.Option.Some("a < b")
-    | "lessThanOrEqualTo" -> Stdlib.Option.Option.Some("a <= b")
-    | "greaterThan" -> Stdlib.Option.Option.Some("a > b")
-    | "greaterThanOrEqualTo" -> Stdlib.Option.Option.Some("a >= b")
-    | _ -> Stdlib.Option.Option.None
+    | "add" -> Option.Some("a + b")
+    | "subtract" -> Option.Some("a - b")
+    | "multiply" -> Option.Some("a * b")
+    | "divide" -> Option.Some("a / b")
+    | "modulo" -> Option.Some("a % b")
+    | "power" -> Option.Some("a ** b")
+    | "negate" -> Option.Some("-a")
+    | "bitwiseAnd" -> Option.Some("a & b")
+    | "bitwiseOr" -> Option.Some("a | b")
+    | "bitwiseXor" -> Option.Some("a ^ b")
+    | "bitwiseNot" -> Option.Some("~a")
+    | "shiftLeft" -> Option.Some("a << b")
+    | "shiftRight" -> Option.Some("a >> b")
+    | "lessThan" -> Option.Some("a < b")
+    | "lessThanOrEqualTo" -> Option.Some("a <= b")
+    | "greaterThan" -> Option.Some("a > b")
+    | "greaterThanOrEqualTo" -> Option.Some("a >= b")
+    | _ -> Option.None
   else
-    Stdlib.Option.Option.None
+    Option.None
 
 
 /// Each method of <param i> as a person would type the call: `a % b`, `Stdlib.display(v)`, or
@@ -171,10 +176,7 @@ let callExamples(
 
 
 /// The name of the implementation, or its short hash when nothing binds it.
-let sourceNameOf(
-  branchId: Uuid,
-  source: LanguageTools.ProgramTypes.Hash)
-  : String =
+let sourceNameOf(branchId: Uuid, source: LanguageTools.ProgramTypes.Hash): String =
   match LanguageTools.PackageManager.TraitImpl.locations(branchId, source) with
   | [loc, ...] -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)
   | [] -> LanguageTools.ProgramTypes.hashToShort(source)
@@ -190,12 +192,11 @@ let statusOf(
   : String =
   let selfStr = describeSelf(branchId, c.self)
   let cHash = LanguageTools.ProgramTypes.hashToString(c.source)
-
   let rivals =
     candidates
     |> Stdlib.List.filter(fun d ->
-      (LanguageTools.ProgramTypes.hashToString(d.source) != cHash)
-      && (describeSelf(branchId, d.self) == selfStr))
+      LanguageTools.ProgramTypes.hashToString(d.source) != cHash
+      && describeSelf(branchId, d.self) == selfStr)
 
   if rivals |> Stdlib.List.any(fun d -> d.stamp == "" && c.stamp == "") then
     "unordered"
@@ -223,44 +224,49 @@ let printJson(
   : Unit =
   let methods =
     match candidates with
-    | [c, ...] -> c.methods |> Stdlib.Dict.keys |> Stdlib.List.sort
+    | [c, ...] ->
+      c.methods
+      |> Stdlib.Dict.keys
+      |> Stdlib.List.sort
     | [] -> []
 
   let methodsJson =
-    methods |> Stdlib.List.map(fun m -> Cli.jsonStr(m)) |> Stdlib.String.join(",")
+    methods
+    |> Stdlib.List.map(fun m -> jsonStr(m))
+    |> Stdlib.String.join(",")
 
   let implsJson =
     candidates
     |> Stdlib.List.sortBy(fun c -> describeSelf(branchId, c.self))
     |> Stdlib.List.map(fun c ->
-      let self = Cli.jsonStr(describeSelf(branchId, c.self))
-      let name = Cli.jsonStr(sourceNameOf(branchId, c.source))
-      let hash = Cli.jsonStr(LanguageTools.ProgramTypes.hashToString(c.source))
-      let status = Cli.jsonStr(statusOf(branchId, candidates, c))
+      let self = jsonStr(describeSelf(branchId, c.self))
+      let name = jsonStr(sourceNameOf(branchId, c.source))
+      let hash = jsonStr(LanguageTools.ProgramTypes.hashToString(c.source))
+      let status = jsonStr(statusOf(branchId, candidates, c))
       $"{{\"self\":{self},\"name\":{name},\"hash\":{hash},\"status\":{status}}}")
     |> Stdlib.String.join(",")
 
   Stdlib.printLine(
-    $"{{\"trait\":{Cli.jsonStr(traitName)},\"methods\":[{methodsJson}],\"implementations\":[{implsJson}]}}")
+    $"{{\"trait\":{jsonStr(traitName)},\"methods\":[{methodsJson}],\"implementations\":[{implsJson}]}}")
 
 
-let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
+let execute(state: AppState, args: List<String>): AppState =
   let json = Stdlib.List.contains(args, "--json")
-
   let positional =
     args |> Stdlib.List.filter(fun a -> Stdlib.String.startsWith(a, "-") |> Stdlib.Bool.not)
 
   match positional with
-  | [ traitPath ] ->
+  | [traitPath] ->
     match resolveTrait(state, traitPath) with
     | Error(msg) ->
-      Cli.printErr(msg)
+      printErr(msg)
       if json then
         ()
       else
         Stdlib.printErrorLine(
-          (Stdlib.Cli.UI.Colors.dimText(
-            $"  `dark search {traitPath} --trait` looks for a trait by name")))
+          Stdlib.Cli.UI.Colors.dimText(
+            $"  `dark search {traitPath} --trait` looks for a trait by name"))
+
       { state with exitCode = 1 }
     | Ok(traitHash) ->
       let candidates = LanguageTools.PackageManager.Trait.impls(state.currentBranchId, traitHash)
@@ -273,13 +279,17 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
         printJson(state.currentBranchId, traitName, candidates)
       else if Stdlib.List.isEmpty(candidates) then
         Stdlib.printLine(
-          (Stdlib.Cli.UI.Colors.dimText(
-            $"No implementations of {traitPath} on this branch. `dark search {traitPath} --impl` looks on others.")))
+          Stdlib.Cli.UI.Colors.dimText(
+            $"No implementations of {traitPath} on this branch. `dark search {traitPath} --impl` looks on others."))
       else
         // Sorted, because the store returns candidates in whatever order its index does.
         let methodNames =
           match candidates with
-          | [c, ...] -> c.methods |> Stdlib.Dict.keys |> Stdlib.List.sort |> Stdlib.String.join(", ")
+          | [c, ...] ->
+            c.methods
+            |> Stdlib.Dict.keys
+            |> Stdlib.List.sort
+            |> Stdlib.String.join(", ")
           | [] -> ""
 
         Stdlib.printLine($"{traitPath}  ({methodNames})")
@@ -309,18 +319,20 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 
           Stdlib.printLine(
             $"  {Stdlib.Text.padEndToWidth(selfStr, selfWidth)} {Stdlib.Cli.UI.Colors.dimText(sourceName)}{note}"))
+
       state
   | _ ->
-    Cli.printErr("Usage: impls <trait> [--json]          e.g. `dark impls Display`")
+    printErr("Usage: impls <trait> [--json]          e.g. `dark impls Display`")
     if json then
       ()
     else
-      Cli.printHint(
+      printHint(
         "  `dark ls Stdlib` has a Traits section; `dark search <name> --trait` finds one anywhere")
+
     { state with exitCode = 1 }
 
 
-let help(_state: Cli.AppState): String =
+let help(_state: AppState): String =
   [ "List the implementations of a trait that are bound on the current branch."
     ""
     "Usage: impls <trait-path> [--json]"
@@ -342,13 +354,9 @@ let help(_state: Cli.AppState): String =
 
 
 /// The traits in the current module, then the stdlib's, which is where a bare name resolves.
-let complete(
-  state: Cli.AppState,
-  args: List<String>)
-  : List<Cli.Completion.CompletionItem> =
+let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =
   match args with
-  | []
-  | [ _ ] ->
+  | [] | [_] ->
     let (_, _, _, _, here, _, _) =
       Query.allDirectDescendantNames(
         state.currentBranchId,
@@ -360,5 +368,5 @@ let complete(
     Stdlib.List.flatten([ here, stdlib ])
     |> Stdlib.List.unique
     |> Stdlib.List.sort
-    |> Stdlib.List.map(Cli.Completion.simple)
+    |> Stdlib.List.map(Completion.simple)
   | _ -> []

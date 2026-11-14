@@ -5,7 +5,6 @@
 /// work and cannot be seen by the next test.
 module Darklang.Cli.Tests.TestSuite
 
-
 /// An instance answers at all, from its own directory.
 ///
 /// `branches` rather than `version`: `version` checks GitHub for a newer release, so it
@@ -29,16 +28,14 @@ test instancesAreIsolated =
     | Ok(b) ->
       let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
       let name = $"iso-{suffix}"
-
       let _ = Instance.run(a, [ "branch", "create", name ])
       let inA = Instance.output(a, [ "branches" ])
       let inB = Instance.output(b, [ "branches" ])
-
       let _ = Instance.dispose(a)
       let _ = Instance.dispose(b)
-
       if Stdlib.Bool.not(Stdlib.String.contains(inA, name)) then
-        Stdlib.Test.fail($"the branch is missing from the instance that made it: {inA}")
+        Stdlib.Test.fail(
+          $"the branch is missing from the instance that made it: {inA}")
       else if Stdlib.String.contains(inB, name) then
         Stdlib.Test.fail($"the branch leaked into a second instance: {inB}")
       else
@@ -51,13 +48,11 @@ test disposeRemovesTheStore =
   | Error(e) -> Stdlib.Test.fail(e)
   | Ok(i) ->
     let store = $"{i.dir}/data.db"
-
     if Stdlib.Bool.not(Stdlib.Cli.Unix.fileExists(store)) then
       let _ = Instance.dispose(i)
       Stdlib.Test.fail($"a new instance has no store at {store}")
     else
       let _ = Instance.dispose(i)
-
       if Stdlib.Cli.Unix.fileExists(store) then
         Stdlib.Test.fail($"dispose left {store} behind")
       else
@@ -71,7 +66,8 @@ test disposeRemovesTheStore =
 /// every initial frame, including an instance that has already been set up.
 test workbenchPaints =
   if Stdlib.Bool.not(Interactive.available()) then
-    Stdlib.Test.fail("expect is not installed, so the interactive tests cannot run")
+    Stdlib.Test.fail(
+      "expect is not installed, so the interactive tests cannot run")
   else
     Instance.withInstance(fun i ->
       Interactive.expectSteps(
@@ -90,7 +86,8 @@ test workbenchPaints =
 /// as running; once killed it is a zombie until reaped, and must read as gone.
 test interactiveSeesWhetherTheChildIsRunning =
   if Stdlib.Bool.not(Interactive.available()) then
-    Stdlib.Test.fail("expect is not installed, so the interactive tests cannot run")
+    Stdlib.Test.fail(
+      "expect is not installed, so the interactive tests cannot run")
   else
     Instance.withInstance(fun i ->
       let script =

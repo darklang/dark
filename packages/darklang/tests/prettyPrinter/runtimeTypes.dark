@@ -10,22 +10,25 @@ module Darklang.PrettyPrinter.Tests
 // Note when reading the expectations: they are Dark source, so `"\"a\\nb\""` is
 // the eleven characters `"a\nb"` with a real backslash in the middle. That is the
 // point of most of the escaping cases.
-
 // Helpers for reflecting runtime values.
 let pp(value: 'a): String =
-  Darklang.PrettyPrinter.RuntimeTypes.dval(
-    Darklang.SCM.Branch.mainBranchId,
-    Darklang.LanguageTools.RuntimeTypes.reflect(value))
+  PrettyPrinter.RuntimeTypes.dval(
+    SCM.Branch.mainBranchId,
+    LanguageTools.RuntimeTypes.reflect(value))
 
-let emptyInts(): List<Int64> = []
+
+let emptyInts(): List<Int64> =
+  []
+
 
 let loc(
   owner: String,
   modules: List<String>,
   name: String)
-  : Darklang.LanguageTools.ProgramTypes.PackageLocation =
-  Darklang.LanguageTools.ProgramTypes.PackageLocation
+  : LanguageTools.ProgramTypes.PackageLocation =
+  LanguageTools.ProgramTypes.PackageLocation
     { owner = owner, modules = modules, name = name }
+
 
 let short(
   currentModule: List<String>,
@@ -33,16 +36,19 @@ let short(
   modules: List<String>,
   name: String)
   : String =
-  Darklang.PrettyPrinter.shortenName(currentModule, owner, modules, name)
+  PrettyPrinter.shortenName(currentModule, owner, modules, name)
+
 
 let at(width: Int64, value: 'a): String =
-  Darklang.PrettyPrinter.RuntimeTypes.dvalWith(
-    Darklang.SCM.Branch.mainBranchId,
-    Darklang.PrettyPrinter.DisplayOptions.atWidth(width),
-    Darklang.LanguageTools.RuntimeTypes.reflect(value))
+  PrettyPrinter.RuntimeTypes.dvalWith(
+    SCM.Branch.mainBranchId,
+    PrettyPrinter.DisplayOptions.atWidth(width),
+    LanguageTools.RuntimeTypes.reflect(value))
+
 
 let big(): List<Int64> =
   Stdlib.List.range(1, 2000) |> Stdlib.List.map(fun i -> i * 37)
+
 
 // Scalars
 test scalars =
@@ -67,6 +73,7 @@ test scalars =
       pp(1e30f32) |> Stdlib.Test.equal("1e+30f32")
       pp(1.0f32 / 0.0f32) |> Stdlib.Test.equal("Infinity") ])
 
+
 // Every number but an Int64 or a Float prints with its suffix, so what is printed
 // pastes back as the same value.
 test numbersPrintWithTheirSuffix =
@@ -77,14 +84,15 @@ test numbersPrintWithTheirSuffix =
       pp(5u16) |> Stdlib.Test.equal("5u16")
       pp(5s32) |> Stdlib.Test.equal("5s32")
       pp(5u32) |> Stdlib.Test.equal("5u32")
-      pp(5s64) |> Stdlib.Test.equal("5")
-      pp(5u) |> Stdlib.Test.equal("5u64")
+      pp(5) |> Stdlib.Test.equal("5")
+      pp(5u64) |> Stdlib.Test.equal("5u64")
       pp(5s128) |> Stdlib.Test.equal("5s128")
       pp(5u128) |> Stdlib.Test.equal("5u128")
       pp(18446744073709551616z) |> Stdlib.Test.equal("18446744073709551616z")
-      pp(1.5f64) |> Stdlib.Test.equal("1.5")
+      pp(1.5) |> Stdlib.Test.equal("1.5")
       pp(19.90dec) |> Stdlib.Test.equal("19.90dec")
       pp([ 1s8, 2s8 ]) |> Stdlib.Test.equal("[1s8, 2s8]") ])
+
 
 // Float literals in source
 //
@@ -94,11 +102,15 @@ test numbersPrintWithTheirSuffix =
 // `0.00001` as `0.-05`.
 test floatLiterals =
   Stdlib.Test.all(
-    [ Darklang.PrettyPrinter.processRemainder("5") |> Stdlib.Test.equal("5")
-      Darklang.PrettyPrinter.processRemainder("50") |> Stdlib.Test.equal("5")
-      Darklang.PrettyPrinter.processRemainder("00001") |> Stdlib.Test.equal("00001")
-      Darklang.PrettyPrinter.processRemainder("1234567890123456")
+    [ PrettyPrinter.processRemainder("5") |> Stdlib.Test.equal("5")
+
+      PrettyPrinter.processRemainder("50") |> Stdlib.Test.equal("5")
+
+      PrettyPrinter.processRemainder("00001") |> Stdlib.Test.equal("00001")
+
+      PrettyPrinter.processRemainder("1234567890123456")
       |> Stdlib.Test.equal("1234567890123456") ])
+
 
 // Escaping
 //
@@ -125,6 +137,7 @@ test escaping =
       // Escaping happens at every depth, not just the top level.
       pp([ "a\nb" ]) |> Stdlib.Test.equal("[\"a\\nb\"]") ])
 
+
 // Collections
 test collections =
   Stdlib.Test.all(
@@ -132,20 +145,32 @@ test collections =
       // list carries no element type at runtime, so there is nothing for the
       // printer to report. See the note in Records below.
       pp(emptyInts()) |> Stdlib.Test.equal("List<_> []")
+
       pp([ 1, 2, 3 ]) |> Stdlib.Test.equal("[1, 2, 3]")
+
       pp([ [ 1, 2 ], [ 3 ] ]) |> Stdlib.Test.equal("[[1, 2], [3]]")
+
       pp((1, 2)) |> Stdlib.Test.equal("(1, 2)")
+
       pp((1, "two", true)) |> Stdlib.Test.equal("(1, \"two\", true)")
+
       pp(Stdlib.Dict.empty) |> Stdlib.Test.equal("{}")
+
       pp(Stdlib.Dict.fromEntries([ ("a", 1), ("b", 2) ]))
       |> Stdlib.Test.equal("{ \"a\": 1, \"b\": 2 }")
+
       pp(Stdlib.Dict.fromEntries([ ("has-hyphen", 1) ]))
       |> Stdlib.Test.equal("{ \"has-hyphen\": 1 }")
+
       pp(Stdlib.Dict.fromEntries([ ("type", 1) ]))
       |> Stdlib.Test.equal("{ \"type\": 1 }")
+
       pp(Dict { 1: "one", 2: "two" })
       |> Stdlib.Test.equal("{ 1: \"one\", 2: \"two\" }")
-      pp(Dict { (1, "a"): true }) |> Stdlib.Test.equal("{ (1, \"a\"): true }") ])
+
+      pp(Dict { (1, "a"): true })
+      |> Stdlib.Test.equal("{ (1, \"a\"): true }") ])
+
 
 // Records
 //
@@ -161,6 +186,7 @@ test records =
       pp(loc("Darklang", [ "Stdlib", "List" ], "map"))
       |> Stdlib.Test.equal(
         "Darklang.LanguageTools.ProgramTypes.PackageLocation {\n  owner: \"Darklang\",\n  modules: [\"Stdlib\", \"List\"],\n  name: \"map\"\n}")
+
       // `List<_>`, not `List<String>`: an empty list carries no element type at
       // runtime, and the printer doesn't consult the field's declared type to
       // recover one. Recorded as-is because it is what happens; the `_` is the
@@ -169,6 +195,7 @@ test records =
       pp(loc("Darklang", [], "x"))
       |> Stdlib.Test.equal(
         "Darklang.LanguageTools.ProgramTypes.PackageLocation {\n  owner: \"Darklang\",\n  modules: List<_> [],\n  name: \"x\"\n}") ])
+
 
 // Enums
 //
@@ -180,6 +207,7 @@ test enums =
   Stdlib.Test.all(
     [ pp(Stdlib.Option.Option.Some(1)) |> Stdlib.Test.equal("Some(1)")
       pp(Stdlib.Result.Result.Ok(1)) |> Stdlib.Test.equal("Ok(1)") ])
+
 
 // Name shortening
 //
@@ -196,6 +224,7 @@ test shortening =
         [ "LanguageTools", "ProgramTypes", "PackageFn" ],
         "Parameter")
       |> Stdlib.Test.equal("Parameter")
+
       // Parent module: still just the leaf, because the resolver walks up.
       short(
         [ "Darklang", "LanguageTools", "ProgramTypes", "PackageFn" ],
@@ -203,16 +232,24 @@ test shortening =
         [ "LanguageTools", "ProgramTypes" ],
         "TypeReference")
       |> Stdlib.Test.equal("TypeReference")
+
       // Sibling module: keep the part that differs.
-      short([ "Darklang", "Stdlib", "Option" ], "Darklang", [ "Stdlib", "List" ], "map")
+      short(
+        [ "Darklang", "Stdlib", "Option" ],
+        "Darklang",
+        [ "Stdlib", "List" ],
+        "map")
       |> Stdlib.Test.equal("List.map")
+
       // No context at all: `Stdlib.` resolves with `Darklang` implied, so the
       // owner comes off.
       short([], "Darklang", [ "Stdlib", "List" ], "map")
       |> Stdlib.Test.equal("Stdlib.List.map")
+
       // Someone else's package stays fully qualified.
       short([ "Darklang", "Stdlib" ], "Stachu", [ "Parser" ], "map")
       |> Stdlib.Test.equal("Stachu.Parser.map")
+
       // Option and Result resolve unqualified from anywhere.
       short(
         [ "Darklang", "Stdlib", "List" ],
@@ -220,8 +257,14 @@ test shortening =
         [ "Stdlib", "Option" ],
         "Option")
       |> Stdlib.Test.equal("Option")
-      short([ "Stachu", "Whatever" ], "Darklang", [ "Stdlib", "Result" ], "Result")
+
+      short(
+        [ "Stachu", "Whatever" ],
+        "Darklang",
+        [ "Stdlib", "Result" ],
+        "Result")
       |> Stdlib.Test.equal("Result")
+
       // Prefixes are compared segment-wise. The old rule compared strings, so
       // from `...List` a reference to `...ListView.render` was shortened to
       // `iew.render`.
@@ -231,9 +274,15 @@ test shortening =
         [ "Stdlib", "ListView" ],
         "render")
       |> Stdlib.Test.equal("ListView.render")
+
       // A partial segment match is not a match.
-      short([ "Darklang", "Stdlib", "Li" ], "Darklang", [ "Stdlib", "List" ], "map")
+      short(
+        [ "Darklang", "Stdlib", "Li" ],
+        "Darklang",
+        [ "Stdlib", "List" ],
+        "map")
       |> Stdlib.Test.equal("List.map") ])
+
 
 // Options
 //
@@ -244,20 +293,25 @@ test widths =
   Stdlib.Test.all(
     [ // Wide enough: one line.
       at(200, [ 1, 2, 3 ]) |> Stdlib.Test.equal("[1, 2, 3]")
+
       // Narrow enough that the same list has to break.
-      at(8, [ 100, 200, 300 ]) |> Stdlib.Test.equal("[\n  100,\n  200,\n  300\n]")
+      at(8, [ 100, 200, 300 ])
+      |> Stdlib.Test.equal("[\n  100,\n  200,\n  300\n]")
+
       // The default is 80 columns, and `dval` is the default-options wrapper, so
       // the two agree.
-      (at(80, [ 1, 2, 3 ])) == (pp([ 1, 2, 3 ])) |> Stdlib.Test.equal(true)
+      at(80, [ 1, 2, 3 ]) == pp([ 1, 2, 3 ]) |> Stdlib.Test.equal(true)
+
       // The same record at a width that fits it: one line, so the break above is
       // the width deciding, not a record always breaking.
-      Darklang.PrettyPrinter.RuntimeTypes.dvalWith(
-        Darklang.SCM.Branch.mainBranchId,
-        Darklang.PrettyPrinter.DisplayOptions.atWidth(200),
-        (Darklang.LanguageTools.RuntimeTypes.reflect(
-          loc("Darklang", [ "Stdlib" ], "map"))))
+      PrettyPrinter.RuntimeTypes.dvalWith(
+        SCM.Branch.mainBranchId,
+        PrettyPrinter.DisplayOptions.atWidth(200),
+        LanguageTools.RuntimeTypes.reflect(
+          loc("Darklang", [ "Stdlib" ], "map")))
       |> Stdlib.Test.equal(
         "Darklang.LanguageTools.ProgramTypes.PackageLocation { owner: \"Darklang\", modules: [\"Stdlib\"], name: \"map\" }") ])
+
 
 test enumTypeNames =
   Stdlib.Test.all(
@@ -266,10 +320,12 @@ test enumTypeNames =
       // `Darklang.Stdlib.Option.Option<Darklang.Stdlib.Option.Option<List<Int64>>>.Some(...)`.
       pp(Stdlib.Option.Option.Some(Stdlib.Option.Option.Some([ 1, 2, 3 ])))
       |> Stdlib.Test.equal("Some(Some([1, 2, 3]))")
+
       // A non-wrapper enum keeps its type name.
       pp(Stdlib.List.chunkBySize([ 1, 2, 3 ], 0))
       |> Stdlib.Test.equal(
         "Error(Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)")
+
       // Unless the type has several names and nothing says which.
       // `Stdlib.BigInt.ParseError`, `Stdlib.Float.ParseError` and
       // `Stdlib.Uuid.ParseError` are all `| BadFormat`, so content-addressing
@@ -277,6 +333,7 @@ test enumTypeNames =
       // used to guess wrong often enough that `Stdlib.BigInt.parse` would report a
       // `Stdlib.Uuid.ParseError`. The case alone is honest.
       pp(Stdlib.Int64.parse("abc")) |> Stdlib.Test.equal("Error(BadFormat)") ])
+
 
 // `dvalOneLine` renders only as much as it can show
 //
@@ -292,25 +349,28 @@ test enumTypeNames =
 // after the bracket, so the cut has to stay above the width where that flips.
 test oneLineRendersPrefix =
   Stdlib.Test.all(
-    [ Darklang.PrettyPrinter.RuntimeTypes.dvalOneLine(
-        Darklang.SCM.Branch.mainBranchId,
+    [ PrettyPrinter.RuntimeTypes.dvalOneLine(
+        SCM.Branch.mainBranchId,
         60,
-        Darklang.LanguageTools.RuntimeTypes.reflect(big()))
+        LanguageTools.RuntimeTypes.reflect(big()))
       |> Stdlib.Test.equal(
         "[ 37, 74, 111, 148, 185, 222, 259, 296, 333, 370, 407, 44...")
+
       // A budget small enough that a naive prefix would fit on one line and lose
       // the space.
-      Darklang.PrettyPrinter.RuntimeTypes.dvalOneLine(
-        Darklang.SCM.Branch.mainBranchId,
+      PrettyPrinter.RuntimeTypes.dvalOneLine(
+        SCM.Branch.mainBranchId,
         10,
-        Darklang.LanguageTools.RuntimeTypes.reflect(big()))
+        LanguageTools.RuntimeTypes.reflect(big()))
       |> Stdlib.Test.equal("[ 37, 7...")
+
       // Short enough to need no cut at all: inline, and untouched.
-      Darklang.PrettyPrinter.RuntimeTypes.dvalOneLine(
-        Darklang.SCM.Branch.mainBranchId,
+      PrettyPrinter.RuntimeTypes.dvalOneLine(
+        SCM.Branch.mainBranchId,
         60,
-        Darklang.LanguageTools.RuntimeTypes.reflect([ 1, 2, 3 ]))
+        LanguageTools.RuntimeTypes.reflect([ 1, 2, 3 ]))
       |> Stdlib.Test.equal("[1, 2, 3]") ])
+
 
 // The trace JSON's renderer bounds length, not depth
 //
@@ -322,40 +382,46 @@ test oneLineRendersPrefix =
 test compactDvalKeepsDepth =
   Stdlib.Test.all(
     [ // Four levels, which the page elides and this must not.
-      Darklang.Tracing.Format.compactDval(
-        Darklang.SCM.Branch.mainBranchId,
-        (Darklang.LanguageTools.RuntimeTypes.reflect(
-          [ [ [ [ 1, 2 ], [ 3, 4 ] ], [ [ 5, 6 ] ] ], [ [ [ 7, 8 ] ] ] ])))
+      Tracing.Format.compactDval(
+        SCM.Branch.mainBranchId,
+        LanguageTools.RuntimeTypes.reflect(
+          [ [ [ [ 1, 2 ], [ 3, 4 ] ], [ [ 5, 6 ] ] ], [ [ [ 7, 8 ] ] ] ]))
       |> Stdlib.Test.equal("[[[[1, 2], [3, 4]], [[5, 6]]], [[[7, 8]]]]")
+
       // The page, for contrast: same value, elided.
-      Darklang.PrettyPrinter.RuntimeTypes.dvalOneLine(
-        Darklang.SCM.Branch.mainBranchId,
+      PrettyPrinter.RuntimeTypes.dvalOneLine(
+        SCM.Branch.mainBranchId,
         2000,
-        (Darklang.LanguageTools.RuntimeTypes.reflect(
-          [ [ [ [ 1, 2 ], [ 3, 4 ] ], [ [ 5, 6 ] ] ], [ [ [ 7, 8 ] ] ] ])))
+        LanguageTools.RuntimeTypes.reflect(
+          [ [ [ [ 1, 2 ], [ 3, 4 ] ], [ [ 5, 6 ] ] ], [ [ [ 7, 8 ] ] ] ]))
       |> Stdlib.Test.equal("[[[..., ...], [...]], [[...]]]") ])
+
 
 /// A `val` is saved when it is stored, so this one holds saved Bytes.
 val savedBytes = Stdlib.Utf8.encode("saved preview")
 
+
 // Unsaved Bytes show their first 16 bytes as hex. Saved ones show only their
 // length, because a preview would load them from the store.
 test bytesShowAPreview =
-  let persistent =
-    Darklang.LanguageTools.RuntimeTypes.Dval.DBytes(Stdlib.Bytes.empty)
+  let persistent = LanguageTools.RuntimeTypes.Dval.DBytes(Stdlib.Bytes.empty)
   Stdlib.Test.all(
     [ pp(Stdlib.Utf8.encode("hello"))
       |> Stdlib.Test.equal("<Bytes: 5 bytes 68 65 6c 6c 6f>")
+
       pp(Stdlib.Utf8.encode("h")) |> Stdlib.Test.equal("<Bytes: 1 byte 68>")
+
       pp(Stdlib.Utf8.encode(Stdlib.String.repeat("*", 20)))
       |> Stdlib.Test.equal(
         "<Bytes: 20 bytes 2a 2a 2a 2a 2a 2a 2a 2a 2a 2a 2a 2a 2a 2a 2a 2a ...>")
+
       pp(Stdlib.Utf8.encode("")) |> Stdlib.Test.equal("<Bytes: 0 bytes>")
+
       pp(Stdlib.Bytes.empty) |> Stdlib.Test.equal("<Bytes: 0 bytes>")
+
       pp(savedBytes) |> Stdlib.Test.equal("<Bytes: 13 bytes>")
-      Darklang.PrettyPrinter.RuntimeTypes.dval(
-        Darklang.SCM.Branch.mainBranchId,
-        persistent)
+
+      PrettyPrinter.RuntimeTypes.dval(SCM.Branch.mainBranchId, persistent)
       |> Stdlib.Test.equal("<Bytes: 0 bytes>") ])
 
 
@@ -363,23 +429,22 @@ test bytesShowAPreview =
 // as "RTE pretty-printing TODO" followed by its JSON.
 test wrongNumberOfTypeArgsForTypeReadsAsASentence =
   let rte =
-    Darklang.LanguageTools.RuntimeTypes.RuntimeError.Error.WrongNumberOfTypeArgsForType(
-      Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(
-        Darklang.LanguageTools.RuntimeTypes.Hash.Hash("no-such-type")),
+    LanguageTools.RuntimeTypes.RuntimeError.Error.WrongNumberOfTypeArgsForType(
+      LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(
+        LanguageTools.RuntimeTypes.Hash.Hash("no-such-type")),
       1,
       2)
 
-  Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.toString(
-    Darklang.SCM.Branch.mainBranchId,
-    rte)
-  |> Stdlib.String.endsWith(" expects 1 type argument, but got 2 type arguments")
+  PrettyPrinter.RuntimeTypes.RuntimeError.toString(SCM.Branch.mainBranchId, rte)
+  |> Stdlib.String.endsWith(
+    " expects 1 type argument, but got 2 type arguments")
   |> Stdlib.Test.equal(true)
 
 
 // A self-call printed with no fn to name it says so, rather than printing `ESelf` as though it
 // were a name.
 test selfCallOutsideAFunction =
-  Darklang.PrettyPrinter.ProgramTypes.expr(
-    Darklang.PrettyPrinter.ProgramTypes.Context.forBranch(Darklang.SCM.Branch.mainBranchId),
-    Darklang.LanguageTools.ProgramTypes.Expr.ESelf(1))
+  PrettyPrinter.ProgramTypes.expr(
+    PrettyPrinter.ProgramTypes.Context.forBranch(SCM.Branch.mainBranchId),
+    LanguageTools.ProgramTypes.Expr.ESelf(1))
   |> Stdlib.Test.equal("<self-call outside a function>")

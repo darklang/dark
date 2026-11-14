@@ -4,47 +4,94 @@ module Darklang.Stdlib.Csv.Tests
 test parsePlain =
   Stdlib.Test.all(
     [ Stdlib.Csv.parse("a,b,c\n1,2,3\n")
-      |> Stdlib.Test.equal(Ok([ [ "a", "b", "c" ], [ "1", "2", "3" ] ]))
-      Stdlib.Csv.parse("a,b\r\n1,2") |> Stdlib.Test.equal(Ok([ [ "a", "b" ], [ "1", "2" ] ]))
-      Stdlib.Csv.parse("") |> Stdlib.Test.equal(Ok([]))
-      Stdlib.Csv.parse("a,,c,\n") |> Stdlib.Test.equal(Ok([ [ "a", "", "c", "" ] ]))
-      Stdlib.Csv.parse("a\n\nb\n") |> Stdlib.Test.equal(Ok([ [ "a" ], [ "b" ] ]))
-      Stdlib.Csv.parse(" a , b ") |> Stdlib.Test.equal(Ok([ [ " a ", " b " ] ])) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok([ [ "a", "b", "c" ], [ "1", "2", "3" ] ]))
+
+      Stdlib.Csv.parse("a,b\r\n1,2")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok([ [ "a", "b" ], [ "1", "2" ] ]))
+
+      Stdlib.Csv.parse("") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([]))
+
+      Stdlib.Csv.parse("a,,c,\n")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ [ "a", "", "c", "" ] ]))
+
+      Stdlib.Csv.parse("a\n\nb\n")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ [ "a" ], [ "b" ] ]))
+
+      Stdlib.Csv.parse(" a , b ")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ [ " a ", " b " ] ])) ])
+
 
 test parseQuoted =
   Stdlib.Test.all(
     [ Stdlib.Csv.parse("\"Smith, John\",29\r\n")
-      |> Stdlib.Test.equal(Ok([ [ "Smith, John", "29" ] ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ [ "Smith, John", "29" ] ]))
+
       Stdlib.Csv.parse("\"say \"\"hi\"\"\",x")
-      |> Stdlib.Test.equal(Ok([ [ "say \"hi\"", "x" ] ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ [ "say \"hi\"", "x" ] ]))
+
       Stdlib.Csv.parse("\"two\r\nlines\",x\ny,z")
-      |> Stdlib.Test.equal(Ok([ [ "two\r\nlines", "x" ], [ "y", "z" ] ]))
-      Stdlib.Csv.parse("\"\",\"\"") |> Stdlib.Test.equal(Ok([ [ "", "" ] ])) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok([ [ "two\r\nlines", "x" ], [ "y", "z" ] ]))
+
+      Stdlib.Csv.parse("\"\",\"\"")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ [ "", "" ] ])) ])
+
 
 test parseErrors =
   Stdlib.Test.all(
     [ Stdlib.Csv.parse("a,b\n\"open,c\nd")
-      |> Stdlib.Test.equal(Error(Stdlib.Csv.ParseError.ParseError.UnclosedQuote(2)))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Csv.ParseError.ParseError.UnclosedQuote(2)))
+
       Stdlib.Csv.parse("a,b\nx\"y,c")
-      |> Stdlib.Test.equal(Error(Stdlib.Csv.ParseError.ParseError.QuoteInUnquotedField(2)))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Csv.ParseError.ParseError.QuoteInUnquotedField(2)))
+
       Stdlib.Csv.parse("\"a\"b,c")
-      |> Stdlib.Test.equal(Error(Stdlib.Csv.ParseError.ParseError.TextAfterClosingQuote(1)))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Csv.ParseError.ParseError.TextAfterClosingQuote(1)))
+
       Stdlib.display(Stdlib.Csv.ParseError.ParseError.UnclosedQuote(2))
-      |> Stdlib.Test.equal("a quoted field starting on line 2 is never closed") ])
+      |> Stdlib.Test.equal(
+        "a quoted field starting on line 2 is never closed") ])
+
 
 test serialize =
   Stdlib.Test.all(
-    [ Stdlib.Csv.serialize([ [ "a", "b" ], [ "1", "2" ] ]) |> Stdlib.Test.equal("a,b\r\n1,2\r\n")
+    [ Stdlib.Csv.serialize([ [ "a", "b" ], [ "1", "2" ] ])
+      |> Stdlib.Test.equal("a,b\r\n1,2\r\n")
+
       Stdlib.Csv.serialize([ [ "Smith, John", "say \"hi\"", "two\nlines" ] ])
-      |> Stdlib.Test.equal("\"Smith, John\",\"say \"\"hi\"\"\",\"two\nlines\"\r\n")
+      |> Stdlib.Test.equal(
+        "\"Smith, John\",\"say \"\"hi\"\"\",\"two\nlines\"\r\n")
+
       Stdlib.Csv.serialize([]) |> Stdlib.Test.equal("") ])
 
+
 test roundTrip =
-  let rows = [ [ "id", "name", "note" ], [ "1", "Quote \"Q\"", "a,b\r\nc" ], [ "2", "", " x " ] ]
-  Stdlib.Csv.parse(Stdlib.Csv.serialize(rows)) |> Stdlib.Test.equal(Ok(rows))
+  let rows =
+    [ [ "id", "name", "note" ]
+      [ "1", "Quote \"Q\"", "a,b\r\nc" ]
+      [ "2", "", " x " ] ]
+
+  Stdlib.Csv.parse(Stdlib.Csv.serialize(rows))
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(rows))
+
 
 test manyRows =
-  let text = Stdlib.List.range(1, 3000) |> Stdlib.List.map(fun i -> $"{i},row {i},\"x,{i}\"") |> Stdlib.String.join("\n")
+  let text =
+    Stdlib.List.range(1, 3000)
+    |> Stdlib.List.map(fun i -> $"{i},row {i},\"x,{i}\"")
+    |> Stdlib.String.join("\n")
+
   Stdlib.Csv.parse(text)
-  |> Stdlib.Result.map(fun rows -> (Stdlib.List.length(rows), Stdlib.List.last(rows)))
-  |> Stdlib.Test.equal(Ok((3000, Some([ "3000", "row 3000", "x,3000" ]))))
+  |> Stdlib.Result.map(fun rows ->
+    (Stdlib.List.length(rows), Stdlib.List.last(rows)))
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Ok(
+      (3000, Stdlib.Option.Option.Some([ "3000", "row 3000", "x,3000" ]))))

@@ -1,35 +1,58 @@
 module Darklang.LanguageTools.RuntimeTypes
 
-
 // <aliases>
 type Option<'a> = Stdlib.Option.Option<'a>
+
+
 // </aliases>
 
-type Hash = | Hash(String)
+type Hash =
+  | Hash(String)
+
 
 let hashToString(hash: Hash): String =
   match hash with
   | Hash(h) -> h
 
+
 module FQTypeName =
   type Package = Hash
-  type FQTypeName = Package(Package)
+
+
+  type FQTypeName =
+    | Package(Package)
+
 
 module FQTraitName =
   type Package = Hash
-  type FQTraitName = Package(Package)
+
+
+  type FQTraitName =
+    | Package(Package)
+
 
 module FQValueName =
-  type Builtin = { name: String, version: Int32 }
+  type Builtin =
+    { name: String
+      version: Int32 }
+
+
   type Package = Hash
+
 
   type FQValueName =
     | Builtin(Builtin)
     | Package(Package)
 
+
 module FQFnName =
-  type Builtin = { name: String, version: Int32 }
+  type Builtin =
+    { name: String
+      version: Int32 }
+
+
   type Package = Hash
+
 
   /// How much of a trait call's implementation is decided; the runtime's half of
   /// `ProgramTypes.FQFnName.ImplChoice`.
@@ -41,6 +64,7 @@ module FQFnName =
     /// Resolve at the call; the only path that asks the store
     | Unknown
 
+
   /// A trait method call: the trait, the method name (`Display.display`), and how
   /// much the save could say about which implementation runs.
   type TraitMethod =
@@ -48,10 +72,12 @@ module FQFnName =
       method_: String
       implFn: ImplChoice }
 
+
   type FQFnName =
     | Builtin(Builtin)
     | Package(Package)
     | TraitMethod(TraitMethod)
+
 
 /// Where a call frame is executing.
 type ExecutionPoint =
@@ -59,18 +85,17 @@ type ExecutionPoint =
   | Function(FQFnName.FQFnName)
   /// `parent` is the frame that called the lambda. `writtenIn` is the fn (or
   /// `Source`) the lambda is written in, or `None` when that isn't known.
-  | Lambda(
-    parent: ExecutionPoint,
-    exprId: UInt64,
-    writtenIn: Option<ExecutionPoint>)
+  | Lambda(parent: ExecutionPoint, exprId: UInt64, writtenIn: Option<ExecutionPoint>)
+
 
 type NameResolutionError =
   | NotFound
   | InvalidName
 
+
 type NameResolution<'a> =
   { originalName: List<String>
-    resolved: Stdlib.Result.Result<'a, NameResolutionError> }
+    resolved: Result<'a, NameResolutionError> }
 
 
 type TypeReference =
@@ -99,11 +124,10 @@ type TypeReference =
   | TTuple(TypeReference, TypeReference, List<TypeReference>)
   | TList(TypeReference)
   | TDict(key: TypeReference, value: TypeReference)
-  | TCustomType(
-    NameResolution<FQTypeName.FQTypeName>,
-    typeArgs: List<TypeReference>)
+  | TCustomType(NameResolution<FQTypeName.FQTypeName>, typeArgs: List<TypeReference>)
   | TFn(List<TypeReference>, TypeReference)
   | TVariable(String)
+
 
 type TypeSymbolTable = Dict<String, TypeReference>
 
@@ -134,9 +158,7 @@ type KnownType =
   | KTTuple(ValueType, ValueType, List<ValueType>)
   | KTList(ValueType)
   | KTDict(key: ValueType, value: ValueType)
-
   | KTFn(List<ValueType>, ValueType)
-
   | KTCustomType(FQTypeName.FQTypeName, typeArgs: List<ValueType>)
 
 
@@ -149,10 +171,8 @@ type LetPattern =
   | LPVariable(reg: Register, name: String)
   | LPWildcard
   | LPUnit
-  | LPTuple(
-    first: LetPattern,
-    second: LetPattern,
-    theRest: List<LetPattern>)
+  | LPTuple(first: LetPattern, second: LetPattern, theRest: List<LetPattern>)
+
 
 type MatchPattern =
   | MPUnit
@@ -182,11 +202,13 @@ type MatchPattern =
   | MPAs(MatchPattern, Register)
   | MPRecord(fields: List<(String * MatchPattern)>)
 
+
 type Register = Int32
 
 type DvalMap = Dict<String, Dval>
 
 type DictMap = Dict<Dval, Dval>
+
 
 type StringSegment =
   | Text(String)
@@ -215,16 +237,9 @@ type Instruction =
     extractTo: Register,
     valueReg: Register,
     returns: Stdlib.Option.Option<FQTypeName.FQTypeName>)
-  | CheckMatchPatternAndExtractVars(
-    valueReg: Register,
-    pat: MatchPattern,
-    failJump: Int32)
+  | CheckMatchPatternAndExtractVars(valueReg: Register, pat: MatchPattern, failJump: Int32)
   | MatchUnmatched(valueReg: Register)
-  | CreateTuple(
-    createTo: Register,
-    first: Register,
-    second: Register,
-    theRest: List<Register>)
+  | CreateTuple(createTo: Register, first: Register, second: Register, theRest: List<Register>)
   | CreateList(createTo: Register, itemsToAdd: List<Register>)
   | CreateDict(createTo: Register, entries: List<(Register * Register)>)
   | CreateRecord(
@@ -236,10 +251,7 @@ type Instruction =
     createTo: Register,
     originalRecordReg: Register,
     updates: List<(String * Register)>)
-  | GetRecordField(
-    targetReg: Register,
-    recordReg: Register,
-    fieldName: String)
+  | GetRecordField(targetReg: Register, recordReg: Register, fieldName: String)
   | CreateEnum(
     createTo: Register,
     typeName: FQTypeName.FQTypeName,
@@ -273,15 +285,18 @@ type LambdaImpl =
     selfRegister: Option<Register>
     instructions: Instructions }
 
+
 type ApplicableNamedFn =
   { name: FQFnName.FQFnName
     typeArgs: List<TypeReference>
     argsSoFar: List<Dval> }
 
+
 type ApplicableLambda =
   { exprId: UInt64
     closedRegisters: List<(Register * Dval)>
     typeSymbolTable: TypeSymbolTable }
+
 
 type Applicable =
   | AppLambda(ApplicableLambda)
@@ -298,6 +313,7 @@ type ImplCandidate =
     /// one trait for one type are ordered by it: the newer one runs. Empty for an
     /// implementation that never came from an op, and then neither one wins.
     stamp: String }
+
 
 type Dval =
   | DUnit
@@ -346,6 +362,7 @@ type Dval =
 
   | DStreamStub(elemType: ValueType)
 
+
 type BuiltInParam =
   { name: String
     typ: TypeReference
@@ -355,4 +372,5 @@ type BuiltInParam =
 
 /// Convert a value into a Dval that Dark code can inspect.
 /// For records and enums, the result includes the package type's hash.
-let reflect(value: 'a): Dval = Builtin.reflect(value)
+let reflect(value: 'a): Dval =
+  Builtin.reflect(value)

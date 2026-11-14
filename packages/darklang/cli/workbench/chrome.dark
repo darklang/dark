@@ -4,7 +4,10 @@
 /// Part of `Darklang.Cli.Workbench`.
 module Darklang.Cli.Workbench
 
-let renderViewBody(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
+let renderViewBody(
+  state: State,
+  region: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
   if state.activeView == vHome then
     renderHome(state, region)
   else if state.activeView == vMatter then
@@ -13,14 +16,21 @@ let renderViewBody(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdl
     // The breadcrumb, or `packages` at the root: the nav says Code already.
     let path = Stdlib.String.join(Packages.modulePathOf(state.location), " › ")
     let where = if path == "" then "packages" else path
+
     let lens =
-      if state.matter.lens == Lens.ValuesOnly then "values only"
-      else if state.matter.lens == Lens.Changed then "changed"
-      else ""
+      if state.matter.lens == Lens.ValuesOnly then
+        "values only"
+      else if state.matter.lens == Lens.Changed then
+        "changed"
+      else
+        ""
+
     let listFocused =
       Stdlib.Cli.UI.Focus.fromBool(state.focus == Stdlib.Cli.UI.SplitPane.Focus.First)
+
     let detailFocused =
       Stdlib.Cli.UI.Focus.fromBool(state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second)
+
     paneSplit(
       region,
       matterSplitFor(state),
@@ -40,10 +50,16 @@ let renderViewBody(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdl
       "",
       "trace",
       "Detail",
-      (Stdlib.Cli.UI.Colors.dimText(
-        "nothing has run yet -- every `dark eval`, `dark run` and served request is kept here")))
+      Stdlib.Cli.UI.Colors.dimText(
+        "nothing has run yet -- every `dark eval`, `dark run` and served request is kept here"))
   else if state.activeView == vDocs then
-    splitListPreview(state, region, "", "topic", "Topic", Stdlib.Cli.UI.Colors.dimText("(no topics)"))
+    splitListPreview(
+      state,
+      region,
+      "",
+      "topic",
+      "Topic",
+      Stdlib.Cli.UI.Colors.dimText("(no topics)"))
   else
     // Extension views render themselves (see `extensionViews`); anything unrecognised shows a stub.
     match extensionViewAt(state.activeView) with
@@ -54,17 +70,26 @@ let renderViewBody(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdl
       titledLines(
         region,
         paneTitle(viewLabel(state.activeView), [], Stdlib.Cli.UI.Focus.Unfocused),
-        [ Stdlib.Cli.UI.Colors.dimText((viewLabel(state.activeView)) + " - coming soon") ])
+        [ Stdlib.Cli.UI.Colors.dimText(viewLabel(state.activeView) + " - coming soon") ])
+
 
 /// The multiline editor, under a title naming what's being written: a spacious authoring surface (not
 /// the bottom prompt bar). The error line (if any) sits just under the title; the buffer renders below
 /// with a reverse-video cursor at (row, col).
-let renderEditing(es: EditingState, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
+let renderEditing(
+  es: EditingState,
+  region: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
   let inner = paneContent(region)
   let title =
     paneTitle(es.nameStr, [ es.kind, "^s saves · esc cancels" ], Stdlib.Cli.UI.Focus.Focused)
+
   let errSpans =
-    if es.err != "" then Stdlib.Cli.UI.Layout.at(inner, 0, 0, Stdlib.Cli.UI.Colors.error(es.err)) else []
+    if es.err != "" then
+      Stdlib.Cli.UI.Layout.at(inner, 0, 0, Stdlib.Cli.UI.Colors.error(es.err))
+    else
+      []
+
   let bodyTop = if es.err != "" then 1 else 0
   let visible = Stdlib.max(1, inner.rows - bodyTop)
   let scroll = Stdlib.max(0, es.buf.row - visible + 1)
@@ -79,58 +104,87 @@ let renderEditing(es: EditingState, region: Stdlib.Cli.UI.Layout.Region): List<S
       if i == es.buf.row then
         let llen = Stdlib.String.length(l)
         let before = Stdlib.String.slice(l, 0, es.buf.col)
-        let atCursor = if es.buf.col < llen then Stdlib.String.slice(l, es.buf.col, es.buf.col + 1) else " "
+        let atCursor =
+          if es.buf.col < llen then
+            Stdlib.String.slice(l, es.buf.col, es.buf.col + 1)
+          else
+            " "
+
         let after = if es.buf.col < llen then Stdlib.String.slice(l, es.buf.col + 1, llen) else ""
-        Stdlib.Cli.UI.Layout.at(inner, screenRow, 0, before + (Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.reverse, atCursor)) + after)
+        Stdlib.Cli.UI.Layout.at(
+          inner,
+          screenRow,
+          0,
+          before + Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.reverse, atCursor) + after)
       else
         Stdlib.Cli.UI.Layout.at(inner, screenRow, 0, l))
     |> Stdlib.List.flatten
+
   Stdlib.List.flatten([ frameWithTitles(region, title, "", 0 - 1), errSpans, bodySpans ])
 
+
 /// The jumpable search-results list. ⏎ navigates to the hit.
-let renderSearchResults(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
+let renderSearchResults(
+  state: State,
+  region: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
   let title =
     paneTitle(
       "Search",
       [ plural(Stdlib.List.length(state.search.hits), "result"), "⏎ jump · esc close" ],
       Stdlib.Cli.UI.Focus.Focused)
+
   let inner = paneContent(region)
   let lines =
     state.search.hits
     |> Stdlib.List.indexedMap(fun(i, h) ->
       if i == state.search.selected then
         selectionRow(inner.cols, "  " + h.display)
-      else "  " + h.display)
+      else
+        "  " + h.display)
+
   Stdlib.List.flatten(
     [ frameWithTitles(region, title, "", 0 - 1)
       Stdlib.Cli.UI.ListView.render(inner, lines, state.search.selected) ])
+
 
 /// Dispatch the body: the editor, then a reader, then search results, else the active view's body.
 let renderBody(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
   match state.editing with
   | Some(es) -> renderEditing(es, region)
   | None ->
-  match state.reading with
-  | Some(content) -> renderReading(content, state.readingIsCode, state.detailScroll, region)
-  | None ->
-    if Stdlib.Bool.not(Stdlib.List.isEmpty(state.search.hits)) then renderSearchResults(state, region)
-    else renderViewBody(state, region)
+    match state.reading with
+    | Some(content) -> renderReading(content, state.readingIsCode, state.detailScroll, region)
+    | None ->
+      if Stdlib.Bool.not(Stdlib.List.isEmpty(state.search.hits)) then
+        renderSearchResults(state, region)
+      else
+        renderViewBody(state, region)
+
 
 /// A view's purpose and data caveat. An empty caveat means real data.
 let viewBlurb(idx: Int64): (String * String) =
-  if idx == vMatter then ("browse and edit the package tree", "")
+  if idx == vMatter then
+    ("browse and edit the package tree", "")
   else if idx == vScratch then
     ("evaluate expressions -- ⏎ to start typing, esc to stop; `let` binds for the session", "")
-  else if idx == vSCM then ("changes, commits, branches, conflicts", "")
-  else if idx == vTraces then ("what ran recently - samples until something does", "")
-  else if idx == vDocs then ("the CLI's docs, read without leaving", "")
+  else if idx == vSCM then
+    ("changes, commits, branches, conflicts", "")
+  else if idx == vTraces then
+    ("what ran recently - samples until something does", "")
+  else if idx == vDocs then
+    ("the CLI's docs, read without leaving", "")
   else
     match extensionViewAt(idx) with
     | Some(vd) ->
-      if vd.id == "errors" then ("unresolved conflicts", "")
-      else if vd.id == "builtins" then ("every builtin, searchable", "")
-      else ("", "")
+      if vd.id == "errors" then
+        ("unresolved conflicts", "")
+      else if vd.id == "builtins" then
+        ("every builtin, searchable", "")
+      else
+        ("", "")
     | None -> ("", "")
+
 
 /// Key hints for the focused pane, followed by global shortcuts.
 ///
@@ -153,6 +207,7 @@ let hintsForView(state: State, width: Int64): String =
   let backHint =
     let label = backLabel(state)
     if label == "" then [] else [ ("esc", "← " + label) ]
+
   let secondaryGlobal = [ ("S", "branches"), ("/", "search"), (":", "cmd"), ("`", "views") ]
   let ctx =
     if navbarFocused(state) then
@@ -160,8 +215,11 @@ let hintsForView(state: State, width: Int64): String =
       // (see `handleNavbarKey`). The strip shows each workspace's number, so
       // the row doesn't repeat `1-9`; the overlay does the same.
       let (walk, leave) =
-        if navFits(width) then (("←→", "move"), ("↓", "to view"))
-        else (("↑↓", "move"), ("→", "to view"))
+        if navFits(width) then
+          (("←→", "move"), ("↓", "to view"))
+        else
+          (("↑↓", "move"), ("→", "to view"))
+
       [ walk, ("⏎", "go"), leave ]
     else if view == vMatter then
       Stdlib.List.flatten(
@@ -175,23 +233,37 @@ let hintsForView(state: State, width: Int64): String =
             ("r", "rename")
             ("x", "traces")
             ("f", "filter") ]
-          (if Stdlib.List.contains(visibleViews(state), extViewIndex("builtins")) then [ ("B", "builtins") ] else [])
+
+          if Stdlib.List.contains(visibleViews(state), extViewIndex("builtins")) then
+            [ ("B", "builtins") ]
+          else
+            []
+
           paneHint ])
     else if view == vHome then
       let enter =
-        if (homeRowIs(state, "home-branch")) && (Stdlib.Bool.not(homeRowIsCurrentBranch(state))) then
+        if homeRowIs(state, "home-branch") && Stdlib.Bool.not(homeRowIsCurrentBranch(state)) then
           ("⏎", "switch")
-        else ("⏎", "open")
+        else
+          ("⏎", "open")
+
       // Branch verbs live here: Home is where the branches are listed.
-      Stdlib.List.flatten([ [ ("↑↓", "move"), enter ], backHint, [ ("s", "switch branch"), ("b", "new branch"), ("c", "commit"), ("m", "merge") ] ])
+      Stdlib.List.flatten(
+        [ [ ("↑↓", "move"), enter ]
+          backHint
+          [ ("s", "switch branch"), ("b", "new branch"), ("c", "commit"), ("m", "merge") ] ])
     else if view == vScratch then
-      Stdlib.List.flatten([ [ ("⏎", "type") ], backHint, [ ("f", "clear log"), ("x", "clear session") ] ])
+      Stdlib.List.flatten(
+        [ [ ("⏎", "type") ], backHint, [ ("f", "clear log"), ("x", "clear session") ] ])
     else if view == vSCM then
       // On a conflict row the row's own verbs; otherwise the draft's. `u/d` stay: they are the
       // only way to sync from in here, and a key nobody can see is a key nobody uses.
       if cursorRowIs(state, "conflict") then
         Stdlib.List.flatten(
-          [ [ ("↑↓", "move"), ("⏎", "open") ], backHint, [ ("o", "ours"), ("t", "theirs"), ("a", "ack") ], paneHint ])
+          [ [ ("↑↓", "move"), ("⏎", "open") ]
+            backHint
+            [ ("o", "ours"), ("t", "theirs"), ("a", "ack") ]
+            paneHint ])
       else
         Stdlib.List.flatten(
           [ [ ("↑↓", "move"), ("⏎", "open") ]
@@ -213,27 +285,45 @@ let hintsForView(state: State, width: Int64): String =
         let h = vd.hints
         Stdlib.List.concat(h(state), backHint)
       | None -> Stdlib.List.prepend(backHint, ("↑↓", "move"))
+
   // Fitted rather than concatenated. The droppable run is ordered cheapest-last, so this view's own actions
   // outlive the secondary global keys, and `?`/`q` outlive everything.
   // Home already lists `s switch branch`, so `S branches` would repeat it.
   let globals =
-    if view == vHome then secondaryGlobal |> Stdlib.List.filter(fun pair -> let (k, _l) = pair in k != "S")
-    else secondaryGlobal
+    if view == vHome then
+      secondaryGlobal
+      |> Stdlib.List.filter(fun pair ->
+        let (k, _l) = pair
+        k != "S")
+    else
+      secondaryGlobal
+
   Frame.formatHintsFitted(Stdlib.List.concat(ctx, globals), essential, width)
+
 
 /// The keymap, grouped, for the `?` overlay - (category, keys).
 val helpGroups =
-  [ ("Go", "` nav   ←→ walk it   ↓ into the view   ⏎ go   1-8 view   S switch branch   esc one step back, the footer says where (never quits)")
+  [ (
+      "Go",
+      "` nav   ←→ walk it   ↓ into the view   ⏎ go   1-8 view   S switch branch   esc one step back, the footer says where (never quits)")
+
     ("Move", "↑↓ move   home/end top/bottom   ←→ between panes   tab next pane")
     ("Open", "⏎ into a module / open a row   backspace up a module")
     ("Find", "/ find   : command   ? this   q quit")
     ("Reload", "R re-read the store (--live does it for you when something changes elsewhere)")
-    ("Code", "e edit   n new fn   t new type   v new value   T new trait   I new impl   r rename   x traces   L lens   C changed   f filter   B builtins")
+    (
+      "Code",
+      "e edit   n new fn   t new type   v new value   T new trait   I new impl   r rename   x traces   L lens   C changed   f filter   B builtins")
+
     ("REPL", "⏎ type (esc leaves the prompt)   f clear log   x clear session")
-    ("Home", "⏎ open / switch to the row's branch   c commit   b new branch   s choose branch   m merge   r rebase   x delete branch")
+    (
+      "Home",
+      "⏎ open / switch to the row's branch   c commit   b new branch   s choose branch   m merge   r rebase   x delete branch")
+
     ("Changes", "⏎ source   c commit   x discard   o/t/a resolve the conflict under the cursor")
     ("Traces", "⏎ open   r resume   p pin   x delete   f filter   E errors   P processes")
     ("Search", "↑↓ move   ⏎ jump   esc close") ]
+
 
 /// A centered, boxed keymap overlay drawn over the frame. The interior is cleared so nothing shows through.
 let renderHelpOverlay(screen: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
@@ -246,22 +336,40 @@ let renderHelpOverlay(screen: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.L
       let (_label, keys) = pair
       Stdlib.String.displayWidth(keys))
     |> Stdlib.List.fold(0, fun(acc, n) -> Stdlib.max(acc, n))
+
   let w = Stdlib.min(Stdlib.max(40, widest + 14), Stdlib.max(40, screen.cols - 4))
-  let rows = (Stdlib.List.length(helpGroups)) * 2 + 3
+  let rows = Stdlib.List.length(helpGroups) * 2 + 3
   let h = Stdlib.min(Stdlib.max(8, rows), screen.rows - 2)
-  let top = screen.top + (Stdlib.Int64.checkedDivide(Stdlib.max(0, screen.rows - h), 2) |> Stdlib.Result.withDefault(0))
-  let left = screen.left + (Stdlib.Int64.checkedDivide(Stdlib.max(0, screen.cols - w), 2) |> Stdlib.Result.withDefault(0))
+  let top =
+    screen.top
+    + (Stdlib.Int64.checkedDivide(Stdlib.max(0, screen.rows - h), 2)
+       |> Stdlib.Result.withDefault(0))
+
+  let left =
+    screen.left
+    + (Stdlib.Int64.checkedDivide(Stdlib.max(0, screen.cols - w), 2)
+       |> Stdlib.Result.withDefault(0))
+
   let region = Stdlib.Cli.UI.Layout.Region { top = top, left = left, rows = h, cols = w }
   Stdlib.List.flatten(
     [ Stdlib.Cli.UI.Layout.clearRegion(region)
-      Stdlib.Cli.UI.Box.panel(region, "Keys  ·  any key closes", Stdlib.Cli.UI.Focus.Focused, fun inner ->
-        helpGroups
-        |> Stdlib.List.indexedMap(fun(i, pair) -> (i, pair))
-        |> Stdlib.List.map(fun ipair ->
-          let (i, pair) = ipair
-          let (label, keys) = pair
-          let row = (i * 2) + 1
-          Stdlib.List.flatten(
-            [ Stdlib.Cli.UI.Layout.at(inner, row, 1, Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.cyan, label))
-              Stdlib.Cli.UI.Layout.at(inner, row, 11, Stdlib.Cli.UI.Colors.dimText(keys)) ]))
-        |> Stdlib.List.flatten) ])
+      Stdlib.Cli.UI.Box.panel(
+        region,
+        "Keys  ·  any key closes",
+        Stdlib.Cli.UI.Focus.Focused,
+        fun inner ->
+          helpGroups
+          |> Stdlib.List.indexedMap(fun(i, pair) -> (i, pair))
+          |> Stdlib.List.map(fun ipair ->
+            let (i, pair) = ipair
+            let (label, keys) = pair
+            let row = i * 2 + 1
+            Stdlib.List.flatten(
+              [ Stdlib.Cli.UI.Layout.at(
+                  inner,
+                  row,
+                  1,
+                  Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.cyan, label))
+
+                Stdlib.Cli.UI.Layout.at(inner, row, 11, Stdlib.Cli.UI.Colors.dimText(keys)) ]))
+          |> Stdlib.List.flatten) ])

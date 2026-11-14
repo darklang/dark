@@ -24,33 +24,29 @@ let decodeOpRows(rows: List<OpRow>): List<LanguageTools.ProgramTypes.PackageOp> 
 
 // Read the bindings described by decoded operations.
 
-
 /// Read the binding from a SetName or an Override decision, with its timestamp.
 /// Callers first split renames and restores into binding changes.
 /// Include overrides so Dark reports the same binding that F# uses when running the code.
 let bindingFromOp(
   op: LanguageTools.ProgramTypes.PackageOp,
   ts: String)
-  : Stdlib.Option.Option<(String * Conflicts.Binding)> =
+  : Option<(String * Conflicts.Binding)> =
   // Only SetName records the version this edit was based on.
   // An Override chooses a binding without recording an earlier version.
   let previous =
     match op with
-    | SetName(_, _, Some(h)) ->
-      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.hashToString(h))
-    | _ -> Stdlib.Option.Option.None
+    | SetName(_, _, Some(h)) -> Option.Some(LanguageTools.ProgramTypes.hashToString(h))
+    | _ -> Option.None
 
   match op with
-  | Decision(_, location, _, Override(target))
-  | SetName(location, target, _) ->
+  | Decision(_, location, _, Override(target)) | SetName(location, target, _) ->
     let modules = Stdlib.String.join(location.modules, ".")
-
     let itemType =
-      LanguageTools.ProgramTypes.ItemKind.toString(LanguageTools.ProgramTypes.Reference.kind(target))
+      LanguageTools.ProgramTypes.ItemKind.toString(
+        LanguageTools.ProgramTypes.Reference.kind(target))
 
     let hash =
-      LanguageTools.ProgramTypes.hashToString(
-        LanguageTools.ProgramTypes.Reference.hash(target))
+      LanguageTools.ProgramTypes.hashToString(LanguageTools.ProgramTypes.Reference.hash(target))
 
     let binding =
       Conflicts.Binding
@@ -64,8 +60,8 @@ let bindingFromOp(
           author = ""
           previous = previous }
 
-    Stdlib.Option.Option.Some((Conflicts.bindingKey(location.owner, modules, location.name), binding))
-  | _ -> Stdlib.Option.Option.None
+    Option.Some((Conflicts.bindingKey(location.owner, modules, location.name), binding))
+  | _ -> Option.None
 
 
 /// What a name points to after applying the operations.
@@ -74,7 +70,7 @@ type NameWord =
   { owner: String
     modules: String
     name: String
-    binding: Stdlib.Option.Option<Conflicts.Binding> }
+    binding: Option<Conflicts.Binding> }
 
 
 /// Sort the binding to keep last, using the same rules as F#.
@@ -82,7 +78,7 @@ type NameWord =
 /// Unbind, and the greater hash wins between bindings.
 /// SQL row order depends on arrival order, so it cannot settle these ties consistently.
 /// Timestamps have a fixed format, so sorting this string also sorts them by time.
-let bindingSortKey(ts: String, hash: Stdlib.Option.Option<String>): String =
+let bindingSortKey(ts: String, hash: Option<String>): String =
   match hash with
   | Some(h) -> $"{ts}|1|{h}"
   | None -> $"{ts}|0|"
@@ -103,17 +99,26 @@ let nameEntriesFromOpRows(
         match effect with
         | Unbind(location, _) ->
           let modules = Stdlib.String.join(location.modules, ".")
-          Stdlib.Option.Option.Some(
-            (bindingSortKey(ts, Stdlib.Option.Option.None),
-             Conflicts.bindingKey(location.owner, modules, location.name),
-             NameWord { owner = location.owner, modules = modules, name = location.name
-                        binding = Stdlib.Option.Option.None }))
+          Option.Some(
+            (
+              bindingSortKey(ts, Option.None),
+              Conflicts.bindingKey(location.owner, modules, location.name),
+              NameWord
+                { owner = location.owner
+                  modules = modules
+                  name = location.name
+                  binding = Option.None }))
         | _ ->
           bindingFromOp(effect, ts)
           |> Stdlib.Option.map(fun((k, b)) ->
-            (bindingSortKey(b.originTs, Stdlib.Option.Option.Some(b.hash)), k,
-             NameWord { owner = b.owner, modules = b.modules, name = b.name
-                        binding = Stdlib.Option.Option.Some(b) }))))
+            (
+              bindingSortKey(b.originTs, Option.Some(b.hash)),
+              k,
+              NameWord
+                { owner = b.owner
+                  modules = b.modules
+                  name = b.name
+                  binding = Option.Some(b) }))))
     |> Stdlib.List.flatten
 
   entries
@@ -131,6 +136,7 @@ let nameEntriesFromOpRows(
 let bindingEntriesFromOpRows(rows: List<OpRow>): List<NameWord> =
   nameEntriesFromOpRows(LanguageTools.ProgramTypes.PackageOp.bindingOps, rows)
 
+
 /// Include edits to reference names when listing or selecting draft changes.
 let draftEntriesFromOpRows(rows: List<OpRow>): List<NameWord> =
   nameEntriesFromOpRows(LanguageTools.ProgramTypes.PackageOp.draftOps, rows)
@@ -143,17 +149,25 @@ let bindingsFromOpRows(rows: List<OpRow>): List<Conflicts.Binding> =
 
 /// What <param branchId> has COMMITTED at each of <param locations>: its own committed work over its
 /// ancestors', main's included. Its draft is left out.
-let committedBindingsOn(branchId: Uuid, locations: List<(String * String * String)>): List<Conflicts.Binding> =
-  SCM.Bindings.query(SCM.Bindings.BindingFilter.CommittedAt(branchId, locations))
+let committedBindingsOn(
+  branchId: Uuid,
+  locations: List<(String * String * String)>)
+  : List<Conflicts.Binding> =
+  Bindings.query(Bindings.BindingFilter.CommittedAt(branchId, locations))
   |> Stdlib.List.map(Conflicts.bindingOf)
+
 
 type ReferenceSource =
   (LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.Reference)
 
+
 let sourceOfBinding(binding: Conflicts.Binding): ReferenceSource =
-  (Deps.locationOf(binding.owner, binding.modules, binding.name),
-   LanguageTools.ProgramTypes.Reference.fromHashAndKind(
-     LanguageTools.ProgramTypes.Hash.Hash(binding.hash), Deps.kindOf(binding.itemType)))
+  (
+    Deps.locationOf(binding.owner, binding.modules, binding.name),
+    LanguageTools.ProgramTypes.Reference.fromHashAndKind(
+      LanguageTools.ProgramTypes.Hash.Hash(binding.hash),
+      Deps.kindOf(binding.itemType)))
+
 
 /// List the declarations visible on this branch, including its own draft.
 let liveReferenceSources(branchId: Uuid): List<ReferenceSource> =
@@ -165,13 +179,11 @@ let liveReferenceSources(branchId: Uuid): List<ReferenceSource> =
 let liveBindingFor(
   branchId: Uuid,
   loc: LanguageTools.ProgramTypes.PackageLocation)
-  : Stdlib.Option.Option<Conflicts.Binding> =
-  SCM.Bindings.query(
-    SCM.Bindings.BindingFilter.At(
+  : Option<Conflicts.Binding> =
+  Bindings.query(
+    Bindings.BindingFilter.At(
       branchId,
-      [ (loc.owner, Stdlib.String.join(loc.modules, "."), loc.name) ]
-    )
-  )
+      [ (loc.owner, Stdlib.String.join(loc.modules, "."), loc.name) ]))
   |> Stdlib.List.head
   |> Stdlib.Option.map(Conflicts.bindingOf)
 
@@ -184,21 +196,18 @@ let liveBindingsFor(
   : Dict<String, Conflicts.Binding> =
   let names =
     locs
-    |> Stdlib.List.map(fun loc ->
-      (loc.owner, Stdlib.String.join(loc.modules, "."), loc.name))
+    |> Stdlib.List.map(fun loc -> (loc.owner, Stdlib.String.join(loc.modules, "."), loc.name))
     |> Stdlib.List.unique
 
   if Stdlib.List.isEmpty(names) then
     Dict {}
   else
-    SCM.Bindings.query(SCM.Bindings.BindingFilter.At(branchId, names))
+    Bindings.query(Bindings.BindingFilter.At(branchId, names))
     |> Stdlib.List.map(fun row ->
       (Conflicts.bindingKey(row.owner, row.modules, row.name), Conflicts.bindingOf(row)))
     |> Stdlib.Dict.fromEntries
 
 
 /// <fn liveBindingFor> on the branch this process stands on.
-let liveBindingAt(
-  loc: LanguageTools.ProgramTypes.PackageLocation)
-  : Stdlib.Option.Option<Conflicts.Binding> =
+let liveBindingAt(loc: LanguageTools.ProgramTypes.PackageLocation): Option<Conflicts.Binding> =
   liveBindingFor(currentBranch(), loc)

@@ -20,7 +20,7 @@ let lines(node: Node.Node<'msg>): List<String> =
     | _ -> [ "! " + message ]
   | Table(columns, rows) ->
     // The terminal's rows, with the header's bold and the rule's dim taken off.
-    Node.tableRows(columns, rows) |> Stdlib.List.map(fun r -> Tui.Text.stripSgr(r))
+    Node.tableRows(columns, rows) |> List.map(fun r -> Tui.Text.stripSgr(r))
   | Input(spec) ->
     let shown = if spec.value == "" then spec.placeholder else spec.value
     [ $"[ {shown} ]" ]
@@ -28,38 +28,39 @@ let lines(node: Node.Node<'msg>): List<String> =
   | Link(label, href) -> [ $"{label} <{href}>" ]
   | Region(rows, cols, inner) ->
     lines(inner)
-    |> Stdlib.List.take(rows)
-    |> Stdlib.List.map(fun l -> Stdlib.String.slice(l, 0, cols))
-  | Column(children) -> children |> Stdlib.List.map(fun c -> lines(c)) |> Stdlib.List.flatten
+    |> List.take(rows)
+    |> List.map(fun l -> String.slice(l, 0, cols))
+  | Column(children) ->
+    children
+    |> List.map(fun c -> lines(c))
+    |> List.flatten
   | ListOf(children) ->
     children
-    |> Stdlib.List.map(fun c ->
-      lines(c)
-      |> Stdlib.List.indexedMap(fun(i, l) -> if i == 0 then "- " + l else "  " + l))
-    |> Stdlib.List.flatten
+    |> List.map(fun c ->
+      lines(c) |> List.indexedMap(fun(i, l) -> if i == 0 then "- " + l else "  " + l))
+    |> List.flatten
   | Row(children) ->
     // Side by side at natural widths, one column of gap, as the terminal lays a row out.
     let columns =
       children
-      |> Stdlib.List.map(fun c ->
+      |> List.map(fun c ->
         let (_, width) = Node.measure(c)
         (width, lines(c)))
 
-    let height =
-      columns |> Stdlib.List.fold(0, fun(h, col) -> Stdlib.max(h, Stdlib.List.length(Stdlib.Tuple2.second(col))))
-
+    let height = columns |> List.fold(0, fun(h, col) -> max(h, List.length(Tuple2.second(col))))
     if height == 0 then
       []
     else
-      (Stdlib.List.checkedRange(0, height - 1) |> Stdlib.Result.withDefault([]))
-      |> Stdlib.List.map(fun i ->
+      (List.checkedRange(0, height - 1) |> Result.withDefault([]))
+      |> List.map(fun i ->
         columns
-        |> Stdlib.List.map(fun col ->
+        |> List.map(fun col ->
           let (width, ls) = col
-          Stdlib.Text.padEndToWidth(Stdlib.List.getAt(ls, i) |> Stdlib.Option.withDefault(""), width))
-        |> Stdlib.String.join(" ")
-        |> Stdlib.String.trimEnd)
+          Text.padEndToWidth(List.getAt(ls, i) |> Option.withDefault(""), width))
+        |> String.join(" ")
+        |> String.trimEnd)
 
 
 /// <param node> as one string, a line per row.
-let render(node: Node.Node<'msg>): String = Stdlib.String.join(lines(node), "\n")
+let render(node: Node.Node<'msg>): String =
+  String.join(lines(node), "\n")

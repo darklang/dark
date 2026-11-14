@@ -5,7 +5,6 @@ module Darklang.Cli.FlagParser
 // list once and returns a neutral `Parsed`, which the command reads into its own
 // typed config via `hasFlag`, `getOption`, `positionals`, and `errors`.
 
-
 type Spec =
   { // bare boolean flags: (canonicalName, aliases). e.g. ("--yes", ["-y"])
     flags: List<(String * List<String>)>
@@ -29,19 +28,15 @@ type Parsed =
     errors: List<ParseError> }
 
 
-val emptyParsed =
-  Parsed { flags = [], options = [], positionals = [], errors = [] }
+val emptyParsed = Parsed { flags = [], options = [], positionals = [], errors = [] }
 
 
 // The canonical name for `token` if it matches an entry's name or an alias.
-let canonicalFor(
-  entries: List<(String * List<String>)>,
-  token: String)
-  : Stdlib.Option.Option<String> =
+let canonicalFor(entries: List<(String * List<String>)>, token: String): Option<String> =
   entries
   |> Stdlib.List.findFirst(fun entry ->
     let (name, aliases) = entry
-    (token == name) || (Stdlib.List.any(aliases, fun a -> a == token)))
+    token == name || Stdlib.List.any(aliases, fun a -> a == token))
   |> Stdlib.Option.map(fun entry ->
     let (name, _aliases) = entry
     name)
@@ -70,7 +65,6 @@ let addMissingValue(acc: Parsed, token: String): Parsed =
 let __parseLoop(spec: Spec, acc: Parsed, remaining: List<String>): Parsed =
   match remaining with
   | [] -> acc
-
   | [token, ...rest] ->
     match canonicalFor(spec.valueFlags, token) with
     | Some(name) ->
@@ -99,7 +93,7 @@ let hasFlag(p: Parsed, name: String): Bool =
 
 
 // The value for `name`; last occurrence wins.
-let getOption(p: Parsed, name: String): Stdlib.Option.Option<String> =
+let getOption(p: Parsed, name: String): Option<String> =
   p.options
   |> Stdlib.List.filter(fun pair ->
     let (k, _v) = pair
@@ -121,4 +115,6 @@ let parseErrorMessage(err: ParseError): String =
 
 
 let parseErrorsMessage(errors: List<ParseError>): String =
-  errors |> Stdlib.List.map(parseErrorMessage) |> Stdlib.String.join("\n")
+  errors
+  |> Stdlib.List.map(parseErrorMessage)
+  |> Stdlib.String.join("\n")

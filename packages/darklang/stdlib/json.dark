@@ -1,22 +1,20 @@
 module Darklang.Stdlib.Json
 
 /// Serializes a Dark value to a JSON string.
-let serialize<'a>(value: 'a): String =
+let serialize(value: 'a): String =
   Builtin.jsonSerialize<'a>(value)
+
 
 /// Serializes a Dark value to a JSON string, or {{Error}} where <fn serialize> raises: a value
 /// with no JSON form, such as a function, bytes, or a dict whose keys are not Strings.
-let checkedSerialize<'a>(
-  value: 'a)
-  : Stdlib.Result.Result<String, SerializeError.SerializeError> =
+let checkedSerialize(value: 'a): Result<String, SerializeError.SerializeError> =
   Builtin.jsonCheckedSerialize<'a>(value)
-  |> Stdlib.Result.mapError(fun dv -> SerializeError.SerializeError.CannotSerialize(dv))
+  |> Result.mapError(fun dv -> SerializeError.SerializeError.CannotSerialize(dv))
+
 
 /// Parses a JSON string as a Dark value, matching the type <typeParam a>.
 /// Show an error with `$"{e}"` or `Stdlib.display(e)`.
-let parse<'a>(
-  json: String)
-  : Stdlib.Result.Result<'a, ParseError.ParseError> =
+let parse(json: String): Result<'a, ParseError.ParseError> =
   Builtin.jsonParse<'a>(json)
 
 
@@ -28,29 +26,29 @@ module ParseError =
         | Index(Int64)
         | Field(String)
 
+
       let toString(part: Part): String =
         match part with
         | Root -> "root"
         | Field(name) -> "." + name
-        | Index(index) -> "[" + Stdlib.display(index) + "]"
+        | Index(index) -> "[" + display(index) + "]"
+
 
     type JsonPath = List<Part.Part>
 
+
     let toString(path: JsonPath): String =
-      path |> List.reverse |> List.map(Part.toString) |> String.join("")
+      path
+      |> List.reverse
+      |> List.map(Part.toString)
+      |> String.join("")
 
 
   type ParseError =
     /// The json string can't be parsed as the given type.
-    | CantMatchWithType(
-      LanguageTools.RuntimeTypes.TypeReference,
-      String,
-      JsonPath.JsonPath)
+    | CantMatchWithType(LanguageTools.RuntimeTypes.TypeReference, String, JsonPath.JsonPath)
     | EnumExtraField(rawJson: String, JsonPath.JsonPath)
-    | EnumMissingField(
-      LanguageTools.RuntimeTypes.TypeReference,
-      index: Int64,
-      JsonPath.JsonPath)
+    | EnumMissingField(LanguageTools.RuntimeTypes.TypeReference, index: Int64, JsonPath.JsonPath)
     | EnumInvalidCasename(
       LanguageTools.RuntimeTypes.TypeReference,
       caseName: String,
@@ -62,17 +60,15 @@ module ParseError =
     | RecordDuplicateField(fieldName: String, JsonPath.JsonPath)
     | RecordMissingField(fieldName: String, JsonPath.JsonPath)
     /// A number outside the range of a type such as <type Stdlib.Net.Port>
-    | OutOfRange(Stdlib.Math.OutOfRange, JsonPath.JsonPath)
+    | OutOfRange(Math.OutOfRange, JsonPath.JsonPath)
     /// The text isn't JSON: the line and column where it broke, both counted
     /// from 1, the column in characters
     | NotJson(line: Int64, column: Int64)
     /// A type with no JSON form: a function, bytes, a stream, or a type variable
     | UnsupportedType(LanguageTools.RuntimeTypes.TypeReference)
 
-  let toString(
-    branchId: Uuid,
-    e: ParseError)
-    : String =
+
+  let toString(branchId: Uuid, e: ParseError): String =
     match e with
     | CantMatchWithType(typ, json, path) ->
       "Can't parse JSON `"
@@ -82,7 +78,6 @@ module ParseError =
       + "` at path: `"
       + JsonPath.toString(path)
       + "`"
-
     // Can't parse JSON due to an extra argument `2.0` at path: `root.Enh[2]`
     | EnumExtraField(rawJson, path) ->
       "Can't parse JSON due to an extra argument `"
@@ -90,17 +85,15 @@ module ParseError =
       + "` at path: `"
       + JsonPath.toString(path)
       + "`"
-
     // Can't parse JSON because argument 4 (`Int64`) is missing at path: `root.Enh`
     | EnumMissingField(typ, index, path) ->
       "Can't parse JSON because argument "
-      + Stdlib.display(index)
+      + display(index)
       + " (`"
       + PrettyPrinter.RuntimeTypes.typeReference(branchId, typ)
       + "`) is missing at path: `"
       + JsonPath.toString(path)
       + "`"
-
     // Can't parse JSON as `Wrong` is not a known case of type `PrettyLikely` at path: `root`
     | EnumInvalidCasename(typ, caseName, path) ->
       "Can't parse JSON as `"
@@ -110,17 +103,18 @@ module ParseError =
       + "` at path: `"
       + JsonPath.toString(path)
       + "`"
-
     // Can't parse JSON with multiple fields (`Enh` and `Extra`) as type `PrettyLikely` at path: `root`
     | EnumTooManyCases(typ, cases, path) ->
-      let cases = cases |> List.map(fun c -> $"`{c}`") |> String.join(", ")
+      let cases =
+        cases
+        |> List.map(fun c -> $"`{c}`")
+        |> String.join(", ")
 
       $"Can't parse JSON with multiple fields ({cases}) as type `"
       + PrettyPrinter.RuntimeTypes.typeReference(branchId, typ)
       + "` at path: `"
       + JsonPath.toString(path)
       + "`"
-
     // Can't parse JSON because `Name` field is not provided at path: `root`
     | RecordMissingField(fieldName, path) ->
       "Can't parse JSON because `"
@@ -128,8 +122,6 @@ module ParseError =
       + "` field is not provided at path: `"
       + JsonPath.toString(path)
       + "`"
-
-
     // Can't parse JSON because `Age` is defined more than once at path: `root`
     | RecordDuplicateField(fieldName, path) ->
       "Can't parse JSON because `"
@@ -137,20 +129,11 @@ module ParseError =
       + "` is defined more than once at path: `"
       + JsonPath.toString(path)
       + "`"
-
     // Can't parse JSON: 70000 is not a valid port (0 to 65535) at path: `root.port`
     | OutOfRange(range, path) ->
-      $"Can't parse JSON: {range} at path: `"
-      + JsonPath.toString(path)
-      + "`"
-
+      $"Can't parse JSON: {range} at path: `" + JsonPath.toString(path) + "`"
     // Not JSON at line 1, column 4
-    | NotJson(line, column) ->
-      "Not JSON at line "
-      + Stdlib.display(line)
-      + ", column "
-      + Stdlib.display(column)
-
+    | NotJson(line, column) -> "Not JSON at line " + display(line) + ", column " + display(column)
     // Can't parse JSON as type `Int64 -> Int64`, which has no JSON form
     | UnsupportedType(typ) ->
       "Can't parse JSON as type `"
@@ -162,13 +145,14 @@ module ParseError =
     /// What went wrong, with types named as the current branch sees them:
     /// {{Can't parse JSON `"x"` as type `Int64` at path: `root.age`}}
     let display(e: ParseError): String =
-      Stdlib.Json.ParseError.toString(Darklang.SCM.Branches.current(), e)
+      toString(SCM.Branches.current(), e)
 
 
 module SerializeError =
   type SerializeError =
     /// The first value found with no JSON form
     | CannotSerialize(LanguageTools.RuntimeTypes.Dval)
+
 
   impl Display for SerializeError =
     /// What has no JSON form: {{Cannot serialize a function into JSON}}
@@ -178,7 +162,7 @@ module SerializeError =
         match dv with
         | DDict(keyType, _, _) ->
           "Cannot serialize a dict into JSON: JSON object keys must be Strings, but this dict's keys are "
-          + PrettyPrinter.RuntimeTypes.valueType(Darklang.SCM.Branches.current(), keyType)
+          + PrettyPrinter.RuntimeTypes.valueType(SCM.Branches.current(), keyType)
         | DApplicable(_) -> "Cannot serialize a function into JSON"
         | DBytes(_) -> "Cannot serialize bytes into JSON"
         | DStreamStub(_) -> "Cannot serialize a stream into JSON"

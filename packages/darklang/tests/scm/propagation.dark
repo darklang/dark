@@ -13,8 +13,12 @@ module Darklang.SCM.Tests.Propagation
 
 test aDependentRepointsWhenItsDependencyMoves =
   let m = "PropTestHop"
-  let setup = Authoring.authorAll(m, [ "let base'(x: Int64): Int64 = x + 1"
-                                       "let dep(x: Int64): Int64 = (Tests.PropTestHop.base'(x)) + 10" ])
+  let setup =
+    Authoring.authorAll(
+      m,
+      [ "let base'(x: Int64): Int64 = x + 1"
+        "let dep(x: Int64): Int64 = (Tests.PropTestHop.base'(x)) + 10" ])
+
   let depBefore = Authoring.fnHash(m, "dep")
   let v1 = Authoring.fnHash(m, "base'")
   let edit = Authoring.author(m, "let base'(x: Int64): Int64 = x + 1000")
@@ -24,15 +28,19 @@ test aDependentRepointsWhenItsDependencyMoves =
     [ Authoring.ok(setup)
       Authoring.ok(edit)
       v2 |> Stdlib.Test.notEqual(v1)
-      repointed |> Stdlib.Test.equal(Ok([ "dep" ]))
+      repointed |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "dep" ]))
       Authoring.moved(depBefore, Authoring.fnHash(m, "dep")) ])
 
 
 // A call that appears only in a dictionary KEY is still an edge the cascade follows.
 test aFunctionCalledOnlyInADictionaryKeyFollowsEdits =
   let m = "PropTestDictionaryKey"
-  let setup = Authoring.authorAll(m, [ "let key(x: Int64): Int64 = x + 61"
-                                       "let pairs(x: Int64): Dict<Int64, Int64> = Dict { Tests.PropTestDictionaryKey.key(x): 7 }" ])
+  let setup =
+    Authoring.authorAll(
+      m,
+      [ "let key(x: Int64): Int64 = x + 61"
+        "let pairs(x: Int64): Dict<Int64, Int64> = Dict { Tests.PropTestDictionaryKey.key(x): 7 }" ])
+
   let pairsBefore = Authoring.fnHash(m, "pairs")
   let v1 = Authoring.fnHash(m, "key")
   let edit = Authoring.author(m, "let key(x: Int64): Int64 = x + 62")
@@ -40,7 +48,7 @@ test aFunctionCalledOnlyInADictionaryKeyFollowsEdits =
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Authoring.ok(edit)
-      repointed |> Stdlib.Test.equal(Ok([ "pairs" ]))
+      repointed |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "pairs" ]))
       Authoring.moved(pairsBefore, Authoring.fnHash(m, "pairs")) ])
 
 
@@ -52,6 +60,7 @@ test theCascadeIsTransitive =
     Authoring.author(
       m,
       "let a(x: Int64): Int64 = x + 1\nlet b(x: Int64): Int64 = (Tests.PropTestChain.a(x)) + 10\nlet c(x: Int64): Int64 = (Tests.PropTestChain.b(x)) + 100")
+
   let cBefore = Authoring.fnHash(m, "c")
   let v1 = Authoring.fnHash(m, "a")
   let edit = Authoring.author(m, "let a(x: Int64): Int64 = x + 2000")
@@ -59,7 +68,7 @@ test theCascadeIsTransitive =
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Authoring.ok(edit)
-      repointed |> Stdlib.Test.equal(Ok([ "b", "c" ]))
+      repointed |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "b", "c" ]))
       Authoring.moved(cBefore, Authoring.fnHash(m, "c")) ])
 
 
@@ -69,13 +78,15 @@ test everyDependentMovesNotJustTheFirst =
     Authoring.author(
       m,
       "let shared(x: Int64): Int64 = x + 1\nlet one(x: Int64): Int64 = (Tests.PropTestFan.shared(x)) + 10\nlet two(x: Int64): Int64 = (Tests.PropTestFan.shared(x)) + 20\nlet three(x: Int64): Int64 = (Tests.PropTestFan.shared(x)) + 30")
+
   let v1 = Authoring.fnHash(m, "shared")
   let edit = Authoring.author(m, "let shared(x: Int64): Int64 = x + 3000")
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Authoring.ok(edit)
       Authoring.cascade(m, "shared", v1, Authoring.fnHash(m, "shared"))
-      |> Stdlib.Test.equal(Ok([ "one", "three", "two" ])) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok([ "one", "three", "two" ])) ])
 
 
 // A caller under another owner follows too, and so does what calls it back from ours.
@@ -88,10 +99,17 @@ test theCascadeCrossesOwners =
         "let base'(x: Int64): Int64 = x + 1\nlet mine(x: Int64): Int64 = (Tests.PropTestOwner.base'(x)) + 10"),
       fun _ ->
         Stdlib.Result.andThen(
-          Authoring.authorAs("Zz", m, "let theirs(x: Int64): Int64 = (Tests.PropTestOwner.base'(x)) + 20"),
-          fun _ -> Authoring.author(m, "let bridge(x: Int64): Int64 = Zz.PropTestOwner.theirs(x)")))
+          Authoring.authorAs(
+            "Zz",
+            m,
+            "let theirs(x: Int64): Int64 = (Tests.PropTestOwner.base'(x)) + 20"),
+          fun _ ->
+            Authoring.author(
+              m,
+              "let bridge(x: Int64): Int64 = Zz.PropTestOwner.theirs(x)")))
+
   let theirs = Authoring.at("Zz", m, "theirs")
-  let fn = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn
+  let fn = LanguageTools.ProgramTypes.ItemKind.Fn
   let theirsBefore = Authoring.hashIn(fn, theirs)
   let bridgeBefore = Authoring.fnHash(m, "bridge")
   let v1 = Authoring.fnHash(m, "base'")
@@ -100,7 +118,9 @@ test theCascadeCrossesOwners =
     [ Authoring.ok(setup)
       Authoring.ok(edit)
       Authoring.cascade(m, "base'", v1, Authoring.fnHash(m, "base'"))
-      |> Stdlib.Test.equal(Ok([ "bridge", "mine", "theirs" ]))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok([ "bridge", "mine", "theirs" ]))
+
       Authoring.moved(theirsBefore, Authoring.hashIn(fn, theirs))
       Authoring.moved(bridgeBefore, Authoring.fnHash(m, "bridge")) ])
 
@@ -109,13 +129,19 @@ test theCascadeCrossesOwners =
 // dependent for no reason, and those ops live in the log forever.
 test aSourceThatDidNotMoveRepointsNothing =
   let m = "PropTestNoop"
-  let setup = Authoring.authorAll(m, [ "let base'(x: Int64): Int64 = x + 1"
-                                       "let dep(x: Int64): Int64 = (Tests.PropTestNoop.base'(x)) + 10" ])
+  let setup =
+    Authoring.authorAll(
+      m,
+      [ "let base'(x: Int64): Int64 = x + 1"
+        "let dep(x: Int64): Int64 = (Tests.PropTestNoop.base'(x)) + 10" ])
+
   let depBefore = Authoring.fnHash(m, "dep")
   let v1 = Authoring.fnHash(m, "base'")
   Stdlib.Test.all(
     [ Authoring.ok(setup)
-      Authoring.cascade(m, "base'", v1, v1) |> Stdlib.Test.equal(Ok([]))
+      Authoring.cascade(m, "base'", v1, v1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([]))
+
       Authoring.fnHash(m, "dep") |> Stdlib.Test.equal(depBefore) ])
 
 
@@ -127,11 +153,14 @@ test aMutuallyRecursivePairAuthors =
     Authoring.author(
       m,
       "let a(x: Int64): Int64 =\n  if x <= 0 then 0 else (Tests.PropTestMutual.b(x - 1)) + 1\nlet b(x: Int64): Int64 =\n  if x <= 0 then 0 else (Tests.PropTestMutual.a(x - 1)) + 1")
+
   let a = Authoring.fnHash(m, "a")
   let b = Authoring.fnHash(m, "b")
   Stdlib.Test.all(
     [ Authoring.ok(setup)
-      (Stdlib.Option.isSome(a) && Stdlib.Option.isSome(b)) |> Stdlib.Test.equal(true)
+      Stdlib.Option.isSome(a) && Stdlib.Option.isSome(b)
+      |> Stdlib.Test.equal(true)
+
       a |> Stdlib.Test.notEqual(b) ])
 
 
@@ -139,14 +168,21 @@ test aMutuallyRecursivePairAuthors =
 // version of `r`, and depend on no intermediate one.
 test afterSeveralEditsTheDependentLandsOnTheFinalVersion =
   let m = "PropTestFinal"
-  let setup = Authoring.authorAll(m, [ "let r(x: Int64): Int64 = x + 1"
-                                       "let rd(x: Int64): Int64 = (Tests.PropTestFinal.r(x)) + 0" ])
-  let edit(prev: Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Hash>, n: String)
-    : Stdlib.Option.Option<Darklang.LanguageTools.ProgramTypes.Hash> =
+  let setup =
+    Authoring.authorAll(
+      m,
+      [ "let r(x: Int64): Int64 = x + 1"
+        "let rd(x: Int64): Int64 = (Tests.PropTestFinal.r(x)) + 0" ])
+
+  let edit(
+    prev: Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash>,
+    n: String)
+    : Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash> =
     let _ = Authoring.author(m, $"let r(x: Int64): Int64 = x + {n}")
     let next = Authoring.fnHash(m, "r")
     let _ = Authoring.cascade(m, "r", prev, next)
     next
+
   let r0 = Authoring.fnHash(m, "r")
   let r1 = edit(r0, "10")
   let r2 = edit(r1, "20")
@@ -155,15 +191,22 @@ test afterSeveralEditsTheDependentLandsOnTheFinalVersion =
   let final = Stdlib.List.last(versions)
   let rdDeps =
     match Authoring.fnHash(m, "rd") with
-    | Some(h) -> Darklang.SCM.Deps.dependenciesOf(h) |> Stdlib.List.map(fun((d, _)) -> d)
+    | Some(h) -> SCM.Deps.dependenciesOf(h) |> Stdlib.List.map(fun((d, _)) -> d)
     | None -> []
-  let earlier = versions |> Stdlib.List.filter(fun h -> Stdlib.Option.Option.Some(h) != final)
+
+  let earlier =
+    versions
+    |> Stdlib.List.filter(fun h -> Stdlib.Option.Option.Some(h) != final)
+
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Stdlib.List.length(versions) |> Stdlib.Test.equal(4)
+
       Authoring.fnHash(m, "r") |> Stdlib.Test.equal(final)
+
       (final |> Stdlib.Option.map(fun f -> Stdlib.List.contains(rdDeps, f)))
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(true))
+
       (earlier |> Stdlib.List.filter(fun h -> Stdlib.List.contains(rdDeps, h)))
       |> Stdlib.Test.equal([]) ])
 
@@ -184,6 +227,7 @@ test identicalContentAtTwoNamesRepointsOnlyTheEditedNamesCallers =
         "let sh2(x: Int64): Int64 = x + 77"
         "let d1(x: Int64): Int64 = (Tests.PropTestShared.sh1(x)) + 3"
         "let d2(x: Int64): Int64 = (Tests.PropTestShared.sh2(x)) + 4" ])
+
   let sh2Before = Authoring.fnHash(m, "sh2")
   let d1Before = Authoring.fnHash(m, "d1")
   let d2Before = Authoring.fnHash(m, "d2")
@@ -193,7 +237,10 @@ test identicalContentAtTwoNamesRepointsOnlyTheEditedNamesCallers =
     [ Authoring.ok(setup)
       Authoring.ok(edit)
       v1 |> Stdlib.Test.equal(sh2Before)
-      Authoring.cascade(m, "sh1", v1, Authoring.fnHash(m, "sh1")) |> Stdlib.Test.equal(Ok([ "d1" ]))
+
+      Authoring.cascade(m, "sh1", v1, Authoring.fnHash(m, "sh1"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "d1" ]))
+
       Authoring.moved(d1Before, Authoring.fnHash(m, "d1"))
       Authoring.fnHash(m, "d2") |> Stdlib.Test.equal(d2Before)
       Authoring.fnHash(m, "sh2") |> Stdlib.Test.equal(sh2Before) ])
@@ -203,27 +250,45 @@ test identicalContentAtTwoNamesRepointsOnlyTheEditedNamesCallers =
 // what you edited from what came along.
 let repointIsReportedAsFollowedOnMain(unit: Unit): Stdlib.Test.Result =
   let m = "PropTestProv"
-  let setup = Authoring.authorAll(m, [ "let base'(x: Int64): Int64 = x + 71"
-                                       "let dependent(x: Int64): Int64 = Tests.PropTestProv.base'(x)" ])
-  let followedBefore = Darklang.SCM.PackageOps.propagatedNames()
+  let setup =
+    Authoring.authorAll(
+      m,
+      [ "let base'(x: Int64): Int64 = x + 71"
+        "let dependent(x: Int64): Int64 = Tests.PropTestProv.base'(x)" ])
+
+  let followedBefore = SCM.PackageOps.propagatedNames()
   let v1 = Authoring.fnHash(m, "base'")
   let edit = Authoring.author(m, "let base'(x: Int64): Int64 = x + 72")
-  let repointed = Authoring.cascade(m, "base'", v1, Authoring.fnHash(m, "base'"))
-  let followed = Darklang.SCM.PackageOps.propagatedNames()
+  let repointed =
+    Authoring.cascade(m, "base'", v1, Authoring.fnHash(m, "base'"))
+
+  let followed = SCM.PackageOps.propagatedNames()
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Authoring.ok(edit)
-      repointed |> Stdlib.Test.equal(Ok([ "dependent" ]))
-      Stdlib.List.contains(followedBefore, "Tests.PropTestProv.dependent") |> Stdlib.Test.equal(false)
-      Stdlib.List.contains(followed, "Tests.PropTestProv.dependent") |> Stdlib.Test.equal(true)
-      Stdlib.List.contains(followed, "Tests.PropTestProv.base'") |> Stdlib.Test.equal(false) ])
+      repointed |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "dependent" ]))
+
+      Stdlib.List.contains(followedBefore, "Tests.PropTestProv.dependent")
+      |> Stdlib.Test.equal(false)
+
+      Stdlib.List.contains(followed, "Tests.PropTestProv.dependent")
+      |> Stdlib.Test.equal(true)
+
+      Stdlib.List.contains(followed, "Tests.PropTestProv.base'")
+      |> Stdlib.Test.equal(false) ])
 
 
 test aRepointIsReportedAsFollowed =
   // Run on main because the fixtures write to main.
   let defaults = Stdlib.Test.Process.defaults()
-  let options = { defaults with branch = Some(Darklang.SCM.Branch.mainBranchId) }
-  match Stdlib.Test.Process.run(options, repointIsReportedAsFollowedOnMain, ()) with
+  let options =
+    { defaults with
+        branch = Stdlib.Option.Option.Some(SCM.Branch.mainBranchId) }
+
+  match Stdlib.Test.Process.run(
+          options,
+          repointIsReportedAsFollowedOnMain,
+          ()) with
   | Error(message) -> Stdlib.Test.fail(message)
   | Ok(output) ->
     match output.result with
@@ -236,8 +301,12 @@ test aRepointIsReportedAsFollowed =
 // the fold recorded, relisting the pre-edit version.
 test propagatingAnAlreadyPropagatedEditAuthorsNothing =
   let m = "PropTestSecondPass"
-  let setup = Authoring.authorAll(m, [ "let base'(x: Int64): Int64 = x + 1"
-                                       "let dep(x: Int64): Int64 = (Tests.PropTestSecondPass.base'(x)) + 10" ])
+  let setup =
+    Authoring.authorAll(
+      m,
+      [ "let base'(x: Int64): Int64 = x + 1"
+        "let dep(x: Int64): Int64 = (Tests.PropTestSecondPass.base'(x)) + 10" ])
+
   let v1 = Authoring.fnHash(m, "base'")
   let edit = Authoring.author(m, "let base'(x: Int64): Int64 = x + 7000")
   let v2 = Authoring.fnHash(m, "base'")
@@ -247,17 +316,21 @@ test propagatingAnAlreadyPropagatedEditAuthorsNothing =
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Authoring.ok(edit)
-      first |> Stdlib.Test.equal(Ok([ "dep" ]))
-      second |> Stdlib.Test.equal(Ok([]))
+      first |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "dep" ]))
+      second |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([]))
       Authoring.fnHash(m, "dep") |> Stdlib.Test.equal(depAfterFirst) ])
 
 
 // Propagation is kind-specific throughout, so a fn's coverage says nothing about a type's.
 test aFnUsingATypeRepointsWhenTheTypeMoves =
   let m = "PropTestType"
-  let ty = Darklang.LanguageTools.ProgramTypes.ItemKind.Type
-  let setup = Authoring.authorAll(m, [ "type Rec = { a: Int64 }"
-                                       "let mk(): Tests.PropTestType.Rec = Tests.PropTestType.Rec { a = 1 }" ])
+  let ty = LanguageTools.ProgramTypes.ItemKind.Type
+  let setup =
+    Authoring.authorAll(
+      m,
+      [ "type Rec = { a: Int64 }"
+        "let mk(): Tests.PropTestType.Rec = Tests.PropTestType.Rec { a = 1 }" ])
+
   let mkBefore = Authoring.fnHash(m, "mk")
   let v1 = Authoring.hashIn(ty, Authoring.loc(m, "Rec"))
   let edit = Authoring.author(m, "type Rec = { a: Int64, b: Int64 }")
@@ -266,15 +339,21 @@ test aFnUsingATypeRepointsWhenTheTypeMoves =
     [ Authoring.ok(setup)
       Authoring.ok(edit)
       v2 |> Stdlib.Test.notEqual(v1)
-      Authoring.cascadeKind(ty, Authoring.loc(m, "Rec"), v1, v2) |> Stdlib.Test.equal(Ok([ "mk" ]))
+      Authoring.cascadeKind(ty, Authoring.loc(m, "Rec"), v1, v2)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "mk" ]))
+
       Authoring.moved(mkBefore, Authoring.fnHash(m, "mk")) ])
 
 
 test aFnReadingAValueRepointsWhenTheValueMoves =
   let m = "PropTestValue"
-  let vk = Darklang.LanguageTools.ProgramTypes.ItemKind.Value
-  let setup = Authoring.authorAll(m, [ "val basis = 5"
-                                       "let reads(): Int64 = Tests.PropTestValue.basis + 10" ])
+  let vk = LanguageTools.ProgramTypes.ItemKind.Value
+  let setup =
+    Authoring.authorAll(
+      m,
+      [ "val basis = 5"
+        "let reads(): Int64 = Tests.PropTestValue.basis + 10" ])
+
   let readsBefore = Authoring.fnHash(m, "reads")
   let v1 = Authoring.hashIn(vk, Authoring.loc(m, "basis"))
   let edit = Authoring.author(m, "val basis = 500")
@@ -283,7 +362,9 @@ test aFnReadingAValueRepointsWhenTheValueMoves =
     [ Authoring.ok(setup)
       Authoring.ok(edit)
       v2 |> Stdlib.Test.notEqual(v1)
-      Authoring.cascadeKind(vk, Authoring.loc(m, "basis"), v1, v2) |> Stdlib.Test.equal(Ok([ "reads" ]))
+      Authoring.cascadeKind(vk, Authoring.loc(m, "basis"), v1, v2)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "reads" ]))
+
       Authoring.moved(readsBefore, Authoring.fnHash(m, "reads")) ])
 
 
@@ -291,11 +372,12 @@ test aFnReadingAValueRepointsWhenTheValueMoves =
 // cached result miss, so only affected tests rerun.
 test aTestGetsANewHashWhenAFnItUsesMoves =
   let m = "PropTestPackageTest"
-  let tk = Darklang.LanguageTools.ProgramTypes.ItemKind.Test
+  let tk = LanguageTools.ProgramTypes.ItemKind.Test
   let setup =
     Authoring.author(
       m,
       "let base'(x: Int64): Int64 = (x + 1)\ntest usesBase = Tests.PropTestPackageTest.base'(1) |> Stdlib.Test.equal(2)")
+
   let testBefore = Authoring.hashIn(tk, Authoring.loc(m, "usesBase"))
   let v1 = Authoring.fnHash(m, "base'")
   let edit = Authoring.author(m, "let base'(x: Int64): Int64 = (x + 100)")
@@ -303,8 +385,11 @@ test aTestGetsANewHashWhenAFnItUsesMoves =
     [ Authoring.ok(setup)
       Authoring.ok(edit)
       Authoring.cascade(m, "base'", v1, Authoring.fnHash(m, "base'"))
-      |> Stdlib.Test.equal(Ok([ "usesBase" ]))
-      Authoring.moved(testBefore, Authoring.hashIn(tk, Authoring.loc(m, "usesBase"))) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "usesBase" ]))
+
+      Authoring.moved(
+        testBefore,
+        Authoring.hashIn(tk, Authoring.loc(m, "usesBase"))) ])
 
 
 // There is no rename op. A SetName binds its own name and leaves every other name for the
@@ -316,13 +401,14 @@ test aSetNameAtANewNameLeavesTheOldNameBound =
   let named =
     match h with
     | Some(hash) ->
-      Darklang.SCM.PackageOps.add(
+      SCM.PackageOps.add(
         Authoring.main(),
-        [ Darklang.LanguageTools.ProgramTypes.PackageOp.SetName(
+        [ LanguageTools.ProgramTypes.PackageOp.SetName(
             Authoring.loc(m, "new"),
-            Darklang.LanguageTools.ProgramTypes.Reference.PackageFn(hash),
+            LanguageTools.ProgramTypes.Reference.PackageFn(hash),
             Stdlib.Option.Option.None) ])
     | None -> Stdlib.Result.Result.Error("old is not bound")
+
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Authoring.ok(named)
@@ -337,17 +423,27 @@ test aSetNameAtANewNameLeavesTheOldNameBound =
 // second caller's Add is an op the log already holds. Its edge still has to be recorded
 // under the name it used, or `deps usedby` on the second name says nobody calls it.
 test aCallerOfEitherNameOfOneBodyIsFoundByThatName =
-  let fn = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn
+  let fn = LanguageTools.ProgramTypes.ItemKind.Fn
   let setup =
-    Authoring.authorAll("TwinOne", [ "let twin(x: Int64): Int64 = x + 4001"
-                                     "let caller(x: Int64): Int64 = (Tests.TwinOne.twin(x)) + 10" ])
+    Authoring.authorAll(
+      "TwinOne",
+      [ "let twin(x: Int64): Int64 = x + 4001"
+        "let caller(x: Int64): Int64 = (Tests.TwinOne.twin(x)) + 10" ])
+
   let setup2 =
-    Authoring.authorAll("TwinTwo", [ "let twin(x: Int64): Int64 = x + 4001"
-                                     "let caller(x: Int64): Int64 = (Tests.TwinTwo.twin(x)) + 10" ])
+    Authoring.authorAll(
+      "TwinTwo",
+      [ "let twin(x: Int64): Int64 = x + 4001"
+        "let caller(x: Int64): Int64 = (Tests.TwinTwo.twin(x)) + 10" ])
+
   let callersOf(m: String): Int64 =
-    Stdlib.List.length(Darklang.SCM.Deps.dependentsFor(Darklang.SCM.PackageOps.currentBranch(), [ (Authoring.loc(m, "twin"), fn) ]))
+    Stdlib.List.length(
+      SCM.Deps.dependentsFor(
+        SCM.PackageOps.currentBranch(),
+        [ (Authoring.loc(m, "twin"), fn) ]))
+
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Authoring.ok(setup2)
-      (callersOf("TwinOne") > 0) |> Stdlib.Test.equal(true)
-      (callersOf("TwinTwo") > 0) |> Stdlib.Test.equal(true) ])
+      callersOf("TwinOne") > 0 |> Stdlib.Test.equal(true)
+      callersOf("TwinTwo") > 0 |> Stdlib.Test.equal(true) ])

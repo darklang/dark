@@ -15,15 +15,27 @@ let leafNameOf(src: String): String =
       let t = Stdlib.String.trim(l)
       t != "" && Stdlib.Bool.not(Stdlib.String.startsWith(t, "//")))
     |> Stdlib.Option.withDefault("")
+
   let toks =
-    (Stdlib.String.split(Stdlib.String.trim(firstLine), " "))
-    |> Stdlib.List.filter(fun t -> t != "")
+    Stdlib.String.split(Stdlib.String.trim(firstLine), " ") |> Stdlib.List.filter(fun t -> t != "")
+
   let raw = Stdlib.List.getAt(toks, 1) |> Stdlib.Option.withDefault("")
-  let beforeParen = Stdlib.String.split(raw, "(") |> Stdlib.List.head |> Stdlib.Option.withDefault(raw)
+
+  let beforeParen =
+    Stdlib.String.split(raw, "(")
+    |> Stdlib.List.head
+    |> Stdlib.Option.withDefault(raw)
+
   // `trait Show<'a> =` puts the type params on the name, so cut there too.
   let beforeAngle =
-    Stdlib.String.split(beforeParen, "<") |> Stdlib.List.head |> Stdlib.Option.withDefault(beforeParen)
-  Stdlib.String.split(beforeAngle, ":") |> Stdlib.List.head |> Stdlib.Option.withDefault(beforeAngle)
+    Stdlib.String.split(beforeParen, "<")
+    |> Stdlib.List.head
+    |> Stdlib.Option.withDefault(beforeParen)
+
+  Stdlib.String.split(beforeAngle, ":")
+  |> Stdlib.List.head
+  |> Stdlib.Option.withDefault(beforeAngle)
+
 
 /// Save the editor's declaration: the buffer holds a full `let`/`type`/`val`/`test` declaration. Derive the leaf name
 /// from it, resolve the target location relative to the current tree spot, then parse → WrittenTypes → PT →
@@ -33,26 +45,31 @@ let leafNameOf(src: String): String =
 /// the implementation itself, after its method fns.
 let boundBy(
   ops: List<LanguageTools.ProgramTypes.PackageOp>)
-  : Stdlib.Option.Option<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind * LanguageTools.ProgramTypes.Hash)> =
+  : Option<
+  (LanguageTools.ProgramTypes.PackageLocation *
+   LanguageTools.ProgramTypes.ItemKind *
+   LanguageTools.ProgramTypes.Hash)> =
   ops
   |> Stdlib.List.filterMap(fun op ->
     match op with
     | SetName(loc, reference, _) ->
-      Stdlib.Option.Option.Some(
-        (loc,
-         LanguageTools.ProgramTypes.Reference.kind(reference),
-         LanguageTools.ProgramTypes.Reference.hash(reference)))
-    | _ -> Stdlib.Option.Option.None)
+      Option.Some(
+        (
+          loc,
+          LanguageTools.ProgramTypes.Reference.kind(reference),
+          LanguageTools.ProgramTypes.Reference.hash(reference)))
+    | _ -> Option.None)
   |> Stdlib.List.last
+
 
 /// The footer's refusal for names that don't resolve, naming them, where the CLI prints a list.
 let unresolvedMessage(
   unresolved:
-    List<LanguageTools.Parser.Range
-      * List<String>
-      * LanguageTools.ProgramTypes.NameResolutionError>)
+    List<
+      (LanguageTools.Parser.Range * List<String> * LanguageTools.ProgramTypes.NameResolutionError)>)
   : String =
-  "unresolved names: " + (Packages.Errors.unresolvedNamesText(unresolved))
+  "unresolved names: " + Packages.Errors.unresolvedNamesText(unresolved)
+
 
 let saveEditing(state: State, es: EditingState): Step =
   let keepErr(msg: String): Step =
@@ -243,13 +260,16 @@ let saveEditing(state: State, es: EditingState): Step =
         | Error(m) -> keepErr(m)
       | None -> keepErr("could not parse")
 
+
 /// Drop doc-comment lines (`///`) from a pretty-printed declaration, keeping the full `let`/`type`/`val` form
 /// so it round-trips through saveEditing (which derives the name from the source).
 let stripDocComments(src: String): String =
   src
   |> Stdlib.String.split("\n")
-  |> Stdlib.List.filter(fun l -> Stdlib.Bool.not(Stdlib.String.startsWith(Stdlib.String.trim(l), "///")))
+  |> Stdlib.List.filter(fun l ->
+    Stdlib.Bool.not(Stdlib.String.startsWith(Stdlib.String.trim(l), "///")))
   |> Stdlib.String.join("\n")
+
 
 /// Open the spacious editor on a new declaration: a full template (keyword + qualified placeholder name +
 /// body), cursor on the name for immediate replacement. No bottom-bar name prompt - the whole thing is
@@ -258,22 +278,35 @@ let stripDocComments(src: String): String =
 /// Open the spacious editor to author a new `kind` into `targetModule`.
 let openNewEditor(state: State, kind: String, targetModule: List<String>): Step =
   let (titleBase, template, nameCol) =
-    if kind == "type" then ("New type", "type NewType =\n  { field: Int64 }", 5)
-    else if kind == "value" then ("New value", "val newValue = 1", 4)
+    if kind == "type" then
+      ("New type", "type NewType =\n  { field: Int64 }", 5)
+    else if kind == "value" then
+      ("New value", "val newValue = 1", 4)
     else if kind == "trait" then
       ("New trait", "trait NewTrait<'a> =\n  let method(v: 'a): String", 6)
     // An implementation's name is derived, so the cursor goes to the TRAIT being implemented
     // rather than to a name you are about to type.
     else if kind == "impl" then
-      ("New implementation", "impl NewTrait for SomeType =\n  let method(v: SomeType): String = \"\"", 5)
-    else ("New function", "let newFunction(x: Int64): Int64 =\n  x", 4)
-  let where = "  ·  in " + (Stdlib.String.join(targetModule, "."))
+      (
+        "New implementation",
+        "impl NewTrait for SomeType =\n  let method(v: SomeType): String = \"\"",
+        5)
+    else
+      ("New function", "let newFunction(x: Int64): Int64 =\n  x", 4)
+
+  let where = "  ·  in " + Stdlib.String.join(targetModule, ".")
   let buf = Stdlib.Cli.UI.Editor.fromText(template)
   Step.Continue(
     { state with
         editing =
-          Stdlib.Option.Option.Some(EditingState
-              { kind = kind, nameStr = titleBase + where, targetModule = targetModule, buf = { buf with col = nameCol }, err = "" }) })
+          Option.Some(
+            EditingState
+              { kind = kind
+                nameStr = titleBase + where
+                targetModule = targetModule
+                buf = { buf with col = nameCol }
+                err = "" }) })
+
 
 /// Author a new item. The declaration is a BARE name (a qualified `let Owner.Mod.name` is a parse error), so the
 /// target module has to come from somewhere: use the current tree location if it has an owner, otherwise ask
@@ -286,7 +319,12 @@ let startNew(state: State, kind: String): Step =
     Step.Continue(
       { state with
           input =
-            Stdlib.Option.Option.Some(InputState { prompt = "save under (Owner or Owner.Module): ", field = Stdlib.Cli.UI.TextField.fromText("Me"), action = "author-" + kind }) })
+            Option.Some(
+              InputState
+                { prompt = "save under (Owner or Owner.Module): "
+                  field = Stdlib.Cli.UI.TextField.fromText("Me")
+                  action = "author-" + kind }) })
+
 
 /// Open the editor on an existing fn, prefilled with its full current declaration (doc comments dropped).
 let openEditExisting(state: State, item: BodyItem): Step =
@@ -298,34 +336,43 @@ let openEditExisting(state: State, item: BodyItem): Step =
   let kindAndSrc =
     if item.kind == "type" then
       match results.types with
-      | [i, ...] -> Stdlib.Option.Option.Some(("type", PrettyPrinter.ProgramTypes.packageType(ctx, i.entity)))
-      | [] -> Stdlib.Option.Option.None
+      | [i, ...] -> Option.Some(("type", PrettyPrinter.ProgramTypes.packageType(ctx, i.entity)))
+      | [] -> Option.None
     else if item.kind == "val" then
       match results.values with
-      | [i, ...] -> Stdlib.Option.Option.Some(("value", PrettyPrinter.ProgramTypes.packageValue(ctx, i.entity)))
-      | [] -> Stdlib.Option.Option.None
+      | [i, ...] -> Option.Some(("value", PrettyPrinter.ProgramTypes.packageValue(ctx, i.entity)))
+      | [] -> Option.None
     else if item.kind == "test" then
       match results.tests with
-      | [i, ...] -> Stdlib.Option.Option.Some(("test", PrettyPrinter.ProgramTypes.packageTest(ctx, i.entity)))
-      | [] -> Stdlib.Option.Option.None
+      | [i, ...] -> Option.Some(("test", PrettyPrinter.ProgramTypes.packageTest(ctx, i.entity)))
+      | [] -> Option.None
     else if item.kind == "fn" then
       match results.fns with
-      | [i, ...] -> Stdlib.Option.Option.Some(("fn", PrettyPrinter.ProgramTypes.packageFn(ctx, i.entity)))
-      | [] -> Stdlib.Option.Option.None
+      | [i, ...] -> Option.Some(("fn", PrettyPrinter.ProgramTypes.packageFn(ctx, i.entity)))
+      | [] -> Option.None
     else if item.kind == "trait" then
       match results.traits with
-      | [i, ...] -> Stdlib.Option.Option.Some(("trait", PrettyPrinter.ProgramTypes.packageTrait(ctx, i.entity)))
-      | [] -> Stdlib.Option.Option.None
+      | [i, ...] -> Option.Some(("trait", PrettyPrinter.ProgramTypes.packageTrait(ctx, i.entity)))
+      | [] -> Option.None
     else if item.kind == "impl" then
       match results.impls with
-      | [i, ...] -> Stdlib.Option.Option.Some(("impl", PrettyPrinter.ProgramTypes.packageImpl(ctx, i.entity)))
-      | [] -> Stdlib.Option.Option.None
+      | [i, ...] -> Option.Some(("impl", PrettyPrinter.ProgramTypes.packageImpl(ctx, i.entity)))
+      | [] -> Option.None
     else
-      Stdlib.Option.Option.None
+      Option.None
+
   match kindAndSrc with
   | Some((kind, src)) ->
     Step.Continue(
       { state with
           editing =
-            Stdlib.Option.Option.Some(EditingState { kind = kind, nameStr = "Editing " + fullName, targetModule = modules, buf = Stdlib.Cli.UI.Editor.fromText(stripDocComments(src)), err = "" }) })
-  | None -> Step.Continue({ state with messageKind = MessageKind.Refused, message = $"nothing to edit at {fullName}" })
+            Option.Some(
+              EditingState
+                { kind = kind
+                  nameStr = "Editing " + fullName
+                  targetModule = modules
+                  buf = Stdlib.Cli.UI.Editor.fromText(stripDocComments(src))
+                  err = "" }) })
+  | None ->
+    Step.Continue(
+      { state with messageKind = MessageKind.Refused, message = $"nothing to edit at {fullName}" })

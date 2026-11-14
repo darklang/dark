@@ -10,29 +10,27 @@ module Darklang.Cli.Telemetry
 ///
 ///   // Or for spans with extra context:
 ///   Telemetry.logWithContext "completionHint" t0 [("input", promptText)]
-
 /// Where telemetry lines go. A fn, not a `val`: a val is evaluated once, when the
 /// package store is built, so it would hold the build machine's log dir rather than
 /// the one this CLI is actually using. `cliGetLogDir` already ends in `/`.
 let logFilePath(): String =
-  (Builtin.cliGetLogDir()) + "telemetry.jsonl"
+  Builtin.cliGetLogDir() + "telemetry.jsonl"
+
 
 /// Returns monotonic millisecond timestamp (only differences are meaningful)
-let now(): Int64 = Stdlib.DateTime.__monotonicMilliseconds()
+let now(): Int64 =
+  Stdlib.DateTime.__monotonicMilliseconds()
+
 
 /// Compute elapsed ms between a start timestamp and now
 let elapsedMs(startMs: Int64): Int64 =
-  (now()) - startMs
+  now() - startMs
+
 
 /// Write a single telemetry event line to the log file.
 /// Format: {"event":"<label>","ms":<elapsed>,"wall":"<ISO8601>","ctx":{...}}
-let logWithContext(
-  label: String,
-  startMs: Int64,
-  context: List<(String * String)>)
-  : Unit =
+let logWithContext(label: String, startMs: Int64, context: List<(String * String)>): Unit =
   let elapsed = elapsedMs(startMs)
-
   let ctxPairs =
     context
     |> Stdlib.List.map(fun((k, v)) ->
@@ -42,31 +40,33 @@ let logWithContext(
   let ctxJson =
     match ctxPairs with
     | [] -> "{}"
-    | pairs -> "{" + (Stdlib.String.join(pairs, ",")) + "}"
+    | pairs -> "{" + Stdlib.String.join(pairs, ",") + "}"
 
   let wall = Stdlib.display(Stdlib.DateTime.now())
-  let line = $"{{\"event\":\"{label}\",\"ms\":{Stdlib.display(elapsed)},\"wall\":\"{wall}\",\"ctx\":{ctxJson}}}"
+  let line =
+    $"{{\"event\":\"{label}\",\"ms\":{Stdlib.display(elapsed)},\"wall\":\"{wall}\",\"ctx\":{ctxJson}}}"
 
   let _ = Stdlib.Cli.FileSystem.appendToFile(logFilePath(), line + "\n")
   ()
 
+
 /// Shorthand: log a timing event with no extra context
 let log(label: String, startMs: Int64): Unit =
   logWithContext(label, startMs, [])
+
 
 /// Log a raw message (not a timing span) — useful for one-off markers
 let logMessage(label: String, message: String): Unit =
   let wall = Stdlib.display(Stdlib.DateTime.now())
   let escaped = Stdlib.String.replaceAll(message, "\"", "\\\"")
   let line = $"{{\"event\":\"{label}\",\"msg\":\"{escaped}\",\"wall\":\"{wall}\"}}"
-
   let _ = Stdlib.Cli.FileSystem.appendToFile(logFilePath(), line + "\n")
   ()
+
 
 /// Log the start of a session so we can separate runs in the log
 let logSessionStart(): Unit =
   let wall = Stdlib.display(Stdlib.DateTime.now())
   let line = $"{{\"event\":\"session_start\",\"wall\":\"{wall}\"}}"
-
   let _ = Stdlib.Cli.FileSystem.appendToFile(logFilePath(), line + "\n")
   ()

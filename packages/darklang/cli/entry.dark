@@ -6,7 +6,6 @@ module Darklang.Cli
 
 let executeCliCommand(args: List<String>): Int64 =
   let initialState = initState()
-
   match args with
   | [] ->
     if initialState.telemetryEnabled then

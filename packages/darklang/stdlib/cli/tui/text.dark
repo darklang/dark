@@ -10,7 +10,6 @@
 /// per character. `wrapAtWords` below stays in Dark because it measures whole words.
 module Darklang.Stdlib.Cli.Tui.Text
 
-
 /// Terminal columns occupied by a row that may carry SGR styling.
 let styledWidth(text: String): Int64 =
   Builtin.cliTerminalStyledWidth(text)
@@ -39,7 +38,7 @@ let clipMarked(text: String, maxWidth: Int64): String =
   else if maxWidth <= 1 then
     clipToWidth(text, maxWidth)
   else
-    (clipToWidth(text, maxWidth - 1)) + "…"
+    clipToWidth(text, maxWidth - 1) + "…"
 
 
 /// Break a row at the column, restating styling that spans the wrap. To break at spaces where it
@@ -51,33 +50,29 @@ let wrapAtColumn(text: String, maxWidth: Int64): List<String> =
 /// `wrapAtColumn` over `before + after`, with the zero-based row and column of the cursor between
 /// them. Both come from the one wrap, so the cursor stays on the text when a word moves down. Exactly
 /// past a full last row reads as column zero of the next row, matching what the terminal does.
-let wrapWithCursor(
-  before: String,
-  after: String,
-  maxWidth: Int64)
-  : (List<String> * Int64 * Int64) =
+let wrapWithCursor(before: String, after: String, maxWidth: Int64): (List<String> * Int64 * Int64) =
   Builtin.cliTerminalWrapWithCursor(before, after, maxWidth)
 
 
 /// Pad or clip text to exactly the requested terminal-column width.
 let fitToWidth(text: String, targetWidth: Int64): String =
   let clipped = clipToWidth(text, targetWidth)
-  let padding = Stdlib.max(0, targetWidth - (styledWidth(clipped)))
-  clipped + (Stdlib.String.checkedRepeat(" ", padding) |> Stdlib.Result.withDefault(""))
+  let padding = max(0, targetWidth - styledWidth(clipped))
+  clipped + (String.checkedRepeat(" ", padding) |> Result.withDefault(""))
 
 
 // --- Word wrapping ---
 
 /// Break one long word across lines, since it can't be fitted whole.
 let __splitLongWord(word: String, width: Int64): List<String> =
-  if (Stdlib.String.displayWidth(word)) <= width then
+  if String.displayWidth(word) <= width then
     [ word ]
   else
     let head = clipToWidth(word, width)
-    let taken = Stdlib.String.length(head)
+    let taken = String.length(head)
     // A wide glyph can make `clipToWidth` take fewer characters than columns; never take none.
-    let step = Stdlib.max(1, taken)
-    Stdlib.List.prepend(__splitLongWord(Stdlib.String.dropFirst(word, step), width), head)
+    let step = max(1, taken)
+    List.prepend(__splitLongWord(String.dropFirst(word, step), width), head)
 
 
 /// Fold one word into the lines built so far.
@@ -88,36 +83,32 @@ let __addWord(
   width: Int64)
   : (List<String> * String) =
   let candidate = if current == "" then word else current + " " + word
-
-  if (Stdlib.String.displayWidth(candidate)) <= width then
+  if String.displayWidth(candidate) <= width then
     (lines, candidate)
   else if current == "" then
     // The word alone doesn't fit: split it, keeping the tail as the line in progress.
-    match Stdlib.List.reverse(__splitLongWord(word, width)) with
+    match List.reverse(__splitLongWord(word, width)) with
     | [] -> (lines, "")
-    | [last, ...earlier] -> (Stdlib.List.concat(lines, Stdlib.List.reverse(earlier)), last)
+    | [last, ...earlier] -> (List.concat(lines, List.reverse(earlier)), last)
   else
     let (wrapped, rest) = __addWord([], "", word, width)
-    (Stdlib.List.concat(Stdlib.List.append(lines, current), wrapped), rest)
+    (List.concat(List.append(lines, current), wrapped), rest)
 
 
 /// Break plain text at spaces where it can and inside a word where it must.
 /// Styling isn't handled: wrap first, colour after.
 let wrapAtWords(text: String, width: Int64): List<String> =
-  let w = Stdlib.max(1, width)
-
+  let w = max(1, width)
   if text == "" then
     [ "" ]
-  else if (Stdlib.String.displayWidth(text)) <= w then
+  else if String.displayWidth(text) <= w then
     [ text ]
   else
-    let words =
-      Stdlib.String.split(text, " ") |> Stdlib.List.filter(fun word -> word != "")
-
+    let words = String.split(text, " ") |> List.filter(fun word -> word != "")
     let (lines, current) =
       words
-      |> Stdlib.List.fold(([], ""), fun(acc, word) ->
+      |> List.fold(([], ""), fun(acc, word) ->
         let (soFar, inProgress) = acc
         __addWord(soFar, inProgress, word, w))
 
-    if current == "" then lines else Stdlib.List.append(lines, current)
+    if current == "" then lines else List.append(lines, current)

@@ -8,7 +8,7 @@ let allDirectDescendants(
   let query =
     LanguageTools.ProgramTypes.Search.SearchQuery
       { currentModule = modulePath
-        text = "" // CLEANUP maybe 'none' would be better
+        text = ""  // CLEANUP maybe 'none' would be better
         searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
         entityTypes = []
         exactMatch = false }
@@ -25,8 +25,13 @@ let allDirectDescendants(
 let allDirectDescendantNames(
   branchId: Uuid,
   modulePath: List<String>)
-  : (List<String> * List<String> * List<String> * List<String> * List<String> *
-     List<String> * List<String>) =
+  : (List<String> *
+     List<String> *
+     List<String> *
+     List<String> *
+     List<String> *
+     List<String> *
+     List<String>) =
   let query =
     LanguageTools.ProgramTypes.Search.SearchQuery
       { currentModule = modulePath
@@ -69,26 +74,23 @@ type Deprecated =
   | Show
   | Hide
 
+
 module Deprecated =
   /// {{Show}} when <param asked>, the way a command reads `--include-deprecated`.
-  let showIf(asked: Bool): Darklang.Cli.Packages.Query.Deprecated =
-    if asked then
-      Darklang.Cli.Packages.Query.Deprecated.Show
-    else
-      Darklang.Cli.Packages.Query.Deprecated.Hide
+  let showIf(asked: Bool): Deprecated =
+    if asked then Deprecated.Show else Deprecated.Hide
+
 
 /// Whether a listing shows internal `__` helpers. `--include-internal` asks for them.
 type Internal =
   | Show
   | Hide
 
+
 module Internal =
   /// {{Show}} when <param asked>, the way a command reads `--include-internal`.
-  let showIf(asked: Bool): Darklang.Cli.Packages.Query.Internal =
-    if asked then
-      Darklang.Cli.Packages.Query.Internal.Show
-    else
-      Darklang.Cli.Packages.Query.Internal.Hide
+  let showIf(asked: Bool): Internal =
+    if asked then Internal.Show else Internal.Hide
 
 
 /// Drop what a listing of <param modulePath> (owner first) hides by default, for a (name, hash)
@@ -102,7 +104,6 @@ let filterHiddenPairs(
   : List<(String * LanguageTools.ProgramTypes.Hash)> =
   let showDeprecated = deprecated == Deprecated.Show
   let showInternal = internal == Internal.Show
-
   items
   |> Stdlib.List.filter(fun((name, hash)) ->
     (showDeprecated || Stdlib.Bool.not(isHiddenAt(sets, modulePath, name, hash)))
@@ -163,22 +164,26 @@ let implsBelow(
 
 /// Check if search results contain any content
 let hasContent(r: LanguageTools.ProgramTypes.Search.SearchResults): Bool =
-  (r.submodules != []) || (r.types != []) || (r.fns != []) || (r.values != [])
-  || (r.traits != []) || (r.impls != [])
-  || (r.tests != [])
+  r.submodules != []
+  || r.types != []
+  || r.fns != []
+  || r.values != []
+  || r.traits != []
+  || r.impls != []
+  || r.tests != []
 
 
 /// Extract direct submodule names from the current module path
-let getDirectSubmodules(results: LanguageTools.ProgramTypes.Search.SearchResults, currentPathLength: Int64): List<String> =
+let getDirectSubmodules(
+  results: LanguageTools.ProgramTypes.Search.SearchResults,
+  currentPathLength: Int64)
+  : List<String> =
   results.submodules
   |> Stdlib.List.filterMap(fun modulePath ->
     match Stdlib.List.drop(modulePath, currentPathLength) with
-    | [] -> Stdlib.Option.Option.None
+    | [] -> Option.None
     | [nextPart, ...] ->
-      if Stdlib.String.isEmpty(nextPart) then
-        Stdlib.Option.Option.None
-      else
-        Stdlib.Option.Option.Some(nextPart))
+      if Stdlib.String.isEmpty(nextPart) then Option.None else Option.Some(nextPart))
   |> Stdlib.List.unique
   |> Stdlib.List.sort
 
@@ -206,9 +211,7 @@ type DeprecationSets =
 
 
 /// Build a Dict<String, Bool> keyed by each hash's underlying hex string.
-let hashListToDict(
-  hashes: List<LanguageTools.ProgramTypes.Hash>)
-  : Dict<String, Bool> =
+let hashListToDict(hashes: List<LanguageTools.ProgramTypes.Hash>): Dict<String, Bool> =
   hashes
   |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, hash) ->
     let key = LanguageTools.ProgramTypes.hashToString(hash)
@@ -221,7 +224,7 @@ let addDeprecatedName(
   nameAndHash: String)
   : Dict<String, List<String>> =
   match Stdlib.String.split(nameAndHash, "#") with
-  | [ path, hash ] ->
+  | [path, hash] ->
     let others = Stdlib.Dict.get(names, hash) |> Stdlib.Option.withDefault([])
     Stdlib.Dict.set(names, hash, Stdlib.List.prepend(others, path))
   | _ -> names
@@ -250,26 +253,17 @@ let pathOf(modulePath: List<String>, name: String): String =
   Stdlib.String.join(Stdlib.List.append(modulePath, name), ".")
 
 
-let memberOf(
-  d: Dict<String, Bool>,
-  hash: LanguageTools.ProgramTypes.Hash)
-  : Bool =
+let memberOf(d: Dict<String, Bool>, hash: LanguageTools.ProgramTypes.Hash): Bool =
   Stdlib.Dict.containsKey(d, LanguageTools.ProgramTypes.hashToString(hash))
 
 
 /// Whether an item hash should be hidden by default visibility.
-let isHidden(
-  sets: DeprecationSets,
-  hash: LanguageTools.ProgramTypes.Hash)
-  : Bool =
+let isHidden(sets: DeprecationSets, hash: LanguageTools.ProgramTypes.Hash): Bool =
   memberOf(sets.hidden, hash)
 
 
 /// Whether an item hash is flagged as deprecated at all (shown-with-icon or hidden).
-let isDeprecated(
-  sets: DeprecationSets,
-  hash: LanguageTools.ProgramTypes.Hash)
-  : Bool =
+let isDeprecated(sets: DeprecationSets, hash: LanguageTools.ProgramTypes.Hash): Bool =
   memberOf(sets.allDeprecated, hash)
 
 
@@ -311,8 +305,8 @@ let isHiddenAt(
   | None -> false
   | Some(names) ->
     Stdlib.Dict.containsKey(sets.hidden, key)
-    || (Stdlib.List.contains(names, pathOf(modulePath, name))
-        && Stdlib.Bool.not(Stdlib.Dict.containsKey(sets.allDeprecated, key)))
+    || Stdlib.List.contains(names, pathOf(modulePath, name))
+       && Stdlib.Bool.not(Stdlib.Dict.containsKey(sets.allDeprecated, key))
 
 
 /// `isHiddenAt` for an item with its location.
@@ -326,7 +320,8 @@ let isHiddenAtLocation(
 
 /// A name whose last segment starts with `__` is an internal helper: callable and viewable by
 /// name, but left out of listings, search and completion unless asked for.
-let isInternalName(name: String): Bool = Stdlib.String.startsWith(name, "__")
+let isInternalName(name: String): Bool =
+  Stdlib.String.startsWith(name, "__")
 
 
 /// Drop internal helpers (`isInternalName`) from a list of names.
@@ -338,7 +333,8 @@ let withoutInternalNames(names: List<String>): List<String> =
 let withoutInternal(
   results: LanguageTools.ProgramTypes.Search.SearchResults)
   : LanguageTools.ProgramTypes.Search.SearchResults =
-  let shown(loc: LanguageTools.ProgramTypes.PackageLocation): Bool = Stdlib.Bool.not(isInternalName(loc.name))
+  let shown(loc: LanguageTools.ProgramTypes.PackageLocation): Bool =
+    Stdlib.Bool.not(isInternalName(loc.name))
 
   LanguageTools.ProgramTypes.Search.SearchResults
     { submodules = results.submodules
@@ -355,13 +351,11 @@ type TestModules =
   | Show
   | Hide
 
+
 module TestModules =
   /// {{Show}} when <param asked>, the way a command reads `--include-tests`.
-  let showIf(asked: Bool): Darklang.Cli.Packages.Query.TestModules =
-    if asked then
-      Darklang.Cli.Packages.Query.TestModules.Show
-    else
-      Darklang.Cli.Packages.Query.TestModules.Hide
+  let showIf(asked: Bool): TestModules =
+    if asked then TestModules.Show else TestModules.Hide
 
 
 /// Filter SearchResults by the default visibility rule: hidden deprecations and internal helpers
@@ -382,12 +376,30 @@ let filterHidden(
   | Hide ->
     LanguageTools.ProgramTypes.Search.SearchResults
       { submodules = results.submodules
-        types = results.types |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHiddenAtLocation(sets, i.location, i.entity.hash)))
-        values = results.values |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHiddenAtLocation(sets, i.location, i.entity.hash)))
-        fns = results.fns |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHiddenAtLocation(sets, i.location, i.entity.hash)))
-        traits = results.traits |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHiddenAtLocation(sets, i.location, i.entity.hash)))
-        impls = results.impls |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHiddenAtLocation(sets, i.location, i.entity.hash)))
-        tests = results.tests |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(isHiddenAtLocation(sets, i.location, i.entity.hash))) }
+        types =
+          results.types
+          |> Stdlib.List.filter(fun i ->
+            Stdlib.Bool.not(isHiddenAtLocation(sets, i.location, i.entity.hash)))
+        values =
+          results.values
+          |> Stdlib.List.filter(fun i ->
+            Stdlib.Bool.not(isHiddenAtLocation(sets, i.location, i.entity.hash)))
+        fns =
+          results.fns
+          |> Stdlib.List.filter(fun i ->
+            Stdlib.Bool.not(isHiddenAtLocation(sets, i.location, i.entity.hash)))
+        traits =
+          results.traits
+          |> Stdlib.List.filter(fun i ->
+            Stdlib.Bool.not(isHiddenAtLocation(sets, i.location, i.entity.hash)))
+        impls =
+          results.impls
+          |> Stdlib.List.filter(fun i ->
+            Stdlib.Bool.not(isHiddenAtLocation(sets, i.location, i.entity.hash)))
+        tests =
+          results.tests
+          |> Stdlib.List.filter(fun i ->
+            Stdlib.Bool.not(isHiddenAtLocation(sets, i.location, i.entity.hash))) }
 
 
 /// Deprecation marker rendered after the name `modulePath.name` when it's shown despite being

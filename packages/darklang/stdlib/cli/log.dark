@@ -4,20 +4,24 @@ module Darklang.Stdlib.Cli.Log
 
 /// Log an info message (green prefix)
 let info(msg: String): Unit =
-  Stdlib.printErrorLine($"{Stdlib.Cli.UI.Colors.greenText("[INFO]")} {msg}")
+  printErrorLine($"{UI.Colors.greenText("[INFO]")} {msg}")
+
 
 /// Log a warning message (yellow prefix)
 let warn(msg: String): Unit =
-  Stdlib.printErrorLine($"{Stdlib.Cli.UI.Colors.yellowText("[WARN]")} {msg}")
+  printErrorLine($"{UI.Colors.yellowText("[WARN]")} {msg}")
+
 
 /// Log an error message (red prefix)
 let error(msg: String): Unit =
-  Stdlib.printErrorLine($"{Stdlib.Cli.UI.Colors.redText("[ERROR]")} {msg}")
+  printErrorLine($"{UI.Colors.redText("[ERROR]")} {msg}")
+
 
 /// Log a debug message (gray prefix)
 let debug(msg: String): Unit =
-  Stdlib.printErrorLine($"{Stdlib.Cli.UI.Colors.grayText("[DEBUG]")} {msg}")
+  printErrorLine($"{UI.Colors.grayText("[DEBUG]")} {msg}")
+
 
 /// Log a success message (green prefix with checkmark)
 let success(msg: String): Unit =
-  Stdlib.printErrorLine($"{Stdlib.Cli.UI.Colors.greenText("[OK]")} {msg}")
+  printErrorLine($"{UI.Colors.greenText("[OK]")} {msg}")

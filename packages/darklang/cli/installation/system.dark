@@ -1,11 +1,9 @@
 /// System integration utilities for CLI installation
 module Darklang.Cli.Installation.System
 
-
 /// Where the installed binary lives, or why there is no home to put it in.
-let installedBinaryPath(host: Stdlib.Cli.Host.Host): Stdlib.Result.Result<String, String> =
-  Config.getDarklangHomeDir(host)
-  |> Stdlib.Result.map(fun home -> $"{home}/bin/dark")
+let installedBinaryPath(host: Stdlib.Cli.Host.Host): Result<String, String> =
+  Config.getDarklangHomeDir(host) |> Stdlib.Result.map(fun home -> $"{home}/bin/dark")
 
 
 /// Is the running binary the installed one, at <param installed>?
@@ -22,40 +20,38 @@ let isInstalled(installed: String): Bool =
 ///
 /// Compares build hashes, the one identity a binary and a release share. The tag (`v0.0.54`) appears
 /// nowhere in the binary, so comparing the two never matched and every update re-downloaded.
-let isLatestBuild(currentVersion: String): Stdlib.Result.Result<Bool, String> =
-  Darklang.GitHub.Releases.getLatestReleaseBuildHash()
+let isLatestBuild(currentVersion: String): Result<Bool, String> =
+  GitHub.Releases.getLatestReleaseBuildHash()
   |> Stdlib.Result.map(fun latest -> latest == currentVersion)
 
 
 /// Copy the running binary to `~/.darklang/bin/dark` and put it on the PATH.
-let installFromCurrentBinary(host: Stdlib.Cli.Host.Host): Stdlib.Result.Result<String, String> =
+let installFromCurrentBinary(host: Stdlib.Cli.Host.Host): Result<String, String> =
   match Config.getDarklangHomeDir(host) with
-  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Error(e) -> Result.Error(e)
   | Ok(darklangHomeDir) ->
+    let currentBinaryPath = Stdlib.Cli.Sys.currentExecutablePath()
+    let globalBinDir = $"{darklangHomeDir}/bin/"
+    let globalBinaryPath = $"{darklangHomeDir}/bin/dark"
+    let copied =
+      match Stdlib.Cli.Unix.ensureDirectoryExists(globalBinDir) with
+      | Ok(_) ->
+        match Stdlib.Cli.Unix.copyFile(currentBinaryPath, globalBinaryPath) with
+        | Ok(_) -> Stdlib.Cli.Unix.grantExecutePermission(globalBinaryPath)
+        | Error(e) -> Result.Error(e)
+      | Error(e) -> Result.Error(e)
 
-  let currentBinaryPath = Stdlib.Cli.Sys.currentExecutablePath()
-  let globalBinDir = $"{darklangHomeDir}/bin/"
-  let globalBinaryPath = $"{darklangHomeDir}/bin/dark"
-
-  let copied =
-    match Stdlib.Cli.Unix.ensureDirectoryExists(globalBinDir) with
+    match copied with
+    | Error(e) -> Result.Error(e)
     | Ok(_) ->
-      match Stdlib.Cli.Unix.copyFile(currentBinaryPath, globalBinaryPath) with
-      | Ok(_) -> Stdlib.Cli.Unix.grantExecutePermission(globalBinaryPath)
-      | Error(e) -> Stdlib.Result.Result.Error(e)
-    | Error(e) -> Stdlib.Result.Result.Error(e)
+      // Unexpanded, as `install.sh` writes it. A PATH we couldn't edit is a warning, not a failure.
+      match Stdlib.Cli.Unix.addToPath(host.defaultShell, "$HOME/.darklang/bin/") with
+      | Ok(_) -> ()
+      | Error(e) ->
+        Stdlib.printErrorLine(
+          $"Couldn't add {globalBinDir} to your PATH ({e}). Add it in your shell's config to run `dark` from anywhere.")
 
-  match copied with
-  | Error(e) -> Stdlib.Result.Result.Error(e)
-  | Ok(_) ->
-    // Unexpanded, as `install.sh` writes it. A PATH we couldn't edit is a warning, not a failure.
-    match Stdlib.Cli.Unix.addToPath(host.defaultShell, "$HOME/.darklang/bin/") with
-    | Ok(_) -> ()
-    | Error(e) ->
-      Stdlib.printErrorLine(
-        $"Couldn't add {globalBinDir} to your PATH ({e}). Add it in your shell's config to run `dark` from anywhere.")
-
-    Stdlib.Result.Result.Ok($"Installed to {globalBinaryPath}. The 'dark' command should now be available.")
+      Result.Ok($"Installed to {globalBinaryPath}. The 'dark' command should now be available.")
 
 
 /// Update the CLI if a newer version is available. Never prompts, so `--yes` changes nothing here.
@@ -63,46 +59,45 @@ let installFromCurrentBinary(host: Stdlib.Cli.Host.Host): Stdlib.Result.Result<S
 /// <param pinned> names a release to install instead of the latest. <param replace> does the work.
 let updateIfAvailable(
   currentVersion: String,
-  pinned: Stdlib.Option.Option<String>,
-  replace: Unit -> Stdlib.Result.Result<String, String>)
-  : Stdlib.Result.Result<String, String> =
+  pinned: Option<String>,
+  replace: Unit -> Result<String, String>)
+  : Result<String, String> =
   // A pinned tag is installed whatever is current: it is how you roll back.
   let check =
     match pinned with
-    | Some(_) -> Stdlib.Result.Result.Ok(false)
+    | Some(_) -> Result.Ok(false)
     | None -> isLatestBuild(currentVersion)
 
   match check with
   | Error(_) ->
-    Stdlib.Result.Result.Error(
-      "Couldn't reach GitHub to find the latest release. Nothing was changed.")
-  | Ok(true) -> Stdlib.Result.Result.Ok("Already up to date!")
+    Result.Error("Couldn't reach GitHub to find the latest release. Nothing was changed.")
+  | Ok(true) -> Result.Ok("Already up to date!")
   | Ok(false) ->
     match replace() with
-    | Ok(tag) -> Stdlib.Result.Result.Ok($"Updated to {tag}.")
-    | Error(e) -> Stdlib.Result.Result.Error(e)
+    | Ok(tag) -> Result.Ok($"Updated to {tag}.")
+    | Error(e) -> Result.Error(e)
 
 
 /// Uninstall the CLI with user confirmation, which {{Confirm.Assume}} skips
 let uninstallWithConfirmation(
   host: Stdlib.Cli.Host.Host,
-  confirm: Cli.Confirm)
-  : Stdlib.Result.Result<String, String> =
+  confirm: Confirm)
+  : Result<String, String> =
   match Config.getDarklangHomeDir(host) with
-  | Error(e) -> Stdlib.Result.Result.Error($"refusing to uninstall: {e}")
+  | Error(e) -> Result.Error($"refusing to uninstall: {e}")
   | Ok(darklangHomeDir) ->
-
-  if Cli.Prompt.confirmExplicit(
-       confirm,
-       $"Uninstall removes {darklangHomeDir}, including everything you've made. Are you sure? (y/n): ") then
-    Stdlib.printErrorLine("Uninstalling...")
-    match Uninstall.runUninstall(host) with
-    | Ok(_) -> Stdlib.Result.Result.Ok("Uninstall complete")
-    | Error(e) -> Stdlib.Result.Result.Error(e)
-  else
+    if
+      Prompt.confirmExplicit(
+        confirm,
+        $"Uninstall removes {darklangHomeDir}, including everything you've made. Are you sure? (y/n): ")
+    then
+      Stdlib.printErrorLine("Uninstalling...")
+      match Uninstall.runUninstall(host) with
+      | Ok(_) -> Result.Ok("Uninstall complete")
+      | Error(e) -> Result.Error(e)
     // An Error: the Ok arm reports success and exits the CLI as though the binary were gone.
-    if Stdlib.Cli.UI.Prompt.canAsk() then
-      Stdlib.Result.Result.Error("Uninstall cancelled")
+    else if Stdlib.Cli.UI.Prompt.canAsk() then
+      Result.Error("Uninstall cancelled")
     else
-      Stdlib.Result.Result.Error(
+      Result.Error(
         "Uninstall cancelled: there's no terminal to confirm it. `dark uninstall --yes` skips the prompt.")

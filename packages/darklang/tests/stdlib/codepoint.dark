@@ -1,35 +1,58 @@
 module Darklang.Stdlib.Codepoint.Tests
 
-
 test scalarBoundaries =
   Stdlib.Test.all(
     [ Stdlib.Codepoint.isValidScalar(0u32) |> Stdlib.Test.equal(true)
+
       Stdlib.Codepoint.isValidScalar(255u32) |> Stdlib.Test.equal(true)
+
       Stdlib.Codepoint.isValidScalar(55295u32) |> Stdlib.Test.equal(true)
+
       Stdlib.Codepoint.isValidScalar(55296u32) |> Stdlib.Test.equal(false)
+
       Stdlib.Codepoint.isValidScalar(57343u32) |> Stdlib.Test.equal(false)
+
       Stdlib.Codepoint.isValidScalar(57344u32) |> Stdlib.Test.equal(true)
+
       Stdlib.Codepoint.isValidScalar(1114111u32) |> Stdlib.Test.equal(true)
+
       Stdlib.Codepoint.isValidScalar(Stdlib.Codepoint.max())
       |> Stdlib.Test.equal(true)
+
       Stdlib.Codepoint.isValidScalar(1114112u32) |> Stdlib.Test.equal(false)
+
       Stdlib.Codepoint.isValidScalar(4294967295u32) |> Stdlib.Test.equal(false)
+
       // U+0378 is unassigned, but a valid scalar and constructor input.
       Stdlib.Codepoint.isValidScalar(888u32) |> Stdlib.Test.equal(true)
+
       Stdlib.Char.fromCodepoint(888u32)
       |> Stdlib.Option.andThen(Stdlib.Char.toCodepoint)
-      |> Stdlib.Test.equal(Some(888u32)) ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(888u32)) ])
 
 
 test fromInt64 =
   Stdlib.Test.all(
-    [ Stdlib.Codepoint.fromInt64(0) |> Stdlib.Test.equal(Some(0u32))
-      Stdlib.Codepoint.fromInt64(255) |> Stdlib.Test.equal(Some(255u32))
-      Stdlib.Codepoint.fromInt64(1114111) |> Stdlib.Test.equal(Some(1114111u32))
-      Stdlib.Codepoint.fromInt64(55296) |> Stdlib.Test.equal(None)
-      Stdlib.Codepoint.fromInt64(1114112) |> Stdlib.Test.equal(None)
-      Stdlib.Codepoint.fromInt64(-1) |> Stdlib.Test.equal(None)
-      Stdlib.Codepoint.fromInt64(4294967296) |> Stdlib.Test.equal(None) ])
+    [ Stdlib.Codepoint.fromInt64(0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0u32))
+
+      Stdlib.Codepoint.fromInt64(255)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(255u32))
+
+      Stdlib.Codepoint.fromInt64(1114111)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1114111u32))
+
+      Stdlib.Codepoint.fromInt64(55296)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Codepoint.fromInt64(1114112)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Codepoint.fromInt64(-1)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Codepoint.fromInt64(4294967296)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 
 test properties =
@@ -40,4 +63,5 @@ test properties =
       Stdlib.Codepoint.isLetter(888u32) |> Stdlib.Test.equal(false)
       Stdlib.Codepoint.isLetter(55296u32) |> Stdlib.Test.equal(false)
       Stdlib.Codepoint.isWhitespace(1114112u32) |> Stdlib.Test.equal(false)
-      Stdlib.Codepoint.isAlphanumeric(4294967295u32) |> Stdlib.Test.equal(false) ])
+      Stdlib.Codepoint.isAlphanumeric(4294967295u32)
+      |> Stdlib.Test.equal(false) ])

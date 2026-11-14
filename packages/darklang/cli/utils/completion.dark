@@ -5,18 +5,21 @@ type CompletionItem =
   { display: String
     value: String }
 
+
 /// Create a simple completion item where display equals value
 let simple(text: String): CompletionItem =
   CompletionItem { display = text, value = text }
+
 
 /// Create a completion item with an icon based on entity type
 let withIcon(entityType: Packages.EntityType, text: String): CompletionItem =
   let icon = Packages.Display.getIcon(entityType)
   CompletionItem { display = icon + "  " + text, value = text }
 
+
 /// Create a completion item with a description shown after the value
 let withDescription(text: String, description: String): CompletionItem =
-  let display = text + "  " + (Stdlib.Cli.UI.Colors.dimText(description))
+  let display = text + "  " + Stdlib.Cli.UI.Colors.dimText(description)
   CompletionItem { display = display, value = text }
 
 
@@ -29,14 +32,10 @@ type ParsedInput =
 let parseInput(input: String): ParsedInput =
   let trimmed = Stdlib.String.trim(input)
   let endsWithSpace = Stdlib.String.endsWith(input, " ")
-
   if Stdlib.String.isEmpty(trimmed) then
     ParsedInput { commandName = "", args = [], isCompletingCommand = true }
   else
-    let words =
-      (Stdlib.String.split(trimmed, " "))
-      |> Stdlib.List.filter(fun s -> s != "")
-
+    let words = Stdlib.String.split(trimmed, " ") |> Stdlib.List.filter(fun s -> s != "")
     match words with
     | [] -> ParsedInput { commandName = "", args = [], isCompletingCommand = true }
     | [command] ->
@@ -46,7 +45,10 @@ let parseInput(input: String): ParsedInput =
         ParsedInput { commandName = command, args = [], isCompletingCommand = true }
     | [command, ...rest] ->
       if endsWithSpace then
-        ParsedInput { commandName = command, args = Stdlib.List.append(rest, ""), isCompletingCommand = false }
+        ParsedInput
+          { commandName = command
+            args = Stdlib.List.append(rest, "")
+            isCompletingCommand = false }
       else
         ParsedInput { commandName = command, args = rest, isCompletingCommand = false }
 
@@ -76,7 +78,7 @@ let getMatchedSegmentSuffix(completion: String, partial: String): String =
   match Stdlib.String.indexOf(completion, partial) with
   | None -> ""
   | Some(matchStart) ->
-    let afterMatch = matchStart + (Stdlib.String.length(partial))
+    let afterMatch = matchStart + Stdlib.String.length(partial)
     let rest = Stdlib.String.dropFirst(completion, afterMatch)
     // Find end of current segment (next "." or end of string)
     match Stdlib.String.indexOf(rest, ".") with
@@ -94,7 +96,10 @@ let getHintFromCompletions(partial: String, completions: List<String>): String =
       getMatchedSegmentSuffix(singleCompletion, partial)
   | multiple ->
     let commonPrefix = findCommonPrefix(multiple)
-    if Stdlib.String.startsWith(commonPrefix, partial) && Stdlib.String.length(commonPrefix) > Stdlib.String.length(partial) then
+    if
+      Stdlib.String.startsWith(commonPrefix, partial)
+      && Stdlib.String.length(commonPrefix) > Stdlib.String.length(partial)
+    then
       Stdlib.String.dropFirst(commonPrefix, Stdlib.String.length(partial))
     else
       getMatchedSegmentSuffix(commonPrefix, partial)
@@ -106,14 +111,12 @@ let getHintFromCompletions(partial: String, completions: List<String>): String =
 // completion path, mid-keystroke, and the cache is the same list, built once at startup.
 let commandNamesCompletion(state: AppState, args: List<String>): List<CompletionItem> =
   match args with
-  | [] ->
-    state.commandOptionsCache |> Stdlib.List.map(simple)
+  | [] -> state.commandOptionsCache |> Stdlib.List.map(simple)
   | [partialArg] ->
     state.commandOptionsCache
     |> Stdlib.List.filter(fun name -> Stdlib.String.startsWith(name, partialArg))
     |> Stdlib.List.map(simple)
-  | _ ->
-    []
+  | _ -> []
 
 
 let findCommonLength(str1: String, str2: String, index: Int64, maxLen: Int64): Int64 =
@@ -126,6 +129,7 @@ let findCommonLength(str1: String, str2: String, index: Int64, maxLen: Int64): I
       findCommonLength(str1, str2, index + 1, maxLen)
     else
       index
+
 
 let findCommonPrefix(strings: List<String>): String =
   match strings with
@@ -141,21 +145,17 @@ let findCommonPrefix(strings: List<String>): String =
 /// The prompt text after Tab when several completions share more than was typed,
 /// e.g. `fil` with `filter` and `filterMap` gives `filter`, as shells do. None when
 /// the shared part adds nothing, so the caller shows the choices instead.
-let extendToCommonPrefix(
-  input: String,
-  completions: List<CompletionItem>)
-  : Stdlib.Option.Option<String> =
+let extendToCommonPrefix(input: String, completions: List<CompletionItem>): Option<String> =
   let parsed = parseInput(input)
   let partial = getPartialCompletion(parsed)
   let prefix = findCommonPrefix(completions |> Stdlib.List.map(fun c -> c.value))
-
   if
     Stdlib.String.startsWith(prefix, partial)
     && Stdlib.String.length(prefix) > Stdlib.String.length(partial)
   then
-    Stdlib.Option.Option.Some(buildCompletedCommand(parsed, prefix))
+    Option.Some(buildCompletedCommand(parsed, prefix))
   else
-    Stdlib.Option.Option.None
+    Option.None
 
 
 // Filesystem completion helpers
@@ -173,7 +173,6 @@ let addSlashToDirectories(baseDir: String, files: List<String>): List<String> =
 /// Complete filesystem paths, handling . .. and / separators
 let completeFilesystemPath(partialArg: String): List<String> =
   let currentDir = "."
-
   if partialArg == "." then
     addSlashToDirectories(currentDir, Stdlib.Cli.FileSystem.getDirectoryContents("."))
   else if partialArg == ".." then
@@ -183,14 +182,13 @@ let completeFilesystemPath(partialArg: String): List<String> =
     | Some(idx) ->
       let dirPart = Stdlib.String.slice(partialArg, 0, idx + 1)
       let filePart = Stdlib.String.dropFirst(partialArg, idx + 1)
-
       let fullPath =
         if Stdlib.String.startsWith(dirPart, "/") then
           dirPart
         else
           $"{currentDir}/{dirPart}"
 
-      (Stdlib.Cli.FileSystem.getDirectoryContents(fullPath))
+      Stdlib.Cli.FileSystem.getDirectoryContents(fullPath)
       |> Stdlib.List.filter(fun f -> Stdlib.String.startsWith(f, filePart))
       |> Stdlib.List.map(fun f ->
         if Stdlib.Cli.FileSystem.isDirectoryAtPath(fullPath, f) then
@@ -200,7 +198,7 @@ let completeFilesystemPath(partialArg: String): List<String> =
     | None -> []
   else
     let files =
-      (Stdlib.Cli.FileSystem.getDirectoryContents("."))
+      Stdlib.Cli.FileSystem.getDirectoryContents(".")
       |> Stdlib.List.filter(fun f -> Stdlib.String.startsWith(f, partialArg))
 
     addSlashToDirectories(currentDir, files)

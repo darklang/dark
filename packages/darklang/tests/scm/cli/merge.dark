@@ -2,36 +2,61 @@
 /// The helpers are in `helpers.dark`.
 module Darklang.SCM.Tests.Cli
 
+test aMergeLandsTheBranchOnMainAsOneCommit = scenario(fun dark ->
+  [ saveNumber(dark, "Tests.App.base", "1")
+    commit(dark, "base")
+    switch(dark, "feat")
+    saveNumber(dark, "Tests.App.added", "2")
+    saveNumber(dark, "Tests.App.base", "3")
+    commit(dark, "feat work")
 
-test aMergeLandsTheBranchOnMainAsOneCommit =
-  scenario(fun dark ->
-    [ saveNumber(dark, "Tests.App.base", "1")
-      commit(dark, "base")
-      switch(dark, "feat")
-      saveNumber(dark, "Tests.App.added", "2")
-      saveNumber(dark, "Tests.App.base", "3")
-      commit(dark, "feat work")
+    // The dry run only previews.
+    says(
+      dark,
+      [ "merge", "feat", "--dry-run" ],
+      "+ Tests.App.added",
+      "the dry run lists what would land")
 
-      // The dry run only previews.
-      says(dark, [ "merge", "feat", "--dry-run" ], "+ Tests.App.added", "the dry run lists what would land")
-      says(dark, [ "merge", "feat", "--dry-run" ], "no conflicts", "and that nothing collides")
-      onBranch(dark, "feat", "it leaves us where we were")
-      notFoundOn(dark, "main", "Tests.App.added()", "and main as it was")
+    says(
+      dark,
+      [ "merge", "feat", "--dry-run" ],
+      "no conflicts",
+      "and that nothing collides")
 
-      says(dark, [ "merge", "feat", "-y" ], "now on main", "the merge moves us to main")
-      onBranch(dark, "main", "status agrees")
-      evals(dark, "Tests.App.added()", "2", "the new name landed")
-      evals(dark, "Tests.App.base()", "3", "and so did the edit")
-      draftIsEmpty(dark, "as a commit, not a draft")
-      same(
-        commits(dark),
-        [ "merged branch \"feat\"", "feat work", "base" ],
-        "main's history gains the branch's commit and a merge commit")
-      same(conflicts(dark), [], "nothing collided")
+    onBranch(dark, "feat", "it leaves us where we were")
+    notFoundOn(dark, "main", "Tests.App.added()", "and main as it was")
+    says(
+      dark,
+      [ "merge", "feat", "-y" ],
+      "now on main",
+      "the merge moves us to main")
 
-      doesNotSay(dark, [ "branches" ], "feat (", "`branches` no longer lists it as live")
-      same(branches(dark), [ "feat <- main [merged]" ], "`branches --json` lists it as merged")
-      says(dark, [ "merge", "feat", "-y" ], "already merged", "merging again does nothing") ])
+    onBranch(dark, "main", "status agrees")
+    evals(dark, "Tests.App.added()", "2", "the new name landed")
+    evals(dark, "Tests.App.base()", "3", "and so did the edit")
+    draftIsEmpty(dark, "as a commit, not a draft")
+    same(
+      commits(dark),
+      [ "merged branch \"feat\"", "feat work", "base" ],
+      "main's history gains the branch's commit and a merge commit")
+
+    same(conflicts(dark), [], "nothing collided")
+    doesNotSay(
+      dark,
+      [ "branches" ],
+      "feat (",
+      "`branches` no longer lists it as live")
+
+    same(
+      branches(dark),
+      [ "feat <- main [merged]" ],
+      "`branches --json` lists it as merged")
+
+    says(
+      dark,
+      [ "merge", "feat", "-y" ],
+      "already merged",
+      "merging again does nothing") ])
 
 
 // Odd, but today's behaviour: a merge into a branch (not main) makes no merge commit. The work
@@ -44,16 +69,42 @@ test aMergeIntoABranchMakesNoMergeCommit =
       switch(dark, "child")
       saveNumber(dark, "Tests.App.onChild", "2")
       commit(dark, "child work")
+      says(
+        dark,
+        [ "merge", "child", "-y" ],
+        "now on branch \"feat\"",
+        "the merge moves us to the parent")
 
-      says(dark, [ "merge", "child", "-y" ], "now on branch \"feat\"", "the merge moves us to the parent")
-      evals(dark, "Tests.App.onChild()", "2", "the child's work is on the parent")
-      same(commits(dark), [ "child work", "feat work" ], "with the child's commit but no merge commit")
-      says(dark, [ "log" ], "SetName Tests.App.onChild", "the parent's log lists the child's ops")
-      same(allBranches(dark), [ "child <- feat [merged]", "feat <- main" ], "the child is merged")
+      evals(
+        dark,
+        "Tests.App.onChild()",
+        "2",
+        "the child's work is on the parent")
+
+      same(
+        commits(dark),
+        [ "child work", "feat work" ],
+        "with the child's commit but no merge commit")
+
+      says(
+        dark,
+        [ "log" ],
+        "SetName Tests.App.onChild",
+        "the parent's log lists the child's ops")
+
+      same(
+        allBranches(dark),
+        [ "child <- feat [merged]", "feat <- main" ],
+        "the child is merged")
 
       switch(dark, "main")
       merge(dark, "feat")
-      evals(dark, "Tests.App.onChild()", "2", "both branches' work reaches main")
+      evals(
+        dark,
+        "Tests.App.onChild()",
+        "2",
+        "both branches' work reaches main")
+
       same(
         commits(dark),
         [ "merged branch \"feat\"", "child work", "feat work" ],
@@ -67,15 +118,16 @@ test aCallerAddedOnABranchFollowsWhatMainChangedWhenItMerges =
     [ switch(dark, "main")
       save(dark, "Tests.MergeRepro.foo", "(): Int64 = 1")
       commit(dark, "Add foo")
-
       switch(dark, "merge-repro")
-      save(dark, "Tests.MergeRepro.caller", "(): Int64 = Tests.MergeRepro.foo()")
-      commit(dark, "Add caller on branch")
+      save(
+        dark,
+        "Tests.MergeRepro.caller",
+        "(): Int64 = Tests.MergeRepro.foo()")
 
+      commit(dark, "Add caller on branch")
       switch(dark, "main")
       save(dark, "Tests.MergeRepro.foo", "(): Int64 = 2")
       commit(dark, "Update foo on main")
-
       says(
         dark,
         [ "merge", "merge-repro", "-y" ],
@@ -83,40 +135,66 @@ test aCallerAddedOnABranchFollowsWhatMainChangedWhenItMerges =
         "the merge says it repointed the caller")
 
       evals(dark, "Tests.MergeRepro.foo()", "2", "foo is main's version")
-      evals(dark, "Tests.MergeRepro.caller()", "2", "and the merged caller calls it")
+
+      evals(
+        dark,
+        "Tests.MergeRepro.caller()",
+        "2",
+        "and the merged caller calls it")
+
       same(
         rows(field(json(dark, [ "constraints", "--json" ]), "findings")),
         [],
         "nothing is left calling an old version")
+
       draftIsEmpty(dark, "the repoint landed in the merge's commit")
       same(conflicts(dark), [], "and nothing collided") ])
 
 
 test mergeRefusesAndSaysWhy =
   scenario(fun dark ->
-    [ refuses(dark, [ "merge", "main", "-y" ], "main is the trunk", "main has no parent to merge into")
+    [ refuses(
+        dark,
+        [ "merge", "main", "-y" ],
+        "main is the trunk",
+        "main has no parent to merge into")
 
       switch(dark, "empty")
       switch(dark, "main")
-      refuses(dark, [ "merge", "empty", "-y" ], "nothing to merge", "an empty branch")
+      refuses(
+        dark,
+        [ "merge", "empty", "-y" ],
+        "nothing to merge",
+        "an empty branch")
 
       switch(dark, "feat")
       saveNumber(dark, "Tests.App.a", "1")
-      refuses(dark, [ "merge", "feat", "-y" ], "uncommitted", "a branch with uncommitted work")
+      refuses(
+        dark,
+        [ "merge", "feat", "-y" ],
+        "uncommitted",
+        "a branch with uncommitted work")
 
       commit(dark, "feat work")
       switch(dark, "kid")
       switch(dark, "feat")
-      refuses(dark, [ "merge", "feat", "-y" ], "active children", "a branch with a live child")
-      run(dark, [ "branch", "archive", "kid", "-y" ])
+      refuses(
+        dark,
+        [ "merge", "feat", "-y" ],
+        "active children",
+        "a branch with a live child")
 
+      run(dark, [ "branch", "archive", "kid", "-y" ])
       save(dark, "Tests.App.bad", "(): Int64 = \"text\"")
       run(dark, [ "commit", "bad", "-y", "--allow-type-errors" ])
-      refuses(dark, [ "merge", "feat", "-y" ], "definite errors", "a branch with a type error")
+      refuses(
+        dark,
+        [ "merge", "feat", "-y" ],
+        "definite errors",
+        "a branch with a type error")
 
       onBranch(dark, "feat", "every refusal left us where we were")
       notFoundOn(dark, "main", "Tests.App.a()", "and main as it was")
-
       run(dark, [ "merge", "feat", "-y", "--allow-type-errors" ])
       evals(dark, "Tests.App.a()", "1", "--allow-type-errors merges anyway") ])
 
@@ -128,10 +206,17 @@ test aMergeLeavesMainsOwnDraftAlone =
       commit(dark, "feat work")
       switch(dark, "main")
       saveNumber(dark, "Tests.App.mainDraft", "2")
-
       merge(dark, "feat")
-      same(draft(dark), [ "new Tests.App.mainDraft" ], "main's draft is still there, uncommitted")
-      same(commits(dark), [ "merged branch \"feat\"", "feat work" ], "the merge committed only the branch's work")
+      same(
+        draft(dark),
+        [ "new Tests.App.mainDraft" ],
+        "main's draft is still there, uncommitted")
+
+      same(
+        commits(dark),
+        [ "merged branch \"feat\"", "feat work" ],
+        "the merge committed only the branch's work")
+
       evals(dark, "Tests.App.onFeat()", "1", "which landed") ])
 
 
@@ -140,20 +225,54 @@ test docsAndDeprecationsMadeOnABranchArriveWithTheMerge =
     [ saveNumber(dark, "Tests.App.f", "1")
       saveNumber(dark, "Tests.App.old", "2")
       commit(dark, "base")
-
       switch(dark, "feat")
-      save(dark, "Tests.App.f", "/// Documented on the branch.\nlet f(): Int64 = 1")
-      run(dark, [ "deprecate", "fn", "Tests.App.old", "--kind", "obsolete", "-y" ])
-      says(dark, [ "view", "Tests.App.f" ], "Documented on the branch.", "the branch sees its doc")
-      says(dark, [ "view", "Tests.App.old" ], "DEPRECATED", "and its deprecation")
-      doesNotSay(dark, [ "--branch", "main", "view", "Tests.App.f" ], "Documented", "main does not see the doc")
-      doesNotSay(dark, [ "--branch", "main", "view", "Tests.App.old" ], "DEPRECATED", "or the deprecation")
-      commit(dark, "doc and deprecate")
+      save(
+        dark,
+        "Tests.App.f",
+        "/// Documented on the branch.\nlet f(): Int64 = 1")
 
+      run(
+        dark,
+        [ "deprecate", "fn", "Tests.App.old", "--kind", "obsolete", "-y" ])
+
+      says(
+        dark,
+        [ "view", "Tests.App.f" ],
+        "Documented on the branch.",
+        "the branch sees its doc")
+
+      says(
+        dark,
+        [ "view", "Tests.App.old" ],
+        "DEPRECATED",
+        "and its deprecation")
+
+      doesNotSay(
+        dark,
+        [ "--branch", "main", "view", "Tests.App.f" ],
+        "Documented",
+        "main does not see the doc")
+
+      doesNotSay(
+        dark,
+        [ "--branch", "main", "view", "Tests.App.old" ],
+        "DEPRECATED",
+        "or the deprecation")
+
+      commit(dark, "doc and deprecate")
       switch(dark, "main")
       merge(dark, "feat")
-      says(dark, [ "view", "Tests.App.f" ], "Documented on the branch.", "the merge brings the doc")
-      says(dark, [ "view", "Tests.App.old" ], "DEPRECATED", "and the deprecation") ])
+      says(
+        dark,
+        [ "view", "Tests.App.f" ],
+        "Documented on the branch.",
+        "the merge brings the doc")
+
+      says(
+        dark,
+        [ "view", "Tests.App.old" ],
+        "DEPRECATED",
+        "and the deprecation") ])
 
 
 test aValueMadeOnABranchWorksAfterTheMerge =
@@ -164,7 +283,6 @@ test aValueMadeOnABranchWorksAfterTheMerge =
       commit(dark, "feat work")
       evals(dark, "Tests.App.answer", "42", "the value works on the branch")
       evals(dark, "Tests.App.plusOne()", "43", "and so does its caller")
-
       switch(dark, "main")
       says(dark, [ "merge", "feat", "-y" ], "Merged", "the merge goes through")
       evals(dark, "Tests.App.answer", "42", "the value works on main")

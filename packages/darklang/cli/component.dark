@@ -27,22 +27,22 @@ type Step<'s> =
   /// Hand off to a foreground command; the CLI returns to this page (at this state) when it exits.
   | Launch('s, String)
 
+
 type Component<'s> =
   { /// The complete view at a given terminal size. Must be pure: the renderer may call it to diff frames,
     /// so read the world during `onKey` and stash the result on the state.
     view: ('s, Stdlib.Cli.Tui.Size) -> Stdlib.Cli.Tui.View
-    onKey: ('s, Stdlib.Cli.Stdin.Key.Key, Stdlib.Cli.Stdin.Modifiers.Modifiers, Stdlib.Option.Option<String>) -> Step<'s>
+    onKey: ('s, Stdlib.Cli.Stdin.Key.Key, Stdlib.Cli.Stdin.Modifiers.Modifiers, Option<String>) ->
+    Step<'s>
     /// Persist, and return the state as it stands afterwards - annotated, if the write failed and the app
     /// wants to say so. `noSave` when there's nothing to persist.
     save: 's -> 's
-
     /// Recompute derived state after a transition, given (previous, next).
     ///
     /// `view` has to be a pure function of state for frame diffing to be sound, so anything that needs a
     /// DB read or runs user code is computed here and stashed on the state instead. `noRefresh` when
     /// there's nothing derived.
     refresh: ('s, 's) -> 's
-
     /// The package store changed under the component: an edit from another process, a pull. Re-read
     /// what the change touches and come back; `refresh` then runs as after any transition.
     /// `ignoreStore` for a component that shows nothing from the store.
@@ -53,26 +53,27 @@ type Component<'s> =
 let noSave(state: 's): 's =
   state
 
+
 /// The `refresh` for a component with no derived state. Named for the same reason.
 let noRefresh(_previous: 's, next: 's): 's =
   next
+
 
 /// The `onStoreChanged` for a component that shows nothing from the store. Named for the same reason.
 let ignoreStore(state: 's, _change: LanguageTools.Live.Change): 's =
   state
 
+
 /// A component with something to persist but nothing derived.
 let simple(
   view: ('s, Stdlib.Cli.Tui.Size) -> Stdlib.Cli.Tui.View,
-  onKey: ('s, Stdlib.Cli.Stdin.Key.Key, Stdlib.Cli.Stdin.Modifiers.Modifiers, Stdlib.Option.Option<String>) -> Step<'s>,
+  onKey:
+    ('s, Stdlib.Cli.Stdin.Key.Key, Stdlib.Cli.Stdin.Modifiers.Modifiers, Option<String>) ->
+    Step<'s>,
   save: 's -> 's)
   : Component<'s> =
   Component
-    { view = view
-      onKey = onKey
-      save = save
-      refresh = noRefresh
-      onStoreChanged = ignoreStore }
+    { view = view, onKey = onKey, save = save, refresh = noRefresh, onStoreChanged = ignoreStore }
 
 
 /// One retained session: where the component is, and what the terminal currently shows.
@@ -80,65 +81,63 @@ type Session<'s> =
   { state: 's
     terminal: Stdlib.Cli.Tui.TerminalSession.State }
 
+
 let present(c: Component<'s>, session: Session<'s>, state: 's): Session<'s> =
   // Every transition funnels through here, which makes it the one place derived reads belong.
   let state = c.refresh(session.state, state)
   let size = Stdlib.Cli.Tui.TerminalSession.currentSize()
-
   let terminal =
     Stdlib.Cli.Tui.TerminalSession.presentAtSize(session.terminal, size, c.view(state, size))
 
   Session { state = state, terminal = terminal }
 
+
 /// Carry the state forward without repainting - for steps that hand the terminal to someone else.
 let handOff(session: Session<'s>, state: 's): Session<'s> =
   Session { state = state, terminal = session.terminal }
 
-let toSubApp(c: Component<'s>, session: Session<'s>): Cli.SubApp =
-  Cli.SubApp
+
+let toSubApp(c: Component<'s>, session: Session<'s>): SubApp =
+  SubApp
     { onKey =
-        fun(key, modifiers, keyChar) ->
-          match c.onKey(session.state, key, modifiers, keyChar) with
-          | Stay(next) ->
-            (Cli.SubAppAction.Continue, toSubApp(c, present(c, session, next)))
-          | Save(next) ->
-            (Cli.SubAppAction.Save, toSubApp(c, present(c, session, next)))
-          | Exit(next) ->
-            (Cli.SubAppAction.Exit, toSubApp(c, handOff(session, next)))
-          | Launch(next, command) ->
-            (Cli.SubAppAction.LaunchCommand(command), toSubApp(c, handOff(session, next)))
+        (fun(key, modifiers, keyChar) ->
+           match c.onKey(session.state, key, modifiers, keyChar) with
+           | Stay(next) -> (SubAppAction.Continue, toSubApp(c, present(c, session, next)))
+           | Save(next) -> (SubAppAction.Save, toSubApp(c, present(c, session, next)))
+           | Exit(next) -> (SubAppAction.Exit, toSubApp(c, handOff(session, next)))
+           | Launch(next, command) ->
+             (SubAppAction.LaunchCommand(command), toSubApp(c, handOff(session, next))))
       // The session presents on launch and on every state transition, so the returned SubApp carries the
       // matching renderer history. Nothing is drawn here.
-      onDisplay = fun () -> ()
+      onDisplay = (fun () -> ())
       onSave =
-        fun () ->
-          // Presenting the post-save state is how a failed write reaches the screen. When nothing changed
-          // the renderer diffs it against the last frame and writes nothing, so this costs a comparison.
-          toSubApp(c, present(c, session, c.save(session.state)))
+        (fun () ->
+           // Presenting the post-save state is how a failed write reaches the screen. When nothing changed
+           // the renderer diffs it against the last frame and writes nothing, so this costs a comparison.
+           toSubApp(c, present(c, session, c.save(session.state))))
       onTerminate =
-        fun () ->
-          let _stopped = Stdlib.Cli.Tui.TerminalSession.stop(session.terminal)
-          ()
+        (fun () ->
+           let _stopped = Stdlib.Cli.Tui.TerminalSession.stop(session.terminal)
+           ())
       onResume =
-        fun () ->
-          // Whatever ran on top tore the surface down, so the retained view is stale: start over and
-          // repaint from scratch rather than diffing against it.
-          let terminal =
-            Stdlib.Cli.Tui.TerminalSession.resumed(fun size -> c.view(session.state, size))
+        (fun () ->
+           // Whatever ran on top tore the surface down, so the retained view is stale: start over and
+           // repaint from scratch rather than diffing against it.
+           let terminal =
+             Stdlib.Cli.Tui.TerminalSession.resumed(fun size -> c.view(session.state, size))
 
-          toSubApp(c, Session { state = session.state, terminal = terminal })
+           toSubApp(c, Session { state = session.state, terminal = terminal }))
       onStoreChanged =
-        fun change -> toSubApp(c, present(c, session, c.onStoreChanged(session.state, change))) }
+        (fun change -> toSubApp(c, present(c, session, c.onStoreChanged(session.state, change)))) }
 
 
 /// Launch `c` (starting at `init`) as the CLI's current full-screen page.
-let launch(cliState: Cli.AppState, c: Component<'s>, init: 's): Cli.AppState =
+let launch(cliState: AppState, c: Component<'s>, init: 's): AppState =
   let size = Stdlib.Cli.Tui.TerminalSession.currentSize()
-
   match Stdlib.Cli.Tui.TerminalSession.startAtSize(size, c.view(init, size)) with
   | Ok(terminal) ->
     let session = Session { state = init, terminal = terminal }
-    { cliState with currentPage = Cli.Page.SubApp(toSubApp(c, session)) }
+    { cliState with currentPage = Page.SubApp(toSubApp(c, session)) }
   | Error(message) ->
     Stdlib.printLine(message)
     cliState
@@ -148,13 +147,12 @@ let launch(cliState: Cli.AppState, c: Component<'s>, init: 's): Cli.AppState =
 ///
 /// For a component that has no meaningful fallback: dropping to the prompt after failing to start would
 /// leave you somewhere you didn't ask to be.
-let launchOrExit(cliState: Cli.AppState, c: Component<'s>, init: 's): Cli.AppState =
+let launchOrExit(cliState: AppState, c: Component<'s>, init: 's): AppState =
   let size = Stdlib.Cli.Tui.TerminalSession.currentSize()
-
   match Stdlib.Cli.Tui.TerminalSession.startAtSize(size, c.view(init, size)) with
   | Ok(terminal) ->
     let session = Session { state = init, terminal = terminal }
-    { cliState with currentPage = Cli.Page.SubApp(toSubApp(c, session)) }
+    { cliState with currentPage = Page.SubApp(toSubApp(c, session)) }
   | Error(message) ->
     Stdlib.printLine(message)
     { cliState with isExiting = true }

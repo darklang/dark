@@ -4,54 +4,70 @@ module Darklang.Cli.Tests.SignaturesTraitCalls
 // `a % b` or `Stdlib.display(v)`, not as a module at the impl's own path (`Int64.Modulo`), which
 // no call can use.
 
-let int64ImplItems(trait_: String): List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.TraitImpl.TraitImpl>> =
-  (Darklang.Cli.Packages.Query.searchExactMatch(
-    Darklang.SCM.Branch.mainBranchId,
-    [ "Darklang", "Stdlib", "Int64" ],
-    trait_)).impls
+let int64ImplItems(
+  trait_: String)
+  : List<
+  LanguageTools.ProgramTypes.LocatedItem<
+    LanguageTools.ProgramTypes.TraitImpl.TraitImpl>> =
+  (Cli.Packages.Query.searchExactMatch(
+     SCM.Branch.mainBranchId,
+     [ "Darklang", "Stdlib", "Int64" ],
+     trait_)).impls
+
 
 let ctx(): PrettyPrinter.ProgramTypes.Context =
-  Darklang.Cli.Packages.Signatures.rootContext(
-    Darklang.SCM.Branch.mainBranchId,
+  Cli.Packages.Signatures.rootContext(
+    SCM.Branch.mainBranchId,
     [ "Darklang", "Stdlib" ])
+
 
 let calls(trait_: String): List<String> =
   match int64ImplItems(trait_) with
   | [i, ...] ->
-    Darklang.Cli.Packages.Impls.callExamples(Darklang.SCM.Branch.mainBranchId, ctx(), i.entity)
+    Cli.Packages.Impls.callExamples(SCM.Branch.mainBranchId, ctx(), i.entity)
   | [] -> [ $"no impl {trait_} for Int64" ]
+
 
 let stdlibTrait(name: String): LanguageTools.ProgramTypes.PackageLocation =
   LanguageTools.ProgramTypes.PackageLocation
     { owner = "Darklang", modules = [ "Stdlib" ], name = name }
 
+
 // An operator trait's method is its operator; a call trait's is the fn beside the trait.
 test callsAreWrittenAsPeopleWriteThem =
   Stdlib.Test.all(
     [ calls("Modulo") |> Stdlib.Test.equal([ "a % b" ])
+
       calls("Negate") |> Stdlib.Test.equal([ "-a" ])
-      calls("Compare") |> Stdlib.Test.equal([ "a < b", "a <= b", "a > b", "a >= b" ])
+
+      calls("Compare")
+      |> Stdlib.Test.equal([ "a < b", "a <= b", "a > b", "a >= b" ])
+
       calls("Display") |> Stdlib.Test.equal([ "Stdlib.display(v)" ])
+
       calls("Zero") |> Stdlib.Test.equal([ "Stdlib.Zero.zero<Int64>()" ]) ])
+
 
 // Only the standard library's traits have operators: a trait of your own named `add` is a call.
 test operatorsOnlyForStdlibTraits =
   Stdlib.Test.all(
-    [ Darklang.Cli.Packages.Impls.operatorSyntax(stdlibTrait("Add"), "add")
+    [ Cli.Packages.Impls.operatorSyntax(stdlibTrait("Add"), "add")
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a + b"))
-      Darklang.Cli.Packages.Impls.operatorSyntax(
+
+      Cli.Packages.Impls.operatorSyntax(
         LanguageTools.ProgramTypes.PackageLocation
           { owner = "Acme", modules = [], name = "Add" },
         "add")
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-      Darklang.Cli.Packages.Impls.operatorSyntax(stdlibTrait("Display"), "toString")
+
+      Cli.Packages.Impls.operatorSyntax(stdlibTrait("Display"), "toString")
       |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
 
 // The section lines: the call, padded, then the trait.
 test implLinesNameTheTrait =
-  Darklang.Cli.Packages.Signatures.implLines(
+  Cli.Packages.Signatures.implLines(
     ctx(),
     Stdlib.List.concat(int64ImplItems("Display"), int64ImplItems("Modulo")))
   |> Stdlib.Test.equal(
-    [ "Stdlib.display(v)  (Display)"
-      "a % b              (Modulo)" ])
+    [ "Stdlib.display(v)  (Display)", "a % b              (Modulo)" ])

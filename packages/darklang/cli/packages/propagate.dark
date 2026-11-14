@@ -19,7 +19,6 @@ let getAllPreviousHashes(
   itemKind: LanguageTools.ProgramTypes.ItemKind)
   : List<LanguageTools.ProgramTypes.Hash> =
   let fromMain = SCM.Propagation.everBoundHashes(location, itemKind)
-
   if SCM.Branch.isMain(branchId) then
     fromMain
   else
@@ -33,8 +32,7 @@ let getAllPreviousHashes(
         location.name)
       |> Stdlib.List.reverse
       |> Stdlib.List.map(fun h -> LanguageTools.ProgramTypes.Hash.Hash(h))
-      |> Stdlib.List.filter(fun h ->
-        Stdlib.Bool.not(Stdlib.List.contains(fromMain, h)))
+      |> Stdlib.List.filter(fun h -> Stdlib.Bool.not(Stdlib.List.contains(fromMain, h)))
 
     Stdlib.List.concat(fromBranch, fromMain)
 
@@ -44,9 +42,9 @@ let getAllPreviousHashes(
 let resolveTypeName(
   branchId: Uuid,
   hash: LanguageTools.ProgramTypes.FQTypeName.Package)
-  : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
-  Darklang.LanguageTools.PackageManager.pickLocation(
-    Darklang.LanguageTools.PackageManager.PickContext.empty,
+  : Option<LanguageTools.ProgramTypes.PackageLocation> =
+  LanguageTools.PackageManager.pickLocation(
+    LanguageTools.PackageManager.PickContext.empty,
     LanguageTools.PackageManager.Type.locations(branchId, hash))
 
 
@@ -54,8 +52,7 @@ let resolveTypeName(
 let listsEqual(xs: List<'a>, ys: List<'a>, eq: ('a, 'a) -> Bool): Bool =
   let checks = Stdlib.List.map2(xs, ys, fun(a, b) -> eq(a, b))
   let results = Stdlib.Result.withDefault(checks, [])
-  (Stdlib.List.length(xs) == Stdlib.List.length(ys))
-  && (Stdlib.List.all(results, fun x -> x))
+  Stdlib.List.length(xs) == Stdlib.List.length(ys) && Stdlib.List.all(results, fun x -> x)
 
 
 /// Structurally compare two TypeReferences, resolving hashes to names.
@@ -65,66 +62,55 @@ let typeReferenceEqual(
   a: LanguageTools.ProgramTypes.TypeReference,
   b: LanguageTools.ProgramTypes.TypeReference)
   : Bool =
-  match (a, b) with
-  | (TVariable(nameA), TVariable(nameB)) -> nameA == nameB
-  | (TUnit, TUnit) -> true
-  | (TBool, TBool) -> true
-  | (TInt8, TInt8) -> true
-  | (TUInt8, TUInt8) -> true
-  | (TInt16, TInt16) -> true
-  | (TUInt16, TUInt16) -> true
-  | (TInt32, TInt32) -> true
-  | (TUInt32, TUInt32) -> true
-  | (TInt64, TInt64) -> true
-  | (TUInt64, TUInt64) -> true
-  | (TInt128, TInt128) -> true
-  | (TUInt128, TUInt128) -> true
-  | (TBigInt, TBigInt) -> true
-  | (TFloat, TFloat) -> true
-  | (TFloat32, TFloat32) -> true
-  | (TDecimal, TDecimal) -> true
-  | (TChar, TChar) -> true
-  | (TString, TString) -> true
-  | (TDateTime, TDateTime) -> true
-  | (TUuid, TUuid) -> true
-  | (TBytes, TBytes) -> true
-
-  | (TStream(innerA), TStream(innerB)) ->
-    typeReferenceEqual(branchId, innerA, innerB)
-
-  | (TList(innerA), TList(innerB)) ->
-    typeReferenceEqual(branchId, innerA, innerB)
-
-  | (TDict(keyA, valueA), TDict(keyB, valueB)) ->
-    (typeReferenceEqual(branchId, keyA, keyB))
-    && (typeReferenceEqual(branchId, valueA, valueB))
-
-  | (TTuple(firstA, secondA, restA), TTuple(firstB, secondB, restB)) ->
-    (typeReferenceEqual(branchId, firstA, firstB))
-    && (typeReferenceEqual(branchId, secondA, secondB))
-    && (listsEqual(restA, restB, fun(a, b) -> typeReferenceEqual(branchId, a, b)))
-
-  | (TCustomType(typA, argsA), TCustomType(typB, argsB)) ->
+  match a, b with
+  | TVariable(nameA), TVariable(nameB) -> nameA == nameB
+  | TUnit, TUnit -> true
+  | TBool, TBool -> true
+  | TInt8, TInt8 -> true
+  | TUInt8, TUInt8 -> true
+  | TInt16, TInt16 -> true
+  | TUInt16, TUInt16 -> true
+  | TInt32, TInt32 -> true
+  | TUInt32, TUInt32 -> true
+  | TInt64, TInt64 -> true
+  | TUInt64, TUInt64 -> true
+  | TInt128, TInt128 -> true
+  | TUInt128, TUInt128 -> true
+  | TBigInt, TBigInt -> true
+  | TFloat, TFloat -> true
+  | TFloat32, TFloat32 -> true
+  | TDecimal, TDecimal -> true
+  | TChar, TChar -> true
+  | TString, TString -> true
+  | TDateTime, TDateTime -> true
+  | TUuid, TUuid -> true
+  | TBytes, TBytes -> true
+  | TStream(innerA), TStream(innerB) -> typeReferenceEqual(branchId, innerA, innerB)
+  | TList(innerA), TList(innerB) -> typeReferenceEqual(branchId, innerA, innerB)
+  | TDict(keyA, valueA), TDict(keyB, valueB) ->
+    typeReferenceEqual(branchId, keyA, keyB) && typeReferenceEqual(branchId, valueA, valueB)
+  | TTuple(firstA, secondA, restA), TTuple(firstB, secondB, restB) ->
+    typeReferenceEqual(branchId, firstA, firstB)
+    && typeReferenceEqual(branchId, secondA, secondB)
+    && listsEqual(restA, restB, fun(a, b) -> typeReferenceEqual(branchId, a, b))
+  | TCustomType(typA, argsA), TCustomType(typB, argsB) ->
     let namesEqual =
-      match (typA.resolved, typB.resolved) with
-      | (Ok(resolvedA), Ok(resolvedB)) ->
-        match (resolvedA.name, resolvedB.name) with
-        | (Package(idA), Package(idB)) ->
+      match typA.resolved, typB.resolved with
+      | Ok(resolvedA), Ok(resolvedB) ->
+        match resolvedA.name, resolvedB.name with
+        | Package(idA), Package(idB) ->
           let locA = resolveTypeName(branchId, idA)
           let locB = resolveTypeName(branchId, idB)
-          match (locA, locB) with
-          | (Some(lA), Some(lB)) -> lA == lB
+          match locA, locB with
+          | Some(lA), Some(lB) -> lA == lB
           | _ -> idA == idB
-      | (Error(eA), Error(eB)) -> eA == eB
+      | Error(eA), Error(eB) -> eA == eB
       | _ -> false
 
-    namesEqual
-    && (listsEqual(argsA, argsB, fun(a, b) -> typeReferenceEqual(branchId, a, b)))
-
-  | (TFn(argsA, retA), TFn(argsB, retB)) ->
-    (listsEqual(argsA, argsB, fun(a, b) -> typeReferenceEqual(branchId, a, b)))
-    && (typeReferenceEqual(branchId, retA, retB))
-
+    namesEqual && listsEqual(argsA, argsB, fun(a, b) -> typeReferenceEqual(branchId, a, b))
+  | TFn(argsA, retA), TFn(argsB, retB) ->
+    listsEqual(argsA, argsB, fun(a, b) -> typeReferenceEqual(branchId, a, b))
+    && typeReferenceEqual(branchId, retA, retB)
   | _ -> false
 
 
@@ -135,13 +121,11 @@ let fnSignatureEqual(
   newF: LanguageTools.ProgramTypes.PackageFn.PackageFn)
   : Bool =
   let typeParamsEqual = oldF.typeParams == newF.typeParams
-
   let paramsEqual =
     listsEqual(oldF.parameters, newF.parameters, fun(oldP, newP) ->
       oldP.name == newP.name && typeReferenceEqual(branchId, oldP.typ, newP.typ))
 
   let returnEqual = typeReferenceEqual(branchId, oldF.returnType, newF.returnType)
-
   typeParamsEqual && paramsEqual && returnEqual
 
 
@@ -152,15 +136,18 @@ type Followed =
     /// The ones that no longer type-check, with the first issue each, as `Live.issueText` puts it.
     broken: List<(String * String)>
     /// Propagation itself failed; the names above are empty.
-    failure: Stdlib.Option.Option<String> }
+    failure: Option<String> }
+
 
 let nothingFollowed(): Followed =
-  Followed { names = [], broken = [], failure = Stdlib.Option.Option.None }
+  Followed { names = [], broken = [], failure = Option.None }
+
 
 /// Whether a save type-checks the dependents that followed it. `Skip` leaves `broken` empty.
 type FollowerCheck =
   | Check
   | Skip
+
 
 /// Repoint the dependents of <param location> at <param currentHash>, now, into the draft, and say
 /// what followed.
@@ -184,9 +171,14 @@ let repointNow(
   followerCheck: FollowerCheck)
   : Followed =
   match previousHashes with
-  | [] -> nothingFollowed() // brand new: nothing can be pointing at an older version of it
+  | [] -> nothingFollowed()  // brand new: nothing can be pointing at an older version of it
   | _ ->
-    match SCM.Propagation.repointDependents(branchId, location, itemKind, previousHashes, currentHash) with
+    match SCM.Propagation.repointDependents(
+            branchId,
+            location,
+            itemKind,
+            previousHashes,
+            currentHash) with
     | Ok([]) -> nothingFollowed()
     | Ok(repoints) ->
       let nameOf(r: LanguageTools.ProgramTypes.PropagateRepoint): String =
@@ -194,7 +186,10 @@ let repointNow(
         let mods = Stdlib.String.join(l.modules, ".")
         if mods == "" then $"{l.owner}.{l.name}" else $"{l.owner}.{mods}.{l.name}"
 
-      let names = repoints |> Stdlib.List.map(nameOf) |> Stdlib.List.unique
+      let names =
+        repoints
+        |> Stdlib.List.map(nameOf)
+        |> Stdlib.List.unique
 
       // The one thing worth saying at the SAVE that nothing else says in the same breath: some of
       // what just followed you is now broken. The draft check already covers the items; this only
@@ -211,30 +206,30 @@ let repointNow(
         checked
         |> Stdlib.List.filterMap(fun ir ->
           let h = SCM.Draft.referenceHash(ir.item)
-
           match ir.verdict with
           | Failed ->
             byHash
-            |> Stdlib.List.findFirst(fun pair -> (Stdlib.Tuple2.first(pair)) == h)
+            |> Stdlib.List.findFirst(fun pair -> Stdlib.Tuple2.first(pair) == h)
             |> Stdlib.Option.map(fun pair ->
               let issues = Stdlib.List.concat(ir.warnings, ir.diagnostics)
-
               let text =
                 match issues with
                 | [issue, ...] -> LanguageTools.Live.issueText(issue)
                 | [] -> "it failed the type check"
 
               (Stdlib.Tuple2.second(pair), text))
-          | _ -> Stdlib.Option.Option.None)
+          | _ -> Option.None)
 
-      Followed { names = names, broken = broken, failure = Stdlib.Option.Option.None }
-    | Error(e) -> Followed { names = [], broken = [], failure = Stdlib.Option.Option.Some(e) }
+      Followed { names = names, broken = broken, failure = Option.None }
+    | Error(e) -> Followed { names = [], broken = [], failure = Option.Some(e) }
+
 
 /// A binding that existed before this save. Method functions count too.
 type UpdatedItem =
   { location: LanguageTools.ProgramTypes.PackageLocation
     kind: LanguageTools.ProgramTypes.ItemKind
     previous: List<LanguageTools.ProgramTypes.Hash> }
+
 
 /// Capture before storage, while the old bindings are still visible.
 let updatedItems(
@@ -247,10 +242,13 @@ let updatedItems(
     | SetName(location, reference, _) ->
       let kind = LanguageTools.ProgramTypes.Reference.kind(reference)
       let previous = getAllPreviousHashes(branchId, location, kind)
-      if Stdlib.List.isEmpty(previous) then None
-      else Some(UpdatedItem { location = location, kind = kind, previous = previous })
-    | _ -> None)
+      if Stdlib.List.isEmpty(previous) then
+        Option.None
+      else
+        Option.Some(UpdatedItem { location = location, kind = kind, previous = previous })
+    | _ -> Option.None)
   |> Stdlib.List.uniqueBy(fun item -> item.location)
+
 
 /// Every updated binding uses its final stored hash, shared by all authoring paths.
 let repointSaved(
@@ -263,35 +261,52 @@ let repointSaved(
     let followed =
       match SCM.Propagation.hashOn(branchId, update.location, update.kind) with
       | Some(current) ->
-        repointNow(branchId, update.location,
+        repointNow(
+          branchId,
+          update.location,
           update.previous |> Stdlib.List.filter(fun h -> h != current),
-          current, update.kind, followerCheck)
+          current,
+          update.kind,
+          followerCheck)
       | None ->
-        Followed { names = [], broken = [], failure = Some("A saved binding could not be resolved.") }
+        Followed
+          { names = []
+            broken = []
+            failure = Option.Some("A saved binding could not be resolved.") }
+
     let failure =
       match combined.failure with
       | Some(_) -> combined.failure
       | None -> followed.failure
+
     Followed
       { names = Stdlib.List.unique(Stdlib.List.concat(combined.names, followed.names))
         broken = Stdlib.List.unique(Stdlib.List.concat(combined.broken, followed.broken))
         failure = failure })
 
+
 /// The save's second line, if it has one: who follows, or who broke. Wrapped at 80, indented.
 let printFollowed(followed: Followed): Unit =
   match followed.failure with
-  | Some(e) -> Cli.Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "  ", $"propagation failed: {e}")
+  | Some(e) -> Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "  ", $"propagation failed: {e}")
   | None ->
     match followed.broken with
     | [] ->
       match followed.names with
       | [] -> ()
-      | [ one ] -> Stdlib.printLine(Stdlib.Cli.UI.Colors.hint($"  {one} follows"))
+      | [one] -> Stdlib.printLine(Stdlib.Cli.UI.Colors.hint($"  {one} follows"))
       | names ->
         let count = Stdlib.List.length(names)
-        let shown = names |> Stdlib.List.take(3) |> Stdlib.String.join(", ")
+        let shown =
+          names
+          |> Stdlib.List.take(3)
+          |> Stdlib.String.join(", ")
+
         let rest = if count > 3 then $" and {Stdlib.display(count - 3)} more" else ""
-        Cli.Text.printWrapped(Stdlib.Cli.UI.Colors.hint, "  ", $"{Stdlib.display(count)} dependents follow: {shown}{rest}")
+        Text.printWrapped(
+          Stdlib.Cli.UI.Colors.hint,
+          "  ",
+          $"{Stdlib.display(count)} dependents follow: {shown}{rest}")
     | broken ->
       broken
       |> Stdlib.List.iter(fun pair ->
@@ -299,8 +314,8 @@ let printFollowed(followed: Followed): Unit =
         let line = $"{name} no longer type-checks: {why}"
         let withHint = line + "; `dark typecheck --failed` lists them"
         // The way to the full list only when it fits; the diagnostic is the part that matters.
-        let text = if (Stdlib.String.length(withHint)) + 2 <= 80 then withHint else line
-        Cli.Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "  ", text))
+        let text = if Stdlib.String.length(withHint) + 2 <= 80 then withHint else line
+        Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "  ", text))
 
 
 /// <fn printFollowed> as one clause for a footer that already says what was saved (the workbench's):
@@ -313,11 +328,12 @@ let followedNote(followed: Followed): String =
     | [] ->
       match followed.names with
       | [] -> ""
-      | [ one ] -> $"; {one} follows"
+      | [one] -> $"; {one} follows"
       | names -> $"; {Stdlib.display(Stdlib.List.length(names))} dependents follow"
     | [(name, why), ...rest] ->
       let more =
         match rest with
         | [] -> ""
         | _ -> $" (and {Stdlib.display(Stdlib.List.length(rest))} more)"
+
       $"; {name} no longer type-checks: {why}{more}"

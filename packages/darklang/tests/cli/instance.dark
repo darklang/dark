@@ -18,7 +18,7 @@ type T =
 /// LanguageTools.LocalStore.path is absolute; child process configuration requires that.
 let root(): String =
   let store = LanguageTools.LocalStore.path()
-  (Stdlib.Cli.Path.parent(store)) + "/test-instances"
+  Stdlib.Cli.Path.parent(store) + "/test-instances"
 
 
 /// The store a new instance starts from.
@@ -49,7 +49,6 @@ let create(): Stdlib.Result.Result<T, String> =
   let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let dir = $"{root()}/{suffix}/.darklang"
   let src = seedFrom()
-
   if Stdlib.Cli.Unix.fileExists(src) then
     match Stdlib.Cli.Unix.ensureDirectoryExists(dir) with
     | Error(e) -> Stdlib.Result.Result.Error($"could not create {dir}: {e}")
@@ -66,7 +65,8 @@ let create(): Stdlib.Result.Result<T, String> =
           $"sqlite3 -cmd '.timeout 10000' {src} '.backup {dir}/data.db' && sqlite3 {dir}/data.db 'DELETE FROM config_v0;'")
 
       if copy.exitCode != 0 then
-        Stdlib.Result.Result.Error($"could not seed {dir} from {src}: {copy.stderr}")
+        Stdlib.Result.Result.Error(
+          $"could not seed {dir} from {src}: {copy.stderr}")
       else
         Stdlib.Result.Result.Ok(T { dir = dir, cli = cliBinary() })
   else
@@ -74,7 +74,8 @@ let create(): Stdlib.Result.Result<T, String> =
       $"no store to seed an instance from at {src}; build first")
 
 
-let home(i: T): String = Stdlib.Cli.Path.parent(i.dir)
+let home(i: T): String =
+  Stdlib.Cli.Path.parent(i.dir)
 
 
 /// Remove an instance and everything in it. Safe to call twice.
@@ -104,8 +105,15 @@ val commandTimeoutMs = 120000
 /// Under a timeout, so a command that waits forever (on input, on a lock) fails as itself
 /// rather than leaving the whole suite to stop answering. `env` sets the environment, as in
 /// `Process.runWithEnv`, which has no timeout.
-let run(i: T, args: List<String>): Stdlib.Result.Result<Stdlib.Cli.Process.Output, String> =
-  let envArgs = env(i) |> Stdlib.List.map(fun pair -> let (k, v) = pair in $"{k}={v}")
+let run(
+  i: T,
+  args: List<String>)
+  : Stdlib.Result.Result<Stdlib.Cli.Process.Output, String> =
+  let envArgs =
+    env(i)
+    |> Stdlib.List.map(fun pair ->
+      let (k, v) = pair
+      $"{k}={v}")
 
   Stdlib.Cli.Process.runWithTimeout(
     commandTimeoutMs,
@@ -130,7 +138,8 @@ let output(i: T, args: List<String>): String =
   | Error(e) -> $"ERROR: {e}"
   | Ok(out) ->
     let stdout = Stdlib.String.trim(out.stdout)
-    if stdout != "" then stdout
+    if stdout != "" then
+      stdout
     else
       let stderr = Stdlib.String.trim(out.stderr)
       if stderr == "" then "" else $"ERROR: {stderr}"
@@ -150,7 +159,11 @@ let withInstance(f: T -> Stdlib.Test.Result): Stdlib.Test.Result =
 
 
 /// Asserts a command's output contains `needle`.
-let expectContains(i: T, args: List<String>, needle: String): Stdlib.Test.Result =
+let expectContains(
+  i: T,
+  args: List<String>,
+  needle: String)
+  : Stdlib.Test.Result =
   let out = output(i, args)
   if Stdlib.String.contains(out, needle) then
     Stdlib.Test.Result.Pass
@@ -162,7 +175,6 @@ let expectContains(i: T, args: List<String>, needle: String): Stdlib.Test.Result
 /// Asserts a command's exit code.
 let expectExit(i: T, args: List<String>, expected: Int64): Stdlib.Test.Result =
   let cmd = Stdlib.String.join(args, " ")
-
   match run(i, args) with
   | Error(e) -> Stdlib.Test.fail($"`{cmd}` could not run: {e}")
   | Ok(out) ->
@@ -186,7 +198,8 @@ let ran(i: T, args: List<String>): (Int64 * String) =
 
 
 /// Everything a command printed, both streams. See `ran`.
-let said(i: T, args: List<String>): String = Stdlib.Tuple2.second(ran(i, args))
+let said(i: T, args: List<String>): String =
+  Stdlib.Tuple2.second(ran(i, args))
 
 
 /// `out` mentions `needle`; `why` says what that means when it does not.

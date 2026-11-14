@@ -2,12 +2,17 @@
 /// in the F# `LibParser`.
 module Darklang.LanguageTools.Parser
 
-
 // TODO: these should be UInts of some size
 // (UInt8 might even be enough - how many lines are over 255chars?)
-type Point = { row: Int64, column: Int64 }
+type Point =
+  { row: Int64
+    column: Int64 }
 
-type Range = { start: Point, end_: Point }
+
+type Range =
+  { start: Point
+    end_: Point }
+
 
 /// The kind of file `Builtin.parse` reads. In a `Script`, a top-level `let x = ...` binds
 /// over the rest of the file, and named tests and test assertions are errors. In a
@@ -16,6 +21,7 @@ type Range = { start: Point, end_: Point }
 type FileKind =
   | Script
   | Package
+
 
 /// The words the parser reserves, from the lexer itself: each one is a name in
 /// backticks (`match`), or where only a name can go. `_` is among them.

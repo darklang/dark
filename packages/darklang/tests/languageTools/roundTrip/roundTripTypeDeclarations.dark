@@ -6,75 +6,96 @@ module Darklang.LanguageTools.Parser.RoundTrip.Tests
 test typeDeclarationsUnit =
   Stdlib.Test.all(
     [ roundTrip("unit", "type SimpleAlias = Unit", "type SimpleAlias = Unit")
+
       roundTrip(
         "enum with fn field in product",
         "type WithCallback = | WithCallback((Int64 -> String), Bool)",
         "type WithCallback =\n  | WithCallback(Int64 -> String, Bool)")
+
       roundTrip(
         "enum with bare fn field",
         "type Run = | Run(Int64 -> Int64) | Named(f: (Int64, Int64) -> Bool)",
         "type Run =\n  | Run(Int64 -> Int64)\n  | Named(f: (Int64, Int64) -> Bool)")
+
       roundTrip(
         "enum with fn inside a tuple field",
         "type Foo = | Foo(Int64 * (Int64 -> Bool))",
         "type Foo =\n  | Foo(Int64 * (Int64 -> Bool))")
+
       roundTrip(
         "enum with labelled tuple field",
         "type MyEnum = | A(x: Int64 * Int64, y: String)",
         "type MyEnum =\n  | A(x: Int64 * Int64, y: String)")
+
       roundTrip(
         "enum case too long for one line",
         "type Long =\n  | Case(\n    firstLongFieldName: Option<String>,\n    secondLongFieldName: Option<String>\n  )",
         "type Long =\n  | Case(\n    firstLongFieldName: Option<String>,\n    secondLongFieldName: Option<String>)")
+
       roundTrip(
         "type doc comment",
         "/// User-facing id\ntype UserID = Int64",
         "/// User-facing id\ntype UserID = Int64")
+
       roundTrip(
         "four slash comment is not a doc comment",
         "//// plain comment\ntype Plain = Int64",
         "type Plain = Int64")
+
       // Alias with type params
-      roundTrip("type param list", "type MyType<'a> = List<'a>", "type MyType<'a> = List<'a>")
+      roundTrip(
+        "type param list",
+        "type MyType<'a> = List<'a>",
+        "type MyType<'a> = List<'a>")
+
       roundTrip(
         "type param tuple",
         "type MyType<'a, 'b> = (List<'a> * List<'b>)",
         "type MyType<'a, 'b> = (List<'a> * List<'b>)")
+
       // Record type decls
       roundTrip(
         "type param record",
         "type Generic<'a> = { x: 'a }",
         "type Generic<'a> =\n  { x: 'a }")
+
       roundTrip(
         "record, 1 field",
         "type Person = {name: String}",
         "type Person =\n  { name: String }")
+
       roundTrip(
         "record type field name with hyphen",
         "type Headers = { `Content-Length`: String }",
         "type Headers =\n  { `Content-Length`: String }")
+
       roundTrip(
         "record type field name that is a keyword",
         "type Metadata = { `type`: String }",
         "type Metadata =\n  { type: String }")
+
       roundTrip(
         "record, 2 fields",
         "type Person = {name: String, age: Int64}",
         "type Person =\n  { name: String\n    age: Int64 }")
+
       roundTrip(
         "record, 3 fields",
         "type Person = {name: String, age: Int64, hasPet: Bool}",
         "type Person =\n  { name: String\n    age: Int64\n    hasPet: Bool }")
+
       roundTripWith(
         pet,
         "record, 4 fields",
         "type Person = {name: String, age: Int64, hasPet: Bool, pet: Pet}",
         "type Person =\n  { name: String\n    age: Int64\n    hasPet: Bool\n    pet: Pet }")
+
       roundTripWith(
         pet,
         "record, newlines as separators",
         "type Person =\n  { name: String\n    age: Int64\n    hasPet: Bool\n    pet: Pet }",
         "type Person =\n  { name: String\n    age: Int64\n    hasPet: Bool\n    pet: Pet }")
+
       roundTripWith(
         pet,
         "record, newlines as separators 2",
@@ -89,43 +110,57 @@ test typeDeclarationsEnumTypeDeclarations =
         "type param, enum",
         "type MyEnum<'a> = | A | B('a)",
         "type MyEnum<'a> =\n  | A\n  | B('a)")
+
       roundTrip(
         "enum, no fields",
         "type Color = | Red | Green | Blue",
         "type Color =\n  | Red\n  | Green\n  | Blue")
-      roundTrip("enum, one field", "type MyEnum = | A(Int64)", "type MyEnum =\n  | A(Int64)")
+
+      roundTrip(
+        "enum, one field",
+        "type MyEnum = | A(Int64)",
+        "type MyEnum =\n  | A(Int64)")
+
       roundTrip(
         "enum, 2 tuple field",
         "type MyEnum = | A(Int64, Int64)",
         "type MyEnum =\n  | A(Int64, Int64)")
+
       roundTrip(
         "enum, 3 tuple field",
         "type MyEnum = | A(Int64, Bool, String) | B(Int64)",
         "type MyEnum =\n  | A(Int64, Bool, String)\n  | B(Int64)")
+
       roundTrip(
         "enum, named tuple fields",
         "type MyEnum = | A(x:Int64, y:Int64)",
         "type MyEnum =\n  | A(x: Int64, y: Int64)")
+
       roundTrip(
         "enum field label with hyphen",
         "type MyEnum = | A(`Content-Length`: String)",
         "type MyEnum =\n  | A(`Content-Length`: String)")
+
       roundTrip(
         "enum field label that is a keyword",
         "type MyEnum = | A(`type`: String)",
         "type MyEnum =\n  | A(`type`: String)")
+
       roundTrip(
         "enum, mult lines",
         "type Color =\n  | Red\n  | Green\n  | Blue",
         "type Color =\n  | Red\n  | Green\n  | Blue")
+
       roundTrip(
         "enum, mult lines with field",
         "type MyEnum =\n  | A(Int64)\n  | B(String)",
         "type MyEnum =\n  | A(Int64)\n  | B(String)")
+
       roundTrip(
         "enum, mult lines with named fields",
         "type MyEnum =\n  | A(x: Int64)\n  | B(y: String)",
         "type MyEnum =\n  | A(x: Int64)\n  | B(y: String)")
+
       roundTrip(
         "enum, mult lines with named tuple field",
         "type MyEnum =\n  | A(x: Int64, y: Int64)\n  | B(z: String)",

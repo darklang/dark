@@ -11,7 +11,6 @@
 /// so a span carrying CJK, emoji, or SGR colour lands where it should: `界` is one grapheme in two columns.
 module Darklang.Stdlib.Cli.UI.Canvas
 
-
 /// A placed run of text, with its width measured once.
 type Segment =
   { col: Int64
@@ -32,39 +31,35 @@ let overlay(existing: List<Segment>, next: Segment): List<Segment> =
   // usually disjoint runs left to right, and only an overlay band covers anything. Answering that
   // costs one walk; trimming costs three and allocates a list per segment on the way.
   let overlaps =
-    existing
-    |> Stdlib.List.any(fun seg ->
-      ((seg.col + seg.width) > next.col) && (seg.col < nextEnd))
+    existing |> List.any(fun seg -> seg.col + seg.width > next.col && seg.col < nextEnd)
 
-  if Stdlib.Bool.not(overlaps) then
-    Stdlib.List.append(existing, next)
+  if Bool.not(overlaps) then
+    List.append(existing, next)
   else
+    let kept =
+      existing
+      |> List.filterMap(fun seg ->
+        let segEnd = seg.col + seg.width
+        if segEnd <= next.col || seg.col >= nextEnd then
+          Option.Some(seg)
+        else if seg.col < next.col then
+          let keepWidth = next.col - seg.col
+          Option.Some(
+            Segment
+              { col = seg.col
+                text = Tui.Text.clipToWidth(seg.text, keepWidth)
+                width = keepWidth })
+        else
+          Option.None)
 
-  let kept =
-    existing
-    |> Stdlib.List.filterMap(fun seg ->
-      let segEnd = seg.col + seg.width
-      if segEnd <= next.col || seg.col >= nextEnd then
-        Stdlib.Option.Option.Some(seg)
-      else if seg.col < next.col then
-        let keepWidth = next.col - seg.col
-        Stdlib.Option.Option.Some(
-          Segment
-            { col = seg.col
-              text = Tui.Text.clipToWidth(seg.text, keepWidth)
-              width = keepWidth }
-        )
-      else
-        Stdlib.Option.Option.None)
-
-  Stdlib.List.append(kept, next)
+    List.append(kept, next)
 
 
 /// Render placed segments into one row, padding the gaps between them with spaces.
 let renderSegments(width: Int64, segments: List<Segment>): String =
   let (text, _endCol) =
     segments
-    |> Stdlib.List.fold(("", 0), fun(acc, seg) ->
+    |> List.fold(("", 0), fun(acc, seg) ->
       let (out, col) = acc
       if seg.col >= width then
         acc
@@ -85,7 +80,7 @@ let renderSegments(width: Int64, segments: List<Segment>): String =
 
         let next =
           if start > col then
-            out + (Stdlib.String.checkedRepeat(" ", start - col) |> Stdlib.Result.withDefault("")) + clipped
+            out + (String.checkedRepeat(" ", start - col) |> Result.withDefault("")) + clipped
           else
             out + clipped
 
@@ -106,29 +101,20 @@ let composeRow(width: Int64, rowSpans: List<Layout.Span>): String =
   // agree by construction: `overlay`'s no-overlap branch is this append.
   let (placed, ordered, _lastCol, _rightmost) =
     rowSpans
-    |> Stdlib.List.fold(([], true, -1, 0), fun(acc, span) ->
+    |> List.fold(([], true, -1, 0), fun(acc, span) ->
       let (segs, orderedSoFar, lastCol, rightmost) = acc
       let w = Tui.Text.styledWidth(span.text)
-
       let seg = Segment { col = span.col, text = span.text, width = w }
-
-      let nextPlaced =
-        if span.col >= rightmost then
-          Stdlib.List.append(segs, seg)
-        else
-          overlay(segs, seg)
-
+      let nextPlaced = if span.col >= rightmost then List.append(segs, seg) else overlay(segs, seg)
       let nextRightmost =
         let e = span.col + w
         if e > rightmost then e else rightmost
 
       // While the row is still in order, the last column seen is the highest one, so this needs no
       // `max` -- and `Stdlib.max` is a package call, which at one per span is not free.
-      (nextPlaced, orderedSoFar && (span.col >= lastCol), span.col, nextRightmost))
+      (nextPlaced, orderedSoFar && span.col >= lastCol, span.col, nextRightmost))
 
-  let sorted =
-    if ordered then placed else placed |> Stdlib.List.sortBy(fun seg -> seg.col)
-
+  let sorted = if ordered then placed else placed |> List.sortBy(fun seg -> seg.col)
   renderSegments(width, sorted)
 
 
@@ -137,30 +123,29 @@ let composeRow(width: Int64, rowSpans: List<Layout.Span>): String =
 /// Spans are bucketed by row in one pass. Doing it the obvious way (filter the whole span list once per row)
 /// is quadratic, and a full-screen frame has enough of both to make that hurt.
 let compose(width: Int64, height: Int64, spans: List<Layout.Span>): List<String> =
-  let w = Stdlib.max(1, width)
-  let h = Stdlib.max(0, height)
-
+  let w = max(1, width)
+  let h = max(0, height)
   if h == 0 then
     []
   else
     let byRow =
       spans
-      |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, span) ->
+      |> List.fold(Dict.empty, fun(acc, span) ->
         if span.row < 0 || span.row >= h then
           acc
         else
           // Matched here rather than `|> Option.withDefault []`: `withDefault` is a package call,
           // and this runs once per span.
           let existing =
-            match Stdlib.Dict.get(acc, span.row) with
+            match Dict.get(acc, span.row) with
             | Some(existing) -> existing
             | None -> []
 
-          Stdlib.Dict.set(acc, span.row, Stdlib.List.append(existing, span)))
+          Dict.set(acc, span.row, List.append(existing, span)))
 
-    (Stdlib.List.checkedRange(0, h - 1) |> Stdlib.Result.withDefault([]))
-    |> Stdlib.List.map(fun row ->
-      match Stdlib.Dict.get(byRow, row) with
+    (List.checkedRange(0, h - 1) |> Result.withDefault([]))
+    |> List.map(fun row ->
+      match Dict.get(byRow, row) with
       // An untouched row is empty rather than `width` spaces: the renderer erases each row it writes, so
       // blanks cost nothing, and an empty string compares equal frame to frame.
       | None -> ""

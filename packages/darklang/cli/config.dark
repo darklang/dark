@@ -2,21 +2,25 @@ module Darklang.Cli.Config
 
 /// Every key `config` answers for. The runtime keeps the list, and checks every value on set:
 /// nothing reads an unknown key, so storing one would only hide a typo.
-let knownKeys(): List<String> = LanguageTools.LocalStore.configKeys()
+let knownKeys(): List<String> =
+  LanguageTools.LocalStore.configKeys()
 
-let smaller(a: Int64, b: Int64): Int64 = if a < b then a else b
+
+let smaller(a: Int64, b: Int64): Int64 =
+  if a < b then a else b
+
 
 /// Edits (insert, delete, substitute) between two strings, for "did you mean".
 let editDistance(a: String, b: String): Int64 =
   let bs = Stdlib.String.toList(b)
-  let firstRow = (Stdlib.List.checkedRange(0, Stdlib.List.length(bs)) |> Stdlib.Result.withDefault([]))
+  let firstRow =
+    Stdlib.List.checkedRange(0, Stdlib.List.length(bs)) |> Stdlib.Result.withDefault([])
 
   let lastRow =
     Stdlib.String.toList(a)
     |> Stdlib.List.indexedMap(fun(i, ca) -> (i, ca))
     |> Stdlib.List.fold(firstRow, fun(prev, pair) ->
       let (i, ca) = pair
-
       bs
       |> Stdlib.List.indexedMap(fun(j, cb) -> (j, cb))
       |> Stdlib.List.fold([ i + 1 ], fun(row, pair) ->
@@ -26,28 +30,28 @@ let editDistance(a: String, b: String): Int64 =
         let up = Stdlib.Option.withDefault(Stdlib.List.getAt(prev, j + 1), 0)
         let diag = Stdlib.Option.withDefault(Stdlib.List.getAt(prev, j), 0)
         let cost = if ca == cb then 0 else 1
-        Stdlib.List.prepend(row, Config.smaller(Config.smaller(left + 1, up + 1), diag + cost)))
+        Stdlib.List.prepend(row, smaller(smaller(left + 1, up + 1), diag + cost)))
       |> Stdlib.List.reverse)
 
   Stdlib.Option.withDefault(Stdlib.List.last(lastRow), 0)
 
+
 /// The key a typo most likely meant, when one is obvious: the same name in another case, the
 /// part after the dot alone (`record` for `trace.record`), or two edits away at most.
-let nearestKey(key: String): Stdlib.Option.Option<String> =
+let nearestKey(key: String): Option<String> =
   let lower = Stdlib.String.toLowercase(key)
-  let keys = Config.knownKeys()
-
+  let keys = knownKeys()
   let bySuffix =
     keys
     |> Stdlib.List.filter(fun k ->
       Stdlib.String.endsWith(Stdlib.String.toLowercase(k), "." + lower))
 
   match bySuffix with
-  | [only] -> Stdlib.Option.Option.Some(only)
+  | [only] -> Option.Some(only)
   | _ ->
     let scored =
       keys
-      |> Stdlib.List.map(fun k -> (Config.editDistance(lower, Stdlib.String.toLowercase(k)), k))
+      |> Stdlib.List.map(fun k -> (editDistance(lower, Stdlib.String.toLowercase(k)), k))
       |> Stdlib.List.sortBy(fun pair ->
         let (d, _) = pair
         d)
@@ -56,90 +60,136 @@ let nearestKey(key: String): Stdlib.Option.Option<String> =
     | [(d, k), ...rest] when d <= 2 ->
       match rest with
       // A tie is not obvious.
-      | [(d2, _), ...] when d2 == d -> Stdlib.Option.Option.None
-      | _ -> Stdlib.Option.Option.Some(k)
-    | _ -> Stdlib.Option.Option.None
+      | [(d2, _), ...] when d2 == d -> Option.None
+      | _ -> Option.Some(k)
+    | _ -> Option.None
+
 
 /// A key `config list` describes: what it does, and what applies while it is not set.
-type Setting = { key: String, what: String, byDefault: String }
+type Setting =
+  { key: String
+    what: String
+    byDefault: String }
+
 
 /// The keys a person is likely to set, in the order `config list` shows them. The runtime takes a
 /// few more (the expert `exec.spread*` knobs), which `config get` answers for without a default.
 let settings(): List<Setting> =
   [ Setting { key = "exec.workers", what = "Scheduler worker threads", byDefault = "one per core" }
-    Setting { key = "exec.policy", what = "Expert: a Dark fn picking the next process", byDefault = "round robin" }
-    Setting { key = "exec.maxInstructions", what = "Expert: stop a process past this many instructions", byDefault = "none" }
-    Setting { key = "exec.maxBytes", what = "Expert: stop a process past this many bytes allocated", byDefault = "none" }
-    Setting { key = "exec.storePollMs", what = "How often a --live view looks for a change, in ms, at least 10", byDefault = "25" }
-    Setting { key = "http.requestTimeoutMs", what = "serve cancels a handler past this many ms and answers 504; 0 = none", byDefault = "30000" }
-    Setting { key = "trace.record", what = "Keep a record of every run, on or off", byDefault = "off" }
-    Setting { key = "http.loopback", what = "let your code reach 127.0.0.1, on or off", byDefault = "off" }
-    Setting { key = "http.private", what = "let your code reach private network addresses, on or off", byDefault = "off" }
-    Setting { key = "trace.keep", what = "How many traces to keep, a served request being one; 0 = all", byDefault = "200" }
-    Setting { key = "trace.maxMb", what = "How many MB traces may hold, logs and captured bodies; 0 = all", byDefault = "256" }
-    Setting { key = "instance.name", what = "The name in the workbench header", byDefault = "this machine's hostname" } ]
+    Setting
+      { key = "exec.policy"
+        what = "Expert: a Dark fn picking the next process"
+        byDefault = "round robin" }
+
+    Setting
+      { key = "exec.maxInstructions"
+        what = "Expert: stop a process past this many instructions"
+        byDefault = "none" }
+
+    Setting
+      { key = "exec.maxBytes"
+        what = "Expert: stop a process past this many bytes allocated"
+        byDefault = "none" }
+
+    Setting
+      { key = "exec.storePollMs"
+        what = "How often a --live view looks for a change, in ms, at least 10"
+        byDefault = "25" }
+
+    Setting
+      { key = "http.requestTimeoutMs"
+        what = "serve cancels a handler past this many ms and answers 504; 0 = none"
+        byDefault = "30000" }
+
+    Setting
+      { key = "trace.record", what = "Keep a record of every run, on or off", byDefault = "off" }
+
+    Setting
+      { key = "http.loopback"
+        what = "let your code reach 127.0.0.1, on or off"
+        byDefault = "off" }
+
+    Setting
+      { key = "http.private"
+        what = "let your code reach private network addresses, on or off"
+        byDefault = "off" }
+
+    Setting
+      { key = "trace.keep"
+        what = "How many traces to keep, a served request being one; 0 = all"
+        byDefault = "200" }
+
+    Setting
+      { key = "trace.maxMb"
+        what = "How many MB traces may hold, logs and captured bodies; 0 = all"
+        byDefault = "256" }
+
+    Setting
+      { key = "instance.name"
+        what = "The name in the workbench header"
+        byDefault = "this machine's hostname" } ]
+
 
 /// What applies while <param key> is not set, when `config list` says.
-let defaultOf(key: String): Stdlib.Option.Option<String> =
-  Config.settings()
+let defaultOf(key: String): Option<String> =
+  settings()
   |> Stdlib.List.findFirst(fun s -> s.key == key)
   |> Stdlib.Option.map(fun s -> s.byDefault)
 
+
 let unknownKeyMessage(key: String): String =
   let hint =
-    match Config.nearestKey(key) with
+    match nearestKey(key) with
     | Some(k) -> $" Did you mean {k}?"
     | None -> ""
+
   $"{key} is not a config key.{hint} `config list` names the keys."
 
-let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
+
+let execute(state: AppState, args: List<String>): AppState =
   match args with
-  | ["get", key] when Stdlib.List.contains(Config.knownKeys(), key) ->
+  | ["get", key] when Stdlib.List.contains(knownKeys(), key) ->
     match LanguageTools.LocalStore.configGet(key) with
     | Some(value) -> Stdlib.printLine($"{key} = {value}")
     | None ->
-      match Config.defaultOf(key) with
+      match defaultOf(key) with
       | Some(d) -> Stdlib.printLine($"{key} is not set (default: {d})")
       | None -> Stdlib.printLine($"{key} is not set")
-    state
 
-  | ["set", key, value] when Stdlib.List.contains(Config.knownKeys(), key) ->
+    state
+  | ["set", key, value] when Stdlib.List.contains(knownKeys(), key) ->
     match LanguageTools.LocalStore.configSet(key, value) with
     | Error(problem) ->
-      Cli.printErr(problem)
+      printErr(problem)
       { state with exitCode = 1 }
     | Ok(_) ->
       Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"Set {key} = {value}"))
       state
-
-  | ["unset", key] when Stdlib.List.contains(Config.knownKeys(), key) ->
+  | ["unset", key] when Stdlib.List.contains(knownKeys(), key) ->
     match LanguageTools.LocalStore.configUnset(key) with
     | Error(problem) ->
-      Cli.printErr(problem)
+      printErr(problem)
       { state with exitCode = 1 }
     | Ok(_) ->
       let back =
-        match Config.defaultOf(key) with
+        match defaultOf(key) with
         | Some(d) -> $" ({d})"
         | None -> ""
+
       Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"{key} is back to its default{back}"))
       state
-
   | ["get", key] ->
-    Cli.printErr(Config.unknownKeyMessage(key))
+    printErr(unknownKeyMessage(key))
     { state with exitCode = 1 }
-
   | ["unset", key] ->
-    Cli.printErr(Config.unknownKeyMessage(key))
+    printErr(unknownKeyMessage(key))
     { state with exitCode = 1 }
-
   | ["set", key, _] ->
-    Cli.printErr(Config.unknownKeyMessage(key))
+    printErr(unknownKeyMessage(key))
     { state with exitCode = 1 }
-
   | ["list"] ->
     let lines =
-      Config.settings()
+      settings()
       |> Stdlib.List.map(fun s ->
         let key = Stdlib.Text.padEndToWidth(s.key, 25)
         $"  {key}- {s.what} (default: {s.byDefault})")
@@ -152,25 +202,23 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
           "Use 'config set <key> <value>' to set a value"
           "Use 'config unset <key>' to go back to the default" ] ])
     |> Stdlib.printLines
-    state
 
+    state
   | _ ->
-    Cli.printErr("Invalid arguments")
+    printErr("Invalid arguments")
     Stdlib.printErrorLine("")
     Stdlib.printErrorLine(help(state))
     { state with exitCode = 1 }
 
 
-let complete(_state: Cli.AppState, args: List<String>): List<Cli.Completion.CompletionItem> =
+let complete(_state: AppState, args: List<String>): List<Completion.CompletionItem> =
   match args with
-  | [] ->
-    ["get", "set", "unset", "list"] |> Stdlib.List.map(Cli.Completion.simple)
-  | ["get"] | ["set"] | ["unset"] ->
-    Config.knownKeys() |> Stdlib.List.map(Cli.Completion.simple)
+  | [] -> [ "get", "set", "unset", "list" ] |> Stdlib.List.map(Completion.simple)
+  | ["get"] | ["set"] | ["unset"] -> knownKeys() |> Stdlib.List.map(Completion.simple)
   | _ -> []
 
 
-let help(_state: Cli.AppState): String =
+let help(_state: AppState): String =
   [ "Usage:"
     "  config get <key>           - Get a configuration value"
     "  config set <key> <value>   - Set a configuration value"

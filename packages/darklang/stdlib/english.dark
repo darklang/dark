@@ -1,18 +1,13 @@
 module Darklang.Stdlib.English
 
-
 /// Returns 'a' or 'an' (the indefinite article) for a string, based on
 /// whether it begins with a vowel sound
 let articleFor(nextWord: String): String =
   let vowels = [ 'A', 'E', 'I', 'O', 'U', 'a', 'e', 'i', 'o', 'u' ]
-
   match String.head(nextWord) with
   | None -> ""
   | Some(c) ->
-    if
-      String.length(nextWord) > 1
-      && (Bool.not(Char.isASCIILetter(c)))
-    then
+    if String.length(nextWord) > 1 && Bool.not(Char.isASCIILetter(c)) then
       articleFor(String.dropFirst(nextWord, 1))
     else if List.contains(vowels, c) then
       // A vowel letter that is said with a "y" or "w" sound takes "a": "a Unit",
@@ -21,6 +16,7 @@ let articleFor(nextWord: String): String =
       let soundsLikeY =
         [ "uni", "uint", "uuid", "url", "use", "usu", "uti", "eu" ]
         |> List.any(fun prefix -> String.startsWith(lower, prefix))
+
       if soundsLikeY then "a" else "an"
     else
       "a"
@@ -31,11 +27,13 @@ let articleFor(nextWord: String): String =
 /// takes "s" ({{instance}} -> {{instances}}). Does not handle irregulars ({{mouse}},
 /// {{child}}) or the -y -> -ies rule.
 let pluralize(word: String): String =
-  if (String.endsWith(word, "ch"))
-     || (String.endsWith(word, "sh"))
-     || (String.endsWith(word, "s"))
-     || (String.endsWith(word, "x"))
-     || (String.endsWith(word, "z")) then
+  if
+    String.endsWith(word, "ch")
+    || String.endsWith(word, "sh")
+    || String.endsWith(word, "s")
+    || String.endsWith(word, "x")
+    || String.endsWith(word, "z")
+  then
     $"{word}es"
   else
     $"{word}s"
@@ -44,16 +42,15 @@ let pluralize(word: String): String =
 /// Converts an integer <param n> to its ordinal representation as a string.
 let toOrdinal(n: Int64): String =
   // `%` is Euclidean here (-1 % 10 = 9), so drop the sign first
-  let lastTwoDigits = Stdlib.Int64.checkedMod(Stdlib.abs(n), 100) |> Stdlib.Result.withDefault(0)
-
+  let lastTwoDigits = Int64.checkedMod(abs(n), 100) |> Result.withDefault(0)
   let suffix =
     if lastTwoDigits >= 11 && lastTwoDigits <= 13 then
       "th"
     else
-      match (Stdlib.Int64.checkedMod(lastTwoDigits, 10) |> Stdlib.Result.withDefault(0)) with
+      match Int64.checkedMod(lastTwoDigits, 10) |> Result.withDefault(0) with
       | 1 -> "st"
       | 2 -> "nd"
       | 3 -> "rd"
       | _ -> "th"
 
-  (Stdlib.display(n)) + suffix
+  display(n) + suffix

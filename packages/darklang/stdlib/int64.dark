@@ -1,6 +1,5 @@
 module Darklang.Stdlib.Int64
 
-
 type ParseError =
   | BadFormat
   | OutOfRange
@@ -11,267 +10,283 @@ impl Modulo for Int64 =
   /// The modulus <param b> must be greater than 0
   /// Use <fn Int64.checkedRemainder> if you want the remainder after division, which has
   /// a different behavior for negative numbers.
-  let modulo(a: Int64, b: Int64): Int64 = Builtin.modulo(a, b)
+  let modulo(a: Int64, b: Int64): Int64 =
+    Builtin.modulo(a, b)
 
 
 impl Add for Int64 =
   /// Adds two integers together (wraps on overflow)
-  let add(a: Int64, b: Int64): Int64 = Builtin.add(a, b)
+  let add(a: Int64, b: Int64): Int64 =
+    Builtin.add(a, b)
 
 
 impl Subtract for Int64 =
   /// Subtracts two integers (wraps on overflow)
-  let subtract(a: Int64, b: Int64): Int64 = Builtin.subtract(a, b)
+  let subtract(a: Int64, b: Int64): Int64 =
+    Builtin.subtract(a, b)
 
 
 impl Multiply for Int64 =
   /// Multiplies two integers (wraps on overflow)
-  let multiply(a: Int64, b: Int64): Int64 = Builtin.multiply(a, b)
+  let multiply(a: Int64, b: Int64): Int64 =
+    Builtin.multiply(a, b)
 
 
 impl Divide for Int64 =
   /// Divides two integers
-  let divide(a: Int64, b: Int64): Int64 = Builtin.divide(a, b)
+  let divide(a: Int64, b: Int64): Int64 =
+    Builtin.divide(a, b)
 
 
 impl Power for Int64 =
   /// Raise <param base> to the power of <param exponent>.
   /// Overflow wraps around.
   /// Raises an error if <param exponent> is negative.
-  let power(`base`: Int64, exponent: Int64): Int64 =
-    Builtin.power(`base`, exponent)
+  let power(base: Int64, exponent: Int64): Int64 =
+    Builtin.power(base, exponent)
 
 
 impl Negate for Int64 =
   /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
-  let negate(a: Int64): Int64 = Builtin.negate(a)
+  let negate(a: Int64): Int64 =
+    Builtin.negate(a)
 
 
 impl Compare for Int64 =
   /// Returns {{true}} if <param a> is less than <param b>
-  let lessThan(a: Int64, b: Int64): Bool = Builtin.lessThan(a, b)
+  let lessThan(a: Int64, b: Int64): Bool =
+    Builtin.lessThan(a, b)
+
   /// Returns {{true}} if <param a> is less than or equal to <param b>
   let lessThanOrEqualTo(a: Int64, b: Int64): Bool =
     Builtin.lessThanOrEqualTo(a, b)
+
   /// Returns {{true}} if <param a> is greater than <param b>
-  let greaterThan(a: Int64, b: Int64): Bool = Builtin.greaterThan(a, b)
+  let greaterThan(a: Int64, b: Int64): Bool =
+    Builtin.greaterThan(a, b)
+
   /// Returns {{true}} if <param a> is greater than or equal to <param b>
   let greaterThanOrEqualTo(a: Int64, b: Int64): Bool =
     Builtin.greaterThanOrEqualTo(a, b)
 
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
-let random(start: Int64, `end`: Int64): Int64 =
-  Stdlib.BigInt.random(Stdlib.BigInt.fromInt64(start), Stdlib.BigInt.fromInt64(`end`))
-  |> Stdlib.BigInt.toInt64
+let random(start: Int64, end: Int64): Int64 =
+  BigInt.random(BigInt.fromInt64(start), BigInt.fromInt64(end))
+  |> BigInt.toInt64
   |> Builtin.unwrap
 
 
 /// Get the square root of an <type Int64>
-let sqrt(a: Int64): Float = Stdlib.Float.sqrt(Stdlib.Int64.toFloat(a))
+let sqrt(a: Int64): Float =
+  Float.sqrt(toFloat(a))
 
 
 /// The square root of <param a>, or {{Error NotANumber}} where <param a> is negative
-let checkedSqrt(a: Int64): Stdlib.Result.Result<Float, Stdlib.Math.NonFinite> =
-  Stdlib.Float.checkedSqrt(Stdlib.Int64.toFloat(a))
+let checkedSqrt(a: Int64): Result<Float, Math.NonFinite> =
+  Float.checkedSqrt(toFloat(a))
 
 
 /// Converts an <type Int64> to a <type Float>
-let toFloat(a: Int64): Float = Builtin.int64ToFloat(a)
+let toFloat(a: Int64): Float =
+  Builtin.int64ToFloat(a)
 
 
 /// Converts a <type Float> to an <type Int64>, truncating toward zero like
 /// <fn BigInt.fromFloat>. Returns {{None}} for NaN, infinity, or a result that
 /// doesn't fit.
-let fromFloat(a: Float): Stdlib.Option.Option<Int64> =
+let fromFloat(a: Float): Option<Int64> =
   if Float.isFinite(a) then
-    a |> Stdlib.BigInt.fromFloat |> Stdlib.BigInt.toInt64
+    a
+    |> BigInt.fromFloat
+    |> BigInt.toInt64
   else
-    Stdlib.Option.Option.None
+    Option.None
 
 
 /// Converts a <type Float> to an <type Int64>, rounding to the nearest integer
 /// (ties to even). Returns {{None}} for NaN, infinity, or a result that
 /// doesn't fit.
-let fromFloatRounded(a: Float): Stdlib.Option.Option<Int64> =
+let fromFloatRounded(a: Float): Option<Int64> =
   // 2^63 is exact as a Float, and every Float in [-2^63, 2^63) rounds into range
   if a >= -9223372036854775808.0 && a < 9223372036854775808.0 then
-    Stdlib.Option.Option.Some(Float.round(a))
+    Option.Some(Float.round(a))
   else
-    Stdlib.Option.Option.None
+    Option.None
 
 
 /// Parses a <type String> into an <type Int64>, returning {{Ok}} with the
 /// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
 /// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
 /// <type Int64> range).
-let parse(s: String): Stdlib.Result.Result<Int64, Stdlib.Int64.ParseError> =
+let parse(s: String): Result<Int64, ParseError> =
   // a plain match: the generic Option.toResult call was a quarter of the cost
-  match Stdlib.BigInt.parse(s) with
+  match BigInt.parse(s) with
   | Ok(n) ->
-    match Stdlib.BigInt.toInt64(n) with
-    | Some(i) -> Stdlib.Result.Result.Ok(i)
-    | None -> Stdlib.Result.Result.Error(Stdlib.Int64.ParseError.OutOfRange)
-  | Error(_) -> Stdlib.Result.Result.Error(Stdlib.Int64.ParseError.BadFormat)
+    match BigInt.toInt64(n) with
+    | Some(i) -> Result.Ok(i)
+    | None -> Result.Error(ParseError.OutOfRange)
+  | Error(_) -> Result.Error(ParseError.BadFormat)
 
 
 /// Converts an <type Int8> to an <type Int64>.
 let fromInt8(i: Int8): Int64 =
-  Stdlib.BigInt.toInt64(Stdlib.BigInt.fromInt8(i)) |> Builtin.unwrap
+  BigInt.toInt64(BigInt.fromInt8(i)) |> Builtin.unwrap
 
 
 /// Converts a <type UInt8> to an <type Int64>.
 let fromUInt8(i: UInt8): Int64 =
-  Stdlib.BigInt.toInt64(Stdlib.BigInt.fromUInt8(i)) |> Builtin.unwrap
+  BigInt.toInt64(BigInt.fromUInt8(i)) |> Builtin.unwrap
 
 
 /// Converts an <type Int16> to an <type Int64>.
 let fromInt16(i: Int16): Int64 =
-  Stdlib.BigInt.toInt64(Stdlib.BigInt.fromInt16(i)) |> Builtin.unwrap
+  BigInt.toInt64(BigInt.fromInt16(i)) |> Builtin.unwrap
 
 
 /// Converts a <type UInt16> to an <type Int64>.
 let fromUInt16(i: UInt16): Int64 =
-  Stdlib.BigInt.toInt64(Stdlib.BigInt.fromUInt16(i)) |> Builtin.unwrap
+  BigInt.toInt64(BigInt.fromUInt16(i)) |> Builtin.unwrap
 
 
 /// Converts an <type Int32> to an <type Int64>.
 let fromInt32(i: Int32): Int64 =
-  Stdlib.BigInt.toInt64(Stdlib.BigInt.fromInt32(i)) |> Builtin.unwrap
+  BigInt.toInt64(BigInt.fromInt32(i)) |> Builtin.unwrap
 
 
 /// Converts a <type UInt32> to an <type Int64>.
 let fromUInt32(i: UInt32): Int64 =
-  Stdlib.BigInt.toInt64(Stdlib.BigInt.fromUInt32(i)) |> Builtin.unwrap
+  BigInt.toInt64(BigInt.fromUInt32(i)) |> Builtin.unwrap
 
 
 /// Converts a <type UInt64> to an <type Int64>. Returns {{None}} if the value is greater than 9223372036854775807
-let fromUInt64(i: UInt64): Stdlib.Option.Option<Int64> =
-  Stdlib.BigInt.toInt64(Stdlib.BigInt.fromUInt64(i))
+let fromUInt64(i: UInt64): Option<Int64> =
+  BigInt.toInt64(BigInt.fromUInt64(i))
 
 
 /// Converts an <type Int128> to an <type Int64>. Returns {{None}} if the value is less than -9223372036854775808 or greater than 9223372036854775807
-let fromInt128(i: Int128): Stdlib.Option.Option<Int64> =
-  Stdlib.BigInt.toInt64(Stdlib.BigInt.fromInt128(i))
+let fromInt128(i: Int128): Option<Int64> =
+  BigInt.toInt64(BigInt.fromInt128(i))
 
 
 /// Converts a <type UInt128> to an <type Int64>. Returns {{None}} if the value is greater than 9223372036854775807
-let fromUInt128(i: UInt128): Stdlib.Option.Option<Int64> =
-  Stdlib.BigInt.toInt64(Stdlib.BigInt.fromUInt128(i))
+let fromUInt128(i: UInt128): Option<Int64> =
+  BigInt.toInt64(BigInt.fromUInt128(i))
 
 
 impl BitwiseAnd for Int64 =
   /// Bitwise AND on two <type Int64> values
-  let bitwiseAnd(a: Int64, b: Int64): Int64 = Builtin.bitwiseAnd(a, b)
+  let bitwiseAnd(a: Int64, b: Int64): Int64 =
+    Builtin.bitwiseAnd(a, b)
 
 
 impl BitwiseOr for Int64 =
   /// Bitwise OR on two <type Int64> values
-  let bitwiseOr(a: Int64, b: Int64): Int64 = Builtin.bitwiseOr(a, b)
+  let bitwiseOr(a: Int64, b: Int64): Int64 =
+    Builtin.bitwiseOr(a, b)
 
 
 impl BitwiseXor for Int64 =
   /// Bitwise XOR on two <type Int64> values
-  let bitwiseXor(a: Int64, b: Int64): Int64 = Builtin.bitwiseXor(a, b)
+  let bitwiseXor(a: Int64, b: Int64): Int64 =
+    Builtin.bitwiseXor(a, b)
 
 
 impl BitwiseNot for Int64 =
   /// Bitwise NOT on an <type Int64> value
-  let bitwiseNot(a: Int64): Int64 = Builtin.bitwiseNot(a)
+  let bitwiseNot(a: Int64): Int64 =
+    Builtin.bitwiseNot(a)
 
 
 impl ShiftLeft for Int64 =
   /// Bitwise left shift of an <type Int64> value
-  let shiftLeft(a: Int64, b: Int64): Int64 = Builtin.shiftLeft(a, b)
+  let shiftLeft(a: Int64, b: Int64): Int64 =
+    Builtin.shiftLeft(a, b)
 
 
 impl ShiftRight for Int64 =
   /// Bitwise right shift of an <type Int64> value
-  let shiftRight(a: Int64, b: Int64): Int64 = Builtin.shiftRight(a, b)
+  let shiftRight(a: Int64, b: Int64): Int64 =
+    Builtin.shiftRight(a, b)
+
 
 impl Display for Int64 =
   /// Stringify <param int>
-  let display(int: Int64): String = Builtin.int64ToString(int)
+  let display(int: Int64): String =
+    Builtin.int64ToString(int)
+
 
 impl Zero for Int64 =
-  let zero(): Int64 = 0
+  let zero(): Int64 =
+    0
+
 
 impl One for Int64 =
-  let one(): Int64 = 1
+  let one(): Int64 =
+    1
 
 
 // Checked arithmetic. The operators wrap on overflow; these return
 // {{Error Overflow}} instead, going below 0 included.
 
 /// Adds <param a> and <param b>, or {{Error Overflow}} where `+` would wrap
-let checkedAdd(
-  a: Int64,
-  b: Int64)
-  : Stdlib.Result.Result<Int64, Stdlib.Math.Overflow> =
+let checkedAdd(a: Int64, b: Int64): Result<Int64, Math.Overflow> =
   let sum = a + b
   let wrapped = if b < 0 then sum > a else sum < a
-  if wrapped then Error(Stdlib.Math.Overflow.Overflow) else Ok(sum)
+  if wrapped then Result.Error(Math.Overflow.Overflow) else Result.Ok(sum)
 
 
 /// Subtracts <param b> from <param a>, or {{Error Overflow}} where `-` would wrap
-let checkedSubtract(
-  a: Int64,
-  b: Int64)
-  : Stdlib.Result.Result<Int64, Stdlib.Math.Overflow> =
+let checkedSubtract(a: Int64, b: Int64): Result<Int64, Math.Overflow> =
   let difference = a - b
   let wrapped = if b < 0 then difference < a else difference > a
-  if wrapped then Error(Stdlib.Math.Overflow.Overflow) else Ok(difference)
+  if wrapped then Result.Error(Math.Overflow.Overflow) else Result.Ok(difference)
 
 
 /// Multiplies <param a> by <param b>, or {{Error Overflow}} where `*` would wrap
-let checkedMultiply(
-  a: Int64,
-  b: Int64)
-  : Stdlib.Result.Result<Int64, Stdlib.Math.Overflow> =
-  let product = Stdlib.BigInt.fromInt64(a) * Stdlib.BigInt.fromInt64(b)
-  match Stdlib.BigInt.toInt64(product) with
-  | Some(fits) -> Ok(fits)
-  | None -> Error(Stdlib.Math.Overflow.Overflow)
+let checkedMultiply(a: Int64, b: Int64): Result<Int64, Math.Overflow> =
+  let product = BigInt.fromInt64(a) * BigInt.fromInt64(b)
+  match BigInt.toInt64(product) with
+  | Some(fits) -> Result.Ok(fits)
+  | None -> Result.Error(Math.Overflow.Overflow)
 
 
 /// The negation of <param a>, or {{Error Overflow}} for the minimum value,
 /// which `-` wraps back to itself
-let checkedNegate(a: Int64): Stdlib.Result.Result<Int64, Stdlib.Math.Overflow> =
-  if a == -9223372036854775808 then Error(Stdlib.Math.Overflow.Overflow) else Ok(-a)
+let checkedNegate(a: Int64): Result<Int64, Math.Overflow> =
+  if a == -9223372036854775808 then
+    Result.Error(Math.Overflow.Overflow)
+  else
+    Result.Ok(-a)
 
 
 /// The distance of <param a> from zero, or {{Error Overflow}} for the minimum
 /// value, which <fn Stdlib.abs> wraps back to itself
-let checkedAbsoluteValue(a: Int64)
-  : Stdlib.Result.Result<Int64, Stdlib.Math.Overflow> =
+let checkedAbsoluteValue(a: Int64): Result<Int64, Math.Overflow> =
   if a == -9223372036854775808 then
-    Error(Stdlib.Math.Overflow.Overflow)
+    Result.Error(Math.Overflow.Overflow)
   else if a < 0 then
-    Ok(-a)
+    Result.Ok(-a)
   else
-    Ok(a)
+    Result.Ok(a)
 
 
 /// <param base> raised to the power of <param exponent>, or where `**` raises or wraps,
 /// {{Error NegativeExponent}} or {{Error Overflow}}
-let checkedPower(
-  `base`: Int64,
-  exponent: Int64)
-  : Stdlib.Result.Result<Int64, Stdlib.Math.PowerError> =
+let checkedPower(base: Int64, exponent: Int64): Result<Int64, Math.PowerError> =
   if exponent < 0 then
-    Error(Stdlib.Math.PowerError.NegativeExponent)
-  else if `base` == 0 || `base` == 1 || `base` == -1 then
+    Result.Error(Math.PowerError.NegativeExponent)
+  else if base == 0 || base == 1 || base == -1 then
     // 0, 1 and -1 never grow, so `**` is exact whatever the exponent
-    Ok(`base` ** exponent)
+    Result.Ok(base ** exponent)
   else if exponent >= 64 then
     // any other base is at least 2 from zero, and 2 ** 64 is past the Int64 range
-    Error(Stdlib.Math.PowerError.Overflow)
+    Result.Error(Math.PowerError.Overflow)
   else
-    let result = Stdlib.BigInt.fromInt64(`base`) ** Stdlib.BigInt.fromInt64(exponent)
-
-    match Stdlib.BigInt.toInt64(result) with
-    | Some(fits) -> Ok(fits)
-    | None -> Error(Stdlib.Math.PowerError.Overflow)
+    let result = BigInt.fromInt64(base) ** BigInt.fromInt64(exponent)
+    match BigInt.toInt64(result) with
+    | Some(fits) -> Result.Ok(fits)
+    | None -> Result.Error(Math.PowerError.Overflow)
 
 
 // Division. `/` raises on a zero divisor and `%` on a modulus that is not positive;
@@ -282,35 +297,32 @@ let checkedPower(
 /// Divides <param a> by <param b>, rounding towards zero, or
 /// {{Error DivisionByZero}} where `/` raises, or {{Error Overflow}} for the
 /// minimum value divided by -1, where `/` wraps back to the minimum.
-let checkedDivide(a: Int64, b: Int64): Stdlib.Result.Result<Int64, Stdlib.Math.DivisionError> =
+let checkedDivide(a: Int64, b: Int64): Result<Int64, Math.DivisionError> =
   if b == 0 then
-    Error(Stdlib.Math.DivisionError.DivisionByZero)
+    Result.Error(Math.DivisionError.DivisionByZero)
   else if b == -1 && a == -9223372036854775808 then
-    Error(Stdlib.Math.DivisionError.Overflow)
+    Result.Error(Math.DivisionError.Overflow)
   else
-    Ok(a / b)
+    Result.Ok(a / b)
 
 
 /// What is left after dividing <param value> by <param divisor>, rounding towards
 /// zero: negative only if <param value> is, whatever the sign of <param divisor>.
 /// {{Error DivisionByZero}} if <param divisor> is {{0}}.
 /// Use <fn Int64.checkedMod> to wrap around into {{0 <= res < b}} instead.
-let checkedRemainder(
-  value: Int64,
-  divisor: Int64)
-  : Stdlib.Result.Result<Int64, Stdlib.Math.DivisionError> =
+let checkedRemainder(value: Int64, divisor: Int64): Result<Int64, Math.DivisionError> =
   if divisor == 0 then
-    Error(Stdlib.Math.DivisionError.DivisionByZero)
+    Result.Error(Math.DivisionError.DivisionByZero)
   else
-    Ok(value - (value / divisor) * divisor)
+    Result.Ok(value - value / divisor * divisor)
 
 
 /// <param a> wrapped around so that {{0 <= res < b}}, or where `%` raises,
 /// {{Error ZeroModulus}} or {{Error NegativeModulus}}
-let checkedMod(a: Int64, b: Int64): Stdlib.Result.Result<Int64, Stdlib.Math.ModulusError> =
+let checkedMod(a: Int64, b: Int64): Result<Int64, Math.ModulusError> =
   if b == 0 then
-    Error(Stdlib.Math.ModulusError.ZeroModulus)
+    Result.Error(Math.ModulusError.ZeroModulus)
   else if b < 0 then
-    Error(Stdlib.Math.ModulusError.NegativeModulus)
+    Result.Error(Math.ModulusError.NegativeModulus)
   else
-    Ok(a % b)
+    Result.Ok(a % b)

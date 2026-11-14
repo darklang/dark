@@ -2,47 +2,88 @@
 /// The helpers are in `helpers.dark`.
 module Darklang.SCM.Tests.Cli
 
-
 test historyOnMainListsCommitsNewestFirst =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.a", "1")
       commit(dark, "first")
       saveNumber(dark, "Tests.App.b", "2")
       commit(dark, "second")
-
       same(commits(dark), [ "second", "first" ], "commits, newest first")
-      same(commitMessages(dark, [ "log", "--json" ]), [ "second", "first" ], "on main, log is the same list")
-      says(dark, [ "show", newestCommit(dark) ], "second", "show opens a commit by id")
-      says(dark, [ "show", newestCommit(dark) ], "SetName Tests.App.b", "and lists what it holds")
-      says(dark, [ "ops", "2" ], "SetName Tests.App.b", "ops lists the newest ops")
-      says(dark, [ "ops", "show", newestOp(dark) ], "Tests.App.b", "and ops show opens one by id")
-      refuses(dark, [ "show", "ffffffffffff" ], "nothing matching", "an unknown id is refused") ])
+
+      same(
+        commitMessages(dark, [ "log", "--json" ]),
+        [ "second", "first" ],
+        "on main, log is the same list")
+
+      says(
+        dark,
+        [ "show", newestCommit(dark) ],
+        "second",
+        "show opens a commit by id")
+
+      says(
+        dark,
+        [ "show", newestCommit(dark) ],
+        "SetName Tests.App.b",
+        "and lists what it holds")
+
+      says(
+        dark,
+        [ "ops", "2" ],
+        "SetName Tests.App.b",
+        "ops lists the newest ops")
+
+      says(
+        dark,
+        [ "ops", "show", newestOp(dark) ],
+        "Tests.App.b",
+        "and ops show opens one by id")
+
+      refuses(
+        dark,
+        [ "show", "ffffffffffff" ],
+        "nothing matching",
+        "an unknown id is refused") ])
 
 
 // Odd, but today's behaviour: on a branch, `log` lists the branch's ops (oldest first), not its
 // commits as it does on main.
-test onABranchLogListsOpsAndCommitsListsCommits =
-  scenario(fun dark ->
-    [ switch(dark, "feat")
-      saveNumber(dark, "Tests.App.a", "1")
-      commit(dark, "feat one")
-      saveNumber(dark, "Tests.App.b", "2")
-      commit(dark, "feat two")
+test onABranchLogListsOpsAndCommitsListsCommits = scenario(fun dark ->
+  [ switch(dark, "feat")
+    saveNumber(dark, "Tests.App.a", "1")
+    commit(dark, "feat one")
+    saveNumber(dark, "Tests.App.b", "2")
+    commit(dark, "feat two")
+    says(
+      dark,
+      [ "log" ],
+      "ops on branch \"feat\" (oldest first)",
+      "log on a branch lists ops")
 
-      says(dark, [ "log" ], "ops on branch \"feat\" (oldest first)", "log on a branch lists ops")
-      same(
-        rows(json(dark, [ "log", "--json" ]))
-        |> Stdlib.List.map(fun op -> text(op, "op"))
-        |> Stdlib.List.filter(fun op -> Stdlib.String.startsWith(op, "SetName"))
-        |> Stdlib.List.map(fun op ->
-          Stdlib.String.split(op, " to ") |> Stdlib.List.head |> Stdlib.Option.withDefault("")),
-        [ "SetName Tests.App.a", "SetName Tests.App.b" ],
-        "log --json lists the branch's names in order")
-      same(commits(dark), [ "feat two", "feat one" ], "commits on a branch are the branch's commits")
+    same(
+      rows(json(dark, [ "log", "--json" ]))
+      |> Stdlib.List.map(fun op -> text(op, "op"))
+      |> Stdlib.List.filter(fun op -> Stdlib.String.startsWith(op, "SetName"))
+      |> Stdlib.List.map(fun op ->
+        Stdlib.String.split(op, " to ")
+        |> Stdlib.List.head
+        |> Stdlib.Option.withDefault("")),
+      [ "SetName Tests.App.a", "SetName Tests.App.b" ],
+      "log --json lists the branch's names in order")
 
-      switch(dark, "main")
-      says(dark, [ "log", "feat" ], "SetName Tests.App.b", "log <branch> reads a branch from main")
-      same(commits(dark), [], "and main's history has none of it") ])
+    same(
+      commits(dark),
+      [ "feat two", "feat one" ],
+      "commits on a branch are the branch's commits")
+
+    switch(dark, "main")
+    says(
+      dark,
+      [ "log", "feat" ],
+      "SetName Tests.App.b",
+      "log <branch> reads a branch from main")
+
+    same(commits(dark), [], "and main's history has none of it") ])
 
 
 test diffShowsTheDraftOrWhatABranchChanges =
@@ -51,21 +92,34 @@ test diffShowsTheDraftOrWhatABranchChanges =
       commit(dark, "base")
       says(dark, [ "diff" ], "clean", "with nothing in the draft, diff says so")
       saveNumber(dark, "Tests.App.draftOnly", "2")
-      says(dark, [ "diff" ], "Tests.App.draftOnly", "diff on its own lists the draft")
-      run(dark, [ "discard", "-y" ])
+      says(
+        dark,
+        [ "diff" ],
+        "Tests.App.draftOnly",
+        "diff on its own lists the draft")
 
+      run(dark, [ "discard", "-y" ])
       switch(dark, "feat")
       saveNumber(dark, "Tests.App.a", "3")
       saveNumber(dark, "Tests.App.b", "4")
       commit(dark, "feat work")
-      says(dark, [ "diff", "feat" ], "changes 2 names vs its parent", "diff <branch> counts what the branch changes")
+      says(
+        dark,
+        [ "diff", "feat" ],
+        "changes 2 names vs its parent",
+        "diff <branch> counts what the branch changes")
+
       same(
         rows(json(dark, [ "diff", "feat", "--json" ]))
         |> Stdlib.List.map(fun e -> $"{text(e, "change")} {text(e, "name")}"),
         [ "new Tests.App.b", "changed Tests.App.a" ],
         "and --json lists them, new names first")
 
-      same(number(json(dark, [ "diff", "--json" ]), "draftOps"), 0, "bare diff --json prints the empty draft as JSON")
+      same(
+        number(json(dark, [ "diff", "--json" ]), "draftOps"),
+        0,
+        "bare diff --json prints the empty draft as JSON")
+
       saveNumber(dark, "Tests.App.c", "5")
       same(
         rows(field(json(dark, [ "diff", "--json" ]), "changed"))

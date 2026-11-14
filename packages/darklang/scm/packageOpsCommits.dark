@@ -4,7 +4,6 @@ module Darklang.SCM.PackageOps
 //
 // Same module as `packageOps.dark`; see the note there.
 
-
 /// Get recent package ops (fully decoded), newest first.
 let getRecent(limit: Int64): List<LanguageTools.ProgramTypes.PackageOp> =
   let n = limit
@@ -13,9 +12,7 @@ let getRecent(limit: Int64): List<LanguageTools.ProgramTypes.PackageOp> =
 
 /// Ops whose id starts with <param prefix>, fully decoded -- for inspecting op CONTENT. Newest 20: a
 /// prefix short enough to match more than a handful is a typo, not a listing.
-let getByIdPrefix(
-  prefix: String)
-  : List<LanguageTools.ProgramTypes.PackageOp> =
+let getByIdPrefix(prefix: String): List<LanguageTools.ProgramTypes.PackageOp> =
   decodeOpRows((query(OpFilter.IdPrefix(prefix), 20)).ops)
 
 
@@ -27,28 +24,27 @@ let opsInCommitLimited(
 
 
 /// How many ops a commit committed.
-let opCountIn(commitHash: String): Int64 = countOf(OpFilter.InCommit(commitHash))
+let opCountIn(commitHash: String): Int64 =
+  countOf(OpFilter.InCommit(commitHash))
 
 
 /// How many ops are in the log.
-let count(): Int64 = countOf(OpFilter.Recent)
+let count(): Int64 =
+  countOf(OpFilter.Recent)
 
 
 /// How many ops this branch can see: main's log, plus that branch's chain's own delta ops. Another
 /// branch's ops are in the same table but invisible from here -- that isolation is the point of the
 /// overlay.
-let countFor(branchId: Uuid): Int64 = countOf(OpFilter.Visible(branchId))
+let countFor(branchId: Uuid): Int64 =
+  countOf(OpFilter.Visible(branchId))
 
 
 /// An op row as `dark ops` lists it. The op is None for one this build cannot read: a synced store's
 /// log holds ops this build cannot read, and a listing that raised on one would be a listing you
 /// cannot run.
 let summaryOf(row: OpRow): OpSummary =
-  OpSummary
-    { id = row.id
-      sizeBytes = row.sizeBytes
-      ts = row.ts
-      op = row.op }
+  OpSummary { id = row.id, sizeBytes = row.sizeBytes, ts = row.ts, op = row.op }
 
 
 /// The <param limit> most recent op summaries this branch can see, newest first by insertion order.
@@ -86,9 +82,7 @@ let summariesByIds(ids: List<String>): List<OpSummary> =
     []
   else
     let found = rowsOf(OpFilter.Ids(ids)) |> Stdlib.List.map(summaryOf)
-
-    ids
-    |> Stdlib.List.filterMap(fun id -> found |> Stdlib.List.findFirst(fun s -> s.id == id))
+    ids |> Stdlib.List.filterMap(fun id -> found |> Stdlib.List.findFirst(fun s -> s.id == id))
 
 
 /// The newest instant an APPLIED op landed here (`created_at`), on any branch, and the ids that
@@ -96,7 +90,6 @@ let summariesByIds(ids: List<String>): List<OpSummary> =
 /// `landedSince`: an op inserted and not yet folded must not advance a watcher past itself.
 let landedLast(): (String * List<String>) =
   let rows = rowsOf(OpFilter.LandedLast)
-
   match Stdlib.List.head(rows) with
   | Some(first) -> (first.ts, rows |> Stdlib.List.map(fun r -> r.id))
   | None -> ("", [])
@@ -117,4 +110,3 @@ let commitCountOnBranch(branchId: Uuid): Int64 =
 /// not" -- the number Home means when it says a branch is N ahead.
 let commitsOnBranch(branchId: Uuid, limit: Int64): List<Commits.Commit> =
   (Commits.query(Commits.CommitFilter.OnBranch(branchId), limit)).commits
-

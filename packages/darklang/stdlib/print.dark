@@ -1,6 +1,5 @@
 module Darklang.Stdlib
 
-
 let print(str: String): Unit =
   Builtin.print(str)
 
@@ -20,8 +19,7 @@ let printError(str: String): Unit =
 
 
 let printLines(lines: List<String>): Unit =
-  lines
-  |> List.iter(fun l -> printLine(l))
+  lines |> List.iter(fun l -> printLine(l))
 
 
 /// `DEBUG: <label>: <value>` to stderr, the value as `inspect` writes it: for looking at a value

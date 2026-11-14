@@ -1,24 +1,19 @@
 module Darklang.Cli.SyntaxHighlighting
 
-
 /// Maps semantic token types to CLI colors.
 let tokenTypeToCliColor(tokenType: LanguageTools.SemanticTokens.TokenType): String =
   match tokenType with
   | Symbol -> Stdlib.Cli.UI.Colors.blue
   | Keyword -> Stdlib.Cli.UI.Colors.magenta
-
   | ModuleName -> Stdlib.Cli.UI.Colors.brightBlack
   | TypeName -> Stdlib.Cli.UI.Colors.brightBlue
-
   | Operator -> Stdlib.Cli.UI.Colors.brightMagenta
   | String -> Stdlib.Cli.UI.Colors.stringColor
   | Number -> Stdlib.Cli.UI.Colors.numberColor
   | ParameterName -> Stdlib.Cli.UI.Colors.brightBlue
   | VariableName -> Stdlib.Cli.UI.Colors.white
   | FunctionName -> Stdlib.Cli.UI.Colors.brightBlue
-
   | Comment -> Stdlib.Cli.UI.Colors.commentColor
-
   | TypeParameter -> Stdlib.Cli.UI.Colors.magenta
   | EnumMember -> Stdlib.Cli.UI.Colors.magenta
   | Property -> Stdlib.Cli.UI.Colors.white
@@ -27,12 +22,15 @@ let tokenTypeToCliColor(tokenType: LanguageTools.SemanticTokens.TokenType): Stri
 
 
 /// Highlights one line by inserting color codes at token boundaries.
-let highlightLine(line: String, lineTokens: List<LanguageTools.SemanticTokens.SemanticToken>): String =
+let highlightLine(
+  line: String,
+  lineTokens: List<LanguageTools.SemanticTokens.SemanticToken>)
+  : String =
   let insertions =
     lineTokens
     |> Stdlib.List.map(fun token ->
-        [ (token.range.start.column, tokenTypeToCliColor(token.tokenType))
-          (token.range.end_.column, Stdlib.Cli.UI.Colors.reset) ])
+      [ (token.range.start.column, tokenTypeToCliColor(token.tokenType))
+        (token.range.end_.column, Stdlib.Cli.UI.Colors.reset) ])
     |> Stdlib.List.flatten
     // stable sort keeps a token's end before the next token's start at a shared
     // column, so adjacent tokens render as `…reset<next-color>…`
@@ -40,16 +38,15 @@ let highlightLine(line: String, lineTokens: List<LanguageTools.SemanticTokens.Se
 
   // Insert from right to left so earlier insertions do not shift later positions.
   let reversedInsertions = Stdlib.List.reverse(insertions)
-
   let highlighted =
     reversedInsertions
     |> Stdlib.List.fold(line, fun(currentLine, (pos, colorCode)) ->
-        if pos >= 0 && pos <= Stdlib.String.length(currentLine) then
-          let before = Stdlib.String.slice(currentLine, 0, pos)
-          let after = Stdlib.String.dropFirst(currentLine, pos)
-          before + colorCode + after
-        else
-          currentLine)
+      if pos >= 0 && pos <= Stdlib.String.length(currentLine) then
+        let before = Stdlib.String.slice(currentLine, 0, pos)
+        let after = Stdlib.String.dropFirst(currentLine, pos)
+        before + colorCode + after
+      else
+        currentLine)
 
   // Close every line with a reset. Overlapping tokens (a Symbol range inside a String range) can leave a
   // color opened but not closed at line end, which then bleeds into whatever prints next. This kills the
@@ -67,7 +64,6 @@ let splitTokenByLine(
   : List<LanguageTools.SemanticTokens.SemanticToken> =
   let startRow = token.range.start.row
   let endRow = token.range.end_.row
-
   if startRow == endRow then
     [ token ]
   else
@@ -111,8 +107,7 @@ let applyTokenColors(
   lines
   |> Stdlib.List.indexedMap(fun(lineIndex, line) ->
     let lineTokens =
-      sortedTokens
-      |> Stdlib.List.filter(fun token -> token.range.start.row == lineIndex)
+      sortedTokens |> Stdlib.List.filter(fun token -> token.range.start.row == lineIndex)
 
     if Stdlib.List.isEmpty(lineTokens) then
       line

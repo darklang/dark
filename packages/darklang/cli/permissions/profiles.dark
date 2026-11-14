@@ -7,22 +7,24 @@ type Profile =
     description: String
     needsRoot: Bool }
 
+
 val all =
   [ Profile
       { name = "default"
-        description =
-          "the installation default: local stores, stdio, clock and random"
+        description = "the installation default: local stores, stdio, clock and random"
         needsRoot = false }
+
     Profile
       { name = "read-only"
-        description =
-          "read a directory and local stores; HTTPS GET, stdio, clock and random"
+        description = "read a directory and local stores; HTTPS GET, stdio, clock and random"
         needsRoot = true }
+
     Profile
       { name = "local-dev"
         description =
           "read/write a directory and local stores; HTTPS GET, local-only HTTP serving, following edits"
         needsRoot = true } ]
+
 
 val readEffects =
   [ LanguageTools.Permissions.Effect.PackageRead
@@ -32,12 +34,13 @@ val readEffects =
     LanguageTools.Permissions.Effect.Clock
     LanguageTools.Permissions.Effect.Random ]
 
+
 /// Kept aligned with the host's defaultInstance by the CLI integration test.
 val defaultEffects =
   Stdlib.List.concat(
-    Profiles.readEffects,
-    [ LanguageTools.Permissions.Effect.TraceWrite
-      LanguageTools.Permissions.Effect.Concurrency ])
+    readEffects,
+    [ LanguageTools.Permissions.Effect.TraceWrite, LanguageTools.Permissions.Effect.Concurrency ])
+
 
 val httpsGet =
   LanguageTools.Permissions.Rule.Http(
@@ -49,64 +52,61 @@ val httpsGet =
         path = LanguageTools.Permissions.HttpPath.All
         query = LanguageTools.Permissions.Scope.All })
 
-let fromEffects(
-  effects: List<LanguageTools.Permissions.Effect>)
-  : LanguageTools.Permissions.Policy =
+
+let fromEffects(effects: List<LanguageTools.Permissions.Effect>): LanguageTools.Permissions.Policy =
   LanguageTools.Permissions.Policy
-    { allow =
-        effects
-        |> Stdlib.List.map(fun e -> LanguageTools.Permissions.Rule.Effect(e))
+    { allow = effects |> Stdlib.List.map(fun e -> LanguageTools.Permissions.Rule.Effect(e))
       deny = [] }
 
-let usage(profile: Profiles.Profile): String =
-  "permissions profile " + profile.name
+
+let usage(profile: Profile): String =
+  "permissions profile "
+  + profile.name
   + (if profile.needsRoot then " <ABSOLUTE-ROOT>" else "")
   + " [--yes]"
 
+
 val listing =
   Stdlib.List.prepend(
-    (Profiles.all |> Stdlib.List.map(fun profile ->
-      "  " + Profiles.usage(profile) + "\n    " + profile.description)),
+    all |> Stdlib.List.map(fun profile -> "  " + usage(profile) + "\n    " + profile.description),
     "Permission profiles (preview first; --yes applies):")
+
 
 /// Validate the complete command before constructing a policy. The root stays
 /// a single typed field, so quotes, spaces and semicolons cannot inject rules.
-let resolve(
-  name: String,
-  args: List<String>)
-  : Stdlib.Result.Result<LanguageTools.Permissions.Policy, String> =
-  let found =
-    Profiles.all |> Stdlib.List.findFirst(fun profile -> profile.name == name)
+let resolve(name: String, args: List<String>): Result<LanguageTools.Permissions.Policy, String> =
+  let found = all |> Stdlib.List.findFirst(fun profile -> profile.name == name)
   match found with
-  | None -> Stdlib.Result.Result.Error($"unknown permission profile: {name}")
+  | None -> Result.Error($"unknown permission profile: {name}")
   | Some(profile) ->
-    match (profile.needsRoot, args) with
-    | (false, []) ->
-      Stdlib.Result.Result.Ok(Profiles.fromEffects(Profiles.defaultEffects))
-    | (true, [ root ]) ->
+    match profile.needsRoot, args with
+    | false, [] -> Result.Ok(fromEffects(defaultEffects))
+    | true, [root] ->
       if Stdlib.Bool.not(LanguageTools.Permissions.isAbsolutePath(root)) then
-        Stdlib.Result.Result.Error(
-          "profile root must be an absolute directory path; ~ and * are not expanded")
+        Result.Error("profile root must be an absolute directory path; ~ and * are not expanded")
       else
-        let read = LanguageTools.Permissions.Rule.FileRead(
-          LanguageTools.Permissions.Scope.Only(root))
+        let read =
+          LanguageTools.Permissions.Rule.FileRead(LanguageTools.Permissions.Scope.Only(root))
+
         let policy =
-          if name == "read-only" then Profiles.fromEffects(Profiles.readEffects)
-          else Profiles.fromEffects(Profiles.defaultEffects)
+          if name == "read-only" then
+            fromEffects(readEffects)
+          else
+            fromEffects(defaultEffects)
+
         let rules =
-          if name == "read-only" then [ read, Profiles.httpsGet ]
+          if name == "read-only" then
+            [ read, httpsGet ]
           else
             [ read
-              LanguageTools.Permissions.Rule.FileWrite(
-                LanguageTools.Permissions.Scope.Only(root))
-              Profiles.httpsGet
+              LanguageTools.Permissions.Rule.FileWrite(LanguageTools.Permissions.Scope.Only(root))
+              httpsGet
               LanguageTools.Permissions.Rule.HttpServer(
                 LanguageTools.Permissions.Scope.Only("127.0.0.1"),
                 LanguageTools.Permissions.Scope.All)
-              LanguageTools.Permissions.Rule.Effect(
-                LanguageTools.Permissions.Effect.PackageWrite)
-              LanguageTools.Permissions.Rule.Effect(
-                LanguageTools.Permissions.Effect.Runtime) ]
-        Stdlib.Result.Result.Ok(
-          { policy with allow = Stdlib.List.concat(policy.allow, rules) })
-    | _ -> Stdlib.Result.Result.Error("usage: " + Profiles.usage(profile))
+
+              LanguageTools.Permissions.Rule.Effect(LanguageTools.Permissions.Effect.PackageWrite)
+              LanguageTools.Permissions.Rule.Effect(LanguageTools.Permissions.Effect.Runtime) ]
+
+        Result.Ok({ policy with allow = Stdlib.List.concat(policy.allow, rules) })
+    | _ -> Result.Error("usage: " + usage(profile))

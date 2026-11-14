@@ -25,15 +25,18 @@ let field(json: Stdlib.AltJson.Json, name: String): Stdlib.AltJson.Json =
     |> Stdlib.Option.withDefault(Stdlib.AltJson.Json.Null)
   | _ -> Stdlib.AltJson.Json.Null
 
+
 let rows(json: Stdlib.AltJson.Json): List<Stdlib.AltJson.Json> =
   match json with
   | Array(items) -> items
   | _ -> []
 
+
 let int(json: Stdlib.AltJson.Json, name: String): Int64 =
   match field(json, name) with
   | Integer(n) -> n
   | _ -> -1
+
 
 let string(json: Stdlib.AltJson.Json, name: String): String =
   match field(json, name) with
@@ -45,35 +48,51 @@ let string(json: Stdlib.AltJson.Json, name: String): String =
 
 /// Exactly these keys, no more and no fewer. Extra keys are as much a change as missing
 /// ones: a caller that switches on the shape sees a new one as an unknown variant.
-let hasKeys(json: Stdlib.AltJson.Json, expected: List<String>): Stdlib.Test.Result =
+let hasKeys(
+  json: Stdlib.AltJson.Json,
+  expected: List<String>)
+  : Stdlib.Test.Result =
   match json with
   | Object(fields) ->
     fields
     |> Stdlib.List.map(fun((k, _)) -> k)
     |> Stdlib.List.sort
     |> Stdlib.Test.equal(Stdlib.List.sort(expected))
-  | _ -> Stdlib.Test.fail($"expected an object, got {Stdlib.AltJson.format(json)}")
+  | _ ->
+    Stdlib.Test.fail($"expected an object, got {Stdlib.AltJson.format(json)}")
+
 
 /// The keys of `search --json`. The hint keys are there, empty, when something matched.
-val searchKeys = [ "query", "results", "alsoSearched", "wordCounts", "didYouMean" ]
+val searchKeys =
+  [ "query", "results", "alsoSearched", "wordCounts", "didYouMean" ]
 
 
 /// A list that answers `{}` or `null` when it is empty is the same break as a missing key.
 let isArray(json: Stdlib.AltJson.Json): Stdlib.Test.Result =
   match json with
   | Array(_) -> Stdlib.Test.Result.Pass
-  | _ -> Stdlib.Test.fail($"expected an array, got {Stdlib.AltJson.format(json)}")
+  | _ ->
+    Stdlib.Test.fail($"expected an array, got {Stdlib.AltJson.format(json)}")
+
 
 let fieldIsArray(json: Stdlib.AltJson.Json, name: String): Stdlib.Test.Result =
   match field(json, name) with
   | Array(_) -> Stdlib.Test.Result.Pass
-  | other -> Stdlib.Test.fail($"`{name}` should be an array, got {Stdlib.AltJson.format(other)}")
+  | other ->
+    Stdlib.Test.fail(
+      $"`{name}` should be an array, got {Stdlib.AltJson.format(other)}")
+
 
 /// Every row carries these keys, and there is at least one row to make the claim about.
-let rowsHaveKeys(json: Stdlib.AltJson.Json, expected: List<String>): Stdlib.Test.Result =
+let rowsHaveKeys(
+  json: Stdlib.AltJson.Json,
+  expected: List<String>)
+  : Stdlib.Test.Result =
   match rows(json) with
   | [] -> Stdlib.Test.fail("needs at least one row for this claim")
-  | found -> Stdlib.Test.all(Stdlib.List.map(found, fun(row) -> hasKeys(row, expected)))
+  | found ->
+    Stdlib.Test.all(Stdlib.List.map(found, fun row -> hasKeys(row, expected)))
+
 
 let isTrue(claim: Bool, why: String): Stdlib.Test.Result =
   if claim then Stdlib.Test.Result.Pass else Stdlib.Test.fail(why)
@@ -86,12 +105,15 @@ let about(cmd: String, result: Stdlib.Test.Result): Stdlib.Test.Result =
   match result with
   | Pass -> result
   | Fail(messages) ->
-    Stdlib.Test.Result.Fail(Stdlib.List.map(messages, fun(m) -> $"`dark {cmd}`: {m}"))
+    Stdlib.Test.Result.Fail(
+      Stdlib.List.map(messages, fun m -> $"`dark {cmd}`: {m}"))
+
 
 /// Run for the EFFECT. A setup step that fails is reported as itself, not as the confusing
 /// shape the next command then has.
 let step(i: Instance.T, args: List<String>): Stdlib.Test.Result =
   about(Stdlib.String.join(args, " "), Instance.expectExit(i, args, 0))
+
 
 /// Run once, parse once, and make every claim about that one payload.
 ///
@@ -104,7 +126,6 @@ let check(
   claims: List<Stdlib.AltJson.Json -> Stdlib.Test.Result>)
   : Stdlib.Test.Result =
   let cmd = Stdlib.String.join(args, " ")
-
   match Instance.run(i, args) with
   | Error(e) -> Stdlib.Test.fail($"`dark {cmd}` could not run: {e}")
   | Ok(out) ->
@@ -117,22 +138,30 @@ let check(
 
     match Stdlib.AltJson.parse(line) with
     | Error(_) ->
-      Stdlib.Test.fail($"`dark {cmd}` did not print JSON. It said: {out.stdout}{out.stderr}")
-    | Ok(json) -> about(cmd, Stdlib.Test.all(Stdlib.List.map(claims, fun(c) -> c(json))))
+      Stdlib.Test.fail(
+        $"`dark {cmd}` did not print JSON. It said: {out.stdout}{out.stderr}")
+    | Ok(json) ->
+      about(cmd, Stdlib.Test.all(Stdlib.List.map(claims, fun c -> c(json))))
+
 
 /// Refused, saying why, on either stream, and with no payload anywhere.
-let refuses(i: Instance.T, args: List<String>, reason: String): Stdlib.Test.Result =
+let refuses(
+  i: Instance.T,
+  args: List<String>,
+  reason: String)
+  : Stdlib.Test.Result =
   let cmd = Stdlib.String.join(args, " ")
-
   match Instance.run(i, args) with
   | Error(e) -> Stdlib.Test.fail($"`dark {cmd}` could not run: {e}")
   | Ok(out) ->
     let said = out.stdout + out.stderr
-
     about(
       cmd,
       Stdlib.Test.all(
-        [ isTrue(Stdlib.String.contains(said, reason), $"should say '{reason}'. It said: {said}")
+        [ isTrue(
+            Stdlib.String.contains(said, reason),
+            $"should say '{reason}'. It said: {said}")
+
           isTrue(
             Stdlib.Bool.not(Stdlib.String.contains(said, "{")),
             $"refused AND printed a payload: {said}") ]))
@@ -143,53 +172,81 @@ let refuses(i: Instance.T, args: List<String>, reason: String): Stdlib.Test.Resu
 /// On a store where nothing has happened, every collection is empty and every key still
 /// has to be there. A caller reading `.changed` gets `[]` on a clean tree, not a missing key
 /// it has to guard. `findings: []` means "nothing is wrong" only beside an empty `blocked`.
-test emptyAnswersKeepTheirShape =
-  Instance.withInstance(fun i ->
-    Stdlib.Test.all(
-      [ check(
-          i,
-          [ "status", "--json" ],
-          [ fun(j) ->
-              hasKeys(
-                j,
-                [ "branch", "changed", "conflicts", "constraints", "draftOps", "propagates", "removed" ])
-            fun(j) -> fieldIsArray(j, "changed")
-            fun(j) -> fieldIsArray(j, "conflicts")
-            fun(j) -> fieldIsArray(j, "propagates")
-            fun(j) -> fieldIsArray(j, "removed") ])
-        check(i, [ "conflicts", "--json" ], [ fun(j) -> hasKeys(j, [ "conflicts", "pending" ]) ])
-        check(
-          i,
-          [ "constraints", "--json" ],
-          [ fun(j) -> hasKeys(j, [ "findings", "blocked" ]), fun(j) -> fieldIsArray(j, "blocked") ])
-        // Where a renderer is most tempted to print "no results" and nothing else.
-        check(
-          i,
-          [ "search", "zzz-nothing-matches-this", "--json" ],
-          [ fun(j) -> hasKeys(j, searchKeys)
-            fun(j) -> fieldIsArray(j, "results")
-            fun(j) -> fieldIsArray(j, "alsoSearched")
-            fun(j) -> fieldIsArray(j, "wordCounts")
-            fun(j) -> fieldIsArray(j, "didYouMean") ])
-        // The hints the human view prints when nothing matched, as data.
-        check(
-          i,
-          [ "search", "lentgh", "--json" ],
-          [ fun(j) -> rowsHaveKeys(field(j, "didYouMean"), [ "names", "word" ])
-            fun(j) -> isTrue(Stdlib.Bool.not(Stdlib.List.isEmpty(rows(field(j, "didYouMean")))), "suggests a name") ])
-        check(
-          i,
-          [ "search", "length", "zzzq", "--json" ],
-          [ fun(j) -> rowsHaveKeys(field(j, "wordCounts"), [ "count", "word" ])
-            fun(j) -> isTrue(Stdlib.List.length(rows(field(j, "wordCounts"))) == 2, "counts each word") ])
-        check(
-          i,
-          [ "search", "size", "of", "string", "--json" ],
-          [ fun(j) -> field(j, "alsoSearched") |> Stdlib.Test.equal(Stdlib.AltJson.Json.Array([ Stdlib.AltJson.Json.String("length string") ])) ])
-        check(i, [ "traces", "list", "--json" ], [ isArray ])
-        // A command with no JSON form has to SAY so, rather than print prose for a caller
-        // to parse as a payload. `ops` takes no flags at all.
-        refuses(i, [ "ops", "--json" ], "does not take `--json`") ]))
+test emptyAnswersKeepTheirShape = Instance.withInstance(fun i ->
+  Stdlib.Test.all(
+    [ check(
+        i,
+        [ "status", "--json" ],
+        [ (fun j ->
+             hasKeys(
+               j,
+               [ "branch"
+                 "changed"
+                 "conflicts"
+                 "constraints"
+                 "draftOps"
+                 "propagates"
+                 "removed" ]))
+
+          (fun j -> fieldIsArray(j, "changed"))
+          (fun j -> fieldIsArray(j, "conflicts"))
+          (fun j -> fieldIsArray(j, "propagates"))
+          (fun j -> fieldIsArray(j, "removed")) ])
+
+      check(
+        i,
+        [ "conflicts", "--json" ],
+        [ (fun j -> hasKeys(j, [ "conflicts", "pending" ])) ])
+
+      check(
+        i,
+        [ "constraints", "--json" ],
+        [ (fun j -> hasKeys(j, [ "findings", "blocked" ]))
+          (fun j -> fieldIsArray(j, "blocked")) ])
+
+      // Where a renderer is most tempted to print "no results" and nothing else.
+      check(
+        i,
+        [ "search", "zzz-nothing-matches-this", "--json" ],
+        [ (fun j -> hasKeys(j, searchKeys))
+          (fun j -> fieldIsArray(j, "results"))
+          (fun j -> fieldIsArray(j, "alsoSearched"))
+          (fun j -> fieldIsArray(j, "wordCounts"))
+          (fun j -> fieldIsArray(j, "didYouMean")) ])
+
+      // The hints the human view prints when nothing matched, as data.
+      check(
+        i,
+        [ "search", "lentgh", "--json" ],
+        [ (fun j -> rowsHaveKeys(field(j, "didYouMean"), [ "names", "word" ]))
+          (fun j ->
+             isTrue(
+               Stdlib.Bool.not(
+                 Stdlib.List.isEmpty(rows(field(j, "didYouMean")))),
+               "suggests a name")) ])
+
+      check(
+        i,
+        [ "search", "length", "zzzq", "--json" ],
+        [ (fun j -> rowsHaveKeys(field(j, "wordCounts"), [ "count", "word" ]))
+          (fun j ->
+             isTrue(
+               Stdlib.List.length(rows(field(j, "wordCounts"))) == 2,
+               "counts each word")) ])
+
+      check(
+        i,
+        [ "search", "size", "of", "string", "--json" ],
+        [ (fun j ->
+             field(j, "alsoSearched")
+             |> Stdlib.Test.equal(
+               Stdlib.AltJson.Json.Array(
+                 [ Stdlib.AltJson.Json.String("length string") ]))) ])
+
+      check(i, [ "traces", "list", "--json" ], [ isArray ])
+      // A command with no JSON form has to SAY so, rather than print prose for a caller
+      // to parse as a payload. `ops` takes no flags at all.
+      refuses(i, [ "ops", "--json" ], "does not take `--json`") ]))
 
 
 /// A draft, reviewed, committed and then read back: each answer describes the change rather
@@ -201,58 +258,89 @@ test aDraftThroughCommitKeepsItsShape =
   Instance.withInstance(fun i ->
     Stdlib.Test.all(
       [ step(i, [ "fn", "Tests.JsonDeps.leaf", "() : Int64 = 7202" ])
-        step(i, [ "fn", "Tests.JsonDeps.caller", "(): Int64 = Tests.JsonDeps.leaf()" ])
+
+        step(
+          i,
+          [ "fn"
+            "Tests.JsonDeps.caller"
+            "(): Int64 = Tests.JsonDeps.leaf()" ])
+
         check(
           i,
           [ "status", "--json" ],
-          [ fun(j) -> rowsHaveKeys(field(j, "changed"), [ "change", "followed", "hash", "kind", "name" ])
-            fun(j) -> isTrue(int(j, "draftOps") > 0, "counts the draft's ops") ])
+          [ (fun j ->
+               rowsHaveKeys(
+                 field(j, "changed"),
+                 [ "change", "followed", "hash", "kind", "name" ]))
+
+            (fun j ->
+               isTrue(int(j, "draftOps") > 0, "counts the draft's ops")) ])
+
         check(
           i,
           [ "commit", "--json" ],
-          [ fun(j) ->
-              hasKeys(
-                j,
-                [ "branch"
-                  "changed"
-                  "commit"
-                  "committed"
-                  "conflicts"
-                  "dependentsRepointed"
-                  "message"
-                  "opsCommitted"
-                  "propagates"
-                  "refused"
-                  "removed" ])
-            fun(j) -> field(j, "committed") |> Stdlib.Test.equal(Stdlib.AltJson.Json.Bool(false)) ])
+          [ (fun j ->
+               hasKeys(
+                 j,
+                 [ "branch"
+                   "changed"
+                   "commit"
+                   "committed"
+                   "conflicts"
+                   "dependentsRepointed"
+                   "message"
+                   "opsCommitted"
+                   "propagates"
+                   "refused"
+                   "removed" ]))
+
+            (fun j ->
+               field(j, "committed")
+               |> Stdlib.Test.equal(Stdlib.AltJson.Json.Bool(false))) ])
+
         check(
           i,
           [ "status", "--json" ],
-          [ fun(j) -> isTrue(int(j, "draftOps") > 0, "the draft is still there after a dry review") ])
+          [ (fun j ->
+               isTrue(
+                 int(j, "draftOps") > 0,
+                 "the draft is still there after a dry review")) ])
+
         step(i, [ "commit", "json deps fixture", "-y" ])
         check(
           i,
           [ "deps", "Tests.JsonDeps.leaf", "--json" ],
-          [ fun(j) -> hasKeys(j, [ "dependencies", "dependents", "item" ])
-            fun(j) -> fieldIsArray(j, "dependencies")
-            fun(j) -> isTrue(Stdlib.Bool.not(Stdlib.List.isEmpty(rows(field(j, "dependents")))), "lists the caller") ])
-        check(i, [ "commits", "--json" ], [ isArray, fun(j) -> rowsHaveKeys(j, [ "hash", "message", "ops" ]) ])
-        check(i, [ "search", "Tests.JsonDeps", "--json" ], [ fun(j) -> hasKeys(j, searchKeys) ]) ]))
+          [ (fun j -> hasKeys(j, [ "dependencies", "dependents", "item" ]))
+            (fun j -> fieldIsArray(j, "dependencies"))
+            (fun j ->
+               isTrue(
+                 Stdlib.Bool.not(
+                   Stdlib.List.isEmpty(rows(field(j, "dependents")))),
+                 "lists the caller")) ])
+
+        check(
+          i,
+          [ "commits", "--json" ],
+          [ isArray, (fun j -> rowsHaveKeys(j, [ "hash", "message", "ops" ])) ])
+
+        check(
+          i,
+          [ "search", "Tests.JsonDeps", "--json" ],
+          [ (fun j -> hasKeys(j, searchKeys)) ]) ]))
 
 
 /// A name saved twice and never committed is still `new`, not `updated`.
-test aNameSavedTwiceIsStillNew =
-  Instance.withInstance(fun i ->
-    Stdlib.Test.all(
-      [ step(i, [ "fn", "Tests.JsonNew.f", "(): Int64 = 7301" ])
-        step(i, [ "fn", "Tests.JsonNew.f", "(): Int64 = 7302" ])
-        check(
-          i,
-          [ "status", "--json" ],
-          [ fun(j) ->
-              rows(field(j, "changed"))
-              |> Stdlib.List.map(fun r -> field(r, "change"))
-              |> Stdlib.Test.equal([ Stdlib.AltJson.Json.String("new") ]) ]) ]))
+test aNameSavedTwiceIsStillNew = Instance.withInstance(fun i ->
+  Stdlib.Test.all(
+    [ step(i, [ "fn", "Tests.JsonNew.f", "(): Int64 = 7301" ])
+      step(i, [ "fn", "Tests.JsonNew.f", "(): Int64 = 7302" ])
+      check(
+        i,
+        [ "status", "--json" ],
+        [ (fun j ->
+             rows(field(j, "changed"))
+             |> Stdlib.List.map(fun r -> field(r, "change"))
+             |> Stdlib.Test.equal([ Stdlib.AltJson.Json.String("new") ])) ]) ]))
 
 
 /// `branches` is a listing of rows; `diff` against a branch that has done nothing is still
@@ -266,27 +354,43 @@ test branchListingsAreArrays =
           i,
           [ "branches", "--json" ],
           [ isArray
-            fun(j) ->
-              rowsHaveKeys(j, [ "current", "id", "merged", "name", "ops", "parent", "parentName" ]) ])
+            (fun j ->
+               rowsHaveKeys(
+                 j,
+                 [ "current"
+                   "id"
+                   "merged"
+                   "name"
+                   "ops"
+                   "parent"
+                   "parentName" ])) ])
+
         check(i, [ "diff", "jsonbr", "--json" ], [ isArray ]) ]))
 
 
 /// Every declaration under a module, counted by the search rather than by the checker.
 let declaredUnder(path: List<String>): Int64 =
   let (_, types, values, fns, _, impls, tests) =
-    Darklang.LanguageTools.PackageManager.Search.searchNamesAndHashes(
-      Darklang.SCM.Branch.mainBranchId,
-      Darklang.LanguageTools.ProgramTypes.Search.SearchQuery
+    LanguageTools.PackageManager.Search.searchNamesAndHashes(
+      SCM.Branch.mainBranchId,
+      LanguageTools.ProgramTypes.Search.SearchQuery
         { currentModule = path
           text = ""
-          searchDepth = Darklang.LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+          searchDepth =
+            LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
           entityTypes = []
           exactMatch = false })
 
-  (distinct(types)) + (distinct(values)) + (distinct(fns)) + (distinct(impls)) + (distinct(tests))
+  distinct(types)
+  + distinct(values)
+  + distinct(fns)
+  + distinct(impls)
+  + distinct(tests)
 
-let distinct(found: List<(String * Darklang.LanguageTools.ProgramTypes.Hash)>): Int64 =
-  Stdlib.List.length(Stdlib.List.unique(Stdlib.List.map(found, fun((_, h)) -> h)))
+
+let distinct(found: List<(String * LanguageTools.ProgramTypes.Hash)>): Int64 =
+  Stdlib.List.length(
+    Stdlib.List.unique(Stdlib.List.map(found, fun((_, h)) -> h)))
 
 
 /// `typecheck --json` is the at-rest audit an agent reads before deciding a branch is safe
@@ -297,33 +401,52 @@ let distinct(found: List<(String * Darklang.LanguageTools.ProgramTypes.Hash)>): 
 /// with a wider one, never with the whole branch. `Darklang.Stdlib` is checked in pieces
 /// across the cores, and every declaration under it comes back whichever piece it was in.
 /// A module nobody defined is refused: "checked 0" about a typo reads as a clean audit.
-test typecheckAnswersWithItsCounts =
-  Instance.withInstance(fun i ->
-    let wider =
-      match Instance.run(i, [ "typecheck", "Darklang.Stdlib", "--json" ]) with
-      | Ok(out) ->
-        match Stdlib.AltJson.parse(Stdlib.String.trim(out.stdout)) with
-        | Ok(j) -> int(j, "total")
-        | Error(_) -> -1
+test typecheckAnswersWithItsCounts = Instance.withInstance(fun i ->
+  let wider =
+    match Instance.run(i, [ "typecheck", "Darklang.Stdlib", "--json" ]) with
+    | Ok(out) ->
+      match Stdlib.AltJson.parse(Stdlib.String.trim(out.stdout)) with
+      | Ok(j) -> int(j, "total")
       | Error(_) -> -1
+    | Error(_) -> -1
 
-    Stdlib.Test.all(
-      [ check(
-          i,
-          [ "typecheck", "Darklang.Stdlib.List", "--json" ],
-          [ fun(j) -> hasKeys(j, [ "verdict", "checked", "failed", "incomplete", "total", "items" ])
-            fun(j) ->
-              isTrue(
-                Stdlib.List.contains([ "checked", "failed", "incomplete" ], string(j, "verdict")),
-                "verdict is one of the three the renderer can produce")
-            fun(j) -> fieldIsArray(j, "items")
-            fun(j) -> isTrue(int(j, "total") > 0, "a real module has declarations to audit")
-            fun(j) ->
-              isTrue(
-                int(j, "total") < wider,
-                "a narrower scope audits fewer declarations than its parent") ])
-        wider |> Stdlib.Test.equal(declaredUnder([ "Darklang", "Stdlib" ]))
-        Instance.expectExit(i, [ "typecheck", "Darklang.NoSuchModule", "--json" ], 1) ]))
+  Stdlib.Test.all(
+    [ check(
+        i,
+        [ "typecheck", "Darklang.Stdlib.List", "--json" ],
+        [ (fun j ->
+             hasKeys(
+               j,
+               [ "verdict"
+                 "checked"
+                 "failed"
+                 "incomplete"
+                 "total"
+                 "items" ]))
+
+          (fun j ->
+             isTrue(
+               Stdlib.List.contains(
+                 [ "checked", "failed", "incomplete" ],
+                 string(j, "verdict")),
+               "verdict is one of the three the renderer can produce"))
+
+          (fun j -> fieldIsArray(j, "items"))
+          (fun j ->
+             isTrue(
+               int(j, "total") > 0,
+               "a real module has declarations to audit"))
+
+          (fun j ->
+             isTrue(
+               int(j, "total") < wider,
+               "a narrower scope audits fewer declarations than its parent")) ])
+
+      wider |> Stdlib.Test.equal(declaredUnder([ "Darklang", "Stdlib" ]))
+      Instance.expectExit(
+        i,
+        [ "typecheck", "Darklang.NoSuchModule", "--json" ],
+        1) ]))
 
 
 /// At save, a name that resolves to nothing is "not decided yet": a caller may be written
@@ -332,12 +455,18 @@ test typecheckAnswersWithItsCounts =
 test typecheckFailsACallToNothing =
   Instance.withInstance(fun i ->
     Stdlib.Test.all(
-      [ step(i, [ "fn", "Tests.TcGone.callsGone", "(n: Int64): String = Tests.TcGoneMissing.toText(n)" ])
+      [ step(
+          i,
+          [ "fn"
+            "Tests.TcGone.callsGone"
+            "(n: Int64): String = Tests.TcGoneMissing.toText(n)" ])
+
         check(
           i,
           [ "typecheck", "Tests.TcGone", "--json" ],
-          [ fun(j) -> int(j, "failed") |> Stdlib.Test.equal(1)
-            fun(j) -> int(j, "incomplete") |> Stdlib.Test.equal(0) ])
+          [ (fun j -> int(j, "failed") |> Stdlib.Test.equal(1))
+            (fun j -> int(j, "incomplete") |> Stdlib.Test.equal(0)) ])
+
         Instance.expectExit(i, [ "typecheck", "Tests.TcGone" ], 1) ]))
 
 
@@ -346,37 +475,52 @@ test typecheckFailsACallToNothing =
 /// `typecheck Tests.TcScope` listed `Tests.TcElsewhere.show` beside `render`, a fn the module
 /// never mentions. A scope that holds both names still lists both, which pins that they really
 /// are one item.
-test typecheckNamesOnlyWhatIsInScope =
-  Instance.withInstance(fun i ->
-    let names = fun(j) ->
-      rows(field(j, "items")) |> Stdlib.List.map(fun(r) -> string(r, "name"))
-    // Setup runs before the text is read, so it is bound first rather than listed below.
-    let setup =
-      [ step(i, [ "fn", "Tests.TcElsewhere.show", "(n: Int64): String = Stdlib.display(n)" ])
-        step(i, [ "fn", "Tests.TcScope.render", "(n: Int64): String = Stdlib.display(n)" ]) ]
-    let text =
-      match Instance.run(i, [ "typecheck", "Tests.TcScope", "--all" ]) with
-      | Ok(out) -> out.stdout
-      | Error(e) -> e
+test typecheckNamesOnlyWhatIsInScope = Instance.withInstance(fun i ->
+  let names = fun j ->
+    rows(field(j, "items")) |> Stdlib.List.map(fun r -> string(r, "name"))
 
-    Stdlib.Test.all(
-      [ Stdlib.Test.all(setup)
-        check(
-          i,
-          [ "typecheck", "Tests.TcScope", "--all", "--json" ],
-          [ fun(j) -> names(j) |> Stdlib.Test.equal([ "Tests.TcScope.render" ]) ])
-        check(
-          i,
-          [ "typecheck", "Tests", "--all", "--json" ],
-          [ fun(j) ->
-              names(j)
-              |> Stdlib.Test.equal([ "Tests.TcElsewhere.show, Tests.TcScope.render" ]) ])
-        isTrue(
-          Stdlib.String.contains(text, "Tests.TcScope.render"),
-          $"the text lists the item in scope, it said: {text}")
-        isTrue(
-          Stdlib.Bool.not(Stdlib.String.contains(text, "TcElsewhere")),
-          $"the text names nothing outside the scope, it said: {text}") ]))
+  // Setup runs before the text is read, so it is bound first rather than listed below.
+  let setup =
+    [ step(
+        i,
+        [ "fn"
+          "Tests.TcElsewhere.show"
+          "(n: Int64): String = Stdlib.display(n)" ])
+
+      step(
+        i,
+        [ "fn"
+          "Tests.TcScope.render"
+          "(n: Int64): String = Stdlib.display(n)" ]) ]
+
+  let text =
+    match Instance.run(i, [ "typecheck", "Tests.TcScope", "--all" ]) with
+    | Ok(out) -> out.stdout
+    | Error(e) -> e
+
+  Stdlib.Test.all(
+    [ Stdlib.Test.all(setup)
+      check(
+        i,
+        [ "typecheck", "Tests.TcScope", "--all", "--json" ],
+        [ (fun j ->
+             names(j) |> Stdlib.Test.equal([ "Tests.TcScope.render" ])) ])
+
+      check(
+        i,
+        [ "typecheck", "Tests", "--all", "--json" ],
+        [ (fun j ->
+             names(j)
+             |> Stdlib.Test.equal(
+               [ "Tests.TcElsewhere.show, Tests.TcScope.render" ])) ])
+
+      isTrue(
+        Stdlib.String.contains(text, "Tests.TcScope.render"),
+        $"the text lists the item in scope, it said: {text}")
+
+      isTrue(
+        Stdlib.Bool.not(Stdlib.String.contains(text, "TcElsewhere")),
+        $"the text names nothing outside the scope, it said: {text}") ]))
 
 
 /// A module's fns are checked against what their bodies call, wherever that lives. Their
@@ -386,64 +530,83 @@ test typecheckNamesOnlyWhatIsInScope =
 test typecheckLoadsWhatAModuleBodyCalls =
   Instance.withInstance(fun i ->
     Stdlib.Test.all(
-      [ step(i, [ "fn", "Tests.TcBodyDep.render", "(n: Int64): String = Stdlib.display(n)" ])
+      [ step(
+          i,
+          [ "fn"
+            "Tests.TcBodyDep.render"
+            "(n: Int64): String = Stdlib.display(n)" ])
+
         check(
           i,
           [ "typecheck", "Tests.TcBodyDep", "--json" ],
-          [ fun(j) -> int(j, "checked") |> Stdlib.Test.equal(1)
-            fun(j) -> int(j, "incomplete") |> Stdlib.Test.equal(0)
-            fun(j) -> int(j, "failed") |> Stdlib.Test.equal(0) ])
-        Instance.expectExit(i, [ "typecheck", "Tests.TcBodyDep" ], 0)
+          [ (fun j -> int(j, "checked") |> Stdlib.Test.equal(1))
+            (fun j -> int(j, "incomplete") |> Stdlib.Test.equal(0))
+            (fun j -> int(j, "failed") |> Stdlib.Test.equal(0)) ])
 
+        Instance.expectExit(i, [ "typecheck", "Tests.TcBodyDep" ], 0)
         step(i, [ "type", "Tests.TcBodyDepLib.Point", "= { x: Int64 }" ])
+
         step(
           i,
           [ "fn"
             "Tests.TcBodyDepLib.describe"
             "(p: Tests.TcBodyDepLib.Point): String = Stdlib.display(p.x)" ])
+
         step(
           i,
           [ "fn"
             "Tests.TcBodyDepUser.describeAt"
             "(n: Int64): String = Tests.TcBodyDepLib.describe(Tests.TcBodyDepLib.Point { x = n })" ])
+
         check(
           i,
           [ "typecheck", "Tests.TcBodyDepUser", "--json" ],
-          [ fun(j) -> int(j, "checked") |> Stdlib.Test.equal(1)
-            fun(j) -> int(j, "incomplete") |> Stdlib.Test.equal(0)
-            fun(j) -> int(j, "failed") |> Stdlib.Test.equal(0) ])
+          [ (fun j -> int(j, "checked") |> Stdlib.Test.equal(1))
+            (fun j -> int(j, "incomplete") |> Stdlib.Test.equal(0))
+            (fun j -> int(j, "failed") |> Stdlib.Test.equal(0)) ])
+
         Instance.expectExit(i, [ "typecheck", "Tests.TcBodyDepUser" ], 0) ]))
 
 
 /// An implementation is one result. Its method fn lives one level under it and its path
 /// reads as a module, so without collapsing them `search %` listed every `Modulo`
 /// implementation three times: as an impl, as a fn and as a module.
-test searchListsAnImplementationOnce =
-  Instance.withInstance(fun i ->
-    check(
-      i,
-      [ "search", "%", "--json" ],
-      [ fun(j) ->
-          let results = rows(field(j, "results"))
-          let named = fun(kind) ->
-            results
-            |> Stdlib.List.filter(fun(r) -> string(r, "kind") == kind)
-            |> Stdlib.List.map(fun(r) -> string(r, "name"))
-          let impls = named("impl")
-          let underAnImpl = fun(name) ->
-            Stdlib.List.any(impls, fun(owner) -> name == owner || Stdlib.String.startsWith(name, owner + "."))
+test searchListsAnImplementationOnce = Instance.withInstance(fun i ->
+  check(
+    i,
+    [ "search", "%", "--json" ],
+    [ (fun j ->
+         let results = rows(field(j, "results"))
+         let named = fun kind ->
+           results
+           |> Stdlib.List.filter(fun r -> string(r, "kind") == kind)
+           |> Stdlib.List.map(fun r -> string(r, "name"))
 
-          Stdlib.Test.all(
-            [ isTrue(Stdlib.Bool.not(Stdlib.List.isEmpty(impls)), "finds the Modulo implementations")
-              Stdlib.List.filter(named("fn"), underAnImpl) |> Stdlib.Test.equal([])
-              Stdlib.List.filter(named("module"), underAnImpl) |> Stdlib.Test.equal([]) ]) ]))
+         let impls = named("impl")
+         let underAnImpl = fun name ->
+           Stdlib.List.any(impls, fun owner ->
+             name == owner || Stdlib.String.startsWith(name, owner + "."))
+
+         Stdlib.Test.all(
+           [ isTrue(
+               Stdlib.Bool.not(Stdlib.List.isEmpty(impls)),
+               "finds the Modulo implementations")
+
+             Stdlib.List.filter(named("fn"), underAnImpl)
+             |> Stdlib.Test.equal([])
+
+             Stdlib.List.filter(named("module"), underAnImpl)
+             |> Stdlib.Test.equal([]) ])) ]))
 
 
 /// A refusal under `--json`: stdout empty, so a caller parsing it never mistakes the refusal for
 /// a payload; the reason on stderr; exit 1.
-let refusesQuietly(i: Instance.T, args: List<String>, reason: String): Stdlib.Test.Result =
+let refusesQuietly(
+  i: Instance.T,
+  args: List<String>,
+  reason: String)
+  : Stdlib.Test.Result =
   let cmd = Stdlib.String.join(args, " ")
-
   match Instance.run(i, args) with
   | Error(e) -> Stdlib.Test.fail($"`dark {cmd}` could not run: {e}")
   | Ok(out) ->
@@ -451,45 +614,105 @@ let refusesQuietly(i: Instance.T, args: List<String>, reason: String): Stdlib.Te
       cmd,
       Stdlib.Test.all(
         [ out.stdout |> Stdlib.Test.equal("")
-          isTrue(Stdlib.String.contains(out.stderr, reason), $"should say '{reason}' on stderr. It said: {out.stderr}")
+          isTrue(
+            Stdlib.String.contains(out.stderr, reason),
+            $"should say '{reason}' on stderr. It said: {out.stderr}")
+
           out.exitCode |> Stdlib.Test.equal(1) ]))
 
 
 /// `deprecate --json` and `delete --json` answer one object. A dry run, and `--json` without
 /// `--yes`, write nothing and say so; `undeprecate` is how the test asks whether anything was
 /// written. A refusal is not a payload.
-test deprecateAndDeleteAnswerInJson =
-  Instance.withInstance(fun i ->
-    let keys = [ "deprecated", "dryRun", "itemType", "kind", "message", "names", "replacement" ]
-    let dryRun = fun(expected) -> fun(j) -> field(j, "dryRun") |> Stdlib.Test.equal(Stdlib.AltJson.Json.Bool(expected))
+test deprecateAndDeleteAnswerInJson = Instance.withInstance(fun i ->
+  let keys =
+    [ "deprecated"
+      "dryRun"
+      "itemType"
+      "kind"
+      "message"
+      "names"
+      "replacement" ]
 
-    Stdlib.Test.all(
-      [ step(i, [ "fn", "Tests.JsonDep.leaf", "() : Int64 = 7203" ])
-        step(i, [ "fn", "Tests.JsonDep.caller", "(): Int64 = Tests.JsonDep.leaf()" ])
-        step(i, [ "fn", "Tests.JsonDep.alone", "() : Int64 = 7204" ])
-        step(i, [ "fn", "Tests.JsonDep.newer", "() : Int64 = 7205" ])
-        check(
-          i,
-          [ "deprecate", "Tests.JsonDep.alone", "--kind", "superseded-by", "--replacement", "Tests.JsonDep.newer", "--dry-run", "--json" ],
-          [ fun(j) -> hasKeys(j, keys)
-            fun(j) -> string(j, "deprecated") |> Stdlib.Test.equal("Tests.JsonDep.alone")
-            fun(j) -> string(j, "itemType") |> Stdlib.Test.equal("fn")
-            fun(j) -> string(j, "kind") |> Stdlib.Test.equal("superseded-by")
-            fun(j) -> string(j, "replacement") |> Stdlib.Test.equal("Tests.JsonDep.newer")
-            fun(j) ->
-              field(j, "names")
-              |> Stdlib.Test.equal(Stdlib.AltJson.Json.Array([ Stdlib.AltJson.Json.String("Tests.JsonDep.alone") ]))
-            dryRun(true) ])
-        check(i, [ "delete", "Tests.JsonDep.alone", "--json" ], [ dryRun(true) ])
-        Instance.says(Instance.said(i, [ "undeprecate", "Tests.JsonDep.alone" ]), "is not deprecated", "a dry run writes nothing")
-        check(
-          i,
-          [ "delete", "Tests.JsonDep.alone", "-m", "unused", "--json", "--yes" ],
-          [ fun(j) -> hasKeys(j, keys)
-            fun(j) -> string(j, "kind") |> Stdlib.Test.equal("obsolete")
-            fun(j) -> string(j, "message") |> Stdlib.Test.equal("unused")
-            dryRun(false) ])
-        Instance.says(Instance.said(i, [ "undeprecate", "Tests.JsonDep.alone" ]), "Undeprecated", "--yes writes it")
-        refusesQuietly(i, [ "delete", "fn", "Tests.JsonDep.nothing", "--json", "--yes" ], "Could not resolve")
-        refusesQuietly(i, [ "deprecate", "Tests.JsonDep.nothing", "--kind", "obsolete", "--json", "--yes" ], "Could not resolve")
-        refusesQuietly(i, [ "delete", "Tests.JsonDep.leaf", "--json", "--yes" ], "live dependent") ]))
+  let dryRun = fun expected ->
+    (fun j ->
+       field(j, "dryRun")
+       |> Stdlib.Test.equal(Stdlib.AltJson.Json.Bool(expected)))
+
+  Stdlib.Test.all(
+    [ step(i, [ "fn", "Tests.JsonDep.leaf", "() : Int64 = 7203" ])
+
+      step(
+        i,
+        [ "fn", "Tests.JsonDep.caller", "(): Int64 = Tests.JsonDep.leaf()" ])
+
+      step(i, [ "fn", "Tests.JsonDep.alone", "() : Int64 = 7204" ])
+
+      step(i, [ "fn", "Tests.JsonDep.newer", "() : Int64 = 7205" ])
+      check(
+        i,
+        [ "deprecate"
+          "Tests.JsonDep.alone"
+          "--kind"
+          "superseded-by"
+          "--replacement"
+          "Tests.JsonDep.newer"
+          "--dry-run"
+          "--json" ],
+        [ (fun j -> hasKeys(j, keys))
+          (fun j ->
+             string(j, "deprecated")
+             |> Stdlib.Test.equal("Tests.JsonDep.alone"))
+
+          (fun j -> string(j, "itemType") |> Stdlib.Test.equal("fn"))
+          (fun j -> string(j, "kind") |> Stdlib.Test.equal("superseded-by"))
+          (fun j ->
+             string(j, "replacement")
+             |> Stdlib.Test.equal("Tests.JsonDep.newer"))
+
+          (fun j ->
+             field(j, "names")
+             |> Stdlib.Test.equal(
+               Stdlib.AltJson.Json.Array(
+                 [ Stdlib.AltJson.Json.String("Tests.JsonDep.alone") ])))
+
+          dryRun(true) ])
+
+      check(i, [ "delete", "Tests.JsonDep.alone", "--json" ], [ dryRun(true) ])
+      Instance.says(
+        Instance.said(i, [ "undeprecate", "Tests.JsonDep.alone" ]),
+        "is not deprecated",
+        "a dry run writes nothing")
+
+      check(
+        i,
+        [ "delete", "Tests.JsonDep.alone", "-m", "unused", "--json", "--yes" ],
+        [ (fun j -> hasKeys(j, keys))
+          (fun j -> string(j, "kind") |> Stdlib.Test.equal("obsolete"))
+          (fun j -> string(j, "message") |> Stdlib.Test.equal("unused"))
+          dryRun(false) ])
+
+      Instance.says(
+        Instance.said(i, [ "undeprecate", "Tests.JsonDep.alone" ]),
+        "Undeprecated",
+        "--yes writes it")
+
+      refusesQuietly(
+        i,
+        [ "delete", "fn", "Tests.JsonDep.nothing", "--json", "--yes" ],
+        "Could not resolve")
+
+      refusesQuietly(
+        i,
+        [ "deprecate"
+          "Tests.JsonDep.nothing"
+          "--kind"
+          "obsolete"
+          "--json"
+          "--yes" ],
+        "Could not resolve")
+
+      refusesQuietly(
+        i,
+        [ "delete", "Tests.JsonDep.leaf", "--json", "--yes" ],
+        "live dependent") ]))

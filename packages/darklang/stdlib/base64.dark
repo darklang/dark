@@ -1,18 +1,18 @@
 module Darklang.Stdlib.Base64
 
-
 /// Base64 decodes a string. Works with both the URL-safe and standard Base64
 /// alphabets defined in [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)
 /// sections [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
 /// [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5).
-let decode(s: String): Stdlib.Result.Result<Bytes, String> =
+let decode(s: String): Result<Bytes, String> =
   Builtin.base64Decode(s)
 
 
 /// Base64 encodes <param bytes> with {{=}} padding. Uses the standard
 /// alphabet defined in [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)
 /// section [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4).
-let encode(bytes: Bytes): String = Builtin.base64Encode(bytes)
+let encode(bytes: Bytes): String =
+  Builtin.base64Encode(bytes)
 
 
 /// Base64URL encodes <param bytes> with {{=}} padding. Uses URL-safe encoding
@@ -21,30 +21,33 @@ let encode(bytes: Bytes): String = Builtin.base64Encode(bytes)
 let urlEncode(bytes: Bytes): String =
   bytes
   |> encode
-  |> Stdlib.String.replaceAll("+", "-")
-  |> Stdlib.String.replaceAll("/", "_")
+  |> String.replaceAll("+", "-")
+  |> String.replaceAll("/", "_")
 
 
 /// Base64 encodes the UTF-8 encoding of <param s>, with the standard
 /// alphabet and {{=}} padding.
-let encodeText(s: String): String = s |> Stdlib.Utf8.encode |> encode
+let encodeText(s: String): String =
+  s
+  |> Utf8.encode
+  |> encode
 
 
 /// Base64URL encodes the UTF-8 encoding of <param s> WITHOUT padding, unlike
 /// <fn urlEncode>.
 let urlEncodeTextUnpadded(s: String): String =
   s
-  |> Stdlib.Utf8.encode
+  |> Utf8.encode
   |> urlEncode
-  |> Stdlib.String.replaceAll("=", "")
+  |> String.replaceAll("=", "")
 
 
 /// Base64 decodes <param s> and reads the result as UTF-8. Accepts both
 /// alphabets, like <fn decode>.
-let decodeText(s: String): Stdlib.Result.Result<String, String> =
+let decodeText(s: String): Result<String, String> =
   match decode(s) with
   | Ok(bytes) ->
-    match Stdlib.Utf8.decode(bytes) with
-    | Ok(str) -> Stdlib.Result.Result.Ok(str)
-    | Error(_) -> Stdlib.Result.Result.Error("Invalid UTF-8 string")
-  | Error(err) -> Stdlib.Result.Result.Error(err)
+    match Utf8.decode(bytes) with
+    | Ok(str) -> Result.Ok(str)
+    | Error(_) -> Result.Error("Invalid UTF-8 string")
+  | Error(err) -> Result.Error(err)

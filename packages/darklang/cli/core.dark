@@ -14,8 +14,10 @@ type SubAppAction =
   /// Hand off to another command (e.g. a browser launching a foreground app), replacing this page.
   | LaunchCommand(String)
 
+
 type SubApp =
-  { onKey: (Stdlib.Cli.Stdin.Key.Key, Stdlib.Cli.Stdin.Modifiers.Modifiers, Stdlib.Option.Option<String>) -> (SubAppAction * SubApp)
+  { onKey: (Stdlib.Cli.Stdin.Key.Key, Stdlib.Cli.Stdin.Modifiers.Modifiers, Option<String>) ->
+    (SubAppAction * SubApp)
     onDisplay: Unit -> Unit
     /// Persist, and return the app as it stands afterwards.
     ///
@@ -35,11 +37,13 @@ type SubApp =
     /// re-reads what it shows, or ignores it, and presents.
     onStoreChanged: LanguageTools.Live.Change -> SubApp }
 
+
 type Page =
   | MainPrompt
   | InteractiveNav(Packages.NavInteractive.Session)
   | CompletionPicker(CompletionPicker.Session)
   | SubApp(SubApp)
+
 
 type AppState =
   { isExiting: Bool
@@ -52,9 +56,9 @@ type AppState =
     /// The branch this session is on, `SCM.Branch.mainBranchId` for main. A NAME is what you type; the
     /// entry point resolves it once.
     currentBranchId: Uuid
-    accountID: Stdlib.Option.Option<Uuid>
+    accountID: Option<Uuid>
     /// Retained presentation state while the main prompt owns an inline region.
-    promptTerminal: Stdlib.Option.Option<Stdlib.Cli.Tui.TerminalSession.State>
+    promptTerminal: Option<Stdlib.Cli.Tui.TerminalSession.State>
     /// True when invoked from the command line (not the interactive REPL)
     nonInteractive: Bool
     /// Cached completion hint — skip recompute when prompt text unchanged
@@ -80,6 +84,7 @@ type AppState =
     /// only; they set this as they are touched.)
     exitCode: Int64 }
 
+
 /// What the prompt shows to your left: where you are in the package tree, and WHICH BRANCH, when you're on
 /// one.
 ///
@@ -92,10 +97,10 @@ type AppState =
 /// line is noise you learn to stop reading.
 let locationStr(state: AppState): String =
   let where = Packages.formatLocation(state.packageData.currentLocation)
-
   match state.currentBranchId with
   | id when SCM.Branch.isMain(id) -> where
   | id -> $"{where} @{SCM.PackageOps.branchName(id)}"
+
 
 /// Refuse a dash-led argument where a name belongs.
 ///
@@ -105,7 +110,6 @@ let locationStr(state: AppState): String =
 let refuseDashLedName(kind: String, name: String): Bool =
   if Stdlib.String.startsWith(name, "-") then
     printErr($"\"{name}\" starts with a dash, so it's a flag rather than a {kind} name.")
-
     true
   else
     false
@@ -115,14 +119,20 @@ let refuseDashLedName(kind: String, name: String): Bool =
 //
 // Which stream: would someone piping this command into another program want the line? An error or a
 // hint never is, so those go to stderr.
-let printOk(msg: String): Unit = Stdlib.printLine(Stdlib.Cli.UI.Colors.success(msg))
-let printErr(msg: String): Unit = Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error(msg))
-let printHint(msg: String): Unit = Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(msg))
+let printOk(msg: String): Unit =
+  Stdlib.printLine(Stdlib.Cli.UI.Colors.success(msg))
+
+
+let printErr(msg: String): Unit =
+  Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error(msg))
+
+
+let printHint(msg: String): Unit =
+  Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(msg))
+
 
 /// Print <param json> on stdout, or say on stderr why the value has no JSON form. Whether it printed.
-let printJson(
-  json: Stdlib.Result.Result<String, Stdlib.Json.SerializeError.SerializeError>)
-  : Bool =
+let printJson(json: Result<String, Stdlib.Json.SerializeError.SerializeError>): Bool =
   match json with
   | Ok(text) ->
     Stdlib.printLine(text)
@@ -131,14 +141,21 @@ let printJson(
     printErr(Stdlib.display(e))
     false
 
+
 /// A line of the ANSWER in hint colour. Not `printHint`, which would take it off stdout.
-let printQuiet(msg: String): Unit = Stdlib.printLine(Stdlib.Cli.UI.Colors.hint(msg))
+let printQuiet(msg: String): Unit =
+  Stdlib.printLine(Stdlib.Cli.UI.Colors.hint(msg))
+
 
 module Stderr =
   let line(msg: String): Unit = Stdlib.printErrorLine(msg)
+
   let lines(msgs: List<String>): Unit = Stdlib.List.iter(msgs, fun l -> Stdlib.printErrorLine(l))
+
   let ok(msg: String): Unit = Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.success(msg))
+
   let hint(msg: String): Unit = Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(msg))
+
 
 /// Whether a command asks before it does something it cannot take back, or has its yes already.
 type Confirm =
@@ -147,10 +164,11 @@ type Confirm =
   /// Go ahead without asking: the command line said `-y` or `--yes`.
   | Assume
 
+
 module Confirm =
   /// {{Assume}} when <param yes>, the way a command reads `-y` or `--yes`.
-  let assumeIf(yes: Bool): Darklang.Cli.Confirm =
-    if yes then Darklang.Cli.Confirm.Assume else Darklang.Cli.Confirm.Ask
+  let assumeIf(yes: Bool): Confirm =
+    if yes then Confirm.Assume else Confirm.Ask
 
 
 /// The state a command hands back, given whether it did what it was asked.
@@ -164,9 +182,11 @@ module Confirm =
 let exitWith(state: AppState, ok: Bool): AppState =
   if ok then state else failed(state)
 
+
 /// The state a command hands back when it could not do what it was asked, and has printed why:
 /// exit code 1. <fn exitWith> is for when that is worked out at run time.
-let failed(state: AppState): AppState = { state with exitCode = 1 }
+let failed(state: AppState): AppState =
+  { state with exitCode = 1 }
 
 
 /// First 8 hex chars of a hash, for human-readable display.
@@ -181,6 +201,7 @@ let jsonEscape(x: String): String =
   |> Stdlib.String.replaceAll("\\", "\\\\")
   |> Stdlib.String.replaceAll("\"", "\\\"")
 
+
 /// A JSON string literal: escaped and wrapped in quotes.
 let jsonStr(s: String): String =
   let escaped = jsonEscape(s)
@@ -192,8 +213,11 @@ let jsonStr(s: String): String =
 /// invocation, including `dark version`.
 let commandOptions(commands: List<Registry.CommandHandler>): List<String> =
   let allNames = Stdlib.List.map(commands, fun cmd -> cmd.name)
-  let allAliases = Stdlib.List.fold(commands, [], fun(acc, cmd) -> Stdlib.List.concat(acc, cmd.aliases))
+  let allAliases =
+    Stdlib.List.fold(commands, [], fun(acc, cmd) -> Stdlib.List.concat(acc, cmd.aliases))
+
   Stdlib.List.concat(allNames, allAliases)
+
 
 /// The branch this run starts on, `SCM.Branch.mainBranchId` for main.
 ///
@@ -207,12 +231,13 @@ let commandOptions(commands: List<Registry.CommandHandler>): List<String> =
 /// `SCM.PackageOps.currentBranch ()` is the process's, and it is what the verbs that MUTATE the store use
 /// -- `branch`, `merge`, `discard`, `push` -- because the ops they author route by the process's branch,
 /// and a state that had drifted from it would report one branch while writing to another.
-let resolveStartingBranch(): Uuid = SCM.PackageOps.currentBranch()
+let resolveStartingBranch(): Uuid =
+  SCM.PackageOps.currentBranch()
 
 
 let initState(): AppState =
   // No accounts: approval scoping is the only thing that still takes one, and it takes None.
-  let accountID = Stdlib.Option.Option.None
+  let accountID = Option.None
   let branchId = resolveStartingBranch()
   let commands = Registry.allCommands()
   AppState
@@ -223,7 +248,7 @@ let initState(): AppState =
       pageStack = []
       currentBranchId = branchId
       accountID = accountID
-      promptTerminal = Stdlib.Option.Option.None
+      promptTerminal = Option.None
       nonInteractive = false
       cachedHintInput = ""
       cachedHintValue = ""
@@ -233,12 +258,16 @@ let initState(): AppState =
       cachedFilterItems = []
       allCommandsCache = commands
       commandOptionsCache = commandOptions(commands)
-      telemetryEnabled = (Stdlib.Env.get("DARK_TELEMETRY")) == Stdlib.Option.Option.Some("1")
+      telemetryEnabled = Stdlib.Env.get("DARK_TELEMETRY") == Option.Some("1")
       exitCode = 0 }
+
 
 type Msg =
   | ProcessInput(String)
-  | KeyPressed(key: Stdlib.Cli.Stdin.Key.Key, modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers, keyChar: Stdlib.Option.Option<String>)
+  | KeyPressed(
+    key: Stdlib.Cli.Stdin.Key.Key,
+    modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers,
+    keyChar: Option<String>)
   | Exit
 
 
@@ -250,15 +279,17 @@ module ExecutionError =
     { message: String
       metadata: List<(String * String)> }
 
+
   /// A run that ended on a permission denial: the error as the guest saw it,
   /// what was attempted, the exact rule that would cover it when one exists,
   /// and the function whose approval was checked (None for the instance policy).
   type PermissionDenied =
     { error: LanguageTools.RuntimeTypes.RuntimeError.Error
       resource: String
-      rule: Stdlib.Option.Option<String>
-      entry: Stdlib.Option.Option<String>
+      rule: Option<String>
+      entry: Option<String>
       callStack: List<LanguageTools.RuntimeTypes.ExecutionPoint> }
+
 
   /// Boundary type for CLI command failures. Each variant carries its own
   /// structured payload — no flattening to strings at the boundary.
@@ -267,23 +298,21 @@ module ExecutionError =
     /// A definite type error found before anything ran, and where each node the report
     /// names starts in the source: (node id, line, column), both 1-based.
     | TypeCheck(
-        report: LanguageTools.AtRestTypeChecker.Report,
-        locations: List<(UInt64 * Int64 * Int64)>)
+      report: LanguageTools.AtRestTypeChecker.Report,
+      locations: List<(UInt64 * Int64 * Int64)>)
     | Runtime(
-        error: LanguageTools.RuntimeTypes.RuntimeError.Error,
-        callStack: List<LanguageTools.RuntimeTypes.ExecutionPoint>)
+      error: LanguageTools.RuntimeTypes.RuntimeError.Error,
+      callStack: List<LanguageTools.RuntimeTypes.ExecutionPoint>)
     | Denied(PermissionDenied)
     /// The user cancelled a permission prompt.
     | Cancelled
     | Unhandled(Unhandled)
 
+
   /// `. Did you mean `X`?` for a name that did not resolve, when the standard library has it
   /// somewhere else or a name near it exists; the same hint `dark fn` gives
   /// (<fn Packages.Errors.didYouMean>).
-  let nameSuggestion(
-    branchId: Uuid,
-    rte: LanguageTools.RuntimeTypes.RuntimeError.Error)
-    : String =
+  let nameSuggestion(branchId: Uuid, rte: LanguageTools.RuntimeTypes.RuntimeError.Error): String =
     match rte with
     | ParseTimeNameResolution(originalName, NotFound) ->
       match Packages.Errors.didYouMeanText(Packages.Errors.didYouMean(branchId, originalName)) with
@@ -291,9 +320,10 @@ module ExecutionError =
       | text -> ". " + text
     | _ -> ""
 
+
   /// Why <param name> was denied <param resource>, and how to allow <param rule>.
   let entryDenial(
-    accountID: Stdlib.Option.Option<Uuid>,
+    accountID: Option<Uuid>,
     branchId: Uuid,
     name: String,
     resource: String,
@@ -304,28 +334,25 @@ module ExecutionError =
       match approved with
       | None ->
         $"`{name}` has no remembered approval. Remember this access:\n  dark permissions approve {name} {rule}"
-      | Some(version) when Stdlib.Option.Option.Some(version) != Permissions.Command.latestVersion(branchId, name) ->
+      | Some(version)
+        when Option.Some(version) != Permissions.Command.latestVersion(branchId, name) ->
         $"`{name}` changed since it was approved. Review the new version:\n  dark permissions update {name}"
       | Some(_) ->
         $"The approval for `{name}` does not cover it. Show its access:\n  dark permissions show {name}"
+
     $"permission denied:\n  {resource} is not allowed.\n\n{why}\n\nFor one run:\n  dark run --allow \"{rule}\" …"
 
-  let toString(
-    accountID: Stdlib.Option.Option<Uuid>,
-    branchId: Uuid,
-    err: ExecutionError)
-    : String =
+
+  let toString(accountID: Option<Uuid>, branchId: Uuid, err: ExecutionError): String =
     match err with
     | Parse(pe) -> LanguageTools.Parser.CliScript.ParseError.toString(pe)
-    | TypeCheck(report, locations) ->
-      Packages.AtRestCheck.scriptReport(branchId, report, locations)
+    | TypeCheck(report, locations) -> Packages.AtRestCheck.scriptReport(branchId, report, locations)
     | Runtime(rte, _) ->
       PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, rte)
       + nameSuggestion(branchId, rte)
     | Denied(denied) ->
-      match (denied.entry, denied.rule) with
-      | (Some(name), Some(rule)) ->
-        entryDenial(accountID, branchId, name, denied.resource, rule)
+      match denied.entry, denied.rule with
+      | Some(name), Some(rule) -> entryDenial(accountID, branchId, name, denied.resource, rule)
       | _ ->
         match denied.error with
         | UncaughtException(message, []) -> message
@@ -339,27 +366,25 @@ module ExecutionError =
           u.metadata
           |> Stdlib.List.map(fun((k, v)) -> $"  {k}: {v}")
           |> Stdlib.String.join("\n")
+
         $"Internal error: {u.message}\n{lines}"
 
+
   /// Format an error for the terminal, with colors for permission errors.
-  let formatForTerminal(
-    accountID: Stdlib.Option.Option<Uuid>,
-    branchId: Uuid,
-    err: ExecutionError)
-    : String =
+  let formatForTerminal(accountID: Option<Uuid>, branchId: Uuid, err: ExecutionError): String =
     let message = toString(accountID, branchId, err)
     match err with
     | Denied(_) -> Text.stylePermissionError(message)
     | _ -> message
 
+
   /// Skip entry-only stacks: they add no useful detail to a missing-name error.
-  let hasReadableFrames(
-    frames: List<LanguageTools.RuntimeTypes.ExecutionPoint>)
-    : Bool =
+  let hasReadableFrames(frames: List<LanguageTools.RuntimeTypes.ExecutionPoint>): Bool =
     Stdlib.List.any(frames, fun frame ->
       match frame with
       | Function(_) -> true
       | _ -> false)
+
 
   /// Permission denials already explain the resource and how to allow access.
   /// Keep their frames in the structured error for diagnostics, without printing
@@ -375,6 +400,7 @@ module ExecutionError =
 module View =
   let formatError(message: String): String =
     Stdlib.Cli.UI.Colors.error("Error: " + message)
+
 
   let formatSuccess(message: String): String =
     Stdlib.Cli.UI.Colors.success(message)

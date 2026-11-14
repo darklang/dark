@@ -1,18 +1,24 @@
 module Darklang.PrettyPrinter.RuntimeTypes
 
-
 // <aliases>
 type FQFnName = LanguageTools.RuntimeTypes.FQFnName.FQFnName
+
 type FQTypeName = LanguageTools.RuntimeTypes.FQTypeName.FQTypeName
+
 type FQValueName = LanguageTools.RuntimeTypes.FQValueName.FQValueName
+
 type TypeReference = LanguageTools.RuntimeTypes.TypeReference
+
 type ValueType = LanguageTools.RuntimeTypes.ValueType
+
 type Dval = LanguageTools.RuntimeTypes.Dval
+
 type LetPattern = LanguageTools.RuntimeTypes.LetPattern
+
+
 // </aliases>
 
 module RuntimeError =
-
   /// Error pretty printing
   /// ---------------
   /// Segments allow us to build error messages where the UI and CLI can both
@@ -69,7 +75,6 @@ module RuntimeError =
 
   type ES = ErrorSegment
 
-
   type ErrorSegments = List<ErrorSegment>
 
 
@@ -79,13 +84,13 @@ module RuntimeError =
     match chars with
     | [] -> acc
     | [c, ...rest] ->
-      let e = PrettyPrinter.escapeSpecialCharacters(Stdlib.String.fromChar(c))
+      let e = escapeSpecialCharacters(Stdlib.String.fromChar(c))
       let w = Stdlib.String.displayWidth(e)
       if w > room then acc else __escapedPrefix(rest, acc + e, room - w)
 
 
   /// <param value> as JSON, or why it has none.
-  let __json<'a>(value: 'a): String =
+  let __json(value: 'a): String =
     match Stdlib.Json.checkedSerialize<'a>(value) with
     | Ok(json) -> json
     | Error(e) -> Stdlib.display(e)
@@ -93,73 +98,63 @@ module RuntimeError =
 
   let segmentsToString(branchId: Uuid, segments: ErrorSegments): String =
     let reversed = Stdlib.List.reverse(segments)
+    let parts = Stdlib.List.fold(reversed, [], fun(prevSegments, segment) ->
+      let newSegment =
+        match segment with
+        | String(s) -> s
+        | Int64(i) -> Stdlib.display(i)
+        | Ordinal(i) -> Stdlib.English.toOrdinal(i)
+        | Count(i, singular, plural) ->
+          let count = Stdlib.display(i)
+          if i == 1 then
+            let segment = segmentsToString(branchId, [ singular ])
+            $"{count} {segment}"
+          else
+            let segment = segmentsToString(branchId, [ plural ])
+            $"{count} {segment}"
+        | IndefiniteArticle ->
+          //Stdlib.debug("prevSegments", prevSegments)
+          match Stdlib.List.head(prevSegments) with
+          | None -> ""
+          | Some(prev) -> Stdlib.English.articleFor(prev) + " "
+        | FunctionName(fn) -> fnName(branchId, fn)
+        | Description(d) -> d
+        | ParamName(p) -> $"`{p}`"
+        | InlineParamName(p) -> p  // Inline versions don't have quotes
+        | TypeName(t) -> typeName(branchId, t)
+        | ValueName(v) -> valueName(branchId, v)
+        | ShortTypeName(t) -> shortTypeName(branchId, t)
+        | TraitName(t) -> traitName(branchId, t)
+        | ShortTraitName(t) -> shortTraitName(branchId, t)
+        | InspectHint(t) ->
+          if traitName(branchId, t) == "Darklang.Stdlib.Display" then
+            ". `Stdlib.inspect` shows any value"
+          else
+            ""
+        | TypeReference(t) -> typeReference(branchId, t)
+        | TypeOfValue(dv) -> Dval.valueTypeName(branchId, dv)
+        | ValueType(vt) -> valueType(branchId, vt)
+        | DeclaredValueType(declared, vt) -> declaredValueType(branchId, declared, vt)
+        | FieldName(f) -> $"`{f}`"
+        | InlineFieldName(f) -> f
+        | VarName(v) -> $"`{v}`"
+        | InlineVarName(v) -> v
+        | InlineValue(DString(s)) ->
+          let escaped = escapeSpecialCharacters(s)
+          if Stdlib.String.displayWidth(escaped) <= 11 then
+            $"\"{escaped}\""
+          else
+            $"\"{__escapedPrefix(Stdlib.String.toList(s), "", 8)}...\""
+        | InlineValue(dv) ->
+          dval(branchId, dv)
+          |> Stdlib.Text.ellipsis(13)
+          |> Stdlib.String.splitOnNewline
+          |> Stdlib.String.join("")
+        | FullValue(dv) -> dval(branchId, dv)
+        | LetPattern(p) -> letPattern(p)
+        | segment -> $"(RTETODO segmentsToString parts {__json<ErrorSegment>(segment)})"
 
-    let parts =
-      Stdlib.List.fold(reversed, [], fun(prevSegments, segment) ->
-
-        let newSegment =
-          match segment with
-          | String(s) -> s
-          | Int64(i) -> Stdlib.display(i)
-          | Ordinal(i) -> Stdlib.English.toOrdinal(i)
-          | Count(i, singular, plural) ->
-            let count = Stdlib.display(i)
-
-            if i == 1 then
-              let segment = segmentsToString(branchId, [ singular ])
-              $"{count} {segment}"
-            else
-              let segment = segmentsToString(branchId, [ plural ])
-              $"{count} {segment}"
-
-          | IndefiniteArticle ->
-            //Stdlib.debug("prevSegments", prevSegments)
-            match Stdlib.List.head(prevSegments) with
-            | None -> ""
-            | Some(prev) -> Stdlib.English.articleFor(prev) + " "
-
-          | FunctionName(fn) -> fnName(branchId, fn)
-
-          | Description(d) -> d
-          | ParamName(p) -> $"`{p}`"
-          | InlineParamName(p) -> p // Inline versions don't have quotes
-          | TypeName(t) -> typeName(branchId, t)
-          | ValueName(v) -> valueName(branchId, v)
-          | ShortTypeName(t) -> shortTypeName(branchId, t)
-          | TraitName(t) -> traitName(branchId, t)
-          | ShortTraitName(t) -> shortTraitName(branchId, t)
-          | InspectHint(t) ->
-            if traitName(branchId, t) == "Darklang.Stdlib.Display" then
-              ". `Stdlib.inspect` shows any value"
-            else
-              ""
-          | TypeReference(t) -> typeReference(branchId, t)
-          | TypeOfValue(dv) -> Dval.valueTypeName(branchId, dv)
-          | ValueType(vt) -> valueType(branchId, vt)
-          | DeclaredValueType(declared, vt) ->
-            declaredValueType(branchId, declared, vt)
-          | FieldName(f) -> $"`{f}`"
-          | InlineFieldName(f) -> f
-          | VarName(v) -> $"`{v}`"
-          | InlineVarName(v) -> v
-          | InlineValue(DString(s)) ->
-            let escaped = PrettyPrinter.escapeSpecialCharacters(s)
-
-            if Stdlib.String.displayWidth(escaped) <= 11 then
-              $"\"{escaped}\""
-            else
-              $"\"{__escapedPrefix(Stdlib.String.toList(s), "", 8)}...\""
-          | InlineValue(dv) ->
-            (dval(branchId, dv))
-            |> Stdlib.Text.ellipsis(13)
-            |> Stdlib.String.splitOnNewline
-            |> Stdlib.String.join("")
-          | FullValue(dv) -> dval(branchId, dv)
-          | LetPattern(p) -> letPattern(p)
-          | segment ->
-            $"(RTETODO segmentsToString parts {(__json<ErrorSegment>(segment))})"
-
-        Stdlib.List.prepend(prevSegments, newSegment))
+      Stdlib.List.prepend(prevSegments, newSegment))
 
     Stdlib.String.join(parts, "")
 
@@ -188,7 +183,8 @@ module RuntimeError =
     | Known(KTBool)
     | Known(KTChar)
     | Known(KTDateTime)
-    | Known(KTUuid) -> ". Try wrapping it with `Stdlib.display`."
+    | Known(KTUuid) ->
+      ". Try wrapping it with `Stdlib.display`."
     | _ -> ""
 
 
@@ -203,11 +199,12 @@ module RuntimeError =
   /// and the other has a Display impl, say how to join them.
   let joinWithStringHint(left: ValueType, right: ValueType): ErrorSegments =
     let other =
-      match (left, right) with
-      | (Known(KTString), Known(KTString)) -> Stdlib.Option.Option.None
-      | (Known(KTString), other) -> Stdlib.Option.Option.Some(other)
-      | (other, Known(KTString)) -> Stdlib.Option.Option.Some(other)
-      | _ -> Stdlib.Option.Option.None
+      match left, right with
+      | Known(KTString), Known(KTString) -> Option.None
+      | Known(KTString), other -> Option.Some(other)
+      | other, Known(KTString) -> Option.Some(other)
+      | _ -> Option.None
+
     match other with
     | Some(vt) when displayHint(vt) != "" ->
       [ ES.String(". To join them, make the ")
@@ -219,22 +216,22 @@ module RuntimeError =
   /// ". Both sides must be the same type." and how to convert, for an integer and a Float
   /// (<fn LanguageTools.AtRestTypeChecker.mixedNumbersHint>, which the check before a run uses).
   let mixedNumbersHint(left: ValueType, right: ValueType): ErrorSegments =
-    let name =
-      fun vt ->
-        match vt with
-        | Known(KTInt8) -> "Int8"
-        | Known(KTUInt8) -> "UInt8"
-        | Known(KTInt16) -> "Int16"
-        | Known(KTUInt16) -> "UInt16"
-        | Known(KTInt32) -> "Int32"
-        | Known(KTUInt32) -> "UInt32"
-        | Known(KTInt64) -> "Int64"
-        | Known(KTUInt64) -> "UInt64"
-        | Known(KTInt128) -> "Int128"
-        | Known(KTUInt128) -> "UInt128"
-        | Known(KTBigInt) -> "BigInt"
-        | Known(KTFloat) -> "Float"
-        | _ -> ""
+    let name = fun vt ->
+      match vt with
+      | Known(KTInt8) -> "Int8"
+      | Known(KTUInt8) -> "UInt8"
+      | Known(KTInt16) -> "Int16"
+      | Known(KTUInt16) -> "UInt16"
+      | Known(KTInt32) -> "Int32"
+      | Known(KTUInt32) -> "UInt32"
+      | Known(KTInt64) -> "Int64"
+      | Known(KTUInt64) -> "UInt64"
+      | Known(KTInt128) -> "Int128"
+      | Known(KTUInt128) -> "UInt128"
+      | Known(KTBigInt) -> "BigInt"
+      | Known(KTFloat) -> "Float"
+      | _ -> ""
+
     match LanguageTools.AtRestTypeChecker.mixedNumbersHint(name(left), name(right)) with
     | "" -> []
     | text -> [ ES.String(". Both sides must be the same type. " + text) ]
@@ -242,11 +239,7 @@ module RuntimeError =
 
   /// `&&` or `||` met a non-Bool. Names the side that wasn't a Bool, and only that one: when
   /// the left side isn't a Bool, the right may never have been evaluated.
-  let boolOperandSegments(
-    op: String,
-    left: ValueType,
-    right: ValueType)
-    : ErrorSegments =
+  let boolOperandSegments(op: String, left: ValueType, right: ValueType): ErrorSegments =
     let (side, vt) =
       match left with
       | Known(KTBool) -> ("right", right)
@@ -262,7 +255,8 @@ module RuntimeError =
     : String =
     match kind with
     | FloatHasNoInteger -> "Float has no integer value"
-    | FloatOutsideInt64(min, max) -> $"Float out of Int64 range ({Stdlib.display(min)} to {Stdlib.display(max)})"
+    | FloatOutsideInt64(min, max) ->
+      $"Float out of Int64 range ({Stdlib.display(min)} to {Stdlib.display(max)})"
     | ShiftCount(max) -> $"Shift count out of range (0 to {Stdlib.display(max)})"
     | Exponent(max) -> $"Exponent out of range (at most {Stdlib.display(max)})"
     | RepeatCount(max) -> $"Repeat count out of range (at most {Stdlib.display(max)})"
@@ -271,9 +265,12 @@ module RuntimeError =
     | DateTimeTicks -> "Ticks out of DateTime range (-9998-01-01 to 9999-12-31)"
     | Port(min, max) -> $"Port out of range ({Stdlib.display(min)} to {Stdlib.display(max)})"
     | NegativeMaxBodyBytes -> "maxBodyBytes must not be negative"
-    | Int64ToInt32(min, max) -> $"Int64 out of Int32 range ({Stdlib.display(min)} to {Stdlib.display(max)})"
-    | BigIntToInt64(min, max) -> $"BigInt out of Int64 range ({Stdlib.display(min)} to {Stdlib.display(max)})"
-    | BigIntToInt32(min, max) -> $"BigInt out of Int32 range ({Stdlib.display(min)} to {Stdlib.display(max)})"
+    | Int64ToInt32(min, max) ->
+      $"Int64 out of Int32 range ({Stdlib.display(min)} to {Stdlib.display(max)})"
+    | BigIntToInt64(min, max) ->
+      $"BigInt out of Int64 range ({Stdlib.display(min)} to {Stdlib.display(max)})"
+    | BigIntToInt32(min, max) ->
+      $"BigInt out of Int32 range ({Stdlib.display(min)} to {Stdlib.display(max)})"
 
 
   // The only exhaustive match over RuntimeError on the Dark side. A new RuntimeError case needs an
@@ -793,19 +790,17 @@ module RuntimeError =
       [ ES.String($"A runtime error with no message written for it yet: {serialized}") ]
 
 
-
-  let toString(
-    branchId: Uuid,
-    e: LanguageTools.RuntimeTypes.RuntimeError.Error)
-    : String =
+  let toString(branchId: Uuid, e: LanguageTools.RuntimeTypes.RuntimeError.Error): String =
     let s = e |> toSegments
     segmentsToString(branchId, s)
 
 
-  type ErrorMessage = ErrorString(String)
+  type ErrorMessage =
+    | ErrorString(String)
+
 
   let toErrorMessage(
-        branchId: Uuid,
-        e: LanguageTools.RuntimeTypes.RuntimeError.Error)
+    branchId: Uuid,
+    e: LanguageTools.RuntimeTypes.RuntimeError.Error)
     : ErrorMessage =
     ErrorMessage.ErrorString(toString(branchId, e))

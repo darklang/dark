@@ -6,15 +6,13 @@ let navTo(state: AppState, location: PackageLocation): AppState =
   if location == state.packageData.currentLocation then
     state
   else
-    let newHistory = Stdlib.List.append(state.packageData.locationHistory, state.packageData.currentLocation)
+    let newHistory =
+      Stdlib.List.append(state.packageData.locationHistory, state.packageData.currentLocation)
 
     { state with
         prompt = Prompt.Editing.clear(state.prompt)
         packageData =
-          { state.packageData with
-              currentLocation = location
-              locationHistory = newHistory }
-    }
+          { state.packageData with currentLocation = location, locationHistory = newHistory } }
 
 
 let execute(state: AppState, args: List<String>): AppState =
@@ -29,17 +27,18 @@ let execute(state: AppState, args: List<String>): AppState =
           currentPage = Page.InteractiveNav(session)
           prompt = Prompt.Editing.clear(state.prompt) }
     | Error(message) ->
-      Cli.printErr(message)
-      Cli.failed(state)
-
+      printErr(message)
+      failed(state)
   | [pathArg] ->
     let branchId = state.currentBranchId
     match Traversal.traverse(branchId, state.packageData.currentLocation, pathArg) with
     | Error(errorMsg) ->
-      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Navigation to {pathArg} failed: {errorMsg}"))
-      Cli.failed(state)
+      Stdlib.printErrorLine(
+        Stdlib.Cli.UI.Colors.error($"Navigation to {pathArg} failed: {errorMsg}"))
+
+      failed(state)
     | Ok(newLocation) ->
-      let locationStr = Packages.formatLocation(newLocation)
+      let locationStr = formatLocation(newLocation)
       Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"Changed to: {locationStr}"))
 
       // Where you are lives in this session, like a shell's cwd: `dark nav X` from a prompt moves
@@ -47,7 +46,7 @@ let execute(state: AppState, args: List<String>): AppState =
       // because "Changed to:" on its own reads like it stuck, and the next `dark ls` disagreeing
       // with it is a confusing way to find out.
       if state.nonInteractive then
-        Cli.printHint(
+        printHint(
           "  (only for this command -- a location doesn't carry between `dark` invocations. `dark ls <path>` reads elsewhere; `dark` with no arguments keeps one.)")
       else
         ()
@@ -72,8 +71,7 @@ let complete(state: AppState, args: List<String>): List<Completion.CompletionIte
 
 
 let help(_state: AppState): String =
-  [
-    "Usage: nav [path]"
+  [ "Usage: nav [path]"
     "Navigate package space - modules, types, values, functions, and tests."
     ""
     "With path: Navigate directly to the specified location."
@@ -87,5 +85,5 @@ let help(_state: AppState): String =
     "  nav Submodule        - Go to a submodule of current location"
     "  nav Stdlib/List      - Go to Stdlib.List module"
     "  nav equals           - Go to equals function"
-    "  nav Option           - Go to Option type"
-  ] |> Stdlib.String.join("\n")
+    "  nav Option           - Go to Option type" ]
+  |> Stdlib.String.join("\n")

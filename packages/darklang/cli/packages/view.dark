@@ -1,6 +1,5 @@
 module Darklang.Cli.Packages.View
 
-
 /// Resolve a replacement Reference to a human-readable location name for the
 /// current branch, falling back to a short hash if no location is bound.
 let resolveReplacementName(branchId: Uuid, ref: LanguageTools.ProgramTypes.Reference): String =
@@ -14,13 +13,12 @@ let resolveReplacementName(branchId: Uuid, ref: LanguageTools.ProgramTypes.Refer
     | PackageTrait(h) -> LanguageTools.PackageManager.Trait.locations(branchId, h)
     | PackageTraitImpl(h) -> LanguageTools.PackageManager.TraitImpl.locations(branchId, h)
     | PackageTest(h) -> LanguageTools.PackageManager.Test.locations(branchId, h)
-  match Darklang.LanguageTools.PackageManager.pickLocation(
+
+  match LanguageTools.PackageManager.pickLocation(
           PrettyPrinter.ProgramTypes.Context.toPickContext(ctx),
           locs) with
-  | Some(loc) ->
-    PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)
-  | None ->
-    $"<hash:{LanguageTools.ProgramTypes.hashToShort(hash)}>"
+  | Some(loc) -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)
+  | None -> $"<hash:{LanguageTools.ProgramTypes.hashToShort(hash)}>"
 
 
 /// The declaration alone: no deprecation header, no capabilities line, no colour.
@@ -28,44 +26,32 @@ let resolveReplacementName(branchId: Uuid, ref: LanguageTools.ProgramTypes.Refer
 ///
 /// Reading an item and writing it back should be a pipe. Stripping a trailer and a
 /// prefix with `sed` is a screen-scrape: it works until the display changes.
-let rawSource(branchId: Uuid, location: PackageLocation): Stdlib.Result.Result<String, String> =
-  let sourceOf(
-    loc: LanguageTools.ProgramTypes.PackageLocation)
-    : Stdlib.Result.Result<String, String> =
+let rawSource(branchId: Uuid, location: PackageLocation): Result<String, String> =
+  let sourceOf(loc: LanguageTools.ProgramTypes.PackageLocation): Result<String, String> =
     let modulePath = Stdlib.List.prepend(loc.modules, loc.owner)
     // `preferredLocation`, so a shared body is headed with the name asked for.
     let ctx =
       { PrettyPrinter.ProgramTypes.Context.forModule(branchId, modulePath) with
           width = PrettyPrinter.ProgramTypes.sourceWidth
-          preferredLocation = Stdlib.Option.Option.Some(loc) }
-    let results = Query.searchExactMatch(branchId, modulePath, loc.name)
+          preferredLocation = Option.Some(loc) }
 
-    match (results.fns, results.types, results.values, results.tests) with
-    | ([item, ...], _, _, _) ->
-      Stdlib.Result.Result.Ok(PrettyPrinter.ProgramTypes.packageFn(ctx, item.entity))
-    | (_, [item, ...], _, _) ->
-      Stdlib.Result.Result.Ok(PrettyPrinter.ProgramTypes.packageType(ctx, item.entity))
-    | (_, _, [item, ...], _) ->
-      Stdlib.Result.Result.Ok(
-        PrettyPrinter.ProgramTypes.packageValue(ctx, item.entity)
-      )
-    | (_, _, _, [item, ...]) ->
-      Stdlib.Result.Result.Ok(
-        PrettyPrinter.ProgramTypes.packageTest(ctx, item.entity)
-      )
+    let results = Query.searchExactMatch(branchId, modulePath, loc.name)
+    match results.fns, results.types, results.values, results.tests with
+    | [item, ...], _, _, _ -> Result.Ok(PrettyPrinter.ProgramTypes.packageFn(ctx, item.entity))
+    | _, [item, ...], _, _ -> Result.Ok(PrettyPrinter.ProgramTypes.packageType(ctx, item.entity))
+    | _, _, [item, ...], _ -> Result.Ok(PrettyPrinter.ProgramTypes.packageValue(ctx, item.entity))
+    | _, _, _, [item, ...] -> Result.Ok(PrettyPrinter.ProgramTypes.packageTest(ctx, item.entity))
     | _ ->
-      match (results.traits, results.impls) with
-      | ([item, ...], _) ->
-        Stdlib.Result.Result.Ok(PrettyPrinter.ProgramTypes.packageTrait(ctx, item.entity))
-      | (_, [item, ...]) ->
-        Stdlib.Result.Result.Ok(PrettyPrinter.ProgramTypes.packageImpl(ctx, item.entity))
+      match results.traits, results.impls with
+      | [item, ...], _ -> Result.Ok(PrettyPrinter.ProgramTypes.packageTrait(ctx, item.entity))
+      | _, [item, ...] -> Result.Ok(PrettyPrinter.ProgramTypes.packageImpl(ctx, item.entity))
       | _ ->
         let where = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)
-        Stdlib.Result.Result.Error($"nothing at {where}")
+        Result.Error($"nothing at {where}")
 
   match location with
   | Module(_) ->
-    Stdlib.Result.Result.Error(
+    Result.Error(
       "--raw prints ONE declaration. Name a fn, type, value, trait, impl or test, not a module.")
   | Type(loc) -> sourceOf(loc)
   | Value(loc) -> sourceOf(loc)
@@ -79,7 +65,7 @@ let rawSource(branchId: Uuid, location: PackageLocation): Stdlib.Result.Result<S
 let printRaw(branchId: Uuid, location: PackageLocation): Unit =
   match rawSource(branchId, location) with
   | Ok(src) -> Stdlib.printLine(src)
-  | Error(e) -> Cli.printErr(e)
+  | Error(e) -> printErr(e)
 
 
 /// Build a deprecation header for the item at a name, if any.
@@ -97,14 +83,9 @@ let deprecationHeaderRowsFor(
       match kind with
       | SupersededBy(ref) ->
         let replName = resolveReplacementName(branchId, ref)
-        ( "DEPRECATED (superseded)"
-        , Stdlib.Option.Option.Some($"   → use {replName} instead") )
-      | Harmful ->
-        ( "DEPRECATED (HARMFUL -- runtime will halt)"
-        , Stdlib.Option.Option.None )
-      | Obsolete ->
-        ( "DEPRECATED (obsolete)"
-        , Stdlib.Option.Option.None )
+        ("DEPRECATED (superseded)", Option.Some($"   → use {replName} instead"))
+      | Harmful -> ("DEPRECATED (HARMFUL -- runtime will halt)", Option.None)
+      | Obsolete -> ("DEPRECATED (obsolete)", Option.None)
 
     let replacementRows =
       match replacementLine with
@@ -112,17 +93,10 @@ let deprecationHeaderRowsFor(
       | None -> []
 
     let messageRows =
-      if message != "" then
-        [ Stdlib.Cli.UI.Colors.dimText($"   {message}") ]
-      else
-        []
+      if message != "" then [ Stdlib.Cli.UI.Colors.dimText($"   {message}") ] else []
 
-    Stdlib.List.flatten([
-      [ Stdlib.Cli.UI.Colors.warning($"⚠ {header}") ]
-      replacementRows
-      messageRows
-      [ "" ]
-    ])
+    Stdlib.List.flatten(
+      [ [ Stdlib.Cli.UI.Colors.warning($"⚠ {header}") ], replacementRows, messageRows, [ "" ] ])
 
 
 /// Split rendered source into logical terminal rows.
@@ -157,10 +131,15 @@ let testRows(
     cmdPrefix,
     heading)
 
+
 /// <fn testRows>, from the item's dependents the caller already read.
 let testRowsFrom(
   branchId: Uuid,
-  dependents: List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>,
+  dependents:
+    List<
+      (LanguageTools.ProgramTypes.Hash *
+       LanguageTools.ProgramTypes.PackageLocation *
+       LanguageTools.ProgramTypes.ItemKind)>,
   cmdPrefix: String,
   heading: String)
   : List<String> =
@@ -179,7 +158,7 @@ let testRowsFrom(
     let passMark = Stdlib.Cli.UI.Colors.success("✓")
     let failMark = Stdlib.Cli.UI.Colors.error("✗")
     let noResult = Stdlib.Cli.UI.Colors.dimText("no result for this build")
-    let outcomes = Packages.Test.lastOutcomes(branchId, tests |> Stdlib.List.map(fun((hash, _, _)) -> hash))
+    let outcomes = Test.lastOutcomes(branchId, tests |> Stdlib.List.map(fun((hash, _, _)) -> hash))
     let rows =
       Stdlib.List.zipShortest(tests, outcomes)
       |> Stdlib.List.map(fun(((_, loc, _), outcome)) ->
@@ -189,12 +168,11 @@ let testRowsFrom(
           | Some(Passed) -> [ $"  {passMark} {name}" ]
           | Some(Failed(messages)) ->
             let first = Stdlib.Option.withDefault(Stdlib.List.head(messages), "")
-            [ $"  {failMark} {name}"
-              Stdlib.Cli.UI.Colors.dimText($"      {first}") ]
+            [ $"  {failMark} {name}", Stdlib.Cli.UI.Colors.dimText($"      {first}") ]
           | Some(RuntimeFailed(message)) ->
-            [ $"  {failMark} {name}"
-              Stdlib.Cli.UI.Colors.dimText($"      {message}") ]
+            [ $"  {failMark} {name}", Stdlib.Cli.UI.Colors.dimText($"      {message}") ]
           | None -> [ $"  · {name}  {noResult}" ]
+
         result)
       |> Stdlib.List.flatten
 
@@ -205,9 +183,10 @@ let testRowsFrom(
       |> Stdlib.List.map(fun((_, loc, _)) ->
         Stdlib.String.join(Stdlib.List.prepend(loc.modules, loc.owner), "."))
       |> Stdlib.List.unique
+
     let runHint =
       match modules with
-      | [ only ] -> $"`{cmdPrefix}test run {only}` runs them"
+      | [only] -> $"`{cmdPrefix}test run {only}` runs them"
       | _ -> $"`{cmdPrefix}test run` runs them"
 
     Stdlib.List.flatten(
@@ -221,19 +200,14 @@ type Tests =
   | Show
   | Hide
 
+
 module Tests =
   /// {{Show}} when <param asked>, the way `view` reads `--include-tests`.
-  let showIf(asked: Bool): Darklang.Cli.Packages.View.Tests =
-    if asked then
-      Darklang.Cli.Packages.View.Tests.Show
-    else
-      Darklang.Cli.Packages.View.Tests.Hide
+  let showIf(asked: Bool): Cli.Packages.View.Tests =
+    if asked then Cli.Packages.View.Tests.Show else Cli.Packages.View.Tests.Hide
 
-let entityRows(
-  branchId: Uuid,
-  location: PackageLocation,
-  tests: Tests)
-  : List<String> =
+
+let entityRows(branchId: Uuid, location: PackageLocation, tests: Tests): List<String> =
   match location with
   | Module(path) ->
     // Names only. This listing prints each item's name and nothing else, so materializing every matched
@@ -242,8 +216,7 @@ let entityRows(
     let (directSubmodules, typeNames, valueNames, fnNames, traitNames, implNames, testNames) =
       Query.allDirectDescendantNames(branchId, path)
 
-    let locationStr = Packages.formatLocation(location)
-
+    let locationStr = formatLocation(location)
     let submodules =
       LanguageTools.PackageManager.Search.readerSubmodules(directSubmodules, implNames)
 
@@ -252,11 +225,10 @@ let entityRows(
       match Query.withoutInternalNames(names) with
       | [] -> []
       | shown ->
-        Stdlib.List.flatten([
-          [ Display.getSectionHeader(header) ]
-          shown |> Stdlib.List.map(fun name -> $"  {name}{suffix}")
-          [ "" ]
-        ])
+        Stdlib.List.flatten(
+          [ [ Display.getSectionHeader(header) ]
+            shown |> Stdlib.List.map(fun name -> $"  {name}{suffix}")
+            [ "" ] ])
 
     // An impl's methods are called through its trait, never at the impl's path, so each row
     // says where: `Display  Stdlib.display`, for someone who came looking for
@@ -270,34 +242,31 @@ let entityRows(
           |> Stdlib.List.map(fun name -> Stdlib.String.displayWidth(name))
           |> Stdlib.List.fold(0, fun(acc, w) -> if w > acc then w else acc)
 
-        let row =
-          fun name ->
-            let calls =
-              match (Query.searchExactMatch(branchId, path, name)).impls with
-              | [item, ...] -> Packages.Impls.methodCalls(branchId, item.entity)
-              | [] -> []
+        let row = fun name ->
+          let calls =
+            match (Query.searchExactMatch(branchId, path, name)).impls with
+            | [item, ...] -> Impls.methodCalls(branchId, item.entity)
+            | [] -> []
 
-            match calls with
-            | [] -> $"  {name}"
-            | _ ->
-              let padded = Stdlib.Text.padEndToWidth(name, width)
-              // `Stdlib.Compare.lessThan, lessThanOrEqualTo, ...`: the path once.
-              let callText =
-                match calls with
-                | [first, ...rest] ->
-                  rest
-                  |> Stdlib.List.map(fun c ->
-                    Stdlib.Option.withDefault(Stdlib.List.last(Stdlib.String.split(c, ".")), c))
-                  |> Stdlib.List.prepend(first)
-                  |> Stdlib.String.join(", ")
-                | [] -> ""
-              $"  {padded}  {Stdlib.Cli.UI.Colors.dimText(callText)}"
+          match calls with
+          | [] -> $"  {name}"
+          | _ ->
+            let padded = Stdlib.Text.padEndToWidth(name, width)
+            // `Stdlib.Compare.lessThan, lessThanOrEqualTo, ...`: the path once.
+            let callText =
+              match calls with
+              | [first, ...rest] ->
+                rest
+                |> Stdlib.List.map(fun c ->
+                  Stdlib.Option.withDefault(Stdlib.List.last(Stdlib.String.split(c, ".")), c))
+                |> Stdlib.List.prepend(first)
+                |> Stdlib.String.join(", ")
+              | [] -> ""
 
-        Stdlib.List.flatten([
-          [ Display.getSectionHeader("impl") ]
-          shown |> Stdlib.List.map(row)
-          [ "" ]
-        ])
+            $"  {padded}  {Stdlib.Cli.UI.Colors.dimText(callText)}"
+
+        Stdlib.List.flatten(
+          [ [ Display.getSectionHeader("impl") ], shown |> Stdlib.List.map(row), [ "" ] ])
 
     // A module named for a type (`Acme.Point`, holding the impls `Point.Show`
     // and `Point.Add`) is also that type, and an impl's module (`Acme.Point.Show`,
@@ -311,202 +280,194 @@ let entityRows(
         | Some(name), [owner, ...modules] ->
           let results = Query.searchExactMatch(branchId, parent, name)
           let itemName =
-            LanguageTools.ProgramTypes.PackageLocation { owner = owner, modules = modules, name = name }
+            LanguageTools.ProgramTypes.PackageLocation
+              { owner = owner, modules = modules, name = name }
+
           let ctx =
-            { terminalContext(branchId, parent) with
-                preferredLocation = Stdlib.Option.Option.Some(itemName) }
+            { terminalContext(branchId, parent) with preferredLocation = Option.Some(itemName) }
+
           let printed =
             match results.types with
-            | [item, ...] -> Stdlib.Option.Option.Some(PrettyPrinter.ProgramTypes.packageType(ctx, item.entity))
+            | [item, ...] -> Option.Some(PrettyPrinter.ProgramTypes.packageType(ctx, item.entity))
             | [] ->
               match results.impls with
-              | [item, ...] -> Stdlib.Option.Option.Some(PrettyPrinter.ProgramTypes.packageImpl(ctx, item.entity))
-              | [] -> Stdlib.Option.Option.None
+              | [item, ...] -> Option.Some(PrettyPrinter.ProgramTypes.packageImpl(ctx, item.entity))
+              | [] -> Option.None
+
           match printed with
           | Some(prettyPrinted) ->
             Stdlib.List.append(sourceRows(SyntaxHighlighting.highlightCode(prettyPrinted)), "")
           | None -> []
         | _, _ -> []
 
-    Stdlib.List.flatten([
-      [ locationStr
-        (Stdlib.String.checkedRepeat("=", Stdlib.String.length(locationStr)) |> Stdlib.Result.withDefault(""))
-        "" ]
-      sameNamedTypeRows
-      sectionRows("submodule", "/", submodules)
-      sectionRows("type", "", typeNames)
-      sectionRows("trait", "", traitNames)
-      sectionRows("value", "", valueNames)
-      sectionRows("function", "", fnNames)
-      implRows
-      sectionRows("test", "", testNames)
-    ])
+    Stdlib.List.flatten(
+      [ [ locationStr
+          Stdlib.String.checkedRepeat("=", Stdlib.String.length(locationStr))
+          |> Stdlib.Result.withDefault("")
 
+          "" ]
+
+        sameNamedTypeRows
+        sectionRows("submodule", "/", submodules)
+        sectionRows("type", "", typeNames)
+        sectionRows("trait", "", traitNames)
+        sectionRows("value", "", valueNames)
+        sectionRows("function", "", fnNames)
+        implRows
+        sectionRows("test", "", testNames) ])
   | Type(name) ->
     let modulePath = Stdlib.List.prepend(name.modules, name.owner)
     let results = Query.searchExactMatch(branchId, modulePath, name.name)
-
     match results.types with
     | [] ->
-      let locationStr = Packages.formatLocation(location)
+      let locationStr = formatLocation(location)
       [ $"Type '{locationStr}' not found." ]
     | [item, ...] ->
       // `preferredLocation`, so a shared body is headed with the name asked for.
       let ctx =
         { terminalContext(branchId, Stdlib.List.prepend(name.modules, name.owner)) with
-            preferredLocation = Stdlib.Option.Option.Some(name) }
+            preferredLocation = Option.Some(name) }
+
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageType(ctx, item.entity)
       let highlighted = SyntaxHighlighting.highlightCode(prettyPrinted)
+      Stdlib.List.flatten(
+        [ deprecationHeaderRowsFor(
+            branchId,
+            name,
+            item.entity.hash,
+            LanguageTools.ProgramTypes.ItemKind.Type)
 
-      Stdlib.List.flatten([
-        deprecationHeaderRowsFor(
-          branchId,
-          name,
-          item.entity.hash,
-          LanguageTools.ProgramTypes.ItemKind.Type)
-        sourceRows(highlighted)
-      ])
-
+          sourceRows(highlighted) ])
   | Function(name) ->
     let modulePath = Stdlib.List.prepend(name.modules, name.owner)
     let results = Query.searchExactMatch(branchId, modulePath, name.name)
-
     match results.fns with
     | [] ->
-      let locationStr = Packages.formatLocation(location)
+      let locationStr = formatLocation(location)
       [ $"Function '{locationStr}' not found." ]
     | [item, ...] ->
       // `preferredLocation`, so a shared body is headed with the name asked for.
       let ctx =
         { terminalContext(branchId, Stdlib.List.prepend(name.modules, name.owner)) with
-            preferredLocation = Stdlib.Option.Option.Some(name) }
+            preferredLocation = Option.Some(name) }
+
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn(ctx, item.entity)
       let highlighted = SyntaxHighlighting.highlightCode(prettyPrinted)
       let permissionLines =
         Permissions.Command.policyLinesForHash(
           LanguageTools.ProgramTypes.hashToString(item.entity.hash))
 
-      Stdlib.List.flatten([
-        deprecationHeaderRowsFor(
-          branchId,
-          name,
-          item.entity.hash,
-          LanguageTools.ProgramTypes.ItemKind.Fn)
-        sourceRows(highlighted)
-        [ "" ]
-        permissionLines |> Stdlib.List.map(Stdlib.Cli.UI.Colors.dimText)
-        if tests == Tests.Show then
-          testRows(
+      Stdlib.List.flatten(
+        [ deprecationHeaderRowsFor(
             branchId,
             name,
-            LanguageTools.ProgramTypes.ItemKind.Fn,
-            "dark ",
-            Display.getSectionHeader("test"))
-        else
-          []
-      ])
+            item.entity.hash,
+            LanguageTools.ProgramTypes.ItemKind.Fn)
 
+          sourceRows(highlighted)
+          [ "" ]
+          permissionLines |> Stdlib.List.map(Stdlib.Cli.UI.Colors.dimText)
+          if tests == Tests.Show then
+            testRows(
+              branchId,
+              name,
+              LanguageTools.ProgramTypes.ItemKind.Fn,
+              "dark ",
+              Display.getSectionHeader("test"))
+          else
+            [] ])
   | Value(name) ->
     let modulePath = Stdlib.List.prepend(name.modules, name.owner)
     let results = Query.searchExactMatch(branchId, modulePath, name.name)
-
     match results.values with
     | [] ->
-      let locationStr = Packages.formatLocation(location)
+      let locationStr = formatLocation(location)
       [ $"Value '{locationStr}' not found." ]
     | [item, ...] ->
       // `preferredLocation`, so a shared body is headed with the name asked for.
       let ctx =
         { terminalContext(branchId, Stdlib.List.prepend(name.modules, name.owner)) with
-            preferredLocation = Stdlib.Option.Option.Some(name) }
+            preferredLocation = Option.Some(name) }
+
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue(ctx, item.entity)
       let highlighted = SyntaxHighlighting.highlightCode(prettyPrinted)
+      Stdlib.List.flatten(
+        [ deprecationHeaderRowsFor(
+            branchId,
+            name,
+            item.entity.hash,
+            LanguageTools.ProgramTypes.ItemKind.Value)
 
-      Stdlib.List.flatten([
-        deprecationHeaderRowsFor(
-          branchId,
-          name,
-          item.entity.hash,
-          LanguageTools.ProgramTypes.ItemKind.Value)
-        sourceRows(highlighted)
-      ])
-
+          sourceRows(highlighted) ])
   | Trait(name) ->
     let modulePath = Stdlib.List.prepend(name.modules, name.owner)
     let results = Query.searchExactMatch(branchId, modulePath, name.name)
-
     match results.traits with
     | [] ->
-      let locationStr = Packages.formatLocation(location)
+      let locationStr = formatLocation(location)
       [ $"Trait '{locationStr}' not found." ]
     | [item, ...] ->
       let ctx =
         { terminalContext(branchId, Stdlib.List.prepend(name.modules, name.owner)) with
-            preferredLocation = Stdlib.Option.Option.Some(name) }
+            preferredLocation = Option.Some(name) }
+
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageTrait(ctx, item.entity)
       let highlighted = SyntaxHighlighting.highlightCode(prettyPrinted)
-      Stdlib.List.flatten([
-        deprecationHeaderRowsFor(
-          branchId,
-          name,
-          item.entity.hash,
-          LanguageTools.ProgramTypes.ItemKind.Trait)
-        sourceRows(highlighted)
-      ])
+      Stdlib.List.flatten(
+        [ deprecationHeaderRowsFor(
+            branchId,
+            name,
+            item.entity.hash,
+            LanguageTools.ProgramTypes.ItemKind.Trait)
 
+          sourceRows(highlighted) ])
   | Impl(name) ->
     let modulePath = Stdlib.List.prepend(name.modules, name.owner)
     let results = Query.searchExactMatch(branchId, modulePath, name.name)
-
     match results.impls with
     | [] ->
-      let locationStr = Packages.formatLocation(location)
+      let locationStr = formatLocation(location)
       [ $"Impl '{locationStr}' not found." ]
     | [item, ...] ->
       let ctx =
         { terminalContext(branchId, Stdlib.List.prepend(name.modules, name.owner)) with
-            preferredLocation = Stdlib.Option.Option.Some(name) }
+            preferredLocation = Option.Some(name) }
+
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageImpl(ctx, item.entity)
       let highlighted = SyntaxHighlighting.highlightCode(prettyPrinted)
-      Stdlib.List.flatten([
-        deprecationHeaderRowsFor(
-          branchId,
-          name,
-          item.entity.hash,
-          LanguageTools.ProgramTypes.ItemKind.TraitImpl)
-        sourceRows(highlighted)
-      ])
+      Stdlib.List.flatten(
+        [ deprecationHeaderRowsFor(
+            branchId,
+            name,
+            item.entity.hash,
+            LanguageTools.ProgramTypes.ItemKind.TraitImpl)
 
+          sourceRows(highlighted) ])
   | Test(name) ->
     let modulePath = Stdlib.List.prepend(name.modules, name.owner)
     let results = Query.searchExactMatch(branchId, modulePath, name.name)
-
     match results.tests with
     | [] ->
-      let locationStr = Packages.formatLocation(location)
+      let locationStr = formatLocation(location)
       [ $"Test '{locationStr}' not found." ]
     | [item, ...] ->
       let ctx =
         { terminalContext(branchId, Stdlib.List.prepend(name.modules, name.owner)) with
-            preferredLocation = Stdlib.Option.Option.Some(name) }
+            preferredLocation = Option.Some(name) }
+
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageTest(ctx, item.entity)
       let highlighted = SyntaxHighlighting.highlightCode(prettyPrinted)
+      Stdlib.List.flatten(
+        [ deprecationHeaderRowsFor(
+            branchId,
+            name,
+            item.entity.hash,
+            LanguageTools.ProgramTypes.ItemKind.Test)
 
-      Stdlib.List.flatten([
-        deprecationHeaderRowsFor(
-          branchId,
-          name,
-          item.entity.hash,
-          LanguageTools.ProgramTypes.ItemKind.Test)
-        sourceRows(highlighted)
-      ])
+          sourceRows(highlighted) ])
 
 
-let viewEntity(
-  branchId: Uuid,
-  location: PackageLocation,
-  tests: Tests)
-  : Unit =
+let viewEntity(branchId: Uuid, location: PackageLocation, tests: Tests): Unit =
   entityRows(branchId, location, tests) |> Stdlib.printLines
 
 
@@ -552,36 +513,31 @@ let modeName(mode: ViewMode): String =
 /// Flags are accepted in any position, so `view --ast List.last` and `view List.last --ast` both work.
 /// Returns the paths given (none means the current location), the mode, and whether
 /// `--include-tests` was passed, or an error naming the bad flag.
-let parseArgs(
-  args: List<String>)
-  : Stdlib.Result.Result<(List<String> * ViewMode * Bool), String> =
+let parseArgs(args: List<String>): Result<(List<String> * ViewMode * Bool), String> =
   let isFlag(a: String): Bool = Stdlib.String.startsWith(a, "-")
   let includeTests = Stdlib.List.contains(args, "--include-tests")
-  let flags =
-    Stdlib.List.filter(args, fun a -> isFlag(a) && a != "--include-tests")
+  let flags = Stdlib.List.filter(args, fun a -> isFlag(a) && a != "--include-tests")
   let paths = Stdlib.List.filter(args, fun a -> Stdlib.Bool.not(isFlag(a)))
-
-  let modeResult =
-    Stdlib.List.fold(flags, Stdlib.Result.Result.Ok(ViewMode.Source), fun(acc, flag) ->
-      match acc with
-      | Error(e) -> Stdlib.Result.Result.Error(e)
-      | Ok(_) ->
-        match flag with
-        | "--raw" -> Stdlib.Result.Result.Ok(ViewMode.Raw)
-        | "--ast" -> Stdlib.Result.Result.Ok(ViewMode.Ast)
-        | "--instructions" -> Stdlib.Result.Result.Ok(ViewMode.Instructions)
-        | "--instrs" -> Stdlib.Result.Result.Ok(ViewMode.Instructions)
-        | other -> Stdlib.Result.Result.Error($"unknown option `{other}`"))
+  let modeResult = Stdlib.List.fold(flags, Result.Ok(ViewMode.Source), fun(acc, flag) ->
+    match acc with
+    | Error(e) -> Result.Error(e)
+    | Ok(_) ->
+      match flag with
+      | "--raw" -> Result.Ok(ViewMode.Raw)
+      | "--ast" -> Result.Ok(ViewMode.Ast)
+      | "--instructions" -> Result.Ok(ViewMode.Instructions)
+      | "--instrs" -> Result.Ok(ViewMode.Instructions)
+      | other -> Result.Error($"unknown option `{other}`"))
 
   match modeResult with
-  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Error(e) -> Result.Error(e)
   | Ok(mode) ->
-    if includeTests && (mode != ViewMode.Source) then
+    if includeTests && mode != ViewMode.Source then
       // The other modes print one declaration for a machine or a debugger;
       // a tests list in that output would break the pipe `--raw` exists for.
-      Stdlib.Result.Result.Error("`--include-tests` goes with the default view only")
+      Result.Error("`--include-tests` goes with the default view only")
     else
-      Stdlib.Result.Result.Ok((paths, mode, includeTests))
+      Result.Ok((paths, mode, includeTests))
 
 
 /// The function at a location, if the location names one. `--ast` and `--instructions` are function-only
@@ -589,29 +545,23 @@ let parseArgs(
 let fnAt(
   branchId: Uuid,
   location: PackageLocation)
-  : Stdlib.Result.Result<LanguageTools.ProgramTypes.PackageFn.PackageFn, String> =
+  : Result<LanguageTools.ProgramTypes.PackageFn.PackageFn, String> =
   match location with
   | Function(name) ->
     let modulePath = Stdlib.List.prepend(name.modules, name.owner)
     let results = Query.searchExactMatch(branchId, modulePath, name.name)
-
     match results.fns with
-    | [item, ...] -> Stdlib.Result.Result.Ok(item.entity)
+    | [item, ...] -> Result.Ok(item.entity)
     | [] ->
-      let loc = Packages.formatLocation(location)
-      Stdlib.Result.Result.Error($"Function '{loc}' not found.")
-  | Module(_) ->
-    Stdlib.Result.Result.Error("that's a module; this view is for functions")
-  | Type(_) -> Stdlib.Result.Result.Error("that's a type; this view is for functions")
-  | Value(_) ->
-    Stdlib.Result.Result.Error("that's a value; this view is for functions")
-  | Trait(_) ->
-    Stdlib.Result.Result.Error("that's a trait; this view is for functions")
+      let loc = formatLocation(location)
+      Result.Error($"Function '{loc}' not found.")
+  | Module(_) -> Result.Error("that's a module; this view is for functions")
+  | Type(_) -> Result.Error("that's a type; this view is for functions")
+  | Value(_) -> Result.Error("that's a value; this view is for functions")
+  | Trait(_) -> Result.Error("that's a trait; this view is for functions")
   | Impl(_) ->
-    Stdlib.Result.Result.Error(
-      "that's an implementation; this view is for functions. Name one of its methods.")
-  | Test(_) ->
-    Stdlib.Result.Result.Error("that's a test; this view is for functions")
+    Result.Error("that's an implementation; this view is for functions. Name one of its methods.")
+  | Test(_) -> Result.Error("that's a test; this view is for functions")
 
 
 /// The ProgramTypes tree, indented by depth. Node kinds are colored and payloads dimmed, so the shape
@@ -622,14 +572,12 @@ let astRows(
   fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
   : List<String> =
   let ctx = PrettyPrinter.ProgramTypes.Context.forBranch(branchId)
-
   PrettyPrinter.ProgramTypes.Ast.packageFn(ctx, name, fn)
   |> Stdlib.List.map(fun l ->
     // The signature is depth 0 and the body starts at depth 0 too, so the tree reads as a block under
     // the signature rather than being pushed a level in by scaffolding that isn't there any more.
-    let indent = (Stdlib.String.checkedRepeat("  ", l.depth) |> Stdlib.Result.withDefault(""))
+    let indent = Stdlib.String.checkedRepeat("  ", l.depth) |> Stdlib.Result.withDefault("")
     let label = Stdlib.Cli.UI.Colors.keyword(l.label)
-
     if l.detail == "" then
       $"{indent}{label}"
     else
@@ -647,37 +595,34 @@ let instructionRows(branchId: Uuid, instrs: LanguageTools.RuntimeTypes.Instructi
       |> Stdlib.List.fold(0, fun(acc, n) -> if n > acc then n else acc)
 
     is.instructions
-      |> Stdlib.List.indexedMap(fun(index, i) ->
-        let idx =
-          Stdlib.Cli.UI.Colors.dimText(
-            Stdlib.Text.padStartToWidth(Stdlib.display(index), 4))
-        // Width of the widest opcode actually in this body, not a fixed 22. Most functions use short
-        // opcodes, and a fixed column leaves a corridor of blanks between them and their operands.
-        let op =
-          Stdlib.Cli.UI.Colors.command(
-            (Stdlib.Text.padEndToWidth(
-              PrettyPrinter.RuntimeTypes.Instructions.opcode(i),
-              opcodeWidth)))
-        let ops = PrettyPrinter.RuntimeTypes.Instructions.operands(branchId, index, i)
-        $"  {idx}  {op} {ops}")
+    |> Stdlib.List.indexedMap(fun(index, i) ->
+      let idx = Stdlib.Cli.UI.Colors.dimText(Stdlib.Text.padStartToWidth(Stdlib.display(index), 4))
+      // Width of the widest opcode actually in this body, not a fixed 22. Most functions use short
+      // opcodes, and a fixed column leaves a corridor of blanks between them and their operands.
+      let op =
+        Stdlib.Cli.UI.Colors.command(
+          Stdlib.Text.padEndToWidth(PrettyPrinter.RuntimeTypes.Instructions.opcode(i), opcodeWidth))
+
+      let ops = PrettyPrinter.RuntimeTypes.Instructions.operands(branchId, index, i)
+      $"  {idx}  {op} {ops}")
 
   let lambdaSections =
     PrettyPrinter.RuntimeTypes.Instructions.lambdas(instrs)
     |> Stdlib.List.map(fun l ->
-      let header =
-        PrettyPrinter.RuntimeTypes.Instructions.header(l.instructions)
+      let header = PrettyPrinter.RuntimeTypes.Instructions.header(l.instructions)
       Stdlib.List.flatten(
         [ [ ""
             Stdlib.Cli.UI.Colors.hint($"lambda#{Stdlib.display(l.exprId)}")
             Stdlib.Cli.UI.Colors.dimText($"  {header}")
             "" ]
+
           renderBody(l.instructions) ]))
     |> Stdlib.List.flatten
 
   Stdlib.List.flatten(
-    [ [ Stdlib.Cli.UI.Colors.dimText(
-          $"  {PrettyPrinter.RuntimeTypes.Instructions.header(instrs)}")
+    [ [ Stdlib.Cli.UI.Colors.dimText($"  {PrettyPrinter.RuntimeTypes.Instructions.header(instrs)}")
         "" ]
+
       renderBody(instrs)
       lambdaSections ])
 
@@ -685,24 +630,23 @@ let instructionRows(branchId: Uuid, instrs: LanguageTools.RuntimeTypes.Instructi
 /// Render one of the compiler views of the function at <param location>.
 let viewCompiled(branchId: Uuid, location: PackageLocation, mode: ViewMode): Unit =
   match fnAt(branchId, location) with
-  | Error(e) -> Cli.printErr($"Cannot {modeName(mode)}: {e}")
+  | Error(e) -> printErr($"Cannot {modeName(mode)}: {e}")
   | Ok(fn) ->
-    let title = Stdlib.Cli.UI.Colors.boldText(Packages.formatLocation(location))
+    let title = Stdlib.Cli.UI.Colors.boldText(formatLocation(location))
     Stdlib.printLine(title)
     Stdlib.printLine("")
-
     match mode with
     | Ast ->
       let shortName =
         match location with
         | Function(name) -> name.name
         | _ -> ""
+
       astRows(branchId, shortName, fn) |> Stdlib.printLines
     | Instructions ->
       match Builtin.pmFnInstructions(fn.hash) with
       | Some(instrs) -> instructionRows(branchId, instrs) |> Stdlib.printLines
-      | None ->
-        Cli.printErr("No compiled instructions stored for this function.")
+      | None -> printErr("No compiled instructions stored for this function.")
     | Source -> viewEntity(branchId, location, Tests.Hide)
     | Raw -> printRaw(branchId, location)
 
@@ -711,37 +655,36 @@ let viewCompiled(branchId: Uuid, location: PackageLocation, mode: ViewMode): Uni
 let looksLikeHex(s: String): Bool =
   s
   |> Stdlib.String.toList
-  |> Stdlib.List.all(fun c -> Stdlib.Char.isDigit(c) || (Stdlib.List.contains([ 'a', 'b', 'c', 'd', 'e', 'f' ], c)))
+  |> Stdlib.List.all(fun c ->
+    Stdlib.Char.isDigit(c) || Stdlib.List.contains([ 'a', 'b', 'c', 'd', 'e', 'f' ], c))
 
 
 /// A 64-hex argument is an item HASH: every --json surface hands them out, and a
 /// content-addressed store whose ids were dead ends on the command line taught agents to
 /// route back through names that propagation can move underneath them.
 let isItemHash(s: String): Bool =
-  (Stdlib.String.length(s) == 64)
-  && (Stdlib.String.toLowercase(s) == s)
-  && (looksLikeHex(s))
+  Stdlib.String.length(s) == 64 && Stdlib.String.toLowercase(s) == s && looksLikeHex(s)
 
 
 /// Resolve an item hash (see `isItemHash`) to the location main binds it to, wrapped by
 /// the KIND the store records for it, so the viewer renders it as itself. Errors when no
 /// live name binds the hash.
-let resolveHashArg(hash: String): Stdlib.Result.Result<PackageLocation, String> =
+let resolveHashArg(hash: String): Result<PackageLocation, String> =
   match SCM.Deps.mainLocationOf(hash) with
   | Some(loc) ->
     let kind =
       SCM.Propagation.kindAt(loc)
       |> Stdlib.Option.withDefault(LanguageTools.ProgramTypes.ItemKind.Fn)
 
-    (match kind with
-     | Fn -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Function(loc))
-     | Type -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Type(loc))
-     | Value -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Value(loc))
-     | Trait -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Trait(loc))
-     | TraitImpl -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Impl(loc))
-     | Test -> Stdlib.Result.Result.Ok(Packages.PackageLocation.Test(loc)))
+    match kind with
+    | Fn -> Result.Ok(PackageLocation.Function(loc))
+    | Type -> Result.Ok(PackageLocation.Type(loc))
+    | Value -> Result.Ok(PackageLocation.Value(loc))
+    | Trait -> Result.Ok(PackageLocation.Trait(loc))
+    | TraitImpl -> Result.Ok(PackageLocation.Impl(loc))
+    | Test -> Result.Ok(PackageLocation.Test(loc))
   | None ->
-    Stdlib.Result.Result.Error(
+    Result.Error(
       $"no live name binds hash {Stdlib.String.first(hash, 8)} -- `dark show {Stdlib.String.first(hash, 8)}` reads it as an op.")
 
 
@@ -762,38 +705,34 @@ let printTraceHintWith(branchId: Uuid, location: PackageLocation, after: String)
   | Test(_) -> ()
   | Function(loc) ->
     let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)
-
-    match Darklang.Tracing.Store.wentThroughNamed(branchId, name, 25) with
+    match Tracing.Store.wentThroughNamed(branchId, name, 25) with
     | [] -> ()
     | traces ->
       let n = Stdlib.List.length(traces)
-      let count = if n == 25 then "25 or more traces" else Cli.Text.plural(n, "trace")
-
+      let count = if n == 25 then "25 or more traces" else Text.plural(n, "trace")
       Stdlib.printErrorLine("")
+
       Stdlib.printErrorLine(
-        (Stdlib.Cli.UI.Colors.dimText(
-          $"{count} went through this: dark traces show {name}{after}")))
+        Stdlib.Cli.UI.Colors.dimText($"{count} went through this: dark traces show {name}{after}"))
 
 
 let printTraceHint(branchId: Uuid, location: PackageLocation): Unit =
   printTraceHintWith(branchId, location, "")
 
 
-
 /// View one item: <param pathArg>, or the current location when there is none. <param failure>
 /// starts the line that says it is not there.
 let viewOne(
   state: AppState,
-  pathArg: Stdlib.Option.Option<String>,
+  pathArg: Option<String>,
   mode: ViewMode,
   includeTests: Bool,
   failure: String)
   : AppState =
   let branchId = state.currentBranchId
-
   let locationResult =
     match pathArg with
-    | None -> Stdlib.Result.Result.Ok(state.packageData.currentLocation)
+    | None -> Result.Ok(state.packageData.currentLocation)
     | Some(p) ->
       if isItemHash(p) then
         resolveHashArg(p)
@@ -814,7 +753,7 @@ let viewOne(
         Stdlib.printLine(src)
         state
       | Error(e) ->
-        Cli.printErr(e)
+        printErr(e)
         { state with exitCode = 1 }
     | Source ->
       viewEntity(branchId, location, Tests.showIf(includeTests))
@@ -842,16 +781,18 @@ let execute(state: AppState, args: List<String>): AppState =
       match mode with
       | Raw -> Stdlib.printLine($"// {p}")
       | _ -> Stdlib.printLine(Stdlib.Cli.UI.Colors.boldText($"# {p}"))
-      viewOne(acc, Stdlib.Option.Option.Some(p), mode, includeTests, $"Cannot view {p}")
+
+      viewOne(acc, Option.Some(p), mode, includeTests, $"Cannot view {p}")
 
     match paths with
-    | [] -> viewOne(state, Stdlib.Option.Option.None, mode, includeTests, "Cannot view")
-    | [ p ] -> viewOne(state, Stdlib.Option.Option.Some(p), mode, includeTests, "Cannot view")
-    | [ first, ...rest ] ->
+    | [] -> viewOne(state, Option.None, mode, includeTests, "Cannot view")
+    | [p] -> viewOne(state, Option.Some(p), mode, includeTests, "Cannot view")
+    | [first, ...rest] ->
       rest
       |> Stdlib.List.fold(viewNamed(state, first), fun(acc, p) ->
         Stdlib.printLine("")
         viewNamed(acc, p))
+
 
 let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =
   let branchId = state.currentBranchId
@@ -868,13 +809,11 @@ let complete(state: AppState, args: List<String>): List<Completion.CompletionIte
       flagCompletions(lastArg)
     else
       Traversal.completePartialPath(branchId, state.packageData.currentLocation, lastArg)
-  | None ->
-    Traversal.completePartialPath(branchId, state.packageData.currentLocation, "")
+  | None -> Traversal.completePartialPath(branchId, state.packageData.currentLocation, "")
 
 
 let help(_state: AppState): String =
-  [
-    "Usage: view [path...] [--include-tests] [--raw | --ast | --instructions]"
+  [ "Usage: view [path...] [--include-tests] [--raw | --ast | --instructions]"
     "View a function, type, value, trait, implementation, test or module."
     ""
     "With path: View the specified item with syntax highlighting."
@@ -903,5 +842,5 @@ let help(_state: AppState): String =
     "  view List.head --raw            - Print just the declaration"
     "  view Float.add --include-tests  - Float.add and the tests that call it"
     "  view List.last --ast            - View List.last as a syntax tree"
-    "  view List.map --instructions    - Disassemble List.map"
-  ] |> Stdlib.String.join("\n")
+    "  view List.map --instructions    - Disassemble List.map" ]
+  |> Stdlib.String.join("\n")

@@ -1,13 +1,13 @@
 module Darklang.Stdlib.Base16
 
-
 /// Base16 (hex) encodes <param bytes> using an uppercase alphabet.
 /// Complies with RFC 4648 section 8.
-let encode(bytes: Bytes): String = Builtin.base16Encode(bytes)
+let encode(bytes: Bytes): String =
+  Builtin.base16Encode(bytes)
 
 
 /// Parses <param s> as an uppercase or lowercase Base16 (hex) string into a Bytes.
 /// Returns an Error naming the problem when <param s> holds a character that is not a
 /// hex digit, or an odd number of digits.
-let decode(s: String): Stdlib.Result.Result<Bytes, String> =
+let decode(s: String): Result<Bytes, String> =
   Builtin.base16Decode(s)

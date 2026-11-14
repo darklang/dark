@@ -1,6 +1,5 @@
 module Darklang.Cli.Packages.Errors
 
-
 /// Whether an invalid name uses the internal `PACKAGE.` notation, allowing the
 /// CLI to show its source spelling.
 let isInternalPackageName(originalName: List<String>): Bool =
@@ -12,20 +11,17 @@ let isInternalPackageName(originalName: List<String>): Bool =
 let sourceNameWithoutInternalPrefix(originalName: List<String>): String =
   let sourceParts =
     match originalName with
-    | ["PACKAGE", "Darklang", "Stdlib", ...rest] ->
-      Stdlib.List.prepend(rest, "Stdlib")
+    | ["PACKAGE", "Darklang", "Stdlib", ...rest] -> Stdlib.List.prepend(rest, "Stdlib")
     | ["PACKAGE", ...rest] -> rest
     | _ -> originalName
+
   Stdlib.String.join(sourceParts, ".")
 
 
-let splitLast(
-  parts: List<String>)
-  : Stdlib.Option.Option<(List<String> * String)> =
+let splitLast(parts: List<String>): Option<(List<String> * String)> =
   match Stdlib.List.reverse(parts) with
-  | [] -> Stdlib.Option.Option.None
-  | [name, ...reversedModules] ->
-    Stdlib.Option.Option.Some((Stdlib.List.reverse(reversedModules), name))
+  | [] -> Option.None
+  | [name, ...reversedModules] -> Option.Some((Stdlib.List.reverse(reversedModules), name))
 
 
 /// One place a name could live in the standard library: how the user would write it, and where it is.
@@ -36,14 +32,11 @@ let stdlibCandidate(
   modules: List<String>,
   name: String)
   : (String * LanguageTools.ProgramTypes.PackageLocation) =
-  let written =
-    Stdlib.List.flatten([ writtenPrefix, modules, [ name ] ])
-    |> Stdlib.String.join(".")
+  let written = Stdlib.List.flatten([ writtenPrefix, modules, [ name ] ]) |> Stdlib.String.join(".")
   let location =
     LanguageTools.ProgramTypes.PackageLocation
-      { owner = "Darklang"
-        modules = Stdlib.List.prepend(modules, "Stdlib")
-        name = name }
+      { owner = "Darklang", modules = Stdlib.List.prepend(modules, "Stdlib"), name = name }
+
   (written, location)
 
 
@@ -59,12 +52,12 @@ let enclosingModules(modules: List<String>): List<List<String>> =
 
 /// The Stdlib name for a job another language spells differently: `toString` is `display`,
 /// and `Int64.absoluteValue` is the generic `abs`.
-let otherLanguageName(name: String): Stdlib.Option.Option<String> =
+let otherLanguageName(name: String): Option<String> =
   match name with
-  | "toString" -> Stdlib.Option.Option.Some("display")
-  | "toRepr" -> Stdlib.Option.Option.Some("inspect")
-  | "absoluteValue" | "absolute" -> Stdlib.Option.Option.Some("abs")
-  | _ -> Stdlib.Option.Option.None
+  | "toString" -> Option.Some("display")
+  | "toRepr" -> Option.Some("inspect")
+  | "absoluteValue" | "absolute" -> Option.Some("abs")
+  | _ -> Option.None
 
 
 /// Where an unresolved name might really be, in the order <fn stdlibSuggestion> tries them.
@@ -81,27 +74,22 @@ let stdlibSuggestionCandidates(
   match splitLast(originalName) with
   | None -> []
   | Some((modules, name)) ->
-    let walkUp =
-      fun(writtenPrefix, inner) ->
-        enclosingModules(inner)
-        |> Stdlib.List.map(fun m -> stdlibCandidate(writtenPrefix, m, name))
+    let walkUp = fun(writtenPrefix, inner) ->
+      enclosingModules(inner) |> Stdlib.List.map(fun m -> stdlibCandidate(writtenPrefix, m, name))
 
-    let renamed =
-      fun writtenPrefix ->
-        match otherLanguageName(name) with
-        | Some(other) -> [ stdlibCandidate(writtenPrefix, [], other) ]
-        | None -> []
+    let renamed = fun writtenPrefix ->
+      match otherLanguageName(name) with
+      | Some(other) -> [ stdlibCandidate(writtenPrefix, [], other) ]
+      | None -> []
 
     match modules with
     | [] -> []
     | ["Stdlib", ...inner] -> Stdlib.List.concat(walkUp([ "Stdlib" ], inner), renamed([ "Stdlib" ]))
     | ["Darklang", "Stdlib", ...inner] ->
-      Stdlib.List.concat(
-        walkUp([ "Darklang", "Stdlib" ], inner),
-        renamed([ "Darklang", "Stdlib" ]))
+      Stdlib.List.concat(walkUp([ "Darklang", "Stdlib" ], inner), renamed([ "Darklang", "Stdlib" ]))
     | ["Darklang", ...] -> []
     | ["PACKAGE", ...] -> []
-    | [ _ ] ->
+    | [_] ->
       Stdlib.List.flatten(
         [ [ stdlibCandidate([ "Stdlib" ], modules, name) ]
           walkUp([ "Stdlib" ], modules)
@@ -111,29 +99,27 @@ let stdlibSuggestionCandidates(
 
 /// The Stdlib name for a conversion people guess another name for: Stdlib turns bytes into text
 /// and back in `Utf8`, so `String.fromBytes` and `Bytes.toString` are `Stdlib.Utf8.decode`.
-let guessedName(originalName: List<String>): Stdlib.Option.Option<String> =
+let guessedName(originalName: List<String>): Option<String> =
   let lastTwo =
     originalName
     |> Stdlib.List.reverse
     |> Stdlib.List.take(2)
     |> Stdlib.List.reverse
     |> Stdlib.List.map(Stdlib.String.toLowercase)
+
   match lastTwo with
-  | [ "string", "frombytes" ] | [ "string", "fromutf8" ] | [ "bytes", "tostring" ] ->
-    Stdlib.Option.Option.Some("Stdlib.Utf8.decode")
-  | [ "string", "tobytes" ] | [ "string", "toutf8" ] | [ "bytes", "fromstring" ] ->
-    Stdlib.Option.Option.Some("Stdlib.Utf8.encode")
-  | _ -> Stdlib.Option.Option.None
+  | ["string", "frombytes"] | ["string", "fromutf8"] | ["bytes", "tostring"] ->
+    Option.Some("Stdlib.Utf8.decode")
+  | ["string", "tobytes"] | ["string", "toutf8"] | ["bytes", "fromstring"] ->
+    Option.Some("Stdlib.Utf8.encode")
+  | _ -> Option.None
 
 
 /// Suggest the standard-library name an unresolved name probably meant, when an item exists there:
 /// a <fn guessedName>, or else the first of <fn stdlibSuggestionCandidates> that is on the branch.
-let stdlibSuggestion(
-  branchId: Uuid,
-  originalName: List<String>)
-  : Stdlib.Option.Option<String> =
+let stdlibSuggestion(branchId: Uuid, originalName: List<String>): Option<String> =
   match guessedName(originalName) with
-  | Some(name) -> Stdlib.Option.Option.Some(name)
+  | Some(name) -> Option.Some(name)
   | None ->
     stdlibSuggestionCandidates(originalName)
     |> Stdlib.List.findFirst(fun((_, location)) ->
@@ -152,35 +138,41 @@ let closestNameModules(modules: List<String>): List<(List<String> * List<String>
   | ["Darklang", ...] -> [ (modules, modules) ]
   | _ ->
     [ (modules, modules)
-      (Stdlib.List.prepend(modules, "Stdlib"),
-       Stdlib.List.flatten([ [ "Darklang", "Stdlib" ], modules ])) ]
+      (
+        Stdlib.List.prepend(modules, "Stdlib"),
+        Stdlib.List.flatten([ [ "Darklang", "Stdlib" ], modules ])) ]
 
 
 /// How far <param candidate> is from the <param name> that was written, when it is near enough to
 /// suggest: a few edits, ignoring case, or one name inside the other (`toUpper` for
 /// `toUppercase`).
-let nameDistance(name: String, candidate: String): Stdlib.Option.Option<Int64> =
+let nameDistance(name: String, candidate: String): Option<Int64> =
   let a = Stdlib.String.toLowercase(name)
   let b = Stdlib.String.toLowercase(candidate)
-  let d = Cli.Config.editDistance(a, b)
-  let shorter = Cli.Config.smaller(Stdlib.String.length(a), Stdlib.String.length(b))
-  let allowed = Cli.Config.smaller(3, Stdlib.max(1, Stdlib.Int64.checkedDivide(Stdlib.String.length(a), 3) |> Stdlib.Result.withDefault(0)))
+  let d = Config.editDistance(a, b)
+  let shorter = Config.smaller(Stdlib.String.length(a), Stdlib.String.length(b))
+
+  let allowed =
+    Config.smaller(
+      3,
+      Stdlib.max(
+        1,
+        Stdlib.Int64.checkedDivide(Stdlib.String.length(a), 3) |> Stdlib.Result.withDefault(0)))
 
   if d <= allowed then
-    Stdlib.Option.Option.Some(d)
+    Option.Some(d)
   else if shorter >= 4 && (Stdlib.String.contains(a, b) || Stdlib.String.contains(b, a)) then
-    Stdlib.Option.Option.Some(d)
+    Option.Some(d)
   else
-    Stdlib.Option.Option.None
+    Option.None
 
 
 /// <fn nameDistance>, or 0 when <param candidate> is what Stdlib calls the word written: `size`
 /// is `length` (<fn Search.wordSynonyms>).
-let nearness(name: String, candidate: String): Stdlib.Option.Option<Int64> =
+let nearness(name: String, candidate: String): Option<Int64> =
   let synonyms = Search.wordSynonyms(name) |> Stdlib.List.map(Stdlib.String.toLowercase)
-
   if Stdlib.List.contains(synonyms, Stdlib.String.toLowercase(candidate)) then
-    Stdlib.Option.Option.Some(0)
+    Option.Some(0)
   else
     nameDistance(name, candidate)
 
@@ -202,9 +194,7 @@ let closestNames(branchId: Uuid, originalName: List<String>): List<String> =
   | Some((modules, name)) ->
     closestNameModules(modules)
     |> Stdlib.List.map(fun((written, location)) ->
-      let (_, types, values, fns, _, _, _) =
-        Query.allDirectDescendantNames(branchId, location)
-
+      let (_, types, values, fns, _, _, _) = Query.allDirectDescendantNames(branchId, location)
       Stdlib.List.flatten([ fns, values, types ])
       |> Stdlib.List.filterMap(fun candidate ->
         nearness(name, candidate)
@@ -220,38 +210,35 @@ let closestNames(branchId: Uuid, originalName: List<String>): List<String> =
 
 /// The operator a function name stands for, as (its trait, the trait's method, how it is
 /// written), when the name is that method or a usual word for it: `mod` and `modulo` are `%`.
-let operatorOfName(name: String): Stdlib.Option.Option<(String * String * String)> =
+let operatorOfName(name: String): Option<(String * String * String)> =
   match Stdlib.String.toLowercase(name) with
-  | "add" | "plus" -> Stdlib.Option.Option.Some(("Add", "add", "a + b"))
-  | "sub" | "subtract" | "minus" -> Stdlib.Option.Option.Some(("Subtract", "subtract", "a - b"))
-  | "mul" | "multiply" | "times" -> Stdlib.Option.Option.Some(("Multiply", "multiply", "a * b"))
-  | "div" | "divide" -> Stdlib.Option.Option.Some(("Divide", "divide", "a / b"))
-  | "mod" | "modulo" -> Stdlib.Option.Option.Some(("Modulo", "modulo", "a % b"))
-  | "pow" | "power" -> Stdlib.Option.Option.Some(("Power", "power", "a ** b"))
-  | "neg" | "negate" -> Stdlib.Option.Option.Some(("Negate", "negate", "-a"))
-  | "shiftleft" -> Stdlib.Option.Option.Some(("ShiftLeft", "shiftLeft", "a << b"))
-  | "shiftright" -> Stdlib.Option.Option.Some(("ShiftRight", "shiftRight", "a >> b"))
-  | "bitwiseand" -> Stdlib.Option.Option.Some(("BitwiseAnd", "bitwiseAnd", "a & b"))
-  | "bitwiseor" -> Stdlib.Option.Option.Some(("BitwiseOr", "bitwiseOr", "a | b"))
-  | "bitwisexor" | "xor" -> Stdlib.Option.Option.Some(("BitwiseXor", "bitwiseXor", "a ^ b"))
-  | "bitwisenot" -> Stdlib.Option.Option.Some(("BitwiseNot", "bitwiseNot", "~a"))
-  | "lessthan" -> Stdlib.Option.Option.Some(("Compare", "lessThan", "a < b"))
-  | "greaterthan" -> Stdlib.Option.Option.Some(("Compare", "greaterThan", "a > b"))
-  | _ -> Stdlib.Option.Option.None
+  | "add" | "plus" -> Option.Some(("Add", "add", "a + b"))
+  | "sub" | "subtract" | "minus" -> Option.Some(("Subtract", "subtract", "a - b"))
+  | "mul" | "multiply" | "times" -> Option.Some(("Multiply", "multiply", "a * b"))
+  | "div" | "divide" -> Option.Some(("Divide", "divide", "a / b"))
+  | "mod" | "modulo" -> Option.Some(("Modulo", "modulo", "a % b"))
+  | "pow" | "power" -> Option.Some(("Power", "power", "a ** b"))
+  | "neg" | "negate" -> Option.Some(("Negate", "negate", "-a"))
+  | "shiftleft" -> Option.Some(("ShiftLeft", "shiftLeft", "a << b"))
+  | "shiftright" -> Option.Some(("ShiftRight", "shiftRight", "a >> b"))
+  | "bitwiseand" -> Option.Some(("BitwiseAnd", "bitwiseAnd", "a & b"))
+  | "bitwiseor" -> Option.Some(("BitwiseOr", "bitwiseOr", "a | b"))
+  | "bitwisexor" | "xor" -> Option.Some(("BitwiseXor", "bitwiseXor", "a ^ b"))
+  | "bitwisenot" -> Option.Some(("BitwiseNot", "bitwiseNot", "~a"))
+  | "lessthan" -> Option.Some(("Compare", "lessThan", "a < b"))
+  | "greaterthan" -> Option.Some(("Compare", "greaterThan", "a > b"))
+  | _ -> Option.None
 
 
 /// The operator an unresolved name was reaching for, written out (`a % b`), when its module is a
 /// type with that operator: `Stdlib.Int64.mod` is `%`, since `Int64` implements `Modulo`. A type
 /// without it gets nothing, so `Stdlib.String.mod` is not sent to `%`.
-let operatorSuggestion(
-  branchId: Uuid,
-  originalName: List<String>)
-  : Stdlib.Option.Option<String> =
+let operatorSuggestion(branchId: Uuid, originalName: List<String>): Option<String> =
   match splitLast(originalName) with
-  | None -> Stdlib.Option.Option.None
+  | None -> Option.None
   | Some((modules, name)) ->
     match operatorOfName(name) with
-    | None -> Stdlib.Option.Option.None
+    | None -> Option.None
     | Some((traitName, methodName, written)) ->
       let implemented =
         closestNameModules(modules)
@@ -261,12 +248,11 @@ let operatorSuggestion(
           | [owner, ...inner] ->
             let method =
               LanguageTools.ProgramTypes.PackageLocation
-                { owner = owner
-                  modules = Stdlib.List.append(inner, traitName)
-                  name = methodName }
+                { owner = owner, modules = Stdlib.List.append(inner, traitName), name = methodName }
+
             Stdlib.Option.isSome(LanguageTools.PackageManager.findAny(branchId, method)))
-      if implemented then Stdlib.Option.Option.Some(written)
-      else Stdlib.Option.Option.None
+
+      if implemented then Option.Some(written) else Option.None
 
 
 /// What an unresolved name probably meant: the standard-library name it moved to
@@ -284,7 +270,6 @@ let didYouMean(branchId: Uuid, originalName: List<String>): List<String> =
 /// `Did you mean `A`?`, or `Did you mean `A`, `B` or `C`?`, or "" for no names.
 let didYouMeanText(names: List<String>): String =
   let quoted = names |> Stdlib.List.map(fun n -> $"`{n}`")
-
   match Stdlib.List.reverse(quoted) with
   | [] -> ""
   | [only] -> $"Did you mean {only}?"
@@ -295,15 +280,13 @@ let didYouMeanText(names: List<String>): String =
 
 /// Prints every parse diagnostic, so one save shows all there is to fix. Returns true when
 /// parsing failed.
-let reportParseErrors(
-  diagnostics: List<(LanguageTools.Parser.Range * String)>)
-  : Bool =
+let reportParseErrors(diagnostics: List<(LanguageTools.Parser.Range * String)>): Bool =
   diagnostics
   |> Stdlib.List.iter(fun((range, message)) ->
-    let lineNum = (range.start.row + 1) |> Stdlib.display
+    let lineNum = range.start.row + 1 |> Stdlib.display
     // 1-based column, matching renderDiagnostic and the line number above
-    let colNum = (range.start.column + 1) |> Stdlib.display
-    Cli.printErr($"Parse error at line {lineNum}, column {colNum}: {message}"))
+    let colNum = range.start.column + 1 |> Stdlib.display
+    printErr($"Parse error at line {lineNum}, column {colNum}: {message}"))
 
   Stdlib.Bool.not(Stdlib.List.isEmpty(diagnostics))
 
@@ -315,11 +298,10 @@ let reportParseErrors(
 /// saved `dark val Me.A.x 42 zzznope` as `42` and reported success.
 let reportTrailing(sourceFile: LanguageTools.WrittenTypes.SourceFile.SourceFile): Bool =
   let decls = Stdlib.List.length(sourceFile.declarations)
-  let extra = decls + (Stdlib.List.length(sourceFile.exprsToEval)) - 1
-
+  let extra = decls + Stdlib.List.length(sourceFile.exprsToEval) - 1
   if extra > 0 then
-    Cli.printErr("There is something after the definition; nothing was saved.")
-    Cli.printHint("  Quote the whole definition as one argument, or pass `-` and pipe it in.")
+    printErr("There is something after the definition; nothing was saved.")
+    printHint("  Quote the whole definition as one argument, or pass `-` and pipe it in.")
     true
   else
     false
@@ -329,13 +311,12 @@ let reportTrailing(sourceFile: LanguageTools.WrittenTypes.SourceFile.SourceFile)
 /// room for <fn reportUnresolvedNames>'s list: the workbench's footer.
 let unresolvedNamesText(
   unresolvedNames:
-    List<LanguageTools.Parser.Range
-      * List<String>
-      * LanguageTools.ProgramTypes.NameResolutionError>)
+    List<
+      (LanguageTools.Parser.Range * List<String> * LanguageTools.ProgramTypes.NameResolutionError)>)
   : String =
   unresolvedNames
   |> Stdlib.List.map(fun((range, originalName, _err)) ->
-    let lineNum = (range.start.row + 1) |> Stdlib.display
+    let lineNum = range.start.row + 1 |> Stdlib.display
     $"{Stdlib.String.join(originalName, ".")} (line {lineNum})")
   |> Stdlib.String.join(", ")
 
@@ -347,20 +328,18 @@ let unresolvedNamesText(
 /// Where a name that did not resolve from <param home> (owner first, then modules) is defined
 /// in a module next to it or inside it: `TokKind` saved into `Me.Tiny.Lexer` gives
 /// `Me.Tiny.Types.TokKind`. Up to three, as written in full.
-let nearbyNames(
-  branchId: Uuid,
-  home: List<String>,
-  originalName: List<String>)
-  : List<String> =
-  match (splitLast(originalName), home) with
-  | (Some((modules, name)), [owner, ...homeModules]) ->
+let nearbyNames(branchId: Uuid, home: List<String>, originalName: List<String>): List<String> =
+  match splitLast(originalName), home with
+  | Some((modules, name)), [owner, ...homeModules] ->
     let submodulesOf = fun path ->
       let (subs, _, _, _, _, _, _) = Query.allDirectDescendantNames(branchId, path)
       subs |> Stdlib.List.map(fun sub -> Stdlib.List.append(path, sub))
+
     let places =
       match homeModules with
       | [] -> submodulesOf(home)
       | _ -> Stdlib.List.concat(submodulesOf(home), submodulesOf(Stdlib.List.dropLast(home)))
+
     places
     |> Stdlib.List.filter(fun place -> place != home)
     |> Stdlib.List.filterMap(fun place ->
@@ -369,11 +348,11 @@ let nearbyNames(
           { owner = owner
             modules = Stdlib.List.concat(Stdlib.List.drop(place, 1), modules)
             name = name }
+
       if Stdlib.Option.isSome(LanguageTools.PackageManager.findAny(branchId, location)) then
-        Stdlib.Option.Option.Some(
-          Stdlib.String.join(Stdlib.List.flatten([ place, modules, [ name ] ]), "."))
+        Option.Some(Stdlib.String.join(Stdlib.List.flatten([ place, modules, [ name ] ]), "."))
       else
-        Stdlib.Option.Option.None)
+        Option.None)
     |> Stdlib.List.take(3)
   | _ -> []
 
@@ -382,9 +361,8 @@ let reportUnresolvedNames(
   branchId: Uuid,
   home: List<String>,
   unresolvedNames:
-    List<LanguageTools.Parser.Range
-      * List<String>
-      * LanguageTools.ProgramTypes.NameResolutionError>)
+    List<
+      (LanguageTools.Parser.Range * List<String> * LanguageTools.ProgramTypes.NameResolutionError)>)
   : Bool =
   let invalidNames =
     unresolvedNames
@@ -395,12 +373,10 @@ let reportUnresolvedNames(
 
   // A missing name under `Stdlib` or `Darklang` cannot arrive later: those owners are reserved,
   // so nothing a save makes can define it. It is a typo, and the save is refused.
-  let isReserved =
-    fun((_, name, _)) ->
-      match name with
-      | [ "Stdlib", ... ]
-      | [ "Darklang", ... ] -> true
-      | _ -> false
+  let isReserved = fun((_, name, _)) ->
+    match name with
+    | ["Stdlib", ...] | ["Darklang", ...] -> true
+    | _ -> false
 
   let notFound =
     unresolvedNames
@@ -413,70 +389,65 @@ let reportUnresolvedNames(
 
   // Warnings for unresolved names (will be fixed by WipRefresh). On stderr: the save's answer is the
   // "Created" line, and a warning is never part of it.
-  if (Stdlib.List.isEmpty(notFoundNames)) |> Stdlib.Bool.not then
+  if Stdlib.List.isEmpty(notFoundNames) |> Stdlib.Bool.not then
     Stdlib.printErrorLine(
-      (Stdlib.Cli.UI.Colors.warning(
-        "Warning: Unresolved references (will resolve when dependencies are added)")))
+      Stdlib.Cli.UI.Colors.warning(
+        "Warning: Unresolved references (will resolve when dependencies are added)"))
 
     notFoundNames
     |> Stdlib.List.iter(fun((range, originalName, _err)) ->
-      let lineNum = (range.start.row + 1) |> Stdlib.display
+      let lineNum = range.start.row + 1 |> Stdlib.display
       let colNum = range.start.column |> Stdlib.display
       let nameStr = Stdlib.String.join(originalName, ".")
-
       let suggestion =
         let names =
           match didYouMean(branchId, originalName) with
           | [] -> nearbyNames(branchId, home, originalName)
           | names -> names
+
         match didYouMeanText(names) with
         | "" -> ""
         | text -> " " + text
 
-      let message =
-        $"  - Not found: {nameStr} (line {lineNum}, column {colNum}).{suggestion}"
+      let message = $"  - Not found: {nameStr} (line {lineNum}, column {colNum}).{suggestion}"
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.warning(message)))
 
     Stdlib.printErrorLine("")
 
-  if (Stdlib.List.isEmpty(reservedNames)) |> Stdlib.Bool.not then
-    Cli.printErr("Error: Not in the standard library, so nothing was saved")
-
+  if Stdlib.List.isEmpty(reservedNames) |> Stdlib.Bool.not then
+    printErr("Error: Not in the standard library, so nothing was saved")
     reservedNames
     |> Stdlib.List.iter(fun((range, originalName, _err)) ->
-      let lineNum = (range.start.row + 1) |> Stdlib.display
+      let lineNum = range.start.row + 1 |> Stdlib.display
       let colNum = range.start.column |> Stdlib.display
       let nameStr = Stdlib.String.join(originalName, ".")
-
       let suggestion =
         match didYouMeanText(didYouMean(branchId, originalName)) with
         | "" -> ""
         | text -> " " + text
 
-      Cli.printErr($"  - Not found: {nameStr} (line {lineNum}, column {colNum}).{suggestion}"))
+      printErr($"  - Not found: {nameStr} (line {lineNum}, column {colNum}).{suggestion}"))
 
     Stdlib.printErrorLine("")
 
   // Print errors for invalid names (these block creation)
-  if (Stdlib.List.isEmpty(invalidNames)) |> Stdlib.Bool.not then
-    Cli.printErr("Error: Invalid names")
-
+  if Stdlib.List.isEmpty(invalidNames) |> Stdlib.Bool.not then
+    printErr("Error: Invalid names")
     invalidNames
     |> Stdlib.List.iter(fun((range, originalName, _err)) ->
-      let lineNum = (range.start.row + 1) |> Stdlib.display
+      let lineNum = range.start.row + 1 |> Stdlib.display
       let colNum = range.start.column |> Stdlib.display
       let nameStr = Stdlib.String.join(originalName, ".")
-
       if isInternalPackageName(originalName) then
         let suggested = sourceNameWithoutInternalPrefix(originalName)
         let message =
-          ($"  - Invalid name: {nameStr} (line {lineNum}, column {colNum}). "
-           + $"`PACKAGE.` is internal notation; write `{suggested}`.")
-        Cli.printErr(message)
+          $"  - Invalid name: {nameStr} (line {lineNum}, column {colNum}). "
+          + $"`PACKAGE.` is internal notation; write `{suggested}`."
+
+        printErr(message)
       else
-        let message =
-          $"  - Invalid name: {nameStr} (line {lineNum}, column {colNum})"
-        Cli.printErr(message))
+        let message = $"  - Invalid name: {nameStr} (line {lineNum}, column {colNum})"
+        printErr(message))
 
     Stdlib.printErrorLine("")
     true

@@ -1,85 +1,82 @@
 module Darklang.Stdlib.Char
 
-
 /// Return <param c> uppercased by Unicode's simple case mapping, one Char to one. A
 /// Char whose uppercase is longer is returned unchanged: {{toUppercase('ß')}} is
 /// {{'ß'}}, where <fn Stdlib.String.toUppercase> gives {{"SS"}}. No language's own
 /// rules apply: {{'i'}} and the Turkish dotless {{'ı'}} both become {{'I'}}. A Char
 /// with no case, such as a digit or an emoji, is returned as it is.
-let toUppercase(c: Char): Char = Builtin.charToUppercase(c)
+let toUppercase(c: Char): Char =
+  Builtin.charToUppercase(c)
 
 
 /// Return <param c> lowercased by Unicode's simple case mapping, one Char to one.
 /// {{'İ'}} becomes {{'i'}}, where <fn Stdlib.String.toLowercase> keeps its dot as a
 /// combining mark, and {{'Σ'}} is always {{'σ'}}, since a lone Char ends no word. A
 /// Char with no case is returned as it is.
-let toLowercase(c: Char): Char = Builtin.charToLowercase(c)
+let toLowercase(c: Char): Char =
+  Builtin.charToLowercase(c)
 
 
 /// Return whether <param c> is a lowercase character.
 let isLowercase(c: Char): Bool =
-  Stdlib.Char.toLowercase(c) == c && Stdlib.Char.toUppercase(c) != c
+  toLowercase(c) == c && toUppercase(c) != c
 
 
 /// Return whether <param c> is an uppercase character.
 let isUppercase(c: Char): Bool =
-  Stdlib.Char.toLowercase(c) != c && Stdlib.Char.toUppercase(c) == c
+  toLowercase(c) != c && toUppercase(c) == c
 
 
 /// Return whether <param c> is a digit (that is, the digits 0-9)
 let isDigit(c: Char): Bool =
-  (Stdlib.Char.isGreaterThanOrEqualTo(c, '0'))
-  && (Stdlib.Char.isLessThanOrEqualTo(c, '9'))
+  isGreaterThanOrEqualTo(c, '0') && isLessThanOrEqualTo(c, '9')
 
 
 /// Return whether the first scalar in <param c> is a Unicode letter.
 let isLetter(c: Char): Bool =
-  match Stdlib.String.toCodepoints(Stdlib.display(c)) with
-  | [first, ...rest] -> Stdlib.Codepoint.isLetter(first)
+  match String.toCodepoints(display(c)) with
+  | [first, ...rest] -> Codepoint.isLetter(first)
   | _ -> false
 
 
 /// Return whether the first scalar in <param c> is Unicode whitespace.
 let isWhitespace(c: Char): Bool =
-  match Stdlib.String.toCodepoints(Stdlib.display(c)) with
-  | [first, ...rest] -> Stdlib.Codepoint.isWhitespace(first)
+  match String.toCodepoints(display(c)) with
+  | [first, ...rest] -> Codepoint.isWhitespace(first)
   | _ -> false
 
 
 /// Return whether the first scalar in <param c> is a Unicode letter or digit.
 let isAlphanumeric(c: Char): Bool =
-  match Stdlib.String.toCodepoints(Stdlib.display(c)) with
-  | [first, ...rest] -> Stdlib.Codepoint.isAlphanumeric(first)
+  match String.toCodepoints(display(c)) with
+  | [first, ...rest] -> Codepoint.isAlphanumeric(first)
   | _ -> false
 
 
 /// Return whether <param c> is an ASCII letter
 let isASCIILetter(c: Char): Bool =
-  (Stdlib.Char.isGreaterThanOrEqualTo(c, 'a'))
-  && (Stdlib.Char.isLessThanOrEqualTo(c, 'z'))
-  || (Stdlib.Char.isGreaterThanOrEqualTo(c, 'A'))
-      && (Stdlib.Char.isLessThanOrEqualTo(c, 'Z'))
+  isGreaterThanOrEqualTo(c, 'a') && isLessThanOrEqualTo(c, 'z')
+  || isGreaterThanOrEqualTo(c, 'A') && isLessThanOrEqualTo(c, 'Z')
 
 
 /// Return whether <param c> is a valid ASCII character
 let isASCII(c: Char): Bool =
-  let asciiCode = Stdlib.Char.toAsciiCode(c)
-
+  let asciiCode = toAsciiCode(c)
   match asciiCode with
   | Some(_) -> true
   | None -> false
 
 
 /// Return {{Some <var code>}} if <param c> is a valid ASCII character, otherwise {{None}}
-let toAsciiCode(c: Char): Stdlib.Option.Option<UInt8> =
-  match Stdlib.Char.toCodepoint(c) with
-  | Some(code) ->
-    if code < 128u32 then Stdlib.UInt8.fromUInt32(code) else Stdlib.Option.Option.None
-  | None -> Stdlib.Option.Option.None
+let toAsciiCode(c: Char): Option<UInt8> =
+  match toCodepoint(c) with
+  | Some(code) -> if code < 128u32 then UInt8.fromUInt32(code) else Option.None
+  | None -> Option.None
 
 
 /// Return whether <param c1> sorts before <param c2>, by code point
-let isLessThan(c1: Char, c2: Char): Bool = Builtin.charIsLessThan(c1, c2)
+let isLessThan(c1: Char, c2: Char): Bool =
+  Builtin.charIsLessThan(c1, c2)
 
 
 /// Return whether <param c1> sorts before or equal to <param c2>, by code point
@@ -96,31 +93,37 @@ let isGreaterThan(c1: Char, c2: Char): Bool =
 let isGreaterThanOrEqualTo(c1: Char, c2: Char): Bool =
   Builtin.charIsGreaterThanOrEqualTo(c1, c2)
 
+
 /// `a < b` on Chars: by code point, the rule the four comparisons above use.
 impl Compare for Char =
   let lessThan = Stdlib.Char.isLessThan
+
   let lessThanOrEqualTo = Stdlib.Char.isLessThanOrEqualTo
+
   let greaterThan = Stdlib.Char.isGreaterThan
+
   let greaterThanOrEqualTo = Stdlib.Char.isGreaterThanOrEqualTo
 
 
 impl Display for Char =
   /// Stringify <param c>
-  let display(c: Char): String = Builtin.charToString(c)
+  let display(c: Char): String =
+    Builtin.charToString(c)
 
 
 /// Return {{Some <var c>}} for the Unicode codepoint <param codepoint>,
 /// or {{None}} if the value is not a valid scalar (> 0x10FFFF or a surrogate).
 /// See <fn Codepoint.isValidScalar>.
-let fromCodepoint(codepoint: UInt32): Stdlib.Option.Option<Char> =
-  if Stdlib.Codepoint.isValidScalar(codepoint) then
+let fromCodepoint(codepoint: UInt32): Option<Char> =
+  if Codepoint.isValidScalar(codepoint) then
     Builtin.charFromCodepoint(codepoint)
-  else Stdlib.Option.Option.None
+  else
+    Option.None
 
 
 /// Return the codepoint when <param c> contains exactly one Unicode scalar.
 /// This is the inverse of <fn Char.fromCodepoint>.
-let toCodepoint(c: Char): Stdlib.Option.Option<UInt32> =
-  match Stdlib.String.toCodepoints(Stdlib.display(c)) with
-  | [codepoint] -> Stdlib.Option.Option.Some(codepoint)
-  | _ -> Stdlib.Option.Option.None
+let toCodepoint(c: Char): Option<UInt32> =
+  match String.toCodepoints(display(c)) with
+  | [codepoint] -> Option.Some(codepoint)
+  | _ -> Option.None

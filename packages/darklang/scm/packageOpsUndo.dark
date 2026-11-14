@@ -8,12 +8,15 @@ let applyReferenceNames(
   : List<LanguageTools.ProgramTypes.ReferenceNamesSnapshot> =
   Builtin.pmApplyReferenceNames(snapshots, op)
 
+
 /// Read the reference names from stored declarations.
 /// Apply the branch's later changes to those names separately.
 let storedReferenceSnapshots(
-  sources: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.Reference)>)
+  sources:
+    List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.Reference)>)
   : List<LanguageTools.ProgramTypes.ReferenceNamesSnapshot> =
   Builtin.pmStoredReferenceSnapshots(sources)
+
 
 /// Does this operation change the declaration or its reference names?
 let revisionTouches(
@@ -27,9 +30,11 @@ let revisionTouches(
   | Decision(_, loc, _, Override(_)) -> loc == location
   | Decision(_, loc, _, Restore(_, _, _)) -> loc == location
   | Rename(oldLoc, newLoc, _, snapshots, _) ->
-    oldLoc == location || newLoc == location
+    oldLoc == location
+    || newLoc == location
     || Stdlib.List.any(snapshots, fun snapshot -> snapshot.location == location)
   | _ -> false
+
 
 /// Which of a branch's edits a history read covers.
 type Edits =
@@ -38,47 +43,63 @@ type Edits =
   /// Only the committed history it inherited.
   | Inherited
 
+
 /// Undo follows this branch's edits, starting from the history it inherited.
 /// Stop a parent's history at the child's first edit: later parent commits are
 /// visible on the branch, but undo should not treat them as the branch's edits.
 let readRevisionOps(
   scope: Uuid,
   edits: Edits,
-  cutoff: Stdlib.Option.Option<String>,
+  cutoff: Option<String>,
   location: LanguageTools.ProgramTypes.PackageLocation)
   : List<(Uuid * String * LanguageTools.ProgramTypes.PackageOp)> =
   let own =
     Builtin.pmRevisionOperations(scope, edits == Edits.Inherited, cutoff)
     |> Stdlib.List.filter(fun((_, _, op)) -> revisionTouches(location, op))
+
   let parent =
-    if SCM.Branch.isMain(scope) then [] else
+    if Branch.isMain(scope) then
+      []
+    else
       let parentId = branchParentOf(scope)
-      let firstEdit = own |> Stdlib.List.head |> Stdlib.Option.map(fun((_, ts, _)) -> ts)
-      let limit = match (cutoff, firstEdit) with
-        | (Some(limit), Some(first)) -> Some(if limit < first then limit else first)
-        | (None, Some(first)) -> Some(first)
-        | (limit, None) -> limit
+      let firstEdit =
+        own
+        |> Stdlib.List.head
+        |> Stdlib.Option.map(fun((_, ts, _)) -> ts)
+
+      let limit =
+        match cutoff, firstEdit with
+        | Some(limit), Some(first) -> Option.Some(if limit < first then limit else first)
+        | None, Some(first) -> Option.Some(first)
+        | limit, None -> limit
+
       readRevisionOps(parentId, Edits.Inherited, limit, location)
-  Stdlib.List.concat(parent, own |> Stdlib.List.map(fun((id, ts, op)) ->
-    (Builtin.unwrap(Stdlib.Uuid.parse(id)), ts, op)))
+
+  Stdlib.List.concat(
+    parent,
+    own |> Stdlib.List.map(fun((id, ts, op)) -> (Builtin.unwrap(Stdlib.Uuid.parse(id)), ts, op)))
+
 
 /// Read the edits undo can follow for this package location on this branch.
 let revisionOps(
   branch: Uuid,
   location: LanguageTools.ProgramTypes.PackageLocation)
   : List<(Uuid * String * LanguageTools.ProgramTypes.PackageOp)> =
-  readRevisionOps(branch, Edits.Own, None, location)
+  readRevisionOps(branch, Edits.Own, Option.None, location)
+
 
 type UndoRevision =
-  { previous: Stdlib.Option.Option<Uuid>
+  { previous: Option<Uuid>
     snapshot: LanguageTools.ProgramTypes.ReferenceNamesSnapshot }
+
 
 type UndoHistory =
   { names: List<LanguageTools.ProgramTypes.ReferenceNamesSnapshot>
     revisions: Dict<Uuid, UndoRevision>
-    current: Stdlib.Option.Option<Uuid>
-    binding: Stdlib.Option.Option<LanguageTools.ProgramTypes.Reference>
-    pendingBinding: Stdlib.Option.Option<(String * Bool)> }
+    current: Option<Uuid>
+    binding: Option<LanguageTools.ProgramTypes.Reference>
+    pendingBinding: Option<(String * Bool)> }
+
 
 /// What a new snapshot does to the current undo revision.
 type Revision =
@@ -86,6 +107,7 @@ type Revision =
   | Append
   /// Replace the current revision's snapshot: names saved with its binding.
   | Amend
+
 
 /// Save a declaration's initial reference names in the same undo revision as its binding.
 /// Later edits to reference names get their own revisions, even when the content hash stays the same.
@@ -97,109 +119,182 @@ let recordUndoRevision(
   : UndoHistory =
   let append(): UndoHistory =
     { history with
-        revisions = Stdlib.Dict.set(history.revisions, id,
-          UndoRevision { previous = history.current, snapshot = snapshot })
-        current = Some(id) }
+        revisions =
+          Stdlib.Dict.set(
+            history.revisions,
+            id,
+            UndoRevision { previous = history.current, snapshot = snapshot })
+        current = Option.Some(id) }
+
   match history.current with
   | Some(current) ->
     match Stdlib.Dict.get(history.revisions, current) with
     | Some(previous) ->
-      if previous.snapshot == snapshot then history
+      if previous.snapshot == snapshot then
+        history
       else if revision == Revision.Amend then
-        { history with revisions = Stdlib.Dict.set(history.revisions, current,
-            { previous with snapshot = snapshot }) }
-      else append()
+        { history with
+            revisions =
+              Stdlib.Dict.set(history.revisions, current, { previous with snapshot = snapshot }) }
+      else
+        append()
     | None -> append()
   | None -> append()
+
 
 /// Walk this declaration's edit history and remember where each undo landed.
 /// Repeated undo should keep moving back through the earlier edits.
 let previousRevision(
   branch: Uuid,
   location: LanguageTools.ProgramTypes.PackageLocation)
-  : Stdlib.Option.Option<(Uuid * LanguageTools.ProgramTypes.ReferenceNamesSnapshot)> =
+  : Option<(Uuid * LanguageTools.ProgramTypes.ReferenceNamesSnapshot)> =
   let ops = revisionOps(branch, location)
-  let sources = ops
+  let sources =
+    ops
     |> Stdlib.List.map(fun((_, _, op)) ->
       LanguageTools.ProgramTypes.PackageOp.bindingOps(op)
       |> Stdlib.List.filterMap(fun effect ->
         match effect with
         | SetName(loc, target, _) ->
-          if loc == location then Some((location, target)) else None
+          if loc == location then Option.Some((location, target)) else Option.None
         | Decision(_, loc, _, Override(target)) ->
-          if loc == location then Some((location, target)) else None
-        | _ -> None))
+          if loc == location then Option.Some((location, target)) else Option.None
+        | _ -> Option.None))
     |> Stdlib.List.flatten
     |> Stdlib.List.unique
+
   let originals = storedReferenceSnapshots(sources)
-  let namesFor(history: UndoHistory, target: LanguageTools.ProgramTypes.Reference)
-    : List<(LanguageTools.ProgramTypes.Reference * Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation>)> =
+  let namesFor(
+    history: UndoHistory,
+    target: LanguageTools.ProgramTypes.Reference)
+    : List<
+    (LanguageTools.ProgramTypes.Reference * Option<LanguageTools.ProgramTypes.PackageLocation>)> =
     Stdlib.List.concat(history.names, originals)
-    |> Stdlib.List.findFirst(fun snapshot -> snapshot.location == location && snapshot.target == target)
+    |> Stdlib.List.findFirst(fun snapshot ->
+      snapshot.location == location && snapshot.target == target)
     |> Stdlib.Option.map(fun snapshot -> snapshot.names)
     |> Stdlib.Option.withDefault([])
-  let snapshot(target: LanguageTools.ProgramTypes.Reference)
+
+  let snapshot(
+    target: LanguageTools.ProgramTypes.Reference)
     : LanguageTools.ProgramTypes.ReferenceNamesSnapshot =
     LanguageTools.ProgramTypes.ReferenceNamesSnapshot
-      { location = location, target = target, names = [], restating = None }
-  let step(history: UndoHistory, entry: (Uuid * String * LanguageTools.ProgramTypes.PackageOp)): UndoHistory =
+      { location = location, target = target, names = [], restating = Option.None }
+
+  let step(
+    history: UndoHistory,
+    entry: (Uuid * String * LanguageTools.ProgramTypes.PackageOp))
+    : UndoHistory =
     let (id, ts, op) = entry
     let history = { history with names = applyReferenceNames(history.names, op) }
-    let pendingFor(target: LanguageTools.ProgramTypes.Reference): Stdlib.Option.Option<(String * Bool)> =
-      let hasNames = Stdlib.List.any(history.names, fun saved ->
-        saved.location == location && saved.target == target)
-      Some((ts, Stdlib.Bool.not(hasNames)))
+    let pendingFor(target: LanguageTools.ProgramTypes.Reference): Option<(String * Bool)> =
+      let hasNames =
+        Stdlib.List.any(history.names, fun saved ->
+          saved.location == location && saved.target == target)
+
+      Option.Some((ts, Stdlib.Bool.not(hasNames)))
+
     match op with
     | Decision(_, _, _, Restore(revision, target, names)) ->
       let revisions =
-        if Stdlib.Dict.containsKey(history.revisions, revision) then history.revisions else
-          Stdlib.Dict.set(history.revisions, revision,
-            UndoRevision { previous = None, snapshot = { snapshot(target) with names = names } })
-      { history with revisions = revisions, current = Some(revision),
-                     binding = Some(target), pendingBinding = None }
+        if Stdlib.Dict.containsKey(history.revisions, revision) then
+          history.revisions
+        else
+          Stdlib.Dict.set(
+            history.revisions,
+            revision,
+            UndoRevision
+              { previous = Option.None, snapshot = { snapshot(target) with names = names } })
+
+      { history with
+          revisions = revisions
+          current = Option.Some(revision)
+          binding = Option.Some(target)
+          pendingBinding = Option.None }
     | SetName(_, target, _) ->
-      let selected = recordUndoRevision(history, id,
-        { snapshot(target) with names = namesFor(history, target) }, Revision.Append)
-      { selected with binding = Some(target),
-          pendingBinding = if selected.current != history.current then pendingFor(target) else history.pendingBinding }
+      let selected =
+        recordUndoRevision(
+          history,
+          id,
+          { snapshot(target) with names = namesFor(history, target) },
+          Revision.Append)
+
+      { selected with
+          binding = Option.Some(target)
+          pendingBinding =
+            if selected.current != history.current then
+              pendingFor(target)
+            else
+              history.pendingBinding }
     | Decision(_, _, _, Override(target)) ->
-      let selected = recordUndoRevision(history, id,
-        { snapshot(target) with names = namesFor(history, target) }, Revision.Append)
-      { selected with binding = Some(target), pendingBinding = pendingFor(target) }
+      let selected =
+        recordUndoRevision(
+          history,
+          id,
+          { snapshot(target) with names = namesFor(history, target) },
+          Revision.Append)
+
+      { selected with binding = Option.Some(target), pendingBinding = pendingFor(target) }
     | SetReferenceNames(_, target, names, authoredAt) ->
-      if history.binding == Some(target) then
+      if history.binding == Option.Some(target) then
         // The first saved names establish the binding's original spelling; refresh
         // may have given its body a different canonical spelling in the meantime.
         // Once names are known, only a capture made with the binding belongs to it.
-        let accompaniesBinding = match (history.pendingBinding, authoredAt) with
-          | (Some((_, true)), _) -> true
-          | (Some((boundAt, false)), Some(capturedAt)) -> capturedAt <= boundAt
+        let accompaniesBinding =
+          match history.pendingBinding, authoredAt with
+          | Some((_, true)), _ -> true
+          | Some((boundAt, false)), Some(capturedAt) -> capturedAt <= boundAt
           | _ -> false
-        let selected = recordUndoRevision(history, id,
-          { snapshot(target) with names = names },
-          (if accompaniesBinding then Revision.Amend else Revision.Append))
-        { selected with pendingBinding = None }
-      else history
+
+        let selected =
+          recordUndoRevision(
+            history,
+            id,
+            { snapshot(target) with names = names },
+            if accompaniesBinding then Revision.Amend else Revision.Append)
+
+        { selected with pendingBinding = Option.None }
+      else
+        history
     | Unbind(_, _) ->
-      { history with binding = None, current = None, pendingBinding = None }
+      { history with binding = Option.None, current = Option.None, pendingBinding = Option.None }
     | Rename(oldLoc, newLoc, target, _, _) ->
       if oldLoc == location && newLoc != location then
-        { history with binding = None, current = None, pendingBinding = None }
+        { history with binding = Option.None, current = Option.None, pendingBinding = Option.None }
       else if newLoc == location then
-        let selected = recordUndoRevision(history, id,
-          { snapshot(target) with names = namesFor(history, target) }, Revision.Append)
-        { selected with binding = Some(target), pendingBinding = None }
+        let selected =
+          recordUndoRevision(
+            history,
+            id,
+            { snapshot(target) with names = namesFor(history, target) },
+            Revision.Append)
+
+        { selected with binding = Option.Some(target), pendingBinding = Option.None }
       else
         match history.binding with
         | Some(bound) ->
-          let selected = recordUndoRevision(history, id,
-            { snapshot(bound) with names = namesFor(history, bound) }, Revision.Append)
-          { selected with pendingBinding = None }
-        | None -> { history with pendingBinding = None }
+          let selected =
+            recordUndoRevision(
+              history,
+              id,
+              { snapshot(bound) with names = namesFor(history, bound) },
+              Revision.Append)
+
+          { selected with pendingBinding = Option.None }
+        | None -> { history with pendingBinding = Option.None }
     | _ -> history
-  let history = Stdlib.List.fold(ops,
-    UndoHistory { names = [], revisions = Stdlib.Dict.empty, current = None,
-                  binding = None, pendingBinding = None }, step)
+
+  let history =
+    Stdlib.List.fold(
+      ops,
+      UndoHistory
+        { names = []
+          revisions = Stdlib.Dict.empty
+          current = Option.None
+          binding = Option.None
+          pendingBinding = Option.None },
+      step)
+
   history.current
   |> Stdlib.Option.andThen(fun id -> Stdlib.Dict.get(history.revisions, id))
   |> Stdlib.Option.andThen(fun revision -> revision.previous)

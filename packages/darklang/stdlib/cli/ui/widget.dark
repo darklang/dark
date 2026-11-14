@@ -34,9 +34,10 @@ module Darklang.Stdlib.Cli.UI.Widget
 /// The loop hands key, modifiers and character around as three separate arguments; one record threads
 /// through widgets instead.
 type KeyPress =
-  { key: Stdlib.Cli.Stdin.Key.Key
-    modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers
-    char: Stdlib.Option.Option<String> }
+  { key: Stdin.Key.Key
+    modifiers: Stdin.Modifiers.Modifiers
+    char: Option<String> }
+
 
 /// What a widget did with a key.
 type Outcome<'s, 'msg> =
@@ -47,15 +48,17 @@ type Outcome<'s, 'msg> =
   /// Mine, and here's something for the parent: a value, not a screen change.
   | Emitted('s, 'msg)
 
+
 // --- Keys ---
 
 let press(
-  key: Stdlib.Cli.Stdin.Key.Key,
-  modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers,
-  char: Stdlib.Option.Option<String>)
+  key: Stdin.Key.Key,
+  modifiers: Stdin.Modifiers.Modifiers,
+  char: Option<String>)
   : KeyPress =
   KeyPress { key = key, modifiers = modifiers, char = char }
 
+
 /// Did this keypress type `c`?
 let isChar(kp: KeyPress, c: String): Bool =
-  kp.char == (Stdlib.Option.Option.Some(c))
+  kp.char == Option.Some(c)

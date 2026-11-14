@@ -1,6 +1,5 @@
 module Darklang.Stdlib.Cli
 
-
 /// The result of running a command in the CLI, typically with `Cli.execute`
 type ExecutionOutcome =
   { exitCode: Int64
@@ -20,14 +19,14 @@ type ExecutionBytes =
 let executionText(outcome: ExecutionBytes): ExecutionOutcome =
   ExecutionOutcome
     { exitCode = outcome.exitCode
-      stdout = Stdlib.Utf8.decodeWithReplacement(outcome.stdout)
-      stderr = Stdlib.Utf8.decodeWithReplacement(outcome.stderr) }
+      stdout = Utf8.decodeWithReplacement(outcome.stdout)
+      stderr = Utf8.decodeWithReplacement(outcome.stderr) }
 
 
 /// Execute a command in the CLI and keep its output as bytes, for output that
 /// isn't UTF-8 text (i.e. `Cli.executeBytes "gzip -c file"`)
 let executeBytes(command: String): ExecutionBytes =
-  Stdlib.Cli.Process.__executionBytes(Stdlib.Cli.Process.__childRun("/bin/sh", ["-c", command], Stdlib.Option.Option.None))
+  Process.__executionBytes(Process.__childRun("/bin/sh", [ "-c", command ], Option.None))
 
 
 /// Execute a command in the CLI (i.e. `Cli.execute "ls ."`)
@@ -38,26 +37,17 @@ let execute(command: String): ExecutionOutcome =
 /// Execute a command in the CLI,
 /// returning `Unit` if exit code 0
 /// , or a `String` of stderr if not
-let executeWithUnitOrStdErr(
-  command: String)
-  : Stdlib.Result.Result<Unit, String> =
+let executeWithUnitOrStdErr(command: String): Result<Unit, String> =
   let result = execute(command)
-
-  if result.exitCode == 0 then
-    Stdlib.Result.Result.Ok()
-  else
-    Stdlib.Result.Result.Error(result.stderr)
+  if result.exitCode == 0 then Result.Ok() else Result.Error(result.stderr)
 
 
 /// Execute a command in the CLI,
 /// returning `String` of stdout if exit code 0
 /// or `String` of stderr if not
-let executeWithStdOutOrStdErr(
-  command: String)
-  : Stdlib.Result.Result<String, String> =
+let executeWithStdOutOrStdErr(command: String): Result<String, String> =
   let result = execute(command)
-
   if result.exitCode == 0 then
-    Stdlib.Result.Result.Ok(result.stdout)
+    Result.Ok(result.stdout)
   else
-    Stdlib.Result.Result.Error(result.stderr)
+    Result.Error(result.stderr)

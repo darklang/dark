@@ -9,7 +9,6 @@ module Darklang.SCM.Branch
 // Everything here is derived from the same tables `SCM.Branches` owns; nothing is stored twice. What this
 // adds is the record shape and the lifecycle verbs a UI needs, including `rename`, which the LSP's
 // `dark/renameBranch` calls straight through.
-
 // Branch identity first, because everything below has an opinion about branches and
 // main's id is the one fact they all share.
 //
@@ -24,18 +23,22 @@ module Darklang.SCM.Branch
 /// against (`ProgramTypes.BranchId.Main`), so the two cannot disagree.
 val mainBranchId = Builtin.scmMainBranchId
 
+
 /// Main's branch NAME: what a person types and reads; resolved to an id at the edge.
 val mainBranchName = "main"
 
+
 /// Whether <param branchId> is main.
-let isMain(branchId: Uuid): Bool = branchId == mainBranchId
+let isMain(branchId: Uuid): Bool =
+  branchId == mainBranchId
+
 
 /// A branch id read out of a TEXT column.
 ///
 /// The columns are TEXT, so this is the one direction that can fail. An absent or unreadable value is
 /// main: `parent_id` is NULL for a top-level branch, and a row nothing wrote an id into is not a branch
 /// anyone can stand on.
-let fromTextField(text: Stdlib.Option.Option<String>): Uuid =
+let fromTextField(text: Option<String>): Uuid =
   match text with
   | Some(s) ->
     match Stdlib.Uuid.parse(s) with
@@ -51,79 +54,80 @@ type Branch =
     name: String
     /// The parent's id, or None when the parent is main. Main has no `branches` row of its own, so it is
     /// never itself a `Branch` here even though it has an ordinary id.
-    parentBranchId: Stdlib.Option.Option<Uuid>
+    parentBranchId: Option<Uuid>
     /// How many ops sit on this branch's frontier.
     ops: Int64
     merged: Bool }
 
-let toBranch(row: SCM.Branches.BranchRow): Branch =
+
+let toBranch(row: Branches.BranchRow): Branch =
   Branch
     { id = row.id
       name = if row.name == "" then Stdlib.display(row.id) else row.name
-      parentBranchId =
-        if isMain(row.parent) then
-          Stdlib.Option.Option.None
-        else
-          Stdlib.Option.Option.Some(row.parent)
+      parentBranchId = if isMain(row.parent) then Option.None else Option.Some(row.parent)
       ops = row.ops
       merged = row.merged }
+
 
 /// Every branch a view should offer, oldest first. Excludes archived ones, includes merged: a merged branch
 /// is still readable, which is the whole point of keeping it listed.
 let list(): List<Branch> =
-  SCM.Branches.list() |> Stdlib.List.map(toBranch)
+  Branches.list() |> Stdlib.List.map(toBranch)
+
 
 /// One branch by id. None for main, and for an id nothing is registered under.
-let get(branchId: Uuid): Stdlib.Option.Option<Branch> =
+let get(branchId: Uuid): Option<Branch> =
   if isMain(branchId) then
-    Stdlib.Option.Option.None
+    Option.None
   else
     list() |> Stdlib.List.findFirst(fun b -> b.id == branchId)
 
+
 /// One branch by the name a person typed. Live branches only -- the same rule `switch` follows, since this
 /// is what a view's "go to branch" affordance lands on.
-let getByName(name: String): Stdlib.Option.Option<Branch> =
-  match SCM.PackageOps.branchIdForName(name) with
+let getByName(name: String): Option<Branch> =
+  match PackageOps.branchIdForName(name) with
   | Some(id) -> get(id)
-  | None -> Stdlib.Option.Option.None
+  | None -> Option.None
+
 
 /// Start a branch off <param parentId> and return it. Idempotent on the name: asking twice gets
 /// you the branch you already have, which is what `switch` does too.
-let create(name: String, parentId: Uuid): Stdlib.Option.Option<Branch> =
-  match SCM.PackageOps.ensureBranch(name, parentId) with
+let create(name: String, parentId: Uuid): Option<Branch> =
+  match PackageOps.ensureBranch(name, parentId) with
   | Ok((id, _created)) -> get(id)
-  | Error(_) -> Stdlib.Option.Option.None
+  | Error(_) -> Option.None
+
 
 /// Rename a branch. One write, because the name is an alias and nothing points at it: ops, per-name
 /// bases and parent links all reference the id.
 ///
 /// Refuses to take a name a LIVE branch already holds, so `switch <name>` stays unambiguous. Merged and
 /// archived branches don't block: their names are free again by design.
-let rename(branchId: Uuid, newName: String): Stdlib.Result.Result<Branch, String> =
+let rename(branchId: Uuid, newName: String): Result<Branch, String> =
   let trimmed = Stdlib.String.trim(newName)
-
   if trimmed == "" then
-    Stdlib.Result.Result.Error("a branch needs a name")
+    Result.Error("a branch needs a name")
   else if trimmed == mainBranchName then
-    Stdlib.Result.Result.Error($"\"{mainBranchName}\" is taken; it is the trunk's name")
+    Result.Error($"\"{mainBranchName}\" is taken; it is the trunk's name")
   else
     // Whether another branch holds the name is asked inside the rename, in one transaction with it,
     // so two renames cannot both take one name.
-    match SCM.Actions.branch(SCM.Actions.BranchAction.Rename(branchId, trimmed)) with
-    | Error(Refused(NameTaken)) ->
-      Stdlib.Result.Result.Error($"\"{trimmed}\" is already a live branch")
-    | Error(e) -> Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e))
+    match Actions.branch(Actions.BranchAction.Rename(branchId, trimmed)) with
+    | Error(Refused(NameTaken)) -> Result.Error($"\"{trimmed}\" is already a live branch")
+    | Error(e) -> Result.Error(Actions.failureMessage(e))
     | Ok(_) ->
       match get(branchId) with
-      | Some(b) -> Stdlib.Result.Result.Ok(b)
-      | None -> Stdlib.Result.Result.Error("no such branch")
+      | Some(b) -> Result.Ok(b)
+      | None -> Result.Error("no such branch")
+
 
 /// Archive a branch: its unmerged ops are discarded and it leaves the listings. Nothing that reached its
 /// parent is touched.
-let delete(branchId: Uuid): Stdlib.Result.Result<Unit, String> =
+let delete(branchId: Uuid): Result<Unit, String> =
   match get(branchId) with
-  | None -> Stdlib.Result.Result.Error("no such branch")
+  | None -> Result.Error("no such branch")
   | Some(_) ->
-    match SCM.PackageOps.archiveBranch(branchId) with
-    | Ok(_) -> Stdlib.Result.Result.Ok()
-    | Error(e) -> Stdlib.Result.Result.Error(e)
+    match PackageOps.archiveBranch(branchId) with
+    | Ok(_) -> Result.Ok()
+    | Error(e) -> Result.Error(e)

@@ -5,8 +5,13 @@ module Darklang.Cli.Workbench
 
 // Named wrappers so every ViewDef field is a resolved function reference (inline lambdas leave the tuple's
 // type as `_` and block record coercion - same reason Registry.CommandHandler uses named refs throughout).
-let errorItems(): List<BodyItem> = loadErrorItems()
-let errorDetailLines(state: State): List<String> = Stdlib.String.split(errorDetail(state), "\n")
+let errorItems(): List<BodyItem> =
+  loadErrorItems()
+
+
+let errorDetailLines(state: State): List<String> =
+  Stdlib.String.split(errorDetail(state), "\n")
+
 
 /// Extension views in stable index order. Workspaces place them in navigation.
 let extensionViews(): List<ViewDef> =
@@ -18,6 +23,7 @@ let extensionViews(): List<ViewDef> =
         render = renderErrors
         detail = errorDetailLines
         hints = errorHints }
+
     ViewDef
       { id = "builtins"
         name = "Builtins"
@@ -26,6 +32,7 @@ let extensionViews(): List<ViewDef> =
         render = renderBuiltins
         detail = builtinDetailLines
         hints = builtinHints }
+
     ViewDef
       { id = "processes"
         name = "Processes"

@@ -1,24 +1,27 @@
 module Darklang.LanguageTools
 
-
 // TODO: should this be UInt64?
 type ID = Int64
 
 type TLID = UInt64
 
+
 type Sign =
   | Positive
   | Negative
 
+
 type BuiltinFunctionParameter =
   { name: String
     type: RuntimeTypes.TypeReference }
+
 
 /// Whether a builtin always answers the same way (mirrors RT.Previewable in F#). A label for a
 /// reader; what the runtime decides on is the builtin's effects.
 type BuiltinFunctionPurity =
   | Pure
   | Impure
+
 
 /// A Darklang builtin function
 type BuiltinFunction =
@@ -32,15 +35,18 @@ type BuiltinFunction =
     returnType: RuntimeTypes.TypeReference
     purity: BuiltinFunctionPurity }
 
+
 /// Every builtin fn this runtime has. The list is built fresh on each call,
 /// so hold onto it if you're looking up more than one name.
 let allBuiltinFns(): List<BuiltinFunction> =
   Builtin.getAllBuiltinFns()
 
+
 /// Look up a builtin function's metadata by name and version.
 /// Fetch only that builtin's metadata; return None if it does not exist.
-let findBuiltinFn(name: String, version: Int32): Stdlib.Option.Option<BuiltinFunction> =
+let findBuiltinFn(name: String, version: Int32): Option<BuiltinFunction> =
   Builtin.getBuiltinFn(name, version)
+
 
 /// A Darklang builtin value
 type BuiltinValue =
@@ -48,11 +54,13 @@ type BuiltinValue =
     description: String
     type: RuntimeTypes.TypeReference }
 
+
 /// Every builtin value this runtime has. Built fresh on each call.
 let allBuiltinValues(): List<BuiltinValue> =
   Builtin.getAllBuiltinValues()
 
+
 /// Look up a builtin value's metadata by name and version; None if it does not exist.
-let findBuiltinValue(name: String, version: Int32): Stdlib.Option.Option<BuiltinValue> =
+let findBuiltinValue(name: String, version: Int32): Option<BuiltinValue> =
   allBuiltinValues()
   |> Stdlib.List.findFirst(fun v -> v.name.name == name && v.name.version == version)

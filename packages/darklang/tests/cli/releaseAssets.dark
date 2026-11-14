@@ -7,10 +7,10 @@ module Darklang.Cli.Tests.ReleaseAssets
 // for this reason; these assert that the updater does the same.
 
 module AssetForPlatform =
-  let asset(name: String): Darklang.GitHub.Releases.Asset =
-    Darklang.GitHub.Releases.Asset
-      { name = name
-        browser_download_url = $"https://example.com/{name}" }
+  let asset(name: String): GitHub.Releases.Asset =
+    GitHub.Releases.Asset
+      { name = name, browser_download_url = $"https://example.com/{name}" }
+
 
   // The LONGER name first, deliberately. `findFirst` with a `contains` match returns the arm64
   // asset when asked for `linux-arm`, so this order is what gives the assertions teeth; with arm
@@ -19,7 +19,7 @@ module AssetForPlatform =
   // A function, not a `val`: a `val` holding a custom type carries the type identity it was built
   // against, and the testfile harness rebuilds the package set underneath it.
 
-  let assets(): List<Darklang.GitHub.Releases.Asset> =
+  let assets(): List<GitHub.Releases.Asset> =
     [ asset("darklang-alpha-abc1234-linux-arm64.gz")
       asset("darklang-alpha-abc1234-linux-arm.gz")
       asset("darklang-alpha-abc1234-linux-musl-arm64.gz")
@@ -27,57 +27,67 @@ module AssetForPlatform =
       asset("darklang-alpha-abc1234-linux-x64.gz")
       asset("darklang-alpha-abc1234-osx-arm64.gz") ]
 
+
   // The one that was wrong: arm64 must not be served the 32-bit build, and arm must not be
   // served the 64-bit one.
   test armBuilds =
     Stdlib.Test.all(
-      [ Darklang.GitHub.Releases.assetUrlFor(assets(), "linux-arm64")
+      [ GitHub.Releases.assetUrlFor(assets(), "linux-arm64")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some(
-             "https://example.com/darklang-alpha-abc1234-linux-arm64.gz")))
-        Darklang.GitHub.Releases.assetUrlFor(assets(), "linux-arm")
+          Stdlib.Option.Option.Some(
+            "https://example.com/darklang-alpha-abc1234-linux-arm64.gz"))
+
+        GitHub.Releases.assetUrlFor(assets(), "linux-arm")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some(
-             "https://example.com/darklang-alpha-abc1234-linux-arm.gz"))) ])
+          Stdlib.Option.Option.Some(
+            "https://example.com/darklang-alpha-abc1234-linux-arm.gz")) ])
+
 
   // Each glibc build and its musl build end alike (`linux-x64`, `linux-musl-x64`), the same trap
   // one letter along.
   test muslSuffix =
     Stdlib.Test.all(
-      [ Darklang.GitHub.Releases.assetUrlFor(assets(), "linux-x64")
+      [ GitHub.Releases.assetUrlFor(assets(), "linux-x64")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some(
-             "https://example.com/darklang-alpha-abc1234-linux-x64.gz")))
-        Darklang.GitHub.Releases.assetUrlFor(assets(), "linux-musl-x64")
+          Stdlib.Option.Option.Some(
+            "https://example.com/darklang-alpha-abc1234-linux-x64.gz"))
+
+        GitHub.Releases.assetUrlFor(assets(), "linux-musl-x64")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some(
-             "https://example.com/darklang-alpha-abc1234-linux-musl-x64.gz")))
-        Darklang.GitHub.Releases.assetUrlFor(assets(), "linux-arm64")
+          Stdlib.Option.Option.Some(
+            "https://example.com/darklang-alpha-abc1234-linux-musl-x64.gz"))
+
+        GitHub.Releases.assetUrlFor(assets(), "linux-arm64")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some(
-             "https://example.com/darklang-alpha-abc1234-linux-arm64.gz")))
-        Darklang.GitHub.Releases.assetUrlFor(assets(), "linux-musl-arm64")
+          Stdlib.Option.Option.Some(
+            "https://example.com/darklang-alpha-abc1234-linux-arm64.gz"))
+
+        GitHub.Releases.assetUrlFor(assets(), "linux-musl-arm64")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some(
-             "https://example.com/darklang-alpha-abc1234-linux-musl-arm64.gz")))
-        Darklang.GitHub.Releases.assetUrlFor(assets(), "osx-arm64")
+          Stdlib.Option.Option.Some(
+            "https://example.com/darklang-alpha-abc1234-linux-musl-arm64.gz"))
+
+        GitHub.Releases.assetUrlFor(assets(), "osx-arm64")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some(
-             "https://example.com/darklang-alpha-abc1234-osx-arm64.gz"))) ])
+          Stdlib.Option.Option.Some(
+            "https://example.com/darklang-alpha-abc1234-osx-arm64.gz")) ])
+
 
   // A platform this release has no build for is None, not the first thing that looks close.
   // `osx-x64` is a real runtime we publish, so this is the "a tag is missing one asset" case
   // rather than "we do not build that at all".
   test missingPlatform =
-    Darklang.GitHub.Releases.assetUrlFor(assets(), "osx-x64")
+    GitHub.Releases.assetUrlFor(assets(), "osx-x64")
     |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
 
   // An empty list, and an asset list that carries something other than a `.gz`.
   test emptyAndNonGzAssets =
     Stdlib.Test.all(
-      [ Darklang.GitHub.Releases.assetUrlFor([], "linux-x64")
+      [ GitHub.Releases.assetUrlFor([], "linux-x64")
         |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-        Darklang.GitHub.Releases.assetUrlFor(
+
+        GitHub.Releases.assetUrlFor(
           [ asset("darklang-alpha-abc1234-linux-x64.tar") ],
           "linux-x64")
         |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
@@ -92,15 +102,15 @@ module PlatformForHost =
     arch: Stdlib.Cli.Architecture.Architecture)
     : Stdlib.Cli.Host.Host =
     Stdlib.Cli.Host.Host
-      { os = os
-        arch = arch
-        defaultShell = Stdlib.Cli.Shell.Shell.Bash }
+      { os = os, arch = arch, defaultShell = Stdlib.Cli.Shell.Shell.Bash }
+
 
   let idFor(
     os: Stdlib.Cli.OS.OS,
     arch: Stdlib.Cli.Architecture.Architecture)
     : Stdlib.Result.Result<String, String> =
-    Darklang.GitHub.Releases.platformId(PlatformForHost.host(os, arch))
+    GitHub.Releases.platformId(PlatformForHost.host(os, arch))
+
 
   test everySupportedHost =
     Stdlib.Test.all(
@@ -108,22 +118,27 @@ module PlatformForHost =
           Stdlib.Cli.OS.OS.Linux,
           Stdlib.Cli.Architecture.Architecture.Arm)
         |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("linux-arm"))
+
         PlatformForHost.idFor(
           Stdlib.Cli.OS.OS.Linux,
           Stdlib.Cli.Architecture.Architecture.Aarch64)
         |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("linux-musl-arm64"))
+
         PlatformForHost.idFor(
           Stdlib.Cli.OS.OS.Linux,
           Stdlib.Cli.Architecture.Architecture.X86_64)
         |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("linux-musl-x64"))
+
         PlatformForHost.idFor(
           Stdlib.Cli.OS.OS.MacOS,
           Stdlib.Cli.Architecture.Architecture.Arm64)
         |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("osx-arm64"))
+
         PlatformForHost.idFor(
           Stdlib.Cli.OS.OS.MacOS,
           Stdlib.Cli.Architecture.Architecture.X86_64)
         |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("osx-x64")) ])
+
 
   test unsupportedCombination =
     PlatformForHost.idFor(
@@ -136,32 +151,37 @@ module PlatformForHost =
 // build its assets are named after.
 module ReleaseForBuild =
   // A function rather than a `val`, for the reason `PlatformForHost.host` gives.
-  let release(tag: String, hash: String): Darklang.GitHub.Releases.Release =
-    Darklang.GitHub.Releases.Release
+  let release(tag: String, hash: String): GitHub.Releases.Release =
+    GitHub.Releases.Release
       { tag_name = tag
         assets =
           [ AssetForPlatform.asset($"darklang-alpha-{hash}-linux-x64.gz")
             AssetForPlatform.asset($"darklang-alpha-{hash}-osx-arm64.gz") ] }
 
-  let releases(): List<Darklang.GitHub.Releases.Release> =
+
+  let releases(): List<GitHub.Releases.Release> =
     [ release("v0.0.104", "e76430be5c"), release("v0.0.103", "0ab12cd34e") ]
+
 
   // An asset carries ten characters of the hash and the CLI prints seven.
   test buildFromAssetName =
-    Darklang.GitHub.Releases.buildOf(release("v0.0.104", "e76430be5c"))
+    GitHub.Releases.buildOf(release("v0.0.104", "e76430be5c"))
     |> Stdlib.Test.equal(Stdlib.Option.Option.Some("alpha-e76430b"))
 
+
   test tagOfAnOlderRelease =
-    Darklang.GitHub.Releases.tagFor(releases(), "alpha-0ab12cd")
+    GitHub.Releases.tagFor(releases(), "alpha-0ab12cd")
     |> Stdlib.Test.equal(Stdlib.Option.Option.Some("v0.0.103"))
+
 
   // A dev build is no release, and a release with no assets names no build.
   test noReleaseForADevBuild =
     Stdlib.Test.all(
-      [ Darklang.GitHub.Releases.tagFor(releases(), "alpha-1234567")
+      [ GitHub.Releases.tagFor(releases(), "alpha-1234567")
         |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-        Darklang.GitHub.Releases.buildOf(
-          Darklang.GitHub.Releases.Release { tag_name = "v0.0.1", assets = [] })
+
+        GitHub.Releases.buildOf(
+          GitHub.Releases.Release { tag_name = "v0.0.1", assets = [] })
         |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 
@@ -174,32 +194,38 @@ module Checksums =
         AssetForPlatform.asset("darklang-alpha-abc1234-sha256sums.txt"))
 
     Stdlib.Test.all(
-      [ Darklang.GitHub.Releases.sumsUrlFor(assets)
+      [ GitHub.Releases.sumsUrlFor(assets)
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some(
-             "https://example.com/darklang-alpha-abc1234-sha256sums.txt")))
-        Darklang.GitHub.Releases.sumsUrlFor(AssetForPlatform.assets())
+          Stdlib.Option.Option.Some(
+            "https://example.com/darklang-alpha-abc1234-sha256sums.txt"))
+
+        GitHub.Releases.sumsUrlFor(AssetForPlatform.assets())
         |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-        Darklang.GitHub.Releases.assetUrlFor(assets, "linux-x64")
+
+        GitHub.Releases.assetUrlFor(assets, "linux-x64")
         |> Stdlib.Test.equal(
-          (Stdlib.Option.Option.Some(
-             "https://example.com/darklang-alpha-abc1234-linux-x64.gz"))) ])
+          Stdlib.Option.Option.Some(
+            "https://example.com/darklang-alpha-abc1234-linux-x64.gz")) ])
+
 
   // As `sha256sum` prints them. `linux-arm` must not take `linux-arm64`'s line.
   val sums =
     "AB12  darklang-alpha-abc1234-linux-arm64.gz\ncd34  darklang-alpha-abc1234-linux-arm.gz\n"
 
+
   test hashForEachFile =
     Stdlib.Test.all(
-      [ Darklang.Cli.Installation.Download.expectedSha256(
+      [ Cli.Installation.Download.expectedSha256(
           sums,
           "darklang-alpha-abc1234-linux-arm.gz")
         |> Stdlib.Test.equal(Stdlib.Option.Option.Some("cd34"))
-        Darklang.Cli.Installation.Download.expectedSha256(
+
+        Cli.Installation.Download.expectedSha256(
           sums,
           "darklang-alpha-abc1234-linux-arm64.gz")
         |> Stdlib.Test.equal(Stdlib.Option.Option.Some("ab12"))
-        Darklang.Cli.Installation.Download.expectedSha256(
+
+        Cli.Installation.Download.expectedSha256(
           sums,
           "darklang-alpha-abc1234-osx-x64.gz")
         |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])

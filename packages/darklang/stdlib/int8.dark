@@ -1,6 +1,5 @@
 module Darklang.Stdlib.Int8
 
-
 type ParseError =
   | BadFormat
   | OutOfRange
@@ -11,242 +10,257 @@ impl Modulo for Int8 =
   /// The modulus <param b> must be greater than 0.
   /// Use <fn Int8.checkedRemainder> if you want the remainder after division, which has
   /// a different behavior for negative numbers.
-  let modulo(a: Int8, b: Int8): Int8 = Builtin.modulo(a, b)
+  let modulo(a: Int8, b: Int8): Int8 =
+    Builtin.modulo(a, b)
 
 
 impl Add for Int8 =
   /// Adds two 8-bit signed integers together (wraps on overflow)
-  let add(a: Int8, b: Int8): Int8 = Builtin.add(a, b)
+  let add(a: Int8, b: Int8): Int8 =
+    Builtin.add(a, b)
 
 
 impl Subtract for Int8 =
   /// Subtracts two 8-bit signed integers (wraps on overflow)
-  let subtract(a: Int8, b: Int8): Int8 = Builtin.subtract(a, b)
+  let subtract(a: Int8, b: Int8): Int8 =
+    Builtin.subtract(a, b)
 
 
 impl Multiply for Int8 =
   /// Multiplies two 8-bit signed integers (wraps on overflow)
-  let multiply(a: Int8, b: Int8): Int8 = Builtin.multiply(a, b)
+  let multiply(a: Int8, b: Int8): Int8 =
+    Builtin.multiply(a, b)
 
 
 impl Power for Int8 =
   /// Raise <param base> to the power of <param exponent>.
   /// Overflow wraps around.
   /// Raises an error if <param exponent> is negative.
-  let power(`base`: Int8, exponent: Int8): Int8 =
-    Builtin.power(`base`, exponent)
+  let power(base: Int8, exponent: Int8): Int8 =
+    Builtin.power(base, exponent)
 
 
 impl Divide for Int8 =
   /// Divides two 8-bit signed integers
-  let divide(a: Int8, b: Int8): Int8 = Builtin.divide(a, b)
+  let divide(a: Int8, b: Int8): Int8 =
+    Builtin.divide(a, b)
 
 
 impl Negate for Int8 =
   /// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
-  let negate(a: Int8): Int8 = Builtin.negate(a)
+  let negate(a: Int8): Int8 =
+    Builtin.negate(a)
 
 
 impl Compare for Int8 =
   /// Returns {{true}} if <param a> is less than <param b>
-  let lessThan(a: Int8, b: Int8): Bool = Builtin.lessThan(a, b)
+  let lessThan(a: Int8, b: Int8): Bool =
+    Builtin.lessThan(a, b)
+
   /// Returns {{true}} if <param a> is less than or equal to <param b>
   let lessThanOrEqualTo(a: Int8, b: Int8): Bool =
     Builtin.lessThanOrEqualTo(a, b)
+
   /// Returns {{true}} if <param a> is greater than <param b>
-  let greaterThan(a: Int8, b: Int8): Bool = Builtin.greaterThan(a, b)
+  let greaterThan(a: Int8, b: Int8): Bool =
+    Builtin.greaterThan(a, b)
+
   /// Returns {{true}} if <param a> is greater than or equal to <param b>
   let greaterThanOrEqualTo(a: Int8, b: Int8): Bool =
     Builtin.greaterThanOrEqualTo(a, b)
 
 
 /// Returns a random 8-bit signed integer between <param start> and <param end> (inclusive)
-let random(start: Int8, `end`: Int8): Int8 =
-  Stdlib.BigInt.random(Stdlib.BigInt.fromInt8(start), Stdlib.BigInt.fromInt8(`end`))
-  |> Stdlib.BigInt.toInt8
+let random(start: Int8, end: Int8): Int8 =
+  BigInt.random(BigInt.fromInt8(start), BigInt.fromInt8(end))
+  |> BigInt.toInt8
   |> Builtin.unwrap
 
 
 /// Get the square root of an <type Int8>
-let sqrt(a: Int8): Float = Stdlib.Float.sqrt(Stdlib.Int8.toFloat(a))
+let sqrt(a: Int8): Float =
+  Float.sqrt(toFloat(a))
 
 
 /// The square root of <param a>, or {{Error NotANumber}} where <param a> is negative
-let checkedSqrt(a: Int8): Stdlib.Result.Result<Float, Stdlib.Math.NonFinite> =
-  Stdlib.Float.checkedSqrt(Stdlib.Int8.toFloat(a))
+let checkedSqrt(a: Int8): Result<Float, Math.NonFinite> =
+  Float.checkedSqrt(toFloat(a))
 
 
 /// Converts an <type Int8> to a <type Float>
-let toFloat(a: Int8): Float = Builtin.int8ToFloat(a)
+let toFloat(a: Int8): Float =
+  Builtin.int8ToFloat(a)
 
 
 /// Parses a <type String> into an <type Int8>, returning {{Ok}} with the
 /// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
 /// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
 /// <type Int8> range).
-let parse(s: String): Stdlib.Result.Result<Int8, Stdlib.Int8.ParseError> =
+let parse(s: String): Result<Int8, ParseError> =
   // a plain match: the generic Option.toResult call was a quarter of the cost
-  match Stdlib.BigInt.parse(s) with
+  match BigInt.parse(s) with
   | Ok(n) ->
-    match Stdlib.BigInt.toInt8(n) with
-    | Some(i) -> Stdlib.Result.Result.Ok(i)
-    | None -> Stdlib.Result.Result.Error(Stdlib.Int8.ParseError.OutOfRange)
-  | Error(_) -> Stdlib.Result.Result.Error(Stdlib.Int8.ParseError.BadFormat)
+    match BigInt.toInt8(n) with
+    | Some(i) -> Result.Ok(i)
+    | None -> Result.Error(ParseError.OutOfRange)
+  | Error(_) -> Result.Error(ParseError.BadFormat)
 
 
 /// Converts a <type UInt8> to an <type Int8>. Returns {{None}} if the value is greater than 127.
-let fromUInt8(i: UInt8): Stdlib.Option.Option<Int8> =
-  Stdlib.BigInt.toInt8(Stdlib.BigInt.fromUInt8(i))
+let fromUInt8(i: UInt8): Option<Int8> =
+  BigInt.toInt8(BigInt.fromUInt8(i))
 
 
 /// Converts an <type Int16> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
-let fromInt16(i: Int16): Stdlib.Option.Option<Int8> =
-  Stdlib.BigInt.toInt8(Stdlib.BigInt.fromInt16(i))
+let fromInt16(i: Int16): Option<Int8> =
+  BigInt.toInt8(BigInt.fromInt16(i))
 
 
 /// Converts a <type UInt16> to an <type Int8>. Returns {{None}} if the value is greater than 127.
-let fromUInt16(i: UInt16): Stdlib.Option.Option<Int8> =
-  Stdlib.BigInt.toInt8(Stdlib.BigInt.fromUInt16(i))
+let fromUInt16(i: UInt16): Option<Int8> =
+  BigInt.toInt8(BigInt.fromUInt16(i))
 
 
 /// Converts an <type Int32> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
-let fromInt32(i: Int32): Stdlib.Option.Option<Int8> =
-  Stdlib.BigInt.toInt8(Stdlib.BigInt.fromInt32(i))
+let fromInt32(i: Int32): Option<Int8> =
+  BigInt.toInt8(BigInt.fromInt32(i))
 
 
 /// Converts a <type UInt32> to an <type Int8>. Returns {{None}} if the value is greater than 127.
-let fromUInt32(i: UInt32): Stdlib.Option.Option<Int8> =
-  Stdlib.BigInt.toInt8(Stdlib.BigInt.fromUInt32(i))
+let fromUInt32(i: UInt32): Option<Int8> =
+  BigInt.toInt8(BigInt.fromUInt32(i))
 
 
 /// Converts an <type Int64> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
-let fromInt64(i: Int64): Stdlib.Option.Option<Int8> =
-  Stdlib.BigInt.toInt8(Stdlib.BigInt.fromInt64(i))
+let fromInt64(i: Int64): Option<Int8> =
+  BigInt.toInt8(BigInt.fromInt64(i))
 
 
 /// Converts a <type UInt64> to an <type Int8>. Returns {{None}} if the value is greater than 127.
-let fromUInt64(i: UInt64): Stdlib.Option.Option<Int8> =
-  Stdlib.BigInt.toInt8(Stdlib.BigInt.fromUInt64(i))
+let fromUInt64(i: UInt64): Option<Int8> =
+  BigInt.toInt8(BigInt.fromUInt64(i))
 
 
 /// Converts an <type Int128> to an <type Int8>. Returns {{None}} if the value is less than -128 or greater than 127.
-let fromInt128(i: Int128): Stdlib.Option.Option<Int8> =
-  Stdlib.BigInt.toInt8(Stdlib.BigInt.fromInt128(i))
+let fromInt128(i: Int128): Option<Int8> =
+  BigInt.toInt8(BigInt.fromInt128(i))
 
 
 /// Converts a <type UInt128> to an <type Int8>. Returns {{None}} if the value is greater than 127.
-let fromUInt128(i: UInt128): Stdlib.Option.Option<Int8> =
-  Stdlib.BigInt.toInt8(Stdlib.BigInt.fromUInt128(i))
+let fromUInt128(i: UInt128): Option<Int8> =
+  BigInt.toInt8(BigInt.fromUInt128(i))
 
 
 impl BitwiseAnd for Int8 =
   /// Bitwise AND on two <type Int8> values
-  let bitwiseAnd(a: Int8, b: Int8): Int8 = Builtin.bitwiseAnd(a, b)
+  let bitwiseAnd(a: Int8, b: Int8): Int8 =
+    Builtin.bitwiseAnd(a, b)
 
 
 impl BitwiseOr for Int8 =
   /// Bitwise OR on two <type Int8> values
-  let bitwiseOr(a: Int8, b: Int8): Int8 = Builtin.bitwiseOr(a, b)
+  let bitwiseOr(a: Int8, b: Int8): Int8 =
+    Builtin.bitwiseOr(a, b)
 
 
 impl BitwiseXor for Int8 =
   /// Bitwise XOR on two <type Int8> values
-  let bitwiseXor(a: Int8, b: Int8): Int8 = Builtin.bitwiseXor(a, b)
+  let bitwiseXor(a: Int8, b: Int8): Int8 =
+    Builtin.bitwiseXor(a, b)
 
 
 impl BitwiseNot for Int8 =
   /// Bitwise NOT on an <type Int8> value
-  let bitwiseNot(a: Int8): Int8 = Builtin.bitwiseNot(a)
+  let bitwiseNot(a: Int8): Int8 =
+    Builtin.bitwiseNot(a)
 
 
 impl ShiftLeft for Int8 =
   /// Bitwise left shift of an <type Int8> value
-  let shiftLeft(a: Int8, b: Int8): Int8 = Builtin.shiftLeft(a, b)
+  let shiftLeft(a: Int8, b: Int8): Int8 =
+    Builtin.shiftLeft(a, b)
 
 
 impl ShiftRight for Int8 =
   /// Bitwise right shift of an <type Int8> value
-  let shiftRight(a: Int8, b: Int8): Int8 = Builtin.shiftRight(a, b)
+  let shiftRight(a: Int8, b: Int8): Int8 =
+    Builtin.shiftRight(a, b)
+
 
 impl Display for Int8 =
   /// Stringify <param int8>
-  let display(int8: Int8): String = Builtin.int8ToString(int8)
+  let display(int8: Int8): String =
+    Builtin.int8ToString(int8)
+
 
 impl Zero for Int8 =
-  let zero(): Int8 = 0s8
+  let zero(): Int8 =
+    0s8
+
 
 impl One for Int8 =
-  let one(): Int8 = 1s8
+  let one(): Int8 =
+    1s8
 
 
 // Checked arithmetic. The operators wrap on overflow; these return
 // {{Error Overflow}} instead, going below 0 included.
 
 /// Adds <param a> and <param b>, or {{Error Overflow}} where `+` would wrap
-let checkedAdd(a: Int8, b: Int8): Stdlib.Result.Result<Int8, Stdlib.Math.Overflow> =
+let checkedAdd(a: Int8, b: Int8): Result<Int8, Math.Overflow> =
   let sum = a + b
   let wrapped = if b < 0s8 then sum > a else sum < a
-  if wrapped then Error(Stdlib.Math.Overflow.Overflow) else Ok(sum)
+  if wrapped then Result.Error(Math.Overflow.Overflow) else Result.Ok(sum)
 
 
 /// Subtracts <param b> from <param a>, or {{Error Overflow}} where `-` would wrap
-let checkedSubtract(
-  a: Int8,
-  b: Int8)
-  : Stdlib.Result.Result<Int8, Stdlib.Math.Overflow> =
+let checkedSubtract(a: Int8, b: Int8): Result<Int8, Math.Overflow> =
   let difference = a - b
   let wrapped = if b < 0s8 then difference < a else difference > a
-  if wrapped then Error(Stdlib.Math.Overflow.Overflow) else Ok(difference)
+  if wrapped then Result.Error(Math.Overflow.Overflow) else Result.Ok(difference)
 
 
 /// Multiplies <param a> by <param b>, or {{Error Overflow}} where `*` would wrap
-let checkedMultiply(
-  a: Int8,
-  b: Int8)
-  : Stdlib.Result.Result<Int8, Stdlib.Math.Overflow> =
-  let product = Stdlib.BigInt.fromInt8(a) * Stdlib.BigInt.fromInt8(b)
-  match Stdlib.BigInt.toInt8(product) with
-  | Some(fits) -> Ok(fits)
-  | None -> Error(Stdlib.Math.Overflow.Overflow)
+let checkedMultiply(a: Int8, b: Int8): Result<Int8, Math.Overflow> =
+  let product = BigInt.fromInt8(a) * BigInt.fromInt8(b)
+  match BigInt.toInt8(product) with
+  | Some(fits) -> Result.Ok(fits)
+  | None -> Result.Error(Math.Overflow.Overflow)
 
 
 /// The negation of <param a>, or {{Error Overflow}} for the minimum value,
 /// which `-` wraps back to itself
-let checkedNegate(a: Int8): Stdlib.Result.Result<Int8, Stdlib.Math.Overflow> =
-  if a == -128s8 then Error(Stdlib.Math.Overflow.Overflow) else Ok(-a)
+let checkedNegate(a: Int8): Result<Int8, Math.Overflow> =
+  if a == -128s8 then Result.Error(Math.Overflow.Overflow) else Result.Ok(-a)
 
 
 /// The distance of <param a> from zero, or {{Error Overflow}} for the minimum
 /// value, which <fn Stdlib.abs> wraps back to itself
-let checkedAbsoluteValue(a: Int8): Stdlib.Result.Result<Int8, Stdlib.Math.Overflow> =
+let checkedAbsoluteValue(a: Int8): Result<Int8, Math.Overflow> =
   if a == -128s8 then
-    Error(Stdlib.Math.Overflow.Overflow)
+    Result.Error(Math.Overflow.Overflow)
   else if a < 0s8 then
-    Ok(-a)
+    Result.Ok(-a)
   else
-    Ok(a)
+    Result.Ok(a)
 
 
 /// <param base> raised to the power of <param exponent>, or where `**` raises or wraps,
 /// {{Error NegativeExponent}} or {{Error Overflow}}
-let checkedPower(
-  `base`: Int8,
-  exponent: Int8)
-  : Stdlib.Result.Result<Int8, Stdlib.Math.PowerError> =
+let checkedPower(base: Int8, exponent: Int8): Result<Int8, Math.PowerError> =
   if exponent < 0s8 then
-    Error(Stdlib.Math.PowerError.NegativeExponent)
-  else if `base` == 0s8 || `base` == 1s8 || `base` == -1s8 then
+    Result.Error(Math.PowerError.NegativeExponent)
+  else if base == 0s8 || base == 1s8 || base == -1s8 then
     // 0, 1 and -1 never grow, so `**` is exact whatever the exponent
-    Ok(`base` ** exponent)
+    Result.Ok(base ** exponent)
   else if exponent >= 8s8 then
     // any other base is at least 2 from zero, and 2 ** 8 is past the Int8 range
-    Error(Stdlib.Math.PowerError.Overflow)
+    Result.Error(Math.PowerError.Overflow)
   else
-    let result = Stdlib.BigInt.fromInt8(`base`) ** Stdlib.BigInt.fromInt8(exponent)
-
-    match Stdlib.BigInt.toInt8(result) with
-    | Some(fits) -> Ok(fits)
-    | None -> Error(Stdlib.Math.PowerError.Overflow)
+    let result = BigInt.fromInt8(base) ** BigInt.fromInt8(exponent)
+    match BigInt.toInt8(result) with
+    | Some(fits) -> Result.Ok(fits)
+    | None -> Result.Error(Math.PowerError.Overflow)
 
 
 // Division. `/` raises on a zero divisor and `%` on a modulus that is not positive;
@@ -257,35 +271,32 @@ let checkedPower(
 /// Divides <param a> by <param b>, rounding towards zero, or
 /// {{Error DivisionByZero}} where `/` raises, or {{Error Overflow}} for the
 /// minimum value divided by -1, where `/` wraps back to the minimum.
-let checkedDivide(a: Int8, b: Int8): Stdlib.Result.Result<Int8, Stdlib.Math.DivisionError> =
+let checkedDivide(a: Int8, b: Int8): Result<Int8, Math.DivisionError> =
   if b == 0s8 then
-    Error(Stdlib.Math.DivisionError.DivisionByZero)
+    Result.Error(Math.DivisionError.DivisionByZero)
   else if b == -1s8 && a == -128s8 then
-    Error(Stdlib.Math.DivisionError.Overflow)
+    Result.Error(Math.DivisionError.Overflow)
   else
-    Ok(a / b)
+    Result.Ok(a / b)
 
 
 /// What is left after dividing <param value> by <param divisor>, rounding towards
 /// zero: negative only if <param value> is, whatever the sign of <param divisor>.
 /// {{Error DivisionByZero}} if <param divisor> is {{0}}.
 /// Use <fn Int8.checkedMod> to wrap around into {{0 <= res < b}} instead.
-let checkedRemainder(
-  value: Int8,
-  divisor: Int8)
-  : Stdlib.Result.Result<Int8, Stdlib.Math.DivisionError> =
+let checkedRemainder(value: Int8, divisor: Int8): Result<Int8, Math.DivisionError> =
   if divisor == 0s8 then
-    Error(Stdlib.Math.DivisionError.DivisionByZero)
+    Result.Error(Math.DivisionError.DivisionByZero)
   else
-    Ok(value - (value / divisor) * divisor)
+    Result.Ok(value - value / divisor * divisor)
 
 
 /// <param a> wrapped around so that {{0 <= res < b}}, or where `%` raises,
 /// {{Error ZeroModulus}} or {{Error NegativeModulus}}
-let checkedMod(a: Int8, b: Int8): Stdlib.Result.Result<Int8, Stdlib.Math.ModulusError> =
+let checkedMod(a: Int8, b: Int8): Result<Int8, Math.ModulusError> =
   if b == 0s8 then
-    Error(Stdlib.Math.ModulusError.ZeroModulus)
+    Result.Error(Math.ModulusError.ZeroModulus)
   else if b < 0s8 then
-    Error(Stdlib.Math.ModulusError.NegativeModulus)
+    Result.Error(Math.ModulusError.NegativeModulus)
   else
-    Ok(a % b)
+    Result.Ok(a % b)

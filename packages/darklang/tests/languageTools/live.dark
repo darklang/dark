@@ -24,83 +24,89 @@ module Darklang.LanguageTools.Tests.Live
 test dedupeTouched =
   Stdlib.Test.all(
     [ // Same location, same kind, twice: one thing to reload.
-      (Stdlib.List.length(
-        (LanguageTools.Live.dedupeTouched(
+      Stdlib.List.length(
+        LanguageTools.Live.dedupeTouched(
           [ LanguageTools.Live.Touched
               { location =
-                  Darklang.LanguageTools.ProgramTypes.PackageLocation
+                  LanguageTools.ProgramTypes.PackageLocation
                     { owner = "Demo", modules = [ "M" ], name = "a" }
-                kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn }
+                kind = LanguageTools.ProgramTypes.ItemKind.Fn }
+
             LanguageTools.Live.Touched
               { location =
-                  Darklang.LanguageTools.ProgramTypes.PackageLocation
+                  LanguageTools.ProgramTypes.PackageLocation
                     { owner = "Demo", modules = [ "M" ], name = "a" }
-                kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn } ]))))
+                kind = LanguageTools.ProgramTypes.ItemKind.Fn } ]))
       |> Stdlib.Test.equal(1)
 
       // THE case a coarser key would silently eat: one name bound as a fn and as a
       // type. Two things to reload, and a dedup on location alone reports one.
-      (Stdlib.List.length(
-        (LanguageTools.Live.dedupeTouched(
+      Stdlib.List.length(
+        LanguageTools.Live.dedupeTouched(
           [ LanguageTools.Live.Touched
               { location =
-                  Darklang.LanguageTools.ProgramTypes.PackageLocation
+                  LanguageTools.ProgramTypes.PackageLocation
                     { owner = "Demo", modules = [ "M" ], name = "a" }
-                kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn }
+                kind = LanguageTools.ProgramTypes.ItemKind.Fn }
+
             LanguageTools.Live.Touched
               { location =
-                  Darklang.LanguageTools.ProgramTypes.PackageLocation
+                  LanguageTools.ProgramTypes.PackageLocation
                     { owner = "Demo", modules = [ "M" ], name = "a" }
-                kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Type } ]))))
+                kind = LanguageTools.ProgramTypes.ItemKind.Type } ]))
       |> Stdlib.Test.equal(2)
 
       // Different names under the same module are different, so the key reads the
       // whole location and not just its head.
-      (Stdlib.List.length(
-        (LanguageTools.Live.dedupeTouched(
+      Stdlib.List.length(
+        LanguageTools.Live.dedupeTouched(
           [ LanguageTools.Live.Touched
               { location =
-                  Darklang.LanguageTools.ProgramTypes.PackageLocation
+                  LanguageTools.ProgramTypes.PackageLocation
                     { owner = "Demo", modules = [ "M" ], name = "a" }
-                kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn }
+                kind = LanguageTools.ProgramTypes.ItemKind.Fn }
+
             LanguageTools.Live.Touched
               { location =
-                  Darklang.LanguageTools.ProgramTypes.PackageLocation
+                  LanguageTools.ProgramTypes.PackageLocation
                     { owner = "Demo", modules = [ "M" ], name = "b" }
-                kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn } ]))))
+                kind = LanguageTools.ProgramTypes.ItemKind.Fn } ]))
       |> Stdlib.Test.equal(2)
 
       // Nothing touched is nothing to reload, rather than a raise on an empty Dict.
       LanguageTools.Live.dedupeTouched([]) |> Stdlib.Test.equal([]) ])
+
 
 test dependents =
   Stdlib.Test.all(
     [ // An unknown location: not a raise, not empty, but the seed itself, because
       // the walk starts with its own frontier in `seen`. Nothing else pins what
       // this answers for a name that resolves to nothing.
-      (Stdlib.List.length(
-        (LanguageTools.Live.dependents(
+      Stdlib.List.length(
+        LanguageTools.Live.dependents(
           [ LanguageTools.Live.Touched
               { location =
-                  Darklang.LanguageTools.ProgramTypes.PackageLocation
+                  LanguageTools.ProgramTypes.PackageLocation
                     { owner = "Nobody", modules = [ "Nothing" ], name = "here" }
-                kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn } ]))))
+                kind = LanguageTools.ProgramTypes.ItemKind.Fn } ]))
       |> Stdlib.Test.equal(1)
 
       // At real scale, where the dependency graph actually has diamonds in it. The
       // count is not asserted, since it moves with every call site anyone adds;
       // more than the seed alone is the property, and it is the precondition for
       // the assertion below meaning anything.
-      (Stdlib.List.length(
-        (LanguageTools.Live.dependents(
+      Stdlib.List.length(
+        LanguageTools.Live.dependents(
           [ LanguageTools.Live.Touched
               { location =
-                  Darklang.LanguageTools.ProgramTypes.PackageLocation
+                  LanguageTools.ProgramTypes.PackageLocation
                     { owner = "Darklang"
                       modules = [ "Stdlib", "List" ]
                       name = "map" }
-                kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn } ]))) > 1)
+                kind = LanguageTools.ProgramTypes.ItemKind.Fn } ]))
+      > 1
       |> Stdlib.Test.equal(true)
+
       // Each location ONCE. This is the `uniqueBy` inside the walk, and the one
       // thing here the F# test above does not assert: without it a diamond reports
       // the same caller once per path to it, and a host reloads it that many times.
@@ -108,13 +114,13 @@ test dependents =
          LanguageTools.Live.dependents(
            [ LanguageTools.Live.Touched
                { location =
-                   Darklang.LanguageTools.ProgramTypes.PackageLocation
+                   LanguageTools.ProgramTypes.PackageLocation
                      { owner = "Darklang"
                        modules = [ "Stdlib", "List" ]
                        name = "map" }
-                 kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn } ])
-       (Stdlib.List.length(reached))
-       == (Stdlib.List.length(Stdlib.List.unique(reached))))
+                 kind = LanguageTools.ProgramTypes.ItemKind.Fn } ])
+       Stdlib.List.length(reached)
+       == Stdlib.List.length(Stdlib.List.unique(reached)))
       |> Stdlib.Test.equal(true) ])
 
 
@@ -122,26 +128,31 @@ test dependents =
 // identifiers is evaluated, and only a fn comes back.
 module ApplicableByName =
   let resolve(name: String): Stdlib.Result.Result<String -> Int64, String> =
-    LanguageTools.Live.applicableByName(Darklang.SCM.Branch.mainBranchId, name)
+    LanguageTools.Live.applicableByName(SCM.Branch.mainBranchId, name)
+
 
   let errorOf(name: String): String =
     match resolve(name) with
     | Ok(_) -> "resolved"
     | Error(e) -> e
 
+
   test resolvesAFn =
     match resolve("Darklang.Stdlib.String.length") with
     | Ok(f) -> f("four") |> Stdlib.Test.equal(4)
     | Error(e) -> Stdlib.Test.fail(e)
 
+
   test missingFn =
     errorOf("Darklang.Stdlib.String.noSuchFn")
     |> Stdlib.Test.equal("No function named Darklang.Stdlib.String.noSuchFn")
+
 
   // A value evaluates fine, but it is not a fn.
   test valueIsNotAFn =
     errorOf("Darklang.Stdlib.Math.pi")
     |> Stdlib.Test.equal("No function named Darklang.Stdlib.Math.pi")
+
 
   // Anything but a dotted name is refused before eval sees it.
   test codeIsNotEvaluated =
@@ -149,23 +160,26 @@ module ApplicableByName =
       [ errorOf("Darklang.Stdlib.String.length(\"four\")")
         |> Stdlib.Test.equal(
           "Not a package function name: Darklang.Stdlib.String.length(\"four\")")
+
         errorOf("length")
         |> Stdlib.Test.equal("Not a package function name: length")
-        errorOf("")
-        |> Stdlib.Test.equal("Not a package function name: ") ])
+
+        errorOf("") |> Stdlib.Test.equal("Not a package function name: ") ])
 
 
 module IssueText =
   /// Check real source and render its diagnostics as a live host does.
   let messages(source: String): List<String> =
-    match
-      LanguageTools.Parser.Parse.packageSourceToOps(
-        Darklang.SCM.Branch.mainBranchId, "Tests", [ "LiveDiagnostics" ], source)
-    with
+    match LanguageTools.Parser.Parse.packageSourceToOps(
+            SCM.Branch.mainBranchId,
+            "Tests",
+            [ "LiveDiagnostics" ],
+            source) with
     | Error(error) -> [ "Parse failed: " + error ]
     | Ok(ops) ->
       (LanguageTools.AtRestTypeChecker.checkPackageOps(ops)).diagnostics
       |> Stdlib.List.map(LanguageTools.Live.issueText)
+
 
   test pairCallbackRetainsHint =
     messages(
@@ -176,9 +190,11 @@ module IssueText =
         + " (a pair is one argument; write `fun ((a, b)) -> ...`)"
         + " (`Stdlib.List.iter`, argument 2)" ])
 
+
   test ordinaryMismatchKeepsLayout =
     messages("let f(): String = 1")
     |> Stdlib.Test.equal([ "expected String, got Int64 (return value)" ])
+
 
   test otherCallbackArityKeepsLayout =
     messages(

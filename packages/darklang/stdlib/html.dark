@@ -43,9 +43,10 @@
 /// - should nodeToString be in a Node module, with HtmlTag and Node moved there?
 module Darklang.Stdlib.Html
 
+type Attribute = List<(String * Option<String>)>
 
-type Attribute = List<String * Option.Option<String>>
-type Attributes = List<String * Option.Option<String>>
+type Attributes = List<(String * Option<String>)>
+
 
 /// Represents an HTML tag with its name, attributes, and children.
 type HtmlTag =
@@ -55,6 +56,7 @@ type HtmlTag =
     /// - `None` for boolean attributes (e.g., `("required", None)`)
     attrs: Attributes
     children: List<Node> }
+
 
 /// Represents a node in the HTML tree.
 type Node =
@@ -90,18 +92,19 @@ val voidElements =
 /// Escapes special HTML characters.
 let escapeHtml(str: String): String =
   str
-  |> Stdlib.String.replaceAll("&", "&amp;")
-  |> Stdlib.String.replaceAll("<", "&lt;")
-  |> Stdlib.String.replaceAll(">", "&gt;")
-  |> Stdlib.String.replaceAll("\"", "&quot;")
-  |> Stdlib.String.replaceAll("'", "&#x27;")
+  |> String.replaceAll("&", "&amp;")
+  |> String.replaceAll("<", "&lt;")
+  |> String.replaceAll(">", "&gt;")
+  |> String.replaceAll("\"", "&quot;")
+  |> String.replaceAll("'", "&#x27;")
 
 
 /// Creates a text node from a string with HTML escaping.
 ///
 /// This is the safe version that escapes HTML special characters to prevent XSS.
 /// Use this for user-generated content or any untrusted input.
-let text(str: String): Node = Node.String(escapeHtml(str))
+let text(str: String): Node =
+  Node.String(escapeHtml(str))
 
 
 /// Creates a text node from a string without any escaping.
@@ -116,7 +119,8 @@ let text(str: String): Node = Node.String(escapeHtml(str))
 /// stringNode "Hello, World!"
 /// stringNode "<!-- This is a comment -->"
 /// ```
-let stringNode(str: String): Node = Node.String(str)
+let stringNode(str: String): Node =
+  Node.String(str)
 
 
 /// Creates an HTML tag node with the given name, attributes, and children.
@@ -124,16 +128,8 @@ let stringNode(str: String): Node = Node.String(str)
 /// This is the low-level constructor used by all tag helper functions.
 /// In most cases, you should use the specific tag helpers (div, span, etc.)
 /// instead of calling this directly.
-let htmlTagNode(
-  name: String,
-  attrs: Attributes,
-  children: List<Node>)
-  : Node =
-  (HtmlTag
-    { name = name
-      attrs = attrs
-      children = children })
-  |> Node.HtmlTag
+let htmlTagNode(name: String, attrs: Attributes, children: List<Node>): Node =
+  HtmlTag { name = name, attrs = attrs, children = children } |> Node.HtmlTag
 
 
 /// Converts a Node to its HTML string representation.
@@ -159,21 +155,21 @@ let nodeToString(node: Node): String =
         | None -> key)
       |> String.join(" ")
 
-    if (Stdlib.List.contains(voidElements, tag.name)) then
+    if List.contains(voidElements, tag.name) then
       match attributesText with
       | "" -> $"<{tag.name}>"
       | text -> $"<{tag.name} {text}>"
-
     else
       match tag.children with
       | [] ->
         match attributesText with
         | "" -> $"<{tag.name}></{tag.name}>"
         | text -> $"<{tag.name} {text}></{tag.name}>"
-
       | children ->
         let childHtml =
-          children |> List.map(fun c -> Html.nodeToString(c)) |> String.join("")
+          children
+          |> List.map(fun c -> Html.nodeToString(c))
+          |> String.join("")
 
         let startTag =
           match attributesText with
@@ -181,7 +177,6 @@ let nodeToString(node: Node): String =
           | text -> $"<{tag.name} {text}>"
 
         let endTag = $"</{tag.name}>"
-
         startTag + childHtml + endTag
 
 
@@ -195,8 +190,8 @@ let comment(s: String): Node =
   // Keep replacing until no `--` is left. One pass isn't enough: `---` becomes
   // `- --`, which still has a `--` in it.
   let breakDashes(t: String): String =
-    if Stdlib.String.contains(t, "--") then
-      breakDashes(Stdlib.String.replaceAll(t, "--", "- -"))
+    if String.contains(t, "--") then
+      breakDashes(String.replaceAll(t, "--", "- -"))
     else
       t
 
@@ -212,243 +207,315 @@ let comment(s: String): Node =
 /// Creates a class attribute from a list of class names.
 ///
 /// Example: `classes ["btn", "btn-primary"]` produces `("class", Some "btn btn-primary")`
-let classes(classList: List<String>): (String * Option.Option<String>) =
-  ("class", Stdlib.Option.Option.Some(Stdlib.String.join(classList, " ")))
+let classes(classList: List<String>): (String * Option<String>) =
+  ("class", Option.Some(String.join(classList, " ")))
 
 
 /// Creates a style attribute from a list of CSS property-value pairs.
-let style(properties: List<(String * String)>): (String * Option.Option<String>) =
+let style(properties: List<(String * String)>): (String * Option<String>) =
   let styleString =
     properties
-    |> Stdlib.List.map(fun((prop, value)) -> $"{prop}: {value}")
-    |> Stdlib.String.join("; ")
+    |> List.map(fun((prop, value)) -> $"{prop}: {value}")
+    |> String.join("; ")
 
-  ("style", Stdlib.Option.Option.Some(styleString))
+  ("style", Option.Some(styleString))
 
 
 /// Creates a data attribute with the given name and value.
-let dataAttr(name: String, value: String): (String * Option.Option<String>) =
-  ($"data-{name}", Stdlib.Option.Option.Some(value))
+let dataAttr(name: String, value: String): (String * Option<String>) =
+  ($"data-{name}", Option.Some(value))
 
 
-let br(): Node = htmlTagNode("br", [], [])
+let br(): Node =
+  htmlTagNode("br", [], [])
+
 
 let html(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("html", attrs, c)
 
+
 let body(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("body", attrs, c)
+
 
 let head(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("head", attrs, c)
 
+
 let title(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("title", attrs, c)
 
+
 let a(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("a", attrs, c)
+
 
 // same for div, span, etc.:
 let div(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("div", attrs, c)
 
+
 let span(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("span", attrs, c)
+
 
 let h1(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("h1", attrs, c)
 
+
 let h2(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("h2", attrs, c)
+
 
 let h3(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("h3", attrs, c)
 
+
 let h4(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("h4", attrs, c)
+
 
 let h5(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("h5", attrs, c)
 
+
 let h6(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("h6", attrs, c)
+
 
 let p(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("p", attrs, c)
 
+
 let ul(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("ul", attrs, c)
+
 
 let ol(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("ol", attrs, c)
 
+
 let li(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("li", attrs, c)
+
 
 let table(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("table", attrs, c)
 
+
 let tr(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("tr", attrs, c)
+
 
 let td(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("td", attrs, c)
 
+
 let th(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("th", attrs, c)
+
 
 let tbody(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("tbody", attrs, c)
 
+
 let thead(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("thead", attrs, c)
+
 
 let tfoot(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("tfoot", attrs, c)
 
+
 let caption(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("caption", attrs, c)
+
 
 let colgroup(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("colgroup", attrs, c)
 
+
 let col(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("col", attrs, c)
+
 
 let button(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("button", attrs, c)
 
+
 let img(attrs: Attributes): Node =
   htmlTagNode("img", attrs, [])
+
 
 let svg(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("svg", attrs, c)
 
+
 let path(attrs: Attributes): Node =
   htmlTagNode("path", attrs, [])
+
 
 let meta(attrs: Attributes): Node =
   htmlTagNode("meta", attrs, [])
 
+
 let link(attrs: Attributes): Node =
   htmlTagNode("link", attrs, [])
+
 
 let script(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("script", attrs, c)
 
+
 let input(attrs: Attributes): Node =
   htmlTagNode("input", attrs, [])
+
 
 let label(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("label", attrs, c)
 
+
 let form(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("form", attrs, c)
+
 
 let section(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("section", attrs, c)
 
+
 let i(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("i", attrs, c)
+
 
 let code(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("code", attrs, c)
 
+
 let pre(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("pre", attrs, c)
+
 
 let nav(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("nav", attrs, c)
 
+
 let footer(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("footer", attrs, c)
+
 
 // Semantic HTML5 tags
 let article(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("article", attrs, c)
 
+
 let aside(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("aside", attrs, c)
+
 
 let header(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("header", attrs, c)
 
+
 let main(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("main", attrs, c)
+
 
 let figure(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("figure", attrs, c)
 
+
 let figcaption(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("figcaption", attrs, c)
+
 
 // Media tags
 let video(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("video", attrs, c)
 
+
 let audio(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("audio", attrs, c)
 
+
 let picture(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("picture", attrs, c)
+
 
 // Text formatting tags
 let strong(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("strong", attrs, c)
 
+
 let em(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("em", attrs, c)
+
 
 let b(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("b", attrs, c)
 
+
 let u(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("u", attrs, c)
+
 
 let small(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("small", attrs, c)
 
+
 let mark(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("mark", attrs, c)
+
 
 let del(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("del", attrs, c)
 
+
 let ins(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("ins", attrs, c)
+
 
 // Definition list tags
 let dl(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("dl", attrs, c)
 
+
 let dt(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("dt", attrs, c)
 
+
 let dd(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("dd", attrs, c)
+
 
 // Form elements
 let textarea(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("textarea", attrs, c)
 
+
 let select(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("select", attrs, c)
+
 
 let option(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("option", attrs, c)
 
+
 let fieldset(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("fieldset", attrs, c)
 
+
 let legend(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("legend", attrs, c)
+
 
 // Interactive elements
 let details(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("details", attrs, c)
 
+
 let summary(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("summary", attrs, c)
+
 
 let dialog(attrs: Attributes, c: List<Node>): Node =
   htmlTagNode("dialog", attrs, c)
@@ -470,5 +537,9 @@ let dialog(attrs: Attributes, c: List<Node>): Node =
 /// ```
 let document(nodes: List<Node>): String =
   let htmlDocHeader = "<!DOCTYPE html>"
-  let theRest = nodes |> List.map(fun n -> nodeToString(n)) |> String.join("")
+  let theRest =
+    nodes
+    |> List.map(fun n -> nodeToString(n))
+    |> String.join("")
+
   htmlDocHeader + theRest

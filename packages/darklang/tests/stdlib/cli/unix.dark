@@ -7,8 +7,12 @@ test quote =
   Stdlib.Test.all(
     [ Stdlib.Cli.Unix.quote("/Users/Jo Smith/.darklang")
       |> Stdlib.Test.equal("'/Users/Jo Smith/.darklang'")
-      Stdlib.Cli.Unix.quote("/home/o'brien") |> Stdlib.Test.equal("'/home/o'\\''brien'")
+
+      Stdlib.Cli.Unix.quote("/home/o'brien")
+      |> Stdlib.Test.equal("'/home/o'\\''brien'")
+
       Stdlib.Cli.Unix.quote("-rf") |> Stdlib.Test.equal("'-rf'")
+
       Stdlib.Cli.Unix.quote("") |> Stdlib.Test.equal("''") ])
 
 
@@ -20,12 +24,20 @@ test removeDirectoryWithSpaceLeavesNeighbours =
     let made = Stdlib.Cli.Unix.ensureDirectoryExists(target)
     let _ = Stdlib.Cli.Unix.ensureDirectoryExists(neighbour)
     let removed = Stdlib.Cli.Unix.removeDirectory(target)
-    (made,
-     removed,
-     Stdlib.Cli.File.exists(target),
-     Stdlib.Cli.File.exists(neighbour),
-     Stdlib.Cli.File.exists($"{dir}/Jo Smith")))
-  |> Stdlib.Test.equal(Ok((Ok(), Ok(), false, true, true)))
+    (
+      made,
+      removed,
+      Stdlib.Cli.File.exists(target),
+      Stdlib.Cli.File.exists(neighbour),
+      Stdlib.Cli.File.exists($"{dir}/Jo Smith")))
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Ok(
+      (
+        Stdlib.Result.Result.Ok(),
+        Stdlib.Result.Result.Ok(),
+        false,
+        true,
+        true)))
 
 
 test helpersTakeAwkwardNames =
@@ -40,20 +52,35 @@ test helpersTakeAwkwardNames =
     let identical = Stdlib.Cli.Unix.areFilesIdentical(dashFile, copy)
     let existed = Stdlib.Cli.Unix.fileExists(copy)
     let removed = Stdlib.Cli.Unix.removeFile(copy)
-    (made,
-     wrote,
-     copied,
-     chmodded,
-     identical,
-     existed,
-     removed,
-     Stdlib.Cli.File.exists(copy),
-     Stdlib.Cli.File.exists(dashFile)))
-  |> Stdlib.Test.equal(Ok((Ok(), Ok(), Ok(), Ok(), true, true, Ok(), false, true)))
+    (
+      made,
+      wrote,
+      copied,
+      chmodded,
+      identical,
+      existed,
+      removed,
+      Stdlib.Cli.File.exists(copy),
+      Stdlib.Cli.File.exists(dashFile)))
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Ok(
+      (
+        Stdlib.Result.Result.Ok(),
+        Stdlib.Result.Result.Ok(),
+        Stdlib.Result.Result.Ok(),
+        Stdlib.Result.Result.Ok(),
+        true,
+        true,
+        Stdlib.Result.Result.Ok(),
+        false,
+        true)))
 
 
 test removeDirectoryRefusesRoot =
   Stdlib.Test.all(
-    [ Stdlib.Cli.Unix.removeDirectory("") |> Stdlib.Test.equal(Error("refusing to remove ''"))
+    [ Stdlib.Cli.Unix.removeDirectory("")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("refusing to remove ''"))
+
       Stdlib.Cli.Unix.removeDirectory("/")
-      |> Stdlib.Test.equal(Error("refusing to remove '/'")) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error("refusing to remove '/'")) ])

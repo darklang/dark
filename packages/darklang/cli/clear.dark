@@ -1,6 +1,5 @@
 module Darklang.Cli.Clear
 
-
 let execute(state: AppState, args: List<String>): AppState =
   // Erase the screen, then move the cursor to the top left
   Stdlib.print("\u001b[2J\u001b[H")
@@ -12,7 +11,4 @@ let complete(_state: AppState, _args: List<String>): List<Completion.CompletionI
 
 
 let help(_state: AppState): String =
-  [
-    "Usage: clear"
-    "Clear the terminal screen."
-  ] |> Stdlib.String.join("\n")
+  [ "Usage: clear", "Clear the terminal screen." ] |> Stdlib.String.join("\n")

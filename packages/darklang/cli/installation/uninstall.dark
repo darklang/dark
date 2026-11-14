@@ -1,11 +1,9 @@
 module Darklang.Cli.Installation.Uninstall
 
-
 /// The `.darklang` folder to delete for <param home>, or why it is not safe to: deleting relative
 /// to wherever `dark` happens to run is never what was meant.
-let darklangDirToRemove(home: String): Stdlib.Result.Result<String, String> =
-  Config.darklangHomeIn(home)
-  |> Stdlib.Result.mapError(fun e -> $"refusing to uninstall: {e}")
+let darklangDirToRemove(home: String): Result<String, String> =
+  Config.darklangHomeIn(home) |> Stdlib.Result.mapError(fun e -> $"refusing to uninstall: {e}")
 
 
 /// Uninstall for <param home>: the folder is worked out and checked before anything is touched,
@@ -13,46 +11,42 @@ let darklangDirToRemove(home: String): Stdlib.Result.Result<String, String> =
 /// Then the alias goes, then the folder.
 let uninstallFrom(
   home: String,
-  deleteAlias: Unit -> Stdlib.Result.Result<Unit, String>,
-  removeDirectory: String -> Stdlib.Result.Result<Unit, String>)
-  : Stdlib.Result.Result<Unit, String> =
-  (darklangDirToRemove(home))
+  deleteAlias: Unit -> Result<Unit, String>,
+  removeDirectory: String -> Result<Unit, String>)
+  : Result<Unit, String> =
+  darklangDirToRemove(home)
   |> Stdlib.Result.andThen(fun dir ->
-    (deleteAlias())
-    |> Stdlib.Result.andThen(fun _ -> removeDirectory(dir)))
+    deleteAlias() |> Stdlib.Result.andThen(fun _ -> removeDirectory(dir)))
 
 
-let runUninstall(
-  host: Stdlib.Cli.Host.Host)
-  : Stdlib.Result.Result<Unit, String> =
+let runUninstall(host: Stdlib.Cli.Host.Host): Result<Unit, String> =
   let result =
     match Stdlib.Cli.Unix.getHomeDirectory() with
     | Ok(home) ->
       uninstallFrom(
         home,
-        fun () -> Stdlib.Cli.Unix.deleteAlias(host.defaultShell, "dark"),
+        (fun () -> Stdlib.Cli.Unix.deleteAlias(host.defaultShell, "dark")),
         fun dir -> Stdlib.Cli.Unix.removeDirectory(dir))
-    | Error(e) -> Stdlib.Result.Result.Error($"couldn't find your home directory: {e}")
+    | Error(e) -> Result.Error($"couldn't find your home directory: {e}")
 
   match result with
-  | Ok(_) -> Stdlib.Result.Result.Ok()
-  | Error(err) -> Stdlib.Result.Result.Error($"Error uninstalling dark: {err}")
+  | Ok(_) -> Result.Ok()
+  | Error(err) -> Result.Error($"Error uninstalling dark: {err}")
+
 
 let execute(state: AppState, args: List<String>): AppState =
-  let host = (Stdlib.Cli.Host.getRuntimeHost()) |> Builtin.unwrap
-
+  let host = Stdlib.Cli.Host.getRuntimeHost() |> Builtin.unwrap
   let confirm =
-    Cli.Confirm.assumeIf(
-      (Stdlib.List.contains(args, "--yes")) || (Stdlib.List.contains(args, "-y")))
+    Confirm.assumeIf(Stdlib.List.contains(args, "--yes") || Stdlib.List.contains(args, "-y"))
 
-  match Installation.System.uninstallWithConfirmation(host, confirm) with
+  match System.uninstallWithConfirmation(host, confirm) with
   | Ok(message) ->
     Stdlib.printLine(View.formatSuccess(message))
     // Exit after successful uninstall since the executable is being removed
     { state with isExiting = true }
   | Error(e) ->
     Stdlib.printErrorLine(View.formatError(e))
-    Cli.failed(state)
+    failed(state)
 
 
 let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =

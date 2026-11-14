@@ -3,7 +3,6 @@
 /// Part of `Darklang.Cli.Workbench`, split across files (see app.dark for the overview).
 module Darklang.Cli.Workbench
 
-
 /// The most of the Matter body the tree pane may take, as a percent.
 ///
 /// A ceiling rather than the split itself: `matterSplitFor` narrows it to what the names actually need.
@@ -11,8 +10,10 @@ module Darklang.Cli.Workbench
 /// the smaller half.
 val matterSplitMaxPct = 45
 
+
 /// The least of it, so the tree doesn't collapse to nothing in a narrow window.
 val matterSplitMinPct = 18
+
 
 /// One row of a list. `desc` is the dim one-liner after the name - a
 /// signature, `= value`, `record · 3 fields`, a timestamp - which is how a
@@ -23,6 +24,7 @@ type BodyItem =
     isModule: Bool
     desc: String }
 
+
 /// A search result the user can jump to: the containing module path (owner + modules), the leaf name, its kind,
 /// and a pre-formatted display line.
 type SearchHit =
@@ -30,6 +32,7 @@ type SearchHit =
     name: String
     kind: String
     display: String }
+
 
 /// What the Matter view is showing: the whole tree, or values only (the Values lens, `L`).
 type Lens =
@@ -39,8 +42,10 @@ type Lens =
   /// because what changed is not confined to where you are standing.
   | Changed
 
+
 type MatterState =
   { lens: Lens }
+
 
 /// Put the workbench on <param branchId>: the state's own field AND the process overlay, which
 /// `selectBranch` also stores, so the next command starts where the workbench left off.
@@ -59,6 +64,7 @@ let onBranch(state: State, branchId: Uuid): State =
 let emptyMatter(): MatterState =
   MatterState { lens = Lens.WholeTree }
 
+
 /// The next lens the toggle key moves to. Three lenses, so it cycles rather than flipping.
 let otherLens(lens: Lens): Lens =
   match lens with
@@ -72,6 +78,7 @@ let otherLens(lens: Lens): Lens =
 type SearchState =
   { hits: List<SearchHit>
     selected: Int64 }
+
 
 let emptySearch(): SearchState =
   SearchState { hits = [], selected = 0 }
@@ -88,22 +95,30 @@ type ReturnPoint =
     selected: Int64
     filter: String }
 
+
 /// A target the nav can open: a view and its section within that view. Coarser
 /// than a `ReturnPoint`, which is everything needed to land back exactly.
 /// `section` is meaningful for SCM and AI; it is zero for other views.
-type Dest = { view: Int64, section: Int64 }
+type Dest =
+  { view: Int64
+    section: Int64 }
 
 
 /// What's drawn over the frame, and holding the keyboard while it is.
 ///
 /// One field avoids representing two overlays as open at once. The navbar is
 /// tracked by `State.focus`, because it is also a permanent column when wide.
-type BranchChoice = { id: Uuid, name: String, detail: String }
+type BranchChoice =
+  { id: Uuid
+    name: String
+    detail: String }
+
 
 type BranchPicker =
   { choices: List<BranchChoice>
     field: Stdlib.Cli.UI.TextField.State
     selected: Int64 }
+
 
 type Overlay =
   | NoOverlay
@@ -120,13 +135,14 @@ type ReplState =
     /// Session bindings, in the order they were first bound. `let x = ...` at the REPL records one, and
     /// every later expression is evaluated with them in scope (see `Darklang.Cli.Repl`). Session-lived:
     /// they go away when the CLI exits.
-    bindings: List<Darklang.Cli.Repl.Binding>
+    bindings: List<Repl.Binding>
     /// The result of the last expression, unstyled - what the session pane shows under "last result".
     /// Held rather than scraped back out of `log`, which is display text.
     last: String
     /// Lines of a multi-line statement typed so far, each ended with a `\`. Empty except while one is being
     /// assembled; the next unbackslashed line completes it and the whole thing runs as one statement.
     pending: String }
+
 
 let emptyRepl(): ReplState =
   ReplState { log = [], bindings = [], last = "", pending = "" }
@@ -144,6 +160,7 @@ type MessageKind =
   /// It tried and something went wrong.
   | Failed
 
+
 /// What the Code view's item page was built from. Everything it reads, and nothing a keystroke
 /// moves without moving the page: scrolling, focus, the command bar and the overlays are absent.
 type PreviewKey =
@@ -153,16 +170,18 @@ type PreviewKey =
     location: Packages.PackageLocation
     items: List<BodyItem>
     selected: Int64
-    accountId: Stdlib.Option.Option<Uuid>
+    accountId: Option<Uuid>
     liveValues: Dict<String, String>
     renderPeek: String
     width: Int64
     /// The draft's op count, so your own save, discard or deprecation rebuilds the page.
     draftOps: Int64 }
 
+
 type PreviewCache =
   { key: PreviewKey
     lines: List<String> }
+
 
 /// How the full-screen reader shows what it is given.
 type Reader =
@@ -171,11 +190,13 @@ type Reader =
   /// Docs, help, search results, ops: shown as they are.
   | Prose
 
+
 /// Whether a move is remembered, so esc can come back to where it left.
 type History =
   | Record
   /// Back navigation: it must not make a return trip of its own.
   | Skip
+
 
 /// Whether the workbench follows the store (`--live`) or waits for `R`. See `State.live`.
 type Updates =
@@ -183,6 +204,7 @@ type Updates =
   | Live
   /// Nothing is said and nothing moves until you press `R`.
   | Manual
+
 
 type State =
   { activeView: Int64
@@ -198,15 +220,15 @@ type State =
     focus: Stdlib.Cli.UI.SplitPane.Focus
     detailScroll: Int64
     /// When Some, a full-body reader is open (e.g. a Docs topic); its text scrolls via detailScroll.
-    reading: Stdlib.Option.Option<String>
+    reading: Option<String>
     /// Whether the open reader's content is Dark code (so it gets syntax-highlighted). False for docs/help/
     /// search/ops which aren't code.
     readingIsCode: Bool
     /// When Some, a single-line text prompt is open (e.g. a commit message).
-    input: Stdlib.Option.Option<InputState>
+    input: Option<InputState>
     /// When Some, the multiline editor is open (authoring a fn body).
-    editing: Stdlib.Option.Option<EditingState>
-    accountId: Stdlib.Option.Option<Uuid>
+    editing: Option<EditingState>
+    accountId: Option<Uuid>
     /// This instance's human name for the context line - config `instance.name` if set, else the machine
     /// hostname. Each instance also registers a UUID (`instance.id`) in config on first run.
     instanceName: String
@@ -270,6 +292,7 @@ type State =
     previews: List<PreviewCache>
     branchId: Uuid }
 
+
 /// A single-line text entry. `action` tags what Enter does (e.g. "commit").
 type InputState =
   { prompt: String
@@ -277,6 +300,7 @@ type InputState =
     /// only append to and backspace off the end of.
     field: Stdlib.Cli.UI.TextField.State
     action: String }
+
 
 /// The multiline editor's state: the item kind ("fn"/"type"/"value"), the fully-qualified name being
 /// authored, the text buffer, and a last-error line.
@@ -289,12 +313,14 @@ type EditingState =
     buf: Stdlib.Cli.UI.Editor.Buf
     err: String }
 
+
 type Step =
   | Continue(State)
   | Exit(State)
   /// Hand off to a foreground command (e.g. a full-screen app opened from the Apps view). The CLI pushes the
   /// workbench and returns to it when that command's page exits. Carries the workbench State to return to.
   | Launch(State, String)
+
 
 /// Keyboard and scrolling behavior, independent of a view's drawing style.
 type ViewBehavior =
@@ -306,6 +332,7 @@ type ViewBehavior =
   /// A `List` whose rows include section headers, which the cursor skips.
   /// E.g. Home: "Branches", "History" and the rows under each.
   | SectionedList
+
 
 /// Everything needed to load and render an extension view. Navigation
 /// grouping is defined separately by `workspaces`.
@@ -331,53 +358,66 @@ type ViewDef =
 // position in `Navbar.workspaces`, and everything else goes through the names
 // below. So they are free to move.
 val vHome = 0
+
 val vMatter = 1
+
 val vScratch = 2
+
 val vSCM = 3
+
 val vTraces = 4
+
 val vDocs = 5
+
 // Extension indices are `baseViewCount + position in extensionViews`.
 val baseViewCount = 6
 
+
 /// Built-in view indices. Extension views are appended by `viewSpecs`.
 val baseViewSpecs = [ vHome, vMatter, vScratch, vSCM, vTraces, vDocs ]
+
 
 /// Every view as `(absolute index, label, gate key)`, used for visibility and
 /// label lookup. `workspaces` separately defines navbar placement.
 val viewSpecs =
   let base = baseViewSpecs |> Stdlib.List.map(fun i -> (i, Frame.viewName(i)))
-  let exts =
-    extensionViews()
-    |> Stdlib.List.indexedMap(fun(i, vd) -> (baseViewCount + i, vd.name))
+  let exts = extensionViews() |> Stdlib.List.indexedMap(fun(i, vd) -> (baseViewCount + i, vd.name))
   Stdlib.List.concat(base, exts)
 
+
 /// The extension `ViewDef` at an absolute view index (None for a built-in, or out of range).
-let extensionViewAt(idx: Int64): Stdlib.Option.Option<ViewDef> =
+let extensionViewAt(idx: Int64): Option<ViewDef> =
   if idx < baseViewCount then
-    Stdlib.Option.Option.None
+    Option.None
   else
     Stdlib.List.getAt(extensionViews(), idx - baseViewCount)
 
+
 /// Single-column views never give focus to an invisible second pane.
 let viewBehavior(view: Int64): ViewBehavior =
-  if view == vHome then ViewBehavior.SectionedList
+  if view == vHome then
+    ViewBehavior.SectionedList
   else
     match extensionViewAt(view) with
     | Some(vd) -> vd.behavior
     | None -> ViewBehavior.Split
 
+
 let hasDetailPane(state: State): Bool =
   viewBehavior(state.activeView) == ViewBehavior.Split
+
 
 /// Does the list have section headers the cursor must step over?
 let isSectioned(state: State): Bool =
   viewBehavior(state.activeView) == ViewBehavior.SectionedList
+
 
 /// The display label for any view index.
 let viewLabel(idx: Int64): String =
   match extensionViewAt(idx) with
   | Some(vd) -> vd.name
   | None -> Frame.viewName(idx)
+
 
 /// The view indices the navbar may show, in `viewSpecs` order.
 let visibleViews(state: State): List<Int64> =
@@ -401,6 +441,7 @@ let captureOutputAnd(f: Unit -> 'a): ('a * String) =
   let value = f()
   if owned then (value, Builtin.stdoutCaptureStop()) else (value, "")
 
+
 /// `captureOutputAnd` when only the output matters (running a classic command for its printed result).
 let captureOutput(f: Unit -> 'a): String =
   let (_value, output) = captureOutputAnd(f)
@@ -410,8 +451,5 @@ let captureOutput(f: Unit -> 'a): String =
 /// A throwaway classic-CLI AppState carrying just this workbench's identity (branch + account) for handing to
 /// the classic command Registry (executeCommand / getCompletions / getCompletionHint). Everything else is the
 /// init default; the workbench only ever needs those three fields to run a command on the right branch as you.
-let classicState(state: State): Darklang.Cli.AppState =
-  { (Darklang.Cli.initState()) with
-      currentBranchId = state.branchId
-      accountID = state.accountId
-      }
+let classicState(state: State): AppState =
+  { initState() with currentBranchId = state.branchId, accountID = state.accountId }

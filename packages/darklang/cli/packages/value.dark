@@ -1,49 +1,40 @@
 module Darklang.Cli.Packages.Value
 
-
-let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
+let execute(state: AppState, args: List<String>): AppState =
   match args with
   | [] ->
     Stdlib.printLine(help(state))
     state
-
   // val SomeModule.myValue = expression
   | [location, ...definitionParts] ->
-    match Packages.definitionFromArgs(definitionParts) with
+    match definitionFromArgs(definitionParts) with
     | Error(message) ->
-      Cli.printErr(message)
-      Cli.failed(state)
+      printErr(message)
+      failed(state)
     | Ok(inlineDefinition) ->
+      if Stdlib.String.isEmpty(inlineDefinition) then
+        [ Stdlib.Cli.UI.Colors.error("Error: Inline value expression required")
+          ""
+          "Usage: val <location> <expression>"
+          "       val <location> -    (read expression from stdin, for multi-line input)"
+          ""
+          "Examples:"
+          "  dark val Me.Demo.answer '42'"
+          "  dark val Me.Demo.message '\"hello world\"'"
+          "" ]
+        |> Stderr.lines
 
-
-    if Stdlib.String.isEmpty(inlineDefinition) then
-      [
-        (Stdlib.Cli.UI.Colors.error("Error: Inline value expression required"))
-        ""
-        "Usage: val <location> <expression>"
-        "       val <location> -    (read expression from stdin, for multi-line input)"
-        ""
-        "Examples:"
-        "  dark val Me.Demo.answer '42'"
-        "  dark val Me.Demo.message '\"hello world\"'"
-        ""
-      ] |> Cli.Stderr.lines
-
-      Cli.failed(state)
-    else
-      createValueInline(
-        state.packageData.currentLocation,
-        location,
-        inlineDefinition,
-        state)
+        failed(state)
+      else
+        createValueInline(state.packageData.currentLocation, location, inlineDefinition, state)
 
 
 let createValueInline(
-  currentLocation: Packages.PackageLocation,
+  currentLocation: PackageLocation,
   locationStr: String,
   expression: String,
-  state: Cli.AppState)
-  : Cli.AppState =
+  state: AppState)
+  : AppState =
   match Location.parseRelativeTo(currentLocation, locationStr) with
   | Ok(location) ->
     let fullSource = $"val {location.name} = {expression}"
@@ -55,12 +46,10 @@ let createValueInline(
     match tree with
     | Some(SourceFile(sourceFile)) ->
       // The parser may recover a tree after errors; do not save it.
-      let hasParseError =
-        (Errors.reportParseErrors(diagnostics))
-        || (Errors.reportTrailing(sourceFile))
+      let hasParseError = Errors.reportParseErrors(diagnostics) || Errors.reportTrailing(sourceFile)
       let found =
         if hasParseError then
-          Stdlib.Option.Option.None
+          Option.None
         else
           sourceFile.declarations
           |> Stdlib.List.findFirst(fun d ->
@@ -70,7 +59,7 @@ let createValueInline(
 
       match found with
       | Some(Value(writtenValue)) ->
-        Packages.saveAuthored(
+        saveAuthored(
           state,
           location,
           LanguageTools.ProgramTypes.ItemKind.Value,
@@ -85,43 +74,44 @@ let createValueInline(
 
             let ops =
               [ LanguageTools.ProgramTypes.PackageOp.AddValue(packageValue)
-                LanguageTools.ProgramTypes.PackageOp.SetName(location, LanguageTools.ProgramTypes.Reference.PackageValue(packageValue.hash), Stdlib.Option.Option.None) ]
+                LanguageTools.ProgramTypes.PackageOp.SetName(
+                  location,
+                  LanguageTools.ProgramTypes.Reference.PackageValue(packageValue.hash),
+                  Option.None) ]
 
-            Stdlib.Option.Option.Some((ops, packageValue.hash, unresolvedNames)))
-
+            Option.Some((ops, packageValue.hash, unresolvedNames)))
       | _ ->
         // a precise parse error was already printed above; don't stack the
         // generic hint on top of it
         if hasParseError then
-          Cli.failed(state)
+          failed(state)
         else
-          [
-            (Stdlib.Cli.UI.Colors.error("Failed to parse value expression"))
+          [ Stdlib.Cli.UI.Colors.error("Failed to parse value expression")
             ""
             "Make sure your syntax is correct. Examples:"
             "  dark val Me.Demo.answer '42'"
             "  dark val Me.Demo.message '\"hello world\"'"
-            ""
-          ] |> Cli.Stderr.lines
-          Cli.failed(state)
+            "" ]
+          |> Stderr.lines
+
+          failed(state)
     | None ->
-      [
-        (Stdlib.Cli.UI.Colors.error("Failed to parse value expression"))
+      [ Stdlib.Cli.UI.Colors.error("Failed to parse value expression")
         ""
         "Make sure your syntax is correct. Examples:"
         "  dark val Me.Demo.answer '42'"
         "  dark val Me.Demo.message '\"hello world\"'"
-        ""
-      ] |> Cli.Stderr.lines
-      Cli.failed(state)
+        "" ]
+      |> Stderr.lines
+
+      failed(state)
   | Error(msg) ->
-    Cli.printErr($"Invalid location: {msg}")
-    Cli.failed(state)
+    printErr($"Invalid location: {msg}")
+    failed(state)
 
 
-let help(_state: Cli.AppState): String =
-  [
-    "Create or update a value"
+let help(_state: AppState): String =
+  [ "Create or update a value"
     ""
     "Usage: val <location> <expression>"
     ""
@@ -146,8 +136,9 @@ let help(_state: Cli.AppState): String =
     ""
     "A leading `/` makes a name absolute (`/Me.Demo.answer`); without one it is"
     "relative to the module `nav` put you in."
-    ""
-  ] |> Stdlib.String.join("\n")
+    "" ]
+  |> Stdlib.String.join("\n")
 
 
-let complete(_state: Cli.AppState, _args: List<String>): List<Cli.Completion.CompletionItem> = []
+let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
+  []

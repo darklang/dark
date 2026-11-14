@@ -11,17 +11,20 @@ let focusLeft(state: State): Step =
   else
     Step.Continue(state)
 
+
 /// Move focus from the list to an available detail pane.
 let focusRight(state: State): Step =
-  if (hasDetailPane(state)) && (state.focus == Stdlib.Cli.UI.SplitPane.Focus.First) then
+  if hasDetailPane(state) && state.focus == Stdlib.Cli.UI.SplitPane.Focus.First then
     Step.Continue({ state with focus = Stdlib.Cli.UI.SplitPane.Focus.Second })
   else
     Step.Continue(state)
+
 
 // ── Going back ──
 
 /// How many places esc remembers.
 val backCap = 50
+
 
 /// Where you are, as something to come back to.
 let returnPointOf(state: State): ReturnPoint =
@@ -32,15 +35,18 @@ let returnPointOf(state: State): ReturnPoint =
       selected = state.selected
       filter = state.filter }
 
+
 /// The only navigation transition: remember where you were once (unless
 /// <param history> says {{Skip}}), restore all destination coordinates, then
 /// load and clamp its filtered list.
 let moveToPoint(state: State, point: ReturnPoint, history: History): State =
   let here = returnPointOf(state)
   let back =
-    if (history == History.Record) && (here != point) then
+    if history == History.Record && here != point then
       Stdlib.List.take(Stdlib.List.prepend(state.back, here), backCap)
-    else state.back
+    else
+      state.back
+
   let dest = mkDest(point.view, 0)
   let ws = workspaceOf(dest)
   let restored =
@@ -53,14 +59,16 @@ let moveToPoint(state: State, point: ReturnPoint, history: History): State =
         back = back
         wsLast =
           Stdlib.List.append(
-            (state.wsLast |> Stdlib.List.filter(fun pair ->
-              let (i, _d) = pair in i != ws)),
+            state.wsLast
+            |> Stdlib.List.filter(fun pair ->
+              let (i, _d) = pair
+              i != ws),
             (ws, dest)) }
+
   let items = reloadItems(restored)
-  let selected =
-    Stdlib.max(0,
-      Stdlib.min(point.selected, (Stdlib.List.length(items)) - 1))
+  let selected = Stdlib.max(0, Stdlib.min(point.selected, Stdlib.List.length(items) - 1))
   focusContent(fixSelection({ restored with items = items, selected = selected }))
+
 
 /// What esc will return to, for the footer: the module you were in, or the
 /// view you came from; "" on Home with nowhere left to go.
@@ -68,7 +76,7 @@ let backLabel(state: State): String =
   match state.back with
   | [] -> if state.activeView == vHome then "" else "Home"
   | [p, ...] ->
-    if (p.view == state.activeView) && (p.view == vMatter) then
+    if p.view == state.activeView && p.view == vMatter then
       match Stdlib.List.last(Packages.modulePathOf(p.location)) with
       | Some(m) -> if p.lens == state.matter.lens then m else "Tree"
       | None -> "Tree"
@@ -78,51 +86,62 @@ let backLabel(state: State): String =
       | Some(w) -> w.name
       | None -> viewLabel(p.view)
 
+
 /// One step back: the most recent place, restored, with its list reloaded and
 /// the cursor where it was. With nothing remembered, Home; on Home, nothing.
 /// Never quits: that is `q`.
 let goBack(state: State): Step =
   match state.back with
   | [] ->
-    if state.activeView == vHome then Step.Continue(state)
+    if state.activeView == vHome then
+      Step.Continue(state)
     else
       // The bottom of the stack: Home, without remembering the view just left, or esc would
       // ping-pong between the two.
       let moved = goTo(state, mkDest(vHome, 0))
       Step.Continue({ moved with back = [] })
-  | [p, ...rest] ->
-    Step.Continue(moveToPoint({ state with back = rest }, p, History.Skip))
+  | [p, ...rest] -> Step.Continue(moveToPoint({ state with back = rest }, p, History.Skip))
+
 
 /// Enter a tree module, remembering its parent and cursor.
 let descend(state: State): Step =
-  if state.activeView != vMatter then Step.Continue(state) else
-  match Stdlib.List.getAt(state.items, state.selected) with
-  | Some(item) ->
-    if item.isModule then
-      let path = Stdlib.List.append(Packages.modulePathOf(state.location), item.name)
-      let point =
-        { (returnPointOf(state)) with
-            location = Packages.PackageLocation.Module(path)
-            lens = Lens.WholeTree
-            selected = 0
-            filter = "" }
-      Step.Continue(moveToPoint(state, point, History.Record))
-    else Step.Continue(state)
-  | None -> Step.Continue(state)
+  if state.activeView != vMatter then
+    Step.Continue(state)
+  else
+    match Stdlib.List.getAt(state.items, state.selected) with
+    | Some(item) ->
+      if item.isModule then
+        let path = Stdlib.List.append(Packages.modulePathOf(state.location), item.name)
+        let point =
+          { returnPointOf(state) with
+              location = Packages.PackageLocation.Module(path)
+              lens = Lens.WholeTree
+              selected = 0
+              filter = "" }
+
+        Step.Continue(moveToPoint(state, point, History.Record))
+      else
+        Step.Continue(state)
+    | None -> Step.Continue(state)
+
 
 /// Backspace goes to the parent module; Escape follows navigation history.
 let ascend(state: State): Step =
-  if state.activeView != vMatter then Step.Continue(state) else
-  match Stdlib.List.reverse(Packages.modulePathOf(state.location)) with
-  | [] -> Step.Continue(state)
-  | [_, ...parent] ->
-    let point =
-      { (returnPointOf(state)) with
-          location = Packages.PackageLocation.Module(Stdlib.List.reverse(parent))
-          lens = Lens.WholeTree
-          selected = 0
-          filter = "" }
-    Step.Continue(moveToPoint(state, point, History.Record))
+  if state.activeView != vMatter then
+    Step.Continue(state)
+  else
+    match Stdlib.List.reverse(Packages.modulePathOf(state.location)) with
+    | [] -> Step.Continue(state)
+    | [_, ...parent] ->
+      let point =
+        { returnPointOf(state) with
+            location = Packages.PackageLocation.Module(Stdlib.List.reverse(parent))
+            lens = Lens.WholeTree
+            selected = 0
+            filter = "" }
+
+      Step.Continue(moveToPoint(state, point, History.Record))
+
 
 // ── Movement (the arrows, Home/End and PageUp/PageDown; there is no second key set) ──
 
@@ -135,25 +154,34 @@ let selectableRow(items: List<BodyItem>, from: Int64, dir: Int64): Int64 =
     match Stdlib.List.getAt(items, i) with
     | Some(it) -> Stdlib.Bool.not(isSectionHeader(it))
     | None -> false
+
   let scan(i: Int64, step: Int64): Int64 =
-    if (i < 0) || (i >= n) then 0 - 1
-    else if isOk(i) then i
-    else scan(i + step, step)
+    if i < 0 || i >= n then
+      0 - 1
+    else if isOk(i) then
+      i
+    else
+      scan(i + step, step)
+
   let forward = scan(from, dir)
-  if forward >= 0 then forward
+  if forward >= 0 then
+    forward
   else
     let back = scan(from, 0 - dir)
     if back >= 0 then back else Stdlib.max(0, Stdlib.min(from, n - 1))
+
 
 /// Keep a sectioned list's cursor off its headers. Run on every transition
 /// (see `refresh`), so a reload that lands the cursor on a header - a commit
 /// empties the uncommitted section, say - moves it on. Other behaviors pass
 /// through untouched.
 let fixSelection(state: State): State =
-  if Stdlib.Bool.not(isSectioned(state)) then state
+  if Stdlib.Bool.not(isSectioned(state)) then
+    state
   else
     let fixed = selectableRow(state.items, state.selected, 1)
     if fixed == state.selected then state else { state with selected = fixed }
+
 
 /// Ten of whatever the arrow does, for shift+arrow.
 ///
@@ -185,48 +213,59 @@ let navUp(state: State): Step =
       if isSectioned(state) then
         let s = selectableRow(state.items, target, 0 - 1)
         if s > state.selected then state.selected else s
-      else target
+      else
+        target
+
     Step.Continue({ state with selected = landed, detailScroll = 0 })
+
 
 /// Down: scroll the inspector when it's focused, else move the list selection down.
 let navDown(state: State): Step =
   if state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second then
     // Screen rows, not logical lines: a long line wraps to several, and bounding on the unwrapped count
     // stops the scroll before its tail is reachable.
-    let maxScroll = Stdlib.max(0, (previewRowCount(state)) - 1)
+    let maxScroll = Stdlib.max(0, previewRowCount(state) - 1)
     Step.Continue({ state with detailScroll = Stdlib.min(maxScroll, state.detailScroll + 1) })
   else
-    let maxIdx = (Stdlib.List.length(state.items)) - 1
+    let maxIdx = Stdlib.List.length(state.items) - 1
     let target = Stdlib.min(maxIdx, state.selected + 1)
     let landed =
       if isSectioned(state) then
         let s = selectableRow(state.items, target, 1)
         if s < state.selected then state.selected else s
-      else target
+      else
+        target
+
     Step.Continue({ state with selected = landed, detailScroll = 0 })
+
 
 /// Jump to the top / bottom of the list (Home / End).
 let navTop(state: State): Step =
   let top = if isSectioned(state) then selectableRow(state.items, 0, 1) else 0
   Step.Continue({ state with selected = top, detailScroll = 0 })
 
+
 let navBottom(state: State): Step =
-  let maxIdx = Stdlib.max(0, (Stdlib.List.length(state.items)) - 1)
+  let maxIdx = Stdlib.max(0, Stdlib.List.length(state.items) - 1)
   Step.Continue({ state with selected = maxIdx, detailScroll = 0 })
+
 
 /// Open the full-screen reader on `content`, highlighted when <param reader> is {{Reader.Code}}.
 /// Resets scroll.
 let openReader(state: State, content: String, reader: Reader): Step =
   Step.Continue(
     { state with
-        reading = Stdlib.Option.Option.Some(content)
+        reading = Option.Some(content)
         readingIsCode = reader == Reader.Code
         detailScroll = 0 })
+
 
 /// Resolve the selected conflict (Conflicts view): keep ours (local), theirs (incoming), or just acknowledge.
 let resolveConflict(state: State, which: String): Step =
   match selectedConflict(state) with
-  | None -> Step.Continue({ state with messageKind = MessageKind.Refused, message = "no conflict selected" })
+  | None ->
+    Step.Continue(
+      { state with messageKind = MessageKind.Refused, message = "no conflict selected" })
   | Some(c) ->
     // `Candidate.side` holds "local" / "incoming", so those are the only two labels that match. A label
     // that matches nothing yields "", and an empty hash reaching the resolver binds a live name to
@@ -245,7 +284,6 @@ let resolveConflict(state: State, which: String): Step =
         SCM.Conflicts.ack(c.id)
 
     let label = if which == "ok" then "acknowledged" else "kept " + which
-
     let (message, kind) =
       match outcome with
       | Ok(_) -> ("resolved: " + label, MessageKind.Succeeded)
@@ -254,18 +292,19 @@ let resolveConflict(state: State, which: String): Step =
     // Forced: an ack writes no op, so the comparison in `refreshScmStatus` would carry the old
     // "N need you" forward over a conflict you just answered.
     let refreshed = forceScmRefresh(state)
-
     Step.Continue(
-      { refreshed with items = reloadItems(refreshed), selected = 0, messageKind = kind, message = message })
+      { refreshed with
+          items = reloadItems(refreshed)
+          selected = 0
+          messageKind = kind
+          message = message })
+
 
 /// Run a top-level command in-frame (captured) and show its output in the reader.
 let runCommandInFrame(state: State, command: String, args: List<String>): Step =
-  let out =
-    captureOutput(fun () ->
-      Darklang.Cli.Registry.executeCommand(command, classicState(state), args))
-
+  let out = captureOutput(fun () -> Registry.executeCommand(command, classicState(state), args))
   let shown =
-    if (Stdlib.String.trim(out)) == "" then
+    if Stdlib.String.trim(out) == "" then
       $"""{command} {Stdlib.String.join(args, " ")}\n\n(done)"""
     else
       out
@@ -284,16 +323,22 @@ let jumpToHit(state: State, hit: SearchHit): Step =
   let idx =
     items
     |> Stdlib.List.indexedMap(fun(i, it) -> (i, it))
-    |> Stdlib.List.findFirst(fun pair -> let (_i, it) = pair in it.name == hit.name)
-    |> Stdlib.Option.map(fun pair -> let (i, _it) = pair in i)
+    |> Stdlib.List.findFirst(fun pair ->
+      let (_i, it) = pair
+      it.name == hit.name)
+    |> Stdlib.Option.map(fun pair ->
+      let (i, _it) = pair
+      i)
     |> Stdlib.Option.withDefault(0)
+
   let point =
-    { (returnPointOf(state)) with
+    { returnPointOf(state) with
         view = vMatter
         location = newLoc
         lens = Lens.WholeTree
         selected = idx
         filter = "" }
+
   let moved = moveToPoint(state, point, History.Record)
   Step.Continue(
     { moved with

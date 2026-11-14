@@ -6,24 +6,22 @@ type Options =
     sandbox: Bool
     grants: LanguageTools.Permissions.Policy }
 
+
 /// Whether a protected operation the policy does not cover asks the user, or is just denied.
 type Approval =
   | Offer
   | Skip
 
 
-
 /// Unit succeeds; BigInt and Int64 supply the script's exit code.
-let exitCode(
-  value: LanguageTools.RuntimeTypes.Dval)
-  : Stdlib.Result.Result<Int64, ExecutionError.ExecutionError> =
+let exitCode(value: LanguageTools.RuntimeTypes.Dval): Result<Int64, ExecutionError.ExecutionError> =
   match value with
-  | DUnit -> Ok(0)
-  | DInt64(code) -> Ok(code)
+  | DUnit -> Result.Ok(0)
+  | DInt64(code) -> Result.Ok(code)
   // a `BigInt` past Int64 is no exit code the OS could carry, so it fails like any other
-  | DBigInt(code) -> Ok(Stdlib.BigInt.toInt64(code) |> Stdlib.Option.withDefault(1))
+  | DBigInt(code) -> Result.Ok(Stdlib.BigInt.toInt64(code) |> Stdlib.Option.withDefault(1))
   | _ ->
-    Error(
+    Result.Error(
       ExecutionError.ExecutionError.Runtime(
         LanguageTools.RuntimeTypes.RuntimeError.Error.CLI(
           LanguageTools.RuntimeTypes.RuntimeError.CLIs.Error.NonIntReturned(value)),
@@ -32,14 +30,14 @@ let exitCode(
 
 /// Run a script under its permissions and return its exit code.
 let parseAndExecute(
-  accountID: Stdlib.Option.Option<Uuid>,
+  accountID: Option<Uuid>,
   branchId: Uuid,
   filename: String,
   code: String,
   args: List<String>,
-  options: Run.Options,
+  options: Options,
   approval: Approval)
-  : Stdlib.Result.Result<Int64, ExecutionError.ExecutionError> =
+  : Result<Int64, ExecutionError.ExecutionError> =
   let result =
     Builtin.cliParseAndExecuteScript(
       accountID,
@@ -50,13 +48,14 @@ let parseAndExecute(
       options.allowHarmful,
       options.sandbox,
       options.grants,
-      match approval with
-      | Offer when Stdlib.Bool.not(options.sandbox) && Stdlib.Cli.UI.Prompt.canAsk() ->
-        Some(Run.askPermission)
-      | _ -> None)
+      (match approval with
+       | Offer when Stdlib.Bool.not(options.sandbox) && Stdlib.Cli.UI.Prompt.canAsk() ->
+         Option.Some(askPermission)
+       | _ -> Option.None))
+
   match result with
   | Ok(value) -> exitCode(value)
-  | Error(error) -> Error(error)
+  | Error(error) -> Result.Error(error)
 
 
 // `run-script <path> [args...]` — execute a Dark script file, or a package function by name.
@@ -74,10 +73,11 @@ let splitArgumentsAfter(
   remaining: List<String>)
   : (List<String> * List<String>) =
   match remaining with
-  | [ "--", ...rest ] -> (Stdlib.List.reverse(Stdlib.List.prepend(options, "--")), rest)
-  | [ flag, value, ...rest ] when flag == "--branch" || flag == "--entry-point" || flag == "--allow" ->
+  | ["--", ...rest] -> (Stdlib.List.reverse(Stdlib.List.prepend(options, "--")), rest)
+  | [flag, value, ...rest]
+    when flag == "--branch" || flag == "--entry-point" || flag == "--allow" ->
     splitArgumentsAfter(Stdlib.List.prepend(Stdlib.List.prepend(options, flag), value), rest)
-  | [ flag, ...rest ] when isFlag(flag) ->
+  | [flag, ...rest] when isFlag(flag) ->
     splitArgumentsAfter(Stdlib.List.prepend(options, flag), rest)
   | _ -> (Stdlib.List.reverse(options), remaining)
 
@@ -85,14 +85,16 @@ let splitArgumentsAfter(
 /// Whether <param arg> starts with a `-`. By its first byte, not its first character, so a `-`
 /// that a combining mark follows still counts, as it does for the host.
 let isFlag(arg: String): Bool =
-  Stdlib.String.getByteAt(arg, 0) == Stdlib.Option.Option.Some(45u8)
+  Stdlib.String.getByteAt(arg, 0) == Option.Some(45u8)
+
 
 let execute(state: AppState, args: List<String>): AppState =
   let (options, script) = splitArguments(args)
   let asksForHelp =
     Stdlib.List.contains(options, "--help")
     || Stdlib.List.contains(options, "-h")
-    || (Stdlib.List.head(args) == Stdlib.Option.Option.Some("help"))
+    || Stdlib.List.head(args) == Option.Some("help")
+
   if asksForHelp then
     Registry.executeCommandHelp("run-script", state)
   else
@@ -100,10 +102,10 @@ let execute(state: AppState, args: List<String>): AppState =
       state,
       options,
       script,
-      Run.Options {
-        allowHarmful = false
-        sandbox = false
-        grants = LanguageTools.Permissions.Policy { allow = [], deny = [] } },
+      Options
+        { allowHarmful = false
+          sandbox = false
+          grants = LanguageTools.Permissions.Policy { allow = [], deny = [] } },
       false)
 
 
@@ -114,50 +116,57 @@ let executeOptions(
   state: AppState,
   flags: List<String>,
   script: List<String>,
-  options: Run.Options,
+  options: Options,
   stats: Bool)
   : AppState =
   match flags with
-  | ["--allow-harmful", ...rest] -> executeOptions(state, rest, script, { options with allowHarmful = true }, stats)
-  | ["--sandbox", ...rest] -> executeOptions(state, rest, script, { options with sandbox = true }, stats)
+  | ["--allow-harmful", ...rest] ->
+    executeOptions(state, rest, script, { options with allowHarmful = true }, stats)
+  | ["--sandbox", ...rest] ->
+    executeOptions(state, rest, script, { options with sandbox = true }, stats)
   | ["--allow", rules, ...rest] ->
-    match Permissions.Command.replacePolicy([rules]) with
+    match Permissions.Command.replacePolicy([ rules ]) with
     | Error(message) ->
-      Cli.printErr(message)
-      Cli.failed(state)
+      printErr(message)
+      failed(state)
     | Ok(grants) when Stdlib.Bool.not(Stdlib.List.isEmpty(grants.deny)) ->
-      Cli.printErr("--allow takes allow rules only; use --sandbox, or `permissions deny` for the instance policy")
-      Cli.failed(state)
+      printErr(
+        "--allow takes allow rules only; use --sandbox, or `permissions deny` for the instance policy")
+
+      failed(state)
     | Ok(grants) ->
-      let merged = LanguageTools.Permissions.Policy
-        { allow = Stdlib.List.concat(options.grants.allow, grants.allow)
-          deny = [] }
+      let merged =
+        LanguageTools.Permissions.Policy
+          { allow = Stdlib.List.concat(options.grants.allow, grants.allow), deny = [] }
+
       executeOptions(state, rest, script, { options with grants = merged }, stats)
   | ["--stats", ...rest] -> executeOptions(state, rest, script, options, true)
-  | [] | [ "--" ] ->
+  | [] | ["--"] ->
     match script with
-    | [scriptPath, ...scriptArgs] ->
-      executeScript(state, scriptPath, scriptArgs, options, stats)
+    | [scriptPath, ...scriptArgs] -> executeScript(state, scriptPath, scriptArgs, options, stats)
     | [] ->
       Stdlib.printLine(help(state))
-      Cli.failed(state)
+      failed(state)
   | [flag, ...] ->
-    Stdlib.printErrorLine($"Unknown run-script option: {flag}. Put script arguments after the file path; use -- before a path starting with '-'.")
-    Cli.failed(state)
+    Stdlib.printErrorLine(
+      $"Unknown run-script option: {flag}. Put script arguments after the file path; use -- before a path starting with '-'.")
+
+    failed(state)
 
 
 // Recognize a dotted package name so `run` can suggest `eval` instead of
 // reporting an unhelpful "script not found" error.
 let looksLikePackageName(path: String): Bool =
-  (Stdlib.String.contains(path, "."))
+  Stdlib.String.contains(path, ".")
   && (Stdlib.String.contains(path, "/") |> Stdlib.Bool.not)
   && (Stdlib.String.endsWith(path, ".dark") |> Stdlib.Bool.not)
+
 
 let executeScript(
   state: AppState,
   scriptPath: String,
   args: List<String>,
-  options: Run.Options,
+  options: Options,
   stats: Bool)
   : AppState =
   match Stdlib.Cli.FileSystem.readFile(scriptPath) with
@@ -168,19 +177,13 @@ let executeScript(
     | NotFound -> Stdlib.printErrorLine($"Script not found: {scriptPath}")
     | OsAccessDenied -> Stdlib.printErrorLine($"Permission denied: {scriptPath}")
     | Other(msg) -> Stdlib.printErrorLine($"Could not read script {scriptPath}: {msg}")
+
     // Every branch above printed a reason the script did not run, so this is a failure. Saying
     // so in the exit code is the only part a script or an agent can read.
     { state with exitCode = 1 }
   | Ok(script) ->
     let scriptSourceCode = Stdlib.Utf8.decodeWithReplacement(script)
-    runScriptMeasured(
-      state,
-      scriptPath,
-      scriptSourceCode,
-      args,
-      options,
-      Approval.Offer,
-      stats)
+    runScriptMeasured(state, scriptPath, scriptSourceCode, args, options, Approval.Offer, stats)
 
 
 /// Run the package function <param name> the way a script runs: under the same policy, with
@@ -190,13 +193,12 @@ let executePackageFn(
   state: AppState,
   name: String,
   args: List<String>,
-  options: Run.Options,
+  options: Options,
   stats: Bool)
   : AppState =
   let branchId = state.currentBranchId
   let fnName = TraceVerbs.canonicalFnName(branchId, name)
   let location = LanguageTools.ProgramTypes.parsePackageLocation(fnName)
-
   match LanguageTools.PackageManager.Function.find(branchId, location) with
   | None ->
     Stdlib.printErrorLine($"No script file or function named {name}")
@@ -205,8 +207,8 @@ let executePackageFn(
     match LanguageTools.PackageManager.Function.getSignature(hash) with
     | Some(fn) ->
       match fn.parameters |> Stdlib.List.map(fun p -> p.typ) with
-      | [] | [ TUnit ] -> runNullary(state, name, fnName, args, options, stats)
-      | [ TList(TString) ] ->
+      | [] | [TUnit] -> runNullary(state, name, fnName, args, options, stats)
+      | [TList(TString)] ->
         runScriptMeasured(state, fnName, $"{fnName}(args)", args, options, Approval.Offer, stats)
       | _ ->
         let modulePath = Stdlib.List.prepend(location.modules, location.owner)
@@ -216,10 +218,13 @@ let executePackageFn(
           |> Stdlib.List.map(fun p ->
             $"{p.name}: {PrettyPrinter.ProgramTypes.typeReference(ctx, p.typ)}")
           |> Stdlib.String.join(", ")
+
         Stdlib.printErrorLine(
           $"{name} takes ({shown}); `run` passes the words as a List<String>. Call it with: dark eval '{name}(…)'")
+
         { state with exitCode = 1 }
-    | None -> runScriptMeasured(state, fnName, $"{fnName}(args)", args, options, Approval.Offer, stats)
+    | None ->
+      runScriptMeasured(state, fnName, $"{fnName}(args)", args, options, Approval.Offer, stats)
 
 
 /// <fn executePackageFn> for a function that takes nothing.
@@ -228,7 +233,7 @@ let runNullary(
   name: String,
   fnName: String,
   args: List<String>,
-  options: Run.Options,
+  options: Options,
   stats: Bool)
   : AppState =
   match args with
@@ -247,39 +252,52 @@ let askPermission(request: (String * List<String>)): Int64 =
     rules
     |> Stdlib.List.filterMap(LanguageTools.Permissions.parseRuleText)
     |> Stdlib.List.flatten
-  let coversChildren =
-    Stdlib.List.any(fileRules, fun rule ->
-      match rule with
-      | FileRead(Only(path)) | FileWrite(Only(path)) -> Stdlib.Cli.FileSystem.isDirectory(path)
-      | FileRead(_) | FileWrite(_) -> true
-      | _ -> false)
-  let writes =
-    Stdlib.List.any(fileRules, fun rule ->
-      match rule with
-      | FileWrite(_) -> true
-      | _ -> false)
+
+  let coversChildren = Stdlib.List.any(fileRules, fun rule ->
+    match rule with
+    | FileRead(Only(path)) | FileWrite(Only(path)) -> Stdlib.Cli.FileSystem.isDirectory(path)
+    | FileRead(_) | FileWrite(_) -> true
+    | _ -> false)
+
+  let writes = Stdlib.List.any(fileRules, fun rule ->
+    match rule with
+    | FileWrite(_) -> true
+    | _ -> false)
+
   let fileNote =
     [ (coversChildren, "File paths include children.")
       (writes, "Write access includes creating, overwriting and deleting.") ]
-    |> Stdlib.List.filterMap(fun((shown, note)) -> if shown then Some(note) else None)
-  if Stdlib.List.isEmpty(fileNote) then ()
-  else Stdlib.printErrorLine(Stdlib.String.join(fileNote, " "))
+    |> Stdlib.List.filterMap(fun((shown, note)) -> if shown then Option.Some(note) else Option.None)
+
+  if Stdlib.List.isEmpty(fileNote) then
+    ()
+  else
+    Stdlib.printErrorLine(Stdlib.String.join(fileNote, " "))
+
   if Stdlib.List.any(rules, fun rule -> Stdlib.String.startsWith(rule, "http ")) then
-    Stdlib.printErrorLine("HTTP access covers only the exact path shown. Any query is allowed unless one is shown.")
-  else ()
+    Stdlib.printErrorLine(
+      "HTTP access covers only the exact path shown. Any query is allowed unless one is shown.")
+  else
+    ()
+
   if Stdlib.List.any(rules, fun rule -> Stdlib.String.startsWith(rule, "process-exact ")) then
-    Stdlib.printErrorLine("process-exact permits only the listed arguments; none listed means no arguments.")
-  else ()
+    Stdlib.printErrorLine(
+      "process-exact permits only the listed arguments; none listed means no arguments.")
+  else
+    ()
+
   let once = "Allow this run"
   let remember = "Remember for this code version"
   let cancel = "Cancel"
   match Stdlib.Cli.UI.Prompt.select(
-    "Choose how long to allow this access:", [ once, remember, cancel ]) with
+          "Choose how long to allow this access:",
+          [ once, remember, cancel ]) with
   | Some(choice) when choice == once -> 1
   | Some(choice) when choice == remember -> 2
   | _ ->
     Stdlib.printErrorLine("Cancelled. No new permissions were saved by this prompt.")
     0
+
 
 let printScriptError(state: AppState, e: ExecutionError.ExecutionError): AppState =
   match e with
@@ -289,7 +307,9 @@ let printScriptError(state: AppState, e: ExecutionError.ExecutionError): AppStat
     ExecutionError.printCallStack(state.currentBranchId, "Script", e)
     let pretty = ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, e)
     Stdlib.printErrorLine($"Script error: {pretty}")
+
   { state with exitCode = 1 }
+
 
 /// Run a script with exact access review before protected operations.
 /// Interactive grants never restart the script or repeat earlier work.
@@ -298,13 +318,15 @@ let runScript(
   scriptPath: String,
   code: String,
   args: List<String>,
-  options: Darklang.Tracing.ScriptOptions,
+  options: Tracing.ScriptOptions,
   approval: Approval)
   : AppState =
-  let invocation = Run.Options
-    { allowHarmful = options.allowHarmful
-      sandbox = options.sandbox
-      grants = LanguageTools.Permissions.Policy { allow = [], deny = [] } }
+  let invocation =
+    Options
+      { allowHarmful = options.allowHarmful
+        sandbox = options.sandbox
+        grants = LanguageTools.Permissions.Policy { allow = [], deny = [] } }
+
   runScriptMeasured(state, scriptPath, code, args, invocation, approval, false)
 
 
@@ -316,7 +338,7 @@ let runScriptMeasured(
   scriptPath: String,
   code: String,
   args: List<String>,
-  options: Run.Options,
+  options: Options,
   approval: Approval,
   stats: Bool)
   : AppState =
@@ -335,17 +357,18 @@ let runScriptMeasured(
       // What the script cost, net of the measuring harness itself: see Perf.floor.
       let harness = LanguageTools.Perf.floor()
       let (raw, result) = LanguageTools.Perf.measure(run)
-      (Stdlib.Option.Option.Some(LanguageTools.Perf.minus(raw, harness)), result)
+      (Option.Some(LanguageTools.Perf.minus(raw, harness)), result)
     else
-      (Stdlib.Option.Option.None, run())
+      (Option.None, run())
 
   let newState = handleResult(state, result)
-
   match measurement with
   | Some(m) ->
     // stdout, after whatever the script printed, as `eval --stats` does.
     let _ = Stdlib.printLine("")
+
     let _ = Stdlib.printLine(LanguageTools.Perf.render(m))
+
     let _ =
       Stdlib.printLine(
         "  (includes parsing the script; Perf.measure inside it brackets execution alone)")
@@ -355,15 +378,11 @@ let runScriptMeasured(
 
 
 /// Report the completed run. Permission review happens before the operation.
-let handleResult(
-  state: AppState,
-  result: Stdlib.Result.Result<Int64, ExecutionError.ExecutionError>)
-  : AppState =
+let handleResult(state: AppState, result: Result<Int64, ExecutionError.ExecutionError>): AppState =
   match result with
   | Ok(exitCode) ->
     // The script chose this code and printed its own reason, as a program in any language does.
     { state with exitCode = exitCode }
-
   | Error(e) -> printScriptError(state, e)
 
 
@@ -372,22 +391,15 @@ let complete(_state: AppState, args: List<String>): List<Completion.CompletionIt
   | [] ->
     let files = Stdlib.Cli.FileSystem.getDirectoryContents(".")
     let currentDir = Stdlib.Cli.FileSystem.currentDirectory()
-
     let directories =
       files
-      |> Stdlib.List.filter(fun name ->
-        Stdlib.Cli.FileSystem.isDirectoryAtPath(currentDir, name))
+      |> Stdlib.List.filter(fun name -> Stdlib.Cli.FileSystem.isDirectoryAtPath(currentDir, name))
 
-    let darkFiles =
-      files |> Stdlib.List.filter(fun name -> Stdlib.String.endsWith(name, ".dark"))
-
+    let darkFiles = files |> Stdlib.List.filter(fun name -> Stdlib.String.endsWith(name, ".dark"))
     let allFiles = Stdlib.List.concat(directories, darkFiles)
     allFiles |> Stdlib.List.map(Completion.simple)
-
-  | [ partialArg ] ->
-    (Darklang.Cli.Completion.completeFilesystemPath(partialArg))
-    |> Stdlib.List.map(Completion.simple)
-
+  | [partialArg] ->
+    Completion.completeFilesystemPath(partialArg) |> Stdlib.List.map(Completion.simple)
   | _ -> []
 
 

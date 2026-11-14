@@ -10,7 +10,6 @@
 /// known once the command has looked, so the command still says them.
 module Darklang.Cli.Accepts
 
-
 /// The arguments one command, or one subcommand, takes.
 type Shape =
   {
@@ -28,6 +27,7 @@ type Shape =
     wordsAreNotFlags: Bool
   }
 
+
 type Accepts =
   | Takes(Shape)
   /// The first word that is not a flag names a subcommand with its own arguments. `otherwise` is what
@@ -41,44 +41,79 @@ type Accepts =
 /// No words, and these flags.
 let flagsOnly(flags: List<String>): Accepts =
   Accepts.Takes(
-    Shape { flags = flags, valueFlags = [], atLeast = 0, atMost = Stdlib.Option.Option.Some(0), wordsAreNotFlags = false }
-  )
+    Shape
+      { flags = flags
+        valueFlags = []
+        atLeast = 0
+        atMost = Option.Some(0)
+        wordsAreNotFlags = false })
+
 
 /// Takes nothing at all.
 let nothing(): Accepts =
   Accepts.Takes(
-    Shape { flags = [], valueFlags = [], atLeast = 0, atMost = Stdlib.Option.Option.Some(0), wordsAreNotFlags = false }
-  )
+    Shape
+      { flags = []
+        valueFlags = []
+        atLeast = 0
+        atMost = Option.Some(0)
+        wordsAreNotFlags = false })
+
 
 /// At most <param atMost> words, and these flags.
 let upTo(atMost: Int64, flags: List<String>): Accepts =
   Accepts.Takes(
-    Shape { flags = flags, valueFlags = [], atLeast = 0, atMost = Stdlib.Option.Option.Some(atMost), wordsAreNotFlags = false }
-  )
+    Shape
+      { flags = flags
+        valueFlags = []
+        atLeast = 0
+        atMost = Option.Some(atMost)
+        wordsAreNotFlags = false })
+
 
 /// From <param atLeast> to <param atMost> words, and these flags.
 let between(atLeast: Int64, atMost: Int64, flags: List<String>): Accepts =
   Accepts.Takes(
-    Shape { flags = flags, valueFlags = [], atLeast = atLeast, atMost = Stdlib.Option.Option.Some(atMost), wordsAreNotFlags = false }
-  )
+    Shape
+      { flags = flags
+        valueFlags = []
+        atLeast = atLeast
+        atMost = Option.Some(atMost)
+        wordsAreNotFlags = false })
+
 
 /// Any number of words, at least <param atLeast>, and these flags.
 let freeText(atLeast: Int64, flags: List<String>): Accepts =
   Accepts.Takes(
-    Shape { flags = flags, valueFlags = [], atLeast = atLeast, atMost = Stdlib.Option.Option.None, wordsAreNotFlags = false }
-  )
+    Shape
+      { flags = flags
+        valueFlags = []
+        atLeast = atLeast
+        atMost = Option.None
+        wordsAreNotFlags = false })
+
 
 /// Any number of words, at least <param atLeast>, every one of them a word: see `wordsAreNotFlags`.
 let text(atLeast: Int64): Accepts =
   Accepts.Takes(
-    Shape { flags = [], valueFlags = [], atLeast = atLeast, atMost = Stdlib.Option.Option.None, wordsAreNotFlags = true }
-  )
+    Shape
+      { flags = []
+        valueFlags = []
+        atLeast = atLeast
+        atMost = Option.None
+        wordsAreNotFlags = true })
+
 
 /// From <param atLeast> to <param atMost> words, every one of them a word.
 let textBetween(atLeast: Int64, atMost: Int64): Accepts =
   Accepts.Takes(
-    Shape { flags = [], valueFlags = [], atLeast = atLeast, atMost = Stdlib.Option.Option.Some(atMost), wordsAreNotFlags = true }
-  )
+    Shape
+      { flags = []
+        valueFlags = []
+        atLeast = atLeast
+        atMost = Option.Some(atMost)
+        wordsAreNotFlags = true })
+
 
 /// Subcommands, each with its own arguments, and what the command takes without one.
 let subcommands(named: List<(String * Accepts)>, otherwise: Accepts): Accepts =
@@ -87,6 +122,7 @@ let subcommands(named: List<(String * Accepts)>, otherwise: Accepts): Accepts =
   // A nested `Subcommands` as the fallback says nothing a flat list could not; take its fallback.
   | Subcommands(_, s) -> Accepts.Subcommands(named, s)
 
+
 /// <param accepts>, plus flags that take a value.
 let withValues(valueFlags: List<String>, accepts: Accepts): Accepts =
   match accepts with
@@ -94,13 +130,10 @@ let withValues(valueFlags: List<String>, accepts: Accepts): Accepts =
   | Subcommands(named, s) ->
     Accepts.Subcommands(named, { s with valueFlags = Stdlib.List.concat(s.valueFlags, valueFlags) })
 
+
 /// <param accepts> with these flags accepted everywhere in it, every subcommand included: for a
 /// command that reads a flag like `--json` wherever it appears.
-let everywhere(
-  flags: List<String>,
-  valueFlags: List<String>,
-  accepts: Accepts)
-  : Accepts =
+let everywhere(flags: List<String>, valueFlags: List<String>, accepts: Accepts): Accepts =
   let add(s: Shape): Shape =
     { s with
         flags = Stdlib.List.concat(s.flags, flags)
@@ -113,8 +146,7 @@ let everywhere(
       named
       |> Stdlib.List.map(fun pair ->
         (Stdlib.Tuple2.first(pair), everywhere(flags, valueFlags, Stdlib.Tuple2.second(pair)))),
-      add(s)
-    )
+      add(s))
 
 
 /// Why <param args> are not what <param accepts> declares, or None if they are. <param name> is how
@@ -124,30 +156,25 @@ let everywhere(
 /// a start reaches is a fetch from the store, about 30 KB each: as a chain of four (check, checkShape,
 /// countRefusal, isFlagUnder) it would cost three more fetches per start. Don't
 /// split it back into helpers; the allocation gate will notice.
-let check(
-  name: String,
-  accepts: Accepts,
-  args: List<String>)
-  : Stdlib.Option.Option<String> =
+let check(name: String, accepts: Accepts, args: List<String>): Option<String> =
   // A lone "-" is a word: it is how `fn` and `module` say "read standard input".
   let isFlag(s: Shape, a: String): Bool =
-    (Stdlib.Bool.not(s.wordsAreNotFlags)) && (Stdlib.String.startsWith(a, "-")) && (a != "-")
+    Stdlib.Bool.not(s.wordsAreNotFlags) && Stdlib.String.startsWith(a, "-") && a != "-"
 
-  let countRefusal(name: String, s: Shape, words: List<String>): Stdlib.Option.Option<String> =
+  let countRefusal(name: String, s: Shape, words: List<String>): Option<String> =
     let count = Stdlib.List.length(words)
-
     if count < s.atLeast then
       if count == 0 && s.atLeast == 1 then
-        Stdlib.Option.Option.Some($"`dark {name}` needs an argument.")
+        Option.Some($"`dark {name}` needs an argument.")
       else
-        Stdlib.Option.Option.Some(
+        Option.Some(
           $"`dark {name}` needs {Stdlib.display(s.atLeast)} arguments, and was given {Stdlib.display(count)}.")
     else
       match s.atMost with
       | Some(atMost) when count > atMost ->
         let extra = Stdlib.List.drop(words, atMost) |> Stdlib.String.join(" ")
-        Stdlib.Option.Option.Some($"`dark {name}` does not take `{extra}`.")
-      | _ -> Stdlib.Option.Option.None
+        Option.Some($"`dark {name}` does not take `{extra}`.")
+      | _ -> Option.None
 
   // Walk the arguments once, collecting the words, stopping at the first flag that is wrong.
   let walk(
@@ -155,37 +182,39 @@ let check(
     s: Shape,
     remaining: List<String>,
     words: List<String>)
-    : Stdlib.Result.Result<List<String>, String> =
+    : Result<List<String>, String> =
     match remaining with
-    | [] -> Stdlib.Result.Result.Ok(Stdlib.List.reverse(words))
+    | [] -> Result.Ok(Stdlib.List.reverse(words))
     | [a, ...rest] ->
       if Stdlib.Bool.not(isFlag(s, a)) then
         walk(name, s, rest, Stdlib.List.prepend(words, a))
       else if Stdlib.String.contains(a, "=") then
         // `--depth=1`: the name is everything before the first `=`.
         let flagName =
-          (Stdlib.String.split(a, "=")) |> Stdlib.List.head |> Stdlib.Option.withDefault(a)
+          Stdlib.String.split(a, "=")
+          |> Stdlib.List.head
+          |> Stdlib.Option.withDefault(a)
 
         if Stdlib.List.contains(s.valueFlags, flagName) then
           walk(name, s, rest, words)
         else
-          Stdlib.Result.Result.Error($"`dark {name}` does not take `{flagName}`.")
+          Result.Error($"`dark {name}` does not take `{flagName}`.")
       else if Stdlib.List.contains(s.flags, a) then
         walk(name, s, rest, words)
       else if Stdlib.List.contains(s.valueFlags, a) then
         match rest with
         | [_value, ...afterValue] -> walk(name, s, afterValue, words)
-        | [] -> Stdlib.Result.Result.Error($"`{a}` needs a value.")
+        | [] -> Result.Error($"`{a}` needs a value.")
       else
-        Stdlib.Result.Result.Error($"`dark {name}` does not take `{a}`.")
+        Result.Error($"`dark {name}` does not take `{a}`.")
 
-  let checkShape(name: String, s: Shape, args: List<String>): Stdlib.Option.Option<String> =
+  let checkShape(name: String, s: Shape, args: List<String>): Option<String> =
     // Every word a word: nothing to walk, only the count to check.
     if s.wordsAreNotFlags then
       countRefusal(name, s, args)
     else
       match walk(name, s, args, []) with
-      | Error(why) -> Stdlib.Option.Option.Some(why)
+      | Error(why) -> Option.Some(why)
       | Ok(words) -> countRefusal(name, s, words)
 
   match accepts with
@@ -194,15 +223,14 @@ let check(
     // The subcommand is the first word that is not a flag: `traces --json list` is `list`.
     let leadingFlags = args |> Stdlib.List.takeWhile(fun a -> isFlag(otherwise, a))
     let afterFlags = Stdlib.List.drop(args, Stdlib.List.length(leadingFlags))
-
     let picked =
       match afterFlags with
       | [first, ...rest] ->
         named
-        |> Stdlib.List.findFirst(fun pair -> (Stdlib.Tuple2.first(pair)) == first)
+        |> Stdlib.List.findFirst(fun pair -> Stdlib.Tuple2.first(pair) == first)
         |> Stdlib.Option.map(fun pair ->
           (first, Stdlib.Tuple2.second(pair), Stdlib.List.concat(leadingFlags, rest)))
-      | [] -> Stdlib.Option.Option.None
+      | [] -> Option.None
 
     match picked with
     | Some((sub, subAccepts, subArgs)) -> check($"{name} {sub}", subAccepts, subArgs)

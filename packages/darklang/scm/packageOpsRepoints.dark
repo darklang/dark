@@ -12,17 +12,30 @@ type Repoint =
 
 
 /// Render the native traversal's result. First changed seed wins when causes overlap.
-let repointsFromReview(pairs: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.PackageLocation)>): List<Repoint> =
-  pairs |> Stdlib.List.map(fun((usage, dependency)) ->
-    Repoint { name = Conflicts.fqn(usage.owner, Stdlib.String.join(usage.modules, "."), usage.name)
-              uses = Conflicts.fqn(dependency.owner, Stdlib.String.join(dependency.modules, "."), dependency.name) })
+let repointsFromReview(
+  pairs:
+    List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.PackageLocation)>)
+  : List<Repoint> =
+  pairs
+  |> Stdlib.List.map(fun((usage, dependency)) ->
+    Repoint
+      { name = Conflicts.fqn(usage.owner, Stdlib.String.join(usage.modules, "."), usage.name)
+        uses =
+          Conflicts.fqn(
+            dependency.owner,
+            Stdlib.String.join(dependency.modules, "."),
+            dependency.name) })
   |> Stdlib.List.sortBy(fun r -> r.name)
 
+
 /// Shared native review for constraints and caller updates.
-let dependencyReview(changed: List<Conflicts.Binding>): Stdlib.Result.Result<Deps.DependencyReview, String> =
+let dependencyReview(changed: List<Conflicts.Binding>): Result<Deps.DependencyReview, String> =
   Deps.review(currentBranch(), changed |> Stdlib.List.map(sourceOfBinding))
 
-let draftRepoints(changed: List<Conflicts.Binding>): Stdlib.Result.Result<List<Repoint>, String> =
-  if Stdlib.List.isEmpty(changed) then Stdlib.Result.Result.Ok([]) else
+
+let draftRepoints(changed: List<Conflicts.Binding>): Result<List<Repoint>, String> =
+  if Stdlib.List.isEmpty(changed) then
+    Result.Ok([])
+  else
     dependencyReview(changed)
     |> Stdlib.Result.map(fun((_, repoints)) -> repointsFromReview(repoints))

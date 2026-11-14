@@ -8,81 +8,80 @@
 /// a self-updater to fail in.
 module Darklang.Cli.Installation.Download
 
-
 /// A release to install: its tag (`v0.0.54`) and the binary for this host.
 type ReleaseAsset =
   { tag: String
-    download: Darklang.GitHub.Releases.Download }
+    download: GitHub.Releases.Download }
 
 
 /// The release to install, <param pinned> or else the latest, and its asset for this OS and
 /// architecture.
 let releaseToInstall(
   host: Stdlib.Cli.Host.Host,
-  pinned: Stdlib.Option.Option<String>)
-  : Stdlib.Result.Result<ReleaseAsset, String> =
+  pinned: Option<String>)
+  : Result<ReleaseAsset, String> =
   let tag =
     match pinned with
-    | Some(tag) -> Stdlib.Result.Result.Ok(tag)
+    | Some(tag) -> Result.Ok(tag)
     | None ->
-      Darklang.GitHub.Releases.getLatestReleaseTag()
-      |> Stdlib.Result.mapError(Darklang.GitHub.releaseErrorMessage)
+      GitHub.Releases.getLatestReleaseTag() |> Stdlib.Result.mapError(GitHub.releaseErrorMessage)
 
   tag
   |> Stdlib.Result.andThen(fun tag ->
-    Darklang.GitHub.Releases.getDownload(host, tag)
-    |> Stdlib.Result.mapError(Darklang.GitHub.releaseErrorMessage)
+    GitHub.Releases.getDownload(host, tag)
+    |> Stdlib.Result.mapError(GitHub.releaseErrorMessage)
     |> Stdlib.Result.map(fun download -> ReleaseAsset { tag = tag, download = download }))
 
 
 /// The sha256 that <param sums>, a checksums file as `sha256sum` prints it (`<hash>  <name>` per
 /// line), lists for <param fileName>, in lowercase hex.
-let expectedSha256(sums: String, fileName: String): Stdlib.Option.Option<String> =
+let expectedSha256(sums: String, fileName: String): Option<String> =
   sums
   |> Stdlib.String.splitOnNewline
   |> Stdlib.List.filterMap(fun line ->
     match Stdlib.String.split(Stdlib.String.trim(line), "  ") with
     | [hash, name] ->
       if name == fileName then
-        Stdlib.Option.Option.Some(Stdlib.String.toLowercase(hash))
+        Option.Some(Stdlib.String.toLowercase(hash))
       else
-        Stdlib.Option.Option.None
-    | _ -> Stdlib.Option.Option.None)
+        Option.None
+    | _ -> Option.None)
   |> Stdlib.List.head
 
 
 /// Check the file at <param path> is the one <param download>'s release lists, by sha256.
-let verifyChecksum(
-  download: Darklang.GitHub.Releases.Download,
-  path: String)
-  : Stdlib.Result.Result<Unit, String> =
+let verifyChecksum(download: GitHub.Releases.Download, path: String): Result<Unit, String> =
   let sumsPath = $"{path}.sha256sums.txt"
-
   let sums =
     Stdlib.Cli.Curl.downloadFileToPath(download.sumsUrl, sumsPath)
     |> Stdlib.Result.andThen(fun _ ->
       Stdlib.Cli.File.readText(sumsPath) |> Stdlib.Result.mapError(fun e -> e.message))
 
   let _cleaned = Stdlib.Cli.File.delete(sumsPath)
-
   let refused =
     "so the new version wasn't installed and nothing was changed. Please report this at https://github.com/darklang/dark/issues"
 
   match sums with
-  | Error(e) -> Stdlib.Result.Result.Error($"Couldn't download the release's checksums file ({Stdlib.String.trim(e)}), {refused}")
+  | Error(e) ->
+    Result.Error(
+      $"Couldn't download the release's checksums file ({Stdlib.String.trim(e)}), {refused}")
   | Ok(sums) ->
     match expectedSha256(sums, download.name) with
-    | None -> Stdlib.Result.Result.Error($"The release's checksums file doesn't list {download.name}, {refused}")
+    | None -> Result.Error($"The release's checksums file doesn't list {download.name}, {refused}")
     | Some(expected) ->
       match Stdlib.Cli.File.readBytes(path) with
-      | Error(e) -> Stdlib.Result.Result.Error($"Couldn't read the download to check it ({e.message}), {refused}")
+      | Error(e) -> Result.Error($"Couldn't read the download to check it ({e.message}), {refused}")
       | Ok(bytes) ->
-        let actual = bytes |> Stdlib.Crypto.sha256 |> Stdlib.Base16.encode |> Stdlib.String.toLowercase
+        let actual =
+          bytes
+          |> Stdlib.Crypto.sha256
+          |> Stdlib.Base16.encode
+          |> Stdlib.String.toLowercase
 
         if actual == expected then
-          Stdlib.Result.Result.Ok()
+          Result.Ok()
         else
-          Stdlib.Result.Result.Error(
+          Result.Error(
             $"{download.name} doesn't match the checksum its release lists for it: it was damaged or changed on the way, {refused}")
 
 
@@ -95,9 +94,9 @@ let verifyChecksum(
 ///
 /// With `HOME` set to the temp directory, the new binary's `~/.darklang` is the copy, so it never
 /// migrates the live store before we know whether we're keeping it.
-let smokeTest(binaryPath: String): Stdlib.Result.Result<Unit, String> =
+let smokeTest(binaryPath: String): Result<Unit, String> =
   match Stdlib.Cli.executeWithStdOutOrStdErr("mktemp -d") with
-  | Error(e) -> Stdlib.Result.Result.Error($"Couldn't make a directory to test the new binary in: {e}")
+  | Error(e) -> Result.Error($"Couldn't make a directory to test the new binary in: {e}")
   | Ok(tmp) ->
     let tmp = Stdlib.String.trim(tmp)
     let rundir = $"{tmp}/.darklang"
@@ -106,16 +105,16 @@ let smokeTest(binaryPath: String): Stdlib.Result.Result<Unit, String> =
     match LanguageTools.LocalStore.snapshotTo($"{rundir}/data.db") with
     | Error(e) ->
       let _cleaned = Stdlib.Cli.execute($"rm -rf '{tmp}'")
-      Stdlib.Result.Result.Error($"Couldn't copy your store to test the new binary against: {e}")
+      Result.Error($"Couldn't copy your store to test the new binary against: {e}")
     | Ok(_) ->
-      let result =
-        Stdlib.Cli.execute(
-          $"HOME='{tmp}' '{binaryPath}' eval '1 + 2' </dev/null 2>&1")
-
+      let result = Stdlib.Cli.execute($"HOME='{tmp}' '{binaryPath}' eval '1 + 2' </dev/null 2>&1")
       let _cleaned = Stdlib.Cli.execute($"rm -rf '{tmp}'")
+      let lines =
+        result.stdout
+        |> Stdlib.String.trim
+        |> Stdlib.String.split("\n")
 
-      let lines = result.stdout |> Stdlib.String.trim |> Stdlib.String.split("\n")
-      let lastLine = (Stdlib.List.last(lines)) |> Stdlib.Option.withDefault("")
+      let lastLine = Stdlib.List.last(lines) |> Stdlib.Option.withDefault("")
 
       // What to quote on failure: the first line naming an error, since the last is often a stack frame.
       let errorLine =
@@ -125,23 +124,19 @@ let smokeTest(binaryPath: String): Stdlib.Result.Result<Unit, String> =
         |> Stdlib.Option.withDefault(lastLine)
 
       if result.exitCode == 0 && Stdlib.String.trim(lastLine) == "3" then
-        Stdlib.Result.Result.Ok()
+        Result.Ok()
       else
-        Stdlib.Result.Result.Error(
+        Result.Error(
           $"The downloaded release failed a test run against a copy of your store ({Stdlib.String.trim(errorLine)}, exit {Stdlib.display(result.exitCode)}). Nothing was changed. Please report this at https://github.com/darklang/dark/issues")
 
 
 /// Download <param download>, check it, and put the binary it holds at <param target>.
 ///
 /// Leaves <param target> untouched unless every step succeeded.
-let replaceBinary(
-  download: Darklang.GitHub.Releases.Download,
-  target: String)
-  : Stdlib.Result.Result<Unit, String> =
+let replaceBinary(download: GitHub.Releases.Download, target: String): Result<Unit, String> =
   let downloadTo = $"{target}.download.gz"
   let fresh = $"{target}.new"
   let dir = Stdlib.Cli.Path.parent(target)
-
   let steps =
     Stdlib.Cli.executeWithUnitOrStdErr($"mkdir -p '{dir}'")
     |> Stdlib.Result.andThen(fun _ -> Stdlib.Cli.Curl.downloadFileToPath(download.url, downloadTo))
@@ -161,38 +156,29 @@ let replaceBinary(
 
 /// Install a release (<param pinned>, or else the latest) to `~/.darklang/bin/dark`, and put it on the
 /// PATH. Returns the tag installed.
-let installRelease(
-  host: Stdlib.Cli.Host.Host,
-  pinned: Stdlib.Option.Option<String>)
-  : Stdlib.Result.Result<String, String> =
+let installRelease(host: Stdlib.Cli.Host.Host, pinned: Option<String>): Result<String, String> =
   match Config.getDarklangHomeDir(host) with
-  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Error(e) -> Result.Error(e)
   | Ok(darklangHomeDir) ->
+    let (binDir, target) = ($"{darklangHomeDir}/bin/", $"{darklangHomeDir}/bin/dark")
+    match releaseToInstall(host, pinned) with
+    | Error(e) -> Result.Error(e)
+    | Ok(release) ->
+      match replaceBinary(release.download, target) with
+      | Error(e) -> Result.Error(e)
+      | Ok(_) ->
+        // The binary is in place by now, so a PATH we couldn't edit is worth a line, not a failure.
+        // Unexpanded on purpose: the line must match what `install.sh` writes, byte for byte.
+        let pathResult = Stdlib.Cli.Unix.addToPath(host.defaultShell, "$HOME/.darklang/bin/")
+        match pathResult with
+        | Ok(_) -> ()
+        | Error(e) ->
+          Stdlib.printErrorLine(
+            $"Couldn't add {binDir} to your PATH ({e}). Add it in your shell's config to run `dark` from anywhere.")
 
-  let (binDir, target) = ($"{darklangHomeDir}/bin/", $"{darklangHomeDir}/bin/dark")
-
-  match releaseToInstall(host, pinned) with
-  | Error(e) -> Stdlib.Result.Result.Error(e)
-  | Ok(release) ->
-    match replaceBinary(release.download, target) with
-    | Error(e) -> Stdlib.Result.Result.Error(e)
-    | Ok(_) ->
-      // The binary is in place by now, so a PATH we couldn't edit is worth a line, not a failure.
-      // Unexpanded on purpose: the line must match what `install.sh` writes, byte for byte.
-      let pathResult =
-        Stdlib.Cli.Unix.addToPath(host.defaultShell, "$HOME/.darklang/bin/")
-
-      match pathResult with
-      | Ok(_) -> ()
-      | Error(e) ->
-        Stdlib.printErrorLine(
-          $"Couldn't add {binDir} to your PATH ({e}). Add it in your shell's config to run `dark` from anywhere.")
-
-      Stdlib.Result.Result.Ok(release.tag)
+        Result.Ok(release.tag)
 
 
 /// <fn installRelease> for the latest release.
-let installOrUpdateLatestRelease(
-  host: Stdlib.Cli.Host.Host)
-  : Stdlib.Result.Result<String, String> =
-  installRelease(host, Stdlib.Option.Option.None)
+let installOrUpdateLatestRelease(host: Stdlib.Cli.Host.Host): Result<String, String> =
+  installRelease(host, Option.None)

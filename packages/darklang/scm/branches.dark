@@ -12,13 +12,13 @@ module Darklang.SCM.Branches
 // parse -- stays here.
 //
 
-
 /// The branch this process is on. This is an ID: `--branch <name>` and `DARK_BRANCH` are resolved to one in
 /// the CLI entry point before any Dark runs, and the persistent `current_branch` already holds one.
 ///
 /// Lives in this silo, the lowest branch-aware module, so both `SCM.PackageOps` and `SCM.Conflicts` can ask
 /// without either depending on the other. `SCM.PackageOps.currentBranch` is the name most callers use.
-let current(): Uuid = Builtin.scmCurrentBranch()
+let current(): Uuid =
+  Builtin.scmCurrentBranch()
 
 
 /// Which branches <fn query> reads. Main has no `branches` row, so no case ever finds it.
@@ -48,11 +48,12 @@ type BranchInfo =
     /// `All` only: how many ops it holds.
     ops: Int64
     /// `NameBasesOf` only.
-    nameBases: List<SCM.Conflicts.NameBase> }
+    nameBases: List<Conflicts.NameBase> }
 
 
 /// The branches <param f> asks for.
-let query(f: BranchFilter): List<BranchInfo> = Builtin.scmBranches(f)
+let query(f: BranchFilter): List<BranchInfo> =
+  Builtin.scmBranches(f)
 
 
 /// Why a merge may not go ahead.
@@ -66,6 +67,7 @@ type MergeRefusal =
   | NothingToMerge
   /// Unmerged, unarchived branches sit under this one.
   | HasActiveChildren
+
 
 /// The sentence a person reads, kept beside the cases so the two cannot drift.
 let refusalMessage(r: MergeRefusal): String =
@@ -85,23 +87,20 @@ let refusalMessage(r: MergeRefusal): String =
 ///
 /// The merge action asks the same three questions itself, in F#, and refuses with the same cases; this is
 /// for the callers that want the answer before asking for a merge (the confirmation, `--dry-run`).
-let canMerge(branchId: Uuid): Stdlib.Result.Result<Unit, MergeRefusal> =
-  if SCM.Branch.isMain(branchId) then
-    Stdlib.Result.Result.Error(MergeRefusal.IsMain)
+let canMerge(branchId: Uuid): Result<Unit, MergeRefusal> =
+  if Branch.isMain(branchId) then
+    Result.Error(MergeRefusal.IsMain)
   else
-
-  let changes = SCM.PackageOps.countOf(SCM.PackageOps.OpFilter.Own(branchId))
-
-  if changes == 0 then
-    Stdlib.Result.Result.Error(MergeRefusal.NothingToMerge)
-  else
+    let changes = PackageOps.countOf(PackageOps.OpFilter.Own(branchId))
+    if changes == 0 then
+      Result.Error(MergeRefusal.NothingToMerge)
     // "Active" must mean the same here as in the message below, which tells you to merge OR ARCHIVE the
     // children -- counting archived ones as active makes that advice a dead end.
     // A failed read raises rather than answering "no children", so the guard cannot fail open.
-    if Stdlib.List.isEmpty(query(BranchFilter.ChildrenOf(branchId))) then
-      Stdlib.Result.Result.Ok()
+    else if Stdlib.List.isEmpty(query(BranchFilter.ChildrenOf(branchId))) then
+      Result.Ok()
     else
-      Stdlib.Result.Result.Error(MergeRefusal.HasActiveChildren)
+      Result.Error(MergeRefusal.HasActiveChildren)
 
 
 /// The active (unmerged, unarchived) children of <param branchId>, by name.
@@ -126,6 +125,7 @@ type BranchRow =
     ops: Int64
     merged: Bool }
 
+
 /// Every active branch, oldest first.
 let list(): List<BranchRow> =
   query(BranchFilter.All)
@@ -134,15 +134,15 @@ let list(): List<BranchRow> =
     // A row whose id will not parse is skipped, not fatal: this feeds every listing and the LSP
     // tree, and one bad row taking all of them down is worse than one branch missing from the list.
     | Ok(id) ->
-      Stdlib.Option.Option.Some(
+      Option.Some(
         BranchRow
           { id = id
             name = b.name
-            parent = SCM.Branch.fromTextField(Stdlib.Option.Option.Some(b.parentId))
+            parent = Branch.fromTextField(Option.Some(b.parentId))
             ops = b.ops
-            merged = b.merged }
-      )
-    | Error(_) -> Stdlib.Option.Option.None)
+            merged = b.merged })
+    | Error(_) -> Option.None)
+
 
 /// How many branches are already merged. The `dark branches` footer needs the count of what it
 /// hid, and asking for it separately keeps `listLines` returning only what it will print.
@@ -151,16 +151,16 @@ let mergedCount(): Int64 =
   |> Stdlib.List.filter(fun b -> b.merged)
   |> Stdlib.List.length
 
+
 /// The branch list, one line each. <param includeMerged> false drops the ones already merged -- the
 /// default, because merged branches accumulate forever and nothing removes them.
 let listLines(includeMerged: Bool): List<String> =
   // Fetched ONCE: `parentLabel` reads its parent out of this list, so rendering n branches is one query
   // rather than n+1.
   let branches = list()
-
   let parentLabel(parentId: Uuid): String =
-    if SCM.Branch.isMain(parentId) then
-      SCM.Branch.mainBranchName
+    if Branch.isMain(parentId) then
+      Branch.mainBranchName
     else
       // A parent this store has never registered is a colleague's branch that was not pulled
       // with its child. The id alone reads as corruption; say what it is instead.
@@ -172,14 +172,13 @@ let listLines(includeMerged: Bool): List<String> =
         $"{short} (a branch not in this store)"
 
   branches
-  |> Stdlib.List.filter(fun b -> includeMerged || (Stdlib.Bool.not(b.merged)))
+  |> Stdlib.List.filter(fun b -> includeMerged || Stdlib.Bool.not(b.merged))
   |> Stdlib.List.map(fun b ->
-    let status =
-      if b.merged then "merged" else $"{Stdlib.display(b.ops)} op(s)"
-
+    let status = if b.merged then "merged" else $"{Stdlib.display(b.ops)} op(s)"
     let label = if b.name == "" then Stdlib.display(b.id) else b.name
     let shortId = Stdlib.String.slice(Stdlib.display(b.id), 0, 8)
     $"{label} ({shortId}) <- {parentLabel(b.parent)}  [{status}]")
+
 
 /// The names a branch has recorded a base for -- i.e. every name it has touched.
 let touchedNames(branchId: Uuid): List<String> =
@@ -187,7 +186,7 @@ let touchedNames(branchId: Uuid): List<String> =
 
 
 /// The bases <param branchId> recorded, one per name it touched.
-let baseRecords(branchId: Uuid): List<SCM.Conflicts.NameBase> =
+let baseRecords(branchId: Uuid): List<Conflicts.NameBase> =
   query(BranchFilter.NameBasesOf(branchId))
   |> Stdlib.List.map(fun b -> b.nameBases)
   |> Stdlib.List.flatten
@@ -203,17 +202,13 @@ let nameKey(owner: String, modules: String, name: String): String =
 /// How a conflicted name is SPOKEN: "owner.Module.name", or "owner.name" for a top-level item. Mirrors the
 /// detector's fqn format, because `resolve <name>` has to accept what a conflict listing prints.
 let fqnOf(owner: String, modules: String, name: String): String =
-  if modules == "" then
-    owner + "." + name
-  else
-    owner + "." + modules + "." + name
+  if modules == "" then owner + "." + name else owner + "." + modules + "." + name
 
 
 /// A branch's recorded bases: the parent's hash per name AT THE FORK, which is what a later comparison is
 /// against. `(owner, modules, name, base_hash)` rows, unformatted.
 let nameBases(branchId: Uuid): List<(String * String * String * String)> =
-  baseRecords(branchId)
-  |> Stdlib.List.map(fun b -> (b.owner, b.modules, b.name, b.baseHash))
+  baseRecords(branchId) |> Stdlib.List.map(fun b -> (b.owner, b.modules, b.name, b.baseHash))
 
 
 /// The parent's CURRENT hash for each name this branch has a base for -- the state a child forks from and
@@ -222,7 +217,7 @@ let nameBases(branchId: Uuid): List<(String * String * String * String)> =
 ///
 /// Committed only: rebasing onto a parent's draft would pull its uncommitted work into the branch.
 let parentHashesForBases(_parentId: Uuid, branchId: Uuid): Dict<String, String> =
-  SCM.Bindings.query(SCM.Bindings.BindingFilter.AboveBases(branchId))
+  Bindings.query(Bindings.BindingFilter.AboveBases(branchId))
   |> Stdlib.List.map(fun b -> (nameKey(b.owner, b.modules, b.name), b.hash))
   |> Stdlib.Dict.fromEntries
 
@@ -239,23 +234,18 @@ let divergedIn(
   bases
   |> Stdlib.List.filterMap(fun row ->
     let (o, m, n, baseHash) = row
-
     let current =
       parentHashes
       |> Stdlib.Dict.get(nameKey(o, m, n))
       |> Stdlib.Option.withDefault("")
 
-    if current == baseHash then
-      Stdlib.Option.Option.None
-    else
-      Stdlib.Option.Option.Some(fqnOf(o, m, n)))
+    if current == baseHash then Option.None else Option.Some(fqnOf(o, m, n)))
 
 
 /// Names the PARENT has moved since this branch forked. This is the merge GATE, not a view --
 /// `SCM.Conflicts` presents conflicts, this decides whether there are any.
 let nameConflicts(branchId: Uuid): List<String> =
-  let parent = SCM.PackageOps.branchParentOf(branchId)
-
+  let parent = PackageOps.branchParentOf(branchId)
   divergedIn(nameBases(branchId), parentHashesForBases(parent, branchId))
 
 
@@ -273,32 +263,30 @@ type Rebased =
 /// REBASE: accept the parent's current state as this branch's new base. Returns the names the parent had
 /// changed since the fork; where both changed a name the newer edit (by origin_ts) now stands on the
 /// branch, and merge is unblocked. The union of both halves of <fn rebaseDetailed>, for callers that want one list.
-let rebase(branchId: Uuid): Stdlib.Result.Result<List<String>, String> =
+let rebase(branchId: Uuid): Result<List<String>, String> =
   match rebaseDetailed(branchId) with
-  | Ok(r) -> Stdlib.Result.Result.Ok(Stdlib.List.unique(Stdlib.List.concat(r.diverged, r.repointed)))
-  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok(r) -> Result.Ok(Stdlib.List.unique(Stdlib.List.concat(r.diverged, r.repointed)))
+  | Error(e) -> Result.Error(e)
 
 
 /// The branch's own callers that still reference a version of something the parent has since moved,
 /// each as the repoint that brings it to the parent's version. Rebase and merge both apply them first,
 /// so a caller written on a branch calls what the parent runs once the two meet.
-let outdatedRepoints(branchId: Uuid): Stdlib.Result.Result<List<SCM.Actions.Repoint>, String> =
-  SCM.Constraints.detectOutdatedUsagesOn(branchId)
+let outdatedRepoints(branchId: Uuid): Result<List<Actions.Repoint>, String> =
+  Constraints.detectOutdatedUsagesOn(branchId)
   |> Stdlib.Result.map(fun findings ->
     findings
     |> Stdlib.List.filterMap(fun f ->
       match f.detail with
       | Versions(using, current) ->
-        Stdlib.Option.Option.Some(
-          SCM.Actions.Repoint
-            { usage =
-                Conflicts.fqn(f.usage.owner, SCM.Propagation.modulesOf(f.usage), f.usage.name)
+        Option.Some(
+          Actions.Repoint
+            { usage = Conflicts.fqn(f.usage.owner, Propagation.modulesOf(f.usage), f.usage.name)
               dependency = f.dependency
               kind = f.dependencyKind
               fromHash = using
-              toHash = current }
-        )
-      | _ -> Stdlib.Option.Option.None))
+              toHash = current })
+      | _ -> Option.None))
 
 
 /// The rebase itself, as one action: the divergences and repoints apart (see <type Rebased>), and the
@@ -309,29 +297,32 @@ let outdatedRepoints(branchId: Uuid): Stdlib.Result.Result<List<SCM.Actions.Repo
 /// the branch's own callers of it still reference the old version by hash. The action repoints each of
 /// those the way an edit on the parent would have, then moves every base and records the conflicts in
 /// one transaction.
-let rebaseDetailed(branchId: Uuid): Stdlib.Result.Result<SCM.Actions.Reconciled, String> =
+let rebaseDetailed(branchId: Uuid): Result<Actions.Reconciled, String> =
   match outdatedRepoints(branchId) with
-  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Error(e) -> Result.Error(e)
   | Ok(repoints) ->
-    match SCM.Actions.merge(SCM.Actions.MergeAction.Rebase(branchId, repoints)) with
-    | Ok(r) -> Stdlib.Result.Result.Ok(r)
-    | Error(e) -> Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e))
+    match Actions.merge(Actions.MergeAction.Rebase(branchId, repoints)) with
+    | Ok(r) -> Result.Ok(r)
+    | Error(e) -> Result.Error(Actions.failureMessage(e))
 
 
 /// "owner.Module.Sub.name" -> (owner, dotted-modules, name). The inverse of <fn fqnOf>, and it has to
 /// stay that way: `dark resolve <name>` is handed back a name a conflict listing printed.
-let parseFqn(fqn: String): Stdlib.Option.Option<(String * String * String)> =
+let parseFqn(fqn: String): Option<(String * String * String)> =
   match Stdlib.String.split(fqn, ".") with
-  | [] -> Stdlib.Option.Option.None
-  | [ _single ] -> Stdlib.Option.Option.None
+  | [] -> Option.None
+  | [_single] -> Option.None
   | [owner, ...rest] ->
     // The LAST segment is the name; everything between owner and it is the module path.
     let n = Stdlib.List.length(rest)
-    let modules = rest |> Stdlib.List.take(n - 1) |> (fun ms -> Stdlib.String.join(ms, "."))
+    let modules =
+      rest
+      |> Stdlib.List.take(n - 1)
+      |> (fun ms -> Stdlib.String.join(ms, "."))
 
     match Stdlib.List.last(rest) with
-    | Some(name) -> Stdlib.Option.Option.Some((owner, modules, name))
-    | None -> Stdlib.Option.Option.None
+    | Some(name) -> Option.Some((owner, modules, name))
+    | None -> Option.None
 
 
 /// The branch's OWN frontier ops with their ids, oldest-first. Just this branch's tag, not the chain.
@@ -339,11 +330,8 @@ let parseFqn(fqn: String): Stdlib.Option.Option<(String * String * String)> =
 /// Ordered, because callers take the LAST one as the branch's current word on a name; unordered, that is
 /// whatever the query happened to return. Skips an op this build cannot decode rather than raising: a
 /// peer's op on a newer format is stored here on purpose.
-let ownFrontierOps(
-  branchId: Uuid)
-  : List<(Uuid * LanguageTools.ProgramTypes.PackageOp)> =
-  ownFrontierOpsWithSource(branchId)
-  |> Stdlib.List.map(fun((id, op, _)) -> (id, op))
+let ownFrontierOps(branchId: Uuid): List<(Uuid * LanguageTools.ProgramTypes.PackageOp)> =
+  ownFrontierOpsWithSource(branchId) |> Stdlib.List.map(fun((id, op, _)) -> (id, op))
 
 
 /// <fn ownFrontierOps>, with what put each op on the branch: 'op', 'propagation' or 'resolution' (see
@@ -353,15 +341,15 @@ let ownFrontierOpsWithSource(
   : List<(Uuid * LanguageTools.ProgramTypes.PackageOp * String)> =
   ownOpRows(branchId)
   |> Stdlib.List.filterMap(fun row ->
-    match (Stdlib.Uuid.parse(row.id), row.op) with
-    | (Ok(id), Some(op)) -> Stdlib.Option.Option.Some((id, op, row.source))
-    | _ -> Stdlib.Option.Option.None)
+    match Stdlib.Uuid.parse(row.id), row.op with
+    | Ok(id), Some(op) -> Option.Some((id, op, row.source))
+    | _ -> Option.None)
 
 
 /// A branch's own op rows, oldest first, each with its `source`. The one query
 /// behind <fn ownFrontierOpsWithSource>, `branchBindings` and `branchOps`.
-let ownOpRows(branchId: Uuid): List<SCM.PackageOps.OpRow> =
-  SCM.PackageOps.rowsOf(SCM.PackageOps.OpFilter.Own(branchId))
+let ownOpRows(branchId: Uuid): List<PackageOps.OpRow> =
+  PackageOps.rowsOf(PackageOps.OpFilter.Own(branchId))
 
 
 /// Does this op bind <param key>? True for a SetName and for a Decision that overrides the binding, since
@@ -369,29 +357,18 @@ let ownOpRows(branchId: Uuid): List<SCM.PackageOps.OpRow> =
 let opBindsKey(
   op: LanguageTools.ProgramTypes.PackageOp,
   key: (String * String * String))
-  : Stdlib.Option.Option<(LanguageTools.ProgramTypes.PackageLocation *
-      LanguageTools.ProgramTypes.Reference)> =
+  : Option<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.Reference)> =
   let (owner, modules, name) = key
-
   let matches(loc: LanguageTools.ProgramTypes.PackageLocation): Bool =
-    (loc.owner == owner)
-    && ((Stdlib.String.join(loc.modules, ".")) == modules)
-    && (loc.name == name)
+    loc.owner == owner && Stdlib.String.join(loc.modules, ".") == modules && loc.name == name
 
   LanguageTools.ProgramTypes.PackageOp.bindingOps(op)
   |> Stdlib.List.filterMap(fun effect ->
     match effect with
-    | SetName(loc, target, _) ->
-      if matches(loc) then
-        Stdlib.Option.Option.Some((loc, target))
-      else
-        Stdlib.Option.Option.None
+    | SetName(loc, target, _) -> if matches(loc) then Option.Some((loc, target)) else Option.None
     | Decision(_, loc, _, Override(target)) ->
-      if matches(loc) then
-        Stdlib.Option.Option.Some((loc, target))
-      else
-        Stdlib.Option.Option.None
-    | _ -> Stdlib.Option.Option.None)
+      if matches(loc) then Option.Some((loc, target)) else Option.None
+    | _ -> Option.None)
   |> Stdlib.List.last
 
 
@@ -406,10 +383,7 @@ type Keep =
 /// RESOLVE take-theirs: drop the branch's binding for <param fqn> -- every op that binds it, a `SetName`
 /// or the override a `resolve mine` wrote -- so the branch's view falls back to the parent's version, and move
 /// the name's base to the parent's current. One action.
-let resolveTakeTheirs(
-  branchId: Uuid,
-  fqn: String)
-  : Stdlib.Result.Result<Unit, String> =
+let resolveTakeTheirs(branchId: Uuid, fqn: String): Result<Unit, String> =
   resolveName(branchId, fqn, Keep.Theirs)
 
 
@@ -420,31 +394,24 @@ let resolveTakeTheirs(
 /// point: `origin_ts` is a PORTABLE stamp, byte-identical on every machine holding that op, because it is
 /// what LWW compares. Rewriting it locally on an op that has already travelled makes two peers resolve
 /// the same pair of bindings differently, forever.
-let resolveKeepMine(
-  branchId: Uuid,
-  fqn: String)
-  : Stdlib.Result.Result<Unit, String> =
+let resolveKeepMine(branchId: Uuid, fqn: String): Result<Unit, String> =
   resolveName(branchId, fqn, Keep.Mine)
 
 
 /// Parse <param fqn>, keep the version <param keep> names, and word what went wrong.
-let resolveName(
-  branchId: Uuid,
-  fqn: String,
-  keep: Keep)
-  : Stdlib.Result.Result<Unit, String> =
+let resolveName(branchId: Uuid, fqn: String, keep: Keep): Result<Unit, String> =
   match parseFqn(fqn) with
-  | None -> Stdlib.Result.Result.Error($"can't parse a name from \"{fqn}\"")
+  | None -> Result.Error($"can't parse a name from \"{fqn}\"")
   | Some((owner, modules, name)) ->
     let resolution =
       match keep with
-      | Mine -> SCM.Actions.Resolution.KeepMine(branchId, owner, modules, name)
-      | Theirs -> SCM.Actions.Resolution.TakeTheirs(branchId, owner, modules, name)
+      | Mine -> Actions.Resolution.KeepMine(branchId, owner, modules, name)
+      | Theirs -> Actions.Resolution.TakeTheirs(branchId, owner, modules, name)
 
-    match SCM.Actions.resolve(resolution) with
-    | Ok(_) -> Stdlib.Result.Result.Ok()
+    match Actions.resolve(resolution) with
+    | Ok(_) -> Result.Ok()
     // The NAME, because this reaches a person through `dark resolve` and a name is what they typed.
     | Error(Refused(NotBound)) ->
-      Stdlib.Result.Result.Error(
-        $"branch \"{SCM.PackageOps.branchName(branchId)}\" doesn't bind {fqn} -- nothing to resolve")
-    | Error(e) -> Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e))
+      Result.Error(
+        $"branch \"{PackageOps.branchName(branchId)}\" doesn't bind {fqn} -- nothing to resolve")
+    | Error(e) -> Result.Error(Actions.failureMessage(e))

@@ -8,7 +8,6 @@ module Darklang.SCM.Actions
 // person reads about it. Callers use the wrappers (`SCM.PackageOps.mergeBranch`,
 // `SCM.PackageOps.discardDraft`, ...), which map onto the functions below.
 
-
 /// Why an action did nothing. A state the store or the request is in, which the caller words.
 type Refusal =
   /// The request named no op still in the draft.
@@ -32,6 +31,7 @@ type Refusal =
   /// The draft or the branch kept changing while the action ran, so nothing was changed.
   | Moved
 
+
 /// What stopped an action: a refusal, or the store (or authoring) failing partway, before anything
 /// past the failed step happened.
 type Failure =
@@ -46,6 +46,7 @@ type CommitScope =
   /// These ops, if still in the draft. The commit id is minted over them sorted.
   | Only(opIds: List<String>)
 
+
 type CommitRequest =
   { branchId: Uuid
     message: String
@@ -53,6 +54,7 @@ type CommitRequest =
     /// Drop superseded namings from main's draft first. A rewrite of its own, finished before the
     /// commit starts.
     collapse: Bool }
+
 
 type Committed =
   { hash: String
@@ -71,6 +73,7 @@ type BranchAction =
   /// Discard the branch's unmerged work and put it away; other machines learn it from the event.
   | Archive(branchId: Uuid)
 
+
 type BranchDone =
   { id: Uuid
     /// `Start` only: this call created it.
@@ -87,6 +90,7 @@ type Repoint =
     fromHash: LanguageTools.ProgramTypes.Hash
     toHash: LanguageTools.ProgramTypes.Hash }
 
+
 type MergeAction =
   /// Merge, after repointing <param repoints> on the branch at the parent's versions.
   | IntoParent(branchId: Uuid, repoints: List<Repoint>)
@@ -94,10 +98,11 @@ type MergeAction =
   /// The conflicts a merge would record. Writes nothing.
   | Preview(branchId: Uuid)
 
+
 type Reconciled =
   { /// How many ops a merge moved.
     moved: Int64
-    conflicts: List<SCM.Conflicts.Conflict>
+    conflicts: List<Conflicts.Conflict>
     /// Rebase: names the parent changed that the branch also changed.
     diverged: List<String>
     /// Rebase: the branch's callers now pointing at the parent's version.
@@ -128,10 +133,7 @@ type Resolution =
   /// Bind the conflicted name to <param hash>, and repoint what followed the other version.
   | Override(branchId: Uuid, conflictId: String, hash: String)
   /// End the name again. <param previous> is what it holds now.
-  | TakeRemoval(
-    branchId: Uuid,
-    conflictId: String,
-    previous: Stdlib.Option.Option<String>)
+  | TakeRemoval(branchId: Uuid, conflictId: String, previous: Option<String>)
   /// Say the chosen wording, for a doc divergence.
   | Reword(branchId: Uuid, conflictId: String, text: String)
   /// The auto-pick stands.
@@ -144,35 +146,38 @@ type Resolution =
 type DetectRequest =
   { localLabel: String
     incomingLabel: String
-    local: List<SCM.Conflicts.Binding>
-    incoming: List<SCM.Conflicts.Binding>
-    bases: List<SCM.Conflicts.NameBase>
-    removals: List<SCM.Conflicts.Removal> }
+    local: List<Conflicts.Binding>
+    incoming: List<Conflicts.Binding>
+    bases: List<Conflicts.NameBase>
+    removals: List<Conflicts.Removal> }
 
 
 /// Commit what <param request> names.
-let commit(request: CommitRequest): Stdlib.Result.Result<Committed, Failure> =
+let commit(request: CommitRequest): Result<Committed, Failure> =
   Builtin.scmCommit(request)
 
-let branch(action: BranchAction): Stdlib.Result.Result<BranchDone, Failure> =
+
+let branch(action: BranchAction): Result<BranchDone, Failure> =
   Builtin.scmBranch(action)
 
-let merge(action: MergeAction): Stdlib.Result.Result<Reconciled, Failure> =
+
+let merge(action: MergeAction): Result<Reconciled, Failure> =
   Builtin.scmMerge(action)
 
+
 /// Drop part of <param branchId>'s draft. Ok is how many ops went.
-let discard(
-  branchId: Uuid,
-  what: DiscardWhat)
-  : Stdlib.Result.Result<Int64, Failure> =
+let discard(branchId: Uuid, what: DiscardWhat): Result<Int64, Failure> =
   Builtin.scmDiscard(branchId, what)
 
-let resolve(resolution: Resolution): Stdlib.Result.Result<Unit, Failure> =
+
+let resolve(resolution: Resolution): Result<Unit, Failure> =
   Builtin.scmResolve(resolution)
 
+
 /// The conflicts between two sides, each naming the winner the fold picks.
-let detect(request: DetectRequest): List<SCM.Conflicts.Conflict> =
+let detect(request: DetectRequest): List<Conflicts.Conflict> =
   Builtin.scmDetect(request)
+
 
 /// Does the side stamped <param aTs> / hashed <param aHash> beat the other under last-writer-wins?
 let beats(aTs: String, aHash: String, bTs: String, bHash: String): Bool =

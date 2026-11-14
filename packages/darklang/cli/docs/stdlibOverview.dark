@@ -12,19 +12,16 @@ module Darklang.Cli.Docs.StdlibOverview
 // Until that's in, the right call is probably to delete this and fold
 // the entry point into `tree --signatures-summary` or similar.
 
-let topLevelBucket(
-  loc: LanguageTools.ProgramTypes.PackageLocation)
-  : String =
+let topLevelBucket(loc: LanguageTools.ProgramTypes.PackageLocation): String =
   match loc.modules with
-  | [ _ ] -> "(root)"
+  | [_] -> "(root)"
   | [_, top, ...] -> top
   | [] -> "(root)"
 
 
-let execute(state: Cli.AppState, _args: List<String>): Cli.AppState =
+let execute(state: AppState, _args: List<String>): AppState =
   let branchId = state.currentBranchId
   let rootPath = [ "Darklang", "Stdlib" ]
-
   let query =
     LanguageTools.ProgramTypes.Search.SearchQuery
       { currentModule = rootPath
@@ -34,17 +31,18 @@ let execute(state: Cli.AppState, _args: List<String>): Cli.AppState =
         exactMatch = false }
 
   let raw = LanguageTools.PackageManager.Search.search(branchId, query)
-  let depSets = Cli.Packages.Query.loadDeprecationSets(branchId)
-  let results = Cli.Packages.Query.filterHidden(
+  let depSets = Packages.Query.loadDeprecationSets(branchId)
+  let results =
+    Packages.Query.filterHidden(
       raw,
       depSets,
-      Cli.Packages.Query.Deprecated.Hide,
-      Cli.Packages.Query.Internal.Hide)
+      Packages.Query.Deprecated.Hide,
+      Packages.Query.Internal.Hide)
 
   let topLevels =
-    (Stdlib.List.concat(
+    Stdlib.List.concat(
       results.fns |> Stdlib.List.map(fun i -> topLevelBucket(i.location)),
-      results.types |> Stdlib.List.map(fun i -> topLevelBucket(i.location))))
+      results.types |> Stdlib.List.map(fun i -> topLevelBucket(i.location)))
     |> Stdlib.List.unique
     |> Stdlib.List.filter(fun k -> k != "(root)")
     |> Stdlib.List.sort
@@ -55,5 +53,4 @@ let execute(state: Cli.AppState, _args: List<String>): Cli.AppState =
   Stdlib.printLine("")
   Stdlib.printLine("Use `docs signatures <module>` for full signatures of one,")
   Stdlib.printLine("or `view <name>` for source + docs of a single item.")
-
   state

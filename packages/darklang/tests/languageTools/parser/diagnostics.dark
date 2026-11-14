@@ -6,17 +6,21 @@ module Darklang.LanguageTools.Parser.Tests.Diagnostics
 // message crosses into Dark.
 
 let messagesIn(
-  kind: Darklang.LanguageTools.Parser.FileKind,
+  kind: LanguageTools.Parser.FileKind,
   source: String)
   : List<String> =
-  Darklang.LanguageTools.Parser.Parse.parse(kind, source)
+  LanguageTools.Parser.Parse.parse(kind, source)
   |> Stdlib.Tuple2.second
   |> Stdlib.List.map(fun((_, message)) -> message)
 
-let messages(source: String): List<String> =
-  messagesIn(Darklang.LanguageTools.Parser.FileKind.Script, source)
 
-let shown(source: String): String = Stdlib.String.replaceAll(source, "\n", "\\n")
+let messages(source: String): List<String> =
+  messagesIn(LanguageTools.Parser.FileKind.Script, source)
+
+
+let shown(source: String): String =
+  Stdlib.String.replaceAll(source, "\n", "\\n")
+
 
 /// Exactly these messages, in order, so a new cascade or a reworded message fails.
 let golden(source: String, expected: List<String>): Stdlib.Test.Result =
@@ -25,16 +29,18 @@ let golden(source: String, expected: List<String>): Stdlib.Test.Result =
     actual == expected,
     $"{shown(source)}: got {Stdlib.inspect(actual)}")
 
+
 let rejectsIn(
-  kind: Darklang.LanguageTools.Parser.FileKind,
+  kind: LanguageTools.Parser.FileKind,
   source: String)
   : Stdlib.Test.Result =
   Stdlib.Test.expect(
     Stdlib.Bool.not(Stdlib.List.isEmpty(messagesIn(kind, source))),
     $"{shown(source)}: expected a diagnostic, got none")
 
+
 let cleanIn(
-  kind: Darklang.LanguageTools.Parser.FileKind,
+  kind: LanguageTools.Parser.FileKind,
   source: String)
   : Stdlib.Test.Result =
   let actual = messagesIn(kind, source)
@@ -42,17 +48,22 @@ let cleanIn(
     Stdlib.List.isEmpty(actual),
     $"{shown(source)}: {Stdlib.inspect(actual)}")
 
+
 let rejects(source: String): Stdlib.Test.Result =
-  rejectsIn(Darklang.LanguageTools.Parser.FileKind.Script, source)
+  rejectsIn(LanguageTools.Parser.FileKind.Script, source)
+
 
 let clean(source: String): Stdlib.Test.Result =
-  cleanIn(Darklang.LanguageTools.Parser.FileKind.Script, source)
+  cleanIn(LanguageTools.Parser.FileKind.Script, source)
+
 
 let rejectsPackage(source: String): Stdlib.Test.Result =
-  rejectsIn(Darklang.LanguageTools.Parser.FileKind.Package, source)
+  rejectsIn(LanguageTools.Parser.FileKind.Package, source)
+
 
 let cleanPackage(source: String): Stdlib.Test.Result =
-  cleanIn(Darklang.LanguageTools.Parser.FileKind.Package, source)
+  cleanIn(LanguageTools.Parser.FileKind.Package, source)
+
 
 /// Some message contains <param fragment>.
 let says(source: String, fragment: String): Stdlib.Test.Result =
@@ -67,96 +78,141 @@ test goldenMessages =
     [ golden(
         "(1 + 2",
         [ "expected ')' to close the '(' at line 1:1, found end of file" ])
+
       golden("(1 + )", [ "expected an expression, found ')'" ])
+
       golden(
         "Point { x = 1",
         [ "expected '}' to close the '{' at line 1:7, found end of file" ])
-      golden("if true then 1 else", [ "expected an expression, found end of file" ])
+
+      golden(
+        "if true then 1 else",
+        [ "expected an expression, found end of file" ])
+
       // the missing `:` is reported once, then `Int64` is read as the type
       golden("let f (x Int64) : Int64 = x", [ "expected ':', found 'Int64'" ])
+
       golden(
         "128s8",
         [ "integer literal 128s8 is out of range (this magnitude is only valid negated: -128s8)" ])
+
       // the unfinished arm is missing both its arrow and its body
       golden(
         "match x with | Ok(v) -> v | Error",
         [ "expected '->' in match case, found end of file"
           "expected an expression, found end of file" ])
+
       golden(
         "let x = [1, 2",
         [ "expected ']' to close the '[' at line 1:9, found end of file"
           "expected an expression, found end of file" ])
+
       golden("[1; 2]", [ "expected ',' between list elements, found ';'" ])
+
       // record patterns ignore the fields they leave out, so `...` is not needed
       golden(
         "match x with | { name, ... } -> name",
         [ "a record pattern needs no '...': the fields it leaves out are ignored" ])
-      golden("match x with | {} -> 1", [ "a record pattern names at least one field" ])
+
+      golden(
+        "match x with | {} -> 1",
+        [ "a record pattern names at least one field" ])
+
       golden(
         "match x with | { a = 1, a = 2 } -> 1",
         [ "the field 'a' appears twice in this record pattern" ])
+
       golden(
         "match x with | { ID } -> 1",
         [ "a field with no '= pattern' binds a variable named after it, and 'ID' cannot name a variable" ])
+
       golden(
         "match x with | { a = 1 b = 2 } -> 1",
         [ "expected a comma or newline between record-pattern fields, found 'b'" ])
+
       // `as` is looser than `,` and `|`, so naming one part needs parentheses
       golden(
         "match x with | (a as y, b) -> y",
         [ "'as' names the whole pattern before it, so a ',' cannot follow it here" ])
+
       golden(
         "match x with | Ok(v) as r | Error(v) as r -> r",
         [ "'as' names the whole or-pattern before it, so a '|' cannot follow it" ])
+
       golden(
         "match x with | a as -> a",
         [ "expected a lowercase name after 'as', found '->'" ])
+
       golden(
         "match x with | (a, b as t) -> t",
         [ "'as' after a tuple's last element is ambiguous" ])
+
       // one diagnostic per invalid tuple index
-      golden("t.1s8", [ "expected a tuple element number after '.', found '1s8'" ])
+      golden(
+        "t.1s8",
+        [ "expected a tuple element number after '.', found '1s8'" ])
+
       golden(
         "t.1e0 + 1",
         [ "expected a tuple element number after '.', found '1e0'" ])
+
       golden(
         "t.1.2e3",
         [ "expected a tuple element number after '.', found '1.2e3'" ])
+
       // the lexer's error, without a parser error on top
       golden("t.1.2s8", [ "invalid number literal: 1.2s8" ])
-      golden("200L", [ "invalid number literal: 200L; an Int64 is written `200`" ])
+
+      golden(
+        "200L",
+        [ "invalid number literal: 200L; an Int64 is written `200`" ])
+
       golden("t.300s8", [ "out of range for Int8: 300s8" ])
+
       golden(
         "[1; 2; 3]",
         [ "expected ',' between list elements, found ';'"
           "expected ',' between list elements, found ';'" ])
+
       golden(
         "match x with | [a; b] -> a",
         [ "expected ',' between list-pattern elements, found ';'" ])
+
       golden(
         "Point { x = 1; y = 2 }",
         [ "expected ',' between record fields, found ';'" ])
+
       golden(
         "Dict { 1: 2; 3: 4 }",
         [ "expected ',' between dict entries, found ';'" ])
+
       golden(
         "{ p with x = 1; y = 2 }",
         [ "expected ',' between record-update fields, found ';'" ])
+
       golden(
         "type P = { x: Int64; y: Int64 }",
         [ "expected ',' between record-type fields, found ';'" ])
+
       // only a newline separates statements: in a body, in parens, at top level
       golden(
         "let f(): Unit =\n  print(1); print(2)",
         [ "expected a new line between statements, found ';'" ])
+
       golden(
         "(print(1); print(2))",
         [ "expected a new line between statements, found ';'" ])
+
       golden(
         "print(1); print(2)",
         [ "expected a new line between statements, found ';'" ])
-      golden("let x : String = 1 in x", [ "Value annotations are not supported" ])
+
+      golden(
+        "let x : String = 1 in x",
+        [ "Value annotations are not supported" ])
+
       golden("val x : String = 1", [ "Value annotations are not supported" ]) ])
+
 
 // A malformed lexeme gets a diagnostic, never a silent success and never a throw.
 test lexicalFailures =
@@ -187,6 +243,7 @@ test lexicalFailures =
       clean("$\"{\"\"\" } \"\"\"}\"")
       clean("$\"a{ 1 }b\"") ])
 
+
 test charLiteralsHoldOneCharacter =
   Stdlib.Test.all(
     [ clean("'q́'")
@@ -194,6 +251,7 @@ test charLiteralsHoldOneCharacter =
       clean("'🇵🇱'")
       clean("'\\u0061\\u0301'")
       says("'\\u0061\\u0062'", "exactly one grapheme") ])
+
 
 test operatorsDarkLacksSayWhatToWrite =
   Stdlib.Test.all(
@@ -209,25 +267,31 @@ test operatorsDarkLacksSayWhatToWrite =
       says("match xs with | [h, ...[t]] -> h", "takes a name for the rest")
       says("match xs with | [...t] -> t", "write `t`") ])
 
+
 // `rec` is reported once, and the function after it parses as written.
 test letRecSaysRecursionNeedsNoKeyword =
   Stdlib.Test.all(
     [ golden(
         "let rec go(n: Int64): Int64 = if n <= 0 then 0 else go(n - 1)\ngo(3)",
         [ "Dark functions can call themselves; there's no `rec` keyword" ])
+
       golden(
         "let f(n: Int64): Int64 =\n  let rec go(k: Int64): Int64 = k\n  go(n)\nf(1)",
         [ "Dark functions can call themselves; there's no `rec` keyword" ])
+
       clean("let rec = 1\nrec") ])
+
 
 test builtinTypeNamesAreRefused =
   Stdlib.Test.all(
     [ golden(
         "type Unit =\n  | Celsius\n  | Fahrenheit\n1",
         [ "`Unit` is a built-in type, so it can't also name a type of your own" ])
+
       says("type String = { s: Int64 }\n1", "is a built-in type")
       says("module M =\n  type List = | A\n1", "is a built-in type")
       clean("type TempUnit =\n  | Celsius\n  | Fahrenheit\n1") ])
+
 
 // The refused operator is the only mistake reported: the parse reads on past it.
 test operatorsDarkLacksDoNotCascade =
@@ -235,11 +299,16 @@ test operatorsDarkLacksDoNotCascade =
     [ golden(
         "match xs with\n| h :: t -> h\n| [] -> 0",
         [ "'::' is not Dark; a list is `[head, ...tail]`" ])
+
       golden(
         "Stdlib.printLine(\"n = \" ++ s ++ \"!\")",
         [ "'++' is not Dark; join Strings with `+`"
           "'++' is not Dark; join Strings with `+`" ])
-      golden("[1] @ [2]", [ "'@' is not Dark; join lists with `[...a, ...b]`" ]) ])
+
+      golden(
+        "[1] @ [2]",
+        [ "'@' is not Dark; join lists with `[...a, ...b]`" ]) ])
+
 
 test sameLineItemsNeedSeparators =
   Stdlib.Test.all(
@@ -262,14 +331,20 @@ test sameLineItemsNeedSeparators =
       clean("Person { a = 1, b = 2, }")
       clean("let f(): Unit =\n  print(1)\n  print(2)") ])
 
+
 test identifiersAndModifiers =
   Stdlib.Test.all(
     [ clean("def")
       // rec, private and internal are identifiers, not let modifiers
       rejects("module M =\n  let rec f (x: Int64) : Int64 = x")
+
       rejects("module M =\n  let private f (x: Int64) : Int64 = x")
+
       rejects("module M =\n  let internal f (x: Int64) : Int64 = x")
-      rejects("if true then let private f (x: Int64) : Int64 = x in f(1) else 0")
+
+      rejects(
+        "if true then let private f (x: Int64) : Int64 = x in f(1) else 0")
+
       clean("let rec = 1 in rec")
       clean("let private = 1 in private")
       clean("let internal = 1 in internal")
@@ -277,28 +352,36 @@ test identifiersAndModifiers =
       says(
         "let f(___: Int64, x: Int64): Int64 = x",
         "Blank parameter '___' is not allowed")
+
       clean("let f(): Unit = ()")
       clean("fun ___ -> 1")
       // `val` declares a value, so it takes no parameters
       says(
         "val f (x: Int64) : Int64 = x",
         "'val' declares a value and cannot have function parameters")
+
       // private names keep their role
       clean("let __make () : __Buffer = __Buffer { size = 0 }")
+
       clean("let __make () : M.__Buffer = M.__Buffer { size = 0 }")
+
       clean(
         "let __make () : M.__Internal.__Buffer = M.__Internal.__Buffer { size = 0 }")
+
       clean("__make(buffer.size)") ])
+
 
 test emptyAndMalformedForms =
   Stdlib.Test.all(
     [ // recovery still reports what it recovered from
       rejects("[1 + , 2 * ]")
+
       rejects(
         "module Test\n"
         + "let broken1 (x: Int64) : Int64 =\n  x + \n\n"
         + "let broken2 () : Int64 =\n  [1, 2\n\n"
         + "let fine (y: Int64) : Int64 =\n  y * 2\n")
+
       rejects("{ x with }")
       clean("{ r with f = 1 }")
       rejects("type X = {}")
@@ -325,18 +408,22 @@ test emptyAndMalformedForms =
       clean("match x with | -128s8 -> 1 | _ -> 2")
       clean("match x with | Ok(5s8) -> 1 | Ok(-4s8) -> 2 | _ -> 3") ])
 
+
 test recoveryStopsAtEndOfFile =
   let found = messages("let x =")
   Stdlib.Test.all(
     [ Stdlib.Test.expect(
         Stdlib.Bool.not(Stdlib.List.isEmpty(found)),
         "reports the error")
+
       Stdlib.Test.expect(
         Stdlib.List.length(found) <= 3,
         $"does not spam: {Stdlib.inspect(found)}")
+
       // a broken generic leaves nothing behind for the next parse
       rejects("type X = List<List<Int64")
       clean("type Y = List<Int64>") ])
+
 
 test genericSyntaxIsExplicit =
   Stdlib.Test.all(
@@ -352,6 +439,7 @@ test genericSyntaxIsExplicit =
       rejects("type Box = Dict < String >")
       rejects("type Box = Stdlib.Option.Option < Int64 >") ])
 
+
 test callSyntax =
   Stdlib.Test.all(
     [ clean("f (1, 2)")
@@ -362,18 +450,26 @@ test callSyntax =
       rejects("x |> (+) 1")
       // a constructor's fields go in parentheses
       clean("Ok(5)")
+
       clean("Ok (5)")
+
       clean("None")
+
       clean("match x with | Ok(v) -> v | Pair(a, b) -> a | None -> 0")
+
       // a declaration lists its parameters once
       clean("let f(): Int64 = 1")
+
       clean("let f(\n  a: Int64,\n  b: Int64\n): Int64 = a")
+
       clean(
         "let outer(n: Int64): Int64 =\n"
         + "  let double(x: Int64, y: Int64): Int64 = x + y\n"
         + "  double(n, n)")
+
       // an argument list in a type needs an arrow after it
       rejects("let f(g: (Int64, Int64)): Int64 = 1") ])
+
 
 test unwrapSpelling =
   Stdlib.Test.all(
@@ -391,10 +487,12 @@ test unwrapSpelling =
       says("fun x -> Some(x) ?", "directly after its operand")
       says("fun x ->\n  let n = x ?\n  n", "directly after its operand") ])
 
+
 test effectRows =
   Stdlib.Test.all(
     [ rejectsPackage("module M =\n  let f(x: Int64):{Http, Clock} Int64 = x")
       rejectsPackage("module M =\n  let f(x: Int64):{} Int64 = x") ])
+
 
 test traitDeclarations =
   Stdlib.Test.all(
@@ -402,68 +500,102 @@ test traitDeclarations =
       clean("trait Fun<'f> =\n  let map<'b>(v: 'f): 'b")
       // an alias member names a fn, so a lambda is not one
       rejects("impl Show for Point =\n  let show = fun p -> \"p\"")
-      rejects("impl Show for Point =\n  val x = 1\nlet after (x: Int64) : Int64 = x") ])
+
+      rejects(
+        "impl Show for Point =\n  val x = 1\nlet after (x: Int64) : Int64 = x") ])
+
 
 // Named tests are package declarations. These use the Package kind, since a
 // Script adds its own diagnostic for any test and would hide a missing one.
 test namedTests =
   Stdlib.Test.all(
     [ cleanPackage("module M =\n  test doubles = Stdlib.Test.equal(8, 8)")
+
       cleanPackage(
         "module M =\n  test divisionByZero =\n    1 / 0\n"
         + "    => raises \"Cannot divide by 0\"")
+
       cleanPackage(
         "module M =\n"
         + "  test callsRaises = 1 |> raises(\"message\") |> Stdlib.Test.equal(1)")
+
       clean("let test = 1 in test")
       // tests use existing policies instead of declaring effect ceilings
       rejectsPackage("module M =\n  test key :{Random} = Stdlib.Test.pass ()")
+
       rejectsPackage("module M =\n  test key :{} = Stdlib.Test.pass ()")
-      rejectsPackage("module M =\n  test key :{NoSuchEffect} = Stdlib.Test.pass ()")
+
+      rejectsPackage(
+        "module M =\n  test key :{NoSuchEffect} = Stdlib.Test.pass ()")
+
       // the old header form is gone
       rejectsPackage(
         "module M =\n"
         + "  test divisionByZero raises \"Cannot divide by 0\" = 1 / 0")
+
       // a script refuses a named test
       cleanPackage("test passes = true")
       messages("test passes = true")
       |> Stdlib.Test.equal(
         [ "Named package tests are only allowed in package files" ]) ])
 
+
 // At a package root, a `let` value gets one focused diagnostic rather than an
 // end-of-file cascade.
 test packageRootLetValue =
   messagesIn(
-    Darklang.LanguageTools.Parser.FileKind.Package,
+    LanguageTools.Parser.FileKind.Package,
     "let chars = \"abc\"\n\nlet length(s: String): Int64 = Stdlib.String.length(s)")
   |> Stdlib.Test.equal(
     [ "Module value declarations must use 'val'; 'let' is reserved for functions and local bindings" ])
 
+
 // A keyword where a name goes says how to escape it, and is then read as that name,
 // so the rest parses and it is the only error.
 test keywordAsName =
-  let escape = fun word -> $"{word} is a keyword, so to use it as a name write `{word}`"
+  let escape = fun word ->
+    $"{word} is a keyword, so to use it as a name write `{word}`"
+
   let only = fun(source, what, word) ->
-    golden(source, [ "expected " + what + ", found '" + word + "'; " + escape(word) ])
+    golden(
+      source,
+      [ "expected " + what + ", found '" + word + "'; " + escape(word) ])
+
   Stdlib.Test.all(
     [ only("let match = \"x\"\nx", "a pattern", "match")
       only("let type = \"x\"\nx", "a pattern", "type")
       only("Stdlib.List.map([\"x\"], fun type -> \"y\")", "a pattern", "type")
       only("match \"x\" with\n| type -> 1", "a pattern", "type")
       says("let f(in: String): String = in", escape("in"))
-      says("type E =\n  | when", "an enum case name starts with an uppercase letter, found 'when'")
-      golden("type E = | foo", [ "an enum case name starts with an uppercase letter, found 'foo'" ])
+
+      says(
+        "type E =\n  | when",
+        "an enum case name starts with an uppercase letter, found 'when'")
+
+      golden(
+        "type E = | foo",
+        [ "an enum case name starts with an uppercase letter, found 'foo'" ])
+
       golden("type E = |", [ "an enum type needs at least one case" ])
+
       // a dot left at the end of a line is a name still being typed, not a keyword field
-      golden("let a = r.\nlet b = \"x\"\nb", [ "expected an expression, found '.'" ])
-      golden("let a = Stdlib.String.\nlet b = \"x\"\nb", [ "expected an expression, found '.'" ])
+      golden(
+        "let a = r.\nlet b = \"x\"\nb",
+        [ "expected an expression, found '.'" ])
+
+      golden(
+        "let a = Stdlib.String.\nlet b = \"x\"\nb",
+        [ "expected an expression, found '.'" ])
+
       // a keyword starting the next line is the next statement, after a missing name
       Stdlib.Test.expect(
         messages("let\nlet x = \"x\"\nx")
         |> Stdlib.List.any(fun m -> Stdlib.String.contains(m, "is a keyword"))
         |> Stdlib.Bool.not,
         "a missing name before the next line's `let` gets no keyword hint")
+
       clean("let `match` = \"x\"\n`match`") ])
+
 
 // Where only a name can go, a keyword is a name without backticks.
 test keywordWhereOnlyANameGoes =
@@ -475,6 +607,7 @@ test keywordWhereOnlyANameGoes =
       clean("R { type = \"post\" }")
       clean("{ r with type = \"post\" }")
       clean("match r with\n| { type = t } -> t") ])
+
 
 // A name in backticks can't hold spaces, wherever it is.
 test spacedName =

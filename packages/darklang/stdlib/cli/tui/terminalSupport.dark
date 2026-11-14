@@ -1,7 +1,6 @@
 /// Decide whether a terminal can run an interactive TUI.
 module Darklang.Stdlib.Cli.Tui.TerminalSupport
 
-
 /// Terminal facts.
 type Facts =
   { inputIsTerminal: Bool
@@ -22,12 +21,12 @@ type Availability =
 let evaluate(facts: Facts): Availability =
   let terminalName =
     facts.terminalName
-    |> Stdlib.String.trim
-    |> Stdlib.String.toLowercase
+    |> String.trim
+    |> String.toLowercase
 
-  if Stdlib.Bool.not(facts.inputIsTerminal) then
+  if Bool.not(facts.inputIsTerminal) then
     Availability.Unavailable("standard input is not a terminal")
-  else if Stdlib.Bool.not(facts.outputIsTerminal) then
+  else if Bool.not(facts.outputIsTerminal) then
     Availability.Unavailable("standard output is not a terminal")
   else if terminalName == "" then
     Availability.Unavailable("TERM is not set")
@@ -40,17 +39,16 @@ let evaluate(facts: Facts): Availability =
 
 /// Read the current terminal facts.
 let currentFacts(): Facts =
-  Facts {
-    inputIsTerminal = Stdlib.Cli.Sys.isTerminal(0)
-    outputIsTerminal = Stdlib.Cli.Sys.isTerminal(1)
-    terminalName = Stdlib.Option.withDefault(Stdlib.Cli.Env.get("TERM"), "")
-  }
+  Facts
+    { inputIsTerminal = Sys.isTerminal(0)
+      outputIsTerminal = Sys.isTerminal(1)
+      terminalName = Option.withDefault(Env.get("TERM"), "") }
 
 
 /// Check whether an interactive TUI may start in the current terminal. Not refused under `CI`:
 /// tests drive a TUI on CI's pty with scripted keys.
 let current(): Availability =
-  if Stdlib.Cli.Env.isOn("DARK_NO_INPUT") then
+  if Env.isOn("DARK_NO_INPUT") then
     Availability.Unavailable("nobody is at the keyboard (DARK_NO_INPUT or --no-input is set)")
   else
     evaluate(currentFacts())

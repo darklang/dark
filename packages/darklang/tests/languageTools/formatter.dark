@@ -28,14 +28,17 @@ let area(s: Shape): Int64 =
 """
 
 
-let formattedComments(source: String): Stdlib.Result.Result<List<String>, String> =
+let formattedComments(
+  source: String)
+  : Stdlib.Result.Result<List<String>, String> =
   LanguageTools.Formatter.source(SCM.Branch.mainBranchId, 100, source)
   |> Stdlib.Result.map(fun f -> LanguageTools.Formatter.commentTexts(f.text))
 
 
 test keepsEveryCommentInOrder =
   formattedComments(commented)
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(LanguageTools.Formatter.commentTexts(commented)))
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Ok(LanguageTools.Formatter.commentTexts(commented)))
 
 
 test findsTheComments =
@@ -65,7 +68,8 @@ let area(s: Shape): Int64 =
 test keepsDocCommentsNothingStores =
   LanguageTools.Formatter.source(SCM.Branch.mainBranchId, 100, unstoredDocs)
   |> Stdlib.Result.map(fun f -> LanguageTools.Formatter.docLines(f.text))
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "/// the width", "/// the area of a box" ]))
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Ok([ "/// the width", "/// the area of a box" ]))
 
 
 // What lowering doesn't keep comes back as written: a spread, an escape, a float's exponent.

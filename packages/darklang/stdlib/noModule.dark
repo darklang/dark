@@ -1,14 +1,17 @@
 module Darklang.Stdlib
 
-
 /// Returns true if the two value are equal
-let equals(a: 'a, b: 'a): Bool = a == b
+let equals(a: 'a, b: 'a): Bool =
+  a == b
 
 
 /// Returns true if the two value are not equal
-let notEquals(a: 'a, b: 'a): Bool = Builtin.notEquals(a, b)
+let notEquals(a: 'a, b: 'a): Bool =
+  Builtin.notEquals(a, b)
+
 
 /// <param value> for a developer or an agent: its structure, with quotes on strings, as in
 /// `Some("a")`. Works on every value; a type with an <type Inspect> impl shows itself its own
 /// way. <fn Stdlib.display> is the text for a person.
-let inspect(value: 'a): String = Builtin.toRepr(value)
+let inspect(value: 'a): String =
+  Builtin.toRepr(value)

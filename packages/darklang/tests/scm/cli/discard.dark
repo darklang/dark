@@ -2,20 +2,26 @@
 /// The helpers are in `helpers.dark`.
 module Darklang.SCM.Tests.Cli
 
-
 test discardThrowsAwayTheWholeDraft =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.a", "1")
       commit(dark, "base")
-
       saveNumber(dark, "Tests.App.a", "2")
       saveNumber(dark, "Tests.App.b", "3")
       draftIsNotEmpty(dark, "two saves are in the draft")
-
       run(dark, [ "discard", "-y" ])
       draftIsEmpty(dark, "discard empties the draft")
-      evals(dark, "Tests.App.a()", "1", "an edited name is back on its committed version")
-      notFound(dark, "Tests.App.b()", "a name that was only in the draft is gone")
+      evals(
+        dark,
+        "Tests.App.a()",
+        "1",
+        "an edited name is back on its committed version")
+
+      notFound(
+        dark,
+        "Tests.App.b()",
+        "a name that was only in the draft is gone")
+
       same(commits(dark), [ "base" ], "history is untouched") ])
 
 
@@ -24,11 +30,13 @@ test discardOnABranchLeavesMainsDraftAlone =
     [ saveNumber(dark, "Tests.App.onMain", "1")
       switch(dark, "feat")
       saveNumber(dark, "Tests.App.onFeat", "2")
-
       run(dark, [ "discard", "-y" ])
       draftIsEmpty(dark, "the branch's draft is gone")
       notFound(dark, "Tests.App.onFeat()", "and so is what it held")
-      same(draftOn(dark, "main"), [ "new Tests.App.onMain" ], "main's draft is still there") ])
+      same(
+        draftOn(dark, "main"),
+        [ "new Tests.App.onMain" ],
+        "main's draft is still there") ])
 
 
 // Odd, but today's behaviour: discarding a name leaves its caller's follow in the draft, so the
@@ -40,7 +48,6 @@ test discardingANameLeavesItsCallerOnTheDiscardedVersion =
       commit(dark, "base")
       saveNumber(dark, "Tests.App.helper", "2")
       commit(dark, "edit")
-
       run(dark, [ "undo", "Tests.App.helper" ])
       evals(dark, "Tests.App.helper()", "1", "undo stepped the helper back")
       evals(dark, "Tests.App.caller()", "11", "and the caller followed it")
@@ -54,10 +61,28 @@ test discardingANameLeavesItsCallerOnTheDiscardedVersion =
         [ "discard", "Tests.App.helper", "-y" ],
         "dropped Tests.App.helper",
         "discard names what it dropped")
-      evals(dark, "Tests.App.helper()", "2", "the helper is back on its committed version")
-      same(draft(dark), [ "followed Tests.App.caller" ], "the caller's follow is still in the draft")
-      evals(dark, "Tests.App.caller()", "11", "so the caller still runs the discarded version")
-      same(staleCallers(dark), 1, "and status counts it as pointing at an old version") ])
+
+      evals(
+        dark,
+        "Tests.App.helper()",
+        "2",
+        "the helper is back on its committed version")
+
+      same(
+        draft(dark),
+        [ "followed Tests.App.caller" ],
+        "the caller's follow is still in the draft")
+
+      evals(
+        dark,
+        "Tests.App.caller()",
+        "11",
+        "so the caller still runs the discarded version")
+
+      same(
+        staleCallers(dark),
+        1,
+        "and status counts it as pointing at an old version") ])
 
 
 // The same on a branch, followed by archiving the branch: archiving throws the stale follow
@@ -67,7 +92,6 @@ test discardOnABranchThenArchiveLeavesMainUntouched =
     [ saveNumber(dark, "Tests.App.helper", "1")
       save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 10")
       commit(dark, "base")
-
       switch(dark, "feat")
       saveNumber(dark, "Tests.App.helper", "2")
       says(
@@ -75,15 +99,38 @@ test discardOnABranchThenArchiveLeavesMainUntouched =
         [ "discard", "Tests.App.helper", "-y" ],
         "dropped Tests.App.helper from your draft",
         "discard names what it dropped")
-      evals(dark, "Tests.App.helper()", "1", "the helper is back to main's version")
-      evals(dark, "Tests.App.caller()", "12", "but the caller still runs the discarded one")
-      same(draft(dark), [ "followed Tests.App.caller" ], "because its follow stayed in the draft")
-      same(staleCallers(dark), 1, "which status counts as pointing at an old version")
+
+      evals(
+        dark,
+        "Tests.App.helper()",
+        "1",
+        "the helper is back to main's version")
+
+      evals(
+        dark,
+        "Tests.App.caller()",
+        "12",
+        "but the caller still runs the discarded one")
+
+      same(
+        draft(dark),
+        [ "followed Tests.App.caller" ],
+        "because its follow stayed in the draft")
+
+      same(
+        staleCallers(dark),
+        1,
+        "which status counts as pointing at an old version")
 
       saveNumber(dark, "Tests.App.helper", "3")
       commit(dark, "feat work")
       switch(dark, "main")
-      says(dark, [ "branch", "archive", "feat", "-y" ], "archived branch \"feat\"", "archive says so")
+      says(
+        dark,
+        [ "branch", "archive", "feat", "-y" ],
+        "archived branch \"feat\"",
+        "archive says so")
+
       evals(dark, "Tests.App.helper()", "1", "main's helper is untouched")
       evals(dark, "Tests.App.caller()", "11", "and so is main's caller")
       draftIsEmpty(dark, "main's draft is empty")
@@ -98,14 +145,17 @@ test discardAfterAnUndoAndARenameGoesBackToTheCommittedVersion =
     [ saveNumber(dark, "Tests.App.f", "1")
       saveNumber(dark, "Tests.App.other", "5")
       commit(dark, "base")
-
       saveNumber(dark, "Tests.App.f", "2")
       saveNumber(dark, "Tests.App.f", "3")
       run(dark, [ "undo", "Tests.App.f" ])
       evals(dark, "Tests.App.f()", "2", "undo stepped f back one edit")
       run(dark, [ "rename", "Tests.App.other", "Tests.App.renamed" ])
-
       run(dark, [ "discard", "-y" ])
       draftIsEmpty(dark, "discard empties the draft")
-      evals(dark, "Tests.App.f()", "1", "f is on its committed version, not the restored one")
+      evals(
+        dark,
+        "Tests.App.f()",
+        "1",
+        "f is on its committed version, not the restored one")
+
       evals(dark, "Tests.App.other()", "5", "and the rename is gone too") ])

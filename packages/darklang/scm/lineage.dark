@@ -13,7 +13,6 @@
 /// drawn when both sides of a comparison say it, which is why the weaker reading is safe.
 module Darklang.SCM.Lineage
 
-
 /// The hash currently bound at `location` for `kind` on the PARENT of the branch being authored on (on
 /// main, main itself), if anything is.
 ///
@@ -23,13 +22,13 @@ let currentlyBound(
   parent: Uuid,
   location: LanguageTools.ProgramTypes.PackageLocation,
   kind: LanguageTools.ProgramTypes.ItemKind)
-  : Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash> =
-  SCM.PackageOps.liveBindingFor(parent, location)
+  : Option<LanguageTools.ProgramTypes.Hash> =
+  PackageOps.liveBindingFor(parent, location)
   |> Stdlib.Option.andThen(fun b ->
     if b.itemType == LanguageTools.ProgramTypes.ItemKind.toString(kind) then
-      Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Hash.Hash(b.hash))
+      Option.Some(LanguageTools.ProgramTypes.Hash.Hash(b.hash))
     else
-      Stdlib.Option.Option.None)
+      Option.None)
 
 
 /// Fill in `previous` on every SetName in `ops` that does not already carry one.
@@ -49,26 +48,23 @@ let recordPrevious(
   ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : List<LanguageTools.ProgramTypes.PackageOp> =
   let parent =
-    if SCM.Branch.isMain(branchId) then
+    if Branch.isMain(branchId) then
       branchId
     else
-      SCM.PackageOps.branchParentOf(branchId)
+      PackageOps.branchParentOf(branchId)
 
   ops
   |> Stdlib.List.map(fun op ->
     match op with
     | SetName(location, target, None) ->
       let previous =
-        currentlyBound(
-          parent,
-          location,
-          LanguageTools.ProgramTypes.Reference.kind(target))
+        currentlyBound(parent, location, LanguageTools.ProgramTypes.Reference.kind(target))
 
       LanguageTools.ProgramTypes.PackageOp.SetName(location, target, previous)
     // Same for an unbind: what it removes is what is live at the name on this branch, whatever kind.
     | Unbind(location, None) ->
       let previous =
-        SCM.PackageOps.liveBindingFor(branchId, location)
+        PackageOps.liveBindingFor(branchId, location)
         |> Stdlib.Option.map(fun b -> LanguageTools.ProgramTypes.Hash.Hash(b.hash))
 
       LanguageTools.ProgramTypes.PackageOp.Unbind(location, previous)

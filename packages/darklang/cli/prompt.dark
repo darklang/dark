@@ -3,19 +3,19 @@ module Darklang.Cli.Prompt
 /// Ask a yes/no question. Only `y` is yes: an empty answer, end of input, an answer that is not
 /// UTF-8, and nobody being able to answer are all no, and every caller exits 1 on a no. {{Confirm.Assume}} (`-y`) skips the
 /// question.
-let confirmExplicit(confirm: Cli.Confirm, question: String): Bool =
+let confirmExplicit(confirm: Confirm, question: String): Bool =
   match confirm with
   | Assume -> true
   | Ask ->
-  if Stdlib.Bool.not(Stdlib.Cli.UI.Prompt.canAsk()) then
-    false
-  else
-    Stdlib.printErrorLine(question)
-    match Stdlib.Cli.Stdin.checkedReadLine() with
-    | Ok(Some(typed)) ->
-      let response = Stdlib.String.trim(typed)
-      (response == "y") || (response == "Y")
-    | _ -> false
+    if Stdlib.Bool.not(Stdlib.Cli.UI.Prompt.canAsk()) then
+      false
+    else
+      Stdlib.printErrorLine(question)
+      match Stdlib.Cli.Stdin.checkedReadLine() with
+      | Ok(Some(typed)) ->
+        let response = Stdlib.String.trim(typed)
+        response == "y" || response == "Y"
+      | _ -> false
 
 
 /// State for prompt-specific fields (text, cursor, history)
@@ -26,13 +26,9 @@ type State =
     historyIndex: Int64
     savedPrompt: String }
 
+
 let initState(): State =
-  State
-    { text = ""
-      cursorPosition = 0
-      commandHistory = []
-      historyIndex = -1
-      savedPrompt = "" }
+  State { text = "", cursorPosition = 0, commandHistory = [], historyIndex = -1, savedPrompt = "" }
 
 
 module Editing =
@@ -43,9 +39,10 @@ module Editing =
     let newText = beforeCursor + char + afterCursor
     { state with
         text = newText
-        cursorPosition = state.cursorPosition + (Stdlib.String.length(char))
+        cursorPosition = state.cursorPosition + Stdlib.String.length(char)
         historyIndex = -1
         savedPrompt = "" }
+
 
   /// Delete character before cursor (backspace)
   let deleteBeforeCursor(state: State): State =
@@ -53,17 +50,14 @@ module Editing =
       let beforeCursor = Stdlib.String.slice(state.text, 0, state.cursorPosition - 1)
       let afterCursor = Stdlib.String.dropFirst(state.text, state.cursorPosition)
       let newText = beforeCursor + afterCursor
-      { state with
-          text = newText
-          cursorPosition = state.cursorPosition - 1
-          historyIndex = -1 }
+      { state with text = newText, cursorPosition = state.cursorPosition - 1, historyIndex = -1 }
     else
       state
+
 
   /// Delete character at cursor (delete key)
   let deleteAtCursor(state: State): State =
     let textLength = Stdlib.String.length(state.text)
-
     if state.cursorPosition < textLength then
       let beforeCursor = Stdlib.String.slice(state.text, 0, state.cursorPosition)
       let afterCursor = Stdlib.String.dropFirst(state.text, state.cursorPosition + 1)
@@ -72,10 +66,12 @@ module Editing =
     else
       state
 
+
   /// Move cursor left
   let moveCursorLeft(state: State): State =
     let newCursorPos = Stdlib.max(0, state.cursorPosition - 1)
     { state with cursorPosition = newCursorPos }
+
 
   /// Move cursor right
   let moveCursorRight(state: State): State =
@@ -83,21 +79,22 @@ module Editing =
     let newCursorPos = Stdlib.min(textLength, state.cursorPosition + 1)
     { state with cursorPosition = newCursorPos }
 
+
   /// Move cursor to start of line
   let moveCursorHome(state: State): State =
     { state with cursorPosition = 0 }
+
 
   /// Move cursor to end of line
   let moveCursorEnd(state: State): State =
     let textLength = Stdlib.String.length(state.text)
     { state with cursorPosition = textLength }
 
+
   /// Clear the prompt text
   let clear(state: State): State =
-    { state with
-        text = ""
-        cursorPosition = 0
-        historyIndex = -1 }
+    { state with text = "", cursorPosition = 0, historyIndex = -1 }
+
 
   /// Set the prompt text and move cursor to end
   let setText(state: State, text: String): State =
@@ -109,13 +106,16 @@ module History =
   /// Add command to history (avoiding duplicates at the front)
   let addCommand(state: State, command: String): State =
     let updatedHistory =
-      if Stdlib.List.isEmpty(state.commandHistory) || Stdlib.List.head(state.commandHistory) != Stdlib.Option.Option.Some(command) then
+      if
+        Stdlib.List.isEmpty(state.commandHistory)
+        || Stdlib.List.head(state.commandHistory) != Option.Some(command)
+      then
         Stdlib.List.prepend(state.commandHistory, command)
       else
         state.commandHistory
-    { state with
-        commandHistory = updatedHistory
-        historyIndex = -1 }
+
+    { state with commandHistory = updatedHistory, historyIndex = -1 }
+
 
   /// Navigate to previous command in history
   let navigatePrevious(state: State): State =
@@ -124,37 +124,29 @@ module History =
       let newIndex =
         if state.historyIndex == -1 then
           0  // Start from the most recent command
+        else if state.historyIndex < historyLength - 1 then
+          state.historyIndex + 1
         else
-          if state.historyIndex < (historyLength - 1) then
-            state.historyIndex + 1
-          else
-            state.historyIndex  // Stay at oldest command
+          state.historyIndex  // Stay at oldest command
+
       match Stdlib.List.getAt(state.commandHistory, newIndex) with
       | Some(command) ->
         let commandLength = Stdlib.String.length(command)
-        let newSavedPrompt =
-          if state.historyIndex == -1 then
-            state.text
-          else
-            state.savedPrompt
+        let newSavedPrompt = if state.historyIndex == -1 then state.text else state.savedPrompt
         { state with
             text = command
             cursorPosition = commandLength
             historyIndex = newIndex
             savedPrompt = newSavedPrompt }
-      | None ->
-        state
+      | None -> state
     else
       state
+
 
   /// Navigate to next command in history
   let navigateNext(state: State): State =
     if Stdlib.Bool.not(Stdlib.List.isEmpty(state.commandHistory)) && state.historyIndex >= 0 then
-      let newIndex =
-        if state.historyIndex > 0 then
-          state.historyIndex - 1
-        else
-          -1  // Go back to empty prompt
+      let newIndex = if state.historyIndex > 0 then state.historyIndex - 1 else -1  // Go back to empty prompt
       if newIndex == -1 then
         let restoredPromptLength = Stdlib.String.length(state.savedPrompt)
         { state with
@@ -165,12 +157,8 @@ module History =
         match Stdlib.List.getAt(state.commandHistory, newIndex) with
         | Some(command) ->
           let commandLength = Stdlib.String.length(command)
-          { state with
-              text = command
-              cursorPosition = commandLength
-              historyIndex = newIndex }
-        | None ->
-          state
+          { state with text = command, cursorPosition = commandLength, historyIndex = newIndex }
+        | None -> state
     else
       state
 
@@ -181,6 +169,7 @@ module Display =
       "> "
     else
       Stdlib.Cli.UI.Colors.dimText($"{locationStr} ") + "> "
+
 
   /// Build the complete prompt region and Unicode-correct logical cursor.
   ///
@@ -194,21 +183,20 @@ module Display =
     let width = Stdlib.max(1, size.width)
     let beforeCursor =
       styledPrefix(locationStr) + Stdlib.String.slice(state.text, 0, state.cursorPosition)
+
     let rest = Stdlib.String.dropFirst(state.text, state.cursorPosition)
     let afterCursor =
-      if Stdlib.String.isEmpty(hint) then rest else rest + (Stdlib.Cli.UI.Colors.hint(hint))
+      if Stdlib.String.isEmpty(hint) then
+        rest
+      else
+        rest + Stdlib.Cli.UI.Colors.hint(hint)
+
     let (wrapped, cursorRow, cursorColumn) =
       Stdlib.Cli.Tui.Text.wrapWithCursor(beforeCursor, afterCursor, width)
-    let requiredHeight =
-      Stdlib.max(
-        Stdlib.List.length(wrapped),
-        cursorRow + 1)
-    let rows =
-      Stdlib.Cli.Tui.Layout.fitRows(requiredHeight, wrapped)
 
-    Stdlib.Cli.Tui.View {
-      rows = rows
-      cursor =
-        Stdlib.Cli.Tui.Cursor.Visible(cursorRow, cursorColumn)
-      mode = Stdlib.Cli.Tui.ViewMode.Inline
-    }
+    let requiredHeight = Stdlib.max(Stdlib.List.length(wrapped), cursorRow + 1)
+    let rows = Stdlib.Cli.Tui.Layout.fitRows(requiredHeight, wrapped)
+    Stdlib.Cli.Tui.View
+      { rows = rows
+        cursor = Stdlib.Cli.Tui.Cursor.Visible(cursorRow, cursorColumn)
+        mode = Stdlib.Cli.Tui.ViewMode.Inline }

@@ -1,24 +1,15 @@
 module Darklang.Stdlib.Cli.UI.Progress
 
-
 /// Print a progress bar.
 /// current: current progress value
 /// total: total value
 /// label: text to show after the bar
 let bar(current: Int64, total: Int64, label: String): Unit =
   let width = 30
-
-  let filled = Stdlib.Int64.checkedDivide(current * width, total) |> Stdlib.Result.withDefault(0)
-
+  let filled = Int64.checkedDivide(current * width, total) |> Result.withDefault(0)
   let empty = width - filled
-
-  let filledStr = (Stdlib.String.checkedRepeat("#", filled) |> Stdlib.Result.withDefault(""))
-  let emptyStr = (Stdlib.String.checkedRepeat("-", empty) |> Stdlib.Result.withDefault(""))
-
-  let pct = Stdlib.Int64.checkedDivide(current * 100, total) |> Stdlib.Result.withDefault(0)
-
-  Stdlib.print(
-    $"\r[{filledStr}{emptyStr}] {Stdlib.display(pct)}% {label}")
-
-  if current >= total then Stdlib.printLine("")
-  else ()
+  let filledStr = String.checkedRepeat("#", filled) |> Result.withDefault("")
+  let emptyStr = String.checkedRepeat("-", empty) |> Result.withDefault("")
+  let pct = Int64.checkedDivide(current * 100, total) |> Result.withDefault(0)
+  print($"\r[{filledStr}{emptyStr}] {display(pct)}% {label}")
+  if current >= total then printLine("") else ()

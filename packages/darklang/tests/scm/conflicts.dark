@@ -7,8 +7,8 @@ module Darklang.SCM.Tests.Conflicts
 // false alarm the detector must not raise, and a detector that flags everything is worse than none.
 
 module Helpers =
-  let binding(name: String, hash: String, ts: String): Darklang.SCM.Conflicts.Binding =
-    Darklang.SCM.Conflicts.Binding
+  let binding(name: String, hash: String, ts: String): SCM.Conflicts.Binding =
+    SCM.Conflicts.Binding
       { owner = "Zz"
         modules = "W"
         name = name
@@ -18,15 +18,15 @@ module Helpers =
         author = ""
         previous = Stdlib.Option.Option.None }
 
-  /// The same, but recording what this binding REPLACED -- an edit rather than a creation.
 
+  /// The same, but recording what this binding REPLACED -- an edit rather than a creation.
   let editOf(
     name: String,
     hash: String,
     ts: String,
     replaced: String)
-    : Darklang.SCM.Conflicts.Binding =
-    Darklang.SCM.Conflicts.Binding
+    : SCM.Conflicts.Binding =
+    SCM.Conflicts.Binding
       { owner = "Zz"
         modules = "W"
         name = name
@@ -36,16 +36,20 @@ module Helpers =
         author = ""
         previous = Stdlib.Option.Option.Some(replaced) }
 
-  let base'(name: String, hash: String): Darklang.SCM.Conflicts.NameBase =
-    Darklang.SCM.Conflicts.NameBase
+
+  let base'(name: String, hash: String): SCM.Conflicts.NameBase =
+    SCM.Conflicts.NameBase
       { owner = "Zz", modules = "W", name = name, baseHash = hash }
 
+
   let detectCount(
-    local: List<Darklang.SCM.Conflicts.Binding>,
-    incoming: List<Darklang.SCM.Conflicts.Binding>,
-    bases: List<Darklang.SCM.Conflicts.NameBase>)
+    local: List<SCM.Conflicts.Binding>,
+    incoming: List<SCM.Conflicts.Binding>,
+    bases: List<SCM.Conflicts.NameBase>)
     : Int64 =
-    Stdlib.List.length(Darklang.SCM.Conflicts.detect("yours", "theirs", local, incoming, bases))
+    Stdlib.List.length(
+      SCM.Conflicts.detect("yours", "theirs", local, incoming, bases))
+
 
 module Detect =
   // BOTH sides moved a name since a recorded base -- the one case that IS a conflict.
@@ -56,6 +60,7 @@ module Detect =
       [ Helpers.base'("f", "ooo") ])
     |> Stdlib.Test.equal(1)
 
+
   // Same hash on both sides: not a divergence at all. A re-pull, or two machines that independently
   // authored identical bytes.
   test sameHashBothSides =
@@ -65,6 +70,7 @@ module Detect =
       [ Helpers.base'("f", "ooo") ])
     |> Stdlib.Test.equal(0)
 
+
   // Only LOCAL moved: our own update, and the peer is simply behind.
   test onlyLocalMoved =
     Helpers.detectCount(
@@ -73,6 +79,7 @@ module Detect =
       [ Helpers.base'("f", "ooo") ])
     |> Stdlib.Test.equal(0)
 
+
   // Only INCOMING moved: an ordinary peer update of a name we never touched. Take it, quietly.
   test onlyIncomingMoved =
     Helpers.detectCount(
@@ -80,6 +87,7 @@ module Detect =
       [ Helpers.binding("f", "bbb", "2026-01-03T00:00:00.000Z") ],
       [ Helpers.base'("f", "ooo") ])
     |> Stdlib.Test.equal(0)
+
 
   // No base, and neither side says what it replaced: two independent creations of the same name. This
   // case and the one below reach the detector as the same three inputs apart from `previous`, so that
@@ -92,6 +100,7 @@ module Detect =
       [])
     |> Stdlib.Test.equal(1)
 
+
   // The other side of that coin: no base either, but the incoming binding NAMES ours as what it replaced.
   // Their version descends from ours, so taking it is collaborating, not a conflict.
   test incomingDescendsFromOurs =
@@ -101,6 +110,7 @@ module Detect =
       [])
     |> Stdlib.Test.equal(0)
 
+
   // And when OURS is the edit: still no conflict. Only both-created-from-nothing qualifies.
   test oursIsTheEdit =
     Helpers.detectCount(
@@ -108,6 +118,7 @@ module Detect =
       [ Helpers.binding("f", "bbb", "2026-01-03T00:00:00.000Z") ],
       [])
     |> Stdlib.Test.equal(0)
+
 
   // A base for a DIFFERENT name says nothing about this one, so this falls to the same
   // both-created-from-nothing rule as above rather than to the base comparison.
@@ -118,6 +129,7 @@ module Detect =
       [ Helpers.base'("g", "ooo") ])
     |> Stdlib.Test.equal(1)
 
+
   // An incoming name we hold nothing for is a creation, not a collision.
   test incomingCreation =
     Helpers.detectCount(
@@ -125,6 +137,7 @@ module Detect =
       [ Helpers.binding("f", "bbb", "2026-01-03T00:00:00.000Z") ],
       [ Helpers.base'("f", "ooo") ])
     |> Stdlib.Test.equal(0)
+
 
   // Two diverged names, two conflicts. (Detection is per name, not per batch.)
   test perNameDetection =
@@ -135,6 +148,7 @@ module Detect =
         Helpers.binding("g", "ddd", "2026-01-03T00:00:00.000Z") ],
       [ Helpers.base'("f", "ooo"), Helpers.base'("g", "ooo") ])
     |> Stdlib.Test.equal(2)
+
 
 module BothMovedTheSameParent =
   // Two bindings that REPLACED the same hash have diverged, whatever the recorded base says. Both ops
@@ -153,6 +167,7 @@ module BothMovedTheSameParent =
       [])
     |> Stdlib.Test.equal(1)
 
+
   // A base that says only ONE side moved. Without the parent test this reads as an ordinary update
   // and the divergence is never reported at all.
   test baseSaysOneSideMoved =
@@ -162,15 +177,21 @@ module BothMovedTheSameParent =
       [ Helpers.base'("f", "mine") ])
     |> Stdlib.Test.equal(1)
 
+
   // AN ORDINARY UPDATE IS STILL SILENT. They edited the version you are holding, so their `previous` is
   // your CURRENT hash while yours is whatever came before it. The two cannot match, and this is the case
   // that would have made the whole rule too noisy to want.
   test ordinaryUpdateSilent =
     Helpers.detectCount(
-      [ Helpers.editOf("f", "mine", "2026-01-02T00:00:00.000Z", "grandparent") ],
+      [ Helpers.editOf(
+          "f",
+          "mine",
+          "2026-01-02T00:00:00.000Z",
+          "grandparent") ],
       [ Helpers.editOf("f", "theirs", "2026-01-03T00:00:00.000Z", "mine") ],
       [ Helpers.base'("f", "mine") ])
     |> Stdlib.Test.equal(0)
+
 
   // THE SAME ORDINARY UPDATE, WITH A BASE OLDER THAN BOTH. This is the shape two machines actually
   // produce: the base was recorded at the first sync, I edited since, they pulled my edit and edited
@@ -180,10 +201,15 @@ module BothMovedTheSameParent =
   // name, every one of them resolving to the version I would have taken anyway.
   test ordinaryUpdateOlderBase =
     Helpers.detectCount(
-      [ Helpers.editOf("f", "mine", "2026-01-02T00:00:00.000Z", "grandparent") ],
+      [ Helpers.editOf(
+          "f",
+          "mine",
+          "2026-01-02T00:00:00.000Z",
+          "grandparent") ],
       [ Helpers.editOf("f", "theirs", "2026-01-03T00:00:00.000Z", "mine") ],
       [ Helpers.base'("f", "grandparent") ])
     |> Stdlib.Test.equal(0)
+
 
   // Same predecessor AND same hash is not a divergence, it is the same edit arriving twice.
   test sameEditTwice =
@@ -192,6 +218,7 @@ module BothMovedTheSameParent =
       [ Helpers.editOf("f", "same", "2026-01-03T00:00:00.000Z", "parent") ],
       [])
     |> Stdlib.Test.equal(0)
+
 
   // `None` on both sides is NOT treated as a shared parent. It also means "no predecessor recorded", so
   // firing on it would manufacture conflicts between unrelated items. The independent-creation rule below
@@ -203,6 +230,7 @@ module BothMovedTheSameParent =
       [ Helpers.base'("f", "older") ])
     |> Stdlib.Test.equal(1)
 
+
   // One side records a predecessor and the other does not: no shared parent to have moved from.
   test oneSidedPredecessor =
     Helpers.detectCount(
@@ -211,47 +239,50 @@ module BothMovedTheSameParent =
       [])
     |> Stdlib.Test.equal(0)
 
+
 module AutoResolution =
   // The recorded winner must be the one the FOLD picks, or a recorded conflict names a winner that
   // isn't live. Later origin_ts wins.
   test laterStampRecordedWinner =
-    ((Darklang.SCM.Conflicts.detect(
-        "yours",
-        "theirs",
-        [ Helpers.binding("f", "aaa", "2026-01-02T00:00:00.000Z") ],
-        [ Helpers.binding("f", "bbb", "2026-01-03T00:00:00.000Z") ],
-        [ Helpers.base'("f", "ooo") ]))
+    (SCM.Conflicts.detect(
+       "yours",
+       "theirs",
+       [ Helpers.binding("f", "aaa", "2026-01-02T00:00:00.000Z") ],
+       [ Helpers.binding("f", "bbb", "2026-01-03T00:00:00.000Z") ],
+       [ Helpers.base'("f", "ooo") ])
      |> Stdlib.List.head
      |> Stdlib.Option.map(fun c -> c.autoResolvedTo))
     |> Stdlib.Test.equal(Stdlib.Option.Option.Some("bbb"))
 
+
   // ... and the older incoming loses to the newer local.
   test olderIncomingLoses =
-    ((Darklang.SCM.Conflicts.detect(
-        "yours",
-        "theirs",
-        [ Helpers.binding("f", "aaa", "2026-01-04T00:00:00.000Z") ],
-        [ Helpers.binding("f", "bbb", "2026-01-03T00:00:00.000Z") ],
-        [ Helpers.base'("f", "ooo") ]))
+    (SCM.Conflicts.detect(
+       "yours",
+       "theirs",
+       [ Helpers.binding("f", "aaa", "2026-01-04T00:00:00.000Z") ],
+       [ Helpers.binding("f", "bbb", "2026-01-03T00:00:00.000Z") ],
+       [ Helpers.base'("f", "ooo") ])
      |> Stdlib.List.head
      |> Stdlib.Option.map(fun c -> c.autoResolvedTo))
     |> Stdlib.Test.equal(Stdlib.Option.Option.Some("aaa"))
 
+
   // An exact stamp tie breaks by the HIGHER hash, so every instance converges on the same winner.
   test tieBreaksByHash =
-    ((Darklang.SCM.Conflicts.detect(
-        "yours",
-        "theirs",
-        [ Helpers.binding("f", "aaa", "2026-01-03T00:00:00.000Z") ],
-        [ Helpers.binding("f", "bbb", "2026-01-03T00:00:00.000Z") ],
-        [ Helpers.base'("f", "ooo") ]))
+    (SCM.Conflicts.detect(
+       "yours",
+       "theirs",
+       [ Helpers.binding("f", "aaa", "2026-01-03T00:00:00.000Z") ],
+       [ Helpers.binding("f", "bbb", "2026-01-03T00:00:00.000Z") ],
+       [ Helpers.base'("f", "ooo") ])
      |> Stdlib.List.head
      |> Stdlib.Option.map(fun c -> c.reason))
     |> Stdlib.Test.equal(Stdlib.Option.Option.Some("tie-break-by-hash"))
 
+
 // The winner rule itself is pinned in `lww.dark` (through the Dark name) and `Lww.Tests.fs`;
 // a third copy of the table here only gave the real ones a place to drift from.
-
 // The conflict id and the ordering it relies on are pinned beside the detector, in F#
 // (`Tests.ScmActions`).
 
@@ -261,22 +292,24 @@ module LargeNameLists =
   // one statement still reads. A failed read raises, so a cap would fail this
   // rather than read as "nothing bound".
   test pastTheParameterCap =
-    Darklang.SCM.Conflicts.localBindingsFor(
-      Stdlib.List.map(
-        Stdlib.List.range(1, 33000),
-        fun i -> $"zzUnbound{Stdlib.display(i)}"))
+    SCM.Conflicts.localBindingsFor(
+      Stdlib.List.map(Stdlib.List.range(1, 33000), fun i ->
+        $"zzUnbound{Stdlib.display(i)}"))
     |> Stdlib.List.length
     |> Stdlib.Test.equal(0)
 
+
 module Fqn =
-  test fqn =
-    Darklang.SCM.Conflicts.fqn("Zz", "W", "f") |> Stdlib.Test.equal("Zz.W.f")
+  test fqn = SCM.Conflicts.fqn("Zz", "W", "f") |> Stdlib.Test.equal("Zz.W.f")
+
 
   // A top-level item has no module segment, and joining an empty one would give "Zz..f".
   test topLevelFqn =
     Stdlib.Test.all(
-      [ Darklang.SCM.Conflicts.fqn("Zz", "", "f") |> Stdlib.Test.equal("Zz.f")
-        Darklang.SCM.Conflicts.bindingKey("Zz", "W", "f") |> Stdlib.Test.equal("Zz/W/f") ])
+      [ SCM.Conflicts.fqn("Zz", "", "f") |> Stdlib.Test.equal("Zz.f")
+        SCM.Conflicts.bindingKey("Zz", "W", "f")
+        |> Stdlib.Test.equal("Zz/W/f") ])
+
 
 module OrderPreservingDedup =
   // `PackageOps.branchHashHistoryFor` returns a name's versions oldest-first and is what `dark undo`
@@ -285,14 +318,15 @@ module OrderPreservingDedup =
   // so pin that both keep first occurrences in place.
   test uniqueKeepsOrder =
     Stdlib.Test.all(
-      [ Stdlib.List.unique([ "c", "a", "b", "a" ]) |> Stdlib.Test.equal([ "c", "a", "b" ])
+      [ Stdlib.List.unique([ "c", "a", "b", "a" ])
+        |> Stdlib.Test.equal([ "c", "a", "b" ])
+
         Stdlib.List.uniqueBy([ "c", "a", "b", "a" ], fun x -> x)
         |> Stdlib.Test.equal([ "c", "a", "b" ]) ])
 
+
   // The order-preserving shape, which is what an authoring sequence needs.
   test orderPreservingDedup =
-    Stdlib.List.fold(
-      [ "c", "a", "b", "a" ],
-      [],
-      fun(acc, h) -> if Stdlib.List.contains(acc, h) then acc else Stdlib.List.append(acc, h))
+    Stdlib.List.fold([ "c", "a", "b", "a" ], [], fun(acc, h) ->
+      if Stdlib.List.contains(acc, h) then acc else Stdlib.List.append(acc, h))
     |> Stdlib.Test.equal([ "c", "a", "b" ])

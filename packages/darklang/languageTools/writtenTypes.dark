@@ -2,43 +2,60 @@ module Darklang.LanguageTools.WrittenTypes
 
 // <aliases>
 type Range = Parser.Range
+
+
 // <aliases>
 
 /// A name that failed to resolve, with its source location and error details.
-type UnresolvedName =
-  (Parser.Range * List<String> * ProgramTypes.NameResolutionError)
+type UnresolvedName = (Parser.Range * List<String> * ProgramTypes.NameResolutionError)
+
 
 // Identifiers
-type ModuleIdentifier = { range: Range, name: String }
+type ModuleIdentifier =
+  { range: Range
+    name: String }
 
-type TypeIdentifier = { range: Range, name: String }
+
+type TypeIdentifier =
+  { range: Range
+    name: String }
+
 
 type QualifiedTypeIdentifier =
-  {
-    range: Range
+  { range: Range
     /// the Range corresponds to the `.` after the module name
     modules: List<(ModuleIdentifier * Range)>
     typ: TypeIdentifier
-    typeArgs: List<TypeReference.TypeReference>
-  }
+    typeArgs: List<TypeReference.TypeReference> }
 
-type VariableIdentifier = { range: Range, name: String }
 
-type ValueIdentifier = { range: Range, name: String }
+type VariableIdentifier =
+  { range: Range
+    name: String }
 
-type FnIdentifier = { range: Range, name: String }
+
+type ValueIdentifier =
+  { range: Range
+    name: String }
+
+
+type FnIdentifier =
+  { range: Range
+    name: String }
+
 
 type QualifiedFnIdentifier =
-  {
-    range: Range
+  { range: Range
     /// the range corresponds to the `.` after the module name
     modules: List<(ModuleIdentifier * Range)>
-    fn: FnIdentifier
-  }
+    fn: FnIdentifier }
+
 
 // CLEANUP: Refactor List<String> to List<Range* String> or use a QualifiedTypeIdentifier.
 // Consider removing 'Unresolved' and inlining it where it's used, since all names are unresolved at this stage (wt)
-type Name = Unresolved(Range, List<String>)
+type Name =
+  | Unresolved(Range, List<String>)
+
 
 // Types
 module TypeReference =
@@ -115,6 +132,7 @@ module TypeReference =
   type TypeReference =
     | Builtin(Builtin)
     | QualifiedName(QualifiedTypeIdentifier)
+
 
 // Expressions
 type LetPattern =
@@ -209,6 +227,7 @@ type MatchPattern =
   // never reaches execution.
   | MPError(Range)
 
+
 type MatchCase =
   { pat:
       /// the Range corresponds to the `|` symbol
@@ -224,6 +243,7 @@ type MatchCase =
 type BinaryOperation =
   | BinOpAnd
   | BinOpOr
+
 
 type InfixFnName =
   | ArithmeticPlus
@@ -244,17 +264,16 @@ type InfixFnName =
   | ComparisonEquals
   | ComparisonNotEquals
 
+
 type Infix =
   | InfixFnCall(InfixFnName)
   | BinOp(BinaryOperation)
 
+
 type StringSegment =
   | StringText(Range, String)
-  | StringInterpolation(
-    Range,
-    Expr,
-    symbolOpenBrace: Range,
-    symbolCloseBrace: Range)
+  | StringInterpolation(Range, Expr, symbolOpenBrace: Range, symbolCloseBrace: Range)
+
 
 type Expr =
   | EUnit(Range)
@@ -398,6 +417,7 @@ type Expr =
   // it never reaches execution.
   | EError(Range)
 
+
 type PipeExpr =
   | EPipeLambda(
     Range,
@@ -476,6 +496,7 @@ module ModuleDeclaration =
     // TODO: handle http handler and db
     | Expr(Expr)
 
+
   type ModuleDeclaration =
     { range: Range
       name: (Range * String)
@@ -500,12 +521,14 @@ module TypeDeclaration =
       description: String
       symbolColon: Range }
 
+
   type EnumField =
     { range: Range
       typ: TypeReference.TypeReference
-      label: Stdlib.Option.Option<(Range * String)>
+      label: Option<(Range * String)>
       description: String
-      symbolColon: Stdlib.Option.Option<Range> }
+      symbolColon: Option<Range> }
+
 
   type EnumCase =
     { range: Range
@@ -513,12 +536,14 @@ module TypeDeclaration =
       fields: List<EnumField>
       description: String }
 
+
   type Definition =
     | Alias(TypeReference.TypeReference)
     /// the Range corresponds to the `,` symbol
-    | Record(List<(RecordField * Stdlib.Option.Option<Range>)>)
+    | Record(List<(RecordField * Option<Range>)>)
     /// the Range corresponds to the `|` symbol
     | Enum(List<(Range * EnumCase)>)
+
 
   type TypeDeclaration =
     { range: Range
@@ -548,6 +573,7 @@ module TestDeclaration =
   type ExpectedError =
     | RuntimeError(String)
 
+
   type TestDeclaration =
     { range: Range
       name: ValueIdentifier
@@ -562,7 +588,9 @@ module TestDeclaration =
 
 // Fn declarations
 module FnDeclaration =
-  type UnitParameter = { range: Range }
+  type UnitParameter =
+    { range: Range }
+
 
   type NormalParameter =
     { range: Range
@@ -573,6 +601,7 @@ module FnDeclaration =
       symbolLeftParen: Range
       symbolColon: Range
       symbolRightParen: Range }
+
 
   type Parameter =
     | Unit(UnitParameter)
@@ -610,6 +639,7 @@ module TraitDeclaration =
       keywordLet: Range
       symbolColon: Range }
 
+
   type TraitDeclaration =
     { range: Range
       name: TypeIdentifier
@@ -628,6 +658,7 @@ module ImplDeclaration =
     | Method(FnDeclaration.FnDeclaration)
     /// `let name = Existing.fn`: the method is a fn that already exists
     | Alias(ValueDeclaration.ValueDeclaration)
+
 
   type ImplDeclaration =
     { range: Range
@@ -652,10 +683,12 @@ module SourceFile =
     | Test(TestDeclaration.TestDeclaration)
     | Module(ModuleDeclaration.ModuleDeclaration)
 
+
   type SourceFile =
     { range: Range
-      declarations: List<SourceFile.SourceFileDeclaration>
+      declarations: List<SourceFileDeclaration>
       exprsToEval: List<Expr> }
 
 
-type ParsedFile = SourceFile(SourceFile.SourceFile)
+type ParsedFile =
+  | SourceFile(SourceFile.SourceFile)

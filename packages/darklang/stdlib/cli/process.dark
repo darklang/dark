@@ -1,8 +1,8 @@
 module Darklang.Stdlib.Cli.Process
 
-
 /// Process handle for interacting with spawned processes
 type ProcessHandle = BigInt
+
 
 /// Where a child process's stdin, stdout and stderr go.
 type Stdio =
@@ -11,12 +11,9 @@ type Stdio =
   /// This process's own terminal, for a child the user types into.
   | Inherit
 
+
 /// Start <param program> with <param args>, its standard streams wired as <param stdio> says.
-let __childStart(
-  program: String,
-  args: List<String>,
-  stdio: Stdio)
-  : Result.Result<BigInt, Int64> =
+let __childStart(program: String, args: List<String>, stdio: Stdio): Result<BigInt, Int64> =
   let inheritTerminal =
     match stdio with
     | Capture -> false
@@ -24,31 +21,33 @@ let __childStart(
 
   Builtin.runtimeChildStart(program, args, inheritTerminal)
 
+
 /// Spawn a new process and return a handle for interaction
 let spawn(command: String): ProcessHandle =
-  __childStart("/bin/sh", ["-c", command], Stdio.Capture) |> Builtin.unwrap
+  __childStart("/bin/sh", [ "-c", command ], Stdio.Capture) |> Builtin.unwrap
 
-let __executionBytes(result: Result.Result<(Int64 * Bytes * Bytes), Int64>): Stdlib.Cli.ExecutionBytes =
+
+let __executionBytes(result: Result<(Int64 * Bytes * Bytes), Int64>): ExecutionBytes =
   match result with
   | Error(e) ->
-    Stdlib.Cli.ExecutionBytes
-      { exitCode = -1
-        stdout = Stdlib.Bytes.empty
-        stderr = Stdlib.Utf8.encode((Stdlib.Cli.Posix.__fromErrno(e)).message) }
-  | Ok((code, output, error)) ->
-    Stdlib.Cli.ExecutionBytes { exitCode = code, stdout = output, stderr = error }
+    ExecutionBytes
+      { exitCode = -1, stdout = Bytes.empty, stderr = Utf8.encode((Posix.__fromErrno(e)).message) }
+  | Ok((code, output, error)) -> ExecutionBytes { exitCode = code, stdout = output, stderr = error }
 
-let __executionOutcome(result: Result.Result<(Int64 * Bytes * Bytes), Int64>): Stdlib.Cli.ExecutionOutcome =
-  Stdlib.Cli.executionText(__executionBytes(result))
+
+let __executionOutcome(result: Result<(Int64 * Bytes * Bytes), Int64>): ExecutionOutcome =
+  executionText(__executionBytes(result))
+
 
 /// Send input to a process and read any available output (non-blocking)
 /// Use empty string for input to just read output without sending anything
-let communicate(handle: ProcessHandle, input: String): Stdlib.Cli.ExecutionOutcome =
-  __executionOutcome(Stdlib.Cli.Process.__childCommunicate(handle, input))
+let communicate(handle: ProcessHandle, input: String): ExecutionOutcome =
+  __executionOutcome(__childCommunicate(handle, input))
+
 
 /// Terminate a process and get final output
-let terminate(handle: ProcessHandle): Stdlib.Cli.ExecutionOutcome =
-  __executionOutcome(Stdlib.Cli.Process.__childTerminate(handle))
+let terminate(handle: ProcessHandle): ExecutionOutcome =
+  __executionOutcome(__childTerminate(handle))
 
 
 // ─── Posix-based process execution (no bash, no shell) ───
@@ -71,14 +70,14 @@ type BytesOutput =
 let outputText(output: BytesOutput): Output =
   Output
     { exitCode = output.exitCode
-      stdout = Stdlib.Utf8.decodeWithReplacement(output.stdout)
-      stderr = Stdlib.Utf8.decodeWithReplacement(output.stderr) }
+      stdout = Utf8.decodeWithReplacement(output.stdout)
+      stderr = Utf8.decodeWithReplacement(output.stderr) }
 
 
 /// Escape a string for safe use inside single quotes in a shell command.
 /// Replaces ' with '\'' (end quote, escaped quote, start quote).
 let shellQuote(s: String): String =
-  let escaped = Stdlib.String.replaceAll(s, "'", "'\\''")
+  let escaped = String.replaceAll(s, "'", "'\\''")
   $"'{escaped}'"
 
 
@@ -88,40 +87,41 @@ let shellQuote(s: String): String =
 let spawnAndWaitBytes(
   program: String,
   args: List<String>,
-  timeoutMs: Stdlib.Option.Option<Int64>)
-  : Result.Result<(Int64 * Bytes * Bytes), Posix.Error> =
-  Stdlib.Cli.Process.__childRun(program, args, timeoutMs)
-  |> Stdlib.Result.mapError(fun errno ->
-    if errno == (if Stdlib.Cli.Posix.__abiMac() then 60 else 110) then
+  timeoutMs: Option<Int64>)
+  : Result<(Int64 * Bytes * Bytes), Posix.Error> =
+  __childRun(program, args, timeoutMs)
+  |> Result.mapError(fun errno ->
+    if errno == (if Posix.__abiMac() then 60 else 110) then
       Posix.Error { errno = errno, message = "Process timed out" }
-    else Stdlib.Cli.Posix.__fromErrno(errno))
+    else
+      Posix.__fromErrno(errno))
 
 
 /// Same as `spawnAndWaitBytes`, with stdout and stderr decoded as UTF-8.
 let spawnAndWait(
   program: String,
   args: List<String>,
-  timeoutMs: Stdlib.Option.Option<Int64>)
-  : Result.Result<(Int64 * String * String), Posix.Error> =
-  (spawnAndWaitBytes(program, args, timeoutMs))
-  |> Stdlib.Result.map(fun result ->
+  timeoutMs: Option<Int64>)
+  : Result<(Int64 * String * String), Posix.Error> =
+  spawnAndWaitBytes(program, args, timeoutMs)
+  |> Result.map(fun result ->
     let (code, output, error) = result
-    (code, Stdlib.Utf8.decodeWithReplacement(output), Stdlib.Utf8.decodeWithReplacement(error)))
+    (code, Utf8.decodeWithReplacement(output), Utf8.decodeWithReplacement(error)))
 
 
 /// Run a program with arguments and capture its output as bytes, for output
 /// that isn't UTF-8 text. No bash, no shell. `outputText` decodes it.
-let runBytes(program: String, args: List<String>): Result.Result<BytesOutput, Posix.Error> =
-  (spawnAndWaitBytes(program, args, Stdlib.Option.Option.None))
-  |> Stdlib.Result.map(fun result ->
+let runBytes(program: String, args: List<String>): Result<BytesOutput, Posix.Error> =
+  spawnAndWaitBytes(program, args, Option.None)
+  |> Result.map(fun result ->
     let (code, output, error) = result
     BytesOutput { exitCode = code, stdout = output, stderr = error })
 
 
 /// Run a program with arguments and capture its output.
 /// No bash, no shell — spawns the process directly.
-let run(program: String, args: List<String>): Result.Result<Output, Posix.Error> =
-  (runBytes(program, args)) |> Stdlib.Result.map(fun output -> outputText(output))
+let run(program: String, args: List<String>): Result<Output, Posix.Error> =
+  runBytes(program, args) |> Result.map(fun output -> outputText(output))
 
 
 /// Run a program ON THIS TERMINAL and return its exit code.
@@ -130,66 +130,52 @@ let run(program: String, args: List<String>): Result.Result<Output, Posix.Error>
 /// anything that DRAWS needs: an editor with a redirected stdout paints into a pipe
 /// and reads keys from nowhere. Use `run` when you want the output, this when you
 /// want the program to be usable.
-let runInteractive(
-  program: String,
-  args: List<String>)
-  : Result.Result<Int64, Posix.Error> =
-  Stdlib.Cli.Process.__childInteractive(program, args) |> Stdlib.Result.mapError(Stdlib.Cli.Posix.__fromErrno)
+let runInteractive(program: String, args: List<String>): Result<Int64, Posix.Error> =
+  __childInteractive(program, args) |> Result.mapError(Posix.__fromErrno)
 
 
 /// Run a program and return stdout as text, or stderr as error.
 /// Returns String errors because it mixes spawn failures with command failures.
-let exec(program: String, args: List<String>): Result.Result<String, String> =
-  (run(program, args))
-  |> Stdlib.Result.mapError(fun e -> e.message)
-  |> Stdlib.Result.andThen(fun output ->
+let exec(program: String, args: List<String>): Result<String, String> =
+  run(program, args)
+  |> Result.mapError(fun e -> e.message)
+  |> Result.andThen(fun output ->
     if output.exitCode == 0 then
-      Stdlib.Result.Result.Ok(Stdlib.String.trimEnd(output.stdout))
+      Result.Ok(String.trimEnd(output.stdout))
     else
-      let err = Stdlib.String.trimEnd(output.stderr)
-
+      let err = String.trimEnd(output.stderr)
       if err == "" then
-        Stdlib.Result.Result.Error(
-          $"Command failed with exit code {Stdlib.Cli.Posix.__decimal(output.exitCode)}")
+        Result.Error($"Command failed with exit code {Posix.__decimal(output.exitCode)}")
       else
-        Stdlib.Result.Result.Error(err))
+        Result.Error(err))
 
 
 /// Kill a process by PID.
-let kill(pid: Posix.Pid): Result.Result<Unit, Posix.Error> =
+let kill(pid: Posix.Pid): Result<Unit, Posix.Error> =
   Posix.kill(pid, Posix.Signal.SIGTERM)
 
 
 /// Force-kill a process by PID.
-let forceKill(pid: Posix.Pid): Result.Result<Unit, Posix.Error> =
+let forceKill(pid: Posix.Pid): Result<Unit, Posix.Error> =
   Posix.kill(pid, Posix.Signal.SIGKILL)
 
 
-/// Run a program in a specific directory.
 // Uses sh -c because the minimal owned-launch primitive has no cwd parameter.
 // Ideally this would pass cwd directly to the child process (like Python's
 // subprocess.run(cwd=...)) without involving a shell.
-let runIn(
-  directory: String,
-  program: String,
-  args: List<String>)
-  : Result.Result<Output, Posix.Error> =
+/// Run a program in a specific directory.
+let runIn(directory: String, program: String, args: List<String>): Result<Output, Posix.Error> =
   let quotedArgs =
-    args |> Stdlib.List.map(fun a -> shellQuote(a)) |> Stdlib.String.join(" ")
+    args
+    |> List.map(fun a -> shellQuote(a))
+    |> String.join(" ")
 
-  run(
-    "/bin/sh",
-    [ "-c"
-      $"cd {shellQuote(directory)} && {shellQuote(program)} {quotedArgs}" ])
+  run("/bin/sh", [ "-c", $"cd {shellQuote(directory)} && {shellQuote(program)} {quotedArgs}" ])
 
 
 /// Run a program silently, discarding output. Returns exit code only.
-let runSilent(
-  program: String,
-  args: List<String>)
-  : Result.Result<Int64, Posix.Error> =
-  (run(program, args))
-  |> Stdlib.Result.map(fun output -> output.exitCode)
+let runSilent(program: String, args: List<String>): Result<Int64, Posix.Error> =
+  run(program, args) |> Result.map(fun output -> output.exitCode)
 
 
 /// Run a program with environment variables set.
@@ -200,53 +186,45 @@ let runWithEnv(
   program: String,
   args: List<String>,
   env: List<(String * String)>)
-  : Result.Result<Output, String> =
+  : Result<Output, String> =
   let invalid =
     env
-    |> Stdlib.List.filter(fun pair ->
+    |> List.filter(fun pair ->
       let (k, _v) = pair
-      (Stdlib.String.contains(k, "=")) || (Stdlib.String.contains(k, " ")))
+      String.contains(k, "=") || String.contains(k, " "))
 
-  if (Stdlib.List.length(invalid)) > 0 then
+  if List.length(invalid) > 0 then
     let badName =
-      (Stdlib.List.head(invalid))
+      List.head(invalid)
       |> Builtin.unwrap
-      |> Stdlib.Tuple2.first
+      |> Tuple2.first
 
-    Stdlib.Result.Result.Error(
-      $"Invalid env var name: '{badName}' (must not contain '=' or spaces)")
+    Result.Error($"Invalid env var name: '{badName}' (must not contain '=' or spaces)")
   else
     let envArgs =
       env
-      |> Stdlib.List.map(fun pair ->
+      |> List.map(fun pair ->
         let (k, v) = pair
         $"{k}={v}")
 
-    (run(
-      "/usr/bin/env",
-      Stdlib.List.concat(envArgs, Stdlib.List.prepend(args, program))))
-    |> Stdlib.Result.mapError(fun e -> e.message)
+    run("/usr/bin/env", List.concat(envArgs, List.prepend(args, program)))
+    |> Result.mapError(fun e -> e.message)
 
 
 /// Run a program with a timeout in milliseconds.
 /// Returns Error if the command times out.
 /// Returns String errors because it mixes spawn failures with validation/timeout errors.
-let runWithTimeout(
-  timeoutMs: Int64,
-  program: String,
-  args: List<String>)
-  : Result.Result<Output, String> =
+let runWithTimeout(timeoutMs: Int64, program: String, args: List<String>): Result<Output, String> =
   if timeoutMs <= 0 then
-    Stdlib.Result.Result.Error("timeoutMs must be positive")
+    Result.Error("timeoutMs must be positive")
   else
-
-  (spawnAndWait(program, args, Stdlib.Option.Option.Some(timeoutMs)))
-  |> Stdlib.Result.mapError(fun e -> e.message)
-  |> Stdlib.Result.map(fun result ->
-    Output
-      { exitCode = Stdlib.Tuple3.first(result)
-        stdout = Stdlib.Tuple3.second(result)
-        stderr = Stdlib.Tuple3.third(result) })
+    spawnAndWait(program, args, Option.Some(timeoutMs))
+    |> Result.mapError(fun e -> e.message)
+    |> Result.map(fun result ->
+      Output
+        { exitCode = Tuple3.first(result)
+          stdout = Tuple3.second(result)
+          stderr = Tuple3.third(result) })
 
 
 /// Pipe the output of one command into another via shell.
@@ -255,24 +233,27 @@ let pipe(
   args1: List<String>,
   program2: String,
   args2: List<String>)
-  : Result.Result<Output, Posix.Error> =
+  : Result<Output, Posix.Error> =
   let quotedArgs1 =
-    args1 |> Stdlib.List.map(fun a -> shellQuote(a)) |> Stdlib.String.join(" ")
+    args1
+    |> List.map(fun a -> shellQuote(a))
+    |> String.join(" ")
 
   let quotedArgs2 =
-    args2 |> Stdlib.List.map(fun a -> shellQuote(a)) |> Stdlib.String.join(" ")
+    args2
+    |> List.map(fun a -> shellQuote(a))
+    |> String.join(" ")
 
   run(
     "/bin/sh",
-    [ "-c"
-      $"{shellQuote(program1)} {quotedArgs1} | {shellQuote(program2)} {quotedArgs2}" ])
+    [ "-c", $"{shellQuote(program1)} {quotedArgs1} | {shellQuote(program2)} {quotedArgs2}" ])
 
 
 /// Run a pipeline of raw shell commands connected by pipes.
 /// UNSAFE: commands are passed directly to the shell with NO escaping.
 /// Caller is responsible for sanitizing all inputs.
-let shellPipeline(commands: List<String>): Result.Result<Output, Posix.Error> =
-  let cmd = Stdlib.String.join(commands, " | ")
+let shellPipeline(commands: List<String>): Result<Output, Posix.Error> =
+  let cmd = String.join(commands, " | ")
   run("/bin/sh", [ "-c", cmd ])
 
 
@@ -292,201 +273,341 @@ let waitFor(pid: Posix.Pid): Unit =
 
 /// Shared child IO, output limits, retries and deadlines. Runtime leaves only
 /// launch/supervise owned children; descriptor leaves only attempt one syscall.
+type __ChildBuffer =
+  { chunks: List<Bytes>
+    size: Int64 }
 
-type __ChildBuffer = { chunks: List<Bytes>, size: Int64 }
 
-let __childEmpty(): __ChildBuffer = __ChildBuffer { chunks = [], size = 0 }
+let __childEmpty(): __ChildBuffer =
+  __ChildBuffer { chunks = [], size = 0 }
+
 
 let __childAppend(buffer: __ChildBuffer, bytes: Bytes): __ChildBuffer =
   let remaining = 67108864 - buffer.size
-  let length = Stdlib.Bytes.length(bytes)
+  let length = Bytes.length(bytes)
   let keep = if remaining < length then remaining else length
-  if keep <= 0 then buffer
+  if keep <= 0 then
+    buffer
   else
-    let kept = if keep == Stdlib.Bytes.length(bytes) then bytes else Stdlib.Bytes.take(bytes, keep)
-    __ChildBuffer { chunks = Stdlib.List.prepend(buffer.chunks, kept), size = buffer.size + keep }
+    let kept = if keep == Bytes.length(bytes) then bytes else Bytes.take(bytes, keep)
+    __ChildBuffer { chunks = List.prepend(buffer.chunks, kept), size = buffer.size + keep }
 
-let __childBytes(buffer: __ChildBuffer): Bytes = Stdlib.Bytes.concatAll(Stdlib.List.reverse(buffer.chunks))
 
-let __childPollChild(child: BigInt): Result.Result<Stdlib.Option.Option<Int64>, Int64> =
+let __childBytes(buffer: __ChildBuffer): Bytes =
+  Bytes.concatAll(List.reverse(buffer.chunks))
+
+
+let __childPollChild(child: BigInt): Result<Option<Int64>, Int64> =
   match Builtin.runtimeChildPoll(child) with
   | Error(4) -> __childPollChild(child)
   | result -> result
 
-let __childWaitChild(child: BigInt): Result.Result<Int64, Int64> =
+
+let __childWaitChild(child: BigInt): Result<Int64, Int64> =
   match Builtin.runtimeChildWait(child) with
   | Error(4) -> __childWaitChild(child)
   | result -> result
 
-let __childKillChild(child: BigInt): Result.Result<Unit, Int64> =
+
+let __childKillChild(child: BigInt): Result<Unit, Int64> =
   match Builtin.runtimeChildKill(child) with
   | Error(4) -> __childKillChild(child)
   | result -> result
 
-let __childCloseChild(child: BigInt): Result.Result<Unit, Int64> =
+
+let __childCloseChild(child: BigInt): Result<Unit, Int64> =
   match Builtin.runtimeChildClose(child) with
   | Error(4) -> __childCloseChild(child)
   | result -> result
 
-let __childFinish(child: BigInt, result: Result.Result<'a, Int64>): Result.Result<'a, Int64> =
+
+let __childFinish(child: BigInt, result: Result<'a, Int64>): Result<'a, Int64> =
   let closed = __childCloseChild(child)
   match result with
-  | Error(e) -> Error(e)
-  | Ok(value) -> closed |> Stdlib.Result.map(fun _ -> value)
+  | Error(e) -> Result.Error(e)
+  | Ok(value) -> closed |> Result.map(fun _ -> value)
 
-let __childRead(fd: BigInt, eof: Bool): Result.Result<(Bytes * Bool), Int64> =
-  if eof then Ok((Stdlib.Bytes.empty, true))
+
+let __childRead(fd: BigInt, eof: Bool): Result<(Bytes * Bool), Int64> =
+  if eof then
+    Result.Ok((Bytes.empty, true))
   else
     match Builtin.syscallRead(fd, 65536) with
     | Error(4) -> __childRead(fd, false)
-    | Error(e) -> if e == 11 || e == 35 then Ok((Stdlib.Bytes.empty, false)) else Error(e)
-    | Ok(chunk) -> Ok((chunk, Stdlib.Bytes.length(chunk) == 0))
+    | Error(e) -> if e == 11 || e == 35 then Result.Ok((Bytes.empty, false)) else Result.Error(e)
+    | Ok(chunk) -> Result.Ok((chunk, Bytes.length(chunk) == 0))
+
 
 /// One write per turn, interleaved with both readers, so a child producing
 /// output while accepting a large input cannot deadlock on a full pipe.
-let __childWrite(fd: BigInt, pending: Bytes): Result.Result<Bytes, Int64> =
-  let length = Stdlib.Bytes.length(pending)
-  if length == 0 then Ok(pending)
+let __childWrite(fd: BigInt, pending: Bytes): Result<Bytes, Int64> =
+  let length = Bytes.length(pending)
+  if length == 0 then
+    Result.Ok(pending)
   else
     let count = if length < 65536 then length else 65536
-    let chunk = if count == length then pending else Stdlib.Bytes.take(pending, count)
+    let chunk = if count == length then pending else Bytes.take(pending, count)
     match Builtin.syscallWrite(fd, chunk) with
     | Error(4) -> __childWrite(fd, pending)
-    | Error(e) -> if e == 11 || e == 35 then Ok(pending) else Error(e)
+    | Error(e) -> if e == 11 || e == 35 then Result.Ok(pending) else Result.Error(e)
     | Ok(written) ->
-      if written <= 0 || written > count then Error(5)
-      else Ok(Stdlib.Bytes.drop(pending, written))
+      if written <= 0 || written > count then
+        Result.Error(5)
+      else
+        Result.Ok(Bytes.drop(pending, written))
 
-let __childPoll(fds: List<(BigInt * Int64)>, milliseconds: Int64): Result.Result<Unit, Int64> =
-  let result = if Stdlib.Cli.Posix.__abiMac() then Builtin.syscallPollDarwin(fds, milliseconds) else Builtin.syscallPpoll(fds, milliseconds)
+
+let __childPoll(fds: List<(BigInt * Int64)>, milliseconds: Int64): Result<Unit, Int64> =
+  let result =
+    if Posix.__abiMac() then
+      Builtin.syscallPollDarwin(fds, milliseconds)
+    else
+      Builtin.syscallPpoll(fds, milliseconds)
+
   match result with
   | Error(4) -> __childPoll(fds, milliseconds)
-  | Error(e) -> Error(e)
-  | Ok(_) -> Ok()
+  | Error(e) -> Result.Error(e)
+  | Ok(_) -> Result.Ok()
 
-let __childDescriptors(stdin: BigInt, stdout: BigInt, stderr: BigInt, pending: Bytes, outEOF: Bool, errEOF: Bool): List<(BigInt * Int64)> =
-  let input = if Stdlib.Bytes.length(pending) == 0 then [] else [(stdin, 4)]
-  let output = if outEOF then [] else [(stdout, 1)]
-  let error = if errEOF then [] else [(stderr, 1)]
-  Stdlib.List.concat(input, Stdlib.List.concat(output, error))
+
+let __childDescriptors(
+  stdin: BigInt,
+  stdout: BigInt,
+  stderr: BigInt,
+  pending: Bytes,
+  outEOF: Bool,
+  errEOF: Bool)
+  : List<(BigInt * Int64)> =
+  let input = if Bytes.length(pending) == 0 then [] else [ (stdin, 4) ]
+  let output = if outEOF then [] else [ (stdout, 1) ]
+  let error = if errEOF then [] else [ (stderr, 1) ]
+  List.concat(input, List.concat(output, error))
+
 
 let __childCapture(
-  child: BigInt, stdout: BigInt, stderr: BigInt, deadline: Stdlib.Option.Option<Int64>,
-  output: __ChildBuffer, error: __ChildBuffer, outEOF: Bool, errEOF: Bool)
-  : Result.Result<(Int64 * Bytes * Bytes), Int64> =
-  let remaining = match deadline with | None -> 100 | Some(end_) -> end_ - Stdlib.DateTime.__monotonicMilliseconds()
+  child: BigInt,
+  stdout: BigInt,
+  stderr: BigInt,
+  deadline: Option<Int64>,
+  output: __ChildBuffer,
+  error: __ChildBuffer,
+  outEOF: Bool,
+  errEOF: Bool)
+  : Result<(Int64 * Bytes * Bytes), Int64> =
+  let remaining =
+    match deadline with
+    | None -> 100
+    | Some(end_) -> end_ - DateTime.__monotonicMilliseconds()
+
   if remaining <= 0 then
     let _ = __childKillChild(child)
-    Error(if Stdlib.Cli.Posix.__abiMac() then 60 else 110)
+    Result.Error(if Posix.__abiMac() then 60 else 110)
   else
-    __childRead(stdout, outEOF) |> Stdlib.Result.andThen(fun out ->
+    __childRead(stdout, outEOF)
+    |> Result.andThen(fun out ->
       let (outChunk, outEOF) = out
-      __childRead(stderr, errEOF) |> Stdlib.Result.andThen(fun err ->
+      __childRead(stderr, errEOF)
+      |> Result.andThen(fun err ->
         let (errChunk, errEOF) = err
         let output = __childAppend(output, outChunk)
         let error = __childAppend(error, errChunk)
-        __childPollChild(child) |> Stdlib.Result.andThen(fun status ->
+        __childPollChild(child)
+        |> Result.andThen(fun status ->
           if outEOF && errEOF then
             match status with
-            | Some(code) -> Ok((code, __childBytes(output), __childBytes(error)))
+            | Some(code) -> Result.Ok((code, __childBytes(output), __childBytes(error)))
             | None ->
               match deadline with
-              | None -> __childWaitChild(child) |> Stdlib.Result.map(fun code -> (code, __childBytes(output), __childBytes(error)))
+              | None ->
+                __childWaitChild(child)
+                |> Result.map(fun code -> (code, __childBytes(output), __childBytes(error)))
               | Some(_) ->
-                let _ = Stdlib.DateTime.__sleepMilliseconds(10.0)
+                let _ = DateTime.__sleepMilliseconds(10.0)
                 __childCapture(child, stdout, stderr, deadline, output, error, outEOF, errEOF)
           else
             let wait = if remaining < 100 then remaining else 100
-            __childPoll(__childDescriptors(-1z, stdout, stderr, Stdlib.Bytes.empty, outEOF, errEOF), wait)
-            |> Stdlib.Result.andThen(fun _ -> __childCapture(child, stdout, stderr, deadline, output, error, outEOF, errEOF)))))
+            __childPoll(__childDescriptors(-1z, stdout, stderr, Bytes.empty, outEOF, errEOF), wait)
+            |> Result.andThen(fun _ ->
+              __childCapture(child, stdout, stderr, deadline, output, error, outEOF, errEOF)))))
 
-let __childRun(program: String, args: List<String>, timeoutMs: Stdlib.Option.Option<Int64>): Result.Result<(Int64 * Bytes * Bytes), Int64> =
-  __childStart(program, args, Stdio.Capture) |> Stdlib.Result.andThen(fun child ->
-    let result = Builtin.runtimeChildDescriptors(child) |> Stdlib.Result.andThen(fun ports ->
-      match ports with
-      | [_stdin, stdout, stderr] ->
-        let closed = match Builtin.runtimeChildClosePort(child, 0) with | Error(4) -> Ok() | result -> result
-        closed |> Stdlib.Result.andThen(fun _ ->
-          let deadline = match timeoutMs with | None -> None | Some(ms) -> Some(Stdlib.DateTime.__monotonicMilliseconds() + ms)
-          __childCapture(child, stdout, stderr, deadline, __childEmpty(), __childEmpty(), false, false))
-      | _ -> Error(9))
+
+let __childRun(
+  program: String,
+  args: List<String>,
+  timeoutMs: Option<Int64>)
+  : Result<(Int64 * Bytes * Bytes), Int64> =
+  __childStart(program, args, Stdio.Capture)
+  |> Result.andThen(fun child ->
+    let result =
+      Builtin.runtimeChildDescriptors(child)
+      |> Result.andThen(fun ports ->
+        match ports with
+        | [_stdin, stdout, stderr] ->
+          let closed =
+            match Builtin.runtimeChildClosePort(child, 0) with
+            | Error(4) -> Result.Ok()
+            | result -> result
+
+          closed
+          |> Result.andThen(fun _ ->
+            let deadline =
+              match timeoutMs with
+              | None -> Option.None
+              | Some(ms) -> Option.Some(DateTime.__monotonicMilliseconds() + ms)
+
+            __childCapture(
+              child,
+              stdout,
+              stderr,
+              deadline,
+              __childEmpty(),
+              __childEmpty(),
+              false,
+              false))
+        | _ -> Result.Error(9))
+
     __childFinish(child, result))
 
-let __childInteractive(program: String, args: List<String>): Result.Result<Int64, Int64> =
+
+let __childInteractive(program: String, args: List<String>): Result<Int64, Int64> =
   __childStart(program, args, Stdio.Inherit)
-  |> Stdlib.Result.andThen(fun child -> __childFinish(child, __childWaitChild(child)))
+  |> Result.andThen(fun child -> __childFinish(child, __childWaitChild(child)))
+
 
 let __childNewline(bytes: Bytes): Bool =
   // An empty Bytes asks for index -1, which is None.
-  (Stdlib.Bytes.getAt(bytes, (Stdlib.Bytes.length(bytes)) - 1))
-  == Stdlib.Option.Option.Some(10u8)
+  Bytes.getAt(bytes, Bytes.length(bytes) - 1) == Option.Some(10u8)
+
 
 /// Empty-input communication is immediately nonblocking. Input-driven calls
 /// wait in at most 100 polling turns; complete newline responses can finish
 /// earlier. Each turn drains both streams and advances a partial input write.
 let __childCommunicateLoop(
-  child: BigInt, ports: (BigInt * BigInt * BigInt), pending: Bytes,
-  turns: Int64, output: __ChildBuffer, error: __ChildBuffer, eof: (Bool * Bool))
-  : Result.Result<(Int64 * Bytes * Bytes), Int64> =
+  child: BigInt,
+  ports: (BigInt * BigInt * BigInt),
+  pending: Bytes,
+  turns: Int64,
+  output: __ChildBuffer,
+  error: __ChildBuffer,
+  eof: (Bool * Bool))
+  : Result<(Int64 * Bytes * Bytes), Int64> =
   let (stdin, stdout, stderr) = ports
   let (outEOF, errEOF) = eof
-  __childWrite(stdin, pending) |> Stdlib.Result.andThen(fun pending ->
-    __childRead(stdout, outEOF) |> Stdlib.Result.andThen(fun out ->
+  __childWrite(stdin, pending)
+  |> Result.andThen(fun pending ->
+    __childRead(stdout, outEOF)
+    |> Result.andThen(fun out ->
       let (outChunk, outEOF) = out
-      __childRead(stderr, errEOF) |> Stdlib.Result.andThen(fun err ->
+      __childRead(stderr, errEOF)
+      |> Result.andThen(fun err ->
         let (errChunk, errEOF) = err
         let output = __childAppend(output, outChunk)
         let error = __childAppend(error, errChunk)
-        __childPollChild(child) |> Stdlib.Result.andThen(fun status ->
-          let code = match status with | Some(code) -> code | None -> 0
-          let complete = Stdlib.Bytes.length(pending) == 0 && ((__childNewline(outChunk)) || (__childNewline(errChunk)))
-          if turns <= 0 || complete || (outEOF && errEOF) then Ok((code, __childBytes(output), __childBytes(error)))
+        __childPollChild(child)
+        |> Result.andThen(fun status ->
+          let code =
+            match status with
+            | Some(code) -> code
+            | None -> 0
+
+          let complete =
+            Bytes.length(pending) == 0 && (__childNewline(outChunk) || __childNewline(errChunk))
+
+          if turns <= 0 || complete || outEOF && errEOF then
+            Result.Ok((code, __childBytes(output), __childBytes(error)))
           else
             __childPoll(__childDescriptors(stdin, stdout, stderr, pending, outEOF, errEOF), 100)
-            |> Stdlib.Result.andThen(fun _ -> __childCommunicateLoop(child, ports, pending, turns - 1, output, error, (outEOF, errEOF)))))))
+            |> Result.andThen(fun _ ->
+              __childCommunicateLoop(
+                child,
+                ports,
+                pending,
+                turns - 1,
+                output,
+                error,
+                (outEOF, errEOF)))))))
 
-let __childSaveHistory(child: BigInt, index: Int64, chunk: Bytes): Result.Result<Unit, Int64> =
-  Builtin.runtimeChildBufferGet(child, index) |> Stdlib.Result.andThen(fun previous ->
+
+let __childSaveHistory(child: BigInt, index: Int64, chunk: Bytes): Result<Unit, Int64> =
+  Builtin.runtimeChildBufferGet(child, index)
+  |> Result.andThen(fun previous ->
     let next = __childAppend(__childAppend(__childEmpty(), previous), chunk)
     Builtin.runtimeChildBufferSet(child, index, __childBytes(next)))
 
-let __childCommunicate(child: BigInt, input: String): Result.Result<(Int64 * Bytes * Bytes), Int64> =
-  Builtin.runtimeChildDescriptors(child) |> Stdlib.Result.andThen(fun ports ->
+
+let __childCommunicate(child: BigInt, input: String): Result<(Int64 * Bytes * Bytes), Int64> =
+  Builtin.runtimeChildDescriptors(child)
+  |> Result.andThen(fun ports ->
     match ports with
     | [stdin, stdout, stderr] ->
-      let pending = if input == "" then Stdlib.Bytes.empty else Stdlib.Utf8.encode(Stdlib.String.append(input, "\n"))
+      let pending = if input == "" then Bytes.empty else Utf8.encode(String.append(input, "\n"))
       let turns = if input == "" then 0 else 100
-      __childCommunicateLoop(child, (stdin, stdout, stderr), pending, turns, __childEmpty(), __childEmpty(), (false, false))
-      |> Stdlib.Result.andThen(fun result ->
+      __childCommunicateLoop(
+        child,
+        (stdin, stdout, stderr),
+        pending,
+        turns,
+        __childEmpty(),
+        __childEmpty(),
+        (false, false))
+      |> Result.andThen(fun result ->
         let (code, output, error) = result
-        __childSaveHistory(child, 0, output) |> Stdlib.Result.andThen(fun _ ->
-          __childSaveHistory(child, 1, error) |> Stdlib.Result.map(fun _ -> (code, output, error))))
-    | _ -> Error(9))
+        __childSaveHistory(child, 0, output)
+        |> Result.andThen(fun _ ->
+          __childSaveHistory(child, 1, error) |> Result.map(fun _ -> (code, output, error))))
+    | _ -> Result.Error(9))
+
 
 /// After terminating the owned child, drain currently available bytes, not
 /// future output from an unowned grandchild retaining a pipe. Bound draining
 /// turns as well as stored bytes so such a grandchild cannot keep cleanup busy.
-let __childDrain(stdout: BigInt, stderr: BigInt, turns: Int64, output: __ChildBuffer, error: __ChildBuffer): Result.Result<(Bytes * Bytes), Int64> =
-  if turns <= 0 then Ok((__childBytes(output), __childBytes(error)))
+let __childDrain(
+  stdout: BigInt,
+  stderr: BigInt,
+  turns: Int64,
+  output: __ChildBuffer,
+  error: __ChildBuffer)
+  : Result<(Bytes * Bytes), Int64> =
+  if turns <= 0 then
+    Result.Ok((__childBytes(output), __childBytes(error)))
   else
-    __childRead(stdout, false) |> Stdlib.Result.andThen(fun out ->
+    __childRead(stdout, false)
+    |> Result.andThen(fun out ->
       let (outChunk, _outEOF) = out
-      __childRead(stderr, false) |> Stdlib.Result.andThen(fun err ->
+      __childRead(stderr, false)
+      |> Result.andThen(fun err ->
         let (errChunk, _errEOF) = err
         let output = __childAppend(output, outChunk)
         let error = __childAppend(error, errChunk)
-        if Stdlib.Bytes.length(outChunk) == 0 && Stdlib.Bytes.length(errChunk) == 0 then Ok((__childBytes(output), __childBytes(error)))
-        else __childDrain(stdout, stderr, turns - 1, output, error)))
+        if Bytes.length(outChunk) == 0 && Bytes.length(errChunk) == 0 then
+          Result.Ok((__childBytes(output), __childBytes(error)))
+        else
+          __childDrain(stdout, stderr, turns - 1, output, error)))
 
-let __childTerminate(child: BigInt): Result.Result<(Int64 * Bytes * Bytes), Int64> =
-  let result = __childKillChild(child) |> Stdlib.Result.andThen(fun _ ->
-    __childWaitChild(child) |> Stdlib.Result.andThen(fun code ->
-      Builtin.runtimeChildDescriptors(child) |> Stdlib.Result.andThen(fun ports ->
-        match ports with
-        | [_stdin, stdout, stderr] ->
-          Builtin.runtimeChildBufferGet(child, 0) |> Stdlib.Result.andThen(fun previousOut ->
-            Builtin.runtimeChildBufferGet(child, 1) |> Stdlib.Result.andThen(fun previousErr ->
-              __childDrain(stdout, stderr, 1024, __childAppend(__childEmpty(), previousOut), __childAppend(__childEmpty(), previousErr))
-              |> Stdlib.Result.map(fun pair -> let (output, error) = pair in (code, output, error))))
-        | _ -> Error(9))))
+
+let __childTerminate(child: BigInt): Result<(Int64 * Bytes * Bytes), Int64> =
+  let result =
+    __childKillChild(child)
+    |> Result.andThen(fun _ ->
+      __childWaitChild(child)
+      |> Result.andThen(fun code ->
+        Builtin.runtimeChildDescriptors(child)
+        |> Result.andThen(fun ports ->
+          match ports with
+          | [_stdin, stdout, stderr] ->
+            Builtin.runtimeChildBufferGet(child, 0)
+            |> Result.andThen(fun previousOut ->
+              Builtin.runtimeChildBufferGet(child, 1)
+              |> Result.andThen(fun previousErr ->
+                __childDrain(
+                  stdout,
+                  stderr,
+                  1024,
+                  __childAppend(__childEmpty(), previousOut),
+                  __childAppend(__childEmpty(), previousErr))
+                |> Result.map(fun pair ->
+                  let (output, error) = pair
+                  (code, output, error))))
+          | _ -> Result.Error(9))))
+
   __childFinish(child, result)

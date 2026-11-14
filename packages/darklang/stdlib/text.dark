@@ -7,14 +7,16 @@
 /// sequences, use `Cli.Tui.Text` to preserve styling.
 module Darklang.Stdlib.Text
 
-
 /// Adds leading spaces to <param s> until it is at least <param width> display cells wide.
 ///
 /// Returns <param s> unchanged if it already meets or exceeds <param width>.
 /// To shorten text that is too wide, use <fn clipToWidth> or <fn ellipsis>.
 let padStartToWidth(s: String, width: Int64): String =
-  let padding = width - (Stdlib.String.displayWidth(s))
-  if padding <= 0 then s else (Stdlib.String.checkedRepeat(" ", padding) |> Stdlib.Result.withDefault("")) + s
+  let padding = width - String.displayWidth(s)
+  if padding <= 0 then
+    s
+  else
+    (String.checkedRepeat(" ", padding) |> Result.withDefault("")) + s
 
 
 /// Adds trailing spaces to <param s> until it is at least <param width> display cells wide.
@@ -22,8 +24,11 @@ let padStartToWidth(s: String, width: Int64): String =
 /// Returns <param s> unchanged if it already meets or exceeds <param width>.
 /// To shorten text that is too wide, use <fn clipToWidth> or <fn ellipsis>.
 let padEndToWidth(s: String, width: Int64): String =
-  let padding = width - (Stdlib.String.displayWidth(s))
-  if padding <= 0 then s else s + (Stdlib.String.checkedRepeat(" ", padding) |> Stdlib.Result.withDefault(""))
+  let padding = width - String.displayWidth(s)
+  if padding <= 0 then
+    s
+  else
+    s + (String.checkedRepeat(" ", padding) |> Result.withDefault(""))
 
 
 /// Returns the longest prefix of <param s> that fits within <param width> display cells.
@@ -33,22 +38,21 @@ let padEndToWidth(s: String, width: Int64): String =
 let clipToWidth(s: String, width: Int64): String =
   if width <= 0 then
     ""
-  else if Stdlib.String.displayWidth(s) <= width then
+  else if String.displayWidth(s) <= width then
     s
   else
     // Prefix widths never decrease, so binary search finds the cut without measuring every prefix.
-    let fits(n: Int64): Bool =
-      Stdlib.String.displayWidth(Stdlib.String.slice(s, 0, n)) <= width
+    let fits(n: Int64): Bool = String.displayWidth(String.slice(s, 0, n)) <= width
 
     // The first `lo` characters fit; the first `hi` characters exceed the width.
     let search(lo: Int64, hi: Int64): Int64 =
       if hi - lo <= 1 then
         lo
       else
-        let mid = Stdlib.Int64.checkedDivide(lo + hi, 2) |> Stdlib.Result.withDefault(0)
+        let mid = Int64.checkedDivide(lo + hi, 2) |> Result.withDefault(0)
         if fits(mid) then search(mid, hi) else search(lo, mid)
 
-    Stdlib.String.slice(s, 0, search(0, Stdlib.String.length(s)))
+    String.slice(s, 0, search(0, String.length(s)))
 
 
 /// The marker appended by <fn ellipsis> when text is shortened.
@@ -66,12 +70,11 @@ val ellipsisMarker = "..."
 let ellipsis(s: String, width: Int64): String =
   if width <= 0 then
     ""
-  else if Stdlib.String.displayWidth(s) <= width then
+  else if String.displayWidth(s) <= width then
     s
   else
-    let room = width - (Stdlib.String.displayWidth(ellipsisMarker))
-
+    let room = width - String.displayWidth(ellipsisMarker)
     if room < 0 then
       clipToWidth(ellipsisMarker, width)
     else
-      (clipToWidth(s, room)) + ellipsisMarker
+      clipToWidth(s, room) + ellipsisMarker

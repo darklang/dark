@@ -1,18 +1,17 @@
 module Darklang.Cli.Installation.Status
 
-
 let execute(state: AppState, args: List<String>): AppState =
-  let host = (Stdlib.Cli.Host.getRuntimeHost()) |> Builtin.unwrap
+  let host = Stdlib.Cli.Host.getRuntimeHost() |> Builtin.unwrap
   let version = Helpers.versionInfoWithUpdateCheck()
-
   let installationStatus =
-    match Installation.System.installedBinaryPath(host) with
+    match System.installedBinaryPath(host) with
     | Error(e) -> Stdlib.Cli.UI.Colors.warning("Status: ") + $"Unknown ({e})"
     | Ok(target) ->
-      if Installation.System.isInstalled(target) then
+      if System.isInstalled(target) then
         Stdlib.Cli.UI.Colors.success("Status: ") + "Installed at " + target
       else
-        Stdlib.Cli.UI.Colors.warning("Status: ") + "Not installed (run 'install' to put dark on your PATH)"
+        Stdlib.Cli.UI.Colors.warning("Status: ")
+        + "Not installed (run 'install' to put dark on your PATH)"
 
   Stdlib.printLine(Stdlib.Cli.UI.Colors.info("Version: ") + version)
   Stdlib.printLine(installationStatus)
@@ -27,10 +26,8 @@ let complete(_state: AppState, _args: List<String>): List<Completion.CompletionI
 
 
 let help(_state: AppState): String =
-  [
-    "Usage: status"
+  [ "Usage: status"
     "Show current CLI installation status."
     ""
-    "Displays the version, and whether dark is installed at ~/.darklang/bin/dark."
-  ]
+    "Displays the version, and whether dark is installed at ~/.darklang/bin/dark." ]
   |> Stdlib.String.join("\n")
