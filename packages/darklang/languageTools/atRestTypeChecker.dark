@@ -284,6 +284,51 @@ let checkPackageOpsOn(branchId: Uuid, ops: List<ProgramTypes.PackageOp>): Report
   guarded((fun((b, o)) -> Run.checkPackageOpsOn(b, o)), (branchId, ops))
 
 
+/// <fn checkPackageOpsOn> for a script or an `eval` about to run. A save keeps a name that
+/// resolves to nothing as a warning, since what it names can arrive in a later save. A script has
+/// no later save: the name fails when the run reaches it, after the lines before it have run. So
+/// here it fails the check, and nothing runs.
+let checkScriptOpsOn(branchId: Uuid, ops: List<ProgramTypes.PackageOp>): Report =
+  failOnUnresolvedNames(checkPackageOpsOn(branchId, ops))
+
+
+/// Whether <param code> is for a name that resolved to nothing.
+let isUnresolvedName(code: IssueCode): Bool =
+  match code with
+  | UnresolvedTypeName -> true
+  | UnresolvedFunctionName -> true
+  | UnresolvedValueName -> true
+  | UnresolvedTraitName -> true
+  | _ -> false
+
+
+/// <param report> with its unresolved-name warnings made errors, and each item that has one Failed.
+let failOnUnresolvedNames(report: Report): Report =
+  let items =
+    report.items
+    |> Stdlib.List.map(fun item ->
+      let (names, others) =
+        Stdlib.List.partition(item.warnings, fun issue -> isUnresolvedName(issue.code))
+
+      match names with
+      | [] -> item
+      | _ ->
+        { item with
+            verdict = Verdict.Failed
+            diagnostics = Stdlib.List.concat(item.diagnostics, names)
+            warnings = others })
+
+  let (names, others) =
+    Stdlib.List.partition(report.warnings, fun issue -> isUnresolvedName(issue.code))
+
+  let failed = names != [] || Stdlib.List.any(items, fun item -> item.verdict == Verdict.Failed)
+  { report with
+      verdict = if failed then Verdict.Failed else report.verdict
+      items = items
+      diagnostics = Stdlib.List.concat(report.diagnostics, names)
+      warnings = others }
+
+
 /// Type-check all declarations visible on the selected branch.
 let checkBranch(branchId: Uuid): Report =
   guarded(Run.checkBranch, branchId)
