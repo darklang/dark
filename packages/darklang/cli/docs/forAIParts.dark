@@ -83,10 +83,10 @@ the number it returns is the exit code:
   run Me.Greet.main Ada               # Hello, Ada; exits 0
   run Me.Greet.main                   # the usage line on stderr; exits 2
 
-Printing needs no approval. Files, the network and the environment do:
-`permissions approve Me.Greet.main --yes` remembers access for this version.
-After an edit, `run` runs the edited code, which is denied that access until
-`permissions update Me.Greet.main --yes`.
+Printing and stdin need no approval. Files, the network and the environment
+do. `run --allow "file read $PWD" Me.Greet.main Ada` allows them for one run,
+edits included, and `permissions profile local-dev /abs/path/to/project --yes`
+allows a project's files for every run.
 
 Numbers arrive as strings too: parse them with `Stdlib.Int64.parse`. Only a
 `List<String>` parameter, or none, runs this way. A function with typed
