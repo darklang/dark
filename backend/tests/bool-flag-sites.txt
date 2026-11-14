@@ -1,3 +1,5 @@
+1 Darklang.Cli.Aliases.executeList Darklang.Cli.exitWith
+1 Darklang.Cli.Aliases.notAForm Darklang.Cli.exitWith
 1 Darklang.Cli.Packages.Deprecate.executeUndeprecate Darklang.Cli.Packages.Deprecate.sayShared
 1 Darklang.Cli.Packages.Signatures.formatType Darklang.PrettyPrinter.ProgramTypes.typeReferenceFlatAtPrecedence
 1 Darklang.Cli.Run.execute Darklang.Cli.Run.executeOptions
@@ -26,6 +28,7 @@
 1 Darklang.Stdlib.Url.parse Darklang.Stdlib.Url.__parseWith
 1 Darklang.Stdlib.Url.parseLenient Darklang.Stdlib.Url.__parseWith
 1 Darklang.Stdlib.Url.parseReference Darklang.Stdlib.Url.__parseWith
+2 Darklang.Cli.Aliases.executeRemoveAll Darklang.Cli.exitWith
 2 Darklang.Cli.Packages.Deprecate.execute Darklang.Cli.Packages.Deprecate.sayShared
 2 Darklang.LanguageTools.Formatter.declarations Darklang.LanguageTools.Formatter.declaration
 2 Darklang.PrettyPrinter.ProgramTypes.TypeDeclaration.enumFieldDoc Darklang.PrettyPrinter.ProgramTypes.typeReferenceDocWithFnParens
@@ -33,3 +36,5 @@
 2 Darklang.Stdlib.Cli.Process.__childDrain Darklang.Stdlib.Cli.Process.__childRead
 2 Darklang.Stdlib.Pretty.__breaksLoop Darklang.Stdlib.Pretty.__fits
 2 Darklang.Stdlib.Pretty.__renderLoop Darklang.Stdlib.Pretty.__fits
+3 Darklang.Cli.Aliases.executeRemove Darklang.Cli.exitWith
+6 Darklang.Cli.Aliases.executeAdd Darklang.Cli.exitWith
