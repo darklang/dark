@@ -821,7 +821,7 @@ module Expr =
 
         (ProgramTypes.Expr.EEnum(gid(), typeName, typeArgs, caseName, fields), unresolvedNames)
     // declaring and accessing variables
-    | ELet(_, pat, rhs, body, _, _) ->
+    | ELet(_, pat, typ, rhs, body, _, _) ->
       // A let binder is not in scope in its rhs. For a let-bound lambda, an
       // unresolved reference to the binding name therefore stays EVariable
       // (and becomes recursion at runtime), while a package fn/value resolves
@@ -840,13 +840,22 @@ module Expr =
               localBindings = context.localBindings }
         | _ -> context
 
+      let (typ, typUnresolvedNames) =
+        match typ with
+        | Some(t) ->
+          let (t, unresolvedNames) = TypeReference.toPT(ctx, t)
+          (Option.Some(t), unresolvedNames)
+        | None -> (Option.None, [])
+
       let (rhs, rhsUnresolvedNames) = toPT(ctx, rhsContext, rhs)
 
       // Get the new context from LetPattern processing
       let (bodyContext, ptPattern) = LetPattern.toPT(context, pat)
       let (body, bodyUnresolvedNames) = toPT(ctx, bodyContext, body)
-      let unresolvedNames = Stdlib.List.flatten([ rhsUnresolvedNames, bodyUnresolvedNames ])
-      (ProgramTypes.Expr.ELet(gid(), ptPattern, rhs, body), unresolvedNames)
+      let unresolvedNames =
+        Stdlib.List.flatten([ typUnresolvedNames, rhsUnresolvedNames, bodyUnresolvedNames ])
+
+      (ProgramTypes.Expr.ELet(gid(), ptPattern, typ, rhs, body), unresolvedNames)
     | EVariable(range, var) ->
       // Resolution order:
       //   1. function argument                            → EArg

@@ -701,7 +701,7 @@ module WrittenTypesToDarkTypes =
           exprToDT l
           exprToDT rt ]
       )
-    | WT.ELet(r, pat, value, body, kwLet, symEq) ->
+    | WT.ELet(r, pat, typ, value, body, kwLet, symEq) ->
       DEnum(
         t,
         t,
@@ -709,6 +709,9 @@ module WrittenTypesToDarkTypes =
         "ELet",
         [ rangeToDT r
           letPatternToDT pat
+          Dval.option
+            (KTCustomType(tn WTRefs.typeReference, []))
+            (typ |> Option.map typeReferenceToDT)
           exprToDT value
           exprToDT body
           rangeToDT kwLet

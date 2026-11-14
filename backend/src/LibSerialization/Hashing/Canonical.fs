@@ -511,9 +511,15 @@ let writeExpr (mode : HashRefMode) (w : BinaryWriter) (expr : PT.Expr) =
   | PT.EValue(_id, nameRes) ->
     w.Write 15uy
     writeNameResolution (writeFQValueName mode) w nameRes
-  | PT.ELet(_id, pattern, rhs, body) ->
+  | PT.ELet(_id, pattern, None, rhs, body) ->
     w.Write 16uy
     writeLetPattern w pattern
+    writeExpr mode w rhs
+    writeExpr mode w body
+  | PT.ELet(_id, pattern, Some typ, rhs, body) ->
+    w.Write 39uy
+    writeLetPattern w pattern
+    writeTypeReference mode w typ
     writeExpr mode w rhs
     writeExpr mode w body
   | PT.EIf(_id, cond, thenExpr, elseExpr) ->

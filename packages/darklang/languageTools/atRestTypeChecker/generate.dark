@@ -296,7 +296,7 @@ let isNonExpansive(expr: ProgramTypes.Expr): Bool =
   | EIf(_, _, _, _) -> false
   | EPipe(_, _, _) -> false
   | EMatch(_, _, _) -> false
-  | ELet(_, _, _, _) -> false
+  | ELet(_, _, _, _, _) -> false
   | EApply(_, _, _, _) -> false
   | EInfix(_, _, _, _, _) -> false
   | ERecordFieldAccess(_, _, _) -> false
@@ -590,7 +590,7 @@ let infer(scope: Scope, expr: ProgramTypes.Expr): (Model.Ty * Model.Constraint) 
   | EArg(id, index) -> inferArg(scope, id, index)
   | EFnName(id, name, _, typeArgs) -> useFunction(scope, id, name, typeArgs, resultOf(id))
   | EString(_, segments) -> inferString(scope, segments)
-  | ELet(id, pattern, value, body) -> inferLet(scope, id, pattern, value, body)
+  | ELet(id, pattern, typ, value, body) -> inferLet(scope, id, pattern, typ, value, body)
   | EPipe(_, lhs, parts) -> inferPipe(scope, lhs, parts)
   | ERecordFieldAccess(id, record, field) -> inferFieldAccess(scope, id, record, field)
   | EMatch(id, arg, cases) -> inferMatch(scope, id, arg, cases)
@@ -721,17 +721,30 @@ let inferString(
   (Model.Ty.TString, all(constraints))
 
 
-/// Infer the bound value, check its pattern, and then infer the body with the new names.
-/// When isNonExpansive permits a generic binding, save a scheme for each name before
-/// checking its uses. Other bindings keep one type shared across all uses.
+/// Infer the bound value, or check it against the annotation, check its pattern, and then
+/// infer the body with the new names. When isNonExpansive permits a generic binding, save a
+/// scheme for each name before checking its uses. Other bindings keep one type shared across
+/// all uses.
 let inferLet(
   scope: Scope,
   id: Int64,
   pattern: ProgramTypes.LetPattern,
+  typ: Option<ProgramTypes.TypeReference>,
   value: ProgramTypes.Expr,
   body: ProgramTypes.Expr)
   : (Model.Ty * Model.Constraint) =
-  let (valueType, valueConstraints) = inferLetValue(scope, pattern, value)
+  let (valueType, valueConstraints) =
+    match typ with
+    | Some(t) ->
+      let (annotated, problems) = Types.fromReference(scope.typeVariables, at(id), t)
+      (
+        annotated,
+        all(
+          [ reports(problems)
+            Model.Constraint.WellFormed(at(id), annotated)
+            check(scope, annotated, Site.LetAnnotation, value) ]))
+    | None -> inferLetValue(scope, pattern, value)
+
   let (bindings, patternConstraints) = letPattern(valueType, pattern)
   if isNonExpansive(value) then
     let inScope = Stdlib.Dict.values(scope.locals)

@@ -800,8 +800,9 @@ module Expect =
       | EArg(_, v), EArg(_, v') -> check path v v'
       | EValue(_, name), EValue(_, name') ->
         check path (stripNRLocation name) (stripNRLocation name')
-      | ELet(_, pat, rhs, body), ELet(_, pat', rhs', body') ->
+      | ELet(_, pat, typ, rhs, body), ELet(_, pat', typ', rhs', body') ->
         letPatternEqualityBaseFn checkIDs path pat pat' errorFn
+        check ("typ" :: path) typ typ'
         eq ("rhs" :: path) rhs rhs'
         eq ("body" :: path) body body'
       | EIf(_, con, thn, els), EIf(_, con', thn', els') ->

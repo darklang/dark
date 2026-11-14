@@ -464,7 +464,9 @@ type Expr =
   // let str = expr1
   // expr2
   // </code>
-  | ELet of id * LetPattern * Expr * Expr
+  //
+  // `let x: UInt8 = 0` keeps its annotation, which the at-rest checker reads.
+  | ELet of id * LetPattern * typ : Option<TypeReference> * Expr * Expr
 
   // Reference some local variable by name
   //
@@ -673,7 +675,7 @@ module Expr =
     | EFloat32(id, _, _, _)
     | EDecimal(id, _)
     | EValue(id, _)
-    | ELet(id, _, _, _)
+    | ELet(id, _, _, _, _)
     | EUnwrap(id, _)
     | EIf(id, _, _, _)
     | EInfix(id, _, _, _, _)

@@ -552,6 +552,16 @@ test exprsQualifiedValue =
       roundTrip("let expr with indent", "let x =\n  1\nx", "let x = 1\nx")
 
       roundTrip(
+        "annotated let",
+        "let x : UInt8 = 1u8\nx",
+        "let x: UInt8 = 1u8\nx")
+
+      roundTrip(
+        "annotated let, a custom type",
+        "let o: Stdlib.Option.Option<String> = Stdlib.Option.Option.None\no",
+        "let o: Option<String> = Option.None\no")
+
+      roundTrip(
         "tuple destructuring",
         "let (var1, var2) = var3\n(var1, var2)",
         "let (var1, var2) = var3\n(var1, var2)")

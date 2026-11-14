@@ -338,10 +338,11 @@ and private reResolveExpr
     let cases = List.map (reResolveMatchCase contextModules pm) cases
     PT.EMatch(id, arg, cases)
 
-  | PT.ELet(id, pat, value, body) ->
+  | PT.ELet(id, pat, typ, value, body) ->
+    let typ = Option.map (reResolveTypeRef contextModules pm) typ
     let value = reResolveExpr contextModules pm value
     let body = reResolveExpr contextModules pm body
-    PT.ELet(id, pat, value, body)
+    PT.ELet(id, pat, typ, value, body)
 
   | PT.EList(id, items) ->
     let items = List.map (reResolveExpr contextModules pm) items

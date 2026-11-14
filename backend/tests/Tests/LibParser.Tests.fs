@@ -381,7 +381,7 @@ let private loweringRegressionTests =
               collisionContext
               (lowerExpr "let map = (fun x -> map(x)) in map(1)")
           with
-          | PT.ELet(_, _, PT.ELambda(_, _, PT.EApply(_, PT.EFnName _, _, _)), _) ->
+          | PT.ELet(_, _, _, PT.ELambda(_, _, PT.EApply(_, PT.EFnName _, _, _)), _) ->
             ()
           | other -> failtest $"expected resolved package collision, got {other}")
       testCase "pipe argument shadows a same-named package function" (fun _ ->
@@ -541,6 +541,7 @@ let private validationTests =
               [ WT.ELet(
                   firstRange,
                   pattern,
+                  None,
                   unitExpr,
                   unitExpr,
                   firstRange,
@@ -1243,7 +1244,7 @@ let private rangeInvariantTests =
         | WT.StringInterpolation(_, e, _, _) -> Some e
         | _ -> None)
     | WT.EInfix(_, _, l, r) -> [ l; r ]
-    | WT.ELet(_, _, v, b, _, _) -> [ v; b ]
+    | WT.ELet(_, _, _, v, b, _, _) -> [ v; b ]
     | WT.EApply(_, lhs, _, args) -> lhs :: args
     | WT.EList(_, elems, _, _) -> elems |> List.map fst
     | WT.ETuple(_, f, _, s, rest, _, _) -> f :: s :: (rest |> List.map snd)

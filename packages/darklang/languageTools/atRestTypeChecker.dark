@@ -107,6 +107,8 @@ type Site =
   | FunctionReturnValue
   | UnwrappedError
   | ValueBody
+  /// The value of a `let` with a type annotation
+  | LetAnnotation
   | TestBody
   | Expression
   | StatementBeforeFinalExpression
@@ -470,6 +472,7 @@ let siteToString(site: Site): String =
   | FunctionReturnValue -> "the function's return value"
   | UnwrappedError -> "the error returned by ?"
   | ValueBody -> "the value's body"
+  | LetAnnotation -> "the annotated let"
   | TestBody -> "the test's body"
   | Expression -> "this expression"
   | StatementBeforeFinalExpression -> "the statement before the final expression"
@@ -818,6 +821,7 @@ let issueToStringWith(customTypeName: ProgramTypes.Hash -> Option<String>, issue
     | (TypeMismatch, At(FunctionReturnValue))
     | (TypeMismatch, At(LambdaReturnValue))
     | (TypeMismatch, At(ValueBody))
+    | (TypeMismatch, At(LetAnnotation))
     | (TypeMismatch, At(Expression))
     | (TypeMismatch, At(OperatorOperand(_)))
     | (TypeMismatch, At(PipelineStringConcatenation)) ->

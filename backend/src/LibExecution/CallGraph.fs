@@ -224,7 +224,7 @@ let private analyzeWith
       if argsInScope then argument (Argument.Parameter i) else Argument.Unknown
     | PT.EVariable(_, name) ->
       Map.tryFind name env |> Option.defaultValue Argument.Unknown |> argument
-    | PT.ELet(_, pattern, value, next) ->
+    | PT.ELet(_, pattern, _, value, next) ->
       let value = visit value
       let env =
         PT.LetPattern.symbolsUsed pattern

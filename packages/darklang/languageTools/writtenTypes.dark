@@ -357,6 +357,7 @@ type Expr =
   | ELet(
     Range,
     LetPattern,
+    typeAnnotation: Option<TypeReference.TypeReference>,
     expr: Expr,
     body: Expr,
     keywordLet: Range,
@@ -465,7 +466,7 @@ module Expr =
     | ERecord(range, _, _, _, _) -> range
     | ERecordUpdate(range, _, _, _, _, _) -> range
     | EEnum(range, _, _, _, _) -> range
-    | ELet(range, _, _, _, _, _) -> range
+    | ELet(range, _, _, _, _, _, _) -> range
     | EUnwrap(range, _, _) -> range
     | EVariable(range, _) -> range
     | ERecordFieldAccess(range, _, _, _) -> range

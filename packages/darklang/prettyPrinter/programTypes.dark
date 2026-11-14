@@ -653,7 +653,8 @@ module References =
       Stdlib.List.flatten([ inExpr(cond), inExpr(thenExpr), inOptionalExpr(elseExpr) ])
     | EPipe(_, lhs, parts) -> Stdlib.List.concat(inExpr(lhs), inPipeExprs(parts))
     | EMatch(_, arg, cases) -> Stdlib.List.concat(inExpr(arg), inMatchCases(cases))
-    | ELet(_, _, value, body) -> Stdlib.List.concat(inExpr(value), inExpr(body))
+    | ELet(_, _, typ, value, body) ->
+      Stdlib.List.flatten([ inTypeRefs(Stdlib.Option.toList(typ)), inExpr(value), inExpr(body) ])
     | EList(_, items) -> inExprs(items)
     | EDict(_, pairs) ->
       inExprs(
@@ -783,7 +784,7 @@ let boundNames(e: LanguageTools.ProgramTypes.Expr): List<String> =
     |> Stdlib.List.flatten
 
   match e with
-  | ELet(_, pattern, rhs, body) ->
+  | ELet(_, pattern, _, rhs, body) ->
     Stdlib.List.flatten([ letPatternNames(pattern), boundNames(rhs), boundNames(body) ])
   | ELambda(_, pats, body) ->
     Stdlib.List.concat(
@@ -1533,7 +1534,7 @@ let listDoc(ctx: Context, items: List<LanguageTools.ProgramTypes.Expr>): Stdlib.
 /// would read as lines of its block.
 let listItemDoc(ctx: Context, item: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty.Doc =
   match item with
-  | ELet(_, _, _, _) | EStatement(_, _, _) -> parens(blockDocSpaced(ctx, item, false))
+  | ELet(_, _, _, _, _) | EStatement(_, _, _) -> parens(blockDocSpaced(ctx, item, false))
   | _ -> exprDocBare(ctx, item)
 
 
@@ -1560,7 +1561,7 @@ let callArg(ctx: Context, arg: LanguageTools.ProgramTypes.Expr, isLast: Bool): S
   | ELambda(_id, pats, body) ->
     if isLast then lambdaDoc(ctx, pats, body, false) else exprDoc(ctx, arg)
   | EIf(_, _, _, _) -> if isLast then exprDoc(ctx, arg) else parenthesized(ctx, arg)
-  | EMatch(_, _, _) | ELet(_, _, _, _) | EStatement(_, _, _) -> parenthesized(ctx, arg)
+  | EMatch(_, _, _) | ELet(_, _, _, _, _) | EStatement(_, _, _) -> parenthesized(ctx, arg)
   | _ -> exprDoc(ctx, arg)
 
 
@@ -1797,7 +1798,7 @@ let exprPower(e: LanguageTools.ProgramTypes.Expr): Int64 =
     p
   | EIf(_, _, _, _) -> 0
   | EMatch(_, _, _) -> 0
-  | ELet(_, _, _, _) -> 0
+  | ELet(_, _, _, _, _) -> 0
   | ELambda(_, _, _) -> 0
   | EPipe(_, _, _) -> 0
   | EStatement(_, _, _) -> 0
@@ -1843,7 +1844,7 @@ let hasBareBitwiseOr(e: LanguageTools.ProgramTypes.Expr): Bool =
     || (match elseExpr with
         | Some(e) -> hasBareBitwiseOr(e)
         | None -> false)
-  | ELet(_, _, rhs, body) -> hasBareBitwiseOr(rhs) || hasBareBitwiseOr(body)
+  | ELet(_, _, _, rhs, body) -> hasBareBitwiseOr(rhs) || hasBareBitwiseOr(body)
   | EStatement(_, first, next) -> hasBareBitwiseOr(first) || hasBareBitwiseOr(next)
   | ELambda(_, _, body) -> hasBareBitwiseOr(body)
   // A nested match prints its own arms on their own rows, indented past this one,
@@ -2002,7 +2003,11 @@ let letBindingDoc(
 type BlockItem =
   /// The ids of the nodes starting here (the `let`, and any sequence it opens), its pattern and
   /// its right-hand side.
-  | Binding(List<Int64>, LanguageTools.ProgramTypes.LetPattern, LanguageTools.ProgramTypes.Expr)
+  | Binding(
+    List<Int64>,
+    LanguageTools.ProgramTypes.LetPattern,
+    Option<LanguageTools.ProgramTypes.TypeReference>,
+    LanguageTools.ProgramTypes.Expr)
   /// The same ids, then the statement.
   | Statement(List<Int64>, LanguageTools.ProgramTypes.Expr)
 
@@ -2016,10 +2021,10 @@ let blockItems(e: LanguageTools.ProgramTypes.Expr): List<BlockItem> =
 /// <param e> does: a comment above the line is theirs as much as the statement's.
 let blockItemsUnder(e: LanguageTools.ProgramTypes.Expr, wrappers: List<Int64>): List<BlockItem> =
   match e with
-  | ELet(id, pattern, rhs, body) ->
+  | ELet(id, pattern, typ, rhs, body) ->
     Stdlib.List.prepend(
       blockItemsUnder(body, []),
-      BlockItem.Binding(Stdlib.List.append(wrappers, id), pattern, rhs))
+      BlockItem.Binding(Stdlib.List.append(wrappers, id), pattern, typ, rhs))
   | EStatement(id, first, next) ->
     Stdlib.List.concat(
       blockItemsUnder(first, Stdlib.List.append(wrappers, id)),
@@ -2245,7 +2250,7 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
     Stdlib.Pretty.text(spelling(ctx, id) |> Stdlib.Option.withDefault(""))
   | EChar(id, _) when Stdlib.Option.isSome(spelling(ctx, id)) ->
     Stdlib.Pretty.text(spelling(ctx, id) |> Stdlib.Option.withDefault(""))
-  | ELet(_, _, _, _) -> blockDoc(ctx, e)
+  | ELet(_, _, _, _, _) -> blockDoc(ctx, e)
   | EStatement(_, _, _) -> blockDoc(ctx, e)
   // `| Some v -> Some(fn v)` on the arm's own line when it fits.
   | EMatch(_id, arg, cases) ->
@@ -2560,7 +2565,7 @@ let blockDoc(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty.Do
 /// `( … )` reads as the end of it.
 let parenthesized(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty.Doc =
   match e with
-  | ELet(_, _, _, _) | EStatement(_, _, _) ->
+  | ELet(_, _, _, _, _) | EStatement(_, _, _) ->
     let build = fun c -> blockDocSpaced(c, e, false)
     if ctx.hasComments then
       parens(commented(ctx, LanguageTools.ProgramTypes.Expr.toID(e), build))
@@ -2577,7 +2582,7 @@ let blockDocSpaced(
   : Stdlib.Pretty.Doc =
   let bare(ctx: Context, item: BlockItem): Stdlib.Pretty.Doc =
     match item with
-    | Binding(_, pattern, rhs) -> bindingDoc(ctx, pattern, rhs)
+    | Binding(_, pattern, typ, rhs) -> bindingDoc(ctx, pattern, typ, rhs)
     | Statement(_, e) -> lineDoc(ctx, e)
 
   let paragraphs =
@@ -2585,7 +2590,7 @@ let blockDocSpaced(
     |> Stdlib.List.map(fun item ->
       let (ids, shape) =
         match item with
-        | Binding(ids, _, rhs) ->
+        | Binding(ids, _, _, rhs) ->
           let rhsShape = lineShape(rhs)
           (ids, if rhsShape == "" then "" else "let " + rhsShape)
         | Statement(ids, e) -> (ids, lineShape(e))
@@ -2627,6 +2632,7 @@ let blockDocSpaced(
 let bindingDoc(
   ctx: Context,
   pattern: LanguageTools.ProgramTypes.LetPattern,
+  typ: Option<LanguageTools.ProgramTypes.TypeReference>,
   rhs: LanguageTools.ProgramTypes.Expr)
   : Stdlib.Pretty.Doc =
   let localFn =
@@ -2673,7 +2679,10 @@ let bindingDoc(
         Stdlib.Pretty.Doc.Nest(
           2,
           Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.Doc.Line, exprDoc(ctx, body)))))
-  | None -> letBindingDoc(ctx, $"let {letPattern(pattern)} =", rhs)
+  | None ->
+    match typ with
+    | Some(t) -> letBindingDoc(ctx, $"let {letPattern(pattern)}: {typeReference(ctx, t)} =", rhs)
+    | None -> letBindingDoc(ctx, $"let {letPattern(pattern)} =", rhs)
 
 
 /// An expression that ends its line: a `let`'s right-hand side, a block's last expression, a
