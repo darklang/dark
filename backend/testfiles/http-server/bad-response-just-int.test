@@ -14,16 +14,6 @@ HTTP/1.1 500 Internal Server Error
 Date: xxx, xx xxx xxxx xx:xx:xx xxx
 Content-Type: text/plain; charset=utf-8
 Server: darklang
-Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 Content-Length: LENGTH
 
-Application error: expected a HTTP response, got:
-type Int64:
-  13
-
-HTTP handlers should return results in the form:
-  Darklang.Stdlib.Http.Response {
-    statusCode : Int64
-    headers : List<String*String>
-    body : Bytes
-  }
+The handler failed: Darklang.Stdlib.HttpServer.Middleware.handle's 2nd parameter `handler` returned Int64 (13), but should return Darklang.Stdlib.Http.Response

@@ -48,6 +48,10 @@ type RequestError =
   | TlsError(String)
   /// Occurs when the request method is not invalid.
   | BadMethod
+  /// Occurs when <fn Middleware.followRedirects> was redirected more times than it allows
+  | TooManyRedirects
+  /// Occurs when a response's body is not what it was read as, eg. text that is not UTF-8 (<fn Response.text>). The message says why.
+  | Decode(String)
 
 
 // TODO: move this into a RequestError module, along with the type
@@ -82,50 +86,360 @@ let toString(e: RequestError): String =
     | IoFailure(authority, detail) -> "Request to " + authority + " failed: " + detail
   | TlsError(message) -> message
   | BadMethod -> "Bad Method"
+  | TooManyRedirects -> "Too many redirects"
+  | Decode(message) -> message
 
 
 impl Display for RequestError =
   let display = Stdlib.HttpClient.toString
 
 
-/// The response from a HTTP request
-type Response =
+/// A request on its way out: what a <type Send> takes and a <type Middleware> may rewrite. The
+/// same fields as a server's <type Stdlib.Http.Request>, and one more.
+type Request =
+  { method: String
+    url: String
+    headers: List<(String * String)>
+    body: Bytes
+    /// How long the exchange may take, in milliseconds: the whole of it for a buffered
+    /// response, until the headers arrive for a stream. {{None}} is the host's default, 30
+    /// seconds. <fn Middleware.timeout> sets it; the host enforces it.
+    timeoutMs: Option<Int64> }
+
+
+/// The response from an HTTP request. <param body> is {{Bytes}} when the whole response was
+/// read (<fn request>, <fn get>, ...) and a lazy {{Stream<UInt8>}} when it is pulled as it
+/// arrives (<fn stream>): the bytes arrive as the server writes them, and the connection is
+/// released when the stream is drained or `Stdlib.Stream.close`d.
+///
+/// Through the default stack (<fn defaultMiddleware>) header names are lowercase. The values are as the
+/// server sent them, and a header sent twice is two pairs. <fn Response.header> looks one up
+/// whatever its case.
+type Response<'body> =
   { statusCode: Int64
     headers: List<(String * String)>
-    body: Bytes }
+    body: 'body }
 
 
-/// A streaming HTTP response. Headers arrive immediately; `body` is a
-/// lazy `Stream<UInt8>` that pulls bytes as they arrive on the wire.
-/// The underlying HTTP response is released when the stream is
-/// drained to completion or `Stdlib.Stream.close`d.
-type StreamResponse =
-  { statusCode: Int64
-    headers: List<(String * String)>
-    body: Stream<UInt8> }
+module Response =
+  /// Every value of the response header <param name>, matched case-insensitively, in the order
+  /// the server sent them: each {{Set-Cookie}}, say.
+  let headers(response: Response<'body>, name: String): List<String> =
+    let wanted = String.toLowercase(name)
+    response.headers
+    |> List.filterMap(fun pair ->
+      let (k, v) = pair
+      if String.toLowercase(k) == wanted then Option.Some(v) else Option.None)
 
 
-/// The request headers as they go to the network: keys trimmed, and an empty key refused.
-/// `request` and `stream` both pass through here, so this is where a request is shaped on
-/// its way out. Whether it is safe to send (a CR, LF or NUL in a header, the network guard,
-/// your grants) is decided below this, by the host.
-let __outgoingHeaders(
-  headers: List<(String * String)>)
-  : Result<List<(String * String)>, RequestError> =
-  match headers with
-  | [] -> Result.Ok(headers)
-  | _ ->
-    let trimmed = List.map(headers, fun h -> (String.trim(Tuple2.first(h)), Tuple2.second(h)))
-    if List.any(trimmed, fun h -> Tuple2.first(h) == "") then
-      Result.Error(RequestError.BadHeader(BadHeader.EmptyKey))
+  /// The value of the response header <param name>, matched case-insensitively, so a lookup of
+  /// {{"ETag"}} finds {{etag}} and {{ETAG}} alike. The first one wins when it was sent more than
+  /// once; <fn headers> has them all. Twin of <fn Stdlib.Http.Request.header>.
+  let header(response: Response<'body>, name: String): Option<String> =
+    List.head(headers(response, name))
+
+
+  /// The body as UTF-8 text, or {{Decode}} saying why it is not.
+  let text(response: Response<Bytes>): Result<String, RequestError> =
+    match Utf8.decode(response.body) with
+    | Ok(s) -> Result.Ok(s)
+    | Error(e) -> Result.Error(RequestError.Decode(e))
+
+
+/// Sends a request and answers its response: the raw builtin (<fn sendRaw>), or one wrapped in
+/// middleware (<fn client>).
+type Send<'body> = Request -> Result<Response<'body>, RequestError>
+
+
+/// A function wrapping a <type Send>: it may change the request before handing it on, change
+/// the response on its way back, answer without sending (an error, a cached response), or send
+/// more than once (a redirect, a retry). <fn Middleware.onRequest> and
+/// <fn Middleware.onResponse> build the common two.
+type Middleware<'body> = Send<'body> -> Send<'body>
+
+
+/// Send <param req> and read the whole response, with nothing on top: the headers go out as
+/// given and come back as the server sent them. What makes a request safe to send (a CR, LF or
+/// NUL in a header, the network guard, your grants) is checked below this, by the host, on
+/// every call, so no middleware can get around it.
+///
+/// A GET or HEAD with no body is a read: it runs concurrently with what follows, and your code
+/// waits for the response where it first looks at it, so `List.map get urls` has every request
+/// in flight at once. Any other request is a write and runs in program order.
+let sendRaw(req: Request): Result<Response<Bytes>, RequestError> =
+  Builtin.httpClientRequest(req.method, req.url, req.headers, req.body, req.timeoutMs)
+
+
+/// <fn sendRaw>, with the body as a lazy stream: in program order, and the timeout covers the
+/// headers, not the body, so a long-lived stream is not cut off.
+let streamRaw(req: Request): Result<Response<Stream<UInt8>>, RequestError> =
+  Builtin.httpClientStream(req.method, req.url, req.headers, req.body, req.timeoutMs)
+
+
+module Middleware =
+  /// <param send> wrapped in <param middlewares>. The first listed is the outermost: it sees
+  /// the request first and the response last.
+  let wrap(
+    middlewares: List<Stdlib.HttpClient.Middleware<'body>>,
+    send: Stdlib.HttpClient.Send<'body>)
+    : Stdlib.HttpClient.Send<'body> =
+    List.fold(List.reverse(middlewares), send, fun(inner, m) -> m(inner))
+
+
+  /// A middleware that rewrites every request with <param f> before sending it.
+  let onRequest(
+    f: Stdlib.HttpClient.Request -> Stdlib.HttpClient.Request)
+    : Stdlib.HttpClient.Middleware<'body> =
+    (fun next -> (fun req -> next(f(req))))
+
+
+  /// A middleware that rewrites every response with <param f>. It does not wait for the
+  /// response: a GET is still in flight when this returns, and <param f> runs when it arrives
+  /// (<fn Stdlib.whenReady>), so `List.map(urls, get)` keeps every request in flight at once.
+  /// The price is that <param f> may only compute; one that prints or writes fails the request.
+  /// For a middleware that takes effects, write the wrapping function yourself: it waits where
+  /// it looks at the response.
+  let onResponse(f: Response<'body> -> Response<'body>): Stdlib.HttpClient.Middleware<'body> =
+    (fun next -> (fun req -> Stdlib.whenReady(next(req), fun result -> Result.map(result, f))))
+
+
+  /// Header names with the spaces around them trimmed. In the default stack.
+  let trimNames(): Stdlib.HttpClient.Middleware<'body> =
+    onRequest(fun req ->
+      { req with
+          headers =
+            List.map(req.headers, fun h -> (String.trim(Tuple2.first(h)), Tuple2.second(h))) })
+
+
+  /// A request with an empty header name is answered {{BadHeader(EmptyKey)}}, unsent. In the
+  /// default stack, after <fn trimNames>, so a name of spaces is refused too.
+  let refuseEmptyNames(): Stdlib.HttpClient.Middleware<'body> =
+    (fun next ->
+       (fun req ->
+          let empty = List.any(req.headers, fun h -> Tuple2.first(h) == "")
+          if empty then
+            Result.Error(RequestError.BadHeader(BadHeader.EmptyKey))
+          else
+            next(req)))
+
+
+  /// Response header names in lowercase, so a plain comparison finds {{etag}} however the
+  /// server spelled it. Values are left alone. In the default stack.
+  let lowercaseNames(): Stdlib.HttpClient.Middleware<'body> =
+    onResponse(fun response ->
+      { response with
+          headers =
+            List.map(response.headers, fun h ->
+              (String.toLowercase(Tuple2.first(h)), Tuple2.second(h))) })
+
+
+  /// Every request may take at most <param ms> milliseconds, which the host enforces: past it
+  /// the answer is {{Timeout}}. A timeout the request already carries is kept: the caller's,
+  /// or one set by a middleware listed before this one.
+  let timeout(ms: Int64): Stdlib.HttpClient.Middleware<'body> =
+    onRequest(fun req ->
+      match req.timeoutMs with
+      | Some(_) -> req
+      | None -> { req with timeoutMs = Option.Some(ms) })
+
+
+  /// Adds the header <param name>: <param value> to every request that does not already carry
+  /// one of that name, whatever its case: a {{User-Agent}}, say.
+  let header(name: String, value: String): Stdlib.HttpClient.Middleware<'body> =
+    let wanted = String.toLowercase(name)
+    onRequest(fun req ->
+      let present = List.any(req.headers, fun h -> String.toLowercase(Tuple2.first(h)) == wanted)
+      if present then
+        req
+      else
+        { req with headers = List.append(req.headers, (name, value)) })
+
+
+  /// A request url resolved against <param base>, so {{"/users"}} with a base of
+  /// {{"https://api.example.com/v1/"}} goes to {{https://api.example.com/users}} and
+  /// {{"users"}} to {{https://api.example.com/v1/users}} (RFC 3986). An absolute url is sent as
+  /// it is, and so is anything that does not parse, for the host to refuse.
+  let baseUrl(base: String): Stdlib.HttpClient.Middleware<'body> =
+    onRequest(fun req ->
+      match Url.parse(base), Url.parseReference(req.url) with
+      | Ok(b), Ok(r) -> { req with url = Url.toString(Url.resolve(b, r)) }
+      | _ -> req)
+
+
+  /// {{scheme://host:port}} of <param url>, lowercased, with the default port filled in: what
+  /// two urls must share for a credential sent to one to be sent to the other.
+  let __origin(url: String): Option<String> =
+    match Url.parse(url) with
+    | Ok(u) ->
+      match u.scheme, u.host with
+      | Some(scheme), Some(host) ->
+        let scheme = String.toLowercase(scheme)
+        let port =
+          match u.port with
+          | Some(p) -> p
+          | None -> if scheme == "https" then 443 else 80
+
+        Option.Some(scheme + "://" + String.toLowercase(host) + ":" + display(port))
+      | _ -> Option.None
+    | Error(_) -> Option.None
+
+
+  /// {{Authorization: Bearer <param token>}} on every request to <param origin> (a url; only
+  /// its scheme, host and port count), and on no other, so the token never goes to a host a
+  /// redirect or a typo points at. One the request already carries is kept.
+  let bearer(origin: String, token: String): Stdlib.HttpClient.Middleware<'body> =
+    let wanted = __origin(origin)
+    onRequest(fun req ->
+      let mine = Option.isSome(wanted) && __origin(req.url) == wanted
+      let already =
+        List.any(req.headers, fun h -> String.toLowercase(Tuple2.first(h)) == "authorization")
+
+      if mine && Bool.not(already) then
+        { req with headers = List.append(req.headers, ("Authorization", "Bearer " + token)) }
+      else
+        req)
+
+
+  /// The next request of a redirect: to <param location> resolved against the url it came
+  /// from, as a GET with no body after a 303 (and after a 301 or 302 to a POST, as browsers
+  /// do), as it was otherwise. Credentials and cookies are dropped when it leaves the origin.
+  let __redirected(
+    req: Stdlib.HttpClient.Request,
+    status: Int64,
+    location: String)
+    : Stdlib.HttpClient.Request =
+    let url =
+      match Url.parse(req.url), Url.parseReference(location) with
+      | Ok(b), Ok(r) -> Url.toString(Url.resolve(b, r))
+      | _ -> location
+
+    let asGet =
+      status == 303 && req.method != "HEAD"
+      || (status == 301 || status == 302) && String.toUppercase(req.method) == "POST"
+
+    let (method, body, headers) =
+      if asGet then
+        (
+          "GET",
+          Bytes.empty,
+          List.filter(req.headers, fun h ->
+            let n = String.toLowercase(Tuple2.first(h))
+            n != "content-type" && n != "content-length"))
+      else
+        (req.method, req.body, req.headers)
+
+    let headers =
+      if __origin(url) == __origin(req.url) then
+        headers
+      else
+        List.filter(headers, fun h ->
+          let n = String.toLowercase(Tuple2.first(h))
+          n != "authorization" && n != "cookie" && n != "proxy-authorization")
+
+    { req with method = method, url = url, body = body, headers = headers }
+
+
+  let __follow(
+    next: Stdlib.HttpClient.Send<'body>,
+    req: Stdlib.HttpClient.Request,
+    left: Int64)
+    : Result<Response<'body>, RequestError> =
+    match next(req) with
+    | Ok(response) ->
+      let status = response.statusCode
+      let redirect =
+        status == 301 || status == 302 || status == 303 || status == 307 || status == 308
+
+      match redirect, Stdlib.HttpClient.Response.header(response, "location") with
+      | true, Some(location) ->
+        if left <= 0 then
+          Result.Error(RequestError.TooManyRedirects)
+        else
+          __follow(next, __redirected(req, status, location), left - 1)
+      | _ -> Result.Ok(response)
+    | Error(e) -> Result.Error(e)
+
+
+  /// Follows a 301, 302, 303, 307 or 308 with a {{Location}}, up to <param max> times; one more
+  /// is {{TooManyRedirects}}. Each hop is a fresh send, so the host checks your grants and the
+  /// network guard again for wherever it goes. {{Authorization}} and {{Cookie}} are dropped
+  /// when a hop leaves the origin. Not in the default stack: it waits for every response,
+  /// where it looks for a redirect, so a GET through it is no longer in flight.
+  let followRedirects(max: Int64): Stdlib.HttpClient.Middleware<'body> =
+    (fun next -> (fun req -> __follow(next, req, max)))
+
+
+  let __isIdempotent(method: String): Bool =
+    let m = String.toUppercase(method)
+    m == "GET" || m == "HEAD" || m == "PUT" || m == "DELETE" || m == "OPTIONS"
+
+
+  let __retryable(result: Result<Response<'body>, RequestError>): Bool =
+    match result with
+    | Ok(response) ->
+      response.statusCode == 429
+      || response.statusCode == 502
+      || response.statusCode == 503
+      || response.statusCode == 504
+    | Error(Timeout) -> true
+    | Error(NetworkError(_)) -> true
+    | Error(_) -> false
+
+
+  let __retry(
+    next: Stdlib.HttpClient.Send<'body>,
+    req: Stdlib.HttpClient.Request,
+    attemptsLeft: Int64,
+    delayMs: Int64)
+    : Result<Response<'body>, RequestError> =
+    let result = next(req)
+    if attemptsLeft > 1 && __retryable(result) then
+      let _ = Cli.Posix.sleep(Int64.toFloat(delayMs))
+      __retry(next, req, attemptsLeft - 1, delayMs * 2)
     else
-      Result.Ok(trimmed)
+      result
 
 
-/// Make an HTTP call to <param uri> and read the whole response. Returns a <type Result>
-/// where the response is wrapped in {{ Ok }} if a response was successfully received and
-/// read, and is wrapped in {{ Error }} otherwise, including when the body fails or times
-/// out partway.
+  /// Sends a GET, HEAD, PUT, DELETE or OPTIONS up to <param attempts> times in all, while it
+  /// times out, fails to connect, or answers 429, 502, 503 or 504, sleeping <param delayMs>
+  /// before the first retry and twice as long before each one after. Any other method is sent
+  /// once: sending a POST twice can do its work twice. Not in the default stack: it waits for
+  /// every response, to see whether to try again.
+  let retry(attempts: Int64, delayMs: Int64): Stdlib.HttpClient.Middleware<'body> =
+    (fun next ->
+       (fun req ->
+          if __isIdempotent(req.method) then
+            __retry(next, req, attempts, delayMs)
+          else
+            next(req)))
+
+
+/// The stack <fn request>, <fn get> and the rest send through: trim header names, refuse an
+/// empty one (<fn Middleware.refuseEmptyNames>), and lowercase the response's header names.
+/// All three keep a GET in flight. Build your own with <fn client>, starting from this list or
+/// from nothing.
+let defaultMiddleware(): List<Stdlib.HttpClient.Middleware<'body>> =
+  [ Middleware.trimNames(), Middleware.refuseEmptyNames(), Middleware.lowercaseNames() ]
+
+
+/// A <type Send> through <param middlewares>, over <fn sendRaw>:
+/// `client(List.append(defaultMiddleware(), Middleware.followRedirects(5)))` follows redirects, and
+/// `client([])` is the raw builtin.
+let client(middlewares: List<Stdlib.HttpClient.Middleware<Bytes>>): Stdlib.HttpClient.Send<Bytes> =
+  Middleware.wrap(middlewares, sendRaw)
+
+
+/// <fn client>, over <fn streamRaw>: the same middleware, with the body as a lazy stream.
+let streamClient(
+  middlewares: List<Stdlib.HttpClient.Middleware<Stream<UInt8>>>)
+  : Stdlib.HttpClient.Send<Stream<UInt8>> =
+  Middleware.wrap(middlewares, streamRaw)
+
+
+/// Make an HTTP call to <param uri> through the default stack (<fn defaultMiddleware>) and read the
+/// whole response. Returns a <type Result> where the response is wrapped in {{ Ok }} if a
+/// response was successfully received and read, and is wrapped in {{ Error }} otherwise,
+/// including when the body fails or times out partway.
 ///
 /// A GET or HEAD is a read: it runs concurrently with what follows, and your code waits for
 /// the response where it first looks at it, so `List.map get urls` has every request in
@@ -136,13 +450,13 @@ let request(
   uri: String,
   headers: List<(String * String)>,
   body: Bytes)
-  : Result<Response, RequestError> =
-  match __outgoingHeaders(headers) with
-  | Ok(headers) -> Builtin.httpClientRequest(method, uri, headers, body)
-  | Error(e) -> Result.Error(e)
+  : Result<Response<Bytes>, RequestError> =
+  let send = client(defaultMiddleware())
+  send(
+    Request { method = method, url = uri, headers = headers, body = body, timeoutMs = Option.None })
 
 
-let get(uri: String, headers: List<(String * String)>): Result<Response, RequestError> =
+let get(uri: String, headers: List<(String * String)>): Result<Response<Bytes>, RequestError> =
   request("GET", uri, headers, Bytes.empty)
 
 
@@ -150,7 +464,7 @@ let post(
   uri: String,
   headers: List<(String * String)>,
   body: Bytes)
-  : Result<Response, RequestError> =
+  : Result<Response<Bytes>, RequestError> =
   request("POST", uri, headers, body)
 
 
@@ -158,27 +472,27 @@ let put(
   uri: String,
   headers: List<(String * String)>,
   body: Bytes)
-  : Result<Response, RequestError> =
+  : Result<Response<Bytes>, RequestError> =
   request("PUT", uri, headers, body)
 
 
-let options(uri: String): Result<Response, RequestError> =
+let options(uri: String): Result<Response<Bytes>, RequestError> =
   request("OPTIONS", uri, [], Bytes.empty)
 
 
-let delete(uri: String): Result<Response, RequestError> =
+let delete(uri: String): Result<Response<Bytes>, RequestError> =
   request("DELETE", uri, [], Bytes.empty)
 
 
-let head(uri: String): Result<Response, RequestError> =
+let head(uri: String): Result<Response<Bytes>, RequestError> =
   request("HEAD", uri, [], Bytes.empty)
 
 
-/// Make a streaming HTTP call to <param uri>, in program order. The response's body is
-/// a lazy `Stream<UInt8>`: bytes arrive as the server writes them. Drain with
-/// `Stdlib.Stream.toList`, `Stdlib.Stream.toBytes`, or compose with `Stdlib.Stream.map` /
-/// `Stdlib.Stream.filter` etc. The timeout covers the response's headers, not its body,
-/// so a long-lived stream is not cut off.
+/// Make a streaming HTTP call to <param uri> through the default stack, in program order. The
+/// response's body is a lazy `Stream<UInt8>`: bytes arrive as the server writes them. Drain
+/// with `Stdlib.Stream.toList`, `Stdlib.Stream.toBytes`, or compose with `Stdlib.Stream.map` /
+/// `Stdlib.Stream.filter` etc. The timeout covers the response's headers, not its body, so a
+/// long-lived stream is not cut off.
 ///
 /// The underlying socket is released when the body stream drains to
 /// completion or is explicitly closed with `Stdlib.Stream.close`.
@@ -187,10 +501,10 @@ let stream(
   uri: String,
   headers: List<(String * String)>,
   body: Bytes)
-  : Result<StreamResponse, RequestError> =
-  match __outgoingHeaders(headers) with
-  | Ok(headers) -> Builtin.httpClientStream(method, uri, headers, body)
-  | Error(e) -> Result.Error(e)
+  : Result<Response<Stream<UInt8>>, RequestError> =
+  let send = streamClient(defaultMiddleware())
+  send(
+    Request { method = method, url = uri, headers = headers, body = body, timeoutMs = Option.None })
 
 
 /// Returns a header <type (String*String))> with {{'authorization'}} created using HTTP basic auth
@@ -228,7 +542,7 @@ module Sse =
   // Server-Sent Events parsing over a Stream<UInt8>. Consumers
   // compose with the standard Stream builtins:
   //
-  //     HttpClient.stream "GET" url headers Stdlib.Bytes.empty
+  //     HttpClient.stream("GET", url, headers, Stdlib.Bytes.empty)
   //     |> Stdlib.Result.map (fun r -> HttpClient.Sse.parse r.body)
   //
   // Implemented as a true streaming parser via `Stdlib.Stream.unfold`:

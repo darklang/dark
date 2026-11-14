@@ -19,6 +19,10 @@ Reads run at the same time. Writes keep program order; overlap them only by aski
 A read is a call whose effects are all reads (a file, env or package
 read, an HTTP GET or HEAD). Anything else runs in order.
 
+`Stdlib.whenReady(x, f)` is `f(x)` without the wait: given a read in flight it
+answers a read in flight too, and `f` runs when `x` arrives. It runs after your
+program has moved on, so `f` may only compute (`docs http-client` uses it).
+
 ## When you want control
 
   let h = Stdlib.Exec.spawn(fun () -> Stdlib.Cli.File.writeText(log, "done"))  // in the background

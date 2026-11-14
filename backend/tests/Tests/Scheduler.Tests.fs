@@ -1842,6 +1842,185 @@ let private execDoneWatcherGoesWithItsWait =
   }
 
 
+// -- A function of a read, without waiting for it: `Stdlib.whenReady`, and the middleware on it --
+
+let private whenReadyKeepsTheReadInFlight =
+  testTask
+    "whenReady over a read in flight hands back a read, and applies the function on landing" {
+    let! result =
+      runReleasing
+        """let r = Stdlib.whenReady(Builtin.testRead(331), fun x -> x + 1)
+let _ = Builtin.testTrace("ran on")
+r + 0"""
+        [ 331L ]
+        [ "ran on" ]
+    expectValue (RT.DInt64 332L) result
+  }
+
+let private whenReadyRefusesAnEffectAfterTheFact =
+  testTask "whenReady's function may only compute once the program has moved on" {
+    let! result =
+      runReleasing
+        """let r = Stdlib.whenReady(Builtin.testRead(332), fun x -> Stdlib.printLine(Stdlib.display(x)))
+let _ = Builtin.testTrace("ran on")
+Stdlib.await(r)"""
+        [ 332L ]
+        [ "ran on" ]
+    match result with
+    | Error(RTE.UncaughtException(msg, _), _) ->
+      Expect.stringContains msg "Stdlib.whenReady" "the error names whenReady"
+      Expect.stringContains msg "printLine" "and the call it refused"
+    | other -> failtest $"expected the refusal, got {other}"
+  }
+
+let private whenReadyOfAValueRunsInOrder =
+  testTask "whenReady over a plain value applies the function there, effects and all" {
+    let code =
+      """let _ = Stdlib.whenReady(1, fun x -> Builtin.testTrace("applied"))
+let _ = Builtin.testTrace("after")
+2"""
+    let! result =
+      runWith code (fun _ -> waitForTrace "in program order" [ "applied"; "after" ])
+    expectValue (RT.DInt64 2L) result
+  }
+
+/// A server on loopback that holds every response until `count` requests have arrived, then
+/// answers them all. A client that sends them one at a time gets its first answer only after 3s,
+/// once the server gives up waiting. Answers whether every response went out because all the
+/// requests were in, rather than because the server gave up.
+let private serveOnceAllArrive
+  (listener : System.Net.Sockets.TcpListener)
+  (count : int)
+  =
+  task {
+    let all = TaskCompletionSource<unit>()
+    // A counter the connections share; a ref cell, since a task cannot capture a mutable.
+    let arrived = ref 0
+    let one () =
+      task {
+        use! client = listener.AcceptTcpClientAsync()
+        let stream = client.GetStream()
+        let buffer = Array.zeroCreate<byte> 4096
+        let! _ = stream.ReadAsync(buffer, 0, buffer.Length)
+        if Interlocked.Increment &arrived.contents = count then
+          all.TrySetResult() |> ignore<bool>
+        // Answered once all have come, or after 3s, so a run that sends them one at a time
+        // still finishes, and fails on the count rather than hanging.
+        let! first = Task.WhenAny(all.Task, Task.Delay 3000)
+        let response =
+          "HTTP/1.1 200 OK\r\nETag: \"AbC\"\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"B
+        do! stream.WriteAsync(response, 0, response.Length)
+        return obj.ReferenceEquals(first, all.Task)
+      }
+    let! together = Task.WhenAll [ for _ in 1..count -> one () ]
+    return Array.forall (fun answeredTogether -> answeredTogether) together
+  }
+
+let private parallelGetsThrough (stack : string) (count : int) =
+  task {
+    installTestHttpConfig ()
+    let listener =
+      new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0)
+    listener.Start()
+    let port = (listener.LocalEndpoint :?> System.Net.IPEndPoint).Port
+    try
+      let serving = serveOnceAllArrive listener count
+      let started = System.Diagnostics.Stopwatch.StartNew()
+      let code =
+        """let send = STACK
+let urls = Stdlib.List.map(Stdlib.List.range(1, COUNT), fun i -> "http://test.dlio.localhost:PORT/" + Stdlib.display(i))
+let responses =
+  Stdlib.List.map(urls, fun u ->
+    send(
+      Stdlib.HttpClient.Request
+        { method = "GET"
+          url = u
+          headers = []
+          body = Stdlib.Bytes.empty
+          timeoutMs = Stdlib.Option.Option.None }))
+Stdlib.List.map(responses, fun r ->
+  match r with
+  | Ok(response) -> Stdlib.HttpClient.Response.header(response, "etag") |> Builtin.unwrap
+  | Error(e) -> Stdlib.HttpClient.toString(e))"""
+      let code =
+        code
+          .Replace("STACK", stack)
+          .Replace("COUNT", string count)
+          .Replace("PORT", string port)
+      let! result = runWith code (fun _ -> ())
+      let! together = serving
+      return (together, started.ElapsedMilliseconds, result)
+    finally
+      listener.Stop()
+  }
+
+let private defaultStackKeepsGetsParallel =
+  testTask
+    "GETs through the default stack, response middleware and all, are in flight at once" {
+    let! (together, ms, result) =
+      parallelGetsThrough
+        "Stdlib.HttpClient.client(Stdlib.HttpClient.defaultMiddleware())"
+        4
+    Expect.isTrue
+      together
+      "all four requests reached the server before any was answered"
+    Expect.isLessThan ms 3000L $"answered together, not one by one ({ms}ms)"
+    match expectOk result "the program" with
+    | RT.DList(_, RT.Items etags) ->
+      Expect.equal
+        etags
+        (List.replicate 4 (RT.DString "\"AbC\""))
+        "every ETag, case kept"
+    | other -> failtest $"expected a list, got {other}"
+  }
+
+let private waitingMiddlewareSendsOneAtATime =
+  testTask
+    "a middleware that looks at the response (redirects) sends one GET at a time" {
+    let! (together, _, result) =
+      parallelGetsThrough
+        "Stdlib.HttpClient.client(Stdlib.List.append(Stdlib.HttpClient.defaultMiddleware(), Stdlib.HttpClient.Middleware.followRedirects(3)))"
+        2
+    Expect.isFalse together "the first was answered before the second was sent"
+    expectOk result "the program" |> ignore<RT.Dval>
+  }
+
+let private middlewareTimeoutReachesTheHost =
+  testTask "Middleware.timeout is enforced by the host" {
+    installTestHttpConfig ()
+    let listener =
+      new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0)
+    listener.Start()
+    let port = (listener.LocalEndpoint :?> System.Net.IPEndPoint).Port
+    let release = TaskCompletionSource<unit>()
+    let serving =
+      task {
+        use! client = listener.AcceptTcpClientAsync()
+        let stream = client.GetStream()
+        let buffer = Array.zeroCreate<byte> 4096
+        let! _ = stream.ReadAsync(buffer, 0, buffer.Length)
+        do! release.Task
+      }
+    try
+      let started = System.Diagnostics.Stopwatch.StartNew()
+      let code =
+        """let send = Stdlib.HttpClient.client([ Stdlib.HttpClient.Middleware.timeout(300) ])
+match send(Stdlib.HttpClient.Request { method = "GET", url = "http://test.dlio.localhost:PORT/", headers = [], body = Stdlib.Bytes.empty, timeoutMs = Stdlib.Option.Option.None }) with
+| Ok(_) -> "answered"
+| Error(e) -> Stdlib.HttpClient.toString(e)"""
+      let! result = runWith (code.Replace("PORT", string port)) (fun _ -> ())
+      expectValue (RT.DString "Timeout") result
+      Expect.isLessThan
+        started.ElapsedMilliseconds
+        10_000L
+        "cut at 300ms, not the default 30s"
+    finally
+      release.TrySetResult() |> ignore<bool>
+      listener.Stop()
+    do! serving
+  }
+
+
 let private httpGetIsARead =
   test
     "the HTTP client's GET and HEAD with no body are reads, and nothing else it does is" {
@@ -2542,6 +2721,12 @@ let tests =
         execDoneWakesForAFinishInTheGap
         execDoneWatcherGoesWithItsWait
         httpGetIsARead
+        whenReadyKeepsTheReadInFlight
+        whenReadyRefusesAnEffectAfterTheFact
+        whenReadyOfAValueRunsInOrder
+        defaultStackKeepsGetsParallel
+        waitingMiddlewareSendsOneAtATime
+        middlewareTimeoutReachesTheHost
         parkedInsideMapShowsTheLambda
         budgetYieldInsideMap
         errorInsideMapNamesTheLambda

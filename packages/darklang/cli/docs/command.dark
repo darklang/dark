@@ -150,6 +150,14 @@ module Topics =
           subtopics = [] }
 
       DocTopic
+        { name = "http-client"
+          description = "HTTP client guide: requests, responses, middleware"
+          aliases = [ "client", "middleware" ]
+          context = "general"
+          content = Docs.HttpClient.content
+          subtopics = [] }
+
+      DocTopic
         { name = "http-server"
           description = "HTTP server guide"
           aliases = [ "http", "server" ]

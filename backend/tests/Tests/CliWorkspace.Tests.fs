@@ -784,9 +784,7 @@ let private withLiveServer
             dev
             Builtins.Http.Server.Libs.HttpServer.defaultMaxBodyBytes
             Builtins.Http.Server.Libs.HttpServer.defaultRequestTimeoutMs
-            false
-            false
-            false
+            (RT.DList(RT.ValueType.Unknown, RT.DvalList.empty))
             cts.Token
         if bodyPassed then
           output.Check(fun stdout stderr ->

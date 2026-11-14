@@ -81,6 +81,38 @@ checks the rest: `Status.toInt64(Status.tooManyRequests)` is 429, and
 `matchRoute pattern path` is the lower-level form. It returns a record, not an
 Option: `{ matched: Bool, vars: List<String * String> }`.
 
+## Middleware
+
+A handler is `Stdlib.Http.Request -> Stdlib.Http.Response`, so middleware is a
+function from a handler to a handler:
+
+  type Stdlib.HttpServer.Middleware =
+    (Http.Request -> Http.Response) -> (Http.Request -> Http.Response)
+
+`serve` runs every request through `config.middleware`, first listed
+outermost. `Config.defaults(port)` gives `Config.defaultMiddleware()`:
+
+  Stdlib.HttpServer.Middleware.logRequests()          # [HttpServer] GET /a 200 3ms, on stderr
+  Stdlib.HttpServer.Middleware.trustForwardedProto()  # https:// behind an https proxy
+  Stdlib.HttpServer.Middleware.standardHeaders()      # Server: darklang, and HSTS
+
+Change the list with a record update:
+
+  let config =
+    { Stdlib.HttpServer.Config.defaults(port) with
+        middleware =
+          [ Stdlib.HttpServer.Middleware.logRequests()
+            Stdlib.HttpServer.Middleware.onResponse(fun r ->
+              { r with headers = Stdlib.List.append(r.headers, ("X-Frame-Options", "DENY")) }) ] }
+
+`Middleware.onRequest(f)` and `Middleware.onResponse(f)` build the common two;
+`Middleware.wrap(ms, handler)` is the composition, if you want it yourself.
+The router reaches the server bare and is wrapped per request, so its
+approvals and its traces stay its own. Compression, the body limit and the
+handler timeout are not middleware, and neither are the responses the server
+writes itself: a 413 or a 504 gets a log line from the server whatever the list
+holds, and a handler that fails prints its error.
+
 ## A worked example
 
 `Darklang.DemoData.HttpServerTest` is a small server that runs - root, /hello and

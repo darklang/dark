@@ -1,0 +1,30 @@
+[expected-request]
+GET PATH HTTP/1.1
+Host: HOST
+Content-Length: 0
+
+[response]
+HTTP/1.1 200 OK
+Date: xxx, xx xxx xxxx xx:xx:xx xxx
+Content-type: text/plain; charset=utf-8
+Content-Length: LENGTH
+ETag: "AbC123"
+
+Hello back
+
+[test]
+// With no middleware the names come back as the server sent them too: lowercasing them is
+// the default stack's (`Middleware.lowercaseNames`), not the host's.
+(let send = Darklang.Stdlib.HttpClient.client([])
+ let response =
+   send(
+     Darklang.Stdlib.HttpClient.Request
+       { method = "GET"
+         url = "http://URL"
+         headers = []
+         body = Stdlib.Bytes.empty
+         timeoutMs = Stdlib.Option.Option.None })
+   |> Builtin.unwrap
+ (response.headers |> Darklang.Stdlib.List.filter(fun h -> (Darklang.Stdlib.String.toLowercase(Darklang.Stdlib.Tuple2.first(h))) == "etag"),
+  Darklang.Stdlib.HttpClient.Response.header(response, "etag"))) ==
+   ([ ("ETag", "\"AbC123\"") ], Stdlib.Option.Option.Some("\"AbC123\""))

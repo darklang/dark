@@ -106,7 +106,7 @@ test basicAuthRejectsHyphenInUsername =
 // ... but first, some helpers
 type GetResult =
   Stdlib.Result.Result<
-    Stdlib.HttpClient.Response,
+    Stdlib.HttpClient.Response<Bytes>,
     Stdlib.HttpClient.RequestError>
 
 
@@ -437,4 +437,433 @@ test missingHostFails =
    | _ -> false)
   |> Stdlib.Test.equal(true)
 
+
 // TODO: http2, http3
+// ---------------------------
+// Middleware, over a send that never reaches the network
+// ---------------------------
+
+let __request(
+  url: String,
+  headers: List<(String * String)>)
+  : Stdlib.HttpClient.Request =
+  Stdlib.HttpClient.Request
+    { method = "GET"
+      url = url
+      headers = headers
+      body = Stdlib.Bytes.empty
+      timeoutMs = Stdlib.Option.Option.None }
+
+
+let __response(
+  status: Int64,
+  headers: List<(String * String)>,
+  body: String)
+  : Stdlib.Result.Result<
+  Stdlib.HttpClient.Response<Bytes>,
+  Stdlib.HttpClient.RequestError> =
+  Stdlib.Result.Result.Ok(
+    Stdlib.HttpClient.Response
+      { statusCode = status
+        headers = headers
+        body = Stdlib.Utf8.encode(body) })
+
+
+/// Answers 200 with the request it was sent: its headers as the response's, and
+/// "METHOD url timeout" as the body.
+let __echo(
+  req: Stdlib.HttpClient.Request)
+  : Stdlib.Result.Result<
+  Stdlib.HttpClient.Response<Bytes>,
+  Stdlib.HttpClient.RequestError> =
+  let timeout =
+    match req.timeoutMs with
+    | Some(ms) -> Stdlib.display(ms)
+    | None -> "none"
+
+  __response(200, req.headers, req.method + " " + req.url + " " + timeout)
+
+
+let __body(
+  result:
+    Stdlib.Result.Result<
+      Stdlib.HttpClient.Response<Bytes>,
+      Stdlib.HttpClient.RequestError>)
+  : String =
+  match result with
+  | Ok(r) -> Stdlib.Utf8.decodeWithReplacement(r.body)
+  | Error(e) -> "error: " + Stdlib.HttpClient.toString(e)
+
+
+let __headers(
+  result:
+    Stdlib.Result.Result<
+      Stdlib.HttpClient.Response<Bytes>,
+      Stdlib.HttpClient.RequestError>)
+  : List<(String * String)> =
+  match result with
+  | Ok(r) -> r.headers
+  | Error(_) -> []
+
+
+let __through(
+  middlewares: List<Stdlib.HttpClient.Middleware<Bytes>>,
+  send: Stdlib.HttpClient.Send<Bytes>,
+  req: Stdlib.HttpClient.Request)
+  : Stdlib.Result.Result<
+  Stdlib.HttpClient.Response<Bytes>,
+  Stdlib.HttpClient.RequestError> =
+  let s = Stdlib.HttpClient.Middleware.wrap(middlewares, send)
+  s(req)
+
+
+test responseHeaderIsCaseInsensitive =
+  let r =
+    Stdlib.HttpClient.Response
+      { statusCode = 200
+        headers =
+          [ ("ETag", "\"AbC\""), ("Set-Cookie", "a=1"), ("set-cookie", "b=2") ]
+        body = Stdlib.Bytes.empty }
+
+  Stdlib.Test.all(
+    [ Stdlib.HttpClient.Response.header(r, "etag")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("\"AbC\""))
+
+      Stdlib.HttpClient.Response.header(r, "ETAG")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("\"AbC\""))
+
+      Stdlib.HttpClient.Response.header(r, "location")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.HttpClient.Response.headers(r, "Set-Cookie")
+      |> Stdlib.Test.equal([ "a=1", "b=2" ]) ])
+
+
+test responseText =
+  Stdlib.Test.all(
+    [ (match __response(200, [], "héllo") with
+       | Ok(r) -> Stdlib.HttpClient.Response.text(r)
+       | Error(e) -> Stdlib.Result.Result.Error(e))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("héllo"))
+
+      Stdlib.HttpClient.Response.text(
+        Stdlib.HttpClient.Response
+          { statusCode = 200
+            headers = []
+            body = Stdlib.Bytes.fromList([ 255u8 ]) })
+      |> Stdlib.Result.isError
+      |> Stdlib.Test.equal(true) ])
+
+
+test stackRunsFirstListedOutermost =
+  let tag = fun name ->
+    Stdlib.HttpClient.Middleware.onRequest(fun req ->
+      { req with headers = Stdlib.List.append(req.headers, ("x-seen", name)) })
+
+  __through(
+    [ tag("outer"), tag("inner") ],
+    __echo,
+    __request("https://a.test/", []))
+  |> __headers
+  |> Stdlib.Test.equal([ ("x-seen", "outer"), ("x-seen", "inner") ])
+
+
+test emptyStackIsTheSendItself =
+  __through([], __echo, __request("https://a.test/", [ ("A", "1") ]))
+  |> __headers
+  |> Stdlib.Test.equal([ ("A", "1") ])
+
+
+test onResponseRewritesTheResponse =
+  __through(
+    [ Stdlib.HttpClient.Middleware.onResponse(fun r ->
+        { r with statusCode = 299 }) ],
+    __echo,
+    __request("https://a.test/", []))
+  |> Stdlib.Result.map(fun r -> r.statusCode)
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(299))
+
+
+test trimNames =
+  __through(
+    [ Stdlib.HttpClient.Middleware.trimNames() ],
+    __echo,
+    __request("https://a.test/", [ (" X-A ", " v ") ]))
+  |> __headers
+  |> Stdlib.Test.equal([ ("X-A", " v ") ])
+
+
+test refuseEmptyNames =
+  Stdlib.Test.all(
+    [ __through(
+        [ Stdlib.HttpClient.Middleware.refuseEmptyNames() ],
+        __echo,
+        __request("https://a.test/", [ ("", "v") ]))
+      |> __body
+      |> Stdlib.Test.equal("error: Empty key")
+
+      // A name of spaces is only empty once trimmed, so the order of the defaults matters.
+      __through(
+        [ Stdlib.HttpClient.Middleware.refuseEmptyNames() ],
+        __echo,
+        __request("https://a.test/", [ (" ", "v") ]))
+      |> __headers
+      |> Stdlib.Test.equal([ (" ", "v") ]) ])
+
+
+test lowercaseNamesKeepsValues =
+  __through(
+    [ Stdlib.HttpClient.Middleware.lowercaseNames() ],
+    (fun _ ->
+       __response(
+         200,
+         [ ("ETag", "\"AbC123\"")
+           ("Set-Cookie", "a=1")
+           ("Set-Cookie", "b=2") ],
+         "")),
+    __request("https://a.test/", []))
+  |> __headers
+  |> Stdlib.Test.equal(
+    [ ("etag", "\"AbC123\""), ("set-cookie", "a=1"), ("set-cookie", "b=2") ])
+
+
+test theDefaultStack =
+  Stdlib.Test.all(
+    [ __through(
+        Stdlib.HttpClient.defaultMiddleware(),
+        __echo,
+        __request("https://a.test/", [ (" Accept ", "Text/HTML") ]))
+      |> __headers
+      |> Stdlib.Test.equal([ ("accept", "Text/HTML") ])
+
+      __through(
+        Stdlib.HttpClient.defaultMiddleware(),
+        __echo,
+        __request("https://a.test/", [ ("  ", "v") ]))
+      |> __body
+      |> Stdlib.Test.equal("error: Empty key")
+
+      // Request side only, and names: the url, method and timeout go out as given.
+      __through(
+        Stdlib.HttpClient.defaultMiddleware(),
+        __echo,
+        __request("https://a.test/X?Y=Z", []))
+      |> __body
+      |> Stdlib.Test.equal("GET https://a.test/X?Y=Z none") ])
+
+
+test timeoutSetsTheField =
+  Stdlib.Test.all(
+    [ __through(
+        [ Stdlib.HttpClient.Middleware.timeout(250) ],
+        __echo,
+        __request("https://a.test/", []))
+      |> __body
+      |> Stdlib.Test.equal("GET https://a.test/ 250")
+
+      // The first listed sees the request first, so it wins.
+      __through(
+        [ Stdlib.HttpClient.Middleware.timeout(250)
+          Stdlib.HttpClient.Middleware.timeout(10) ],
+        __echo,
+        __request("https://a.test/", []))
+      |> __body
+      |> Stdlib.Test.equal("GET https://a.test/ 250")
+
+      __through(
+        [ Stdlib.HttpClient.Middleware.timeout(250) ],
+        __echo,
+        { __request("https://a.test/", []) with
+            timeoutMs = Stdlib.Option.Option.Some(5) })
+      |> __body
+      |> Stdlib.Test.equal("GET https://a.test/ 5") ])
+
+
+test headerAddsUnlessPresent =
+  Stdlib.Test.all(
+    [ __through(
+        [ Stdlib.HttpClient.Middleware.header("User-Agent", "dark") ],
+        __echo,
+        __request("https://a.test/", [ ("Accept", "*/*") ]))
+      |> __headers
+      |> Stdlib.Test.equal([ ("Accept", "*/*"), ("User-Agent", "dark") ])
+
+      __through(
+        [ Stdlib.HttpClient.Middleware.header("User-Agent", "dark") ],
+        __echo,
+        __request("https://a.test/", [ ("user-agent", "mine") ]))
+      |> __headers
+      |> Stdlib.Test.equal([ ("user-agent", "mine") ]) ])
+
+
+test baseUrlResolves =
+  let via = fun url ->
+    __through(
+      [ Stdlib.HttpClient.Middleware.baseUrl("https://api.example.com/v1/") ],
+      __echo,
+      __request(url, []))
+    |> __body
+
+  Stdlib.Test.all(
+    [ via("users")
+      |> Stdlib.Test.equal("GET https://api.example.com/v1/users none")
+
+      via("/users")
+      |> Stdlib.Test.equal("GET https://api.example.com/users none")
+
+      via("https://other.test/x")
+      |> Stdlib.Test.equal("GET https://other.test/x none") ])
+
+
+test bearerOnlyToItsOrigin =
+  let via = fun url ->
+    __through(
+      [ Stdlib.HttpClient.Middleware.bearer("https://api.example.com", "t0k") ],
+      __echo,
+      __request(url, []))
+    |> __headers
+
+  Stdlib.Test.all(
+    [ via("https://api.example.com/a")
+      |> Stdlib.Test.equal([ ("Authorization", "Bearer t0k") ])
+
+      via("https://API.example.com:443/b")
+      |> Stdlib.Test.equal([ ("Authorization", "Bearer t0k") ])
+
+      via("http://api.example.com/a") |> Stdlib.Test.equal([])
+
+      via("https://api.example.com.evil.test/a") |> Stdlib.Test.equal([])
+
+      via("https://api.example.com:8443/a") |> Stdlib.Test.equal([]) ])
+
+
+/// A server of redirects: `/n/<k>` redirects to `/n/<k-1>` until 0, `/elsewhere` leaves
+/// the origin, `/see-other` answers 303. Everything else answers with the request.
+let __redirects(
+  req: Stdlib.HttpClient.Request)
+  : Stdlib.Result.Result<
+  Stdlib.HttpClient.Response<Bytes>,
+  Stdlib.HttpClient.RequestError> =
+  let path = (Stdlib.Http.requestTarget(req.url)).path
+  if Stdlib.String.startsWith(path, "/n/") then
+    match Stdlib.Int64.parse(Stdlib.String.dropFirst(path, 3)) with
+    | Ok(0) -> __echo(req)
+    | Ok(k) ->
+      __response(302, [ ("Location", "/n/" + Stdlib.display(k - 1)) ], "")
+    | Error(_) -> __response(400, [], "")
+  else if path == "/elsewhere" then
+    __response(307, [ ("Location", "https://other.test/landed") ], "")
+  else if path == "/see-other" then
+    __response(303, [ ("Location", "/done") ], "")
+  else
+    __echo(req)
+
+
+test followRedirects =
+  let via = fun(req, max) ->
+    __through(
+      [ Stdlib.HttpClient.Middleware.followRedirects(max) ],
+      __redirects,
+      req)
+
+  Stdlib.Test.all(
+    [ via(__request("https://a.test/n/3", []), 5)
+      |> __body
+      |> Stdlib.Test.equal("GET https://a.test/n/0 none")
+
+      via(__request("https://a.test/n/3", []), 3)
+      |> __body
+      |> Stdlib.Test.equal("GET https://a.test/n/0 none")
+
+      via(__request("https://a.test/n/3", []), 2)
+      |> __body
+      |> Stdlib.Test.equal("error: Too many redirects")
+
+      // Not followed at all: the redirect itself comes back.
+      via(__request("https://a.test/n/3", []), 0)
+      |> __body
+      |> Stdlib.Test.equal("error: Too many redirects")
+
+      // A 303 turns a POST into a GET without its body.
+      via(
+        { __request("https://a.test/see-other", []) with
+            method = "POST"
+            body = Stdlib.Utf8.encode("x") },
+        5)
+      |> __body
+      |> Stdlib.Test.equal("GET https://a.test/done none")
+
+      // Credentials stay on the origin they were meant for.
+      via(
+        __request(
+          "https://a.test/elsewhere",
+          [ ("Authorization", "Bearer s")
+            ("Cookie", "c=1")
+            ("Accept", "*/*") ]),
+        5)
+      |> __headers
+      |> Stdlib.Test.equal([ ("Accept", "*/*") ])
+
+      via(__request("https://a.test/n/1", [ ("Authorization", "Bearer s") ]), 5)
+      |> __headers
+      |> Stdlib.Test.equal([ ("Authorization", "Bearer s") ]) ])
+
+
+test retryBacksOffOnIdempotentMethodsOnly =
+  let unavailable = fun _ -> __response(503, [], "busy")
+  let timed = fun method ->
+    let started = Stdlib.DateTime.now()
+    let result =
+      __through(
+        [ Stdlib.HttpClient.Middleware.retry(3, 100) ],
+        unavailable,
+        { __request("https://a.test/", []) with method = method })
+
+    (
+      Stdlib.DateTime.subtractMs(Stdlib.DateTime.now(), started),
+      Stdlib.Result.map(result, fun r -> r.statusCode))
+
+  let (getMs, getResult) = timed("GET")
+  let (postMs, postResult) = timed("POST")
+  Stdlib.Test.all(
+    [ // Three attempts, sleeping 100ms and then 200ms between them.
+      getMs >= 300 |> Stdlib.Test.equal(true)
+      getResult |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(503))
+      // A POST is sent once.
+      postMs < 100 |> Stdlib.Test.equal(true)
+      postResult |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(503)) ])
+
+
+test retryStopsAtSuccessAndAtOtherErrors =
+  Stdlib.Test.all(
+    [ __through(
+        [ Stdlib.HttpClient.Middleware.retry(3, 1000) ],
+        __echo,
+        __request("https://a.test/", []))
+      |> __body
+      |> Stdlib.Test.equal("GET https://a.test/ none")
+
+      __through(
+        [ Stdlib.HttpClient.Middleware.retry(3, 1000) ],
+        (fun _ ->
+           Stdlib.Result.Result.Error(
+             Stdlib.HttpClient.RequestError.BadUrl(
+               Stdlib.HttpClient.BadUrlDetails.InvalidHost))),
+        __request("https://a.test/", []))
+      |> __body
+      |> Stdlib.Test.equal("error: Invalid host") ])
+
+
+test newRequestErrorsSayWhat =
+  Stdlib.Test.all(
+    [ Stdlib.HttpClient.toString(
+        Stdlib.HttpClient.RequestError.TooManyRedirects)
+      |> Stdlib.Test.equal("Too many redirects")
+
+      Stdlib.HttpClient.toString(
+        Stdlib.HttpClient.RequestError.Decode("not UTF-8"))
+      |> Stdlib.Test.equal("not UTF-8") ])
+
+
+test whenReadyAppliesAValueAtOnce =
+  Stdlib.whenReady(41, fun x -> x + 1) |> Stdlib.Test.equal(42)

@@ -403,6 +403,35 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // `fn` of `value` without waiting here for a read in flight: the call is then a read itself
+    // (`Interpreter.callReadsOnly`), and `fn` runs when the read lands, in a process that may only
+    // compute (`Spread.whenLanded`). A value that is not a read in flight is applied here, in order.
+    { name = fn Interpreter.whenReadyBuiltin 0
+      typeParams = []
+      parameters =
+        [ Param.moved "value" varA ""
+          Param.makeWithArgs "fn" (TFn(NEList.singleton varA, varB)) "" [ "value" ] ]
+      returnType = varB
+      description =
+        "Returns <param fn> applied to <param value>. A read still in flight is not waited for "
+        + "here: the result is a read in flight too, and <param fn> runs when <param value> "
+        + "arrives, so it may only compute"
+      fn =
+        (function
+        | state, vm, _, [| DPromise p as read; DApplicable app |] ->
+          let t = p.Task
+          if t.IsCompletedSuccessfully && not (Pending.isPromise t.Result) then
+            Interpreter.requestApply vm app t.Result ValueNone Ply
+          else
+            LibExecution.Spread.whenLanded state vm app read
+        | _, vm, _, [| value; DApplicable app |] ->
+          Interpreter.requestApply vm app value ValueNone Ply
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = set [ LibExecution.Effects.Effect.Raise ]
+      deprecated = NotDeprecated }
+
+
     ]
 
 

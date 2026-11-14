@@ -346,6 +346,18 @@ raises where `f` first uses `a`):
   binding a name: `[h, ...]` on a mapped list waits for the head alone
 - `Stdlib.await(x)` (through the builtin `runtimeForce`), and the end of the run
 
+`Stdlib.whenReady(x, f)` (the builtin `runtimeWhenReady`) is the one way to use
+a read's value without waiting for it. Over a read in flight its call is a read
+too (`Interpreter.callReadsOnly`, decided by the argument's shape so the answer
+does not change once the body has waited), and its body waits for the read and
+applies `f` in a process of its own, as a spread chunk is (`Spread.whenLanded`,
+`spreadChild`). That process may only compute: it runs whenever the read lands,
+after the program has moved on, so an effect there would be out of order, and
+the chunk's refusal is what the read then fails with, worded for `whenReady`.
+Over anything else, `f` is applied in place, in order. `HttpClient.Middleware.onResponse`
+is built on it, which is what keeps a GET through the default stack in flight
+(`Scheduler.Tests`, "GETs through the default stack").
+
 How it works (`Interpreter.Promises`, `LibExecution.Pending`):
 
 - A read call whose `Ply` is not finished puts a `DPromise` in the

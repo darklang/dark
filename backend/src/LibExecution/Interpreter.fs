@@ -1432,6 +1432,11 @@ let private isLogged (fn : BuiltInFn) : bool =
 let spreadRefuses (fn : BuiltInFn) : bool =
   isLogged fn || Set.contains fn.name.name awaitsElsewhere
 
+/// What follows a builtin's name in the error a chunk raises at a call `spreadRefuses`.
+/// `Spread.whenLanded` reads it back, to say why in its own words.
+let refusedInChunk : string =
+  "has effects, which a spread list op leaves to the original process"
+
 
 /// A builtin for which every check `invokeBuiltin` makes before the body is known to pass: no
 /// effects (nothing to permit), not `Impure` (nothing to stop in a test runner), nothing a spread
@@ -1783,14 +1788,28 @@ let private finishFor
     Unchecked.defaultof<_>
 
 
+/// The builtin behind `Stdlib.whenReady`: a function applied to a value once it is one. Given a
+/// read in flight, its call is a read too (`callReadsOnly`), whose body waits for the read and
+/// applies the function off the program's order (`Spread.whenLanded`); given anything else, it
+/// applies the function here, in order.
+let whenReadyBuiltin : string = "runtimeWhenReady"
+
 /// Whether this call is a read (`docs/processes.md`, "Reads are concurrent"): every call of a
-/// builtin whose effects are all reads, or a call of the HTTP client's buffered builtin that is a
-/// GET or HEAD with no body (`Effects.readsByMethod`). Its arguments are read here because
-/// `Effects` sits below the runtime's values.
+/// builtin whose effects are all reads, a call of the HTTP client's buffered builtin that is a
+/// GET or HEAD with no body (`Effects.readsByMethod`), or a `whenReady` over a read in flight.
+/// Its arguments are read here because `Effects` sits below the runtime's values.
+///
+/// Decided by the shape of the arguments alone, never by whether a read has landed yet: the
+/// answer is asked again after the body's first wait, and has to be the same then.
 let private callReadsOnly (fn : BuiltInFn) (args : Dval[]) : bool =
   Effects.readsOnly fn.callEffects
+  || (fn.name.name = whenReadyBuiltin
+      && args.Length = 2
+      && (match args[0] with
+          | DPromise _ -> true
+          | _ -> false))
   || (Effects.readsByMethod fn.name.name
-      && args.Length = 4
+      && args.Length = 5
       // Nested rather than `match a, b with`, which allocates the pair.
       && match args[0] with
          | DString method when Effects.isReadMethod method ->
@@ -1800,11 +1819,11 @@ let private callReadsOnly (fn : BuiltInFn) (args : Dval[]) : bool =
             | _ -> false)
          | _ -> false)
 
-/// `callReadsOnly` for a call still in its context. The list is only built for the one builtin
+/// `callReadsOnly` for a call still in its context. The list is only built for the builtins
 /// whose arguments decide it.
 let private contextReadsOnly (fn : BuiltInFn) (ctx : ApplyContext) : bool =
   Effects.readsOnly fn.callEffects
-  || (Effects.readsByMethod fn.name.name
+  || ((Effects.readsByMethod fn.name.name || fn.name.name = whenReadyBuiltin)
       && callReadsOnly
         fn
         (List.toArray (ctx.applicable.argsSoFar @ ArgSeq.toList ctx.args)))
@@ -1847,10 +1866,7 @@ let private invokeBuiltinAuthorized
     // it here, before the permission check (so no denial is recorded) and before the call; the
     // spreader sees the failure and runs this part again in the original process, in order.
     if exeState.spreadChild && spreadRefuses fn then
-      RTE.UncaughtException(
-        $"`{fn.name.name}` has effects, which a spread list op leaves to the original process",
-        []
-      )
+      RTE.UncaughtException($"`{fn.name.name}` {refusedInChunk}", [])
       |> raiseRTE vm.threadID
     // A package test inside the runner's process computes and nothing else, like a spread child:
     // an `Impure` call could read or change the runner's own state. It stops here, before the
