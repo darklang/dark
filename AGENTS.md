@@ -293,17 +293,23 @@ rule. Every primitive still needs a real Dark caller; unused primitives are remo
 ## Style
 
 `///` for doc comments on types, DU cases and fns, in both F# and Dark. `//` for inline
-notes. 85 columns for F#; Dark is 100.
+notes. F# is 85 columns; Dark is 100.
 
-`scripts/formatting/format` holds the F# side to it. **It is a pre-merge step, not a
-per-commit one.** Run it once when the branch is being readied to merge; do not run it
-between intermediate commits, and do not hand-apply what it would have done. Checking
-formatting on every commit while more work is coming costs a cycle each time and changes
-nothing a reviewer sees. Pre-merge does not mean optional: CI runs `format check` and fails on
-it, so run `scripts/formatting/format format` before the push that opens or updates a PR, then
-build once, because the formatter can change the program. Bare `scripts/formatting/format` prints
-usage and exits 255. It reports `.dark` as `ignored` unless given `--dark-only`, which runs
-`dark format` over `packages/`. Nothing checks `.dark` formatting.
+`scripts/formatting/format` holds both to it: Fantomas for F#, `dark format` for `.dark`.
+**It is a pre-merge step, not a per-commit one.** Run it once when the branch is being
+readied to merge; do not run it between intermediate commits, and do not hand-apply what it
+would have done. Checking formatting on every commit while more work is coming costs a cycle
+each time and changes nothing a reviewer sees. Pre-merge does not mean optional: CI runs
+`format check` and fails on it, so run `scripts/formatting/format format` before the push that
+opens or updates a PR, then build once, because the formatter can change the program. Bare
+`scripts/formatting/format` prints usage and exits 255.
+
+`dark format` prints each declaration from what it parses to, so layout is not yours to choose:
+a header that fits in 100 columns is on one line, a short `if` is inline, enum cases go one
+per line, and blank lines inside a body follow from what the statements are. Comments stay
+where you put them. It never changes what the code means: formatting `packages/` leaves every
+hash as it was, and CI checks that. `scripts/formatting/dark-format-skip` lists what it leaves as
+written: the language tests, which exist to parse each way of writing a construct.
 
 Don't take a Bool that callers pass as a bare `true`/`false`; use a two-case enum named
 for what it means (see #6150). `backend/tests/bool-flag-sites.txt` lists the calls left, and a

@@ -41,6 +41,7 @@ GATES=(
   backups-restore
   old-store-resets
   reload-is-reproducible
+  dark-format
   trait-choice-survives-rival
   trait-choice-any-batching
   trait-checker-vs-dispatch
@@ -73,7 +74,7 @@ GATES=(
 CI_GATES=(workbench-scm workbench-views old-store-resets backups-restore
           trait-choice-survives-rival trait-choice-any-batching trait-checker-vs-dispatch
           trait-deprecation-is-per-branch trait-pin-across-branches
-          shipped-tree-typechecks perf-probes-run prompts-unattended)
+          shipped-tree-typechecks perf-probes-run prompts-unattended dark-format)
 
 describe() {
   # shellcheck disable=SC2016  # the backticks are prose, not expansion
@@ -84,6 +85,7 @@ describe() {
     backups-restore)        echo 'backup, wipe, restore; the destructive verbs ask first' ;;
     old-store-resets)       echo 'a store with older package tables: backed up, reset, refilled' ;;
     reload-is-reproducible) echo 'two reloads of one tree agree on every op id' ;;
+    dark-format)            echo 'the .dark files a change touches are formatted (DARK_FORMAT_ALL=1: all, with the hash proof)' ;;
     trait-choice-survives-rival) echo 'a saved call keeps its implementation when a newer rival lands' ;;
     trait-choice-any-batching) echo 'the choice is recorded whether trait, impls and callers are saved together or apart' ;;
     trait-checker-vs-dispatch) echo 'the at-rest checker and dispatch agree on which impls apply' ;;
