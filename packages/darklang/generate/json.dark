@@ -2,14 +2,13 @@ module Darklang.Generate.Json
 
 // Types from a JSON sample: the types that would parse it. Objects become records,
 // arrays lists of whatever their elements unify to, `null` or sometimes-absent makes a
-// field optional, whole numbers `Int` and the rest `Float`. A nested object is named
+// field optional, integers `Int64` and the rest `Float64`. A nested object is named
 // after its path (`Order` -> `OrderLine`). What the sample cannot pin down (an empty
-// array, a field of two shapes) falls back to `AltJson.Json` with a doc comment saying
+// array, a field of two shapes) falls back to `String` with a doc comment saying
 // so, rather than a guess.
 //
 // Output is deterministic (the sample's field order, types in first-reached order), so
 // the same sample gives identical hashes and re-running is a no-op.
-
 
 /// What a JSON value looks like, once the whole sample has been seen.
 type Shape =
@@ -20,10 +19,10 @@ type Shape =
   /// Only ever `null`: beside another shape it makes that one optional, alone it is a
   /// field whose type the sample never showed.
   | Null
-  | List of Shape
+  | List(Shape)
   /// Fields in the order the sample first showed them.
-  | Record of List<(String * Shape)>
-  | Optional of Shape
+  | Record(List<(String * Shape)>)
+  | Optional(Shape)
   /// Nothing to go on: an empty array's elements, a field no sample carried a value for.
   /// Unifies AWAY, since anything known is better information.
   | Any
@@ -33,197 +32,185 @@ type Shape =
   | Conflict
 
 
-/// The shape of one JSON value. A number is `Int` when whole; `unify` widens.
-let shapeOf (json: Stdlib.AltJson.Json) : Shape =
+/// The shape of one JSON value. `unify` widens an integer to a float.
+let shapeOf(json: Stdlib.AltJson.Json): Shape =
   match json with
   | Null -> Shape.Null
-  | Bool _ -> Shape.Bool
-  | String _ -> Shape.String
-  | Number n ->
-    if ((Stdlib.Float.truncate n) |> Stdlib.Int.toFloat) == n then
-      Shape.Int
-    else
-      Shape.Float
-  | Array items ->
+  | Bool(_) -> Shape.Bool
+  | String(_) -> Shape.String
+  | Integer(_) -> Shape.Int
+  | Float(_) -> Shape.Float
+  | Array(items) ->
     // An empty array says nothing about its elements; a non-empty one is whatever
     // its elements unify to, starting from the first so a lone element is not
     // "optional".
-    match items |> Stdlib.List.map shapeOf with
-    | [] -> Shape.List Shape.Any
-    | first :: rest ->
-      Shape.List (rest |> Stdlib.List.fold first (fun acc s -> unify acc s))
-  | Object fields ->
+    match items |> Stdlib.List.map(shapeOf) with
+    | [] -> Shape.List(Shape.Any)
+    | [first, ...rest] -> Shape.List(rest |> Stdlib.List.fold(first, fun(acc, s) -> unify(acc, s)))
+  | Object(fields) ->
     // Fields keep the order the sample wrote them in: that is what the person
     // reading the type expects, and it is as deterministic as sorting.
-    Shape.Record (fields |> Stdlib.List.map (fun (k, v) -> (k, shapeOf v)))
+    Shape.Record(fields |> Stdlib.List.map(fun((k, v)) -> (k, shapeOf(v))))
 
 
 /// The shape that admits both <param a> and <param b>.
-let unify (a: Shape) (b: Shape) : Shape =
-  match (a, b) with
-  | (Null, other) -> makeOptional other
-  | (other, Null) -> makeOptional other
-  | (Optional x, Optional y) -> makeOptional (unify x y)
-  | (Optional x, y) -> makeOptional (unify x y)
-  | (x, Optional y) -> makeOptional (unify x y)
-  | (Conflict, _) -> Shape.Conflict
-  | (_, Conflict) -> Shape.Conflict
-  | (Any, other) -> other
-  | (other, Any) -> other
-  | (Int, Int) -> Shape.Int
-  | (Int, Float) -> Shape.Float
-  | (Float, Int) -> Shape.Float
-  | (Float, Float) -> Shape.Float
-  | (String, String) -> Shape.String
-  | (Bool, Bool) -> Shape.Bool
-  | (List x, List y) -> Shape.List (unify x y)
-  | (Record fa, Record fb) -> Shape.Record (unifyFields fa fb)
+let unify(a: Shape, b: Shape): Shape =
+  match a, b with
+  | Null, other -> makeOptional(other)
+  | other, Null -> makeOptional(other)
+  | Optional(x), Optional(y) -> makeOptional(unify(x, y))
+  | Optional(x), y -> makeOptional(unify(x, y))
+  | x, Optional(y) -> makeOptional(unify(x, y))
+  | Conflict, _ -> Shape.Conflict
+  | _, Conflict -> Shape.Conflict
+  | Any, other -> other
+  | other, Any -> other
+  | Int, Int -> Shape.Int
+  | Int, Float -> Shape.Float
+  | Float, Int -> Shape.Float
+  | Float, Float -> Shape.Float
+  | String, String -> Shape.String
+  | Bool, Bool -> Shape.Bool
+  | List(x), List(y) -> Shape.List(unify(x, y))
+  | Record(fa), Record(fb) -> Shape.Record(unifyFields(fa, fb))
   | _ -> Shape.Conflict
 
 
 /// `Optional` never nests: an optional optional is just optional. A null made
 /// optional (null here, absent there) is an optional of nothing known.
-let makeOptional (s: Shape) : Shape =
+let makeOptional(s: Shape): Shape =
   match s with
-  | Optional _ -> s
-  | Null -> Shape.Optional Shape.Any
-  | _ -> Shape.Optional s
+  | Optional(_) -> s
+  | Null -> Shape.Optional(Shape.Any)
+  | _ -> Shape.Optional(s)
 
 
-/// Field-wise union of two sorted field lists: shared fields unify, a field on one
+/// Field-wise union of two field lists: shared fields unify, a field on one
 /// side only becomes optional.
-let unifyFields
-  (fa: List<(String * Shape)>)
-  (fb: List<(String * Shape)>)
-  : List<(String * Shape)> =
+let unifyFields(fa: List<(String * Shape)>, fb: List<(String * Shape)>): List<(String * Shape)> =
   // First-seen order, by hand: `List.unique` sorts, and the order is the point.
   let names =
-    Stdlib.List.append
-      (fa |> Stdlib.List.map (fun (k, _) -> k))
-      (fb |> Stdlib.List.map (fun (k, _) -> k))
-    |> Stdlib.List.fold [] (fun seen k ->
-      if Stdlib.List.member seen k then seen else Stdlib.List.pushBack seen k)
+    Stdlib.List.concat(
+      fa |> Stdlib.List.map(fun((k, _)) -> k),
+      fb |> Stdlib.List.map(fun((k, _)) -> k))
+    |> Stdlib.List.fold([], fun(seen, k) ->
+      if Stdlib.List.contains(seen, k) then seen else Stdlib.List.append(seen, k))
 
   names
-  |> Stdlib.List.map (fun name ->
-    let shapeIn (fields: List<(String * Shape)>) : Stdlib.Option.Option<Shape> =
+  |> Stdlib.List.map(fun name ->
+    let shapeIn(fields: List<(String * Shape)>): Option<Shape> =
       fields
-      |> Stdlib.List.findFirst (fun (k, _) -> k == name)
-      |> Stdlib.Option.map (fun (_, s) -> s)
+      |> Stdlib.List.findFirst(fun((k, _)) -> k == name)
+      |> Stdlib.Option.map(fun((_, s)) -> s)
 
-    // Destructured before matching: a tuple inside `Some` in a pattern does not
-    // match the way it reads.
-    match (shapeIn fa, shapeIn fb) with
-    | (Some sa, Some sb) -> (name, unify sa sb)
-    | (Some sa, None) -> (name, makeOptional sa)
-    | (None, Some sb) -> (name, makeOptional sb)
-    | (None, None) -> (name, Shape.Any))
+    match shapeIn(fa), shapeIn(fb) with
+    | Some(sa), Some(sb) -> (name, unify(sa, sb))
+    | Some(sa), None -> (name, makeOptional(sa))
+    | None, Some(sb) -> (name, makeOptional(sb))
+    | None, None -> (name, Shape.Any))
 
 
 /// The shared model for a shape, plus every record it needs, named under
 /// <param parent>. Records come back in first-reached order, parent before child.
-let toModel (parent: String) (shape: Shape) : (Generate.Model.Shape * List<Generate.Model.Record>) =
+let toModel(parent: String, shape: Shape): (Model.Shape * List<Model.Record>) =
   match shape with
-  | Int -> (Generate.Model.Shape.Int, [])
-  | Float -> (Generate.Model.Shape.Float, [])
-  | String -> (Generate.Model.Shape.String, [])
-  | Bool -> (Generate.Model.Shape.Bool, [])
+  | Int -> (Model.Shape.Int, [])
+  | Float -> (Model.Shape.Float, [])
+  | String -> (Model.Shape.String, [])
+  | Bool -> (Model.Shape.Bool, [])
   // Only ever null: nothing is known about what it holds when it is not.
-  | Null -> (Generate.Model.Shape.Optional Generate.Model.Shape.Any, [])
-  | Any -> (Generate.Model.Shape.Any, [])
-  | Conflict -> (Generate.Model.Shape.Any, [])
-  | Optional inner ->
-    let (m, records) = toModel parent inner
-    (Generate.Model.Shape.Optional m, records)
-  | List inner ->
+  | Null -> (Model.Shape.Optional(Model.Shape.Any), [])
+  | Any -> (Model.Shape.Any, [])
+  | Conflict -> (Model.Shape.Any, [])
+  | Optional(inner) ->
+    let (m, records) = toModel(parent, inner)
+    (Model.Shape.Optional(m), records)
+  | List(inner) ->
     // `Order` with a field `lines: [ ... ]` names the element `OrderLine`, singular
     // when the field name ends in `s`, which is what people would have written.
     // Not for `ss` (`address`) or a bare `s`, where dropping the letter is wrong.
     let elementName =
       if
-        (Stdlib.String.endsWith parent "s")
-        && (Stdlib.Bool.not (Stdlib.String.endsWith parent "ss"))
-        && ((Stdlib.String.length parent) > 2)
+        Stdlib.String.endsWith(parent, "s")
+        && Stdlib.Bool.not(Stdlib.String.endsWith(parent, "ss"))
+        && Stdlib.String.length(parent) > 2
       then
-        Stdlib.String.dropLast parent 1
+        Stdlib.String.dropLast(parent, 1)
       else
         parent
-    let (m, records) = toModel elementName inner
-    (Generate.Model.Shape.List m, records)
-  | Record fields ->
-    let name = Generate.Source.typeName parent
+
+    let (m, records) = toModel(elementName, inner)
+    (Model.Shape.List(m), records)
+  | Record(fields) ->
+    let name = Source.typeName(parent)
     let (modelFields, nested) =
       fields
-      |> Stdlib.List.fold ([], []) (fun (acc, records) (key, fieldShape) ->
-        let fieldName = Generate.Source.identifier key
-        let (m, fieldRecords) = toModel (name ++ Generate.Source.typeName key) fieldShape
+      |> Stdlib.List.fold(([], []), fun((acc, records), (key, fieldShape)) ->
+        let fieldName = Source.identifier(key)
+        let (m, fieldRecords) = toModel(name + Source.typeName(key), fieldShape)
         let note =
           match fieldShape with
-          | Conflict ->
-            Stdlib.Option.Option.Some
-              "the samples disagree about this field; String is a guess"
-          | Any -> Stdlib.Option.Option.Some "the sample did not pin this down"
-          | Null -> Stdlib.Option.Option.Some "only ever null in the sample"
-          | Optional Any -> Stdlib.Option.Option.Some "null or absent in the sample"
-          | List Any -> Stdlib.Option.Option.Some "the sample's array was empty"
-          | _ -> Stdlib.Option.Option.None
-        let field =
-          Generate.Model.Field { name = fieldName; key = key; shape = m; note = note }
-        (Stdlib.List.pushBack acc field, Stdlib.List.append records fieldRecords))
-    let self = Generate.Model.Record { name = name; fields = modelFields }
+          | Conflict -> Option.Some("the samples disagree about this field; String is a guess")
+          | Any -> Option.Some("the sample did not pin this down")
+          | Null -> Option.Some("only ever null in the sample")
+          | Optional(Any) -> Option.Some("null or absent in the sample")
+          | List(Any) -> Option.Some("the sample's array was empty")
+          | _ -> Option.None
+
+        let field = Model.Field { name = fieldName, key = key, shape = m, note = note }
+        (Stdlib.List.append(acc, field), Stdlib.List.concat(records, fieldRecords)))
+
+    let self = Model.Record { name = name, fields = modelFields }
     // The parent is built after its fields are folded; it goes first so the source
     // reads top-down.
-    (Generate.Model.Shape.Named name, Stdlib.List.push nested self)
+    (Model.Shape.Named(name), Stdlib.List.prepend(nested, self))
 
 
 /// The shape of one JSON document's bytes, or why there is none.
-let shapeOfDocument (sample: Blob) : Stdlib.Result.Result<Shape, String> =
-  match Generate.text "sample" sample with
-  | Error e -> Stdlib.Result.Result.Error e
-  | Ok t ->
-    match Stdlib.AltJson.parse t with
-    | Error e ->
-      let why = Stdlib.AltJson.ParseError.toString e
-      Stdlib.Result.Result.Error $"the sample did not parse as JSON: {why}"
-    | Ok json -> Stdlib.Result.Result.Ok(shapeOf json)
+let shapeOfDocument(sample: Bytes): Result<Shape, String> =
+  match text("sample", sample) with
+  | Error(e) -> Result.Error(e)
+  | Ok(t) ->
+    match Stdlib.AltJson.parse(t) with
+    | Error(e) ->
+      let why = Stdlib.AltJson.ParseError.toString(e)
+      Result.Error($"the sample did not parse as JSON: {why}")
+    | Ok(json) -> Result.Ok(shapeOf(json))
 
 
 /// The module for a root shape: its records, and a `parse` fn over the root.
-let moduleFor (name: String) (shape: Shape) : Generate.Run =
-  let rootName = Generate.Source.typeName name
+let moduleFor(name: String, shape: Shape): Run =
+  let rootName = Source.typeName(name)
   match shape with
-  | Record _ ->
-    let (_, records) = toModel rootName shape
-    let declarations =
-      Stdlib.List.pushBack
-        (Generate.Model.declarations records)
-        (Generate.Model.parseFn rootName)
-    Generate.ofSource (Generate.Source.module_ declarations)
-  | _ ->
-    Generate.failed
-      [ "the sample's top level is not an object; only objects become record types" ]
+  | Record(_) ->
+    let (_, records) = toModel(rootName, shape)
+    let declarations = Stdlib.List.append(Model.declarations(records), Model.parseFn(rootName))
+    ofSource(Source.module_(declarations))
+  | _ -> failed([ "the sample's top level is not an object; only objects become record types" ])
 
 
 /// Types that parse <param sample>, rooted at a record named <param name>, plus a
 /// `parse` fn over the root. The sample is the bytes of one JSON document.
-let fromSample (name: String) (sample: Blob) : Generate.Run =
-  match shapeOfDocument sample with
-  | Error e -> Generate.failed [ e ]
-  | Ok shape -> moduleFor name shape
+let fromSample(name: String, sample: Bytes): Run =
+  match shapeOfDocument(sample) with
+  | Error(e) -> failed([ e ])
+  | Ok(shape) -> moduleFor(name, shape)
 
 
 /// Types that parse every one of <param samples>: the documents' shapes unified, so
 /// a field present in some and absent in others comes out optional, and a field
-/// that is an Int in one and a Float64 in another comes out a Float64. On the command
+/// that is an integer in one and a Float64 in another comes out a Float64. On the command
 /// line the samples are a directory; every file in it is a sample.
-let fromSamples (name: String) (samples: List<Blob>) : Generate.Run =
+let fromSamples(name: String, samples: List<Bytes>): Run =
   match samples with
-  | [] -> Generate.failed [ "the sample directory is empty; every file in it is read as one sample" ]
+  | [] -> failed([ "the sample directory is empty; every file in it is read as one sample" ])
   | _ ->
-    match samples |> Stdlib.List.map shapeOfDocument |> Stdlib.Result.collect with
-    | Error e -> Generate.failed [ e ]
-    | Ok shapes ->
+    match samples
+          |> Stdlib.List.map(shapeOfDocument)
+          |> Stdlib.Result.collect with
+    | Error(e) -> failed([ e ])
+    | Ok(shapes) ->
       match shapes with
-      | [] -> Generate.failed [ "the sample directory is empty" ]
-      | first :: rest ->
-        moduleFor name (rest |> Stdlib.List.fold first (fun acc s -> unify acc s))
+      | [] -> failed([ "the sample directory is empty" ])
+      | [first, ...rest] ->
+        moduleFor(name, rest |> Stdlib.List.fold(first, fun(acc, s) -> unify(acc, s)))

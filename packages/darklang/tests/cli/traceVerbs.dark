@@ -304,8 +304,9 @@ test aScriptsArgumentsSurviveViewResumeForkAndRerun = Traces.withTraces(fun i ->
   let finished =
     match Stdlib.AltJson.parse(Stdlib.String.trim(viewed)) with
     | Ok(json) ->
-      JsonShapes.field(JsonShapes.field(json, "problem"), "None")
-      |> Stdlib.Test.equal(Stdlib.AltJson.Json.Array([]))
+      // a None field is left out
+      JsonShapes.field(json, "problem")
+      |> Stdlib.Test.equal(Stdlib.AltJson.Json.Null)
     | Error(_) -> Stdlib.Test.fail($"the view did not answer JSON: {viewed}")
 
   let forked = Traces.step(i, [ "traces", "fork", recorded ])

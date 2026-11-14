@@ -5,176 +5,167 @@ module Darklang.Generate.JsonSchema
 //
 // An object schema becomes a record; a property not in `required` is an `Option`;
 // `$ref` becomes the referenced definition's name; arrays become lists; `integer`,
-// `number`, `boolean`, `string` map to `Int`, `Float`, `Bool`, `String`. What the
-// schema says that this cannot express (`oneOf`, `allOf`, an inline enum, no type)
-// becomes `Stdlib.AltJson.Json` with a doc comment saying so, rather than a guess.
-// Definitions under `$defs` or `definitions` become named records of their own.
+// `number`, `boolean`, `string` map to `Int64`, `Float64`, `Bool`, `String`. What the
+// schema says that this cannot express (`oneOf`, `allOf`, no type) becomes `String`
+// with a doc comment saying so, rather than a guess. Definitions under `$defs` or
+// `definitions` become named records of their own.
 
-
-let obj
-  (key: String)
-  (fields: List<(String * Stdlib.AltJson.Json)>)
+let obj(
+  key: String,
+  fields: List<(String * Stdlib.AltJson.Json)>)
   : List<(String * Stdlib.AltJson.Json)> =
-  Stdlib.AltJson.Helpers.getObject key fields
+  Stdlib.AltJson.Helpers.getObject(key, fields)
 
-let str
-  (key: String)
-  (fields: List<(String * Stdlib.AltJson.Json)>)
-  : Stdlib.Option.Option<String> =
-  Stdlib.AltJson.Helpers.getString key fields
 
-let arr
-  (key: String)
-  (fields: List<(String * Stdlib.AltJson.Json)>)
-  : List<Stdlib.AltJson.Json> =
-  Stdlib.AltJson.Helpers.getArray key fields
+let str(key: String, fields: List<(String * Stdlib.AltJson.Json)>): Option<String> =
+  Stdlib.AltJson.Helpers.getString(key, fields)
+
+
+let arr(key: String, fields: List<(String * Stdlib.AltJson.Json)>): List<Stdlib.AltJson.Json> =
+  Stdlib.AltJson.Helpers.getArray(key, fields)
 
 
 /// The shape of a schema, plus every record it needs, named under <param parent>,
 /// and a note when the schema said something the shape cannot carry. A `$ref`
 /// becomes the referenced definition's name.
-let schemaShape
-  (parent: String)
-  (schema: List<(String * Stdlib.AltJson.Json)>)
-  : (Generate.Model.Shape * List<Generate.Model.Record> * Stdlib.Option.Option<String>) =
-  match str "$ref" schema with
-  | Some ref ->
+let schemaShape(
+  parent: String,
+  schema: List<(String * Stdlib.AltJson.Json)>)
+  : (Model.Shape * List<Model.Record> * Option<String>) =
+  match str("$ref", schema) with
+  | Some(ref) ->
     let name =
-      (Stdlib.String.split ref "/")
+      Stdlib.String.split(ref, "/")
       |> Stdlib.List.last
-      |> Stdlib.Option.withDefault ref
-      |> Generate.Source.typeName
-    (Generate.Model.Shape.Named name, [], Stdlib.Option.Option.None)
+      |> Stdlib.Option.withDefault(ref)
+      |> Source.typeName
+
+    (Model.Shape.Named(name), [], Option.None)
   | None ->
     let combinator =
       [ "oneOf", "anyOf", "allOf" ]
-      |> Stdlib.List.findFirst (fun k ->
-        Stdlib.Bool.not (Stdlib.List.isEmpty (arr k schema)))
+      |> Stdlib.List.findFirst(fun k -> Stdlib.Bool.not(Stdlib.List.isEmpty(arr(k, schema))))
 
     match combinator with
-    | Some k ->
-      (Generate.Model.Shape.Any,
-       [],
-       Stdlib.Option.Option.Some $"`{k}` in the document; left as raw JSON")
+    | Some(k) -> (Model.Shape.Any, [], Option.Some($"`{k}` in the document; left as raw JSON"))
     | None ->
-      match str "type" schema with
-      | Some "integer" -> (Generate.Model.Shape.Int, [], Stdlib.Option.Option.None)
-      | Some "number" -> (Generate.Model.Shape.Float, [], Stdlib.Option.Option.None)
-      | Some "boolean" -> (Generate.Model.Shape.Bool, [], Stdlib.Option.Option.None)
-      | Some "string" ->
-        match arr "enum" schema with
-        | [] -> (Generate.Model.Shape.String, [], Stdlib.Option.Option.None)
+      match str("type", schema) with
+      | Some("integer") -> (Model.Shape.Int, [], Option.None)
+      | Some("number") -> (Model.Shape.Float, [], Option.None)
+      | Some("boolean") -> (Model.Shape.Bool, [], Option.None)
+      | Some("string") ->
+        match arr("enum", schema) with
+        | [] -> (Model.Shape.String, [], Option.None)
         | values ->
           let names =
             values
-            |> Stdlib.List.filterMap (fun v ->
+            |> Stdlib.List.filterMap(fun v ->
               match v with
-              | String s -> Stdlib.Option.Option.Some s
-              | _ -> Stdlib.Option.Option.None)
-            |> Stdlib.String.join ", "
-          (Generate.Model.Shape.String, [], Stdlib.Option.Option.Some $"one of: {names}")
-      | Some "array" ->
-        let (item, nested, note) = schemaShape parent (obj "items" schema)
-        (Generate.Model.Shape.List item, nested, note)
-      | Some "object" ->
-        let records = recordOf parent schema
-        (Generate.Model.Shape.Named parent, records, Stdlib.Option.Option.None)
+              | String(s) -> Option.Some(s)
+              | _ -> Option.None)
+            |> Stdlib.String.join(", ")
+
+          (Model.Shape.String, [], Option.Some($"one of: {names}"))
+      | Some("array") ->
+        let (item, nested, note) = schemaShape(parent, obj("items", schema))
+        (Model.Shape.List(item), nested, note)
+      | Some("object") ->
+        let records = recordOf(parent, schema)
+        (Model.Shape.Named(parent), records, Option.None)
       | _ ->
-        if Stdlib.List.isEmpty (obj "properties" schema) then
-          (Generate.Model.Shape.Any,
-           [],
-           Stdlib.Option.Option.Some "the document gives no type")
+        if Stdlib.List.isEmpty(obj("properties", schema)) then
+          (Model.Shape.Any, [], Option.Some("the document gives no type"))
         else
-          let records = recordOf parent schema
-          (Generate.Model.Shape.Named parent, records, Stdlib.Option.Option.None)
+          let records = recordOf(parent, schema)
+          (Model.Shape.Named(parent), records, Option.None)
 
 
 /// The record for an object schema named <param name>, first, followed by the
 /// inline records its properties needed. A property not in `required` is an
 /// `Option`.
-let recordOf
-  (name: String)
-  (schema: List<(String * Stdlib.AltJson.Json)>)
-  : List<Generate.Model.Record> =
+let recordOf(name: String, schema: List<(String * Stdlib.AltJson.Json)>): List<Model.Record> =
   let required =
-    arr "required" schema
-    |> Stdlib.List.filterMap (fun v ->
+    arr("required", schema)
+    |> Stdlib.List.filterMap(fun v ->
       match v with
-      | String s -> Stdlib.Option.Option.Some s
-      | _ -> Stdlib.Option.Option.None)
+      | String(s) -> Option.Some(s)
+      | _ -> Option.None)
 
   let (fields, nested) =
-    obj "properties" schema
-    |> Stdlib.List.fold ([], []) (fun (fields, nested) (key, propJson) ->
+    obj("properties", schema)
+    |> Stdlib.List.fold(([], []), fun((fields, nested), (key, propJson)) ->
       let prop =
         match propJson with
-        | Object fs -> fs
+        | Object(fs) -> fs
         | _ -> []
-      let (shape, propRecords, note) =
-        schemaShape (name ++ Generate.Source.typeName key) prop
+
+      let (shape, propRecords, note) = schemaShape(name + Source.typeName(key), prop)
       let shape =
-        if Stdlib.List.member required key then
+        if Stdlib.List.contains(required, key) then
           shape
         else
-          Generate.Model.Shape.Optional shape
-      let field =
-        Generate.Model.Field
-          { name = Generate.Source.identifier key; key = key; shape = shape; note = note }
-      (Stdlib.List.pushBack fields field, Stdlib.List.append nested propRecords))
+          Model.Shape.Optional(shape)
 
-  Stdlib.List.push nested (Generate.Model.Record { name = name; fields = fields })
+      let field =
+        Model.Field { name = Source.identifier(key), key = key, shape = shape, note = note }
+
+      (Stdlib.List.append(fields, field), Stdlib.List.concat(nested, propRecords)))
+
+  Stdlib.List.prepend(nested, Model.Record { name = name, fields = fields })
 
 
 /// The records for every named definition in <param doc> (`$defs`, or the older
 /// `definitions`), in document order.
-let definitions (doc: List<(String * Stdlib.AltJson.Json)>) : List<Generate.Model.Record> =
+let definitions(doc: List<(String * Stdlib.AltJson.Json)>): List<Model.Record> =
   let defs =
-    match obj "$defs" doc with
-    | [] -> obj "definitions" doc
+    match obj("$defs", doc) with
+    | [] -> obj("definitions", doc)
     | ds -> ds
 
   defs
-  |> Stdlib.List.map (fun (name, schemaJson) ->
+  |> Stdlib.List.map(fun((name, schemaJson)) ->
     let schema =
       match schemaJson with
-      | Object fs -> fs
+      | Object(fs) -> fs
       | _ -> []
-    definitionRecords (Generate.Source.typeName name) schema)
+
+    definitionRecords(Source.typeName(name), schema))
   |> Stdlib.List.flatten
 
 
 /// A named definition's records. One that is not an object becomes a one-field
-/// record (`value`), since Dark has no alias syntax yet.
-let definitionRecords
-  (typeName: String)
-  (schema: List<(String * Stdlib.AltJson.Json)>)
-  : List<Generate.Model.Record> =
-  if Stdlib.List.isEmpty (obj "properties" schema) then
-    let (shape, nested, note) = schemaShape typeName schema
-    let field =
-      Generate.Model.Field { name = "value"; key = "value"; shape = shape; note = note }
-    Stdlib.List.push nested (Generate.Model.Record { name = typeName; fields = [ field ] })
+/// record (`value`).
+let definitionRecords(
+  typeName: String,
+  schema: List<(String * Stdlib.AltJson.Json)>)
+  : List<Model.Record> =
+  if Stdlib.List.isEmpty(obj("properties", schema)) then
+    let (shape, nested, note) = schemaShape(typeName, schema)
+    let field = Model.Field { name = "value", key = "value", shape = shape, note = note }
+    Stdlib.List.prepend(nested, Model.Record { name = typeName, fields = [ field ] })
   else
-    recordOf typeName schema
+    recordOf(typeName, schema)
 
 
 /// Types for <param schema>, a JSON Schema document: its definitions as records, the
 /// root as a record named <param name> when the root is an object.
-let types (name: String) (schema: Blob) : Generate.Run =
-  match Generate.jsonObject "schema" schema with
-  | Error e -> Generate.failed [ e ]
-  | Ok doc ->
-    let rootName = Generate.Source.typeName name
-    let defs = definitions doc
-    let root = if Stdlib.List.isEmpty (obj "properties" doc) then [] else recordOf rootName doc
-    match Stdlib.List.append defs root with
+let types(name: String, schema: Bytes): Run =
+  match jsonObject("schema", schema) with
+  | Error(e) -> failed([ e ])
+  | Ok(doc) ->
+    let rootName = Source.typeName(name)
+    let defs = definitions(doc)
+    let root =
+      if Stdlib.List.isEmpty(obj("properties", doc)) then
+        []
+      else
+        recordOf(rootName, doc)
+
+    match Stdlib.List.concat(defs, root) with
     | [] ->
-      Generate.failed
+      failed(
         [ "the schema has no properties and no definitions; there is nothing to "
-          ++ "make a type from" ]
+          + "make a type from" ])
     | records ->
-      let parseFn =
-        if Stdlib.List.isEmpty root then [] else [ Generate.Model.parseFn rootName ]
-      Generate.ofSource
-        (Generate.Source.module_
-          (Stdlib.List.append (Generate.Model.declarations records) parseFn))
+      let parseFn = if Stdlib.List.isEmpty(root) then [] else [ Model.parseFn(rootName) ]
+      ofSource(Source.module_(Stdlib.List.concat(Model.declarations(records), parseFn)))
