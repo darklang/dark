@@ -125,6 +125,11 @@ let settings(): List<Setting> =
         byDefault = "256" }
 
     Setting
+      { key = "sync.keepDays"
+        what = "Days a machine that stopped syncing holds back trimming of sync history"
+        byDefault = "7" }
+
+    Setting
       { key = "instance.name"
         what = "The name in the workbench header"
         byDefault = "this machine's hostname" } ]

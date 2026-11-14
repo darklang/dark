@@ -407,6 +407,10 @@ module Registry =
     Accepts.flagsOnly([ "--live" ])
 
 
+  let acceptsSync(): Accepts.Accepts =
+    Accepts.text(0)
+
+
   let allCommands(): List<CommandHandler> =
     [ ("quit", "Exit the CLI", [ "exit", "q" ], acceptsQuit, Quit.execute, Quit.help, Quit.complete)
       ("help", "Show help for commands", [ "commands", "?", "--help", "-h" ], acceptsHelp, Help.execute, Help.help, Help.complete)
@@ -459,6 +463,7 @@ module Registry =
       ("ack", "Leave a constraint finding for now (`dark ack --all`)", [], acceptsAck, Cli.ConstraintsCmd.executeAckCmd, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
       ("undeprecate", "Put a deprecated fn/type/value/trait/impl/test back on the shelf", [ "restore" ], acceptsUndeprecate, Packages.Deprecate.executeUndeprecate, Packages.Deprecate.undeprecateHelp, Packages.Deprecate.complete)
       ("backups", "Copies of the store: what exists, take one, prune", [], acceptsBackups, Cli.Backups.execute, Cli.Backups.help, Cli.Backups.complete)
+      ("sync", "Keep this store in step with a machine you own, over ssh", [], acceptsSync, Cli.Sync.execute, Cli.Sync.help, Cli.Sync.complete)
       ("builtins", "List all builtin functions and values", [], acceptsBuiltins, Builtins.execute, Builtins.help, Builtins.complete)
       ("find-values", "Find values of a given type", [], acceptsFindValues, Packages.FindValues.execute, Packages.FindValues.help, Packages.FindValues.complete)
       ("impls", "List the implementations of a trait on this branch", [], acceptsImpls, Packages.Impls.execute, Packages.Impls.help, Packages.Impls.complete)
@@ -629,7 +634,8 @@ module Registry =
           "conflicts"
           "constraints"
           "ack"
-          "ops" ])
+          "ops"
+          "sync" ])
 
       ("Branches", [ "branch", "branches", "switch", "merge", "rebase", "diff", "log", "resolve" ])
       ("Execution", [ "run-script", "eval", "ps", "traces", "serve", "format" ])

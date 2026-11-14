@@ -70,6 +70,8 @@
     <Compile Include="Releases.fs" />
     <Compile Include="Seed.fs" />
     <Compile Include="Raises.fs" />
+    <Compile Include="OpSync.fs" />
+    <Compile Include="SyncLink.fs" />
     <Compile Include="PackagePermissions.fs" />
     <Compile Include="PermissionReview.fs" />
     <Compile Include="RaiseSites.fs" />

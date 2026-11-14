@@ -211,7 +211,8 @@ let private alreadyRun () : Set<string> =
 ///
 ///   1. tables   -- create tables and apply guarded ADD COLUMN declarations
 ///   2. steps    -- migrate existing data and support previously recorded releases
-///   3. indexes  -- `CREATE INDEX IF NOT EXISTS`, which FAILS if it names a column step 2 just added
+///   3. indexes  -- `CREATE INDEX IF NOT EXISTS`, which FAILS if it names a column step 2 just added,
+///                  and the triggers, for the same reason
 ///
 /// Doing it in one pass fails exactly there: the schema indexes `package_ops(op_kind)`, and on a
 /// store predating that column the index cannot be created.
@@ -227,9 +228,24 @@ let private schemaStatements (schemaSql : string) =
       | i -> line.Substring(0, i))
     |> String.concat "\n"
 
+  // A trigger's body is statements of its own, each ending in `;`, so a `CREATE TRIGGER` runs on
+  // to the `END` that closes it.
+  let isOpenTrigger (st : string) =
+    let upper = st.ToUpperInvariant()
+    upper.StartsWith "CREATE TRIGGER"
+    && not (System.Text.RegularExpressions.Regex.IsMatch(upper, @"\bEND$"))
+
   stripped.Split(';')
   |> Array.map (fun st -> st.Trim())
   |> Array.filter (fun st -> st <> "")
+  |> Array.fold
+    (fun statements piece ->
+      match statements with
+      | trigger :: rest when isOpenTrigger trigger -> $"{trigger};\n{piece}" :: rest
+      | _ -> piece :: statements)
+    []
+  |> List.rev
+  |> Array.ofList
 
 let private runStatements (keep : string -> bool) (schemaSql : string) : unit =
   let statements =
@@ -274,12 +290,14 @@ let applySchemaTables (schemaSql : string) : unit =
         matched.Groups[2].Value
         matched.Groups[3].Value
 
-/// Step 3: indexes, once every column they name exists. `UNIQUE` has to be matched separately:
-/// `CREATE UNIQUE INDEX` does not start with "CREATE INDEX".
+/// Step 3: indexes and triggers, once every column they name exists. `UNIQUE` has to be matched
+/// separately: `CREATE UNIQUE INDEX` does not start with "CREATE INDEX".
 let applySchemaIndexes (schemaSql : string) : unit =
   runStatements
     (fun upper ->
-      upper.StartsWith "CREATE INDEX" || upper.StartsWith "CREATE UNIQUE INDEX")
+      upper.StartsWith "CREATE INDEX"
+      || upper.StartsWith "CREATE UNIQUE INDEX"
+      || upper.StartsWith "CREATE TRIGGER")
     schemaSql
 
 

@@ -80,6 +80,7 @@ let settings : List<string> =
     "trace.record"
     "trace.keep"
     "trace.maxMb"
+    "sync.keepDays"
     "instance.name" ]
 
 /// The settings that open HTTP's network guard or decide what traces record. They are the
@@ -111,7 +112,8 @@ let check
   (key : string)
   (value : string)
   : Result<unit, string> =
-  let int32Keys = [ "exec.workers"; "exec.storePollMs"; "http.requestTimeoutMs" ]
+  let int32Keys =
+    [ "exec.workers"; "exec.storePollMs"; "http.requestTimeoutMs"; "sync.keepDays" ]
   let int64Keys =
     [ "exec.maxInstructions"
       "exec.maxBytes"
@@ -174,15 +176,31 @@ let checkUnset (key : string) : Result<unit, string> =
     Error $"{key} is not a config key"
 
 
-/// Who this install is: `instance.id` is made here, once, and never changes; `instance.name` is
-/// what a person set. Both used to live in `cli-config.json` beside the store, written by Dark,
-/// so the first time the store has no id, the file's id and name move in, and the file is left
-/// alone. Every later call is one read.
+/// Where a store lives: this machine and the store's path. A copy of the store, on another machine
+/// or beside it, lives somewhere else.
+let instanceHome () : string =
+  let path = System.IO.Path.GetFullPath LibDB.Sqlite.currentDbPath
+  $"{System.Environment.MachineName}:{path}"
+
+/// Who this install is: `instance.id` is made here, once; `instance.name` is what a person set.
+/// Both used to live in `cli-config.json` beside the store, written by Dark, so the first time the
+/// store has no id, the file's id and name move in, and the file is left alone.
+///
+/// The id is kept with where it was made (`instance.home`). A store that finds itself somewhere else
+/// is a copy, and takes a new id: two stores syncing under one id would each be taken for the other,
+/// and a hub would send each only part of what it lacks. A store that merely moved pays one full
+/// comparison on its next sync. Every later call is one read.
 let ensureInstance () : Task<unit> =
   task {
-    match! get "instance.id" with
-    | Some _ -> return ()
-    | None ->
+    let here = instanceHome ()
+    let! known = getMany [ "instance.id"; "instance.home" ]
+    match Map.tryFind "instance.id" known, Map.tryFind "instance.home" known with
+    | Some _, Some home when home = here -> return ()
+    | Some _, None -> return! set "instance.home" here
+    | Some _, Some _ ->
+      do! set "instance.id" (string (System.Guid.NewGuid()))
+      return! set "instance.home" here
+    | None, _ ->
       let fromFile =
         try
           let dir = System.IO.Path.GetDirectoryName LibDB.Sqlite.currentDbPath
@@ -215,4 +233,5 @@ let ensureInstance () : Task<unit> =
         Map.tryFind "instance.id" fromFile
         |> Option.defaultWith (fun () -> string (System.Guid.NewGuid()))
       do! set "instance.id" id
+      return! set "instance.home" here
   }
