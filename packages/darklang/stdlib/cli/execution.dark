@@ -2,7 +2,7 @@ module Darklang.Stdlib.Cli
 
 /// The result of running a command in the CLI, typically with `Cli.execute`
 type ExecutionOutcome =
-  { exitCode: Int64
+  { exitCode: UInt8
     stdout: String
     stderr: String }
 
@@ -10,7 +10,7 @@ type ExecutionOutcome =
 /// Like `ExecutionOutcome`, but with stdout and stderr exactly as the command
 /// wrote them, typically from `Cli.executeBytes`
 type ExecutionBytes =
-  { exitCode: Int64
+  { exitCode: UInt8
     stdout: Bytes
     stderr: Bytes }
 
