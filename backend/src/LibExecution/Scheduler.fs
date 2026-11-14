@@ -1295,13 +1295,23 @@ and Workers(root : Scheduler, quantum : int64, count : int) =
       ?keepResult : bool,
       ?caps : struct (int64 * int64)
     ) : Process =
+    // Never the calling worker while there is another: whatever it spawns may be waited for
+    // in place (a value or a printer run synchronously inside a builtin), and a worker blocked
+    // on a child of its own would never run it.
+    let here = Scheduler.Current
+    let elsewhere (w : Scheduler) =
+      match here with
+      | Some h -> not (obj.ReferenceEquals(h, w)) || byIndex.Length = 1
+      | None -> true
     let w =
       lock startLock (fun () ->
-        match byIndex |> Array.tryFindIndex (fun w -> w.Live = 0) with
+        match
+          byIndex |> Array.tryFindIndex (fun w -> w.Live = 0 && elsewhere w)
+        with
         | Some i ->
           if not started[i] then startThread i
           byIndex[i]
-        | None -> workers |> List.minBy (fun w -> w.Live))
+        | None -> workers |> List.filter elsewhere |> List.minBy (fun w -> w.Live))
     w.Spawn(
       exeState,
       instrs,
