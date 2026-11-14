@@ -1,0 +1,905 @@
+/// How a kind of node is edited: described once, as data plus named functions.
+///
+/// Classic Fluid knew about each node kind in four places (tokenizer, caret mapping both ways, typing
+/// rules, landing spots), which is why nobody could ever add a kind from outside. Here a `Spec` is the one
+/// place. The kernel reads it to project the node, to know which parts take a caret, to decide what typing
+/// into one of its holes creates, and to offer actions on it.
+///
+/// Specs are ordinary package values. The registry is the curated defaults plus every value of type `Spec`
+/// found in the package tree, so swapping the editor for `Acme.Color` is declaring one `val`.
+///
+/// Functions in a spec must be named package functions, not lambdas: a spec sits in the widget's retained
+/// state between keystrokes, and Dark keeps only named-fn references there.
+module Darklang.Fluid
+
+/// A piece of a node's projection. The kernel interprets these, tagging every editable run with the
+/// node's path so the caret can find it again after layout.
+type Piece =
+  /// The node's text field `slot`, editable. Shown as its name, dimmed, when empty.
+  | Text(slot: String, style: Layout.Style)
+  /// Like `Text`, but an empty slot draws NOTHING (just a caret anchor) rather than its name. For text
+  /// inside delimiters that already show where you are: an empty string used to read as `"body"`, an
+  /// empty char as `'char'`, and a string's trailing segment put a dim `text` inside the quotes.
+  | QuietText(slot: String, style: Layout.Style)
+  /// A text slot holding a RECORD FIELD name, drawn the way source has to spell it: backticks around a
+  /// name that isn't a bare identifier, so a field literally called `type` reads as ``type`` and not as
+  /// the keyword. The printer has had this since it started emitting source you could parse back; Fluid
+  /// drew the raw text, so `p.``type``` came out `p.type`. Both go through `formatFieldName`, so there is
+  /// one answer to "how is this name written" rather than two.
+  | FieldText(slot: String, style: Layout.Style)
+  /// A text slot holding a fully-qualified NAME, drawn the way the pretty-printer would write it here.
+  /// The document keeps the full name -- that is the thing's identity, and shortening what is STORED
+  /// makes `Result.Ok` come back as `Result..Ok` -- so the shortening happens on the way to the screen.
+  | NameText(slot: String, style: Layout.Style)
+  /// A child slot, parenthesised only when `needsParens` says so. The general form of the specific
+  /// parenthesising pieces above: a function type is written bare and gets brackets only when it is
+  /// NESTED in another function type, which is a fact about the CHILD, so the spec supplies the test.
+  /// (A named package function, like every other function a spec carries.)
+  | ParenIfSlot(slot: String, needsParens: Node -> Bool)
+  /// `Each`, with the same conditional parenthesising applied to every item.
+  | ParenIfEach(slot: String, sep: List<Piece>, needsParens: Node -> Bool)
+  /// A list of records drawn as a GRID: one row per item, one column per named field, with a header and
+  /// every column as wide as its widest cell. This is the one piece whose drawing isn't a line of text --
+  /// a column's width depends on its SIBLINGS, which no Wadler combinator can express, so it is measured
+  /// and padded before it is emitted. Cells stay tagged, so the caret still lands in them.
+  | Table(slot: String, columns: List<String>)
+  /// Punctuation nobody can put a caret in.
+  | Punct(String)
+  | Keyword(String)
+  /// The node's own name (a type name, an enum case): not editable text, but it anchors the node, so a
+  /// NAV caret on a node with nothing else to show lands here.
+  | Label(String)
+  | Dim(String)
+  /// Project the single child slot `slot` here.
+  | Slot(String)
+  /// Project every item of list `slot`, with `sep` between items.
+  | Each(slot: String, sep: List<Piece>)
+  /// Like `Each`, but each item is parenthesised when it needs it as a function argument (a call, an
+  /// operator expression, a lambda) -- so `f (g x) (a + b)` reads right. For EApply / pipe-call args.
+  | ArgSlots(slot: String, sep: List<Piece>)
+  /// A single child slot rendered as an operator operand: parenthesised by precedence against the parent
+  /// operator (`(1 + 2) * 3`, but `1 + 2 * 3`). `isRight` picks the associativity tie-break side.
+  | OperandSlot(slot: String, isRight: Bool)
+  /// A single child slot that must be parenthesised when it is a construct that would swallow what
+  /// follows it (an if/match/let/lambda/pipe). For a position with a trailing keyword -- the condition
+  /// before `then`, the scrutinee before `with` -- so `if (match ...) then` reads right.
+  | ParenLowSlot(slot: String)
+  /// A single child slot rendered as a field-access target: parenthesised unless it's a plain variable or
+  /// another field access, matching the pretty-printer (`r.x`, `r.a.b`, but `([1]).x`, `(f x).y`).
+  | FieldTargetSlot(slot: String)
+  /// A break that is soft, unless the node in `slot` is one that must not be flattened onto the line.
+  ///
+  /// `if a then if b then c else d` is ambiguous written flat: read back, the `else` attaches to the
+  /// INNER if whatever it was written for. So a construct is allowed to say "this particular child has
+  /// to go on its own line", without giving up flattening everywhere else.
+  | LineOrHard(slot: String, mustBreak: Node -> Bool)
+  /// Two layouts for one node, picked by what is IN a slot.
+  ///
+  /// `LineOrHard` chooses a BREAK that way; this chooses the surrounding shape, which is what an `else`
+  /// needs. An `else` whose branch is another `if` hugs it -- `else if c then` on one line, at the outer
+  /// if's own indentation -- where any other branch goes on its own indented line. Nest the chain instead
+  /// and it stair-steps a level per link, which is a different shape from the one that was written.
+  ///
+  /// The static queries below (separators, lead punctuation, table columns) read BOTH branches, because
+  /// they ask what a spec can say rather than what it says for one node. Only the projection picks.
+  | Choose(slot: String, pick: Node -> Bool, whenTrue: List<Piece>, whenFalse: List<Piece>)
+  /// Two layouts for one node, picked by whether a LIST slot is empty.
+  ///
+  /// `Choose` answers a question about a single child and cannot do this: it reads `Node.slot`, which
+  /// only answers for a One, so a Many always took the false branch. Emptiness is a different question and
+  /// gets its own piece rather than a second meaning for that one.
+  ///
+  /// What it is for: the empty form of a bracketed construct. `Dict {}` has nothing between its braces,
+  /// where the full form puts a Line on each side of the pairs -- and a Line is a SPACE when flat, so with
+  /// no pairs both survived and it drew `Dict {  }`. Every language has a few of these and a DSL with its
+  /// own brackets will want the same.
+  | WhenEmpty(slot: String, whenEmpty: List<Piece>, otherwise: List<Piece>)
+  /// `Each`, with `before` emitted in front of every item (a pipe's `|> `, a match arm's `| `), so a
+  /// hole item still shows what it is.
+  | EachWith(slot: String, before: List<Piece>, sep: List<Piece>)
+  /// `Each`, between `openP` and `closeP`, and nothing at all when the list is empty (`<T>` type args,
+  /// `(a, b)` enum fields).
+  | EachWrapped(slot: String, openP: String, sep: List<Piece>, closeP: String)
+  /// One line if it fits, otherwise break every Line/SoftLine directly inside.
+  | Group(List<Piece>)
+  /// One line WHATEVER the width. For content where a break would change the meaning and not just the
+  /// shape: the expressions inside an interpolated string, which are part of a string literal.
+  | Flat(List<Piece>)
+  /// Indent by `n` after each break inside.
+  | Nest(Int64, List<Piece>)
+  /// A space when flat, a newline when the group breaks.
+  | Line
+  /// Always a newline.
+  | HardLine
+  /// Nothing when flat, a newline when the group breaks.
+  | SoftLine
+  | Space
+
+
+/// A completion candidate for a hole or partial. Data only: the node is prebuilt.
+type Validity =
+  | Valid
+  | Invalid(reason: String)
+
+
+/// A name a node brings into scope, and the type it was DECLARED with, when it was declared with one.
+///
+/// A function's parameters carry a type; a `let` and a lambda parameter do not. The type is a document
+/// node rather than a `TypeReference` so this stays a fact about the tree, which is the only thing the
+/// kernel is allowed to know about.
+type Binding =
+  { name: String
+    typ: Option<Node> }
+
+
+type Candidate =
+  { label: String
+    detail: String
+    valid: Validity
+    node: Node
+    /// Is this a reserved word, which no variable can be named? Consulted by TAB, which settles what you
+    /// typed and takes the top candidate, and by the decision about which candidate a menu commit means.
+    keyword: Bool
+    /// May a SPACE take this one?
+    ///
+    /// Split out of `keyword`, which was doing both jobs. They agree everywhere except a record: it has
+    /// to be reachable by Tab, because that is how you build one from a name you typed, and it must NOT
+    /// be taken by a space, because the space after a type name is the one you type before its `{`. That
+    /// space used to commit a whole record with its `{` already drawn, so the `{` you typed next opened a
+    /// record UPDATE in whichever hole the caret had landed in.
+    takesSpace: Bool
+    /// Did this come from the DOCUMENT rather than from the spec's fixed list?
+    ///
+    /// On an untouched hole the menu is mostly "everything that could go here", and Enter there means
+    /// "start the next item" rather than "take the first entry" -- otherwise a bare Enter built a `let`.
+    /// A candidate that came from `offers` is not that: the cases of the enum you are actually matching
+    /// are a specific answer to a specific document, and Enter takes it.
+    fromContext: Bool }
+
+
+/// What typing a character into a hole creates.
+type HoleFill =
+  /// This node, as is. The caret goes to its first editable part.
+  | Node(Node)
+  /// A named function of the character and the hole's expectation. The caret goes after the character.
+  | WithChar((String, Expect) -> Node)
+  /// Swallow the character and leave the hole alone.
+  ///
+  /// For punctuation a language writes but does not MEAN in this position. A pipe stage's bracket is
+  /// the case that wanted it: `xs |> (Stdlib.Int.add 1)` and `xs |> Stdlib.Int.add 1` are the same
+  /// program -- the parser reads the parens and prints nothing back -- so there is no node to build and
+  /// nothing to draw, and the alternative was the `(` going in as a literal character of the stage's
+  /// name. A rule that means "not an error, and not a thing" needs somewhere to say so.
+  | Absorb
+
+
+/// `onChar` is a literal grapheme, or `<digit>` / `<letter>`.
+type HoleRule =
+  { onChar: String
+    fill: HoleFill }
+
+
+/// Typing `onChar` at the END of a node's text wraps that node: `1` then `+` becomes `1 + ⟨right⟩`.
+/// `wrap` builds the new node around the old one. The caret lands in the new node's `opSlot` text, so
+/// more operator characters extend it (`=` then `=`), and the first non-operator character moves on to
+/// `nextSlot` and types there.
+type WrapRule =
+  { onChar: String
+    wrap: (Node, String) -> Node
+    opSlot: String
+    nextSlot: String
+    /// Does this character CONTINUE the node's text, rather than follow the node?
+    ///
+    /// An operator follows: `[1]` then `+` wraps the whole list, and it does so from the caret sitting
+    /// AFTER the construct. A width suffix does not: `1y` is an Int8 only when the `y` is typed against
+    /// the digits. Once `y`, `s` and `l` became suffixes, `let a = 1 let b = ...` broke, because the `l`
+    /// of the second `let` arrived just after a settled number and wrapped it into an Int32.
+    ///
+    /// Default false, so every rule that existed before keeps firing in both places.
+    continuesText: Bool }
+
+
+/// What a TEXT slot is allowed to hold.
+///
+/// `Chars` is a per-character class, in the same vocabulary hole and wrap rules use. `OneOf` is a whole
+/// word: the text has to stay a prefix of one of them, which is how a keyword slot stays a keyword while
+/// you type it a letter at a time. A per-character class cannot say that, and a bool's `value` is the
+/// case that proves it.
+type TextClass =
+  | Chars(String)
+  /// A first character and then the rest, each its own class. A name is not just "name characters": a
+  /// digit is one of them and a name cannot start with one, and a class applied character by character
+  /// has no way to say so.
+  | Word(String * String)
+  | OneOf(List<String>)
+
+
+/// An action offered on a node (the palette). `run` returns what replaces the node's slot.
+type Action =
+  { name: String
+    key: Option<String>
+    doc: String
+    applies: Node -> Bool
+    run: Node -> Slot }
+
+
+/// The slots of a binary operator: its two operands and the text between them.
+///
+/// The operand pair has been spec data for a while and the OPERATOR slot was still spelled `"op"` in the
+/// kernel, alongside `"left"` and `"right"` spelled there again in the three rotations. Same half-data
+/// shape as `Segments` before it: declarable in part, which reads as declarable and is not.
+type Operands =
+  { left: String
+    right: String
+    /// The text slot holding the operator itself.
+    op: String }
+
+
+/// Which construct is text with holes in it, and what its parts are called.
+///
+/// Darklang's is the interpolated string, `$"a{x}b"`. It is not only Darklang's: a template language, a
+/// query with bind parameters, a document with embedded code are all the same shape.
+///
+/// Every name here was once spelled in the kernel. The list slot came off first, then the text case; the
+/// rest -- the text slot, the hole case, the hole slot -- stayed, so a DSL could declare its content was
+/// segmented and still only work if it happened to call its parts `segments`, `StringText`, `text`,
+/// `StringInterpolation` and `expr`. Half-data is the shape a bug hides in: the construct looked
+/// declarable and was not.
+type Segments =
+  { /// The list slot holding the parts.
+    slot: String
+    /// The case of a part that is literal text, and the text slot inside it.
+    textCase: String
+    textSlot: String
+    /// The case of a part that is an embedded hole, and the slot inside it.
+    holeCase: String
+    holeSlot: String }
+
+
+/// As much of this is plain data as possible, so a spec can be derived from a type declaration at runtime,
+/// generated as source, or written by hand, and so it can sit in retained state. The two functions left
+/// (`complete`, `summary`) must be named package fns.
+/// What a bracketed container's CLOSING character does.
+///
+/// Three questions the kernel used to answer by naming kinds, and they are one thing: `)` in an untouched
+/// tuple is `()`, `]` in an untouched list is `[]`, and `)` in a tuple holding exactly one filled item is
+/// a GROUPING paren, because Darklang has no one-tuples. A list is exempt from that last one: `[x]` is a
+/// perfectly good list.
+///
+/// `soloIsGroup` is the one to read carefully. It does NOT mean "this container is parenthesised". It
+/// means "this container's one-element form is spelled the same way as a grouping", which is a fact about
+/// the SYNTAX and is exactly why lists are exempt. The coarser reading would sweep them in and break
+/// `[x]`.
+type Closer =
+  { /// The character that closes it.
+    char: String
+    /// The item list it closes.
+    slot: String
+    /// What an ALL-EMPTY one becomes: another case of the same type (a tuple becomes its unit), or
+    /// `None` for "itself, with the list emptied" (a list becomes `[]`).
+    whenEmpty: Option<String>
+    /// Is a one-item form indistinguishable from a grouping? Tuples yes, lists no.
+    soloIsGroup: Bool }
+
+
+type Spec =
+  { kind: Kind
+    /// Projection order and shape. Static: a node's variable parts are `Each` over its lists.
+    pieces: List<Piece>
+    /// Applied when typing into a hole that expects this kind (or this type, for a type-level spec).
+    holeRules: List<HoleRule>
+    /// Applied when typing at the end of a node of this type (type-level spec only).
+    wrapRules: List<WrapRule>
+    /// What each TEXT slot accepts, as (slot, class) pairs. A slot not named here takes anything.
+    ///
+    /// This was two lists of PT kinds in the kernel, one for the digit slots and one for the name slots,
+    /// and both carried a note saying they belonged here. A kernel that knows what an `EFloat`'s `whole`
+    /// is made of is a kernel that only edits Darklang.
+    textClasses: List<(String * TextClass)>
+    /// Slots that hold AT MOST this many items, by slot name.
+    ///
+    /// A `Many` is usually a sequence you grow, but not always: an `if`'s `else` is a Many holding zero
+    /// or one, used as an option -- zero draws no branch, one draws `else <expr>`. Nothing said so, so
+    /// typing past a settled else added a SECOND branch, which drew a second `else` and lowered to
+    /// nothing. The document showed something it did not have.
+    ///
+    /// A DSL with a slot that takes one thing, or three, says it here rather than hoping.
+    ///
+    /// Given the NODE, because the answer is not always a constant: an `if`'s `else` is always at most
+    /// one, but an enum constructor's fields are however many the CASE declares, which the node knows
+    /// and the spec cannot. `Ok 1` then Enter grew `Result.Ok(1, 2)` -- a two-field `Ok` -- and that
+    /// lowered without complaint.
+    maxItems: (Node, String) -> Option<Int64>
+    /// Slots where a NEWLINE does not start a statement.
+    ///
+    /// Enter at the end of a finished expression wraps it in an `EStatement`, which is what you want in a
+    /// body and not what you want in a record field: `{ width = 1; height = 2 }` with the caret after the
+    /// `2` grew `height = 2 / ⟨next⟩`, a hole drawn inside the braces where the next FIELD goes.
+    ///
+    /// It is the SLOT that decides. Not the node -- an `EInt` sequences perfectly well elsewhere. Not the
+    /// enclosing list either: a match arm's rhs IS a statement position and its list is capped exactly
+    /// like a resolved record's fields are, so "capped" does not separate the two.
+    ///
+    /// Named here rather than checked for in the kernel so a DSL with its own bracketed construct can say
+    /// the same thing about its own slots.
+    noSequence: List<String>
+    /// Characters that OPEN an empty item list on this node, as (character, slot) pairs.
+    ///
+    /// Some nodes carry a list they do not have yet, and one keystroke at the end of their text is how
+    /// you ask for it: `Ok` then `(` opens a constructor pattern's fields, `| Delayed` then a space
+    /// opens an enum case's. The kernel knew the first one BY NAME -- it tested for `MPEnum` and the
+    /// slot `case` -- so the construct that had this was the one somebody had written the branch for,
+    /// and an enum case in a type DECLARATION, which is the same shape one level over, could be read
+    /// but never written. `| Foo of Int` printed perfectly and there was no key that made one.
+    ///
+    /// The kernel keeps the part that is not about any language: only an EMPTY list opens, and only from
+    /// the end of a text slot. The spec says which character and which slot.
+    opensItems: List<(String * String)>
+    /// What this node's closing character does, when it has one. See `Closer`.
+    closer: Option<Closer>
+    /// The slots holding a binary operator's operands, left first.
+    ///
+    /// Precedence is already spec data, so the kernel knows how tightly things bind. What the ROTATIONS
+    /// additionally need is which slots swap, and that is a fact about this node's shape rather than
+    /// about the language's arithmetic. With both, a DSL that declares its own infix gets the precedence
+    /// parenthesising and the `(`/`)` grouping without the kernel naming it.
+    operands: Option<Operands>
+    /// A construct whose CONTENT is a list of alternating literal-text and embedded-expression parts:
+    /// the list slot, then the kind-case that holds the literal text.
+    ///
+    /// Darklang's is the interpolated string, `$"a{x}b"`. It is not only Darklang's -- a template
+    /// language, a query with bind parameters, a document with embedded code are all the same shape: text
+    /// with holes in it, where a character opens a hole and another closes it. The two characters are on
+    /// the registry already (`interpolationOpen` / `interpolationClose`), because they belong to the
+    /// language rather than to the construct; what was left in the kernel was WHICH construct and WHICH of
+    /// its cases holds the text, and those belong here.
+    ///
+    /// Four kernel branches asked one of those two questions: find the enclosing construct, split a text
+    /// part in two around a new hole, step out of a hole into the text after it, and fold two text parts
+    /// back together when the hole between them goes. All four are about the shape and none is about
+    /// strings.
+    segments: Option<Segments>
+    /// A construct that is a SEQUENCE of two: the slot holding what came before, then the slot holding
+    /// what comes next. Darklang's is `EStatement`, which a newline builds.
+    ///
+    /// What needs it: an operator typed at the very start of the fresh second half was meant for the
+    /// FIRST half. `xs` then Enter then `|>` is the printer's own multi-line pipe, written whenever the
+    /// stages do not fit on one line; without this the `|` went in as text and gave `xs / |>List.length`.
+    ///
+    /// It cannot be read off the pieces, and that is the whole reason it is a field. "The last slot, with
+    /// a filled one before it" describes a let's BODY just as well as a statement's second half -- and
+    /// piping a let's VALUE from the body position would be wrong, because a body is not a continuation of
+    /// a value. Only the construct knows, so the construct says.
+    sequence: Option<(String * String)>
+    /// The slot this construct COLLAPSES to when its keyword is deleted: a let and a lambda to their
+    /// body, an if to its then-branch, a match to its scrutinee. Backspace at the start of an untouched
+    /// construct leaves that child behind, so a keyword typed by mistake is one keystroke to undo.
+    ///
+    /// Its neighbour `collapsesToHole` already asks this of the SHAPE (a list with no items, a node with
+    /// no fields), and says in its own comment that anything a DSL builds the same way gets the key for
+    /// free. This half was a list of four kind names, so it did not.
+    collapsesTo: Option<String>
+    /// `(trigger, survivor)`: emptying `trigger` and pressing backspace again collapses this node to
+    /// `survivor`. An infix `1 + <>` goes back to `1`, a cons `h :: <>` to `h`, a pipe `a |> <>` to `a`.
+    ///
+    /// Its neighbour `collapsesTo` answers the same question -- which child survives -- for a different
+    /// trigger, the KEYWORD being deleted. This one is for constructs that have no keyword to delete,
+    /// where what says "I did not want this after all" is the trailing hole being empty. Three arms of a
+    /// match on kind names, and the doc comment above them already stated the general rule while the
+    /// code beside it listed EInfix, MPListCons and EPipe.
+    ///
+    /// `trigger` may be a `One` slot or a `Many` field; the Many case fires when it holds exactly one
+    /// item and that item is empty, which is what a fresh pipe stage looks like.
+    collapsesWhenEmptied: Option<(String * String)>
+    /// The one text slot a LEAF keeps its bare content in: an int's digits, a variable's name.
+    ///
+    /// It is what two of these merge through when the thing between them is deleted (`12 + 34` with the
+    /// `+` removed is `1234`), and what reads a settled leaf's text back out. Anything with no single
+    /// content slot says nothing here: a float has `whole` and `fraction`, and a STRING is excluded
+    /// deliberately rather than for want of a slot -- its body is content, and two strings either side of
+    /// a deleted operator are not one string.
+    ///
+    /// It was three kind names in the kernel, and it had the gap that always comes with a list: the
+    /// pattern kinds look like they want it too and nobody put them there. That is now one line in a
+    /// spec rather than an edit to the editor, so it can wait for someone who wants it.
+    textSlot: Option<String>
+    /// Does a hole of this kind INTRODUCE a name rather than reference one?
+    ///
+    /// A space or a Tab commits an unambiguous keyword PREFIX, which is how `le` becomes `let`. That is
+    /// safe wherever a name is being referenced, because by then the name is bound and an in-scope
+    /// variable is an EXACT candidate that outranks the prefix. In a pattern nothing is in scope yet, so
+    /// the prefix wins and `match n with | h :: t ->` came out `| h :: true ->`.
+    ///
+    /// So a prefix does not commit here. An exact match still does, because no variable can be named
+    /// `true`. Declared rather than detected: `binders` says where names are VISIBLE, not where they are
+    /// born, and "has no scopeCandidate" catches type holes too.
+    bindsNames: Bool
+    /// Fixed candidates for a hole or partial expecting this kind: enum cases, keywords.
+    completions: List<Candidate>
+    /// Computed candidates, given the typed text: names in scope, package search.
+    complete: (Expect, String) -> List<Candidate>
+    /// What a partial becomes when the user types past it or leaves it without picking a candidate: an
+    /// identifier becomes a variable, say. `None` keeps the partial. Type-level specs only.
+    resolve: String -> Option<Node>
+    /// The names this node binds, and which of its slots they are visible in. `let` binds its pattern's
+    /// names in `body`; a lambda binds its params in `body`; a match case binds its pattern in `rhs` and
+    /// `when`. The kernel walks these down the path to the caret to know what is in scope.
+    binders: Node -> List<(List<Binding> * List<String>)>
+    /// Candidates this node SUGGESTS inside the slots named, given what is in scope where it sits.
+    ///
+    /// Where `binders` says what a node adds to scope, this says what fits below it. A `match` knows its
+    /// scrutinee, and if scope says that scrutinee has a type, that type's cases are exactly what a
+    /// pattern hole wants -- which is the most ordinary thing you do with an enum you just declared, and
+    /// was the last thing "your own type, your own editor" could not do.
+    ///
+    /// The kernel walks these on the way down, the same walk it does for binders, and drops anything whose
+    /// kind the hole did not ask for.
+    offers: (List<Binding>, Node) -> List<(List<Candidate> * List<String>)>
+    /// Turn an in-scope name into a node (a variable reference). Set on the type-level spec of a kind
+    /// whose holes should offer the names in scope. `None` means "this kind has no notion of variables".
+    scopeCandidate: Option<String -> Node>
+    actions: List<Action>
+    /// The node with every slot a hole.
+    empty: Node
+    /// One line, for breadcrumbs and collapsed display.
+    summary: Node -> String }
+
+
+module Spec =
+  let noRules(): List<HoleRule> = []
+
+  let noCompletions(e: Expect, typed: String): List<Candidate> = []
+
+  let noResolve(typed: String): Option<Node> = Option.None
+
+  let noBinders(n: Node): List<(List<Binding> * List<String>)> = []
+
+  let noOffers(scope: List<Binding>, n: Node): List<(List<Candidate> * List<String>)> = []
+
+
+  /// A name with no declared type, which is what a `let` or a lambda parameter gives you.
+  let bound(name: String): Binding =
+    Binding { name = name, typ = Option.None }
+
+
+  let noActions(): List<Action> =
+    []
+
+
+  let summaryByKind(n: Node): String =
+    Kind.toString(n.kind)
+
+
+  /// A spec with only pieces and empty; the rest defaulted.
+  let simple(kind: Kind, pieces: List<Piece>, empty: Node): Spec =
+    Spec
+      { kind = kind
+        pieces = pieces
+        holeRules = []
+        wrapRules = []
+        textClasses = []
+        maxItems = noMaxItems
+        noSequence = []
+        opensItems = []
+        closer = Option.None
+        operands = Option.None
+        segments = Option.None
+        sequence = Option.None
+        collapsesTo = Option.None
+        collapsesWhenEmptied = Option.None
+        textSlot = Option.None
+        bindsNames = false
+        completions = []
+        complete = noCompletions
+        resolve = noResolve
+        binders = noBinders
+        offers = noOffers
+        scopeCandidate = Option.None
+        actions = []
+        empty = empty
+        summary = summaryByKind }
+
+
+  let withRules(spec: Spec, rules: List<HoleRule>): Spec =
+    { spec with holeRules = rules }
+
+
+  let withCompletions(spec: Spec, cs: List<Candidate>): Spec =
+    { spec with completions = cs }
+
+
+  /// A spec with character rules of its OWN, consulted before the type's.
+  let withWrapRules(spec: Spec, rules: List<WrapRule>): Spec =
+    { spec with wrapRules = rules }
+
+
+  /// A spec that says what its text slots are made of.
+  let withTextClasses(spec: Spec, cs: List<(String * TextClass)>): Spec =
+    { spec with textClasses = cs }
+
+
+  let noMaxItems(_n: Node, _slot: String): Option<Int64> =
+    Option.None
+
+
+  let withMaxItems(spec: Spec, f: (Node, String) -> Option<Int64>): Spec =
+    { spec with maxItems = f }
+
+
+  /// A spec that says which of its slots a newline must not sequence.
+  let withNoSequence(spec: Spec, slots: List<String>): Spec =
+    { spec with noSequence = slots }
+
+
+  /// A spec that says which character opens which of its empty item lists.
+  let opensItemsOn(spec: Spec, pairs: List<(String * String)>): Spec =
+    { spec with opensItems = pairs }
+
+
+  /// A spec that says what its closing character does.
+  let closesWith(spec: Spec, cl: Closer): Spec =
+    { spec with closer = Option.Some(cl) }
+
+
+  /// A spec that says which of its slots are the operands of a binary operator, and which holds the
+  /// operator itself.
+  let withOperands(spec: Spec, left: String, right: String, op: String): Spec =
+    { spec with operands = Option.Some(Operands { left = left, right = right, op = op }) }
+
+
+  /// A spec that says its content is text with embedded holes.
+  let withSegments(
+    spec: Spec,
+    slot: String,
+    textCase: String,
+    textSlot: String,
+    holeCase: String,
+    holeSlot: String)
+    : Spec =
+    { spec with
+        segments =
+          Option.Some(
+            Segments
+              { slot = slot
+                textCase = textCase
+                textSlot = textSlot
+                holeCase = holeCase
+                holeSlot = holeSlot }) }
+
+
+  /// A spec that says it is a sequence of two: what came before, then what comes next.
+  let withSequence(spec: Spec, before: String, next: String): Spec =
+    { spec with sequence = Option.Some((before, next)) }
+
+
+  /// A spec that says which of its children survives when the construct is deleted.
+  let collapsingTo(spec: Spec, slot: String): Spec =
+    { spec with collapsesTo = Option.Some(slot) }
+
+
+  /// A spec that collapses to `survivor` when `trigger` is emptied and backspaced again.
+  let collapsingWhenEmptied(spec: Spec, trigger: String, survivor: String): Spec =
+    { spec with collapsesWhenEmptied = Option.Some((trigger, survivor)) }
+
+
+  /// A spec for a leaf that keeps its content in one text slot. See `textSlot`.
+  let withTextSlot(spec: Spec, slot: String): Spec =
+    { spec with textSlot = Option.Some(slot) }
+
+
+  /// A spec whose holes introduce names rather than reference them.
+  let bindsItsNames(spec: Spec): Spec =
+    { spec with bindsNames = true }
+
+
+  /// A slot that is capped at whatever it already holds: fixed by a declaration somewhere, not by the
+  /// person typing. An enum case's fields are the case in point.
+  let fixedSlot(slot: String, n: Node, asked: String): Option<Int64> =
+    if asked == slot then
+      Option.Some(Stdlib.List.length(Node.items(n, slot)))
+    else
+      Option.None
+
+
+  let withBinders(spec: Spec, f: Node -> List<(List<Binding> * List<String>)>): Spec =
+    { spec with binders = f }
+
+
+  let withOffers(
+    spec: Spec,
+    f: (List<Binding>, Node) -> List<(List<Candidate> * List<String>)>)
+    : Spec =
+    { spec with offers = f }
+
+
+  let withScopeCandidate(spec: Spec, f: String -> Node): Spec =
+    { spec with scopeCandidate = Option.Some(f) }
+
+
+  let candidate(label: String, detail: String, node: Node): Candidate =
+    Candidate
+      { label = label
+        detail = detail
+        valid = Validity.Valid
+        node = node
+        fromContext = false
+        keyword = true
+        takesSpace = true }
+
+
+  /// A candidate whose name is an ORDINARY WORD, so a space must not commit it.
+  ///
+  /// Space commits an unambiguous candidate, and the rule was written for KEYWORDS: `le` can only be
+  /// `let`, and nobody can name a variable `let`. `int`, `string`, `list`, `char`, `tuple` and `record
+  /// update` are not reserved, so the moment they joined the menu a lone `c` was an unambiguous `char`
+  /// and `if c then` came out `if '' then`. `r` became a record update and `s` an empty string.
+  ///
+  /// So they are offered but never taken by a space. Enter and Tab still take them, which is what those
+  /// keys mean, and typing on past them settles a variable as it always did.
+  /// Reachable by Tab, but never taken by a space. For a candidate whose own opening delimiter is the
+  /// next thing you type: a record's `{`.
+  let candidateNotOnSpace(label: String, detail: String, node: Node): Candidate =
+    Candidate
+      { label = label
+        detail = detail
+        valid = Validity.Valid
+        node = node
+        fromContext = false
+        keyword = true
+        takesSpace = false }
+
+
+  let suggestion(label: String, detail: String, node: Node): Candidate =
+    Candidate
+      { label = label
+        detail = detail
+        valid = Validity.Valid
+        node = node
+        fromContext = false
+        keyword = false
+        takesSpace = false }
+
+
+  /// A candidate the document itself implied -- see `Candidate.fromContext`.
+  let contextCandidate(label: String, detail: String, node: Node): Candidate =
+    Candidate
+      { label = label
+        detail = detail
+        valid = Validity.Valid
+        node = node
+        fromContext = true
+        keyword = true
+        takesSpace = true }
+
+
+/// The specs in force. Looked up by kind: an exact match (type + case) first, then a type-level spec
+/// (case None), which is how one spec can own every case of a type, or supply hole rules and completion
+/// for holes that expect "any Expr".
+/// The characters a language spells its punctuation with.
+///
+/// These used to be fixed lists in the kernel, which is the first wall someone writing their own syntax
+/// hits: `pieces` let you restyle how an `if` LOOKS, but there was no way to say that in YOUR language
+/// `;` separates a name from its value, or that `»` closes a group. They belong to the language rather
+/// than to any one node, so they sit on the registry rather than on a spec.
+type Syntax =
+  { /// Characters that begin or extend an infix operator. `<operator>` in a hole or wrap rule means one
+    /// of these.
+    operatorChars: List<String>
+    /// Closers you can type past when the editor has already drawn them.
+    closingDelimiters: List<String>
+    /// Punctuation drawn between a name and what follows it, which typing skips over rather than
+    /// inserting: a let's `=`, an annotation's `:`.
+    separators: List<String>
+    /// A string literal's own closer, typed INSIDE the string to step out of it. Separate from
+    /// `closingDelimiters` because those are all closers you can type past, and a `'` typed inside a
+    /// string is a literal apostrophe rather than the end of anything.
+    stringDelimiter: String
+    /// What opens and closes an interpolation inside a string. These were spelled `{` and `}` in the
+    /// kernel, so a language whose strings interpolate with something else could not say so.
+    interpolationOpen: String
+    interpolationClose: String
+    /// Which closer goes with which opener, as (open, close) pairs.
+    ///
+    /// Everything else about brackets is answered by the DRAWING -- the closer is on screen, so typing it
+    /// steps past it. An argument list is the one that is not: `parse(t)` opens the arguments with a `(`
+    /// and the editor draws `parse t`, with no bracket anywhere for the `)` to match against. So the
+    /// pairing has to be said out loud, and this is where a language says it.
+    bracketPairs: List<(String * String)> }
+
+
+module Syntax =
+  /// How Darklang spells itself.
+  let darklang(): Syntax =
+    Syntax
+      { operatorChars = [ "+", "-", "*", "/", "%", "^", ">", "<", "=", "!", "&", "|" ]
+        closingDelimiters = [ "]", ")", "}", "\"", "'" ]
+        separators = [ "=", ":" ]
+        stringDelimiter = "\""
+        interpolationOpen = "{"
+        interpolationClose = "}"
+        bracketPairs = [ ("(", ")"), ("[", "]"), ("{", "}") ] }
+
+
+/// A key bound at the DOCUMENT level rather than on a kind.
+///
+/// A spec's `Action` cannot express any of this. `Action.run` is `Node -> Slot`, so everything a spec can
+/// bind is a replacement of the node under the caret: no motions, no mode switches, and nothing that says
+/// "in THIS document, `d` means delete" regardless of what the caret is on.
+///
+/// `RunAction` is what keeps this list from having to grow forever. Anything a spec can already do stays
+/// in the spec and the keymap only names it.
+type Command =
+  | NavNext
+  | NavPrev
+  | NavParent
+  | NavChild
+  | NavSiblingNext
+  | NavSiblingPrev
+  | Delete
+  | Yank
+  | Put
+  | AddSibling
+  | Undo
+  | Redo
+  | ToggleAnchor
+  | EnterInsert
+  /// An action from the spec of the node under the caret, by name.
+  | RunAction(String)
+
+
+type KeyBinding =
+  { key: String
+    command: Command }
+
+
+module Command =
+  /// What a bound command is called, for the panel. Short, because the panel is a third of the screen
+  /// and its widest surviving row is 29 columns.
+  ///
+  /// The wording matches the kernel's own rows where the command is the same thing, so a rebound key
+  /// reads as the key it replaced rather than as a second vocabulary.
+  let label(cmd: Command): String =
+    match cmd with
+    | NavNext -> "next"
+    | NavPrev -> "prev"
+    | NavParent -> "out"
+    | NavChild -> "in"
+    | NavSiblingNext -> "next sibling"
+    | NavSiblingPrev -> "prev sibling"
+    | Delete -> "clear"
+    | Yank -> "copy"
+    | Put -> "paste"
+    | AddSibling -> "another list item"
+    | Undo -> "undo"
+    | Redo -> "redo"
+    | ToggleAnchor -> "select a range"
+    | EnterInsert -> "edit"
+    | RunAction(name) -> name
+
+
+/// The specs in play, the punctuation they are spelled with, and WHERE the document being edited sits.
+///
+/// `currentModule` is the module path of the thing on screen. Names are written the way someone standing
+/// in that module would say them, which is what the pretty-printer does and what the source you are
+/// looking at says. Empty means "nowhere in particular", and everything comes out fully qualified.
+type Registry =
+  { specs: List<Spec>
+    syntax: Syntax
+    currentModule: List<String>
+    /// Keys bound for the whole document, consulted AFTER the caret's own spec and before the kernel's
+    /// own chain. Specific beats general: a kind that binds a key on its own nodes is saying something
+    /// about those nodes, and a document keymap that silently overrode it would make that kind's actions
+    /// unreachable with nothing on screen to say why.
+    keymap: List<KeyBinding>
+    /// `specs` again, keyed for lookup. Derived, never edited: `ofList` and `add` build it and nothing
+    /// else may set it.
+    ///
+    /// `find` runs for every node the layout draws, several times a keystroke, and it used to REVERSE
+    /// the whole spec list and scan it -- twice on a miss, since a miss falls through to the type level.
+    /// Half a millisecond a lookup, about half the cost of laying a document out.
+    index: Dict<String, Spec> }
+
+
+module Registry =
+  /// An unambiguous key for a kind.
+  ///
+  /// Not `Kind.toString`: that spells a case with a dot, so a named type `A.B` and the type `A` at case
+  /// `B` come out the same string. Fine for a message, not fine for a lookup table.
+  let indexKey(kind: Kind): String =
+    let typ =
+      match kind.typ with
+      | Named(n) -> "n:" + n
+      | Prim(p) -> "p:" + p
+
+    match kind.case with
+    | Some(c) -> typ + "|" + c
+    | None -> typ
+
+
+  /// Later specs shadow earlier ones, which is what the reversed scan used to say.
+  ///
+  /// `setOverridingDuplicates`, not `set`: `set` REFUSES a key it already holds, and shadowing is the
+  /// whole point of the list order -- a discovered user spec is merged after the built-in one for the
+  /// same kind. With `set` the registry threw on construction the moment two specs shared a kind.
+  let indexOf(specs: List<Spec>): Dict<String, Spec> =
+    specs
+    |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, s) -> Stdlib.Dict.set(acc, indexKey(s.kind), s))
+
+
+  let empty(): Registry =
+    Registry
+      { specs = []
+        syntax = Syntax.darklang()
+        currentModule = []
+        keymap = []
+        index = Stdlib.Dict.empty }
+
+
+  let ofList(specs: List<Spec>): Registry =
+    Registry
+      { specs = specs
+        syntax = Syntax.darklang()
+        currentModule = []
+        keymap = []
+        index = indexOf(specs) }
+
+
+  /// The same specs, with `key` meaning `command` everywhere in the document. A later binding for the
+  /// same key shadows an earlier one.
+  let bind(reg: Registry, key: String, command: Command): Registry =
+    { reg with
+        keymap = Stdlib.List.concat([ KeyBinding { key = key, command = command } ], reg.keymap) }
+
+
+  /// The same specs, spelled with different punctuation.
+  let withSyntax(reg: Registry, syntax: Syntax): Registry =
+    { reg with syntax = syntax }
+
+
+  /// The same specs, reading as if you were standing in `path`.
+  let inModule(reg: Registry, path: List<String>): Registry =
+    { reg with currentModule = path }
+
+
+  /// Later specs shadow earlier ones with the same kind.
+  let add(reg: Registry, spec: Spec): Registry =
+    { reg with
+        specs = Stdlib.List.concat(reg.specs, [ spec ])
+        index = Stdlib.Dict.set(reg.index, indexKey(spec.kind), spec) }
+
+
+  /// Every writer of `specs` must write `index` too, and this one did not.
+  ///
+  /// The index is what `find` reads; `specs` is only the record of what went in. A spec added here was
+  /// invisible to every lookup, silently -- the node drew as an unknown kind, which is exactly what it
+  /// looks like when no spec exists. Found by adding derived specs for a value's types and watching them
+  /// do nothing.
+  let addAll(reg: Registry, specs: List<Spec>): Registry =
+    { reg with
+        specs = Stdlib.List.concat(reg.specs, specs)
+        index =
+          specs
+          |> Stdlib.List.fold(reg.index, fun(acc, s) -> Stdlib.Dict.set(acc, indexKey(s.kind), s)) }
+
+
+  let findExact(reg: Registry, kind: Kind): Option<Spec> =
+    Stdlib.Dict.get(reg.index, indexKey(kind))
+
+
+  let findTypeLevel(reg: Registry, kind: Kind): Option<Spec> =
+    let typeLevel = Kind { typ = kind.typ, case = Option.None }
+    Stdlib.Dict.get(reg.index, indexKey(typeLevel))
+
+
+  /// Exact, then type-level.
+  let find(reg: Registry, kind: Kind): Option<Spec> =
+    match findExact(reg, kind) with
+    | Some(s) -> Option.Some(s)
+    | None -> findTypeLevel(reg, kind)
+
+
+  /// The spec to ask about a hole: by the expected kind, exact then type-level.
+  let forExpect(reg: Registry, e: Expect): Option<Spec> =
+    match e.kind with
+    | Some(k) -> find(reg, k)
+    | None -> Option.None
