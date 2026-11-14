@@ -377,7 +377,15 @@ let private executeHandler
     let scheduler = LibExecution.Scheduler.Scheduler.CurrentOrShared
     let parent =
       LibExecution.Scheduler.Scheduler.CurrentProcess |> Option.map (fun p -> p.id)
-    let p = scheduler.SpawnApply(exeState, handler, arg, parent, exeState.access)
+    let p =
+      scheduler.SpawnApply(
+        exeState,
+        handler,
+        arg,
+        parent,
+        exeState.access,
+        keepResult = false
+      )
     let! result =
       task {
         if requestTimeoutMs <= 0 then

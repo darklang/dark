@@ -1107,7 +1107,13 @@ let executeWith
         match Scheduler.Scheduler.Current, Scheduler.Scheduler.CurrentProcess with
         | Some s, Some parent ->
           let child =
-            s.Spawn(state, (None, instr), Scheduler.EntryExpr, Some parent.id)
+            s.Spawn(
+              state,
+              (None, instr),
+              Scheduler.EntryExpr,
+              Some parent.id,
+              keepResult = false
+            )
           uply { return! s.Await child }
         | _ -> uply { return! Exe.executeExpr state instr }
 
@@ -1600,7 +1606,8 @@ let fns () : List<BuiltInFn> =
                                     state,
                                     (None, instructions),
                                     Scheduler.EntryExpr,
-                                    Some parent.id
+                                    Some parent.id,
+                                    keepResult = false
                                   )
                                 uply { return! scheduler.Await child }
                               | _ ->

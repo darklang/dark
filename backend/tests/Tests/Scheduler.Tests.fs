@@ -185,6 +185,22 @@ let private aKey : RT.Dval =
     1
 
 
+let private unkeptResultIsNotKept =
+  testTask "a process spawned with keepResult = false leaves no result behind" {
+    let! state = executionStateFor pmPT false
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! kept = instrsFor "1"
+    let! unkept = instrsFor "2"
+    let kept = s.Spawn(state, (None, kept), Scheduler.EntryExpr, None)
+    let unkept =
+      s.Spawn(state, (None, unkept), Scheduler.EntryExpr, None, keepResult = false)
+    let! _ = runOnThread s kept
+    let! unkeptResult = runOnThread s unkept
+    expectOk unkeptResult "the unkept process" |> ignore<RT.Dval>
+    Expect.isSome (s.TakeResult kept.id) "a result for a handle is kept"
+    Expect.isNone (s.TakeResult unkept.id) "the unkept one is not"
+  }
+
 let private hostAwaitTimerOrKey =
   testTask
     "hostAwait [Key; Timer 10] answers Timer with no key, Key when one was pushed first" {
@@ -2487,6 +2503,7 @@ let tests =
       "scheduler"
       [ interleaving
         budgetYields
+        unkeptResultIsNotKept
         hostAwaitTimerOrKey
         readKeyDoesNotBlock
         readLineDoesNotBlock

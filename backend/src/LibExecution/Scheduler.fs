@@ -93,6 +93,9 @@ type Process =
     mutable stopAsked : bool
     /// Completes when the process finishes, for F# callers (`Await`).
     completion : TaskCompletionSource<RT.ExecutionResult>
+    /// False for a process an F# host spawned and awaits itself: no Dark handle to it exists,
+    /// so its result is not kept for an `Exec.await` that cannot come.
+    keepsResult : bool
     /// Set at park, run on the scheduler thread right before the next step: the register write.
     mutable pendingResume : Option<unit -> unit>
     /// The task the process is parked on, so a fault is seen before `pendingResume` runs.
@@ -363,7 +366,8 @@ type Scheduler(quantum : int64) =
       entry : Entry,
       parent : Option<ProcessId>,
       ?stats : RT.InterpreterStats,
-      ?runId : int64
+      ?runId : int64,
+      ?keepResult : bool
     ) : Process =
     let vm =
       match
@@ -415,6 +419,7 @@ type Scheduler(quantum : int64) =
           TaskCompletionSource<RT.ExecutionResult>(
             TaskCreationOptions.RunContinuationsAsynchronously
           )
+        keepsResult = defaultArg keepResult true
         pendingResume = None
         parkedTask = null
         parkHint = ValueNone
@@ -442,7 +447,8 @@ type Scheduler(quantum : int64) =
       entry : Entry,
       parent : Option<ProcessId>,
       ?stats : RT.InterpreterStats,
-      ?runId : int64
+      ?runId : int64,
+      ?keepResult : bool
     ) : Process =
     this.Workers.Spawn(
       exeState,
@@ -450,7 +456,8 @@ type Scheduler(quantum : int64) =
       entry,
       parent,
       ?stats = stats,
-      ?runId = runId
+      ?runId = runId,
+      ?keepResult = keepResult
     )
 
   /// A new process that applies `applicable` to `arg` (`Exec.spawn f` runs `f ()`), starting from
@@ -464,7 +471,8 @@ type Scheduler(quantum : int64) =
       parent : Option<ProcessId>,
       access : Permissions.Access,
       ?stats : RT.InterpreterStats,
-      ?runId : int64
+      ?runId : int64,
+      ?keepResult : bool
     ) : Process =
     let entry =
       match applicable with
@@ -478,7 +486,8 @@ type Scheduler(quantum : int64) =
         entry,
         parent,
         ?stats = stats,
-        ?runId = runId
+        ?runId = runId,
+        ?keepResult = keepResult
       )
     p
 
@@ -807,11 +816,12 @@ type Scheduler(quantum : int64) =
       finished.Enqueue p.id
       while finished.Count > keepFinished do
         processes.Remove(finished.Dequeue()) |> ignore<bool>
-      finishedResults[p.id] <- result
-      resultOrder.Enqueue p.id
-      while resultOrder.Count > keepResults do
-        let old = resultOrder.Dequeue()
-        finishedResults.TryRemove old |> ignore<bool * RT.ExecutionResult>)
+      if p.keepsResult then
+        finishedResults[p.id] <- result
+        resultOrder.Enqueue p.id
+        while resultOrder.Count > keepResults do
+          let old = resultOrder.Dequeue()
+          finishedResults.TryRemove old |> ignore<bool * RT.ExecutionResult>)
     // To the schedulers with a Dark subscriber waiting on this process, wherever they are;
     // how it ended is the subscriber's to ask (`Exec.await`).
     match execDoneWatchers.TryRemove p.id with
@@ -1239,7 +1249,8 @@ and Workers(root : Scheduler, quantum : int64, count : int) =
       entry : Entry,
       parent : Option<ProcessId>,
       ?stats : RT.InterpreterStats,
-      ?runId : int64
+      ?runId : int64,
+      ?keepResult : bool
     ) : Process =
     let w =
       lock startLock (fun () ->
@@ -1248,7 +1259,15 @@ and Workers(root : Scheduler, quantum : int64, count : int) =
           if not started[i] then startThread i
           byIndex[i]
         | None -> workers |> List.minBy (fun w -> w.Live))
-    w.Spawn(exeState, instrs, entry, parent, ?stats = stats, ?runId = runId)
+    w.Spawn(
+      exeState,
+      instrs,
+      entry,
+      parent,
+      ?stats = stats,
+      ?runId = runId,
+      ?keepResult = keepResult
+    )
 
   /// End every worker's loop. Processes still on them are left as they are.
   member _.Stop() : unit =
