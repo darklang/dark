@@ -1,3 +1,8 @@
+1 Darklang.Cli.Compile.compilerPath Darklang.Stdlib.Cli.Env.home
+1 Darklang.Cli.Compile.withServer Darklang.Stdlib.Cli.File.exists
+1 Darklang.Cli.Compile.withServer Darklang.Stdlib.Cli.Process.run
+1 Darklang.Cli.Compile.withServer Darklang.Stdlib.Exec.awaitWithin
+1 Darklang.Cli.Compile.withServer Darklang.Stdlib.HttpServer.serve
 1 Darklang.Cli.Completion.addSlashToDirectories Darklang.Stdlib.Cli.FileSystem.isDirectoryAtPath
 1 Darklang.Cli.Completion.completeFilesystemPath Darklang.Stdlib.Cli.FileSystem.isDirectoryAtPath
 1 Darklang.Cli.Docs.StdlibOverview.execute Darklang.Stdlib.List.sort
@@ -62,6 +67,8 @@
 1 Darklang.Cli.Workbench.execute Darklang.Stdlib.Cli.Sys.hostname
 1 Darklang.Cli.Workbench.loadBuiltinItems Darklang.Stdlib.List.sort
 1 Darklang.Cli.runInteractiveLoop Darklang.Stdlib.Host.await
+1 Darklang.Compiler.PackageServer.browse Darklang.Stdlib.Json.serialize
+1 Darklang.Compiler.PackageServer.hashJson Darklang.Stdlib.Json.serialize
 1 Darklang.GitHub.__fetchString Darklang.Stdlib.HttpClient.get
 1 Darklang.LanguageTools.AtRestTypeChecker.Items.toUInt64 Builtin.unwrap
 1 Darklang.LanguageTools.AtRestTypeChecker.Run.checkQuery Darklang.Stdlib.List.parallelMap
@@ -92,5 +99,7 @@
 3 Darklang.Cli.Completion.completeFilesystemPath Darklang.Stdlib.Cli.FileSystem.getDirectoryContents
 3 Darklang.Cli.Installation.Download.replaceBinary Darklang.Stdlib.Cli.executeWithUnitOrStdErr
 3 Darklang.Cli.Installation.Download.smokeTest Darklang.Stdlib.Cli.execute
+3 Darklang.Compiler.PackageServer.withLocation Darklang.Stdlib.Json.serialize
 3 Darklang.PrettyPrinter.ProgramTypes.referenceSegmentsWorkedOut Darklang.Stdlib.List.range
 3 Darklang.PrettyPrinter.RuntimeTypes.Instructions.operands Darklang.Stdlib.Int64.fromInt32
+6 Darklang.Compiler.PackageServer.entity Darklang.Stdlib.Json.serialize
