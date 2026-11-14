@@ -413,7 +413,7 @@ module BindingIds =
              LanguageTools.AtRestTypeChecker.issueToString(issue))))
         |> Stdlib.Test.equal(
           [ (
-              Stdlib.Option.Option.Some(2u64),
+              Stdlib.Option.Option.Some(2),
               "Multiple let bindings share a pattern node ID; their types cannot be checked") ]) ])
 
 
@@ -471,7 +471,7 @@ module InferenceIds =
              LanguageTools.AtRestTypeChecker.issueToString(issue))))
         |> Stdlib.Test.equal(
           [ (
-              Stdlib.Option.Option.Some(10u64),
+              Stdlib.Option.Option.Some(10),
               "Multiple inference nodes share an ID; their types cannot be checked") ]) ])
 
 
@@ -1691,7 +1691,7 @@ module Builtins =
             resolved(
               LanguageTools.ProgramTypes.FQFnName.FQFnName.Builtin(
                 LanguageTools.ProgramTypes.FQFnName.Builtin
-                  { name = "missing", version = 0s32 })),
+                  { name = "missing", version = 0 })),
             [],
             []),
           [],
@@ -2942,7 +2942,7 @@ module Ambiguity =
              [],
              [ LanguageTools.ProgramTypes.Expr.EList(100, []) ])))
      Stdlib.List.map(outcome.diagnostics, fun i -> i.nodeId))
-    |> Stdlib.Test.equal([ Stdlib.Option.Option.Some(3u64) ])
+    |> Stdlib.Test.equal([ Stdlib.Option.Option.Some(3) ])
 
 
   // y y would require y's function type to contain itself. With the unused local

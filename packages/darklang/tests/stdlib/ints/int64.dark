@@ -586,59 +586,58 @@ test toString =
 
 test fromInt8 =
   Stdlib.Test.all(
-    [ Stdlib.Int64.fromInt8(0s8) |> Stdlib.Test.equal(0)
-      Stdlib.Int64.fromInt8(1s8) |> Stdlib.Test.equal(1)
-      Stdlib.Int64.fromInt8(127s8) |> Stdlib.Test.equal(127)
-      Stdlib.Int64.fromInt8(-128s8) |> Stdlib.Test.equal(-128) ])
+    [ Stdlib.Int64.fromInt8(0) |> Stdlib.Test.equal(0)
+      Stdlib.Int64.fromInt8(1) |> Stdlib.Test.equal(1)
+      Stdlib.Int64.fromInt8(127) |> Stdlib.Test.equal(127)
+      Stdlib.Int64.fromInt8(-128) |> Stdlib.Test.equal(-128) ])
 
 
 test fromUInt8 =
   Stdlib.Test.all(
-    [ Stdlib.Int64.fromUInt8(0u8) |> Stdlib.Test.equal(0)
-      Stdlib.Int64.fromUInt8(1u8) |> Stdlib.Test.equal(1)
-      Stdlib.Int64.fromUInt8(255u8) |> Stdlib.Test.equal(255) ])
+    [ Stdlib.Int64.fromUInt8(0) |> Stdlib.Test.equal(0)
+      Stdlib.Int64.fromUInt8(1) |> Stdlib.Test.equal(1)
+      Stdlib.Int64.fromUInt8(255) |> Stdlib.Test.equal(255) ])
 
 
 test fromInt16 =
   Stdlib.Test.all(
-    [ Stdlib.Int64.fromInt16(0s16) |> Stdlib.Test.equal(0)
-      Stdlib.Int64.fromInt16(1s16) |> Stdlib.Test.equal(1)
-      Stdlib.Int64.fromInt16(32767s16) |> Stdlib.Test.equal(32767)
-      Stdlib.Int64.fromInt16(-32768s16) |> Stdlib.Test.equal(-32768) ])
+    [ Stdlib.Int64.fromInt16(0) |> Stdlib.Test.equal(0)
+      Stdlib.Int64.fromInt16(1) |> Stdlib.Test.equal(1)
+      Stdlib.Int64.fromInt16(32767) |> Stdlib.Test.equal(32767)
+      Stdlib.Int64.fromInt16(-32768) |> Stdlib.Test.equal(-32768) ])
 
 
 test fromUInt16 =
   Stdlib.Test.all(
-    [ Stdlib.Int64.fromUInt16(0u16) |> Stdlib.Test.equal(0)
-      Stdlib.Int64.fromUInt16(1u16) |> Stdlib.Test.equal(1)
-      Stdlib.Int64.fromUInt16(65535u16) |> Stdlib.Test.equal(65535) ])
+    [ Stdlib.Int64.fromUInt16(0) |> Stdlib.Test.equal(0)
+      Stdlib.Int64.fromUInt16(1) |> Stdlib.Test.equal(1)
+      Stdlib.Int64.fromUInt16(65535) |> Stdlib.Test.equal(65535) ])
 
 
 test fromInt32 =
   Stdlib.Test.all(
-    [ Stdlib.Int64.fromInt32(0s32) |> Stdlib.Test.equal(0)
-      Stdlib.Int64.fromInt32(1s32) |> Stdlib.Test.equal(1)
-      Stdlib.Int64.fromInt32(2147483647s32) |> Stdlib.Test.equal(2147483647)
-      Stdlib.Int64.fromInt32(-2147483648s32)
-      |> Stdlib.Test.equal(-2147483648) ])
+    [ Stdlib.Int64.fromInt32(0) |> Stdlib.Test.equal(0)
+      Stdlib.Int64.fromInt32(1) |> Stdlib.Test.equal(1)
+      Stdlib.Int64.fromInt32(2147483647) |> Stdlib.Test.equal(2147483647)
+      Stdlib.Int64.fromInt32(-2147483648) |> Stdlib.Test.equal(-2147483648) ])
 
 
 test fromUInt32 =
   Stdlib.Test.all(
-    [ Stdlib.Int64.fromUInt32(0u32) |> Stdlib.Test.equal(0)
-      Stdlib.Int64.fromUInt32(1u32) |> Stdlib.Test.equal(1)
-      Stdlib.Int64.fromUInt32(4294967295u32) |> Stdlib.Test.equal(4294967295) ])
+    [ Stdlib.Int64.fromUInt32(0) |> Stdlib.Test.equal(0)
+      Stdlib.Int64.fromUInt32(1) |> Stdlib.Test.equal(1)
+      Stdlib.Int64.fromUInt32(4294967295) |> Stdlib.Test.equal(4294967295) ])
 
 
 test fromUInt64 =
   Stdlib.Test.all(
-    [ Stdlib.Int64.fromUInt64(0u64)
+    [ Stdlib.Int64.fromUInt64(0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
 
-      Stdlib.Int64.fromUInt64(1u64)
+      Stdlib.Int64.fromUInt64(1)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
 
-      Stdlib.Int64.fromUInt64(9223372036854775807u64)
+      Stdlib.Int64.fromUInt64(9223372036854775807)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(9223372036854775807))
 
       Stdlib.Int64.fromUInt64(18446744073709551615u64)
@@ -650,16 +649,16 @@ test fromUInt64 =
 
 test fromInt128 =
   Stdlib.Test.all(
-    [ Stdlib.Int64.fromInt128(0s128)
+    [ Stdlib.Int64.fromInt128(0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
 
-      Stdlib.Int64.fromInt128(1s128)
+      Stdlib.Int64.fromInt128(1)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
 
-      Stdlib.Int64.fromInt128(9223372036854775807s128)
+      Stdlib.Int64.fromInt128(9223372036854775807)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(9223372036854775807))
 
-      Stdlib.Int64.fromInt128(-9223372036854775808s128)
+      Stdlib.Int64.fromInt128(-9223372036854775808)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-9223372036854775808))
 
       Stdlib.Int64.fromInt128(9223372036854775808s128)
@@ -671,13 +670,13 @@ test fromInt128 =
 
 test fromUInt128 =
   Stdlib.Test.all(
-    [ Stdlib.Int64.fromUInt128(0u128)
+    [ Stdlib.Int64.fromUInt128(0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
 
-      Stdlib.Int64.fromUInt128(1u128)
+      Stdlib.Int64.fromUInt128(1)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
 
-      Stdlib.Int64.fromUInt128(9223372036854775807u128)
+      Stdlib.Int64.fromUInt128(9223372036854775807)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(9223372036854775807))
 
       Stdlib.Int64.fromUInt128(18446744073709551615u128)

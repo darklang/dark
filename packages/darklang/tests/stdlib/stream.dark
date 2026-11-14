@@ -35,7 +35,7 @@ test nextPullsHeadLeavesRest =
 
 // toBytes drains a Stream<UInt8> into a Bytes
 test toBytesDrainsBytes =
-  let s = Stdlib.Stream.fromList([ 104u8, 105u8 ])
+  let s = Stdlib.Stream.fromList([ 104, 105 ])
   let b = Stdlib.Stream.toBytes(s)
   Stdlib.Utf8.decode(b) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("hi"))
 

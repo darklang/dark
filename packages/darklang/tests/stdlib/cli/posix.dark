@@ -94,7 +94,7 @@ test readlinkAtTruncates =
     Builtin.syscallReadlinkAt(link, 2)
     |> Stdlib.Result.map(Stdlib.Bytes.toList))
   |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Ok(Stdlib.Result.Result.Ok([ 97u8, 98u8 ])))
+    Stdlib.Result.Result.Ok(Stdlib.Result.Result.Ok([ 97, 98 ])))
 
 
 // The cwd and readlink wrappers grow their buffer until the result fits
@@ -108,7 +108,7 @@ test bufferGrowth =
              Stdlib.Result.Result.Ok(Stdlib.Utf8.encode("/x\0"))),
         2)
       |> Stdlib.Result.map(Stdlib.Bytes.toList)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 47u8, 120u8, 0u8 ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 47, 120, 0 ]))
 
       Stdlib.Cli.Posix.__pathReadlinkWith(
         (fun count ->
@@ -120,7 +120,7 @@ test bufferGrowth =
              Stdlib.Result.Result.Error(22)),
         2)
       |> Stdlib.Result.map(Stdlib.Bytes.toList)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 97u8, 98u8, 99u8 ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 97, 98, 99 ]))
 
       Stdlib.Cli.Posix.__pathReadlinkWith(
         (fun _ -> Stdlib.Result.Result.Ok(Stdlib.Bytes.empty)),

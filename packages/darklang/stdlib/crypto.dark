@@ -19,10 +19,10 @@ let hmac(algorithm: DigestAlgorithm, key: Bytes, data: Bytes): Bytes =
   let size = __blockSize(algorithm)
   // A key longer than a block is hashed first; then it is zero-padded to a block.
   let short = if Bytes.length(key) > size then digest(algorithm, key) else key
-  let padding = List.repeat(size - Bytes.length(short), 0u8)
+  let padding = List.repeat(size - Bytes.length(short), 0)
   let block = Bytes.toList(Bytes.concat(short, Bytes.fromList(padding)))
-  let inner = digest(algorithm, Bytes.concat(__xorEach(block, 54u8), data))
-  digest(algorithm, Bytes.concat(__xorEach(block, 92u8), inner))
+  let inner = digest(algorithm, Bytes.concat(__xorEach(block, 54), data))
+  digest(algorithm, Bytes.concat(__xorEach(block, 92), inner))
 
 
 /// The block size of <param algorithm> in bytes, which HMAC pads its key to.

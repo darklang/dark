@@ -317,7 +317,7 @@ module FQValueName =
   module Builtin =
     let fullForReference(t: LanguageTools.ProgramTypes.FQValueName.Builtin): String =
       let namePart = t.name
-      let versionPart = if t.version == 0s32 then "" else $"_v{Stdlib.display(t.version)}"
+      let versionPart = if t.version == 0 then "" else $"_v{Stdlib.display(t.version)}"
       $"Builtin.{namePart}{versionPart}"
 
 
@@ -354,7 +354,7 @@ module FQFnName =
   module Builtin =
     let fullForReference(t: LanguageTools.ProgramTypes.FQFnName.Builtin): String =
       let namePart = t.name
-      let versionPart = if t.version == 0s32 then "" else $"_v{Stdlib.display(t.version)}"
+      let versionPart = if t.version == 0 then "" else $"_v{Stdlib.display(t.version)}"
       $"Builtin.{namePart}{versionPart}"
 
 
@@ -2096,7 +2096,7 @@ let prefixOperator(
   | Ok(r) ->
     match r.name with
     | Builtin(b) ->
-      if b.version != 0s32 then
+      if b.version != 0 then
         Option.None
       else if b.name == "boolNot" then
         Option.Some("!")

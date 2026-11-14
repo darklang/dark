@@ -690,7 +690,7 @@ module Sse =
         | None -> Option.None
     | Some(b) ->
       // 10u8 = '\n'. End of a line.
-      if b == 10u8 then
+      if b == 10 then
         let line =
           match Utf8.decode(Bytes.fromList(state.currentLine)) with
           | Ok(s) -> s
