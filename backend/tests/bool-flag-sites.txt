@@ -1,5 +1,4 @@
 1 Darklang.Cli.Packages.Deprecate.executeUndeprecate Darklang.Cli.Packages.Deprecate.sayShared
-1 Darklang.Cli.Packages.Signatures.formatType Darklang.PrettyPrinter.ProgramTypes.typeReferenceFlatAtPrecedence
 1 Darklang.Cli.Run.execute Darklang.Cli.Run.executeOptions
 1 Darklang.Cli.Run.runScript Darklang.Cli.Run.runScriptMeasured
 1 Darklang.LanguageTools.AtRestTypeChecker.Generate.infer Darklang.LanguageTools.AtRestTypeChecker.Generate.inferInfix
@@ -12,10 +11,7 @@
 1 Darklang.PrettyPrinter.ProgramTypes.exprDocBare Darklang.PrettyPrinter.ProgramTypes.lambdaDoc
 1 Darklang.PrettyPrinter.ProgramTypes.listItemDoc Darklang.PrettyPrinter.ProgramTypes.blockDocSpaced
 1 Darklang.PrettyPrinter.ProgramTypes.parenthesized Darklang.PrettyPrinter.ProgramTypes.blockDocSpaced
-1 Darklang.PrettyPrinter.ProgramTypes.pipeExprDoc Darklang.PrettyPrinter.ProgramTypes.callArgs
 1 Darklang.PrettyPrinter.ProgramTypes.pipeExprDoc Darklang.PrettyPrinter.ProgramTypes.lambdaDoc
-1 Darklang.PrettyPrinter.ProgramTypes.typeReferenceDoc Darklang.PrettyPrinter.ProgramTypes.typeReferenceDocWithFnParens
-1 Darklang.PrettyPrinter.ProgramTypes.typeReferenceFlat Darklang.PrettyPrinter.ProgramTypes.typeReferenceFlatAtPrecedence
 1 Darklang.Stdlib.Cli.File.Bytes.Tests.events Darklang.Stdlib.Cli.File.__watchEvents
 1 Darklang.Stdlib.Cli.File.Bytes.Tests.vnodeEvents Darklang.Stdlib.Cli.File.__watchVnodeEvents
 1 Darklang.Stdlib.Cli.File.__globBracket Darklang.Stdlib.Cli.File.__globClassItems
@@ -27,9 +23,6 @@
 1 Darklang.Stdlib.Url.parseLenient Darklang.Stdlib.Url.__parseWith
 1 Darklang.Stdlib.Url.parseReference Darklang.Stdlib.Url.__parseWith
 2 Darklang.Cli.Packages.Deprecate.execute Darklang.Cli.Packages.Deprecate.sayShared
-2 Darklang.LanguageTools.Formatter.declarations Darklang.LanguageTools.Formatter.declaration
-2 Darklang.PrettyPrinter.ProgramTypes.TypeDeclaration.enumFieldDoc Darklang.PrettyPrinter.ProgramTypes.typeReferenceDocWithFnParens
-2 Darklang.PrettyPrinter.ProgramTypes.exprDocBare Darklang.PrettyPrinter.ProgramTypes.callArgs
 2 Darklang.Stdlib.Cli.Process.__childDrain Darklang.Stdlib.Cli.Process.__childRead
 2 Darklang.Stdlib.Pretty.__breaksLoop Darklang.Stdlib.Pretty.__fits
 2 Darklang.Stdlib.Pretty.__renderLoop Darklang.Stdlib.Pretty.__fits
