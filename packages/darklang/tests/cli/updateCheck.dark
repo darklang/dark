@@ -1,0 +1,179 @@
+module Darklang.Cli.Tests.UpdateCheck
+
+// `version` answers from GitHub's last answer when it is under a day old, and asks again after.
+// Each `fetch` here stands in for `GitHub.Releases.list`; the fresh case passes one that would change
+// the answer, so an ask that should not happen shows.
+
+let release(tag: String, hash: String): GitHub.Releases.Release =
+  Cli.Tests.ReleaseAssets.ReleaseForBuild.release(tag, hash)
+
+
+// v0.0.104 is alpha-e76430b, v0.0.103 is alpha-0ab12cd.
+let releases(): List<GitHub.Releases.Release> =
+  [ release("v0.0.104", "e76430be5c"), release("v0.0.103", "0ab12cd34e") ]
+
+
+let newer(): List<GitHub.Releases.Release> =
+  [ release("v0.0.105", "99aa88bb77"), release("v0.0.104", "e76430be5c") ]
+
+
+let now(): Int64 =
+  Stdlib.DateTime.toSeconds(Stdlib.DateTime.now())
+
+
+/// What v0.0.104 stored when GitHub answered <param ago> seconds back.
+let answered(
+  t: Int64,
+  ago: Int64)
+  : Darklang.Cli.Installation.Helpers.LastCheck =
+  Darklang.Cli.Installation.Helpers.LastCheck
+    { build = "alpha-e76430b"
+      answeredAt = t - ago
+      askedAt = t - ago
+      currentTag = "v0.0.104"
+      latestTag = "v0.0.104"
+      latestBuild = "alpha-e76430b" }
+
+
+let check(
+  t: Int64,
+  last: Stdlib.Option.Option<Darklang.Cli.Installation.Helpers.LastCheck>,
+  force: Bool,
+  fetched: Stdlib.Result.Result<List<GitHub.Releases.Release>, String>)
+  : Darklang.Cli.Installation.Helpers.LastCheck =
+  Darklang.Cli.Installation.Helpers.currentCheck(
+    last,
+    "alpha-e76430b",
+    t,
+    force,
+    fun () -> fetched)
+
+
+let line(
+  t: Int64,
+  c: Darklang.Cli.Installation.Helpers.LastCheck,
+  force: Bool)
+  : String =
+  Darklang.Cli.Installation.Helpers.versionLine(c, t, force)
+
+
+let offline(): Stdlib.Result.Result<List<GitHub.Releases.Release>, String> =
+  Stdlib.Result.Result.Error("Couldn't fetch releases list from GitHub API")
+
+
+// Three hours old: answered from the store, and it says how old.
+test freshAnswerIsKept =
+  let t = now()
+  let last = answered(t, 3 * 3600)
+  let c =
+    check(
+      t,
+      Stdlib.Option.Option.Some(last),
+      false,
+      Stdlib.Result.Result.Ok(newer()))
+
+  Stdlib.Test.all(
+    [ c |> Stdlib.Test.equal(last)
+
+      line(t, c, false)
+      |> Stdlib.Test.equal(
+        "Darklang CLI v0.0.104, alpha-e76430b (up to date, checked 3 hours ago)") ])
+
+
+// Two days old: asked again, and the new answer is this minute's, so no age.
+test staleAnswerIsAskedAgain =
+  let t = now()
+  let c =
+    check(
+      t,
+      Stdlib.Option.Option.Some(answered(t, 2 * 86400)),
+      false,
+      Stdlib.Result.Result.Ok(newer()))
+
+  Stdlib.Test.all(
+    [ c.answeredAt |> Stdlib.Test.equal(t)
+
+      line(t, c, false)
+      |> Stdlib.Test.equal(
+        "Darklang CLI v0.0.104, alpha-e76430b (latest: v0.0.105, alpha-99aa88b - update available!)") ])
+
+
+// No network and a stale answer: the old answer, with its age, and no second ask for an hour.
+test offlineKeepsTheLastAnswer =
+  let t = now()
+  let c =
+    check(
+      t,
+      Stdlib.Option.Option.Some(answered(t, 2 * 86400)),
+      false,
+      offline())
+
+  Stdlib.Test.all(
+    [ c.answeredAt |> Stdlib.Test.equal(t - 2 * 86400)
+
+      c.askedAt |> Stdlib.Test.equal(t)
+
+      line(t, c, false)
+      |> Stdlib.Test.equal(
+        "Darklang CLI v0.0.104, alpha-e76430b (up to date, checked 2 days ago)")
+
+      Darklang.Cli.Installation.Helpers.shouldAsk(
+        Stdlib.Option.Option.Some(c),
+        "alpha-e76430b",
+        t + 60)
+      |> Stdlib.Test.equal(false)
+
+      Darklang.Cli.Installation.Helpers.shouldAsk(
+        Stdlib.Option.Option.Some(c),
+        "alpha-e76430b",
+        t + 3600)
+      |> Stdlib.Test.equal(true) ])
+
+
+// No network and nothing stored: one line, as before the store existed.
+test offlineWithNothingStored =
+  let t = now()
+  line(t, check(t, Stdlib.Option.Option.None, false, offline()), false)
+  |> Stdlib.Test.equal(
+    "Darklang CLI alpha-e76430b (unable to check for updates)")
+
+
+// A different binary asks for itself, since its tag is not the stored one's.
+test anotherBuildAsks =
+  let t = now()
+  let other = { answered(t, 60) with build = "alpha-0ab12cd" }
+  Stdlib.Test.all(
+    [ Darklang.Cli.Installation.Helpers.shouldAsk(
+        Stdlib.Option.Option.Some(other),
+        "alpha-e76430b",
+        t)
+      |> Stdlib.Test.equal(true)
+
+      (check(
+         t,
+         Stdlib.Option.Option.Some(other),
+         false,
+         Stdlib.Result.Result.Ok(releases()))).currentTag
+      |> Stdlib.Test.equal("v0.0.104") ])
+
+
+// `--check` asks however fresh the answer, and a failed ask says so rather than showing the old one.
+test forceAsks =
+  let t = now()
+  let last = Stdlib.Option.Option.Some(answered(t, 60))
+  Stdlib.Test.all(
+    [ (check(t, last, true, Stdlib.Result.Result.Ok(newer()))).latestTag
+      |> Stdlib.Test.equal("v0.0.105")
+
+      line(t, check(t, last, true, offline()), true)
+      |> Stdlib.Test.equal(
+        "Darklang CLI alpha-e76430b (unable to check for updates)") ])
+
+
+// What is stored reads back the same.
+test roundTrip =
+  let t = now()
+  let c = answered(t, 60)
+  Stdlib.Json.serialize<Darklang.Cli.Installation.Helpers.LastCheck>(c)
+  |> Stdlib.Json.parse<Darklang.Cli.Installation.Helpers.LastCheck>
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(c))

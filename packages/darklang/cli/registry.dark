@@ -50,7 +50,7 @@ module Registry =
 
   let acceptsInstallStatus(): Accepts.Accepts = Accepts.nothing()
 
-  let acceptsVersion(): Accepts.Accepts = Accepts.flagsOnly([ "--local" ])
+  let acceptsVersion(): Accepts.Accepts = Accepts.flagsOnly([ "--local", "--check" ])
 
   let acceptsNav(): Accepts.Accepts = Accepts.upTo(1, [])
 
