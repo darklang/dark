@@ -13,23 +13,28 @@ let execute(state: AppState, args: List<String>): AppState =
       failed(state)
     | Ok(inlineDefinition) ->
       if Stdlib.String.isEmpty(inlineDefinition) then
-        // No body provided - show error
-        [ Stdlib.Cli.UI.Colors.error("Error: Function body required")
-          ""
-          "Pass the body inline, a file that holds it, or `-` to read from stdin:"
-          "  fn <location> <parameters and body>"
-          "  fn <location> <source-file>"
-          "  fn <location> -    (read body from stdin)"
-          ""
-          "Examples:"
-          "  dark fn Me.Demo.double '(x: Int64): Int64 = x * 2'"
-          "  dark fn Me.Demo.fib - <<'EOF'"
-          "  let fib(n: Int64): Int64 = if n < 2 then n else fib(n - 1) + fib(n - 2)"
-          "  EOF"
-          "" ]
-        |> Stderr.lines
+        // No body: with a terminal, open the structural editor on a blank one.
+        match Stdlib.Cli.Tui.TerminalSupport.current(), Location.parseRelativeTo(
+                state.packageData.currentLocation,
+                location) with
+        | Available, Ok(loc) -> Fluid.App.createFn(state, loc)
+        | _ ->
+          [ Stdlib.Cli.UI.Colors.error("Error: Function body required")
+            ""
+            "Pass the body inline, a file that holds it, or `-` to read from stdin:"
+            "  fn <location> <parameters and body>"
+            "  fn <location> <source-file>"
+            "  fn <location> -    (read body from stdin)"
+            ""
+            "Examples:"
+            "  dark fn Me.Demo.double '(x: Int64): Int64 = x * 2'"
+            "  dark fn Me.Demo.fib - <<'EOF'"
+            "  let fib(n: Int64): Int64 = if n < 2 then n else fib(n - 1) + fib(n - 2)"
+            "  EOF"
+            "" ]
+          |> Stderr.lines
 
-        failed(state)
+          failed(state)
       else
         // Parse and create function immediately
         createFnInline(state.packageData.currentLocation, location, inlineDefinition, state)

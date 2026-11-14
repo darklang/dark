@@ -13,18 +13,24 @@ let execute(state: AppState, args: List<String>): AppState =
       failed(state)
     | Ok(inlineDefinition) ->
       if Stdlib.String.isEmpty(inlineDefinition) then
-        [ Stdlib.Cli.UI.Colors.error("Error: Inline value expression required")
-          ""
-          "Usage: val <location> <expression>"
-          "       val <location> -    (read expression from stdin, for multi-line input)"
-          ""
-          "Examples:"
-          "  dark val Me.Demo.answer '42'"
-          "  dark val Me.Demo.message '\"hello world\"'"
-          "" ]
-        |> Stderr.lines
+        // No body: with a terminal, open the structural editor on a blank one.
+        match Stdlib.Cli.Tui.TerminalSupport.current(), Location.parseRelativeTo(
+                state.packageData.currentLocation,
+                location) with
+        | Available, Ok(loc) -> Fluid.App.createValue(state, loc)
+        | _ ->
+          [ Stdlib.Cli.UI.Colors.error("Error: Inline value expression required")
+            ""
+            "Usage: val <location> <expression>"
+            "       val <location> -    (read expression from stdin, for multi-line input)"
+            ""
+            "Examples:"
+            "  dark val Me.Demo.answer '42'"
+            "  dark val Me.Demo.message '\"hello world\"'"
+            "" ]
+          |> Stderr.lines
 
-        failed(state)
+          failed(state)
       else
         createValueInline(state.packageData.currentLocation, location, inlineDefinition, state)
 

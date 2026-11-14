@@ -122,11 +122,11 @@ module Registry =
         Accepts.between(1, 1, [])))
 
 
-  let acceptsVal(): Accepts.Accepts = Accepts.text(2)
+  let acceptsVal(): Accepts.Accepts = Accepts.text(1)
 
-  let acceptsFn(): Accepts.Accepts = Accepts.text(2)
+  let acceptsFn(): Accepts.Accepts = Accepts.text(1)
 
-  let acceptsType(): Accepts.Accepts = Accepts.text(2)
+  let acceptsType(): Accepts.Accepts = Accepts.text(1)
 
   let acceptsTrait(): Accepts.Accepts = Accepts.text(2)
 
@@ -134,7 +134,9 @@ module Registry =
 
   let acceptsModule(): Accepts.Accepts = Accepts.between(2, 2, [])
 
-  let acceptsEdit(): Accepts.Accepts = Accepts.between(1, 2, [])
+  let acceptsEdit(): Accepts.Accepts = Accepts.between(1, 2, [ "--text" ])
+
+  let acceptsFluid(): Accepts.Accepts = Accepts.freeText(0, [])
 
   let acceptsRename(): Accepts.Accepts = Accepts.between(2, 2, [])
 
@@ -436,6 +438,7 @@ module Registry =
       ("impl", "Implement a trait for a type", [], acceptsImpl, Packages.ImplCommand.execute, Packages.ImplCommand.help, Packages.ImplCommand.complete)
       ("module", "Define multiple package declarations", [], acceptsModule, Packages.ModuleCommand.execute, Packages.ModuleCommand.help, Packages.ModuleCommand.complete)
       ("edit", "Change an item without retyping it", [], acceptsEdit, Packages.Edit.execute, Packages.Edit.help, Packages.Edit.complete)
+      ("fluid", "Edit code as a tree (experimental)", [], acceptsFluid, Darklang.Fluid.App.execute, Darklang.Fluid.App.help, Darklang.Fluid.App.complete)
       ("rename", "Give an item a different name (its content and callers are untouched)", [], acceptsRename, Packages.Rename.execute, Packages.Rename.help, Packages.Rename.complete)
       ("hash", "Show hash of a package item", [], acceptsHash, Packages.Hash.execute, Packages.Hash.help, Packages.Hash.complete)
       // SCM commands
@@ -612,6 +615,7 @@ module Registry =
           "impls"
           "module"
           "edit"
+          "fluid"
           "rename"
           "hash"
           "deprecate"
