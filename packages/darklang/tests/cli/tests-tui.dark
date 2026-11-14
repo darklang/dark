@@ -166,7 +166,7 @@ test promptCursorFollowsWordWrap =
   let state =
     Cli.Prompt.Editing.setText(Cli.Prompt.initState(), "echo hello world")
 
-  let size = Stdlib.Cli.Tui.Size { width = 10, height = 5 }
+  let size = Stdlib.Cli.Tui.Size { width = 10u16, height = 5u16 }
   let view = Cli.Prompt.Display.viewAtSize(state, "", "", size)
   match view.cursor with
   | Visible(row, column) ->
@@ -266,7 +266,7 @@ test sessionTakesAlternateScreenOnFirstPresent =
   let prepared =
     Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize(
       Stdlib.Cli.Tui.TerminalSession.init(),
-      Stdlib.Cli.Tui.Size { width = 20, height = 5 },
+      Stdlib.Cli.Tui.Size { width = 20u16, height = 5u16 },
       fullscreenView([ "hello" ]))
 
   if Stdlib.String.contains(prepared.output, "\u001b[?1049h") then
@@ -277,7 +277,7 @@ test sessionTakesAlternateScreenOnFirstPresent =
 
 
 test sessionSecondIdenticalPresentIsSilent =
-  let size = Stdlib.Cli.Tui.Size { width = 20, height = 5 }
+  let size = Stdlib.Cli.Tui.Size { width = 20u16, height = 5u16 }
   let view = fullscreenView([ "hello" ])
   let first =
     Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize(
@@ -297,7 +297,7 @@ test sessionSecondIdenticalPresentIsSilent =
 
 
 test sessionStopRestoresOnlyWhenRunning =
-  let size = Stdlib.Cli.Tui.Size { width = 20, height = 5 }
+  let size = Stdlib.Cli.Tui.Size { width = 20u16, height = 5u16 }
   let started =
     Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize(
       Stdlib.Cli.Tui.TerminalSession.init(),
@@ -331,7 +331,7 @@ let workbenchState(): Cli.Workbench.State =
 /// Render one view and report whether it produced a plausible frame.
 let rendersView(viewIndex: Int64): Bool =
   let state = { workbenchState() with activeView = viewIndex }
-  let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
+  let size = Stdlib.Cli.Tui.Size { width = 120u16, height = 40u16 }
   let view = Cli.Workbench.viewAtSize(state, size)
   // A frame is `height` rows, and a view that drew nothing at all is a bug even if it didn't crash.
   Stdlib.List.length(view.rows) == 40
@@ -348,7 +348,7 @@ let rendersMatterLens(lens: Cli.Workbench.Lens): Bool =
         activeView = Cli.Workbench.vMatter
         matter = Cli.Workbench.MatterState { lens = lens } }
 
-  let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
+  let size = Stdlib.Cli.Tui.Size { width = 120u16, height = 40u16 }
   let view = Cli.Workbench.viewAtSize(state, size)
   Stdlib.List.length(view.rows) == 40
   && (view.rows
@@ -379,7 +379,7 @@ let rendersMatterItemPage(path: List<String>): Bool =
           selected = 0
           focus = Stdlib.Cli.UI.SplitPane.Focus.Second }
 
-    let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
+    let size = Stdlib.Cli.Tui.Size { width = 120u16, height = 40u16 }
     let view = Cli.Workbench.viewAtSize(state, size)
     Stdlib.List.length(view.rows) == 40
     && (view.rows
@@ -428,7 +428,7 @@ test workbenchItemReaderShowsNoRawEscapes =
     match opened.reading with
     | None -> Stdlib.Test.fail("⏎ on a fn did not open the reader")
     | Some(_) ->
-      let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
+      let size = Stdlib.Cli.Tui.Size { width = 120u16, height = 40u16 }
       let rows =
         (Cli.Workbench.viewAtSize(opened, size)).rows
         |> Stdlib.List.map(fun r -> Stdlib.Cli.Tui.Text.stripSgr(r))
@@ -1142,7 +1142,7 @@ let viewShows(viewIndex: Int64, marker: String): Bool =
   let view =
     Cli.Workbench.viewAtSize(
       state,
-      Stdlib.Cli.Tui.Size { width = 160, height = 40 })
+      Stdlib.Cli.Tui.Size { width = 160u16, height = 40u16 })
 
   view.rows
   |> Stdlib.List.any(fun r ->
@@ -1158,7 +1158,7 @@ let contentShows(viewIndex: Int64, marker: String): Bool =
   let view =
     Cli.Workbench.viewAtSize(
       state,
-      Stdlib.Cli.Tui.Size { width = 160, height = 40 })
+      Stdlib.Cli.Tui.Size { width = 160u16, height = 40u16 })
 
   view.rows
   |> Stdlib.List.any(fun r ->
@@ -1234,14 +1234,14 @@ test workbenchHomeOverview =
   let plain =
     (Cli.Workbench.viewAtSize(
        state,
-       Stdlib.Cli.Tui.Size { width = 120, height = 24 })).rows
+       Stdlib.Cli.Tui.Size { width = 120u16, height = 24u16 })).rows
     |> Stdlib.List.map(Stdlib.Cli.Tui.Text.stripSgr)
     |> Stdlib.String.join("\n")
 
   let narrow =
     (Cli.Workbench.viewAtSize(
        state,
-       Stdlib.Cli.Tui.Size { width = 80, height = 24 })).rows
+       Stdlib.Cli.Tui.Size { width = 80u16, height = 24u16 })).rows
     |> Stdlib.List.map(Stdlib.Cli.Tui.Text.stripSgr)
     |> Stdlib.String.join("\n")
 

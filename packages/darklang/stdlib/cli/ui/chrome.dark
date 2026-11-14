@@ -90,13 +90,13 @@ let helpRows(height: Int64): Int64 =
 
 /// The region the body gets, in a terminal of this size.
 let bodyRegion(size: Tui.Size): Layout.Region =
-  let height = max(1, size.height)
+  let height = max(1, Int64.fromUInt16(size.height))
   let top = titleRows(height)
   Layout.Region
     { top = top + 1
       left = 1
       rows = max(0, height - top - helpRows(height))
-      cols = max(1, size.width) }
+      cols = max(1, Int64.fromUInt16(size.width)) }
 
 
 // --- Rendering ---
@@ -122,8 +122,8 @@ let footBar(f: Frame, width: Int64): String =
 /// Draw the frame with `body` filling what's left. `body` runs during this call and is never retained, so
 /// passing a lambda here is fine.
 let view(f: Frame, size: Tui.Size, body: Layout.Region -> List<Layout.Span>): Tui.View =
-  let width = max(1, size.width)
-  let height = max(1, size.height)
+  let width = max(1, Int64.fromUInt16(size.width))
+  let height = max(1, Int64.fromUInt16(size.height))
   let screen = Layout.Region { top = 1, left = 1, rows = height, cols = width }
   let region = bodyRegion(size)
   let titleSpans =

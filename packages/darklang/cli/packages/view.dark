@@ -108,7 +108,8 @@ let sourceRows(source: String): List<String> =
 /// A printer context for `modulePath`, laid out for the terminal's width rather than a fixed 80.
 let terminalContext(branchId: Uuid, modulePath: List<String>): PrettyPrinter.ProgramTypes.Context =
   let (width, _rows) = Terminal.getSize()
-  { PrettyPrinter.ProgramTypes.Context.forModule(branchId, modulePath) with width = width }
+  { PrettyPrinter.ProgramTypes.Context.forModule(branchId, modulePath) with
+      width = Stdlib.Int64.fromUInt16(width) }
 
 
 /// The tests that call <param location> directly, each with its last stored

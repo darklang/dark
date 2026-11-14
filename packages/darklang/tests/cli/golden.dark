@@ -76,9 +76,9 @@ let goldenviewRender(): Unit =
 
   let base = fixedHome(loadedBase)
   let sizes =
-    [ Stdlib.Cli.Tui.Size { width = 120, height = 40 }
-      Stdlib.Cli.Tui.Size { width = 80, height = 24 }
-      Stdlib.Cli.Tui.Size { width = 40, height = 10 } ]
+    [ Stdlib.Cli.Tui.Size { width = 120u16, height = 40u16 }
+      Stdlib.Cli.Tui.Size { width = 80u16, height = 24u16 }
+      Stdlib.Cli.Tui.Size { width = 40u16, height = 10u16 } ]
 
   let dump(size: Stdlib.Cli.Tui.Size): Unit =
     let v = Cli.Workbench.viewAtSize(base, size)
@@ -225,7 +225,7 @@ let goldenkeysRender(): Unit =
       Cli.Workbench.Updates.Manual)
 
   let base = fixedHome(loadedBase)
-  let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
+  let size = Stdlib.Cli.Tui.Size { width = 120u16, height = 40u16 }
   let mods =
     Stdlib.Cli.Stdin.Modifiers.Modifiers
       { alt = false, ctrl = false, shift = false }

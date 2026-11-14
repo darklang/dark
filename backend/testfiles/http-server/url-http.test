@@ -1,5 +1,5 @@
 [http-handler GET /a]
-Darklang.Stdlib.Http.response(200, Darklang.Stdlib.Utf8.encode(request.url))
+Darklang.Stdlib.Http.response(Darklang.Stdlib.Http.Status.ok, Darklang.Stdlib.Utf8.encode(request.url))
 
 [request]
 GET /a HTTP/1.1

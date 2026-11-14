@@ -451,7 +451,7 @@ let __request(
 
 
 let __response(
-  status: Int64,
+  status: Stdlib.Http.Status,
   headers: List<(String * String)>,
   body: String)
   : Stdlib.Result.Result<
@@ -476,7 +476,10 @@ let __echo(
     | Some(ms) -> Stdlib.display(ms)
     | None -> "none"
 
-  __response(200, req.headers, req.method + " " + req.url + " " + timeout)
+  __response(
+    Stdlib.Http.Status.ok,
+    req.headers,
+    req.method + " " + req.url + " " + timeout)
 
 
 let __body(
@@ -515,7 +518,7 @@ let __through(
 test responseHeaderIsCaseInsensitive =
   let r =
     Stdlib.HttpClient.Response
-      { statusCode = 200
+      { statusCode = Stdlib.Http.Status.ok
         headers =
           [ ("ETag", "\"AbC\""), ("Set-Cookie", "a=1"), ("set-cookie", "b=2") ]
         body = Stdlib.Bytes.empty }
@@ -536,14 +539,14 @@ test responseHeaderIsCaseInsensitive =
 
 test responseText =
   Stdlib.Test.all(
-    [ (match __response(200, [], "héllo") with
+    [ (match __response(Stdlib.Http.Status.ok, [], "héllo") with
        | Ok(r) -> Stdlib.HttpClient.Response.text(r)
        | Error(e) -> Stdlib.Result.Result.Error(e))
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("héllo"))
 
       Stdlib.HttpClient.Response.text(
         Stdlib.HttpClient.Response
-          { statusCode = 200
+          { statusCode = Stdlib.Http.Status.ok
             headers = []
             body = Stdlib.Bytes.fromList([ 255u8 ]) })
       |> Stdlib.Result.isError
@@ -572,10 +575,12 @@ test emptyStackIsTheSendItself =
 test onResponseRewritesTheResponse =
   __through(
     [ Stdlib.HttpClient.Middleware.onResponse(fun r ->
-        { r with statusCode = 299 }) ],
+        { r with
+            statusCode =
+              Stdlib.Http.Status.fromInt64(299) |> Builtin.unwrap }) ],
     __echo,
     __request("https://a.test/", []))
-  |> Stdlib.Result.map(fun r -> r.statusCode)
+  |> Stdlib.Result.map(fun r -> Stdlib.Http.Status.toInt64(r.statusCode))
   |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(299))
 
 
@@ -611,7 +616,7 @@ test lowercaseNamesKeepsValues =
     [ Stdlib.HttpClient.Middleware.lowercaseNames() ],
     (fun _ ->
        __response(
-         200,
+         Stdlib.Http.Status.ok,
          [ ("ETag", "\"AbC123\"")
            ("Set-Cookie", "a=1")
            ("Set-Cookie", "b=2") ],
@@ -806,7 +811,10 @@ let __policy(
       Stdlib.display(r.attempts) + " from " + Stdlib.display(r.delayMs) + "ms"
     | None -> "none"
 
-  __response(200, [], "redirects " + redirects + ", retry " + retry)
+  __response(
+    Stdlib.Http.Status.ok,
+    [],
+    "redirects " + redirects + ", retry " + retry)
 
 
 /// `__defaults`, as a send: what `get` does before it sends, beside the stack it stands for.

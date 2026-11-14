@@ -1,5 +1,5 @@
 [http-handler POST /]
-Darklang.Stdlib.Http.response(200, request.body)
+Darklang.Stdlib.Http.response(Darklang.Stdlib.Http.Status.ok, request.body)
 
 [request]
 POST / HTTP/1.1

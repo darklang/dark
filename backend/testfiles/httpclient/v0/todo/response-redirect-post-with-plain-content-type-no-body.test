@@ -18,7 +18,7 @@ Location: /v0/response-redirect-dest-post-with-plain-content-type-no-body
  {response with headers = respHeaders}) =
    Darklang.Stdlib.HttpClient.Response
     { body = "Redirect destination reached"
-      statusCode = 200
+      statusCode = Darklang.Stdlib.Http.Status.ok
       headers =
         [
           "Arbitrary-header" = "Test value"
