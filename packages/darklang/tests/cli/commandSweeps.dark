@@ -474,6 +474,8 @@ let knownGood(
     ("effects", [ fnName ])
     ("typecheck", [ "Darklang.Stdlib.Bool" ])
     ("impls", [ "Darklang.Stdlib.Add" ])
+    // Prints an editor module for a type; every other form opens the full-screen editor.
+    ("fluid", [ "generate", "Darklang.Stdlib.Cli.Tui.Size" ])
     ("test", [ "run", "Tests.Sweep.passes" ]) ]
 
 
