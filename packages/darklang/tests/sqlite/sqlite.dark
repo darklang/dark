@@ -1,0 +1,163 @@
+module Darklang.Sqlite.Tests
+
+// withTemp hands over an empty file, which SQLite opens as an empty database.
+let withDb(fn: String -> Stdlib.Test.Result): Stdlib.Test.Result =
+  Stdlib.Cli.File.withTemp(fn) |> Builtin.unwrap
+
+
+let text(s: String): Sqlite.Value =
+  Sqlite.Value.Text(s)
+
+
+let int(i: Int64): Sqlite.Value =
+  Sqlite.Value.Integer(i)
+
+
+let failedWith(
+  result: Result<'a, Sqlite.Error>,
+  part: String)
+  : Stdlib.Test.Result =
+  match result with
+  | Error(Failed(message)) ->
+    Stdlib.Test.expect(Stdlib.String.contains(message, part), message)
+  | _ -> Stdlib.Test.fail($"expected a Failed error containing {part}")
+
+
+test insertAndQuery =
+  withDb(fun db ->
+    Stdlib.Test.all(
+      [ Sqlite.execute(
+          db,
+          "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)",
+          [])
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0))
+
+        Sqlite.execute(
+          db,
+          "INSERT INTO users (id, name) VALUES (?1, ?2), (?3, ?4)",
+          [ int(1), text("Alice"), int(2), text("Bob") ])
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2))
+
+        Sqlite.query(
+          db,
+          "SELECT name FROM users WHERE id > ?1 ORDER BY id",
+          [ int(0) ])
+        |> Stdlib.Test.equal(
+          Stdlib.Result.Result.Ok(
+            [ Dict { "name": text("Alice") }
+              Dict { "name": text("Bob") } ])) ]))
+
+
+test valueKinds =
+  withDb(fun db ->
+    Sqlite.query(
+      db,
+      "SELECT 1 AS i, 1.5 AS r, 2.0 AS whole, 'a' AS t, NULL AS n",
+      [])
+    |> Stdlib.Test.equal(
+      Stdlib.Result.Result.Ok(
+        [ Dict { "i": int(1)
+                 "r": Sqlite.Value.Real(1.5)
+                 "whole": Sqlite.Value.Real(2.0)
+                 "t": text("a")
+                 "n": Sqlite.Value.Null } ])))
+
+
+// Each parameter comes back as the same type and value it went in as
+test parametersRoundTrip =
+  withDb(fun db ->
+    Sqlite.query(
+      db,
+      "SELECT ?1 AS a, typeof(?1) AS ta, ?2 AS b, typeof(?2) AS tb, ?3 AS c, ?4 AS d",
+      [ Sqlite.Value.Real(2.0), int(-5), Sqlite.Value.Null, text("") ])
+    |> Stdlib.Test.equal(
+      Stdlib.Result.Result.Ok(
+        [ Dict { "a": Sqlite.Value.Real(2.0)
+                 "ta": text("real")
+                 "b": int(-5)
+                 "tb": text("integer")
+                 "c": Sqlite.Value.Null
+                 "d": text("") } ])))
+
+
+// A text parameter is data, however much it looks like SQL or a shell command
+test textParametersAreNotSql = withDb(fun db ->
+  let nasty = "'); DROP TABLE t; --\" \n.shell echo hi\n]\n[ é"
+  let _ = Sqlite.execute(db, "CREATE TABLE t (v TEXT)", [])
+  Stdlib.Test.all(
+    [ Sqlite.execute(db, "INSERT INTO t (v) VALUES (?1)", [ text(nasty) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1))
+
+      Sqlite.query(db, "SELECT v FROM t", [])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok([ Dict { "v": text(nasty) } ])) ]))
+
+
+test severalStatements =
+  withDb(fun db ->
+    Stdlib.Test.all(
+      [ Sqlite.execute(
+          db,
+          "CREATE TABLE t (v INTEGER); INSERT INTO t VALUES (1); INSERT INTO t VALUES (2)",
+          [])
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2))
+
+        Sqlite.query(
+          db,
+          "SELECT v FROM t WHERE v = 1; SELECT v FROM t WHERE v = 2",
+          [])
+        |> Stdlib.Test.equal(
+          Stdlib.Result.Result.Ok(
+            [ Dict { "v": int(1) }, Dict { "v": int(2) } ])) ]))
+
+
+test updateAndDelete = withDb(fun db ->
+  let _ = Sqlite.execute(db, "CREATE TABLE t (id INTEGER, name TEXT)", [])
+
+  let _ =
+    Sqlite.execute(db, "INSERT INTO t VALUES (1, 'a'), (2, 'b'), (3, 'c')", [])
+
+  Stdlib.Test.all(
+    [ Sqlite.execute(
+        db,
+        "UPDATE t SET name = ?1 WHERE id = ?2",
+        [ text("z"), int(1) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1))
+
+      Sqlite.execute(db, "DELETE FROM t WHERE id > ?1", [ int(1) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2))
+
+      Sqlite.query(db, "SELECT name FROM t", [])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok([ Dict { "name": text("z") } ])) ]))
+
+
+test noRows =
+  withDb(fun db ->
+    Sqlite.query(db, "SELECT 1 AS x WHERE 0", [])
+    |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([])))
+
+
+test invalidSql =
+  withDb(fun db ->
+    failedWith(Sqlite.execute(db, "THIS IS NOT VALID SQL", []), "syntax error"))
+
+
+test missingTable =
+  withDb(fun db ->
+    failedWith(Sqlite.query(db, "SELECT * FROM nope", []), "no such table"))
+
+
+// Safe mode: the SQL reaches the one database file only
+test otherFilesAreRefused =
+  withDb(fun db ->
+    Stdlib.Test.all(
+      [ failedWith(
+          Sqlite.execute(db, $"ATTACH '{db}-other' AS other", []),
+          "safe mode")
+
+        failedWith(
+          Sqlite.execute(db, $"VACUUM INTO '{db}-copy'", []),
+          "safe mode")
+
+        failedWith(Sqlite.query(db, ".shell echo hi", []), "syntax error") ]))
