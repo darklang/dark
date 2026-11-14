@@ -5,7 +5,6 @@
     <IsTrimmable>true</IsTrimmable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Ply" />
     <PackageReference Include="FSharp.Core" />
 
     <!-- PM -->

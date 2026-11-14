@@ -308,25 +308,11 @@ because `DarkInt` is a struct DU carrying space for a `bigint`, so any BigInt ou
 costs that. Splitting the representation, or making `Infinite` hold a reference, is the real fix.
 *(estimate: moderate win, wide blast radius)*
 
-### Moving the rest of the codebase off Ply -- measured neutral, do not redo for performance
+### Off Ply -- done
 
-~400 `uply` sites remain outside the interpreter loop, and it is tempting to read the interpreter's
-wins as an argument for converting them. It is not.
-
-**It has been done, on the `ply-to-task` branch: 42 commits, complete, tests green, unmerged.** Its
-own measurement says the hot-path swap is *within GC noise*, because `task { }` and `uply { }` are
-both struct-state-machine builders. That branch was pursued for NativeAOT trimming rather than
-allocation, and in its snapshot the release binary grew 381 KB. It also had to `--nowarn:3511` where
-the resumable-code analyzer could not statically reduce a recursive `task`, falling back to
-dynamic-dispatch state machines.
-
-The lesson generalises: **the win is never entering a builder, not entering a different one.** That
-is why the synchronous fast paths pay and why the roughly thirteen `*Sync` twins across
-`TypeChecker.fs` and `Interpreter.fs` cannot be deleted by changing builder. They are the mechanism,
-not a workaround for Ply.
-
-If Ply removal is revisited, do it for trimming, binary size or dependency reduction, and measure
-those. Do not expect allocation to move.
+The interpreter, the type checker, the store lookups and the builtins are synchronous. A builtin
+that really waits starts a task and answers `Pending.ofTask`; only that path allocates for waiting.
+Converting builders was never the win: not entering one is.
 
 ### Pool the builtin argument buffers further
 

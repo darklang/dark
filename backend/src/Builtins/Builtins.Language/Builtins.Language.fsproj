@@ -12,7 +12,6 @@
     <ProjectReference Include="../../LibDB/LibDB.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Ply" />
     <PackageReference Include="FSharp.Core" />
     <Compile Include="Libs/LanguageTools.fs" />
     <Compile Include="Libs/Parser.fs" />

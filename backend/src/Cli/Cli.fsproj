@@ -72,7 +72,6 @@
     <RuntimeIdentifiers>linux-x64;linux-musl-x64;linux-arm64;linux-musl-arm64;linux-arm;osx-x64;osx-arm64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Ply" />
     <PackageReference Include="FSharp.Core" />
     <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="Fumble" />
@@ -100,7 +99,7 @@
     <DirectPInvoke Include="e_sqlite3" />
   </ItemGroup>
 
-  <!-- The F# metadata in Ply and Fumble; see the file. -->
+  <!-- The F# metadata in Fumble; see the file. -->
   <ItemGroup Condition="'$(PublishAot)' == 'true'">
     <IlcArg Include="--substitution:$(MSBuildThisFileDirectory)FSharpMetadata.Substitutions.xml" />
   </ItemGroup>

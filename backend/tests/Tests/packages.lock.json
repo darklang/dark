@@ -40,7 +40,6 @@
           "FSharp.Core": "[11.0.101, )",
           "LibConfig": "[1.0.0, )",
           "LibExecution": "[1.0.0, )",
-          "Ply": "[0.3.1, )",
           "Prelude": "[1.0.0, )"
         }
       },
@@ -62,7 +61,6 @@
           "LibParser": "[1.0.0, )",
           "LibSerialization": "[1.0.0, )",
           "Microsoft.Data.Sqlite": "[11.0.0, )",
-          "Ply": "[0.3.1, )",
           "Prelude": "[1.0.0, )"
         }
       },
@@ -71,7 +69,6 @@
         "dependencies": {
           "FSharp.Core": "[11.0.101, )",
           "LibExecution": "[1.0.0, )",
-          "Ply": "[0.3.1, )",
           "Prelude": "[1.0.0, )"
         }
       },
@@ -81,7 +78,6 @@
           "FSharp.Core": "[11.0.101, )",
           "LibDB": "[1.0.0, )",
           "LibExecution": "[1.0.0, )",
-          "Ply": "[0.3.1, )",
           "Prelude": "[1.0.0, )"
         }
       },
@@ -92,7 +88,6 @@
           "LibDB": "[1.0.0, )",
           "LibExecution": "[1.0.0, )",
           "LibParser": "[1.0.0, )",
-          "Ply": "[0.3.1, )",
           "Prelude": "[1.0.0, )"
         }
       },
@@ -103,7 +98,6 @@
           "LibDB": "[1.0.0, )",
           "LibExecution": "[1.0.0, )",
           "LibSerialization": "[1.0.0, )",
-          "Ply": "[0.3.1, )",
           "Prelude": "[1.0.0, )"
         }
       },
@@ -112,7 +106,6 @@
         "dependencies": {
           "FSharp.Core": "[11.0.101, )",
           "LibExecution": "[1.0.0, )",
-          "Ply": "[0.3.1, )",
           "Prelude": "[1.0.0, )"
         }
       },
@@ -121,7 +114,6 @@
         "dependencies": {
           "FSharp.Core": "[11.0.101, )",
           "LibExecution": "[1.0.0, )",
-          "Ply": "[0.3.1, )",
           "Prelude": "[1.0.0, )"
         }
       },
@@ -130,7 +122,6 @@
         "dependencies": {
           "FSharp.Core": "[11.0.101, )",
           "LibExecution": "[1.0.0, )",
-          "Ply": "[0.3.1, )",
           "Prelude": "[1.0.0, )"
         }
       },
@@ -157,7 +148,6 @@
         "type": "Project",
         "dependencies": {
           "FSharp.Core": "[11.0.101, )",
-          "Ply": "[0.3.1, )",
           "Prelude": "[1.0.0, )",
           "System.IO.Hashing": "[11.0.0, )"
         }
@@ -183,7 +173,6 @@
         "dependencies": {
           "FSharp.Core": "[11.0.101, )",
           "NodaTime": "[3.3.7, )",
-          "Ply": "[0.3.1, )",
           "Wcwidth": "[4.0.1, )"
         }
       },
@@ -297,15 +286,6 @@
           "Microsoft.Extensions.Logging": "10.0.10",
           "Microsoft.Extensions.Logging.Configuration": "10.0.10",
           "Microsoft.Extensions.Options.ConfigurationExtensions": "10.0.10"
-        }
-      },
-      "Ply": {
-        "type": "CentralTransitive",
-        "requested": "[0.3.1, )",
-        "resolved": "0.3.1",
-        "contentHash": "+Jtg/ID8isRXdvB0/vpsuSpzrLY33rYtzSscdfijOaXqRqzVdah08ljpOZhQPKuid4JRX3RRzxNqc1p8azZbbg==",
-        "dependencies": {
-          "FSharp.Core": "4.6.2"
         }
       },
       "SQLite": {

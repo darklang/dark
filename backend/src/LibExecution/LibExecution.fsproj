@@ -8,7 +8,6 @@
     <SelfContained>true</SelfContained>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Ply" />
     <PackageReference Include="FSharp.Core" />
     <PackageReference Include="System.IO.Hashing" />
   </ItemGroup>

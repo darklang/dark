@@ -46,7 +46,6 @@
         "type": "Project",
         "dependencies": {
           "FSharp.Core": "[11.0.101, )",
-          "Ply": "[0.3.1, )",
           "Prelude": "[1.0.0, )",
           "System.IO.Hashing": "[11.0.0, )"
         }
@@ -64,7 +63,6 @@
         "dependencies": {
           "FSharp.Core": "[11.0.101, )",
           "NodaTime": "[3.3.7, )",
-          "Ply": "[0.3.1, )",
           "Wcwidth": "[4.0.1, )"
         }
       },
@@ -82,15 +80,6 @@
         "requested": "[3.3.7, )",
         "resolved": "3.3.7",
         "contentHash": "4Rc3zup1sZqtlcgkWZOsjoVbhm+RkDvxrFDJfIxi7nr32ZgzVW+zCTBr827+KG/4r5owpchUjqx8tO4K2ZtpOw=="
-      },
-      "Ply": {
-        "type": "CentralTransitive",
-        "requested": "[0.3.1, )",
-        "resolved": "0.3.1",
-        "contentHash": "+Jtg/ID8isRXdvB0/vpsuSpzrLY33rYtzSscdfijOaXqRqzVdah08ljpOZhQPKuid4JRX3RRzxNqc1p8azZbbg==",
-        "dependencies": {
-          "FSharp.Core": "4.6.2"
-        }
       },
       "SQLite": {
         "type": "CentralTransitive",

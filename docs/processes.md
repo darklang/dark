@@ -153,7 +153,7 @@ preempted like anything else.) The per-instruction check is within noise on
 ## The one rule
 
 Only a process's own scheduler thread steps it. Everything else (the reader
-thread, timer callbacks, the store poll, Ply continuations, other schedulers)
+thread, timer callbacks, the store poll, task continuations, other schedulers)
 only posts to the queue. `Step` checks the thread id and raises if it is ever
 wrong.
 
@@ -360,7 +360,7 @@ the same whatever it is given. `HttpClient.Middleware.onResponse` is built on it
 
 How it works (`Interpreter.Promises`, `LibExecution.Pending`):
 
-- A read call whose `Ply` is not finished puts a `DPromise` in the
+- A read call whose builtin answered a wait (`Pending.ofTask`) puts a `DPromise` in the
   register instead of parking (`Interpreter.callReadsOnly`: all-read effects
   (`Effects.readsOnly`), or an `httpClientRequest` that is a GET or HEAD with
   no body (`Effects.readsByMethod`), since `http` stays one word in the
@@ -377,8 +377,8 @@ How it works (`Interpreter.Promises`, `LibExecution.Pending`):
   its own error and its call site below the stack, the read inside a container
   rather than the container. A read nothing waits for is waited for at the end
   of the run (`VMState.pendingReads`), and fails the run if it failed.
-- That is the loop's wait (`Promises.settle`). Code that runs under a `Ply`
-  waits through one other, `Interpreter.withValue`: a builtin's arguments
+- That is the loop's wait (`Promises.settle`). A builtin waits through one
+  other, `Interpreter.withValue`: a builtin's arguments
   (`landWhere`), a lambda's patterns (`landThenRequest`) and a builtin's
   continuations. It waits again when a read lands as another read, and raises
   a failed one the same way.
@@ -1106,14 +1106,11 @@ What is deliberately not here, and where the seams are:
   input through the CLI's own paths; `Exec.fork` from Dark exists.
 - `ps show` says how many reads a process has in flight, not which, and shows
   the call stack, not registers.
-- A builtin's signature is still `Ply<Dval>`. Store-facing builtins (the
-  package manager, traces, the CLI host's script runner)
-  await SQLite through `LibDB`, which has no asynchronous I/O, so they
-  complete on the calling thread and the loop sees finished values rather
-  than parking; a request form for them would be a store-operation type over
-  some sixty queries that buys nothing while the store is in-process. A pure
-  builtin that reads a persisted blob still waits for the store inside
-  `uply`; an ephemeral one answers without a builder.
+- A builtin answers a `Dval`. One that really waits (a timer, a process, a
+  nested run, a stream from the network) starts a task and answers
+  `Pending.ofTask` of it; the interpreter takes that where the builtin
+  returns. Store reads are plain calls: SQLite has no asynchronous I/O, so
+  `LibDB` answers on the calling thread.
 - `sleep` parks on its timer task, not on a `Timer` event; `ps` says `sleep`.
 - `Event.ExecDone` carries only the id (a Dark enum cannot hold an untyped
   value); `Exec.await` is how a value comes back.
@@ -1205,7 +1202,7 @@ values (`noteValue` and `storeExprResult` in `Interpreter.fs`, `DebugSymbols` in
 ### Rules that bite
 
 - Only a process's own scheduler thread steps it; everything else posts to its queue.
-  `Step` raises if the thread is wrong. A Ply continuation that touches a VM is the race
+  `Step` raises if the thread is wrong. A task continuation that touches a VM is the race
   you will never reproduce on purpose.
 - A `PackageRefs` change (a type F# reads by hash: `LanguageTools.Exec.*`, the
   `Stdlib.HttpClient` fns) means: build (the hashes file regenerates; if the CLI dies
