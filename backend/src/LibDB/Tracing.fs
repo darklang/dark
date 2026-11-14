@@ -802,6 +802,18 @@ module TraceRetention =
     )
     |> ignore<List<int>>
 
+  /// Give the pages the deletes freed back to the disk once they are over a quarter of the
+  /// file. SQLite only reuses free pages, so otherwise the file stays at its largest. `VACUUM`
+  /// rewrites the whole store, hence the quarter, and only the manual `traces delete` forms
+  /// call it, not retention.
+  let vacuumIfMostlyFree () : unit =
+    let worth =
+      Sql.query
+        "SELECT 1 AS n FROM pragma_freelist_count, pragma_page_count
+         WHERE freelist_count * 4 > page_count"
+      |> Sql.executeExistsSync
+    if worth then Sql.query "VACUUM" |> Sql.executeStatementSync
+
   /// How many entries the floor protects. Without a bound the floor grows with every entry
   /// there has ever been, and an entry is a concrete path: `keep = 20` kept 120 traces after a
   /// server answered 100 distinct paths, every one of them the newest of its own entry.
