@@ -50,7 +50,7 @@ test floatToThePowerOfInt64Raises =
   => raises "Cannot perform numeric operation on Float64 and Int64. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat64(n)`."
 
 test int32ModuloInt64Raises =
-  7s32 % 2 => raises "Cannot perform numeric operation on Int32 and Int64"
+  7s32 % Stdlib.Int64.fromInt32(2s32) => raises "Cannot perform numeric operation on Int32 and Int64"
 
 // #6024: joining a String and an Int is how a newcomer meets this, so it says how to convert
 test stringPlusInt64SaysHowToJoin =
@@ -188,10 +188,10 @@ test floatBitwiseNotRaises =
 
 // mixed widths are a type error, exactly as for the arithmetic operators
 test mixedBitwiseWidthsRaises =
-  1 & 2s8 => raises "Cannot perform numeric operation on Int64 and Int8"
+  Stdlib.Int64.fromInt8(1s8) & 2s8 => raises "Cannot perform numeric operation on Int64 and Int8"
 
 test mixedShiftWidthsRaises =
-  1 << 2z => raises "Cannot perform numeric operation on Int64 and BigInt"
+  Stdlib.Int64.fromInt8(1s8) << 2z => raises "Cannot perform numeric operation on Int64 and BigInt"
 
 // precedence: bitwise binds TIGHTER than the comparisons (Python's order, not
 // C's), and looser than the arithmetic operators

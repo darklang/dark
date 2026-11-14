@@ -189,6 +189,7 @@ let stabilize (seedMapping : AT.HashMapping) (input : Input) : Stabilization =
         byHash = byHash
         referenceName = seedMapping.referenceName
         resolvedImpls = seedMapping.resolvedImpls
+        literalTypes = seedMapping.literalTypes
         boundImpls = seedMapping.boundImpls } }
 
 
