@@ -358,7 +358,7 @@ let toFloat64(j: Json): Option<Float64> =
   | Float(n) -> Option.Some(n)
   | Integer(i) ->
     let n = Int64.toFloat64(i)
-    if Int64.fromFloat64(n) == Option.Some(i) then Option.Some(n) else Option.None
+    if Int64.fromFloat64(n) == Result.Ok(i) then Option.Some(n) else Option.None
   | _ -> Option.None
 
 

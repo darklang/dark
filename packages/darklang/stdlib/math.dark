@@ -127,14 +127,16 @@ let checkedSinh(angleInRadians: Float64): Result<Float64, Overflow> =
 
 /// What a fixed-width `checked` function returns where the operator would wrap:
 /// `Int8.checkedAdd(127s8, 1s8)` is {{Error Overflow}}. Going below 0 on an unsigned
-/// type is an Overflow too. <type BigInt> itself never overflows.
+/// type is an Overflow too, as is a <type Decimal> past its range. <type BigInt> itself never
+/// overflows.
 type Overflow =
   | Overflow
 
 
 /// What `checkedDivide` and `checkedRemainder` return, for every integer type and
 /// <type Decimal>, where `/` raises. {{Overflow}} is a signed type's minimum divided
-/// by -1, as in `Int8.checkedDivide(-128s8, -1s8)`, where `/` wraps.
+/// by -1, as in `Int8.checkedDivide(-128s8, -1s8)`, where `/` wraps, or a <type Decimal>
+/// quotient past its range.
 type DivisionError =
   | DivisionByZero
   | Overflow

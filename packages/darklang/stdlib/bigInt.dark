@@ -94,9 +94,20 @@ let checkedToFloat64(a: BigInt): Result<Float64, Math.Overflow> =
   Float64.__noOverflow(toFloat64(a))
 
 
-/// Converts a <type Float64> to a <type BigInt>, truncating toward zero.
+/// Converts a <type Float64> to a <type BigInt>, truncating toward zero. Raises for NaN and the
+/// infinities; <fn BigInt.checkedFromFloat64> returns an {{Error}} instead.
 let fromFloat64(a: Float64): BigInt =
   Builtin.bigIntFromFloat64(a)
+
+
+/// <fn BigInt.fromFloat64>, or {{Error NotANumber}} for NaN and {{Error Overflow}} for an infinity
+let checkedFromFloat64(a: Float64): Result<BigInt, Math.NonFinite> =
+  if Float64.isNaN(a) then
+    Result.Error(Math.NonFinite.NotANumber)
+  else if Float64.isFinite(a) then
+    Result.Ok(fromFloat64(a))
+  else
+    Result.Error(Math.NonFinite.Overflow)
 
 
 /// Returns the <type BigInt> value of a <type String>. Because <type BigInt> is
