@@ -249,6 +249,51 @@ module LetPattern =
       (finalContext, PT.LPTuple(gid (), first', second', theRest'))
     | WT.LPUnit _ -> (context, PT.LPUnit(gid ()))
 
+/// A pattern's own node id.
+let matchPatternID (p : PT.MatchPattern) : id =
+  match p with
+  | PT.MPUnit id
+  | PT.MPBool(id, _)
+  | PT.MPInt8(id, _)
+  | PT.MPUInt8(id, _)
+  | PT.MPInt16(id, _)
+  | PT.MPUInt16(id, _)
+  | PT.MPInt32(id, _)
+  | PT.MPUInt32(id, _)
+  | PT.MPInt64(id, _)
+  | PT.MPUInt64(id, _)
+  | PT.MPInt128(id, _)
+  | PT.MPUInt128(id, _)
+  | PT.MPBigInt(id, _)
+  | PT.MPFloat(id, _, _, _)
+  | PT.MPFloat32(id, _, _, _)
+  | PT.MPDecimal(id, _)
+  | PT.MPChar(id, _)
+  | PT.MPString(id, _)
+  | PT.MPList(id, _)
+  | PT.MPListCons(id, _, _)
+  | PT.MPTuple(id, _, _, _)
+  | PT.MPEnum(id, _, _)
+  | PT.MPVariable(id, _)
+  | PT.MPOr(id, _)
+  | PT.MPAs(id, _, _)
+  | PT.MPRecord(id, _) -> id
+
+/// A pipe stage's own node id.
+let pipeExprID (p : PT.PipeExpr) : id =
+  match p with
+  | PT.EPipeLambda(id, _, _)
+  | PT.EPipeInfix(id, _, _, _)
+  | PT.EPipeFnCall(id, _, _, _, _)
+  | PT.EPipeEnum(id, _, _, _)
+  | PT.EPipeVariable(id, _, _) -> id
+
+/// Note where <param id> came from, when the caller is collecting that.
+let private noteRange (context : Context) (id : id) (range : WT.Range) : unit =
+  match context.sourceRanges with
+  | Some ranges -> ranges[id] <- range
+  | None -> ()
+
 module MatchPattern =
   let rec toPT
     (context : Context)
@@ -759,10 +804,14 @@ module Expr =
         let! expr = toPT context expr
         let! rest =
           pipeExprs
-          |> List.map snd
-          |> Ply.List.mapSequentially (
-            pipeExprToPT builtins pm onMissing currentModule context
-          )
+          |> Ply.List.mapSequentially (fun (pipeRange, pipeExpr) ->
+            uply {
+              let! stage =
+                pipeExprToPT builtins pm onMissing currentModule context pipeExpr
+              // From the `|>`, which is where the stage's line starts.
+              noteRange context (pipeExprID stage) pipeRange
+              return stage
+            })
         return PT.EPipe(id, expr, rest)
       // An unqualified uppercase name (`Red`, `X`) parses as a zero-field enum,
       // but it is ambiguous: it could be an enum case or an uppercase-bound
@@ -793,6 +842,7 @@ module Expr =
             (fun (case : WT.MatchCase) ->
               uply {
                 let (patternContext, mp) = MatchPattern.toPT context case.pat
+                noteRange context (matchPatternID mp) (WT.mpRange case.pat)
                 // `| Result.Ok(x)`: the qualifier must name a type
                 let! (_ : List<PT.NameResolution<PT.FQTypeName.FQTypeName>>) =
                   MatchPattern.qualifiedCases case.pat
@@ -1186,11 +1236,22 @@ module PackageValue =
     let toModules (name : WT.PackageValue.Name) : List<string> =
       name.owner :: name.modules
 
-  let toPT
+  let rec toPT
     (builtins : RT.Builtins)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
+    (c : WT.PackageValue.PackageValue)
+    : Ply<PT.PackageValue.PackageValue> =
+    toPTNoting builtins pm onMissing currentModule None c
+
+  /// `toPT`, noting where each expression came from in <param sourceRanges>.
+  and toPTNoting
+    (builtins : RT.Builtins)
+    (pm : PT.PackageManager)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (sourceRanges : Option<System.Collections.Generic.Dictionary<id, WT.Range>>)
     (c : WT.PackageValue.PackageValue)
     : Ply<PT.PackageValue.PackageValue> =
     uply {
@@ -1198,7 +1259,7 @@ module PackageValue =
         { currentFnName = None
           argMap = Map.empty
           localBindings = Set.empty
-          sourceRanges = None }
+          sourceRanges = sourceRanges }
       let! body = Expr.toPT builtins pm onMissing currentModule context c.body
       return { hash = Hash ""; description = c.description; body = body }
     }
@@ -1212,11 +1273,22 @@ module PackageTest =
     let toModules (name : WT.PackageTest.Name) : List<string> =
       name.owner :: name.modules
 
-  let toPT
+  let rec toPT
     (builtins : RT.Builtins)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
+    (test : WT.PackageTest.PackageTest)
+    : Ply<PT.PackageTest.PackageTest> =
+    toPTNoting builtins pm onMissing currentModule None test
+
+  /// `toPT`, noting where each expression came from in <param sourceRanges>.
+  and toPTNoting
+    (builtins : RT.Builtins)
+    (pm : PT.PackageManager)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (sourceRanges : Option<System.Collections.Generic.Dictionary<id, WT.Range>>)
     (test : WT.PackageTest.PackageTest)
     : Ply<PT.PackageTest.PackageTest> =
     uply {
@@ -1224,7 +1296,7 @@ module PackageTest =
         { currentFnName = None
           argMap = Map.empty
           localBindings = Set.empty
-          sourceRanges = None }
+          sourceRanges = sourceRanges }
       let! body = Expr.toPT builtins pm onMissing currentModule context test.body
       return
         { hash = Hash ""

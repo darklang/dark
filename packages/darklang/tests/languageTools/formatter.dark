@@ -1,0 +1,121 @@
+module Darklang.LanguageTools.Formatter.Tests
+
+// `dark format` keeps every comment, in order: a hash can't say so, since comments aren't in one.
+
+val commented =
+  """module Darklang.Tests.FormatSample
+
+// before a type
+type Shape =
+  | Dot // a point
+  | Box(Int64, Int64)
+
+// before a fn
+/// what it does
+let area(s: Shape): Int64 =
+  // at the top of the body
+  match s with
+  | Dot -> 0 // nothing
+  // before an arm
+  | Box(w, h) ->
+    let a = w * h // the product
+    [ // inside a list
+      a
+      0 ]
+    |> Stdlib.List.fold(0, fun(x, y) -> x + y) // summed
+
+// at the end
+"""
+
+
+let formattedComments(source: String): Stdlib.Result.Result<List<String>, String> =
+  LanguageTools.Formatter.source(SCM.Branch.mainBranchId, 100, source)
+  |> Stdlib.Result.map(fun f -> LanguageTools.Formatter.commentTexts(f.text))
+
+
+test keepsEveryCommentInOrder =
+  formattedComments(commented)
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(LanguageTools.Formatter.commentTexts(commented)))
+
+
+test findsTheComments =
+  LanguageTools.Formatter.commentTexts(commented)
+  |> Stdlib.List.length
+  |> Stdlib.Test.equal(10)
+
+
+// A `///` where nothing stores it: on an enum case's field, and on a local fn.
+val unstoredDocs =
+  """module Darklang.Tests.FormatSample
+
+type Shape =
+  | Box(
+    /// the width
+    w: Int64,
+    h: Int64)
+
+let area(s: Shape): Int64 =
+  /// the area of a box
+  let boxArea(w: Int64, h: Int64): Int64 = w * h
+  match s with
+  | Box(w, h) -> boxArea(w, h)
+"""
+
+
+test keepsDocCommentsNothingStores =
+  LanguageTools.Formatter.source(SCM.Branch.mainBranchId, 100, unstoredDocs)
+  |> Stdlib.Result.map(fun f -> LanguageTools.Formatter.docLines(f.text))
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "/// the width", "/// the area of a box" ]))
+
+
+// What lowering doesn't keep comes back as written: a spread, an escape, a float's exponent.
+val keptAsWritten =
+  """module Darklang.Tests.FormatSample
+
+let f(xs: List<Int64>): List<Int64> =
+  [ 0, ...xs, 1 ]
+
+
+val esc = "\u001b[0m"
+
+val big = 6.02e22
+"""
+
+
+test keepsSpreadsEscapesAndFloats =
+  LanguageTools.Formatter.source(SCM.Branch.mainBranchId, 100, keptAsWritten)
+  |> Stdlib.Result.map(fun f -> f.text)
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(keptAsWritten))
+
+
+// A `let` inside a list keeps its parentheses, or the items after it would be lines of its block.
+val letInList =
+  """module Darklang.Tests.FormatSample
+
+let f(): List<Int64> =
+  [ 1
+    (let x = 2
+     x + 1)
+
+    3 ]
+"""
+
+
+test keepsParenthesesOnALetInAList =
+  LanguageTools.Formatter.source(SCM.Branch.mainBranchId, 100, letInList)
+  |> Stdlib.Result.map(fun f -> f.text)
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(letInList))
+
+
+test formattingTwiceChangesNothing =
+  let once =
+    LanguageTools.Formatter.source(SCM.Branch.mainBranchId, 100, commented)
+    |> Stdlib.Result.map(fun f -> f.text)
+
+  let twice =
+    once
+    |> Stdlib.Result.andThen(fun t ->
+      LanguageTools.Formatter.source(SCM.Branch.mainBranchId, 100, t)
+      |> Stdlib.Result.map(fun f -> f.text))
+
+  twice |> Stdlib.Test.equal(once)

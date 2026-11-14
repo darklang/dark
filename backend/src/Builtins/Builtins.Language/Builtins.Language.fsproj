@@ -15,6 +15,7 @@
     <None Include="paket.references" />
     <Compile Include="Libs/LanguageTools.fs" />
     <Compile Include="Libs/Parser.fs" />
+    <Compile Include="Libs/Formatter.fs" />
     <Compile Include="Libs/Reflection.fs" />
     <Compile Include="Libs/Instrumentation.fs" />
     <Compile Include="Libs/Exec.fs" />

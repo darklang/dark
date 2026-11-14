@@ -8,8 +8,9 @@ module ModuleDeclaration =
       values: List<LanguageTools.ProgramTypes.PackageValue.PackageValue>
       traits: List<LanguageTools.ProgramTypes.Trait.Trait>
       impls: List<LanguageTools.ProgramTypes.TraitImpl.TraitImpl>
-      exprs: List<LanguageTools.ProgramTypes.Expr * List<String>>
+      exprs: List<(LanguageTools.ProgramTypes.Expr * List<String>)>
       submodules: List<Module> }
+
 
   /// A module with nothing in it.
   val emptyModule =
@@ -28,14 +29,13 @@ module ModuleDeclaration =
   /// of `ms` if it isn't there yet. Everything already in `ms` is kept.
   let intoRootless(ms: List<Module>, name: String, add: Module -> Module): List<Module> =
     let (found, others) = ms |> Stdlib.List.partition(fun m -> m.name == name)
-
     let target =
       match found with
       | [m, ...] -> m
-      | [] ->
-        { emptyModule with name = name }
+      | [] -> { emptyModule with name = name }
 
     Stdlib.List.append(others, add(target))
+
 
   /// Put an item in the module tree at `modulePath`, creating the modules it names. `add` is
   /// what the item does to the module it lands in, which is the only thing that differs between
@@ -47,8 +47,7 @@ module ModuleDeclaration =
     add: Module -> Module)
     : List<Module> =
     match modulePath with
-    | [] -> ModuleDeclaration.intoRootless(ms, rootless, add)
-
+    | [] -> intoRootless(ms, rootless, add)
     | [firstModuleNamePart, ...submoduleNames] ->
       let (foundModuleMaybe, otherModules) =
         ms |> Stdlib.List.partition(fun m -> m.name == firstModuleNamePart)
@@ -62,10 +61,10 @@ module ModuleDeclaration =
         match submoduleNames with
         | [] -> add(target)
         | submoduleNames ->
-          { target with
-              submodules = placeAt(target.submodules, submoduleNames, rootless, add) }
+          { target with submodules = placeAt(target.submodules, submoduleNames, rootless, add) }
 
       Stdlib.List.append(otherModules, updated)
+
 
   /// Put an item at the location its name has, or in a sentinel module when it has none.
   /// `kind` names the sentinels, `path` is the module path a location prints at, and `add` is
@@ -81,37 +80,64 @@ module ModuleDeclaration =
     path: LanguageTools.ProgramTypes.PackageLocation -> List<String>,
     add: Module -> Module)
     : List<Module> =
-    match Darklang.LanguageTools.PackageManager.pickLocation(Darklang.LanguageTools.PackageManager.PickContext.empty, locations) with
+    match LanguageTools.PackageManager.pickLocation(
+            LanguageTools.PackageManager.PickContext.empty,
+            locations) with
     | Some(location) -> placeAt(ms, path(location), $"{kind} has no modules", add)
     | None -> [ add({ emptyModule with name = $"{kind} with unknown location" }) ]
+
 
   let withType(
     branchId: Uuid,
     ms: List<Module>,
     t: LanguageTools.ProgramTypes.PackageType.PackageType)
     : List<Module> =
-    withItem(ms, LanguageTools.PackageManager.Type.locations(branchId, t.hash), "type", (fun l -> l.modules), fun m -> { m with types = Stdlib.List.append(m.types, t) })
+    withItem(
+      ms,
+      LanguageTools.PackageManager.Type.locations(branchId, t.hash),
+      "type",
+      (fun l -> l.modules),
+      fun m -> { m with types = Stdlib.List.append(m.types, t) })
+
 
   let withFn(
     branchId: Uuid,
     ms: List<Module>,
     f: LanguageTools.ProgramTypes.PackageFn.PackageFn)
     : List<Module> =
-    withItem(ms, LanguageTools.PackageManager.Function.locations(branchId, f.hash), "fn", (fun l -> l.modules), fun m -> { m with fns = Stdlib.List.append(m.fns, f) })
+    withItem(
+      ms,
+      LanguageTools.PackageManager.Function.locations(branchId, f.hash),
+      "fn",
+      (fun l -> l.modules),
+      fun m -> { m with fns = Stdlib.List.append(m.fns, f) })
+
 
   let withValue(
     branchId: Uuid,
     ms: List<Module>,
     v: LanguageTools.ProgramTypes.PackageValue.PackageValue)
     : List<Module> =
-    withItem(ms, LanguageTools.PackageManager.Value.locations(branchId, v.hash), "value", (fun l -> l.modules), fun m -> { m with values = Stdlib.List.append(m.values, v) })
+    withItem(
+      ms,
+      LanguageTools.PackageManager.Value.locations(branchId, v.hash),
+      "value",
+      (fun l -> l.modules),
+      fun m -> { m with values = Stdlib.List.append(m.values, v) })
+
 
   let withTrait(
     branchId: Uuid,
     ms: List<Module>,
     t: LanguageTools.ProgramTypes.Trait.Trait)
     : List<Module> =
-    withItem(ms, LanguageTools.PackageManager.Trait.locations(branchId, t.hash), "trait", (fun l -> l.modules), fun m -> { m with traits = Stdlib.List.append(m.traits, t) })
+    withItem(
+      ms,
+      LanguageTools.PackageManager.Trait.locations(branchId, t.hash),
+      "trait",
+      (fun l -> l.modules),
+      fun m -> { m with traits = Stdlib.List.append(m.traits, t) })
+
 
   /// An impl is named at `<module>[.<Type>].<Trait>`; printed at its location it
   /// would sit inside a module named for the trait, so it prints one level up, where
@@ -125,20 +151,28 @@ module ModuleDeclaration =
     ms: List<Module>,
     i: LanguageTools.ProgramTypes.TraitImpl.TraitImpl)
     : List<Module> =
-    let ctx = PrettyPrinter.ProgramTypes.Context.forBranch(branchId)
+    let ctx = ProgramTypes.Context.forBranch(branchId)
     let selfHead =
-      PrettyPrinter.ProgramTypes.typeReference(ctx, i.self)
+      ProgramTypes.typeReference(ctx, i.self)
       |> Stdlib.String.split("<")
       |> Stdlib.List.head
       |> Stdlib.Option.withDefault("")
       |> Stdlib.String.split(".")
       |> Stdlib.List.last
       |> Stdlib.Option.withDefault("")
+
     let path(location: LanguageTools.ProgramTypes.PackageLocation): List<String> =
       match Stdlib.List.reverse(location.modules) with
       | [last, ...rest] when last == selfHead -> Stdlib.List.reverse(rest)
       | _ -> location.modules
-    withItem(ms, LanguageTools.PackageManager.TraitImpl.locations(branchId, i.hash), "impl", path, fun m -> { m with impls = Stdlib.List.append(m.impls, i) })
+
+    withItem(
+      ms,
+      LanguageTools.PackageManager.TraitImpl.locations(branchId, i.hash),
+      "impl",
+      path,
+      fun m -> { m with impls = Stdlib.List.append(m.impls, i) })
+
 
   /// The fns an impl's `let m = Fn` lines already print
   let implMethodFnHashes(
@@ -150,10 +184,10 @@ module ModuleDeclaration =
       |> Stdlib.List.filterMap(fun((_, fn)) ->
         match fn.resolved with
         | Ok(resolved) ->
-          (match resolved.name with
-           | Package(h) -> Stdlib.Option.Option.Some(h)
-           | _ -> Stdlib.Option.Option.None)
-        | Error(_) -> Stdlib.Option.Option.None))
+          match resolved.name with
+          | Package(h) -> Option.Some(h)
+          | _ -> Option.None
+        | Error(_) -> Option.None))
     |> Stdlib.List.flatten
 
 
@@ -164,21 +198,17 @@ module ModuleDeclaration =
     let (expr, modules) = e
 
     match modules with
-    | [] -> ModuleDeclaration.intoRootless(ms, "expression has no modules", fun m -> { m with exprs = Stdlib.List.append(m.exprs, (expr, [])) })
-
+    | [] ->
+      intoRootless(ms, "expression has no modules", fun m ->
+        { m with exprs = Stdlib.List.append(m.exprs, (expr, [])) })
     | [firstModuleNamePart, ...submoduleNames] ->
       let (foundModuleMaybe, otherModules) =
         ms |> Stdlib.List.partition(fun m -> m.name == firstModuleNamePart)
 
-      match (foundModuleMaybe, submoduleNames) with
+      match foundModuleMaybe, submoduleNames with
       | [], [] ->
-        let newModule =
-          { emptyModule with
-              name = firstModuleNamePart
-              exprs = [ (expr, []) ] }
-
+        let newModule = { emptyModule with name = firstModuleNamePart, exprs = [ (expr, []) ] }
         Stdlib.List.append(otherModules, newModule)
-
       | [], submoduleNames ->
         let newModuleWithSubmodule =
           { emptyModule with
@@ -186,92 +216,75 @@ module ModuleDeclaration =
               submodules = withExpr([], (expr, submoduleNames)) }
 
         Stdlib.List.append(otherModules, newModuleWithSubmodule)
-
       | [foundModule, ...], [] ->
         let updatedModule =
-          { foundModule with
-              exprs = Stdlib.List.append(foundModule.exprs, (expr, [])) }
-
+          { foundModule with exprs = Stdlib.List.append(foundModule.exprs, (expr, [])) }
         Stdlib.List.append(otherModules, updatedModule)
-
       | [foundModule, ...], submoduleNames ->
         let updatedModule =
-          { foundModule with
-              submodules = withExpr(foundModule.submodules, (expr, submoduleNames)) }
+          { foundModule with submodules = withExpr(foundModule.submodules, (expr, submoduleNames)) }
 
         Stdlib.List.append(otherModules, updatedModule)
 
 
-
-  let toModules(
-    branchId: Uuid,
-    p: LanguageTools.ProgramTypes.Definitions)
-    : List<Module> =
+  let toModules(branchId: Uuid, p: LanguageTools.ProgramTypes.Definitions): List<Module> =
     let empty = []
-
     let modulesAfterTypes =
-      Stdlib.List.fold(p.types, empty, fun(modules, t) ->
-        ModuleDeclaration.withType(branchId, modules, t))
+      Stdlib.List.fold(p.types, empty, fun(modules, t) -> withType(branchId, modules, t))
 
     // An impl's method fns print as its `let m = Fn` lines, not as fns of their own
-    let implMethods = ModuleDeclaration.implMethodFnHashes(p.impls)
+    let implMethods = implMethodFnHashes(p.impls)
     let ownFns =
-      p.fns |> Stdlib.List.filter(fun f -> Stdlib.Bool.not(Stdlib.List.contains(implMethods, f.hash)))
+      p.fns
+      |> Stdlib.List.filter(fun f -> Stdlib.Bool.not(Stdlib.List.contains(implMethods, f.hash)))
 
     let modulesWithTypesAndFns =
-      Stdlib.List.fold(ownFns, modulesAfterTypes, fun(modules, f) ->
-        ModuleDeclaration.withFn(branchId, modules, f))
+      Stdlib.List.fold(ownFns, modulesAfterTypes, fun(modules, f) -> withFn(branchId, modules, f))
 
     let modulesWithTypesAndFnsAndValues =
       Stdlib.List.fold(p.values, modulesWithTypesAndFns, fun(modules, v) ->
-        ModuleDeclaration.withValue(branchId, modules, v))
+        withValue(branchId, modules, v))
 
     let modulesWithTraits =
       Stdlib.List.fold(p.traits, modulesWithTypesAndFnsAndValues, fun(modules, t) ->
-        ModuleDeclaration.withTrait(branchId, modules, t))
+        withTrait(branchId, modules, t))
 
     let modulesWithImpls =
       Stdlib.List.fold(p.impls, modulesWithTraits, fun(modules, i) ->
-        ModuleDeclaration.withImpl(branchId, modules, i))
+        withImpl(branchId, modules, i))
 
     let modulesWithTypesAndFnsAndValuesAndExprs =
-      Stdlib.List.fold(
-        p.exprs,
-        modulesWithImpls,
-        fun(modules, e) ->
-          // Same rule as the declarations above: the owner is not a module. An expr's path arrives
-          // from the parser owner-first, so drop that segment before nesting it.
-          let (expr, path) = e
-          let path =
-            match path with
-            | [] -> []
-            | [_, ...rest] -> rest
-          withExpr(modules, (expr, path)))
+      Stdlib.List.fold(p.exprs, modulesWithImpls, fun(modules, e) ->
+        // Same rule as the declarations above: the owner is not a module. An expr's path arrives
+        // from the parser owner-first, so drop that segment before nesting it.
+        let (expr, path) = e
+        let path =
+          match path with
+          | [] -> []
+          | [_, ...rest] -> rest
 
+        withExpr(modules, (expr, path)))
 
     modulesWithTypesAndFnsAndValuesAndExprs
 
 
-let moduleDeclaration(
-  ctx: PrettyPrinter.ProgramTypes.Context,
-  m: ModuleDeclaration.Module)
-  : String =
+let moduleDeclaration(ctx: ProgramTypes.Context, m: ModuleDeclaration.Module): String =
   // Account for the indentation added after rendering.
   let ctx = { ctx with width = Stdlib.max(1, ctx.width - 2) }
-
-  let section(rendered: List<String>): Stdlib.Option.Option<String> =
+  let section(rendered: List<String>): Option<String> =
     match rendered with
-    | [] -> Stdlib.Option.Option.None
-    | rendered -> Stdlib.Option.Option.Some(Stdlib.String.join(rendered, "\n\n"))
+    | [] -> Option.None
+    | rendered -> Option.Some(Stdlib.String.join(rendered, "\n\n"))
 
   let parts =
-    [ section(m.types |> Stdlib.List.map(fun t -> PrettyPrinter.ProgramTypes.packageType(ctx, t)))
-      section(m.traits |> Stdlib.List.map(fun t -> PrettyPrinter.ProgramTypes.packageTrait(ctx, t)))
-      section(m.fns |> Stdlib.List.map(fun f -> PrettyPrinter.ProgramTypes.packageFn(ctx, f)))
-      section(m.values |> Stdlib.List.map(fun v -> PrettyPrinter.ProgramTypes.packageValue(ctx, v)))
-      section(m.impls |> Stdlib.List.map(fun i -> PrettyPrinter.ProgramTypes.packageImpl(ctx, i)))
-      section(m.exprs |> Stdlib.List.map(fun((e, _)) -> PrettyPrinter.ProgramTypes.expr(ctx, e)))
-      section(m.submodules |> Stdlib.List.map(fun sub -> PrettyPrinter.moduleDeclaration(ctx, sub))) ]
+    [ section(m.types |> Stdlib.List.map(fun t -> ProgramTypes.packageType(ctx, t)))
+      section(m.traits |> Stdlib.List.map(fun t -> ProgramTypes.packageTrait(ctx, t)))
+      section(m.fns |> Stdlib.List.map(fun f -> ProgramTypes.packageFn(ctx, f)))
+      section(m.values |> Stdlib.List.map(fun v -> ProgramTypes.packageValue(ctx, v)))
+      section(m.impls |> Stdlib.List.map(fun i -> ProgramTypes.packageImpl(ctx, i)))
+      section(m.exprs |> Stdlib.List.map(fun((e, _)) -> ProgramTypes.expr(ctx, e)))
+      section(
+        m.submodules |> Stdlib.List.map(fun sub -> PrettyPrinter.moduleDeclaration(ctx, sub))) ]
     |> Stdlib.List.filterMap(fun s -> s)
 
   match parts with
@@ -279,18 +292,14 @@ let moduleDeclaration(
     // CLEANUP: actually error
     "Error - module defined somehow without parts"
   | parts ->
-    let bodyPart = (Stdlib.String.join(parts, "\n\n")) |> PrettyPrinter.indent
-
+    let bodyPart = Stdlib.String.join(parts, "\n\n") |> indent
     $"module {m.name} =\n{bodyPart}"
 
 
-let definitions(
-  ctx: PrettyPrinter.ProgramTypes.Context,
-  p: LanguageTools.ProgramTypes.Definitions)
-  : String =
+let definitions(ctx: ProgramTypes.Context, p: LanguageTools.ProgramTypes.Definitions): String =
   let modules = ModuleDeclaration.toModules(ctx.branchId, p)
 
   // CLEANUP make ordering 'better' in some way
   modules
-  |> Stdlib.List.map(fun m -> PrettyPrinter.moduleDeclaration(ctx, m))
+  |> Stdlib.List.map(fun m -> moduleDeclaration(ctx, m))
   |> Stdlib.String.join("\n\n")

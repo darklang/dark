@@ -8,6 +8,7 @@ let builtins () =
   Builtin.combine
     [ Libs.LanguageTools.builtins ()
       Libs.Parser.builtins ()
+      Libs.Formatter.builtins ()
       Libs.Reflection.builtins ()
       Libs.Instrumentation.builtins ()
       Libs.Exec.builtins () ]

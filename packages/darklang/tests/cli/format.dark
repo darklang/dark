@@ -1,0 +1,86 @@
+/// `dark format` on a user's own files, outside `packages/`: rewriting one, checking one that is
+/// formatted and one that isn't, several at once, and `fmt` as another name for it.
+module Darklang.Cli.Tests.Format
+
+val unformatted = "module MyApp.Util\n\nlet double(x: Int64): Int64 = x*2\n"
+
+val formatted = "module MyApp.Util\n\nlet double(x: Int64): Int64 =\n  x * 2\n"
+
+
+/// <param name> in the instance's home, written with <param text>, and what formatting it needs:
+/// reading and writing it, and nothing else.
+let file(i: Instance.T, name: String, text: String): String =
+  let path = Instance.home(i) + "/" + name
+  let _ = Stdlib.Cli.File.writeText(path, text)
+
+  [ [ "file", "read", path ]
+    [ "file", "write", path ]
+    [ "stdout" ]
+    [ "package-read" ] ]
+  |> Stdlib.List.iter(fun rule ->
+    let _ = Instance.ran(i, Stdlib.List.concat([ "permissions", "allow" ], rule))
+    ())
+
+  path
+
+
+let contents(path: String): String =
+  Stdlib.Cli.File.readText(path) |> Stdlib.Result.withDefault("")
+
+
+test formatsAFileInPlace = Instance.withInstance(fun i ->
+  let path = file(i, "util.dark", unformatted)
+  let (code, out) = Instance.ran(i, [ "format", path ])
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "formatting succeeds")
+      Instance.says(out, "1 formatted", "it says it formatted the file")
+      contents(path) |> Stdlib.Test.equal(formatted) ]))
+
+
+test checkPassesOnAFormattedFile = Instance.withInstance(fun i ->
+  let path = file(i, "util.dark", formatted)
+  let (code, out) = Instance.ran(i, [ "format", "--check", path ])
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "a formatted file passes")
+      Instance.says(out, "0 not formatted, 1 formatted", "it says so")
+      contents(path) |> Stdlib.Test.equal(formatted) ]))
+
+
+test checkFailsOnAnUnformattedFileAndChangesNothing = Instance.withInstance(fun i ->
+  let path = file(i, "util.dark", unformatted)
+  let (code, out) = Instance.ran(i, [ "format", "--check", path ])
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 1, "an unformatted file fails the check")
+      Instance.says(out, "util.dark: not formatted", "it names the file")
+      contents(path) |> Stdlib.Test.equal(unformatted) ]))
+
+
+test formatsSeveralFiles = Instance.withInstance(fun i ->
+  let first = file(i, "a.dark", unformatted)
+  let second = file(i, "b.dark", formatted)
+  let third = file(i, "c.dark", unformatted)
+  let (code, out) = Instance.ran(i, [ "format", first, second, third ])
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "formatting succeeds")
+      Instance.says(out, "2 formatted, 1 already were", "it counts each file")
+      [ contents(first), contents(second), contents(third) ]
+      |> Stdlib.Test.equal([ formatted, formatted, formatted ]) ]))
+
+
+test fmtDoesWhatFormatDoes = Instance.withInstance(fun i ->
+  let viaFormat = file(i, "a.dark", unformatted)
+  let viaFmt = file(i, "b.dark", unformatted)
+  let (formatCheck, formatCheckOut) = Instance.ran(i, [ "format", "--check", viaFormat ])
+  let (fmtCheck, fmtCheckOut) = Instance.ran(i, [ "fmt", "--check", viaFmt ])
+  let (formatCode, _) = Instance.ran(i, [ "format", viaFormat ])
+  let (fmtCode, _) = Instance.ran(i, [ "fmt", viaFmt ])
+
+  Stdlib.Test.all(
+    [ fmtCheck |> Stdlib.Test.equal(formatCheck)
+      Stdlib.String.replaceAll(fmtCheckOut, "b.dark", "a.dark") |> Stdlib.Test.equal(formatCheckOut)
+      fmtCode |> Stdlib.Test.equal(formatCode)
+      contents(viaFmt) |> Stdlib.Test.equal(contents(viaFormat)) ]))

@@ -16,47 +16,54 @@ module Darklang.Stdlib.Pretty
 type Doc =
   /// Renders to nothing.
   | Empty
-
   /// Literal text. Never broken, so it can exceed the width if a single token is wider than the page.
-  | Text(String)
-
+  /// `width` is its columns, measured once by `text`, or -1 when it holds a line break.
+  | Text(text: String, width: Int64)
   /// A soft break: a space when the enclosing group fits on one line, a newline plus the current
   /// indentation when it doesn't.
   | Line
-
   /// A break that is always a newline, and which forces every enclosing group to break.
   | HardLine
-
   /// A break that is nothing at all when the enclosing group fits, and a newline plus indentation when
   /// it doesn't. The difference from `Line` is what separates `[1, 2]` from `[ 1, 2 ]`: use this where a
   /// delimiter shouldn't gain a space just because everything fit.
   | SoftLine
-
   /// Two documents, one after the other, with nothing between them.
   | Concat(Doc, Doc)
-
   /// Indent everything inside by `n` columns, applied after each break rather than once at the front.
   | Nest(Int64, Doc)
-
-  /// Try to fit the inside on one line.
-  | Group(Doc)
-
+  /// Try to fit the inside on one line. `flatWidth` is its width on one line, measured once by
+  /// `group`, or -1 when it holds a break that keeps it from being laid flat.
+  | Group(doc: Doc, flatWidth: Int64)
+  /// Indent everything inside to the column it starts at, so its later lines line up under its
+  /// first: `[ a` then `  b ]`, wherever on the line the `[` is.
+  | Align(Doc)
   /// Text with something wrapped around it that occupies no columns -- a terminal escape, typically.
   /// Only the middle is measured, which is the entire point: decoration must not change where a
   /// document breaks, and it silently would if the escapes were part of a `Text`.
   | Styled(opening: String, text: String, closing: String)
-
   /// Text held back until the line ends: it is emitted just before the next newline (or at the
   /// end), after whatever else is laid out on that line. Zero columns wide, so it never changes
   /// where anything breaks. A trailing `// comment` needs this, or a `)` or `,` printed after it
   /// on the same line would land inside the comment.
   | LineSuffix(String)
-
-
-/// Whether we are currently rendering a group flat or broken.
-type Mode =
-  | Flat
-  | Break
+  /// `flat` when the enclosing group is laid out on one line, `broken` when it isn't. What lets a
+  /// list read `[ a, b ]` flat and put one item per line, without commas, when broken.
+  | IfFlat(flat: Doc, broken: Doc)
+  /// `first` when its first line fits (laid out flat up to its first hard break), `otherwise`
+  /// when it doesn't. The choice a plain group can't make: `f(a, fun x ->` with the body on the
+  /// lines below, or, if even that first line is too long, every argument on its own line.
+  | FitsOr(first: Doc, otherwise: Doc)
+  /// Nothing, except that the groups around it can't be laid flat. What a trailing `// comment`
+  /// needs: its line has to end where the comment is.
+  | BreakParent
+  /// Siblings, one per line when broken and joined by `flat` when not: the statements of a block,
+  /// the items of a list. Each is (what is printed, what is measured, its shape, whether the
+  /// source set it off). Broken, a blank line follows one that takes more than one line, and goes
+  /// between all of a run of one shape when any of the run does; one the source set off with a
+  /// comment keeps a blank line before it. Whether one takes more than one line is decided where
+  /// it is laid out. An empty shape is a run of its own.
+  | Paragraphs(items: List<(Doc * Doc * String * Bool)>, flat: Doc)
 
 
 val empty = Doc.Empty
@@ -67,48 +74,108 @@ val hardLine = Doc.HardLine
 
 val softLine = Doc.SoftLine
 
-let text(s: String): Doc = Doc.Text(s)
+
+let text(s: String): Doc =
+  if String.contains(s, "\n") then
+    Doc.Text(s, -1)
+  else
+    Doc.Text(s, String.displayWidth(s))
+
 
 /// `text`, wrapped in zero-width decoration. `opening`/`closing` are emitted but never measured.
-let styled(opening: String, t: String, closing: String): Doc = Doc.Styled(opening, t, closing)
+let styled(opening: String, t: String, closing: String): Doc =
+  Doc.Styled(opening, t, closing)
+
 
 /// See `Doc.LineSuffix`.
-let lineSuffix(s: String): Doc = Doc.LineSuffix(s)
+let lineSuffix(s: String): Doc =
+  Doc.LineSuffix(s)
 
-let concat(a: Doc, b: Doc): Doc = Doc.Concat(a, b)
+
+/// See `Doc.IfFlat`.
+let ifFlat(flat: Doc, broken: Doc): Doc =
+  Doc.IfFlat(flat, broken)
+
+
+/// See `Doc.FitsOr`.
+let fitsOr(first: Doc, otherwise: Doc): Doc =
+  Doc.FitsOr(first, otherwise)
+
+
+/// See `Doc.BreakParent`.
+val breakParent = Doc.BreakParent
+
+
+let concat(a: Doc, b: Doc): Doc =
+  Doc.Concat(a, b)
+
 
 let concatAll(ds: List<Doc>): Doc =
-  Stdlib.List.fold(ds, Doc.Empty, fun(acc, d) -> Doc.Concat(acc, d))
+  List.fold(ds, Doc.Empty, fun(acc, d) ->
+    match acc, d with
+    | Empty, _ -> d
+    | _, Empty -> acc
+    | _ -> Doc.Concat(acc, d))
 
-let concatSpace(a: Doc, b: Doc): Doc = Doc.Concat(a, Doc.Concat(Doc.Text(" "), b))
+
+let concatSpace(a: Doc, b: Doc): Doc = Doc.Concat(a, Doc.Concat(Doc.Text(" ", 1), b))
 
 let concatLine(a: Doc, b: Doc): Doc = Doc.Concat(a, Doc.Concat(Doc.Line, b))
 
 let nest(n: Int64, d: Doc): Doc = Doc.Nest(n, d)
 
-let group(d: Doc): Doc = Doc.Group(d)
+let group(d: Doc): Doc = Doc.Group(d, __flatWidthLoop(0, [ d ]))
+
+
+/// The width of <param ds> laid on one line, after <param acc> columns, or -1 when one holds a
+/// break that keeps it from being flat.
+let __flatWidthLoop(acc: Int64, ds: List<Doc>): Int64 =
+  match ds with
+  | [] -> acc
+  | [d, ...rest] ->
+    match d with
+    | Empty -> __flatWidthLoop(acc, rest)
+    | SoftLine -> __flatWidthLoop(acc, rest)
+    | LineSuffix(_) -> __flatWidthLoop(acc, rest)
+    | Line -> __flatWidthLoop(acc + 1, rest)
+    | Text(_, w) -> if w < 0 then -1 else __flatWidthLoop(acc + w, rest)
+    | Styled(_, t, _) -> __flatWidthLoop(acc + String.displayWidth(t), rest)
+    | HardLine -> -1
+    | BreakParent -> -1
+    | Concat(a, b) -> __flatWidthLoop(acc, List.prepend(List.prepend(rest, b), a))
+    | Nest(_, x) -> __flatWidthLoop(acc, List.prepend(rest, x))
+    | Align(x) -> __flatWidthLoop(acc, List.prepend(rest, x))
+    | Group(_, w) -> if w < 0 then -1 else __flatWidthLoop(acc + w, rest)
+    | IfFlat(a, _) -> __flatWidthLoop(acc, List.prepend(rest, a))
+    | FitsOr(a, _) -> __flatWidthLoop(acc, List.prepend(rest, a))
+    | Paragraphs(items, flat) -> __flatWidthLoop(acc, List.prepend(rest, __joined(items, flat)))
+
+
+/// See `Doc.Align`.
+let align(d: Doc): Doc =
+  Doc.Align(d)
 
 
 /// Join with spaces.
 let hsep(ds: List<Doc>): Doc =
   match ds with
   | [] -> Doc.Empty
-  | [first, ...rest] -> Stdlib.List.fold(rest, first, fun(acc, d) -> Pretty.concatSpace(acc, d))
+  | [first, ...rest] -> List.fold(rest, first, fun(acc, d) -> concatSpace(acc, d))
+
 
 /// Join with soft breaks: one line if the group fits, one per item if it doesn't.
 let vsep(ds: List<Doc>): Doc =
   match ds with
   | [] -> Doc.Empty
-  | [first, ...rest] -> Stdlib.List.fold(rest, first, fun(acc, d) -> Pretty.concatLine(acc, d))
+  | [first, ...rest] -> List.fold(rest, first, fun(acc, d) -> concatLine(acc, d))
+
 
 /// Hang `items` from `head`, breaking and indenting them when needed.
 let hang(indent: Int64, head: Doc, items: List<Doc>): Doc =
-  Doc.Group(
+  group(
     Doc.Concat(
       head,
-      Doc.Nest(
-        indent,
-        Pretty.concatAll(items |> Stdlib.List.map(fun d -> Doc.Concat(Doc.Line, d))))))
+      Doc.Nest(indent, concatAll(items |> List.map(fun d -> Doc.Concat(Doc.Line, d))))))
 
 
 /// Join with `sep` between items.
@@ -117,18 +184,121 @@ let hang(indent: Int64, head: Doc, items: List<Doc>): Doc =
 let join(ds: List<Doc>, sep: Doc): Doc =
   match ds with
   | [] -> Doc.Empty
+  | [first, ...rest] -> List.fold(rest, first, fun(acc, d) -> Doc.Concat(acc, Doc.Concat(sep, d)))
+
+
+/// <param items>' printed docs joined by <param sep>.
+let __joined(items: List<(Doc * Doc * String * Bool)>, sep: Doc): Doc =
+  items
+  |> List.map(fun item ->
+    let (d, _, _, _) = item
+    d)
+  |> join(sep)
+
+
+/// <param items> in runs of one shape, in order. An empty shape is a run of its own.
+let __runs(
+  items: List<(Bool * String * Bool)>,
+  acc: List<List<(Bool * String * Bool)>>)
+  : List<List<(Bool * String * Bool)>> =
+  match items with
+  | [] ->
+    acc
+    |> List.map(fun run -> List.reverse(run))
+    |> List.reverse
+  | [item, ...rest] ->
+    let (_, shape, _) = item
+    let joins =
+      match acc with
+      | [run, ...] ->
+        match List.head(run) with
+        | Some((_, runShape, _)) -> shape != "" && shape == runShape
+        | None -> false
+      | [] -> false
+
+    match acc with
+    | [run, ...runs] when joins -> __runs(rest, List.prepend(runs, List.prepend(run, item)))
+    | _ -> __runs(rest, List.prepend(acc, [ item ]))
+
+
+/// Whether a blank line goes before each sibling after the first, given each sibling's (takes
+/// more than one line, shape, set off by the source). See `Doc.Paragraphs`.
+let blanksBetween(items: List<(Bool * String * Bool)>): List<Bool> =
+  let marked =
+    __runs(items, [])
+    |> List.map(fun run ->
+      let runMulti = List.any(run, fun item ->
+        let (multi, _, _) = item
+        multi)
+
+      run
+      |> List.indexedMap(fun(j, item) ->
+        let (multi, _, setOff) = item
+        (multi, setOff, runMulti && j > 0)))
+    |> List.flatten
+
+  match marked with
+  | [] -> []
   | [first, ...rest] ->
-    Stdlib.List.fold(rest, first, fun(acc, d) ->
+    let (firstMulti, _, _) = first
+    rest
+    |> List.fold(([], firstMulti), fun(acc, item) ->
+      let (out, prevMulti) = acc
+      let (multi, setOff, inMultiRun) = item
+      (List.prepend(out, setOff || prevMulti || inMultiRun), multi))
+    |> Tuple2.first
+    |> List.reverse
+
+
+/// `Doc.Paragraphs` broken, at indentation <param i>, for a page <param width> wide: each sibling
+/// measured there, and the blank lines placed.
+let __laidOut(width: Int64, i: Int64, items: List<(Doc * Doc * String * Bool)>): Doc =
+  let blanks =
+    items
+    |> List.map(fun item ->
+      let (_, measured, shape, setOff) = item
+      (__breaksLoop(width, i, [ (i, Mode.Break, measured) ]), shape, setOff))
+    |> blanksBetween
+
+  match items with
+  | [] -> Doc.Empty
+  | [first, ...rest] ->
+    let (firstDoc, _, _, _) = first
+    List.zipShortest(rest, blanks)
+    |> List.fold(firstDoc, fun(acc, pair) ->
+      let ((d, _, _, _), blank) = pair
+      let sep = if blank then Doc.Concat(Doc.Line, Doc.Line) else Doc.Line
       Doc.Concat(acc, Doc.Concat(sep, d)))
+
+
+/// `Doc.Paragraphs` as work for a walk that stops at the first line break: broken, its first
+/// sibling and the break after it; flat, all of them joined.
+let __paragraphsWork(
+  i: Int64,
+  m: Mode,
+  ps: List<(Doc * Doc * String * Bool)>,
+  flat: Doc)
+  : List<(Int64 * Mode * Doc)> =
+  match m, ps with
+  | Break, [(d, _, _, _)] -> [ (i, m, d) ]
+  | Break, [(d, _, _, _), _, ...] -> [ (i, m, d), (i, m, Doc.Line) ]
+  | _ -> [ (i, m, __joined(ps, Doc.IfFlat(flat, Doc.Line))) ]
+
+
+/// Whether a group is being laid out on one line or broken.
+type Mode =
+  | Flat
+  | Break
 
 
 /// Would the rest of this line fit in `room` columns?
 ///
-/// Walks the pending work until it reaches a break that ends the line (at which point everything so far
-/// fits) or runs out of room. `HardLine` answers no, which is what makes a group containing one always
-/// break. The pending items after the group are included, so a group isn't kept flat only to have the
-/// text that follows it overflow anyway.
-let __fits(room: Int64, items: List<(Int64 * Mode * Doc)>): Bool =
+/// `items` is what follows on the line: for a group being tried, everything after it, with the
+/// group's own width already taken from `room`. The walk stops at the first break that ends the
+/// line (everything so far fits) or when the room runs out. A hard break inside the flat part
+/// means it can't be one line. With `hardEnds`, a hard break ends the line instead of failing it:
+/// that measures only a document's first line, for `FitsOr`.
+let __fits(hardEnds: Bool, room: Int64, items: List<(Int64 * Mode * Doc)>): Bool =
   if room < 0 then
     false
   else
@@ -136,112 +306,223 @@ let __fits(room: Int64, items: List<(Int64 * Mode * Doc)>): Bool =
     | [] -> true
     | [(i, m, d), ...rest] ->
       match d with
-      | Empty -> Pretty.__fits(room, rest)
-      | Text(s) -> Pretty.__fits(room - (Stdlib.String.displayWidth(s)), rest)
-      | Styled(_, t, _) -> Pretty.__fits(room - (Stdlib.String.displayWidth(t)), rest)
-      | LineSuffix(_) -> Pretty.__fits(room, rest)
+      | Empty -> Pretty.__fits(hardEnds, room, rest)
+      | LineSuffix(_) -> Pretty.__fits(hardEnds, room, rest)
+      | Text(s, width) ->
+        if width < 0 then
+          let first =
+            String.split(s, "\n")
+            |> List.head
+            |> Option.withDefault("")
 
-      // Inside the group being tested (Flat) a hard line means it cannot be one line, so it doesn't
-      // fit. After the group (Break) it simply ends the line, so everything measured so far does fit.
-      // Answering `false` in both cases made every group followed by a hard line break -- which is
-      // every match arm, since the arms are hard-lined apart.
-      | HardLine ->
-        match m with
-        | Flat -> false
-        | Break -> true
+          (m == Mode.Break || hardEnds) && room - String.displayWidth(first) >= 0
+        else
+          Pretty.__fits(hardEnds, room - width, rest)
+      | Styled(_, t, _) -> Pretty.__fits(hardEnds, room - String.displayWidth(t), rest)
+      | HardLine -> m == Mode.Break || hardEnds
+      | BreakParent ->
+        if m == Mode.Flat && Bool.not(hardEnds) then
+          false
+        else
+          Pretty.__fits(hardEnds, room, rest)
       | Line ->
         match m with
-        | Flat -> Pretty.__fits(room - 1, rest)
+        | Flat -> Pretty.__fits(hardEnds, room - 1, rest)
         | Break -> true
       | SoftLine ->
         match m with
-        | Flat -> Pretty.__fits(room, rest)
+        | Flat -> Pretty.__fits(hardEnds, room, rest)
         | Break -> true
       | Concat(a, b) ->
-        Pretty.__fits(room, Stdlib.List.prepend(Stdlib.List.prepend(rest, (i, m, b)), (i, m, a)))
-      | Nest(j, x) -> Pretty.__fits(room, Stdlib.List.prepend(rest, (i + j, m, x)))
-      | Group(x) -> Pretty.__fits(room, Stdlib.List.prepend(rest, (i, m, x)))
+        Pretty.__fits(hardEnds, room, List.prepend(List.prepend(rest, (i, m, b)), (i, m, a)))
+      | Nest(j, x) -> Pretty.__fits(hardEnds, room, List.prepend(rest, (i + j, m, x)))
+      // Flat, a group takes the width measured when it was made. Measuring a first line, one
+      // that can't be flat will break, so its first break ends the line.
+      | Group(x, w) ->
+        match m with
+        | Flat ->
+          if w >= 0 then
+            Pretty.__fits(hardEnds, room - w, rest)
+          else if hardEnds then
+            Pretty.__fits(hardEnds, room, List.prepend(rest, (i, Mode.Break, x)))
+          else
+            false
+        | Break -> Pretty.__fits(hardEnds, room, List.prepend(rest, (i, m, x)))
+      | Align(x) -> Pretty.__fits(hardEnds, room, List.prepend(rest, (i, m, x)))
+      | IfFlat(a, b) ->
+        let chosen = if m == Mode.Flat then a else b
+        Pretty.__fits(hardEnds, room, List.prepend(rest, (i, m, chosen)))
+      | FitsOr(a, _) -> Pretty.__fits(hardEnds, room, List.prepend(rest, (i, m, a)))
+      | Paragraphs(ps, flat) ->
+        Pretty.__fits(hardEnds, room, List.concat(__paragraphsWork(i, m, ps, flat), rest))
 
 
-/// The output with the held-back line suffixes emitted, for where a line ends.
-let __flushSuffixes(acc: List<String>, pending: List<String>): List<String> =
-  match pending with
-  | [] -> acc
-  | _ -> Stdlib.List.fold(pending, acc, fun(a, s) -> Stdlib.List.prepend(a, s))
-
-/// End the line: the held-back suffixes, the newline, then the next line's indentation.
-let __breakLine(acc: List<String>, pending: List<String>, indent: Int64): List<String> =
-  Stdlib.List.prepend(
-    Stdlib.List.prepend(Pretty.__flushSuffixes(acc, pending), "\n"),
-    (Stdlib.String.checkedRepeat(" ", indent) |> Stdlib.Result.withDefault("")))
+/// The output so far, as reversed chunks, with <param s> written: the <param indentDue> spaces
+/// the line still owes first. Indentation is written only once a line gets text, so an empty
+/// line has none.
+let __written(acc: List<String>, indentDue: Int64, s: String): List<String> =
+  if indentDue > 0 then
+    List.prepend(List.prepend(acc, String.repeat(" ", indentDue)), s)
+  else
+    List.prepend(acc, s)
 
 
-/// The rendering loop: walk the pending work, emitting text and deciding each group as it is reached.
-///
-/// `acc` is the output so far as a reversed list of chunks; `render` joins it once at the end.
-/// Appending to a string per node would copy the whole output each time, quadratic in its length.
-/// `pending` is the line suffixes waiting for the line to end, in order.
+/// The output so far with the held-back line suffixes and a newline after it.
+let __ended(acc: List<String>, pending: List<String>): List<String> =
+  List.prepend(List.fold(pending, acc, fun(a, s) -> List.prepend(a, s)), "\n")
+
+
+/// The rendering loop: walk the pending work, emitting text and deciding each group as it is
+/// reached. <param acc> is the output so far, reversed; <param indentDue> the indentation the
+/// line owes; <param pending> the line suffixes waiting for the line to end, in order. Three
+/// arguments rather than a record of them: a record would be built on every step.
 let __renderLoop(
   width: Int64,
   col: Int64,
   acc: List<String>,
+  indentDue: Int64,
   pending: List<String>,
   items: List<(Int64 * Mode * Doc)>)
   : List<String> =
   match items with
-  | [] -> Pretty.__flushSuffixes(acc, pending)
+  | [] -> List.fold(pending, acc, fun(a, s) -> List.prepend(a, s))
   | [(i, m, d), ...rest] ->
     match d with
-    | Empty -> Pretty.__renderLoop(width, col, acc, pending, rest)
+    | Empty -> __renderLoop(width, col, acc, indentDue, pending, rest)
+    | BreakParent -> __renderLoop(width, col, acc, indentDue, pending, rest)
+    | LineSuffix(s) -> __renderLoop(width, col, acc, indentDue, List.append(pending, s), rest)
+    | Text(s, w) ->
+      if s == "" then
+        __renderLoop(width, col, acc, indentDue, pending, rest)
+      else
+        let written =
+          if indentDue > 0 then
+            List.prepend(List.prepend(acc, String.repeat(" ", indentDue)), s)
+          else
+            List.prepend(acc, s)
 
-    | LineSuffix(s) -> Pretty.__renderLoop(width, col, acc, Stdlib.List.append(pending, s), rest)
+        if w < 0 then
+          let last =
+            String.split(s, "\n")
+            |> List.last
+            |> Option.withDefault("")
 
-    | Text(s) ->
-      Pretty.__renderLoop(width, col + (Stdlib.String.displayWidth(s)), Stdlib.List.prepend(acc, s), pending, rest)
-
+          __renderLoop(width, String.displayWidth(last), written, 0, pending, rest)
+        else
+          __renderLoop(width, col + w, written, 0, pending, rest)
     | Styled(opening, t, closing) ->
-      Pretty.__renderLoop(
-        width,
-        col + (Stdlib.String.displayWidth(t)),
-        Stdlib.List.prepend(Stdlib.List.prepend(Stdlib.List.prepend(acc, opening), t), closing),
-        pending,
-        rest)
-
-    | HardLine -> Pretty.__renderLoop(width, i, Pretty.__breakLine(acc, pending, i), [], rest)
-
+      let written = List.prepend(List.prepend(__written(acc, indentDue, opening), t), closing)
+      __renderLoop(width, col + String.displayWidth(t), written, 0, pending, rest)
+    | HardLine -> __renderLoop(width, i, __ended(acc, pending), i, [], rest)
     | Line ->
       match m with
-      | Flat -> Pretty.__renderLoop(width, col + 1, Stdlib.List.prepend(acc, " "), pending, rest)
-      | Break -> Pretty.__renderLoop(width, i, Pretty.__breakLine(acc, pending, i), [], rest)
-
+      | Flat -> __renderLoop(width, col + 1, __written(acc, indentDue, " "), 0, pending, rest)
+      | Break -> __renderLoop(width, i, __ended(acc, pending), i, [], rest)
     | SoftLine ->
       match m with
-      | Flat -> Pretty.__renderLoop(width, col, acc, pending, rest)
-      | Break -> Pretty.__renderLoop(width, i, Pretty.__breakLine(acc, pending, i), [], rest)
-
+      | Flat -> __renderLoop(width, col, acc, indentDue, pending, rest)
+      | Break -> __renderLoop(width, i, __ended(acc, pending), i, [], rest)
     | Concat(a, b) ->
-      Pretty.__renderLoop(
+      __renderLoop(
         width,
         col,
         acc,
+        indentDue,
         pending,
-        Stdlib.List.prepend(Stdlib.List.prepend(rest, (i, m, b)), (i, m, a)))
-
+        List.prepend(List.prepend(rest, (i, m, b)), (i, m, a)))
     | Nest(j, x) ->
-      Pretty.__renderLoop(width, col, acc, pending, Stdlib.List.prepend(rest, (i + j, m, x)))
-
-    | Group(x) ->
-      // The one decision this whole module exists to make.
-      let flat = Stdlib.List.prepend(rest, (i, Mode.Flat, x))
-
-      if Pretty.__fits(width - col, flat) then
-        Pretty.__renderLoop(width, col, acc, pending, flat)
+      __renderLoop(width, col, acc, indentDue, pending, List.prepend(rest, (i + j, m, x)))
+    | Group(x, w) ->
+      // The one decision this whole module exists to make. Inside a flat group it is made
+      // already: that group's check covered this one.
+      if m == Mode.Flat || w >= 0 && __fits(false, width - col - w, rest) then
+        __renderLoop(width, col, acc, indentDue, pending, List.prepend(rest, (i, Mode.Flat, x)))
       else
-        Pretty.__renderLoop(width, col, acc, pending, Stdlib.List.prepend(rest, (i, Mode.Break, x)))
+        __renderLoop(width, col, acc, indentDue, pending, List.prepend(rest, (i, Mode.Break, x)))
+    | Align(x) -> __renderLoop(width, col, acc, indentDue, pending, List.prepend(rest, (col, m, x)))
+    | IfFlat(a, b) ->
+      let chosen = if m == Mode.Flat then a else b
+      __renderLoop(width, col, acc, indentDue, pending, List.prepend(rest, (i, m, chosen)))
+    | FitsOr(a, b) ->
+      match m with
+      | Flat ->
+        __renderLoop(width, col, acc, indentDue, pending, List.prepend(rest, (i, Mode.Flat, a)))
+      | Break ->
+        let first = __fits(true, width - col, List.prepend(rest, (i, Mode.Flat, a)))
+        let chosen = if first then a else b
+        __renderLoop(
+          width,
+          col,
+          acc,
+          indentDue,
+          pending,
+          List.prepend(rest, (i, Mode.Break, chosen)))
+    | Paragraphs(ps, flat) ->
+      let laid =
+        match m with
+        | Flat -> __joined(ps, flat)
+        | Break -> __laidOut(width, i, ps)
+
+      __renderLoop(width, col, acc, indentDue, pending, List.prepend(rest, (i, m, laid)))
+
+
+/// `__renderLoop` without the output: whether laying the work out ends a line anywhere.
+let __breaksLoop(width: Int64, col: Int64, items: List<(Int64 * Mode * Doc)>): Bool =
+  match items with
+  | [] -> false
+  | [(i, m, d), ...rest] ->
+    match d with
+    | Empty -> __breaksLoop(width, col, rest)
+    | BreakParent -> __breaksLoop(width, col, rest)
+    | LineSuffix(_) -> __breaksLoop(width, col, rest)
+    | Text(_, w) -> if w < 0 then true else __breaksLoop(width, col + w, rest)
+    | Styled(_, t, _) -> __breaksLoop(width, col + String.displayWidth(t), rest)
+    | HardLine -> true
+    | Line ->
+      match m with
+      | Flat -> __breaksLoop(width, col + 1, rest)
+      | Break -> true
+    | SoftLine ->
+      match m with
+      | Flat -> __breaksLoop(width, col, rest)
+      | Break -> true
+    | Concat(a, b) ->
+      __breaksLoop(width, col, List.prepend(List.prepend(rest, (i, m, b)), (i, m, a)))
+    | Nest(j, x) -> __breaksLoop(width, col, List.prepend(rest, (i + j, m, x)))
+    // Flat, a group breaks nowhere and takes the width it was measured at.
+    | Group(x, w) ->
+      if w >= 0 && (m == Mode.Flat || __fits(false, width - col - w, rest)) then
+        __breaksLoop(width, col + w, rest)
+      else
+        __breaksLoop(width, col, List.prepend(rest, (i, m, x)))
+    | Align(x) -> __breaksLoop(width, col, List.prepend(rest, (col, m, x)))
+    | IfFlat(a, b) ->
+      let chosen = if m == Mode.Flat then a else b
+      __breaksLoop(width, col, List.prepend(rest, (i, m, chosen)))
+    | FitsOr(a, b) ->
+      match m with
+      | Flat -> __breaksLoop(width, col, List.prepend(rest, (i, Mode.Flat, a)))
+      | Break ->
+        let first = __fits(true, width - col, List.prepend(rest, (i, Mode.Flat, a)))
+        let chosen = if first then a else b
+        __breaksLoop(width, col, List.prepend(rest, (i, Mode.Break, chosen)))
+    | Paragraphs(ps, flat) ->
+      __breaksLoop(width, col, List.concat(__paragraphsWork(i, m, ps, flat), rest))
+
+
+/// Whether `render(width, doc)` would take more than one line, found without rendering it: the
+/// walk stops at the first line break.
+let isMultiLine(width: Int64, doc: Doc): Bool =
+  __breaksLoop(width, 0, [ (0, Mode.Break, doc) ])
 
 
 /// Lay out `doc` for a page `width` columns wide.
+///
+/// Walks the document in order, emitting text, and decides each group as it is reached: flat if
+/// the rest of the line would fit, broken otherwise. "The rest of the line" runs past the group
+/// to the next break that ends a line, so a group isn't kept flat only to have the text after it
+/// overflow anyway.
 let render(width: Int64, doc: Doc): String =
-  Pretty.__renderLoop(width, 0, [], [], [ ((0, Mode.Break, doc)) ])
-  |> Stdlib.List.reverse
-  |> Stdlib.String.join("")
+  __renderLoop(width, 0, [], 0, [], [ (0, Mode.Break, doc) ])
+  |> List.reverse
+  |> String.join("")

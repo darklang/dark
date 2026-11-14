@@ -1320,6 +1320,8 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
 let private unsafeWithArguments : Map<string, string> =
   Map.ofList
     [ "run-script", "takes a path and executes whatever is at it"
+      "format",
+      "rewrites the files it is given; any path here would be one in the checkout"
       "fn",
       "authors into the shared store; the seed above is the only fixture that should"
       "val", "ditto"

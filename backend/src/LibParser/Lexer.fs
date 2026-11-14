@@ -522,11 +522,15 @@ let tokenize
           && input[index + 2] = '/'
           && (index + 3 >= inputLength || input[index + 3] <> '/')
         if isDocComment then
-          let text = input.Substring(index + 3, lineEndIndex - (index + 3)).Trim()
+          // One line of the description per `///` line, as written, less the space after
+          // `///`: the breaks are the author's, so printing the description gives the
+          // comment back.
+          let raw = input.Substring(index + 3, lineEndIndex - (index + 3)).TrimEnd()
+          let text = if raw.StartsWith " " then raw.Substring 1 else raw
           pendingDocComment <-
             Some(
               match pendingDocComment with
-              | Some existingText -> existingText + " " + text
+              | Some existingText -> existingText + "\n" + text
               | None -> text
             )
         pendingTrivia.Add

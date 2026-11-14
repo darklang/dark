@@ -13,7 +13,8 @@ Any module with these three is a view:
 
   module My.Counter
   type Model = { count: Int64 }
-  type Msg = | Inc
+  type Msg =
+    | Inc
   let init(): Model = Model { count = 0 }
   let update(m: Model, e: Darklang.Cli.LiveView.Host.Event<Msg>): Model = ...
   let render(m: Model): Stdlib.Cli.UI.Node.Node<Msg> =

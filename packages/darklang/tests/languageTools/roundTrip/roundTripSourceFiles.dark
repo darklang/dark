@@ -9,7 +9,7 @@ test sourceFiles =
       roundTrip(
         "simple script",
         "\n  type BookID = Int64\n\n  let getTitle(bookId: BookID): String =\n    let book = (Library.getBook(bookId))\n    getNameFromBook(book)\n\n  let curiousGeorgeBookId = 101\n  Builtin.printLine(getTitle(curiousGeorgeBookId))\n\n  0\n    ",
-        "type BookID =\n  Int64\n\nlet getTitle(bookId: BookID): String =\n  let book = Library.getBook(bookId)\n  getNameFromBook(book)\n\nlet curiousGeorgeBookId = 101\nBuiltin.printLine(getTitle(curiousGeorgeBookId))\n0")
+        "type BookID = Int64\n\nlet getTitle(bookId: BookID): String =\n  let book = Library.getBook(bookId)\n  getNameFromBook(book)\n\nlet curiousGeorgeBookId = 101\nBuiltin.printLine(getTitle(curiousGeorgeBookId))\n0")
       roundTrip(
         "mixed module, declaration, and trailing expression",
         "module Helpers =\n  /// One from Helpers\n  val one = 1\n\n/// Top-level value\nval two = 2\n\ntwo",

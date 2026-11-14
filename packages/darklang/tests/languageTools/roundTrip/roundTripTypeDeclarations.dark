@@ -5,7 +5,7 @@ module Darklang.LanguageTools.Parser.RoundTrip.Tests
 
 test typeDeclarationsUnit =
   Stdlib.Test.all(
-    [ roundTrip("unit", "type SimpleAlias = Unit", "type SimpleAlias =\n  Unit")
+    [ roundTrip("unit", "type SimpleAlias = Unit", "type SimpleAlias = Unit")
       roundTrip(
         "enum with fn field in product",
         "type WithCallback = | WithCallback((Int64 -> String), Bool)",
@@ -25,21 +25,21 @@ test typeDeclarationsUnit =
       roundTrip(
         "enum case too long for one line",
         "type Long =\n  | Case(\n    firstLongFieldName: Option<String>,\n    secondLongFieldName: Option<String>\n  )",
-        "type Long =\n  | Case(\n    firstLongFieldName: Option<String>,\n    secondLongFieldName: Option<String>\n  )")
+        "type Long =\n  | Case(\n    firstLongFieldName: Option<String>,\n    secondLongFieldName: Option<String>)")
       roundTrip(
         "type doc comment",
         "/// User-facing id\ntype UserID = Int64",
-        "/// User-facing id\ntype UserID =\n  Int64")
+        "/// User-facing id\ntype UserID = Int64")
       roundTrip(
         "four slash comment is not a doc comment",
         "//// plain comment\ntype Plain = Int64",
-        "type Plain =\n  Int64")
+        "type Plain = Int64")
       // Alias with type params
-      roundTrip("type param list", "type MyType<'a> = List<'a>", "type MyType<'a> =\n  List<'a>")
+      roundTrip("type param list", "type MyType<'a> = List<'a>", "type MyType<'a> = List<'a>")
       roundTrip(
         "type param tuple",
         "type MyType<'a, 'b> = (List<'a> * List<'b>)",
-        "type MyType<'a, 'b> =\n  (List<'a> * List<'b>)")
+        "type MyType<'a, 'b> = (List<'a> * List<'b>)")
       // Record type decls
       roundTrip(
         "type param record",
@@ -80,6 +80,7 @@ test typeDeclarationsUnit =
         "record, newlines as separators 2",
         "type Person =\n  { name: String\n    age: Int64\n    hasPet: Bool\n    pet: Pet }",
         "type Person =\n  { name: String\n    age: Int64\n    hasPet: Bool\n    pet: Pet }") ])
+
 
 test typeDeclarationsEnumTypeDeclarations =
   Stdlib.Test.all(

@@ -34,6 +34,7 @@ test valueDeclarationsUnit =
         "val maxUInt128 = 340282366920938463463374607431768211455u128",
         "val maxUInt128 = 340282366920938463463374607431768211455u128") ])
 
+
 test valueDeclarationsBools =
   Stdlib.Test.all(
     [ // bools
@@ -52,6 +53,7 @@ test valueDeclarationsBools =
         "val dict = Dict { \"a\": \"hello\", \"b\": \"test\" }",
         "val dict = Dict { \"a\": \"hello\", \"b\": \"test\" }") ])
 
+
 test valueDeclarationsTuples =
   Stdlib.Test.all(
     [ // tuples
@@ -59,11 +61,11 @@ test valueDeclarationsTuples =
       roundTrip("tuple, 3", "val tuple3Val = (1, 2, 3)", "val tuple3Val = (1, 2, 3)")
       // lists
       roundTrip("list, empty", "val emptyList = []", "val emptyList = []")
-      roundTrip("list, int", "val listOfInts = [1, 2, 3]", "val listOfInts = [1, 2, 3]")
+      roundTrip("list, int", "val listOfInts = [1, 2, 3]", "val listOfInts = [ 1, 2, 3 ]")
       roundTrip(
         "list, list, int",
         "val listOfLists = [[1, 2], [3, 4]]",
-        "val listOfLists = [[1, 2], [3, 4]]")
+        "val listOfLists = [ [ 1, 2 ], [ 3, 4 ] ]")
       // records
       // enums
       roundTrip("option, none", "val none = Stdlib.Option.Option.None", "val none = Option.None")

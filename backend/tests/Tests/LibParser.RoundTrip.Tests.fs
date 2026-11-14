@@ -608,8 +608,7 @@ let exprs =
       """Stdlib.Box.set(
   Tests.Person { name = "John", age = 30, hasPet = true },
   "key",
-  TestBox
-)"""
+  TestBox)"""
       [ person ]
       []
       []
@@ -631,7 +630,7 @@ let moduleDeclarations =
   [ t
       "simple module"
       "module MyModule =\n  type ID = Int64"
-      "module MyModule =\n  type ID =\n    Int64"
+      "module MyModule =\n  type ID = Int64"
       []
       []
       []
@@ -640,7 +639,7 @@ let moduleDeclarations =
     t
       "module with types, fns, and vals"
       "module MyModule =\n  type ID = Int64\n  type MyString = String\n  let myFn(i: Int64): Int64 = 1\n  val x = 100"
-      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn(i: Int64): Int64 =\n    1\n\n  val x = 100"
+      "module MyModule =\n  type ID = Int64\n\n  type MyString = String\n\n  let myFn(i: Int64): Int64 =\n    1\n\n  val x = 100"
       []
       []
       []
@@ -649,7 +648,7 @@ let moduleDeclarations =
     t
       "module with types, fns, vals, and newlines"
       "module MyModule =\n  type ID = Int64\n\n  type MyString = String\n\n  let myFn(i: Int64): Int64 = 1\n\n  val x = 100"
-      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn(i: Int64): Int64 =\n    1\n\n  val x = 100"
+      "module MyModule =\n  type ID = Int64\n\n  type MyString = String\n\n  let myFn(i: Int64): Int64 =\n    1\n\n  val x = 100"
       []
       []
       []
@@ -658,7 +657,7 @@ let moduleDeclarations =
     t
       "nested module declaration"
       "module MyModule1 =\n  type ID = Int64\n  module MyModule2 =\n    type ID = Int64\n    module MyModule3 =\n      type ID = Int64\n      val x = 100\n      1"
-      "module MyModule1 =\n  type ID =\n    Int64\n\n  module MyModule2 =\n    type ID =\n      Int64\n\n    module MyModule3 =\n      type ID =\n        Int64\n\n      val x = 100\n\n      1"
+      "module MyModule1 =\n  type ID = Int64\n\n  module MyModule2 =\n    type ID = Int64\n\n    module MyModule3 =\n      type ID = Int64\n\n      val x = 100\n\n      1"
       []
       []
       []
