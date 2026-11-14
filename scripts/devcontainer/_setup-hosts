@@ -2,8 +2,7 @@
 
 set -euo pipefail
 
-# Names the container resolves for itself. Appended once: this runs on every container
-# start and used to add a duplicate line each time.
+# Names the container resolves for itself, appended once: this runs on every container start.
 
 add_host() {
   local ip="$1" name="$2"
@@ -18,9 +17,8 @@ add_host 127.0.0.1 dark-repl.dlio.localhost
 add_host 127.0.0.1 dark-packages.dlio.localhost
 
 # For the SSRF tests in packages/darklang/tests/stdlib/httpclient.dark, which
-# check that a hostname resolving to a banned IP is blocked at connect time. They used
-# to borrow third-party domains; c.cx stopped resolving to 0.0.0.0 and became a real
-# host. `.test` is reserved by RFC 6761, so these can't be registered out from under us.
+# check that a hostname resolving to a banned IP is blocked at connect time. `.test` is
+# reserved by RFC 6761, so these can't be registered out from under us.
 add_host 0.0.0.0 banned-zero.dark.test
 add_host 127.0.0.1 banned-loopback.dark.test
 add_host 10.0.0.1 banned-private.dark.test

@@ -86,8 +86,7 @@ gate_gates_are_clean() {
 # --- perf-probes-run: every perf probe still starts -------------------------------------------
 # The probes under scripts/perf/workloads/probes/ have no other automated caller. When a signature
 # moves underneath one it can raise on its first line and stay that way until somebody goes
-# looking. Three of the nine were in that state for long enough that nobody noticed: they passed
-# five arguments to a `Workbench.initialState` that had been narrowed to four.
+# looking.
 #
 # Run every probe in smoke mode: the same cases with fewer repetitions, not a benchmark. Log
 # elapsed seconds to identify slow checks, but assert only that each probe runs to completion.

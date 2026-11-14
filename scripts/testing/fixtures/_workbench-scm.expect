@@ -31,7 +31,7 @@ spawn $exe
 # genuine first run, and this store has work in it. It has to be something every frame has at
 # expect's 80 columns, where there is no nav strip and the header is just the branch and the
 # instance -- the navbar's `1 Home` is not drawn at that width, and the instance name comes from
-# the hostname. It used to be the header's `who @ where`, which stopped existing when accounts did.
+# the hostname.
 want "╭" "the workbench on startup"
 
 want "needs attention" "Home summarizes what needs you"

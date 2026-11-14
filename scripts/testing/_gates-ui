@@ -68,8 +68,8 @@ gate_workbench_scm() {
 
 # --- workbench-views: every workbench view, with work in the store ------------------------------
 # A field access resolves at RUNTIME in Dark, so a pane reading a shape that moved underneath it
-# is invisible until there is data to draw (the Conflicts pane once took the whole workbench
-# down). Fill the store first -- draft, commits, a branch, a conflict, traces, an identity --
+# is invisible until there is data to draw. Fill the store first -- draft, commits, a branch, a
+# conflict, traces, an identity --
 # then visit every view on its DEFAULT section. Reaching a non-default section is
 # workbench-scm's job; the two are complementary rather than one subsuming the other.
 #

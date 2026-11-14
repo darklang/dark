@@ -120,9 +120,7 @@ def fsharp_paket_install():
   # `paket install` rewrites paket.lock but leaves its own restore caches keyed on
   # the previous graph, and NuGet then treats project.assets.json as current. So
   # changing a pin gave a rewritten lock and a binary built against the old
-  # versions, with nothing anywhere saying so. Found by bumping
-  # SQLitePCLRaw.bundle_e_sqlite3 and watching the advisory for the version I'd
-  # just removed survive two builds.
+  # versions, with nothing anywhere saying so.
   clear = ("rm -f backend/paket-files/paket.restore.cached"
            " && find backend -name '*.paket.references.cached' -delete")
   build = (f"{clear}"

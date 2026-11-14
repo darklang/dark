@@ -2,13 +2,8 @@
 
 # What you see on attaching to the container (devcontainer.json postAttachCommand).
 #
-# A snapshot, and then the live log only if there is one.
-#
-# This used to be an unconditional `tail -n 1000 -F rundir/logs/build-server.log`.
-# `-F` never returns, so every attach hung: VS Code left a terminal spinning, and the
-# devcontainer CLI eventually gave up with "postAttachCommand from devcontainer.json
-# failed" after several minutes. Nothing has written that log since the build server
-# was removed, so it was following a file that would never appear.
+# A snapshot, and then the live log only if there is one. It must return: an attach
+# command that never exits (a bare `tail -F`) hangs every attach.
 #
 # Rebuilding on save is opt-in now, so most of the time there is no live log and a
 # snapshot is the honest thing to show. When you have opted in, following the watcher

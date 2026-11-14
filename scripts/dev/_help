@@ -30,8 +30,6 @@ help_if_asked() {
 }
 
 # Reject a flag we don't know rather than falling through to the default action.
-# `scripts/dev/watch --help` used to start a watcher, because an unrecognised flag
-# left the mode at its default and nothing looked again.
 reject_unknown_flags() {
   local known="$1"; shift
   local arg

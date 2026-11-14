@@ -152,7 +152,7 @@ mkdir -p "$output_base_dir"
 #   DO NOT add SQLITE_OMIT_AUTOINIT — SQLitePCLRaw's provider doesn't call
 #     sqlite3_initialize() explicitly; it relies on SQLite's default
 #     auto-init-on-first-API-call. With OMIT_AUTOINIT we get a segfault on
-#     the first sqlite3_open call. Tested 2026-05-12.
+#     the first sqlite3_open call.
 sqlite_cflags="-Os \
   -DSQLITE_THREADSAFE=1 \
   -DSQLITE_ENABLE_COLUMN_METADATA \

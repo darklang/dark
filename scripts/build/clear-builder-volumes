@@ -2,10 +2,6 @@
 
 # Remove this clone's docker volumes, or every clone's with --all. Run from the host,
 # containers stopped.
-#
-# It used to remove a volume named `dark_build`, which stopped existing when build
-# output became per-clone as `dark_build_<clone>`, and then aborted on the first name
-# that was already gone.
 
 set -euo pipefail
 
