@@ -98,7 +98,7 @@ gate_gates_are_clean() {
 gate_perf_probes_run() {
   set -uo pipefail
 
-  CLI="${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
+  CLI="${CLI:-backend/Build/out/Cli/Debug/net11.0/Cli}"
   [[ -x "$CLI" ]] || { echo "perf-probes-run: no CLI at $CLI" >&2; exit 2; }
 
   shopt -s nullglob

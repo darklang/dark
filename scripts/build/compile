@@ -106,44 +106,8 @@ def backend_test():
   return run_test(start, build)
 
 
-def fsharp_tool_restore():
-  start = time.time()
-  build = "./scripts/build/_dotnet-wrapper tool restore"
-
-  return run_backend(start, build)
-
-
-def fsharp_paket_install():
-  start = time.time()
-  # Both caches have to go, and the restore after has to be forced.
-  #
-  # `paket install` rewrites paket.lock but leaves its own restore caches keyed on
-  # the previous graph, and NuGet then treats project.assets.json as current. So
-  # changing a pin gave a rewritten lock and a binary built against the old
-  # versions, with nothing anywhere saying so. Found by bumping
-  # SQLitePCLRaw.bundle_e_sqlite3 and watching the advisory for the version I'd
-  # just removed survive two builds.
-  clear = ("rm -f backend/paket-files/paket.restore.cached"
-           " && find backend -name '*.paket.references.cached' -delete")
-  build = (f"{clear}"
-           " && ./scripts/build/_dotnet-wrapper paket install"
-           " && ./scripts/build/_dotnet-wrapper restore --force fsdark.sln")
-  return run_backend(start, build)
-
-
-def fsharp_paket_restore():
-  start = time.time()
-  # We run paket restore to match the lock file
-  ci = "--verbose" if in_ci else ""
-  build = f"./scripts/build/_dotnet-wrapper paket restore {ci}"
-  return run_backend(start, build)
-
-
-# Builds are split into
-# - dotnet tool restore: installs build tooling (paket)
-# - dotnet paket restore: installs dependencies from paket.lock
-# - dotnet paket install: installs dependencies from the internet, updates paket.lock
-# - dotnet build: builds executables
+# A full build restores packages, which also rewrites each packages.lock.json when
+# backend/Directory.Packages.props changed. A quick build skips the restore.
 
 # dotnet build is extremely slow by default. You can determine where time is
 # spent by passing `/clp:PerformanceSummary` to `dotnet build`. When I ran it,
@@ -162,7 +126,7 @@ def fsharp_paket_restore():
 
 SEED = "rundir/seed.db"
 STORE = "rundir/data.db"
-DEBUG_LOCAL_EXEC = "backend/Build/out/LocalExec/Debug/net10.0/LocalExec"
+DEBUG_LOCAL_EXEC = "backend/Build/out/LocalExec/Debug/net11.0/LocalExec"
 
 
 def ensure_seed():
@@ -340,19 +304,6 @@ def execute(should, outcome):
       return False
     return True
 
-  if should.fsharp_tool_restore:
-    if step("fsharp_tool_restore", fsharp_tool_restore):
-      should.fsharp_paket_restore = True
-      should.backend_full_build = True
-
-  if should.fsharp_paket_restore:
-    if step("fsharp_paket_restore", fsharp_paket_restore):
-      should.backend_full_build = True
-
-  if should.fsharp_paket_install:
-    if step("fsharp_paket_install", fsharp_paket_install):
-      should.backend_full_build = True
-
   if should.backend_full_build:
     should.backend_quick_build = False  # no need to do both
     if step("backend_full_build", backend_full_build):
@@ -463,9 +414,7 @@ def main():
 
   # The first build has no baseline to diff against, so every file looks new. If that
   # build compiled the whole solution and reloaded every package with nothing
-  # skipped, it is a complete account of the tree, including the few files whose
-  # action only ever runs when they themselves change (paket.dependencies wants
-  # `paket install`, which a from-scratch build has no reason to run).
+  # skipped, it is a complete account of the tree.
   whole_tree = ({"backend_quick_build", "reload_all_packages"}.issubset(satisfied)
                 and not outcome.skipped)
   bootstrap = previous_index is None and whole_tree

@@ -6,7 +6,8 @@
     <IsTrimmable>true</IsTrimmable>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="paket.references" />
+    <PackageReference Include="Ply" />
+    <PackageReference Include="FSharp.Core" />
     <Compile Include="Libs/Directory.fs" />
     <Compile Include="Libs/Environment.fs" />
     <Compile Include="Libs/Output.fs" />
@@ -23,5 +24,4 @@
     <ProjectReference Include="../../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../LibConfig/LibConfig.fsproj" />
   </ItemGroup>
-  <Import Project="..\..\..\.paket\Paket.Restore.targets" />
 </Project>

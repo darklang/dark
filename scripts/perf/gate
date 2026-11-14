@@ -71,7 +71,7 @@ if [[ "$PUBLISHED" == "true" ]]; then
     [[ -x "$EXE" ]] && { assert_release_exe_mode "$EXE" "$WANT_MODE" perf/gate || exit 2; }
   fi
 else
-  EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
+  EXE="backend/Build/out/Cli/Debug/net11.0/Cli"
 fi
 
 if [[ ! -x "$EXE" ]]; then

@@ -25,9 +25,9 @@ LOGS="${HOME}/.darklang/logs"
 MIGRATIONS_LOG="$LOGS/migrations.log"
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  LOCALEXEC_EXE="backend/Build/out/LocalExec/Release/net10.0/publish/LocalExec"
+  LOCALEXEC_EXE="backend/Build/out/LocalExec/Release/net11.0/publish/LocalExec"
 else
-  LOCALEXEC_EXE="backend/Build/out/LocalExec/Debug/net10.0/LocalExec"
+  LOCALEXEC_EXE="backend/Build/out/LocalExec/Debug/net11.0/LocalExec"
 fi
 
 # This runs as a step inside a build, so it can't ask whether the build finished. A

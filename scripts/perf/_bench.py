@@ -51,7 +51,7 @@ def fixture_path(name):
     captured while that side was live."""
     return FIXTURE if name in (None, "default") else os.path.join(PERFDIR, f"fixture-{name}.db")
 BINDIR = os.path.join(PERFDIR, "bin")
-DEBUG_BIN_DIR = os.path.join(ROOT, "backend", "Build", "out", "Cli", "Debug", "net10.0")
+DEBUG_BIN_DIR = os.path.join(ROOT, "backend", "Build", "out", "Cli", "Debug", "net11.0")
 # Default only; the real path depends on which rundir the binary uses. See `rundir_for`.
 TELEMETRY = os.path.join(RUNDIR, "logs", "telemetry.jsonl")
 # Raw measurements are machine-local: they name a binary, a store fixture and a load average that mean

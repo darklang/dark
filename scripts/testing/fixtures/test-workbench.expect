@@ -34,7 +34,7 @@ proc want {pattern what} {
   }
 }
 
-spawn ./backend/Build/out/Cli/Debug/net10.0/Cli
+spawn ./backend/Build/out/Cli/Debug/net11.0/Cli
 
 # 1. it opens on the workbench rather than the classic prompt
 # The frame's top border, not a greeting: Home shows the welcome panel only on a genuine first run.

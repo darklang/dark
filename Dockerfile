@@ -193,9 +193,9 @@ ENV NUGET_XMLDOC_MODE=skip \
     DOTNET_USE_POLLING_FILE_WATCHER=true
 
 RUN /home/dark/install-dotnet \
-  --version=10.0.115 \
-  --arm64-sha256=3d2fc61a3913e3ba65f1c6188f0a193c58eb219c31fdd19a0d07ab2f4ec663fc3c5338ed3382941bac45f666c6c9b58d9082a7464223244e3ca4b18295d164a0 \
-  --amd64-sha256=01bf048cf0495a7ce76be07b9623d385c9d9f172237d0267ded25c31f4b19604d74f1d328d0ee5fe6bcfb23cb20c41fb072c9b84fce6582c20edb1e3d93ea012 \
+  --version=11.0.100 \
+  --arm64-sha256=cfa248bb1377606e868602fb5b4d66fa16b7546156593937d1982f7f2142e6ded76d71c4a26efdab99f87c46ab40c3c672ab1b57ef7fa25449efe5b140a55af4 \
+  --amd64-sha256=1bec9cca2ec689b1e80245b84f2b53c9441d1aa6daccf2ceb27490768bffa95954fa585bd275def31069d874d543d9ba9e6591fe9ade2dbd9f34ec5c0fd0050c \
   # Parts of the SDK nothing here runs: `dotnet format` (fantomas formats), `dotnet watch`
   # (scripts/dev/watch has its own watcher), and the .NET Framework test host, which is
   # Windows-only. Removed in the same layer, or they would still be pulled.

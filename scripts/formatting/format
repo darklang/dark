@@ -101,8 +101,6 @@ all_prettier_files() {
     -o -path "backend" \
     -o -path "backend/static" \
     -o -path "./backend/static" \
-    -o -path "backend/.paket" \
-    -o -path "./backend/.paket" \
     -o -path "backend/Build" \
     -o -path "./backend/Build" \
     \) -prune -false \
@@ -123,8 +121,6 @@ all_fsharp_files() {
     -o -path "rundir" \
     -o -path "./rundir" \
     -o -path "backend" \
-    -o -path "backend/.paket" \
-    -o -path "./backend/.paket" \
     -o -path "backend/Build" \
     -o -path "./backend/Build" \
     \) -prune -false \
@@ -169,7 +165,7 @@ do_prettier() {
 
 # `.dark` is formatted by `dark format`, so it needs the dev CLI built. Only packages/: it is package
 # source, which is what `dark format` reads.
-DARK_CLI=backend/Build/out/Cli/Debug/net10.0/Cli
+DARK_CLI=backend/Build/out/Cli/Debug/net11.0/Cli
 DARK_PATHS=()
 
 # The .dark files under <paths> that scripts/formatting/dark-format-skip doesn't leave as written.

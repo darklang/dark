@@ -10,9 +10,9 @@
     <ProjectReference Include="../../LibExecution/LibExecution.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="paket.references" />
+    <PackageReference Include="Ply" />
+    <PackageReference Include="FSharp.Core" />
     <Compile Include="Libs/RuntimeClock.fs" />
     <Compile Include="Builtin.fs" />
   </ItemGroup>
-  <Import Project="..\..\..\.paket\Paket.Restore.targets" />
 </Project>

@@ -20,7 +20,7 @@ import sys
 
 RUNDIR = "rundir"
 CACHE = os.path.join(RUNDIR, "test-index.txt")
-TESTS_EXE = "backend/Build/out/Tests/Debug/net10.0/Tests"
+TESTS_EXE = "backend/Build/out/Tests/Debug/net11.0/Tests"
 
 # Listing costs a full startup of the test binary (~15s, because building the tree
 # reads every testfile), and the answer only changes when that binary does, so it's

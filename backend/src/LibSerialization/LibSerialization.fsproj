@@ -7,7 +7,7 @@
     <IsTrimmable>true</IsTrimmable>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="paket.references" />
+    <PackageReference Include="FSharp.Core" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
@@ -45,5 +45,4 @@
     <Compile Include="Hashing/Hashing.fs" />
 
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
