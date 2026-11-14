@@ -1,0 +1,30 @@
+// What `dark compile <fn> -o <file>` asks the compiler to build. Needs no compiler.
+module Darklang.Cli.Compile.Tests
+
+test listOfStringsGetsTheArgs =
+  match Darklang.Cli.Compile.entryExpression("Stdlib.Cli.Path.join") with
+  | Ok(expr) ->
+    Stdlib.String.endsWith(
+      expr,
+      "\nDarklang.Stdlib.Cli.Path.join(commandLineArgs(0, []))")
+    |> Stdlib.Test.equal(true)
+  | Error(e) -> Stdlib.Test.fail(e)
+
+
+test noParametersIsJustCalled =
+  Darklang.Cli.Compile.entryExpression("Darklang.Cli.Http.Serve.usageLines")
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Ok("Darklang.Cli.Http.Serve.usageLines()"))
+
+
+test otherSignaturesAreRefused =
+  Darklang.Cli.Compile.entryExpression("Stdlib.String.padStart")
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Error(
+      "Stdlib.String.padStart(string: String, padWith: Char, goalLength: Int64): String can't be an executable yet: it needs to take List<String>, or nothing."))
+
+
+test unknownFn =
+  Darklang.Cli.Compile.entryExpression("Stdlib.NoSuch.fn")
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Error("No package fn named Stdlib.NoSuch.fn."))
