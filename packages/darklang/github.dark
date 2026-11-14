@@ -15,7 +15,7 @@ type ReleaseError =
   /// The request didn't complete: no network, DNS, TLS, a timeout
   | RequestFailed(Stdlib.HttpClient.RequestError)
   /// GitHub answered with a status other than 200
-  | BadStatus(Int64)
+  | BadStatus(Stdlib.Http.Status)
   /// GitHub's answer wasn't the JSON a release has
   | UnexpectedResponse
   | NoReleases
@@ -47,7 +47,7 @@ let __fetchString(url: String): Result<String, ReleaseError> =
   let headers = [ ("accept", "application/vnd.github+json"), ("user-Agent", "darklang") ]
   match Stdlib.HttpClient.get(url, headers) with
   | Ok(r) ->
-    if r.statusCode == 200 then
+    if r.statusCode == Stdlib.Http.Status.ok then
       r.body
       |> Stdlib.Utf8.decodeWithReplacement
       |> Result.Ok
@@ -177,7 +177,8 @@ module Releases =
     | Error(_e) -> Result.Error(ReleaseError.UnsupportedHost)
     | Ok(hostStr) ->
       match __fetchString($"{darklangRepoBaseUrl}/releases/tags/{releaseTag}") with
-      | Error(BadStatus(404)) -> Result.Error(ReleaseError.ReleaseNotFound(releaseTag))
+      | Error(BadStatus(status)) when status == Stdlib.Http.Status.notFound ->
+        Result.Error(ReleaseError.ReleaseNotFound(releaseTag))
       | Error(e) -> Result.Error(e)
       | Ok(releaseJsonString) ->
         match Stdlib.Json.parse<Release>(releaseJsonString) with

@@ -19,7 +19,7 @@ Location: /v0/response-redirect-destination
     {response with headers = respHeaders}) =
   Darklang.Stdlib.HttpClient.Response
     { body = ""
-      statusCode = 302
+      statusCode = Darklang.Stdlib.Http.Status.found
       headers =
         [
           "HTTP/1.1 302 Found" = ""

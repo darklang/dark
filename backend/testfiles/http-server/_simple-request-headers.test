@@ -5,7 +5,7 @@ let body =
   |> Darklang.Stdlib.List.map(fun((k,v)) -> "(\"" + k + "\", \"" + v + "\")")
   |> Darklang.Stdlib.String.join(",\n")
   |> Darklang.Stdlib.Utf8.encode
-Darklang.Stdlib.Http.response(200, body))
+Darklang.Stdlib.Http.response(Darklang.Stdlib.Http.Status.ok, body))
 
 [request]
 GET / HTTP/1.1

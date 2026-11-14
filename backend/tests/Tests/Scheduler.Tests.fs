@@ -1012,12 +1012,12 @@ let private recordFieldThroughShell =
     let! result =
       runWith """let r =
   Stdlib.HttpClient.Response
-    { statusCode = Builtin.testReadOf(95, 200)
+    { statusCode = Builtin.testReadOf(95, Stdlib.Http.Status.ok)
       headers = Builtin.testReadOf(96, [])
       body = Stdlib.Bytes.empty }
 let code = r.statusCode
 let _ = Builtin.testTrace("peeked")
-let c = code + 0
+let c = Stdlib.Http.Status.toInt64(code) + 0
 let _ = Builtin.testTrace("code landed")
 (Stdlib.display(c)) + (Stdlib.display(Stdlib.List.length(r.headers)))""" (fun _ ->
         waitForTrace "the field access did not wait" [ "peeked" ]

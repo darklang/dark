@@ -1,7 +1,7 @@
 module Darklang.Cli.Terminal
 
 /// Samples terminal width and height in one native call.
-let getSize(): (Int64 * Int64) =
+let getSize(): (UInt16 * UInt16) =
   Builtin.cliTerminalSize()
 
 
@@ -12,7 +12,7 @@ let getSize(): (Int64 * Int64) =
 /// sizeable to a pane. `getSize` is the one place the builtin is reached.
 let displayOptions(): PrettyPrinter.DisplayOptions =
   let (cols, _rows) = getSize()
-  PrettyPrinter.DisplayOptions.atWidth(cols)
+  PrettyPrinter.DisplayOptions.atWidth(Stdlib.Int64.fromUInt16(cols))
 
 
 /// The CLI's palette for printed values.

@@ -40,7 +40,9 @@ let evaluateRaw(
     | dv ->
       let (width, _rows) = Terminal.getSize()
       let color = Stdlib.Cli.Sys.isTerminal(1)
-      Result.Ok(Option.Some(Terminal.renderValue(branchId, width, color, currentModule, dv)))
+      Result.Ok(
+        Option.Some(
+          Terminal.renderValue(branchId, Stdlib.Int64.fromUInt16(width), color, currentModule, dv)))
   | Error(error) ->
     match error with
     | Runtime(_, _) -> ExecutionError.printCallStack(branchId, "expression", error)

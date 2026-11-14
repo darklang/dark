@@ -26,7 +26,8 @@ type Layout =
 
 
 let supportsSize(size: Stdlib.Cli.Tui.Size): Bool =
-  size.height >= minimumHeight && size.width >= minimumWidth
+  Stdlib.Int64.fromUInt16(size.height) >= minimumHeight
+  && Stdlib.Int64.fromUInt16(size.width) >= minimumWidth
 
 
 val unsupportedSizeMessage =
@@ -66,7 +67,7 @@ let getSelectedValue(state: State): Option<String> =
 /// Reserve the help row and fit completion items and a scroll indicator above it.
 let layoutAtSize(state: State, size: Stdlib.Cli.Tui.Size): Layout =
   let itemCount = Stdlib.List.length(state.items)
-  let availableRows = Stdlib.max(minimumHeight, size.height)
+  let availableRows = Stdlib.max(minimumHeight, Stdlib.Int64.fromUInt16(size.height))
   let helpRowHeight = 1
   let withoutIndicator = Stdlib.max(1, availableRows - helpRowHeight)
   let initialCapacity = Stdlib.min(maxVisibleItems, withoutIndicator)
@@ -99,7 +100,7 @@ let effectiveOffset(state: State, capacity: Int64): Int64 =
 
 /// Build the complete inline completion region without terminal I/O.
 let viewAtSize(state: State, size: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.View =
-  let width = Stdlib.max(1, size.width)
+  let width = Stdlib.max(1, Stdlib.Int64.fromUInt16(size.width))
   let layout = layoutAtSize(state, size)
   let capacity = layout.itemCapacity
   let offset = effectiveOffset(state, capacity)

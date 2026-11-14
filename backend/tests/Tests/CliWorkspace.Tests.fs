@@ -832,7 +832,7 @@ let private previewOfAServedRequest =
           do!
             author
               "Tests.PrevHttp.router"
-              "(req: Stdlib.Http.Request): Stdlib.Http.Response =\n  let body = Tests.PrevHttp.page()\n  Stdlib.Http.responseWithText(200, body)"
+              "(req: Stdlib.Http.Request): Stdlib.Http.Response =\n  let body = Tests.PrevHttp.page()\n  Stdlib.Http.responseWithText(Stdlib.Http.Status.ok, body)"
 
           do!
             withLiveServer
@@ -879,7 +879,7 @@ let private serveFollowsEdits =
       do!
         author
           "Tests.LiveHttp.router"
-          "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(200, Tests.LiveHttp.page())"
+          "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(Stdlib.Http.Status.ok, Tests.LiveHttp.page())"
 
       do!
         withLiveServer
@@ -941,7 +941,7 @@ let private serveFollowsEdits =
               do!
                 author
                   "Tests.LiveHttp.router"
-                  "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(201, Tests.LiveHttp.page())"
+                  "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(Stdlib.Http.Status.created, Tests.LiveHttp.page())"
               let! (status, _) = getText port
               Expect.equal
                 status
@@ -962,7 +962,7 @@ let private serveFollowsAnEditInsideALambda =
       do!
         author
           "Tests.LiveLambdaHttp.router"
-          "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(200, Stdlib.String.join(Stdlib.List.map([ 1, 2 ], fun n -> Tests.LiveLambdaHttp.part(n)), \",\"))"
+          "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(Stdlib.Http.Status.ok, Stdlib.String.join(Stdlib.List.map([ 1, 2 ], fun n -> Tests.LiveLambdaHttp.part(n)), \",\"))"
 
       do!
         withLiveServer
@@ -1000,7 +1000,7 @@ let private serveFollowsAnEditBehindAVal =
       do!
         author
           "Tests.LiveValHttp.helloFn"
-          "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(200, \"one\")"
+          "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(Stdlib.Http.Status.ok, \"one\")"
       let! _ =
         runCli
           target
@@ -1031,7 +1031,7 @@ let private serveFollowsAnEditBehindAVal =
               do!
                 author
                   "Tests.LiveValHttp.helloFn"
-                  "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(200, \"two\")"
+                  "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(Stdlib.Http.Status.ok, \"two\")"
               let! (status, body) = getText port
               Expect.equal
                 (status, body)
@@ -1214,7 +1214,7 @@ let private viewFollowsEdits =
           | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
           | other -> failtest $"the view did not start: {other}"
 
-        let size = "Darklang.Stdlib.Cli.Tui.Size { width = 40, height = 8 }"
+        let size = "Darklang.Stdlib.Cli.Tui.Size { width = 40u16, height = 8u16 }"
         let! sizeDv = evalUnder state size
         let rowsOf (s : RT.Dval) =
           task {
@@ -1321,7 +1321,7 @@ let private serveFollowsEditsOnABranch =
         do!
           author
             "Tests.LiveBranchHttp.router"
-            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(200, Tests.LiveBranchHttp.page())"
+            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(Stdlib.Http.Status.ok, Tests.LiveBranchHttp.page())"
         do!
           withLiveServer
             state
@@ -1388,7 +1388,9 @@ let private modelSavesAndResumes =
         | RT.DEnum(_, _, _, "Ok", [ s ]) -> s
         | other -> failtest $"the view did not resume: {other}"
       let! sizeDv =
-        evalUnder state "Darklang.Stdlib.Cli.Tui.Size { width = 40, height = 6 }"
+        evalUnder
+          state
+          "Darklang.Stdlib.Cli.Tui.Size { width = 40u16, height = 6u16 }"
       let! rows =
         callByName state "Darklang.Cli.LiveView.Host.plainRows" [ session; sizeDv ]
       Expect.contains
@@ -1510,7 +1512,7 @@ let private aFixedCalleeIsNotAdoptedThroughItsBrokenDependent =
         do!
           author
             $"Tests.{m}.router"
-            $"(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(200, Tests.{m}.page())"
+            $"(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(Stdlib.Http.Status.ok, Tests.{m}.page())"
 
         let routerLoc = "(" + locSource [ m ] "router" + ")"
         let! lg =
@@ -1580,7 +1582,7 @@ let private devStreamReportsAnEditAfterTheServe =
         do!
           author
             "Tests.LiveStream.router"
-            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithHtml(200, Tests.LiveStream.page())"
+            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithHtml(Stdlib.Http.Status.ok, Tests.LiveStream.page())"
         do!
           withLiveServer
             state
@@ -1638,7 +1640,7 @@ let private devErrorPageCarriesTheListener =
         do!
           author
             "Tests.LiveDev.router"
-            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(200, Stdlib.display(1 / 0))"
+            "(req: Stdlib.Http.Request): Stdlib.Http.Response = Stdlib.Http.responseWithText(Stdlib.Http.Status.ok, Stdlib.display(1 / 0))"
         do!
           withLiveServer
             state
@@ -2015,7 +2017,9 @@ let private observeAndShow =
           | other -> failtest $"the view did not prepare: {other}"
         let driver = loopDriver state
         let! sizeDv =
-          evalUnder state "Darklang.Stdlib.Cli.Tui.Size { width = 40, height = 8 }"
+          evalUnder
+            state
+            "Darklang.Stdlib.Cli.Tui.Size { width = 40u16, height = 8u16 }"
         let rowsOf (s : RT.Dval) =
           task {
             let! rows =

@@ -24,7 +24,7 @@ type Screen =
     terminal: Stdlib.Cli.Tui.TerminalSession.State
     bytes: Int64 }
 
-let size = Stdlib.Cli.Tui.Size { width = 120, height = 40 }
+let size = Stdlib.Cli.Tui.Size { width = 120u16, height = 40u16 }
 let noMods = Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false, ctrl = false, shift = false }
 let c = Darklang.Cli.Workbench.component()
 

@@ -282,8 +282,8 @@ let refreshFocusRows(navState: State): State =
 
 /// Calculate navigation regions for the complete terminal viewport.
 let layout(navState: State, size: Stdlib.Cli.Tui.Size): Layout =
-  let width = Stdlib.max(1, size.width)
-  let contentHeight = Stdlib.max(1, size.height)
+  let width = Stdlib.max(1, Stdlib.Int64.fromUInt16(size.width))
+  let contentHeight = Stdlib.max(1, Stdlib.Int64.fromUInt16(size.height))
   let headerHeight =
     match navState.mode with
     | Nav -> 2

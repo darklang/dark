@@ -10,8 +10,8 @@ module Darklang.Stdlib.Cli.Tui
 
 /// Current terminal viewport dimensions.
 type Size =
-  { width: Int64
-    height: Int64 }
+  { width: UInt16
+    height: UInt16 }
 
 
 /// Determines how a logical view occupies the terminal.

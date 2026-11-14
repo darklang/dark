@@ -560,7 +560,7 @@ let private sweepFailure (outcome : Result<string, string>) : Option<string> =
 
 /// One line, because `eval` takes the expression as a single argument.
 let private renderExpr (body : string) : string =
-  "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"test-instance\", Darklang.Cli.Workbench.Updates.Manual) in let s = Darklang.Cli.Workbench.refreshScmStatus(st, st) in let frame = fun(v, w, h) -> (Darklang.Cli.Workbench.viewAtSize({ s with activeView = v }, Darklang.Stdlib.Cli.Tui.Size { width = w, height = h })).rows in "
+  "let st = Darklang.Cli.Workbench.initialState(Darklang.SCM.Branch.mainBranchId, Stdlib.Option.Option.None, \"test-instance\", Darklang.Cli.Workbench.Updates.Manual) in let s = Darklang.Cli.Workbench.refreshScmStatus(st, st) in let frame = fun(v, w, h) -> (Darklang.Cli.Workbench.viewAtSize({ s with activeView = v }, Darklang.Stdlib.Cli.Tui.Size { width = Builtin.unwrap(Stdlib.UInt16.fromInt64(w)), height = Builtin.unwrap(Stdlib.UInt16.fromInt64(h)) })).rows in "
   + ""
   + ""
   + body
@@ -600,7 +600,7 @@ let private hintRowKeepsTheWayOut =
           + ""
           // Tall enough that the hint row is always in frame: a clean tree renders a
           // roomier panel than a draft, so a short frame loses the hints in one store.
-          + $"Stdlib.String.join((Darklang.Cli.Workbench.viewAtSize(s, Darklang.Stdlib.Cli.Tui.Size {{ width = {w}, height = 26 }})).rows, \"\\n\")"
+          + $"Stdlib.String.join((Darklang.Cli.Workbench.viewAtSize(s, Darklang.Stdlib.Cli.Tui.Size {{ width = {w}u16, height = 26u16 }})).rows, \"\\n\")"
 
         // The rule under test is the ORDER things are dropped in, not the width at which
         // dropping starts.
@@ -650,7 +650,7 @@ let private headerKeepsTheBranchWhenNarrow =
           + ""
           + ""
           + ""
-          + $"Stdlib.String.join(Stdlib.List.take((Darklang.Cli.Workbench.viewAtSize(s, Darklang.Stdlib.Cli.Tui.Size {{ width = {w}, height = 4 }})).rows, 1), \"\")"
+          + $"Stdlib.String.join(Stdlib.List.take((Darklang.Cli.Workbench.viewAtSize(s, Darklang.Stdlib.Cli.Tui.Size {{ width = {w}u16, height = 4u16 }})).rows, 1), \"\")"
 
         let! wide = runCli state [ "eval"; row 150 ]
         Expect.stringContains

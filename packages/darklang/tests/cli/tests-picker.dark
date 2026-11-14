@@ -13,7 +13,7 @@ let completionPickerState(itemCount: Int64): CompletionPicker.State =
 
 
 test completionPickerTwoRows =
-  let size = Stdlib.Cli.Tui.Size { width = 80, height = 2 }
+  let size = Stdlib.Cli.Tui.Size { width = 80u16, height = 2u16 }
   let state = completionPickerState(3)
   let layout = CompletionPicker.layoutAtSize(state, size)
   let view = CompletionPicker.viewAtSize(state, size)
@@ -37,10 +37,14 @@ test completionPickerNarrowHelp =
   let help = CompletionPicker.helpTextAtWidth(width)
   if
     CompletionPicker.supportsSize(
-      Stdlib.Cli.Tui.Size { width = width, height = 2 })
+      Stdlib.Cli.Tui.Size
+        { width = Stdlib.UInt16.fromInt64(width) |> Builtin.unwrap
+          height = 2u16 })
     && Stdlib.Bool.not(
       CompletionPicker.supportsSize(
-        Stdlib.Cli.Tui.Size { width = width - 1, height = 2 }))
+        Stdlib.Cli.Tui.Size
+          { width = Stdlib.UInt16.fromInt64(width - 1) |> Builtin.unwrap
+            height = 2u16 }))
     && help == CompletionPicker.minimumHelpText
     && Stdlib.String.displayWidth(help) <= width
   then
@@ -50,7 +54,7 @@ test completionPickerNarrowHelp =
 
 
 test completionPickerLongList =
-  let size = Stdlib.Cli.Tui.Size { width = 80, height = 3 }
+  let size = Stdlib.Cli.Tui.Size { width = 80u16, height = 3u16 }
   let state = completionPickerState(5)
   let layout = CompletionPicker.layoutAtSize(state, size)
   let view = CompletionPicker.viewAtSize(state, size)

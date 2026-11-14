@@ -90,7 +90,7 @@ impl Display for RequestError =
 
 /// The response from a HTTP request
 type Response =
-  { statusCode: Int64
+  { statusCode: Http.Status
     headers: List<(String * String)>
     body: Bytes }
 
@@ -100,7 +100,7 @@ type Response =
 /// The underlying HTTP response is released when the stream is
 /// drained to completion or `Stdlib.Stream.close`d.
 type StreamResponse =
-  { statusCode: Int64
+  { statusCode: Http.Status
     headers: List<(String * String)>
     body: Stream<UInt8> }
 

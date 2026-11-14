@@ -755,7 +755,7 @@ let private serveFollowsApprovalsAndPolicy (flags : List<string>) =
         do!
           author
             "Tests.Follow.router"
-            "(req: Stdlib.Http.Request): Stdlib.Http.Response =\n  Stdlib.Http.responseWithText(200, Tests.Follow.load())"
+            "(req: Stdlib.Http.Request): Stdlib.Http.Response =\n  Stdlib.Http.responseWithText(Stdlib.Http.Status.ok, Tests.Follow.load())"
         let! (committed, code) =
           CliInstance.runWithExit i [ "commit"; "Tests.Follow"; "-y" ]
         Expect.equal code 0L $"committed:\n{committed}"
