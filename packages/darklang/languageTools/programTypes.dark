@@ -323,7 +323,7 @@ type Expr =
     fields: List<Expr>)
 
   // declaring and accessing variables
-  | ELet(ID, LetPattern, Expr, Expr)
+  | ELet(ID, LetPattern, Option<TypeReference>, Expr, Expr)
   | ERecordFieldAccess(ID, Expr, String)
   | EVariable(ID, String)
   | EArg(ID, Int64)
@@ -397,7 +397,7 @@ module Expr =
     | EDecimal(id, _)
     | EChar(id, _)
     | EString(id, _)
-    | ELet(id, _, _, _)
+    | ELet(id, _, _, _, _)
     | EIf(id, _, _, _)
     | EInfix(id, _, _, _, _)
     | ELambda(id, _, _)

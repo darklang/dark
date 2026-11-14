@@ -361,10 +361,14 @@ and private reResolveExpr
         Ply.List.mapSequentially (reResolveMatchCase contextModules pm) cases
       return PT.EMatch(id, arg, cases)
 
-    | PT.ELet(id, pat, value, body) ->
+    | PT.ELet(id, pat, typ, value, body) ->
+      let! typ =
+        match typ with
+        | Some t -> reResolveTypeRef contextModules pm t |> Ply.map Some
+        | None -> Ply None
       let! value = reResolveExpr contextModules pm value
       let! body = reResolveExpr contextModules pm body
-      return PT.ELet(id, pat, value, body)
+      return PT.ELet(id, pat, typ, value, body)
 
     | PT.EList(id, items) ->
       let! items = Ply.List.mapSequentially (reResolveExpr contextModules pm) items

@@ -350,8 +350,14 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
       cases |> List.map (transformMatchCase mapping)
     )
 
-  | PT.ELet(id, pat, value, body) ->
-    PT.ELet(id, pat, transformExpr mapping value, transformExpr mapping body)
+  | PT.ELet(id, pat, typ, value, body) ->
+    PT.ELet(
+      id,
+      pat,
+      typ |> Option.map (transformTypeRef mapping),
+      transformExpr mapping value,
+      transformExpr mapping body
+    )
 
   | PT.EList(id, items) -> PT.EList(id, items |> List.map (transformExpr mapping))
 

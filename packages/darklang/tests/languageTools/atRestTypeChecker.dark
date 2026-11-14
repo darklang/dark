@@ -351,10 +351,12 @@ module BindingIds =
     LanguageTools.ProgramTypes.Expr.ELet(
       1,
       LanguageTools.ProgramTypes.LetPattern.LPVariable(2, "x"),
+      Option.None,
       intExpr(3, 1),
       LanguageTools.ProgramTypes.Expr.ELet(
         4,
         LanguageTools.ProgramTypes.LetPattern.LPVariable(secondId, "y"),
+        Option.None,
         LanguageTools.ProgramTypes.Expr.EString(
           6,
           [ LanguageTools.ProgramTypes.StringSegment.StringText("s") ]),
@@ -437,6 +439,7 @@ module InferenceIds =
         LanguageTools.ProgramTypes.LetPattern.LPVariable(3, "a"),
         LanguageTools.ProgramTypes.LetPattern.LPVariable(4, "b"),
         []),
+      Option.None,
       LanguageTools.ProgramTypes.Expr.ETuple(
         5,
         projection(10),
@@ -535,6 +538,7 @@ module ConstructorDeclarations =
        LanguageTools.ProgramTypes.Expr.ELet(
          3,
          LanguageTools.ProgramTypes.LetPattern.LPWildcard(4),
+         Option.None,
          construction,
          intExpr(5, 1))
      checkFunctionAst([ typ ], oneArg(tUnit(), tInt(), body)))
@@ -575,6 +579,7 @@ module LambdaArgumentSlots =
             LanguageTools.ProgramTypes.Expr.ELet(
               13,
               LanguageTools.ProgramTypes.LetPattern.LPWildcard(14),
+              Option.None,
               lambda(),
               unitExpr(15))))
         |> Stdlib.Test.equal("failed:InvalidArgumentIndex")
@@ -2908,6 +2913,7 @@ module Ambiguity =
            LanguageTools.ProgramTypes.Expr.ELet(
              1,
              LanguageTools.ProgramTypes.LetPattern.LPWildcard(2),
+             Option.None,
              LanguageTools.ProgramTypes.Expr.EApply(
                3,
                LanguageTools.ProgramTypes.Expr.ELambda(
@@ -3449,6 +3455,7 @@ module Lets =
           LanguageTools.ProgramTypes.LetPattern.LPVariable(82, "x"),
           LanguageTools.ProgramTypes.LetPattern.LPVariable(83, "x"),
           []),
+        Option.None,
         value,
         LanguageTools.ProgramTypes.Expr.EVariable(84, "x")))
 
@@ -4503,3 +4510,17 @@ module FunctionArgumentCountDiagnostics =
     issues("let f(s: String): String = s |> Stdlib.String.trimEnd(\"/\")", "f")
     |> Stdlib.Test.equal(
       [ "TooManyArguments: Stdlib.String.trimEnd takes 1 argument, but 2 were given" ])
+
+
+module LetAnnotations =
+  test annotatedLets =
+    Stdlib.Test.all(
+      [ check("let f(): UInt8 =\n  let x: UInt8 = 1u8\n  x", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f(): Int64 =\n  let x: String = 1\n  0", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        // the annotation, not the value, is what the body sees
+        check("let f(): String =\n  let x: Int64 = 1\n  x", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])

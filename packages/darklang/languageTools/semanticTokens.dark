@@ -951,9 +951,12 @@ module Expr =
 
     // let x = 2
     // x + 1
-    | ELet(_range, lp, expr, body, keywordLet, symbolEquals) ->
+    | ELet(_range, lp, typ, expr, body, keywordLet, symbolEquals) ->
       [ [ makeToken(keywordLet, TokenType.Keyword) ]
         LetPattern.tokenize(lp)
+        (match typ with
+         | Some(t) -> TypeReference.tokenize(t)
+         | None -> [])
         [ makeToken(symbolEquals, TokenType.Symbol) ]
         Expr.tokenize(expr)
         Expr.tokenize(body) ]

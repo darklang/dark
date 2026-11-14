@@ -708,7 +708,7 @@ module Expr =
         let! body = toPT finalContext body
         let patsNel = neListOrSingleton (PT.LPUnit(gid ())) ptPats
         return PT.ELambda(id, patsNel, body)
-      | WT.ELet(_, pat, rhs, body, _, _) ->
+      | WT.ELet(_, pat, typ, rhs, body, _, _) ->
         let id = gid ()
         // A let binder is not in scope in its rhs. For a let-bound lambda, an
         // unresolved reference to the binding name therefore stays EVariable
@@ -725,10 +725,14 @@ module Expr =
             ->
             { context with currentFnName = None }
           | _ -> context
+        let! typ =
+          match typ with
+          | Some t -> typeRefToPT t |> Ply.map Some
+          | None -> Ply None
         let! rhs = toPT rhsContext rhs
         let (newContext, ptPat) = LetPattern.toPT context pat
         let! body = toPT newContext body
-        return PT.ELet(id, ptPat, rhs, body)
+        return PT.ELet(id, ptPat, typ, rhs, body)
       | WT.EUnwrap(_, operand, _) ->
         let id = gid ()
         let! operand = toPT context operand

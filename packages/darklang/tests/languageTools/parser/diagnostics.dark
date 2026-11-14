@@ -207,10 +207,6 @@ test goldenMessages =
         "print(1); print(2)",
         [ "expected a new line between statements, found ';'" ])
 
-      golden(
-        "let x : String = 1 in x",
-        [ "Value annotations are not supported" ])
-
       golden("val x : String = 1", [ "Value annotations are not supported" ]) ])
 
 

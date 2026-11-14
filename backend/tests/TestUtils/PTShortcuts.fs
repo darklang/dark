@@ -55,7 +55,7 @@ let lpTuple
   : LetPattern =
   LPTuple(gid (), first, second, theRest)
 let eLet (pat : LetPattern) (value : Expr) (body : Expr) : Expr =
-  ELet(gid (), pat, value, body)
+  ELet(gid (), pat, None, value, body)
 let eVar (name : string) : Expr = EVariable(gid (), name)
 let eArg (index : int) : Expr = EArg(gid (), index)
 

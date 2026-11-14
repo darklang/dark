@@ -460,22 +460,27 @@ module ProgramTypes =
         LPTuple(id, LPVariable(id, "x1"), LPVariable(id, "x2"), []),
         [ LPTuple(id, LPVariable(id, "x3"), LPVariable(id, "x4"), []) ]
       ),
+      None,
       EInt64(id, 5L),
       ELet(
         id,
         LPVariable(id, "x2"),
+        Some(TList TUInt8),
         EInt64(id, 9223372036854775807L),
         ELet(
           id,
           LPVariable(id, "bool"),
+          None,
           EBool(id, true),
           ELet(
             id,
             LPVariable(id, "bool"),
+            None,
             EBool(id, false),
             ELet(
               id,
               LPVariable(id, "str"),
+              None,
               EString(
                 id,
                 [ StringText "a string"; StringInterpolation(EVariable(id, "var")) ]
@@ -483,18 +488,22 @@ module ProgramTypes =
               ELet(
                 id,
                 LPVariable(id, "char"),
+                None,
                 EChar(id, "a"),
                 ELet(
                   id,
                   LPVariable(id, "float"),
+                  None,
                   EFloat64(id, Negative, "6", "5"),
                   ELet(
                     id,
                     LPVariable(id, "n"),
+                    None,
                     // An uncalled fn reference with type args.
                     ELet(
                       id,
                       LPVariable(id, "specialised"),
+                      None,
                       EFnName(
                         id,
                         NameResolution.ok (
@@ -508,6 +517,7 @@ module ProgramTypes =
                     ELet(
                       id,
                       LPVariable(id, "i"),
+                      None,
                       EIf(
                         id,
                         EApply(
@@ -589,6 +599,7 @@ module ProgramTypes =
                       ELet(
                         id,
                         LPVariable(id, "r"),
+                        None,
                         ERecord(
                           id,
                           NameResolution.ok (FQTypeName.Package hashPT),
@@ -638,6 +649,7 @@ module ProgramTypes =
                         ELet(
                           id,
                           LPVariable(id, "updatedR"),
+                          None,
                           ERecordUpdate(
                             id,
                             EVariable(id, "r"),
@@ -646,6 +658,7 @@ module ProgramTypes =
                           ELet(
                             id,
                             LPVariable(id, "m"),
+                            None,
                             EMatch(
                               id,
                               EApply(
@@ -750,6 +763,7 @@ module ProgramTypes =
                             ELet(
                               id,
                               LPVariable(id, "f"),
+                              None,
                               EIf(
                                 id,
                                 EBool(id, true),
@@ -759,14 +773,17 @@ module ProgramTypes =
                               ELet(
                                 id,
                                 LPVariable(id, "partials"),
+                                None,
                                 EList(id, []),
                                 ELet(
                                   id,
                                   LPVariable(id, "tuples"),
+                                  None,
                                   ETuple(id, e, e, [ e ]),
                                   ELet(
                                     id,
                                     LPVariable(id, "binopAnd"),
+                                    None,
                                     EInfix(
                                       id,
                                       BinOp(BinOpAnd),
@@ -777,6 +794,7 @@ module ProgramTypes =
                                     ELet(
                                       id,
                                       LPVariable(id, "dict"),
+                                      None,
                                       EDict(
                                         id,
                                         [ (EString(id, [ StringText "a string" ]),
@@ -785,30 +803,37 @@ module ProgramTypes =
                                       ELet(
                                         id,
                                         LPVariable(id, "int8"),
+                                        None,
                                         EInt8(id, 127y),
                                         ELet(
                                           id,
                                           LPVariable(id, "uint8"),
+                                          None,
                                           EUInt8(id, 255uy),
                                           ELet(
                                             id,
                                             LPVariable(id, "int16"),
+                                            None,
                                             EInt16(id, 32767s),
                                             ELet(
                                               id,
                                               LPVariable(id, "uint16"),
+                                              None,
                                               EUInt16(id, 65535us),
                                               ELet(
                                                 id,
                                                 LPVariable(id, "int32"),
+                                                None,
                                                 EInt32(id, 2147483647l),
                                                 ELet(
                                                   id,
                                                   LPVariable(id, "uint32"),
+                                                  None,
                                                   EUInt32(id, 4294967295ul),
                                                   ELet(
                                                     id,
                                                     LPVariable(id, "int128"),
+                                                    None,
                                                     EInt128(
                                                       id,
                                                       170141183460469231731687303715884105727Q
@@ -816,6 +841,7 @@ module ProgramTypes =
                                                     ELet(
                                                       id,
                                                       LPVariable(id, "uint128"),
+                                                      None,
                                                       EUInt128(
                                                         id,
                                                         340282366920938463463374607431768211455Z
@@ -823,6 +849,7 @@ module ProgramTypes =
                                                       ELet(
                                                         id,
                                                         LPVariable(id, "uint64"),
+                                                        None,
                                                         EUInt64(
                                                           id,
                                                           18446744073709551615UL
@@ -830,6 +857,7 @@ module ProgramTypes =
                                                         ELet(
                                                           id,
                                                           LPVariable(id, "statement"),
+                                                          None,
                                                           EStatement(
                                                             id,
                                                             EUnit id,

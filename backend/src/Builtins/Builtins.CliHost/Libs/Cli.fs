@@ -1080,6 +1080,7 @@ let executeWith
           PT.ELet(
             gid (),
             PT.LPWildcard(gid ()),
+            None,
             PT.EValue(
               gid (),
               PT.NameResolution.ok (PT.FQValueName.Package value.hash)

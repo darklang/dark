@@ -428,7 +428,7 @@ module Test =
         if n > best then n else best)
 
     match body with
-    | ELet(_, _, _, next) -> testCount(next)
+    | ELet(_, _, _, _, next) -> testCount(next)
     | EStatement(_, _, next) -> testCount(next)
     | EApply(_, EFnName(_, name, _, _), _, [EList(_, items)]) when __isAll(name) -> sum(items)
     | EPipe(_, EList(_, items), [EPipeFnCall(_, name, _, [], _)]) when __isAll(name) -> sum(items)
