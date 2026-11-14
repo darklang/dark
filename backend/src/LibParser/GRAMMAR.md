@@ -255,9 +255,9 @@ reference.
 A nested function let lowers to a let-bound lambda. Each parameter must be
 annotated, as in a top-level fn; the return annotation is optional. Both are
 dropped when it lowers, so neither is checked.
-Local bindings and value declarations do not accept annotations. Write
-`let x = value` locally or `val x = value` at declaration scope, without
-`: Type`.
+A local binding may be annotated: `let x: UInt8 = 0`. The annotation is
+stored and checked. Value declarations do not accept annotations: write
+`val x = value`, without `: Type`.
 
 ### Enum constructors
 

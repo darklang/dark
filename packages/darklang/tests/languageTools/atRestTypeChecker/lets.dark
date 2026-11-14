@@ -500,6 +500,7 @@ module Lets =
           LanguageTools.ProgramTypes.LetPattern.LPVariable(82, "x"),
           LanguageTools.ProgramTypes.LetPattern.LPVariable(83, "x"),
           []),
+        Option.None,
         value,
         LanguageTools.ProgramTypes.Expr.EVariable(84, "x")))
 
@@ -527,3 +528,17 @@ module Lets =
           Stdlib.Option.Option.Some(
             LanguageTools.ProgramTypes.Expr.ETuple(90, arg(91), arg(92), [])))))
     |> Stdlib.Test.equal("failed:DuplicatePatternBinding")
+
+
+module LetAnnotations =
+  test annotatedLets =
+    Stdlib.Test.all(
+      [ check("let f(): UInt8 =\n  let x: UInt8 = 1u8\n  x", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f(): Int64 =\n  let x: String = 1\n  0", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        // the annotation, not the value, is what the body sees
+        check("let f(): String =\n  let x: Int64 = 1\n  x", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])

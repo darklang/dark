@@ -539,7 +539,7 @@ module UnwrapReturnCheck =
       | _ -> None
     match expr with
     | PT.EEnum(_, name, _, _, _) -> optionOrResultType name
-    | PT.ELet(_, _, _, body) -> fromBody body
+    | PT.ELet(_, _, _, _, body) -> fromBody body
     | PT.EStatement(_, _, next) -> fromBody next
     | PT.EIf(_, _, thenExpr, Some elseExpr) -> fromBranches [ thenExpr; elseExpr ]
     | PT.EMatch(_, _, cases) -> cases |> List.map _.rhs |> fromBranches
@@ -579,9 +579,9 @@ module Expr =
     // mutual recursion between nested fns.
     let rec laterNestedFnNames (e : PT.Expr) : Set<string> =
       match e with
-      | PT.ELet(_, PT.LPVariable(_, n), PT.ELambda _, rest) ->
+      | PT.ELet(_, PT.LPVariable(_, n), _, PT.ELambda _, rest) ->
         Set.add n (laterNestedFnNames rest)
-      | PT.ELet(_, _, _, rest) -> laterNestedFnNames rest
+      | PT.ELet(_, _, _, _, rest) -> laterNestedFnNames rest
       | _ -> Set.empty
 
     // Compile a lambda. If `selfNameCandidate` is set and the body uses that
@@ -844,7 +844,7 @@ module Expr =
     // whether the body actually recurses on `f` (vs. shadowing by a param, or
     // rebinding an outer `f`, which capture instead), then bind `f` for the
     // continuation.
-    | PT.ELet(_id, PT.LPVariable(_, name), (PT.ELambda(lid, pats, lbody)), cont) ->
+    | PT.ELet(_id, PT.LPVariable(_, name), _, (PT.ELambda(lid, pats, lbody)), cont) ->
       let lambdaInstrs =
         compileLambda symbols rc lid pats lbody (Some name) (laterNestedFnNames cont)
       let symbols = Map.add name lambdaInstrs.resultIn symbols
@@ -854,7 +854,7 @@ module Expr =
         resultIn = contInstrs.resultIn }
 
     // let x = 1
-    | PT.ELet(_id, pat, expr, body) ->
+    | PT.ELet(_id, pat, _, expr, body) ->
       let exprInstrs = toRT symbols rc currentFnName expr
       let patInstr, newSymbols, rcAfterPat =
         LetPattern.toInstr exprInstrs.resultIn exprInstrs.registerCount pat

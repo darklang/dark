@@ -562,10 +562,17 @@ module Expr =
       w.Write 15uy
       w.Write id
       NameResolution.write FQValueName.write w nameRes
-    | ELet(id, pattern, rhs, body) ->
+    | ELet(id, pattern, None, rhs, body) ->
       w.Write 16uy
       w.Write id
       LetPattern.write w pattern
+      write w rhs
+      write w body
+    | ELet(id, pattern, Some typ, rhs, body) ->
+      w.Write 39uy
+      w.Write id
+      LetPattern.write w pattern
+      TypeReference.write w typ
       write w rhs
       write w body
     | EIf(id, cond, thenExpr, elseExpr) ->
@@ -772,7 +779,14 @@ module Expr =
       let pattern = LetPattern.read r
       let rhs = read r
       let body = read r
-      ELet(id, pattern, rhs, body)
+      ELet(id, pattern, None, rhs, body)
+    | 39uy ->
+      let id = r.ReadUInt64()
+      let pattern = LetPattern.read r
+      let typ = TypeReference.read r
+      let rhs = read r
+      let body = read r
+      ELet(id, pattern, Some typ, rhs, body)
     | 17uy ->
       let id = r.ReadUInt64()
       let cond = read r

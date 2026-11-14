@@ -712,6 +712,7 @@ module Ambiguity =
            LanguageTools.ProgramTypes.Expr.ELet(
              1,
              LanguageTools.ProgramTypes.LetPattern.LPWildcard(2),
+             Option.None,
              LanguageTools.ProgramTypes.Expr.EApply(
                3,
                LanguageTools.ProgramTypes.Expr.ELambda(

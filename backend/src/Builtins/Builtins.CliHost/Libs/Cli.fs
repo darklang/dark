@@ -416,9 +416,9 @@ let private callsToLaterNestedFns
         if m.sourceRanges.ContainsKey id then id else PT.Expr.toID e)
   let rec nestedFns (e : PT.Expr) : List<string * PT.Expr> =
     match e with
-    | PT.ELet(_, PT.LPVariable(_, name), PT.ELambda(_, _, body), rest) ->
+    | PT.ELet(_, PT.LPVariable(_, name), _, PT.ELambda(_, _, body), rest) ->
       (name, body) :: nestedFns rest
-    | PT.ELet(_, _, _, rest)
+    | PT.ELet(_, _, _, _, rest)
     | PT.EStatement(_, _, rest) -> nestedFns rest
     | _ -> []
   let rec firstLaterCall (fns : List<string * PT.Expr>) =
@@ -436,7 +436,7 @@ let private callsToLaterNestedFns
       | _ :: _, PT.ELambda(_, _, body) -> body
       | _ -> e
     match e with
-    | PT.ELet(letId, pat, value, rest) ->
+    | PT.ELet(letId, pat, _, value, rest) ->
       match value, firstLaterCall (nestedFns rest) with
       | PT.ELambda _, _
       | _, None -> None
@@ -1170,6 +1170,7 @@ let executeWith
           PT.ELet(
             gid (),
             PT.LPWildcard(gid ()),
+            None,
             PT.EValue(
               gid (),
               PT.NameResolution.ok (PT.FQValueName.Package value.hash)

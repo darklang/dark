@@ -182,10 +182,10 @@ module Hashing =
     | PT.EVariable(id, name) -> PT.EVariable(id, lookup env name)
 
     // binders
-    | PT.ELet(id, pat, rhs, body) ->
+    | PT.ELet(id, pat, typ, rhs, body) ->
       let rhs = norm c env rhs // `let` is non-recursive: the rhs is in the OUTER scope
       let m = bind c (letPatternVars pat)
-      PT.ELet(id, renameLetPattern m pat, rhs, norm c (mergeEnv env m) body)
+      PT.ELet(id, renameLetPattern m pat, typ, rhs, norm c (mergeEnv env m) body)
     | PT.ELambda(id, pats, body) ->
       let m = bind c (pats |> NEList.toList |> List.collect letPatternVars)
       PT.ELambda(
@@ -299,7 +299,7 @@ module Hashing =
     let lambdaVars pats = pats |> NEList.toList |> List.collect letPatternVars
     let own =
       match e with
-      | PT.ELet(_, pat, _, _) -> letPatternVars pat
+      | PT.ELet(_, pat, _, _, _) -> letPatternVars pat
       | PT.ELambda(_, pats, _) -> lambdaVars pats
       | PT.EMatch(_, _, cases) ->
         cases |> List.collect (fun c -> matchPatternVars c.pat)

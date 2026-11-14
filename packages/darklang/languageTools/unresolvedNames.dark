@@ -48,7 +48,8 @@ let inExpr(expr: ProgramTypes.Expr): List<String> =
     Stdlib.List.flatten([ inExpr(cond), inExpr(thenExpr), inOptionalExpr(elseExpr) ])
   | EPipe(_, lhs, parts) -> Stdlib.List.concat(inExpr(lhs), inPipeExprs(parts))
   | EMatch(_, arg, cases) -> Stdlib.List.concat(inExpr(arg), inMatchCases(cases))
-  | ELet(_, _, value, body) -> Stdlib.List.concat(inExpr(value), inExpr(body))
+  | ELet(_, _, typ, value, body) ->
+    Stdlib.List.flatten([ inTypeRefs(Stdlib.Option.toList(typ)), inExpr(value), inExpr(body) ])
   | EList(_, items) -> inExprs(items)
   // As the F# walk: only the values, never the keys.
   | EDict(_, pairs) -> inExprs(Stdlib.List.map(pairs, fun((_, e)) -> e))

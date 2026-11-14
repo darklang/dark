@@ -2098,6 +2098,7 @@ and parseLet (state : ParserState) (i : int) : WT.Expr * int =
     (WT.ELet(
       span keywordLet (WT.exprRange body),
       pat,
+      None,
       lambda,
       body,
       keywordLet,
@@ -2105,20 +2106,12 @@ and parseLet (state : ParserState) (i : int) : WT.Expr * int =
      ),
      p)
   | _ ->
-    // Local value annotations are not part of Dark. Consume the type for recovery,
-    // but reject the source instead of silently discarding it.
-    let afterAnno =
+    let (typeAnnotation, afterAnno) =
       if tok state j = TColon then
-        state.diagnostics.Add
-          { code = DiagnosticCode.unexpected
-            severity = DiagError
-            range = rng state j
-            message = "Value annotations are not supported"
-            related = []
-            hint = Some "remove ': Type' from this value binding" }
-        snd (parseTypeRef state (j + 1))
+        let (typ, k) = parseTypeRef state (j + 1)
+        (Some typ, k)
       else
-        j
+        (None, j)
     let (symbolEquals, k) =
       if tok state afterAnno = TEquals then
         (rng state afterAnno, afterAnno + 1)
@@ -2133,7 +2126,7 @@ and parseLet (state : ParserState) (i : int) : WT.Expr * int =
     let m = if tok state m = TIn then m + 1 else m
     let (body, p) = parseBlock state m
     let range = span keywordLet (rng state (p - 1))
-    (WT.ELet(range, pat, value, body, keywordLet, symbolEquals), p)
+    (WT.ELet(range, pat, typeAnnotation, value, body, keywordLet, symbolEquals), p)
 
 // left-assoc binary level
 // --- infix expressions: one precedence-climbing loop ---
