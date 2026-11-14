@@ -111,10 +111,10 @@ test toString =
       Stdlib.display(4294967295u32) |> Stdlib.Test.equal("4294967295") ])
 
 
-test toFloat =
+test toFloat64 =
   Stdlib.Test.all(
-    [ Stdlib.UInt32.toFloat(2u32) |> Stdlib.Test.equal(2.0)
-      Stdlib.UInt32.toFloat(0u32) |> Stdlib.Test.equal(0.0) ])
+    [ Stdlib.UInt32.toFloat64(2u32) |> Stdlib.Test.equal(2.0)
+      Stdlib.UInt32.toFloat64(0u32) |> Stdlib.Test.equal(0.0) ])
 
 
 test sqrt =

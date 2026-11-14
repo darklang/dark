@@ -112,10 +112,10 @@ test toString =
       Stdlib.display(255u8) |> Stdlib.Test.equal("255") ])
 
 
-test toFloat =
+test toFloat64 =
   Stdlib.Test.all(
-    [ Stdlib.UInt8.toFloat(2u8) |> Stdlib.Test.equal(2.0)
-      Stdlib.UInt8.toFloat(0u8) |> Stdlib.Test.equal(0.0) ])
+    [ Stdlib.UInt8.toFloat64(2u8) |> Stdlib.Test.equal(2.0)
+      Stdlib.UInt8.toFloat64(0u8) |> Stdlib.Test.equal(0.0) ])
 
 
 test sqrt =

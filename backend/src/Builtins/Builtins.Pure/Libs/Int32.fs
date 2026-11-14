@@ -10,14 +10,14 @@ module RTE = RuntimeError
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "int32ToFloat" 0
+  [ { name = fn "int32ToFloat64" 0
       typeParams = []
       parameters = [ Param.make "a" TInt32 "" ]
-      returnType = TFloat
-      description = "Converts an <type Int32> to a <type Float>"
+      returnType = TFloat64
+      description = "Converts an <type Int32> to a <type Float64>"
       fn =
         (function
-        | _, _, _, [| DInt32 a |] -> Ply(DFloat(float a))
+        | _, _, _, [| DInt32 a |] -> Ply(DFloat64(float a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

@@ -110,7 +110,7 @@ module TypeReference =
     | PT.TUInt128 -> RT.TUInt128
     | PT.TBigInt -> RT.TBigInt
 
-    | PT.TFloat -> RT.TFloat
+    | PT.TFloat64 -> RT.TFloat64
     | PT.TFloat32 -> RT.TFloat32
     | PT.TDecimal -> RT.TDecimal
 
@@ -155,7 +155,7 @@ module TypeReference =
     | PT.TInt128 -> RT.ValueType.Known RT.KTInt128
     | PT.TUInt128 -> RT.ValueType.Known RT.KTUInt128
     | PT.TBigInt -> RT.ValueType.Known RT.KTBigInt
-    | PT.TFloat -> RT.ValueType.Known RT.KTFloat
+    | PT.TFloat64 -> RT.ValueType.Known RT.KTFloat64
     | PT.TFloat32 -> RT.ValueType.Known RT.KTFloat32
     | PT.TDecimal -> RT.ValueType.Known RT.KTDecimal
     | PT.TChar -> RT.ValueType.Known RT.KTChar
@@ -275,8 +275,8 @@ module MatchPattern =
     | PT.MPUInt128(_, i) -> RT.MPUInt128 i, symbols, rc
     | PT.MPBigInt(_, i) -> RT.MPBigInt i, symbols, rc
 
-    | PT.MPFloat(_, sign, whole, frac) ->
-      RT.MPFloat(makeFloat sign whole frac), symbols, rc
+    | PT.MPFloat64(_, sign, whole, frac) ->
+      RT.MPFloat64(makeFloat sign whole frac), symbols, rc
     | PT.MPFloat32(_, sign, whole, frac) ->
       RT.MPFloat32(makeFloat32 sign whole frac), symbols, rc
 
@@ -405,7 +405,7 @@ module MatchPattern =
             | RT.MPInt128 i -> RT.MPInt128 i
             | RT.MPUInt128 i -> RT.MPUInt128 i
             | RT.MPBigInt i -> RT.MPBigInt i
-            | RT.MPFloat f -> RT.MPFloat f
+            | RT.MPFloat64 f -> RT.MPFloat64 f
             | RT.MPFloat32 f -> RT.MPFloat32 f
             | RT.MPDecimal d -> RT.MPDecimal d
             | RT.MPChar c -> RT.MPChar c
@@ -734,10 +734,10 @@ module Expr =
     | PT.EUInt64(_id, num) -> justLoadDval (RT.DUInt64 num)
     | PT.EUInt128(_id, num) -> justLoadDval (RT.DUInt128 num)
 
-    | PT.EFloat(_id, sign, whole, fraction) ->
+    | PT.EFloat64(_id, sign, whole, fraction) ->
       let whole = if whole = "" then "0" else whole
       let fraction = if fraction = "" then "0" else fraction
-      justLoadDval (RT.DFloat(makeFloat sign whole fraction))
+      justLoadDval (RT.DFloat64(makeFloat sign whole fraction))
     | PT.EFloat32(_id, sign, whole, fraction) ->
       let whole = if whole = "" then "0" else whole
       let fraction = if fraction = "" then "0" else fraction

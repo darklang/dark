@@ -41,7 +41,7 @@ let fromRuntimeType(typ: RuntimeTypes.TypeReference): ProgramTypes.TypeReference
   | TInt128 -> ProgramTypes.TypeReference.TInt128
   | TUInt128 -> ProgramTypes.TypeReference.TUInt128
   | TBigInt -> ProgramTypes.TypeReference.TBigInt
-  | TFloat -> ProgramTypes.TypeReference.TFloat
+  | TFloat64 -> ProgramTypes.TypeReference.TFloat64
   | TFloat32 -> ProgramTypes.TypeReference.TFloat32
   | TDecimal -> ProgramTypes.TypeReference.TDecimal
   | TChar -> ProgramTypes.TypeReference.TChar

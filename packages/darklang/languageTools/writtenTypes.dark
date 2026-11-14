@@ -74,7 +74,7 @@ module TypeReference =
     | TInt128(Range)
     | TUInt128(Range)
     | TBigInt(Range)
-    | TFloat(Range)
+    | TFloat64(Range)
     | TFloat32(Range)
     | TDecimal(Range)
     | TChar(Range)
@@ -164,7 +164,7 @@ type MatchPattern =
   | MPInt128(Range, intPart: Range * Int128, suffixPart: Range)
   | MPUInt128(Range, intPart: Range * UInt128, suffixPart: Range)
   | MPBigInt(Range, intPart: Range * BigInt)
-  | MPFloat(Range, Sign, String, String)
+  | MPFloat64(Range, Sign, String, String)
   | MPFloat32(Range, Sign, String, String)
   | MPDecimal(Range, Decimal)
   | MPChar(
@@ -293,7 +293,7 @@ type Expr =
   | EInt128(Range, intPart: Range * Int128, suffixPart: Range)
   | EUInt128(Range, intPart: Range * UInt128, suffixPart: Range)
   | EBigInt(Range, intPart: Range * BigInt)
-  | EFloat(Range, Sign, String, String)
+  | EFloat64(Range, Sign, String, String)
   | EFloat32(Range, Sign, String, String)
   | EDecimal(Range, Decimal)
   | EString(
@@ -457,7 +457,7 @@ module Expr =
     | EInt128(range, _, _) -> range
     | EUInt128(range, _, _) -> range
     | EBigInt(range, _) -> range
-    | EFloat(range, _, _, _) -> range
+    | EFloat64(range, _, _, _) -> range
     | EFloat32(range, _, _, _) -> range
     | EDecimal(range, _) -> range
     | EString(range, _, _, _, _) -> range

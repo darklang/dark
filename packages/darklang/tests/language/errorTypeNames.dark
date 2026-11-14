@@ -1,7 +1,7 @@
 module Darklang.Language.Tests.ErrorTypeNames
 
 // Types are content addressed, so one hash can have several names.
-// Stdlib.BigInt.ParseError, Stdlib.Float.ParseError and Stdlib.Uuid.ParseError all
+// Stdlib.BigInt.ParseError, Stdlib.Float64.ParseError and Stdlib.Uuid.ParseError all
 // have the shape | BadFormat. The declaration's written name must decide which
 // one a runtime error prints; the hash alone cannot distinguish them.
 

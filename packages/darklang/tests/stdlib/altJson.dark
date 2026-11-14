@@ -153,7 +153,7 @@ test toInt64 =
       parseInt("1e0") |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 
-/// Reading a named field as an Int64 (or a Float): a missing field, a null, and a
+/// Reading a named field as an Int64 (or a Float64): a missing field, a null, and a
 /// non-integer value each answer differently.
 test intFieldHelpers =
   Stdlib.Test.all(
@@ -236,8 +236,8 @@ test intFieldHelpers =
         Stdlib.Result.Result.Error("Invalid JSON integer field: a")) ])
 
 
-/// Integer fields past 2^53, where a Float cannot hold the value exactly. `Json.Integer` is
-/// arbitrary-size and the strict reader refuses a Float, so these are the two claims that
+/// Integer fields past 2^53, where a Float64 cannot hold the value exactly. `Json.Integer` is
+/// arbitrary-size and the strict reader refuses a Float64, so these are the two claims that
 /// matter together: the big value survives, and the lossy spelling of it is an error rather
 /// than a silent rounding.
 ///

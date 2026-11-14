@@ -81,7 +81,7 @@ module Shapes =
   test noImplForDirectCallRaises =
     Shapes.Show.show(3.5)
     => raises
-      "Float has no implementation of Darklang.Language.Tests.Traits.Shapes.Show. Write `impl Show for Float = ...`, or run `dark impls Show` to see which types do"
+      "Float64 has no implementation of Darklang.Language.Tests.Traits.Shapes.Show. Write `impl Show for Float64 = ...`, or run `dark impls Show` to see which types do"
 
   // No impl: at the CALL of a bounded fn, before its body runs
   test boundedCallWithImpl =
@@ -90,7 +90,7 @@ module Shapes =
   test noImplForBoundedCallRaises =
     Shapes.neverCalls(3.5)
     => raises
-      "Float has no implementation of Darklang.Language.Tests.Traits.Shapes.Show. Write `impl Show for Float = ...`, or run `dark impls Show` to see which types do"
+      "Float64 has no implementation of Darklang.Language.Tests.Traits.Shapes.Show. Write `impl Show for Float64 = ...`, or run `dark impls Show` to see which types do"
 
 module Multi =
   type Vec = { dx: Int64, dy: Int64 }
@@ -341,7 +341,7 @@ module Identities =
   test explicitTypeArg =
     Stdlib.Test.all(
       [ Stdlib.Zero.zero<Int64>() |> Stdlib.Test.equal(0)
-        Stdlib.One.one<Float>() |> Stdlib.Test.equal(1.0) ])
+        Stdlib.One.one<Float64>() |> Stdlib.Test.equal(1.0) ])
 
   test zeroWithoutTypeRaises =
     Stdlib.Zero.zero()

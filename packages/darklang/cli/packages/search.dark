@@ -435,8 +435,9 @@ let typeWord(word: String): Option<String> =
   | "integer" -> Option.Some("int64")
   | "number" -> Option.Some("int64")
   | "int64" -> Option.Some("int64")
-  | "float" -> Option.Some("float")
-  | "double" -> Option.Some("float")
+  | "float" -> Option.Some("float64")
+  | "float64" -> Option.Some("float64")
+  | "double" -> Option.Some("float64")
   | "bool" -> Option.Some("bool")
   | "boolean" -> Option.Some("bool")
   | "char" -> Option.Some("char")
@@ -471,7 +472,7 @@ let typeWordOf(t: LanguageTools.ProgramTypes.TypeReference): Option<String> =
   match t with
   | TString -> Option.Some("string")
   | TInt64 -> Option.Some("int64")
-  | TFloat -> Option.Some("float")
+  | TFloat64 -> Option.Some("float64")
   | TBool -> Option.Some("bool")
   | TChar -> Option.Some("char")
   | TBytes -> Option.Some("bytes")
@@ -502,6 +503,7 @@ let typeLabel(word: String): String =
   | "datetime" -> "DateTime"
   | "bigint" -> "BigInt"
   | "uuid" -> "Uuid"
+  | "float64" -> "Float64"
   | "float32" -> "Float32"
   | "int8" -> "Int8"
   | "uint8" -> "UInt8"

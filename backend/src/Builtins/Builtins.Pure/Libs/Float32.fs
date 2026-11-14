@@ -11,30 +11,30 @@ module Dval = LibExecution.Dval
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "float32FromFloat" 0
+  [ { name = fn "float32FromFloat64" 0
       typeParams = []
-      parameters = [ Param.make "a" TFloat "" ]
+      parameters = [ Param.make "a" TFloat64 "" ]
       returnType = TFloat32
       description =
         "Rounds <param a> to the nearest <type Float32>, ties to even. Out of range is infinity."
       fn =
         (function
-        | _, _, _, [| DFloat a |] -> Ply(DFloat32(float32 a))
+        | _, _, _, [| DFloat64 a |] -> Ply(DFloat32(float32 a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "float32ToFloat" 0
+    { name = fn "float32ToFloat64" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat32 "" ]
-      returnType = TFloat
+      returnType = TFloat64
       description =
-        "Widens <param a> to a <type Float>. Exact: every Float32 is a Float."
+        "Widens <param a> to a <type Float64>. Exact: every Float32 is a Float64."
       fn =
         (function
-        | _, _, _, [| DFloat32 a |] -> Ply(DFloat(float a))
+        | _, _, _, [| DFloat32 a |] -> Ply(DFloat64(float a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -46,7 +46,7 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt64 "" ]
       returnType = TFloat32
       description =
-        "The <type Float32> nearest <param a>, ties to even, rounded once rather than through a Float."
+        "The <type Float32> nearest <param a>, ties to even, rounded once rather than through a Float64."
       fn =
         (function
         | _, _, _, [| DInt64 a |] -> Ply(DFloat32(float32 a))

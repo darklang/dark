@@ -92,15 +92,13 @@ module InvalidType =
       |> Stdlib.Test.equal("MyNonExistantType not found")
     | _ -> Stdlib.Test.fail("expected a runtime error for an unknown record type")
 
-  // `Int` is not a type; the error names the two it could mean.
-  test intIsNotAType =
+  // `Int` is read as Int64 and `Float` as Float64
+  test intAndFloatAreAliases =
     let branch = Darklang.SCM.PackageOps.currentBranch()
-    let source = "let f(x: Int): Int64 = 1\nf(1)"
+    let source = "let f(x: Int, y: Float): Int64 = x + Stdlib.Float64.round(y)\nf(1, 2.0)"
     match Darklang.Cli.Eval.evaluateRaw(None, branch, source, [], Darklang.Cli.Eval.Harmful.Halt) with
-    | Error(Runtime(error, _)) ->
-      Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.toString(branch, error)
-      |> Stdlib.Test.equal("Int not found (an integer is an Int64, like `1`, or a BigInt, like `1z`)")
-    | _ -> Stdlib.Test.fail("expected a runtime error for the type `Int`")
+    | Ok(out) -> out |> Stdlib.Test.equal(Stdlib.Option.Option.Some("3"))
+    | Error(_) -> Stdlib.Test.fail("expected `Int` and `Float` to parse")
 
   test enumIsNotRecordRaises =
     AnEnum { col1 = 2 }

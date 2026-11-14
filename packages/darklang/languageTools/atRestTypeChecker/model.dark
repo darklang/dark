@@ -53,7 +53,7 @@ type Ty =
   | TInt128
   | TUInt128
   | TBigInt
-  | TFloat
+  | TFloat64
   | TFloat32
   | TDecimal
   | TChar

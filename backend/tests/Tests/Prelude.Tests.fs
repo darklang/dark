@@ -61,7 +61,7 @@ let mapTests =
 
 let floatTests =
   testList
-    "Float"
+    "Float64"
     [ testMany
         "readFloat"
         readFloat

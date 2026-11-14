@@ -23,8 +23,8 @@ let euInt64 (i : uint64) : Expr = EUInt64(gid (), i)
 let eInt128 (i : System.Int128) : Expr = EInt128(gid (), i)
 let euInt128 (i : System.UInt128) : Expr = EUInt128(gid (), i)
 
-let eFloat (sign : Sign) (whole : string) (fraction : string) : Expr =
-  EFloat(gid (), sign, whole, fraction)
+let eFloat64 (sign : Sign) (whole : string) (fraction : string) : Expr =
+  EFloat64(gid (), sign, whole, fraction)
 
 let eChar (c : string) : Expr = EChar(gid (), c)
 

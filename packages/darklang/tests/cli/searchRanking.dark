@@ -374,8 +374,8 @@ test moduleRuleKeepsNamedHitsFirst =
         "parse",
         [ ("Stdlib.Cli.FlagParser", "parse")
           ("Stdlib.Int64", "parse")
-          ("Stdlib.Int64", "toFloat") ])
-      |> Stdlib.Test.equal([ "parse", "parse", "toFloat" ]) ])
+          ("Stdlib.Int64", "toFloat64") ])
+      |> Stdlib.Test.equal([ "parse", "parse", "toFloat64" ]) ])
 
 
 // When no name matches, every hit came from a doc comment, and search says so.

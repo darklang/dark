@@ -31,7 +31,7 @@ and writeKnownType (w : BinaryWriter) (kt : KnownType) : unit =
   | KTUInt64 -> w.Write 9uy
   | KTInt128 -> w.Write 10uy
   | KTUInt128 -> w.Write 11uy
-  | KTFloat -> w.Write 12uy
+  | KTFloat64 -> w.Write 12uy
   | KTFloat32 -> w.Write 26uy
   | KTDecimal -> w.Write 27uy
   | KTChar -> w.Write 13uy
@@ -85,7 +85,7 @@ and readKnownType (r : BinaryReader) : KnownType =
   | 9uy -> KTUInt64
   | 10uy -> KTInt128
   | 11uy -> KTUInt128
-  | 12uy -> KTFloat
+  | 12uy -> KTFloat64
   | 26uy -> KTFloat32
   | 27uy -> KTDecimal
   | 13uy -> KTChar

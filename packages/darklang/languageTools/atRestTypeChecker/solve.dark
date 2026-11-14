@@ -2000,7 +2000,7 @@ let enumPattern(
 // Check operator operands, builtin unwrap, and postfix ?.
 // --------------------
 
-/// Recognize integer types of every supported width, plus Float and Decimal.
+/// Recognize integer types of every supported width, plus Float64 and Decimal.
 let isNumeric(t: Model.Ty): Bool =
   match t with
   | TInt8
@@ -2014,17 +2014,17 @@ let isNumeric(t: Model.Ty): Bool =
   | TInt128
   | TUInt128
   | TBigInt
-  | TFloat
+  | TFloat64
   | TFloat32
   | TDecimal ->
     true
   | _ -> false
 
 
-/// Recognize signed integers, Float and Decimal, the types accepted by unary minus.
+/// Recognize signed integers, Float64 and Decimal, the types accepted by unary minus.
 let isSignedNumeric(t: Model.Ty): Bool =
   match t with
-  | TInt8 | TInt16 | TInt32 | TInt64 | TInt128 | TBigInt | TFloat | TFloat32 | TDecimal -> true
+  | TInt8 | TInt16 | TInt32 | TInt64 | TInt128 | TBigInt | TFloat64 | TFloat32 | TDecimal -> true
   | _ -> false
 
 
@@ -2263,7 +2263,7 @@ let unaryOperatorCall(
     Option.None
 
 
-/// Require a signed integer or Float for unary minus, waiting if its type is unknown.
+/// Require a signed integer or Float64 for unary minus, waiting if its type is unknown.
 let negate(s: State, at: Int64, operand: Model.Ty, record: Bool): Option<State> =
   unaryOperand(s, at, operand, "unary -", record)
 

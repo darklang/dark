@@ -153,7 +153,7 @@ let rec serialize (w : Utf8JsonWriter) (dv : Dval) : unit =
   | DUInt128 i -> w.WriteRawValue(i.ToString())
   | DBigInt i -> w.WriteRawValue(string (DarkBigInt.toBigInt i))
 
-  | DFloat f ->
+  | DFloat64 f ->
     if System.Double.IsNaN f then w.WriteStringValue "NaN"
     else if System.Double.IsNegativeInfinity f then w.WriteStringValue "-Infinity"
     else if System.Double.IsPositiveInfinity f then w.WriteStringValue "Infinity"
@@ -579,13 +579,13 @@ let parse
       | Some n -> Dval.bigInt n |> Ply
       | None -> raiseCantMatchWithType TBigInt j pathSoFar |> Ply
 
-    | TFloat, JsonValueKind.Number -> j.GetDouble() |> DFloat |> Ply
-    | TFloat, JsonValueKind.String ->
+    | TFloat64, JsonValueKind.Number -> j.GetDouble() |> DFloat64 |> Ply
+    | TFloat64, JsonValueKind.String ->
       match j.GetString() with
-      | "NaN" -> DFloat System.Double.NaN
-      | "Infinity" -> DFloat System.Double.PositiveInfinity
-      | "-Infinity" -> DFloat System.Double.NegativeInfinity
-      | _ -> raiseCantMatchWithType TFloat j pathSoFar
+      | "NaN" -> DFloat64 System.Double.NaN
+      | "Infinity" -> DFloat64 System.Double.PositiveInfinity
+      | "-Infinity" -> DFloat64 System.Double.NegativeInfinity
+      | _ -> raiseCantMatchWithType TFloat64 j pathSoFar
       |> Ply
 
     | TFloat32, JsonValueKind.Number -> j.GetSingle() |> DFloat32 |> Ply
@@ -864,7 +864,7 @@ let parse
     | TInt128, _
     | TUInt128, _
     | TBigInt, _
-    | TFloat, _
+    | TFloat64, _
     | TFloat32, _
     | TDecimal, _
     | TChar, _

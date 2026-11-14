@@ -30,13 +30,13 @@ builtin type already has implementations. Yours join with one `impl`.
 
 ## Declare your own
   trait Area<'a> =
-    let area(shape: 'a): Float
+    let area(shape: 'a): Float64
 
   impl Area for Circle =
-    let area(c: Circle): Float = 3.14159 * c.r * c.r
+    let area(c: Circle): Float64 = 3.14159 * c.r * c.r
 
   impl<'a: Area> Area for List<'a> =     // conditional: needs Area for the element
-    let area(xs: List<'a>): Float =
+    let area(xs: List<'a>): Float64 =
       Stdlib.sum(0.0, Stdlib.List.map(xs, fun s -> Area.area(s)))
 
   The first type parameter is the type an implementation is for.
@@ -79,8 +79,8 @@ builtin type already has implementations. Yours join with one `impl`.
 
   Author from the shell like `fn` and `type`; an impl's path is the module it
   is written in:
-    dark trait Acme.Area "<'a> = let area(shape: 'a): Float"
-    dark impl Acme "Area for Circle = let area(c: Circle): Float = ..."
+    dark trait Acme.Area "<'a> = let area(shape: 'a): Float64"
+    dark impl Acme "Area for Circle = let area(c: Circle): Float64 = ..."
 
   A bare trait name (`Area`, `Add`) resolves from your module outward, then as
   `Stdlib.<name>`; write the full path when two traits share a name.
@@ -160,5 +160,5 @@ builtin type already has implementations. Yours join with one `impl`.
   Int64 has more than one `describe`: 2 traits declare it. Say which one you mean,
   as `SomeTrait.describe(value)`
 
-  Cannot perform numeric operation on Int64 and Float
+  Cannot perform numeric operation on Int64 and Float64
       both operands of an operator must be the same type"""

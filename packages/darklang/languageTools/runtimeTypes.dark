@@ -112,7 +112,7 @@ type TypeReference =
   | TInt128
   | TUInt128
   | TBigInt
-  | TFloat
+  | TFloat64
   | TFloat32
   | TDecimal
   | TChar
@@ -146,7 +146,7 @@ type KnownType =
   | KTInt128
   | KTUInt128
   | KTBigInt
-  | KTFloat
+  | KTFloat64
   | KTFloat32
   | KTDecimal
   | KTChar
@@ -188,7 +188,7 @@ type MatchPattern =
   | MPInt128(Int128)
   | MPUInt128(UInt128)
   | MPBigInt(BigInt)
-  | MPFloat(Float)
+  | MPFloat64(Float64)
   | MPFloat32(Float32)
   | MPDecimal(Decimal)
   | MPChar(String)
@@ -329,7 +329,7 @@ type Dval =
   | DInt128(Int128)
   | DUInt128(UInt128)
   | DBigInt(BigInt)
-  | DFloat(Float)
+  | DFloat64(Float64)
   | DFloat32(Float32)
   | DDecimal(Decimal)
   | DChar(Char)

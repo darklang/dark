@@ -2,18 +2,18 @@ module Darklang.Stdlib.Math.Tests
 
 // Expected values are rounded. Use an absolute tolerance of 1e-12 for zero
 // and 1e-10 for the other values here.
-let near(actual: Float, expected: Float): Stdlib.Test.Result =
+let near(actual: Float64, expected: Float64): Stdlib.Test.Result =
   let tolerance = if expected == 0.0 then 0.000000000001 else 0.0000000001
   Stdlib.abs(actual - expected) < tolerance |> Stdlib.Test.equal(true)
 
 
 let nearSome(
-  actual: Stdlib.Option.Option<Float>,
-  expected: Float)
+  actual: Stdlib.Option.Option<Float64>,
+  expected: Float64)
   : Stdlib.Test.Result =
   match actual with
   | Some(value) -> near(value, expected)
-  | None -> Stdlib.Test.fail("expected Some Float, got None")
+  | None -> Stdlib.Test.fail("expected Some Float64, got None")
 
 
 test constants =

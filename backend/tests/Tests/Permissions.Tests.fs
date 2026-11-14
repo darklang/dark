@@ -830,7 +830,7 @@ let effectsCommand =
   CliInstance.instanceTest "effects are usable without executing code" (fun i ->
     task {
       let! pureOutput, pureCode =
-        CliInstance.runWithExit i [ "effects"; "Darklang.Stdlib.Int64.toFloat" ]
+        CliInstance.runWithExit i [ "effects"; "Darklang.Stdlib.Int64.toFloat64" ]
       Expect.equal pureCode 0L pureOutput
       Expect.stringContains
         pureOutput

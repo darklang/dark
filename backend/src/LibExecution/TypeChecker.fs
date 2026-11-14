@@ -86,9 +86,9 @@ let private unifiesTrivially (expected : TypeReference) (actual : ValueType) : b
         (match kt with
          | KTBigInt -> true
          | _ -> false)
-      | TFloat ->
+      | TFloat64 ->
         (match kt with
-         | KTFloat -> true
+         | KTFloat64 -> true
          | _ -> false)
       | TFloat32 ->
         (match kt with
@@ -328,7 +328,7 @@ let rec unifyValueType
         | TUInt128, ValueType.Known KTUInt128 -> return Ok tst
         | TBigInt, ValueType.Known KTBigInt -> return Ok tst
 
-        | TFloat, ValueType.Known KTFloat -> return Ok tst
+        | TFloat64, ValueType.Known KTFloat64 -> return Ok tst
         | TFloat32, ValueType.Known KTFloat32 -> return Ok tst
         | TDecimal, ValueType.Known KTDecimal -> return Ok tst
 
@@ -687,9 +687,9 @@ let private primitiveFits (expected : TypeReference) (actual : Dval) : bool =
     (match actual with
      | DUInt128 _ -> true
      | _ -> false)
-  | TFloat ->
+  | TFloat64 ->
     (match actual with
-     | DFloat _ -> true
+     | DFloat64 _ -> true
      | _ -> false)
   | TFloat32 ->
     (match actual with
@@ -751,7 +751,7 @@ let private knownIs (expected : TypeReference) (known : KnownType) : bool =
   | KTInt128 -> expected.IsTInt128
   | KTUInt128 -> expected.IsTUInt128
   | KTBigInt -> expected.IsTBigInt
-  | KTFloat -> expected.IsTFloat
+  | KTFloat64 -> expected.IsTFloat64
   | KTFloat32 -> expected.IsTFloat32
   | KTDecimal -> expected.IsTDecimal
   | KTChar -> expected.IsTChar
@@ -948,7 +948,7 @@ and private tryUnifyGeneral
     | TUInt64
     | TInt128
     | TUInt128
-    | TFloat
+    | TFloat64
     | TFloat32
     | TDecimal
     | TChar

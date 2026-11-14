@@ -189,12 +189,12 @@ test toString =
       Stdlib.display(127s8) |> Stdlib.Test.equal("127") ])
 
 
-test toFloat =
+test toFloat64 =
   Stdlib.Test.all(
-    [ Stdlib.Int8.toFloat(2s8) |> Stdlib.Test.equal(2.0)
-      Stdlib.Int8.toFloat(127s8) |> Stdlib.Test.equal(127.0)
-      Stdlib.Int8.toFloat(-128s8) |> Stdlib.Test.equal(-128.0)
-      Stdlib.Int8.toFloat(-10s8) |> Stdlib.Test.equal(-10.0) ])
+    [ Stdlib.Int8.toFloat64(2s8) |> Stdlib.Test.equal(2.0)
+      Stdlib.Int8.toFloat64(127s8) |> Stdlib.Test.equal(127.0)
+      Stdlib.Int8.toFloat64(-128s8) |> Stdlib.Test.equal(-128.0)
+      Stdlib.Int8.toFloat64(-10s8) |> Stdlib.Test.equal(-10.0) ])
 
 
 test sqrt =

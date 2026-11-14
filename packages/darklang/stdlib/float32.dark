@@ -1,13 +1,13 @@
 module Darklang.Stdlib.Float32
 
 // `Float32` is IEEE 754 binary32, written `1.5f32` or `1e5f32`; a bare `1.5` is a
-// Float. It prints with its suffix, so `1.5f32` reads back as itself.
+// Float64. It prints with its suffix, so `1.5f32` reads back as itself.
 //
 // Converting, printing, parsing and the bits are builtins; the rest is here. Arithmetic
-// widens, runs on Float and narrows once, which IS binary32 arithmetic: a double
+// widens, runs on Float64 and narrows once, which IS binary32 arithmetic: a double
 // carries more than twice a single's 24 bits plus two, so rounding to double and
 // then to single lands where rounding straight to single would (Figueroa, 1995).
-// That holds for + - * / and sqrt; `**` is only as good as Float's own power.
+// That holds for + - * / and sqrt; `**` is only as good as Float64's own power.
 
 type ParseError =
   | BadFormat
@@ -15,13 +15,13 @@ type ParseError =
 
 /// Round <param a> to the nearest <type Float32>, ties to even. A value too large
 /// for a Float32 becomes an infinity, and one too small becomes zero.
-let fromFloat(a: Float): Float32 =
-  Builtin.float32FromFloat(a)
+let fromFloat64(a: Float64): Float32 =
+  Builtin.float32FromFloat64(a)
 
 
-/// Widen <param a> to a <type Float>. Exact: every Float32 is also a Float.
-let toFloat(a: Float32): Float =
-  Builtin.float32ToFloat(a)
+/// Widen <param a> to a <type Float64>. Exact: every Float32 is also a Float64.
+let toFloat64(a: Float32): Float64 =
+  Builtin.float32ToFloat64(a)
 
 
 /// The <type Float32> nearest <param a>, ties to even. Past 2^24 not every integer
@@ -32,39 +32,39 @@ let fromInt64(a: Int64): Float32 =
 
 /// Round up to an integer value
 let ceiling(a: Float32): Int64 =
-  Float.ceiling(toFloat(a))
+  Float64.ceiling(toFloat64(a))
 
 
 /// Round up to an integer value
 let roundUp(a: Float32): Int64 =
-  Float.roundUp(toFloat(a))
+  Float64.roundUp(toFloat64(a))
 
 
 /// Round down to an integer value.
 /// Consider <fn Float32.truncate> if your goal is to discard the fractional part
 /// of a number: {{Float32.floor(-1.9f32) == -2}} but {{Float32.truncate(-1.9f32) == -1}}
 let floor(a: Float32): Int64 =
-  Float.floor(toFloat(a))
+  Float64.floor(toFloat64(a))
 
 
 /// Round down to an integer value.
 let roundDown(a: Float32): Int64 =
-  Float.roundDown(toFloat(a))
+  Float64.roundDown(toFloat64(a))
 
 
 /// Round to the nearest integer value
 let round(a: Float32): Int64 =
-  Float.round(toFloat(a))
+  Float64.round(toFloat64(a))
 
 
 /// Round towards zero, discarding the fractional part
 let roundTowardsZero(a: Float32): Int64 =
-  Float.roundTowardsZero(toFloat(a))
+  Float64.roundTowardsZero(toFloat64(a))
 
 
 /// Discard the fractional portion of the float, rounding towards zero
 let truncate(a: Float32): Int64 =
-  Float.truncate(toFloat(a))
+  Float64.truncate(toFloat64(a))
 
 
 impl Negate for Float32 =
@@ -75,7 +75,7 @@ impl Negate for Float32 =
 
 /// Get the square root of a float, correctly rounded
 let sqrt(a: Float32): Float32 =
-  fromFloat(Float.sqrt(toFloat(a)))
+  fromFloat64(Float64.sqrt(toFloat64(a)))
 
 
 impl Add for Float32 =
@@ -182,10 +182,10 @@ let checkedParse(s: String): Result<Float32, ParseError> =
   | _ -> Result.Error(ParseError.BadFormat)
 
 
-/// <fn Float32.fromFloat>, or {{Error Overflow}} where <param a> is too large for a
+/// <fn Float32.fromFloat64>, or {{Error Overflow}} where <param a> is too large for a
 /// Float32
-let checkedFromFloat(a: Float): Result<Float32, Math.Overflow> =
-  __noOverflow(fromFloat(a))
+let checkedFromFloat64(a: Float64): Result<Float32, Math.Overflow> =
+  __noOverflow(fromFloat64(a))
 
 
 impl Compare for Float32 =
@@ -213,7 +213,7 @@ impl Compare for Float32 =
 /// Returns <param value> wrapped in a {{Result}}.
 /// <param limitA> and <param limitB> can be provided in any order.
 ///
-/// Refuses a NaN limit, like <fn Float.clampRefusingNaN>.
+/// Refuses a NaN limit, like <fn Float64.clampRefusingNaN>.
 let clampRefusingNaN(value: Float32, limitA: Float32, limitB: Float32): Result<Float32, String> =
   if isNaN(limitA) || isNaN(limitB) then
     Result.Error("clampRefusingNaN requires limits that are numbers")
@@ -228,8 +228,8 @@ let clampRefusingNaN(value: Float32, limitA: Float32, limitB: Float32): Result<F
 
 
 /// Returns the <type Float32> nearest to the number in <param s>, ties to even,
-/// accepting what <fn Float.parse> accepts. Rounded once from the decimal, never
-/// through a Float.
+/// accepting what <fn Float64.parse> accepts. Rounded once from the decimal, never
+/// through a Float64.
 let parse(s: String): Result<Float32, ParseError> =
   match Builtin.float32Parse(s) with
   | Some(f) -> Result.Ok(f)
@@ -238,7 +238,7 @@ let parse(s: String): Result<Float32, ParseError> =
 
 /// Returns true if <param f> is NaN
 let isNaN(f: Float32): Bool =
-  Float.isNaN(toFloat(f))
+  Float64.isNaN(toFloat64(f))
 
 
 /// Returns {{true}} if <param f> is a finite number, and {{false}} for NaN
@@ -267,7 +267,7 @@ let fromBits(bits: UInt32): Float32 =
 
 impl Display for Float32 =
   /// Stringify <param a> as the shortest decimal that parses back to the same
-  /// Float32, e.g. `0.1` for `0.1f32` (where the widened Float says
+  /// Float32, e.g. `0.1` for `0.1f32` (where the widened Float64 says
   /// `0.10000000149011612`), `1e+16`, `1e-5`.
   let display(a: Float32): String =
     Builtin.float32ToString(a)

@@ -405,7 +405,7 @@ module TypeReference =
       | PT.TInt128 -> "TInt128", []
       | PT.TUInt128 -> "TUInt128", []
       | PT.TBigInt -> "TBigInt", []
-      | PT.TFloat -> "TFloat", []
+      | PT.TFloat64 -> "TFloat64", []
       | PT.TFloat32 -> "TFloat32", []
       | PT.TDecimal -> "TDecimal", []
       | PT.TChar -> "TChar", []
@@ -458,7 +458,7 @@ module TypeReference =
     | DEnum(_, _, [], "TInt128", []) -> PT.TInt128
     | DEnum(_, _, [], "TUInt128", []) -> PT.TUInt128
     | DEnum(_, _, [], "TBigInt", []) -> PT.TBigInt
-    | DEnum(_, _, [], "TFloat", []) -> PT.TFloat
+    | DEnum(_, _, [], "TFloat64", []) -> PT.TFloat64
     | DEnum(_, _, [], "TFloat32", []) -> PT.TFloat32
     | DEnum(_, _, [], "TDecimal", []) -> PT.TDecimal
     | DEnum(_, _, [], "TChar", []) -> PT.TChar
@@ -548,9 +548,9 @@ module MatchPattern =
       | PT.MPInt128(id, i) -> "MPInt128", [ DInt64(int64 id); DInt128 i ]
       | PT.MPUInt128(id, i) -> "MPUInt128", [ DInt64(int64 id); DUInt128 i ]
       | PT.MPBigInt(id, i) -> "MPBigInt", [ DInt64(int64 id); Dval.bigInt i ]
-      | PT.MPFloat(id, sign, whole, remainder) ->
+      | PT.MPFloat64(id, sign, whole, remainder) ->
 
-        "MPFloat",
+        "MPFloat64",
         [ DInt64(int64 id); Sign.toDT sign; DString whole; DString remainder ]
       | PT.MPFloat32(id, sign, whole, remainder) ->
         "MPFloat32",
@@ -622,9 +622,9 @@ module MatchPattern =
     | DEnum(_,
             _,
             [],
-            "MPFloat",
+            "MPFloat64",
             [ DInt64 id; sign; DString whole; DString remainder ]) ->
-      PT.MPFloat(uint64 id, Sign.fromDT sign, whole, remainder)
+      PT.MPFloat64(uint64 id, Sign.fromDT sign, whole, remainder)
     | DEnum(_,
             _,
             [],
@@ -941,8 +941,8 @@ module Expr =
       | PT.EInt128(id, i) -> "EInt128", [ DInt64(int64 id); DInt128 i ]
       | PT.EUInt128(id, i) -> "EUInt128", [ DInt64(int64 id); DUInt128 i ]
       | PT.EBigInt(id, i) -> "EBigInt", [ DInt64(int64 id); Dval.bigInt i ]
-      | PT.EFloat(id, sign, whole, remainder) ->
-        "EFloat",
+      | PT.EFloat64(id, sign, whole, remainder) ->
+        "EFloat64",
         [ DInt64(int64 id); Sign.toDT sign; DString whole; DString remainder ]
       | PT.EFloat32(id, sign, whole, remainder) ->
         "EFloat32",
@@ -1160,8 +1160,12 @@ module Expr =
       PT.EUInt128(uint64 id, i)
     | DEnum(_, _, [], "EBigInt", [ DInt64 id; (DBigInt _) as intVal ]) ->
       PT.EBigInt(uint64 id, Dval.asBigInt intVal)
-    | DEnum(_, _, [], "EFloat", [ DInt64 id; sign; DString whole; DString remainder ]) ->
-      PT.EFloat(uint64 id, Sign.fromDT sign, whole, remainder)
+    | DEnum(_,
+            _,
+            [],
+            "EFloat64",
+            [ DInt64 id; sign; DString whole; DString remainder ]) ->
+      PT.EFloat64(uint64 id, Sign.fromDT sign, whole, remainder)
     | DEnum(_,
             _,
             [],

@@ -29,8 +29,8 @@ from the clone's root. In-container paths: `/home/dark/app` is the clone.
     ./scripts/run-tests --published                         every suite CI tests, at once, one summary
     ./scripts/run-fsharp-tests --find <text>                find an F# test, and the command to run it
     ./scripts/run-fsharp-tests --filter tests/Interpreter   one F# group (a path prefix); Debug is fine
-    ./scripts/run-cli test run Stdlib.Float                  Dark package tests, by whole name segments
-    ./scripts/run-cli test run --force Stdlib.Float          ... ignoring cached passes
+    ./scripts/run-cli test run Stdlib.Float64                  Dark package tests, by whole name segments
+    ./scripts/run-cli test run --force Stdlib.Float64          ... ignoring cached passes
 
     scripts/testing/gates list            the gates, one line each
     scripts/testing/gates <name>          one gate (first-day, package-tests, workbench-scm, ...)

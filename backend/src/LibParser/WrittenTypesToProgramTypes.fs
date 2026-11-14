@@ -155,7 +155,7 @@ module TypeReference =
       | WT.TInt128 _ -> return PT.TInt128
       | WT.TUInt128 _ -> return PT.TUInt128
       | WT.TBigInt _ -> return PT.TBigInt
-      | WT.TFloat _ -> return PT.TFloat
+      | WT.TFloat64 _ -> return PT.TFloat64
       | WT.TFloat32 _ -> return PT.TFloat32
       | WT.TDecimal _ -> return PT.TDecimal
       | WT.TChar _ -> return PT.TChar
@@ -265,7 +265,7 @@ let matchPatternID (p : PT.MatchPattern) : id =
   | PT.MPInt128(id, _)
   | PT.MPUInt128(id, _)
   | PT.MPBigInt(id, _)
-  | PT.MPFloat(id, _, _, _)
+  | PT.MPFloat64(id, _, _, _)
   | PT.MPFloat32(id, _, _, _)
   | PT.MPDecimal(id, _)
   | PT.MPChar(id, _)
@@ -335,8 +335,8 @@ module MatchPattern =
           | Some(_, s) -> String.normalize s
           | None -> "")
        ))
-    | WT.MPFloat(_, neg, w, f) ->
-      (context, PT.MPFloat(gid (), (if neg then Negative else Positive), w, f))
+    | WT.MPFloat64(_, neg, w, f) ->
+      (context, PT.MPFloat64(gid (), (if neg then Negative else Positive), w, f))
     | WT.MPFloat32(_, neg, w, f) ->
       (context, PT.MPFloat32(gid (), (if neg then Negative else Positive), w, f))
     | WT.MPDecimal(_, d) -> (context, PT.MPDecimal(gid (), d))
@@ -487,9 +487,9 @@ module Expr =
             (stringSegmentToPT builtins pm onMissing currentModule context)
             segments
         return PT.EString(gid (), segments)
-      | WT.EFloat(_, neg, whole, fraction) ->
+      | WT.EFloat64(_, neg, whole, fraction) ->
         return
-          PT.EFloat(gid (), (if neg then Negative else Positive), whole, fraction)
+          PT.EFloat64(gid (), (if neg then Negative else Positive), whole, fraction)
       | WT.EFloat32(_, neg, whole, fraction) ->
         return
           PT.EFloat32(gid (), (if neg then Negative else Positive), whole, fraction)

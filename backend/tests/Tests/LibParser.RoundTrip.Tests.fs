@@ -227,7 +227,7 @@ module RoundTripExpect =
     | RT.DInt128 _
     | RT.DUInt128 _
     | RT.DBigInt _
-    | RT.DFloat _
+    | RT.DFloat64 _
     | RT.DFloat32 _
     | RT.DDecimal _
     | RT.DChar _

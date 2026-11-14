@@ -1368,7 +1368,7 @@ module Int128 =
           |> Stdlib.Test.equal(
             Result.Ok(170141183460469231731687303715884105727s128))
 
-          // Float form, read exactly rather than through a double
+          // Float64 form, read exactly rather than through a double
           Stdlib.Json.parse<Int128>("1.7E38")
           |> Stdlib.Test.equal(
             Result.Ok(170000000000000000000000000000000000000s128))
@@ -1615,99 +1615,102 @@ module UInt128 =
               "Can't parse JSON `340282366920938463463374607431768211456` as type `UInt128` at path: `root`")) ])
 
 
-module Float =
-  // TODO: review Float.tests for more values to test against
+module Float64 =
+  // TODO: review Float64.tests for more values to test against
 
   test serialize =
     Stdlib.Test.all(
-      [ Stdlib.Json.serialize<Float>(0.0) |> Stdlib.Test.equal("0.0")
+      [ Stdlib.Json.serialize<Float64>(0.0) |> Stdlib.Test.equal("0.0")
 
-        Stdlib.Json.serialize<Float>(1.0) |> Stdlib.Test.equal("1.0")
+        Stdlib.Json.serialize<Float64>(1.0) |> Stdlib.Test.equal("1.0")
 
-        Stdlib.Json.serialize<Float>(0.1) |> Stdlib.Test.equal("0.1")
+        Stdlib.Json.serialize<Float64>(0.1) |> Stdlib.Test.equal("0.1")
 
-        Stdlib.Json.serialize<Float>(2.0 / 3.0)
+        Stdlib.Json.serialize<Float64>(2.0 / 3.0)
         |> Stdlib.Test.equal("0.6666666666666666")
 
-        Stdlib.Json.serialize<Float>(12345.67890)
+        Stdlib.Json.serialize<Float64>(12345.67890)
         |> Stdlib.Test.equal("12345.6789")
 
-        Stdlib.Json.serialize<Float>(-12345.67890)
+        Stdlib.Json.serialize<Float64>(-12345.67890)
         |> Stdlib.Test.equal("-12345.6789")
 
-        Stdlib.Json.serialize<Float>(3.141592653589793)
+        Stdlib.Json.serialize<Float64>(3.141592653589793)
         |> Stdlib.Test.equal("3.141592653589793")
 
-        Stdlib.Json.serialize<Float>(1.618033988749895)
+        Stdlib.Json.serialize<Float64>(1.618033988749895)
         |> Stdlib.Test.equal("1.618033988749895")
 
         // Needs all seventeen digits; "G16" used to write this as 0.3.
-        Stdlib.Json.serialize<Float>(0.1 + 0.2)
+        Stdlib.Json.serialize<Float64>(0.1 + 0.2)
         |> Stdlib.Test.equal("0.30000000000000004")
 
         // Exponent form is valid JSON as long as nothing appends `.0` to it.
-        Stdlib.Json.serialize<Float>(1e16) |> Stdlib.Test.equal("1e+16")
+        Stdlib.Json.serialize<Float64>(1e16) |> Stdlib.Test.equal("1e+16")
 
-        Stdlib.Json.serialize<Float>(0.00001) |> Stdlib.Test.equal("1e-5") ])
+        Stdlib.Json.serialize<Float64>(0.00001) |> Stdlib.Test.equal("1e-5") ])
 
 
   test parse =
     Stdlib.Test.all(
       [ // ints as floats
-        Stdlib.Json.parse<Float>("0.0") |> Stdlib.Test.equal(Result.Ok(0.0))
+        Stdlib.Json.parse<Float64>("0.0") |> Stdlib.Test.equal(Result.Ok(0.0))
 
-        Stdlib.Json.parse<Float>("0") |> Stdlib.Test.equal(Result.Ok(0.0))
+        Stdlib.Json.parse<Float64>("0") |> Stdlib.Test.equal(Result.Ok(0.0))
 
-        Stdlib.Json.parse<Float>("123") |> Stdlib.Test.equal(Result.Ok(123.0))
+        Stdlib.Json.parse<Float64>("123") |> Stdlib.Test.equal(Result.Ok(123.0))
 
-        Stdlib.Json.parse<Float>("12345.67890")
+        Stdlib.Json.parse<Float64>("12345.67890")
         |> Stdlib.Test.equal(Result.Ok(12345.67890))
 
-        Stdlib.Json.parse<Float>("-12345.67890")
+        Stdlib.Json.parse<Float64>("-12345.67890")
         |> Stdlib.Test.equal(Result.Ok(-12345.67890))
 
-        Stdlib.Json.parse<Float>(" 42.0 ") |> Stdlib.Test.equal(Result.Ok(42.0))
+        Stdlib.Json.parse<Float64>(" 42.0 ")
+        |> Stdlib.Test.equal(Result.Ok(42.0))
 
-        Stdlib.Json.parse<Float>(" -42.0 ")
+        Stdlib.Json.parse<Float64>(" -42.0 ")
         |> Stdlib.Test.equal(Result.Ok(-42.0))
 
-        Stdlib.Json.parse<Float>("1e3") |> Stdlib.Test.equal(Result.Ok(1000.0))
+        Stdlib.Json.parse<Float64>("1e3")
+        |> Stdlib.Test.equal(Result.Ok(1000.0))
 
-        Stdlib.Json.parse<Float>("-1e3")
+        Stdlib.Json.parse<Float64>("-1e3")
         |> Stdlib.Test.equal(Result.Ok(-1000.0))
 
-        Stdlib.Json.parse<Float>("0.30000000000000004")
+        Stdlib.Json.parse<Float64>("0.30000000000000004")
         |> Stdlib.Test.equal(Result.Ok(0.1 + 0.2))
 
-        Stdlib.Json.parse<Float>("1e+16") |> Stdlib.Test.equal(Result.Ok(1e16))
+        Stdlib.Json.parse<Float64>("1e+16")
+        |> Stdlib.Test.equal(Result.Ok(1e16))
 
-        Stdlib.Json.parse<Float>("1e-5")
+        Stdlib.Json.parse<Float64>("1e-5")
         |> Stdlib.Test.equal(Result.Ok(0.00001))
 
-        Stdlib.Json.parse<Float>("1.0000001")
+        Stdlib.Json.parse<Float64>("1.0000001")
         |> Stdlib.Test.equal(Result.Ok(1.0000001))
 
-        Stdlib.Json.parse<Float>("-1.00000001")
+        Stdlib.Json.parse<Float64>("-1.00000001")
         |> Stdlib.Test.equal(Result.Ok(-1.00000001))
 
-        Stdlib.Json.parse<Float>("-2147483647.8")
+        Stdlib.Json.parse<Float64>("-2147483647.8")
         |> Stdlib.Test.equal(Result.Ok(-2147483647.8))
 
-        Stdlib.Json.parse<Float>("17.55042081")
+        Stdlib.Json.parse<Float64>("17.55042081")
         |> Stdlib.Test.equal(Result.Ok(17.55042081))
 
-        Stdlib.Json.parse<Float>("2147483647.000009")
+        Stdlib.Json.parse<Float64>("2147483647.000009")
         |> Stdlib.Test.equal(Result.Ok(2147483647.000009))
 
-        Stdlib.Json.parse<Float>("-2367.9267")
+        Stdlib.Json.parse<Float64>("-2367.9267")
         |> Stdlib.Test.equal(Result.Ok(-2367.9267))
 
-        Stdlib.Json.parse<Float>(
+        Stdlib.Json.parse<Float64>(
           "0.6999999999999999555910790149937383830547332763671875")
         |> Stdlib.Test.equal(
           Result.Ok(0.6999999999999999555910790149937383830547332763671875))
 
-        Stdlib.Json.parse<Float>("0.7999999999")
+        Stdlib.Json.parse<Float64>("0.7999999999")
         |> Stdlib.Test.equal(Result.Ok(0.7999999999)) ])
 
 
@@ -1715,126 +1718,126 @@ module Float =
     test serialize =
       Stdlib.Test.all(
         [ // JSON represents infinities and NaN as strings.
-          Stdlib.Json.serialize<Float>(-1.0 / 0.0)
+          Stdlib.Json.serialize<Float64>(-1.0 / 0.0)
           |> Stdlib.Test.equal("\"-Infinity\"")
 
-          Stdlib.Json.serialize<Float>(1.0 / 0.0)
+          Stdlib.Json.serialize<Float64>(1.0 / 0.0)
           |> Stdlib.Test.equal("\"Infinity\"")
 
-          Stdlib.Json.serialize<Float>(Stdlib.Float.sqrt(-1.0))
+          Stdlib.Json.serialize<Float64>(Stdlib.Float64.sqrt(-1.0))
           |> Stdlib.Test.equal("\"NaN\"") ])
 
 
     test parse =
       Stdlib.Test.all(
         [ // NaN never equals itself; check it with isNaN.
-          Stdlib.Json.parse<Float>("\"-Infinity\"")
+          Stdlib.Json.parse<Float64>("\"-Infinity\"")
           |> Stdlib.Test.equal(Result.Ok(-1.0 / 0.0))
 
-          Stdlib.Json.parse<Float>("\"Infinity\"")
+          Stdlib.Json.parse<Float64>("\"Infinity\"")
           |> Stdlib.Test.equal(Result.Ok(1.0 / 0.0))
 
-          Stdlib.Json.parse<Float>("\"NaN\"")
-          |> Stdlib.Result.map(Stdlib.Float.isNaN)
+          Stdlib.Json.parse<Float64>("\"NaN\"")
+          |> Stdlib.Result.map(Stdlib.Float64.isNaN)
           |> Stdlib.Test.equal(Result.Ok(true)) ])
 
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<Float>("e")
+        [ Stdlib.Json.parse<Float64>("e")
           |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 1"))
 
-          Stdlib.Json.parse<Float>("pi")
+          Stdlib.Json.parse<Float64>("pi")
           |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 1"))
 
-          Stdlib.Json.parse<Float>(" -42 . 0 ")
+          Stdlib.Json.parse<Float64>(" -42 . 0 ")
           |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 6"))
 
-          Stdlib.Json.parse<Float>("0")
+          Stdlib.Json.parse<Float64>("0")
           |> err
           |> Stdlib.Test.equal(Result.Ok(0.0))
 
-          Stdlib.Json.parse<Float>(" ")
+          Stdlib.Json.parse<Float64>(" ")
           |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
 
-          Stdlib.Json.parse<Float>("4a")
+          Stdlib.Json.parse<Float64>("4a")
           |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
 
-          Stdlib.Json.parse<Float>("- 42.0")
+          Stdlib.Json.parse<Float64>("- 42.0")
           |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
 
-          Stdlib.Json.parse<Float>("-141s")
+          Stdlib.Json.parse<Float64>("-141s")
           |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 5"))
 
-          Stdlib.Json.parse<Float>("null")
+          Stdlib.Json.parse<Float64>("null")
           |> err
           |> Stdlib.Test.equal(
             Result.Error(
-              "Can't parse JSON `null` as type `Float` at path: `root`"))
+              "Can't parse JSON `null` as type `Float64` at path: `root`"))
 
-          Stdlib.Json.parse<Float>("true")
+          Stdlib.Json.parse<Float64>("true")
           |> err
           |> Stdlib.Test.equal(
             Result.Error(
-              "Can't parse JSON `true` as type `Float` at path: `root`"))
+              "Can't parse JSON `true` as type `Float64` at path: `root`"))
 
-          Stdlib.Json.parse<Float>("false")
+          Stdlib.Json.parse<Float64>("false")
           |> err
           |> Stdlib.Test.equal(
             Result.Error(
-              "Can't parse JSON `false` as type `Float` at path: `root`"))
+              "Can't parse JSON `false` as type `Float64` at path: `root`"))
 
-          Stdlib.Json.parse<Float>("\"42\"")
+          Stdlib.Json.parse<Float64>("\"42\"")
           |> err
           |> Stdlib.Test.equal(
             Result.Error(
-              "Can't parse JSON `\"42\"` as type `Float` at path: `root`"))
+              "Can't parse JSON `\"42\"` as type `Float64` at path: `root`"))
 
-          Stdlib.Json.parse<Float>("[42]")
+          Stdlib.Json.parse<Float64>("[42]")
           |> err
           |> Stdlib.Test.equal(
             Result.Error(
-              "Can't parse JSON `[42]` as type `Float` at path: `root`"))
+              "Can't parse JSON `[42]` as type `Float64` at path: `root`"))
 
-          Stdlib.Json.parse<Float>("{ \"key\": 42 }")
+          Stdlib.Json.parse<Float64>("{ \"key\": 42 }")
           |> err
           |> Stdlib.Test.equal(
             Result.Error(
-              "Can't parse JSON `{ \"key\": 42 }` as type `Float` at path: `root`"))
+              "Can't parse JSON `{ \"key\": 42 }` as type `Float64` at path: `root`"))
 
-          Stdlib.Json.parse<Float>("\"42\n\"")
+          Stdlib.Json.parse<Float64>("\"42\n\"")
           |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4"))
 
-          Stdlib.Json.parse<Float>("000000.9")
+          Stdlib.Json.parse<Float64>("000000.9")
           |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
 
-          Stdlib.Json.parse<Float>("-000000.9")
+          Stdlib.Json.parse<Float64>("-000000.9")
           |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 3"))
 
-          Stdlib.Json.parse<Float>("-00000000.000")
+          Stdlib.Json.parse<Float64>("-00000000.000")
           |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 3"))
 
-          Stdlib.Json.parse<Float>("00000000.000")
+          Stdlib.Json.parse<Float64>("00000000.000")
           |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
 
-          Stdlib.Json.parse<Float>("\"65.0\"")
+          Stdlib.Json.parse<Float64>("\"65.0\"")
           |> err
           |> Stdlib.Test.equal(
             Result.Error(
-              "Can't parse JSON `\"65.0\"` as type `Float` at path: `root`")) ])
+              "Can't parse JSON `\"65.0\"` as type `Float64` at path: `root`")) ])
 
 
 module Char =
@@ -3121,8 +3124,8 @@ module RestoredArchive =
       0.12345678901234568
       9007199254740992.0 ]
     |> Stdlib.List.map(fun value ->
-      Stdlib.Json.serialize<Float>(value)
-      |> Stdlib.Json.parse<Float>
+      Stdlib.Json.serialize<Float64>(value)
+      |> Stdlib.Json.parse<Float64>
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(value)))
     |> Stdlib.Test.all
 

@@ -325,8 +325,8 @@ test exprsWellFormedEscapes =
 
       roundTrip(
         "multiline string ",
-        "\"\"\"int64Multiply's 2nd argument (`b`) should be an Int64. However, a Float (1.0) was passed instead.\n\n\n\n    Expected: (b: Int64)\n\n    Actual: a Float: 1.0\"\"\"",
-        "\"int64Multiply's 2nd argument (`b`) should be an Int64. However, a Float (1.0) was passed instead.\\n\\n\\n\\n    Expected: (b: Int64)\\n\\n    Actual: a Float: 1.0\"")
+        "\"\"\"int64Multiply's 2nd argument (`b`) should be an Int64. However, a Float64 (1.0) was passed instead.\n\n\n\n    Expected: (b: Int64)\n\n    Actual: a Float64: 1.0\"\"\"",
+        "\"int64Multiply's 2nd argument (`b`) should be an Int64. However, a Float64 (1.0) was passed instead.\\n\\n\\n\\n    Expected: (b: Int64)\\n\\n    Actual: a Float64: 1.0\"")
 
       roundTrip(
         "multiline string - interpolated",

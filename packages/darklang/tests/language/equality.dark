@@ -362,10 +362,10 @@ test optionsAndResults =
       |> Stdlib.Test.equal(true) ])
 
 test floatEqualsInt64Raises =
-  (5.7 != 6) => raises "Cannot perform equality check on Float and Int64. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat(n)`."
+  (5.7 != 6) => raises "Cannot perform equality check on Float64 and Int64. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat64(n)`."
 
 test floatEqualsSameValueInt64Raises =
-  (5.7 != 5) => raises "Cannot perform equality check on Float and Int64. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat(n)`."
+  (5.7 != 5) => raises "Cannot perform equality check on Float64 and Int64. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat64(n)`."
 
 test uint16EqualsInt16Raises =
   (5u16 == 5s16) => raises "Cannot perform equality check on UInt16 and Int16"
@@ -396,7 +396,7 @@ test unitEqualsInt32Raises =
   (() != 0s32) => raises "Cannot perform equality check on Unit and Int32"
 
 test unitEqualsFloatRaises =
-  (() != 0.0) => raises "Cannot perform equality check on Unit and Float"
+  (() != 0.0) => raises "Cannot perform equality check on Unit and Float64"
 
 // The left operand's error is raised before the right operand is evaluated.
 test leftOperandErrorRaisesBeforeRight =

@@ -544,7 +544,7 @@ test runtimeErrorsNameScriptTypes = Instance.withInstance(fun i ->
     Instance.said(
       i,
       [ "eval"
-        "type Celsius = { degrees: Int64 }\ntype Fahrenheit = { degrees: Float }\nlet describe (t: Celsius) : String = \"ok\"\ndescribe (Fahrenheit { degrees = 1.0 })" ])
+        "type Celsius = { degrees: Int64 }\ntype Fahrenheit = { degrees: Float64 }\nlet describe (t: Celsius) : String = \"ok\"\ndescribe (Fahrenheit { degrees = 1.0 })" ])
 
   Stdlib.Test.all(
     [ Instance.says(out, "Celsius", "the expected type is named")

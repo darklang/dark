@@ -293,7 +293,7 @@ let rec private isFullyKnown (vt : ValueType) : bool =
     | KTInt128
     | KTUInt128
     | KTBigInt
-    | KTFloat
+    | KTFloat64
     | KTFloat32
     | KTDecimal
     | KTChar
@@ -644,9 +644,9 @@ and checkAndExtractMatchPattern
     match dv with
     | DBigInt r -> l = DarkBigInt.toBigInt r
     | _ -> false
-  | MPFloat l ->
+  | MPFloat64 l ->
     match dv with
-    | DFloat r -> l = r
+    | DFloat64 r -> l = r
     | _ -> false
   | MPFloat32 l ->
     match dv with
@@ -2247,7 +2247,7 @@ let private fastBuiltinOp
     | DUInt64 _
     | DInt128 _
     | DUInt128 _
-    | DFloat _
+    | DFloat64 _
     | DFloat32 _
     | DDecimal _
     | DChar _
@@ -4505,7 +4505,7 @@ let private applyTraitMethod
   // runs and what traces record.
   //
   // A mixed-type operator says so up front ("Cannot perform numeric operation on
-  // Int64 and Float") rather than dispatching on the left operand and failing inside
+  // Int64 and Float64") rather than dispatching on the left operand and failing inside
   // the impl's parameter check. Matching builtin numeric pairs never reach here, so
   // the check costs a dispatch only. `quickTraitTag`, so `/`, `%` and `**` say it too.
   let (Hash traitHashStr) = traitHash

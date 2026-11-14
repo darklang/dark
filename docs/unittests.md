@@ -139,8 +139,8 @@ The full output is saved to `rundir/package-tests/test.log`.
 To run a selected group against the current installation's packages:
 
 ```sh
-scripts/run-cli test run Stdlib.Float
-scripts/run-cli test run --force Stdlib.Float
+scripts/run-cli test run Stdlib.Float64
+scripts/run-cli test run --force Stdlib.Float64
 ```
 
 Filters match whole name segments. `--force` bypasses cached passes; each executed

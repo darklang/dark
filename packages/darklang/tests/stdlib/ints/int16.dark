@@ -184,10 +184,10 @@ test toString =
       Stdlib.display(32767s16) |> Stdlib.Test.equal("32767") ])
 
 
-test toFloat =
+test toFloat64 =
   Stdlib.Test.all(
-    [ Stdlib.Int16.toFloat(2s16) |> Stdlib.Test.equal(2.0)
-      Stdlib.Int16.toFloat(-10s16) |> Stdlib.Test.equal(-10.0) ])
+    [ Stdlib.Int16.toFloat64(2s16) |> Stdlib.Test.equal(2.0)
+      Stdlib.Int16.toFloat64(-10s16) |> Stdlib.Test.equal(-10.0) ])
 
 
 test parse =

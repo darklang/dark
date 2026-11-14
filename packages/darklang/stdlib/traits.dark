@@ -143,7 +143,7 @@ let abs<'a: Compare + Negate + Zero>(value: 'a): 'a =
 
 /// <param value> held between the two limits, whichever order they are given in. A NaN limit
 /// compares false against everything, so the value comes back unclamped;
-/// <fn Float.clampRefusingNaN> returns a Result instead when that is the wrong answer.
+/// <fn Float64.clampRefusingNaN> returns a Result instead when that is the wrong answer.
 let clamp<'a: Compare>(value: 'a, limitA: 'a, limitB: 'a): 'a =
   let low = if limitA < limitB then limitA else limitB
   let high = if limitA > limitB then limitA else limitB

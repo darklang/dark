@@ -219,7 +219,7 @@ module TypeReference =
       | TInt128(_range) -> (ProgramTypes.TypeReference.TInt128, [])
       | TUInt128(_range) -> (ProgramTypes.TypeReference.TUInt128, [])
       | TBigInt(_range) -> (ProgramTypes.TypeReference.TBigInt, [])
-      | TFloat(_range) -> (ProgramTypes.TypeReference.TFloat, [])
+      | TFloat64(_range) -> (ProgramTypes.TypeReference.TFloat64, [])
       | TFloat32(_range) -> (ProgramTypes.TypeReference.TFloat32, [])
       | TDecimal(_range) -> (ProgramTypes.TypeReference.TDecimal, [])
       | TChar(_range) -> (ProgramTypes.TypeReference.TChar, [])
@@ -474,7 +474,7 @@ module Expr =
       | MPInt128(r, _, _) -> r
       | MPUInt128(r, _, _) -> r
       | MPBigInt(r, _) -> r
-      | MPFloat(r, _, _, _) -> r
+      | MPFloat64(r, _, _, _) -> r
       | MPFloat32(r, _, _, _) -> r
       | MPDecimal(r, _) -> r
       | MPChar(r, _, _, _) -> r
@@ -510,7 +510,7 @@ module Expr =
       | MPInt128(_, (_, i), _) -> ProgramTypes.MatchPattern.MPInt128(gid(), i)
       | MPUInt128(_, (_, i), _) -> ProgramTypes.MatchPattern.MPUInt128(gid(), i)
       | MPBigInt(_, (_, i)) -> ProgramTypes.MatchPattern.MPBigInt(gid(), i)
-      | MPFloat(_, s, w, f) -> ProgramTypes.MatchPattern.MPFloat(gid(), s, w, f)
+      | MPFloat64(_, s, w, f) -> ProgramTypes.MatchPattern.MPFloat64(gid(), s, w, f)
       | MPFloat32(_, s, w, f) -> ProgramTypes.MatchPattern.MPFloat32(gid(), s, w, f)
       | MPDecimal(_, d) -> ProgramTypes.MatchPattern.MPDecimal(gid(), d)
       | MPString(_, contents, _, _) ->
@@ -701,7 +701,7 @@ module Expr =
     | EInt128(_, (_, i), _) -> (ProgramTypes.Expr.EInt128(gid(), i), [])
     | EUInt128(_, (_, i), _) -> (ProgramTypes.Expr.EUInt128(gid(), i), [])
     | EBigInt(_, (_, i)) -> (ProgramTypes.Expr.EBigInt(gid(), i), [])
-    | EFloat(_, s, w, f) -> (ProgramTypes.Expr.EFloat(gid(), s, w, f), [])
+    | EFloat64(_, s, w, f) -> (ProgramTypes.Expr.EFloat64(gid(), s, w, f), [])
     | EFloat32(_, s, w, f) -> (ProgramTypes.Expr.EFloat32(gid(), s, w, f), [])
     | EDecimal(_, d) -> (ProgramTypes.Expr.EDecimal(gid(), d), [])
     | EString(_, _, contents, _, _) ->
@@ -1330,7 +1330,7 @@ module FunctionDeclaration =
     | TInt128
     | TUInt128
     | TBigInt
-    | TFloat
+    | TFloat64
     | TFloat32
     | TDecimal
     | TChar
@@ -1478,7 +1478,7 @@ module ImplDeclaration =
       | TUInt64(_) -> "UInt64"
       | TInt128(_) -> "Int128"
       | TUInt128(_) -> "UInt128"
-      | TFloat(_) -> "Float"
+      | TFloat64(_) -> "Float64"
       | TFloat32(_) -> "Float32"
       | TDecimal(_) -> "Decimal"
       | TChar(_) -> "Char"

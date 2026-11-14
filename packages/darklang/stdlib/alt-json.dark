@@ -4,9 +4,9 @@ type Json =
   | Null
   | Bool(Bool)
   // These were originally flattened as a single Number case, to match JSON spec
-  // CLEANUP there may be benefits to flattening back to a `Number(JsonNumber)` case, where `JsonNumber = | Integer(Int64) | Float(Float)`. Not sure if there's a benefit or not, but there was _some_ reason we kept it to the strict single Number case to start.
+  // CLEANUP there may be benefits to flattening back to a `Number(JsonNumber)` case, where `JsonNumber = | Integer(Int64) | Float(Float64)`. Not sure if there's a benefit or not, but there was _some_ reason we kept it to the strict single Number case to start.
   | Integer(Int64)
-  | Float(Float)
+  | Float(Float64)
   | String(String)
   | Array(List<Json>)
   | Object(List<(String * Json)>)
@@ -47,7 +47,7 @@ impl Display for Json =
 
 /// Parses <param jsonString> as JSON. `//` and `/* */` comments are skipped
 /// wherever whitespace may go. A number with no `.`, `e` or `E` is an
-/// {{Integer}}, otherwise a {{Float}}.
+/// {{Integer}}, otherwise a {{Float64}}.
 let parse(jsonString: String): Result<Json, ParseError.ParseError> =
   match Parse.document(jsonString) with
   | Some(json) -> Result.Ok(json)
@@ -108,10 +108,10 @@ module Format =
   /// out in full while the leading digit's decimal exponent is in -4..16 and
   /// as `1.5E+300` / `1E-07` outside it. NaN and the infinities have no JSON
   /// form, so they are written as the strings Json.serialize uses for them.
-  let floatText(n: Float): String =
-    if Float.isNaN(n) then
+  let floatText(n: Float64): String =
+    if Float64.isNaN(n) then
       "\"NaN\""
-    else if !Float.isFinite(n) then
+    else if !Float64.isFinite(n) then
       if n > 0.0 then "\"Infinity\"" else "\"-Infinity\""
     else
       let (negative, digits, exponent) = shortestDigits(n)
@@ -137,10 +137,10 @@ module Format =
           sign + String.first(digits, point) + "." + String.dropFirst(digits, point)
 
 
-  /// Take apart <fn Float.toString>, which already holds the shortest
+  /// Take apart <fn Float64.toString>, which already holds the shortest
   /// round-trip digits: the sign, the significant digits with no leading or
   /// trailing zeros ("" for zero), and the decimal exponent of the first one.
-  let shortestDigits(n: Float): (Bool * String * Int64) =
+  let shortestDigits(n: Float64): (Bool * String * Int64) =
     let text = display(n)
     let negative = String.startsWith(text, "-")
     let unsigned = if negative then String.dropFirst(text, 1) else text
@@ -298,15 +298,15 @@ module Parse =
 
   let number(t: String): Option<Json> =
     if Regex.isMatch(t, "[.eE]") |> Result.withDefault(false) then
-      Float.parse(t)
+      Float64.parse(t)
       |> Result.toOption
       |> Option.map(fun f -> Json.Float(f))
     else
-      // an integer past Int64 is read as a Float, as JavaScript reads every number
+      // an integer past Int64 is read as a Float64, as JavaScript reads every number
       match Int64.parse(t) with
       | Ok(i) -> Option.Some(Json.Integer(i))
       | Error(_) ->
-        Float.parse(t)
+        Float64.parse(t)
         |> Result.toOption
         |> Option.map(fun f -> Json.Float(f))
 
@@ -344,7 +344,7 @@ module Parse =
     | _ -> Option.None
 
 
-/// Reads an exact JSON integer. A Float value is never silently truncated or
+/// Reads an exact JSON integer. A Float64 value is never silently truncated or
 /// reinterpreted as an integer, even if its current value is whole.
 let toInt64(j: Json): Option<Int64> =
   match j with
@@ -352,13 +352,13 @@ let toInt64(j: Json): Option<Int64> =
   | _ -> Option.None
 
 
-/// Read a JSON number as Float only when the conversion is exact.
-let toFloat(j: Json): Option<Float> =
+/// Read a JSON number as Float64 only when the conversion is exact.
+let toFloat64(j: Json): Option<Float64> =
   match j with
   | Float(n) -> Option.Some(n)
   | Integer(i) ->
-    let n = Int64.toFloat(i)
-    if Int64.fromFloat(n) == Option.Some(i) then Option.Some(n) else Option.None
+    let n = Int64.toFloat64(i)
+    if Int64.fromFloat64(n) == Option.Some(i) then Option.Some(n) else Option.None
   | _ -> Option.None
 
 
@@ -450,12 +450,12 @@ module Helpers =
       | None -> Result.Error($"Invalid JSON integer field: {key}")
 
 
-  /// Get a Float field. An integer is converted only if Float can hold it
+  /// Get a Float64 field. An integer is converted only if Float64 can hold it
   /// exactly; use <fn getInt64Option> for integers.
-  let getFloat(key: String, fields: List<(String * Json)>): Option<Float> =
+  let getFloat(key: String, fields: List<(String * Json)>): Option<Float64> =
     let found = List.findFirst(fields, fun((k, _)) -> k == key)
     match found with
-    | Some(pair) -> toFloat(Tuple2.second(pair))
+    | Some(pair) -> toFloat64(Tuple2.second(pair))
     | None -> Option.None
 
 
@@ -501,11 +501,11 @@ module Builder =
 
 
   /// Add a floating-point field
-  let addFloat(fields: Fields, key: String, value: Float): Fields =
+  let addFloat(fields: Fields, key: String, value: Float64): Fields =
     List.append(fields, (key, Json.Float(value)))
 
 
-  /// Add an integer field without converting it to Float
+  /// Add an integer field without converting it to Float64
   let addInt64(fields: Fields, key: String, value: Int64): Fields =
     List.append(fields, (key, Json.Integer(value)))
 
@@ -532,8 +532,8 @@ module Builder =
     | None -> fields
 
 
-  /// Add an optional Float field (only adds if Some)
-  let addOptionalFloat(fields: Fields, key: String, value: Option<Float>): Fields =
+  /// Add an optional Float64 field (only adds if Some)
+  let addOptionalFloat(fields: Fields, key: String, value: Option<Float64>): Fields =
     match value with
     | Some(v) -> List.append(fields, (key, Json.Float(v)))
     | None -> fields

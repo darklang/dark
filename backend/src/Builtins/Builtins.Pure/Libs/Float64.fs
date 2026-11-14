@@ -1,4 +1,4 @@
-module Builtins.Pure.Libs.Float
+module Builtins.Pure.Libs.Float64
 
 open Prelude
 open LibExecution.RuntimeTypes
@@ -22,86 +22,87 @@ module ParseError =
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "floatCeiling" 0
+  [ { name = fn "float64Ceiling" 0
       typeParams = []
-      parameters = [ Param.make "a" TFloat "" ]
+      parameters = [ Param.make "a" TFloat64 "" ]
       returnType = TInt64
       description = "Round up to an integer value"
       fn =
         (function
-        | _, vm, _, [| DFloat a |] -> a |> System.Math.Ceiling |> roundedToInt64 vm
+        | _, vm, _, [| DFloat64 a |] -> a |> System.Math.Ceiling |> roundedToInt64 vm
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
-    { name = fn "floatFloor" 0
+    { name = fn "float64Floor" 0
       typeParams = []
-      parameters = [ Param.make "a" TFloat "" ]
+      parameters = [ Param.make "a" TFloat64 "" ]
       returnType = TInt64
       description =
-        "Round down to an integer value.\n\nConsider <fn Float.truncate> if "
+        "Round down to an integer value.\n\nConsider <fn Float64.truncate> if "
         + "your goal is to discard the fractional part of a number: "
-        + "{{Float.floor(-1.9) == -2}} but {{Float.truncate(-1.9) == -1}}"
+        + "{{Float64.floor(-1.9) == -2}} but {{Float64.truncate(-1.9) == -1}}"
       fn =
         (function
-        | _, vm, _, [| DFloat a |] -> a |> System.Math.Floor |> roundedToInt64 vm
+        | _, vm, _, [| DFloat64 a |] -> a |> System.Math.Floor |> roundedToInt64 vm
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
-    { name = fn "floatRound" 0
+    { name = fn "float64Round" 0
       typeParams = []
-      parameters = [ Param.make "a" TFloat "" ]
+      parameters = [ Param.make "a" TFloat64 "" ]
       returnType = TInt64
       description = "Round to the nearest integer value"
       fn =
         (function
-        | _, vm, _, [| DFloat a |] -> a |> System.Math.Round |> roundedToInt64 vm
+        | _, vm, _, [| DFloat64 a |] -> a |> System.Math.Round |> roundedToInt64 vm
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
-    { name = fn "floatTruncate" 0
+    { name = fn "float64Truncate" 0
       typeParams = []
-      parameters = [ Param.make "a" TFloat "" ]
+      parameters = [ Param.make "a" TFloat64 "" ]
       returnType = TInt64
       description =
         "Discard the fractional portion of the float, rounding towards zero"
       fn =
         (function
-        | _, vm, _, [| DFloat a |] -> a |> System.Math.Truncate |> roundedToInt64 vm
+        | _, vm, _, [| DFloat64 a |] ->
+          a |> System.Math.Truncate |> roundedToInt64 vm
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = set [ LibExecution.Effects.Effect.Raise ]
       deprecated = NotDeprecated }
 
 
-    { name = fn "floatSqrt" 0
+    { name = fn "float64Sqrt" 0
       typeParams = []
-      parameters = [ Param.make "a" TFloat "" ]
-      returnType = TFloat
+      parameters = [ Param.make "a" TFloat64 "" ]
+      returnType = TFloat64
       description = "Get the square root of a float"
       fn =
         (function
-        | _, _, _, [| DFloat a |] -> Ply(DFloat(System.Math.Sqrt a))
+        | _, _, _, [| DFloat64 a |] -> Ply(DFloat64(System.Math.Sqrt a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "floatParse" 0
+    { name = fn "float64Parse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType =
         TypeReference.result
-          TFloat
+          TFloat64
           (TCustomType(
             { originalName = []
               resolved =
@@ -109,16 +110,16 @@ let fns () : List<BuiltInFn> =
             []
           ))
       description =
-        "Returns the <type Float> value wrapped in a {{Result}} of the <type String>"
+        "Returns the <type Float64> value wrapped in a {{Result}} of the <type String>"
       fn =
         let typeName =
           FQTypeName.fqPackage (PackageRefs.Type.Stdlib.floatParseError ())
-        let resultOk = Dval.resultOk KTFloat (KTCustomType(typeName, []))
-        let resultError = Dval.resultError KTFloat (KTCustomType(typeName, []))
+        let resultOk = Dval.resultOk KTFloat64 (KTCustomType(typeName, []))
+        let resultError = Dval.resultError KTFloat64 (KTCustomType(typeName, []))
         (function
         | _, _, _, [| DString s |] ->
           try
-            float (s) |> DFloat |> resultOk |> Ply
+            float (s) |> DFloat64 |> resultOk |> Ply
           with :? System.FormatException ->
             ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
         | _ -> incorrectArgs ())
@@ -127,24 +128,24 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "floatToString" 0
+    { name = fn "float64ToString" 0
       typeParams = []
-      parameters = [ Param.make "f" TFloat "" ]
+      parameters = [ Param.make "f" TFloat64 "" ]
       returnType = TString
       description =
         "Stringify <param float> as the shortest decimal that parses back to the same value, e.g. `1.5`, `0.30000000000000004`, `1e+16`, `1e-5`."
       fn =
         (function
-        | _, _, _, [| DFloat f |] -> Ply(DString(Dval.floatToString f))
+        | _, _, _, [| DFloat64 f |] -> Ply(DString(Dval.float64ToString f))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "floatToBits" 0
+    { name = fn "float64ToBits" 0
       typeParams = []
-      parameters = [ Param.make "a" TFloat "" ]
+      parameters = [ Param.make "a" TFloat64 "" ]
       returnType = TUInt64
       description =
         "Return the IEEE 754 binary64 bit pattern of <param a> as an unsigned 64-bit value: "
@@ -153,7 +154,7 @@ let fns () : List<BuiltInFn> =
         + "every NaN has a pattern despite equalling nothing, itself included."
       fn =
         (function
-        | _, _, _, [| DFloat a |] ->
+        | _, _, _, [| DFloat64 a |] ->
           System.BitConverter.DoubleToUInt64Bits a |> DUInt64 |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure

@@ -128,7 +128,7 @@ let private matchBindings (pattern : WT.MatchPattern) : List<string * WT.Range> 
       | WT.MPUInt64 _
       | WT.MPInt128 _
       | WT.MPUInt128 _
-      | WT.MPFloat _
+      | WT.MPFloat64 _
       | WT.MPFloat32 _
       | WT.MPDecimal _
       | WT.MPChar _
@@ -215,7 +215,7 @@ let rec private structuralPatternIssues (pattern : WT.MatchPattern) : List<Issue
   | WT.MPUInt64 _
   | WT.MPInt128 _
   | WT.MPUInt128 _
-  | WT.MPFloat _
+  | WT.MPFloat64 _
   | WT.MPFloat32 _
   | WT.MPDecimal _
   | WT.MPChar _
@@ -333,7 +333,7 @@ let rec private exprIssues (insideFunction : bool) (expr : WT.Expr) : List<Issue
   | WT.EUInt64 _
   | WT.EInt128 _
   | WT.EUInt128 _
-  | WT.EFloat _
+  | WT.EFloat64 _
   | WT.EFloat32 _
   | WT.EDecimal _
   | WT.EChar _
@@ -342,7 +342,7 @@ let rec private exprIssues (insideFunction : bool) (expr : WT.Expr) : List<Issue
 
 /// Type names the parser always reads as the built-in type.
 let private builtinTypeNames : List<string> =
-  (WT.primTypes |> List.map fst) @ [ "List"; "Dict" ]
+  (WT.primTypes @ WT.primTypeAliases |> List.map fst) @ [ "List"; "Dict" ]
 
 let rec private declarationStructureIssues
   (declaration : WT.Declaration)

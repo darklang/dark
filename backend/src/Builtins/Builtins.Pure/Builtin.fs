@@ -24,7 +24,7 @@ let builtins () : Builtins =
       Libs.UInt128.builtins ()
       Libs.BigInt.builtins ()
 
-      Libs.Float.builtins ()
+      Libs.Float64.builtins ()
       Libs.Float32.builtins ()
       Libs.Decimal.builtins ()
 

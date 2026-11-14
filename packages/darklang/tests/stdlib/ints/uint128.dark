@@ -109,11 +109,11 @@ test toString =
       |> Stdlib.Test.equal("340282366920938463463374607431768211455") ])
 
 
-test toFloat =
+test toFloat64 =
   Stdlib.Test.all(
-    [ Stdlib.UInt128.toFloat(2u128) |> Stdlib.Test.equal(2.0)
+    [ Stdlib.UInt128.toFloat64(2u128) |> Stdlib.Test.equal(2.0)
 
-      Stdlib.UInt128.toFloat(340282366920938463463374607431768211455u128)
+      Stdlib.UInt128.toFloat64(340282366920938463463374607431768211455u128)
       |> Stdlib.Test.equal(3.402823669209385e38) ])
 
 

@@ -191,7 +191,7 @@ module WrittenTypesToDarkTypes =
     | WT.TInt128 r -> builtin "TInt128" [ rangeToDT r ]
     | WT.TUInt128 r -> builtin "TUInt128" [ rangeToDT r ]
     | WT.TBigInt r -> builtin "TBigInt" [ rangeToDT r ]
-    | WT.TFloat r -> builtin "TFloat" [ rangeToDT r ]
+    | WT.TFloat64 r -> builtin "TFloat64" [ rangeToDT r ]
     | WT.TFloat32 r -> builtin "TFloat32" [ rangeToDT r ]
     | WT.TDecimal r -> builtin "TDecimal" [ rangeToDT r ]
     | WT.TChar r -> builtin "TChar" [ rangeToDT r ]
@@ -400,14 +400,14 @@ module WrittenTypesToDarkTypes =
         "MPUInt128",
         [ rangeToDT r; DTuple(rangeToDT ipR, DUInt128 v, []); rangeToDT sufR ]
       )
-    | WT.MPFloat(r, neg, whole, frac) ->
+    | WT.MPFloat64(r, neg, whole, frac) ->
       let st = signTypeName ()
       let signDval = DEnum(st, st, [], (if neg then "Negative" else "Positive"), [])
       DEnum(
         t,
         t,
         [],
-        "MPFloat",
+        "MPFloat64",
         [ rangeToDT r; signDval; DString whole; DString frac ]
       )
     | WT.MPFloat32(r, neg, whole, frac) ->
@@ -654,14 +654,14 @@ module WrittenTypesToDarkTypes =
         "EUInt128",
         [ rangeToDT r; DTuple(rangeToDT ipR, DUInt128 v, []); rangeToDT sufR ]
       )
-    | WT.EFloat(r, neg, whole, frac) ->
+    | WT.EFloat64(r, neg, whole, frac) ->
       let st = signTypeName ()
       let signDval = DEnum(st, st, [], (if neg then "Negative" else "Positive"), [])
       DEnum(
         t,
         t,
         [],
-        "EFloat",
+        "EFloat64",
         [ rangeToDT r; signDval; DString whole; DString frac ]
       )
     | WT.EFloat32(r, neg, whole, frac) ->

@@ -22,7 +22,7 @@ let rec write (w : BinaryWriter) (t : TypeReference) : unit =
   | TUInt32 -> w.Write 7uy
   | TInt128 -> w.Write 8uy
   | TUInt128 -> w.Write 9uy
-  | TFloat -> w.Write 10uy
+  | TFloat64 -> w.Write 10uy
   | TFloat32 -> w.Write 27uy
   | TDecimal -> w.Write 28uy
   | TBool -> w.Write 11uy
@@ -73,7 +73,7 @@ let rec read (r : BinaryReader) : TypeReference =
   | 7uy -> TUInt32
   | 8uy -> TInt128
   | 9uy -> TUInt128
-  | 10uy -> TFloat
+  | 10uy -> TFloat64
   | 27uy -> TFloat32
   | 28uy -> TDecimal
   | 11uy -> TBool

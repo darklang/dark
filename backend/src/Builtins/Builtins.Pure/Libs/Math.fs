@@ -13,8 +13,8 @@ let varA = TVariable "a"
 let fns () : List<BuiltInFn> =
   [ { name = fn "mathCos" 0
       typeParams = []
-      parameters = [ Param.make "angleInRadians" TFloat "" ]
-      returnType = TFloat
+      parameters = [ Param.make "angleInRadians" TFloat64 "" ]
+      returnType = TFloat64
       description =
         "Returns the cosine of the given <param angleInRadians>.\n\nOne "
         + "interpretation of the result relates to a right triangle: the cosine "
@@ -22,7 +22,7 @@ let fns () : List<BuiltInFn> =
         + "hypotenuse."
       fn =
         (function
-        | _, _, _, [| DFloat a |] -> Ply(DFloat(System.Math.Cos a))
+        | _, _, _, [| DFloat64 a |] -> Ply(DFloat64(System.Math.Cos a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -31,8 +31,8 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "mathSin" 0
       typeParams = []
-      parameters = [ Param.make "angleInRadians" TFloat "" ]
-      returnType = TFloat
+      parameters = [ Param.make "angleInRadians" TFloat64 "" ]
+      returnType = TFloat64
       description =
         "Returns the sine of the given <param angleInRadians>.\n\nOne "
         + "interpretation of the result relates to a right triangle: the sine is "
@@ -40,7 +40,7 @@ let fns () : List<BuiltInFn> =
         + "hypotenuse"
       fn =
         (function
-        | _, _, _, [| DFloat a |] -> Ply(DFloat(System.Math.Sin a))
+        | _, _, _, [| DFloat64 a |] -> Ply(DFloat64(System.Math.Sin a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -49,8 +49,8 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "mathTan" 0
       typeParams = []
-      parameters = [ Param.make "angleInRadians" TFloat "" ]
-      returnType = TFloat
+      parameters = [ Param.make "angleInRadians" TFloat64 "" ]
+      returnType = TFloat64
       description =
         "Returns the tangent of the given <param angleInRadians>.\n\nOne "
         + "interpretation of the result relates to a right triangle: the tangent "
@@ -58,7 +58,7 @@ let fns () : List<BuiltInFn> =
         + "side adjacent to the angle."
       fn =
         (function
-        | _, _, _, [| DFloat a |] -> Ply(DFloat(System.Math.Tan a))
+        | _, _, _, [| DFloat64 a |] -> Ply(DFloat64(System.Math.Tan a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -67,8 +67,8 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "mathAcos" 0
       typeParams = []
-      parameters = [ Param.make "ratio" TFloat "" ]
-      returnType = TypeReference.option TFloat
+      parameters = [ Param.make "ratio" TFloat64 "" ]
+      returnType = TypeReference.option TFloat64
       description =
         "Returns the arc cosine of <param ratio>, as an <type Option>.\n\nIf "
         + "<param ratio> is in the inclusive range {{[-1.0, 1.0]}}, returns "
@@ -77,13 +77,13 @@ let fns () : List<BuiltInFn> =
         + "function is the inverse of <fn Math.cos>."
       fn =
         (function
-        | _, _, _, [| DFloat r |] ->
+        | _, _, _, [| DFloat64 r |] ->
           let res = System.Math.Acos r in
 
           if System.Double.IsNaN res then
-            Dval.optionNone KTFloat |> Ply
+            Dval.optionNone KTFloat64 |> Ply
           else
-            Dval.optionSome KTFloat (DFloat res) |> Ply
+            Dval.optionSome KTFloat64 (DFloat64 res) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -92,8 +92,8 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "mathAsin" 0
       typeParams = []
-      parameters = [ Param.make "ratio" TFloat "" ]
-      returnType = TypeReference.option TFloat
+      parameters = [ Param.make "ratio" TFloat64 "" ]
+      returnType = TypeReference.option TFloat64
       description =
         "Returns the arc sine of <param ratio>, as an <type Option>.\n\nIf "
         + "<param ratio> is in the inclusive range {{[-1.0, 1.0]}}, returns "
@@ -102,13 +102,13 @@ let fns () : List<BuiltInFn> =
         + "function is the inverse of <fn Math.sin>."
       fn =
         (function
-        | _, _, _, [| DFloat r |] ->
+        | _, _, _, [| DFloat64 r |] ->
           let res = System.Math.Asin r in
 
           if System.Double.IsNaN res then
-            Dval.optionNone KTFloat |> Ply
+            Dval.optionNone KTFloat64 |> Ply
           else
-            Dval.optionSome KTFloat (DFloat res) |> Ply
+            Dval.optionSome KTFloat64 (DFloat64 res) |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -117,8 +117,8 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "mathAtan" 0
       typeParams = []
-      parameters = [ Param.make "ratio" TFloat "" ]
-      returnType = TFloat
+      parameters = [ Param.make "ratio" TFloat64 "" ]
+      returnType = TFloat64
       description =
         "Returns the arc tangent of <param ratio>. The result is in radians and "
         + "is between {{-Math.pi/2}} and {{Math.pi/2}}.\n\nThis function is the "
@@ -126,7 +126,7 @@ let fns () : List<BuiltInFn> =
         + "range, if you know the numerator and denominator of <param ratio>."
       fn =
         (function
-        | _, _, _, [| DFloat a |] -> Ply(DFloat(System.Math.Atan a))
+        | _, _, _, [| DFloat64 a |] -> Ply(DFloat64(System.Math.Atan a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -135,8 +135,8 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "mathAtan2" 0
       typeParams = []
-      parameters = [ Param.make "y" TFloat ""; Param.make "x" TFloat "" ]
-      returnType = TFloat
+      parameters = [ Param.make "y" TFloat64 ""; Param.make "x" TFloat64 "" ]
+      returnType = TFloat64
       description =
         "Returns the arc tangent of {{y / x}}, using the signs of <param y> and "
         + "<param x> to determine the quadrant of the result.\n\nThe result is in "
@@ -145,7 +145,8 @@ let fns () : List<BuiltInFn> =
         + "values <param x> and <param y>."
       fn =
         (function
-        | _, _, _, [| DFloat y; DFloat x |] -> Ply(DFloat(System.Math.Atan2(y, x)))
+        | _, _, _, [| DFloat64 y; DFloat64 x |] ->
+          Ply(DFloat64(System.Math.Atan2(y, x)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -154,12 +155,12 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "mathCosh" 0
       typeParams = []
-      parameters = [ Param.make "angleInRadians" TFloat "" ]
-      returnType = TFloat
+      parameters = [ Param.make "angleInRadians" TFloat64 "" ]
+      returnType = TFloat64
       description = "Returns the hyperbolic cosine of <param angleInRadians>"
       fn =
         (function
-        | _, _, _, [| DFloat a |] -> Ply(DFloat(System.Math.Cosh a))
+        | _, _, _, [| DFloat64 a |] -> Ply(DFloat64(System.Math.Cosh a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -168,12 +169,12 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "mathSinh" 0
       typeParams = []
-      parameters = [ Param.make "angleInRadians" TFloat "" ]
-      returnType = TFloat
+      parameters = [ Param.make "angleInRadians" TFloat64 "" ]
+      returnType = TFloat64
       description = "Returns the hyperbolic sine of <param angleInRadians>"
       fn =
         (function
-        | _, _, _, [| DFloat a |] -> Ply(DFloat(System.Math.Sinh a))
+        | _, _, _, [| DFloat64 a |] -> Ply(DFloat64(System.Math.Sinh a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -182,12 +183,12 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "mathTanh" 0
       typeParams = []
-      parameters = [ Param.make "angleInRadians" TFloat "" ]
-      returnType = TFloat
+      parameters = [ Param.make "angleInRadians" TFloat64 "" ]
+      returnType = TFloat64
       description = "Returns the hyperbolic tangent of <param angleInRadians>"
       fn =
         (function
-        | _, _, _, [| DFloat a |] -> Ply(DFloat(System.Math.Tanh a))
+        | _, _, _, [| DFloat64 a |] -> Ply(DFloat64(System.Math.Tanh a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

@@ -241,38 +241,38 @@ test sqrt =
       Stdlib.Int64.sqrt(86) |> Stdlib.Test.equal(9.273618495495704) ])
 
 
-test toFloat =
+test toFloat64 =
   Stdlib.Test.all(
-    [ Stdlib.Int64.toFloat(2) |> Stdlib.Test.equal(2.0)
-      Stdlib.Int64.toFloat(955656) |> Stdlib.Test.equal(955656.0)
-      Stdlib.Int64.toFloat(-10) |> Stdlib.Test.equal(-10.0) ])
+    [ Stdlib.Int64.toFloat64(2) |> Stdlib.Test.equal(2.0)
+      Stdlib.Int64.toFloat64(955656) |> Stdlib.Test.equal(955656.0)
+      Stdlib.Int64.toFloat64(-10) |> Stdlib.Test.equal(-10.0) ])
 
 
-test fromFloat =
+test fromFloat64 =
   Stdlib.Test.all(
-    [ // fromFloat truncates toward zero, like BigInt.fromFloat; fromFloatRounded rounds
-      Stdlib.Int64.fromFloat(3.9)
+    [ // fromFloat64 truncates toward zero, like BigInt.fromFloat64; fromFloatRounded rounds
+      Stdlib.Int64.fromFloat64(3.9)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
 
-      Stdlib.Int64.fromFloat(-3.9)
+      Stdlib.Int64.fromFloat64(-3.9)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-3))
 
-      Stdlib.Int64.fromFloat(1e30)
+      Stdlib.Int64.fromFloat64(1e30)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
-      Stdlib.Int64.fromFloat(0.0 / 0.0)
+      Stdlib.Int64.fromFloat64(0.0 / 0.0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
-      Stdlib.Int64.fromFloat(1.0 / 0.0)
+      Stdlib.Int64.fromFloat64(1.0 / 0.0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
-      Stdlib.Int64.fromFloat(-1.0 / 0.0)
+      Stdlib.Int64.fromFloat64(-1.0 / 0.0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
-      Stdlib.Int64.fromFloat(-9223372036854775808.0)
+      Stdlib.Int64.fromFloat64(-9223372036854775808.0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-9223372036854775808))
 
-      Stdlib.Int64.fromFloat(9223372036854775808.0)
+      Stdlib.Int64.fromFloat64(9223372036854775808.0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 
@@ -342,17 +342,17 @@ test multiply =
       5145 * 5145 |> Stdlib.Test.equal(26471025)
       // 1 * 1.0
       // => raises
-      //   "int64Multiply's 2nd argument (`b`) should be an Int64. However, a Float
+      //   "int64Multiply's 2nd argument (`b`) should be an Int64. However, a Float64
       //   (1.0) was passed instead.
       //
       // Expected: (b: Int64)
-      // Actual: a Float: 1.0"
+      // Actual: a Float64: 1.0"
       8 * 8 |> Stdlib.Test.equal(64) ])
 
 
 test multiplyByFloatRaises =
   1 * 1.0
-  => raises "Cannot perform numeric operation on Int64 and Float. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat(n)`."
+  => raises "Cannot perform numeric operation on Int64 and Float64. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat64(n)`."
 
 
 test divide =

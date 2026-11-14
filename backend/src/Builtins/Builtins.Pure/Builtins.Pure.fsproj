@@ -24,7 +24,7 @@
     <Compile Include="Libs/UInt128.fs" />
     <Compile Include="Libs/BigInt.fs" />
 
-    <Compile Include="Libs/Float.fs" />
+    <Compile Include="Libs/Float64.fs" />
     <Compile Include="Libs/Float32.fs" />
     <Compile Include="Libs/Decimal.fs" />
 

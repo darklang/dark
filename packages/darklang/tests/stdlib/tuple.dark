@@ -83,7 +83,7 @@ test tuple3 =
       |> Stdlib.Test.equal(("one", 2, "PI"))
 
       Stdlib.Tuple3.mapThird((1, "two", 3.14), fun x ->
-        Stdlib.Float.roundDown(x))
+        Stdlib.Float64.roundDown(x))
       |> Stdlib.Test.equal((1, "two", 3)) ])
 
 
@@ -100,5 +100,5 @@ test tuple3MapsAllThree =
         (1, "two", 3.14),
         (fun x -> x - 2),
         (fun x -> Stdlib.String.toUppercase(x)),
-        fun x -> Stdlib.Float.roundDown(x))
+        fun x -> Stdlib.Float64.roundDown(x))
       |> Stdlib.Test.equal((-1, "TWO", 3)) ])

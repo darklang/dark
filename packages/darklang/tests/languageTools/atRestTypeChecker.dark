@@ -843,7 +843,7 @@ module Constructors =
       "let f (k: String) : Dict<String, Int64> = " + body
 
     let floatFn(body: String): String =
-      "let f (u: Unit) : Dict<Float, Int64> = " + body
+      "let f (u: Unit) : Dict<Float64, Int64> = " + body
 
     Stdlib.Test.all(
       [ check(dictFn("Dict { \"a\": 1, \"a\": 2 }"), "f")
@@ -1432,7 +1432,7 @@ module InstantiatedDictKeys =
 
 module Operators =
   // Bitwise NOT (~) is `BitwiseNot.bitwiseNot`, and which types it accepts is which
-  // types implement it rather than a list the checker carries. Bool, Float and
+  // types implement it rather than a list the checker carries. Bool, Float64 and
   // String have no implementation, so they are refused as a missing one, the same
   // way a named call is. The runtime refuses them for the same reason, which is the
   // point.
@@ -1467,7 +1467,7 @@ module Operators =
         check("let f(x: Bool): Bool = ~x", "f")
         |> Stdlib.Test.equal("failed:MissingImpl")
 
-        check("let f(x: Float): Float = ~x", "f")
+        check("let f(x: Float64): Float64 = ~x", "f")
         |> Stdlib.Test.equal("failed:MissingImpl")
 
         check("let f(x: String): String = Builtin.bitwiseNot(x)", "f")
@@ -1524,15 +1524,15 @@ module Operators =
         |> Stdlib.Test.equal("checked:") ])
 
 
-  // Bitwise operators still refuse Float, but as the ABSENCE of an implementation
-  // rather than a predicate in the checker: there is no `impl BitwiseAnd for Float`.
+  // Bitwise operators still refuse Float64, but as the ABSENCE of an implementation
+  // rather than a predicate in the checker: there is no `impl BitwiseAnd for Float64`.
   // Same answer, and now it is the same answer dispatch gives.
   test bitwiseOperators =
     Stdlib.Test.all(
-      [ check("let f(value: Float): Float = value & value", "f")
+      [ check("let f(value: Float64): Float64 = value & value", "f")
         |> Stdlib.Test.equal("failed:MissingImpl")
 
-        check("let f(value: Float): Float = value << value", "f")
+        check("let f(value: Float64): Float64 = value << value", "f")
         |> Stdlib.Test.equal("failed:MissingImpl")
 
         check("let f(value: Int128): Int128 = value ^ value", "f")
@@ -1600,7 +1600,7 @@ module Operators =
       [ check("let f(value: Int64): Int64 = -value", "f")
         |> Stdlib.Test.equal("checked:")
 
-        check("let f(value: Float): Float = -value", "f")
+        check("let f(value: Float64): Float64 = -value", "f")
         |> Stdlib.Test.equal("checked:")
 
         check("let f(value: Int64): String = -value", "f")
@@ -1923,16 +1923,16 @@ module PostfixUnwrap =
       [ "TypeMismatch: In the function's return value: expected String, got Int64 (wrap it in `Stdlib.display`)" ])
 
 
-  // An operator given an Int64 and a Float says both sides must match and how to convert.
+  // An operator given an Int64 and a Float64 says both sides must match and how to convert.
   test mixedNumbersNameTheOperatorAndTheConversion =
     Stdlib.Test.all(
       [ issues("let f(n: Int64): Int64 = n / 2.0", "f")
         |> Stdlib.Test.equal(
-          [ "TypeMismatch: `/` needs both sides to be the same type, but got Int64 and Float. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat(n)`." ])
+          [ "TypeMismatch: `/` needs both sides to be the same type, but got Int64 and Float64. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat64(n)`." ])
 
-        issues("let f(x: Float): Bool = x == 2", "f")
+        issues("let f(x: Float64): Bool = x == 2", "f")
         |> Stdlib.Test.equal(
-          [ "TypeMismatch: `==` needs both sides to be the same type, but got Float and Int64. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat(n)`." ])
+          [ "TypeMismatch: `==` needs both sides to be the same type, but got Float64 and Int64. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat64(n)`." ])
 
         issues("let f(a: Int64, b: Int32): Int64 = a + b", "f")
         |> Stdlib.Test.equal(

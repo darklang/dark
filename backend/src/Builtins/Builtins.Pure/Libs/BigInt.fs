@@ -50,35 +50,35 @@ let private toFixed
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "bigIntToFloat" 0
+  [ { name = fn "bigIntToFloat64" 0
       typeParams = []
       parameters = [ Param.make "a" TBigInt "" ]
-      returnType = TFloat
+      returnType = TFloat64
       description =
-        "Converts a <type BigInt> to a <type Float>. Very large values lose "
+        "Converts a <type BigInt> to a <type Float64>. Very large values lose "
         + "precision."
       fn =
         (function
-        | _, _, _, [| (DBigInt _) as v |] -> Ply(DFloat(float (Dval.asBigInt v)))
+        | _, _, _, [| (DBigInt _) as v |] -> Ply(DFloat64(float (Dval.asBigInt v)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
 
-    { name = fn "bigIntFromFloat" 0
+    { name = fn "bigIntFromFloat64" 0
       typeParams = []
-      parameters = [ Param.make "a" TFloat "" ]
+      parameters = [ Param.make "a" TFloat64 "" ]
       returnType = TBigInt
       description =
-        "Converts a <type Float> to a <type BigInt>, truncating toward zero. "
+        "Converts a <type Float64> to a <type BigInt>, truncating toward zero. "
         + "Unlike going via Int64, this preserves the full integer part of the "
         + "float (no 64-bit clamp)."
       fn =
         (function
         // `bigint f` truncates toward zero; `roundedToBigInt` adds the NaN/Infinity
-        // guard (shared with the Float builtins) so those don't throw a host exn.
-        | _, vm, _, [| DFloat f |] -> roundedToBigInt vm f
+        // guard (shared with the Float64 builtins) so those don't throw a host exn.
+        | _, vm, _, [| DFloat64 f |] -> roundedToBigInt vm f
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = set [ LibExecution.Effects.Effect.Raise ]

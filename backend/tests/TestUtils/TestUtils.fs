@@ -393,7 +393,7 @@ module Expect =
     | DUInt128 _
     | DBigInt _
 
-    | DFloat _
+    | DFloat64 _
     | DFloat32 _
     | DDecimal _
 
@@ -463,7 +463,7 @@ module Expect =
       match actual, expected with
       | DFloat32 l, DFloat32 r ->
         if System.Single.IsNaN l && System.Single.IsNaN r then () else check path l r
-      | DFloat l, DFloat r ->
+      | DFloat64 l, DFloat64 r ->
         if System.Double.IsNaN l && System.Double.IsNaN r then
           // This isn't "true" equality, it's just for tests
           ()
@@ -596,7 +596,7 @@ module Expect =
       | DInt128 _, _
       | DUInt128 _, _
       | DBigInt _, _
-      | DFloat _, _
+      | DFloat64 _, _
       | DFloat32 _, _
       | DDecimal _, _
       | DChar _, _
@@ -775,7 +775,7 @@ module Expect =
       | EUInt128(_, v), EUInt128(_, v') -> check path v v'
       | EBigInt(_, v), EBigInt(_, v') -> check path v v'
 
-      | EFloat(_, sign, whole, part), EFloat(_, sign', whole', part') ->
+      | EFloat64(_, sign, whole, part), EFloat64(_, sign', whole', part') ->
         check path sign sign'
         check path whole whole'
         check path part part'
@@ -909,7 +909,7 @@ module Expect =
       | EArg _, _
       | EValue _, _
       | EBool _, _
-      | EFloat _, _
+      | EFloat64 _, _
       | EFloat32 _, _
       | EDecimal _, _
       | ELet _, _
@@ -968,7 +968,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DInt128 _
     | DUInt128 _
     | DBigInt _
-    | DFloat _
+    | DFloat64 _
     | DFloat32 _
     | DDecimal _
     | DChar _
@@ -1065,13 +1065,13 @@ let naughtyStrings : List<string * string> =
 let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
   let hash = Hash "dca045b1e2af41d8ad1b35261b25a426dca045b1e2af41d8ad1b35261b25a426"
 
-  [ ("float", DFloat 7.2, TFloat)
-    ("float2", DFloat -7.2, TFloat)
-    ("float3", DFloat 15.0, TFloat)
-    ("float4", DFloat -15.0, TFloat)
+  [ ("float", DFloat64 7.2, TFloat64)
+    ("float2", DFloat64 -7.2, TFloat64)
+    ("float3", DFloat64 15.0, TFloat64)
+    ("float4", DFloat64 -15.0, TFloat64)
     // Not representable in twelve digits, so a "G12" roundtrip would lose them.
-    ("float_no_short_decimal", DFloat(0.1 + 0.2), TFloat)
-    ("float_third", DFloat(1.0 / 3.0), TFloat)
+    ("float_no_short_decimal", DFloat64(0.1 + 0.2), TFloat64)
+    ("float_third", DFloat64(1.0 / 3.0), TFloat64)
     ("float32", DFloat32 1.5f, TFloat32)
     ("float32_tenth", DFloat32 0.1f, TFloat32)
     ("float32_negative_zero", DFloat32 -0.0f, TFloat32)
@@ -1274,7 +1274,7 @@ let sampleDvals () : List<string * (Dval * TypeReference)> =
           System.Numerics.BigInteger.Parse "-123456789012345678901234567890"
         ),
         TBigInt ]
-      List.map (fun (k, v) -> k, DFloat v, TFloat) interestingFloats
+      List.map (fun (k, v) -> k, DFloat64 v, TFloat64) interestingFloats
       List.map (fun (k, v) -> k, DString v, TString) interestingStrings
       List.map (fun (k, v) -> k, DString v, TString) naughtyStrings
       interestingDvals () ]

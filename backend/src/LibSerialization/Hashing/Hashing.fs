@@ -247,7 +247,7 @@ module Hashing =
     | PT.EUInt128 _
     | PT.EBool _
     | PT.EChar _
-    | PT.EFloat _
+    | PT.EFloat64 _
     | PT.EFloat32 _
     | PT.EDecimal _
     | PT.EUnit _

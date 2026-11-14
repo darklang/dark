@@ -100,7 +100,7 @@ and TypeReference =
   | TUInt64 of Range
   | TInt128 of Range
   | TUInt128 of Range
-  | TFloat of Range
+  | TFloat64 of Range
   | TFloat32 of Range
   | TDecimal of Range
   | TChar of Range
@@ -151,7 +151,7 @@ let primTypes : List<string * (Range -> TypeReference)> =
     "UInt64", TUInt64
     "Int128", TInt128
     "UInt128", TUInt128
-    "Float", TFloat
+    "Float64", TFloat64
     "Float32", TFloat32
     "Decimal", TDecimal
     "Char", TChar
@@ -160,8 +160,13 @@ let primTypes : List<string * (Range -> TypeReference)> =
     "Uuid", TUuid
     "Bytes", TBytes ]
 
+/// Short names the parser reads as a sized type. The printer writes the full name back.
+let primTypeAliases : List<string * (Range -> TypeReference)> =
+  [ "Int", TInt64; "Float", TFloat64 ]
+
 let primTypeFromName (s : string) : Option<Range -> TypeReference> =
-  primTypes |> List.tryPick (fun (n, ctor) -> if n = s then Some ctor else None)
+  primTypes @ primTypeAliases
+  |> List.tryPick (fun (n, ctor) -> if n = s then Some ctor else None)
 
 type LetPattern =
   | LPUnit of Range
@@ -190,7 +195,7 @@ type MatchPattern =
   | MPUInt64 of Range * intPart : (Range * uint64) * suffixPart : Range
   | MPInt128 of Range * intPart : (Range * System.Int128) * suffixPart : Range
   | MPUInt128 of Range * intPart : (Range * System.UInt128) * suffixPart : Range
-  | MPFloat of Range * isNegative : bool * whole : string * fraction : string
+  | MPFloat64 of Range * isNegative : bool * whole : string * fraction : string
   | MPFloat32 of Range * isNegative : bool * whole : string * fraction : string
   | MPDecimal of Range * decimal
   | MPBool of Range * bool
@@ -265,7 +270,7 @@ let rec mpRange (p : MatchPattern) : Range =
   | MPUInt64(r, _, _)
   | MPInt128(r, _, _)
   | MPUInt128(r, _, _)
-  | MPFloat(r, _, _, _)
+  | MPFloat64(r, _, _, _)
   | MPFloat32(r, _, _, _)
   | MPDecimal(r, _)
   | MPBool(r, _)
@@ -312,7 +317,7 @@ and Expr =
   | EUInt64 of Range * intPart : (Range * uint64) * suffixPart : Range
   | EInt128 of Range * intPart : (Range * System.Int128) * suffixPart : Range
   | EUInt128 of Range * intPart : (Range * System.UInt128) * suffixPart : Range
-  | EFloat of Range * isNegative : bool * whole : string * fraction : string
+  | EFloat64 of Range * isNegative : bool * whole : string * fraction : string
   | EFloat32 of Range * isNegative : bool * whole : string * fraction : string
   | EDecimal of Range * decimal
   | EChar of
@@ -658,7 +663,7 @@ let exprRange (e : Expr) : Range =
   | EUInt64(r, _, _)
   | EInt128(r, _, _)
   | EUInt128(r, _, _)
-  | EFloat(r, _, _, _)
+  | EFloat64(r, _, _, _)
   | EFloat32(r, _, _, _)
   | EDecimal(r, _)
   | EChar(r, _, _, _)
@@ -698,7 +703,7 @@ let typeReferenceRange (t : TypeReference) : Range =
   | TUInt64 r
   | TInt128 r
   | TUInt128 r
-  | TFloat r
+  | TFloat64 r
   | TFloat32 r
   | TDecimal r
   | TChar r
@@ -949,7 +954,7 @@ let typeReferenceHeadName (t : TypeReference) : string =
   | TUInt64 _ -> "UInt64"
   | TInt128 _ -> "Int128"
   | TUInt128 _ -> "UInt128"
-  | TFloat _ -> "Float"
+  | TFloat64 _ -> "Float64"
   | TFloat32 _ -> "Float32"
   | TDecimal _ -> "Decimal"
   | TChar _ -> "Char"

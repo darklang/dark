@@ -956,7 +956,7 @@ test operatorNamesSuggestTheOperator =
       suggest("Int64.modulo")
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a % b"))
 
-      suggest("Stdlib.Float.pow")
+      suggest("Stdlib.Float64.pow")
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a ** b"))
 
       suggest("Stdlib.String.mod")
@@ -1715,7 +1715,7 @@ module ModuleSave =
 
   test invalidNamesExitNonzeroAndSaveNothing = Instance.withInstance(fun i ->
     let source =
-      "type Shape = | Dot | Circle(Float)\nlet f(): Shape = Circle(1.0)"
+      "type Shape = | Dot | Circle(Float64)\nlet f(): Shape = Circle(1.0)"
 
     let result = save(i, source)
     let viewed =

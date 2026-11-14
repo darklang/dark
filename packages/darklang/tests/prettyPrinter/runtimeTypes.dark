@@ -67,14 +67,14 @@ test scalars =
       pp(0.1 + 0.2) |> Stdlib.Test.equal("0.30000000000000004")
       pp(0.00001) |> Stdlib.Test.equal("1e-5")
       // A Float32 carries its suffix, so it reads back as itself and not as a
-      // Float. NaN and the infinities have no literal to suffix.
+      // Float64. NaN and the infinities have no literal to suffix.
       pp(1.5f32) |> Stdlib.Test.equal("1.5f32")
       pp(0.1f32 + 0.2f32) |> Stdlib.Test.equal("0.3f32")
       pp(1e30f32) |> Stdlib.Test.equal("1e+30f32")
       pp(1.0f32 / 0.0f32) |> Stdlib.Test.equal("Infinity") ])
 
 
-// Every number but an Int64 or a Float prints with its suffix, so what is printed
+// Every number but an Int64 or a Float64 prints with its suffix, so what is printed
 // pastes back as the same value.
 test numbersPrintWithTheirSuffix =
   Stdlib.Test.all(
@@ -94,7 +94,7 @@ test numbersPrintWithTheirSuffix =
       pp([ 1s8, 2s8 ]) |> Stdlib.Test.equal("[1s8, 2s8]") ])
 
 
-// Float literals in source
+// Float64 literals in source
 //
 // `processRemainder` is what the ProgramTypes printer runs a float literal's
 // fraction through, to drop trailing zeros. It parses and reprints the fraction,
@@ -327,7 +327,7 @@ test enumTypeNames =
         "Error(Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)")
 
       // Unless the type has several names and nothing says which.
-      // `Stdlib.BigInt.ParseError`, `Stdlib.Float.ParseError` and
+      // `Stdlib.BigInt.ParseError`, `Stdlib.Float64.ParseError` and
       // `Stdlib.Uuid.ParseError` are all `| BadFormat`, so content-addressing
       // makes them one type with three names; naming one is guessing, and it
       // used to guess wrong often enough that `Stdlib.BigInt.parse` would report a

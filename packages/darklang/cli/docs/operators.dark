@@ -20,24 +20,24 @@ let content(): String =
   No space before the ?. It applies to whatever comes right before it, so
   `a + f(x)?` unwraps just `f(x)`. To unwrap the sum, write `(a + b)?`.
 
-## Numeric (all int types, Float, Float32, Decimal)
+## Numeric (all int types, Float64, Float32, Decimal)
   + - * / % **   and unary -x
   Each is a trait: `+` is `Stdlib.Add`, then Subtract, Multiply, Divide, Modulo, Power, and `-x`
   is `Negate`. Both operands must be the same type: `1 + 2`, `1.0 + 2.0` and
   `1s8 * 2s8` all work; `1 + 2.0` is "Cannot perform numeric operation on Int64
-  and Float". `"a" + "b"` is `"ab"`, since String implements Add.
+  and Float64". `"a" + "b"` is `"ab"`, since String implements Add.
   A type of your own joins with `impl Add for Vec = ...`.
   `/` is integer division on ints, float division on floats.
-  `%` works on the integers and Decimal (the modulus must be > 0). Float and Float32 have no
+  `%` works on the integers and Decimal (the modulus must be > 0). Float64 and Float32 have no
   Modulo implementation.
-  `**` (power) works on every integer type, Float and Float32, and nests right:
+  `**` (power) works on every integer type, Float64 and Float32, and nests right:
   `2 ** 3 ** 2` is `2 ** (3 ** 2)`.
-  Unary `-x` negates signed ints, Float and Float32; an unsigned type has no Negate
+  Unary `-x` negates signed ints, Float64 and Float32; an unsigned type has no Negate
   implementation, and `-x` on one says so.
   A fixed-width integer WRAPS on overflow, it does not raise: `9223372036854775807 + 1`
   is `-9223372036854775808`, and `-x` on a type's minimum is that minimum again.
   `BigInt` (`1z`) is arbitrary-precision and does not wrap. Dividing by zero raises.
-  Float arithmetic follows IEEE (overflow -> infinity).
+  Float64 arithmetic follows IEEE (overflow -> infinity).
   Decimal (`19.99dec`) is exact base-10 with up to 28 places: `+ - * / %`, unary `-` and
   comparisons. No `**`; `Stdlib.Decimal.power(d, n)` takes a whole Int64 power. A result
   past 96 bits raises; `/` gives as many places as fit, so follow it with
@@ -45,7 +45,7 @@ let content(): String =
   return a Result, an Error for places outside 0 to 28. The places written are kept
   (`1.10dec` prints 1.10) but `1.10dec == 1.1dec`.
 
-## Bitwise (every integer type; Float has no implementation)
+## Bitwise (every integer type; Float64 has no implementation)
   & | ^ << >>   and unary ~x
   `&` and, `|` or, `^` xor, `<<`/`>>` shift, `~x` NOT (two's complement).
   Traits like the rest: `&` is `BitwiseAnd`, `|` `BitwiseOr`, `^` `BitwiseXor`, `~` `BitwiseNot`,

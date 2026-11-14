@@ -156,11 +156,11 @@ test sqrt =
       Stdlib.Int32.sqrt(86s32) |> Stdlib.Test.equal(9.273618495495704) ])
 
 
-test toFloat =
+test toFloat64 =
   Stdlib.Test.all(
-    [ Stdlib.Int32.toFloat(2s32) |> Stdlib.Test.equal(2.0)
-      Stdlib.Int32.toFloat(955656s32) |> Stdlib.Test.equal(955656.0)
-      Stdlib.Int32.toFloat(-10s32) |> Stdlib.Test.equal(-10.0) ])
+    [ Stdlib.Int32.toFloat64(2s32) |> Stdlib.Test.equal(2.0)
+      Stdlib.Int32.toFloat64(955656s32) |> Stdlib.Test.equal(955656.0)
+      Stdlib.Int32.toFloat64(-10s32) |> Stdlib.Test.equal(-10.0) ])
 
 
 /// Wraps on overflow.

@@ -840,7 +840,7 @@ let help(_state: AppState): String =
     "  view Option                     - View the Option type"
     "  view Stdlib.List                - View contents of Stdlib.List module"
     "  view List.head --raw            - Print just the declaration"
-    "  view Float.add --include-tests  - Float.add and the tests that call it"
+    "  view Float64.add --include-tests  - Float64.add and the tests that call it"
     "  view List.last --ast            - View List.last as a syntax tree"
     "  view List.map --instructions    - Disassemble List.map" ]
   |> Stdlib.String.join("\n")

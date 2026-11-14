@@ -18,7 +18,7 @@ module Requirements = LibExecution.CallGraph.Requirements
 ///
 /// The numeric impls, for their own type: the polymorphic builtin they call declares `Raise` for
 /// another (`Builtin.add` raises past Decimal's range). As `LibExecution.NumOps` has it, the
-/// fixed-width integers wrap, BigInt grows, and Float and Float32 follow IEEE.
+/// fixed-width integers wrap, BigInt grows, and Float64 and Float32 follow IEEE.
 ///
 /// The checked functions, which test their arguments for every case where what they call raises,
 /// and return an `Error` instead.
@@ -79,7 +79,7 @@ let cannotRaise : Set<string> =
       (wrapping @ [ ("ShiftLeft", "shiftLeft"); ("ShiftRight", "shiftRight") ])
     @ impls [ "BigInt" ] wrapping
     @ impls
-        [ "Float"; "Float32" ]
+        [ "Float64"; "Float32" ]
         (wrapping @ [ ("Divide", "divide"); ("Power", "power") ])
     @ guarded
   )

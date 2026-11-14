@@ -145,9 +145,9 @@ test displayAdviceHolds = Instance.withInstance(fun i ->
 test listedFunctionsExist =
   let names =
     [ "Stdlib.Int64.parse"
-      "Stdlib.Float.parse"
-      "Stdlib.Int64.toFloat"
-      "Stdlib.Float.round"
+      "Stdlib.Float64.parse"
+      "Stdlib.Int64.toFloat64"
+      "Stdlib.Float64.round"
       "Stdlib.abs"
       "Stdlib.min"
       "Stdlib.max"

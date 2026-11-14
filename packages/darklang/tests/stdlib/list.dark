@@ -1131,7 +1131,7 @@ test splitLast =
 
 test rejectsMixedListElements =
   [ 1s32, 2.3 ]
-  => raises "Cannot add a Float (2.3) to a list of Int32. Failed at index 1."
+  => raises "Cannot add a Float64 (2.3) to a list of Int32. Failed at index 1."
 
 
 test rejectsMixedTupleAndScalar =
@@ -1250,7 +1250,7 @@ test takeWhileRejectsNonBoolCondition =
 
 test uniqueByRejectsMixedElementTypes =
   Stdlib.List.uniqueBy([ 6, 2.0 ], fun x -> x)
-  => raises "Cannot add a Float (2.0) to a list of Int64. Failed at index 1."
+  => raises "Cannot add a Float64 (2.0) to a list of Int64. Failed at index 1."
 
 
 // A key type a Dict cannot hold raises, rather than being compared by identity.

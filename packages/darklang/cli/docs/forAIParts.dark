@@ -397,8 +397,9 @@ let syntax(): String =
   method is called through the trait, not the type: `Stdlib.Add.add(1, 2)`, or
   receiver first, `x.display`.
   `view Stdlib.Int64` lists the type's impls with where each method is called.
-- A bare integer is an `Int64` and a bare `1.5` a `Float`; numeric operands must
+- A bare integer is an `Int64` and a bare `1.5` a `Float64`; numeric operands must
   have one type. Other number types take a suffix (table in Critical Syntax).
+  As a type, `Int` means `Int64` and `Float` means `Float64`.
 - Local values use `let max = 6` without annotations; package values use `val`.
 - A keyword (type, match, in, ...; `docs syntax` lists them) is a name in
   backticks: let `type` = "json". After a `.` and as a record field name it
@@ -468,19 +469,19 @@ let syntax(): String =
 - Number literals. The suffix decides the type; nothing infers it:
     1, 1s, 1s64   Int64          1u, 1u64   UInt64
     1s8 1s16 1s32 1s128          1u8 1u16 1u32 1u128
-    1z            BigInt         1.5, 1e5, 1.5f64   Float
+    1z            BigInt         1.5, 1e5, 1.5f64   Float64
     1.5f32        Float32        19.99dec   Decimal (no exponent)
   `z` is for ℤ, the integers: `1z` is a BigInt, with no size limit.
-  Values print with their suffix except Int64 and Float, so output pastes back as itself.
+  Values print with their suffix except Int64 and Float64, so output pastes back as itself.
 - Traits: `impl Add for Vec = let add(a: Vec, b: Vec): Vec = ...` gives Vec
   a `+`; `impl Display for Point = let display(p: Point): String = ...`
-  gives `p.display`; your own with `trait Area<'a> = let area(s: 'a): Float`.
+  gives `p.display`; your own with `trait Area<'a> = let area(s: 'a): Float64`.
   A bound is `let f<'a: Display>(v: 'a) = ...`. Author with `dark trait` /
   `dark impl`; `dark impls <Trait> --json` lists implementations with the status a
   call sees (active, shadowed, unordered); `dark constraints --json` has the rival
   pairs; `docs traits`.
 - Bitwise operators have implementations for every integer type and none for
-  Float or Float32; both operands (the shift count included) must be the same type.
+  Float64 or Float32; both operands (the shift count included) must be the same type.
   The count is taken modulo the bit width, as in Rust: `1u8 << 9u8` is `2u8`.
 - `!x` is boolean not. Inside a `match`, `|` is the arm separator, so bitwise-or
   there needs parens: `| A -> (a | b)`.
