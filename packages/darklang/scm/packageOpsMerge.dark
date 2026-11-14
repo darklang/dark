@@ -18,14 +18,10 @@ module Darklang.SCM.PackageOps
 ///
 /// Refuses an empty hash rather than binding a name to nothing: `Hash ""` corrupts the binding in a way
 /// no later fold undoes.
-let settleConflict(
-  branchId: Uuid,
-  c: Conflicts.Conflict,
-  hash: String)
-  : Stdlib.Result.Result<Unit, String> =
-  match SCM.Actions.resolve(SCM.Actions.Resolution.Override(branchId, c.id, hash)) with
-  | Ok(_) -> Stdlib.Result.Result.Ok()
-  | Error(e) -> Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e))
+let settleConflict(branchId: Uuid, c: Conflicts.Conflict, hash: String): Result<Unit, String> =
+  match Actions.resolve(Actions.Resolution.Override(branchId, c.id, hash)) with
+  | Ok(_) -> Result.Ok()
+  | Error(e) -> Result.Error(Actions.failureMessage(e))
 
 
 /// Settle a conflict by taking the REMOVAL: end the name again, and close the record.
@@ -36,20 +32,12 @@ let settleConflict(
 ///
 /// `previous` is what the name holds NOW, so the op says what it ended. That is what lets a peer's
 /// detector tell an ordinary removal from a divergence.
-let settleConflictByRemoval(
-  branchId: Uuid,
-  c: Conflicts.Conflict)
-  : Stdlib.Result.Result<Unit, String> =
+let settleConflictByRemoval(branchId: Uuid, c: Conflicts.Conflict): Result<Unit, String> =
   let location = Deps.locationOf(c.owner, c.modules, c.name)
-
-  let previous =
-    PackageOps.liveBindingFor(branchId, location) |> Stdlib.Option.map(fun b -> b.hash)
-
-  match
-    SCM.Actions.resolve(SCM.Actions.Resolution.TakeRemoval(branchId, c.id, previous))
-  with
-  | Ok(_) -> Stdlib.Result.Result.Ok()
-  | Error(e) -> Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e))
+  let previous = liveBindingFor(branchId, location) |> Stdlib.Option.map(fun b -> b.hash)
+  match Actions.resolve(Actions.Resolution.TakeRemoval(branchId, c.id, previous)) with
+  | Ok(_) -> Result.Ok()
+  | Error(e) -> Result.Error(Actions.failureMessage(e))
 
 
 /// Commit the draft on <param branchId> under <param message>. Returns the new commit's hash.
@@ -64,43 +52,37 @@ let settleConflictByRemoval(
 /// The workbench's commit. The CLI has its own path (`Cli.Commit`), which additionally offers
 /// `--allow-type-errors` and `--allow-unresolved`; there is no way to type a flag at the workbench's
 /// commit prompt, so this refuses outright rather than offering an override it cannot take.
-let commitDraft(branchId: Uuid, message: String): Stdlib.Result.Result<String, String> =
+let commitDraft(branchId: Uuid, message: String): Result<String, String> =
   let typeReport = typeCheckDraft(branchId)
-
   match typeReport.verdict with
   | Failed ->
-    let count =
-      Stdlib.List.length(
-        Stdlib.List.concat(typeReport.diagnostics, typeReport.warnings))
-
-    Stdlib.Result.Result.Error(
+    let count = Stdlib.List.length(Stdlib.List.concat(typeReport.diagnostics, typeReport.warnings))
+    Result.Error(
       $"the at-rest type check found {Stdlib.display(count)} definite error(s); "
       + "`dark constraints` and `dark typecheck` show them")
-  | Checked
-  | Incomplete ->
+  | Checked | Incomplete ->
+    match unresolvedInDraft(branchId) with
+    | [] ->
+      match draftOpCountFor(branchId) with
+      | 0 -> Result.Error("nothing to commit")
+      | _ ->
+        match commitOn(branchId, message, Actions.CommitScope.Whole, Namings.KeepAll) with
+        | Ok(c) -> Result.Ok(c.hash)
+        | Error(Refused(NothingToCommit)) -> Result.Error("nothing was committed")
+        | Error(e) -> Result.Error(Actions.failureMessage(e))
+    | broken ->
+      let names =
+        broken
+        |> Stdlib.List.map(fun((label, _)) -> label)
+        |> Stdlib.String.join(", ")
 
-  match unresolvedInDraft(branchId) with
-  | [] ->
-    match draftOpCountFor(branchId) with
-    | 0 -> Stdlib.Result.Result.Error("nothing to commit")
-    | _ ->
-      match commitOn(branchId, message, SCM.Actions.CommitScope.Whole, Namings.KeepAll) with
-      | Ok(c) -> Stdlib.Result.Result.Ok(c.hash)
-      | Error(Refused(NothingToCommit)) -> Stdlib.Result.Result.Error("nothing was committed")
-      | Error(e) -> Stdlib.Result.Result.Error(SCM.Actions.failureMessage(e))
-  | broken ->
-    let names =
-      broken
-      |> Stdlib.List.map(fun((label, _)) -> label)
-      |> Stdlib.String.join(", ")
-
-    Stdlib.Result.Result.Error(
-      $"unresolved references in {names} -- author what's missing, or commit with --allow-unresolved")
+      Result.Error(
+        $"unresolved references in {names} -- author what's missing, or commit with --allow-unresolved")
 
 
 /// Drop the draft for <param branchId>, whichever kind of draft that is. Returns how many ops went.
 let discardDraftFor(branchId: Uuid): Int64 =
-  match discardOn(branchId, SCM.Actions.DiscardWhat.All) with
+  match discardOn(branchId, Actions.DiscardWhat.All) with
   | Ok(n) -> n
   | Error(_) -> 0
 
@@ -111,16 +93,17 @@ type Namings =
   | Collapse
   | KeepAll
 
+
 /// Commit <param scope> of <param branchId>'s draft under <param message>: the commit and its ops in
 /// one transaction. Refused (`NothingToCommit`) when nothing would be stamped, with nothing written.
 let commitOn(
   branchId: Uuid,
   message: String,
-  scope: SCM.Actions.CommitScope,
+  scope: Actions.CommitScope,
   namings: Namings)
-  : Stdlib.Result.Result<SCM.Actions.Committed, SCM.Actions.Failure> =
-  SCM.Actions.commit(
-    SCM.Actions.CommitRequest
+  : Result<Actions.Committed, Actions.Failure> =
+  Actions.commit(
+    Actions.CommitRequest
       { branchId = branchId
         message = message
         scope = scope
@@ -145,6 +128,7 @@ type MergeError =
   | Refused(Branches.MergeRefusal)
   | Mechanism(String)
 
+
 /// The sentence a person reads, whichever half it came from.
 let mergeErrorMessage(e: MergeError): String =
   match e with
@@ -161,30 +145,25 @@ let mergeErrorMessage(e: MergeError): String =
 /// Conflicts do not BLOCK the merge. They are auto-resolved by origin_ts LWW and recorded against the
 /// parent, so the loser is reviewable rather than silently gone. Conflicts still pending on the branch
 /// (a rebase records them there) move to the parent too.
-let mergeBranch(branchId: Uuid): Stdlib.Result.Result<MergeOutcome, MergeError> =
+let mergeBranch(branchId: Uuid): Result<MergeOutcome, MergeError> =
   match Branches.outdatedRepoints(branchId) with
-  | Error(e) -> Stdlib.Result.Result.Error(MergeError.Mechanism(e))
+  | Error(e) -> Result.Error(MergeError.Mechanism(e))
   | Ok(repoints) ->
-
-  match SCM.Actions.merge(SCM.Actions.MergeAction.IntoParent(branchId, repoints)) with
-  | Ok(r) ->
-    (MergeOutcome
-      { merged = r.moved
-        conflicts = r.conflicts
-        repointed = r.repointed
-        warning = r.warning })
-    |> Stdlib.Result.Result.Ok
-  | Error(Refused(IsMain)) ->
-    Stdlib.Result.Result.Error(MergeError.Refused(Branches.MergeRefusal.IsMain))
-  | Error(Refused(NothingToMerge)) ->
-    Stdlib.Result.Result.Error(MergeError.Refused(Branches.MergeRefusal.NothingToMerge))
-  | Error(Refused(HasActiveChildren)) ->
-    Stdlib.Result.Result.Error(MergeError.Refused(Branches.MergeRefusal.HasActiveChildren))
-  | Error(Refused(Moved)) ->
-    Stdlib.Result.Result.Error(
-      MergeError.Mechanism(
-        "the branch changed while it was being merged, so nothing was changed. Run it again."))
-  | Error(e) -> Stdlib.Result.Result.Error(MergeError.Mechanism(SCM.Actions.failureMessage(e)))
+    match Actions.merge(Actions.MergeAction.IntoParent(branchId, repoints)) with
+    | Ok(r) ->
+      MergeOutcome
+        { merged = r.moved, conflicts = r.conflicts, repointed = r.repointed, warning = r.warning }
+      |> Result.Ok
+    | Error(Refused(IsMain)) -> Result.Error(MergeError.Refused(Branches.MergeRefusal.IsMain))
+    | Error(Refused(NothingToMerge)) ->
+      Result.Error(MergeError.Refused(Branches.MergeRefusal.NothingToMerge))
+    | Error(Refused(HasActiveChildren)) ->
+      Result.Error(MergeError.Refused(Branches.MergeRefusal.HasActiveChildren))
+    | Error(Refused(Moved)) ->
+      Result.Error(
+        MergeError.Mechanism(
+          "the branch changed while it was being merged, so nothing was changed. Run it again."))
+    | Error(e) -> Result.Error(MergeError.Mechanism(Actions.failureMessage(e)))
 
 
 /// What a rebase did: the parent's message, and what the rebase reconciled.
@@ -219,34 +198,27 @@ let rebaseMessage(parentId: Uuid, rebased: Branches.Rebased): String =
       [ $"it had moved names this branch calls; {n} caller(s) now point at the parent's version:\n  {listed}" ]
 
   match Stdlib.List.concat(divergedPart, repointedPart) with
-  | [] ->
-    $"already current with \"{parentName}\" -- nothing to reconcile; merge is ready"
-  | parts ->
-    $"rebased onto \"{parentName}\". " + (Stdlib.String.join(parts, "\n"))
+  | [] -> $"already current with \"{parentName}\" -- nothing to reconcile; merge is ready"
+  | parts -> $"rebased onto \"{parentName}\". " + Stdlib.String.join(parts, "\n")
 
 
 /// Rebase a branch: accept the parent's current state as the new base; reports the names the parent changed
 /// since the fork. Where both changed a name the newer edit wins, on the branch too. Records what it
 /// reconciled, same as merge.
-let rebaseBranch(branchId: Uuid): Stdlib.Result.Result<RebaseOutcome, String> =
-  if SCM.Branch.isMain(branchId) then
+let rebaseBranch(branchId: Uuid): Result<RebaseOutcome, String> =
+  if Branch.isMain(branchId) then
     // Main has no parent to rebase onto, so this is not a thing you can do rather than a thing that found
     // nothing to do.
-    Stdlib.Result.Result.Error(
-      "main is the trunk -- rebase moves a BRANCH onto its parent, and main has none.")
+    Result.Error("main is the trunk -- rebase moves a BRANCH onto its parent, and main has none.")
   else
     match Branches.rebaseDetailed(branchId) with
     | Ok(reconciled) ->
       let rebased =
-        Branches.Rebased
-          { diverged = reconciled.diverged
-            repointed = reconciled.repointed }
+        Branches.Rebased { diverged = reconciled.diverged, repointed = reconciled.repointed }
 
       let msg = rebaseMessage(branchParentOf(branchId), rebased)
-
-      (RebaseOutcome { message = msg, conflicts = reconciled.conflicts })
-      |> Stdlib.Result.Result.Ok
-    | Error(e) -> Stdlib.Result.Result.Error(e)
+      RebaseOutcome { message = msg, conflicts = reconciled.conflicts } |> Result.Ok
+    | Error(e) -> Result.Error(e)
 
 
 /// A display of all active branches (one line each: name (id) <- parent [status]).
@@ -269,68 +241,51 @@ let branchList(includeMerged: Bool): String =
     // Newest first, capped: a long-lived store accretes dozens of finished experiments, and the one
     // live branch you care about should not be buried in them. `--all` uncaps along with unhiding.
     let cap = 20
-
     let shown =
-      if includeMerged || (Stdlib.List.length(lines)) <= cap then
+      if includeMerged || Stdlib.List.length(lines) <= cap then
         lines
       else
-        let more = (Stdlib.List.length(lines)) - cap
-
+        let more = Stdlib.List.length(lines) - cap
         Stdlib.List.append(
           Stdlib.List.take(lines, cap),
           $"+ {Stdlib.display(more)} more -- `dark branches --all` lists every branch.")
 
-    (Stdlib.String.join(shown, "\n")) + footer
+    Stdlib.String.join(shown, "\n") + footer
 
 
 /// Resolve a conflicted name on a branch: choice = "mine" (keep the branch's) or "theirs" (take parent's).
-let resolveConflict(
-  branchId: Uuid,
-  name: String,
-  choice: String)
-  : Stdlib.Result.Result<String, String> =
+let resolveConflict(branchId: Uuid, name: String, choice: String): Result<String, String> =
   let resolved =
     match choice with
     | "mine" ->
       Branches.resolveKeepMine(branchId, name)
-      |> Stdlib.Result.map(fun _ ->
-        $"kept the branch's {name} (it now wins on merge)")
+      |> Stdlib.Result.map(fun _ -> $"kept the branch's {name} (it now wins on merge)")
     | "theirs" ->
       Branches.resolveTakeTheirs(branchId, name)
-      |> Stdlib.Result.map(fun _ ->
-        $"took the parent's {name} (dropped the branch's binding)")
-    | other ->
-      Stdlib.Result.Result.Error(
-        $"unknown choice \"{other}\" -- use \"mine\" or \"theirs\"")
+      |> Stdlib.Result.map(fun _ -> $"took the parent's {name} (dropped the branch's binding)")
+    | other -> Result.Error($"unknown choice \"{other}\" -- use \"mine\" or \"theirs\"")
 
   match resolved with
   | Ok(kept) ->
     // The branch by NAME: this line is read by a person, and the id is a uuid.
-    Stdlib.Result.Result.Ok(
-      $"resolved {name} on \"{branchName(branchId)}\": {kept}.")
-  | Error(e) -> Stdlib.Result.Result.Error(e)
+    Result.Ok($"resolved {name} on \"{branchName(branchId)}\": {kept}.")
+  | Error(e) -> Result.Error(e)
 
 
 /// Archive (soft-delete) a branch, discarding its unmerged ops: one action, which also authors and
 /// commits the event that tells other machines.
-let archiveBranch(branchId: Uuid): Stdlib.Result.Result<String, String> =
+let archiveBranch(branchId: Uuid): Result<String, String> =
   // Read before the archive: afterwards the branch has no name to put in the message.
   let handle = branchName(branchId)
-
-  match SCM.Actions.branch(SCM.Actions.BranchAction.Archive(branchId)) with
-  | Ok(_) -> Stdlib.Result.Result.Ok($"archived branch \"{handle}\".")
-  | Error(e) ->
-    Stdlib.Result.Result.Error(
-      $"archive failed, nothing was changed: {SCM.Actions.failureMessage(e)}")
+  match Actions.branch(Actions.BranchAction.Archive(branchId)) with
+  | Ok(_) -> Result.Ok($"archived branch \"{handle}\".")
+  | Error(e) -> Result.Error($"archive failed, nothing was changed: {Actions.failureMessage(e)}")
 
 
 /// The id of the branch NAMED <param name>, starting it off <param parentId> if no live branch has that
 /// name. `switch` uses this, so a branch started while on another branch is parented to it (branches off
 /// branches). Returns (id, wasCreated).
-let ensureBranch(
-  name: String,
-  parentId: Uuid)
-  : Stdlib.Result.Result<(Uuid * Bool), SCM.Actions.Failure> =
+let ensureBranch(name: String, parentId: Uuid): Result<(Uuid * Bool), Actions.Failure> =
   resolveBranch(name, parentId)
 
 

@@ -9,10 +9,9 @@ module Darklang.SCM.PackageOps
 //
 // What a branch binds is the store's answer, asked of that branch (`SCM.Bindings`).
 
-
 /// What a BRANCH's own work binds (not its parent chain's): the incoming side of a merge.
 let branchBindings(branchId: Uuid): List<Conflicts.Binding> =
-  SCM.Bindings.query(SCM.Bindings.BindingFilter.Own(branchId))
+  Bindings.query(Bindings.BindingFilter.Own(branchId))
   |> Stdlib.List.filter(fun row -> row.hash != "")
   |> Stdlib.List.map(Conflicts.bindingOf)
 
@@ -28,18 +27,17 @@ let branchExists(branchId: Uuid): Bool =
 /// (see `SCM.Branch.mainBranchId`).
 let branchParentOf(branchId: Uuid): Uuid =
   match Branches.query(Branches.BranchFilter.ById(branchId)) with
-  | [b, ...] -> SCM.Branch.fromTextField(Stdlib.Option.Option.Some(b.parentId))
-  | [] -> SCM.Branch.mainBranchId
+  | [b, ...] -> Branch.fromTextField(Option.Some(b.parentId))
+  | [] -> Branch.mainBranchId
 
 
 /// What the PARENT binds for <param names> -- the LOCAL side a branch merges into.
 let parentBindings(parentId: Uuid, names: List<String>): List<Conflicts.Binding> =
-  SCM.Bindings.query(SCM.Bindings.BindingFilter.ByBareNames(parentId, Stdlib.List.unique(names)))
+  Bindings.query(Bindings.BindingFilter.ByBareNames(parentId, Stdlib.List.unique(names)))
   |> Stdlib.List.map(Conflicts.bindingOf)
 
 
 // the branch PREVIEW (what a merge would hit, before anything is recorded)
-
 
 /// Conflicts a merge of <param branchId> into its parent WOULD raise: the branch's own frontier bindings vs
 /// the parent's current bindings, tested against the bases the branch recorded at its fork. Nothing is
@@ -47,7 +45,7 @@ let parentBindings(parentId: Uuid, names: List<String>): List<Conflicts.Binding>
 ///
 /// Asked of the merge action itself, so the preview and the merge cannot disagree about what they find.
 let branchPreview(branchId: Uuid): List<Conflicts.Conflict> =
-  match SCM.Actions.merge(SCM.Actions.MergeAction.Preview(branchId)) with
+  match Actions.merge(Actions.MergeAction.Preview(branchId)) with
   | Ok(r) -> r.conflicts
   | Error(_) -> []
 
@@ -60,30 +58,44 @@ let branchPreview(branchId: Uuid): List<Conflicts.Conflict> =
 /// caller cannot be told different things.
 let branchDiffEntries(branchId: Uuid): List<BranchDiffEntry> =
   // Include reference-only edits, then resolve their actual live bindings.
-  let candidates = draftEntriesFromOpRows(Branches.ownOpRows(branchId))
+  let candidates =
+    draftEntriesFromOpRows(Branches.ownOpRows(branchId))
     |> Stdlib.List.filterMap(fun word -> word.binding)
-  let locations = candidates |> Stdlib.List.map(fun b -> Deps.locationOf(b.owner, b.modules, b.name))
+
+  let locations =
+    candidates |> Stdlib.List.map(fun b -> Deps.locationOf(b.owner, b.modules, b.name))
+
   let live = liveBindingsFor(branchId, locations)
-  let branchBinds = candidates |> Stdlib.List.filterMap(fun b ->
-    Stdlib.Dict.get(live, Conflicts.bindingKey(b.owner, b.modules, b.name)))
+  let branchBinds =
+    candidates
+    |> Stdlib.List.filterMap(fun b ->
+      Stdlib.Dict.get(live, Conflicts.bindingKey(b.owner, b.modules, b.name)))
+
   let names = Branches.touchedNames(branchId)
   let parent = branchParentOf(branchId)
   let parentBinds = parentBindings(parent, names)
-
   let parentByKey =
     parentBinds
     |> Stdlib.List.map(fun b -> (Conflicts.bindingKey(b.owner, b.modules, b.name), b.hash))
     |> Stdlib.Dict.fromEntries
 
-  let shared = branchBinds |> Stdlib.List.filter(fun b ->
-    Stdlib.Dict.get(parentByKey, Conflicts.bindingKey(b.owner, b.modules, b.name)) == Some(b.hash))
+  let shared =
+    branchBinds
+    |> Stdlib.List.filter(fun b ->
+      Stdlib.Dict.get(parentByKey, Conflicts.bindingKey(b.owner, b.modules, b.name))
+      == Option.Some(b.hash))
     |> Stdlib.List.map(sourceOfBinding)
+
   let namesBySource(scope: Uuid): ReferenceNamesBySource =
     referenceSnapshots(scope, shared) |> indexReferenceSnapshots
+
   let branchNames = namesBySource(branchId)
   let parentNames = namesBySource(parent)
-  let namesAt(index: ReferenceNamesBySource, b: Conflicts.Binding)
-    : List<(LanguageTools.ProgramTypes.Reference * Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation>)> =
+  let namesAt(
+    index: ReferenceNamesBySource,
+    b: Conflicts.Binding)
+    : List<
+    (LanguageTools.ProgramTypes.Reference * Option<LanguageTools.ProgramTypes.PackageLocation>)> =
     Stdlib.Dict.get(index, sourceOfBinding(b))
     |> Stdlib.Option.map(fun snapshot -> snapshot.names)
     |> Stdlib.Option.withDefault([])
@@ -95,17 +107,16 @@ let branchDiffEntries(branchId: Uuid): List<BranchDiffEntry> =
       |> Stdlib.Option.withDefault("")
 
     if b.hash == parentHash && namesAt(branchNames, b) == namesAt(parentNames, b) then
-      Stdlib.Option.Option.None
+      Option.None
     else
       let change = if parentHash == "" then "new" else "changed"
-
-      (BranchDiffEntry
+      BranchDiffEntry
         { name = Conflicts.fqn(b.owner, b.modules, b.name)
           kind = b.itemType
           change = change
           parentHash = parentHash
-          hash = b.hash })
-      |> Stdlib.Option.Option.Some)
+          hash = b.hash }
+      |> Option.Some)
   // new first, then changed, each alphabetical
   |> Stdlib.List.sortBy(fun e ->
     let rank = if e.change == "new" then 0 else 1
@@ -114,18 +125,18 @@ let branchDiffEntries(branchId: Uuid): List<BranchDiffEntry> =
 
 /// The branch this process is on. This is an ID. Defined in `SCM.Branches`; this is the
 /// spelling most callers use.
-let currentBranch(): Uuid = Branches.current()
+let currentBranch(): Uuid =
+  Branches.current()
 
 
 /// The NAME to show for a branch id. Ids are what everything refers to; names are what
 /// people read, so anything user-facing goes through here rather than printing the id.
 let branchName(branchId: Uuid): String =
   // Main has no `branches` row, so a lookup would fall through to showing its raw id.
-  if SCM.Branch.isMain(branchId) then
-    SCM.Branch.mainBranchName
+  if Branch.isMain(branchId) then
+    Branch.mainBranchName
   else
     let fallback = Stdlib.display(branchId)
-
     match Branches.query(Branches.BranchFilter.ById(branchId)) with
     | [b, ...] -> if b.name == "" then fallback else b.name
     | [] -> fallback
@@ -140,14 +151,13 @@ let branchName(branchId: Uuid): String =
 let resolveBranchRef(branchRef: String): BranchRefResult =
   let asId =
     match Stdlib.Uuid.parse(branchRef) with
-    | Ok(id) -> Stdlib.Option.Option.Some(id)
-    | Error(_) -> Stdlib.Option.Option.None
+    | Ok(id) -> Option.Some(id)
+    | Error(_) -> Option.None
 
   // Main is resolvable by name and by id like any other branch, and has to be: it has no `branches`
   // row, so neither the name lookup nor the id-prefix search below can find it.
-  if (branchRef == SCM.Branch.mainBranchName)
-     || (asId == Stdlib.Option.Option.Some(SCM.Branch.mainBranchId)) then
-    BranchRefResult.Found(SCM.Branch.mainBranchId)
+  if branchRef == Branch.mainBranchName || asId == Option.Some(Branch.mainBranchId) then
+    BranchRefResult.Found(Branch.mainBranchId)
   else
     match branchIdForName(branchRef) with
     | Some(id) -> BranchRefResult.Found(id)
@@ -164,12 +174,10 @@ let resolveBranchRef(branchRef: String): BranchRefResult =
         if Stdlib.String.length(branchRef) < 4 then
           BranchRefResult.NotFound
         else
-          match
-            Branches.list()
-            |> Stdlib.List.filter(fun b ->
-              Stdlib.String.startsWith(Stdlib.display(b.id), branchRef))
-          with
-          | [ only ] -> BranchRefResult.Found(only.id)
+          match Branches.list()
+                |> Stdlib.List.filter(fun b ->
+                  Stdlib.String.startsWith(Stdlib.display(b.id), branchRef)) with
+          | [only] -> BranchRefResult.Found(only.id)
           | [] -> BranchRefResult.NotFound
           | _ -> BranchRefResult.Ambiguous
 
@@ -177,13 +185,13 @@ let resolveBranchRef(branchRef: String): BranchRefResult =
 /// The id a person means by <param name> at a branch verb: the most recent branch still listed under it.
 /// Never creates. Merged branches count, because `dark branches` lists them and a name you can read off
 /// the listing has to be a name you can type.
-let branchIdForName(name: String): Stdlib.Option.Option<Uuid> =
+let branchIdForName(name: String): Option<Uuid> =
   match Branches.query(Branches.BranchFilter.ByName(name)) with
   | [b, ...] ->
     match Stdlib.Uuid.parse(b.id) with
-    | Ok(id) -> Stdlib.Option.Option.Some(id)
-    | Error(_) -> Stdlib.Option.Option.None
-  | [] -> Stdlib.Option.Option.None
+    | Ok(id) -> Option.Some(id)
+    | Error(_) -> Option.None
+  | [] -> Option.None
 
 
 /// Is this branch's work already in its parent?
@@ -191,8 +199,6 @@ let branchIsMerged(branchId: Uuid): Bool =
   match Branches.query(Branches.BranchFilter.ById(branchId)) with
   | [b, ...] -> b.merged
   | [] -> false
-
-
 
 
 /// The ops a merge moved off <param branchId>, oldest first. Empty for a branch that has not merged.
@@ -203,11 +209,8 @@ let mergedOpsOf(branchId: Uuid): List<LanguageTools.ProgramTypes.PackageOp> =
 /// Turn a branch NAME into its id, starting the branch if that name has none. Returns (id, wasCreated);
 /// callers announce a creation, because silently running on a branch you didn't mean to start reads
 /// exactly like running on the one you did.
-let resolveBranch(
-  name: String,
-  parentId: Uuid)
-  : Stdlib.Result.Result<(Uuid * Bool), SCM.Actions.Failure> =
-  SCM.Actions.branch(SCM.Actions.BranchAction.Start(name, parentId))
+let resolveBranch(name: String, parentId: Uuid): Result<(Uuid * Bool), Actions.Failure> =
+  Actions.branch(Actions.BranchAction.Start(name, parentId))
   |> Stdlib.Result.map(fun b -> (b.id, b.created))
 
 
@@ -217,7 +220,7 @@ let resolveBranch(
 ///
 /// `--branch` is a one-off and never comes through here; it is resolved before any Dark runs.
 let selectBranch(branchId: Uuid): Uuid =
-  match SCM.Actions.branch(SCM.Actions.BranchAction.Switch(branchId)) with
+  match Actions.branch(Actions.BranchAction.Switch(branchId)) with
   | Ok(b) -> b.id
   | Error(_) -> currentBranch()
 
@@ -239,13 +242,17 @@ let branchHashHistoryFor(
 
 /// <fn branchHashHistoryFor> for every name the chain has bound, keyed by `Conflicts.bindingKey`.
 let branchHashHistories(branchId: Uuid): Dict<String, List<String>> =
-  SCM.Bindings.query(SCM.Bindings.BindingFilter.BranchHistory(branchId))
+  Bindings.query(Bindings.BindingFilter.BranchHistory(branchId))
   |> Stdlib.List.map(fun row -> (Conflicts.bindingKey(row.owner, row.modules, row.name), row.hash))
   |> Stdlib.List.groupBy(fun((key, _)) -> key)
   |> Stdlib.List.map(fun((key, entries)) ->
     // `unique` keeps first occurrences in place, which is the authoring order this function exists
     // to return.
-    (key, entries |> Stdlib.List.map(fun((_, hash)) -> hash) |> Stdlib.List.unique))
+    (
+      key,
+      entries
+      |> Stdlib.List.map(fun((_, hash)) -> hash)
+      |> Stdlib.List.unique))
   |> Stdlib.Dict.fromEntries
 
 

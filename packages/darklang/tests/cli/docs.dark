@@ -4,25 +4,27 @@ let opening(text: String): String =
   (Stdlib.String.splitOnNewline(text) |> Stdlib.List.take(5))
   |> Stdlib.String.join("\n")
 
+
 // Readers often stop after the first screen, so the syntax comes first.
 test forAIOpensWithSyntax =
   Stdlib.Test.expect(
     Stdlib.String.contains(
-      opening(Darklang.Cli.Docs.ForAI.content()),
+      opening(Cli.Docs.ForAI.content()),
       "## Dark syntax at a glance"),
     "docs for-ai opens with the syntax at a glance")
+
 
 test scriptsOpensWithSyntax =
   Stdlib.Test.expect(
     Stdlib.String.contains(
-      opening(Darklang.Cli.Docs.Scripts.content()),
+      opening(Cli.Docs.Scripts.content()),
       "## Dark syntax at a glance"),
     "docs scripts opens with the syntax at a glance")
 
+
 test logsAreUnderTheStore =
   Stdlib.Test.all(
-    [ Darklang.Cli.Docs.ForAI.content()
-      Darklang.Cli.Docs.CLI.content() ]
+    [ Cli.Docs.ForAI.content(), Cli.Docs.CLI.content() ]
     |> Stdlib.List.map(fun text ->
       Stdlib.Test.expect(
         Stdlib.String.contains(text, "~/.darklang/logs/cli.log")

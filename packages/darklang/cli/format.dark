@@ -61,18 +61,18 @@ let formatFiles(
   // last; then back in order.
   let formatted =
     reads
-    |> Stdlib.List.indexedMap(fun (i, pair) -> (i, Stdlib.Tuple2.second(pair)))
+    |> Stdlib.List.indexedMap(fun(i, pair) -> (i, Stdlib.Tuple2.second(pair)))
     |> Stdlib.List.sortBy(fun job ->
       match Stdlib.Tuple2.second(job) with
       | Ok(text) -> 0 - Stdlib.String.length(text)
       | Error(_) -> 0)
     |> Stdlib.List.parallelMap(fun job ->
       let (i, read) = job
-
-      (i,
-       read
-       |> Stdlib.Result.andThen(fun text ->
-         LanguageTools.Formatter.source(branchId, PrettyPrinter.ProgramTypes.sourceWidth, text))))
+      (
+        i,
+        read
+        |> Stdlib.Result.andThen(fun text ->
+          LanguageTools.Formatter.source(branchId, PrettyPrinter.ProgramTypes.sourceWidth, text))))
     |> Stdlib.List.sortBy(fun done -> Stdlib.Tuple2.first(done))
     |> Stdlib.List.map(fun done -> Stdlib.Tuple2.second(done))
 
@@ -142,20 +142,20 @@ let formatAll(state: AppState, paths: List<String>, check: Bool, showAsWritten: 
     | _ -> false)
 
   let unchanged = Stdlib.List.length(files) - changed - failed
-
   results
   |> Stdlib.List.iter(fun r ->
     let (file, (outcome, asWritten)) = r
-
     match outcome with
     | Failed(e) -> printErr($"{file}: {e}")
     | Changed -> if check then Stdlib.printLine($"{file}: not formatted") else ()
     | Unchanged -> ()
+
     if showAsWritten then
       asWritten
       |> Stdlib.List.iter(fun name -> Stdlib.printLine($"{file}: {name} printed as written"))
     else
       ())
+
   let summary =
     if check then
       $"{Stdlib.display(changed)} not formatted, {Stdlib.display(unchanged)} formatted"

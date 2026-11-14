@@ -1,6 +1,5 @@
 module Darklang.Stdlib.Retry
 
-
 /// Calls <param fn> until it succeeds or <param maxAttempts> is reached, waiting
 /// <param delayMs> before the next attempt and multiplying the wait by <param factor> each time.
 let __loop(
@@ -8,13 +7,13 @@ let __loop(
   attempt: Int64,
   delayMs: Float,
   factor: Float,
-  fn: Unit -> Result.Result<'a, String>)
-  : Result.Result<'a, String> =
+  fn: Unit -> Result<'a, String>)
+  : Result<'a, String> =
   match fn() with
-  | Ok(result) -> Stdlib.Result.Result.Ok(result)
+  | Ok(result) -> Result.Ok(result)
   | Error(e) ->
     if attempt >= maxAttempts then
-      Stdlib.Result.Result.Error(e)
+      Result.Error(e)
     else
       let _ = Cli.Posix.sleep(delayMs)
       __loop(maxAttempts, attempt + 1, delayMs * factor, factor, fn)
@@ -23,10 +22,7 @@ let __loop(
 /// Retry a function up to maxAttempts times with exponential backoff.
 /// Starts with a 100ms delay, doubling each retry.
 /// Returns the first successful result, or the last error.
-let withBackoff(
-  maxAttempts: Int64,
-  fn: Unit -> Result.Result<'a, String>)
-  : Result.Result<'a, String> =
+let withBackoff(maxAttempts: Int64, fn: Unit -> Result<'a, String>): Result<'a, String> =
   __loop(maxAttempts, 1, 100.0, 2.0, fn)
 
 
@@ -34,6 +30,6 @@ let withBackoff(
 let withFixedDelay(
   maxAttempts: Int64,
   delayMs: Float,
-  fn: Unit -> Result.Result<'a, String>)
-  : Result.Result<'a, String> =
+  fn: Unit -> Result<'a, String>)
+  : Result<'a, String> =
   __loop(maxAttempts, 1, delayMs, 1.0, fn)

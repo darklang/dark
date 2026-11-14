@@ -6,29 +6,52 @@ module Darklang.LanguageTools.Parser.RoundTrip.Tests
 test valueDeclarationsUnit =
   Stdlib.Test.all(
     [ roundTrip("unit", "val unitVal = ()", "val unitVal = ()")
+
       roundTrip(
         "value doc comment",
         "/// Default retry count\nval retries = 3",
         "/// Default retry count\nval retries = 3")
+
       // ints
       roundTrip("int8, max", "val maxInt8 = 127s8", "val maxInt8 = 127s8")
+
       roundTrip("uint8, max", "val maxUInt8 = 255u8", "val maxUInt8 = 255u8")
-      roundTrip("int16, max", "val maxInt16 = 32767s16", "val maxInt16 = 32767s16")
-      roundTrip("uint16, max", "val maxUInt16 = 65535u16", "val maxUInt16 = 65535u16")
-      roundTrip("int32, max", "val maxInt32 = 2147483647s32", "val maxInt32 = 2147483647s32")
-      roundTrip("uint32, max", "val maxUInt32 = 4294967295u32", "val maxUInt32 = 4294967295u32")
+
+      roundTrip(
+        "int16, max",
+        "val maxInt16 = 32767s16",
+        "val maxInt16 = 32767s16")
+
+      roundTrip(
+        "uint16, max",
+        "val maxUInt16 = 65535u16",
+        "val maxUInt16 = 65535u16")
+
+      roundTrip(
+        "int32, max",
+        "val maxInt32 = 2147483647s32",
+        "val maxInt32 = 2147483647s32")
+
+      roundTrip(
+        "uint32, max",
+        "val maxUInt32 = 4294967295u32",
+        "val maxUInt32 = 4294967295u32")
+
       roundTrip(
         "int64, max",
         "val maxInt64 = 9223372036854775807",
         "val maxInt64 = 9223372036854775807")
+
       roundTrip(
         "uint64, max",
         "val maxUInt64 = 18446744073709551615u64",
         "val maxUInt64 = 18446744073709551615u64")
+
       roundTrip(
         "int128, max",
         "val maxInt128 = 170141183460469231731687303715884105727s128",
         "val maxInt128 = 170141183460469231731687303715884105727s128")
+
       roundTrip(
         "uint128, max",
         "val maxUInt128 = 340282366920938463463374607431768211455u128",
@@ -39,15 +62,28 @@ test valueDeclarationsBools =
   Stdlib.Test.all(
     [ // bools
       roundTrip("true alias", "val trueVal = true", "val trueVal = true")
+
       roundTrip("false alias", "val falseVal = false", "val falseVal = false")
+
       // strings
       roundTrip("hello", "val greeting = \"hello\"", "val greeting = \"hello\"")
+
       roundTrip("newline", "val newline = '\\n'", "val newline = '\\n'")
+
       // floats
       roundTrip("pi", "val pi = 3.14159", "val pi = 3.14159")
+
       // dicts
-      roundTrip("dict, empty", "val emptyDict = Dict {}", "val emptyDict = Dict {}")
-      roundTrip("dict, one entry", "val dict = Dict { \"a\": 1 }", "val dict = Dict { \"a\": 1 }")
+      roundTrip(
+        "dict, empty",
+        "val emptyDict = Dict {}",
+        "val emptyDict = Dict {}")
+
+      roundTrip(
+        "dict, one entry",
+        "val dict = Dict { \"a\": 1 }",
+        "val dict = Dict { \"a\": 1 }")
+
       roundTrip(
         "dict, two entries",
         "val dict = Dict { \"a\": \"hello\", \"b\": \"test\" }",
@@ -58,24 +94,45 @@ test valueDeclarationsTuples =
   Stdlib.Test.all(
     [ // tuples
       roundTrip("tuple, 2", "val tuple2Val = (1, 2)", "val tuple2Val = (1, 2)")
-      roundTrip("tuple, 3", "val tuple3Val = (1, 2, 3)", "val tuple3Val = (1, 2, 3)")
+
+      roundTrip(
+        "tuple, 3",
+        "val tuple3Val = (1, 2, 3)",
+        "val tuple3Val = (1, 2, 3)")
+
       // lists
       roundTrip("list, empty", "val emptyList = []", "val emptyList = []")
-      roundTrip("list, int", "val listOfInts = [1, 2, 3]", "val listOfInts = [ 1, 2, 3 ]")
+
+      roundTrip(
+        "list, int",
+        "val listOfInts = [1, 2, 3]",
+        "val listOfInts = [ 1, 2, 3 ]")
+
       roundTrip(
         "list, list, int",
         "val listOfLists = [[1, 2], [3, 4]]",
         "val listOfLists = [ [ 1, 2 ], [ 3, 4 ] ]")
+
       // records
       // enums
-      roundTrip("option, none", "val none = Stdlib.Option.Option.None", "val none = Option.None")
+      roundTrip(
+        "option, none",
+        "val none = Stdlib.Option.Option.None",
+        "val none = Option.None")
+
       roundTrip(
         "option, some 1",
         "val some = Stdlib.Option.Option.Some(1)",
         "val some = Option.Some(1)")
+
       roundTripWith(
         myEnum,
         "enum, tupled args",
         "val a = MyEnum.C((1, 2))",
         "val a = MyEnum.C((1, 2))")
-      roundTripWith(myEnum, "enum, fn args", "val a = MyEnum.D(1, 2)", "val a = MyEnum.D(1, 2)") ])
+
+      roundTripWith(
+        myEnum,
+        "enum, fn args",
+        "val a = MyEnum.D(1, 2)",
+        "val a = MyEnum.D(1, 2)") ])

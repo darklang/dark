@@ -1,6 +1,5 @@
 module Darklang.Stdlib.Math
 
-
 /// Returns an approximation for the mathematical constant {{π}},
 /// the ratio of a circle's circumference to its diameter.
 val pi = 3.141592653589793
@@ -18,49 +17,52 @@ val e = 2.718281828459045
 /// Returns the equivalent of <param angleInDegrees> in radians, the unit used
 /// by all of Dark's trigonometry functions.
 let degrees(angleInDegrees: Float): Float =
-  (angleInDegrees * Stdlib.Math.pi)
-  |> (fun v -> v / 180.0)
+  angleInDegrees * pi |> (fun v -> v / 180.0)
 
 
 /// Returns the equivalent of <param angleInTurns> in radians, the unit used by all of
 /// Dark's trigonometry functions.
 let turns(angleInTurns: Float): Float =
-  Stdlib.Math.tau * angleInTurns
+  tau * angleInTurns
 
 
 /// Returns <param angleInRadians> in radians, the unit used by all of Dark's
 /// trigonometry functions.
 /// There are {{2.0 * Stdlib.Math.pi}} radians in a circle.
-let radians(angleInRadians: Float): Float = angleInRadians
+let radians(angleInRadians: Float): Float =
+  angleInRadians
 
 
 /// <fn Math.degrees>, or {{Error Overflow}} where the result is not finite
-let checkedDegrees(angleInDegrees: Float): Stdlib.Result.Result<Float, Stdlib.Math.Overflow> =
-  Stdlib.Float.__noOverflow(degrees(angleInDegrees))
+let checkedDegrees(angleInDegrees: Float): Result<Float, Overflow> =
+  Float.__noOverflow(degrees(angleInDegrees))
 
 
 /// <fn Math.turns>, or {{Error Overflow}} where the result is not finite
-let checkedTurns(angleInTurns: Float): Stdlib.Result.Result<Float, Stdlib.Math.Overflow> =
-  Stdlib.Float.__noOverflow(turns(angleInTurns))
+let checkedTurns(angleInTurns: Float): Result<Float, Overflow> =
+  Float.__noOverflow(turns(angleInTurns))
 
 
 /// Returns the cosine of the given <param angleInRadians>.
 /// One interpretation of the result relates to a right triangle: the cosine is
 /// the ratio of the lengths of the side adjacent to the angle and the hypotenuse.
-let cos(angleInRadians: Float): Float = Builtin.mathCos(angleInRadians)
+let cos(angleInRadians: Float): Float =
+  Builtin.mathCos(angleInRadians)
 
 
 /// Returns the sine of the given <param angleInRadians>.
 /// One interpretation of the result relates to a right triangle: the sine is
 /// the ratio of the lengths of the side opposite the angle and the hypotenuse
-let sin(angleInRadians: Float): Float = Builtin.mathSin(angleInRadians)
+let sin(angleInRadians: Float): Float =
+  Builtin.mathSin(angleInRadians)
 
 
 /// Returns the tangent of the given <param angleInRadians>.
 /// One interpretation of the result relates to a right triangle: the tangent is
 /// the ratio of the lengths of the side opposite the angle and the side
 /// adjacent to the angle.
-let tan(angleInRadians: Float): Float = Builtin.mathTan(angleInRadians)
+let tan(angleInRadians: Float): Float =
+  Builtin.mathTan(angleInRadians)
 
 
 /// Returns the arc cosine of <param ratio>, as an <type Option>.
@@ -68,7 +70,8 @@ let tan(angleInRadians: Float): Float = Builtin.mathTan(angleInRadians)
 /// result}} where <var result> is in radians and is between {{0.0}} and <fn
 /// Math.pi>. Otherwise, returns {{None}}.
 /// This function is the inverse of <fn Math.cos>.
-let acos(ratio: Float): Stdlib.Option.Option<Float> = Builtin.mathAcos(ratio)
+let acos(ratio: Float): Option<Float> =
+  Builtin.mathAcos(ratio)
 
 
 /// Returns the arc sine of <param ratio>, as an <type Option>.
@@ -76,14 +79,16 @@ let acos(ratio: Float): Stdlib.Option.Option<Float> = Builtin.mathAcos(ratio)
 /// result}} where <var result> is in radians and is between {{-Math.pi/2}} and
 /// {{Math.pi/2}}. Otherwise, returns {{None}}.
 /// This function is the inverse of <fn Math.sin>.
-let asin(ratio: Float): Stdlib.Option.Option<Float> = Builtin.mathAsin(ratio)
+let asin(ratio: Float): Option<Float> =
+  Builtin.mathAsin(ratio)
 
 
 /// Returns the arc tangent of <param ratio>. The result is in radians and is between
 /// {{-Math.pi/2}} and {{Math.pi/2}}.
 /// This function is the inverse of <fn Math.tan>. Use <fn Math.atan2> to expand the
 /// output range, if you know the numerator and denominator of <param ratio>.
-let atan(ratio: Float): Float = Builtin.mathAtan(ratio)
+let atan(ratio: Float): Float =
+  Builtin.mathAtan(ratio)
 
 
 /// Returns the arc tangent of {{y / x}}, using the signs of <param y> and
@@ -91,35 +96,40 @@ let atan(ratio: Float): Float = Builtin.mathAtan(ratio)
 /// The result is in radians and is between {{-Math.pi}} and {{Math.pi}}.
 /// Consider <fn Math.atan> if you know the value of {{y / x}} but not the
 /// individual values <param x> and <param y>.
-let atan2(y: Float, x: Float): Float = Builtin.mathAtan2(y, x)
+let atan2(y: Float, x: Float): Float =
+  Builtin.mathAtan2(y, x)
 
 
 /// Returns the hyperbolic cosine of <param angleInRadians>
-let cosh(angleInRadians: Float): Float = Builtin.mathCosh(angleInRadians)
+let cosh(angleInRadians: Float): Float =
+  Builtin.mathCosh(angleInRadians)
 
 
 /// Returns the hyperbolic sine of <param angleInRadians>
-let sinh(angleInRadians: Float): Float = Builtin.mathSinh(angleInRadians)
+let sinh(angleInRadians: Float): Float =
+  Builtin.mathSinh(angleInRadians)
 
 
 /// Returns the hyperbolic tangent of <param angleInRadians>
-let tanh(angleInRadians: Float): Float = Builtin.mathTanh(angleInRadians)
+let tanh(angleInRadians: Float): Float =
+  Builtin.mathTanh(angleInRadians)
 
 
 /// <fn Math.cosh>, or {{Error Overflow}} where the result is not finite
-let checkedCosh(angleInRadians: Float): Stdlib.Result.Result<Float, Stdlib.Math.Overflow> =
-  Stdlib.Float.__noOverflow(cosh(angleInRadians))
+let checkedCosh(angleInRadians: Float): Result<Float, Overflow> =
+  Float.__noOverflow(cosh(angleInRadians))
 
 
 /// <fn Math.sinh>, or {{Error Overflow}} where the result is not finite
-let checkedSinh(angleInRadians: Float): Stdlib.Result.Result<Float, Stdlib.Math.Overflow> =
-  Stdlib.Float.__noOverflow(sinh(angleInRadians))
+let checkedSinh(angleInRadians: Float): Result<Float, Overflow> =
+  Float.__noOverflow(sinh(angleInRadians))
 
 
 /// What a fixed-width `checked` function returns where the operator would wrap:
 /// `Int8.checkedAdd(127s8, 1s8)` is {{Error Overflow}}. Going below 0 on an unsigned
 /// type is an Overflow too. <type BigInt> itself never overflows.
-type Overflow = | Overflow
+type Overflow =
+  | Overflow
 
 
 /// What `checkedDivide` and `checkedRemainder` return, for every integer type and
@@ -188,9 +198,8 @@ let __inRange(
   max: Int64,
   value: Int64,
   make: Int64 -> 'a)
-  : Stdlib.Result.Result<'a, OutOfRange> =
+  : Result<'a, OutOfRange> =
   if value < min || value > max then
-    Stdlib.Result.Result.Error(
-      OutOfRange { what = what, value = value, min = min, max = max })
+    Result.Error(OutOfRange { what = what, value = value, min = min, max = max })
   else
-    Stdlib.Result.Result.Ok(make(value))
+    Result.Ok(make(value))

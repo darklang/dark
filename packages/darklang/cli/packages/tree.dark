@@ -1,24 +1,21 @@
 /// Tree command - display package hierarchy
 module Darklang.Cli.Packages.Tree
 
-
 // Table of contents categories with their package paths and descriptions
 type TocEntry =
   { category: String
     path: String
     description: String }
 
+
 // Define the table of contents structure
 val tocEntries =
   [ // Platform Core
     TocEntry
-      { category = "PLATFORM CORE"
-        path = "Darklang.Canvas"
-        description = "Editor UI components" }
+      { category = "PLATFORM CORE", path = "Darklang.Canvas", description = "Editor UI components" }
+
     TocEntry
-      { category = "PLATFORM CORE"
-        path = "Darklang.Cli"
-        description = "Command-line interface" }
+      { category = "PLATFORM CORE", path = "Darklang.Cli", description = "Command-line interface" }
 
     // Protocols & Integration
     TocEntry
@@ -37,6 +34,7 @@ val tocEntries =
       { category = "LANGUAGE TOOLS"
         path = "Darklang.LanguageTools"
         description = "Parser, analyzer, etc." }
+
     TocEntry
       { category = "LANGUAGE TOOLS"
         path = "Darklang.PrettyPrinter"
@@ -44,9 +42,8 @@ val tocEntries =
 
     // Testing & Utilities
     TocEntry
-      { category = "TESTING & UTILITIES"
-        path = "Darklang.Tests"
-        description = "Test helpers" }
+      { category = "TESTING & UTILITIES", path = "Darklang.Tests", description = "Test helpers" }
+
     TocEntry
       { category = "TESTING & UTILITIES"
         path = "Darklang.DarkPackages"
@@ -56,8 +53,13 @@ val tocEntries =
 // Display the table of contents
 let displayTableOfContents(): Unit =
   Stdlib.printLine("")
-  Stdlib.printLine(Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold, "DARKLANG PACKAGE TABLE OF CONTENTS"))
-  Stdlib.printLine(Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold, "==================================="))
+
+  Stdlib.printLine(
+    Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold, "DARKLANG PACKAGE TABLE OF CONTENTS"))
+
+  Stdlib.printLine(
+    Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold, "==================================="))
+
   Stdlib.printLine("")
 
   // Group entries by category
@@ -69,10 +71,7 @@ let displayTableOfContents(): Unit =
         | Some(list) -> list
         | None -> []
 
-      Stdlib.Dict.set(
-        acc,
-        entry.category,
-        Stdlib.List.append(existing, entry)))
+      Stdlib.Dict.set(acc, entry.category, Stdlib.List.append(existing, entry)))
 
   // Display in order (use a list to preserve order)
   let categories =
@@ -87,7 +86,6 @@ let displayTableOfContents(): Unit =
     match Stdlib.Dict.get(grouped, category) with
     | Some(entries) ->
       Stdlib.printLine(Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold, category))
-
       entries
       |> Stdlib.List.iter(fun entry ->
         let pathDisplay = Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.cyan, entry.path)
@@ -98,7 +96,9 @@ let displayTableOfContents(): Unit =
       Stdlib.printLine("")
     | None -> ())
 
-  Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("Use 'tree <path>' to explore a specific package"))
+  Stdlib.printErrorLine(
+    Stdlib.Cli.UI.Colors.hint("Use 'tree <path>' to explore a specific package"))
+
   Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("Use 'tree --depth=N' for deeper views (max 10)"))
 
 
@@ -117,10 +117,8 @@ let execute(state: AppState, args: List<String>): AppState =
 
   // Check for --toc flag
   let showToc = Stdlib.List.any(args, fun arg -> arg == "--toc")
-  let deprecated =
-    Query.Deprecated.showIf(Stdlib.List.contains(args, "--include-deprecated"))
+  let deprecated = Query.Deprecated.showIf(Stdlib.List.contains(args, "--include-deprecated"))
   let internal = Query.Internal.showIf(Stdlib.List.contains(args, "--include-internal"))
-
   if showToc then
     displayTableOfContents()
     state
@@ -129,49 +127,41 @@ let execute(state: AppState, args: List<String>): AppState =
     let depth =
       match Stdlib.List.findFirst(args, fun arg -> Stdlib.String.startsWith(arg, "--depth=")) with
       | Some(depthArg) ->
-        let depthStr = Stdlib.String.dropFirst(depthArg, 8) // Remove "--depth="
+        let depthStr = Stdlib.String.dropFirst(depthArg, 8)  // Remove "--depth="
         match Stdlib.Int64.parse(depthStr) with
-        | Ok(depth) when depth > 0 && depth <= 10 -> Stdlib.Option.Option.Some(depth)
-        | _ -> Stdlib.Option.Option.None
-      | None -> Stdlib.Option.Option.Some(2) // Default depth of 2 for concise but useful view
+        | Ok(depth) when depth > 0 && depth <= 10 -> Option.Some(depth)
+        | _ -> Option.None
+      | None -> Option.Some(2)  // Default depth of 2 for concise but useful view
 
     match depth with
     | None ->
-      Cli.printErr("--depth takes a number from 1 to 10.")
-      Cli.failed(state)
+      printErr("--depth takes a number from 1 to 10.")
+      failed(state)
     | Some(maxDepth) ->
+      let branchId = state.currentBranchId
+      let pathArgs =
+        args |> Stdlib.List.filter(fun a -> Stdlib.Bool.not(Stdlib.String.startsWith(a, "--")))
 
-    let branchId = state.currentBranchId
+      // Refused, not ignored: falling back to the current location answers a different
+      // question, and says nothing about the path you gave.
+      let startLocation =
+        match pathArgs with
+        | [] -> Result.Ok(state.packageData.currentLocation)
+        | [pathStr] -> Traversal.traverse(branchId, state.packageData.currentLocation, pathStr)
+        | _ -> Result.Error("tree takes at most one path")
 
-    let pathArgs =
-      args
-      |> Stdlib.List.filter(fun a ->
-        Stdlib.Bool.not(Stdlib.String.startsWith(a, "--")))
-
-    // Refused, not ignored: falling back to the current location answers a different
-    // question, and says nothing about the path you gave.
-    let startLocation =
-      match pathArgs with
-      | [] -> Stdlib.Result.Result.Ok(state.packageData.currentLocation)
-      | [ pathStr ] ->
-        Traversal.traverse(branchId, state.packageData.currentLocation, pathStr)
-      | _ ->
-        Stdlib.Result.Result.Error("tree takes at most one path")
-
-    match startLocation with
-    | Error(e) ->
-      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot show a tree: {e}"))
-      Cli.failed(state)
-    | Ok(startLocation) ->
-      // Load deprecation sets once for the whole tree render.
-      let depSets = Query.loadDeprecationSets(branchId)
-
-      let locationStr = Packages.formatLocation(startLocation)
-      Stdlib.printLine($"Package tree from {locationStr}:")
-      Stdlib.printLine("")
-      displayTree(branchId, startLocation, maxDepth, 0, "", depSets, deprecated, internal)
-
-      state
+      match startLocation with
+      | Error(e) ->
+        Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot show a tree: {e}"))
+        failed(state)
+      | Ok(startLocation) ->
+        // Load deprecation sets once for the whole tree render.
+        let depSets = Query.loadDeprecationSets(branchId)
+        let locationStr = formatLocation(startLocation)
+        Stdlib.printLine($"Package tree from {locationStr}:")
+        Stdlib.printLine("")
+        displayTree(branchId, startLocation, maxDepth, 0, "", depSets, deprecated, internal)
+        state
 
 
 // Display tree recursively from a given location.
@@ -211,31 +201,37 @@ let displayTree(
     // Modules have no hash, use an empty-string placeholder.
     let allEntities =
       let implNames = implEntries |> Stdlib.List.map(fun((name, _)) -> name)
-
       let moduleEntities =
         LanguageTools.PackageManager.Search.readerSubmodules(submoduleNames, implNames)
-        |> Stdlib.List.map(fun name -> (name, EntityType.Module, LanguageTools.ProgramTypes.Hash.Hash("")))
+        |> Stdlib.List.map(fun name ->
+          (name, EntityType.Module, LanguageTools.ProgramTypes.Hash.Hash("")))
         |> Stdlib.List.sortBy(fun((name, _, _)) -> name)
+
       let typeEntities =
         typeEntries
         |> Stdlib.List.map(fun((name, hash)) -> (name, EntityType.Type, hash))
         |> Stdlib.List.sortBy(fun((name, _, _)) -> name)
+
       let valueEntities =
         valueEntries
         |> Stdlib.List.map(fun((name, hash)) -> (name, EntityType.Value, hash))
         |> Stdlib.List.sortBy(fun((name, _, _)) -> name)
+
       let functionEntities =
         fnEntries
         |> Stdlib.List.map(fun((name, hash)) -> (name, EntityType.Function, hash))
         |> Stdlib.List.sortBy(fun((name, _, _)) -> name)
+
       let traitEntities =
         traitEntries
         |> Stdlib.List.map(fun((name, hash)) -> (name, EntityType.Trait, hash))
         |> Stdlib.List.sortBy(fun((name, _, _)) -> name)
+
       let implEntities =
         implEntries
         |> Stdlib.List.map(fun((name, hash)) -> (name, EntityType.Impl, hash))
         |> Stdlib.List.sortBy(fun((name, _, _)) -> name)
+
       let testEntities =
         testEntries
         |> Stdlib.List.map(fun((name, hash)) -> (name, EntityType.Test, hash))
@@ -254,14 +250,15 @@ let displayTree(
     allEntities
     |> Stdlib.List.indexedMap(fun(index, entry) ->
       let (name, entityType, hash) = entry
-      let isLast = index == (entitiesCount - 1)
+      let isLast = index == entitiesCount - 1
       let treeBranch = if isLast then "└── " else "├── "
       let fullPrefix = prefix + treeBranch
-
       let icon = Display.getIcon(entityType) + " "
       let mark =
-        if entityType == EntityType.Module then ""
-        else Query.deprecationMarker(depSets, modulePath, name, hash)
+        if entityType == EntityType.Module then
+          ""
+        else
+          Query.deprecationMarker(depSets, modulePath, name, hash)
 
       let requirements =
         if entityType == EntityType.Function then
@@ -272,8 +269,9 @@ let displayTree(
       Stdlib.printLine($"{fullPrefix}{icon}{name}{mark}{requirements}")
 
       // Into submodules, and into an impl, whose methods are a module named for the trait.
-      if (entityType == EntityType.Module || entityType == EntityType.Impl)
-         && remainingDepth > 1 then
+      if
+        (entityType == EntityType.Module || entityType == EntityType.Impl) && remainingDepth > 1
+      then
         let newPrefix = prefix + (if isLast then "    " else "│   ")
         let newModulePath = Stdlib.List.append(modulePath, name)
         let newLocation = PackageLocation.Module(newModulePath)
@@ -291,12 +289,12 @@ let displayTree(
 
 let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =
   // Filter out depth arguments for path completion
-  let pathArgs = Stdlib.List.filter(args, fun arg -> Stdlib.Bool.not(Stdlib.String.startsWith(arg, "--")))
-  let branchId = state.currentBranchId
+  let pathArgs =
+    Stdlib.List.filter(args, fun arg -> Stdlib.Bool.not(Stdlib.String.startsWith(arg, "--")))
 
+  let branchId = state.currentBranchId
   match pathArgs with
-  | [] ->
-    Traversal.completePartialPath(branchId, state.packageData.currentLocation, "")
+  | [] -> Traversal.completePartialPath(branchId, state.packageData.currentLocation, "")
   | [partialPath] ->
     Traversal.completePartialPath(branchId, state.packageData.currentLocation, partialPath)
   | _ -> []

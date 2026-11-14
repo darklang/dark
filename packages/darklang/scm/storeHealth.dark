@@ -10,7 +10,6 @@ module Darklang.SCM.StoreHealth
 // NOT a command -- a health check you have to think of is one nobody runs, so `dark status` reports these
 // when non-zero. Read-only: this reports, it never repairs.
 
-
 /// The raw counts behind <fn problems>, each 0 when it can't be answered: ops stamped more than a
 /// day ahead of now, ops the fold never applied, and live names bound to a hash with no content.
 type Counts =
@@ -18,8 +17,11 @@ type Counts =
     unfolded: Int64
     danglingBindings: Int64 }
 
+
 /// Count everything <fn problems> reports on, straight from the store.
-let counts(): Counts = Builtin.scmHealth()
+let counts(): Counts =
+  Builtin.scmHealth()
+
 
 /// Where a problem's damage is.
 type Damage =
@@ -27,6 +29,7 @@ type Damage =
   | Projection
   /// The log: re-folding reproduces it.
   | Log
+
 
 /// One thing wrong with the store, and whether re-folding is the way out.
 ///
@@ -37,20 +40,19 @@ type Problem =
   { text: String
     damage: Damage }
 
+
 let countedProblem(n: Int64, damage: Damage, what: String): List<Problem> =
   if n > 0 then
-    [ Problem
-        { text = $"{Stdlib.display(n)} {what}"
-          damage = damage } ]
+    [ Problem { text = $"{Stdlib.display(n)} {what}", damage = damage } ]
   else
     []
+
 
 /// Everything wrong with the store right now. Empty when it's healthy.
 ///
 /// main-scoped, on purpose: health is a property of the store's log and main's projections of it.
 let problems(): List<Problem> =
   let c = counts()
-
   Stdlib.List.flatten(
     [ // `package_ops` is the log itself. Re-folding replays them exactly as they are.
       //

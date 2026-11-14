@@ -1,6 +1,5 @@
 module Darklang.Cli.Quit
 
-
 let execute(state: AppState, _args: List<String>): AppState =
   match state.pageStack with
   | [returnTo, ...rest] ->
@@ -12,6 +11,7 @@ let execute(state: AppState, _args: List<String>): AppState =
       match returnTo with
       | SubApp(app) -> Page.SubApp(app.onResume())
       | other -> other
+
     { cleared with currentPage = resumed, pageStack = rest }
   | [] ->
     Stdlib.printErrorLine("Goodbye!")
@@ -23,8 +23,4 @@ let complete(_state: AppState, _args: List<String>): List<Completion.CompletionI
 
 
 let help(_state: AppState): String =
-  [
-    "Usage: quit"
-    "Exit the CLI immediately."
-  ] |> Stdlib.String.join("\n")
-
+  [ "Usage: quit", "Exit the CLI immediately." ] |> Stdlib.String.join("\n")

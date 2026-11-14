@@ -3,69 +3,133 @@ module Darklang.Stdlib.Bytes.Tests
 // length
 test length =
   Stdlib.Test.all(
-    [ Stdlib.Utf8.encode("hi") |> Stdlib.Bytes.length |> Stdlib.Test.equal(2)
-      Stdlib.Utf8.encode("") |> Stdlib.Bytes.length |> Stdlib.Test.equal(0)
-      Stdlib.Bytes.empty |> Stdlib.Bytes.length |> Stdlib.Test.equal(0) ])
+    [ Stdlib.Utf8.encode("hi")
+      |> Stdlib.Bytes.length
+      |> Stdlib.Test.equal(2)
+
+      Stdlib.Utf8.encode("")
+      |> Stdlib.Bytes.length
+      |> Stdlib.Test.equal(0)
+
+      Stdlib.Bytes.empty
+      |> Stdlib.Bytes.length
+      |> Stdlib.Test.equal(0) ])
+
 
 // isEmpty
 test isEmpty =
   Stdlib.Test.all(
     [ Stdlib.Bytes.isEmpty(Stdlib.Bytes.empty) |> Stdlib.Test.equal(true)
       Stdlib.Bytes.isEmpty(Stdlib.Utf8.encode("")) |> Stdlib.Test.equal(true)
-      Stdlib.Bytes.isEmpty(Stdlib.Utf8.encode("a")) |> Stdlib.Test.equal(false) ])
+      Stdlib.Bytes.isEmpty(Stdlib.Utf8.encode("a"))
+      |> Stdlib.Test.equal(false) ])
+
 
 // getAt
 test getAt =
   let bytes = Stdlib.Bytes.fromList([ 10u8, 20u8, 30u8 ])
   Stdlib.Test.all(
-    [ Stdlib.Bytes.getAt(bytes, 0) |> Stdlib.Test.equal(Some(10u8))
-      Stdlib.Bytes.getAt(bytes, 2) |> Stdlib.Test.equal(Some(30u8))
-      Stdlib.Bytes.getAt(bytes, 3) |> Stdlib.Test.equal(None)
-      Stdlib.Bytes.getAt(bytes, -1) |> Stdlib.Test.equal(None)
+    [ Stdlib.Bytes.getAt(bytes, 0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(10u8))
+
+      Stdlib.Bytes.getAt(bytes, 2)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(30u8))
+
+      Stdlib.Bytes.getAt(bytes, 3)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Bytes.getAt(bytes, -1)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Stdlib.Bytes.getAt(Stdlib.Bytes.empty, 0)
-      |> Stdlib.Test.equal(None) ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
 
 // setAt
 test setAt =
   let bytes = Stdlib.Bytes.fromList([ 10u8, 20u8, 30u8 ])
   Stdlib.Test.all(
     [ Stdlib.Bytes.setAt(bytes, 0, 1u8)
-      |> Stdlib.Test.equal(Ok(Stdlib.Bytes.fromList([ 1u8, 20u8, 30u8 ])))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Bytes.fromList([ 1u8, 20u8, 30u8 ])))
+
       Stdlib.Bytes.setAt(bytes, 2, 3u8)
-      |> Stdlib.Test.equal(Ok(Stdlib.Bytes.fromList([ 10u8, 20u8, 3u8 ])))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Bytes.fromList([ 10u8, 20u8, 3u8 ])))
+
       Stdlib.Bytes.setAt(bytes, 3, 1u8)
-      |> Stdlib.Test.equal(Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
+
       Stdlib.Bytes.setAt(bytes, -1, 1u8)
-      |> Stdlib.Test.equal(Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
+
       Stdlib.Bytes.setAt(Stdlib.Bytes.empty, 0, 1u8)
-      |> Stdlib.Test.equal(Error(Stdlib.Bytes.IndexError.IndexOutOfBounds)) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Bytes.IndexError.IndexOutOfBounds)) ])
+
 
 // indexOf / indexOfFrom
 test indexOf =
   let bytes = Stdlib.Utf8.encode("ab\nc\n")
   Stdlib.Test.all(
-    [ Stdlib.Bytes.indexOf(bytes, 10u8) |> Stdlib.Test.equal(Some(2))
-      Stdlib.Bytes.indexOf(bytes, 0u8) |> Stdlib.Test.equal(None)
-      Stdlib.Bytes.indexOf(Stdlib.Bytes.empty, 10u8) |> Stdlib.Test.equal(None)
-      Stdlib.Bytes.indexOfFrom(bytes, 10u8, 2) |> Stdlib.Test.equal(Some(2))
-      Stdlib.Bytes.indexOfFrom(bytes, 10u8, 3) |> Stdlib.Test.equal(Some(4))
-      Stdlib.Bytes.indexOfFrom(bytes, 10u8, 5) |> Stdlib.Test.equal(None)
-      Stdlib.Bytes.indexOfFrom(bytes, 10u8, -1) |> Stdlib.Test.equal(None)
-      Stdlib.Bytes.indexOfFrom(bytes, 10u8, 99) |> Stdlib.Test.equal(None) ])
+    [ Stdlib.Bytes.indexOf(bytes, 10u8)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+
+      Stdlib.Bytes.indexOf(bytes, 0u8)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Bytes.indexOf(Stdlib.Bytes.empty, 10u8)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Bytes.indexOfFrom(bytes, 10u8, 2)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+
+      Stdlib.Bytes.indexOfFrom(bytes, 10u8, 3)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(4))
+
+      Stdlib.Bytes.indexOfFrom(bytes, 10u8, 5)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Bytes.indexOfFrom(bytes, 10u8, -1)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Bytes.indexOfFrom(bytes, 10u8, 99)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
 
 // lastIndexOf / lastIndexOfFrom
 test lastIndexOf =
   let bytes = Stdlib.Utf8.encode("ab\nc\n")
   Stdlib.Test.all(
-    [ Stdlib.Bytes.lastIndexOf(bytes, 10u8) |> Stdlib.Test.equal(Some(4))
-      Stdlib.Bytes.lastIndexOf(bytes, 97u8) |> Stdlib.Test.equal(Some(0))
-      Stdlib.Bytes.lastIndexOf(bytes, 0u8) |> Stdlib.Test.equal(None)
-      Stdlib.Bytes.lastIndexOf(Stdlib.Bytes.empty, 10u8) |> Stdlib.Test.equal(None)
-      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, 4) |> Stdlib.Test.equal(Some(4))
-      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, 3) |> Stdlib.Test.equal(Some(2))
-      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, 1) |> Stdlib.Test.equal(None)
-      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, -1) |> Stdlib.Test.equal(None)
-      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, 99) |> Stdlib.Test.equal(None) ])
+    [ Stdlib.Bytes.lastIndexOf(bytes, 10u8)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(4))
+
+      Stdlib.Bytes.lastIndexOf(bytes, 97u8)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+
+      Stdlib.Bytes.lastIndexOf(bytes, 0u8)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Bytes.lastIndexOf(Stdlib.Bytes.empty, 10u8)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, 4)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(4))
+
+      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, 3)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+
+      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, 1)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, -1)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Bytes.lastIndexOfFrom(bytes, 10u8, 99)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
 
 // lastIndexOf walks back through a large Bytes
 test lastIndexOfLarge =
@@ -73,17 +137,22 @@ test lastIndexOfLarge =
     Stdlib.Bytes.concat(
       Stdlib.Utf8.encode("x"),
       Stdlib.Utf8.encode(Stdlib.String.repeat("a", 100000)))
-  Stdlib.Bytes.lastIndexOf(bytes, 120u8) |> Stdlib.Test.equal(Some(0))
+
+  Stdlib.Bytes.lastIndexOf(bytes, 120u8)
+  |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+
 
 // concat
 test concat =
   Stdlib.Test.all(
     [ Stdlib.Bytes.concat(Stdlib.Utf8.encode("foo"), Stdlib.Utf8.encode("bar"))
       |> Stdlib.Utf8.decode
-      |> Stdlib.Test.equal(Ok("foobar"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("foobar"))
+
       Stdlib.Bytes.concat(Stdlib.Bytes.empty, Stdlib.Utf8.encode("a"))
       |> Stdlib.Utf8.decode
-      |> Stdlib.Test.equal(Ok("a")) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("a")) ])
+
 
 // concatAll
 test concatAll =
@@ -93,8 +162,12 @@ test concatAll =
         Stdlib.Utf8.encode("bar") ]
       |> Stdlib.Bytes.concatAll
       |> Stdlib.Utf8.decode
-      |> Stdlib.Test.equal(Ok("foo-bar"))
-      Stdlib.Bytes.concatAll([]) |> Stdlib.Bytes.length |> Stdlib.Test.equal(0) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("foo-bar"))
+
+      Stdlib.Bytes.concatAll([])
+      |> Stdlib.Bytes.length
+      |> Stdlib.Test.equal(0) ])
+
 
 test concatAllEdges =
   // 800 bytes, so a slice of 403 or 397 shares this array instead of copying it.
@@ -104,145 +177,248 @@ test concatAllEdges =
   Stdlib.Test.all(
     [ Stdlib.Bytes.concatAll([ Stdlib.Bytes.empty ])
       |> Stdlib.Test.equal(Stdlib.Bytes.empty)
+
       Stdlib.Bytes.concatAll([ Stdlib.Bytes.empty, Stdlib.Bytes.empty ])
       |> Stdlib.Test.equal(Stdlib.Bytes.empty)
+
       Stdlib.Bytes.concatAll(
         [ Stdlib.Bytes.empty, Stdlib.Utf8.encode("a"), Stdlib.Bytes.empty ])
       |> Stdlib.Test.equal(Stdlib.Utf8.encode("a"))
+
       Stdlib.Bytes.concatAll([ left ]) |> Stdlib.Test.equal(left)
+
       Stdlib.Bytes.concatAll([ left, right ]) |> Stdlib.Test.equal(parent)
+
       Stdlib.Bytes.concatAll([ right, Stdlib.Bytes.empty, left ])
-      |> Stdlib.Test.equal(Stdlib.Utf8.encode(Stdlib.String.repeat("defghabc", 100)))
+      |> Stdlib.Test.equal(
+        Stdlib.Utf8.encode(Stdlib.String.repeat("defghabc", 100)))
+
       Stdlib.Bytes.concatAll([ left, left ])
       |> Stdlib.Bytes.drop(403)
       |> Stdlib.Test.equal(left)
-      Stdlib.Bytes.concatAll([ Stdlib.Bytes.take(right, 5), Stdlib.Bytes.drop(left, 400) ])
+
+      Stdlib.Bytes.concatAll(
+        [ Stdlib.Bytes.take(right, 5), Stdlib.Bytes.drop(left, 400) ])
       |> Stdlib.Utf8.decode
-      |> Stdlib.Test.equal(Ok("defghabc")) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("defghabc")) ])
+
 
 // map
 test map =
   Stdlib.Test.all(
     [ Stdlib.Bytes.map(Stdlib.Utf8.encode("abc"), fun b -> b + 1u8)
       |> Stdlib.Test.equal(Stdlib.Utf8.encode("bcd"))
+
       Stdlib.Bytes.map(Stdlib.Bytes.fromList([ 0u8, 255u8 ]), fun _ -> 7u8)
       |> Stdlib.Test.equal(Stdlib.Bytes.fromList([ 7u8, 7u8 ]))
+
       Stdlib.Bytes.map(Stdlib.Bytes.empty, fun b -> b + 1u8)
       |> Stdlib.Test.equal(Stdlib.Bytes.empty) ])
+
 
 // slice: start inclusive, end exclusive, strict
 test slice =
   let bytes = Stdlib.Utf8.encode("abcdef")
-  let text(r: Stdlib.Result.Result<Bytes, Stdlib.Bytes.IndexError>)
+  let text(
+    r: Stdlib.Result.Result<Bytes, Stdlib.Bytes.IndexError>)
     : Stdlib.Result.Result<String, String> =
     match r with
     | Ok(b) -> Stdlib.Utf8.decode(b)
-    | Error(_) -> Error("out of bounds")
+    | Error(_) -> Stdlib.Result.Result.Error("out of bounds")
+
   Stdlib.Test.all(
-    [ text(Stdlib.Bytes.slice(bytes, 2, 5)) |> Stdlib.Test.equal(Ok("cde"))
-      text(Stdlib.Bytes.slice(bytes, 0, 6)) |> Stdlib.Test.equal(Ok("abcdef"))
-      text(Stdlib.Bytes.slice(bytes, 3, 3)) |> Stdlib.Test.equal(Ok(""))
-      text(Stdlib.Bytes.slice(bytes, 6, 6)) |> Stdlib.Test.equal(Ok(""))
-      text(Stdlib.Bytes.slice(Stdlib.Bytes.empty, 0, 0)) |> Stdlib.Test.equal(Ok(""))
+    [ text(Stdlib.Bytes.slice(bytes, 2, 5))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("cde"))
+
+      text(Stdlib.Bytes.slice(bytes, 0, 6))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("abcdef"))
+
+      text(Stdlib.Bytes.slice(bytes, 3, 3))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+
+      text(Stdlib.Bytes.slice(bytes, 6, 6))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+
+      text(Stdlib.Bytes.slice(Stdlib.Bytes.empty, 0, 0))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+
       Stdlib.Bytes.slice(bytes, 2, 7)
-      |> Stdlib.Test.equal(Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
+
       Stdlib.Bytes.slice(bytes, -1, 2)
-      |> Stdlib.Test.equal(Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
+
       Stdlib.Bytes.slice(bytes, 4, 2)
-      |> Stdlib.Test.equal(Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Bytes.IndexError.IndexOutOfBounds))
+
       Stdlib.Bytes.slice(bytes, 7, 7)
-      |> Stdlib.Test.equal(Error(Stdlib.Bytes.IndexError.IndexOutOfBounds)) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Bytes.IndexError.IndexOutOfBounds)) ])
+
 
 // take: the first bytes; never errors, clamps to the Bytes
 test take =
   let bytes = Stdlib.Utf8.encode("abcdef")
-  let text(b: Bytes): Stdlib.Result.Result<String, String> = Stdlib.Utf8.decode(b)
+  let text(b: Bytes): Stdlib.Result.Result<String, String> =
+    Stdlib.Utf8.decode(b)
+
   Stdlib.Test.all(
-    [ text(Stdlib.Bytes.take(bytes, 2)) |> Stdlib.Test.equal(Ok("ab"))
-      text(Stdlib.Bytes.take(bytes, 0)) |> Stdlib.Test.equal(Ok(""))
-      text(Stdlib.Bytes.take(bytes, -3)) |> Stdlib.Test.equal(Ok(""))
-      text(Stdlib.Bytes.take(bytes, 99)) |> Stdlib.Test.equal(Ok("abcdef"))
-      text(Stdlib.Bytes.take(Stdlib.Bytes.empty, 3)) |> Stdlib.Test.equal(Ok("")) ])
+    [ text(Stdlib.Bytes.take(bytes, 2))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("ab"))
+
+      text(Stdlib.Bytes.take(bytes, 0))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+
+      text(Stdlib.Bytes.take(bytes, -3))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+
+      text(Stdlib.Bytes.take(bytes, 99))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("abcdef"))
+
+      text(Stdlib.Bytes.take(Stdlib.Bytes.empty, 3))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("")) ])
+
 
 // drop: all but the first bytes; never errors, clamps to the Bytes
 test drop =
   let bytes = Stdlib.Utf8.encode("abcdef")
-  let text(b: Bytes): Stdlib.Result.Result<String, String> = Stdlib.Utf8.decode(b)
+  let text(b: Bytes): Stdlib.Result.Result<String, String> =
+    Stdlib.Utf8.decode(b)
+
   Stdlib.Test.all(
-    [ text(Stdlib.Bytes.drop(bytes, 2)) |> Stdlib.Test.equal(Ok("cdef"))
-      text(Stdlib.Bytes.drop(bytes, 0)) |> Stdlib.Test.equal(Ok("abcdef"))
-      text(Stdlib.Bytes.drop(bytes, -3)) |> Stdlib.Test.equal(Ok("abcdef"))
-      text(Stdlib.Bytes.drop(bytes, 99)) |> Stdlib.Test.equal(Ok(""))
-      text(Stdlib.Bytes.drop(Stdlib.Bytes.empty, 3)) |> Stdlib.Test.equal(Ok("")) ])
+    [ text(Stdlib.Bytes.drop(bytes, 2))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("cdef"))
+
+      text(Stdlib.Bytes.drop(bytes, 0))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("abcdef"))
+
+      text(Stdlib.Bytes.drop(bytes, -3))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("abcdef"))
+
+      text(Stdlib.Bytes.drop(bytes, 99))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+
+      text(Stdlib.Bytes.drop(Stdlib.Bytes.empty, 3))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("")) ])
+
 
 // startsWith / endsWith
 test startsAndEndsWith =
   let b(s: String): Bytes = Stdlib.Utf8.encode(s)
   Stdlib.Test.all(
     [ Stdlib.Bytes.startsWith(b("abcdef"), b("abc")) |> Stdlib.Test.equal(true)
+
       Stdlib.Bytes.startsWith(b("abcdef"), b("bcd")) |> Stdlib.Test.equal(false)
+
       Stdlib.Bytes.startsWith(b("abc"), b("abcd")) |> Stdlib.Test.equal(false)
+
       Stdlib.Bytes.startsWith(b("abc"), Stdlib.Bytes.empty)
       |> Stdlib.Test.equal(true)
+
       Stdlib.Bytes.endsWith(b("abcdef"), b("def")) |> Stdlib.Test.equal(true)
+
       Stdlib.Bytes.endsWith(b("abcdef"), b("cde")) |> Stdlib.Test.equal(false)
+
       Stdlib.Bytes.endsWith(b("abc"), b("zabc")) |> Stdlib.Test.equal(false)
-      Stdlib.Bytes.endsWith(b("abc"), Stdlib.Bytes.empty) |> Stdlib.Test.equal(true)
+
+      Stdlib.Bytes.endsWith(b("abc"), Stdlib.Bytes.empty)
+      |> Stdlib.Test.equal(true)
+
       Stdlib.Bytes.endsWith(Stdlib.Bytes.empty, Stdlib.Bytes.empty)
       |> Stdlib.Test.equal(true) ])
+
 
 // trim / trimStart / trimEnd
 test trim =
   let b(s: String): Bytes = Stdlib.Utf8.encode(s)
   Stdlib.Test.all(
     [ Stdlib.Bytes.trim(b("--a-b--"), 45u8) |> Stdlib.Test.equal(b("a-b"))
+
       Stdlib.Bytes.trim(b("a-b"), 45u8) |> Stdlib.Test.equal(b("a-b"))
+
       Stdlib.Bytes.trim(b("---"), 45u8) |> Stdlib.Test.equal(Stdlib.Bytes.empty)
+
       Stdlib.Bytes.trim(b("-"), 45u8) |> Stdlib.Test.equal(Stdlib.Bytes.empty)
+
       Stdlib.Bytes.trim(b("a"), 45u8) |> Stdlib.Test.equal(b("a"))
+
       Stdlib.Bytes.trim(Stdlib.Bytes.empty, 45u8)
       |> Stdlib.Test.equal(Stdlib.Bytes.empty)
-      Stdlib.Bytes.trim(Stdlib.Bytes.fromList([ 0u8, 0u8, 7u8, 0u8, 9u8, 0u8 ]), 0u8)
+
+      Stdlib.Bytes.trim(
+        Stdlib.Bytes.fromList([ 0u8, 0u8, 7u8, 0u8, 9u8, 0u8 ]),
+        0u8)
       |> Stdlib.Test.equal(Stdlib.Bytes.fromList([ 7u8, 0u8, 9u8 ]))
-      Stdlib.Bytes.trimStart(b("--a-b--"), 45u8) |> Stdlib.Test.equal(b("a-b--"))
-      Stdlib.Bytes.trimStart(b("---"), 45u8) |> Stdlib.Test.equal(Stdlib.Bytes.empty)
+
+      Stdlib.Bytes.trimStart(b("--a-b--"), 45u8)
+      |> Stdlib.Test.equal(b("a-b--"))
+
+      Stdlib.Bytes.trimStart(b("---"), 45u8)
+      |> Stdlib.Test.equal(Stdlib.Bytes.empty)
+
       Stdlib.Bytes.trimStart(Stdlib.Bytes.empty, 45u8)
       |> Stdlib.Test.equal(Stdlib.Bytes.empty)
+
       Stdlib.Bytes.trimEnd(b("--a-b--"), 45u8) |> Stdlib.Test.equal(b("--a-b"))
-      Stdlib.Bytes.trimEnd(b("---"), 45u8) |> Stdlib.Test.equal(Stdlib.Bytes.empty)
+
+      Stdlib.Bytes.trimEnd(b("---"), 45u8)
+      |> Stdlib.Test.equal(Stdlib.Bytes.empty)
+
       Stdlib.Bytes.trimEnd(Stdlib.Bytes.empty, 45u8)
       |> Stdlib.Test.equal(Stdlib.Bytes.empty) ])
+
 
 // indexOfSegment / indexOfSegmentFrom / contains
 test indexOfSegment =
   let b(s: String): Bytes = Stdlib.Utf8.encode(s)
   Stdlib.Test.all(
     [ Stdlib.Bytes.indexOfSegment(b("abc"), Stdlib.Bytes.empty)
-      |> Stdlib.Test.equal(Some(0))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+
       Stdlib.Bytes.indexOfSegment(Stdlib.Bytes.empty, Stdlib.Bytes.empty)
-      |> Stdlib.Test.equal(Some(0))
-      Stdlib.Bytes.indexOfSegment(b("ab"), b("abc")) |> Stdlib.Test.equal(None)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+
+      Stdlib.Bytes.indexOfSegment(b("ab"), b("abc"))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Stdlib.Bytes.indexOfSegment(b("abcabc"), b("abc"))
-      |> Stdlib.Test.equal(Some(0))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+
       Stdlib.Bytes.indexOfSegment(b("xyzabc"), b("abc"))
-      |> Stdlib.Test.equal(Some(3))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
+
       // At 0, `aab` fails on its third byte; the match is at 1.
-      Stdlib.Bytes.indexOfSegment(b("aaab"), b("aab")) |> Stdlib.Test.equal(Some(1))
+      Stdlib.Bytes.indexOfSegment(b("aaab"), b("aab"))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+
       // Starts with the segment's first byte, but runs off the end.
-      Stdlib.Bytes.indexOfSegment(b("xxab"), b("abc")) |> Stdlib.Test.equal(None)
-      Stdlib.Bytes.indexOfSegment(b("abcdef"), b("xyz")) |> Stdlib.Test.equal(None)
+      Stdlib.Bytes.indexOfSegment(b("xxab"), b("abc"))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Bytes.indexOfSegment(b("abcdef"), b("xyz"))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Stdlib.Bytes.indexOfSegmentFrom(b("abcabc"), b("abc"), 1)
-      |> Stdlib.Test.equal(Some(3))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
+
       Stdlib.Bytes.indexOfSegmentFrom(b("abc"), Stdlib.Bytes.empty, 3)
-      |> Stdlib.Test.equal(Some(3))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
+
       Stdlib.Bytes.indexOfSegmentFrom(b("abc"), Stdlib.Bytes.empty, 4)
-      |> Stdlib.Test.equal(None)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Stdlib.Bytes.indexOfSegmentFrom(b("abc"), b("a"), -1)
-      |> Stdlib.Test.equal(None)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Stdlib.Bytes.contains(b("a\r\n\r\nb"), b("\r\n\r\n"))
       |> Stdlib.Test.equal(true)
+
       Stdlib.Bytes.contains(b("a\r\nb"), b("\r\n\r\n"))
       |> Stdlib.Test.equal(false) ])
+
 
 // replaceAll
 test replaceAll =
@@ -250,21 +426,34 @@ test replaceAll =
   Stdlib.Test.all(
     [ Stdlib.Bytes.replaceAll(b("a\r\nb\r\nc"), b("\r\n"), b("\n"))
       |> Stdlib.Test.equal(b("a\nb\nc"))
+
       Stdlib.Bytes.replaceAll(b("abcabc"), b("abc"), b("x"))
       |> Stdlib.Test.equal(b("xx"))
+
       Stdlib.Bytes.replaceAll(b("abc"), b("b"), Stdlib.Bytes.empty)
       |> Stdlib.Test.equal(b("ac"))
+
       Stdlib.Bytes.replaceAll(b("aaa"), b("aa"), b("b"))
       |> Stdlib.Test.equal(b("ba"))
-      Stdlib.Bytes.replaceAll(b("abc"), b("x"), b("y")) |> Stdlib.Test.equal(b("abc"))
-      Stdlib.Bytes.replaceAll(b("ab"), b("abc"), b("y")) |> Stdlib.Test.equal(b("ab"))
-      Stdlib.Bytes.replaceAll(b("a"), b("a"), b("aa")) |> Stdlib.Test.equal(b("aa"))
+
+      Stdlib.Bytes.replaceAll(b("abc"), b("x"), b("y"))
+      |> Stdlib.Test.equal(b("abc"))
+
+      Stdlib.Bytes.replaceAll(b("ab"), b("abc"), b("y"))
+      |> Stdlib.Test.equal(b("ab"))
+
+      Stdlib.Bytes.replaceAll(b("a"), b("a"), b("aa"))
+      |> Stdlib.Test.equal(b("aa"))
+
       Stdlib.Bytes.replaceAll(b("ab"), Stdlib.Bytes.empty, b("-"))
       |> Stdlib.Test.equal(b("-a-b-"))
+
       Stdlib.Bytes.replaceAll(Stdlib.Bytes.empty, Stdlib.Bytes.empty, b("-"))
       |> Stdlib.Test.equal(b("-"))
+
       Stdlib.Bytes.replaceAll(Stdlib.Bytes.empty, b("a"), b("-"))
       |> Stdlib.Test.equal(Stdlib.Bytes.empty) ])
+
 
 // replaceAll goes through many matches in a large Bytes
 test replaceAllLarge =
@@ -274,113 +463,156 @@ test replaceAllLarge =
     Stdlib.Bytes.empty)
   |> Stdlib.Test.equal(Stdlib.Utf8.encode(Stdlib.String.repeat("a", 50000)))
 
+
 // toList / fromList
 test listConversions =
   Stdlib.Test.all(
-    [ Stdlib.Utf8.encode("abc") |> Stdlib.Bytes.toList
+    [ Stdlib.Utf8.encode("abc")
+      |> Stdlib.Bytes.toList
       |> Stdlib.Test.equal([ 97u8, 98u8, 99u8 ])
+
       Stdlib.Bytes.fromList([ 97u8, 98u8, 99u8 ])
       |> Stdlib.Test.equal(Stdlib.Utf8.encode("abc")) ])
+
 
 // reverse
 test reverse =
   Stdlib.Test.all(
     [ Stdlib.Bytes.reverse(Stdlib.Utf8.encode("abc"))
       |> Stdlib.Test.equal(Stdlib.Utf8.encode("cba"))
+
       Stdlib.Bytes.reverse(Stdlib.Bytes.fromList([ 1u8 ]))
       |> Stdlib.Test.equal(Stdlib.Bytes.fromList([ 1u8 ]))
-      Stdlib.Bytes.reverse(Stdlib.Bytes.empty) |> Stdlib.Test.equal(Stdlib.Bytes.empty) ])
+
+      Stdlib.Bytes.reverse(Stdlib.Bytes.empty)
+      |> Stdlib.Test.equal(Stdlib.Bytes.empty) ])
+
 
 // Equality depends on contents, including for independently created values.
 test differentBytesAreNotEqual =
-  (Stdlib.Utf8.encode("hi") == Stdlib.Utf8.encode("bye"))
+  Stdlib.Utf8.encode("hi") == Stdlib.Utf8.encode("bye")
   |> Stdlib.Test.equal(false)
+
 
 test equalityUsesContents =
   let bytes = Stdlib.Utf8.encode("hi")
   Stdlib.Test.all(
-    [ (bytes == bytes) |> Stdlib.Test.equal(true)
-      (bytes == Stdlib.Utf8.encode("hi")) |> Stdlib.Test.equal(true)
-      (Stdlib.Utf8.encode("") == Stdlib.Bytes.empty) |> Stdlib.Test.equal(true)
-      ([bytes] == [Stdlib.Bytes.fromList([104u8, 105u8])])
+    [ bytes == bytes |> Stdlib.Test.equal(true)
+
+      bytes == Stdlib.Utf8.encode("hi") |> Stdlib.Test.equal(true)
+
+      Stdlib.Utf8.encode("") == Stdlib.Bytes.empty |> Stdlib.Test.equal(true)
+
+      [ bytes ] == [ Stdlib.Bytes.fromList([ 104u8, 105u8 ]) ]
       |> Stdlib.Test.equal(true) ])
+
 
 test collectionsUseContentEquality =
   let a = Stdlib.Utf8.encode("hi")
-  let b = Stdlib.Bytes.fromList([104u8, 105u8])
+  let b = Stdlib.Bytes.fromList([ 104u8, 105u8 ])
   let x = Stdlib.Utf8.encode("x")
   Stdlib.Test.all(
-    [ Stdlib.List.contains([a], b) |> Stdlib.Test.equal(true)
-      Stdlib.List.unique([a, b]) |> Stdlib.List.length |> Stdlib.Test.equal(1)
-      Stdlib.List.unique([Stdlib.Bytes.empty, Stdlib.Utf8.encode("")])
-      |> Stdlib.List.length |> Stdlib.Test.equal(1)
+    [ Stdlib.List.contains([ a ], b) |> Stdlib.Test.equal(true)
+
+      Stdlib.List.unique([ a, b ])
+      |> Stdlib.List.length
+      |> Stdlib.Test.equal(1)
+
+      Stdlib.List.unique([ Stdlib.Bytes.empty, Stdlib.Utf8.encode("") ])
+      |> Stdlib.List.length
+      |> Stdlib.Test.equal(1)
+
       // `unique` keeps the first of equal Bytes where it was.
-      Stdlib.List.unique([a, x, b]) |> Stdlib.Test.equal([a, x]) ])
+      Stdlib.List.unique([ a, x, b ]) |> Stdlib.Test.equal([ a, x ]) ])
+
 
 // Bytes have no order, so sorting them refuses rather than inventing one.
 test sortRefusesBytes =
-  Stdlib.List.sort([Stdlib.Utf8.encode("b"), Stdlib.Utf8.encode("a")])
+  Stdlib.List.sort([ Stdlib.Utf8.encode("b"), Stdlib.Utf8.encode("a") ])
   => raises "Cannot sort <Bytes: 1 byte 62>. Bytes, functions and streams have no order; use List.sortBy with a key that has one."
+
 
 test sortByRefusesBytesKeys =
   Stdlib.List.sortBy([ "b", "a" ], fun s -> Stdlib.Utf8.encode(s))
   => raises "Cannot sort <Bytes: 1 byte 62>. Bytes, functions and streams have no order; use List.sortBy with a key that has one."
 
+
 // A sort reaches Bytes inside a value only when everything before them ties.
 test sortOfValuesHoldingBytesComparesEarlierFieldsFirst =
-  Stdlib.List.sort([ (2, Stdlib.Utf8.encode("x")), (1, Stdlib.Utf8.encode("y")) ])
+  Stdlib.List.sort(
+    [ (2, Stdlib.Utf8.encode("x")), (1, Stdlib.Utf8.encode("y")) ])
   |> Stdlib.List.map(Stdlib.Tuple2.first)
   |> Stdlib.Test.equal([ 1, 2 ])
+
 
 test sortOfValuesHoldingBytesRefusesOnATie =
   Stdlib.List.sort([ (1, Stdlib.Utf8.encode("x")), (1, Stdlib.Utf8.encode("y")) ])
   => raises "Cannot sort <Bytes: 1 byte 78>. Bytes, functions and streams have no order; use List.sortBy with a key that has one."
 
+
 // Reflection carries an opaque Bytes value, never a storage-specific tag.
 test reflectionUsesContents =
-  let reflect = Darklang.LanguageTools.RuntimeTypes.reflect
+  let reflect = LanguageTools.RuntimeTypes.reflect
   Stdlib.Test.all(
-    [ (reflect(Stdlib.Bytes.empty) == reflect(Stdlib.Utf8.encode("")))
+    [ reflect(Stdlib.Bytes.empty) == reflect(Stdlib.Utf8.encode(""))
       |> Stdlib.Test.equal(true)
-      (reflect(Stdlib.Utf8.encode("hi"))
-       == reflect(Stdlib.Bytes.fromList([104u8, 105u8])))
+
+      reflect(Stdlib.Utf8.encode("hi"))
+      == reflect(Stdlib.Bytes.fromList([ 104u8, 105u8 ]))
       |> Stdlib.Test.equal(true) ])
+
 
 test dictionaryKeysUseContents =
   let first = Stdlib.Utf8.encode("hi")
-  let same = Stdlib.Bytes.fromList([104u8, 105u8])
+  let same = Stdlib.Bytes.fromList([ 104u8, 105u8 ])
   let different = Stdlib.Utf8.encode("ho")
   let dict = Dict { first: "found" }
   let byEmpty = Dict { Stdlib.Bytes.empty: "empty" }
-  let overwritten = Stdlib.Dict.fromEntries([(first, 1), (same, 2)])
+  let overwritten = Stdlib.Dict.fromEntries([ (first, 1), (same, 2) ])
   Stdlib.Test.all(
-    [ Stdlib.Dict.get(dict, same) |> Stdlib.Test.equal(Some("found"))
-      Stdlib.Dict.get(dict, different) |> Stdlib.Test.equal(None)
+    [ Stdlib.Dict.get(dict, same)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("found"))
+
+      Stdlib.Dict.get(dict, different)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Stdlib.Dict.get(byEmpty, Stdlib.Utf8.encode(""))
-      |> Stdlib.Test.equal(Some("empty"))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("empty"))
+
       Stdlib.Dict.size(overwritten) |> Stdlib.Test.equal(1)
-      Stdlib.Dict.get(overwritten, first) |> Stdlib.Test.equal(Some(2))
+
+      Stdlib.Dict.get(overwritten, first)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+
       Stdlib.Dict.get(Dict { (first, 1): "nested" }, (same, 1))
-      |> Stdlib.Test.equal(Some("nested")) ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("nested")) ])
+
 
 // A test whose error holds unsaved Bytes still reports that error.
 // Equal Bytes are one key: a literal keeps the last value, `fromEntriesUnique`
 // refuses.
 test duplicateBytesKeysAreOneKey =
   let a = Stdlib.Utf8.encode("a")
-  let alsoA = Stdlib.Bytes.fromList([97u8])
+  let alsoA = Stdlib.Bytes.fromList([ 97u8 ])
   Stdlib.Test.all(
-    [ Dict { (a): 1, (alsoA): 2 } |> Stdlib.Test.equal(Dict { (a): 2 })
+    [ Dict { a: 1, alsoA: 2 } |> Stdlib.Test.equal(Dict { a: 2 })
+
       Stdlib.Dict.fromEntriesUnique([ (a, 1), (alsoA, 2) ])
-      |> Stdlib.Test.equal(Error(Stdlib.Dict.DuplicateKey.DuplicateKey(a))) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Dict.DuplicateKey.DuplicateKey(a))) ])
+
 
 let reversed(bytes: Bytes): Bytes =
   Stdlib.Bytes.fromList(Stdlib.List.reverse(Stdlib.Bytes.toList(bytes)))
 
+
 // Unsaved Bytes reach a test worker and come back with their contents readable.
 test workerCarriesUnsavedBytes =
   let input = Stdlib.Utf8.encode("abc")
-  match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), reversed, input) with
+  match Stdlib.Test.Process.run(
+          Stdlib.Test.Process.defaults(),
+          reversed,
+          input) with
   | Error(message) -> Stdlib.Test.fail(message)
   | Ok(output) ->
     match output.result with
@@ -388,7 +620,10 @@ test workerCarriesUnsavedBytes =
     | Ok(bytes) ->
       Stdlib.Test.all(
         [ output.exitCode |> Stdlib.Test.equal(0)
-          Stdlib.Utf8.decode(bytes) |> Stdlib.Test.equal(Ok("cba")) ])
+
+          Stdlib.Utf8.decode(bytes)
+          |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("cba")) ])
+
 
 // A slice of more than 64 bytes that is at least an eighth of what it comes from shares
 // that array, and a slice of it shares it too. Each one is still exactly its own bytes.
@@ -398,34 +633,56 @@ test sharedSlices =
   let inner =
     Stdlib.Bytes.slice(middle, 100, 400)
     |> Stdlib.Result.withDefault(Stdlib.Bytes.empty)
+
   let fresh = Stdlib.Utf8.encode(Stdlib.String.repeat("0123456789", 30))
   Stdlib.Test.all(
     [ Stdlib.Bytes.length(inner) |> Stdlib.Test.equal(300)
+
       inner |> Stdlib.Test.equal(fresh)
+
       Stdlib.Utf8.decode(inner)
-      |> Stdlib.Test.equal(Ok(Stdlib.String.repeat("0123456789", 30)))
-      Stdlib.Bytes.getAt(inner, 0) |> Stdlib.Test.equal(Some(48u8))
-      Stdlib.Bytes.getAt(inner, 299) |> Stdlib.Test.equal(Some(57u8))
-      Stdlib.Bytes.getAt(inner, 300) |> Stdlib.Test.equal(None)
-      Stdlib.Bytes.indexOfFrom(inner, 57u8, 0) |> Stdlib.Test.equal(Some(9))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.String.repeat("0123456789", 30)))
+
+      Stdlib.Bytes.getAt(inner, 0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(48u8))
+
+      Stdlib.Bytes.getAt(inner, 299)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(57u8))
+
+      Stdlib.Bytes.getAt(inner, 300)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Bytes.indexOfFrom(inner, 57u8, 0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(9))
+
       Stdlib.Bytes.indexOfSegment(inner, Stdlib.Utf8.encode("90"))
-      |> Stdlib.Test.equal(Some(9))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(9))
+
       Stdlib.List.length(Stdlib.Bytes.toList(inner)) |> Stdlib.Test.equal(300)
+
       Stdlib.Bytes.concat(inner, inner)
       |> Stdlib.Test.equal(Stdlib.Bytes.concat(fresh, fresh))
-      Dict { (inner): 1 } |> Stdlib.Test.equal(Dict { (fresh): 1 })
+
+      Dict { inner: 1 } |> Stdlib.Test.equal(Dict { fresh: 1 })
+
       Stdlib.Bytes.startsWith(middle, Stdlib.Bytes.take(inner, 100))
       |> Stdlib.Test.equal(true) ])
+
 
 // A shared slice reaches a test worker as its own bytes, not the array it shares.
 test workerCarriesSharedSlice =
   let whole = Stdlib.Utf8.encode(Stdlib.String.repeat("ab", 500))
   let input = Stdlib.Bytes.drop(whole, 600)
-  match Stdlib.Test.Process.run(Stdlib.Test.Process.defaults(), reversed, input) with
+  match Stdlib.Test.Process.run(
+          Stdlib.Test.Process.defaults(),
+          reversed,
+          input) with
   | Error(message) -> Stdlib.Test.fail(message)
   | Ok(output) ->
     match output.result with
     | Error(message) -> Stdlib.Test.fail(message)
     | Ok(bytes) ->
       Stdlib.Utf8.decode(bytes)
-      |> Stdlib.Test.equal(Ok(Stdlib.String.repeat("ba", 200)))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.String.repeat("ba", 200)))

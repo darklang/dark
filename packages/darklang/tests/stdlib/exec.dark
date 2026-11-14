@@ -8,7 +8,9 @@ module Darklang.Stdlib.Exec.Tests
 test selectAfterManyOthersFinish =
   let early = Stdlib.Exec.spawn(fun () -> 41 + 1)
   let others =
-    Stdlib.List.map(Stdlib.List.range(1, 100), fun n -> Stdlib.Exec.spawn(fun () -> n))
+    Stdlib.List.map(Stdlib.List.range(1, 100), fun n ->
+      Stdlib.Exec.spawn(fun () -> n))
+
   let _ = Stdlib.List.map(others, fun h -> Stdlib.Exec.await(h))
   let (_, value) = Stdlib.Exec.select([ early ])
   value |> Stdlib.Test.equal(42)
@@ -19,16 +21,18 @@ test selectAfterManyOthersFinish =
 test stopARunningProcess =
   let killed = Stdlib.Exec.spawn(fun () -> Stdlib.Cli.Posix.sleep(1000.0))
   let cancelled = Stdlib.Exec.spawn(fun () -> Stdlib.Cli.Posix.sleep(1000.0))
-  (Stdlib.Exec.stop(killed, Stdlib.Exec.Stop.Kill),
-   Stdlib.Exec.stop(cancelled, Stdlib.Exec.Stop.Cancel))
+  (
+    Stdlib.Exec.stop(killed, Stdlib.Exec.Stop.Kill),
+    Stdlib.Exec.stop(cancelled, Stdlib.Exec.Stop.Cancel))
   |> Stdlib.Test.equal((true, true))
 
 
 /// A handle no process has is not there to stop, however it is asked.
 test stopAnUnknownHandle =
   let h = Stdlib.Exec.Handle { id = Stdlib.Uuid.generate() }
-  (Stdlib.Exec.stop(h, Stdlib.Exec.Stop.Cancel),
-   Stdlib.Exec.stop(h, Stdlib.Exec.Stop.Kill),
-   Stdlib.Exec.cancel(h),
-   Stdlib.Exec.kill(h))
+  (
+    Stdlib.Exec.stop(h, Stdlib.Exec.Stop.Cancel),
+    Stdlib.Exec.stop(h, Stdlib.Exec.Stop.Kill),
+    Stdlib.Exec.cancel(h),
+    Stdlib.Exec.kill(h))
   |> Stdlib.Test.equal((false, false, false, false))

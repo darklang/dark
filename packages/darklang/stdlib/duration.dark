@@ -2,9 +2,9 @@
 /// A unit is required: "5" on its own is an error.
 module Darklang.Stdlib.Duration
 
-
 /// A whole number of seconds. Can be negative.
-type Duration = { seconds: Int64 }
+type Duration =
+  { seconds: Int64 }
 
 
 type ParseError =
@@ -17,48 +17,56 @@ type ParseError =
 
 
 /// Create a <type Duration> from <param seconds> seconds.
-let fromSeconds(seconds: Int64): Duration = Duration { seconds = seconds }
+let fromSeconds(seconds: Int64): Duration =
+  Duration { seconds = seconds }
 
 
 impl Display for Duration =
   /// In the largest unit <fn parse> reads that fits exactly: {{90s}}, {{5m}}, {{2d}}
   let display(d: Duration): String =
     let s = d.seconds
-    if s == 0 then "0s"
-    else if s % 86400 == 0 then $"{s / 86400}d"
-    else if s % 3600 == 0 then $"{s / 3600}h"
-    else if s % 60 == 0 then $"{s / 60}m"
-    else $"{s}s"
+    if s == 0 then
+      "0s"
+    else if s % 86400 == 0 then
+      $"{s / 86400}d"
+    else if s % 3600 == 0 then
+      $"{s / 3600}h"
+    else if s % 60 == 0 then
+      $"{s / 60}m"
+    else
+      $"{s}s"
 
 
 /// Get the number of seconds in <param d>.
-let toSeconds(d: Duration): Int64 = d.seconds
+let toSeconds(d: Duration): Int64 =
+  d.seconds
 
 
 /// Parse a string like "30s", "5m", "1h", "2d" or "-5m" into a <type Duration>.
 /// The string must end with a unit: s, m, h or d.
-let parse(s: String): Stdlib.Result.Result<Duration, ParseError> =
+let parse(s: String): Result<Duration, ParseError> =
   let number =
     s
-    |> Stdlib.String.toList
-    |> Stdlib.List.takeWhile(fun c -> !Stdlib.Char.isLetter(c))
-    |> Stdlib.String.fromList
-  let unit = Stdlib.String.dropFirst(s, Stdlib.String.length(number))
-  if Stdlib.String.isEmpty(unit) then
-    Stdlib.Result.Result.Error(ParseError.MissingUnit)
+    |> String.toList
+    |> List.takeWhile(fun c -> !Char.isLetter(c))
+    |> String.fromList
+
+  let unit = String.dropFirst(s, String.length(number))
+  if String.isEmpty(unit) then
+    Result.Error(ParseError.MissingUnit)
   else
-    match Stdlib.Int64.parse(number) with
+    match Int64.parse(number) with
     | Ok(n) ->
       // a count of seconds past Int64 is refused rather than wrapped
-      let times(factor: Int64): Stdlib.Result.Result<Duration, ParseError> =
-        match Stdlib.Int64.checkedMultiply(n, factor) with
-        | Ok(s) -> Stdlib.Result.Result.Ok(fromSeconds(s))
-        | Error(_) -> Stdlib.Result.Result.Error(ParseError.InvalidNumber)
+      let times(factor: Int64): Result<Duration, ParseError> =
+        match Int64.checkedMultiply(n, factor) with
+        | Ok(s) -> Result.Ok(fromSeconds(s))
+        | Error(_) -> Result.Error(ParseError.InvalidNumber)
+
       match unit with
       | "s" -> times(1)
       | "m" -> times(60)
       | "h" -> times(3600)
       | "d" -> times(86400)
-      | _ -> Stdlib.Result.Result.Error(ParseError.UnknownUnit)
-
-    | Error(_) -> Stdlib.Result.Result.Error(ParseError.InvalidNumber)
+      | _ -> Result.Error(ParseError.UnknownUnit)
+    | Error(_) -> Result.Error(ParseError.InvalidNumber)

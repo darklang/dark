@@ -9,182 +9,198 @@ module Darklang.Stdlib.Float32
 // then to single lands where rounding straight to single would (Figueroa, 1995).
 // That holds for + - * / and sqrt; `**` is only as good as Float's own power.
 
-
-type ParseError = | BadFormat
+type ParseError =
+  | BadFormat
 
 
 /// Round <param a> to the nearest <type Float32>, ties to even. A value too large
 /// for a Float32 becomes an infinity, and one too small becomes zero.
-let fromFloat(a: Float): Float32 = Builtin.float32FromFloat(a)
+let fromFloat(a: Float): Float32 =
+  Builtin.float32FromFloat(a)
 
 
 /// Widen <param a> to a <type Float>. Exact: every Float32 is also a Float.
-let toFloat(a: Float32): Float = Builtin.float32ToFloat(a)
+let toFloat(a: Float32): Float =
+  Builtin.float32ToFloat(a)
 
 
 /// The <type Float32> nearest <param a>, ties to even. Past 2^24 not every integer
 /// is a Float32: {{Float32.fromInt64(16777217) == 16777216.0f32}}.
-let fromInt64(a: Int64): Float32 = Builtin.float32FromInt64(a)
+let fromInt64(a: Int64): Float32 =
+  Builtin.float32FromInt64(a)
 
 
 /// Round up to an integer value
-let ceiling(a: Float32): Int64 = Stdlib.Float.ceiling(Stdlib.Float32.toFloat(a))
+let ceiling(a: Float32): Int64 =
+  Float.ceiling(toFloat(a))
 
 
 /// Round up to an integer value
-let roundUp(a: Float32): Int64 = Stdlib.Float.roundUp(Stdlib.Float32.toFloat(a))
+let roundUp(a: Float32): Int64 =
+  Float.roundUp(toFloat(a))
 
 
 /// Round down to an integer value.
 /// Consider <fn Float32.truncate> if your goal is to discard the fractional part
 /// of a number: {{Float32.floor(-1.9f32) == -2}} but {{Float32.truncate(-1.9f32) == -1}}
-let floor(a: Float32): Int64 = Stdlib.Float.floor(Stdlib.Float32.toFloat(a))
+let floor(a: Float32): Int64 =
+  Float.floor(toFloat(a))
 
 
 /// Round down to an integer value.
-let roundDown(a: Float32): Int64 = Stdlib.Float.roundDown(Stdlib.Float32.toFloat(a))
+let roundDown(a: Float32): Int64 =
+  Float.roundDown(toFloat(a))
 
 
 /// Round to the nearest integer value
-let round(a: Float32): Int64 = Stdlib.Float.round(Stdlib.Float32.toFloat(a))
+let round(a: Float32): Int64 =
+  Float.round(toFloat(a))
 
 
 /// Round towards zero, discarding the fractional part
 let roundTowardsZero(a: Float32): Int64 =
-  Stdlib.Float.roundTowardsZero(Stdlib.Float32.toFloat(a))
+  Float.roundTowardsZero(toFloat(a))
 
 
 /// Discard the fractional portion of the float, rounding towards zero
-let truncate(a: Float32): Int64 = Stdlib.Float.truncate(Stdlib.Float32.toFloat(a))
+let truncate(a: Float32): Int64 =
+  Float.truncate(toFloat(a))
 
 
 impl Negate for Float32 =
   /// Returns the negation of <param a>, {{-a}}
-  let negate(a: Float32): Float32 = a * -1.0f32
+  let negate(a: Float32): Float32 =
+    a * -1.0f32
 
 
 /// Get the square root of a float, correctly rounded
 let sqrt(a: Float32): Float32 =
-  Stdlib.Float32.fromFloat(Stdlib.Float.sqrt(Stdlib.Float32.toFloat(a)))
+  fromFloat(Float.sqrt(toFloat(a)))
 
 
 impl Add for Float32 =
   /// Add <type Float32> <param a> to <type Float32> <param b>
-  let add(a: Float32, b: Float32): Float32 = Builtin.add(a, b)
+  let add(a: Float32, b: Float32): Float32 =
+    Builtin.add(a, b)
 
 
 impl Subtract for Float32 =
   /// Subtract <type Float32> <param b> from <type Float32> <param a>
-  let subtract(a: Float32, b: Float32): Float32 = Builtin.subtract(a, b)
+  let subtract(a: Float32, b: Float32): Float32 =
+    Builtin.subtract(a, b)
 
 
 impl Multiply for Float32 =
   /// Multiply <type Float32> <param a> by <type Float32> <param b>
-  let multiply(a: Float32, b: Float32): Float32 = Builtin.multiply(a, b)
+  let multiply(a: Float32, b: Float32): Float32 =
+    Builtin.multiply(a, b)
 
 
 impl Power for Float32 =
   /// Returns <param base> raised to the power of <param exponent>
-  let power(`base`: Float32, exponent: Float32): Float32 =
-    Builtin.power(`base`, exponent)
+  let power(base: Float32, exponent: Float32): Float32 =
+    Builtin.power(base, exponent)
 
 
 impl Divide for Float32 =
   /// Divide <type Float32> <param a> by <type Float32> <param b>
-  let divide(a: Float32, b: Float32): Float32 = Builtin.divide(a, b)
+  let divide(a: Float32, b: Float32): Float32 =
+    Builtin.divide(a, b)
 
 
 // Checked arithmetic. The operators follow IEEE 754 and give NaN or an infinity
 // where the answer is not a finite number; these return {{Error}} instead.
 
 /// {{Ok}} <param result> if it is finite, otherwise {{Error Overflow}}
-let __noOverflow(result: Float32): Stdlib.Result.Result<Float32, Stdlib.Math.Overflow> =
-  if isFinite(result) then Ok(result) else Error(Stdlib.Math.Overflow.Overflow)
+let __noOverflow(result: Float32): Result<Float32, Math.Overflow> =
+  if isFinite(result) then
+    Result.Ok(result)
+  else
+    Result.Error(Math.Overflow.Overflow)
 
 
 /// {{Ok}} <param result> if it is finite, otherwise {{Error NotANumber}} for NaN or
 /// {{Error}} <param ifInfinite> for an infinity
-let __finite(
-  result: Float32,
-  ifInfinite: Stdlib.Math.NonFinite)
-  : Stdlib.Result.Result<Float32, Stdlib.Math.NonFinite> =
+let __finite(result: Float32, ifInfinite: Math.NonFinite): Result<Float32, Math.NonFinite> =
   if isFinite(result) then
-    Ok(result)
+    Result.Ok(result)
   else if isNaN(result) then
-    Error(Stdlib.Math.NonFinite.NotANumber)
+    Result.Error(Math.NonFinite.NotANumber)
   else
-    Error(ifInfinite)
+    Result.Error(ifInfinite)
 
 
 /// Adds <param a> to <param b>, or {{Error Overflow}} where the sum is not finite
-let checkedAdd(a: Float32, b: Float32): Stdlib.Result.Result<Float32, Stdlib.Math.Overflow> =
+let checkedAdd(a: Float32, b: Float32): Result<Float32, Math.Overflow> =
   __noOverflow(a + b)
 
 
 /// Subtracts <param b> from <param a>, or {{Error Overflow}} where the difference is
 /// not finite
-let checkedSubtract(a: Float32, b: Float32): Stdlib.Result.Result<Float32, Stdlib.Math.Overflow> =
+let checkedSubtract(a: Float32, b: Float32): Result<Float32, Math.Overflow> =
   __noOverflow(a - b)
 
 
 /// Multiplies <param a> by <param b>, or {{Error Overflow}} where the product is not
 /// finite
-let checkedMultiply(a: Float32, b: Float32): Stdlib.Result.Result<Float32, Stdlib.Math.Overflow> =
+let checkedMultiply(a: Float32, b: Float32): Result<Float32, Math.Overflow> =
   __noOverflow(a * b)
 
 
 /// Divides <param a> by <param b>, or {{Error DivisionByZero}} where <param b> is zero
 /// and {{Error Overflow}} where the quotient is too large
-let checkedDivide(a: Float32, b: Float32): Stdlib.Result.Result<Float32, Stdlib.Math.NonFinite> =
+let checkedDivide(a: Float32, b: Float32): Result<Float32, Math.NonFinite> =
   if b == 0.0f32 then
-    Error(Stdlib.Math.NonFinite.DivisionByZero)
+    Result.Error(Math.NonFinite.DivisionByZero)
   else
-    __finite(a / b, Stdlib.Math.NonFinite.Overflow)
+    __finite(a / b, Math.NonFinite.Overflow)
 
 
 /// <param base> raised to the power of <param exponent>, or {{Error}} where the result
 /// is not finite: {{DivisionByZero}} for zero to a negative power, {{NotANumber}} for a
 /// negative base to a fractional power, and {{Overflow}} where it is too large
-let checkedPower(
-  `base`: Float32,
-  exponent: Float32)
-  : Stdlib.Result.Result<Float32, Stdlib.Math.NonFinite> =
+let checkedPower(base: Float32, exponent: Float32): Result<Float32, Math.NonFinite> =
   let ifInfinite =
-    if `base` == 0.0f32 then
-      Stdlib.Math.NonFinite.DivisionByZero
+    if base == 0.0f32 then
+      Math.NonFinite.DivisionByZero
     else
-      Stdlib.Math.NonFinite.Overflow
+      Math.NonFinite.Overflow
 
-  __finite(`base` ** exponent, ifInfinite)
+  __finite(base ** exponent, ifInfinite)
 
 
 /// The square root of <param a>, or {{Error NotANumber}} where <param a> is negative
-let checkedSqrt(a: Float32): Stdlib.Result.Result<Float32, Stdlib.Math.NonFinite> =
-  __finite(sqrt(a), Stdlib.Math.NonFinite.Overflow)
+let checkedSqrt(a: Float32): Result<Float32, Math.NonFinite> =
+  __finite(sqrt(a), Math.NonFinite.Overflow)
 
 
 /// <fn Float32.parse>, but {{Error BadFormat}} for text that is not a finite number, such
 /// as {{"NaN"}}, {{"Infinity"}} or a number too large for the type
-let checkedParse(s: String): Stdlib.Result.Result<Float32, ParseError> =
+let checkedParse(s: String): Result<Float32, ParseError> =
   match parse(s) with
-  | Ok(f) when isFinite(f) -> Ok(f)
-  | _ -> Error(ParseError.BadFormat)
+  | Ok(f) when isFinite(f) -> Result.Ok(f)
+  | _ -> Result.Error(ParseError.BadFormat)
 
 
 /// <fn Float32.fromFloat>, or {{Error Overflow}} where <param a> is too large for a
 /// Float32
-let checkedFromFloat(a: Float): Stdlib.Result.Result<Float32, Stdlib.Math.Overflow> =
+let checkedFromFloat(a: Float): Result<Float32, Math.Overflow> =
   __noOverflow(fromFloat(a))
 
 
 impl Compare for Float32 =
   /// Returns true if a is less than b
-  let lessThan(a: Float32, b: Float32): Bool = Builtin.lessThan(a, b)
+  let lessThan(a: Float32, b: Float32): Bool =
+    Builtin.lessThan(a, b)
+
   /// Returns true if a is less than or equal to b
   let lessThanOrEqualTo(a: Float32, b: Float32): Bool =
     Builtin.lessThanOrEqualTo(a, b)
+
   /// Returns true if a is greater than b
-  let greaterThan(a: Float32, b: Float32): Bool = Builtin.greaterThan(a, b)
+  let greaterThan(a: Float32, b: Float32): Bool =
+    Builtin.greaterThan(a, b)
+
   /// Returns true if a is greater than or equal to b
   let greaterThanOrEqualTo(a: Float32, b: Float32): Bool =
     Builtin.greaterThanOrEqualTo(a, b)
@@ -198,72 +214,70 @@ impl Compare for Float32 =
 /// <param limitA> and <param limitB> can be provided in any order.
 ///
 /// Refuses a NaN limit, like <fn Float.clampRefusingNaN>.
-let clampRefusingNaN(
-  value: Float32,
-  limitA: Float32,
-  limitB: Float32)
-  : Stdlib.Result.Result<Float32, String> =
-  if Stdlib.Float32.isNaN(limitA) || Stdlib.Float32.isNaN(limitB) then
-    Stdlib.Result.Result.Error("clampRefusingNaN requires limits that are numbers")
+let clampRefusingNaN(value: Float32, limitA: Float32, limitB: Float32): Result<Float32, String> =
+  if isNaN(limitA) || isNaN(limitB) then
+    Result.Error("clampRefusingNaN requires limits that are numbers")
   else
-    let (lower, upper) =
-      if (limitA < limitB) then
-        (limitA, limitB)
-      else
-        (limitB, limitA)
-
-    if (value < lower) then
-      Stdlib.Result.Result.Ok(lower)
-    else if (value > upper) then
-      Stdlib.Result.Result.Ok(upper)
+    let (lower, upper) = if limitA < limitB then (limitA, limitB) else (limitB, limitA)
+    if value < lower then
+      Result.Ok(lower)
+    else if value > upper then
+      Result.Ok(upper)
     else
-      Stdlib.Result.Result.Ok(value)
+      Result.Ok(value)
 
 
 /// Returns the <type Float32> nearest to the number in <param s>, ties to even,
 /// accepting what <fn Float.parse> accepts. Rounded once from the decimal, never
 /// through a Float.
-let parse(s: String): Stdlib.Result.Result<Float32, ParseError> =
+let parse(s: String): Result<Float32, ParseError> =
   match Builtin.float32Parse(s) with
-  | Some(f) -> Stdlib.Result.Result.Ok(f)
-  | None -> Stdlib.Result.Result.Error(ParseError.BadFormat)
+  | Some(f) -> Result.Ok(f)
+  | None -> Result.Error(ParseError.BadFormat)
 
 
 /// Returns true if <param f> is NaN
-let isNaN(f: Float32): Bool = Stdlib.Float.isNaN(Stdlib.Float32.toFloat(f))
+let isNaN(f: Float32): Bool =
+  Float.isNaN(toFloat(f))
 
 
 /// Returns {{true}} if <param f> is a finite number, and {{false}} for NaN
 /// and for positive or negative infinity
 let isFinite(f: Float32): Bool =
   // NaN and ±infinity give NaN here, which equals nothing
-  (f - f) == 0.0f32
+  f - f == 0.0f32
 
 
 /// Convert <param a> to an <type Int64> by discarding its fractional part.
 /// Raises for NaN and infinities. Alias of <fn Float32.roundTowardsZero>.
-let toInt64(a: Float32): Int64 = Stdlib.Float32.roundTowardsZero(a)
+let toInt64(a: Float32): Int64 =
+  roundTowardsZero(a)
 
 
 /// Return <param a>'s IEEE 754 binary32 bits as an unsigned 32-bit value.
-let toBits(a: Float32): UInt32 = Builtin.float32ToBits(a)
+let toBits(a: Float32): UInt32 =
+  Builtin.float32ToBits(a)
 
 
 /// The <type Float32> whose IEEE 754 binary32 bits are <param bits>. Every pattern
 /// round-trips through <fn Float32.toBits>, a NaN's sign and payload included.
-let fromBits(bits: UInt32): Float32 = Builtin.float32FromBits(bits)
+let fromBits(bits: UInt32): Float32 =
+  Builtin.float32FromBits(bits)
 
 
 impl Display for Float32 =
   /// Stringify <param a> as the shortest decimal that parses back to the same
   /// Float32, e.g. `0.1` for `0.1f32` (where the widened Float says
   /// `0.10000000149011612`), `1e+16`, `1e-5`.
-  let display(a: Float32): String = Builtin.float32ToString(a)
+  let display(a: Float32): String =
+    Builtin.float32ToString(a)
 
 
 impl Zero for Float32 =
-  let zero(): Float32 = 0.0f32
+  let zero(): Float32 =
+    0.0f32
 
 
 impl One for Float32 =
-  let one(): Float32 = 1.0f32
+  let one(): Float32 =
+    1.0f32

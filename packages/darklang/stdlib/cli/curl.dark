@@ -1,9 +1,6 @@
 module Darklang.Stdlib.Cli.Curl
 
-let downloadFileToPath(
-  url: String,
-  downloadTo: String)
-  : Stdlib.Result.Result<Unit, String> =
+let downloadFileToPath(url: String, downloadTo: String): Result<Unit, String> =
   // `-f`, so a 404 is an error rather than an HTML page saved under the name we asked for.
-  let dest = Stdlib.Cli.Process.shellQuote(downloadTo)
-  Stdlib.Cli.executeWithUnitOrStdErr($"curl -fsSL -o {dest} {Stdlib.Cli.Process.shellQuote(url)}")
+  let dest = Process.shellQuote(downloadTo)
+  executeWithUnitOrStdErr($"curl -fsSL -o {dest} {Process.shellQuote(url)}")

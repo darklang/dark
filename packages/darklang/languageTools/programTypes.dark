@@ -1,6 +1,5 @@
 module Darklang.LanguageTools.ProgramTypes
 
-
 /// Used to name where type/function/etc lives, eg a User module, or a Package module.
 type PackageLocation =
   { owner: String
@@ -19,29 +18,48 @@ type PackageLocation =
 /// SCC hash substitution, and deferred refresh after a package moves.
 type ResolvedName<'a> =
   { name: 'a
-    location: Stdlib.Option.Option<PackageLocation> }
+    location: Option<PackageLocation> }
 
 
 module FQTypeName =
   type Package = Hash
-  type FQTypeName = Package(Package)
+
+
+  type FQTypeName =
+    | Package(Package)
+
 
 /// A trait, by content hash. A trait is its own item kind (`Trait.Trait`).
 module FQTraitName =
   type Package = Hash
-  type FQTraitName = Package(Package)
+
+
+  type FQTraitName =
+    | Package(Package)
+
 
 module FQValueName =
-  type Builtin = { name: String, version: Int32 }
+  type Builtin =
+    { name: String
+      version: Int32 }
+
+
   type Package = Hash
+
 
   type FQValueName =
     | Builtin(Builtin)
     | Package(Package)
 
+
 module FQFnName =
-  type Builtin = { name: String, version: Int32 }
+  type Builtin =
+    { name: String
+      version: Int32 }
+
+
   type Package = Hash
+
 
   /// How much of a trait call's implementation the save could say. Three states, not
   /// two: a call waiting for its caller's type argument is not the same as one
@@ -56,6 +74,7 @@ module FQFnName =
     /// Nothing to say. Only code parsed and run without being saved gets here.
     | Unknown
 
+
   /// What a CALL worked out for one of the callee's bounds: for the callee's type
   /// param `param` owing `trait_`, what this call's type argument implies.
   type BoundImpl =
@@ -65,12 +84,14 @@ module FQFnName =
       method_: String
       choice: ImplChoice }
 
+
   /// A trait method call: the trait, the method name (`Display.display`), and how
   /// much the save could say about which implementation runs.
   type TraitMethod =
     { trait_: FQTraitName.Package
       method_: String
       implFn: ImplChoice }
+
 
   type FQFnName =
     | Builtin(Builtin)
@@ -82,13 +103,14 @@ type NameResolutionError =
   | NotFound
   | InvalidName
 
+
 /// `originalName` is the user-typed name (a list of qualifiers).
 /// `resolved` is the resolved name (or the resolution error). The Ok
 /// payload bundles the resolved name with its package location so
 /// "location without resolution" is unrepresentable.
 type NameResolution<'a> =
   { originalName: List<String>
-    resolved: Stdlib.Result.Result<ResolvedName<'a>, NameResolutionError> }
+    resolved: Result<ResolvedName<'a>, NameResolutionError> }
 
 
 /// Darklang's available types (int, List<T>, user-defined types, etc.)
@@ -132,22 +154,16 @@ type TypeReference =
   | TFn(List<TypeReference>, TypeReference)
 
 
-
 type LetPattern =
   | LPUnit(ID)
   | LPVariable(ID, name: String)
   | LPWildcard(ID)
-  | LPTuple(
-    ID,
-    first: LetPattern,
-    second: LetPattern,
-    theRest: List<LetPattern>)
+  | LPTuple(ID, first: LetPattern, second: LetPattern, theRest: List<LetPattern>)
 
 
 /// Used for pattern matching in a match statement
 type MatchPattern =
   | MPVariable(ID, String)
-
   | MPUnit(ID)
   | MPBool(ID, Bool)
   | MPInt8(ID, Int8)
@@ -166,22 +182,17 @@ type MatchPattern =
   | MPDecimal(ID, Decimal)
   | MPChar(ID, String)
   | MPString(ID, String)
-
   | MPList(ID, List<MatchPattern>)
   | MPListCons(ID, head: MatchPattern, tail: MatchPattern)
-
   | MPTuple(ID, MatchPattern, MatchPattern, List<MatchPattern>)
-
   | MPEnum(ID, caseName: String, fieldPats: List<MatchPattern>)
-
   | MPOr(ID, List<MatchPattern>)
-
   /// `pattern as name`: matches what `pattern` matches and binds the whole value
   | MPAs(ID, pattern: MatchPattern, name: String)
-
   /// `{ name = p, … }`: matches a record whose named fields match their patterns.
   /// Fields left out are ignored; `{ name }` arrives as `name = name`.
   | MPRecord(ID, fields: List<(String * MatchPattern)>)
+
 
 type BinaryOperation =
   | BinOpAnd
@@ -208,9 +219,11 @@ type InfixFnName =
   | ComparisonNotEquals
   | StringConcat
 
+
 type Infix =
   | InfixFnCall(InfixFnName)
   | BinOp(BinaryOperation)
+
 
 /// An operator that can be a trait method: any infix one, unary minus, or `~`.
 type Operator =
@@ -248,9 +261,8 @@ type PipeExpr =
 
 type MatchCase =
   { pat: MatchPattern
-    whenCondition: Stdlib.Option.Option<Expr>
+    whenCondition: Option<Expr>
     rhs: Expr }
-
 
 
 /// Expressions - the main part of the language.
@@ -363,6 +375,7 @@ type Expr =
 
   | ESelf(ID)
 
+
 module Expr =
   let toID(expr: Expr): ID =
     match expr with
@@ -404,20 +417,18 @@ module Expr =
     | EMatch(id, _, _)
     | ERecordUpdate(id, _, _)
     | EStatement(id, _, _)
-    | ESelf(id) -> id
+    | ESelf(id) ->
+      id
 
 
 // Used to mark whether a function/type has been deprecated, and if so,
 // details about possible replacements/alternatives, and reasoning
 type Deprecation<'name> =
   | NotDeprecated
-
   /// The exact same thing is available under a new, preferred name
   | RenamedTo('name)
-
   /// This has been deprecated and has a replacement we can suggest
   | ReplacedBy('name)
-
   /// This has been deprecated and not replaced, provide a message for the user
   | DeprecatedBecause(String)
 
@@ -429,35 +440,35 @@ let parsePackageLocation(nameToParse: String): PackageLocation =
     let rev = Stdlib.List.reverse(rest)
     match rev with
     | [name, ...rest] ->
-      PackageLocation
-        { owner = owner
-          modules = Stdlib.List.reverse(rest)
-          name = name }
+      PackageLocation { owner = owner, modules = Stdlib.List.reverse(rest), name = name }
     | [] ->
       // CLEANUP: This case should be handled better
       // Just an owner name with no module/entity name
       // Return a location pointing to the owner itself
-      PackageLocation
-        { owner = owner
-          modules = []
-          name = "" }
+      PackageLocation { owner = owner, modules = [], name = "" }
   | [] ->
     // Empty name (shouldn't happen, but handle it)
     PackageLocation { owner = "", modules = [], name = "" }
 
+
 type BranchID = Uuid
 
+
 /// Content-addressed hash for package items (hex-encoded SHA-256)
-type Hash = | Hash(String)
+type Hash =
+  | Hash(String)
+
 
 let hashToString(hash: Hash): String =
   match hash with
   | Hash(h) -> h
 
+
 /// First 8 hex chars, for human-readable display
 let hashToShort(hash: Hash): String =
   let h = hashToString(hash)
   Stdlib.String.first(h, 8)
+
 
 /// The hash of a piece of PROSE, which is not content and so is not hashed the way an item is.
 ///
@@ -467,9 +478,10 @@ let hashToShort(hash: Hash): String =
 /// canonical serialization and this is over the bytes of a string. Must agree with
 /// `LibExecution.ProgramTypes.Hash.ofText`, which is what reads it back.
 let hashOfText(text: String): Hash =
-  (Stdlib.Base16.encode(Stdlib.Crypto.sha256(Stdlib.Utf8.encode(text))))
+  Stdlib.Base16.encode(Stdlib.Crypto.sha256(Stdlib.Utf8.encode(text)))
   |> Stdlib.String.toLowercase
   |> Hash.Hash
+
 
 /// A package entity paired with its location
 type LocatedItem<'entity> =
@@ -481,6 +493,7 @@ type LocatedItem<'entity> =
 type TraitRef =
   { trait_: NameResolution<FQTraitName.FQTraitName>
     typeArgs: List<TypeReference> }
+
 
 /// `'a: Show` on a fn or type declaration
 type Bound =
@@ -495,28 +508,30 @@ module TypeDeclaration =
       typ: TypeReference
       description: String }
 
+
   type EnumField =
     { typ: TypeReference
-      label: Stdlib.Option.Option<String>
+      label: Option<String>
       description: String }
+
 
   type EnumCase =
     { name: String
       fields: List<EnumField>
       description: String }
 
+
   type Definition =
     | Alias(TypeReference)
     | Record(List<RecordField>)
     | Enum(List<EnumCase>)
+
 
   type TypeDeclaration =
     { typeParams: List<String>
       /// `type Set<'a: Compare> = ...`
       bounds: List<Bound>
       definition: Definition }
-
-
 
 
 // Package space
@@ -526,17 +541,20 @@ module PackageType =
       declaration: TypeDeclaration.TypeDeclaration
       description: String }
 
+
 module PackageValue =
   type PackageValue =
     { hash: FQValueName.Package
       body: Expr
       description: String }
 
+
 module PackageFn =
   type Parameter =
     { name: String
       typ: TypeReference
       description: String }
+
 
   type PackageFn =
     { hash: FQFnName.Package
@@ -545,7 +563,6 @@ module PackageFn =
       parameters: List<Parameter>
       returnType: TypeReference
       description: String
-
       /// `'a: Show + Compare` on the type params; part of the content hash. Checked
       /// at fn entry by the interpreter and statically by the at-rest checker.
       bounds: List<Bound> }
@@ -562,8 +579,8 @@ module Trait =
       bounds: List<Bound>
       parameters: List<PackageFn.Parameter>
       returnType: TypeReference
-
       description: String }
+
 
   type Trait =
     { hash: FQTraitName.Package
@@ -589,12 +606,14 @@ module TraitImpl =
       typeParams: List<String>
       bounds: List<Bound>
       /// method name and the fn that implements it, in the trait's order
-      methods: List<String * NameResolution<FQFnName.FQFnName>>
+      methods: List<(String * NameResolution<FQFnName.FQFnName>)>
       description: String }
+
 
 module PackageTest =
   type ExpectedError =
     | RuntimeError(String)
+
 
   /// Named executable package content. It is deliberately not callable from
   /// production expressions; the test runner evaluates its body directly.
@@ -614,6 +633,7 @@ type ItemKind =
   | TraitImpl
   | Test
 
+
 module ItemKind =
   /// The spelling that goes in a database column, a URL and an op bundle. The one place it is
   /// written on this side, because it is a round trip: a second copy that disagreed about `impl`
@@ -628,17 +648,19 @@ module ItemKind =
     | TraitImpl -> "impl"
     | Test -> "test"
 
+
   /// `None` for anything `toString` would not have written. A blanket arm here is how a kind
   /// nobody anticipated becomes a function: the copy in `SCM.Deps` fell through to `Fn`.
-  let fromString(s: String): Stdlib.Option.Option<ItemKind> =
+  let fromString(s: String): Option<ItemKind> =
     match s with
-    | "fn" -> Stdlib.Option.Option.Some(ItemKind.Fn)
-    | "type" -> Stdlib.Option.Option.Some(ItemKind.Type)
-    | "value" -> Stdlib.Option.Option.Some(ItemKind.Value)
-    | "trait" -> Stdlib.Option.Option.Some(ItemKind.Trait)
-    | "impl" -> Stdlib.Option.Option.Some(ItemKind.TraitImpl)
-    | "test" -> Stdlib.Option.Option.Some(ItemKind.Test)
-    | _ -> Stdlib.Option.Option.None
+    | "fn" -> Option.Some(ItemKind.Fn)
+    | "type" -> Option.Some(ItemKind.Type)
+    | "value" -> Option.Some(ItemKind.Value)
+    | "trait" -> Option.Some(ItemKind.Trait)
+    | "impl" -> Option.Some(ItemKind.TraitImpl)
+    | "test" -> Option.Some(ItemKind.Test)
+    | _ -> Option.None
+
 
 /// A reference to a specific package item by content hash.
 /// Collapses (Hash * ItemKind) pairs into one shape; leaves room for future
@@ -651,6 +673,7 @@ type Reference =
   | PackageTraitImpl(Hash)
   | PackageTest(Hash)
 
+
 module Reference =
   let hash(r: Reference): Hash =
     match r with
@@ -661,6 +684,7 @@ module Reference =
     | PackageTraitImpl(h) -> h
     | PackageTest(h) -> h
 
+
   let kind(r: Reference): ItemKind =
     match r with
     | PackageType(_) -> ItemKind.Type
@@ -669,6 +693,7 @@ module Reference =
     | PackageTrait(_) -> ItemKind.Trait
     | PackageTraitImpl(_) -> ItemKind.TraitImpl
     | PackageTest(_) -> ItemKind.Test
+
 
   let fromHashAndKind(h: Hash, k: ItemKind): Reference =
     match k with
@@ -679,6 +704,7 @@ module Reference =
     | TraitImpl -> Reference.PackageTraitImpl(h)
     | Test -> Reference.PackageTest(h)
 
+
 /// Why a package item has been deprecated. Author-supplied metadata on the
 /// Deprecate op; consumers decide how loud to be.
 type DeprecationKind =
@@ -688,6 +714,7 @@ type DeprecationKind =
   | Harmful
   /// Don't use this anymore (catch-all).
   | Obsolete
+
 
 /// A single repoint: what propagation moved. Reported back to the caller; NOT an op.
 type PropagateRepoint =
@@ -708,9 +735,11 @@ type DecisionKind =
   /// Used by `dark undo` to bring back an earlier edit.
   /// Restore both the declaration's content and the names its references used.
   /// `revision` records which edit we returned to, so the next undo can go further back.
-  | Restore(revision: Uuid, target: Reference, names: List<(Reference * Stdlib.Option.Option<PackageLocation>)>)
+  | Restore(revision: Uuid, target: Reference, names: List<(Reference * Option<PackageLocation>)>)
   /// A standing finding has been seen and accepted. Closes it as `acked`, and binds nothing.
   | Ack(findingId: String)
+
+
 /// WHICH piece of prose an `UpdateDoc` sets: the declaration's own, or one named part of it.
 ///
 /// The nested parts are the point. A doc on a field, a case or a parameter is outside the identity
@@ -726,23 +755,25 @@ type DocPart =
   /// each show the parameter names they were written with.
   | ParameterName(parameterIndex: Int64)
 
+
 module DocPart =
   /// The part a stored key names ("item", "record-field:x", "parameter:0"), or None for one this
   /// build cannot read. Must agree with `LibDB.Docs.partKey`, which writes them.
-  let fromKey(key: String): Stdlib.Option.Option<DocPart> =
+  let fromKey(key: String): Option<DocPart> =
     match Stdlib.String.split(key, ":") with
-    | [ "item" ] -> Stdlib.Option.Option.Some(DocPart.WholeItem)
-    | [ "record-field", name ] -> Stdlib.Option.Option.Some(DocPart.RecordField(name))
-    | [ "enum-case", name ] -> Stdlib.Option.Option.Some(DocPart.EnumCase(name))
-    | [ "parameter", index ] ->
+    | ["item"] -> Option.Some(DocPart.WholeItem)
+    | ["record-field", name] -> Option.Some(DocPart.RecordField(name))
+    | ["enum-case", name] -> Option.Some(DocPart.EnumCase(name))
+    | ["parameter", index] ->
       Stdlib.Int64.parse(index)
       |> Stdlib.Result.toOption
       |> Stdlib.Option.map(fun i -> DocPart.Parameter(i))
-    | [ "parameter-name", index ] ->
+    | ["parameter-name", index] ->
       Stdlib.Int64.parse(index)
       |> Stdlib.Result.toOption
       |> Stdlib.Option.map(fun i -> DocPart.ParameterName(i))
-    | _ -> Stdlib.Option.Option.None
+    | _ -> Option.None
+
 
   /// How it reads in a listing: which part of the declaration is being described.
   let describe(p: DocPart): String =
@@ -761,8 +792,9 @@ module DocPart =
 type ReferenceNamesSnapshot =
   { location: PackageLocation
     target: Reference
-    names: List<(Reference * Stdlib.Option.Option<PackageLocation>)>
-    restating: Stdlib.Option.Option<String> }
+    names: List<(Reference * Option<PackageLocation>)>
+    restating: Option<String> }
+
 
 type PackageOp =
   | AddType(PackageType.PackageType)
@@ -777,14 +809,11 @@ type PackageOp =
   /// authored it had no store to ask, which is true of the parsers). Two SetNames for one location that
   /// BOTH name no predecessor are two independent creations, which is a conflict; one that names the
   /// other's hash is an ordinary edit, which is not.
-  | SetName(
-      location: PackageLocation,
-      target: Reference,
-      previous: Stdlib.Option.Option<Hash>)
+  | SetName(location: PackageLocation, target: Reference, previous: Option<Hash>)
   /// A name stops existing. Unlists whatever is live at the location and nothing else: the content stays
   /// reachable by hash. `previous` is the hash it unbound. Not a Deprecate: a deprecated name still
   /// resolves, an unbound one does not.
-  | Unbind(location: PackageLocation, previous: Stdlib.Option.Option<Hash>)
+  | Unbind(location: PackageLocation, previous: Option<Hash>)
   /// Author-initiated deprecation of a NAME, and the content it held. Keyed on the location, like
   /// `UpdateDoc`, because content is shared: deprecating `Probe.v = 5` leaves every other `= 5` alone.
   ///
@@ -793,16 +822,13 @@ type PackageOp =
   /// produces the op that said it the first time. It matters more on `Undeprecate`, which carries
   /// nothing else, so without it there is exactly one possible undeprecate per item for all time.
   | Deprecate(
-      location: PackageLocation,
-      target: Reference,
-      kind: DeprecationKind,
-      message: String,
-      restating: Stdlib.Option.Option<String>)
+    location: PackageLocation,
+    target: Reference,
+    kind: DeprecationKind,
+    message: String,
+    restating: Option<String>)
   /// Clear any prior deprecation of `target` at `location`.
-  | Undeprecate(
-      location: PackageLocation,
-      target: Reference,
-      restating: Stdlib.Option.Option<String>)
+  | Undeprecate(location: PackageLocation, target: Reference, restating: Option<String>)
   /// What the thing at a NAME says about itself, or one named part of it.
   ///
   /// Scoped to a location, not to content, and that is the point: content is shared. Ten names hold
@@ -814,11 +840,11 @@ type PackageOp =
   /// what lets two people editing one doc comment produce a recorded conflict rather than one of
   /// them losing their words silently. `restating` is empty except on the restatement path.
   | UpdateDoc(
-      location: PackageLocation,
-      part: DocPart,
-      text: String,
-      previous: Stdlib.Option.Option<Hash>,
-      restating: Stdlib.Option.Option<String>)
+    location: PackageLocation,
+    part: DocPart,
+    text: String,
+    previous: Option<Hash>,
+    restating: Option<String>)
   /// Save which name each package reference uses in this declaration.
   /// For example, `double` and `twice` can point to the same function hash.
   /// Renaming `double` should update calls to `double`, leaving calls to `twice` alone.
@@ -826,27 +852,23 @@ type PackageOp =
   /// We collect references as we walk the declaration's AST and read this list
   /// back in the same order. `double() + double()` needs two entries, one per call.
   | SetReferenceNames(
-      location: PackageLocation,
-      target: Reference,
-      names: List<(Reference * Stdlib.Option.Option<PackageLocation>)>,
-      restating: Stdlib.Option.Option<String>)
+    location: PackageLocation,
+    target: Reference,
+    names: List<(Reference * Option<PackageLocation>)>,
+    restating: Option<String>)
   /// Rename an item and update the names its callers use, all in one operation.
   /// `references` includes saved names for the callers and the item being moved.
   | Rename(
-      oldLocation: PackageLocation,
-      newLocation: PackageLocation,
-      target: Reference,
-      references: List<ReferenceNamesSnapshot>,
-      stamp: String)
+    oldLocation: PackageLocation,
+    newLocation: PackageLocation,
+    target: Reference,
+    references: List<ReferenceNamesSnapshot>,
+    stamp: String)
   /// A human's judgment about a NAME, recorded so that it travels. Overriding a binding and acking a
   /// finding are one class of act -- someone decided something about a location, and it has to hold on
   /// every machine -- so they are one op differing by `kind`. `id` is what makes each decision distinct,
   /// and idempotence is the caller's choice of what to put in it. `reason` is carried, never interpreted.
-  | Decision(
-      id: String,
-      location: PackageLocation,
-      reason: String,
-      kind: DecisionKind)
+  | Decision(id: String, location: PackageLocation, reason: String, kind: DecisionKind)
 
 
 module PackageOp =
@@ -858,11 +880,12 @@ module PackageOp =
   let bindingOps(op: PackageOp): List<PackageOp> =
     match op with
     | Rename(oldLocation, newLocation, target, _, _) ->
-      [ PackageOp.Unbind(oldLocation, Stdlib.Option.Option.Some(Reference.hash(target)))
-        PackageOp.SetName(newLocation, target, Stdlib.Option.Option.None) ]
+      [ PackageOp.Unbind(oldLocation, Option.Some(Reference.hash(target)))
+        PackageOp.SetName(newLocation, target, Option.None) ]
     | Decision(_, location, _, Restore(_, target, _)) ->
-      [ PackageOp.SetName(location, target, Stdlib.Option.Option.None) ]
+      [ PackageOp.SetName(location, target, Option.None) ]
     | _ -> [ op ]
+
 
   /// A caller can switch from `double` to `twice` without changing its content hash.
   /// Return a `SetName` so draft listings and partial commits can see that edit.
@@ -870,7 +893,7 @@ module PackageOp =
   let draftOps(op: PackageOp): List<PackageOp> =
     match op with
     | SetReferenceNames(location, target, _, _) ->
-      [ PackageOp.SetName(location, target, Stdlib.Option.Option.None) ]
+      [ PackageOp.SetName(location, target, Option.None) ]
     | _ -> bindingOps(op)
 
 
@@ -885,10 +908,12 @@ module Search =
     | TraitImpl
     | Test
 
+
   /// How deep to search in the module hierarchy
   type SearchDepth =
     | OnlyDirectDescendants
     | AllDescendants
+
 
   /// Query parameters for searching packages
   type SearchQuery =
@@ -908,6 +933,7 @@ module Search =
       exactMatch: Bool
     }
 
+
   /// Results from a package search
   type SearchResults =
     { submodules: List<List<String>> // [ [ "List"], ["String", "List"] ]
@@ -917,8 +943,6 @@ module Search =
       traits : List<LocatedItem<ProgramTypes.Trait.Trait>>
       impls : List<LocatedItem<ProgramTypes.TraitImpl.TraitImpl>>
       tests : List<LocatedItem<ProgramTypes.PackageTest.PackageTest>> }
-
-
 
 
 /// Functionality written in Dark stored and managed outside of user space
@@ -931,220 +955,201 @@ module Search =
 /// - Approved items are visible to everyone
 module PackageManager =
   type PackageManager =
-    { findType: (BranchID * PackageLocation) -> Stdlib.Option.Option<FQTypeName.Package>
-      findValue: (BranchID * PackageLocation) -> Stdlib.Option.Option<FQValueName.Package>
-      findFn: (BranchID * PackageLocation) -> Stdlib.Option.Option<FQFnName.Package>
-      findTrait: (BranchID * PackageLocation) -> Stdlib.Option.Option<FQTraitName.Package>
-
-      getType:
-        FQTypeName.Package -> Stdlib.Option.Option<PackageType.PackageType>
-      getValue:
-        FQValueName.Package
-          -> Stdlib.Option.Option<PackageValue.PackageValue>
-      getFn: FQFnName.Package -> Stdlib.Option.Option<PackageFn.PackageFn>
-      getTrait: FQTraitName.Package -> Stdlib.Option.Option<Trait.Trait>
-
+    { findType: (BranchID * PackageLocation) -> Option<FQTypeName.Package>
+      findValue: (BranchID * PackageLocation) -> Option<FQValueName.Package>
+      findFn: (BranchID * PackageLocation) -> Option<FQFnName.Package>
+      findTrait: (BranchID * PackageLocation) -> Option<FQTraitName.Package>
+      getType: FQTypeName.Package -> Option<PackageType.PackageType>
+      getValue: FQValueName.Package -> Option<PackageValue.PackageValue>
+      getFn: FQFnName.Package -> Option<PackageFn.PackageFn>
+      getTrait: FQTraitName.Package -> Option<Trait.Trait>
       search: (BranchID * Search.SearchQuery) -> Search.SearchResults }
 
 
   /// Allows you to side-load a few 'extras' in-memory, along
   /// the normal fetching functionality. (Mostly helpful for tests)
   let withExtras(
-    pm: PackageManager.PackageManager,
+    pm: PackageManager,
     types: List<LocatedItem<PackageType.PackageType>>,
     values: List<LocatedItem<PackageValue.PackageValue>>,
     fns: List<LocatedItem<PackageFn.PackageFn>>)
-    : PackageManager.PackageManager =
-    PackageManager.PackageManager
+    : PackageManager =
+    PackageManager
       { findType =
-          fun((branchId, location)) ->
-            match types |> Stdlib.List.findFirst(fun t -> t.location == location) with
-            | Some(t) -> Stdlib.Option.Option.Some(t.entity.hash)
-            | None -> pm.findType((branchId, location))
+          (fun((branchId, location)) ->
+             match types |> Stdlib.List.findFirst(fun t -> t.location == location) with
+             | Some(t) -> Option.Some(t.entity.hash)
+             | None -> pm.findType((branchId, location)))
         findValue =
-          fun((branchId, location)) ->
-            match values |> Stdlib.List.findFirst(fun v -> v.location == location) with
-            | Some(v) -> Stdlib.Option.Option.Some(v.entity.hash)
-            | None -> pm.findValue((branchId, location))
+          (fun((branchId, location)) ->
+             match values |> Stdlib.List.findFirst(fun v -> v.location == location) with
+             | Some(v) -> Option.Some(v.entity.hash)
+             | None -> pm.findValue((branchId, location)))
         findFn =
-          fun((branchId, location)) ->
-            match fns |> Stdlib.List.findFirst(fun f -> f.location == location) with
-            | Some(f) -> Stdlib.Option.Option.Some(f.entity.hash)
-            | None -> pm.findFn((branchId, location))
-
+          (fun((branchId, location)) ->
+             match fns |> Stdlib.List.findFirst(fun f -> f.location == location) with
+             | Some(f) -> Option.Some(f.entity.hash)
+             | None -> pm.findFn((branchId, location)))
         getType =
-          fun id ->
-            match types |> Stdlib.List.findFirst(fun t -> t.entity.hash == id) with
-            | Some(t) -> Stdlib.Option.Option.Some(t.entity)
-            | None -> pm.getType(id)
+          (fun id ->
+             match types |> Stdlib.List.findFirst(fun t -> t.entity.hash == id) with
+             | Some(t) -> Option.Some(t.entity)
+             | None -> pm.getType(id))
         getValue =
-          fun id ->
-            match values |> Stdlib.List.findFirst(fun v -> v.entity.hash == id) with
-            | Some(v) -> Stdlib.Option.Option.Some(v.entity)
-            | None -> pm.getValue(id)
+          (fun id ->
+             match values |> Stdlib.List.findFirst(fun v -> v.entity.hash == id) with
+             | Some(v) -> Option.Some(v.entity)
+             | None -> pm.getValue(id))
         getFn =
-          fun id ->
-            match fns |> Stdlib.List.findFirst(fun f -> f.entity.hash == id) with
-            | Some(f) -> Stdlib.Option.Option.Some(f.entity)
-            | None -> pm.getFn(id)
-
+          (fun id ->
+             match fns |> Stdlib.List.findFirst(fun f -> f.entity.hash == id) with
+             | Some(f) -> Option.Some(f.entity)
+             | None -> pm.getFn(id))
         findTrait = pm.findTrait
         getTrait = pm.getTrait
-
         search = pm.search }
 
 
   /// Create a PackageManager from PackageOps, combining with an existing PM
-  let withExtraOps(
-    basePM: PackageManager.PackageManager,
-    ops: List<PackageOp>)
-    : PackageManager.PackageManager =
+  let withExtraOps(basePM: PackageManager, ops: List<PackageOp>): PackageManager =
     let typesByID =
       ops
       |> Stdlib.List.filterMap(fun op ->
         match op with
-        | AddType(t) -> Stdlib.Option.Option.Some((t.hash, t))
-        | _ -> Stdlib.Option.Option.None)
+        | AddType(t) -> Option.Some((t.hash, t))
+        | _ -> Option.None)
 
     let valuesByID =
       ops
       |> Stdlib.List.filterMap(fun op ->
         match op with
-        | AddValue(v) -> Stdlib.Option.Option.Some((v.hash, v))
-        | _ -> Stdlib.Option.Option.None)
+        | AddValue(v) -> Option.Some((v.hash, v))
+        | _ -> Option.None)
 
     let fnsByID =
       ops
       |> Stdlib.List.filterMap(fun op ->
         match op with
-        | AddFn(f) -> Stdlib.Option.Option.Some((f.hash, f))
-        | _ -> Stdlib.Option.Option.None)
+        | AddFn(f) -> Option.Some((f.hash, f))
+        | _ -> Option.None)
 
     let traitsByID =
       ops
       |> Stdlib.List.filterMap(fun op ->
         match op with
-        | AddTrait(t) -> Stdlib.Option.Option.Some((t.hash, t))
-        | _ -> Stdlib.Option.Option.None)
+        | AddTrait(t) -> Option.Some((t.hash, t))
+        | _ -> Option.None)
 
     let traitLocationMap =
       ops
       |> Stdlib.List.filterMap(fun op ->
         match op with
-        | SetName(loc, PackageTrait(hash), _) -> Stdlib.Option.Option.Some((loc, hash))
-        | _ -> Stdlib.Option.Option.None)
+        | SetName(loc, PackageTrait(hash), _) -> Option.Some((loc, hash))
+        | _ -> Option.None)
 
     let typeLocationMap =
       ops
       |> Stdlib.List.filterMap(fun op ->
         match op with
-        | SetName(loc, PackageType(hash), _) -> Stdlib.Option.Option.Some((loc, hash))
-        | _ -> Stdlib.Option.Option.None)
+        | SetName(loc, PackageType(hash), _) -> Option.Some((loc, hash))
+        | _ -> Option.None)
 
     let valueLocationMap =
       ops
       |> Stdlib.List.filterMap(fun op ->
         match op with
-        | SetName(loc, PackageValue(hash), _) -> Stdlib.Option.Option.Some((loc, hash))
-        | _ -> Stdlib.Option.Option.None)
+        | SetName(loc, PackageValue(hash), _) -> Option.Some((loc, hash))
+        | _ -> Option.None)
 
     let fnLocationMap =
       ops
       |> Stdlib.List.filterMap(fun op ->
         match op with
-        | SetName(loc, PackageFn(hash), _) -> Stdlib.Option.Option.Some((loc, hash))
-        | _ -> Stdlib.Option.Option.None)
+        | SetName(loc, PackageFn(hash), _) -> Option.Some((loc, hash))
+        | _ -> Option.None)
 
     // Create PackageManager that looks up in ops first, then falls back to basePM
-    PackageManager.PackageManager
+    PackageManager
       { findType =
-          fun((branchId, location)) ->
-            match typeLocationMap
-                  |> Stdlib.List.findFirst(fun tuple ->
-                    let (loc, _) = tuple
-                    loc == location) with
-            | Some(tuple) ->
-              let (_, id) = tuple
-              Stdlib.Option.Option.Some(id)
-            | None -> basePM.findType((branchId, location))
-
+          (fun((branchId, location)) ->
+             match typeLocationMap
+                   |> Stdlib.List.findFirst(fun tuple ->
+                     let (loc, _) = tuple
+                     loc == location) with
+             | Some(tuple) ->
+               let (_, id) = tuple
+               Option.Some(id)
+             | None -> basePM.findType((branchId, location)))
         findValue =
-          fun((branchId, location)) ->
-            match valueLocationMap
-                  |> Stdlib.List.findFirst(fun tuple ->
-                    let (loc, _) = tuple
-                    loc == location) with
-            | Some(tuple) ->
-              let (_, id) = tuple
-              Stdlib.Option.Option.Some(id)
-            | None -> basePM.findValue((branchId, location))
-
+          (fun((branchId, location)) ->
+             match valueLocationMap
+                   |> Stdlib.List.findFirst(fun tuple ->
+                     let (loc, _) = tuple
+                     loc == location) with
+             | Some(tuple) ->
+               let (_, id) = tuple
+               Option.Some(id)
+             | None -> basePM.findValue((branchId, location)))
         findFn =
-          fun((branchId, location)) ->
-            match fnLocationMap
-                  |> Stdlib.List.findFirst(fun tuple ->
-                    let (loc, _) = tuple
-                    loc == location) with
-            | Some(tuple) ->
-              let (_, id) = tuple
-              Stdlib.Option.Option.Some(id)
-            | None -> basePM.findFn((branchId, location))
-
+          (fun((branchId, location)) ->
+             match fnLocationMap
+                   |> Stdlib.List.findFirst(fun tuple ->
+                     let (loc, _) = tuple
+                     loc == location) with
+             | Some(tuple) ->
+               let (_, id) = tuple
+               Option.Some(id)
+             | None -> basePM.findFn((branchId, location)))
         getType =
-          fun id ->
-            match typesByID
-                  |> Stdlib.List.findFirst(fun tuple ->
-                    let (tid, _) = tuple
-                    tid == id) with
-            | Some(tuple) ->
-              let (_, t) = tuple
-              Stdlib.Option.Option.Some(t)
-            | None -> basePM.getType(id)
-
+          (fun id ->
+             match typesByID
+                   |> Stdlib.List.findFirst(fun tuple ->
+                     let (tid, _) = tuple
+                     tid == id) with
+             | Some(tuple) ->
+               let (_, t) = tuple
+               Option.Some(t)
+             | None -> basePM.getType(id))
         getValue =
-          fun id ->
-            match valuesByID
-                  |> Stdlib.List.findFirst(fun tuple ->
-                    let (vid, _) = tuple
-                    vid == id) with
-            | Some(tuple) ->
-              let (_, v) = tuple
-              Stdlib.Option.Option.Some(v)
-            | None -> basePM.getValue(id)
-
+          (fun id ->
+             match valuesByID
+                   |> Stdlib.List.findFirst(fun tuple ->
+                     let (vid, _) = tuple
+                     vid == id) with
+             | Some(tuple) ->
+               let (_, v) = tuple
+               Option.Some(v)
+             | None -> basePM.getValue(id))
         getFn =
-          fun id ->
-            match fnsByID
-                  |> Stdlib.List.findFirst(fun tuple ->
-                    let (fid, _) = tuple
-                    fid == id) with
-            | Some(tuple) ->
-              let (_, f) = tuple
-              Stdlib.Option.Option.Some(f)
-            | None -> basePM.getFn(id)
-
+          (fun id ->
+             match fnsByID
+                   |> Stdlib.List.findFirst(fun tuple ->
+                     let (fid, _) = tuple
+                     fid == id) with
+             | Some(tuple) ->
+               let (_, f) = tuple
+               Option.Some(f)
+             | None -> basePM.getFn(id))
         findTrait =
-          fun((branchId, location)) ->
-            match traitLocationMap
-                  |> Stdlib.List.findFirst(fun tuple ->
-                    let (loc, _) = tuple
-                    loc == location) with
-            | Some(tuple) ->
-              let (_, id) = tuple
-              Stdlib.Option.Option.Some(id)
-            | None -> basePM.findTrait((branchId, location))
-
+          (fun((branchId, location)) ->
+             match traitLocationMap
+                   |> Stdlib.List.findFirst(fun tuple ->
+                     let (loc, _) = tuple
+                     loc == location) with
+             | Some(tuple) ->
+               let (_, id) = tuple
+               Option.Some(id)
+             | None -> basePM.findTrait((branchId, location)))
         getTrait =
-          fun id ->
-            match traitsByID
-                  |> Stdlib.List.findFirst(fun tuple ->
-                    let (tid, _) = tuple
-                    tid == id) with
-            | Some(tuple) ->
-              let (_, t) = tuple
-              Stdlib.Option.Option.Some(t)
-            | None -> basePM.getTrait(id)
-
+          (fun id ->
+             match traitsByID
+                   |> Stdlib.List.findFirst(fun tuple ->
+                     let (tid, _) = tuple
+                     tid == id) with
+             | Some(tuple) ->
+               let (_, t) = tuple
+               Option.Some(t)
+             | None -> basePM.getTrait(id))
         search = basePM.search }
 
 
@@ -1157,6 +1162,7 @@ type Definitions =
     // TODO db and handlers
     exprs: List<Expr * List<String>> }
 
+
 module SourceFile =
   type Declaration =
     | Type(PackageType.PackageType)
@@ -1168,6 +1174,7 @@ module SourceFile =
     | Test(PackageTest.PackageTest)
     // db and handlers
     | Module(Definitions) // re-evaluate if this makes sense to be here
+
 
   type SourceFile =
     { declarations: List<Declaration>

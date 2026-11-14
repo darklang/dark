@@ -2,7 +2,6 @@
 /// The helpers are in `helpers.dark`.
 module Darklang.SCM.Tests.Cli
 
-
 // Main's edit is the newer one, so after the rebase the branch runs it, and its own is the recorded
 // loser.
 test rebaseNamesWhatBothSidesChangedAndRecordsIt =
@@ -11,15 +10,30 @@ test rebaseNamesWhatBothSidesChangedAndRecordsIt =
       commit(dark, "base")
       featThenMainEdit(dark, "Tests.App.a", "2", "3")
       switch(dark, "feat")
+      says(
+        dark,
+        [ "rebase", "--dry-run" ],
+        "~ Tests.App.a",
+        "the dry run names the name both sides changed")
 
-      says(dark, [ "rebase", "--dry-run" ], "~ Tests.App.a", "the dry run names the name both sides changed")
       same(conflicts(dark), [], "and records nothing")
+      says(
+        dark,
+        [ "rebase" ],
+        "you also touched:\n  Tests.App.a",
+        "the rebase names it")
 
-      says(dark, [ "rebase" ], "you also touched:\n  Tests.App.a", "the rebase names it")
-      same(conflicts(dark), [ "Tests.App.a: main kept over feat (later-origin-ts)" ], "and records it on the branch")
+      same(
+        conflicts(dark),
+        [ "Tests.App.a: main kept over feat (later-origin-ts)" ],
+        "and records it on the branch")
+
       same(commitsOnMain(dark), [ "main edits", "base" ], "main is untouched")
-
-      evals(dark, "Tests.App.a()", "3", "the branch runs the version the rebase kept") ])
+      evals(
+        dark,
+        "Tests.App.a()",
+        "3",
+        "the branch runs the version the rebase kept") ])
 
 
 // The rebase records the branch's losing version on the branch; the merge carries that record to
@@ -33,10 +47,12 @@ test rebaseThenMergeKeepsTheBranchsLosingVersionRecorded =
       featThenMainEdit(dark, "Tests.App.a", "41002", "41003")
       saveNumber(dark, "Tests.App.a", "41004")
       commit(dark, "main edits again")
-
       switch(dark, "feat")
       run(dark, [ "rebase" ])
-      same(mergePreview(dark, "feat"), [], "after the rebase the merge preview is clean")
+      same(
+        mergePreview(dark, "feat"),
+        [],
+        "after the rebase the merge preview is clean")
 
       switch(dark, "main")
       says(dark, [ "merge", "feat", "-y" ], "Merged", "the merge goes through")
@@ -51,21 +67,37 @@ test rebaseRepointsTheBranchsCallersOfANameMainChanged =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.helper", "1")
       commit(dark, "base")
-
       switch(dark, "feat")
       save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 10")
       commit(dark, "feat adds a caller")
-
       switch(dark, "main")
       saveNumber(dark, "Tests.App.helper", "2")
       commit(dark, "main changes the helper")
-
       switch(dark, "feat")
-      evals(dark, "Tests.App.caller()", "11", "before the rebase the caller runs the old helper")
-      says(dark, [ "rebase", "--dry-run" ], "would reconcile nothing", "the dry run sees nothing that both changed")
-      says(dark, [ "rebase" ], "1 caller(s) now point at the parent's version", "the rebase repoints the caller")
+      evals(
+        dark,
+        "Tests.App.caller()",
+        "11",
+        "before the rebase the caller runs the old helper")
+
+      says(
+        dark,
+        [ "rebase", "--dry-run" ],
+        "would reconcile nothing",
+        "the dry run sees nothing that both changed")
+
+      says(
+        dark,
+        [ "rebase" ],
+        "1 caller(s) now point at the parent's version",
+        "the rebase repoints the caller")
+
       evals(dark, "Tests.App.caller()", "12", "which now runs main's helper")
-      same(draft(dark), [ "followed Tests.App.caller" ], "as a draft change on the branch")
+      same(
+        draft(dark),
+        [ "followed Tests.App.caller" ],
+        "as a draft change on the branch")
+
       same(conflicts(dark), [], "with nothing to settle") ])
 
 
@@ -73,29 +105,41 @@ test rebaseRepointsCallersOfCallersAndASecondRebaseDoesNothing =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.f", "1")
       commit(dark, "base")
-
       switch(dark, "feat")
       save(dark, "Tests.App.g", "(): Int64 = Tests.App.f() + 10")
       save(dark, "Tests.App.h", "(): Int64 = Tests.App.g() + 100")
       commit(dark, "feat adds g calling f, and h calling g")
-
       switch(dark, "main")
       saveNumber(dark, "Tests.App.f", "2")
       commit(dark, "main changes f")
-
       switch(dark, "feat")
       evals(dark, "Tests.App.h()", "111", "before the rebase h runs the old f")
       same(staleCallers(dark), 1, "and status counts g as pointing at an old f")
+      says(
+        dark,
+        [ "rebase" ],
+        "now point at the parent's version:\n  Tests.App.g",
+        "the rebase names g")
 
-      says(dark, [ "rebase" ], "now point at the parent's version:\n  Tests.App.g", "the rebase names g")
       evals(dark, "Tests.App.g()", "12", "g runs main's f")
       evals(dark, "Tests.App.h()", "112", "and h follows g")
-      same(draft(dark), [ "followed Tests.App.g", "followed Tests.App.h" ], "both follow in the draft")
-      same(staleCallers(dark), 0, "and nothing is stale")
+      same(
+        draft(dark),
+        [ "followed Tests.App.g", "followed Tests.App.h" ],
+        "both follow in the draft")
 
-      says(dark, [ "rebase" ], "already current with \"main\"", "a second rebase has nothing to do")
+      same(staleCallers(dark), 0, "and nothing is stale")
+      says(
+        dark,
+        [ "rebase" ],
+        "already current with \"main\"",
+        "a second rebase has nothing to do")
+
       evals(dark, "Tests.App.h()", "112", "and changes nothing")
-      same(draft(dark), [ "followed Tests.App.g", "followed Tests.App.h" ], "the draft is as it was")
+      same(
+        draft(dark),
+        [ "followed Tests.App.g", "followed Tests.App.h" ],
+        "the draft is as it was")
 
       commit(dark, "follow main")
       switch(dark, "main")
@@ -110,32 +154,50 @@ test rebaseWhereTheBranchBothCallsAndChangesNamesMainChanged =
     [ saveNumber(dark, "Tests.App.f", "1")
       saveNumber(dark, "Tests.App.k", "10")
       commit(dark, "base")
-
       switch(dark, "feat")
       save(dark, "Tests.App.g", "(): Int64 = Tests.App.f() + Tests.App.k()")
       saveNumber(dark, "Tests.App.k", "20")
       commit(dark, "feat adds g and changes k")
-
       switch(dark, "main")
       saveNumber(dark, "Tests.App.f", "2")
       saveNumber(dark, "Tests.App.k", "30")
       commit(dark, "main changes f and k")
-
       switch(dark, "feat")
-      says(dark, [ "rebase" ], "you also touched:\n  Tests.App.k", "the rebase names k, which both changed")
+      says(
+        dark,
+        [ "rebase" ],
+        "you also touched:\n  Tests.App.k",
+        "the rebase names k, which both changed")
+
       same(draft(dark), [ "followed Tests.App.g" ], "g follows main's f")
       evals(dark, "Tests.App.k()", "30", "the branch runs main's newer k")
       evals(dark, "Tests.App.g()", "32", "so g is main's f plus main's k")
-      same(staleCallers(dark), 0, "and nothing on the branch calls an old version")
-      same(conflicts(dark), [ "Tests.App.k: main kept over feat (later-origin-ts)" ], "k is recorded on the branch")
+      same(
+        staleCallers(dark),
+        0,
+        "and nothing on the branch calls an old version")
+
+      same(
+        conflicts(dark),
+        [ "Tests.App.k: main kept over feat (later-origin-ts)" ],
+        "k is recorded on the branch")
 
       commit(dark, "follow main")
       switch(dark, "main")
-      says(dark, [ "merge", "feat", "-y" ], "1 conflict(s) auto-resolved", "the merge carries k's record to main")
+      says(
+        dark,
+        [ "merge", "feat", "-y" ],
+        "1 conflict(s) auto-resolved",
+        "the merge carries k's record to main")
+
       evals(dark, "Tests.App.k()", "30", "main's newer k runs")
       evals(dark, "Tests.App.g()", "32", "and g adds it")
       same(staleCallers(dark), 0, "with nothing pointing at an old version")
-      same(conflicts(dark), [ "Tests.App.k: main kept over feat (later-origin-ts)" ], "k is recorded on main") ])
+
+      same(
+        conflicts(dark),
+        [ "Tests.App.k: main kept over feat (later-origin-ts)" ],
+        "k is recorded on main") ])
 
 
 // On `sub`, the parent's newer rename of `a` beats sub's older edit of `a`, and sub's edit is recorded
@@ -146,23 +208,39 @@ test rebaseAfterTheParentRenamedAwayANameTheChildChanged =
     [ saveNumber(dark, "Tests.App.a", "42001")
       saveNumber(dark, "Tests.App.k", "42005")
       commit(dark, "base")
-
       switch(dark, "feat")
       switch(dark, "sub")
       saveNumber(dark, "Tests.App.a", "42002")
       saveNumber(dark, "Tests.App.k", "42006")
       commit(dark, "sub changes a and k")
-
       switch(dark, "feat")
       run(dark, [ "rename", "Tests.App.a", "Tests.App.b" ])
       saveNumber(dark, "Tests.App.k", "42007")
       commit(dark, "feat renames a to b, and changes k")
-
       switch(dark, "sub")
-      says(dark, [ "rebase", "--dry-run" ], "~ Tests.App.k", "the dry run names k")
-      says(dark, [ "rebase", "--dry-run" ], "~ Tests.App.a", "and a, which feat renamed away")
-      says(dark, [ "rebase" ], "you also touched:\n  Tests.App.a\n  Tests.App.k", "the rebase names both")
-      notFound(dark, "Tests.App.a()", "feat's newer rename wins over sub's edit of a")
+      says(
+        dark,
+        [ "rebase", "--dry-run" ],
+        "~ Tests.App.k",
+        "the dry run names k")
+
+      says(
+        dark,
+        [ "rebase", "--dry-run" ],
+        "~ Tests.App.a",
+        "and a, which feat renamed away")
+
+      says(
+        dark,
+        [ "rebase" ],
+        "you also touched:\n  Tests.App.a\n  Tests.App.k",
+        "the rebase names both")
+
+      notFound(
+        dark,
+        "Tests.App.a()",
+        "feat's newer rename wins over sub's edit of a")
+
       evals(dark, "Tests.App.k()", "42007", "and feat's newer k wins")
       same(
         conflicts(dark),
@@ -171,7 +249,12 @@ test rebaseAfterTheParentRenamedAwayANameTheChildChanged =
         "both of sub's losing versions are recorded")
 
       switch(dark, "feat")
-      says(dark, [ "merge", "sub", "-y" ], "2 conflict(s) auto-resolved", "merging sub into feat carries both records")
+      says(
+        dark,
+        [ "merge", "sub", "-y" ],
+        "2 conflict(s) auto-resolved",
+        "merging sub into feat carries both records")
+
       notFound(dark, "Tests.App.a()", "a stays renamed away")
       evals(dark, "Tests.App.b()", "42001", "b holds what a was")
       evals(dark, "Tests.App.k()", "42007", "and feat's k stays")

@@ -19,14 +19,12 @@ let help(_state: AppState): String =
     "  step back to, `dark discard <name>`." ]
   |> Stdlib.String.join("\n")
 
+
 let execute(state: AppState, args: List<String>): AppState =
   let confirm =
-    Cli.Confirm.assumeIf(
-      (Stdlib.List.contains(args, "-y")) || (Stdlib.List.contains(args, "--yes")))
+    Confirm.assumeIf(Stdlib.List.contains(args, "-y") || Stdlib.List.contains(args, "--yes"))
 
-  let named =
-    args |> Stdlib.List.filter(fun a -> Stdlib.Bool.not(Stdlib.String.startsWith(a, "-")))
-
+  let named = args |> Stdlib.List.filter(fun a -> Stdlib.Bool.not(Stdlib.String.startsWith(a, "-")))
   let scope =
     match SCM.PackageOps.currentBranch() with
     | id when SCM.Branch.isMain(id) -> SCM.Branch.mainBranchName
@@ -36,112 +34,104 @@ let execute(state: AppState, args: List<String>): AppState =
   // newly-authored item: `undo` steps back a VERSION and a new item has none, so without this a typo in
   // a new item blocks `commit` until the whole draft goes.
   match named with
-  | [ arg ] ->
+  | [arg] ->
     match Packages.Location.parseRelativeTo(state.packageData.currentLocation, arg) with
     | Error(e) ->
-      Cli.printErr(e)
-      Cli.failed(state)
+      printErr(e)
+      failed(state)
     | Ok(loc) ->
       let dotted = PropagateCmd.dotted(loc)
       let mods = Stdlib.String.join(loc.modules, ".")
-
       let inDraft =
         SCM.PackageOps.draftBindings()
         |> Stdlib.List.filter(fun b ->
-          (b.owner == loc.owner) && (b.name == loc.name) && (b.modules == mods))
+          b.owner == loc.owner && b.name == loc.name && b.modules == mods)
 
-      let isRenamed = SCM.PackageOps.draftEntries() |> Stdlib.List.any(fun entry ->
-        match entry.op with
-        | Rename(oldLocation, newLocation, _, _, _) -> oldLocation == loc || newLocation == loc
-        | _ -> false)
+      let isRenamed =
+        SCM.PackageOps.draftEntries()
+        |> Stdlib.List.any(fun entry ->
+          match entry.op with
+          | Rename(oldLocation, newLocation, _, _, _) -> oldLocation == loc || newLocation == loc
+          | _ -> false)
 
       if Stdlib.List.isEmpty(inDraft) && Stdlib.Bool.not(isRenamed) then
-        Cli.Stderr.ok($"{dotted} isn't in your draft on {scope} -- nothing to discard.")
-        Cli.printHint("  `dark status` lists what is.")
+        Stderr.ok($"{dotted} isn't in your draft on {scope} -- nothing to discard.")
+        printHint("  `dark status` lists what is.")
         state
       else if
-        Stdlib.Bool.not((
-          Cli.Prompt.confirmExplicit(
+        Stdlib.Bool.not(
+          Prompt.confirmExplicit(
             confirm,
-            Stdlib.Cli.UI.Colors.warning($"\n  Drop {dotted} from your draft? [y/N]: "))
-        ))
+            Stdlib.Cli.UI.Colors.warning($"\n  Drop {dotted} from your draft? [y/N]: ")))
       then
-        Cli.Stderr.ok(
+        Stderr.ok(
           $"  kept. (`dark discard {dotted} -y` if you mean it -- a piped stdin can't answer this.)")
-        Cli.failed(state)
+
+        failed(state)
       else
         match SCM.PackageOps.discardDraftName(loc.owner, loc.modules, loc.name) with
         | Ok(n) ->
-          Cli.printOk($"dropped {dotted} from your draft ({Cli.Text.plural(n, "op")}).")
+          printOk($"dropped {dotted} from your draft ({Text.plural(n, "op")}).")
           state
         | Error(e) ->
-          Cli.printErr($"couldn't drop {dotted}: {e}")
-          Cli.failed(state)
+          printErr($"couldn't drop {dotted}: {e}")
+          failed(state)
   | [_, _, ...] ->
-    Cli.printErr("dark discard takes at most one name.")
-    Cli.printHint("  `dark discard` drops the whole draft; `dark discard <name>` drops one item.")
-    Cli.failed(state)
+    printErr("dark discard takes at most one name.")
+    printHint("  `dark discard` drops the whole draft; `dark discard <name>` drops one item.")
+    failed(state)
   | [] ->
+    let changed = SCM.PackageOps.draftBindings()
+    let ops = SCM.PackageOps.draftOpCount()
 
-  let changed = SCM.PackageOps.draftBindings()
-  let ops = SCM.PackageOps.draftOpCount()
-
-  // Empty means NO OPS, not "no changed names". A draft can hold ops that bind nothing -- a
-  // a version restore, a deprecation, an ack -- and deciding on the bindings alone would report
-  // those as nothing to discard and leave them in place. The listing below is per binding and
-  // stays that way; the count is the truth.
-  if ops == 0 then
-    Cli.Stderr.ok($"nothing to discard -- your draft on {scope} is empty.")
-    state
-  else
-
-  // A WARNING header, not a green one: this listing is what is about to be destroyed, and green
-  // reads as "already fine".
-  Cli.Stderr.line((
-    Stdlib.Cli.UI.Colors.warning(
-      $"  DISCARDING ({Stdlib.display(Stdlib.List.length(changed))}) on {scope}, {Cli.Text.plural(ops, "op")}")
-  ))
-
-  // Ops that bind no name have nothing to list per-name; say how many rather than showing an
-  // empty listing under a header that promises one.
-  let _ =
-    if Stdlib.List.isEmpty(changed) then
-      Cli.Stderr.line(
-        (Stdlib.Cli.UI.Colors.dimText(
-          "    (no changed names -- no new version: restores, deprecations, docs, acks)")))
+    // Empty means NO OPS, not "no changed names". A draft can hold ops that bind nothing -- a
+    // a version restore, a deprecation, an ack -- and deciding on the bindings alone would report
+    // those as nothing to discard and leave them in place. The listing below is per binding and
+    // stays that way; the count is the truth.
+    if ops == 0 then
+      Stderr.ok($"nothing to discard -- your draft on {scope} is empty.")
+      state
     else
-      ()
+      // A WARNING header, not a green one: this listing is what is about to be destroyed, and green
+      // reads as "already fine".
+      Stderr.line(
+        Stdlib.Cli.UI.Colors.warning(
+          $"  DISCARDING ({Stdlib.display(Stdlib.List.length(changed))}) on {scope}, {Text.plural(ops, "op")}"))
 
-  changed
-  |> Stdlib.List.iter(fun b ->
-    // The FULL name, as `status` and the JSON spell it; a listing of what dies is the wrong place
-    // to abbreviate.
-    let name = SCM.Conflicts.fqn(b.owner, b.modules, b.name)
-    Cli.Stderr.line($"    - {name}"))
+      // Ops that bind no name have nothing to list per-name; say how many rather than showing an
+      // empty listing under a header that promises one.
+      let _ =
+        if Stdlib.List.isEmpty(changed) then
+          Stderr.line(
+            Stdlib.Cli.UI.Colors.dimText(
+              "    (no changed names -- no new version: restores, deprecations, docs, acks)"))
+        else
+          ()
 
-  // An explicit yes, not the usual default-yes: this is the one command here that destroys work, so a
-  // stray Return or a piped stdin must not answer for you.
-  if
-    Stdlib.Bool.not((
-      Cli.Prompt.confirmExplicit(
-        confirm,
-        Stdlib.Cli.UI.Colors.warning("\n  Drop these? [y/N]: "))
-    ))
-  then
-    Cli.Stderr.ok("  kept. (`dark discard -y` if you mean it -- a piped stdin can't answer this.)")
-    Cli.failed(state)
-  else
+      changed
+      |> Stdlib.List.iter(fun b ->
+        // The FULL name, as `status` and the JSON spell it; a listing of what dies is the wrong place
+        // to abbreviate.
+        let name = SCM.Conflicts.fqn(b.owner, b.modules, b.name)
+        Stderr.line($"    - {name}"))
 
-  match SCM.PackageOps.discardDraft() with
-  | Ok(n) ->
-    Cli.printOk($"discarded {Cli.Text.plural(n, "op")} -- {scope} is back to its last commit.")
-    state
-  | Error(e) ->
-    Cli.printErr($"couldn't discard: {e}")
-    Cli.failed(state)
+      // An explicit yes, not the usual default-yes: this is the one command here that destroys work, so a
+      // stray Return or a piped stdin must not answer for you.
+      if
+        Stdlib.Bool.not(
+          Prompt.confirmExplicit(confirm, Stdlib.Cli.UI.Colors.warning("\n  Drop these? [y/N]: ")))
+      then
+        Stderr.ok("  kept. (`dark discard -y` if you mean it -- a piped stdin can't answer this.)")
+        failed(state)
+      else
+        match SCM.PackageOps.discardDraft() with
+        | Ok(n) ->
+          printOk($"discarded {Text.plural(n, "op")} -- {scope} is back to its last commit.")
+          state
+        | Error(e) ->
+          printErr($"couldn't discard: {e}")
+          failed(state)
 
-let complete(
-  _state: AppState,
-  _args: List<String>)
-  : List<Completion.CompletionItem> =
+
+let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
   []

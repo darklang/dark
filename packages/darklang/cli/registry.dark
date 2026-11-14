@@ -17,72 +17,395 @@ module Registry =
       help: AppState -> String
       complete: (AppState, List<String>) -> List<Completion.CompletionItem> }
 
+
   // What each command takes on the command line, one function per command, referenced by its row in
   // `allCommands` the way `execute`, `help` and `complete` are. Functions rather than values, because
   // every start builds the table and only the command being run should pay for its declaration.
-  let acceptsQuit(): Accepts.Accepts = Accepts.nothing()
-  let acceptsHelp(): Accepts.Accepts = Accepts.textBetween(0, 1)
-  let acceptsConfig(): Accepts.Accepts = (Accepts.subcommands([ ("get", Accepts.between(1, 1, [])), ("set", Accepts.textBetween(2, 2)), ("unset", Accepts.between(1, 1, [])), ("list", Accepts.nothing()) ], Accepts.nothing()))
-  let acceptsInstall(): Accepts.Accepts = Accepts.flagsOnly([ "-y", "--yes" ])
-  let acceptsUpdate(): Accepts.Accepts = (Accepts.withValues([ "--to" ], Accepts.flagsOnly([ "-y", "--yes" ])))
+  let acceptsQuit(): Accepts.Accepts =
+    Accepts.nothing()
+
+
+  let acceptsHelp(): Accepts.Accepts =
+    Accepts.textBetween(0, 1)
+
+
+  let acceptsConfig(): Accepts.Accepts =
+    Accepts.subcommands(
+      [ ("get", Accepts.between(1, 1, []))
+        ("set", Accepts.textBetween(2, 2))
+        ("unset", Accepts.between(1, 1, []))
+        ("list", Accepts.nothing()) ],
+      Accepts.nothing())
+
+
+  let acceptsInstall(): Accepts.Accepts =
+    Accepts.flagsOnly([ "-y", "--yes" ])
+
+
+  let acceptsUpdate(): Accepts.Accepts =
+    Accepts.withValues([ "--to" ], Accepts.flagsOnly([ "-y", "--yes" ]))
+
+
   let acceptsUninstall(): Accepts.Accepts = Accepts.flagsOnly([ "-y", "--yes" ])
+
   let acceptsInstallStatus(): Accepts.Accepts = Accepts.nothing()
+
   let acceptsVersion(): Accepts.Accepts = Accepts.flagsOnly([ "--local" ])
+
   let acceptsNav(): Accepts.Accepts = Accepts.upTo(1, [])
-  let acceptsLs(): Accepts.Accepts = Accepts.upTo(1, [ "--include-deprecated", "--include-internal", "--versions" ])
+
+
+  let acceptsLs(): Accepts.Accepts =
+    Accepts.upTo(1, [ "--include-deprecated", "--include-internal", "--versions" ])
+
+
   let acceptsBack(): Accepts.Accepts = Accepts.nothing()
+
   let acceptsClear(): Accepts.Accepts = Accepts.nothing()
+
   let acceptsFormat(): Accepts.Accepts = Accepts.freeText(1, [ "--check", "--as-written" ])
+
   let acceptsRunScript(): Accepts.Accepts = Accepts.text(1)
+
   let acceptsEval(): Accepts.Accepts = Accepts.text(1)
-  let acceptsView(): Accepts.Accepts = Accepts.freeText(0, [ "--raw", "--ast", "--instructions", "--instrs", "--include-tests" ])
-  let acceptsTree(): Accepts.Accepts = (Accepts.withValues([ "--depth" ], Accepts.upTo(1, [ "--toc", "--include-deprecated", "--include-internal" ])))
-  let acceptsSearch(): Accepts.Accepts = Accepts.freeText(0, [ "--type", "--fn", "--function", "--val", "--value", "--trait", "--impl", "--test", "--include-tests", "--batch", "--exact", "--shallow", "--with-docs", "--include-deprecated", "--include-internal", "--json" ])
-  let acceptsTypecheck(): Accepts.Accepts = Accepts.upTo(1, [ "--failed", "--incomplete", "--all", "--json" ])
-  let acceptsTest(): Accepts.Accepts = Accepts.subcommands([ ("run", Accepts.withValues([ "--jobs" ], Accepts.freeText(0, [ "--force" ]))), ("count", Accepts.withValues([ "--for" ], Accepts.freeText(0, []))), ("add", Accepts.text(2)) ], Accepts.nothing())
-  let acceptsDeps(): Accepts.Accepts = (Accepts.everywhere([ "--json", "--deep", "--all" ], [], Accepts.subcommands([ ("uses", Accepts.between(1, 1, [])), ("usedby", Accepts.between(1, 1, [])) ], Accepts.between(1, 1, []))))
+
+
+  let acceptsView(): Accepts.Accepts =
+    Accepts.freeText(0, [ "--raw", "--ast", "--instructions", "--instrs", "--include-tests" ])
+
+
+  let acceptsTree(): Accepts.Accepts =
+    Accepts.withValues(
+      [ "--depth" ],
+      Accepts.upTo(1, [ "--toc", "--include-deprecated", "--include-internal" ]))
+
+
+  let acceptsSearch(): Accepts.Accepts =
+    Accepts.freeText(
+      0,
+      [ "--type"
+        "--fn"
+        "--function"
+        "--val"
+        "--value"
+        "--trait"
+        "--impl"
+        "--test"
+        "--include-tests"
+        "--batch"
+        "--exact"
+        "--shallow"
+        "--with-docs"
+        "--include-deprecated"
+        "--include-internal"
+        "--json" ])
+
+
+  let acceptsTypecheck(): Accepts.Accepts =
+    Accepts.upTo(1, [ "--failed", "--incomplete", "--all", "--json" ])
+
+
+  let acceptsTest(): Accepts.Accepts =
+    Accepts.subcommands(
+      [ ("run", Accepts.withValues([ "--jobs" ], Accepts.freeText(0, [ "--force" ])))
+        ("count", Accepts.withValues([ "--for" ], Accepts.freeText(0, [])))
+        ("add", Accepts.text(2)) ],
+      Accepts.nothing())
+
+
+  let acceptsDeps(): Accepts.Accepts =
+    Accepts.everywhere(
+      [ "--json", "--deep", "--all" ],
+      [],
+      Accepts.subcommands(
+        [ ("uses", Accepts.between(1, 1, [])), ("usedby", Accepts.between(1, 1, [])) ],
+        Accepts.between(1, 1, [])))
+
+
   let acceptsVal(): Accepts.Accepts = Accepts.text(2)
+
   let acceptsFn(): Accepts.Accepts = Accepts.text(2)
+
   let acceptsType(): Accepts.Accepts = Accepts.text(2)
+
   let acceptsTrait(): Accepts.Accepts = Accepts.text(2)
+
   let acceptsImpl(): Accepts.Accepts = Accepts.text(2)
+
   let acceptsModule(): Accepts.Accepts = Accepts.between(2, 2, [])
+
   let acceptsEdit(): Accepts.Accepts = Accepts.between(1, 2, [])
+
   let acceptsRename(): Accepts.Accepts = Accepts.between(2, 2, [])
+
   let acceptsHash(): Accepts.Accepts = Accepts.between(1, 1, [ "--long", "--full" ])
+
   let acceptsStatus(): Accepts.Accepts = Accepts.flagsOnly([ "--json" ])
+
   let acceptsCommits(): Accepts.Accepts = Accepts.upTo(1, [ "--json", "--detailed", "--all" ])
-  let acceptsCommit(): Accepts.Accepts = (Accepts.withValues([ "--include" ], Accepts.freeText(0, [ "-y", "--yes", "-m", "--message", "--allow-unresolved", "--allow-type-errors", "--json" ])))
-  let acceptsDiscard(): Accepts.Accepts = Accepts.upTo(1, [ "-y", "--yes" ])
-  let acceptsShow(): Accepts.Accepts = Accepts.between(1, 1, [])
-  let acceptsBranch(): Accepts.Accepts = (Accepts.subcommands([ ("list", Accepts.flagsOnly([ "--all" ])), ("current", Accepts.nothing()), ("switch", Accepts.between(1, 1, [])), ("new", Accepts.between(1, 1, [])), ("create", Accepts.between(1, 1, [])), ("archive", Accepts.between(1, 1, [ "-y", "--yes" ])), ("rename", Accepts.between(2, 2, [])), ("diff", Accepts.between(1, 1, [ "--source" ])), ("log", Accepts.between(1, 1, [])), ("merge", Accepts.between(1, 1, [ "-y", "--yes", "--allow-type-errors", "--dry-run" ])), ("rebase", Accepts.between(1, 1, [])), ("resolve", Accepts.between(3, 3, [])) ], Accepts.upTo(1, [])))
-  let acceptsRebase(): Accepts.Accepts = Accepts.upTo(1, [ "--dry-run" ])
-  let acceptsMerge(): Accepts.Accepts = Accepts.upTo(1, [ "-y", "--yes", "--allow-type-errors", "--dry-run" ])
+
+
+  let acceptsCommit(): Accepts.Accepts =
+    Accepts.withValues(
+      [ "--include" ],
+      Accepts.freeText(
+        0,
+        [ "-y"
+          "--yes"
+          "-m"
+          "--message"
+          "--allow-unresolved"
+          "--allow-type-errors"
+          "--json" ]))
+
+
+  let acceptsDiscard(): Accepts.Accepts =
+    Accepts.upTo(1, [ "-y", "--yes" ])
+
+
+  let acceptsShow(): Accepts.Accepts =
+    Accepts.between(1, 1, [])
+
+
+  let acceptsBranch(): Accepts.Accepts =
+    Accepts.subcommands(
+      [ ("list", Accepts.flagsOnly([ "--all" ]))
+        ("current", Accepts.nothing())
+        ("switch", Accepts.between(1, 1, []))
+        ("new", Accepts.between(1, 1, []))
+        ("create", Accepts.between(1, 1, []))
+        ("archive", Accepts.between(1, 1, [ "-y", "--yes" ]))
+        ("rename", Accepts.between(2, 2, []))
+        ("diff", Accepts.between(1, 1, [ "--source" ]))
+        ("log", Accepts.between(1, 1, []))
+        ("merge", Accepts.between(1, 1, [ "-y", "--yes", "--allow-type-errors", "--dry-run" ]))
+        ("rebase", Accepts.between(1, 1, []))
+        ("resolve", Accepts.between(3, 3, [])) ],
+      Accepts.upTo(1, []))
+
+
+  let acceptsRebase(): Accepts.Accepts =
+    Accepts.upTo(1, [ "--dry-run" ])
+
+
+  let acceptsMerge(): Accepts.Accepts =
+    Accepts.upTo(1, [ "-y", "--yes", "--allow-type-errors", "--dry-run" ])
+
+
   let acceptsBranches(): Accepts.Accepts = Accepts.flagsOnly([ "--all", "--json" ])
+
   let acceptsSwitch(): Accepts.Accepts = Accepts.upTo(1, [])
+
   let acceptsDiff(): Accepts.Accepts = Accepts.upTo(1, [ "--source", "--json" ])
+
   let acceptsLog(): Accepts.Accepts = Accepts.upTo(1, [ "--json" ])
+
   let acceptsResolve(): Accepts.Accepts = Accepts.between(3, 3, [])
-  let acceptsConstraints(): Accepts.Accepts = (Accepts.subcommands([ ("resolve", (Accepts.withValues([ "--as" ], Accepts.freeText(0, [ "--all", "--why" ])))), ("ack", Accepts.freeText(0, [ "--all", "--why" ])) ], Accepts.withValues([ "--kind" ], Accepts.flagsOnly([ "--json" ]))))
-  let acceptsAck(): Accepts.Accepts = Accepts.freeText(0, [ "--all", "--why" ])
-  let acceptsUndeprecate(): Accepts.Accepts = Accepts.between(1, 1, [ "-y", "--yes" ])
-  let acceptsBackups(): Accepts.Accepts = (Accepts.subcommands([ ("list", Accepts.nothing()), ("now", Accepts.nothing()), ("prune", Accepts.between(1, 1, [ "-y", "--yes" ])), ("restore", Accepts.between(1, 1, [ "-y", "--yes" ])) ], Accepts.nothing()))
+
+
+  let acceptsConstraints(): Accepts.Accepts =
+    Accepts.subcommands(
+      [ ("resolve", Accepts.withValues([ "--as" ], Accepts.freeText(0, [ "--all", "--why" ])))
+        ("ack", Accepts.freeText(0, [ "--all", "--why" ])) ],
+      Accepts.withValues([ "--kind" ], Accepts.flagsOnly([ "--json" ])))
+
+
+  let acceptsAck(): Accepts.Accepts =
+    Accepts.freeText(0, [ "--all", "--why" ])
+
+
+  let acceptsUndeprecate(): Accepts.Accepts =
+    Accepts.between(1, 1, [ "-y", "--yes" ])
+
+
+  let acceptsBackups(): Accepts.Accepts =
+    Accepts.subcommands(
+      [ ("list", Accepts.nothing())
+        ("now", Accepts.nothing())
+        ("prune", Accepts.between(1, 1, [ "-y", "--yes" ]))
+        ("restore", Accepts.between(1, 1, [ "-y", "--yes" ])) ],
+      Accepts.nothing())
+
+
   let acceptsBuiltins(): Accepts.Accepts = Accepts.upTo(1, [ "--with-sigs", "--with-purity" ])
+
   let acceptsFindValues(): Accepts.Accepts = Accepts.between(1, 2, [])
+
   let acceptsImpls(): Accepts.Accepts = Accepts.between(1, 1, [ "--json" ])
-  let acceptsServe(): Accepts.Accepts = (Accepts.withValues([ "--bind", "--port", "--max-body-bytes" ], Accepts.between(1, 1, [ "--live", "--no-live", "--dev" ])))
-  let acceptsDocs(): Accepts.Accepts = (Accepts.subcommands([ ("signatures", (Accepts.withValues([ "--module" ], Accepts.freeText(0, [ "--types", "--include-deprecated", "--include-internal", "--include-tests", "--all" ])))), ("sigs", (Accepts.withValues([ "--module" ], Accepts.freeText(0, [ "--types", "--include-deprecated", "--include-internal", "--include-tests", "--all" ])))), ("api", (Accepts.withValues([ "--module" ], Accepts.freeText(0, [ "--types", "--include-deprecated", "--include-internal", "--include-tests", "--all" ])))), ("stdlib", Accepts.nothing()), ("lib", Accepts.nothing()), ("for-ai", Accepts.freeText(0, [])), ("ai", Accepts.freeText(0, [])), ("agent", Accepts.freeText(0, [])) ], Accepts.freeText(0, [])))
-  let acceptsUndo(): Accepts.Accepts = Accepts.between(1, 1, [])
-  let acceptsDeprecate(): Accepts.Accepts = (Accepts.withValues([ "--kind", "--replacement", "--message", "-m" ], Accepts.between(1, 2, [ "-y", "--yes", "--dry-run", "--json" ])))
-  let acceptsDelete(): Accepts.Accepts = (Accepts.withValues([ "--message", "-m" ], Accepts.between(1, 2, [ "-y", "--yes", "--ignore-dependents", "--force", "--dry-run", "--json" ])))
-  let acceptsExportSeed(): Accepts.Accepts = Accepts.between(1, 1, [])
-  let acceptsTraces(): Accepts.Accepts = (Accepts.everywhere([ "-y", "--yes", "--json", "--inspect", "--full" ], [ "--iteration" ], Accepts.subcommands([ ("list", (Accepts.withValues([ "--fn", "--route" ], Accepts.upTo(1, [])))), ("follow", (Accepts.withValues([ "--route" ], Accepts.nothing()))), ("stats", Accepts.upTo(1, [])), ("tail", (Accepts.withValues([ "--route" ], Accepts.upTo(1, [])))), ("find", Accepts.text(1)), ("fns", Accepts.upTo(1, [ "--all" ])), ("hotspots", Accepts.upTo(1, [])), ("view", Accepts.between(1, 2, [ "--watch" ])), ("details", (Accepts.withValues([ "--filter", "--exclude", "--slow-ms", "--depth" ], Accepts.between(1, 1, [ "--all", "--slow", "-d", "--no-builtins", "--no-stdlib" ])))), ("log", Accepts.text(0)), ("record", Accepts.upTo(1, [])), ("inspect", (Accepts.withValues([ "--filter", "--exclude", "--slow-ms", "--depth" ], Accepts.between(1, 1, [ "--all", "--slow", "-d", "--no-builtins", "--no-stdlib" ])))), ("resume", Accepts.between(1, 1, [])), ("fork", (Accepts.withValues([ "--at" ], Accepts.between(1, 1, [])))), ("pin", Accepts.between(1, 1, [])), ("unpin", Accepts.between(1, 1, [])), ("calls", Accepts.between(1, 1, [])), ("show", Accepts.between(1, 2, [ "--watch" ])), ("values", Accepts.text(0)), ("rerun", Accepts.between(1, 1, [])), ("delete", (Accepts.withValues([ "--keep", "--before" ], Accepts.upTo(1, [ "--all" ])))) ], Accepts.nothing())))
-  let acceptsConflicts(): Accepts.Accepts = (Accepts.everywhere([ "--json" ], [], Accepts.subcommands([ ("list", Accepts.nothing()), ("walk", Accepts.nothing()), ("show", Accepts.between(1, 1, [])), ("ack", Accepts.freeText(1, [])), ("override", Accepts.between(2, 2, [])), ("branch", Accepts.between(1, 1, [])) ], Accepts.nothing())))
-  let acceptsEffects(): Accepts.Accepts = Accepts.between(1, 1, [])
-  let acceptsPermissions(): Accepts.Accepts = (Accepts.subcommands([ ("list", Accepts.nothing()), ("profile", Accepts.upTo(2, [ "-y", "--yes" ])), ("allow", Accepts.text(1)), ("deny", Accepts.text(1)), ("remove", Accepts.text(1)), ("clear", Accepts.nothing()), ("set", Accepts.text(1)), ("approve", Accepts.text(1)), ("update", Accepts.text(1)), ("unapprove", Accepts.between(1, 1, [])), ("requirements", Accepts.between(1, 1, [])), ("show", Accepts.between(1, 1, [])), ("revoke-package", Accepts.between(1, 1, [])), ("approved", Accepts.nothing()), ("approvals", Accepts.nothing()) ], Accepts.nothing()))
-  let acceptsOps(): Accepts.Accepts = (Accepts.subcommands([ ("list", Accepts.upTo(1, [])), ("show", Accepts.between(1, 1, [])) ], Accepts.upTo(1, [])))
-  let acceptsPs(): Accepts.Accepts = (Accepts.everywhere([ "--json" ], [], Accepts.subcommands([ ("show", Accepts.between(1, 1, [ "--full" ])), ("cancel", Accepts.between(1, 1, [])), ("kill", Accepts.between(1, 1, [])) ], Accepts.flagsOnly([ "--watch" ]))))
-  let acceptsWorkbench(): Accepts.Accepts = Accepts.flagsOnly([ "--live" ])
+
+
+  let acceptsServe(): Accepts.Accepts =
+    Accepts.withValues(
+      [ "--bind", "--port", "--max-body-bytes" ],
+      Accepts.between(1, 1, [ "--live", "--no-live", "--dev" ]))
+
+
+  let acceptsDocs(): Accepts.Accepts =
+    Accepts.subcommands(
+      [ (
+          "signatures",
+          Accepts.withValues(
+            [ "--module" ],
+            Accepts.freeText(
+              0,
+              [ "--types"
+                "--include-deprecated"
+                "--include-internal"
+                "--include-tests"
+                "--all" ])))
+
+        (
+          "sigs",
+          Accepts.withValues(
+            [ "--module" ],
+            Accepts.freeText(
+              0,
+              [ "--types"
+                "--include-deprecated"
+                "--include-internal"
+                "--include-tests"
+                "--all" ])))
+
+        (
+          "api",
+          Accepts.withValues(
+            [ "--module" ],
+            Accepts.freeText(
+              0,
+              [ "--types"
+                "--include-deprecated"
+                "--include-internal"
+                "--include-tests"
+                "--all" ])))
+
+        ("stdlib", Accepts.nothing())
+        ("lib", Accepts.nothing())
+        ("for-ai", Accepts.freeText(0, []))
+        ("ai", Accepts.freeText(0, []))
+        ("agent", Accepts.freeText(0, [])) ],
+      Accepts.freeText(0, []))
+
+
+  let acceptsUndo(): Accepts.Accepts =
+    Accepts.between(1, 1, [])
+
+
+  let acceptsDeprecate(): Accepts.Accepts =
+    Accepts.withValues(
+      [ "--kind", "--replacement", "--message", "-m" ],
+      Accepts.between(1, 2, [ "-y", "--yes", "--dry-run", "--json" ]))
+
+
+  let acceptsDelete(): Accepts.Accepts =
+    Accepts.withValues(
+      [ "--message", "-m" ],
+      Accepts.between(
+        1,
+        2,
+        [ "-y", "--yes", "--ignore-dependents", "--force", "--dry-run", "--json" ]))
+
+
+  let acceptsExportSeed(): Accepts.Accepts =
+    Accepts.between(1, 1, [])
+
+
+  let acceptsTraces(): Accepts.Accepts =
+    Accepts.everywhere(
+      [ "-y", "--yes", "--json", "--inspect", "--full" ],
+      [ "--iteration" ],
+      Accepts.subcommands(
+        [ ("list", Accepts.withValues([ "--fn", "--route" ], Accepts.upTo(1, [])))
+          ("follow", Accepts.withValues([ "--route" ], Accepts.nothing()))
+          ("stats", Accepts.upTo(1, []))
+          ("tail", Accepts.withValues([ "--route" ], Accepts.upTo(1, [])))
+          ("find", Accepts.text(1))
+          ("fns", Accepts.upTo(1, [ "--all" ]))
+          ("hotspots", Accepts.upTo(1, []))
+          ("view", Accepts.between(1, 2, [ "--watch" ]))
+          (
+            "details",
+            Accepts.withValues(
+              [ "--filter", "--exclude", "--slow-ms", "--depth" ],
+              Accepts.between(1, 1, [ "--all", "--slow", "-d", "--no-builtins", "--no-stdlib" ])))
+
+          ("log", Accepts.text(0))
+          ("record", Accepts.upTo(1, []))
+          (
+            "inspect",
+            Accepts.withValues(
+              [ "--filter", "--exclude", "--slow-ms", "--depth" ],
+              Accepts.between(1, 1, [ "--all", "--slow", "-d", "--no-builtins", "--no-stdlib" ])))
+
+          ("resume", Accepts.between(1, 1, []))
+          ("fork", Accepts.withValues([ "--at" ], Accepts.between(1, 1, [])))
+          ("pin", Accepts.between(1, 1, []))
+          ("unpin", Accepts.between(1, 1, []))
+          ("calls", Accepts.between(1, 1, []))
+          ("show", Accepts.between(1, 2, [ "--watch" ]))
+          ("values", Accepts.text(0))
+          ("rerun", Accepts.between(1, 1, []))
+          ("delete", Accepts.withValues([ "--keep", "--before" ], Accepts.upTo(1, [ "--all" ]))) ],
+        Accepts.nothing()))
+
+
+  let acceptsConflicts(): Accepts.Accepts =
+    Accepts.everywhere(
+      [ "--json" ],
+      [],
+      Accepts.subcommands(
+        [ ("list", Accepts.nothing())
+          ("walk", Accepts.nothing())
+          ("show", Accepts.between(1, 1, []))
+          ("ack", Accepts.freeText(1, []))
+          ("override", Accepts.between(2, 2, []))
+          ("branch", Accepts.between(1, 1, [])) ],
+        Accepts.nothing()))
+
+
+  let acceptsEffects(): Accepts.Accepts =
+    Accepts.between(1, 1, [])
+
+
+  let acceptsPermissions(): Accepts.Accepts =
+    Accepts.subcommands(
+      [ ("list", Accepts.nothing())
+        ("profile", Accepts.upTo(2, [ "-y", "--yes" ]))
+        ("allow", Accepts.text(1))
+        ("deny", Accepts.text(1))
+        ("remove", Accepts.text(1))
+        ("clear", Accepts.nothing())
+        ("set", Accepts.text(1))
+        ("approve", Accepts.text(1))
+        ("update", Accepts.text(1))
+        ("unapprove", Accepts.between(1, 1, []))
+        ("requirements", Accepts.between(1, 1, []))
+        ("show", Accepts.between(1, 1, []))
+        ("revoke-package", Accepts.between(1, 1, []))
+        ("approved", Accepts.nothing())
+        ("approvals", Accepts.nothing()) ],
+      Accepts.nothing())
+
+
+  let acceptsOps(): Accepts.Accepts =
+    Accepts.subcommands(
+      [ ("list", Accepts.upTo(1, [])), ("show", Accepts.between(1, 1, [])) ],
+      Accepts.upTo(1, []))
+
+
+  let acceptsPs(): Accepts.Accepts =
+    Accepts.everywhere(
+      [ "--json" ],
+      [],
+      Accepts.subcommands(
+        [ ("show", Accepts.between(1, 1, [ "--full" ]))
+          ("cancel", Accepts.between(1, 1, []))
+          ("kill", Accepts.between(1, 1, [])) ],
+        Accepts.flagsOnly([ "--watch" ])))
+
+
+  let acceptsWorkbench(): Accepts.Accepts =
+    Accepts.flagsOnly([ "--live" ])
+
 
   let allCommands(): List<CommandHandler> =
     [ ("quit", "Exit the CLI", [ "exit", "q" ], acceptsQuit, Quit.execute, Quit.help, Quit.complete)
@@ -167,35 +490,34 @@ module Registry =
 
 
   let findCommandIn(commands: List<CommandHandler>, name: String): CommandHandler =
-
-    let allMatches = // CLEANUP use a Set?
-      let nameMatches =
-        commands
-        |> Stdlib.List.filter(fun cmd -> cmd.name == name)
+    let allMatches =
+      // CLEANUP use a Set?
+      let nameMatches = commands |> Stdlib.List.filter(fun cmd -> cmd.name == name)
 
       let aliasMatches =
         commands
-        |> Stdlib.List.filter(fun cmd ->
-          Stdlib.List.any(cmd.aliases, fun alias -> alias == name))
+        |> Stdlib.List.filter(fun cmd -> Stdlib.List.any(cmd.aliases, fun alias -> alias == name))
 
       Stdlib.List.concat(nameMatches, aliasMatches)
 
     match allMatches with
     | [handler] -> handler
-    | [handler, ...] -> handler // CLEANUP?
+    | [handler, ...] -> handler  // CLEANUP?
     | [] ->
       CommandHandler
         { name = name
           description = "Unknown command"
           aliases = []
           // Any words, so the name itself is what gets refused, below.
-          accepts = fun () -> Accepts.text(0)
-          execute = fun(state, args) ->
-            Stdlib.printErrorLine(View.formatError($"Unknown command: {name}"))
-            Stdlib.printErrorLine("Use 'help' to see available commands.")
-            { state with exitCode = 1 }
-          help = fun _state -> $"No help available for command: {name}"
-          complete = fun(_state, _args) -> [] }
+          accepts = (fun () -> Accepts.text(0))
+          execute =
+            (fun(state, args) ->
+               Stdlib.printErrorLine(View.formatError($"Unknown command: {name}"))
+               Stdlib.printErrorLine("Use 'help' to see available commands.")
+               { state with exitCode = 1 })
+          help = (fun _state -> $"No help available for command: {name}")
+          complete = (fun(_state, _args) -> []) }
+
 
   let executeCommand(name: String, state: AppState, args: List<String>): AppState =
     let handler = findCommandIn(state.allCommandsCache, name)
@@ -213,9 +535,7 @@ module Registry =
     // The script runner decides whether --help is an option or a script argument.
     let asksForHelp =
       handler.name != "run-script"
-      && ((Stdlib.List.contains(args, "--help"))
-          || (Stdlib.List.contains(args, "-h"))
-          || firstIsHelp)
+      && (Stdlib.List.contains(args, "--help") || Stdlib.List.contains(args, "-h") || firstIsHelp)
 
     if asksForHelp then
       executeCommandHelp(name, state)
@@ -227,12 +547,13 @@ module Registry =
       let accepts = handler.accepts
       match Accepts.check(name, accepts(), args) with
       | Some(why) ->
-        Cli.printErr(why)
-        Cli.printHint($"  `dark {name} --help` shows what it takes.")
+        printErr(why)
+        printHint($"  `dark {name} --help` shows what it takes.")
         { state with exitCode = 1 }
       | None ->
         let ex = handler.execute
         ex(state, args)
+
 
   let executeCommandHelp(name: String, state: AppState): AppState =
     let handler = findCommandIn(state.allCommandsCache, name)
@@ -240,7 +561,7 @@ module Registry =
     let aliasSuffix =
       match handler.aliases with
       | [] -> ""
-      | aliases -> "\n\nAliases: " + (Stdlib.String.join(aliases, ", "))
+      | aliases -> "\n\nAliases: " + Stdlib.String.join(aliases, ", ")
 
     let body = helpFn(state)
 
@@ -255,18 +576,14 @@ module Registry =
       |> Stdlib.String.trim
 
     let alreadySummarised =
-      (firstLine != "")
-      && (Stdlib.Bool.not(Stdlib.String.startsWith(firstLine, "Usage:")))
-      && (Stdlib.Bool.not(Stdlib.String.startsWith(firstLine, "dark ")))
+      firstLine != ""
+      && Stdlib.Bool.not(Stdlib.String.startsWith(firstLine, "Usage:"))
+      && Stdlib.Bool.not(Stdlib.String.startsWith(firstLine, "dark "))
 
-    let summarised =
-      if alreadySummarised then
-        body
-      else
-        $"{handler.description}\n{body}"
-
+    let summarised = if alreadySummarised then body else $"{handler.description}\n{body}"
     Stdlib.printLine(summarised + aliasSuffix)
     state
+
 
   // Command groups organized by category, for `dark help`.
   //
@@ -275,36 +592,87 @@ module Registry =
   // rendering accident rather than a category. `tests/cli/commandGroups.dark` fails when a newly
   // registered command is in no group, and when a group names a command that is not.
   let commandGroups(): List<(String * List<String>)> =
-    [ ("Packages", [ "nav", "ls", "view", "tree", "back", "search", "typecheck", "test", "find-values", "deps", "val", "fn", "type", "trait", "impl", "impls", "module", "edit", "rename", "hash", "deprecate", "delete", "undeprecate" ])
-      ("Changes",
-       [ "status", "commit", "commits", "show", "discard", "undo", "conflicts", "constraints", "ack", "ops" ])
+    [ (
+        "Packages",
+        [ "nav"
+          "ls"
+          "view"
+          "tree"
+          "back"
+          "search"
+          "typecheck"
+          "test"
+          "find-values"
+          "deps"
+          "val"
+          "fn"
+          "type"
+          "trait"
+          "impl"
+          "impls"
+          "module"
+          "edit"
+          "rename"
+          "hash"
+          "deprecate"
+          "delete"
+          "undeprecate" ])
+
+      (
+        "Changes",
+        [ "status"
+          "commit"
+          "commits"
+          "show"
+          "discard"
+          "undo"
+          "conflicts"
+          "constraints"
+          "ack"
+          "ops" ])
+
       ("Branches", [ "branch", "branches", "switch", "merge", "rebase", "diff", "log", "resolve" ])
       ("Execution", [ "run-script", "eval", "ps", "traces", "serve", "format" ])
       ("Installation", [ "install", "update", "uninstall", "version", "install-status" ])
       ("Security", [ "effects", "permissions" ])
-      ("Utilities",
-       [ "clear", "help", "docs", "quit", "builtins", "export-seed", "workbench", "backups", "config" ]) ]
+      (
+        "Utilities",
+        [ "clear"
+          "help"
+          "docs"
+          "quit"
+          "builtins"
+          "export-seed"
+          "workbench"
+          "backups"
+          "config" ]) ]
 
-  let formatCommandGroup(groupName: String, commandNames: List<String>, commands: List<CommandHandler>): String =
+
+  let formatCommandGroup(
+    groupName: String,
+    commandNames: List<String>,
+    commands: List<CommandHandler>)
+    : String =
     let formattedCommands =
       commandNames
       |> Stdlib.List.filterMap(fun name ->
         match Stdlib.List.findFirst(commands, fun cmd -> cmd.name == name) with
         | Some(cmd) ->
           match cmd.aliases with
-          | [] -> Stdlib.Option.Option.Some($"  {cmd.name} - {cmd.description}")
+          | [] -> Option.Some($"  {cmd.name} - {cmd.description}")
           | aliases ->
             let aliasText = Stdlib.String.join(aliases, ", ")
-            Stdlib.Option.Option.Some($"  {cmd.name} ({aliasText}) - {cmd.description}")
-        | None -> Stdlib.Option.Option.None)
+            Option.Some($"  {cmd.name} ({aliasText}) - {cmd.description}")
+        | None -> Option.None)
+
     let commandLines = Stdlib.String.join(formattedCommands, "\n")
     $"{groupName}:\n{commandLines}"
+
 
   // Detailed command list for help command (no logo, full details)
   let getDetailedCommandList(): String =
     let commands = allCommands()
     let groups = commandGroups()
-
     let formattedGroups =
       groups
       |> Stdlib.List.map(fun((groupName, cmdNames)) ->
@@ -314,6 +682,7 @@ module Registry =
       groups
       |> Stdlib.List.map(fun((_groupName, cmdNames)) -> cmdNames)
       |> Stdlib.List.flatten
+
     let ungroupedCommands =
       commands
       |> Stdlib.List.filter(fun cmd ->
@@ -334,6 +703,7 @@ module Registry =
         let ungroupedGroup =
           let ungroupedLines = Stdlib.String.join(ungroupedCommands, "\n")
           $"Other:\n{ungroupedLines}"
+
         Stdlib.List.append(formattedGroups, ungroupedGroup)
 
     let groupsText = Stdlib.String.join(finalGroups, "\n\n")
@@ -364,19 +734,16 @@ module Registry =
         match Stdlib.List.last(parsed.args) with
         | Some(_) -> Stdlib.List.dropLast(parsed.args)
         | None -> []
+
       // \u0000 can't occur in a typed token, so joining is unambiguous.
-      Stdlib.String.join(
-        Stdlib.List.concat([ loc, parsed.commandName ], completedArgs),
-        "\u0000")
+      Stdlib.String.join(Stdlib.List.concat([ loc, parsed.commandName ], completedArgs), "\u0000")
+
 
   /// The half of completion that depends only on the command and its *completed* arguments. For `nav`/`ls`
   /// that means a package DB query, which is far too expensive to repeat per keystroke -- and a cache keyed
   /// on the whole prompt text misses on every character of a word. The partial token filters this result
   /// afterwards, and filtering a list is cheap.
-  let getCompletionsForContext(
-    state: AppState,
-    input: String)
-    : List<Completion.CompletionItem> =
+  let getCompletionsForContext(state: AppState, input: String): List<Completion.CompletionItem> =
     let parsed = Completion.parseInput(input)
     if parsed.isCompletingCommand then
       state.commandOptionsCache |> Stdlib.List.map(Completion.simple)
@@ -386,17 +753,16 @@ module Registry =
         match Stdlib.List.last(parsed.args) with
         | Some(_) -> Stdlib.List.dropLast(parsed.args)
         | None -> []
+
       handler.complete(state, completedArgs)
+
 
   let getCompletions(state: AppState, input: String): List<Completion.CompletionItem> =
     let parsed = Completion.parseInput(input)
-
     if parsed.isCompletingCommand then
       // Completing command name
       let partial = Completion.getPartialCompletion(parsed)
-
       let options = state.commandOptionsCache
-
       let filtered =
         if Stdlib.String.isEmpty(partial) then
           options
@@ -420,14 +786,12 @@ module Registry =
         | None -> ([], "")
 
       let completions = completeFunc(state, completedArgs)
-
       if Stdlib.String.isEmpty(partial) then
         completions
       else
         let filtered =
           completions
-          |> Stdlib.List.filter(fun item ->
-            Stdlib.String.startsWith(item.value, partial))
+          |> Stdlib.List.filter(fun item -> Stdlib.String.startsWith(item.value, partial))
 
         // If centralized filtering found nothing, try direct call as fallback
         // (supports commands with smart matching like path traversal)
@@ -435,12 +799,9 @@ module Registry =
         | [_, ...] -> filtered
         | [] -> completeFunc(state, parsed.args)
 
-  let hintFromCompletions(
-    input: String,
-    completions: List<Completion.CompletionItem>)
-    : String =
-    let parsed = Completion.parseInput(input)
 
+  let hintFromCompletions(input: String, completions: List<Completion.CompletionItem>): String =
+    let parsed = Completion.parseInput(input)
     let partial =
       if parsed.isCompletingCommand then
         parsed.commandName
@@ -451,6 +812,7 @@ module Registry =
 
     let completionValues = completions |> Stdlib.List.map(fun item -> item.value)
     Completion.getHintFromCompletions(partial, completionValues)
+
 
   /// The hint, given an already-computed context result. This is what the interactive loop calls on each
   /// keystroke, passing its cached context.
@@ -469,7 +831,6 @@ module Registry =
     prevItems: List<Completion.CompletionItem>)
     : (String * String * List<Completion.CompletionItem>) =
     let parsed = Completion.parseInput(input)
-
     let (filterPartial, hintPartial) =
       if parsed.isCompletingCommand then
         (Completion.getPartialCompletion(parsed), parsed.commandName)
@@ -478,6 +839,7 @@ module Registry =
           match Stdlib.List.last(parsed.args) with
           | Some(lastArg) -> lastArg
           | None -> ""
+
         (lastArg, lastArg)
 
     let hintOf(items: List<Completion.CompletionItem>): String =
@@ -492,18 +854,16 @@ module Registry =
       // previous result is unusable as a base, and so is a fallback result (see below), which is why the
       // fallback reports "" back to the caller.
       let canNarrow =
-        (Stdlib.Bool.not(Stdlib.String.isEmpty(prevPartial)))
-        && (Stdlib.String.startsWith(filterPartial, prevPartial))
+        Stdlib.Bool.not(Stdlib.String.isEmpty(prevPartial))
+        && Stdlib.String.startsWith(filterPartial, prevPartial)
         && (match prevItems with
             | [_, ...] -> true
             | [] -> false)
 
       let narrowBase = if canNarrow then prevItems else contextCompletions
-
       let filtered =
         narrowBase
-        |> Stdlib.List.filter(fun item ->
-          Stdlib.String.startsWith(item.value, filterPartial))
+        |> Stdlib.List.filter(fun item -> Stdlib.String.startsWith(item.value, filterPartial))
 
       match filtered with
       | [_, ...] -> (hintOf(filtered), filterPartial, filtered)
@@ -517,7 +877,9 @@ module Registry =
           else
             let handler = findCommandIn(state.allCommandsCache, parsed.commandName)
             handler.complete(state, parsed.args)
+
         (hintOf(fallback), "", [])
+
 
   let getCompletionHint(state: AppState, input: String): String =
     hintFromCompletions(input, getCompletions(state, input))
@@ -545,14 +907,16 @@ module Registry =
       "conflicts"
       "edit" ]
 
+
   /// Full-screen TUIs. Capturing one dumps its alternate-screen escapes into a pane, so the bar
   /// launches it as a page instead. Canonical names; aliases resolve before matching. None today.
   val screenCommands = []
 
+
   /// Should the workbench run this command line on the real terminal instead of captured?
   /// `-y`/`--yes` is the universal "don't ask", so a line carrying it never needs the handoff.
   let needsTerminal(commands: List<CommandHandler>, cmd: String, args: List<String>): Bool =
-    if (Stdlib.List.contains(args, "-y")) || (Stdlib.List.contains(args, "--yes")) then
+    if Stdlib.List.contains(args, "-y") || Stdlib.List.contains(args, "--yes") then
       false
     else
       let canonical = (findCommandIn(commands, cmd)).name
@@ -560,22 +924,21 @@ module Registry =
         match Stdlib.List.head(args) with
         | Some(first) -> canonical + " " + first
         | None -> canonical
-      (Stdlib.List.contains(promptsForInput, canonical))
-      || (Stdlib.List.contains(promptsForInput, withFirst))
+
+      Stdlib.List.contains(promptsForInput, canonical)
+      || Stdlib.List.contains(promptsForInput, withFirst)
+
 
   /// Does this command line own the whole screen (a full-screen TUI)?
   let takesScreen(commands: List<CommandHandler>, cmd: String, args: List<String>): Bool =
     let canonical = (findCommandIn(commands, cmd)).name
     Stdlib.List.contains(screenCommands, canonical)
 
+
 module Commands =
   let parseAndExecute(state: AppState, input: String): AppState =
     let trimmed = Stdlib.String.trim(input)
-    let parts =
-      (Stdlib.String.split(trimmed, " "))
-      |> Stdlib.List.filter(fun s -> s != "")
-
+    let parts = Stdlib.String.split(trimmed, " ") |> Stdlib.List.filter(fun s -> s != "")
     match parts with
     | [] -> state
-    | [commandName, ...args] ->
-      Registry.executeCommand(commandName, state, args)
+    | [commandName, ...args] -> Registry.executeCommand(commandName, state, args)

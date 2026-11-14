@@ -1,19 +1,23 @@
 /// A `fn` save says where its type error is, counting columns in what the author typed.
 module Darklang.Cli.Tests.FnSaveLines
 
-test theShortFormCountsTheAuthorsColumns =
-  Instance.withInstance(fun i ->
-    let (_, out) =
-      Instance.ran(i, [ "fn", "Me.Lines.add", "(n: Int64): Int64 = n + \"x\"" ])
+test theShortFormCountsTheAuthorsColumns = Instance.withInstance(fun i ->
+  let (_, out) =
+    Instance.ran(i, [ "fn", "Me.Lines.add", "(n: Int64): Int64 = n + \"x\"" ])
 
-    Instance.says(out, "(line 1, column 25)", "the operand, in the text as typed"))
+  Instance.says(
+    out,
+    "(line 1, column 25)",
+    "the operand, in the text as typed"))
 
-test aFullDeclarationCountsItsLines =
-  Instance.withInstance(fun i ->
-    let path = Instance.home(i) + "/two.dark"
-    let _ =
-      Stdlib.Cli.File.writeAtomic(path, "let two(n: Int64): String =\n  let a = n + 1\n  Stdlib.String.length(a)\n")
-      |> Builtin.unwrap
-    let (_, out) = Instance.ran(i, [ "fn", "Me.Lines.two", path ])
 
-    Instance.says(out, "(line 3, column 24)", "the argument on the third line"))
+test aFullDeclarationCountsItsLines = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/two.dark"
+  let _ =
+    Stdlib.Cli.File.writeAtomic(
+      path,
+      "let two(n: Int64): String =\n  let a = n + 1\n  Stdlib.String.length(a)\n")
+    |> Builtin.unwrap
+
+  let (_, out) = Instance.ran(i, [ "fn", "Me.Lines.two", path ])
+  Instance.says(out, "(line 3, column 24)", "the argument on the third line"))

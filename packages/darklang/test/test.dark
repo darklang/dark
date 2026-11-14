@@ -1,59 +1,97 @@
 module Darklang.Test
 
+let stringFn(key: String): String =
+  key + " appended string"
 
-let stringFn(key: String): String = key + " appended string"
 
-let fnWithTypeArgAndOneParam<'a>(arg: 'a): 'a = arg
+let fnWithTypeArgAndOneParam(arg: 'a): 'a =
+  arg
+
 
 let twoStringFn(str1: String, str2: String): String =
   str1 + " appended " + str2
 
-let returnsInt(): Int64 = 5
 
-let returnsString(): String = "string"
+let returnsInt(): Int64 =
+  5
 
-let returnsOptionSome(): Stdlib.Option.Option<Int64> =
-  Stdlib.Option.Option.Some(5)
 
-let returnsOptionNone(): Stdlib.Option.Option<'a> = Stdlib.Option.Option.None
+let returnsString(): String =
+  "string"
 
-let returnsResultOk(): Stdlib.Result.Result<Int64, String> =
-  Stdlib.Result.Result.Ok(5)
 
-let returnsResultError(): Stdlib.Result.Result<Char, Bool> =
-  Stdlib.Result.Result.Error(false)
+let returnsOptionSome(): Option<Int64> =
+  Option.Some(5)
+
+
+let returnsOptionNone(): Option<'a> =
+  Option.None
+
+
+let returnsResultOk(): Result<Int64, String> =
+  Result.Ok(5)
+
+
+let returnsResultError(): Result<Char, Bool> =
+  Result.Error(false)
+
 
 type X<'a> =
   | A(Int64)
   | B('a)
 
+
 let polyFn(a: X<'a>): X<'a> = a
+
 let strFn(a: X<String>): X<String> = a
-let definedPolyFn<'a>(a: X<'a>): X<'a> = a
+
+let definedPolyFn(a: X<'a>): X<'a> = a
+
 
 module Values =
   val stringValue = "test"
+
   val int128Value = 5s128
+
   val uint128Value = 5u128
+
   val intValue = 5
+
   val int64Value = 5
+
   val uint64Value = 5u64
+
   val int32Value = 5s32
+
   val uint32Value = 5u32
+
   val int16Value = 5s16
+
   val uint16Value = 5u16
+
   val int8Value = 5s8
+
   val uint8Value = 5u8
+
   val floatValue = 5.6
+
   val boolValue = true
+
   val tupleValue = (1, 2, 3)
+
   val charValue = 'c'
+
   val unitValue = ()
-  val enumValue = Stdlib.Option.Option.Some(5)
+
+  val enumValue = Option.Some(5)
+
   val listValue = [ 1, 2, 3 ]
+
   val dictValue = Dict { "a": 1, "b": 2, "c": 3 }
-  val recordValue = Stdlib.Cli.Host.Host {
-    os = Stdlib.Cli.OS.OS.Linux
-    arch = Stdlib.Cli.Architecture.Architecture.X86_64
-    defaultShell = Stdlib.Cli.Shell.Shell.Bash
-  }
+
+
+  val recordValue =
+    Stdlib.Cli.Host.Host
+      { os = Stdlib.Cli.OS.OS.Linux
+        arch = Stdlib.Cli.Architecture.Architecture.X86_64
+        defaultShell = Stdlib.Cli.Shell.Shell.Bash }

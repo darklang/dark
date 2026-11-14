@@ -10,7 +10,6 @@
 /// the way {{String.length}} and {{String.slice}} do.
 module Darklang.Stdlib.Regex
 
-
 /// Why a pattern could not be used, or a match could not be made.
 type RegexError =
   /// The pattern does not parse. The message says why, and the position is the
@@ -47,9 +46,9 @@ type Match =
     range: Range
     /// The unnamed groups, in order. {{None}} for a group that took no part in the
     /// match.
-    captures: List<Stdlib.Option.Option<Capture>>
+    captures: List<Option<Capture>>
     /// The named groups, `(?<name>...)`, by name.
-    namedCaptures: Dict<String, Stdlib.Option.Option<Capture>> }
+    namedCaptures: Dict<String, Option<Capture>> }
 
 
 type Options =
@@ -92,7 +91,7 @@ let scan(
   regex: Regex,
   limit: Limit,
   collect: Collect)
-  : Stdlib.Result.Result<(List<String> * List<Match>), RegexError> =
+  : Result<(List<String> * List<Match>), RegexError> =
   let firstOnly =
     match limit with
     | First -> true
@@ -119,100 +118,67 @@ let ofPattern(pattern: String): Regex =
 
 
 /// Checks <param pattern>, for reuse with <fn findMatch> and <fn findAllMatches>.
-let compile(pattern: String): Stdlib.Result.Result<Regex, RegexError> =
+let compile(pattern: String): Result<Regex, RegexError> =
   compileWith(pattern, defaultOptions)
 
 
 /// <fn compile>, with case-insensitive or multiline matching.
-let compileWith(
-  pattern: String,
-  options: Options)
-  : Stdlib.Result.Result<Regex, RegexError> =
+let compileWith(pattern: String, options: Options): Result<Regex, RegexError> =
   let regex = Regex { pattern = pattern, options = options }
-  scan("", regex, Limit.First, Collect.TextOnly) |> Stdlib.Result.map(fun _ -> regex)
+  scan("", regex, Limit.First, Collect.TextOnly) |> Result.map(fun _ -> regex)
 
 
 /// The first match of <param regex> in <param input>, with its groups.
-let findMatch(
-  input: String,
-  regex: Regex)
-  : Stdlib.Result.Result<Stdlib.Option.Option<Match>, RegexError> =
+let findMatch(input: String, regex: Regex): Result<Option<Match>, RegexError> =
   scan(input, regex, Limit.First, Collect.Matches)
-  |> Stdlib.Result.map(fun((_, matches)) -> Stdlib.List.head(matches))
+  |> Result.map(fun((_, matches)) -> List.head(matches))
 
 
 /// Every match of <param regex> in <param input>, with its groups.
-let findAllMatches(
-  input: String,
-  regex: Regex)
-  : Stdlib.Result.Result<List<Match>, RegexError> =
-  scan(input, regex, Limit.All, Collect.Matches)
-  |> Stdlib.Result.map(fun((_, matches)) -> matches)
+let findAllMatches(input: String, regex: Regex): Result<List<Match>, RegexError> =
+  scan(input, regex, Limit.All, Collect.Matches) |> Result.map(fun((_, matches)) -> matches)
 
 
 /// Whether the regex <param pattern> matches anywhere in <param input>.
-let isMatch(
-  input: String,
-  pattern: String)
-  : Stdlib.Result.Result<Bool, RegexError> =
+let isMatch(input: String, pattern: String): Result<Bool, RegexError> =
   // A match rather than Result.map: on a short input the lambda costs more than the regex.
   match scan(input, ofPattern(pattern), Limit.First, Collect.TextOnly) with
-  | Ok(([ _ ], _)) -> Stdlib.Result.Result.Ok(false)
-  | Ok(_) -> Stdlib.Result.Result.Ok(true)
-  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok(([_], _)) -> Result.Ok(false)
+  | Ok(_) -> Result.Ok(true)
+  | Error(e) -> Result.Error(e)
 
 
 /// The text of the first match of the regex <param pattern> in <param input>.
-let find(
-  input: String,
-  pattern: String)
-  : Stdlib.Result.Result<Stdlib.Option.Option<String>, RegexError> =
-  findMatch(input, ofPattern(pattern))
-  |> Stdlib.Result.map(fun m -> Stdlib.Option.map(m, fun m -> m.text))
+let find(input: String, pattern: String): Result<Option<String>, RegexError> =
+  findMatch(input, ofPattern(pattern)) |> Result.map(fun m -> Option.map(m, fun m -> m.text))
 
 
 /// The text of every match of the regex <param pattern> in <param input>.
-let findAll(
-  input: String,
-  pattern: String)
-  : Stdlib.Result.Result<List<String>, RegexError> =
-  findAllMatches(input, ofPattern(pattern))
-  |> Stdlib.Result.map(fun ms -> Stdlib.List.map(ms, fun m -> m.text))
+let findAll(input: String, pattern: String): Result<List<String>, RegexError> =
+  findAllMatches(input, ofPattern(pattern)) |> Result.map(fun ms -> List.map(ms, fun m -> m.text))
 
 
 /// Replaces the first match of the regex <param pattern> in <param input> with
 /// <param replacement>, as written: `$1` is just those two characters. For the
 /// groups, use <fn replaceWith>.
-let replace(
-  input: String,
-  pattern: String,
-  replacement: String)
-  : Stdlib.Result.Result<String, RegexError> =
+let replace(input: String, pattern: String, replacement: String): Result<String, RegexError> =
   match scan(input, ofPattern(pattern), Limit.First, Collect.TextOnly) with
-  | Ok((pieces, _)) -> Stdlib.Result.Result.Ok(Stdlib.String.join(pieces, replacement))
-  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok((pieces, _)) -> Result.Ok(String.join(pieces, replacement))
+  | Error(e) -> Result.Error(e)
 
 
 /// Replaces every match of the regex <param pattern> in <param input> with <param
 /// replacement>, as written: `$1` is just those two characters. For the groups, use
 /// <fn replaceAllWith>.
-let replaceAll(
-  input: String,
-  pattern: String,
-  replacement: String)
-  : Stdlib.Result.Result<String, RegexError> =
+let replaceAll(input: String, pattern: String, replacement: String): Result<String, RegexError> =
   match scan(input, ofPattern(pattern), Limit.All, Collect.TextOnly) with
-  | Ok((pieces, _)) -> Stdlib.Result.Result.Ok(Stdlib.String.join(pieces, replacement))
-  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok((pieces, _)) -> Result.Ok(String.join(pieces, replacement))
+  | Error(e) -> Result.Error(e)
 
 
 /// Replaces the first match of the regex <param pattern> in <param input> with what
 /// <param fn> makes of it.
-let replaceWith(
-  input: String,
-  pattern: String,
-  fn: Match -> String)
-  : Stdlib.Result.Result<String, RegexError> =
+let replaceWith(input: String, pattern: String, fn: Match -> String): Result<String, RegexError> =
   replaceMatches(input, ofPattern(pattern), Limit.First, fn)
 
 
@@ -222,7 +188,7 @@ let replaceAllWith(
   input: String,
   pattern: String,
   fn: Match -> String)
-  : Stdlib.Result.Result<String, RegexError> =
+  : Result<String, RegexError> =
   replaceMatches(input, ofPattern(pattern), Limit.All, fn)
 
 
@@ -233,27 +199,22 @@ let replaceMatches(
   regex: Regex,
   limit: Limit,
   fn: Match -> String)
-  : Stdlib.Result.Result<String, RegexError> =
+  : Result<String, RegexError> =
   scan(input, regex, limit, Collect.Matches)
-  |> Stdlib.Result.map(fun((pieces, matches)) ->
+  |> Result.map(fun((pieces, matches)) ->
     match pieces with
     | [] -> ""
-    | [ first, ...rest ] ->
-      let after =
-        Stdlib.List.map2Shortest(matches, rest, fun(m, piece) -> fn(m) + piece)
-
-      first + Stdlib.String.join(after, ""))
+    | [first, ...rest] ->
+      let after = List.map2Shortest(matches, rest, fun(m, piece) -> fn(m) + piece)
+      first + String.join(after, ""))
 
 
 /// Splits <param input> at every match of the regex <param pattern>. Groups in the
 /// pattern are not included in the result.
-let split(
-  input: String,
-  pattern: String)
-  : Stdlib.Result.Result<List<String>, RegexError> =
+let split(input: String, pattern: String): Result<List<String>, RegexError> =
   match scan(input, ofPattern(pattern), Limit.All, Collect.TextOnly) with
-  | Ok((pieces, _)) -> Stdlib.Result.Result.Ok(pieces)
-  | Error(e) -> Stdlib.Result.Result.Error(e)
+  | Ok((pieces, _)) -> Result.Ok(pieces)
+  | Error(e) -> Result.Error(e)
 
 
 /// <param text> with every character a pattern treats specially escaped, so it
@@ -262,4 +223,4 @@ let escape(text: String): String =
   // The backslash first, so the escapes the others add are not escaped again. Space
   // and `#` are special only in `(?x)` mode, and harmless to escape outside it.
   [ "\\", ".", "*", "+", "?", "|", "{", "}", "[", "]", "(", ")", "^", "$", "#", " " ]
-  |> Stdlib.List.fold(text, fun(acc, c) -> Stdlib.String.replaceAll(acc, c, "\\" + c))
+  |> List.fold(text, fun(acc, c) -> String.replaceAll(acc, c, "\\" + c))

@@ -12,7 +12,6 @@ module Darklang.SCM.Constraints
 // durable, for the same reason `Resolve` is an op: an ack that lives only locally re-reports forever, and
 // differently on each machine.
 
-
 /// What kind of thing a Constraint noticed.
 ///
 /// The type is here so the next kind is a case rather than a new command: an item left with no inbound
@@ -27,7 +26,6 @@ type Kind =
   /// a value reference's hash to a fn's produces code that claims one thing and points at another. Nothing
   /// breaks meanwhile: references resolve by hash, and the old item is still there.
   | KindChanged
-
   /// A deliberate DECISION of yours is no longer what the store reflects: you overrode a conflict to
   /// pin a name to one version, and a later ordinary edit rebound it.
   ///
@@ -38,12 +36,12 @@ type Kind =
   ///
   /// Only an override qualifies (see `SCM.PackageOps.supersededOverrides`).
   | DecisionSuperseded
-
   /// Two visible implementations of one trait for one type. Legal to store, and a call runs the
   /// newer of them: the same last-writer-wins rule that settles two bindings of one name, so every
   /// instance runs the same one. This says so, because the loser is still there and the second
   /// implementation usually arrives by sync while nobody is looking. Deprecate one to settle it.
   | RivalImplementations
+
 
 let kindToString(k: Kind): String =
   match k with
@@ -52,14 +50,16 @@ let kindToString(k: Kind): String =
   | DecisionSuperseded -> "decision-superseded"
   | RivalImplementations -> "rival-implementations"
 
+
 /// The other direction, for reading a kind back out of storage or a CLI argument.
-let kindFromString(s: String): Stdlib.Option.Option<Kind> =
+let kindFromString(s: String): Option<Kind> =
   match s with
-  | "stale-usage" -> Stdlib.Option.Option.Some(Kind.StaleUsage)
-  | "kind-changed" -> Stdlib.Option.Option.Some(Kind.KindChanged)
-  | "decision-superseded" -> Stdlib.Option.Option.Some(Kind.DecisionSuperseded)
-  | "rival-implementations" -> Stdlib.Option.Option.Some(Kind.RivalImplementations)
-  | _ -> Stdlib.Option.Option.None
+  | "stale-usage" -> Option.Some(Kind.StaleUsage)
+  | "kind-changed" -> Option.Some(Kind.KindChanged)
+  | "decision-superseded" -> Option.Some(Kind.DecisionSuperseded)
+  | "rival-implementations" -> Option.Some(Kind.RivalImplementations)
+  | _ -> Option.None
+
 
 /// The ways a finding of this kind can be RESOLVED, named, most-obvious first.
 ///
@@ -81,6 +81,7 @@ let resolutionsFor(k: Kind): List<String> =
   // Nothing automatic: the call already runs the newer one, and making that permanent is `deprecate`
   // on the other, its own verb with its own confirmation. Ack it, or pick.
   | RivalImplementations -> []
+
 
 /// Is <param choice> a resolution this kind offers?
 let offersResolution(k: Kind, choice: String): Bool =
@@ -104,17 +105,11 @@ type RivalChoice =
 /// to put in them, and the alternative is a case carrying fields it cannot honour.
 type FindingDetail =
   /// A usage still on an old version: what it references, and what that name means now.
-  | Versions(
-    using: LanguageTools.ProgramTypes.Hash,
-    current: LanguageTools.ProgramTypes.Hash)
-
+  | Versions(using: LanguageTools.ProgramTypes.Hash, current: LanguageTools.ProgramTypes.Hash)
   /// Two implementations of one trait for one type: the type, as printed, the other
   /// implementation (`usage` is this one, `dependency` the trait), and which of the two a call
   /// runs.
-  | Rivals(
-    self: String,
-    rival: LanguageTools.ProgramTypes.PackageLocation,
-    choice: RivalChoice)
+  | Rivals(self: String, rival: LanguageTools.ProgramTypes.PackageLocation, choice: RivalChoice)
 
 
 /// One finding: which kind it is, the usage it is about, the dependency involved, and whatever that kind
@@ -132,7 +127,10 @@ type Finding =
 
 let fqnOf(loc: LanguageTools.ProgramTypes.PackageLocation): String =
   let mods = Stdlib.String.join(loc.modules, ".")
-  if mods == "" then $"{loc.owner}.{loc.name}" else $"{loc.owner}.{mods}.{loc.name}"
+  if mods == "" then
+    $"{loc.owner}.{loc.name}"
+  else
+    $"{loc.owner}.{mods}.{loc.name}"
 
 
 /// The identity of a finding, and the semantics of an ack, are the same decision.
@@ -150,7 +148,6 @@ let findingId(
   discriminator: String)
   : String =
   let raw = $"{fqnOf(usage)}|{fqnOf(dependency)}|{discriminator}"
-
   let digest = Stdlib.Base16.encode(Stdlib.Crypto.sha256(Stdlib.Utf8.encode(raw)))
   Stdlib.String.toLowercase(Stdlib.String.first(digest, 8))
 
@@ -163,17 +160,23 @@ let outdatedFindings(edges: List<Deps.StaleReference>): List<Finding> =
     let using = LanguageTools.ProgramTypes.Reference.hash(target)
     let dependencyKind = LanguageTools.ProgramTypes.Reference.kind(target)
     Finding
-      { kind = if LanguageTools.ProgramTypes.Reference.kind(current) == dependencyKind then Kind.StaleUsage else Kind.KindChanged
+      { kind =
+          if LanguageTools.ProgramTypes.Reference.kind(current) == dependencyKind then
+            Kind.StaleUsage
+          else
+            Kind.KindChanged
         id = findingId(usage, dependency, LanguageTools.ProgramTypes.hashToString(using))
         usage = usage
         usageKind = LanguageTools.ProgramTypes.Reference.kind(caller)
         dependency = dependency
         dependencyKind = dependencyKind
-        detail = FindingDetail.Versions(using, LanguageTools.ProgramTypes.Reference.hash(current)) })
+        detail =
+          FindingDetail.Versions(using, LanguageTools.ProgramTypes.Reference.hash(current)) })
   |> Stdlib.List.uniqueBy(fun f -> f.id)
   |> Stdlib.List.sortBy(fun f -> fqnOf(f.usage) + ":" + fqnOf(f.dependency))
 
-let outdatedUsagesOn(branchId: Uuid): Stdlib.Result.Result<List<Finding>, String> =
+
+let outdatedUsagesOn(branchId: Uuid): Result<List<Finding>, String> =
   Deps.review(branchId, []) |> Stdlib.Result.map(fun((stale, _)) -> outdatedFindings(stale))
 
 
@@ -189,8 +192,7 @@ let outdatedUsagesOn(branchId: Uuid): Stdlib.Result.Result<List<Finding>, String
 /// Deliberately NOT scoped to a branch: a constraint is a property of the STORE, so a branch filter would
 /// make an ack given on main stop counting the moment you switched.
 let ackedIds(): List<String> =
-  SCM.Conflicts.query(SCM.Conflicts.ConflictFilter.AckedConstraints)
-  |> Stdlib.List.map(fun row -> row.id)
+  Conflicts.query(Conflicts.ConflictFilter.AckedConstraints) |> Stdlib.List.map(fun row -> row.id)
 
 
 /// A deliberate OVERRIDE of yours that a later ordinary edit undid.
@@ -202,8 +204,8 @@ let ackedIds(): List<String> =
 /// The `Finding` fields are the stale-usage ones reused: `dependency` is the location ITSELF, because the
 /// thing whose version moved is this name rather than something it calls. That is the one field here that
 /// reads oddly, and it is why `line` in the CLI prints this kind separately.
-let detectSupersededDecisions(): Stdlib.Result.Result<List<Finding>, String> =
-  SCM.PackageOps.supersededOverrides()
+let detectSupersededDecisions(): Result<List<Finding>, String> =
+  PackageOps.supersededOverrides()
   |> Stdlib.Result.map(fun entries ->
     entries
     |> Stdlib.List.map(fun entry ->
@@ -212,8 +214,7 @@ let detectSupersededDecisions(): Stdlib.Result.Result<List<Finding>, String> =
       // The item's REAL kind, from the live binding: a hardcoded Fn feeds `--json` the wrong kind for a
       // decision on a type or value.
       let kind =
-        SCM.Propagation.kindAt(loc)
-        |> Stdlib.Option.withDefault(LanguageTools.ProgramTypes.ItemKind.Fn)
+        Propagation.kindAt(loc) |> Stdlib.Option.withDefault(LanguageTools.ProgramTypes.ItemKind.Fn)
 
       Finding
         { kind = Kind.DecisionSuperseded
@@ -225,8 +226,7 @@ let detectSupersededDecisions(): Stdlib.Result.Result<List<Finding>, String> =
           detail =
             FindingDetail.Versions(
               LanguageTools.ProgramTypes.Hash.Hash(chosen),
-              LanguageTools.ProgramTypes.Hash.Hash(live)
-            ) }))
+              LanguageTools.ProgramTypes.Hash.Hash(live)) }))
 
 
 /// Two visible implementations of one trait for one type, on <param branchId>, and which one a
@@ -246,12 +246,12 @@ let detectSupersededDecisions(): Stdlib.Result.Result<List<Finding>, String> =
 /// the read is cached per (branch, trait), so `dark status` can afford it.
 /// <param t> as a key that two spellings of one type (`Point`, `Tests.Tr.Point`) share: a named
 /// type is its hash, so nothing is looked up in the store.
-let typeKey(
-  branchId: Uuid,
-  t: LanguageTools.RuntimeTypes.TypeReference)
-  : String =
+let typeKey(branchId: Uuid, t: LanguageTools.RuntimeTypes.TypeReference): String =
   let keys(ts: List<LanguageTools.RuntimeTypes.TypeReference>): String =
-    ts |> Stdlib.List.map(fun a -> typeKey(branchId, a)) |> Stdlib.String.join(", ")
+    ts
+    |> Stdlib.List.map(fun a -> typeKey(branchId, a))
+    |> Stdlib.String.join(", ")
+
   match t with
   | TStream(inner) -> $"Stream<{typeKey(branchId, inner)}>"
   | TTuple(first, second, rest) -> $"({keys(Stdlib.List.concat([ first, second ], rest))})"
@@ -264,17 +264,20 @@ let typeKey(
   | TFn(args, ret) -> $"({keys(args)}) -> {typeKey(branchId, ret)}"
   | other -> PrettyPrinter.RuntimeTypes.typeReference(branchId, other)
 
+
 /// Pairs of candidates with the same self-type key, in input order, earlier first.
 /// Keep later candidates by key so unrelated implementations are never compared.
 let rivalPairs(candidates: List<(String * 'a)>): List<('a * 'a)> =
   let (_groups, pairs) =
     candidates
     |> Stdlib.List.reverse
-    |> Stdlib.List.fold((Dict { }, []), fun((groups, pairs), (key, candidate)) ->
+    |> Stdlib.List.fold((Dict {}, []), fun((groups, pairs), (key, candidate)) ->
       let later = Stdlib.Dict.get(groups, key) |> Stdlib.Option.withDefault([])
       let nextPairs = Stdlib.List.map(later, fun other -> (candidate, other))
-      (Stdlib.Dict.set(groups, key, Stdlib.List.prepend(later, candidate)),
-       Stdlib.List.concat(nextPairs, pairs)))
+      (
+        Stdlib.Dict.set(groups, key, Stdlib.List.prepend(later, candidate)),
+        Stdlib.List.concat(nextPairs, pairs)))
+
   pairs
 
 
@@ -288,7 +291,6 @@ let detectRivalImplementations(branchId: Uuid): List<Finding> =
         exactMatch = false }
 
   let traits = (LanguageTools.PackageManager.Search.search(branchId, query)).traits
-
   traits
   |> Stdlib.List.map(fun t ->
     // The self type as compared. A name resolution carries the name as WRITTEN (`Point`
@@ -305,24 +307,26 @@ let detectRivalImplementations(branchId: Uuid): List<Finding> =
     |> rivalPairs
     |> Stdlib.List.filterMap(fun((c, d)) ->
       let selfStr = PrettyPrinter.RuntimeTypes.typeReference(branchId, c.self)
-      let locOf(h: LanguageTools.ProgramTypes.Hash): Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
+      let locOf(
+        h: LanguageTools.ProgramTypes.Hash)
+        : Option<LanguageTools.ProgramTypes.PackageLocation> =
         LanguageTools.PackageManager.pickLocation(
           LanguageTools.PackageManager.PickContext.empty,
           LanguageTools.PackageManager.TraitImpl.locations(branchId, h))
+
       match locOf(c.source), locOf(d.source) with
       | Some(mine), Some(other) ->
         let cHash = LanguageTools.ProgramTypes.hashToString(c.source)
         let dHash = LanguageTools.ProgramTypes.hashToString(d.source)
-
         let choice =
           if c.stamp == "" && d.stamp == "" then
             RivalChoice.Neither
-          else if SCM.Conflicts.beats(c.stamp, cHash, d.stamp, dHash) then
+          else if Conflicts.beats(c.stamp, cHash, d.stamp, dHash) then
             RivalChoice.Mine
           else
             RivalChoice.Theirs
 
-        Stdlib.Option.Option.Some(
+        Option.Some(
           Finding
             { kind = Kind.RivalImplementations
               id = findingId(mine, t.location, $"{selfStr}|{fqnOf(other)}")
@@ -331,13 +335,13 @@ let detectRivalImplementations(branchId: Uuid): List<Finding> =
               dependency = t.location
               dependencyKind = LanguageTools.ProgramTypes.ItemKind.Trait
               detail = FindingDetail.Rivals(selfStr, other, choice) })
-      | _, _ -> Stdlib.Option.Option.None))
+      | _, _ -> Option.None))
   |> Stdlib.List.flatten
 
 
 /// Find outdated references on a non-main branch, including inherited callers.
-let detectOutdatedUsagesOn(branchId: Uuid): Stdlib.Result.Result<List<Finding>, String> =
-  if SCM.Branch.isMain(branchId) then Stdlib.Result.Result.Ok([]) else outdatedUsagesOn(branchId)
+let detectOutdatedUsagesOn(branchId: Uuid): Result<List<Finding>, String> =
+  if Branch.isMain(branchId) then Result.Ok([]) else outdatedUsagesOn(branchId)
 
 
 /// Everything detection turned up, and everything it could not look at.
@@ -349,7 +353,8 @@ type Detection =
     /// One sentence per detector that could not run. Empty is the normal case.
     blocked: List<String> }
 
-let detectWithOutdated(outdated: Stdlib.Result.Result<List<Finding>, String>): Detection =
+
+let detectWithOutdated(outdated: Result<List<Finding>, String>): Detection =
   let (outdated, outdatedBlocked) =
     match outdated with
     | Ok(fs) -> (fs, [])
@@ -364,14 +369,12 @@ let detectWithOutdated(outdated: Stdlib.Result.Result<List<Finding>, String>): D
   Detection
     { findings =
         Stdlib.List.flatten(
-          [ outdated
-            decisions
-            detectRivalImplementations(PackageOps.currentBranch()) ])
+          [ outdated, decisions, detectRivalImplementations(PackageOps.currentBranch()) ])
       blocked = Stdlib.List.concat(outdatedBlocked, decisionsBlocked) }
 
 
 /// Findings that have not been acknowledged.
-let pendingWithOutdated(outdated: Stdlib.Result.Result<List<Finding>, String>): Detection =
+let pendingWithOutdated(outdated: Result<List<Finding>, String>): Detection =
   let ackedSet =
     ackedIds()
     |> Stdlib.List.map(fun a -> (a, true))
@@ -396,6 +399,7 @@ let pendingWithOutdated(outdated: Stdlib.Result.Result<List<Finding>, String>): 
 let detectAll(): Detection =
   detectWithOutdated(outdatedUsagesOn(PackageOps.currentBranch()))
 
+
 let pending(): Detection =
   pendingWithOutdated(outdatedUsagesOn(PackageOps.currentBranch()))
 
@@ -404,11 +408,7 @@ let pending(): Detection =
 /// machine you typed it on re-reports forever everywhere else, and differently on each of them.
 ///
 /// The fold writes the `conflicts` row, so that table is derived rather than a second source of truth.
-let ack(
-  branchId: Uuid,
-  s: Finding,
-  note: String)
-  : Stdlib.Result.Result<Unit, String> =
+let ack(branchId: Uuid, s: Finding, note: String): Result<Unit, String> =
   // The default has to name the finding it answers. Only StaleUsage is a use of something else; for
   // the other two `dependency` IS the name itself, and "stale use of X" describes nothing that happened.
   let reason =
@@ -419,7 +419,8 @@ let ack(
       | StaleUsage -> $"stale use of {fqnOf(s.dependency)}"
       | KindChanged -> $"{fqnOf(s.dependency)} is a different kind of item now"
       | DecisionSuperseded -> $"decision on {fqnOf(s.usage)} superseded"
-      | RivalImplementations -> $"{fqnOf(s.usage)} is one of two implementations of {fqnOf(s.dependency)}"
+      | RivalImplementations ->
+        $"{fqnOf(s.usage)} is one of two implementations of {fqnOf(s.dependency)}"
 
   let op =
     LanguageTools.ProgramTypes.PackageOp.Decision(
@@ -432,9 +433,8 @@ let ack(
       $"ack:{s.id}",
       s.usage,
       reason,
-      LanguageTools.ProgramTypes.DecisionKind.Ack(s.id)
-    )
+      LanguageTools.ProgramTypes.DecisionKind.Ack(s.id))
 
-  match SCM.PackageOps.add(branchId, [ op ]) with
-  | Ok(_) -> Stdlib.Result.Result.Ok(())
-  | Error(e) -> Stdlib.Result.Result.Error(e)
+  match PackageOps.add(branchId, [ op ]) with
+  | Ok(_) -> Result.Ok()
+  | Error(e) -> Result.Error(e)

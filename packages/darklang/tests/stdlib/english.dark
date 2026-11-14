@@ -13,6 +13,7 @@ test articleFor =
       Stdlib.English.articleFor("unknown") |> Stdlib.Test.equal("an")
       Stdlib.English.articleFor("") |> Stdlib.Test.equal("") ])
 
+
 test pluralize =
   Stdlib.Test.all(
     [ Stdlib.English.pluralize("instance") |> Stdlib.Test.equal("instances")
@@ -24,6 +25,7 @@ test pluralize =
       // No -y -> -ies rule, and no irregulars.
       Stdlib.English.pluralize("entry") |> Stdlib.Test.equal("entrys")
       Stdlib.English.pluralize("child") |> Stdlib.Test.equal("childs") ])
+
 
 test toOrdinal =
   Stdlib.Test.all(

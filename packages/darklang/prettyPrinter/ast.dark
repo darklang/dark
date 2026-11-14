@@ -22,7 +22,6 @@ let line(depth: Int64, label: String, detail: String): Line =
 
 let clip(s: String): String =
   let s = Stdlib.String.replaceAll(s, "\n", "\\n")
-
   if Stdlib.String.length(s) <= 48 then
     s
   else
@@ -245,6 +244,7 @@ let expr(ctx: Context, depth: Int64, e: LanguageTools.ProgramTypes.Expr): List<L
     let n = Stdlib.display(Stdlib.List.length(parts))
     let partLines =
       Stdlib.List.map(parts, fun p -> pipeExpr(ctx, depth + 1, p)) |> Stdlib.List.flatten
+
     Stdlib.List.flatten([ here("Pipe", $"{n} stages"), child(lhs), partLines ])
 
 
@@ -264,6 +264,7 @@ let pipeExpr(ctx: Context, depth: Int64, p: LanguageTools.ProgramTypes.PipeExpr)
     let n = NameResolution.typeName(ctx, typeName)
     let fieldLines =
       Stdlib.List.map(fields, fun f -> expr(ctx, depth + 1, f)) |> Stdlib.List.flatten
+
     Stdlib.List.prepend(fieldLines, line(depth, "PipeEnum", $"{n}.{caseName}"))
   | EPipeVariable(_, varName, args) ->
     let argLines = Stdlib.List.map(args, fun a -> expr(ctx, depth + 1, a)) |> Stdlib.List.flatten

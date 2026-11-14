@@ -1,38 +1,38 @@
 module Darklang.Stdlib.Stream
 
-
 /// Builds a Stream that yields the elements of <param items> in order.
-let fromList(items: List<'a>): Stream<'a> = Builtin.streamFromList<'a>(items)
+let fromList(items: List<'a>): Stream<'a> =
+  Builtin.streamFromList<'a>(items)
 
 
 /// Builds a Stream by repeatedly applying <param step> to <param seed>.
 /// Each call returns either {{Some (element, nextSeed)}} to yield an
 /// element and continue, or {{None}} to terminate.
-let unfold(
-  seed: 's,
-  step: 's -> Stdlib.Option.Option<('a * 's)>)
-  : Stream<'a> =
+let unfold(seed: 's, step: 's -> Option<('a * 's)>): Stream<'a> =
   Builtin.streamUnfold<'s, 'a>(seed, step)
 
 
 /// Pulls the next element from <param stream>. Returns {{None}} when
 /// the stream is exhausted; subsequent calls stay {{None}}.
-let next(stream: Stream<'a>): Stdlib.Option.Option<'a> =
+let next(stream: Stream<'a>): Option<'a> =
   Builtin.streamNext<'a>(stream)
 
 
 /// Drains <param stream> into a List. Forces every element.
-let toList(stream: Stream<'a>): List<'a> = Builtin.streamToList<'a>(stream)
+let toList(stream: Stream<'a>): List<'a> =
+  Builtin.streamToList<'a>(stream)
 
 
 /// Drains a byte stream into a Bytes. Uses the chunked fast path when
 /// the source supports it (e.g. HttpClient.stream).
-let toBytes(stream: Stream<UInt8>): Bytes = Builtin.streamToBytes(stream)
+let toBytes(stream: Stream<UInt8>): Bytes =
+  Builtin.streamToBytes(stream)
 
 
 /// Closes <param stream>, releasing any IO resources its source held.
 /// Idempotent. Subsequent pulls return {{None}}.
-let close(stream: Stream<'a>): Unit = Builtin.streamClose<'a>(stream)
+let close(stream: Stream<'a>): Unit =
+  Builtin.streamClose<'a>(stream)
 
 
 /// Returns a new Stream that yields {{fn x}} for each element {{x}}

@@ -18,32 +18,33 @@ type ParseError =
 
 /// Split <param d> into {{(unscaled, scale)}}, where <param d> is
 /// {{unscaled / 10 ** scale}}: {{Decimal.toParts(1.10dec) == (110z, 2)}}
-let toParts(d: Decimal): (BigInt * Int64) = Builtin.decimalToParts(d)
+let toParts(d: Decimal): (BigInt * Int64) =
+  Builtin.decimalToParts(d)
 
 
 /// The decimal {{unscaled / 10 ** scale}}, keeping <param scale>:
 /// {{Decimal.fromParts(110z, 2) == Some(1.10dec)}}. {{None}} when <param scale> is outside
 /// 0 to 28 or <param unscaled> needs more than 96 bits.
-let fromParts(
-  unscaled: BigInt,
-  scale: Int64)
-  : Stdlib.Option.Option<Decimal> =
+let fromParts(unscaled: BigInt, scale: Int64): Option<Decimal> =
   Builtin.decimalFromParts(unscaled, scale)
 
 
 impl Add for Decimal =
   /// Add <param a> and <param b>; the result has the larger of their scales
-  let add(a: Decimal, b: Decimal): Decimal = Builtin.add(a, b)
+  let add(a: Decimal, b: Decimal): Decimal =
+    Builtin.add(a, b)
 
 
 impl Subtract for Decimal =
   /// Subtract <param b> from <param a>
-  let subtract(a: Decimal, b: Decimal): Decimal = Builtin.subtract(a, b)
+  let subtract(a: Decimal, b: Decimal): Decimal =
+    Builtin.subtract(a, b)
 
 
 impl Multiply for Decimal =
   /// Multiply <param a> by <param b>; the scales add, up to 28 places
-  let multiply(a: Decimal, b: Decimal): Decimal = Builtin.multiply(a, b)
+  let multiply(a: Decimal, b: Decimal): Decimal =
+    Builtin.multiply(a, b)
 
 
 impl Divide for Decimal =
@@ -51,7 +52,8 @@ impl Divide for Decimal =
   /// {{1dec / 3dec}} is {{0.3333333333333333333333333333dec}}. Raises on division by zero;
   /// <fn Decimal.checkedDivide> returns {{Error DivisionByZero}} instead.
   /// To fix the places of a quotient, follow it with <fn Decimal.round>.
-  let divide(a: Decimal, b: Decimal): Decimal = Builtin.divide(a, b)
+  let divide(a: Decimal, b: Decimal): Decimal =
+    Builtin.divide(a, b)
 
 
 impl Negate for Decimal =
@@ -63,23 +65,30 @@ impl Negate for Decimal =
 
 impl Compare for Decimal =
   /// Returns true if <param a> is less than <param b>. Scale does not matter.
-  let lessThan(a: Decimal, b: Decimal): Bool = Builtin.lessThan(a, b)
+  let lessThan(a: Decimal, b: Decimal): Bool =
+    Builtin.lessThan(a, b)
+
   /// Returns true if <param a> is less than or equal to <param b>
   let lessThanOrEqualTo(a: Decimal, b: Decimal): Bool =
     Builtin.lessThanOrEqualTo(a, b)
+
   /// Returns true if <param a> is greater than <param b>
-  let greaterThan(a: Decimal, b: Decimal): Bool = Builtin.greaterThan(a, b)
+  let greaterThan(a: Decimal, b: Decimal): Bool =
+    Builtin.greaterThan(a, b)
+
   /// Returns true if <param a> is greater than or equal to <param b>
   let greaterThanOrEqualTo(a: Decimal, b: Decimal): Bool =
     Builtin.greaterThanOrEqualTo(a, b)
 
 
 impl Zero for Decimal =
-  let zero(): Decimal = 0dec
+  let zero(): Decimal =
+    0dec
 
 
 impl One for Decimal =
-  let one(): Decimal = 1dec
+  let one(): Decimal =
+    1dec
 
 
 impl Display for Decimal =
@@ -88,17 +97,16 @@ impl Display for Decimal =
   let display(d: Decimal): String =
     let (unscaled, scale) = toParts(d)
     let sign = if unscaled < 0z then "-" else ""
-    let digits = Stdlib.display(Stdlib.abs(unscaled))
-
+    let digits = Stdlib.display(abs(unscaled))
     if scale == 0 then
       sign + digits
     else
       // at least one digit before the point: 0.05 is "005" before the split
-      let padCount = scale + 1 - Stdlib.String.length(digits)
-      let padding = (Stdlib.String.checkedRepeat("0", padCount) |> Stdlib.Result.withDefault(""))
+      let padCount = scale + 1 - String.length(digits)
+      let padding = String.checkedRepeat("0", padCount) |> Result.withDefault("")
       let padded = padding + digits
-      let whole = Stdlib.String.dropLast(padded, scale)
-      let fraction = Stdlib.String.last(padded, scale)
+      let whole = String.dropLast(padded, scale)
+      let fraction = String.last(padded, scale)
       sign + whole + "." + fraction
 
 
@@ -117,8 +125,9 @@ let normalize(d: Decimal): Decimal =
   | Some(n) -> n
   | None -> d
 
+
 let __stripZeros(unscaled: BigInt, scale: Int64): (BigInt * Int64) =
-  let tenth = Stdlib.BigInt.checkedDivide(unscaled, 10z) |> Stdlib.Result.withDefault(0z)
+  let tenth = BigInt.checkedDivide(unscaled, 10z) |> Result.withDefault(0z)
   if scale > 0 && tenth * 10z == unscaled then
     __stripZeros(tenth, scale - 1)
   else
@@ -153,42 +162,36 @@ type RoundError =
 /// {{Decimal.roundWith(2.345dec, 2, RoundingMode.HalfEven) == Ok(2.34dec)}}. More places
 /// than <param d> has pads with zeros. {{Error PlacesOutOfRange}} when <param places> is
 /// outside 0 to 28, and {{Error OutOfRange}} when the padded value needs more than 96 bits.
-let roundWith(
-  d: Decimal,
-  places: Int64,
-  mode: RoundingMode)
-  : Stdlib.Result.Result<Decimal, RoundError> =
+let roundWith(d: Decimal, places: Int64, mode: RoundingMode): Result<Decimal, RoundError> =
   if places < 0 || places > 28 then
-    Error(RoundError.PlacesOutOfRange)
+    Result.Error(RoundError.PlacesOutOfRange)
   else
     let (unscaled, s) = toParts(d)
-
     let rescaled =
       if places >= s then
-        unscaled * (10z ** Stdlib.BigInt.fromInt64(places - s))
+        unscaled * 10z ** BigInt.fromInt64(places - s)
       else
-        let divisor = 10z ** Stdlib.BigInt.fromInt64(s - places)
+        let divisor = 10z ** BigInt.fromInt64(s - places)
         let negative = unscaled < 0z
-        let magnitude = Stdlib.abs(unscaled)
+        let magnitude = abs(unscaled)
         let kept = magnitude / divisor
         let dropped = magnitude % divisor
         let twice = dropped * 2z
-
         let up =
           match mode with
           | HalfAwayFromZero -> twice >= divisor
-          | HalfEven -> twice > divisor || (twice == divisor && kept % 2z == 1z)
+          | HalfEven -> twice > divisor || twice == divisor && kept % 2z == 1z
           | TowardsZero -> false
           | AwayFromZero -> dropped > 0z
           | Floor -> negative && dropped > 0z
-          | Ceiling -> Stdlib.Bool.not(negative) && dropped > 0z
+          | Ceiling -> Bool.not(negative) && dropped > 0z
 
         let kept = if up then kept + 1z else kept
         if negative then 0z - kept else kept
 
     match fromParts(rescaled, places) with
-    | Some(r) -> Ok(r)
-    | None -> Error(RoundError.OutOfRange)
+    | Some(r) -> Result.Ok(r)
+    | None -> Result.Error(RoundError.OutOfRange)
 
 
 /// <param d> rounded to exactly <param places> places, half away from zero, the way
@@ -197,10 +200,7 @@ let roundWith(
 /// rounds; more pads, so {{Decimal.round(5dec, 2)}} prints as 5.00. {{Error PlacesOutOfRange}}
 /// when <param places> is outside 0 to 28, and {{Error OutOfRange}} when the padded value
 /// needs more than 96 bits. <fn Decimal.roundWith> takes the other rounding modes.
-let round(
-  d: Decimal,
-  places: Int64)
-  : Stdlib.Result.Result<Decimal, RoundError> =
+let round(d: Decimal, places: Int64): Result<Decimal, RoundError> =
   roundWith(d, places, RoundingMode.HalfAwayFromZero)
 
 
@@ -209,10 +209,7 @@ let round(
 /// {{Decimal.truncate(-2.349dec, 2) == Ok(-2.34dec)}}. {{Error PlacesOutOfRange}} when
 /// <param places> is outside 0 to 28, and {{Error OutOfRange}} when the padded value
 /// needs more than 96 bits.
-let truncate(
-  d: Decimal,
-  places: Int64)
-  : Stdlib.Result.Result<Decimal, RoundError> =
+let truncate(d: Decimal, places: Int64): Result<Decimal, RoundError> =
   roundWith(d, places, RoundingMode.TowardsZero)
 
 
@@ -235,20 +232,17 @@ let ceiling(d: Decimal): Decimal =
 /// {{Decimal.precision(123.40dec) == 5}}, {{Decimal.precision(0.05dec) == 1}}. At most 29.
 let precision(d: Decimal): Int64 =
   let (unscaled, _) = toParts(d)
-  Stdlib.String.length(Stdlib.display(Stdlib.abs(unscaled)))
+  String.length(display(abs(unscaled)))
 
 
 /// <param base> to the whole power <param exponent>, by multiplying, so as exact as
 /// <fn Decimal.multiply> is: {{Decimal.power(1.1dec, 2) == 1.21dec}}. A negative
 /// <param exponent> divides: {{Decimal.power(2dec, -2) == 0.25dec}}. Raises when the
 /// result is out of range, or for zero to a negative power.
-let power(`base`: Decimal, exponent: Int64): Decimal =
-  let n = Stdlib.BigInt.fromInt64(exponent)
+let power(base: Decimal, exponent: Int64): Decimal =
+  let n = BigInt.fromInt64(exponent)
+  if n < 0z then 1dec / __powerOf(base, 0z - n) else __powerOf(base, n)
 
-  if n < 0z then
-    1dec / __powerOf(`base`, 0z - n)
-  else
-    __powerOf(`base`, n)
 
 let __powerOf(b: Decimal, n: BigInt): Decimal =
   if n == 0z then
@@ -263,62 +257,62 @@ impl Modulo for Decimal =
   /// <param a> wrapped around so that {{0 <= result < b}}, exactly:
   /// {{-0.5dec % 2dec == 1.5dec}}. The modulus <param b> must be greater than 0.
   /// Use <fn Decimal.checkedRemainder> for a result with <param a>'s sign.
-  let modulo(a: Decimal, b: Decimal): Decimal = Builtin.modulo(a, b)
+  let modulo(a: Decimal, b: Decimal): Decimal =
+    Builtin.modulo(a, b)
 
 
 /// Divides <param a> by <param b> as `/` does, or {{Error DivisionByZero}} where `/` raises.
-let checkedDivide(
-  a: Decimal,
-  b: Decimal)
-  : Stdlib.Result.Result<Decimal, Stdlib.Math.DivisionError> =
-  if b == 0dec then Error(Stdlib.Math.DivisionError.DivisionByZero) else Ok(a / b)
+let checkedDivide(a: Decimal, b: Decimal): Result<Decimal, Math.DivisionError> =
+  if b == 0dec then
+    Result.Error(Math.DivisionError.DivisionByZero)
+  else
+    Result.Ok(a / b)
 
 
 /// <param a> wrapped around so that {{0 <= res < b}}, or where `%` raises,
 /// {{Error ZeroModulus}} or {{Error NegativeModulus}}
-let checkedMod(a: Decimal, b: Decimal): Stdlib.Result.Result<Decimal, Stdlib.Math.ModulusError> =
+let checkedMod(a: Decimal, b: Decimal): Result<Decimal, Math.ModulusError> =
   if b == 0dec then
-    Error(Stdlib.Math.ModulusError.ZeroModulus)
+    Result.Error(Math.ModulusError.ZeroModulus)
   else if b < 0dec then
-    Error(Stdlib.Math.ModulusError.NegativeModulus)
+    Result.Error(Math.ModulusError.NegativeModulus)
   else
-    Ok(a % b)
+    Result.Ok(a % b)
 
 
 /// What is left after taking whole multiples of <param divisor> out of <param value>,
 /// exactly, with <param value>'s sign:
 /// {{Decimal.checkedRemainder(-5.5dec, 2dec) == Ok(-1.5dec)}}. The sign of <param divisor>
 /// does not matter. {{Error DivisionByZero}} when <param divisor> is zero.
-let checkedRemainder(
-  value: Decimal,
-  divisor: Decimal)
-  : Stdlib.Result.Result<Decimal, Stdlib.Math.DivisionError> =
+let checkedRemainder(value: Decimal, divisor: Decimal): Result<Decimal, Math.DivisionError> =
   if divisor == 0dec then
-    Stdlib.Result.Result.Error(Stdlib.Math.DivisionError.DivisionByZero)
+    Result.Error(Math.DivisionError.DivisionByZero)
   else
-    let r = Builtin.modulo(Stdlib.abs(value), Stdlib.abs(divisor))
-    Stdlib.Result.Result.Ok(if value < 0dec then -(r) else r)
+    let r = Builtin.modulo(abs(value), abs(divisor))
+    Result.Ok(if value < 0dec then -r else r)
 
 
 /// The integer part of <param d>, rounding towards zero:
 /// {{Decimal.toBigInt(-2.9dec) == -2z}}
 let toBigInt(d: Decimal): BigInt =
   let (unscaled, s) = toParts(d)
-  unscaled / (10z ** Stdlib.BigInt.fromInt64(s))
+  unscaled / 10z ** BigInt.fromInt64(s)
 
 
 /// <param i> as a decimal with no places, or {{None}} past 96 bits
-let fromBigInt(i: BigInt): Stdlib.Option.Option<Decimal> = fromParts(i, 0)
+let fromBigInt(i: BigInt): Option<Decimal> =
+  fromParts(i, 0)
 
 
 /// The integer part of <param d>, rounding towards zero, or {{None}} past Int64:
 /// {{Decimal.toInt64(-2.9dec) == Some(-2)}}
-let toInt64(d: Decimal): Stdlib.Option.Option<Int64> = Stdlib.BigInt.toInt64(toBigInt(d))
+let toInt64(d: Decimal): Option<Int64> =
+  BigInt.toInt64(toBigInt(d))
 
 
 /// <param i> as a decimal with no places. Every Int64 fits.
 let fromInt64(i: Int64): Decimal =
-  match fromParts(Stdlib.BigInt.fromInt64(i), 0) with
+  match fromParts(BigInt.fromInt64(i), 0) with
   | Some(d) -> d
   // unreachable: 64 bits is less than 96
   | None -> 0dec
@@ -327,7 +321,7 @@ let fromInt64(i: Int64): Decimal =
 /// The <type Float> nearest <param d>. Exact only when <param d> happens to be a
 /// binary fraction, which is the reason <type Decimal> exists.
 let toFloat(d: Decimal): Float =
-  match Stdlib.Float.parse(Stdlib.display(d)) with
+  match Float.parse(display(d)) with
   | Ok(f) -> f
   // unreachable: every decimal prints as digits a float parses
   | Error(_) -> 0.0
@@ -336,15 +330,15 @@ let toFloat(d: Decimal): Float =
 /// The decimal that <param f> prints as, {{Decimal.fromFloat(0.1) == Some(0.1dec)}},
 /// since a Float prints as the shortest decimal that reads back as itself. {{None}}
 /// for NaN, the infinities, and anything out of range.
-let fromFloat(f: Float): Stdlib.Option.Option<Decimal> =
-  match parse(Stdlib.display(f)) with
-  | Ok(d) -> Stdlib.Option.Option.Some(d)
-  | Error(_) -> Stdlib.Option.Option.None
+let fromFloat(f: Float): Option<Decimal> =
+  match parse(display(f)) with
+  | Ok(d) -> Option.Some(d)
+  | Error(_) -> Option.None
 
 
 /// The <type Float32> nearest <param d>, rounded once from the decimal
 let toFloat32(d: Decimal): Float32 =
-  match Stdlib.Float32.parse(Stdlib.display(d)) with
+  match Float32.parse(display(d)) with
   | Ok(f) -> f
   // unreachable: every decimal prints as digits a Float32 parses
   | Error(_) -> 0.0f32
@@ -353,10 +347,10 @@ let toFloat32(d: Decimal): Float32 =
 /// The decimal that <param f> prints as, so {{Decimal.fromFloat32(0.1f32) == Some(0.1dec)}}
 /// although the Float32 is not exactly a tenth. {{None}} for NaN, the infinities, and
 /// anything out of range.
-let fromFloat32(f: Float32): Stdlib.Option.Option<Decimal> =
-  match parse(Stdlib.display(f)) with
-  | Ok(d) -> Stdlib.Option.Option.Some(d)
-  | Error(_) -> Stdlib.Option.Option.None
+let fromFloat32(f: Float32): Option<Decimal> =
+  match parse(display(f)) with
+  | Ok(d) -> Option.Some(d)
+  | Error(_) -> Option.None
 
 
 /// Parse <param s> as a decimal, keeping the places written:
@@ -366,71 +360,65 @@ let fromFloat32(f: Float32): Stdlib.Option.Option<Decimal> =
 /// and a missing whole part ({{".5"}}). Refuses anything it cannot hold exactly:
 /// more than 28 places, or more than 96 bits, is {{Error(OutOfRange)}}, never a
 /// rounded value.
-let parse(s: String): Stdlib.Result.Result<Decimal, ParseError> =
-  let negative = Stdlib.String.startsWith(s, "-")
-  let unsigned =
-    if negative || Stdlib.String.startsWith(s, "+") then Stdlib.String.dropFirst(s, 1)
-    else s
-  let body = Stdlib.String.toLowercase(unsigned)
-
+let parse(s: String): Result<Decimal, ParseError> =
+  let negative = String.startsWith(s, "-")
+  let unsigned = if negative || String.startsWith(s, "+") then String.dropFirst(s, 1) else s
+  let body = String.toLowercase(unsigned)
   let isDigits(t: String): Bool =
-    (Stdlib.Bool.not(Stdlib.String.isEmpty(t)))
-    && (Stdlib.List.all(Stdlib.String.toList(t), Stdlib.Char.isDigit))
+    Bool.not(String.isEmpty(t)) && List.all(String.toList(t), Char.isDigit)
 
-  let exponentOf(e: String): Stdlib.Option.Option<BigInt> =
+  let exponentOf(e: String): Option<BigInt> =
     let unsigned =
-      if Stdlib.String.startsWith(e, "-") || Stdlib.String.startsWith(e, "+") then
-        Stdlib.String.dropFirst(e, 1)
+      if String.startsWith(e, "-") || String.startsWith(e, "+") then
+        String.dropFirst(e, 1)
       else
         e
 
-    if isDigits(unsigned) then
-      Stdlib.Result.toOption(Stdlib.BigInt.parse(e))
-    else
-      Stdlib.Option.Option.None
+    if isDigits(unsigned) then Result.toOption(BigInt.parse(e)) else Option.None
 
   let (mantissa, exponent) =
-    match Stdlib.String.split(body, "e") with
-    | [ m ] -> (m, Stdlib.Option.Option.Some(0z))
-    | [ m, e ] -> (m, exponentOf(e))
-    | _ -> ("", Stdlib.Option.Option.None)
+    match String.split(body, "e") with
+    | [m] -> (m, Option.Some(0z))
+    | [m, e] -> (m, exponentOf(e))
+    | _ -> ("", Option.None)
 
   // `1.` has an empty fraction, which is malformed, not zero places
   let (whole, fraction) =
-    match Stdlib.String.split(mantissa, ".") with
-    | [ w ] -> (w, "0")
-    | [ "", f ] -> ("0", f)
-    | [ w, f ] -> (w, f)
+    match String.split(mantissa, ".") with
+    | [w] -> (w, "0")
+    | ["", f] -> ("0", f)
+    | [w, f] -> (w, f)
     | _ -> ("", "")
+
   let places =
-    if Stdlib.String.contains(mantissa, ".") then
-      Stdlib.BigInt.fromInt64(Stdlib.String.length(fraction))
+    if String.contains(mantissa, ".") then
+      BigInt.fromInt64(String.length(fraction))
     else
       0z
 
   match exponent with
   | Some(exponent) ->
-    if Stdlib.Bool.not(isDigits(whole) && isDigits(fraction)) then
-      Stdlib.Result.Result.Error(ParseError.BadFormat)
+    if Bool.not(isDigits(whole) && isDigits(fraction)) then
+      Result.Error(ParseError.BadFormat)
     else
       let digits = if places == 0z then whole else whole + fraction
       let places = places - exponent
 
       // 29 digits is the most 96 bits can hold, so a larger shift is out of range
       // anyway; checking first keeps `1e999999999` from building a billion-digit BigInt
-      if places < -29z || places > 28z + Stdlib.BigInt.fromInt64(Stdlib.String.length(digits)) then
-        Stdlib.Result.Result.Error(ParseError.OutOfRange)
+      if places < -29z || places > 28z + BigInt.fromInt64(String.length(digits)) then
+        Result.Error(ParseError.OutOfRange)
       else
-        let magnitude = Stdlib.Result.withDefault(Stdlib.BigInt.parse(digits), 0z)
+        let magnitude = Result.withDefault(BigInt.parse(digits), 0z)
         let unscaled = if negative then 0z - magnitude else magnitude
 
         let parts =
           if places < 0z then
-            fromParts(unscaled * (10z ** (0z - places)), 0)
+            fromParts(unscaled * 10z ** (0z - places), 0)
           else
-            fromParts(unscaled, Builtin.unwrap(Stdlib.BigInt.toInt64(places)))
+            fromParts(unscaled, Builtin.unwrap(BigInt.toInt64(places)))
 
         match parts with
-        | Some(d) -> Stdlib.Result.Result.Ok(d)
-        | None -> Stdlib.Result.Result.Error(ParseError.OutOfRange)
-  | None -> Stdlib.Result.Result.Error(ParseError.BadFormat)
+        | Some(d) -> Result.Ok(d)
+        | None -> Result.Error(ParseError.OutOfRange)
+  | None -> Result.Error(ParseError.BadFormat)

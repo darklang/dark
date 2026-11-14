@@ -1,46 +1,52 @@
 module Darklang.Stdlib.List.Tests
 
-test empty =
-  Stdlib.List.empty |> Stdlib.Test.equal([])
+test empty = Stdlib.List.empty |> Stdlib.Test.equal([])
 
-test singleton =
-  Stdlib.List.singleton(1) |> Stdlib.Test.equal([ 1 ])
+
+test singleton = Stdlib.List.singleton(1) |> Stdlib.Test.equal([ 1 ])
+
 
 test length =
   Stdlib.Test.all(
     [ Stdlib.List.length([ 1, 2, 3 ]) |> Stdlib.Test.equal(3)
       Stdlib.List.length([]) |> Stdlib.Test.equal(0) ])
 
+
 test isEmpty =
   Stdlib.Test.all(
     [ Stdlib.List.isEmpty([ 1 ]) |> Stdlib.Test.equal(false)
       Stdlib.List.isEmpty([]) |> Stdlib.Test.equal(true) ])
 
+
 test map =
   Stdlib.Test.all(
     [ Stdlib.List.map([ 1, 2 ], fun x -> x + 1) |> Stdlib.Test.equal([ 2, 3 ])
+
       Stdlib.List.map(Stdlib.List.range(1, 5), fun x -> x + 1)
       |> Stdlib.Test.equal([ 2, 3, 4, 5, 6 ])
-      Stdlib.List.map([ 1, 2, 3 ], fun x ->
-        Stdlib.Bool.and(
-          x >= 0,
-          x <= 4))
+
+      Stdlib.List.map([ 1, 2, 3 ], fun x -> Stdlib.Bool.and(x >= 0, x <= 4))
       |> Stdlib.Test.equal([ true, true, true ])
+
       Stdlib.List.map([], fun x -> x + 1) |> Stdlib.Test.equal([]) ])
+
 
 // A run nobody scheduled (this harness) spawns onto the shared scheduler.
 test parallelMap =
   Stdlib.Test.all(
     [ Stdlib.List.parallelMap([ 1, 2, 3 ], fun x -> x * 2)
       |> Stdlib.Test.equal([ 2, 4, 6 ])
+
       Stdlib.List.parallelMap([], fun x -> x) |> Stdlib.Test.equal([]) ])
+
 
 // Create more children than Scheduler.keepFinished retains. Their answers must
 // outlive their process rows so late awaits still succeed.
 test parallelMapOutlivesProcessTable =
-  (Stdlib.List.parallelMap(Stdlib.List.range(1, 500), fun x -> x * 2))
+  Stdlib.List.parallelMap(Stdlib.List.range(1, 500), fun x -> x * 2)
   |> Stdlib.Test.equal(
     Stdlib.List.map(Stdlib.List.range(1, 500), fun x -> x * 2))
+
 
 // Every assertion above passes if `parallelMap` were `List.map` renamed, which is
 // what the name is for. This one cannot: each item counts the processes that have
@@ -49,112 +55,137 @@ test parallelMapOutlivesProcessTable =
 // both ways: against `List.map` every item reports exactly 2, and against
 // `parallelMap` the counts run 3 to 10.
 test parallelMapRunsConcurrently =
-  (Stdlib.List.contains(
-    (Stdlib.List.parallelMap(Stdlib.List.range(1, 8), fun i ->
+  Stdlib.List.contains(
+    Stdlib.List.parallelMap(Stdlib.List.range(1, 8), fun i ->
       let burn =
         Stdlib.List.map(Stdlib.List.range(1, 30000), fun x -> x + 1)
         |> Stdlib.List.length
+
       let running =
         Stdlib.List.filter(LanguageTools.Exec.list(), fun p ->
           p.status != LanguageTools.Exec.Status.Done)
-      (Stdlib.List.length(running)) > 2)),
-    true))
+
+      Stdlib.List.length(running) > 2),
+    true)
   |> Stdlib.Test.equal(true)
+
 
 test concat =
   Stdlib.Test.all(
     [ Stdlib.List.concat([ 1, 2, 3 ], [ 4, 5, 6 ])
       |> Stdlib.Test.equal([ 1, 2, 3, 4, 5, 6 ])
+
       Stdlib.List.concat([ 3, 4 ], [ 5, 6 ])
       |> Stdlib.Test.equal([ 3, 4, 5, 6 ])
-      Stdlib.List.concat([ 1 ], [ 2 ])
-      |> Stdlib.Test.equal([ 1, 2 ])
+
+      Stdlib.List.concat([ 1 ], [ 2 ]) |> Stdlib.Test.equal([ 1, 2 ])
+
       Stdlib.List.concat([], []) |> Stdlib.Test.equal([])
+
       Stdlib.List.concat([ [ 1 ], [ 2 ] ], [ [ 3 ] ])
       |> Stdlib.Test.equal([ [ 1 ], [ 2 ], [ 3 ] ])
+
       [ ...[ 1, 2 ], ...[ 3 ] ] |> Stdlib.Test.equal([ 1, 2, 3 ])
+
       [ ...[ [ 1 ] ], ...[ [ 2 ] ] ] |> Stdlib.Test.equal([ [ 1 ], [ 2 ] ]) ])
+
 
 test spread =
   let xs = [ 2, 3 ]
   Stdlib.Test.all(
     [ [ 1, ...xs ] |> Stdlib.Test.equal([ 1, 2, 3 ])
+
       [ ...xs, 4 ] |> Stdlib.Test.equal([ 2, 3, 4 ])
+
       [ 1, ...xs, 4, ...xs ] |> Stdlib.Test.equal([ 1, 2, 3, 4, 2, 3 ])
+
       [ ...xs ] |> Stdlib.Test.equal(xs)
+
       [ ...[], ...[] ] |> Stdlib.Test.equal([])
-      [ ...(Stdlib.List.map(xs, fun x -> x * 10)), 1 ]
+
+      [ ...Stdlib.List.map(xs, fun x -> x * 10), 1 ]
       |> Stdlib.Test.equal([ 20, 30, 1 ]) ])
+
 
 test all =
   Stdlib.Test.all(
-    [ Stdlib.List.all([], fun item -> item < 3)
-      |> Stdlib.Test.equal(true)
-      Stdlib.List.all([ 2 ], fun item -> item < 3)
-      |> Stdlib.Test.equal(true)
-      Stdlib.List.all([ 1, 2 ], fun item -> item < 3)
-      |> Stdlib.Test.equal(true)
-      Stdlib.List.all([ 4 ], fun item -> item < 3)
-      |> Stdlib.Test.equal(false)
+    [ Stdlib.List.all([], fun item -> item < 3) |> Stdlib.Test.equal(true)
+
+      Stdlib.List.all([ 2 ], fun item -> item < 3) |> Stdlib.Test.equal(true)
+
+      Stdlib.List.all([ 1, 2 ], fun item -> item < 3) |> Stdlib.Test.equal(true)
+
+      Stdlib.List.all([ 4 ], fun item -> item < 3) |> Stdlib.Test.equal(false)
+
       Stdlib.List.all([ 1, 4 ], fun item -> item < 3)
       |> Stdlib.Test.equal(false) ])
 
+
 test any =
   Stdlib.Test.all(
-    [ Stdlib.List.any([], fun item -> item < 3)
-      |> Stdlib.Test.equal(false)
-      Stdlib.List.any([ 2 ], fun item -> item < 3)
-      |> Stdlib.Test.equal(true)
-      Stdlib.List.any([ 4 ], fun item -> item < 3)
-      |> Stdlib.Test.equal(false)
-      Stdlib.List.any([ 1, 2 ], fun item -> item < 3)
-      |> Stdlib.Test.equal(true)
+    [ Stdlib.List.any([], fun item -> item < 3) |> Stdlib.Test.equal(false)
+
+      Stdlib.List.any([ 2 ], fun item -> item < 3) |> Stdlib.Test.equal(true)
+
+      Stdlib.List.any([ 4 ], fun item -> item < 3) |> Stdlib.Test.equal(false)
+
+      Stdlib.List.any([ 1, 2 ], fun item -> item < 3) |> Stdlib.Test.equal(true)
+
       Stdlib.List.any([ 4, 5 ], fun item -> item < 3)
       |> Stdlib.Test.equal(false)
+
       Stdlib.List.any([ 4, 1 ], fun item -> item < 3)
       |> Stdlib.Test.equal(true) ])
+
 
 test drop =
   Stdlib.Test.all(
     [ Stdlib.List.drop([ "a", "b", "c", "d" ], -3)
       |> Stdlib.Test.equal([ "a", "b", "c", "d" ])
-      Stdlib.List.drop([ "a", "b", "c", "d" ], 3)
-      |> Stdlib.Test.equal([ "d" ])
-      Stdlib.List.drop([ 1, 2, 3, 4 ], -1)
-      |> Stdlib.Test.equal([ 1, 2, 3, 4 ])
-      Stdlib.List.drop([ 1, 2, 3, 4 ], 0)
-      |> Stdlib.Test.equal([ 1, 2, 3, 4 ])
-      Stdlib.List.drop([ 1, 2, 3, 4 ], 440737095)
-      |> Stdlib.Test.equal([])
+
+      Stdlib.List.drop([ "a", "b", "c", "d" ], 3) |> Stdlib.Test.equal([ "d" ])
+
+      Stdlib.List.drop([ 1, 2, 3, 4 ], -1) |> Stdlib.Test.equal([ 1, 2, 3, 4 ])
+
+      Stdlib.List.drop([ 1, 2, 3, 4 ], 0) |> Stdlib.Test.equal([ 1, 2, 3, 4 ])
+
+      Stdlib.List.drop([ 1, 2, 3, 4 ], 440737095) |> Stdlib.Test.equal([])
+
       Stdlib.List.drop([ 1, 2, 3, 4 ], 1184467440737095)
       |> Stdlib.Test.equal([])
-      Stdlib.List.drop([ 1, 2, 3, 4 ], 2)
-      |> Stdlib.Test.equal([ 3, 4 ])
-      Stdlib.List.drop([ 1, 2, 3, 4 ], 4)
-      |> Stdlib.Test.equal([])
-      Stdlib.List.drop([ 1, 2, 3, 4 ], 5)
-      |> Stdlib.Test.equal([])
-      Stdlib.List.drop([ 3, 3, 3 ], 0)
-      |> Stdlib.Test.equal([ 3, 3, 3 ])
-      Stdlib.List.drop([ 5, 4, 3, 2, 1 ], 5)
-      |> Stdlib.Test.equal([])
-      Stdlib.List.drop([ 5 ], 4)
-      |> Stdlib.Test.equal([])
-      Stdlib.List.drop([], 4)
-      |> Stdlib.Test.equal([])
+
+      Stdlib.List.drop([ 1, 2, 3, 4 ], 2) |> Stdlib.Test.equal([ 3, 4 ])
+
+      Stdlib.List.drop([ 1, 2, 3, 4 ], 4) |> Stdlib.Test.equal([])
+
+      Stdlib.List.drop([ 1, 2, 3, 4 ], 5) |> Stdlib.Test.equal([])
+
+      Stdlib.List.drop([ 3, 3, 3 ], 0) |> Stdlib.Test.equal([ 3, 3, 3 ])
+
+      Stdlib.List.drop([ 5, 4, 3, 2, 1 ], 5) |> Stdlib.Test.equal([])
+
+      Stdlib.List.drop([ 5 ], 4) |> Stdlib.Test.equal([])
+
+      Stdlib.List.drop([], 4) |> Stdlib.Test.equal([])
+
       Stdlib.List.drop(Stdlib.List.range(0, 99), 60)
       |> Stdlib.Test.equal(Stdlib.List.range(60, 99)) ])
+
 
 test dropWhile =
   Stdlib.Test.all(
     [ Stdlib.List.dropWhile([ 1, 2, 3, 4 ], fun item -> item < 3)
       |> Stdlib.Test.equal([ 3, 4 ])
+
       Stdlib.List.dropWhile([ 1, 2, 3, 4 ], fun item -> item >= 1)
       |> Stdlib.Test.equal([])
+
       Stdlib.List.dropWhile([ 1, 5, 2, 2 ], fun item -> item < 3)
       |> Stdlib.Test.equal([ 5, 2, 2 ])
+
       Stdlib.List.dropWhile([], fun item -> item < 3)
       |> Stdlib.Test.equal([]) ])
+
 
 test filter =
   Stdlib.Test.all(
@@ -164,128 +195,162 @@ test filter =
         | 2 -> false
         | 3 -> true)
       |> Stdlib.Test.equal([ 1, 3 ])
-      Stdlib.List.filter([], fun item -> true)
-      |> Stdlib.Test.equal([])
+
+      Stdlib.List.filter([], fun item -> true) |> Stdlib.Test.equal([])
+
       Stdlib.List.filter([ -20, 5, 9 ], fun x -> x > 20)
       |> Stdlib.Test.equal([])
-      Stdlib.List.filter([], fun _ -> "a")
-      |> Stdlib.Test.equal([]) ])
+
+      Stdlib.List.filter([], fun _ -> "a") |> Stdlib.Test.equal([]) ])
+
 
 test filterMap =
   Stdlib.Test.all(
     [ Stdlib.List.filterMap([ 1, 2, 3 ], fun item ->
-        if item == 2 then None else Some(item * 2))
+        if item == 2 then
+          Stdlib.Option.Option.None
+        else
+          Stdlib.Option.Option.Some(item * 2))
       |> Stdlib.Test.equal([ 2, 6 ])
-      Stdlib.List.filterMap([], fun _ -> 0)
-      |> Stdlib.Test.equal([]) ])
+
+      Stdlib.List.filterMap([], fun _ -> 0) |> Stdlib.Test.equal([]) ])
+
 
 test findFirst =
   Stdlib.Test.all(
     [ Stdlib.List.findFirst([ 1, 2, 3 ], fun x -> x > 5)
-      |> Stdlib.Test.equal(None)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Stdlib.List.findFirst([], fun x -> x)
-      |> Stdlib.Test.equal(None)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Stdlib.List.findFirst([ 1, 2, 3, 1, 4 ], fun x -> x > 1)
-      |> Stdlib.Test.equal(Some(2))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+
       Stdlib.List.findFirst([ 0, 5, -6, -10 ], fun x -> x < 0)
-      |> Stdlib.Test.equal(Some(-6))
-      Stdlib.List.findFirst([ 1, -33, 3, -2, 12 ], fun x ->
-        x < 0 && x % 2 == 0)
-      |> Stdlib.Test.equal(Some(-2)) ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-6))
+
+      Stdlib.List.findFirst([ 1, -33, 3, -2, 12 ], fun x -> x < 0 && x % 2 == 0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-2)) ])
+
 
 test findFirstIndex =
   Stdlib.Test.all(
     [ Stdlib.List.findFirstIndex([ 1, 2, 3 ], fun x -> x == 2)
-      |> Stdlib.Test.equal(Some(1))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+
       Stdlib.List.findFirstIndex([ 1, 2, 3 ], fun x -> x > 5)
-      |> Stdlib.Test.equal(None)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Stdlib.List.findFirstIndex([], fun _ -> true)
-      |> Stdlib.Test.equal(None)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Stdlib.List.findFirstIndex([ 10, 20, 30, 20 ], fun x -> x == 20)
-      |> Stdlib.Test.equal(Some(1))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+
       Stdlib.List.findFirstIndex([ "a", "b", "c" ], fun x -> x == "c")
-      |> Stdlib.Test.equal(Some(2))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+
       Stdlib.List.findFirstIndex([ 1, 2, 3 ], fun x -> x == 1)
-      |> Stdlib.Test.equal(Some(0)) ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0)) ])
+
 
 test indexOf =
   Stdlib.Test.all(
-    [ Stdlib.List.indexOf([], 1)
-      |> Stdlib.Test.equal(None)
+    [ Stdlib.List.indexOf([], 1) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Stdlib.List.indexOf([ 1, 2, 3 ], 4)
-      |> Stdlib.Test.equal(None)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Stdlib.List.indexOf([ 1, 2, 3 ], 1)
-      |> Stdlib.Test.equal(Some(0))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0))
+
       Stdlib.List.indexOf([ 10, 20, 30, 20 ], 20)
-      |> Stdlib.Test.equal(Some(1))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+
       Stdlib.List.indexOf([ "a", "b", "c" ], "c")
-      |> Stdlib.Test.equal(Some(2))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+
       Stdlib.List.indexOf([ [ 1 ], [ 2, 3 ] ], [ 2, 3 ])
-      |> Stdlib.Test.equal(Some(1)) ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1)) ])
+
 
 test remove =
   Stdlib.Test.all(
     [ Stdlib.List.remove([], 1) |> Stdlib.Test.equal([])
-      Stdlib.List.remove([ 1, 2, 3 ], 4)
-      |> Stdlib.Test.equal([ 1, 2, 3 ])
-      Stdlib.List.remove([ 1, 2, 1 ], 1)
-      |> Stdlib.Test.equal([ 2, 1 ])
-      Stdlib.List.remove([ 1, 2, 2, 3 ], 2)
-      |> Stdlib.Test.equal([ 1, 2, 3 ])
+
+      Stdlib.List.remove([ 1, 2, 3 ], 4) |> Stdlib.Test.equal([ 1, 2, 3 ])
+
+      Stdlib.List.remove([ 1, 2, 1 ], 1) |> Stdlib.Test.equal([ 2, 1 ])
+
+      Stdlib.List.remove([ 1, 2, 2, 3 ], 2) |> Stdlib.Test.equal([ 1, 2, 3 ])
+
       Stdlib.List.remove([ "a", "b", "c" ], "c")
       |> Stdlib.Test.equal([ "a", "b" ])
+
       Stdlib.List.remove([ 1 ], 1) |> Stdlib.Test.equal([])
+
       Stdlib.List.remove([ [ 1 ], [ 2 ], [ 1 ] ], [ 1 ])
       |> Stdlib.Test.equal([ [ 2 ], [ 1 ] ]) ])
+
 
 test removeAt =
   Stdlib.Test.all(
     [ Stdlib.List.removeAt([], 0) |> Stdlib.Test.equal([])
-      Stdlib.List.removeAt([ 1, 2, 3 ], -1)
-      |> Stdlib.Test.equal([ 1, 2, 3 ])
-      Stdlib.List.removeAt([ 1, 2, 3 ], 3)
-      |> Stdlib.Test.equal([ 1, 2, 3 ])
+
+      Stdlib.List.removeAt([ 1, 2, 3 ], -1) |> Stdlib.Test.equal([ 1, 2, 3 ])
+
+      Stdlib.List.removeAt([ 1, 2, 3 ], 3) |> Stdlib.Test.equal([ 1, 2, 3 ])
+
       Stdlib.List.removeAt([ 1, 2, 3 ], 9223372036854775807)
       |> Stdlib.Test.equal([ 1, 2, 3 ])
-      Stdlib.List.removeAt([ 1, 2, 3 ], 0)
-      |> Stdlib.Test.equal([ 2, 3 ])
-      Stdlib.List.removeAt([ 1, 2, 3 ], 1)
-      |> Stdlib.Test.equal([ 1, 3 ])
+
+      Stdlib.List.removeAt([ 1, 2, 3 ], 0) |> Stdlib.Test.equal([ 2, 3 ])
+
+      Stdlib.List.removeAt([ 1, 2, 3 ], 1) |> Stdlib.Test.equal([ 1, 3 ])
+
       Stdlib.List.removeAt([ "a", "b", "c" ], 2)
       |> Stdlib.Test.equal([ "a", "b" ])
+
       Stdlib.List.removeAt([ 1 ], 0) |> Stdlib.Test.equal([]) ])
+
 
 test flatten =
   Stdlib.Test.all(
     [ Stdlib.List.flatten([ [ 1 ], [ 2 ], [ 3 ] ])
       |> Stdlib.Test.equal([ 1, 2, 3 ])
-      Stdlib.List.flatten([ [ [] ] ])
-      |> Stdlib.Test.equal([ [] ])
-      Stdlib.List.flatten([ [] ])
-      |> Stdlib.Test.equal([])
-      Stdlib.List.flatten([])
-      |> Stdlib.Test.equal([]) ])
+
+      Stdlib.List.flatten([ [ [] ] ]) |> Stdlib.Test.equal([ [] ])
+
+      Stdlib.List.flatten([ [] ]) |> Stdlib.Test.equal([])
+
+      Stdlib.List.flatten([]) |> Stdlib.Test.equal([]) ])
+
 
 test fold =
   Stdlib.Test.all(
-    [ Stdlib.List.fold([], [], fun(_, _) -> 5)
-      |> Stdlib.Test.equal([])
+    [ Stdlib.List.fold([], [], fun(_, _) -> 5) |> Stdlib.Test.equal([])
+
       Stdlib.List.fold([ "a", "b", "c", "d" ], "x", fun(accum, curr) ->
         accum + curr)
       |> Stdlib.Test.equal("xabcd")
+
       Stdlib.List.fold([ 1, 2, 3, 4, 5 ], [], fun(accum, curr) ->
         Stdlib.List.append(accum, curr + 1))
       |> Stdlib.Test.equal([ 2, 3, 4, 5, 6 ]) ])
+
 
 let __mixBy(xs: List<Int64>, acc: Int64): Int64 =
   match xs with
   | [] -> acc
   | [x, ...rest] -> __mixBy(rest, acc * 31 + x)
 
+
 let __indexedBy(xs: List<Int64>, i: Int64): List<(Int64 * Int64)> =
   match xs with
   | [] -> []
   | [x, ...rest] -> Stdlib.List.prepend(__indexedBy(rest, i + 1), (i, x))
+
 
 test twoArgumentCallbacksSeeEveryElementInOrder =
   Stdlib.Test.all(
@@ -294,131 +359,190 @@ test twoArgumentCallbacksSeeEveryElementInOrder =
       Stdlib.Test.all(
         [ Stdlib.List.fold(xs, 0, fun(acc, x) -> acc * 31 + x)
           |> Stdlib.Test.equal(__mixBy(xs, 0))
+
           Stdlib.List.fold(xs, (0, []), fun((count, seen), x) ->
             (count + 1, Stdlib.List.prepend(seen, x)))
           |> Stdlib.Test.equal((n, Stdlib.List.reverse(xs)))
-          Stdlib.List.fold(Stdlib.List.map(xs, fun x -> (x, 0 - x)), 0, fun(acc, (a, b)) ->
-            acc * 31 + a + b + a)
+
+          Stdlib.List.fold(
+            Stdlib.List.map(xs, fun x -> (x, 0 - x)),
+            0,
+            fun(acc, (a, b)) -> acc * 31 + a + b + a)
           |> Stdlib.Test.equal(__mixBy(xs, 0))
+
           Stdlib.List.indexedMap(xs, fun(i, x) -> (i, x))
           |> Stdlib.Test.equal(__indexedBy(xs, 0)) ])))
+
 
 test getAt =
   Stdlib.Test.all(
     [ Stdlib.List.getAt([ "a", "b", "c", "d" ], -1)
-      |> Stdlib.Test.equal(None)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Stdlib.List.getAt([ 0 ], 1)
-      |> Stdlib.Test.equal(None)
-      Stdlib.List.getAt([], 1)
-      |> Stdlib.Test.equal(None)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.List.getAt([], 1) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Stdlib.List.getAt([ 1, 2, 3, 4 ], 6018427387902)
-      |> Stdlib.Test.equal(None)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Stdlib.List.getAt([ 1, 2, 3, 4 ], 0)
-      |> Stdlib.Test.equal(Some(1))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+
       Stdlib.List.getAt([ 3, 3, 3 ], -5)
-      |> Stdlib.Test.equal(None)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Stdlib.List.getAt([ 3, 3, 3 ], 2147483648)
-      |> Stdlib.Test.equal(None) ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
 
 test setAt =
   Stdlib.Test.all(
     [ Stdlib.List.setAt([ 1, 2, 3 ], 0, 9)
-      |> Stdlib.Test.equal(Ok([ 9, 2, 3 ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 9, 2, 3 ]))
+
       Stdlib.List.setAt([ 1, 2, 3 ], 2, 9)
-      |> Stdlib.Test.equal(Ok([ 1, 2, 9 ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 1, 2, 9 ]))
+
       Stdlib.List.setAt([ "a", "b" ], 1, "z")
-      |> Stdlib.Test.equal(Ok([ "a", "z" ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "a", "z" ]))
+
       Stdlib.List.setAt([ 1, 2, 3 ], 3, 9)
-      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+
       Stdlib.List.setAt([ 1, 2, 3 ], 2147483648, 9)
-      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+
       Stdlib.List.setAt([], 0, 9)
-      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+
       Stdlib.List.setAt([ 1, 2, 3 ], -1, 9)
-      |> Stdlib.Test.equal(Ok([ 1, 2, 9 ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 1, 2, 9 ]))
+
       Stdlib.List.setAt([ 1, 2, 3 ], -2, 9)
-      |> Stdlib.Test.equal(Ok([ 1, 9, 3 ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 1, 9, 3 ]))
+
       Stdlib.List.setAt([ 1, 2, 3 ], -3, 9)
-      |> Stdlib.Test.equal(Ok([ 9, 2, 3 ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 9, 2, 3 ]))
+
       Stdlib.List.setAt([ 1, 2, 3 ], -4, 9)
-      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+
       Stdlib.List.setAt([], -1, 9)
-      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+
       Stdlib.List.setAt([ 1, 2 ], 9223372036854775807, 9)
-      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+
       Stdlib.List.setAt([ 1, 2 ], -9223372036854775807, 9)
-      |> Stdlib.Test.equal(Error(Stdlib.List.IndexError.IndexOutOfBounds))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+
       Stdlib.List.setAt(Stdlib.List.range(0, 99), 70, -1)
       |> Stdlib.Test.equal(
-        Ok(Stdlib.List.flatten([ Stdlib.List.range(0, 69), [ -1 ], Stdlib.List.range(71, 99) ]))
-      ) ])
+        Stdlib.Result.Result.Ok(
+          Stdlib.List.flatten(
+            [ Stdlib.List.range(0, 69)
+              [ -1 ]
+              Stdlib.List.range(71, 99) ]))) ])
+
 
 test head =
   Stdlib.Test.all(
-    [ Stdlib.List.head([ 1, 2, 3 ]) |> Stdlib.Test.equal(Some(1))
-      Stdlib.List.head([]) |> Stdlib.Test.equal(None) ])
+    [ Stdlib.List.head([ 1, 2, 3 ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+
+      Stdlib.List.head([]) |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
 
 test last =
   Stdlib.Test.all(
-    [ Stdlib.List.last([ 1, 2, 3 ]) |> Stdlib.Test.equal(Some(3))
-      Stdlib.List.last([]) |> Stdlib.Test.equal(None) ])
+    [ Stdlib.List.last([ 1, 2, 3 ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
+
+      Stdlib.List.last([]) |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
 
 test indexedMap =
   Stdlib.Test.all(
-    [ Stdlib.List.indexedMap([ 3, 2, 1 ], fun(index, value) ->
-        value - index)
+    [ Stdlib.List.indexedMap([ 3, 2, 1 ], fun(index, value) -> value - index)
       |> Stdlib.Test.equal([ 3, 1, -1 ])
-      Stdlib.List.indexedMap([], fun(index, value) ->
-        value - index)
+
+      Stdlib.List.indexedMap([], fun(index, value) -> value - index)
       |> Stdlib.Test.equal([])
+
       Stdlib.List.indexedMap([ 3, 2, 1 ], fun(index, _) -> index)
       |> Stdlib.Test.equal([ 0, 1, 2 ]) ])
+
 
 test interleave =
   Stdlib.Test.all(
     [ Stdlib.List.interleave([ 1, 2, 3 ], [ 4, 5, 6 ])
       |> Stdlib.Test.equal([ 1, 4, 2, 5, 3, 6 ])
+
       Stdlib.List.interleave([ 1, 2, 3 ], [ 4 ])
       |> Stdlib.Test.equal([ 1, 4, 2, 3 ])
-      Stdlib.List.interleave([ 1, 2, 3 ], [])
-      |> Stdlib.Test.equal([ 1, 2, 3 ])
+
+      Stdlib.List.interleave([ 1, 2, 3 ], []) |> Stdlib.Test.equal([ 1, 2, 3 ])
+
       Stdlib.List.interleave([ 1 ], [ 4, 5, 6 ])
       |> Stdlib.Test.equal([ 1, 4, 5, 6 ])
-      Stdlib.List.interleave([], [ 4, 5, 6 ])
-      |> Stdlib.Test.equal([ 4, 5, 6 ])
-      Stdlib.List.interleave([], [])
-      |> Stdlib.Test.equal([]) ])
+
+      Stdlib.List.interleave([], [ 4, 5, 6 ]) |> Stdlib.Test.equal([ 4, 5, 6 ])
+
+      Stdlib.List.interleave([], []) |> Stdlib.Test.equal([]) ])
+
 
 test interpose =
   Stdlib.Test.all(
     [ Stdlib.List.interpose([ 1, 2, 3 ], 5)
       |> Stdlib.Test.equal([ 1, 5, 2, 5, 3 ])
-      Stdlib.List.interpose([ 1 ], 5)
-      |> Stdlib.Test.equal([ 1 ])
-      Stdlib.List.interpose([], 5)
-      |> Stdlib.Test.equal([]) ])
+
+      Stdlib.List.interpose([ 1 ], 5) |> Stdlib.Test.equal([ 1 ])
+
+      Stdlib.List.interpose([], 5) |> Stdlib.Test.equal([]) ])
+
 
 test map2 =
   Stdlib.Test.all(
     [ Stdlib.List.map2([ 10, 20, 30 ], [ 1, 2, 3 ], fun(a, b) -> a - b)
-      |> Stdlib.Test.equal(Ok([ 9, 18, 27 ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 9, 18, 27 ]))
+
       Stdlib.List.map2([ 10, 20 ], [ 1, 2, 3 ], fun(a, b) -> a - b)
-      |> Stdlib.Test.equal(Error(Stdlib.List.LengthMismatch { left = 2, right = 3 }))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.List.LengthMismatch { left = 2, right = 3 }))
+
       Stdlib.List.map2([ 10, 20, 30 ], [ 1 ], fun(a, b) -> a - b)
-      |> Stdlib.Test.equal(Error(Stdlib.List.LengthMismatch { left = 3, right = 1 }))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.List.LengthMismatch { left = 3, right = 1 }))
+
       Stdlib.List.map2([], [], fun(a, b) -> a - b)
-      |> Stdlib.Test.equal(Ok([])) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([])) ])
+
 
 test map2Shortest =
   Stdlib.Test.all(
     [ Stdlib.List.map2Shortest([ 10, 20, 30 ], [ 1, 2, 3 ], fun(a, b) -> a - b)
       |> Stdlib.Test.equal([ 9, 18, 27 ])
+
       Stdlib.List.map2Shortest([ 10, 20 ], [ 1, 2, 3 ], fun(a, b) -> a - b)
       |> Stdlib.Test.equal([ 9, 18 ])
+
       Stdlib.List.map2Shortest([], [ 1, 2, 3 ], fun(a, b) -> a - b)
       |> Stdlib.Test.equal([])
+
       Stdlib.List.map2Shortest([ 1, 2, 3 ], [], fun(a, b) -> a - b)
       |> Stdlib.Test.equal([]) ])
+
 
 test contains =
   Stdlib.Test.all(
@@ -426,184 +550,275 @@ test contains =
       Stdlib.List.contains([ 1, 2, 3 ], 4) |> Stdlib.Test.equal(false)
       Stdlib.List.contains([], 1) |> Stdlib.Test.equal(false) ])
 
+
 test partition =
   Stdlib.Test.all(
     [ Stdlib.List.partition([ -20, 5, 9 ], fun x -> x > 0)
       |> Stdlib.Test.equal(([ 5, 9 ], [ -20 ]))
-      Stdlib.List.partition([], fun _ -> true)
-      |> Stdlib.Test.equal(([], []))
-      Stdlib.List.partition([], fun _ -> "a")
-      |> Stdlib.Test.equal(([], []))
+
+      Stdlib.List.partition([], fun _ -> true) |> Stdlib.Test.equal(([], []))
+
+      Stdlib.List.partition([], fun _ -> "a") |> Stdlib.Test.equal(([], []))
+
       Stdlib.List.partition([ 1, 2, 3 ], fun item ->
         match item with
         | 1 | 3 -> true
         | 2 -> false)
       |> Stdlib.Test.equal(([ 1, 3 ], [ 2 ])) ])
 
+
 test prepend =
   Stdlib.Test.all(
-    [ Stdlib.List.prepend([ 2, 3 ], 1)
-      |> Stdlib.Test.equal([ 1, 2, 3 ])
-      Stdlib.List.prepend([], 1)
-      |> Stdlib.Test.equal([ 1 ])
+    [ Stdlib.List.prepend([ 2, 3 ], 1) |> Stdlib.Test.equal([ 1, 2, 3 ])
+
+      Stdlib.List.prepend([], 1) |> Stdlib.Test.equal([ 1 ])
+
       Stdlib.List.prepend([ [ 2 ] ], [ 1 ])
       |> Stdlib.Test.equal([ [ 1 ], [ 2 ] ]) ])
 
+
 test append =
   Stdlib.Test.all(
-    [ Stdlib.List.append([ 2, 3 ], 1)
-      |> Stdlib.Test.equal([ 2, 3, 1 ])
-      Stdlib.List.append([], 1)
-      |> Stdlib.Test.equal([ 1 ])
+    [ Stdlib.List.append([ 2, 3 ], 1) |> Stdlib.Test.equal([ 2, 3, 1 ])
+
+      Stdlib.List.append([], 1) |> Stdlib.Test.equal([ 1 ])
+
       // One item, even when it is a list: `append acc [ x ]` adds the list `[ x ]`, and
       // to join two lists use `concat`
-      Stdlib.List.append([ [ 1 ] ], [])
-      |> Stdlib.Test.equal([ [ 1 ], [] ])
-      Stdlib.List.fold([ 1, 2 ], [], fun(acc, x) -> Stdlib.List.append(acc, [ x ]))
+      Stdlib.List.append([ [ 1 ] ], []) |> Stdlib.Test.equal([ [ 1 ], [] ])
+
+      Stdlib.List.fold([ 1, 2 ], [], fun(acc, x) ->
+        Stdlib.List.append(acc, [ x ]))
       |> Stdlib.Test.equal([ [ 1 ], [ 2 ] ])
+
       Stdlib.List.fold([ 1, 2 ], [], fun(acc, x) -> Stdlib.List.append(acc, x))
       |> Stdlib.Test.equal([ 1, 2 ]) ])
+
 
 test shuffle =
   Stdlib.Test.all(
     [ Stdlib.List.shuffle([]) |> Stdlib.Test.equal([])
+
       Stdlib.List.shuffle([ 1 ]) |> Stdlib.Test.equal([ 1 ])
+
       Stdlib.List.shuffle([ 3, 1, 2, 1, 3, 4 ])
-      |> Stdlib.List.sort()
+      |> Stdlib.List.sort
       |> Stdlib.Test.equal([ 1, 1, 2, 3, 3, 4 ])
+
       Stdlib.List.shuffle([ "c", "a", "b" ])
-      |> Stdlib.List.sort()
+      |> Stdlib.List.sort
       |> Stdlib.Test.equal([ "a", "b", "c" ]) ])
+
 
 test randomElementOfSingletonOrEmptyList =
   Stdlib.Test.all(
-    [ Stdlib.List.randomElement([ 1 ]) |> Stdlib.Test.equal(Some(1))
-      Stdlib.List.randomElement([]) |> Stdlib.Test.equal(None) ])
+    [ Stdlib.List.randomElement([ 1 ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+
+      Stdlib.List.randomElement([])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
 
 test range =
   Stdlib.Test.all(
     [ Stdlib.List.range(-1, 0) |> Stdlib.Test.equal([ -1, 0 ])
+
       Stdlib.List.range(-5, 5)
       |> Stdlib.Test.equal([ -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5 ])
+
       Stdlib.List.range(5, 0) |> Stdlib.Test.equal([]) ])
+
 
 test checkedRange =
   Stdlib.Test.all(
-    [ Stdlib.List.checkedRange(-1, 1) |> Stdlib.Test.equal(Ok([ -1, 0, 1 ]))
-      Stdlib.List.checkedRange(5, 0) |> Stdlib.Test.equal(Ok([]))
+    [ Stdlib.List.checkedRange(-1, 1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ -1, 0, 1 ]))
+
+      Stdlib.List.checkedRange(5, 0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([]))
+
       Stdlib.List.checkedRange(0, 3000000000)
-      |> Stdlib.Test.equal(Error(Stdlib.List.RangeError.TooLong))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.RangeError.TooLong))
+
       Stdlib.List.checkedRange(-9223372036854775808, 9223372036854775807)
-      |> Stdlib.Test.equal(Error(Stdlib.List.RangeError.TooLong)) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.RangeError.TooLong)) ])
+
 
 test repeat =
   Stdlib.Test.all(
     [ Stdlib.List.repeat(0, 1) |> Stdlib.Test.equal([])
+
       Stdlib.List.repeat(1, "a") |> Stdlib.Test.equal([ "a" ])
+
       Stdlib.List.repeat(1, 1) |> Stdlib.Test.equal([ 1 ])
+
       Stdlib.List.repeat(3, 1) |> Stdlib.Test.equal([ 1, 1, 1 ])
+
       Stdlib.List.repeat(3, 3) |> Stdlib.Test.equal([ 3, 3, 3 ])
-      Stdlib.List.repeat(5, "a") |> Stdlib.Test.equal([ "a", "a", "a", "a", "a" ])
+
+      Stdlib.List.repeat(5, "a")
+      |> Stdlib.Test.equal([ "a", "a", "a", "a", "a" ])
+
       // A negative count clamps to empty, as String.repeat does.
       Stdlib.List.repeat(-4, "a") |> Stdlib.Test.equal([])
+
       Stdlib.List.repeat(-3000000000, "a") |> Stdlib.Test.equal([])
+
       Stdlib.List.repeat(3, [ 1, 2, 3 ])
       |> Stdlib.Test.equal([ [ 1, 2, 3 ], [ 1, 2, 3 ], [ 1, 2, 3 ] ])
+
       Stdlib.List.repeat(3, []) |> Stdlib.Test.equal([ [], [], [] ]) ])
+
 
 test checkedRepeat =
   Stdlib.Test.all(
-    [ Stdlib.List.checkedRepeat(0, 1) |> Stdlib.Test.equal(Ok([]))
-      Stdlib.List.checkedRepeat(3, "a") |> Stdlib.Test.equal(Ok([ "a", "a", "a" ]))
+    [ Stdlib.List.checkedRepeat(0, 1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([]))
+
+      Stdlib.List.checkedRepeat(3, "a")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "a", "a", "a" ]))
+
       Stdlib.List.checkedRepeat(-1, "a")
-      |> Stdlib.Test.equal(Error(Stdlib.List.RepeatError.NegativeCount))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.RepeatError.NegativeCount))
+
       Stdlib.List.checkedRepeat(-4, "a")
-      |> Stdlib.Test.equal(Error(Stdlib.List.RepeatError.NegativeCount))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.RepeatError.NegativeCount))
+
       Stdlib.List.checkedRepeat(3000000000, "a")
-      |> Stdlib.Test.equal(Error(Stdlib.List.RepeatError.TooLong)) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.RepeatError.TooLong)) ])
+
 
 test reverse =
   Stdlib.Test.all(
     [ Stdlib.List.reverse([ "a", "b", "c", "d" ])
       |> Stdlib.Test.equal([ "d", "c", "b", "a" ])
+
       Stdlib.List.reverse([ 5, 4, 3, 2, 1 ])
       |> Stdlib.Test.equal([ 1, 2, 3, 4, 5 ])
+
       Stdlib.List.reverse([]) |> Stdlib.Test.equal([]) ])
+
 
 test min =
   Stdlib.Test.all(
-    [ Stdlib.List.min<Int64>([]) |> Stdlib.Test.equal(None)
-      Stdlib.List.min([ 7 ]) |> Stdlib.Test.equal(Some(7))
-      Stdlib.List.min([ 3, 1, 2 ]) |> Stdlib.Test.equal(Some(1))
-      Stdlib.List.min([ 2, 2 ]) |> Stdlib.Test.equal(Some(2))
-      Stdlib.List.min([ "b", "a", "c" ]) |> Stdlib.Test.equal(Some("a")) ])
+    [ Stdlib.List.min<Int64>([]) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.List.min([ 7 ]) |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7))
+
+      Stdlib.List.min([ 3, 1, 2 ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+
+      Stdlib.List.min([ 2, 2 ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+
+      Stdlib.List.min([ "b", "a", "c" ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a")) ])
+
 
 test max =
   Stdlib.Test.all(
-    [ Stdlib.List.max<Int64>([]) |> Stdlib.Test.equal(None)
-      Stdlib.List.max([ 7 ]) |> Stdlib.Test.equal(Some(7))
-      Stdlib.List.max([ 3, 1, 2 ]) |> Stdlib.Test.equal(Some(3))
-      Stdlib.List.max([ 2, 2 ]) |> Stdlib.Test.equal(Some(2))
-      Stdlib.List.max([ "b", "a", "c" ]) |> Stdlib.Test.equal(Some("c")) ])
+    [ Stdlib.List.max<Int64>([]) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.List.max([ 7 ]) |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7))
+
+      Stdlib.List.max([ 3, 1, 2 ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
+
+      Stdlib.List.max([ 2, 2 ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+
+      Stdlib.List.max([ "b", "a", "c" ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("c")) ])
+
 
 test maxBy =
   Stdlib.Test.all(
     [ Stdlib.List.maxBy([], fun x -> Stdlib.String.length(x))
-      |> Stdlib.Test.equal(None)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Stdlib.List.maxBy([ "only" ], fun x -> Stdlib.String.length(x))
-      |> Stdlib.Test.equal(Some("only"))
-      Stdlib.List.maxBy([ "a", "bbb", "cc", "ddd" ], fun x -> Stdlib.String.length(x))
-      |> Stdlib.Test.equal(Some("bbb"))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("only"))
+
+      Stdlib.List.maxBy([ "a", "bbb", "cc", "ddd" ], fun x ->
+        Stdlib.String.length(x))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("bbb"))
+
       Stdlib.List.maxBy([ 6, 2, 8, 3 ], fun x -> 0 - x)
-      |> Stdlib.Test.equal(Some(2))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2))
+
       Stdlib.List.maxBy([ "b", "c", "a" ], fun x -> x)
-      |> Stdlib.Test.equal(Some("c")) ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("c")) ])
+
 
 test minBy =
   Stdlib.Test.all(
     [ Stdlib.List.minBy([], fun x -> Stdlib.String.length(x))
-      |> Stdlib.Test.equal(None)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Stdlib.List.minBy([ "only" ], fun x -> Stdlib.String.length(x))
-      |> Stdlib.Test.equal(Some("only"))
-      Stdlib.List.minBy([ "bbb", "a", "cc", "d" ], fun x -> Stdlib.String.length(x))
-      |> Stdlib.Test.equal(Some("a"))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("only"))
+
+      Stdlib.List.minBy([ "bbb", "a", "cc", "d" ], fun x ->
+        Stdlib.String.length(x))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a"))
+
       Stdlib.List.minBy([ 6, 2, 8, 3 ], fun x -> 0 - x)
-      |> Stdlib.Test.equal(Some(8))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(8))
+
       Stdlib.List.minBy([ "b", "a", "c" ], fun x -> x)
-      |> Stdlib.Test.equal(Some("a")) ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a")) ])
+
 
 test maxByEvaluatesKeysOnce =
-  let result = Stdlib.List.maxBy([ 3, 1, 2 ], fun x -> Stdlib.Test.incrementCounter(x))
+  let result =
+    Stdlib.List.maxBy([ 3, 1, 2 ], fun x -> Stdlib.Test.incrementCounter(x))
+
   Stdlib.Test.all(
-    [ result |> Stdlib.Test.equal(Some(3))
+    [ result |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
       Stdlib.Test.counterValue() |> Stdlib.Test.equal(3) ])
 
+
 test minByEvaluatesKeysOnce =
-  let result = Stdlib.List.minBy([ 1, 3, 2 ], fun x -> Stdlib.Test.incrementCounter(x))
+  let result =
+    Stdlib.List.minBy([ 1, 3, 2 ], fun x -> Stdlib.Test.incrementCounter(x))
+
   Stdlib.Test.all(
-    [ result |> Stdlib.Test.equal(Some(1))
+    [ result |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
       Stdlib.Test.counterValue() |> Stdlib.Test.equal(3) ])
+
 
 test sortBy =
   Stdlib.Test.all(
     [ Stdlib.List.sortBy([ 6, 2, 8, 3 ], fun x -> 0 - x)
       |> Stdlib.Test.equal([ 8, 6, 3, 2 ])
-      Stdlib.List.sortBy([], fun x -> 0 - x)
-      |> Stdlib.Test.equal([]) ])
+
+      Stdlib.List.sortBy([], fun x -> 0 - x) |> Stdlib.Test.equal([]) ])
+
 
 test sort =
   Stdlib.Test.all(
     [ Stdlib.List.sort([ "6", "2", "8", "3" ])
       |> Stdlib.Test.equal([ "2", "3", "6", "8" ])
-      Stdlib.List.sort([ 6, 2, 8, 3 ])
-      |> Stdlib.Test.equal([ 2, 3, 6, 8 ])
+
+      Stdlib.List.sort([ 6, 2, 8, 3 ]) |> Stdlib.Test.equal([ 2, 3, 6, 8 ])
+
       Stdlib.List.sort([]) |> Stdlib.Test.equal([]) ])
+
 
 test sortWith =
   let ascending = fun(a, b) ->
-    if a < b then Stdlib.Ordering.Less
-    else if a > b then Stdlib.Ordering.Greater
-    else Stdlib.Ordering.Equal
+    if a < b then
+      Stdlib.Ordering.Less
+    else if a > b then
+      Stdlib.Ordering.Greater
+    else
+      Stdlib.Ordering.Equal
+
   let descending = fun(a, b) -> ascending(b, a)
   let byKey = fun(a, b) ->
     let (ka, _) = a
@@ -612,25 +827,27 @@ test sortWith =
 
   Stdlib.Test.all(
     [ Stdlib.List.sortWith([], ascending) |> Stdlib.Test.equal([])
+
       Stdlib.List.sortWith([ 1 ], ascending) |> Stdlib.Test.equal([ 1 ])
 
       // each outcome on its own
       Stdlib.List.sortWith([ 1, 2 ], fun(_, _) -> Stdlib.Ordering.Less)
       |> Stdlib.Test.equal([ 1, 2 ])
+
       Stdlib.List.sortWith([ 1, 2 ], fun(_, _) -> Stdlib.Ordering.Equal)
       |> Stdlib.Test.equal([ 1, 2 ])
+
       Stdlib.List.sortWith([ 1, 2 ], fun(_, _) -> Stdlib.Ordering.Greater)
       |> Stdlib.Test.equal([ 2, 1 ])
 
       Stdlib.List.sortWith([ 3, 1, 2 ], ascending)
       |> Stdlib.Test.equal([ 1, 2, 3 ])
+
       Stdlib.List.sortWith(
-        [ 3, 1, 2, 67, 3, -1, 6, 3, 5, 6
-          2, 5, 63, 2, 3, 5, -1, -1, -1 ],
+        [ 3, 1, 2, 67, 3, -1, 6, 3, 5, 6, 2, 5, 63, 2, 3, 5, -1, -1, -1 ],
         ascending)
       |> Stdlib.Test.equal(
-        [ -1, -1, -1, -1, 1, 2, 2, 2, 3, 3
-          3, 3, 5, 5, 5, 6, 6, 63, 67 ])
+        [ -1, -1, -1, -1, 1, 2, 2, 2, 3, 3, 3, 3, 5, 5, 5, 6, 6, 63, 67 ])
 
       Stdlib.List.sortWith([ 3, 1, 2, 67, -1, 6, 3 ], descending)
       |> Stdlib.Test.equal([ 67, 6, 3, 3, 2, 1, -1 ])
@@ -638,149 +855,195 @@ test sortWith =
       // stable: equal keys keep the order they came in
       Stdlib.List.sortWith([ (0, "p"), (1, "a"), (1, "b") ], byKey)
       |> Stdlib.Test.equal([ (0, "p"), (1, "a"), (1, "b") ])
+
       Stdlib.List.sortWith(
         [ (1, "a"), (0, "b"), (1, "c"), (0, "d"), (1, "e"), (0, "f") ],
         byKey)
       |> Stdlib.Test.equal(
         [ (0, "b"), (0, "d"), (0, "f"), (1, "a"), (1, "c"), (1, "e") ])
+
       Stdlib.List.sortWith(
         [ (1, "a"), (0, "b"), (1, "c"), (0, "d"), (1, "e"), (0, "f") ],
         fun(a, b) -> byKey(b, a))
       |> Stdlib.Test.equal(
         [ (1, "a"), (1, "c"), (1, "e"), (0, "b"), (0, "d"), (0, "f") ]) ])
 
+
 test tail =
   Stdlib.Test.all(
     [ Stdlib.List.tail([ 10, 20, 30, 40 ])
-      |> Stdlib.Test.equal(Some([ 20, 30, 40 ]))
-      Stdlib.List.tail([]) |> Stdlib.Test.equal(None) ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some([ 20, 30, 40 ]))
+
+      Stdlib.List.tail([]) |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
 
 test take =
   Stdlib.Test.all(
-    [ Stdlib.List.take([ "a", "b", "c", "d" ], -1)
-      |> Stdlib.Test.equal([])
+    [ Stdlib.List.take([ "a", "b", "c", "d" ], -1) |> Stdlib.Test.equal([])
+
       Stdlib.List.take([ "a", "b", "c", "d" ], 2147483648)
       |> Stdlib.Test.equal([ "a", "b", "c", "d" ])
+
       Stdlib.List.take([ "a", "b", "c", "d" ], 3)
       |> Stdlib.Test.equal([ "a", "b", "c" ])
-      Stdlib.List.take([ 3, 3, 3 ], 0)
-      |> Stdlib.Test.equal([])
+
+      Stdlib.List.take([ 3, 3, 3 ], 0) |> Stdlib.Test.equal([])
+
       Stdlib.List.take([ 5, 4, 3, 2, 1 ], 5)
       |> Stdlib.Test.equal([ 5, 4, 3, 2, 1 ])
+
       Stdlib.List.take([ 5 ], 4) |> Stdlib.Test.equal([ 5 ])
+
       Stdlib.List.take([], 4) |> Stdlib.Test.equal([]) ])
+
 
 test takeWhile =
   Stdlib.Test.all(
     [ Stdlib.List.takeWhile([ 1, 2, 3, 4 ], fun item -> item < 1)
       |> Stdlib.Test.equal([])
+
       Stdlib.List.takeWhile([ 1, 2, 3, 4 ], fun item -> item < 3)
       |> Stdlib.Test.equal([ 1, 2 ])
+
       Stdlib.List.takeWhile([ 1, 5, 2, 2 ], fun item -> item < 3)
       |> Stdlib.Test.equal([ 1 ])
+
       Stdlib.List.takeWhile([], fun item -> item < 3)
       |> Stdlib.Test.equal([]) ])
+
 
 test uniqueBy =
   Stdlib.Test.all(
     [ // When `fn` collapses two values it is the FIRST that survives, where it was.
       Stdlib.List.uniqueBy([ 1, 2, 3, 4 ], fun x -> x / 2)
       |> Stdlib.Test.equal([ 1, 2, 4 ])
+
       Stdlib.List.uniqueBy([ 1, 2, 3, 4 ], fun x -> x)
       |> Stdlib.Test.equal([ 1, 2, 3, 4 ])
+
       Stdlib.List.uniqueBy([ 1, 1, 1, 1 ], fun x -> x)
       |> Stdlib.Test.equal([ 1 ])
+
       Stdlib.List.uniqueBy([ 7, 42, 7, 2, 10 ], fun x -> x)
       |> Stdlib.Test.equal([ 7, 42, 2, 10 ])
-      Stdlib.List.uniqueBy([], fun x -> x)
-      |> Stdlib.Test.equal([])
+
+      Stdlib.List.uniqueBy([], fun x -> x) |> Stdlib.Test.equal([])
+
       Stdlib.List.uniqueBy([ 31, 30, 10, 11 ], fun x -> x / 10)
       |> Stdlib.Test.equal([ 31, 10 ])
-      Stdlib.List.uniqueBy([ "bb", "a", "cc", "d" ], fun s -> Stdlib.String.length(s))
+
+      Stdlib.List.uniqueBy([ "bb", "a", "cc", "d" ], fun s ->
+        Stdlib.String.length(s))
       |> Stdlib.Test.equal([ "bb", "a" ]) ])
+
 
 test unique =
   Stdlib.Test.all(
     [ // The FIRST occurrence is kept where it was; nothing is sorted.
       Stdlib.List.unique([ 7, 42, 7, 2, 10 ])
       |> Stdlib.Test.equal([ 7, 42, 2, 10 ])
-      Stdlib.List.unique([ 1, 1, 1, 1 ])
-      |> Stdlib.Test.equal([ 1 ])
-      Stdlib.List.unique([ 1, 2, 3, 4 ])
-      |> Stdlib.Test.equal([ 1, 2, 3, 4 ])
+
+      Stdlib.List.unique([ 1, 1, 1, 1 ]) |> Stdlib.Test.equal([ 1 ])
+
+      Stdlib.List.unique([ 1, 2, 3, 4 ]) |> Stdlib.Test.equal([ 1, 2, 3, 4 ])
+
       Stdlib.List.unique([]) |> Stdlib.Test.equal([])
+
       Stdlib.List.unique([ "b", "a", "b", "a" ])
       |> Stdlib.Test.equal([ "b", "a" ])
+
       Stdlib.List.unique([ 5, 1, 4, 1, 3, 5, 2 ])
       |> Stdlib.Test.equal([ 5, 1, 4, 3, 2 ])
+
       // Compound values, not just scalars.
       Stdlib.List.unique([ (2, "b"), (1, "a"), (2, "b") ])
       |> Stdlib.Test.equal([ (2, "b"), (1, "a") ])
+
       Stdlib.List.unique([ [ 2 ], [ 1 ], [ 2 ] ])
       |> Stdlib.Test.equal([ [ 2 ], [ 1 ] ]) ])
+
 
 // Check that duplicates are removed from a large list of similar values.
 // The F# tests check hash collisions and the number of equality comparisons.
 test uniqueDeduplicatesSameShapedValues =
-  (Stdlib.List.range(1, 3000))
+  Stdlib.List.range(1, 3000)
   |> Stdlib.List.map(fun i -> [ "owner", "modules", Stdlib.display(i % 1500) ])
   |> Stdlib.List.unique
   |> Stdlib.List.length
   |> Stdlib.Test.equal(1500)
 
+
 // Equality is `==`, so NaN is unequal to itself and both are kept.
 test uniqueUsesEqualityNotDictKeys =
-  Stdlib.List.length(Stdlib.List.unique([ (0.0 / 0.0), (0.0 / 0.0) ]))
+  Stdlib.List.length(Stdlib.List.unique([ 0.0 / 0.0, 0.0 / 0.0 ]))
   |> Stdlib.Test.equal(2)
+
 
 // `uniqueBy` keys a Dict instead, and a Dict refuses a NaN key.
 test uniqueByRaisesOnNaN =
-  Stdlib.List.uniqueBy([ (0.0 / 0.0), (0.0 / 0.0) ], fun x -> x)
+  Stdlib.List.uniqueBy([ 0.0 / 0.0, 0.0 / 0.0 ], fun x -> x)
   => raises "Cannot use NaN as a dict key. NaN is not equal to itself, so a key holding it could never be found."
+
 
 test unzip =
   Stdlib.Test.all(
     [ // TODO: more tests, with values of more complex types
       Stdlib.List.unzip([ (1, 10), (2, 20), (3, 30) ])
       |> Stdlib.Test.equal(([ 1, 2, 3 ], [ 10, 20, 30 ]))
-      Stdlib.List.unzip([ (10, 6) ])
-      |> Stdlib.Test.equal(([ 10 ], [ 6 ])) ])
+
+      Stdlib.List.unzip([ (10, 6) ]) |> Stdlib.Test.equal(([ 10 ], [ 6 ])) ])
+
 
 test zipShortest =
   Stdlib.Test.all(
     [ Stdlib.List.zipShortest([ 10, 20, 30 ], [ 1, 2, 3 ])
       |> Stdlib.Test.equal([ (10, 1), (20, 2), (30, 3) ])
+
       Stdlib.List.zipShortest([ 10, 20, 30 ], [ "a", "bc", "d" ])
       |> Stdlib.Test.equal([ (10, "a"), (20, "bc"), (30, "d") ])
+
       Stdlib.List.zipShortest([ 10, 20 ], [ 1, 2, 3 ])
       |> Stdlib.Test.equal([ (10, 1), (20, 2) ])
+
       Stdlib.List.zipShortest([ 1, 2, 3 ], [ 10, 20 ])
       |> Stdlib.Test.equal([ (1, 10), (2, 20) ])
+
       Stdlib.List.zipShortest([ 10, 20 ], [ "a", "bc", "d" ])
       |> Stdlib.Test.equal([ (10, "a"), (20, "bc") ])
+
       Stdlib.List.zipShortest([ "a", "bc", "d" ], [ 10, 20 ])
       |> Stdlib.Test.equal([ ("a", 10), ("bc", 20) ])
-      Stdlib.List.zipShortest([ "b", "v", "z" ], [])
-      |> Stdlib.Test.equal([])
-      Stdlib.List.zipShortest([], [ "b", "v", "z" ])
-      |> Stdlib.Test.equal([]) ])
+
+      Stdlib.List.zipShortest([ "b", "v", "z" ], []) |> Stdlib.Test.equal([])
+
+      Stdlib.List.zipShortest([], [ "b", "v", "z" ]) |> Stdlib.Test.equal([]) ])
+
 
 test zip =
   Stdlib.Test.all(
     [ Stdlib.List.zip([ 10, 20, 30 ], [ 1, 2, 3 ])
-      |> Stdlib.Test.equal(Ok([ (10, 1), (20, 2), (30, 3) ]))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok([ (10, 1), (20, 2), (30, 3) ]))
+
       Stdlib.List.zip([ 10, 20 ], [ 1, 2, 3 ])
-      |> Stdlib.Test.equal(Error(Stdlib.List.LengthMismatch { left = 2, right = 3 }))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.List.LengthMismatch { left = 2, right = 3 }))
+
       Stdlib.List.zip([ 10, 20, 30 ], [ 1 ])
-      |> Stdlib.Test.equal(Error(Stdlib.List.LengthMismatch { left = 3, right = 1 }))
-      Stdlib.List.zip([], []) |> Stdlib.Test.equal(Ok([])) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.List.LengthMismatch { left = 3, right = 1 }))
+
+      Stdlib.List.zip([], [])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([])) ])
+
 
 test groupBy =
   Stdlib.Test.all(
-    [ Stdlib.List.groupBy([ 1, 2, 3, 4, 5 ], fun x ->
-        (x % 2))
-      |> Stdlib.Test.equal(
-        [ (1, [ 1, 3, 5 ]), (0, [ 2, 4 ]) ])
+    [ Stdlib.List.groupBy([ 1, 2, 3, 4, 5 ], fun x -> x % 2)
+      |> Stdlib.Test.equal([ (1, [ 1, 3, 5 ]), (0, [ 2, 4 ]) ])
+
       Stdlib.List.groupBy(
         [ "apple", "banana", "avocado", "grape", "apricot" ],
         fun word -> Stdlib.String.first(word, 1))
@@ -788,250 +1051,339 @@ test groupBy =
         [ ("a", [ "apple", "avocado", "apricot" ])
           ("b", [ "banana" ])
           ("g", [ "grape" ]) ])
+
       Stdlib.List.groupBy([ 'a', 'b', 'c', 'a', 'b' ], fun c -> c)
       |> Stdlib.Test.equal(
         [ ('a', [ 'a', 'a' ]), ('b', [ 'b', 'b' ]), ('c', [ 'c' ]) ])
-      Stdlib.List.groupBy([ 1, 2, 3, 4, 5 ], fun x ->
-        (x % 2) == 0)
+
+      Stdlib.List.groupBy([ 1, 2, 3, 4, 5 ], fun x -> x % 2 == 0)
+      |> Stdlib.Test.equal([ (false, [ 1, 3, 5 ]), (true, [ 2, 4 ]) ])
+
+      Stdlib.List.groupBy([ 1, 2, 3, 4, 5 ], fun x -> (x % 2, "test"))
       |> Stdlib.Test.equal(
-        [ (false, [ 1, 3, 5 ]), (true, [ 2, 4 ]) ])
-      Stdlib.List.groupBy([ 1, 2, 3, 4, 5 ], fun x ->
-        ((x % 2), "test"))
-      |> Stdlib.Test.equal(
-        [ ((1, "test"), [ 1, 3, 5 ])
-          ((0, "test"), [ 2, 4 ]) ])
-      Stdlib.List.groupBy([], fun x -> x)
-      |> Stdlib.Test.equal([])
+        [ ((1, "test"), [ 1, 3, 5 ]), ((0, "test"), [ 2, 4 ]) ])
+
+      Stdlib.List.groupBy([], fun x -> x) |> Stdlib.Test.equal([])
+
       // Keys come out in the order first seen, not sorted.
       Stdlib.List.groupBy([ 3, 1, 3, 2, 1, 3 ], fun x -> x)
-      |> Stdlib.Test.equal(
-        [ (3, [ 3, 3, 3 ]), (1, [ 1, 1 ]), (2, [ 2 ]) ])
+      |> Stdlib.Test.equal([ (3, [ 3, 3, 3 ]), (1, [ 1, 1 ]), (2, [ 2 ]) ])
+
       Stdlib.List.groupBy([ "b2", "a1", "b1", "c1", "a2" ], fun s ->
         Stdlib.String.first(s, 1))
       |> Stdlib.Test.equal(
         [ ("b", [ "b2", "b1" ]), ("a", [ "a1", "a2" ]), ("c", [ "c1" ]) ]) ])
 
+
 test dropLast =
   Stdlib.Test.all(
     [ Stdlib.List.dropLast([ 1, 2, 3, 4, 5 ])
       |> Stdlib.Test.equal([ 1, 2, 3, 4 ])
+
       Stdlib.List.dropLast([ 1 ]) |> Stdlib.Test.equal([])
+
       Stdlib.List.dropLast([]) |> Stdlib.Test.equal([]) ])
+
 
 test chunkBySize =
   Stdlib.Test.all(
     [ Stdlib.List.chunkBySize([ 1, 2, 3, 4, 5 ], 2)
-      |> Stdlib.Test.equal(Ok([ [ 1, 2 ], [ 3, 4 ], [ 5 ] ]))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok([ [ 1, 2 ], [ 3, 4 ], [ 5 ] ]))
+
       Stdlib.List.chunkBySize([ 1, 2, 3, 4, 5, 6 ], 3)
-      |> Stdlib.Test.equal(Ok([ [ 1, 2, 3 ], [ 4, 5, 6 ] ]))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok([ [ 1, 2, 3 ], [ 4, 5, 6 ] ]))
+
       Stdlib.List.chunkBySize([ 1, 2, 3 ], 1)
-      |> Stdlib.Test.equal(Ok([ [ 1 ], [ 2 ], [ 3 ] ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ [ 1 ], [ 2 ], [ 3 ] ]))
+
       Stdlib.List.chunkBySize([ 1, 2 ], 3)
-      |> Stdlib.Test.equal(Ok([ [ 1, 2 ] ]))
-      Stdlib.List.chunkBySize([], 4) |> Stdlib.Test.equal(Ok([]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ [ 1, 2 ] ]))
+
+      Stdlib.List.chunkBySize([], 4)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([]))
+
       Stdlib.List.chunkBySize([ 1, 2, 3, 4 ], 0)
       |> Stdlib.Test.equal(
-        Error(Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero))
+        Stdlib.Result.Result.Error(
+          Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero))
+
       Stdlib.List.chunkBySize([ 1, 2, 3, 4 ], -1)
       |> Stdlib.Test.equal(
-        Error(Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)) ])
+        Stdlib.Result.Result.Error(
+          Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)) ])
+
 
 test splitLast =
   Stdlib.Test.all(
-    [ Stdlib.List.splitLast([]) |> Stdlib.Test.equal(None)
+    [ Stdlib.List.splitLast([]) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Stdlib.List.splitLast([ 1 ])
-      |> Stdlib.Test.equal(Some(([], 1)))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(([], 1)))
+
       Stdlib.List.splitLast([ 1, 2 ])
-      |> Stdlib.Test.equal(Some(([ 1 ], 2)))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(([ 1 ], 2)))
+
       Stdlib.List.splitLast([ 1, 2, 3 ])
-      |> Stdlib.Test.equal(Some(([ 1, 2 ], 3))) ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(([ 1, 2 ], 3))) ])
+
 
 test rejectsMixedListElements =
   [ 1s32, 2.3 ]
   => raises "Cannot add a Float (2.3) to a list of Int32. Failed at index 1."
 
+
 test rejectsMixedTupleAndScalar =
   [ (1s32, 10s32), 10s32, (3s32, 30s32) ]
   => raises "Cannot add an Int32 (10s32) to a list of (Int32 * Int32). Failed at index 1."
+
 
 test rejectsTuplesWithDifferentArity =
   [ (1s32, 10s32), (2s32, 20s32), (3s32, 30s32, 40s32) ]
   => raises "Cannot add an (Int32 * Int32 * Int32) ((3s32, 30s32, 40s32)) to a list of (Int32 * Int32). Failed at index 2."
 
+
 test dropWhileRejectsNonBoolCondition =
   Stdlib.List.dropWhile([ 1, 2, 3, 4 ], fun _ -> 0 - 1)
   => raises "Darklang.Stdlib.List.dropWhile's 2nd parameter `fn` returned Int64 (-1), but should return Bool"
 
+
 test filterRejectsOptionCondition =
   Stdlib.List.filter([ 1, 2, 3 ], fun item ->
     match item with
-    | 1 -> None
+    | 1 -> Stdlib.Option.Option.None
     | 2 -> false
     | 3 -> true)
   => raises "Darklang.Stdlib.List.filter's 2nd parameter `f` returned Darklang.Stdlib.Option.Option<_> (None), but should return Bool"
+
 
 test filterRejectsStringCondition =
   Stdlib.List.filter([ true, false, true ], fun _ -> "a")
   => raises "Darklang.Stdlib.List.filter's 2nd parameter `f` returned String (\"a\"), but should return Bool"
 
+
 test flattenRejectsScalarElements =
   Stdlib.List.flatten([ 1s32, 2s32, 3s32 ])
   => raises "Darklang.Stdlib.List.flatten's 1st parameter `list` expects List<List<_>>, but got List<Int32> ([1s32, 2s32, 3s32])"
+
 
 test flattenRejectsDifferentNestingDepths =
   Stdlib.List.flatten([ [ 1 ], [ [ 2, 3 ] ] ])
   => raises "Cannot add a List<List<Int64>> ([[2, 3]]) to a list of List<Int64>. Failed at index 1."
 
+
 test setAtRejectsWrongValueType =
   Stdlib.List.setAt([ 1, 2 ], 0, "x")
   => raises "Darklang.Stdlib.List.setAt's 3rd parameter `value` expects Int64, but got String (\"x\")"
+
 
 test interleaveRejectsMixedElementTypes =
   Stdlib.List.interleave([ "a", "b", "c" ], [ 0 ])
   => raises "Darklang.Stdlib.List.interleave's 2nd parameter `lB` expects List<String>, but got List<Int64> ([0])"
 
+
 test interposeRejectsWrongSeparatorType =
   Stdlib.List.interpose([ "a", "b", "c" ], 0)
   => raises "Darklang.Stdlib.List.interpose's 2nd parameter `sep` expects String, but got Int64 (0). Try wrapping it with `Stdlib.display`."
+
 
 test allStopsAtTheFirstFalse =
   // 10 / 0 would raise; `all` never gets that far.
   Stdlib.List.all([ 1, 7, 0 ], fun x -> 10 / x > 5) |> Stdlib.Test.equal(false)
 
+
 test allRejectsStringCondition =
   Stdlib.List.all([ 1, 2 ], fun _ -> "a")
   => raises "Darklang.Stdlib.List.all's 2nd parameter `fn` returned String (\"a\"), but should return Bool"
 
+
 test partitionKeepsOrderOverALongList =
   Stdlib.List.partition(Stdlib.List.range(1, 10000), fun x -> x % 3 == 0)
-  |> fun((threes, others)) ->
-    (Stdlib.List.length(threes), Stdlib.List.take(threes, 2), Stdlib.List.take(others, 3))
-  |> Stdlib.Test.equal((3333, [ 3, 6 ], [ 1, 2, 4 ]))
+  |> (fun((threes, others)) ->
+        (
+          Stdlib.List.length(threes),
+          Stdlib.List.take(threes, 2),
+          Stdlib.List.take(others, 3))
+        |> Stdlib.Test.equal((3333, [ 3, 6 ], [ 1, 2, 4 ])))
+
 
 test partitionRejectsALaterStringCondition =
   Stdlib.List.partition([ 1, 2 ], fun x -> if x == 2 then "s" else true)
   => raises "Darklang.Stdlib.List.partition's 2nd parameter `f` returned String (\"s\"), but should return Bool"
 
+
 test partitionRejectsStringCondition =
   Stdlib.List.partition([ true, false, true ], fun _ -> "a")
   => raises "Darklang.Stdlib.List.partition's 2nd parameter `f` returned String (\"a\"), but should return Bool"
 
+
 test partitionRejectsOptionCondition =
   Stdlib.List.partition([ 1, 2, 3 ], fun item ->
     match item with
-    | 1 -> None
+    | 1 -> Stdlib.Option.Option.None
     | 2 -> false
     | 3 -> true)
   => raises "Darklang.Stdlib.List.partition's 2nd parameter `f` returned Darklang.Stdlib.Option.Option<_> (None), but should return Bool"
+
 
 test comparatorRejectsIntResult =
   Stdlib.List.sortWith([ 3, 1, 2 ], fun(_, _) -> 0)
   => raises "Darklang.Stdlib.List.sortWith's 2nd parameter `fn` returned Int64 (0), but should return Darklang.Stdlib.Ordering"
 
+
 test comparatorRejectsStringResult =
   Stdlib.List.sortWith([ 1, 2, 3 ], fun(_, _) -> "㧑༷釺")
   => raises "Darklang.Stdlib.List.sortWith's 2nd parameter `fn` returned String (\"㧑༷釺\"), but should return Darklang.Stdlib.Ordering"
 
+
 test sortRefusesFunctions =
   Stdlib.List.sort([ (fun x -> x), (fun y -> y) ])
   => raises "Cannot sort (lambda). Bytes, functions and streams have no order; use List.sortBy with a key that has one."
+
 
 //TODO: better error message
 test takeWhileRejectsNonBoolCondition =
   Stdlib.List.takeWhile([ 1, 2, 3, 4 ], fun _ -> 0 - 1)
   => raises "Darklang.Stdlib.List.takeWhile's 2nd parameter `fn` returned Int64 (-1), but should return Bool"
 
+
 test uniqueByRejectsMixedElementTypes =
   Stdlib.List.uniqueBy([ 6, 2.0 ], fun x -> x)
   => raises "Cannot add a Float (2.0) to a list of Int64. Failed at index 1."
+
 
 // A key type a Dict cannot hold raises, rather than being compared by identity.
 test uniqueByRejectsFunctionKeys =
   Stdlib.List.uniqueBy([ 1 ], fun _ -> (fun value -> value))
   => raises "Cannot use (lambda) as a dict key. Functions, streams, and values containing them cannot be keys."
 
+
 // `unique` compares a lambda by identity, the way `==` does.
 test uniqueKeepsFunctions =
   Stdlib.List.length(Stdlib.List.unique([ (fun value -> value) ]))
   |> Stdlib.Test.equal(1)
 
+
 test uniqueByRejectsFunctionElementsAsKeys =
   Stdlib.List.uniqueBy([ (fun value -> value) ], fun f -> f)
   => raises "Cannot use (lambda) as a dict key. Functions, streams, and values containing them cannot be keys."
+
 
 test headEvaluatesElements =
   Stdlib.List.head([ Stdlib.Test.raiseRuntimeError("test") ])
   => raises "Uncaught exception: test"
 
+
 test lastEvaluatesElements =
   Stdlib.List.last([ Stdlib.Test.raiseRuntimeError("test") ])
   => raises "Uncaught exception: test"
+
 
 test randomElementEvaluatesElements =
   Stdlib.List.randomElement([ Stdlib.Test.raiseRuntimeError("test") ])
   => raises "Uncaught exception: test"
 
+
 test zipEvaluatesElements =
-  Stdlib.List.zip([ Stdlib.Test.raiseRuntimeError("msg") ], [ Some("") ])
+  Stdlib.List.zip(
+    [ Stdlib.Test.raiseRuntimeError("msg") ],
+    [ Stdlib.Option.Option.Some("") ])
   => raises "Uncaught exception: msg"
+
 
 // The counter records callback calls within this test.
 module IterEffects =
   test invokesCallbackForEachElement =
-    let _ = Stdlib.List.iter([ 1, 2, 3 ], fun _ -> Stdlib.Test.incrementCounter())
+    let _ =
+      Stdlib.List.iter([ 1, 2, 3 ], fun _ -> Stdlib.Test.incrementCounter())
+
     Stdlib.Test.counterValue() |> Stdlib.Test.equal(3)
+
 
   test runsConditionalEffects =
     let _ =
       Stdlib.List.iter([ 1, 2, 3, 4, 5 ], fun x ->
         if x % 2 == 0 then Stdlib.Test.incrementCounter())
+
     Stdlib.Test.counterValue() |> Stdlib.Test.equal(2)
+
 
   test doesNotInvokeCallbackForEmptyList =
     let _ = Stdlib.List.iter([], fun _ -> Stdlib.Test.incrementCounter())
     Stdlib.Test.counterValue() |> Stdlib.Test.equal(0)
 
+
   test runsMultipleEffectsPerElement =
-    let _ =
-      Stdlib.List.iter([ 10, 20, 30 ], fun _ ->
-        let _ = Stdlib.Test.incrementCounter()
-        Stdlib.Test.incrementCounter())
+    let _ = Stdlib.List.iter([ 10, 20, 30 ], fun _ ->
+      let _ = Stdlib.Test.incrementCounter()
+      Stdlib.Test.incrementCounter())
+
     Stdlib.Test.counterValue() |> Stdlib.Test.equal(6)
+
 
   test visitsLastElement =
     let _ =
       Stdlib.List.iter([ 1, 2, 3 ], fun x ->
         if x > 2 then Stdlib.Test.incrementCounter())
+
     Stdlib.Test.counterValue() |> Stdlib.Test.equal(1)
 
+
 test comparatorRejectsWrongArity =
-  Stdlib.List.sortWith([6.0, 2.0], fun x -> x)
+  Stdlib.List.sortWith([ 6.0, 2.0 ], fun x -> x)
   => raises "Lambda expects 1 argument, but got 2 arguments"
+
 
 test uniqueBySupportsNestedKeys =
   Stdlib.List.uniqueBy(
-    [ ([1, 2], Some("a")), ([1, 2], Some("a")), ([2, 1], None) ],
+    [ ([ 1, 2 ], Stdlib.Option.Option.Some("a"))
+      ([ 1, 2 ], Stdlib.Option.Option.Some("a"))
+      ([ 2, 1 ], Stdlib.Option.Option.None) ],
     fun x -> x)
-  |> Stdlib.Test.equal([ ([1, 2], Some("a")), ([2, 1], None) ])
+  |> Stdlib.Test.equal(
+    [ ([ 1, 2 ], Stdlib.Option.Option.Some("a"))
+      ([ 2, 1 ], Stdlib.Option.Option.None) ])
+
 
 // Over enough draws every element turns up, and nothing else does: 400 draws from four miss one
 // with probability about 1e-50.
 test randomElementReachesEveryElement =
   let items = [ "a", "b", "c", "d" ]
   let draws =
-    Stdlib.List.filterMap(Stdlib.List.range(1, 400), fun(_i) -> Stdlib.List.randomElement(items))
+    Stdlib.List.filterMap(Stdlib.List.range(1, 400), fun _i ->
+      Stdlib.List.randomElement(items))
+
   Stdlib.Test.all(
     [ Stdlib.List.length(draws) |> Stdlib.Test.equal(400)
-      draws |> Stdlib.List.unique() |> Stdlib.List.sort() |> Stdlib.Test.equal(items)
-      Stdlib.List.randomElement([ 7, 7 ]) |> Stdlib.Test.equal(Some(7)) ])
+
+      draws
+      |> Stdlib.List.unique
+      |> Stdlib.List.sort
+      |> Stdlib.Test.equal(items)
+
+      Stdlib.List.randomElement([ 7, 7 ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7)) ])
+
 
 // Every order of three is reachable (600 shuffles miss one with probability about 1e-47), and a
 // longer list keeps every element.
 test shuffleReachesEveryOrder =
   let orders =
-    Stdlib.List.map(Stdlib.List.range(1, 600), fun(_i) -> Stdlib.List.shuffle([ 1, 2, 3 ]))
+    Stdlib.List.map(Stdlib.List.range(1, 600), fun _i ->
+      Stdlib.List.shuffle([ 1, 2, 3 ]))
+
   let long = Stdlib.List.range(0, 99)
   Stdlib.Test.all(
-    [ orders |> Stdlib.List.unique() |> Stdlib.List.length() |> Stdlib.Test.equal(6)
-      Stdlib.List.shuffle(long) |> Stdlib.List.sort() |> Stdlib.Test.equal(long)
-      Stdlib.List.shuffle([ [], [ 1 ] ]) |> Stdlib.List.length() |> Stdlib.Test.equal(2) ])
+    [ orders
+      |> Stdlib.List.unique
+      |> Stdlib.List.length
+      |> Stdlib.Test.equal(6)
+
+      Stdlib.List.shuffle(long)
+      |> Stdlib.List.sort
+      |> Stdlib.Test.equal(long)
+
+      Stdlib.List.shuffle([ [], [ 1 ] ])
+      |> Stdlib.List.length
+      |> Stdlib.Test.equal(2) ])

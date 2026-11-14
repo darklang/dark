@@ -9,7 +9,8 @@
 /// wants the text.
 module Darklang.PrettyPrinter.RuntimeTypes.Instructions
 
-let register(r: LanguageTools.RuntimeTypes.Register): String = "r" + Stdlib.display(r)
+let register(r: LanguageTools.RuntimeTypes.Register): String =
+  "r" + Stdlib.display(r)
 
 
 let registers(rs: List<LanguageTools.RuntimeTypes.Register>): String =
@@ -142,7 +143,6 @@ let inlineDval(branchId: Uuid, dv: LanguageTools.RuntimeTypes.Dval): String =
     $"{t} {{{Stdlib.display(n)} fields}}"
   | DEnum(_, typeName, _, caseName, fields) ->
     let t = RuntimeTypes.typeName(branchId, typeName)
-
     if Stdlib.List.isEmpty(fields) then
       $"{t}.{caseName}"
     else

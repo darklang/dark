@@ -3,23 +3,34 @@
 /// The helpers are in `helpers.dark`.
 module Darklang.SCM.Tests.Cli
 
-
 test aBranchSeesMainsCommitsButNotMainsDraft =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.a", "1")
       commit(dark, "base")
       saveNumber(dark, "Tests.App.a", "2")
       saveNumber(dark, "Tests.App.draftOnly", "3")
-
       switch(dark, "feat")
-      evals(dark, "Tests.App.a()", "1", "the branch runs main's committed version, not its draft")
-      notFound(dark, "Tests.App.draftOnly()", "a name only in main's draft is not there")
-      draftIsEmpty(dark, "main's draft is not the branch's draft")
+      evals(
+        dark,
+        "Tests.App.a()",
+        "1",
+        "the branch runs main's committed version, not its draft")
 
+      notFound(
+        dark,
+        "Tests.App.draftOnly()",
+        "a name only in main's draft is not there")
+
+      draftIsEmpty(dark, "main's draft is not the branch's draft")
       switch(dark, "main")
       commit(dark, "main lands")
       switch(dark, "feat")
-      evals(dark, "Tests.App.a()", "2", "once main commits, the branch sees the change")
+      evals(
+        dark,
+        "Tests.App.a()",
+        "2",
+        "once main commits, the branch sees the change")
+
       evals(dark, "Tests.App.draftOnly()", "3", "and the new name") ])
 
 
@@ -29,15 +40,32 @@ test aBranchOffABranchSeesItsParentsCommits =
       saveNumber(dark, "Tests.App.onFeat", "1")
       commit(dark, "feat work")
       saveNumber(dark, "Tests.App.featDraft", "2")
+      says(
+        dark,
+        [ "switch", "child" ],
+        "(off \"feat\")",
+        "switching from a branch starts the new one off it")
 
-      says(dark, [ "switch", "child" ], "(off \"feat\")", "switching from a branch starts the new one off it")
-      same(branches(dark), [ "child <- feat", "feat <- main" ], "branches lists both, with their parents")
-      evals(dark, "Tests.App.onFeat()", "1", "the child sees the parent's commit")
+      same(
+        branches(dark),
+        [ "child <- feat", "feat <- main" ],
+        "branches lists both, with their parents")
+
+      evals(
+        dark,
+        "Tests.App.onFeat()",
+        "1",
+        "the child sees the parent's commit")
+
       notFound(dark, "Tests.App.featDraft()", "but not the parent's draft")
-
       saveNumber(dark, "Tests.App.onChild", "3")
       commit(dark, "child work")
-      notFoundOn(dark, "feat", "Tests.App.onChild()", "the parent does not see the child's work")
+      notFoundOn(
+        dark,
+        "feat",
+        "Tests.App.onChild()",
+        "the parent does not see the child's work")
+
       notFoundOn(dark, "main", "Tests.App.onFeat()", "and main sees neither") ])
 
 
@@ -47,11 +75,23 @@ test switchStaysButBranchFlagAndEnvVarAreForOneCommand =
       saveNumber(dark, "Tests.App.a", "1")
       switch(dark, "main")
       says(dark, [ "branch" ], "on main", "switch moved us to main")
+      evalsWith(
+        dark,
+        [],
+        [ "--branch", "feat" ],
+        "Tests.App.a()",
+        "1",
+        "--branch runs one command on feat")
 
-      evalsWith(dark, [], [ "--branch", "feat" ], "Tests.App.a()", "1", "--branch runs one command on feat")
-      evalsWith(dark, [ ("DARK_BRANCH", "feat") ], [], "Tests.App.a()", "1", "so does DARK_BRANCH")
+      evalsWith(
+        dark,
+        [ ("DARK_BRANCH", "feat") ],
+        [],
+        "Tests.App.a()",
+        "1",
+        "so does DARK_BRANCH")
+
       says(dark, [ "branch" ], "on main", "and neither moved us")
-
       switch(dark, "feat")
       evals(dark, "Tests.App.a()", "1", "switch does, for every later command")
       onBranch(dark, "feat", "status agrees") ])
@@ -75,12 +115,15 @@ test renamingABranchKeepsItsWork =
     [ switch(dark, "feat")
       saveNumber(dark, "Tests.App.a", "1")
       commit(dark, "feat work")
+      says(
+        dark,
+        [ "branch", "rename", "feat", "feature" ],
+        "renamed \"feat\" to \"feature\"",
+        "rename says so")
 
-      says(dark, [ "branch", "rename", "feat", "feature" ], "renamed \"feat\" to \"feature\"", "rename says so")
       same(branches(dark), [ "feature <- main" ], "only the new name is listed")
       onBranch(dark, "feature", "we are still on it, under its new name")
       evals(dark, "Tests.App.a()", "1", "its work is all there")
-
       switch(dark, "main")
       merge(dark, "feature")
       evals(dark, "Tests.App.a()", "1", "and it merges under the new name") ])
@@ -95,21 +138,45 @@ test archivingABranchThrowsAwayItsUnmergedWork =
       commit(dark, "doomed work")
       switch(dark, "kid")
       switch(dark, "main")
+      refuses(
+        dark,
+        [ "branch", "archive", "doomed", "-y" ],
+        "kid",
+        "a branch with a live child refuses, naming it")
 
-      refuses(dark, [ "branch", "archive", "doomed", "-y" ], "kid", "a branch with a live child refuses, naming it")
-      says(dark, [ "branch", "archive", "kid", "-y" ], "archived branch \"kid\"", "the child archives")
-      says(dark, [ "branch", "archive", "doomed", "-y" ], "archived branch \"doomed\"", "then the parent")
+      says(
+        dark,
+        [ "branch", "archive", "kid", "-y" ],
+        "archived branch \"kid\"",
+        "the child archives")
+
+      says(
+        dark,
+        [ "branch", "archive", "doomed", "-y" ],
+        "archived branch \"doomed\"",
+        "then the parent")
 
       same(allBranches(dark), [], "neither is listed, even with --all")
       notFound(dark, "Tests.App.doomed()", "the branch's work is gone")
       evals(dark, "Tests.App.keep()", "1", "main's is not")
       draftIsEmpty(dark, "main's draft is empty")
+      doesNotSay(
+        dark,
+        [ "commits" ],
+        "archived branch",
+        "`commits` hides the archive bookkeeping")
 
-      doesNotSay(dark, [ "commits" ], "archived branch", "`commits` hides the archive bookkeeping")
-      says(dark, [ "commits", "--all" ], "archived branch \"doomed\"", "`commits --all` shows it")
+      says(
+        dark,
+        [ "commits", "--all" ],
+        "archived branch \"doomed\"",
+        "`commits --all` shows it")
+
       same(
         commits(dark),
-        [ "archived branch \"doomed\"", "archived branch \"kid\"", "main work" ],
+        [ "archived branch \"doomed\""
+          "archived branch \"kid\""
+          "main work" ],
         "`commits --json` lists it even without --all") ])
 
 
@@ -122,8 +189,20 @@ test switchingToAMergedBranchsNameStartsAFreshBranch =
       commit(dark, "feat work")
       switch(dark, "main")
       merge(dark, "feat")
+      says(
+        dark,
+        [ "switch", "feat" ],
+        "this one is fresh",
+        "switch says the name is being reused")
 
-      says(dark, [ "switch", "feat" ], "this one is fresh", "switch says the name is being reused")
-      same(allBranches(dark), [ "feat <- main", "feat <- main [merged]" ], "two branches, one name")
+      same(
+        allBranches(dark),
+        [ "feat <- main", "feat <- main [merged]" ],
+        "two branches, one name")
+
       draftIsEmpty(dark, "the fresh one has an empty draft")
-      evals(dark, "Tests.App.a()", "1", "and sees the merged work through main") ])
+      evals(
+        dark,
+        "Tests.App.a()",
+        "1",
+        "and sees the merged work through main") ])

@@ -3,17 +3,39 @@
 /// Part of `Darklang.Cli.Workbench`.
 module Darklang.Cli.Workbench
 
-let renderErrors(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
-  splitListPreview(state, region, "Errors", "error", "Detail", Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, "✓ all clear - no errors"))
+let renderErrors(
+  state: State,
+  region: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  splitListPreview(
+    state,
+    region,
+    "Errors",
+    "error",
+    "Detail",
+    Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.green, "✓ all clear - no errors"))
+
 
 let errorHints(state: State): List<(String * String)> =
   [ ("↑↓", "move"), ("f", "filter") ]
 
-let renderBuiltins(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
-  splitListPreview(state, region, "Builtins", "builtin", "Signature", Stdlib.Cli.UI.Colors.dimText("(no builtins)"))
+
+let renderBuiltins(
+  state: State,
+  region: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  splitListPreview(
+    state,
+    region,
+    "Builtins",
+    "builtin",
+    "Signature",
+    Stdlib.Cli.UI.Colors.dimText("(no builtins)"))
+
 
 let builtinHints(state: State): List<(String * String)> =
   [ ("↑↓", "move"), ("f", "filter") ]
+
 
 /// The Builtins view: every F# builtin, with its signature.
 let loadBuiltinItems(): List<BodyItem> =
@@ -21,6 +43,7 @@ let loadBuiltinItems(): List<BodyItem> =
   |> Stdlib.List.map(fun fn -> fn.name.name)
   |> Stdlib.List.sort
   |> Stdlib.List.map(fun n -> BodyItem { name = n, kind = "builtin", isModule = false, desc = "" })
+
 
 let builtinDetailLines(state: State): List<String> =
   match Stdlib.List.getAt(state.items, state.selected) with
@@ -36,10 +59,11 @@ let builtinDetailLines(state: State): List<String> =
           let typStr = PrettyPrinter.RuntimeTypes.typeReference(state.branchId, p.type)
           $"{p.name}: {typStr}")
         |> Stdlib.String.join(", ")
+
       let ret = PrettyPrinter.RuntimeTypes.typeReference(state.branchId, fn.returnType)
       [ Stdlib.Cli.UI.Colors.boldText($"{fn.name.name}({params}) -> {ret}")
         ""
-        Stdlib.Cli.UI.Colors.dimText("builtin  ·  " + (Darklang.Cli.Builtins.purityTag(fn.purity)))
+        Stdlib.Cli.UI.Colors.dimText("builtin  ·  " + Builtins.purityTag(fn.purity))
         ""
         fn.description ]
 
@@ -55,84 +79,93 @@ let builtinDetailLines(state: State): List<String> =
 /// the right are the same process. The one read of the table: the row's cells ride in `desc`,
 /// tab-separated, so `render` draws what the loader saw and reads nothing.
 let loadProcessItems(): List<BodyItem> =
-  Cli.Ps.treeRowsWithIds(SCM.PackageOps.currentBranch(), LanguageTools.Exec.list())
+  Ps.treeRowsWithIds(SCM.PackageOps.currentBranch(), LanguageTools.Exec.list())
   |> Stdlib.List.map(fun((id, cells)) ->
     BodyItem
-      { name = Cli.Text.shortId(id)
+      { name = Text.shortId(id)
         kind = "process"
         isModule = false
         desc = Stdlib.String.join(cells, "\t") })
 
+
 /// The table as a tree, from the rows the loader read.
 let processTree(state: State): Stdlib.Cli.UI.Node.Node<Unit> =
   let rows = state.items |> Stdlib.List.map(fun item -> Stdlib.String.split(item.desc, "\t"))
-
   if Stdlib.List.isEmpty(rows) then
     Stdlib.Cli.UI.Node.dim("(no processes: the scheduler is not running this workbench)")
   else
     // The machine's other Dark processes go UNDER this instance's table, so the cursor
     // arithmetic in `renderProcesses` (row = selected + 2) stays true.
     let others =
-      match Cli.Ps.machineRows() with
+      match Ps.machineRows() with
       | [] -> []
       | machine ->
         [ Stdlib.Cli.UI.Node.text("")
           Stdlib.Cli.UI.Node.dim("elsewhere on this machine")
-          Stdlib.Cli.UI.Node.table(Cli.Ps.machineColumns, machine) ]
+          Stdlib.Cli.UI.Node.table(Ps.machineColumns, machine) ]
 
     Stdlib.Cli.UI.Node.column(
-      (Stdlib.List.concat(
-        [ Stdlib.Cli.UI.Node.table(Cli.Ps.localColumns, rows)
+      Stdlib.List.concat(
+        [ Stdlib.Cli.UI.Node.table(Ps.localColumns, rows)
           Stdlib.Cli.UI.Node.text("")
           Stdlib.Cli.UI.Node.dim("the selected row's call stack is on the right") ],
-        others)))
+        others))
+
 
 /// The table on the left, the selected process's stack on the right.
-let renderProcesses(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
-  let listFocused =
-    Stdlib.Cli.UI.Focus.fromBool(state.focus == Stdlib.Cli.UI.SplitPane.Focus.First)
+let renderProcesses(
+  state: State,
+  region: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  let listFocused = Stdlib.Cli.UI.Focus.fromBool(state.focus == Stdlib.Cli.UI.SplitPane.Focus.First)
+
   let detailFocused =
     Stdlib.Cli.UI.Focus.fromBool(state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second)
 
-  paneSplit(
-    region,
-    60,
-    state.focus,
-    paneTitle("Processes", listTrailer(state, "process"), listFocused),
-    (fun r ->
-      // The tree, with the selected row marked: the list pane IS the table, so the cursor has to
-      // be drawn on it rather than on a separate list of names.
-      let lines = Stdlib.Cli.UI.Node.toRows(processTree(state), r.cols, "")
-      // Row 0 is the header, row 1 the rule; the processes start at row 2.
-      let cursorRow = state.selected + 2
-      let marked =
-        lines
-        |> Stdlib.List.indexedMap(fun(i, line) ->
-          if i == cursorRow then
-            Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.selection, line)
-          else
-            line)
-      // Enough scroll to keep the cursor on screen. Without it, selecting past the pane's
-      // height moves a cursor nobody can see.
-      let visible = Stdlib.max(1, r.rows - 1)
-      let scroll = Stdlib.max(0, (cursorRow + 1) - visible)
-      renderScrollableLines(r, 0, lines, marked, scroll)),
-    paneTitle("Stack", [], detailFocused),
-    fun r -> renderPreview(state, r))
+  paneSplit(region, 60, state.focus, paneTitle(
+    "Processes",
+    listTrailer(state, "process"),
+    listFocused), (fun r ->
+                     // The tree, with the selected row marked: the list pane IS the table, so the cursor has to
+                     // be drawn on it rather than on a separate list of names.
+                     let lines = Stdlib.Cli.UI.Node.toRows(processTree(state), r.cols, "")
+                     // Row 0 is the header, row 1 the rule; the processes start at row 2.
+                     let cursorRow = state.selected + 2
+                     let marked =
+                       lines
+                       |> Stdlib.List.indexedMap(fun(i, line) ->
+                         if i == cursorRow then
+                           Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.selection, line)
+                         else
+                           line)
+
+                     // Enough scroll to keep the cursor on screen. Without it, selecting past the pane's
+                     // height moves a cursor nobody can see.
+                     let visible = Stdlib.max(1, r.rows - 1)
+                     let scroll = Stdlib.max(0, cursorRow + 1 - visible)
+                     renderScrollableLines(r, 0, lines, marked, scroll)), paneTitle(
+    "Stack",
+    [],
+    detailFocused), fun r ->
+    renderPreview(state, r))
+
 
 let processDetailLines(state: State): List<String> =
   match Stdlib.List.getAt(state.items, state.selected) with
   | None -> []
   | Some(item) ->
-    match Cli.Ps.find(item.name) with
+    match Ps.find(item.name) with
     | Error(e) -> [ e ]
     | Ok(p) ->
       match LanguageTools.Exec.inspect(p.id) with
       | None -> [ "gone" ]
       | Some(d) ->
         Stdlib.List.concat(
-          [ Cli.Ps.statusText(state.branchId, d.summary.status), "" ],
-          d.frames |> Stdlib.List.map(fun ep -> Cli.Ps.executionPointText(state.branchId, ep)))
+          [ Ps.statusText(state.branchId, d.summary.status), "" ],
+          d.frames |> Stdlib.List.map(fun ep -> Ps.executionPointText(state.branchId, ep)))
+
 
 let processHints(state: State): List<(String * String)> =
-  [ ("↑↓", "select"), ("5", "back to Traces"), ("", "`dark ps cancel <id>` stops one; `dark ps --watch` for the live view") ]
+  [ ("↑↓", "select")
+    ("5", "back to Traces")
+    ("", "`dark ps cancel <id>` stops one; `dark ps --watch` for the live view") ]

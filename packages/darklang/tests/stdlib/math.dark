@@ -4,7 +4,8 @@ module Darklang.Stdlib.Math.Tests
 // and 1e-10 for the other values here.
 let near(actual: Float, expected: Float): Stdlib.Test.Result =
   let tolerance = if expected == 0.0 then 0.000000000001 else 0.0000000001
-  (Stdlib.abs(actual - expected) < tolerance) |> Stdlib.Test.equal(true)
+  Stdlib.abs(actual - expected) < tolerance |> Stdlib.Test.equal(true)
+
 
 let nearSome(
   actual: Stdlib.Option.Option<Float>,
@@ -14,11 +15,13 @@ let nearSome(
   | Some(value) -> near(value, expected)
   | None -> Stdlib.Test.fail("expected Some Float, got None")
 
+
 test constants =
   Stdlib.Test.all(
     [ Stdlib.Math.pi |> near(3.14159265359)
       Stdlib.Math.e |> near(2.71828182846)
       Stdlib.Math.tau |> near(2.0 * Stdlib.Math.pi) ])
+
 
 test degreesAndRadians =
   Stdlib.Test.all(
@@ -26,6 +29,7 @@ test degreesAndRadians =
       Stdlib.Math.degrees(360.0) |> near(2.0 * Stdlib.Math.pi)
       Stdlib.Math.radians(-3.141592653589793) |> near(-Stdlib.Math.pi)
       Stdlib.Math.radians(6.283185307179586) |> near(2.0 * Stdlib.Math.pi) ])
+
 
 test trigonometry =
   Stdlib.Test.all(
@@ -38,14 +42,16 @@ test trigonometry =
       Stdlib.Math.atan(0.0) |> near(0.0)
       Stdlib.Math.atan(1.0) |> near(0.785398163397) ])
 
+
 test inverseTrigonometry =
   Stdlib.Test.all(
     [ Stdlib.Math.asin(0.0) |> nearSome(0.0)
       Stdlib.Math.asin(1.0) |> nearSome(1.57079632679)
-      Stdlib.Math.asin(5.0) |> Stdlib.Test.equal(None)
+      Stdlib.Math.asin(5.0) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
       Stdlib.Math.acos(-1.0) |> nearSome(3.14159265359)
       Stdlib.Math.acos(1.0) |> nearSome(0.0)
-      Stdlib.Math.acos(5.0) |> Stdlib.Test.equal(None) ])
+      Stdlib.Math.acos(5.0) |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
 
 test atan2 =
   Stdlib.Test.all(
@@ -54,6 +60,7 @@ test atan2 =
       Stdlib.Math.atan2(0.0, 1.0) |> near(0.0)
       Stdlib.Math.atan2(1.0, -1.0) |> near(2.35619449019)
       Stdlib.Math.atan2(1.0, 1.0) |> near(0.785398163397) ])
+
 
 test hyperbolic =
   Stdlib.Test.all(
@@ -65,23 +72,40 @@ test hyperbolic =
       Stdlib.Math.tanh(-1.0) |> near(-0.761594155956)
       Stdlib.Math.tanh(20.0) |> near(1.0) ])
 
+
 test turns =
   Stdlib.Test.all(
     [ Stdlib.Math.turns(-0.5) |> near(-Stdlib.Math.pi)
       Stdlib.Math.turns(1.0) |> near(2.0 * Stdlib.Math.pi) ])
 
+
 // checked versions: Error where the result is not finite
 test checkedOverflow =
   Stdlib.Test.all(
-    [ Stdlib.Math.checkedCosh(0.0) |> Stdlib.Test.equal(Ok(1.0))
+    [ Stdlib.Math.checkedCosh(0.0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.0))
+
       Stdlib.Math.checkedCosh(1000.0)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
-      Stdlib.Math.checkedSinh(0.0) |> Stdlib.Test.equal(Ok(0.0))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+
+      Stdlib.Math.checkedSinh(0.0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.0))
+
       Stdlib.Math.checkedSinh(-1000.0)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
-      Stdlib.Math.checkedDegrees(180.0) |> Stdlib.Test.equal(Ok(Stdlib.Math.pi))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+
+      Stdlib.Math.checkedDegrees(180.0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Stdlib.Math.pi))
+
       Stdlib.Math.checkedDegrees(1e308)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
-      Stdlib.Math.checkedTurns(0.5) |> Stdlib.Test.equal(Ok(Stdlib.Math.pi))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+
+      Stdlib.Math.checkedTurns(0.5)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Stdlib.Math.pi))
+
       Stdlib.Math.checkedTurns(1e308)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow)) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow)) ])

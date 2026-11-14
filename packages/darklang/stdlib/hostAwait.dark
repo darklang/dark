@@ -32,7 +32,7 @@ type EventSpec =
 /// What the runtime delivers: the first of the requested specs to happen, before `await` has
 /// described a store change. `Builtin.hostAwait` returns this; loops see `Event`.
 type RawEvent =
-  | Key(Stdlib.Cli.Stdin.KeyRead.KeyRead)
+  | Key(Cli.Stdin.KeyRead.KeyRead)
   | StoreChanged
   | Timer
   | ExecDone(id: Uuid)
@@ -44,7 +44,7 @@ type RawEvent =
 type Event =
   /// One read of the keyboard, as the runtime reads it: a key, a paste, or a coalesced burst with
   /// its repeat count. `Stdlib.Cli.UI.Widget.press` narrows it to a `KeyPress` for a widget.
-  | Key(Stdlib.Cli.Stdin.KeyRead.KeyRead)
+  | Key(Cli.Stdin.KeyRead.KeyRead)
   /// What landed: the ops, the names they touched, or `unknown` when it will not say
   /// (`LanguageTools.Live.poll` describes it).
   | StoreChanged(LanguageTools.Live.Change)
@@ -66,17 +66,20 @@ let remember(watch: LanguageTools.Live.Watch): LanguageTools.Live.Watch =
   Builtin.hostWatchSet(watch)
   watch
 
+
 let currentWatch(): LanguageTools.Live.Watch =
   match Builtin.hostWatchGet() with
   | Some(w) -> w
   | None -> remember(LanguageTools.Live.watch(SCM.PackageOps.currentBranch()))
 
+
 /// What landed since the last look. `None` when the store moved for a reason that is not an op (a
 /// config write, a trace).
-let describeChange(): Stdlib.Option.Option<LanguageTools.Live.Change> =
+let describeChange(): Option<LanguageTools.Live.Change> =
   let (next, change) = LanguageTools.Live.poll(currentWatch())
   let _ = remember(next)
   change
+
 
 /// Say that a loop is about to start: the watch starts here, so an edit that lands between now
 /// and the loop's first `await` (while its entries are being resolved, say) is reported by it.
@@ -84,6 +87,7 @@ let describeChange(): Stdlib.Option.Option<LanguageTools.Live.Change> =
 let begin(): Unit =
   let _ = currentWatch()
   ()
+
 
 /// Park until one of `specs` happens, and say which.
 ///

@@ -1,10 +1,9 @@
 module Darklang.Stdlib.Http
 
-
 type Request =
   { method: String
     url: String
-    headers: List<String * String>
+    headers: List<(String * String)>
     body: Bytes }
 
 
@@ -14,35 +13,32 @@ type Request =
 /// a server it is built from the client's Host header, so a bad one must not
 /// cost the request its path. No character is refused either, so this never
 /// fails, and the path is whatever followed the authority, {{//a}} included.
-let requestTarget(url: String): Stdlib.Url.Url =
+let requestTarget(url: String): Url.Url =
   let target =
-    match Stdlib.String.splitFirst(url, "://") with
-    | Some((scheme, rest)) when
-      !(Stdlib.List.any([ "/", "?", "#" ], fun d -> Stdlib.String.contains(scheme, d)))
-      ->
+    match String.splitFirst(url, "://") with
+    | Some((scheme, rest)) when !List.any([ "/", "?", "#" ], fun d -> String.contains(scheme, d)) ->
       // The authority runs to the first `/`, `?` or `#`.
       rest
-      |> Stdlib.String.toList
-      |> Stdlib.List.dropWhile(fun c ->
-        !(Stdlib.String.contains("/?#", Stdlib.String.fromChar(c))))
-      |> Stdlib.String.fromList
+      |> String.toList
+      |> List.dropWhile(fun c -> !String.contains("/?#", String.fromChar(c)))
+      |> String.fromList
     | _ -> url
 
   let (beforeFragment, fragment) =
-    match Stdlib.String.splitFirst(target, "#") with
-    | Some((a, f)) -> (a, Stdlib.Option.Option.Some(f))
-    | None -> (target, Stdlib.Option.Option.None)
+    match String.splitFirst(target, "#") with
+    | Some((a, f)) -> (a, Option.Some(f))
+    | None -> (target, Option.None)
 
   let (path, query) =
-    match Stdlib.String.splitFirst(beforeFragment, "?") with
-    | Some((p, q)) -> (p, Stdlib.Option.Option.Some(q))
-    | None -> (beforeFragment, Stdlib.Option.Option.None)
+    match String.splitFirst(beforeFragment, "?") with
+    | Some((p, q)) -> (p, Option.Some(q))
+    | None -> (beforeFragment, Option.None)
 
-  Stdlib.Url.Url
-    { scheme = Stdlib.Option.Option.None
-      userinfo = Stdlib.Option.Option.None
-      host = Stdlib.Option.Option.None
-      port = Stdlib.Option.Option.None
+  Url.Url
+    { scheme = Option.None
+      userinfo = Option.None
+      host = Option.None
+      port = Option.None
       path = path
       query = query
       fragment = fragment }
@@ -52,7 +48,10 @@ let requestTarget(url: String): Stdlib.Url.Url =
 /// each key: <fn Stdlib.Url.queryParams> of <fn requestTarget>, through
 /// {{Dict.fromEntries}}.
 let parseQueryString(url: String): Dict<String, String> =
-  url |> requestTarget |> Stdlib.Url.queryParams |> Stdlib.Dict.fromEntries
+  url
+  |> requestTarget
+  |> Url.queryParams
+  |> Dict.fromEntries
 
 
 /// Parse a string of HTTP header lines (one `Name: value` per line, CR/LF or
@@ -61,20 +60,20 @@ let parseQueryString(url: String): Dict<String, String> =
 /// responsibility (see `String.equalsCaseInsensitive`).
 let parseHeaders(s: String): Dict<String, String> =
   s
-  |> Stdlib.String.replaceAll("\r\n", "\n")
-  |> Stdlib.String.split("\n")
-  |> Stdlib.List.filterMap(fun line ->
-    let trimmed = Stdlib.String.trim(line)
+  |> String.replaceAll("\r\n", "\n")
+  |> String.split("\n")
+  |> List.filterMap(fun line ->
+    let trimmed = String.trim(line)
     if trimmed == "" then
-      Stdlib.Option.Option.None
+      Option.None
     else
-      match Stdlib.String.split(trimmed, ":") with
-      | [] -> Stdlib.Option.Option.None
-      | [ _ ] -> Stdlib.Option.Option.None
+      match String.split(trimmed, ":") with
+      | [] -> Option.None
+      | [_] -> Option.None
       | [name, ...rest] ->
-        let value = (Stdlib.String.join(rest, ":")) |> Stdlib.String.trim
-        Stdlib.Option.Option.Some((Stdlib.String.trim(name), value)))
-  |> Stdlib.Dict.fromEntries
+        let value = String.join(rest, ":") |> String.trim
+        Option.Some((String.trim(name), value)))
+  |> Dict.fromEntries
 
 
 /// Percent-decoding for one query-string field: <fn Stdlib.Url.formDecode>,
@@ -88,14 +87,17 @@ let parseHeaders(s: String): Dict<String, String> =
 /// A `%` that does not start two hex digits is passed through as itself rather
 /// than dropped. A search box is allowed to contain a percent sign.
 let urlDecode(s: String): String =
-  Stdlib.Url.formDecode(s)
+  Url.formDecode(s)
 
 
 module Request =
   /// The query string, decoded: <fn Stdlib.Url.queryParams> of the request's
   /// target (<fn Stdlib.Http.requestTarget>), so a bad Host header cannot hide it.
-  let queryParams(req: Stdlib.Http.Request): List<String * String> =
-    req.url |> Stdlib.Http.requestTarget |> Stdlib.Url.queryParams
+  let queryParams(req: Request): List<(String * String)> =
+    req.url
+    |> requestTarget
+    |> Url.queryParams
+
 
   /// The value of <param key>, matched case-INSENSITIVELY, as HTTP requires: a client
   /// may send `Authorization`, `authorization` or `AUTHORIZATION` and all three mean the
@@ -104,114 +106,143 @@ module Request =
   ///
   /// The first match wins. A repeated header is legal and means a list, which no caller
   /// here wants yet; taking the first is the same choice <fn queryParam> makes.
-  let header(
-    req: Stdlib.Http.Request,
-    key: String)
-    : Stdlib.Option.Option<String> =
-    let wanted = Stdlib.String.toLowercase(key)
-
+  let header(req: Request, key: String): Option<String> =
+    let wanted = String.toLowercase(key)
     req.headers
-    |> Stdlib.List.filterMap(fun pair ->
+    |> List.filterMap(fun pair ->
       let (k, v) = pair
+      if String.toLowercase(k) == wanted then Option.Some(v) else Option.None)
+    |> List.head
 
-      if (Stdlib.String.toLowercase(k)) == wanted then
-        Stdlib.Option.Option.Some(v)
-      else
-        Stdlib.Option.Option.None)
-    |> Stdlib.List.head
 
-  let queryParam(
-    req: Stdlib.Http.Request,
-    key: String)
-    : Stdlib.Option.Option<String> =
+  let queryParam(req: Request, key: String): Option<String> =
     let found =
-      (Stdlib.Http.Request.queryParams(req))
-      |> Stdlib.List.filterMap(fun pair ->
+      queryParams(req)
+      |> List.filterMap(fun pair ->
         match pair with
-        | (k, v) ->
-          if k == key then
-            Stdlib.Option.Option.Some(v)
-          else
-            Stdlib.Option.Option.None
-        | _ -> Stdlib.Option.Option.None)
+        | k, v -> if k == key then Option.Some(v) else Option.None
+        | _ -> Option.None)
 
     match found with
-    | [] -> Stdlib.Option.Option.None
-    | [ v ] -> Stdlib.Option.Option.Some(v)
+    | [] -> Option.None
+    | [v] -> Option.Some(v)
     // TODO: something else?
-    | items -> Stdlib.Option.Option.Some(Stdlib.String.join(items, ","))
+    | items -> Option.Some(String.join(items, ","))
 
 
 /// An HTTP response status, 100 to 599. Build one with <fn Status.fromInt64>, or name a
 /// common one (<val Status.notFound>); the field is not for constructing directly.
-type Status = { __status: Int64 }
+type Status =
+  { __status: Int64 }
 
 
 module Status =
   /// Returns {{Ok}} the status numbered <param n>, or {{Error}} an
   /// <type Stdlib.Math.OutOfRange> if it is not between 100 and 599.
-  let fromInt64(n: Int64): Stdlib.Result.Result<Stdlib.Http.Status, Stdlib.Math.OutOfRange> =
-    Stdlib.Math.__inRange("HTTP status", 100, 599, n, fun v -> Stdlib.Http.Status { __status = v })
+  let fromInt64(n: Int64): Result<Status, Math.OutOfRange> =
+    Math.__inRange("HTTP status", 100, 599, n, fun v -> Status { __status = v })
+
 
   /// The number of <param status>, which is what <type Stdlib.Http.Response> carries
-  let toInt64(status: Stdlib.Http.Status): Int64 = status.__status
+  let toInt64(status: Status): Int64 =
+    status.__status
+
 
   /// 200 OK
-  val ok = Stdlib.Http.Status { __status = 200 }
+  val ok = Status { __status = 200 }
+
+
   /// 201 Created
-  val created = Stdlib.Http.Status { __status = 201 }
+  val created = Status { __status = 201 }
+
+
   /// 204 No Content
-  val noContent = Stdlib.Http.Status { __status = 204 }
+  val noContent = Status { __status = 204 }
+
+
   /// 301 Moved Permanently
-  val movedPermanently = Stdlib.Http.Status { __status = 301 }
+  val movedPermanently = Status { __status = 301 }
+
+
   /// 302 Found
-  val found = Stdlib.Http.Status { __status = 302 }
+  val found = Status { __status = 302 }
+
+
   /// 303 See Other
-  val seeOther = Stdlib.Http.Status { __status = 303 }
+  val seeOther = Status { __status = 303 }
+
+
   /// 304 Not Modified
-  val notModified = Stdlib.Http.Status { __status = 304 }
+  val notModified = Status { __status = 304 }
+
+
   /// 400 Bad Request
-  val badRequest = Stdlib.Http.Status { __status = 400 }
+  val badRequest = Status { __status = 400 }
+
+
   /// 401 Unauthorized
-  val unauthorized = Stdlib.Http.Status { __status = 401 }
+  val unauthorized = Status { __status = 401 }
+
+
   /// 403 Forbidden
-  val forbidden = Stdlib.Http.Status { __status = 403 }
+  val forbidden = Status { __status = 403 }
+
+
   /// 404 Not Found
-  val notFound = Stdlib.Http.Status { __status = 404 }
+  val notFound = Status { __status = 404 }
+
+
   /// 405 Method Not Allowed
-  val methodNotAllowed = Stdlib.Http.Status { __status = 405 }
+  val methodNotAllowed = Status { __status = 405 }
+
+
   /// 409 Conflict
-  val conflict = Stdlib.Http.Status { __status = 409 }
+  val conflict = Status { __status = 409 }
+
+
   /// 413 Content Too Large
-  val contentTooLarge = Stdlib.Http.Status { __status = 413 }
+  val contentTooLarge = Status { __status = 413 }
+
+
   /// 429 Too Many Requests
-  val tooManyRequests = Stdlib.Http.Status { __status = 429 }
+  val tooManyRequests = Status { __status = 429 }
+
+
   /// 500 Internal Server Error
-  val internalServerError = Stdlib.Http.Status { __status = 500 }
+  val internalServerError = Status { __status = 500 }
+
+
   /// 503 Service Unavailable
-  val serviceUnavailable = Stdlib.Http.Status { __status = 503 }
+  val serviceUnavailable = Status { __status = 503 }
+
+
   /// 504 Gateway Timeout
-  val gatewayTimeout = Stdlib.Http.Status { __status = 504 }
+  val gatewayTimeout = Status { __status = 504 }
+
 
   /// Returns {{true}} for a 2xx status
-  let isSuccess(status: Stdlib.Http.Status): Bool =
+  let isSuccess(status: Status): Bool =
     status.__status >= 200 && status.__status <= 299
 
+
   /// Returns {{true}} for a 3xx status
-  let isRedirect(status: Stdlib.Http.Status): Bool =
+  let isRedirect(status: Status): Bool =
     status.__status >= 300 && status.__status <= 399
 
+
   /// Returns {{true}} for a 4xx status
-  let isClientError(status: Stdlib.Http.Status): Bool =
+  let isClientError(status: Status): Bool =
     status.__status >= 400 && status.__status <= 499
 
+
   /// Returns {{true}} for a 5xx status
-  let isServerError(status: Stdlib.Http.Status): Bool =
+  let isServerError(status: Status): Bool =
     status.__status >= 500 && status.__status <= 599
+
 
   /// The reason phrase RFC 9110 gives <param status>, such as {{"Not Found"}} for 404, or
   /// {{""}} for a number it does not name. A phrase is optional on the wire.
-  let reason(status: Stdlib.Http.Status): String =
+  let reason(status: Status): String =
     match status.__status with
     | 100 -> "Continue"
     | 101 -> "Switching Protocols"
@@ -263,133 +294,118 @@ module Status =
 
 impl Display for Status =
   /// The status number, {{404}}
-  let display(status: Status): String = Stdlib.display(status.__status)
+  let display(status: Status): String =
+    Stdlib.display(status.__status)
 
 
 impl Inspect for Status =
   /// {{Status(404)}}: the field is private, so not the record
-  let inspect(status: Status): String = $"Status({status.__status})"
+  let inspect(status: Status): String =
+    $"Status({status.__status})"
 
 
 /// What a handler answers. <param statusCode> is a plain number, so any helper below takes
 /// one; <fn Status.toInt64> of a <type Status> gives it for a named status.
 type Response =
   { statusCode: Int64
-    headers: List<String * String>
+    headers: List<(String * String)>
     body: Bytes }
+
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status <param statusCode> and <param body>.
-let response(statusCode: Int64, body: Bytes): Stdlib.Http.Response =
-  Stdlib.Http.Response
-    { statusCode = statusCode
-      headers = []
-      body = body }
+let response(statusCode: Int64, body: Bytes): Response =
+  Response { statusCode = statusCode, headers = [], body = body }
+
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status <param statusCode>, <param headers> and <param body>.
 let responseWithHeaders(
   statusCode: Int64,
-  headers: List<String * String>,
+  headers: List<(String * String)>,
   body: Bytes)
-  : Stdlib.Http.Response =
-  Stdlib.Http.Response
-    { statusCode = statusCode
-      headers = headers
-      body = body }
+  : Response =
+  Response { statusCode = statusCode, headers = headers, body = body }
+
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status 200 and <param body>.
-let success(body: Bytes): Stdlib.Http.Response =
-  Stdlib.Http.Response
-    { statusCode = Stdlib.Http.Status.toInt64(Stdlib.Http.Status.ok)
-      headers = []
-      body = body }
+let success(body: Bytes): Response =
+  Response { statusCode = Status.toInt64(Status.ok), headers = [], body = body }
+
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status <param statusCode> and <param body>, with the
 /// Content-Type header set to "text/html; charset=utf-8".
-let responseWithHtml(
-  statusCode: Int64,
-  body: String)
-  : Stdlib.Http.Response =
-  Stdlib.Http.Response
+let responseWithHtml(statusCode: Int64, body: String): Response =
+  Response
     { statusCode = statusCode
       headers = [ ("Content-Type", "text/html; charset=utf-8") ]
-      body = body |> Stdlib.Utf8.encode }
+      body = body |> Utf8.encode }
 
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status <param statusCode> and <param text>, with the
 /// Content-Type header set to "text/plain; charset=utf-8".
-let responseWithText(
-  statusCode: Int64,
-  text: String)
-  : Stdlib.Http.Response =
-  Stdlib.Http.Response
+let responseWithText(statusCode: Int64, text: String): Response =
+  Response
     { statusCode = statusCode
       headers = [ ("Content-Type", "text/plain; charset=utf-8") ]
-      body = Stdlib.Utf8.encode(text) }
+      body = Utf8.encode(text) }
+
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status <param statusCode> and <param json>, with the
 /// Content-Type header set to "application/json".
-let responseWithJson(
-  statusCode: Int64,
-  json: String)
-  : Stdlib.Http.Response =
-  Stdlib.Http.Response
+let responseWithJson(statusCode: Int64, json: String): Response =
+  Response
     { statusCode = statusCode
       headers = [ ("Content-Type", "application/json") ]
-      body = Stdlib.Utf8.encode(json) }
+      body = Utf8.encode(json) }
+
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{302}} status code and redirect to <param url>.
-let redirectTo(url: String): Stdlib.Http.Response =
-  Stdlib.Http.Response
-    { statusCode = Stdlib.Http.Status.toInt64(Stdlib.Http.Status.found)
+let redirectTo(url: String): Response =
+  Response
+    { statusCode = Status.toInt64(Status.found)
       headers = [ ("Location", url) ]
-      body = Stdlib.Bytes.empty }
+      body = Bytes.empty }
+
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{400}} status code and <param error> body.
-let badRequest(error: String): Stdlib.Http.Response =
-  Stdlib.Http.Response
-    { statusCode = Stdlib.Http.Status.toInt64(Stdlib.Http.Status.badRequest)
-      headers = []
-      body = Stdlib.Utf8.encode(error) }
+let badRequest(error: String): Response =
+  Response
+    { statusCode = Status.toInt64(Status.badRequest), headers = [], body = Utf8.encode(error) }
+
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{404}} status code.
-let notFound(): Stdlib.Http.Response =
-  Stdlib.Http.Response
-    { statusCode = Stdlib.Http.Status.toInt64(Stdlib.Http.Status.notFound)
-      headers = []
-      body = Stdlib.Bytes.empty }
+let notFound(): Response =
+  Response { statusCode = Status.toInt64(Status.notFound), headers = [], body = Bytes.empty }
+
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{401}} status code.
-let unauthorized(): Stdlib.Http.Response =
-  Stdlib.Http.Response
-    { statusCode = Stdlib.Http.Status.toInt64(Stdlib.Http.Status.unauthorized)
-      headers = []
-      body = Stdlib.Bytes.empty }
+let unauthorized(): Response =
+  Response { statusCode = Status.toInt64(Status.unauthorized), headers = [], body = Bytes.empty }
+
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{403}} status code.
-let forbidden(): Stdlib.Http.Response =
-  Stdlib.Http.Response
-    { statusCode = Stdlib.Http.Status.toInt64(Stdlib.Http.Status.forbidden)
-      headers = []
-      body = Stdlib.Bytes.empty }
+let forbidden(): Response =
+  Response { statusCode = Status.toInt64(Status.forbidden), headers = [], body = Bytes.empty }
+
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{500}} status code and <param error> body.
-let serverError(error: String): Stdlib.Http.Response =
-  Stdlib.Http.Response
-    { statusCode = Stdlib.Http.Status.toInt64(Stdlib.Http.Status.internalServerError)
+let serverError(error: String): Response =
+  Response
+    { statusCode = Status.toInt64(Status.internalServerError)
       headers = []
-      body = Stdlib.Utf8.encode(error) }
+      body = Utf8.encode(error) }
+
 
 type Cookie =
   { expires: DateTime
@@ -424,7 +440,6 @@ type Cookie =
 //     let expires =
 //       let e = cookie.expires
 //       $"{Stdlib.DateTime.dayOfWeek e}, {Stdlib.DateTime.day e} {Stdlib.DateTime.month e} {Stdlib.DateTime.year e} {Stdlib.DateTime.hour e}:{Stdlib.DateTime.minute e}:{Stdlib.DateTime.second} GMT"
-
 //     let cookie =
 //       [ ("Expires", expires)
 //         ("Max-Age", cookie.maxAge |> Stdlib.display)
@@ -436,7 +451,6 @@ type Cookie =
 //       |> Stdlib.List.filterMap (fun (k, v) -> if v == "" then Stdlib.Option.Option.None else Stdlib.Option.Option.Some(k, v))
 //       |> Stdlib.List.map (fun (k, v) -> k + "=" + v)
 //       |> Stdlib.String.join "; "
-
 //     if cookie == "" then
 //       Error "Cookie must have at least one parameter"
 //     else

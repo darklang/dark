@@ -3,21 +3,33 @@ module Darklang.SCM.Tests.ReferenceNames
 test dependentReadsKeepBranchAliasesSeparate =
   let main = Authoring.main()
   let m = "ReferenceBranchAliases"
-  let _ = Authoring.authorOn(main, "Tests", m,
-    "let a(): Int64 = 932107\nlet b(): Int64 = 932107") |> Builtin.unwrap
-  let _ = Authoring.authorOn(main, "Tests", m,
-    "let caller(): Int64 = a()") |> Builtin.unwrap
-  let _ = Darklang.SCM.PackageOps.commitDraft(main, "alias baseline") |> Builtin.unwrap
+  let _ =
+    Authoring.authorOn(
+      main,
+      "Tests",
+      m,
+      "let a(): Int64 = 932107\nlet b(): Int64 = 932107")
+    |> Builtin.unwrap
+
+  let _ =
+    Authoring.authorOn(main, "Tests", m, "let caller(): Int64 = a()")
+    |> Builtin.unwrap
+
+  let _ = SCM.PackageOps.commitDraft(main, "alias baseline") |> Builtin.unwrap
   let branch = Authoring.branchOff("reference-alias-branch", main)
-  let _ = Authoring.authorOn(branch, "Tests", m,
-    "let caller(): Int64 = b()") |> Builtin.unwrap
+  let _ =
+    Authoring.authorOn(branch, "Tests", m, "let caller(): Int64 = b()")
+    |> Builtin.unwrap
+
   let (_, mainCaller) = source(main, m, "caller")
   let (_, branchCaller) = source(branch, m, "caller")
   let callers(scope: Uuid, name: String): List<String> =
-    Darklang.SCM.Deps.dependentsFor(scope,
+    SCM.Deps.dependentsFor(
+      scope,
       [ (Authoring.loc(m, name), LanguageTools.ProgramTypes.ItemKind.Fn) ])
     |> Stdlib.List.map(fun((_, location, _)) -> location.name)
     |> Stdlib.List.sort
+
   Stdlib.Test.all(
     [ mainCaller |> Stdlib.Test.equal(branchCaller)
       callers(main, "a") |> Stdlib.Test.equal([ "caller" ])
@@ -25,36 +37,75 @@ test dependentReadsKeepBranchAliasesSeparate =
       callers(branch, "a") |> Stdlib.Test.equal([])
       callers(branch, "b") |> Stdlib.Test.equal([ "caller" ]) ])
 
-let source(branch: Uuid, m: String, name: String): Darklang.SCM.PackageOps.ReferenceSource =
+
+let source(
+  branch: Uuid,
+  m: String,
+  name: String)
+  : SCM.PackageOps.ReferenceSource =
   let location = Authoring.loc(m, name)
-  let hash = LanguageTools.PackageManager.Function.find(branch, location) |> Builtin.unwrap
+  let hash =
+    LanguageTools.PackageManager.Function.find(branch, location)
+    |> Builtin.unwrap
+
   (location, LanguageTools.ProgramTypes.Reference.PackageFn(hash))
+
 
 test dependencyReadsExcludeAParentsDraft =
   let parent = Authoring.branchOff("reference-parent", Authoring.main())
   let m = "ReferenceParent"
-  let _ = Authoring.authorOn(parent, "Tests", m,
-    "let leaf(): Int64 = 932101\nlet caller(): Int64 = leaf()") |> Builtin.unwrap
-  let _ = Darklang.SCM.PackageOps.commitDraft(parent, "parent baseline") |> Builtin.unwrap
+  let _ =
+    Authoring.authorOn(
+      parent,
+      "Tests",
+      m,
+      "let leaf(): Int64 = 932101\nlet caller(): Int64 = leaf()")
+    |> Builtin.unwrap
+
+  let _ =
+    SCM.PackageOps.commitDraft(parent, "parent baseline") |> Builtin.unwrap
+
   let child = Authoring.branchOff("reference-child", parent)
   let (_, target) = source(parent, m, "leaf")
-  let ops = Darklang.SCM.PackageOps.prepareRename(parent, Authoring.loc(m, "leaf"), Authoring.loc(m, "moved"), target)
-  let _ = Darklang.SCM.PackageOps.add(parent, ops) |> Builtin.unwrap
-  let _ = Authoring.authorOn(parent, "Tests", m, "let draftCaller(): Int64 = moved()") |> Builtin.unwrap
+  let ops =
+    SCM.PackageOps.prepareRename(
+      parent,
+      Authoring.loc(m, "leaf"),
+      Authoring.loc(m, "moved"),
+      target)
+
+  let _ = SCM.PackageOps.add(parent, ops) |> Builtin.unwrap
+
+  let _ =
+    Authoring.authorOn(parent, "Tests", m, "let draftCaller(): Int64 = moved()")
+    |> Builtin.unwrap
+
   let callers(branch: Uuid): List<String> =
-    Darklang.SCM.PackageOps.liveReferenceSources(branch)
+    SCM.PackageOps.liveReferenceSources(branch)
     |> Stdlib.List.filterMap(fun((location, _)) ->
-      if location.owner == "Tests" && location.modules == [ m ] then Some(location.name) else None)
+      if location.owner == "Tests" && location.modules == [ m ] then
+        Stdlib.Option.Option.Some(location.name)
+      else
+        Stdlib.Option.Option.None)
     |> Stdlib.List.sort
+
   let dependencies(branch: Uuid, allCallers: Bool): List<String> =
     let sources = if allCallers then [] else [ source(branch, m, "caller") ]
-    Darklang.SCM.Deps.namedReferencesFor(branch, sources) |> Builtin.unwrap
-    |> Stdlib.List.filter(fun((location, _, _, _)) -> location == Authoring.loc(m, "caller"))
+    SCM.Deps.namedReferencesFor(branch, sources)
+    |> Builtin.unwrap
+    |> Stdlib.List.filter(fun((location, _, _, _)) ->
+      location == Authoring.loc(m, "caller"))
     |> Stdlib.List.map(fun((_, _, _, location)) -> location.name)
+
   let staleCallers(branch: Uuid): List<String> =
-    let (stale, _) = Darklang.SCM.Deps.review(branch, []) |> Builtin.unwrap
-    stale |> Stdlib.List.filterMap(fun((usage, _, _, _, _)) ->
-      if usage.owner == "Tests" && usage.modules == [ m ] then Some(usage.name) else None)
+    let (stale, _) = SCM.Deps.review(branch, []) |> Builtin.unwrap
+    stale
+    |> Stdlib.List.filterMap(fun((usage, _, _, _, _)) ->
+      if usage.owner == "Tests" && usage.modules == [ m ] then
+        Stdlib.Option.Option.Some(usage.name)
+      else
+        Stdlib.Option.Option.None)
+
   Stdlib.Test.all(
     [ staleCallers(child) |> Stdlib.Test.equal([])
       staleCallers(parent) |> Stdlib.Test.equal([])

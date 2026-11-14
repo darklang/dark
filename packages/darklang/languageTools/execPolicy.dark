@@ -13,21 +13,19 @@ module Darklang.LanguageTools.Exec.Policy
 /// function of that shape, yours included); unset, the scheduler round-robins in
 /// F# and never asks. An answer that names no runnable process counts as `None`
 /// for that turn.
-
-
 /// What the scheduler does on its own: the process that has waited longest.
-let roundRobin(runnable: List<Summary>): Stdlib.Option.Option<Uuid> =
+let roundRobin(runnable: List<Summary>): Option<Uuid> =
   Stdlib.List.head(runnable) |> Stdlib.Option.map(fun p -> p.id)
 
 
 /// The process started most recently first: a stack, not a queue. Useful when the
 /// latest request matters most.
-let youngestFirst(runnable: List<Summary>): Stdlib.Option.Option<Uuid> =
+let youngestFirst(runnable: List<Summary>): Option<Uuid> =
   Stdlib.List.last(runnable) |> Stdlib.Option.map(fun p -> p.id)
 
 
 /// Whatever has run the fewest instructions so far: new work before long-running work.
-let leastRunFirst(runnable: List<Summary>): Stdlib.Option.Option<Uuid> =
+let leastRunFirst(runnable: List<Summary>): Option<Uuid> =
   runnable
   |> Stdlib.List.sortBy(fun p -> p.instructionsTaken)
   |> Stdlib.List.head

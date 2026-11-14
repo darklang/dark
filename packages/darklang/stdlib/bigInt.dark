@@ -5,7 +5,8 @@ module Darklang.Stdlib.BigInt
 // ...) work on it; this module provides the same operations as named functions,
 // plus parse/stringify and conversions to/from the fixed-width integer types.
 
-type ParseError = | BadFormat
+type ParseError =
+  | BadFormat
 
 
 impl Modulo for BigInt =
@@ -13,182 +14,252 @@ impl Modulo for BigInt =
   /// The modulus <param b> must be greater than 0.
   /// Use <fn BigInt.checkedRemainder> if you want the remainder after division, which has
   /// a different behavior for negative numbers.
-  let modulo(a: BigInt, b: BigInt): BigInt = Builtin.modulo(a, b)
+  let modulo(a: BigInt, b: BigInt): BigInt =
+    Builtin.modulo(a, b)
 
 
 impl Add for BigInt =
   /// Adds two integers together
-  let add(a: BigInt, b: BigInt): BigInt = Builtin.add(a, b)
+  let add(a: BigInt, b: BigInt): BigInt =
+    Builtin.add(a, b)
 
 
 impl Subtract for BigInt =
   /// Subtracts two integers
-  let subtract(a: BigInt, b: BigInt): BigInt = Builtin.subtract(a, b)
+  let subtract(a: BigInt, b: BigInt): BigInt =
+    Builtin.subtract(a, b)
 
 
 impl Multiply for BigInt =
   /// Multiplies two integers
-  let multiply(a: BigInt, b: BigInt): BigInt = Builtin.multiply(a, b)
+  let multiply(a: BigInt, b: BigInt): BigInt =
+    Builtin.multiply(a, b)
 
 
 impl Divide for BigInt =
   /// Divides two integers, rounding towards zero
-  let divide(a: BigInt, b: BigInt): BigInt = Builtin.divide(a, b)
+  let divide(a: BigInt, b: BigInt): BigInt =
+    Builtin.divide(a, b)
 
 
 impl Power for BigInt =
   /// Raise <param base> to the power of <param exponent>.
   /// Raises an error if <param exponent> is negative.
-  let power(`base`: BigInt, exponent: BigInt): BigInt =
-    Builtin.power(`base`, exponent)
+  let power(base: BigInt, exponent: BigInt): BigInt =
+    Builtin.power(base, exponent)
 
 
 impl Negate for BigInt =
   /// Returns the negation of <param a>, {{-a}}
-  let negate(a: BigInt): BigInt = Builtin.negate(a)
+  let negate(a: BigInt): BigInt =
+    Builtin.negate(a)
 
 
 impl Compare for BigInt =
   /// Returns {{true}} if <param a> is less than <param b>
-  let lessThan(a: BigInt, b: BigInt): Bool = Builtin.lessThan(a, b)
+  let lessThan(a: BigInt, b: BigInt): Bool =
+    Builtin.lessThan(a, b)
+
   /// Returns {{true}} if <param a> is less than or equal to <param b>
-  let lessThanOrEqualTo(a: BigInt, b: BigInt): Bool = Builtin.lessThanOrEqualTo(a, b)
+  let lessThanOrEqualTo(a: BigInt, b: BigInt): Bool =
+    Builtin.lessThanOrEqualTo(a, b)
+
   /// Returns {{true}} if <param a> is greater than <param b>
-  let greaterThan(a: BigInt, b: BigInt): Bool = Builtin.greaterThan(a, b)
+  let greaterThan(a: BigInt, b: BigInt): Bool =
+    Builtin.greaterThan(a, b)
+
   /// Returns {{true}} if <param a> is greater than or equal to <param b>
   let greaterThanOrEqualTo(a: BigInt, b: BigInt): Bool =
     Builtin.greaterThanOrEqualTo(a, b)
 
 
 /// Get the square root of a <type BigInt>
-let sqrt(a: BigInt): Float = Stdlib.Float.sqrt(Stdlib.BigInt.toFloat(a))
+let sqrt(a: BigInt): Float =
+  Float.sqrt(toFloat(a))
 
 
 /// The square root of <param a>, or {{Error NotANumber}} where <param a> is negative and
 /// {{Error Overflow}} where it is too large for a Float
-let checkedSqrt(a: BigInt): Stdlib.Result.Result<Float, Stdlib.Math.NonFinite> =
-  Stdlib.Float.checkedSqrt(Stdlib.BigInt.toFloat(a))
+let checkedSqrt(a: BigInt): Result<Float, Math.NonFinite> =
+  Float.checkedSqrt(toFloat(a))
 
 
 /// Converts a <type BigInt> to a <type Float>
-let toFloat(a: BigInt): Float = Builtin.bigIntToFloat(a)
+let toFloat(a: BigInt): Float =
+  Builtin.bigIntToFloat(a)
 
 
 /// Converts <param a> to a <type Float>, or {{Error Overflow}} where it is too large for one
-let checkedToFloat(a: BigInt): Stdlib.Result.Result<Float, Stdlib.Math.Overflow> =
-  Stdlib.Float.__noOverflow(toFloat(a))
+let checkedToFloat(a: BigInt): Result<Float, Math.Overflow> =
+  Float.__noOverflow(toFloat(a))
 
 
 /// Converts a <type Float> to a <type BigInt>, truncating toward zero.
-let fromFloat(a: Float): BigInt = Builtin.bigIntFromFloat(a)
+let fromFloat(a: Float): BigInt =
+  Builtin.bigIntFromFloat(a)
 
 
 /// Returns the <type BigInt> value of a <type String>. Because <type BigInt> is
 /// arbitrary-precision, the only failure is a badly-formatted string.
-let parse(s: String): Stdlib.Result.Result<BigInt, ParseError> =
+let parse(s: String): Result<BigInt, ParseError> =
   Builtin.bigIntParse(s)
 
 
 // Conversions from the fixed-width integer types into `BigInt` (always succeed).
 
 /// Converts an <type Int8> to an arbitrary-precision <type BigInt>
-let fromInt8(a: Int8): BigInt = Builtin.bigIntFromInt8(a)
+let fromInt8(a: Int8): BigInt =
+  Builtin.bigIntFromInt8(a)
+
 
 /// Converts a <type UInt8> to an arbitrary-precision <type BigInt>
-let fromUInt8(a: UInt8): BigInt = Builtin.bigIntFromUInt8(a)
+let fromUInt8(a: UInt8): BigInt =
+  Builtin.bigIntFromUInt8(a)
+
 
 /// Converts an <type Int16> to an arbitrary-precision <type BigInt>
-let fromInt16(a: Int16): BigInt = Builtin.bigIntFromInt16(a)
+let fromInt16(a: Int16): BigInt =
+  Builtin.bigIntFromInt16(a)
+
 
 /// Converts a <type UInt16> to an arbitrary-precision <type BigInt>
-let fromUInt16(a: UInt16): BigInt = Builtin.bigIntFromUInt16(a)
+let fromUInt16(a: UInt16): BigInt =
+  Builtin.bigIntFromUInt16(a)
+
 
 /// Converts an <type Int32> to an arbitrary-precision <type BigInt>
-let fromInt32(a: Int32): BigInt = Builtin.bigIntFromInt32(a)
+let fromInt32(a: Int32): BigInt =
+  Builtin.bigIntFromInt32(a)
+
 
 /// Converts a <type UInt32> to an arbitrary-precision <type BigInt>
-let fromUInt32(a: UInt32): BigInt = Builtin.bigIntFromUInt32(a)
+let fromUInt32(a: UInt32): BigInt =
+  Builtin.bigIntFromUInt32(a)
+
 
 /// Converts an <type Int64> to an arbitrary-precision <type BigInt>
-let fromInt64(a: Int64): BigInt = Builtin.bigIntFromInt64(a)
+let fromInt64(a: Int64): BigInt =
+  Builtin.bigIntFromInt64(a)
+
 
 /// Converts a <type UInt64> to an arbitrary-precision <type BigInt>
-let fromUInt64(a: UInt64): BigInt = Builtin.bigIntFromUInt64(a)
+let fromUInt64(a: UInt64): BigInt =
+  Builtin.bigIntFromUInt64(a)
+
 
 /// Converts an <type Int128> to an arbitrary-precision <type BigInt>
-let fromInt128(a: Int128): BigInt = Builtin.bigIntFromInt128(a)
+let fromInt128(a: Int128): BigInt =
+  Builtin.bigIntFromInt128(a)
+
 
 /// Converts a <type UInt128> to an arbitrary-precision <type BigInt>
-let fromUInt128(a: UInt128): BigInt = Builtin.bigIntFromUInt128(a)
+let fromUInt128(a: UInt128): BigInt =
+  Builtin.bigIntFromUInt128(a)
 
 
 // Conversions from `BigInt` into the fixed-width integer types, returning {{None}}
 // if the value doesn't fit the target range.
 
 /// Converts a <type BigInt> to an <type Int8>, returning {{None}} if it doesn't fit
-let toInt8(a: BigInt): Stdlib.Option.Option<Int8> = Builtin.bigIntToInt8(a)
+let toInt8(a: BigInt): Option<Int8> =
+  Builtin.bigIntToInt8(a)
+
 
 /// Converts a <type BigInt> to a <type UInt8>, returning {{None}} if it doesn't fit
-let toUInt8(a: BigInt): Stdlib.Option.Option<UInt8> = Builtin.bigIntToUInt8(a)
+let toUInt8(a: BigInt): Option<UInt8> =
+  Builtin.bigIntToUInt8(a)
+
 
 /// Converts a <type BigInt> to an <type Int16>, returning {{None}} if it doesn't fit
-let toInt16(a: BigInt): Stdlib.Option.Option<Int16> = Builtin.bigIntToInt16(a)
+let toInt16(a: BigInt): Option<Int16> =
+  Builtin.bigIntToInt16(a)
+
 
 /// Converts a <type BigInt> to a <type UInt16>, returning {{None}} if it doesn't fit
-let toUInt16(a: BigInt): Stdlib.Option.Option<UInt16> = Builtin.bigIntToUInt16(a)
+let toUInt16(a: BigInt): Option<UInt16> =
+  Builtin.bigIntToUInt16(a)
+
 
 /// Converts a <type BigInt> to an <type Int32>, returning {{None}} if it doesn't fit
-let toInt32(a: BigInt): Stdlib.Option.Option<Int32> = Builtin.bigIntToInt32(a)
+let toInt32(a: BigInt): Option<Int32> =
+  Builtin.bigIntToInt32(a)
+
 
 /// Converts a <type BigInt> to a <type UInt32>, returning {{None}} if it doesn't fit
-let toUInt32(a: BigInt): Stdlib.Option.Option<UInt32> = Builtin.bigIntToUInt32(a)
+let toUInt32(a: BigInt): Option<UInt32> =
+  Builtin.bigIntToUInt32(a)
+
 
 /// Converts a <type BigInt> to an <type Int64>, returning {{None}} if it doesn't
 /// fit the 64-bit range
-let toInt64(a: BigInt): Stdlib.Option.Option<Int64> = Builtin.bigIntToInt64(a)
+let toInt64(a: BigInt): Option<Int64> =
+  Builtin.bigIntToInt64(a)
+
 
 /// Converts a <type BigInt> to a <type UInt64>, returning {{None}} if it doesn't fit
-let toUInt64(a: BigInt): Stdlib.Option.Option<UInt64> = Builtin.bigIntToUInt64(a)
+let toUInt64(a: BigInt): Option<UInt64> =
+  Builtin.bigIntToUInt64(a)
+
 
 /// Converts a <type BigInt> to an <type Int128>, returning {{None}} if it doesn't fit
-let toInt128(a: BigInt): Stdlib.Option.Option<Int128> = Builtin.bigIntToInt128(a)
+let toInt128(a: BigInt): Option<Int128> =
+  Builtin.bigIntToInt128(a)
+
 
 /// Converts a <type BigInt> to a <type UInt128>, returning {{None}} if it doesn't fit
-let toUInt128(a: BigInt): Stdlib.Option.Option<UInt128> = Builtin.bigIntToUInt128(a)
+let toUInt128(a: BigInt): Option<UInt128> =
+  Builtin.bigIntToUInt128(a)
 
 
 impl BitwiseAnd for BigInt =
-  let bitwiseAnd(a: BigInt, b: BigInt): BigInt = Builtin.bitwiseAnd(a, b)
+  let bitwiseAnd(a: BigInt, b: BigInt): BigInt =
+    Builtin.bitwiseAnd(a, b)
+
 
 impl BitwiseOr for BigInt =
-  let bitwiseOr(a: BigInt, b: BigInt): BigInt = Builtin.bitwiseOr(a, b)
+  let bitwiseOr(a: BigInt, b: BigInt): BigInt =
+    Builtin.bitwiseOr(a, b)
+
 
 impl BitwiseXor for BigInt =
-  let bitwiseXor(a: BigInt, b: BigInt): BigInt = Builtin.bitwiseXor(a, b)
+  let bitwiseXor(a: BigInt, b: BigInt): BigInt =
+    Builtin.bitwiseXor(a, b)
+
 
 impl BitwiseNot for BigInt =
-  let bitwiseNot(a: BigInt): BigInt = Builtin.bitwiseNot(a)
+  let bitwiseNot(a: BigInt): BigInt =
+    Builtin.bitwiseNot(a)
+
 
 impl ShiftLeft for BigInt =
-  let shiftLeft(a: BigInt, b: BigInt): BigInt = Builtin.shiftLeft(a, b)
+  let shiftLeft(a: BigInt, b: BigInt): BigInt =
+    Builtin.shiftLeft(a, b)
+
 
 impl ShiftRight for BigInt =
-  let shiftRight(a: BigInt, b: BigInt): BigInt = Builtin.shiftRight(a, b)
+  let shiftRight(a: BigInt, b: BigInt): BigInt =
+    Builtin.shiftRight(a, b)
 
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
-let random(start: BigInt, `end`: BigInt): BigInt =
-  Builtin.bigIntRandom(start, `end`)
+let random(start: BigInt, end: BigInt): BigInt =
+  Builtin.bigIntRandom(start, end)
+
 
 impl Display for BigInt =
   /// Stringify <param int>
-  let display(int: BigInt): String = Builtin.bigIntToString(int)
+  let display(int: BigInt): String =
+    Builtin.bigIntToString(int)
+
 
 impl Zero for BigInt =
-  let zero(): BigInt = 0z
+  let zero(): BigInt =
+    0z
+
 
 impl One for BigInt =
-  let one(): BigInt = 1z
+  let one(): BigInt =
+    1z
 
 
 /// The most bits <fn BigInt.checkedPower> and <fn BigInt.checkedShiftLeft> compute a result
@@ -200,22 +271,19 @@ val maxPowerBits = 8388608z
 /// where `**` raises. {{Error ResultTooLarge}} if the result could take more than
 /// 1 MB, which is <param exponent> times the bits in <param base>; this is checked
 /// before computing anything. {{0}}, {{1}} and {{-1}} take any exponent.
-let checkedPower(
-  `base`: BigInt,
-  exponent: BigInt)
-  : Stdlib.Result.Result<BigInt, Stdlib.Math.PowerError> =
+let checkedPower(base: BigInt, exponent: BigInt): Result<BigInt, Math.PowerError> =
   if exponent < 0z then
-    Error(Stdlib.Math.PowerError.NegativeExponent)
-  else if exponent == 0z || `base` == 0z || `base` == 1z || `base` == -1z then
-    Ok(`base` ** exponent)
+    Result.Error(Math.PowerError.NegativeExponent)
+  else if exponent == 0z || base == 0z || base == 1z || base == -1z then
+    Result.Ok(base ** exponent)
   else
-    let magnitude = if `base` < 0z then -`base` else `base`
+    let magnitude = if base < 0z then -base else base
     // bits(magnitude) * exponent <= maxPowerBits exactly when magnitude has no bit at
     // or past maxPowerBits / exponent: one shift, without counting the bits
-    if (magnitude >> (Stdlib.BigInt.maxPowerBits / exponent)) == 0z then
-      Ok(`base` ** exponent)
+    if magnitude >> maxPowerBits / exponent == 0z then
+      Result.Ok(base ** exponent)
     else
-      Error(Stdlib.Math.PowerError.ResultTooLarge)
+      Result.Error(Math.PowerError.ResultTooLarge)
 
 
 // Division. `/` raises on a zero divisor and `%` on a modulus that is not positive;
@@ -225,67 +293,60 @@ let checkedPower(
 
 /// Divides <param a> by <param b>, rounding towards zero, or
 /// {{Error DivisionByZero}} where `/` raises.
-let checkedDivide(a: BigInt, b: BigInt): Stdlib.Result.Result<BigInt, Stdlib.Math.DivisionError> =
-  if b == 0z then Error(Stdlib.Math.DivisionError.DivisionByZero) else Ok(a / b)
+let checkedDivide(a: BigInt, b: BigInt): Result<BigInt, Math.DivisionError> =
+  if b == 0z then
+    Result.Error(Math.DivisionError.DivisionByZero)
+  else
+    Result.Ok(a / b)
 
 
 /// What is left after dividing <param value> by <param divisor>, rounding towards
 /// zero: negative only if <param value> is, whatever the sign of <param divisor>.
 /// {{Error DivisionByZero}} if <param divisor> is {{0}}.
 /// Use <fn BigInt.checkedMod> to wrap around into {{0 <= res < b}} instead.
-let checkedRemainder(
-  value: BigInt,
-  divisor: BigInt)
-  : Stdlib.Result.Result<BigInt, Stdlib.Math.DivisionError> =
+let checkedRemainder(value: BigInt, divisor: BigInt): Result<BigInt, Math.DivisionError> =
   if divisor == 0z then
-    Error(Stdlib.Math.DivisionError.DivisionByZero)
+    Result.Error(Math.DivisionError.DivisionByZero)
   else
-    Ok(value - (value / divisor) * divisor)
+    Result.Ok(value - value / divisor * divisor)
 
 
 /// <param a> wrapped around so that {{0 <= res < b}}, or where `%` raises,
 /// {{Error ZeroModulus}} or {{Error NegativeModulus}}
-let checkedMod(a: BigInt, b: BigInt): Stdlib.Result.Result<BigInt, Stdlib.Math.ModulusError> =
+let checkedMod(a: BigInt, b: BigInt): Result<BigInt, Math.ModulusError> =
   if b == 0z then
-    Error(Stdlib.Math.ModulusError.ZeroModulus)
+    Result.Error(Math.ModulusError.ZeroModulus)
   else if b < 0z then
-    Error(Stdlib.Math.ModulusError.NegativeModulus)
+    Result.Error(Math.ModulusError.NegativeModulus)
   else
-    Ok(a % b)
+    Result.Ok(a % b)
 
 
 /// <param a> shifted left by <param count> bits, or {{Error NegativeCount}} where `<<`
 /// raises. {{Error ResultTooLarge}} if the result would take more than 1 MB.
-let checkedShiftLeft(
-  a: BigInt,
-  count: BigInt)
-  : Stdlib.Result.Result<BigInt, Stdlib.Math.ShiftError> =
+let checkedShiftLeft(a: BigInt, count: BigInt): Result<BigInt, Math.ShiftError> =
   if count < 0z then
-    Error(Stdlib.Math.ShiftError.NegativeCount)
+    Result.Error(Math.ShiftError.NegativeCount)
   else if a == 0z then
-    Ok(0z)
-  else if count > Stdlib.BigInt.maxPowerBits then
-    Error(Stdlib.Math.ShiftError.ResultTooLarge)
+    Result.Ok(0z)
+  else if count > maxPowerBits then
+    Result.Error(Math.ShiftError.ResultTooLarge)
   else
     let magnitude = if a < 0z then -a else a
-
-    if (magnitude >> (Stdlib.BigInt.maxPowerBits - count)) == 0z then
-      Ok(a << count)
+    if magnitude >> maxPowerBits - count == 0z then
+      Result.Ok(a << count)
     else
-      Error(Stdlib.Math.ShiftError.ResultTooLarge)
+      Result.Error(Math.ShiftError.ResultTooLarge)
 
 
 /// <param a> shifted right by <param count> bits, rounding down, or
 /// {{Error NegativeCount}} where `>>` raises. A count past every bit gives {{0}}, or {{-1}}
 /// for a negative <param a>.
-let checkedShiftRight(
-  a: BigInt,
-  count: BigInt)
-  : Stdlib.Result.Result<BigInt, Stdlib.Math.ShiftError> =
+let checkedShiftRight(a: BigInt, count: BigInt): Result<BigInt, Math.ShiftError> =
   if count < 0z then
-    Error(Stdlib.Math.ShiftError.NegativeCount)
+    Result.Error(Math.ShiftError.NegativeCount)
   else if count > 2147483647z then
     // `>>` takes an Int32 count; every bit is gone long before this
-    Ok(if a < 0z then -1z else 0z)
+    Result.Ok(if a < 0z then -1z else 0z)
   else
-    Ok(a >> count)
+    Result.Ok(a >> count)

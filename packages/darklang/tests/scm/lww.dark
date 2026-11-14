@@ -11,13 +11,18 @@ module Darklang.SCM.Tests.Lww
 module Wins =
   /// Does the INCOMING binding beat the LOCAL one?
   let incomingWins(
-    incoming: Darklang.SCM.Conflicts.Binding,
-    local: Darklang.SCM.Conflicts.Binding)
+    incoming: SCM.Conflicts.Binding,
+    local: SCM.Conflicts.Binding)
     : Bool =
-    Darklang.SCM.Conflicts.beats(incoming.originTs, incoming.hash, local.originTs, local.hash)
+    SCM.Conflicts.beats(
+      incoming.originTs,
+      incoming.hash,
+      local.originTs,
+      local.hash)
 
-  let b(ts: String, h: String): Darklang.SCM.Conflicts.Binding =
-    Darklang.SCM.Conflicts.Binding
+
+  let b(ts: String, h: String): SCM.Conflicts.Binding =
+    SCM.Conflicts.Binding
       { owner = "Zz"
         modules = "Lww"
         name = "n"
@@ -27,6 +32,7 @@ module Wins =
         author = ""
         previous = Stdlib.Option.Option.None }
 
+
   // A later stamp wins, whatever the hashes are.
   test laterStampWins =
     Stdlib.Test.all(
@@ -34,10 +40,12 @@ module Wins =
           b("2026-01-02T00:00:00.000Z", "aaaa"),
           b("2026-01-01T00:00:00.000Z", "ffff"))
         |> Stdlib.Test.equal(true)
+
         Wins.incomingWins(
           b("2026-01-01T00:00:00.000Z", "ffff"),
           b("2026-01-02T00:00:00.000Z", "aaaa"))
         |> Stdlib.Test.equal(false) ])
+
 
   // An exact tie goes to the HIGHER hash. Portable, so every instance picks the same side.
   test tieGoesToHigherHash =
@@ -46,17 +54,18 @@ module Wins =
           b("2026-01-01T00:00:00.000Z", "ffff"),
           b("2026-01-01T00:00:00.000Z", "aaaa"))
         |> Stdlib.Test.equal(true)
+
         Wins.incomingWins(
           b("2026-01-01T00:00:00.000Z", "aaaa"),
           b("2026-01-01T00:00:00.000Z", "ffff"))
         |> Stdlib.Test.equal(false) ])
 
+
   // A live binding with no stamp cannot defend itself.
   test unstampedLocalLoses =
-    Wins.incomingWins(
-      b("2026-01-01T00:00:00.000Z", "aaaa"),
-      b("", "ffff"))
+    Wins.incomingWins(b("2026-01-01T00:00:00.000Z", "aaaa"), b("", "ffff"))
     |> Stdlib.Test.equal(true)
+
 
   // Stamps are `yyyy-MM-ddTHH:mm:ss.fffZ`, so lexical comparison is already chronological.
   test lexicalIsChronological =
@@ -65,19 +74,20 @@ module Wins =
           b("2026-01-01T00:00:00.002Z", "aaaa"),
           b("2026-01-01T00:00:00.001Z", "ffff"))
         |> Stdlib.Test.equal(true)
+
         Wins.incomingWins(
           b("2026-01-01T00:00:59.999Z", "aaaa"),
           b("2026-01-01T00:01:00.000Z", "aaaa"))
         |> Stdlib.Test.equal(false) ])
 
+
   // An INCOMING binding with no stamp loses to anything that has one: the one asymmetry. Deliberate:
   // an op with no stamp cannot claim recency, and letting it win would let a malformed record beat
   // real history.
   test unstampedIncomingLoses =
-    Wins.incomingWins(
-      b("", "ffff"),
-      b("2026-01-01T00:00:00.000Z", "aaaa"))
+    Wins.incomingWins(b("", "ffff"), b("2026-01-01T00:00:00.000Z", "aaaa"))
     |> Stdlib.Test.equal(false)
+
 
   // The same binding again, stamped the same: nothing to win, so the incoming side loses. The fold
   // keeps what it has and its earliest stamp, and recording never sees this at all, since equal

@@ -17,6 +17,7 @@ type State =
     /// Grapheme index the cursor sits *before*: 0 is the start, `length text` is the end.
     cursor: Int64 }
 
+
 /// What the field tells its parent.
 type Msg =
   /// Enter, with the text as it stands.
@@ -24,11 +25,13 @@ type Msg =
   /// Escape. The parent decides whether that discards anything.
   | Cancelled
 
-val empty =
-  State { text = "", cursor = 0 }
+
+val empty = State { text = "", cursor = 0 }
+
 
 let fromText(text: String): State =
-  State { text = text, cursor = Stdlib.String.length(text) }
+  State { text = text, cursor = String.length(text) }
+
 
 /// Start with the cursor at the beginning rather than the end - for "edit this from the top" cases.
 let fromTextAtStart(text: String): State =
@@ -38,51 +41,55 @@ let fromTextAtStart(text: String): State =
 // --- Edits ---
 
 let clampCursor(state: State): State =
-  let len = Stdlib.String.length(state.text)
-  { state with cursor = Stdlib.max(0, Stdlib.min(len, state.cursor)) }
+  let len = String.length(state.text)
+  { state with cursor = max(0, min(len, state.cursor)) }
+
 
 /// Insert a string of any length at the cursor, and move past all of it.
 let insert(state: State, s: String): State =
-  let before = Stdlib.String.slice(state.text, 0, state.cursor)
-  let after = Stdlib.String.dropFirst(state.text, state.cursor)
+  let before = String.slice(state.text, 0, state.cursor)
+  let after = String.dropFirst(state.text, state.cursor)
+  State { text = before + s + after, cursor = state.cursor + String.length(s) }
 
-  State
-    { text = before + s + after
-      cursor = state.cursor + (Stdlib.String.length(s)) }
 
 let backspace(state: State): State =
   if state.cursor == 0 then
     state
   else
-    let before = Stdlib.String.slice(state.text, 0, state.cursor - 1)
-    let after = Stdlib.String.dropFirst(state.text, state.cursor)
+    let before = String.slice(state.text, 0, state.cursor - 1)
+    let after = String.dropFirst(state.text, state.cursor)
     State { text = before + after, cursor = state.cursor - 1 }
+
 
 /// Delete the character to the right of the cursor.
 let deleteForward(state: State): State =
-  if state.cursor >= (Stdlib.String.length(state.text)) then
+  if state.cursor >= String.length(state.text) then
     state
   else
-    let before = Stdlib.String.slice(state.text, 0, state.cursor)
-    let after = Stdlib.String.dropFirst(state.text, state.cursor + 1)
+    let before = String.slice(state.text, 0, state.cursor)
+    let after = String.dropFirst(state.text, state.cursor + 1)
     { state with text = before + after }
+
 
 /// Drop everything from the cursor to the end (readline's ^k), so replacing a line is two keys.
 let killToEnd(state: State): State =
-  { state with text = Stdlib.String.slice(state.text, 0, state.cursor) }
+  { state with text = String.slice(state.text, 0, state.cursor) }
+
 
 let moveLeft(state: State): State =
-  { state with cursor = Stdlib.max(0, state.cursor - 1) }
+  { state with cursor = max(0, state.cursor - 1) }
+
 
 let moveRight(state: State): State =
-  { state with
-      cursor = Stdlib.min(Stdlib.String.length(state.text), state.cursor + 1) }
+  { state with cursor = min(String.length(state.text), state.cursor + 1) }
+
 
 let moveToStart(state: State): State =
   { state with cursor = 0 }
 
+
 let moveToEnd(state: State): State =
-  { state with cursor = Stdlib.String.length(state.text) }
+  { state with cursor = String.length(state.text) }
 
 
 // --- Keys ---
@@ -94,10 +101,9 @@ let moveToEnd(state: State): State =
 let isTypeable(c: String): Bool =
   // By code point: CRLF is one Char, and `contains` would not find the "\r" inside it.
   c != ""
-  && Stdlib.Bool.not(
-    Stdlib.List.any(
-      Stdlib.String.toCodepoints(c),
-      fun cp -> cp == 9u32 || cp == 10u32 || cp == 13u32 || cp == 27u32))
+  && Bool.not(
+    List.any(String.toCodepoints(c), fun cp ->
+      cp == 9u32 || cp == 10u32 || cp == 13u32 || cp == 27u32))
 
 
 let onKey(state: State, kp: Widget.KeyPress): Widget.Outcome<State, Msg> =
@@ -130,8 +136,8 @@ let onKey(state: State, kp: Widget.KeyPress): Widget.Outcome<State, Msg> =
 
 /// The first grapheme to show, so that the cursor is inside a window `width` wide.
 let windowFor(state: State, width: Int64): Int64 =
-  let w = Stdlib.max(1, width)
-  let len = Stdlib.String.length(state.text)
+  let w = max(1, width)
+  let len = String.length(state.text)
   // Keep the window anchored at the end when the text is short enough to fit whole.
   if len < w then
     0
@@ -140,71 +146,63 @@ let windowFor(state: State, width: Int64): Int64 =
   else
     state.cursor - w + 1
 
+
 /// The text as it should appear in `width` columns, with the cursor cell shown in reverse video.
 ///
 /// Returns a styled string for embedding in a row the caller is already building (an outline item, say).
 /// The cursor is drawn on the character it sits before, or on a trailing space at the end of the line.
 let renderInline(state: State, width: Int64): String =
-  let w = Stdlib.max(1, width)
+  let w = max(1, width)
   let start = windowFor(state, w)
-  let len = Stdlib.String.length(state.text)
-  let stop = Stdlib.min(len, start + w)
-  let visible = Stdlib.String.slice(state.text, start, stop)
+  let len = String.length(state.text)
+  let stop = min(len, start + w)
+  let visible = String.slice(state.text, start, stop)
   let cursorAt = state.cursor - start
-
-  let before = Stdlib.String.slice(visible, 0, cursorAt)
-
+  let before = String.slice(visible, 0, cursorAt)
   let cursorChar =
     if state.cursor < len then
-      Stdlib.String.slice(visible, cursorAt, cursorAt + 1)
+      String.slice(visible, cursorAt, cursorAt + 1)
     else
       " "
 
-  let after =
-    if state.cursor < len then
-      Stdlib.String.dropFirst(visible, cursorAt + 1)
-    else
-      ""
+  let after = if state.cursor < len then String.dropFirst(visible, cursorAt + 1) else ""
+  before + Colors.colorize(Colors.reverse, cursorChar) + after
 
-  before + (Colors.colorize(Colors.reverse, cursorChar)) + after
 
 /// Render a field that may not have focus, with a placeholder for when it's empty and unfocused.
 ///
 /// For forms, where several fields are on screen and one has the cursor.
-let renderMaybeFocused(
-  state: State,
-  focus: Stdlib.Cli.UI.Focus,
-  placeholder: String,
-  width: Int64)
-  : String =
+let renderMaybeFocused(state: State, focus: Focus, placeholder: String, width: Int64): String =
   match focus with
   | Focused -> renderInline(state, width)
   | Unfocused ->
-    if state.text == "" then Colors.dimText(placeholder)
-    else Tui.Text.clipToWidth(state.text, width)
+    if state.text == "" then
+      Colors.dimText(placeholder)
+    else
+      Tui.Text.clipToWidth(state.text, width)
+
 
 /// The text edits only: `Some` for a key the field consumed, `None` for everything else.
 ///
 /// A narrower door than `onKey` for callers that own Enter and Escape themselves (a form deciding what
 /// "done" means for the whole form, not for one field).
-let handleTextKey(state: State, kp: Widget.KeyPress): Stdlib.Option.Option<State> =
+let handleTextKey(state: State, kp: Widget.KeyPress): Option<State> =
   match kp.key with
-  | Backspace -> Stdlib.Option.Option.Some(backspace(state))
-  | Delete -> Stdlib.Option.Option.Some(deleteForward(state))
-  | LeftArrow -> Stdlib.Option.Option.Some(moveLeft(state))
-  | RightArrow -> Stdlib.Option.Option.Some(moveRight(state))
-  | Home -> Stdlib.Option.Option.Some(moveToStart(state))
-  | End -> Stdlib.Option.Option.Some(moveToEnd(state))
-  | Spacebar -> Stdlib.Option.Option.Some(insert(state, " "))
-  | Tab -> Stdlib.Option.Option.None
-  | Enter -> Stdlib.Option.Option.None
-  | Escape -> Stdlib.Option.Option.None
+  | Backspace -> Option.Some(backspace(state))
+  | Delete -> Option.Some(deleteForward(state))
+  | LeftArrow -> Option.Some(moveLeft(state))
+  | RightArrow -> Option.Some(moveRight(state))
+  | Home -> Option.Some(moveToStart(state))
+  | End -> Option.Some(moveToEnd(state))
+  | Spacebar -> Option.Some(insert(state, " "))
+  | Tab -> Option.None
+  | Enter -> Option.None
+  | Escape -> Option.None
   | _ ->
     match kp.char with
-    | Some(c) -> if isTypeable(c) then Stdlib.Option.Option.Some(insert(state, c)) else Stdlib.Option.Option.None
-    | None -> Stdlib.Option.Option.None
+    | Some(c) -> if isTypeable(c) then Option.Some(insert(state, c)) else Option.None
+    | None -> Option.None
 
 
 let view(state: State, region: Layout.Region): List<Layout.Span> =
   Layout.at(region, 0, 0, renderInline(state, region.cols))
-

@@ -1,6 +1,5 @@
 module Darklang.Stdlib.Crypto
 
-
 /// A hash function for <fn Crypto.digest> and <fn Crypto.hmac>.
 type DigestAlgorithm =
   | Md5
@@ -19,11 +18,11 @@ let digest(algorithm: DigestAlgorithm, data: Bytes): Bytes =
 let hmac(algorithm: DigestAlgorithm, key: Bytes, data: Bytes): Bytes =
   let size = __blockSize(algorithm)
   // A key longer than a block is hashed first; then it is zero-padded to a block.
-  let short = if Stdlib.Bytes.length(key) > size then digest(algorithm, key) else key
-  let padding = Stdlib.List.repeat(size - Stdlib.Bytes.length(short), 0u8)
-  let block = Stdlib.Bytes.toList(Stdlib.Bytes.concat(short, Stdlib.Bytes.fromList(padding)))
-  let inner = digest(algorithm, Stdlib.Bytes.concat(__xorEach(block, 54u8), data))
-  digest(algorithm, Stdlib.Bytes.concat(__xorEach(block, 92u8), inner))
+  let short = if Bytes.length(key) > size then digest(algorithm, key) else key
+  let padding = List.repeat(size - Bytes.length(short), 0u8)
+  let block = Bytes.toList(Bytes.concat(short, Bytes.fromList(padding)))
+  let inner = digest(algorithm, Bytes.concat(__xorEach(block, 54u8), data))
+  digest(algorithm, Bytes.concat(__xorEach(block, 92u8), inner))
 
 
 /// The block size of <param algorithm> in bytes, which HMAC pads its key to.
@@ -37,25 +36,33 @@ let __blockSize(algorithm: DigestAlgorithm): Int64 =
 
 /// Every byte of <param block> XORed with <param pad>.
 let __xorEach(block: List<UInt8>, pad: UInt8): Bytes =
-  block |> Stdlib.List.map(fun b -> b ^ pad) |> Stdlib.Bytes.fromList
+  block
+  |> List.map(fun b -> b ^ pad)
+  |> Bytes.fromList
 
 
 /// Computes the SHA-256 digest of the given <param data>
-let sha256(data: Bytes): Bytes = digest(DigestAlgorithm.Sha256, data)
+let sha256(data: Bytes): Bytes =
+  digest(DigestAlgorithm.Sha256, data)
 
 
 /// Computes the SHA-384 digest of the given <param data>
-let sha384(data: Bytes): Bytes = digest(DigestAlgorithm.Sha384, data)
+let sha384(data: Bytes): Bytes =
+  digest(DigestAlgorithm.Sha384, data)
 
 
 /// Hashes <param text> to a cryptographically-secure digest string.
 /// Do not rely on the digest's size, algorithm or encoding.
 let digestText(text: String): String =
-  text |> Stdlib.Utf8.encode |> sha384 |> Stdlib.Base64.urlEncode
+  text
+  |> Utf8.encode
+  |> sha384
+  |> Base64.urlEncode
 
 
 /// Computes the md5 digest of the given <param data>. NOTE: There are multiple security problems with md5, see https://en.wikipedia.org/wiki/MD5#Security
-let md5(data: Bytes): Bytes = digest(DigestAlgorithm.Md5, data)
+let md5(data: Bytes): Bytes =
+  digest(DigestAlgorithm.Md5, data)
 
 
 /// Computes the SHA-256 HMAC (hash-based message authentication code) digest of the given <param key> and <param data>.

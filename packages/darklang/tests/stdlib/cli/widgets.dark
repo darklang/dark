@@ -5,186 +5,218 @@
 module Darklang.Stdlib.Cli.UI.Widgets.Tests
 
 module TextField =
-  let noMods(): Darklang.Stdlib.Cli.Stdin.Modifiers.Modifiers =
-    Darklang.Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = false, shift = false, alt = false }
+  let noMods(): Stdlib.Cli.Stdin.Modifiers.Modifiers =
+    Stdlib.Cli.Stdin.Modifiers.Modifiers
+      { ctrl = false, shift = false, alt = false }
+
 
   // A paste arrives as one chunk. Moving the cursor by one per keypress is what made typing `abcdef` and
   // then `X` produce `aXbcdef`.
   test pasteIsOneChunk =
     Stdlib.Test.all(
-      [ (let field = Darklang.Stdlib.Cli.UI.TextField.insert(Darklang.Stdlib.Cli.UI.TextField.empty, "abcdef")
-         let typed = Darklang.Stdlib.Cli.UI.TextField.insert(field, "X")
+      [ (let field =
+           Stdlib.Cli.UI.TextField.insert(
+             Stdlib.Cli.UI.TextField.empty,
+             "abcdef")
+         let typed = Stdlib.Cli.UI.TextField.insert(field, "X")
          (typed.text, typed.cursor))
         |> Stdlib.Test.equal(("abcdefX", 7))
-        (let back = Darklang.Stdlib.Cli.UI.TextField.backspace(Darklang.Stdlib.Cli.UI.TextField.fromText("hello"))
+
+        (let back =
+           Stdlib.Cli.UI.TextField.backspace(
+             Stdlib.Cli.UI.TextField.fromText("hello"))
          (back.text, back.cursor))
         |> Stdlib.Test.equal(("hell", 4)) ])
+
 
   // Backspace at the start does nothing, rather than going negative.
   test backspaceAtStart =
     Stdlib.Test.all(
-      [ (Darklang.Stdlib.Cli.UI.TextField.backspace(
-          Darklang.Stdlib.Cli.UI.TextField.fromTextAtStart("hello"))).text
+      [ (Stdlib.Cli.UI.TextField.backspace(
+           Stdlib.Cli.UI.TextField.fromTextAtStart("hello"))).text
         |> Stdlib.Test.equal("hello")
-        (Darklang.Stdlib.Cli.UI.TextField.deleteForward(
-          Darklang.Stdlib.Cli.UI.TextField.fromTextAtStart("hello"))).text
+
+        (Stdlib.Cli.UI.TextField.deleteForward(
+           Stdlib.Cli.UI.TextField.fromTextAtStart("hello"))).text
         |> Stdlib.Test.equal("ello")
-        (Darklang.Stdlib.Cli.UI.TextField.killToEnd(
-          (Darklang.Stdlib.Cli.UI.TextField.moveRight(
-            Darklang.Stdlib.Cli.UI.TextField.fromTextAtStart("hello"))))).text
+
+        (Stdlib.Cli.UI.TextField.killToEnd(
+           Stdlib.Cli.UI.TextField.moveRight(
+             Stdlib.Cli.UI.TextField.fromTextAtStart("hello")))).text
         |> Stdlib.Test.equal("h") ])
+
 
   // The window follows the cursor, so a line longer than the box doesn't take the cursor off-screen.
   test windowFollowsCursor =
     Stdlib.Test.all(
-      [ Darklang.Stdlib.Cli.UI.TextField.windowFor(
-          Darklang.Stdlib.Cli.UI.TextField.fromText("0123456789abcdef"), 10)
+      [ Stdlib.Cli.UI.TextField.windowFor(
+          Stdlib.Cli.UI.TextField.fromText("0123456789abcdef"),
+          10)
         |> Stdlib.Test.equal(7)
-        Darklang.Stdlib.Cli.UI.TextField.windowFor(
-          Darklang.Stdlib.Cli.UI.TextField.fromTextAtStart("0123456789abcdef"), 10)
+
+        Stdlib.Cli.UI.TextField.windowFor(
+          Stdlib.Cli.UI.TextField.fromTextAtStart("0123456789abcdef"),
+          10)
         |> Stdlib.Test.equal(0) ])
+
 
   // Tab is passed up rather than typed into the line, so the widget that owns the field can use it.
   test tabPassedUp =
-    (match
-       Darklang.Stdlib.Cli.UI.TextField.onKey(
-         Darklang.Stdlib.Cli.UI.TextField.empty,
-         (Darklang.Stdlib.Cli.UI.Widget.press(
-           Darklang.Stdlib.Cli.Stdin.Key.Key.Tab,
-           noMods(),
-           Stdlib.Option.Option.Some("\t"))))
-     with
+    (match Stdlib.Cli.UI.TextField.onKey(
+             Stdlib.Cli.UI.TextField.empty,
+             Stdlib.Cli.UI.Widget.press(
+               Stdlib.Cli.Stdin.Key.Key.Tab,
+               noMods(),
+               Stdlib.Option.Option.Some("\t"))) with
      | Ignored -> "ignored"
      | Handled(_) -> "typed a tab"
      | Emitted(_, _) -> "emitted")
     |> Stdlib.Test.equal("ignored")
 
+
   // Enter hands the text to the parent.
   test enterHandsTextUp =
-    (match
-       Darklang.Stdlib.Cli.UI.TextField.onKey(
-         Darklang.Stdlib.Cli.UI.TextField.fromText("done"),
-         (Darklang.Stdlib.Cli.UI.Widget.press(
-           Darklang.Stdlib.Cli.Stdin.Key.Key.Enter,
-           noMods(),
-           Stdlib.Option.Option.None)))
-     with
+    (match Stdlib.Cli.UI.TextField.onKey(
+             Stdlib.Cli.UI.TextField.fromText("done"),
+             Stdlib.Cli.UI.Widget.press(
+               Stdlib.Cli.Stdin.Key.Key.Enter,
+               noMods(),
+               Stdlib.Option.Option.None)) with
      | Emitted(_state, Submitted(text)) -> text
      | _ -> "")
     |> Stdlib.Test.equal("done")
 
+
 module Picker =
-  let three(): Darklang.Stdlib.Cli.UI.Picker.State =
-    Darklang.Stdlib.Cli.UI.Picker.make([ "one", "two", "three" ])
+  let three(): Stdlib.Cli.UI.Picker.State =
+    Stdlib.Cli.UI.Picker.make([ "one", "two", "three" ])
+
 
   test pickerMoves =
     Stdlib.Test.all(
-      [ (Darklang.Stdlib.Cli.UI.Picker.moveDown(three())).selected
+      [ (Stdlib.Cli.UI.Picker.moveDown(three())).selected
         |> Stdlib.Test.equal(1)
-        (Darklang.Stdlib.Cli.UI.Picker.moveUp(three())).selected
-        |> Stdlib.Test.equal(0)
-        (Darklang.Stdlib.Cli.UI.Picker.moveToEnd(three())).selected
+
+        (Stdlib.Cli.UI.Picker.moveUp(three())).selected |> Stdlib.Test.equal(0)
+
+        (Stdlib.Cli.UI.Picker.moveToEnd(three())).selected
         |> Stdlib.Test.equal(2) ])
+
 
   // Moving past the end stops at the end.
   test pickerStopsAtEnd =
-    (Darklang.Stdlib.Cli.UI.Picker.moveTo(three(), 99)).selected
-    |> Stdlib.Test.equal(2)
+    (Stdlib.Cli.UI.Picker.moveTo(three(), 99)).selected |> Stdlib.Test.equal(2)
+
 
   // The window moves only as far as it must to keep the selection visible.
   test pickerScrollsMinimally =
     Stdlib.Test.all(
-      [ (Darklang.Stdlib.Cli.UI.Picker.scrolled(
-          Darklang.Stdlib.Cli.UI.Picker.moveToEnd(three()), 2)).scroll
+      [ (Stdlib.Cli.UI.Picker.scrolled(
+           Stdlib.Cli.UI.Picker.moveToEnd(three()),
+           2)).scroll
         |> Stdlib.Test.equal(1)
-        (Darklang.Stdlib.Cli.UI.Picker.scrolled(three(), 2)).scroll
+
+        (Stdlib.Cli.UI.Picker.scrolled(three(), 2)).scroll
         |> Stdlib.Test.equal(0) ])
+
 
   // Rebuilding with new labels keeps the cursor if the row still exists.
   test relabelKeepsCursor =
-    (Darklang.Stdlib.Cli.UI.Picker.withLabels(
-      Darklang.Stdlib.Cli.UI.Picker.moveToEnd(three()),
-      [ "a", "b" ])).selected
+    (Stdlib.Cli.UI.Picker.withLabels(
+       Stdlib.Cli.UI.Picker.moveToEnd(three()),
+       [ "a", "b" ])).selected
     |> Stdlib.Test.equal(1)
+
 
   // A selected row is marked, not just coloured: colour alone is invisible on a monochrome terminal.
   test selectedRowIsMarked =
     Stdlib.Test.all(
       [ Stdlib.String.contains(
-          Darklang.Stdlib.Cli.UI.Picker.rowFor("x", Darklang.Stdlib.Cli.UI.Focus.Focused),
+          Stdlib.Cli.UI.Picker.rowFor("x", Stdlib.Cli.UI.Focus.Focused),
           "> x")
         |> Stdlib.Test.equal(true)
+
         Stdlib.String.startsWith(
-          Darklang.Stdlib.Cli.UI.Picker.rowFor("x", Darklang.Stdlib.Cli.UI.Focus.Focused),
-          Darklang.Stdlib.Cli.UI.Colors.selection)
+          Stdlib.Cli.UI.Picker.rowFor("x", Stdlib.Cli.UI.Focus.Focused),
+          Stdlib.Cli.UI.Colors.selection)
         |> Stdlib.Test.equal(true)
-        Darklang.Stdlib.Cli.UI.Picker.rowFor("x", Darklang.Stdlib.Cli.UI.Focus.Unfocused)
+
+        Stdlib.Cli.UI.Picker.rowFor("x", Stdlib.Cli.UI.Focus.Unfocused)
         |> Stdlib.Test.equal("  x") ])
+
 
   // Focus.fromBool turns focus worked out from state into the enum the widgets take.
   test focusFromBool =
     Stdlib.Test.all(
-      [ Darklang.Stdlib.Cli.UI.Focus.fromBool(true)
-        |> Stdlib.Test.equal(Darklang.Stdlib.Cli.UI.Focus.Focused)
-        Darklang.Stdlib.Cli.UI.Focus.fromBool(false)
-        |> Stdlib.Test.equal(Darklang.Stdlib.Cli.UI.Focus.Unfocused) ])
+      [ Stdlib.Cli.UI.Focus.fromBool(true)
+        |> Stdlib.Test.equal(Stdlib.Cli.UI.Focus.Focused)
+
+        Stdlib.Cli.UI.Focus.fromBool(false)
+        |> Stdlib.Test.equal(Stdlib.Cli.UI.Focus.Unfocused) ])
+
 
   // A focused text field draws its cursor; an unfocused empty one shows the placeholder.
   test textFieldFocus =
-    let empty = Darklang.Stdlib.Cli.UI.TextField.empty
-
+    let empty = Stdlib.Cli.UI.TextField.empty
     Stdlib.Test.all(
-      [ Darklang.Stdlib.Cli.UI.TextField.renderMaybeFocused(
+      [ Stdlib.Cli.UI.TextField.renderMaybeFocused(
           empty,
-          Darklang.Stdlib.Cli.UI.Focus.Unfocused,
+          Stdlib.Cli.UI.Focus.Unfocused,
           "name",
           10)
-        |> Stdlib.Test.equal(Darklang.Stdlib.Cli.UI.Colors.dimText("name"))
-        Darklang.Stdlib.Cli.UI.TextField.renderMaybeFocused(
+        |> Stdlib.Test.equal(Stdlib.Cli.UI.Colors.dimText("name"))
+
+        Stdlib.Cli.UI.TextField.renderMaybeFocused(
           empty,
-          Darklang.Stdlib.Cli.UI.Focus.Focused,
+          Stdlib.Cli.UI.Focus.Focused,
           "name",
           10)
-        |> Stdlib.Test.equal(Darklang.Stdlib.Cli.UI.TextField.renderInline(empty, 10)) ])
+        |> Stdlib.Test.equal(Stdlib.Cli.UI.TextField.renderInline(empty, 10)) ])
+
 
 module Confirm =
-  let question(): Darklang.Stdlib.Cli.UI.Confirm.State =
-    Darklang.Stdlib.Cli.UI.Confirm.askDangerous("Delete?", "3 lines")
+  let question(): Stdlib.Cli.UI.Confirm.State =
+    Stdlib.Cli.UI.Confirm.askDangerous("Delete?", "3 lines")
 
-  let key(c: String): Darklang.Stdlib.Cli.UI.Widget.KeyPress =
-    Darklang.Stdlib.Cli.UI.Widget.press(
-      Darklang.Stdlib.Cli.Stdin.Key.Key.None,
-      Darklang.Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = false, shift = false, alt = false },
+
+  let key(c: String): Stdlib.Cli.UI.Widget.KeyPress =
+    Stdlib.Cli.UI.Widget.press(
+      Stdlib.Cli.Stdin.Key.Key.None,
+      Stdlib.Cli.Stdin.Modifiers.Modifiers
+        { ctrl = false, shift = false, alt = false },
       Stdlib.Option.Option.Some(c))
+
 
   test confirmKeys =
     Stdlib.Test.all(
-      [ (match Darklang.Stdlib.Cli.UI.Confirm.onKey(question(), key("y")) with
+      [ (match Stdlib.Cli.UI.Confirm.onKey(question(), key("y")) with
          | Emitted(_s, Confirmed) -> "yes"
          | _ -> "other")
         |> Stdlib.Test.equal("yes")
-        (match Darklang.Stdlib.Cli.UI.Confirm.onKey(question(), key("n")) with
+
+        (match Stdlib.Cli.UI.Confirm.onKey(question(), key("n")) with
          | Emitted(_s, Declined) -> "no"
          | _ -> "other")
         |> Stdlib.Test.equal("no") ])
 
+
   // Any other key is swallowed. A modal that let keys through would act on the thing being asked about.
   test otherKeysSwallowed =
-    (match Darklang.Stdlib.Cli.UI.Confirm.onKey(question(), key("j")) with
+    (match Stdlib.Cli.UI.Confirm.onKey(question(), key("j")) with
      | Handled(_) -> "swallowed"
      | _ -> "other")
     |> Stdlib.Test.equal("swallowed")
 
+
   // Enter declines a dangerous question: the safe answer is the easy one.
   test enterDeclines =
-    (match
-       Darklang.Stdlib.Cli.UI.Confirm.onKey(
-         question(),
-         (Darklang.Stdlib.Cli.UI.Widget.press(
-           Darklang.Stdlib.Cli.Stdin.Key.Key.Enter,
-           Darklang.Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = false, shift = false, alt = false },
-           Stdlib.Option.Option.None)))
-     with
+    (match Stdlib.Cli.UI.Confirm.onKey(
+             question(),
+             Stdlib.Cli.UI.Widget.press(
+               Stdlib.Cli.Stdin.Key.Key.Enter,
+               Stdlib.Cli.Stdin.Modifiers.Modifiers
+                 { ctrl = false, shift = false, alt = false },
+               Stdlib.Option.Option.None)) with
      | Emitted(_s, Declined) -> "declined"
      | _ -> "other")
     |> Stdlib.Test.equal("declined")

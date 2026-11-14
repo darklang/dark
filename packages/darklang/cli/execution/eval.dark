@@ -6,83 +6,72 @@ type Harmful =
   | Allow
   | Halt
 
+
 /// Evaluate an expression and hand back the value it produced, not its printed text. A fn's name
 /// evaluates to the fn.
 let evaluateValue(
-  accountID: Stdlib.Option.Option<Uuid>,
+  accountID: Option<Uuid>,
   branchId: Uuid,
   expr: String,
   harmful: Harmful)
-  : Stdlib.Result.Result<'a, ExecutionError.ExecutionError> =
+  : Result<'a, ExecutionError.ExecutionError> =
   let allowHarmful =
     match harmful with
     | Allow -> true
     | Halt -> false
+
   Builtin.cliEvaluateExpression(accountID, branchId, expr, allowHarmful)
 
 
 /// Evaluate an expression, keeping errors structured for the caller.
 let evaluateRaw(
-  accountID: Stdlib.Option.Option<Uuid>,
+  accountID: Option<Uuid>,
   branchId: Uuid,
   expr: String,
   currentModule: List<String>,
   harmful: Harmful)
-  : Stdlib.Result.Result<
-      Stdlib.Option.Option<String>,
-      ExecutionError.ExecutionError> =
+  : Result<Option<String>, ExecutionError.ExecutionError> =
   match evaluateValue(accountID, branchId, expr, harmful) with
   | Ok(value) ->
     // Unit has no output, and a string prints without its quotes.
     match LanguageTools.RuntimeTypes.reflect(value) with
-    | DUnit -> Stdlib.Result.Result.Ok(Stdlib.Option.Option.None)
-    | DString(text) -> Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some(text))
+    | DUnit -> Result.Ok(Option.None)
+    | DString(text) -> Result.Ok(Option.Some(text))
     | dv ->
       let (width, _rows) = Terminal.getSize()
       let color = Stdlib.Cli.Sys.isTerminal(1)
-
-      Stdlib.Result.Result.Ok(
-        Stdlib.Option.Option.Some(
-          Terminal.renderValue(branchId, width, color, currentModule, dv)))
+      Result.Ok(Option.Some(Terminal.renderValue(branchId, width, color, currentModule, dv)))
   | Error(error) ->
     match error with
     | Runtime(_, _) -> ExecutionError.printCallStack(branchId, "expression", error)
     | _ -> ()
-    Stdlib.Result.Result.Error(error)
+
+    Result.Error(error)
 
 
 /// Evaluate `expr` and hand back what it produced: `Ok (Some printed)` for a value, `Ok None` for something
 /// that printed nothing, `Error message` for a failure. What the `eval`/REPL path uses - `execute` prints
 /// what this returns, and the workbench REPL keeps it as state. Takes the whole expression as one string,
 /// so a multi-line let-chain survives.
-let evaluate(
-  state: AppState,
-  expr: String,
-  harmful: Harmful)
-  : Stdlib.Result.Result<Stdlib.Option.Option<String>, String> =
+let evaluate(state: AppState, expr: String, harmful: Harmful): Result<Option<String>, String> =
   // Where the user is standing, so the printed value spells names the way they would.
-  let currentModule =
-    Packages.Traversal.getCurrentModulePath(state.packageData.currentLocation)
-
-  match
-    evaluateRaw(state.accountID, state.currentBranchId, expr, currentModule, harmful)
-  with
-  | Ok(result) -> Stdlib.Result.Result.Ok(result)
+  let currentModule = Packages.Traversal.getCurrentModulePath(state.packageData.currentLocation)
+  match evaluateRaw(state.accountID, state.currentBranchId, expr, currentModule, harmful) with
+  | Ok(result) -> Result.Ok(result)
   | Error(err) ->
-    Stdlib.Result.Result.Error(
-      ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, err))
+    Result.Error(ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, err))
 
 
 let execute(state: AppState, args: List<String>): AppState =
   let harmful =
-    if Stdlib.List.contains(args, "--allow-harmful") then Harmful.Allow else Harmful.Halt
-  // What the expression cost, net of the measuring harness itself: see Perf.floor.
-  let wantStats =
-    Stdlib.List.contains(args, "--stats")
-  let args =
-    args
-    |> Stdlib.List.filter(fun a -> (a != "--allow-harmful") && (a != "--stats"))
+    if Stdlib.List.contains(args, "--allow-harmful") then
+      Harmful.Allow
+    else
+      Harmful.Halt
 
+  // What the expression cost, net of the measuring harness itself: see Perf.floor.
+  let wantStats = Stdlib.List.contains(args, "--stats")
+  let args = args |> Stdlib.List.filter(fun a -> a != "--allow-harmful" && a != "--stats")
   match args with
   | [] ->
     Stdlib.printLine(help(state))
@@ -92,49 +81,47 @@ let execute(state: AppState, args: List<String>): AppState =
     // callers can pipe multi-line expressions via heredoc without quoting.
     let expr =
       match args with
-      | [ "-" ] -> Stdlib.Cli.Stdin.readAll()
-      | parts -> Stdlib.Result.Result.Ok(Stdlib.String.join(parts, " "))
+      | ["-"] -> Stdlib.Cli.Stdin.readAll()
+      | parts -> Result.Ok(Stdlib.String.join(parts, " "))
 
     match expr with
     | Error(message) ->
-      Cli.printErr(message)
-      Cli.failed(state)
+      printErr(message)
+      failed(state)
     | Ok(expr) ->
+      let (stats, outcome) =
+        if wantStats then
+          let harness = LanguageTools.Perf.floor()
+          let (raw, result) = LanguageTools.Perf.measure(fun () -> evaluate(state, expr, harmful))
+          (Option.Some(LanguageTools.Perf.minus(raw, harness)), result)
+        else
+          (Option.None, evaluate(state, expr, harmful))
 
-    let (stats, outcome) =
-      if wantStats then
-        let harness = LanguageTools.Perf.floor()
+      let newState =
+        match outcome with
+        | Ok(Some(s)) ->
+          Stdlib.printLine(s)
+          state
+        | Ok(None) -> state
+        | Error(message) ->
+          Stdlib.printErrorLine($"Error: {message}")
+          { state with exitCode = 1 }
 
-        let (raw, result) =
-          LanguageTools.Perf.measure(fun () -> evaluate(state, expr, harmful))
+      match stats with
+      | Some(m) ->
+        let _ = Stdlib.printLine("")
 
-        (Stdlib.Option.Option.Some(LanguageTools.Perf.minus(raw, harness)), result)
-      else
-        (Stdlib.Option.Option.None, evaluate(state, expr, harmful))
+        let _ = Stdlib.printLine(LanguageTools.Perf.render(m))
 
-    let newState =
-      match outcome with
-      | Ok(Some(s)) ->
-        Stdlib.printLine(s)
-        state
-      | Ok(None) -> state
-      | Error(message) ->
-        Stdlib.printErrorLine($"Error: {message}")
-        { state with exitCode = 1 }
+        // TODO: report the phases instead of warning about them. `cliEvaluateExpression` already
+        // splits `parseCliExpr` from `execute`, so bracketing each would turn this line into two
+        // rows. F# on the eval path, so it wants its own change and its own measurement.
+        let _ =
+          Stdlib.printLine(
+            "  (includes parsing and name resolution; Perf.measure in a script brackets execution alone)")
 
-    match stats with
-    | Some(m) ->
-      let _ = Stdlib.printLine("")
-      let _ = Stdlib.printLine(LanguageTools.Perf.render(m))
-      // TODO: report the phases instead of warning about them. `cliEvaluateExpression` already
-      // splits `parseCliExpr` from `execute`, so bracketing each would turn this line into two
-      // rows. F# on the eval path, so it wants its own change and its own measurement.
-      let _ =
-        Stdlib.printLine(
-          "  (includes parsing and name resolution; Perf.measure in a script brackets execution alone)")
-
-      newState
-    | None -> newState
+        newState
+      | None -> newState
 
 
 let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
@@ -142,8 +129,7 @@ let complete(_state: AppState, _args: List<String>): List<Completion.CompletionI
 
 
 let help(_state: AppState): String =
-  [
-    "Usage: eval <expression>"
+  [ "Usage: eval <expression>"
     "       eval -    (read expression from stdin, for multi-line input)"
     "Evaluate a Dark expression and display the result."
     ""
@@ -162,5 +148,5 @@ let help(_state: AppState): String =
     "  ./scripts/run-cli eval - <<'EOF'"
     "  let xs = [1, 2, 3]"
     "  Stdlib.List.length(xs)"
-    "  EOF"
-  ] |> Stdlib.String.join("\n")
+    "  EOF" ]
+  |> Stdlib.String.join("\n")

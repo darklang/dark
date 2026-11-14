@@ -4,14 +4,15 @@ module Darklang.Cli.Effects
 let reasons(hash: String): (Bool * List<(LanguageTools.Permissions.Effect * List<String>)>) =
   Builtin.pmFnEffectReasons(hash)
 
-let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
+
+let execute(state: AppState, args: List<String>): AppState =
   match args with
-  | [ name ] ->
-    let name = Cli.TraceVerbs.canonicalFnName(state.currentBranchId, name)
-    match Cli.Permissions.Command.resolveVersionArg(state, name) with
+  | [name] ->
+    let name = TraceVerbs.canonicalFnName(state.currentBranchId, name)
+    match Permissions.Command.resolveVersionArg(state, name) with
     | None ->
-      Cli.printErr($"Unknown function: {name}")
-      Cli.failed(state)
+      printErr($"Unknown function: {name}")
+      failed(state)
     | Some(hash) ->
       let (complete, reasons) = Effects.reasons(hash)
       if Stdlib.List.isEmpty(reasons) then
@@ -20,16 +21,21 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
         Stdlib.List.iter(reasons, fun((effect, path)) ->
           Stdlib.printLine(LanguageTools.Permissions.effectName(effect))
           Stdlib.printLine("  via " + Stdlib.String.join(path, " -> ")))
-      if complete then ()
+
+      if complete then
+        ()
       else
-        Cli.printErr("Incomplete: some calls could not be resolved. More effects may occur.")
+        printErr("Incomplete: some calls could not be resolved. More effects may occur.")
+
       state
   | _ ->
-    Cli.printErr("Usage: effects <function>")
-    Cli.failed(state)
+    printErr("Usage: effects <function>")
+    failed(state)
 
-let help(_state: Cli.AppState): String =
+
+let help(_state: AppState): String =
   "Usage: effects <function>\nShow possible effects and the calls that cause them, without running code.\nExample: effects Me.reports.report\nSee allowed access with: permissions show Me.reports.report"
 
-let complete(_state: Cli.AppState, _args: List<String>): List<Cli.Completion.CompletionItem> =
+
+let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
   []

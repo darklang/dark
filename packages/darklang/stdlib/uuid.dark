@@ -1,23 +1,27 @@
 module Darklang.Stdlib.Uuid
 
+type ParseError =
+  | BadFormat
 
-type ParseError = | BadFormat
 
 /// Generate a new <type Uuid> v4 according to RFC 4122
-let generate(): Uuid = Builtin.uuidGenerate()
+let generate(): Uuid =
+  Builtin.uuidGenerate()
 
 
 /// Generate a new <type Uuid> v7 according to RFC 9562. It starts with the
 /// current Unix time in milliseconds, so the text of one made later sorts
 /// after the text of one made earlier, to the millisecond.
-let generateV7(): Uuid = Builtin.uuidGenerateV7()
+let generateV7(): Uuid =
+  Builtin.uuidGenerateV7()
 
 
 /// Parse a <type Uuid> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}
-let parse(uuid: String): Stdlib.Result.Result<Uuid, Stdlib.Uuid.ParseError> =
+let parse(uuid: String): Result<Uuid, ParseError> =
   Builtin.uuidParse(uuid)
 
 
 impl Display for Uuid =
   /// Stringify <param uuid> to the format XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
-  let display(uuid: Uuid): String = Builtin.uuidToString(uuid)
+  let display(uuid: Uuid): String =
+    Builtin.uuidToString(uuid)

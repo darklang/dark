@@ -27,18 +27,17 @@ module Darklang.Cli.ConstraintsCmd
 let line(f: SCM.Constraints.Finding): String =
   let u = SCM.Constraints.fqnOf(f.usage)
   let d = SCM.Constraints.fqnOf(f.dependency)
-
-  match (f.kind, f.detail) with
-  | (KindChanged, _) ->
+  match f.kind, f.detail with
+  | KindChanged, _ ->
     let was = LanguageTools.ProgramTypes.ItemKind.toString(f.dependencyKind)
     $"  #{f.id}  {u}\n             uses {d} as a {was}; that name is something else now (still resolves, by hash)"
-  | (StaleUsage, Versions(using, current)) ->
-    $"  #{f.id}  {u}\n             still on the version it was written against ({Cli.shortHash(using)}); {d} is at {Cli.shortHash(current)} now"
+  | StaleUsage, Versions(using, current) ->
+    $"  #{f.id}  {u}\n             still on the version it was written against ({shortHash(using)}); {d} is at {shortHash(current)} now"
   // Its own sentence: `dependency` is the location itself here, so the stale-usage phrasing ("uses X")
   // would read as if the name called itself.
-  | (DecisionSuperseded, Versions(using, current)) ->
-    $"  #{f.id}  {u}\n             you overrode this to the version you chose ({Cli.shortHash(using)}); a later edit rebound it to {Cli.shortHash(current)}"
-  | (RivalImplementations, Rivals(self, rival, choice)) ->
+  | DecisionSuperseded, Versions(using, current) ->
+    $"  #{f.id}  {u}\n             you overrode this to the version you chose ({shortHash(using)}); a later edit rebound it to {shortHash(current)}"
+  | RivalImplementations, Rivals(self, rival, choice) ->
     let r = SCM.Constraints.fqnOf(rival)
 
     // Both ways out and what each one does, never a recommendation: which of two implementations
@@ -50,25 +49,25 @@ let line(f: SCM.Constraints.Finding): String =
       $"  #{f.id}  {u}\n             and {r} both implement {d} for {self}.\n             Calls run {r}, the later of the two.\n             Two implementations, not an out-of-date one, so a dependency upgrade leaves it alone.\n             Retire one to settle it:\n               `dark deprecate impl {u}` leaves {r} running\n               `dark deprecate impl {r}` hands it to {u}\n             Leave both: `dark ack #{f.id}`"
     | Neither ->
       $"  #{f.id}  {u}\n             and {r} both implement {d} for {self}.\n             Neither came from a commit, so no call can choose.\n             Save one of them again, or retire one:\n               `dark deprecate impl {u}` or `dark deprecate impl {r}`"
-  | (_, _) -> $"  #{f.id}  {u}"
+  | _, _ -> $"  #{f.id}  {u}"
 
 
 /// The same data the human view renders, not a subset. If an agent ever has to fall back to parsing the
 /// pretty output for one field, this is incomplete and that's a bug, not a workaround.
 let toJson(f: SCM.Constraints.Finding): String =
-  let k = Cli.jsonStr(SCM.Constraints.kindToString(f.kind))
-  let u = Cli.jsonStr(SCM.Constraints.fqnOf(f.usage))
-  let d = Cli.jsonStr(SCM.Constraints.fqnOf(f.dependency))
-  let uk = Cli.jsonStr(LanguageTools.ProgramTypes.ItemKind.toString(f.usageKind))
-  let dk = Cli.jsonStr(LanguageTools.ProgramTypes.ItemKind.toString(f.dependencyKind))
+  let k = jsonStr(SCM.Constraints.kindToString(f.kind))
+  let u = jsonStr(SCM.Constraints.fqnOf(f.usage))
+  let d = jsonStr(SCM.Constraints.fqnOf(f.dependency))
+  let uk = jsonStr(LanguageTools.ProgramTypes.ItemKind.toString(f.usageKind))
+  let dk = jsonStr(LanguageTools.ProgramTypes.ItemKind.toString(f.dependencyKind))
 
   // The varying half is named for what it IS, so an agent reading this does not have to know that a
   // policy finding puts policy names in fields called `using` and `current`.
   let detail =
     match f.detail with
     | Versions(using, current) ->
-      let usingStr = Cli.jsonStr(LanguageTools.ProgramTypes.hashToString(using))
-      let curStr = Cli.jsonStr(LanguageTools.ProgramTypes.hashToString(current))
+      let usingStr = jsonStr(LanguageTools.ProgramTypes.hashToString(using))
+      let curStr = jsonStr(LanguageTools.ProgramTypes.hashToString(current))
       $"\"using\":{usingStr},\"current\":{curStr}"
     | Rivals(self, rival, choice) ->
       let runs =
@@ -77,9 +76,9 @@ let toJson(f: SCM.Constraints.Finding): String =
         | Theirs -> SCM.Constraints.fqnOf(rival)
         | Neither -> ""
 
-      $"\"self\":{Cli.jsonStr(self)},\"rival\":{Cli.jsonStr(SCM.Constraints.fqnOf(rival))},\"runs\":{Cli.jsonStr(runs)}"
+      $"\"self\":{jsonStr(self)},\"rival\":{jsonStr(SCM.Constraints.fqnOf(rival))},\"runs\":{jsonStr(runs)}"
 
-  $"{{\"id\":{Cli.jsonStr(f.id)},\"kind\":{k},\"usage\":{u},\"usageKind\":{uk},\"dependency\":{d},\"dependencyKind\":{dk},{detail}}}"
+  $"{{\"id\":{jsonStr(f.id)},\"kind\":{k},\"usage\":{u},\"usageKind\":{uk},\"dependency\":{d},\"dependencyKind\":{dk},{detail}}}"
 
 
 let selectKind(
@@ -90,75 +89,71 @@ let selectKind(
   | Some(i) ->
     match Stdlib.List.getAt(args, i + 1) with
     | Some(wanted) ->
-      findings
-      |> Stdlib.List.filter(fun f ->
-        SCM.Constraints.kindToString(f.kind) == wanted)
+      findings |> Stdlib.List.filter(fun f -> SCM.Constraints.kindToString(f.kind) == wanted)
     | None -> findings
   | None -> findings
 
 
 /// The `--kind` value, checked: `Error` explains rather than silently filtering to nothing on a typo,
 /// and a bare `--kind` is a missing value, not an unknown flag.
-let kindArgChecked(args: List<String>): Stdlib.Result.Result<Unit, String> =
+let kindArgChecked(args: List<String>): Result<Unit, String> =
   match Stdlib.List.findFirstIndex(args, fun a -> a == "--kind") with
-  | None -> Stdlib.Result.Result.Ok()
+  | None -> Result.Ok()
   | Some(i) ->
     match Stdlib.List.getAt(args, i + 1) with
     | None ->
-      Stdlib.Result.Result.Error(
+      Result.Error(
         "--kind needs a value: stale-usage, kind-changed, decision-superseded, or rival-implementations.")
     | Some(wanted) ->
       match SCM.Constraints.kindFromString(wanted) with
-      | Some(_) -> Stdlib.Result.Result.Ok()
+      | Some(_) -> Result.Ok()
       | None ->
-        Stdlib.Result.Result.Error(
+        Result.Error(
           $"\"{wanted}\" isn't a kind -- stale-usage, kind-changed, decision-superseded, or rival-implementations.")
 
 
 let executeJson(state: AppState, args: List<String>): AppState =
   let detected = SCM.Constraints.pending()
   let findings = selectKind(detected.findings, args)
-  let body = findings |> Stdlib.List.map(toJson) |> (fun ls -> Stdlib.String.join(ls, ","))
+  let body =
+    findings
+    |> Stdlib.List.map(toJson)
+    |> (fun ls -> Stdlib.String.join(ls, ","))
 
   // Add-only, normally `[]`. Without it an agent reads "we didn't look" as "nothing to see".
   let answer =
     Stdlib.Json.checkedSerialize<List<String>>(detected.blocked)
     |> Stdlib.Result.map(fun blocked -> $"{{\"findings\":[{body}],\"blocked\":{blocked}}}")
 
-  Cli.exitWith(state, Cli.printJson(answer))
+  exitWith(state, printJson(answer))
 
 
 let executeList(state: AppState, args: List<String>): AppState =
   let detected = SCM.Constraints.pending()
 
   // Before the findings: "no constraints" is a claim about what was checked.
-  let _ =
-    detected.blocked
-    |> Stdlib.List.iter(fun b ->
-      Cli.printErr($"couldn't check everything: {b}"))
-
+  let _ = detected.blocked |> Stdlib.List.iter(fun b -> printErr($"couldn't check everything: {b}"))
   match selectKind(detected.findings, args) with
   | [] ->
     // Says what was CHECKED, not just that nothing turned up, and short enough for a narrow terminal.
     if Stdlib.List.isEmpty(detected.blocked) then
-      Cli.printOk("no constraints: nothing has drifted off its current version.")
+      printOk("no constraints: nothing has drifted off its current version.")
     else
-      Cli.printOk("nothing found by the checks that DID run.")
+      printOk("nothing found by the checks that DID run.")
 
     state
   | findings ->
-    Cli.printOk(Cli.Text.plural(Stdlib.List.length(findings), "constraint"))
+    printOk(Text.plural(Stdlib.List.length(findings), "constraint"))
     findings |> Stdlib.List.iter(fun f -> Stdlib.printLine(line(f)))
     Stdlib.printErrorLine("")
 
     Stdlib.printErrorLine(
-      (Stdlib.Cli.UI.Colors.hint(
-        "  dark ack <id>... [--why ...]   leave for now (`dark ack --all` for every one)")))
+      Stdlib.Cli.UI.Colors.hint(
+        "  dark ack <id>... [--why ...]   leave for now (`dark ack --all` for every one)"))
 
     Stdlib.printErrorLine(
-      (Stdlib.Cli.UI.Colors.hint(
-        "  dark constraints resolve <id>... [--as <how>]   fix it now, naming the fix")))
-
+      Stdlib.Cli.UI.Colors.hint(
+        "  dark constraints resolve <id>... [--as <how>]   fix it now, naming the fix"))
 
     state
 
@@ -167,9 +162,7 @@ let executeList(state: AppState, args: List<String>): AppState =
 ///
 /// Unknown ids are REPORTED and skipped rather than aborting the batch. An agent that has to bisect a failed
 /// batch to find the one bad target is worse off than one that made N calls in the first place.
-let selectTargets(
-  ids: List<String>)
-  : (List<SCM.Constraints.Finding> * List<String>) =
+let selectTargets(ids: List<String>): (List<SCM.Constraints.Finding> * List<String>) =
   // `detectAll` re-runs detection so a prefix can match a finding that has never been listed; `pending`
   // is enough for `--all`, which means "everything currently outstanding".
   if Stdlib.List.contains(ids, "--all") then
@@ -195,9 +188,7 @@ let selectTargets(
     let withoutAsValue =
       match Stdlib.List.findFirstIndex(beforeWhy, fun a -> a == "--as") with
       | Some(i) ->
-        Stdlib.List.concat(
-          Stdlib.List.take(beforeWhy, i),
-          Stdlib.List.drop(beforeWhy, i + 2))
+        Stdlib.List.concat(Stdlib.List.take(beforeWhy, i), Stdlib.List.drop(beforeWhy, i + 2))
       | None -> beforeWhy
 
     let real =
@@ -205,14 +196,13 @@ let selectTargets(
       |> Stdlib.List.filter(fun i -> Stdlib.String.startsWith(i, "--") |> Stdlib.Bool.not)
       |> Stdlib.List.map(normalize)
 
-    let matches(idPrefix: String): Stdlib.Option.Option<SCM.Constraints.Finding> =
+    let matches(idPrefix: String): Option<SCM.Constraints.Finding> =
       if idPrefix == "" then
-        Stdlib.Option.Option.None
+        Option.None
       else
         all |> Stdlib.List.findFirst(fun f -> Stdlib.String.startsWith(f.id, idPrefix))
 
     let found = real |> Stdlib.List.filterMap(matches)
-
     let missing =
       real |> Stdlib.List.filter(fun idPrefix -> matches(idPrefix) |> Stdlib.Option.isNone)
 
@@ -223,7 +213,9 @@ let selectTargets(
 let whyFrom(args: List<String>): String =
   match Stdlib.List.findFirstIndex(args, fun a -> a == "--why") with
   | Some(i) ->
-    args |> Stdlib.List.drop(i + 1) |> (fun rest -> Stdlib.String.join(rest, " "))
+    args
+    |> Stdlib.List.drop(i + 1)
+    |> (fun rest -> Stdlib.String.join(rest, " "))
   | None -> ""
 
 
@@ -240,41 +232,37 @@ let onBranch(): Bool =
 
 let executeAck(state: AppState, args: List<String>): AppState =
   if onBranch() then
-    Cli.printErr("constraints are a property of the store, not of a branch -- switch to main to ack.")
-    Cli.printHint("  detection runs over main's bindings, so there's nothing branch-local here to answer.")
+    printErr("constraints are a property of the store, not of a branch -- switch to main to ack.")
+    printHint(
+      "  detection runs over main's bindings, so there's nothing branch-local here to answer.")
+
     Cli.failed(state)
   else
     let (targets, missing) = selectTargets(args)
     let why = whyFrom(args)
-
-    missing
-    |> Stdlib.List.iter(fun m -> Cli.printErr($"no constraint matching \"{m}\" -- skipped."))
+    missing |> Stdlib.List.iter(fun m -> printErr($"no constraint matching \"{m}\" -- skipped."))
 
     // A skipped id fails the command, once the rest of the batch has run.
     match targets with
     | [] ->
-      if Stdlib.List.isEmpty(missing) then
-        Cli.printOk("nothing to ack.")
-      else
-        ()
-
-      Cli.exitWith(state, Stdlib.List.isEmpty(missing))
+      if Stdlib.List.isEmpty(missing) then printOk("nothing to ack.") else ()
+      exitWith(state, Stdlib.List.isEmpty(missing))
     | _ ->
       let failed =
         targets
         |> Stdlib.List.filter(fun f ->
           match SCM.Constraints.ack(state.currentBranchId, f, why) with
           | Ok(_) ->
-            Cli.printOk($"acked #{f.id}  {SCM.Constraints.fqnOf(f.usage)}")
+            printOk($"acked #{f.id}  {SCM.Constraints.fqnOf(f.usage)}")
             false
           | Error(e) ->
-            Cli.printErr($"couldn't ack #{f.id}: {e}")
+            printErr($"couldn't ack #{f.id}: {e}")
             true)
 
       // Both lines are about REFERENCES, which is what every finding here describes.
-      Cli.printHint("  an ack comes back if that item later moves to some other old version.")
-      Cli.printHint("  Keep the current reference if the older version is deliberate.")
-      Cli.exitWith(state, (Stdlib.List.isEmpty(missing)) && (Stdlib.List.isEmpty(failed)))
+      printHint("  an ack comes back if that item later moves to some other old version.")
+      printHint("  Keep the current reference if the older version is deliberate.")
+      exitWith(state, Stdlib.List.isEmpty(missing) && Stdlib.List.isEmpty(failed))
 
 
 /// `--as <choice>`, naming which resolution to apply.
@@ -283,14 +271,14 @@ let chosenResolution(args: List<String>): String =
   | Some(i) -> Stdlib.List.getAt(args, i + 1) |> Stdlib.Option.withDefault("")
   | None -> ""
 
+
 /// Every resolution a set of targets could take, deduped, in the order the kinds offer them.
-let resolutionsAcross(
-  targets: List<SCM.Constraints.Finding>)
-  : List<String> =
+let resolutionsAcross(targets: List<SCM.Constraints.Finding>): List<String> =
   targets
   |> Stdlib.List.map(fun f -> SCM.Constraints.resolutionsFor(f.kind))
   |> Stdlib.List.flatten
   |> Stdlib.List.unique
+
 
 /// Can this batch proceed without being told which resolution to apply?
 ///
@@ -301,50 +289,57 @@ let resolutionsAcross(
 let resolutionFor(
   targets: List<SCM.Constraints.Finding>,
   args: List<String>)
-  : Stdlib.Result.Result<String, String> =
+  : Result<String, String> =
   let choices = resolutionsAcross(targets)
-
   match chosenResolution(args) with
   | "" ->
     match choices with
-    | [ only ] ->
+    | [only] ->
       // One choice ACROSS the batch is not one choice for EVERY member: a batch mixing a stale
       // usage with a superseded decision unions to ["repoint"], and repointing the decision
       // finding is not a thing. Every target has to offer it, same as the `--as` arm checks.
       let cannot =
         targets
         |> Stdlib.List.filter(fun f ->
-          (SCM.Constraints.offersResolution(f.kind, only)) |> Stdlib.Bool.not)
+          SCM.Constraints.offersResolution(f.kind, only) |> Stdlib.Bool.not)
 
       match cannot with
-      | [] -> Stdlib.Result.Result.Ok(only)
+      | [] -> Result.Ok(only)
       | fs ->
         let ids =
-          fs |> Stdlib.List.map(fun f -> $"#{f.id}") |> (fun l -> Stdlib.String.join(l, " "))
+          fs
+          |> Stdlib.List.map(fun f -> $"#{f.id}")
+          |> (fun l -> Stdlib.String.join(l, " "))
 
-        Stdlib.Result.Result.Error(
+        Result.Error(
           $"{ids} can't be resolved as \"{only}\" -- ack those, or resolve them separately.")
     | [] ->
-      let noun = if Stdlib.List.length(targets) == 1 then "this finding offers" else "these findings offer"
-      Stdlib.Result.Result.Error($"{noun} no resolution.")
+      let noun =
+        if Stdlib.List.length(targets) == 1 then
+          "this finding offers"
+        else
+          "these findings offer"
+
+      Result.Error($"{noun} no resolution.")
     | many ->
       let list = Stdlib.String.join(many, " | ")
-
-      Stdlib.Result.Result.Error(
+      Result.Error(
         $"these findings can be resolved more than one way -- say which with `--as <{list}>`.")
   | asked ->
     let unsupported =
       targets
       |> Stdlib.List.filter(fun f ->
-        (SCM.Constraints.offersResolution(f.kind, asked)) |> Stdlib.Bool.not)
+        SCM.Constraints.offersResolution(f.kind, asked) |> Stdlib.Bool.not)
 
     match unsupported with
-    | [] -> Stdlib.Result.Result.Ok(asked)
+    | [] -> Result.Ok(asked)
     | fs ->
       let ids =
-        fs |> Stdlib.List.map(fun f -> $"#{f.id}") |> (fun l -> Stdlib.String.join(l, " "))
+        fs
+        |> Stdlib.List.map(fun f -> $"#{f.id}")
+        |> (fun l -> Stdlib.String.join(l, " "))
 
-      Stdlib.Result.Result.Error($"{ids} can't be resolved as \"{asked}\".")
+      Result.Error($"{ids} can't be resolved as \"{asked}\".")
 
 
 /// RESOLVE: apply a named resolution. `repoint` runs the same cascade an ordinary edit runs, so everything
@@ -355,50 +350,49 @@ let resolutionFor(
 /// while the finding it answers stays open on main.
 let executeResolve(state: AppState, args: List<String>): AppState =
   if onBranch() then
-    Cli.printErr("constraints are a property of the store, not of a branch -- switch to main to resolve.")
-    Cli.printHint("  detection runs over main's bindings, so there's nothing branch-local here to answer.")
-    Cli.failed(state)
+    printErr(
+      "constraints are a property of the store, not of a branch -- switch to main to resolve.")
+
+    printHint(
+      "  detection runs over main's bindings, so there's nothing branch-local here to answer.")
+
+    failed(state)
   else
+    let (targets, missing) = selectTargets(args)
+    missing |> Stdlib.List.iter(fun m -> printErr($"no constraint matching \"{m}\" -- skipped."))
 
-  let (targets, missing) = selectTargets(args)
+    // A skipped id fails the command, once the rest of the batch has run.
+    match targets with
+    | [] ->
+      if Stdlib.List.isEmpty(missing) then printOk("nothing to resolve.") else ()
+      exitWith(state, Stdlib.List.isEmpty(missing))
+    | _ ->
+      match resolutionFor(targets, args) with
+      | Error(e) ->
+        printErr(e)
+        printHint("  `dark ack <id>...` leaves them for now, which needs no choice.")
+        failed(state)
+      | Ok(resolution) ->
+        let results =
+          targets
+          |> Stdlib.List.map(fun f ->
+            match f.detail with
+            | Versions(using, current) ->
+              match SCM.Propagation.repointDependents(
+                      state.currentBranchId,
+                      f.dependency,
+                      f.dependencyKind,
+                      [ using ],
+                      current) with
+              | Error(e) ->
+                printErr($"#{f.id}: {e}")
+                false
+              | Ok(_) ->
+                printOk($"resolved #{f.id} as \"{resolution}\"  {SCM.Constraints.fqnOf(f.usage)}")
+                true
+            | Rivals(_, _, _) -> false)
 
-  missing
-  |> Stdlib.List.iter(fun m -> Cli.printErr($"no constraint matching \"{m}\" -- skipped."))
-
-  // A skipped id fails the command, once the rest of the batch has run.
-  match targets with
-  | [] ->
-    if Stdlib.List.isEmpty(missing) then
-      Cli.printOk("nothing to resolve.")
-    else
-      ()
-
-    Cli.exitWith(state, Stdlib.List.isEmpty(missing))
-  | _ ->
-
-  match resolutionFor(targets, args) with
-  | Error(e) ->
-    Cli.printErr(e)
-    Cli.printHint("  `dark ack <id>...` leaves them for now, which needs no choice.")
-    Cli.failed(state)
-  | Ok(resolution) ->
-    let results =
-      targets
-      |> Stdlib.List.map(fun f ->
-        match f.detail with
-        | Versions(using, current) ->
-          match SCM.Propagation.repointDependents(state.currentBranchId,
-                  f.dependency, f.dependencyKind, [using], current) with
-          | Error(e) ->
-            Cli.printErr($"#{f.id}: {e}")
-            false
-          | Ok(_) ->
-            Cli.printOk($"resolved #{f.id} as \"{resolution}\"  {SCM.Constraints.fqnOf(f.usage)}")
-            true
-        | Rivals(_, _, _) -> false)
-
-    Cli.exitWith(state, (Stdlib.List.isEmpty(missing)) && (Stdlib.List.all(results, fun ok -> ok)))
-
+        exitWith(state, Stdlib.List.isEmpty(missing) && Stdlib.List.all(results, fun ok -> ok))
 
 
 let help(_state: AppState): String =
@@ -437,15 +431,17 @@ let help(_state: AppState): String =
     "  Dependency edits automatically update all callers." ]
   |> Stdlib.String.join("\n")
 
+
 /// `dark ack` -- the bulk verb at the root, because acking is the boring high-volume case and burying it
 /// under a noun makes an agent type a subcommand to say "seen it".
 let executeAckCmd(state: AppState, args: List<String>): AppState =
   match args with
   | [] ->
-    Cli.printErr("which findings? `dark ack <id>...`, or `dark ack --all`.")
-    Cli.printHint("  `dark constraints` lists them.")
-    Cli.failed(state)
+    printErr("which findings? `dark ack <id>...`, or `dark ack --all`.")
+    printHint("  `dark constraints` lists them.")
+    failed(state)
   | _ -> executeAck(state, args)
+
 
 /// The arguments the listing understands. Anything else is refused rather than listed past: `dark
 /// constraints zzznope` would otherwise answer with the whole list as though nothing had been asked.
@@ -454,11 +450,12 @@ let listingUnderstands(args: List<String>): Bool =
     match rest with
     | [] -> true
     | ["--json", ...more] -> understands(more)
-    | [ "--kind" ] -> true
+    | ["--kind"] -> true
     | ["--kind", _, ...more] -> understands(more)
     | _ -> false
 
   understands(args)
+
 
 let execute(state: AppState, args: List<String>): AppState =
   match args with
@@ -466,25 +463,20 @@ let execute(state: AppState, args: List<String>): AppState =
   | ["ack", ...rest] -> executeAck(state, rest)
   | _ ->
     if Stdlib.Bool.not(listingUnderstands(args)) then
-      Cli.printErr($"`dark constraints` doesn't take \"{Stdlib.String.join(args, " ")}\".")
-      Cli.printHint("  dark constraints [--kind <kind>] [--json]   list; `resolve` and `ack` take ids")
-      Cli.failed(state)
+      printErr($"`dark constraints` doesn't take \"{Stdlib.String.join(args, " ")}\".")
+      printHint("  dark constraints [--kind <kind>] [--json]   list; `resolve` and `ack` take ids")
+      failed(state)
     else
-
-    match kindArgChecked(args) with
-    | Error(why) ->
-      Cli.printErr(why)
-      Cli.failed(state)
-    | Ok(_) ->
-
-    if Stdlib.List.contains(args, "--json") then
-      executeJson(state, args)
-    else
-      executeList(state, args)
+      match kindArgChecked(args) with
+      | Error(why) ->
+        printErr(why)
+        failed(state)
+      | Ok(_) ->
+        if Stdlib.List.contains(args, "--json") then
+          executeJson(state, args)
+        else
+          executeList(state, args)
 
 
-let complete(
-  _state: AppState,
-  _args: List<String>)
-  : List<Completion.CompletionItem> =
+let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
   []

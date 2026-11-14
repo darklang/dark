@@ -13,6 +13,7 @@ module Darklang.Cli.Ops
 let short(s: String): String =
   if Stdlib.String.length(s) <= 8 then s else Stdlib.String.slice(s, 0, 8)
 
+
 /// The first line of an op's pretty-printed form, clipped to fit a column.
 ///
 /// The whole point of a log listing is to be readable without a second command per row, and byte
@@ -31,33 +32,33 @@ let describe(branchId: Uuid, width: Int64, s: SCM.PackageOps.OpSummary): String 
     if Stdlib.String.displayWidth(firstLine) <= width then
       firstLine
     else
-      (Stdlib.String.slice(firstLine, 0, width - 1)) + "..."
+      Stdlib.String.slice(firstLine, 0, width - 1) + "..."
+
 
 /// One display row for an op summary: [short id; what it does; when].
 let summaryRow(branchId: Uuid, s: SCM.PackageOps.OpSummary): List<String> =
   [ short(s.id), describe(branchId, 44, s), s.ts ]
+
 
 /// Show what the op(s) matching an id-prefix actually DO -- pretty-printed content, not just metadata.
 let executeShow(state: AppState, idPrefix: String): AppState =
   // An empty prefix matches EVERY op, so `dark ops show ""` would print whichever came first as though you
   // had asked for it.
   if idPrefix == "" then
-    Cli.printErr("which op? `dark ops` lists them, then `dark ops show <id>`.")
-    Cli.failed(state)
+    printErr("which op? `dark ops` lists them, then `dark ops show <id>`.")
+    failed(state)
   else
+    let ops = SCM.PackageOps.getByIdPrefix(idPrefix)
+    if Stdlib.List.isEmpty(ops) then
+      printErr($"No op found matching {idPrefix}")
+      failed(state)
+    else
+      ops
+      |> Stdlib.List.iter(fun op ->
+        Stdlib.printLine(PrettyPrinter.ProgramTypes.PackageOp.packageOp(state.currentBranchId, op)))
 
-  let ops = SCM.PackageOps.getByIdPrefix(idPrefix)
+      state
 
-  if Stdlib.List.isEmpty(ops) then
-    Cli.printErr($"No op found matching {idPrefix}")
-    Cli.failed(state)
-  else
-    ops
-    |> Stdlib.List.iter(fun op ->
-      Stdlib.printLine(
-        PrettyPrinter.ProgramTypes.PackageOp.packageOp(state.currentBranchId, op)))
-
-    state
 
 /// The most recent <param limit> ops this branch can see, newest first.
 let executeList(state: AppState, limit: Int64): AppState =
@@ -67,24 +68,21 @@ let executeList(state: AppState, limit: Int64): AppState =
   let total = SCM.PackageOps.countFor(branch)
   let summaries = SCM.PackageOps.summariesFor(branch, limit)
   let shown = Stdlib.List.length(summaries)
-
   let header =
     // "on main" for main, like every other command; "on branch X" only when there is a branch.
-    let where =
-      if SCM.Branch.isMain(branch) then "on main" else $"on branch {branchName}"
-
-    if shown >= (total) then
+    let where = if SCM.Branch.isMain(branch) then "on main" else $"on branch {branchName}"
+    if shown >= total then
       $"{Stdlib.display(total)} ops {where}"
     else
       $"{Stdlib.display(total)} ops {where} - showing the {Stdlib.display(shown)} most recent"
 
-  Cli.printOk(header)
-
+  printOk(header)
   Stdlib.Cli.UI.Table.print(
     [ "op", "what", "when" ],
     summaries |> Stdlib.List.map(fun s -> summaryRow(state.currentBranchId, s)))
 
   state
+
 
 let help(_state: AppState): String =
   [ ""
@@ -99,69 +97,61 @@ let help(_state: AppState): String =
     "`dark commits` groups the same log by commit; `dark show <id>` opens one op or commit." ]
   |> Stdlib.String.join("\n")
 
+
 /// Where a verb someone tries as an `ops` subcommand lives. `ops` reads; every verb that CHANGES the log is
 /// a root command, and a guess at `ops <verb>` deserves an answer rather than the help text.
-let movedFromOps(verb: String): Stdlib.Option.Option<String> =
+let movedFromOps(verb: String): Option<String> =
   match verb with
-  | "branch"
-  | "branches"
-  | "switch"
-  | "merge"
-  | "rebase"
-  | "diff"
-  | "log"
-  | "resolve" -> Stdlib.Option.Option.Some($"dark {verb}")
-  | "archive" -> Stdlib.Option.Option.Some("dark branch archive <id>")
-  | _ -> Stdlib.Option.Option.None
+  | "branch" | "branches" | "switch" | "merge" | "rebase" | "diff" | "log" | "resolve" ->
+    Option.Some($"dark {verb}")
+  | "archive" -> Option.Some("dark branch archive <id>")
+  | _ -> Option.None
+
 
 let execute(state: AppState, args: List<String>): AppState =
   // `ops` takes no flags at all, and every unrecognised argument shape falls through to `help` -- which
   // would answer a flag mistake with the manual and no error.
   let flags = args |> Stdlib.List.filter(fun a -> Stdlib.String.startsWith(a, "--"))
-
   if Stdlib.Bool.not(Stdlib.List.isEmpty(flags)) then
     let f = Stdlib.String.join(flags, " ")
-    Cli.printErr($"ops takes no flags, and doesn't understand {f}.")
-    Cli.printHint("  `dark ops help` says what it does.")
-    Cli.failed(state)
+    printErr($"ops takes no flags, and doesn't understand {f}.")
+    printHint("  `dark ops help` says what it does.")
+    failed(state)
   else
+    // A count has to be a positive number: a count of -5 would print the whole log, and a refused
+    // count names the problem where silent help does not.
+    let countOf(n: String): Result<Int64, String> =
+      match Stdlib.Int64.parse(n) with
+      | Ok(l) when l > 0 -> Result.Ok(l)
+      | Ok(_) -> Result.Error($"ops takes a positive count; got {n}.")
+      | Error(_) -> Result.Error($"\"{n}\" isn't a count. `dark ops 50` shows the 50 most recent.")
 
-  // A count has to be a positive number: a count of -5 would print the whole log, and a refused
-  // count names the problem where silent help does not.
-  let countOf(n: String): Stdlib.Result.Result<Int64, String> =
-    match Stdlib.Int64.parse(n) with
-    | Ok(l) when l > 0 -> Stdlib.Result.Result.Ok(l)
-    | Ok(_) -> Stdlib.Result.Result.Error($"ops takes a positive count; got {n}.")
-    | Error(_) -> Stdlib.Result.Result.Error($"\"{n}\" isn't a count. `dark ops 50` shows the 50 most recent.")
-
-  match args with
-  | [] -> executeList(state, 20)
-  | [ "list" ] -> executeList(state, 20)
-  | [ "list", n ] ->
-    match countOf(n) with
-    | Ok(l) -> executeList(state, l)
-    | Error(why) ->
-      Cli.printErr(why)
-      Cli.failed(state)
-  | [ "show" ] ->
-    Cli.printErr("`ops show` needs an op id. `dark ops` lists them.")
-    Cli.failed(state)
-  | [ "show", id ] -> executeShow(state, id)
-  | [verb, ...] ->
-    match movedFromOps(verb) with
-    | Some(target) ->
-      Cli.printErr($"`ops` only reads the log -- {verb} is `{target}`.")
-      Cli.failed(state)
-    | None ->
-      match countOf(verb) with
+    match args with
+    | [] -> executeList(state, 20)
+    | ["list"] -> executeList(state, 20)
+    | ["list", n] ->
+      match countOf(n) with
       | Ok(l) -> executeList(state, l)
       | Error(why) ->
-        Cli.printErr(why)
-        Cli.printHint("  `dark ops help` says what it does.")
-        Cli.failed(state)
+        printErr(why)
+        failed(state)
+    | ["show"] ->
+      printErr("`ops show` needs an op id. `dark ops` lists them.")
+      failed(state)
+    | ["show", id] -> executeShow(state, id)
+    | [verb, ...] ->
+      match movedFromOps(verb) with
+      | Some(target) ->
+        printErr($"`ops` only reads the log -- {verb} is `{target}`.")
+        failed(state)
+      | None ->
+        match countOf(verb) with
+        | Ok(l) -> executeList(state, l)
+        | Error(why) ->
+          printErr(why)
+          printHint("  `dark ops help` says what it does.")
+          failed(state)
 
-let complete(
-  _state: AppState,
-  _args: List<String>)
-  : List<Completion.CompletionItem> =
+
+let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
   []

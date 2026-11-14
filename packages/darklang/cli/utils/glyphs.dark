@@ -12,20 +12,26 @@ module Darklang.Cli.Glyphs
 /// A module.
 val module_ = "🗂"
 
+
 /// A function.
 val fn = "ƒ"
+
 
 /// A type.
 val type_ = "#"
 
+
 /// A value, and the fallback for anything unrecognised.
 val value = "•"
+
 
 /// A trait: the hollow diamond to its impls' filled one.
 val trait_ = "◇"
 
+
 /// An impl of a trait: `trait_` filled in.
 val impl_ = "◆"
+
 
 /// A package test.
 val test = "⊢"
@@ -38,17 +44,17 @@ val test = "⊢"
 let forKind(kind: String): String =
   let glyph =
     match Stdlib.String.toLowercase(kind) with
-    | "module" -> Glyphs.module_
-    | "submodule" -> Glyphs.module_
-    | "fn" -> Glyphs.fn
-    | "function" -> Glyphs.fn
-    | "type" -> Glyphs.type_
-    | "val" -> Glyphs.value
-    | "value" -> Glyphs.value
-    | "trait" -> Glyphs.trait_
-    | "impl" -> Glyphs.impl_
-    | "test" -> Glyphs.test
-    | _ -> Glyphs.value
+    | "module" -> module_
+    | "submodule" -> module_
+    | "fn" -> fn
+    | "function" -> fn
+    | "type" -> type_
+    | "val" -> value
+    | "value" -> value
+    | "trait" -> trait_
+    | "impl" -> impl_
+    | "test" -> test
+    | _ -> value
 
   Stdlib.Cli.Tui.Text.fitToWidth(glyph, 2)
 
@@ -76,4 +82,4 @@ let sectionHeader(kind: String): String =
     | "test" -> "Tests"
     | other -> other
 
-  $"{Glyphs.forKind(kind)} {label}:"
+  $"{forKind(kind)} {label}:"

@@ -2,14 +2,22 @@ module Darklang.Stdlib.Cli.Sys.Tests
 
 // __text: a fixed-width field, cut at its first NUL
 test text =
-  let buffer = Stdlib.Bytes.fromList([ 97u8, 98u8, 99u8, 0u8, 0u8, 100u8, 101u8, 102u8, 0u8 ])
+  let buffer =
+    Stdlib.Bytes.fromList(
+      [ 97u8, 98u8, 99u8, 0u8, 0u8, 100u8, 101u8, 102u8, 0u8 ])
+
   Stdlib.Test.all(
     [ Stdlib.Cli.Sys.__text(buffer, 0, 5) |> Stdlib.Test.equal("abc")
+
       Stdlib.Cli.Sys.__text(buffer, 5, 4) |> Stdlib.Test.equal("def")
+
       Stdlib.Cli.Sys.__text(buffer, 5, 2) |> Stdlib.Test.equal("de")
+
       Stdlib.Cli.Sys.__text(buffer, 20, 4) |> Stdlib.Test.equal("")
+
       Stdlib.Cli.Sys.__text(Stdlib.Utf8.encode("abc"), 0, 3)
       |> Stdlib.Test.equal("abc") ])
+
 
 // __countBits, and the host facts cpuCount and hostname rest on
 test countBitsAndHostFacts =
@@ -19,5 +27,7 @@ test countBitsAndHostFacts =
       Stdlib.Test.expect(Stdlib.Cli.Sys.cpuCount() > 0, "cpuCount is positive")
       Stdlib.Cli.Sys.hostname()
       |> Stdlib.Result.map(fun name -> Stdlib.String.length(name) > 0)
-      |> Stdlib.Test.equal(Ok(true))
-      Builtin.syscallSchedGetaffinity(0, 0) |> Stdlib.Test.equal(Error(22)) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+
+      Builtin.syscallSchedGetaffinity(0, 0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(22)) ])

@@ -1,30 +1,47 @@
 module Darklang.Stdlib.Cli.Posix.Tests
 
 /// An errno that differs by platform: macOS has no such syscall (ENOSYS, 78).
-let errnoOr(linux: Int64): Int64 = if Stdlib.Cli.Posix.__abiMac() then 78 else linux
+let errnoOr(linux: Int64): Int64 =
+  if Stdlib.Cli.Posix.__abiMac() then 78 else linux
+
 
 let posixError(errno: Int64, message: String): Stdlib.Cli.Posix.Error =
   Stdlib.Cli.Posix.Error { errno = errno, message = message }
 
+
 // Raw syscalls refuse bad descriptors and arguments with their errno
 test syscallErrnos =
   Stdlib.Test.all(
-    [ Builtin.syscallRead(-1z, 1) |> Stdlib.Test.equal(Error(9))
-      Builtin.syscallRead(-1z, -1) |> Stdlib.Test.equal(Error(22))
-      Builtin.syscallClose(-1z) |> Stdlib.Test.equal(Error(9))
-      Builtin.syscallLseek(-1z, 0, 0) |> Stdlib.Test.equal(Error(9))
-      Builtin.syscallFlock(-1z, 2) |> Stdlib.Test.equal(Error(9))
+    [ Builtin.syscallRead(-1z, 1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(9))
+
+      Builtin.syscallRead(-1z, -1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(22))
+
+      Builtin.syscallClose(-1z)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(9))
+
+      Builtin.syscallLseek(-1z, 0, 0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(9))
+
+      Builtin.syscallFlock(-1z, 2)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(9))
+
       Stdlib.Test.expect(Builtin.syscallGetpid() > 0, "getpid is positive")
       Stdlib.Test.expect(Builtin.syscallGetuid() >= 0, "getuid is not negative")
       Builtin.syscallUnlinkAt("/dark-syscall-missing-entry", 0)
-      |> Stdlib.Test.equal(Error(2))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(2))
+
       Builtin.syscallUnlinkAt("/dark-syscall-missing-entry", 64)
-      |> Stdlib.Test.equal(Error(22))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(22))
+
       Builtin.syscallReadlinkAt("/definitely/missing/dark-link", 2)
-      |> Stdlib.Test.equal(Error(2))
-      (match Builtin.syscallGetcwd(1) with
-       | Error(e) -> e |> Stdlib.Test.equal(errnoOr(34))
-       | Ok(_) -> Stdlib.Test.fail("getcwd into one byte should fail")) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(2))
+
+      match Builtin.syscallGetcwd(1) with
+      | Error(e) -> e |> Stdlib.Test.equal(errnoOr(34))
+      | Ok(_) -> Stdlib.Test.fail("getcwd into one byte should fail") ])
+
 
 // unlinkat with the remove-directory flag removes a directory
 test unlinkAtRemovesDirectory =
@@ -33,52 +50,83 @@ test unlinkAtRemovesDirectory =
     let created = Stdlib.Cli.Posix.mkdir(path, 448)
     let removed =
       Builtin.syscallUnlinkAt(path, Stdlib.Cli.Posix.__abiRemoveDirectory())
+
     (created, removed, Stdlib.Cli.File.exists(path)))
-  |> Stdlib.Test.equal(Ok((Ok(), Ok(), false)))
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Ok(
+      (Stdlib.Result.Result.Ok(), Stdlib.Result.Result.Ok(), false)))
+
 
 // flock takes the exclusive lock and lets it go; withLock runs its fn holding it
 test flockLocksAndUnlocks =
   Stdlib.Cli.Dir.withTemp(fun dir ->
     let path = Stdlib.Cli.Path.join([ dir, "lock" ])
     let flags =
-      (Stdlib.Cli.Posix.OpenFlags.wronly()) | (Stdlib.Cli.Posix.OpenFlags.creat())
+      Stdlib.Cli.Posix.OpenFlags.wronly() | Stdlib.Cli.Posix.OpenFlags.creat()
 
-    match Stdlib.Cli.Posix.openFile(path, flags, Stdlib.Cli.Posix.Modes.defaultFile) with
+    match Stdlib.Cli.Posix.openFile(
+            path,
+            flags,
+            Stdlib.Cli.Posix.Modes.defaultFile) with
     | Ok(fd) ->
       let locked = Stdlib.Cli.Posix.flock(fd, Stdlib.Cli.Posix.Lock.Exclusive)
       let unlocked = Stdlib.Cli.Posix.flock(fd, Stdlib.Cli.Posix.Lock.Unlock)
       let _ = Stdlib.Cli.Posix.fdClose(fd)
       (locked, unlocked, Stdlib.Cli.File.withLock(path, fun _ -> 42))
-    | Error(e) -> (Error(e), Error(e), Error(e)))
-  |> Stdlib.Test.equal(Ok((Ok(), Ok(), Ok(42))))
+    | Error(e) ->
+      (
+        Stdlib.Result.Result.Error(e),
+        Stdlib.Result.Result.Error(e),
+        Stdlib.Result.Result.Error(e)))
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Ok(
+      (
+        Stdlib.Result.Result.Ok(),
+        Stdlib.Result.Result.Ok(),
+        Stdlib.Result.Result.Ok(42))))
+
 
 // readlinkat truncates to the buffer it is given
 test readlinkAtTruncates =
   Stdlib.Cli.Dir.withTemp(fun dir ->
     let link = Stdlib.Cli.Path.join([ dir, "link" ])
     let _ = Stdlib.Cli.Posix.symlink("abcdef", link)
-    Builtin.syscallReadlinkAt(link, 2) |> Stdlib.Result.map(Stdlib.Bytes.toList))
-  |> Stdlib.Test.equal(Ok(Ok([ 97u8, 98u8 ])))
+    Builtin.syscallReadlinkAt(link, 2)
+    |> Stdlib.Result.map(Stdlib.Bytes.toList))
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Ok(Stdlib.Result.Result.Ok([ 97u8, 98u8 ])))
+
 
 // The cwd and readlink wrappers grow their buffer until the result fits
 test bufferGrowth =
   Stdlib.Test.all(
     [ Stdlib.Cli.Posix.__pathCwdWith(
         (fun count ->
-          if count == 2 then Error(34) else Ok(Stdlib.Utf8.encode("/x\0"))),
+           if count == 2 then
+             Stdlib.Result.Result.Error(34)
+           else
+             Stdlib.Result.Result.Ok(Stdlib.Utf8.encode("/x\0"))),
         2)
       |> Stdlib.Result.map(Stdlib.Bytes.toList)
-      |> Stdlib.Test.equal(Ok([ 47u8, 120u8, 0u8 ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 47u8, 120u8, 0u8 ]))
+
       Stdlib.Cli.Posix.__pathReadlinkWith(
         (fun count ->
-          if count == 2 then Ok(Stdlib.Utf8.encode("ab"))
-          else if count == 4 then Ok(Stdlib.Utf8.encode("abc"))
-          else Error(22)),
+           if count == 2 then
+             Stdlib.Result.Result.Ok(Stdlib.Utf8.encode("ab"))
+           else if count == 4 then
+             Stdlib.Result.Result.Ok(Stdlib.Utf8.encode("abc"))
+           else
+             Stdlib.Result.Result.Error(22)),
         2)
       |> Stdlib.Result.map(Stdlib.Bytes.toList)
-      |> Stdlib.Test.equal(Ok([ 97u8, 98u8, 99u8 ]))
-      Stdlib.Cli.Posix.__pathReadlinkWith((fun _ -> Ok(Stdlib.Bytes.empty)), 0)
-      |> Stdlib.Test.equal(Error(22)) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 97u8, 98u8, 99u8 ]))
+
+      Stdlib.Cli.Posix.__pathReadlinkWith(
+        (fun _ -> Stdlib.Result.Result.Ok(Stdlib.Bytes.empty)),
+        0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(22)) ])
+
 
 // Account parsing handles missing users and malformed rows
 test accountFieldFromPasswd =
@@ -86,77 +134,128 @@ test accountFieldFromPasswd =
   Stdlib.Test.all(
     [ Stdlib.Cli.Posix.__accountFieldFromPasswd([], "1000", 5)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Stdlib.Cli.Posix.__accountFieldFromPasswd([ "bad", alice ], "1000", 5)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("/home/alice"))
+
       Stdlib.Cli.Posix.__accountFieldFromPasswd([ alice ], "1000", 0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("alice"))
+
       Stdlib.Cli.Posix.__accountFieldFromPasswd([ alice ], "100", 5)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-      Stdlib.Cli.Posix.__accountFieldFromPasswd([ "short:x:1000", alice ], "1000", 5)
+
+      Stdlib.Cli.Posix.__accountFieldFromPasswd(
+        [ "short:x:1000", alice ],
+        "1000",
+        5)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("/home/alice")) ])
+
 
 // Errno messages and decimal formatting
 test errorMessages =
   Stdlib.Test.all(
     [ Stdlib.Cli.Posix.__macMessage(35)
       |> Stdlib.Test.equal("Resource temporarily unavailable")
+
       Stdlib.Cli.Posix.__macMessage(62)
       |> Stdlib.Test.equal("Too many levels of symbolic links")
-      Stdlib.Cli.Posix.__macMessage(78) |> Stdlib.Test.equal("Function not implemented")
-      Stdlib.Cli.Posix.__macMessage(999) |> Stdlib.Test.equal("Unknown error: 999")
+
+      Stdlib.Cli.Posix.__macMessage(78)
+      |> Stdlib.Test.equal("Function not implemented")
+
+      Stdlib.Cli.Posix.__macMessage(999)
+      |> Stdlib.Test.equal("Unknown error: 999")
+
       (Stdlib.Cli.Posix.__fromErrno(2)).message
       |> Stdlib.Test.equal("No such file or directory")
+
       (Stdlib.Cli.Posix.__fromErrno(22)).message
       |> Stdlib.Test.equal("Invalid argument")
+
       Stdlib.Cli.Posix.__decimal(0) |> Stdlib.Test.equal("0")
+
       Stdlib.Cli.Posix.__decimal(-1) |> Stdlib.Test.equal("-1") ])
+
 
 // A name collision retries until it succeeds; any other error stops at once
 test tempRetry =
   Stdlib.Test.all(
     [ Stdlib.Cli.Posix.__tempRetry(
         (fun remaining ->
-          if remaining > 0 then Error(posixError(17, "File exists"))
-          else Ok("created")),
+           if remaining > 0 then
+             Stdlib.Result.Result.Error(posixError(17, "File exists"))
+           else
+             Stdlib.Result.Result.Ok("created")),
         2)
-      |> Stdlib.Test.equal(Ok("created"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("created"))
+
       Stdlib.Cli.Posix.__tempRetry(
-        (fun remaining -> Error(posixError(22, Stdlib.display(remaining)))),
+        (fun remaining ->
+           Stdlib.Result.Result.Error(
+             posixError(22, Stdlib.display(remaining)))),
         2)
-      |> Stdlib.Test.equal(Error(posixError(22, "2")))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(posixError(22, "2")))
+
       Stdlib.Cli.Posix.__tempRetry(
-        (fun remaining -> Error(posixError(17, Stdlib.display(remaining)))),
+        (fun remaining ->
+           Stdlib.Result.Result.Error(
+             posixError(17, Stdlib.display(remaining)))),
         2)
-      |> Stdlib.Test.equal(Error(posixError(17, "0"))) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(posixError(17, "0"))) ])
+
 
 // Partial writes complete, zero-progress writes fail, and errors propagate
 test writeAll =
   Stdlib.Test.all(
     [ Stdlib.Cli.Posix.__writeAll(
         (fun bytes ->
-          Ok(if Stdlib.Bytes.length(bytes) > 1 then 1 else Stdlib.Bytes.length(bytes))),
+           Stdlib.Result.Result.Ok(
+             if Stdlib.Bytes.length(bytes) > 1 then
+               1
+             else
+               Stdlib.Bytes.length(bytes))),
         Stdlib.Utf8.encode("abcd"),
         0)
-      |> Stdlib.Test.equal(Ok(4))
-      Stdlib.Cli.Posix.__writeAll((fun _ -> Ok(0)), Stdlib.Utf8.encode("abc"), 0)
-      |> Stdlib.Test.equal(Error(posixError(5, "write made invalid progress")))
-      Stdlib.Cli.Posix.__writeAll((fun _ -> Ok(0)), Stdlib.Utf8.encode(""), 0)
-      |> Stdlib.Test.equal(Ok(0))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(4))
+
       Stdlib.Cli.Posix.__writeAll(
-        (fun _ -> Error(posixError(9, "Bad file descriptor"))),
+        (fun _ -> Stdlib.Result.Result.Ok(0)),
         Stdlib.Utf8.encode("abc"),
         0)
-      |> Stdlib.Test.equal(Error(posixError(9, "Bad file descriptor"))) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          posixError(5, "write made invalid progress")))
+
+      Stdlib.Cli.Posix.__writeAll(
+        (fun _ -> Stdlib.Result.Result.Ok(0)),
+        Stdlib.Utf8.encode(""),
+        0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0))
+
+      Stdlib.Cli.Posix.__writeAll(
+        (fun _ ->
+           Stdlib.Result.Result.Error(posixError(9, "Bad file descriptor"))),
+        Stdlib.Utf8.encode("abc"),
+        0)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(posixError(9, "Bad file descriptor"))) ])
+
 
 // The public wrappers reach the host and format their results
 test publicWrappers =
   Stdlib.Test.all(
-    [ Stdlib.Test.expect(Stdlib.Result.isOk(Stdlib.Cli.Posix.uname()), "uname is Ok")
+    [ Stdlib.Test.expect(
+        Stdlib.Result.isOk(Stdlib.Cli.Posix.uname()),
+        "uname is Ok")
+
       Stdlib.Cli.Posix.getCwd()
       |> Stdlib.Result.map(fun path -> Stdlib.String.startsWith(path, "/"))
-      |> Stdlib.Test.equal(Ok(true))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+
       Stdlib.Cli.Posix.fdRead(-1z, 1)
-      |> Stdlib.Test.equal(Error(posixError(9, "Bad file descriptor"))) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(posixError(9, "Bad file descriptor"))) ])
+
 
 // Setting a file's times through the platform syscall shows up in stat
 test setFileTimes =
@@ -166,59 +265,93 @@ test setFileTimes =
       Builtin.syscallSetattrlistTimes(path, atime, 0, mtime, 0)
     else
       Builtin.syscallUtimensAt(path, atime, 0, mtime, 0)
-  let stamped =
-    Stdlib.Cli.Dir.withTemp(fun dir ->
-      let path = Stdlib.Cli.Path.join([ dir, "stamp" ])
-      let _ = Stdlib.Cli.File.writeText(path, "x")
-      let _ = setTimes(path, 1234, 5678)
-      Stdlib.Cli.Posix.stat(path) |> Stdlib.Result.map(fun record -> record.mtimeSec))
+
+  let stamped = Stdlib.Cli.Dir.withTemp(fun dir ->
+    let path = Stdlib.Cli.Path.join([ dir, "stamp" ])
+    let _ = Stdlib.Cli.File.writeText(path, "x")
+    let _ = setTimes(path, 1234, 5678)
+    Stdlib.Cli.Posix.stat(path)
+    |> Stdlib.Result.map(fun record -> record.mtimeSec))
+
   Stdlib.Test.all(
-    [ setTimes(missing, 0, 0) |> Stdlib.Test.equal(Error(2))
-      stamped |> Stdlib.Test.equal(Ok(Ok(5678))) ])
+    [ setTimes(missing, 0, 0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(2))
+
+      stamped
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Result.Result.Ok(5678))) ])
 
 
 test pidFromInt64 =
   Stdlib.Test.all(
-    [ (Stdlib.Cli.Posix.Pid.fromInt64(1)) |> Stdlib.Result.map(Stdlib.Cli.Posix.Pid.toInt64)
-      |> Stdlib.Test.equal(Ok(1))
-      (Stdlib.Cli.Posix.Pid.fromInt64(2147483647))
+    [ Stdlib.Cli.Posix.Pid.fromInt64(1)
       |> Stdlib.Result.map(Stdlib.Cli.Posix.Pid.toInt64)
-      |> Stdlib.Test.equal(Ok(2147483647))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1))
+
+      Stdlib.Cli.Posix.Pid.fromInt64(2147483647)
+      |> Stdlib.Result.map(Stdlib.Cli.Posix.Pid.toInt64)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2147483647))
+
       // 0 and negatives name process groups to kill(2), not a process.
       Stdlib.Cli.Posix.Pid.fromInt64(0)
       |> Stdlib.Result.mapError(Stdlib.display)
-      |> Stdlib.Test.equal(Error("0 is not a valid process ID (1 to 2147483647)"))
-      Stdlib.Cli.Posix.Pid.fromInt64(-1) |> Stdlib.Result.isError |> Stdlib.Test.equal(true)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          "0 is not a valid process ID (1 to 2147483647)"))
+
+      Stdlib.Cli.Posix.Pid.fromInt64(-1)
+      |> Stdlib.Result.isError
+      |> Stdlib.Test.equal(true)
+
       Stdlib.Cli.Posix.Pid.fromInt64(2147483648)
       |> Stdlib.Result.isError
       |> Stdlib.Test.equal(true) ])
+
 
 test pidAndExitCodeInspect =
   Stdlib.Test.all(
     [ Stdlib.Cli.Posix.Pid.fromInt64(4242)
       |> Stdlib.Result.map(Stdlib.inspect)
-      |> Stdlib.Test.equal(Ok("Pid(4242)"))
-      Stdlib.inspect(Stdlib.Cli.Posix.ExitCode.failure) |> Stdlib.Test.equal("ExitCode(1)")
-      Stdlib.inspect([ Stdlib.Cli.Posix.ExitCode.success ]) |> Stdlib.Test.equal("[ExitCode(0)]")
-      $"{Some(Stdlib.Cli.Posix.ExitCode.failure)}" |> Stdlib.Test.equal("Some(ExitCode(1))") ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("Pid(4242)"))
+
+      Stdlib.inspect(Stdlib.Cli.Posix.ExitCode.failure)
+      |> Stdlib.Test.equal("ExitCode(1)")
+
+      Stdlib.inspect([ Stdlib.Cli.Posix.ExitCode.success ])
+      |> Stdlib.Test.equal("[ExitCode(0)]")
+
+      $"{Stdlib.Option.Option.Some(Stdlib.Cli.Posix.ExitCode.failure)}"
+      |> Stdlib.Test.equal("Some(ExitCode(1))") ])
+
 
 test exitCodeFromInt64 =
   Stdlib.Test.all(
     [ Stdlib.Cli.Posix.ExitCode.fromInt64(0)
-      |> Stdlib.Test.equal(Ok(Stdlib.Cli.Posix.ExitCode.success))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Cli.Posix.ExitCode.success))
+
       Stdlib.Cli.Posix.ExitCode.fromInt64(1)
-      |> Stdlib.Test.equal(Ok(Stdlib.Cli.Posix.ExitCode.failure))
-      (Stdlib.Cli.Posix.ExitCode.fromInt64(255))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Cli.Posix.ExitCode.failure))
+
+      Stdlib.Cli.Posix.ExitCode.fromInt64(255)
       |> Stdlib.Result.map(Stdlib.Cli.Posix.ExitCode.toInt64)
-      |> Stdlib.Test.equal(Ok(255))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(255))
+
       Stdlib.Cli.Posix.ExitCode.fromInt64(256)
       |> Stdlib.Result.mapError(Stdlib.display)
-      |> Stdlib.Test.equal(Error("256 is not a valid exit code (0 to 255)"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error("256 is not a valid exit code (0 to 255)"))
+
       Stdlib.Cli.Posix.ExitCode.isSuccess(Stdlib.Cli.Posix.ExitCode.success)
       |> Stdlib.Test.equal(true)
+
       Stdlib.Cli.Posix.ExitCode.isSuccess(Stdlib.Cli.Posix.ExitCode.failure)
       |> Stdlib.Test.equal(false)
-      Stdlib.display(Stdlib.Cli.Posix.ExitCode.failure) |> Stdlib.Test.equal("1") ])
+
+      Stdlib.display(Stdlib.Cli.Posix.ExitCode.failure)
+      |> Stdlib.Test.equal("1") ])
+
 
 // A signal is sent as its number, the same on Linux and macOS
 test signalNumbers =
@@ -230,13 +363,18 @@ test signalNumbers =
   |> Stdlib.List.map(Stdlib.Cli.Posix.Signal.toInt64)
   |> Stdlib.Test.equal([ 1, 2, 3, 9, 15 ])
 
+
 // Signal 0 checks existence; the current process is always running.
 test isProcessRunningSelf =
   match Stdlib.Cli.Posix.Pid.fromInt64(Stdlib.Cli.Sys.currentPid()) with
   | Ok(me) -> Stdlib.Cli.Posix.isProcessRunning(me) |> Stdlib.Test.equal(true)
   | Error(e) -> Stdlib.Test.expect(false, Stdlib.display(e))
 
+
 test signalDisplay =
   Stdlib.Test.all(
-    [ Stdlib.display(Stdlib.Cli.Posix.Signal.SIGTERM) |> Stdlib.Test.equal("SIGTERM")
-      $"sent {Stdlib.Cli.Posix.Signal.SIGKILL}" |> Stdlib.Test.equal("sent SIGKILL") ])
+    [ Stdlib.display(Stdlib.Cli.Posix.Signal.SIGTERM)
+      |> Stdlib.Test.equal("SIGTERM")
+
+      $"sent {Stdlib.Cli.Posix.Signal.SIGKILL}"
+      |> Stdlib.Test.equal("sent SIGKILL") ])

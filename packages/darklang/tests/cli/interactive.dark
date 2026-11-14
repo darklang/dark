@@ -33,7 +33,7 @@ let escape(s: String): String =
 /// script is mostly braces and quotes, and both are interpolation syntax here.
 let quoted(s: String): String =
   let q = "\""
-  q + (escape(s)) + q
+  q + escape(s) + q
 
 
 let stepLine(step: Step): String =
@@ -46,24 +46,24 @@ let stepLine(step: Step): String =
     // Expect's braced pattern/action form needs newlines. A single-line
     // braced argument is treated as one pattern and silently times out.
     "expect {\n  -exact "
-    + (quoted(text))
+    + quoted(text)
     + " {}\n  timeout { puts "
     + complaint
     + "; exit 2 }\n  eof { puts "
-    + (quoted("\nEXITED BEFORE: " + text))
+    + quoted("\nEXITED BEFORE: " + text)
     + "; exit 3 }\n}"
-
   | Send(keys) ->
     // A key pressed while a frame is still painting is dropped, and the symptom is the
     // NEXT `Await` timing out rather than "the key did nothing". An `Await` before each
     // `Send` is the real fix and is how these should be written; the fifth of a second
     // covers the gap between the marker appearing and the frame finishing.
-    "sleep 0.2\nsend -- " + (quoted(keys))
+    "sleep 0.2\nsend -- " + quoted(keys)
 
 
 /// Whether this machine can run these tests. The dev container and CI both have expect;
 /// a bare checkout might not, and a test should say so rather than fail obscurely.
-let available(): Bool = Stdlib.Cli.Unix.isCommandAvailable("expect")
+let available(): Bool =
+  Stdlib.Cli.Unix.isCommandAvailable("expect")
 
 
 /// How long a child may take to start before a test's own timeout begins.
@@ -96,24 +96,30 @@ val childGone =
 let awaitStartup(telemetryLog: String): List<String> =
   [ childGone
     "set ready_by [expr {[clock milliseconds] + "
-    + (Stdlib.display(startupSeconds * 1000))
+    + Stdlib.display(startupSeconds * 1000)
     + "}]"
+
     // `gone` is read BEFORE the log, so a child that got ready and exited between the two
     // reads still counts as ready, and its output is still waiting for the first `Await`.
     "while {1} {\n  set gone [child_gone [exp_pid]]\n  if {[file exists "
-    + (quoted(telemetryLog))
+    + quoted(telemetryLog)
     + "]} {\n    set f [open "
-    + (quoted(telemetryLog))
+    + quoted(telemetryLog)
     + "]; set seen [read $f]; close $f\n    if {[string first \"\\\"cli.pmInit\\\"\" $seen] >= 0} break\n  }\n  if {$gone} { puts \"\\nEXITED BEFORE: the CLI was ready\"; exit 3 }\n  if {[clock milliseconds] > $ready_by} { puts \"\\nTIMED OUT waiting for the CLI to start\"; exit 2 }\n  after 50\n}" ]
 
 
 /// Write an expect script to `path` and run it: Ok with its output if it exits 0.
-let runScript(path: String, script: String): Stdlib.Result.Result<String, String> =
+let runScript(
+  path: String,
+  script: String)
+  : Stdlib.Result.Result<String, String> =
   match Stdlib.Cli.FileSystem.writeFile(path, Stdlib.Utf8.encode(script)) with
   | Error(e) -> Stdlib.Result.Result.Error($"could not write {path}: {e}")
   | Ok(_) ->
     let outcome =
-      Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", $"expect -f {path} 2>&1")
+      Stdlib.Cli.Unix.executeInDirectoryWithOutput(
+        ".",
+        $"expect -f {path} 2>&1")
 
     if outcome.exitCode == 0 then
       Stdlib.Result.Result.Ok(outcome.stdout)
@@ -144,16 +150,18 @@ let drive(
     // terminal whatever shell started the test: CircleCI's macOS shell has no TERM, and
     // the workbench rightly refuses to start without one.
     let envPrefix =
-      (Stdlib.List.concat(
+      Stdlib.List.concat(
         Instance.env(i),
-        [ ("TERM", "xterm-256color"), ("DARK_TELEMETRY", "1") ]))
+        [ ("TERM", "xterm-256color"), ("DARK_TELEMETRY", "1") ])
       |> Stdlib.List.map(fun pair ->
         let (k, v) = pair
         quoted($"{k}={v}"))
       |> Stdlib.String.join(" ")
 
     let argString =
-      args |> Stdlib.List.map(quoted) |> Stdlib.String.join(" ")
+      args
+      |> Stdlib.List.map(quoted)
+      |> Stdlib.String.join(" ")
 
     let telemetryLog = $"{i.dir}/logs/telemetry.jsonl"
 
@@ -163,10 +171,10 @@ let drive(
     // was ready before it was.
     let header =
       Stdlib.List.concat(
-        [ $"set timeout {Stdlib.display(timeoutSeconds)}",
-          "set env(LINES) 50",
-          "set env(COLUMNS) 200",
-          "file delete -force -- " + (quoted(telemetryLog)),
+        [ $"set timeout {Stdlib.display(timeoutSeconds)}"
+          "set env(LINES) 50"
+          "set env(COLUMNS) 200"
+          "file delete -force -- " + quoted(telemetryLog)
           $"spawn /usr/bin/env {envPrefix} {quoted(i.cli)} {argString}" ],
         awaitStartup(telemetryLog))
 
@@ -181,7 +189,7 @@ let drive(
         "exit 0" ]
 
     let script =
-      (Stdlib.List.concat(header, Stdlib.List.concat(body, footer)))
+      Stdlib.List.concat(header, Stdlib.List.concat(body, footer))
       |> Stdlib.String.join("\n")
 
     runScript($"{i.dir}/drive.exp", script)
@@ -198,4 +206,5 @@ let expectSteps(
   | Ok(_) -> Stdlib.Test.Result.Pass
   | Error(transcript) ->
     let cmd = Stdlib.String.join(args, " ")
-    Stdlib.Test.fail($"interactive `{cmd}` did not do what was asked:\n{transcript}")
+    Stdlib.Test.fail(
+      $"interactive `{cmd}` did not do what was asked:\n{transcript}")

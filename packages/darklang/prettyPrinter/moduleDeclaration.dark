@@ -196,7 +196,6 @@ module ModuleDeclaration =
     e: (LanguageTools.ProgramTypes.Expr * List<String>))
     : List<Module> =
     let (expr, modules) = e
-
     match modules with
     | [] ->
       intoRootless(ms, "expression has no modules", fun m ->
@@ -219,6 +218,7 @@ module ModuleDeclaration =
       | [foundModule, ...], [] ->
         let updatedModule =
           { foundModule with exprs = Stdlib.List.append(foundModule.exprs, (expr, [])) }
+
         Stdlib.List.append(otherModules, updatedModule)
       | [foundModule, ...], submoduleNames ->
         let updatedModule =

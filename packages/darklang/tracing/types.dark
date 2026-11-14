@@ -11,7 +11,6 @@
 /// and previewed, a served HTTP request included.
 module Darklang.Tracing
 
-
 /// Where a run stands.
 type Status =
   | Running
@@ -41,15 +40,15 @@ type Trace =
     /// Source text for CLI runs, or the HTTP request.
     input: LanguageTools.RuntimeTypes.Dval
     /// Saved CLI input for replay. HTTP request input is in TraceData.inputs.
-    scriptOrEvalInput: Stdlib.Option.Option<ScriptOrEvalInput>
+    scriptOrEvalInput: Option<ScriptOrEvalInput>
     /// True for an HTTP request.
     servedRequest: Bool
     /// What the trace answered, once it has. `None` while it is still going, and for one that
     /// failed: there is no answer to show.
-    result: Stdlib.Option.Option<LanguageTools.RuntimeTypes.Dval>
+    result: Option<LanguageTools.RuntimeTypes.Dval>
     status: Status
     /// For a fork: the trace it branched from, and the position in that log it kept.
-    parent: Stdlib.Option.Option<(String * Int64)>
+    parent: Option<(String * Int64)>
     /// Retention never drops a pinned trace, whatever the caps say.
     pinned: Bool
     /// Wall clock for the whole trace, measured by the recorder. `0` for one still going.
@@ -59,7 +58,7 @@ type Trace =
     /// Which handler served this, for a trace that is a served request. The only field that
     /// names the ROOT of the trace: `entry` says `GET /orders`, this says which function
     /// answered it.
-    entryHash: Stdlib.Option.Option<String>
+    entryHash: Option<String>
     /// When the trace started.
     created: String
     updated: String }
@@ -81,7 +80,7 @@ type FnCall =
     /// call carries its round trip rather than the time to hand back a promise.
     durationMs: Int64
     /// The process that made the call. `None` for a run nobody scheduled.
-    processId: Stdlib.Option.Option<Uuid>
+    processId: Option<Uuid>
     /// Where this call completed in the whole trace, across processes. One process's rows in
     /// `seq` order are its log; all of them are the interleaving.
     seq: Int64
@@ -151,11 +150,11 @@ type TraceQuery =
 type TraceAnswer =
   { runs: List<Trace>
     /// `Detail`.
-    detail: Stdlib.Option.Option<TraceData>
+    detail: Option<TraceData>
     /// `IdsStartingWith`.
     ids: List<String>
     /// `SavedInput`.
-    savedInput: Stdlib.Option.Option<ScriptOrEvalInput>
+    savedInput: Option<ScriptOrEvalInput>
     /// `FnsOf`: (name, hash).
     fns: List<(String * String)>
     /// `LoopPasses`: (call site, passes). `FnCounts`: (function name, runs).

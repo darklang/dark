@@ -15,39 +15,41 @@ module Darklang.LanguageTools.AtRestTypeChecker.Declarations
 /// If traversal fails, retain that declaration's previous result and save a warning.
 let prepareValueTypeParameters(
   env: Model.Environment,
-  failures: Dict<LanguageTools.ProgramTypes.Hash, Model.Finding>)
-  : (Model.Environment * Dict<LanguageTools.ProgramTypes.Hash, Model.Finding>) =
+  failures: Dict<ProgramTypes.Hash, Model.Finding>)
+  : (Model.Environment * Dict<ProgramTypes.Hash, Model.Finding>) =
   let declarations =
-    (Stdlib.Dict.toEntries(env.types))
-    |> Stdlib.List.filter(fun((_, decl)) ->
-      Stdlib.Bool.not(Stdlib.List.isEmpty(decl.typeParams)))
-  let (parameters, failures, changed) =
-    Stdlib.List.fold(declarations, (env.valueTypeParameters, failures, false),
-      fun((parameters, failures, changed), (name, decl)) ->
-        if Stdlib.Dict.containsKey(failures, name) then (parameters, failures, changed)
-        else
-          let previous =
-            Stdlib.Option.withDefault(Stdlib.Dict.get(parameters, name), [])
-          let (used, failures) =
-            match guard((fun d -> Types.declarationValueParameters(env, d)), decl) with
-            | Ok(used) ->
-              let used =
-                Stdlib.List.filter(decl.typeParams, fun param ->
-                  Stdlib.List.contains(used, param))
-              (used, failures)
-            | Error(failure) ->
-              (previous, Stdlib.Dict.set(failures, name, failureFinding(failure)))
-          (Stdlib.Dict.set(parameters, name, used),
-           failures, changed || previous != used))
+    Stdlib.Dict.toEntries(env.types)
+    |> Stdlib.List.filter(fun((_, decl)) -> Stdlib.Bool.not(Stdlib.List.isEmpty(decl.typeParams)))
+
+  let (parameters, failures, changed) = Stdlib.List.fold(
+    declarations,
+    (env.valueTypeParameters, failures, false),
+    fun((parameters, failures, changed), (name, decl)) ->
+      if Stdlib.Dict.containsKey(failures, name) then
+        (parameters, failures, changed)
+      else
+        let previous = Stdlib.Option.withDefault(Stdlib.Dict.get(parameters, name), [])
+        let (used, failures) =
+          match guard((fun d -> Types.declarationValueParameters(env, d)), decl) with
+          | Ok(used) ->
+            let used =
+              Stdlib.List.filter(decl.typeParams, fun param -> Stdlib.List.contains(used, param))
+
+            (used, failures)
+          | Error(failure) -> (previous, Stdlib.Dict.set(failures, name, failureFinding(failure)))
+
+        (Stdlib.Dict.set(parameters, name, used), failures, changed || previous != used))
+
   let env = { env with valueTypeParameters = parameters }
   if changed then prepareValueTypeParameters(env, failures) else (env, failures)
+
 
 /// Select the supplied type arguments that this declaration requires to be valid
 /// dictionary keys. Use its cached parameter requirements instead of repeatedly
 /// expanding its fields, which could recurse forever or keep growing type arguments.
 let customDictKeys(
   env: Model.Environment,
-  name: LanguageTools.ProgramTypes.Hash,
+  name: ProgramTypes.Hash,
   args: List<Model.Ty>)
   : List<Model.Ty> =
   match Types.declaration(env, name) with
@@ -56,12 +58,14 @@ let customDictKeys(
     Types.argsThatReachValues(decl.typeParams, required, args)
   | None -> []
 
+
 /// Collect types that must be valid dictionary keys, including keys nested inside
 /// other types. For custom types, use cached parameter requirements and inspect
 /// their supplied arguments instead of expanding the declaration again.
 let dictKeyTypes(env: Model.Environment, ty: Model.Ty): List<Model.Ty> =
   let many(types: List<Model.Ty>): List<Model.Ty> =
     Stdlib.List.flatten(Stdlib.List.map(types, fun t -> dictKeyTypes(env, t)))
+
   match ty with
   | TDict(key, value) -> Stdlib.List.prepend(many([ key, value ]), key)
   | TList(inner) -> dictKeyTypes(env, inner)
@@ -71,20 +75,22 @@ let dictKeyTypes(env: Model.Environment, ty: Model.Ty): List<Model.Ty> =
   | TCustom(name, args) -> Stdlib.List.concat(customDictKeys(env, name, args), many(args))
   | _ -> []
 
+
 /// Find the declaration's type parameters that must accept only valid dictionary
 /// key types. A parameter needs this restriction if replacing it with a function
 /// type makes an otherwise usable key invalid.
 let dictKeyParametersFor(
   env: Model.Environment,
-  decl: LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
+  decl: ProgramTypes.TypeDeclaration.TypeDeclaration)
   : List<String> =
   let mapping = Types.rigid(decl.typeParams)
   let keys =
-    (Types.declarationFieldTypes(decl))
+    Types.declarationFieldTypes(decl)
     |> Stdlib.List.map(fun field ->
-      let (ty, _) = Types.fromReference(mapping, Stdlib.Option.Option.None, field)
+      let (ty, _) = Types.fromReference(mapping, Option.None, field)
       dictKeyTypes(env, ty))
     |> Stdlib.List.flatten
+
   Stdlib.List.filter(decl.typeParams, fun param ->
     Stdlib.List.any(keys, fun key ->
       // A function can never be a dictionary key, so substitute one to test whether
@@ -94,9 +100,10 @@ let dictKeyParametersFor(
       if Types.isUsableDictKey(env, [], key) then
         let neverAKey = Model.Ty.TFn([ Model.Ty.TUnit ], Model.Ty.TUnit)
         let probe = Stdlib.Dict.set(Dict {}, param, neverAKey)
-        Stdlib.Bool.not(
-          Types.isUsableDictKey(env, [], Types.substituteRigid(probe, key)))
-      else false))
+        Stdlib.Bool.not(Types.isUsableDictKey(env, [], Types.substituteRigid(probe, key)))
+      else
+        false))
+
 
 /// Propagate dictionary-key requirements through referenced declarations until
 /// a round makes no changes. There are only finitely many declared parameters to
@@ -104,50 +111,65 @@ let dictKeyParametersFor(
 /// Save traversal failures per declaration and continue analyzing the others.
 let prepareDictKeyParameters(
   env: Model.Environment,
-  failures: Dict<LanguageTools.ProgramTypes.Hash, Model.Finding>)
-  : (Model.Environment * Dict<LanguageTools.ProgramTypes.Hash, Model.Finding>) =
+  failures: Dict<ProgramTypes.Hash, Model.Finding>)
+  : (Model.Environment * Dict<ProgramTypes.Hash, Model.Finding>) =
   let declarations =
-    (Stdlib.Dict.toEntries(env.types))
+    Stdlib.Dict.toEntries(env.types)
     |> Stdlib.List.filter(fun((_, decl)) -> Stdlib.Bool.not(Stdlib.List.isEmpty(decl.typeParams)))
-  let (requirements, failures, changed) =
-    Stdlib.List.fold(declarations, (env.dictKeyParameters, failures, false), fun((requirements, failures, changed), (name, decl)) ->
-      if Stdlib.Dict.containsKey(failures, name) then (requirements, failures, changed)
+
+  let (requirements, failures, changed) = Stdlib.List.fold(
+    declarations,
+    (env.dictKeyParameters, failures, false),
+    fun((requirements, failures, changed), (name, decl)) ->
+      if Stdlib.Dict.containsKey(failures, name) then
+        (requirements, failures, changed)
       else
         match guard((fun d -> dictKeyParametersFor(env, d)), decl) with
         | Error(failure) ->
           (requirements, Stdlib.Dict.set(failures, name, failureFinding(failure)), changed)
         | Ok(required) ->
           let previous = Stdlib.Option.withDefault(Stdlib.Dict.get(requirements, name), [])
-          (Stdlib.Dict.set(requirements, name, required),
-           failures, changed || previous != required))
+          (
+            Stdlib.Dict.set(requirements, name, required),
+            failures,
+            changed || previous != required))
+
   let env = { env with dictKeyParameters = requirements }
   if changed then prepareDictKeyParameters(env, failures) else (env, failures)
+
 
 /// Add a definite error if this type cannot be used as a dictionary key.
 /// Inference variables and generic parameters pass this check; later inference or uses
 /// of a generic signature can supply more specific types to check.
 let checkDictKey(
   env: Model.Environment,
-  at: Stdlib.Option.Option<Int64>,
+  at: Option<Int64>,
   found: List<Model.Finding>,
   key: Model.Ty)
   : List<Model.Finding> =
-  if Types.isUsableDictKey(env, [], key) then found
+  if Types.isUsableDictKey(env, [], key) then
+    found
   else
-    Stdlib.List.prepend(found,
-      (Types.definiteError(IssueCode.UnsupportedDictKeyType, at,
-        Stdlib.Option.Option.None, Stdlib.Option.Option.Some(key), Context.NoDetail)))
+    Stdlib.List.prepend(
+      found,
+      Types.definiteError(
+        IssueCode.UnsupportedDictKeyType,
+        at,
+        Option.None,
+        Option.Some(key),
+        Context.NoDetail))
+
 
 /// Walk the supplied type and check that custom types exist, have the required
 /// number of arguments, and satisfy dictionary-key requirements. Return referenced
 /// declarations' hashes so the caller can include their cached problems separately.
 let checkTypeStructure(
   env: Model.Environment,
-  at: Stdlib.Option.Option<Int64>,
-  names: List<LanguageTools.ProgramTypes.Hash>,
+  at: Option<Int64>,
+  names: List<ProgramTypes.Hash>,
   found: List<Model.Finding>,
   ty: Model.Ty)
-  : (List<LanguageTools.ProgramTypes.Hash> * List<Model.Finding>) =
+  : (List<ProgramTypes.Hash> * List<Model.Finding>) =
   match ty with
   | TStream(inner) -> checkTypeStructure(env, at, names, found, inner)
   | TList(inner) -> checkTypeStructure(env, at, names, found, inner)
@@ -156,14 +178,15 @@ let checkTypeStructure(
     checkTypeStructures(env, at, names, found, [ key, value ])
   | TTuple(first, second, rest) ->
     checkTypeStructures(env, at, names, found, Stdlib.List.concat([ first, second ], rest))
-  | TFn(parameters, ret) -> checkTypeStructures(env, at, names, found, Stdlib.List.prepend(parameters, ret))
+  | TFn(parameters, ret) ->
+    checkTypeStructures(env, at, names, found, Stdlib.List.prepend(parameters, ret))
   | TCustom(name, args) ->
     let (names, found) = checkTypeStructures(env, at, names, found, args)
-
     match Types.declaration(env, name) with
     | None ->
       let problem =
         Types.warning(IssueCode.MissingTypeDeclaration, at, Context.TypeUnavailable(name))
+
       (names, Stdlib.List.prepend(found, problem))
     | Some(decl) ->
       if Stdlib.List.length(decl.typeParams) != Stdlib.List.length(args) then
@@ -172,18 +195,20 @@ let checkTypeStructure(
         let found =
           Stdlib.List.fold(customDictKeys(env, name, args), found, fun(found, key) ->
             checkDictKey(env, at, found, key))
+
         (Stdlib.List.prepend(names, name), found)
   | _ -> (names, found)
+
 
 /// `checkTypeStructure` over each of <param tys> in turn. Top-level rather than nested, where it
 /// is a closure built on every call, leaf types included, which never use it.
 let checkTypeStructures(
   env: Model.Environment,
-  at: Stdlib.Option.Option<Int64>,
-  names: List<LanguageTools.ProgramTypes.Hash>,
+  at: Option<Int64>,
+  names: List<ProgramTypes.Hash>,
   found: List<Model.Finding>,
   tys: List<Model.Ty>)
-  : (List<LanguageTools.ProgramTypes.Hash> * List<Model.Finding>) =
+  : (List<ProgramTypes.Hash> * List<Model.Finding>) =
   // Direct recursion rather than a fold, which builds a lambda per call. These lists are a type's
   // arguments or a function's parameters, so the recursion is as shallow as the list is short.
   match tys with
@@ -192,18 +217,18 @@ let checkTypeStructures(
     let (names, found) = checkTypeStructure(env, at, names, found, t)
     checkTypeStructures(env, at, names, found, rest)
 
+
 /// Collect references to aliases within this type, including its nested arguments.
 /// Do not walk record or enum fields: recursion through those declarations is
 /// allowed and does not itself create an alias-expansion cycle.
 let aliasEdges(
   env: Model.Environment,
-  found: List<LanguageTools.ProgramTypes.Hash>,
-  typ: LanguageTools.ProgramTypes.TypeReference)
-  : List<LanguageTools.ProgramTypes.Hash> =
+  found: List<ProgramTypes.Hash>,
+  typ: ProgramTypes.TypeReference)
+  : List<ProgramTypes.Hash> =
   match typ with
   | TCustomType(name, args) ->
     let found = aliasEdgesIn(env, found, args)
-
     match Types.resolvedType(name) with
     | Some(hash) ->
       match Types.declaration(env, hash) with
@@ -221,25 +246,27 @@ let aliasEdges(
   | TFn(parameters, ret) -> aliasEdgesIn(env, aliasEdges(env, found, ret), parameters)
   | _ -> found
 
+
 /// Collect alias references across a list of types, preserving those already found.
 let aliasEdgesIn(
   env: Model.Environment,
-  found: List<LanguageTools.ProgramTypes.Hash>,
-  typs: List<LanguageTools.ProgramTypes.TypeReference>)
-  : List<LanguageTools.ProgramTypes.Hash> =
+  found: List<ProgramTypes.Hash>,
+  typs: List<ProgramTypes.TypeReference>)
+  : List<ProgramTypes.Hash> =
   match typs with
   | [] -> found
   | [t, ...rest] -> aliasEdgesIn(env, aliasEdges(env, found, t), rest)
+
 
 /// Determine whether expanding this alias can reach an alias cycle, even if the
 /// alias itself is outside the cycle. known caches completed answers; expanding
 /// contains the current path, so revisiting a name there identifies a cycle.
 let reachesAliasCycle(
   env: Model.Environment,
-  known: Dict<LanguageTools.ProgramTypes.Hash, Bool>,
-  expanding: Dict<LanguageTools.ProgramTypes.Hash, Bool>,
-  name: LanguageTools.ProgramTypes.Hash)
-  : (Bool * Dict<LanguageTools.ProgramTypes.Hash, Bool>) =
+  known: Dict<ProgramTypes.Hash, Bool>,
+  expanding: Dict<ProgramTypes.Hash, Bool>,
+  name: ProgramTypes.Hash)
+  : (Bool * Dict<ProgramTypes.Hash, Bool>) =
   match Stdlib.Dict.get(known, name) with
   | Some(answer) -> (answer, known)
   | None ->
@@ -258,39 +285,42 @@ let reachesAliasCycle(
       let (answer, known) = anyReachesAliasCycle(env, known, expanding, next)
       (answer, Stdlib.Dict.set(known, name, answer))
 
+
 /// Follow alias references until one reaches a cycle, sharing cached answers
 /// between visits. Stop at the first cycle because only a yes/no result is needed.
 let anyReachesAliasCycle(
   env: Model.Environment,
-  known: Dict<LanguageTools.ProgramTypes.Hash, Bool>,
-  expanding: Dict<LanguageTools.ProgramTypes.Hash, Bool>,
-  names: List<LanguageTools.ProgramTypes.Hash>)
-  : (Bool * Dict<LanguageTools.ProgramTypes.Hash, Bool>) =
+  known: Dict<ProgramTypes.Hash, Bool>,
+  expanding: Dict<ProgramTypes.Hash, Bool>,
+  names: List<ProgramTypes.Hash>)
+  : (Bool * Dict<ProgramTypes.Hash, Bool>) =
   match names with
   | [] -> (false, known)
   | [name, ...rest] ->
     let (answer, known) = reachesAliasCycle(env, known, expanding, name)
-    if answer then (true, known) else anyReachesAliasCycle(env, known, expanding, rest)
+    if answer then
+      (true, known)
+    else
+      anyReachesAliasCycle(env, known, expanding, rest)
+
 
 /// Check an alias target, record fields, or enum payloads and record direct type
 /// dependencies. Add an alias-cycle warning when cyclic marks this declaration.
 /// Store findings without source-node IDs so each later use can supply its location.
 let declarationFactsOf(
   env: Model.Environment,
-  cyclic: Dict<LanguageTools.ProgramTypes.Hash, Bool>,
-  name: LanguageTools.ProgramTypes.Hash,
-  decl: LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
+  cyclic: Dict<ProgramTypes.Hash, Bool>,
+  name: ProgramTypes.Hash,
+  decl: ProgramTypes.TypeDeclaration.TypeDeclaration)
   : Model.DeclarationFacts =
-  let none = Stdlib.Option.Option.None
+  let none = Option.None
   let mapping = Types.rigid(decl.typeParams)
-
-  let (names, found) =
-    Stdlib.List.fold(
-      Types.declarationFieldTypes(decl),
-      ([], []),
-      fun((names, found), field) ->
-        let (t, found) = Types.fromReferenceInto(mapping, none, found, field)
-        checkTypeStructure(env, none, names, found, t))
+  let (names, found) = Stdlib.List.fold(
+    Types.declarationFieldTypes(decl),
+    ([], []),
+    fun((names, found), field) ->
+      let (t, found) = Types.fromReferenceInto(mapping, none, found, field)
+      checkTypeStructure(env, none, names, found, t))
 
   let found =
     if Stdlib.Option.withDefault(Stdlib.Dict.get(cyclic, name), false) then
@@ -301,8 +331,8 @@ let declarationFactsOf(
       found
 
   Model.DeclarationFacts
-    { problems = Stdlib.List.reverse(found)
-      references = Stdlib.List.unique(names) }
+    { problems = Stdlib.List.reverse(found), references = Stdlib.List.unique(names) }
+
 
 /// Turn a checker failure into a warning that can be saved with declaration facts.
 /// Distinguish excessive nesting from other checker errors; attach a source node
@@ -313,7 +343,8 @@ let failureFinding(failure: CheckFailure): Model.Finding =
     | TooDeep -> Context.DeclarationTooDeep
     | Failed(message) -> Context.CheckerUnavailable(message)
 
-  Types.warning(IssueCode.UnsupportedConstruct, Stdlib.Option.Option.None, context)
+  Types.warning(IssueCode.UnsupportedConstruct, Option.None, context)
+
 
 /// Prepare validation caches for all loaded type declarations. First determine
 /// which parameters can hold values and which must be valid dictionary keys,
@@ -327,12 +358,13 @@ let prepareDeclarations(env: Model.Environment): Model.Environment =
     prepareValueTypeParameters(
       { env with valueTypeParameters = Stdlib.Dict.map(env.types, fun(_, _) -> []) },
       Dict {})
+
   let (env, traversalFailures) =
     prepareDictKeyParameters({ env with dictKeyParameters = Dict {} }, traversalFailures)
-  let cyclic =
-    Stdlib.List.fold(Stdlib.Dict.keys(env.types), Dict {}, fun(known, name) ->
-      let (_, known) = reachesAliasCycle(env, known, Dict {}, name)
-      known)
+
+  let cyclic = Stdlib.List.fold(Stdlib.Dict.keys(env.types), Dict {}, fun(known, name) ->
+    let (_, known) = reachesAliasCycle(env, known, Dict {}, name)
+    known)
 
   // Catch errors for each declaration separately. Save earlier traversal failures
   // with its own findings so uses of that type report them too, while unrelated
@@ -347,20 +379,18 @@ let prepareDeclarations(env: Model.Environment): Model.Environment =
             match NodeIds.typeTooDeep(NodeIds.declaredTypes(decl)) with
             | Some(_) ->
               Model.DeclarationFacts
-                { problems = [ failureFinding(CheckFailure.TooDeep) ]
-                  references = [] }
+                { problems = [ failureFinding(CheckFailure.TooDeep) ], references = [] }
             | None ->
-            match
-              guard((fun decl -> declarationFactsOf(env, cyclic, name, decl)), decl)
-            with
-            | Ok(declarationFacts) ->
-              match Stdlib.Dict.get(traversalFailures, name) with
-              | Some(problem) ->
-                { declarationFacts with problems = Stdlib.List.prepend(declarationFacts.problems, problem) }
-              | None -> declarationFacts
-            | Error(failure) ->
-              Model.DeclarationFacts
-                { problems = [ failureFinding(failure) ], references = [] }) }
+              match guard((fun decl -> declarationFactsOf(env, cyclic, name, decl)), decl) with
+              | Ok(declarationFacts) ->
+                match Stdlib.Dict.get(traversalFailures, name) with
+                | Some(problem) ->
+                  { declarationFacts with
+                      problems = Stdlib.List.prepend(declarationFacts.problems, problem) }
+                | None -> declarationFacts
+              | Error(failure) ->
+                Model.DeclarationFacts
+                  { problems = [ failureFinding(failure) ], references = [] }) }
 
   { env with declarationProblems = allDeclarationProblems(env) }
 
@@ -373,35 +403,32 @@ let prepareDeclarations(env: Model.Environment): Model.Environment =
 type Components =
   { nextIndex: Int64
     /// Discovery number for every declaration visited so far.
-    index: Dict<LanguageTools.ProgramTypes.Hash, Int64>
+    index: Dict<ProgramTypes.Hash, Int64>
     /// Lowest discovery number propagated from a newly visited dependency or
     /// a reference to a declaration still on stack. Equality with a declaration's
     /// own index identifies the root of its component.
-    lowLink: Dict<LanguageTools.ProgramTypes.Hash, Int64>
+    lowLink: Dict<ProgramTypes.Hash, Int64>
     /// Visited declarations whose component has not yet been completed.
-    stack: List<LanguageTools.ProgramTypes.Hash>
+    stack: List<ProgramTypes.Hash>
     /// Membership lookup for stack, avoiding a list scan for each dependency.
-    onStack: Dict<LanguageTools.ProgramTypes.Hash, Bool>
+    onStack: Dict<ProgramTypes.Hash, Bool>
     /// Completed groups, with the most recently completed group first.
-    completed: List<List<LanguageTools.ProgramTypes.Hash>> }
+    completed: List<List<ProgramTypes.Hash>> }
+
 
 /// Read a declaration's direct dependencies from its prepared facts.
 /// Return no references when facts are unavailable.
-let referencesOf(
-  env: Model.Environment,
-  name: LanguageTools.ProgramTypes.Hash)
-  : List<LanguageTools.ProgramTypes.Hash> =
+let referencesOf(env: Model.Environment, name: ProgramTypes.Hash): List<ProgramTypes.Hash> =
   match Stdlib.Dict.get(env.declarationFacts, name) with
   | Some(declarationFacts) -> declarationFacts.references
   | None -> []
 
+
 /// Read a traversal index, defaulting to zero if absent. The component traversal
 /// normally calls this only after assigning the declaration an index.
-let indexOrZero(
-  indices: Dict<LanguageTools.ProgramTypes.Hash, Int64>,
-  name: LanguageTools.ProgramTypes.Hash)
-  : Int64 =
+let indexOrZero(indices: Dict<ProgramTypes.Hash, Int64>, name: ProgramTypes.Hash): Int64 =
   Stdlib.Option.withDefault(Stdlib.Dict.get(indices, name), 0)
+
 
 /// Visit a declaration for the first time and explore its dependencies. If it is
 /// the earliest reachable member of its active group, complete that group by
@@ -409,34 +436,30 @@ let indexOrZero(
 let strongConnect(
   env: Model.Environment,
   components: Components,
-  node: LanguageTools.ProgramTypes.Hash)
+  node: ProgramTypes.Hash)
   : Components =
   let components =
     { components with
-        index =
-          Stdlib.Dict.set(
-            components.index, node, components.nextIndex)
-        lowLink =
-          Stdlib.Dict.set(
-            components.lowLink, node, components.nextIndex)
+        index = Stdlib.Dict.set(components.index, node, components.nextIndex)
+        lowLink = Stdlib.Dict.set(components.lowLink, node, components.nextIndex)
         nextIndex = components.nextIndex + 1
         stack = Stdlib.List.prepend(components.stack, node)
         onStack = Stdlib.Dict.set(components.onStack, node, true) }
 
   let components = connectSuccessors(env, components, node, referencesOf(env, node))
-
   if indexOrZero(components.lowLink, node) == indexOrZero(components.index, node) then
     popComponent(components, node, [])
   else
     components
+
 
 /// Follow each direct dependency and update node's earliest reachable index.
 /// Dependencies already assigned to completed groups cannot join node's group.
 let connectSuccessors(
   env: Model.Environment,
   components: Components,
-  node: LanguageTools.ProgramTypes.Hash,
-  successors: List<LanguageTools.ProgramTypes.Hash>)
+  node: ProgramTypes.Hash,
+  successors: List<ProgramTypes.Hash>)
   : Components =
   match successors with
   | [] -> components
@@ -450,9 +473,8 @@ let connectSuccessors(
           Stdlib.min(
             indexOrZero(components.lowLink, node),
             indexOrZero(components.lowLink, successor))
-        { components with
-            lowLink =
-              Stdlib.Dict.set(components.lowLink, node, lowLink) }
+
+        { components with lowLink = Stdlib.Dict.set(components.lowLink, node, lowLink) }
       else if Stdlib.Dict.containsKey(components.onStack, successor) then
         // This dependency is still in an unfinished group. Use its discovery
         // index, as required for an edge to an already visited node in Tarjan's algorithm.
@@ -460,42 +482,38 @@ let connectSuccessors(
           Stdlib.min(
             indexOrZero(components.lowLink, node),
             indexOrZero(components.index, successor))
-        { components with
-            lowLink =
-              Stdlib.Dict.set(components.lowLink, node, lowLink) }
+
+        { components with lowLink = Stdlib.Dict.set(components.lowLink, node, lowLink) }
       else
         components
 
     connectSuccessors(env, components, node, rest)
 
+
 /// Remove stack entries through root, collecting them into one completed group.
 /// Clearing onStack prevents later references from merging into this finished group.
 let popComponent(
   components: Components,
-  root: LanguageTools.ProgramTypes.Hash,
-  members: List<LanguageTools.ProgramTypes.Hash>)
+  root: ProgramTypes.Hash,
+  members: List<ProgramTypes.Hash>)
   : Components =
   match components.stack with
-  | [] ->
-    { components with completed = Stdlib.List.prepend(components.completed, members) }
+  | [] -> { components with completed = Stdlib.List.prepend(components.completed, members) }
   | [top, ...rest] ->
     let components =
-      { components with
-          stack = rest
-          onStack = Stdlib.Dict.remove(components.onStack, top) }
-    let members = Stdlib.List.prepend(members, top)
+      { components with stack = rest, onStack = Stdlib.Dict.remove(components.onStack, top) }
 
+    let members = Stdlib.List.prepend(members, top)
     if top == root then
       { components with completed = Stdlib.List.prepend(components.completed, members) }
     else
       popComponent(components, root, members)
 
+
 /// Cache each declaration's own problems together with problems in all its
 /// dependencies. Mutually dependent declarations share one combined result;
 /// dependencies outside their group already have results when the group is processed.
-let allDeclarationProblems(
-  env: Model.Environment)
-  : Dict<LanguageTools.ProgramTypes.Hash, List<Model.Finding>> =
+let allDeclarationProblems(env: Model.Environment): Dict<ProgramTypes.Hash, List<Model.Finding>> =
   let start =
     Components
       { nextIndex = 0
@@ -505,10 +523,11 @@ let allDeclarationProblems(
         onStack = Dict {}
         completed = [] }
 
-  let components =
-    Stdlib.List.fold(Stdlib.Dict.keys(env.types), start, fun(components, name) ->
-      if Stdlib.Dict.containsKey(components.index, name) then components
-      else strongConnect(env, components, name))
+  let components = Stdlib.List.fold(Stdlib.Dict.keys(env.types), start, fun(components, name) ->
+    if Stdlib.Dict.containsKey(components.index, name) then
+      components
+    else
+      strongConnect(env, components, name))
 
   // Groups were pushed as they completed. Reverse them so dependencies are
   // cached before the groups that use them.
@@ -530,8 +549,7 @@ let allDeclarationProblems(
         members
         |> Stdlib.List.map(fun m -> referencesOf(env, m))
         |> Stdlib.List.flatten
-        |> Stdlib.List.filter(fun r ->
-          Stdlib.Bool.not(Stdlib.List.contains(members, r)))
+        |> Stdlib.List.filter(fun r -> Stdlib.Bool.not(Stdlib.List.contains(members, r)))
         |> Stdlib.List.unique
         |> Stdlib.List.map(fun r ->
           Stdlib.Option.withDefault(Stdlib.Dict.get(declarationProblems, r), []))
@@ -550,44 +568,47 @@ let allDeclarationProblems(
       Stdlib.List.fold(members, declarationProblems, fun(declarationProblems, m) ->
         Stdlib.Dict.set(declarationProblems, m, problems)))
 
+
 /// Return prepared facts when available. Otherwise inspect the declaration and
 /// its alias-cycle status on demand, without updating the environment's cache.
 /// Return None if the declaration itself is unavailable.
 let declarationFactsFor(
   env: Model.Environment,
-  name: LanguageTools.ProgramTypes.Hash)
-  : Stdlib.Option.Option<Model.DeclarationFacts> =
+  name: ProgramTypes.Hash)
+  : Option<Model.DeclarationFacts> =
   match Stdlib.Dict.get(env.declarationFacts, name) with
-  | Some(declarationFacts) -> Stdlib.Option.Option.Some(declarationFacts)
+  | Some(declarationFacts) -> Option.Some(declarationFacts)
   | None ->
     match Types.declaration(env, name) with
     | Some(decl) ->
       let (_, cyclic) = reachesAliasCycle(env, Dict {}, Dict {}, name)
-      Stdlib.Option.Option.Some(declarationFactsOf(env, cyclic, name, decl))
-    | None -> Stdlib.Option.Option.None
+      Option.Some(declarationFactsOf(env, cyclic, name, decl))
+    | None -> Option.None
+
 
 /// Collect problems from this declaration and its dependencies, attaching at as
 /// their reporting location. Reuse walked so previously visited declarations do
 /// not add their findings again.
 let visit(
   env: Model.Environment,
-  at: Stdlib.Option.Option<Int64>,
-  walked: Dict<LanguageTools.ProgramTypes.Hash, Bool>,
+  at: Option<Int64>,
+  walked: Dict<ProgramTypes.Hash, Bool>,
   found: List<Model.Finding>,
-  name: LanguageTools.ProgramTypes.Hash)
-  : (Dict<LanguageTools.ProgramTypes.Hash, Bool> * List<Model.Finding>) =
+  name: ProgramTypes.Hash)
+  : (Dict<ProgramTypes.Hash, Bool> * List<Model.Finding>) =
   visitAll(env, at, walked, found, [ name ])
+
 
 /// Process dependency hashes from an explicit work list, visiting each once.
 /// Direct recursion over this list avoids nesting interpreter callbacks for each
 /// dependency level. Missing declarations are skipped; their uses report them.
 let visitAll(
   env: Model.Environment,
-  at: Stdlib.Option.Option<Int64>,
-  walked: Dict<LanguageTools.ProgramTypes.Hash, Bool>,
+  at: Option<Int64>,
+  walked: Dict<ProgramTypes.Hash, Bool>,
   found: List<Model.Finding>,
-  pending: List<LanguageTools.ProgramTypes.Hash>)
-  : (Dict<LanguageTools.ProgramTypes.Hash, Bool> * List<Model.Finding>) =
+  pending: List<ProgramTypes.Hash>)
+  : (Dict<ProgramTypes.Hash, Bool> * List<Model.Finding>) =
   match pending with
   | [] -> (walked, found)
   | [name, ...rest] ->
@@ -595,7 +616,6 @@ let visitAll(
       visitAll(env, at, walked, found, rest)
     else
       let walked = Stdlib.Dict.set(walked, name, true)
-
       match declarationFactsFor(env, name) with
       | None -> visitAll(env, at, walked, found, rest)
       | Some(declarationFacts) ->
@@ -603,46 +623,45 @@ let visitAll(
           Stdlib.List.fold(declarationFacts.problems, found, fun(found, problem) ->
             Stdlib.List.prepend(found, { problem with at = at }))
 
-        visitAll(
-          env, at, walked, found, Stdlib.List.concat(declarationFacts.references, rest))
+        visitAll(env, at, walked, found, Stdlib.List.concat(declarationFacts.references, rest))
+
 
 /// Collect all problems reachable from one declaration without assigning a source
 /// node. The resulting list can be reused at different locations that reference it.
 let collectDeclarationProblems(
   env: Model.Environment,
-  name: LanguageTools.ProgramTypes.Hash)
+  name: ProgramTypes.Hash)
   : List<Model.Finding> =
-  let (_, found) = visit(env, Stdlib.Option.Option.None, Dict {}, [], name)
+  let (_, found) = visit(env, Option.None, Dict {}, [], name)
   Stdlib.List.reverse(found)
+
 
 /// Return cached problems for a declaration and its dependencies, or collect and
 /// cache them on first use. Keep source locations unset until a caller reports them.
 let declarationProblemsFor(
   env: Model.Environment,
-  name: LanguageTools.ProgramTypes.Hash)
+  name: ProgramTypes.Hash)
   : (List<Model.Finding> * Model.Environment) =
   match Stdlib.Dict.get(env.declarationProblems, name) with
   | Some(problems) -> (problems, env)
   | None ->
     let problems = collectDeclarationProblems(env, name)
-    let declarationProblems =
-      Stdlib.Dict.set(env.declarationProblems, name, problems)
+    let declarationProblems = Stdlib.Dict.set(env.declarationProblems, name, problems)
     (problems, { env with declarationProblems = declarationProblems })
+
 
 /// Validate this use of a type: check its structure and dictionary keys, then add
 /// cached problems from the declarations it references and their dependencies.
 /// Attach at to those findings so they point to this use, and return updated caches.
 let validateType(
   env: Model.Environment,
-  at: Stdlib.Option.Option<Int64>,
+  at: Option<Int64>,
   found: List<Model.Finding>,
   ty: Model.Ty)
   : (List<Model.Finding> * Model.Environment) =
   let (names, found) = checkTypeStructure(env, at, [], found, ty)
-
   Stdlib.List.fold(Stdlib.List.unique(names), (found, env), fun((found, env), name) ->
     let (problems, env) = declarationProblemsFor(env, name)
-
     let found =
       Stdlib.List.fold(problems, found, fun(found, problem) ->
         Stdlib.List.prepend(found, { problem with at = at }))

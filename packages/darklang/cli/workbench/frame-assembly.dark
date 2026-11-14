@@ -26,138 +26,166 @@ let renderFull(state: State, size: Stdlib.Cli.Tui.Size): List<Stdlib.Cli.UI.Layo
   // The glance: what is waiting on you, or nothing.
   let (glanceColored, glancePlain) =
     if needsYou > 0 then
-      let t = "⚠ " + (Stdlib.display(needsYou)) + " need you"
+      let t = "⚠ " + Stdlib.display(needsYou) + " need you"
       (Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.pink, t), t)
     else
       ("", "")
+
   // The header: the branch you are on, prominent; who and where, dim; and the glance,
   // right-aligned. The branch is named here and nowhere else, so the frame's title never
   // repeats it.
-  let context =
-    Stdlib.Cli.UI.Layout.fixedSize(
-      1,
-      fun r ->
-        // Two forms of every segment: the plain text is what gets MEASURED, the styled one is what
-        // gets drawn. A width taken over the coloured form counts the escape codes, and it is
-        // measured in columns, not graphemes: `⚠` is one grapheme and would otherwise right-align
-        // past the edge of the row.
-        let dim(s: String): String = Stdlib.Cli.UI.Colors.dimText(s)
-        let branchStyled =
-          Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold + Stdlib.Cli.UI.Colors.purple, branch)
-        let wherePlain = "    " + state.instanceName
-        let fullLeftPlain = "  " + branch + wherePlain
-        let fullLeft = "  " + branchStyled + (dim(wherePlain))
-        let branchOnlyPlain = "  " + branch
-        let branchOnly = "  " + branchStyled
+  let context = Stdlib.Cli.UI.Layout.fixedSize(1, fun r ->
+    // Two forms of every segment: the plain text is what gets MEASURED, the styled one is what
+    // gets drawn. A width taken over the coloured form counts the escape codes, and it is
+    // measured in columns, not graphemes: `⚠` is one grapheme and would otherwise right-align
+    // past the edge of the row.
+    let dim(s: String): String = Stdlib.Cli.UI.Colors.dimText(s)
+    let branchStyled =
+      Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold + Stdlib.Cli.UI.Colors.purple, branch)
 
-        // Narrow terminals drop whole segments in priority order rather than letting the row
-        // overwrite itself: the instance goes first, then the glance; the branch survives as long
-        // as anything does.
-        let fits(l: String, rt: String): Bool =
-          (Stdlib.String.displayWidth(l)) + (Stdlib.String.displayWidth(rt)) + 4 <= r.cols
+    let wherePlain = "    " + state.instanceName
+    let fullLeftPlain = "  " + branch + wherePlain
+    let fullLeft = "  " + branchStyled + dim(wherePlain)
+    let branchOnlyPlain = "  " + branch
+    let branchOnly = "  " + branchStyled
 
-        let (leftLine, rightPlain, rightLine) =
-          if fits(fullLeftPlain, glancePlain) then (fullLeft, glancePlain, glanceColored)
-          else if fits(branchOnlyPlain, glancePlain) then (branchOnly, glancePlain, glanceColored)
-          else (branchOnly, "", "")
+    // Narrow terminals drop whole segments in priority order rather than letting the row
+    // overwrite itself: the instance goes first, then the glance; the branch survives as long
+    // as anything does.
+    let fits(l: String, rt: String): Bool =
+      Stdlib.String.displayWidth(l) + Stdlib.String.displayWidth(rt) + 4 <= r.cols
 
-        Stdlib.List.flatten(
-          [ Stdlib.Cli.UI.Layout.at(r, 0, 0, leftLine)
-            (if rightPlain == "" then []
-             else
-               Stdlib.Cli.UI.Layout.at(r, 0, Stdlib.max(0, r.cols - (Stdlib.String.displayWidth(rightPlain)) - 1), rightLine)) ]))
+    let (leftLine, rightPlain, rightLine) =
+      if fits(fullLeftPlain, glancePlain) then
+        (fullLeft, glancePlain, glanceColored)
+      else if fits(branchOnlyPlain, glancePlain) then
+        (branchOnly, glancePlain, glanceColored)
+      else
+        (branchOnly, "", "")
+
+    Stdlib.List.flatten(
+      [ Stdlib.Cli.UI.Layout.at(r, 0, 0, leftLine)
+        if rightPlain == "" then
+          []
+        else
+          Stdlib.Cli.UI.Layout.at(
+            r,
+            0,
+            Stdlib.max(0, r.cols - Stdlib.String.displayWidth(rightPlain) - 1),
+            rightLine) ]))
+
   // The nav: a strip between the context row and the body when there's room
   // for one, else nothing here (it becomes an overlay, see below) and the
   // body takes the rows.
   let strip = navFits(w)
   let nav =
-    Stdlib.Cli.UI.Layout.fixedSize(navRows, fun r ->
-      renderNavStrip(state, wip, conflictCount, r))
+    Stdlib.Cli.UI.Layout.fixedSize(navRows, fun r -> renderNavStrip(state, wip, conflictCount, r))
+
   let body = Stdlib.Cli.UI.Layout.greedy(fun r -> renderBody(state, r))
-  let hints =
-    Stdlib.Cli.UI.Layout.fixedSize(
-      1,
-      fun r ->
-        let h =
-          match state.editing with
+  let hints = Stdlib.Cli.UI.Layout.fixedSize(1, fun r ->
+    let h =
+      match state.editing with
+      | Some(_) ->
+        Frame.formatHints(
+          [ ("type", "edit")
+            ("↑↓←→", "move")
+            ("home/end", "line")
+            ("^k", "kill")
+            ("tab", "indent")
+            ("^s", "save")
+            ("esc", "cancel") ])
+      | None ->
+        match state.input with
+        | Some(inp) ->
+          // "You can type here" affordance: a bright prompt glyph, the label, the live text, and a
+          // reverse-video block caret so it's unmistakable the app is capturing keystrokes. For the command
+          // bar, trail a dim ghost of the completion (fish-style; tab accepts it).
+          let ghost =
+            if inp.action == "command" then
+              Stdlib.Cli.UI.Colors.dimText(commandCompletionHint(state, inp.field.text))
+            else
+              ""
+
+          // The caret comes from the field, and sits wherever the cursor is rather than always at the
+          // end -- which is the visible half of being able to move it at all.
+          let room = Stdlib.max(8, size.width - 6 - Stdlib.String.displayWidth(inp.prompt))
+          Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.cyan, "› ")
+          + Stdlib.Cli.UI.Colors.boldText(inp.prompt)
+          + Stdlib.Cli.UI.TextField.renderInline(inp.field, room)
+          + ghost
+        | None ->
+          match state.reading with
           | Some(_) ->
             Frame.formatHints(
-              [ ("type", "edit"), ("↑↓←→", "move"), ("home/end", "line"), ("^k", "kill"), ("tab", "indent"), ("^s", "save"), ("esc", "cancel") ])
+              [ ("↑↓", "scroll"), ("PgUp/PgDn", "page"), (":", "cmd"), ("esc", "back") ])
           | None ->
-            match state.input with
-            | Some(inp) ->
-              // "You can type here" affordance: a bright prompt glyph, the label, the live text, and a
-              // reverse-video block caret so it's unmistakable the app is capturing keystrokes. For the command
-              // bar, trail a dim ghost of the completion (fish-style; tab accepts it).
-              let ghost =
-                if inp.action == "command" then
-                  Stdlib.Cli.UI.Colors.dimText(commandCompletionHint(state, inp.field.text))
-                else
-                  ""
+            if Stdlib.Bool.not(Stdlib.List.isEmpty(state.search.hits)) then
+              Frame.formatHints([ ("↑↓", "move"), ("⏎", "jump"), ("esc", "close"), ("q", "quit") ])
+            else
+              hintsForView(state, r.cols)
 
-              // The caret comes from the field, and sits wherever the cursor is rather than always at the
-              // end -- which is the visible half of being able to move it at all.
-              let room =
-                Stdlib.max(8, size.width - 6 - (Stdlib.String.displayWidth(inp.prompt)))
+    // A toast sits beside the hints, right-aligned -- taking the whole row would
+    // cost the shortcuts exactly when a new arrival needs them. Failure reads pink
+    // with an x-mark, success green with a check, drawn as a segment like the
+    // status row's.
+    let bad =
+      match state.messageKind with
+      | Succeeded -> false
+      | Refused -> true
+      | Failed -> true
 
-              (Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.cyan, "› "))
-              + (Stdlib.Cli.UI.Colors.boldText(inp.prompt))
-              + (Stdlib.Cli.UI.TextField.renderInline(inp.field, room))
-              + ghost
-            | None ->
-              match state.reading with
-              | Some(_) -> Frame.formatHints([ ("↑↓", "scroll"), ("PgUp/PgDn", "page"), (":", "cmd"), ("esc", "back") ])
-              | None ->
-                if Stdlib.Bool.not(Stdlib.List.isEmpty(state.search.hits)) then
-                  Frame.formatHints([ ("↑↓", "move"), ("⏎", "jump"), ("esc", "close"), ("q", "quit") ])
-                else hintsForView(state, r.cols)
-        // A toast sits beside the hints, right-aligned -- taking the whole row would
-        // cost the shortcuts exactly when a new arrival needs them. Failure reads pink
-        // with an x-mark, success green with a check, drawn as a segment like the
-        // status row's.
-        let bad =
-          match state.messageKind with
-          | Succeeded -> false
-          | Refused -> true
-          | Failed -> true
-        let toastPlain =
-          if state.message == "" then ""
-          else (if bad then " ✗ " else " ✓ ") + state.message + " "
-        let toastWidth = Stdlib.String.displayWidth(toastPlain)
-        let toast =
-          if toastPlain == "" then
-            []
-          else
-            let colored =
-              Stdlib.Cli.UI.Colors.colorize((if bad then Stdlib.Cli.UI.Colors.pinkBg else Stdlib.Cli.UI.Colors.greenBg) + Stdlib.Cli.UI.Colors.black, toastPlain)
-            Stdlib.Cli.UI.Layout.at(r, 0, Stdlib.max(0, r.cols - toastWidth - 1), colored)
-        // Clip the hints to stop short of the toast rather than letting the toast overwrite them. Canvas lets a
-        // later span truncate an earlier one, but that leaves the two abutting with no gap on a long hint row,
-        // which reads as a collision rather than two things sharing a line.
-        let hintRoom =
-          if toastPlain == "" then r.cols else Stdlib.max(0, r.cols - toastWidth - 8)
-        // An ellipsis where the row was cut, so a hint list that lost its tail reads as truncated rather than
-        // as a key whose name happens to end mid-word.
-        let shownHints =
-          if (Stdlib.Cli.Tui.Text.styledWidth(h)) <= hintRoom then
-            h
-          else
-            (Stdlib.Cli.Tui.Text.clipToWidth(h, Stdlib.max(0, hintRoom - 2))) + (Stdlib.Cli.UI.Colors.dimText("…"))
-        Stdlib.List.flatten([ Frame.renderKeyHints(r, shownHints), toast ]))
+    let toastPlain =
+      if state.message == "" then
+        ""
+      else
+        (if bad then " ✗ " else " ✓ ") + state.message + " "
+
+    let toastWidth = Stdlib.String.displayWidth(toastPlain)
+    let toast =
+      if toastPlain == "" then
+        []
+      else
+        let colored =
+          Stdlib.Cli.UI.Colors.colorize(
+            (if bad then Stdlib.Cli.UI.Colors.pinkBg else Stdlib.Cli.UI.Colors.greenBg)
+            + Stdlib.Cli.UI.Colors.black,
+            toastPlain)
+
+        Stdlib.Cli.UI.Layout.at(r, 0, Stdlib.max(0, r.cols - toastWidth - 1), colored)
+
+    // Clip the hints to stop short of the toast rather than letting the toast overwrite them. Canvas lets a
+    // later span truncate an earlier one, but that leaves the two abutting with no gap on a long hint row,
+    // which reads as a collision rather than two things sharing a line.
+    let hintRoom = if toastPlain == "" then r.cols else Stdlib.max(0, r.cols - toastWidth - 8)
+
+    // An ellipsis where the row was cut, so a hint list that lost its tail reads as truncated rather than
+    // as a key whose name happens to end mid-word.
+    let shownHints =
+      if Stdlib.Cli.Tui.Text.styledWidth(h) <= hintRoom then
+        h
+      else
+        Stdlib.Cli.Tui.Text.clipToWidth(h, Stdlib.max(0, hintRoom - 2))
+        + Stdlib.Cli.UI.Colors.dimText("…")
+
+    Stdlib.List.flatten([ Frame.renderKeyHints(r, shownHints), toast ]))
+
   Stdlib.List.flatten(
     [ Stdlib.Cli.UI.Layout.vstack(
         screen,
-        (if strip then [ context, nav, body, hints ] else [ context, body, hints ]))
+        if strip then [ context, nav, body, hints ] else [ context, body, hints ])
+
       match state.overlay with
       | NoOverlay -> []
       | Keymap -> renderHelpOverlay(screen)
       | Branches(picker) -> renderBranchPicker(state, picker, screen)
+
       // A narrow terminal has no nav strip, so focusing the nav draws it as
       // an overlay instead.
-      if (state.overlay == Overlay.NoOverlay) && (navbarFocused(state)) && (Stdlib.Bool.not(strip)) then
+      if state.overlay == Overlay.NoOverlay && navbarFocused(state) && Stdlib.Bool.not(strip) then
         renderNavbarOverlay(state, wip, conflictCount, screen)
       else
         []
+
       renderCommandCompletions(state, screen) ])
 
 
@@ -169,19 +197,19 @@ let commandCompletionHint(state: State, text: String): String =
   if text == "" then
     ""
   else
-    let appState =
-      classicState(state)
-    Darklang.Cli.Registry.getCompletionHint(appState, text)
+    let appState = classicState(state)
+    Registry.getCompletionHint(appState, text)
+
 
 /// The full list of completions for the `:` command bar's current text - the same engine the classic prompt's
 /// picker used. Backs the live dropdown so you see the options, not just the ghost of the top one.
-let commandCompletions(state: State, text: String): List<Darklang.Cli.Completion.CompletionItem> =
+let commandCompletions(state: State, text: String): List<Completion.CompletionItem> =
   if text == "" then
     []
   else
-    let appState =
-      classicState(state)
-    Darklang.Cli.Registry.getCompletions(appState, text)
+    let appState = classicState(state)
+    Registry.getCompletions(appState, text)
+
 
 /// Replace the last whitespace-delimited word of `text` with `value` - how accepting a dropdown selection
 /// inserts it (the last word is the partial being completed; an empty last word means append a fresh arg).
@@ -191,10 +219,14 @@ let applyCompletionValue(text: String, value: String): String =
     Stdlib.String.join(Stdlib.List.append(Stdlib.List.reverse(revInit), value), " ")
   | [] -> value
 
+
 /// A live dropdown of command completions anchored just above the `:` input line - the "pretty typeahead" menu
 /// from the classic prompt. Shown only while the command bar is open and there are matches. Drawn as an overlay
 /// (the full frame redraws each keystroke, so it clears itself when the bar closes).
-let renderCommandCompletions(state: State, screen: Stdlib.Cli.UI.Layout.Region): List<Stdlib.Cli.UI.Layout.Span> =
+let renderCommandCompletions(
+  state: State,
+  screen: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
   match state.input with
   | None -> []
   | Some(inp) ->
@@ -210,26 +242,32 @@ let renderCommandCompletions(state: State, screen: Stdlib.Cli.UI.Layout.Region):
         let footerRow = screen.top + screen.rows - 1
         let top = Stdlib.max(screen.top, footerRow - boxRows)
         // Full width so it fully covers the body band underneath (no bleed-through of the body's box borders).
-        let region = Stdlib.Cli.UI.Layout.Region { top = top, left = screen.left, rows = boxRows, cols = screen.cols }
-        Stdlib.Cli.UI.Box.panel(region, "complete  ·  tab to accept", Stdlib.Cli.UI.Focus.Focused, fun inner ->
-          let rows =
-            items
-            |> Stdlib.List.indexedMap(fun(i, item) ->
-              let raw = "  " + item.display
-              let line =
-                if i == state.completionSel then selectionRow(inner.cols, raw) else raw
-              Stdlib.Cli.UI.Layout.at(inner, i, 0, line))
-            |> Stdlib.List.flatten
-          // Clear the interior first - this floats over the body, which would otherwise bleed through.
-          Stdlib.List.flatten([ Stdlib.Cli.UI.Layout.clearRegion(inner), rows ]))
+        let region =
+          Stdlib.Cli.UI.Layout.Region
+            { top = top, left = screen.left, rows = boxRows, cols = screen.cols }
+
+        Stdlib.Cli.UI.Box.panel(
+          region,
+          "complete  ·  tab to accept",
+          Stdlib.Cli.UI.Focus.Focused,
+          fun inner ->
+            let rows =
+              items
+              |> Stdlib.List.indexedMap(fun(i, item) ->
+                let raw = "  " + item.display
+                let line = if i == state.completionSel then selectionRow(inner.cols, raw) else raw
+                Stdlib.Cli.UI.Layout.at(inner, i, 0, line))
+              |> Stdlib.List.flatten
+
+            // Clear the interior first - this floats over the body, which would otherwise bleed through.
+            Stdlib.List.flatten([ Stdlib.Cli.UI.Layout.clearRegion(inner), rows ]))
+
 
 /// Render the workbench. Below a usable size, show an explicit "too small" hint instead of a garbled frame
 /// (per the TUI rule: degrade with a message, never render garbage). A real 0/tiny size mid-resize still falls
 /// through to renderFull's clamp, which draws one safe frame until the next keypress.
 let viewAtSize(state: State, size: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.View =
-  let tooSmall =
-    (size.width >= 24 && size.width < 56) || (size.height >= 8 && size.height < 12)
-
+  let tooSmall = size.width >= 24 && size.width < 56 || size.height >= 8 && size.height < 12
   let spans =
     if tooSmall then
       // Two lines, because one would be 44 columns wide and the guard fires from 24. The canvas clips at the
@@ -240,10 +278,15 @@ let viewAtSize(state: State, size: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.View =
 
       let centred(text: String, row: Int64): List<Stdlib.Cli.UI.Layout.Span> =
         let col =
-          Stdlib.max(0, Stdlib.Int64.checkedDivide(size.width - Stdlib.String.displayWidth(text), 2) |> Stdlib.Result.withDefault(0))
+          Stdlib.max(
+            0,
+            Stdlib.Int64.checkedDivide(size.width - Stdlib.String.displayWidth(text), 2)
+            |> Stdlib.Result.withDefault(0))
+
         Stdlib.Cli.UI.Layout.at(screen, row, col, Stdlib.Cli.UI.Colors.dimText(text))
 
-      let row = Stdlib.max(0, Stdlib.Int64.checkedDivide(size.height, 2) |> Stdlib.Result.withDefault(0))
+      let row =
+        Stdlib.max(0, Stdlib.Int64.checkedDivide(size.height, 2) |> Stdlib.Result.withDefault(0))
 
       Stdlib.List.flatten(
         [ centred("terminal too small", Stdlib.max(0, row - 1))

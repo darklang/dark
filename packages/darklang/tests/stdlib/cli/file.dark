@@ -3,20 +3,33 @@ module Darklang.Stdlib.Cli.File.Bytes.Tests
 let events(bytes: List<UInt8>): Stdlib.Result.Result<(Bool * Bool), Int64> =
   Stdlib.Cli.File.__watchEvents(Stdlib.Bytes.fromList(bytes), 0, false, false)
 
-let vnodeEvents(bytes: List<UInt8>): Stdlib.Result.Result<(Bool * Bool), Int64> =
-  Stdlib.Cli.File.__watchVnodeEvents(Stdlib.Bytes.fromList(bytes), 0, false, false)
+
+let vnodeEvents(
+  bytes: List<UInt8>)
+  : Stdlib.Result.Result<(Bool * Bool), Int64> =
+  Stdlib.Cli.File.__watchVnodeEvents(
+    Stdlib.Bytes.fromList(bytes),
+    0,
+    false,
+    false)
+
 
 /// <param n> zero bytes.
 let zeros(n: Int64): List<UInt8> =
   Stdlib.List.repeat(n, 0u8)
 
+
 /// A 16-byte inotify header with <param mask> and no name.
 let inotify(mask: List<UInt8>): List<UInt8> =
-  Stdlib.List.flatten(
-    [ [ 1u8, 0u8, 0u8, 0u8 ], mask, zeros(8) ])
+  Stdlib.List.flatten([ [ 1u8, 0u8, 0u8, 0u8 ], mask, zeros(8) ])
+
 
 /// A 32-byte kevent with <param flags> (2 bytes) and <param fflags> (4 bytes).
-let kevent(flags: List<UInt8>, fflags: List<UInt8>, data: List<UInt8>): List<UInt8> =
+let kevent(
+  flags: List<UInt8>,
+  fflags: List<UInt8>,
+  data: List<UInt8>)
+  : List<UInt8> =
   Stdlib.List.flatten(
     [ [ 1u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 252u8, 255u8 ]
       flags
@@ -24,20 +37,28 @@ let kevent(flags: List<UInt8>, fflags: List<UInt8>, data: List<UInt8>): List<UIn
       data
       zeros(8) ])
 
+
 // __watchEvents (inotify)
 test watchEvents =
   Stdlib.Test.all(
-    [ events([]) |> Stdlib.Test.equal(Ok((false, false)))
-      events([ 0u8 ]) |> Stdlib.Test.equal(Error(5))
-      events(inotify([ 2u8, 0u8, 0u8, 0u8 ])) |> Stdlib.Test.equal(Ok((true, false)))
-      events(inotify([ 0u8, 8u8, 0u8, 0u8 ])) |> Stdlib.Test.equal(Ok((true, true)))
+    [ events([]) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((false, false)))
+
+      events([ 0u8 ]) |> Stdlib.Test.equal(Stdlib.Result.Result.Error(5))
+
+      events(inotify([ 2u8, 0u8, 0u8, 0u8 ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((true, false)))
+
+      events(inotify([ 0u8, 8u8, 0u8, 0u8 ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((true, true)))
+
       // A name length that runs past the buffer.
       events(
         Stdlib.List.flatten(
           [ [ 1u8, 0u8, 0u8, 0u8, 2u8, 0u8, 0u8, 0u8 ]
             zeros(4)
             [ 8u8, 0u8, 0u8, 0u8 ] ]))
-      |> Stdlib.Test.equal(Error(5)) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(5)) ])
+
 
 // Each event is read from where the previous one ended, including its name.
 test watchEventsWalksSeveralEvents =
@@ -46,101 +67,163 @@ test watchEventsWalksSeveralEvents =
       [ [ 1u8, 0u8, 0u8, 0u8, 0u8, 128u8, 0u8, 0u8 ]
         zeros(4)
         [ 4u8, 0u8, 0u8, 0u8, 97u8, 98u8, 0u8, 0u8 ] ])
+
   Stdlib.Test.all(
     [ events(Stdlib.List.concat(inotify([ 2u8, 0u8, 0u8, 0u8 ]), named))
-      |> Stdlib.Test.equal(Ok((true, true)))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((true, true)))
+
       events(Stdlib.List.concat(named, inotify([ 0u8, 0u8, 0u8, 0u8 ])))
-      |> Stdlib.Test.equal(Ok((false, true)))
-      events(Stdlib.List.concat(inotify([ 2u8, 0u8, 0u8, 0u8 ]), [ 1u8, 2u8, 3u8 ]))
-      |> Stdlib.Test.equal(Error(5)) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((false, true)))
+
+      events(
+        Stdlib.List.concat(inotify([ 2u8, 0u8, 0u8, 0u8 ]), [ 1u8, 2u8, 3u8 ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(5)) ])
+
 
 // __watchVnodeEvents (kqueue)
 test watchVnodeEvents =
   let noData = zeros(8)
   Stdlib.Test.all(
-    [ vnodeEvents([]) |> Stdlib.Test.equal(Ok((false, false)))
-      vnodeEvents([ 0u8 ]) |> Stdlib.Test.equal(Error(5))
+    [ vnodeEvents([])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((false, false)))
+
+      vnodeEvents([ 0u8 ]) |> Stdlib.Test.equal(Stdlib.Result.Result.Error(5))
+
       vnodeEvents(kevent([ 0u8, 0u8 ], [ 2u8, 0u8, 0u8, 0u8 ], noData))
-      |> Stdlib.Test.equal(Ok((true, false)))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((true, false)))
+
       vnodeEvents(kevent([ 0u8, 0u8 ], [ 32u8, 0u8, 0u8, 0u8 ], noData))
-      |> Stdlib.Test.equal(Ok((true, true))) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((true, true))) ])
+
 
 test watchVnodeEventsWalksSeveralEvents =
   let noData = zeros(8)
   let changed = kevent([ 0u8, 0u8 ], [ 2u8, 0u8, 0u8, 0u8 ], noData)
+
   let deleted = kevent([ 0u8, 0u8 ], [ 1u8, 0u8, 0u8, 0u8 ], noData)
-  let failed = kevent([ 0u8, 64u8 ], [ 0u8, 0u8, 0u8, 0u8 ], [ 2u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8 ])
+
+  let failed =
+    kevent(
+      [ 0u8, 64u8 ],
+      [ 0u8, 0u8, 0u8, 0u8 ],
+      [ 2u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8 ])
+
   let failedNoErrno = kevent([ 0u8, 64u8 ], [ 0u8, 0u8, 0u8, 0u8 ], noData)
   Stdlib.Test.all(
     [ vnodeEvents(Stdlib.List.concat(changed, deleted))
-      |> Stdlib.Test.equal(Ok((true, true)))
-      vnodeEvents(Stdlib.List.concat(changed, failed)) |> Stdlib.Test.equal(Error(2))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((true, true)))
+
+      vnodeEvents(Stdlib.List.concat(changed, failed))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(2))
+
       vnodeEvents(Stdlib.List.concat(failedNoErrno, changed))
-      |> Stdlib.Test.equal(Ok((true, false)))
-      vnodeEvents(Stdlib.List.concat(changed, [ 1u8 ])) |> Stdlib.Test.equal(Error(5)) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((true, false)))
+
+      vnodeEvents(Stdlib.List.concat(changed, [ 1u8 ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(5)) ])
+
 
 // countNewlines
 test countNewlines =
   Stdlib.Test.all(
-    [ Stdlib.Cli.File.__countNewlines(Stdlib.Bytes.empty) |> Stdlib.Test.equal(0)
-      Stdlib.Cli.File.__countNewlines(Stdlib.Utf8.encode("a")) |> Stdlib.Test.equal(0)
+    [ Stdlib.Cli.File.__countNewlines(Stdlib.Bytes.empty)
+      |> Stdlib.Test.equal(0)
+
+      Stdlib.Cli.File.__countNewlines(Stdlib.Utf8.encode("a"))
+      |> Stdlib.Test.equal(0)
+
       Stdlib.Cli.File.__countNewlines(Stdlib.Utf8.encode("a\nb\n"))
       |> Stdlib.Test.equal(2)
+
       Stdlib.Cli.File.__countNewlines(Stdlib.Utf8.encode("\n\n\n"))
       |> Stdlib.Test.equal(3)
+
       Stdlib.Cli.File.__countNewlines(
         Stdlib.Utf8.encode(Stdlib.String.repeat("x\n", 1000)))
       |> Stdlib.Test.equal(1000) ])
+
 
 // dropThroughFirstNewline
 test dropThroughFirstNewline =
   let drop(text: String): Stdlib.Result.Result<String, String> =
     Stdlib.Utf8.decode(
       Stdlib.Cli.File.__dropThroughFirstNewline(Stdlib.Utf8.encode(text)))
+
   Stdlib.Test.all(
-    [ drop("") |> Stdlib.Test.equal(Ok(""))
-      drop("abc") |> Stdlib.Test.equal(Ok(""))
-      drop("a\nbc") |> Stdlib.Test.equal(Ok("bc"))
-      drop("\nx") |> Stdlib.Test.equal(Ok("x"))
-      drop("x\n") |> Stdlib.Test.equal(Ok(""))
-      drop("a\nb\nc") |> Stdlib.Test.equal(Ok("b\nc")) ])
+    [ drop("") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+      drop("abc") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+      drop("a\nbc") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("bc"))
+      drop("\nx") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("x"))
+      drop("x\n") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+      drop("a\nb\nc") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("b\nc")) ])
+
 
 // __copyWriteAt: a write must make exact progress; errors pass through
 test copyWriteAt =
   let abc = Stdlib.Utf8.encode("abc")
   Stdlib.Test.all(
-    [ Stdlib.Cli.File.__copyWriteAt((fun(_, _) -> Ok(1)), abc, 0)
-      |> Stdlib.Test.equal(Ok())
-      Stdlib.Cli.File.__copyWriteAt((fun(_, _) -> Ok(0)), abc, 0)
-      |> Stdlib.Test.equal(Error(5))
-      Stdlib.Cli.File.__copyWriteAt((fun(_, _) -> Ok(4)), abc, 0)
-      |> Stdlib.Test.equal(Error(5))
-      Stdlib.Cli.File.__copyWriteAt((fun(_, _) -> Error(28)), abc, 0)
-      |> Stdlib.Test.equal(Error(28)) ])
+    [ Stdlib.Cli.File.__copyWriteAt(
+        (fun(_, _) -> Stdlib.Result.Result.Ok(1)),
+        abc,
+        0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok())
+
+      Stdlib.Cli.File.__copyWriteAt(
+        (fun(_, _) -> Stdlib.Result.Result.Ok(0)),
+        abc,
+        0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(5))
+
+      Stdlib.Cli.File.__copyWriteAt(
+        (fun(_, _) -> Stdlib.Result.Result.Ok(4)),
+        abc,
+        0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(5))
+
+      Stdlib.Cli.File.__copyWriteAt(
+        (fun(_, _) -> Stdlib.Result.Result.Error(28)),
+        abc,
+        0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(28)) ])
+
 
 // __copyBuffered reads 64 KiB chunks from the offset until an empty read
 test copyBuffered =
   Stdlib.Cli.File.__copyBuffered(
     (fun(count, offset) ->
-      if count != 65536 then Error(22)
-      else if offset == 2 then Ok(Stdlib.Utf8.encode("abc"))
-      else if offset == 5 then Ok(Stdlib.Bytes.empty)
-      else Error(22)),
-    (fun(_, offset) -> if offset >= 2 && offset < 5 then Ok(1) else Error(22)),
+       if count != 65536 then
+         Stdlib.Result.Result.Error(22)
+       else if offset == 2 then
+         Stdlib.Result.Result.Ok(Stdlib.Utf8.encode("abc"))
+       else if offset == 5 then
+         Stdlib.Result.Result.Ok(Stdlib.Bytes.empty)
+       else
+         Stdlib.Result.Result.Error(22)),
+    (fun(_, offset) ->
+       if offset >= 2 && offset < 5 then
+         Stdlib.Result.Result.Ok(1)
+       else
+         Stdlib.Result.Result.Error(22)),
     2)
-  |> Stdlib.Test.equal(Ok())
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok())
+
 
 // Which errnos fall back to a buffered copy, and which error wins on close
 test copyFallbackAndFinish =
   let posixError = fun(errno, message) ->
     Stdlib.Cli.Posix.Error { errno = errno, message = message }
+
   Stdlib.Test.all(
     [ Stdlib.Cli.File.__copyUnsupported(18) |> Stdlib.Test.equal(true)
+
       Stdlib.Cli.File.__copyUnsupported(28) |> Stdlib.Test.equal(false)
+
       Stdlib.Cli.File.__copyFinish(
-        Error(posixError(28, "full")),
-        Error(posixError(5, "close")))
-      |> Stdlib.Test.equal(Error(posixError(28, "full"))) ])
+        Stdlib.Result.Result.Error(posixError(28, "full")),
+        Stdlib.Result.Result.Error(posixError(5, "close")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(posixError(28, "full"))) ])
+
 
 // Copying a directory fails with EISDIR and leaves no destination behind
 test copyDirectoryRefused =
@@ -151,18 +234,29 @@ test copyDirectoryRefused =
       match copied with
       | Error(e) -> Stdlib.Option.Option.Some(e.errno)
       | Ok(_) -> Stdlib.Option.Option.None
+
     (errno, Stdlib.Cli.File.exists(destination)))
-  |> Stdlib.Test.equal(Ok((Stdlib.Option.Option.Some(21), false)))
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Ok((Stdlib.Option.Option.Some(21), false)))
+
 
 // Watching a missing path returns at once; a zero interval is still valid
 test watchEdges =
-  let immediate =
-    Stdlib.Cli.Dir.withTemp(fun dir ->
-      let path = $"{dir}/watch"
-      let wrote = Stdlib.Cli.File.writeText(path, "x")
-      let watched = Stdlib.Cli.File.watch(path, 0.0, (fun _ -> true), fun _ -> ())
-      (wrote, watched))
+  let immediate = Stdlib.Cli.Dir.withTemp(fun dir ->
+    let path = $"{dir}/watch"
+    let wrote = Stdlib.Cli.File.writeText(path, "x")
+    let watched = Stdlib.Cli.File.watch(path, 0.0, (fun _ -> true), fun _ -> ())
+    (wrote, watched))
+
   Stdlib.Test.all(
-    [ Stdlib.Cli.File.__watchLinux("/does-not-exist", 10, (fun _ -> true), fun _ -> ())
-      |> Stdlib.Test.equal(Ok())
-      immediate |> Stdlib.Test.equal(Ok((Ok(), Ok()))) ])
+    [ Stdlib.Cli.File.__watchLinux(
+        "/does-not-exist",
+        10,
+        (fun _ -> true),
+        fun _ -> ())
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok())
+
+      immediate
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          (Stdlib.Result.Result.Ok(), Stdlib.Result.Result.Ok()))) ])

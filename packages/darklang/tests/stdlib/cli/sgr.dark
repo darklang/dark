@@ -4,6 +4,7 @@ module Darklang.Stdlib.Cli.Tui.Text.Tests.Sgr
 let colored(text: String): String =
   Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.pink, text)
 
+
 test styledWidth =
   Stdlib.Test.all(
     [ Stdlib.Cli.Tui.Text.styledWidth("hello") |> Stdlib.Test.equal(5)
@@ -12,13 +13,16 @@ test styledWidth =
       // width.
       Stdlib.Cli.Tui.Text.styledWidth("\u001b[2Ka") |> Stdlib.Test.equal(1) ])
 
+
 test stripSgr =
   Stdlib.Cli.Tui.Text.stripSgr(colored("abc")) |> Stdlib.Test.equal("abc")
+
 
 test clipToWidth =
   Stdlib.Cli.Tui.Text.clipToWidth(colored("abcdef"), 3)
   |> Stdlib.Cli.Tui.Text.stripSgr
   |> Stdlib.Test.equal("abc")
+
 
 test wrapAtColumn =
   Stdlib.Cli.Tui.Text.wrapAtColumn(colored("abcdef"), 3)

@@ -12,20 +12,26 @@ module Darklang.SCM.Tests.Draft
 // op blob, and the one that reads where committed ops sit in the log, which nothing in
 // the SCM reports.
 
-let draftCount(): Int64 = Darklang.SCM.PackageOps.draftOpCountFor(Authoring.main())
+let draftCount(): Int64 =
+  SCM.PackageOps.draftOpCountFor(Authoring.main())
+
 
 /// Main's ops that are not its draft: the committed ones, and any a merge brought in. A discard
 /// must leave every one of them alone.
 let committedOpCount(): Int64 =
-  Darklang.SCM.PackageOps.countOf(Darklang.SCM.PackageOps.OpFilter.Main) - draftCount()
+  SCM.PackageOps.countOf(SCM.PackageOps.OpFilter.Main) - draftCount()
+
 
 let commit(message: String): Stdlib.Result.Result<String, String> =
-  Darklang.SCM.PackageOps.commitDraft(Authoring.main(), message)
+  SCM.PackageOps.commitDraft(Authoring.main(), message)
 
-let discardAll(): Stdlib.Result.Result<Int64, String> = Darklang.SCM.Draft.discardAll()
+
+let discardAll(): Stdlib.Result.Result<Int64, String> =
+  SCM.Draft.discardAll()
+
 
 let discardName(m: String, name: String): Stdlib.Result.Result<Int64, String> =
-  Darklang.SCM.Draft.discardName("Tests", [ m ], name)
+  SCM.Draft.discardName("Tests", [ m ], name)
 
 
 test discardDropsTheDraftAndLeavesCommittedOpsAlone =
@@ -41,11 +47,17 @@ test discardDropsTheDraftAndLeavesCommittedOpsAlone =
     [ Authoring.ok(setup)
       Authoring.ok(committed)
       Authoring.ok(edit)
-      (draftBefore > 0) |> Stdlib.Test.equal(true)
-      dropped |> Stdlib.Test.equal(Ok(draftBefore))
+      draftBefore > 0 |> Stdlib.Test.equal(true)
+
+      dropped |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(draftBefore))
+
       draftCount() |> Stdlib.Test.equal(0)
+
       committedOpCount() |> Stdlib.Test.equal(committedBefore)
-      Authoring.fnHash(m, "dropMe") |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Authoring.fnHash(m, "dropMe")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Authoring.fnHash(m, "keep") |> Stdlib.Test.equal(keepBefore) ])
 
 
@@ -79,7 +91,7 @@ test discardingAnEmptyDraftChangesNothing =
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Authoring.ok(committed)
-      discardAll() |> Stdlib.Test.equal(Ok(0))
+      discardAll() |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0))
       committedOpCount() |> Stdlib.Test.equal(committedBefore)
       Authoring.fnHash(m, "e") |> Stdlib.Test.equal(before) ])
 
@@ -95,31 +107,47 @@ test collapsingKeepsOneNamingPerName =
       [ "let c(): Int64 = 9001"
         "let c(): Int64 = 9002"
         "let c(): Int64 = 9003" ])
+
   let before = Authoring.fnHash(m, "c")
   let draftBefore = draftCount()
-  let collapsed = Darklang.SCM.Draft.collapse()
-  let history = Darklang.SCM.Propagation.authoringOrder(Authoring.loc(m, "c"))
+  let collapsed = SCM.Draft.collapse()
+  let history = SCM.Propagation.authoringOrder(Authoring.loc(m, "c"))
   Stdlib.Test.all(
     [ Authoring.ok(setup)
-      (collapsed |> Stdlib.Result.map(fun n -> n > 0)) |> Stdlib.Test.equal(Ok(true))
+      (collapsed |> Stdlib.Result.map(fun n -> n > 0))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+
       Authoring.fnHash(m, "c") |> Stdlib.Test.equal(before)
-      (history |> Stdlib.List.map(fun h -> Darklang.LanguageTools.ProgramTypes.Hash.Hash(h)))
+
+      (history
+       |> Stdlib.List.map(fun h -> LanguageTools.ProgramTypes.Hash.Hash(h)))
       |> Stdlib.Test.equal(before |> Stdlib.Option.toList)
-      (draftCount() < draftBefore) |> Stdlib.Test.equal(true) ])
+
+      draftCount() < draftBefore |> Stdlib.Test.equal(true) ])
 
 
 test discardingOneNameLeavesTheRestOfTheDraft =
   let m = "DraftTestOneName"
-  let setup = Authoring.author(m, "let keepMe(): Int64 = 5001\n\nlet dropMe(): Int64 = 5002")
+  let setup =
+    Authoring.author(
+      m,
+      "let keepMe(): Int64 = 5001\n\nlet dropMe(): Int64 = 5002")
+
   let keepBefore = Authoring.fnHash(m, "keepMe")
   let dropped = discardName(m, "dropMe")
   Stdlib.Test.all(
     [ Authoring.ok(setup)
-      (Stdlib.Option.isSome(keepBefore)) |> Stdlib.Test.equal(true)
-      (dropped |> Stdlib.Result.map(fun n -> n > 0)) |> Stdlib.Test.equal(Ok(true))
-      Authoring.fnHash(m, "dropMe") |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      Stdlib.Option.isSome(keepBefore) |> Stdlib.Test.equal(true)
+
+      (dropped |> Stdlib.Result.map(fun n -> n > 0))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+
+      Authoring.fnHash(m, "dropMe")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       Authoring.fnHash(m, "keepMe") |> Stdlib.Test.equal(keepBefore)
-      (draftCount() > 0) |> Stdlib.Test.equal(true) ])
+
+      draftCount() > 0 |> Stdlib.Test.equal(true) ])
 
 
 // Discarding a name drops its NAMING only. A dependent references content by hash, so
@@ -128,11 +156,18 @@ test discardingOneNameLeavesTheRestOfTheDraft =
 // 1 op is right, 2 is the bug.
 test discardingANameDropsTheNamingNotTheContent =
   let m = "DraftTestNeededContent"
-  let setup = Authoring.author(m, "let basis(): Int64 = 6001\n\nlet uses(): Int64 = basis()")
+  let setup =
+    Authoring.author(
+      m,
+      "let basis(): Int64 = 6001\n\nlet uses(): Int64 = basis()")
+
   let before = Authoring.fnHash(m, "basis")
   let dropped = discardName(m, "basis")
   Stdlib.Test.all(
     [ Authoring.ok(setup)
-      (Stdlib.Option.isSome(before)) |> Stdlib.Test.equal(true)
-      dropped |> Stdlib.Test.equal(Ok(1))
-      Authoring.fnHash(m, "basis") |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      Stdlib.Option.isSome(before) |> Stdlib.Test.equal(true)
+
+      dropped |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1))
+
+      Authoring.fnHash(m, "basis")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])

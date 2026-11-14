@@ -5,7 +5,7 @@ let execute(state: AppState, args: List<String>): AppState =
   // Explicit, because the only other argument shape is a PATH: without this arm a bare `help` is taken
   // as one, and a typo writes a 32MB seed database to a file called `help`. With no path at all it
   // refuses, before it gets here: there is nothing to export to.
-  | [ "help" ] ->
+  | ["help"] ->
     Stdlib.printLine(help(state))
     state
   | [outputPath] ->
@@ -15,10 +15,11 @@ let execute(state: AppState, args: List<String>): AppState =
       state
     | Error(err) ->
       Stdlib.printErrorLine(View.formatError($"Export failed: {err}"))
-      Cli.failed(state)
+      failed(state)
   | _ ->
     Stdlib.printErrorLine(View.formatError("Usage: export-seed <output-path>"))
-    Cli.failed(state)
+    failed(state)
+
 
 let help(_state: AppState): String =
   [ "Export a minimal seed.db from the current database."
@@ -29,6 +30,7 @@ let help(_state: AppState): String =
     "excluding derived data (locations, types, values, functions)."
     "Archived branches are excluded." ]
   |> Stdlib.String.join("\n")
+
 
 let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =
   []

@@ -5,39 +5,54 @@ module Darklang.Stdlib.Json.Tests
 // None of these are supported as <> type args in the parser,
 // so do we really have to do anything here?
 // It feels like a "no" to me - ignoring for now.
-type Person = { Name: String, Age: Int64 }
+type Person =
+  { Name: String
+    Age: Int64 }
+
 
 type Result<'ok, 'err> = Stdlib.Result.Result<'ok, 'err>
+
 type Option<'t> = Stdlib.Option.Option<'t>
+
 
 let err(
   v: Stdlib.Result.Result<'a, Stdlib.Json.ParseError.ParseError>)
   : Result<'a, String> =
   v
   |> Stdlib.Result.mapError(fun e ->
-    Stdlib.Json.ParseError.toString(Darklang.SCM.Branch.mainBranchId, e))
+    Stdlib.Json.ParseError.toString(SCM.Branch.mainBranchId, e))
 
 
 module Unit =
-  test serialize =
-    Stdlib.Json.serialize<Unit>() |> Stdlib.Test.equal("null")
+  test serialize = Stdlib.Json.serialize<Unit>() |> Stdlib.Test.equal("null")
 
-  test parse =
-    Stdlib.Json.parse<Unit>("null") |> Stdlib.Test.equal(Result.Ok())
+  test parse = Stdlib.Json.parse<Unit>("null") |> Stdlib.Test.equal(Result.Ok())
+
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<Int64>("()")) |> err
+        [ Stdlib.Json.parse<Int64>("()")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 1"))
-          (Stdlib.Json.parse<Unit>("0")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `0` as type `Unit` at path: `root`")))
-          (Stdlib.Json.parse<Unit>("\"\"")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `\"\"` as type `Unit` at path: `root`")))
-          (Stdlib.Json.parse<Unit>("\"null\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `\"null\"` as type `Unit` at path: `root`")) ])
+
+          Stdlib.Json.parse<Unit>("0")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error("Can't parse JSON `0` as type `Unit` at path: `root`"))
+
+          Stdlib.Json.parse<Unit>("\"\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"\"` as type `Unit` at path: `root`"))
+
+          Stdlib.Json.parse<Unit>("\"null\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"null\"` as type `Unit` at path: `root`")) ])
+
 
 module Bool =
   test serialize =
@@ -45,34 +60,63 @@ module Bool =
       [ Stdlib.Json.serialize<Bool>(true) |> Stdlib.Test.equal("true")
         Stdlib.Json.serialize<Bool>(false) |> Stdlib.Test.equal("false") ])
 
+
   test parse =
     Stdlib.Test.all(
       [ Stdlib.Json.parse<Bool>("true") |> Stdlib.Test.equal(Result.Ok(true))
+
         Stdlib.Json.parse<Bool>("false") |> Stdlib.Test.equal(Result.Ok(false))
+
         Stdlib.Json.parse<Bool>(" true ") |> Stdlib.Test.equal(Result.Ok(true))
-        Stdlib.Json.parse<Bool>(" false ") |> Stdlib.Test.equal(Result.Ok(false))
+
+        Stdlib.Json.parse<Bool>(" false ")
+        |> Stdlib.Test.equal(Result.Ok(false))
+
         Stdlib.Json.parse<List<Bool>>("[true, true, false, true  ] ")
         |> Stdlib.Test.equal(Result.Ok([ true, true, false, true ])) ])
+
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<Bool>("tru")) |> err
+        [ Stdlib.Json.parse<Bool>("tru")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4"))
-          (Stdlib.Json.parse<Bool>("null")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `null` as type `Bool` at path: `root`"))
-          (Stdlib.Json.parse<Bool>("")) |> err
+
+          Stdlib.Json.parse<Bool>("null")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `null` as type `Bool` at path: `root`"))
+
+          Stdlib.Json.parse<Bool>("")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 1"))
-          (Stdlib.Json.parse<Bool>("\"true\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `\"true\"` as type `Bool` at path: `root`"))
-          (Stdlib.Json.parse<Bool>("0")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `0` as type `Bool` at path: `root`"))
-          (Stdlib.Json.parse<Bool>("1")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `1` as type `Bool` at path: `root`"))
-          (Stdlib.Json.parse<Bool>("False")) |> err
+
+          Stdlib.Json.parse<Bool>("\"true\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"true\"` as type `Bool` at path: `root`"))
+
+          Stdlib.Json.parse<Bool>("0")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error("Can't parse JSON `0` as type `Bool` at path: `root`"))
+
+          Stdlib.Json.parse<Bool>("1")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error("Can't parse JSON `1` as type `Bool` at path: `root`"))
+
+          Stdlib.Json.parse<Bool>("False")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 1"))
-          (Stdlib.Json.parse<Bool>("tRUE")) |> err
+
+          Stdlib.Json.parse<Bool>("tRUE")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2")) ])
+
 
 module BigInt =
   module Basic =
@@ -80,13 +124,20 @@ module BigInt =
       Stdlib.Test.all(
         [ Stdlib.Json.serialize<BigInt>(0z) |> Stdlib.Test.equal("0")
           Stdlib.Json.serialize<BigInt>(12345z) |> Stdlib.Test.equal("12345")
-          Stdlib.Json.serialize<BigInt>(-12345z) |> Stdlib.Test.equal("-12345") ])
+          Stdlib.Json.serialize<BigInt>(-12345z)
+          |> Stdlib.Test.equal("-12345") ])
+
 
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<BigInt>("0") |> Stdlib.Test.equal(Result.Ok(0z))
-          Stdlib.Json.parse<BigInt>("12345") |> Stdlib.Test.equal(Result.Ok(12345z))
-          Stdlib.Json.parse<BigInt>("-12345") |> Stdlib.Test.equal(Result.Ok(-12345z)) ])
+
+          Stdlib.Json.parse<BigInt>("12345")
+          |> Stdlib.Test.equal(Result.Ok(12345z))
+
+          Stdlib.Json.parse<BigInt>("-12345")
+          |> Stdlib.Test.equal(Result.Ok(-12345z)) ])
+
 
   module Huge =
     test serialize =
@@ -94,15 +145,20 @@ module BigInt =
         [ // arbitrary precision: well past Int64, exact round-trip
           Stdlib.Json.serialize<BigInt>(123456789012345678901234567890z)
           |> Stdlib.Test.equal("123456789012345678901234567890")
-          Stdlib.Json.parse<BigInt>(Stdlib.Json.serialize<BigInt>(99999999999999999999999999999999z))
+
+          Stdlib.Json.parse<BigInt>(
+            Stdlib.Json.serialize<BigInt>(99999999999999999999999999999999z))
           |> Stdlib.Test.equal(Result.Ok(99999999999999999999999999999999z)) ])
+
 
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<BigInt>("123456789012345678901234567890")
           |> Stdlib.Test.equal(Result.Ok(123456789012345678901234567890z))
+
           Stdlib.Json.parse<BigInt>("-123456789012345678901234567890")
           |> Stdlib.Test.equal(Result.Ok(-123456789012345678901234567890z)) ])
+
 
   module PastInt64 =
     test serialize =
@@ -111,15 +167,19 @@ module BigInt =
       Stdlib.Json.serialize<BigInt>(9223372036854775808z)
       |> Stdlib.Test.equal("9223372036854775808")
 
+
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<BigInt>("9223372036854775808")
           |> Stdlib.Test.equal(Result.Ok(9223372036854775808z))
+
           Stdlib.Json.parse<BigInt>("-9223372036854775809")
           |> Stdlib.Test.equal(Result.Ok(-9223372036854775809z))
+
           // a float-form just above the Int64 max (Int64 rejects "9.3E18")
           Stdlib.Json.parse<BigInt>("9.3E18")
           |> Stdlib.Test.equal(Result.Ok(9300000000000000000z)) ])
+
 
   module IntegerValuedFloatForms =
     test parse =
@@ -127,37 +187,76 @@ module BigInt =
         [ // integer-valued decimal/exponent forms are accepted, parsed EXACTLY
           // (the same forms the fixed-width int parsers accept)
           Stdlib.Json.parse<BigInt>("0.0") |> Stdlib.Test.equal(Result.Ok(0z))
+
           Stdlib.Json.parse<BigInt>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1z))
-          Stdlib.Json.parse<BigInt>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120z))
-          Stdlib.Json.parse<BigInt>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120z))
-          Stdlib.Json.parse<BigInt>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120z))
+
+          Stdlib.Json.parse<BigInt>("1.2E2")
+          |> Stdlib.Test.equal(Result.Ok(120z))
+
+          Stdlib.Json.parse<BigInt>("1.2E+2")
+          |> Stdlib.Test.equal(Result.Ok(120z))
+
+          Stdlib.Json.parse<BigInt>("1200E-1")
+          |> Stdlib.Test.equal(Result.Ok(120z))
+
           // exact even past 2^53 — guards the precision-loss regression
           Stdlib.Json.parse<BigInt>("9007199254740993.0")
           |> Stdlib.Test.equal(Result.Ok(9007199254740993z)) ])
+
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
         [ // genuinely fractional values are rejected, never rounded
-          (Stdlib.Json.parse<BigInt>("1.5")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `1.5` as type `BigInt` at path: `root`"))
-          (Stdlib.Json.parse<BigInt>("9007199254740993.5")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `9007199254740993.5` as type `BigInt` at path: `root`"))
-          (Stdlib.Json.parse<BigInt>("\"42\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `\"42\"` as type `BigInt` at path: `root`"))
-          (Stdlib.Json.parse<BigInt>("null")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `null` as type `BigInt` at path: `root`"))
+          Stdlib.Json.parse<BigInt>("1.5")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `1.5` as type `BigInt` at path: `root`"))
+
+          Stdlib.Json.parse<BigInt>("9007199254740993.5")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `9007199254740993.5` as type `BigInt` at path: `root`"))
+
+          Stdlib.Json.parse<BigInt>("\"42\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"42\"` as type `BigInt` at path: `root`"))
+
+          Stdlib.Json.parse<BigInt>("null")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `null` as type `BigInt` at path: `root`"))
+
           // extreme exponents are rejected cleanly, never crash or hang the parser
-          (Stdlib.Json.parse<BigInt>("1e2147483647")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `1e2147483647` as type `BigInt` at path: `root`"))
-          (Stdlib.Json.parse<BigInt>("1e-2147483647")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `1e-2147483647` as type `BigInt` at path: `root`"))
-          (Stdlib.Json.parse<BigInt>("1e-2147483648")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `1e-2147483648` as type `BigInt` at path: `root`")) ])
+          Stdlib.Json.parse<BigInt>("1e2147483647")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `1e2147483647` as type `BigInt` at path: `root`"))
+
+          Stdlib.Json.parse<BigInt>("1e-2147483647")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `1e-2147483647` as type `BigInt` at path: `root`"))
+
+          Stdlib.Json.parse<BigInt>("1e-2147483648")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `1e-2147483648` as type `BigInt` at path: `root`")) ])
+
 
     test parse =
       // ...but zero with an extreme negative exponent is still exactly zero
-      Stdlib.Json.parse<BigInt>("0e-2147483648") |> Stdlib.Test.equal(Result.Ok(0z))
+      Stdlib.Json.parse<BigInt>("0e-2147483648")
+      |> Stdlib.Test.equal(Result.Ok(0z))
+
 
 module Int64 =
   module Basic =
@@ -167,20 +266,32 @@ module Int64 =
           Stdlib.Json.serialize<Int64>(12345) |> Stdlib.Test.equal("12345")
           Stdlib.Json.serialize<Int64>(-12345) |> Stdlib.Test.equal("-12345") ])
 
+
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<Int64>("0") |> Stdlib.Test.equal(Result.Ok(0))
+
           Stdlib.Json.parse<Int64>("0.0") |> Stdlib.Test.equal(Result.Ok(0))
+
           Stdlib.Json.parse<Int64>("-0.0") |> Stdlib.Test.equal(Result.Ok(0))
+
           Stdlib.Json.parse<Int64>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1))
+
           Stdlib.Json.parse<Int64>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120))
-          Stdlib.Json.parse<Int64>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120))
-          Stdlib.Json.parse<Int64>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120))
+
+          Stdlib.Json.parse<Int64>("1.2E+2")
+          |> Stdlib.Test.equal(Result.Ok(120))
+
+          Stdlib.Json.parse<Int64>("1200E-1")
+          |> Stdlib.Test.equal(Result.Ok(120))
+
           // exact past 2^53, never through a double
           Stdlib.Json.parse<Int64>("9007199254740993.0")
           |> Stdlib.Test.equal(Result.Ok(9007199254740993))
+
           Stdlib.Json.parse<Int64>("9223372036854775806.0")
           |> Stdlib.Test.equal(Result.Ok(9223372036854775806)) ])
+
 
   module Int32Limits =
     test serialize =
@@ -188,26 +299,34 @@ module Int64 =
         [ // test the limits of int32 (-2147483648 to 2147483647)
           Stdlib.Json.serialize<Int64>(-2147483648)
           |> Stdlib.Test.equal("-2147483648")
-          Stdlib.Json.serialize<Int64>(2147483647) |> Stdlib.Test.equal("2147483647")
+
+          Stdlib.Json.serialize<Int64>(2147483647)
+          |> Stdlib.Test.equal("2147483647")
+
           Stdlib.Json.serialize<Int64>(-2147483649)
           |> Stdlib.Test.equal("-2147483649")
+
           Stdlib.Json.serialize<Int64>(2147483648)
           |> Stdlib.Test.equal("2147483648") ])
+
 
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<Int64>("-2147483648")
           |> Stdlib.Test.equal(Result.Ok(-2147483648))
+
           Stdlib.Json.parse<Int64>("2147483647")
           |> Stdlib.Test.equal(Result.Ok(2147483647))
+
           Stdlib.Json.parse<Int64>("-2147483649")
           |> Stdlib.Test.equal(Result.Ok(-2147483649))
+
           Stdlib.Json.parse<Int64>("2147483648")
           |> Stdlib.Test.equal(Result.Ok(2147483648)) ])
 
+
   module Int64Limits =
     // test the limits of int64 (-9223372036854775808 to 9223372036854775807)
-
     // TODO: consider putting ints that won't fit exactly in a float into strings to
     // be certain
     //
@@ -215,85 +334,147 @@ module Int64 =
     test parseErrors =
       Stdlib.Test.all(
         [ // First number that doesn't fit in an int64
-          (Stdlib.Json.parse<Int64>("9223372036854775808")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `9223372036854775808` as type `Int64` at path: `root`"))
+          Stdlib.Json.parse<Int64>("9223372036854775808")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `9223372036854775808` as type `Int64` at path: `root`"))
+
           // This is a float that is slightly above the int64 max
-          (Stdlib.Json.parse<Int64>("9.3E18")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `9.3E18` as type `Int64` at path: `root`")) ])
+          Stdlib.Json.parse<Int64>("9.3E18")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `9.3E18` as type `Int64` at path: `root`")) ])
+
 
     test parse =
       Stdlib.Test.all(
         [ // This is a float that is a valid int64
           Stdlib.Json.parse<Int64>("9.2E18")
           |> Stdlib.Test.equal(Result.Ok(9200000000000000000))
+
           Stdlib.Json.parse<Int64>("9223372036854775807")
           |> Stdlib.Test.equal(Result.Ok(9223372036854775807))
+
           Stdlib.Json.parse<Int64>("-9223372036854775808")
           |> Stdlib.Test.equal(Result.Ok(-9223372036854775808)) ])
+
 
     test serialize =
       Stdlib.Test.all(
         [ Stdlib.Json.serialize<Int64>(9223372036854775807)
           |> Stdlib.Test.equal("9223372036854775807")
+
           Stdlib.Json.serialize<Int64>(-9223372036854775808)
           |> Stdlib.Test.equal("-9223372036854775808") ])
+
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
         [ // not ints
-          (Stdlib.Json.parse<Int64>(" ")) |> err
+          Stdlib.Json.parse<Int64>(" ")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<Int64>("4a")) |> err
+
+          Stdlib.Json.parse<Int64>("4a")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<Int64>("- 42")) |> err
+
+          Stdlib.Json.parse<Int64>("- 42")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<Int64>("null")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `null` as type `Int64` at path: `root`"))
-          (Stdlib.Json.parse<Int64>("true")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `true` as type `Int64` at path: `root`"))
-          (Stdlib.Json.parse<Int64>("false")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `false` as type `Int64` at path: `root`"))
-          (Stdlib.Json.parse<Int64>("\"42\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `\"42\"` as type `Int64` at path: `root`"))
-          (Stdlib.Json.parse<Int64>("[42]")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `[42]` as type `Int64` at path: `root`"))
-          (Stdlib.Json.parse<Int64>("{ \"key\": 42 }")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `{ \"key\": 42 }` as type `Int64` at path: `root`"))
-          (Stdlib.Json.parse<Int64>("42.5")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `42.5` as type `Int64` at path: `root`"))
-          (Stdlib.Json.parse<Int64>("\"42\n\"")) |> err
+
+          Stdlib.Json.parse<Int64>("null")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `null` as type `Int64` at path: `root`"))
+
+          Stdlib.Json.parse<Int64>("true")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `true` as type `Int64` at path: `root`"))
+
+          Stdlib.Json.parse<Int64>("false")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `false` as type `Int64` at path: `root`"))
+
+          Stdlib.Json.parse<Int64>("\"42\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"42\"` as type `Int64` at path: `root`"))
+
+          Stdlib.Json.parse<Int64>("[42]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[42]` as type `Int64` at path: `root`"))
+
+          Stdlib.Json.parse<Int64>("{ \"key\": 42 }")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `{ \"key\": 42 }` as type `Int64` at path: `root`"))
+
+          Stdlib.Json.parse<Int64>("42.5")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `42.5` as type `Int64` at path: `root`"))
+
+          Stdlib.Json.parse<Int64>("\"42\n\"")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4")) ])
+
 
 module UInt64 =
   module Basic =
     test serialize =
       Stdlib.Test.all(
         [ Stdlib.Json.serialize<UInt64>(0u64) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<UInt64>(12345u64) |> Stdlib.Test.equal("12345") ])
+          Stdlib.Json.serialize<UInt64>(12345u64)
+          |> Stdlib.Test.equal("12345") ])
+
 
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<UInt64>("0") |> Stdlib.Test.equal(Result.Ok(0u64))
+
           Stdlib.Json.parse<UInt64>("0.0") |> Stdlib.Test.equal(Result.Ok(0u64))
-          Stdlib.Json.parse<UInt64>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120u64))
-          Stdlib.Json.parse<UInt64>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120u64))
+
+          Stdlib.Json.parse<UInt64>("1.2E2")
+          |> Stdlib.Test.equal(Result.Ok(120u64))
+
+          Stdlib.Json.parse<UInt64>("1.2E+2")
+          |> Stdlib.Test.equal(Result.Ok(120u64))
+
           Stdlib.Json.parse<UInt64>("1200E-1")
           |> Stdlib.Test.equal(Result.Ok(120u64)) ])
+
 
   module UInt64Limits =
     // test the limits of uint64 (0 to 18446744073709551615)
     test serialize =
       Stdlib.Test.all(
         [ Stdlib.Json.serialize<UInt64>(0u64) |> Stdlib.Test.equal("0")
+
           Stdlib.Json.serialize<UInt64>(18446744073709551615u64)
           |> Stdlib.Test.equal("18446744073709551615") ])
+
 
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<UInt64>("0") |> Stdlib.Test.equal(Result.Ok(0u64))
+
           Stdlib.Json.parse<UInt64>("18446744073709551615")
           |> Stdlib.Test.equal(Result.Ok(18446744073709551615u64)) ])
+
 
     // First number that doesn't fit in an int64
     // TODO : The two commented tests below are failing due to a bug in the
@@ -302,56 +483,90 @@ module UInt64 =
     // (Stdlib.Json.parse<UInt64> "18446744073709551616") |> err
     // |> Stdlib.Test.equal
     //   (Result.Error "Can't parse JSON `18446744073709551616` as type `UInt64` at path: `root`")
-
     // A floating-point number in the UInt64 range can parse as UInt64.
     test rejectsFirstOverflow =
       Stdlib.Json.parse<UInt64>("18446744073709551616")
       |> err
       |> Stdlib.Test.equal(
-        Result.Error("Can't parse JSON `18446744073709551616` as type `UInt64` at path: `root`"))
+        Result.Error(
+          "Can't parse JSON `18446744073709551616` as type `UInt64` at path: `root`"))
+
 
     test parsesScientificMaximum =
       Stdlib.Json.parse<UInt64>("1.8446744073709551615E19")
       |> Stdlib.Test.equal(Result.Ok(18446744073709551615u64))
 
+
     test parseErrors =
       // This is a float that is slightly above the uint64 max
-      (Stdlib.Json.parse<UInt64>("1.9E19")) |> err
-      |> Stdlib.Test.equal((Result.Error(
-          "Can't parse JSON `1.9E19` as type `UInt64` at path: `root`")))
+      Stdlib.Json.parse<UInt64>("1.9E19")
+      |> err
+      |> Stdlib.Test.equal(
+        Result.Error(
+          "Can't parse JSON `1.9E19` as type `UInt64` at path: `root`"))
+
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<UInt64>(" ")) |> err
+        [ Stdlib.Json.parse<UInt64>(" ")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<UInt64>("4a")) |> err
+
+          Stdlib.Json.parse<UInt64>("4a")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<UInt64>("- 42")) |> err
+
+          Stdlib.Json.parse<UInt64>("- 42")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<UInt64>("null")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `null` as type `UInt64` at path: `root`")))
-          (Stdlib.Json.parse<UInt64>("true")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `true` as type `UInt64` at path: `root`")))
-          (Stdlib.Json.parse<UInt64>("false")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `false` as type `UInt64` at path: `root`")))
-          (Stdlib.Json.parse<UInt64>("\"42\"")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `\"42\"` as type `UInt64` at path: `root`")))
-          (Stdlib.Json.parse<UInt64>("[42]")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `[42]` as type `UInt64` at path: `root`")))
-          (Stdlib.Json.parse<UInt64>("{ \"key\": 42 }")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `{ \"key\": 42 }` as type `UInt64` at path: `root`")))
-          (Stdlib.Json.parse<UInt64>("42.5")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `42.5` as type `UInt64` at path: `root`")))
-          (Stdlib.Json.parse<UInt64>("\"42\n\"")) |> err
+
+          Stdlib.Json.parse<UInt64>("null")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `null` as type `UInt64` at path: `root`"))
+
+          Stdlib.Json.parse<UInt64>("true")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `true` as type `UInt64` at path: `root`"))
+
+          Stdlib.Json.parse<UInt64>("false")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `false` as type `UInt64` at path: `root`"))
+
+          Stdlib.Json.parse<UInt64>("\"42\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"42\"` as type `UInt64` at path: `root`"))
+
+          Stdlib.Json.parse<UInt64>("[42]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[42]` as type `UInt64` at path: `root`"))
+
+          Stdlib.Json.parse<UInt64>("{ \"key\": 42 }")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `{ \"key\": 42 }` as type `UInt64` at path: `root`"))
+
+          Stdlib.Json.parse<UInt64>("42.5")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `42.5` as type `UInt64` at path: `root`"))
+
+          Stdlib.Json.parse<UInt64>("\"42\n\"")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4")) ])
+
 
 module Int8 =
   module Basic =
@@ -361,15 +576,26 @@ module Int8 =
           Stdlib.Json.serialize<Int8>(123s8) |> Stdlib.Test.equal("123")
           Stdlib.Json.serialize<Int8>(-123s8) |> Stdlib.Test.equal("-123") ])
 
+
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<Int8>("0") |> Stdlib.Test.equal(Result.Ok(0s8))
+
           Stdlib.Json.parse<Int8>("0.0") |> Stdlib.Test.equal(Result.Ok(0s8))
+
           Stdlib.Json.parse<Int8>("-0.0") |> Stdlib.Test.equal(Result.Ok(0s8))
+
           Stdlib.Json.parse<Int8>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1s8))
-          Stdlib.Json.parse<Int8>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120s8))
-          Stdlib.Json.parse<Int8>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120s8))
-          Stdlib.Json.parse<Int8>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120s8)) ])
+
+          Stdlib.Json.parse<Int8>("1.2E2")
+          |> Stdlib.Test.equal(Result.Ok(120s8))
+
+          Stdlib.Json.parse<Int8>("1.2E+2")
+          |> Stdlib.Test.equal(Result.Ok(120s8))
+
+          Stdlib.Json.parse<Int8>("1200E-1")
+          |> Stdlib.Test.equal(Result.Ok(120s8)) ])
+
 
   module Int8Limits =
     test serialize =
@@ -377,43 +603,92 @@ module Int8 =
         [ Stdlib.Json.serialize<Int8>(-128s8) |> Stdlib.Test.equal("-128")
           Stdlib.Json.serialize<Int8>(127s8) |> Stdlib.Test.equal("127") ])
 
+
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<Int8>("-128") |> Stdlib.Test.equal(Result.Ok(-128s8))
-          Stdlib.Json.parse<Int8>("127") |> Stdlib.Test.equal(Result.Ok(127s8)) ])
+        [ Stdlib.Json.parse<Int8>("-128")
+          |> Stdlib.Test.equal(Result.Ok(-128s8))
+
+          Stdlib.Json.parse<Int8>("127")
+          |> Stdlib.Test.equal(Result.Ok(127s8)) ])
+
 
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<Int8>("-129")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `-129` as type `Int8` at path: `root`"))
-          (Stdlib.Json.parse<Int8>("128")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `128` as type `Int8` at path: `root`")) ])
+        [ Stdlib.Json.parse<Int8>("-129")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `-129` as type `Int8` at path: `root`"))
+
+          Stdlib.Json.parse<Int8>("128")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `128` as type `Int8` at path: `root`")) ])
+
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<Int8>(" ")) |> err
+        [ Stdlib.Json.parse<Int8>(" ")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<Int8>("4a")) |> err
+
+          Stdlib.Json.parse<Int8>("4a")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<Int8>("- 42")) |> err
+
+          Stdlib.Json.parse<Int8>("- 42")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<Int8>("null")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `null` as type `Int8` at path: `root`"))
-          (Stdlib.Json.parse<Int8>("true")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `true` as type `Int8` at path: `root`"))
-          (Stdlib.Json.parse<Int8>("false")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `false` as type `Int8` at path: `root`"))
-          (Stdlib.Json.parse<Int8>("\"42\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `\"42\"` as type `Int8` at path: `root`"))
-          (Stdlib.Json.parse<Int8>("[42]")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `[42]` as type `Int8` at path: `root`"))
-          (Stdlib.Json.parse<Int8>("{ \"key\": 42 }")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `{ \"key\": 42 }` as type `Int8` at path: `root`"))
-          (Stdlib.Json.parse<Int8>("42.5")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `42.5` as type `Int8` at path: `root`"))
-          (Stdlib.Json.parse<Int8>("\"42\n\"")) |> err
+
+          Stdlib.Json.parse<Int8>("null")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `null` as type `Int8` at path: `root`"))
+
+          Stdlib.Json.parse<Int8>("true")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `true` as type `Int8` at path: `root`"))
+
+          Stdlib.Json.parse<Int8>("false")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `false` as type `Int8` at path: `root`"))
+
+          Stdlib.Json.parse<Int8>("\"42\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"42\"` as type `Int8` at path: `root`"))
+
+          Stdlib.Json.parse<Int8>("[42]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[42]` as type `Int8` at path: `root`"))
+
+          Stdlib.Json.parse<Int8>("{ \"key\": 42 }")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `{ \"key\": 42 }` as type `Int8` at path: `root`"))
+
+          Stdlib.Json.parse<Int8>("42.5")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `42.5` as type `Int8` at path: `root`"))
+
+          Stdlib.Json.parse<Int8>("\"42\n\"")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4")) ])
+
 
 module UInt8 =
   module Basic =
@@ -423,15 +698,25 @@ module UInt8 =
           Stdlib.Json.serialize<UInt8>(123u8) |> Stdlib.Test.equal("123")
           Stdlib.Json.serialize<UInt8>(254u8) |> Stdlib.Test.equal("254") ])
 
+
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<UInt8>("0") |> Stdlib.Test.equal(Result.Ok(0u8))
+
           Stdlib.Json.parse<UInt8>("0.0") |> Stdlib.Test.equal(Result.Ok(0u8))
+
           // CLEANUP is this OK?
           Stdlib.Json.parse<UInt8>("-0.0") |> Stdlib.Test.equal(Result.Ok(0u8))
-          Stdlib.Json.parse<UInt8>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120u8))
-          Stdlib.Json.parse<UInt8>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120u8))
-          Stdlib.Json.parse<UInt8>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120u8)) ])
+
+          Stdlib.Json.parse<UInt8>("1.2E2")
+          |> Stdlib.Test.equal(Result.Ok(120u8))
+
+          Stdlib.Json.parse<UInt8>("1.2E+2")
+          |> Stdlib.Test.equal(Result.Ok(120u8))
+
+          Stdlib.Json.parse<UInt8>("1200E-1")
+          |> Stdlib.Test.equal(Result.Ok(120u8)) ])
+
 
   module UInt8Limits =
     test serialize =
@@ -439,43 +724,90 @@ module UInt8 =
         [ Stdlib.Json.serialize<UInt8>(0u8) |> Stdlib.Test.equal("0")
           Stdlib.Json.serialize<UInt8>(255u8) |> Stdlib.Test.equal("255") ])
 
+
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<UInt8>("0") |> Stdlib.Test.equal(Result.Ok(0u8))
-          Stdlib.Json.parse<UInt8>("255") |> Stdlib.Test.equal(Result.Ok(255u8)) ])
+          Stdlib.Json.parse<UInt8>("255")
+          |> Stdlib.Test.equal(Result.Ok(255u8)) ])
+
 
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<UInt8>("-1")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `-1` as type `UInt8` at path: `root`"))
-          (Stdlib.Json.parse<UInt8>("256")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `256` as type `UInt8` at path: `root`")) ])
+        [ Stdlib.Json.parse<UInt8>("-1")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `-1` as type `UInt8` at path: `root`"))
+
+          Stdlib.Json.parse<UInt8>("256")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `256` as type `UInt8` at path: `root`")) ])
+
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<UInt8>(" ")) |> err
+        [ Stdlib.Json.parse<UInt8>(" ")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<UInt8>("4a")) |> err
+
+          Stdlib.Json.parse<UInt8>("4a")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<UInt8>("- 42")) |> err
+
+          Stdlib.Json.parse<UInt8>("- 42")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<UInt8>("null")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `null` as type `UInt8` at path: `root`"))
-          (Stdlib.Json.parse<UInt8>("true")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `true` as type `UInt8` at path: `root`"))
-          (Stdlib.Json.parse<UInt8>("false")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `false` as type `UInt8` at path: `root`"))
-          (Stdlib.Json.parse<UInt8>("\"42\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `\"42\"` as type `UInt8` at path: `root`"))
-          (Stdlib.Json.parse<UInt8>("[42]")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `[42]` as type `UInt8` at path: `root`"))
-          (Stdlib.Json.parse<UInt8>("{ \"key\": 42 }")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `{ \"key\": 42 }` as type `UInt8` at path: `root`"))
-          (Stdlib.Json.parse<UInt8>("42.5")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `42.5` as type `UInt8` at path: `root`"))
-          (Stdlib.Json.parse<UInt8>("\"42\n\"")) |> err
+
+          Stdlib.Json.parse<UInt8>("null")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `null` as type `UInt8` at path: `root`"))
+
+          Stdlib.Json.parse<UInt8>("true")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `true` as type `UInt8` at path: `root`"))
+
+          Stdlib.Json.parse<UInt8>("false")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `false` as type `UInt8` at path: `root`"))
+
+          Stdlib.Json.parse<UInt8>("\"42\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"42\"` as type `UInt8` at path: `root`"))
+
+          Stdlib.Json.parse<UInt8>("[42]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[42]` as type `UInt8` at path: `root`"))
+
+          Stdlib.Json.parse<UInt8>("{ \"key\": 42 }")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `{ \"key\": 42 }` as type `UInt8` at path: `root`"))
+
+          Stdlib.Json.parse<UInt8>("42.5")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `42.5` as type `UInt8` at path: `root`"))
+
+          Stdlib.Json.parse<UInt8>("\"42\n\"")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4")) ])
+
 
 module Int16 =
   module Basic =
@@ -485,68 +817,121 @@ module Int16 =
           Stdlib.Json.serialize<Int16>(123s16) |> Stdlib.Test.equal("123")
           Stdlib.Json.serialize<Int16>(-123s16) |> Stdlib.Test.equal("-123") ])
 
+
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<Int16>("0") |> Stdlib.Test.equal(Result.Ok(0s16))
+
           Stdlib.Json.parse<Int16>("0.0") |> Stdlib.Test.equal(Result.Ok(0s16))
+
           Stdlib.Json.parse<Int16>("-0.0") |> Stdlib.Test.equal(Result.Ok(0s16))
-          Stdlib.Json.parse<Int16>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1s16))
-          Stdlib.Json.parse<Int16>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120s16))
-          Stdlib.Json.parse<Int16>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120s16))
-          Stdlib.Json.parse<Int16>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120s16)) ])
+
+          Stdlib.Json.parse<Int16>("-1.0")
+          |> Stdlib.Test.equal(Result.Ok(-1s16))
+
+          Stdlib.Json.parse<Int16>("1.2E2")
+          |> Stdlib.Test.equal(Result.Ok(120s16))
+
+          Stdlib.Json.parse<Int16>("1.2E+2")
+          |> Stdlib.Test.equal(Result.Ok(120s16))
+
+          Stdlib.Json.parse<Int16>("1200E-1")
+          |> Stdlib.Test.equal(Result.Ok(120s16)) ])
+
 
   module Int16Limits =
     test serialize =
       Stdlib.Test.all(
         [ Stdlib.Json.serialize<Int16>(-32768s16) |> Stdlib.Test.equal("-32768")
-          Stdlib.Json.serialize<Int16>(32767s16) |> Stdlib.Test.equal("32767") ])
+          Stdlib.Json.serialize<Int16>(32767s16)
+          |> Stdlib.Test.equal("32767") ])
+
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<Int16>("-32768") |> Stdlib.Test.equal(Result.Ok(-32768s16))
-          Stdlib.Json.parse<Int16>("32767") |> Stdlib.Test.equal(Result.Ok(32767s16)) ])
+        [ Stdlib.Json.parse<Int16>("-32768")
+          |> Stdlib.Test.equal(Result.Ok(-32768s16))
+
+          Stdlib.Json.parse<Int16>("32767")
+          |> Stdlib.Test.equal(Result.Ok(32767s16)) ])
+
 
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<Int16>("-32769")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `-32769` as type `Int16` at path: `root`")))
-          (Stdlib.Json.parse<Int16>("32768")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `32768` as type `Int16` at path: `root`"))) ])
+        [ Stdlib.Json.parse<Int16>("-32769")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `-32769` as type `Int16` at path: `root`"))
+
+          Stdlib.Json.parse<Int16>("32768")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `32768` as type `Int16` at path: `root`")) ])
+
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<Int16>(" ")) |> err
+        [ Stdlib.Json.parse<Int16>(" ")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<Int16>("4a")) |> err
+
+          Stdlib.Json.parse<Int16>("4a")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<Int16>("- 42")) |> err
+
+          Stdlib.Json.parse<Int16>("- 42")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<Int16>("null")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `null` as type `Int16` at path: `root`")))
-          (Stdlib.Json.parse<Int16>("true")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `true` as type `Int16` at path: `root`")))
-          (Stdlib.Json.parse<Int16>("false")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `false` as type `Int16` at path: `root`")))
-          (Stdlib.Json.parse<Int16>("\"42\"")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `\"42\"` as type `Int16` at path: `root`")))
-          (Stdlib.Json.parse<Int16>("[42]")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `[42]` as type `Int16` at path: `root`")))
-          (Stdlib.Json.parse<Int16>("{ \"key\": 42 }")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `{ \"key\": 42 }` as type `Int16` at path: `root`")))
-          (Stdlib.Json.parse<Int16>("42.5")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `42.5` as type `Int16` at path: `root`")))
-          (Stdlib.Json.parse<Int16>("\"42\n\"")) |> err
+
+          Stdlib.Json.parse<Int16>("null")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `null` as type `Int16` at path: `root`"))
+
+          Stdlib.Json.parse<Int16>("true")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `true` as type `Int16` at path: `root`"))
+
+          Stdlib.Json.parse<Int16>("false")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `false` as type `Int16` at path: `root`"))
+
+          Stdlib.Json.parse<Int16>("\"42\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"42\"` as type `Int16` at path: `root`"))
+
+          Stdlib.Json.parse<Int16>("[42]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[42]` as type `Int16` at path: `root`"))
+
+          Stdlib.Json.parse<Int16>("{ \"key\": 42 }")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `{ \"key\": 42 }` as type `Int16` at path: `root`"))
+
+          Stdlib.Json.parse<Int16>("42.5")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `42.5` as type `Int16` at path: `root`"))
+
+          Stdlib.Json.parse<Int16>("\"42\n\"")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4")) ])
+
 
 module UInt16 =
   module Basic =
@@ -555,61 +940,115 @@ module UInt16 =
         [ Stdlib.Json.serialize<UInt16>(0u16) |> Stdlib.Test.equal("0")
           Stdlib.Json.serialize<UInt16>(123u16) |> Stdlib.Test.equal("123") ])
 
+
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<UInt16>("0") |> Stdlib.Test.equal(Result.Ok(0u16))
+
           Stdlib.Json.parse<UInt16>("0.0") |> Stdlib.Test.equal(Result.Ok(0u16))
-          Stdlib.Json.parse<UInt16>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120u16))
-          Stdlib.Json.parse<UInt16>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120u16))
+
+          Stdlib.Json.parse<UInt16>("1.2E2")
+          |> Stdlib.Test.equal(Result.Ok(120u16))
+
+          Stdlib.Json.parse<UInt16>("1.2E+2")
+          |> Stdlib.Test.equal(Result.Ok(120u16))
+
           Stdlib.Json.parse<UInt16>("1200E-1")
           |> Stdlib.Test.equal(Result.Ok(120u16)) ])
+
 
   module UInt16Limits =
     test serialize =
       Stdlib.Test.all(
         [ Stdlib.Json.serialize<UInt16>(0u16) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<UInt16>(65535u16) |> Stdlib.Test.equal("65535") ])
+          Stdlib.Json.serialize<UInt16>(65535u16)
+          |> Stdlib.Test.equal("65535") ])
+
 
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<UInt16>("0") |> Stdlib.Test.equal(Result.Ok(0u16))
+
           Stdlib.Json.parse<UInt16>("65535")
           |> Stdlib.Test.equal(Result.Ok(65535u16)) ])
 
+
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<UInt16>("-1")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `-1` as type `UInt16` at path: `root`")))
-          (Stdlib.Json.parse<UInt16>("65536")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `65536` as type `UInt16` at path: `root`"))) ])
+        [ Stdlib.Json.parse<UInt16>("-1")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `-1` as type `UInt16` at path: `root`"))
+
+          Stdlib.Json.parse<UInt16>("65536")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `65536` as type `UInt16` at path: `root`")) ])
+
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<UInt16>(" ")) |> err
+        [ Stdlib.Json.parse<UInt16>(" ")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<UInt16>("4a")) |> err
+
+          Stdlib.Json.parse<UInt16>("4a")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<UInt16>("- 42")) |> err
+
+          Stdlib.Json.parse<UInt16>("- 42")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<UInt16>("\"42\n\"")) |> err
+
+          Stdlib.Json.parse<UInt16>("\"42\n\"")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4"))
-          (Stdlib.Json.parse<UInt16>("null")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `null` as type `UInt16` at path: `root`"))
-          (Stdlib.Json.parse<UInt16>("true")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `true` as type `UInt16` at path: `root`"))
-          (Stdlib.Json.parse<UInt16>("false")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `false` as type `UInt16` at path: `root`"))
-          (Stdlib.Json.parse<UInt16>("\"42\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `\"42\"` as type `UInt16` at path: `root`"))
-          (Stdlib.Json.parse<UInt16>("[42]")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `[42]` as type `UInt16` at path: `root`"))
-          (Stdlib.Json.parse<UInt16>("{ \"key\": 42 }")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `{ \"key\": 42 }` as type `UInt16` at path: `root`"))
-          (Stdlib.Json.parse<UInt16>("42.5")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `42.5` as type `UInt16` at path: `root`")) ])
+
+          Stdlib.Json.parse<UInt16>("null")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `null` as type `UInt16` at path: `root`"))
+
+          Stdlib.Json.parse<UInt16>("true")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `true` as type `UInt16` at path: `root`"))
+
+          Stdlib.Json.parse<UInt16>("false")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `false` as type `UInt16` at path: `root`"))
+
+          Stdlib.Json.parse<UInt16>("\"42\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"42\"` as type `UInt16` at path: `root`"))
+
+          Stdlib.Json.parse<UInt16>("[42]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[42]` as type `UInt16` at path: `root`"))
+
+          Stdlib.Json.parse<UInt16>("{ \"key\": 42 }")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `{ \"key\": 42 }` as type `UInt16` at path: `root`"))
+
+          Stdlib.Json.parse<UInt16>("42.5")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `42.5` as type `UInt16` at path: `root`")) ])
+
 
 module Int32 =
   module Basic =
@@ -619,66 +1058,130 @@ module Int32 =
           Stdlib.Json.serialize<Int32>(123s32) |> Stdlib.Test.equal("123")
           Stdlib.Json.serialize<Int32>(-123s32) |> Stdlib.Test.equal("-123") ])
 
+
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<Int32>("0") |> Stdlib.Test.equal(Result.Ok(0s32))
+
           Stdlib.Json.parse<Int32>("0.0") |> Stdlib.Test.equal(Result.Ok(0s32))
+
           Stdlib.Json.parse<Int32>("-0.0") |> Stdlib.Test.equal(Result.Ok(0s32))
-          Stdlib.Json.parse<Int32>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1s32))
-          Stdlib.Json.parse<Int32>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120s32))
-          Stdlib.Json.parse<Int32>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120s32))
-          Stdlib.Json.parse<Int32>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120s32)) ])
+
+          Stdlib.Json.parse<Int32>("-1.0")
+          |> Stdlib.Test.equal(Result.Ok(-1s32))
+
+          Stdlib.Json.parse<Int32>("1.2E2")
+          |> Stdlib.Test.equal(Result.Ok(120s32))
+
+          Stdlib.Json.parse<Int32>("1.2E+2")
+          |> Stdlib.Test.equal(Result.Ok(120s32))
+
+          Stdlib.Json.parse<Int32>("1200E-1")
+          |> Stdlib.Test.equal(Result.Ok(120s32)) ])
+
 
   module Int32Limits =
     test serialize =
       Stdlib.Test.all(
         [ Stdlib.Json.serialize<Int32>(-2147483648s32)
           |> Stdlib.Test.equal("-2147483648")
+
           Stdlib.Json.serialize<Int32>(2147483647s32)
           |> Stdlib.Test.equal("2147483647") ])
+
 
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<Int32>("-2147483648")
           |> Stdlib.Test.equal(Result.Ok(-2147483648s32))
+
           Stdlib.Json.parse<Int32>("2147483647")
           |> Stdlib.Test.equal(Result.Ok(2147483647s32)) ])
 
+
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<Int32>("-2147483649")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `-2147483649` as type `Int32` at path: `root`"))
-          (Stdlib.Json.parse<Int32>("2147483648")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `2147483648` as type `Int32` at path: `root`"))
+        [ Stdlib.Json.parse<Int32>("-2147483649")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `-2147483649` as type `Int32` at path: `root`"))
+
+          Stdlib.Json.parse<Int32>("2147483648")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `2147483648` as type `Int32` at path: `root`"))
+
           // a fraction a double would round away is still a fraction
-          (Stdlib.Json.parse<Int32>("1.00000000000000001")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `1.00000000000000001` as type `Int32` at path: `root`")) ])
+          Stdlib.Json.parse<Int32>("1.00000000000000001")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `1.00000000000000001` as type `Int32` at path: `root`")) ])
+
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<Int32>(" ")) |> err
+        [ Stdlib.Json.parse<Int32>(" ")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<Int32>("4a")) |> err
+
+          Stdlib.Json.parse<Int32>("4a")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<Int32>("- 42")) |> err
+
+          Stdlib.Json.parse<Int32>("- 42")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<Int32>("\"42\n\"")) |> err
+
+          Stdlib.Json.parse<Int32>("\"42\n\"")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4"))
-          (Stdlib.Json.parse<Int32>("null")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `null` as type `Int32` at path: `root`"))
-          (Stdlib.Json.parse<Int32>("true")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `true` as type `Int32` at path: `root`"))
-          (Stdlib.Json.parse<Int32>("false")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `false` as type `Int32` at path: `root`"))
-          (Stdlib.Json.parse<Int32>("\"42\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `\"42\"` as type `Int32` at path: `root`"))
-          (Stdlib.Json.parse<Int32>("[42]")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `[42]` as type `Int32` at path: `root`"))
-          (Stdlib.Json.parse<Int32>("{ \"key\": 42 }")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `{ \"key\": 42 }` as type `Int32` at path: `root`"))
-          (Stdlib.Json.parse<Int32>("42.5")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `42.5` as type `Int32` at path: `root`")) ])
+
+          Stdlib.Json.parse<Int32>("null")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `null` as type `Int32` at path: `root`"))
+
+          Stdlib.Json.parse<Int32>("true")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `true` as type `Int32` at path: `root`"))
+
+          Stdlib.Json.parse<Int32>("false")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `false` as type `Int32` at path: `root`"))
+
+          Stdlib.Json.parse<Int32>("\"42\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"42\"` as type `Int32` at path: `root`"))
+
+          Stdlib.Json.parse<Int32>("[42]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[42]` as type `Int32` at path: `root`"))
+
+          Stdlib.Json.parse<Int32>("{ \"key\": 42 }")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `{ \"key\": 42 }` as type `Int32` at path: `root`"))
+
+          Stdlib.Json.parse<Int32>("42.5")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `42.5` as type `Int32` at path: `root`")) ])
+
 
 module UInt32 =
   module Basic =
@@ -687,252 +1190,430 @@ module UInt32 =
         [ Stdlib.Json.serialize<UInt32>(0u32) |> Stdlib.Test.equal("0")
           Stdlib.Json.serialize<UInt32>(123u32) |> Stdlib.Test.equal("123") ])
 
+
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<UInt32>("0") |> Stdlib.Test.equal(Result.Ok(0u32))
+
           Stdlib.Json.parse<UInt32>("0.0") |> Stdlib.Test.equal(Result.Ok(0u32))
-          Stdlib.Json.parse<UInt32>("-0.0") |> Stdlib.Test.equal(Result.Ok(0u32))
-          Stdlib.Json.parse<UInt32>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120u32))
-          Stdlib.Json.parse<UInt32>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120u32))
+
+          Stdlib.Json.parse<UInt32>("-0.0")
+          |> Stdlib.Test.equal(Result.Ok(0u32))
+
+          Stdlib.Json.parse<UInt32>("1.2E2")
+          |> Stdlib.Test.equal(Result.Ok(120u32))
+
+          Stdlib.Json.parse<UInt32>("1.2E+2")
+          |> Stdlib.Test.equal(Result.Ok(120u32))
+
           Stdlib.Json.parse<UInt32>("1200E-1")
           |> Stdlib.Test.equal(Result.Ok(120u32)) ])
+
 
   module UInt32Limits =
     test serialize =
       Stdlib.Test.all(
         [ Stdlib.Json.serialize<UInt32>(0u32) |> Stdlib.Test.equal("0")
+
           Stdlib.Json.serialize<UInt32>(4294967295u32)
           |> Stdlib.Test.equal("4294967295") ])
+
 
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<UInt32>("0") |> Stdlib.Test.equal(Result.Ok(0u32))
+
           Stdlib.Json.parse<UInt32>("4294967295")
           |> Stdlib.Test.equal(Result.Ok(4294967295u32)) ])
 
+
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<UInt32>("-1")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `-1` as type `UInt32` at path: `root`")))
-          (Stdlib.Json.parse<UInt32>("4294967296")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `4294967296` as type `UInt32` at path: `root`"))) ])
+        [ Stdlib.Json.parse<UInt32>("-1")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `-1` as type `UInt32` at path: `root`"))
+
+          Stdlib.Json.parse<UInt32>("4294967296")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `4294967296` as type `UInt32` at path: `root`")) ])
+
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<UInt32>(" ")) |> err
+        [ Stdlib.Json.parse<UInt32>(" ")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<UInt32>("4a")) |> err
+
+          Stdlib.Json.parse<UInt32>("4a")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<UInt32>("- 42")) |> err
+
+          Stdlib.Json.parse<UInt32>("- 42")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<UInt32>("null")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `null` as type `UInt32` at path: `root`")))
-          (Stdlib.Json.parse<UInt32>("true")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `true` as type `UInt32` at path: `root`")))
-          (Stdlib.Json.parse<UInt32>("false")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `false` as type `UInt32` at path: `root`")))
-          (Stdlib.Json.parse<UInt32>("\"42\"")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `\"42\"` as type `UInt32` at path: `root`")))
-          (Stdlib.Json.parse<UInt32>("[42]")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `[42]` as type `UInt32` at path: `root`")))
-          (Stdlib.Json.parse<UInt32>("{ \"key\": 42 }")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `{ \"key\": 42 }` as type `UInt32` at path: `root`")))
-          (Stdlib.Json.parse<UInt32>("42.5")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `42.5` as type `UInt32` at path: `root`")))
-          (Stdlib.Json.parse<UInt32>("\"42\n\"")) |> err
+
+          Stdlib.Json.parse<UInt32>("null")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `null` as type `UInt32` at path: `root`"))
+
+          Stdlib.Json.parse<UInt32>("true")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `true` as type `UInt32` at path: `root`"))
+
+          Stdlib.Json.parse<UInt32>("false")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `false` as type `UInt32` at path: `root`"))
+
+          Stdlib.Json.parse<UInt32>("\"42\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"42\"` as type `UInt32` at path: `root`"))
+
+          Stdlib.Json.parse<UInt32>("[42]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[42]` as type `UInt32` at path: `root`"))
+
+          Stdlib.Json.parse<UInt32>("{ \"key\": 42 }")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `{ \"key\": 42 }` as type `UInt32` at path: `root`"))
+
+          Stdlib.Json.parse<UInt32>("42.5")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `42.5` as type `UInt32` at path: `root`"))
+
+          Stdlib.Json.parse<UInt32>("\"42\n\"")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4")) ])
+
 
 module Int128 =
   module Basic =
     test serialize =
       Stdlib.Test.all(
         [ Stdlib.Json.serialize<Int128>(0s128) |> Stdlib.Test.equal("0")
+
           Stdlib.Json.serialize<Int128>(12345s128) |> Stdlib.Test.equal("12345")
-          Stdlib.Json.serialize<Int128>(-12345s128) |> Stdlib.Test.equal("-12345") ])
+
+          Stdlib.Json.serialize<Int128>(-12345s128)
+          |> Stdlib.Test.equal("-12345") ])
+
 
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<Int128>("0") |> Stdlib.Test.equal(Result.Ok(0s128))
-          Stdlib.Json.parse<Int128>("0.0") |> Stdlib.Test.equal(Result.Ok(0s128))
-          Stdlib.Json.parse<Int128>("-0.0") |> Stdlib.Test.equal(Result.Ok(0s128))
-          Stdlib.Json.parse<Int128>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1s128))
-          Stdlib.Json.parse<Int128>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120s128))
-          Stdlib.Json.parse<Int128>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120s128))
-          Stdlib.Json.parse<Int128>("1200E-1") |> Stdlib.Test.equal(Result.Ok(120s128))
+
+          Stdlib.Json.parse<Int128>("0.0")
+          |> Stdlib.Test.equal(Result.Ok(0s128))
+
+          Stdlib.Json.parse<Int128>("-0.0")
+          |> Stdlib.Test.equal(Result.Ok(0s128))
+
+          Stdlib.Json.parse<Int128>("-1.0")
+          |> Stdlib.Test.equal(Result.Ok(-1s128))
+
+          Stdlib.Json.parse<Int128>("1.2E2")
+          |> Stdlib.Test.equal(Result.Ok(120s128))
+
+          Stdlib.Json.parse<Int128>("1.2E+2")
+          |> Stdlib.Test.equal(Result.Ok(120s128))
+
+          Stdlib.Json.parse<Int128>("1200E-1")
+          |> Stdlib.Test.equal(Result.Ok(120s128))
+
           Stdlib.Json.parse<Int128>("9007199254740993.0")
           |> Stdlib.Test.equal(Result.Ok(9007199254740993s128))
+
           Stdlib.Json.parse<Int128>("170141183460469231731687303715884105727.0")
-          |> Stdlib.Test.equal(Result.Ok(170141183460469231731687303715884105727s128)) ])
+          |> Stdlib.Test.equal(
+            Result.Ok(170141183460469231731687303715884105727s128)) ])
+
 
   module Int128Limits =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<Int128>(-170141183460469231731687303715884105728s128)
+        [ Stdlib.Json.serialize<Int128>(
+            -170141183460469231731687303715884105728s128)
           |> Stdlib.Test.equal("-170141183460469231731687303715884105728")
-          Stdlib.Json.serialize<Int128>(170141183460469231731687303715884105727s128)
+
+          Stdlib.Json.serialize<Int128>(
+            170141183460469231731687303715884105727s128)
           |> Stdlib.Test.equal("170141183460469231731687303715884105727") ])
+
 
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<Int128>("-170141183460469231731687303715884105728")
-          |> Stdlib.Test.equal((Result.Ok(
-              -170141183460469231731687303715884105728s128)))
+          |> Stdlib.Test.equal(
+            Result.Ok(-170141183460469231731687303715884105728s128))
+
           Stdlib.Json.parse<Int128>("170141183460469231731687303715884105727")
-          |> Stdlib.Test.equal((Result.Ok(
-              170141183460469231731687303715884105727s128)))
+          |> Stdlib.Test.equal(
+            Result.Ok(170141183460469231731687303715884105727s128))
+
           // Float form, read exactly rather than through a double
           Stdlib.Json.parse<Int128>("1.7E38")
-          |> Stdlib.Test.equal((Result.Ok(
-              170000000000000000000000000000000000000s128)))
+          |> Stdlib.Test.equal(
+            Result.Ok(170000000000000000000000000000000000000s128))
+
           Stdlib.Json.parse<Int128>("-1.7E38")
-          |> Stdlib.Test.equal((Result.Ok(
-              -170000000000000000000000000000000000000s128))) ])
+          |> Stdlib.Test.equal(
+            Result.Ok(-170000000000000000000000000000000000000s128)) ])
+
 
     test parseErrors =
       Stdlib.Test.all(
         [ // First number that doesn't fit in an Int128
-          (Stdlib.Json.parse<Int128>("170141183460469231731687303715884105728")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `170141183460469231731687303715884105728` as type `Int128` at path: `root`")))
+          Stdlib.Json.parse<Int128>("170141183460469231731687303715884105728")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `170141183460469231731687303715884105728` as type `Int128` at path: `root`"))
+
           // This is a float that is slightly above the Int128 max
-          (Stdlib.Json.parse<Int128>("1.8E38")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `1.8E38` as type `Int128` at path: `root`")))
+          Stdlib.Json.parse<Int128>("1.8E38")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `1.8E38` as type `Int128` at path: `root`"))
+
           // A negative number that is too small for Int128
-          (Stdlib.Json.parse<Int128>("-1.8E38")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `-1.8E38` as type `Int128` at path: `root`"))) ])
+          Stdlib.Json.parse<Int128>("-1.8E38")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `-1.8E38` as type `Int128` at path: `root`")) ])
+
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<Int128>(" ")) |> err
+        [ Stdlib.Json.parse<Int128>(" ")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<Int128>("4a")) |> err
+
+          Stdlib.Json.parse<Int128>("4a")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<Int128>("- 42")) |> err
+
+          Stdlib.Json.parse<Int128>("- 42")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<Int128>("null")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `null` as type `Int128` at path: `root`")))
-          (Stdlib.Json.parse<Int128>("true")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `true` as type `Int128` at path: `root`")))
-          (Stdlib.Json.parse<Int128>("false")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `false` as type `Int128` at path: `root`")))
-          (Stdlib.Json.parse<Int128>("\"42\"")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `\"42\"` as type `Int128` at path: `root`")))
-          (Stdlib.Json.parse<Int128>("[42]")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `[42]` as type `Int128` at path: `root`")))
-          (Stdlib.Json.parse<Int128>("{ \"key\": 42 }")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `{ \"key\": 42 }` as type `Int128` at path: `root`")))
-          (Stdlib.Json.parse<Int128>("42.5")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `42.5` as type `Int128` at path: `root`")))
-          (Stdlib.Json.parse<Int128>("\"42\n\"")) |> err
+
+          Stdlib.Json.parse<Int128>("null")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `null` as type `Int128` at path: `root`"))
+
+          Stdlib.Json.parse<Int128>("true")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `true` as type `Int128` at path: `root`"))
+
+          Stdlib.Json.parse<Int128>("false")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `false` as type `Int128` at path: `root`"))
+
+          Stdlib.Json.parse<Int128>("\"42\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"42\"` as type `Int128` at path: `root`"))
+
+          Stdlib.Json.parse<Int128>("[42]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[42]` as type `Int128` at path: `root`"))
+
+          Stdlib.Json.parse<Int128>("{ \"key\": 42 }")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `{ \"key\": 42 }` as type `Int128` at path: `root`"))
+
+          Stdlib.Json.parse<Int128>("42.5")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `42.5` as type `Int128` at path: `root`"))
+
+          Stdlib.Json.parse<Int128>("\"42\n\"")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4"))
-          (Stdlib.Json.parse<Int128>("170141183460469231731687303715884105800")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `170141183460469231731687303715884105800` as type `Int128` at path: `root`")))
+
+          Stdlib.Json.parse<Int128>("170141183460469231731687303715884105800")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `170141183460469231731687303715884105800` as type `Int128` at path: `root`"))
+
           // just past the minimum, which a double rounded onto it
-          (Stdlib.Json.parse<Int128>("-170141183460469231731687303715884105800")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `-170141183460469231731687303715884105800` as type `Int128` at path: `root`"))) ])
+          Stdlib.Json.parse<Int128>("-170141183460469231731687303715884105800")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `-170141183460469231731687303715884105800` as type `Int128` at path: `root`")) ])
+
 
 module UInt128 =
   module Basic =
     test serialize =
       Stdlib.Test.all(
         [ Stdlib.Json.serialize<UInt128>(0u128) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<UInt128>(12345u128) |> Stdlib.Test.equal("12345") ])
+
+          Stdlib.Json.serialize<UInt128>(12345u128)
+          |> Stdlib.Test.equal("12345") ])
+
 
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<UInt128>("0") |> Stdlib.Test.equal(Result.Ok(0u128))
-          Stdlib.Json.parse<UInt128>("0.0") |> Stdlib.Test.equal(Result.Ok(0u128))
-          Stdlib.Json.parse<UInt128>("-0.0") |> Stdlib.Test.equal(Result.Ok(0u128))
-          Stdlib.Json.parse<UInt128>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120u128))
-          Stdlib.Json.parse<UInt128>("1.2E+2") |> Stdlib.Test.equal(Result.Ok(120u128))
+
+          Stdlib.Json.parse<UInt128>("0.0")
+          |> Stdlib.Test.equal(Result.Ok(0u128))
+
+          Stdlib.Json.parse<UInt128>("-0.0")
+          |> Stdlib.Test.equal(Result.Ok(0u128))
+
+          Stdlib.Json.parse<UInt128>("1.2E2")
+          |> Stdlib.Test.equal(Result.Ok(120u128))
+
+          Stdlib.Json.parse<UInt128>("1.2E+2")
+          |> Stdlib.Test.equal(Result.Ok(120u128))
+
           Stdlib.Json.parse<UInt128>("1200E-1")
           |> Stdlib.Test.equal(Result.Ok(120u128)) ])
+
 
   module UInt128Limits =
     // First number that doesn't fit in a UInt128
     test serialize =
       Stdlib.Json.serialize<UInt128>(0u128) |> Stdlib.Test.equal("0")
 
+
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<UInt128>("340282366920938463463374607431768211455")
-          |> Stdlib.Test.equal((Result.Ok(
-              340282366920938463463374607431768211455u128)))
+          |> Stdlib.Test.equal(
+            Result.Ok(340282366920938463463374607431768211455u128))
+
           // This is a large number that is a valid UInt128
           Stdlib.Json.parse<UInt128>("3.4E38")
-          |> Stdlib.Test.equal((Result.Ok(
-              340000000000000000000000000000000000000u128))) ])
+          |> Stdlib.Test.equal(
+            Result.Ok(340000000000000000000000000000000000000u128)) ])
+
 
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<UInt128>("340282366920938463463374607431768211456")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `340282366920938463463374607431768211456` as type `UInt128` at path: `root`")))
+        [ Stdlib.Json.parse<UInt128>("340282366920938463463374607431768211456")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `340282366920938463463374607431768211456` as type `UInt128` at path: `root`"))
+
           // This is a number that is slightly above the UInt128 max
-          (Stdlib.Json.parse<UInt128>("3.5E38")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `3.5E38` as type `UInt128` at path: `root`")))
-          (Stdlib.Json.parse<UInt128>("-1")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `-1` as type `UInt128` at path: `root`"))) ])
+          Stdlib.Json.parse<UInt128>("3.5E38")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `3.5E38` as type `UInt128` at path: `root`"))
+
+          Stdlib.Json.parse<UInt128>("-1")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `-1` as type `UInt128` at path: `root`")) ])
+
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<UInt128>(" ")) |> err
+        [ Stdlib.Json.parse<UInt128>(" ")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<UInt128>("4a")) |> err
+
+          Stdlib.Json.parse<UInt128>("4a")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<UInt128>("- 42")) |> err
+
+          Stdlib.Json.parse<UInt128>("- 42")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<UInt128>("null")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `null` as type `UInt128` at path: `root`")))
-          (Stdlib.Json.parse<UInt128>("true")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `true` as type `UInt128` at path: `root`")))
-          (Stdlib.Json.parse<UInt128>("false")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `false` as type `UInt128` at path: `root`")))
-          (Stdlib.Json.parse<UInt128>("\"42\"")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `\"42\"` as type `UInt128` at path: `root`")))
-          (Stdlib.Json.parse<UInt128>("[42]")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `[42]` as type `UInt128` at path: `root`")))
-          (Stdlib.Json.parse<UInt128>("{ \"key\": 42 }")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `{ \"key\": 42 }` as type `UInt128` at path: `root`")))
-          (Stdlib.Json.parse<UInt128>("42.5")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `42.5` as type `UInt128` at path: `root`")))
-          (Stdlib.Json.parse<UInt128>("\"42\n\"")) |> err
+
+          Stdlib.Json.parse<UInt128>("null")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `null` as type `UInt128` at path: `root`"))
+
+          Stdlib.Json.parse<UInt128>("true")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `true` as type `UInt128` at path: `root`"))
+
+          Stdlib.Json.parse<UInt128>("false")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `false` as type `UInt128` at path: `root`"))
+
+          Stdlib.Json.parse<UInt128>("\"42\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"42\"` as type `UInt128` at path: `root`"))
+
+          Stdlib.Json.parse<UInt128>("[42]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[42]` as type `UInt128` at path: `root`"))
+
+          Stdlib.Json.parse<UInt128>("{ \"key\": 42 }")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `{ \"key\": 42 }` as type `UInt128` at path: `root`"))
+
+          Stdlib.Json.parse<UInt128>("42.5")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `42.5` as type `UInt128` at path: `root`"))
+
+          Stdlib.Json.parse<UInt128>("\"42\n\"")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4"))
-          (Stdlib.Json.parse<UInt128>("340282366920938463463374607431768211456")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `340282366920938463463374607431768211456` as type `UInt128` at path: `root`"))) ])
+
+          Stdlib.Json.parse<UInt128>("340282366920938463463374607431768211456")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `340282366920938463463374607431768211456` as type `UInt128` at path: `root`")) ])
+
 
 module Float =
   // TODO: review Float.tests for more values to test against
@@ -940,59 +1621,95 @@ module Float =
   test serialize =
     Stdlib.Test.all(
       [ Stdlib.Json.serialize<Float>(0.0) |> Stdlib.Test.equal("0.0")
+
         Stdlib.Json.serialize<Float>(1.0) |> Stdlib.Test.equal("1.0")
+
         Stdlib.Json.serialize<Float>(0.1) |> Stdlib.Test.equal("0.1")
+
         Stdlib.Json.serialize<Float>(2.0 / 3.0)
         |> Stdlib.Test.equal("0.6666666666666666")
-        Stdlib.Json.serialize<Float>(12345.67890) |> Stdlib.Test.equal("12345.6789")
-        Stdlib.Json.serialize<Float>(-12345.67890) |> Stdlib.Test.equal("-12345.6789")
+
+        Stdlib.Json.serialize<Float>(12345.67890)
+        |> Stdlib.Test.equal("12345.6789")
+
+        Stdlib.Json.serialize<Float>(-12345.67890)
+        |> Stdlib.Test.equal("-12345.6789")
+
         Stdlib.Json.serialize<Float>(3.141592653589793)
         |> Stdlib.Test.equal("3.141592653589793")
+
         Stdlib.Json.serialize<Float>(1.618033988749895)
         |> Stdlib.Test.equal("1.618033988749895")
+
         // Needs all seventeen digits; "G16" used to write this as 0.3.
         Stdlib.Json.serialize<Float>(0.1 + 0.2)
         |> Stdlib.Test.equal("0.30000000000000004")
+
         // Exponent form is valid JSON as long as nothing appends `.0` to it.
-        Stdlib.Json.serialize<Float>(10000000000000000.0) |> Stdlib.Test.equal("1e+16")
+        Stdlib.Json.serialize<Float>(1e16) |> Stdlib.Test.equal("1e+16")
+
         Stdlib.Json.serialize<Float>(0.00001) |> Stdlib.Test.equal("1e-5") ])
+
 
   test parse =
     Stdlib.Test.all(
       [ // ints as floats
         Stdlib.Json.parse<Float>("0.0") |> Stdlib.Test.equal(Result.Ok(0.0))
+
         Stdlib.Json.parse<Float>("0") |> Stdlib.Test.equal(Result.Ok(0.0))
+
         Stdlib.Json.parse<Float>("123") |> Stdlib.Test.equal(Result.Ok(123.0))
+
         Stdlib.Json.parse<Float>("12345.67890")
         |> Stdlib.Test.equal(Result.Ok(12345.67890))
+
         Stdlib.Json.parse<Float>("-12345.67890")
         |> Stdlib.Test.equal(Result.Ok(-12345.67890))
+
         Stdlib.Json.parse<Float>(" 42.0 ") |> Stdlib.Test.equal(Result.Ok(42.0))
-        Stdlib.Json.parse<Float>(" -42.0 ") |> Stdlib.Test.equal(Result.Ok(-42.0))
+
+        Stdlib.Json.parse<Float>(" -42.0 ")
+        |> Stdlib.Test.equal(Result.Ok(-42.0))
+
         Stdlib.Json.parse<Float>("1e3") |> Stdlib.Test.equal(Result.Ok(1000.0))
-        Stdlib.Json.parse<Float>("-1e3") |> Stdlib.Test.equal(Result.Ok(-1000.0))
+
+        Stdlib.Json.parse<Float>("-1e3")
+        |> Stdlib.Test.equal(Result.Ok(-1000.0))
+
         Stdlib.Json.parse<Float>("0.30000000000000004")
         |> Stdlib.Test.equal(Result.Ok(0.1 + 0.2))
-        Stdlib.Json.parse<Float>("1e+16")
-        |> Stdlib.Test.equal(Result.Ok(10000000000000000.0))
-        Stdlib.Json.parse<Float>("1e-5") |> Stdlib.Test.equal(Result.Ok(0.00001))
+
+        Stdlib.Json.parse<Float>("1e+16") |> Stdlib.Test.equal(Result.Ok(1e16))
+
+        Stdlib.Json.parse<Float>("1e-5")
+        |> Stdlib.Test.equal(Result.Ok(0.00001))
+
         Stdlib.Json.parse<Float>("1.0000001")
         |> Stdlib.Test.equal(Result.Ok(1.0000001))
+
         Stdlib.Json.parse<Float>("-1.00000001")
         |> Stdlib.Test.equal(Result.Ok(-1.00000001))
+
         Stdlib.Json.parse<Float>("-2147483647.8")
         |> Stdlib.Test.equal(Result.Ok(-2147483647.8))
+
         Stdlib.Json.parse<Float>("17.55042081")
         |> Stdlib.Test.equal(Result.Ok(17.55042081))
+
         Stdlib.Json.parse<Float>("2147483647.000009")
         |> Stdlib.Test.equal(Result.Ok(2147483647.000009))
+
         Stdlib.Json.parse<Float>("-2367.9267")
         |> Stdlib.Test.equal(Result.Ok(-2367.9267))
-        Stdlib.Json.parse<Float>("0.6999999999999999555910790149937383830547332763671875")
-        |> Stdlib.Test.equal((Result.Ok(
-            0.6999999999999999555910790149937383830547332763671875)))
+
+        Stdlib.Json.parse<Float>(
+          "0.6999999999999999555910790149937383830547332763671875")
+        |> Stdlib.Test.equal(
+          Result.Ok(0.6999999999999999555910790149937383830547332763671875))
+
         Stdlib.Json.parse<Float>("0.7999999999")
         |> Stdlib.Test.equal(Result.Ok(0.7999999999)) ])
+
 
   module Values =
     test serialize =
@@ -1000,456 +1717,658 @@ module Float =
         [ // JSON represents infinities and NaN as strings.
           Stdlib.Json.serialize<Float>(-1.0 / 0.0)
           |> Stdlib.Test.equal("\"-Infinity\"")
+
           Stdlib.Json.serialize<Float>(1.0 / 0.0)
           |> Stdlib.Test.equal("\"Infinity\"")
+
           Stdlib.Json.serialize<Float>(Stdlib.Float.sqrt(-1.0))
           |> Stdlib.Test.equal("\"NaN\"") ])
+
 
     test parse =
       Stdlib.Test.all(
         [ // NaN never equals itself; check it with isNaN.
           Stdlib.Json.parse<Float>("\"-Infinity\"")
           |> Stdlib.Test.equal(Result.Ok(-1.0 / 0.0))
+
           Stdlib.Json.parse<Float>("\"Infinity\"")
           |> Stdlib.Test.equal(Result.Ok(1.0 / 0.0))
-          (Stdlib.Json.parse<Float>("\"NaN\"")) |> Stdlib.Result.map(Stdlib.Float.isNaN)
+
+          Stdlib.Json.parse<Float>("\"NaN\"")
+          |> Stdlib.Result.map(Stdlib.Float.isNaN)
           |> Stdlib.Test.equal(Result.Ok(true)) ])
+
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<Float>("e")) |> err
+        [ Stdlib.Json.parse<Float>("e")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 1"))
-          (Stdlib.Json.parse<Float>("pi")) |> err
+
+          Stdlib.Json.parse<Float>("pi")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 1"))
-          (Stdlib.Json.parse<Float>(" -42 . 0 ")) |> err
+
+          Stdlib.Json.parse<Float>(" -42 . 0 ")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 6"))
-          (Stdlib.Json.parse<Float>("0")) |> err |> Stdlib.Test.equal(Result.Ok(0.0))
-          (Stdlib.Json.parse<Float>(" ")) |> err
+
+          Stdlib.Json.parse<Float>("0")
+          |> err
+          |> Stdlib.Test.equal(Result.Ok(0.0))
+
+          Stdlib.Json.parse<Float>(" ")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<Float>("4a")) |> err
+
+          Stdlib.Json.parse<Float>("4a")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<Float>("- 42.0")) |> err
+
+          Stdlib.Json.parse<Float>("- 42.0")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<Float>("-141s")) |> err
+
+          Stdlib.Json.parse<Float>("-141s")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 5"))
-          (Stdlib.Json.parse<Float>("null")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `null` as type `Float` at path: `root`"))
-          (Stdlib.Json.parse<Float>("true")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `true` as type `Float` at path: `root`"))
-          (Stdlib.Json.parse<Float>("false")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `false` as type `Float` at path: `root`"))
-          (Stdlib.Json.parse<Float>("\"42\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `\"42\"` as type `Float` at path: `root`"))
-          (Stdlib.Json.parse<Float>("[42]")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `[42]` as type `Float` at path: `root`"))
-          (Stdlib.Json.parse<Float>("{ \"key\": 42 }")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `{ \"key\": 42 }` as type `Float` at path: `root`"))
-          (Stdlib.Json.parse<Float>("\"42\n\"")) |> err
+
+          Stdlib.Json.parse<Float>("null")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `null` as type `Float` at path: `root`"))
+
+          Stdlib.Json.parse<Float>("true")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `true` as type `Float` at path: `root`"))
+
+          Stdlib.Json.parse<Float>("false")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `false` as type `Float` at path: `root`"))
+
+          Stdlib.Json.parse<Float>("\"42\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"42\"` as type `Float` at path: `root`"))
+
+          Stdlib.Json.parse<Float>("[42]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[42]` as type `Float` at path: `root`"))
+
+          Stdlib.Json.parse<Float>("{ \"key\": 42 }")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `{ \"key\": 42 }` as type `Float` at path: `root`"))
+
+          Stdlib.Json.parse<Float>("\"42\n\"")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4"))
-          (Stdlib.Json.parse<Float>("000000.9")) |> err
+
+          Stdlib.Json.parse<Float>("000000.9")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<Float>("-000000.9")) |> err
+
+          Stdlib.Json.parse<Float>("-000000.9")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 3"))
-          (Stdlib.Json.parse<Float>("-00000000.000")) |> err
+
+          Stdlib.Json.parse<Float>("-00000000.000")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 3"))
-          (Stdlib.Json.parse<Float>("00000000.000")) |> err
+
+          Stdlib.Json.parse<Float>("00000000.000")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
-          (Stdlib.Json.parse<Float>("\"65.0\"")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `\"65.0\"` as type `Float` at path: `root`")) ])
+
+          Stdlib.Json.parse<Float>("\"65.0\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"65.0\"` as type `Float` at path: `root`")) ])
+
 
 module Char =
   let charFromString(s: String): Char =
-    (Stdlib.String.head(s)) |> Builtin.unwrap
+    Stdlib.String.head(s) |> Builtin.unwrap
+
 
   test serialize =
     Stdlib.Test.all(
       [ Stdlib.Json.serialize<Char>('a') |> Stdlib.Test.equal("\"a\"")
+
         Stdlib.Json.serialize<Char>(charFromString("Ł"))
         |> Stdlib.Test.equal("\"Ł\"") ])
+
 
   test parse =
     Stdlib.Test.all(
       [ Stdlib.Json.parse<Char>("\"a\"") |> Stdlib.Test.equal(Result.Ok('a'))
         Stdlib.Json.parse<Char>("\"Ł\"") |> Stdlib.Test.equal(Result.Ok('Ł')) ])
 
+
   module SimpleEmoji =
     test serialize =
       Stdlib.Json.serialize<Char>("😂" |> charFromString)
       |> Stdlib.Test.equal("\"\\uD83D\\uDE02\"")
 
+
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<Char>("\"😂\"")
           |> Stdlib.Test.equal(Result.Ok(charFromString("😂")))
+
           Stdlib.Json.parse<Char>("\"\\uD83D\\uDE02\"")
           |> Stdlib.Test.equal(Result.Ok(charFromString("😂"))) ])
+
 
   module ComplexEmoji =
     test serialize =
       Stdlib.Json.serialize<Char>(charFromString("👩‍👩‍👧‍👦"))
-      |> Stdlib.Test.equal("\"\\uD83D\\uDC69‍\\uD83D\\uDC69‍\\uD83D\\uDC67‍\\uD83D\\uDC66\"")
+      |> Stdlib.Test.equal(
+        "\"\\uD83D\\uDC69‍\\uD83D\\uDC69‍\\uD83D\\uDC67‍\\uD83D\\uDC66\"")
+
 
     test parse =
       Stdlib.Test.all(
         [ Stdlib.Json.parse<Char>(
             "\"\\uD83D\\uDC69‍\\uD83D\\uDC69‍\\uD83D\\uDC67‍\\uD83D\\uDC66\"")
-          |> Stdlib.Test.equal((Result.Ok(
-              charFromString("👩‍👩‍👧‍👦")
-            )))
+          |> Stdlib.Test.equal(Result.Ok(charFromString("👩‍👩‍👧‍👦")))
+
           Stdlib.Json.parse<Char>("\"👩‍👩‍👧‍👦\"")
-          |> Stdlib.Test.equal((Result.Ok(
-              "👩‍👩‍👧‍👦" |> charFromString
-            ))) ])
+          |> Stdlib.Test.equal(Result.Ok("👩‍👩‍👧‍👦" |> charFromString)) ])
+
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<Char>("\"test\"")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `\"test\"` as type `Char` at path: `root`")))
-          (Stdlib.Json.parse<Char>("\"\"")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `\"\"` as type `Char` at path: `root`")))
-          (Stdlib.Json.parse<Char>("62")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `62` as type `Char` at path: `root`"))) ])
+        [ Stdlib.Json.parse<Char>("\"test\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"test\"` as type `Char` at path: `root`"))
+
+          Stdlib.Json.parse<Char>("\"\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"\"` as type `Char` at path: `root`"))
+
+          Stdlib.Json.parse<Char>("62")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `62` as type `Char` at path: `root`")) ])
+
 
 module String =
   test serialize =
     Stdlib.Test.all(
       [ Stdlib.Json.serialize<String>("abc") |> Stdlib.Test.equal("\"abc\"")
+
         Stdlib.Json.serialize<String>("") |> Stdlib.Test.equal("\"\"")
+
         Stdlib.Json.serialize<String>("żółw") |> Stdlib.Test.equal("\"żółw\"")
+
         Stdlib.Json.serialize<String>("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷")
-        |> Stdlib.Test.equal("\"\\uD83D\\uDC68‍❤️‍\\uD83D\\uDC8B‍\\uD83D\\uDC68\\uD83D\\uDC69‍\\uD83D\\uDC69‍\\uD83D\\uDC67‍\\uD83D\\uDC66\\uD83C\\uDFF3️‍⚧️‍️\\uD83C\\uDDF5\\uD83C\\uDDF7\"")
+        |> Stdlib.Test.equal(
+          "\"\\uD83D\\uDC68‍❤️‍\\uD83D\\uDC8B‍\\uD83D\\uDC68\\uD83D\\uDC69‍\\uD83D\\uDC69‍\\uD83D\\uDC67‍\\uD83D\\uDC66\\uD83C\\uDFF3️‍⚧️‍️\\uD83C\\uDDF5\\uD83C\\uDDF7\"")
+
         Stdlib.Json.serialize<String>("👩‍👩‍👧‍👦")
-        |> Stdlib.Test.equal("\"\\uD83D\\uDC69‍\\uD83D\\uDC69‍\\uD83D\\uDC67‍\\uD83D\\uDC66\"")
+        |> Stdlib.Test.equal(
+          "\"\\uD83D\\uDC69‍\\uD83D\\uDC69‍\\uD83D\\uDC67‍\\uD83D\\uDC66\"")
+
         Stdlib.Json.serialize<String>(
           "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor.")
-        |> Stdlib.Test.equal("\"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor.\"")
+        |> Stdlib.Test.equal(
+          "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor.\"")
+
         Stdlib.Json.serialize<String>(Stdlib.String.repeat("a", 100))
-        |> Stdlib.Test.equal("\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"") ])
+        |> Stdlib.Test.equal(
+          "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"") ])
+
 
   test parse =
     Stdlib.Test.all(
-      [ Stdlib.Json.parse<String>("\"abc\"") |> Stdlib.Test.equal(Result.Ok("abc"))
+      [ Stdlib.Json.parse<String>("\"abc\"")
+        |> Stdlib.Test.equal(Result.Ok("abc"))
+
         Stdlib.Json.parse<String>("\"\"") |> Stdlib.Test.equal(Result.Ok(""))
-        Stdlib.Json.parse<String>("\"żółw\"") |> Stdlib.Test.equal(Result.Ok("żółw"))
+
+        Stdlib.Json.parse<String>("\"żółw\"")
+        |> Stdlib.Test.equal(Result.Ok("żółw"))
+
         Stdlib.Json.parse<String>("\"👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷\"")
         |> Stdlib.Test.equal(Result.Ok("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"))
+
         Stdlib.Json.parse<String>("\"👩‍👩‍👧‍👦\"")
         |> Stdlib.Test.equal(Result.Ok("👩‍👩‍👧‍👦"))
+
         Stdlib.Json.parse<String>(
           "\"\\uD83D\\uDC69‍\\uD83D\\uDC69‍\\uD83D\\uDC67‍\\uD83D\\uDC66\"")
-        |> Stdlib.Test.equal((Result.Ok(
-            "👩‍👩‍👧‍👦")))
+        |> Stdlib.Test.equal(Result.Ok("👩‍👩‍👧‍👦"))
+
         Stdlib.Json.parse<String>(
           "\"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor.\"")
-        |> Stdlib.Test.equal((Result.Ok(
-            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor.")))
+        |> Stdlib.Test.equal(
+          Result.Ok(
+            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor."))
+
         Stdlib.Json.parse<String>(
           "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"")
-        |> Stdlib.Test.equal((Result
-            .Ok(Stdlib.String.repeat("a", 100)))) ])
+        |> Stdlib.Test.equal(Result.Ok(Stdlib.String.repeat("a", 100))) ])
+
 
 module DateTime =
   let d(datestr: String): DateTime =
-    (Stdlib.DateTime.parse(datestr)) |> Builtin.unwrap
+    Stdlib.DateTime.parse(datestr) |> Builtin.unwrap
+
 
   test serialize =
     Stdlib.Test.all(
       [ // now-ish
         Stdlib.Json.serialize<DateTime>(d("2023-07-28T22:42:36Z"))
         |> Stdlib.Test.equal("\"2023-07-28T22:42:36Z\"")
+
         // epoch
         Stdlib.Json.serialize<DateTime>(d("1969-07-28T22:42:36Z"))
         |> Stdlib.Test.equal("\"1969-07-28T22:42:36Z\"")
+
         // before epoch
         Stdlib.Json.serialize<DateTime>(d("1402-07-28T22:42:36Z"))
         |> Stdlib.Test.equal("\"1402-07-28T22:42:36Z\"")
+
         // far in future
         Stdlib.Json.serialize<DateTime>(d("3023-07-28T22:42:36Z"))
         |> Stdlib.Test.equal("\"3023-07-28T22:42:36Z\"") ])
 
+
   test parse =
     Stdlib.Test.all(
       [ Stdlib.Json.parse<DateTime>("\"2023-07-28T22:42:36Z\"")
-        |> Stdlib.Test.equal((Result.Ok(
-            d("2023-07-28T22:42:36Z")
-          )))
+        |> Stdlib.Test.equal(Result.Ok(d("2023-07-28T22:42:36Z")))
+
         Stdlib.Json.parse<DateTime>("\"1969-07-28T22:42:36Z\"")
-        |> Stdlib.Test.equal((Result.Ok(
-            d("1969-07-28T22:42:36Z")
-          )))
+        |> Stdlib.Test.equal(Result.Ok(d("1969-07-28T22:42:36Z")))
+
         Stdlib.Json.parse<DateTime>("\"1402-07-28T22:42:36Z\"")
-        |> Stdlib.Test.equal((Result.Ok(
-            d("1402-07-28T22:42:36Z")
-          )))
+        |> Stdlib.Test.equal(Result.Ok(d("1402-07-28T22:42:36Z")))
+
         Stdlib.Json.parse<DateTime>("\"3023-07-28T22:42:36Z\"")
-        |> Stdlib.Test.equal((Result.Ok(
-            d("3023-07-28T22:42:36Z")
-          ))) ])
+        |> Stdlib.Test.equal(Result.Ok(d("3023-07-28T22:42:36Z"))) ])
+
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<DateTime>("\"3023-07-28T22:42:36\"")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `\"3023-07-28T22:42:36\"` as type `DateTime` at path: `root`")))
-          (Stdlib.Json.parse<DateTime>("\"2023-07-28\"")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `\"2023-07-28\"` as type `DateTime` at path: `root`")))
-          (Stdlib.Json.parse<DateTime>("1")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `1` as type `DateTime` at path: `root`"))) ])
+        [ Stdlib.Json.parse<DateTime>("\"3023-07-28T22:42:36\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"3023-07-28T22:42:36\"` as type `DateTime` at path: `root`"))
+
+          Stdlib.Json.parse<DateTime>("\"2023-07-28\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"2023-07-28\"` as type `DateTime` at path: `root`"))
+
+          Stdlib.Json.parse<DateTime>("1")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `1` as type `DateTime` at path: `root`")) ])
+
 
 module Uuid =
   let uuid(s: String): Uuid =
-    (Stdlib.Uuid.parse(s)) |> Builtin.unwrap
+    Stdlib.Uuid.parse(s) |> Builtin.unwrap
+
 
   test serialize =
     Stdlib.Test.all(
       [ // empty
-        Stdlib.Json.serialize<Uuid>(uuid("00000000-0000-0000-0000-000000000000"))
+        Stdlib.Json.serialize<Uuid>(
+          uuid("00000000-0000-0000-0000-000000000000"))
         |> Stdlib.Test.equal("\"00000000-0000-0000-0000-000000000000\"")
+
         // normal
-        Stdlib.Json.serialize<Uuid>(uuid("3700adbc-7a46-4ff4-81d3-45afb03f6e2d"))
+        Stdlib.Json.serialize<Uuid>(
+          uuid("3700adbc-7a46-4ff4-81d3-45afb03f6e2d"))
         |> Stdlib.Test.equal("\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\"")
-        Stdlib.Json.serialize<Uuid>(uuid("11111111-2222-3333-4444-555555555555"))
+
+        Stdlib.Json.serialize<Uuid>(
+          uuid("11111111-2222-3333-4444-555555555555"))
         |> Stdlib.Test.equal("\"11111111-2222-3333-4444-555555555555\"") ])
+
 
   test parse =
     Stdlib.Test.all(
       [ Stdlib.Json.parse<Uuid>("\"00000000-0000-0000-0000-000000000000\"")
-        |> Stdlib.Test.equal((Result.Ok(
-            uuid("00000000-0000-0000-0000-000000000000")
-          )))
+        |> Stdlib.Test.equal(
+          Result.Ok(uuid("00000000-0000-0000-0000-000000000000")))
+
         Stdlib.Json.parse<Uuid>("\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\"")
-        |> Stdlib.Test.equal((Result.Ok(
-            uuid("3700adbc-7a46-4ff4-81d3-45afb03f6e2d")
-          )))
+        |> Stdlib.Test.equal(
+          Result.Ok(uuid("3700adbc-7a46-4ff4-81d3-45afb03f6e2d")))
+
         Stdlib.Json.parse<Uuid>("\"11111111-2222-3333-4444-555555555555\"")
-        |> Stdlib.Test.equal((Result.Ok(
-            uuid("11111111-2222-3333-4444-555555555555")
-          ))) ])
+        |> Stdlib.Test.equal(
+          Result.Ok(uuid("11111111-2222-3333-4444-555555555555"))) ])
+
 
   module Errors =
     test parseErrors =
       // needs one more 0 at the end
-      (Stdlib.Json.parse<Uuid>("\"00000000-0000-0000-0000-00000000000\"")) |> err
-      |> Stdlib.Test.equal((Result.Error(
-          "Can't parse JSON `\"00000000-0000-0000-0000-00000000000\"` as type `Uuid` at path: `root`")))
+      Stdlib.Json.parse<Uuid>("\"00000000-0000-0000-0000-00000000000\"")
+      |> err
+      |> Stdlib.Test.equal(
+        Result.Error(
+          "Can't parse JSON `\"00000000-0000-0000-0000-00000000000\"` as type `Uuid` at path: `root`"))
+
 
 module BadTypes =
   test rejects1 =
-    (Stdlib.Json.parse<Int64 -> Int64>("{}")) |> err
-    |> Stdlib.Test.equal(Result.Error("Can't parse JSON as type `Int64 -> Int64`, which has no JSON form"))
+    Stdlib.Json.parse<Int64 -> Int64>("{}")
+    |> err
+    |> Stdlib.Test.equal(
+      Result.Error(
+        "Can't parse JSON as type `Int64 -> Int64`, which has no JSON form"))
+
 
   test rejects2 =
-    (Stdlib.Json.serialize<Int64 -> Int64>(fun i -> 5))
+    Stdlib.Json.serialize<Int64 -> Int64>(fun i -> 5)
     => raises "Cannot serialize (lambda) into JSON"
+
 
   test checkedRejects =
     Stdlib.Json.checkedSerialize<Int64 -> Int64>(fun i -> 5)
     |> Stdlib.Result.mapError(fun e -> Stdlib.display(e))
     |> Stdlib.Test.equal(Result.Error("Cannot serialize a function into JSON"))
 
+
   test checkedRejectsIntKeys =
     Stdlib.Json.checkedSerialize<Dict<Int64, String>>(Dict { 1: "a" })
     |> Stdlib.Result.mapError(fun e -> Stdlib.display(e))
-    |> Stdlib.Test.equal(Result.Error("Cannot serialize a dict into JSON: JSON object keys must be Strings, but this dict's keys are Int64"))
+    |> Stdlib.Test.equal(
+      Result.Error(
+        "Cannot serialize a dict into JSON: JSON object keys must be Strings, but this dict's keys are Int64"))
+
 
   test checkedSerializes =
     Stdlib.Json.checkedSerialize<List<Int64>>([ 1, 2 ])
     |> Stdlib.Test.equal(Result.Ok("[1,2]"))
 
+
 module List =
   type MyString = String
+
 
   test serialize =
     Stdlib.Test.all(
       [ Stdlib.Json.serialize<List<Int64>>([]) |> Stdlib.Test.equal("[]")
+
         Stdlib.Json.serialize<List<Int64>>([ 1, 2, 3 ])
         |> Stdlib.Test.equal("[1,2,3]")
+
         Stdlib.Json.serialize<List<List<List<Int64>>>>(
           [ [ [ 1, 2, 3 ], [ 4, 5, 6 ] ], [ [ 7, 8 ], [ 9, 0 ] ] ])
         |> Stdlib.Test.equal("[[[1,2,3],[4,5,6]],[[7,8],[9,0]]]")
+
         Stdlib.Json.serialize<List<Dict<String, String>>>(
           [ Dict { "name": "Alice", "role": "admin" }
             Dict { "name": "Bob", "role": "user" }
             Dict { "name": "Charlie", "role": "user" } ])
-        |> Stdlib.Test.equal("""[{"name":"Alice","role":"admin"},{"name":"Bob","role":"user"},{"name":"Charlie","role":"user"}]""")
+        |> Stdlib.Test.equal(
+          """[{"name":"Alice","role":"admin"},{"name":"Bob","role":"user"},{"name":"Charlie","role":"user"}]""")
+
         Stdlib.Json.serialize<List<Person>>(
           [ Person { Name = "Alice", Age = 42 }
             Person { Name = "Bob", Age = 27 }
             Person { Name = "Charlie", Age = 99 } ])
-        |> Stdlib.Test.equal("""[{"Age":42,"Name":"Alice"},{"Age":27,"Name":"Bob"},{"Age":99,"Name":"Charlie"}]""") ])
+        |> Stdlib.Test.equal(
+          """[{"Age":42,"Name":"Alice"},{"Age":27,"Name":"Bob"},{"Age":99,"Name":"Charlie"}]""") ])
+
 
   test parse =
     Stdlib.Test.all(
       [ Stdlib.Json.parse<List<Int64>>("[]") |> Stdlib.Test.equal(Result.Ok([]))
+
         Stdlib.Json.parse<List<Int64>>("[1,2,3]")
         |> Stdlib.Test.equal(Result.Ok([ 1, 2, 3 ]))
-        Stdlib.Json.parse<List<List<List<Int64>>>>("[[[1,2,3],[4,5,6]],[[7,8],[9,0]]]")
-        |> Stdlib.Test.equal((Result.Ok(
-            [ [ [ 1, 2, 3 ], [ 4, 5, 6 ] ], [ [ 7, 8 ], [ 9, 0 ] ] ])))
+
+        Stdlib.Json.parse<List<List<List<Int64>>>>(
+          "[[[1,2,3],[4,5,6]],[[7,8],[9,0]]]")
+        |> Stdlib.Test.equal(
+          Result.Ok([ [ [ 1, 2, 3 ], [ 4, 5, 6 ] ], [ [ 7, 8 ], [ 9, 0 ] ] ]))
+
         Stdlib.Json.parse<List<Dict<String, String>>>(
           """[{"name": "Alice", "role": "admin"}, {"name": "Bob", "role": "user"}, {"name": "Charlie", "role": "user"}]""")
-        |> Stdlib.Test.equal((Result.Ok(
+        |> Stdlib.Test.equal(
+          Result.Ok(
             [ Dict { "name": "Alice", "role": "admin" }
               Dict { "name": "Bob", "role": "user" }
-              Dict { "name": "Charlie", "role": "user" } ])))
+              Dict { "name": "Charlie", "role": "user" } ]))
+
         Stdlib.Json.parse<List<Person>>(
           """[{"Name": "Alice", "Age": 42}, {"Name": "Bob", "Age": 27}, {"Name": "Charlie", "Age": 99}]""")
-        |> Stdlib.Test.equal((Result.Ok(
+        |> Stdlib.Test.equal(
+          Result.Ok(
             [ Person { Name = "Alice", Age = 42 }
               Person { Name = "Bob", Age = 27 }
-              Person { Name = "Charlie", Age = 99 } ])))
+              Person { Name = "Charlie", Age = 99 } ]))
+
         Stdlib.Json.parse<List<Dict<String, MyString>>>(
           """[{"name": "Alice", "role": "admin"}, {"name": "Bob", "role": "user"}, {"name": "Charlie", "role": "user"}]""")
-        |> Stdlib.Test.equal((Result.Ok(
+        |> Stdlib.Test.equal(
+          Result.Ok(
             [ Dict { "name": "Alice", "role": "admin" }
               Dict { "name": "Bob", "role": "user" }
-              Dict { "name": "Charlie", "role": "user" } ]))) ])
+              Dict { "name": "Charlie", "role": "user" } ])) ])
+
 
   test parseErrors =
-    (Stdlib.Json.parse<List<Int64>>("[1,2,3,]")) |> err
+    Stdlib.Json.parse<List<Int64>>("[1,2,3,]")
+    |> err
     |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 8"))
+
 
   module Errors =
     test rejects1 =
-      (Stdlib.Json.serialize<List<Int64>>((1, 2, "three")))
+      Stdlib.Json.serialize<List<Int64>>((1, 2, "three"))
       => raises "Darklang.Stdlib.Json.serialize's 1st parameter `value` expects List<Int64>, but got (Int64 * Int64 * String) ((1, 2, \"three\"))"
+
 
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<List<Int64>>("[1, 2, \"three\"]")) |> err
-          |> Stdlib.Test.equal(Result.Error("Can't parse JSON `\"three\"` as type `Int64` at path: `root[2]`"))
-          (Stdlib.Json.parse<List<Int64>>("[1, 2, ]")) |> err
+        [ Stdlib.Json.parse<List<Int64>>("[1, 2, \"three\"]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"three\"` as type `Int64` at path: `root[2]`"))
+
+          Stdlib.Json.parse<List<Int64>>("[1, 2, ]")
+          |> err
           |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 8"))
-          (Stdlib.Json.parse<List<List<List<Int64>>>>("[[[1,2,3],[4,5.5,6]],[[7,8],[9,0]]]"))
+
+          Stdlib.Json.parse<List<List<List<Int64>>>>(
+            "[[[1,2,3],[4,5.5,6]],[[7,8],[9,0]]]")
           |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `5.5` as type `Int64` at path: `root[0][1][1]`")))
-          (Stdlib.Json.parse<List<Dict<String, Int64>>>(
-            """[{"name": "Alice", "role": "admin"}, {"name": "Bob", "role": "user"}, {"name": "Charlie", "role": "user"}]"""))
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `5.5` as type `Int64` at path: `root[0][1][1]`"))
+
+          Stdlib.Json.parse<List<Dict<String, Int64>>>(
+            """[{"name": "Alice", "role": "admin"}, {"name": "Bob", "role": "user"}, {"name": "Charlie", "role": "user"}]""")
           |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `\"Alice\"` as type `Int64` at path: `root[0].name`"))) ])
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"Alice\"` as type `Int64` at path: `root[0].name`")) ])
+
 
 module Tuples =
   test serialize =
     Stdlib.Test.all(
-      [ Stdlib.Json.serialize<Int64 * String * Int64>((1, "two", 3))
+      [ Stdlib.Json.serialize<(Int64 * String * Int64)>((1, "two", 3))
         |> Stdlib.Test.equal("[1,\"two\",3]")
-        Stdlib.Json.serialize<List<Int64> * List<Person>>((
-            [ 1, 2, 3 ],
-            [ Person { Name = "Alice", Age = 42 } ]
-          ))
+
+        Stdlib.Json.serialize<(List<Int64> * List<Person>)>(
+          ([ 1, 2, 3 ], [ Person { Name = "Alice", Age = 42 } ]))
         |> Stdlib.Test.equal("[[1,2,3],[{\"Age\":42,\"Name\":\"Alice\"}]]")
-        Stdlib.Json.serialize<(Int64 * String) * (Person * Dict<String, String>)>((
+
+        Stdlib.Json.serialize<
+          ((Int64 * String) * (Person * Dict<String, String>))>(
+          (
             (1, "two"),
-            (Person { Name = "Alice", Age = 42 }, Stdlib.Dict.singleton("a", "b"))
-          ))
-        |> Stdlib.Test.equal("[[1,\"two\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]")
-        Stdlib.Json.serialize<(List<Int64 * String> * List<UInt8>) *
-          (Person * Dict<String, String>)>((
+            (
+              Person { Name = "Alice", Age = 42 },
+              Stdlib.Dict.singleton("a", "b"))))
+        |> Stdlib.Test.equal(
+          "[[1,\"two\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]")
+
+        Stdlib.Json.serialize<
+          ((List<(Int64 * String)> * List<UInt8>) *
+           (Person * Dict<String, String>))>(
+          (
             ([ (1, "two"), (3, "four") ], []),
-            (Person { Name = "Alice", Age = 42 }, Stdlib.Dict.singleton("a", "b"))
-          ))
-        |> Stdlib.Test.equal("[[[[1,\"two\"],[3,\"four\"]],[]],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]")
-        Stdlib.Json.serialize<Person * Option<Int64>>((
-            Person { Name = "Alice", Age = 42 },
-            Option.Some(1)
-          ))
+            (
+              Person { Name = "Alice", Age = 42 },
+              Stdlib.Dict.singleton("a", "b"))))
+        |> Stdlib.Test.equal(
+          "[[[[1,\"two\"],[3,\"four\"]],[]],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]")
+
+        Stdlib.Json.serialize<(Person * Option<Int64>)>(
+          (Person { Name = "Alice", Age = 42 }, Option.Some(1)))
         |> Stdlib.Test.equal("[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[1]}]")
-        Stdlib.Json.serialize<Option<Int64> * Result<Int64, String>>((
-            Option.Some(1),
-            Result.Ok(2)
-          ))
+
+        Stdlib.Json.serialize<(Option<Int64> * Result<Int64, String>)>(
+          (Option.Some(1), Result.Ok(2)))
         |> Stdlib.Test.equal("[{\"Some\":[1]},{\"Ok\":[2]}]")
-        Stdlib.Json.serialize<Char * Bool>(('a', true))
+
+        Stdlib.Json.serialize<(Char * Bool)>(('a', true))
         |> Stdlib.Test.equal("[\"a\",true]")
-        Stdlib.Json.serialize<DateTime * Uuid>((
+
+        Stdlib.Json.serialize<(DateTime * Uuid)>(
+          (
             DateTime.d("2023-07-28T22:42:36Z"),
-            Uuid.uuid("3700adbc-7a46-4ff4-81d3-45afb03f6e2d")
-          ))
-        |> Stdlib.Test.equal("[\"2023-07-28T22:42:36Z\",\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\"]") ])
+            Uuid.uuid("3700adbc-7a46-4ff4-81d3-45afb03f6e2d")))
+        |> Stdlib.Test.equal(
+          "[\"2023-07-28T22:42:36Z\",\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\"]") ])
+
 
   test parse =
     Stdlib.Test.all(
-      [ Stdlib.Json.parse<Int64 * String * Int64>("[1,\"two\",3]")
-        |> Stdlib.Test.equal((Result.Ok(
-            (1, "two", 3)
-          )))
-        Stdlib.Json.parse<List<Int64> * List<Person>>(
+      [ Stdlib.Json.parse<(Int64 * String * Int64)>("[1,\"two\",3]")
+        |> Stdlib.Test.equal(Result.Ok((1, "two", 3)))
+
+        Stdlib.Json.parse<(List<Int64> * List<Person>)>(
           "[[1,2,3],[{\"Age\":42,\"Name\":\"Alice\"}]]")
-        |> Stdlib.Test.equal((Result.Ok(
-            ([ 1, 2, 3 ], [ Person { Name = "Alice", Age = 42 } ])
-          )))
-        Stdlib.Json.parse<(Int64 * String) * (Person * Dict<String, String>)>(
+        |> Stdlib.Test.equal(
+          Result.Ok(([ 1, 2, 3 ], [ Person { Name = "Alice", Age = 42 } ])))
+
+        Stdlib.Json.parse<((Int64 * String) * (Person * Dict<String, String>))>(
           "[[1,\"two\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]")
-        |> Stdlib.Test.equal((Result.Ok(
-            ((1, "two"),
-             (Person { Name = "Alice", Age = 42 }, Stdlib.Dict.singleton("a", "b")))
-          )))
-        Stdlib.Json.parse<(List<Int64 * String> * List<UInt8>) * (Person * Dict<String, String>)>(
+        |> Stdlib.Test.equal(
+          Result.Ok(
+            (
+              (1, "two"),
+              (
+                Person { Name = "Alice", Age = 42 },
+                Stdlib.Dict.singleton("a", "b")))))
+
+        Stdlib.Json.parse<
+          ((List<(Int64 * String)> * List<UInt8>) *
+           (Person * Dict<String, String>))>(
           "[[[[1,\"two\"],[3,\"four\"]],[]],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]")
-        |> Stdlib.Test.equal((Result
-            .Ok(
-              (([ (1, "two"), (3, "four") ], []),
-               (Person { Name = "Alice", Age = 42 }, Stdlib.Dict.singleton("a", "b")))
-            )))
-        Stdlib.Json.parse<Person * Option<Int64>>(
+        |> Stdlib.Test.equal(
+          Result.Ok(
+            (
+              ([ (1, "two"), (3, "four") ], []),
+              (
+                Person { Name = "Alice", Age = 42 },
+                Stdlib.Dict.singleton("a", "b")))))
+
+        Stdlib.Json.parse<(Person * Option<Int64>)>(
           "[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[1]}]")
-        |> Stdlib.Test.equal((Result.Ok(
-            (Person { Name = "Alice", Age = 42 }, Option.Some(1))
-          )))
-        Stdlib.Json.parse<Option<Int64> * Result<Int64, String>>(
+        |> Stdlib.Test.equal(
+          Result.Ok((Person { Name = "Alice", Age = 42 }, Option.Some(1))))
+
+        Stdlib.Json.parse<(Option<Int64> * Result<Int64, String>)>(
           "[{\"Some\":[1]},{\"Ok\":[2]}]")
         |> Stdlib.Test.equal(Result.Ok((Option.Some(1), Result.Ok(2))))
-        Stdlib.Json.parse<Char * Bool>("[\"a\",true]")
+
+        Stdlib.Json.parse<(Char * Bool)>("[\"a\",true]")
         |> Stdlib.Test.equal(Result.Ok(('a', true)))
-        Stdlib.Json.parse<DateTime * Uuid>(
+
+        Stdlib.Json.parse<(DateTime * Uuid)>(
           "[\"2023-07-28T22:42:36Z\",\"3700adbc-7a46-4ff4-81d3-45afb03f6e2d\"]")
-        |> Stdlib.Test.equal((Result.Ok(
-            (DateTime.d("2023-07-28T22:42:36Z"),
-             Uuid.uuid("3700adbc-7a46-4ff4-81d3-45afb03f6e2d"))
-          ))) ])
+        |> Stdlib.Test.equal(
+          Result.Ok(
+            (
+              DateTime.d("2023-07-28T22:42:36Z"),
+              Uuid.uuid("3700adbc-7a46-4ff4-81d3-45afb03f6e2d")))) ])
+
 
   test parseErrors =
-    (Stdlib.Json.parse<Int64 * String * Int64>("[1,3]")) |> err
-    |> Stdlib.Test.equal((Result.Error(
-        "Can't parse JSON `[1,3]` as type `(Int64 * String * Int64)` at path: `root`")))
+    Stdlib.Json.parse<(Int64 * String * Int64)>("[1,3]")
+    |> err
+    |> Stdlib.Test.equal(
+      Result.Error(
+        "Can't parse JSON `[1,3]` as type `(Int64 * String * Int64)` at path: `root`"))
+
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<String * String * Int64>("""[1, "two", 3]""")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `1` as type `String` at path: `root[0]`")))
-          (Stdlib.Json.parse<String>("""[1, "two", 3]""")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `[1, \"two\", 3]` as type `String` at path: `root`")))
-          (Stdlib.Json.parse<Int64 * String>("""[1, "two", 3]""")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `[1, \"two\", 3]` as type `(Int64 * String)` at path: `root`")))
-          (Stdlib.Json.parse<List<String * String> * (Person * Dict<String, String>)>(
-            "[[[2,\"two\"],[3,\"four\"]],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":1}]]"))
+        [ Stdlib.Json.parse<(String * String * Int64)>("""[1, "two", 3]""")
           |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `2` as type `String` at path: `root[0][0][0]`")))
-          (Stdlib.Json.parse<(List<Int64 * List<String>>) * String>(
-            "[[[1,\"two\"],[3,\"four\"]],\"\"]"))
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `1` as type `String` at path: `root[0]`"))
+
+          Stdlib.Json.parse<String>("""[1, "two", 3]""")
           |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `\"two\"` as type `List<String>` at path: `root[0][0][1]`")))
-          (Stdlib.Json.parse<Person * Option<Int64>>(
-            "[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[\"one\"]}]"))
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[1, \"two\", 3]` as type `String` at path: `root`"))
+
+          Stdlib.Json.parse<(Int64 * String)>("""[1, "two", 3]""")
           |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `\"one\"` as type `Int64` at path: `root[1].Some[0]`"))) ])
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[1, \"two\", 3]` as type `(Int64 * String)` at path: `root`"))
+
+          Stdlib.Json.parse<
+            (List<(String * String)> * (Person * Dict<String, String>))>(
+            "[[[2,\"two\"],[3,\"four\"]],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":1}]]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `2` as type `String` at path: `root[0][0][0]`"))
+
+          Stdlib.Json.parse<(List<(Int64 * List<String>)> * String)>(
+            "[[[1,\"two\"],[3,\"four\"]],\"\"]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"two\"` as type `List<String>` at path: `root[0][0][1]`"))
+
+          Stdlib.Json.parse<(Person * Option<Int64>)>(
+            "[{\"Age\":42,\"Name\":\"Alice\"},{\"Some\":[\"one\"]}]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"one\"` as type `Int64` at path: `root[1].Some[0]`")) ])
+
 
 module Option =
   // TODO: more...
@@ -1457,115 +2376,171 @@ module Option =
     Stdlib.Test.all(
       [ Stdlib.Json.serialize<Option<Int64>>(Option.None)
         |> Stdlib.Test.equal("{\"None\":[]}")
+
         Stdlib.Json.serialize<Option<Int64>>(Option.Some(1))
         |> Stdlib.Test.equal("{\"Some\":[1]}") ])
+
 
   test parse =
     Stdlib.Test.all(
       [ Stdlib.Json.parse<Option<Int64>>("{\"None\":[]}")
         |> Stdlib.Test.equal(Result.Ok(Option.None))
+
         Stdlib.Json.parse<Option<Int64>>("{\"Some\":[1]}")
         |> Stdlib.Test.equal(Result.Ok(Option.Some(1))) ])
+
 
   module Errors =
     // Option parsing intentionally requires the explicit enum representation.
     test parseErrors =
       Stdlib.Test.all(
         [ // TODO: these might make good candidates for more ergonmic parsing
-          (Stdlib.Json.parse<Option<Int64>>("null")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `null` as type `Darklang.Stdlib.Option.Option<Int64>` at path: `root`")))
-          (Stdlib.Json.parse<Option<Int64>>("1")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `1` as type `Darklang.Stdlib.Option.Option<Int64>` at path: `root`")))
-          (Stdlib.Json.parse<Option<List<String>>>("[1,2,3]")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `[1,2,3]` as type `Darklang.Stdlib.Option.Option<List<String>>` at path: `root`")))
+          Stdlib.Json.parse<Option<Int64>>("null")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `null` as type `Darklang.Stdlib.Option.Option<Int64>` at path: `root`"))
+
+          Stdlib.Json.parse<Option<Int64>>("1")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `1` as type `Darklang.Stdlib.Option.Option<Int64>` at path: `root`"))
+
+          Stdlib.Json.parse<Option<List<String>>>("[1,2,3]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[1,2,3]` as type `Darklang.Stdlib.Option.Option<List<String>>` at path: `root`"))
+
           // a case's fields must be an array
-          (Stdlib.Json.parse<Option<String>>("{\"Some\":\"x\"}")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `\"x\"` as type `Darklang.Stdlib.Option.Option<String>` at path: `root.Some`"))) ])
+          Stdlib.Json.parse<Option<String>>("{\"Some\":\"x\"}")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"x\"` as type `Darklang.Stdlib.Option.Option<String>` at path: `root.Some`")) ])
+
 
 module ParseErrorToString =
   test interpolates =
     Stdlib.Json.parse<Person>("{\"Name\":\"Bob\",\"Age\":\"x\"}")
     |> Stdlib.Result.mapError(fun e -> $"{e}")
     |> Stdlib.Test.equal(
-      Result.Error("Can't parse JSON `\"x\"` as type `Int64` at path: `root.Age`"))
+      Result.Error(
+        "Can't parse JSON `\"x\"` as type `Int64` at path: `root.Age`"))
+
 
   test toStringNeedsNoBranch =
     Stdlib.Json.parse<Int64>("1 2")
     |> Stdlib.Result.mapError(fun e -> Stdlib.display(e))
     |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 3"))
 
+
 module Result =
   test serialize =
     Stdlib.Test.all(
       [ Stdlib.Json.serialize<Result<Int64, String>>(Result.Ok(1))
         |> Stdlib.Test.equal("{\"Ok\":[1]}")
-        Stdlib.Json.serialize<Result<Int64, String>>(Result.Error("err message"))
+
+        Stdlib.Json.serialize<Result<Int64, String>>(
+          Result.Error("err message"))
         |> Stdlib.Test.equal("{\"Error\":[\"err message\"]}")
-        Stdlib.Json.serialize<Result<List<Dict<String, String> * Option<Int64>>, String>>((
-            Result.Ok(
-              [ (Stdlib.Dict.singleton("a", "b"), Option.Some(1))
-                (Stdlib.Dict.singleton("c", "d"), Option.None) ])
-          ))
-        |> Stdlib.Test.equal("{\"Ok\":[[[{\"a\":\"b\"},{\"Some\":[1]}],[{\"c\":\"d\"},{\"None\":[]}]]]}")
-        Stdlib.Json.serialize<Result<Result<Int64, String>, String>>(Result.Ok(Result.Ok(1)))
+
+        Stdlib.Json.serialize<
+          Result<List<(Dict<String, String> * Option<Int64>)>, String>>(
+          Result.Ok(
+            [ (Stdlib.Dict.singleton("a", "b"), Option.Some(1))
+              (Stdlib.Dict.singleton("c", "d"), Option.None) ]))
+        |> Stdlib.Test.equal(
+          "{\"Ok\":[[[{\"a\":\"b\"},{\"Some\":[1]}],[{\"c\":\"d\"},{\"None\":[]}]]]}")
+
+        Stdlib.Json.serialize<Result<Result<Int64, String>, String>>(
+          Result.Ok(Result.Ok(1)))
         |> Stdlib.Test.equal("{\"Ok\":[{\"Ok\":[1]}]}")
-        Stdlib.Json.serialize<Result<Result<Int64, String>, String>>(Result.Ok(Result.Error("err message")))
+
+        Stdlib.Json.serialize<Result<Result<Int64, String>, String>>(
+          Result.Ok(Result.Error("err message")))
         |> Stdlib.Test.equal("{\"Ok\":[{\"Error\":[\"err message\"]}]}")
-        Stdlib.Json.serialize<Result<Result<Option<Result<Int64, String>>, String>, String>>(Result.Ok(Result.Ok(Option.Some(Result.Ok(1)))))
-        |> Stdlib.Test.equal("{\"Ok\":[{\"Ok\":[{\"Some\":[{\"Ok\":[1]}]}]}]}") ])
+
+        Stdlib.Json.serialize<
+          Result<Result<Option<Result<Int64, String>>, String>, String>>(
+          Result.Ok(Result.Ok(Option.Some(Result.Ok(1)))))
+        |> Stdlib.Test.equal(
+          "{\"Ok\":[{\"Ok\":[{\"Some\":[{\"Ok\":[1]}]}]}]}") ])
+
 
   test parse =
     Stdlib.Test.all(
       [ Stdlib.Json.parse<Result<Int64, String>>("{\"Ok\":[1]}")
         |> Stdlib.Test.equal(Result.Ok(Result.Ok(1)))
-        Stdlib.Json.parse<Result<Int64, String>>("{\"Error\":[\"err message\"]}")
-        |> Stdlib.Test.equal((Result
-            .Ok(Result.Error("err message"))))
-        Stdlib.Json.parse<Result<List<Dict<String, String> * Option<Int64>>, String>>("{\"Ok\":[[[{\"a\":\"b\"},{\"Some\":[1]}],[{\"c\":\"d\"},{\"None\":[]}]]]}")
-        |> Stdlib.Test.equal(Result.Ok(Result.Ok([ (Stdlib.Dict.singleton("a", "b"), Option.Some(1)), (Stdlib.Dict.singleton("c", "d"), Option.None) ])))
-        Stdlib.Json.parse<Result<Result<Int64, String>, String>>("{\"Ok\":[{\"Ok\":[1]}]}")
+
+        Stdlib.Json.parse<Result<Int64, String>>(
+          "{\"Error\":[\"err message\"]}")
+        |> Stdlib.Test.equal(Result.Ok(Result.Error("err message")))
+
+        Stdlib.Json.parse<
+          Result<List<(Dict<String, String> * Option<Int64>)>, String>>(
+          "{\"Ok\":[[[{\"a\":\"b\"},{\"Some\":[1]}],[{\"c\":\"d\"},{\"None\":[]}]]]}")
+        |> Stdlib.Test.equal(
+          Result.Ok(
+            Result.Ok(
+              [ (Stdlib.Dict.singleton("a", "b"), Option.Some(1))
+                (Stdlib.Dict.singleton("c", "d"), Option.None) ])))
+
+        Stdlib.Json.parse<Result<Result<Int64, String>, String>>(
+          "{\"Ok\":[{\"Ok\":[1]}]}")
         |> Stdlib.Test.equal(Result.Ok(Result.Ok(Result.Ok(1))))
-        Stdlib.Json.parse<Result<Result<Int64, String>, String>>("{\"Ok\":[{\"Error\":[\"err message\"]}]}")
+
+        Stdlib.Json.parse<Result<Result<Int64, String>, String>>(
+          "{\"Ok\":[{\"Error\":[\"err message\"]}]}")
         |> Stdlib.Test.equal(Result.Ok(Result.Ok(Result.Error("err message"))))
-        Stdlib.Json.parse<Result<Result<Option<Result<Int64, String>>, String>, String>>(
+
+        Stdlib.Json.parse<
+          Result<Result<Option<Result<Int64, String>>, String>, String>>(
           "{\"Ok\":[{\"Ok\":[{\"Some\":[{\"Ok\":[1]}]}]}]}")
-        |> Stdlib.Test.equal((Result.Ok(
-            Result.Ok(Result.Ok(Option.Some(Result.Ok(1))))
-          ))) ])
+        |> Stdlib.Test.equal(
+          Result.Ok(Result.Ok(Result.Ok(Option.Some(Result.Ok(1)))))) ])
+
 
 module Dict =
   test serialize =
     Stdlib.Test.all(
-      [ Stdlib.Json.serialize<Dict<String, String>>(Stdlib.Dict.singleton("a", "b"))
+      [ Stdlib.Json.serialize<Dict<String, String>>(
+          Stdlib.Dict.singleton("a", "b"))
         |> Stdlib.Test.equal("""{"a":"b"}""")
+
         Stdlib.Json.serialize<Dict<String, String>>(Dict { "a": "b", "c": "d" })
         |> Stdlib.Test.equal("""{"a":"b","c":"d"}""")
-        Stdlib.Json.serialize<Dict<Int64, String>>(Dict { })
+
+        Stdlib.Json.serialize<Dict<Int64, String>>(Dict {})
         |> Stdlib.Test.equal("{}") ])
+
 
   test parse =
     Stdlib.Test.all(
       [ Stdlib.Json.parse<Dict<String, String>>("""{"a":"b"}""")
         |> Stdlib.Test.equal(Result.Ok(Stdlib.Dict.singleton("a", "b")))
+
         Stdlib.Json.parse<Dict<String, String>>("""{"a":"b","c":"d"}""")
         |> Stdlib.Test.equal(Result.Ok(Dict { "a": "b", "c": "d" })) ])
 
+
   test rejects1 =
-    (Stdlib.Json.serialize<Dict<Int64, String>>(Dict { 1: "a" }))
+    Stdlib.Json.serialize<Dict<Int64, String>>(Dict { 1: "a" })
     => raises "Cannot serialize { 1: \"a\" } into JSON: JSON object keys must be Strings, but this dict's keys are Int64"
 
+
   test rejectsNested =
-    (Stdlib.Json.serialize<List<Dict<Int64, String>>>([ Dict { 1: "a" } ]))
+    Stdlib.Json.serialize<List<Dict<Int64, String>>>([ Dict { 1: "a" } ])
     => raises "Cannot serialize { 1: \"a\" } into JSON: JSON object keys must be Strings, but this dict's keys are Int64"
+
 
   module Errors =
     test parseErrors =
-      (Stdlib.Json.parse<Dict<String, Int64>>("""{1:"b",2:"d"}""")) |> err
+      Stdlib.Json.parse<Dict<String, Int64>>("""{1:"b",2:"d"}""")
+      |> err
       |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
+
 
 module UserDefinedEnums =
   // TODO: more nesting...
@@ -1573,73 +2548,105 @@ module UserDefinedEnums =
     | Yeah
     | Enh(reason: String, Int64)
 
+
   type PrettyLikely2 =
     | PrettyLikely(PrettyLikely)
     | Yes
     | No
 
+
   test serialize =
     Stdlib.Test.all(
       [ Stdlib.Json.serialize<PrettyLikely>(PrettyLikely.Yeah)
         |> Stdlib.Test.equal("{\"Yeah\":[]}")
-        Stdlib.Json.serialize<PrettyLikely>(PrettyLikely.Enh("printer broke", 7))
+
+        Stdlib.Json.serialize<PrettyLikely>(
+          PrettyLikely.Enh("printer broke", 7))
         |> Stdlib.Test.equal("{\"Enh\":[\"printer broke\",7]}")
-        Stdlib.Json.serialize<PrettyLikely2>(PrettyLikely2.PrettyLikely(PrettyLikely.Yeah))
+
+        Stdlib.Json.serialize<PrettyLikely2>(
+          PrettyLikely2.PrettyLikely(PrettyLikely.Yeah))
         |> Stdlib.Test.equal("{\"PrettyLikely\":[{\"Yeah\":[]}]}")
-        Stdlib.Json.serialize<PrettyLikely2>(PrettyLikely2.PrettyLikely(PrettyLikely.Enh("printer broke", 7)))
-        |> Stdlib.Test.equal("{\"PrettyLikely\":[{\"Enh\":[\"printer broke\",7]}]}") ])
+
+        Stdlib.Json.serialize<PrettyLikely2>(
+          PrettyLikely2.PrettyLikely(PrettyLikely.Enh("printer broke", 7)))
+        |> Stdlib.Test.equal(
+          "{\"PrettyLikely\":[{\"Enh\":[\"printer broke\",7]}]}") ])
+
 
   test parse =
     Stdlib.Test.all(
       [ Stdlib.Json.parse<PrettyLikely>("{\"Yeah\":[]}")
         |> Stdlib.Test.equal(Result.Ok(PrettyLikely.Yeah))
+
         Stdlib.Json.parse<PrettyLikely>("{\"Enh\":[\"printer broke\",7]}")
-        |> Stdlib.Test.equal((Result.Ok(
-            PrettyLikely.Enh("printer broke", 7)
-          )))
+        |> Stdlib.Test.equal(Result.Ok(PrettyLikely.Enh("printer broke", 7)))
+
         Stdlib.Json.parse<PrettyLikely2>("{\"PrettyLikely\":[{\"Yeah\":[]}]}")
-        |> Stdlib.Test.equal((Result.Ok(
-            PrettyLikely2.PrettyLikely(PrettyLikely.Yeah)
-          )))
+        |> Stdlib.Test.equal(
+          Result.Ok(PrettyLikely2.PrettyLikely(PrettyLikely.Yeah)))
+
         Stdlib.Json.parse<PrettyLikely2>(
           "{\"PrettyLikely\":[{\"Enh\":[\"printer broke\",7]}]}")
-        |> Stdlib.Test.equal((Result.Ok(
-            PrettyLikely2.PrettyLikely(PrettyLikely.Enh("printer broke", 7))
-          ))) ])
+        |> Stdlib.Test.equal(
+          Result.Ok(
+            PrettyLikely2.PrettyLikely(
+              PrettyLikely.Enh("printer broke", 7)))) ])
+
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<PrettyLikely>("{\"Enh\":[\"printer broke\",\"not int\"]}"))
+        [ Stdlib.Json.parse<PrettyLikely>(
+            "{\"Enh\":[\"printer broke\",\"not int\"]}")
           |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `\"not int\"` as type `Int64` at path: `root.Enh[1]`")))
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"not int\"` as type `Int64` at path: `root.Enh[1]`"))
+
           // EnumMissingField
-          (Stdlib.Json.parse<PrettyLikely>("{\"Enh\":[\"printer broke\"]}")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON because argument 1 (`Int64`) is missing at path: `root.Enh`")))
+          Stdlib.Json.parse<PrettyLikely>("{\"Enh\":[\"printer broke\"]}")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON because argument 1 (`Int64`) is missing at path: `root.Enh`"))
+
           // EnumExtraField
-          (Stdlib.Json.parse<PrettyLikely>("{\"Enh\":[\"printer broke\", 1, 2.0]}")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON due to an extra argument `2.0` at path: `root.Enh[2]`")))
+          Stdlib.Json.parse<PrettyLikely>(
+            "{\"Enh\":[\"printer broke\", 1, 2.0]}")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON due to an extra argument `2.0` at path: `root.Enh[2]`"))
+
           // CantMatchWithType
-          (Stdlib.Json.parse<PrettyLikely>("{}")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `{}` as type `Darklang.Stdlib.Json.Tests.UserDefinedEnums.PrettyLikely` at path: `root`")))
-          (Stdlib.Json.parse<PrettyLikely>("[]")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `[]` as type `Darklang.Stdlib.Json.Tests.UserDefinedEnums.PrettyLikely` at path: `root`")))
+          Stdlib.Json.parse<PrettyLikely>("{}")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `{}` as type `Darklang.Stdlib.Json.Tests.UserDefinedEnums.PrettyLikely` at path: `root`"))
+
+          Stdlib.Json.parse<PrettyLikely>("[]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[]` as type `Darklang.Stdlib.Json.Tests.UserDefinedEnums.PrettyLikely` at path: `root`"))
+
           // EnumInvalidCasename
-          (Stdlib.Json.parse<PrettyLikely>("{\"Wrong\":[\"printer broke\", 1, 2.0]}"))
+          Stdlib.Json.parse<PrettyLikely>(
+            "{\"Wrong\":[\"printer broke\", 1, 2.0]}")
           |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON as `Wrong` is not a known case of type `Darklang.Stdlib.Json.Tests.UserDefinedEnums.PrettyLikely` at path: `root`")))
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON as `Wrong` is not a known case of type `Darklang.Stdlib.Json.Tests.UserDefinedEnums.PrettyLikely` at path: `root`"))
+
           // EnumTooManyCases
-          (Stdlib.Json.parse<PrettyLikely>(
-            "{\"Enh\":[\"printer broke\", 1], \"Extra\": \"field\"}"))
+          Stdlib.Json.parse<PrettyLikely>(
+            "{\"Enh\":[\"printer broke\", 1], \"Extra\": \"field\"}")
           |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON with multiple fields (`Enh`, `Extra`) as type `Darklang.Stdlib.Json.Tests.UserDefinedEnums.PrettyLikely` at path: `root`"))) ])
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON with multiple fields (`Enh`, `Extra`) as type `Darklang.Stdlib.Json.Tests.UserDefinedEnums.PrettyLikely` at path: `root`")) ])
 
 
 module UserDefinedRecords =
@@ -1647,15 +2654,90 @@ module UserDefinedRecords =
     Stdlib.Test.all(
       [ Stdlib.Json.serialize<Person>(Person { Name = "Bob", Age = 42 })
         |> Stdlib.Test.equal("""{"Age":42,"Name":"Bob"}""")
-        Stdlib.Json.serialize<People>((
+
+        Stdlib.Json.serialize<People>(
+          People
+            { GroupName = "Two Georges"
+              People =
+                [ Person { Name = "George A", Age = 27 }
+                  Person { Name = "George B", Age = 42 } ] })
+        |> Stdlib.Test.equal(
+          """{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]}""")
+
+        Stdlib.Json.serialize<Combo<Person, Combo<People, Int64>>>(
+          Combo
+            { e1 = Person { Name = "Bob", Age = 42 }
+              e2 =
+                Combo
+                  { e1 =
+                      People
+                        { GroupName = "Two Georges"
+                          People =
+                            [ Person { Name = "George A", Age = 27 }
+                              Person { Name = "George B", Age = 42 } ] }
+                    e2 = 5 } })
+        |> Stdlib.Test.equal(
+          """{"e1":{"Age":42,"Name":"Bob"},"e2":{"e1":{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]},"e2":5}}""")
+
+        Combo
+          { e1 = Person { Name = "Bob", Age = 42 }
+            e2 =
+              Combo
+                { e1 =
+                    People
+                      { GroupName = "Two Georges"
+                        People =
+                          [ Person { Name = "George A", Age = 27 }
+                            Person { Name = "George B", Age = 42 } ] }
+                  e2 = 5 } }
+        |> Stdlib.Json.serialize<Combo<Person, Combo<People, Int64>>>
+        |> Stdlib.Json.parse<Combo<Person, Combo<People, Int64>>>
+        |> Builtin.unwrap
+        |> Stdlib.Test.equal(
+          Combo
+            { e1 = Person { Name = "Bob", Age = 42 }
+              e2 =
+                Combo
+                  { e1 =
+                      People
+                        { GroupName = "Two Georges"
+                          People =
+                            [ Person { Name = "George A", Age = 27 }
+                              Person { Name = "George B", Age = 42 } ] }
+                    e2 = 5 } }) ])
+
+
+  test parse =
+    Stdlib.Test.all(
+      [ Stdlib.Json.parse<Person>("""{ "Name": "Bob", "Age": 42 }""")
+        |> Stdlib.Test.equal(Result.Ok(Person { Name = "Bob", Age = 42 }))
+
+        // can parse even if the JSON has _extra_ fields
+        Stdlib.Json.parse<Person>(
+          """{ "Name": "Bob", "Age": 42, "Height": "6 ft" }""")
+        |> Stdlib.Test.equal(Result.Ok(Person { Name = "Bob", Age = 42 }))
+
+        (let personMaybe =
+           Stdlib.Json.parse<Person>("""{ "Name": "Bob", "Age": 42 }""")
+         match personMaybe with
+         | Ok(person) -> person.Age
+         | Error(_) -> 0)
+        |> Stdlib.Test.equal(42)
+
+        Stdlib.Json.parse<People>(
+          """{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]}""")
+        |> Stdlib.Test.equal(
+          Result.Ok(
             People
               { GroupName = "Two Georges"
                 People =
                   [ Person { Name = "George A", Age = 27 }
-                    Person { Name = "George B", Age = 42 } ] }
-          ))
-        |> Stdlib.Test.equal("""{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]}""")
-        Stdlib.Json.serialize<Combo<Person, Combo<People, Int64>>>((
+                    Person { Name = "George B", Age = 42 } ] }))
+
+        Stdlib.Json.parse<Combo<Person, Combo<People, Int64>>>(
+          """{"e1":{"Age":42,"Name":"Bob"},"e2":{"e1":{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]},"e2":5}}""")
+        |> Stdlib.Test.equal(
+          Result.Ok(
             Combo
               { e1 = Person { Name = "Bob", Age = 42 }
                 e2 =
@@ -1666,80 +2748,13 @@ module UserDefinedRecords =
                             People =
                               [ Person { Name = "George A", Age = 27 }
                                 Person { Name = "George B", Age = 42 } ] }
-                      e2 = 5 } }
-          ))
-        |> Stdlib.Test.equal("""{"e1":{"Age":42,"Name":"Bob"},"e2":{"e1":{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]},"e2":5}}""")
-        (Combo
-          { e1 = Person { Name = "Bob", Age = 42 }
-            e2 =
-              Combo
-                { e1 =
-                    People
-                      { GroupName = "Two Georges"
-                        People =
-                          [ Person { Name = "George A", Age = 27 }
-                            Person { Name = "George B", Age = 42 } ] }
-                  e2 = 5 } })
-        |> Stdlib.Json.serialize<Combo<Person, Combo<People, Int64>>>
-        |> Stdlib.Json.parse<Combo<Person, Combo<People, Int64>>>
-        |> Builtin.unwrap
-        |> Stdlib.Test.equal(((Combo
-            { e1 = Person { Name = "Bob", Age = 42 }
-              e2 =
-                Combo
-                  { e1 =
-                      People
-                        { GroupName = "Two Georges"
-                          People =
-                            [ Person { Name = "George A", Age = 27 }
-                              Person { Name = "George B", Age = 42 } ] }
-                    e2 = 5 } }))) ])
+                      e2 = 5 } })) ])
 
-  test parse =
-    Stdlib.Test.all(
-      [ Stdlib.Json.parse<Person>("""{ "Name": "Bob", "Age": 42 }""")
-        |> Stdlib.Test.equal((Result.Ok(
-            Person { Name = "Bob", Age = 42 }
-          )))
-        // can parse even if the JSON has _extra_ fields
-        Stdlib.Json.parse<Person>("""{ "Name": "Bob", "Age": 42, "Height": "6 ft" }""")
-        |> Stdlib.Test.equal((Result
-            .Ok(Person { Name = "Bob", Age = 42 })))
-        (let personMaybe = Stdlib.Json.parse<Person>("""{ "Name": "Bob", "Age": 42 }""")
-         match personMaybe with
-         | Ok(person) -> person.Age
-         | Error(_) -> 0)
-        |> Stdlib.Test.equal(42)
-        Stdlib.Json.parse<People>(
-          """{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]}""")
-        |> Stdlib.Test.equal((Result
-            .Ok(
-              People
-                { GroupName = "Two Georges"
-                  People =
-                    [ Person { Name = "George A", Age = 27 }
-                      Person { Name = "George B", Age = 42 } ] }
-            )))
-        Stdlib.Json.parse<Combo<Person, Combo<People, Int64>>>(
-          """{"e1":{"Age":42,"Name":"Bob"},"e2":{"e1":{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]},"e2":5}}""")
-        |> Stdlib.Test.equal((Result
-            .Ok(
-              Combo
-                { e1 = Person { Name = "Bob", Age = 42 }
-                  e2 =
-                    Combo
-                      { e1 =
-                          People
-                            { GroupName = "Two Georges"
-                              People =
-                                [ Person { Name = "George A", Age = 27 }
-                                  Person { Name = "George B", Age = 42 } ] }
-                        e2 = 5 } }
-            ))) ])
 
   type People =
     { GroupName: String
       People: List<Person> }
+
 
   /// `Nickname` goes through this file's `Option` alias, `Age` names the stdlib type.
   type Profile =
@@ -1747,298 +2762,448 @@ module UserDefinedRecords =
       Nickname: Option<String>
       Age: Stdlib.Option.Option<Int64> }
 
+
   module OptionalFields =
     test missingOptionFieldsAreNone =
       Stdlib.Json.parse<Profile>("""{ "Name": "Bob" }""")
       |> Stdlib.Test.equal(
-        Result.Ok(Profile { Name = "Bob", Nickname = Option.None, Age = Option.None }))
+        Result.Ok(
+          Profile { Name = "Bob", Nickname = Option.None, Age = Option.None }))
+
 
     test presentOptionFieldsStillParse =
       Stdlib.Json.parse<Profile>(
         """{ "Name": "Bob", "Nickname": { "Some": ["B"] }, "Age": { "None": [] } }""")
       |> Stdlib.Test.equal(
         Result.Ok(
-          Profile { Name = "Bob", Nickname = Option.Some("B"), Age = Option.None }))
+          Profile
+            { Name = "Bob", Nickname = Option.Some("B"), Age = Option.None }))
+
 
     test plainValuesAreSome =
-      Stdlib.Json.parse<Profile>("""{ "Name": "Bob", "Nickname": "B", "Age": 42 }""")
+      Stdlib.Json.parse<Profile>(
+        """{ "Name": "Bob", "Nickname": "B", "Age": 42 }""")
       |> Stdlib.Test.equal(
         Result.Ok(
-          Profile { Name = "Bob", Nickname = Option.Some("B"), Age = Option.Some(42) }))
+          Profile
+            { Name = "Bob"
+              Nickname = Option.Some("B")
+              Age = Option.Some(42) }))
+
 
     test nullIsNone =
-      Stdlib.Json.parse<Profile>("""{ "Name": "Bob", "Nickname": null, "Age": null }""")
+      Stdlib.Json.parse<Profile>(
+        """{ "Name": "Bob", "Nickname": null, "Age": null }""")
       |> Stdlib.Test.equal(
-        Result.Ok(Profile { Name = "Bob", Nickname = Option.None, Age = Option.None }))
+        Result.Ok(
+          Profile { Name = "Bob", Nickname = Option.None, Age = Option.None }))
+
 
     test serializedProfileParses =
-      let p = Profile { Name = "Bob", Nickname = Option.Some("B"), Age = Option.None }
+      let p =
+        Profile { Name = "Bob", Nickname = Option.Some("B"), Age = Option.None }
+
       Stdlib.Json.parse<Profile>(Stdlib.Json.serialize<Profile>(p))
       |> Stdlib.Test.equal(Result.Ok(p))
 
+
     test plainValueOfWrongTypeIsAnError =
-      (Stdlib.Json.parse<Profile>("""{ "Name": "Bob", "Age": "old" }""")) |> err
+      Stdlib.Json.parse<Profile>("""{ "Name": "Bob", "Age": "old" }""")
+      |> err
       |> Stdlib.Test.equal(
         Result.Error(
           "Can't parse JSON `\"old\"` as type `Int64` at path: `root.Age`"))
+
 
     test missingTypeArgOptionIsNone =
       Stdlib.Json.parse<Combo<Int64, Option<Int64>>>("""{ "e1": 1 }""")
       |> Stdlib.Test.equal(Result.Ok(Combo { e1 = 1, e2 = Option.None }))
 
+
     test someWithoutArrayIsAnError =
-      (Stdlib.Json.parse<Profile>("""{ "Name": "Bob", "Nickname": { "Some": "B" } }""")) |> err
+      Stdlib.Json.parse<Profile>(
+        """{ "Name": "Bob", "Nickname": { "Some": "B" } }""")
+      |> err
       |> Stdlib.Test.equal(
         Result.Error(
           "Can't parse JSON `\"B\"` as type `Darklang.Stdlib.Option.Option<String>` at path: `root.Nickname.Some`"))
 
-    test otherMissingFieldsStillFail =
-      (Stdlib.Json.parse<Profile>("""{ "Nickname": { "None": [] } }""")) |> err
-      |> Stdlib.Test.equal(
-        Result.Error("Can't parse JSON because `Name` field is not provided at path: `root`"))
 
-  type Combo<'e1, 'e2> = { e1: 'e1, e2: 'e2 }
+    test otherMissingFieldsStillFail =
+      Stdlib.Json.parse<Profile>("""{ "Nickname": { "None": [] } }""")
+      |> err
+      |> Stdlib.Test.equal(
+        Result.Error(
+          "Can't parse JSON because `Name` field is not provided at path: `root`"))
+
+
+  type Combo<'e1, 'e2> =
+    { e1: 'e1
+      e2: 'e2 }
+
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
         [ // Person shares its content hash with UserDefinedAliases.Person2 (identical structure),
           // but pickLocation now prefers the shorter path.
-          (Stdlib.Json.parse<Person>("[]")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON `[]` as type `Darklang.Stdlib.Json.Tests.Person` at path: `root`")))
+          Stdlib.Json.parse<Person>("[]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[]` as type `Darklang.Stdlib.Json.Tests.Person` at path: `root`"))
+
           // Extra fields are allowed, but missing fields are not
-          (Stdlib.Json.parse<Person>("{\"notAField\": 5}")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON because `Name` field is not provided at path: `root`")))
-          (Stdlib.Json.parse<Person>("{\"Age\": 5, \"Age\": 6, \"Name\": \"\"}")) |> err
-          |> Stdlib.Test.equal((Result.Error(
-              "Can't parse JSON because `Age` is defined more than once at path: `root`"))) ])
+          Stdlib.Json.parse<Person>("{\"notAField\": 5}")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON because `Name` field is not provided at path: `root`"))
+
+          Stdlib.Json.parse<Person>("{\"Age\": 5, \"Age\": 6, \"Name\": \"\"}")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON because `Age` is defined more than once at path: `root`")) ])
 
 
 module UserDefinedAliases =
   type MyInt = Int64
 
+
   test serialize =
     Stdlib.Test.all(
       [ Stdlib.Json.serialize<MyInt>(42) |> Stdlib.Test.equal("42")
+
         Stdlib.Json.serialize<MyPerson>(Person { Name = "Bob", Age = 42 })
         |> Stdlib.Test.equal("""{"Age":42,"Name":"Bob"}""")
-        Stdlib.Json.serialize<MyPrettyLikely>(UserDefinedEnums.PrettyLikely.Enh("printer broke", 7))
+
+        Stdlib.Json.serialize<MyPrettyLikely>(
+          UserDefinedEnums.PrettyLikely.Enh("printer broke", 7))
         |> Stdlib.Test.equal("{\"Enh\":[\"printer broke\",7]}")
+
         // With content-addressed hashing, Person1 and Person2 are structurally
         // identical and share the same Hash, so they're the same type.
         Stdlib.Json.serialize<Person2>(Person1 { Name = "Bob", Age = 42 })
         |> Stdlib.Test.equal("""{"Age":42,"Name":"Bob"}""")
+
         Stdlib.Json.serialize<StringResult<Int64>>(Result.Ok(1))
         |> Stdlib.Test.equal("{\"Ok\":[1]}")
+
         Stdlib.Json.serialize<StringResult<Int64>>(Result.Error("err"))
         |> Stdlib.Test.equal("{\"Error\":[\"err\"]}") ])
+
 
   test parse =
     Stdlib.Test.all(
       [ Stdlib.Json.parse<MyInt>("42") |> Stdlib.Test.equal(Result.Ok(42))
+
         Stdlib.Json.parse<MyPerson>("""{ "Name": "Bob", "Age": 42 }""")
-        |> Stdlib.Test.equal((Result.Ok(
-            Person { Name = "Bob", Age = 42 }
-          )))
+        |> Stdlib.Test.equal(Result.Ok(Person { Name = "Bob", Age = 42 }))
+
         Stdlib.Json.parse<MyPrettyLikely>("{\"Enh\":[\"printer broke\",7]}")
-        |> Stdlib.Test.equal((Result.Ok(
-            UserDefinedEnums.PrettyLikely.Enh("printer broke", 7)
-          ))) ])
+        |> Stdlib.Test.equal(
+          Result.Ok(UserDefinedEnums.PrettyLikely.Enh("printer broke", 7))) ])
+
 
   type MyPerson = Person
 
   type MyPrettyLikely = UserDefinedEnums.PrettyLikely
 
-  type Person1 = { Name: String, Age: Int64 }
-  type Person2 = { Name: String, Age: Int64 }
+
+  type Person1 =
+    { Name: String
+      Age: Int64 }
+
+
+  type Person2 =
+    { Name: String
+      Age: Int64 }
+
 
   type StringResult<'a> = Result<'a, String>
+
 
   // This test currently slips by the typechecker, and so we get an internal
   // exception
   test rejects1 =
-    (Stdlib.Json.serialize<StringResult<Int64>>(Result.Error(1)))
+    Stdlib.Json.serialize<StringResult<Int64>>(Result.Error(1))
     => raises "Darklang.Stdlib.Json.serialize's 1st parameter `value` expects Darklang.Stdlib.Result.Result<Int64, String>, but got Darklang.Stdlib.Result.Result<_, Int64> (Error(1))"
+
 
 module Package =
   test serialize =
     Stdlib.Test.all(
       [ Stdlib.Json.serialize<Option<Int64>>(Option.None)
         |> Stdlib.Test.equal("{\"None\":[]}")
+
         Stdlib.Json.serialize<Result<Int64, String>>(Result.Ok(1))
         |> Stdlib.Test.equal("{\"Ok\":[1]}")
-        Stdlib.Json.serialize<Result<Int64, String>>(Result.Error("err message"))
+
+        Stdlib.Json.serialize<Result<Int64, String>>(
+          Result.Error("err message"))
         |> Stdlib.Test.equal("{\"Error\":[\"err message\"]}")
-        Stdlib.Json.serialize<Darklang.LanguageTools.ID>(42)
-        |> Stdlib.Test.equal("42")
-        Stdlib.Json.serialize<Darklang.LanguageTools.Sign>(
-          Darklang.LanguageTools.Sign.Positive)
+
+        Stdlib.Json.serialize<LanguageTools.ID>(42) |> Stdlib.Test.equal("42")
+
+        Stdlib.Json.serialize<LanguageTools.Sign>(LanguageTools.Sign.Positive)
         |> Stdlib.Test.equal("{\"Positive\":[]}") ])
+
 
   test parse =
     Stdlib.Test.all(
       [ Stdlib.Json.parse<Option<Int64>>("{\"None\":[]}")
         |> Stdlib.Test.equal(Result.Ok(Option.None))
+
         Stdlib.Json.parse<Result<Int64, String>>("{\"Ok\":[1]}")
         |> Stdlib.Test.equal(Result.Ok(Result.Ok(1)))
-        Stdlib.Json.parse<Result<Int64, String>>("{\"Error\":[\"err message\"]}")
-        |> Stdlib.Test.equal((Result
-            .Ok(Result.Error("err message"))))
-        Stdlib.Json.parse<Darklang.LanguageTools.ID>("42")
+
+        Stdlib.Json.parse<Result<Int64, String>>(
+          "{\"Error\":[\"err message\"]}")
+        |> Stdlib.Test.equal(Result.Ok(Result.Error("err message")))
+
+        Stdlib.Json.parse<LanguageTools.ID>("42")
         |> Stdlib.Test.equal(Result.Ok(42))
-        Stdlib.Json.parse<Darklang.LanguageTools.Sign>("{\"Positive\":[]}")
-        |> Stdlib.Test.equal((Result.Ok(
-            Darklang.LanguageTools.Sign.Positive))) ])
+
+        Stdlib.Json.parse<LanguageTools.Sign>("{\"Positive\":[]}")
+        |> Stdlib.Test.equal(Result.Ok(LanguageTools.Sign.Positive)) ])
+
 
 // Nested lists, tuples, records and enums.
 module RestoredArchive =
-  type Counter = { v: Int64 }
+  type Counter =
+    { v: Int64 }
+
+
   type NamedError =
     | InvalidPackageName(List<String>)
     | MissingEnumModuleName(String)
     | NotFound(List<String>)
 
+
   test enumWithListPayload =
-    let value = NamedError.InvalidPackageName(["NamePart"])
+    let value = NamedError.InvalidPackageName([ "NamePart" ])
     Stdlib.Test.all(
       [ Stdlib.Json.serialize<NamedError>(value)
         |> Stdlib.Test.equal("{\"InvalidPackageName\":[[\"NamePart\"]]}")
+
         Stdlib.Json.parse<NamedError>("{\"NotFound\":[[\"NamePart\"]]}")
-        |> Stdlib.Test.equal(Ok(NamedError.NotFound(["NamePart"]))) ])
+        |> Stdlib.Test.equal(
+          Stdlib.Result.Result.Ok(NamedError.NotFound([ "NamePart" ]))) ])
+
 
   test listOfEnums =
     let value =
-      [ NamedError.InvalidPackageName(["NamePart"])
+      [ NamedError.InvalidPackageName([ "NamePart" ])
         NamedError.MissingEnumModuleName("Ok")
-        NamedError.NotFound(["NamePart"]) ]
-    let encoded = "[{\"InvalidPackageName\":[[\"NamePart\"]]},{\"MissingEnumModuleName\":[\"Ok\"]},{\"NotFound\":[[\"NamePart\"]]}]"
+        NamedError.NotFound([ "NamePart" ]) ]
+
+    let encoded =
+      "[{\"InvalidPackageName\":[[\"NamePart\"]]},{\"MissingEnumModuleName\":[\"Ok\"]},{\"NotFound\":[[\"NamePart\"]]}]"
+
     Stdlib.Test.all(
-      [ Stdlib.Json.serialize<List<NamedError>>(value) |> Stdlib.Test.equal(encoded)
-        Stdlib.Json.parse<List<NamedError>>(encoded) |> Stdlib.Test.equal(Ok(value)) ])
+      [ Stdlib.Json.serialize<List<NamedError>>(value)
+        |> Stdlib.Test.equal(encoded)
+
+        Stdlib.Json.parse<List<NamedError>>(encoded)
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(value)) ])
+
 
   test rejectsMalformedJson =
-    [ "{Id : 1.0}", "{Id : 1.}", "{\"Id\" : 1.}", ""
+    [ "{Id : 1.0}"
+      "{Id : 1.}"
+      "{\"Id\" : 1.}"
+      ""
       "[ {date : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]"
       "({id : 555, edition : \"First\", author : \"Dennis Ritchie\"})"
       "{id : 555, edition : \"First\", author : \"Dennis Ritchie\"}"
-      "1,0/0,0", "''", "{3: false}"
-      "{\"Id\" : Infinity }", "{\"Id\" : -Infinity }", "{\"Id\" : NaN }"
+      "1,0/0,0"
+      "''"
+      "{3: false}"
+      "{\"Id\" : Infinity }"
+      "{\"Id\" : -Infinity }"
+      "{\"Id\" : NaN }"
       "[ {\"date\" : \"2013-11-05\", locations : {Japan: 3, Germany: 1}} ]"
       "{\"id\" : 555, edition : \"First\", author : \"Dennis Ritchie\"}"
       "{\"id\" : 555, \"edition\" : 'First' }"
       "({\"id\" : 555, \"edition\" : \"First\", \"author\" : \"Dennis Ritchie\"})" ]
     |> Stdlib.List.map(fun text ->
-      Stdlib.Json.parse<Int64>(text) |> err
+      Stdlib.Json.parse<Int64>(text)
+      |> err
       |> Stdlib.Result.mapError(fun m ->
         Stdlib.String.startsWith(m, "Not JSON at line "))
-      |> Stdlib.Test.equal(Error(true)))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(true)))
     |> Stdlib.Test.all
+
 
   // Where the text broke: the line and column of the first character that
   // isn't JSON, both counted from 1, the column in characters, not bytes
   test notJsonSaysWhere =
     let at = fun text ->
       match Stdlib.Json.parse<List<String>>(text) with
-      | Error(Stdlib.Json.ParseError.ParseError.NotJson(line, column)) ->
+      | Error(NotJson(line, column)) ->
         Stdlib.Option.Option.Some((line, column))
       | _ -> Stdlib.Option.Option.None
+
     Stdlib.Test.all(
       [ at("x") |> Stdlib.Test.equal(Stdlib.Option.Option.Some((1, 1)))
+
         at("") |> Stdlib.Test.equal(Stdlib.Option.Option.Some((1, 1)))
+
         at("[\"a\", x]") |> Stdlib.Test.equal(Stdlib.Option.Option.Some((1, 7)))
+
         at("[\n  \"a\",\n  \"b\" \"c\"\n]")
         |> Stdlib.Test.equal(Stdlib.Option.Option.Some((3, 7)))
+
         at("[\r\n\"a\",\r\n x]")
         |> Stdlib.Test.equal(Stdlib.Option.Option.Some((3, 2)))
-        at("[\"é🎉\", x]") |> Stdlib.Test.equal(Stdlib.Option.Option.Some((1, 8)))
+
+        at("[\"é🎉\", x]")
+        |> Stdlib.Test.equal(Stdlib.Option.Option.Some((1, 8)))
+
         at("[\"a\"") |> Stdlib.Test.equal(Stdlib.Option.Option.Some((1, 5)))
-        (Stdlib.Json.parse<List<String>>("[\n1 2]")) |> err
-        |> Stdlib.Test.equal(Error("Not JSON at line 2, column 3")) ])
+
+        Stdlib.Json.parse<List<String>>("[\n1 2]")
+        |> err
+        |> Stdlib.Test.equal(
+          Stdlib.Result.Result.Error("Not JSON at line 2, column 3")) ])
+
 
   test scalarAndLargeRecordValues =
     Stdlib.Test.all(
-      [ Stdlib.Json.parse<Int64>("1") |> Stdlib.Test.equal(Ok(1))
-        Stdlib.Json.parse<String>("\"\"") |> Stdlib.Test.equal(Ok(""))
+      [ Stdlib.Json.parse<Int64>("1")
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1))
+
+        Stdlib.Json.parse<String>("\"\"")
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+
         Stdlib.Json.parse<Counter>("{ \"v\": 4611686018427387903 }")
-        |> Stdlib.Test.equal(Ok(Counter { v = 4611686018427387903 }))
+        |> Stdlib.Test.equal(
+          Stdlib.Result.Result.Ok(Counter { v = 4611686018427387903 }))
+
         Stdlib.Json.parse<Counter>("{ \"v\": 4611686018427387904 }")
-        |> Stdlib.Test.equal(Ok(Counter { v = 4611686018427387904 })) ])
+        |> Stdlib.Test.equal(
+          Stdlib.Result.Result.Ok(Counter { v = 4611686018427387904 })) ])
+
 
   test uint64ExactDecimalAndExponentForms =
     Stdlib.Test.all(
       [ Stdlib.Json.parse<UInt64>("18446744073709551615.0")
-        |> Stdlib.Test.equal(Ok(18446744073709551615u64))
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(18446744073709551615u64))
+
         Stdlib.Json.parse<UInt64>("18446744073709551614.0")
-        |> Stdlib.Test.equal(Ok(18446744073709551614u64))
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(18446744073709551614u64))
+
         Stdlib.Json.parse<UInt64>("9007199254740993e0")
-        |> Stdlib.Test.equal(Ok(9007199254740993u64)) ])
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(9007199254740993u64)) ])
+
 
   test uint64RejectsOverflowAndRoundedFractions =
-    [ "18446744073709551616.0", "1.8446744073709551616e19"
-      "18446744073709551615.1", "-0.00000000000000000000001"
-      "1e2000000000", "1e-2000000000" ]
+    [ "18446744073709551616.0"
+      "1.8446744073709551616e19"
+      "18446744073709551615.1"
+      "-0.00000000000000000000001"
+      "1e2000000000"
+      "1e-2000000000" ]
     |> Stdlib.List.map(fun text ->
-      Stdlib.Json.parse<UInt64>(text) |> Stdlib.Result.isError
+      Stdlib.Json.parse<UInt64>(text)
+      |> Stdlib.Result.isError
       |> Stdlib.Test.equal(true))
     |> Stdlib.Test.all
 
+
   test floatBoundariesAndPrecisionRoundTrip =
-    [ 1.7976931348623157e308, -1.7976931348623157e308
-      2.2250738585072014e-308, 5e-324, -5e-324
-      0.12345678901234568, 9007199254740992.0 ]
+    [ 1.7976931348623157e308
+      -1.7976931348623157e308
+      0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000022250738585072014
+      0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005
+      -0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005
+      0.12345678901234568
+      9007199254740992.0 ]
     |> Stdlib.List.map(fun value ->
-      Stdlib.Json.serialize<Float>(value) |> Stdlib.Json.parse<Float>
-      |> Stdlib.Test.equal(Ok(value)))
+      Stdlib.Json.serialize<Float>(value)
+      |> Stdlib.Json.parse<Float>
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(value)))
     |> Stdlib.Test.all
 
+
   test deeplyNestedOptionsAndEnums =
-    let value = Some(Some([NamedError.NotFound(["a", "b"])]))
-    Stdlib.Json.serialize<Stdlib.Option.Option<Stdlib.Option.Option<List<NamedError>>>>(value)
-    |> Stdlib.Json.parse<Stdlib.Option.Option<Stdlib.Option.Option<List<NamedError>>>>
-    |> Stdlib.Test.equal(Ok(value))
+    let value =
+      Stdlib.Option.Option.Some(
+        Stdlib.Option.Option.Some([ NamedError.NotFound([ "a", "b" ]) ]))
+
+    Stdlib.Json.serialize<
+      Stdlib.Option.Option<Stdlib.Option.Option<List<NamedError>>>>(value)
+    |> Stdlib.Json.parse<
+      Stdlib.Option.Option<Stdlib.Option.Option<List<NamedError>>>>
+    |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(value))
 
 
 /// `Net.Port`, `Http.Status`, `Cli.Posix.Pid` and `Cli.Posix.ExitCode` are bare numbers in
 /// JSON, and parsing runs the same range check as their `fromInt64`.
 module RangedInts =
-  type Server = { port: Stdlib.Net.Port, status: Stdlib.Http.Status }
+  type Server =
+    { port: Stdlib.Net.Port
+      status: Stdlib.Http.Status }
+
 
   test serializeAsNumbers =
     Stdlib.Test.all(
       [ Stdlib.Json.serialize<Stdlib.Net.Port>(Stdlib.Net.Port.httpAlt)
         |> Stdlib.Test.equal("8080")
+
         Stdlib.Json.serialize<Stdlib.Http.Status>(Stdlib.Http.Status.notFound)
         |> Stdlib.Test.equal("404")
-        Stdlib.Json.serialize<Stdlib.Cli.Posix.ExitCode>(Stdlib.Cli.Posix.ExitCode.failure)
+
+        Stdlib.Json.serialize<Stdlib.Cli.Posix.ExitCode>(
+          Stdlib.Cli.Posix.ExitCode.failure)
         |> Stdlib.Test.equal("1")
-        (Stdlib.Cli.Posix.Pid.fromInt64(4242))
-        |> Stdlib.Result.map(fun p -> Stdlib.Json.serialize<Stdlib.Cli.Posix.Pid>(p))
-        |> Stdlib.Test.equal(Ok("4242"))
+
+        Stdlib.Cli.Posix.Pid.fromInt64(4242)
+        |> Stdlib.Result.map(fun p ->
+          Stdlib.Json.serialize<Stdlib.Cli.Posix.Pid>(p))
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("4242"))
+
         Stdlib.Json.serialize<Server>(
-          Server { port = Stdlib.Net.Port.https, status = Stdlib.Http.Status.ok })
+          Server
+            { port = Stdlib.Net.Port.https, status = Stdlib.Http.Status.ok })
         |> Stdlib.Test.equal("{\"port\":443,\"status\":200}") ])
+
 
   test parseNumbers =
     Stdlib.Test.all(
       [ Stdlib.Json.parse<Stdlib.Net.Port>("8080")
-        |> Stdlib.Test.equal(Ok(Stdlib.Net.Port.httpAlt))
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Stdlib.Net.Port.httpAlt))
+
         Stdlib.Json.parse<Stdlib.Http.Status>("404.0")
-        |> Stdlib.Test.equal(Ok(Stdlib.Http.Status.notFound))
+        |> Stdlib.Test.equal(
+          Stdlib.Result.Result.Ok(Stdlib.Http.Status.notFound))
+
         Stdlib.Json.parse<Stdlib.Cli.Posix.ExitCode>("0")
-        |> Stdlib.Test.equal(Ok(Stdlib.Cli.Posix.ExitCode.success))
+        |> Stdlib.Test.equal(
+          Stdlib.Result.Result.Ok(Stdlib.Cli.Posix.ExitCode.success))
+
         Stdlib.Json.parse<Stdlib.Cli.Posix.Pid>("4242")
         |> Stdlib.Result.map(Stdlib.Cli.Posix.Pid.toInt64)
-        |> Stdlib.Test.equal(Ok(4242))
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(4242))
+
         Stdlib.Json.parse<Server>("{\"port\":443,\"status\":200}")
         |> Stdlib.Test.equal(
-          Ok(Server { port = Stdlib.Net.Port.https, status = Stdlib.Http.Status.ok })) ])
+          Stdlib.Result.Result.Ok(
+            Server
+              { port = Stdlib.Net.Port.https
+                status = Stdlib.Http.Status.ok })) ])
+
 
   test roundTrip =
-    let value = Server { port = Stdlib.Net.Port.http, status = Stdlib.Http.Status.created }
-    Stdlib.Json.serialize<Server>(value) |> Stdlib.Json.parse<Server>
-    |> Stdlib.Test.equal(Ok(value))
+    let value =
+      Server
+        { port = Stdlib.Net.Port.http, status = Stdlib.Http.Status.created }
+
+    Stdlib.Json.serialize<Server>(value)
+    |> Stdlib.Json.parse<Server>
+    |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(value))
+
 
   // Each type's ends and one past them, against its `fromInt64`: the F# range table has to
   // agree with the Dark one.
@@ -2046,40 +3211,63 @@ module RangedInts =
     Stdlib.Test.all(
       [ [ -1, 0, 65535, 65536 ]
         |> Stdlib.List.map(fun n ->
-          Stdlib.Json.parse<Stdlib.Net.Port>(Stdlib.display(n)) |> Stdlib.Result.isOk
-          |> Stdlib.Test.equal(Stdlib.Net.Port.fromInt64(n) |> Stdlib.Result.isOk))
+          Stdlib.Json.parse<Stdlib.Net.Port>(Stdlib.display(n))
+          |> Stdlib.Result.isOk
+          |> Stdlib.Test.equal(
+            Stdlib.Net.Port.fromInt64(n) |> Stdlib.Result.isOk))
+
         [ 99, 100, 599, 600 ]
         |> Stdlib.List.map(fun n ->
-          Stdlib.Json.parse<Stdlib.Http.Status>(Stdlib.display(n)) |> Stdlib.Result.isOk
-          |> Stdlib.Test.equal(Stdlib.Http.Status.fromInt64(n) |> Stdlib.Result.isOk))
+          Stdlib.Json.parse<Stdlib.Http.Status>(Stdlib.display(n))
+          |> Stdlib.Result.isOk
+          |> Stdlib.Test.equal(
+            Stdlib.Http.Status.fromInt64(n) |> Stdlib.Result.isOk))
+
         [ 0, 1, 2147483647, 2147483648 ]
         |> Stdlib.List.map(fun n ->
-          Stdlib.Json.parse<Stdlib.Cli.Posix.Pid>(Stdlib.display(n)) |> Stdlib.Result.isOk
-          |> Stdlib.Test.equal(Stdlib.Cli.Posix.Pid.fromInt64(n) |> Stdlib.Result.isOk))
+          Stdlib.Json.parse<Stdlib.Cli.Posix.Pid>(Stdlib.display(n))
+          |> Stdlib.Result.isOk
+          |> Stdlib.Test.equal(
+            Stdlib.Cli.Posix.Pid.fromInt64(n) |> Stdlib.Result.isOk))
+
         [ -1, 0, 255, 256 ]
         |> Stdlib.List.map(fun n ->
-          Stdlib.Json.parse<Stdlib.Cli.Posix.ExitCode>(Stdlib.display(n)) |> Stdlib.Result.isOk
-          |> Stdlib.Test.equal(Stdlib.Cli.Posix.ExitCode.fromInt64(n) |> Stdlib.Result.isOk)) ]
+          Stdlib.Json.parse<Stdlib.Cli.Posix.ExitCode>(Stdlib.display(n))
+          |> Stdlib.Result.isOk
+          |> Stdlib.Test.equal(
+            Stdlib.Cli.Posix.ExitCode.fromInt64(n) |> Stdlib.Result.isOk)) ]
       |> Stdlib.List.flatten)
+
 
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
-        [ (Stdlib.Json.parse<Server>("{\"port\":70000,\"status\":200}")) |> err
+        [ Stdlib.Json.parse<Server>("{\"port\":70000,\"status\":200}")
+          |> err
           |> Stdlib.Test.equal(
             Result.Error(
               "Can't parse JSON: 70000 is not a valid port (0 to 65535) at path: `root.port`"))
-          (Stdlib.Json.parse<Stdlib.Http.Status>("42")) |> err
+
+          Stdlib.Json.parse<Stdlib.Http.Status>("42")
+          |> err
           |> Stdlib.Test.equal(
             Result.Error(
               "Can't parse JSON: 42 is not a valid HTTP status (100 to 599) at path: `root`"))
-          (Stdlib.Json.parse<Stdlib.Cli.Posix.ExitCode>("256")) |> err
+
+          Stdlib.Json.parse<Stdlib.Cli.Posix.ExitCode>("256")
+          |> err
           |> Stdlib.Test.equal(
             Result.Error(
               "Can't parse JSON: 256 is not a valid exit code (0 to 255) at path: `root`"))
-          (Stdlib.Json.parse<Stdlib.Net.Port>("{\"__value\":80}")) |> Stdlib.Result.isError
+
+          Stdlib.Json.parse<Stdlib.Net.Port>("{\"__value\":80}")
+          |> Stdlib.Result.isError
           |> Stdlib.Test.equal(true)
-          (Stdlib.Json.parse<Stdlib.Net.Port>("80.5")) |> Stdlib.Result.isError
+
+          Stdlib.Json.parse<Stdlib.Net.Port>("80.5")
+          |> Stdlib.Result.isError
           |> Stdlib.Test.equal(true)
-          (Stdlib.Json.parse<Stdlib.Net.Port>("\"80\"")) |> Stdlib.Result.isError
+
+          Stdlib.Json.parse<Stdlib.Net.Port>("\"80\"")
+          |> Stdlib.Result.isError
           |> Stdlib.Test.equal(true) ])

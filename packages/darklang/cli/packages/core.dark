@@ -12,6 +12,7 @@ type PackageLocation =
   | Impl(location: LanguageTools.ProgramTypes.PackageLocation)
   | Test(location: LanguageTools.ProgramTypes.PackageLocation)
 
+
 /// The module path a location sits in: the module itself, or the module an item lives in.
 let modulePathOf(location: PackageLocation): List<String> =
   match location with
@@ -33,14 +34,14 @@ type EntityType =
   | Impl
   | Test
 
+
 type State =
   { currentLocation: PackageLocation
     locationHistory: List<PackageLocation> }
 
+
 let initState(): State =
-  State
-    { currentLocation = PackageLocation.Module([])
-      locationHistory = [] }
+  State { currentLocation = PackageLocation.Module([]), locationHistory = [] }
 
 
 let formatLocation(location: PackageLocation): String =
@@ -50,18 +51,12 @@ let formatLocation(location: PackageLocation): String =
       "/ (root)"
     else
       $"/{Stdlib.String.join(path, ".")} (module)"
-  | Type(loc) ->
-    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (type)"
-  | Value(loc) ->
-    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (value)"
-  | Function(loc) ->
-    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (fn)"
-  | Trait(loc) ->
-    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (trait)"
-  | Impl(loc) ->
-    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (impl)"
-  | Test(loc) ->
-    $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (test)"
+  | Type(loc) -> $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (type)"
+  | Value(loc) -> $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (value)"
+  | Function(loc) -> $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (fn)"
+  | Trait(loc) -> $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (trait)"
+  | Impl(loc) -> $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (impl)"
+  | Test(loc) -> $"/{PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(loc)} (test)"
 
 
 /// The definition a person typed, from the arguments after the item's name.
@@ -72,29 +67,27 @@ let formatLocation(location: PackageLocation): String =
 /// argument has to go first. A lone argument naming a file that exists reads the
 /// file, the way `module` does; a definition is never one token, so the two cannot
 /// be confused.
-let definitionFromArgs(args: List<String>): Stdlib.Result.Result<String, String> =
+let definitionFromArgs(args: List<String>): Result<String, String> =
   let withoutSeparator =
     match args with
     | ["=", ...rest] -> rest
     | parts -> parts
 
   match withoutSeparator with
-  | [ "-" ] -> Stdlib.Cli.Stdin.readAll()
+  | ["-"] -> Stdlib.Cli.Stdin.readAll()
   // A file, when the one argument could be one: a declaration has spaces, a path here does
   // not, and asking the host about a declaration-shaped "path" that is longer than a file
   // name may fail closed (the link check treats what it cannot inspect as a link).
-  | [ path ] when (if Stdlib.String.contains(path, " ") then false else Stdlib.Cli.File.exists(path)) ->
+  | [path] when if Stdlib.String.contains(path, " ") then false else Stdlib.Cli.File.exists(path) ->
     match Stdlib.Cli.File.readText(path) with
-    | Ok(source) -> Stdlib.Result.Result.Ok(source)
-    | Error(_) -> Stdlib.Result.Result.Ok(path)
+    | Ok(source) -> Result.Ok(source)
+    | Error(_) -> Result.Ok(path)
   | parts ->
     let joined = Stdlib.String.join(parts, " ") |> Stdlib.String.trim
-
     if Stdlib.String.startsWith(joined, "=") then
-      Stdlib.Result.Result.Ok(Stdlib.String.dropFirst(joined, 1) |> Stdlib.String.trim)
+      Result.Ok(Stdlib.String.dropFirst(joined, 1) |> Stdlib.String.trim)
     else
-      Stdlib.Result.Result.Ok(joined)
-
+      Result.Ok(joined)
 
 
 /// Every doc comment a declaration carries, as (part, text): its own, plus one per parameter,
@@ -112,9 +105,7 @@ let docsOfFn(
         (LanguageTools.ProgramTypes.DocPart.ParameterName(i), p.name) ])
     |> Stdlib.List.flatten
 
-  Stdlib.List.prepend(
-    params,
-    (LanguageTools.ProgramTypes.DocPart.WholeItem, fn.description))
+  Stdlib.List.prepend(params, (LanguageTools.ProgramTypes.DocPart.WholeItem, fn.description))
 
 
 let docsOfType(
@@ -132,9 +123,7 @@ let docsOfType(
         (LanguageTools.ProgramTypes.DocPart.EnumCase(c.name), c.description))
     | Alias(_) -> []
 
-  Stdlib.List.prepend(
-    nested,
-    (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description))
+  Stdlib.List.prepend(nested, (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description))
 
 
 /// Every doc these authored ops carry, for the item they declare.
@@ -144,28 +133,21 @@ let authoredDocs(
   ops
   |> Stdlib.List.filterMap(fun op ->
     match op with
-    | AddFn(fn) -> Stdlib.Option.Option.Some(docsOfFn(fn))
-    | AddType(t) -> Stdlib.Option.Option.Some(docsOfType(t))
-    | AddValue(v) ->
-      Stdlib.Option.Option.Some(
-        [ (LanguageTools.ProgramTypes.DocPart.WholeItem, v.description) ]
-      )
+    | AddFn(fn) -> Option.Some(docsOfFn(fn))
+    | AddType(t) -> Option.Some(docsOfType(t))
+    | AddValue(v) -> Option.Some([ (LanguageTools.ProgramTypes.DocPart.WholeItem, v.description) ])
     | AddTrait(t) ->
-      Stdlib.Option.Option.Some(
+      Option.Some(
         Stdlib.List.prepend(
-          (t.methods
-           |> Stdlib.List.map(fun m -> (LanguageTools.ProgramTypes.DocPart.RecordField(m.name), m.description))),
-          (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description))
-      )
+          t.methods
+          |> Stdlib.List.map(fun m ->
+            (LanguageTools.ProgramTypes.DocPart.RecordField(m.name), m.description)),
+          (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description)))
     | AddTraitImpl(i) ->
-      Stdlib.Option.Option.Some(
-        [ (LanguageTools.ProgramTypes.DocPart.WholeItem, i.description) ]
-      )
+      Option.Some([ (LanguageTools.ProgramTypes.DocPart.WholeItem, i.description) ])
     | AddTest(test) ->
-      Stdlib.Option.Option.Some(
-        [ (LanguageTools.ProgramTypes.DocPart.WholeItem, test.description) ]
-      )
-    | _ -> Stdlib.Option.Option.None)
+      Option.Some([ (LanguageTools.ProgramTypes.DocPart.WholeItem, test.description) ])
+    | _ -> Option.None)
   |> Stdlib.List.flatten
 
 
@@ -196,8 +178,9 @@ let currentDocs(
       LanguageTools.PackageManager.Trait.get(hash)
       |> Stdlib.Option.map(fun t ->
         Stdlib.List.prepend(
-          (t.methods
-           |> Stdlib.List.map(fun m -> (LanguageTools.ProgramTypes.DocPart.RecordField(m.name), m.description))),
+          t.methods
+          |> Stdlib.List.map(fun m ->
+            (LanguageTools.ProgramTypes.DocPart.RecordField(m.name), m.description)),
           (LanguageTools.ProgramTypes.DocPart.WholeItem, t.description)))
       |> Stdlib.Option.withDefault([])
     | TraitImpl ->
@@ -218,7 +201,7 @@ let currentDocs(
 let docAt(
   docs: List<(LanguageTools.ProgramTypes.DocPart * String)>,
   part: LanguageTools.ProgramTypes.DocPart)
-  : Stdlib.Option.Option<String> =
+  : Option<String> =
   docs
   |> Stdlib.List.findFirst(fun pair ->
     let (p, _) = pair
@@ -245,40 +228,34 @@ let updateDocsThatChanged(
   : Bool =
   let current = currentDocs(branchId, location, kind, hash)
   let written = authoredDocs(ops)
-
   let updates =
     written
     |> Stdlib.List.filterMap(fun pair ->
       let (part, text) = pair
-
       match docAt(current, part) with
       // A part the declaration does not have is not an edit to anything.
-      | None -> Stdlib.Option.Option.None
+      | None -> Option.None
       | Some(currentText) ->
         if currentText == text then
-          Stdlib.Option.Option.None
+          Option.None
         // Silence is not a statement that the existing words are wrong. Clearing a doc is sayable
         // (the op takes an empty text), just not by omitting one.
         else if text == "" then
-          Stdlib.Option.Option.None
+          Option.None
         else
           let previous =
             if currentText == "" then
-              Stdlib.Option.Option.None
+              Option.None
             else
-              Stdlib.Option.Option.Some(
-                LanguageTools.ProgramTypes.hashOfText(currentText)
-              )
+              Option.Some(LanguageTools.ProgramTypes.hashOfText(currentText))
 
-          Stdlib.Option.Option.Some(
+          Option.Some(
             LanguageTools.ProgramTypes.PackageOp.UpdateDoc(
               location,
               part,
               text,
               previous,
-              Stdlib.Option.Option.None
-            )
-          ))
+              Option.None)))
 
   if Stdlib.List.isEmpty(updates) then
     false
@@ -301,13 +278,13 @@ type Committed =
     boundHash: LanguageTools.ProgramTypes.Hash
     followed: Propagate.Followed
     /// The save's own type error, named, if it has one.
-    ownIssue: Stdlib.Option.Option<String>
+    ownIssue: Option<String>
     /// The node the issue in <field ownIssue> is about, which may carry where it is.
-    ownIssueNode: Stdlib.Option.Option<UInt64>
+    ownIssueNode: Option<UInt64>
     /// How many issues there are besides the one in <field ownIssue>.
     otherIssues: Int64
     /// Another name that already held the version this name now holds.
-    sameAs: Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation>
+    sameAs: Option<LanguageTools.ProgramTypes.PackageLocation>
     report: LanguageTools.AtRestTypeChecker.Report }
 
 
@@ -319,16 +296,18 @@ let commitAuthored(
   kind: LanguageTools.ProgramTypes.ItemKind,
   hash: LanguageTools.ProgramTypes.Hash,
   ops: List<LanguageTools.ProgramTypes.PackageOp>)
-  : Stdlib.Result.Result<Committed, String> =
+  : Result<Committed, String> =
   let previousHashes = Propagate.getAllPreviousHashes(branchId, location, kind)
   let updates = Propagate.updatedItems(branchId, ops)
-  let isUpdate = (Stdlib.List.isEmpty(previousHashes)) |> Stdlib.Bool.not
-
-  let referenceNamesBefore = match Stdlib.List.head(previousHashes) with
+  let isUpdate = Stdlib.List.isEmpty(previousHashes) |> Stdlib.Bool.not
+  let referenceNamesBefore =
+    match Stdlib.List.head(previousHashes) with
     | None -> []
-    | Some(previous) -> SCM.PackageOps.referenceSnapshots(branchId,
+    | Some(previous) ->
+      SCM.PackageOps.referenceSnapshots(
+        branchId,
         [ (location, LanguageTools.ProgramTypes.Reference.fromHashAndKind(previous, kind)) ])
-        |> Stdlib.List.map(fun snapshot -> snapshot.names)
+      |> Stdlib.List.map(fun snapshot -> snapshot.names)
 
   match SCM.PackageOps.addAuthored(branchId, ops) with
   | Ok(report) ->
@@ -337,21 +316,18 @@ let commitAuthored(
     // below that names a version -- the permission summary, the doc-only note -- needs the
     // real one.
     let boundHash =
-      match Packages.Rename.referenceAt(branchId, location) with
+      match Rename.referenceAt(branchId, location) with
       | Some(reference) -> LanguageTools.ProgramTypes.Reference.hash(reference)
       | None -> hash
 
     // Decided here rather than before the save, because this is where the stabilized hash is
     // finally known: the one in hand until now is the parser's placeholder.
-    let movedVersion =
-      Stdlib.Bool.not(Stdlib.List.contains(previousHashes, boundHash))
-
+    let movedVersion = Stdlib.Bool.not(Stdlib.List.contains(previousHashes, boundHash))
     let docsChanged = updateDocsThatChanged(branchId, location, kind, boundHash, ops)
-    let docOnly = isUpdate && (Stdlib.Bool.not(movedVersion)) && docsChanged
-
+    let docOnly = isUpdate && Stdlib.Bool.not(movedVersion) && docsChanged
     let sameAs =
-      if isUpdate && (Stdlib.Bool.not(movedVersion)) then
-        Stdlib.Option.Option.None
+      if isUpdate && Stdlib.Bool.not(movedVersion) then
+        Option.None
       else
         LanguageTools.PackageManager.itemLocations(branchId, kind, boundHash)
         |> Stdlib.List.filter(fun other -> other != location)
@@ -362,17 +338,20 @@ let commitAuthored(
     // host follows; not "unchanged".
     let reverted =
       isUpdate
-      && (Stdlib.Bool.not(movedVersion))
-      && ((Stdlib.List.head(previousHashes)) != (Stdlib.Option.Option.Some(boundHash)))
+      && Stdlib.Bool.not(movedVersion)
+      && Stdlib.List.head(previousHashes) != Option.Some(boundHash)
 
     // What actually happened, rather than "Updated" for everything. An edit that lands on the hash
     // it already had and carries no new text saved NOTHING, and re-running the same authoring
     // command does exactly that. Reporting it as an update is how a dropped edit stays hidden.
-    let referenceNamesAfter = SCM.PackageOps.referenceSnapshots(branchId,
-      [ (location, LanguageTools.ProgramTypes.Reference.fromHashAndKind(boundHash, kind)) ])
+    let referenceNamesAfter =
+      SCM.PackageOps.referenceSnapshots(
+        branchId,
+        [ (location, LanguageTools.ProgramTypes.Reference.fromHashAndKind(boundHash, kind)) ])
       |> Stdlib.List.map(fun snapshot -> snapshot.names)
+
     let namesChanged = referenceNamesBefore != referenceNamesAfter
-    let landed = (Stdlib.Bool.not(isUpdate)) || docOnly || movedVersion || reverted || namesChanged
+    let landed = Stdlib.Bool.not(isUpdate) || docOnly || movedVersion || reverted || namesChanged
 
     // Repoint dependents NOW, into the draft, so you can run them against this change before
     // deciding whether to commit. Nothing is committed; `dark commit` is still the blessing. A
@@ -397,9 +376,8 @@ let commitAuthored(
         // definite errors first: a warning such as AmbiguousType is often what an error
         // left behind, and only the first issue is shown
         let issues = Stdlib.List.concat(report.diagnostics, report.warnings)
-
         match issues with
-        | [] -> Stdlib.Option.Option.Some("it failed the type check")
+        | [] -> Option.Some("it failed the type check")
         | [issue, ...rest] ->
           // The CODE as well as the message. `dark docs traits` names these codes, they are
           // what somebody searches for, and `dark module` prints them through
@@ -408,18 +386,18 @@ let commitAuthored(
           // line that already exists, so the save is still two lines.
           let first =
             "["
-            + (LanguageTools.AtRestTypeChecker.issueCodeToString(issue.code))
+            + LanguageTools.AtRestTypeChecker.issueCodeToString(issue.code)
             + "] "
             + AtRestCheck.withDisplayHint(
-                branchId,
-                issue,
-                PrettyPrinter.ProgramTypes.PackageLocation.packageLocation,
-                LanguageTools.AtRestTypeChecker.issueToStringWith(
-                  (fun hash -> AtRestCheck.customTypeName(branchId, hash)),
-                  issue))
+              branchId,
+              issue,
+              PrettyPrinter.ProgramTypes.PackageLocation.packageLocation,
+              LanguageTools.AtRestTypeChecker.issueToStringWith(
+                (fun hash -> AtRestCheck.customTypeName(branchId, hash)),
+                issue))
 
-          Stdlib.Option.Option.Some(first)
-      | _ -> Stdlib.Option.Option.None
+          Option.Some(first)
+      | _ -> Option.None
 
     let ownIssueNode =
       match report.verdict with
@@ -427,7 +405,7 @@ let commitAuthored(
         Stdlib.List.concat(report.diagnostics, report.warnings)
         |> Stdlib.List.head
         |> Stdlib.Option.andThen(fun issue -> issue.nodeId)
-      | _ -> Stdlib.Option.Option.None
+      | _ -> Option.None
 
     let otherIssues =
       match report.verdict with
@@ -436,7 +414,7 @@ let commitAuthored(
         if all > 1 then all - 1 else 0
       | _ -> 0
 
-    Stdlib.Result.Result.Ok(
+    Result.Ok(
       Committed
         { isUpdate = isUpdate
           landed = landed
@@ -448,7 +426,7 @@ let commitAuthored(
           otherIssues = otherIssues
           sameAs = sameAs
           report = report })
-  | Error(msg) -> Stdlib.Result.Result.Error(msg)
+  | Error(msg) -> Result.Error(msg)
 
 
 /// Shared tail of the fn/type/val authoring flow: build the name-resolution
@@ -458,22 +436,23 @@ let commitAuthored(
 /// save returns (fn sets the exit code, type/val historically don't). `convert` answers None
 /// to refuse, having said why; nothing is written.
 let saveAuthored(
-  state: Cli.AppState,
+  state: AppState,
   location: LanguageTools.ProgramTypes.PackageLocation,
   kind: LanguageTools.ProgramTypes.ItemKind,
   kindWord: String,
-  failState: Cli.AppState,
+  failState: AppState,
   firstLineShift: Int64,
   convert:
-    LanguageTools.NameResolver.NRContext
-      -> Stdlib.Option.Option<(List<LanguageTools.ProgramTypes.PackageOp>
-          * LanguageTools.ProgramTypes.Hash
-          * List<LanguageTools.Parser.Range
-              * List<String>
-              * LanguageTools.ProgramTypes.NameResolutionError>)>)
-  : Cli.AppState =
+    LanguageTools.NameResolver.NRContext ->
+    Option<
+      (List<LanguageTools.ProgramTypes.PackageOp> *
+       LanguageTools.ProgramTypes.Hash *
+       List<
+         (LanguageTools.Parser.Range *
+          List<String> *
+          LanguageTools.ProgramTypes.NameResolutionError)>)>)
+  : AppState =
   let pm = LanguageTools.PackageManager.pm()
-
   let ctx =
     LanguageTools.NameResolver.NRContext
       { onMissing = LanguageTools.NameResolver.OnMissing.Allow
@@ -485,67 +464,74 @@ let saveAuthored(
   match convert(ctx) with
   | None -> failState
   | Some(converted) ->
-  // Not `Some(a, b, c)`: that pattern never matches an Option holding a 3-tuple.
-  let (ops, hash, unresolvedNames) = converted
-
-  let home = Stdlib.List.prepend(location.modules, location.owner)
-  if Errors.reportUnresolvedNames(state.currentBranchId, home, unresolvedNames) then
-    failState
-  else
-    match commitAuthored(state.currentBranchId, location, kind, hash, ops) with
-    | Ok(committed) ->
-      let isUpdate = committed.isUpdate
-      let landed = committed.landed
-      let reverted = committed.reverted
-      let followed = committed.followed
-      let ownIssue = committed.ownIssue
-      let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(location)
-
-      // A save is at most two lines. Line one: what happened, with a check when all is well and a
-      // `!` when something no longer type-checks. Line two: who follows, or what broke.
-      let broke = (Stdlib.Option.isSome(ownIssue)) || (Stdlib.Bool.not(Stdlib.List.isEmpty(followed.broken)))
-      let glyph =
-        if broke then Stdlib.Cli.UI.Colors.warning("!") else Stdlib.Cli.UI.Colors.success("✓")
-
-      if reverted then
-        Stdlib.printLine($"{glyph} Put {kindWord} {fullPath} back to an earlier version")
-      else if landed then
-        let action = if isUpdate then "Updated" else "Created"
-        let alsoNamed =
-          match committed.sameAs with
-          | Some(other) ->
-            $" (same code as {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(other)}, stored once)"
-          | None -> ""
-        Stdlib.printLine($"{glyph} {action} {kindWord} {fullPath}{alsoNamed}")
-      else
-        Stdlib.printLine(
-          Stdlib.Cli.UI.Colors.hint($"= {kindWord} {fullPath} is unchanged; nothing was saved"))
-
-      match ownIssue with
-      | Some(why) ->
-        let at =
-          match
-            AtRestCheck.positionShifted(
-              committed.ownIssueNode,
-              Stdlib.UInt64.fromInt64(firstLineShift) |> Stdlib.Option.withDefault(0u64))
-          with
-          | Some(p) -> $" ({p})"
-          | None -> ""
-        Cli.Text.printWrappedErr(
-          Stdlib.Cli.UI.Colors.error,
-          "  ",
-          let more =
-            if committed.otherIssues == 0 then ""
-            else $" (and {Stdlib.display(committed.otherIssues)} more)"
-          $"type error: {why}{at}{more}; saved as a draft, `dark commit` will refuse it")
-      | None -> ()
-
-      Propagate.printFollowed(followed)
-
-      state
-
-    | Error(msg) ->
-      let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(location)
-      Cli.Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "", $"✗ Could not save {kindWord} {fullPath}: {msg}")
-
+    // Not `Some(a, b, c)`: that pattern never matches an Option holding a 3-tuple.
+    let (ops, hash, unresolvedNames) = converted
+    let home = Stdlib.List.prepend(location.modules, location.owner)
+    if Errors.reportUnresolvedNames(state.currentBranchId, home, unresolvedNames) then
       failState
+    else
+      match commitAuthored(state.currentBranchId, location, kind, hash, ops) with
+      | Ok(committed) ->
+        let isUpdate = committed.isUpdate
+        let landed = committed.landed
+        let reverted = committed.reverted
+        let followed = committed.followed
+        let ownIssue = committed.ownIssue
+        let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(location)
+
+        // A save is at most two lines. Line one: what happened, with a check when all is well and a
+        // `!` when something no longer type-checks. Line two: who follows, or what broke.
+        let broke =
+          Stdlib.Option.isSome(ownIssue) || Stdlib.Bool.not(Stdlib.List.isEmpty(followed.broken))
+
+        let glyph =
+          if broke then
+            Stdlib.Cli.UI.Colors.warning("!")
+          else
+            Stdlib.Cli.UI.Colors.success("✓")
+
+        if reverted then
+          Stdlib.printLine($"{glyph} Put {kindWord} {fullPath} back to an earlier version")
+        else if landed then
+          let action = if isUpdate then "Updated" else "Created"
+          let alsoNamed =
+            match committed.sameAs with
+            | Some(other) ->
+              $" (same code as {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(other)}, stored once)"
+            | None -> ""
+
+          Stdlib.printLine($"{glyph} {action} {kindWord} {fullPath}{alsoNamed}")
+        else
+          Stdlib.printLine(
+            Stdlib.Cli.UI.Colors.hint($"= {kindWord} {fullPath} is unchanged; nothing was saved"))
+
+        match ownIssue with
+        | Some(why) ->
+          let at =
+            match AtRestCheck.positionShifted(
+                    committed.ownIssueNode,
+                    Stdlib.UInt64.fromInt64(firstLineShift) |> Stdlib.Option.withDefault(0u64)) with
+            | Some(p) -> $" ({p})"
+            | None -> ""
+
+          Text.printWrappedErr(
+            Stdlib.Cli.UI.Colors.error,
+            "  ",
+            (let more =
+               if committed.otherIssues == 0 then
+                 ""
+               else
+                 $" (and {Stdlib.display(committed.otherIssues)} more)"
+             $"type error: {why}{at}{more}; saved as a draft, `dark commit` will refuse it"))
+        | None -> ()
+
+        Propagate.printFollowed(followed)
+        state
+      | Error(msg) ->
+        let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(location)
+        Text.printWrappedErr(
+          Stdlib.Cli.UI.Colors.error,
+          "",
+          $"✗ Could not save {kindWord} {fullPath}: {msg}")
+
+        failState

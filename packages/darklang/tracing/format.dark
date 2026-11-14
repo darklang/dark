@@ -3,7 +3,6 @@
 /// (CLI, dashboard, third-party tool) will want.
 module Darklang.Tracing.Format
 
-
 /// Source text for CLI runs, or a short HTTP request summary.
 let inputText(trace: Trace): String =
   match trace.scriptOrEvalInput with
@@ -13,8 +12,8 @@ let inputText(trace: Trace): String =
     match trace.input with
     | DString(source) -> source
     | DRecord(_, _, _, fields) ->
-      match (Stdlib.Dict.get(fields, "method"), Stdlib.Dict.get(fields, "url")) with
-      | (Some(DString(method)), Some(DString(url))) -> $"{method} {url}"
+      match Stdlib.Dict.get(fields, "method"), Stdlib.Dict.get(fields, "url") with
+      | Some(DString(method)), Some(DString(url)) -> $"{method} {url}"
       | _ -> "(a request)"
     | _ -> "(not source)"
 
@@ -46,18 +45,13 @@ val defaultValueBudget = 2000
 /// which is the 1.3 seconds the budget exists to avoid, so this asks the value how many
 /// elements it has and stops. That is also the more useful number: "2,000 items" tells you
 /// whether `--full` is worth asking for in a way "14,208 characters" does not.
-let sizeHint(dv: LanguageTools.RuntimeTypes.Dval): Stdlib.Option.Option<String> =
+let sizeHint(dv: LanguageTools.RuntimeTypes.Dval): Option<String> =
   match dv with
-  | DList(_, items) ->
-    Stdlib.Option.Option.Some(
-      $"{Stdlib.display(Stdlib.List.length(items))} items")
+  | DList(_, items) -> Option.Some($"{Stdlib.display(Stdlib.List.length(items))} items")
   | DDict(_, _, entries) ->
-    Stdlib.Option.Option.Some(
-      $"{Stdlib.display(Stdlib.List.length(Stdlib.Dict.keys(entries)))} entries")
-  | DString(s) ->
-    Stdlib.Option.Option.Some(
-      $"{Stdlib.display(Stdlib.String.length(s))} characters")
-  | _ -> Stdlib.Option.Option.None
+    Option.Some($"{Stdlib.display(Stdlib.List.length(Stdlib.Dict.keys(entries)))} entries")
+  | DString(s) -> Option.Some($"{Stdlib.display(Stdlib.String.length(s))} characters")
+  | _ -> Option.None
 
 
 /// Pretty-print a Dval as a single compact line (no indentation, no embedded newlines), to a
@@ -66,11 +60,7 @@ let sizeHint(dv: LanguageTools.RuntimeTypes.Dval): Stdlib.Option.Option<String> 
 /// NOT through `dvalOneLine`, which caps depth at two as well. Doing that here would quietly
 /// start eliding the inside of any nested value an agent reads, which is a different and worse
 /// kind of loss than a long list being cut short. Full depth, as this has always had.
-let compactDvalTo(
-  branchId: Uuid,
-  budget: Int64,
-  dv: LanguageTools.RuntimeTypes.Dval)
-  : String =
+let compactDvalTo(branchId: Uuid, budget: Int64, dv: LanguageTools.RuntimeTypes.Dval): String =
   let oneLineOf(d: LanguageTools.RuntimeTypes.Dval): String =
     PrettyPrinter.RuntimeTypes.dval(branchId, d)
     |> Stdlib.String.split("\n")
@@ -81,8 +71,7 @@ let compactDvalTo(
     oneLineOf(dv)
   else
     let oneLine = oneLineOf(PrettyPrinter.RuntimeTypes.capForDisplay(budget, dv))
-
-    if (Stdlib.String.length(oneLine)) > budget then
+    if Stdlib.String.length(oneLine) > budget then
       // The note says what was cut, so a reader knows whether to ask for the rest rather than
       // guessing from a bare `...`. That was the whole of Stachu's worry here: an agent that
       // cannot see how much it is missing either asks for everything or misses something.
@@ -91,7 +80,7 @@ let compactDvalTo(
         | Some(size) -> $"... ({size}, use --full)"
         | None -> "..."
 
-      (Stdlib.String.slice(oneLine, 0, budget - (Stdlib.String.length(note)))) + note
+      Stdlib.String.slice(oneLine, 0, budget - Stdlib.String.length(note)) + note
     else
       oneLine
 
@@ -109,25 +98,19 @@ let compactDval(branchId: Uuid, dv: LanguageTools.RuntimeTypes.Dval): String =
 ///
 /// What to DO about it is left to the caller, because the answer names a command and this module
 /// is not CLI-specific.
-let replayStop(
-  branchId: Uuid,
-  stop: Darklang.Tracing.ReplayStop)
-  : (String * Stdlib.Option.Option<String>) =
+let replayStop(branchId: Uuid, stop: ReplayStop): (String * Option<String>) =
   match stop with
-  | InvalidId -> ("not an id", Stdlib.Option.Option.None)
-  | TraceNotFound -> ("no run has this id", Stdlib.Option.Option.None)
-  | InputNoLongerParses ->
-    ("the run's input no longer parses", Stdlib.Option.Option.None)
+  | InvalidId -> ("not an id", Option.None)
+  | TraceNotFound -> ("no run has this id", Option.None)
+  | InputNoLongerParses -> ("the run's input no longer parses", Option.None)
   | MissingHandler ->
-    ("this run has no source to replay and no handler recorded against it",
-     Stdlib.Option.Option.None)
-  | HostFailure(message) -> (message, Stdlib.Option.Option.None)
+    ("this run has no source to replay and no handler recorded against it", Option.None)
+  | HostFailure(message) -> (message, Option.None)
   | Raised(err) ->
     let rendered = PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, err)
-
-    if Darklang.Tracing.ReplayStop.isDrift(stop) then
-      (rendered,
-       Stdlib.Option.Option.Some(
-         "the store has changed since this ran, so the replay no longer resolves"))
+    if ReplayStop.isDrift(stop) then
+      (
+        rendered,
+        Option.Some("the store has changed since this ran, so the replay no longer resolves"))
     else
-      (rendered, Stdlib.Option.Option.None)
+      (rendered, Option.None)

@@ -6,120 +6,148 @@ test abs =
       Stdlib.abs(5s32) |> Stdlib.Test.equal(5s32)
       Stdlib.abs(-2147483648s32) |> Stdlib.Test.equal(-2147483648s32) ])
 
+
 // `Stdlib.max`, `min` and `clamp` are one generic over `Compare`; these check
 // that it reaches this type and that the type's own comparison holds at its
 // extremes.
 
-test max =
-  Stdlib.max(-100s32, -20000s32) |> Stdlib.Test.equal(-100s32)
+test max = Stdlib.max(-100s32, -20000s32) |> Stdlib.Test.equal(-100s32)
 
-test min =
-  Stdlib.min(-100s32, -20000s32) |> Stdlib.Test.equal(-20000s32)
+
+test min = Stdlib.min(-100s32, -20000s32) |> Stdlib.Test.equal(-20000s32)
+
 
 test clamp =
   Stdlib.clamp(-2147483647s32, 250s32, -26s32) |> Stdlib.Test.equal(-26s32)
 
+
 test negate =
   Stdlib.Test.all(
-    [ (--5s32) |> Stdlib.Test.equal(5s32)
-      (-(5s32)) |> Stdlib.Test.equal(-5s32)
-      (-0s32) |> Stdlib.Test.equal(0s32)
-      (--0s32) |> Stdlib.Test.equal(0s32)
-      (-(-2147483648s32)) |> Stdlib.Test.equal(-2147483648s32) ])
+    [ -(-5s32) |> Stdlib.Test.equal(5s32)
+      -(5s32) |> Stdlib.Test.equal(-5s32)
+      0s32 |> Stdlib.Test.equal(0s32)
+      -(0s32) |> Stdlib.Test.equal(0s32)
+      -(-2147483648s32) |> Stdlib.Test.equal(-2147483648s32) ])
+
 
 /// A Result: the sign follows the dividend, and it is an Error only when the
 /// divisor is 0.
 test remainder =
   Stdlib.Test.all(
-    [ Stdlib.Int32.checkedRemainder(15s32, 6s32) |> Stdlib.Test.equal(Ok(3s32))
-      Stdlib.Int32.checkedRemainder(20s32, 8s32) |> Stdlib.Test.equal(Ok(4s32))
-      Stdlib.Int32.checkedRemainder(-20s32, 8s32) |> Stdlib.Test.equal(Ok(-4s32))
-      Stdlib.Int32.checkedRemainder(-20s32, -8s32) |> Stdlib.Test.equal(Ok(-4s32))
-      Stdlib.Int32.checkedRemainder(-15s32, 6s32) |> Stdlib.Test.equal(Ok(-3s32))
-      Stdlib.Int32.checkedRemainder(-2147483648s32, -1s32) |> Stdlib.Test.equal(Ok(0s32))
+    [ Stdlib.Int32.checkedRemainder(15s32, 6s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3s32))
+
+      Stdlib.Int32.checkedRemainder(20s32, 8s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(4s32))
+
+      Stdlib.Int32.checkedRemainder(-20s32, 8s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-4s32))
+
+      Stdlib.Int32.checkedRemainder(-20s32, -8s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-4s32))
+
+      Stdlib.Int32.checkedRemainder(-15s32, 6s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-3s32))
+
+      Stdlib.Int32.checkedRemainder(-2147483648s32, -1s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0s32))
+
       Stdlib.Int32.checkedRemainder(5s32, 0s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero)) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.DivisionError.DivisionByZero)) ])
+
 
 /// `%` wraps into [0, b), and raises when b <= 0.
 test modulo =
   Stdlib.Test.all(
-    [ (15s32 % 5s32) |> Stdlib.Test.equal(0s32)
-      (15s32 % 6s32) |> Stdlib.Test.equal(3s32)
-      (0s32 % 15s32) |> Stdlib.Test.equal(0s32)
-      (-1s32 % 2s32) |> Stdlib.Test.equal(1s32)
-      (-754s32 % 53s32) |> Stdlib.Test.equal(41s32)
-      (222222222s32 % 3s32) |> Stdlib.Test.equal(0s32) ])
+    [ 15s32 % 5s32 |> Stdlib.Test.equal(0s32)
+      15s32 % 6s32 |> Stdlib.Test.equal(3s32)
+      0s32 % 15s32 |> Stdlib.Test.equal(0s32)
+      -1s32 % 2s32 |> Stdlib.Test.equal(1s32)
+      -754s32 % 53s32 |> Stdlib.Test.equal(41s32)
+      222222222s32 % 3s32 |> Stdlib.Test.equal(0s32) ])
+
 
 test moduloRejectsZero =
-  (5s32 % 0s32)
+  5s32 % 0s32
   => raises "Cannot evaluate modulus against 0"
 
+
 test moduloRejectsNegativeDivisor =
-  (5s32 % -5s32)
+  5s32 % -5s32
   => raises "Cannot evaluate modulus against a negative number"
+
 
 /// Wraps on overflow.
 test power =
   Stdlib.Test.all(
-    [ (2s32 ** 3s32) |> Stdlib.Test.equal(8s32)
-      (0s32 ** 1s32) |> Stdlib.Test.equal(0s32)
-      (1s32 ** 0s32) |> Stdlib.Test.equal(1s32)
-      (0s32 ** 0s32) |> Stdlib.Test.equal(1s32)
-      (-2s32 ** 5s32) |> Stdlib.Test.equal(-32s32)
-      (-1s32 ** 5s32) |> Stdlib.Test.equal(-1s32)
-      (-1s32 ** 6s32) |> Stdlib.Test.equal(1s32)
-      (1s32 ** 2147483647s32) |> Stdlib.Test.equal(1s32)
-      (2s32 ** 31s32) |> Stdlib.Test.equal(-2147483648s32)
-      (120s32 ** 20s32) |> Stdlib.Test.equal(0s32) ])
+    [ 2s32 ** 3s32 |> Stdlib.Test.equal(8s32)
+      0s32 ** 1s32 |> Stdlib.Test.equal(0s32)
+      1s32 ** 0s32 |> Stdlib.Test.equal(1s32)
+      0s32 ** 0s32 |> Stdlib.Test.equal(1s32)
+      -2s32 ** 5s32 |> Stdlib.Test.equal(-32s32)
+      -1s32 ** 5s32 |> Stdlib.Test.equal(-1s32)
+      -1s32 ** 6s32 |> Stdlib.Test.equal(1s32)
+      1s32 ** 2147483647s32 |> Stdlib.Test.equal(1s32)
+      2s32 ** 31s32 |> Stdlib.Test.equal(-2147483648s32)
+      120s32 ** 20s32 |> Stdlib.Test.equal(0s32) ])
+
 
 test powerRejectsNegativeExponent =
-  (2s32 ** -3s32)
+  2s32 ** -3s32
   => raises "Cannot raise integer to a negative exponent"
+
 
 test powerOfZeroRejectsNegativeExponent =
-  (0s32 ** -1s32)
+  0s32 ** -1s32
   => raises "Cannot raise integer to a negative exponent"
+
 
 test powerOfOneRejectsNegativeExponent =
-  (1s32 ** -5s32)
+  1s32 ** -5s32
   => raises "Cannot raise integer to a negative exponent"
+
 
 test powerOfMinusOneRejectsNegativeExponent =
-  (-1s32 ** -3s32)
+  -1s32 ** -3s32
   => raises "Cannot raise integer to a negative exponent"
 
-test greaterThan =
-  (20s32 > 1s32) |> Stdlib.Test.equal(true)
+
+test greaterThan = 20s32 > 1s32 |> Stdlib.Test.equal(true)
+
 
 test greaterThanOrEqualTo =
   Stdlib.Test.all(
-    [ (0s32 >= 1s32) |> Stdlib.Test.equal(false)
-      (1s32 >= 0s32) |> Stdlib.Test.equal(true)
-      (6s32 >= 1s32) |> Stdlib.Test.equal(true)
-      (6s32 >= 8s32) |> Stdlib.Test.equal(false)
-      (-5s32 >= -20s32) |> Stdlib.Test.equal(true)
-      (-20s32 >= -1s32) |> Stdlib.Test.equal(false)
-      (-20s32 >= -20s32) |> Stdlib.Test.equal(true) ])
+    [ 0s32 >= 1s32 |> Stdlib.Test.equal(false)
+      1s32 >= 0s32 |> Stdlib.Test.equal(true)
+      6s32 >= 1s32 |> Stdlib.Test.equal(true)
+      6s32 >= 8s32 |> Stdlib.Test.equal(false)
+      -5s32 >= -20s32 |> Stdlib.Test.equal(true)
+      -20s32 >= -1s32 |> Stdlib.Test.equal(false)
+      -20s32 >= -20s32 |> Stdlib.Test.equal(true) ])
+
 
 test lessThanOrEqualTo =
   Stdlib.Test.all(
-    [ (6s32 <= 8s32) |> Stdlib.Test.equal(true)
-      (10s32 <= 1s32) |> Stdlib.Test.equal(false)
-      (0s32 <= 1s32) |> Stdlib.Test.equal(true)
-      (1s32 <= 0s32) |> Stdlib.Test.equal(false)
-      (-100s32 <= 22544s32) |> Stdlib.Test.equal(true)
-      (-999s32 <= -9999s32) |> Stdlib.Test.equal(false)
-      (-8888s32 <= -8888s32) |> Stdlib.Test.equal(true) ])
+    [ 6s32 <= 8s32 |> Stdlib.Test.equal(true)
+      10s32 <= 1s32 |> Stdlib.Test.equal(false)
+      0s32 <= 1s32 |> Stdlib.Test.equal(true)
+      1s32 <= 0s32 |> Stdlib.Test.equal(false)
+      -100s32 <= 22544s32 |> Stdlib.Test.equal(true)
+      -999s32 <= -9999s32 |> Stdlib.Test.equal(false)
+      -8888s32 <= -8888s32 |> Stdlib.Test.equal(true) ])
+
 
 test lessThan =
   Stdlib.Test.all(
-    [ (6s32 < 8s32) |> Stdlib.Test.equal(true)
-      (10s32 < 1s32) |> Stdlib.Test.equal(false)
-      (0s32 < 1s32) |> Stdlib.Test.equal(true)
-      (1s32 < 0s32) |> Stdlib.Test.equal(false)
-      (-100s32 < 22544s32) |> Stdlib.Test.equal(true)
-      (-999s32 < -9999s32) |> Stdlib.Test.equal(false)
-      (-8888s32 < -8888s32) |> Stdlib.Test.equal(false) ])
+    [ 6s32 < 8s32 |> Stdlib.Test.equal(true)
+      10s32 < 1s32 |> Stdlib.Test.equal(false)
+      0s32 < 1s32 |> Stdlib.Test.equal(true)
+      1s32 < 0s32 |> Stdlib.Test.equal(false)
+      -100s32 < 22544s32 |> Stdlib.Test.equal(true)
+      -999s32 < -9999s32 |> Stdlib.Test.equal(false)
+      -8888s32 < -8888s32 |> Stdlib.Test.equal(false) ])
+
 
 test sqrt =
   Stdlib.Test.all(
@@ -127,110 +155,171 @@ test sqrt =
       Stdlib.Int32.sqrt(100s32) |> Stdlib.Test.equal(10.0)
       Stdlib.Int32.sqrt(86s32) |> Stdlib.Test.equal(9.273618495495704) ])
 
+
 test toFloat =
   Stdlib.Test.all(
     [ Stdlib.Int32.toFloat(2s32) |> Stdlib.Test.equal(2.0)
       Stdlib.Int32.toFloat(955656s32) |> Stdlib.Test.equal(955656.0)
       Stdlib.Int32.toFloat(-10s32) |> Stdlib.Test.equal(-10.0) ])
 
+
 /// Wraps on overflow.
 test add =
   Stdlib.Test.all(
-    [ (10s32 + 9s32) |> Stdlib.Test.equal(19s32)
-      (88s32 + 9s32) |> Stdlib.Test.equal(97s32)
-      (-1s32 + 2s32) |> Stdlib.Test.equal(1s32)
-      (1s32 + 0s32) |> Stdlib.Test.equal(1s32)
-      (-55s32 + 55s32) |> Stdlib.Test.equal(0s32)
-      (2147483646s32 + 1s32) |> Stdlib.Test.equal(2147483647s32)
+    [ 10s32 + 9s32 |> Stdlib.Test.equal(19s32)
+      88s32 + 9s32 |> Stdlib.Test.equal(97s32)
+      -1s32 + 2s32 |> Stdlib.Test.equal(1s32)
+      1s32 + 0s32 |> Stdlib.Test.equal(1s32)
+      -55s32 + 55s32 |> Stdlib.Test.equal(0s32)
+      2147483646s32 + 1s32 |> Stdlib.Test.equal(2147483647s32)
       // Overflow tests
-      (2147483647s32 + 1s32) |> Stdlib.Test.equal(-2147483648s32)
-      (55s32 + 2147483647s32) |> Stdlib.Test.equal(-2147483594s32)
-      (-2147483648s32 + -1s32) |> Stdlib.Test.equal(2147483647s32) ])
+      2147483647s32 + 1s32 |> Stdlib.Test.equal(-2147483648s32)
+      55s32 + 2147483647s32 |> Stdlib.Test.equal(-2147483594s32)
+      -2147483648s32 + -1s32 |> Stdlib.Test.equal(2147483647s32) ])
+
 
 /// Wraps on overflow.
 test subtract =
   Stdlib.Test.all(
-    [ (10s32 - 9s32) |> Stdlib.Test.equal(1s32)
-      (88s32 - 9s32) |> Stdlib.Test.equal(79s32)
-      (0s32 - 1s32) |> Stdlib.Test.equal(-1s32)
-      (1s32 - 0s32) |> Stdlib.Test.equal(1s32)
-      (-55s32 - -55s32) |> Stdlib.Test.equal(0s32) ])
+    [ 10s32 - 9s32 |> Stdlib.Test.equal(1s32)
+      88s32 - 9s32 |> Stdlib.Test.equal(79s32)
+      0s32 - 1s32 |> Stdlib.Test.equal(-1s32)
+      1s32 - 0s32 |> Stdlib.Test.equal(1s32)
+      -55s32 - -55s32 |> Stdlib.Test.equal(0s32) ])
+
 
 /// Wraps on overflow.
 test multiply =
   Stdlib.Test.all(
-    [ (8s32 * 8s32) |> Stdlib.Test.equal(64s32)
-      (5145s32 * 5145s32) |> Stdlib.Test.equal(26471025s32) ])
+    [ 8s32 * 8s32 |> Stdlib.Test.equal(64s32)
+      5145s32 * 5145s32 |> Stdlib.Test.equal(26471025s32) ])
+
 
 test divide =
   Stdlib.Test.all(
-    [ (10s32 / 5s32) |> Stdlib.Test.equal(2s32)
-      (17s32 / 3s32) |> Stdlib.Test.equal(5s32)
-      (-8s32 / 5s32) |> Stdlib.Test.equal(-1s32)
-      (0s32 / 1s32) |> Stdlib.Test.equal(0s32)
-      ((-2147483648s32) / -1s32) |> Stdlib.Test.equal(-2147483648s32) ])
+    [ 10s32 / 5s32 |> Stdlib.Test.equal(2s32)
+      17s32 / 3s32 |> Stdlib.Test.equal(5s32)
+      -8s32 / 5s32 |> Stdlib.Test.equal(-1s32)
+      0s32 / 1s32 |> Stdlib.Test.equal(0s32)
+      -2147483648s32 / -1s32 |> Stdlib.Test.equal(-2147483648s32) ])
+
 
 test divideOfOneRejectsZero =
-  (1s32 / 0s32)
+  1s32 / 0s32
   => raises "Cannot divide by 0"
 
-test sum =
-  Stdlib.sum(0s32, [ 1s32, 2s32 ]) |> Stdlib.Test.equal(3s32)
+
+test sum = Stdlib.sum(0s32, [ 1s32, 2s32 ]) |> Stdlib.Test.equal(3s32)
+
 
 test parse =
   Stdlib.Test.all(
     [ // ok
-      Stdlib.Int32.parse("0") |> Stdlib.Test.equal(Ok(0s32))
-      Stdlib.Int32.parse("1") |> Stdlib.Test.equal(Ok(1s32))
-      Stdlib.Int32.parse(" 1") |> Stdlib.Test.equal(Ok(1s32))
-      Stdlib.Int32.parse("1 ") |> Stdlib.Test.equal(Ok(1s32))
-      Stdlib.Int32.parse("+1") |> Stdlib.Test.equal(Ok(1s32))
-      Stdlib.Int32.parse(" +1 ") |> Stdlib.Test.equal(Ok(1s32))
-      Stdlib.Int32.parse("-1") |> Stdlib.Test.equal(Ok(-1s32))
+      Stdlib.Int32.parse("0")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0s32))
+
+      Stdlib.Int32.parse("1")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1s32))
+
+      Stdlib.Int32.parse(" 1")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1s32))
+
+      Stdlib.Int32.parse("1 ")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1s32))
+
+      Stdlib.Int32.parse("+1")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1s32))
+
+      Stdlib.Int32.parse(" +1 ")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1s32))
+
+      Stdlib.Int32.parse("-1")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1s32))
+
       // "octal" format ignored
-      Stdlib.Int32.parse("078") |> Stdlib.Test.equal(Ok(78s32))
-      Stdlib.Int32.parse("-00001") |> Stdlib.Test.equal(Ok(-1s32))
-      Stdlib.Int32.parse("-10001") |> Stdlib.Test.equal(Ok(-10001s32))
-      Stdlib.Int32.parse("-2147483648") |> Stdlib.Test.equal(Ok(-2147483648s32))
-      Stdlib.Int32.parse("2147483647") |> Stdlib.Test.equal(Ok(2147483647s32)) ])
+      Stdlib.Int32.parse("078")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(78s32))
+
+      Stdlib.Int32.parse("-00001")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1s32))
+
+      Stdlib.Int32.parse("-10001")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-10001s32))
+
+      Stdlib.Int32.parse("-2147483648")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2147483648s32))
+
+      Stdlib.Int32.parse("2147483647")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2147483647s32)) ])
+
 
 test parseOutOfRange =
   Stdlib.Test.all(
     [ // out of range
       Stdlib.Int32.parse("2147483648")
-      |> Stdlib.Test.equal(Error(Stdlib.Int32.ParseError.OutOfRange))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Int32.ParseError.OutOfRange))
+
       Stdlib.Int32.parse("-2147483649")
-      |> Stdlib.Test.equal(Error(Stdlib.Int32.ParseError.OutOfRange)) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Int32.ParseError.OutOfRange)) ])
+
 
 test parseBadFormat =
   Stdlib.Test.all(
     [ // bad format
       Stdlib.Int32.parse("1 2 3")
-      |> Stdlib.Test.equal(Error(Stdlib.Int32.ParseError.BadFormat))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Int32.ParseError.BadFormat))
+
       Stdlib.Int32.parse("+ 1")
-      |> Stdlib.Test.equal(Error(Stdlib.Int32.ParseError.BadFormat))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Int32.ParseError.BadFormat))
+
       Stdlib.Int32.parse("- 1")
-      |> Stdlib.Test.equal(Error(Stdlib.Int32.ParseError.BadFormat))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Int32.ParseError.BadFormat))
+
       Stdlib.Int32.parse("0xA")
-      |> Stdlib.Test.equal(Error(Stdlib.Int32.ParseError.BadFormat))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Int32.ParseError.BadFormat))
+
       Stdlib.Int32.parse("0x123")
-      |> Stdlib.Test.equal(Error(Stdlib.Int32.ParseError.BadFormat))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Int32.ParseError.BadFormat))
+
       Stdlib.Int32.parse("0b0100")
-      |> Stdlib.Test.equal(Error(Stdlib.Int32.ParseError.BadFormat))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Int32.ParseError.BadFormat))
+
       Stdlib.Int32.parse("pi")
-      |> Stdlib.Test.equal(Error(Stdlib.Int32.ParseError.BadFormat))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Int32.ParseError.BadFormat))
+
       Stdlib.Int32.parse("Darklang.Stdlib.Math.pi")
-      |> Stdlib.Test.equal(Error(Stdlib.Int32.ParseError.BadFormat))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Int32.ParseError.BadFormat))
+
       Stdlib.Int32.parse("1.23E+04")
-      |> Stdlib.Test.equal(Error(Stdlib.Int32.ParseError.BadFormat))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Int32.ParseError.BadFormat))
+
       Stdlib.Int32.parse("")
-      |> Stdlib.Test.equal(Error(Stdlib.Int32.ParseError.BadFormat))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Int32.ParseError.BadFormat))
+
       Stdlib.Int32.parse("1I")
-      |> Stdlib.Test.equal(Error(Stdlib.Int32.ParseError.BadFormat))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Int32.ParseError.BadFormat))
+
       Stdlib.Int32.parse("one")
-      |> Stdlib.Test.equal(Error(Stdlib.Int32.ParseError.BadFormat))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Int32.ParseError.BadFormat))
+
       Stdlib.Int32.parse("XIV")
-      |> Stdlib.Test.equal(Error(Stdlib.Int32.ParseError.BadFormat)) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Int32.ParseError.BadFormat)) ])
+
 
 test toString =
   Stdlib.Test.all(
@@ -242,6 +331,7 @@ test toString =
       // Int32 upper limit
       Stdlib.display(2147483647s32) |> Stdlib.Test.equal("2147483647") ])
 
+
 test fromInt8 =
   Stdlib.Test.all(
     [ Stdlib.Int32.fromInt8(0s8) |> Stdlib.Test.equal(0s32)
@@ -249,11 +339,13 @@ test fromInt8 =
       Stdlib.Int32.fromInt8(127s8) |> Stdlib.Test.equal(127s32)
       Stdlib.Int32.fromInt8(-128s8) |> Stdlib.Test.equal(-128s32) ])
 
+
 test fromUInt8 =
   Stdlib.Test.all(
     [ Stdlib.Int32.fromUInt8(0u8) |> Stdlib.Test.equal(0s32)
       Stdlib.Int32.fromUInt8(1u8) |> Stdlib.Test.equal(1s32)
       Stdlib.Int32.fromUInt8(255u8) |> Stdlib.Test.equal(255s32) ])
+
 
 test fromInt16 =
   Stdlib.Test.all(
@@ -262,231 +354,386 @@ test fromInt16 =
       Stdlib.Int32.fromInt16(32767s16) |> Stdlib.Test.equal(32767s32)
       Stdlib.Int32.fromInt16(-32768s16) |> Stdlib.Test.equal(-32768s32) ])
 
+
 test fromUInt16 =
   Stdlib.Test.all(
     [ Stdlib.Int32.fromUInt16(0u16) |> Stdlib.Test.equal(0s32)
       Stdlib.Int32.fromUInt16(1u16) |> Stdlib.Test.equal(1s32)
       Stdlib.Int32.fromUInt16(65535u16) |> Stdlib.Test.equal(65535s32) ])
 
+
 test fromUInt32 =
   Stdlib.Test.all(
-    [ Stdlib.Int32.fromUInt32(0u32) |> Stdlib.Test.equal(Some(0s32))
-      Stdlib.Int32.fromUInt32(1u32) |> Stdlib.Test.equal(Some(1s32))
-      Stdlib.Int32.fromUInt32(4294967295u32) |> Stdlib.Test.equal(None)
-      Stdlib.Int32.fromUInt32(2147483647u32) |> Stdlib.Test.equal(Some(2147483647s32))
-      Stdlib.Int32.fromUInt32(2147483648u32) |> Stdlib.Test.equal(None) ])
+    [ Stdlib.Int32.fromUInt32(0u32)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0s32))
+
+      Stdlib.Int32.fromUInt32(1u32)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1s32))
+
+      Stdlib.Int32.fromUInt32(4294967295u32)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Int32.fromUInt32(2147483647u32)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2147483647s32))
+
+      Stdlib.Int32.fromUInt32(2147483648u32)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
 
 test fromInt64 =
   Stdlib.Test.all(
-    [ Stdlib.Int32.fromInt64(0) |> Stdlib.Test.equal(Some(0s32))
-      Stdlib.Int32.fromInt64(1) |> Stdlib.Test.equal(Some(1s32))
-      Stdlib.Int32.fromInt64(2147483647) |> Stdlib.Test.equal(Some(2147483647s32))
-      Stdlib.Int32.fromInt64(2147483648) |> Stdlib.Test.equal(None)
-      Stdlib.Int32.fromInt64(-1) |> Stdlib.Test.equal(Some(-1s32))
-      Stdlib.Int32.fromInt64(-2147483648) |> Stdlib.Test.equal(Some(-2147483648s32))
-      Stdlib.Int32.fromInt64(-2147483649) |> Stdlib.Test.equal(None) ])
+    [ Stdlib.Int32.fromInt64(0)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0s32))
+
+      Stdlib.Int32.fromInt64(1)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1s32))
+
+      Stdlib.Int32.fromInt64(2147483647)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2147483647s32))
+
+      Stdlib.Int32.fromInt64(2147483648)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Int32.fromInt64(-1)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1s32))
+
+      Stdlib.Int32.fromInt64(-2147483648)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-2147483648s32))
+
+      Stdlib.Int32.fromInt64(-2147483649)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
 
 test fromUInt64 =
   Stdlib.Test.all(
-    [ Stdlib.Int32.fromUInt64(0u64) |> Stdlib.Test.equal(Some(0s32))
-      Stdlib.Int32.fromUInt64(1u64) |> Stdlib.Test.equal(Some(1s32))
-      Stdlib.Int32.fromUInt64(2147483647u64) |> Stdlib.Test.equal(Some(2147483647s32))
-      Stdlib.Int32.fromUInt64(2147483648u64) |> Stdlib.Test.equal(None) ])
+    [ Stdlib.Int32.fromUInt64(0u64)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0s32))
+
+      Stdlib.Int32.fromUInt64(1u64)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1s32))
+
+      Stdlib.Int32.fromUInt64(2147483647u64)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2147483647s32))
+
+      Stdlib.Int32.fromUInt64(2147483648u64)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
 
 test fromInt128 =
   Stdlib.Test.all(
-    [ Stdlib.Int32.fromInt128(0s128) |> Stdlib.Test.equal(Some(0s32))
-      Stdlib.Int32.fromInt128(1s128) |> Stdlib.Test.equal(Some(1s32))
-      Stdlib.Int32.fromInt128(2147483647s128) |> Stdlib.Test.equal(Some(2147483647s32))
-      Stdlib.Int32.fromInt128(2147483648s128) |> Stdlib.Test.equal(None)
-      Stdlib.Int32.fromInt128(-1s128) |> Stdlib.Test.equal(Some(-1s32))
-      Stdlib.Int32.fromInt128(-2147483648s128) |> Stdlib.Test.equal(Some(-2147483648s32))
-      Stdlib.Int32.fromInt128(-2147483649s128) |> Stdlib.Test.equal(None) ])
+    [ Stdlib.Int32.fromInt128(0s128)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0s32))
+
+      Stdlib.Int32.fromInt128(1s128)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1s32))
+
+      Stdlib.Int32.fromInt128(2147483647s128)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2147483647s32))
+
+      Stdlib.Int32.fromInt128(2147483648s128)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Int32.fromInt128(-1s128)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1s32))
+
+      Stdlib.Int32.fromInt128(-2147483648s128)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-2147483648s32))
+
+      Stdlib.Int32.fromInt128(-2147483649s128)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
 
 test fromUInt128 =
   Stdlib.Test.all(
-    [ Stdlib.Int32.fromUInt128(0u128) |> Stdlib.Test.equal(Some(0s32))
-      Stdlib.Int32.fromUInt128(1u128) |> Stdlib.Test.equal(Some(1s32))
-      Stdlib.Int32.fromUInt128(2147483647u128) |> Stdlib.Test.equal(Some(2147483647s32))
-      Stdlib.Int32.fromUInt128(2147483648u128) |> Stdlib.Test.equal(None) ])
+    [ Stdlib.Int32.fromUInt128(0u128)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0s32))
+
+      Stdlib.Int32.fromUInt128(1u128)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1s32))
+
+      Stdlib.Int32.fromUInt128(2147483647u128)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2147483647s32))
+
+      Stdlib.Int32.fromUInt128(2147483648u128)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
 
 test bitwiseAnd =
   Stdlib.Test.all(
-    [ (12s32 & 10s32) |> Stdlib.Test.equal(8s32)
-      (0s32 & 0s32) |> Stdlib.Test.equal(0s32)
-      ((-1s32) & 0s32) |> Stdlib.Test.equal(0s32)
-      (2147483647s32 & 2147483647s32) |> Stdlib.Test.equal(2147483647s32)
-      ((-2147483648s32) & (-1s32)) |> Stdlib.Test.equal(-2147483648s32)
-      (2147483647s32 & (-2147483648s32)) |> Stdlib.Test.equal(0s32)
-      ((-1s32) & (-1s32)) |> Stdlib.Test.equal(-1s32) ])
+    [ 12s32 & 10s32 |> Stdlib.Test.equal(8s32)
+      0s32 & 0s32 |> Stdlib.Test.equal(0s32)
+      -1s32 & 0s32 |> Stdlib.Test.equal(0s32)
+      2147483647s32 & 2147483647s32 |> Stdlib.Test.equal(2147483647s32)
+      -2147483648s32 & -1s32 |> Stdlib.Test.equal(-2147483648s32)
+      2147483647s32 & -2147483648s32 |> Stdlib.Test.equal(0s32)
+      -1s32 & -1s32 |> Stdlib.Test.equal(-1s32) ])
+
 
 test bitwiseOr =
   Stdlib.Test.all(
-    [ (12s32 | 10s32) |> Stdlib.Test.equal(14s32)
-      (0s32 | 0s32) |> Stdlib.Test.equal(0s32)
-      ((-1s32) | 0s32) |> Stdlib.Test.equal(-1s32)
-      (2147483647s32 | 0s32) |> Stdlib.Test.equal(2147483647s32)
-      ((-2147483648s32) | 0s32) |> Stdlib.Test.equal(-2147483648s32)
-      (2147483647s32 | (-2147483648s32)) |> Stdlib.Test.equal(-1s32) ])
+    [ 12s32 | 10s32 |> Stdlib.Test.equal(14s32)
+      0s32 | 0s32 |> Stdlib.Test.equal(0s32)
+      -1s32 | 0s32 |> Stdlib.Test.equal(-1s32)
+      2147483647s32 | 0s32 |> Stdlib.Test.equal(2147483647s32)
+      -2147483648s32 | 0s32 |> Stdlib.Test.equal(-2147483648s32)
+      2147483647s32 | -2147483648s32 |> Stdlib.Test.equal(-1s32) ])
+
 
 test bitwiseXor =
   Stdlib.Test.all(
-    [ (12s32 ^ 10s32) |> Stdlib.Test.equal(6s32)
-      (0s32 ^ 0s32) |> Stdlib.Test.equal(0s32)
-      ((-1s32) ^ (-1s32)) |> Stdlib.Test.equal(0s32)
-      (2147483647s32 ^ (-1s32)) |> Stdlib.Test.equal(-2147483648s32)
-      ((-2147483648s32) ^ (-1s32)) |> Stdlib.Test.equal(2147483647s32)
-      (2147483647s32 ^ 2147483647s32) |> Stdlib.Test.equal(0s32) ])
+    [ 12s32 ^ 10s32 |> Stdlib.Test.equal(6s32)
+      0s32 ^ 0s32 |> Stdlib.Test.equal(0s32)
+      -1s32 ^ -1s32 |> Stdlib.Test.equal(0s32)
+      2147483647s32 ^ -1s32 |> Stdlib.Test.equal(-2147483648s32)
+      -2147483648s32 ^ -1s32 |> Stdlib.Test.equal(2147483647s32)
+      2147483647s32 ^ 2147483647s32 |> Stdlib.Test.equal(0s32) ])
+
 
 test bitwiseNot =
   Stdlib.Test.all(
-    [ (~0s32) |> Stdlib.Test.equal(-1s32)
-      (~(-1s32)) |> Stdlib.Test.equal(0s32)
-      (~2147483647s32) |> Stdlib.Test.equal(-2147483648s32)
-      (~(-2147483648s32)) |> Stdlib.Test.equal(2147483647s32)
-      (~1s32) |> Stdlib.Test.equal(-2s32) ])
+    [ ~0s32 |> Stdlib.Test.equal(-1s32)
+      ~-1s32 |> Stdlib.Test.equal(0s32)
+      ~2147483647s32 |> Stdlib.Test.equal(-2147483648s32)
+      ~-2147483648s32 |> Stdlib.Test.equal(2147483647s32)
+      ~1s32 |> Stdlib.Test.equal(-2s32) ])
+
 
 test shiftLeft =
   Stdlib.Test.all(
-    [ (1s32 << 2s32) |> Stdlib.Test.equal(4s32)
-      (0s32 << 5s32) |> Stdlib.Test.equal(0s32)
-      (1s32 << 0s32) |> Stdlib.Test.equal(1s32)
-      (1s32 << 30s32) |> Stdlib.Test.equal(1073741824s32)
-      (5s32 << 3s32) |> Stdlib.Test.equal(40s32) ])
+    [ 1s32 << 2s32 |> Stdlib.Test.equal(4s32)
+      0s32 << 5s32 |> Stdlib.Test.equal(0s32)
+      1s32 << 0s32 |> Stdlib.Test.equal(1s32)
+      1s32 << 30s32 |> Stdlib.Test.equal(1073741824s32)
+      5s32 << 3s32 |> Stdlib.Test.equal(40s32) ])
+
 
 test shiftRight =
   Stdlib.Test.all(
-    [ (8s32 >> 2s32) |> Stdlib.Test.equal(2s32)
-      (0s32 >> 5s32) |> Stdlib.Test.equal(0s32)
-      (1s32 >> 0s32) |> Stdlib.Test.equal(1s32)
-      (1073741824s32 >> 30s32) |> Stdlib.Test.equal(1s32)
-      ((-1s32) >> 1s32) |> Stdlib.Test.equal(-1s32)
-      (40s32 >> 3s32) |> Stdlib.Test.equal(5s32) ])
+    [ 8s32 >> 2s32 |> Stdlib.Test.equal(2s32)
+      0s32 >> 5s32 |> Stdlib.Test.equal(0s32)
+      1s32 >> 0s32 |> Stdlib.Test.equal(1s32)
+      1073741824s32 >> 30s32 |> Stdlib.Test.equal(1s32)
+      -1s32 >> 1s32 |> Stdlib.Test.equal(-1s32)
+      40s32 >> 3s32 |> Stdlib.Test.equal(5s32) ])
+
 
 /// The shift count is taken modulo 32, as in Rust and C#: shifting by 33
 /// shifts by 1, and a count of -1 shifts by 31.
 test shiftCountWraps =
   Stdlib.Test.all(
-    [ (1s32 << 32s32) |> Stdlib.Test.equal(1s32)
-      (1s32 << 33s32) |> Stdlib.Test.equal(2s32)
-      (64s32 >> 33s32) |> Stdlib.Test.equal(32s32)
-      (1s32 << -1s32) |> Stdlib.Test.equal(-2147483648s32) ])
+    [ 1s32 << 32s32 |> Stdlib.Test.equal(1s32)
+      1s32 << 33s32 |> Stdlib.Test.equal(2s32)
+      64s32 >> 33s32 |> Stdlib.Test.equal(32s32)
+      1s32 << -1s32 |> Stdlib.Test.equal(-2147483648s32) ])
+
 
 test checkedAdd =
   Stdlib.Test.all(
     [ Stdlib.Int32.checkedAdd(2147483647s32, 1s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+
       Stdlib.Int32.checkedAdd(-2147483648s32, -1s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+
       Stdlib.Int32.checkedAdd(2147483647s32, -1s32)
-      |> Stdlib.Test.equal(Ok(2147483646s32))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2147483646s32))
+
       Stdlib.Int32.checkedAdd(-2147483648s32, 1s32)
-      |> Stdlib.Test.equal(Ok(-2147483647s32))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2147483647s32))
+
       Stdlib.Int32.checkedAdd(2147483647s32, -2147483648s32)
-      |> Stdlib.Test.equal(Ok(-1s32))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1s32))
+
       Stdlib.Int32.checkedAdd(-2147483648s32, 0s32)
-      |> Stdlib.Test.equal(Ok(-2147483648s32)) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2147483648s32)) ])
+
 
 test checkedSubtract =
   Stdlib.Test.all(
     [ Stdlib.Int32.checkedSubtract(-2147483648s32, 1s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+
       Stdlib.Int32.checkedSubtract(2147483647s32, -1s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+
       Stdlib.Int32.checkedSubtract(0s32, -2147483648s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+
       Stdlib.Int32.checkedSubtract(-1s32, -2147483648s32)
-      |> Stdlib.Test.equal(Ok(2147483647s32))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2147483647s32))
+
       Stdlib.Int32.checkedSubtract(2147483647s32, 2147483647s32)
-      |> Stdlib.Test.equal(Ok(0s32))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0s32))
+
       Stdlib.Int32.checkedSubtract(-2147483648s32, -1s32)
-      |> Stdlib.Test.equal(Ok(-2147483647s32)) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2147483647s32)) ])
+
 
 test checkedMultiply =
   Stdlib.Test.all(
     [ Stdlib.Int32.checkedMultiply(2147483647s32, 2s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+
       Stdlib.Int32.checkedMultiply(-2147483648s32, -1s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+
       Stdlib.Int32.checkedMultiply(-1s32, -2147483648s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+
       Stdlib.Int32.checkedMultiply(-2147483648s32, 2s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+
       Stdlib.Int32.checkedMultiply(2147483647s32, -1s32)
-      |> Stdlib.Test.equal(Ok(-2147483647s32))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2147483647s32))
+
       Stdlib.Int32.checkedMultiply(-2147483648s32, 1s32)
-      |> Stdlib.Test.equal(Ok(-2147483648s32))
-      Stdlib.Int32.checkedMultiply(-2147483648s32, 0s32) |> Stdlib.Test.equal(Ok(0s32))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2147483648s32))
+
+      Stdlib.Int32.checkedMultiply(-2147483648s32, 0s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0s32))
+
       Stdlib.Int32.checkedMultiply(-2s32, 1073741823s32)
-      |> Stdlib.Test.equal(Ok(-2147483646s32)) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2147483646s32)) ])
+
 
 test checkedNegate =
   Stdlib.Test.all(
     [ Stdlib.Int32.checkedNegate(-2147483648s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+
       Stdlib.Int32.checkedNegate(2147483647s32)
-      |> Stdlib.Test.equal(Ok(-2147483647s32))
-      Stdlib.Int32.checkedNegate(0s32) |> Stdlib.Test.equal(Ok(0s32)) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2147483647s32))
+
+      Stdlib.Int32.checkedNegate(0s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0s32)) ])
+
 
 test checkedAbsoluteValue =
   Stdlib.Test.all(
     [ Stdlib.Int32.checkedAbsoluteValue(-2147483648s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.Overflow.Overflow))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+
       Stdlib.Int32.checkedAbsoluteValue(-2147483647s32)
-      |> Stdlib.Test.equal(Ok(2147483647s32))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2147483647s32))
+
       Stdlib.Int32.checkedAbsoluteValue(2147483647s32)
-      |> Stdlib.Test.equal(Ok(2147483647s32))
-      Stdlib.Int32.checkedAbsoluteValue(0s32) |> Stdlib.Test.equal(Ok(0s32)) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2147483647s32))
+
+      Stdlib.Int32.checkedAbsoluteValue(0s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0s32)) ])
+
 
 /// `checkedPower` returns what `**` computes, and the reason where it raises or wraps.
 test checkedPower =
   Stdlib.Test.all(
-    [ Stdlib.Int32.checkedPower(2s32, 30s32) |> Stdlib.Test.equal(Ok(1073741824s32))
+    [ Stdlib.Int32.checkedPower(2s32, 30s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1073741824s32))
+
       Stdlib.Int32.checkedPower(2s32, 31s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.Overflow))
-      Stdlib.Int32.checkedPower(-2s32, 31s32) |> Stdlib.Test.equal(Ok(-2147483648s32))
-      Stdlib.Int32.checkedPower(-2s32, 30s32) |> Stdlib.Test.equal(Ok(1073741824s32))
-      Stdlib.Int32.checkedPower(3s32, 0s32) |> Stdlib.Test.equal(Ok(1s32))
-      Stdlib.Int32.checkedPower(0s32, 0s32) |> Stdlib.Test.equal(Ok(1s32))
-      Stdlib.Int32.checkedPower(0s32, 2147483647s32) |> Stdlib.Test.equal(Ok(0s32))
-      Stdlib.Int32.checkedPower(1s32, 2147483647s32) |> Stdlib.Test.equal(Ok(1s32))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.PowerError.Overflow))
+
+      Stdlib.Int32.checkedPower(-2s32, 31s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2147483648s32))
+
+      Stdlib.Int32.checkedPower(-2s32, 30s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1073741824s32))
+
+      Stdlib.Int32.checkedPower(3s32, 0s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1s32))
+
+      Stdlib.Int32.checkedPower(0s32, 0s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1s32))
+
+      Stdlib.Int32.checkedPower(0s32, 2147483647s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0s32))
+
+      Stdlib.Int32.checkedPower(1s32, 2147483647s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1s32))
+
       Stdlib.Int32.checkedPower(2s32, 2147483647s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.Overflow))
-      Stdlib.Int32.checkedPower(-1s32, 2147483647s32) |> Stdlib.Test.equal(Ok(-1s32))
-      Stdlib.Int32.checkedPower(-1s32, 2147483646s32) |> Stdlib.Test.equal(Ok(1s32))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.PowerError.Overflow))
+
+      Stdlib.Int32.checkedPower(-1s32, 2147483647s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1s32))
+
+      Stdlib.Int32.checkedPower(-1s32, 2147483646s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1s32))
+
       Stdlib.Int32.checkedPower(2s32, -1s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.NegativeExponent))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.PowerError.NegativeExponent))
+
       Stdlib.Int32.checkedPower(0s32, -1s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.NegativeExponent))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.PowerError.NegativeExponent))
+
       Stdlib.Int32.checkedPower(1s32, -2147483648s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.PowerError.NegativeExponent)) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.PowerError.NegativeExponent)) ])
+
 
 /// `checkedDivide` and `checkedMod` return what `/` and `%` compute, and the reason where they raise.
 test divisionResults =
   Stdlib.Test.all(
-    [ Stdlib.Int32.checkedDivide(17s32, 3s32) |> Stdlib.Test.equal(Ok(5s32))
-      Stdlib.Int32.checkedDivide(-8s32, 5s32) |> Stdlib.Test.equal(Ok(-1s32))
+    [ Stdlib.Int32.checkedDivide(17s32, 3s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(5s32))
+
+      Stdlib.Int32.checkedDivide(-8s32, 5s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1s32))
+
       Stdlib.Int32.checkedDivide(-2147483648s32, -1s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.Overflow))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.DivisionError.Overflow))
+
       Stdlib.Int32.checkedDivide(-2147483648s32, 1s32)
-      |> Stdlib.Test.equal(Ok(-2147483648s32))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2147483648s32))
+
       Stdlib.Int32.checkedDivide(-2147483647s32, -1s32)
-      |> Stdlib.Test.equal(Ok(2147483647s32))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2147483647s32))
+
       Stdlib.Int32.checkedDivide(2147483647s32, -1s32)
-      |> Stdlib.Test.equal(Ok(-2147483647s32))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2147483647s32))
+
       Stdlib.Int32.checkedDivide(-2147483648s32, -2s32)
-      |> Stdlib.Test.equal(Ok(1073741824s32))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1073741824s32))
+
       Stdlib.Int32.checkedDivide(5s32, 0s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.DivisionError.DivisionByZero))
-      Stdlib.Int32.checkedMod(15s32, 6s32) |> Stdlib.Test.equal(Ok(3s32))
-      Stdlib.Int32.checkedMod(-1s32, 2s32) |> Stdlib.Test.equal(Ok(1s32))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.DivisionError.DivisionByZero))
+
+      Stdlib.Int32.checkedMod(15s32, 6s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3s32))
+
+      Stdlib.Int32.checkedMod(-1s32, 2s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1s32))
+
       Stdlib.Int32.checkedMod(5s32, 0s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.ZeroModulus))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.ModulusError.ZeroModulus))
+
       Stdlib.Int32.checkedMod(5s32, -1s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.ModulusError.NegativeModulus)) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.ModulusError.NegativeModulus)) ])
+
 
 test checkedSqrt =
   Stdlib.Test.all(
-    [ Stdlib.Int32.checkedSqrt(4s32) |> Stdlib.Test.equal(Ok(2.0))
+    [ Stdlib.Int32.checkedSqrt(4s32)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(2.0))
+
       Stdlib.Int32.checkedSqrt(-4s32)
-      |> Stdlib.Test.equal(Error(Stdlib.Math.NonFinite.NotANumber)) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.NotANumber)) ])

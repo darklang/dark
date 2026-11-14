@@ -12,7 +12,6 @@
 /// left open beside an editor.
 module Darklang.Cli.TraceWatch
 
-
 /// The config key the command hands the function name over on.
 ///
 /// A view's `init` is called with no arguments (`LiveView.Host.start`), so a view that is ABOUT
@@ -21,12 +20,12 @@ val fnKey = "traces.watch.fn"
 
 
 type Model =
-  { accountID: Stdlib.Option.Option<Uuid>
+  { accountID: Option<Uuid>
     branchId: Uuid
     /// The function being watched, as the trace index names it.
     fn: String
     /// The traces that went through it, newest first.
-    traces: List<Darklang.Tracing.Trace>
+    traces: List<Tracing.Trace>
     /// One line per trace, already rendered.
     ///
     /// Built here rather than in `render` because the "2 minutes ago" column reads the CLOCK,
@@ -43,13 +42,14 @@ type Model =
     ///
     /// Already resolved, for the same reason `traceLines` is: rendering a runtime error reads
     /// the package store to spell names, and a render may not. `annotate` does it.
-    problem: Stdlib.Option.Option<Cli.TraceVerbs.ProblemJson>
+    problem: Option<TraceVerbs.ProblemJson>
     /// The store's change counter when this was built. A tick that finds it unmoved has
     /// nothing new to show, so it skips the replay rather than redoing it twice a second.
     storeVersion: Int64 }
 
 
-type Msg = | Refresh
+type Msg =
+  | Refresh
 
 
 /// The function's source with the selected trace's values in it, as lines.
@@ -57,37 +57,33 @@ type Msg = | Refresh
 /// Returns the reason in place of the source when there is nothing to show, so the panel always
 /// has something true in it rather than going blank.
 let annotate(
-  accountID: Stdlib.Option.Option<Uuid>,
+  accountID: Option<Uuid>,
   branchId: Uuid,
   fn: String,
-  trace: Stdlib.Option.Option<Darklang.Tracing.Trace>)
-  : (List<String> * Stdlib.Option.Option<Cli.TraceVerbs.ProblemJson>) =
+  trace: Option<Tracing.Trace>)
+  : (List<String> * Option<TraceVerbs.ProblemJson>) =
   match trace with
   | None ->
-    (Stdlib.List.prepend(
-       Cli.TraceVerbs.whyEmpty("run something that calls it"),
-       $"no recorded trace went through {fn} yet"),
-     Stdlib.Option.Option.None)
+    (
+      Stdlib.List.prepend(
+        TraceVerbs.whyEmpty("run something that calls it"),
+        $"no recorded trace went through {fn} yet"),
+      Option.None)
   | Some(r) ->
     let entry = LanguageTools.ProgramTypes.parsePackageLocation(fn)
-
     match LanguageTools.PackageManager.Function.find(branchId, entry) with
-    | None -> ([ $"no function named {fn} on this branch" ], Stdlib.Option.Option.None)
+    | None -> ([ $"no function named {fn} on this branch" ], Option.None)
     | Some(hash) ->
       match LanguageTools.PackageManager.Function.get(hash) with
-      | None ->
-        ([ $"{fn} resolves to a version this store cannot load" ],
-         Stdlib.Option.Option.None)
+      | None -> ([ $"{fn} resolves to a version this store cannot load" ], Option.None)
       | Some(fnDef) ->
-        let (collected, stop) = Darklang.Tracing.Store.viewTrace(accountID, branchId, r.id)
-        let problem = Cli.TraceVerbs.problemJson(branchId, r.id, stop)
-
+        let (collected, stop) = Tracing.Store.viewTrace(accountID, branchId, r.id)
+        let problem = TraceVerbs.problemJson(branchId, r.id, stop)
         let values =
           collected
           |> Stdlib.List.map(fun pair ->
             let (id, dv) = pair
-            (Stdlib.display(id),
-             PrettyPrinter.RuntimeTypes.dvalOneLine(branchId, 60, dv)))
+            (Stdlib.display(id), PrettyPrinter.RuntimeTypes.dvalOneLine(branchId, 60, dv)))
           |> Stdlib.Dict.fromEntries
 
         let ctx =
@@ -95,8 +91,7 @@ let annotate(
               liveValues = values
               breakForValues = true }
 
-        ((PrettyPrinter.ProgramTypes.packageFn(ctx, fnDef)) |> Stdlib.String.split("\n"),
-         problem)
+        (PrettyPrinter.ProgramTypes.packageFn(ctx, fnDef) |> Stdlib.String.split("\n"), problem)
 
 
 /// Where the cursor lands after a reload, given the ids now on screen, where it was, and the trace
@@ -105,19 +100,15 @@ let annotate(
 /// Its own function because it is the part with a rule rather than a mechanism, and the rule is
 /// easy to get wrong: a new trace arrives at the TOP, so holding the INDEX would quietly move you
 /// onto a different trace while you were reading it.
-let pickCursor(
-  ids: List<String>,
-  cursor: Int64,
-  keep: Stdlib.Option.Option<String>)
-  : Int64 =
+let pickCursor(ids: List<String>, cursor: Int64, keep: Option<String>): Int64 =
   let found =
     match keep with
     | Some(id) -> Stdlib.List.findFirstIndex(ids, fun i -> i == id)
-    | None -> Stdlib.Option.Option.None
+    | None -> Option.None
 
   match found with
   | Some(i) -> i
-  | None -> Stdlib.max(0, Stdlib.min(cursor, (Stdlib.List.length(ids)) - 1))
+  | None -> Stdlib.max(0, Stdlib.min(cursor, Stdlib.List.length(ids) - 1))
 
 
 /// When a trace ran, without asking what time it is now.
@@ -129,38 +120,37 @@ let pickCursor(
 /// painted unless every tick recomputed it.
 let clockFreeTime(created: String): String =
   match Stdlib.String.split(created, "T") with
-  | [ _, rest ] ->
-    (match Stdlib.String.split(rest, ".") with
-     | [] -> created
-     | [ hms ] -> hms
-     | [hms, ...] -> hms)
+  | [_, rest] ->
+    match Stdlib.String.split(rest, ".") with
+    | [] -> created
+    | [hms] -> hms
+    | [hms, ...] -> hms
   | _ -> created
 
 
 /// Reload the traces and re-annotate. One function for every reason the panel changes, so a move
 /// and a tick cannot drift apart in what they show.
 let reload(
-  accountID: Stdlib.Option.Option<Uuid>,
+  accountID: Option<Uuid>,
   branchId: Uuid,
   fn: String,
   cursor: Int64,
-  keep: Stdlib.Option.Option<String>)
+  keep: Option<String>)
   : Model =
   // Read first, so a write that lands while this runs moves it past what was read.
   let storeVersion = LanguageTools.Live.version()
-  let traces = Darklang.Tracing.Store.wentThroughNamed(branchId, fn, 25)
+  let traces = Tracing.Store.wentThroughNamed(branchId, fn, 25)
   let cursor = pickCursor(traces |> Stdlib.List.map(fun r -> r.id), cursor, keep)
   let (source, problem) = annotate(accountID, branchId, fn, Stdlib.List.getAt(traces, cursor))
-
   let traceLines =
     traces
     |> Stdlib.List.indexedMap(fun(i, r) ->
       let mark = if i == cursor then "> " else "  "
-      let id = Cli.Text.shortIdText(r.id)
+      let id = Text.shortIdText(r.id)
       let at = Stdlib.Text.padEndToWidth(clockFreeTime(r.created), 16)
-      let status = Stdlib.Text.padEndToWidth(Cli.TraceVerbs.statusText(r.status), 10)
-      let input = Darklang.Tracing.Format.inputText(r)
-      $"{mark}{id}  {status}{at}{Cli.Text.oneLineAt(40, input)}")
+      let status = Stdlib.Text.padEndToWidth(TraceVerbs.statusText(r.status), 10)
+      let input = Tracing.Format.inputText(r)
+      $"{mark}{id}  {status}{at}{Text.oneLineAt(40, input)}")
 
   Model
     { accountID = accountID
@@ -175,13 +165,12 @@ let reload(
 
 
 let init(): Model =
-  let accountID = Stdlib.Option.Option.None
+  let accountID = Option.None
   let branchId = SCM.PackageOps.currentBranch()
 
   // `traces show <fn> --watch` sets it before opening this view; unset, nothing is followed.
   let fn = Stdlib.Option.withDefault(LanguageTools.LocalStore.configGet(fnKey), "")
-
-  reload(accountID, branchId, fn, 0, Stdlib.Option.Option.None)
+  reload(accountID, branchId, fn, 0, Option.None)
 
 
 let update(m: Model, event: LiveView.Host.Event<Msg>): Model =
@@ -189,17 +178,19 @@ let update(m: Model, event: LiveView.Host.Event<Msg>): Model =
   // A tick reloads BOTH halves: a new trace may have arrived, and the code may have been saved
   // since the last paint. That is the whole live-programming property, and it costs one replay,
   // so a tick pays it only when the store has moved: both arrive as a write.
-  | Tick when (LanguageTools.Live.version()) == m.storeVersion -> m
-  | Tick
-  | Msg(Refresh) ->
+  | Tick when LanguageTools.Live.version() == m.storeVersion -> m
+  | Tick | Msg(Refresh) ->
     // Stay on the trace being read, not on its position in a list that grows from the top.
     let here =
-      m.traces |> Stdlib.List.getAt(m.cursor) |> Stdlib.Option.map(fun r -> r.id)
+      m.traces
+      |> Stdlib.List.getAt(m.cursor)
+      |> Stdlib.Option.map(fun r -> r.id)
+
     reload(m.accountID, m.branchId, m.fn, m.cursor, here)
   | Key(k) ->
     match k.key with
-    | UpArrow -> reload(m.accountID, m.branchId, m.fn, m.cursor - 1, Stdlib.Option.Option.None)
-    | DownArrow -> reload(m.accountID, m.branchId, m.fn, m.cursor + 1, Stdlib.Option.Option.None)
+    | UpArrow -> reload(m.accountID, m.branchId, m.fn, m.cursor - 1, Option.None)
+    | DownArrow -> reload(m.accountID, m.branchId, m.fn, m.cursor + 1, Option.None)
     | _ -> m
 
 
@@ -232,11 +223,13 @@ let render(m: Model): Stdlib.Cli.UI.Node.Node<Msg> =
     | None -> []
 
   Stdlib.Cli.UI.Node.column(
-    (Stdlib.List.flatten(
+    Stdlib.List.flatten(
       [ [ Stdlib.Cli.UI.Node.bold(m.fn)
           Stdlib.Cli.UI.Node.dim(
-            $"  {Cli.Text.plural(Stdlib.List.length(m.traces), "trace")}, newest first")
+            $"  {Text.plural(Stdlib.List.length(m.traces), "trace")}, newest first")
+
           traces
           Stdlib.Cli.UI.Node.text("")
           Stdlib.Cli.UI.Node.Node.Rows(m.source) ]
-        problem ])))
+
+        problem ]))

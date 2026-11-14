@@ -19,20 +19,14 @@ module Darklang.Cli.Conflicts
 /// genuinely unresolvable reference, and naming those would be inventing information. `replaceAll` is safe
 /// because one rendering defines one thing, so that pattern occurs at most once.
 let nameTheDefinition(name: String, hash: String, rendered: String): String =
-  let short =
-    LanguageTools.ProgramTypes.hashToShort(LanguageTools.ProgramTypes.Hash.Hash(hash))
-
+  let short = LanguageTools.ProgramTypes.hashToShort(LanguageTools.ProgramTypes.Hash.Hash(hash))
   Stdlib.String.replaceAll(rendered, $"let <hash:{short}>", $"let {name}")
+
 
 /// Render the actual source of one candidate, so `show` compares CODE rather than two hex strings.
 /// A hash we don't hold locally is normal (a peer's version can arrive as a name binding before its content),
 /// so say so plainly instead of failing.
-let renderItem(
-  branchId: Uuid,
-  itemType: String,
-  hash: String,
-  name: String)
-  : String =
+let renderItem(branchId: Uuid, itemType: String, hash: String, name: String): String =
   let ctx = PrettyPrinter.ProgramTypes.Context.forBranch(branchId)
   let h = LanguageTools.ProgramTypes.Hash.Hash(hash)
   let named(s: String): String = nameTheDefinition(name, hash, s)
@@ -41,19 +35,19 @@ let renderItem(
   // sides of different kinds -- a name that was a value on one machine and a fn on the other is exactly
   // the sort of divergence worth looking at -- and dispatching on the filed kind alone would render the
   // odd side out as "isn't stored locally", the same words a genuinely absent version gets.
-  let asFn(): Stdlib.Option.Option<String> =
+  let asFn(): Option<String> =
     LanguageTools.PackageManager.Function.get(h)
     |> Stdlib.Option.map(fun f -> named(PrettyPrinter.ProgramTypes.packageFn(ctx, f)))
 
-  let asType(): Stdlib.Option.Option<String> =
+  let asType(): Option<String> =
     LanguageTools.PackageManager.Type.get(h)
     |> Stdlib.Option.map(fun t -> named(PrettyPrinter.ProgramTypes.packageType(ctx, t)))
 
-  let asValue(): Stdlib.Option.Option<String> =
+  let asValue(): Option<String> =
     LanguageTools.PackageManager.Value.get(h)
     |> Stdlib.Option.map(fun v -> named(PrettyPrinter.ProgramTypes.packageValue(ctx, v)))
 
-  let asTest(): Stdlib.Option.Option<String> =
+  let asTest(): Option<String> =
     LanguageTools.PackageManager.Test.get(h)
     |> Stdlib.Option.map(fun t -> named(PrettyPrinter.ProgramTypes.packageTest(ctx, t)))
 
@@ -69,10 +63,9 @@ let renderItem(
     attempts
     |> Stdlib.List.filterMap(fun a ->
       let (kind, rendered) = a
-
       match rendered with
-      | Some(r) -> Stdlib.Option.Option.Some((kind, r))
-      | None -> Stdlib.Option.Option.None)
+      | Some(r) -> Option.Some((kind, r))
+      | None -> Option.None)
     |> Stdlib.List.head
 
   match found with
@@ -85,14 +78,14 @@ let renderItem(
       // Worth saying out loud: the two sides are not the same kind of thing.
       $"({kind}, not {itemType} -- the sides differ in kind)\n{rendered}"
 
+
 /// A candidate's whole definition flattened onto one line, clipped, for the inline preview.
 let previewLine(branchId: Uuid, itemType: String, hash: String, name: String): String =
   let flattened =
     renderItem(branchId, itemType, hash, name)
     |> Stdlib.String.splitOnNewline
     |> Stdlib.List.map(Stdlib.String.trim)
-    |> Stdlib.List.filter(fun l ->
-      (l != "") && (Stdlib.Bool.not(Stdlib.String.startsWith(l, "//"))))
+    |> Stdlib.List.filter(fun l -> l != "" && Stdlib.Bool.not(Stdlib.String.startsWith(l, "//")))
     |> (fun ls -> Stdlib.String.join(ls, " "))
 
   if flattened == "" then
@@ -107,20 +100,20 @@ let previewFlat(branchId: Uuid, itemType: String, hash: String, name: String): S
   renderItem(branchId, itemType, hash, name)
   |> Stdlib.String.splitOnNewline
   |> Stdlib.List.map(Stdlib.String.trim)
-  |> Stdlib.List.filter(fun l ->
-    (l != "") && (Stdlib.Bool.not(Stdlib.String.startsWith(l, "//"))))
+  |> Stdlib.List.filter(fun l -> l != "" && Stdlib.Bool.not(Stdlib.String.startsWith(l, "//")))
   |> (fun ls -> Stdlib.String.join(ls, " "))
+
 
 /// The index at which two strings first differ (their common-prefix length).
 let firstDivergence(a: String, b: String): Int64 =
   let la = Stdlib.String.toList(a)
   let lb = Stdlib.String.toList(b)
-
   Stdlib.List.zipShortest(la, lb)
   |> Stdlib.List.findFirstIndex(fun pair ->
     let (ca, cb) = pair
     ca != cb)
   |> Stdlib.Option.withDefault(Stdlib.min(Stdlib.List.length(la), Stdlib.List.length(lb)))
+
 
 /// Whose version a candidate is, in the words all three views use.
 ///
@@ -128,9 +121,13 @@ let firstDivergence(a: String, b: String): Int64 =
 /// candidate order ever stops being local-first. A side that named itself keeps its name (a merge
 /// names the BRANCH there); one that did not is "theirs".
 let whoseCandidate(cand: SCM.Conflicts.Candidate): String =
-  if cand.side == "local" then "yours"
-  else if cand.author == "" then "theirs"
-  else cand.author
+  if cand.side == "local" then
+    "yours"
+  else if cand.author == "" then
+    "theirs"
+  else
+    cand.author
+
 
 /// The labels for a whole conflict's candidates. A MERGE conflict's incoming side carries the branch
 /// name, and both sides of a local merge are yours -- so "yours" against a branch name says
@@ -147,16 +144,20 @@ let candidateLabels(
   let isMergeShaped =
     c.candidates
     |> Stdlib.List.any(fun cand ->
-      (cand.author != "") && (Stdlib.List.contains(localBranchNames, cand.author)))
+      cand.author != "" && Stdlib.List.contains(localBranchNames, cand.author))
 
   c.candidates
   |> Stdlib.List.map(fun cand ->
     if isMergeShaped then
-      (if cand.side == "local" then hereName
-       else if cand.author != "" then cand.author
-       else cand.side)
+      if cand.side == "local" then
+        hereName
+      else if cand.author != "" then
+        cand.author
+      else
+        cand.side
     else
       whoseCandidate(cand))
+
 
 /// Indent a rendered block so it sits under its candidate line.
 let indentBlock(s: String): String =
@@ -165,20 +166,20 @@ let indentBlock(s: String): String =
   |> Stdlib.List.map(fun line -> $"       {line}")
   |> (fun lines -> Stdlib.String.join(lines, "\n"))
 
+
 /// The pending list: one line each, plus how to act on them.
 let executeList(state: AppState): AppState =
   match SCM.Conflicts.pending() with
   | [] ->
-    Cli.printOk("no conflicts pending.")
+    printOk("no conflicts pending.")
     state
   | cs ->
     let n = Stdlib.display(Stdlib.List.length(cs))
-    Cli.printOk($"{n} pending")
+    printOk($"{n} pending")
 
     // Once for the whole list, not once per candidate row: both are store reads.
     let hereName = SCM.PackageOps.branchName(SCM.Conflicts.onBranch())
     let localBranchNames = SCM.Branches.list() |> Stdlib.List.map(fun b -> b.name)
-
     cs
     |> Stdlib.List.iter(fun c ->
       Stdlib.printLine(SCM.Conflicts.summaryLine(c))
@@ -199,34 +200,32 @@ let executeList(state: AppState): AppState =
 
       let (windowStart, textsEqual) =
         match flats with
-        | [ a, b ] ->
+        | [a, b] ->
           // Equal texts have no divergence to window (firstDivergence returns their full length);
           // the hash suffix is their story, from the start of the line.
           if a == b then
             (0, true)
           else
             let d = firstDivergence(a, b)
-            ((if d > 48 then d - 24 else 0), false)
+            (if d > 48 then d - 24 else 0, false)
         | _ -> (0, false)
 
       c.candidates
       |> Stdlib.List.indexedMap(fun(i, cand) ->
         let label = if i == 0 then "A" else "B"
-
         let whose =
           Stdlib.List.getAt(whoseLabels, i) |> Stdlib.Option.withDefault(whoseCandidate(cand))
 
         // "lost", not "over": the summary above already promises the losing version is kept rather than
         // dropped, and an abbreviation nobody expands is not a word.
         let mark = if cand.hash == c.autoResolvedTo then "kept" else "lost"
-
         let tag = Stdlib.Text.padEndToWidth($"({whose}, {mark})", 16)
-
-        let flat =
-          Stdlib.List.getAt(flats, i) |> Stdlib.Option.withDefault("(nothing to show)")
-
+        let flat = Stdlib.List.getAt(flats, i) |> Stdlib.Option.withDefault("(nothing to show)")
         let windowed =
-          if windowStart == 0 then flat else "..." + (Stdlib.String.dropFirst(flat, windowStart))
+          if windowStart == 0 then
+            flat
+          else
+            "..." + Stdlib.String.dropFirst(flat, windowStart)
 
         let suffixed =
           if textsEqual then
@@ -235,8 +234,10 @@ let executeList(state: AppState): AppState =
             windowed
 
         let preview =
-          if suffixed == "" then "(nothing to show)"
-          else Stdlib.Cli.Tui.Text.clipToWidth(suffixed, 72)
+          if suffixed == "" then
+            "(nothing to show)"
+          else
+            Stdlib.Cli.Tui.Text.clipToWidth(suffixed, 72)
 
         $"      {label} {tag} {preview}")
       |> Stdlib.List.iter(fun l -> Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText(l))))
@@ -245,25 +246,31 @@ let executeList(state: AppState): AppState =
 
     // `A|B` reads as "the two sides" and says nothing about WHICH, which is why each row above carries
     // "yours" or "theirs" rather than the reader having to hold an ordering in their head.
-    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("  dark conflicts show <id>      see both versions"))
-    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("  dark conflicts ack <id>       keep the auto-pick"))
-    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("  dark conflicts override <id> A|B   take the other"))
+    Stdlib.printErrorLine(
+      Stdlib.Cli.UI.Colors.hint("  dark conflicts show <id>      see both versions"))
+
+    Stdlib.printErrorLine(
+      Stdlib.Cli.UI.Colors.hint("  dark conflicts ack <id>       keep the auto-pick"))
+
+    Stdlib.printErrorLine(
+      Stdlib.Cli.UI.Colors.hint("  dark conflicts override <id> A|B   take the other"))
+
     state
+
 
 /// One conflict in full: both versions as CODE, which side the fold kept, and why.
 let executeShow(state: AppState, idPrefix: String): AppState =
   match SCM.Conflicts.getByIdPrefix(idPrefix) with
   | None ->
-    Cli.printErr($"no conflict matching \"{idPrefix}\" -- `dark conflicts` to list them.")
+    printErr($"no conflict matching \"{idPrefix}\" -- `dark conflicts` to list them.")
     { state with exitCode = 1 }
   | Some(c) ->
     let dotted = SCM.Conflicts.fqn(c.owner, c.modules, c.name)
     let aboutABinding = SCM.Conflicts.aboutABinding(c.kind)
-
     if aboutABinding then
-      Cli.printOk($"#{c.id}  {dotted}  [{c.itemType}] -- two live versions")
+      printOk($"#{c.id}  {dotted}  [{c.itemType}] -- two live versions")
     else
-      Cli.printOk($"#{c.id}  {dotted}  [{c.part}] -- two wordings")
+      printOk($"#{c.id}  {dotted}  [{c.part}] -- two wordings")
 
     c.candidates
     |> Stdlib.List.indexedMap(fun(i, cand) ->
@@ -301,155 +308,149 @@ let executeShow(state: AppState, idPrefix: String): AppState =
 
     state
 
+
 /// ACK: the auto-pick stands. Closes the conflict without touching any binding -- the fold already did the
 /// only thing that changes state, and agreeing with it is not itself an edit.
 let executeAck(state: AppState, idPrefix: String): AppState =
   match SCM.Conflicts.getByIdPrefix(idPrefix) with
   | None ->
-    Cli.printErr($"no conflict matching \"{idPrefix}\" -- `dark conflicts` to list them.")
+    printErr($"no conflict matching \"{idPrefix}\" -- `dark conflicts` to list them.")
     { state with exitCode = 1 }
   | Some(c) ->
     match SCM.Conflicts.ack(c.id) with
     | Error(e) ->
-      Cli.printErr($"couldn't ack #{c.id}: {e}")
+      printErr($"couldn't ack #{c.id}: {e}")
       { state with exitCode = 1 }
     | Ok(_) ->
       let dotted = SCM.Conflicts.fqn(c.owner, c.modules, c.name)
-      Cli.printOk($"acked #{c.id} ({dotted}) -- the auto-pick stands.")
+      printOk($"acked #{c.id} ({dotted}) -- the auto-pick stands.")
       state
 
+
 /// The candidate a user meant by "A" / "B" / a hash prefix.
-let pickCandidate(
-  c: SCM.Conflicts.Conflict,
-  choice: String)
-  : Stdlib.Option.Option<SCM.Conflicts.Candidate> =
+let pickCandidate(c: SCM.Conflicts.Conflict, choice: String): Option<SCM.Conflicts.Candidate> =
   match choice with
   | "A" -> Stdlib.List.head(c.candidates)
   | "a" -> Stdlib.List.head(c.candidates)
   | "B" -> Stdlib.List.getAt(c.candidates, 1)
   | "b" -> Stdlib.List.getAt(c.candidates, 1)
   | prefix ->
-    c.candidates
-    |> Stdlib.List.findFirst(fun cand -> Stdlib.String.startsWith(cand.hash, prefix))
+    c.candidates |> Stdlib.List.findFirst(fun cand -> Stdlib.String.startsWith(cand.hash, prefix))
+
 
 /// OVERRIDE: take the version the fold did NOT pick.
 ///
 /// The override authors a `Resolve` op, so the choice is data in the log rather than a local opinion: it
 /// syncs, a peer folding it lands on the same binding, `discard` skips it (source='resolution'), and
 /// re-folding the ops that caused the conflict can't quietly undo it.
-let executeOverride(
-  state: AppState,
-  idPrefix: String,
-  choice: String)
-  : AppState =
+let executeOverride(state: AppState, idPrefix: String, choice: String): AppState =
   match SCM.Conflicts.getByIdPrefix(idPrefix) with
   | None ->
-    Cli.printErr($"no conflict matching \"{idPrefix}\" -- `dark conflicts` to list them.")
+    printErr($"no conflict matching \"{idPrefix}\" -- `dark conflicts` to list them.")
     { state with exitCode = 1 }
   | Some(c) when Stdlib.Bool.not(SCM.Conflicts.aboutABinding(c.kind)) ->
     // A wording disagreement is settled by SAYING something, not by binding a name: `override A|B`
     // takes one of the two texts, and `override -` shows both and hands the doc back to you, for
     // the case where the answer is a third wording made out of both.
     let dotted = SCM.Conflicts.fqn(c.owner, c.modules, c.name)
-
     if choice == "-" then
-      Cli.printOk($"#{c.id}  {dotted} -- hand-authoring. Both wordings:")
+      printOk($"#{c.id}  {dotted} -- hand-authoring. Both wordings:")
       let _ = executeShow(state, idPrefix)
-      Cli.Stderr.line("")
-      Cli.printHint($"  write the wording you want, then `dark conflicts ack {c.id}`.")
-
+      Stderr.line("")
+      printHint($"  write the wording you want, then `dark conflicts ack {c.id}`.")
       state
     else
       match pickCandidate(c, choice) with
       | None ->
-        Cli.printErr(
+        printErr(
           $"no candidate \"{choice}\" on #{c.id} -- use A, B, or - to write a third wording.")
 
         { state with exitCode = 1 }
       | Some(cand) ->
         match SCM.Conflicts.settleWording(state.currentBranchId, c, cand.text) with
         | Ok(_) ->
-          Cli.printOk($"overrode #{c.id}: {dotted} now says \"{cand.text}\".")
-
-          Cli.printHint(
-            "  it's an op, so the choice syncs and holds.")
-
+          printOk($"overrode #{c.id}: {dotted} now says \"{cand.text}\".")
+          printHint("  it's an op, so the choice syncs and holds.")
           state
         | Error(e) ->
-          Cli.printErr($"override failed: {e}")
+          printErr($"override failed: {e}")
           { state with exitCode = 1 }
-
   | Some(c) ->
     let dotted = SCM.Conflicts.fqn(c.owner, c.modules, c.name)
-
     if choice == "-" then
       // Hand-author: show both versions and hand back the name. Deliberately does NOT close the conflict --
       // it closes when you've actually written the merged version and acked it.
-      Cli.printOk($"#{c.id}  {dotted} -- hand-authoring. Both versions:")
+      printOk($"#{c.id}  {dotted} -- hand-authoring. Both versions:")
       let _ = executeShow(state, idPrefix)
-      Cli.Stderr.line("")
-      Cli.printHint(
+      Stderr.line("")
+      printHint(
         $"  write the merged version yourself (`dark {c.itemType} {dotted} ...`), then `dark conflicts ack {c.id}`.")
+
       state
     else
       match pickCandidate(c, choice) with
       | None ->
-        Cli.printErr($"no candidate \"{choice}\" on #{c.id} -- use A, B, a hash prefix, or - to hand-author.")
-        Cli.failed(state)
+        printErr(
+          $"no candidate \"{choice}\" on #{c.id} -- use A, B, a hash prefix, or - to hand-author.")
+
+        failed(state)
       | Some(cand) when cand.removed ->
         // Taking the removal ends the name again rather than binding anything.
         // `settleConflictByRemoval` authors the `Unbind`, so the choice travels like any other
         // resolution.
         if c.autoResolvedTo == "" then
-          Cli.printOk(
+          printOk(
             $"#{c.id}: the name is already gone. Nothing to override -- `dark conflicts ack {c.id}` if it's right.")
 
           state
         else
           match SCM.PackageOps.settleConflictByRemoval(state.currentBranchId, c) with
           | Ok(_) ->
-            Cli.printOk($"took {choice}; {dotted} is unbound again.")
-            Cli.printHint("  it's an op, so the removal syncs and holds.")
+            printOk($"took {choice}; {dotted} is unbound again.")
+            printHint("  it's an op, so the removal syncs and holds.")
             state
           | Error(e) ->
-            Cli.printErr($"override failed: {e}")
+            printErr($"override failed: {e}")
             { state with exitCode = 1 }
       | Some(cand) ->
         if cand.hash == c.autoResolvedTo then
-          Cli.printOk(
+          printOk(
             $"#{c.id}: that's already the auto-pick. Nothing to override -- `dark conflicts ack {c.id}` if it's right.")
+
           state
         else
           match SCM.PackageOps.settleConflict(state.currentBranchId, c, cand.hash) with
           | Ok(_) ->
-            Cli.printOk(
+            printOk(
               $"overrode #{c.id}: {dotted} now binds {SCM.Conflicts.shortHash(cand.hash)}. It's an op, so the choice syncs and holds.")
+
             state
           | Error(e) ->
-            Cli.printErr($"override failed: {e}")
-            Cli.failed(state)
+            printErr($"override failed: {e}")
+            failed(state)
+
 
 /// PREVIEW a branch: what a merge WOULD reconcile. Nothing is recorded by looking; a conflict is only written
 /// when a reconciliation actually happens.
 let executeBranchPreview(state: AppState, branchRef: String): AppState =
   // "would merge cleanly" for a branch that doesn't exist is the sentence a real, clean branch gets, so a
   // typo has to be refused rather than answered.
-  match Cli.Branch.resolveRef(branchRef) with
-  | None -> Cli.failed(state)
+  match Branch.resolveRef(branchRef) with
+  | None -> failed(state)
   | Some(branchId) ->
     match SCM.PackageOps.branchPreview(branchId) with
     | [] ->
-      Cli.printOk($"\"{branchRef}\" would merge cleanly -- neither side moved a name the other did.")
+      printOk($"\"{branchRef}\" would merge cleanly -- neither side moved a name the other did.")
       state
     | cs ->
-      let n = Cli.Text.plural(Stdlib.List.length(cs), "conflict")
-      Cli.printOk($"{n} a merge of \"{branchRef}\" would auto-resolve (not recorded until it does):")
-
+      let n = Text.plural(Stdlib.List.length(cs), "conflict")
+      printOk($"{n} a merge of \"{branchRef}\" would auto-resolve (not recorded until it does):")
       cs
       |> Stdlib.List.iter(fun c ->
         Stdlib.printLine(Stdlib.String.join(SCM.Conflicts.detailLines(c), "\n")))
 
       state
+
 
 let help(_state: AppState): String =
   [ ""
@@ -478,30 +479,30 @@ let help(_state: AppState): String =
     "  --json    the same data, typed, on any of the above" ]
   |> Stdlib.String.join("\n")
 
+
 /// "That didn't work", on the --json path the same as every other: stdout stays empty, the reason
 /// goes to stderr, and the exit code says it failed. Stdout under --json is the answer or nothing.
 let jsonFailure(state: AppState, msg: String): AppState =
-  Cli.printErr(msg)
-  Cli.failed(state)
+  printErr(msg)
+  failed(state)
+
 
 /// Its "that worked" twin.
 let jsonSuccess(id: String, status: String, resolvedTo: String): Bool =
-  Cli.printJson((
-    ScmJson.conflictActionJson((
+  printJson(
+    ScmJson.conflictActionJson(
       ScmJson.ConflictActionJson
-        { id = id, ok = true, status = status, resolvedTo = resolvedTo, error = "" }
-    ))
-  ))
+        { id = id, ok = true, status = status, resolvedTo = resolvedTo, error = "" }))
+
 
 /// The typed conflict list, as both listing arms print it.
 let printConflictList(cs: List<SCM.Conflicts.Conflict>): Bool =
-  Cli.printJson((
-    ScmJson.conflictListJson((
+  printJson(
+    ScmJson.conflictListJson(
       ScmJson.ConflictListJson
         { pending = Stdlib.List.length(cs)
-          conflicts = cs |> Stdlib.List.map(ScmJson.conflictWithFqn) }
-    ))
-  ))
+          conflicts = cs |> Stdlib.List.map(ScmJson.conflictWithFqn) }))
+
 
 let failureUnknown(state: AppState): AppState =
   jsonFailure(state, "unknown `dark conflicts` subcommand")
@@ -510,54 +511,37 @@ let failureUnknown(state: AppState): AppState =
 /// The --json half. Same data the pretty view formats, never re-derived.
 let executeJson(state: AppState, args: List<String>): AppState =
   match args with
-  | []
-  | [ "list" ] ->
-    Cli.exitWith(state, printConflictList(SCM.Conflicts.pending()))
-
-  | [ "branch", branchRef ] ->
+  | [] | ["list"] -> exitWith(state, printConflictList(SCM.Conflicts.pending()))
+  | ["branch", branchRef] ->
     // Same name-to-id crossing the human-readable arm does; a name is what every command prints.
-    match Cli.Branch.resolveRef(branchRef) with
-    | None -> Cli.failed(state)
-    | Some(branchId) ->
-      Cli.exitWith(state, printConflictList(SCM.PackageOps.branchPreview(branchId)))
-
-  | [ "show", id ] ->
+    match Branch.resolveRef(branchRef) with
+    | None -> failed(state)
+    | Some(branchId) -> exitWith(state, printConflictList(SCM.PackageOps.branchPreview(branchId)))
+  | ["show", id] ->
     match SCM.Conflicts.getByIdPrefix(id) with
-    | Some(c) ->
-      Cli.exitWith(state, Cli.printJson(ScmJson.conflictJson(c)))
-    | None ->
-      jsonFailure(state, $"no conflict matching \"{id}\" -- `dark conflicts` to list them.")
-
-
-  | [ "ack", id ] ->
+    | Some(c) -> exitWith(state, printJson(ScmJson.conflictJson(c)))
+    | None -> jsonFailure(state, $"no conflict matching \"{id}\" -- `dark conflicts` to list them.")
+  | ["ack", id] ->
     match SCM.Conflicts.getByIdPrefix(id) with
     | Some(c) ->
       match SCM.Conflicts.ack(c.id) with
-      | Ok(_) ->
-        Cli.exitWith(state, jsonSuccess(c.id, "acked", c.autoResolvedTo))
+      | Ok(_) -> exitWith(state, jsonSuccess(c.id, "acked", c.autoResolvedTo))
       | Error(e) -> jsonFailure(state, e)
-    | None ->
-      jsonFailure(state, $"no conflict matching \"{id}\" -- `dark conflicts` to list them.")
-
-
-  | [ "override", id, choice ] ->
+    | None -> jsonFailure(state, $"no conflict matching \"{id}\" -- `dark conflicts` to list them.")
+  | ["override", id, choice] ->
     match SCM.Conflicts.getByIdPrefix(id) with
-    | None ->
-      jsonFailure(state, $"no conflict matching \"{id}\" -- `dark conflicts` to list them.")
+    | None -> jsonFailure(state, $"no conflict matching \"{id}\" -- `dark conflicts` to list them.")
     | Some(c) ->
       match pickCandidate(c, choice) with
-      | None ->
-        jsonFailure(state, $"no candidate \"{choice}\" -- use A, B or a hash prefix")
+      | None -> jsonFailure(state, $"no candidate \"{choice}\" -- use A, B or a hash prefix")
       | Some(cand) ->
         // Through `settleConflict`: settling also cascades, so the
         // callers that had followed the losing version come along, and it refuses an empty hash.
         match SCM.PackageOps.settleConflict(state.currentBranchId, c, cand.hash) with
-        | Ok(_) ->
-          Cli.exitWith(state, jsonSuccess(c.id, "overridden", cand.hash))
-        | Error(e) ->
-          jsonFailure(state, e)
-
+        | Ok(_) -> exitWith(state, jsonSuccess(c.id, "overridden", cand.hash))
+        | Error(e) -> jsonFailure(state, e)
   | _ -> failureUnknown(state)
+
 
 /// One conflict, presented for a decision, then whatever the answer was applied.
 ///
@@ -644,30 +628,24 @@ let walkOne(state: AppState, c: SCM.Conflicts.Conflict, n: Int64, total: Int64):
 let executeWalk(state: AppState): AppState =
   match SCM.Conflicts.pending() with
   | [] ->
-    Cli.printOk("no conflicts pending.")
+    printOk("no conflicts pending.")
     state
   | cs ->
     let total = Stdlib.List.length(cs)
-    Cli.printOk($"{Stdlib.display(total)} to review. A is yours, B is what arrived.")
-
+    printOk($"{Stdlib.display(total)} to review. A is yours, B is what arrived.")
     let _ =
       cs
       |> Stdlib.List.indexedMap(fun(i, c) -> (i, c))
       |> Stdlib.List.fold(true, fun(keepGoing, pair) ->
         let (i, c) = pair
-
-        if keepGoing then
-          walkOne(state, c, i + 1, total)
-        else
-          false)
+        if keepGoing then walkOne(state, c, i + 1, total) else false)
 
     Stdlib.printLine("")
-
     match SCM.Conflicts.pending() with
-    | [] -> Cli.printOk("all settled.")
+    | [] -> printOk("all settled.")
     | left ->
       let n = Stdlib.display(Stdlib.List.length(left))
-      Cli.printOk($"{n} still pending -- `dark conflicts` picks up where you left off.")
+      printOk($"{n} still pending -- `dark conflicts` picks up where you left off.")
 
     state
 
@@ -676,80 +654,66 @@ let executePretty(state: AppState, args: List<String>): AppState =
   match args with
   // Bare `dark conflicts` steps through them when there is someone to answer; piped or scripted, it
   // stays the report it always was. `list` always lists.
-  | [] ->
-    if Stdlib.Cli.UI.Prompt.canAsk() then
-      executeWalk(state)
-    else
-      executeList(state)
-  | [ "list" ] -> executeList(state)
-  | [ "walk" ] -> executeWalk(state)
-  | [ "show", id ] -> executeShow(state, id)
+  | [] -> if Stdlib.Cli.UI.Prompt.canAsk() then executeWalk(state) else executeList(state)
+  | ["list"] -> executeList(state)
+  | ["walk"] -> executeWalk(state)
+  | ["show", id] -> executeShow(state, id)
   // Variadic, like `dark ack`: acking is bulk by design ("leave it, I have seen it" means one
   // thing for every conflict), and this sibling taking exactly one ref was a trap.
   | ["ack", id, ...rest] ->
-    Stdlib.List.prepend(rest, id)
-    |> Stdlib.List.fold(state, fun(st, i) -> executeAck(st, i))
-  | [ "override", id, choice ] -> executeOverride(state, id, choice)
-  | [ "branch", branchId ] -> executeBranchPreview(state, branchId)
-
+    Stdlib.List.prepend(rest, id) |> Stdlib.List.fold(state, fun(st, i) -> executeAck(st, i))
+  | ["override", id, choice] -> executeOverride(state, id, choice)
+  | ["branch", branchId] -> executeBranchPreview(state, branchId)
   // A verb typed without its argument is a slip, not a request for the manual: the one line that would
   // fix it should not be buried in `help`.
-  | [ "show" ] ->
-    Cli.printErr("show needs a conflict id.")
-    Cli.printHint("  `dark conflicts` lists them, ids first.")
-    Cli.failed(state)
-  | [ "ack" ] ->
-    Cli.printErr("ack needs a conflict id.")
-    Cli.printHint("  `dark conflicts` lists them, ids first.")
-    Cli.failed(state)
-  | [ "override", _id ] ->
-    Cli.printErr("override needs a side: A, B, or a hash prefix.")
-    Cli.printHint("  `dark conflicts show <id>` prints both versions with their hashes.")
-    Cli.failed(state)
-  | [ "override" ] ->
-    Cli.printErr("override needs a conflict id and a side.")
-    Cli.printHint("  `dark conflicts` lists them; `show <id>` prints both versions.")
-    Cli.failed(state)
-  | [ "branch" ] ->
-    Cli.printErr("branch needs a branch to preview.")
-    Cli.printHint("  `dark branches` lists them.")
-    Cli.failed(state)
-
+  | ["show"] ->
+    printErr("show needs a conflict id.")
+    printHint("  `dark conflicts` lists them, ids first.")
+    failed(state)
+  | ["ack"] ->
+    printErr("ack needs a conflict id.")
+    printHint("  `dark conflicts` lists them, ids first.")
+    failed(state)
+  | ["override", _id] ->
+    printErr("override needs a side: A, B, or a hash prefix.")
+    printHint("  `dark conflicts show <id>` prints both versions with their hashes.")
+    failed(state)
+  | ["override"] ->
+    printErr("override needs a conflict id and a side.")
+    printHint("  `dark conflicts` lists them; `show <id>` prints both versions.")
+    failed(state)
+  | ["branch"] ->
+    printErr("branch needs a branch to preview.")
+    printHint("  `dark branches` lists them.")
+    failed(state)
   // Printing help alone reads as an answer: a typo would look exactly like `conflicts --help`, a
   // command that ran and found nothing.
   | [bad, ...] ->
-    Cli.printErr($"conflicts does not understand `{bad}`.")
-
+    printErr($"conflicts does not understand `{bad}`.")
     Stdlib.printErrorLine(help(state))
-    Cli.failed(state)
+    failed(state)
+
 
 let execute(state: AppState, args: List<String>): AppState =
   let stripped = ScmJson.stripJson(args)
-
   if ScmJson.wantsJson(args) then
     executeJson(state, stripped)
   else
     executePretty(state, stripped)
 
-/// Ids are offered at the width they're printed at, since that's what people copy off the list.
-let complete(
-  _state: AppState,
-  args: List<String>)
-  : List<Completion.CompletionItem> =
-  let subcommands = [ "list", "show", "ack", "override", "branch" ]
 
-  let matching(
-    options: List<String>,
-    partial: String)
-    : List<Completion.CompletionItem> =
+/// Ids are offered at the width they're printed at, since that's what people copy off the list.
+let complete(_state: AppState, args: List<String>): List<Completion.CompletionItem> =
+  let subcommands = [ "list", "show", "ack", "override", "branch" ]
+  let matching(options: List<String>, partial: String): List<Completion.CompletionItem> =
     options
     |> Stdlib.List.filter(fun o -> Stdlib.String.startsWith(o, partial))
     |> Stdlib.List.map(Completion.simple)
 
   match args with
   | [] -> matching(subcommands, "")
-  | [ partial ] -> matching(subcommands, partial)
-  | [ sub, partial ] ->
+  | [partial] -> matching(subcommands, partial)
+  | [sub, partial] ->
     if sub == "show" || sub == "ack" || sub == "override" then
       SCM.Conflicts.pending()
       |> Stdlib.List.map(fun c ->
@@ -763,10 +727,9 @@ let complete(
     else if sub == "branch" then
       SCM.Branches.list()
       |> Stdlib.List.map(fun b -> b.name)
-      |> Stdlib.List.filter(fun n ->
-        n != "" && Stdlib.String.startsWith(n, partial))
+      |> Stdlib.List.filter(fun n -> n != "" && Stdlib.String.startsWith(n, partial))
       |> Stdlib.List.map(Completion.simple)
     else
       []
-  | [ "override", _id, partial ] -> matching([ "A", "B" ], partial)
+  | ["override", _id, partial] -> matching([ "A", "B" ], partial)
   | _ -> []

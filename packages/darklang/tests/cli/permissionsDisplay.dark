@@ -3,47 +3,48 @@ module Darklang.Cli.Tests.PermissionsDisplay
 // Function reports omit instance defaults and warn about incomplete analysis.
 
 module PermissionsDisplay =
-  let packagePolicy(unit: Unit): Darklang.LanguageTools.Permissions.Policy =
-    Darklang.LanguageTools.Permissions.Policy
+  let packagePolicy(unit: Unit): LanguageTools.Permissions.Policy =
+    LanguageTools.Permissions.Policy
       { allow =
-          [ Darklang.LanguageTools.Permissions.Rule.Effect(Darklang.LanguageTools.Permissions.Effect.Http)
-            Darklang.LanguageTools.Permissions.Rule.Effect(Darklang.LanguageTools.Permissions.Effect.Clock) ]
+          [ LanguageTools.Permissions.Rule.Effect(
+              LanguageTools.Permissions.Effect.Http)
+
+            LanguageTools.Permissions.Rule.Effect(
+              LanguageTools.Permissions.Effect.Clock) ]
         deny = [] }
 
-  let instancePolicy(unit: Unit): Darklang.LanguageTools.Permissions.Policy =
-    Darklang.LanguageTools.Permissions.Policy
+
+  let instancePolicy(unit: Unit): LanguageTools.Permissions.Policy =
+    LanguageTools.Permissions.Policy
       { allow =
-          [ Darklang.LanguageTools.Permissions.Rule.Http(
-              Darklang.LanguageTools.Permissions.HttpRule
-                { method =
-                    Darklang.LanguageTools.Permissions.Scope.Only("GET")
-                  scheme =
-                    Darklang.LanguageTools.Permissions.Scope.Only("https")
+          [ LanguageTools.Permissions.Rule.Http(
+              LanguageTools.Permissions.HttpRule
+                { method = LanguageTools.Permissions.Scope.Only("GET")
+                  scheme = LanguageTools.Permissions.Scope.Only("https")
                   host =
-                    Darklang.LanguageTools.Permissions.HostRule.Exact(
-                      "api.example.com")
-                  port =
-                    Darklang.LanguageTools.Permissions.Scope.Only(443)
-                  path =
-                    Darklang.LanguageTools.Permissions.HttpPath.Subtree("/v1")
-                  query = Darklang.LanguageTools.Permissions.Scope.All }) ]
+                    LanguageTools.Permissions.HostRule.Exact("api.example.com")
+                  port = LanguageTools.Permissions.Scope.Only(443)
+                  path = LanguageTools.Permissions.HttpPath.Subtree("/v1")
+                  query = LanguageTools.Permissions.Scope.All }) ]
         deny = [] }
 
-  let approved(
-    unit: Unit)
-    : Darklang.Cli.Permissions.Command.AccessReportFacts =
-    Darklang.Cli.Permissions.Command.AccessReportFacts
+
+  let approved(unit: Unit): Cli.Permissions.Command.AccessReportFacts =
+    Cli.Permissions.Command.AccessReportFacts
       { hash = "123456789abcdef"
-        effects = [ Darklang.LanguageTools.Permissions.Effect.Http, Darklang.LanguageTools.Permissions.Effect.Clock ]
+        effects =
+          [ LanguageTools.Permissions.Effect.Http
+            LanguageTools.Permissions.Effect.Clock ]
         complete = true
         bundled = false
-        approvals = [("Acme.Client.fetch", packagePolicy())]
+        approvals = [ ("Acme.Client.fetch", packagePolicy()) ]
         approvedAs = [ "Acme.Client.fetch" ]
         olderApproval = Stdlib.Option.Option.None
         instancePolicy = instancePolicy() }
 
+
   test approvedReport =
-    Darklang.Cli.Permissions.Command.renderAccessReport("Acme.Client.fetch", approved())
+    Cli.Permissions.Command.renderAccessReport("Acme.Client.fetch", approved())
     |> Stdlib.Test.equal(
       [ "Acme.Client.fetch"
         "  Effects: http, clock"
@@ -54,40 +55,46 @@ module PermissionsDisplay =
         "    Explicitly denied:"
         "      none" ])
 
-  let unapproved(
-    unit: Unit)
-    : Darklang.Cli.Permissions.Command.AccessReportFacts =
-    let facts = approved()
 
+  let unapproved(unit: Unit): Cli.Permissions.Command.AccessReportFacts =
+    let facts = approved()
     { facts with
         effects = []
         complete = false
         approvals = []
         approvedAs = [] }
 
+
   test unapprovedReport =
-    Darklang.Cli.Permissions.Command.renderAccessReport("Acme.Client.fetch", unapproved())
+    Cli.Permissions.Command.renderAccessReport(
+      "Acme.Client.fetch",
+      unapproved())
     |> Stdlib.Test.equal(
       [ "Acme.Client.fetch"
         "  Effects: not fully known"
         "  Warning: analysis is incomplete; more permissions may be needed."
         "  Remembered approval: none" ])
 
+
   test effectFreeReport =
     let facts = unapproved()
-    Darklang.Cli.Permissions.Command.renderAccessReport(
-      "Acme.Client.message", { facts with complete = true })
+    Cli.Permissions.Command.renderAccessReport(
+      "Acme.Client.message",
+      { facts with complete = true })
     |> Stdlib.Test.equal(
       [ "Acme.Client.message"
         "  Effects: none"
         "  Permissions needed: none"
         "  Remembered approval: none" ])
 
+
   test olderApprovalReport =
     let facts = unapproved()
-    Darklang.Cli.Permissions.Command.renderAccessReport(
+    Cli.Permissions.Command.renderAccessReport(
       "Acme.Client.fetch",
-      { facts with complete = true, olderApproval = Stdlib.Option.Option.Some("abcdef0123456789") })
+      { facts with
+          complete = true
+          olderApproval = Stdlib.Option.Option.Some("abcdef0123456789") })
     |> Stdlib.Test.equal(
       [ "Acme.Client.fetch"
         "  Effects: none"

@@ -1,95 +1,88 @@
 module Darklang.Stdlib.Cli.Dir
 
-
 /// Create a directory. Returns Error if it already exists.
-let create(path: String): Result.Result<Unit, Posix.Error> =
+let create(path: String): Result<Unit, Posix.Error> =
   Posix.mkdir(path, Posix.Modes.defaultDir)
 
 
 /// Create a directory and all missing parents (like mkdir -p).
-let createRecursive(path: String): Result.Result<Unit, Posix.Error> =
+let createRecursive(path: String): Result<Unit, Posix.Error> =
   Posix.mkdirRecursive(path)
 
 
 /// Get the current working directory.
-let current(): Result.Result<String, Posix.Error> =
+let current(): Result<String, Posix.Error> =
   Posix.getCwd()
 
 
 /// Change the current working directory.
-let setCurrent(path: String): Result.Result<Unit, Posix.Error> =
+let setCurrent(path: String): Result<Unit, Posix.Error> =
   Posix.chdir(path)
 
 
 /// List entries in a directory (filenames only).
-let list(path: String): Result.Result<List<String>, Posix.Error> =
+let list(path: String): Result<List<String>, Posix.Error> =
   Posix.listDir(path)
 
 
 /// List entries as full paths.
-let listFullPaths(path: String): Result.Result<List<String>, Posix.Error> =
+let listFullPaths(path: String): Result<List<String>, Posix.Error> =
   let cleanPath = Path.stripTrailing(path)
-
-  (Posix.listDir(cleanPath))
-  |> Stdlib.Result.map(fun entries ->
-    entries |> Stdlib.List.map(fun name -> Path.join([ cleanPath, name ])))
+  Posix.listDir(cleanPath)
+  |> Result.map(fun entries -> entries |> List.map(fun name -> Path.join([ cleanPath, name ])))
 
 
 /// Remove an empty directory.
-let delete(path: String): Result.Result<Unit, Posix.Error> =
+let delete(path: String): Result<Unit, Posix.Error> =
   Posix.rmdir(path)
 
 
 /// Get the user's home directory, or None if not available.
-let home(): Stdlib.Option.Option<String> =
+let home(): Option<String> =
   Env.home()
 
 
 /// Every entry under <param path> as a full path, each paired with whether it is a directory,
 /// with each directory before its contents. Symlinks are entries but are not followed.
-let __entries(path: String): Result.Result<List<(String * Bool)>, Posix.Error> =
+let __entries(path: String): Result<List<(String * Bool)>, Posix.Error> =
   match Posix.listDir(path) with
   | Ok(names) ->
     // Built newest-first, then reversed once at the end.
     let result =
       names
-      |> Stdlib.List.fold(Stdlib.Result.Result.Ok([]), fun(acc, name) ->
+      |> List.fold(Result.Ok([]), fun(acc, name) ->
         match acc with
         | Ok(collected) ->
           let fullPath = Path.join([ path, name ])
-
           match Posix.isSymlink(fullPath) with
-          | Error(e) -> Stdlib.Result.Result.Error(e)
-          | Ok(true) ->
-            Stdlib.Result.Result.Ok(Stdlib.List.prepend(collected, (fullPath, false)))
+          | Error(e) -> Result.Error(e)
+          | Ok(true) -> Result.Ok(List.prepend(collected, (fullPath, false)))
           | Ok(false) ->
             if Posix.isDirectory(fullPath) then
               match __entries(fullPath) with
               | Ok(subEntries) ->
-                Stdlib.Result.Result.Ok(
-                  Stdlib.List.concat(
-                    Stdlib.List.reverse(subEntries),
-                    Stdlib.List.prepend(collected, (fullPath, true))))
-              | Error(e) -> Stdlib.Result.Result.Error(e)
+                Result.Ok(
+                  List.concat(List.reverse(subEntries), List.prepend(collected, (fullPath, true))))
+              | Error(e) -> Result.Error(e)
             else
-              Stdlib.Result.Result.Ok(Stdlib.List.prepend(collected, (fullPath, false)))
-        | Error(e) -> Stdlib.Result.Result.Error(e))
+              Result.Ok(List.prepend(collected, (fullPath, false)))
+        | Error(e) -> Result.Error(e))
 
-    result |> Stdlib.Result.map(fun items -> Stdlib.List.reverse(items))
-  | Error(e) -> Stdlib.Result.Result.Error(e)
+    result |> Result.map(fun items -> List.reverse(items))
+  | Error(e) -> Result.Error(e)
 
 
 /// List all files recursively under a directory (full paths).
 /// Does not follow symlinks — symlinks are included as entries but not recursed into.
-let listRecursive(path: String): Result.Result<List<String>, Posix.Error> =
-  (__entries(path))
-  |> Stdlib.Result.map(fun entries ->
-    Stdlib.List.filterMap(entries, fun((entry, isDir)) ->
-      if isDir then Stdlib.Option.Option.None else Stdlib.Option.Option.Some(entry)))
+let listRecursive(path: String): Result<List<String>, Posix.Error> =
+  __entries(path)
+  |> Result.map(fun entries ->
+    List.filterMap(entries, fun((entry, isDir)) ->
+      if isDir then Option.None else Option.Some(entry)))
 
 
 /// Create a temporary directory (like mktemp -d). Returns the path.
-let createTemp(): Result.Result<String, Posix.Error> =
+let createTemp(): Result<String, Posix.Error> =
   let base_ =
     match Env.get("TMPDIR") with
     | Some(t) -> t
@@ -100,54 +93,51 @@ let createTemp(): Result.Result<String, Posix.Error> =
 
 /// Remove a directory and everything inside it (like rm -rf).
 /// Symlinks are removed (unlinked) without following them.
-let deleteRecursive(path: String): Result.Result<Unit, Posix.Error> =
+let deleteRecursive(path: String): Result<Unit, Posix.Error> =
   match __entries(path) with
   | Ok(entries) ->
     // Reversed, every directory comes after its contents, so it is empty when it is removed.
     let deleted =
       entries
-      |> Stdlib.List.reverse
-      |> Stdlib.List.fold(Stdlib.Result.Result.Ok(), fun(acc, (entry, isDir)) ->
+      |> List.reverse
+      |> List.fold(Result.Ok(), fun(acc, (entry, isDir)) ->
         match acc with
         | Ok(_) -> if isDir then Posix.rmdir(entry) else Posix.unlink(entry)
-        | Error(e) -> Stdlib.Result.Result.Error(e))
+        | Error(e) -> Result.Error(e))
 
     match deleted with
     | Ok(_) -> Posix.rmdir(path)
-    | Error(e) -> Stdlib.Result.Result.Error(e)
-  | Error(e) -> Stdlib.Result.Result.Error(e)
+    | Error(e) -> Result.Error(e)
+  | Error(e) -> Result.Error(e)
 
 
 /// Walk a directory tree, returning all entries (files and directories) as full paths, each
 /// directory before its contents.
 /// Does not follow symlinks — symlinks are included as entries but not recursed into.
-let walk(path: String): Result.Result<List<String>, Posix.Error> =
-  (__entries(path))
-  |> Stdlib.Result.map(fun entries ->
-    Stdlib.List.map(entries, fun((entry, _)) -> entry))
+let walk(path: String): Result<List<String>, Posix.Error> =
+  __entries(path) |> Result.map(fun entries -> List.map(entries, fun((entry, _)) -> entry))
 
 
 /// Get the total size of a directory and its contents in bytes.
-let size(path: String): Result.Result<Int64, Posix.Error> =
+let size(path: String): Result<Int64, Posix.Error> =
   match listRecursive(path) with
   | Ok(files) ->
     files
-    |> Stdlib.List.fold(Stdlib.Result.Result.Ok(0), fun(acc, filePath) ->
+    |> List.fold(Result.Ok(0), fun(acc, filePath) ->
       match acc with
       | Ok(total) ->
-        match Cli.File.size(filePath) with
-        | Ok(fileSize) -> Stdlib.Result.Result.Ok(total + fileSize)
-        | Error(e) -> Stdlib.Result.Result.Error(e)
-      | Error(e) -> Stdlib.Result.Result.Error(e))
-  | Error(e) -> Stdlib.Result.Result.Error(e)
+        match File.size(filePath) with
+        | Ok(fileSize) -> Result.Ok(total + fileSize)
+        | Error(e) -> Result.Error(e)
+      | Error(e) -> Result.Error(e))
+  | Error(e) -> Result.Error(e)
 
 
 /// Create a temporary directory, run a function with it, then clean up.
-let withTemp(fn: String -> 'a): Result.Result<'a, Posix.Error> =
-  (createTemp())
-  |> Stdlib.Result.map(fun tmpDir ->
+let withTemp(fn: String -> 'a): Result<'a, Posix.Error> =
+  createTemp()
+  |> Result.map(fun tmpDir ->
     let result = fn(tmpDir)
-
     match deleteRecursive(tmpDir) with
     | Ok(_) -> ()
     | Error(e) -> Log.warn($"withTemp: failed to clean up {tmpDir}: {e.message}")

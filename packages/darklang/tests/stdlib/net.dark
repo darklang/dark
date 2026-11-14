@@ -2,39 +2,67 @@ module Darklang.Stdlib.Net.Tests
 
 test portFromInt64 =
   Stdlib.Test.all(
-    [ (Stdlib.Net.Port.fromInt64(8080)) |> Stdlib.Result.map(Stdlib.Net.Port.toInt64)
-      |> Stdlib.Test.equal(Ok(8080))
-      (Stdlib.Net.Port.fromInt64(0)) |> Stdlib.Result.map(Stdlib.Net.Port.toInt64)
-      |> Stdlib.Test.equal(Ok(0))
-      (Stdlib.Net.Port.fromInt64(65535)) |> Stdlib.Result.map(Stdlib.Net.Port.toInt64)
-      |> Stdlib.Test.equal(Ok(65535))
+    [ Stdlib.Net.Port.fromInt64(8080)
+      |> Stdlib.Result.map(Stdlib.Net.Port.toInt64)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(8080))
+
+      Stdlib.Net.Port.fromInt64(0)
+      |> Stdlib.Result.map(Stdlib.Net.Port.toInt64)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0))
+
+      Stdlib.Net.Port.fromInt64(65535)
+      |> Stdlib.Result.map(Stdlib.Net.Port.toInt64)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(65535))
+
       Stdlib.Net.Port.fromInt64(65536)
       |> Stdlib.Test.equal(
-        Error(Stdlib.Math.OutOfRange { what = "port", value = 65536, min = 0, max = 65535 }))
-      Stdlib.Net.Port.fromInt64(-1) |> Stdlib.Result.isError |> Stdlib.Test.equal(true) ])
+        Stdlib.Result.Result.Error(
+          Stdlib.Math.OutOfRange
+            { what = "port", value = 65536, min = 0, max = 65535 }))
+
+      Stdlib.Net.Port.fromInt64(-1)
+      |> Stdlib.Result.isError
+      |> Stdlib.Test.equal(true) ])
+
 
 test portNamed =
   Stdlib.Test.all(
     [ Stdlib.Net.Port.toInt64(Stdlib.Net.Port.http) |> Stdlib.Test.equal(80)
+
       Stdlib.Net.Port.toInt64(Stdlib.Net.Port.https) |> Stdlib.Test.equal(443)
-      Stdlib.Net.Port.toInt64(Stdlib.Net.Port.httpAlt) |> Stdlib.Test.equal(8080)
-      Stdlib.Net.Port.fromInt64(443) |> Stdlib.Test.equal(Ok(Stdlib.Net.Port.https)) ])
+
+      Stdlib.Net.Port.toInt64(Stdlib.Net.Port.httpAlt)
+      |> Stdlib.Test.equal(8080)
+
+      Stdlib.Net.Port.fromInt64(443)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Stdlib.Net.Port.https)) ])
+
 
 test portToStringAndCompare =
   Stdlib.Test.all(
     [ Stdlib.display(Stdlib.Net.Port.httpAlt) |> Stdlib.Test.equal("8080")
+
       $"port {Stdlib.Net.Port.http}" |> Stdlib.Test.equal("port 80")
-      (Stdlib.Net.Port.http < Stdlib.Net.Port.https) |> Stdlib.Test.equal(true)
-      (Stdlib.max(Stdlib.Net.Port.http, Stdlib.Net.Port.httpAlt))
+
+      Stdlib.Net.Port.http < Stdlib.Net.Port.https |> Stdlib.Test.equal(true)
+
+      Stdlib.max(Stdlib.Net.Port.http, Stdlib.Net.Port.httpAlt)
       |> Stdlib.Test.equal(Stdlib.Net.Port.httpAlt) ])
+
 
 test portInspect =
   Stdlib.Test.all(
     [ Stdlib.inspect(Stdlib.Net.Port.httpAlt) |> Stdlib.Test.equal("Port(8080)")
-      Stdlib.inspect([ Stdlib.Net.Port.http ]) |> Stdlib.Test.equal("[Port(80)]")
-      $"{Some(Stdlib.Net.Port.https)}" |> Stdlib.Test.equal("Some(Port(443))") ])
+
+      Stdlib.inspect([ Stdlib.Net.Port.http ])
+      |> Stdlib.Test.equal("[Port(80)]")
+
+      $"{Stdlib.Option.Option.Some(Stdlib.Net.Port.https)}"
+      |> Stdlib.Test.equal("Some(Port(443))") ])
+
 
 test outOfRangeToString =
   Stdlib.Net.Port.fromInt64(65536)
   |> Stdlib.Result.mapError(Stdlib.display)
-  |> Stdlib.Test.equal(Error("65536 is not a valid port (0 to 65535)"))
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Error("65536 is not a valid port (0 to 65535)"))

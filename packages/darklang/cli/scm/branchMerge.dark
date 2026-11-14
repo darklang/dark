@@ -12,12 +12,13 @@ let reportConflicts(conflicts: List<SCM.Conflicts.Conflict>): Unit =
     let n = Stdlib.display(Stdlib.List.length(cs))
 
     // "conflict(s)" is the shape `scripts/testing/gates sync-multi-instance` asserts on.
-    Cli.printOk(
+    printOk(
       $"{n} conflict(s) auto-resolved by recency and recorded -- the losing version is kept, not dropped.")
 
     // The merge IS the moment; sending the reader through `status` to learn the next verb costs a
     // round trip at the point they most want it.
-    Cli.printHint($"  -> `dark conflicts` to review the {n} auto-pick(s)")
+    printHint($"  -> `dark conflicts` to review the {n} auto-pick(s)")
+
 
 /// The branch's callers a merge repointed at the parent's version before landing them.
 let reportRepointed(names: List<String>): Unit =
@@ -26,7 +27,8 @@ let reportRepointed(names: List<String>): Unit =
   | names ->
     let n = Stdlib.display(Stdlib.List.length(names))
     let listed = Stdlib.String.join(names, "\n  ")
-    Cli.printOk($"{n} caller(s) on the branch now point at the parent's version:\n  {listed}")
+    printOk($"{n} caller(s) on the branch now point at the parent's version:\n  {listed}")
+
 
 /// Where a merge preview is printed.
 type Preview =
@@ -35,32 +37,26 @@ type Preview =
   /// Just before the confirm prompt, where the next line is the question.
   | BeforeAsking
 
+
 /// Everything a merge would do, and nothing recorded.
-let executeMergePreview(
-  state: AppState,
-  branchRef: String,
-  preview: Preview)
-  : AppState =
+let executeMergePreview(state: AppState, branchRef: String, preview: Preview): AppState =
   match resolveRef(branchRef) with
-  | None -> Cli.failed(state)
+  | None -> failed(state)
   | Some(branchId) when SCM.PackageOps.branchIsMerged(branchId) ->
-    Cli.printOk($"\"{branchRef}\" is already merged into its parent.")
+    printOk($"\"{branchRef}\" is already merged into its parent.")
     state
   | Some(branchId) ->
     let (_, parentName) = parentOf(branchId)
-
     match SCM.Branches.canMerge(branchId) with
     | Error(r) ->
-      Cli.printErr($"would NOT merge: {SCM.Branches.refusalMessage(r)}")
-      Cli.failed(state)
+      printErr($"would NOT merge: {SCM.Branches.refusalMessage(r)}")
+      failed(state)
     | Ok(_) ->
-      Cli.printOk($"\"{branchRef}\" would merge into \"{parentName}\".")
-
+      printOk($"\"{branchRef}\" would merge into \"{parentName}\".")
       match SCM.PackageOps.branchDiffEntries(branchId) with
-      | [] -> Cli.printQuiet("  it changes nothing vs its parent.")
+      | [] -> printQuiet("  it changes nothing vs its parent.")
       | entries ->
-        Cli.printQuiet($"  {Cli.Text.plural(Stdlib.List.length(entries), "name")} would land:")
-
+        printQuiet($"  {Text.plural(Stdlib.List.length(entries), "name")} would land:")
         entries
         |> Stdlib.List.iter(fun e ->
           let mark = if e.change == "new" then "+" else "~"
@@ -69,21 +65,23 @@ let executeMergePreview(
       // The conflicts a merge WOULD auto-resolve. Nothing is recorded by looking, which is the whole
       // point of asking first.
       match SCM.PackageOps.branchPreview(branchId) with
-      | [] -> Cli.printQuiet("  no conflicts: neither side moved a name the other did.")
+      | [] -> printQuiet("  no conflicts: neither side moved a name the other did.")
       | cs ->
-        Cli.printQuiet(
-          $"  {Cli.Text.plural(Stdlib.List.length(cs), "conflict")} would be auto-resolved by recency, and recorded for review.")
+        printQuiet(
+          $"  {Text.plural(Stdlib.List.length(cs), "conflict")} would be auto-resolved by recency, and recorded for review.")
 
       // Only when this IS the whole command. In the confirm flow the next line is the question, and
       // telling someone to run the thing they are being asked to approve reads as a non-sequitur.
       if preview == Preview.Alone then
-        Cli.printHint($"  `dark merge {branchRef}` to do it.")
+        printHint($"  `dark merge {branchRef}` to do it.")
 
       state
+
 
 /// `dark merge <branch> --dry-run`: show what would land and change nothing.
 let executeMergeDryRun(state: AppState, branchRef: String): AppState =
   executeMergePreview(state, branchRef, Preview.Alone)
+
 
 /// What a merge does with a branch the at-rest type check found definite errors in.
 type TypeErrors =
@@ -91,6 +89,7 @@ type TypeErrors =
   | Refuse
   /// Merge anyway, deliberately: `--allow-type-errors`.
   | Allow
+
 
 /// Merge a branch's work into its parent, gated by `canMerge` (has-changes / no-active-children /
 /// rebased). On success its ops become part of the parent.
@@ -106,18 +105,11 @@ type TypeErrors =
 /// and main got code that does not typecheck with no record of the decision. Same checker, same
 /// verdict rule (only `Failed`; `Incomplete` is not knowing, which is not the same as knowing it
 /// is wrong), same way past: `--allow-type-errors`, typed out.
-let mergeRefusal(
-  branchId: Uuid,
-  branchRef: String,
-  typeErrors: TypeErrors)
-  : Bool =
+let mergeRefusal(branchId: Uuid, branchRef: String, typeErrors: TypeErrors): Bool =
   let uncommitted = SCM.PackageOps.draftOpCountFor(branchId)
-
   if uncommitted != 0 then
-    Cli.printErr(
-      $"cannot merge \"{branchRef}\": it has {Cli.Text.plural(uncommitted, "uncommitted op")}.")
-
-    Cli.printHint(
+    printErr($"cannot merge \"{branchRef}\": it has {Text.plural(uncommitted, "uncommitted op")}.")
+    printHint(
       $"  commit them (`dark --branch {branchRef} commit \"<message>\"`) or drop them (`dark --branch {branchRef} discard`), then merge.")
 
     true
@@ -125,15 +117,14 @@ let mergeRefusal(
     false
   else
     let frontier =
-      SCM.Branches.ownFrontierOps(branchId) |> Stdlib.List.map(fun entry -> Stdlib.Tuple2.second(entry))
+      SCM.Branches.ownFrontierOps(branchId)
+      |> Stdlib.List.map(fun entry -> Stdlib.Tuple2.second(entry))
 
     match (SCM.PackageOps.typeCheckOps(frontier)).verdict with
     | Failed ->
-      Cli.printErr(
-        $"cannot merge \"{branchRef}\": the at-rest type check found definite errors in it.")
-
-      Cli.printHint("  `dark typecheck --failed` lists them; fix and commit on the branch, then merge.")
-      Cli.printHint("  `dark merge <branch> --allow-type-errors` merges anyway, deliberately.")
+      printErr($"cannot merge \"{branchRef}\": the at-rest type check found definite errors in it.")
+      printHint("  `dark typecheck --failed` lists them; fix and commit on the branch, then merge.")
+      printHint("  `dark merge <branch> --allow-type-errors` merges anyway, deliberately.")
       true
     | Checked -> false
     | Incomplete -> false
@@ -148,71 +139,67 @@ let mergeRefusal(
 let executeMerge(
   state: AppState,
   branchRef: String,
-  confirm: Cli.Confirm,
+  confirm: Confirm,
   typeErrors: TypeErrors)
   : AppState =
   match resolveRef(branchRef) with
-  | None -> Cli.failed(state)
+  | None -> failed(state)
   | Some(branchId) when SCM.PackageOps.branchIsMerged(branchId) ->
     // Merging it again would flip nothing and report "Merged 0 op(s)", which reads as a broken merge
     // rather than as "there was nothing to do".
-    Cli.printOk($"\"{branchRef}\" is already merged into its parent.")
+    printOk($"\"{branchRef}\" is already merged into its parent.")
     state
-  | Some(branchId) when mergeRefusal(branchId, branchRef, typeErrors) -> Cli.failed(state)
+  | Some(branchId) when mergeRefusal(branchId, branchRef, typeErrors) -> failed(state)
   | Some(branchId) ->
+    // The structural gate runs BEFORE the question. Asking "merge it?" about a branch that cannot
+    // merge is a question with one answer, and on a pipe the refusal would come back as a declined
+    // prompt rather than as the reason. `mergeBranch` asks the same gate again and is the authority;
+    // this is only about which sentence the person reads.
+    match SCM.Branches.canMerge(branchId) with
+    | Error(r) ->
+      printErr($"couldn't merge: {SCM.Branches.refusalMessage(r)}")
+      failed(state)
+    | Ok(_) ->
+      if
+        Stdlib.Bool.not(
+          Prompt.confirmExplicit(
+            confirm,
+            Stdlib.Cli.UI.Colors.warning($"\n  Merge \"{branchRef}\" into its parent? [y/N]: ")))
+      then
+        Stderr.ok(
+          $"  not merged. (`dark merge {branchRef} -y` if you mean it -- a piped stdin can't answer this.)")
 
-  // The structural gate runs BEFORE the question. Asking "merge it?" about a branch that cannot
-  // merge is a question with one answer, and on a pipe the refusal would come back as a declined
-  // prompt rather than as the reason. `mergeBranch` asks the same gate again and is the authority;
-  // this is only about which sentence the person reads.
-  match SCM.Branches.canMerge(branchId) with
-  | Error(r) ->
-    Cli.printErr($"couldn't merge: {SCM.Branches.refusalMessage(r)}")
-    Cli.failed(state)
-  | Ok(_) ->
+        failed(state)
+      else
+        match SCM.PackageOps.mergeBranch(branchId) with
+        | Ok(outcome) ->
+          // "Merged N op(s)" is the shape `scripts/testing/gates sync-multi-instance` asserts on.
+          printOk(
+            $"Merged {Stdlib.display(outcome.merged)} op(s) from branch \"{branchRef}\" into its parent.")
 
-  if
-    Stdlib.Bool.not((
-      Cli.Prompt.confirmExplicit(
-        confirm,
-        (Stdlib.Cli.UI.Colors.warning(
-          $"\n  Merge \"{branchRef}\" into its parent? [y/N]: ")))
-    ))
-  then
-    Cli.Stderr.ok(
-      $"  not merged. (`dark merge {branchRef} -y` if you mean it -- a piped stdin can't answer this.)")
+          reportRepointed(outcome.repointed)
+          reportConflicts(outcome.conflicts)
 
-    Cli.failed(state)
-  else
+          // The merge landed either way; this is what went wrong after it, so it does not change the exit.
+          let _ = if outcome.warning == "" then () else printErr($"  {outcome.warning}")
 
-    match SCM.PackageOps.mergeBranch(branchId) with
-    | Ok(outcome) ->
-      // "Merged N op(s)" is the shape `scripts/testing/gates sync-multi-instance` asserts on.
-      Cli.printOk(
-        $"Merged {Stdlib.display(outcome.merged)} op(s) from branch \"{branchRef}\" into its parent.")
+          // Standing on the branch you just merged is standing on finished work, and the stored name would
+          // start resolving again the day someone reuses it. Move to the parent, and SAY so: changing where
+          // the next edit lands without mentioning it is a surprise.
+          let landedOn =
+            if SCM.PackageOps.currentBranch() == branchId then
+              let (parentId, _) = parentOf(branchId)
+              let _ = SCM.PackageOps.selectBranch(parentId)
+              let _ = printOk($"now on {whereLabel(parentId)} -- that's where the next edit lands.")
+              parentId
+            else
+              state.currentBranchId
 
-      reportRepointed(outcome.repointed)
-      reportConflicts(outcome.conflicts)
+          { state with currentBranchId = landedOn }
+        | Error(e) ->
+          printErr($"couldn't merge: {SCM.PackageOps.mergeErrorMessage(e)}")
+          failed(state)
 
-      // The merge landed either way; this is what went wrong after it, so it does not change the exit.
-      let _ = if outcome.warning == "" then () else Cli.printErr($"  {outcome.warning}")
-
-      // Standing on the branch you just merged is standing on finished work, and the stored name would
-      // start resolving again the day someone reuses it. Move to the parent, and SAY so: changing where
-      // the next edit lands without mentioning it is a surprise.
-      let landedOn =
-        if SCM.PackageOps.currentBranch() == branchId then
-          let (parentId, _) = parentOf(branchId)
-          let _ = SCM.PackageOps.selectBranch(parentId)
-          let _ = Cli.printOk($"now on {whereLabel(parentId)} -- that's where the next edit lands.")
-          parentId
-        else
-          state.currentBranchId
-
-      { state with currentBranchId = landedOn }
-    | Error(e) ->
-      Cli.printErr($"couldn't merge: {SCM.PackageOps.mergeErrorMessage(e)}")
-      Cli.failed(state)
 
 /// What a rebase would reconcile, and nothing recorded.
 ///
@@ -223,23 +210,21 @@ let executeMerge(
 /// than printing "nothing to worry about" over changes it cannot see.
 let executeRebaseDryRun(state: AppState, branchRef: String): AppState =
   match resolveRef(branchRef) with
-  | None -> Cli.failed(state)
+  | None -> failed(state)
   | Some(branchId) when SCM.Branch.isMain(branchId) ->
     // Reachable only when main is NAMED: the bare form goes through `bareTargetBranch`, which has its
     // own message for standing on main. So this describes the ARGUMENT, not where you are.
-    Cli.printErr("main is the trunk -- rebase moves a BRANCH onto its parent, and main has none.")
-    Cli.failed(state)
+    printErr("main is the trunk -- rebase moves a BRANCH onto its parent, and main has none.")
+    failed(state)
   | Some(branchId) ->
     let (_, parentName) = parentOf(branchId)
-
     match SCM.PackageOps.branchPreview(branchId) with
     | [] ->
-      Cli.printOk(
+      printOk(
         $"rebasing \"{branchRef}\" onto \"{parentName}\" would reconcile nothing: no name has moved on both sides.")
     | cs ->
-      let n = Cli.Text.plural(Stdlib.List.length(cs), "name")
-
-      Cli.printOk(
+      let n = Text.plural(Stdlib.List.length(cs), "name")
+      printOk(
         $"rebasing \"{branchRef}\" onto \"{parentName}\" would reconcile {n} by recency, and record them for review:")
 
       cs
@@ -247,46 +232,45 @@ let executeRebaseDryRun(state: AppState, branchRef: String): AppState =
         let dotted = SCM.Conflicts.fqn(c.owner, c.modules, c.name)
         Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"    ~ {dotted}  [{c.itemType}]")))
 
-    Cli.printHint(
+    printHint(
       "  it also brings the parent's other changes, which are not listed here: a branch records bases")
 
-    Cli.printHint("  only for names it touched, so those arrive without a conflict.")
-    Cli.printHint($"  `dark rebase {branchRef}` to do it.")
+    printHint("  only for names it touched, so those arrive without a conflict.")
+
+    printHint($"  `dark rebase {branchRef}` to do it.")
     state
+
 
 /// Rebase a branch onto its parent: accept the parent's current state, which a merge requires when the
 /// parent moved a name the branch also moved. Reports what moved.
 let executeRebase(state: AppState, branchRef: String): AppState =
   match resolveRef(branchRef) with
-  | None -> Cli.failed(state)
+  | None -> failed(state)
   | Some(branchId) ->
     match SCM.PackageOps.rebaseBranch(branchId) with
     | Ok(outcome) ->
-      Cli.printOk(outcome.message)
+      printOk(outcome.message)
       reportConflicts(outcome.conflicts)
       state
     | Error(e) ->
-      Cli.printErr(e)
-      Cli.failed(state)
+      printErr(e)
+      failed(state)
+
 
 /// Resolve one conflicted name on a branch: `mine` keeps the branch's version (wins on merge),
 /// `theirs` takes the parent's (drops the branch's binding). Anything else is re-authoring on the branch.
-let executeResolve(
-  state: AppState,
-  branchRef: String,
-  name: String,
-  choice: String)
-  : AppState =
+let executeResolve(state: AppState, branchRef: String, name: String, choice: String): AppState =
   match resolveRef(branchRef) with
-  | None -> Cli.failed(state)
+  | None -> failed(state)
   | Some(branchId) ->
     match SCM.PackageOps.resolveConflict(branchId, name, choice) with
     | Ok(msg) ->
-      Cli.printOk(msg)
+      printOk(msg)
       state
     | Error(e) ->
-      Cli.printErr(e)
-      Cli.failed(state)
+      printErr(e)
+      failed(state)
+
 
 /// `dark merge`'s own page, rather than `dark branch`'s: that one never mentions merging, so the two
 /// questions a person actually has here -- what does this take, and what will it do to a conflict --
@@ -307,67 +291,59 @@ let mergeHelp(_state: AppState): String =
     "  commits keep their place in the log." ]
   |> Stdlib.String.join("\n")
 
+
 /// The branch a bare `dark merge` or `dark rebase` means: the one you are standing on.
 ///
 /// On main there is no such branch, and the answer is the usage line rather than a guess. `dark diff`
 /// already works this way for the same reason: the commonest form of the question is the one you are
 /// standing in, and making it the only form you cannot type is a papercut you pay every time.
-let bareTargetBranch(
-  verb: String)
-  : Stdlib.Result.Result<String, Unit> =
+let bareTargetBranch(verb: String): Result<String, Unit> =
   match SCM.PackageOps.currentBranch() with
   | id when SCM.Branch.isMain(id) ->
-    Cli.printErr($"usage: dark {verb} <branch>")
-    Cli.printHint($"  on main there is no branch to {verb}. `dark branches` lists them.")
-    Stdlib.Result.Result.Error()
-  | id -> Stdlib.Result.Result.Ok(SCM.PackageOps.branchName(id))
+    printErr($"usage: dark {verb} <branch>")
+    printHint($"  on main there is no branch to {verb}. `dark branches` lists them.")
+    Result.Error()
+  | id -> Result.Ok(SCM.PackageOps.branchName(id))
+
 
 /// `dark merge` with no branch named merges whatever you are standing on, which is the one form where
 /// nobody typed the thing being changed. So it shows the same preview `--dry-run` would and asks, the way
 /// `dark discard` does. Naming a branch is already a deliberate act and goes straight through.
 ///
 /// An explicit yes, not a default-yes: a stray Return or a piped stdin must not move work into main.
-let executeMergeBare(
-  state: AppState,
-  confirm: Cli.Confirm,
-  typeErrors: TypeErrors)
-  : AppState =
+let executeMergeBare(state: AppState, confirm: Confirm, typeErrors: TypeErrors): AppState =
   match bareTargetBranch("merge") with
-  | Error(_) -> Cli.failed(state)
+  | Error(_) -> failed(state)
   | Ok(name) ->
     let previewed = executeMergePreview(state, name, Preview.BeforeAsking)
-
     if
-      Stdlib.Bool.not((
-        Cli.Prompt.confirmExplicit(
-          confirm,
-          Stdlib.Cli.UI.Colors.warning("\n  Merge it? [y/N]: "))
-      ))
+      Stdlib.Bool.not(
+        Prompt.confirmExplicit(confirm, Stdlib.Cli.UI.Colors.warning("\n  Merge it? [y/N]: ")))
     then
-      Cli.Stderr.ok(
+      Stderr.ok(
         "  not merged. (`dark merge -y` if you mean it -- a piped stdin can't answer this.)")
 
-      Cli.failed(previewed)
+      failed(previewed)
     else
-      executeMerge(previewed, name, Cli.Confirm.Assume, typeErrors)
+      executeMerge(previewed, name, Confirm.Assume, typeErrors)
+
 
 /// `dark merge [branch] [-y] [--allow-type-errors] [--dry-run]`
 ///
 /// One parse for every combination, rather than an arm per spelling: the arm list missed
 /// `merge <branch> -y` entirely, so the named form had no way to say yes in advance.
 let executeMergeCmd(state: AppState, args: List<String>): AppState =
-  let (flags, rest) =
-    Stdlib.List.partition(args, fun a -> Stdlib.String.startsWith(a, "-"))
-
+  let (flags, rest) = Stdlib.List.partition(args, fun a -> Stdlib.String.startsWith(a, "-"))
   let confirm =
-    Cli.Confirm.assumeIf(
-      (Stdlib.List.contains(flags, "-y")) || (Stdlib.List.contains(flags, "--yes")))
+    Confirm.assumeIf(Stdlib.List.contains(flags, "-y") || Stdlib.List.contains(flags, "--yes"))
 
   let typeErrors =
-    if Stdlib.List.contains(flags, "--allow-type-errors") then TypeErrors.Allow
-    else TypeErrors.Refuse
-  let dryRun = Stdlib.List.contains(flags, "--dry-run")
+    if Stdlib.List.contains(flags, "--allow-type-errors") then
+      TypeErrors.Allow
+    else
+      TypeErrors.Refuse
 
+  let dryRun = Stdlib.List.contains(flags, "--dry-run")
   let unknown =
     flags
     |> Stdlib.List.filter(fun f ->
@@ -375,28 +351,28 @@ let executeMergeCmd(state: AppState, args: List<String>): AppState =
 
   match unknown with
   | [bad, ...] ->
-    Cli.printErr($"unknown flag: {bad}")
-    Cli.printHint("usage: dark merge [branch] [-y] [--allow-type-errors] [--dry-run]")
+    printErr($"unknown flag: {bad}")
+    printHint("usage: dark merge [branch] [-y] [--allow-type-errors] [--dry-run]")
     { state with exitCode = 1 }
   | [] ->
+    match rest with
+    | [] ->
+      if dryRun then
+        match bareTargetBranch("merge") with
+        | Ok(name) -> executeMergeDryRun(state, name)
+        | Error(_) -> failed(state)
+      else
+        executeMergeBare(state, confirm, typeErrors)
+    | [id] ->
+      if dryRun then
+        executeMergeDryRun(state, id)
+      else
+        executeMerge(state, id, confirm, typeErrors)
+    | _ ->
+      printErr("usage: dark merge <branch>")
+      printHint("  `dark branches` lists them.")
+      failed(state)
 
-  match rest with
-  | [] ->
-    if dryRun then
-      match bareTargetBranch("merge") with
-      | Ok(name) -> executeMergeDryRun(state, name)
-      | Error(_) -> Cli.failed(state)
-    else
-      executeMergeBare(state, confirm, typeErrors)
-  | [ id ] ->
-    if dryRun then
-      executeMergeDryRun(state, id)
-    else
-      executeMerge(state, id, confirm, typeErrors)
-  | _ ->
-    Cli.printErr("usage: dark merge <branch>")
-    Cli.printHint("  `dark branches` lists them.")
-    Cli.failed(state)
 
 /// `dark rebase <id>`, or bare on the branch you are standing on.
 let executeRebaseCmd(state: AppState, args: List<String>): AppState =
@@ -404,24 +380,25 @@ let executeRebaseCmd(state: AppState, args: List<String>): AppState =
   | [] ->
     match bareTargetBranch("rebase") with
     | Ok(name) -> executeRebase(state, name)
-    | Error(_) -> Cli.failed(state)
-  | [ "--dry-run" ] ->
+    | Error(_) -> failed(state)
+  | ["--dry-run"] ->
     match bareTargetBranch("rebase") with
     | Ok(name) -> executeRebaseDryRun(state, name)
-    | Error(_) -> Cli.failed(state)
-  | [ id ] -> executeRebase(state, id)
-  | [ id, "--dry-run" ] -> executeRebaseDryRun(state, id)
-  | [ "--dry-run", id ] -> executeRebaseDryRun(state, id)
+    | Error(_) -> failed(state)
+  | [id] -> executeRebase(state, id)
+  | [id, "--dry-run"] -> executeRebaseDryRun(state, id)
+  | ["--dry-run", id] -> executeRebaseDryRun(state, id)
   | _ ->
-    Cli.printErr("usage: dark rebase <branch>")
-    Cli.printHint("  `dark branches` lists them.")
-    Cli.failed(state)
+    printErr("usage: dark rebase <branch>")
+    printHint("  `dark branches` lists them.")
+    failed(state)
+
 
 /// `dark resolve <id> <name> mine|theirs`
 let executeResolveCmd(state: AppState, args: List<String>): AppState =
   match args with
-  | [ id, name, choice ] -> executeResolve(state, id, name, choice)
+  | [id, name, choice] -> executeResolve(state, id, name, choice)
   | _ ->
-    Cli.printErr("usage: dark resolve <branch> <name> mine|theirs")
-    Cli.printHint("  `dark conflicts branch <branch>` shows what's conflicted.")
-    Cli.failed(state)
+    printErr("usage: dark resolve <branch> <name> mine|theirs")
+    printHint("  `dark conflicts branch <branch>` shows what's conflicted.")
+    failed(state)

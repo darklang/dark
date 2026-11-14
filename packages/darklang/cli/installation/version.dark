@@ -1,35 +1,32 @@
 module Darklang.Cli.Installation.Version
 
-
 let execute(state: AppState, args: List<String>): AppState =
   // Named, not ignored: a mistyped `--locl` would otherwise fall through to the update
   // check, which is the one thing the caller was trying to skip.
   let unknown = args |> Stdlib.List.filter(fun a -> a != "--local")
-
   match unknown with
   | [bad, ...] ->
-    Cli.printErr($"version: unknown option `{bad}`")
+    printErr($"version: unknown option `{bad}`")
     Stdlib.printErrorLine(help(state))
-    Cli.failed(state)
+    failed(state)
   | [] ->
+    // Checks GitHub for a newer release, which dominates the command. Deliberate: knowing you're out of
+    // date is the point of the command, not a side errand.
+    //
+    // `--local` answers from the binary alone. It is for callers that want to know WHICH binary this is
+    // rather than whether it is current: a test, a script, a machine with no egress, where the check buys
+    // a round trip and then prints "unable to check for updates". Measured at ~11s against a firewall that
+    // drops rather than refuses, which is the shape of a CI runner.
+    let line =
+      if Stdlib.List.contains(args, "--local") then
+        $"Darklang CLI {Helpers.cliVersion()}"
+      else
+        Helpers.versionInfoWithUpdateCheck()
 
-  // Checks GitHub for a newer release, which dominates the command. Deliberate: knowing you're out of
-  // date is the point of the command, not a side errand.
-  //
-  // `--local` answers from the binary alone. It is for callers that want to know WHICH binary this is
-  // rather than whether it is current: a test, a script, a machine with no egress, where the check buys
-  // a round trip and then prints "unable to check for updates". Measured at ~11s against a firewall that
-  // drops rather than refuses, which is the shape of a CI runner.
-  let line =
-    if Stdlib.List.contains(args, "--local") then
-      $"Darklang CLI {Helpers.cliVersion()}"
-    else
-      Helpers.versionInfoWithUpdateCheck()
-
-  Stdlib.printLine(line)
-  // No store-format line: an op log needs no format coordinate. Ops are content-addressed and a binary
-  // tops its own store up, so there is nothing for a version number to gate.
-  state
+    Stdlib.printLine(line)
+    // No store-format line: an op log needs no format coordinate. Ops are content-addressed and a binary
+    // tops its own store up, so there is nothing for a version number to gate.
+    state
 
 
 let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
@@ -37,12 +34,11 @@ let complete(_state: AppState, _args: List<String>): List<Completion.CompletionI
 
 
 let help(_state: AppState): String =
-  [
-    "Usage: version [--local]"
+  [ "Usage: version [--local]"
     "Display the CLI version."
     ""
     "Shows the current version, and whether a newer release exists."
     ""
     "  --local    Skip the check for a newer release, which needs the network."
-    "             Answers immediately, and says nothing about updates."
-  ] |> Stdlib.String.join("\n")
+    "             Answers immediately, and says nothing about updates." ]
+  |> Stdlib.String.join("\n")

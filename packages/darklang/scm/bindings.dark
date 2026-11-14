@@ -6,7 +6,6 @@ module Darklang.SCM.Bindings
 // what its ancestors committed, main's included. Main is a branch like any other. The reads go through one
 // builtin, `scmBindings`, and the SQL lives with it in F# (`LibDB.ScmBindings`).
 
-
 /// What `query` is asked. Names are spelled as the store spells them: modules joined by ".", and a kind as
 /// `ItemKind.toString` writes it.
 type BindingFilter =
@@ -49,8 +48,9 @@ type BindingRow =
     /// The `origin_ts` of the op that bound it; "" when none was recorded.
     originTs: String
     /// The hash this binding replaced, when the op said.
-    previous: Stdlib.Option.Option<String> }
+    previous: Option<String> }
 
 
 /// The bindings <param f> asks for.
-let query(f: BindingFilter): List<BindingRow> = Builtin.scmBindings(f)
+let query(f: BindingFilter): List<BindingRow> =
+  Builtin.scmBindings(f)

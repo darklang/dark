@@ -14,7 +14,6 @@ module Darklang.SCM.Commits
 //
 // The reads go through one builtin, `scmCommits`, and the SQL lives with it in F# (`LibDB.ScmCommits`).
 
-
 type Commit =
   { hash: String
     message: String
@@ -39,9 +38,12 @@ type CommitFilter =
   /// The commits that name this one as their parent.
   | ChildrenOf(hash: String)
 
+
 /// What `query` answers with. `total` counts every match when the limit was 0 (and `commits` is then
 /// empty); otherwise it is how many commits came back.
-type CommitPage = { total: Int64, commits: List<Commit> }
+type CommitPage =
+  { total: Int64
+    commits: List<Commit> }
 
 
 /// The commits <param filter> selects, at most <param limit> of them; a negative limit means all of them,
@@ -49,23 +51,24 @@ type CommitPage = { total: Int64, commits: List<Commit> }
 let query(filter: CommitFilter, limit: Int64): CommitPage =
   Builtin.scmCommits(filter, limit)
 
+
 /// Number of commits across the store, matching the unfiltered recent listing.
-let count(): Int64 = (query(CommitFilter.Recent, 0)).total
+let count(): Int64 =
+  (query(CommitFilter.Recent, 0)).total
+
 
 /// The most recent commits, newest first.
-let recent(limit: Int64): List<Commit> = (query(CommitFilter.Recent, limit)).commits
+let recent(limit: Int64): List<Commit> =
+  (query(CommitFilter.Recent, limit)).commits
+
 
 /// The commit whose hash starts with <param prefix>. Newest wins if a short prefix matches more than one,
 /// which is the same rule `dark ops show` uses for op ids.
-let byHashPrefix(prefix: String): Stdlib.Option.Option<Commit> =
+let byHashPrefix(prefix: String): Option<Commit> =
   Stdlib.List.head((query(CommitFilter.HashPrefix(prefix), 1)).commits)
 
 
 /// The commits that follow <param hash> on some line. Empty when nothing does, which is what makes a
 /// commit the tip of its own chain.
 let children(hash: String): List<String> =
-  (query(CommitFilter.ChildrenOf(hash), -1)).commits
-  |> Stdlib.List.map(fun c -> c.hash)
-
-
-
+  (query(CommitFilter.ChildrenOf(hash), -1)).commits |> Stdlib.List.map(fun c -> c.hash)

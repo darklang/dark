@@ -3,112 +3,207 @@ module Darklang.Stdlib.Regex.Tests
 test isMatch =
   Stdlib.Test.all(
     [ // Basic matching
-      Stdlib.Regex.isMatch("hello world", "hello") |> Stdlib.Test.equal(Ok(true))
-      Stdlib.Regex.isMatch("hello world", "world") |> Stdlib.Test.equal(Ok(true))
-      Stdlib.Regex.isMatch("hello world", "goodbye") |> Stdlib.Test.equal(Ok(false))
-      Stdlib.Regex.isMatch("", "") |> Stdlib.Test.equal(Ok(true))
-      Stdlib.Regex.isMatch("test", "") |> Stdlib.Test.equal(Ok(true))
-      Stdlib.Regex.isMatch("", "test") |> Stdlib.Test.equal(Ok(false))
+      Stdlib.Regex.isMatch("hello world", "hello")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+
+      Stdlib.Regex.isMatch("hello world", "world")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+
+      Stdlib.Regex.isMatch("hello world", "goodbye")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(false))
+
+      Stdlib.Regex.isMatch("", "")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+
+      Stdlib.Regex.isMatch("test", "")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+
+      Stdlib.Regex.isMatch("", "test")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(false))
+
       // Pattern matching
-      Stdlib.Regex.isMatch("test123", "\\d+") |> Stdlib.Test.equal(Ok(true))
-      Stdlib.Regex.isMatch("test", "\\d+") |> Stdlib.Test.equal(Ok(false))
+      Stdlib.Regex.isMatch("test123", "\\d+")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+
+      Stdlib.Regex.isMatch("test", "\\d+")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(false))
+
       Stdlib.Regex.isMatch("hello@example.com", "\\w+@\\w+\\.\\w+")
-      |> Stdlib.Test.equal(Ok(true))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+
       Stdlib.Regex.isMatch("hello.example.com", "\\w+@\\w+\\.\\w+")
-      |> Stdlib.Test.equal(Ok(false))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(false))
+
       // Case sensitivity (default is case-sensitive)
-      Stdlib.Regex.isMatch("Hello", "hello") |> Stdlib.Test.equal(Ok(false))
-      Stdlib.Regex.isMatch("Hello", "Hello") |> Stdlib.Test.equal(Ok(true))
+      Stdlib.Regex.isMatch("Hello", "hello")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(false))
+
+      Stdlib.Regex.isMatch("Hello", "Hello")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+
       // Special characters
-      Stdlib.Regex.isMatch("test.txt", ".*\\.txt") |> Stdlib.Test.equal(Ok(true))
-      Stdlib.Regex.isMatch("test-file", "test-file") |> Stdlib.Test.equal(Ok(true)) ])
+      Stdlib.Regex.isMatch("test.txt", ".*\\.txt")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+
+      Stdlib.Regex.isMatch("test-file", "test-file")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true)) ])
+
 
 test find =
   Stdlib.Test.all(
     [ // Basic find
-      Stdlib.Regex.find("hello world", "world") |> Stdlib.Test.equal(Ok(Some("world")))
-      Stdlib.Regex.find("hello world", "goodbye") |> Stdlib.Test.equal(Ok(None))
-      Stdlib.Regex.find("", "test") |> Stdlib.Test.equal(Ok(None))
-      Stdlib.Regex.find("test", "") |> Stdlib.Test.equal(Ok(Some("")))
+      Stdlib.Regex.find("hello world", "world")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("world")))
+
+      Stdlib.Regex.find("hello world", "goodbye")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Stdlib.Option.Option.None))
+
+      Stdlib.Regex.find("", "test")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Stdlib.Option.Option.None))
+
+      Stdlib.Regex.find("test", "")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("")))
+
       // Pattern matching - finds first match
-      Stdlib.Regex.find("test123abc456", "\\d+") |> Stdlib.Test.equal(Ok(Some("123")))
-      Stdlib.Regex.find("hello world", "\\w+") |> Stdlib.Test.equal(Ok(Some("hello")))
+      Stdlib.Regex.find("test123abc456", "\\d+")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("123")))
+
+      Stdlib.Regex.find("hello world", "\\w+")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("hello")))
+
       Stdlib.Regex.find("contact: email@example.com", "\\w+@\\w+\\.\\w+")
-      |> Stdlib.Test.equal(Ok(Some("email@example.com")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("email@example.com")))
+
       // No match returns None
-      Stdlib.Regex.find("hello", "\\d+") |> Stdlib.Test.equal(Ok(None)) ])
+      Stdlib.Regex.find("hello", "\\d+")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.None)) ])
+
 
 test findAll =
   Stdlib.Test.all(
     [ // Basic findAll
-      Stdlib.Regex.findAll("hello world", "o") |> Stdlib.Test.equal(Ok([ "o", "o" ]))
-      Stdlib.Regex.findAll("hello world", "x") |> Stdlib.Test.equal(Ok([]))
-      Stdlib.Regex.findAll("", "test") |> Stdlib.Test.equal(Ok([]))
-      Stdlib.Regex.findAll("test", "") |> Stdlib.Test.equal(Ok([ "", "", "", "", "" ]))
+      Stdlib.Regex.findAll("hello world", "o")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "o", "o" ]))
+
+      Stdlib.Regex.findAll("hello world", "x")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([]))
+
+      Stdlib.Regex.findAll("", "test")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([]))
+
+      Stdlib.Regex.findAll("test", "")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "", "", "", "", "" ]))
+
       // Pattern matching - finds all matches
       Stdlib.Regex.findAll("test123abc456def789", "\\d+")
-      |> Stdlib.Test.equal(Ok([ "123", "456", "789" ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "123", "456", "789" ]))
+
       Stdlib.Regex.findAll("hello world foo bar", "\\w+")
-      |> Stdlib.Test.equal(Ok([ "hello", "world", "foo", "bar" ]))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok([ "hello", "world", "foo", "bar" ]))
+
       Stdlib.Regex.findAll("one two three", "[a-z]+")
-      |> Stdlib.Test.equal(Ok([ "one", "two", "three" ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "one", "two", "three" ]))
+
       // No matches returns empty list
-      Stdlib.Regex.findAll("hello", "\\d+") |> Stdlib.Test.equal(Ok([])) ])
+      Stdlib.Regex.findAll("hello", "\\d+")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([])) ])
+
 
 test replace =
   Stdlib.Test.all(
     [ // Basic replace - only first match
       Stdlib.Regex.replace("hello world", "world", "universe")
-      |> Stdlib.Test.equal(Ok("hello universe"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("hello universe"))
+
       Stdlib.Regex.replace("hello world", "goodbye", "universe")
-      |> Stdlib.Test.equal(Ok("hello world"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("hello world"))
+
       Stdlib.Regex.replace("test test test", "test", "result")
-      |> Stdlib.Test.equal(Ok("result test test"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("result test test"))
+
       // Empty string cases
-      Stdlib.Regex.replace("", "test", "result") |> Stdlib.Test.equal(Ok(""))
-      Stdlib.Regex.replace("test", "test", "") |> Stdlib.Test.equal(Ok(""))
+      Stdlib.Regex.replace("", "test", "result")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+
+      Stdlib.Regex.replace("test", "test", "")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+
       // Pattern replacement
       Stdlib.Regex.replace("test123abc", "\\d+", "NUM")
-      |> Stdlib.Test.equal(Ok("testNUMabc"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("testNUMabc"))
+
       Stdlib.Regex.replace("hello123world456", "\\d+", "X")
-      |> Stdlib.Test.equal(Ok("helloXworld456")) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("helloXworld456")) ])
+
 
 test replaceAll =
   Stdlib.Test.all(
     [ // Basic replaceAll
       Stdlib.Regex.replaceAll("hello world", "o", "0")
-      |> Stdlib.Test.equal(Ok("hell0 w0rld"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("hell0 w0rld"))
+
       Stdlib.Regex.replaceAll("test test test", "test", "result")
-      |> Stdlib.Test.equal(Ok("result result result"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("result result result"))
+
       Stdlib.Regex.replaceAll("hello world", "x", "y")
-      |> Stdlib.Test.equal(Ok("hello world"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("hello world"))
+
       // Empty string cases
-      Stdlib.Regex.replaceAll("", "test", "result") |> Stdlib.Test.equal(Ok(""))
-      Stdlib.Regex.replaceAll("test", "test", "") |> Stdlib.Test.equal(Ok(""))
+      Stdlib.Regex.replaceAll("", "test", "result")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+
+      Stdlib.Regex.replaceAll("test", "test", "")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+
       // Pattern replacement
       Stdlib.Regex.replaceAll("test123abc456def789", "\\d+", "NUM")
-      |> Stdlib.Test.equal(Ok("testNUMabcNUMdefNUM"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("testNUMabcNUMdefNUM"))
+
       Stdlib.Regex.replaceAll("hello world foo bar", "\\w+", "X")
-      |> Stdlib.Test.equal(Ok("X X X X"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("X X X X"))
+
       // Remove all digits
-      Stdlib.Regex.replaceAll("abc123def456", "\\d", "") |> Stdlib.Test.equal(Ok("abcdef")) ])
+      Stdlib.Regex.replaceAll("abc123def456", "\\d", "")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("abcdef")) ])
+
 
 test split =
   Stdlib.Test.all(
     [ // Basic split
       Stdlib.Regex.split("hello world foo bar", " ")
-      |> Stdlib.Test.equal(Ok([ "hello", "world", "foo", "bar" ]))
-      Stdlib.Regex.split("a,b,c,d", ",") |> Stdlib.Test.equal(Ok([ "a", "b", "c", "d" ]))
-      Stdlib.Regex.split("test", "x") |> Stdlib.Test.equal(Ok([ "test" ]))
-      Stdlib.Regex.split("", ",") |> Stdlib.Test.equal(Ok([ "" ]))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok([ "hello", "world", "foo", "bar" ]))
+
+      Stdlib.Regex.split("a,b,c,d", ",")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "a", "b", "c", "d" ]))
+
+      Stdlib.Regex.split("test", "x")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "test" ]))
+
+      Stdlib.Regex.split("", ",")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "" ]))
+
       // Pattern split
       Stdlib.Regex.split("test123abc456def789", "\\d+")
-      |> Stdlib.Test.equal(Ok([ "test", "abc", "def", "" ]))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok([ "test", "abc", "def", "" ]))
+
       Stdlib.Regex.split("one1two22three333four", "\\d+")
-      |> Stdlib.Test.equal(Ok([ "one", "two", "three", "four" ]))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok([ "one", "two", "three", "four" ]))
+
       // Split by whitespace
       Stdlib.Regex.split("hello  world\tfoo\nbar", "\\s+")
-      |> Stdlib.Test.equal(Ok([ "hello", "world", "foo", "bar" ])) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok([ "hello", "world", "foo", "bar" ])) ])
+
 
 test realWorld =
   Stdlib.Test.all(
@@ -116,31 +211,45 @@ test realWorld =
       Stdlib.Regex.isMatch(
         "user@example.com",
         "^[\\w\\.-]+@[\\w\\.-]+\\.[a-zA-Z]{2,}$")
-      |> Stdlib.Test.equal(Ok(true))
-      Stdlib.Regex.isMatch("invalid.email", "^[\\w\\.-]+@[\\w\\.-]+\\.[a-zA-Z]{2,}$")
-      |> Stdlib.Test.equal(Ok(false))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+
+      Stdlib.Regex.isMatch(
+        "invalid.email",
+        "^[\\w\\.-]+@[\\w\\.-]+\\.[a-zA-Z]{2,}$")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(false))
+
       // Extract domain from email
       Stdlib.Regex.find("contact@example.com", "@([\\w\\.-]+)")
-      |> Stdlib.Test.equal(Ok(Some("@example.com")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("@example.com")))
+
       // Phone number patterns
       Stdlib.Regex.isMatch("123-456-7890", "\\d{3}-\\d{3}-\\d{4}")
-      |> Stdlib.Test.equal(Ok(true))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+
       Stdlib.Regex.isMatch("1234567890", "\\d{3}-\\d{3}-\\d{4}")
-      |> Stdlib.Test.equal(Ok(false))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(false))
+
       // URL matching
       Stdlib.Regex.isMatch("https://example.com", "https?://[\\w\\.-]+")
-      |> Stdlib.Test.equal(Ok(true))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+
       Stdlib.Regex.isMatch("http://test.org", "https?://[\\w\\.-]+")
-      |> Stdlib.Test.equal(Ok(true))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+
       // Extract all numbers from text
-      Stdlib.Regex.findAll("The price is 99.99 and quantity is 5", "\\d+\\.?\\d*")
-      |> Stdlib.Test.equal(Ok([ "99.99", "5" ]))
+      Stdlib.Regex.findAll(
+        "The price is 99.99 and quantity is 5",
+        "\\d+\\.?\\d*")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "99.99", "5" ]))
+
       // Clean up whitespace
       Stdlib.Regex.replaceAll("hello    world   foo", "\\s+", " ")
-      |> Stdlib.Test.equal(Ok("hello world foo"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("hello world foo"))
+
       // Remove HTML tags (simplified)
       Stdlib.Regex.replaceAll("<div>Hello <b>world</b></div>", "<[^>]+>", "")
-      |> Stdlib.Test.equal(Ok("Hello world")) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("Hello world")) ])
 
 
 /// The first match of <param pattern> in <param input>.
@@ -148,8 +257,8 @@ let firstMatch(
   input: String,
   pattern: String)
   : Stdlib.Result.Result<
-      Stdlib.Option.Option<Stdlib.Regex.Match>,
-      Stdlib.Regex.RegexError> =
+  Stdlib.Option.Option<Stdlib.Regex.Match>,
+  Stdlib.Regex.RegexError> =
   Stdlib.Regex.compile(pattern)
   |> Stdlib.Result.andThen(fun r -> Stdlib.Regex.findMatch(input, r))
 
@@ -158,10 +267,13 @@ let captureTexts(m: Stdlib.Regex.Match): List<Stdlib.Option.Option<String>> =
   Stdlib.List.map(m.captures, fun c -> Stdlib.Option.map(c, fun c -> c.text))
 
 
-let namedText(m: Stdlib.Regex.Match, name: String): Stdlib.Option.Option<String> =
+let namedText(
+  m: Stdlib.Regex.Match,
+  name: String)
+  : Stdlib.Option.Option<String> =
   match Stdlib.Dict.get(m.namedCaptures, name) with
-  | Some(Some(c)) -> Some(c.text)
-  | _ -> None
+  | Some(Some(c)) -> Stdlib.Option.Option.Some(c.text)
+  | _ -> Stdlib.Option.Option.None
 
 
 test groups =
@@ -169,13 +281,20 @@ test groups =
   | Ok(Some(m)) ->
     Stdlib.Test.all(
       [ m.text |> Stdlib.Test.equal("2026-11")
+
         m.range |> Stdlib.Test.equal(Stdlib.Regex.Range { start = 3, end = 10 })
+
         // A group that took no part in the match is None.
-        captureTexts(m) |> Stdlib.Test.equal([ Some("2026"), Some("11"), None ])
+        captureTexts(m)
+        |> Stdlib.Test.equal(
+          [ Stdlib.Option.Option.Some("2026")
+            Stdlib.Option.Option.Some("11")
+            Stdlib.Option.Option.None ])
+
         Stdlib.List.head(m.captures)
         |> Stdlib.Test.equal(
-          Some(
-            Some(
+          Stdlib.Option.Option.Some(
+            Stdlib.Option.Option.Some(
               Stdlib.Regex.Capture
                 { text = "2026"
                   range = Stdlib.Regex.Range { start = 3, end = 7 } }))) ])
@@ -184,7 +303,8 @@ test groups =
 
 test repeatedGroupKeepsItsLastCapture =
   match firstMatch("abc", "(?:(\\w))+") with
-  | Ok(Some(m)) -> captureTexts(m) |> Stdlib.Test.equal([ Some("c") ])
+  | Ok(Some(m)) ->
+    captureTexts(m) |> Stdlib.Test.equal([ Stdlib.Option.Option.Some("c") ])
   | _ -> Stdlib.Test.fail("expected a match")
 
 
@@ -192,27 +312,39 @@ test namedGroups =
   match firstMatch("2026-11", "(?<year>\\d{4})-(\\d{2})(?<day>-\\d{2})?") with
   | Ok(Some(m)) ->
     Stdlib.Test.all(
-      [ namedText(m, "year") |> Stdlib.Test.equal(Some("2026"))
-        namedText(m, "day") |> Stdlib.Test.equal(None)
-        Stdlib.Dict.get(m.namedCaptures, "day") |> Stdlib.Test.equal(Some(None))
+      [ namedText(m, "year")
+        |> Stdlib.Test.equal(Stdlib.Option.Option.Some("2026"))
+
+        namedText(m, "day") |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+        Stdlib.Dict.get(m.namedCaptures, "day")
+        |> Stdlib.Test.equal(
+          Stdlib.Option.Option.Some(Stdlib.Option.Option.None))
+
         // Named groups are not in `captures`, so the unnamed ones keep their order.
-        captureTexts(m) |> Stdlib.Test.equal([ Some("11") ]) ])
+        captureTexts(m)
+        |> Stdlib.Test.equal([ Stdlib.Option.Option.Some("11") ]) ])
   | _ -> Stdlib.Test.fail("expected a match")
 
 
 test findAllMatches =
   let found =
     Stdlib.Regex.compile("(\\w)=(\\d)")
-    |> Stdlib.Result.andThen(fun r -> Stdlib.Regex.findAllMatches("a=1, b=2", r))
-    |> Stdlib.Result.map(fun ms -> Stdlib.List.map(ms, fun m -> captureTexts(m)))
+    |> Stdlib.Result.andThen(fun r ->
+      Stdlib.Regex.findAllMatches("a=1, b=2", r))
+    |> Stdlib.Result.map(fun ms ->
+      Stdlib.List.map(ms, fun m -> captureTexts(m)))
 
   found
-  |> Stdlib.Test.equal(Ok([ [ Some("a"), Some("1") ], [ Some("b"), Some("2") ] ]))
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Ok(
+      [ [ Stdlib.Option.Option.Some("a"), Stdlib.Option.Option.Some("1") ]
+        [ Stdlib.Option.Option.Some("b"), Stdlib.Option.Option.Some("2") ] ]))
 
 
 test positionsCountCharacters =
   // An emoji and an e with a combining accent are one character each.
-  match firstMatch("😀é ab", "ab") with
+  match firstMatch("😀é ab", "ab") with
   | Ok(Some(m)) ->
     m.range |> Stdlib.Test.equal(Stdlib.Regex.Range { start = 3, end = 5 })
   | _ -> Stdlib.Test.fail("expected a match")
@@ -222,52 +354,74 @@ test badPattern =
   Stdlib.Test.all(
     [ Stdlib.Regex.isMatch("x", "a(")
       |> Stdlib.Test.equal(
-        Error(Stdlib.Regex.RegexError.InvalidPattern("not enough )", 2)))
+        Stdlib.Result.Result.Error(
+          Stdlib.Regex.RegexError.InvalidPattern("not enough )", 2)))
+
       Stdlib.Regex.compile("[z-a]")
       |> Stdlib.Result.map(fun r -> r.pattern)
       |> Stdlib.Test.equal(
-        Error(Stdlib.Regex.RegexError.InvalidPattern("range in reverse order", 4)))
-      Stdlib.Regex.compile("ok") |> Stdlib.Result.map(fun r -> r.pattern)
-      |> Stdlib.Test.equal(Ok("ok")) ])
+        Stdlib.Result.Result.Error(
+          Stdlib.Regex.RegexError.InvalidPattern("range in reverse order", 4)))
+
+      Stdlib.Regex.compile("ok")
+      |> Stdlib.Result.map(fun r -> r.pattern)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("ok")) ])
 
 
 test backtrackingConstructsAreRefused =
   Stdlib.Test.all(
     [ Stdlib.Regex.isMatch("aa", "(a)\\1")
-      |> Stdlib.Test.equal(Error(Stdlib.Regex.RegexError.UnsupportedSyntax("backreference")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Regex.RegexError.UnsupportedSyntax("backreference")))
+
       Stdlib.Regex.find("ab", "a(?=b)")
       |> Stdlib.Test.equal(
-        Error(Stdlib.Regex.RegexError.UnsupportedSyntax("lookahead or lookbehind")))
+        Stdlib.Result.Result.Error(
+          Stdlib.Regex.RegexError.UnsupportedSyntax("lookahead or lookbehind")))
+
       Stdlib.Regex.isMatch("a", "(?>a)")
-      |> Stdlib.Test.equal(Error(Stdlib.Regex.RegexError.UnsupportedSyntax("atomic group")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Regex.RegexError.UnsupportedSyntax("atomic group")))
+
       Stdlib.Regex.isMatch("a", "\\Ga")
-      |> Stdlib.Test.equal(Error(Stdlib.Regex.RegexError.UnsupportedSyntax("\\G"))) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Regex.RegexError.UnsupportedSyntax("\\G"))) ])
 
 
 test pathologicalPatternStaysFast =
   // Backtracking takes exponential time here and would run out of time; this is linear.
   Stdlib.Regex.isMatch(Stdlib.String.repeat("a", 30000) + "!", "^(a+)+$")
-  |> Stdlib.Test.equal(Ok(false))
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(false))
 
 
 test invalidUnicodeMatch =
   Stdlib.Test.all(
     [ // `.` takes half of the emoji at a time.
       Stdlib.Regex.findAll("a😀b", ".")
-      |> Stdlib.Test.equal(Error(Stdlib.Regex.RegexError.InvalidUnicodeMatch))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Regex.RegexError.InvalidUnicodeMatch))
+
       Stdlib.Regex.replaceAll("😀", "[^a]", "x")
-      |> Stdlib.Test.equal(Error(Stdlib.Regex.RegexError.InvalidUnicodeMatch))
-      Stdlib.Regex.findAll("a😀b", ".+") |> Stdlib.Test.equal(Ok([ "a😀b" ])) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Regex.RegexError.InvalidUnicodeMatch))
+
+      Stdlib.Regex.findAll("a😀b", ".+")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "a😀b" ])) ])
 
 
 test replacementIsLiteral =
   Stdlib.Test.all(
     [ Stdlib.Regex.replace("2026-11", "(\\d+)-(\\d+)", "$2/$1")
-      |> Stdlib.Test.equal(Ok("$2/$1"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("$2/$1"))
+
       Stdlib.Regex.replaceAll("a1 b2", "(\\w)(\\d)", "$2$1")
-      |> Stdlib.Test.equal(Ok("$2$1 $2$1"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("$2$1 $2$1"))
+
       Stdlib.Regex.replaceAll("a1 b2", "(\\w)(\\d)", "${0}")
-      |> Stdlib.Test.equal(Ok("${0} ${0}")) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("${0} ${0}")) ])
 
 
 /// The text between the digits of <param input> and the digits matched, from a scan.
@@ -275,48 +429,77 @@ let scanDigits(
   input: String,
   limit: Stdlib.Regex.Limit,
   collect: Stdlib.Regex.Collect)
-  : Stdlib.Result.Result<(List<String> * List<String>), Stdlib.Regex.RegexError> =
+  : Stdlib.Result.Result<
+  (List<String> * List<String>),
+  Stdlib.Regex.RegexError> =
   Stdlib.Regex.scan(input, Stdlib.Regex.ofPattern("\\d"), limit, collect)
   |> Stdlib.Result.map(fun((pieces, matches)) ->
     (pieces, Stdlib.List.map(matches, fun m -> m.text)))
+
 
 // scan finds the first match or all of them, and builds the matches only when asked
 test scanLimitAndCollect =
   Stdlib.Test.all(
     [ scanDigits("a1b2c", Stdlib.Regex.Limit.All, Stdlib.Regex.Collect.Matches)
-      |> Stdlib.Test.equal(Ok(([ "a", "b", "c" ], [ "1", "2" ])))
-      scanDigits("a1b2c", Stdlib.Regex.Limit.First, Stdlib.Regex.Collect.Matches)
-      |> Stdlib.Test.equal(Ok(([ "a", "b2c" ], [ "1" ])))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(([ "a", "b", "c" ], [ "1", "2" ])))
+
+      scanDigits(
+        "a1b2c",
+        Stdlib.Regex.Limit.First,
+        Stdlib.Regex.Collect.Matches)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(([ "a", "b2c" ], [ "1" ])))
+
       scanDigits("a1b2c", Stdlib.Regex.Limit.All, Stdlib.Regex.Collect.TextOnly)
-      |> Stdlib.Test.equal(Ok(([ "a", "b", "c" ], [])))
-      scanDigits("a1b2c", Stdlib.Regex.Limit.First, Stdlib.Regex.Collect.TextOnly)
-      |> Stdlib.Test.equal(Ok(([ "a", "b2c" ], []))) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(([ "a", "b", "c" ], [])))
+
+      scanDigits(
+        "a1b2c",
+        Stdlib.Regex.Limit.First,
+        Stdlib.Regex.Collect.TextOnly)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(([ "a", "b2c" ], []))) ])
+
 
 // replaceMatches replaces the first match or every one, as its Limit says
 test replaceMatchesLimit =
   let digits = Stdlib.Regex.ofPattern("\\d")
   let bracket = fun m -> "[" + m.text + "]"
-
   Stdlib.Test.all(
-    [ Stdlib.Regex.replaceMatches("a1b2", digits, Stdlib.Regex.Limit.First, bracket)
-      |> Stdlib.Test.equal(Ok("a[1]b2"))
-      Stdlib.Regex.replaceMatches("a1b2", digits, Stdlib.Regex.Limit.All, bracket)
-      |> Stdlib.Test.equal(Ok("a[1]b[2]")) ])
+    [ Stdlib.Regex.replaceMatches(
+        "a1b2",
+        digits,
+        Stdlib.Regex.Limit.First,
+        bracket)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("a[1]b2"))
+
+      Stdlib.Regex.replaceMatches(
+        "a1b2",
+        digits,
+        Stdlib.Regex.Limit.All,
+        bracket)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("a[1]b[2]")) ])
+
 
 test replaceWithACallback =
   let swap(m: Stdlib.Regex.Match): String =
-    Stdlib.String.join(Stdlib.List.reverse(Stdlib.Option.values(captureTexts(m))), "")
+    Stdlib.String.join(
+      Stdlib.List.reverse(Stdlib.Option.values(captureTexts(m))),
+      "")
 
   Stdlib.Test.all(
     [ Stdlib.Regex.replaceWith("a1 b2", "(\\w)(\\d)", swap)
-      |> Stdlib.Test.equal(Ok("1a b2"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("1a b2"))
+
       Stdlib.Regex.replaceAllWith("a1 b2", "(\\w)(\\d)", swap)
-      |> Stdlib.Test.equal(Ok("1a 2b"))
-      Stdlib.Regex.replaceAllWith("x", "y", swap) |> Stdlib.Test.equal(Ok("x")) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("1a 2b"))
+
+      Stdlib.Regex.replaceAllWith("x", "y", swap)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("x")) ])
 
 
 test splitLeavesGroupsOut =
-  Stdlib.Regex.split("a1b2c", "(\\d)") |> Stdlib.Test.equal(Ok([ "a", "b", "c" ]))
+  Stdlib.Regex.split("a1b2c", "(\\d)")
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "a", "b", "c" ]))
 
 
 test options =
@@ -328,18 +511,31 @@ test options =
     |> Stdlib.Result.map(fun m -> Stdlib.Option.map(m, fun m -> m.text))
 
   Stdlib.Test.all(
-    [ found |> Stdlib.Test.equal(Ok(Some("B")))
-      Stdlib.Regex.isMatch("a\nB", "^b") |> Stdlib.Test.equal(Ok(false))
-      Stdlib.Regex.isMatch("a\nB", "(?im)^b") |> Stdlib.Test.equal(Ok(true)) ])
+    [ found
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("B")))
+
+      Stdlib.Regex.isMatch("a\nB", "^b")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(false))
+
+      Stdlib.Regex.isMatch("a\nB", "(?im)^b")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true)) ])
 
 
 test escape =
   Stdlib.Test.all(
-    [ Stdlib.Regex.escape("a.b*c (d)") |> Stdlib.Test.equal("a\\.b\\*c\\ \\(d\\)")
+    [ Stdlib.Regex.escape("a.b*c (d)")
+      |> Stdlib.Test.equal("a\\.b\\*c\\ \\(d\\)")
+
       Stdlib.Regex.escape("\\d") |> Stdlib.Test.equal("\\\\d")
+
       Stdlib.Regex.isMatch("1+1=2", Stdlib.Regex.escape("1+1"))
-      |> Stdlib.Test.equal(Ok(true))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+
       Stdlib.Regex.isMatch("11", Stdlib.Regex.escape("1+1"))
-      |> Stdlib.Test.equal(Ok(false))
-      Stdlib.Regex.isMatch("[x]{2}$", "^" + Stdlib.Regex.escape("[x]{2}$") + "$")
-      |> Stdlib.Test.equal(Ok(true)) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(false))
+
+      Stdlib.Regex.isMatch(
+        "[x]{2}$",
+        "^" + Stdlib.Regex.escape("[x]{2}$") + "$")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true)) ])

@@ -1,47 +1,35 @@
 /// Small, pure layout helpers shared by terminal views.
 module Darklang.Stdlib.Cli.Tui.Layout
 
-
 /// Repeat blank logical rows.
 let blankRows(count: Int64): List<String> =
-  (Stdlib.List.checkedRepeat(count, "") |> Stdlib.Result.withDefault([]))
+  List.checkedRepeat(count, "") |> Result.withDefault([])
 
 
 /// Truncate or pad a row list to an exact logical height.
 let fitRows(height: Int64, rows: List<String>): List<String> =
-  let target = Stdlib.max(0, height)
-  let visible = Stdlib.List.take(rows, target)
-  Stdlib.List.concat(
-    visible,
-    blankRows(target - Stdlib.List.length(visible)))
+  let target = max(0, height)
+  let visible = List.take(rows, target)
+  List.concat(visible, blankRows(target - List.length(visible)))
 
 
 /// Fit rows to `height`, scrolling as needed to keep `selectedRow` visible.
 ///
 /// `selectedRow` indexes `rows`, including any headings or separators.
-let viewport(
-  rows: List<String>,
-  selectedRow: Int64,
-  height: Int64)
-  : List<String> =
-  let viewportHeight = Stdlib.max(0, height)
-
+let viewport(rows: List<String>, selectedRow: Int64, height: Int64): List<String> =
+  let viewportHeight = max(0, height)
   if viewportHeight == 0 then
     []
   else
-    let rowCount = Stdlib.List.length(rows)
-    let maxOffset = Stdlib.max(0, rowCount - viewportHeight)
+    let rowCount = List.length(rows)
+    let maxOffset = max(0, rowCount - viewportHeight)
     let desiredOffset =
-      if selectedRow >= viewportHeight then
-        selectedRow - viewportHeight + 1
-      else
-        0
-    let offset =
-      Stdlib.min(maxOffset, Stdlib.max(0, desiredOffset))
+      if selectedRow >= viewportHeight then selectedRow - viewportHeight + 1 else 0
 
+    let offset = min(maxOffset, max(0, desiredOffset))
     let visible =
       rows
-      |> Stdlib.List.drop(offset)
-      |> Stdlib.List.take(viewportHeight)
+      |> List.drop(offset)
+      |> List.take(viewportHeight)
 
     fitRows(viewportHeight, visible)

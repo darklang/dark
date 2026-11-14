@@ -2,93 +2,87 @@
 // `PackageManager.duplicateDeclarations` and `UnresolvedNames.inOps`.
 module Darklang.LanguageTools.OpWalks.Tests
 
-
 let fnWithBody(
   description: String,
-  body: Darklang.LanguageTools.ProgramTypes.Expr)
-  : Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn =
-  Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
-    { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash(description)
+  body: LanguageTools.ProgramTypes.Expr)
+  : LanguageTools.ProgramTypes.PackageFn.PackageFn =
+  LanguageTools.ProgramTypes.PackageFn.PackageFn
+    { hash = LanguageTools.ProgramTypes.Hash.Hash(description)
       body = body
       typeParams = []
       parameters =
-        [ Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter
+        [ LanguageTools.ProgramTypes.PackageFn.Parameter
             { name = "p"
-              typ = Darklang.LanguageTools.ProgramTypes.TypeReference.TInt64
+              typ = LanguageTools.ProgramTypes.TypeReference.TInt64
               description = "" } ]
-      returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TInt64
+      returnType = LanguageTools.ProgramTypes.TypeReference.TInt64
       description = description
       bounds = [] }
 
 
 let declare(
   name: String,
-  fn: Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn)
-  : List<Darklang.LanguageTools.ProgramTypes.PackageOp> =
-  [ Darklang.LanguageTools.ProgramTypes.PackageOp.AddFn(fn)
-    Darklang.LanguageTools.ProgramTypes.PackageOp.SetName(
-      Darklang.LanguageTools.ProgramTypes.PackageLocation
+  fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
+  : List<LanguageTools.ProgramTypes.PackageOp> =
+  [ LanguageTools.ProgramTypes.PackageOp.AddFn(fn)
+    LanguageTools.ProgramTypes.PackageOp.SetName(
+      LanguageTools.ProgramTypes.PackageLocation
         { owner = "Test", modules = [ "Dup" ], name = name },
-      Darklang.LanguageTools.ProgramTypes.Reference.PackageFn(fn.hash),
-      Stdlib.Option.Option.None
-    ) ]
+      LanguageTools.ProgramTypes.Reference.PackageFn(fn.hash),
+      Stdlib.Option.Option.None) ]
 
 
-let one(): Darklang.LanguageTools.ProgramTypes.Expr =
-  Darklang.LanguageTools.ProgramTypes.Expr.EInt64(1, 1)
+let one(): LanguageTools.ProgramTypes.Expr =
+  LanguageTools.ProgramTypes.Expr.EInt64(1, 1)
 
 
 /// A call to <param name>, which resolves to nothing.
-let unresolvedCall(name: String): Darklang.LanguageTools.ProgramTypes.Expr =
-  Darklang.LanguageTools.ProgramTypes.Expr.EFnName(
+let unresolvedCall(name: String): LanguageTools.ProgramTypes.Expr =
+  LanguageTools.ProgramTypes.Expr.EFnName(
     1,
-    Darklang.LanguageTools.ProgramTypes.NameResolution
+    LanguageTools.ProgramTypes.NameResolution
       { originalName = Stdlib.String.split(name, ".")
         resolved =
           Stdlib.Result.Result.Error(
-            Darklang.LanguageTools.ProgramTypes.NameResolutionError.NotFound) },
+            LanguageTools.ProgramTypes.NameResolutionError.NotFound) },
     [],
-    []
-  )
+    [])
 
 
 // One name declared twice is reported once, with its kind; stabilization keys by
 // name, so such a batch would store one body under the other's hash.
 test oneNameTwiceIsADuplicate =
-  Darklang.LanguageTools.PackageManager.duplicateDeclarations((
+  LanguageTools.PackageManager.duplicateDeclarations(
     Stdlib.List.concat(
       declare("twice", fnWithBody("p1", one())),
-      declare("twice", fnWithBody("p2", one())))
-  ))
+      declare("twice", fnWithBody("p2", one()))))
   |> Stdlib.Test.equal([ "fn Test.Dup.twice" ])
 
 
 test twoNamesAreNotADuplicate =
-  Darklang.LanguageTools.PackageManager.duplicateDeclarations((
+  LanguageTools.PackageManager.duplicateDeclarations(
     Stdlib.List.concat(
       declare("one", fnWithBody("p1", one())),
-      declare("two", fnWithBody("p2", one())))
-  ))
+      declare("two", fnWithBody("p2", one()))))
   |> Stdlib.Test.equal([])
 
 
 // Each name once, in the order first found, against the content hash.
 test unresolvedNamesAreCollectedOnce =
   let body =
-    Darklang.LanguageTools.ProgramTypes.Expr.EStatement(
+    LanguageTools.ProgramTypes.Expr.EStatement(
       1,
       unresolvedCall("Stdlib.List.hed"),
-      Darklang.LanguageTools.ProgramTypes.Expr.EStatement(
+      LanguageTools.ProgramTypes.Expr.EStatement(
         1,
         unresolvedCall("Nope.x"),
-        unresolvedCall("Stdlib.List.hed")
-      )
-    )
-  Darklang.LanguageTools.UnresolvedNames.inOps(declare("f", fnWithBody("h1", body)))
+        unresolvedCall("Stdlib.List.hed")))
+
+  LanguageTools.UnresolvedNames.inOps(declare("f", fnWithBody("h1", body)))
   |> Stdlib.Test.equal([ ("h1", [ "Stdlib.List.hed", "Nope.x" ]) ])
 
 
 test anOpWithNothingUnresolvedIsLeftOut =
-  (declare("f", fnWithBody("h1", one())))
-  |> Darklang.LanguageTools.UnresolvedNames.inOps
+  declare("f", fnWithBody("h1", one()))
+  |> LanguageTools.UnresolvedNames.inOps
   |> Stdlib.Test.equal([])

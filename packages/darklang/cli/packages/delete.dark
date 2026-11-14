@@ -4,10 +4,9 @@ module Darklang.Cli.Packages.Delete
 // target still has live dependents, it refuses unless `--ignore-dependents`
 // is set. Implementation is a thin shim over `Deprecate.execute`.
 
-
 type ParsedArgs =
-  { itemType: Stdlib.Option.Option<String>
-    target: Stdlib.Option.Option<String>
+  { itemType: Option<String>
+    target: Option<String>
     message: String
     autoConfirm: Bool
     ignoreDependents: Bool
@@ -36,8 +35,8 @@ let parseArgs(args: List<String>): ParsedArgs =
     { itemType = Stdlib.List.getAt(p.positionals, 0)
       target = Stdlib.List.getAt(p.positionals, 1)
       message = FlagParser.getOptionOr(p, "--message", "")
-      autoConfirm = (FlagParser.hasFlag(p, "--yes")) || forced
-      ignoreDependents = (FlagParser.hasFlag(p, "--ignore-dependents")) || forced
+      autoConfirm = FlagParser.hasFlag(p, "--yes") || forced
+      ignoreDependents = FlagParser.hasFlag(p, "--ignore-dependents") || forced
       dryRun = FlagParser.hasFlag(p, "--dry-run")
       json = FlagParser.hasFlag(p, "--json")
       parseErrors = p.errors }
@@ -62,39 +61,33 @@ let countLiveDependents(
 
 /// Translate delete's ParsedArgs into the equivalent `deprecate --kind obsolete`
 /// args.
-let toDeprecateArgs(
-  parsed: ParsedArgs,
-  itemTypeStr: String,
-  target: String)
-  : List<String> =
+let toDeprecateArgs(parsed: ParsedArgs, itemTypeStr: String, target: String): List<String> =
   let baseArgs = [ itemTypeStr, target, "--kind", "obsolete" ]
-  let messageArgs =
-    if parsed.message != "" then [ "-m", parsed.message ] else []
+  let messageArgs = if parsed.message != "" then [ "-m", parsed.message ] else []
   let confirmArgs = if parsed.autoConfirm then [ "--yes" ] else []
   let dryRunArgs = if parsed.dryRun then [ "--dry-run" ] else []
   let jsonArgs = if parsed.json then [ "--json" ] else []
   Stdlib.List.flatten([ baseArgs, messageArgs, confirmArgs, dryRunArgs, jsonArgs ])
 
 
-let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
+let execute(state: AppState, args: List<String>): AppState =
   let parsed = parseArgs(args)
   let branchId = state.currentBranchId
-
-  match (parsed.itemType, parsed.target) with
+  match parsed.itemType, parsed.target with
   | _ when Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.parseErrors)) ->
-    Cli.printErr(FlagParser.parseErrorsMessage(parsed.parseErrors))
+    printErr(FlagParser.parseErrorsMessage(parsed.parseErrors))
     Stdlib.printErrorLine(help(state))
-    Cli.failed(state)
-  | (None, _) ->
+    failed(state)
+  | None, _ ->
     Stdlib.printLine(help(state))
-    Cli.failed(state)
-  | (Some(itemTypeStr), targetOpt) ->
+    failed(state)
+  | Some(itemTypeStr), targetOpt ->
     // `delete <name>` with no kind: the store knows what kind lives at a name, so asking is
     // ceremony -- infer it (each kind tried, at most one resolves, the same way `undeprecate`
     // does), and keep the explicit form for a hash or a collision.
     let (itemTypeStr, targetOpt) =
-      match (LanguageTools.ProgramTypes.ItemKind.fromString(itemTypeStr), targetOpt) with
-      | (None, None) ->
+      match LanguageTools.ProgramTypes.ItemKind.fromString(itemTypeStr), targetOpt with
+      | None, None ->
         let inferred =
           [ LanguageTools.ProgramTypes.ItemKind.Fn
             LanguageTools.ProgramTypes.ItemKind.Type
@@ -106,43 +99,49 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
             Deprecate.resolveTarget(branchId, state.packageData.currentLocation, k, itemTypeStr)
             |> Stdlib.Option.map(fun _ -> k))
 
-        (match inferred with
-         | [ k ] -> (LanguageTools.ProgramTypes.ItemKind.toString(k), Stdlib.Option.Option.Some(itemTypeStr))
-         | _ -> (itemTypeStr, targetOpt))
+        match inferred with
+        | [k] -> (LanguageTools.ProgramTypes.ItemKind.toString(k), Option.Some(itemTypeStr))
+        | _ -> (itemTypeStr, targetOpt)
       | _ -> (itemTypeStr, targetOpt)
 
     match LanguageTools.ProgramTypes.ItemKind.fromString(itemTypeStr) with
     | None ->
       Stdlib.printErrorLine(
-        (Stdlib.Cli.UI.Colors.error(
-          $"Error: '{itemTypeStr}' names neither an item kind nor a live item. Expected `delete <name>`, or `delete <fn|type|value|trait|impl|test> <name-or-hash>`.")))
-      Stdlib.printErrorLine("Usage: delete [fn|type|value|trait|impl|test] <name-or-hash> [options]")
-      Cli.failed(state)
+        Stdlib.Cli.UI.Colors.error(
+          $"Error: '{itemTypeStr}' names neither an item kind nor a live item. Expected `delete <name>`, or `delete <fn|type|value|trait|impl|test> <name-or-hash>`."))
+
+      Stdlib.printErrorLine(
+        "Usage: delete [fn|type|value|trait|impl|test] <name-or-hash> [options]")
+
+      failed(state)
     | Some(itemKind) ->
       match targetOpt with
       | None ->
-        Cli.printErr("Error: Missing target (location or hash)")
-        Cli.failed(state)
+        printErr("Error: Missing target (location or hash)")
+        failed(state)
       | Some(target) ->
         let currentLoc = state.packageData.currentLocation
         match Location.parseRelativeTo(currentLoc, target) with
         | Error(errMsg) ->
-          Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Could not resolve {itemTypeStr} {target}: {errMsg}"))
-          Cli.failed(state)
+          Stdlib.printErrorLine(
+            Stdlib.Cli.UI.Colors.error($"Could not resolve {itemTypeStr} {target}: {errMsg}"))
+
+          failed(state)
         | Ok(targetLoc) ->
           match Deprecate.resolveTarget(branchId, currentLoc, itemKind, target) with
           | None ->
-            Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Could not resolve {itemTypeStr} {target}"))
-            Cli.failed(state)
+            Stdlib.printErrorLine(
+              Stdlib.Cli.UI.Colors.error($"Could not resolve {itemTypeStr} {target}"))
+
+            failed(state)
           | Some(_targetRef) ->
             // Only gate `delete` adds over `deprecate --kind obsolete`: refuse
             // when LIVE dependents exist. Deprecated-only callers don't block.
             let depCount = countLiveDependents(branchId, targetLoc, itemKind)
             if depCount > 0 && Stdlib.Bool.not(parsed.ignoreDependents) then
-              Cli.printErr((
-                  $"""{Cli.Text.plural(depCount, "live dependent")} still {
-                    if depCount == 1 then "references" else "reference"
-                  } this item."""))
+              printErr(
+                $"""{Text.plural(depCount, "live dependent")} still {if depCount == 1 then "references" else "reference"} this item.""")
+
               Stdlib.printErrorLine(
                 "Use `deprecate` to give them time to migrate, or pass `--ignore-dependents` / `--force`.")
 
@@ -151,7 +150,7 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
               Deprecate.execute(state, toDeprecateArgs(parsed, itemTypeStr, target))
 
 
-let help(_state: Cli.AppState): String =
+let help(_state: AppState): String =
   [ "Take a fn/type/value/trait/impl/test off the shelf (sugar for deprecate --kind obsolete)."
     ""
     "Usage: delete <fn|type|value|trait|impl|test> <name-or-hash> [options]"
@@ -177,8 +176,5 @@ let help(_state: Cli.AppState): String =
 
 
 // `delete` IS `deprecate --kind obsolete` with a dependents check, so it completes the same way.
-let complete(
-  state: Cli.AppState,
-  args: List<String>)
-  : List<Cli.Completion.CompletionItem> =
+let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =
   Deprecate.complete(state, args)

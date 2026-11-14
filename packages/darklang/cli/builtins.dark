@@ -74,6 +74,7 @@ let extractGroup(name: String): String =
       match Stdlib.String.head(rest) with
       | Some(c) -> Stdlib.Char.isUppercase(c)
       | None -> true
+
     Stdlib.String.startsWith(name, prefix) && atCapital
 
   let known =
@@ -86,10 +87,8 @@ let extractGroup(name: String): String =
   | Some(prefix) -> prefix
   | None ->
     let groupChars =
-      Stdlib.List.takeWhile(
-        Stdlib.String.toList(name),
-        fun c -> Stdlib.Bool.not(Stdlib.Char.isUppercase(c))
-      )
+      Stdlib.List.takeWhile(Stdlib.String.toList(name), fun c ->
+        Stdlib.Bool.not(Stdlib.Char.isUppercase(c)))
 
     if Stdlib.List.isEmpty(groupChars) then
       "other"
@@ -98,9 +97,7 @@ let extractGroup(name: String): String =
 
 
 let getDisplayName(prefix: String): String =
-  let found =
-    Stdlib.List.findFirst(knownGroups, fun((groupPrefix, _)) -> groupPrefix == prefix)
-
+  let found = Stdlib.List.findFirst(knownGroups, fun((groupPrefix, _)) -> groupPrefix == prefix)
   match found with
   | Some((_, displayName)) -> displayName
   | None -> Stdlib.String.toUppercase(prefix)
@@ -122,31 +119,25 @@ let purityTag(purity: LanguageTools.BuiltinFunctionPurity): String =
 
 // Sort groups: known groups first in order, then unknown groups alphabetically
 let sortGroups(
-  groups: List<String * List<LanguageTools.BuiltinFunction>>)
-  : List<String * List<LanguageTools.BuiltinFunction>> =
+  groups: List<(String * List<LanguageTools.BuiltinFunction>)>)
+  : List<(String * List<LanguageTools.BuiltinFunction>)> =
   let knownPrefixes = Stdlib.List.map(knownGroups, fun((groupPrefix, _)) -> groupPrefix)
-
   let knownInOrder =
     knownPrefixes
     |> Stdlib.List.filterMap(fun prefix ->
-      let found =
-        Stdlib.List.findFirst(groups, fun((groupPrefix, _)) -> groupPrefix == prefix)
-
+      let found = Stdlib.List.findFirst(groups, fun((groupPrefix, _)) -> groupPrefix == prefix)
       found)
 
   let unknown =
     groups
-    |> Stdlib.List.filter(fun((groupPrefix, _)) ->
-      Stdlib.Bool.not(isKnownGroup(groupPrefix)))
+    |> Stdlib.List.filter(fun((groupPrefix, _)) -> Stdlib.Bool.not(isKnownGroup(groupPrefix)))
     |> Stdlib.List.sortBy(fun((groupPrefix, _)) -> groupPrefix)
 
   Stdlib.List.concat(knownInOrder, unknown)
 
 
 /// The builtin values whose name contains <param filter>, or all of them without one.
-let matchingValues(
-  filter: Stdlib.Option.Option<String>)
-  : List<LanguageTools.BuiltinValue> =
+let matchingValues(filter: Option<String>): List<LanguageTools.BuiltinValue> =
   let all = LanguageTools.allBuiltinValues()
   match filter with
   | None -> all
@@ -156,40 +147,30 @@ let matchingValues(
 
 let execute(state: AppState, args: List<String>): AppState =
   let allBuiltins = LanguageTools.allBuiltinFns()
-
   let withSigs = Stdlib.List.any(args, fun arg -> arg == "--with-sigs")
   let withPurity = Stdlib.List.any(args, fun arg -> arg == "--with-purity")
-
   let filterArgs =
-    args
-    |> Stdlib.List.filter(fun arg ->
-      arg != "--with-sigs" && arg != "--with-purity")
+    args |> Stdlib.List.filter(fun arg -> arg != "--with-sigs" && arg != "--with-purity")
 
   let filter =
     match filterArgs with
-    | [] -> Stdlib.Option.Option.None
-    | [ pattern ] -> Stdlib.Option.Option.Some(pattern)
-    | _ -> Stdlib.Option.Option.None
+    | [] -> Option.None
+    | [pattern] -> Option.Some(pattern)
+    | _ -> Option.None
 
   let grouped =
     allBuiltins
     |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, fn) ->
       let group = extractGroup(fn.name.name)
-
       let existing =
         match Stdlib.Dict.get(acc, group) with
         | Some(list) -> list
         | None -> []
 
-      Stdlib.Dict.set(
-        acc,
-        group,
-        Stdlib.List.append(existing, fn)))
+      Stdlib.Dict.set(acc, group, Stdlib.List.append(existing, fn)))
 
   let allGroups = Stdlib.Dict.toEntries(grouped)
-
   let sortedGroups = sortGroups(allGroups)
-
   let filteredGroups =
     match filter with
     | None -> sortedGroups
@@ -198,17 +179,15 @@ let execute(state: AppState, args: List<String>): AppState =
       |> Stdlib.List.filterMap(fun pair ->
         let group = Stdlib.Tuple2.first(pair)
         let fns = Stdlib.Tuple2.second(pair)
-
         let matchingFns =
           fns
           |> Stdlib.List.filter(fun fn ->
-            (Stdlib.String.contains(fn.name.name, pattern))
-            || (Stdlib.String.contains(group, pattern)))
+            Stdlib.String.contains(fn.name.name, pattern) || Stdlib.String.contains(group, pattern))
 
         if Stdlib.List.isEmpty(matchingFns) then
-          Stdlib.Option.Option.None
+          Option.None
         else
-          Stdlib.Option.Option.Some((group, matchingFns)))
+          Option.Some((group, matchingFns)))
 
   if withSigs then
     filteredGroups
@@ -216,12 +195,13 @@ let execute(state: AppState, args: List<String>): AppState =
       let group = Stdlib.Tuple2.first(pair)
       let fns = Stdlib.Tuple2.second(pair)
       Stdlib.printLine("")
-      Stdlib.printLine(Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold, getDisplayName(group)))
+
+      Stdlib.printLine(
+        Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold, getDisplayName(group)))
 
       fns
       |> Stdlib.List.iter(fun fn ->
         let branchId = SCM.Branch.mainBranchId
-
         let params =
           fn.parameters
           |> Stdlib.List.map(fun p ->
@@ -229,12 +209,8 @@ let execute(state: AppState, args: List<String>): AppState =
             $"{p.name}: {typStr}")
           |> Stdlib.String.join(", ")
 
-        let returnTypeStr =
-          PrettyPrinter.RuntimeTypes.typeReference(branchId, fn.returnType)
-
-        let suffix =
-          if withPurity then $" {purityTag(fn.purity)}" else ""
-
+        let returnTypeStr = PrettyPrinter.RuntimeTypes.typeReference(branchId, fn.returnType)
+        let suffix = if withPurity then $" {purityTag(fn.purity)}" else ""
         Stdlib.printLine(
           $"  {fn.name.name}{versionSuffix(fn.name.version)}({params}) -> {returnTypeStr}{suffix}")))
   else
@@ -243,35 +219,28 @@ let execute(state: AppState, args: List<String>): AppState =
     |> Stdlib.List.iter(fun pair ->
       let group = Stdlib.Tuple2.first(pair)
       let fns = Stdlib.Tuple2.second(pair)
-
       let names =
         fns
         |> Stdlib.List.map(fun fn ->
-          let suffix =
-            if withPurity then $" {purityTag(fn.purity)}" else ""
+          let suffix = if withPurity then $" {purityTag(fn.purity)}" else ""
           $"{fn.name.name}{versionSuffix(fn.name.version)}{suffix}")
         |> Stdlib.String.join(", ")
 
       Stdlib.printLine("")
-      Stdlib.printLine($"{Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold, getDisplayName(group))}: {names}"))
+
+      Stdlib.printLine(
+        $"{Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold, getDisplayName(group))}: {names}"))
 
   let values = matchingValues(filter)
-  let valuesHeading =
-    Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold, "Values")
-
+  let valuesHeading = Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.bold, "Values")
   if Stdlib.List.isEmpty(values) then
     ()
   else if withSigs then
     Stdlib.printLine("")
     Stdlib.printLine(valuesHeading)
-
     values
     |> Stdlib.List.iter(fun v ->
-      let typStr =
-        PrettyPrinter.RuntimeTypes.typeReference(
-          SCM.Branch.mainBranchId,
-          v.type)
-
+      let typStr = PrettyPrinter.RuntimeTypes.typeReference(SCM.Branch.mainBranchId, v.type)
       Stdlib.printLine($"  {v.name.name}{versionSuffix(v.name.version)}: {typStr}"))
   else
     let names =
@@ -289,20 +258,18 @@ let execute(state: AppState, args: List<String>): AppState =
 
   let fnCount = Stdlib.display(totalCount)
   let valueCount = Stdlib.List.length(values)
-  let valueText =
-    Stdlib.display(valueCount) + (if valueCount == 1 then " value" else " values")
-
+  let valueText = Stdlib.display(valueCount) + (if valueCount == 1 then " value" else " values")
   let summary =
     match filter with
     | None -> $"Total: {fnCount} builtin functions, {valueText}"
-    | Some(pattern) ->
-      $"Showing {fnCount} functions and {valueText} matching '{pattern}'"
+    | Some(pattern) -> $"Showing {fnCount} functions and {valueText} matching '{pattern}'"
 
   Stdlib.printErrorLine("")
   Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(summary))
-
   if Stdlib.Bool.not(withSigs) then
-    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("Use --with-sigs to see full function signatures, --with-purity to tag pure/impure"))
+    Stdlib.printErrorLine(
+      Stdlib.Cli.UI.Colors.hint(
+        "Use --with-sigs to see full function signatures, --with-purity to tag pure/impure"))
 
   state
 
@@ -328,8 +295,5 @@ let help(_state: AppState): String =
   |> Stdlib.String.join("\n")
 
 
-let complete(
-  state: AppState,
-  args: List<String>)
-  : List<Completion.CompletionItem> =
+let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =
   []

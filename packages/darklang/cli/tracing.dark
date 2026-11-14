@@ -5,16 +5,17 @@
 /// `calls`, `values`) work on the same rows. This file dispatches all of them.
 module Darklang.Cli.Tracing
 
+type TraceSummary = Tracing.Trace
 
-type TraceSummary = Darklang.Tracing.Trace
 type FnCall = Darklang.Tracing.FnCall
+
 type TraceData = Darklang.Tracing.TraceData
 
 
 /// Print <param msg> as an error and exit 1.
-let refuse(state: Cli.AppState, msg: String): Cli.AppState =
-  Cli.printErr(msg)
-  Cli.failed(state)
+let refuse(state: AppState, msg: String): AppState =
+  printErr(msg)
+  failed(state)
 
 
 /// The line to print when the WHOLE list comes back with nothing.
@@ -22,7 +23,7 @@ let refuse(state: Cli.AppState, msg: String): Cli.AppState =
 /// "no traces found" reads as "nothing ran", and with recording off that is the wrong
 /// conclusion: every query comes back empty no matter what ran. So ask, rather than guess.
 let emptyStateHint(): String =
-  if Darklang.Tracing.Store.enabled() then
+  if Tracing.Store.enabled() then
     "nothing has run yet -- every `dark eval`, `dark run` and served request is kept here"
   else
     "recording is off, so this stays empty whatever runs: `dark traces record on` to keep them"
@@ -36,23 +37,23 @@ let printEmptyStateHint(): Unit =
 /// Print, after a FILTERED search came back empty, the one thing that would explain it
 /// whatever you searched for. Silent when recording is on: then the empty result is the answer.
 let printRecordingOffHint(): Unit =
-  if Darklang.Tracing.Store.enabled() then
+  if Tracing.Store.enabled() then
     ()
   else
     Stdlib.printErrorLine(
-      (Stdlib.Cli.UI.Colors.dimText(
-        "  recording is off, so nothing is kept to search: `dark traces record on`")))
+      Stdlib.Cli.UI.Colors.dimText(
+        "  recording is off, so nothing is kept to search: `dark traces record on`"))
 
 
 /// What to leave out when printing a trace's log. The log is a SEQUENCE of impure calls, in the
 /// order they completed, so a filter narrows the list and never changes its shape.
 type ViewOptions =
-  { filter: Stdlib.Option.Option<String>
+  { filter: Option<String>
     /// Inverse of `filter` — hide calls whose name contains this pattern.
     /// Children still recurse so the surrounding structure stays intact.
-    exclude: Stdlib.Option.Option<String>
+    exclude: Option<String>
     /// When Some N, hide calls whose durationMs < N (keeps the slow stuff).
-    slowThresholdMs: Stdlib.Option.Option<Int64>
+    slowThresholdMs: Option<Int64>
     /// Print every logged call. Off, the log is cut at forty lines with a count of the rest,
     /// because a served request can log thousands and a screenful is what a person wanted.
     all: Bool }
@@ -60,19 +61,17 @@ type ViewOptions =
 
 val defaultViewOptions =
   ViewOptions
-    { filter = Stdlib.Option.Option.None
-      exclude = Stdlib.Option.Option.None
-      slowThresholdMs = Stdlib.Option.Option.None
-      all = false }
+    { filter = Option.None, exclude = Option.None, slowThresholdMs = Option.None, all = false }
 
 
 /// English ordinal suffix for a non-negative integer. "1st", "2nd",
 /// "3rd", "4th"… honoring the 11/12/13 exception (always "th").
 let ordinalSuffix(n: Int64): String =
   let mod100 = Stdlib.Int64.checkedMod(n, 100) |> Stdlib.Result.withDefault(0)
-  if mod100 >= 11 && mod100 <= 13 then "th"
+  if mod100 >= 11 && mod100 <= 13 then
+    "th"
   else
-    match (Stdlib.Int64.checkedMod(n, 10) |> Stdlib.Result.withDefault(0)) with
+    match Stdlib.Int64.checkedMod(n, 10) |> Stdlib.Result.withDefault(0) with
     | 1 -> "st"
     | 2 -> "nd"
     | 3 -> "rd"
@@ -99,87 +98,71 @@ let parsePositionalErr(input: String, label: String): String =
 /// trace IDs are UUIDs, so no real ID ever starts with `-`. This catches
 /// misplaced-flag typos that would otherwise yield the misleading
 /// "Trace not found: --fake-arg".
-let resolveTraceID(input: String): Stdlib.Option.Option<String> =
+let resolveTraceID(input: String): Option<String> =
   if Stdlib.String.startsWith(input, "-") then
-    Cli.printErr($"unknown flag: {input}")
-    Stdlib.Option.Option.None
+    printErr($"unknown flag: {input}")
+    Option.None
   else
     // Trim accidental whitespace from copy-paste; never part of a UUID.
     let trimmed = Stdlib.String.trim(input)
     if trimmed == "" then
-      Cli.printErr("that is an empty id; `dark traces` lists the traces and their ids")
-      Stdlib.Option.Option.None
+      printErr("that is an empty id; `dark traces` lists the traces and their ids")
+      Option.None
     else
-      match Darklang.Tracing.Store.resolveID(trimmed) with
-      | Ok(fullID) -> Stdlib.Option.Option.Some(fullID)
+      match Tracing.Store.resolveID(trimmed) with
+      | Ok(fullID) -> Option.Some(fullID)
       | Error(msg) ->
-        Cli.printErr(msg)
-        Stdlib.Option.Option.None
+        printErr(msg)
+        Option.None
 
 
-let parseViewOptions(
-  opts: ViewOptions,
-  args: List<String>)
-  : Stdlib.Result.Result<ViewOptions, String> =
+let parseViewOptions(opts: ViewOptions, args: List<String>): Result<ViewOptions, String> =
   match args with
-  | [] -> Stdlib.Result.Result.Ok(opts)
+  | [] -> Result.Ok(opts)
   // `--depth`, `--no-builtins` and `--no-stdlib` were about a tree of every call. The log is a
   // sequence of impure calls now, so they have nothing to do; refused by name rather than
   // accepted and ignored, which is the failure mode that wastes an afternoon.
-  | ["--depth", ...]
-  | ["-d", ...] ->
-    Stdlib.Result.Result.Error(
+  | ["--depth", ...] | ["-d", ...] ->
+    Result.Error(
       "--depth is gone: a trace's log is a list of its impure calls, with no tree to cap")
-  | ["--no-builtins", ...]
-  | ["--no-stdlib", ...] ->
-    Stdlib.Result.Result.Error("--no-builtins and --no-stdlib are gone: every logged call is an impure builtin, so "
-       + "hiding them hides the log. `--filter` and `--exclude` narrow it by name")
+  | ["--no-builtins", ...] | ["--no-stdlib", ...] ->
+    Result.Error(
+      "--no-builtins and --no-stdlib are gone: every logged call is an impure builtin, so "
+      + "hiding them hides the log. `--filter` and `--exclude` narrow it by name")
   | ["--filter", pattern, ...rest] ->
     if Stdlib.String.startsWith(pattern, "-") then
-      Stdlib.Result.Result.Error($"unknown flag: {pattern}")
+      Result.Error($"unknown flag: {pattern}")
     else if pattern == "" then
-      Stdlib.Result.Result.Error("--filter takes part of a call's name")
+      Result.Error("--filter takes part of a call's name")
     else
-      parseViewOptions(
-        { opts with filter = Stdlib.Option.Option.Some(pattern) },
-        rest)
+      parseViewOptions({ opts with filter = Option.Some(pattern) }, rest)
   | ["--exclude", pattern, ...rest] ->
     if Stdlib.String.startsWith(pattern, "-") then
-      Stdlib.Result.Result.Error($"unknown flag: {pattern}")
+      Result.Error($"unknown flag: {pattern}")
     else if pattern == "" then
-      Stdlib.Result.Result.Error("--exclude takes part of a call's name")
+      Result.Error("--exclude takes part of a call's name")
     else
-      parseViewOptions(
-        { opts with exclude = Stdlib.Option.Option.Some(pattern) },
-        rest)
+      parseViewOptions({ opts with exclude = Option.Some(pattern) }, rest)
   | ["--all", ...rest] -> parseViewOptions({ opts with all = true }, rest)
   | ["--slow", ...rest] ->
     // Bare `--slow` defaults to 10ms. For a custom threshold, use --slow-ms.
-    parseViewOptions(
-      { opts with slowThresholdMs = Stdlib.Option.Option.Some(10) },
-      rest)
+    parseViewOptions({ opts with slowThresholdMs = Option.Some(10) }, rest)
   | ["--slow-ms", numStr, ...rest] ->
     match Stdlib.Int64.parse(numStr) with
     | Ok(n) ->
       if n < 0 then
-        Stdlib.Result.Result.Error($"--slow-ms is a number of milliseconds, so it cannot be negative (got {numStr})")
+        Result.Error(
+          $"--slow-ms is a number of milliseconds, so it cannot be negative (got {numStr})")
       else
-        parseViewOptions(
-          { opts with slowThresholdMs = Stdlib.Option.Option.Some(n) },
-          rest)
-    | Error(_) ->
-      Stdlib.Result.Result.Error(parsePositionalErr(numStr, "--slow-ms threshold"))
+        parseViewOptions({ opts with slowThresholdMs = Option.Some(n) }, rest)
+    | Error(_) -> Result.Error(parsePositionalErr(numStr, "--slow-ms threshold"))
   // Recognized value-taking flag with no value left — distinguish from the
   // catch-all `[unknown, ...]` so the user gets "missing value" not the
   // misleading "unknown flag".
-  | [ "--filter" ] ->
-    Stdlib.Result.Result.Error("--filter requires a pattern (e.g. `--filter List.map`)")
-  | [ "--exclude" ] ->
-    Stdlib.Result.Result.Error("--exclude requires a pattern (e.g. `--exclude listConcat`)")
-  | [ "--slow-ms" ] ->
-    Stdlib.Result.Result.Error("--slow-ms requires a value (e.g. `--slow-ms 100`)")
-  | [unknown, ...] ->
-    Stdlib.Result.Result.Error($"unknown flag: {unknown}")
+  | ["--filter"] -> Result.Error("--filter requires a pattern (e.g. `--filter List.map`)")
+  | ["--exclude"] -> Result.Error("--exclude requires a pattern (e.g. `--exclude listConcat`)")
+  | ["--slow-ms"] -> Result.Error("--slow-ms requires a value (e.g. `--slow-ms 100`)")
+  | [unknown, ...] -> Result.Error($"unknown flag: {unknown}")
 
 
 /// Confirm a destructive op. Returns true to proceed, false to bail.
@@ -188,17 +171,19 @@ let parseViewOptions(
 /// script the deletion happened: with no terminal to answer the prompt, `traces delete <id>`
 /// cancelled, printed one line nobody was reading, and reported success. An agent cleaning up
 /// after itself would have believed it every time.
-let confirmDestructive(confirm: Cli.Confirm, action: String): Bool =
-  Cli.Prompt.confirmExplicit(confirm, $"{action} [y/N]: ")
+let confirmDestructive(confirm: Confirm, action: String): Bool =
+  Prompt.confirmExplicit(confirm, $"{action} [y/N]: ")
+
 
 /// What a no from <fn confirmDestructive> says, and the exit it hands back. With nobody there to
 /// answer, "Cancelled." alone reads as if someone said no; it names the flag that gets past it.
-let cancelled(state: Cli.AppState): Cli.AppState =
+let cancelled(state: AppState): AppState =
   if Stdlib.Cli.UI.Prompt.canAsk() then
-    Cli.Stderr.line("Cancelled.")
+    Stderr.line("Cancelled.")
   else
-    Cli.Stderr.line("Cancelled. (`--yes` deletes without the prompt -- a piped stdin can't answer it.)")
-  Cli.failed(state)
+    Stderr.line("Cancelled. (`--yes` deletes without the prompt -- a piped stdin can't answer it.)")
+
+  failed(state)
 
 
 /// Does this argument look like a TRACE id rather than a function name?
@@ -214,7 +199,7 @@ let looksLikeATraceId(arg: String): Bool =
     false
   else
     let hex = "0123456789abcdefABCDEF-"
-    ((Stdlib.String.length(arg)) >= 4)
+    Stdlib.String.length(arg) >= 4
     && (Stdlib.String.toList(arg)
         |> Stdlib.List.all(fun c -> Stdlib.String.contains(hex, Stdlib.String.fromChar(c))))
 
@@ -222,36 +207,36 @@ let looksLikeATraceId(arg: String): Bool =
 /// `traces show <fn> [run]`: the code with a run's values beside it, as a page or as JSON. One
 /// helper for both renderers, so neither end can learn something the other does not.
 let showCode(
-  state: Cli.AppState,
+  state: AppState,
   fn: String,
-  run: Stdlib.Option.Option<String>,
-  iteration: Stdlib.Option.Option<String>,
+  run: Option<String>,
+  iteration: Option<String>,
   wantsJson: Bool,
   wantsFull: Bool)
-  : Cli.AppState =
+  : AppState =
   if wantsJson then
-    Cli.exitWith(
+    exitWith(
       state,
-      (Cli.TraceVerbs.showCodeJson(
+      TraceVerbs.showCodeJson(
         state.accountID,
         state.currentBranchId,
         fn,
         run,
         iteration,
-        wantsFull)))
+        wantsFull))
   else
-    Cli.TraceVerbs.showCode(state, fn, run, iteration)
+    TraceVerbs.showCode(state, fn, run, iteration)
 
 
 /// `traces show <fn> [run]`, or `traces show <trace>`.
 let executeShow(
-  state: Cli.AppState,
+  state: AppState,
   arg: String,
-  run: Stdlib.Option.Option<String>,
-  iteration: Stdlib.Option.Option<String>,
+  run: Option<String>,
+  iteration: Option<String>,
   wantsJson: Bool,
   wantsFull: Bool)
-  : Cli.AppState =
+  : AppState =
   if looksLikeATraceId(arg) then
     showFromTrace(state, arg, iteration, wantsJson, wantsFull)
   else
@@ -269,14 +254,14 @@ let executeShow(
 /// wrong half the time. None, and the trace touched no package function at all, which is its own
 /// answer.
 let showFromTrace(
-  state: Cli.AppState,
+  state: AppState,
   arg: String,
   /// Passed through to `showCode`, so `show <trace> --iteration map:2` works from this end too.
-  iteration: Stdlib.Option.Option<String>,
+  iteration: Option<String>,
   wantsJson: Bool,
   wantsFull: Bool)
-  : Cli.AppState =
-  match Darklang.Tracing.Store.resolveID(arg) with
+  : AppState =
+  match Tracing.Store.resolveID(arg) with
   | Error(_) ->
     refuse(
       state,
@@ -291,55 +276,54 @@ let showFromTrace(
     // the entry is named in it, so a function the trace went through whose name appears there is
     // the one that was called rather than one it called. Neither applies, and it lists.
     let root =
-      match Darklang.Tracing.Store.get(id) with
-      | None -> Stdlib.Option.Option.None
+      match Tracing.Store.get(id) with
+      | None -> Option.None
       | Some(trace) ->
-        let named = Darklang.Tracing.Store.fnsOf(id)
-
+        let named = Tracing.Store.fnsOf(id)
         match trace.entryHash with
         | Some(hash) ->
           named
           |> Stdlib.List.findFirst(fun fn ->
-            match
-              LanguageTools.PackageManager.Function.find(
-                state.currentBranchId,
-                LanguageTools.ProgramTypes.parsePackageLocation(fn))
-            with
-            | Some(h) -> (LanguageTools.ProgramTypes.hashToString(h)) == hash
+            match LanguageTools.PackageManager.Function.find(
+                    state.currentBranchId,
+                    LanguageTools.ProgramTypes.parsePackageLocation(fn)) with
+            | Some(h) -> LanguageTools.ProgramTypes.hashToString(h) == hash
             | None -> false)
         | None ->
           named
           |> Stdlib.List.findFirst(fun fn ->
-            Stdlib.String.contains(Darklang.Tracing.Format.inputText(trace), fn))
+            Stdlib.String.contains(Tracing.Format.inputText(trace), fn))
 
-    let show(state: Cli.AppState, fn: String): Cli.AppState =
-      showCode(state, fn, Stdlib.Option.Option.Some(arg), iteration, wantsJson, wantsFull)
+    let show(state: AppState, fn: String): AppState =
+      showCode(state, fn, Option.Some(arg), iteration, wantsJson, wantsFull)
 
     match root with
     | Some(fn) -> show(state, fn)
     | None ->
+      match Tracing.Store.fnsOf(id) with
+      | [only] -> show(state, only)
+      | [] ->
+        printErr(
+          $"{Text.shortIdText(id)} went through no package function, so there is no code to show")
 
-    match Darklang.Tracing.Store.fnsOf(id) with
-    | [ only ] -> show(state, only)
-    | [] ->
-      Cli.printErr(
-        $"{Cli.Text.shortIdText(id)} went through no package function, so there is no code to show")
-      Stdlib.printErrorLine(
-        (Stdlib.Cli.UI.Colors.dimText(
-          $"  dark traces inspect {Cli.Text.shortIdText(id)}   what it was and what it did")))
-      Cli.failed(state)
-    | many ->
-      // No code was shown, so this is a refusal, and it must stay off `--json`'s stdout.
-      Stdlib.printErrorLine(
-        $"{Cli.Text.shortIdText(id)} went through {Cli.Text.plural(Stdlib.List.length(many), "function")}:")
-      Stdlib.List.iter(many, fun fn ->
         Stdlib.printErrorLine(
-          (Stdlib.Cli.UI.Colors.dimText(
-            $"  dark traces show {fn} {Cli.Text.shortIdText(id)}"))))
-      Cli.failed(state)
+          Stdlib.Cli.UI.Colors.dimText(
+            $"  dark traces inspect {Text.shortIdText(id)}   what it was and what it did"))
+
+        failed(state)
+      | many ->
+        // No code was shown, so this is a refusal, and it must stay off `--json`'s stdout.
+        Stdlib.printErrorLine(
+          $"{Text.shortIdText(id)} went through {Text.plural(Stdlib.List.length(many), "function")}:")
+
+        Stdlib.List.iter(many, fun fn ->
+          Stdlib.printErrorLine(
+            Stdlib.Cli.UI.Colors.dimText($"  dark traces show {fn} {Text.shortIdText(id)}")))
+
+        failed(state)
 
 
-let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
+let execute(state: AppState, args: List<String>): AppState =
   // Kept before the flags are stripped below, for the `view` and `details` aliases: they
   // re-enter with the verb swapped, and re-entering with the STRIPPED list loses `--json`
   // and `--iteration`, so `traces view <fn> --json` printed the page.
@@ -348,8 +332,8 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
   // don't have to enumerate their position. `--yes`/`-y` for destructive
   // confirmations; `--json` for output format; `--log` is find-only.
   let confirm =
-    Cli.Confirm.assumeIf(
-      (Stdlib.List.contains(args, "--yes")) || (Stdlib.List.contains(args, "-y")))
+    Confirm.assumeIf(Stdlib.List.contains(args, "--yes") || Stdlib.List.contains(args, "-y"))
+
   let wantsJson = Stdlib.List.contains(args, "--json")
   // `--full` lifts the per-value cap for `--json`. Refused by name without `--json`, because the
   // page caps a value at sixty characters to fit a line of code, which is a layout limit and not
@@ -363,436 +347,414 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
     args
     |> Stdlib.List.findFirstIndex(fun a -> a == "--iteration")
     |> Stdlib.Option.andThen(fun i -> Stdlib.List.getAt(args, i + 1))
+
   let args =
     args
     |> Stdlib.List.filter(fun a ->
       a != "--yes" && a != "-y" && a != "--json" && a != "--inspect" && a != "--full")
+
   // `--full` without `--json` is refused rather than ignored. The page caps a value at sixty
   // characters so it fits beside the code, which is a layout limit; lifting it there would wrap
   // the page rather than show more. Silently accepting a flag that does nothing is the thing
   // this branch has spent its time removing.
   if wantsFull && Stdlib.Bool.not(wantsJson) then
-    Cli.printErr("`--full` is a `--json` flag: the page fits a value to one line of code")
+    printErr("`--full` is a `--json` flag: the page fits a value to one line of code")
     Stdlib.printErrorLine(
-      (Stdlib.Cli.UI.Colors.dimText(
-        "  dark traces show <fn> --json --full   the whole of every value")))
-    Cli.failed(state)
+      Stdlib.Cli.UI.Colors.dimText(
+        "  dark traces show <fn> --json --full   the whole of every value"))
+
+    failed(state)
   else
+    // `--iteration` with nothing after it. Without this the flag stays in `args` and the
+    // positional patterns below read it as a trace id, so `traces show <fn> --iteration` answered
+    // "no trace whose id starts with --iteration", which sends someone who mistyped a flag off
+    // looking for a trace.
+    let iterationMissingValue =
+      Stdlib.List.contains(args, "--iteration") && iteration == Option.None
 
-  // `--iteration` with nothing after it. Without this the flag stays in `args` and the
-  // positional patterns below read it as a trace id, so `traces show <fn> --iteration` answered
-  // "no trace whose id starts with --iteration", which sends someone who mistyped a flag off
-  // looking for a trace.
-  let iterationMissingValue =
-    (Stdlib.List.contains(args, "--iteration")) && (iteration == Stdlib.Option.Option.None)
+    let args =
+      match iteration with
+      | None -> args
+      | Some(v) -> args |> Stdlib.List.filter(fun a -> a != "--iteration" && a != v)
 
-  let args =
-    match iteration with
-    | None -> args
-    | Some(v) -> args |> Stdlib.List.filter(fun a -> a != "--iteration" && a != v)
-  // `--view`, then `--show`, both of which opened the newest matching run. That is `log` now,
-  // and so is the flag. Refused by name rather than as an unknown flag, so a script still
-  // passing one is told what it is called.
-  if iterationMissingValue then
-    refuse(state, "--iteration needs a loop and a number, like `--iteration map:2`")
-  // Refused by name rather than left to the positional patterns below, which would read it as
-  // a trace id and answer something unrelated.
-  else if Stdlib.List.contains(args, "--pass") then
-    refuse(state, "`--pass` is now `--iteration`: one run of a loop is an iteration")
-  else if (Stdlib.List.contains(args, "--view")) || (Stdlib.List.contains(args, "--show")) then
-    refuse(state, "`traces find --inspect` opens the newest matching run")
-  else
-  match args with
-  | [] ->
-    printMatches("", Darklang.Tracing.Store.list(50))
-    state
-
-  | [ "list" ] ->
-    if wantsJson then executeListJson(state, 20) else executeList(state, 20)
-  | [ "list", "--fn" ] ->
-    refuse(state, "Usage: traces list --fn <name> [limit] [--json]")
-  | [ "list", "--route" ] ->
-    refuse(state, "Usage: traces list --route <substring> [limit] [--json]")
-  | [ "list", limitStr ] ->
-    match Stdlib.Int64.parse(limitStr) with
-    | Ok(limit) ->
-      if wantsJson then executeListJson(state, limit) else executeList(state, limit)
-    | Error(_) ->
-      refuse(state, parsePositionalErr(limitStr, "limit"))
-  | [ "list", "--fn", fnName ] ->
-    executeListByFn(state, fnName, 20, wantsJson)
-  | [ "list", "--fn", fnName, limitStr ] ->
-    match Stdlib.Int64.parse(limitStr) with
-    | Ok(limit) -> executeListByFn(state, fnName, limit, wantsJson)
-    | Error(_) ->
-      refuse(state, parsePositionalErr(limitStr, "limit"))
-  | [ "list", "--route", route ] ->
-    executeListByRoute(state, route, 20, wantsJson)
-  | [ "list", "--route", route, limitStr ] ->
-    match Stdlib.Int64.parse(limitStr) with
-    | Ok(limit) -> executeListByRoute(state, route, limit, wantsJson)
-    | Error(_) ->
-      refuse(state, parsePositionalErr(limitStr, "limit"))
-
-  | [ "follow" ] ->
-    executeFollow(state, Stdlib.Option.Option.None, wantsJson)
-  | [ "follow", "--route", route ] ->
-    executeFollow(state, Stdlib.Option.Option.Some(route), wantsJson)
-
-  | [ "stats" ] ->
-    if wantsJson then executeStatsJson(state, 100) else executeStats(state, 100)
-  | [ "stats", limitStr ] ->
-    match Stdlib.Int64.parse(limitStr) with
-    | Ok(limit) ->
-      if wantsJson then executeStatsJson(state, limit) else executeStats(state, limit)
-    | Error(_) ->
-      refuse(state, parsePositionalErr(limitStr, "limit"))
-
-  | [ "tail" ] -> executeTail(state, Stdlib.Option.Option.None, 1)
-  // Flag-without-arg case must precede the `[ "tail", nStr ]` arm
-  // (which would otherwise treat "--route" as a malformed N).
-  | [ "tail", "--route" ] ->
-    refuse(state, "Usage: traces tail [N] --route <substring>")
-  | [ "tail", nStr ] ->
-    match Stdlib.Int64.parse(nStr) with
-    | Ok(n) -> executeTail(state, Stdlib.Option.Option.None, n)
-    | Error(_) ->
-      refuse(state, parsePositionalErr(nStr, "trace number"))
-  | [ "tail", "--route", route ] ->
-    executeTail(state, Stdlib.Option.Option.Some(route), 1)
-  | [ "tail", "--route", route, nStr ]
-  | [ "tail", nStr, "--route", route ] ->
-    match Stdlib.Int64.parse(nStr) with
-    | Ok(n) -> executeTail(state, Stdlib.Option.Option.Some(route), n)
-    | Error(_) ->
-      refuse(state, parsePositionalErr(nStr, "trace number"))
-
-  | [ "find", pattern ] ->
-    if wantsFindInspect then
-      executeFindInspect(state, pattern)
-    elif wantsJson then
-      executeFindJson(state, pattern, 20)
+    // `--view`, then `--show`, both of which opened the newest matching run. That is `log` now,
+    // and so is the flag. Refused by name rather than as an unknown flag, so a script still
+    // passing one is told what it is called.
+    if iterationMissingValue then
+      refuse(state, "--iteration needs a loop and a number, like `--iteration map:2`")
+    // Refused by name rather than left to the positional patterns below, which would read it as
+    // a trace id and answer something unrelated.
+    else if Stdlib.List.contains(args, "--pass") then
+      refuse(state, "`--pass` is now `--iteration`: one run of a loop is an iteration")
+    else if Stdlib.List.contains(args, "--view") || Stdlib.List.contains(args, "--show") then
+      refuse(state, "`traces find --inspect` opens the newest matching run")
     else
-      executeFind(state, pattern, 20)
-  | [ "find", pattern, limitStr ] ->
-    match Stdlib.Int64.parse(limitStr) with
-    | Ok(limit) ->
-      if wantsJson then executeFindJson(state, pattern, limit)
-      else executeFind(state, pattern, limit)
-    | Error(_) ->
-      refuse(state, parsePositionalErr(limitStr, "limit"))
-
-  // `--all` is not stripped from `args` the way the other flags are, because `delete --all`
-  // needs it, so these arms name it rather than reading it out of the list.
-  | [ "fns" ]
-  | [ "fns", "--all" ] ->
-    let showAll = Stdlib.List.contains(args, "--all")
-    if wantsJson then executeFnCountsJson(state, 100, showAll)
-    else executeFnCounts(state, 100, showAll)
-  | [ "fns", limitStr ]
-  | [ "fns", limitStr, "--all" ] ->
-    match Stdlib.Int64.parse(limitStr) with
-    | Ok(limit) ->
-      let showAll = Stdlib.List.contains(args, "--all")
-      if wantsJson then executeFnCountsJson(state, limit, showAll)
-      else executeFnCounts(state, limit, showAll)
-    | Error(_) ->
-      refuse(state, parsePositionalErr(limitStr, "limit"))
-
-  | [ "hotspots" ] ->
-    if wantsJson then executeHotspotsJson(state, 100)
-    else executeHotspots(state, 100)
-  | [ "hotspots", limitStr ] ->
-    match Stdlib.Int64.parse(limitStr) with
-    | Ok(limit) ->
-      if wantsJson then executeHotspotsJson(state, limit)
-      else executeHotspots(state, limit)
-    | Error(_) ->
-      refuse(state, parsePositionalErr(limitStr, "limit"))
-
-  // `view` is `show` by another name, and people reach for both. An alias costs one arm.
-  | ["view", ...] ->
-    execute(state, Stdlib.List.prepend(Stdlib.List.drop(rawArgs, 1), "show"))
-
-  // An alias rather than a refusal: people reach for both words, and there is nothing to teach.
-  | ["details", ...] ->
-    execute(state, Stdlib.List.prepend(Stdlib.List.drop(rawArgs, 1), "inspect"))
-
-  // Refused BY NAME rather than falling through to "unknown subcommand", because whoever types
-  // it read it somewhere we wrote.
-  | ["log", ...rest] ->
-    let tail = Stdlib.String.join(rest, " ")
-    Cli.printErr("`traces log` is now `traces inspect`: what the trace was, and what it did")
-    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText($"  dark traces inspect {tail}"))
-    Cli.failed(state)
-
-  // Whether traces are recorded at all, and changing it. The setting lives in this instance's
-  // store config, so it outlasts the command that set it; `dark config set trace.record on|off`
-  // is the same setting by the other door, and `dark --trace <command>` is one command only.
-  | [ "record" ] ->
-    let on = Darklang.Tracing.Store.enabled()
-    let text = if on then "on" else "off"
-    let stored = Darklang.Tracing.Store.storedSetting()
-    if wantsJson then
-      // The one thing an empty `--json` listing cannot say for itself. A person reading an
-      // empty table gets the reason under it; something parsing `[]` gets nothing, and has to
-      // be able to ask whether the store is empty or the recording is off.
-      let recordingKey = Cli.jsonStr("recording")
-      let storedKey = Cli.jsonStr("stored")
-      let storedValue =
-        match stored with
-        | Some(true) -> Cli.jsonStr("on")
-        | Some(false) -> Cli.jsonStr("off")
-        | None -> "null"
-      let onText = Stdlib.display(on)
-      Stdlib.printLine($"{{{recordingKey}: {onText}, {storedKey}: {storedValue}}}")
-    else
-      Stdlib.printLine($"recording: {text}")
-      // Where that answer came from, since three things can decide it and only one of them is
-      // visible in the store.
-      match stored with
-      | Some(s) when s == on -> ()
-      | Some(s) ->
-        Stdlib.printLine(
-          (Stdlib.Cli.UI.Colors.dimText(
-            ($"  for this command only; the stored setting is "
-             + (if s then "on" else "off")))))
-      | None ->
-        Stdlib.printLine(
-          (Stdlib.Cli.UI.Colors.dimText(
-            "  nothing is stored for this instance, so this is the environment's default")))
-      Stdlib.printErrorLine(
-        (Stdlib.Cli.UI.Colors.dimText(
-          "  dark traces record on | off   change it, for this instance")))
-      Stdlib.printErrorLine(
-        (Stdlib.Cli.UI.Colors.dimText(
-          "  dark --trace <command>        record one command without changing the setting")))
-    state
-
-  | [ "record", value ] ->
-    if (value == "on") || (value == "off") then
-      let on = value == "on"
-      // What was STORED, not what is in effect: setting `on` while the environment
-      // already says on is a real change, because it pins it.
-      let wasAlready =
-        (Darklang.Tracing.Store.storedSetting()) == (Stdlib.Option.Option.Some(on))
-      Darklang.Tracing.Store.setRecording(on)
-
-      if wasAlready then
-        // Nothing moved. Saying what the setting now means, as though it had, is how
-        // a command reads as if it did not take.
-        Stdlib.printLine($"recording: {value}, as it already was")
-      else
-        Stdlib.printLine($"recording: {value}")
-
-        if on then
-          Stdlib.printErrorLine(
-            (Stdlib.Cli.UI.Colors.dimText(
-              "  every trace from here is kept, this session included: `dark traces list`")))
-        else
-          Stdlib.printErrorLine(
-            (Stdlib.Cli.UI.Colors.dimText(
-              ("  nothing from here on is kept, so `resume`, `fork` and `show` will have "
-               + "nothing to work with"))))
-      state
-    else
-      refuse(state, $"'{value}' is not a recording setting; it is on or off")
-
-  | ["inspect", prefix, ...flagArgs] ->
-    if wantsJson then
-      Cli.exitWith(state, Cli.TraceVerbs.printInspectJson(state.currentBranchId, prefix))
-    else
-      match parseViewOptions(defaultViewOptions, flagArgs) with
-      | Ok(opts) -> executeInspect(state, prefix, opts)
-      | Error(msg) ->
-        refuse(state, msg)
-  // The trace verbs (`cli/traceVerbs.dark`). `resume` replays the log; `rerun` performs
-  // everything again, which is why they are two words.
-  | [ "resume", prefix ] -> Cli.TraceVerbs.resume(state, prefix)
-  | [ "fork", prefix ] ->
-    Cli.exitWith(state, Cli.TraceVerbs.fork(prefix, Stdlib.Option.Option.None))
-  | [ "fork", prefix, "--at", at ] ->
-    let ok =
-      match Stdlib.Int64.parse(at) with
-      | Ok(n) -> Cli.TraceVerbs.fork(prefix, Stdlib.Option.Option.Some(n))
-      | Error(_) ->
-        Cli.printErr(
-          $"--at wants a step number, as `traces inspect` numbers its calls, not {at}")
-        false
-    Cli.exitWith(state, ok)
-  | [ "pin", prefix ] -> Cli.exitWith(state, Cli.TraceVerbs.pin(prefix, Cli.TraceVerbs.Pinning.Pin))
-  | [ "unpin", prefix ] -> Cli.exitWith(state, Cli.TraceVerbs.pin(prefix, Cli.TraceVerbs.Pinning.Unpin))
-  // The call inbox: one function's recorded calls, and the code with that call's values.
-  | [ "calls", typed ] ->
-    let fnName = Cli.TraceVerbs.canonicalFnName(state.currentBranchId, typed)
-
-    // No traces is an answer about a function; no function, and nothing that ever ran under the
-    // name, is a typo, and refused the way `traces show` refuses it.
-    if
-      ((LanguageTools.PackageManager.Function.find(
-          state.currentBranchId,
-          LanguageTools.ProgramTypes.parsePackageLocation(fnName)))
-       == Stdlib.Option.Option.None)
-      && Stdlib.List.isEmpty(Darklang.Tracing.Store.wentThrough(fnName, "", 1))
-    then
-      refuse(state, $"no function named {fnName} on this branch")
-    else
-      if wantsJson then
-        Cli.exitWith(state, Cli.TraceVerbs.printCallsJson(state.currentBranchId, fnName))
-      else
-        Cli.TraceVerbs.printCalls(state.currentBranchId, fnName)
-        state
-  // The watching form of the same thing: the traces to pick from, and the code repainting as you
-  // move between them or save an edit.
-  | [ "show", typed, "--watch" ] ->
-    let fnName = Cli.TraceVerbs.canonicalFnName(state.currentBranchId, typed)
-    let _ = LanguageTools.LocalStore.configSet(Cli.TraceWatch.fnKey, fnName)
-    let view =
-      LiveView.Model.View
-        { name = "traces-show"
-          title = $"show: {fnName}"
-          init = "Darklang.Cli.TraceWatch.init"
-          update = "Darklang.Cli.TraceWatch.update"
-          render = "Darklang.Cli.TraceWatch.render"
-          every = Stdlib.Option.Option.Some(500)
-          keys =
-            Stdlib.Option.Option.Some(
-              "up/down pick a trace  |  esc quit  (nothing here performs an effect)") }
-    // `--watch` IS the opt-in: a panel whose whole job is to repaint as traces arrive and as you
-    // edit the code it is showing you.
-    match LiveView.Host.openView(state.currentBranchId, view, Stdlib.Option.Option.None, LiveView.Host.Updates.Live) with
-    | Ok(_) -> state
-    | Error(e) ->
-      refuse(state, e)
-  | [ "show", fnName ] ->
-    executeShow(state, fnName, Stdlib.Option.Option.None, iteration, wantsJson, wantsFull)
-  | [ "show", fnName, run ] ->
-    executeShow(state, fnName, Stdlib.Option.Option.Some(run), iteration, wantsJson, wantsFull)
-  // Refused by name, like the others: `show` is the verb for the code with its values on it.
-  | ["values", ...rest] ->
-    let tail = Stdlib.String.join(rest, " ")
-    Cli.printErr("`traces values` is `traces show`: the code, with a trace's values beside it")
-    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText($"  dark traces show {tail}"))
-    Cli.failed(state)
-  | [ "calls" ] | [ "show" ] ->
-    let verb = Stdlib.Option.withDefault(Stdlib.List.head(args), "")
-    refuse(state, $"traces {verb} needs a function name, like Darklang.Stdlib.List.map")
-
-  | [ "inspect" ] | [ "resume" ] | [ "fork" ] | [ "pin" ] | [ "unpin" ] ->
-    let verb = Stdlib.Option.withDefault(Stdlib.List.head(args), "")
-    refuse(state, $"traces {verb} needs an id prefix -- `dark traces` lists them")
-
-  | [ "rerun", traceID ] ->
-    match resolveTraceID(traceID) with
-    | Some(full) -> executeReplay(state, full)
-    | None -> Cli.failed(state)
-
-  // `delete` covers all four shapes: by ID, --keep N, --before <duration>, and --all.
-  | [ "delete", "--all" ] ->
-    if confirmDestructive(confirm, "Delete all traces?") then
-      executeClear(state)
-    else
-      cancelled(state)
-
-  | [ "delete", "--before", durationStr ] ->
-    if confirmDestructive(
-         confirm,
-         $"Delete traces older than {durationStr}?") then
-      executeClearBefore(state, durationStr)
-    else
-      cancelled(state)
-
-  | [ "delete", "--keep", nStr ] ->
-    match Stdlib.Int64.parse(nStr) with
-    | Ok(n) ->
-      if confirmDestructive(
-           confirm,
-           $"Keep the {Stdlib.display(n)} most-recent traces and drop the rest?") then
-        executePruneKeep(state, n)
-      else
-        cancelled(state)
-    | Error(_) ->
-      refuse(state, parsePositionalErr(nStr, "--keep N"))
-
-  | [ "delete", traceID ] ->
-    match resolveTraceID(traceID) with
-    | Some(full) ->
-      if confirmDestructive(confirm, $"Delete trace {full}?") then
-        executeDelete(state, full)
-      else
-        cancelled(state)
-    | None -> Cli.failed(state)
-
-  // Focused usage messages for the remaining "flag without arg" cases
-  // that don't conflict with positional-catching arms higher up
-  // (the list/tail variants are handled inline above).
-  | [ "follow", "--route" ] ->
-    refuse(state, "Usage: traces follow --route <substring> [--json]")
-  | [ "delete", "--keep" ] ->
-    refuse(state, "Usage: traces delete --keep <N>")
-  | [ "delete", "--before" ] ->
-    refuse(state, "Usage: traces delete --before <duration> (e.g. 30s, 5m, 1h, 2d)")
-
-  // Focused usage messages for arity-1 commands when invoked with no
-  // argument. Better than dumping the full multi-page help — the user
-  // ran a known command, just forgot the id/path.
-  | [ "rerun" ] ->
-    refuse(state, "Usage: traces rerun <trace-id>")
-  | [ "delete" ] ->
-    refuse(state, "Usage: traces delete <trace-id> | --all | --keep <N> | --before <duration>")
-  | [ "find" ] ->
-    refuse(state, "Usage: traces find <pattern> [limit] [--inspect] [--json]")
-
-  // Catch any other malformed follow invocation — anything not matched
-  // by the earlier specific arms (e.g. `traces follow --fake-arg`).
-  | ["follow", ...] ->
-    refuse(state, "Usage: traces follow [--route <substring>] [--json]")
-
-  // Catch malformed arity-1 invocations (e.g. `traces rerun <id> --fake-arg`)
-  // that the strict-length arms above missed.
-  | ["rerun", ...] ->
-    refuse(state, "Usage: traces rerun <trace-id>")
-  | ["delete", ...] ->
-    refuse(state, "Usage: traces delete <trace-id> | --all | --keep <N> | --before <duration>")
-  | ["tail", ...] ->
-    refuse(state, "Usage: traces tail [N] [--route <substring>]")
-  | ["list", ...] ->
-    refuse(state, "Usage: traces list [limit] | list --fn <substring> [limit] [--json] | list --route <substring> [limit] [--json]")
-  | ["find", ...] ->
-    refuse(state, "Usage: traces find <pattern> [limit] [--inspect] [--json]")
-  | ["hotspots", ...] ->
-    refuse(state, "Usage: traces hotspots [trace-limit] [--json]")
-  | ["stats", ...] ->
-    refuse(state, "Usage: traces stats [limit] [--json]")
-
-  | _ ->
-    // If the first token isn't a known subcommand, surface that
-    // explicitly before dumping help so a typo'd `traces lst` doesn't
-    // look like it succeeded silently.
-    let knownSubcommands =
-      [ "help", "list", "view", "tail", "follow", "find", "fns", "hotspots"
-        "stats", "rerun", "delete", "show", "inspect", "log", "resume", "fork", "pin", "unpin", "calls",
-        "values", "record" ]
-    // `view` is in that list on purpose: it is a verb we HAD, and its own arm says what it is
-    // called now. Taking it out would send a script that still uses it to the generic help.
-    let isKnownHead =
       match args with
-      | [head, ...] ->
-        Stdlib.List.any(knownSubcommands, fun s -> s == head)
-      | [] -> true
-    if Stdlib.Bool.not(isKnownHead) then
-      match args with
-      | [head, ...] ->
-        Cli.printErr($"unknown subcommand: {head}")
-        Stdlib.printErrorLine("")
-        Stdlib.printErrorLine(help(state))
-        Cli.failed(state)
       | [] ->
-        Stdlib.printLine(help(state))
+        printMatches("", Tracing.Store.list(50))
         state
-    else
-      Stdlib.printLine(help(state))
-      state
+      | ["list"] -> if wantsJson then executeListJson(state, 20) else executeList(state, 20)
+      | ["list", "--fn"] -> refuse(state, "Usage: traces list --fn <name> [limit] [--json]")
+      | ["list", "--route"] ->
+        refuse(state, "Usage: traces list --route <substring> [limit] [--json]")
+      | ["list", limitStr] ->
+        match Stdlib.Int64.parse(limitStr) with
+        | Ok(limit) ->
+          if wantsJson then executeListJson(state, limit) else executeList(state, limit)
+        | Error(_) -> refuse(state, parsePositionalErr(limitStr, "limit"))
+      | ["list", "--fn", fnName] -> executeListByFn(state, fnName, 20, wantsJson)
+      | ["list", "--fn", fnName, limitStr] ->
+        match Stdlib.Int64.parse(limitStr) with
+        | Ok(limit) -> executeListByFn(state, fnName, limit, wantsJson)
+        | Error(_) -> refuse(state, parsePositionalErr(limitStr, "limit"))
+      | ["list", "--route", route] -> executeListByRoute(state, route, 20, wantsJson)
+      | ["list", "--route", route, limitStr] ->
+        match Stdlib.Int64.parse(limitStr) with
+        | Ok(limit) -> executeListByRoute(state, route, limit, wantsJson)
+        | Error(_) -> refuse(state, parsePositionalErr(limitStr, "limit"))
+      | ["follow"] -> executeFollow(state, Option.None, wantsJson)
+      | ["follow", "--route", route] -> executeFollow(state, Option.Some(route), wantsJson)
+      | ["stats"] -> if wantsJson then executeStatsJson(state, 100) else executeStats(state, 100)
+      | ["stats", limitStr] ->
+        match Stdlib.Int64.parse(limitStr) with
+        | Ok(limit) ->
+          if wantsJson then executeStatsJson(state, limit) else executeStats(state, limit)
+        | Error(_) -> refuse(state, parsePositionalErr(limitStr, "limit"))
+      | ["tail"] -> executeTail(state, Option.None, 1)
+      // Flag-without-arg case must precede the `[ "tail", nStr ]` arm
+      // (which would otherwise treat "--route" as a malformed N).
+      | ["tail", "--route"] -> refuse(state, "Usage: traces tail [N] --route <substring>")
+      | ["tail", nStr] ->
+        match Stdlib.Int64.parse(nStr) with
+        | Ok(n) -> executeTail(state, Option.None, n)
+        | Error(_) -> refuse(state, parsePositionalErr(nStr, "trace number"))
+      | ["tail", "--route", route] -> executeTail(state, Option.Some(route), 1)
+      | ["tail", "--route", route, nStr] | ["tail", nStr, "--route", route] ->
+        match Stdlib.Int64.parse(nStr) with
+        | Ok(n) -> executeTail(state, Option.Some(route), n)
+        | Error(_) -> refuse(state, parsePositionalErr(nStr, "trace number"))
+      | ["find", pattern] ->
+        if wantsFindInspect then
+          executeFindInspect(state, pattern)
+        else if wantsJson then
+          executeFindJson(state, pattern, 20)
+        else
+          executeFind(state, pattern, 20)
+      | ["find", pattern, limitStr] ->
+        match Stdlib.Int64.parse(limitStr) with
+        | Ok(limit) ->
+          if wantsJson then
+            executeFindJson(state, pattern, limit)
+          else
+            executeFind(state, pattern, limit)
+        | Error(_) -> refuse(state, parsePositionalErr(limitStr, "limit"))
+      // `--all` is not stripped from `args` the way the other flags are, because `delete --all`
+      // needs it, so these arms name it rather than reading it out of the list.
+      | ["fns"] | ["fns", "--all"] ->
+        let showAll = Stdlib.List.contains(args, "--all")
+        if wantsJson then
+          executeFnCountsJson(state, 100, showAll)
+        else
+          executeFnCounts(state, 100, showAll)
+      | ["fns", limitStr] | ["fns", limitStr, "--all"] ->
+        match Stdlib.Int64.parse(limitStr) with
+        | Ok(limit) ->
+          let showAll = Stdlib.List.contains(args, "--all")
+          if wantsJson then
+            executeFnCountsJson(state, limit, showAll)
+          else
+            executeFnCounts(state, limit, showAll)
+        | Error(_) -> refuse(state, parsePositionalErr(limitStr, "limit"))
+      | ["hotspots"] ->
+        if wantsJson then
+          executeHotspotsJson(state, 100)
+        else
+          executeHotspots(state, 100)
+      | ["hotspots", limitStr] ->
+        match Stdlib.Int64.parse(limitStr) with
+        | Ok(limit) ->
+          if wantsJson then
+            executeHotspotsJson(state, limit)
+          else
+            executeHotspots(state, limit)
+        | Error(_) -> refuse(state, parsePositionalErr(limitStr, "limit"))
+      // `view` is `show` by another name, and people reach for both. An alias costs one arm.
+      | ["view", ...] -> execute(state, Stdlib.List.prepend(Stdlib.List.drop(rawArgs, 1), "show"))
+      // An alias rather than a refusal: people reach for both words, and there is nothing to teach.
+      | ["details", ...] ->
+        execute(state, Stdlib.List.prepend(Stdlib.List.drop(rawArgs, 1), "inspect"))
+      // Refused BY NAME rather than falling through to "unknown subcommand", because whoever types
+      // it read it somewhere we wrote.
+      | ["log", ...rest] ->
+        let tail = Stdlib.String.join(rest, " ")
+        printErr("`traces log` is now `traces inspect`: what the trace was, and what it did")
+        Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText($"  dark traces inspect {tail}"))
+        failed(state)
+      // Whether traces are recorded at all, and changing it. The setting lives in this instance's
+      // store config, so it outlasts the command that set it; `dark config set trace.record on|off`
+      // is the same setting by the other door, and `dark --trace <command>` is one command only.
+      | ["record"] ->
+        let on = Tracing.Store.enabled()
+        let text = if on then "on" else "off"
+        let stored = Tracing.Store.storedSetting()
+        if wantsJson then
+          // The one thing an empty `--json` listing cannot say for itself. A person reading an
+          // empty table gets the reason under it; something parsing `[]` gets nothing, and has to
+          // be able to ask whether the store is empty or the recording is off.
+          let recordingKey = jsonStr("recording")
+          let storedKey = jsonStr("stored")
+          let storedValue =
+            match stored with
+            | Some(true) -> jsonStr("on")
+            | Some(false) -> jsonStr("off")
+            | None -> "null"
+
+          let onText = Stdlib.display(on)
+          Stdlib.printLine($"{{{recordingKey}: {onText}, {storedKey}: {storedValue}}}")
+        else
+          Stdlib.printLine($"recording: {text}")
+          // Where that answer came from, since three things can decide it and only one of them is
+          // visible in the store.
+          match stored with
+          | Some(s) when s == on -> ()
+          | Some(s) ->
+            Stdlib.printLine(
+              Stdlib.Cli.UI.Colors.dimText(
+                "  for this command only; the stored setting is " + (if s then "on" else "off")))
+          | None ->
+            Stdlib.printLine(
+              Stdlib.Cli.UI.Colors.dimText(
+                "  nothing is stored for this instance, so this is the environment's default"))
+
+          Stdlib.printErrorLine(
+            Stdlib.Cli.UI.Colors.dimText(
+              "  dark traces record on | off   change it, for this instance"))
+
+          Stdlib.printErrorLine(
+            Stdlib.Cli.UI.Colors.dimText(
+              "  dark --trace <command>        record one command without changing the setting"))
+
+        state
+      | ["record", value] ->
+        if value == "on" || value == "off" then
+          let on = value == "on"
+          // What was STORED, not what is in effect: setting `on` while the environment
+          // already says on is a real change, because it pins it.
+          let wasAlready = Tracing.Store.storedSetting() == Option.Some(on)
+          Tracing.Store.setRecording(on)
+          if wasAlready then
+            // Nothing moved. Saying what the setting now means, as though it had, is how
+            // a command reads as if it did not take.
+            Stdlib.printLine($"recording: {value}, as it already was")
+          else
+            Stdlib.printLine($"recording: {value}")
+            if on then
+              Stdlib.printErrorLine(
+                Stdlib.Cli.UI.Colors.dimText(
+                  "  every trace from here is kept, this session included: `dark traces list`"))
+            else
+              Stdlib.printErrorLine(
+                Stdlib.Cli.UI.Colors.dimText(
+                  "  nothing from here on is kept, so `resume`, `fork` and `show` will have "
+                  + "nothing to work with"))
+
+          state
+        else
+          refuse(state, $"'{value}' is not a recording setting; it is on or off")
+      | ["inspect", prefix, ...flagArgs] ->
+        if wantsJson then
+          exitWith(state, TraceVerbs.printInspectJson(state.currentBranchId, prefix))
+        else
+          match parseViewOptions(defaultViewOptions, flagArgs) with
+          | Ok(opts) -> executeInspect(state, prefix, opts)
+          | Error(msg) -> refuse(state, msg)
+      // The trace verbs (`cli/traceVerbs.dark`). `resume` replays the log; `rerun` performs
+      // everything again, which is why they are two words.
+      | ["resume", prefix] -> TraceVerbs.resume(state, prefix)
+      | ["fork", prefix] -> exitWith(state, TraceVerbs.fork(prefix, Option.None))
+      | ["fork", prefix, "--at", at] ->
+        let ok =
+          match Stdlib.Int64.parse(at) with
+          | Ok(n) -> TraceVerbs.fork(prefix, Option.Some(n))
+          | Error(_) ->
+            printErr($"--at wants a step number, as `traces inspect` numbers its calls, not {at}")
+            false
+
+        exitWith(state, ok)
+      | ["pin", prefix] -> exitWith(state, TraceVerbs.pin(prefix, TraceVerbs.Pinning.Pin))
+      | ["unpin", prefix] -> exitWith(state, TraceVerbs.pin(prefix, TraceVerbs.Pinning.Unpin))
+      // The call inbox: one function's recorded calls, and the code with that call's values.
+      | ["calls", typed] ->
+        let fnName = TraceVerbs.canonicalFnName(state.currentBranchId, typed)
+
+        // No traces is an answer about a function; no function, and nothing that ever ran under the
+        // name, is a typo, and refused the way `traces show` refuses it.
+        if
+          LanguageTools.PackageManager.Function.find(
+            state.currentBranchId,
+            LanguageTools.ProgramTypes.parsePackageLocation(fnName))
+          == Option.None
+          && Stdlib.List.isEmpty(Tracing.Store.wentThrough(fnName, "", 1))
+        then
+          refuse(state, $"no function named {fnName} on this branch")
+        else if wantsJson then
+          exitWith(state, TraceVerbs.printCallsJson(state.currentBranchId, fnName))
+        else
+          TraceVerbs.printCalls(state.currentBranchId, fnName)
+          state
+      // The watching form of the same thing: the traces to pick from, and the code repainting as you
+      // move between them or save an edit.
+      | ["show", typed, "--watch"] ->
+        let fnName = TraceVerbs.canonicalFnName(state.currentBranchId, typed)
+        let _ = LanguageTools.LocalStore.configSet(TraceWatch.fnKey, fnName)
+        let view =
+          LiveView.Model.View
+            { name = "traces-show"
+              title = $"show: {fnName}"
+              init = "Darklang.Cli.TraceWatch.init"
+              update = "Darklang.Cli.TraceWatch.update"
+              render = "Darklang.Cli.TraceWatch.render"
+              every = Option.Some(500)
+              keys =
+                Option.Some(
+                  "up/down pick a trace  |  esc quit  (nothing here performs an effect)") }
+
+        // `--watch` IS the opt-in: a panel whose whole job is to repaint as traces arrive and as you
+        // edit the code it is showing you.
+        match LiveView.Host.openView(
+                state.currentBranchId,
+                view,
+                Option.None,
+                LiveView.Host.Updates.Live) with
+        | Ok(_) -> state
+        | Error(e) -> refuse(state, e)
+      | ["show", fnName] -> executeShow(state, fnName, Option.None, iteration, wantsJson, wantsFull)
+      | ["show", fnName, run] ->
+        executeShow(state, fnName, Option.Some(run), iteration, wantsJson, wantsFull)
+      // Refused by name, like the others: `show` is the verb for the code with its values on it.
+      | ["values", ...rest] ->
+        let tail = Stdlib.String.join(rest, " ")
+        printErr("`traces values` is `traces show`: the code, with a trace's values beside it")
+        Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText($"  dark traces show {tail}"))
+        failed(state)
+      | ["calls"] | ["show"] ->
+        let verb = Stdlib.Option.withDefault(Stdlib.List.head(args), "")
+        refuse(state, $"traces {verb} needs a function name, like Darklang.Stdlib.List.map")
+      | ["inspect"] | ["resume"] | ["fork"] | ["pin"] | ["unpin"] ->
+        let verb = Stdlib.Option.withDefault(Stdlib.List.head(args), "")
+        refuse(state, $"traces {verb} needs an id prefix -- `dark traces` lists them")
+      | ["rerun", traceID] ->
+        match resolveTraceID(traceID) with
+        | Some(full) -> executeReplay(state, full)
+        | None -> failed(state)
+      // `delete` covers all four shapes: by ID, --keep N, --before <duration>, and --all.
+      | ["delete", "--all"] ->
+        if confirmDestructive(confirm, "Delete all traces?") then
+          executeClear(state)
+        else
+          cancelled(state)
+      | ["delete", "--before", durationStr] ->
+        if confirmDestructive(confirm, $"Delete traces older than {durationStr}?") then
+          executeClearBefore(state, durationStr)
+        else
+          cancelled(state)
+      | ["delete", "--keep", nStr] ->
+        match Stdlib.Int64.parse(nStr) with
+        | Ok(n) ->
+          if
+            confirmDestructive(
+              confirm,
+              $"Keep the {Stdlib.display(n)} most-recent traces and drop the rest?")
+          then
+            executePruneKeep(state, n)
+          else
+            cancelled(state)
+        | Error(_) -> refuse(state, parsePositionalErr(nStr, "--keep N"))
+      | ["delete", traceID] ->
+        match resolveTraceID(traceID) with
+        | Some(full) ->
+          if confirmDestructive(confirm, $"Delete trace {full}?") then
+            executeDelete(state, full)
+          else
+            cancelled(state)
+        | None -> failed(state)
+      // Focused usage messages for the remaining "flag without arg" cases
+      // that don't conflict with positional-catching arms higher up
+      // (the list/tail variants are handled inline above).
+      | ["follow", "--route"] -> refuse(state, "Usage: traces follow --route <substring> [--json]")
+      | ["delete", "--keep"] -> refuse(state, "Usage: traces delete --keep <N>")
+      | ["delete", "--before"] ->
+        refuse(state, "Usage: traces delete --before <duration> (e.g. 30s, 5m, 1h, 2d)")
+      // Focused usage messages for arity-1 commands when invoked with no
+      // argument. Better than dumping the full multi-page help — the user
+      // ran a known command, just forgot the id/path.
+      | ["rerun"] -> refuse(state, "Usage: traces rerun <trace-id>")
+      | ["delete"] ->
+        refuse(state, "Usage: traces delete <trace-id> | --all | --keep <N> | --before <duration>")
+      | ["find"] -> refuse(state, "Usage: traces find <pattern> [limit] [--inspect] [--json]")
+      // Catch any other malformed follow invocation — anything not matched
+      // by the earlier specific arms (e.g. `traces follow --fake-arg`).
+      | ["follow", ...] -> refuse(state, "Usage: traces follow [--route <substring>] [--json]")
+      // Catch malformed arity-1 invocations (e.g. `traces rerun <id> --fake-arg`)
+      // that the strict-length arms above missed.
+      | ["rerun", ...] -> refuse(state, "Usage: traces rerun <trace-id>")
+      | ["delete", ...] ->
+        refuse(state, "Usage: traces delete <trace-id> | --all | --keep <N> | --before <duration>")
+      | ["tail", ...] -> refuse(state, "Usage: traces tail [N] [--route <substring>]")
+      | ["list", ...] ->
+        refuse(
+          state,
+          "Usage: traces list [limit] | list --fn <substring> [limit] [--json] | list --route <substring> [limit] [--json]")
+      | ["find", ...] -> refuse(state, "Usage: traces find <pattern> [limit] [--inspect] [--json]")
+      | ["hotspots", ...] -> refuse(state, "Usage: traces hotspots [trace-limit] [--json]")
+      | ["stats", ...] -> refuse(state, "Usage: traces stats [limit] [--json]")
+      | _ ->
+        // If the first token isn't a known subcommand, surface that
+        // explicitly before dumping help so a typo'd `traces lst` doesn't
+        // look like it succeeded silently.
+        let knownSubcommands =
+          [ "help"
+            "list"
+            "view"
+            "tail"
+            "follow"
+            "find"
+            "fns"
+            "hotspots"
+            "stats"
+            "rerun"
+            "delete"
+            "show"
+            "inspect"
+            "log"
+            "resume"
+            "fork"
+            "pin"
+            "unpin"
+            "calls"
+            "values"
+            "record" ]
+
+        // `view` is in that list on purpose: it is a verb we HAD, and its own arm says what it is
+        // called now. Taking it out would send a script that still uses it to the generic help.
+        let isKnownHead =
+          match args with
+          | [head, ...] -> Stdlib.List.any(knownSubcommands, fun s -> s == head)
+          | [] -> true
+
+        if Stdlib.Bool.not(isKnownHead) then
+          match args with
+          | [head, ...] ->
+            printErr($"unknown subcommand: {head}")
+            Stdlib.printErrorLine("")
+            Stdlib.printErrorLine(help(state))
+            failed(state)
+          | [] ->
+            Stdlib.printLine(help(state))
+            state
+        else
+          Stdlib.printLine(help(state))
+          state
 
 
 /// The refusal every verb here that takes a count gives for a count below one. One string, so a
@@ -801,34 +763,25 @@ let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
 val limitTooSmall = "a limit is a number of traces, so it has to be 1 or more"
 
 
-let executeList(state: Cli.AppState, limit: Int64): Cli.AppState =
+let executeList(state: AppState, limit: Int64): AppState =
   if limit < 1 then
     refuse(state, limitTooSmall)
   else
-    printMatches("", Darklang.Tracing.Store.list(limit))
+    printMatches("", Tracing.Store.list(limit))
     state
 
 
 /// `traces list --json [N]` — same data as `traces list` but emitted as a
 /// JSON array of `{traceId, handler, timestamp}` objects, no headers or
 /// footers. Designed for piping into jq / scripts. Empty store prints `[]`.
-let executeListJson(state: Cli.AppState, limit: Int64): Cli.AppState =
+let executeListJson(state: AppState, limit: Int64): AppState =
   if limit < 1 then
     refuse(state, limitTooSmall)
   else
-    Cli.exitWith(
-      state,
-      Cli.TraceVerbs.printTracesJson(
-        state.currentBranchId,
-        Darklang.Tracing.Store.list(limit)))
+    exitWith(state, TraceVerbs.printTracesJson(state.currentBranchId, Tracing.Store.list(limit)))
 
 
-let executeListByFn(
-  state: Cli.AppState,
-  typed: String,
-  limit: Int64,
-  jsonMode: Bool)
-  : Cli.AppState =
+let executeListByFn(state: AppState, typed: String, limit: Int64, jsonMode: Bool): AppState =
   if Stdlib.String.trim(typed) == "" then
     refuse(state, "--fn takes a function name, or part of one")
   else if limit < 1 then
@@ -836,10 +789,10 @@ let executeListByFn(
   else
     // A no-op on a PARTIAL name, which this verb also takes: nothing resolves it, so
     // it is handed on as typed and the substring match does its job.
-    let fnName = Cli.TraceVerbs.canonicalFnName(state.currentBranchId, typed)
-    let rows = Darklang.Tracing.Store.listByFn(fnName, limit)
+    let fnName = TraceVerbs.canonicalFnName(state.currentBranchId, typed)
+    let rows = Tracing.Store.listByFn(fnName, limit)
     if jsonMode then
-      Cli.exitWith(state, Cli.TraceVerbs.printTracesJson(state.currentBranchId, rows))
+      exitWith(state, TraceVerbs.printTracesJson(state.currentBranchId, rows))
     else
       // `--fn` searches the effect LOG, and the log holds only the impure calls, so
       // a pure function is never in it. "No kept trace went through it" is the OTHER
@@ -849,18 +802,16 @@ let executeListByFn(
       match rows with
       | [] ->
         Stdlib.printErrorLine($"no kept trace made an effectful call matching {fnName}")
-
-        match Darklang.Tracing.Store.wentThroughNamed(state.currentBranchId, fnName, 1) with
+        match Tracing.Store.wentThroughNamed(state.currentBranchId, fnName, 1) with
         | [] ->
-          (Cli.TraceVerbs.whyEmpty("run something that calls it"))
-          |> Stdlib.List.iter(fun line ->
-            Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText(line)))
+          TraceVerbs.whyEmpty("run something that calls it")
+          |> Stdlib.List.iter(fun line -> Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText(line)))
         | _ ->
           Stdlib.printErrorLine(
-            (Stdlib.Cli.UI.Colors.dimText(
-              "  traces DID go through it, and it made no impure calls of its own:")))
-          Stdlib.printErrorLine(
-            Stdlib.Cli.UI.Colors.dimText($"  dark traces calls {fnName}"))
+            Stdlib.Cli.UI.Colors.dimText(
+              "  traces DID go through it, and it made no impure calls of its own:"))
+
+          Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText($"  dark traces calls {fnName}"))
 
         state
       | _ ->
@@ -869,7 +820,7 @@ let executeListByFn(
 
 
 /// The rows of <param all> that `traces fns` shows: the bundled library only with <param showAll>.
-let fnCountRows(all: List<String * Int64>, showAll: Bool): List<String * Int64> =
+let fnCountRows(all: List<(String * Int64)>, showAll: Bool): List<(String * Int64)> =
   if showAll then
     all
   else
@@ -893,48 +844,37 @@ let isGone(name: String): Bool =
 ///
 /// The bundled library is hidden by default. `Stdlib.List.map` is in almost every run, and
 /// saying so buries the handful of names that are actually yours.
-let executeFnCounts(
-  state: Cli.AppState,
-  traceLimit: Int64,
-  showAll: Bool)
-  : Cli.AppState =
+let executeFnCounts(state: AppState, traceLimit: Int64, showAll: Bool): AppState =
   if traceLimit < 1 then
     refuse(state, limitTooSmall)
   else
-    let all = Darklang.Tracing.Store.fnCounts(traceLimit)
+    let all = Tracing.Store.fnCounts(traceLimit)
     let rows = fnCountRows(all, showAll)
-    let hidden = (Stdlib.List.length(all)) - (Stdlib.List.length(rows))
-
+    let hidden = Stdlib.List.length(all) - Stdlib.List.length(rows)
     let display(name: String): String =
       if isGone(name) then $"(gone) {Stdlib.String.slice(name, 0, 8)}" else name
 
     match rows with
     | [] ->
-      if (Stdlib.List.length(all)) > 0 then
+      if Stdlib.List.length(all) > 0 then
         Stdlib.printErrorLine("every function recent runs went through is from the bundled library")
-
-        Stdlib.printErrorLine(
-          Stdlib.Cli.UI.Colors.dimText("  dark traces fns --all    show them"))
+        Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText("  dark traces fns --all    show them"))
       else
         Stdlib.printErrorLine("no runs have been kept yet")
-
-        (Cli.TraceVerbs.whyEmpty("run something"))
-        |> Stdlib.List.iter(fun line ->
-          Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText(line)))
+        TraceVerbs.whyEmpty("run something")
+        |> Stdlib.List.iter(fun line -> Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText(line)))
 
       state
     | _ ->
       let width =
         rows
-        |> Stdlib.List.map(fun row ->
-          Stdlib.String.length(display(Stdlib.Tuple2.first(row))))
+        |> Stdlib.List.map(fun row -> Stdlib.String.length(display(Stdlib.Tuple2.first(row))))
         |> Stdlib.List.fold(2, fun(acc, n) -> if n > acc then n else acc)
 
       Stdlib.printLine(
         $"functions the last {Stdlib.display(traceLimit)} runs went through, most first:")
 
       Stdlib.printLine("")
-
       rows
       |> Stdlib.List.iter(fun row ->
         let (name, runs) = row
@@ -946,13 +886,13 @@ let executeFnCounts(
       Stdlib.printErrorLine("")
 
       Stdlib.printErrorLine(
-        (Stdlib.Cli.UI.Colors.dimText(
-          "  dark traces show <fn>    the code, with the newest run's values beside it")))
+        Stdlib.Cli.UI.Colors.dimText(
+          "  dark traces show <fn>    the code, with the newest run's values beside it"))
 
       if hidden > 0 then
         Stdlib.printErrorLine(
-          (Stdlib.Cli.UI.Colors.dimText(
-            $"  dark traces fns --all    with the {Stdlib.display(hidden)} from the bundled library")))
+          Stdlib.Cli.UI.Colors.dimText(
+            $"  dark traces fns --all    with the {Stdlib.display(hidden)} from the bundled library"))
 
       state
 
@@ -967,35 +907,27 @@ type FnRunsJson =
     gone: Bool }
 
 
-let executeFnCountsJson(
-  state: Cli.AppState,
-  traceLimit: Int64,
-  showAll: Bool)
-  : Cli.AppState =
+let executeFnCountsJson(state: AppState, traceLimit: Int64, showAll: Bool): AppState =
   if traceLimit < 1 then
     refuse(state, limitTooSmall)
   else
     let rows =
-      fnCountRows(Darklang.Tracing.Store.fnCounts(traceLimit), showAll)
+      fnCountRows(Tracing.Store.fnCounts(traceLimit), showAll)
       |> Stdlib.List.map(fun row ->
         let (name, runs) = row
         FnRunsJson { fn = name, runs = runs, gone = isGone(name) })
 
-    Cli.exitWith(state, Cli.printJson(Stdlib.Json.checkedSerialize<List<FnRunsJson>>(rows)))
+    exitWith(state, printJson(Stdlib.Json.checkedSerialize<List<FnRunsJson>>(rows)))
 
 
 /// `traces hotspots [limit]`: across the last <limit> traces (default 100), the time spent
 /// in each logged call: count, total ms, max ms, sorted by total. Only impure calls are
 /// logged, so every name it prints is a builtin.
-let executeHotspots(
-  state: Cli.AppState,
-  traceLimit: Int64)
-  : Cli.AppState =
+let executeHotspots(state: AppState, traceLimit: Int64): AppState =
   if traceLimit < 1 then
     refuse(state, limitTooSmall)
   else
-    let rows = Darklang.Tracing.Store.hotspots(traceLimit)
-
+    let rows = Tracing.Store.hotspots(traceLimit)
     match rows with
     | [] ->
       Stdlib.printErrorLine($"No fn-call data in the last {Stdlib.display(traceLimit)} traces.")
@@ -1005,8 +937,11 @@ let executeHotspots(
       let fnWord = if fnCount == 1 then "fn" else "fns"
       Stdlib.printLine(
         $"Hotspots (last {Stdlib.display(traceLimit)} traces, top {Stdlib.display(fnCount)} {fnWord} by total ms):")
+
       Stdlib.printLine("")
+
       Stdlib.printLine("   total ms    max ms  count  fn")
+
       Stdlib.printLine("  ---------  --------  -----  -------------------------")
       Stdlib.List.iter(rows, fun row ->
         let (name, count, total, max) = row
@@ -1014,33 +949,33 @@ let executeHotspots(
         let maxStr = padNum(max, 8)
         let countStr = padNum(count, 5)
         Stdlib.printLine($"  {totalStr}  {maxStr}  {countStr}  {name}"))
+
       state
 
 
 /// `traces hotspots --json [limit]` — same data as a JSON array of
 /// `{name, count, totalMs, maxMs}` objects, no headers/footers, for
 /// piping. Empty store prints `[]`.
-let executeHotspotsJson(
-  state: Cli.AppState,
-  traceLimit: Int64)
-  : Cli.AppState =
+let executeHotspotsJson(state: AppState, traceLimit: Int64): AppState =
   if traceLimit < 1 then
     refuse(state, limitTooSmall)
   else
-    printTotalsJson("name", Darklang.Tracing.Store.hotspots(traceLimit))
+    printTotalsJson("name", Tracing.Store.hotspots(traceLimit))
     state
 
 
 /// Right-align a number in a field of `width` chars.
 let padNum(n: Int64, width: Int64): String =
-  Darklang.Tracing.Format.padNum(n, width)
+  Tracing.Format.padNum(n, width)
 
-let jsonEscape(s: String): String = Darklang.Tracing.Format.jsonEscape(s)
+
+let jsonEscape(s: String): String =
+  Tracing.Format.jsonEscape(s)
 
 
 /// Print `(key, count, totalMs, maxMs)` rows as a JSON array of
 /// `{<key>, count, totalMs, maxMs}` objects.
-let printTotalsJson(key: String, rows: List<String * Int64 * Int64 * Int64>): Unit =
+let printTotalsJson(key: String, rows: List<(String * Int64 * Int64 * Int64)>): Unit =
   let body =
     rows
     |> Stdlib.List.map(fun row ->
@@ -1050,6 +985,7 @@ let printTotalsJson(key: String, rows: List<String * Int64 * Int64 * Int64>): Un
       + $",\"totalMs\":{Stdlib.display(total)}"
       + $",\"maxMs\":{Stdlib.display(max)}}}")
     |> Stdlib.String.join(",")
+
   Stdlib.printLine($"[{body}]")
 
 
@@ -1060,55 +996,45 @@ val findTakesPattern = "find takes something to look for: part of an id, or of w
 /// fn-call args/result contain the substring (case-sensitive, matches the
 /// stored JSON form). Useful for "show me everywhere user 42 was touched"
 /// or "show me traces where errCode 503 came back."
-let executeFind(
-  state: Cli.AppState,
-  pattern: String,
-  limit: Int64)
-  : Cli.AppState =
+let executeFind(state: AppState, pattern: String, limit: Int64): AppState =
   if pattern == "" then
     refuse(state, findTakesPattern)
   else if limit < 1 then
     refuse(state, limitTooSmall)
   else
-    printMatches(
-      $"no kept trace matches {pattern}",
-      Darklang.Tracing.Store.find(pattern, limit))
+    printMatches($"no kept trace matches {pattern}", Tracing.Store.find(pattern, limit))
     state
 
 
 /// `traces find <pattern> --json [limit]` — same data as `traces find`
 /// but as a JSON array of `{traceId, handler, timestamp}` objects, no
 /// banner. Designed for piping into jq / scripts.
-let executeFindJson(
-  state: Cli.AppState,
-  pattern: String,
-  limit: Int64)
-  : Cli.AppState =
+let executeFindJson(state: AppState, pattern: String, limit: Int64): AppState =
   if pattern == "" then
     refuse(state, findTakesPattern)
   else if limit < 1 then
     refuse(state, limitTooSmall)
   else
-    let rows = Darklang.Tracing.Store.find(pattern, limit)
-    Cli.exitWith(state, Cli.TraceVerbs.printTracesJson(state.currentBranchId, rows))
+    let rows = Tracing.Store.find(pattern, limit)
+    exitWith(state, TraceVerbs.printTracesJson(state.currentBranchId, rows))
 
 
 /// `traces find <pattern> --inspect` -- search-then-drill in one step: the newest matching run,
 /// rendered as `traces inspect` would. If several match, the others are noted and you get the
 /// freshest.
-let executeFindInspect(state: Cli.AppState, pattern: String): Cli.AppState =
+let executeFindInspect(state: AppState, pattern: String): AppState =
   if pattern == "" then
     refuse(state, findTakesPattern)
   else
-    let rows = Darklang.Tracing.Store.find(pattern, 1)
+    let rows = Tracing.Store.find(pattern, 1)
     match rows with
     | [] ->
-      Cli.printErr($"no kept trace matches {pattern}")
+      printErr($"no kept trace matches {pattern}")
       printRecordingOffHint()
-      Cli.failed(state)
+      failed(state)
     | [row, ...] ->
-      Cli.Stderr.line($"the newest trace matching {pattern}: {row.id}")
-      Cli.Stderr.line("")
+      Stderr.line($"the newest trace matching {pattern}: {row.id}")
+      Stderr.line("")
       executeInspect(state, row.id, defaultViewOptions)
 
 
@@ -1116,15 +1042,12 @@ let executeFindInspect(state: Cli.AppState, pattern: String): Cli.AppState =
 /// very latest). Skips the list-then-copy-id round trip you would otherwise do with
 /// `traces list` then `traces inspect <id>`; `tail 2` peeks back one without copying ids. An
 /// optional route filter narrows to traces matching the substring before counting.
-let executeTail(
-  state: Cli.AppState,
-  routeFilter: Stdlib.Option.Option<String>,
-  n: Int64)
-  : Cli.AppState =
+let executeTail(state: AppState, routeFilter: Option<String>, n: Int64): AppState =
   let routeIsEmpty =
     match routeFilter with
     | Some(r) -> Stdlib.String.trim(r) == ""
     | None -> false
+
   if n < 1 then
     refuse(state, "tail takes which trace back to open, so it has to be 1 or more")
   else if routeIsEmpty then
@@ -1136,15 +1059,15 @@ let executeTail(
       match routeFilter with
       | Some(_) -> 500
       | None -> n
-    let allRows = Darklang.Tracing.Store.list(fetch)
+
+    let allRows = Tracing.Store.list(fetch)
     let candidates =
       match routeFilter with
       | Some(route) ->
         let routeUpper = Stdlib.String.toUppercase(route)
         allRows
         |> Stdlib.List.filter(fun row ->
-          Stdlib.String.contains(
-            Stdlib.String.toUppercase(row.entry), routeUpper))
+          Stdlib.String.contains(Stdlib.String.toUppercase(row.entry), routeUpper))
       | None -> allRows
 
     // Drop the first (n-1) — the Nth-most-recent is what's left at head.
@@ -1155,12 +1078,15 @@ let executeTail(
         match routeFilter with
         | Some(r) -> $" matching '{r}'"
         | None -> ""
+
       // N=1 is "nothing yet"; past that, English ordinals (2nd/3rd/22nd) via `ordinalSuffix`.
       let msg =
-        if n == 1 then $"nothing has run yet{suffix}"
+        if n == 1 then
+          $"nothing has run yet{suffix}"
         else
           let nStr = Stdlib.display(n)
           $"there is no {nStr}{ordinalSuffix(n)}-most-recent trace{suffix}"
+
       refuse(state, msg)
     | [row, ...] -> executeInspect(state, row.id, defaultViewOptions)
 
@@ -1169,31 +1095,30 @@ let executeTail(
 /// trace count, total ms (sum of every fn-call duration in each trace),
 /// max single-call ms. Pairs with `traces hotspots` (per-fn aggregate)
 /// for "which routes are heavy?" vs "which fns are heavy?".
-let executeStats(state: Cli.AppState, limit: Int64): Cli.AppState =
+let executeStats(state: AppState, limit: Int64): AppState =
   if limit < 1 then
     refuse(state, limitTooSmall)
   else
-    let rows = Darklang.Tracing.Store.statsByHandler(limit)
-
+    let rows = Tracing.Store.statsByHandler(limit)
     match rows with
     | [] ->
       printEmptyStateHint()
       state
     | _ ->
-      Stdlib.printLine(
-        $"per entry, over the last {Stdlib.display(limit)} traces:")
+      Stdlib.printLine($"per entry, over the last {Stdlib.display(limit)} traces:")
       Stdlib.printLine("")
       // The same table widget every other listing uses, so the columns line up with them and
       // a wide entry does not push the numbers off the screen.
       Stdlib.Cli.UI.Table.print(
         [ "entry", "traces", "total ms", "max ms" ],
-        (rows
-         |> Stdlib.List.map(fun row ->
-           let (entry, count, total, max) = row
-           [ Cli.Text.oneLineAt(40, entry),
-             Stdlib.display(count),
-             Stdlib.display(total),
-             Stdlib.display(max) ])))
+        rows
+        |> Stdlib.List.map(fun row ->
+          let (entry, count, total, max) = row
+          [ Text.oneLineAt(40, entry)
+            Stdlib.display(count)
+            Stdlib.display(total)
+            Stdlib.display(max) ]))
+
       Stdlib.printLine("")
       // The route hint only makes sense with served requests in the result; an eval-only store
       // gets no help from `--route`. A served entry is `<METHOD> <path>`, so a `/` is the tell.
@@ -1202,21 +1127,23 @@ let executeStats(state: Cli.AppState, limit: Int64): Cli.AppState =
         |> Stdlib.List.any(fun row ->
           let (entry, _, _, _) = row
           Stdlib.String.contains(entry, "/"))
+
       if hasHttp then
         Stdlib.printErrorLine(
-          (Stdlib.Cli.UI.Colors.dimText(
-            "  dark traces list --route <path>   only the requests matching it")))
+          Stdlib.Cli.UI.Colors.dimText(
+            "  dark traces list --route <path>   only the requests matching it"))
+
       state
 
 
 /// `traces stats --json [limit]` — same data as a JSON array of
 /// `{handler, count, totalMs, maxMs}` objects, no headers/footers,
 /// for piping. Empty store prints `[]`.
-let executeStatsJson(state: Cli.AppState, limit: Int64): Cli.AppState =
+let executeStatsJson(state: AppState, limit: Int64): AppState =
   if limit < 1 then
     refuse(state, limitTooSmall)
   else
-    printTotalsJson("handler", Darklang.Tracing.Store.statsByHandler(limit))
+    printTotalsJson("handler", Tracing.Store.statsByHandler(limit))
     state
 
 
@@ -1227,15 +1154,12 @@ let executeStatsJson(state: Cli.AppState, limit: Int64): Cli.AppState =
 /// human-readable two-space-indent form.
 let followLoop(
   branchId: Uuid,
-  routeFilter: Stdlib.Option.Option<String>,
+  routeFilter: Option<String>,
   lastSeen: String,
   jsonMode: Bool)
   : Unit =
-  let rows = Darklang.Tracing.Store.list(50)
-
-  let candidates =
-    rows |> Stdlib.List.takeWhile(fun row -> row.id != lastSeen)
-
+  let rows = Tracing.Store.list(50)
+  let candidates = rows |> Stdlib.List.takeWhile(fun row -> row.id != lastSeen)
   let filtered =
     match routeFilter with
     | Some(r) ->
@@ -1246,13 +1170,12 @@ let followLoop(
     | None -> candidates
 
   let chronological = filtered |> Stdlib.List.reverse
-
   Stdlib.List.iter(chronological, fun row ->
     if jsonMode then
       let _ =
-        Cli.printJson(
-          Stdlib.Json.checkedSerialize<Cli.TraceVerbs.TraceJson>(
-            Cli.TraceVerbs.traceJson(branchId, row)))
+        printJson(
+          Stdlib.Json.checkedSerialize<TraceVerbs.TraceJson>(TraceVerbs.traceJson(branchId, row)))
+
       ()
     else
       Stdlib.printLine($"  {row.created}  {row.id}  {row.entry}"))
@@ -1273,46 +1196,39 @@ let followLoop(
 /// the "Following…" banner is suppressed so consumers see only data.
 ///
 /// Hold Ctrl+C to exit (the loop never returns on its own).
-let executeFollow(
-  state: Cli.AppState,
-  routeFilter: Stdlib.Option.Option<String>,
-  jsonMode: Bool)
-  : Cli.AppState =
+let executeFollow(state: AppState, routeFilter: Option<String>, jsonMode: Bool): AppState =
   let routeIsEmpty =
     match routeFilter with
     | Some(r) -> Stdlib.String.trim(r) == ""
     | None -> false
+
   if routeIsEmpty then
     refuse(state, "--route takes part of a path or a method, like /orders or GET")
   else
-  if jsonMode == false then
-    let label =
-      match routeFilter with
-      | Some(r) -> $"route '{r}'"
-      | None -> "all routes"
-    Cli.Stderr.line($"Following traces for {label}. Ctrl+C to stop.")
-    Cli.Stderr.line("")
+    if jsonMode == false then
+      let label =
+        match routeFilter with
+        | Some(r) -> $"route '{r}'"
+        | None -> "all routes"
 
-  // Anchor: ignore traces that already existed when we started.
-  let initialRows = Darklang.Tracing.Store.list(1)
-  let initialSeen =
-    match initialRows with
-    | [] -> ""
-    | [row, ...] -> row.id
+      Stderr.line($"Following traces for {label}. Ctrl+C to stop.")
+      Stderr.line("")
 
-  followLoop(state.currentBranchId, routeFilter, initialSeen, jsonMode)
-  state
+    // Anchor: ignore traces that already existed when we started.
+    let initialRows = Tracing.Store.list(1)
+    let initialSeen =
+      match initialRows with
+      | [] -> ""
+      | [row, ...] -> row.id
+
+    followLoop(state.currentBranchId, routeFilter, initialSeen, jsonMode)
+    state
 
 
 /// Filter recent traces by a substring of the trace's `handler` field
 /// (which for HTTP traces is `"<METHOD> <path>"` like `"GET /hello"`).
 /// Substring match makes both `"/hello"` and `"GET"` work.
-let executeListByRoute(
-  state: Cli.AppState,
-  route: String,
-  limit: Int64,
-  jsonMode: Bool)
-  : Cli.AppState =
+let executeListByRoute(state: AppState, route: String, limit: Int64, jsonMode: Bool): AppState =
   if Stdlib.String.trim(route) == "" then
     refuse(state, "--route takes part of a path or a method, like /orders or GET")
   else if limit < 1 then
@@ -1322,22 +1238,19 @@ let executeListByRoute(
     // unfiltered, so to find N matching we may need to pull more. Cap at
     // 500 to bound the fetch.
     let overFetch = if limit < 50 then 500 else limit * 10
-    let allRows = Darklang.Tracing.Store.list(overFetch)
+    let allRows = Tracing.Store.list(overFetch)
     let routeUpper = Stdlib.String.toUppercase(route)
     let matching =
       allRows
       |> Stdlib.List.filter(fun row ->
-        Stdlib.String.contains(
-          Stdlib.String.toUppercase(row.entry), routeUpper))
+        Stdlib.String.contains(Stdlib.String.toUppercase(row.entry), routeUpper))
       |> Stdlib.List.take(limit)
 
     if jsonMode then
-      Cli.exitWith(state, Cli.TraceVerbs.printTracesJson(state.currentBranchId, matching))
+      exitWith(state, TraceVerbs.printTracesJson(state.currentBranchId, matching))
     else
       printMatches($"no kept trace served a request matching {route}", matching)
       state
-
-
 
 
 /// A listing of traces: the one table, and the one line saying what to type next. <param nothing>
@@ -1351,17 +1264,18 @@ let printMatches(nothing: String, rows: List<TraceSummary>): Unit =
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText(nothing))
       printRecordingOffHint()
   | _ ->
-    Cli.TraceVerbs.printTable(rows)
+    TraceVerbs.printTable(rows)
     Stdlib.printErrorLine("")
+
     Stdlib.printErrorLine(
-      (Stdlib.Cli.UI.Colors.dimText(
-        "  dark traces inspect <id>   one trace: its input, what it did, where it stands")))
+      Stdlib.Cli.UI.Colors.dimText(
+        "  dark traces inspect <id>   one trace: its input, what it did, where it stands"))
 
 
 /// Single-line render of a dval for the trace viewer; strategy lives in
 /// `Tracing.Format.compactDval`.
 let compactDval(branchId: Uuid, dv: LanguageTools.RuntimeTypes.Dval): String =
-  Darklang.Tracing.Format.compactDval(branchId, dv)
+  Tracing.Format.compactDval(branchId, dv)
 
 
 /// Whether one logged call survives the filters. `--filter` and `--exclude` match
@@ -1371,12 +1285,13 @@ let isVisible(opts: ViewOptions, call: FnCall): Bool =
     match opts.slowThresholdMs with
     | Some(thr) -> call.durationMs < thr
     | None -> false
+
   let fnNameUpper = Stdlib.String.toUppercase(call.fnName)
   let excluded =
     match opts.exclude with
-    | Some(pat) ->
-      Stdlib.String.contains(fnNameUpper, Stdlib.String.toUppercase(pat))
+    | Some(pat) -> Stdlib.String.contains(fnNameUpper, Stdlib.String.toUppercase(pat))
     | None -> false
+
   if belowSlowThreshold || excluded then
     false
   else
@@ -1387,11 +1302,7 @@ let isVisible(opts: ViewOptions, call: FnCall): Bool =
 
 /// A trace's log, one line per impure call, in the order they completed. There is no tree: only
 /// impure calls are recorded, so this is the sequence of things the trace did to the world.
-let formatFnCalls(
-  opts: ViewOptions,
-  branchId: Uuid,
-  fnCalls: List<FnCall>)
-  : String =
+let formatFnCalls(opts: ViewOptions, branchId: Uuid, fnCalls: List<FnCall>): String =
   match fnCalls with
   | [] -> "  (this trace touched nothing outside itself)"
   | _ ->
@@ -1407,13 +1318,13 @@ let formatFnCalls(
       |> Stdlib.List.unique
 
     let letterFor(call: FnCall): String =
-      if (Stdlib.List.length(processes)) < 2 then
+      if Stdlib.List.length(processes) < 2 then
         ""
       else
         match call.processId with
         | None -> "   "
         | Some(pid) ->
-          match Stdlib.List.findFirstIndex(processes, fun p -> p == (Stdlib.display(pid))) with
+          match Stdlib.List.findFirstIndex(processes, fun p -> p == Stdlib.display(pid)) with
           | Some(i) ->
             let letter = Stdlib.Int64.checkedMod(i, 26) |> Stdlib.Result.withDefault(0)
             $" {Stdlib.String.slice("ABCDEFGHIJKLMNOPQRSTUVWXYZ", letter, letter + 1)} "
@@ -1426,11 +1337,7 @@ let formatFnCalls(
         let pos = Stdlib.Text.padStartToWidth(Stdlib.display(call.seq), 5)
         let who = letterFor(call)
         let resultRepr = compactDval(branchId, call.result)
-        let took =
-          if call.durationMs > 0 then
-            $"  ({Stdlib.display(call.durationMs)}ms)"
-          else
-            ""
+        let took = if call.durationMs > 0 then $"  ({Stdlib.display(call.durationMs)}ms)" else ""
         let argsRepr =
           match call.args with
           | [] -> ""
@@ -1438,20 +1345,22 @@ let formatFnCalls(
             call.args
             |> Stdlib.List.map(fun arg -> compactDval(branchId, arg))
             |> Stdlib.String.join(", ")
+
         $"  {pos}{who}  {call.fnName}({argsRepr}) -> {resultRepr}{took}")
+
     let count = Stdlib.List.length(lines)
     match lines with
     | [] -> "  (no logged call matches the active filters)"
     | _ ->
-      if opts.all || (count <= 40) then
+      if opts.all || count <= 40 then
         Stdlib.String.join(lines, "\n")
       else
         let shown = Stdlib.List.take(lines, 40)
         let rest = Stdlib.display(count - 40)
         Stdlib.String.join(
-          (Stdlib.List.append(
+          Stdlib.List.append(
             shown,
-            $"  ... {rest} more (--all for every one, or narrow with --filter / --slow)")),
+            $"  ... {rest} more (--all for every one, or narrow with --filter / --slow)"),
           "\n")
 
 
@@ -1459,38 +1368,33 @@ let formatFnCalls(
 /// the sequence of impure calls it made. The ONE renderer for a single run, which is why `tail`
 /// and `find --inspect` come through here rather than printing their own: two renderers for one
 /// thing drift.
-let executeInspect(
-  state: Cli.AppState,
-  prefix: String,
-  opts: ViewOptions)
-  : Cli.AppState =
-  match Cli.TraceVerbs.find(prefix) with
-  | Error(e) ->
-    refuse(state, e)
+let executeInspect(state: AppState, prefix: String, opts: ViewOptions): AppState =
+  match TraceVerbs.find(prefix) with
+  | Error(e) -> refuse(state, e)
   | Ok(run) ->
     let branchId = state.currentBranchId
     Stdlib.printLine(run.id)
-    Stdlib.printLine($"  status    {Cli.TraceVerbs.statusText(run.status)}")
+    Stdlib.printLine($"  status    {TraceVerbs.statusText(run.status)}")
     Stdlib.printLine($"  entry     {run.entry}")
     // All of the input, because this is the one place it can be read: a script's source is
     // several lines, and the table above it has already shown you the first forty characters.
-    let input = Darklang.Tracing.Format.inputText(run)
+    let input = Tracing.Format.inputText(run)
     let inputLines = Stdlib.String.split(input, "\n")
     let inputFitsOnTheLine =
-      ((Stdlib.List.length(inputLines)) == 1)
-      && ((Stdlib.String.displayWidth(input)) <= 60)
+      Stdlib.List.length(inputLines) == 1 && Stdlib.String.displayWidth(input) <= 60
+
     if inputFitsOnTheLine then
       Stdlib.printLine($"  input     {input}")
     else
       Stdlib.printLine("  input")
       Stdlib.List.iter(inputLines, fun l -> Stdlib.printLine($"    {l}"))
+
     match run.result with
     | Some(r) ->
-      Stdlib.printLine(
-        $"  answered  {PrettyPrinter.RuntimeTypes.dvalOneLine(branchId, 60, r)}")
+      Stdlib.printLine($"  answered  {PrettyPrinter.RuntimeTypes.dvalOneLine(branchId, 60, r)}")
     | None -> ()
-    Stdlib.printLine(
-      $"  started   {Cli.TraceVerbs.whenText(run.created)} ({run.created})")
+
+    Stdlib.printLine($"  started   {TraceVerbs.whenText(run.created)} ({run.created})")
     // Wall clock for the trace itself, which is not the sum of its calls: the gaps between them
     // are its own work. 0 for a trace still going, and for one recorded before this was kept.
     if run.durationMs > 0 then
@@ -1498,16 +1402,19 @@ let executeInspect(
       Stdlib.printLine($"  took      {ms}ms")
     else
       ()
+
     if run.pinned then
       Stdlib.printLine("  pinned    kept, whatever else is dropped to make room")
     else
       ()
+
     match run.parent with
     | Some((id, at)) ->
       let pos = Stdlib.display(at)
       Stdlib.printLine(
-        $"  forked    from {Cli.Text.shortIdText(id)}, keeping its log before position {pos}")
+        $"  forked    from {Text.shortIdText(id)}, keeping its log before position {pos}")
     | None -> ()
+
     // WHICH CODE THIS RAN, which is the other half of discovery. `dark traces calls <fn>` goes
     // from a function to its traces; without this there was no way back, and a trace's own
     // identity was a uuid and an input line. Every recorded trace writes this index, so it
@@ -1516,7 +1423,7 @@ let executeInspect(
     // The standard library is left out: a trace goes through `List.map` and `Int64.toString` on
     // the way to anything, and listing them buries the two or three functions someone wrote.
     let went =
-      (Darklang.Tracing.Store.fnsOf(run.id))
+      Tracing.Store.fnsOf(run.id)
       |> Stdlib.List.filter(fun n ->
         Stdlib.Bool.not(Stdlib.String.startsWith(n, "Darklang.Stdlib.")))
       |> Stdlib.List.unique
@@ -1526,21 +1433,18 @@ let executeInspect(
     | _ ->
       let shown = went |> Stdlib.List.take(6)
       Stdlib.printLine($"  ran       {Stdlib.String.join(shown, ", ")}")
-
-      if (Stdlib.List.length(went)) > 6 then
-        let more = Stdlib.display((Stdlib.List.length(went)) - 6)
+      if Stdlib.List.length(went) > 6 then
+        let more = Stdlib.display(Stdlib.List.length(went) - 6)
         Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"            and {more} more"))
 
       Stdlib.printErrorLine(
-        (Stdlib.Cli.UI.Colors.dimText(
-          "            `dark traces show <fn>` reads any of them through this trace")))
+        Stdlib.Cli.UI.Colors.dimText(
+          "            `dark traces show <fn>` reads any of them through this trace"))
 
     // The log. A trace whose log was dropped to make room, or that ran with recording off, is a
     // different answer from a trace that touched nothing, so the two do not share a line.
-    match Darklang.Tracing.Store.view(run.id) with
-    | None ->
-      Stdlib.printLine(
-        "  did       not kept (dropped to make room, or recording was off)")
+    match Tracing.Store.view(run.id) with
+    | None -> Stdlib.printLine("  did       not kept (dropped to make room, or recording was off)")
     | Some(data) ->
       let logged = data.functionCalls |> Stdlib.List.filter(fun c -> c.ord >= 0)
 
@@ -1550,12 +1454,11 @@ let executeInspect(
       // there is nothing here.
       match logged with
       | [] ->
-        Stdlib.printLine(
-          "  did       nothing: every call this trace made was pure")
+        Stdlib.printLine("  did       nothing: every call this trace made was pure")
         Stdlib.printErrorLine(
-          (Stdlib.Cli.UI.Colors.dimText(
-            ("            so there is nothing to replay; `dark traces show <fn>` still has its "
-             + "values, which are recomputed"))))
+          Stdlib.Cli.UI.Colors.dimText(
+            "            so there is nothing to replay; `dark traces show <fn>` still has its "
+            + "values, which are recomputed"))
       | _ ->
         let procs =
           logged
@@ -1571,8 +1474,10 @@ let executeInspect(
             $", across {Stdlib.display(procs)} processes (the letter column)"
 
         Stdlib.printLine(
-          $"  did       {Cli.Text.plural(Stdlib.List.length(logged), "call")} with effects{across}")
+          $"  did       {Text.plural(Stdlib.List.length(logged), "call")} with effects{across}")
+
         Stdlib.printLine(formatFnCalls(opts, branchId, logged))
+
       // A recorder that hit its own cap leaves a marker row, which is not part of the log and
       // must never be hidden -- by a filter, or by the display cap. So it prints after, always:
       // a trace that reads as complete when it was cut is the one thing a debugging aid must
@@ -1580,133 +1485,126 @@ let executeInspect(
       data.functionCalls
       |> Stdlib.List.filter(fun c -> c.ord < 0)
       |> Stdlib.List.iter(fun c -> Stdlib.printLine($"  {c.fnName}"))
+
     state
 
 
 /// Rerun the saved input, including writes and requests.
-let executeReplay(state: Cli.AppState, traceID: String): Cli.AppState =
-  let input = Darklang.Tracing.Store.getScriptOrEvalInput(traceID)
+let executeReplay(state: AppState, traceID: String): AppState =
+  let input = Tracing.Store.getScriptOrEvalInput(traceID)
   match input with
   | None ->
-    Cli.printErr(
-      $"no kept trace has the id {traceID}, or it has no CLI input to run again")
+    printErr($"no kept trace has the id {traceID}, or it has no CLI input to run again")
     Stdlib.printErrorLine(
-      (Stdlib.Cli.UI.Colors.dimText(
-        "  inspect the recorded log, or run the original code again")))
+      Stdlib.Cli.UI.Colors.dimText("  inspect the recorded log, or run the original code again"))
+
     Stdlib.printErrorLine(
-      (Stdlib.Cli.UI.Colors.dimText(
-        $"  for a served request, `dark traces show <fn> {Cli.Text.shortIdText(traceID)}` shows what it did")))
-    Cli.failed(state)
+      Stdlib.Cli.UI.Colors.dimText(
+        $"  for a served request, `dark traces show <fn> {Text.shortIdText(traceID)}` shows what it did"))
+
+    failed(state)
   | Some(input) ->
     let source =
       match input with
       | Eval(source, _) -> source
       | Script(_, source, _, _) -> source
-    Cli.Stderr.line($"rerunning {Cli.Text.shortIdText(traceID)}: {Cli.Text.oneLine(source)}")
-    Cli.Stderr.line("")
-    let result = Cli.TraceVerbs.executeScriptOrEval(state, input)
+
+    Stderr.line($"rerunning {Text.shortIdText(traceID)}: {Text.oneLine(source)}")
+    Stderr.line("")
+    let result = TraceVerbs.executeScriptOrEval(state, input)
     if result.exitCode == 0 then
-      Cli.Stderr.line("")
-      Cli.Stderr.line(
-        "rerun complete; it was kept as a trace of its own (`dark traces` lists it)")
+      Stderr.line("")
+      Stderr.line("rerun complete; it was kept as a trace of its own (`dark traces` lists it)")
     else
       ()
+
     result
 
 
-let executeClear(state: Cli.AppState): Cli.AppState =
-  let count = Darklang.Tracing.Store.clear()
+let executeClear(state: AppState): AppState =
+  let count = Tracing.Store.clear()
   match count with
   | 0 ->
-    Cli.Stderr.line("nothing to clear")
+    Stderr.line("nothing to clear")
     state
   | _ ->
-    Stdlib.printLine($"cleared {Cli.Text.plural(count, "trace")}")
+    Stdlib.printLine($"cleared {Text.plural(count, "trace")}")
     state
 
 
 /// Parse a CLI duration arg. `-`-prefixed inputs are reported as
 /// "unknown flag" rather than "Invalid duration" — same logic as
 /// `parsePositionalErr`. Otherwise delegates to `Stdlib.Duration.parse`.
-let parseDuration(
-  s: String)
-  : Stdlib.Result.Result<Stdlib.Duration.Duration, String> =
+let parseDuration(s: String): Result<Stdlib.Duration.Duration, String> =
   if Stdlib.String.startsWith(s, "-") then
-    Stdlib.Result.Result.Error($"unknown flag: {s}")
+    Result.Error($"unknown flag: {s}")
   else
     match Stdlib.Duration.parse(s) with
-    | Ok(d) -> Stdlib.Result.Result.Ok(d)
+    | Ok(d) -> Result.Ok(d)
     | Error(MissingUnit) ->
-      Stdlib.Result.Result.Error(
-        $"Duration '{s}' has no unit; need a number + unit (s/m/h/d), e.g. 5m")
+      Result.Error($"Duration '{s}' has no unit; need a number + unit (s/m/h/d), e.g. 5m")
     | Error(InvalidNumber) ->
-      Stdlib.Result.Result.Error(
-        $"Invalid duration '{s}'; need a number + unit (s/m/h/d), e.g. 5m")
-    | Error(UnknownUnit) ->
-      Stdlib.Result.Result.Error($"Unknown unit in '{s}'; use s, m, h, or d")
+      Result.Error($"Invalid duration '{s}'; need a number + unit (s/m/h/d), e.g. 5m")
+    | Error(UnknownUnit) -> Result.Error($"Unknown unit in '{s}'; use s, m, h, or d")
 
 
 /// `traces delete --before <duration>` — drop traces older than the
 /// given duration; complement to `--keep N` (count-based).
-let executeClearBefore(
-  state: Cli.AppState,
-  durationStr: String)
-  : Cli.AppState =
+let executeClearBefore(state: AppState, durationStr: String): AppState =
   match parseDuration(durationStr) with
-  | Error(msg) ->
-    refuse(state, msg)
+  | Error(msg) -> refuse(state, msg)
   | Ok(duration) ->
     let now = Stdlib.DateTime.now()
     // cleanup
-    let cutoffDt =
-      Stdlib.DateTime.subtractSeconds(now, Stdlib.Duration.toSeconds(duration))
+    let cutoffDt = Stdlib.DateTime.subtractSeconds(now, Stdlib.Duration.toSeconds(duration))
     let cutoff = Stdlib.display(cutoffDt)
-    let count = Darklang.Tracing.Store.clearBefore(cutoff)
+    let count = Tracing.Store.clearBefore(cutoff)
     match count with
     | 0 ->
-      Cli.Stderr.line($"no kept trace is older than {durationStr}")
+      Stderr.line($"no kept trace is older than {durationStr}")
       state
     | _ ->
-      Stdlib.printLine(
-        $"deleted {Cli.Text.plural(count, "trace")} older than {durationStr}")
+      Stdlib.printLine($"deleted {Text.plural(count, "trace")} older than {durationStr}")
       state
 
 
 /// `traces delete <id>` — remove one trace and its fn_calls. ID accepts
 /// the same prefix-resolution as view/rerun.
-let executeDelete(state: Cli.AppState, traceID: String): Cli.AppState =
-  let deleted = Darklang.Tracing.Store.delete(traceID)
+let executeDelete(state: AppState, traceID: String): AppState =
+  let deleted = Tracing.Store.delete(traceID)
   match deleted with
-  | 0 ->
-    refuse(state, $"no trace whose id starts with {traceID} -- `dark traces` lists them")
+  | 0 -> refuse(state, $"no trace whose id starts with {traceID} -- `dark traces` lists them")
   | _ ->
-    Stdlib.printLine($"deleted {Cli.Text.shortIdText(traceID)}")
+    Stdlib.printLine($"deleted {Text.shortIdText(traceID)}")
     state
 
 
 /// `traces delete --keep <N>` — keep the N most-recent traces, drop the
 /// rest (with their fn_calls). For bounded retention as the trace store
 /// grows; pair with `traces delete --all` for a full wipe.
-let executePruneKeep(state: Cli.AppState, keepN: Int64): Cli.AppState =
+let executePruneKeep(state: AppState, keepN: Int64): AppState =
   if keepN < 0 then
     refuse(state, "--keep takes a number of traces to keep, so it cannot be negative")
   else
-    let deleted = Darklang.Tracing.Store.pruneKeep(keepN)
+    let deleted = Tracing.Store.pruneKeep(keepN)
     match deleted with
     | 0 ->
-      Cli.Stderr.line(
-        $"already at or below {Stdlib.display(keepN)} traces; nothing to delete")
+      Stderr.line($"already at or below {Stdlib.display(keepN)} traces; nothing to delete")
       state
     | _ ->
       let keptPhrase =
-        if keepN == 0 then "none kept"
-        else if keepN == 1 then "kept the most-recent"
-        else $"kept the {Stdlib.display(keepN)} most-recent"
-      Stdlib.printLine($"deleted {Cli.Text.plural(deleted, "trace")}; {keptPhrase}")
+        if keepN == 0 then
+          "none kept"
+        else if keepN == 1 then
+          "kept the most-recent"
+        else
+          $"kept the {Stdlib.display(keepN)} most-recent"
+
+      Stdlib.printLine($"deleted {Text.plural(deleted, "trace")}; {keptPhrase}")
       state
 
 
-let complete(_state: Cli.AppState, args: List<String>): List<Completion.CompletionItem> =
+let complete(_state: AppState, args: List<String>): List<Completion.CompletionItem> =
   match args with
   | [] ->
     // Every verb the help lists, in the help's order, so the two cannot drift.
@@ -1728,22 +1626,16 @@ let complete(_state: Cli.AppState, args: List<String>): List<Completion.Completi
       Completion.simple("record")
       Completion.simple("delete")
       Completion.simple("help") ]
-  | [ "list" ] ->
-    [ Completion.simple("--fn")
-      Completion.simple("--route")
-      Completion.simple("--json") ]
-  | [ "tail" ] -> [ Completion.simple("--route") ]
-  | [ "follow" ] ->
-    [ Completion.simple("--route"), Completion.simple("--json") ]
-  | [ "find" ] ->
-    [ Completion.simple("--inspect"), Completion.simple("--json") ]
-  | [ "delete" ] ->
-    [ Completion.simple("--all")
-      Completion.simple("--keep")
-      Completion.simple("--before") ]
-  | [ "stats" ] -> [ Completion.simple("--json") ]
-  | [ "hotspots" ] -> [ Completion.simple("--json") ]
-  | [ "record" ] -> [ Completion.simple("on"), Completion.simple("off") ]
+  | ["list"] ->
+    [ Completion.simple("--fn"), Completion.simple("--route"), Completion.simple("--json") ]
+  | ["tail"] -> [ Completion.simple("--route") ]
+  | ["follow"] -> [ Completion.simple("--route"), Completion.simple("--json") ]
+  | ["find"] -> [ Completion.simple("--inspect"), Completion.simple("--json") ]
+  | ["delete"] ->
+    [ Completion.simple("--all"), Completion.simple("--keep"), Completion.simple("--before") ]
+  | ["stats"] -> [ Completion.simple("--json") ]
+  | ["hotspots"] -> [ Completion.simple("--json") ]
+  | ["record"] -> [ Completion.simple("on"), Completion.simple("off") ]
   // After `traces inspect <trace>` the next token is a flag. Only the ones that still mean something:
   // the tree flags are refused by name, and offering them would be a trap.
   | ["inspect", _, ...] ->
@@ -1753,27 +1645,20 @@ let complete(_state: Cli.AppState, args: List<String>): List<Completion.Completi
       Completion.simple("--slow-ms")
       Completion.simple("--all")
       Completion.simple("--json") ]
-  | [ "show", _ ] ->
-    [ Completion.simple("--watch")
-      Completion.simple("--json")
-      Completion.simple("--iteration") ]
+  | ["show", _] ->
+    [ Completion.simple("--watch"), Completion.simple("--json"), Completion.simple("--iteration") ]
   // After a value-taking flag, the next token is a user-supplied
   // substring/path — no canonical completion to suggest. Returning
   // an empty list forces the user to type a value rather than
   // tab-cycling through the wrong flags.
-  | [ "list", "--fn" ]
-  | [ "list", "--route" ]
-  | [ "tail", "--route" ]
-  | [ "follow", "--route" ] -> []
-  | ["find", _, ...] ->
-    [ Completion.simple("--inspect"), Completion.simple("--json") ]
+  | ["list", "--fn"] | ["list", "--route"] | ["tail", "--route"] | ["follow", "--route"] -> []
+  | ["find", _, ...] -> [ Completion.simple("--inspect"), Completion.simple("--json") ]
   | ["tail", _, ...] -> [ Completion.simple("--route") ]
-  | ["list", _, ...] ->
-    [ Completion.simple("--json") ]
+  | ["list", _, ...] -> [ Completion.simple("--json") ]
   | _ -> []
 
 
-let help(_state: Cli.AppState): String =
+let help(_state: AppState): String =
   [ "Every `dark eval`, `dark run` and served request can be kept here as a TRACE: what it was"
     "given, where it stands, and every impure call it made, in order. A trace can be looked"
     "at, taken forward, branched, and read back beside the code that made it."

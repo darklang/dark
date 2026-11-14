@@ -1,7 +1,6 @@
 /// Manage the state and lifecycle of one terminal UI session.
 module Darklang.Stdlib.Cli.Tui.TerminalSession
 
-
 /// The terminal surface currently owned by the session.
 type Status =
   | Stopped
@@ -12,8 +11,8 @@ type Status =
 /// Retained presentation state for one terminal UI session.
 type State =
   { status: Status
-    previousView: Stdlib.Option.Option<Tui.View>
-    terminalSize: Stdlib.Option.Option<Tui.Size> }
+    previousView: Option<View>
+    terminalSize: Option<Size> }
 
 
 /// A state transition and terminal update prepared without writing.
@@ -26,36 +25,38 @@ type Prepared =
 
 module Ansi =
   val enterAlternateScreen = "\u001b[?1049h"
+
   val exitAlternateScreen = "\u001b[?1049l"
+
   val showCursor = "\u001b[?25h"
+
   val resetStyle = "\u001b[0m"
+
   val resetScrollRegion = "\u001b[r"
+
   val beginSynchronizedOutput = "\u001b[?2026h"
+
   val endSynchronizedOutput = "\u001b[?2026l"
+
 
   val restoreInlineModes =
     // Inline sessions do not own an enclosing application's scroll region.
     // Normal cleanup restores only modes the inline renderer changes.
     resetStyle + showCursor
 
+
   val restoreFullscreenModes =
-    resetStyle
-    + resetScrollRegion
-    + showCursor
-    + exitAlternateScreen
-    + showCursor
+    resetStyle + resetScrollRegion + showCursor + exitAlternateScreen + showCursor
+
 
   // Fallback restoration always ends a possibly interrupted synchronized
   // update before resetting terminal state.
   // Emergency recovery is deliberately stronger: an interrupted process may
   // have left an unknown scroll region behind.
-  val restoreInline =
-    endSynchronizedOutput
-    + resetStyle
-    + resetScrollRegion
-    + showCursor
+  val restoreInline = endSynchronizedOutput + resetStyle + resetScrollRegion + showCursor
 
   val restoreFullscreen = endSynchronizedOutput + restoreFullscreenModes
+
 
   /// Wrap a non-empty update in synchronized-output markers.
   ///
@@ -70,11 +71,7 @@ module Ansi =
 
 /// Create a stopped session with no retained view.
 let init(): State =
-  State {
-    status = Status.Stopped
-    previousView = Stdlib.Option.Option.None
-    terminalSize = Stdlib.Option.Option.None
-  }
+  State { status = Status.Stopped, previousView = Option.None, terminalSize = Option.None }
 
 
 let armRestoreGuard(sequence: String): Unit =
@@ -86,51 +83,43 @@ let disarmRestoreGuard(): Unit =
 
 
 /// Return the session status for a view mode.
-let statusForMode(mode: Tui.ViewMode): Status =
+let statusForMode(mode: ViewMode): Status =
   match mode with
   | Fullscreen -> Status.RunningFullscreen
   | Inline -> Status.RunningInline
 
 
 /// Return the fallback restoration sequence for a view mode.
-let restoreForMode(mode: Tui.ViewMode): String =
+let restoreForMode(mode: ViewMode): String =
   match mode with
   | Fullscreen -> Ansi.restoreFullscreen
   | Inline -> Ansi.restoreInline
 
 
 /// Return whether presenting a mode moves to a different terminal surface.
-let changesSurface(status: Status, mode: Tui.ViewMode): Bool =
+let changesSurface(status: Status, mode: ViewMode): Bool =
   match status, statusForMode(mode) with
-  | RunningInline, RunningInline
-  | RunningFullscreen, RunningFullscreen -> false
-  | Stopped, RunningInline
-  | Stopped, RunningFullscreen
-  | RunningInline, RunningFullscreen
-  | RunningFullscreen, RunningInline -> true
-  | Stopped, Stopped
-  | RunningInline, Stopped
-  | RunningFullscreen, Stopped -> false
+  | (RunningInline, RunningInline) | (RunningFullscreen, RunningFullscreen) -> false
+  | (Stopped, RunningInline)
+  | (Stopped, RunningFullscreen)
+  | (RunningInline, RunningFullscreen)
+  | (RunningFullscreen, RunningInline) ->
+    true
+  | (Stopped, Stopped) | (RunningInline, Stopped) | (RunningFullscreen, Stopped) -> false
 
 
 /// Build the terminal control prefix needed to present a view mode.
-let transitionOutput(status: Status, mode: Tui.ViewMode): String =
+let transitionOutput(status: Status, mode: ViewMode): String =
   match status, mode with
-  | Stopped, Fullscreen
-  | RunningInline, Fullscreen -> Ansi.enterAlternateScreen
+  | (Stopped, Fullscreen) | (RunningInline, Fullscreen) -> Ansi.enterAlternateScreen
   | RunningFullscreen, Inline -> Ansi.restoreFullscreenModes
-  | Stopped, Inline
-  | RunningInline, Inline
-  | RunningFullscreen, Fullscreen -> ""
+  | (Stopped, Inline) | (RunningInline, Inline) | (RunningFullscreen, Fullscreen) -> ""
 
 
 /// Read and normalize the current terminal viewport dimensions.
-let currentSize(): Tui.Size =
-  let (width, height) = Darklang.Cli.Terminal.getSize()
-  Tui.Size {
-    width = Stdlib.max(1, width)
-    height = Stdlib.max(1, height)
-  }
+let currentSize(): Size =
+  let (width, height) = Cli.Terminal.getSize()
+  Size { width = max(1, width), height = max(1, height) }
 
 
 /// Constrain a logical view to the sampled terminal.
@@ -142,54 +131,43 @@ let currentSize(): Tui.Size =
 /// Dynamic row content is sanitized and clipped only when a changed row is
 /// emitted. Keeping raw logical rows here makes unchanged frames cheap while
 /// the renderer remains the single terminal-safety boundary.
-let normalizeView(
-  size: Tui.Size,
-  view: Tui.View)
-  : Tui.View =
-  let width = Stdlib.max(1, size.width)
-  let height = Stdlib.max(1, size.height)
-
+let normalizeView(size: Size, view: View): View =
+  let width = max(1, size.width)
+  let height = max(1, size.height)
   match view.mode with
   | Fullscreen ->
     let rows =
-      if Stdlib.List.length(view.rows) <= height then
+      if List.length(view.rows) <= height then
         view.rows
       else
-        Stdlib.List.take(view.rows, height)
+        List.take(view.rows, height)
+
     let cursor =
       match view.cursor with
-      | Hidden -> Tui.Cursor.Hidden
+      | Hidden -> Cursor.Hidden
       | Visible(row, column) ->
-        Tui.Cursor.Visible(
-          Stdlib.min(height - 1, Stdlib.max(0, row)),
-          Stdlib.min(width - 1, Stdlib.max(0, column)))
+        Cursor.Visible(min(height - 1, max(0, row)), min(width - 1, max(0, column)))
 
-    { view with
-        rows = rows
-        cursor = cursor }
+    { view with rows = rows, cursor = cursor }
   | Inline ->
-    let rowCount = Stdlib.List.length(view.rows)
-    let maxOffset = Stdlib.max(0, rowCount - height)
+    let rowCount = List.length(view.rows)
+    let maxOffset = max(0, rowCount - height)
     let desiredOffset =
       match view.cursor with
       | Hidden -> 0
-      | Visible(row, _) ->
-        if row >= height then row - height + 1 else 0
-    let offset =
-      Stdlib.min(maxOffset, Stdlib.max(0, desiredOffset))
+      | Visible(row, _) -> if row >= height then row - height + 1 else 0
+
+    let offset = min(maxOffset, max(0, desiredOffset))
     let visibleRows =
       view.rows
-      |> Stdlib.List.drop(offset)
-      |> Stdlib.List.take(height)
+      |> List.drop(offset)
+      |> List.take(height)
+
     let cursor =
       match view.cursor with
-      | Hidden -> Tui.Cursor.Hidden
+      | Hidden -> Cursor.Hidden
       | Visible(row, column) ->
-        Tui.Cursor.Visible(
-          Stdlib.min(
-            height - 1,
-            Stdlib.max(0, row - offset)),
-          Stdlib.min(width - 1, Stdlib.max(0, column)))
+        Cursor.Visible(min(height - 1, max(0, row - offset)), min(width - 1, max(0, column)))
 
     { view with rows = visibleRows, cursor = cursor }
 
@@ -199,63 +177,42 @@ let normalizeView(
 /// Moving between terminal surfaces or changing viewport size invalidates the
 /// retained view so the surface receives a complete redraw. Otherwise only
 /// changed rows are emitted.
-let preparePresentAtSize(
-  state: State,
-  size: Tui.Size,
-  next: Tui.View)
-  : Prepared =
+let preparePresentAtSize(state: State, size: Size, next: View): Prepared =
   let next = normalizeView(size, next)
   let surfaceChanged = changesSurface(state.status, next.mode)
-  let sizeChanged =
-    state.terminalSize != Stdlib.Option.Option.Some(size)
-
+  let sizeChanged = state.terminalSize != Option.Some(size)
   let frameOutput =
     match next.mode with
     | Fullscreen ->
       if surfaceChanged then
-        Frame.renderAtWidth(size.width, Stdlib.Option.Option.None, next)
+        Frame.renderAtWidth(size.width, Option.None, next)
       else if sizeChanged then
         Frame.renderFullAtWidth(size.width, state.previousView, next)
       else
         Frame.renderAtWidth(size.width, state.previousView, next)
     | Inline ->
       if surfaceChanged then
-        InlineFrame.renderAtWidth(
-          size.width,
-          Stdlib.Option.Option.None,
-          next)
+        InlineFrame.renderAtWidth(size.width, Option.None, next)
       else if sizeChanged then
-        InlineFrame.renderFullAtWidth(
-          size.width,
-          state.previousView,
-          next)
+        InlineFrame.renderFullAtWidth(size.width, state.previousView, next)
       else
         InlineFrame.renderAtWidth(size.width, state.previousView, next)
 
-  let output =
-    Ansi.wrapUpdate(
-      transitionOutput(state.status, next.mode) + frameOutput)
-
-  Prepared {
-    state =
-      State {
-        status = statusForMode(next.mode)
-        previousView = Stdlib.Option.Option.Some(next)
-        terminalSize = Stdlib.Option.Option.Some(size)
-      }
-    output = output
-  }
+  let output = Ansi.wrapUpdate(transitionOutput(state.status, next.mode) + frameOutput)
+  Prepared
+    { state =
+        State
+          { status = statusForMode(next.mode)
+            previousView = Option.Some(next)
+            terminalSize = Option.Some(size) }
+      output = output }
 
 
 /// Present a view at a previously sampled terminal size.
 ///
 /// This is useful when a layout needs to use the same size sample that the
 /// session records for resize detection.
-let presentAtSize(
-  state: State,
-  size: Tui.Size,
-  next: Tui.View)
-  : State =
+let presentAtSize(state: State, size: Size, next: View): State =
   let prepared = preparePresentAtSize(state, size, next)
   let surfaceChanged = changesSurface(state.status, next.mode)
 
@@ -264,20 +221,15 @@ let presentAtSize(
   if surfaceChanged then
     match state.status, next.mode with
     | RunningFullscreen, Inline -> ()
-    | _, mode ->
-      armRestoreGuard(restoreForMode(mode))
+    | _, mode -> armRestoreGuard(restoreForMode(mode))
 
-  if prepared.output == "" then
-    ()
-  else
-    Stdlib.print(prepared.output)
+  if prepared.output == "" then () else print(prepared.output)
 
   // `arm` waits for earlier queued output, so this only weakens the guard after
   // the fullscreen exit and inline redraw have physically completed.
   if surfaceChanged then
     match state.status, next.mode with
-    | RunningFullscreen, Inline ->
-      armRestoreGuard(Ansi.restoreInline)
+    | RunningFullscreen, Inline -> armRestoreGuard(Ansi.restoreInline)
     | _ -> ()
 
   prepared.state
@@ -287,7 +239,7 @@ let presentAtSize(
 ///
 /// Empty updates are not written. `Stdlib.print` queues each non-empty update
 /// as one complete value for the host's single `Console.Write`.
-let present(state: State, next: Tui.View): State =
+let present(state: State, next: View): State =
   presentAtSize(state, currentSize(), next)
 
 
@@ -295,30 +247,23 @@ let present(state: State, next: Tui.View): State =
 ///
 /// Terminal support is checked before writing any terminal control sequences.
 /// Continuing an existing session uses `presentAtSize`.
-let startAtSize(
-  size: Tui.Size,
-  next: Tui.View)
-  : Stdlib.Result.Result<State, String> =
+let startAtSize(size: Size, next: View): Result<State, String> =
   match TerminalSupport.current() with
-  | Available ->
-    presentAtSize(init(), size, next)
-    |> Stdlib.Result.Result.Ok
+  | Available -> presentAtSize(init(), size, next) |> Result.Ok
   | Unavailable(reason) ->
     reason
     |> TerminalSupport.unavailableMessage
-    |> Stdlib.Result.Result.Error
+    |> Result.Error
 
 
 /// Start a terminal session using the current terminal size.
-let start(next: Tui.View): Stdlib.Result.Result<State, String> =
+let start(next: View): Result<State, String> =
   match TerminalSupport.current() with
-  | Available ->
-    present(init(), next)
-    |> Stdlib.Result.Result.Ok
+  | Available -> present(init(), next) |> Result.Ok
   | Unavailable(reason) ->
     reason
     |> TerminalSupport.unavailableMessage
-    |> Stdlib.Result.Result.Error
+    |> Result.Error
 
 
 /// The session a page should hold when it's resumed from the page stack, given how it renders itself.
@@ -329,7 +274,7 @@ let start(next: Tui.View): Stdlib.Result.Result<State, String> =
 ///
 /// Falls back to a blank session if the terminal has become unavailable, so a resume can't fail the caller.
 /// Every `SubApp.onResume` is this plus rebuilding the app around the result.
-let resumed(viewFor: Tui.Size -> Tui.View): State =
+let resumed(viewFor: Size -> View): State =
   let size = currentSize()
   match startAtSize(size, viewFor(size)) with
   | Ok(session) -> session
@@ -352,12 +297,10 @@ let prepareStop(state: State): Prepared =
 /// Stop the session and restore terminal state with one stdout write.
 let stop(state: State): State =
   let prepared = prepareStop(state)
-
   match state.status with
   | Stopped -> ()
-  | RunningInline
-  | RunningFullscreen ->
-    Stdlib.print(prepared.output)
+  | RunningInline | RunningFullscreen ->
+    print(prepared.output)
     // The builtin waits until the queued restoration has reached stdout.
     disarmRestoreGuard()
 
@@ -371,44 +314,31 @@ let stop(state: State): State =
 /// rows such as completion hints are dropped, or every row for a discarded
 /// prompt — and the cursor parks on the final view's last row so subsequent
 /// output begins on the following line.
-let prepareStopInlineWithView(
-  state: State,
-  final: Tui.View)
-  : Prepared =
+let prepareStopInlineWithView(state: State, final: View): Prepared =
   match state.status with
   | RunningInline ->
     let (width, final) =
       match state.terminalSize with
-      | Some(size) -> (Stdlib.max(1, size.width), normalizeView(size, final))
+      | Some(size) -> (max(1, size.width), normalizeView(size, final))
       | None ->
         // Unreachable: a running session always recorded a size. Sampling degrades to a maybe-stale
         // width; a guess like `1` would clip every row to a single column.
         let size = currentSize()
-        (Stdlib.max(1, size.width), normalizeView(size, final))
-    let parked = { final with cursor = Tui.Cursor.Hidden }
-    let parkOutput =
-      InlineFrame.renderAtWidth(width, state.previousView, parked)
+        (max(1, size.width), normalizeView(size, final))
 
-    Prepared {
-      state = init()
-      output =
-        Ansi.wrapUpdate(
-          parkOutput + Ansi.restoreInlineModes)
-    }
-  | Stopped
-  | RunningFullscreen ->
-    prepareStop(state)
+    let parked = { final with cursor = Cursor.Hidden }
+    let parkOutput = InlineFrame.renderAtWidth(width, state.previousView, parked)
+    Prepared { state = init(), output = Ansi.wrapUpdate(parkOutput + Ansi.restoreInlineModes) }
+  | Stopped | RunningFullscreen -> prepareStop(state)
 
 
 /// Stop an inline session on a final view with one logical terminal update.
-let stopInlineWithView(state: State, final: Tui.View): State =
+let stopInlineWithView(state: State, final: View): State =
   let prepared = prepareStopInlineWithView(state, final)
-
   match state.status with
   | Stopped -> ()
-  | RunningInline
-  | RunningFullscreen ->
-    Stdlib.print(prepared.output)
+  | RunningInline | RunningFullscreen ->
+    print(prepared.output)
     disarmRestoreGuard()
 
   prepared.state

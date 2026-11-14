@@ -1,6 +1,5 @@
 module Darklang.Cli.Help
 
-
 let execute(state: AppState, args: List<String>): AppState =
   match args with
   | [] ->
@@ -15,13 +14,15 @@ let execute(state: AppState, args: List<String>): AppState =
     if known then
       Registry.executeCommandHelp(commandName, state)
     else
-      Cli.printErr($"No command called `{commandName}`.")
-      Cli.printHint("  `dark help` lists them.")
-      Cli.failed(state)
+      printErr($"No command called `{commandName}`.")
+      printHint("  `dark help` lists them.")
+      failed(state)
   | _ ->
-    Cli.printErr("Usage: help [command]")
-    Stdlib.printErrorLine("Too many arguments. Use 'help' for general help or 'help <command>' for specific help.")
-    Cli.failed(state)
+    printErr("Usage: help [command]")
+    Stdlib.printErrorLine(
+      "Too many arguments. Use 'help' for general help or 'help <command>' for specific help.")
+
+    failed(state)
 
 
 let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =
@@ -29,7 +30,6 @@ let complete(state: AppState, args: List<String>): List<Completion.CompletionIte
 
 
 let help(_state: AppState): String =
-
   // CLEANUP I wanted this somewhere but couldn't decide where.
   let swatches =
     [ Stdlib.Cli.UI.Colors.purpleBg
@@ -46,15 +46,13 @@ let help(_state: AppState): String =
     |> Stdlib.List.map(fun color -> $"{color}  {Stdlib.Cli.UI.Colors.reset}")
     |> Stdlib.String.join("")
 
-  [
-    swatches
-    (Stdlib.Cli.UI.Colors.info("Usage: ") + Stdlib.Cli.UI.Colors.command("help [command]"))
+  [ swatches
+    Stdlib.Cli.UI.Colors.info("Usage: ") + Stdlib.Cli.UI.Colors.command("help [command]")
     "Show general help or help for a specific command."
     ""
-    (Stdlib.Cli.UI.Colors.info("Examples:"))
-    ("  " + Stdlib.Cli.UI.Colors.command("help") + "        - Show all available commands")
-    ("  " + Stdlib.Cli.UI.Colors.command("help quit") + "   - Show help for the quit command")
-  ]
+    Stdlib.Cli.UI.Colors.info("Examples:")
+    "  " + Stdlib.Cli.UI.Colors.command("help") + "        - Show all available commands"
+    "  " + Stdlib.Cli.UI.Colors.command("help quit") + "   - Show help for the quit command" ]
   |> Stdlib.String.join("\n")
 
 // CLEANUP I think there's other `help` stuff we can move here

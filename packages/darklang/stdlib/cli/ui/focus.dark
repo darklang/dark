@@ -7,7 +7,8 @@ type Focus =
   | Focused
   | Unfocused
 
+
 module Focus =
   /// {{Focused}} when <param focused> is true, for focus worked out from state.
-  let fromBool(focused: Bool): Stdlib.Cli.UI.Focus =
-    if focused then Stdlib.Cli.UI.Focus.Focused else Stdlib.Cli.UI.Focus.Unfocused
+  let fromBool(focused: Bool): Focus =
+    if focused then Focus.Focused else Focus.Unfocused

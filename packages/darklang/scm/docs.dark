@@ -20,7 +20,7 @@ let at(
 let find(
   docs: List<(LanguageTools.ProgramTypes.DocPart * String)>,
   part: LanguageTools.ProgramTypes.DocPart)
-  : Stdlib.Option.Option<String> =
+  : Option<String> =
   docs
   |> Stdlib.List.findFirst(fun pair ->
     let (p, _) = pair
@@ -39,12 +39,10 @@ let overlay(
   location: LanguageTools.ProgramTypes.PackageLocation,
   declared: List<(LanguageTools.ProgramTypes.DocPart * String)>)
   : List<(LanguageTools.ProgramTypes.DocPart * String)> =
-  let own = Docs.at(branchId, location)
-
+  let own = at(branchId, location)
   declared
   |> Stdlib.List.map(fun pair ->
     let (part, declaredText) = pair
-
-    match Docs.find(own, part) with
+    match find(own, part) with
     | Some(ownText) -> (part, ownText)
     | None -> (part, declaredText))

@@ -6,7 +6,6 @@
 /// `dark run --stats`. Every field <fn get> reports is listed in `scripts/perf/README.md`.
 module Darklang.LanguageTools.InterpreterStats
 
-
 /// Zero the counters, and start counting if they weren't already.
 let reset(): Unit =
   Builtin.interpreterStatsReset()

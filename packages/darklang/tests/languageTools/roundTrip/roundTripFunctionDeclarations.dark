@@ -9,68 +9,84 @@ test functionDeclarations =
         "function doc comment",
         "/// Greets a user\nlet greet(name: String): String = \"Hello \" + name",
         "/// Greets a user\nlet greet(name: String): String =\n  \"Hello \" + name")
+
       roundTrip(
         "nested fn type in parameter",
         "let apply(f: (Int64 -> String) -> Bool): Bool = true",
         "let apply(f: (Int64 -> String) -> Bool): Bool =\n  true")
+
       roundTrip(
         "nested fn type in return",
         "let curry(): Int64 -> (String -> Bool) = fun(x, y) -> true",
         "let curry(): Int64 -> (String -> Bool) =\n  (fun(x, y) -> true)")
+
       roundTrip(
         "single builtin param",
         "let helloWorld(i: Int64): String = \"Hello world\"",
         "let helloWorld(i: Int64): String =\n  \"Hello world\"")
+
       roundTrip(
         "single package param",
         "let double2(i: LanguageTools.ID): Int64 = (i + i)",
         "let double2(i: LanguageTools.ID): Int64 =\n  i + i")
+
       // `()` is stored as one parameter named `_` of type Unit, and prints back as `()`.
       roundTrip(
         "single unit param",
         "let emptyString(): String = \"\"",
         "let emptyString(): String =\n  \"\"")
+
       // The long form parses to the same thing and normalizes to `()`, so either spelling round-trips.
       roundTrip(
         "single unit param, written long",
         "let emptyString(_: Unit): String = \"\"",
         "let emptyString(): String =\n  \"\"")
+
       roundTrip(
         "multiple param",
         "let isHigher(a: Int64, b: Int64): Bool =\n  a > b",
         "let isHigher(a: Int64, b: Int64): Bool =\n  a > b")
+
       roundTrip(
         "single type param",
         "let myFn<'a>(param: 'a): Unit  = ()",
         "let myFn(param: 'a): Unit =\n  ()")
+
       roundTrip(
         "two type params",
         "let myFn<'a, 'b>(paramOne: 'a, paramTwo: 'b): Unit = ()",
         "let myFn(paramOne: 'a, paramTwo: 'b): Unit =\n  ()")
+
       roundTrip(
         "package fn call",
         "let sum(a : Int64, b : Int64): Int64 =\n  a + b",
         "let sum(a: Int64, b: Int64): Int64 =\n  a + b")
+
       roundTrip(
         "fn declaration with newline",
         "let myFn(\n  a: String,\n  b: Int64,\n  c: Bool)\n  : Bool =\n  true",
         "let myFn(a: String, b: Int64, c: Bool): Bool =\n  true")
+
       roundTrip(
         "fn declaration with indented body",
         "let helloPerson(name: String): String =\n  let greeting = \"Hello \"\n  greeting + name",
         "let helloPerson(name: String): String =\n  let greeting = \"Hello \"\n  greeting + name")
+
       roundTrip(
         "self reference recursive call",
         "let factorial(n: Int64): Int64 =\n  if n <= 1 then\n    1\n  else\n    n * (factorial(n - 1))",
         "let factorial(n: Int64): Int64 =\n  if n <= 1 then 1 else n * factorial(n - 1)")
+
       roundTrip(
         "self reference, shadowed name",
         "let incr(y: Int64, z: Int64): Int64 =\n  if z <= 0 then\n    y\n  else\n    let result = incr(y, z - 1)\n    let incr = (fun x -> x + 2)\n    let lambdaResult = incr(z)\n    result + lambdaResult",
         "let incr(y: Int64, z: Int64): Int64 =\n  if z <= 0 then\n    y\n  else\n    let result = incr(y, z - 1)\n    let incr = fun x -> x + 2\n    let lambdaResult = incr(z)\n    result + lambdaResult")
+
       roundTrip(
         "keyword-named parameter",
         "let f(`in`: String): String = `in`",
         "let f(`in`: String): String =\n  `in`")
+
       roundTrip(
         "keyword-named fn, and a call to it",
         "let `match`(s: String): String = s\nlet g(): String = `match`(\"x\")",

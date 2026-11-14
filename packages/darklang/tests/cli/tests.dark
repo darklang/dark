@@ -3,10 +3,6 @@
 /// Tests that launch commands run in disposable processes and stores.
 module Darklang.Cli.Tests.TestSuite
 
-
-
-
-
 /// The binary these tests drive.
 ///
 /// Defaults to the dev wrapper, which is what you want locally. CI points it at
@@ -26,8 +22,8 @@ let cliUnderTest(): String =
 /// on any stray diagnostic line.
 let callOutput(result: Stdlib.Cli.ExecutionOutcome): String =
   let out = Stdlib.String.trim(result.stdout)
-
-  if out != "" then out
+  if out != "" then
+    out
   else
     let err = Stdlib.String.trim(result.stderr)
     if err == "" then "" else $"ERROR: {err}"
@@ -39,10 +35,9 @@ let runWithCommand(args: List<String>): String =
     args
     |> Stdlib.List.map(Stdlib.Cli.Process.shellQuote)
     |> Stdlib.String.join(" ")
-  let command =
-    (Stdlib.Cli.Process.shellQuote(cliUnderTest())) + " " + argsString
-  let result = Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", command)
 
+  let command = Stdlib.Cli.Process.shellQuote(cliUnderTest()) + " " + argsString
+  let result = Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", command)
   callOutput(result)
 
 
@@ -53,8 +48,8 @@ let runWithBothStreams(args: List<String>): String =
     args
     |> Stdlib.List.map(Stdlib.Cli.Process.shellQuote)
     |> Stdlib.String.join(" ")
-  let command =
-    (Stdlib.Cli.Process.shellQuote(cliUnderTest())) + " " + argsString
+
+  let command = Stdlib.Cli.Process.shellQuote(cliUnderTest()) + " " + argsString
   let result = Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", command)
   Stdlib.String.trim(result.stdout + "\n" + result.stderr)
 
@@ -66,6 +61,7 @@ let runWithStdinAndCommand(input: String, args: List<String>): String =
     args
     |> Stdlib.List.map(Stdlib.Cli.Process.shellQuote)
     |> Stdlib.String.join(" ")
+
   let input = Stdlib.Cli.Process.shellQuote(input)
   let cli = Stdlib.Cli.Process.shellQuote(cliUnderTest())
   let command = $"printf '%s' {input} | {cli} {argsString}"
@@ -89,21 +85,36 @@ test conflictWalkthrough =
   let parent = "cli-walk-parent-" + suffix
   let child = "cli-walk-child-" + suffix
   let fnName = "Tests.CliWalk.f" + suffix
-
   let _ = runWithCommand([ "branch", "create", parent ])
+
   // A shared base for the name: both sides have to move it from something.
-  let _ = runWithCommand([ "--branch", parent, "fn", "/" + fnName, "() : Int64 = 1" ])
+  let _ =
+    runWithCommand([ "--branch", parent, "fn", "/" + fnName, "() : Int64 = 1" ])
+
   let _ = runWithCommand([ "--branch", parent, "commit", "shared base", "-y" ])
+
   let _ = runWithCommand([ "--branch", parent, "branch", "create", child ])
-  let _ = runWithCommand([ "--branch", child, "fn", "/" + fnName, "() : Int64 = 222" ])
+
+  let _ =
+    runWithCommand(
+      [ "--branch", child, "fn", "/" + fnName, "() : Int64 = 222" ])
+
   let _ = runWithCommand([ "--branch", child, "commit", "child change", "-y" ])
-  let _ = runWithCommand([ "--branch", parent, "fn", "/" + fnName, "() : Int64 = 111" ])
-  let _ = runWithCommand([ "--branch", parent, "commit", "parent change", "-y" ])
+
+  let _ =
+    runWithCommand(
+      [ "--branch", parent, "fn", "/" + fnName, "() : Int64 = 111" ])
+
+  let _ =
+    runWithCommand([ "--branch", parent, "commit", "parent change", "-y" ])
 
   let merged = runWithCommand([ "--branch", child, "merge", child, "-y" ])
+
   let beforeJson = runWithCommand([ "--branch", parent, "conflicts", "--json" ])
   // `b` takes the other side, which is the answer that has to WRITE something.
-  let walked = runWithStdinAndCommand("b\n", [ "--branch", parent, "conflicts", "walk" ])
+  let walked =
+    runWithStdinAndCommand("b\n", [ "--branch", parent, "conflicts", "walk" ])
+
   let afterJson = runWithCommand([ "--branch", parent, "conflicts", "--json" ])
   let onMain = runWithCommand([ "--branch", "main", "eval", fnName + " ()" ])
 
@@ -111,17 +122,23 @@ test conflictWalkthrough =
   // on the passing path, and these branches are otherwise permanent.
   let _ = runWithCommand([ "branch", "archive", child, "-y" ])
   let _ = runWithCommand([ "branch", "archive", parent, "-y" ])
-
   if Stdlib.Bool.not(Stdlib.String.contains(merged, "conflict")) then
     Stdlib.Test.fail($"Expected the merge to record a conflict; got: {merged}")
-  else if Stdlib.Bool.not(Stdlib.String.contains(beforeJson, "\"pending\":1")) then
-    Stdlib.Test.fail($"Expected one pending conflict before the walk; got: {beforeJson}")
+  else if
+    Stdlib.Bool.not(Stdlib.String.contains(beforeJson, "\"pending\":1"))
+  then
+    Stdlib.Test.fail(
+      $"Expected one pending conflict before the walk; got: {beforeJson}")
   else if Stdlib.String.contains(walked, "ERROR:") then
     Stdlib.Test.fail($"`conflicts walk` failed: {walked}")
   else if Stdlib.Bool.not(Stdlib.String.contains(walked, "took theirs")) then
-    Stdlib.Test.fail($"Expected the walk to take the other side on `b`; got: {walked}")
-  else if Stdlib.Bool.not(Stdlib.String.contains(afterJson, "\"pending\":0")) then
-    Stdlib.Test.fail($"Expected nothing pending after the walk; got: {afterJson}")
+    Stdlib.Test.fail(
+      $"Expected the walk to take the other side on `b`; got: {walked}")
+  else if
+    Stdlib.Bool.not(Stdlib.String.contains(afterJson, "\"pending\":0"))
+  then
+    Stdlib.Test.fail(
+      $"Expected nothing pending after the walk; got: {afterJson}")
   else if Stdlib.Bool.not(Stdlib.String.contains(onMain, "not found")) then
     Stdlib.Test.fail(
       $"A conflict resolved between two branches reached MAIN. Got: {onMain}")
@@ -130,7 +147,7 @@ test conflictWalkthrough =
 
 
 test helpCommand =
-  let output = runWithCommand(["help"])
+  let output = runWithCommand([ "help" ])
 
   // Assert on the groups and a command from a few of them.
   //
@@ -138,21 +155,26 @@ test helpCommand =
   // the workbench's description, so it would have stayed green with the `nav` command deleted; "help",
   // "version" and "status" all appear in other commands' descriptions too. The row shape
   // (`  name (aliases) - `) is what `formatCommandGroup` emits and is unique per command.
-  if Stdlib.String.contains(output, "Packages:") &&
-      Stdlib.String.contains(output, "  nav (cd) -") &&
-      Stdlib.String.contains(output, "  ls (dir) -") &&
-      Stdlib.String.contains(output, "  version (--version, -v) -") &&
-      Stdlib.String.contains(output, "  status (wip, changes) -") then
-      Stdlib.Test.Result.Pass
+  if
+    Stdlib.String.contains(output, "Packages:")
+    && Stdlib.String.contains(output, "  nav (cd) -")
+    && Stdlib.String.contains(output, "  ls (dir) -")
+    && Stdlib.String.contains(output, "  version (--version, -v) -")
+    && Stdlib.String.contains(output, "  status (wip, changes) -")
+  then
+    Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail("Expected help grouped by category, with the nav/ls/version/status rows rendered")
+    Stdlib.Test.fail(
+      "Expected help grouped by category, with the nav/ls/version/status rows rendered")
 
 
 test versionCommand =
-  let output = runWithCommand(["version"])
-  if Stdlib.String.contains(output, "Darklang CLI") &&
-      Stdlib.String.contains(output, "alpha-") then
-      Stdlib.Test.Result.Pass
+  let output = runWithCommand([ "version" ])
+  if
+    Stdlib.String.contains(output, "Darklang CLI")
+    && Stdlib.String.contains(output, "alpha-")
+  then
+    Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail("Expected version string with 'Darklang CLI alpha-'")
 
@@ -160,10 +182,12 @@ test versionCommand =
 test statusCommand =
   // Two things, because `status` is the one signal you get while editing: WHERE you are, and WHAT you have.
   // The branch line matters most when several branches are in play, which is the normal case now.
-  let output = runWithCommand(["status"])
-  if Stdlib.String.contains(output, "On branch") &&
-      (Stdlib.String.contains(output, "clean:") ||
-       Stdlib.String.contains(output, "draft:")) then
+  let output = runWithCommand([ "status" ])
+  if
+    Stdlib.String.contains(output, "On branch")
+    && (Stdlib.String.contains(output, "clean:")
+        || Stdlib.String.contains(output, "draft:"))
+  then
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
@@ -172,19 +196,18 @@ test statusCommand =
 
 test evalBoolAnd =
   // `run` is for script files now; calling a package function is `eval`'s job, without the `@`.
-  expectExact(["eval", "Stdlib.Bool.and(true, false)"], "false")
+  expectExact([ "eval", "Stdlib.Bool.and(true, false)" ], "false")
 
 
-test evalInt64Add =
-  expectExact(["eval", "(5 + 3)"], "8")
+test evalInt64Add = expectExact([ "eval", "(5 + 3)" ], "8")
 
 
 test evalStringLength =
-  expectExact(["eval", "Stdlib.String.length(\"hello\")"], "5")
+  expectExact([ "eval", "Stdlib.String.length(\"hello\")" ], "5")
 
 
 test evalListLength =
-  expectExact(["eval", "[1, 2, 3] |> Stdlib.List.length"], "3")
+  expectExact([ "eval", "[1, 2, 3] |> Stdlib.List.length" ], "3")
 
 
 /// Create, update, and what happens to a module that does not type-check.
@@ -204,8 +227,9 @@ test moduleCommand =
       ""
       "let double(n: Int64): Int64 = n * 2"
       ""
-      "let quadruple(n: Int64): Int64 = double(double(n))"
-    ] |> Stdlib.String.join("\n")
+      "let quadruple(n: Int64): Int64 = double(double(n))" ]
+    |> Stdlib.String.join("\n")
+
   let updatedSource =
     [ "type Counter = { value: Int64 }"
       ""
@@ -213,52 +237,54 @@ test moduleCommand =
       ""
       "let double(n: Int64): Int64 = n * 3"
       ""
-      "let quadruple(n: Int64): Int64 = double(double(n))"
-    ] |> Stdlib.String.join("\n")
+      "let quadruple(n: Int64): Int64 = double(double(n))" ]
+    |> Stdlib.String.join("\n")
+
   let invalidSource =
     [ "type Wrapped = Wrap(Int64 * String)"
       ""
       "let shouldNotExist(value: Wrapped): Wrapped ="
       "  match value with"
-      "  | Wrap((number, text)) -> Wrapped.Wrap(number, text)"
-    ] |> Stdlib.String.join("\n")
+      "  | Wrap((number, text)) -> Wrapped.Wrap(number, text)" ]
+    |> Stdlib.String.join("\n")
+
   let initialPath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
+
   let updatedPath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
+
   let invalidPath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
+
   let _ =
-    (Stdlib.Cli.File.writeAtomic(initialPath, initialSource)) |> Builtin.unwrap
+    Stdlib.Cli.File.writeAtomic(initialPath, initialSource) |> Builtin.unwrap
+
   let _ =
-    (Stdlib.Cli.File.writeAtomic(updatedPath, updatedSource)) |> Builtin.unwrap
+    Stdlib.Cli.File.writeAtomic(updatedPath, updatedSource) |> Builtin.unwrap
+
   let _ =
-    (Stdlib.Cli.File.writeAtomic(invalidPath, invalidSource)) |> Builtin.unwrap
-  let _ = runWithCommand(["branch", "create", branchName])
+    Stdlib.Cli.File.writeAtomic(invalidPath, invalidSource) |> Builtin.unwrap
+
+  let _ = runWithCommand([ "branch", "create", branchName ])
+
   let moduleOutput =
     runWithCommand(
-      [ "--branch"
-        branchName
-        "module"
-        "/" + moduleName
-        initialPath ])
+      [ "--branch", branchName, "module", "/" + moduleName, initialPath ])
+
   let initialEval =
     runWithCommand(
       [ "--branch", branchName, "eval", moduleName + ".quadruple(3)" ])
+
   let updateOutput =
     runWithCommand(
-      [ "--branch"
-        branchName
-        "module"
-        "/" + moduleName
-        updatedPath ])
+      [ "--branch", branchName, "module", "/" + moduleName, updatedPath ])
+
   let updatedEval =
     runWithCommand(
       [ "--branch", branchName, "eval", moduleName + ".quadruple(3)" ])
+
   let invalidOutput =
     runWithBothStreams(
-      [ "--branch"
-        branchName
-        "module"
-        "/" + moduleName
-        invalidPath ])
+      [ "--branch", branchName, "module", "/" + moduleName, invalidPath ])
+
   let searchOutput =
     runWithCommand(
       [ "--branch"
@@ -267,14 +293,15 @@ test moduleCommand =
         moduleName + ".shouldNotExist"
         "--exact"
         "--fn" ])
+
   let afterInvalidEval =
     runWithCommand(
       [ "--branch", branchName, "eval", moduleName + ".quadruple(3)" ])
-  let _ = runWithCommand(["branch", "archive", branchName, "-y"])
+
+  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
   let _ = Stdlib.Cli.File.delete(initialPath)
   let _ = Stdlib.Cli.File.delete(updatedPath)
   let _ = Stdlib.Cli.File.delete(invalidPath)
-
   if
     Stdlib.String.contains(moduleOutput, "Defined 4 declarations")
     && initialEval == "12"
@@ -294,8 +321,9 @@ test moduleCommand =
         $"updated eval: {updatedEval}"
         $"invalid: {invalidOutput}"
         $"invalid item search: {searchOutput}"
-        $"eval after invalid: {afterInvalidEval}"
-      ] |> Stdlib.String.join("; ")
+        $"eval after invalid: {afterInvalidEval}" ]
+      |> Stdlib.String.join("; ")
+
     Stdlib.Test.fail(
       $"Expected atomic create, update, and rejection; got {details}")
 
@@ -307,14 +335,17 @@ test moduleRejectsDuplicateNames =
   let source =
     [ "let duplicate(n: Int64): Int64 = n"
       ""
-      "let duplicate(n: Int64): Int64 = n + 1"
-    ] |> Stdlib.String.join("\n")
+      "let duplicate(n: Int64): Int64 = n + 1" ]
+    |> Stdlib.String.join("\n")
+
   let sourcePath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
   let _ = Stdlib.Cli.File.writeAtomic(sourcePath, source) |> Builtin.unwrap
-  let _ = runWithCommand(["branch", "create", branchName])
+  let _ = runWithCommand([ "branch", "create", branchName ])
+
   let moduleOutput =
     runWithCommand(
       [ "--branch", branchName, "module", "/" + moduleName, sourcePath ])
+
   let searchOutput =
     runWithCommand(
       [ "--branch"
@@ -323,9 +354,9 @@ test moduleRejectsDuplicateNames =
         moduleName + ".duplicate"
         "--exact"
         "--fn" ])
-  let _ = runWithCommand(["branch", "archive", branchName, "-y"])
-  let _ = Stdlib.Cli.File.delete(sourcePath)
 
+  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
+  let _ = Stdlib.Cli.File.delete(sourcePath)
   if
     Stdlib.String.contains(moduleOutput, "duplicate declaration names")
     && Stdlib.String.contains(moduleOutput, "duplicate")
@@ -334,8 +365,8 @@ test moduleRejectsDuplicateNames =
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      ($"Expected duplicate declarations to be rejected without mutation; "
-       + $"module={moduleOutput}; search={searchOutput}"))
+      "Expected duplicate declarations to be rejected without mutation; "
+      + $"module={moduleOutput}; search={searchOutput}")
 
 
 // A module save that fails the type check says which function each error is in.
@@ -348,17 +379,18 @@ test moduleSaveNamesTheFunctionsWithTypeErrors =
       ""
       "let multipliesText(n: Int64): Int64 = n * \"y\""
       ""
-      "let fine(n: Int64): Int64 = n"
-    ] |> Stdlib.String.join("\n")
+      "let fine(n: Int64): Int64 = n" ]
+    |> Stdlib.String.join("\n")
+
   let sourcePath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
   let _ = Stdlib.Cli.File.writeAtomic(sourcePath, source) |> Builtin.unwrap
-  let _ = runWithCommand(["branch", "create", branchName])
+  let _ = runWithCommand([ "branch", "create", branchName ])
   let output =
     runWithBothStreams(
       [ "--branch", branchName, "module", "/" + moduleName, sourcePath ])
-  let _ = runWithCommand(["branch", "archive", branchName, "-y"])
-  let _ = Stdlib.Cli.File.delete(sourcePath)
 
+  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
+  let _ = Stdlib.Cli.File.delete(sourcePath)
   let namedAboveItsError(fnName: String): Bool =
     Stdlib.String.contains(
       output,
@@ -371,7 +403,8 @@ test moduleSaveNamesTheFunctionsWithTypeErrors =
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected each failing function named above its error; got {output}")
+    Stdlib.Test.fail(
+      $"Expected each failing function named above its error; got {output}")
 
 
 // Two functions with identical bodies share a hash, and the trait-calls line still names each.
@@ -384,17 +417,18 @@ test moduleSaveNamesEachIdenticalFunctionWithUnresolvedTraitCalls =
   let source =
     [ "let addsText(n: Int64): Int64 = Tests.CliModuleTraitCallsMissing.g(n) + 1"
       ""
-      "let addsTextToo(n: Int64): Int64 = Tests.CliModuleTraitCallsMissing.g(n) + 1"
-    ] |> Stdlib.String.join("\n")
+      "let addsTextToo(n: Int64): Int64 = Tests.CliModuleTraitCallsMissing.g(n) + 1" ]
+    |> Stdlib.String.join("\n")
+
   let sourcePath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
   let _ = Stdlib.Cli.File.writeAtomic(sourcePath, source) |> Builtin.unwrap
-  let _ = runWithCommand(["branch", "create", branchName])
+  let _ = runWithCommand([ "branch", "create", branchName ])
   let output =
     runWithBothStreams(
       [ "--branch", branchName, "module", "/" + moduleName, sourcePath ])
-  let _ = runWithCommand(["branch", "archive", branchName, "-y"])
-  let _ = Stdlib.Cli.File.delete(sourcePath)
 
+  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
+  let _ = Stdlib.Cli.File.delete(sourcePath)
   if
     Stdlib.String.contains(
       output,
@@ -402,7 +436,8 @@ test moduleSaveNamesEachIdenticalFunctionWithUnresolvedTraitCalls =
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected the trait-calls line to name each function once; got {output}")
+    Stdlib.Test.fail(
+      $"Expected the trait-calls line to name each function once; got {output}")
 
 
 // Merge a child into a throwaway parent so the test leaves no function on main.
@@ -412,35 +447,44 @@ test mergeRoundTrip =
   let parent = "cli-merge-parent-" + suffix
   let child = "cli-merge-child-" + suffix
   let fnName = "Tests.CliMerge.landed" + suffix
-
   let _ = runWithCommand([ "branch", "create", parent ])
+
   let _ = runWithCommand([ "--branch", parent, "branch", "create", child ])
+
   let _ =
-    runWithCommand(
-      [ "--branch", child, "fn", "/" + fnName, "() : Int64 = 7" ])
+    runWithCommand([ "--branch", child, "fn", "/" + fnName, "() : Int64 = 7" ])
+
   let _ = runWithCommand([ "--branch", child, "commit", "merge fixture", "-y" ])
 
   // --dry-run records nothing, so it has to answer the same question the merge does without doing it.
-  let dryRun = runWithCommand([ "--branch", child, "merge", child, "--dry-run" ])
+  let dryRun =
+    runWithCommand([ "--branch", child, "merge", child, "--dry-run" ])
+
   let merged = runWithCommand([ "--branch", child, "merge", child, "-y" ])
+
   let onParent = runWithCommand([ "--branch", parent, "eval", fnName + " ()" ])
+
   let onMain = runWithCommand([ "--branch", "main", "eval", fnName + " ()" ])
 
   // Archived before the assertions, because each arm returns and a trailing cleanup would only run
   // on the passing path.
   let _ = runWithCommand([ "branch", "archive", child, "-y" ])
-  let _ = runWithCommand([ "branch", "archive", parent, "-y" ])
 
+  let _ = runWithCommand([ "branch", "archive", parent, "-y" ])
   if Stdlib.String.contains(dryRun, "ERROR:") then
     Stdlib.Test.fail($"`merge --dry-run` failed: {dryRun}")
   else if Stdlib.Bool.not(Stdlib.String.contains(dryRun, parent)) then
-    Stdlib.Test.fail($"Expected `merge --dry-run` to name the parent it would merge into; got: {dryRun}")
+    Stdlib.Test.fail(
+      $"Expected `merge --dry-run` to name the parent it would merge into; got: {dryRun}")
   else if Stdlib.Bool.not(Stdlib.String.contains(dryRun, fnName)) then
-    Stdlib.Test.fail($"Expected `merge --dry-run` to list the name that would land; got: {dryRun}")
+    Stdlib.Test.fail(
+      $"Expected `merge --dry-run` to list the name that would land; got: {dryRun}")
   else if Stdlib.Bool.not(Stdlib.String.contains(merged, "Merged")) then
-    Stdlib.Test.fail($"Expected `merge` to report what it merged; got: {merged}")
+    Stdlib.Test.fail(
+      $"Expected `merge` to report what it merged; got: {merged}")
   else if onParent != "7" then
-    Stdlib.Test.fail($"Expected the merged fn to resolve on the parent as 7; got: {onParent}")
+    Stdlib.Test.fail(
+      $"Expected the merged fn to resolve on the parent as 7; got: {onParent}")
   else if onMain == "7" then
     Stdlib.Test.fail(
       $"A merge into \"{parent}\" reached MAIN -- the branch overlay leaked. Got: {onMain}")
@@ -455,28 +499,24 @@ test fnAcceptsCompleteDeclaration =
   let fnSource =
     [ "/// Greets someone by name."
       "let main(name: String): String ="
-      "  \"Hello, \" + name"
-    ] |> Stdlib.String.join("\n")
-  let mismatchedSource =
-    "let other(name: String): String = name"
-  let multipleSource =
-    [ "let extra(n: Int64): Int64 = n"
-      "let ignored(n: Int64): Int64 = n" ]
+      "  \"Hello, \" + name" ]
     |> Stdlib.String.join("\n")
+
+  let mismatchedSource = "let other(name: String): String = name"
+  let multipleSource =
+    [ "let extra(n: Int64): Int64 = n", "let ignored(n: Int64): Int64 = n" ]
+    |> Stdlib.String.join("\n")
+
   let _ = runWithCommand([ "branch", "create", branchName ])
+
   let fnOutput =
     runWithCommand(
-      [ "--branch"
-        branchName
-        "fn"
-        "/" + moduleName + ".main"
-        fnSource ])
+      [ "--branch", branchName, "fn", "/" + moduleName + ".main", fnSource ])
+
   let evalOutput =
     runWithCommand(
-      [ "--branch"
-        branchName
-        "eval"
-        moduleName + ".main(\"Dark\")" ])
+      [ "--branch", branchName, "eval", moduleName + ".main(\"Dark\")" ])
+
   let fragmentOutput =
     runWithCommand(
       [ "--branch"
@@ -484,9 +524,11 @@ test fnAcceptsCompleteDeclaration =
         "fn"
         "/" + moduleName + ".double"
         "(n: Int64) : Int64 = n * 2" ])
+
   let fragmentEval =
     runWithCommand(
       [ "--branch", branchName, "eval", moduleName + ".double(4)" ])
+
   let mismatchOutput =
     runWithCommand(
       [ "--branch"
@@ -494,6 +536,7 @@ test fnAcceptsCompleteDeclaration =
         "fn"
         "/" + moduleName + ".main"
         mismatchedSource ])
+
   let multipleOutput =
     runWithCommand(
       [ "--branch"
@@ -501,8 +544,8 @@ test fnAcceptsCompleteDeclaration =
         "fn"
         "/" + moduleName + ".extra"
         multipleSource ])
-  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
 
+  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
   if
     Stdlib.String.contains(fnOutput, "Created function")
     && evalOutput == "Hello, Dark"
@@ -511,33 +554,37 @@ test fnAcceptsCompleteDeclaration =
     && Stdlib.String.contains(mismatchOutput, "does not match target")
     && Stdlib.String.contains(multipleOutput, "something after the definition")
     && Stdlib.String.contains(multipleOutput, "nothing was saved")
-    && Stdlib.Bool.not(Stdlib.String.contains(multipleOutput, "Created function"))
+    && Stdlib.Bool.not(
+      Stdlib.String.contains(multipleOutput, "Created function"))
   then
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      ($"Expected complete and fragment fn input with target-name validation; "
-       + $"fn={fnOutput}; eval={evalOutput}; fragment={fragmentOutput}; "
-       + $"fragment eval={fragmentEval}; mismatch={mismatchOutput}; "
-       + $"multiple={multipleOutput}"))
+      "Expected complete and fragment fn input with target-name validation; "
+      + $"fn={fnOutput}; eval={evalOutput}; fragment={fragmentOutput}; "
+      + $"fragment eval={fragmentEval}; mismatch={mismatchOutput}; "
+      + $"multiple={multipleOutput}")
 
 
 test listFunctions =
-  let output = runWithCommand(["ls", "Stdlib.List"])
-  if Stdlib.String.contains(output, "Functions") &&
-      Stdlib.String.contains(output, "head") then
-      Stdlib.Test.Result.Pass
+  let output = runWithCommand([ "ls", "Stdlib.List" ])
+  if
+    Stdlib.String.contains(output, "Functions")
+    && Stdlib.String.contains(output, "head")
+  then
+    Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail("Expected directory listing with functions")
 
 
 test viewFunction =
-  let output = runWithCommand(["view", "Stdlib.List.head"])
-  if Stdlib.String.contains(output, "head")
+  let output = runWithCommand([ "view", "Stdlib.List.head" ])
+  if
+    Stdlib.String.contains(output, "head")
     && Stdlib.String.contains(output, "Option")
     && Stdlib.String.contains(output, "->")
   then
-      Stdlib.Test.Result.Pass
+    Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail("Expected function signature for List.head")
 
@@ -551,14 +598,12 @@ test harmfulGate =
     runWithCommand(Stdlib.List.concat([ "--branch", "main" ], args))
 
   let _ = onMain([ "fn", fnName, "(x: Int64) : Int64 = (x + 31)" ])
-
   let _ =
     onMain(
       [ "deprecate", "fn", fnName, "--kind", "harmful", "-m", "test", "--yes" ])
 
   let halted = onMain([ "eval", $"{fnName}(0)" ])
   let allowed = onMain([ "eval", $"{fnName}(0)", "--allow-harmful" ])
-
   if Stdlib.Bool.not(Stdlib.String.contains(halted, "Harmful")) then
     Stdlib.Test.fail(
       $"a fn marked harmful should refuse to run without the flag, got: {halted}")
@@ -572,59 +617,100 @@ test harmfulGate =
 /// Two names holding one body are one item, so deleting or deprecating one used to deprecate
 /// both: deleting a probe `= 5` took stdlib constants with it. Now it is said at the name, and the
 /// other name stays undeprecated and resolvable.
-test deprecateLeavesATwinAlone =
-  Instance.withInstance(fun i ->
-    let said = fun(args) -> Instance.said(i, Stdlib.List.concat([ "--branch", "main" ], args))
-    let hashOf = fun(name) -> Stdlib.String.trim(said([ "hash", name ]))
-    let _ = said([ "val", "Tests.Twins.kept", "= 770031" ])
-    let _ = said([ "val", "Tests.Twins.probe", "= 770031" ])
-    let deprecated = said([ "deprecate", "Tests.Twins.probe", "--kind", "obsolete", "--yes" ])
+test deprecateLeavesATwinAlone = Instance.withInstance(fun i ->
+  let said = fun args ->
+    Instance.said(i, Stdlib.List.concat([ "--branch", "main" ], args))
 
-    if hashOf("Tests.Twins.kept") != hashOf("Tests.Twins.probe") then
-      Stdlib.Test.fail("the two names should hold one item, or this tests nothing")
-    else
-      Stdlib.Test.all(
-        [ Instance.says(deprecated, "1 other name shares this code and is unaffected", "deprecate says the code is shared")
-          Instance.says(said([ "undeprecate", "Tests.Twins.kept" ]), "is not deprecated", "the other name is left alone")
-          Instance.says(said([ "eval", "Tests.Twins.kept" ]), "770031", "and still resolves")
-          Instance.says(said([ "undeprecate", "Tests.Twins.probe" ]), "Undeprecated", "the name given was deprecated") ]))
+  let hashOf = fun name -> Stdlib.String.trim(said([ "hash", name ]))
+  let _ = said([ "val", "Tests.Twins.kept", "= 770031" ])
+  let _ = said([ "val", "Tests.Twins.probe", "= 770031" ])
+  let deprecated =
+    said([ "deprecate", "Tests.Twins.probe", "--kind", "obsolete", "--yes" ])
+
+  if hashOf("Tests.Twins.kept") != hashOf("Tests.Twins.probe") then
+    Stdlib.Test.fail(
+      "the two names should hold one item, or this tests nothing")
+  else
+    Stdlib.Test.all(
+      [ Instance.says(
+          deprecated,
+          "1 other name shares this code and is unaffected",
+          "deprecate says the code is shared")
+
+        Instance.says(
+          said([ "undeprecate", "Tests.Twins.kept" ]),
+          "is not deprecated",
+          "the other name is left alone")
+
+        Instance.says(
+          said([ "eval", "Tests.Twins.kept" ]),
+          "770031",
+          "and still resolves")
+
+        Instance.says(
+          said([ "undeprecate", "Tests.Twins.probe" ]),
+          "Undeprecated",
+          "the name given was deprecated") ]))
 
 
 /// Harmful is about the code, not the name: marking one name halts calls through every name holding
 /// that code, and undoing it at one name clears it for all of them.
-test harmfulMarksEveryTwin =
-  Instance.withInstance(fun i ->
-    let said = fun(args) -> Instance.said(i, Stdlib.List.concat([ "--branch", "main" ], args))
-    let _ = said([ "fn", "Tests.HarmTwins.a", "(x: Int64) : Int64 = (x + 770032)" ])
-    let _ = said([ "fn", "Tests.HarmTwins.b", "(x: Int64) : Int64 = (x + 770032)" ])
-    let marked = said([ "deprecate", "fn", "Tests.HarmTwins.a", "--kind", "harmful", "--yes" ])
-    let haltedB = said([ "eval", "Tests.HarmTwins.b(0)" ])
-    let cleared = said([ "undeprecate", "Tests.HarmTwins.b" ])
+test harmfulMarksEveryTwin = Instance.withInstance(fun i ->
+  let said = fun args ->
+    Instance.said(i, Stdlib.List.concat([ "--branch", "main" ], args))
 
-    Stdlib.Test.all(
-      [ Instance.says(marked, "1 other name shares this code and is also marked harmful: Tests.HarmTwins.b", "harmful names the others")
-        Instance.says(haltedB, "Harmful", "a call through the twin halts")
-        Instance.says(cleared, "no longer harmful: Tests.HarmTwins.a", "undoing it at the twin clears both")
-        Instance.says(said([ "eval", "Tests.HarmTwins.a(0)" ]), "770032", "so the first name runs again") ]))
+  let _ =
+    said([ "fn", "Tests.HarmTwins.a", "(x: Int64) : Int64 = (x + 770032)" ])
+
+  let _ =
+    said([ "fn", "Tests.HarmTwins.b", "(x: Int64) : Int64 = (x + 770032)" ])
+
+  let marked =
+    said(
+      [ "deprecate", "fn", "Tests.HarmTwins.a", "--kind", "harmful", "--yes" ])
+
+  let haltedB = said([ "eval", "Tests.HarmTwins.b(0)" ])
+  let cleared = said([ "undeprecate", "Tests.HarmTwins.b" ])
+  Stdlib.Test.all(
+    [ Instance.says(
+        marked,
+        "1 other name shares this code and is also marked harmful: Tests.HarmTwins.b",
+        "harmful names the others")
+
+      Instance.says(haltedB, "Harmful", "a call through the twin halts")
+
+      Instance.says(
+        cleared,
+        "no longer harmful: Tests.HarmTwins.a",
+        "undoing it at the twin clears both")
+
+      Instance.says(
+        said([ "eval", "Tests.HarmTwins.a(0)" ]),
+        "770032",
+        "so the first name runs again") ]))
 
 
 /// `ls` lists names: after deleting one of two names holding the same code, only the other is listed.
-test lsDropsADeletedTwin =
-  Instance.withInstance(fun i ->
-    let said = fun(args) -> Instance.said(i, Stdlib.List.concat([ "--branch", "main" ], args))
-    let _ = said([ "val", "Tests.LsTwins.kept", "= 770033" ])
-    let _ = said([ "val", "Tests.LsTwins.probe", "= 770033" ])
-    let _ = said([ "delete", "Tests.LsTwins.probe", "--yes" ])
-    let listed = said([ "ls", "Tests.LsTwins" ])
+test lsDropsADeletedTwin = Instance.withInstance(fun i ->
+  let said = fun args ->
+    Instance.said(i, Stdlib.List.concat([ "--branch", "main" ], args))
 
-    Stdlib.Test.all(
-      [ Instance.says(listed, "kept", "the twin is still listed")
-        Instance.doesNotSay(listed, "⚠", "and nothing listed is marked deprecated")
-        Instance.doesNotSay(listed, "probe", "the deleted name is not") ]))
+  let _ = said([ "val", "Tests.LsTwins.kept", "= 770033" ])
+  let _ = said([ "val", "Tests.LsTwins.probe", "= 770033" ])
+  let _ = said([ "delete", "Tests.LsTwins.probe", "--yes" ])
+  let listed = said([ "ls", "Tests.LsTwins" ])
+  Stdlib.Test.all(
+    [ Instance.says(listed, "kept", "the twin is still listed")
+      Instance.doesNotSay(
+        listed,
+        "⚠",
+        "and nothing listed is marked deprecated")
+
+      Instance.doesNotSay(listed, "probe", "the deleted name is not") ]))
 
 
 test searchMatchesModuleAndCamelCaseName =
-  let output = runWithCommand(["search", "string toList", "--fn"])
+  let output = runWithCommand([ "search", "string toList", "--fn" ])
   if Stdlib.String.contains(output, "Darklang.Stdlib.String.toList") then
     Stdlib.Test.Result.Pass
   else
@@ -633,7 +719,7 @@ test searchMatchesModuleAndCamelCaseName =
 
 
 test searchMatchesModuleAndOperationName =
-  let output = runWithCommand(["search", "json parse", "--fn"])
+  let output = runWithCommand([ "search", "json parse", "--fn" ])
   if Stdlib.String.contains(output, "Darklang.Stdlib.Json.parse") then
     Stdlib.Test.Result.Pass
   else
@@ -642,9 +728,12 @@ test searchMatchesModuleAndOperationName =
 
 
 test searchFindsNestedHelpersFromParentModule =
-  let output = runWithCommand(["search", "AltJson.get", "--fn"])
-
-  if Stdlib.String.contains(output, "Darklang.Stdlib.AltJson.Helpers.getInt64Result") then
+  let output = runWithCommand([ "search", "AltJson.get", "--fn" ])
+  if
+    Stdlib.String.contains(
+      output,
+      "Darklang.Stdlib.AltJson.Helpers.getInt64Result")
+  then
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
@@ -679,7 +768,7 @@ test unresolvedNameGuidance =
   let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let branchName = "cli-name-guidance-test-" + suffix
   let moduleName = "Tests.CliNameGuidance"
-  let _ = runWithCommand(["branch", "create", branchName])
+  let _ = runWithCommand([ "branch", "create", branchName ])
   // Both streams: the suggestion is a warning, so it is on stderr beside the "Created" line.
   let stdlibOutput =
     runWithBothStreams(
@@ -688,9 +777,11 @@ test unresolvedNameGuidance =
         "fn"
         "/" + moduleName + ".negate"
         "(value: Bool) : Bool = Bool.not(value)" ])
+
   let internalSource =
-    ("(values: List<Int64>) : List<Int64> = "
-     + "PACKAGE.Darklang.Stdlib.List.map(values, fun value -> value)")
+    "(values: List<Int64>) : List<Int64> = "
+    + "PACKAGE.Darklang.Stdlib.List.map(values, fun value -> value)"
+
   let packageOutput =
     runWithCommand(
       [ "--branch"
@@ -698,21 +789,22 @@ test unresolvedNameGuidance =
         "fn"
         "/" + moduleName + ".map"
         internalSource ])
+
   // `-y`: the branch holds unmerged names, so a bare archive is refused and every later test would run
   // on this branch. Archiving the branch you stand on moves the process (and the config) back to main.
-  let _ = runWithCommand(["branch", "archive", branchName, "-y"])
-
+  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
   if
     Stdlib.String.contains(stdlibOutput, "Did you mean `Stdlib.Bool.not`?")
     && Stdlib.String.contains(packageOutput, "`PACKAGE.` is internal notation")
     && Stdlib.String.contains(packageOutput, "write `Stdlib.List.map`")
-    && Stdlib.Bool.not(Stdlib.String.contains(packageOutput, "Created function"))
+    && Stdlib.Bool.not(
+      Stdlib.String.contains(packageOutput, "Created function"))
   then
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      ($"Expected source-name guidance; stdlib={stdlibOutput}; "
-       + $"PACKAGE={packageOutput}"))
+      $"Expected source-name guidance; stdlib={stdlibOutput}; "
+      + $"PACKAGE={packageOutput}")
 
 
 /// Eval with stdout and stderr apart, for an error whose text and exit code are both asserted.
@@ -728,11 +820,12 @@ test notFoundSuggestsTheEnclosingStdlibName =
   let moved = evalOutcome("Stdlib.Int64.toString(5)")
   let unprefixed = evalOutcome("Int64.toString(5)")
   let nowhere = evalOutcome("Stdlib.Nope.zzz(5)")
-
   if
     moved.exitCode != 0
     && Stdlib.String.contains(moved.stderr, "Did you mean `Stdlib.display`?")
-    && Stdlib.String.contains(unprefixed.stderr, "Did you mean `Stdlib.display`?")
+    && Stdlib.String.contains(
+      unprefixed.stderr,
+      "Did you mean `Stdlib.display`?")
     && nowhere.exitCode != 0
     && Stdlib.String.contains(nowhere.stderr, "Stdlib.Nope.zzz not found")
     && Stdlib.Bool.not(Stdlib.String.contains(nowhere.stderr, "Did you mean"))
@@ -740,86 +833,138 @@ test notFoundSuggestsTheEnclosingStdlibName =
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      ($"Expected a suggestion for the moved name only; moved={moved.stderr}; "
-       + $"unprefixed={unprefixed.stderr}; nowhere={nowhere.stderr}"))
+      $"Expected a suggestion for the moved name only; moved={moved.stderr}; "
+      + $"unprefixed={unprefixed.stderr}; nowhere={nowhere.stderr}")
 
 
 /// The written names <fn Darklang.Cli.Packages.Errors.stdlibSuggestion> would try, in order.
 let suggestionCandidates(name: String): List<String> =
-  Darklang.Cli.Packages.Errors.stdlibSuggestionCandidates(Stdlib.String.split(name, "."))
+  Cli.Packages.Errors.stdlibSuggestionCandidates(Stdlib.String.split(name, "."))
   |> Stdlib.List.map(fun((written, _)) -> written)
 
 
 test stdlibSuggestionCandidatesWalkUpWithinStdlib =
   Stdlib.Test.all(
-    [ suggestionCandidates("Bool.not") |> Stdlib.Test.equal([ "Stdlib.Bool.not", "Stdlib.not" ])
+    [ suggestionCandidates("Bool.not")
+      |> Stdlib.Test.equal([ "Stdlib.Bool.not", "Stdlib.not" ])
+
       suggestionCandidates("Int64.toString")
-      |> Stdlib.Test.equal([ "Stdlib.Int64.toString", "Stdlib.toString", "Stdlib.display" ])
-      suggestionCandidates("Me.Utils.render") |> Stdlib.Test.equal([ "Stdlib.Me.Utils.render" ])
+      |> Stdlib.Test.equal(
+        [ "Stdlib.Int64.toString", "Stdlib.toString", "Stdlib.display" ])
+
+      suggestionCandidates("Me.Utils.render")
+      |> Stdlib.Test.equal([ "Stdlib.Me.Utils.render" ])
+
       suggestionCandidates("Stdlib.Int64.toString")
       |> Stdlib.Test.equal([ "Stdlib.toString", "Stdlib.display" ])
-      suggestionCandidates("Stdlib.toRepr") |> Stdlib.Test.equal([ "Stdlib.inspect" ])
+
+      suggestionCandidates("Stdlib.toRepr")
+      |> Stdlib.Test.equal([ "Stdlib.inspect" ])
+
       suggestionCandidates("Stdlib.A.B.name")
       |> Stdlib.Test.equal([ "Stdlib.A.name", "Stdlib.name" ])
+
       suggestionCandidates("Darklang.Stdlib.Int64.toString")
-      |> Stdlib.Test.equal([ "Darklang.Stdlib.toString", "Darklang.Stdlib.display" ])
+      |> Stdlib.Test.equal(
+        [ "Darklang.Stdlib.toString", "Darklang.Stdlib.display" ])
+
       suggestionCandidates("Stdlib.display") |> Stdlib.Test.equal([])
+
       suggestionCandidates("Darklang.Cli.foo") |> Stdlib.Test.equal([])
+
       suggestionCandidates("toString") |> Stdlib.Test.equal([]) ])
 
 
 test stdlibSuggestionFindsTheRealName =
-  let branch = Darklang.SCM.Branch.mainBranchId
+  let branch = SCM.Branch.mainBranchId
   let suggest = fun name ->
-    Darklang.Cli.Packages.Errors.stdlibSuggestion(branch, Stdlib.String.split(name, "."))
+    Cli.Packages.Errors.stdlibSuggestion(branch, Stdlib.String.split(name, "."))
 
   Stdlib.Test.all(
     [ suggest("Stdlib.Int64.toString")
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.display"))
+
       suggest("Stdlib.List.Nope.length")
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.List.length"))
-      suggest("Bool.not") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Bool.not"))
+
+      suggest("Bool.not")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Bool.not"))
+
       suggest("Stdlib.String.fromBytes")
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.decode"))
-      suggest("Bytes.toString") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.decode"))
-      suggest("String.toBytes") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.encode"))
+
+      suggest("Bytes.toString")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.decode"))
+
+      suggest("String.toBytes")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.encode"))
+
       suggest("Stdlib.Int64.absoluteValue")
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.abs"))
-      suggest("Stdlib.Nope.zzz") |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
+      suggest("Stdlib.Nope.zzz")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
 
 test closestNamesAreSpelledNear =
-  let branch = Darklang.SCM.Branch.mainBranchId
+  let branch = SCM.Branch.mainBranchId
   let closest = fun name ->
-    Darklang.Cli.Packages.Errors.closestNames(branch, Stdlib.String.split(name, "."))
+    Cli.Packages.Errors.closestNames(branch, Stdlib.String.split(name, "."))
 
   Stdlib.Test.all(
-    [ closest("Stdlib.List.lenght") |> Stdlib.Test.equal([ "Stdlib.List.length" ])
+    [ closest("Stdlib.List.lenght")
+      |> Stdlib.Test.equal([ "Stdlib.List.length" ])
+
       closest("Stdlib.String.touppercase")
       |> Stdlib.Test.equal([ "Stdlib.String.toUppercase" ])
-      Stdlib.List.contains(closest("Stdlib.String.toUpper"), "Stdlib.String.toUppercase")
+
+      Stdlib.List.contains(
+        closest("Stdlib.String.toUpper"),
+        "Stdlib.String.toUppercase")
       |> Stdlib.Test.equal(true)
+
       closest("String.lenght") |> Stdlib.Test.equal([ "Stdlib.String.length" ])
+
       closest("Darklang.Stdlib.List.revers")
       |> Stdlib.Test.equal([ "Darklang.Stdlib.List.reverse" ])
+
       closest("Stdlib.List.zzzzzzzz") |> Stdlib.Test.equal([])
+
       closest("Stdlib.Nope.zzz") |> Stdlib.Test.equal([])
+
       closest("lenght") |> Stdlib.Test.equal([])
-      closest("Stdlib.List.member") |> Stdlib.Test.equal([ "Stdlib.List.contains" ])
-      closest("Stdlib.String.size") |> Stdlib.Test.equal([ "Stdlib.String.length" ]) ])
+
+      closest("Stdlib.List.member")
+      |> Stdlib.Test.equal([ "Stdlib.List.contains" ])
+
+      closest("Stdlib.String.size")
+      |> Stdlib.Test.equal([ "Stdlib.String.length" ]) ])
 
 
 // A function name for an operator points at the operator, when the type has it.
 test operatorNamesSuggestTheOperator =
-  let branch = Darklang.SCM.Branch.mainBranchId
+  let branch = SCM.Branch.mainBranchId
   let suggest = fun name ->
-    Darklang.Cli.Packages.Errors.operatorSuggestion(branch, Stdlib.String.split(name, "."))
+    Cli.Packages.Errors.operatorSuggestion(
+      branch,
+      Stdlib.String.split(name, "."))
 
   Stdlib.Test.all(
-    [ suggest("Stdlib.Int64.mod") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a % b"))
-      suggest("Int64.modulo") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a % b"))
-      suggest("Stdlib.Float.pow") |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a ** b"))
-      suggest("Stdlib.String.mod") |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-      suggest("Stdlib.Int64.zzz") |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+    [ suggest("Stdlib.Int64.mod")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a % b"))
+
+      suggest("Int64.modulo")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a % b"))
+
+      suggest("Stdlib.Float.pow")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a ** b"))
+
+      suggest("Stdlib.String.mod")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      suggest("Stdlib.Int64.zzz")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
       suggest("mod") |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 
@@ -827,7 +972,6 @@ test operatorNamesSuggestTheOperator =
 test int64ModSuggestsPercent =
   let evaluated = evalOutcome("Stdlib.Int64.mod(7, 3)")
   let searched = runWithBothStreams([ "search", "Int64.mod", "--fn" ])
-
   if
     evaluated.exitCode != 0
     && Stdlib.String.contains(evaluated.stderr, "Did you mean `a % b`?")
@@ -835,22 +979,28 @@ test int64ModSuggestsPercent =
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected `a % b`; eval={evaluated.stderr}; search={searched}")
+    Stdlib.Test.fail(
+      $"Expected `a % b`; eval={evaluated.stderr}; search={searched}")
 
 
 test didYouMeanText =
-  let text = Darklang.Cli.Packages.Errors.didYouMeanText
-
+  let text = Cli.Packages.Errors.didYouMeanText
   Stdlib.Test.all(
     [ text([]) |> Stdlib.Test.equal("")
+
       text([ "A.a" ]) |> Stdlib.Test.equal("Did you mean `A.a`?")
-      text([ "A.a", "A.b", "A.c" ]) |> Stdlib.Test.equal("Did you mean `A.a`, `A.b` or `A.c`?") ])
+
+      text([ "A.a", "A.b", "A.c" ])
+      |> Stdlib.Test.equal("Did you mean `A.a`, `A.b` or `A.c`?") ])
 
 
 // A misspelt name gets the names spelled near it, on eval and on save.
 test notFoundSuggestsNamesSpelledNear =
   let evaluated = evalOutcome("Stdlib.List.lenght([1])")
-  let branchName = "cli-did-you-mean-test-" + Stdlib.display(Stdlib.Int64.random(100000, 999999))
+  let branchName =
+    "cli-did-you-mean-test-"
+    + Stdlib.display(Stdlib.Int64.random(100000, 999999))
+
   let _ = runWithCommand([ "branch", "create", branchName ])
   let saved =
     runWithBothStreams(
@@ -859,16 +1009,19 @@ test notFoundSuggestsNamesSpelledNear =
         "fn"
         "/Tests.CliDidYouMean.size"
         "(xs: List<Int64>) : Int64 = Stdlib.List.lenght(xs)" ])
-  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
 
+  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
   if
     evaluated.exitCode != 0
-    && Stdlib.String.contains(evaluated.stderr, "Did you mean `Stdlib.List.length`?")
+    && Stdlib.String.contains(
+      evaluated.stderr,
+      "Did you mean `Stdlib.List.length`?")
     && Stdlib.String.contains(saved, "Did you mean `Stdlib.List.length`?")
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected a near name; eval={evaluated.stderr}; save={saved}")
+    Stdlib.Test.fail(
+      $"Expected a near name; eval={evaluated.stderr}; save={saved}")
 
 
 // #6024: an impl's methods are called through its trait, never at the type's module, so
@@ -877,7 +1030,6 @@ test notFoundSuggestsNamesSpelledNear =
 test implListingsSayWhereTheMethodsAreCalled =
   let viewed = runWithCommand([ "view", "Stdlib.Int64" ])
   let searched = runWithCommand([ "search", "Int64.display", "--impl" ])
-
   if
     Stdlib.String.contains(viewed, "Stdlib.display")
     && Stdlib.String.contains(viewed, "Stdlib.Add.add")
@@ -891,27 +1043,30 @@ test implListingsSayWhereTheMethodsAreCalled =
 
 
 test listTypes =
-  let output = runWithCommand(["ls", "Stdlib.Option"])
-  if Stdlib.String.contains(output, "Types") &&
-      Stdlib.String.contains(output, "Option") then
-      Stdlib.Test.Result.Pass
+  let output = runWithCommand([ "ls", "Stdlib.Option" ])
+  if
+    Stdlib.String.contains(output, "Types")
+    && Stdlib.String.contains(output, "Option")
+  then
+    Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail("Expected directory listing with types")
 
 
 test helpForRun =
-  let output = runWithCommand(["help", "run"])
+  let output = runWithCommand([ "help", "run" ])
   // `contains output "run"` is satisfied by the unknown-command fallback ("No help available for command:
   // run"), so it can't tell "help worked" from "help failed". The usage line is topic-unique, and it also
   // proves the `run` alias resolved to `run-script`, which is the rename this branch made.
   if Stdlib.String.contains(output, "Usage: run-script") then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail("Expected `help run` to resolve the alias and print run-script's usage")
+    Stdlib.Test.fail(
+      "Expected `help run` to resolve the alias and print run-script's usage")
 
 
 test helpForLs =
-  let output = runWithCommand(["help", "ls"])
+  let output = runWithCommand([ "help", "ls" ])
   // Same reasoning as `help run`: assert something only the real topic prints.
   if Stdlib.String.contains(output, "Usage: ls") then
     Stdlib.Test.Result.Pass
@@ -919,12 +1074,11 @@ test helpForLs =
     Stdlib.Test.fail("Expected `help ls` to print ls's usage")
 
 
-test evalSimpleExpression =
-  expectExact(["eval", "2 + 3"], "5")
+test evalSimpleExpression = expectExact([ "eval", "2 + 3" ], "5")
 
 
 test evalStringExpression =
-  expectExact(["eval", "\"hello\" + \"world\""], "helloworld")
+  expectExact([ "eval", "\"hello\" + \"world\"" ], "helloworld")
 
 
 // ---------------------------------------------------------------- compiler views
@@ -933,27 +1087,31 @@ test evalStringExpression =
 // fails on every unrelated codegen improvement.
 
 test viewAst =
-  let output = runWithCommand(["view", "Stdlib.List.dropLast", "--ast"])
+  let output = runWithCommand([ "view", "Stdlib.List.dropLast", "--ast" ])
 
   // A signature line, then the body tree with its node kinds. `Match`/`Arg` are what `dropLast` is made
   // of.
   // Label and detail are coloured separately, so a row's text isn't contiguous in the output. Match on
   // the pieces rather than on a whole rendered line.
-  if Stdlib.String.contains(output, "dropLast<'a> (list: List<'a>) ->")
+  if
+    Stdlib.String.contains(output, "dropLast<'a> (list: List<'a>) ->")
     && Stdlib.String.contains(output, "Match")
     && Stdlib.String.contains(output, "on Arg #0, 2 cases")
     && Stdlib.String.contains(output, "[head, ...tail]")
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected an AST tree with signature rows and node kinds, got: {output}")
+    Stdlib.Test.fail(
+      $"Expected an AST tree with signature rows and node kinds, got: {output}")
 
 
 test viewInstructions =
-  let output = runWithCommand(["view", "Stdlib.List.prepend", "--instructions"])
+  let output =
+    runWithCommand([ "view", "Stdlib.List.prepend", "--instructions" ])
 
   // `prepend` is a thin wrapper over a builtin, so it must load the builtin and apply it.
-  if Stdlib.String.contains(output, "instructions")
+  if
+    Stdlib.String.contains(output, "instructions")
     && Stdlib.String.contains(output, "registers")
     && Stdlib.String.contains(output, "LoadVal")
     && Stdlib.String.contains(output, "Apply")
@@ -961,7 +1119,8 @@ test viewInstructions =
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected an instruction listing for List.prepend, got: {output}")
+    Stdlib.Test.fail(
+      $"Expected an instruction listing for List.prepend, got: {output}")
 
 
 test viewInstructionsShowsLambdas =
@@ -973,31 +1132,32 @@ test viewInstructionsShowsLambdas =
   // test pointing at it still runs, still fails, and covers nothing.
   let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
   let name = "Tests.CliLambda.keepBig" + suffix
-
   let _ =
     runWithCommand(
       [ "fn"
         "/" + name
         "(xs: List<Int64>) : List<Int64> = Stdlib.List.filter(xs, fun x -> if x > 2 then true else false)" ])
 
-  let output = runWithCommand(["view", name, "--instructions"])
-  let _ = runWithCommand([ "delete", "fn", name, "--yes" ])
+  let output = runWithCommand([ "view", name, "--instructions" ])
 
-  if Stdlib.String.contains(output, "CreateLambda")
+  let _ = runWithCommand([ "delete", "fn", name, "--yes" ])
+  if
+    Stdlib.String.contains(output, "CreateLambda")
     && Stdlib.String.contains(output, "lambda#")
     && Stdlib.String.contains(output, "JumpByIfFalse")
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected the lambda's own listing under {name}'s, got: {output}")
+    Stdlib.Test.fail(
+      $"Expected the lambda's own listing under {name}'s, got: {output}")
 
 
 test viewCompilerViewsRejectNonFunctions =
   // Both views are function-only, and saying which kind of thing you pointed at beats "not found".
-  let typeOutput = runWithCommand(["view", "Stdlib.Option.Option", "--ast"])
-  let moduleOutput = runWithCommand(["view", "Stdlib.List", "--instructions"])
-
-  if Stdlib.String.contains(typeOutput, "type")
+  let typeOutput = runWithCommand([ "view", "Stdlib.Option.Option", "--ast" ])
+  let moduleOutput = runWithCommand([ "view", "Stdlib.List", "--instructions" ])
+  if
+    Stdlib.String.contains(typeOutput, "type")
     && Stdlib.String.contains(moduleOutput, "module")
   then
     Stdlib.Test.Result.Pass
@@ -1008,22 +1168,26 @@ test viewCompilerViewsRejectNonFunctions =
 
 test viewFlagBeforePath =
   // Flags are position-independent; this is the ordering people actually type.
-  let output = runWithCommand(["view", "--ast", "Stdlib.List.prepend"])
-
-  if Stdlib.String.contains(output, "prepend") && Stdlib.String.contains(output, "->") then
+  let output = runWithCommand([ "view", "--ast", "Stdlib.List.prepend" ])
+  if
+    Stdlib.String.contains(output, "prepend")
+    && Stdlib.String.contains(output, "->")
+  then
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail($"Expected --ast to work before the path, got: {output}")
 
 
 test viewUnknownFlag =
-  let output = runWithCommand(["view", "Stdlib.List.prepend", "--nope"])
-
-  if Stdlib.String.contains(output, "does not take `--nope`")
-    && Stdlib.String.contains(output, "dark view --help") then
+  let output = runWithCommand([ "view", "Stdlib.List.prepend", "--nope" ])
+  if
+    Stdlib.String.contains(output, "does not take `--nope`")
+    && Stdlib.String.contains(output, "dark view --help")
+  then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected a refusal naming the flag and pointing to help, got: {output}")
+    Stdlib.Test.fail(
+      $"Expected a refusal naming the flag and pointing to help, got: {output}")
 
 
 // ---------------------------------------------------------------- native list rewrites
@@ -1051,12 +1215,12 @@ test nativeListEdgeCases =
     cases
     |> Stdlib.List.filterMap(fun pair ->
       let (expr, expected) = pair
-      let output = runWithCommand(["eval", expr])
-
+      let output = runWithCommand([ "eval", expr ])
       if Stdlib.String.contains(output, expected) then
         Stdlib.Option.Option.None
       else
-        Stdlib.Option.Option.Some($"`{expr}` expected `{expected}`, got `{output}`"))
+        Stdlib.Option.Option.Some(
+          $"`{expr}` expected `{expected}`, got `{output}`"))
 
   match failures with
   | [] -> Stdlib.Test.Result.Pass
@@ -1075,15 +1239,21 @@ test nativeListEdgeCases =
 /// in the store, because cache misses aren't cached. A scalar type arg, a container one and a custom one
 /// each resolve differently, so all three are here.
 test explicitTypeArgs =
-  let scalar = runWithCommand(["eval", "Stdlib.Json.parse<Int64>(\"3\")"])
-  let container = runWithCommand(["eval", "Stdlib.Json.parse<List<Int64>>(\"[1,2]\")"])
-  let custom = runWithCommand(["eval", "Stdlib.Json.parse<Stdlib.Uuid.ParseError>(\"{}\")"])
+  let scalar = runWithCommand([ "eval", "Stdlib.Json.parse<Int64>(\"3\")" ])
+
+  let container =
+    runWithCommand([ "eval", "Stdlib.Json.parse<List<Int64>>(\"[1,2]\")" ])
+
+  let custom =
+    runWithCommand(
+      [ "eval", "Stdlib.Json.parse<Stdlib.Uuid.ParseError>(\"{}\")" ])
 
   if
-    Stdlib.String.contains(scalar, "Ok") && Stdlib.String.contains(scalar, "3")
-      && Stdlib.String.contains(container, "Ok")
-      && Stdlib.String.contains(container, "[1, 2]")
-      && Stdlib.String.contains(custom, "ParseError")
+    Stdlib.String.contains(scalar, "Ok")
+    && Stdlib.String.contains(scalar, "3")
+    && Stdlib.String.contains(container, "Ok")
+    && Stdlib.String.contains(container, "[1, 2]")
+    && Stdlib.String.contains(custom, "ParseError")
   then
     Stdlib.Test.Result.Pass
   else
@@ -1092,13 +1262,23 @@ test explicitTypeArgs =
 
 
 test getAtNoneIsStillNone =
-  let eq = runWithCommand(["eval", "(Stdlib.List.getAt([1,2,3], 99)) == Stdlib.Option.Option.None"])
-  let dflt = runWithCommand(["eval", "Stdlib.Option.withDefault(Stdlib.List.getAt([1,2,3], 99), 0)"])
+  let eq =
+    runWithCommand(
+      [ "eval"
+        "(Stdlib.List.getAt([1,2,3], 99)) == Stdlib.Option.Option.None" ])
 
-  if Stdlib.String.contains(eq, "true") && Stdlib.String.contains(dflt, "0") then
+  let dflt =
+    runWithCommand(
+      [ "eval"
+        "Stdlib.Option.withDefault(Stdlib.List.getAt([1,2,3], 99), 0)" ])
+
+  if
+    Stdlib.String.contains(eq, "true") && Stdlib.String.contains(dflt, "0")
+  then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected out-of-bounds None to behave as None, got eq: {eq}, default: {dflt}")
+    Stdlib.Test.fail(
+      $"Expected out-of-bounds None to behave as None, got eq: {eq}, default: {dflt}")
 
 
 /// `view --raw` prints the declaration and nothing else.
@@ -1110,11 +1290,10 @@ test viewRawIsUndecorated =
   let esc = "\u001b"
   let raw = runWithCommand([ "view", "Stdlib.List.head", "--raw" ])
   let decorated = runWithCommand([ "view", "Stdlib.List.head" ])
-
   if
     Stdlib.String.contains(raw, "let head")
-      && Stdlib.Bool.not(Stdlib.String.contains(raw, esc))
-      && Stdlib.String.contains(decorated, esc)
+    && Stdlib.Bool.not(Stdlib.String.contains(raw, esc))
+    && Stdlib.String.contains(decorated, esc)
   then
     Stdlib.Test.Result.Pass
   else
@@ -1132,7 +1311,6 @@ test editRoundTripsThroughRaw =
   let name = "Tests.CliEdit.tripled"
   let sourcePath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
   let changedPath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
-
   let _ = runWithCommand([ "branch", "create", branchName ])
 
   let _ =
@@ -1144,10 +1322,11 @@ test editRoundTripsThroughRaw =
         "let tripled(n: Int64): Int64 = (n * 3)" ])
 
   let before = runWithCommand([ "--branch", branchName, "view", name, "--raw" ])
+
   // The hash, not the op count: an apply that changes nothing still records that the
   // name was set, so the log grows either way. What must not change is the item.
   let hashBefore = runWithCommand([ "--branch", branchName, "hash", name ])
-  let _ = (Stdlib.Cli.File.writeAtomic(sourcePath, before)) |> Builtin.unwrap
+  let _ = Stdlib.Cli.File.writeAtomic(sourcePath, before) |> Builtin.unwrap
   let _ = runWithCommand([ "--branch", branchName, "edit", name, sourcePath ])
   let after = runWithCommand([ "--branch", branchName, "view", name, "--raw" ])
   let hashAfter = runWithCommand([ "--branch", branchName, "hash", name ])
@@ -1155,25 +1334,27 @@ test editRoundTripsThroughRaw =
   // And a real change still lands, so the assertion above is not passing because
   // `edit` quietly does nothing.
   let _ =
-    (Stdlib.Cli.File.writeAtomic(
+    Stdlib.Cli.File.writeAtomic(
       changedPath,
-      "let tripled(n: Int64): Int64 = (n * 30)"))
+      "let tripled(n: Int64): Int64 = (n * 30)")
     |> Builtin.unwrap
 
   let _ = runWithCommand([ "--branch", branchName, "edit", name, changedPath ])
-  let evaluated = runWithCommand([ "--branch", branchName, "eval", name + "(2)" ])
+
+  let evaluated =
+    runWithCommand([ "--branch", branchName, "eval", name + "(2)" ])
 
   let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
   if
-    before == after && hashBefore == hashAfter
-      && Stdlib.String.contains(evaluated, "60")
+    before == after
+    && hashBefore == hashAfter
+    && Stdlib.String.contains(evaluated, "60")
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail((
+    Stdlib.Test.fail(
       $"Expected a no-op round trip then a landed change; before: {before}, "
-      + $"after: {after}, eval: {evaluated}"
-    ))
+      + $"after: {after}, eval: {evaluated}")
 
 
 /// A definition is headed with the name you asked for.
@@ -1188,7 +1369,6 @@ test viewHeadsWithTheNameYouAskedFor =
   let branchName = "cli-sharedbody-test-" + suffix
   let alpha = "Tests.CliShared.alpha"
   let beta = "Tests.CliShared.beta"
-
   let _ = runWithCommand([ "branch", "create", branchName ])
 
   // The same body on purpose: that is what makes them one item.
@@ -1200,31 +1380,34 @@ test viewHeadsWithTheNameYouAskedFor =
     runWithCommand(
       [ "--branch", branchName, "fn", "/" + beta, "let beta(): Int64 = 7" ])
 
-  let rawAlpha = runWithCommand([ "--branch", branchName, "view", alpha, "--raw" ])
-  let rawBeta = runWithCommand([ "--branch", branchName, "view", beta, "--raw" ])
+  let rawAlpha =
+    runWithCommand([ "--branch", branchName, "view", alpha, "--raw" ])
+
+  let rawBeta =
+    runWithCommand([ "--branch", branchName, "view", beta, "--raw" ])
 
   // The decorated view resolves the name the same way, so it needs the same answer.
   // Only `--raw` gets written back, but a wrong name on screen is wrong either way.
   let shownAlpha = runWithCommand([ "--branch", branchName, "view", alpha ])
+
   let shownBeta = runWithCommand([ "--branch", branchName, "view", beta ])
 
   let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
   if
     Stdlib.String.contains(rawAlpha, "let alpha")
-      && Stdlib.Bool.not(Stdlib.String.contains(rawAlpha, "let beta"))
-      && Stdlib.String.contains(rawBeta, "let beta")
-      && Stdlib.Bool.not(Stdlib.String.contains(rawBeta, "let alpha"))
-      && Stdlib.String.contains(shownAlpha, "alpha")
-      && Stdlib.Bool.not(Stdlib.String.contains(shownAlpha, "let beta"))
-      && Stdlib.String.contains(shownBeta, "beta")
-      && Stdlib.Bool.not(Stdlib.String.contains(shownBeta, "let alpha"))
+    && Stdlib.Bool.not(Stdlib.String.contains(rawAlpha, "let beta"))
+    && Stdlib.String.contains(rawBeta, "let beta")
+    && Stdlib.Bool.not(Stdlib.String.contains(rawBeta, "let alpha"))
+    && Stdlib.String.contains(shownAlpha, "alpha")
+    && Stdlib.Bool.not(Stdlib.String.contains(shownAlpha, "let beta"))
+    && Stdlib.String.contains(shownBeta, "beta")
+    && Stdlib.Bool.not(Stdlib.String.contains(shownBeta, "let alpha"))
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail((
+    Stdlib.Test.fail(
       $"Expected each name to head its own declaration; alpha: {rawAlpha}, "
-      + $"beta: {rawBeta}, shown: {shownAlpha} / {shownBeta}"
-    ))
+      + $"beta: {rawBeta}, shown: {shownAlpha} / {shownBeta}")
 
 
 /// Every kind `--raw` prints round-trips, not just functions.
@@ -1240,7 +1423,6 @@ test editRoundTripsTypesAndValues =
   let valueName = "Tests.CliEditKinds.answer"
   let typePath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
   let valuePath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
-
   let _ = runWithCommand([ "branch", "create", branchName ])
 
   let _ =
@@ -1257,41 +1439,48 @@ test editRoundTripsTypesAndValues =
   let typeBefore =
     runWithCommand([ "--branch", branchName, "view", typeName, "--raw" ])
 
-  let typeHashBefore = runWithCommand([ "--branch", branchName, "hash", typeName ])
+  let typeHashBefore =
+    runWithCommand([ "--branch", branchName, "hash", typeName ])
 
   let valueBefore =
     runWithCommand([ "--branch", branchName, "view", valueName, "--raw" ])
 
-  let valueHashBefore = runWithCommand([ "--branch", branchName, "hash", valueName ])
+  let valueHashBefore =
+    runWithCommand([ "--branch", branchName, "hash", valueName ])
 
-  let _ = (Stdlib.Cli.File.writeAtomic(typePath, typeBefore)) |> Builtin.unwrap
-  let _ = (Stdlib.Cli.File.writeAtomic(valuePath, valueBefore)) |> Builtin.unwrap
+  let _ = Stdlib.Cli.File.writeAtomic(typePath, typeBefore) |> Builtin.unwrap
+  let _ = Stdlib.Cli.File.writeAtomic(valuePath, valueBefore) |> Builtin.unwrap
   let _ = runWithCommand([ "--branch", branchName, "edit", typeName, typePath ])
-  let _ = runWithCommand([ "--branch", branchName, "edit", valueName, valuePath ])
+
+  let _ =
+    runWithCommand([ "--branch", branchName, "edit", valueName, valuePath ])
 
   let typeAfter =
     runWithCommand([ "--branch", branchName, "view", typeName, "--raw" ])
 
-  let typeHashAfter = runWithCommand([ "--branch", branchName, "hash", typeName ])
+  let typeHashAfter =
+    runWithCommand([ "--branch", branchName, "hash", typeName ])
 
   let valueAfter =
     runWithCommand([ "--branch", branchName, "view", valueName, "--raw" ])
 
-  let valueHashAfter = runWithCommand([ "--branch", branchName, "hash", valueName ])
+  let valueHashAfter =
+    runWithCommand([ "--branch", branchName, "hash", valueName ])
 
   let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
   if
-    typeBefore == typeAfter && typeHashBefore == typeHashAfter
-      && valueBefore == valueAfter && valueHashBefore == valueHashAfter
-      && Stdlib.String.contains(typeBefore, "type Pair")
-      && Stdlib.String.contains(valueBefore, "val answer")
+    typeBefore == typeAfter
+    && typeHashBefore == typeHashAfter
+    && valueBefore == valueAfter
+    && valueHashBefore == valueHashAfter
+    && Stdlib.String.contains(typeBefore, "type Pair")
+    && Stdlib.String.contains(valueBefore, "val answer")
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail((
+    Stdlib.Test.fail(
       $"Expected types and values to round-trip; type: {typeBefore} -> {typeAfter}, "
-      + $"value: {valueBefore} -> {valueAfter}"
-    ))
+      + $"value: {valueBefore} -> {valueAfter}")
 
 
 /// A file `edit` cannot use leaves the item exactly as it was.
@@ -1304,7 +1493,6 @@ test editLeavesTheItemAloneOnABadFile =
   let branchName = "cli-edit-bad-" + suffix
   let name = "Tests.CliEditBad.kept"
   let badPath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
-
   let _ = runWithCommand([ "branch", "create", branchName ])
 
   let _ =
@@ -1316,30 +1504,39 @@ test editLeavesTheItemAloneOnABadFile =
         "let kept(n: Int64): Int64 = n" ])
 
   let hashBefore = runWithCommand([ "--branch", branchName, "hash", name ])
-  let _ = (Stdlib.Cli.File.writeAtomic(badPath, "this is not dark")) |> Builtin.unwrap
-  let refused = runWithCommand([ "--branch", branchName, "edit", name, badPath ])
+  let _ =
+    Stdlib.Cli.File.writeAtomic(badPath, "this is not dark") |> Builtin.unwrap
+
+  let refused =
+    runWithCommand([ "--branch", branchName, "edit", name, badPath ])
+
   let hashAfterBad = runWithCommand([ "--branch", branchName, "hash", name ])
 
   // A path that is not there at all takes the same route, and must also change
   // nothing.
   let missing =
     runWithCommand(
-      [ "--branch", branchName, "edit", name, "/tmp/cli-edit-no-such-file.dark" ])
+      [ "--branch"
+        branchName
+        "edit"
+        name
+        "/tmp/cli-edit-no-such-file.dark" ])
 
-  let hashAfterMissing = runWithCommand([ "--branch", branchName, "hash", name ])
+  let hashAfterMissing =
+    runWithCommand([ "--branch", branchName, "hash", name ])
 
   let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
   if
-    hashBefore == hashAfterBad && hashBefore == hashAfterMissing
-      && Stdlib.String.contains(refused, "Parse error")
-      && Stdlib.String.contains(missing, "Could not read")
+    hashBefore == hashAfterBad
+    && hashBefore == hashAfterMissing
+    && Stdlib.String.contains(refused, "Parse error")
+    && Stdlib.String.contains(missing, "Could not read")
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail((
+    Stdlib.Test.fail(
       $"Expected a rejected file to change nothing; hashes {hashBefore} / "
-      + $"{hashAfterBad} / {hashAfterMissing}, said: {refused} | {missing}"
-    ))
+      + $"{hashAfterBad} / {hashAfterMissing}, said: {refused} | {missing}")
 
 
 /// `edit` and `view --raw` both take exactly one declaration, and say so.
@@ -1357,33 +1554,31 @@ test editRefusesWhatItCannotEdit =
   // These tests shell out, so stdin is a pipe, which is exactly the case `edit` with
   // no file has to refuse. An editor started here paints into that pipe.
   let noTerminal = runWithCommand([ "edit", "Stdlib.List.head" ])
-
   if
     Stdlib.String.contains(noTerminal, "Cannot open an editor")
-      && Stdlib.String.contains(noTerminal, "not a terminal")
-      && Stdlib.String.contains(noTerminal, "--raw")
-      && Stdlib.String.contains(bare, "needs an argument")
-      && Stdlib.String.contains(bare, "dark edit --help")
-      && Stdlib.String.contains(tooMany, "does not take `c`")
-      && Stdlib.String.contains(tooMany, "dark edit --help")
-      && Stdlib.String.contains(aModule, "is a module")
-      && Stdlib.String.contains(aModule, "dark module")
-      && Stdlib.String.contains(unknown, "Cannot edit Zz.NoSuch.thing")
-      && Stdlib.String.contains(rawModule, "ONE declaration")
+    && Stdlib.String.contains(noTerminal, "not a terminal")
+    && Stdlib.String.contains(noTerminal, "--raw")
+    && Stdlib.String.contains(bare, "needs an argument")
+    && Stdlib.String.contains(bare, "dark edit --help")
+    && Stdlib.String.contains(tooMany, "does not take `c`")
+    && Stdlib.String.contains(tooMany, "dark edit --help")
+    && Stdlib.String.contains(aModule, "is a module")
+    && Stdlib.String.contains(aModule, "dark module")
+    && Stdlib.String.contains(unknown, "Cannot edit Zz.NoSuch.thing")
+    && Stdlib.String.contains(rawModule, "ONE declaration")
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail((
+    Stdlib.Test.fail(
       $"Expected each refusal to name what to do instead; bare: {bare}, "
       + $"module: {aModule}, unknown: {unknown}, raw module: {rawModule}, "
-      + $"no terminal: {noTerminal}"
-    ))
+      + $"no terminal: {noTerminal}")
 
 
 /// Every way of passing a definition authors the same item. The `=` is a separator:
 /// unquoted the shell splits it off, quoted it arrives attached, and both come off.
 test authoringAcceptsAQuotedSeparator =
-  let branch = "cli-quoted-eq-" + (Stdlib.display(Stdlib.Int64.random(1, 999999)))
+  let branch = "cli-quoted-eq-" + Stdlib.display(Stdlib.Int64.random(1, 999999))
   let run(args: List<String>): String =
     runWithCommand(Stdlib.List.concat([ "--branch", branch ], args))
 
@@ -1399,35 +1594,34 @@ test authoringAcceptsAQuotedSeparator =
   let quotedHash = run([ "hash", "Tests.QuotedEq.quoted" ])
   let splitHash = run([ "hash", "Tests.QuotedEq.split" ])
   let evaluated = run([ "eval", "Tests.QuotedEq.quoted(21)" ])
-
   let _ = runWithCommand([ "branch", "archive", branch, "-y" ])
   if
     quotedHash == splitHash
-      && Stdlib.String.contains(evaluated, "42")
-      && Stdlib.String.contains(typed, "Created type")
-      && Stdlib.String.contains(valued, "Created value")
+    && Stdlib.String.contains(evaluated, "42")
+    && Stdlib.String.contains(typed, "Created type")
+    && Stdlib.String.contains(valued, "Created value")
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"hashes {quotedHash} / {splitHash}, eval {evaluated}, {typed}, {valued}")
+    Stdlib.Test.fail(
+      $"hashes {quotedHash} / {splitHash}, eval {evaluated}, {typed}, {valued}")
 
 
 /// A lowercase module segment is refused. It would be read as the item's NAME, so
 /// `Tests.lower.f` authors `Tests.lower` and nothing can refer to it afterwards.
 test authoringRefusesALowercaseModule =
-  let branch = "cli-lowercase-" + (Stdlib.display(Stdlib.Int64.random(1, 999999)))
+  let branch = "cli-lowercase-" + Stdlib.display(Stdlib.Int64.random(1, 999999))
   let run(args: List<String>): String =
     runWithCommand(Stdlib.List.concat([ "--branch", branch ], args))
 
   let _ = runWithCommand([ "branch", "create", branch ])
   let refused = run([ "fn", "/Tests.lower.f", "() : Int64 = 1" ])
   let listed = run([ "ls", "Tests.lower" ])
-
   let _ = runWithCommand([ "branch", "archive", branch, "-y" ])
   if
     Stdlib.String.contains(refused, "must start with a capital")
-      && Stdlib.Bool.not(Stdlib.String.contains(refused, "Created"))
-      && Stdlib.String.contains(listed, "Not found")
+    && Stdlib.Bool.not(Stdlib.String.contains(refused, "Created"))
+    && Stdlib.String.contains(listed, "Not found")
   then
     Stdlib.Test.Result.Pass
   else
@@ -1444,11 +1638,13 @@ test notFoundNamesThePath =
   let viewed = runWithCommand([ "view", missing ])
   let listed = runWithCommand([ "ls", missing ])
   let navigated = runWithCommand([ "nav", missing ])
-
   let names(s: String): Bool = Stdlib.String.contains(s, expected)
-  let twice = (Stdlib.List.length(Stdlib.String.split(viewed, "NoSuchModule"))) > 2
+  let twice =
+    Stdlib.List.length(Stdlib.String.split(viewed, "NoSuchModule")) > 2
 
-  if names(viewed) && names(listed) && names(navigated) && Stdlib.Bool.not(twice) then
+  if
+    names(viewed) && names(listed) && names(navigated) && Stdlib.Bool.not(twice)
+  then
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail($"view: {viewed}, ls: {listed}, nav: {navigated}")
@@ -1458,50 +1654,54 @@ test notFoundNamesThePath =
 /// was dropped with the real ones, and an unresolvable path fell back to where you stood.
 test treeRefusesWhatItCannotShow =
   let badFlag = runWithCommand([ "tree", "--zzbogus" ])
+
   let badPath = runWithCommand([ "tree", "Zz.NoSuchThing" ])
+
   let twoPaths = runWithCommand([ "tree", "Darklang.Stdlib", "Darklang.Cli" ])
-  let withDepth = runWithCommand([ "tree", "Darklang.Stdlib.Option", "--depth=1" ])
+
+  let withDepth =
+    runWithCommand([ "tree", "Darklang.Stdlib.Option", "--depth=1" ])
 
   // The header the render prints. Seeing it in a refusal means it showed a tree anyway.
   let shown(s: String): Bool = Stdlib.String.contains(s, "Package tree from")
-
   if
     Stdlib.String.contains(badFlag, "does not take `--zzbogus`")
-      && Stdlib.Bool.not(shown(badFlag))
-      && Stdlib.String.contains(badPath, "Not found")
-      && Stdlib.Bool.not(shown(badPath))
-      && Stdlib.String.contains(twoPaths, "does not take `Darklang.Cli`")
-      && shown(withDepth)
+    && Stdlib.Bool.not(shown(badFlag))
+    && Stdlib.String.contains(badPath, "Not found")
+    && Stdlib.Bool.not(shown(badPath))
+    && Stdlib.String.contains(twoPaths, "does not take `Darklang.Cli`")
+    && shown(withDepth)
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"flag: {badFlag}, path: {badPath}, two: {twoPaths}, depth shown: {Stdlib.display(shown(withDepth))}")
+    Stdlib.Test.fail(
+      $"flag: {badFlag}, path: {badPath}, two: {twoPaths}, depth shown: {Stdlib.display(shown(withDepth))}")
+
 
 /// `discard` throws the whole draft away, so an unanswerable prompt is not a yes: it
 /// refuses, and the work is still there. `-y` is how a script says yes.
 test discardNeedsAnExplicitYes =
-  let branch = "cli-discard-" + (Stdlib.display(Stdlib.Int64.random(1, 999999)))
+  let branch = "cli-discard-" + Stdlib.display(Stdlib.Int64.random(1, 999999))
   let run(args: List<String>): String =
     runWithCommand(Stdlib.List.concat([ "--branch", branch ], args))
 
   let _ = runWithCommand([ "branch", "create", branch ])
   let _ = run([ "fn", "/Tests.Discard.a", "() : Int64 = 1" ])
-
   let refused = run([ "discard" ])
   let survived = run([ "status" ])
   let discarded = run([ "discard", "-y" ])
   let after = run([ "status" ])
-
   let _ = runWithCommand([ "branch", "archive", branch, "-y" ])
   if
     Stdlib.String.contains(refused, "kept.")
-      && Stdlib.String.contains(survived, "1 item")
-      && Stdlib.String.contains(discarded, "discarded")
-      && Stdlib.Bool.not(Stdlib.String.contains(after, "1 item"))
+    && Stdlib.String.contains(survived, "1 item")
+    && Stdlib.String.contains(discarded, "discarded")
+    && Stdlib.Bool.not(Stdlib.String.contains(after, "1 item"))
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"refused: {refused}, survived: {survived}, discarded: {discarded}, after: {after}")
+    Stdlib.Test.fail(
+      $"refused: {refused}, survived: {survived}, discarded: {discarded}, after: {after}")
 
 
 /// Saving broken code keeps the draft and returns a failing exit code.
@@ -1509,55 +1709,67 @@ module ModuleSave =
   let save(i: Instance.T, source: String): Stdlib.Cli.Process.Output =
     let path = Instance.home(i) + "/probe.dark"
     let _ = Stdlib.Cli.File.writeText(path, source) |> Builtin.unwrap
-    Instance.run(i, [ "module", "/Tests.ModuleSaveProbe", path ]) |> Builtin.unwrap
+    Instance.run(i, [ "module", "/Tests.ModuleSaveProbe", path ])
+    |> Builtin.unwrap
 
 
-  test invalidNamesExitNonzeroAndSaveNothing =
-    Instance.withInstance(fun i ->
-      let source =
-        "type Shape = | Dot | Circle(Float)\nlet f(): Shape = Circle(1.0)"
-      let result = save(i, source)
-      let viewed =
-        Instance.run(i, [ "view", "Tests.ModuleSaveProbe.f" ]) |> Builtin.unwrap
-      let shape =
-        Instance.run(i, [ "view", "Tests.ModuleSaveProbe.Shape" ]) |> Builtin.unwrap
-      Stdlib.Test.all(
-        [ result.exitCode |> Stdlib.Test.equal(1)
-          Stdlib.String.contains(result.stderr, "Invalid name: Circle")
-          |> Stdlib.Test.equal(true)
-          viewed.exitCode |> Stdlib.Test.equal(1)
-          shape.exitCode |> Stdlib.Test.equal(1) ]))
+  test invalidNamesExitNonzeroAndSaveNothing = Instance.withInstance(fun i ->
+    let source =
+      "type Shape = | Dot | Circle(Float)\nlet f(): Shape = Circle(1.0)"
+
+    let result = save(i, source)
+    let viewed =
+      Instance.run(i, [ "view", "Tests.ModuleSaveProbe.f" ]) |> Builtin.unwrap
+
+    let shape =
+      Instance.run(i, [ "view", "Tests.ModuleSaveProbe.Shape" ])
+      |> Builtin.unwrap
+
+    Stdlib.Test.all(
+      [ result.exitCode |> Stdlib.Test.equal(1)
+
+        Stdlib.String.contains(result.stderr, "Invalid name: Circle")
+        |> Stdlib.Test.equal(true)
+
+        viewed.exitCode |> Stdlib.Test.equal(1)
+
+        shape.exitCode |> Stdlib.Test.equal(1) ]))
 
 
-  test unresolvedNamesExitNonzeroAndKeepDraft =
-    Instance.withInstance(fun i ->
-      let result = save(i, "let f(): Int64 = Me.Later.notYet(\"hello\")")
-      let viewed = Instance.run(i, [ "view", "Tests.ModuleSaveProbe.f" ]) |> Builtin.unwrap
-      Stdlib.Test.all(
-        [ result.exitCode |> Stdlib.Test.equal(1)
-          Stdlib.String.contains(result.stderr, "UnresolvedValueName")
-          |> Stdlib.Test.equal(true)
-          viewed.exitCode |> Stdlib.Test.equal(0)
-          Stdlib.String.contains(viewed.stdout, "notYet")
-          |> Stdlib.Test.equal(true) ]))
+  test unresolvedNamesExitNonzeroAndKeepDraft = Instance.withInstance(fun i ->
+    let result = save(i, "let f(): Int64 = Me.Later.notYet(\"hello\")")
+    let viewed =
+      Instance.run(i, [ "view", "Tests.ModuleSaveProbe.f" ]) |> Builtin.unwrap
+
+    Stdlib.Test.all(
+      [ result.exitCode |> Stdlib.Test.equal(1)
+
+        Stdlib.String.contains(result.stderr, "UnresolvedValueName")
+        |> Stdlib.Test.equal(true)
+
+        viewed.exitCode |> Stdlib.Test.equal(0)
+
+        Stdlib.String.contains(viewed.stdout, "notYet")
+        |> Stdlib.Test.equal(true) ]))
 
 
-  test checkedSaveExitsZero =
-    Instance.withInstance(fun i ->
-      let result = save(i, "let f(): Int64 = 42")
-      result.exitCode |> Stdlib.Test.equal(0))
+  test checkedSaveExitsZero = Instance.withInstance(fun i ->
+    let result = save(i, "let f(): Int64 = 42")
+    result.exitCode |> Stdlib.Test.equal(0))
 
 
   // The checker can run out of depth even when the code is valid.
   test otherIncompleteChecksExitZero =
     let warning =
       LanguageTools.AtRestTypeChecker.failureIssue(
-        None, LanguageTools.AtRestTypeChecker.CheckFailure.TooDeep)
+        Stdlib.Option.Option.None,
+        LanguageTools.AtRestTypeChecker.CheckFailure.TooDeep)
+
     let report =
       LanguageTools.AtRestTypeChecker.Report
         { verdict = LanguageTools.AtRestTypeChecker.Verdict.Incomplete
           items = []
           diagnostics = []
           warnings = [ warning ] }
-    Darklang.Cli.Packages.AtRestCheck.saveHasErrors(report)
-    |> Stdlib.Test.equal(false)
+
+    Cli.Packages.AtRestCheck.saveHasErrors(report) |> Stdlib.Test.equal(false)

@@ -13,11 +13,13 @@ module Darklang.Cli.Tests.BuiltinGroups
 
 module BuiltinGroups =
   let knownPrefixes(): List<String> =
-    Darklang.Cli.Builtins.knownGroups |> Stdlib.List.map(fun((p, _)) -> p)
+    Cli.Builtins.knownGroups |> Stdlib.List.map(fun((p, _)) -> p)
+
 
   let livePrefixes(): List<String> =
-    Darklang.LanguageTools.allBuiltinFns()
-    |> Stdlib.List.map(fun f -> Darklang.Cli.Builtins.extractGroup(f.name.name))
+    LanguageTools.allBuiltinFns()
+    |> Stdlib.List.map(fun f -> Cli.Builtins.extractGroup(f.name.name))
+
 
   /// Prefixes carrying at least <param floor> builtins.
   let substantial(floor: Int64): List<String> =
@@ -25,20 +27,24 @@ module BuiltinGroups =
     live
     |> Stdlib.List.unique
     |> Stdlib.List.filter(fun p ->
-      (Stdlib.List.length(Stdlib.List.filter(live, fun q -> q == p))) >= floor)
+      Stdlib.List.length(Stdlib.List.filter(live, fun q -> q == p)) >= floor)
 
 
 // The floor, so neither test below can pass over an empty builtin set.
 test theBuiltinSetWasActuallyRead =
-  (Stdlib.List.length(BuiltinGroups.livePrefixes()) > 300) |> Stdlib.Test.equal(true)
+  Stdlib.List.length(BuiltinGroups.livePrefixes()) > 300
+  |> Stdlib.Test.equal(true)
+
 
 // A new family of builtins lands and nobody names it. The failure names the prefix.
 test everySubstantialPrefixHasADisplayName =
   let known = BuiltinGroups.knownPrefixes()
   BuiltinGroups.substantial(3)
-  |> Stdlib.List.filter(fun p -> Stdlib.Bool.not(Stdlib.List.contains(known, p)))
+  |> Stdlib.List.filter(fun p ->
+    Stdlib.Bool.not(Stdlib.List.contains(known, p)))
   |> Stdlib.List.sort
   |> Stdlib.Test.equal([])
+
 
 // A family is renamed or removed and its row is left behind, taking a slot in the display order.
 test noDisplayNameIsStale =
@@ -48,23 +54,28 @@ test noDisplayNameIsStale =
   |> Stdlib.List.sort
   |> Stdlib.Test.equal([])
 
+
 // A known prefix of more than one word groups by the whole of it, not by its first word.
 test aMultiWordPrefixGroupsTogether =
   [ "bigIntAdd", "bigIntParse", "int64Add", "httpClientRequest" ]
-  |> Stdlib.List.map(fun n -> Darklang.Cli.Builtins.extractGroup(n))
+  |> Stdlib.List.map(fun n -> Cli.Builtins.extractGroup(n))
   |> Stdlib.Test.equal([ "bigInt", "bigInt", "int64", "http" ])
+
 
 test noPrefixIsNamedTwice =
   let known = BuiltinGroups.knownPrefixes()
-  (Stdlib.List.length(Stdlib.List.unique(known))) |> Stdlib.Test.equal(Stdlib.List.length(known))
+  Stdlib.List.length(Stdlib.List.unique(known))
+  |> Stdlib.Test.equal(Stdlib.List.length(known))
+
 
 // `dark builtins` lists the builtin values after the fns, filtered by name like them.
 test builtinValuesAreListedAndFiltered =
   let names(filter: Stdlib.Option.Option<String>): List<String> =
-    Darklang.Cli.Builtins.matchingValues(filter)
-    |> Stdlib.List.map(fun v -> v.name.name)
+    Cli.Builtins.matchingValues(filter) |> Stdlib.List.map(fun v -> v.name.name)
+
   let has(filter: Stdlib.Option.Option<String>): Bool =
     Stdlib.List.contains(names(filter), "bytesEmpty")
+
   let unfiltered = has(Stdlib.Option.Option.None)
   let matching = has(Stdlib.Option.Option.Some("bytes"))
   let other = has(Stdlib.Option.Option.Some("json"))

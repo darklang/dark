@@ -4,74 +4,80 @@ module Darklang.LanguageTools.Tests.Perf
 // assertions possible. Allocation and time are not, so nothing here asserts on them.
 
 test measureReturnsTheValue =
-  (LanguageTools.Perf.measure(fun () -> 6 + 7)) |> Stdlib.Tuple2.second
+  LanguageTools.Perf.measure(fun () -> 6 + 7)
+  |> Stdlib.Tuple2.second
   |> Stdlib.Test.equal(13)
+
 
 // If this fails, the counters depend on something other than the work, and every number taken
 // with them is suspect.
 test countersAreReproducible =
   (let first =
-    (LanguageTools.Perf.measure(fun () -> Stdlib.List.length(Stdlib.List.range(1, 20))))
-    |> Stdlib.Tuple2.first
-
-   let second =
-     (LanguageTools.Perf.measure(fun () -> Stdlib.List.length(Stdlib.List.range(1, 20))))
+     LanguageTools.Perf.measure(fun () ->
+       Stdlib.List.length(Stdlib.List.range(1, 20)))
      |> Stdlib.Tuple2.first
-
+   let second =
+     LanguageTools.Perf.measure(fun () ->
+       Stdlib.List.length(Stdlib.List.range(1, 20)))
+     |> Stdlib.Tuple2.first
    first.instructions == second.instructions)
   |> Stdlib.Test.equal(true)
+
 
 // One frame push per lambda application, once the harness's 89 are off. This is what fails if the
 // floor subtraction stops working.
 test framePushesAreOnePerElement =
   (let harness = LanguageTools.Perf.floor()
-
    let (raw, _) =
      LanguageTools.Perf.measure(fun () ->
-       Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 50), fun x -> x + 1)))
-
+       Stdlib.List.length(
+         Stdlib.List.map(Stdlib.List.range(1, 50), fun x -> x + 1)))
    (LanguageTools.Perf.minus(raw, harness)).framePushes)
   |> Stdlib.Test.equal(50)
 
+
 test minusClampsAtZero =
   (let big = LanguageTools.Perf.floor()
-
    let (small, _) = LanguageTools.Perf.measure(fun () -> ())
-
    let clamped = LanguageTools.Perf.minus(small, big)
-   (clamped.instructions >= 0) && (clamped.allocBytes >= 0))
+   clamped.instructions >= 0 && clamped.allocBytes >= 0)
   |> Stdlib.Test.equal(true)
+
 
 test measurementCarriesItsBuild =
   (let (m, _) = LanguageTools.Perf.measure(fun () -> ())
-
-   ((m.buildMode == "debug")
-    || (m.buildMode == "release-aot")
-    || (m.buildMode == "release-r2r"))
-   && (m.buildHash != "")
-   && (m.buildHash != "unknown"))
+   (m.buildMode == "debug"
+    || m.buildMode == "release-aot"
+    || m.buildMode == "release-r2r")
+   && m.buildHash != ""
+   && m.buildHash != "unknown")
   |> Stdlib.Test.equal(true)
+
 
 test bestKeepsTheLowestOfEachField =
   (let (m, _) = LanguageTools.Perf.measure(fun () -> ())
    let hi = { m with allocBytes = 900, instructions = 5 }
    let lo = { m with allocBytes = 100, instructions = 9 }
-
    match LanguageTools.Perf.best([ hi, lo ]) with
-   | Some(b) -> (b.allocBytes == 100) && (b.instructions == 5)
+   | Some(b) -> b.allocBytes == 100 && b.instructions == 5
    | None -> false)
   |> Stdlib.Test.equal(true)
+
 
 test bestOfNothingIsNone =
   LanguageTools.Perf.best([]) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
+
 // The counters are exact, so `ab` can be checked on them: 50 lambda applications against 10.
 test abMeasuresEachSideSeparately =
   (let (a, b) =
-    LanguageTools.Perf.ab(
-      fun () -> Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 50), fun x -> x + 1)),
-      fun () -> Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 10), fun x -> x + 1)),
-      3)
-
+     LanguageTools.Perf.ab(
+       (fun () ->
+          Stdlib.List.length(
+            Stdlib.List.map(Stdlib.List.range(1, 50), fun x -> x + 1))),
+       (fun () ->
+          Stdlib.List.length(
+            Stdlib.List.map(Stdlib.List.range(1, 10), fun x -> x + 1))),
+       3)
    (a.framePushes, b.framePushes))
   |> Stdlib.Test.equal((50, 10))

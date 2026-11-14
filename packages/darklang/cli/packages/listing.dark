@@ -5,16 +5,12 @@ module Darklang.Cli.Packages.Listing
 /// Every version this name has been bound to, oldest first: main's history, continuing into the
 /// branch's own edits. Only interesting when there is more than one, which is why the caller only
 /// prints it then.
-let versionsOf(
-  modulePath: List<String>,
-  name: String)
-  : List<String> =
+let versionsOf(modulePath: List<String>, name: String): List<String> =
   match modulePath with
   | [] -> []
   | [owner, ...modules] ->
-    SCM.Propagation.authoringOrder((
-      LanguageTools.ProgramTypes.PackageLocation
-        { owner = owner, modules = modules, name = name }))
+    SCM.Propagation.authoringOrder(
+      LanguageTools.ProgramTypes.PackageLocation { owner = owner, modules = modules, name = name })
 
 
 /// Print the `--versions` rows under one name: each version's short hash, oldest first, the
@@ -26,18 +22,14 @@ let printVersionLines(
   hash: LanguageTools.ProgramTypes.Hash)
   : Unit =
   let live = LanguageTools.ProgramTypes.hashToString(hash)
-
   match versionsOf(modulePath, name) with
   | [] -> ()
-  | [ _single ] -> ()
+  | [_single] -> ()
   | versions ->
     versions
     |> Stdlib.List.iter(fun v ->
       let tag = if v == live then "  (live)" else ""
-
-      Stdlib.printLine(
-        (Stdlib.Cli.UI.Colors.dimText(
-          $"      {Stdlib.String.slice(v, 0, 8)}{tag}"))))
+      Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"      {Stdlib.String.slice(v, 0, 8)}{tag}")))
 
 
 let listModule(
@@ -53,6 +45,7 @@ let listModule(
   // full definition to read those was most of the command's cost once startup got cheap.
   let (allSubmodules, rawTypes, rawValues, rawFns, rawTraits, rawImpls, rawTests) =
     Query.allDirectDescendantNamesAndHashes(branchId, modulePath)
+
   let depSets = Query.loadDeprecationSets(branchId)
   let types = Query.filterHiddenPairs(modulePath, rawTypes, depSets, deprecated, internal)
   let values = Query.filterHiddenPairs(modulePath, rawValues, depSets, deprecated, internal)
@@ -60,8 +53,7 @@ let listModule(
   let traits = Query.filterHiddenPairs(modulePath, rawTraits, depSets, deprecated, internal)
   let impls = Query.filterHiddenPairs(modulePath, rawImpls, depSets, deprecated, internal)
   let tests = Query.filterHiddenPairs(modulePath, rawTests, depSets, deprecated, internal)
-
-  let locationStr = Packages.formatLocation(location)
+  let locationStr = formatLocation(location)
   Stdlib.printLine($"Contents of {locationStr}:")
   Stdlib.printLine("")
 
@@ -91,7 +83,6 @@ let listModule(
     typeName: String)
     : List<(String * String * LanguageTools.ProgramTypes.Hash * List<String>)> =
     let childPath = Stdlib.List.append(modulePath, typeName)
-
     let childImpls =
       implsBelow
       |> Stdlib.List.filter(fun item ->
@@ -104,16 +95,19 @@ let listModule(
   // The type an implementation stored HERE is for is the module we are standing in: at
   // `Stdlib.Int64` the entries are `Add for Int64`.
   let selfType =
-    modulePath |> Stdlib.List.last |> Stdlib.Option.withDefault("")
+    modulePath
+    |> Stdlib.List.last
+    |> Stdlib.Option.withDefault("")
 
   // The fourth field is the module the implementation actually lives in, which `--versions` needs:
   // for one stored here that is this module, and for one under a type it is that type's.
   let ownImplEntries =
-    impls
-    |> Stdlib.List.map(fun((traitName, hash)) -> (traitName, selfType, hash, modulePath))
+    impls |> Stdlib.List.map(fun((traitName, hash)) -> (traitName, selfType, hash, modulePath))
 
   let childImplEntries =
-    implTypes |> Stdlib.List.map(implsUnder) |> Stdlib.List.flatten
+    implTypes
+    |> Stdlib.List.map(implsUnder)
+    |> Stdlib.List.flatten
 
   let implEntries =
     Stdlib.List.concat(ownImplEntries, childImplEntries)
@@ -122,13 +116,10 @@ let listModule(
       typeName + "." + traitName)
 
   let implNames = impls |> Stdlib.List.map(fun((name, _)) -> name)
-  let submodules =
-    LanguageTools.PackageManager.Search.readerSubmodules(allSubmodules, implNames)
-
+  let submodules = LanguageTools.PackageManager.Search.readerSubmodules(allSubmodules, implNames)
   if Stdlib.Bool.not(Stdlib.List.isEmpty(submodules)) then
     Stdlib.printLine(Display.getSectionHeader("module"))
-    submodules
-    |> Stdlib.List.iter(fun name -> Stdlib.printLine($"  {name}/"))
+    submodules |> Stdlib.List.iter(fun name -> Stdlib.printLine($"  {name}/"))
     Stdlib.printLine("")
 
   let printSection(header: String, items: List<(String * LanguageTools.ProgramTypes.Hash)>): Unit =
@@ -141,8 +132,7 @@ let listModule(
 
         // A listing names what a name MEANS, which is one version; `--versions` adds what it
         // has meant.
-        if showVersions then
-          printVersionLines(modulePath, name, hash))
+        if showVersions then printVersionLines(modulePath, name, hash))
 
       Stdlib.printLine("")
 
@@ -158,16 +148,13 @@ let listModule(
       |> Stdlib.List.iter(fun entry ->
         let (traitName, typeName, hash, versionsPath) = entry
         let mark = Query.deprecationMarker(depSets, versionsPath, traitName, hash)
-        Stdlib.printLine(
-          $"  implementation of trait \"{traitName}\" for type \"{typeName}\"{mark}")
-
-        if showVersions then
-          printVersionLines(versionsPath, traitName, hash))
+        Stdlib.printLine($"  implementation of trait \"{traitName}\" for type \"{typeName}\"{mark}")
+        if showVersions then printVersionLines(versionsPath, traitName, hash))
 
       Stdlib.printLine("")
 
   // Driven by the one kind order, so this list cannot drift from `tree` or the workbench.
-  Darklang.Cli.Glyphs.kindOrder
+  Glyphs.kindOrder
   |> Stdlib.List.iter(fun kind ->
     match kind with
     | "module" -> ()
@@ -185,11 +172,11 @@ let execute(state: AppState, args: List<String>): AppState =
   let deprecated = Query.Deprecated.showIf(Stdlib.List.contains(args, "--include-deprecated"))
   let internal = Query.Internal.showIf(Stdlib.List.contains(args, "--include-internal"))
   let showVersions = Stdlib.List.contains(args, "--versions")
-
   let positional =
     args
     |> Stdlib.List.filter(fun a ->
-      (a != "--include-deprecated") && (a != "--include-internal") && (a != "--versions"))
+      a != "--include-deprecated" && a != "--include-internal" && a != "--versions")
+
   match positional with
   | [] ->
     listModule(branchId, state.packageData.currentLocation, deprecated, internal, showVersions)
@@ -198,7 +185,7 @@ let execute(state: AppState, args: List<String>): AppState =
     match Traversal.traverse(branchId, state.packageData.currentLocation, pathArg) with
     | Error(errorMsg) ->
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot list {pathArg}: {errorMsg}"))
-      Cli.failed(state)
+      failed(state)
     | Ok(newLocation) ->
       match newLocation with
       | Module(_) ->
@@ -208,45 +195,41 @@ let execute(state: AppState, args: List<String>): AppState =
       // question with a real answer; the other kinds are leaves.
       | Impl(i) ->
         let asModule =
-          PackageLocation.Module(Stdlib.List.append(Stdlib.List.prepend(i.modules, i.owner), i.name))
+          PackageLocation.Module(
+            Stdlib.List.append(Stdlib.List.prepend(i.modules, i.owner), i.name))
 
         listModule(branchId, asModule, deprecated, internal, showVersions)
         state
       | Type(_) | Value(_) | Function(_) | Trait(_) | Test(_) ->
-        let locationStr = Packages.formatLocation(newLocation)
-        Cli.printErr($"'{locationStr}' is not a module.")
-        Cli.Stderr.line("`dark view` shows one item; `dark ls` lists a module.")
+        let locationStr = formatLocation(newLocation)
+        printErr($"'{locationStr}' is not a module.")
+        Stderr.line("`dark view` shows one item; `dark ls` lists a module.")
 
         // A trait's own question is which types implement it, and `impls` is the only command that
         // answers it. Without this line you find that command in the docs or by accident.
         match newLocation with
         | Trait(t) ->
           let traitName = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(t)
-
-          Cli.Stderr.line($"`dark impls {traitName}` lists the types that implement it.")
+          Stderr.line($"`dark impls {traitName}` lists the types that implement it.")
         | _ -> ()
 
-        Cli.failed(state)
+        failed(state)
   | _ ->
     Stdlib.printLine(help(state))
     state
 
 
-
-
 let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =
   let branchId = state.currentBranchId
   match args with
-  | [] ->
-    Traversal.completePartialPath(branchId, state.packageData.currentLocation, "")
+  | [] -> Traversal.completePartialPath(branchId, state.packageData.currentLocation, "")
   | [partialPath] ->
     Traversal.completePartialPath(branchId, state.packageData.currentLocation, partialPath)
   | _ -> []
 
 
 let help(_state: AppState): String =
-  [
-    "Usage: ls [path] [--include-deprecated] [--include-internal] [--versions]"
+  [ "Usage: ls [path] [--include-deprecated] [--include-internal] [--versions]"
     "List contents of the current location or specified path with icons."
     ""
     "Shows modules, types, functions, values, traits, trait implementations and tests, by kind."
@@ -267,5 +250,5 @@ let help(_state: AppState): String =
     "  ls .. --include-deprecated - Include deprecated items"
     "  ls Darklang.Stdlib.List --versions   - every version of each name"
     ""
-    "See also: `tree` for multi-level view, `view` for detailed view"
-  ] |> Stdlib.String.join("\n")
+    "See also: `tree` for multi-level view, `view` for detailed view" ]
+  |> Stdlib.String.join("\n")

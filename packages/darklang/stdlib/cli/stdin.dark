@@ -1,29 +1,32 @@
 module Darklang.Stdlib.Cli.Stdin
 
-
 /// Read one line from stdin, without its trailing newline; None at EOF.
-let readLineOrEnd(): Stdlib.Option.Option<String> = Builtin.stdinReadLine()
+let readLineOrEnd(): Option<String> =
+  Builtin.stdinReadLine()
+
 
 /// Like <fn readLineOrEnd>, but "" at EOF.
 let readLine(): String =
-  Stdlib.Option.withDefault(readLineOrEnd(), "")
+  Option.withDefault(readLineOrEnd(), "")
+
 
 /// Why <fn checkedReadLine> read no line.
 type ReadLineError =
   /// The line is not valid UTF-8
   | NotUtf8
 
+
 /// Read one line from stdin, without its trailing newline: {{Ok None}} at EOF, or
 /// {{Error NotUtf8}} where <fn readLineOrEnd> raises.
-let checkedReadLine(): Stdlib.Result.Result<Stdlib.Option.Option<String>, ReadLineError> =
-  Builtin.stdinCheckedReadLine() |> Stdlib.Result.mapError(fun _ -> ReadLineError.NotUtf8)
+let checkedReadLine(): Result<Option<String>, ReadLineError> =
+  Builtin.stdinCheckedReadLine() |> Result.mapError(fun _ -> ReadLineError.NotUtf8)
 
 
 /// Read all of stdin, until EOF. An Error when it is not valid UTF-8, naming the first bad
 /// bytes: {{Error "stdin is not valid UTF-8: FF"}}.
-let readAll(): Stdlib.Result.Result<String, String> =
+let readAll(): Result<String, String> =
   Builtin.stdinReadAll()
-  |> Stdlib.Result.mapError(fun bad -> $"stdin is not valid UTF-8: {Stdlib.Base16.encode(bad)}")
+  |> Result.mapError(fun bad -> $"stdin is not valid UTF-8: {Base16.encode(bad)}")
 
 
 /// Read one line WITHOUT echoing it, for a secret typed at a prompt.
@@ -35,30 +38,33 @@ let readAll(): Stdlib.Result.Result<String, String> =
 /// and a coalesced burst (a held key, or a paste delivering one character many times) appends
 /// `keyChar` `repeat` times so a pasted secret arrives whole.
 let readSecret(): String =
-  if Stdlib.Bool.not(Stdlib.Cli.Sys.isTerminal(0)) then
+  if Bool.not(Sys.isTerminal(0)) then
     readLine()
   else
     let go(acc: String): String =
       let k = readKey()
-
       match k.key with
       | Enter ->
-        Stdlib.printErrorLine("")
+        printErrorLine("")
         acc
-      | Backspace -> go(Stdlib.String.dropLast(acc, 1))
+      | Backspace -> go(String.dropLast(acc, 1))
       | _ ->
         if k.keyChar == "" then
           go(acc)
         else
           let chunk =
-            if k.repeat > 1 then (Stdlib.String.checkedRepeat(k.keyChar, k.repeat) |> Stdlib.Result.withDefault("")) else k.keyChar
+            if k.repeat > 1 then
+              String.checkedRepeat(k.keyChar, k.repeat) |> Result.withDefault("")
+            else
+              k.keyChar
+
           // A paste arrives as ONE coalesced read whose text can carry the terminating
           // newline; without this check the loop would wait for an Enter that was already
           // consumed. Anything pasted after the newline is not secret material and is dropped.
-          match Stdlib.String.split(acc + chunk, "\n") with
-          | [ whole ] -> go(whole)
+          match String.split(acc + chunk, "\n") with
+          | [whole] -> go(whole)
           | [beforeNewline, ..._rest] ->
-            Stdlib.printErrorLine("")
+            printErrorLine("")
             beforeNewline
           | [] -> go(acc)
 
@@ -68,436 +74,292 @@ let readSecret(): String =
 module Key =
   type Key =
     | None
-
     /// The BACKSPACE key.
     | Backspace
-
     /// The TAB key.
     | Tab
-
     /// The CLEAR key.
     | Clear
-
     /// The ENTER key.
     | Enter
-
     /// The PAUSE key.
     | Pause
-
     /// The ESC (ESCAPE) key.
     | Escape
-
     /// The SPACEBAR key.
     | Spacebar
-
     /// The PAGE UP key.
     | PageUp
-
     /// The PAGE DOWN key.
     | PageDown
-
     /// The END key.
     | End
-
     /// The HOME key.
     | Home
-
     /// The LEFT ARROW key.
     | LeftArrow
-
     /// The UP ARROW key.
     | UpArrow
-
     /// The RIGHT ARROW key.
     | RightArrow
-
     /// The DOWN ARROW key.
     | DownArrow
-
     /// The SELECT key.
     | Select
-
     /// The PRINT key.
     | Print
-
     /// The EXECUTE key.
     | Execute
-
     /// The PRINT SCREEN key.
     | PrintScreen
-
     /// The INS (INSERT) key.
     | Insert
-
     /// The DEL (DELETE) key.
     | Delete
-
     /// The HELP key.
     | Help
-
     /// The 0 key.
     | D0
-
     /// The 1 key.
     | D1
-
     /// The 2 key.
     | D2
-
     /// The 3 key.
     | D3
-
     /// The 4 key.
     | D4
-
     /// The 5 key.
     | D5
-
     /// The 6 key.
     | D6
-
     /// The 7 key.
     | D7
-
     /// The 8 key.
     | D8
-
     /// The 9 key.
     | D9
-
     /// The A key.
     | A
-
     /// The B key.
     | B
-
     /// The C key.
     | C
-
     /// The D key.
     | D
-
     /// The E key.
     | E
-
     /// The F key.
     | F
-
     /// The G key.
     | G
-
     /// The H key.
     | H
-
     /// The I key.
     | I
-
     /// The J key.
     | J
-
     /// The K key.
     | K
-
     /// The L key.
     | L
-
     /// The M key.
     | M
-
     /// The N key.
     | N
-
     /// The O key.
     | O
-
     /// The P key.
     | P
-
     /// The Q key.
     | Q
-
     /// The R key.
     | R
-
     /// The S key.
     | S
-
     /// The T key.
     | T
-
     /// The U key.
     | U
-
     /// The V key.
     | V
-
     /// The W key.
     | W
-
     /// The X key.
     | X
-
     /// The Y key.
     | Y
-
     /// The Z key.
     | Z
-
     /// The left Windows logo key (Microsoft Natural Keyboard).
     | LeftWindows
-
     /// The right Windows logo key (Microsoft Natural Keyboard).
     | RightWindows
-
     /// The Application key (Microsoft Natural Keyboard).
     | Applications
-
     /// The Computer Sleep key.
     | Sleep
-
     /// The 0 key on the numeric keypad.
     | NumPad0
-
     /// The 1 key on the numeric keypad.
     | NumPad1
-
     /// The 2 key on the numeric keypad.
     | NumPad2
-
     /// The 3 key on the numeric keypad.
     | NumPad3
-
     /// The 4 key on the numeric keypad.
     | NumPad4
-
     /// The 5 key on the numeric keypad.
     | NumPad5
-
     /// The 6 key on the numeric keypad.
     | NumPad6
-
     /// The 7 key on the numeric keypad.
     | NumPad7
-
     /// The 8 key on the numeric keypad.
     | NumPad8
-
     /// The 9 key on the numeric keypad.
     | NumPad9
-
     /// The Multiply key (the multiplication key on the numeric keypad).
     | Multiply
-
     /// The Add key (the addition key on the numeric keypad).
     | Add
-
     /// The Separator key.
     | Separator
-
     /// The Subtract key (the subtraction key on the numeric keypad).
     | Subtract
-
     /// The Decimal key (the decimal key on the numeric keypad).
     | Decimal
-
     /// The Divide key (the division key on the numeric keypad).
     | Divide
-
     /// The F1 key.
     | F1
-
     /// The F2 key.
     | F2
-
     /// The F3 key.
     | F3
-
     /// The F4 key.
     | F4
-
     /// The F5 key.
     | F5
-
     /// The F6 key.
     | F6
-
     /// The F7 key.
     | F7
-
     /// The F8 key.
     | F8
-
     /// The F9 key.
     | F9
-
     /// The F10 key.
     | F10
-
     /// The F11 key.
     | F11
-
     /// The F12 key.
     | F12
-
     /// The F13 key.
     | F13
-
     /// The F14 key.
     | F14
-
     /// The F15 key.
     | F15
-
     /// The F16 key.
     | F16
-
     /// The F17 key.
     | F17
-
     /// The F18 key.
     | F18
-
     /// The F19 key.
     | F19
-
     /// The F20 key.
     | F20
-
     /// The F21 key.
     | F21
-
     /// The F22 key.
     | F22
-
     /// The F23 key.
     | F23
-
     /// The F24 key.
     | F24
-
     /// The Browser Back key.
     | BrowserBack
-
     /// The Browser Forward key.
     | BrowserForward
-
     /// The Browser Refresh key.
     | BrowserRefresh
-
     /// The Browser Stop key.
     | BrowserStop
-
     /// The Browser Search key.
     | BrowserSearch
-
     /// The Browser Favorites key.
     | BrowserFavorites
-
     /// The Browser Home key.
     | BrowserHome
-
     /// The Volume Mute key (Microsoft Natural Keyboard).
     | VolumeMute
-
     /// The Volume Down key (Microsoft Natural Keyboard).
     | VolumeDown
-
     /// The Volume Up key (Microsoft Natural Keyboard).
     | VolumeUp
-
     /// The Media Next Track key.
     | MediaNext
-
     /// The Media Previous Track key.
     | MediaPrevious
-
     /// The Media Stop key.
     | MediaStop
-
     /// The Media Play/Pause key.
     | MediaPlay
-
     /// The Start Mail key (Microsoft Natural Keyboard).
     | LaunchMail
-
     /// The Select Media key (Microsoft Natural Keyboard).
     | LaunchMediaSelect
-
     /// The Start Application 1 key (Microsoft Natural Keyboard).
     | LaunchApp1
-
     /// The Start Application 2 key (Microsoft Natural Keyboard).
     | LaunchApp2
-
     /// The OEM 1 key (OEM specific).
     | Oem1
-
     /// The OEM Plus key on any country/region keyboard.
     | OemPlus
-
     /// The OEM Comma key on any country/region keyboard.
     | OemComma
-
     /// The OEM Minus key on any country/region keyboard.
     | OemMinus
-
     /// The OEM Period key on any country/region keyboard.
     | OemPeriod
-
     /// The OEM 2 key (OEM specific).
     | Oem2
-
     /// The OEM 3 key (OEM specific).
     | Oem3
-
     /// The OEM 4 key (OEM specific).
     | Oem4
-
     /// The OEM 5 (OEM specific).
     | Oem5
-
     /// The OEM 6 key (OEM specific).
     | Oem6
-
     /// The OEM 7 key (OEM specific).
     | Oem7
-
     /// The OEM 8 key (OEM specific).
     | Oem8
-
     /// The OEM 102 key (OEM specific).
     | Oem102
-
     /// The IME PROCESS key.
     | Process
-
     /// The PACKET key (used to pass Unicode characters with keystrokes).
     | Packet
-
     /// The ATTN key.
     | Attention
-
     /// The CRSEL (CURSOR SELECT) key.
     | CrSel
-
     /// The EXSEL (EXTEND SELECTION) key.
     | ExSel
-
     /// The ERASE EOF key.
     | EraseEndOfFile
-
     /// The PLAY key.
     | Play
-
     /// The ZOOM key.
     | Zoom
-
     /// A constant reserved for future use.
     | NoName
-
     /// The PA1 key.
     | Pa1
-
     /// The CLEAR key (OEM specific).
     | OemClear
 
@@ -505,51 +367,123 @@ module Key =
   /// Returns true if the key represents a textual input (letters, numbers, etc.)
   let isTextual(k: Key): Bool =
     match k with
-    | A | B | C | D | E | F | G | H | I | J | K | L | M
-    | N | O | P | Q | R | S | T | U | V | W | X | Y | Z
-    | D0 | D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8 | D9
-    | Spacebar | OemComma | OemPeriod | OemMinus | OemPlus
-    | Oem1 | Oem2 | Oem3 | Oem4 | Oem5 | Oem6 | Oem7 | Oem8 -> true
+    | A
+    | B
+    | C
+    | D
+    | E
+    | F
+    | G
+    | H
+    | I
+    | J
+    | K
+    | L
+    | M
+    | N
+    | O
+    | P
+    | Q
+    | R
+    | S
+    | T
+    | U
+    | V
+    | W
+    | X
+    | Y
+    | Z
+    | D0
+    | D1
+    | D2
+    | D3
+    | D4
+    | D5
+    | D6
+    | D7
+    | D8
+    | D9
+    | Spacebar
+    | OemComma
+    | OemPeriod
+    | OemMinus
+    | OemPlus
+    | Oem1
+    | Oem2
+    | Oem3
+    | Oem4
+    | Oem5
+    | Oem6
+    | Oem7
+    | Oem8 ->
+      true
     | _ -> false
+
 
   /// Returns true if the key represents a control key (navigation, function keys, etc.)
   let isControl(k: Key): Bool =
     match k with
-    | Enter | Escape | Backspace | Tab
-    | LeftArrow | RightArrow | UpArrow | DownArrow
-    | Home | End | PageUp | PageDown
-    | F1 | F2 | F3 | F4 | F5 | F6 | F7 | F8 | F9 | F10 | F11 | F12
-    | Delete | Insert -> true
+    | Enter
+    | Escape
+    | Backspace
+    | Tab
+    | LeftArrow
+    | RightArrow
+    | UpArrow
+    | DownArrow
+    | Home
+    | End
+    | PageUp
+    | PageDown
+    | F1
+    | F2
+    | F3
+    | F4
+    | F5
+    | F6
+    | F7
+    | F8
+    | F9
+    | F10
+    | F11
+    | F12
+    | Delete
+    | Insert ->
+      true
     | _ -> false
+
 
   /// Display name of the key, e.g. `Enter` or `A`
   let toString(k: Key): String =
     // inspect prints the fully-qualified case name; keep just the last segment
-    (Stdlib.inspect(k))
-    |> Stdlib.String.split(".")
-    |> Stdlib.List.last
-    |> Stdlib.Option.withDefault("")
+    inspect(k)
+    |> String.split(".")
+    |> List.last
+    |> Option.withDefault("")
 
 
 module Modifiers =
   type Modifiers =
-    { alt: Bool, ctrl: Bool, shift: Bool }
+    { alt: Bool
+      ctrl: Bool
+      shift: Bool }
+
 
   let toString(m: Modifiers): String =
     let altPart =
       match m.alt with
       | true -> "ALT+"
-      | false ->  ""
+      | false -> ""
 
     let ctrlPart =
       match m.ctrl with
       | true -> "CTRL+"
-      | false ->  ""
+      | false -> ""
 
     let shiftPart =
       match m.shift with
       | true -> "SHIFT+"
-      | false ->  ""
+      | false -> ""
 
     altPart + ctrlPart + shiftPart
 
@@ -559,21 +493,21 @@ module KeyRead =
   type KeyRead =
     { /// The non-modifier key pressed
       key: Key.Key
-
       /// Any modifiers held when they key was pressed
       modifiers: Modifiers.Modifiers
       keyChar: String
-
       /// How many times this key arrived in one coalesced burst - 1 for an ordinary keypress.
       ///
       /// A mouse wheel (in the alternate screen it arrives as a run of arrow escapes) and a held-down key
       /// both deliver many events faster than a frame. The reader waits out the burst - until a pause or a
       /// time limit, whichever comes first - and reports the count, so a caller can apply all of the
       /// movement and render once. Ignoring it is safe and means "treat a flick as a single step".
-      repeat: Int64}
+      repeat: Int64 }
+
 
   let toString(k: KeyRead): String =
-    (Modifiers.toString(k.modifiers)) + (Key.toString(k.key))
+    Modifiers.toString(k.modifiers) + Key.toString(k.key)
+
 
 let readKey(): KeyRead.KeyRead =
   Builtin.stdinReadKey()

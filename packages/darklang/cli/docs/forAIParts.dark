@@ -94,6 +94,7 @@ parameters, such as `add(a: Int64, b: Int64)`, goes through `eval`:
 `eval 'Me.Math.add(1, 2)'`.
 """
 
+
 /// `docs for-ai tests`: package tests in full.
 let tests(): String =
   """# Darklang AI: tests
@@ -153,6 +154,7 @@ matches exactly:
     (1 / 0)
     => raises "Cannot divide by 0"
 """
+
 
 /// `docs for-ai permissions`: the instance policy and package approvals.
 let permissions(): String =
@@ -223,6 +225,7 @@ Instance defaults and temporary run permissions still apply.
 `unapprove` removes that name's remembered access without changing its code.
 `revoke-package <hash>` removes all named approvals for that version.
 """
+
 
 /// `docs for-ai traces`: reading a run back, and things that run at once.
 let traces(): String =
@@ -303,6 +306,7 @@ run back up, `traces fork` branches one. `docs processes` and `docs live` have t
 short versions; `docs/processes.md` and `docs/live.md` in the repo have the design.
 """
 
+
 /// `docs for-ai scm`: drafts, commits, branches and deprecation.
 let scm(): String =
   """# Darklang AI: scm
@@ -370,6 +374,7 @@ committed can be rewritten, only superseded.
   eval --allow-harmful <fn>                   # opt out of harmful halt
   (see: docs deprecation)
 """
+
 
 /// `docs for-ai syntax`: the full syntax notes and name resolution.
 let syntax(): String =

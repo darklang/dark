@@ -1,30 +1,29 @@
 module Darklang.LanguageTools.Parser.Parse
 
-
 /// The parser's tree for <param code> and its diagnostics, as (range, message) pairs. The tree is
 /// best-effort, {{None}} only if the tokenizer failed outright.
 let parse(
-  kind: Parser.FileKind,
+  kind: FileKind,
   code: String)
-  : (Stdlib.Option.Option<WrittenTypes.ParsedFile> * List<(Parser.Range * String)>) =
+  : (Option<WrittenTypes.ParsedFile> * List<(Range * String)>) =
   Builtin.parse(kind, code)
 
 
 /// The written-types tree for <param code>, or {{None}} if the tokenizer failed outright. Syntax errors
 /// short of that come back as a tree plus `diagnostics`.
-let toWrittenTypes(code: String): Stdlib.Option.Option<WrittenTypes.ParsedFile> =
-  (parse(Parser.FileKind.Script, code)) |> Stdlib.Tuple2.first
+let toWrittenTypes(code: String): Option<WrittenTypes.ParsedFile> =
+  parse(FileKind.Script, code) |> Stdlib.Tuple2.first
 
 
 /// The parser's syntax diagnostics for <param code>, as (range, message) pairs. Empty on a clean parse.
-let diagnostics(code: String): List<(Parser.Range * String)> =
-  (parse(Parser.FileKind.Script, code)) |> Stdlib.Tuple2.second
+let diagnostics(code: String): List<(Range * String)> =
+  parse(FileKind.Script, code) |> Stdlib.Tuple2.second
 
 
 /// Why a parser entry point refused its source.
 type ParseError =
   /// The parser's syntax diagnostics, as (range, message) pairs, in source order. Never empty.
-  | Syntax(diagnostics: List<(Parser.Range * String)>)
+  | Syntax(diagnostics: List<(Range * String)>)
   /// The tokenizer failed outright, so there is no tree and nothing more specific to say.
   | NoTree
   /// `parsePTExpr` wants exactly one expression, and the source held this many.
@@ -34,9 +33,10 @@ type ParseError =
 module ParseError =
   /// One diagnostic as a line a person can act on. The line and column count from 1, as in
   /// the parser messages and the CLI diagnostics.
-  let diagnosticToString(diagnostic: (Parser.Range * String)): String =
+  let diagnosticToString(diagnostic: (Range * String)): String =
     let (range, message) = diagnostic
     $"Parse error at line {Stdlib.display(range.start.row + 1)}, column {Stdlib.display(range.start.column + 1)}: {message}"
+
 
   let toString(err: ParseError): String =
     match err with
@@ -55,25 +55,20 @@ module ParseError =
 /// A source with any syntax diagnostic is an `Error`, even though the parser recovered a tree:
 /// lowering turns the recovery holes into `()`, so passing that tree on would run something
 /// other than what was written.
-let initialParse(code: String): Stdlib.Result.Result<WrittenTypes.ParsedFile, ParseError> =
-  initialParseAs(Parser.FileKind.Script, code)
+let initialParse(code: String): Result<WrittenTypes.ParsedFile, ParseError> =
+  initialParseAs(FileKind.Script, code)
 
 
 /// `initialParse` for a <param kind> other than a script, such as a package file, where named
 /// tests are allowed.
-let initialParseAs(
-  kind: Parser.FileKind,
-  code: String)
-  : Stdlib.Result.Result<WrittenTypes.ParsedFile, ParseError> =
+let initialParseAs(kind: FileKind, code: String): Result<WrittenTypes.ParsedFile, ParseError> =
   match parse(kind, code) with
-  | (Some(parsedFile), []) -> Stdlib.Result.Result.Ok(parsedFile)
-  | (None, []) -> Stdlib.Result.Result.Error(ParseError.NoTree)
-  | (_, diagnostics) -> Stdlib.Result.Result.Error(ParseError.Syntax(diagnostics))
+  | Some(parsedFile), [] -> Result.Ok(parsedFile)
+  | None, [] -> Result.Error(ParseError.NoTree)
+  | _, diagnostics -> Result.Error(ParseError.Syntax(diagnostics))
 
 
-let parsePTExpr(
-  code: String)
-  : Stdlib.Result.Result<ProgramTypes.Expr, ParseError> =
+let parsePTExpr(code: String): Result<ProgramTypes.Expr, ParseError> =
   // context-free lowering is just the in-context lowering with an empty context, against main
   parsePTExprInContext(SCM.Branch.mainBranchId, "", [], [], [], code)
 
@@ -138,26 +133,21 @@ let parsePTExprInContext(
 let parsePTSourceFileWithOps(
   branchId: Uuid,
   code: String)
-  : Stdlib.Result.Result<
-    (ProgramTypes.SourceFile.SourceFile * List<ProgramTypes.PackageOp>),
-    ParseError
-  > =
+  : Result<(ProgramTypes.SourceFile.SourceFile * List<ProgramTypes.PackageOp>), ParseError> =
   match code |> initialParse with
   | Ok(parsedFile) ->
     let (sourceFile, ops, _unresolvedNames) =
       WrittenTypesToProgramTypes.parsedFileAsSourceFile(branchId, parsedFile)
 
-    (sourceFile, ops) |> Stdlib.Result.Result.Ok
-  | Error(e) -> Stdlib.Result.Result.Error(e)
+    (sourceFile, ops) |> Result.Ok
+  | Error(e) -> Result.Error(e)
 
 
 /// Parse package declarations into written types, or return syntax diagnostics.
-let packageToWrittenTypes(
-  source: String)
-  : Stdlib.Result.Result<WrittenTypes.ParsedFile, List<(Parser.Range * String)>> =
-  match parse(Parser.FileKind.Package, source) with
-  | (Some(parsedFile), []) -> Stdlib.Result.Result.Ok(parsedFile)
-  | (_, diagnostics) -> Stdlib.Result.Result.Error(diagnostics)
+let packageToWrittenTypes(source: String): Result<WrittenTypes.ParsedFile, List<(Range * String)>> =
+  match parse(FileKind.Package, source) with
+  | Some(parsedFile), [] -> Result.Ok(parsedFile)
+  | _, diagnostics -> Result.Error(diagnostics)
 
 
 /// Convert a top-level declaration to a module member for shared lowering.
@@ -189,11 +179,8 @@ let moduleToPackageOps(
     WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper(context, rootModule)
 
   let pm = ProgramTypes.PackageManager.withExtraOps(context.pm, provisionalOps)
-
   let (_, ops, unresolvedNames) =
-    WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper(
-      { context with pm = pm },
-      rootModule)
+    WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper({ context with pm = pm }, rootModule)
 
   (PackageManager.stabilizeHashes(ops), unresolvedNames)
 
@@ -206,18 +193,17 @@ let packageSourceToOps(
   owner: String,
   modules: List<String>,
   source: String)
-  : Stdlib.Result.Result<List<ProgramTypes.PackageOp>, String> =
+  : Result<List<ProgramTypes.PackageOp>, String> =
   match packageToWrittenTypes(source) with
   | Error(diagnostics) ->
     let messages = Stdlib.List.map(diagnostics, fun((_, message)) -> message)
-    Stdlib.Result.Result.Error(Stdlib.String.join(messages, "; "))
+    Result.Error(Stdlib.String.join(messages, "; "))
   | Ok(SourceFile(sourceFile)) ->
     let rootModule =
       WrittenTypes.ModuleDeclaration.ModuleDeclaration
         { range = sourceFile.range
           name = (sourceFile.range, "__module__")
-          declarations =
-            Stdlib.List.map(sourceFile.declarations, fun d -> toModuleDeclaration(d))
+          declarations = Stdlib.List.map(sourceFile.declarations, fun d -> toModuleDeclaration(d))
           keywordModule = sourceFile.range }
 
     let context =
@@ -229,12 +215,12 @@ let packageSourceToOps(
           currentModule = modules }
 
     let (ops, unresolvedNames) = moduleToPackageOps(context, rootModule)
-
     if Stdlib.List.isEmpty(unresolvedNames) then
-      Stdlib.Result.Result.Ok(ops)
+      Result.Ok(ops)
     else
       let names =
         unresolvedNames
         |> Stdlib.List.map(fun((_, parts, _)) -> Stdlib.String.join(parts, "."))
         |> Stdlib.List.unique
-      Stdlib.Result.Result.Error("unresolved: " + Stdlib.String.join(names, ", "))
+
+      Result.Error("unresolved: " + Stdlib.String.join(names, ", "))

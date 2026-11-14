@@ -4,37 +4,35 @@
 /// grapheme cluster; <fn Char.toCodepoint> and <fn Char.fromCodepoint> convert.
 module Darklang.Stdlib.Codepoint
 
-
 /// The largest codepoint, {{0x10FFFF}}.
-let max(): UInt32 = 1114111u32
+let max(): UInt32 =
+  1114111u32
 
 
 /// Return whether the value is a Unicode scalar: at most 0x10FFFF and not
 /// a surrogate (0xD800..0xDFFF). Unassigned codepoints are valid scalars.
 let isValidScalar(codepoint: UInt32): Bool =
-  codepoint <= 1114111u32
-  && (codepoint < 55296u32 || codepoint > 57343u32)
+  codepoint <= 1114111u32 && (codepoint < 55296u32 || codepoint > 57343u32)
 
 
 /// Return {{Some}} codepoint for <param i> if it is a Unicode scalar value,
 /// otherwise {{None}}: negative, past {{0x10FFFF}}, or a surrogate.
-let fromInt64(i: Int64): Stdlib.Option.Option<UInt32> =
-  match Stdlib.UInt32.fromInt64(i) with
-  | Some(codepoint) ->
-    if isValidScalar(codepoint) then
-      Stdlib.Option.Option.Some(codepoint)
-    else
-      Stdlib.Option.Option.None
-  | None -> Stdlib.Option.Option.None
+let fromInt64(i: Int64): Option<UInt32> =
+  match UInt32.fromInt64(i) with
+  | Some(codepoint) -> if isValidScalar(codepoint) then Option.Some(codepoint) else Option.None
+  | None -> Option.None
 
 
 /// Return whether the scalar is a Unicode letter. Invalid scalars return false.
-let isLetter(codepoint: UInt32): Bool = Builtin.codepointIsLetter(codepoint)
+let isLetter(codepoint: UInt32): Bool =
+  Builtin.codepointIsLetter(codepoint)
 
 
 /// Return whether the scalar is Unicode whitespace. Invalid scalars return false.
-let isWhitespace(codepoint: UInt32): Bool = Builtin.codepointIsWhitespace(codepoint)
+let isWhitespace(codepoint: UInt32): Bool =
+  Builtin.codepointIsWhitespace(codepoint)
 
 
 /// Return whether the scalar is a Unicode letter or digit. Invalid scalars return false.
-let isAlphanumeric(codepoint: UInt32): Bool = Builtin.codepointIsAlphanumeric(codepoint)
+let isAlphanumeric(codepoint: UInt32): Bool =
+  Builtin.codepointIsAlphanumeric(codepoint)

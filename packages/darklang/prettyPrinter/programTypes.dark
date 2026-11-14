@@ -242,8 +242,8 @@ let packageNameWithContext(
   name: String)
   : String =
   // after a module path the name needs no backticks; alone it may
-  let short = PrettyPrinter.shortenName(ctx.currentModule, owner, modules, name)
-  if short == name then PrettyPrinter.formatName(name) else short
+  let short = shortenName(ctx.currentModule, owner, modules, name)
+  if short == name then formatName(name) else short
 
 
 module FQTypeName =
@@ -1268,8 +1268,8 @@ let matchPattern(mp: LanguageTools.ProgramTypes.MatchPattern): String =
     |> Stdlib.List.map(fun field ->
       let (name, pat) = field
       match pat with
-      | MPVariable(_, bound) when bound == name -> PrettyPrinter.formatName(name)
-      | _ -> PrettyPrinter.formatFieldName(name) + " = " + matchPattern(pat))
+      | MPVariable(_, bound) when bound == name -> formatName(name)
+      | _ -> formatFieldName(name) + " = " + matchPattern(pat))
     |> Stdlib.String.join(", ")
     |> (fun parts -> "{ " + parts + " }")
 
@@ -2909,8 +2909,7 @@ module TypeDeclaration =
 
     match d.label with
     | None -> typ
-    | Some(label) ->
-      Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.text($"{formatName(label)}: "), typ)
+    | Some(label) -> Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.text($"{formatName(label)}: "), typ)
 
 
   let enumField(ctx: Context, d: LanguageTools.ProgramTypes.TypeDeclaration.EnumField): String =

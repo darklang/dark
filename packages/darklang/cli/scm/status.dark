@@ -10,14 +10,15 @@ module Darklang.Cli.Status
 /// The full structured view. `dark status` prints a line of it; `--json` hands over all of it.
 let statusJson(state: AppState): ScmJson.StatusJson =
   let p = SCM.Draft.read()
-
   let items =
-    ScmJson.changedItems(state.currentBranchId, p.propagated, Commit.previousHashesOfAll(state.currentBranchId, p.bindings))
+    ScmJson.changedItems(
+      state.currentBranchId,
+      p.propagated,
+      Commit.previousHashesOfAll(state.currentBranchId, p.bindings))
 
   ScmJson.StatusJson
-    { branch =
-        // The NAME, like everywhere else user-facing: what `--json`'s reader can pass to another command.
-        SCM.PackageOps.branchName(SCM.PackageOps.currentBranch())
+    { // The NAME, like everywhere else user-facing: what `--json`'s reader can pass to another command.
+      branch = SCM.PackageOps.branchName(SCM.PackageOps.currentBranch())
       draftOps = p.ops
       changed = items
       removed = p.removed
@@ -25,6 +26,7 @@ let statusJson(state: AppState): ScmJson.StatusJson =
       conflicts = p.conflicts
       // A COUNT, never a list; see `Summary.constraints`.
       constraints = p.constraints }
+
 
 /// Where you are, always, before what you have: a draft summary that doesn't name its branch reads the
 /// same on main as on a branch.
@@ -42,6 +44,7 @@ let branchLine(state: AppState): Unit =
 
     Stdlib.printLine(Stdlib.Cli.UI.Colors.hint($"On branch {handle}"))
 
+
 let executePretty(state: AppState): AppState =
   // `SCM.Draft.counts`, not a `Picture`: this runs on every invocation and only ever prints numbers.
   //
@@ -57,51 +60,50 @@ let executePretty(state: AppState): AppState =
   // a deprecation, a restore, an ack -- is still uncommitted work, and counting only bindings reported
   // "clean" right after `dark delete X`, with the Deprecate sitting in the draft waiting to be swept
   // into whatever got committed next. Same mistake `discard` made about the same ops.
-  if
-    (s.changed == 0) && (s.removed == 0) && (s.conflicts == 0) && (s.ops == 0)
-  then
-    Cli.printOk("clean: nothing changed since your last commit.")
+  if s.changed == 0 && s.removed == 0 && s.conflicts == 0 && s.ops == 0 then
+    printOk("clean: nothing changed since your last commit.")
 
     // Nothing in a clean tree is yours, so say the constraints stand on their own.
     if s.constraints > 0 then
       Stdlib.printErrorLine(
-        (Stdlib.Cli.UI.Colors.hint(
-          $"""  {Cli.Text.plural(s.constraints, "standing constraint")} in the store -> `dark constraints`""")))
+        Stdlib.Cli.UI.Colors.hint(
+          $"""  {Text.plural(s.constraints, "standing constraint")} in the store -> `dark constraints`"""))
   else
     let parts =
       Stdlib.List.concat(
-        (Stdlib.List.concat(
+        Stdlib.List.concat(
           (if s.changed == 0 then
              []
            else if s.followed == 0 then
-             [ $"{Cli.Text.plural(s.changed, "item")} changed" ]
+             [ $"{Text.plural(s.changed, "item")} changed" ]
            else if s.changed == s.followed then
              // Everything here followed something (a version restore, a dependency upgrade);
              // "0 items changed, 1 followed" states a zero nobody typed.
-             [ $"{Cli.Text.plural(s.followed, "item")} followed" ]
+             [ $"{Text.plural(s.followed, "item")} followed" ]
            else
              // What you did and what followed, separately; see `Summary.followed`.
-             [ $"{Cli.Text.plural(s.changed - s.followed, "item")} changed, {Stdlib.display(s.followed)} followed" ]),
-          (if s.removed == 0 then [] else [ $"{Cli.Text.plural(s.removed, "item")} removed" ]))),
-        (Stdlib.List.concat(
+             [ $"{Text.plural(s.changed - s.followed, "item")} changed, {Stdlib.display(s.followed)} followed" ]),
+          if s.removed == 0 then [] else [ $"{Text.plural(s.removed, "item")} removed" ]),
+        Stdlib.List.concat(
           (if s.repoints == 0 then
              []
            else
-             [ $"{Cli.Text.plural(s.repoints, "dependent")} will repoint" ]),
-          (if s.conflicts == 0 then
-             []
-           else
-             [ $"{Cli.Text.plural(s.conflicts, "conflict")} to review" ]))))
+             [ $"{Text.plural(s.repoints, "dependent")} will repoint" ]),
+          if s.conflicts == 0 then
+            []
+          else
+            [ $"{Text.plural(s.conflicts, "conflict")} to review" ]))
 
     // Nothing name-shaped to describe, but ops all the same: say what they are rather than printing
     // "draft: " with an empty list after it.
     if Stdlib.List.isEmpty(parts) then
-      Cli.printOk(
-        $"""draft: {Cli.Text.plural(s.ops, "op")}, no changed names (no new version: restores, deprecations, docs, acks)""")
+      printOk(
+        $"""draft: {Text.plural(s.ops, "op")}, no changed names (no new version: restores, deprecations, docs, acks)""")
+
       Stdlib.printErrorLine(
         Stdlib.Cli.UI.Colors.hint("  -> `dark commit` to review + commit (it asks first)"))
     else
-      Cli.printOk($"""draft: {Stdlib.String.join(parts, ", ")}""")
+      printOk($"""draft: {Stdlib.String.join(parts, ", ")}""")
 
     if s.conflicts > 0 then
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("  -> `dark conflicts` to review them"))
@@ -114,11 +116,12 @@ let executePretty(state: AppState): AppState =
           "none from this draft"
         else
           $"{Stdlib.display(s.constraintsFromDraft)} from this draft"
-      Stdlib.printErrorLine(
-        (Stdlib.Cli.UI.Colors.hint(
-          $"""  {Cli.Text.plural(s.constraints, "constraint")} outstanding, {mine} -> `dark constraints`""")))
 
-    if (s.changed > 0) || (s.removed > 0) then
+      Stdlib.printErrorLine(
+        Stdlib.Cli.UI.Colors.hint(
+          $"""  {Text.plural(s.constraints, "constraint")} outstanding, {mine} -> `dark constraints`"""))
+
+    if s.changed > 0 || s.removed > 0 then
       // "it asks first": to a git reflex, commit is the one verb you do not run to look, and the
       // review screen is exactly where the names this line withholds live.
       Stdlib.printErrorLine(
@@ -130,23 +133,18 @@ let executePretty(state: AppState): AppState =
   match SCM.StoreHealth.problems() with
   | [] -> ()
   | problems ->
-    Cli.printErr("store problems:")
-
-    problems
-    |> Stdlib.List.iter(fun p -> Cli.printErr($"  {p.text}"))
+    printErr("store problems:")
+    problems |> Stdlib.List.iter(fun p -> printErr($"  {p.text}"))
 
     // Two different remedies, and offering the wrong one is worse than offering none: a reload is a full
     // rebuild, and someone who runs it against a damaged LOG spends it to watch the same line come back.
     let anyRefoldable =
       problems |> Stdlib.List.any(fun p -> p.damage == SCM.StoreHealth.Damage.Projection)
 
-    let anyCanonical =
-      problems |> Stdlib.List.any(fun p -> p.damage == SCM.StoreHealth.Damage.Log)
-
+    let anyCanonical = problems |> Stdlib.List.any(fun p -> p.damage == SCM.StoreHealth.Damage.Log)
     if anyRefoldable then
       Stdlib.printErrorLine(
-        (Stdlib.Cli.UI.Colors.dimText(
-          "  these are in a projection, so a reload rebuilds them.")))
+        Stdlib.Cli.UI.Colors.dimText("  these are in a projection, so a reload rebuilds them."))
 
     if anyCanonical then
       // "the rest" only when there IS a rest to be the rest of.
@@ -155,16 +153,18 @@ let executePretty(state: AppState): AppState =
       // Only what the canonical problems have in COMMON. What each one costs differs, so that belongs in
       // the problem's own line, not in a shared footer.
       Stdlib.printErrorLine(
-        (Stdlib.Cli.UI.Colors.dimText(
-          $"  {lead} in the op log itself, so a reload replays them unchanged.")))
+        Stdlib.Cli.UI.Colors.dimText(
+          $"  {lead} in the op log itself, so a reload replays them unchanged."))
 
   state
 
+
 let execute(state: AppState, args: List<String>): AppState =
   if ScmJson.wantsJson(args) then
-    Cli.exitWith(state, Cli.printJson(ScmJson.statusJson(statusJson(state))))
+    exitWith(state, printJson(ScmJson.statusJson(statusJson(state))))
   else
     executePretty(state)
+
 
 let help(_state: AppState): String =
   [ ""
@@ -187,8 +187,6 @@ let help(_state: AppState): String =
     "  --json           the same data, typed, for an agent" ]
   |> Stdlib.String.join("\n")
 
-let complete(
-  _state: AppState,
-  _args: List<String>)
-  : List<Completion.CompletionItem> =
+
+let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
   []

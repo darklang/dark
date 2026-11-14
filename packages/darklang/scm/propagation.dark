@@ -2,13 +2,12 @@ module Darklang.SCM.Propagation
 
 // Every edit propagates to all callers on its branch.
 
-
 /// Resolve a binding on an explicit branch, including package tests.
 let hashOn(
   branchId: Uuid,
   loc: LanguageTools.ProgramTypes.PackageLocation,
   kind: LanguageTools.ProgramTypes.ItemKind)
-  : Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash> =
+  : Option<LanguageTools.ProgramTypes.Hash> =
   match kind with
   | Fn -> LanguageTools.PackageManager.Function.find(branchId, loc)
   | Type -> LanguageTools.PackageManager.Type.find(branchId, loc)
@@ -17,14 +16,16 @@ let hashOn(
   | TraitImpl -> LanguageTools.PackageManager.TraitImpl.find(branchId, loc)
   | Test -> LanguageTools.PackageManager.Test.find(branchId, loc)
 
+
 /// Rebind exactly this branch, including when it is not the process's branch.
 let rebindOn(
   branchId: Uuid,
   loc: LanguageTools.ProgramTypes.PackageLocation,
   kind: LanguageTools.ProgramTypes.ItemKind,
   hash: LanguageTools.ProgramTypes.Hash)
-  : Stdlib.Result.Result<Unit, String> =
+  : Result<Unit, String> =
   Builtin.pmSetName(branchId, loc, kind, hash)
+
 
 /// Repoint every caller of one of <param previousHashes> at <param currentHash>, on <param branchId>,
 /// and say which names moved. The cascade behind every edit, and the one place the builtin is named.
@@ -38,9 +39,10 @@ let repointDependents(
   itemKind: LanguageTools.ProgramTypes.ItemKind,
   previousHashes: List<LanguageTools.ProgramTypes.Hash>,
   currentHash: LanguageTools.ProgramTypes.Hash)
-  : Stdlib.Result.Result<List<LanguageTools.ProgramTypes.PropagateRepoint>, String> =
+  : Result<List<LanguageTools.ProgramTypes.PropagateRepoint>, String> =
   // The builtin also reasserts any repointed binding that replaying an existing op left where it was.
   Builtin.pmPropagate(branchId, location, itemKind, previousHashes, currentHash)
+
 
 let modulesOf(loc: LanguageTools.ProgramTypes.PackageLocation): String =
   Stdlib.String.join(loc.modules, ".")
@@ -50,66 +52,56 @@ let rebind(
   loc: LanguageTools.ProgramTypes.PackageLocation,
   kind: LanguageTools.ProgramTypes.ItemKind,
   hash: LanguageTools.ProgramTypes.Hash)
-  : Stdlib.Result.Result<Unit, String> =
-  rebindOn(SCM.PackageOps.currentBranch(), loc, kind, hash)
+  : Result<Unit, String> =
+  rebindOn(PackageOps.currentBranch(), loc, kind, hash)
 
 
 /// What kind of item lives at this name, if anything does. The CLI takes an FQN from a human, who does not
 /// type "fn" after it.
 let kindAt(
   loc: LanguageTools.ProgramTypes.PackageLocation)
-  : Stdlib.Option.Option<LanguageTools.ProgramTypes.ItemKind> =
-  SCM.PackageOps.liveBindingAt(loc)
-  |> Stdlib.Option.map(fun b -> Deps.kindOf(b.itemType))
+  : Option<LanguageTools.ProgramTypes.ItemKind> =
+  PackageOps.liveBindingAt(loc) |> Stdlib.Option.map(fun b -> Deps.kindOf(b.itemType))
 
 
 /// The hash currently live at this name, on the branch you're on.
 let currentHash(
   loc: LanguageTools.ProgramTypes.PackageLocation)
-  : Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash> =
-  SCM.PackageOps.liveBindingAt(loc)
+  : Option<LanguageTools.ProgramTypes.Hash> =
+  PackageOps.liveBindingAt(loc)
   |> Stdlib.Option.map(fun b -> LanguageTools.ProgramTypes.Hash.Hash(b.hash))
 
 
 /// The version this branch inherited when it first changed this name.
-let forkBaseOf(
-  branchId: Uuid,
-  loc: LanguageTools.ProgramTypes.PackageLocation)
-  : Stdlib.Option.Option<String> =
-  if SCM.Branch.isMain(branchId) then
-    Stdlib.Option.Option.None
+let forkBaseOf(branchId: Uuid, loc: LanguageTools.ProgramTypes.PackageLocation): Option<String> =
+  if Branch.isMain(branchId) then
+    Option.None
   else
-    SCM.Conflicts.branchBases(branchId)
+    Conflicts.branchBases(branchId)
     |> Stdlib.List.findFirst(fun b ->
-      (b.owner == loc.owner) && (b.modules == modulesOf(loc)) && (b.name == loc.name))
+      b.owner == loc.owner && b.modules == modulesOf(loc) && b.name == loc.name)
     |> Stdlib.Option.map(fun b -> b.baseHash)
 
 
 /// Body versions for history displays and live values, including propagated versions.
 /// Undo uses PackageOps.previousRevision so it can also distinguish reference-only edits.
-let authoringOrder(
-  loc: LanguageTools.ProgramTypes.PackageLocation)
-  : List<String> =
+let authoringOrder(loc: LanguageTools.ProgramTypes.PackageLocation): List<String> =
   let fromMain =
     // main-scoped: main's half of the sequence, cut at the fork below when on a branch.
-    SCM.Bindings.query(
-      SCM.Bindings.BindingFilter.AuthoringOrder(
-        SCM.Branch.mainBranchId,
+    Bindings.query(
+      Bindings.BindingFilter.AuthoringOrder(
+        Branch.mainBranchId,
         loc.owner,
         modulesOf(loc),
-        loc.name
-      )
-    )
+        loc.name))
     |> Stdlib.List.map(fun b -> b.hash)
 
   // On a branch the sequence CONTINUES into the branch's own ops: main's rows UP TO THE FORK are the
   // history you forked from, followed by the branch's own edits.
-  match SCM.PackageOps.currentBranch() with
-  | id when SCM.Branch.isMain(id) -> fromMain
+  match PackageOps.currentBranch() with
+  | id when Branch.isMain(id) -> fromMain
   | branch ->
-    let fromBranch =
-      SCM.PackageOps.branchHashHistoryFor(branch, loc.owner, modulesOf(loc), loc.name)
-
+    let fromBranch = PackageOps.branchHashHistoryFor(branch, loc.owner, modulesOf(loc), loc.name)
     let mainUpToFork =
       match forkBaseOf(branch, loc) with
       | None -> fromMain
@@ -128,7 +120,8 @@ let authoringOrder(
 
     Stdlib.List.concat(
       mainUpToFork,
-      fromBranch |> Stdlib.List.filter(fun h -> Stdlib.Bool.not(Stdlib.List.contains(mainUpToFork, h))))
+      fromBranch
+      |> Stdlib.List.filter(fun h -> Stdlib.Bool.not(Stdlib.List.contains(mainUpToFork, h))))
 
 
 /// Every hash that has ever been bound at <param loc> on MAIN, newest first, the live one first. A name
@@ -142,46 +135,36 @@ let everBoundHashes(
   itemKind: LanguageTools.ProgramTypes.ItemKind)
   : List<LanguageTools.ProgramTypes.Hash> =
   let itemType = LanguageTools.ProgramTypes.ItemKind.toString(itemKind)
-
   everBoundHashesFor([ (loc, itemKind) ])
   |> Stdlib.Dict.get(everBoundKey(loc.owner, modulesOf(loc), loc.name, itemType))
   |> Stdlib.Option.withDefault([])
 
 
 /// The key <fn everBoundHashesFor> answers under.
-let everBoundKey(
-  owner: String,
-  modules: String,
-  name: String,
-  itemType: String)
-  : String =
-  $"{SCM.Conflicts.bindingKey(owner, modules, name)}/{itemType}"
+let everBoundKey(owner: String, modules: String, name: String, itemType: String): String =
+  $"{Conflicts.bindingKey(owner, modules, name)}/{itemType}"
 
 
 /// <fn everBoundHashes> for many names in one query, keyed by <fn everBoundKey>; a name that was never
 /// bound is absent.
 let everBoundHashesFor(
-  names:
-    List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>)
+  names: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>)
   : Dict<String, List<LanguageTools.ProgramTypes.Hash>> =
   let keys =
     names
     |> Stdlib.List.map(fun((loc, kind)) ->
-      (loc.owner,
-       modulesOf(loc),
-       loc.name,
-       LanguageTools.ProgramTypes.ItemKind.toString(kind)))
+      (loc.owner, modulesOf(loc), loc.name, LanguageTools.ProgramTypes.ItemKind.toString(kind)))
     |> Stdlib.List.unique
 
   if Stdlib.List.isEmpty(keys) then
     Dict {}
   else
     // main-scoped, on purpose: every hash ever bound on MAIN is this fn's contract.
-    SCM.Bindings.query(SCM.Bindings.BindingFilter.EverBound(SCM.Branch.mainBranchId, keys))
+    Bindings.query(Bindings.BindingFilter.EverBound(Branch.mainBranchId, keys))
     |> Stdlib.List.map(fun b ->
-      (everBoundKey(b.owner, b.modules, b.name, b.itemType),
-       LanguageTools.ProgramTypes.Hash.Hash(b.hash)))
+      (
+        everBoundKey(b.owner, b.modules, b.name, b.itemType),
+        LanguageTools.ProgramTypes.Hash.Hash(b.hash)))
     |> Stdlib.List.groupBy(fun((key, _)) -> key)
-    |> Stdlib.List.map(fun((key, rows)) ->
-      (key, rows |> Stdlib.List.map(fun((_, hash)) -> hash)))
+    |> Stdlib.List.map(fun((key, rows)) -> (key, rows |> Stdlib.List.map(fun((_, hash)) -> hash)))
     |> Stdlib.Dict.fromEntries

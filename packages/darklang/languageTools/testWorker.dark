@@ -5,31 +5,35 @@ module Darklang.LanguageTools.PackageManager.Test.Worker
 let execute(request: Bytes, access: Bytes): (Bytes * Int64) =
   Builtin.pmTestWorkerExecute(request, access)
 
+
 let read(path: String): Bytes =
   Builtin.unwrap(Stdlib.Cli.FileSystem.readFile(path))
 
+
 let main(args: List<String>): Int64 =
   match args with
-  | [ requestPath, resultPath ] ->
+  | [requestPath, resultPath] ->
     let dir = Stdlib.Cli.Path.parent(requestPath)
-    let privateDirectory =
-      Stdlib.String.startsWith(Stdlib.Cli.Path.basename(dir), "dark-test-")
-    if Stdlib.Env.get("HOME") != Some(dir)
-       || Stdlib.Bool.not(privateDirectory)
-       || requestPath != Stdlib.Cli.Path.join([ dir, "request.bin" ])
-       || resultPath != Stdlib.Cli.Path.join([ dir, "result.bin" ]) then
+    let privateDirectory = Stdlib.String.startsWith(Stdlib.Cli.Path.basename(dir), "dark-test-")
+    if
+      Stdlib.Env.get("HOME") != Option.Some(dir)
+      || Stdlib.Bool.not(privateDirectory)
+      || requestPath != Stdlib.Cli.Path.join([ dir, "request.bin" ])
+      || resultPath != Stdlib.Cli.Path.join([ dir, "result.bin" ])
+    then
       Stdlib.printLine("Test worker requires a disposable test directory")
       1
     else
       // Stored in this private copy too, so a nested worker starts on the same branch.
       // The run's shared store already records its branch, and it is read-only:
       // writing the same value again would fail and send the test to a copy.
-      let branch = Darklang.SCM.PackageOps.currentBranch()
+      let branch = SCM.PackageOps.currentBranch()
       let _ =
-        if LanguageTools.LocalStore.configGet("current_branch") != Stdlib.Option.Option.Some(Stdlib.display(branch)) then
-          Darklang.SCM.PackageOps.selectBranch(branch)
+        if LocalStore.configGet("current_branch") != Option.Some(Stdlib.display(branch)) then
+          SCM.PackageOps.selectBranch(branch)
         else
           branch
+
       let access = read(Stdlib.Cli.Path.join([ dir, "access.bin" ]))
       let (result, code) = execute(read(requestPath), access)
       match Stdlib.Cli.FileSystem.overwriteFile(resultPath, result) with

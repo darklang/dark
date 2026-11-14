@@ -10,13 +10,27 @@ test walkKeepsSubtreeOrder =
         Stdlib.Cli.File.writeText($"{sub}/a", "a")
         Stdlib.Cli.File.writeText($"{sub}/b", "b")
         Stdlib.Cli.File.writeText($"{sub}/c", "c") ]
+
     let listed = Stdlib.Cli.Dir.listFullPaths(sub)
     let walked = Stdlib.Cli.Dir.walk(root)
     let files = Stdlib.Cli.Dir.listRecursive(root)
     let deleted = Stdlib.Cli.Dir.deleteRecursive(sub)
-    (made,
-     walked == Stdlib.Result.map(listed, fun paths -> Stdlib.List.prepend(paths, sub)),
-     files == listed,
-     deleted,
-     Stdlib.Cli.Posix.isDirectory(sub)))
-  |> Stdlib.Test.equal(Ok(([ Ok(), Ok(), Ok(), Ok() ], true, true, Ok(), false)))
+    (
+      made,
+      walked
+      == Stdlib.Result.map(listed, fun paths ->
+        Stdlib.List.prepend(paths, sub)),
+      files == listed,
+      deleted,
+      Stdlib.Cli.Posix.isDirectory(sub)))
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Ok(
+      (
+        [ Stdlib.Result.Result.Ok()
+          Stdlib.Result.Result.Ok()
+          Stdlib.Result.Result.Ok()
+          Stdlib.Result.Result.Ok() ],
+        true,
+        true,
+        Stdlib.Result.Result.Ok(),
+        false)))

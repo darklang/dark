@@ -6,7 +6,6 @@
 /// the rest of the no-flicker machinery.)
 module Darklang.Stdlib.Cli.Tui.Frame
 
-
 /// One logical row that changed between two views.
 type RowChange =
   { /// Zero-based row in the logical view.
@@ -23,14 +22,13 @@ let __changedRowsFrom(
   changes: List<RowChange>)
   : List<RowChange> =
   match previousRows, nextRows with
-  | [], [] ->
-    Stdlib.List.reverse(changes)
+  | [], [] -> List.reverse(changes)
   | [previous, ...previousTail], [next, ...nextTail] ->
     let changes =
       if previous == next then
         changes
       else
-        Stdlib.List.prepend(changes, RowChange { row = row, content = next })
+        List.prepend(changes, RowChange { row = row, content = next })
 
     __changedRowsFrom(row + 1, previousTail, nextTail, changes)
   | [_previous, ...previousTail], [] ->
@@ -38,23 +36,20 @@ let __changedRowsFrom(
       row + 1,
       previousTail,
       [],
-      Stdlib.List.prepend(changes, RowChange { row = row, content = "" }))
+      List.prepend(changes, RowChange { row = row, content = "" }))
   | [], [next, ...nextTail] ->
     __changedRowsFrom(
       row + 1,
       [],
       nextTail,
-      Stdlib.List.prepend(changes, RowChange { row = row, content = next }))
+      List.prepend(changes, RowChange { row = row, content = next }))
 
 
 /// Return complete rows whose content changed.
 ///
 /// Comparing through the longer view ensures rows removed from the next view
 /// are returned with empty content and erased from the terminal.
-let changedRows(
-  previousRows: List<String>,
-  nextRows: List<String>)
-  : List<RowChange> =
+let changedRows(previousRows: List<String>, nextRows: List<String>): List<RowChange> =
   __changedRowsFrom(0, previousRows, nextRows, [])
 
 
@@ -66,36 +61,32 @@ let __fullRedrawRowsFrom(
   changes: List<RowChange>)
   : List<RowChange> =
   match previousRows, nextRows with
-  | [], [] ->
-    Stdlib.List.reverse(changes)
+  | [], [] -> List.reverse(changes)
   | [_previous, ...previousTail], [next, ...nextTail] ->
     __fullRedrawRowsFrom(
       row + 1,
       previousTail,
       nextTail,
-      Stdlib.List.prepend(changes, RowChange { row = row, content = next }))
+      List.prepend(changes, RowChange { row = row, content = next }))
   | [_previous, ...previousTail], [] ->
     __fullRedrawRowsFrom(
       row + 1,
       previousTail,
       [],
-      Stdlib.List.prepend(changes, RowChange { row = row, content = "" }))
+      List.prepend(changes, RowChange { row = row, content = "" }))
   | [], [next, ...nextTail] ->
     __fullRedrawRowsFrom(
       row + 1,
       [],
       nextTail,
-      Stdlib.List.prepend(changes, RowChange { row = row, content = next }))
+      List.prepend(changes, RowChange { row = row, content = next }))
 
 
 /// Return every next row plus empty changes for rows that disappeared.
 ///
 /// This is used after resize: every retained row is repainted, while content
 /// outside a now-shorter logical view is explicitly erased.
-let fullRedrawRows(
-  previousRows: List<String>,
-  nextRows: List<String>)
-  : List<RowChange> =
+let fullRedrawRows(previousRows: List<String>, nextRows: List<String>): List<RowChange> =
   __fullRedrawRowsFrom(0, previousRows, nextRows, [])
 
 
@@ -107,22 +98,19 @@ let fullRedrawRows(
 /// style reset precedes the erase so blank cells never inherit styling, and a
 /// final reset contains any style left open by the logical row. Returning to
 /// column one cancels deferred wrap before the next terminal update.
-let renderRowChangeAtWidth(
-  width: Int64,
-  change: RowChange)
-  : String =
-  let terminalRow = Stdlib.display(change.row + 1)
+let renderRowChangeAtWidth(width: Int64, change: RowChange): String =
+  let terminalRow = display(change.row + 1)
   let content = Text.clipToWidth(change.content, width)
   $"\u001b[{terminalRow};1H\u001b[0m\u001b[K{content}\u001b[0m\r"
 
 
 /// Render the desired final cursor state.
-let renderCursor(cursor: Tui.Cursor): String =
+let renderCursor(cursor: Cursor): String =
   match cursor with
   | Hidden -> ""
   | Visible(row, column) ->
-    let terminalRow = Stdlib.display(Stdlib.max(0, row) + 1)
-    let terminalColumn = Stdlib.display(Stdlib.max(0, column) + 1)
+    let terminalRow = display(max(0, row) + 1)
+    let terminalColumn = display(max(0, column) + 1)
     $"\u001b[{terminalRow};{terminalColumn}H\u001b[?25h"
 
 
@@ -130,40 +118,31 @@ let renderCursor(cursor: Tui.Cursor): String =
 ///
 /// The caller writes this returned string once. Terminal session modes are
 /// deliberately excluded: the terminal session owns those effects.
-let renderAtWidth(
-  width: Int64,
-  previous: Stdlib.Option.Option<Tui.View>,
-  next: Tui.View)
-  : String =
+let renderAtWidth(width: Int64, previous: Option<View>, next: View): String =
   let previousRows =
     match previous with
     | None -> []
     | Some(view) -> view.rows
 
   let rowChanges = changedRows(previousRows, next.rows)
-
   let cursorChanged =
     match previous with
     | None -> true
     | Some(view) -> view.cursor != next.cursor
 
-  if Stdlib.List.isEmpty(rowChanges) && Stdlib.Bool.not(cursorChanged) then
+  if List.isEmpty(rowChanges) && Bool.not(cursorChanged) then
     ""
   else
     let rows =
       rowChanges
-      |> Stdlib.List.map(fun change -> renderRowChangeAtWidth(width, change))
-      |> Stdlib.String.join("")
+      |> List.map(fun change -> renderRowChangeAtWidth(width, change))
+      |> String.join("")
 
     "\u001b[?25l" + rows + renderCursor(next.cursor)
 
 
 /// Produce a complete repaint while clearing rows removed from the prior view.
-let renderFullAtWidth(
-  width: Int64,
-  previous: Stdlib.Option.Option<Tui.View>,
-  next: Tui.View)
-  : String =
+let renderFullAtWidth(width: Int64, previous: Option<View>, next: View): String =
   let previousRows =
     match previous with
     | None -> []
@@ -171,7 +150,7 @@ let renderFullAtWidth(
 
   let rows =
     fullRedrawRows(previousRows, next.rows)
-    |> Stdlib.List.map(fun change -> renderRowChangeAtWidth(width, change))
-    |> Stdlib.String.join("")
+    |> List.map(fun change -> renderRowChangeAtWidth(width, change))
+    |> String.join("")
 
   "\u001b[?25l" + rows + renderCursor(next.cursor)

@@ -75,7 +75,6 @@ let typeNameWith(
   match t with
   | Package(hash) ->
     let locations = LanguageTools.PackageManager.Type.locations(branchId, ptHash(hash))
-
     match LanguageTools.PackageManager.pickLocation(
             LanguageTools.PackageManager.PickContext
               { currentModule = opts.currentModule, preferredLocation = Option.None },
@@ -127,7 +126,6 @@ let caseNameStandsAlone(
               locations) with
       | Some(l) ->
         let path = Stdlib.List.prepend(l.modules, l.owner)
-
         path == [ "Darklang", "Stdlib", "Option" ] && l.name == "Option"
         || path == [ "Darklang", "Stdlib", "Result" ] && l.name == "Result"
       | None -> false
@@ -162,7 +160,6 @@ let shortTraitName(branchId: Uuid, t: LanguageTools.RuntimeTypes.FQTraitName.FQT
   match t with
   | Package(hash) ->
     let locations = LanguageTools.PackageManager.Trait.locations(branchId, ptHash(hash))
-
     match LanguageTools.PackageManager.pickLocation(
             LanguageTools.PackageManager.PickContext.empty,
             locations) with
@@ -179,7 +176,6 @@ let shortTypeName(branchId: Uuid, t: LanguageTools.RuntimeTypes.FQTypeName.FQTyp
   match t with
   | Package(hash) ->
     let locations = LanguageTools.PackageManager.Type.locations(branchId, ptHash(hash))
-
     match LanguageTools.PackageManager.pickLocation(
             LanguageTools.PackageManager.PickContext.empty,
             locations) with
@@ -250,7 +246,6 @@ let executionPoint(branchId: Uuid, point: LanguageTools.RuntimeTypes.ExecutionPo
     // Named after the fn it is written in, not the fn that called it. The id tells
     // two lambdas in one fn apart.
     let id = Stdlib.display(expressionId)
-
     match writtenIn with
     | Some(Function(name)) -> $"Lambda in {fnName(branchId, name)} ({id})"
     | Some(Source) -> $"Lambda in Source ({id})"
@@ -340,7 +335,6 @@ let typeReference(branchId: Uuid, t: LanguageTools.RuntimeTypes.TypeReference): 
         match name with
         | Package(hash) ->
           let locations = LanguageTools.PackageManager.Type.locations(branchId, ptHash(hash))
-
           resolvePackageHashWithOriginalName(
             LanguageTools.PackageManager.PickContext.empty,
             locations,
@@ -349,16 +343,11 @@ let typeReference(branchId: Uuid, t: LanguageTools.RuntimeTypes.TypeReference): 
       | Error(e) -> nameResolutionError(e)
 
     $"{typeNamePart}{argsPart}"
-
-
   // Written as in source, and as `valueType` writes a function's type: `Int64 -> Int64`.
   | TFn(args, ret) ->
     fnTypeText(
       args |> Stdlib.List.map(fun arg -> typeReference(branchId, arg)),
       typeReference(branchId, ret))
-
-
-
   | TVariable(varName) -> "'" + varName
 
 
@@ -416,7 +405,6 @@ let knownType(branchId: Uuid, t: LanguageTools.RuntimeTypes.KnownType): String =
 /// argument or as the result keeps parentheses: `(A -> B) -> R`, `A -> (B -> R)`.
 let fnTypeText(args: List<String>, ret: String): String =
   let grouped(t: String): String = if Stdlib.String.contains(t, " -> ") then "(" + t + ")" else t
-
   match args with
   | [only] -> grouped(only) + " -> " + grouped(ret)
   | args -> "(" + Stdlib.String.join(args, ", ") + ") -> " + grouped(ret)
@@ -482,7 +470,6 @@ let declaredKnownType(
   | KTTuple(t1, t2, trest), Some(TTuple(d1, d2, drest)) ->
     let items = Stdlib.List.concat([ t1, t2 ], trest)
     let declaredItems = Stdlib.List.concat([ d1, d2 ], drest)
-
     if Stdlib.List.length(items) == Stdlib.List.length(declaredItems) then
       items
       |> Stdlib.List.indexedMap(fun(i, item) ->
@@ -549,7 +536,8 @@ let bytesPreview(bytes: Bytes, count: Int64): Option<String> =
       |> Stdlib.String.toLowercase
 
     let pairs =
-      (Stdlib.List.checkedRange(0, (Stdlib.Bytes.length(prefix)) - 1) |> Stdlib.Result.withDefault([]))
+      (Stdlib.List.checkedRange(0, Stdlib.Bytes.length(prefix) - 1)
+       |> Stdlib.Result.withDefault([]))
       |> Stdlib.List.map(fun i -> Stdlib.String.slice(hex, i * 2, i * 2 + 2))
 
     Stdlib.String.join(pairs, " "))
@@ -584,7 +572,6 @@ module Dval =
     | DUuid(_) -> "Uuid"
     | DTuple(first, second, theRest) ->
       let types = Stdlib.List.concat([ first, second ], theRest)
-
       types
       |> Stdlib.List.map(fun item -> valueTypeName(branchId, item))
       |> Stdlib.String.join(" * ")
@@ -662,7 +649,8 @@ module Dval =
       Stdlib.List.concat(ordered, extra)
 
 
-  let makeSpaces(len: Int64): String = (Stdlib.String.checkedRepeat(" ", len) |> Stdlib.Result.withDefault(""))
+  let makeSpaces(len: Int64): String =
+    Stdlib.String.checkedRepeat(" ", len) |> Stdlib.Result.withDefault("")
 
 
   /// A value as a `Pretty.Doc`: the shapes it could take, not one it has already been forced into.
@@ -704,7 +692,6 @@ module Dval =
         : Stdlib.Pretty.Doc =
         let sep = Stdlib.Pretty.concat(txt(","), Stdlib.Pretty.line)
         let inner = Stdlib.Pretty.join(parts, sep)
-
         Stdlib.Pretty.group(
           Stdlib.Pretty.concat(
             txt(opening),
@@ -727,128 +714,127 @@ module Dval =
         | DRecord(_, _, _, _) -> true
         | DEnum(_, _, _, _, _) -> true
         | _ -> false
-      let overridden = if custom then Builtin.inspectImpl(dv) else Stdlib.Option.Option.None
 
+      let overridden = if custom then Builtin.inspectImpl(dv) else Option.None
       if Stdlib.Option.isSome(overridden) then
         txt(Stdlib.Option.withDefault(overridden, ""))
       else
-
-      match dv with
-      | DUnit -> paint(opts.palette.keyword, "()")
-      | DBool(true) -> paint(opts.palette.keyword, "true")
-      | DBool(false) -> paint(opts.palette.keyword, "false")
-      | DChar(c) -> paint(opts.palette.string_, $"'{escapeCharLiteral(Stdlib.display(c))}'")
-      | DString(s) -> paint(opts.palette.string_, $"\"{escapeSpecialCharacters(s)}\"")
-      | DInt8(i) -> paint(opts.palette.number, Stdlib.display(i) + "s8")
-      | DUInt8(i) -> paint(opts.palette.number, Stdlib.display(i) + "u8")
-      | DInt16(i) -> paint(opts.palette.number, Stdlib.display(i) + "s16")
-      | DUInt16(i) -> paint(opts.palette.number, Stdlib.display(i) + "u16")
-      | DInt32(i) -> paint(opts.palette.number, Stdlib.display(i) + "s32")
-      | DUInt32(i) -> paint(opts.palette.number, Stdlib.display(i) + "u32")
-      | DInt64(i) -> paint(opts.palette.number, Stdlib.display(i))
-      | DUInt64(i) -> paint(opts.palette.number, Stdlib.display(i) + "u64")
-      | DInt128(i) -> paint(opts.palette.number, Stdlib.display(i) + "s128")
-      | DUInt128(i) -> paint(opts.palette.number, Stdlib.display(i) + "u128")
-      | DBigInt(i) -> paint(opts.palette.number, Stdlib.display(i) + "z")
-      | DFloat(f) -> paint(opts.palette.number, Stdlib.display(f))
-      | DFloat32(f) ->
-        // NaN and the infinities have no literal to suffix, so they print as a Float's do
-        let s = Stdlib.display(f)
-        paint(opts.palette.number, if Stdlib.Float32.isFinite(f) then s + "f32" else s)
-      | DDecimal(d) -> paint(opts.palette.number, Stdlib.display(d) + "dec")
-      | DDateTime(d) -> txt($"<{valueTypeName(branchId, dv)}: {Stdlib.display(d)}>")
-      | DUuid(uuid) -> txt($"<{valueTypeName(branchId, dv)}: {Stdlib.display(uuid)}>")
-      | DTuple(first, second, theRest) ->
-        let parts =
-          Stdlib.List.concat([ first, second ], theRest) |> Stdlib.List.map(fun i -> child(i))
-        bracketed("(", ")", parts)
-      | DList(_vt, l) ->
-        if Stdlib.List.isEmpty(l) then
-          txt($"{valueTypeName(branchId, dv)} []")
-        else
-          bracketed("[", "]", l |> Stdlib.List.map(fun i -> child(i)))
-      | DDict(_, _, d) ->
-        if d == Stdlib.Dict.empty then
-          txt("{}")
-        else
+        match dv with
+        | DUnit -> paint(opts.palette.keyword, "()")
+        | DBool(true) -> paint(opts.palette.keyword, "true")
+        | DBool(false) -> paint(opts.palette.keyword, "false")
+        | DChar(c) -> paint(opts.palette.string_, $"'{escapeCharLiteral(Stdlib.display(c))}'")
+        | DString(s) -> paint(opts.palette.string_, $"\"{escapeSpecialCharacters(s)}\"")
+        | DInt8(i) -> paint(opts.palette.number, Stdlib.display(i) + "s8")
+        | DUInt8(i) -> paint(opts.palette.number, Stdlib.display(i) + "u8")
+        | DInt16(i) -> paint(opts.palette.number, Stdlib.display(i) + "s16")
+        | DUInt16(i) -> paint(opts.palette.number, Stdlib.display(i) + "u16")
+        | DInt32(i) -> paint(opts.palette.number, Stdlib.display(i) + "s32")
+        | DUInt32(i) -> paint(opts.palette.number, Stdlib.display(i) + "u32")
+        | DInt64(i) -> paint(opts.palette.number, Stdlib.display(i))
+        | DUInt64(i) -> paint(opts.palette.number, Stdlib.display(i) + "u64")
+        | DInt128(i) -> paint(opts.palette.number, Stdlib.display(i) + "s128")
+        | DUInt128(i) -> paint(opts.palette.number, Stdlib.display(i) + "u128")
+        | DBigInt(i) -> paint(opts.palette.number, Stdlib.display(i) + "z")
+        | DFloat(f) -> paint(opts.palette.number, Stdlib.display(f))
+        | DFloat32(f) ->
+          // NaN and the infinities have no literal to suffix, so they print as a Float's do
+          let s = Stdlib.display(f)
+          paint(opts.palette.number, if Stdlib.Float32.isFinite(f) then s + "f32" else s)
+        | DDecimal(d) -> paint(opts.palette.number, Stdlib.display(d) + "dec")
+        | DDateTime(d) -> txt($"<{valueTypeName(branchId, dv)}: {Stdlib.display(d)}>")
+        | DUuid(uuid) -> txt($"<{valueTypeName(branchId, dv)}: {Stdlib.display(uuid)}>")
+        | DTuple(first, second, theRest) ->
           let parts =
-            d
+            Stdlib.List.concat([ first, second ], theRest) |> Stdlib.List.map(fun i -> child(i))
+
+          bracketed("(", ")", parts)
+        | DList(_vt, l) ->
+          if Stdlib.List.isEmpty(l) then
+            txt($"{valueTypeName(branchId, dv)} []")
+          else
+            bracketed("[", "]", l |> Stdlib.List.map(fun i -> child(i)))
+        | DDict(_, _, d) ->
+          if d == Stdlib.Dict.empty then
+            txt("{}")
+          else
+            let parts =
+              d
+              |> Stdlib.Dict.toEntries
+              |> Stdlib.List.map(fun pair ->
+                let (key, value) = pair
+                Stdlib.Pretty.concat(Stdlib.Pretty.concat(child(key), txt(": ")), child(value)))
+
+            braced("{", "}", parts)
+        // Unsaved bytes are already in memory, so show the first 16 as hex, the way
+        // Node.js prints a Buffer. Saved bytes show only their length: a preview
+        // would load the whole value, which may be megabytes, from the store.
+        | DBytes(bytes) ->
+          let n = Stdlib.Bytes.length(bytes)
+          let noun = if n == 1 then "byte" else "bytes"
+          let size = $"{Stdlib.display(n)} {noun}"
+          match bytesPreview(bytes, 16) with
+          | Some(hex) ->
+            if n == 0 then
+              txt($"<Bytes: {size}>")
+            else
+              let more = if n > 16 then " ..." else ""
+              txt($"<Bytes: {size} {hex}{more}>")
+          | None -> txt($"<Bytes: {size}>")
+        | DStreamStub(_) -> txt("<stream: stub>")
+        | DEnum(_, typeName, typeArgs, caseName, fields) ->
+          let typeArgsPart =
+            if Stdlib.Bool.not(opts.showTypeArgs) then
+              ""
+            else
+              match typeArgs with
+              | [] -> ""
+              | typeArgs ->
+                typeArgs
+                |> Stdlib.List.map(fun typeArg -> valueType(branchId, typeArg))
+                |> Stdlib.String.join(", ")
+                |> (fun parts -> $"<{parts}>")
+
+          // `Some(1)`, not `Option.Some(1)`; but `Color.Red`, not `Red`.
+          let prefix =
+            if caseNameStandsAlone(branchId, opts.currentModule, typeName) then
+              ""
+            else
+              typeNameWith(branchId, opts, typeName) + typeArgsPart + "."
+
+          match fields with
+          | [] -> txt($"{prefix}{caseName}")
+          | fields ->
+            Stdlib.Pretty.concat(
+              txt($"{prefix}{caseName}"),
+              bracketed("(", ")", fields |> Stdlib.List.map(fun f -> child(f))))
+        | DRecord(_, typeName, typeArgs, o) ->
+          let typeStr = typeNameWith(branchId, opts, typeName)
+          let typeArgsPart =
+            if Stdlib.Bool.not(opts.showTypeArgs) then
+              ""
+            else
+              match typeArgs with
+              | [] -> ""
+              | args ->
+                args
+                |> Stdlib.List.map(fun t -> valueType(branchId, t))
+                |> Stdlib.String.join(", ")
+                |> (fun betweenBrackets -> "<" + betweenBrackets + ">")
+
+          let parts =
+            o
             |> Stdlib.Dict.toEntries
+            |> inDeclaredOrder(declaredFieldOrder(typeName))
             |> Stdlib.List.map(fun pair ->
               let (key, value) = pair
-              Stdlib.Pretty.concat(Stdlib.Pretty.concat(child(key), txt(": ")), child(value)))
+              let key = formatFieldName(key)
+              Stdlib.Pretty.concat(txt($"{key}: "), child(value)))
 
-          braced("{", "}", parts)
-      // Unsaved bytes are already in memory, so show the first 16 as hex, the way
-      // Node.js prints a Buffer. Saved bytes show only their length: a preview
-      // would load the whole value, which may be megabytes, from the store.
-      | DBytes(bytes) ->
-        let n = Stdlib.Bytes.length(bytes)
-        let noun = if n == 1 then "byte" else "bytes"
-        let size = $"{Stdlib.display(n)} {noun}"
-
-        match bytesPreview(bytes, 16) with
-        | Some(hex) ->
-          if n == 0 then
-            txt($"<Bytes: {size}>")
-          else
-            let more = if n > 16 then " ..." else ""
-            txt($"<Bytes: {size} {hex}{more}>")
-        | None -> txt($"<Bytes: {size}>")
-      | DStreamStub(_) -> txt("<stream: stub>")
-      | DEnum(_, typeName, typeArgs, caseName, fields) ->
-        let typeArgsPart =
-          if Stdlib.Bool.not(opts.showTypeArgs) then
-            ""
-          else
-            match typeArgs with
-            | [] -> ""
-            | typeArgs ->
-              typeArgs
-              |> Stdlib.List.map(fun typeArg -> valueType(branchId, typeArg))
-              |> Stdlib.String.join(", ")
-              |> (fun parts -> $"<{parts}>")
-
-        // `Some(1)`, not `Option.Some(1)`; but `Color.Red`, not `Red`.
-        let prefix =
-          if caseNameStandsAlone(branchId, opts.currentModule, typeName) then
-            ""
-          else
-            typeNameWith(branchId, opts, typeName) + typeArgsPart + "."
-
-        match fields with
-        | [] -> txt($"{prefix}{caseName}")
-        | fields ->
-          Stdlib.Pretty.concat(
-            txt($"{prefix}{caseName}"),
-            bracketed("(", ")", fields |> Stdlib.List.map(fun f -> child(f))))
-      | DRecord(_, typeName, typeArgs, o) ->
-        let typeStr = typeNameWith(branchId, opts, typeName)
-        let typeArgsPart =
-          if Stdlib.Bool.not(opts.showTypeArgs) then
-            ""
-          else
-            match typeArgs with
-            | [] -> ""
-            | args ->
-              args
-              |> Stdlib.List.map(fun t -> valueType(branchId, t))
-              |> Stdlib.String.join(", ")
-              |> (fun betweenBrackets -> "<" + betweenBrackets + ">")
-
-        let parts =
-          o
-          |> Stdlib.Dict.toEntries
-          |> inDeclaredOrder(declaredFieldOrder(typeName))
-          |> Stdlib.List.map(fun pair ->
-            let (key, value) = pair
-            let key = formatFieldName(key)
-            Stdlib.Pretty.concat(txt($"{key}: "), child(value)))
-
-        // The type name is part of the document, so it counts toward the fit.
-        Stdlib.Pretty.concat(txt($"{typeStr}{typeArgsPart} "), braced("{", "}", parts))
-      | DApplicable(AppNamedFn(namedFn)) -> txt(fnName(branchId, namedFn.name))
-      | DApplicable(AppLambda(_lambda)) -> txt("(lambda)")
+          // The type name is part of the document, so it counts toward the fit.
+          Stdlib.Pretty.concat(txt($"{typeStr}{typeArgsPart} "), braced("{", "}", parts))
+        | DApplicable(AppNamedFn(namedFn)) -> txt(fnName(branchId, namedFn.name))
+        | DApplicable(AppLambda(_lambda)) -> txt("(lambda)")
 
 
 let dvalWith(branchId: Uuid, opts: DisplayOptions, dv: LanguageTools.RuntimeTypes.Dval): String =
@@ -881,7 +867,8 @@ let capForDisplay(
   maxChars: Int64,
   dv: LanguageTools.RuntimeTypes.Dval)
   : LanguageTools.RuntimeTypes.Dval =
-  let enough = Stdlib.max((Stdlib.Int64.checkedDivide(maxChars, 3) |> Stdlib.Result.withDefault(0)) + 2, 64)
+  let enough =
+    Stdlib.max((Stdlib.Int64.checkedDivide(maxChars, 3) |> Stdlib.Result.withDefault(0)) + 2, 64)
 
   match dv with
   | DList(t, items) ->

@@ -1,61 +1,57 @@
 module Darklang.Stdlib.Cli.UI.Table
 
-
 /// Print a formatted table with headers and rows.
 /// columns: list of column header strings
 /// rows: list of rows, each row is a list of cell strings
 let print(columns: List<String>, rows: List<List<String>>): Unit =
   let colWidths =
     columns
-    |> Stdlib.List.indexedMap(fun(i, header) ->
-      let headerLen = Stdlib.String.displayWidth(header)
-
+    |> List.indexedMap(fun(i, header) ->
+      let headerLen = String.displayWidth(header)
       let maxCellLen =
         rows
-        |> Stdlib.List.fold(0, fun(mx, row) ->
-          match Stdlib.List.getAt(row, i) with
-          | Some(cell) -> Stdlib.max(mx, Stdlib.String.displayWidth(cell))
+        |> List.fold(0, fun(mx, row) ->
+          match List.getAt(row, i) with
+          | Some(cell) -> max(mx, String.displayWidth(cell))
           | None -> mx)
 
-      Stdlib.max(headerLen, maxCellLen))
+      max(headerLen, maxCellLen))
 
   let headerLine =
     columns
-    |> Stdlib.List.indexedMap(fun(i, header) ->
-      match Stdlib.List.getAt(colWidths, i) with
-      | Some(w) -> Stdlib.Text.padEndToWidth(header, w)
+    |> List.indexedMap(fun(i, header) ->
+      match List.getAt(colWidths, i) with
+      | Some(w) -> Text.padEndToWidth(header, w)
       | None -> header)
-    |> Stdlib.String.join("  ")
+    |> String.join("  ")
     // Padding on the final column is trailing whitespace with nothing after it to line up against. It
     // shows up as a corridor of highlighted blanks once the header is bolded.
-    |> Stdlib.String.trimEnd
+    |> String.trimEnd
 
-  Stdlib.printLine(Stdlib.Cli.UI.Colors.boldText(headerLine))
-
+  printLine(Colors.boldText(headerLine))
   let sepLine =
     colWidths
-    |> Stdlib.List.map(fun w -> (Stdlib.String.checkedRepeat("-", w) |> Stdlib.Result.withDefault("")))
-    |> Stdlib.String.join("  ")
+    |> List.map(fun w -> String.checkedRepeat("-", w) |> Result.withDefault(""))
+    |> String.join("  ")
 
-  Stdlib.printLine(sepLine)
-
+  printLine(sepLine)
   let _ =
     rows
-    |> Stdlib.List.map(fun row ->
+    |> List.map(fun row ->
       let line =
         columns
-        |> Stdlib.List.indexedMap(fun(i, _) ->
+        |> List.indexedMap(fun(i, _) ->
           let cell =
-            match Stdlib.List.getAt(row, i) with
+            match List.getAt(row, i) with
             | Some(c) -> c
             | None -> ""
 
-          match Stdlib.List.getAt(colWidths, i) with
-          | Some(w) -> Stdlib.Text.padEndToWidth(cell, w)
+          match List.getAt(colWidths, i) with
+          | Some(w) -> Text.padEndToWidth(cell, w)
           | None -> cell)
-        |> Stdlib.String.join("  ")
-        |> Stdlib.String.trimEnd
+        |> String.join("  ")
+        |> String.trimEnd
 
-      Stdlib.printLine(line))
+      printLine(line))
 
   ()

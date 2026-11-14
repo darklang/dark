@@ -3,41 +3,66 @@ module Darklang.Stdlib.Base16.Tests
 // hex of various UTF-8 strings (Arabic / emoji / long mixed).
 test encodeUtf8 =
   Stdlib.Test.all(
-    [ Stdlib.Utf8.encode("اختبار النص") |> Stdlib.Base16.encode
+    [ Stdlib.Utf8.encode("اختبار النص")
+      |> Stdlib.Base16.encode
       |> Stdlib.Test.equal("D8A7D8AED8AAD8A8D8A7D8B120D8A7D984D986D8B5")
-      Stdlib.Utf8.encode("👱👱🏻👱🏼👱🏽👱🏾👱🏿") |> Stdlib.Base16.encode
+
+      Stdlib.Utf8.encode("👱👱🏻👱🏼👱🏽👱🏾👱🏿")
+      |> Stdlib.Base16.encode
       |> Stdlib.Test.equal(
         "F09F91B1F09F91B1F09F8FBBF09F91B1F09F8FBCF09F91B1F09F8FBDF09F91B1F09F8FBEF09F91B1F09F8FBF")
+
       Stdlib.Utf8.encode(
         "dlkjkd329823333333333fjfidjsfudsdhs}{||!|!|!|!!$%^&^&﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽")
       |> Stdlib.Base16.encode
       |> Stdlib.Test.equal(
         "646C6B6A6B64333239383233333333333333333333666A6669646A73667564736468737D7B7C7C217C217C217C212124255E265E26EFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BDEFB7BD") ])
 
+
 // decode returns Result<Bytes,String>; length of decoded deadbeef = 4 bytes
 test decode =
-  Stdlib.Base16.decode("deadbeef") |> Stdlib.Result.map(Stdlib.Bytes.length)
-  |> Stdlib.Test.equal(Ok(4))
+  Stdlib.Base16.decode("deadbeef")
+  |> Stdlib.Result.map(Stdlib.Bytes.length)
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(4))
+
 
 // What is wrong with the input, in words: a character that isn't a hex digit, or a digit
 // left over at the end.
 test decodeErrors =
   Stdlib.Test.all(
     [ Stdlib.Base16.decode("zz")
-      |> Stdlib.Test.equal(Error("Invalid hex string: 'z' is not a hex digit (0-9, a-f, A-F)"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          "Invalid hex string: 'z' is not a hex digit (0-9, a-f, A-F)"))
+
       Stdlib.Base16.decode("ab😀")
-      |> Stdlib.Test.equal(Error("Invalid hex string: '😀' is not a hex digit (0-9, a-f, A-F)"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          "Invalid hex string: '😀' is not a hex digit (0-9, a-f, A-F)"))
+
       Stdlib.Base16.decode("abc")
-      |> Stdlib.Test.equal(Error("Invalid hex string: it has 3 digits, and each byte takes two"))
-      Stdlib.Base16.decode("") |> Stdlib.Result.map(Stdlib.Bytes.length) |> Stdlib.Test.equal(Ok(0)) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          "Invalid hex string: it has 3 digits, and each byte takes two"))
+
+      Stdlib.Base16.decode("")
+      |> Stdlib.Result.map(Stdlib.Bytes.length)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0)) ])
+
 
 test decodeToUtf8 =
   Stdlib.Base16.decode("48656c6c6f")
   |> Stdlib.Result.andThen(Stdlib.Utf8.decode)
-  |> Stdlib.Test.equal(Ok("Hello"))
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("Hello"))
+
 
 // uppercase output
 test encode =
   Stdlib.Test.all(
-    [ Stdlib.Utf8.encode("ok") |> Stdlib.Base16.encode |> Stdlib.Test.equal("6F6B")
-      Stdlib.Utf8.encode("Hi") |> Stdlib.Base16.encode |> Stdlib.Test.equal("4869") ])
+    [ Stdlib.Utf8.encode("ok")
+      |> Stdlib.Base16.encode
+      |> Stdlib.Test.equal("6F6B")
+
+      Stdlib.Utf8.encode("Hi")
+      |> Stdlib.Base16.encode
+      |> Stdlib.Test.equal("4869") ])

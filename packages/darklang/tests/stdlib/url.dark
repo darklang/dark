@@ -8,18 +8,22 @@ let hostOf(
   : Stdlib.Result.Result<Stdlib.Option.Option<String>, Stdlib.Url.ParseError> =
   Stdlib.Url.parse(s) |> Stdlib.Result.map(fun u -> u.host)
 
+
 let portOf(
   s: String)
   : Stdlib.Result.Result<Stdlib.Option.Option<Int64>, Stdlib.Url.ParseError> =
   Stdlib.Url.parse(s) |> Stdlib.Result.map(fun u -> u.port)
 
+
 let pathOf(s: String): Stdlib.Result.Result<String, Stdlib.Url.ParseError> =
   Stdlib.Url.parse(s) |> Stdlib.Result.map(fun u -> u.path)
+
 
 let qp(
   s: String)
   : Stdlib.Result.Result<List<(String * String)>, Stdlib.Url.ParseError> =
   Stdlib.Url.parse(s) |> Stdlib.Result.map(fun u -> Stdlib.Url.queryParams(u))
+
 
 let roundTrip(s: String): Stdlib.Result.Result<String, Stdlib.Url.ParseError> =
   Stdlib.Url.parse(s) |> Stdlib.Result.map(fun u -> Stdlib.Url.toString(u))
@@ -30,390 +34,704 @@ test parseEveryPart =
   Stdlib.Url.parse(
     "https://user:pw@Example.com:8080/foo/bar?arg1=some_val&arg2=other_val#somehash")
   |> Stdlib.Test.equal(
-    Ok(
+    Stdlib.Result.Result.Ok(
       Stdlib.Url.Url
-        { scheme = Some("https")
-          userinfo = Some("user:pw")
-          host = Some("example.com")
-          port = Some(8080)
+        { scheme = Stdlib.Option.Option.Some("https")
+          userinfo = Stdlib.Option.Option.Some("user:pw")
+          host = Stdlib.Option.Option.Some("example.com")
+          port = Stdlib.Option.Option.Some(8080)
           path = "/foo/bar"
-          query = Some("arg1=some_val&arg2=other_val")
-          fragment = Some("somehash") }))
+          query = Stdlib.Option.Option.Some("arg1=some_val&arg2=other_val")
+          fragment = Stdlib.Option.Option.Some("somehash") }))
+
 
 test parseMinimal =
   Stdlib.Url.parse("http://example.com")
   |> Stdlib.Test.equal(
-    Ok(
+    Stdlib.Result.Result.Ok(
       Stdlib.Url.Url
-        { scheme = Some("http")
-          userinfo = None
-          host = Some("example.com")
-          port = None
+        { scheme = Stdlib.Option.Option.Some("http")
+          userinfo = Stdlib.Option.Option.None
+          host = Stdlib.Option.Option.Some("example.com")
+          port = Stdlib.Option.Option.None
           path = ""
-          query = None
-          fragment = None }))
+          query = Stdlib.Option.Option.None
+          fragment = Stdlib.Option.Option.None }))
+
 
 // No `//`, so no authority: host is None, and the rest is path.
 test parseWithoutAuthority =
   Stdlib.Test.all(
     [ Stdlib.Url.parse("mailto:someone@example.com")
       |> Stdlib.Test.equal(
-        Ok(
+        Stdlib.Result.Result.Ok(
           Stdlib.Url.Url
-            { scheme = Some("mailto")
-              userinfo = None
-              host = None
-              port = None
+            { scheme = Stdlib.Option.Option.Some("mailto")
+              userinfo = Stdlib.Option.Option.None
+              host = Stdlib.Option.Option.None
+              port = Stdlib.Option.Option.None
               path = "someone@example.com"
-              query = None
-              fragment = None }))
-      hostOf("urn:isbn:0451450523") |> Stdlib.Test.equal(Ok(None))
-      pathOf("urn:isbn:0451450523") |> Stdlib.Test.equal(Ok("isbn:0451450523"))
-      hostOf("file:/etc/hosts") |> Stdlib.Test.equal(Ok(None))
-      pathOf("file:/etc/hosts") |> Stdlib.Test.equal(Ok("/etc/hosts"))
+              query = Stdlib.Option.Option.None
+              fragment = Stdlib.Option.Option.None }))
+
+      hostOf("urn:isbn:0451450523")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Stdlib.Option.Option.None))
+
+      pathOf("urn:isbn:0451450523")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("isbn:0451450523"))
+
+      hostOf("file:/etc/hosts")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Stdlib.Option.Option.None))
+
+      pathOf("file:/etc/hosts")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("/etc/hosts"))
+
       // An empty authority is not no authority.
-      hostOf("file:///etc/hosts") |> Stdlib.Test.equal(Ok(Some("")))
-      pathOf("file:///etc/hosts") |> Stdlib.Test.equal(Ok("/etc/hosts"))
+      hostOf("file:///etc/hosts")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("")))
+
+      pathOf("file:///etc/hosts")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("/etc/hosts"))
+
       // What the RFC says this is, whatever a person meant by it.
       Stdlib.Url.parse("localhost:8080")
       |> Stdlib.Result.map(fun u -> (u.scheme, u.host, u.path))
-      |> Stdlib.Test.equal(Ok((Some("localhost"), None, "8080"))) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          (
+            Stdlib.Option.Option.Some("localhost"),
+            Stdlib.Option.Option.None,
+            "8080"))) ])
+
 
 test scheme =
   Stdlib.Test.all(
     [ Stdlib.Url.parse("HTTPS://x")
       |> Stdlib.Result.map(fun u -> u.scheme)
-      |> Stdlib.Test.equal(Ok(Some("https")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("https")))
+
       Stdlib.Url.parse("svn+ssh://x")
       |> Stdlib.Result.map(fun u -> u.scheme)
-      |> Stdlib.Test.equal(Ok(Some("svn+ssh")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("svn+ssh")))
+
       Stdlib.Url.parse("a1.b-c+d://x")
       |> Stdlib.Result.map(fun u -> u.scheme)
-      |> Stdlib.Test.equal(Ok(Some("a1.b-c+d")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("a1.b-c+d")))
+
       Stdlib.Url.parse("1http://x")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidScheme("1http")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidScheme("1http")))
+
       Stdlib.Url.parse("ht tp://x")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidScheme("ht tp")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidScheme("ht tp")))
+
       Stdlib.Url.parse(" http://x")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidScheme(" http")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidScheme(" http")))
+
       Stdlib.Url.parse("htt_p://x")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidScheme("htt_p"))) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidScheme("htt_p"))) ])
+
 
 test userinfo =
   Stdlib.Test.all(
     [ Stdlib.Url.parse("ftp://anonymous@ftp.example.com/")
       |> Stdlib.Result.map(fun u -> u.userinfo)
-      |> Stdlib.Test.equal(Ok(Some("anonymous")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("anonymous")))
+
       Stdlib.Url.parse("https://user:secret@x/")
       |> Stdlib.Result.map(fun u -> u.userinfo)
-      |> Stdlib.Test.equal(Ok(Some("user:secret")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("user:secret")))
+
       // Kept as written, not decoded: an `@` inside travels as `%40`.
       Stdlib.Url.parse("https://me%40work@x/")
       |> Stdlib.Result.map(fun u -> (u.userinfo, u.host))
-      |> Stdlib.Test.equal(Ok((Some("me%40work"), Some("x"))))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          (
+            Stdlib.Option.Option.Some("me%40work"),
+            Stdlib.Option.Option.Some("x"))))
+
       Stdlib.Url.parse("https://@x/")
       |> Stdlib.Result.map(fun u -> u.userinfo)
-      |> Stdlib.Test.equal(Ok(Some("")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("")))
+
       Stdlib.Url.parse("https://x/")
       |> Stdlib.Result.map(fun u -> u.userinfo)
-      |> Stdlib.Test.equal(Ok(None))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Stdlib.Option.Option.None))
+
       // The host is after the LAST `@`, and the first one is then a bad
       // character in the userinfo, not a silently different host.
       Stdlib.Url.parse("https://a@b@x/")
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidCharacter("userinfo", "@")))
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidCharacter("userinfo", "@")))
+
       Stdlib.Url.parse("https://a b@x/")
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidCharacter("userinfo", " "))) ])
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidCharacter("userinfo", " "))) ])
+
 
 test hostName =
   Stdlib.Test.all(
-    [ hostOf("http://Example.COM/") |> Stdlib.Test.equal(Ok(Some("example.com")))
+    [ hostOf("http://Example.COM/")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("example.com")))
+
       hostOf("http://sub.domain.example.co.uk")
-      |> Stdlib.Test.equal(Ok(Some("sub.domain.example.co.uk")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          Stdlib.Option.Option.Some("sub.domain.example.co.uk")))
+
       hostOf("http://my_host-1.local/")
-      |> Stdlib.Test.equal(Ok(Some("my_host-1.local")))
-      hostOf("http://localhost") |> Stdlib.Test.equal(Ok(Some("localhost")))
-      hostOf("http://ex%41mple.com/") |> Stdlib.Test.equal(Ok(Some("ex%41mple.com")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("my_host-1.local")))
+
+      hostOf("http://localhost")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("localhost")))
+
+      hostOf("http://ex%41mple.com/")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("ex%41mple.com")))
+
       hostOf("http://exa mple.com/")
-     
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidCharacter("host", " ")))
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidCharacter("host", " ")))
+
       hostOf("http://ex<ample.com/")
-     
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidCharacter("host", "<")))
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidCharacter("host", "<")))
+
       // Non-ASCII host names are kept as written, lowercased; no punycode.
-      hostOf("http://bücher.de/") |> Stdlib.Test.equal(Ok(Some("bücher.de")))
-      hostOf("http://BÜCHER.de/") |> Stdlib.Test.equal(Ok(Some("bücher.de")))
-      hostOf("http://例え.テスト/") |> Stdlib.Test.equal(Ok(Some("例え.テスト")))
+      hostOf("http://bücher.de/")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("bücher.de")))
+
+      hostOf("http://BÜCHER.de/")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("bücher.de")))
+
+      hostOf("http://例え.テスト/")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("例え.テスト")))
+
       hostOf("http://a　b/")
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidCharacter("host", "　")))
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidCharacter("host", "　")))
+
       // A bare `:` with a non-numeric tail is a bad port, not a host.
       hostOf("http://a:b:80/")
-     
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidCharacter("host", ":"))) ])
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidCharacter("host", ":"))) ])
+
 
 test hostEmpty =
   Stdlib.Test.all(
-    [ hostOf("http:///path") |> Stdlib.Test.equal(Ok(Some("")))
-      hostOf("http://") |> Stdlib.Test.equal(Ok(Some("")))
+    [ hostOf("http:///path")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("")))
+
+      hostOf("http://")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("")))
+
       // A user or a port with nothing to attach them to.
       hostOf("http://:80/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidHost(":80")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.InvalidHost(":80")))
+
       hostOf("http://user@/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidHost(""))) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.InvalidHost(""))) ])
+
 
 test hostIPv4 =
   Stdlib.Test.all(
-    [ hostOf("http://127.0.0.1/") |> Stdlib.Test.equal(Ok(Some("127.0.0.1")))
-      hostOf("http://0.0.0.0:8080") |> Stdlib.Test.equal(Ok(Some("0.0.0.0")))
+    [ hostOf("http://127.0.0.1/")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("127.0.0.1")))
+
+      hostOf("http://0.0.0.0:8080")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("0.0.0.0")))
+
       hostOf("http://255.255.255.255/")
-      |> Stdlib.Test.equal(Ok(Some("255.255.255.255")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("255.255.255.255")))
+
       hostOf("http://256.1.1.1/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidHost("256.1.1.1")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidHost("256.1.1.1")))
+
       // Leading zeros are not a dec-octet, and some readers take them as octal.
       hostOf("http://010.1.1.1/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidHost("010.1.1.1")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidHost("010.1.1.1")))
+
       // Only four runs of digits is held to being an address; any other
       // all-digit name is a reg-name (RFC 3986 section 3.2.2).
-      hostOf("http://1.2.3/") |> Stdlib.Test.equal(Ok(Some("1.2.3")))
-      hostOf("http://1.2.3.4.5/") |> Stdlib.Test.equal(Ok(Some("1.2.3.4.5")))
-      hostOf("http://1234/") |> Stdlib.Test.equal(Ok(Some("1234")))
+      hostOf("http://1.2.3/")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("1.2.3")))
+
+      hostOf("http://1.2.3.4.5/")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("1.2.3.4.5")))
+
+      hostOf("http://1234/")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("1234")))
+
       Stdlib.Url.parse("http://123:8000/")
       |> Stdlib.Result.map(fun u -> (u.host, u.port))
-      |> Stdlib.Test.equal(Ok((Some("123"), Some(8000))))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          (Stdlib.Option.Option.Some("123"), Stdlib.Option.Option.Some(8000))))
+
       // Letters in it make it a name, which may look like an address.
-      hostOf("http://1.2.3.x/") |> Stdlib.Test.equal(Ok(Some("1.2.3.x"))) ])
+      hostOf("http://1.2.3.x/")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("1.2.3.x"))) ])
+
 
 test hostIPv6 =
   Stdlib.Test.all(
-    [ hostOf("http://[::1]/") |> Stdlib.Test.equal(Ok(Some("::1")))
-      hostOf("http://[::]/") |> Stdlib.Test.equal(Ok(Some("::")))
-      hostOf("http://[2001:DB8::1]/") |> Stdlib.Test.equal(Ok(Some("2001:db8::1")))
+    [ hostOf("http://[::1]/")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("::1")))
+
+      hostOf("http://[::]/")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("::")))
+
+      hostOf("http://[2001:DB8::1]/")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("2001:db8::1")))
+
       hostOf("http://[2001:db8:0:0:0:0:2:1]/")
-      |> Stdlib.Test.equal(Ok(Some("2001:db8:0:0:0:0:2:1")))
-      hostOf("http://[fe80::]/") |> Stdlib.Test.equal(Ok(Some("fe80::")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          Stdlib.Option.Option.Some("2001:db8:0:0:0:0:2:1")))
+
+      hostOf("http://[fe80::]/")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("fe80::")))
+
       hostOf("http://[::ffff:192.0.2.128]/")
-      |> Stdlib.Test.equal(Ok(Some("::ffff:192.0.2.128")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          Stdlib.Option.Option.Some("::ffff:192.0.2.128")))
+
       Stdlib.Url.parse("http://user@[::1]:8080/a")
       |> Stdlib.Result.map(fun u -> (u.userinfo, u.host, u.port, u.path))
-      |> Stdlib.Test.equal(Ok((Some("user"), Some("::1"), Some(8080), "/a")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          (
+            Stdlib.Option.Option.Some("user"),
+            Stdlib.Option.Option.Some("::1"),
+            Stdlib.Option.Option.Some(8080),
+            "/a")))
+
       // Two `::`, a five-digit group, too many groups, too few groups.
       hostOf("http://[1::2::3]/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidHost("[1::2::3]")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidHost("[1::2::3]")))
+
       hostOf("http://[12345::1]/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidHost("[12345::1]")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidHost("[12345::1]")))
+
       hostOf("http://[1:2:3:4:5:6:7:8:9]/")
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidHost("[1:2:3:4:5:6:7:8:9]")))
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidHost("[1:2:3:4:5:6:7:8:9]")))
+
       hostOf("http://[1:2:3]/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidHost("[1:2:3]")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidHost("[1:2:3]")))
+
       hostOf("http://[:::]/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidHost("[:::]")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.InvalidHost("[:::]")))
+
       hostOf("http://[g::1]/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidHost("[g::1]")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.InvalidHost("[g::1]")))
+
       hostOf("http://[]/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidHost("[]")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.InvalidHost("[]")))
+
       hostOf("http://[::1.2.3.999]/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidHost("[::1.2.3.999]")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidHost("[::1.2.3.999]")))
+
       // An IPv4 tail must be last: here the `::` comes after it.
       hostOf("http://[1.2.3.4::]/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidHost("[1.2.3.4::]")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidHost("[1.2.3.4::]")))
+
       // Zone ids (RFC 6874), kept as written.
       hostOf("http://[FE80::1%25eth0]/")
-      |> Stdlib.Test.equal(Ok(Some("fe80::1%25eth0")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("fe80::1%25eth0")))
+
       Stdlib.Url.parse("http://[fe80::1%25en%301]:80/")
       |> Stdlib.Result.map(fun u -> (u.host, u.port))
-      |> Stdlib.Test.equal(Ok((Some("fe80::1%25en%301"), Some(80))))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          (
+            Stdlib.Option.Option.Some("fe80::1%25en%301"),
+            Stdlib.Option.Option.Some(80))))
+
       hostOf("http://[fe80::1%25]/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidHost("[fe80::1%25]")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidHost("[fe80::1%25]")))
+
       hostOf("http://[fe80::1%eth0]/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidHost("[fe80::1%eth0]")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidHost("[fe80::1%eth0]")))
+
       hostOf("http://[fe80::1%25a:b]/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidHost("[fe80::1%25a:b]")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidHost("[fe80::1%25a:b]")))
+
       // Unclosed, and junk after the bracket.
       hostOf("http://[::1/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidHost("[::1")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.InvalidHost("[::1")))
+
       hostOf("http://[::1]x/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidHost("[::1]x")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.InvalidHost("[::1]x")))
+
       // Unbracketed, the colons read as a port.
       hostOf("http://::1/")
-     
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidCharacter("host", ":"))) ])
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidCharacter("host", ":"))) ])
+
 
 test port =
   Stdlib.Test.all(
-    [ portOf("http://x:8080/") |> Stdlib.Test.equal(Ok(Some(8080)))
-      portOf("http://x:0") |> Stdlib.Test.equal(Ok(Some(0)))
-      portOf("http://x:65535") |> Stdlib.Test.equal(Ok(Some(65535)))
-      portOf("http://x:080") |> Stdlib.Test.equal(Ok(Some(80)))
-      portOf("http://[::1]:443/") |> Stdlib.Test.equal(Ok(Some(443)))
-      portOf("http://x/") |> Stdlib.Test.equal(Ok(None))
+    [ portOf("http://x:8080/")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some(8080)))
+
+      portOf("http://x:0")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some(0)))
+
+      portOf("http://x:65535")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some(65535)))
+
+      portOf("http://x:080")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some(80)))
+
+      portOf("http://[::1]:443/")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some(443)))
+
+      portOf("http://x/")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Stdlib.Option.Option.None))
+
       // RFC 3986 allows an empty port, and it means none.
-      portOf("http://x:/") |> Stdlib.Test.equal(Ok(None))
+      portOf("http://x:/")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Stdlib.Option.Option.None))
+
       portOf("http://x:65536/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidPort("65536")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.InvalidPort("65536")))
+
       portOf("http://x:99999999999999999999/")
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidPort("99999999999999999999")))
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidPort("99999999999999999999")))
+
       portOf("http://x:-1/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidPort("-1")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.InvalidPort("-1")))
+
       portOf("http://x:http/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidPort("http")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.InvalidPort("http")))
+
       portOf("http://x: 80/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidPort(" 80")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.InvalidPort(" 80")))
+
       portOf("http://[::1]:x/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidPort("x"))) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.InvalidPort("x"))) ])
+
 
 test pathPart =
   Stdlib.Test.all(
-    [ pathOf("http://x") |> Stdlib.Test.equal(Ok(""))
-      pathOf("http://x/") |> Stdlib.Test.equal(Ok("/"))
-      pathOf("http://x/a/b/") |> Stdlib.Test.equal(Ok("/a/b/"))
-      pathOf("http://x//a//b") |> Stdlib.Test.equal(Ok("//a//b"))
-      pathOf("http://x/a:b@c;d=e,f") |> Stdlib.Test.equal(Ok("/a:b@c;d=e,f"))
-      pathOf("http://x/./../a") |> Stdlib.Test.equal(Ok("/./../a"))
+    [ pathOf("http://x") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+
+      pathOf("http://x/") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("/"))
+
+      pathOf("http://x/a/b/")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("/a/b/"))
+
+      pathOf("http://x//a//b")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("//a//b"))
+
+      pathOf("http://x/a:b@c;d=e,f")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("/a:b@c;d=e,f"))
+
+      pathOf("http://x/./../a")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("/./../a"))
+
       // Escapes are kept as written; decode a segment to read it.
-      pathOf("http://x/a%20b/%2F") |> Stdlib.Test.equal(Ok("/a%20b/%2F"))
+      pathOf("http://x/a%20b/%2F")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("/a%20b/%2F"))
+
       pathOf("http://x/a b")
-     
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidCharacter("path", " ")))
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidCharacter("path", " ")))
+
       pathOf("http://x/café")
-     
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidCharacter("path", "é")))
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidCharacter("path", "é")))
+
       // `e` and a combining accent is one Char, and not an ASCII letter.
       pathOf("http://x/cafe\u0301")
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidCharacter("path", "e\u0301")))
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidCharacter("path", "e\u0301")))
+
       pathOf("http://x/a\"b")
-     
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidCharacter("path", "\"")))
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidCharacter("path", "\"")))
+
       pathOf("http://x/a\\b")
-     
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidCharacter("path", "\\"))) ])
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidCharacter("path", "\\"))) ])
+
 
 test queryPart =
   Stdlib.Test.all(
     [ Stdlib.Url.parse("http://x/?a=1&b=2")
       |> Stdlib.Result.map(fun u -> (u.path, u.query))
-      |> Stdlib.Test.equal(Ok(("/", Some("a=1&b=2"))))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(("/", Stdlib.Option.Option.Some("a=1&b=2"))))
+
       // A query straight after the host, with no path.
       Stdlib.Url.parse("http://x?a=1")
       |> Stdlib.Result.map(fun u -> (u.host, u.path, u.query))
-      |> Stdlib.Test.equal(Ok((Some("x"), "", Some("a=1"))))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          (
+            Stdlib.Option.Option.Some("x"),
+            "",
+            Stdlib.Option.Option.Some("a=1"))))
+
       // `?` with nothing after is an empty query, not no query.
       Stdlib.Url.parse("http://x/?")
       |> Stdlib.Result.map(fun u -> u.query)
-      |> Stdlib.Test.equal(Ok(Some("")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("")))
+
       // `?` and `/` are allowed inside a query.
       Stdlib.Url.parse("http://x/?next=/a?b")
       |> Stdlib.Result.map(fun u -> u.query)
-      |> Stdlib.Test.equal(Ok(Some("next=/a?b")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("next=/a?b")))
+
       // A `@` or `:` in the query is not an authority.
       Stdlib.Url.parse("http://x?u=a@b:c")
       |> Stdlib.Result.map(fun u -> (u.host, u.userinfo, u.query))
-      |> Stdlib.Test.equal(Ok((Some("x"), None, Some("u=a@b:c"))))
-      Stdlib.Url.parse("http://x/?q=a b")
-     
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidCharacter("query", " "))) ])
+        Stdlib.Result.Result.Ok(
+          (
+            Stdlib.Option.Option.Some("x"),
+            Stdlib.Option.Option.None,
+            Stdlib.Option.Option.Some("u=a@b:c"))))
+
+      Stdlib.Url.parse("http://x/?q=a b")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidCharacter("query", " "))) ])
+
 
 test fragmentPart =
   Stdlib.Test.all(
     [ Stdlib.Url.parse("http://x/#top")
       |> Stdlib.Result.map(fun u -> (u.query, u.fragment))
-      |> Stdlib.Test.equal(Ok((None, Some("top"))))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          (Stdlib.Option.Option.None, Stdlib.Option.Option.Some("top"))))
+
       Stdlib.Url.parse("http://x/#")
       |> Stdlib.Result.map(fun u -> u.fragment)
-      |> Stdlib.Test.equal(Ok(Some("")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("")))
+
       // A `?` after the `#` belongs to the fragment.
       Stdlib.Url.parse("http://x/#a?b=c")
       |> Stdlib.Result.map(fun u -> (u.query, u.fragment))
-      |> Stdlib.Test.equal(Ok((None, Some("a?b=c"))))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          (Stdlib.Option.Option.None, Stdlib.Option.Option.Some("a?b=c"))))
+
       Stdlib.Url.parse("http://x#frag")
       |> Stdlib.Result.map(fun u -> (u.host, u.path, u.fragment))
-      |> Stdlib.Test.equal(Ok((Some("x"), "", Some("frag"))))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          (
+            Stdlib.Option.Option.Some("x"),
+            "",
+            Stdlib.Option.Option.Some("frag"))))
+
       Stdlib.Url.parse("http://x/#a#b")
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidCharacter("fragment", "#"))) ])
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidCharacter("fragment", "#"))) ])
+
 
 test percentEncodingInParse =
   Stdlib.Test.all(
-    [ pathOf("http://x/%7euser") |> Stdlib.Test.equal(Ok("/%7euser"))
+    [ pathOf("http://x/%7euser")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("/%7euser"))
+
       pathOf("http://x/%zz")
-     
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidPercentEncoding("path")))
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidPercentEncoding("path")))
+
       pathOf("http://x/100%")
-     
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidPercentEncoding("path")))
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidPercentEncoding("path")))
+
       pathOf("http://x/a%4")
-     
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidPercentEncoding("path")))
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidPercentEncoding("path")))
+
       Stdlib.Url.parse("http://x/?a=%G1")
-     
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidPercentEncoding("query")))
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidPercentEncoding("query")))
+
       Stdlib.Url.parse("http://x/#%")
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidPercentEncoding("fragment")))
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidPercentEncoding("fragment")))
+
       Stdlib.Url.parse("http://a%2@x/")
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidPercentEncoding("userinfo")))
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidPercentEncoding("userinfo")))
+
       hostOf("http://a%xyb/")
-     
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidPercentEncoding("host"))) ])
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidPercentEncoding("host"))) ])
+
 
 test invalidInputs =
   Stdlib.Test.all(
-    [ Stdlib.Url.parse("") |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.MissingScheme))
+    [ Stdlib.Url.parse("")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.MissingScheme))
+
       Stdlib.Url.parse("example.com")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.MissingScheme))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.MissingScheme))
+
       Stdlib.Url.parse("/a/b?c")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.MissingScheme))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.MissingScheme))
+
       Stdlib.Url.parse("//example.com/a")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.MissingScheme))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.MissingScheme))
+
       Stdlib.Url.parse("://x")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.MissingScheme))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.MissingScheme))
+
       Stdlib.Url.parse("a/b:c")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.MissingScheme))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.MissingScheme))
+
       Stdlib.Url.parse("?q=a:b")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.MissingScheme))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.MissingScheme))
+
       Stdlib.Url.parse("#a:b")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.MissingScheme))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.MissingScheme))
+
       Stdlib.Url.parse("http://x/ ")
-     
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidCharacter("path", " ")))
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidCharacter("path", " ")))
+
       Stdlib.Url.parse("http://x/\n")
-     
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidCharacter("path", "\n")))
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidCharacter("path", "\n")))
+
       Stdlib.Url.parse("{ ] nonsense ^#( :")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.MissingScheme)) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.MissingScheme)) ])
+
 
 test errorMessages =
   Stdlib.Test.all(
     [ Stdlib.display(Stdlib.Url.ParseError.MissingScheme)
-      |> Stdlib.Test.equal("The URL has no scheme (such as https:) at the front")
+      |> Stdlib.Test.equal(
+        "The URL has no scheme (such as https:) at the front")
+
       Stdlib.display(Stdlib.Url.ParseError.InvalidPort("65536"))
       |> Stdlib.Test.equal("'65536' is not a valid port (0-65535)")
+
       Stdlib.display(Stdlib.Url.ParseError.InvalidCharacter("path", " "))
-      |> Stdlib.Test.equal("' ' is not allowed in a URL's path; percent-encode it")
+      |> Stdlib.Test.equal(
+        "' ' is not allowed in a URL's path; percent-encode it")
+
       Stdlib.display(Stdlib.Url.ParseError.InvalidPercentEncoding("query"))
       |> Stdlib.Test.equal(
         "The query has a '%' that is not followed by two hex digits") ])
+
 
 // toString(parse(s)) == s for anything already in normal form.
 test roundTripExact =
@@ -439,19 +757,27 @@ test roundTripExact =
     "http:///path"
     "http://bücher.de/"
     "http://[fe80::1%25eth0]:8080/" ]
-  |> Stdlib.List.map(fun s -> roundTrip(s) |> Stdlib.Test.equal(Ok(s)))
+  |> Stdlib.List.map(fun s ->
+    roundTrip(s) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(s)))
   |> Stdlib.Test.all
+
 
 // Parsing normalizes the scheme, the host and an empty port, and what comes back
 // parses to the same record: parse(toString(u)) == Ok u.
 test roundTripNormalizes =
   Stdlib.Test.all(
     [ roundTrip("HTTP://Example.COM/A?B#C")
-      |> Stdlib.Test.equal(Ok("http://example.com/A?B#C"))
-      roundTrip("http://x:/") |> Stdlib.Test.equal(Ok("http://x/"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("http://example.com/A?B#C"))
+
+      roundTrip("http://x:/")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("http://x/"))
+
       roundTrip("http://[2001:DB8::1]/")
-      |> Stdlib.Test.equal(Ok("http://[2001:db8::1]/"))
-      roundTrip("http://x:080/") |> Stdlib.Test.equal(Ok("http://x:80/"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("http://[2001:db8::1]/"))
+
+      roundTrip("http://x:080/")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("http://x:80/"))
+
       Stdlib.Test.all(
         [ "HTTP://User@Example.COM:/A?B#C"
           "http://[::1]:080"
@@ -459,56 +785,73 @@ test roundTripNormalizes =
           "file:///" ]
         |> Stdlib.List.map(fun s ->
           let once = Stdlib.Url.parse(s)
-
           (once
            |> Stdlib.Result.andThen(fun u ->
              Stdlib.Url.parse(Stdlib.Url.toString(u))))
           |> Stdlib.Test.equal(once))) ])
 
+
 test toStringOfBuiltRecord =
   Stdlib.Test.all(
     [ Stdlib.Url.Url
-        { scheme = Some("https")
-          userinfo = None
-          host = Some("::1")
-          port = Some(443)
+        { scheme = Stdlib.Option.Option.Some("https")
+          userinfo = Stdlib.Option.Option.None
+          host = Stdlib.Option.Option.Some("::1")
+          port = Stdlib.Option.Option.Some(443)
           path = "/x"
-          query = Some("a=1")
-          fragment = None }
+          query = Stdlib.Option.Option.Some("a=1")
+          fragment = Stdlib.Option.Option.None }
       |> Stdlib.Url.toString
       |> Stdlib.Test.equal("https://[::1]:443/x?a=1")
+
       // userinfo and port need a host to hang off, so without one they are dropped.
       Stdlib.Url.Url
-        { scheme = Some("mailto")
-          userinfo = Some("ignored")
-          host = None
-          port = Some(1)
+        { scheme = Stdlib.Option.Option.Some("mailto")
+          userinfo = Stdlib.Option.Option.Some("ignored")
+          host = Stdlib.Option.Option.None
+          port = Stdlib.Option.Option.Some(1)
           path = "a@b.com"
-          query = None
-          fragment = None }
+          query = Stdlib.Option.Option.None
+          fragment = Stdlib.Option.Option.None }
       |> Stdlib.Url.toString
       |> Stdlib.Test.equal("mailto:a@b.com")
+
       // The Display trait reaches the same function.
       Stdlib.Url.parse("http://x/y")
       |> Stdlib.Result.map(fun u -> Stdlib.display(u))
-      |> Stdlib.Test.equal(Ok("http://x/y")) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("http://x/y")) ])
+
 
 test queryParams =
   Stdlib.Test.all(
     [ qp("https://example.com/foo/bar?arg1=some_val&arg2=other_val#somehash")
-      |> Stdlib.Test.equal(Ok([ ("arg1", "some_val"), ("arg2", "other_val") ]))
-      qp("http://x/") |> Stdlib.Test.equal(Ok([]))
-      qp("http://x/?") |> Stdlib.Test.equal(Ok([]))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          [ ("arg1", "some_val"), ("arg2", "other_val") ]))
+
+      qp("http://x/") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([]))
+
+      qp("http://x/?") |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([]))
+
       // Repeats are kept, in order; empty fields are skipped.
       qp("http://x/?a=1&&a=2&")
-      |> Stdlib.Test.equal(Ok([ ("a", "1"), ("a", "2") ]))
-      qp("http://x/?flag&k=") |> Stdlib.Test.equal(Ok([ ("flag", ""), ("k", "") ]))
-      qp("http://x/?token=a=b") |> Stdlib.Test.equal(Ok([ ("token", "a=b") ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ ("a", "1"), ("a", "2") ]))
+
+      qp("http://x/?flag&k=")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ ("flag", ""), ("k", "") ]))
+
+      qp("http://x/?token=a=b")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ ("token", "a=b") ]))
+
       // Decoded as form data: `+` is a space, `%2B` a plus.
       qp("http://x/?q=List+map&c=C%2B%2B&n=caf%C3%A9")
       |> Stdlib.Test.equal(
-        Ok([ ("q", "List map"), ("c", "C++"), ("n", "café") ]))
-      qp("http://x/?a%20b=1") |> Stdlib.Test.equal(Ok([ ("a b", "1") ])) ])
+        Stdlib.Result.Result.Ok(
+          [ ("q", "List map"), ("c", "C++"), ("n", "café") ]))
+
+      qp("http://x/?a%20b=1")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ ("a b", "1") ])) ])
+
 
 test percentDecode =
   Stdlib.Test.all(
@@ -525,88 +868,130 @@ test percentDecode =
       // Not UTF-8: the replacement character, not a raise.
       Stdlib.Url.percentDecode("%FF") |> Stdlib.Test.equal("�") ])
 
+
 test percentEncode =
   Stdlib.Test.all(
     [ Stdlib.Url.percentEncode("AZaz09-._~") |> Stdlib.Test.equal("AZaz09-._~")
+
       Stdlib.Url.percentEncode("a b/é") |> Stdlib.Test.equal("a%20b%2F%C3%A9")
+
       Stdlib.Url.percentEncode("a+b&c=d?#%")
       |> Stdlib.Test.equal("a%2Bb%26c%3Dd%3F%23%25")
+
       Stdlib.Url.percentEncode("👱") |> Stdlib.Test.equal("%F0%9F%91%B1")
+
       Stdlib.Url.percentEncode("") |> Stdlib.Test.equal("")
+
       // What it produces is always accepted by parse, in any part.
       Stdlib.Url.parse(
-        "http://x/" + Stdlib.Url.percentEncode("a b#?/") + "?q="
+        "http://x/"
+        + Stdlib.Url.percentEncode("a b#?/")
+        + "?q="
         + Stdlib.Url.percentEncode("C++ & ü"))
       |> Stdlib.Result.map(fun u -> Stdlib.Url.queryParams(u))
-      |> Stdlib.Test.equal(Ok([ ("q", "C++ & ü") ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ ("q", "C++ & ü") ]))
+
       // And decoding undoes it.
-      [ "plain"
-        "a b"
-        "100%"
-        "a+b"
-        "üñí©ødé 👨‍👩‍👧"
-        "/?#[]@!$&'()*+,;=" ]
+      [ "plain", "a b", "100%", "a+b", "üñí©ødé 👨‍👩‍👧", "/?#[]@!$&'()*+,;=" ]
       |> Stdlib.List.map(fun s ->
         Stdlib.Url.percentDecode(Stdlib.Url.percentEncode(s))
         |> Stdlib.Test.equal(s))
       |> Stdlib.Test.all ])
 
-let refRoundTrip(s: String): Stdlib.Result.Result<String, Stdlib.Url.ParseError> =
-  Stdlib.Url.parseReference(s) |> Stdlib.Result.map(fun u -> Stdlib.Url.toString(u))
+
+let refRoundTrip(
+  s: String)
+  : Stdlib.Result.Result<String, Stdlib.Url.ParseError> =
+  Stdlib.Url.parseReference(s)
+  |> Stdlib.Result.map(fun u -> Stdlib.Url.toString(u))
+
 
 test parseReference =
   Stdlib.Test.all(
     [ Stdlib.Url.parseReference("../a/b?q#f")
       |> Stdlib.Test.equal(
-        Ok(
+        Stdlib.Result.Result.Ok(
           Stdlib.Url.Url
-            { scheme = None
-              userinfo = None
-              host = None
-              port = None
+            { scheme = Stdlib.Option.Option.None
+              userinfo = Stdlib.Option.Option.None
+              host = Stdlib.Option.Option.None
+              port = Stdlib.Option.Option.None
               path = "../a/b"
-              query = Some("q")
-              fragment = Some("f") }))
+              query = Stdlib.Option.Option.Some("q")
+              fragment = Stdlib.Option.Option.Some("f") }))
+
       Stdlib.Url.parseReference("//Host:81/p")
       |> Stdlib.Result.map(fun u -> (u.scheme, u.host, u.port, u.path))
-      |> Stdlib.Test.equal(Ok((None, Some("host"), Some(81), "/p")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          (
+            Stdlib.Option.Option.None,
+            Stdlib.Option.Option.Some("host"),
+            Stdlib.Option.Option.Some(81),
+            "/p")))
+
       Stdlib.Url.parseReference("?q")
       |> Stdlib.Result.map(fun u -> (u.path, u.query))
-      |> Stdlib.Test.equal(Ok(("", Some("q"))))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(("", Stdlib.Option.Option.Some("q"))))
+
       // An absolute URL is a reference too.
       Stdlib.Url.parseReference("HTTP://x/")
       |> Stdlib.Result.map(fun u -> u.scheme)
-      |> Stdlib.Test.equal(Ok(Some("http")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some("http")))
+
       // A `:` before any `/` reads as a scheme, so it has to be a valid one.
       Stdlib.Url.parseReference("1a:b")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidScheme("1a")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.InvalidScheme("1a")))
+
       Stdlib.Url.parseReference(":b")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.MissingScheme))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.MissingScheme))
+
       Stdlib.Url.parseReference("./a:b")
       |> Stdlib.Result.map(fun u -> u.path)
-      |> Stdlib.Test.equal(Ok("./a:b"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("./a:b"))
+
       Stdlib.Url.parseReference("/a b")
       |> Stdlib.Test.equal(
-        Error(Stdlib.Url.ParseError.InvalidCharacter("path", " ")))
+        Stdlib.Result.Result.Error(
+          Stdlib.Url.ParseError.InvalidCharacter("path", " ")))
+
       // Each prints back as written.
       [ "", "/a/b", "../c", "?q", "#f", "//host/p", "g;x=1/../y", "./a:b" ]
-      |> Stdlib.List.map(fun s -> refRoundTrip(s) |> Stdlib.Test.equal(Ok(s)))
+      |> Stdlib.List.map(fun s ->
+        refRoundTrip(s) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(s)))
       |> Stdlib.Test.all ])
+
 
 test parseLenient =
   Stdlib.Test.all(
     [ Stdlib.Url.parseLenient("http://x/a b|[c]?k[]=1 2&v=100%#é")
       |> Stdlib.Result.map(fun u -> (u.path, u.query, u.fragment))
-      |> Stdlib.Test.equal(Ok(("/a b|[c]", Some("k[]=1 2&v=100%"), Some("é"))))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          (
+            "/a b|[c]",
+            Stdlib.Option.Option.Some("k[]=1 2&v=100%"),
+            Stdlib.Option.Option.Some("é"))))
+
       Stdlib.Url.parseLenient("1a:b")
       |> Stdlib.Result.map(fun u -> (u.scheme, u.path))
-      |> Stdlib.Test.equal(Ok((None, "1a:b")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok((Stdlib.Option.Option.None, "1a:b")))
+
       // The authority is still checked.
       Stdlib.Url.parseLenient("http://x:port/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidPort("port")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.InvalidPort("port")))
+
       // A `:` left in a name would print back as `[a:b]`, so it is refused.
       Stdlib.Url.parseLenient("http://a:b:80/")
-      |> Stdlib.Test.equal(Error(Stdlib.Url.ParseError.InvalidHost("a:b"))) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Url.ParseError.InvalidHost("a:b"))) ])
+
 
 test removeDotSegments =
   Stdlib.Test.all(
@@ -627,10 +1012,10 @@ test removeDotSegments =
       let (input, expected) = pair
       Stdlib.Url.removeDotSegments(input) |> Stdlib.Test.equal(expected)))
 
+
 // Every example in RFC 3986 section 5.4, normal and abnormal.
 test resolve =
   let base = Stdlib.Url.parse("http://a/b/c/d;p?q")
-
   [ ("g:h", "g:h")
     ("g", "http://a/b/c/g")
     ("./g", "http://a/b/c/g")
@@ -675,13 +1060,14 @@ test resolve =
     ("http:g", "http:g") ]
   |> Stdlib.List.map(fun pair ->
     let (r, expected) = pair
-
     (base
      |> Stdlib.Result.andThen(fun b ->
        Stdlib.Url.parseReference(r)
-       |> Stdlib.Result.map(fun u -> Stdlib.Url.toString(Stdlib.Url.resolve(b, u)))))
-    |> Stdlib.Test.equal(Ok(expected)))
+       |> Stdlib.Result.map(fun u ->
+         Stdlib.Url.toString(Stdlib.Url.resolve(b, u)))))
+    |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(expected)))
   |> Stdlib.Test.all
+
 
 test resolveAgainstEmptyPath =
   Stdlib.Test.all(
@@ -690,24 +1076,30 @@ test resolveAgainstEmptyPath =
       (Stdlib.Url.parse("mailto:x@y"), "#f", "mailto:x@y#f") ]
     |> Stdlib.List.map(fun t ->
       let (base, r, expected) = t
-
       (base
        |> Stdlib.Result.andThen(fun b ->
          Stdlib.Url.parseReference(r)
-         |> Stdlib.Result.map(fun u -> Stdlib.Url.toString(Stdlib.Url.resolve(b, u)))))
-      |> Stdlib.Test.equal(Ok(expected))))
+         |> Stdlib.Result.map(fun u ->
+           Stdlib.Url.toString(Stdlib.Url.resolve(b, u)))))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(expected))))
+
 
 test encodeQuery =
   Stdlib.Test.all(
     [ Stdlib.Url.encodeQuery([ ("q", "a b"), ("n", "1") ])
       |> Stdlib.Test.equal("q=a%20b&n=1")
+
       Stdlib.Url.encodeQuery([]) |> Stdlib.Test.equal("")
+
       // queryParams reads back what encodeQuery wrote.
       Stdlib.Url.parse(
         "http://x/?"
         + Stdlib.Url.encodeQuery([ ("a&b", "c=d"), ("é", "+ %"), ("a&b", "") ]))
       |> Stdlib.Result.map(fun u -> Stdlib.Url.queryParams(u))
-      |> Stdlib.Test.equal(Ok([ ("a&b", "c=d"), ("é", "+ %"), ("a&b", "") ])) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          [ ("a&b", "c=d"), ("é", "+ %"), ("a&b", "") ])) ])
+
 
 let withPath(
   s: String,
@@ -717,6 +1109,7 @@ let withPath(
   |> Stdlib.Result.map(fun u ->
     Stdlib.Url.toString(Stdlib.Url.withPathSegments(u, segments)))
 
+
 let withQuery(
   s: String,
   params: List<(String * String)>)
@@ -725,40 +1118,57 @@ let withQuery(
   |> Stdlib.Result.map(fun u ->
     Stdlib.Url.toString(Stdlib.Url.withQueryParams(u, params)))
 
+
 test withPathSegments =
   let segments = [ "a b", "x/y", "é", "?#", "..", ".", "", "+", "%" ]
-
   Stdlib.Test.all(
     [ [ "https://example.com/old?q=1", "/old", "mailto:old", "a/b", "" ]
       |> Stdlib.List.map(fun base ->
         Stdlib.Url.parseReference(base)
         |> Stdlib.Result.map(fun u ->
           Stdlib.Url.pathSegments(Stdlib.Url.withPathSegments(u, segments)))
-        |> Stdlib.Test.equal(Ok(segments)))
+        |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(segments)))
       |> Stdlib.Test.all
+
       withPath("https://example.com/old?q=1", segments)
       |> Stdlib.Test.equal(
-        Ok("https://example.com/a%20b/x%2Fy/%C3%A9/%3F%23/%2E%2E/%2E//%2B/%25?q=1"))
+        Stdlib.Result.Result.Ok(
+          "https://example.com/a%20b/x%2Fy/%C3%A9/%3F%23/%2E%2E/%2E//%2B/%25?q=1"))
+
       withPath("https://example.com/old", [])
-      |> Stdlib.Test.equal(Ok("https://example.com/"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("https://example.com/"))
+
       // Absolute or relative, as the path was.
-      withPath("/old", []) |> Stdlib.Test.equal(Ok("/"))
-      withPath("/old", [ "x" ]) |> Stdlib.Test.equal(Ok("/x"))
-      withPath("a/b", []) |> Stdlib.Test.equal(Ok(""))
-      withPath("a/b", [ "x", "y" ]) |> Stdlib.Test.equal(Ok("x/y"))
-      withPath("mailto:old", [ "a b" ]) |> Stdlib.Test.equal(Ok("mailto:a%20b"))
+      withPath("/old", []) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("/"))
+
+      withPath("/old", [ "x" ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("/x"))
+
+      withPath("a/b", []) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
+
+      withPath("a/b", [ "x", "y" ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("x/y"))
+
+      withPath("mailto:old", [ "a b" ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("mailto:a%20b"))
+
       // The two cases that do not round-trip.
       withPath("https://example.com", [ "a", "" ])
-      |> Stdlib.Test.equal(Ok("https://example.com/a/"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("https://example.com/a/"))
+
       withPath("non-spec:/p", [ "", "evil.com" ])
-      |> Stdlib.Test.equal(Ok("non-spec:/.//evil.com"))
-      withPath("a", [ "", "x" ]) |> Stdlib.Test.equal(Ok(".//x"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("non-spec:/.//evil.com"))
+
+      withPath("a", [ "", "x" ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(".//x"))
+
       // A `..` segment is a name, not a step up.
       Stdlib.Url.parse("http://x")
       |> Stdlib.Result.map(fun u ->
         Stdlib.Url.removeDotSegments(
           (Stdlib.Url.withPathSegments(u, [ "a", "..", "b" ])).path))
-      |> Stdlib.Test.equal(Ok("/a/%2E%2E/b")) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("/a/%2E%2E/b")) ])
+
 
 test withQueryParams =
   let params =
@@ -773,10 +1183,15 @@ test withQueryParams =
     [ Stdlib.Url.parse("http://x/p#top")
       |> Stdlib.Result.map(fun u ->
         Stdlib.Url.queryParams(Stdlib.Url.withQueryParams(u, params)))
-      |> Stdlib.Test.equal(Ok(params))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(params))
+
       withQuery("http://x/p#top", [ ("q", "a b"), ("n", "1+1") ])
-      |> Stdlib.Test.equal(Ok("http://x/p?q=a%20b&n=1%2B1#top"))
-      withQuery("http://x/p?old=1", []) |> Stdlib.Test.equal(Ok("http://x/p")) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok("http://x/p?q=a%20b&n=1%2B1#top"))
+
+      withQuery("http://x/p?old=1", [])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("http://x/p")) ])
+
 
 // RFC 3986 sections 4.2 and 5.3: with no host, a resolved path starting `//`
 // gets a `/.` in front, or it would read back as a host. Cases from WHATWG's
@@ -791,23 +1206,32 @@ test resolveGuardsPath =
     ("mailto:x", "mailto:/..//evil.com/x", "mailto:/.//evil.com/x") ]
   |> Stdlib.List.map(fun t ->
     let (base, r, expected) = t
-
     (Stdlib.Url.parse(base)
      |> Stdlib.Result.andThen(fun b ->
        Stdlib.Url.parseReference(r)
-       |> Stdlib.Result.map(fun u -> Stdlib.Url.toString(Stdlib.Url.resolve(b, u)))))
-    |> Stdlib.Test.equal(Ok(expected)))
+       |> Stdlib.Result.map(fun u ->
+         Stdlib.Url.toString(Stdlib.Url.resolve(b, u)))))
+    |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(expected)))
   |> Stdlib.Test.all
 
+
 test formDecode =
-  [ ("List+map", "List map"), ("C%2B%2B", "C++"), ("a%20b+c", "a b c"), ("", "") ]
+  [ ("List+map", "List map")
+    ("C%2B%2B", "C++")
+    ("a%20b+c", "a b c")
+    ("", "") ]
   |> Stdlib.List.map(fun pair ->
     let (input, expected) = pair
     Stdlib.Url.formDecode(input) |> Stdlib.Test.equal(expected))
   |> Stdlib.Test.all
 
-let segmentsOf(s: String): Stdlib.Result.Result<List<String>, Stdlib.Url.ParseError> =
-  Stdlib.Url.parseReference(s) |> Stdlib.Result.map(fun u -> Stdlib.Url.pathSegments(u))
+
+let segmentsOf(
+  s: String)
+  : Stdlib.Result.Result<List<String>, Stdlib.Url.ParseError> =
+  Stdlib.Url.parseReference(s)
+  |> Stdlib.Result.map(fun u -> Stdlib.Url.pathSegments(u))
+
 
 // Includes the path examples from elm/url's Url.Parser docs and its old route
 // tests; unlike Elm's `string`, segments come back decoded.
@@ -827,8 +1251,9 @@ test pathSegments =
     ("/caf%C3%A9/a%2Fb/x+y", [ "café", "a/b", "x+y" ]) ]
   |> Stdlib.List.map(fun pair ->
     let (input, expected) = pair
-    segmentsOf(input) |> Stdlib.Test.equal(Ok(expected)))
+    segmentsOf(input) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(expected)))
   |> Stdlib.Test.all
+
 
 // elm/url has no test suite of its own; its cases live in the doc examples of
 // Url, Url.Builder, Url.Parser and Url.Parser.Query. Every one that applies is
@@ -838,26 +1263,65 @@ test elmUrlFromString =
     [ // Elm gives path "/" here; we keep "" so toString gives the string back.
       Stdlib.Url.parse("https://example.com:443")
       |> Stdlib.Result.map(fun u -> (u.scheme, u.host, u.port, u.path, u.query))
-      |> Stdlib.Test.equal(Ok((Some("https"), Some("example.com"), Some(443), "", None)))
-      Stdlib.Url.parse("https://example.com/hats?q=top%20hat")
-      |> Stdlib.Result.map(fun u -> (u.host, u.port, u.path, u.query, u.fragment))
       |> Stdlib.Test.equal(
-        Ok((Some("example.com"), None, "/hats", Some("q=top%20hat"), None)))
+        Stdlib.Result.Result.Ok(
+          (
+            Stdlib.Option.Option.Some("https"),
+            Stdlib.Option.Option.Some("example.com"),
+            Stdlib.Option.Option.Some(443),
+            "",
+            Stdlib.Option.Option.None)))
+
+      Stdlib.Url.parse("https://example.com/hats?q=top%20hat")
+      |> Stdlib.Result.map(fun u ->
+        (u.host, u.port, u.path, u.query, u.fragment))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          (
+            Stdlib.Option.Option.Some("example.com"),
+            Stdlib.Option.Option.None,
+            "/hats",
+            Stdlib.Option.Option.Some("q=top%20hat"),
+            Stdlib.Option.Option.None)))
+
       Stdlib.Url.parse("http://example.com/core/List/#map")
       |> Stdlib.Result.map(fun u -> (u.path, u.query, u.fragment))
-      |> Stdlib.Test.equal(Ok(("/core/List/", None, Some("map"))))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          (
+            "/core/List/",
+            Stdlib.Option.Option.None,
+            Stdlib.Option.Option.Some("map"))))
+
       // Elm: Nothing (no protocol). RFC 3986: scheme "example.com", path "443".
       Stdlib.Url.parse("example.com:443")
       |> Stdlib.Result.map(fun u -> (u.scheme, u.host, u.path))
-      |> Stdlib.Test.equal(Ok((Some("example.com"), None, "443")))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          (
+            Stdlib.Option.Option.Some("example.com"),
+            Stdlib.Option.Option.None,
+            "443")))
+
       // Elm: Nothing (userinfo disallowed). We keep it.
       Stdlib.Url.parse("http://tom@example.com")
       |> Stdlib.Result.map(fun u -> (u.userinfo, u.host))
-      |> Stdlib.Test.equal(Ok((Some("tom"), Some("example.com"))))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          (
+            Stdlib.Option.Option.Some("tom"),
+            Stdlib.Option.Option.Some("example.com"))))
+
       // Elm: Nothing (no host). A generic parser allows an empty one.
       Stdlib.Url.parse("http://#cats")
       |> Stdlib.Result.map(fun u -> (u.host, u.path, u.fragment))
-      |> Stdlib.Test.equal(Ok((Some(""), "", Some("cats")))) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          (
+            Stdlib.Option.Option.Some(""),
+            "",
+            Stdlib.Option.Option.Some("cats")))) ])
+
 
 test elmUrlPercent =
   Stdlib.Test.all(
@@ -869,16 +1333,17 @@ test elmUrlPercent =
         ("€", "%E2%82%AC") ]
       |> Stdlib.List.map(fun pair ->
         let (plain, encoded) = pair
-
         Stdlib.Test.all(
           [ Stdlib.Url.percentEncode(plain) |> Stdlib.Test.equal(encoded)
             Stdlib.Url.percentDecode(encoded) |> Stdlib.Test.equal(plain) ]))
       |> Stdlib.Test.all
+
       // Elm gives Nothing for these three; ours never fails: a bad `%` is kept,
       // and half a UTF-8 character becomes U+FFFD.
       Stdlib.Url.percentDecode("%") |> Stdlib.Test.equal("%")
       Stdlib.Url.percentDecode("%XY") |> Stdlib.Test.equal("%XY")
       Stdlib.Url.percentDecode("%C2") |> Stdlib.Test.equal("�") ])
+
 
 // Url.Builder's examples. Elm's builders take the path as a string, so these set
 // `path` directly and the query with withQueryParams.
@@ -890,39 +1355,120 @@ let at(
   fragment: Stdlib.Option.Option<String>)
   : String =
   Stdlib.Url.Url
-    { scheme = if host == None then None else Some("https")
-      userinfo = None
+    { scheme =
+        if host == Stdlib.Option.Option.None then
+          Stdlib.Option.Option.None
+        else
+          Stdlib.Option.Option.Some("https")
+      userinfo = Stdlib.Option.Option.None
       host = host
       port = port
       path = path
-      query = None
+      query = Stdlib.Option.Option.None
       fragment = fragment }
   |> Stdlib.Url.withQueryParams(params)
   |> Stdlib.Url.toString
 
+
 test elmUrlBuilder =
   Stdlib.Test.all(
-    [ at(None, None, "/", [], None) |> Stdlib.Test.equal("/")
-      at(None, None, "/packages/elm/core", [], None)
+    [ at(
+        Stdlib.Option.Option.None,
+        Stdlib.Option.Option.None,
+        "/",
+        [],
+        Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal("/")
+
+      at(
+        Stdlib.Option.Option.None,
+        Stdlib.Option.Option.None,
+        "/packages/elm/core",
+        [],
+        Stdlib.Option.Option.None)
       |> Stdlib.Test.equal("/packages/elm/core")
-      at(None, None, "/products", [ ("search", "hat"), ("page", "2") ], None)
+
+      at(
+        Stdlib.Option.Option.None,
+        Stdlib.Option.Option.None,
+        "/products",
+        [ ("search", "hat"), ("page", "2") ],
+        Stdlib.Option.Option.None)
       |> Stdlib.Test.equal("/products?search=hat&page=2")
-      at(None, None, "", [], None) |> Stdlib.Test.equal("")
-      at(None, None, "elm/core", [], None) |> Stdlib.Test.equal("elm/core")
-      at(None, None, "products", [ ("search", "hat"), ("page", "2") ], None)
+
+      at(
+        Stdlib.Option.Option.None,
+        Stdlib.Option.Option.None,
+        "",
+        [],
+        Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal("")
+
+      at(
+        Stdlib.Option.Option.None,
+        Stdlib.Option.Option.None,
+        "elm/core",
+        [],
+        Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal("elm/core")
+
+      at(
+        Stdlib.Option.Option.None,
+        Stdlib.Option.Option.None,
+        "products",
+        [ ("search", "hat"), ("page", "2") ],
+        Stdlib.Option.Option.None)
       |> Stdlib.Test.equal("products?search=hat&page=2")
-      at(Some("example.com"), None, "/products", [], None)
+
+      at(
+        Stdlib.Option.Option.Some("example.com"),
+        Stdlib.Option.Option.None,
+        "/products",
+        [],
+        Stdlib.Option.Option.None)
       |> Stdlib.Test.equal("https://example.com/products")
-      at(Some("example.com"), None, "/", [], None)
+
+      at(
+        Stdlib.Option.Option.Some("example.com"),
+        Stdlib.Option.Option.None,
+        "/",
+        [],
+        Stdlib.Option.Option.None)
       |> Stdlib.Test.equal("https://example.com/")
-      at(Some("example.com"), Some(8042), "/over/there", [ ("name", "ferret") ], None)
+
+      at(
+        Stdlib.Option.Option.Some("example.com"),
+        Stdlib.Option.Option.Some(8042),
+        "/over/there",
+        [ ("name", "ferret") ],
+        Stdlib.Option.Option.None)
       |> Stdlib.Test.equal("https://example.com:8042/over/there?name=ferret")
-      at(None, None, "/packages/elm/core/latest/String", [], Some("length"))
+
+      at(
+        Stdlib.Option.Option.None,
+        Stdlib.Option.Option.None,
+        "/packages/elm/core/latest/String",
+        [],
+        Stdlib.Option.Option.Some("length"))
       |> Stdlib.Test.equal("/packages/elm/core/latest/String#length")
-      at(Some("example.com"), Some(8042), "/over/there", [ ("name", "ferret") ], Some("nose"))
-      |> Stdlib.Test.equal("https://example.com:8042/over/there?name=ferret#nose")
-      at(None, None, "/products", [ ("search", "coffee table") ], None)
+
+      at(
+        Stdlib.Option.Option.Some("example.com"),
+        Stdlib.Option.Option.Some(8042),
+        "/over/there",
+        [ ("name", "ferret") ],
+        Stdlib.Option.Option.Some("nose"))
+      |> Stdlib.Test.equal(
+        "https://example.com:8042/over/there?name=ferret#nose")
+
+      at(
+        Stdlib.Option.Option.None,
+        Stdlib.Option.Option.None,
+        "/products",
+        [ ("search", "coffee table") ],
+        Stdlib.Option.Option.None)
       |> Stdlib.Test.equal("/products?search=coffee%20table") ])
+
 
 // Url.Parser.Query's examples. Elm's `string` and `int` give Nothing for a
 // repeated key; queryParams keeps every repeat, in order, and leaves choosing
@@ -934,14 +1480,16 @@ test elmUrlQuery =
     ("?debug=true&debug=true", [ ("debug", "true"), ("debug", "true") ])
     ("?hats=2", [ ("hats", "2") ])
     // Elm drops `a=b=c` and a bare `flag`, and keeps `+` as is.
-    ("?a=b=c&flag&q=wolf+cub", [ ("a", "b=c"), ("flag", ""), ("q", "wolf cub") ]) ]
+    (
+      "?a=b=c&flag&q=wolf+cub",
+      [ ("a", "b=c"), ("flag", ""), ("q", "wolf cub") ]) ]
   |> Stdlib.List.map(fun pair ->
     let (input, expected) = pair
-
     (Stdlib.Url.parseReference(input)
      |> Stdlib.Result.map(fun u -> Stdlib.Url.queryParams(u)))
-    |> Stdlib.Test.equal(Ok(expected)))
+    |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(expected)))
   |> Stdlib.Test.all
+
 
 // A curated set from WHATWG's urltestdata.json (web-platform-tests): the cases
 // whose answer RFC 3986 agrees on. Browser-only rules (backslashes, special
@@ -982,8 +1530,11 @@ test whatwgFailures =
     "sc://:12/"
     "non-special://f:999999/c" ]
   |> Stdlib.List.map(fun s ->
-    Stdlib.Url.parse(s) |> Stdlib.Result.isError |> Stdlib.Test.equal(true))
+    Stdlib.Url.parse(s)
+    |> Stdlib.Result.isError
+    |> Stdlib.Test.equal(true))
   |> Stdlib.Test.all
+
 
 test whatwgRoundTrip =
   [ "telnet://user:pass@foobar.com:23/"
@@ -1010,8 +1561,10 @@ test whatwgRoundTrip =
     // WHATWG prints these two shortened to [1::] and [1:2::3]; we keep them.
     "http://[1:0::]"
     "non-special://[1:2:0:0:0:0:0:3]/" ]
-  |> Stdlib.List.map(fun s -> roundTrip(s) |> Stdlib.Test.equal(Ok(s)))
+  |> Stdlib.List.map(fun s ->
+    roundTrip(s) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(s)))
   |> Stdlib.Test.all
+
 
 // WHATWG accepts these; RFC 3986 does not (a `%` must start an escape), and
 // neither do we. parseLenient takes them.
@@ -1020,8 +1573,10 @@ test whatwgStricter =
     ("wow:%NBD", Stdlib.Url.ParseError.InvalidPercentEncoding("path")) ]
   |> Stdlib.List.map(fun pair ->
     let (input, expected) = pair
-    Stdlib.Url.parse(input) |> Stdlib.Test.equal(Error(expected)))
+    Stdlib.Url.parse(input)
+    |> Stdlib.Test.equal(Stdlib.Result.Result.Error(expected)))
   |> Stdlib.Test.all
+
 
 test whatwgResolve =
   [ ("sc:/pa/pa", "i", "sc:/pa/i")
@@ -1044,10 +1599,10 @@ test whatwgResolve =
     ("http://example.org/", "mailto:/../", "mailto:/") ]
   |> Stdlib.List.map(fun t ->
     let (base, r, expected) = t
-
     (Stdlib.Url.parse(base)
      |> Stdlib.Result.andThen(fun b ->
        Stdlib.Url.parseReference(r)
-       |> Stdlib.Result.map(fun u -> Stdlib.Url.toString(Stdlib.Url.resolve(b, u)))))
-    |> Stdlib.Test.equal(Ok(expected)))
+       |> Stdlib.Result.map(fun u ->
+         Stdlib.Url.toString(Stdlib.Url.resolve(b, u)))))
+    |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(expected)))
   |> Stdlib.Test.all

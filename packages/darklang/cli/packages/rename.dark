@@ -18,105 +18,82 @@ let ops(
 let referenceAt(
   branchId: Uuid,
   location: LanguageTools.ProgramTypes.PackageLocation)
-  : Stdlib.Option.Option<LanguageTools.ProgramTypes.Reference> =
+  : Option<LanguageTools.ProgramTypes.Reference> =
   let modulePath = Stdlib.List.prepend(location.modules, location.owner)
-  let results = Packages.Query.searchExactMatch(branchId, modulePath, location.name)
-
+  let results = Query.searchExactMatch(branchId, modulePath, location.name)
   match results.fns with
-  | [i, ...] ->
-    Stdlib.Option.Option.Some(
-      LanguageTools.ProgramTypes.Reference.PackageFn(i.entity.hash)
-    )
+  | [i, ...] -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageFn(i.entity.hash))
   | [] ->
     match results.types with
-    | [i, ...] ->
-      Stdlib.Option.Option.Some(
-        LanguageTools.ProgramTypes.Reference.PackageType(i.entity.hash)
-      )
+    | [i, ...] -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageType(i.entity.hash))
     | [] ->
       match results.values with
-      | [i, ...] ->
-        Stdlib.Option.Option.Some(
-          LanguageTools.ProgramTypes.Reference.PackageValue(i.entity.hash)
-        )
+      | [i, ...] -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageValue(i.entity.hash))
       | [] ->
         match results.traits with
-        | [i, ...] ->
-          Stdlib.Option.Option.Some(
-            LanguageTools.ProgramTypes.Reference.PackageTrait(i.entity.hash)
-          )
+        | [i, ...] -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageTrait(i.entity.hash))
         | [] ->
           match results.impls with
           | [i, ...] ->
-            Stdlib.Option.Option.Some(
-              LanguageTools.ProgramTypes.Reference.PackageTraitImpl(i.entity.hash)
-            )
+            Option.Some(LanguageTools.ProgramTypes.Reference.PackageTraitImpl(i.entity.hash))
           | [] ->
             match results.tests with
             | [i, ...] ->
-              Stdlib.Option.Option.Some(
-                LanguageTools.ProgramTypes.Reference.PackageTest(i.entity.hash)
-              )
-            | [] -> Stdlib.Option.Option.None
+              Option.Some(LanguageTools.ProgramTypes.Reference.PackageTest(i.entity.hash))
+            | [] -> Option.None
 
 
-let execute(state: Cli.AppState, args: List<String>): Cli.AppState =
+let execute(state: AppState, args: List<String>): AppState =
   match args with
-  | [ oldName, newName ] ->
+  | [oldName, newName] ->
     let here = state.packageData.currentLocation
-
-    match
-      (Packages.Location.parseRelativeTo(here, oldName),
-       Packages.Location.parseRelativeTo(here, newName))
-    with
-    | (Error(e), _) ->
-      Cli.printErr($"the name to rename: {e}")
+    match Location.parseRelativeTo(here, oldName), Location.parseRelativeTo(here, newName) with
+    | Error(e), _ ->
+      printErr($"the name to rename: {e}")
       { state with exitCode = 1 }
-    | (_, Error(e)) ->
-      Cli.printErr($"the new name: {e}")
+    | _, Error(e) ->
+      printErr($"the new name: {e}")
       { state with exitCode = 1 }
-    | (Ok(oldLoc), Ok(newLoc)) ->
+    | Ok(oldLoc), Ok(newLoc) ->
       let dotted(l: LanguageTools.ProgramTypes.PackageLocation): String =
         PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(l)
 
-      if (dotted(oldLoc)) == (dotted(newLoc)) then
-        Cli.printOk($"{dotted(oldLoc)} already has that name -- nothing to do.")
+      if dotted(oldLoc) == dotted(newLoc) then
+        printOk($"{dotted(oldLoc)} already has that name -- nothing to do.")
         state
       else
         match referenceAt(state.currentBranchId, oldLoc) with
         | None ->
-          Cli.printErr($"nothing here is named {dotted(oldLoc)}.")
-          Cli.printHint("  `dark ls` lists what is; `dark search <text>` looks wider.")
+          printErr($"nothing here is named {dotted(oldLoc)}.")
+          printHint("  `dark ls` lists what is; `dark search <text>` looks wider.")
           { state with exitCode = 1 }
         | Some(reference) ->
           // Refused rather than silently rebound: one name holds one item, so binding over a live
           // name would take the other item off the shelf as a side effect of renaming this one.
           match referenceAt(state.currentBranchId, newLoc) with
           | Some(_) ->
-            Cli.printErr($"{dotted(newLoc)} already names something.")
-            Cli.printHint("  pick another name, or retire that one first (`dark delete`).")
+            printErr($"{dotted(newLoc)} already names something.")
+            printHint("  pick another name, or retire that one first (`dark delete`).")
             { state with exitCode = 1 }
           | None ->
             let changes = ops(state.currentBranchId, oldLoc, newLoc, reference)
             match SCM.PackageOps.add(state.currentBranchId, changes) with
             | Ok(_) ->
-              Cli.printOk($"renamed {dotted(oldLoc)} -> {dotted(newLoc)}.")
-
-              Cli.printHint(
+              printOk($"renamed {dotted(oldLoc)} -> {dotted(newLoc)}.")
+              printHint(
                 "  callers now use the new name; content hashes are unchanged. `dark status` shows the change.")
 
               state
             | Error(e) ->
-              Cli.printErr($"couldn't rename: {e}")
+              printErr($"couldn't rename: {e}")
               { state with exitCode = 1 }
-
   | _ ->
-    Cli.printErr("usage: dark rename <name> <new-name>")
-    Cli.printHint("  both names are relative to where you are (`dark nav` moves).")
+    printErr("usage: dark rename <name> <new-name>")
+    printHint("  both names are relative to where you are (`dark nav` moves).")
     { state with exitCode = 1 }
 
 
-let help(_state: Cli.AppState): String =
+let help(_state: AppState): String =
   [ ""
     "  dark rename <name> <new-name>"
     ""
@@ -131,11 +108,8 @@ let help(_state: Cli.AppState): String =
   |> Stdlib.String.join("\n")
 
 
-let complete(
-  state: Cli.AppState,
-  args: List<String>)
-  : List<Completion.CompletionItem> =
+let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =
   match args with
-  | [] -> Packages.Nav.complete(state, args)
-  | [ _ ] -> Packages.Nav.complete(state, args)
+  | [] -> Nav.complete(state, args)
+  | [_] -> Nav.complete(state, args)
   | _ -> []

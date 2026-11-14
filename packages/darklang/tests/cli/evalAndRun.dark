@@ -8,9 +8,12 @@
 module Darklang.Cli.Tests.EvalAndRun
 
 /// What a command printed on stdout, trimmed, against what it should have printed.
-let prints(i: Instance.T, args: List<String>, expected: String): Stdlib.Test.Result =
+let prints(
+  i: Instance.T,
+  args: List<String>,
+  expected: String)
+  : Stdlib.Test.Result =
   let out = Instance.output(i, args)
-
   if out == expected then
     Stdlib.Test.Result.Pass
   else
@@ -29,33 +32,41 @@ let script(i: Instance.T, name: String, source: String): String =
 /// `--local`, so this does not depend on reaching GitHub: bare `version` checks for
 /// a newer release, and against a firewall that drops rather than refuses it waits
 /// ~11s.
-test versionAnswersFromTheBinary =
-  Instance.withInstance(fun i ->
-    let out = Instance.said(i, [ "version", "--local" ])
-    // A near miss must not silently fall through to the network check, which is the
-    // one thing the caller was trying to avoid.
-    let typo = Instance.said(i, [ "version", "--locl" ])
+test versionAnswersFromTheBinary = Instance.withInstance(fun i ->
+  let out = Instance.said(i, [ "version", "--local" ])
+  // A near miss must not silently fall through to the network check, which is the
+  // one thing the caller was trying to avoid.
+  let typo = Instance.said(i, [ "version", "--locl" ])
+  Stdlib.Test.all(
+    [ Instance.says(out, "Darklang CLI", "the banner")
+      Instance.says(out, "alpha-", "the version prefix")
+      Instance.doesNotSay(
+        out,
+        "update available",
+        "it did not look for updates")
 
-    Stdlib.Test.all(
-      [ Instance.says(out, "Darklang CLI", "the banner")
-        Instance.says(out, "alpha-", "the version prefix")
-        Instance.doesNotSay(out, "update available", "it did not look for updates")
-        Instance.doesNotSay(out, "unable to check", "it did not look for updates")
-        Instance.says(typo, "does not take `--locl`", "a mistyped flag is named")
-        Instance.doesNotSay(typo, "update available", "and nothing was fetched") ]))
+      Instance.doesNotSay(out, "unable to check", "it did not look for updates")
+      Instance.says(typo, "does not take `--locl`", "a mistyped flag is named")
+      Instance.doesNotSay(
+        typo,
+        "update available",
+        "and nothing was fetched") ]))
 
 
 /// `status` names the branch ALWAYS, main included: "where am I" is the question it
 /// is for.
-test statusSaysWhereYouAre =
-  Instance.withInstance(fun i ->
-    let out = Instance.said(i, [ "status" ])
+test statusSaysWhereYouAre = Instance.withInstance(fun i ->
+  let out = Instance.said(i, [ "status" ])
+  Stdlib.Test.all(
+    [ Stdlib.Test.expect(
+        Stdlib.String.contains(out, "clean:")
+        || Stdlib.String.contains(out, "draft:"),
+        $"status says whether there is uncommitted work: {out}")
 
-    Stdlib.Test.all(
-      [ Stdlib.Test.expect(
-          Stdlib.String.contains(out, "clean:") || Stdlib.String.contains(out, "draft:"),
-          $"status says whether there is uncommitted work: {out}")
-        Instance.says(out, "On branch", "status names the branch, main included") ]))
+      Instance.says(
+        out,
+        "On branch",
+        "status names the branch, main included") ]))
 
 
 test evalAnswers =
@@ -72,124 +83,158 @@ test evalAnswers =
 /// A script's own declarations are keyed by content hash, so two that hash the same
 /// collapse into one. Right when they really are identical; wrong when they only
 /// look identical because they were hashed before their references resolved.
-test scriptDeclarationsKeepTheirIdentity =
-  Instance.withInstance(fun i ->
-    Stdlib.Test.all(
-      [ // Byte-identical apart from a parameter type still unresolved when the first pass
-        // runs. They must stay two functions.
-        prints(
-          i,
-          [ "eval"
-            "type TA = { a: String }\ntype TB = { b: Int64 }\nlet takesA(r: TA): Int64 = 7\nlet takesB(r: TB): Int64 = 7\n(takesA(TA { a = \"x\" })) + (takesB(TB { b = 1 }))" ],
-          "14")
-        // Genuinely identical declarations SHOULD share one hash.
-        prints(
-          i,
-          [ "eval"
-            "let alpha(x: Int64): Int64 = x + 1\nlet beta(x: Int64): Int64 = x + 1\n(alpha(1)) + (beta(1))" ],
-          "4")
-        // Hashing after resolution means the graph can have cycles, hashed as a
-        // batch.
-        prints(
-          i,
-          [ "eval"
-            "let isEven(n: Int64): Bool = if n == 0 then true else isOdd(n - 1)\nlet isOdd(n: Int64): Bool = if n == 0 then false else isEven(n - 1)\nisEven(10)" ],
-          "true")
-        // A script type with the same shape as a package type IS that type.
-        prints(
-          i,
-          [ "eval"
-            "type MyErr = | BadFormat\nlet f(e: Darklang.Stdlib.BigInt.ParseError): Int64 = 1\nf(MyErr.BadFormat)" ],
-          "1") ]))
+test scriptDeclarationsKeepTheirIdentity = Instance.withInstance(fun i ->
+  Stdlib.Test.all(
+    [ // Byte-identical apart from a parameter type still unresolved when the first pass
+      // runs. They must stay two functions.
+      prints(
+        i,
+        [ "eval"
+          "type TA = { a: String }\ntype TB = { b: Int64 }\nlet takesA(r: TA): Int64 = 7\nlet takesB(r: TB): Int64 = 7\n(takesA(TA { a = \"x\" })) + (takesB(TB { b = 1 }))" ],
+        "14")
+
+      // Genuinely identical declarations SHOULD share one hash.
+      prints(
+        i,
+        [ "eval"
+          "let alpha(x: Int64): Int64 = x + 1\nlet beta(x: Int64): Int64 = x + 1\n(alpha(1)) + (beta(1))" ],
+        "4")
+
+      // Hashing after resolution means the graph can have cycles, hashed as a
+      // batch.
+      prints(
+        i,
+        [ "eval"
+          "let isEven(n: Int64): Bool = if n == 0 then true else isOdd(n - 1)\nlet isOdd(n: Int64): Bool = if n == 0 then false else isEven(n - 1)\nisEven(10)" ],
+        "true")
+
+      // A script type with the same shape as a package type IS that type.
+      prints(
+        i,
+        [ "eval"
+          "type MyErr = | BadFormat\nlet f(e: Darklang.Stdlib.BigInt.ParseError): Int64 = 1\nf(MyErr.BadFormat)" ],
+        "1") ]))
 
 
 /// Script arguments, runner options and exit codes.
-test scriptArgumentsAndExitCodes =
-  Instance.withInstance(fun i ->
-    // (label, source, runner options, script arguments, exit code, something it
-    // prints)
-    let cases =
-      [ ("arguments reach closures and each top-level expression",
-         "let main(inputs: List<String>): Int64 = if inputs == [\"a b\", \"\", \"é\"] then 7 else 1\nStdlib.printLine(Stdlib.String.join((fun () -> args)(), \",\"))\nmain(args)",
-         [],
-         [ "a b", "", "é" ],
-         7,
-         "a b,,é")
-        ("local arguments shadow input",
-         "let args = [\"local\"]\nif args == [\"local\"] then 0 else 1",
-         [],
-         [ "original" ],
-         0,
-         "")
-        ("runner options before path and script flags after it",
-         "if args == [\"--sandbox\", \"--warn-permissions\", \"--allow-harmful\", \"--help\", \"-h\", \"--branch\", \"--trace\", \"--no-trace\", \"--\"] then 0 else 1",
-         [ "--sandbox", "--branch", "main", "--trace" ],
-         [ "--sandbox", "--warn-permissions", "--allow-harmful", "--help", "-h", "--branch", "--trace", "--no-trace", "--" ],
-         0,
-         "")
-        ("global and runner options before path",
-         "if args == [\"--no-trace\"] then 0 else 1",
-         [ "--sandbox", "--branch=main", "--trace" ],
-         [ "--no-trace" ],
-         0,
-         "")
-        ("option terminator", "if args == [] then 0 else 1", [ "--" ], [], 0, "")
-        ("int64 exit code", "3", [], [], 3, "")
-        ("definitions only", "let main(inputs: List<String>): Int64 = 0", [], [], 1, "main(args)")
-        ("main is not auto-called",
-         "let main(inputs: List<String>): Int64 = 0\nmain",
-         [],
-         [],
-         1,
-         "A main function is not called automatically")
-        ("wrong result", "true", [], [], 1, "Script must finish") ]
+test scriptArgumentsAndExitCodes = Instance.withInstance(fun i ->
+  // (label, source, runner options, script arguments, exit code, something it
+  // prints)
+  let cases =
+    [ (
+        "arguments reach closures and each top-level expression",
+        "let main(inputs: List<String>): Int64 = if inputs == [\"a b\", \"\", \"é\"] then 7 else 1\nStdlib.printLine(Stdlib.String.join((fun () -> args)(), \",\"))\nmain(args)",
+        [],
+        [ "a b", "", "é" ],
+        7,
+        "a b,,é")
 
-    let path = $"{Instance.home(i)}/contract.dark"
+      (
+        "local arguments shadow input",
+        "let args = [\"local\"]\nif args == [\"local\"] then 0 else 1",
+        [],
+        [ "original" ],
+        0,
+        "")
 
-    let contract =
-      cases
-      |> Stdlib.List.map(fun((label, source, options, inputs, expectedExit, expectedOutput)) ->
+      (
+        "runner options before path and script flags after it",
+        "if args == [\"--sandbox\", \"--warn-permissions\", \"--allow-harmful\", \"--help\", \"-h\", \"--branch\", \"--trace\", \"--no-trace\", \"--\"] then 0 else 1",
+        [ "--sandbox", "--branch", "main", "--trace" ],
+        [ "--sandbox"
+          "--warn-permissions"
+          "--allow-harmful"
+          "--help"
+          "-h"
+          "--branch"
+          "--trace"
+          "--no-trace"
+          "--" ],
+        0,
+        "")
+
+      (
+        "global and runner options before path",
+        "if args == [\"--no-trace\"] then 0 else 1",
+        [ "--sandbox", "--branch=main", "--trace" ],
+        [ "--no-trace" ],
+        0,
+        "")
+
+      ("option terminator", "if args == [] then 0 else 1", [ "--" ], [], 0, "")
+      ("int64 exit code", "3", [], [], 3, "")
+      (
+        "definitions only",
+        "let main(inputs: List<String>): Int64 = 0",
+        [],
+        [],
+        1,
+        "main(args)")
+
+      (
+        "main is not auto-called",
+        "let main(inputs: List<String>): Int64 = 0\nmain",
+        [],
+        [],
+        1,
+        "A main function is not called automatically")
+
+      ("wrong result", "true", [], [], 1, "Script must finish") ]
+
+  let path = $"{Instance.home(i)}/contract.dark"
+  let contract =
+    cases
+    |> Stdlib.List.map(
+      fun((label, source, options, inputs, expectedExit, expectedOutput)) ->
         let _ = Stdlib.Cli.File.writeText(path, source)
-
         let (code, out) =
           Instance.ran(
             i,
-            Stdlib.List.flatten([ [ "run-script" ], options, [ path ], inputs ]))
+            Stdlib.List.flatten(
+              [ [ "run-script" ], options, [ path ], inputs ]))
 
         Stdlib.Test.all(
           [ Instance.exitedWith(code, expectedExit, label)
-            (if expectedOutput == "" then
-               Stdlib.Test.Result.Pass
-             else
-               Instance.says(out, expectedOutput, label)) ]))
-      |> Stdlib.Test.all
+            if expectedOutput == "" then
+              Stdlib.Test.Result.Pass
+            else
+              Instance.says(out, expectedOutput, label) ]))
+    |> Stdlib.Test.all
 
-    // The script's own exit code is not reported as a failure of the run.
-    let _ = Stdlib.Cli.File.writeText(path, "Stdlib.printErrorLine(\"usage: contract <n>\")\n2")
-    let (ownCode, own) = Instance.ran(i, [ "run", path ])
+  // The script's own exit code is not reported as a failure of the run.
+  let _ =
+    Stdlib.Cli.File.writeText(
+      path,
+      "Stdlib.printErrorLine(\"usage: contract <n>\")\n2")
 
-    let (typoCode, typo) = Instance.ran(i, [ "run", "--sandbxo", path ])
-    let _ = Stdlib.Cli.File.writeText(path, "Stdlib.printLine(\"SHOULD_NOT_RUN\")\n9")
+  let (ownCode, own) = Instance.ran(i, [ "run", path ])
+  let (typoCode, typo) = Instance.ran(i, [ "run", "--sandbxo", path ])
+  let _ =
+    Stdlib.Cli.File.writeText(path, "Stdlib.printLine(\"SHOULD_NOT_RUN\")\n9")
 
-    let help =
-      [ [ "--sandbox", "-h" ], [ "--branch", "main", "--help" ] ]
-      |> Stdlib.List.map(fun(options) ->
-        let (code, out) = Instance.ran(i, Stdlib.List.flatten([ [ "run" ], options, [ path ] ]))
+  let help =
+    [ [ "--sandbox", "-h" ], [ "--branch", "main", "--help" ] ]
+    |> Stdlib.List.map(fun options ->
+      let (code, out) =
+        Instance.ran(i, Stdlib.List.flatten([ [ "run" ], options, [ path ] ]))
 
-        Stdlib.Test.all(
-          [ Instance.exitedWith(code, 0, "help before the path succeeds")
-            Instance.says(out, "Usage: run-script", "runner help")
-            Instance.doesNotSay(out, "SHOULD_NOT_RUN", "help does not execute the script") ]))
-      |> Stdlib.Test.all
+      Stdlib.Test.all(
+        [ Instance.exitedWith(code, 0, "help before the path succeeds")
+          Instance.says(out, "Usage: run-script", "runner help")
+          Instance.doesNotSay(
+            out,
+            "SHOULD_NOT_RUN",
+            "help does not execute the script") ]))
+    |> Stdlib.Test.all
 
-    Stdlib.Test.all(
-      [ contract
-        Instance.exitedWith(ownCode, 2, "the script's exit code")
-        Instance.says(own, "usage: contract <n>", "the script's own message")
-        Instance.doesNotSay(own, "exited", "no line about the exit code")
-        Instance.exitedWith(typoCode, 1, "unknown runner options fail")
-        Instance.says(typo, "Unknown run-script option", "option guidance")
-        help ]))
+  Stdlib.Test.all(
+    [ contract
+      Instance.exitedWith(ownCode, 2, "the script's exit code")
+      Instance.says(own, "usage: contract <n>", "the script's own message")
+      Instance.doesNotSay(own, "exited", "no line about the exit code")
+      Instance.exitedWith(typoCode, 1, "unknown runner options fail")
+      Instance.says(typo, "Unknown run-script option", "option guidance")
+      help ]))
 
 
 /// `run --stats` reports what the run cost after the script's own output. After the path,
@@ -198,50 +243,66 @@ test scriptArgumentsAndExitCodes =
 /// argument whatever it is; everything from the path on is the script's.
 test splitArgumentsLikeTheHost =
   let split(args: List<String>): (List<String> * List<String>) =
-    Darklang.Cli.Run.splitArguments(args)
+    Cli.Run.splitArguments(args)
+
   Stdlib.Test.all(
     [ split([]) |> Stdlib.Test.equal(([], []))
+
       split([ "s.dark" ]) |> Stdlib.Test.equal(([], [ "s.dark" ]))
+
       split([ "--sandbox", "s.dark", "--x", "y" ])
       |> Stdlib.Test.equal(([ "--sandbox" ], [ "s.dark", "--x", "y" ]))
+
       split([ "--branch", "main", "s.dark" ])
       |> Stdlib.Test.equal(([ "--branch", "main" ], [ "s.dark" ]))
+
       split([ "--branch", "-v", "s.dark" ])
       |> Stdlib.Test.equal(([ "--branch", "-v" ], [ "s.dark" ]))
+
       split([ "--entry-point", "--", "s.dark" ])
       |> Stdlib.Test.equal(([ "--entry-point", "--" ], [ "s.dark" ]))
+
       split([ "--branch" ]) |> Stdlib.Test.equal(([ "--branch" ], []))
+
       split([ "--branch=main", "s.dark" ])
       |> Stdlib.Test.equal(([ "--branch=main" ], [ "s.dark" ]))
+
       split([ "-v", "--", "--sandbox" ])
       |> Stdlib.Test.equal(([ "-v", "--" ], [ "--sandbox" ]))
+
       split([ "-", "s.dark" ]) |> Stdlib.Test.equal(([ "-" ], [ "s.dark" ]))
+
       split([ "", "-v" ]) |> Stdlib.Test.equal(([], [ "", "-v" ]))
+
       // a `-` with a combining mark on it is still a flag; an en dash is not
       split([ "-́x", "s.dark" ]) |> Stdlib.Test.equal(([ "-́x" ], [ "s.dark" ]))
-      split([ "–v", "s.dark" ]) |> Stdlib.Test.equal(([], [ "–v", "s.dark" ])) ])
+
+      split([ "–v", "s.dark" ])
+      |> Stdlib.Test.equal(([], [ "–v", "s.dark" ])) ])
 
 
-test runStatsReportsTheCost =
-  Instance.withInstance(fun i ->
-    let path =
-      script(
-        i,
-        "stats.dark",
-        "Stdlib.printLine(Stdlib.String.join(args, \",\"))\nStdlib.printLine(\"SCRIPT_RAN\")")
+test runStatsReportsTheCost = Instance.withInstance(fun i ->
+  let path =
+    script(
+      i,
+      "stats.dark",
+      "Stdlib.printLine(Stdlib.String.join(args, \",\"))\nStdlib.printLine(\"SCRIPT_RAN\")")
 
-    let (code, out) = Instance.ran(i, [ "run", "--stats", path ])
-    let (afterCode, after) = Instance.ran(i, [ "run", path, "--stats" ])
+  let (code, out) = Instance.ran(i, [ "run", "--stats", path ])
+  let (afterCode, after) = Instance.ran(i, [ "run", path, "--stats" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "run --stats succeeds")
+      Instance.says(out, "SCRIPT_RAN", "the script still runs")
+      Instance.says(out, "build ", "the build the numbers came from")
+      Instance.says(out, "allocated ", "the allocation")
+      Instance.says(out, "instructions ", "the interpreter's counters")
+      Instance.exitedWith(
+        afterCode,
+        0,
+        "--stats after the path is a script argument")
 
-    Stdlib.Test.all(
-      [ Instance.exitedWith(code, 0, "run --stats succeeds")
-        Instance.says(out, "SCRIPT_RAN", "the script still runs")
-        Instance.says(out, "build ", "the build the numbers came from")
-        Instance.says(out, "allocated ", "the allocation")
-        Instance.says(out, "instructions ", "the interpreter's counters")
-        Instance.exitedWith(afterCode, 0, "--stats after the path is a script argument")
-        Instance.says(after, "--stats", "the script received it")
-        Instance.doesNotSay(after, "allocated ", "and nothing was measured") ]))
+      Instance.says(after, "--stats", "the script received it")
+      Instance.doesNotSay(after, "allocated ", "and nothing was measured") ]))
 
 
 /// Remembering missing access continues the same run without replaying earlier
@@ -259,31 +320,54 @@ test rememberedApprovalContinuesOnceAndStaysWithTheScript =
     let stopped = fun(code, out, label) ->
       Stdlib.Test.all(
         [ Instance.exitedWith(code, 1, label)
-          Stdlib.List.length(Stdlib.String.split(out, "BEFORE_DENIAL")) |> Stdlib.Test.equal(2)
-          Instance.doesNotSay(out, "AFTER_APPROVAL", $"{label}: stops at the denial") ])
+          Stdlib.List.length(Stdlib.String.split(out, "BEFORE_DENIAL"))
+          |> Stdlib.Test.equal(2)
 
-    let policy = Instance.exitedWith(Stdlib.Tuple2.first(Instance.ran(i, [ "permissions", "set", "stdout" ])), 0, "only stdout is allowed")
+          Instance.doesNotSay(
+            out,
+            "AFTER_APPROVAL",
+            $"{label}: stops at the denial") ])
+
+    let policy =
+      Instance.exitedWith(
+        Stdlib.Tuple2.first(
+          Instance.ran(i, [ "permissions", "set", "stdout" ])),
+        0,
+        "only stdout is allowed")
+
     let (redirectedCode, redirected) = Instance.ran(i, [ "run", path ])
-
     let fixture = "scripts/testing/fixtures/script-permission-approval.expect"
     let (approvedCode, approved) =
-      Instance.ran(Instance.T { dir = i.dir, cli = "expect" }, [ fixture, i.cli, path ])
+      Instance.ran(
+        Instance.T { dir = i.dir, cli = "expect" },
+        [ fixture, i.cli, path ])
 
     // The permission also applies in a new process, without widening defaults.
     let (laterCode, later) = Instance.ran(i, [ "run", path ])
+
     let (_policyCode, defaults) = Instance.ran(i, [ "permissions", "list" ])
+
     let (_approvalCode, approvals) =
       Instance.ran(i, [ "permissions", "show", "script:" + path ])
 
     Stdlib.Test.all(
       [ policy
         stopped(redirectedCode, redirected, "redirected input")
-        Instance.doesNotSay(redirected, "Enter number:", "redirected input does not prompt")
+        Instance.doesNotSay(
+          redirected,
+          "Enter number:",
+          "redirected input does not prompt")
+
         Instance.exitedWith(approvedCode, 0, "approval continues this run")
         Stdlib.List.length(Stdlib.String.split(approved, "BEFORE_DENIAL"))
-          |> Stdlib.Test.equal(2)
+        |> Stdlib.Test.equal(2)
+
         Instance.says(approved, "AFTER_APPROVAL", "the same run finishes")
-        Instance.doesNotSay(defaults, "clock", "instance defaults are unchanged")
+        Instance.doesNotSay(
+          defaults,
+          "clock",
+          "instance defaults are unchanged")
+
         Instance.says(approvals, "clock", "access belongs to this script")
         Instance.exitedWith(laterCode, 0, $"a later run completes: {later}")
         Instance.says(later, "AFTER_APPROVAL", "a later run completes") ]))
@@ -296,224 +380,290 @@ test rememberedApprovalContinuesOnceAndStaysWithTheScript =
 test runAndEvalRefuseADefiniteTypeErrorBeforeRunning =
   Instance.withInstance(fun i ->
     let first = "Stdlib.printLine(\"SCRIPT_RAN\")\n"
-
     [ ("a dropped value", first + "5\n0", "line 2, column 1")
-      ("a dropped value in a branch that is not taken",
-       first + "if false then\n  5\n  ()\nelse\n  ()\n0",
-       "line 3, column 3")
-      ("a dropped value in a lambda",
-       first + "let f = fun x ->\n  x + 1\n  ()\n0",
-       "line 3, column 3")
-      ("a dropped value in the script's own function",
-       "let helper(n: Int64): Unit =\n  n + 1\n  ()\n" + first + "0",
-       "Function helper")
-      ("a wrong argument", first + "Stdlib.List.length(\"bad\")", "line 2, column 20")
-      ("a wrong argument in the script's own function",
-       "let size(s: String): Int64 =\n  Stdlib.List.length(s)\n" + first + "0",
-       "line 2, column 22: [TypeMismatch] In `Stdlib.List.length`, argument 1") ]
+      (
+        "a dropped value in a branch that is not taken",
+        first + "if false then\n  5\n  ()\nelse\n  ()\n0",
+        "line 3, column 3")
+
+      (
+        "a dropped value in a lambda",
+        first + "let f = fun x ->\n  x + 1\n  ()\n0",
+        "line 3, column 3")
+
+      (
+        "a dropped value in the script's own function",
+        "let helper(n: Int64): Unit =\n  n + 1\n  ()\n" + first + "0",
+        "Function helper")
+
+      (
+        "a wrong argument",
+        first + "Stdlib.List.length(\"bad\")",
+        "line 2, column 20")
+
+      (
+        "a wrong argument in the script's own function",
+        "let size(s: String): Int64 =\n  Stdlib.List.length(s)\n" + first + "0",
+        "line 2, column 22: [TypeMismatch] In `Stdlib.List.length`, argument 1") ]
     |> Stdlib.List.map(fun((label, source, where)) ->
       let path = script(i, "refused.dark", source)
-
       [ [ "eval", source ], [ "run", path ] ]
-      |> Stdlib.List.map(fun(args) ->
+      |> Stdlib.List.map(fun args ->
         let (code, out) = Instance.ran(i, args)
         let cmd = Stdlib.List.head(args) |> Stdlib.Option.withDefault("")
-
         Stdlib.Test.all(
           [ Instance.exitedWith(code, 1, $"{cmd}, {label}: refused")
-            Instance.says(out, "Static type check failed, so nothing ran", $"{cmd}, {label}: says why")
+            Instance.says(
+              out,
+              "Static type check failed, so nothing ran",
+              $"{cmd}, {label}: says why")
+
             Instance.says(out, where, $"{cmd}, {label}: says where")
-            Instance.doesNotSay(out, "SCRIPT_RAN", $"{cmd}, {label}: nothing ran") ]))
+            Instance.doesNotSay(
+              out,
+              "SCRIPT_RAN",
+              $"{cmd}, {label}: nothing ran") ]))
       |> Stdlib.Test.all)
     |> Stdlib.Test.all)
 
 
 /// A missing trait implementation names the trait, not its hash, and points at the type's own
 /// `toString` when its module has one.
-test runNamesTheTraitAMissingImplementationIsOf =
-  Instance.withInstance(fun i ->
-    let source =
-      "let show (e: Stdlib.Json.ParseError.JsonPath.Part.Part): String =\n  Stdlib.display(e)\n"
-      + "Stdlib.printLine(\"SCRIPT_RAN\")\n0"
-    let path = script(i, "missing-impl.dark", source)
-    let (code, out) = Instance.ran(i, [ "run", path ])
+test runNamesTheTraitAMissingImplementationIsOf = Instance.withInstance(fun i ->
+  let source =
+    "let show (e: Stdlib.Json.ParseError.JsonPath.Part.Part): String =\n  Stdlib.display(e)\n"
+    + "Stdlib.printLine(\"SCRIPT_RAN\")\n0"
 
-    Stdlib.Test.all(
-      [ Instance.exitedWith(code, 1, "refused")
-        Instance.says(out, "has no implementation of Stdlib.Display", "names the trait")
-        Instance.doesNotSay(out, "implementation of #", "no hash")
-        Instance.says(out, "Try `Stdlib.Json.ParseError.JsonPath.Part.toString`", "points at the module's toString")
-        Instance.doesNotSay(out, "SCRIPT_RAN", "nothing ran") ]))
+  let path = script(i, "missing-impl.dark", source)
+  let (code, out) = Instance.ran(i, [ "run", path ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 1, "refused")
+      Instance.says(
+        out,
+        "has no implementation of Stdlib.Display",
+        "names the trait")
+
+      Instance.doesNotSay(out, "implementation of #", "no hash")
+      Instance.says(
+        out,
+        "Try `Stdlib.Json.ParseError.JsonPath.Part.toString`",
+        "points at the module's toString")
+
+      Instance.doesNotSay(out, "SCRIPT_RAN", "nothing ran") ]))
 
 
 /// `Stdlib.display` on a type with no Display, and no `toString` of its own, points at `inspect`.
-test runPointsAtInspectForATypeWithoutDisplay =
-  Instance.withInstance(fun i ->
-    let source = "let shown = Stdlib.display([ 1 ])\nStdlib.printLine(\"SCRIPT_RAN\")\n0"
-    let path = script(i, "no-display.dark", source)
-    let (code, out) = Instance.ran(i, [ "run", path ])
+test runPointsAtInspectForATypeWithoutDisplay = Instance.withInstance(fun i ->
+  let source =
+    "let shown = Stdlib.display([ 1 ])\nStdlib.printLine(\"SCRIPT_RAN\")\n0"
 
-    Stdlib.Test.all(
-      [ Instance.exitedWith(code, 1, "refused")
-        Instance.says(out, "`Stdlib.inspect` shows any value", "points at inspect")
-        Instance.doesNotSay(out, "SCRIPT_RAN", "nothing ran") ]))
+  let path = script(i, "no-display.dark", source)
+  let (code, out) = Instance.ran(i, [ "run", path ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 1, "refused")
+      Instance.says(
+        out,
+        "`Stdlib.inspect` shows any value",
+        "points at inspect")
+
+      Instance.doesNotSay(out, "SCRIPT_RAN", "nothing ran") ]))
 
 
 /// What the check cannot prove wrong still runs: a value discarded with `let _ =`, and a
 /// final expression of any type.
-test runAndEvalRunWhatTheCheckAccepts =
-  Instance.withInstance(fun i ->
-    let source = "Stdlib.printLine(\"SCRIPT_RAN\")\nlet _ = 5\nif false then\n  let _ = 6\n  ()\nelse\n  ()\n0"
-    let path = script(i, "accepted.dark", source)
+test runAndEvalRunWhatTheCheckAccepts = Instance.withInstance(fun i ->
+  let source =
+    "Stdlib.printLine(\"SCRIPT_RAN\")\nlet _ = 5\nif false then\n  let _ = 6\n  ()\nelse\n  ()\n0"
 
-    [ [ "eval", source ], [ "run", path ] ]
-    |> Stdlib.List.map(fun(args) ->
-      let (code, out) = Instance.ran(i, args)
-      let cmd = Stdlib.List.head(args) |> Stdlib.Option.withDefault("")
-
-      Stdlib.Test.all(
-        [ Instance.exitedWith(code, 0, $"{cmd}: runs")
-          Instance.says(out, "SCRIPT_RAN", $"{cmd}: its effects happen") ]))
-    |> Stdlib.Test.all)
-
-
-test runtimeChecksUseTheSelectedBranch =
-  Instance.withInstance(fun i ->
-    let ok = fun(args) ->
-      Instance.exitedWith(Stdlib.Tuple2.first(Instance.ran(i, args)), 0, Stdlib.String.join(args, " "))
-
-    let onMain =
-      Stdlib.Test.all(
-        [ ok([ "fn", "Tests.ScriptChecking.accept", "(value: Int64) : Int64 = value" ])
-          ok([ "commit", "script checker branch fixture", "-y" ])
-          ok([ "switch", "script-check" ])
-          ok([ "fn", "Tests.ScriptChecking.accept", "(value: String) : String = value" ])
-          ok([ "switch", "main" ]) ])
-
-    let main = prints(i, [ "eval", "Tests.ScriptChecking.accept(7)" ], "7")
-    let switched = ok([ "switch", "script-check" ])
-    let rejected = Instance.said(i, [ "eval", "Tests.ScriptChecking.accept(7)" ])
-    let accepted = prints(i, [ "eval", "Tests.ScriptChecking.accept(\"branch\")" ], "branch")
-
+  let path = script(i, "accepted.dark", source)
+  [ [ "eval", source ], [ "run", path ] ]
+  |> Stdlib.List.map(fun args ->
+    let (code, out) = Instance.ran(i, args)
+    let cmd = Stdlib.List.head(args) |> Stdlib.Option.withDefault("")
     Stdlib.Test.all(
-      [ onMain
-        main
-        switched
-        Instance.says(rejected, "Error", "runtime checks use the selected branch")
-        Instance.says(rejected, "String", "the branch's declaration is used")
-        accepted ]))
+      [ Instance.exitedWith(code, 0, $"{cmd}: runs")
+        Instance.says(out, "SCRIPT_RAN", $"{cmd}: its effects happen") ]))
+  |> Stdlib.Test.all)
+
+
+test runtimeChecksUseTheSelectedBranch = Instance.withInstance(fun i ->
+  let ok = fun args ->
+    Instance.exitedWith(
+      Stdlib.Tuple2.first(Instance.ran(i, args)),
+      0,
+      Stdlib.String.join(args, " "))
+
+  let onMain =
+    Stdlib.Test.all(
+      [ ok(
+          [ "fn"
+            "Tests.ScriptChecking.accept"
+            "(value: Int64) : Int64 = value" ])
+
+        ok([ "commit", "script checker branch fixture", "-y" ])
+        ok([ "switch", "script-check" ])
+        ok(
+          [ "fn"
+            "Tests.ScriptChecking.accept"
+            "(value: String) : String = value" ])
+
+        ok([ "switch", "main" ]) ])
+
+  let main = prints(i, [ "eval", "Tests.ScriptChecking.accept(7)" ], "7")
+  let switched = ok([ "switch", "script-check" ])
+  let rejected = Instance.said(i, [ "eval", "Tests.ScriptChecking.accept(7)" ])
+  let accepted =
+    prints(i, [ "eval", "Tests.ScriptChecking.accept(\"branch\")" ], "branch")
+
+  Stdlib.Test.all(
+    [ onMain
+      main
+      switched
+      Instance.says(rejected, "Error", "runtime checks use the selected branch")
+      Instance.says(rejected, "String", "the branch's declaration is used")
+      accepted ]))
 
 
 /// Runtime argument checking still rejects a call with the wrong type.
-test runtimeErrorsDescribePackageArguments =
-  Instance.withInstance(fun i ->
-    let (code, out) = Instance.ran(i, [ "eval", "Stdlib.List.length(\"not a list\")" ])
+test runtimeErrorsDescribePackageArguments = Instance.withInstance(fun i ->
+  let (code, out) =
+    Instance.ran(i, [ "eval", "Stdlib.List.length(\"not a list\")" ])
 
-    Stdlib.Test.all(
-      [ Instance.exitedWith(code, 1, "a runtime error exits nonzero")
-        Instance.says(out, "List", "the expected type is named")
-        Instance.says(out, "String", "the actual type is named")
-        Instance.doesNotSay(out, "Static type check failed", "no static gate") ]))
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 1, "a runtime error exits nonzero")
+      Instance.says(out, "List", "the expected type is named")
+      Instance.says(out, "String", "the actual type is named")
+      Instance.doesNotSay(out, "Static type check failed", "no static gate") ]))
 
 
 /// Runtime diagnostics name a script's own types too. They are never in the store,
 /// and the error is rendered after the executor holding them is gone, so without the
 /// script's names carried along it prints 64-character hashes.
-test runtimeErrorsNameScriptTypes =
-  Instance.withInstance(fun i ->
-    let out =
-      Instance.said(
-        i,
-        [ "eval"
-          "type Celsius = { degrees: Int64 }\ntype Fahrenheit = { degrees: Float }\nlet describe (t: Celsius) : String = \"ok\"\ndescribe (Fahrenheit { degrees = 1.0 })" ])
+test runtimeErrorsNameScriptTypes = Instance.withInstance(fun i ->
+  let out =
+    Instance.said(
+      i,
+      [ "eval"
+        "type Celsius = { degrees: Int64 }\ntype Fahrenheit = { degrees: Float }\nlet describe (t: Celsius) : String = \"ok\"\ndescribe (Fahrenheit { degrees = 1.0 })" ])
 
-    Stdlib.Test.all(
-      [ Instance.says(out, "Celsius", "the expected type is named")
-        Instance.says(out, "Fahrenheit", "the actual type is named")
-        Instance.doesNotSay(out, "Static type check failed", "no static gate")
-        // Bare, not `CliScript.Celsius`: the owner is scaffolding the parser stamped
-        // on.
-        Instance.doesNotSay(out, "CliScript.", "no scaffolding owner") ]))
+  Stdlib.Test.all(
+    [ Instance.says(out, "Celsius", "the expected type is named")
+      Instance.says(out, "Fahrenheit", "the actual type is named")
+      Instance.doesNotSay(out, "Static type check failed", "no static gate")
+      // Bare, not `CliScript.Celsius`: the owner is scaffolding the parser stamped
+      // on.
+      Instance.doesNotSay(out, "CliScript.", "no scaffolding owner") ]))
 
 
-test lsViewAndHelpAnswer =
-  Instance.withInstance(fun i ->
-    let lsList = Instance.said(i, [ "ls", "Stdlib.List" ])
-    let view = Instance.said(i, [ "view", "Stdlib.List.head" ])
-    let lsOption = Instance.said(i, [ "ls", "Stdlib.Option" ])
-    let helpRun = Instance.said(i, [ "help", "run" ])
-    let helpLs = Instance.said(i, [ "help", "ls" ])
+test lsViewAndHelpAnswer = Instance.withInstance(fun i ->
+  let lsList = Instance.said(i, [ "ls", "Stdlib.List" ])
+  let view = Instance.said(i, [ "view", "Stdlib.List.head" ])
+  let lsOption = Instance.said(i, [ "ls", "Stdlib.Option" ])
+  let helpRun = Instance.said(i, [ "help", "run" ])
+  let helpLs = Instance.said(i, [ "help", "ls" ])
+  Stdlib.Test.all(
+    [ Instance.says(lsList, "Functions", "ls: the section")
+      Instance.says(lsList, "head", "ls: a fn")
+      Instance.says(view, "head", "view: the fn's name")
+      Instance.says(view, "Option", "view: Option in the signature")
+      Instance.says(view, "->", "view: the signature's arrow")
+      Instance.says(lsOption, "Types", "ls: the types section")
+      Instance.says(lsOption, "Option", "ls: the Option type")
+      Instance.says(helpRun, "run", "help run: the command")
+      Stdlib.Test.expect(
+        Stdlib.String.contains(helpRun, "function")
+        || Stdlib.String.contains(helpRun, "execute"),
+        $"help run describes it: {helpRun}")
 
-    Stdlib.Test.all(
-      [ Instance.says(lsList, "Functions", "ls: the section")
-        Instance.says(lsList, "head", "ls: a fn")
-        Instance.says(view, "head", "view: the fn's name")
-        Instance.says(view, "Option", "view: Option in the signature")
-        Instance.says(view, "->", "view: the signature's arrow")
-        Instance.says(lsOption, "Types", "ls: the types section")
-        Instance.says(lsOption, "Option", "ls: the Option type")
-        Instance.says(helpRun, "run", "help run: the command")
-        Stdlib.Test.expect(
-          Stdlib.String.contains(helpRun, "function") || Stdlib.String.contains(helpRun, "execute"),
-          $"help run describes it: {helpRun}")
-        Instance.says(helpLs, "ls", "help ls: the command")
-        Stdlib.Test.expect(
-          Stdlib.String.contains(helpLs, "list") || Stdlib.String.contains(helpLs, "List"),
-          $"help ls describes it: {helpLs}") ]))
+      Instance.says(helpLs, "ls", "help ls: the command")
+      Stdlib.Test.expect(
+        Stdlib.String.contains(helpLs, "list")
+        || Stdlib.String.contains(helpLs, "List"),
+        $"help ls describes it: {helpLs}") ]))
 
 
 /// A `__` name is an internal helper: listings and search leave it out unless asked, and naming it
 /// still reaches it.
-test internalNamesHiddenUntilAsked =
-  Instance.withInstance(fun i ->
-    let ls = Instance.said(i, [ "ls", "Stdlib.DateTime" ])
-    let lsAll = Instance.said(i, [ "ls", "Stdlib.DateTime", "--include-internal" ])
-    let search = Instance.said(i, [ "search", "fromTicks" ])
-    let searchAll = Instance.said(i, [ "search", "fromTicks", "--include-internal" ])
-    let view = Instance.said(i, [ "view", "Stdlib.DateTime.__fromTicks" ])
-    let call = Instance.said(i, [ "eval", "Stdlib.DateTime.__ticks(Stdlib.DateTime.__fromTicks(5))" ])
-    let deps = Instance.said(i, [ "deps", "Stdlib.DateTime.__fromTicks" ])
+test internalNamesHiddenUntilAsked = Instance.withInstance(fun i ->
+  let ls = Instance.said(i, [ "ls", "Stdlib.DateTime" ])
 
-    Stdlib.Test.all(
-      [ Instance.says(ls, "toString", "ls: a public fn")
-        Instance.doesNotSay(ls, "__fromTicks", "ls hides an internal fn")
-        Instance.says(lsAll, "__fromTicks", "ls --include-internal shows it")
-        Instance.doesNotSay(search, "__fromTicks", "search hides it")
-        Instance.says(searchAll, "__fromTicks", "search --include-internal shows it")
-        Instance.says(view, "__fromOffset", "view by name shows its body")
-        Instance.says(call, "5", "a call by name runs it")
-        Instance.says(deps, "atStartOfDay", "deps by name lists its dependents") ]))
+  let lsAll =
+    Instance.said(i, [ "ls", "Stdlib.DateTime", "--include-internal" ])
+
+  let search = Instance.said(i, [ "search", "fromTicks" ])
+
+  let searchAll =
+    Instance.said(i, [ "search", "fromTicks", "--include-internal" ])
+
+  let view = Instance.said(i, [ "view", "Stdlib.DateTime.__fromTicks" ])
+
+  let call =
+    Instance.said(
+      i,
+      [ "eval", "Stdlib.DateTime.__ticks(Stdlib.DateTime.__fromTicks(5))" ])
+
+  let deps = Instance.said(i, [ "deps", "Stdlib.DateTime.__fromTicks" ])
+  Stdlib.Test.all(
+    [ Instance.says(ls, "toString", "ls: a public fn")
+      Instance.doesNotSay(ls, "__fromTicks", "ls hides an internal fn")
+      Instance.says(lsAll, "__fromTicks", "ls --include-internal shows it")
+      Instance.doesNotSay(search, "__fromTicks", "search hides it")
+      Instance.says(
+        searchAll,
+        "__fromTicks",
+        "search --include-internal shows it")
+
+      Instance.says(view, "__fromOffset", "view by name shows its body")
+
+      Instance.says(call, "5", "a call by name runs it")
+
+      Instance.says(
+        deps,
+        "atStartOfDay",
+        "deps by name lists its dependents") ]))
 
 
 /// The settings that open HTTP's network guard or decide what traces record are the
 /// person's: code holding package-write still cannot change them, and is told how
 /// the person can. `config set` itself goes on working.
-test codeCannotChangeTheNetworkGuard =
-  Instance.withInstance(fun i ->
-    let allowed = Instance.ran(i, [ "permissions", "allow", "package-write" ])
+test codeCannotChangeTheNetworkGuard = Instance.withInstance(fun i ->
+  let allowed = Instance.ran(i, [ "permissions", "allow", "package-write" ])
+  let tries =
+    [ "Darklang.LanguageTools.LocalStore.configSet(\"http.loopback\", \"on\")"
+      "Darklang.LanguageTools.LocalStore.configSet(\"http.private\", \"on\")"
+      "Darklang.LanguageTools.LocalStore.configSet(\"trace.record\", \"on\")"
+      "Darklang.LanguageTools.LocalStore.configUnset(\"trace.record\")"
+      "Builtin.tracesApplyRecording(false)" ]
+    |> Stdlib.List.map(fun code -> Instance.ran(i, [ "eval", code ]))
 
-    let tries =
-      [ "Darklang.LanguageTools.LocalStore.configSet(\"http.loopback\", \"on\")"
-        "Darklang.LanguageTools.LocalStore.configSet(\"http.private\", \"on\")"
-        "Darklang.LanguageTools.LocalStore.configSet(\"trace.record\", \"on\")"
-        "Darklang.LanguageTools.LocalStore.configUnset(\"trace.record\")"
-        "Builtin.tracesApplyRecording(false)" ]
-      |> Stdlib.List.map(fun code -> Instance.ran(i, [ "eval", code ]))
+  let loopback = Instance.said(i, [ "config", "get", "http.loopback" ])
+  let priv = Instance.said(i, [ "config", "get", "http.private" ])
+  let byThePerson = Instance.ran(i, [ "config", "set", "http.loopback", "on" ])
+  let after = Instance.said(i, [ "config", "get", "http.loopback" ])
+  Stdlib.Test.all(
+    Stdlib.List.flatten(
+      [ [ Instance.exitedWith(
+            Stdlib.Tuple2.first(allowed),
+            0,
+            "package-write is granted") ]
 
-    let loopback = Instance.said(i, [ "config", "get", "http.loopback" ])
-    let priv = Instance.said(i, [ "config", "get", "http.private" ])
-    let byThePerson = Instance.ran(i, [ "config", "set", "http.loopback", "on" ])
-    let after = Instance.said(i, [ "config", "get", "http.loopback" ])
+        tries
+        |> Stdlib.List.map(fun((code, out)) ->
+          Stdlib.Test.all(
+            [ Instance.exitedWith(code, 1, $"code is refused: {out}")
+              Instance.says(
+                out,
+                "dark config set",
+                "and told who can change it") ]))
 
-    Stdlib.Test.all(
-      Stdlib.List.flatten(
-        [ [ Instance.exitedWith(Stdlib.Tuple2.first(allowed), 0, "package-write is granted") ]
-          tries
-          |> Stdlib.List.map(fun((code, out)) ->
-            Stdlib.Test.all(
-              [ Instance.exitedWith(code, 1, $"code is refused: {out}")
-                Instance.says(out, "dark config set", "and told who can change it") ]))
-          [ Instance.doesNotSay(loopback, "= on", "http.loopback is unchanged")
-            Instance.doesNotSay(priv, "= on", "http.private is unchanged")
-            Instance.exitedWith(Stdlib.Tuple2.first(byThePerson), 0, "`config set` still works")
-            Instance.says(after, "http.loopback = on", "and the setting took") ] ])))
+        [ Instance.doesNotSay(loopback, "= on", "http.loopback is unchanged")
+          Instance.doesNotSay(priv, "= on", "http.private is unchanged")
+          Instance.exitedWith(
+            Stdlib.Tuple2.first(byThePerson),
+            0,
+            "`config set` still works")
+
+          Instance.says(
+            after,
+            "http.loopback = on",
+            "and the setting took") ] ])))
