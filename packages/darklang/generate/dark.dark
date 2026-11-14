@@ -2,7 +2,7 @@ module Darklang.Generate.Dark
 
 // Dark from Dark: the same types under another name.
 //
-// `mirror<Acme.Core.Money> ()` prints the source type's declaration, so the copy hashes
+// `mirror<Acme.Core.Money>()` prints the source type's declaration, so the copy hashes
 // identically: a mirror is a second NAME for the same item (a fixture module, a copy
 // under another owner). The type is a type argument, so it is a dependency of the saved
 // fn: edit the source and the mirror re-runs.
@@ -10,19 +10,16 @@ module Darklang.Generate.Dark
 // References inside the declaration still point at the source's neighbours;
 // `mirrorModule` is the one that rewrites them.
 
-
 /// The declaration of <typeParam a> as source, named as the source names it, or an
 /// error when <typeParam a> is not a package type.
-let mirror<'a> () : Generate.Run =
-  match LanguageTools.PackageManager.Type.declarationOf<'a> () with
-  | None ->
-    Generate.failed
-      [ Generate.notAPackageType ]
-  | Some typ ->
+let mirror<'a>(): Run =
+  match LanguageTools.PackageManager.Type.declarationOf<'a>() with
+  | None -> failed([ notAPackageType ])
+  | Some(typ) ->
     // Printed with no module context, so every reference inside the declaration is
     // fully qualified and resolves the same from wherever the output lands.
-    let ctx = PrettyPrinter.ProgramTypes.Context.forModule (SCM.Branches.current ()) []
-    Generate.ofSource (PrettyPrinter.ProgramTypes.packageType ctx typ)
+    let ctx = PrettyPrinter.ProgramTypes.Context.forModule(SCM.Branches.current(), [])
+    ofSource(PrettyPrinter.ProgramTypes.packageType(ctx, typ))
 
 
 /// Every item directly in the module at <param source> (owner first), as source for
@@ -33,15 +30,23 @@ let mirror<'a> () : Generate.Run =
 ///
 /// The module is named by path, not by type argument, so this generator does NOT
 /// repoint when the source changes: re-run it by name. Submodules are not copied.
-let mirrorModule (source: String) : Generate.Run =
+let mirrorModule(source: String): Run =
   // Names inside the copy refer to each other bare, which is what the context from
   // `moduleItems` spells: it IS the source module.
-  match Generate.moduleItems source with
-  | Error e -> Generate.failed [ e ]
+  match moduleItems(source) with
+  | Error(e) -> failed([ e ])
   | Ok((ctx, results)) ->
-    let types = results.types |> Stdlib.List.map (fun t -> PrettyPrinter.ProgramTypes.packageType ctx t.entity)
-    let values = results.values |> Stdlib.List.map (fun v -> PrettyPrinter.ProgramTypes.packageValue ctx v.entity)
-    let fns = results.fns |> Stdlib.List.map (fun f -> PrettyPrinter.ProgramTypes.packageFn ctx f.entity)
-    match Stdlib.List.flatten [ types, values, fns ] with
-    | [] -> Generate.failed [ Generate.nothingIn source ]
-    | declarations -> Generate.ofSource (Generate.Source.module_ declarations)
+    let types =
+      results.types
+      |> Stdlib.List.map(fun t -> PrettyPrinter.ProgramTypes.packageType(ctx, t.entity))
+
+    let values =
+      results.values
+      |> Stdlib.List.map(fun v -> PrettyPrinter.ProgramTypes.packageValue(ctx, v.entity))
+
+    let fns =
+      results.fns |> Stdlib.List.map(fun f -> PrettyPrinter.ProgramTypes.packageFn(ctx, f.entity))
+
+    match Stdlib.List.flatten([ types, values, fns ]) with
+    | [] -> failed([ nothingIn(source) ])
+    | declarations -> ofSource(Source.module_(declarations))

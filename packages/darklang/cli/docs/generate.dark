@@ -18,7 +18,7 @@ generator makes is a type or a fn like any other. Nothing is "generated" as a ki
 
 Library generators, by what they read:
 
-  From a file (stored once as a blob, named by hash in the saved fn):
+  From a file (stored once, named by hash in the saved fn):
   Json.fromSample --name Order --sample order.json        records that parse the sample,
                                                           plus `parse`
   Json.fromSamples --name Order --samples dir/            the same over every file in a
@@ -27,8 +27,7 @@ Library generators, by what they read:
   Csv.fromSample --name Person --sample rows.csv          a row type from the header and
                                                           columns, `fromFields`, `parse`
   Sql.schemaTypes --dump schema.sql                       a record per CREATE TABLE
-                                                          (sqlite3 .schema), `<x>FromRow`,
-                                                          `all<Table>`
+                                                          (sqlite3 .schema)
   OpenApi.client --spec openapi.json                      a typed HTTP client (or
                                                           --fetch <url> instead of --spec)
   OpenApi.server --spec openapi.json                      `Handlers`, `notImplemented`,
@@ -39,15 +38,15 @@ Library generators, by what they read:
   regenerate):
   Dark.mirror --type Acme.Core.Money                      the same declaration elsewhere
   Derive.forType --type Acme.Core.Money                   show<T>, equals<T>, with<Field>
-  Fixtures.forType --type Acme.Core.Order                 example<T> (), transitively
+  Fixtures.forType --type Acme.Core.Order                 example<T>(), transitively
 
   From a module (by path; re-run by name):
   Dark.mirrorModule --source Acme.Core                    every item copied, references
                                                           rewritten to the copies
   TypeScript.toTypeScript --source Acme.Core --out ts/    a .d.ts file
 
-Every argument is named after the library fn's parameter (`Json.fromSample (name:
-String) (sample: Blob)` takes `--name` and `--sample`); a type parameter is `--type`.
+Every argument is named after the library fn's parameter (`Json.fromSample(name:
+String, sample: Bytes)` takes `--name` and `--sample`); a type parameter is `--type`.
 A missing one is named back with what it takes. Your own generator gets the same
 treatment: its parameter names are its flags.
 
@@ -63,7 +62,7 @@ The library form is sugar. It writes ONE fn into the target module, whose body i
 the call you made, and runs it:
 
   $ dark generate Json.fromSample --name Order --sample ./order.json --into Acme.Orders
-    stored ./order.json as blob 7f3a1c9e (412 B)
+    stored ./order.json as bytes 7f3a1c9e (412 B)
     wrote Acme.Orders.orderGenerator
     ran Acme.Orders.orderGenerator into Acme.Orders:
       + Order
@@ -71,12 +70,12 @@ the call you made, and runs it:
       + parse
 
   $ dark view Acme.Orders.orderGenerator
-    let orderGenerator () : Darklang.Generate.Run =
-      Darklang.Generate.Json.fromSample "Order" (Darklang.Generate.input "7f3a1c9e...")
+    let orderGenerator(): Darklang.Generate.Run =
+      Darklang.Generate.Json.fromSample("Order", Darklang.Generate.input("7f3a1c9e..."))
 
-That fn is the whole recipe. A file argument was stored once as a content-addressed
-blob and is named by hash, so the saved fn is pure: same body, same output, on any
-machine that has the blob. `view` shows it, `edit` edits it, `deps` lists what it
+That fn is the whole recipe. A file argument was stored once, content-addressed,
+and is named by hash, so the saved fn is pure: same body, same output, on any
+machine that has the bytes. `view` shows it, `edit` edits it, `deps` lists what it
 reads, `status` and `commit` count it and its outputs as ordinary changes.
 
 ## Running it again
@@ -93,13 +92,13 @@ That is what content addressing buys: a regenerated module only moves the names
 whose content moved, and only their dependents follow.
 
 A file on disk is not watched. To take a changed sample, run the SAME library
-command again: it stores the new blob, rewrites the saved generator (`updated`),
+command again: it stores the new bytes, rewrites the saved generator (`updated`),
 and re-runs it. Only what changed is `~`.
 
 An input that is a package item is a dependency like any other:
 
   $ dark generate Dark.mirror --type Acme.Core.Money --into Acme.Test
-    wrote Acme.Test.moneyGenerator          # its body: mirror<Acme.Core.Money> ()
+    wrote Acme.Test.moneyGenerator          # its body: mirror<Acme.Core.Money>()
     ran Acme.Test.moneyGenerator into Acme.Test:
       + Money                               # same hash as Acme.Core.Money
   $ dark type Acme.Core.Money = { ... one more field ... }
@@ -107,24 +106,22 @@ An input that is a package item is a dependency like any other:
     regenerated by Acme.Test.moneyGenerator: Money
 
 Edit the input and the saved generator repoints and re-runs in your draft as part
-of propagation, and its outputs' dependents follow in turn. `propagate pin
-<generator>` stops that, like any pin; `follow` catches it up and re-runs; `undo`
-on the input brings the outputs back down with it. A merge or rebase repoints in
-the SCM layer without re-running; the next edit, or `generate <name>`, catches up.
+of propagation, and its outputs' dependents follow in turn; `undo` on the input
+brings the outputs back down with it. A merge or rebase repoints in the SCM layer
+without re-running; the next edit, or `generate <name>`, catches up.
 
 A document from the network is a two-step, and the generator itself stays pure:
 
   $ dark generate OpenApi.client --fetch https://api.x.com/openapi.json --into Acme.X
-    fetched https://api.x.com/openapi.json as blob 8bc31ceb (2362 B)
+    fetched https://api.x.com/openapi.json as bytes 8bc31ceb (2362 B)
     wrote Acme.X.xGenerator                 # doc comment: fetched from <url>
     ...
   $ dark generate Acme.X.xGenerator --refresh
-    fetched ... as blob 8bc31ceb
+    fetched ... as bytes 8bc31ceb
     unchanged since it was last fetched
 
-Only what the document changed moves on a refresh. The fetch goes through the
-sync transport, so an API on your LAN or tailnet works; the instance policy still
-has to allow the network.
+Only what the document changed moves on a refresh. The fetch goes through
+`Stdlib.HttpClient`, so the instance policy has to allow the network.
 
 ## Hand edits
 
@@ -153,12 +150,12 @@ derive is nothing without it.
 A generator is a fn returning `Darklang.Generate.Run`. Build the source with
 `Darklang.Generate.Source` (`recordType`, `fn`, `module_`, `fieldName`,
 `identifier`, `typeName`) so names are legal and layout is stable, and return
-`Darklang.Generate.ofSource text`. Report a problem with
-`Darklang.Generate.failed [ "why" ]`; the CLI prints the reasons and stages nothing.
+`Darklang.Generate.ofSource(text)`. Report a problem with
+`Darklang.Generate.failed([ "why" ])`; the CLI prints the reasons and stages nothing.
 Keep output deterministic (sort what has no order): same inputs, same text, same
 hashes, so a re-run is a no-op.
 
 A generator that reads a type takes it as a type argument
-(`mirror<'a> ()` reads `PackageManager.Type.declarationOf<'a> ()`), which is what
+(`mirror<'a>()` reads `PackageManager.Type.declarationOf<'a>()`), which is what
 makes the type a dependency of the saved fn.
 """

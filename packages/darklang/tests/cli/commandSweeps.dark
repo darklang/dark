@@ -414,6 +414,7 @@ val unsafeWithArguments: List<String> =
     "val"  // ditto
     "type"  // ditto
     "module"  // ditto
+    "generate"  // ditto: it stages what a generator writes
     "trait"  // ditto
     "impl"  // ditto
     "rename"  // moves an item the table names
