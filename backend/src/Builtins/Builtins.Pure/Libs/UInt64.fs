@@ -10,14 +10,14 @@ module RTE = RuntimeError
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "uint64ToFloat" 0
+  [ { name = fn "uint64ToFloat64" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt64 "" ]
-      returnType = TFloat
-      description = "Converts an <type UInt64> to a <type Float>"
+      returnType = TFloat64
+      description = "Converts an <type UInt64> to a <type Float64>"
       fn =
         (function
-        | _, _, _, [| DUInt64 a |] -> Ply(DFloat(float a))
+        | _, _, _, [| DUInt64 a |] -> Ply(DFloat64(float a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

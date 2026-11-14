@@ -71,18 +71,18 @@ impl Compare for Int128 =
 
 
 /// Get the square root of an <type Int128>
-let sqrt(a: Int128): Float =
-  Float.sqrt(toFloat(a))
+let sqrt(a: Int128): Float64 =
+  Float64.sqrt(toFloat64(a))
 
 
 /// The square root of <param a>, or {{Error NotANumber}} where <param a> is negative
-let checkedSqrt(a: Int128): Result<Float, Math.NonFinite> =
-  Float.checkedSqrt(toFloat(a))
+let checkedSqrt(a: Int128): Result<Float64, Math.NonFinite> =
+  Float64.checkedSqrt(toFloat64(a))
 
 
-/// Converts an <type Int128> to a <type Float>
-let toFloat(a: Int128): Float =
-  Builtin.int128ToFloat(a)
+/// Converts an <type Int128> to a <type Float64>
+let toFloat64(a: Int128): Float64 =
+  Builtin.int128ToFloat64(a)
 
 
 /// Parses a <type String> into an <type Int128>, returning {{Ok}} with the

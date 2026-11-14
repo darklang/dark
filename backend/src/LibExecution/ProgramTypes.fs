@@ -280,7 +280,7 @@ type MatchPattern =
   | MPUInt128 of id * System.UInt128
   | MPBigInt of id * bigint
 
-  | MPFloat of id * Sign * string * string
+  | MPFloat64 of id * Sign * string * string
   | MPFloat32 of id * Sign * string * string
 
   /// The decimal itself; it carries the written scale, so `1.10m` stays 1.10.
@@ -362,7 +362,7 @@ type TypeReference =
   | TUInt128
   | TBigInt
 
-  | TFloat
+  | TFloat64
   | TFloat32
   | TDecimal
 
@@ -420,10 +420,10 @@ type Expr =
   // Allow the user to have arbitrarily big numbers, even if they don't make sense as
   // floats. The float is split as we want to preserve what the user entered.
   // Strings are used as numbers lose the leading zeros (eg 7.00007)
-  | EFloat of id * Sign * whole : string * part : string
+  | EFloat64 of id * Sign * whole : string * part : string
 
   /// Single precision, written with an `f` suffix (`1.5f`). Same shape as
-  /// `EFloat`, so what the user typed is kept.
+  /// `EFloat64`, so what the user typed is kept.
   | EFloat32 of id * Sign * whole : string * part : string
 
   /// A decimal literal, `19.99m`. The value carries its written scale.
@@ -671,7 +671,7 @@ module Expr =
     | EBigInt(id, _)
     | EChar(id, _)
     | EString(id, _)
-    | EFloat(id, _, _, _)
+    | EFloat64(id, _, _, _)
     | EFloat32(id, _, _, _)
     | EDecimal(id, _)
     | EValue(id, _)

@@ -1,87 +1,87 @@
-module Darklang.Stdlib.Float
+module Darklang.Stdlib.Float64
 
 type ParseError =
   | BadFormat
 
 
 /// Round up to an integer value
-let ceiling(a: Float): Int64 =
-  Builtin.floatCeiling(a)
+let ceiling(a: Float64): Int64 =
+  Builtin.float64Ceiling(a)
 
 
 /// Round up to an integer value
-let roundUp(a: Float): Int64 =
+let roundUp(a: Float64): Int64 =
   ceiling(a)
 
 
 /// Round down to an integer value.
-/// Consider <fn Float.truncate> if your goal
-/// is to discard the fractional part of a number: {{Float.floor(-1.9) == -2}}
-/// but {{Float.truncate(-1.9) == -1}}
-let floor(a: Float): Int64 =
-  Builtin.floatFloor(a)
+/// Consider <fn Float64.truncate> if your goal
+/// is to discard the fractional part of a number: {{Float64.floor(-1.9) == -2}}
+/// but {{Float64.truncate(-1.9) == -1}}
+let floor(a: Float64): Int64 =
+  Builtin.float64Floor(a)
 
 
 /// Round down to an integer value.
-/// Consider <fn Float.truncate> if your goal is to discard the fractional part
-/// of a number: {{Float.floor(-1.9) == -2}} but {{Float.truncate(-1.9) == -1}}
-let roundDown(a: Float): Int64 =
+/// Consider <fn Float64.truncate> if your goal is to discard the fractional part
+/// of a number: {{Float64.floor(-1.9) == -2}} but {{Float64.truncate(-1.9) == -1}}
+let roundDown(a: Float64): Int64 =
   floor(a)
 
 
 /// Round to the nearest integer value
-let round(a: Float): Int64 =
-  Builtin.floatRound(a)
+let round(a: Float64): Int64 =
+  Builtin.float64Round(a)
 
 
-/// Returns the <type Float> value wrapped in a {{Result}} of the <type String>
-let roundTowardsZero(a: Float): Int64 =
+/// Returns the <type Float64> value wrapped in a {{Result}} of the <type String>
+let roundTowardsZero(a: Float64): Int64 =
   truncate(a)
 
 
 /// Discard the fractional portion of the float, rounding towards zero
-let truncate(a: Float): Int64 =
-  Builtin.floatTruncate(a)
+let truncate(a: Float64): Int64 =
+  Builtin.float64Truncate(a)
 
 
-impl Negate for Float =
+impl Negate for Float64 =
   /// Returns the negation of <param a>, {{-a}}
-  let negate(a: Float): Float =
+  let negate(a: Float64): Float64 =
     a * -1.0
 
 
 /// Get the square root of a float
-let sqrt(a: Float): Float =
-  Builtin.floatSqrt(a)
+let sqrt(a: Float64): Float64 =
+  Builtin.float64Sqrt(a)
 
 
-impl Add for Float =
-  /// Add <type Float> <param a> to <type Float> <param b>
-  let add(a: Float, b: Float): Float =
+impl Add for Float64 =
+  /// Add <type Float64> <param a> to <type Float64> <param b>
+  let add(a: Float64, b: Float64): Float64 =
     Builtin.add(a, b)
 
 
-impl Subtract for Float =
-  /// Subtract <type Float> <param b> from <type Float> <param a>
-  let subtract(a: Float, b: Float): Float =
+impl Subtract for Float64 =
+  /// Subtract <type Float64> <param b> from <type Float64> <param a>
+  let subtract(a: Float64, b: Float64): Float64 =
     Builtin.subtract(a, b)
 
 
-impl Multiply for Float =
-  /// Multiply <type Float> <param a> by <type Float> <param b>
-  let multiply(a: Float, b: Float): Float =
+impl Multiply for Float64 =
+  /// Multiply <type Float64> <param a> by <type Float64> <param b>
+  let multiply(a: Float64, b: Float64): Float64 =
     Builtin.multiply(a, b)
 
 
-impl Power for Float =
+impl Power for Float64 =
   /// Returns <param base> raised to the power of <param exponent>
-  let power(base: Float, exponent: Float): Float =
+  let power(base: Float64, exponent: Float64): Float64 =
     Builtin.power(base, exponent)
 
 
-impl Divide for Float =
-  /// Divide <type Float> <param a> by <type Float> <param b>
-  let divide(a: Float, b: Float): Float =
+impl Divide for Float64 =
+  /// Divide <type Float64> <param a> by <type Float64> <param b>
+  let divide(a: Float64, b: Float64): Float64 =
     Builtin.divide(a, b)
 
 
@@ -89,7 +89,7 @@ impl Divide for Float =
 // where the answer is not a finite number; these return {{Error}} instead.
 
 /// {{Ok}} <param result> if it is finite, otherwise {{Error Overflow}}
-let __noOverflow(result: Float): Result<Float, Math.Overflow> =
+let __noOverflow(result: Float64): Result<Float64, Math.Overflow> =
   if isFinite(result) then
     Result.Ok(result)
   else
@@ -98,7 +98,7 @@ let __noOverflow(result: Float): Result<Float, Math.Overflow> =
 
 /// {{Ok}} <param result> if it is finite, otherwise {{Error NotANumber}} for NaN or
 /// {{Error}} <param ifInfinite> for an infinity
-let __finite(result: Float, ifInfinite: Math.NonFinite): Result<Float, Math.NonFinite> =
+let __finite(result: Float64, ifInfinite: Math.NonFinite): Result<Float64, Math.NonFinite> =
   if isFinite(result) then
     Result.Ok(result)
   else if isNaN(result) then
@@ -108,25 +108,25 @@ let __finite(result: Float, ifInfinite: Math.NonFinite): Result<Float, Math.NonF
 
 
 /// Adds <param a> to <param b>, or {{Error Overflow}} where the sum is not finite
-let checkedAdd(a: Float, b: Float): Result<Float, Math.Overflow> =
+let checkedAdd(a: Float64, b: Float64): Result<Float64, Math.Overflow> =
   __noOverflow(a + b)
 
 
 /// Subtracts <param b> from <param a>, or {{Error Overflow}} where the difference is
 /// not finite
-let checkedSubtract(a: Float, b: Float): Result<Float, Math.Overflow> =
+let checkedSubtract(a: Float64, b: Float64): Result<Float64, Math.Overflow> =
   __noOverflow(a - b)
 
 
 /// Multiplies <param a> by <param b>, or {{Error Overflow}} where the product is not
 /// finite
-let checkedMultiply(a: Float, b: Float): Result<Float, Math.Overflow> =
+let checkedMultiply(a: Float64, b: Float64): Result<Float64, Math.Overflow> =
   __noOverflow(a * b)
 
 
 /// Divides <param a> by <param b>, or {{Error DivisionByZero}} where <param b> is zero
 /// and {{Error Overflow}} where the quotient is too large
-let checkedDivide(a: Float, b: Float): Result<Float, Math.NonFinite> =
+let checkedDivide(a: Float64, b: Float64): Result<Float64, Math.NonFinite> =
   if b == 0.0 then
     Result.Error(Math.NonFinite.DivisionByZero)
   else
@@ -136,39 +136,39 @@ let checkedDivide(a: Float, b: Float): Result<Float, Math.NonFinite> =
 /// <param base> raised to the power of <param exponent>, or {{Error}} where the result
 /// is not finite: {{DivisionByZero}} for zero to a negative power, {{NotANumber}} for a
 /// negative base to a fractional power, and {{Overflow}} where it is too large
-let checkedPower(base: Float, exponent: Float): Result<Float, Math.NonFinite> =
+let checkedPower(base: Float64, exponent: Float64): Result<Float64, Math.NonFinite> =
   let ifInfinite = if base == 0.0 then Math.NonFinite.DivisionByZero else Math.NonFinite.Overflow
   __finite(base ** exponent, ifInfinite)
 
 
 /// The square root of <param a>, or {{Error NotANumber}} where <param a> is negative
-let checkedSqrt(a: Float): Result<Float, Math.NonFinite> =
+let checkedSqrt(a: Float64): Result<Float64, Math.NonFinite> =
   __finite(sqrt(a), Math.NonFinite.Overflow)
 
 
-/// <fn Float.parse>, but {{Error BadFormat}} for text that is not a finite number, such
+/// <fn Float64.parse>, but {{Error BadFormat}} for text that is not a finite number, such
 /// as {{"NaN"}}, {{"Infinity"}} or a number too large for the type
-let checkedParse(s: String): Result<Float, ParseError> =
+let checkedParse(s: String): Result<Float64, ParseError> =
   match parse(s) with
   | Ok(f) when isFinite(f) -> Result.Ok(f)
   | _ -> Result.Error(ParseError.BadFormat)
 
 
-impl Compare for Float =
+impl Compare for Float64 =
   /// Returns true if a is less than b
-  let lessThan(a: Float, b: Float): Bool =
+  let lessThan(a: Float64, b: Float64): Bool =
     Builtin.lessThan(a, b)
 
   /// Returns true if a is less than or equal to b
-  let lessThanOrEqualTo(a: Float, b: Float): Bool =
+  let lessThanOrEqualTo(a: Float64, b: Float64): Bool =
     Builtin.lessThanOrEqualTo(a, b)
 
   /// Returns true if a is greater than b
-  let greaterThan(a: Float, b: Float): Bool =
+  let greaterThan(a: Float64, b: Float64): Bool =
     Builtin.greaterThan(a, b)
 
   /// Returns true if a is greater than or equal to b
-  let greaterThanOrEqualTo(a: Float, b: Float): Bool =
+  let greaterThanOrEqualTo(a: Float64, b: Float64): Bool =
     Builtin.greaterThanOrEqualTo(a, b)
 
 
@@ -180,9 +180,9 @@ impl Compare for Float =
 /// <param limitA> and <param limitB> can be provided in any order.
 ///
 /// The difference from <fn clamp>, which works on any type that compares: this one refuses a
-/// NaN limit rather than answering. The generic cannot, since NaN is a Float's business and
+/// NaN limit rather than answering. The generic cannot, since NaN is a Float64's business and
 /// NaN compares false against everything, so there it comes back unclamped.
-let clampRefusingNaN(value: Float, limitA: Float, limitB: Float): Result<Float, String> =
+let clampRefusingNaN(value: Float64, limitA: Float64, limitB: Float64): Result<Float64, String> =
   if isNaN(limitA) || isNaN(limitB) then
     Result.Error("clampRefusingNaN requires limits that are numbers")
   else
@@ -195,47 +195,47 @@ let clampRefusingNaN(value: Float, limitA: Float, limitB: Float): Result<Float, 
       Result.Ok(value)
 
 
-/// Returns the <type Float> value wrapped in a {{Result}} of the <type String>
-let parse(s: String): Result<Float, ParseError> =
-  Builtin.floatParse(s)
+/// Returns the <type Float64> value wrapped in a {{Result}} of the <type String>
+let parse(s: String): Result<Float64, ParseError> =
+  Builtin.float64Parse(s)
 
 
 /// Returns true if <param f> is NaN
-let isNaN(f: Float): Bool =
+let isNaN(f: Float64): Bool =
   // NaN is the only float that does not equal itself
   f != f
 
 
 /// Returns {{true}} if <param f> is a finite number, and {{false}} for NaN
 /// and for positive or negative infinity
-let isFinite(f: Float): Bool =
+let isFinite(f: Float64): Bool =
   // NaN and ±infinity give NaN here, which equals nothing
   f - f == 0.0
 
 
 /// Convert <param a> to an <type Int64> by discarding its fractional part.
-/// Raises for NaN and infinities. Alias of <fn Float.roundTowardsZero>.
-let toInt64(a: Float): Int64 =
+/// Raises for NaN and infinities. Alias of <fn Float64.roundTowardsZero>.
+let toInt64(a: Float64): Int64 =
   roundTowardsZero(a)
 
 
 /// Return <param a>'s IEEE 754 binary64 bits as an unsigned 64-bit value.
-let toBits(a: Float): UInt64 =
-  Builtin.floatToBits(a)
+let toBits(a: Float64): UInt64 =
+  Builtin.float64ToBits(a)
 
 
-impl Display for Float =
+impl Display for Float64 =
   /// Stringify <param float> as the shortest decimal that parses back to the same value, e.g. `1.5`,
   /// `0.30000000000000004`, `1e+16`, `1e-5`.
-  let display(a: Float): String =
-    Builtin.floatToString(a)
+  let display(a: Float64): String =
+    Builtin.float64ToString(a)
 
 
-impl Zero for Float =
-  let zero(): Float =
+impl Zero for Float64 =
+  let zero(): Float64 =
     0.0
 
 
-impl One for Float =
-  let one(): Float =
+impl One for Float64 =
+  let one(): Float64 =
     1.0

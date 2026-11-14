@@ -826,7 +826,7 @@ let tokenize
             position
         go nextIndex nextPosition (spannedToken :: tokensRev)
       // numbers: digits, an optional fraction and exponent, then a suffix naming
-      // the type (`1s8`, `1.5f32`, `19.99dec`). No suffix is Int64 or Float.
+      // the type (`1s8`, `1.5f32`, `19.99dec`). No suffix is Int64 or Float64.
       elif System.Char.IsDigit character then
         let digitEndIndex = digitsEnd input (index + 1)
         let hasFraction =
@@ -866,8 +866,8 @@ let tokenize
         // Past a format's range the value comes back infinite, and the parser reports it
         let float () =
           match System.Double.TryParse(body, floatStyle, invariant) with
-          | true, value -> (TFloat value, None)
-          | _ -> (TFloat 0.0, Some $"malformed float literal: {body}{suffix}")
+          | true, value -> (TFloat64 value, None)
+          | _ -> (TFloat64 0.0, Some $"malformed float literal: {body}{suffix}")
         // A suffix another language uses (F#'s `L`, `uy`, `m`, ...) names the Dark spelling.
         let invalid placeholder =
           let written = input.Substring(index, endIndex - index)
@@ -928,7 +928,7 @@ let tokenize
             | _ -> (TFloat32 0.0f, Some $"malformed float literal: {body}f32")
           | "f64" -> float ()
           | "" when hasFraction || hasExponent -> float ()
-          | _ when hasFraction || hasExponent -> invalid (TFloat 0.0)
+          | _ when hasFraction || hasExponent -> invalid (TFloat64 0.0)
           | _ ->
             match intToken body suffix with
             | Some(Ok token) -> (token, None)

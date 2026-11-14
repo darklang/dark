@@ -341,7 +341,7 @@ let makeFloat32 (sign : Sign) (whole : string) (fraction : string) : float32 =
 
 
 /// A finite float as text: the shortest digits that parse back to the same float, laid out the way
-/// the compiler's `Float.toString` lays them out so the two agree byte for byte. Fixed notation for
+/// the compiler's `Float64.toString` lays them out so the two agree byte for byte. Fixed notation for
 /// decimal exponents -4 through 15, otherwise `d.ddde+X` with no zero padding (`1e-5`, `1e+16`). The
 /// upper bound is where a double stops being able to hold every integer, so fixed notation never pads
 /// with digits the value doesn't have. Whole numbers in fixed notation get a `.0`; nothing else does.

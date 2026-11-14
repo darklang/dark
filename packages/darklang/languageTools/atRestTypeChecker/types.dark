@@ -405,7 +405,7 @@ let fromReferenceInto(
   | TInt128 -> (Model.Ty.TInt128, found)
   | TUInt128 -> (Model.Ty.TUInt128, found)
   | TBigInt -> (Model.Ty.TBigInt, found)
-  | TFloat -> (Model.Ty.TFloat, found)
+  | TFloat64 -> (Model.Ty.TFloat64, found)
   | TFloat32 -> (Model.Ty.TFloat32, found)
   | TDecimal -> (Model.Ty.TDecimal, found)
   | TChar -> (Model.Ty.TChar, found)
@@ -895,7 +895,7 @@ let isUsableDictKey(env: Model.Environment, seen: List<ProgramTypes.Hash>, ty: M
   | TInt128
   | TUInt128
   | TBigInt
-  | TFloat
+  | TFloat64
   | TFloat32
   | TDecimal
   | TChar
@@ -1016,7 +1016,7 @@ let toStatic(ty: Model.Ty): StaticType =
   | TInt128 -> StaticType.TInt128
   | TUInt128 -> StaticType.TUInt128
   | TBigInt -> StaticType.TBigInt
-  | TFloat -> StaticType.TFloat
+  | TFloat64 -> StaticType.TFloat64
   | TFloat32 -> StaticType.TFloat32
   | TDecimal -> StaticType.TDecimal
   | TChar -> StaticType.TChar

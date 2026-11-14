@@ -626,7 +626,7 @@ test nonStringKeysFloatKeys =
     [ Stdlib.Dict.get(Dict { 0.0: "zero" }, -0.0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("zero"))
 
-      (let nan = Stdlib.Float.sqrt(-1.0)
+      (let nan = Stdlib.Float64.sqrt(-1.0)
        nan == nan)
       |> Stdlib.Test.equal(false)
 
@@ -643,23 +643,23 @@ test nonStringKeysFloatKeys =
 // NaN is not equal to itself, so a NaN key could never be found: it is refused,
 // alone or inside a key, wherever a key goes in.
 test nanKeyInLiteralRaises =
-  let nan = Stdlib.Float.sqrt(-1.0)
+  let nan = Stdlib.Float64.sqrt(-1.0)
   Dict { nan: "nan" }
   => raises "Cannot use NaN as a dict key. NaN is not equal to itself, so a key holding it could never be found."
 
 
 test nanKeyInSetRaises =
-  Stdlib.Dict.set(Dict { 1.0: "one" }, Stdlib.Float.sqrt(-1.0), "nan")
+  Stdlib.Dict.set(Dict { 1.0: "one" }, Stdlib.Float64.sqrt(-1.0), "nan")
   => raises "Cannot use NaN as a dict key. NaN is not equal to itself, so a key holding it could never be found."
 
 
 test nanKeyInFromEntriesRaises =
-  Stdlib.Dict.fromEntries([ (1.0, "one"), (Stdlib.Float.sqrt(-1.0), "nan") ])
+  Stdlib.Dict.fromEntries([ (1.0, "one"), (Stdlib.Float64.sqrt(-1.0), "nan") ])
   => raises "Cannot use NaN as a dict key. NaN is not equal to itself, so a key holding it could never be found."
 
 
 test nanInsideKeyRaises =
-  Stdlib.Dict.set(Dict {}, [ 1.0, Stdlib.Float.sqrt(-1.0) ], "nan")
+  Stdlib.Dict.set(Dict {}, [ 1.0, Stdlib.Float64.sqrt(-1.0) ], "nan")
   => raises "Cannot use [1.0, NaN] as a dict key. NaN is not equal to itself, so a key holding it could never be found."
 
 
@@ -669,7 +669,7 @@ test float32NanKeyRaises =
 
 
 test nanKeyLookupRaises =
-  Stdlib.Dict.get(Dict { 1.0: "one" }, Stdlib.Float.sqrt(-1.0))
+  Stdlib.Dict.get(Dict { 1.0: "one" }, Stdlib.Float64.sqrt(-1.0))
   => raises "Cannot use NaN as a dict key. NaN is not equal to itself, so a key holding it could never be found."
 
 

@@ -15,7 +15,7 @@ type StaticType =
   | TInt128
   | TUInt128
   | TBigInt
-  | TFloat
+  | TFloat64
   | TFloat32
   | TDecimal
   | TChar
@@ -356,7 +356,7 @@ let staticTypeToStringWith(
   | TInt128 -> "Int128"
   | TUInt128 -> "UInt128"
   | TBigInt -> "BigInt"
-  | TFloat -> "Float"
+  | TFloat64 -> "Float64"
   | TFloat32 -> "Float32"
   | TDecimal -> "Decimal"
   | TChar -> "Char"
@@ -677,7 +677,7 @@ let contextToStringWith(
   | AliasCycleReferenced -> "A referenced type alias contains a cycle"
   | DeclarationTooDeep ->
     "This declaration is nested too deeply for the checker to walk; " + "it was not checked"
-  | UnaryMinusOperandNotSignedNumeric -> "Unary minus requires a signed integer or Float operand"
+  | UnaryMinusOperandNotSignedNumeric -> "Unary minus requires a signed integer or Float64 operand"
   | BitwiseNotOperandNotInteger -> "Bitwise NOT requires an integer operand"
   | CheckerUnavailable(detail) -> $"The at-rest checker could not run: {detail}"
   | TraitNeeded(traitHash, method) ->
@@ -712,9 +712,9 @@ let contextToStringWith(
     | _ -> $"Needs an implementation of {traitName}"
 
 
-/// What to write when an operator gets an integer and a Float, since Dark never converts one
+/// What to write when an operator gets an integer and a Float64, since Dark never converts one
 /// to the other on its own: "Write the number with a decimal point, as `5.0`, or convert with
-/// `Stdlib.Int64.toFloat(n)`." Empty for any other pair of types. A run that meets the pair says
+/// `Stdlib.Int64.toFloat64(n)`." Empty for any other pair of types. A run that meets the pair says
 /// the same (<fn PrettyPrinter.RuntimeTypes.RuntimeError.mixedNumbersHint>).
 let mixedNumbersHint(left: String, right: String): String =
   let integers =
@@ -731,16 +731,16 @@ let mixedNumbersHint(left: String, right: String): String =
       "BigInt" ]
 
   let integer =
-    if right == "Float" && Stdlib.List.contains(integers, left) then
+    if right == "Float64" && Stdlib.List.contains(integers, left) then
       Option.Some(left)
-    else if left == "Float" && Stdlib.List.contains(integers, right) then
+    else if left == "Float64" && Stdlib.List.contains(integers, right) then
       Option.Some(right)
     else
       Option.None
 
   match integer with
   | Some(name) ->
-    $"Write the number with a decimal point, as `5.0`, or convert with `Stdlib.{name}.toFloat(n)`."
+    $"Write the number with a decimal point, as `5.0`, or convert with `Stdlib.{name}.toFloat64(n)`."
   | None -> ""
 
 
@@ -760,7 +760,7 @@ let stringExpectedHint(expected: StaticType, actual: StaticType): String =
     | TInt128
     | TUInt128
     | TBigInt
-    | TFloat
+    | TFloat64
     | TFloat32
     | TDecimal
     | TBool

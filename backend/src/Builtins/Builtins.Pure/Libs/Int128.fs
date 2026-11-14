@@ -24,14 +24,14 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "int128ToFloat" 0
+    { name = fn "int128ToFloat64" 0
       typeParams = []
       parameters = [ Param.make "a" TInt128 "" ]
-      returnType = TFloat
-      description = "Converts an <type Int128> to a <type Float>"
+      returnType = TFloat64
+      description = "Converts an <type Int128> to a <type Float64>"
       fn =
         (function
-        | _, _, _, [| DInt128 a |] -> Ply(DFloat(float a))
+        | _, _, _, [| DInt128 a |] -> Ply(DFloat64(float a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

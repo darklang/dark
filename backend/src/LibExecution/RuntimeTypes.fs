@@ -310,7 +310,7 @@ type KnownType =
   | KTUInt128
   // arbitrary-precision integer, written `1z`
   | KTBigInt
-  | KTFloat
+  | KTFloat64
   | KTFloat32
   | KTDecimal
   | KTChar
@@ -530,7 +530,7 @@ type TypeReference =
   | TUInt128
   // arbitrary-precision integer, written `1z`
   | TBigInt
-  | TFloat
+  | TFloat64
   | TFloat32
   | TDecimal
   | TChar
@@ -570,7 +570,7 @@ type TypeReference =
       | TInt128
       | TUInt128
       | TBigInt
-      | TFloat
+      | TFloat64
       | TFloat32
       | TDecimal
       | TChar
@@ -822,7 +822,7 @@ type MatchPattern =
   | MPInt128 of System.Int128
   | MPUInt128 of System.UInt128
   | MPBigInt of bigint
-  | MPFloat of float
+  | MPFloat64 of float
   | MPFloat32 of float32
   | MPDecimal of decimal
   | MPChar of string
@@ -1225,7 +1225,7 @@ and DictKey private () =
     | DInt128 _ -> 10
     | DUInt128 _ -> 11
     | DBigInt _ -> 12
-    | DFloat _ -> 13
+    | DFloat64 _ -> 13
     | DChar _ -> 14
     | DStr _ -> 15
     | DDateTime _ -> 16
@@ -1263,7 +1263,7 @@ and DictKey private () =
     | DInt128 x -> combine (hash x)
     | DUInt128 x -> combine (hash x)
     | DBigInt x -> combine (hash (DarkBigInt.toBigInt x))
-    | DFloat x -> combine (hash x)
+    | DFloat64 x -> combine (hash x)
     | DFloat32 x -> combine (hash x)
     | DDecimal x -> combine (hash x)
     | DChar x -> combine (hash x)
@@ -1329,7 +1329,7 @@ and DvalOrdering private () =
     | DInt128 x, DInt128 y -> compare x y
     | DUInt128 x, DUInt128 y -> compare x y
     | DBigInt x, DBigInt y -> DarkBigInt.compare x y
-    | DFloat x, DFloat y -> compare x y
+    | DFloat64 x, DFloat64 y -> compare x y
     | DFloat32 x, DFloat32 y -> compare x y
     | DDecimal x, DDecimal y -> compare x y
     | DChar x, DChar y -> String.compareByCodepoint x y
@@ -2954,7 +2954,7 @@ and [<NoComparison>] Dval =
   // Revisit the representation if profiling shows BigInt memory or GC pressure.
   | DBigInt of DarkBigInt
 
-  | DFloat of double
+  | DFloat64 of double
   | DFloat32 of float32
   | DDecimal of decimal
 
@@ -3940,7 +3940,7 @@ module RuntimeError =
       // declaration had variables; `declaredType` supplies only names.
       //
       // Both are needed because a `ValueType` carries content hashes, and one
-      // hash can be bound to several names: `Stdlib.BigInt`, `Stdlib.Float` and
+      // hash can be bound to several names: `Stdlib.BigInt`, `Stdlib.Float64` and
       // `Stdlib.Uuid` all declare `ParseError` as `| BadFormat`, which makes them
       // one type with three names. Choosing between those from the hash alone is
       // a guess, and it guessed wrong often enough to report a `BigInt.parse`
@@ -4212,7 +4212,7 @@ module KnownVT =
   let int128 : ValueType = ValueType.Known KTInt128
   let uint128 : ValueType = ValueType.Known KTUInt128
   let bigInt : ValueType = ValueType.Known KTBigInt
-  let float : ValueType = ValueType.Known KTFloat
+  let float : ValueType = ValueType.Known KTFloat64
   let float32 : ValueType = ValueType.Known KTFloat32
   let decimal : ValueType = ValueType.Known KTDecimal
   let char : ValueType = ValueType.Known KTChar
@@ -4306,7 +4306,7 @@ module Dval =
   let private vtInt128 = KnownVT.int128
   let private vtUInt128 = KnownVT.uint128
   let private vtBigInt = KnownVT.bigInt
-  let private vtFloat = KnownVT.float
+  let private vtFloat64 = KnownVT.float
   let private vtFloat32 = KnownVT.float32
   let private vtDecimal = KnownVT.decimal
   let private vtChar = KnownVT.char
@@ -4351,7 +4351,7 @@ module Dval =
     | DInt128 _ -> vtInt128
     | DUInt128 _ -> vtUInt128
     | DBigInt _ -> vtBigInt
-    | DFloat _ -> vtFloat
+    | DFloat64 _ -> vtFloat64
     | DFloat32 _ -> vtFloat32
     | DDecimal _ -> vtDecimal
     | DChar _ -> vtChar
@@ -4483,7 +4483,7 @@ module Dval =
     | DStream _
     | DPromise _ -> false
 
-    | DFloat f -> not (System.Double.IsNaN f)
+    | DFloat64 f -> not (System.Double.IsNaN f)
     | DFloat32 f -> not (System.Single.IsNaN f)
 
     | DList(_, items) -> not (DvalList.exists (isUsableDictKey >> not) items)
@@ -4517,7 +4517,7 @@ module Dval =
   /// Whether <param dv> is or holds a NaN, looking where a key comparison would.
   let rec private holdsNaN (dv : Dval) : bool =
     match dv with
-    | DFloat f -> System.Double.IsNaN f
+    | DFloat64 f -> System.Double.IsNaN f
     | DFloat32 f -> System.Single.IsNaN f
     | DList(_, items) -> DvalList.exists holdsNaN items
     | DTuple(a, b, rest) -> holdsNaN a || holdsNaN b || List.exists holdsNaN rest
@@ -4587,7 +4587,7 @@ module Dval =
           | DInt128 _
           | DUInt128 _
           | DBigInt _
-          | DFloat _
+          | DFloat64 _
           | DFloat32 _
           | DDecimal _
           | DChar _
@@ -4720,7 +4720,7 @@ module Dval =
           | KTInt128
           | KTUInt128
           | KTBigInt
-          | KTFloat
+          | KTFloat64
           | KTFloat32
           | KTDecimal
           | KTChar
@@ -6711,7 +6711,7 @@ module Types =
     | TInt128
     | TUInt128
     | TBigInt
-    | TFloat
+    | TFloat64
     | TFloat32
     | TDecimal
     | TChar
@@ -6848,7 +6848,7 @@ module TypeReference =
     | TInt128 -> Ply KnownVT.int128
     | TUInt128 -> Ply KnownVT.uint128
     | TBigInt -> Ply KnownVT.bigInt
-    | TFloat -> Ply KnownVT.float
+    | TFloat64 -> Ply KnownVT.float
     | TFloat32 -> Ply KnownVT.float32
     | TDecimal -> Ply KnownVT.decimal
     | TChar -> Ply KnownVT.char
@@ -7007,7 +7007,7 @@ module TypeReference =
     | KTInt128 -> TInt128
     | KTUInt128 -> TUInt128
     | KTBigInt -> TBigInt
-    | KTFloat -> TFloat
+    | KTFloat64 -> TFloat64
     | KTFloat32 -> TFloat32
     | KTDecimal -> TDecimal
     | KTChar -> TChar
@@ -7046,7 +7046,7 @@ module TypeReference =
     | TInt128
     | TUInt128
     | TBigInt
-    | TFloat
+    | TFloat64
     | TFloat32
     | TDecimal
     | TChar

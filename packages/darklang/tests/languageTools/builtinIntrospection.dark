@@ -12,11 +12,11 @@ module Documentation =
     |> Stdlib.Test.equal(true)
 
 
-  // Builtin metadata round-trips: the registry exposes `int64ToFloat` with
+  // Builtin metadata round-trips: the registry exposes `int64ToFloat64` with
   // the parameter shape the type-checker uses at call sites.
   test int64ToFloatParameters =
     (LanguageTools.allBuiltinFns()
-     |> Stdlib.List.findFirst(fun f -> f.name.name == "int64ToFloat")
+     |> Stdlib.List.findFirst(fun f -> f.name.name == "int64ToFloat64")
      |> Builtin.unwrap
      |> (fun f -> f.parameters))
     |> Stdlib.Test.equal(
@@ -35,7 +35,7 @@ module Lookup =
           |> Stdlib.List.findFirst(fun f ->
             f.name.name == "listMap" && f.name.version == 0s32))
 
-        LanguageTools.findBuiltinFn("int64ToFloat", 999s32)
+        LanguageTools.findBuiltinFn("int64ToFloat64", 999s32)
         |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
         LanguageTools.findBuiltinFn("notARegisteredBuiltin", 0s32)

@@ -131,7 +131,7 @@ type TypeReference =
   | TInt128
   | TUInt128
   | TBigInt
-  | TFloat
+  | TFloat64
   | TFloat32
   | TDecimal
   | TChar
@@ -177,7 +177,7 @@ type MatchPattern =
   | MPInt128(ID, Int128)
   | MPUInt128(ID, UInt128)
   | MPBigInt(ID, BigInt)
-  | MPFloat(ID, Sign, String, String)
+  | MPFloat64(ID, Sign, String, String)
   | MPFloat32(ID, Sign, String, String)
   | MPDecimal(ID, Decimal)
   | MPChar(ID, String)
@@ -288,11 +288,11 @@ type Expr =
   // Allow the user to have arbitrarily big numbers, even if they don't make sense as
   // floats. The float is split as we want to preserve what the user entered.
   // Strings are used as numbers lose the leading zeros (eg 7.00007)
-  | EFloat(ID, Sign, String, String)
+  | EFloat64(ID, Sign, String, String)
   /// A decimal literal, `19.99dec`; the value keeps its written scale
   | EDecimal(ID, Decimal)
 
-  /// Single precision, written `1.5f32`. Same shape as `EFloat`.
+  /// Single precision, written `1.5f32`. Same shape as `EFloat64`.
   | EFloat32(ID, Sign, String, String)
 
   /// A character is an Extended Grapheme Cluster (hence why we use a String). This
@@ -392,7 +392,7 @@ module Expr =
     | EInt128(id, _)
     | EUInt128(id, _)
     | EBigInt(id, _)
-    | EFloat(id, _, _, _)
+    | EFloat64(id, _, _, _)
     | EFloat32(id, _, _, _)
     | EDecimal(id, _)
     | EChar(id, _)

@@ -190,7 +190,7 @@ module MatchPattern =
       w.Write 14uy
       w.Write id
       String.write w value
-    | MPFloat(id, sign, whole, fractional) ->
+    | MPFloat64(id, sign, whole, fractional) ->
       w.Write 15uy
       w.Write id
       Sign.write w sign
@@ -315,7 +315,7 @@ module MatchPattern =
       let sign = Sign.read r
       let whole = String.read r
       let fractional = String.read r
-      MPFloat(id, sign, whole, fractional)
+      MPFloat64(id, sign, whole, fractional)
     | 23uy ->
       let id = r.ReadUInt64()
       let sign = Sign.read r
@@ -539,7 +539,7 @@ module Expr =
       w.Write 12uy
       w.Write id
       String.write w value
-    | EFloat(id, sign, whole, fractional) ->
+    | EFloat64(id, sign, whole, fractional) ->
       w.Write 13uy
       w.Write id
       Sign.write w sign
@@ -750,7 +750,7 @@ module Expr =
       let sign = Sign.read r
       let whole = String.read r
       let fractional = String.read r
-      EFloat(id, sign, whole, fractional)
+      EFloat64(id, sign, whole, fractional)
     | 37uy ->
       let id = r.ReadUInt64()
       let sign = Sign.read r

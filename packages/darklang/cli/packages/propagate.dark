@@ -77,7 +77,7 @@ let typeReferenceEqual(
   | TInt128, TInt128 -> true
   | TUInt128, TUInt128 -> true
   | TBigInt, TBigInt -> true
-  | TFloat, TFloat -> true
+  | TFloat64, TFloat64 -> true
   | TFloat32, TFloat32 -> true
   | TDecimal, TDecimal -> true
   | TChar, TChar -> true

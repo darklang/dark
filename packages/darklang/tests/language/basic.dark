@@ -102,4 +102,4 @@ test runtimeErrorRaises =
   => raises "Uncaught exception: runtime from syntax"
 
 test mixedNumericEqualityRaises =
-  (5.7 != 6) => raises "Cannot perform equality check on Float and Int64. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat(n)`."
+  (5.7 != 6) => raises "Cannot perform equality check on Float64 and Int64. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat64(n)`."

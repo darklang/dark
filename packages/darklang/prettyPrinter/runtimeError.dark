@@ -177,7 +177,7 @@ module RuntimeError =
     | Known(KTInt128)
     | Known(KTUInt128)
     | Known(KTBigInt)
-    | Known(KTFloat)
+    | Known(KTFloat64)
     | Known(KTFloat32)
     | Known(KTDecimal)
     | Known(KTBool)
@@ -213,7 +213,7 @@ module RuntimeError =
     | _ -> []
 
 
-  /// ". Both sides must be the same type." and how to convert, for an integer and a Float
+  /// ". Both sides must be the same type." and how to convert, for an integer and a Float64
   /// (<fn LanguageTools.AtRestTypeChecker.mixedNumbersHint>, which the check before a run uses).
   let mixedNumbersHint(left: ValueType, right: ValueType): ErrorSegments =
     let name = fun vt ->
@@ -229,7 +229,7 @@ module RuntimeError =
       | Known(KTInt128) -> "Int128"
       | Known(KTUInt128) -> "UInt128"
       | Known(KTBigInt) -> "BigInt"
-      | Known(KTFloat) -> "Float"
+      | Known(KTFloat64) -> "Float64"
       | _ -> ""
 
     match LanguageTools.AtRestTypeChecker.mixedNumbersHint(name(left), name(right)) with
@@ -254,9 +254,9 @@ module RuntimeError =
     kind: LanguageTools.RuntimeTypes.RuntimeError.BigInts.OutOfRangeKind)
     : String =
     match kind with
-    | FloatHasNoInteger -> "Float has no integer value"
+    | FloatHasNoInteger -> "Float64 has no integer value"
     | FloatOutsideInt64(min, max) ->
-      $"Float out of Int64 range ({Stdlib.display(min)} to {Stdlib.display(max)})"
+      $"Float64 out of Int64 range ({Stdlib.display(min)} to {Stdlib.display(max)})"
     | ShiftCount(max) -> $"Shift count out of range (0 to {Stdlib.display(max)})"
     | Exponent(max) -> $"Exponent out of range (at most {Stdlib.display(max)})"
     | RepeatCount(max) -> $"Repeat count out of range (at most {Stdlib.display(max)})"
@@ -404,7 +404,7 @@ module RuntimeError =
 
       match err with
       | NotFound ->
-        [ ES.String(nameStr + " not found" + PrettyPrinter.ProgramTypes.NameResolutionError.hint(originalName)) ]
+        [ ES.String(nameStr + " not found") ]
       | InvalidName -> [ES.String(nameStr + " is not a valid name")]
 
     | TypeNotFound(name) ->

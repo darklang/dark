@@ -78,34 +78,34 @@ test sqrt =
       Stdlib.UInt64.sqrt(86u64) |> Stdlib.Test.equal(9.273618495495704) ])
 
 
-test toFloat =
+test toFloat64 =
   Stdlib.Test.all(
-    [ Stdlib.UInt64.toFloat(2u64) |> Stdlib.Test.equal(2.0)
-      Stdlib.UInt64.toFloat(955656u64) |> Stdlib.Test.equal(955656.0) ])
+    [ Stdlib.UInt64.toFloat64(2u64) |> Stdlib.Test.equal(2.0)
+      Stdlib.UInt64.toFloat64(955656u64) |> Stdlib.Test.equal(955656.0) ])
 
 
-test fromFloat =
+test fromFloat64 =
   Stdlib.Test.all(
-    [ // fromFloat truncates toward zero, like BigInt.fromFloat; fromFloatRounded rounds
-      Stdlib.UInt64.fromFloat(3.9)
+    [ // fromFloat64 truncates toward zero, like BigInt.fromFloat64; fromFloatRounded rounds
+      Stdlib.UInt64.fromFloat64(3.9)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3u64))
 
-      Stdlib.UInt64.fromFloat(-0.9)
+      Stdlib.UInt64.fromFloat64(-0.9)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0u64))
 
-      Stdlib.UInt64.fromFloat(-1.0)
+      Stdlib.UInt64.fromFloat64(-1.0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
-      Stdlib.UInt64.fromFloat(0.0 / 0.0)
+      Stdlib.UInt64.fromFloat64(0.0 / 0.0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
-      Stdlib.UInt64.fromFloat(1.0 / 0.0)
+      Stdlib.UInt64.fromFloat64(1.0 / 0.0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
-      Stdlib.UInt64.fromFloat(-1.0 / 0.0)
+      Stdlib.UInt64.fromFloat64(-1.0 / 0.0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
-      Stdlib.UInt64.fromFloat(18446744073709551616.0)
+      Stdlib.UInt64.fromFloat64(18446744073709551616.0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 

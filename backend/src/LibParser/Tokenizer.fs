@@ -19,7 +19,7 @@ type Token =
   | TUInt32 of uint32 // 1u32
   | TUInt64 of uint64 // 1u, 1u64
   | TUInt128 of System.UInt128 // 1u128
-  | TFloat of float // 1.5, 1.5f64
+  | TFloat64 of float // 1.5, 1.5f64
   | TFloat32 of float32 // 1.5f32
   | TDecimal of decimal // 19.99dec, scale as written
   | TStringLit of string // String literal token

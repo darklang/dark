@@ -78,13 +78,13 @@ let random(start: UInt8, end: UInt8): UInt8 =
 
 
 /// Get the square root of an <type UInt8>
-let sqrt(a: UInt8): Float =
-  Float.sqrt(toFloat(a))
+let sqrt(a: UInt8): Float64 =
+  Float64.sqrt(toFloat64(a))
 
 
-/// Converts a <type UInt8> to a <type Float>
-let toFloat(a: UInt8): Float =
-  Builtin.uint8ToFloat(a)
+/// Converts a <type UInt8> to a <type Float64>
+let toFloat64(a: UInt8): Float64 =
+  Builtin.uint8ToFloat64(a)
 
 
 /// Parses a <type String> into a <type UInt8>, returning {{Ok}} with the

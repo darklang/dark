@@ -203,7 +203,7 @@ let rec private transformTypeRef
   | PT.TInt128
   | PT.TUInt128
   | PT.TBigInt
-  | PT.TFloat
+  | PT.TFloat64
   | PT.TFloat32
   | PT.TDecimal
   | PT.TChar
@@ -317,7 +317,7 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
   | PT.EInt128 _
   | PT.EUInt128 _
   | PT.EBigInt _
-  | PT.EFloat _
+  | PT.EFloat64 _
   | PT.EFloat32 _
   | PT.EDecimal _
   | PT.EChar _

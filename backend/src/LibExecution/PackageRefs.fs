@@ -220,7 +220,7 @@ module Type =
     let test = p [ "Test" ] "Result"
 
     let bigIntParseError = p [ "BigInt" ] "ParseError"
-    let floatParseError = p [ "Float" ] "ParseError"
+    let floatParseError = p [ "Float64" ] "ParseError"
     let cryptoDigestAlgorithm = p [ "Crypto" ] "DigestAlgorithm"
     let uuidParseError = p [ "Uuid" ] "ParseError"
 

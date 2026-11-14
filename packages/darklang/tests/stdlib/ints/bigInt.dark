@@ -157,28 +157,28 @@ test toFixedWidth =
       |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 
-// --- fromFloat: truncates toward zero; NaN/Infinity have no BigInt, so OutOfRange ---
+// --- fromFloat64: truncates toward zero; NaN/Infinity have no BigInt, so OutOfRange ---
 test fromFloatTruncatesTowardZero =
   Stdlib.Test.all(
-    [ Stdlib.BigInt.fromFloat(3.9) |> Stdlib.Test.equal(3z)
-      Stdlib.BigInt.fromFloat(-3.9) |> Stdlib.Test.equal(-3z) ])
+    [ Stdlib.BigInt.fromFloat64(3.9) |> Stdlib.Test.equal(3z)
+      Stdlib.BigInt.fromFloat64(-3.9) |> Stdlib.Test.equal(-3z) ])
 
 
 // NaN and the infinities have no BigInt, so they are out of range.
 
 test fromFloatRejectsNaN =
-  Stdlib.BigInt.fromFloat(0.0 / 0.0)
-  => raises "Float has no integer value: NaN"
+  Stdlib.BigInt.fromFloat64(0.0 / 0.0)
+  => raises "Float64 has no integer value: NaN"
 
 
 test fromFloatRejectsInfinity =
-  Stdlib.BigInt.fromFloat(1.0 / 0.0)
-  => raises "Float has no integer value: Infinity"
+  Stdlib.BigInt.fromFloat64(1.0 / 0.0)
+  => raises "Float64 has no integer value: Infinity"
 
 
 test fromFloatRejectsNegativeInfinity =
-  Stdlib.BigInt.fromFloat(-1.0 / 0.0)
-  => raises "Float has no integer value: -Infinity"
+  Stdlib.BigInt.fromFloat64(-1.0 / 0.0)
+  => raises "Float64 has no integer value: -Infinity"
 
 
 // --- remainder: Result<BigInt>; sign follows the dividend; Error only if divisor
@@ -432,12 +432,12 @@ test checkedSqrt =
         Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.Overflow)) ])
 
 
-test checkedToFloat =
+test checkedToFloat64 =
   Stdlib.Test.all(
-    [ Stdlib.BigInt.checkedToFloat(Stdlib.BigInt.fromInt64(-3))
+    [ Stdlib.BigInt.checkedToFloat64(Stdlib.BigInt.fromInt64(-3))
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-3.0))
 
-      Stdlib.BigInt.checkedToFloat(
+      Stdlib.BigInt.checkedToFloat64(
         Stdlib.BigInt.fromInt64(10) ** Stdlib.BigInt.fromInt64(400))
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow)) ])

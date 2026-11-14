@@ -82,7 +82,7 @@ let uInt128 (dv : Dval) : System.UInt128 =
 
 let float (dv : Dval) : double =
   match dv with
-  | DFloat f -> f
+  | DFloat64 f -> f
   | _ -> f "double" dv
 
 let float32 (dv : Dval) : float32 =

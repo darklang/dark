@@ -1,6 +1,6 @@
 module Darklang.Stdlib.Decimal.Tests
 
-// The reason the type exists: the same sum in Float is 0.30000000000000004
+// The reason the type exists: the same sum in Float64 is 0.30000000000000004
 test addIsExact =
   Stdlib.Test.all(
     [ 0.1dec + 0.2dec |> Stdlib.Test.equal(0.3dec)
@@ -265,12 +265,12 @@ test conversions =
       Stdlib.Decimal.fromBigInt(42z)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(42dec))
 
-      Stdlib.Decimal.toFloat(0.5dec) |> Stdlib.Test.equal(0.5)
+      Stdlib.Decimal.toFloat64(0.5dec) |> Stdlib.Test.equal(0.5)
 
-      Stdlib.Decimal.fromFloat(0.1)
+      Stdlib.Decimal.fromFloat64(0.1)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0.1dec))
 
-      Stdlib.Decimal.fromFloat(0.0 / 0.0)
+      Stdlib.Decimal.fromFloat64(0.0 / 0.0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 
@@ -287,7 +287,7 @@ test json =
       |> Stdlib.Result.map(Stdlib.display)
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("19.90"))
 
-      // a number Float would round past 2^53 comes through whole
+      // a number Float64 would round past 2^53 comes through whole
       Stdlib.Json.parse<Decimal>("9007199254740993.01")
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(9007199254740993.01dec)) ])
 
@@ -568,19 +568,19 @@ test float32Conversions =
 
 test floatConversionEdges =
   Stdlib.Test.all(
-    [ Stdlib.Decimal.fromFloat(1.0 / 0.0)
+    [ Stdlib.Decimal.fromFloat64(1.0 / 0.0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
-      Stdlib.Decimal.fromFloat(1e300)
+      Stdlib.Decimal.fromFloat64(1e300)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
       // 1e-5 prints with an exponent, which parse takes
-      Stdlib.Decimal.fromFloat(0.00001)
+      Stdlib.Decimal.fromFloat64(0.00001)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0.00001dec))
 
-      Stdlib.Decimal.toFloat(0.1dec) |> Stdlib.Test.equal(0.1)
+      Stdlib.Decimal.toFloat64(0.1dec) |> Stdlib.Test.equal(0.1)
 
-      Stdlib.Decimal.toFloat(79228162514264337593543950335dec)
+      Stdlib.Decimal.toFloat64(79228162514264337593543950335dec)
       |> Stdlib.Test.equal(7.922816251426434e28) ])
 
 

@@ -16,8 +16,8 @@ let uint32 (i : uint32) = DUInt32 i
 let int64 (i : int64) = DInt64 i
 /// `Int64.toString`'s digits, for the builtin and the VM both.
 let int64ToString (i : int64) : string = string i
-/// `Float.toString`'s text, for the builtin and the VM both.
-let floatToString (f : float) : string =
+/// `Float64.toString`'s text, for the builtin and the VM both.
+let float64ToString (f : float) : string =
   if System.Double.IsPositiveInfinity f then "Infinity"
   else if System.Double.IsNegativeInfinity f then "-Infinity"
   else if System.Double.IsNaN f then "NaN"
@@ -111,7 +111,7 @@ module private OneTypeArg =
   let int128 = [ VT.known KTInt128 ]
   let uInt128 = [ VT.known KTUInt128 ]
   let bigInt = [ VT.known KTBigInt ]
-  let float = [ VT.known KTFloat ]
+  let float = [ VT.known KTFloat64 ]
   let float32 = [ VT.known KTFloat32 ]
   let decimal = [ VT.known KTDecimal ]
   let char = [ VT.known KTChar ]
@@ -135,7 +135,7 @@ let private oneTypeArg (k : KnownType) : List<ValueType> =
   | KTInt128 -> OneTypeArg.int128
   | KTUInt128 -> OneTypeArg.uInt128
   | KTBigInt -> OneTypeArg.bigInt
-  | KTFloat -> OneTypeArg.float
+  | KTFloat64 -> OneTypeArg.float
   | KTFloat32 -> OneTypeArg.float32
   | KTDecimal -> OneTypeArg.decimal
   | KTChar -> OneTypeArg.char
@@ -284,7 +284,7 @@ let rec isPersistable (dv : Dval) : bool =
   | DInt128 _
   | DUInt128 _
   | DBigInt _
-  | DFloat _
+  | DFloat64 _
   | DFloat32 _
   | DDecimal _
   | DChar _
@@ -371,7 +371,7 @@ let rec isInertData (dv : Dval) : bool =
   | DInt128 _
   | DUInt128 _
   | DBigInt _
-  | DFloat _
+  | DFloat64 _
   | DFloat32 _
   | DDecimal _
   | DChar _
@@ -455,7 +455,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DUInt128 a, DUInt128 b -> a = b
   | DBigInt a, DBigInt b -> a = b
 
-  | DFloat a, DFloat b -> a = b
+  | DFloat64 a, DFloat64 b -> a = b
   | DFloat32 a, DFloat32 b -> a = b
   | DDecimal a, DDecimal b -> a = b
 
@@ -553,7 +553,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DInt128 _, _
   | DUInt128 _, _
   | DBigInt _, _
-  | DFloat _, _
+  | DFloat64 _, _
   | DFloat32 _, _
   | DDecimal _, _
   | DChar _, _
@@ -646,7 +646,7 @@ let private tryHashLeaf (value : Dval) : ValueOption<int> =
     | DBigInt x ->
       code.Add(DarkBigInt.toBigInt x)
       true
-    | DFloat x ->
+    | DFloat64 x ->
       code.Add x
       true
     | DDecimal x ->
@@ -801,7 +801,7 @@ let rec toDebugString (dv : Dval) : string =
   | DInt128 i -> i.ToString inv
   | DUInt128 i -> i.ToString inv
   | DBigInt i -> (DarkBigInt.toBigInt i).ToString inv
-  | DFloat f -> f.ToString inv
+  | DFloat64 f -> f.ToString inv
   | DFloat32 f -> f.ToString inv
   | DDecimal d -> d.ToString inv
   | DChar c -> $"'{c}'"

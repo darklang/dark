@@ -1,5 +1,5 @@
 /// The operators on the builtin numeric types, each defined once: what it returns, how it wraps
-/// or rounds, and where it raises. The types are the ten fixed-width integers, `BigInt`, `Float`,
+/// or rounds, and where it raises. The types are the ten fixed-width integers, `BigInt`, `Float64`,
 /// `Float32` and `Decimal`.
 ///
 /// Everything that runs a numeric operator comes here. The VM answers `a / b` from the registers
@@ -21,7 +21,7 @@
 /// - `BigInt` has all seventeen, and grows rather than wrapping. `/` and `%` raise as the
 ///   integers do; `**` raises on a negative exponent, and on one too big for an `Int32` unless
 ///   the base is 0, 1 or -1. `<<` and `>>` raise on a count that is negative or past an `Int32`.
-/// - `Float` and `Float32` have `+ - * / **`, the comparisons and unary `-`, all as IEEE has
+/// - `Float64` and `Float32` have `+ - * / **`, the comparisons and unary `-`, all as IEEE has
 ///   them: dividing by zero gives an infinity or NaN, and NaN compares false.
 /// - `Decimal` has `+ - * / %`, the comparisons and unary `-`. It raises rather than rounding a
 ///   result past its range, and `/` and `%` raise on zero as the integers do.
@@ -484,7 +484,7 @@ let bigIntOp (op : int) (a : DarkBigInt) (b : DarkBigInt) : Outcome =
       outOfRange (RuntimeError.BigInts.ShiftCount(int64 System.Int32.MaxValue)) b
   | _ -> Unsupported
 
-/// `Float`'s operators, as IEEE has them.
+/// `Float64`'s operators, as IEEE has them.
 let inline floatOp
   ([<InlineIfLambda>] value : Dval -> 'R)
   (none : 'R)
@@ -493,21 +493,21 @@ let inline floatOp
   (y : float)
   : 'R =
   match op with
-  | Add -> value (DFloat(x + y))
-  | Subtract -> value (DFloat(x - y))
-  | Multiply -> value (DFloat(x * y))
-  | Divide -> value (DFloat(x / y))
-  | Power -> value (DFloat(x ** y))
+  | Add -> value (DFloat64(x + y))
+  | Subtract -> value (DFloat64(x - y))
+  | Multiply -> value (DFloat64(x * y))
+  | Divide -> value (DFloat64(x / y))
+  | Power -> value (DFloat64(x ** y))
   | LessThan -> value (Dval.bool (x < y))
   | LessThanOrEqualTo -> value (Dval.bool (x <= y))
   | GreaterThan -> value (Dval.bool (x > y))
   | GreaterThanOrEqualTo -> value (Dval.bool (x >= y))
   // No `%`, on purpose: a float `%` has to choose between flooring and truncating, and what a
-  // zero divisor does when Float division returns Infinity. Swift and Elm have no float modulo
+  // zero divisor does when Float64 division returns Infinity. Swift and Elm have no float modulo
   // either.
   | _ -> none
 
-/// `Float32`'s operators, as IEEE has them. `**` is computed in `Float`.
+/// `Float32`'s operators, as IEEE has them. `**` is computed in `Float64`.
 let inline float32Op
   ([<InlineIfLambda>] value : Dval -> 'R)
   (none : 'R)
@@ -589,9 +589,9 @@ let inline binaryWith
     (match b with
      | DBigInt y -> relay value fail none (bigIntOp op x y)
      | _ -> none)
-  | DFloat x ->
+  | DFloat64 x ->
     (match b with
-     | DFloat y -> floatOp value none op x y
+     | DFloat64 y -> floatOp value none op x y
      | _ -> none)
   | DFloat32 x ->
     (match b with
@@ -659,7 +659,7 @@ let unary (op : int) (a : Dval) : Outcome =
   if op = negate then
     match a with
     | DBigInt x -> Value(Dval.dbigint (DarkBigInt.negate x))
-    | DFloat x -> Value(DFloat(-x))
+    | DFloat64 x -> Value(DFloat64(-x))
     | DFloat32 x -> Value(DFloat32(-x))
     | DDecimal x -> Value(DDecimal(-x))
     | _ -> intUnary op a

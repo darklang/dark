@@ -358,7 +358,7 @@ module StatMode =
 
 
 /// Sleep for the given number of milliseconds.
-let sleep(delayMs: Float): Unit =
+let sleep(delayMs: Float64): Unit =
   DateTime.__sleepMilliseconds(delayMs)
 
 

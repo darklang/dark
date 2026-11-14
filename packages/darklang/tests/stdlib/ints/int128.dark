@@ -205,17 +205,17 @@ test toString =
       |> Stdlib.Test.equal("170141183460469231731687303715884105727") ])
 
 
-test toFloat =
+test toFloat64 =
   Stdlib.Test.all(
-    [ Stdlib.Int128.toFloat(2s128) |> Stdlib.Test.equal(2.0)
+    [ Stdlib.Int128.toFloat64(2s128) |> Stdlib.Test.equal(2.0)
 
-      Stdlib.Int128.toFloat(170141183460469231731687303715884105727s128)
+      Stdlib.Int128.toFloat64(170141183460469231731687303715884105727s128)
       |> Stdlib.Test.equal(1.7014118346046923e38)
 
-      Stdlib.Int128.toFloat(-170141183460469231731687303715884105728s128)
+      Stdlib.Int128.toFloat64(-170141183460469231731687303715884105728s128)
       |> Stdlib.Test.equal(-170141183460469231731687303715884105728.0)
 
-      Stdlib.Int128.toFloat(-10s128) |> Stdlib.Test.equal(-10.0) ])
+      Stdlib.Int128.toFloat64(-10s128) |> Stdlib.Test.equal(-10.0) ])
 
 
 test sqrt =

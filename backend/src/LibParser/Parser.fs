@@ -109,7 +109,7 @@ let private isIntLit (t : Token) : bool =
   | TUInt64 _
   | TInt128 _
   | TUInt128 _ -> true
-  | TFloat _
+  | TFloat64 _
   | TFloat32 _
   | TDecimal _
   | TStringLit _
@@ -175,7 +175,7 @@ let private isIntLit (t : Token) : bool =
 let private canStartAtom (t : Token) : bool =
   isIntLit t
   || (match t with
-      | TFloat _
+      | TFloat64 _
       | TFloat32 _
       | TDecimal _
       | TCharLit _
@@ -202,7 +202,7 @@ let private canStartPattern (t : Token) : bool =
   || (match t with
       | TUnderscore
       | TMinus
-      | TFloat _
+      | TFloat64 _
       | TFloat32 _
       | TDecimal _
       | TCharLit _
@@ -930,7 +930,7 @@ let isNegLitArg (state : ParserState) (k : int) : bool =
       | TInt16 _
       | TInt32 _
       | TInt128 _
-      | TFloat _
+      | TFloat64 _
       | TFloat32 _
       | TDecimal _ -> true
       | _ -> false)
@@ -1507,9 +1507,9 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
     | TInt128 v ->
       let (digits, suffix) = splitIntSuffix state (i + 1)
       (WT.MPInt128(r, (span (rng state i) digits, -v), suffix), i + 2)
-    | TFloat v ->
+    | TFloat64 v ->
       let (whole, frac) = floatParts state (i + 1) v
-      (WT.MPFloat(r, true, whole, frac), i + 2)
+      (WT.MPFloat64(r, true, whole, frac), i + 2)
     | TFloat32 v ->
       let (whole, frac) = float32Parts state (i + 1) v
       (WT.MPFloat32(r, true, whole, frac), i + 2)
@@ -1517,10 +1517,10 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
     | _ ->
       errExpected state i "a pattern"
       (WT.MPError(rng state i), i + 1)
-  | TFloat v ->
+  | TFloat64 v ->
     let r = rng state i
     let (whole, frac) = floatParts state i v
-    (WT.MPFloat(r, v < 0.0, whole, frac), i + 1)
+    (WT.MPFloat64(r, v < 0.0, whole, frac), i + 1)
   | TFloat32 v ->
     let r = rng state i
     let (whole, frac) = float32Parts state i v
@@ -2433,7 +2433,7 @@ and parsePostfix (state : ParserState) (e : WT.Expr) (i : int) : WT.Expr * int =
     let field = txt state (i + 1)
     parsePostfix state (access e (rng state i) (rng state (i + 1)) field) (i + 2)
   // The lexer reads `1.2` in `t.1.2` as a float; split it into two accesses.
-  | TDot, TFloat _ when
+  | TDot, TFloat64 _ when
     (match (txt state (i + 1)).Split('.') with
      | [| a; b |] -> isDigits a && isDigits b
      | _ -> false)
@@ -2450,7 +2450,7 @@ and parsePostfix (state : ParserState) (e : WT.Expr) (i : int) : WT.Expr * int =
     parsePostfix state (access inner innerDotR bR b) (i + 2)
   // Give invalid indices such as `t.1s8` and `t.1e0` a specific diagnostic.
   | TDot,
-    (TBigInt _ | TInt64 _ | TInt128 _ | TInt8 _ | TInt16 _ | TInt32 _ | TUInt8 _ | TUInt16 _ | TUInt32 _ | TUInt64 _ | TUInt128 _ | TFloat _ | TFloat32 _ | TDecimal _) ->
+    (TBigInt _ | TInt64 _ | TInt128 _ | TInt8 _ | TInt16 _ | TInt32 _ | TUInt8 _ | TUInt16 _ | TUInt32 _ | TUInt64 _ | TUInt128 _ | TFloat64 _ | TFloat32 _ | TDecimal _) ->
     let text = txt state (i + 1)
     // The lexer already reports malformed literals such as `1.2s8` or `300s8`.
     if not state.toks[i + 1].lexError then
@@ -2698,9 +2698,9 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
     | TInt128 v ->
       let (digits, suffix) = splitIntSuffix state (i + 1)
       (WT.EInt128(r, (span (rng state i) digits, -v), suffix), i + 2)
-    | TFloat v ->
+    | TFloat64 v ->
       let (whole, frac) = floatParts state (i + 1) v
-      (WT.EFloat(r, true, whole, frac), i + 2)
+      (WT.EFloat64(r, true, whole, frac), i + 2)
     | TFloat32 v ->
       let (whole, frac) = float32Parts state (i + 1) v
       (WT.EFloat32(r, true, whole, frac), i + 2)
@@ -2711,10 +2711,10 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
       // (minus binds looser than application). Infix ops still bind looser than the
       // minus: `-a + b` is `(-a) + b`, since `+` can't start an application arg.
       parsePrefixCall state i [ "Stdlib"; "Negate" ] "negate"
-  | TFloat v ->
+  | TFloat64 v ->
     let r = rng state i
     let (whole, frac) = floatParts state i v
-    (WT.EFloat(r, v < 0.0, whole, frac), i + 1)
+    (WT.EFloat64(r, v < 0.0, whole, frac), i + 1)
   | TFloat32 v ->
     let r = rng state i
     let (whole, frac) = float32Parts state i v

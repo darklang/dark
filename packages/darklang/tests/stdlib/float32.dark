@@ -22,20 +22,20 @@ let isNaNBits(b: UInt32): Bool =
 test literals =
   Stdlib.Test.all(
     [ 1.5f32
-      |> Stdlib.Float32.toFloat
+      |> Stdlib.Float32.toFloat64
       |> Stdlib.Test.equal(1.5)
 
       // the nearest Float32 to 0.1, widened exactly
       0.1f32
-      |> Stdlib.Float32.toFloat
+      |> Stdlib.Float32.toFloat64
       |> Stdlib.Test.equal(0.10000000149011612)
 
       -2.5f32
-      |> Stdlib.Float32.toFloat
+      |> Stdlib.Float32.toFloat64
       |> Stdlib.Test.equal(-2.5)
 
       1000.0f32
-      |> Stdlib.Float32.toFloat
+      |> Stdlib.Float32.toFloat64
       |> Stdlib.Test.equal(1000.0)
 
       3.4028235e38f32
@@ -90,7 +90,7 @@ test rounding =
       Stdlib.Float32.roundUp(1.3f32) |> Stdlib.Test.equal(2)
       Stdlib.Float32.floor(-1.5f32) |> Stdlib.Test.equal(-2)
       Stdlib.Float32.roundDown(-1.5f32) |> Stdlib.Test.equal(-2)
-      // ties to even, as Float.round does
+      // ties to even, as Float64.round does
       Stdlib.Float32.round(2.5f32) |> Stdlib.Test.equal(2)
       Stdlib.Float32.roundTowardsZero(-1.9f32) |> Stdlib.Test.equal(-1)
       Stdlib.Float32.truncate(-1.9f32) |> Stdlib.Test.equal(-1)
@@ -99,16 +99,16 @@ test rounding =
 
 test conversions =
   Stdlib.Test.all(
-    [ Stdlib.Float32.fromFloat(0.1) |> Stdlib.Test.equal(0.1f32)
+    [ Stdlib.Float32.fromFloat64(0.1) |> Stdlib.Test.equal(0.1f32)
 
-      Stdlib.Float32.fromFloat(1e40) |> Stdlib.Test.equal(infinity())
+      Stdlib.Float32.fromFloat64(1e40) |> Stdlib.Test.equal(infinity())
 
-      Stdlib.Float32.fromFloat(
+      Stdlib.Float32.fromFloat64(
         0.00000000000000000000000000000000000000000000000001)
       |> Stdlib.Test.equal(0.0f32)
 
       // ties to even: 1 + 2^-24 is halfway between 1 and the next Float32
-      Stdlib.Float32.fromFloat(1.000000059604644775390625)
+      Stdlib.Float32.fromFloat64(1.000000059604644775390625)
       |> Stdlib.Test.equal(1.0f32) ])
 
 
@@ -242,7 +242,7 @@ test parse =
         Stdlib.Result.Result.Error(Stdlib.Float32.ParseError.BadFormat)) ])
 
 
-// A decimal a hair past a Float32 midpoint lands ON the midpoint as a Float, and
+// A decimal a hair past a Float32 midpoint lands ON the midpoint as a Float64, and
 // narrowing that rounds to even, the wrong way. Parsing decides from the decimal.
 test parseRoundsOnceNotTwice =
   Stdlib.Test.all(
@@ -316,15 +316,15 @@ test fromInt64 =
 test precisionLoss =
   Stdlib.Test.all(
     [ // 24 bits: 16777217 is not a Float32 (and `16777217.0f32` does not parse)
-      Stdlib.Float32.fromFloat(16777217.0) |> Stdlib.Test.equal(16777216.0f32)
+      Stdlib.Float32.fromFloat64(16777217.0) |> Stdlib.Test.equal(16777216.0f32)
 
-      Stdlib.Float32.toFloat(0.1f32) == 0.1 |> Stdlib.Test.equal(false)
+      Stdlib.Float32.toFloat64(0.1f32) == 0.1 |> Stdlib.Test.equal(false)
 
       // about 7 significant digits survive
-      Stdlib.display(Stdlib.Float32.fromFloat(1.23456789))
+      Stdlib.display(Stdlib.Float32.fromFloat64(1.23456789))
       |> Stdlib.Test.equal("1.2345679")
 
-      Stdlib.display(Stdlib.Float32.fromFloat(0.1 + 0.2))
+      Stdlib.display(Stdlib.Float32.fromFloat64(0.1 + 0.2))
       |> Stdlib.Test.equal("0.3")
 
       // a small addend vanishes against a large one
@@ -365,24 +365,24 @@ test nanAndInfinities =
       |> Stdlib.Result.map(Stdlib.Float32.isNaN)
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
 
-      Stdlib.Float32.fromFloat(0.0 / 0.0)
+      Stdlib.Float32.fromFloat64(0.0 / 0.0)
       |> Stdlib.Float32.isNaN
       |> Stdlib.Test.equal(true) ])
 
 
 test truncateRejectsNan =
   Stdlib.Float32.truncate(nan())
-  => raises "Float has no integer value: NaN"
+  => raises "Float64 has no integer value: NaN"
 
 
 test roundRejectsInfinity =
   Stdlib.Float32.round(infinity())
-  => raises "Float has no integer value: Infinity"
+  => raises "Float64 has no integer value: Infinity"
 
 
 test roundRejectsPastInt64 =
   Stdlib.Float32.round(3.4028235e38f32)
-  => raises "Float out of Int64 range (-9223372036854775808 to 9223372036854775807): 3.4028234663852886e+38"
+  => raises "Float64 out of Int64 range (-9223372036854775808 to 9223372036854775807): 3.4028234663852886e+38"
 
 
 test minMaxAbsClamp =
@@ -565,15 +565,15 @@ test checkedParse =
         Stdlib.Result.Result.Error(Stdlib.Float32.ParseError.BadFormat)) ])
 
 
-test checkedFromFloat =
+test checkedFromFloat64 =
   Stdlib.Test.all(
-    [ Stdlib.Float32.checkedFromFloat(1.5)
+    [ Stdlib.Float32.checkedFromFloat64(1.5)
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.5f32))
 
-      Stdlib.Float32.checkedFromFloat(1e300)
+      Stdlib.Float32.checkedFromFloat64(1e300)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
 
-      Stdlib.Float32.checkedFromFloat(-1e300)
+      Stdlib.Float32.checkedFromFloat64(-1e300)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow)) ])

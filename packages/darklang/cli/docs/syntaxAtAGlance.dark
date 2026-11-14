@@ -16,7 +16,7 @@ let content(): String =
   Stdlib.List.map(xs, fun x -> x + 1)          the list comes first
   Ok(n)   Error(e)   Some(x)   None            fields go in parentheses
   | Ok(n) -> ...   | [x, ...rest] -> ...       the same shapes in a match
-  type Shape = | Dot | Circle(Float) | Rect(Float, Float)
+  type Shape = | Dot | Circle(Float64) | Rect(Float64, Float64)
   let f(p: String * Int64): Option<String * Int64> = Some(p)   tuple types use `*`
   let down(n: Int64): Int64 = if n <= 0 then 0 else down(n - 1)
 

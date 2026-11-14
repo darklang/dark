@@ -24,14 +24,14 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "uint32ToFloat" 0
+    { name = fn "uint32ToFloat64" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt32 "" ]
-      returnType = TFloat
-      description = "Converts an <type UInt32> to a <type Float>"
+      returnType = TFloat64
+      description = "Converts an <type UInt32> to a <type Float64>"
       fn =
         (function
-        | _, _, _, [| DUInt32 a |] -> Ply(DFloat(float a))
+        | _, _, _, [| DUInt32 a |] -> Ply(DFloat64(float a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

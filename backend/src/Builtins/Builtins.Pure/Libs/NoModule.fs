@@ -217,7 +217,7 @@ let fns () : List<BuiltInFn> =
       returnType = varA
       description =
         "Raises a number to the power of another number of the same type. "
-        + "Supported for every integer type and Float. "
+        + "Supported for every integer type and Float64. "
         + "A negative integer exponent raises an error. Fixed-width integer "
         + "overflow wraps around; the arbitrary-precision BigInt grows instead."
       fn = numeric NumOps.power notNumbers
@@ -226,7 +226,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // Unary negation (`-x`). Supported for signed integer types and Float;
+    // Unary negation (`-x`). Supported for signed integer types and Float64;
     // negating the minimum signed value wraps back to itself.
     { name = fn "negate" 0
       typeParams = []

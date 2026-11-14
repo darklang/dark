@@ -22,7 +22,7 @@ val knownGroups =
     ("uint32", "UInt32")
     ("uint64", "UInt64")
     ("uint128", "UInt128")
-    ("float", "Float")
+    ("float64", "Float64")
     ("float32", "Float32")
     ("bool", "Bool")
     ("char", "Char")

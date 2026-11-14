@@ -51,8 +51,8 @@ non-zero. Under `--json` a refusal leaves stdout empty, so test the exit code.
 
 ## Functions most programs need
 
-  Stdlib.Int64.parse(s)   Stdlib.Float.parse(s)   # Result<_, ParseError>
-  Stdlib.Int64.toFloat(n)   Stdlib.Float.round(x)  # round gives an Int64
+  Stdlib.Int64.parse(s)   Stdlib.Float64.parse(s)   # Result<_, ParseError>
+  Stdlib.Int64.toFloat64(n)   Stdlib.Float64.round(x)  # round gives an Int64
   Stdlib.abs(x)   Stdlib.min(a, b)   Stdlib.max(a, b)   # any number type
   Stdlib.String.split(s, ",")   Stdlib.String.join(xs, ",")   Stdlib.String.trim(s)
   Stdlib.String.toList(s)   Stdlib.String.padStart(s, '0', 2)

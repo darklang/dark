@@ -158,7 +158,7 @@ let evalDisplay (a : Dval) : Dval voption =
   | DStr _ -> ValueSome a
   | DBool b -> ValueSome(if b then trueText else falseText)
   | DChar c -> ValueSome(DString c)
-  | DFloat f -> ValueSome(DString(Dval.floatToString f))
+  | DFloat64 f -> ValueSome(DString(Dval.float64ToString f))
   | _ -> ValueNone
 
 

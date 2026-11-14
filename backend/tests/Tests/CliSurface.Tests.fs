@@ -332,13 +332,13 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     [ "test"; "run"; "Zzz.Nope" ], 1, Silent, Says "No package tests matched"
     [ "view"; "Tests.Rows.f" ], 0, Says "let f(x: Int64)", Any
     [ "view"; "Zzz.Nope.f" ], 1, Silent, Says "Not found"
-    [ "view"; "Darklang.Stdlib.Float.round" ],
+    [ "view"; "Darklang.Stdlib.Float64.round" ],
     0,
     Says "can raise a runtime error",
     Any
-    [ "effects"; "Darklang.Stdlib.Float.round" ],
+    [ "effects"; "Darklang.Stdlib.Float64.round" ],
     0,
-    Says "via Builtin.floatRound",
+    Says "via Builtin.float64Round",
     Silent
     // Its `/` declares `Raise`, but it tests for every case where `/` raises.
     [ "effects"; "Darklang.Stdlib.Int64.checkedDivide" ],

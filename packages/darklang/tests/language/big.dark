@@ -17,7 +17,7 @@ test evaluatesMixedExpressions =
      d0
      |> (fun v -> v ** 2.1)
      |> (fun v -> v + 1.0)
-     |> Stdlib.Float.sqrt
+     |> Stdlib.Float64.sqrt
 
    let reverse = Stdlib.String.reverse(str)
    let contains = Stdlib.String.contains("a string", str)

@@ -62,13 +62,13 @@ impl Compare for UInt128 =
 
 
 /// Get the square root of an <type UInt128>
-let sqrt(a: UInt128): Float =
-  Float.sqrt(toFloat(a))
+let sqrt(a: UInt128): Float64 =
+  Float64.sqrt(toFloat64(a))
 
 
-/// Converts a <type UInt128> to a <type Float>
-let toFloat(a: UInt128): Float =
-  Builtin.uint128ToFloat(a)
+/// Converts a <type UInt128> to a <type Float64>
+let toFloat64(a: UInt128): Float64 =
+  Builtin.uint128ToFloat64(a)
 
 
 /// Parses a <type String> into a <type UInt128>, returning {{Ok}} with the

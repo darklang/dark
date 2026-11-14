@@ -268,7 +268,7 @@ module SyncUnify =
       RT.TBool
       RT.TInt64
       RT.TBigInt
-      RT.TFloat
+      RT.TFloat64
       RT.TChar
       RT.TString
       RT.TUuid
@@ -291,7 +291,7 @@ module SyncUnify =
       RT.DBool true
       RT.DInt64 1L
       LibExecution.Dval.bigInt 1I
-      RT.DFloat 1.0
+      RT.DFloat64 1.0
       RT.DChar "c"
       RT.DString "s"
       RT.DUuid(System.Guid.NewGuid())
@@ -611,7 +611,7 @@ module DictKeyOrdering =
       "DInt128", RT.DInt128(System.Int128.op_Implicit 1)
       "DUInt128", RT.DUInt128(System.UInt128.op_Implicit 1u)
       "DBigInt", LibExecution.Dval.bigInt 1I
-      "DFloat", RT.DFloat 1.0
+      "DFloat64", RT.DFloat64 1.0
       "DDecimal", RT.DDecimal 1.5m
       "DChar", RT.DChar "c"
       "DString", RT.DString "s"
@@ -686,21 +686,23 @@ module DictKeyOrdering =
         (isValid (RT.DTuple(RT.DUnit, bad, [])))
         "nor a tuple holding one"
       Expect.isFalse (isValid dictOfBad) "nor a dict holding one as a value"
-      Expect.isFalse (isValid (RT.DFloat nan)) "NaN is not a key"
+      Expect.isFalse (isValid (RT.DFloat64 nan)) "NaN is not a key"
       Expect.isFalse (isValid (RT.DFloat32 nanf)) "nor a Float32 NaN"
       Expect.isFalse
-        (isValid (RT.DList(VT.unknown, RT.Items([ RT.DFloat 1.0; RT.DFloat nan ]))))
+        (isValid (
+          RT.DList(VT.unknown, RT.Items([ RT.DFloat64 1.0; RT.DFloat64 nan ]))
+        ))
         "nor a list holding one"
       Expect.isFalse
         (isValid (
           RT.DDict(
             VT.unknown,
             VT.unknown,
-            RT.DictMap.ofList [ RT.DUnit, RT.DFloat nan ]
+            RT.DictMap.ofList [ RT.DUnit, RT.DFloat64 nan ]
           )
         ))
         "nor a dict holding one as a value"
-      Expect.isTrue (isValid (RT.DFloat infinity)) "infinity is still a key"
+      Expect.isTrue (isValid (RT.DFloat64 infinity)) "infinity is still a key"
       Expect.isTrue
         (isValid (RT.DList(VT.unknown, RT.Items([ RT.DInt64 1L ]))))
         "a list of ordinary values is still a key")
@@ -718,7 +720,7 @@ module DictKeyOrdering =
       RT.DEnum(sourceA, runtimeName, [], "Case", [ RT.DInt64 1L ]),
       RT.DEnum(sourceB, runtimeName, [], "Case", [ RT.DInt64 1L ])
 
-      "signed zero", RT.DFloat 0.0, RT.DFloat -0.0
+      "signed zero", RT.DFloat64 0.0, RT.DFloat64 -0.0
 
       // `==` and decimal's own Equals ignore scale; a dict key has to as well
       "decimal scale", RT.DDecimal 1.10m, RT.DDecimal 1.1m
@@ -734,9 +736,9 @@ module DictKeyOrdering =
     testCase "key identity agrees with == on every pair but NaN" (fun _ ->
       let values =
         (oneOfEachCase |> List.map (fun (n, dv) -> n, dv))
-        @ [ "DFloat 0.0", RT.DFloat 0.0
-            "DFloat -0.0", RT.DFloat -0.0
-            "DFloat 1.0", RT.DFloat 1.0 ]
+        @ [ "DFloat64 0.0", RT.DFloat64 0.0
+            "DFloat64 -0.0", RT.DFloat64 -0.0
+            "DFloat64 1.0", RT.DFloat64 1.0 ]
       for (leftName, left) in values do
         for (rightName, right) in values do
           Expect.equal
@@ -783,7 +785,7 @@ module DictKeyOrdering =
 
   let divergencesAreDeliberate =
     testCase "the two divergences from == are deliberate" (fun _ ->
-      let nan = RT.DFloat(0.0 / 0.0)
+      let nan = RT.DFloat64(0.0 / 0.0)
       Expect.isFalse (LibExecution.Dval.equals nan nan) "== says NaN <> NaN"
       Expect.isTrue (sameKey nan nan) "the key order still needs NaN to find itself"
       Expect.isFalse
@@ -845,11 +847,11 @@ module ListUnique =
     test "equal values have equal hashes, including compatible metadata" {
       let name = RT.FQTypeName.fqPackage "resolved"
       let alias = RT.FQTypeName.fqPackage "alias"
-      let fields = RT.RecordFields.ofList [ "value", RT.DFloat 0.0 ]
+      let fields = RT.RecordFields.ofList [ "value", RT.DFloat64 0.0 ]
       let record source args = RT.DRecord(source, name, args, fields)
       let enum source args = RT.DEnum(source, name, args, "None", [])
       let dict key value =
-        RT.DDict(VT.float, VT.float, RT.DictMap.ofList [ RT.DFloat key, value ])
+        RT.DDict(VT.float, VT.float, RT.DictMap.ofList [ RT.DFloat64 key, value ])
       let stream = LibExecution.Stream.newFromIO VT.unit (fun () -> Ply None) None
       let promise =
         RT.Promise(
@@ -861,7 +863,7 @@ module ListUnique =
       let dictWithKey key =
         RT.DDict(VT.unknown, VT.unit, RT.DictMap.ofList [ key, RT.DUnit ])
       let pairs =
-        [ RT.DFloat 0.0, RT.DFloat -0.0
+        [ RT.DFloat64 0.0, RT.DFloat64 -0.0
           RT.DList(VT.unknown, RT.Items([])), RT.DList(VT.int64, RT.Items([]))
           record alias [ VT.unknown ], record name [ VT.int64 ]
           enum alias [ VT.unknown ], enum name [ VT.int64 ]
@@ -871,8 +873,8 @@ module ListUnique =
           dictWithKey (record name [ VT.string ])
           dictWithKey (enum alias [ VT.int64 ]),
           dictWithKey (enum name [ VT.string ])
-          dict 0.0 (RT.DFloat 1.0), dict -0.0 (RT.DFloat 1.0)
-          dict nan (RT.DFloat 1.0), dict -nan (RT.DFloat 1.0)
+          dict 0.0 (RT.DFloat64 1.0), dict -0.0 (RT.DFloat64 1.0)
+          dict nan (RT.DFloat64 1.0), dict -nan (RT.DFloat64 1.0)
           lambda 1UL, lambda 1UL
           named "bigIntAdd" [], named "bigIntAdd" []
           named "bigIntAdd" [ RT.DInt64 1L ], named "bigIntAdd" [ RT.DInt64 1L ]
@@ -1039,7 +1041,7 @@ module ListUnique =
         (keep [ integers; strings; unknown ]).Length
         2
         "the incompatible concrete representatives are both kept"
-      let nan = RT.DFloat nan
+      let nan = RT.DFloat64 nan
       Expect.equal (keep [ nan; nan ]).Length 2 "NaN is unequal to itself"
     }
 
@@ -1797,7 +1799,7 @@ module DebugText =
           RT.DInt64 5L,
           RT.DString "hi",
           [ RT.DList(RT.ValueType.Unknown, RT.Items([ RT.DBool true; RT.DUnit ]))
-            RT.DEnum(tn, tn, [], "Some", [ RT.DFloat 1.5 ])
+            RT.DEnum(tn, tn, [], "Some", [ RT.DFloat64 1.5 ])
             RT.DRecord(tn, tn, [], RT.RecordFields.ofList [ "a", RT.DChar "x" ]) ]
         )
       Expect.equal
@@ -2121,7 +2123,7 @@ module IntOperators =
 
 
 
-/// The other numeric operators (`LibExecution.NumOps`): `BigInt`, `Float`, `Float32` and
+/// The other numeric operators (`LibExecution.NumOps`): `BigInt`, `Float64`, `Float32` and
 /// `Decimal`, as `IntOperators` does the integers. The table against a reference at each type's
 /// edges, and then each way of running an operator against the table.
 module NumOperators =
@@ -2132,8 +2134,8 @@ module NumOperators =
   /// `-0.0` is not `0.0` (every NaN is one NaN), and decimals by theirs, so the scale counts.
   let private show (dv : RT.Dval) : string =
     match dv with
-    | RT.DFloat f when System.Double.IsNaN f -> "Float NaN"
-    | RT.DFloat f -> $"Float {System.BitConverter.DoubleToInt64Bits f}"
+    | RT.DFloat64 f when System.Double.IsNaN f -> "Float64 NaN"
+    | RT.DFloat64 f -> $"Float64 {System.BitConverter.DoubleToInt64Bits f}"
     | RT.DFloat32 f when System.Single.IsNaN f -> "Float32 NaN"
     | RT.DFloat32 f -> $"Float32 {System.BitConverter.SingleToInt32Bits f}"
     | RT.DDecimal d -> $"Decimal %A{System.Decimal.GetBits d}"
@@ -2269,7 +2271,7 @@ module NumOperators =
       negate = fun a -> $"BigInt {-(big a)}"
       bitwiseNot = fun a -> $"BigInt {-(big a) - 1I}" }
 
-  // `Float` and `Float32`, in the hardware's IEEE arithmetic
+  // `Float64` and `Float32`, in the hardware's IEEE arithmetic
 
   /// A finite float's exact decimal digits, as a literal's whole part and fraction.
   let private exactDigits (v : float) : string * string =
@@ -2341,9 +2343,9 @@ module NumOperators =
   let private floats : NumType =
     let get (dv : RT.Dval) =
       match dv with
-      | RT.DFloat f -> f
-      | other -> failtestf "not a Float: %A" other
-    { name = "Float"
+      | RT.DFloat64 f -> f
+      | other -> failtestf "not a Float64: %A" other
+    { name = "Float64"
       values =
         [ 0.0
           -0.0
@@ -2359,11 +2361,11 @@ module NumOperators =
           System.Double.PositiveInfinity
           System.Double.NegativeInfinity
           System.Double.NaN ]
-        |> List.map RT.DFloat
+        |> List.map RT.DFloat64
       counts = []
-      expr = fun v -> floatLiteral eFloat (get v)
-      reference = ieeeReference get RT.DFloat
-      negate = fun a -> show (RT.DFloat(-(get a)))
+      expr = fun v -> floatLiteral eFloat64 (get v)
+      reference = ieeeReference get RT.DFloat64
+      negate = fun a -> show (RT.DFloat64(-(get a)))
       bitwiseNot = fun _ -> noSuchOperator }
 
   let private float32s : NumType =

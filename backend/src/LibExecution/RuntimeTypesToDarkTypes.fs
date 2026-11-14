@@ -343,7 +343,7 @@ module TypeReference =
       | TInt128 -> "TInt128", []
       | TUInt128 -> "TUInt128", []
       | TBigInt -> "TBigInt", []
-      | TFloat -> "TFloat", []
+      | TFloat64 -> "TFloat64", []
       | TFloat32 -> "TFloat32", []
       | TDecimal -> "TDecimal", []
       | TChar -> "TChar", []
@@ -392,7 +392,7 @@ module TypeReference =
     | DEnum(_, _, [], "TInt128", []) -> TInt128
     | DEnum(_, _, [], "TUInt128", []) -> TUInt128
     | DEnum(_, _, [], "TBigInt", []) -> TBigInt
-    | DEnum(_, _, [], "TFloat", []) -> TFloat
+    | DEnum(_, _, [], "TFloat64", []) -> TFloat64
     | DEnum(_, _, [], "TFloat32", []) -> TFloat32
     | DEnum(_, _, [], "TDecimal", []) -> TDecimal
     | DEnum(_, _, [], "TChar", []) -> TChar
@@ -503,7 +503,7 @@ module MatchPattern =
       | MPInt128 i -> "MPInt128", [ DInt128 i ]
       | MPUInt128 i -> "MPUInt128", [ DUInt128 i ]
       | MPBigInt i -> "MPBigInt", [ Dval.bigInt i ]
-      | MPFloat f -> "MPFloat", [ DFloat f ]
+      | MPFloat64 f -> "MPFloat64", [ DFloat64 f ]
       | MPFloat32 f -> "MPFloat32", [ DFloat32 f ]
       | MPDecimal f -> "MPDecimal", [ DDecimal f ]
       | MPChar c -> "MPChar", [ DString c ]
@@ -556,7 +556,7 @@ module MatchPattern =
     | DEnum(_, _, [], "MPInt128", [ DInt128 i ]) -> MPInt128 i
     | DEnum(_, _, [], "MPUInt128", [ DUInt128 i ]) -> MPUInt128(i)
     | DEnum(_, _, [], "MPBigInt", [ (DBigInt _) as v ]) -> MPBigInt(Dval.asBigInt v)
-    | DEnum(_, _, [], "MPFloat", [ DFloat f ]) -> MPFloat f
+    | DEnum(_, _, [], "MPFloat64", [ DFloat64 f ]) -> MPFloat64 f
     | DEnum(_, _, [], "MPFloat32", [ DFloat32 f ]) -> MPFloat32 f
     | DEnum(_, _, [], "MPDecimal", [ DDecimal f ]) -> MPDecimal f
     | DEnum(_, _, [], "MPChar", [ DString c ]) -> MPChar c
@@ -615,7 +615,7 @@ module KnownType =
       | KTInt128 -> "KTInt128", []
       | KTUInt128 -> "KTUInt128", []
       | KTBigInt -> "KTBigInt", []
-      | KTFloat -> "KTFloat", []
+      | KTFloat64 -> "KTFloat64", []
       | KTFloat32 -> "KTFloat32", []
       | KTDecimal -> "KTDecimal", []
       | KTChar -> "KTChar", []
@@ -670,7 +670,7 @@ module KnownType =
     | DEnum(_, _, [], "KTInt128", []) -> KTInt128
     | DEnum(_, _, [], "KTUInt128", []) -> KTUInt128
     | DEnum(_, _, [], "KTBigInt", []) -> KTBigInt
-    | DEnum(_, _, [], "KTFloat", []) -> KTFloat
+    | DEnum(_, _, [], "KTFloat64", []) -> KTFloat64
     | DEnum(_, _, [], "KTFloat32", []) -> KTFloat32
     | DEnum(_, _, [], "KTDecimal", []) -> KTDecimal
     | DEnum(_, _, [], "KTChar", []) -> KTChar
@@ -866,7 +866,7 @@ module Dval =
     | DInt128 i -> mk "DInt128" [ DInt128 i ]
     | DUInt128 i -> mk "DUInt128" [ DUInt128 i ]
     | DBigInt i -> mk "DBigInt" [ DBigInt i ]
-    | DFloat f -> mk "DFloat" [ DFloat f ]
+    | DFloat64 f -> mk "DFloat64" [ DFloat64 f ]
     | DFloat32 f -> mk "DFloat32" [ DFloat32 f ]
     | DDecimal f -> mk "DDecimal" [ DDecimal f ]
     | DChar c -> mk "DChar" [ DChar c ]
@@ -966,7 +966,7 @@ module Dval =
     // Rebuild it with Dval.bigInt so the value always comes back in the right form.
     | DEnum(_, _, [], "DBigInt", [ (DBigInt _) as v ]) ->
       RuntimeTypes.Dval.bigInt (RuntimeTypes.Dval.asBigInt v)
-    | DEnum(_, _, [], "DFloat", [ DFloat f ]) -> DFloat f
+    | DEnum(_, _, [], "DFloat64", [ DFloat64 f ]) -> DFloat64 f
     | DEnum(_, _, [], "DFloat32", [ DFloat32 f ]) -> DFloat32 f
     | DEnum(_, _, [], "DDecimal", [ DDecimal f ]) -> DDecimal f
     | DEnum(_, _, [], "DChar", [ DChar c ]) -> DChar c

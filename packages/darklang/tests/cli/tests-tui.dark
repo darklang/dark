@@ -677,7 +677,7 @@ test workbenchPageFollowsYourSave =
 
 test workbenchRunTestsAreLastInInspect =
   let location =
-    Cli.Packages.PackageLocation.Module([ "Darklang", "Stdlib", "Float" ])
+    Cli.Packages.PackageLocation.Module([ "Darklang", "Stdlib", "Float64" ])
 
   let items = Cli.Workbench.loadItems(SCM.Branch.mainBranchId, location)
   let selected =
@@ -702,7 +702,7 @@ test workbenchRunTestsAreLastInInspect =
   let testRows =
     nonblank
     |> Stdlib.List.filter(fun line ->
-      Stdlib.String.contains(line, "Float.Tests.sqrt"))
+      Stdlib.String.contains(line, "Float64.Tests.sqrt"))
 
   if
     hasWorkbenchHeading

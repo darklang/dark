@@ -56,7 +56,7 @@ module RuntimeTypes =
       RT.TUInt128
       RT.TBigInt
 
-      RT.TFloat
+      RT.TFloat64
       RT.TFloat32
 
       RT.TString
@@ -95,7 +95,7 @@ module RuntimeTypes =
       known RT.KnownType.KTInt128
       known RT.KnownType.KTUInt128
       known RT.KnownType.KTBigInt
-      known RT.KnownType.KTFloat
+      known RT.KnownType.KTFloat64
       known RT.KnownType.KTFloat32
       known RT.KnownType.KTChar
       known RT.KnownType.KTString
@@ -328,7 +328,7 @@ module RuntimeTypes =
       RT.Dval.bigInt (
         System.Numerics.BigInteger.Parse "123456789012345678901234567890"
       )
-      RT.DFloat(3.14159)
+      RT.DFloat64(3.14159)
       RT.DFloat32(3.14159f)
       RT.DFloat32(-0.0f)
       RT.DFloat32 System.Single.NaN
@@ -397,7 +397,7 @@ module ProgramTypes =
       MPBool(id, false)
       MPChar(id, "w")
       MPString(id, "testing testing 123")
-      MPFloat(id, Positive, "123", "456")
+      MPFloat64(id, Positive, "123", "456")
       MPFloat32(id, Negative, "1", "5")
       MPDecimal(id, 1.10m)
       MPUnit(id)
@@ -417,7 +417,7 @@ module ProgramTypes =
   let typeReference : TypeReference =
     TTuple(
       TInt64,
-      TFloat,
+      TFloat64,
       [ TFloat32
         TBool
         TUnit
@@ -481,7 +481,7 @@ module ProgramTypes =
                 ELet(
                   id,
                   LPVariable(id, "float"),
-                  EFloat(id, Negative, "6", "5"),
+                  EFloat64(id, Negative, "6", "5"),
                   ELet(
                     id,
                     LPVariable(id, "n"),
@@ -704,9 +704,9 @@ module ProgramTypes =
                                       EVariable(id, "var"),
                                       FQFnName.Unknown
                                     ) }
-                                { pat = MPFloat(id, Positive, "5", "6")
+                                { pat = MPFloat64(id, Positive, "5", "6")
                                   whenCondition = None
-                                  rhs = EFloat(id, Positive, "5", "6") }
+                                  rhs = EFloat64(id, Positive, "5", "6") }
                                 { pat =
                                     MPTuple(
                                       id,
@@ -866,7 +866,7 @@ module ProgramTypes =
       PT.EBool(id, true),
       [ PT.EString(id, [ PT.StringText("string") ])
         PT.EUnit(id)
-        PT.EFloat(id, Positive, "3", "14")
+        PT.EFloat64(id, Positive, "3", "14")
         PT.EFloat32(id, Positive, "3", "14")
         PT.EDecimal(id, -0.050m)
         PT.EChar(id, "c")

@@ -74,7 +74,7 @@ Example: `Stdlib.HttpClient.get("http://mywebsiteisdowntoday.invalid", [])` give
 (with cases qualified under `Stdlib.HttpClient`). `Stdlib.HttpClient.toString`
 formats it as `Could not resolve host: mywebsiteisdowntoday.invalid`.
 
-Example: `Stdlib.Float.parse("not a float")` gives `Error(Stdlib.Float.ParseError.BadFormat)`
+Example: `Stdlib.Float64.parse("not a float")` gives `Error(Stdlib.Float64.ParseError.BadFormat)`
 
 #### Raise RuntimeErrors for type errors in builtins
 

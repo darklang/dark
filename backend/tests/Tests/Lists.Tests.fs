@@ -255,9 +255,11 @@ let private listTests =
       }
 
       test "NaN stays unequal to itself inside a list" {
-        let nan = RT.DFloat nan
-        let a = RT.DList(VT.known RT.KTFloat, DvalList.ofArray (Array.create 40 nan))
-        let b = RT.DList(VT.known RT.KTFloat, DvalList.ofArray (Array.create 40 nan))
+        let nan = RT.DFloat64 nan
+        let a =
+          RT.DList(VT.known RT.KTFloat64, DvalList.ofArray (Array.create 40 nan))
+        let b =
+          RT.DList(VT.known RT.KTFloat64, DvalList.ofArray (Array.create 40 nan))
         // As with an F# list: the comparer a union's `Equals` passes in reaches the values.
         Expect.isFalse (a = b) "F# ="
         Expect.isFalse (a.Equals b) "Equals"

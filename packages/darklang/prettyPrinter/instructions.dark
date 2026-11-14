@@ -67,7 +67,7 @@ let matchPattern(pat: LanguageTools.RuntimeTypes.MatchPattern): String =
   | MPInt128(i) -> Stdlib.display(i) + "s128"
   | MPUInt128(i) -> Stdlib.display(i) + "u128"
   | MPBigInt(i) -> Stdlib.display(i) + "z"
-  | MPFloat(f) -> Stdlib.display(f)
+  | MPFloat64(f) -> Stdlib.display(f)
   | MPFloat32(f) ->
     if Stdlib.Float32.isFinite(f) then
       Stdlib.display(f) + "f32"
@@ -126,7 +126,7 @@ let inlineDval(branchId: Uuid, dv: LanguageTools.RuntimeTypes.Dval): String =
   | DChar(c) -> $"'{Stdlib.display(c)}'"
   | DInt64(i) -> Stdlib.display(i)
   | DBigInt(i) -> Stdlib.display(i) + "z"
-  | DFloat(f) -> Stdlib.display(f)
+  | DFloat64(f) -> Stdlib.display(f)
   | DFloat32(f) ->
     if Stdlib.Float32.isFinite(f) then
       Stdlib.display(f) + "f32"

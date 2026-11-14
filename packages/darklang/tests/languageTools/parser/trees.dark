@@ -770,20 +770,20 @@ test literalValues =
 
       // exponent floats lower to plain digits
       match exprs("1e300") with
-      | [EFloat(_, Positive, whole, "0")] ->
+      | [EFloat64(_, Positive, whole, "0")] ->
         whole |> Stdlib.Test.equal("1" + Stdlib.String.repeat("0", 300))
       | _ -> unexpected("1e300")
 
       match exprs("1e-7") with
-      | [EFloat(_, Positive, "0", "0000001")] -> ok()
+      | [EFloat64(_, Positive, "0", "0000001")] -> ok()
       | _ -> unexpected("1e-7")
 
       match exprs("0.00000001") with
-      | [EFloat(_, Positive, "0", "00000001")] -> ok()
+      | [EFloat64(_, Positive, "0", "00000001")] -> ok()
       | _ -> unexpected("0.00000001")
 
       match exprs("0.2") with
-      | [EFloat(_, Positive, "0", "2")] -> ok()
+      | [EFloat64(_, Positive, "0", "2")] -> ok()
       | _ -> unexpected("0.2") ])
 
 

@@ -19,7 +19,7 @@
 - Be consistent with built-in names. Always use the "correct" form below:
   - Int (not Integer)
   - String (not Str)
-  - Float
+  - Float64
   - Bool (not Boolean)
   - Char (not Character)
   - Uuid (not UUID)

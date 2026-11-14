@@ -46,20 +46,20 @@ test literals =
        | Ok(EInt64(_, i)) -> i
        | _ -> -1)
       |> Stdlib.Test.equal(7)
-      (match promote(Darklang.LanguageTools.RuntimeTypes.Dval.DFloat(3.14)) with
-       | Ok(EFloat(_, _sign, w, f)) -> w + "." + f
+      (match promote(Darklang.LanguageTools.RuntimeTypes.Dval.DFloat64(3.14)) with
+       | Ok(EFloat64(_, _sign, w, f)) -> w + "." + f
        | _ -> "FAIL")
       |> Stdlib.Test.equal("3.14")
       // Every digit, not twelve of them: the REPL stores a captured value as a
       // binding's source, and a `let x = 0.1 + 0.2` that came back as `0.3` was
       // a different number from the one computed.
       (match
-        promote(Darklang.LanguageTools.RuntimeTypes.Dval.DFloat(0.1 + 0.2))
+        promote(Darklang.LanguageTools.RuntimeTypes.Dval.DFloat64(0.1 + 0.2))
        with
-       | Ok(EFloat(_, _sign, w, f)) -> w + "." + f
+       | Ok(EFloat64(_, _sign, w, f)) -> w + "." + f
        | _ -> "FAIL")
       |> Stdlib.Test.equal("0.30000000000000004")
-      // A Float32's own shortest digits, not the widened Float's
+      // A Float32's own shortest digits, not the widened Float64's
       // 0.10000000149011612
       (match promote(Darklang.LanguageTools.RuntimeTypes.Dval.DFloat32(0.1f32)) with
        | Ok(EFloat32(_, _sign, w, f)) -> w + "." + f
@@ -79,11 +79,11 @@ test literals =
 // `NaN.0` / `Infinity.0` / `1e+30.0` would wedge a session.
 test floatsWithoutLiteralSyntax =
   Stdlib.Test.all(
-    [ Stdlib.Result.isError(promote(Darklang.LanguageTools.RuntimeTypes.Dval.DFloat(0.0 / 0.0)))
+    [ Stdlib.Result.isError(promote(Darklang.LanguageTools.RuntimeTypes.Dval.DFloat64(0.0 / 0.0)))
       |> Stdlib.Test.equal(true)
-      Stdlib.Result.isError(promote(Darklang.LanguageTools.RuntimeTypes.Dval.DFloat(1.0 / 0.0)))
+      Stdlib.Result.isError(promote(Darklang.LanguageTools.RuntimeTypes.Dval.DFloat64(1.0 / 0.0)))
       |> Stdlib.Test.equal(true)
-      Stdlib.Result.isError(promote(Darklang.LanguageTools.RuntimeTypes.Dval.DFloat(1e30)))
+      Stdlib.Result.isError(promote(Darklang.LanguageTools.RuntimeTypes.Dval.DFloat64(1e30)))
       |> Stdlib.Test.equal(true) ])
 
 // --- collections ---

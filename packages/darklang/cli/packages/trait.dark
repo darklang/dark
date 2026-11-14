@@ -134,7 +134,7 @@ let help(_state: AppState): String =
     "  dark trait Me.Demo.Shape - <<'EOF'"
     "  /// What a shape can do"
     "  trait Shape<'a> ="
-    "    let area(s: 'a): Float"
+    "    let area(s: 'a): Float64"
     "    let name(s: 'a): String"
     "  EOF"
     "  dark impls Me.Demo.Shape"

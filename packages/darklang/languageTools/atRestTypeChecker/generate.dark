@@ -269,7 +269,7 @@ let isNonExpansive(expr: ProgramTypes.Expr): Bool =
   | EInt128(_, _) -> true
   | EUInt128(_, _) -> true
   | EBigInt(_, _) -> true
-  | EFloat(_, _, _, _) -> true
+  | EFloat64(_, _, _, _) -> true
   | EFloat32(_, _, _, _) -> true
   | EDecimal(_, _) -> true
   | EChar(_, _) -> true
@@ -371,7 +371,7 @@ let matchPattern(
   | MPInt128(id, _) -> literal(id, Model.Ty.TInt128)
   | MPUInt128(id, _) -> literal(id, Model.Ty.TUInt128)
   | MPBigInt(id, _) -> literal(id, Model.Ty.TBigInt)
-  | MPFloat(id, _, _, _) -> literal(id, Model.Ty.TFloat)
+  | MPFloat64(id, _, _, _) -> literal(id, Model.Ty.TFloat64)
   | MPFloat32(id, _, _, _) -> literal(id, Model.Ty.TFloat32)
   | MPDecimal(id, _) -> literal(id, Model.Ty.TDecimal)
   | MPChar(id, _) -> literal(id, Model.Ty.TChar)
@@ -528,7 +528,7 @@ let patternIds(pattern: ProgramTypes.MatchPattern): List<Int64> =
   | MPInt128(id, _) -> [ id ]
   | MPUInt128(id, _) -> [ id ]
   | MPBigInt(id, _) -> [ id ]
-  | MPFloat(id, _, _, _) -> [ id ]
+  | MPFloat64(id, _, _, _) -> [ id ]
   | MPFloat32(id, _, _, _) -> [ id ]
   | MPDecimal(id, _) -> [ id ]
   | MPChar(id, _) -> [ id ]
@@ -611,7 +611,7 @@ let infer(scope: Scope, expr: ProgramTypes.Expr): (Model.Ty * Model.Constraint) 
   | ERecordUpdate(id, record, updates) -> inferRecordUpdate(scope, id, record, updates)
   | EDict(id, entries) -> inferDict(scope, id, entries)
   | EChar(_, _) -> (Model.Ty.TChar, nothing())
-  | EFloat(_, _, _, _) -> (Model.Ty.TFloat, nothing())
+  | EFloat64(_, _, _, _) -> (Model.Ty.TFloat64, nothing())
   | EFloat32(_, _, _, _) -> (Model.Ty.TFloat32, nothing())
   | EDecimal(_, _) -> (Model.Ty.TDecimal, nothing())
   | ESelf(id) -> inferSelf(scope, id)
@@ -1114,13 +1114,13 @@ let constantDictKey(expr: ProgramTypes.Expr): Option<String> =
   | EInt128(_, n) -> Option.Some(Stdlib.display(n))
   | EUInt128(_, n) -> Option.Some(Stdlib.display(n))
   | EBigInt(_, n) -> Option.Some(Stdlib.display(n))
-  | EFloat(_, sign, whole, fraction) ->
+  | EFloat64(_, sign, whole, fraction) ->
     let sign =
       match sign with
       | Negative -> "-"
       | Positive -> ""
 
-    match Stdlib.Float.parse(sign + whole + "." + fraction) with
+    match Stdlib.Float64.parse(sign + whole + "." + fraction) with
     | Ok(f) -> if f == 0.0 then Option.Some("0.0") else Option.Some(Stdlib.display(f))
     | Error(_) -> Option.None
   | EFloat32(_, sign, whole, fraction) ->

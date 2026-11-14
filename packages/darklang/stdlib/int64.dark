@@ -78,39 +78,39 @@ let random(start: Int64, end: Int64): Int64 =
 
 
 /// Get the square root of an <type Int64>
-let sqrt(a: Int64): Float =
-  Float.sqrt(toFloat(a))
+let sqrt(a: Int64): Float64 =
+  Float64.sqrt(toFloat64(a))
 
 
 /// The square root of <param a>, or {{Error NotANumber}} where <param a> is negative
-let checkedSqrt(a: Int64): Result<Float, Math.NonFinite> =
-  Float.checkedSqrt(toFloat(a))
+let checkedSqrt(a: Int64): Result<Float64, Math.NonFinite> =
+  Float64.checkedSqrt(toFloat64(a))
 
 
-/// Converts an <type Int64> to a <type Float>
-let toFloat(a: Int64): Float =
-  Builtin.int64ToFloat(a)
+/// Converts an <type Int64> to a <type Float64>
+let toFloat64(a: Int64): Float64 =
+  Builtin.int64ToFloat64(a)
 
 
-/// Converts a <type Float> to an <type Int64>, truncating toward zero like
-/// <fn BigInt.fromFloat>. Returns {{None}} for NaN, infinity, or a result that
+/// Converts a <type Float64> to an <type Int64>, truncating toward zero like
+/// <fn BigInt.fromFloat64>. Returns {{None}} for NaN, infinity, or a result that
 /// doesn't fit.
-let fromFloat(a: Float): Option<Int64> =
-  if Float.isFinite(a) then
+let fromFloat64(a: Float64): Option<Int64> =
+  if Float64.isFinite(a) then
     a
-    |> BigInt.fromFloat
+    |> BigInt.fromFloat64
     |> BigInt.toInt64
   else
     Option.None
 
 
-/// Converts a <type Float> to an <type Int64>, rounding to the nearest integer
+/// Converts a <type Float64> to an <type Int64>, rounding to the nearest integer
 /// (ties to even). Returns {{None}} for NaN, infinity, or a result that
 /// doesn't fit.
-let fromFloatRounded(a: Float): Option<Int64> =
-  // 2^63 is exact as a Float, and every Float in [-2^63, 2^63) rounds into range
+let fromFloatRounded(a: Float64): Option<Int64> =
+  // 2^63 is exact as a Float64, and every Float64 in [-2^63, 2^63) rounds into range
   if a >= -9223372036854775808.0 && a < 9223372036854775808.0 then
-    Option.Some(Float.round(a))
+    Option.Some(Float64.round(a))
   else
     Option.None
 

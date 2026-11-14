@@ -78,18 +78,18 @@ let random(start: Int32, end: Int32): Int32 =
 
 
 /// Get the square root of an <type Int32>
-let sqrt(a: Int32): Float =
-  Float.sqrt(toFloat(a))
+let sqrt(a: Int32): Float64 =
+  Float64.sqrt(toFloat64(a))
 
 
 /// The square root of <param a>, or {{Error NotANumber}} where <param a> is negative
-let checkedSqrt(a: Int32): Result<Float, Math.NonFinite> =
-  Float.checkedSqrt(toFloat(a))
+let checkedSqrt(a: Int32): Result<Float64, Math.NonFinite> =
+  Float64.checkedSqrt(toFloat64(a))
 
 
-/// Converts an <type Int32> to a <type Float>
-let toFloat(a: Int32): Float =
-  Builtin.int32ToFloat(a)
+/// Converts an <type Int32> to a <type Float64>
+let toFloat64(a: Int32): Float64 =
+  Builtin.int32ToFloat64(a)
 
 
 /// Parses a <type String> into an <type Int32>, returning {{Ok}} with the

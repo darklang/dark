@@ -314,7 +314,7 @@ test floatPatterns =
        | 4.7 -> "fail")
       |> Stdlib.Test.equal("pass: -4.7") ])
 
-// Float patterns use numeric equality, so either signed zero matches the first zero pattern.
+// Float64 patterns use numeric equality, so either signed zero matches the first zero pattern.
 test signedZeroPatterns =
   Stdlib.Test.all(
     [ (match 0.0 with

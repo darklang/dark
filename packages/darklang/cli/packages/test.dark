@@ -58,8 +58,8 @@ let segmentsIn(have: List<String>, want: List<String>): Bool =
 
 /// Whether <param filter> selects the test named <param path>: the filter's
 /// dot-separated segments appear whole and in order in the test's full name.
-/// `Stdlib.Float` selects `Darklang.Stdlib.Float.Tests.add`, `doubles` selects
-/// a test named `doubles`, and `Float.T` selects nothing.
+/// `Stdlib.Float64` selects `Darklang.Stdlib.Float64.Tests.add`, `doubles` selects
+/// a test named `doubles`, and `Float64.T` selects nothing.
 let selects(filter: String, path: String): Bool =
   let want = Stdlib.String.split(filter, ".") |> Stdlib.List.filter(fun seg -> seg != "")
   segmentsIn(Stdlib.String.split(path, "."), want)
@@ -733,7 +733,7 @@ let help(_state: AppState): String =
     "rerun conservatively; `expect` with a fixed message can be cached."
     ""
     "A filter selects tests whose full name contains its segments, whole and"
-    "in order: a module (`Stdlib.Float`), a test name, or both. Several filters"
+    "in order: a module (`Stdlib.Float64`), a test name, or both. Several filters"
     "select the union."
     "Deprecated (deleted) tests are skipped."
     "Tests run in parallel, one per core, up to 16 at once. A test that analysis"

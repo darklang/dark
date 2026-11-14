@@ -45,7 +45,22 @@ test typeReferencesAllBuiltIns =
         "type MyUInt128 = UInt128",
         "type MyUInt128 = UInt128")
 
-      roundTrip("float alias", "type MyFloat = Float", "type MyFloat = Float")
+      roundTrip(
+        "float64 alias",
+        "type MyFloat = Float64",
+        "type MyFloat = Float64")
+
+      roundTrip("Int prints as Int64", "type MyInt = Int", "type MyInt = Int64")
+
+      roundTrip(
+        "Float prints as Float64",
+        "type MyFloat = Float",
+        "type MyFloat = Float64")
+
+      roundTrip(
+        "Int and Float inside other types",
+        "type MyPair = (Int * Dict<String, Float>)",
+        "type MyPair = (Int64 * Dict<String, Float64>)")
 
       roundTrip("char alias", "type MyChar = Char", "type MyChar = Char")
 

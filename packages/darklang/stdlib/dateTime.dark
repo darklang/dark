@@ -679,8 +679,8 @@ let __sleepNanoseconds(seconds: Int64, nanos: Int64): Result<Unit, Int64> =
   __sleepWith(Builtin.syscallNanosleep, seconds, nanos)
 
 
-let __sleepMilliseconds(milliseconds: Float): Unit =
-  let nanos = Float.toInt64(milliseconds * 1000000.0)
+let __sleepMilliseconds(milliseconds: Float64): Unit =
+  let nanos = Float64.toInt64(milliseconds * 1000000.0)
   if Builtin.runtimeTargetOS() == "browser" then
     Builtin.runtimeDelayTicks(nanos / 100)
   else

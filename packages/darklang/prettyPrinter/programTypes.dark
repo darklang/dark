@@ -54,19 +54,12 @@ module NameResolutionError =
     Stdlib.String.join(originalName, ".")
 
 
-  /// What a name that does not exist was probably meant to be.
-  let hint(originalName: List<String>): String =
-    match originalName with
-    | ["Int"] -> " (an integer is an Int64, like `1`, or a BigInt, like `1z`)"
-    | _ -> ""
-
-
   let error(
     originalName: List<String>,
     nre: LanguageTools.ProgramTypes.NameResolutionError)
     : String =
     match nre with
-    | NotFound -> Stdlib.String.join(originalName, ".") + " not found" + hint(originalName)
+    | NotFound -> Stdlib.String.join(originalName, ".") + " not found"
     | InvalidName -> Stdlib.String.join(originalName, ".") + " is not a valid name"
 
 
@@ -1058,7 +1051,7 @@ let typeReferenceFlatAtPrecedence(
   | TInt128 -> "Int128"
   | TUInt128 -> "UInt128"
   | TBigInt -> "BigInt"
-  | TFloat -> "Float"
+  | TFloat64 -> "Float64"
   | TFloat32 -> "Float32"
   | TDecimal -> "Decimal"
   | TChar -> "Char"
@@ -1211,7 +1204,8 @@ let matchPattern(mp: LanguageTools.ProgramTypes.MatchPattern): String =
   | MPInt128(_id, i) -> Stdlib.display(i) + "s128"
   | MPUInt128(_id, i) -> Stdlib.display(i) + "u128"
   | MPBigInt(_id, i) -> Stdlib.display(i) + "z"
-  | MPFloat(_id, sign, whole, remainder) -> PrettyPrinter.sign(sign) + floatDigits(whole, remainder)
+  | MPFloat64(_id, sign, whole, remainder) ->
+    PrettyPrinter.sign(sign) + floatDigits(whole, remainder)
   | MPFloat32(_id, sign, whole, remainder) ->
     PrettyPrinter.sign(sign) + floatDigits(whole, remainder) + "f32"
   | MPDecimal(_id, d) -> $"{Stdlib.display(d)}dec"
@@ -2070,7 +2064,7 @@ let patternId(p: LanguageTools.ProgramTypes.MatchPattern): Int64 =
   | MPInt128(id, _) -> id
   | MPUInt128(id, _) -> id
   | MPBigInt(id, _) -> id
-  | MPFloat(id, _, _, _) -> id
+  | MPFloat64(id, _, _, _) -> id
   | MPFloat32(id, _, _, _) -> id
   | MPDecimal(id, _) -> id
   | MPChar(id, _) -> id
@@ -2731,7 +2725,8 @@ let exprString(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
   | EInt128(_id, i) -> Stdlib.display(i) + "s128"
   | EUInt128(_id, i) -> Stdlib.display(i) + "u128"
   | EBigInt(_id, i) -> Stdlib.display(i) + "z"
-  | EFloat(_id, sign, whole, remainder) -> PrettyPrinter.sign(sign) + floatDigits(whole, remainder)
+  | EFloat64(_id, sign, whole, remainder) ->
+    PrettyPrinter.sign(sign) + floatDigits(whole, remainder)
   | EFloat32(_id, sign, whole, remainder) ->
     PrettyPrinter.sign(sign) + floatDigits(whole, remainder) + "f32"
   | EDecimal(_id, d) -> $"{Stdlib.display(d)}dec"

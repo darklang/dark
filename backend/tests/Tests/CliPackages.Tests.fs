@@ -169,7 +169,7 @@ let viewRefusesWhatIsNotThere =
     })
 
 /// `view --include-tests` ends a function's view with the tests that call it, read from the result
-/// cache and never run. `Stdlib.Float.sqrt` has a package test in every store (`Stdlib.Float.Tests.sqrt`),
+/// cache and never run. `Stdlib.Float64.sqrt` has a package test in every store (`Stdlib.Float64.Tests.sqrt`),
 /// and a fresh instance has never run `dark test run`, so this is also the path where the cache table does
 /// not exist yet -- which `view` must answer without creating it. Without the flag there is no section.
 let viewListsAFunctionsTests =
@@ -180,16 +180,16 @@ let viewListsAFunctionsTests =
         do!
           showsAll
             state
-            [ "view"; "Darklang.Stdlib.Float.sqrt"; "--include-tests" ]
+            [ "view"; "Darklang.Stdlib.Float64.sqrt"; "--include-tests" ]
             [ "Tests:"
-              "Darklang.Stdlib.Float.Tests.sqrt"
+              "Darklang.Stdlib.Float64.Tests.sqrt"
               "no result for this build"
               "`dark test run` runs them" ]
             "view names the function's tests, with no result before any run"
         do!
           lacks
             state
-            [ "view"; "Darklang.Stdlib.Float.sqrt" ]
+            [ "view"; "Darklang.Stdlib.Float64.sqrt" ]
             "Tests:"
             "without the flag, view shows no tests"
         do!
@@ -216,7 +216,7 @@ let viewListsAFunctionsTests =
         do!
           exits
             state
-            [ "view"; "Darklang.Stdlib.Float.sqrt"; "--raw"; "--include-tests" ]
+            [ "view"; "Darklang.Stdlib.Float64.sqrt"; "--raw"; "--include-tests" ]
             1L
             "--include-tests is refused alongside --raw"
       })
@@ -1030,7 +1030,7 @@ let packageTestsRequireRun =
         Expect.isFalse (output.Contains "Running:") "help starts no tests"
         Expect.isFalse (output.Contains " ran,") "help reports no test results"
       for args in
-        [ [ "test"; "Stdlib.Float" ]
+        [ [ "test"; "Stdlib.Float64" ]
           [ "test"; "--force" ]
           [ "test"; "--jobs"; "2" ] ] do
         let! output, code = runCliWithStatus state args
@@ -1441,7 +1441,7 @@ let searchLeavesTestsOutUnlessAsked =
         lacks
           state
           [ "search"; "ceiling" ]
-          "Float.Tests.ceiling"
+          "Float64.Tests.ceiling"
           "a plain search lists no tests"
       do!
         shows
@@ -1453,13 +1453,13 @@ let searchLeavesTestsOutUnlessAsked =
         shows
           state
           [ "search"; "ceiling"; "--include-tests" ]
-          "Darklang.Stdlib.Float.Tests.ceilingRejectsNan"
+          "Darklang.Stdlib.Float64.Tests.ceilingRejectsNan"
           "--include-tests lists them"
       do!
         shows
           state
           [ "search"; "ceiling"; "--test" ]
-          "Darklang.Stdlib.Float.Tests.ceilingRejectsNan"
+          "Darklang.Stdlib.Float64.Tests.ceilingRejectsNan"
           "and --test asks for them by itself"
     })
 
@@ -1481,7 +1481,7 @@ let private workbenchAt (modules : List<string>) (row : string) : string =
 let workbenchShowsTests =
   instanceTest "the workbench lists and inspects tests" (fun state ->
     task {
-      let floatTests = [ "Darklang"; "Stdlib"; "Float"; "Tests" ]
+      let floatTests = [ "Darklang"; "Stdlib"; "Float64"; "Tests" ]
       do!
         evals
           state
@@ -1513,9 +1513,9 @@ let workbenchShowsTests =
       do!
         evals
           state
-          ((workbenchAt [ "Darklang"; "Stdlib"; "Float" ] "ceiling")
+          ((workbenchAt [ "Darklang"; "Stdlib"; "Float64" ] "ceiling")
            + "Stdlib.String.join(Darklang.Cli.Workbench.inspectPageLines(s), \"\\n\")")
-          "Darklang.Stdlib.Float.Tests.ceiling"
+          "Darklang.Stdlib.Float64.Tests.ceiling"
           "a function's Inspect pane lists the tests that call it"
     })
 

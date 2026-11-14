@@ -48,11 +48,11 @@ here, by the literal alone; nothing infers it from context.
 | Int64 | `1`, `1s`, `1s64` | | UInt64 | `1u`, `1u64` |
 | Int128 | `1s128` | | UInt128 | `1u128` |
 | BigInt | `1z` | | | |
-| Float | `1.5`, `1e5`, `1.5f64` | | Float32 | `1.5f32`, `1e5f32` |
+| Float64 | `1.5`, `1e5`, `1.5f64` | | Float32 | `1.5f32`, `1e5f32` |
 | Decimal | `19.99dec` | | | |
 
 `z` is for ℤ, the integers: `1z` is the arbitrary-precision `BigInt`, with no size
-limit. A bare integer is an Int64 and a bare fraction or exponent is a Float.
+limit. A bare integer is an Int64 and a bare fraction or exponent is a Float64.
 The float suffixes also take a whole number (`1f32`, `1f64`, `1dec`); the
 integer suffixes never take a fraction or exponent (`1.5s8` is an error).
 
@@ -193,7 +193,7 @@ There is no partial application. A call gives every argument the function
 takes; fewer is a runtime error (`TooFewArgsForFn`) and an at-rest checker error
 (`TooFewArguments`), not a function waiting for the rest. Write a lambda for
 that: `fun x -> f(a, x)`. A function value named without a call (`List.map(xs,
-Int64.toFloat)`) is still a value.
+Int64.toFloat64)`) is still a value.
 
 Enum case declarations, constructors and lambda parameters take the same shape:
 `| Pair(Int64, Int64)`, `Pair(1, 2)`, `fun(acc, x) -> …`. See Enum constructors,
@@ -372,8 +372,9 @@ that does not name a trait is `PARSE-BOUND`.
 
 ## Types
 
-Primitive types are `Unit Bool BigInt Int8…UInt128 Float Float32 Decimal Char String DateTime Uuid
-Bytes` (from `WrittenTypes.primTypes`). `List<T>` and `Dict<K, V>` have special
+Primitive types are `Unit Bool BigInt Int8…UInt128 Float64 Float32 Decimal Char String DateTime Uuid
+Bytes` (from `WrittenTypes.primTypes`). `Int` is read as `Int64` and `Float` as `Float64`
+(`WrittenTypes.primTypeAliases`); printing writes the full name. `List<T>` and `Dict<K, V>` have special
 syntax. Other uppercase names, including `Stream<T>`, are custom
 types with optional type arguments.
 

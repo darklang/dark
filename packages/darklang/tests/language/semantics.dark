@@ -2,13 +2,13 @@
 module Darklang.Language.Tests.Semantics
 
 type Shape =
-  | Circle(Float)
-  | Rect(Float, Float)
+  | Circle(Float64)
+  | Rect(Float64, Float64)
   | Named(name: String, inner: Shape)
 
 type Acct = { id: Int64, name: String, tags: List<String> }
 
-let area(s: Shape): Float =
+let area(s: Shape): Float64 =
   match s with
   | Circle(r) -> 3.14159 * r * r
   | Rect(w, h) -> w * h

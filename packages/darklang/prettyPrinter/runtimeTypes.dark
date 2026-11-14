@@ -101,7 +101,7 @@ let caseNameStandsAlone(
     // Several names for one type, and nothing in the reader's context to choose between them.
     //
     // Types are content-addressed, so two declarations with the same shape ARE one type:
-    // `Stdlib.BigInt.ParseError`, `Stdlib.Float.ParseError` and `Stdlib.Uuid.ParseError` are all
+    // `Stdlib.BigInt.ParseError`, `Stdlib.Float64.ParseError` and `Stdlib.Uuid.ParseError` are all
     // `| BadFormat`, which makes them a single type with three names. Printing one of those names is
     // picking arbitrarily, and it picks wrong most of the time -- `Stdlib.BigInt.parse "abc"` reporting a
     // `Stdlib.Uuid.ParseError` is a real thing this used to print. The case name alone is the most that
@@ -300,7 +300,7 @@ let typeReference(branchId: Uuid, t: LanguageTools.RuntimeTypes.TypeReference): 
   | TInt128 -> "Int128"
   | TUInt128 -> "UInt128"
   | TBigInt -> "BigInt"
-  | TFloat -> "Float"
+  | TFloat64 -> "Float64"
   | TFloat32 -> "Float32"
   | TDecimal -> "Decimal"
   | TChar -> "Char"
@@ -366,7 +366,7 @@ let knownType(branchId: Uuid, t: LanguageTools.RuntimeTypes.KnownType): String =
   | KTInt128 -> "Int128"
   | KTUInt128 -> "UInt128"
   | KTBigInt -> "BigInt"
-  | KTFloat -> "Float"
+  | KTFloat64 -> "Float64"
   | KTFloat32 -> "Float32"
   | KTDecimal -> "Decimal"
   | KTChar -> "Char"
@@ -424,7 +424,7 @@ let valueType(branchId: Uuid, vt: LanguageTools.RuntimeTypes.ValueType): String 
 /// `TypeReference` is the authority on names: a hash bound to one location has
 /// one name and needs no help, but bound to several, every one of those names is
 /// equally true of the type and choosing between them from the hash is a guess.
-/// `Stdlib.BigInt.ParseError`, `Stdlib.Float.ParseError` and
+/// `Stdlib.BigInt.ParseError`, `Stdlib.Float64.ParseError` and
 /// `Stdlib.Uuid.ParseError` are all `| BadFormat`, so they are one type with
 /// three names, and a `BigInt.parse` failure reported as a `Uuid.ParseError` is a
 /// real thing this printed.
@@ -563,7 +563,7 @@ module Dval =
     | DInt128(_) -> "Int128"
     | DUInt128(_) -> "UInt128"
     | DBigInt(_) -> "BigInt"
-    | DFloat(_) -> "Float"
+    | DFloat64(_) -> "Float64"
     | DFloat32(_) -> "Float32"
     | DDecimal(_) -> "Decimal"
     | DChar(_) -> "Char"
@@ -736,9 +736,9 @@ module Dval =
         | DInt128(i) -> paint(opts.palette.number, Stdlib.display(i) + "s128")
         | DUInt128(i) -> paint(opts.palette.number, Stdlib.display(i) + "u128")
         | DBigInt(i) -> paint(opts.palette.number, Stdlib.display(i) + "z")
-        | DFloat(f) -> paint(opts.palette.number, Stdlib.display(f))
+        | DFloat64(f) -> paint(opts.palette.number, Stdlib.display(f))
         | DFloat32(f) ->
-          // NaN and the infinities have no literal to suffix, so they print as a Float's do
+          // NaN and the infinities have no literal to suffix, so they print as a Float64's do
           let s = Stdlib.display(f)
           paint(opts.palette.number, if Stdlib.Float32.isFinite(f) then s + "f32" else s)
         | DDecimal(d) -> paint(opts.palette.number, Stdlib.display(d) + "dec")

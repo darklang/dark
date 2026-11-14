@@ -25,11 +25,11 @@ test numericTypes =
       5 >= 5 |> Stdlib.Test.equal(true)
       2s8 > 1s8 |> Stdlib.Test.equal(true) ])
 
-// Float has no Modulo implementation, deliberately; Decimal and the integers do
+// Float64 has no Modulo implementation, deliberately; Decimal and the integers do
 test floatModuloRaises =
   7.5 % 2.0
   => raises
-    "Float has no implementation of Darklang.Stdlib.Modulo. Write `impl Modulo for Float = ...`, or run `dark impls Modulo` to see which types do"
+    "Float64 has no implementation of Darklang.Stdlib.Modulo. Write `impl Modulo for Float64 = ...`, or run `dark impls Modulo` to see which types do"
 
 // Mixed operand types are a type error (no implicit coercion), said before
 // dispatch so the message is the operator's, not the impl fn's
@@ -38,16 +38,16 @@ test int64PlusBoolRaises =
 
 test int64PlusFloatRaises =
   1 + 2.0
-  => raises "Cannot perform numeric operation on Int64 and Float. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat(n)`."
+  => raises "Cannot perform numeric operation on Int64 and Float64. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat64(n)`."
 
 // `/`, `%` and `**` say so as well, rather than failing inside the left side's implementation
 test int64DividedByFloatRaises =
   5 / 2.0
-  => raises "Cannot perform numeric operation on Int64 and Float. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat(n)`."
+  => raises "Cannot perform numeric operation on Int64 and Float64. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat64(n)`."
 
 test floatToThePowerOfInt64Raises =
   2.0 ** 3
-  => raises "Cannot perform numeric operation on Float and Int64. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat(n)`."
+  => raises "Cannot perform numeric operation on Float64 and Int64. Both sides must be the same type. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat64(n)`."
 
 test int32ModuloInt64Raises =
   7s32 % 2 => raises "Cannot perform numeric operation on Int32 and Int64"
@@ -87,7 +87,7 @@ test overflow =
 test divideByZeroRaises =
   10 / 0 => raises "Cannot divide by 0"
 
-// Float overflow produces infinity, following IEEE arithmetic.
+// Float64 overflow produces infinity, following IEEE arithmetic.
 test floatOverflowIsInfinity =
   2.0 ** 100000.0 |> Stdlib.Test.equal(1.0 / 0.0)
 
@@ -102,7 +102,7 @@ test power =
       // and wraps on overflow, as the narrower widths do
       2u128 ** 128u128 |> Stdlib.Test.equal(0u128) ])
 
-// unary `-` works on every signed integer type and Float
+// unary `-` works on every signed integer type and Float64
 test unaryMinus =
   Stdlib.Test.all(
     [ -(2s8 + 3s8) |> Stdlib.Test.equal(-5s8)
@@ -173,22 +173,22 @@ test bitwiseNot =
       ~(-1) |> Stdlib.Test.equal(0)
       ~(2 + 3) |> Stdlib.Test.equal(-6) ])
 
-// bitwise operators are traits like every other operator, so a Float says what
+// bitwise operators are traits like every other operator, so a Float64 says what
 // is missing
 test floatBitwiseAndRaises =
   1.0 & 2.0
   => raises
-    "Float has no implementation of Darklang.Stdlib.BitwiseAnd. Write `impl BitwiseAnd for Float = ...`, or run `dark impls BitwiseAnd` to see which types do"
+    "Float64 has no implementation of Darklang.Stdlib.BitwiseAnd. Write `impl BitwiseAnd for Float64 = ...`, or run `dark impls BitwiseAnd` to see which types do"
 
 test floatShiftLeftRaises =
   1.0 << 2.0
   => raises
-    "Float has no implementation of Darklang.Stdlib.ShiftLeft. Write `impl ShiftLeft for Float = ...`, or run `dark impls ShiftLeft` to see which types do"
+    "Float64 has no implementation of Darklang.Stdlib.ShiftLeft. Write `impl ShiftLeft for Float64 = ...`, or run `dark impls ShiftLeft` to see which types do"
 
 test floatBitwiseNotRaises =
   ~1.0
   => raises
-    "Float has no implementation of Darklang.Stdlib.BitwiseNot. Write `impl BitwiseNot for Float = ...`, or run `dark impls BitwiseNot` to see which types do"
+    "Float64 has no implementation of Darklang.Stdlib.BitwiseNot. Write `impl BitwiseNot for Float64 = ...`, or run `dark impls BitwiseNot` to see which types do"
 
 // mixed widths are a type error, exactly as for the arithmetic operators
 test mixedBitwiseWidthsRaises =

@@ -717,7 +717,7 @@ let private literalTests =
           let result = P.parse source
           Expect.isEmpty result.diagnostics $"{source}: parses"
           match result.parsed with
-          | Some(WT.SourceFile { exprsToEval = [ WT.EFloat(_, neg, whole, fraction) ] }) ->
+          | Some(WT.SourceFile { exprsToEval = [ WT.EFloat64(_, neg, whole, fraction) ] }) ->
             let value =
               Prelude.makeFloat
                 (if neg then Prelude.Negative else Prelude.Positive)
@@ -776,9 +776,9 @@ let private literalTests =
             "1s128", Tok.TInt128(System.Int128.One)
             "1u128", Tok.TUInt128(System.UInt128.One)
             "1z", Tok.TBigInt 1I
-            "1.5", Tok.TFloat 1.5
-            "1.5f64", Tok.TFloat 1.5
-            "1e5", Tok.TFloat 100000.0
+            "1.5", Tok.TFloat64 1.5
+            "1.5f64", Tok.TFloat64 1.5
+            "1e5", Tok.TFloat64 100000.0
             "1.5f32", Tok.TFloat32 1.5f
             "1e5f32", Tok.TFloat32 100000.0f
             "19.99dec", Tok.TDecimal 19.99M ] do
@@ -1231,7 +1231,7 @@ let private rangeInvariantTests =
     | WT.EUInt64 _
     | WT.EInt128 _
     | WT.EUInt128 _
-    | WT.EFloat _
+    | WT.EFloat64 _
     | WT.EFloat32 _
     | WT.EDecimal _
     | WT.EChar _
@@ -1329,7 +1329,7 @@ let private primTypeDriftTests =
   testList
     "prim-type-drift"
     [ testCase
-        "every primTypes entry parses to exactly its recorded primitive case"
+        "every primTypes and primTypeAliases entry parses to exactly its recorded primitive case"
         (fun _ ->
           let lower (t : WT.TypeReference) =
             (WT2PT.TypeReference.toPT
@@ -1339,13 +1339,15 @@ let private primTypeDriftTests =
               t
              |> Ply.toTask)
               .Result
-          for (name, ctor) in WT.primTypes do
+          for (name, ctor) in WT.primTypes @ WT.primTypeAliases do
             // lowering erases ranges, so comparing the lowered PT compares the *case*:
             // the parser (via primTypeFromName) must map `name` to the case `ctor` builds.
             Expect.equal
               (lower (parsedType name))
               (lower (ctor WT.synthRange))
-              $"{name} did not parse as its recorded primitive case") ]
+              $"{name} did not parse as its recorded primitive case"
+          Expect.equal (lower (parsedType "Int")) PT.TInt64 "Int is Int64"
+          Expect.equal (lower (parsedType "Float")) PT.TFloat64 "Float is Float64") ]
 
 /// Direct unit tests of parser internals — possible since the decomposition
 /// hoisted them to module level.

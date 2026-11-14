@@ -74,29 +74,29 @@ impl Compare for BigInt =
 
 
 /// Get the square root of a <type BigInt>
-let sqrt(a: BigInt): Float =
-  Float.sqrt(toFloat(a))
+let sqrt(a: BigInt): Float64 =
+  Float64.sqrt(toFloat64(a))
 
 
 /// The square root of <param a>, or {{Error NotANumber}} where <param a> is negative and
-/// {{Error Overflow}} where it is too large for a Float
-let checkedSqrt(a: BigInt): Result<Float, Math.NonFinite> =
-  Float.checkedSqrt(toFloat(a))
+/// {{Error Overflow}} where it is too large for a Float64
+let checkedSqrt(a: BigInt): Result<Float64, Math.NonFinite> =
+  Float64.checkedSqrt(toFloat64(a))
 
 
-/// Converts a <type BigInt> to a <type Float>
-let toFloat(a: BigInt): Float =
-  Builtin.bigIntToFloat(a)
+/// Converts a <type BigInt> to a <type Float64>
+let toFloat64(a: BigInt): Float64 =
+  Builtin.bigIntToFloat64(a)
 
 
-/// Converts <param a> to a <type Float>, or {{Error Overflow}} where it is too large for one
-let checkedToFloat(a: BigInt): Result<Float, Math.Overflow> =
-  Float.__noOverflow(toFloat(a))
+/// Converts <param a> to a <type Float64>, or {{Error Overflow}} where it is too large for one
+let checkedToFloat64(a: BigInt): Result<Float64, Math.Overflow> =
+  Float64.__noOverflow(toFloat64(a))
 
 
-/// Converts a <type Float> to a <type BigInt>, truncating toward zero.
-let fromFloat(a: Float): BigInt =
-  Builtin.bigIntFromFloat(a)
+/// Converts a <type Float64> to a <type BigInt>, truncating toward zero.
+let fromFloat64(a: Float64): BigInt =
+  Builtin.bigIntFromFloat64(a)
 
 
 /// Returns the <type BigInt> value of a <type String>. Because <type BigInt> is

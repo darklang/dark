@@ -318,19 +318,19 @@ let fromInt64(i: Int64): Decimal =
   | None -> 0dec
 
 
-/// The <type Float> nearest <param d>. Exact only when <param d> happens to be a
+/// The <type Float64> nearest <param d>. Exact only when <param d> happens to be a
 /// binary fraction, which is the reason <type Decimal> exists.
-let toFloat(d: Decimal): Float =
-  match Float.parse(display(d)) with
+let toFloat64(d: Decimal): Float64 =
+  match Float64.parse(display(d)) with
   | Ok(f) -> f
   // unreachable: every decimal prints as digits a float parses
   | Error(_) -> 0.0
 
 
-/// The decimal that <param f> prints as, {{Decimal.fromFloat(0.1) == Some(0.1dec)}},
-/// since a Float prints as the shortest decimal that reads back as itself. {{None}}
+/// The decimal that <param f> prints as, {{Decimal.fromFloat64(0.1) == Some(0.1dec)}},
+/// since a Float64 prints as the shortest decimal that reads back as itself. {{None}}
 /// for NaN, the infinities, and anything out of range.
-let fromFloat(f: Float): Option<Decimal> =
+let fromFloat64(f: Float64): Option<Decimal> =
   match parse(display(f)) with
   | Ok(d) -> Option.Some(d)
   | Error(_) -> Option.None
@@ -355,8 +355,8 @@ let fromFloat32(f: Float32): Option<Decimal> =
 
 /// Parse <param s> as a decimal, keeping the places written:
 /// {{Decimal.parse("19.99") == Ok(19.99dec)}}, {{Decimal.parse("-1.10")}} keeps 2 places.
-/// Accepts an exponent ({{"1.5e3"}}, {{"1e-5"}}), the form <fn Float.toString> uses
-/// for very large and very small values, and, like <fn Float.parse>, a leading `+`
+/// Accepts an exponent ({{"1.5e3"}}, {{"1e-5"}}), the form <fn Float64.toString> uses
+/// for very large and very small values, and, like <fn Float64.parse>, a leading `+`
 /// and a missing whole part ({{".5"}}). Refuses anything it cannot hold exactly:
 /// more than 28 places, or more than 96 bits, is {{Error(OutOfRange)}}, never a
 /// rounded value.

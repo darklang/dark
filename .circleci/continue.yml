@@ -436,7 +436,7 @@ jobs:
       # - run: scripts/build/run-migrations --published
       # - run: sleep 5 # let migrations run
       # - run: scripts/build/reload-packages --published
-      # - run: scripts/run-cli @Darklang.Stdlib.Float.add 1.9 2.0
+      # - run: scripts/run-cli @Darklang.Stdlib.Float64.add 1.9 2.0
 
       # Neither the tests nor a gate may write to the source tree.
       - assert-clean-worktree

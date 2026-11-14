@@ -252,7 +252,7 @@ module RT =
   let dvalTests =
     let dvalEquals (expected : RT.Dval) (actual : RT.Dval) : bool =
       match expected, actual with
-      | RT.DFloat f1, RT.DFloat f2 when
+      | RT.DFloat64 f1, RT.DFloat64 f2 when
         System.Double.IsNaN f1 && System.Double.IsNaN f2
         ->
         true

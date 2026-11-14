@@ -5,8 +5,8 @@ module Darklang.Stdlib.Retry
 let __loop(
   maxAttempts: Int64,
   attempt: Int64,
-  delayMs: Float,
-  factor: Float,
+  delayMs: Float64,
+  factor: Float64,
   fn: Unit -> Result<'a, String>)
   : Result<'a, String> =
   match fn() with
@@ -29,7 +29,7 @@ let withBackoff(maxAttempts: Int64, fn: Unit -> Result<'a, String>): Result<'a, 
 /// Retry with a fixed delay between attempts.
 let withFixedDelay(
   maxAttempts: Int64,
-  delayMs: Float,
+  delayMs: Float64,
   fn: Unit -> Result<'a, String>)
   : Result<'a, String> =
   __loop(maxAttempts, 1, delayMs, 1.0, fn)
