@@ -1,0 +1,175 @@
+module Darklang.Fluid.Tests.Derive
+
+// Specs derived from type declarations, and completion on partials.
+
+module Fixtures =
+  let field(
+    name: String,
+    typ: LanguageTools.ProgramTypes.TypeReference)
+    : LanguageTools.ProgramTypes.TypeDeclaration.RecordField =
+    LanguageTools.ProgramTypes.TypeDeclaration.RecordField
+      { name = name, typ = typ, description = "" }
+
+
+  let colorDecl(): LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration =
+    LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration
+      { typeParams = []
+        bounds = []
+        definition =
+          LanguageTools.ProgramTypes.TypeDeclaration.Definition.Record(
+            [ field("r", LanguageTools.ProgramTypes.TypeReference.TInt64)
+              field("g", LanguageTools.ProgramTypes.TypeReference.TInt64)
+              field(
+                "name",
+                LanguageTools.ProgramTypes.TypeReference.TString) ]) }
+
+
+  let enumField(
+    label: Stdlib.Option.Option<String>,
+    typ: LanguageTools.ProgramTypes.TypeReference)
+    : LanguageTools.ProgramTypes.TypeDeclaration.EnumField =
+    LanguageTools.ProgramTypes.TypeDeclaration.EnumField
+      { typ = typ, label = label, description = "" }
+
+
+  let case(
+    name: String,
+    fields: List<LanguageTools.ProgramTypes.TypeDeclaration.EnumField>)
+    : LanguageTools.ProgramTypes.TypeDeclaration.EnumCase =
+    LanguageTools.ProgramTypes.TypeDeclaration.EnumCase
+      { name = name, fields = fields, description = "" }
+
+
+  let shapeDecl(): LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration =
+    LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration
+      { typeParams = []
+        bounds = []
+        definition =
+          LanguageTools.ProgramTypes.TypeDeclaration.Definition.Enum(
+            [ case(
+                "Circle",
+                [ enumField(
+                    Stdlib.Option.Option.Some("radius"),
+                    LanguageTools.ProgramTypes.TypeReference.TInt64) ])
+
+              case(
+                "Cube",
+                [ enumField(
+                    Stdlib.Option.Option.None,
+                    LanguageTools.ProgramTypes.TypeReference.TInt64) ])
+
+              case("Point", []) ]) }
+
+
+  let reg(): Fluid.Registry =
+    Fluid.Registry.ofList(
+      Stdlib.List.flatten(
+        [ Fluid.Prims.specs()
+          Fluid.Derive.specsFor("Acme.Color", colorDecl())
+          Fluid.Derive.specsFor("Acme.Shape", shapeDecl()) ]))
+
+
+  let colorHole(): Fluid.Slot =
+    Fluid.Slot.Empty(
+      Fluid.Expect.ofKind(Fluid.Kind.named("Acme.Color"), "Color"))
+
+
+  let shapeHole(): Fluid.Slot =
+    Fluid.Slot.Empty(
+      Fluid.Expect.ofKind(Fluid.Kind.named("Acme.Shape"), "Shape"))
+
+
+  let run(root: Fluid.Slot, keys: List<String>): String =
+    Fluid.Test.run(reg(), root, 80, keys)
+
+
+module Records =
+  test records =
+    Stdlib.Test.all(
+      // `{` into a hole expecting a record makes the record with every field a hole, caret on the first.
+      //
+      // One line when it fits. This used to be vertical ALWAYS for any record with more than one field, on
+      // the bias that structure you can scan down a column beats structure packed onto a line; reversed on
+      // Stachu's call so a DERIVED editor and the printer agree. That agreement is the point of the whole
+      // exercise: a generated editor laying out differently from the hand-written ones is the exact drift
+      // this design exists to stop.
+      [ Stdlib.Test.equal(
+          Fixtures.run(Fixtures.colorHole(), [ "{" ]),
+          "Color { r = ~⟨r⟩, g = ⟨g⟩, name = ⟨name⟩ }")
+
+        // Fields know their types: digits make Ints, a quote makes a String.
+        Stdlib.Test.equal(
+          Fixtures.run(
+            Fixtures.colorHole(),
+            [ "{", "1", "<Tab>", "2", "<Tab>", "\"", "x" ]),
+          "Color { r = 1, g = 2, name = \"x~\" }")
+
+        // The record's name is a completion too, for people who type it.
+        Stdlib.Test.equal(
+          Fixtures.run(Fixtures.colorHole(), [ "C", "<Enter>" ]),
+          "Color { r = ~⟨r⟩, g = ⟨g⟩, name = ⟨name⟩ }") ])
+
+
+module Enums =
+  test enums =
+    Stdlib.Test.all(
+      // Letters into an enum hole start a partial; the cases that match are the candidates.
+      [ Stdlib.Test.equal(Fixtures.run(Fixtures.shapeHole(), [ "C" ]), "C~")
+
+        // Enter takes the first candidate and lands on its first hole.
+        Stdlib.Test.equal(
+          Fixtures.run(Fixtures.shapeHole(), [ "C", "<Enter>" ]),
+          "Circle(~⟨radius⟩)")
+
+        Stdlib.Test.equal(
+          Fixtures.run(Fixtures.shapeHole(), [ "C", "<Enter>", "5" ]),
+          "Circle(5~)")
+
+        // Down picks the next candidate. An unlabelled field is named by position.
+        Stdlib.Test.equal(
+          Fixtures.run(Fixtures.shapeHole(), [ "C", "<Down>", "<Enter>" ]),
+          "Cube(~⟨f0⟩)")
+
+        // Tab commits as well.
+        Stdlib.Test.equal(
+          Fixtures.run(Fixtures.shapeHole(), [ "cu", "<Tab>" ]),
+          "Cube(~⟨f0⟩)")
+
+        // A case with no fields anchors the caret on its name.
+        Stdlib.Test.equal(
+          Fixtures.run(Fixtures.shapeHole(), [ "P", "<Enter>" ]),
+          "~Point")
+
+        // No match: the partial stays and Enter does nothing.
+        Stdlib.Test.equal(
+          Fixtures.run(Fixtures.shapeHole(), [ "x", "<Enter>" ]),
+          "x~")
+
+        // Matching is case-insensitive.
+        Stdlib.Test.equal(
+          Fixtures.run(Fixtures.shapeHole(), [ "p", "<Enter>" ]),
+          "~Point") ])
+
+
+module Lists =
+  test lists =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          Fixtures.run(
+            Fluid.Slot.Empty(
+              Fluid.Derive.expectFor(
+                LanguageTools.ProgramTypes.TypeReference.TList(
+                  LanguageTools.ProgramTypes.TypeReference.TInt64),
+                "xs")),
+            [ "[" ]),
+          "[ ~⟨item⟩ ]")
+
+        Stdlib.Test.equal(
+          Fixtures.run(
+            Fluid.Slot.Empty(
+              Fluid.Derive.expectFor(
+                LanguageTools.ProgramTypes.TypeReference.TList(
+                  LanguageTools.ProgramTypes.TypeReference.TInt64),
+                "xs")),
+            [ "[", "7" ]),
+          "[ 7~ ]") ])

@@ -1,0 +1,1462 @@
+module Darklang.Fluid.Tests.Value
+
+// Fluid edits package values too: a PackageValue (name + body expression) as one document.
+
+module Fixtures =
+  let reg(): Fluid.Registry =
+    Fluid.Registry.ofList(
+      Stdlib.List.flatten(
+        [ Fluid.Prims.specs(), Fluid.PT.specs(), Fluid.PT.Value.specs() ]))
+
+
+  let mk(
+    body: LanguageTools.ProgramTypes.Expr)
+    : LanguageTools.ProgramTypes.PackageValue.PackageValue =
+    LanguageTools.ProgramTypes.PackageValue.PackageValue
+      { hash = LanguageTools.ProgramTypes.Hash.Hash("cafe")
+        body = body
+        description = "" }
+
+
+  let strVal(): LanguageTools.ProgramTypes.PackageValue.PackageValue =
+    mk(
+      LanguageTools.ProgramTypes.Expr.EString(
+        1,
+        [ LanguageTools.ProgramTypes.StringSegment.StringText("hello") ]))
+
+
+  let listVal(): LanguageTools.ProgramTypes.PackageValue.PackageValue =
+    mk(
+      LanguageTools.ProgramTypes.Expr.EList(
+        1,
+        [ LanguageTools.ProgramTypes.Expr.EInt64(2, 1)
+          LanguageTools.ProgramTypes.Expr.EInt64(3, 2) ]))
+
+
+  let show(
+    nm: String,
+    pv: LanguageTools.ProgramTypes.PackageValue.PackageValue)
+    : String =
+    Fluid.Debug.render(
+      reg(),
+      60,
+      Fluid.Slot.Filled(Fluid.PT.Value.toDoc(nm, pv)))
+
+
+  let ctx(): PrettyPrinter.ProgramTypes.Context =
+    Fluid.PT.printerContext()
+
+
+  // Compare printed forms: a round trip regenerates node ids, so structural `==` would differ on ids.
+  let rt(pv: LanguageTools.ProgramTypes.PackageValue.PackageValue): Bool =
+    match Fluid.PT.Value.fromDoc(pv, Fluid.PT.Value.toDoc("x", pv)) with
+    | Ok((_n, p2)) ->
+      PrettyPrinter.ProgramTypes.expr(ctx(), p2.body)
+      == PrettyPrinter.ProgramTypes.expr(ctx(), pv.body)
+    | Error(_) -> false
+
+
+module Rendering =
+  test rendering =
+    Stdlib.Test.all(
+      // One line, the way the printer writes it: packageValue is `val {name} = {body}`, and the body wraps on
+      // its own if it needs to. This used to hard-break after the `=`.
+      [ Stdlib.Test.equal(
+          Fixtures.show("greeting", Fixtures.strVal()),
+          "val greeting = \"hello\"")
+
+        Stdlib.Test.equal(
+          Fixtures.show("nums", Fixtures.listVal()),
+          "val nums = [ 1, 2 ]") ])
+
+
+module RoundTrips =
+  test roundTrips =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(Fixtures.rt(Fixtures.strVal()), true)
+        Stdlib.Test.equal(Fixtures.rt(Fixtures.listVal()), true) ])
+
+
+module MatchesThePrinter =
+  // The printer writes `val name = body` on ONE line: packageValue interpolates the body straight in and
+  // lets the body's own layout wrap. Fluid hard-broke after the `=`, so every value in the store showed on
+  // two lines where the printer uses one. (A FUNCTION does break before its body -- that difference is the
+  // printer's own, and Fluid follows it.)
+  let verdict(name: String): String =
+    let branchId = SCM.Branch.mainBranchId
+    let loc = LanguageTools.ProgramTypes.parsePackageLocation(name)
+    match LanguageTools.PackageManager.Value.find(branchId, loc) with
+    | None -> "missing"
+    | Some(hash) ->
+      match LanguageTools.PackageManager.Value.get(hash) with
+      | None -> "missing"
+      | Some(pv) ->
+        // The doc comment is drawn now, so nothing is stripped before comparing.
+        let printed =
+          PrettyPrinter.ProgramTypes.packageValue(Fluid.PT.printerContext(), pv)
+
+        let screen =
+          Fluid.Debug.render(
+            Fluid.App.defaultRegistry(),
+            80,
+            Fluid.Slot.Filled(Fluid.PT.Value.toDoc(loc.name, pv)))
+
+        if screen == printed then "same" else "DIFF: " + screen
+
+
+  test matchesThePrinter =
+    Stdlib.Test.all(
+      [ // CLEANUP the move to call syntax changed this; it was "same"
+        Stdlib.Test.equal(
+          MatchesThePrinter.verdict("Darklang.SCM.Branch.mainBranchId"),
+          "DIFF: /// Main's branch id.\n/// ⟨text⟩\n/// Well-known rather than minted, because main is the one branch that exists before anything creates it,\n/// and it has no `branches` row to mint an id into. Comes from the same F# constant the runtime compares\n/// against (`ProgramTypes.BranchId.Main`), so the two cannot disagree.\nval mainBranchId = Builtin.scmMainBranchId")
+
+        // CLEANUP the move to call syntax changed this; it was "same"
+        Stdlib.Test.equal(
+          MatchesThePrinter.verdict(
+            "Darklang.PrettyPrinter.ProgramTypes.Context.forMain"),
+          "DIFF: val forMain = Darklang.PrettyPrinter.ProgramTypes.Context.forBranch(Darklang.SCM.Branch.mainBranchId)")
+
+        Stdlib.Test.equal(
+          MatchesThePrinter.verdict("Darklang.Fluid.PT.exprType"),
+          "same") ])
+
+
+module BuiltinValuesRoundTrip =
+  // A value whose body is a builtin reference could not be lowered either, and the document had dropped the
+  // version on the way in, so there was nothing to rebuild from. `v` on one reported "can't print that yet:
+  // unresolved value name: Builtin.scmMainBranchId".
+  let verdict(name: String): String =
+    let loc = LanguageTools.ProgramTypes.parsePackageLocation(name)
+    match LanguageTools.PackageManager.Value.find(
+            SCM.Branch.mainBranchId,
+            loc) with
+    | None -> "missing"
+    | Some(hash) ->
+      match LanguageTools.PackageManager.Value.get(hash) with
+      | None -> "missing"
+      | Some(pv) ->
+        match Fluid.PT.Value.fromDoc(
+                pv,
+                Fluid.PT.Value.toDoc(loc.name, pv)) with
+        | Error(e) -> "refuses: " + e
+        | Ok(pair) ->
+          let (_n, v2) = pair
+          let ctx = Fluid.PT.printerContext()
+          if
+            PrettyPrinter.ProgramTypes.packageValue(ctx, pv)
+            == PrettyPrinter.ProgramTypes.packageValue(ctx, v2)
+          then
+            "same"
+          else
+            "CHANGED"
+
+
+  test builtinValuesRoundTrip =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          BuiltinValuesRoundTrip.verdict("Darklang.SCM.Branch.mainBranchId"),
+          "same") ])
+
+
+module ValueNamesAreShortened =
+  // `EFnName` shortened its name in `toDoc` and `EValue` did not, so one call could carry both forms:
+  // `Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.yellow`. Precisely the drift t88 was
+  // about -- two paths to the same decision, one of them missed -- and t88's fix did not reach this path.
+  //
+  // Found by counting rather than sampling: 50 of 250 real functions drew tokens the printer does not
+  // write, and my two known causes explained only 19 of them.
+  let docOf(src: String): Fluid.Slot =
+    match LanguageTools.Parser.Parse.parsePTExpr(src) with
+    | Ok(e) -> Fluid.Slot.Filled(Fluid.PT.toDoc(e))
+    | Error(e) ->
+      Fluid.Slot.Empty(
+        Fluid.PT.exprExpect(
+          "parse failed: " + LanguageTools.Parser.Parse.ParseError.toString(e)))
+
+
+  let show(src: String): String =
+    Fluid.Debug.render(
+      Fluid.App.defaultRegistry(),
+      80,
+      ValueNamesAreShortened.docOf(src))
+
+
+  test valueNamesAreShortened =
+    Stdlib.Test.all(
+      // A value reference and a function reference in the same expression, both short.
+      [ Stdlib.Test.equal(
+          ValueNamesAreShortened.show(
+            "Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.yellow, \"x\")"),
+          "Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.yellow, \"x\")")
+
+        // And what the printer writes for the same program, which is the point of shortening at all.
+        Stdlib.Test.equal(
+          ValueNamesAreShortened.show("Stdlib.Cli.UI.Colors.yellow"),
+          "Stdlib.Cli.UI.Colors.yellow") ])
+
+
+module AValueIsADocument =
+  // A runtime VALUE projected into a document. Everything else in Fluid projects a program -- an
+  // expression, a declaration, a function shell -- and this projects what a program produced.
+  //
+  // The design doc calls it out as the missing half (7.D, "editing a runtime value of type T needs
+  // Dval <-> Node") and it is why a value of your own type could be drawn in the demo and saved nowhere.
+  //
+  // No new specs. `Derive` already builds one for any type from its declaration and `Prims` covers the
+  // leaves, so a value document draws with what is there. This is the conversion only.
+  let bid(): Uuid =
+    SCM.Branch.mainBranchId
+
+
+  let reg(): Fluid.Registry =
+    Fluid.App.defaultRegistry()
+
+
+  let draw(v: LanguageTools.RuntimeTypes.Dval): String =
+    Fluid.Debug.render(
+      AValueIsADocument.reg(),
+      70,
+      Fluid.Slot.Filled(Fluid.Value.ofDval(AValueIsADocument.bid(), v)))
+
+
+  test aValueIsADocument =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          AValueIsADocument.draw(LanguageTools.RuntimeTypes.Dval.DInt64(42)),
+          "42")
+
+        Stdlib.Test.equal(
+          AValueIsADocument.draw(LanguageTools.RuntimeTypes.Dval.DString("hi")),
+          "\"hi\"")
+
+        Stdlib.Test.equal(
+          AValueIsADocument.draw(LanguageTools.RuntimeTypes.Dval.DBool(true)),
+          "true")
+
+        Stdlib.Test.equal(
+          AValueIsADocument.draw(LanguageTools.RuntimeTypes.Dval.DUnit),
+          "()")
+
+        Stdlib.Test.equal(
+          AValueIsADocument.draw(
+            LanguageTools.RuntimeTypes.Dval.DList(
+              LanguageTools.RuntimeTypes.ValueType.Unknown,
+              [ LanguageTools.RuntimeTypes.Dval.DInt64(1)
+                LanguageTools.RuntimeTypes.Dval.DInt64(2) ])),
+          "[ 1, 2 ]")
+
+        // Every integer width draws as the same leaf. On screen `1` is `1` whichever width it came from, and
+        // the width lives in the type; going back is where it matters.
+        Stdlib.Test.equal(
+          AValueIsADocument.draw(LanguageTools.RuntimeTypes.Dval.DInt8(7s8)),
+          "7")
+
+        Stdlib.Test.equal(
+          AValueIsADocument.draw(LanguageTools.RuntimeTypes.Dval.DInt64(7)),
+          "7") ])
+
+
+module AValueOfAStoredType =
+  // The case that matters: a value whose type is IN the store, so its kind resolves and `Derive` can
+  // build the spec that draws it. Nothing hand-written anywhere in this path.
+  let optionType(): LanguageTools.RuntimeTypes.FQTypeName.FQTypeName =
+    match LanguageTools.PackageManager.Type.find(
+            AValueIsADocument.bid(),
+            LanguageTools.ProgramTypes.parsePackageLocation(
+              "Darklang.Stdlib.Option.Option")) with
+    | Some(h) ->
+      LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(
+        LanguageTools.RuntimeTypes.Hash.Hash(
+          LanguageTools.ProgramTypes.hashToString(h)))
+    | None ->
+      LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(
+        LanguageTools.RuntimeTypes.Hash.Hash("Option is not in the store"))
+
+
+  let some(
+    v: LanguageTools.RuntimeTypes.Dval)
+    : LanguageTools.RuntimeTypes.Dval =
+    LanguageTools.RuntimeTypes.Dval.DEnum(
+      AValueOfAStoredType.optionType(),
+      AValueOfAStoredType.optionType(),
+      [],
+      "Some",
+      [ v ])
+
+
+  /// The registry plus the specs `Derive` builds for this type. `Derive` is not wired into the registry
+  /// as a fallback yet -- `fluid generate` is its only caller -- so a value entry point has to add them,
+  /// which is the next slice.
+  let derivedReg(): Fluid.Registry =
+    Fluid.Registry.addAll(
+      AValueIsADocument.reg(),
+      Fluid.Derive.specsForName(
+        AValueIsADocument.bid(),
+        "Darklang.Stdlib.Option.Option"))
+
+
+  let drawn(v: LanguageTools.RuntimeTypes.Dval): String =
+    Fluid.Debug.render(
+      AValueOfAStoredType.derivedReg(),
+      70,
+      Fluid.Slot.Filled(Fluid.Value.ofDval(AValueIsADocument.bid(), v)))
+
+
+  test aValueOfAStoredType =
+    Stdlib.Test.all(
+      // The kind carries the FULL location name, because that name is a KEY: `Derive.specsForName` hands it
+      // to `parsePackageLocation`, and `Option` does not resolve where `Darklang.Stdlib.Option.Option` does.
+      // The printer's `typeNameWith` shortens for display, which is a different job.
+      [ Stdlib.Test.equal(
+          Fluid.Value.typeKeyName(
+            AValueIsADocument.bid(),
+            AValueOfAStoredType.optionType()),
+          "Darklang.Stdlib.Option.Option")
+
+        // Drawn by a spec derived from the declaration, with the field in it.
+        Stdlib.Test.equal(
+          AValueOfAStoredType.drawn(
+            AValueOfAStoredType.some(
+              LanguageTools.RuntimeTypes.Dval.DInt64(1))),
+          "Some(1)")
+
+        Stdlib.Test.equal(
+          AValueOfAStoredType.drawn(
+            LanguageTools.RuntimeTypes.Dval.DEnum(
+              AValueOfAStoredType.optionType(),
+              AValueOfAStoredType.optionType(),
+              [],
+              "None",
+              [])),
+          "None") ])
+
+
+module AValueGoesBack =
+  // The other direction: a document back to the value it came from. Slice 1 could draw a value and save
+  // it nowhere, which is half a feature -- an editor you cannot commit from is a viewer.
+  //
+  // Pinned as a round trip rather than by comparing documents, because equality on the VALUE is the thing
+  // that has to hold. A document that draws right and rebuilds wrong looks correct on screen.
+  let rt(v: LanguageTools.RuntimeTypes.Dval): String =
+    let bid = SCM.Branch.mainBranchId
+    match Fluid.Value.toDval(bid, Fluid.Value.ofDval(bid, v)) with
+    | Ok(back) -> if back == v then "same" else "CHANGED"
+    | Error(e) -> "ERR " + e
+
+
+  test aValueGoesBack =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          AValueGoesBack.rt(LanguageTools.RuntimeTypes.Dval.DInt64(42)),
+          "same")
+
+        Stdlib.Test.equal(
+          AValueGoesBack.rt(LanguageTools.RuntimeTypes.Dval.DString("hi")),
+          "same")
+
+        Stdlib.Test.equal(
+          AValueGoesBack.rt(LanguageTools.RuntimeTypes.Dval.DBool(true)),
+          "same")
+
+        Stdlib.Test.equal(
+          AValueGoesBack.rt(LanguageTools.RuntimeTypes.Dval.DBool(false)),
+          "same")
+
+        Stdlib.Test.equal(
+          AValueGoesBack.rt(LanguageTools.RuntimeTypes.Dval.DUnit),
+          "same")
+
+        // Every width draws as the same `1` on screen, so the width rides along in a hidden `_w` slot -- the
+        // same `_`-prefix convention `_hash` and `_doc` use, skipped by drawing and by `firstEditable`.
+        // Without it an `Int8` came back an `Int`, which is a type error at the far end and nothing on screen.
+        Stdlib.Test.equal(
+          AValueGoesBack.rt(LanguageTools.RuntimeTypes.Dval.DInt8(7s8)),
+          "same")
+
+        Stdlib.Test.equal(
+          AValueGoesBack.rt(LanguageTools.RuntimeTypes.Dval.DInt64(7)),
+          "same")
+
+        Stdlib.Test.equal(
+          AValueGoesBack.rt(LanguageTools.RuntimeTypes.Dval.DUInt128(9u128)),
+          "same")
+
+        // The float leaf draws `whole` and `fraction` as two slots. Putting the whole rendering in the first
+        // one drew `1.5` correctly and rebuilt `1.5.0`, which is the exact failure the round trip is for.
+        Stdlib.Test.equal(
+          AValueGoesBack.rt(LanguageTools.RuntimeTypes.Dval.DFloat64(1.5)),
+          "same")
+
+        Stdlib.Test.equal(
+          AValueGoesBack.rt(
+            LanguageTools.RuntimeTypes.Dval.DList(
+              LanguageTools.RuntimeTypes.ValueType.Unknown,
+              [ LanguageTools.RuntimeTypes.Dval.DInt64(1)
+                LanguageTools.RuntimeTypes.Dval.DInt64(2) ])),
+          "same")
+
+        Stdlib.Test.equal(
+          AValueGoesBack.rt(
+            LanguageTools.RuntimeTypes.Dval.DTuple(
+              LanguageTools.RuntimeTypes.Dval.DInt64(1),
+              LanguageTools.RuntimeTypes.Dval.DString("a"),
+              [])),
+          "same") ])
+
+
+module StoredTypesGoBack =
+  // Records and enums, where the type has to be looked up by name in both directions. The kind carries
+  // the full location name for exactly this: going back needs the hash the name resolves to.
+  let errorType(): LanguageTools.RuntimeTypes.FQTypeName.FQTypeName =
+    match LanguageTools.PackageManager.Type.find(
+            AValueIsADocument.bid(),
+            LanguageTools.ProgramTypes.parsePackageLocation(
+              "Darklang.Stdlib.Cli.Posix.Error")) with
+    | Some(h) ->
+      LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(
+        LanguageTools.RuntimeTypes.Hash.Hash(
+          LanguageTools.ProgramTypes.hashToString(h)))
+    | None ->
+      LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(
+        LanguageTools.RuntimeTypes.Hash.Hash("Posix.Error is not in the store"))
+
+
+  test storedTypesGoBack =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          AValueGoesBack.rt(
+            AValueOfAStoredType.some(
+              LanguageTools.RuntimeTypes.Dval.DInt64(1))),
+          "same")
+
+        Stdlib.Test.equal(
+          AValueGoesBack.rt(
+            LanguageTools.RuntimeTypes.Dval.DEnum(
+              AValueOfAStoredType.optionType(),
+              AValueOfAStoredType.optionType(),
+              [],
+              "None",
+              [])),
+          "same")
+
+        // Nested: the enum's field is itself a document, rebuilt by the same recursion.
+        Stdlib.Test.equal(
+          AValueGoesBack.rt(
+            AValueOfAStoredType.some(
+              LanguageTools.RuntimeTypes.Dval.DList(
+                LanguageTools.RuntimeTypes.ValueType.Unknown,
+                [ LanguageTools.RuntimeTypes.Dval.DString("a") ]))),
+          "same")
+
+        Stdlib.Test.equal(
+          AValueGoesBack.rt(
+            LanguageTools.RuntimeTypes.Dval.DRecord(
+              StoredTypesGoBack.errorType(),
+              StoredTypesGoBack.errorType(),
+              [],
+              Stdlib.Dict.fromList(
+                [ ("errno", LanguageTools.RuntimeTypes.Dval.DInt64(2))
+                  (
+                    "message",
+                    LanguageTools.RuntimeTypes.Dval.DString("nope")) ]))),
+          "same") ])
+
+
+module AHoleIsNotAValue =
+  // Saving refuses rather than inventing. A zero for an empty integer slot would be a value nobody typed,
+  // and it would be indistinguishable from one they did -- the same contract `PT.Fn.fromDoc` holds to.
+  let verdict(n: Fluid.Node): String =
+    match Fluid.Value.toDval(SCM.Branch.mainBranchId, n) with
+    | Ok(_) -> "ACCEPTED"
+    | Error(e) -> "refuses: " + e
+
+
+  test aHoleIsNotAValue =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          AHoleIsNotAValue.verdict(
+            Fluid.Node.make(
+              Fluid.Kind.named("List"),
+              [ (
+                  "items",
+                  Fluid.Field.Many(
+                    [ Fluid.Slot.Empty(Fluid.Expect.any("an item")) ],
+                    Fluid.Expect.any("an item"))) ])),
+          "refuses: hole: an item")
+
+        // A dict draws but cannot be rebuilt: a runtime dict key is a whole Dval, and Dark's own `Dict` is
+        // keyed by text, so there is no Dark value to rebuild into. Named, rather than falling through to
+        // "not a type in this branch: Dict".
+        Stdlib.Test.equal(
+          AHoleIsNotAValue.verdict(
+            Fluid.Node.make(Fluid.Kind.named("Dict"), [])),
+          "refuses: a dict cannot be rebuilt yet: its keys are values, not text")
+
+        // Same for the things that were never projected in the first place.
+        Stdlib.Test.equal(
+          AHoleIsNotAValue.verdict(
+            Fluid.Node.make(
+              Fluid.Kind.named("Opaque"),
+              [ ("source", Fluid.Field.Text("<function>")) ])),
+          "refuses: nothing to rebuild from: <function>") ])
+
+
+module AValueDocumentBringsItsOwnSpecs =
+  // A value's types are only knowable from the VALUE. `Some([1, 2])` needs an editor for `Option`, and
+  // nothing said so up front -- there is no declaration to read the list off, the way a function shell
+  // knows its own parameter types. So the entry point walks the document and derives what it finds.
+  //
+  // This is the difference between a value that draws and a value that draws as an unknown kind, which
+  // on screen is indistinguishable from a broken projection.
+  let bid(): Uuid =
+    SCM.Branch.mainBranchId
+
+
+  let namesIn(v: LanguageTools.RuntimeTypes.Dval): List<String> =
+    Fluid.Value.typeNamesIn(
+      Fluid.Value.ofDval(AValueDocumentBringsItsOwnSpecs.bid(), v))
+
+
+  // And the registry it builds draws that value, with no spec written or declared anywhere.
+  let drawn(v: LanguageTools.RuntimeTypes.Dval): String =
+    let node = Fluid.Value.ofDval(AValueDocumentBringsItsOwnSpecs.bid(), v)
+    Fluid.Debug.render(
+      Fluid.App.registryForValue(AValueDocumentBringsItsOwnSpecs.bid(), node),
+      70,
+      Fluid.Slot.Filled(node))
+
+
+  test aValueDocumentBringsItsOwnSpecs =
+    Stdlib.Test.all(
+      // A prim mentions no named type at all, so nothing is derived and nothing needs to be.
+      [ Stdlib.Test.equal(
+          AValueDocumentBringsItsOwnSpecs.namesIn(
+            LanguageTools.RuntimeTypes.Dval.DInt64(1)),
+          [])
+
+        // The FULL location name, because that is what the derive lookup is keyed by.
+        Stdlib.Test.equal(
+          AValueDocumentBringsItsOwnSpecs.namesIn(
+            AValueOfAStoredType.some(
+              LanguageTools.RuntimeTypes.Dval.DInt64(1))),
+          [ "Darklang.Stdlib.Option.Option" ])
+
+        // Nested, and each type ONCE however often it appears -- two `Some`s derive one spec, not two.
+        //
+        // A list contributes nothing of its own: its kind is a PRIM, and `Prims` already ships the spec that
+        // draws it. Only a NAMED type has a declaration to derive from, which is the whole distinction the
+        // walk is making.
+        Stdlib.Test.equal(
+          AValueDocumentBringsItsOwnSpecs.namesIn(
+            LanguageTools.RuntimeTypes.Dval.DList(
+              LanguageTools.RuntimeTypes.ValueType.Unknown,
+              [ AValueOfAStoredType.some(
+                  LanguageTools.RuntimeTypes.Dval.DInt64(1))
+
+                AValueOfAStoredType.some(
+                  LanguageTools.RuntimeTypes.Dval.DInt64(2)) ])),
+          [ "Darklang.Stdlib.Option.Option" ])
+
+        Stdlib.Test.equal(
+          AValueDocumentBringsItsOwnSpecs.drawn(
+            AValueOfAStoredType.some(
+              LanguageTools.RuntimeTypes.Dval.DInt64(1))),
+          "Some(1)") ])
+
+
+module OpeningAValue =
+  // `fluid eval <expr>` is the first entry point that opens the OUTPUT of code rather than code.
+  // Everything else Fluid can open is a program: an expression, a declaration, a function shell.
+  //
+  // Pinned one step in, at `valueTargetFor`, because the evaluation itself cannot run here: the testfile
+  // harness registers every builtin group except `CliHost`, so `cliEvaluateToDval` does not exist in this
+  // process. Everything downstream of the evaluator is this, and it is the part with decisions in it.
+  let drawn(v: LanguageTools.RuntimeTypes.Dval): String =
+    let (reg, root, _target) =
+      Fluid.App.valueTargetFor(AValueIsADocument.bid(), "<probe>", v)
+
+    Fluid.Debug.render(reg, 70, root)
+
+
+  // The target says what it is, so save refuses for the right reason instead of telling you to try
+  // `fluid fn <name>`, which is what `Scratch` would have said.
+  let targetOf(source: String, v: LanguageTools.RuntimeTypes.Dval): String =
+    match Fluid.App.valueTargetFor(AValueIsADocument.bid(), source, v) with
+    | _reg, _root, RuntimeValue(src) -> "runtime value of: " + src
+    | _ -> "some other target"
+
+
+  test openingAValue =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          OpeningAValue.drawn(LanguageTools.RuntimeTypes.Dval.DInt64(3)),
+          "3")
+
+        Stdlib.Test.equal(
+          OpeningAValue.drawn(LanguageTools.RuntimeTypes.Dval.DString("hi")),
+          "\"hi\"")
+
+        Stdlib.Test.equal(
+          OpeningAValue.drawn(
+            LanguageTools.RuntimeTypes.Dval.DList(
+              LanguageTools.RuntimeTypes.ValueType.Unknown,
+              [ LanguageTools.RuntimeTypes.Dval.DInt64(1)
+                LanguageTools.RuntimeTypes.Dval.DInt64(2) ])),
+          "[ 1, 2 ]")
+
+        // The one that matters: a stored type, drawn by a spec derived on the spot. `AValueOfAStoredType` has
+        // to build that registry by hand; here the entry point does it, which is the whole point of the slice.
+        Stdlib.Test.equal(
+          OpeningAValue.drawn(
+            AValueOfAStoredType.some(
+              LanguageTools.RuntimeTypes.Dval.DInt64(1))),
+          "Some(1)")
+
+        Stdlib.Test.equal(
+          OpeningAValue.targetOf(
+            "1 + 2",
+            LanguageTools.RuntimeTypes.Dval.DInt64(3)),
+          "runtime value of: 1 + 2") ])
+
+
+module AWidthComesFromTheSlot =
+  // An integer draws the same digits at every width, so the width has nowhere to live in the projection
+  // and rides in a hidden `_w`. The question this module answers is where that field gets its VALUE when
+  // a person types the number rather than when `ofDval` builds it.
+  //
+  // Not from the old node. `c` CLEARS the slot to a hole before you type, so by the time a digit arrives
+  // the previous node is gone: an `Int8` retyped came back a plain `Int`, with the right digits on screen
+  // and the wrong type underneath. Found by driving it, invisible to every pin that reads the screen.
+  //
+  // From the SLOT, which is the only thing that knows: a hole carries the declared type of the field it
+  // is filling, and `Derive` puts it there.
+  let bid(): Uuid =
+    SCM.Branch.mainBranchId
+
+
+  let typed(
+    t: LanguageTools.ProgramTypes.TypeReference,
+    keys: List<String>)
+    : String =
+    let root = Fluid.Slot.Empty(Fluid.Derive.expectFor(t, "reps"))
+    let st =
+      Fluid.Test.drive(
+        Fluid.Editor.init(Fluid.App.defaultRegistry(), root, 60),
+        keys)
+
+    match st.root with
+    | Filled(n) ->
+      match Fluid.Value.toDval(AWidthComesFromTheSlot.bid(), n) with
+      | Ok(DInt8(i)) -> "DInt8 " + Stdlib.display(i)
+      | Ok(DUInt64(i)) -> "DUInt64 " + Stdlib.display(i)
+      | Ok(DInt64(i)) -> "DInt " + Stdlib.display(i)
+      | Ok(_) -> "some other case"
+      | Error(e) -> "ERR " + e
+    | _ -> "not filled"
+
+
+  test aWidthComesFromTheSlot =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          AWidthComesFromTheSlot.typed(
+            LanguageTools.ProgramTypes.TypeReference.TInt8,
+            [ "9" ]),
+          "DInt8 9")
+
+        Stdlib.Test.equal(
+          AWidthComesFromTheSlot.typed(
+            LanguageTools.ProgramTypes.TypeReference.TUInt64,
+            [ "9" ]),
+          "DUInt64 9")
+
+        Stdlib.Test.equal(
+          AWidthComesFromTheSlot.typed(
+            LanguageTools.ProgramTypes.TypeReference.TInt64,
+            [ "9" ]),
+          "DInt 9") ])
+
+
+module RetypingAFieldKeepsItsWidth =
+  // The whole case, end to end: a record whose editor is derived from a declaration with an `Int8` field,
+  // the field changed with `c` and typed again. `Acme.Log` so nothing in Darklang is doing the work.
+  let decl(): LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration =
+    LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration
+      { typeParams = []
+        bounds = []
+        definition =
+          LanguageTools.ProgramTypes.TypeDeclaration.Definition.Record(
+            [ LanguageTools.ProgramTypes.TypeDeclaration.RecordField
+                { name = "reps"
+                  typ = LanguageTools.ProgramTypes.TypeReference.TInt8
+                  description = "" } ]) }
+
+
+  let reg(): Fluid.Registry =
+    Fluid.Registry.addAll(
+      Fluid.App.defaultRegistry(),
+      Fluid.Derive.specsFor("Acme.Log", RetypingAFieldKeepsItsWidth.decl()))
+
+
+  let root(): Fluid.Slot =
+    Fluid.Slot.Filled(
+      Fluid.Node.make(
+        Fluid.Kind.named("Acme.Log"),
+        [ (
+            "reps",
+            Fluid.Field.One(
+              Fluid.Slot.Filled(Fluid.Prims.intNodeOfWidth("Int8", "7")))) ]))
+
+
+  let after(keys: List<String>): String =
+    let st =
+      Fluid.Test.drive(
+        Fluid.Editor.init(
+          RetypingAFieldKeepsItsWidth.reg(),
+          RetypingAFieldKeepsItsWidth.root(),
+          60),
+        keys)
+
+    match st.root with
+    | Filled(n) ->
+      match Fluid.Node.slot(n, "reps") with
+      | Some(Filled(leaf)) ->
+        match Fluid.Value.toDval(AWidthComesFromTheSlot.bid(), leaf) with
+        | Ok(DInt8(i)) -> "DInt8 " + Stdlib.display(i)
+        | Ok(DInt64(i)) -> "DInt " + Stdlib.display(i)
+        | Ok(_) -> "some other case"
+        | Error(e) -> "ERR " + e
+      | _ -> "field gone"
+    | _ -> "not filled"
+
+
+  test retypingAFieldKeepsItsWidth =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(RetypingAFieldKeepsItsWidth.after([]), "DInt8 7")
+
+        Stdlib.Test.equal(
+          RetypingAFieldKeepsItsWidth.after([ "j", "c", "9", "9", "<Esc>" ]),
+          "DInt8 99")
+
+        // Typing INTO the leaf rather than replacing it always worked, because the node never went away.
+        Stdlib.Test.equal(
+          RetypingAFieldKeepsItsWidth.after([ "j", "i", "9", "<Esc>" ]),
+          "DInt8 97")
+
+        // The width is hidden, so none of this shows on screen. That is the point of pinning it here.
+        Stdlib.Test.equal(
+          Fluid.Debug.render(
+            RetypingAFieldKeepsItsWidth.reg(),
+            60,
+            RetypingAFieldKeepsItsWidth.root()),
+          "Log { reps = 7 }") ])
+
+
+module AWidthNeedsSomethingToComeFrom =
+  // The boundary, pinned deliberately rather than left to be discovered. A value opened on its own has
+  // nothing above it: `fluid eval "7y"` is a bare `Int8` and the root slot has no declared type, because
+  // there is no field it is filling. Replace it and the width is genuinely not recoverable.
+  //
+  // Left alone rather than papered over. Retyping the whole document IS saying "something else goes
+  // here", and inventing an `Int8` because that is what used to be there would be guessing. Every case
+  // that matters has a slot above it, which is where the answer lives.
+  let retyped(v: LanguageTools.RuntimeTypes.Dval, keys: List<String>): String =
+    let root =
+      Fluid.Slot.Filled(Fluid.Value.ofDval(AWidthComesFromTheSlot.bid(), v))
+
+    let st =
+      Fluid.Test.drive(
+        Fluid.Editor.init(Fluid.App.defaultRegistry(), root, 60),
+        keys)
+
+    match st.root with
+    | Filled(n) ->
+      match Fluid.Value.toDval(AWidthComesFromTheSlot.bid(), n) with
+      | Ok(DInt8(i)) -> "DInt8 " + Stdlib.display(i)
+      | Ok(DInt64(i)) -> "DInt " + Stdlib.display(i)
+      | Ok(_) -> "some other case"
+      | Error(e) -> "ERR " + e
+    | _ -> "not filled"
+
+
+  test aWidthNeedsSomethingToComeFrom =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          AWidthNeedsSomethingToComeFrom.retyped(
+            LanguageTools.RuntimeTypes.Dval.DInt8(7s8),
+            []),
+          "DInt8 7")
+
+        Stdlib.Test.equal(
+          AWidthNeedsSomethingToComeFrom.retyped(
+            LanguageTools.RuntimeTypes.Dval.DInt8(7s8),
+            [ "i", "9", "<Esc>" ]),
+          "DInt8 97")
+
+        Stdlib.Test.equal(
+          AWidthNeedsSomethingToComeFrom.retyped(
+            LanguageTools.RuntimeTypes.Dval.DInt8(7s8),
+            [ "c", "9", "9", "<Esc>" ]),
+          "DInt 99") ])
+
+
+module AValueDrawsTheWayItPrints =
+  // The strongest pin available here: not a literal string I typed, but agreement with the printer.
+  // Fluid's job on a value document is to draw what the printer would write, and a pin that spells the
+  // expected text out is a pin that agrees with whatever I believed on the day.
+  //
+  // Both sides get the same context, which is the trap this comparison has fallen into twice: the
+  // printer was given a module and Fluid was not, and thousands of phantom diffs came out of it.
+  let agrees(v: LanguageTools.RuntimeTypes.Dval): String =
+    let bid = SCM.Branch.mainBranchId
+    let node = Fluid.Value.ofDval(bid, v)
+    let drawn =
+      Fluid.Debug.render(
+        Fluid.App.registryForValue(bid, node),
+        70,
+        Fluid.Slot.Filled(node))
+
+    match LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr(bid, v) with
+    | Ok(e) ->
+      let printed =
+        PrettyPrinter.ProgramTypes.expr(Fluid.PT.printerContext(), e)
+
+      if drawn == printed then
+        "same"
+      else
+        "DIFF fluid=" + drawn + " printer=" + printed
+    | Error(r) -> "no literal form: " + r
+
+
+  test aValueDrawsTheWayItPrints =
+    Stdlib.Test.all(
+      // A TUPLE is why this module exists. `ofDval` kinded it `Kind.named "Tuple"`, so the value entry point
+      // went looking for a package type called `Tuple` to derive an editor from, found none, and fell back to
+      // the unknown-kind drawing: `Tuple { items = [1, "two"] }` where the printer writes `(1, "two")`. A
+      // program's tuple is `Expr.ETuple` and has always drawn correctly; a runtime tuple is a different node
+      // and nothing had ever drawn one. Found by opening real values, not by reading the code.
+      [ Stdlib.Test.equal(
+          AValueDrawsTheWayItPrints.agrees(
+            LanguageTools.RuntimeTypes.Dval.DTuple(
+              LanguageTools.RuntimeTypes.Dval.DInt64(1),
+              LanguageTools.RuntimeTypes.Dval.DString("two"),
+              [ LanguageTools.RuntimeTypes.Dval.DBool(true) ])),
+          "same")
+
+        Stdlib.Test.equal(
+          AValueDrawsTheWayItPrints.agrees(
+            LanguageTools.RuntimeTypes.Dval.DInt64(42)),
+          "same")
+
+        Stdlib.Test.equal(
+          AValueDrawsTheWayItPrints.agrees(
+            LanguageTools.RuntimeTypes.Dval.DFloat64(1.5)),
+          "same")
+
+        Stdlib.Test.equal(
+          AValueDrawsTheWayItPrints.agrees(
+            LanguageTools.RuntimeTypes.Dval.DString("hi")),
+          "same")
+
+        Stdlib.Test.equal(
+          AValueDrawsTheWayItPrints.agrees(
+            LanguageTools.RuntimeTypes.Dval.DBool(false)),
+          "same")
+
+        Stdlib.Test.equal(
+          AValueDrawsTheWayItPrints.agrees(
+            LanguageTools.RuntimeTypes.Dval.DUnit),
+          "same")
+
+        Stdlib.Test.equal(
+          AValueDrawsTheWayItPrints.agrees(
+            LanguageTools.RuntimeTypes.Dval.DList(
+              LanguageTools.RuntimeTypes.ValueType.Unknown,
+              [ LanguageTools.RuntimeTypes.Dval.DInt64(1)
+                LanguageTools.RuntimeTypes.Dval.DInt64(2) ])),
+          "same")
+
+        // Nested, where a tuple is inside a list and a list inside a tuple.
+        Stdlib.Test.equal(
+          AValueDrawsTheWayItPrints.agrees(
+            LanguageTools.RuntimeTypes.Dval.DList(
+              LanguageTools.RuntimeTypes.ValueType.Unknown,
+              [ LanguageTools.RuntimeTypes.Dval.DTuple(
+                  LanguageTools.RuntimeTypes.Dval.DInt64(1),
+                  LanguageTools.RuntimeTypes.Dval.DList(
+                    LanguageTools.RuntimeTypes.ValueType.Unknown,
+                    [ LanguageTools.RuntimeTypes.Dval.DString("x") ]),
+                  []) ])),
+          "same")
+
+        // An ENUM does not agree, and the disagreement is not Fluid's. There are two printers: the one that
+        // writes a value for a terminal (`dvalToReprForTerminal`, what `dark eval` prints) says `Some(1)`, and
+        // the one that writes SOURCE says `Option.Some(1)`. Fluid draws a VALUE, so it follows the first, and
+        // `dark eval` and `dark fluid eval` agree on every enum I have compared.
+        //
+        // Pinned as a difference rather than deleted, because a pin that quietly drops the case it disagrees
+        // with is how a comparison stops being one. If the two printers are ever reconciled, this fails and
+        // says so.
+        Stdlib.Test.equal(
+          AValueDrawsTheWayItPrints.agrees(
+            AValueOfAStoredType.some(
+              LanguageTools.RuntimeTypes.Dval.DInt64(1))),
+          "DIFF fluid=Some(1) printer=Option.Some(1)") ])
+
+
+module ADictKeyIsAValue =
+  // A dict cannot be built from Dark at all: a runtime dict key is a whole value, and Dark's own `Dict`
+  // is keyed by text, so there is no expression in this file that produces one. Which is exactly how the
+  // bug survived -- Dark checks a call when it RUNS it, and nothing had ever run this branch.
+  //
+  // `dictPairNode` took the key as a `String`. It compiled, every probe I could write passed, and it
+  // crashed the first time a real dict reached it: "expects String, but got Dval (DString("j"))". Found
+  // by opening a dict that already existed rather than by constructing one.
+  //
+  // So the NODE is pinned here, which is the half that is reachable. The key is a slot holding its own
+  // document, which is why a string key draws its own quotes and comes out `{ "j": 2 }`, the way the
+  // printer writes it.
+  let pair(k: String, v: Int64): Fluid.Slot =
+    Fluid.Slot.Filled(
+      Fluid.Prims.dictPairNode(
+        Fluid.Slot.Filled(Fluid.Prims.stringNode(k)),
+        Fluid.Slot.Filled(Fluid.Prims.intNode(Stdlib.display(v)))))
+
+
+  let drawn(pairs: List<Fluid.Slot>): String =
+    Fluid.Debug.render(
+      Fluid.App.defaultRegistry(),
+      70,
+      Fluid.Slot.Filled(Fluid.Prims.dictNode(pairs)))
+
+
+  test aDictKeyIsAValue =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          ADictKeyIsAValue.drawn([ ADictKeyIsAValue.pair("k", 1) ]),
+          "{ \"k\": 1 }")
+
+        Stdlib.Test.equal(
+          ADictKeyIsAValue.drawn(
+            [ ADictKeyIsAValue.pair("j", 2), ADictKeyIsAValue.pair("k", 1) ]),
+          "{ \"j\": 2, \"k\": 1 }")
+
+        // An empty one is `{}`, not `{  }`. Both braces carry a space when there are entries between them, and
+        // both spaces survive when there are none.
+        Stdlib.Test.equal(ADictKeyIsAValue.drawn([]), "{}") ])
+
+
+module SomeValuesHaveNoWrittenForm =
+  // A function, a database, a blob, a stream. Each draws what it is rather than drawing nothing, and each
+  // refuses to be rebuilt, because there is nothing here to rebuild from.
+  let drawn(source: String): String =
+    Fluid.Debug.render(
+      Fluid.App.defaultRegistry(),
+      70,
+      Fluid.Slot.Filled(Fluid.Prims.opaqueNode(source)))
+
+
+  test someValuesHaveNoWrittenForm =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          SomeValuesHaveNoWrittenForm.drawn("<function>"),
+          "<function>")
+
+        Stdlib.Test.equal(
+          SomeValuesHaveNoWrittenForm.drawn("<db users>"),
+          "<db users>") ])
+
+
+module AListOfRecordsIsAGrid =
+  // The one place a value document deliberately draws something the printer would not write, and the
+  // reason to have a value document at all.
+  //
+  //     [Log { reps = 20; note = "am" }, Log { reps = 15; note = "pm" }]
+  //
+  // is a spreadsheet that has been written out as source. A person filling that in wants the grid, and
+  // `Piece.Table` has been able to draw one since early on -- reachable only from a hand-written demo
+  // kind, which is a poor place to keep the answer to "can a table be seen as a table". A record
+  // declaration already says what the columns are, so this needed nothing written: the columns ARE the
+  // field names and the rows ARE the records, whose slots are named the same way.
+  let bid(): Uuid =
+    SCM.Branch.mainBranchId
+
+
+  let errType(): LanguageTools.RuntimeTypes.FQTypeName.FQTypeName =
+    match LanguageTools.PackageManager.Type.find(
+            AListOfRecordsIsAGrid.bid(),
+            LanguageTools.ProgramTypes.parsePackageLocation(
+              "Darklang.Stdlib.Cli.Posix.Error")) with
+    | Some(h) ->
+      LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(
+        LanguageTools.RuntimeTypes.Hash.Hash(
+          LanguageTools.ProgramTypes.hashToString(h)))
+    | None ->
+      LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(
+        LanguageTools.RuntimeTypes.Hash.Hash("Posix.Error is not in the store"))
+
+
+  let row(n: Int64, m: String): LanguageTools.RuntimeTypes.Dval =
+    LanguageTools.RuntimeTypes.Dval.DRecord(
+      AListOfRecordsIsAGrid.errType(),
+      AListOfRecordsIsAGrid.errType(),
+      [],
+      Stdlib.Dict.fromList(
+        [ ("errno", LanguageTools.RuntimeTypes.Dval.DInt64(n))
+          ("message", LanguageTools.RuntimeTypes.Dval.DString(m)) ]))
+
+
+  let listOf(
+    vs: List<LanguageTools.RuntimeTypes.Dval>)
+    : LanguageTools.RuntimeTypes.Dval =
+    LanguageTools.RuntimeTypes.Dval.DList(
+      LanguageTools.RuntimeTypes.ValueType.Unknown,
+      vs)
+
+
+  let drawn(v: LanguageTools.RuntimeTypes.Dval): String =
+    let node = Fluid.Value.ofDval(AListOfRecordsIsAGrid.bid(), v)
+    Fluid.Debug.render(
+      Fluid.App.registryForValue(AListOfRecordsIsAGrid.bid(), node),
+      70,
+      Fluid.Slot.Filled(node))
+
+
+  // Drawing only. The value it came from and the value it goes back to are the same `DList` a plain
+  // list would give, which is what makes the grid a reading of the document rather than a second one.
+  let rt(v: LanguageTools.RuntimeTypes.Dval): String =
+    match Fluid.Value.toDval(
+            AListOfRecordsIsAGrid.bid(),
+            Fluid.Value.ofDval(AListOfRecordsIsAGrid.bid(), v)) with
+    | Ok(back) -> if back == v then "same" else "CHANGED"
+    | Error(e) -> "ERR " + e
+
+
+  test aListOfRecordsIsAGrid =
+    Stdlib.Test.all(
+      // A header, and every column as wide as its widest cell. That measuring pass is what no Wadler group
+      // can do: a group knows its own width and nothing about its siblings.
+      [ Stdlib.Test.equal(
+          AListOfRecordsIsAGrid.drawn(
+            AListOfRecordsIsAGrid.listOf(
+              [ AListOfRecordsIsAGrid.row(1, "a")
+                AListOfRecordsIsAGrid.row(22, "bb") ])),
+          "errno  message\n1      \"a\"\n22     \"bb\"")
+
+        // A list of anything else stays a list, and so does a list whose records DISAGREE about their type.
+        // The grid is a claim that every row has the same columns.
+        Stdlib.Test.equal(
+          AListOfRecordsIsAGrid.drawn(
+            AListOfRecordsIsAGrid.listOf(
+              [ LanguageTools.RuntimeTypes.Dval.DInt64(1)
+                LanguageTools.RuntimeTypes.Dval.DInt64(2) ])),
+          "[ 1, 2 ]")
+
+        Stdlib.Test.equal(
+          AListOfRecordsIsAGrid.drawn(
+            AListOfRecordsIsAGrid.listOf(
+              [ AListOfRecordsIsAGrid.row(1, "a")
+                LanguageTools.RuntimeTypes.Dval.DInt64(5) ])),
+          "[ Error { errno = 1, message = \"a\" }, 5 ]")
+
+        // An empty list has no rows to read a type off, so there is no grid to draw.
+        Stdlib.Test.equal(
+          AListOfRecordsIsAGrid.drawn(AListOfRecordsIsAGrid.listOf([])),
+          "[]")
+
+        // The kind is bracketed so it cannot collide with a real type: a package location has no `[` in it.
+        // It has to be a kind of its own, because a spec is found BY kind and a list of integers must go on
+        // drawing as a list.
+        Stdlib.Test.equal(
+          Fluid.Derive.tableRowTypeName("[Acme.Log]"),
+          Stdlib.Option.Option.Some("Acme.Log"))
+
+        Stdlib.Test.equal(
+          Fluid.Derive.tableRowTypeName("Acme.Log"),
+          Stdlib.Option.Option.None)
+
+        Stdlib.Test.equal(
+          AListOfRecordsIsAGrid.rt(
+            AListOfRecordsIsAGrid.listOf(
+              [ AListOfRecordsIsAGrid.row(1, "a")
+                AListOfRecordsIsAGrid.row(22, "bb") ])),
+          "same")
+
+        Stdlib.Test.equal(
+          AListOfRecordsIsAGrid.rt(
+            AListOfRecordsIsAGrid.listOf(
+              [ AListOfRecordsIsAGrid.row(1, "a") ])),
+          "same") ])
+
+
+module TheGridGoesBothWays =
+  // A grid you cannot leave would be a worse default than no grid. The toggle is a KIND change and
+  // nothing else: the same items in the same slot, so the two drawings are two readings of one document.
+  //
+  // Actions, so it is spec data rather than a key the kernel knows. A DSL with its own tabular type gets
+  // the same switch by declaring it.
+  let runNamed(n: Fluid.Node, nm: String): String =
+    let reg = Fluid.App.registryForValue(AListOfRecordsIsAGrid.bid(), n)
+    match Fluid.Registry.find(reg, n.kind) with
+    | Some(sp) ->
+      match sp.actions |> Stdlib.List.findFirst(fun a -> a.name == nm) with
+      | Some(a) ->
+        if Stdlib.Bool.not(a.applies(n)) then
+          "does not apply"
+        else
+          match a.run(n) with
+          | Filled(n2) -> Fluid.Debug.render(reg, 70, Fluid.Slot.Filled(n2))
+          | _ -> "not filled"
+      | None -> "no action named " + nm
+    | None -> "no spec"
+
+
+  let grid(): Fluid.Node =
+    Fluid.Value.ofDval(
+      AListOfRecordsIsAGrid.bid(),
+      AListOfRecordsIsAGrid.listOf(
+        [ AListOfRecordsIsAGrid.row(1, "a")
+          AListOfRecordsIsAGrid.row(22, "bb") ]))
+
+
+  // And a plain list of records offers the way in, reading the row type off the items, which is the only
+  // place it is written down: a list node carries no element type.
+  let plainList(): Fluid.Node =
+    Fluid.Prims.listNode(
+      [ Fluid.Slot.Filled(
+          Fluid.Value.ofDval(
+            AListOfRecordsIsAGrid.bid(),
+            AListOfRecordsIsAGrid.row(1, "a")))
+
+        Fluid.Slot.Filled(
+          Fluid.Value.ofDval(
+            AListOfRecordsIsAGrid.bid(),
+            AListOfRecordsIsAGrid.row(22, "bb"))) ],
+      Fluid.Expect.any("item"))
+
+
+  test theGridGoesBothWays =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          TheGridGoesBothWays.runNamed(
+            TheGridGoesBothWays.grid(),
+            "see as a list"),
+          "[\n  Error { errno = 1, message = \"a\" },\n  Error { errno = 22, message = \"bb\" }\n]")
+
+        Stdlib.Test.equal(
+          TheGridGoesBothWays.runNamed(
+            TheGridGoesBothWays.plainList(),
+            "see as a grid"),
+          "errno  message\n1      \"a\"\n22     \"bb\"")
+
+        // A list of integers is offered nothing: rows that are not records of one type have no columns.
+        Stdlib.Test.equal(
+          TheGridGoesBothWays.runNamed(
+            Fluid.Value.ofDval(
+              AListOfRecordsIsAGrid.bid(),
+              AListOfRecordsIsAGrid.listOf(
+                [ LanguageTools.RuntimeTypes.Dval.DInt64(1) ])),
+            "see as a grid"),
+          "does not apply") ])
+
+
+module OneShortenerForDisplayNames =
+  test oneShortenerForDisplayNames =
+    Stdlib.Test.all(
+      // There were four copies of "take the last dotted segment", and a bracketed kind made three of them
+      // wrong at once: `[Darklang.Stdlib.Cli.Posix.StatResult]` came out `StatResult]` in the breadcrumb and
+      // in the tree, with the opening bracket left on a segment nobody kept.
+      //
+      // Same drift t88 found in the two hand-written name shorteners. One function now, in the kernel, and
+      // `Derive.shortName` is a call to it.
+      [ Stdlib.Test.equal(
+          Fluid.Kind.shortLabel("Darklang.Stdlib.Cli.Posix.StatResult"),
+          "StatResult")
+
+        Stdlib.Test.equal(
+          Fluid.Kind.shortLabel("[Darklang.Stdlib.Cli.Posix.StatResult]"),
+          "[StatResult]")
+
+        Stdlib.Test.equal(Fluid.Kind.shortLabel("Int"), "Int")
+
+        Stdlib.Test.equal(Fluid.Derive.shortName("[Acme.Log]"), "[Log]")
+
+        // A node's display name is its CASE when it has one, whatever its type is called.
+        Stdlib.Test.equal(
+          Fluid.Kind.label(
+            Fluid.Kind.ofCase("Darklang.Stdlib.Option.Option", "Some")),
+          "Some")
+
+        Stdlib.Test.equal(
+          Fluid.Kind.label(Fluid.Kind.named("[Acme.Log]")),
+          "[Log]")
+
+        Stdlib.Test.equal(Fluid.Kind.label(Fluid.Kind.prim("Int")), "Int") ])
+
+
+module FillingInAGrid =
+  // The point of the grid: `o` and start typing. Filling a table in is the case the whole value document
+  // is for, and it was two keystrokes longer than it should have been.
+  //
+  //     o        a new row
+  //     7        the first cell
+  //     Tab      the next one
+  //     oops     and it is a string, no quotes needed
+  //
+  // What was in the way: `newItemForEach` gives a HOLE whenever the item's kind has something to type or
+  // choose, so that arriving there means something -- and a derived record has a `{` rule, so a new row
+  // was `⟨Error⟩`, a row with no cells. You then had to press `{` to turn it into one.
+  //
+  // A table is the exception, and the projection already admits it: a row with no cells draws its
+  // placeholder once in the first column, and every column is then measured against something that is
+  // not a cell. In a grid a new row is an empty ROW.
+  let drive(keys: List<String>): String =
+    let node =
+      Fluid.Value.ofDval(
+        AListOfRecordsIsAGrid.bid(),
+        AListOfRecordsIsAGrid.listOf(
+          [ AListOfRecordsIsAGrid.row(1, "a")
+            AListOfRecordsIsAGrid.row(22, "bb") ]))
+
+    Fluid.Test.run(
+      Fluid.App.registryForValue(AListOfRecordsIsAGrid.bid(), node),
+      Fluid.Slot.Filled(node),
+      70,
+      keys)
+
+
+  // And it lowers: a real record in the right place, with the right types in the right fields.
+  let lowered(keys: List<String>): String =
+    let node =
+      Fluid.Value.ofDval(
+        AListOfRecordsIsAGrid.bid(),
+        AListOfRecordsIsAGrid.listOf([ AListOfRecordsIsAGrid.row(1, "a") ]))
+
+    let st =
+      Fluid.Test.drive(
+        Fluid.Editor.init(
+          Fluid.App.registryForValue(AListOfRecordsIsAGrid.bid(), node),
+          Fluid.Slot.Filled(node),
+          70),
+        keys)
+
+    match st.root with
+    | Filled(n) ->
+      match Fluid.Value.toDval(AListOfRecordsIsAGrid.bid(), n) with
+      | Ok(v) ->
+        match v with
+        | DList(_, items) ->
+          items
+          |> Stdlib.List.map(fun i ->
+            match i with
+            | DRecord(_, _, _, fs) ->
+              let g(k: String): String =
+                match Stdlib.Dict.get(fs, k) with
+                | Some(DInt64(n)) -> Stdlib.display(n)
+                | Some(DString(s)) -> "\"" + s + "\""
+                | _ -> "?"
+
+              g("errno") + "/" + g("message")
+            | _ -> "not a record")
+          |> (fun rs -> Stdlib.String.join(rs, "  "))
+        | _ -> "not a list"
+      | Error(e) -> "ERR " + e
+    | _ -> "not filled"
+
+
+  test fillingInAGrid =
+    Stdlib.Test.all(
+      // `j` first, because `o` grows the list an item is IN and the root grid is not an item of anything.
+      [ Stdlib.Test.equal(
+          FillingInAGrid.drive([ "j", "o" ]),
+          "errno    message\n1        \"a\"\n~⟨errno⟩  ⟨message⟩\n22       \"bb\"")
+
+        Stdlib.Test.equal(
+          FillingInAGrid.drive(
+            [ "j", "o", "7", "<Tab>", "o", "o", "p", "s", "<Esc>" ]),
+          "errno  message\n1      \"a\"\n7      \"~oops\"\n22     \"bb\"")
+
+        // Enter starts the next row, which is what a spreadsheet does.
+        Stdlib.Test.equal(
+          FillingInAGrid.drive([ "j", "o", "7", "<Tab>", "x", "<Enter>" ]),
+          "errno    message\n1        \"a\"\n7        \"x\"\n~⟨errno⟩  ⟨message⟩\n22       \"bb\"")
+
+        // It does so even on a row nobody has typed into, leaving a blank row behind. That looked like
+        // something to fix and it is not: an untouched match ARM is a filled node in exactly the same way, and
+        // Enter there starting the next arm is pinned and deliberate (`OfferedCasesCanBePicked` in fluid-pt).
+        // I made a grid row the exception for one build and it broke that pin, which is the right outcome:
+        // Enter means "start the next item" wherever you are, and a second rule for one key costs more than
+        // the empty row it saves.
+        Stdlib.Test.equal(
+          FillingInAGrid.drive([ "j", "o", "<Enter>" ]),
+          "errno    message\n1        \"a\"\n⟨errno⟩  ⟨message⟩\n~⟨errno⟩  ⟨message⟩\n22       \"bb\"")
+
+        // Enter is an INSERT-mode key. Escape first and it does nothing, which is why the flow above never
+        // leaves insert until the row is done.
+        Stdlib.Test.equal(
+          FillingInAGrid.drive(
+            [ "j", "o", "7", "<Tab>", "x", "<Esc>", "<Enter>" ]),
+          "errno  message\n1      \"a\"\n7      \"~x\"\n22     \"bb\"")
+
+        Stdlib.Test.equal(
+          FillingInAGrid.lowered([ "j", "o", "7", "<Tab>", "h", "i", "<Esc>" ]),
+          "1/\"a\"  7/\"hi\"")
+
+        // A row still half-filled refuses, naming the cell. Saving a table with a gap in it would be worse
+        // than not saving.
+        Stdlib.Test.equal(
+          FillingInAGrid.lowered([ "j", "o", "7", "<Esc>" ]),
+          "ERR hole: message") ])
+
+
+module MovingAroundAGrid =
+  // Column-wise motion has been in the kernel since `Piece.Table` landed and was pinned only against the
+  // hand-written demo grid. A DERIVED grid reaches it by a different route -- the spec is found by a
+  // `[T]` kind nobody wrote -- so it is worth asking whether the same keys work here.
+  //
+  // They do, and this pins it: `l` descends into the first cell, `l` again crosses to the next column,
+  // `j`/`k` walk DOWN and UP one column, and `h` from the first column steps back out to the row so you
+  // are never stuck.
+  let grid(): Fluid.Node =
+    Fluid.Value.ofDval(
+      AListOfRecordsIsAGrid.bid(),
+      AListOfRecordsIsAGrid.listOf(
+        [ AListOfRecordsIsAGrid.row(1, "a")
+          AListOfRecordsIsAGrid.row(22, "bb")
+          AListOfRecordsIsAGrid.row(333, "ccc") ]))
+
+
+  let at(keys: List<String>): String =
+    let st =
+      Fluid.Test.drive(
+        Fluid.Editor.init(
+          Fluid.App.registryForValue(
+            AListOfRecordsIsAGrid.bid(),
+            MovingAroundAGrid.grid()),
+          Fluid.Slot.Filled(MovingAroundAGrid.grid()),
+          70),
+        keys)
+
+    st.caret.node
+    |> Stdlib.List.map(fun s ->
+      match s with
+      | Into(name) -> name
+      | Item(slot, i) -> slot + "[" + Stdlib.display(i) + "]")
+    |> (fun ps ->
+          if Stdlib.List.isEmpty(ps) then
+            "(root)"
+          else
+            Stdlib.String.join(ps, "."))
+
+
+  test movingAroundAGrid =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(MovingAroundAGrid.at([]), "(root)")
+
+        Stdlib.Test.equal(MovingAroundAGrid.at([ "j" ]), "items[0]")
+
+        Stdlib.Test.equal(MovingAroundAGrid.at([ "j", "l" ]), "items[0].errno")
+
+        Stdlib.Test.equal(
+          MovingAroundAGrid.at([ "j", "l", "l" ]),
+          "items[0].message")
+
+        // Down a column, staying in it. This is the motion a list has no answer for: reading order would go
+        // from `errno` to `message` of the same row.
+        Stdlib.Test.equal(
+          MovingAroundAGrid.at([ "j", "l", "j" ]),
+          "items[1].errno")
+
+        Stdlib.Test.equal(
+          MovingAroundAGrid.at([ "j", "l", "j", "j" ]),
+          "items[2].errno")
+
+        Stdlib.Test.equal(
+          MovingAroundAGrid.at([ "j", "l", "l", "j" ]),
+          "items[1].message")
+
+        Stdlib.Test.equal(
+          MovingAroundAGrid.at([ "j", "l", "j", "k" ]),
+          "items[0].errno")
+
+        // Backwards at an edge steps out, so you are never stuck. Forwards at an edge sticks, so nothing runs
+        // off the end. The asymmetry is deliberate and was settled by the demo grid's pins.
+        Stdlib.Test.equal(MovingAroundAGrid.at([ "j", "l", "h" ]), "items[0]")
+
+        Stdlib.Test.equal(
+          MovingAroundAGrid.at([ "j", "l", "l", "l" ]),
+          "items[0].message") ])
+
+
+module ClearingARowLeavesARow =
+  // `x` means "clear this, I will put something else here". In a grid what you put back is a ROW, and a
+  // row cleared to a bare hole kept its line in the table with no cells in it: the placeholder drew in
+  // the first column, every column was then measured against something that is not a cell, and you had
+  // to press `{` to turn it back into a row before you could type.
+  //
+  // Same rule as `newItemForSlot`, and the same reason. Clearing is not deleting.
+  let drive(keys: List<String>): String =
+    Fluid.Test.run(
+      Fluid.App.registryForValue(
+        AListOfRecordsIsAGrid.bid(),
+        MovingAroundAGrid.grid()),
+      Fluid.Slot.Filled(MovingAroundAGrid.grid()),
+      70,
+      keys)
+
+
+  test clearingARowLeavesARow =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          ClearingARowLeavesARow.drive([ "j", "x" ]),
+          "errno    message\n~⟨errno⟩  ⟨message⟩\n22       \"bb\"\n333      \"ccc\"")
+
+        // A CELL still clears to a hole, which is what a hole means there: one value missing from a row that
+        // is otherwise filled in.
+        Stdlib.Test.equal(
+          ClearingARowLeavesARow.drive([ "j", "l", "x" ]),
+          "errno    message\n~⟨errno⟩  \"a\"\n22       \"bb\"\n333      \"ccc\"")
+
+        // And you can type straight into the cleared row, which is the whole point.
+        Stdlib.Test.equal(
+          ClearingARowLeavesARow.drive(
+            [ "j", "x", "i", "9", "<Tab>", "z", "<Esc>" ]),
+          "errno  message\n9      \"~z\"\n22     \"bb\"\n333    \"ccc\"") ])
+
+
+module ATableDoesNotBreak =
+  // A table is width-independent, deliberately. Breaking a cell onto a second line would put the columns
+  // out of alignment, which is the one thing a table is for, so a cell too wide for the pane runs long
+  // and the pane scrolls sideways instead.
+  //
+  // Worth pinning because every other construct in Fluid does the opposite: a group that does not fit
+  // breaks. This is the one that must not.
+  let wide(): Fluid.Node =
+    Fluid.Value.ofDval(
+      AListOfRecordsIsAGrid.bid(),
+      AListOfRecordsIsAGrid.listOf(
+        [ AListOfRecordsIsAGrid.row(1, "a")
+
+          AListOfRecordsIsAGrid.row(
+            2,
+            "a string quite a lot longer than the pane is wide") ]))
+
+
+  let atWidth(w: Int64): String =
+    Fluid.Debug.render(
+      Fluid.App.registryForValue(
+        AListOfRecordsIsAGrid.bid(),
+        ATableDoesNotBreak.wide()),
+      w,
+      Fluid.Slot.Filled(ATableDoesNotBreak.wide()))
+
+
+  test aTableDoesNotBreak =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          ATableDoesNotBreak.atWidth(40),
+          ATableDoesNotBreak.atWidth(200))
+
+        Stdlib.Test.equal(
+          ATableDoesNotBreak.atWidth(40),
+          "errno  message\n1      \"a\"\n2      \"a string quite a lot longer than the pane is wide\"") ])
