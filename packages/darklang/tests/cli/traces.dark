@@ -619,8 +619,8 @@ test inspectCallsAndShowAnswerInJson = withTraces(fun i ->
 
       Instance.says(values, "\"values\"", "show --json")
 
-      Instance.says(values, "\"problem\"", "show --json")
-
+      // no problem, and a None field is left out
+      Instance.doesNotSay(values, "\"problem\"", "show --json")
       Instance.says(values, "\"fn\"", "show --json") ]))
 
 

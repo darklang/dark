@@ -454,7 +454,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let kt = KTCustomType(PT2DT.PackageType.typeName (), [])
             match typeArg with
             | TCustomType({ resolved = Ok(FQTypeName.Package(Hash hash)) }, _) ->
-              let! result = pm.getType (Hash hash)
+              let! result = pm.getType (PT.Hash hash)
               return result |> Option.map PT2DT.PackageType.toDT |> Dval.option kt
             | _ -> return Dval.option kt None
           }
