@@ -191,6 +191,21 @@ let execute
         match LibDB.PackageManager.resolveFnRef name with
         | Some fn -> fn
         | None -> invalidOp $"Entry point not found: {name}"
+    // A fn of yours named on the command line (an alias, or a person typing `--entry-point`) is
+    // guest code. It runs the way `dark run` runs a script, with the instance policy as the hard
+    // maximum and the fn itself in the place of the script's own code (asked for by name, so no
+    // package approval). A fn shipped with the CLI (owner `Darklang`, which nothing else may
+    // author under) is CLI control code, like `executeCliCommand`, and keeps the trusted state:
+    // the test runner's worker is one, and it puts its test under the test policy itself.
+    let runState =
+      match entryPoint, fnName with
+      | Some _, RT.FQFnName.Package hash when not (state.isBundledPackageFn hash) ->
+        LibDB.PolicyStore.guestState
+          state.accountID
+          LibExecution.Permissions.Policy.allowAll
+          [ hash ]
+          state
+      | _ -> state
     let args =
       args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
     // What this run records and keeps, from the flag and the store's `trace.*` settings.
@@ -200,7 +215,7 @@ let execute
           traceFlag
           (Map.tryFind "trace.record" settings)
       )
-      { state with
+      { runState with
           traceCaps =
             LibDB.Tracing.TraceRetention.caps
               (Map.tryFind "trace.keep" settings)

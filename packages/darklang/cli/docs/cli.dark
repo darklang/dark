@@ -46,6 +46,9 @@ Your edits are LIVE as soon as you write them. There is no build step.
   eval <expr>       evaluate an expression -- this is how you call a function,
                     e.g. `eval 'MyMod.myFn(1, 2)'`
   run-script <f>    run a .dark script file (`run` is an alias; `docs scripts`)
+  alias add <name> <fn> [--pin]
+                    make <name> a command on your PATH that runs main's <fn>;
+                    it follows the name, --pin fixes the version
   traces            what ran, and what it returned
 
 ## Looking around

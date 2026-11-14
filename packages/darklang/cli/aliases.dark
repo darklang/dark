@@ -1,0 +1,562 @@
+/// `dark alias`: put your own Dark functions and scripts on your PATH.
+///
+/// An alias is a short shell script in `~/.darklang/bin`, beside the installed `dark`, that runs
+/// `dark --entry-point <fn> --branch main "$@"`, or `dark --branch main run <file> "$@"` for a
+/// `.dark` file. Nothing new in the boot path: the one-invocation overrides the test runner
+/// already uses do the work, and `dark uninstall` takes the scripts with the folder.
+///
+/// An alias always runs against `main`, whatever branch is current where it runs: a command on your
+/// PATH should not change because a shell switched to a branch to try something. So `add` resolves
+/// the fn on main too, and refuses one that only a branch has.
+///
+/// By default the script names the function, so it follows the NAME: once an edit reaches main, the
+/// next run picks it up. `--pin` writes the hash instead, so the script keeps running exactly the
+/// version that was current when it was made, whatever the name comes to mean later.
+module Darklang.Cli.Aliases
+
+/// The line every alias script carries after its shebang. `ls` and `rm` read it to tell an alias
+/// from any other file in the folder, so they never list or delete one they did not write.
+let marker(): String =
+  "# dark alias:"
+
+
+/// What an alias runs.
+type Target =
+  /// Whatever <param name> means on main when the alias runs.
+  | Follows(name: String)
+  /// The fn at <param hash>, which was <param name> when the alias was made.
+  | Pinned(name: String, hash: String)
+  /// The `.dark` file at <param path>, run by `dark run` as it is each time, so it follows the file.
+  | Script(path: String)
+
+
+/// How `ls` and `add` describe <param target>.
+let describe(target: Target): String =
+  match target with
+  | Follows(name) -> name
+  | Pinned(name, hash) -> $"{name}, pinned at #{Stdlib.String.slice(hash, 0, 8)}"
+  | Script(path) -> $"the script {path}"
+
+
+/// What `dark` is asked to do for <param target>, after the binary, before the arguments.
+let invocation(target: Target): String =
+  match target with
+  | Follows(name) -> $"--entry-point {Stdlib.Cli.Process.shellQuote(name)} --branch main"
+  | Pinned(_, hash) ->
+    let pinned = "#" + hash
+    $"--entry-point {Stdlib.Cli.Process.shellQuote(pinned)} --branch main"
+  | Script(path) -> $"--branch main run {Stdlib.Cli.Process.shellQuote(path)}"
+
+
+/// The script for an alias that runs <param target> with the `dark` at <param dark>.
+let script(dark: String, target: Target): String =
+  let note =
+    match target with
+    | Follows(name) -> $"follows {name}"
+    | Pinned(name, hash) -> $"pinned to {name} at #{hash}"
+    | Script(path) -> $"runs the script {path}"
+
+  let darkQuoted = Stdlib.Cli.Process.shellQuote(dark)
+  [ "#!/bin/sh", $"{marker()} {note}", $"exec {darkQuoted} {invocation(target)} \"$@\"", "" ]
+  |> Stdlib.String.join("\n")
+
+
+/// What the alias script <param text> says it runs, or None when it is not one of ours.
+let noteOf(text: String): Option<String> =
+  text
+  |> Stdlib.String.split("\n")
+  |> Stdlib.List.findFirst(fun line -> Stdlib.String.startsWith(line, marker()))
+  |> Stdlib.Option.map(fun line ->
+    Stdlib.String.trim(Stdlib.String.dropFirst(line, Stdlib.String.length(marker()))))
+
+
+/// A name a shell can run without quoting, that is not an option: letters, digits, `-`, `_`, `.`,
+/// not starting with `-` or `.`.
+let validName(name: String): Bool =
+  let ok(c: Char): Bool =
+    Stdlib.Char.isASCIILetter(c) || Stdlib.Char.isDigit(c) || c == '-' || c == '_' || c == '.'
+
+  name != ""
+  && Stdlib.Bool.not(Stdlib.String.startsWith(name, "-"))
+  && Stdlib.Bool.not(Stdlib.String.startsWith(name, "."))
+  && Stdlib.List.all(Stdlib.String.toList(name), ok)
+
+
+/// The first directory on `PATH` that already has <param name>, skipping <param own>, where the
+/// aliases live. Running the alias would find that one instead, or hide it.
+///
+/// Asked of a shell rather than walked here: `PATH` is full of symlinks (`/bin`, `/usr/bin/sh`), and
+/// the host boundary refuses to stat through one.
+let alreadyOnPath(name: String, own: String): Option<String> =
+  let ownDir = Stdlib.Cli.Process.shellQuote(Stdlib.Cli.Path.stripTrailing(own))
+  let file = Stdlib.Cli.Process.shellQuote(name)
+  let found =
+    Stdlib.Cli.execute(
+      $"own={ownDir}; IFS=:; for d in $PATH; do [ -z \"$d\" ] && continue; [ \"$d\" = \"$own\" ] && continue; [ \"$d\" = \"$own/\" ] && continue; if [ -e \"$d\"/{file} ]; then echo \"$d\"; exit 0; fi; done; exit 1")
+
+  if found.exitCode == 0 then
+    Option.Some(Stdlib.String.trim(found.stdout))
+  else
+    Option.None
+
+
+/// Is <param dir> on <param path>?
+let onPath(dir: String, path: String): Bool =
+  let wanted = Stdlib.Cli.Path.stripTrailing(dir)
+  path
+  |> Stdlib.String.split(":")
+  |> Stdlib.List.any(fun d -> Stdlib.Cli.Path.stripTrailing(d) == wanted)
+
+
+/// Where the aliases live: `<home>/.darklang/bin`.
+let binDir(): Result<String, String> =
+  match Stdlib.Cli.Unix.getHomeDirectory() with
+  | Error(e) -> Result.Error($"couldn't find your home directory: {e}")
+  | Ok(home) -> Installation.Config.darklangHomeIn(home) |> Stdlib.Result.map(fun d -> $"{d}/bin")
+
+
+/// What the alias at <param file> runs, or None when the file is not an alias.
+let read(file: String): Option<String> =
+  match Stdlib.Cli.File.readText(file) with
+  | Ok(text) -> noteOf(text)
+  | Error(_) -> Option.None
+
+
+/// The aliases in <param dir>, by name, with what each runs.
+let list(dir: String): List<(String * String)> =
+  match Stdlib.Cli.Dir.list(dir) with
+  | Error(_) -> []
+  | Ok(names) ->
+    names
+    |> Stdlib.List.sort
+    |> Stdlib.List.filterMap(fun name ->
+      read($"{dir}/{name}") |> Stdlib.Option.map(fun note -> (name, note)))
+
+
+/// The fully qualified name of <param loc>, the form `--entry-point` reads: owner first.
+let qualified(loc: LanguageTools.ProgramTypes.PackageLocation): String =
+  Stdlib.List.flatten([ [ loc.owner ], loc.modules, [ loc.name ] ]) |> Stdlib.String.join(".")
+
+
+/// Can `--entry-point` call this fn: one `List<String>` parameter, an `Int64` exit code?
+let runnable(fn: LanguageTools.ProgramTypes.PackageFn.PackageFn): Bool =
+  match fn.parameters with
+  | [p] ->
+    match p.typ, fn.returnType with
+    | TList(TString), TInt64 -> true
+    | _ -> false
+  | _ -> false
+
+
+/// What to write instead of <param fn>, which can't be aliased: a `main` of the shape an alias runs,
+/// calling <param qualifiedName>. A fn of `List<String>` gets the arguments as they are, one of a
+/// `String` gets them joined, one of no arguments gets `()`, and anything else a placeholder to fill
+/// in from `args`. A `String` result is printed; any other is dropped for an exit code of 0.
+let wrapperFor(qualifiedName: String, fn: LanguageTools.ProgramTypes.PackageFn.PackageFn): String =
+  let call =
+    match fn.parameters with
+    | [p] ->
+      match p.typ with
+      | TList(TString) -> $"{qualifiedName}(args)"
+      | TString -> $"{qualifiedName}(Stdlib.String.join(args, \" \"))"
+      | TUnit -> $"{qualifiedName}()"
+      | _ -> $"{qualifiedName}(...)  // built from args"
+    | _ -> $"{qualifiedName}(...)  // built from args"
+
+  let body =
+    match fn.returnType with
+    | TInt64 -> [ $"  {call}" ]
+    | TString -> [ $"  Stdlib.printLine({call})", "  0" ]
+    | _ -> [ $"  let _ = {call}", "  0" ]
+
+  Stdlib.List.flatten([ [ "let main(args: List<String>): Int64 =" ], body ])
+  |> Stdlib.String.join("\n")
+
+
+/// Why the fn at <param qualifiedName> can't be aliased, with a wrapper that could be.
+let notRunnable(qualifiedName: String, fn: LanguageTools.ProgramTypes.PackageFn.PackageFn): String =
+  let ctx = Packages.Signatures.rootContext(SCM.Branch.mainBranchId, [])
+  let wrapper =
+    wrapperFor(qualifiedName, fn)
+    |> Stdlib.String.split("\n")
+    |> Stdlib.List.map(fun line -> "    " + line)
+    |> Stdlib.String.join("\n")
+
+  [ $"{qualifiedName} can't be run from a shell: it is {Packages.Signatures.formatFn(ctx, fn)}, and an alias runs a fn of (args: List<String>): Int64, the exit code."
+    "  A wrapper to start from, to save with `dark module` and alias instead:"
+    ""
+    wrapper ]
+  |> Stdlib.String.join("\n")
+
+
+/// The fn <param name> names on <param branchId>, resolved the way `view` resolves it, with its
+/// hash.
+let resolveOn(state: AppState, branchId: Uuid, name: String): Result<(String * String), String> =
+  match Packages.Traversal.traverse(branchId, state.packageData.currentLocation, name) with
+  | Error(e) -> Result.Error(e)
+  | Ok(Function(loc)) ->
+    match LanguageTools.PackageManager.Function.find(branchId, loc) with
+    | None -> Result.Error($"no function named {name}")
+    | Some(hash) ->
+      match LanguageTools.PackageManager.Function.getSignature(hash) with
+      | Some(fn) ->
+        if runnable(fn) then
+          Result.Ok((qualified(loc), LanguageTools.ProgramTypes.hashToString(hash)))
+        else
+          Result.Error(notRunnable(qualified(loc), fn))
+      | None -> Result.Error($"no function named {name}")
+  | Ok(_) -> Result.Error($"{name} isn't a function")
+
+
+/// The fn <param name> names on main, which is what an alias runs. One that only the current branch
+/// has is refused with the reason, rather than written as a script that can't find it.
+let resolve(state: AppState, name: String): Result<(String * String), String> =
+  match resolveOn(state, SCM.Branch.mainBranchId, name) with
+  | Ok(found) -> Result.Ok(found)
+  | Error(e) ->
+    if SCM.Branch.isMain(state.currentBranchId) then
+      Result.Error(e)
+    else
+      match resolveOn(state, state.currentBranchId, name) with
+      | Ok((qualifiedName, _)) ->
+        Result.Error(
+          $"{qualifiedName} is only on this branch; an alias runs main's version, so merge it first")
+      | Error(_) -> Result.Error(e)
+
+
+/// Is <param what> a script file rather than a fn name: does it end in `.dark`?
+let isScript(what: String): Bool =
+  Stdlib.String.endsWith(what, ".dark")
+
+
+/// What `add` makes an alias of: the `.dark` file <param what> names, by its absolute path, or the
+/// fn, by name or with <param pin> by hash. A script has no version to pin, so `--pin` with one is
+/// refused rather than ignored.
+let targetFor(state: AppState, what: String, pin: Bool): Result<Target, String> =
+  if isScript(what) then
+    if pin then
+      Result.Error("--pin is for a fn: a script alias runs the file as it is each time")
+    else
+      match Stdlib.Cli.Path.resolveToAbsolute(what) with
+      | Error(_) -> Result.Error($"couldn't find where {what} is")
+      | Ok(path) ->
+        if Stdlib.Cli.File.exists(path) then
+          Result.Ok(Target.Script(path))
+        else
+          Result.Error($"no file at {path}")
+  else
+    resolve(state, what)
+    |> Stdlib.Result.map(fun found ->
+      let (qualifiedName, hash) = found
+      if pin then
+        Target.Pinned(qualifiedName, hash)
+      else
+        Target.Follows(qualifiedName))
+
+
+/// The `dark` an alias runs: the installed one when there is one, so a downloaded binary can be
+/// deleted afterwards; otherwise this one.
+let darkFor(dir: String): String =
+  let installed = $"{dir}/dark"
+  if Stdlib.Cli.File.exists(installed) then
+    installed
+  else
+    Stdlib.Cli.Sys.currentExecutablePath()
+
+
+/// `dark alias add <name> <fn> [--pin]`
+let executeAdd(state: AppState, name: String, fnName: String, pin: Bool): AppState =
+  match binDir() with
+  | Error(e) ->
+    printErr(e)
+    exitWith(state, false)
+  | Ok(dir) ->
+    let file = $"{dir}/{name}"
+    let path = Stdlib.Cli.Env.get("PATH") |> Stdlib.Option.withDefault("")
+    if Stdlib.Bool.not(validName(name)) then
+      printErr(
+        $"\"{name}\" can't be a command name: use letters, digits, - _ and ., not starting with - or .")
+
+      exitWith(state, false)
+    else if Stdlib.Cli.File.exists(file) && Stdlib.Option.isNone(read(file)) then
+      printErr($"{file} is already there and isn't an alias, so it stays.")
+      exitWith(state, false)
+    else
+      match alreadyOnPath(name, dir) with
+      | Some(other) ->
+        printErr($"{name} is already a command on your PATH ({other}/{name}); pick another name.")
+        exitWith(state, false)
+      | None ->
+        match targetFor(state, fnName, pin) with
+        | Error(e) ->
+          printErr(e)
+          exitWith(state, false)
+        | Ok(target) ->
+          let written =
+            Stdlib.Cli.Unix.ensureDirectoryExists(dir)
+            |> Stdlib.Result.andThen(fun _ ->
+              Stdlib.Cli.File.writeText(file, script(darkFor(dir), target))
+              |> Stdlib.Result.mapError(fun e -> e.message))
+            |> Stdlib.Result.andThen(fun _ ->
+              Stdlib.Cli.File.setPermissions(file, Stdlib.Cli.Posix.Modes.defaultDir)
+              |> Stdlib.Result.mapError(fun e -> e.message))
+
+          match written with
+          | Error(e) ->
+            printErr($"couldn't write {file}: {e}")
+            exitWith(state, false)
+          | Ok(_) ->
+            printOk($"{name} -> {describe(target)}  ({file})")
+            match target with
+            | Pinned(qualifiedName, _) ->
+              printHint(
+                $"  it runs this version until you add it again; without --pin it follows {qualifiedName}")
+            | Follows(qualifiedName) ->
+              printHint($"  it follows {qualifiedName}, so edits show up; --pin keeps this version")
+            | Script(_) -> printHint("  it runs the file as it is each time, so edits show up")
+
+            if Stdlib.Bool.not(onPath(dir, path)) then
+              printHint($"  {dir} isn't on your PATH yet; `dark install` puts it there")
+
+            state
+
+
+/// The `dark` the alias script <param text> runs: the quoted path after `exec`.
+let darkOf(text: String): Option<String> =
+  text
+  |> Stdlib.String.split("\n")
+  |> Stdlib.List.findFirst(fun line -> Stdlib.String.startsWith(line, "exec '"))
+  |> Stdlib.Option.andThen(fun line ->
+    Stdlib.List.head(Stdlib.String.split(Stdlib.String.dropFirst(line, 6), "'")))
+
+
+/// What would stop the alias with <param note> and script <param text> from running, said in a
+/// few words, or None when nothing would: the `dark` it runs is gone, its fn is no longer on main
+/// or no longer of the shape an alias runs, or its script file is gone. A pinned alias names a
+/// hash, which stays, so only its `dark` is checked.
+let problemOf(state: AppState, note: String, text: String): Option<String> =
+  let darkGone =
+    match darkOf(text) with
+    | Some(dark) ->
+      if Stdlib.Cli.File.exists(dark) then
+        Option.None
+      else
+        Option.Some($"the dark it runs is gone ({dark}); add it again")
+    | None -> Option.None
+
+  match darkGone with
+  | Some(problem) -> Option.Some(problem)
+  | None ->
+    if Stdlib.String.startsWith(note, "follows ") then
+      let name = Stdlib.String.dropFirst(note, 8)
+      match resolveOn(state, SCM.Branch.mainBranchId, name) with
+      | Ok(_) -> Option.None
+      | Error(_) ->
+        match Packages.Traversal.traverse(
+                SCM.Branch.mainBranchId,
+                state.packageData.currentLocation,
+                name) with
+        | Ok(Function(_)) -> Option.Some($"{name} isn't (args: List<String>): Int64 any more")
+        | _ -> Option.Some($"no {name} on main any more")
+    else if Stdlib.String.startsWith(note, "runs the script ") then
+      let path = Stdlib.String.dropFirst(note, 16)
+      if Stdlib.Cli.File.exists(path) then
+        Option.None
+      else
+        Option.Some("the file is gone")
+    else
+      Option.None
+
+
+/// <param note> as `dark alias` shows it: a pinned hash cut to its first 8 characters, as `add` says it.
+let shortNote(note: String): String =
+  match Stdlib.String.indexOf(note, " at #") with
+  | Some(at) ->
+    let hashStart = at + 5
+    if Stdlib.String.length(note) > hashStart + 8 then
+      Stdlib.String.slice(note, 0, hashStart + 8)
+    else
+      note
+  | None -> note
+
+
+/// The lines `dark alias` prints for <param aliases> (name, note, problem): the names in one
+/// column, what each runs beside it, and on the line below any that would not run, why.
+let listing(aliases: List<(String * String * Option<String>)>): List<String> =
+  let width =
+    aliases
+    |> Stdlib.List.map(fun a ->
+      let (name, _, _) = a
+      Stdlib.String.length(name))
+    |> Stdlib.List.fold(0, fun(acc, n) -> if n > acc then n else acc)
+
+  aliases
+  |> Stdlib.List.map(fun a ->
+    let (name, note, problem) = a
+    let padded = Stdlib.String.padEnd(name, ' ', width)
+    let indent = Stdlib.String.repeat(" ", width)
+    let shown = shortNote(note)
+    let line = $"  {padded}  {shown}"
+    match problem with
+    | None -> [ line ]
+    | Some(p) -> [ line, $"  {indent}  ! {p}" ])
+  |> Stdlib.List.flatten
+
+
+/// `dark alias` / `dark alias ls`
+let executeList(state: AppState): AppState =
+  match binDir() with
+  | Error(e) ->
+    printErr(e)
+    exitWith(state, false)
+  | Ok(dir) ->
+    match list(dir) with
+    | [] ->
+      printOk("no aliases yet.")
+      printHint("  dark alias add <name> <fn>   run a fn of yours from any terminal")
+      state
+    | aliases ->
+      let checked =
+        aliases
+        |> Stdlib.List.map(fun pair ->
+          let (name, note) = pair
+          let text = Stdlib.Cli.File.readText($"{dir}/{name}") |> Stdlib.Result.withDefault("")
+          (name, note, problemOf(state, note, text)))
+
+      listing(checked) |> Stdlib.List.iter(fun line -> Stdlib.printLine(line))
+      let broken =
+        checked
+        |> Stdlib.List.filter(fun a ->
+          let (_, _, problem) = a
+          Stdlib.Option.isSome(problem))
+        |> Stdlib.List.length
+
+      if broken > 0 then
+        printHint("  ! won't run as it is; `dark alias add` it again, or `dark alias rm` it")
+
+      state
+
+
+/// `dark alias rm --all`: every alias, and nothing else in the folder.
+let executeRemoveAll(state: AppState): AppState =
+  match binDir() with
+  | Error(e) ->
+    printErr(e)
+    exitWith(state, false)
+  | Ok(dir) ->
+    match list(dir) with
+    | [] ->
+      printOk("no aliases to remove.")
+      state
+    | aliases ->
+      let failed =
+        aliases
+        |> Stdlib.List.filterMap(fun pair ->
+          let (name, _) = pair
+          match Stdlib.Cli.File.delete($"{dir}/{name}") with
+          | Ok(_) -> Option.None
+          | Error(e) -> Option.Some($"{name}: {e.message}"))
+
+      match failed with
+      | [] ->
+        let names =
+          aliases
+          |> Stdlib.List.map(Stdlib.Tuple2.first)
+          |> Stdlib.String.join(", ")
+
+        printOk($"removed {Stdlib.display(Stdlib.List.length(aliases))}: {names}")
+        state
+      | problems ->
+        problems |> Stdlib.List.iter(fun p -> printErr($"couldn't remove {p}"))
+        exitWith(state, false)
+
+
+/// `dark alias rm <name>`
+let executeRemove(state: AppState, name: String): AppState =
+  match binDir() with
+  | Error(e) ->
+    printErr(e)
+    exitWith(state, false)
+  | Ok(dir) ->
+    let file = $"{dir}/{name}"
+    if Stdlib.Bool.not(validName(name)) || Stdlib.Option.isNone(read(file)) then
+      printErr($"no alias named {name}.")
+      printHint("  `dark alias ls` lists them.")
+      exitWith(state, false)
+    else
+      match Stdlib.Cli.File.delete(file) with
+      | Ok(_) ->
+        printOk($"removed {name}")
+        state
+      | Error(e) ->
+        printErr($"couldn't remove {file}: {e.message}")
+        exitWith(state, false)
+
+
+let notAForm(state: AppState, args: List<String>): AppState =
+  printErr($"""`dark alias {Stdlib.String.join(args, " ")}` isn't a form of this command.""")
+  printHint("  dark alias | dark alias add <name> <fn> [--pin] | dark alias rm <name>|--all")
+  exitWith(state, false)
+
+
+let execute(state: AppState, args: List<String>): AppState =
+  let pin = Stdlib.List.contains(args, "--pin")
+  let all = Stdlib.List.contains(args, "--all")
+  let words = args |> Stdlib.List.filter(fun a -> a != "--pin" && a != "--all")
+  match words with
+  | [] -> executeList(state)
+  | ["ls"] | ["list"] -> executeList(state)
+  | ["add", name, fnName] -> executeAdd(state, name, fnName, pin)
+  | ["rm"] | ["remove"] -> if all then executeRemoveAll(state) else notAForm(state, args)
+  | ["rm", name] | ["remove", name] ->
+    if all then notAForm(state, args) else executeRemove(state, name)
+  | _ -> notAForm(state, args)
+
+
+let help(_state: AppState): String =
+  [ "Put your own Dark functions on your PATH, as commands of their own."
+    ""
+    "  dark alias                          the aliases, and what each runs"
+    "  dark alias add <name> <fn> [--pin]  make <name> a command that runs <fn>"
+    "  dark alias add <name> <file.dark>   ... that runs the script, with `dark run`"
+    "  dark alias rm <name>                remove one"
+    "  dark alias rm --all                 remove every alias"
+    ""
+    "An alias is a script in ~/.darklang/bin that runs"
+    "`dark --entry-point <fn> --branch main` with its arguments. <fn> takes"
+    "(args: List<String>) and returns the exit code as an Int64. For a"
+    ".dark file it runs `dark --branch main run <file>`, the file as it is"
+    "each time. Either way it runs under the instance policy, as `dark run`"
+    "does, and at a terminal offers to save a rule it was refused."
+    ""
+    "An alias always runs main's <fn>, whichever branch you are on, so <fn>"
+    "has to be on main when you add it. It follows the NAME: once an edit"
+    "reaches main, the next run picks it up. --pin fixes the exact version"
+    "(its hash) instead; add the alias again to move it. A name already on"
+    "your PATH is refused, and `dark uninstall` removes the aliases with"
+    "~/.darklang."
+    ""
+    "  dark alias add greet Me.Demo.main"
+    "  greet world" ]
+  |> Stdlib.String.join("\n")
+
+
+/// Tab completion, given the words already typed: the subcommands, then the alias names in
+/// <param dir> for `rm`, and the flag each form takes. The fn name in `add` is left to the shell's
+/// own word, since `add` reads it on main whatever branch is current.
+let completeIn(dir: String, args: List<String>): List<String> =
+  match args with
+  | [] -> [ "ls", "add", "rm" ]
+  | ["rm"] | ["remove"] ->
+    Stdlib.List.append(list(dir) |> Stdlib.List.map(Stdlib.Tuple2.first), "--all")
+  | ["add", _, _] -> [ "--pin" ]
+  | _ -> []
+
+
+let complete(_state: AppState, args: List<String>): List<Completion.CompletionItem> =
+  let dir =
+    match binDir() with
+    | Ok(d) -> d
+    | Error(_) -> ""
+
+  completeIn(dir, args) |> Stdlib.List.map(Completion.simple)

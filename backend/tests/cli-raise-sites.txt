@@ -1,3 +1,19 @@
+1 Darklang.Cli.Aliases.alreadyOnPath Darklang.Stdlib.Cli.execute
+1 Darklang.Cli.Aliases.binDir Darklang.Stdlib.Cli.Unix.getHomeDirectory
+1 Darklang.Cli.Aliases.darkFor Darklang.Stdlib.Cli.File.exists
+1 Darklang.Cli.Aliases.executeAdd Darklang.Stdlib.Cli.File.exists
+1 Darklang.Cli.Aliases.executeAdd Darklang.Stdlib.Cli.File.setPermissions
+1 Darklang.Cli.Aliases.executeAdd Darklang.Stdlib.Cli.File.writeText
+1 Darklang.Cli.Aliases.executeAdd Darklang.Stdlib.Cli.Unix.ensureDirectoryExists
+1 Darklang.Cli.Aliases.executeList Darklang.Stdlib.Cli.File.readText
+1 Darklang.Cli.Aliases.executeRemove Darklang.Stdlib.Cli.File.delete
+1 Darklang.Cli.Aliases.executeRemoveAll Darklang.Stdlib.Cli.File.delete
+1 Darklang.Cli.Aliases.list Darklang.Stdlib.Cli.Dir.list
+1 Darklang.Cli.Aliases.list Darklang.Stdlib.List.sort
+1 Darklang.Cli.Aliases.listing Darklang.Stdlib.String.repeat
+1 Darklang.Cli.Aliases.read Darklang.Stdlib.Cli.File.readText
+1 Darklang.Cli.Aliases.targetFor Darklang.Stdlib.Cli.File.exists
+1 Darklang.Cli.Aliases.targetFor Darklang.Stdlib.Cli.Path.resolveToAbsolute
 1 Darklang.Cli.Completion.addSlashToDirectories Darklang.Stdlib.Cli.FileSystem.isDirectoryAtPath
 1 Darklang.Cli.Completion.completeFilesystemPath Darklang.Stdlib.Cli.FileSystem.isDirectoryAtPath
 1 Darklang.Cli.Docs.StdlibOverview.execute Darklang.Stdlib.List.sort
@@ -85,6 +101,7 @@
 1 Darklang.PrettyPrinter.__escapeGrapheme Darklang.Stdlib.Int64.fromUInt32
 1 Darklang.SCM.PackageOps.readRevisionOps Builtin.unwrap
 1 Darklang.SCM.PartialCommit.stringGt Darklang.Stdlib.List.sort
+2 Darklang.Cli.Aliases.problemOf Darklang.Stdlib.Cli.File.exists
 2 Darklang.Cli.Packages.Edit.execute Darklang.Stdlib.Cli.Dir.deleteRecursive
 2 Darklang.Cli.Packages.Signatures.namedLike Darklang.Stdlib.List.sort
 2 Darklang.LanguageTools.AtRestTypeChecker.Generate.orPattern Darklang.Stdlib.List.sort

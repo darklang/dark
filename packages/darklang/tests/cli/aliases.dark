@@ -1,0 +1,669 @@
+/// `dark alias` puts a fn of yours on your PATH as a script in `~/.darklang/bin`. The script
+/// follows the fn's NAME on main, so an edit shows up on the next run; `--pin` fixes the hash
+/// instead. Either way it runs against main, whatever branch is current.
+module Darklang.Cli.Tests.Aliases
+
+// --- the script, without running anything ---
+
+test followingScriptNamesTheFn =
+  let text =
+    Darklang.Cli.Aliases.script(
+      "/opt/dark",
+      Darklang.Cli.Aliases.Target.Follows("Me.Demo.main"))
+
+  Stdlib.Test.all(
+    [ Stdlib.String.startsWith(text, "#!/bin/sh\n") |> Stdlib.Test.equal(true)
+
+      Stdlib.String.contains(
+        text,
+        "exec '/opt/dark' --entry-point 'Me.Demo.main' --branch main \"$@\"")
+      |> Stdlib.Test.equal(true)
+
+      Darklang.Cli.Aliases.noteOf(text)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("follows Me.Demo.main")) ])
+
+
+test pinnedScriptNamesTheHash =
+  let hash = "f2fd0e0c69ac2bb88d60a9cdec94b43bb1d31bb4816feebff9d5a31cce343801"
+  let text =
+    Darklang.Cli.Aliases.script(
+      "/opt/dark",
+      Darklang.Cli.Aliases.Target.Pinned("Me.Demo.main", hash))
+
+  Stdlib.Test.all(
+    [ Stdlib.String.contains(text, $"--entry-point '#{hash}'")
+      |> Stdlib.Test.equal(true)
+
+      Stdlib.String.contains(text, "--entry-point 'Me.Demo.main'")
+      |> Stdlib.Test.equal(false)
+
+      Darklang.Cli.Aliases.noteOf(text)
+      |> Stdlib.Test.equal(
+        Stdlib.Option.Option.Some($"pinned to Me.Demo.main at #{hash}"))
+
+      Darklang.Cli.Aliases.describe(
+        Darklang.Cli.Aliases.Target.Pinned("Me.Demo.main", hash))
+      |> Stdlib.Test.equal("Me.Demo.main, pinned at #f2fd0e0c") ])
+
+
+test scriptAliasRunsTheFile =
+  let text =
+    Darklang.Cli.Aliases.script(
+      "/opt/dark",
+      Darklang.Cli.Aliases.Target.Script("/home/me/greet.dark"))
+
+  Stdlib.Test.all(
+    [ Stdlib.String.contains(
+        text,
+        "exec '/opt/dark' --branch main run '/home/me/greet.dark' \"$@\"")
+      |> Stdlib.Test.equal(true)
+
+      Darklang.Cli.Aliases.noteOf(text)
+      |> Stdlib.Test.equal(
+        Stdlib.Option.Option.Some("runs the script /home/me/greet.dark")) ])
+
+
+// A path with a quote in it stays one word to the shell.
+test scriptQuotesTheBinary =
+  Darklang.Cli.Aliases.script(
+    "/home/o'neil/dark",
+    Darklang.Cli.Aliases.Target.Follows("Me.x"))
+  |> Stdlib.String.contains("exec '/home/o'\\''neil/dark'")
+  |> Stdlib.Test.equal(true)
+
+
+// `ls` and `rm` only ever touch files that say they are aliases.
+test otherFilesAreNotAliases =
+  Stdlib.Test.all(
+    [ Darklang.Cli.Aliases.noteOf("#!/bin/sh\necho hi\n")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Darklang.Cli.Aliases.noteOf("")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
+
+// The wrapper `add` offers for a fn it can't alias: args passed through when the fn takes them,
+// joined for a String, `()` when it takes nothing; a String result printed, any other dropped.
+module Wrapper =
+  let fn(
+    params: List<LanguageTools.ProgramTypes.TypeReference>,
+    returns: LanguageTools.ProgramTypes.TypeReference)
+    : LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    LanguageTools.ProgramTypes.PackageFn.PackageFn
+      { hash = LanguageTools.ProgramTypes.Hash.Hash("wrapper")
+        body = LanguageTools.ProgramTypes.Expr.EInt64(1, 0)
+        typeParams = []
+        parameters =
+          params
+          |> Stdlib.List.map(fun t ->
+            LanguageTools.ProgramTypes.PackageFn.Parameter
+              { name = "x", typ = t, description = "" })
+        returnType = returns
+        description = ""
+        bounds = [] }
+
+
+test wrapperFitsTheFn =
+  Stdlib.Test.all(
+    [ Darklang.Cli.Aliases.wrapperFor(
+        "Me.run",
+        Wrapper.fn(
+          [ LanguageTools.ProgramTypes.TypeReference.TList(
+              LanguageTools.ProgramTypes.TypeReference.TString) ],
+          LanguageTools.ProgramTypes.TypeReference.TUnit))
+      |> Stdlib.Test.equal(
+        "let main(args: List<String>): Int64 =\n  let _ = Me.run(args)\n  0")
+
+      Darklang.Cli.Aliases.wrapperFor(
+        "Me.go",
+        Wrapper.fn(
+          [ LanguageTools.ProgramTypes.TypeReference.TUnit ],
+          LanguageTools.ProgramTypes.TypeReference.TInt64))
+      |> Stdlib.Test.equal("let main(args: List<String>): Int64 =\n  Me.go()")
+
+      Darklang.Cli.Aliases.wrapperFor(
+        "Me.up",
+        Wrapper.fn(
+          [ LanguageTools.ProgramTypes.TypeReference.TString ],
+          LanguageTools.ProgramTypes.TypeReference.TString))
+      |> Stdlib.Test.equal(
+        "let main(args: List<String>): Int64 =\n  Stdlib.printLine(Me.up(Stdlib.String.join(args, \" \")))\n  0")
+
+      Darklang.Cli.Aliases.wrapperFor(
+        "Me.add",
+        Wrapper.fn(
+          [ LanguageTools.ProgramTypes.TypeReference.TInt64
+            LanguageTools.ProgramTypes.TypeReference.TInt64 ],
+          LanguageTools.ProgramTypes.TypeReference.TInt64))
+      |> Stdlib.Test.equal(
+        "let main(args: List<String>): Int64 =\n  Me.add(...)  // built from args") ])
+
+
+// Tab offers the subcommands, then the aliases there are to remove, and each form's flag.
+test completion =
+  let dir =
+    Stdlib.Cli.Path.parent(LanguageTools.LocalStore.path())
+    + "/alias-completion-"
+    + Stdlib.display(Stdlib.Int64.random(100000, 999999))
+
+  let _ = Stdlib.Cli.Unix.ensureDirectoryExists(dir)
+  let _ =
+    Stdlib.Cli.File.writeText(
+      $"{dir}/greet",
+      Darklang.Cli.Aliases.script(
+        "/opt/dark",
+        Darklang.Cli.Aliases.Target.Follows("Me.x")))
+
+  let _ = Stdlib.Cli.File.writeText($"{dir}/tool", "#!/bin/sh\necho mine\n")
+  let result =
+    Stdlib.Test.all(
+      [ Darklang.Cli.Aliases.completeIn(dir, [])
+        |> Stdlib.Test.equal([ "ls", "add", "rm" ])
+
+        Darklang.Cli.Aliases.completeIn(dir, [ "rm" ])
+        |> Stdlib.Test.equal([ "greet", "--all" ])
+
+        Darklang.Cli.Aliases.completeIn(dir, [ "add", "g", "Me.x" ])
+        |> Stdlib.Test.equal([ "--pin" ])
+
+        Darklang.Cli.Aliases.completeIn(dir, [ "ls" ])
+        |> Stdlib.Test.equal([]) ])
+
+  let _ = Stdlib.Cli.Unix.removeDirectory(dir)
+  result
+
+
+// `dark docs alias` finds the section on aliases.
+test docsCoverAliases = Instance.withInstance(fun i ->
+  let out = Instance.said(i, [ "docs", "alias" ])
+  Stdlib.Test.all(
+    [ Instance.says(
+        out,
+        "## A command of your own",
+        "docs alias opens the scripts page")
+
+      Instance.says(
+        out,
+        "dark alias add <name> <fn>",
+        "which shows how to make one")
+
+      Instance.says(
+        out,
+        "always runs main's version",
+        "and that it runs on main") ]))
+
+
+// An alias runs the installed `dark` when there is one, the file `dark update` replaces in place,
+// so every alias picks up the new release; only without an install does it name this binary.
+test aliasRunsTheInstalledDark =
+  let dir =
+    Stdlib.Cli.Path.parent(LanguageTools.LocalStore.path())
+    + "/alias-installed-"
+    + Stdlib.display(Stdlib.Int64.random(100000, 999999))
+
+  let _ = Stdlib.Cli.Unix.ensureDirectoryExists(dir)
+  let without = Darklang.Cli.Aliases.darkFor(dir)
+  let _ = Stdlib.Cli.File.writeText($"{dir}/dark", "")
+  let withInstall = Darklang.Cli.Aliases.darkFor(dir)
+  let _ = Stdlib.Cli.Unix.removeDirectory(dir)
+  Stdlib.Test.all(
+    [ withInstall |> Stdlib.Test.equal($"{dir}/dark")
+      without |> Stdlib.Test.equal(Stdlib.Cli.Sys.currentExecutablePath()) ])
+
+
+test listingShortensThePinnedHash =
+  let hash = "f2fd0e0c69ac2bb88d60a9cdec94b43bb1d31bb4816feebff9d5a31cce343801"
+  Stdlib.Test.all(
+    [ Darklang.Cli.Aliases.shortNote($"pinned to Me.x at #{hash}")
+      |> Stdlib.Test.equal("pinned to Me.x at #f2fd0e0c")
+
+      Darklang.Cli.Aliases.shortNote("follows Me.x")
+      |> Stdlib.Test.equal("follows Me.x") ])
+
+
+test commandNames =
+  Stdlib.Test.all(
+    [ Darklang.Cli.Aliases.validName("greet") |> Stdlib.Test.equal(true)
+      Darklang.Cli.Aliases.validName("my-tool_2.0") |> Stdlib.Test.equal(true)
+      Darklang.Cli.Aliases.validName("") |> Stdlib.Test.equal(false)
+      Darklang.Cli.Aliases.validName("-x") |> Stdlib.Test.equal(false)
+      Darklang.Cli.Aliases.validName(".hidden") |> Stdlib.Test.equal(false)
+      Darklang.Cli.Aliases.validName("a/b") |> Stdlib.Test.equal(false)
+      Darklang.Cli.Aliases.validName("a b") |> Stdlib.Test.equal(false)
+      Darklang.Cli.Aliases.validName("$(rm)") |> Stdlib.Test.equal(false) ])
+
+
+test onPathIgnoresTrailingSlashes =
+  Stdlib.Test.all(
+    [ Darklang.Cli.Aliases.onPath(
+        "/h/.darklang/bin",
+        "/usr/bin:/h/.darklang/bin/")
+      |> Stdlib.Test.equal(true)
+
+      Darklang.Cli.Aliases.onPath(
+        "/h/.darklang/bin/",
+        "/usr/bin:/h/.darklang/bin")
+      |> Stdlib.Test.equal(true)
+
+      Darklang.Cli.Aliases.onPath("/h/.darklang/bin", "/usr/bin")
+      |> Stdlib.Test.equal(false)
+
+      Darklang.Cli.Aliases.onPath("/h/.darklang/bin", "")
+      |> Stdlib.Test.equal(false) ])
+
+
+// --- against an instance: make the alias, run it, edit the fn, run it again ---
+
+let greetSource(greeting: String, code: Int64): String =
+  [ "let main(args: List<String>): Int64 ="
+    $"  Stdlib.printLine(\"{greeting}, \" + Stdlib.String.join(args, \" \"))"
+    $"  {Stdlib.display(code)}"
+    "" ]
+  |> Stdlib.String.join("\n")
+
+
+/// Author `/Tests.Greet.main` in <param i> with this greeting and exit code.
+let define(i: Instance.T, greeting: String, code: Int64): (Int64 * String) =
+  let file = Instance.home(i) + "/greet.dark"
+  let _ = Stdlib.Cli.File.writeText(file, greetSource(greeting, code))
+  Instance.ran(i, [ "module", "/Tests.Greet", file ])
+
+
+let bin(i: Instance.T): String =
+  i.dir + "/bin"
+
+
+/// Run the alias <param name> the way a shell would, as this instance's user.
+let runAlias(i: Instance.T, name: String): (Int64 * String) =
+  match Stdlib.Cli.Process.runWithEnv(
+          $"{bin(i)}/{name}",
+          [ "world" ],
+          Instance.env(i)) with
+  | Error(e) -> (-1, $"could not run: {e}")
+  | Ok(out) -> (out.exitCode, out.stdout + out.stderr)
+
+
+test aliasFollowsTheNameAndPinKeepsTheVersion = Instance.withInstance(fun i ->
+  let (definedCode, defined) = define(i, "hello", 0)
+  let (addCode, added) =
+    Instance.ran(i, [ "alias", "add", "greet", "Tests.Greet.main" ])
+
+  let (pinCode, pinned) =
+    Instance.ran(
+      i,
+      [ "alias", "add", "greet-pinned", "Tests.Greet.main", "--pin" ])
+
+  let (before, beforeOut) = runAlias(i, "greet")
+  let (pinnedBefore, pinnedBeforeOut) = runAlias(i, "greet-pinned")
+  let (redefinedCode, _) = define(i, "bye", 3)
+  let (after, afterOut) = runAlias(i, "greet")
+  let (pinnedAfter, pinnedAfterOut) = runAlias(i, "greet-pinned")
+  let listed = Instance.said(i, [ "alias", "ls" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(definedCode, 0, $"the fn is authored: {defined}")
+      Instance.exitedWith(addCode, 0, $"the alias is made: {added}")
+      Instance.says(
+        added,
+        "greet -> Tests.Greet.main",
+        "it says what the alias runs")
+
+      Instance.exitedWith(pinCode, 0, $"the pinned alias is made: {pinned}")
+      Instance.says(pinned, "pinned at #", "it says the alias is pinned")
+      Instance.exitedWith(before, 0, "the alias runs the fn")
+      Instance.says(
+        beforeOut,
+        "hello, world",
+        "with the arguments it was given")
+
+      Instance.says(pinnedBeforeOut, "hello, world", "so does the pinned one")
+      Instance.exitedWith(pinnedBefore, 0, "and exits with the fn's code")
+      Instance.exitedWith(redefinedCode, 0, "the fn is edited")
+      Instance.says(afterOut, "bye, world", "the alias follows the edit")
+      Instance.exitedWith(after, 3, "including the new exit code")
+      Instance.says(pinnedAfterOut, "hello, world", "the pinned alias does not")
+      Instance.exitedWith(pinnedAfter, 0, "and keeps the old exit code")
+      Instance.says(
+        listed,
+        "greet         follows Tests.Greet.main",
+        "ls lists the alias")
+
+      Instance.says(
+        listed,
+        "greet-pinned  pinned to Tests.Greet.main at #",
+        "and the pinned one, in a column")
+
+      Instance.doesNotSay(listed, "!", "neither is marked as broken") ]))
+
+
+/// Author `/Tests.Where.main` in <param i>: it prints <param greeting> and whether the process
+/// it runs in is on main.
+let defineWhere(i: Instance.T, greeting: String): (Int64 * String) =
+  let file = Instance.home(i) + "/where.dark"
+  let source =
+    [ "let main(args: List<String>): Int64 ="
+      "  let onMain = Darklang.SCM.Branch.isMain(Darklang.SCM.PackageOps.currentBranch())"
+      $"  Stdlib.printLine(\"{greeting} main=\" + Stdlib.display(onMain))"
+      "  0"
+      "" ]
+    |> Stdlib.String.join("\n")
+
+  let _ = Stdlib.Cli.File.writeText(file, source)
+  Instance.ran(i, [ "module", "/Tests.Where", file ])
+
+
+// An alias is a command on your PATH: it runs main's fn, in a process on main, whatever branch
+// the instance is on. Without `--branch main` the fn found is main's, but it runs on the current
+// branch, so anything it looks up comes from there.
+test aliasRunsMainWhateverTheBranch = Instance.withInstance(fun i ->
+  let _ = defineWhere(i, "hello")
+  let (addCode, added) =
+    Instance.ran(i, [ "alias", "add", "where", "Tests.Where.main" ])
+
+  let (switchCode, switched) = Instance.ran(i, [ "switch", "feat" ])
+  let (branchDefCode, branchDef) = defineWhere(i, "from feat")
+  let onFeat =
+    Instance.said(
+      i,
+      [ "--branch", "feat", "--entry-point", "Tests.Where.main" ])
+
+  let (ranCode, ranOut) = runAlias(i, "where")
+  Stdlib.Test.all(
+    [ Instance.exitedWith(addCode, 0, $"the alias is made on main: {added}")
+
+      Instance.exitedWith(
+        switchCode,
+        0,
+        $"the instance switches to feat: {switched}")
+
+      Instance.exitedWith(branchDefCode, 0, $"feat changes the fn: {branchDef}")
+      Instance.says(onFeat, "main=false", "a process on feat is not on main")
+
+      Instance.says(
+        ranOut,
+        "hello main=true",
+        "the alias runs main's fn, on main")
+
+      Instance.doesNotSay(ranOut, "from feat", "not the current branch's")
+      Instance.exitedWith(ranCode, 0, "and exits with its code") ]))
+
+
+/// Author `/Tests.Reader.main` in <param i>: it prints the file at <param file>, exit 0, or exits 5
+/// when the read is refused as an error value.
+let defineReader(i: Instance.T, file: String): (Int64 * String) =
+  let source =
+    [ "let main(args: List<String>): Int64 ="
+      $"  match Stdlib.Cli.File.readText(\"{file}\") with"
+      "  | Ok(text) ->"
+      "    Stdlib.printLine(\"read: \" + text)"
+      "    0"
+      "  | Error(_) -> 5"
+      "" ]
+    |> Stdlib.String.join("\n")
+
+  let path = Instance.home(i) + "/reader.dark"
+  let _ = Stdlib.Cli.File.writeText(path, source)
+  Instance.ran(i, [ "module", "/Tests.Reader", path ])
+
+
+/// Write a script to <param file> that greets its arguments with <param greeting> and exits 3.
+let writeGreeting(file: String, greeting: String): Unit =
+  let _ =
+    Stdlib.Cli.File.writeText(
+      file,
+      $"Stdlib.printLine(\"{greeting}, \" + Stdlib.String.join(args, \" \"))\n3\n")
+
+  ()
+
+
+// A .dark file can be an alias too: it runs with its arguments and exit code, on the file as it
+// is each time; `--pin` and a missing file are refused.
+test scriptAliasFollowsTheFile = Instance.withInstance(fun i ->
+  let file = Instance.home(i) + "/greet.dark"
+  let _ = writeGreeting(file, "hello")
+  let (addCode, added) = Instance.ran(i, [ "alias", "add", "greet", file ])
+  let (before, beforeOut) = runAlias(i, "greet")
+  let _ = writeGreeting(file, "bye")
+  let (_, afterOut) = runAlias(i, "greet")
+  let (pinCode, pinOut) =
+    Instance.ran(i, [ "alias", "add", "greet2", file, "--pin" ])
+
+  let (missingCode, missingOut) =
+    Instance.ran(i, [ "alias", "add", "nope", Instance.home(i) + "/nope.dark" ])
+
+  let listed = Instance.said(i, [ "alias", "ls" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(addCode, 0, $"the alias is made: {added}")
+      Instance.says(
+        added,
+        $"greet -> the script {file}",
+        "it says what the alias runs")
+
+      Instance.says(
+        beforeOut,
+        "hello, world",
+        "the alias runs the script with its arguments")
+
+      Instance.exitedWith(before, 3, "and exits with the script's code")
+      Instance.says(afterOut, "bye, world", "an edit to the file shows up")
+      Instance.exitedWith(pinCode, 1, "--pin with a script is refused")
+      Instance.says(pinOut, "--pin is for a fn", "and the refusal says why")
+      Instance.exitedWith(missingCode, 1, "a missing file is refused")
+      Instance.says(missingOut, "no file at", "and the refusal says so")
+      Instance.says(listed, $"greet  runs the script {file}", "ls lists it") ]))
+
+
+// `dark alias` says which aliases would not run, and why: the fn renamed away on main, the
+// script file deleted, the `dark` it names gone.
+test listingSaysWhatWontRun = Instance.withInstance(fun i ->
+  let _ = define(i, "hello", 0)
+  let file = Instance.home(i) + "/greet.dark"
+  let _ = writeGreeting(file, "hi")
+  let _ = Instance.ran(i, [ "alias", "add", "greet", "Tests.Greet.main" ])
+  let _ = Instance.ran(i, [ "alias", "add", "hi", file ])
+  let _ = Instance.ran(i, [ "alias", "add", "ok", "Tests.Greet.main" ])
+  let _ =
+    Stdlib.Cli.File.writeText(
+      $"{bin(i)}/old",
+      Darklang.Cli.Aliases.script(
+        "/nowhere/dark",
+        Darklang.Cli.Aliases.Target.Follows("Tests.Greet.main")))
+
+  let before = Instance.said(i, [ "alias" ])
+  let (renameCode, renamed) =
+    Instance.ran(i, [ "rename", "Tests.Greet.main", "Tests.Greet.start" ])
+
+  let _ = Stdlib.Cli.File.delete(file)
+  let broken = Instance.said(i, [ "alias" ])
+  Stdlib.Test.all(
+    [ Instance.says(
+        before,
+        "! the dark it runs is gone (/nowhere/dark)",
+        "a missing dark is marked")
+
+      Instance.exitedWith(renameCode, 0, $"the fn is renamed: {renamed}")
+      Instance.says(
+        broken,
+        "! no Tests.Greet.main on main any more",
+        "a fn renamed away is marked")
+
+      Instance.says(broken, "! the file is gone", "a deleted script is marked")
+
+      Instance.says(
+        broken,
+        "won't run as it is",
+        "and the listing says what to do") ]))
+
+
+// The instance policy is the ceiling for an alias, as for `dark run`: a file read `run` refuses
+// is refused through the alias, and through a bare `--entry-point`, and the grant `run` names
+// lets both through.
+test aliasRunsUnderTheInstancePolicy = Instance.withInstance(fun i ->
+  let note = Instance.home(i) + "/note.txt"
+  let _ = Stdlib.Cli.File.writeText(note, "secret")
+  let script = Instance.home(i) + "/read.dark"
+  let _ =
+    Stdlib.Cli.File.writeText(
+      script,
+      $"match Stdlib.Cli.File.readText(\"{note}\") with\n| Ok(t) -> Stdlib.printLine(\"read: \" + t)\n| Error(_) -> Stdlib.printLine(\"err\")\n")
+
+  let (definedCode, defined) = defineReader(i, note)
+  let (addCode, added) =
+    Instance.ran(i, [ "alias", "add", "rd", "Tests.Reader.main" ])
+
+  let (runCode, runOut) = Instance.ran(i, [ "run", script ])
+  let (aliasCode, aliasOut) = runAlias(i, "rd")
+  let (bareCode, bareOut) =
+    Instance.ran(i, [ "--entry-point", "Tests.Reader.main" ])
+
+  let (allowCode, allowed) =
+    Instance.ran(i, [ "permissions", "allow", "file", "read", note ])
+
+  let (grantedCode, grantedOut) = runAlias(i, "rd")
+  Stdlib.Test.all(
+    [ Instance.exitedWith(definedCode, 0, $"the reader is authored: {defined}")
+      Instance.exitedWith(addCode, 0, $"the alias is made: {added}")
+      Instance.exitedWith(runCode, 1, $"dark run refuses the read: {runOut}")
+      Instance.says(runOut, "not allowed", "and says the policy refused it")
+      Instance.exitedWith(aliasCode, 1, $"so does the alias: {aliasOut}")
+      Instance.says(aliasOut, "not allowed", "with the same reason")
+
+      Instance.says(
+        aliasOut,
+        "dark permissions allow file read",
+        "and the rule that would allow it")
+
+      Instance.doesNotSay(aliasOut, "read: secret", "nothing was read")
+      Instance.exitedWith(
+        bareCode,
+        1,
+        $"so does a bare --entry-point: {bareOut}")
+
+      Instance.doesNotSay(
+        bareOut,
+        "read: secret",
+        "nothing was read there either")
+
+      Instance.exitedWith(allowCode, 0, $"the read is granted: {allowed}")
+      Instance.exitedWith(grantedCode, 0, $"then the alias runs: {grantedOut}")
+      Instance.says(grantedOut, "read: secret", "and reads the file") ]))
+
+
+// A fn only a branch has can't be what an alias runs: refused at `add`, not at the first run.
+test aliasRefusesAFnOnlyOnABranch = Instance.withInstance(fun i ->
+  let (switchCode, _) = Instance.ran(i, [ "switch", "feat" ])
+  let (definedCode, _) = define(i, "hello", 0)
+  let (addCode, addOut) =
+    Instance.ran(i, [ "alias", "add", "greet", "Tests.Greet.main" ])
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(switchCode, 0, "the instance switches to feat")
+      Instance.exitedWith(definedCode, 0, "the fn is authored on feat")
+      Instance.exitedWith(addCode, 1, $"the alias is refused: {addOut}")
+      Instance.says(addOut, "only on this branch", "and the refusal says why")
+      Stdlib.Cli.File.exists($"{bin(i)}/greet") |> Stdlib.Test.equal(false) ]))
+
+
+test aliasRefusesWhatItCannotRun = Instance.withInstance(fun i ->
+  let (missing, missingOut) =
+    Instance.ran(i, [ "alias", "add", "nope", "Tests.Nothing.here" ])
+
+  let (wrongShape, wrongOut) =
+    Instance.ran(i, [ "alias", "add", "first-of", "Stdlib.List.head" ])
+
+  let (badName, _) =
+    Instance.ran(i, [ "alias", "add", "-x", "Stdlib.List.head" ])
+
+  // `sh` is on every PATH this runs under; an alias of that name would shadow it or be
+  // shadowed by it.
+  let (taken, takenOut) =
+    Instance.ran(i, [ "alias", "add", "sh", "Tests.Nothing.here" ])
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(missing, 1, $"a missing fn is refused: {missingOut}")
+
+      Instance.exitedWith(
+        wrongShape,
+        1,
+        "a fn that isn't List<String> -> Int64 is refused")
+
+      Instance.says(
+        wrongOut,
+        "List<String>",
+        "and the refusal says what an alias runs")
+
+      Instance.says(wrongOut, "it is (list: List<'a>)", "and what the fn is")
+
+      Instance.says(
+        wrongOut,
+        "let main(args: List<String>): Int64 =\n      let _ = Darklang.Stdlib.List.head(...)",
+        "and offers a wrapper that calls it")
+
+      Instance.exitedWith(badName, 1, "a name starting with - is refused")
+      Stdlib.Cli.File.exists($"{bin(i)}/nope") |> Stdlib.Test.equal(false)
+      Instance.exitedWith(taken, 1, "a name already on PATH is refused")
+      Instance.says(
+        takenOut,
+        "already a command on your PATH",
+        "and the refusal says why")
+
+      Stdlib.Cli.File.exists($"{bin(i)}/first-of") |> Stdlib.Test.equal(false)
+      Stdlib.Cli.File.exists($"{bin(i)}/sh") |> Stdlib.Test.equal(false) ]))
+
+
+// `rm --all` takes every alias and leaves the rest of the folder; a name and --all together, or
+// neither, is refused rather than guessed at.
+test aliasRemoveAll = Instance.withInstance(fun i ->
+  let _ = define(i, "hello", 0)
+  let _ = Stdlib.Cli.Unix.ensureDirectoryExists(bin(i))
+  let other = $"{bin(i)}/tool"
+  let _ = Stdlib.Cli.File.writeText(other, "#!/bin/sh\necho mine\n")
+  let _ = Instance.ran(i, [ "alias", "add", "one", "Tests.Greet.main" ])
+
+  let _ =
+    Instance.ran(i, [ "alias", "add", "two", "Tests.Greet.main", "--pin" ])
+
+  let (neither, _) = Instance.ran(i, [ "alias", "rm" ])
+
+  let (both, _) = Instance.ran(i, [ "alias", "rm", "one", "--all" ])
+
+  let (allCode, allOut) = Instance.ran(i, [ "alias", "rm", "--all" ])
+
+  let (againCode, againOut) = Instance.ran(i, [ "alias", "rm", "--all" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(neither, 1, "rm with no name and no --all is refused")
+      Instance.exitedWith(both, 1, "a name and --all together is refused")
+      Instance.exitedWith(allCode, 0, $"rm --all works: {allOut}")
+      Instance.says(allOut, "removed 2: one, two", "and says what it removed")
+      Stdlib.Cli.File.exists($"{bin(i)}/one") |> Stdlib.Test.equal(false)
+      Stdlib.Cli.File.exists($"{bin(i)}/two") |> Stdlib.Test.equal(false)
+      Stdlib.Cli.File.exists(other) |> Stdlib.Test.equal(true)
+      Instance.exitedWith(againCode, 0, "with none left it is not an error")
+      Instance.says(againOut, "no aliases to remove", "and says so") ]))
+
+
+// The folder also holds the installed `dark`: a file that is not an alias is never replaced or
+// removed by `alias`, and is not listed as one.
+test aliasLeavesOtherFilesAlone = Instance.withInstance(fun i ->
+  let _ = define(i, "hello", 0)
+  let _ = Stdlib.Cli.Unix.ensureDirectoryExists(bin(i))
+  let other = $"{bin(i)}/tool"
+  let _ = Stdlib.Cli.File.writeText(other, "#!/bin/sh\necho mine\n")
+  let (addCode, _) =
+    Instance.ran(i, [ "alias", "add", "tool", "Tests.Greet.main" ])
+
+  let (rmCode, _) = Instance.ran(i, [ "alias", "rm", "tool" ])
+  let listed = Instance.said(i, [ "alias" ])
+  let kept =
+    match Stdlib.Cli.File.readText(other) with
+    | Ok(text) -> text
+    | Error(_) -> ""
+
+  let _ = Instance.ran(i, [ "alias", "add", "greet", "Tests.Greet.main" ])
+  let (removeCode, _) = Instance.ran(i, [ "alias", "rm", "greet" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(addCode, 1, "add refuses to overwrite it")
+      Instance.exitedWith(rmCode, 1, "rm refuses to delete it")
+      kept |> Stdlib.Test.equal("#!/bin/sh\necho mine\n")
+      Instance.doesNotSay(listed, "tool", "it is not listed")
+      Instance.exitedWith(removeCode, 0, "an alias is removed")
+      Stdlib.Cli.File.exists($"{bin(i)}/greet") |> Stdlib.Test.equal(false) ]))

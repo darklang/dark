@@ -80,4 +80,23 @@ Cancellation stops the run; earlier effects are not undone. Noninteractive runs
 fail with guidance without prompting. Explicit denies cannot be overridden.
 `--sandbox` adds a deny-all run policy; it does not provide OS isolation.
 See `dark help run-script` for all permission options.
+
+## A command of your own
+
+`dark alias add <name> <fn>` puts a package function on your PATH as <name>: a
+short script in ~/.darklang/bin, beside the installed dark. The function takes
+(args: List<String>) and returns the exit code as an Int64. A .dark file works
+too: `dark alias add greet greet.dark` runs it with `dark run` each time, so edits
+to the file show up.
+
+  dark alias add greet Me.Tools.greet
+  greet Ada
+
+An alias runs under the instance policy, like `dark run`: what a script would be
+refused, it is refused, and at a terminal it offers to save the rule.
+
+An alias always runs main's version, whichever branch you are on. It follows the
+name, so an edit shows up once it is on main; `--pin` keeps the exact version.
+`dark alias` lists them, `dark alias rm <name>` (or `--all`) removes them, and
+`dark uninstall` takes them with ~/.darklang. See `dark help alias`.
 """
