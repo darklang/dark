@@ -86,7 +86,7 @@ let splitArgumentsAfter(
 /// Whether <param arg> starts with a `-`. By its first byte, not its first character, so a `-`
 /// that a combining mark follows still counts, as it does for the host.
 let isFlag(arg: String): Bool =
-  Stdlib.String.getByteAt(arg, 0) == Option.Some(45u8)
+  Stdlib.String.getByteAt(arg, 0) == Option.Some(45)
 
 
 let execute(state: AppState, args: List<String>): AppState =

@@ -476,16 +476,16 @@ test toInt64TruncatesWhereFloorRoundsDown =
 // IEEE 754 binary64 representations.
 test toBits =
   Stdlib.Test.all(
-    [ Stdlib.Float64.toBits(0.0) |> Stdlib.Test.equal(0u64)
+    [ Stdlib.Float64.toBits(0.0) |> Stdlib.Test.equal(0)
 
-      Stdlib.Float64.toBits(0.5) |> Stdlib.Test.equal(4602678819172646912u64)
+      Stdlib.Float64.toBits(0.5) |> Stdlib.Test.equal(4602678819172646912)
 
-      Stdlib.Float64.toBits(1.0) |> Stdlib.Test.equal(4607182418800017408u64)
+      Stdlib.Float64.toBits(1.0) |> Stdlib.Test.equal(4607182418800017408)
 
-      Stdlib.Float64.toBits(2.0) |> Stdlib.Test.equal(4611686018427387904u64)
+      Stdlib.Float64.toBits(2.0) |> Stdlib.Test.equal(4611686018427387904)
 
       Stdlib.Float64.toBits(infinity())
-      |> Stdlib.Test.equal(9218868437227405312u64)
+      |> Stdlib.Test.equal(9218868437227405312)
 
       Stdlib.Float64.toBits(-0.0) |> Stdlib.Test.equal(9223372036854775808u64)
 

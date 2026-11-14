@@ -112,23 +112,23 @@ test decodeRawBytes =
   Stdlib.Test.all(
     [ Stdlib.Base64.decode("-p")
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(Stdlib.Bytes.fromList([ 250u8 ])))
+        Stdlib.Result.Result.Ok(Stdlib.Bytes.fromList([ 250 ])))
 
       Stdlib.Base64.decode("lI")
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(Stdlib.Bytes.fromList([ 148u8 ])))
+        Stdlib.Result.Result.Ok(Stdlib.Bytes.fromList([ 148 ])))
 
       Stdlib.Base64.decode("5Sk")
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(Stdlib.Bytes.fromList([ 229u8, 41u8 ])))
+        Stdlib.Result.Result.Ok(Stdlib.Bytes.fromList([ 229, 41 ])))
 
       Stdlib.Base64.decode("AA")
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(Stdlib.Bytes.fromList([ 0u8 ])))
+        Stdlib.Result.Result.Ok(Stdlib.Bytes.fromList([ 0 ])))
 
       Stdlib.Base64.decode("_w")
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(Stdlib.Bytes.fromList([ 255u8 ]))) ])
+        Stdlib.Result.Result.Ok(Stdlib.Bytes.fromList([ 255 ]))) ])
 
 
 // Check decoding with incorrect padding.
@@ -193,13 +193,13 @@ test urlEncode =
   Stdlib.Test.all(
     [ Stdlib.Base64.urlEncode(Stdlib.Bytes.empty) |> Stdlib.Test.equal("")
 
-      Stdlib.Base64.urlEncode(Stdlib.Bytes.fromList([ 251u8 ]))
+      Stdlib.Base64.urlEncode(Stdlib.Bytes.fromList([ 251 ]))
       |> Stdlib.Test.equal("-w==")
 
-      Stdlib.Base64.urlEncode(Stdlib.Bytes.fromList([ 255u8, 255u8 ]))
+      Stdlib.Base64.urlEncode(Stdlib.Bytes.fromList([ 255, 255 ]))
       |> Stdlib.Test.equal("__8=")
 
-      Stdlib.Base64.urlEncode(Stdlib.Bytes.fromList([ 251u8, 255u8, 255u8 ]))
+      Stdlib.Base64.urlEncode(Stdlib.Bytes.fromList([ 251, 255, 255 ]))
       |> Stdlib.Test.equal("-___")
 
       Stdlib.Base64.urlEncode(Stdlib.Utf8.encode("abcdef"))

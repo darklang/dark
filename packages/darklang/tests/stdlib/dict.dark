@@ -682,7 +682,7 @@ test nanInsideKeyRaises =
 
 
 test float32NanKeyRaises =
-  Stdlib.Dict.set(Dict {}, Stdlib.Float32.sqrt(-1.0f32), "nan")
+  Stdlib.Dict.set(Dict {}, Stdlib.Float32.sqrt(-1.0), "nan")
   => raises "Cannot use NaN as a dict key. NaN is not equal to itself, so a key holding it could never be found."
 
 

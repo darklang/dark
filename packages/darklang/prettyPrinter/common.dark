@@ -116,7 +116,7 @@ let __escapeGrapheme(g: String, quote: String): String =
     codepoints
     |> Stdlib.List.indexedMap(fun(i, cp) ->
       let one =
-        Stdlib.Char.fromCodepoint(Stdlib.UInt32.fromInt64(cp) |> Stdlib.Option.withDefault(0u32))
+        Stdlib.Char.fromCodepoint(Stdlib.UInt32.fromInt64(cp) |> Stdlib.Option.withDefault(0))
         |> Stdlib.Option.map(Stdlib.display)
         |> Stdlib.Option.withDefault("")
 

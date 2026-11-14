@@ -580,7 +580,7 @@ let __kernelEntriesFrom(
       else
         let nameStart = at + nameOffset
         let recordEnd = at + length
-        match Bytes.indexOfFrom(bytes, 0u8, nameStart) with
+        match Bytes.indexOfFrom(bytes, 0, nameStart) with
         | Some(nul) when nul < recordEnd ->
           match Bytes.slice(bytes, nameStart, nul) with
           | Ok(nameBytes) ->
@@ -655,7 +655,7 @@ let __pathCwdWith(read: Int64 -> Result<Bytes, Int64>, count: Int64): Result<Byt
 
 let __pathPathText(bytes: Bytes): String =
   let text =
-    match Bytes.indexOf(bytes, 0u8) with
+    match Bytes.indexOf(bytes, 0) with
     | Some(nul) -> Bytes.take(bytes, nul)
     | None -> bytes
 

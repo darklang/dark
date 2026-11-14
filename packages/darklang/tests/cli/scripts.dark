@@ -67,7 +67,7 @@ module CallStack =
     LanguageTools.RuntimeTypes.ExecutionPoint.Function(
       LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(
         LanguageTools.RuntimeTypes.FQFnName.Builtin
-          { name = "bigIntDivide", version = 0s32 }))
+          { name = "bigIntDivide", version = 0 }))
 
 
   let render(frames: List<LanguageTools.RuntimeTypes.ExecutionPoint>): String =
@@ -89,7 +89,7 @@ module CallStack =
       SCM.Branch.mainBranchId,
       LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(
         source(),
-        23u64,
+        23,
         Stdlib.Option.Option.None))
     |> Stdlib.Test.equal("Lambda 23")
 
@@ -100,7 +100,7 @@ module CallStack =
       SCM.Branch.mainBranchId,
       LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(
         builtin(),
-        23u64,
+        23,
         Stdlib.Option.Option.Some(source())))
     |> Stdlib.Test.equal("Lambda in Source (23)")
 
@@ -121,7 +121,7 @@ module CallStack =
     let lambda =
       LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(
         source(),
-        23u64,
+        23,
         Stdlib.Option.Option.None)
 
     Stdlib.Test.all(

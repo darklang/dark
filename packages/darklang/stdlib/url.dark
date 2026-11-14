@@ -605,6 +605,6 @@ let percentEncode(s: String): String =
   |> Bytes.toList
   |> List.map(fun b ->
     match Char.fromCodepoint(UInt32.fromUInt8(b)) with
-    | Some(c) when b < 128u8 && isUnreserved(c) -> String.fromChar(c)
+    | Some(c) when b < 128 && isUnreserved(c) -> String.fromChar(c)
     | _ -> "%" + Base16.encode(Bytes.fromList([ b ])))
   |> String.join("")

@@ -186,7 +186,7 @@ let shortTypeName(branchId: Uuid, t: LanguageTools.RuntimeTypes.FQTypeName.FQTyp
 module FQValueName =
   let builtIn(t: LanguageTools.RuntimeTypes.FQValueName.Builtin): String =
     let namePart = t.name
-    let versionPart = if t.version == 0s32 then "" else $"_v{Stdlib.display(t.version)}"
+    let versionPart = if t.version == 0 then "" else $"_v{Stdlib.display(t.version)}"
     $"{namePart}{versionPart}"
 
 
@@ -207,7 +207,7 @@ let valueName(branchId: Uuid, t: LanguageTools.RuntimeTypes.FQValueName.FQValueN
 module FQFnName =
   let builtIn(t: LanguageTools.RuntimeTypes.FQFnName.Builtin): String =
     let namePart = t.name
-    let versionPart = if t.version == 0s32 then "" else $"_v{Stdlib.display(t.version)}"
+    let versionPart = if t.version == 0 then "" else $"_v{Stdlib.display(t.version)}"
     $"Builtin.{namePart}{versionPart}"
 
 
