@@ -23,7 +23,7 @@ type Int64:
 
 HTTP handlers should return results in the form:
   Darklang.Stdlib.Http.Response {
-    statusCode : Int64
+    statusCode : Darklang.Stdlib.Http.Status
     headers : List<String*String>
     body : Bytes
   }

@@ -167,7 +167,7 @@ test promptCursorFollowsWordWrap =
   let state =
     Cli.Prompt.Editing.setText(Cli.Prompt.initState(), "echo hello world")
 
-  let size = Stdlib.Cli.Tui.Size { width = 10, height = 5 }
+  let size = Stdlib.Cli.Tui.Size { width = 10u16, height = 5u16 }
   let view = Cli.Prompt.Display.viewAtSize(state, "", "", size)
   match view.cursor with
   | Visible(row, column) ->
@@ -267,7 +267,7 @@ test sessionTakesAlternateScreenOnFirstPresent =
   let prepared =
     Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize(
       Stdlib.Cli.Tui.TerminalSession.init(),
-      Stdlib.Cli.Tui.Size { width = 20, height = 5 },
+      Stdlib.Cli.Tui.Size { width = 20u16, height = 5u16 },
       fullscreenView([ "hello" ]))
 
   if Stdlib.String.contains(prepared.output, "\u001b[?1049h") then
@@ -278,7 +278,7 @@ test sessionTakesAlternateScreenOnFirstPresent =
 
 
 test sessionSecondIdenticalPresentIsSilent =
-  let size = Stdlib.Cli.Tui.Size { width = 20, height = 5 }
+  let size = Stdlib.Cli.Tui.Size { width = 20u16, height = 5u16 }
   let view = fullscreenView([ "hello" ])
   let first =
     Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize(
@@ -298,7 +298,7 @@ test sessionSecondIdenticalPresentIsSilent =
 
 
 test sessionStopRestoresOnlyWhenRunning =
-  let size = Stdlib.Cli.Tui.Size { width = 20, height = 5 }
+  let size = Stdlib.Cli.Tui.Size { width = 20u16, height = 5u16 }
   let started =
     Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize(
       Stdlib.Cli.Tui.TerminalSession.init(),
@@ -330,7 +330,7 @@ let completionPickerState(itemCount: Int64): CompletionPicker.State =
 
 
 test completionPickerTwoRows =
-  let size = Stdlib.Cli.Tui.Size { width = 80, height = 2 }
+  let size = Stdlib.Cli.Tui.Size { width = 80u16, height = 2u16 }
   let state = completionPickerState(3)
   let layout = CompletionPicker.layoutAtSize(state, size)
   let view = CompletionPicker.viewAtSize(state, size)
@@ -354,10 +354,14 @@ test completionPickerNarrowHelp =
   let help = CompletionPicker.helpTextAtWidth(width)
   if
     CompletionPicker.supportsSize(
-      Stdlib.Cli.Tui.Size { width = width, height = 2 })
+      Stdlib.Cli.Tui.Size
+        { width = Builtin.unwrap(Stdlib.UInt16.fromInt64(width))
+          height = 2u16 })
     && Stdlib.Bool.not(
       CompletionPicker.supportsSize(
-        Stdlib.Cli.Tui.Size { width = width - 1, height = 2 }))
+        Stdlib.Cli.Tui.Size
+          { width = Builtin.unwrap(Stdlib.UInt16.fromInt64(width - 1))
+            height = 2u16 }))
     && help == CompletionPicker.minimumHelpText
     && Stdlib.String.displayWidth(help) <= width
   then
@@ -367,7 +371,7 @@ test completionPickerNarrowHelp =
 
 
 test completionPickerLongList =
-  let size = Stdlib.Cli.Tui.Size { width = 80, height = 3 }
+  let size = Stdlib.Cli.Tui.Size { width = 80u16, height = 3u16 }
   let state = completionPickerState(5)
   let layout = CompletionPicker.layoutAtSize(state, size)
   let view = CompletionPicker.viewAtSize(state, size)

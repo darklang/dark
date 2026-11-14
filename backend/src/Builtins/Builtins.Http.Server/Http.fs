@@ -60,7 +60,11 @@ module Response =
     (state : RT.ExecutionState)
     (fields : RT.RecordFields)
     : HttpResponse =
-    let code = RT.RecordFields.tryFind "statusCode" fields
+    let code =
+      match RT.RecordFields.tryFind "statusCode" fields with
+      | Some(RT.DRecord(_, _, _, status)) ->
+        RT.RecordFields.tryFind "__status" status
+      | _ -> None
     let headers = RT.RecordFields.tryFind "headers" fields
     let body = RT.RecordFields.tryFind "body" fields
 
@@ -82,7 +86,7 @@ module Response =
       match headers with
       | Ok headers ->
         let body = Bytes.readBytes state bodyRef
-        // `statusCode` is an `Int64`; narrowing a value outside Int32 range
+        // a `Status` holds an `Int64`; narrowing a value outside Int32 range
         // with `int` would wrap, so reject it as an application error instead.
         if
           code < int64 System.Int32.MinValue || code > int64 System.Int32.MaxValue
@@ -120,7 +124,7 @@ module Response =
           ""
           "HTTP handlers should return results in the form:"
           "  Darklang.Stdlib.Http.Response {"
-          "    statusCode : Int64"
+          "    statusCode : Darklang.Stdlib.Http.Status"
           "    headers : List<String*String>"
           "    body : Bytes"
           "  }" ]

@@ -15,7 +15,7 @@ type ReleaseError =
   /// The request didn't complete: no network, DNS, TLS, a timeout
   | RequestFailed(Stdlib.HttpClient.RequestError)
   /// GitHub answered with a status other than 200
-  | BadStatus(Int64)
+  | BadStatus(Stdlib.Http.Status)
   /// GitHub's answer wasn't the JSON a release has
   | UnexpectedResponse
   | NoReleases
@@ -33,7 +33,8 @@ let releaseErrorMessage(e: ReleaseError): String =
   match e with
   | RequestFailed(requestError) ->
     $"Couldn't reach the GitHub API: {Stdlib.HttpClient.toString(requestError)}"
-  | BadStatus(code) -> $"The GitHub API answered with status {Stdlib.display(code)}"
+  | BadStatus(code) ->
+    $"The GitHub API answered with status {Stdlib.display(Stdlib.Http.Status.toInt64(code))}"
   | UnexpectedResponse -> "Couldn't read the GitHub API's answer"
   | NoReleases -> "No releases found"
   | ReleaseNotFound(tag) -> $"No release is tagged {tag}"
@@ -47,7 +48,7 @@ let __fetchString(url: String): Result<String, ReleaseError> =
   let headers = [ ("accept", "application/vnd.github+json"), ("user-Agent", "darklang") ]
   match Stdlib.HttpClient.get(url, headers) with
   | Ok(r) ->
-    if r.statusCode == 200 then
+    if r.statusCode == Stdlib.Http.Status.ok then
       r.body
       |> Stdlib.Utf8.decodeWithReplacement
       |> Result.Ok
@@ -170,8 +171,8 @@ module Releases =
 
 
   /// What a status other than 200 means when looking up release <param releaseTag>.
-  let statusError(releaseTag: String, code: Int64): ReleaseError =
-    if code == 404 then
+  let statusError(releaseTag: String, code: Stdlib.Http.Status): ReleaseError =
+    if code == Stdlib.Http.Status.notFound then
       ReleaseError.ReleaseNotFound(releaseTag)
     else
       ReleaseError.BadStatus(code)

@@ -311,7 +311,7 @@ module Middleware =
                   | Some(h) -> List.append(allowed, ("Access-Control-Allow-Headers", h))
                   | None -> allowed
 
-                allow(Http.responseWithHeaders(204, headers, Bytes.empty))
+                allow(Http.responseWithHeaders(Http.Status.noContent, headers, Bytes.empty))
               | _ -> allow(next(req))
             else
               next(req)
