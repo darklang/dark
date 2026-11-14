@@ -32,6 +32,13 @@ Save a module, run its `main` by name, and test it:
 
 Save the module again to change it.
 
+A `main` reads stdin and files as any program does. Printing and stdin need
+no approval; files, the network and the environment do. `--allow` gives one
+run its access, and holds across edits:
+
+  printf 'a\nb\n' | run Me.Lines.main
+  run --allow "file read $PWD" Me.Report.main data.csv
+
 ## Workflow
 
   search --batch "List.map" "Json.serialize" --fn  # three results per query
