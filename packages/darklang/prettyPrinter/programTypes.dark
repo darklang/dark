@@ -973,10 +973,16 @@ module NameResolution =
     | Error(_) -> NameResolutionError.source(nr.originalName)
 
 
+/// Whether a function type prints in parentheses: `(A -> B) -> R` needs them, `List<A -> B>` does not.
+type FnParens =
+  | Wrap
+  | Bare
+
+
 /// Render a type reference, parenthesizing function types when required.
 let typeReferenceDocWithFnParens(
   ctx: Context,
-  fnNeedsParens: Bool,
+  fnParens: FnParens,
   t: LanguageTools.ProgramTypes.TypeReference)
   : Stdlib.Pretty.Doc =
   let txt = Stdlib.Pretty.text
@@ -984,18 +990,18 @@ let typeReferenceDocWithFnParens(
     Stdlib.Pretty.Doc.Concat(txt(name), wrapExprs("<", ">", ",", inners))
 
   match t with
-  | TStream(inner) -> angled("Stream", [ typeReferenceDocWithFnParens(ctx, false, inner) ])
-  | TList(inner) -> angled("List", [ typeReferenceDocWithFnParens(ctx, false, inner) ])
+  | TStream(inner) -> angled("Stream", [ typeReferenceDocWithFnParens(ctx, FnParens.Bare, inner) ])
+  | TList(inner) -> angled("List", [ typeReferenceDocWithFnParens(ctx, FnParens.Bare, inner) ])
   | TDict(key, value) ->
     angled(
       "Dict",
-      [ typeReferenceDocWithFnParens(ctx, false, key)
-        typeReferenceDocWithFnParens(ctx, false, value) ])
+      [ typeReferenceDocWithFnParens(ctx, FnParens.Bare, key)
+        typeReferenceDocWithFnParens(ctx, FnParens.Bare, value) ])
   | TTuple(first, second, theRest) ->
     let parts =
       Stdlib.List.concat([ first, second ], theRest)
       // Preserve function types nested in the tuple.
-      |> Stdlib.List.map(fun item -> typeReferenceDocWithFnParens(ctx, true, item))
+      |> Stdlib.List.map(fun item -> typeReferenceDocWithFnParens(ctx, FnParens.Wrap, item))
 
     let separator = Stdlib.Pretty.Doc.Concat(txt(" *"), Stdlib.Pretty.Doc.Line)
     Stdlib.Pretty.group(parens(Stdlib.Pretty.join(parts, separator)))
@@ -1010,37 +1016,39 @@ let typeReferenceDocWithFnParens(
           "<",
           ">",
           ",",
-          args |> Stdlib.List.map(fun a -> typeReferenceDocWithFnParens(ctx, false, a))))
+          args |> Stdlib.List.map(fun a -> typeReferenceDocWithFnParens(ctx, FnParens.Bare, a))))
   | TFn(args, ret) ->
     // One argument is `A -> R`, several are `(A, B) -> R`. A function as the only
     // argument, or as the result, keeps its parentheses: `(A -> B) -> R`.
     let argsDoc =
       match args with
-      | [only] -> typeReferenceDocWithFnParens(ctx, true, only)
+      | [only] -> typeReferenceDocWithFnParens(ctx, FnParens.Wrap, only)
       | args ->
         wrapExprs(
           "(",
           ")",
           ",",
-          args |> Stdlib.List.map(fun a -> typeReferenceDocWithFnParens(ctx, false, a)))
+          args |> Stdlib.List.map(fun a -> typeReferenceDocWithFnParens(ctx, FnParens.Bare, a)))
 
     let doc =
       Stdlib.Pretty.group(
         Stdlib.Pretty.join(
-          [ argsDoc, typeReferenceDocWithFnParens(ctx, true, ret) ],
+          [ argsDoc, typeReferenceDocWithFnParens(ctx, FnParens.Wrap, ret) ],
           Stdlib.Pretty.Doc.Concat(txt(" ->"), Stdlib.Pretty.Doc.Line)))
 
-    if fnNeedsParens then parens(doc) else doc
+    match fnParens with
+    | Wrap -> parens(doc)
+    | Bare -> doc
   | other -> txt(typeReferenceFlat(ctx, other))
 
 
 let typeReferenceDoc(ctx: Context, t: LanguageTools.ProgramTypes.TypeReference): Stdlib.Pretty.Doc =
-  typeReferenceDocWithFnParens(ctx, false, t)
+  typeReferenceDocWithFnParens(ctx, FnParens.Bare, t)
 
 
 let typeReferenceFlatAtPrecedence(
   ctx: Context,
-  fnNeedsParens: Bool,
+  fnParens: FnParens,
   t: LanguageTools.ProgramTypes.TypeReference)
   : String =
   match t with
@@ -1066,16 +1074,16 @@ let typeReferenceFlatAtPrecedence(
   | TDateTime -> "DateTime"
   | TUuid -> "Uuid"
   | TBytes -> "Bytes"
-  | TStream(inner) -> $"Stream<{typeReferenceFlatAtPrecedence(ctx, false, inner)}>"
-  | TList(inner) -> $"List<{typeReferenceFlatAtPrecedence(ctx, false, inner)}>"
+  | TStream(inner) -> $"Stream<{typeReferenceFlatAtPrecedence(ctx, FnParens.Bare, inner)}>"
+  | TList(inner) -> $"List<{typeReferenceFlatAtPrecedence(ctx, FnParens.Bare, inner)}>"
   | TTuple(first, second, theRest) ->
     Stdlib.List.concat([ first, second ], theRest)
-    |> Stdlib.List.map(fun item -> typeReferenceFlatAtPrecedence(ctx, true, item))
+    |> Stdlib.List.map(fun item -> typeReferenceFlatAtPrecedence(ctx, FnParens.Wrap, item))
     |> Stdlib.String.join(" * ")
     |> (fun parts -> "(" + parts + ")")
   | TDict(key, value) ->
-    let k = typeReferenceFlatAtPrecedence(ctx, false, key)
-    let v = typeReferenceFlatAtPrecedence(ctx, false, value)
+    let k = typeReferenceFlatAtPrecedence(ctx, FnParens.Bare, key)
+    let v = typeReferenceFlatAtPrecedence(ctx, FnParens.Bare, value)
     $"Dict<{k}, {v}>"
   | TCustomType(typ, args) ->
     let argsPart =
@@ -1083,7 +1091,7 @@ let typeReferenceFlatAtPrecedence(
       | [] -> ""
       | args ->
         args
-        |> Stdlib.List.map(fun arg -> typeReferenceFlatAtPrecedence(ctx, false, arg))
+        |> Stdlib.List.map(fun arg -> typeReferenceFlatAtPrecedence(ctx, FnParens.Bare, arg))
         |> Stdlib.String.join(", ")
         |> (fun parts -> $"<{parts}>")
 
@@ -1093,19 +1101,21 @@ let typeReferenceFlatAtPrecedence(
     // `A -> R` for one argument, `(A, B) -> R` for several
     let argPart =
       match args with
-      | [only] -> typeReferenceFlatAtPrecedence(ctx, true, only)
+      | [only] -> typeReferenceFlatAtPrecedence(ctx, FnParens.Wrap, only)
       | args ->
         args
-        |> Stdlib.List.map(fun arg -> typeReferenceFlatAtPrecedence(ctx, false, arg))
+        |> Stdlib.List.map(fun arg -> typeReferenceFlatAtPrecedence(ctx, FnParens.Bare, arg))
         |> Stdlib.String.join(", ")
         |> (fun parts -> "(" + parts + ")")
 
-    let rendered = $"{argPart} -> {typeReferenceFlatAtPrecedence(ctx, true, ret)}"
-    if fnNeedsParens then $"({rendered})" else rendered
+    let rendered = $"{argPart} -> {typeReferenceFlatAtPrecedence(ctx, FnParens.Wrap, ret)}"
+    match fnParens with
+    | Wrap -> $"({rendered})"
+    | Bare -> rendered
 
 
 let typeReferenceFlat(ctx: Context, t: LanguageTools.ProgramTypes.TypeReference): String =
-  typeReferenceFlatAtPrecedence(ctx, false, t)
+  typeReferenceFlatAtPrecedence(ctx, FnParens.Bare, t)
 
 
 let typeReference(ctx: Context, t: LanguageTools.ProgramTypes.TypeReference): String =
@@ -1567,8 +1577,14 @@ let callArg(ctx: Context, arg: LanguageTools.ProgramTypes.Expr, isLast: Bool): S
   | _ -> exprDoc(ctx, arg)
 
 
+/// Whether a call is a pipe's step, its first argument coming from the pipe.
+type CallSite =
+  | InPipe
+  | Standalone
+
+
 /// A call's arguments after its head: `(a, b)`, or `()` for the one unit argument a
-/// fn declared `let f(): T` takes. `inPipe` keeps a lone unit explicit, since
+/// fn declared `let f(): T` takes. In a pipe a lone unit stays explicit, since
 /// `x |> f()` passes x alone and `x |> f(())` passes x and unit.
 ///
 /// A lambda as the last argument hugs the call when the line up to it fits:
@@ -1580,10 +1596,10 @@ let callArg(ctx: Context, arg: LanguageTools.ProgramTypes.Expr, isLast: Bool): S
 let callArgs(
   ctx: Context,
   args: List<LanguageTools.ProgramTypes.Expr>,
-  inPipe: Bool)
+  site: CallSite)
   : Stdlib.Pretty.Doc =
   match args with
-  | [EUnit(_)] when Stdlib.Bool.not(inPipe) -> Stdlib.Pretty.text("()")
+  | [EUnit(_)] when site == CallSite.Standalone -> Stdlib.Pretty.text("()")
   | _ ->
     let count = Stdlib.List.length(args)
     let lambdaLast = lastIsLambda(args)
@@ -1700,7 +1716,7 @@ let pipeExprDoc(ctx: Context, p: LanguageTools.ProgramTypes.PipeExpr): Stdlib.Pr
     : Stdlib.Pretty.Doc =
     match args with
     | [] -> head
-    | args -> Stdlib.Pretty.Doc.Concat(head, callArgs(ctx, args, true))
+    | args -> Stdlib.Pretty.Doc.Concat(head, callArgs(ctx, args, CallSite.InPipe))
 
   match p with
   | EPipeVariable(_id, varName, exprs) ->
@@ -2430,7 +2446,7 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
     let head = Stdlib.Pretty.Doc.Concat(exprDoc(ctx, fnName), typeArgumentsDoc(ctx, typeArgs))
     match args with
     | [] -> head
-    | args -> Stdlib.Pretty.Doc.Concat(head, callArgs(ctx, args, false))
+    | args -> Stdlib.Pretty.Doc.Concat(head, callArgs(ctx, args, CallSite.Standalone))
   | EList(_id, items) -> listDoc(ctx, items)
   | ETuple(_id, first, second, theRest) ->
     let parts =
@@ -2514,7 +2530,7 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
 
     match fields with
     | [] -> head
-    | fields -> Stdlib.Pretty.Doc.Concat(head, callArgs(ctx, fields, false))
+    | fields -> Stdlib.Pretty.Doc.Concat(head, callArgs(ctx, fields, CallSite.Standalone))
   | ELambda(_id, pats, body) -> lambdaDoc(ctx, pats, body, true)
   | ERecordFieldAccess(_id, record, fieldName) ->
     let field = Stdlib.Pretty.text("." + formatAccessedFieldName(fieldName))
@@ -2901,11 +2917,11 @@ module TypeDeclaration =
       match d.typ with
       | TTuple(first, second, theRest) ->
         Stdlib.List.concat([ first, second ], theRest)
-        |> Stdlib.List.map(fun item -> typeReferenceDocWithFnParens(ctx, true, item))
+        |> Stdlib.List.map(fun item -> typeReferenceDocWithFnParens(ctx, FnParens.Wrap, item))
         |> Stdlib.Pretty.join(
           Stdlib.Pretty.Doc.Concat(Stdlib.Pretty.text(" *"), Stdlib.Pretty.Doc.Line))
         |> Stdlib.Pretty.group
-      | typ -> typeReferenceDocWithFnParens(ctx, false, typ)
+      | typ -> typeReferenceDocWithFnParens(ctx, FnParens.Bare, typ)
 
     match d.label with
     | None -> typ

@@ -360,6 +360,12 @@ let implBlock(
   PrettyPrinter.ProgramTypes.formatDocComment(i.description) + head + "\n" + indentLines(body, 2)
 
 
+/// Whether a short fn's body may share its line, as in a run of one-line fns.
+type FnLayout =
+  | Compact
+  | Spaced
+
+
 /// One declaration, printed at <param path> (owner first) for a page <param width> wide: the
 /// comments above it, its text, and the names of what in it was printed as written.
 let declaration(
@@ -368,7 +374,7 @@ let declaration(
   width: Int64,
   file: File,
   path: List<String>,
-  compact: Bool,
+  layout: FnLayout,
   own: List<Comment>,
   d: Declaration)
   : (String * String * List<String>) =
@@ -410,7 +416,7 @@ let declaration(
         textParts = file.textParts
         comments = byKey(leadingInside, fun c -> c.node)
         trailingComments = byKey(trailingInside, fun c -> c.node)
-        compactFnBody = compact
+        compactFnBody = layout == FnLayout.Compact
         hasComments = Stdlib.Bool.not(Stdlib.List.isEmpty(inside))
         knownBindings = Option.Some(known) }
 
@@ -509,7 +515,15 @@ let declarations(
       | Fn(_, fn) ->
         if fn.description == "" && codeRow(file, d) == d.row && d.endRow == d.row then
           let (above, text, names) =
-            declaration(branchId, known, widthFor(width, path, d), file, path, true, own, d)
+            declaration(
+              branchId,
+              known,
+              widthFor(width, path, d),
+              file,
+              path,
+              FnLayout.Compact,
+              own,
+              d)
 
           if
             above == ""
@@ -554,7 +568,8 @@ let declarations(
       let (((d, own), s), run) = quad
       match s with
       | Some(compact) when run >= 3 -> compact
-      | _ -> declaration(branchId, known, widthFor(width, path, d), file, path, false, own, d))
+      | _ ->
+        declaration(branchId, known, widthFor(width, path, d), file, path, FnLayout.Spaced, own, d))
 
   // One blank line between two declarations that each fit on a line, and two otherwise, or
   // between all of a run of tests when any of the run takes several lines.

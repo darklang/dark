@@ -89,7 +89,10 @@ let formatType(
                 | TTuple(first, second, theRest) ->
                   Stdlib.List.concat([ first, second ], theRest)
                   |> Stdlib.List.map(fun item ->
-                    PrettyPrinter.ProgramTypes.typeReferenceFlatAtPrecedence(ctx, true, item))
+                    PrettyPrinter.ProgramTypes.typeReferenceFlatAtPrecedence(
+                      ctx,
+                      PrettyPrinter.ProgramTypes.FnParens.Wrap,
+                      item))
                   |> Stdlib.String.join(" * ")
                 | typ -> PrettyPrinter.ProgramTypes.typeReference(ctx, typ)
 
