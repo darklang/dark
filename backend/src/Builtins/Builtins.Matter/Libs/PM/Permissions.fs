@@ -37,9 +37,9 @@ let private accountIDOf (dval : Dval) : Option<System.Guid> =
 type private BuiltinEffects =
   { callEffectsFor : PackagePermissions.CallEffectsFor; fingerprint : string }
 
-/// A table never changes once made. Building this on every call, which sorts and hashes every
-/// builtin, was a seventh of `search`, which asks once for every function it lists.
-/// Shared cache, weakly keyed on the table, so a dropped table takes its entry with it.
+/// A table never changes once made, and building this sorts and hashes every builtin, so it is
+/// built once per table: `search` asks for every function it lists.
+/// Weakly keyed on the table, so a dropped table takes its entry with it.
 let private builtinEffectsCache =
   System.Runtime.CompilerServices.ConditionalWeakTable<Dictionary<FQFnName.Builtin, BuiltInFn>, BuiltinEffects>()
 

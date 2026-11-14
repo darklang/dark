@@ -2,9 +2,8 @@
 /// checks that share the table). One function, one query family: `query` takes what is being asked
 /// and answers with rows.
 ///
-/// Each case is the SQL Dark used to run itself, moved across as it was: the same statement, the
-/// same ordering, the same branch scope. Nothing here decides anything: the superseded sweep, the
-/// `#` on a pasted id and the candidate parsing all stay in Dark.
+/// Nothing here decides anything: the superseded sweep, the `#` on a pasted id and the candidate
+/// parsing all stay in Dark.
 ///
 /// Writes (recording a conflict, settling one) are not here yet; they stay in Dark for now.
 module LibDB.ScmConflicts

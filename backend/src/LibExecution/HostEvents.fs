@@ -150,9 +150,7 @@ type Queue() =
 /// The interpreter calls `RuntimeHelpers.EnsureSufficientExecutionStack()` before recursing over
 /// nested types (`ValueType.mergeKnownTypes`, `Dval.equals`), and that throws on how much stack is
 /// LEFT rather than on depth, so on a 128 KB thread it throws at once and every command dies
-/// before doing anything. Execution used to run on whatever thread called in, which for the CLI is
-/// the main thread, whose stack the OS and the PE header decide; it runs on threads we start now,
-/// so the size is ours to pick.
+/// before doing anything. Execution runs on threads we start, so the size is ours to pick.
 ///
 /// 16 MB rather than glibc's 8: how deep that recursion goes is a function of how deeply a user
 /// nests a type, which is not ours to bound, and recursing on type structure is exactly what the

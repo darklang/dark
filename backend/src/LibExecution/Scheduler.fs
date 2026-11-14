@@ -144,14 +144,11 @@ let defaultQuantum = 10_000L
 /// about half of how long it takes to repaint one (the other half is the reload, which drops
 /// every name cache and so pays for a cold render).
 ///
-/// A poll is 7.6 microseconds, so this is not a cost decision: 25 ms is forty wakeups a second
-/// and 0.03% of a core, and the timer only runs while something is actually watching. What used
-/// to keep it at 200 was that a save lands as several ops and a fast poll could report a
-/// half-written one, paying for a reload and a cold render. `StorePoll` settles for one quiet
-/// tick now, so a save arrives once however many ops it took, and the interval decides only how
-/// soon you hear about it.
+/// A poll is cheap, so this is not a cost decision, and the timer only runs while something is
+/// actually watching. A save lands as several ops, but `StorePoll` settles for one quiet tick, so
+/// a save arrives once however many ops it took, and the interval decides only how soon you hear
+/// about it.
 ///
-/// Measured against a live view, op to repaint: 1,430 ms at 2,000; 154 ms at 200; 40 ms at 25.
 /// `exec.storePollMs` in the store's config overrides it (`Cli.fs` reads it).
 // Host settings: `Cli.fs` writes these once at startup from the store's config.
 let mutable storePollMs = 25
