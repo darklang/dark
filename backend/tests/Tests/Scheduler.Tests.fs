@@ -2838,8 +2838,9 @@ let private capsEndARunaway =
     let! state = executionStateFor pmPT false
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let before = Scheduler.maxInstructions
-    // Three slices' worth, so the cap is crossed after three refills.
-    Scheduler.maxInstructions <- 3L * Scheduler.defaultQuantum
+    // Three slices' worth, so the cap is crossed after three refills. A slice the budget ends is
+    // charged one less than the quantum, for the turn the next spends re-entering its frame.
+    Scheduler.maxInstructions <- 3L * (Scheduler.defaultQuantum - 1L)
     try
       let! (loop : Scheduler.Process) =
         spawn
@@ -2854,13 +2855,13 @@ let private capsEndARunaway =
       | Error(rte, _) ->
         Expect.stringContains
           (string rte)
-          "over 30000 instructions"
+          "over 29997 instructions"
           "the reason names the cap"
       Expect.equal loop.slices 3L "it got its three slices"
       let summary = s.SummaryOf loop
       Expect.isGreaterThanOrEqual
         summary.instructionsTaken
-        (3L * Scheduler.defaultQuantum)
+        (3L * (Scheduler.defaultQuantum - 1L))
         "and the instructions it ran are counted"
       Expect.isGreaterThan summary.allocated 0L "allocation was accounted per slice"
     finally
@@ -2995,35 +2996,27 @@ let private cancelStopsAnEmptyLambdaMap =
     // Serial: spread, the map runs on other cores, and what this is about is the budget preempting
     // it on this one. It used to pass spread too, only because `length` walked the five million
     // results afterwards for long enough for the cancel to land.
-    let saved = LibExecution.Spread.crossover
-    LibExecution.Spread.crossover <- -1L
-    try
-      let! (p : Scheduler.Process) =
-        spawn
-          s
-          state
-          "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(0, 5000000), fun x -> x))"
-      let running = runOnThread s p
-      // Preempted at least once, so it is mid-map rather than still building the range.
-      let deadline = System.DateTime.UtcNow.AddSeconds 60.
-      while p.slices < 2L
-            && not running.IsCompleted
-            && System.DateTime.UtcNow < deadline do
-        Thread.Sleep 1
-      if running.IsCompleted then
-        failtest $"the map finished in {p.slices} slice(s), never preempted"
-      Expect.isTrue (s.Cancel p.id) "cancel found it"
-      let sw = System.Diagnostics.Stopwatch.StartNew()
-      let! result = running
-      match result with
-      | Error(RTE.UncaughtException("cancelled", _), _) -> ()
-      | other -> failtest $"expected cancelled, got {other}"
-      Expect.isLessThan
-        sw.ElapsedMilliseconds
-        1000L
-        "it stopped within a slice or so"
-    finally
-      LibExecution.Spread.crossover <- saved
+    let! (p : Scheduler.Process) =
+      spawn
+        s
+        { state with spread = { state.spread with on = false } }
+        "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(0, 5000000), fun x -> x))"
+    let running = runOnThread s p
+    // Preempted at least once, so it is mid-map rather than still building the range.
+    let deadline = System.DateTime.UtcNow.AddSeconds 60.
+    while p.slices < 2L
+          && not running.IsCompleted
+          && System.DateTime.UtcNow < deadline do
+      Thread.Sleep 1
+    if running.IsCompleted then
+      failtest $"the map finished in {p.slices} slice(s), never preempted"
+    Expect.isTrue (s.Cancel p.id) "cancel found it"
+    let sw = System.Diagnostics.Stopwatch.StartNew()
+    let! result = running
+    match result with
+    | Error(RTE.UncaughtException("cancelled", _), _) -> ()
+    | other -> failtest $"expected cancelled, got {other}"
+    Expect.isLessThan sw.ElapsedMilliseconds 1000L "it stopped within a slice or so"
   }
 
 

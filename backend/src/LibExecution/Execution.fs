@@ -37,7 +37,9 @@ let rec noTracing : RT.Tracing.Tracing =
     leaveFunction = fun _ -> ()
     replayEffect = fun _ _ _ -> RT.Tracing.ReplayStep.PerformOnwards
     viewEffect = None
-    forProcess = fun _ -> noTracing }
+    forProcess = fun _ -> noTracing
+    forChunk = fun () -> { tracing = noTracing; take = fun _ _ -> () } }
+
 
 let noTestContext : RT.TestContext =
   { isPackageTest = false
@@ -96,6 +98,7 @@ let createState
     allowHarmful = false
 
     spreadChild = false
+    spread = RT.SpreadSettings.defaults ()
 
     fnPurity = fun _ -> Ply RT.Purity.Unknown
 

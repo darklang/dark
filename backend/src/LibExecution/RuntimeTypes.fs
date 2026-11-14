@@ -5332,7 +5332,16 @@ module Tracing =
       /// interleaving can be read back. The scheduler calls this at spawn; the hooks it
       /// returns are the process's own. `noTracing` answers itself.
       forProcess : System.Guid -> Tracing
+      /// Hooks for a spread chunk of this process (`Spread`), recording apart until the chunk
+      /// is taken. A chunk performs no effect, so only frames and functions reach them. A
+      /// tracer that keeps either sets its own: `noTracing`'s keeps nothing.
+      forChunk : unit -> ChunkTrace
     }
+
+  /// What a spread chunk records, and `take`, which adds it to the spreading process's trace as
+  /// if that process had run it there: given where its frame ids come from and the frame that
+  /// spread. A chunk that is not taken is dropped.
+  and ChunkTrace = { tracing : Tracing; take : (unit -> uuid) -> uuid -> unit }
 
 
 // -- The VM --
@@ -5927,6 +5936,24 @@ type InterpreterStats =
       this.tstSizeSum <- this.tstSizeSum + chunk.tstSizeSum
       this.tstSizeMax <- max this.tstSizeMax chunk.tstSizeMax
 
+  /// Take off what applying a spread chunk's builtin counted, `entry` (`Spread`): a serial run
+  /// does not run it, so with it off a spread counts what a serial run counts.
+  member this.TakeOffChunkEntry
+    (
+      entry : List<Instruction>,
+      builtinName : string
+    ) : unit =
+    if this.enabled then
+      this.instructionCount <- this.instructionCount - int64 (List.length entry)
+      this.builtinCallCount <- this.builtinCallCount - 1L
+      for i in entry do
+        let tag = Opcode.index i
+        if tag >= 0 && tag < this.countByOpcode.Length then
+          this.countByOpcode[tag] <- this.countByOpcode[tag] - 1L
+      match this.builtinCallsByName.TryGetValue builtinName with
+      | true, calls -> this.builtinCallsByName[builtinName] <- calls - 1L
+      | false, _ -> ()
+
   /// Add in the sets of finished spawned processes ([ForProcess]). Only from the thread that owns
   /// this set. Each set is popped once, so each is added once, by whoever pops it.
   member this.JoinFinished() : unit =
@@ -6328,6 +6355,66 @@ type VMState =
 
 
 
+// -- Spreading (`LibExecution.Spread`) --
+
+type SpreadCount =
+  | Spreads = 0
+  | Fallbacks = 1
+  | PredictedPure = 2
+  | PredictedImpure = 3
+  | PredictedUnknown = 4
+  | PredictionFailures = 5
+  | Chunks = 6
+
+/// What spreading did in one run, for `DARK_SPREAD_REPORT` and tests. Counted from every
+/// process of the run at once, so atomically.
+type SpreadCounts() =
+  let counts : int64[] = Array.zeroCreate 7
+  member _.Add(which : SpreadCount) : unit =
+    System.Threading.Interlocked.Increment(&counts[int which]) |> ignore<int64>
+  member _.Get(which : SpreadCount) : int64 =
+    System.Threading.Interlocked.Read(&counts[int which])
+
+/// How list ops decide to spread. Set once per run by the host (`exec.spread*`).
+type SpreadSettings =
+  {
+    /// `exec.spread`, `dark --no-spread`.
+    on : bool
+    /// Interpreted instructions the rest of a list must be projected to take before it is worth
+    /// spreading. 0 spreads anything with two elements left, which tests use.
+    crossover : int64
+    /// The least an element must cost, in instructions, before an op spreads. Not applied at
+    /// crossover 0.
+    minPerElement : int64
+    /// The least work, in instructions, worth a chunk of its own.
+    minChunk : int64
+    /// Chunks per idle worker, so one slow chunk does not leave the other cores waiting.
+    chunksPerWorker : int
+    /// Skip a callable known to reach an effect (`Spread.predict`) rather than try it.
+    predict : bool
+    counts : SpreadCounts
+  }
+
+  /// The shipped settings, from the grid in `scripts/perf/workloads/probes/spread.dark`
+  /// (`docs/perf/history.md`): forced spreading lost at about 420 instructions of work and first
+  /// won at about 1,700; a 3-instruction body never paid and a 26-instruction one did; a chunk
+  /// costs 3.3 to 5 KB to start.
+  static member defaults() : SpreadSettings =
+    { on = true
+      crossover = 10_000L
+      minPerElement = 20L
+      minChunk = 2_000L
+      chunksPerWorker = 2
+      predict = false
+      counts = SpreadCounts() }
+
+/// A callable a spread fell back from: a lambda by its expression, a named fn by its name.
+[<Struct>]
+type SpreadCallable =
+  | SpreadLambda of exprId : int64
+  | SpreadNamed of name : FQFnName.FQFnName
+
+
 // -- Builtins --
 type BuiltInValue =
   { name : FQValueName.Builtin
@@ -6569,10 +6656,12 @@ and ExecutionState =
 
     /// A process running part of a list op spread across cores (`List.map` and its siblings
     /// deciding for themselves). Such a process may not make any call that would take an effect
-    /// ordinal (`Interpreter.isLogged`): the call is refused before it does anything, the
+    /// ordinal (`Interpreter.spreadRefuses`): the call is refused before it does anything, the
     /// process fails, and the spreader runs that part again serially in the original process,
     /// where the effect happens in its proper order. Also stops a spread inside a spread.
     spreadChild : bool
+
+    spread : SpreadSettings
 
     /// Whether a package fn is pure in the sense of `Purity`, over everything it can reach.
     /// Supplied by the host, which can read the store (`LibDB.PackagePermissions.purity`);

@@ -195,6 +195,7 @@ let purity
   (load : Load)
   (builtins :
     System.Collections.Generic.Dictionary<RT.FQFnName.Builtin, RT.BuiltInFn>)
+  (counts : RT.SpreadCounts)
   : RT.FQFnName.Package -> Ply<RT.Purity> =
   let memo =
     System.Collections.Concurrent.ConcurrentDictionary<RT.FQFnName.Package, RT.Purity>()
@@ -224,7 +225,7 @@ let purity
                 elif result.complete then RT.Purity.Pure
                 else RT.Purity.Unknown
             with _ ->
-              LibExecution.Spread.notePredictionFailure ()
+              counts.Add RT.SpreadCount.PredictionFailures
               return RT.Purity.Unknown
           }
         memo[hash] <- answer

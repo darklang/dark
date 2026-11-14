@@ -545,65 +545,32 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, [], [| DList(vtA, listA); DList(vtB, listB); DApplicable app |] ->
-          // The Dark version recursed with `append`, which copies the accumulator every element,
-          // so it was quadratic on top of the package call and the two-argument lambda application.
-          // Built back to front and reversed once, as `listMap` and `listIndexedMap` do.
-          //
-          // Spread as `listMap` is, a chunk being this same call over its stretch of both lists.
-          match DvalList.uncons listA, DvalList.uncons listB with
-          | ValueSome(struct (a, tailA)), ValueSome(struct (b, tailB)) ->
-            let mutable acc = []
-            let mutable restA = tailA
-            let mutable restB = tailB
-            let probe = Spread.probe state vm app
-            let rec next (mapped : Dval) : Ply<Dval> =
-              acc <- mapped :: acc
-              match DvalList.uncons restA, DvalList.uncons restB with
-              | ValueSome(struct (a, tA)), ValueSome(struct (b, tB)) ->
-                // `Spread.run` keeps a list holding reads in flight here; this is the other list.
-                if
-                  not (isNull probe)
-                  && probe.Ask(DvalList.length restA)
-                  && not (DvalList.exists Pending.isPromise restB)
-                then
-                  probe.Stop()
-                  // Only as far as both go. The other list's stretch for a chunk is found by
-                  // where the chunk begins.
-                  let count = min (DvalList.length restA) (DvalList.length restB)
-                  let firstA = DvalList.take count restA
-                  let bs = DvalList.take count restB
-                  uply {
-                    let! spread =
-                      Spread.run
-                        state
-                        vm
-                        "listMap2shortest"
-                        (fun offset chunk ->
-                          let chunkB =
-                            DvalList.take
-                              (DvalList.length chunk)
-                              (DvalList.drop offset bs)
-                          [ DList(vtA, chunk); DList(vtB, chunkB) ])
-                        app
-                        probe.PerElement
-                        firstA
-                    acc <- resultsOnto acc spread
-                    restA <- DvalList.drop spread.leftoverIndex restA
-                    restB <- DvalList.drop spread.leftoverIndex restB
-                    match DvalList.uncons restA, DvalList.uncons restB with
-                    | ValueSome(struct (a, tA)), ValueSome(struct (b, tB)) ->
-                      restA <- tA
-                      restB <- tB
-                      return! Interpreter.requestApply vm app a (ValueSome b) next
-                    | _ -> return mappedList vm (DvalList.ofRevList acc)
-                  }
-                else
-                  restA <- tA
-                  restB <- tB
-                  Interpreter.requestApply vm app a (ValueSome b) next
-              | _ -> Ply(mappedList vm (DvalList.ofRevList acc))
-            Interpreter.requestApply vm app a (ValueSome b) next
-          | _ -> Ply(mappedList vm DvalList.empty)
+          // Built back to front and reversed once, and spread as `listMap` is, a chunk being this
+          // same call over its stretch of both lists. Only as far as both go.
+          let count = min (DvalList.length listA) (DvalList.length listB)
+          let bs = DvalList.take count listB
+          Spread.walk
+            { new Spread.Walk<List<Dval>>(state, vm, app, "listMap2shortest") with
+                member _.Apply(index, a, next) =
+                  Interpreter.requestApply
+                    vm
+                    app
+                    a
+                    (ValueSome(DvalList.item (int index) bs))
+                    next
+                member _.Step(acc, _, mapped) = Spread.Next(mapped :: acc)
+                member _.ChunkArgs(index, chunk) =
+                  [ DList(vtA, chunk)
+                    DList(
+                      vtB,
+                      DvalList.take
+                        (DvalList.length chunk)
+                        (DvalList.drop (int index) bs)
+                    ) ]
+                member _.Absorb(acc, _, spread) = resultsOnto acc spread
+                member _.Finish acc = Ply(mappedList vm (DvalList.ofRevList acc)) }
+            []
+            (DvalList.take count listA)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -713,7 +680,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, [], [| DList(vt, items); DApplicable app |] ->
-          // Spread as `listMap` is, as a search (`Spread.search`): a chunk is this same call over
+          // Spread as `listMap` is, as a search: a chunk is this same call over
           // its stretch, and the first chunk in input order to answer true is the answer. A search
           // keeps nothing as it goes, so what it has so far is `DUnit`.
           Spread.walk

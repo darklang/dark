@@ -9,6 +9,8 @@ open System.Threading
 open System.Threading.Tasks
 
 open Expecto
+open Fumble
+open LibDB.Sqlite
 open Prelude
 open TestUtils.TestUtils
 
@@ -24,55 +26,50 @@ let private instrsFor (code : string) : Task<RT.Instructions> =
     return PT2RT.Expr.toRT Map.empty 0 None ptExpr
   }
 
-/// Run `code` as a process on a fresh scheduler, at this crossover (0 forces a spread, -1 turns it
-/// off), its VM counting into `stats` when given.
-let private runInstrsCountingAt
+/// `state` with spreading forced (crossover 0, and one element a chunk where there are cores for
+/// it, so order and failure are exercised across many chunks rather than within one) or off.
+let private spreading
+  (spread : bool)
+  (state : RT.ExecutionState)
+  : RT.ExecutionState =
+  { state with
+      spread = { state.spread with on = spread; crossover = 0L; minChunk = 0L } }
+
+/// Run `instrs` as a process on a fresh scheduler, its VM counting into `stats` when given.
+let private runProcess
   (stats : Option<RT.InterpreterStats>)
   (state : RT.ExecutionState)
-  (crossover : int64)
   (instrs : RT.Instructions)
   : Task<RT.ExecutionResult> =
   task {
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let p = s.Spawn(state, (None, instrs), Scheduler.EntryExpr, None, ?stats = stats)
-    let saved = Spread.crossover
-    let savedChunk = Spread.minChunk
-    Spread.crossover <- crossover
-    // One element a chunk where there are cores for it, so order and failure are exercised
-    // across many chunks rather than within one.
-    Spread.minChunk <- 0L
-    Spread.forgetFallbacks ()
-    try
-      let done' =
-        TaskCompletionSource<RT.ExecutionResult>(
-          TaskCreationOptions.RunContinuationsAsynchronously
-        )
-      let thread =
-        Thread(
-          (fun () ->
-            try
-              done'.SetResult(s.RunUntil p)
-            with ex ->
-              done'.SetException ex),
-          IsBackground = true
-        )
-      thread.Start()
-      return! done'.Task
-    finally
-      Spread.crossover <- saved
-      Spread.minChunk <- savedChunk
+    let done' =
+      TaskCompletionSource<RT.ExecutionResult>(
+        TaskCreationOptions.RunContinuationsAsynchronously
+      )
+    let thread =
+      Thread(
+        (fun () ->
+          try
+            done'.SetResult(s.RunUntil p)
+          with ex ->
+            done'.SetException ex),
+        IsBackground = true
+      )
+    thread.Start()
+    return! done'.Task
   }
 
-/// Run `code` as a process on a fresh scheduler, with spreading forced or off.
+/// Run `instrs` as a process on a fresh scheduler, with spreading forced or off.
 let private runInstrsCounting
   (stats : Option<RT.InterpreterStats>)
   (state : RT.ExecutionState)
   (spread : bool)
   (instrs : RT.Instructions)
   : Task<RT.ExecutionResult> =
-  runInstrsCountingAt stats state (if spread then 0L else -1L) instrs
+  runProcess stats (spreading spread state) instrs
 
-let private runInstrsAt = runInstrsCountingAt None
 
 let private runInstrs = runInstrsCounting None
 
@@ -112,8 +109,11 @@ let private delta (read : unit -> int64) (f : unit -> Task<'a>) : Task<'a * int6
     return r, read () - before
   }
 
-let private spreads () = Spread.spreads
-let private fallbacks () = Spread.fallbacks
+let private spreads (state : RT.ExecutionState) () =
+  state.spread.counts.Get RT.SpreadCount.Spreads
+
+let private fallbacks (state : RT.ExecutionState) () =
+  state.spread.counts.Get RT.SpreadCount.Fallbacks
 
 /// A body whose cost falls steeply with the element: the first elements cost the most, so the
 /// first chunk finishes LAST. A spread that collected chunks as they finished would put the cheap
@@ -125,7 +125,7 @@ let private inOrder =
   testTask "results come back in input order when the first chunk finishes last" {
     let! state = executionStateFor pmPT false
     let code = $"Stdlib.List.map(Stdlib.List.range(1, 40), {uneven})"
-    let! (spread, moved) = delta spreads (fun () -> run state code)
+    let! (spread, moved) = delta (spreads state) (fun () -> run state code)
     let! serial = runWith state false code
     Expect.isGreaterThan moved 0L "the map spread"
     Expect.equal (expectOk spread) (expectOk serial) "the same list as serial"
@@ -138,7 +138,7 @@ let private siblings =
       [ "Stdlib.List.filter(Stdlib.List.range(1, 100), fun i -> i % 3 == 0)"
         "Stdlib.List.filterMap(Stdlib.List.range(1, 100), fun i -> if i % 4 == 0 then Stdlib.Option.Option.Some(i * 2) else Stdlib.Option.Option.None)"
         "Stdlib.List.indexedMap(Stdlib.List.range(1, 100), fun(idx, i) -> (idx, i * 10))" ] do
-      let! (spread, moved) = delta spreads (fun () -> run state code)
+      let! (spread, moved) = delta (spreads state) (fun () -> run state code)
       let! serial = runWith state false code
       Expect.isGreaterThan moved 0L $"spread: {code}"
       Expect.equal (expectOk spread) (expectOk serial) code
@@ -154,7 +154,7 @@ let private dictOps =
     for code in
       [ $"Stdlib.Dict.map({dictOf 40}, fun(k, v) -> {uneven}(k) + v)"
         $"Stdlib.Dict.filter({dictOf 40}, fun(k, v) -> ({uneven}(k) + v) %% 3 == 0)" ] do
-      let! (spread, moved) = delta spreads (fun () -> run state code)
+      let! (spread, moved) = delta (spreads state) (fun () -> run state code)
       let! serial = runWith state false code
       Expect.isGreaterThan moved 0L $"spread: {code}"
       Expect.equal (expectOk spread) (expectOk serial) code
@@ -175,13 +175,13 @@ let private cheapBodyStaysSerial =
         $"Stdlib.Dict.size(Stdlib.Dict.map({dictOf 20000}, fun(k, v) -> v + 1))" ] do
       let! cheap = instrsFor code
       let! (_, cheapSpreads) =
-        delta spreads (fun () -> runInstrsAt state Spread.crossover cheap)
+        delta (spreads state) (fun () -> runProcess None state cheap)
       Expect.equal cheapSpreads 0L $"a cheap body did not spread: {code}"
     let! costly =
       instrsFor
         $"Stdlib.Dict.size(Stdlib.Dict.map({dictOf 40}, fun(k, v) -> {uneven}(k)))"
     let! (_, costlySpreads) =
-      delta spreads (fun () -> runInstrsAt state Spread.crossover costly)
+      delta (spreads state) (fun () -> runProcess None state costly)
     Expect.isGreaterThan costlySpreads 0L "an expensive one did"
   }
 
@@ -213,7 +213,8 @@ let private dictCallbackTypeAsSerial =
     let! state = executionStateFor pmPT false
     let code =
       $"Darklang.Language.Tests.Lambdas.mapDictInts({dictOf 40}, fun(k, v) -> if k == 35 then \"wrong\" else {uneven}(k) + v)"
-    let! ((spread, serial), moved) = delta spreads (fun () -> both state code)
+    let! ((spread, serial), moved) =
+      delta (spreads state) (fun () -> both state code)
     Expect.isGreaterThan moved 0L "the map spread"
     match spread, serial with
     | Error(e1, s1), Error(e2, s2) ->
@@ -228,7 +229,7 @@ let private dictEffectsKeepOrder =
     Trace.take () |> ignore<List<string>>
     let code =
       $"(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.Dict.map({dictOf 30}, fun(k, v) -> (let (trace, _) = hidden in if k %% 7 == 0 then (let _ = trace(Stdlib.display(k)) in v) else v * 2)))"
-    let! (spread, fellBack) = delta fallbacks (fun () -> run state code)
+    let! (spread, fellBack) = delta (fallbacks state) (fun () -> run state code)
     let spreadTrace = Trace.take ()
     let! serial = runWith state false code
     let serialTrace = Trace.take ()
@@ -245,7 +246,7 @@ let private sortByAndMap2 =
       [ $"Stdlib.List.sortBy(Stdlib.List.range(1, 40), fun i -> {uneven}(i) %% 7)"
         $"Stdlib.List.map2Shortest(Stdlib.List.range(1, 40), Stdlib.List.range(1, 45), fun(a, b) -> {uneven}(a) + b)"
         $"Stdlib.List.map2Shortest(Stdlib.List.range(1, 45), Stdlib.List.range(1, 40), fun(a, b) -> {uneven}(b) + a)" ] do
-      let! (spread, moved) = delta spreads (fun () -> run state code)
+      let! (spread, moved) = delta (spreads state) (fun () -> run state code)
       let! serial = runWith state false code
       Expect.isGreaterThan moved 0L $"spread: {code}"
       Expect.equal (expectOk spread) (expectOk serial) code
@@ -278,7 +279,7 @@ let private searches =
         $"Stdlib.List.any(Stdlib.List.range(1, 40), fun i -> {uneven}(i) > 0 && i > 25)"
         $"Stdlib.List.findFirst(Stdlib.List.range(1, 40), fun i -> {uneven}(i) > 0 && i %% 9 == 0 && i > 9)"
         $"Stdlib.List.findFirst(Stdlib.List.range(1, 40), fun i -> {uneven}(i) == 0)" ] do
-      let! (spread, moved) = delta spreads (fun () -> run state code)
+      let! (spread, moved) = delta (spreads state) (fun () -> run state code)
       let! serial = runWith state false code
       Expect.isGreaterThan moved 0L $"spread: {code}"
       Expect.equal (expectOk spread) (expectOk serial) code
@@ -330,7 +331,8 @@ let private enclosingCallbackType =
     let! state = executionStateFor pmPT false
     let code =
       $"Stdlib.List.partition(Stdlib.List.range(1, 40), fun i -> if i < 37 then \"s\" else {uneven}(i) > 0)"
-    let! ((spread, serial), moved) = delta spreads (fun () -> both state code)
+    let! ((spread, serial), moved) =
+      delta (spreads state) (fun () -> both state code)
     Expect.isGreaterThan moved 0L "the map spread"
     match spread, serial with
     | Error(e1, s1), Error(e2, s2) ->
@@ -349,7 +351,8 @@ let private errorAsSerial =
       "Stdlib.List.map(Stdlib.List.range(1, 40), fun i -> if i == 35 then 1 / 0 else ("
       + uneven
       + "(i)))"
-    let! ((spread, serial), fellBack) = delta fallbacks (fun () -> both state code)
+    let! ((spread, serial), fellBack) =
+      delta (fallbacks state) (fun () -> both state code)
     Expect.equal fellBack 1L "the spread fell back"
     match spread, serial with
     | Error(e1, s1), Error(e2, s2) ->
@@ -369,7 +372,8 @@ let private callbackTypeAsSerial =
       "Darklang.Language.Tests.Lambdas.mapInts(Stdlib.List.range(1, 40), fun i -> if i == 35 then \"wrong\" else "
       + uneven
       + "(i))"
-    let! ((spread, serial), moved) = delta spreads (fun () -> both state code)
+    let! ((spread, serial), moved) =
+      delta (spreads state) (fun () -> both state code)
     Expect.isGreaterThan moved 0L "the map spread"
     match spread, serial with
     | Error(e1, s1), Error(e2, s2) ->
@@ -388,7 +392,8 @@ let private checkLearnsAsSerial =
       "Darklang.Language.Tests.Lambdas.mapOptions(Stdlib.List.range(1, 40), fun i -> let _ = "
       + uneven
       + "(i) in if i == 20 then Stdlib.Option.Option.Some(1) else if i == 35 then Stdlib.Option.Option.Some(\"x\") else Stdlib.Option.Option.None)"
-    let! ((spread, serial), moved) = delta spreads (fun () -> both state code)
+    let! ((spread, serial), moved) =
+      delta (spreads state) (fun () -> both state code)
     Expect.isGreaterThan moved 0L "the map spread"
     match spread, serial with
     | Error(e1, s1), Error(e2, s2) ->
@@ -422,7 +427,7 @@ let private effectsKeepOrder =
     Trace.take () |> ignore<List<string>>
     let code =
       "(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.map(Stdlib.List.range(1, 30), fun i -> (let (trace, _) = hidden in if i % 7 == 0 then (let _ = trace((if i == 7 then \"7\" else if i == 14 then \"14\" else if i == 21 then \"21\" else \"28\")) in i) else i * 2)))"
-    let! (spread, fellBack) = delta fallbacks (fun () -> run state code)
+    let! (spread, fellBack) = delta (fallbacks state) (fun () -> run state code)
     let spreadTrace = Trace.take ()
     let! serial = runWith state false code
     let serialTrace = Trace.take ()
@@ -444,7 +449,8 @@ let private namedFallbackIsRemembered =
     let code =
       "(let xs = [\"a\", \"b\", \"c\", \"d\", \"e\", \"f\"] in (let _ = Stdlib.List.map(xs, Builtin.testTrace) in Stdlib.List.map(xs, Builtin.testTrace)))"
     let! ((result, started), fellBack) =
-      delta fallbacks (fun () -> delta spreads (fun () -> run state code))
+      delta (fallbacks state) (fun () ->
+        delta (spreads state) (fun () -> run state code))
     expectOk result |> ignore<RT.Dval>
     Expect.equal started 1L "only the first map spread"
     Expect.equal fellBack 1L "and only it fell back"
@@ -464,7 +470,8 @@ let private refusalGetsThrough (call : string) =
       "(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.map(Stdlib.List.range(1, 30), fun i -> (let (trace, _) = hidden in "
       + call
       + "((fun n -> trace(Stdlib.display(n))), i))))"
-    let! ((spread, serial), fellBack) = delta fallbacks (fun () -> both state code)
+    let! ((spread, serial), fellBack) =
+      delta (fallbacks state) (fun () -> both state code)
     let spreadTrace = Trace.take ()
     Expect.equal fellBack 1L "the spread fell back"
     Expect.equal
@@ -485,7 +492,7 @@ let private nestingIsBounded =
     let! state = executionStateFor pmPT false
     let code =
       "Stdlib.List.map(Stdlib.List.range(1, 20), fun i -> Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 50), fun x -> x + i)))"
-    let! (result, moved) = delta spreads (fun () -> run state code)
+    let! (result, moved) = delta (spreads state) (fun () -> run state code)
     Expect.equal
       moved
       4L
@@ -499,20 +506,38 @@ let private nestingIsBounded =
       "twenty lengths of fifty"
   }
 
-let private watchedRunsDoNotSpread =
-  testTask "a recorded or viewed run does not spread" {
+let private viewedRunsDoNotSpread =
+  testTask "a viewed run does not spread" {
     let! (state : RT.ExecutionState) = executionStateFor pmPT false
-    // Watched all the way down: a process asks its tracer for its own copy (`forProcess`).
+    // Viewed all the way down: a process asks its tracer for its own copy (`forProcess`).
     let tracing : RT.Tracing.Tracing = state.tracing
-    let rec watching () : RT.Tracing.Tracing =
-      { tracing with collectFrames = true; forProcess = fun _ -> watching () }
-    let watched : RT.ExecutionState = { state with tracing = watching () }
+    let rec viewing () : RT.Tracing.Tracing =
+      { tracing with
+          collectFrames = true
+          collectExprValues = true
+          forProcess = fun _ -> viewing () }
+    let viewed : RT.ExecutionState = { state with tracing = viewing () }
     let! (result, moved) =
-      delta spreads (fun () ->
-        run watched "Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> i)")
+      delta (spreads state) (fun () ->
+        run viewed "Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> i)")
     expectOk result |> ignore<RT.Dval>
     Expect.equal moved 0L "nothing spread"
   }
+
+/// Spawned on `s` and run on a thread of its own, with spreading forced.
+let private startForced
+  (s : Scheduler.Scheduler)
+  (state : RT.ExecutionState)
+  (instrs : RT.Instructions)
+  : Scheduler.Process =
+  let p = s.Spawn(spreading true state, (None, instrs), Scheduler.EntryExpr, None)
+  let thread =
+    Thread(
+      (fun () -> s.RunUntil p |> ignore<RT.ExecutionResult>),
+      IsBackground = true
+    )
+  thread.Start()
+  p
 
 /// Cancelled mid-spread: the map's process ends cancelled, with no list, and the chunks go with
 /// it. The stop is the answer: the cancelled chunks are not taken for a fallback, which would run
@@ -524,47 +549,34 @@ let private cancelledLeavesNothing =
       instrsFor
         "Stdlib.List.map(Stdlib.List.range(1, 16), fun i -> Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 3000000), fun x -> x)))"
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
-    let p = s.Spawn(state, (None, instrs), Scheduler.EntryExpr, None)
-    let saved = Spread.crossover
-    Spread.crossover <- 0L
-    try
-      let before = Spread.spreads
-      let fallbacksBefore = Spread.fallbacks
-      let thread =
-        Thread(
-          (fun () -> s.RunUntil p |> ignore<RT.ExecutionResult>),
-          IsBackground = true
-        )
-      thread.Start()
-      let deadline = System.DateTime.UtcNow.AddSeconds 30.
-      while Spread.spreads = before && System.DateTime.UtcNow < deadline do
-        Thread.Sleep 5
-      Expect.isGreaterThan Spread.spreads before "the map spread"
-      Expect.isTrue (s.Cancel p.id) "the map was still running when it was cancelled"
-      let! result = p.completion.Task
-      // Not a time limit, which a loaded machine breaks. The stop is checked at the fallback,
-      // so cancelled chunks are not taken for one and the rest of the map does not run here.
-      Expect.equal
-        (Spread.fallbacks - fallbacksBefore)
-        0L
-        "the cancel did not fall back to running the rest here"
-      match result with
-      | Error _ -> ()
-      | Ok v -> failtest $"a cancelled map answered {v}"
-      let deadline = System.DateTime.UtcNow.AddSeconds 10.
-      let live () =
-        s.Snapshot()
-        |> List.filter (fun c ->
-          c.parent = Some p.id
-          && (match c.status with
-              | Scheduler.Done _
-              | Scheduler.Failed _ -> false
-              | _ -> true))
-      while not (List.isEmpty (live ())) && System.DateTime.UtcNow < deadline do
-        Thread.Sleep 10
-      Expect.isEmpty (live ()) "no chunk still running"
-    finally
-      Spread.crossover <- saved
+    let p = startForced s state instrs
+    let deadline = System.DateTime.UtcNow.AddSeconds 30.
+    while spreads state () = 0L && System.DateTime.UtcNow < deadline do
+      Thread.Sleep 5
+    Expect.isGreaterThan (spreads state ()) 0L "the map spread"
+    Expect.isTrue (s.Cancel p.id) "the map was still running when it was cancelled"
+    let! result = p.completion.Task
+    // Not a time limit, which a loaded machine breaks. The stop is checked at the fallback,
+    // so cancelled chunks are not taken for one and the rest of the map does not run here.
+    Expect.equal
+      (fallbacks state ())
+      0L
+      "the cancel did not fall back to running the rest here"
+    match result with
+    | Error _ -> ()
+    | Ok v -> failtest $"a cancelled map answered {v}"
+    let deadline = System.DateTime.UtcNow.AddSeconds 10.
+    let live () =
+      s.Snapshot()
+      |> List.filter (fun c ->
+        c.parent = Some p.id
+        && (match c.status with
+            | Scheduler.Done _
+            | Scheduler.Failed _ -> false
+            | _ -> true))
+    while not (List.isEmpty (live ())) && System.DateTime.UtcNow < deadline do
+      Thread.Sleep 10
+    Expect.isEmpty (live ()) "no chunk still running"
   }
 
 /// After a fallback the rest runs here as an ordinary serial map, in slices like any other
@@ -576,25 +588,12 @@ let private fallbackIsPreempted =
       instrsFor
         "(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 400), fun i -> (let (trace, _) = hidden in if i == 10 then (let _ = trace(\"ten\") in i) else Stdlib.List.fold(Stdlib.List.range(1, 2000), i, fun(a, x) -> a + x)))))"
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
-    let p = s.Spawn(state, (None, instrs), Scheduler.EntryExpr, None)
-    let saved = Spread.crossover
-    Spread.crossover <- 0L
-    Spread.forgetFallbacks ()
-    try
-      let before = Spread.fallbacks
-      let thread =
-        Thread(
-          (fun () -> s.RunUntil p |> ignore<RT.ExecutionResult>),
-          IsBackground = true
-        )
-      thread.Start()
-      let! result = p.completion.Task
-      Trace.take () |> ignore<List<string>>
-      expectOk result |> ignore<RT.Dval>
-      Expect.equal (Spread.fallbacks - before) 1L "it fell back"
-      Expect.isGreaterThan p.slices 20L "the serial rest ran in many slices"
-    finally
-      Spread.crossover <- saved
+    let p = startForced s state instrs
+    let! result = p.completion.Task
+    Trace.take () |> ignore<List<string>>
+    expectOk result |> ignore<RT.Dval>
+    Expect.equal (fallbacks state ()) 1L "it fell back"
+    Expect.isGreaterThan p.slices 20L "the serial rest ran in many slices"
   }
 
 /// Every element reaches an effect, so the first chunk fails at once, usually before the spreader
@@ -606,43 +605,25 @@ let private syncFallbackIsPreempted =
       instrsFor
         "(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 400), fun i -> (let (trace, _) = hidden in (let _ = trace(\"e\") in Stdlib.List.fold(Stdlib.List.range(1, 2000), i, fun(a, x) -> a + x))))))"
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
-    let p = s.Spawn(state, (None, instrs), Scheduler.EntryExpr, None)
-    let saved = Spread.crossover
-    Spread.crossover <- 0L
-    Spread.forgetFallbacks ()
-    try
-      let before = Spread.fallbacks
-      let thread =
-        Thread(
-          (fun () -> s.RunUntil p |> ignore<RT.ExecutionResult>),
-          IsBackground = true
-        )
-      thread.Start()
-      let! result = p.completion.Task
-      Trace.take () |> ignore<List<string>>
-      expectOk result |> ignore<RT.Dval>
-      Expect.equal (Spread.fallbacks - before) 1L "it fell back"
-      Expect.isGreaterThan p.slices 20L "the serial rest ran in many slices"
-    finally
-      Spread.crossover <- saved
+    let p = startForced s state instrs
+    let! result = p.completion.Task
+    Trace.take () |> ignore<List<string>>
+    expectOk result |> ignore<RT.Dval>
+    Expect.equal (fallbacks state ()) 1L "it fell back"
+    Expect.isGreaterThan p.slices 20L "the serial rest ran in many slices"
   }
 
 // -- Prediction --
 
-/// Prediction is off by default (`Spread.predicting`); these tests are about it, so it is on for
-/// each of them and put back after.
-let private predictingDuring (f : unit -> Task<unit>) : Task<unit> =
-  task {
-    let saved = Spread.predicting
-    Spread.predicting <- true
-    try
-      do! f ()
-    finally
-      Spread.predicting <- saved
-  }
+/// Prediction is off by default (`SpreadSettings.predict`); these tests are about it.
+let private predicting (state : RT.ExecutionState) : RT.ExecutionState =
+  { state with spread = { state.spread with predict = true } }
 
-let private predicted () =
-  struct (Spread.predictedPure, Spread.predictedImpure, Spread.predictedUnknown)
+let private predicted (state : RT.ExecutionState) =
+  let get = state.spread.counts.Get
+  struct (get RT.SpreadCount.PredictedPure,
+          get RT.SpreadCount.PredictedImpure,
+          get RT.SpreadCount.PredictedUnknown)
 
 /// A state whose package fns are answered by the real analysis over the test store, as the CLI
 /// host's are.
@@ -650,60 +631,55 @@ let private predictingState () : Task<RT.ExecutionState> =
   task {
     let! (state : RT.ExecutionState) = executionStateFor pmPT false
     return
-      { state with
-          fnPurity =
-            LibDB.PackagePermissions.purity
-              LibDB.PackagePermissions.Load.fromStore
-              state.fns.builtIn }
+      predicting
+        { state with
+            fnPurity =
+              LibDB.PackagePermissions.purity
+                LibDB.PackagePermissions.Load.fromStore
+                state.fns.builtIn
+                state.spread.counts }
   }
 
 /// The effect is in the body for anyone to see, so no chunk is started for it, even though no
 /// element ever reaches it. That is the price of predicting: observing would have spread this.
 let private visibleEffectStartsNothing =
   testTask "a body that can reach an effect is predicted impure and starts no chunk" {
-    do!
-      predictingDuring (fun () ->
-        task {
-          let! state = executionStateFor pmPT false
-          let code =
-            "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> (let _ = (if i == 999 then Builtin.testTrace(\"never\") else ()) in i * 2)))"
-          let struct (_, impure0, _) = predicted ()
-          let! (result, moved) = delta spreads (fun () -> run state code)
-          let struct (_, impure1, _) = predicted ()
-          expectOk result |> ignore<RT.Dval>
-          Expect.equal moved 0L "no spread started"
-          Expect.equal (impure1 - impure0) 1L "predicted impure once"
-        })
+    let! state = executionStateFor pmPT false
+    let state = predicting state
+    let code =
+      "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> (let _ = (if i == 999 then Builtin.testTrace(\"never\") else ()) in i * 2)))"
+    let struct (_, impure0, _) = predicted state
+    let! (result, moved) = delta (spreads state) (fun () -> run state code)
+    let struct (_, impure1, _) = predicted state
+    expectOk result |> ignore<RT.Dval>
+    Expect.equal moved 0L "no spread started"
+    Expect.equal (impure1 - impure0) 1L "predicted impure once"
   }
 
-/// The brief's case: a lambda calling a package fn that calls a builtin that writes a file comes
-/// back impure, from the analysis over the store, without the write running. And a pure body over
-/// package fns and an `eval`'s `+` comes back pure.
+/// A lambda calling a package fn that calls a builtin that writes a file comes back impure, from
+/// the analysis over the store, without the write running. And a pure body over package fns
+/// comes back pure.
 let private packageFnsAnsweredByTheStore =
   testTask "a package fn that can write a file is impure; a pure one is pure" {
-    do!
-      predictingDuring (fun () ->
-        task {
-          let! state = predictingState ()
-          let writes =
-            "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> (let _ = (if i == 999 then Stdlib.Cli.FileSystem.writeFile(\"/tmp/spread-never-written\", Stdlib.Utf8.encode(\"x\")) else Stdlib.Result.Result.Ok()) in i * 2)))"
-          let pureBody =
-            "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> Stdlib.List.fold(Stdlib.List.range(1, 50), i, fun(a, x) -> a + x)))"
-          let struct (pure0, impure0, _) = predicted ()
-          let! (r1, moved1) = delta spreads (fun () -> run state writes)
-          let struct (_, impure1, _) = predicted ()
-          let! (r2, moved2) = delta spreads (fun () -> run state pureBody)
-          let struct (pure2, _, _) = predicted ()
-          expectOk r1 |> ignore<RT.Dval>
-          expectOk r2 |> ignore<RT.Dval>
-          Expect.equal (impure1 - impure0) 1L "the writing body is predicted impure"
-          Expect.equal moved1 0L "and starts no chunk"
-          Expect.isFalse
-            (System.IO.File.Exists "/tmp/spread-never-written")
-            "the write never ran"
-          Expect.isGreaterThan (pure2 - pure0) 0L "the pure body is predicted pure"
-          Expect.isGreaterThan moved2 0L "and spreads"
-        })
+    let! state = predictingState ()
+    let writes =
+      "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> (let _ = (if i == 999 then Stdlib.Cli.FileSystem.writeFile(\"/tmp/spread-never-written\", Stdlib.Utf8.encode(\"x\")) else Stdlib.Result.Result.Ok()) in i * 2)))"
+    let pureBody =
+      "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> Stdlib.List.fold(Stdlib.List.range(1, 50), i, fun(a, x) -> a + x)))"
+    let struct (pure0, impure0, _) = predicted state
+    let! (r1, moved1) = delta (spreads state) (fun () -> run state writes)
+    let struct (_, impure1, _) = predicted state
+    let! (r2, moved2) = delta (spreads state) (fun () -> run state pureBody)
+    let struct (pure2, _, _) = predicted state
+    expectOk r1 |> ignore<RT.Dval>
+    expectOk r2 |> ignore<RT.Dval>
+    Expect.equal (impure1 - impure0) 1L "the writing body is predicted impure"
+    Expect.equal moved1 0L "and starts no chunk"
+    Expect.isFalse
+      (System.IO.File.Exists "/tmp/spread-never-written")
+      "the write never ran"
+    Expect.isGreaterThan (pure2 - pure0) 0L "the pure body is predicted pure"
+    Expect.isGreaterThan moved2 0L "and spreads"
   }
 
 /// A prediction that is wrong in the optimistic direction costs a spread, not an effect out of
@@ -711,17 +687,13 @@ let private packageFnsAnsweredByTheStore =
 /// and the map falls back.
 let private wrongPureFallsBack =
   testTask "a wrong pure prediction falls back like an unknown one" {
-    do!
-      predictingDuring (fun () ->
-        task {
-          let! (state : RT.ExecutionState) = executionStateFor pmPT false
-          let liar = { state with fnPurity = fun _ -> Ply RT.Purity.Pure }
-          let code =
-            "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> (let _ = Stdlib.DateTime.now() in i * 2)))"
-          let! (result, fellBack) = delta fallbacks (fun () -> run liar code)
-          Expect.equal (expectOk result) (RT.DInt64 100L) "the whole list"
-          Expect.equal fellBack 1L "the spread fell back"
-        })
+    let! (state : RT.ExecutionState) = executionStateFor pmPT false
+    let liar = predicting { state with fnPurity = fun _ -> Ply RT.Purity.Pure }
+    let code =
+      "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> (let _ = Stdlib.DateTime.now() in i * 2)))"
+    let! (result, fellBack) = delta (fallbacks liar) (fun () -> run liar code)
+    Expect.equal (expectOk result) (RT.DInt64 100L) "the whole list"
+    Expect.equal fellBack 1L "the spread fell back"
   }
 
 /// What one run of `countsAreExact` counted.
@@ -731,14 +703,15 @@ type private Counts =
 /// The chunks run at once on other threads, and counting into the spreader's set from all of them
 /// would lose increments. Each chunk counts into a set of its own, added in when it is collected.
 let private countsAreExact (op : string) (code : string) =
-  testTask $"a spread {op} counts every call and instruction, the same on every run" {
+  testTask
+    $"a spread {op} counts every call and instruction a serial run does, on any number of workers" {
     let! state = executionStateFor pmPT false
     let! instrs = instrsFor code
     let counted (spread : bool) : Task<Counts> =
       task {
         let stats = RT.InterpreterStats.ForOneVM()
         let! (result, moved) =
-          delta spreads (fun () ->
+          delta (spreads state) (fun () ->
             runInstrsCounting (Some stats) state spread instrs)
         expectOk result |> ignore<RT.Dval>
         let calls name =
@@ -754,22 +727,449 @@ let private countsAreExact (op : string) (code : string) =
     let! serial = counted false
     Expect.equal serial.spreads 0L "the serial run did not spread"
     Expect.equal serial.joins 400L "serial: one join per element"
-    let! first = counted true
-    Expect.isGreaterThan first.spreads 0L "the map spread"
-    Expect.equal first.joins 400L "one join per element, spread"
-    // A chunk is one more builtin call, over its part of the list, applied by a
-    // three-instruction program (`Execution.instructionsForApply`). Beyond that, a spread run
-    // does exactly the serial run's work.
-    let chunks = first.builtinCalls - serial.builtinCalls
-    Expect.isGreaterThan chunks 1L "more than one chunk"
-    Expect.equal
-      first.instructions
-      (serial.instructions + 3L * chunks)
-      "instructions: serial's, plus each chunk's three"
-    for _ in 1..10 do
-      let! again = counted true
-      Expect.equal again first "the same counts on every run"
+    // However the work is split, and however many workers there are to split it over, a spread
+    // run counts exactly the serial run's work.
+    let before = Scheduler.defaultWorkers
+    try
+      for workers in [ 2; 4; 16; before ] do
+        Scheduler.defaultWorkers <- workers
+        for _ in 1..3 do
+          let! spread = counted true
+          Expect.isGreaterThan spread.spreads 0L $"the map spread, {workers} workers"
+          Expect.equal
+            { spread with spreads = 0L }
+            serial
+            $"the serial run's counts, {workers} workers"
+    finally
+      Scheduler.defaultWorkers <- before
   }
+
+// -- Guarantees (`docs/processes.md`, "Computation spreads by itself") --
+
+/// What a tracer is told, in order.
+[<RequireQualifiedAccess>]
+type private Hook =
+  | Frame of id : int * parent : int * at : RT.ExecutionPoint * args : List<RT.Dval>
+  | Noted of noted : RT.Hash
+  | Entered of entered : RT.Hash
+  | Left of left : RT.Hash
+  | Call of
+    name : RT.FQFnName.FQFnName *
+    ord : int64 *
+    args : List<RT.Dval> *
+    result : RT.Dval
+
+/// Where a frame runs, as a trace keys it: a lambda by its own expression, not by the point it
+/// was applied from, which a VM derives from whatever frame it last had (`pushLambdaFrame`'s
+/// cache) and no trace stores.
+let private site (at : RT.ExecutionPoint) : RT.ExecutionPoint =
+  match at with
+  | RT.ExecutionPoint.Lambda(_, id, writtenIn) ->
+    RT.ExecutionPoint.Lambda(RT.ExecutionPoint.Source, id, writtenIn)
+  | other -> other
+
+[<RequireQualifiedAccess>]
+type private Seen =
+  | Frame of
+    id : System.Guid *
+    parent : System.Guid *
+    at : RT.ExecutionPoint *
+    args : List<RT.Dval>
+  | Noted of noted : RT.Hash
+  | Entered of entered : RT.Hash
+  | Left of left : RT.Hash
+
+/// A chunk's trace for `logging` (`Tracing.forChunk`): every hook a pure run calls, kept in order
+/// and told to `parent` when taken, each frame with the id the spreading VM gives it and the
+/// chunk's outermost frames under the frame that spread.
+let private bufferedChunk (parent : RT.Tracing.Tracing) : RT.Tracing.ChunkTrace =
+  let seen = ResizeArray<Seen>()
+  let rec tracing () : RT.Tracing.Tracing =
+    { parent with
+        storeFrameEntry =
+          fun id parentId at args -> seen.Add(Seen.Frame(id, parentId, at, args))
+        noteFunction = fun h -> seen.Add(Seen.Noted h)
+        enterFunction = fun h -> seen.Add(Seen.Entered h)
+        leaveFunction = fun h -> seen.Add(Seen.Left h)
+        forProcess = fun _ -> tracing () }
+  let take (nextId : unit -> System.Guid) (spreading : System.Guid) =
+    let ids = System.Collections.Generic.Dictionary<System.Guid, System.Guid>()
+    for s in seen do
+      match s with
+      | Seen.Frame(id, parentId, at, args) ->
+        let fresh = nextId ()
+        ids.Add(id, fresh)
+        let under =
+          match ids.TryGetValue parentId with
+          | true, p -> p
+          | false, _ -> spreading
+        parent.storeFrameEntry fresh under at args
+      | Seen.Noted h -> parent.noteFunction h
+      | Seen.Entered h -> parent.enterFunction h
+      | Seen.Left h -> parent.leaveFunction h
+  { tracing = tracing (); take = take }
+
+/// A recording tracer that keeps every hook it is called with, the frames numbered by first
+/// appearance (a root frame's id is random). The process it is first handed to logs; anything
+/// that process spawns is recorded too, but not logged.
+let private logging () : RT.Tracing.Tracing * (unit -> List<Hook>) =
+  let log = ResizeArray<Hook>()
+  let ids = System.Collections.Generic.Dictionary<System.Guid, int>()
+  let ordinal = [| 0L |]
+  let number (id : System.Guid) =
+    match ids.TryGetValue id with
+    | true, n -> n
+    | false, _ ->
+      ids.Add(id, ids.Count)
+      ids.Count - 1
+  let add (h : unit -> Hook) = lock log (fun () -> log.Add(h ()))
+  let rec quiet () : RT.Tracing.Tracing =
+    { LibExecution.Execution.noTracing with
+        collectFrames = true
+        forProcess = fun _ -> quiet () }
+  let rec logs () : RT.Tracing.Tracing =
+    { LibExecution.Execution.noTracing with
+        collectFrames = true
+        traceEffects = true
+        storeFrameEntry =
+          fun id parent at args ->
+            add (fun () -> Hook.Frame(number id, number parent, site at, args))
+        noteFunction = fun h -> add (fun () -> Hook.Noted h)
+        enterFunction = fun h -> add (fun () -> Hook.Entered h)
+        leaveFunction = fun h -> add (fun () -> Hook.Left h)
+        nextEffect =
+          fun () ->
+            lock log (fun () ->
+              let n = ordinal[0]
+              ordinal[0] <- n + 1L
+              n)
+        storeFnResult =
+          fun name meta args result ->
+            add (fun () -> Hook.Call(name, meta.ord, NEList.toList args, result))
+        forProcess = fun _ -> quiet ()
+        forChunk = fun () -> bufferedChunk (logs ()) }
+  { logs () with forProcess = fun _ -> logs () },
+  (fun () -> lock log (fun () -> List.ofSeq log))
+
+/// A run recorded hook by hook, by `runner`: its outcome, what it printed, and what the tracer
+/// was told.
+let private recordedBy
+  (runner : RT.ExecutionState -> bool -> RT.Instructions -> Task<RT.ExecutionResult>)
+  (state : RT.ExecutionState)
+  (spread : bool)
+  (instrs : RT.Instructions)
+  : Task<RT.ExecutionResult * List<string> * List<Hook>> =
+  task {
+    Trace.take () |> ignore<List<string>>
+    let tracing, hooks = logging ()
+    let! result = runner { state with tracing = tracing } spread instrs
+    return result, Trace.take (), hooks ()
+  }
+
+let private recorded = recordedBy runInstrs
+
+/// Two recorded runs agree: outcome, effects, and every hook, the first that differs named.
+let private expectSameRun
+  (what : string)
+  (actual : RT.ExecutionResult * List<string> * List<Hook>)
+  (expected : RT.ExecutionResult * List<string> * List<Hook>)
+  : unit =
+  let (r1, p1, h1) = actual
+  let (r2, p2, h2) = expected
+  Expect.equal r1 r2 $"the same outcome: {what}"
+  Expect.equal p1 p2 $"the same effects: {what}"
+  match
+    List.zip
+      (List.truncate (min h1.Length h2.Length) h1)
+      (List.truncate (min h1.Length h2.Length) h2)
+    |> List.tryFindIndex (fun (a, b) -> a <> b)
+  with
+  | Some i ->
+    let around (h : List<Hook>) = h |> List.skip (max 0 (i - 2)) |> List.truncate 5
+    failtest
+      $"the same trace: {what}: hook {i} of {h1.Length}/{h2.Length} differs.\nspread: %A{around h1}\nserial: %A{around h2}"
+  | None -> Expect.equal h1.Length h2.Length $"the same number of hooks: {what}"
+
+/// A recorded run spreads, and records what a serial run records: frames, numbered and nested
+/// as serially, functions entered and left, and effects in order.
+let private recordedAsSerial =
+  testTask "a recorded run spreads and records what a serial run records" {
+    let! state = executionStateFor pmPT false
+    for code in
+      [ $"Stdlib.List.map(Stdlib.List.range(1, 40), {uneven})"
+        $"Stdlib.List.findFirst(Stdlib.List.range(1, 40), fun i -> {uneven}(i) > 0 && i %% 9 == 0 && i > 9)"
+        $"Stdlib.Dict.map({dictOf 40}, fun(k, v) -> {uneven}(k) + v)"
+        $"Stdlib.List.map(Stdlib.List.range(1, 40), fun i -> if i == 35 then 1 / 0 else {uneven}(i))"
+        "(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.map(Stdlib.List.range(1, 30), fun i -> (let (trace, _) = hidden in if i % 7 == 0 then (let _ = trace(Stdlib.display(i)) in i) else Stdlib.List.fold(Stdlib.List.range(1, 50), i, fun(a, x) -> a + x))))" ] do
+      let! instrs = instrsFor code
+      let! (spread, moved) =
+        delta (spreads state) (fun () -> recorded state true instrs)
+      let! serial = recorded state false instrs
+      let (_, _, hooks) = spread
+      Expect.isGreaterThan moved 0L $"spread while recorded: {code}"
+      Expect.isGreaterThan (List.length hooks) 40 $"something recorded: {code}"
+      expectSameRun code spread serial
+  }
+
+/// The recorder the CLI uses, end to end: what it stores of a spread run is what it stores of a
+/// serial one.
+let private storedAsSerial =
+  testTask "a recorded run that spreads stores the trace a serial run stores" {
+    let! (state : RT.ExecutionState) = executionStateFor pmPT false
+    let! instrs =
+      instrsFor
+        "(let _ = Builtin.testTrace(\"before\") in (let xs = Stdlib.List.map(Stdlib.List.range(1, 40), fun i -> Stdlib.List.fold(Stdlib.List.range(1, 300), i, fun(a, x) -> a + x)) in (let _ = Builtin.testTrace(\"after\") in xs)))"
+    LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.On
+    try
+      let record (spread : bool) =
+        task {
+          let traceId = LibExecution.AnalysisTypes.TraceID.create ()
+          let tracer =
+            LibDB.Tracing.createCliTracer
+              RT.Tracing.defaultCaps
+              traceId
+              "spread test"
+              "expression"
+              RT.DUnit
+          let traced = { state with tracing = tracer.executionTracing }
+          let! (result, moved) =
+            delta (spreads state) (fun () -> runInstrs traced spread instrs)
+          do! tracer.storeTraceResults traced |> Ply.toTask
+          let rows (sql : string) =
+            Sql.query sql
+            |> Sql.parameters [ "t", Sql.string (string traceId) ]
+            |> Sql.executeAsync (fun read -> read.string "a", read.int64 "b")
+          let! loops =
+            rows
+              "SELECT call_site AS a, passes AS b FROM trace_loops WHERE trace_id = @t ORDER BY call_site"
+          let! fns =
+            rows
+              "SELECT fn_hash AS a, calls AS b FROM trace_fns WHERE trace_id = @t ORDER BY fn_hash"
+          let! calls =
+            rows
+              "SELECT fn_hash AS a, ord AS b FROM trace_fn_calls WHERE trace_id = @t ORDER BY seq"
+          return result, moved, loops, fns, calls
+        }
+      let! (r1, moved1, loops1, fns1, calls1) = record true
+      let! (r2, moved2, loops2, fns2, calls2) = record false
+      Expect.isGreaterThan moved1 0L "the recorded run spread"
+      Expect.equal moved2 0L "the other did not"
+      Expect.equal (expectOk r1) (expectOk r2) "the same list"
+      Expect.isNonEmpty loops1 "loops were counted"
+      Expect.isNonEmpty fns1 "functions were counted"
+      Expect.equal (List.length calls1) 2 "both effects were logged"
+      Expect.equal loops1 loops2 "the same passes of every loop"
+      Expect.equal fns1 fns2 "the same calls of every function"
+      Expect.equal calls1 calls2 "the same effects, in order"
+    finally
+      Trace.take () |> ignore<List<string>>
+      LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.Off
+  }
+
+/// Every List and Dict test in the store, run forced to spread and with spreading off, recorded
+/// hook by hook: the same outcome, effects and trace. A test that does not come out the same in
+/// two serial runs (it counts live processes, say) says nothing here and is left out.
+let private everyListAndDictTest =
+  testTask "every List and Dict test comes out the same spread and serial" {
+    let! (state : RT.ExecutionState) = executionStateFor pmPT false
+    let state : RT.ExecutionState =
+      { state with test = { state.test with isPackageTest = true } }
+    let! named =
+      Sql.query
+        "SELECT DISTINCT name, item_hash FROM locations
+         WHERE owner = 'Darklang' AND modules IN ('Stdlib.List.Tests', 'Stdlib.Dict.Tests')
+           AND item_type = 'test' AND live = 1 AND item_hash <> ''"
+      |> Sql.executeAsync (fun read -> read.string "name", read.string "item_hash")
+    // One group of workers for all of them, each run a process on one of its workers.
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let onWorker
+      (state : RT.ExecutionState)
+      (spread : bool)
+      (instrs : RT.Instructions)
+      =
+      task {
+        let p =
+          s.SpawnOn(
+            spreading spread state,
+            (None, instrs),
+            Scheduler.EntryExpr,
+            None
+          )
+        let! result = p.completion.Task
+        s.TakeResult p.id |> ignore<Option<RT.ExecutionResult>>
+        return result
+      }
+    let recorded = recordedBy onWorker
+    try
+      let mutable compared = 0
+      for (name, h) in named do
+        match! pmPT.getTest (LibExecution.ProgramTypes.Hash h) |> Ply.toTask with
+        | None -> failtest $"no test at {h}"
+        | Some(test : LibExecution.ProgramTypes.PackageTest.PackageTest) ->
+          let instrs = PT2RT.Expr.toRT Map.empty 0 None test.body
+          let! once = recorded state false instrs
+          let! twice = recorded state false instrs
+          if once = twice then
+            let! spread = recorded state true instrs
+            expectSameRun name spread once
+            compared <- compared + 1
+      Expect.isGreaterThan compared 100 "most tests compared"
+      Expect.isGreaterThan (spreads state ()) 50L "and many of them spread"
+    finally
+      s.Workers.Stop()
+  }
+
+/// The decision is the probe's, by instructions; the cores are whoever is idle. With every worker
+/// busy, a map that would spread runs here.
+let private busyWorkersStaySerial =
+  testTask "with no worker idle, a map runs serially" {
+    let! state = executionStateFor pmPT false
+    let! busy =
+      instrsFor
+        "Stdlib.List.fold(Stdlib.List.range(1, 1000000), 0, fun(a, _) -> a + Stdlib.List.fold(Stdlib.List.range(1, 1000), 0, fun(b, x) -> b + x))"
+    let! instrs = instrsFor $"Stdlib.List.map(Stdlib.List.range(1, 40), {uneven})"
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let busy =
+      List.init Scheduler.defaultWorkers (fun _ ->
+        s.SpawnOn(spreading false state, (None, busy), Scheduler.EntryExpr, None))
+    try
+      Expect.equal s.Workers.Idle 0 "every worker busy"
+      let p =
+        s.Spawn(spreading true state, (None, instrs), Scheduler.EntryExpr, None)
+      let! (result, moved) =
+        delta (spreads state) (fun () ->
+          task {
+            let t =
+              Thread(
+                (fun () -> s.RunUntil p |> ignore<RT.ExecutionResult>),
+                IsBackground = true
+              )
+            t.Start()
+            return! p.completion.Task
+          })
+      let! serial =
+        runWith state false $"Stdlib.List.map(Stdlib.List.range(1, 40), {uneven})"
+      Expect.equal moved 0L "nothing spread"
+      Expect.equal (expectOk result) (expectOk serial) "the same list"
+    finally
+      for b in busy do
+        s.Cancel b.id |> ignore<bool>
+  }
+
+/// The group holds at most two chunks a worker in flight, across every spread at once.
+let private noSlotsStaySerial =
+  testTask "with no chunk slot free, a map runs serially" {
+    let! state = executionStateFor pmPT false
+    let! instrs = instrsFor $"Stdlib.List.map(Stdlib.List.range(1, 40), {uneven})"
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let slots = s.Workers.ChunkSlots
+    let rec takeAll n = if slots.Wait 0 then takeAll (n + 1) else n
+    let held = takeAll 0
+    Expect.equal held (2 * Scheduler.defaultWorkers) "two slots a worker"
+    let run () =
+      task {
+        let p =
+          s.Spawn(spreading true state, (None, instrs), Scheduler.EntryExpr, None)
+        let t =
+          Thread(
+            (fun () -> s.RunUntil p |> ignore<RT.ExecutionResult>),
+            IsBackground = true
+          )
+        t.Start()
+        return! p.completion.Task
+      }
+    let! (_, moved) = delta (spreads state) run
+    Expect.equal moved 0L "nothing spread while the slots were held"
+    slots.Release held |> ignore<int>
+  }
+
+/// What a spread charges its process is what the process takes serially, to the instruction and
+/// however the work is split, so a cap (`exec.maxInstructions`) gives a serial run's verdict:
+/// chunks after a hit or a fallback are not charged, and neither is the chunk that ran again here.
+let private chargesAsSerial =
+  testTask "a spread charges the instructions a serial run takes" {
+    let! state = executionStateFor pmPT false
+    for code in
+      [ $"Stdlib.List.map(Stdlib.List.range(1, 40), {uneven})"
+        $"Stdlib.List.any(Stdlib.List.range(1, 40), fun i -> {uneven}(i) > 0 && i == 20)"
+        "(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.map(Stdlib.List.range(1, 30), fun i -> (let (trace, _) = hidden in if i == 20 then (let _ = trace(\"x\") in i) else Stdlib.List.fold(Stdlib.List.range(1, 500), i, fun(a, x) -> a + x))))" ] do
+      let! instrs = instrsFor code
+      let taken (spread : bool) =
+        task {
+          let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+          let p =
+            s.Spawn(
+              spreading spread state,
+              (None, instrs),
+              Scheduler.EntryExpr,
+              None
+            )
+          let t =
+            Thread(
+              (fun () -> s.RunUntil p |> ignore<RT.ExecutionResult>),
+              IsBackground = true
+            )
+          t.Start()
+          let! result = p.completion.Task
+          expectOk result |> ignore<RT.Dval>
+          return p.instructionsTaken
+        }
+      let! serial = taken false
+      let before = Scheduler.defaultWorkers
+      try
+        for workers in [ 2; 4; 16; before ] do
+          Scheduler.defaultWorkers <- workers
+          for _ in 1..3 do
+            let! (spread, moved) = delta (spreads state) (fun () -> taken true)
+            Expect.isGreaterThan moved 0L $"it spread, {workers} workers: {code}"
+            Expect.equal
+              spread
+              serial
+              $"charged as serially, {workers} workers: {code}"
+      finally
+        Scheduler.defaultWorkers <- before
+        Trace.take () |> ignore<List<string>>
+  }
+
+/// The first elements are cheap and the rest dear, so every chunk passes its own cap, several
+/// times what the elements so far cost, and runs again here. That is a cost misjudged, not an
+/// effect, so the next map over the same body is tried again.
+let private dearChunksRunHere =
+  testTask "a chunk past its own cap runs again here, and the body is tried again" {
+    let! state = executionStateFor pmPT false
+    let code =
+      "(let f = (fun i -> if i < 4 then i else Stdlib.List.fold(Stdlib.List.range(1, 30000 * i), 0, fun(a, x) -> a + x)) in (let a = Stdlib.List.map(Stdlib.List.range(1, 12), f) in (a, Stdlib.List.map(Stdlib.List.range(1, 12), f))))"
+    let! ((spread, fellBack), moved) =
+      delta (spreads state) (fun () ->
+        delta (fallbacks state) (fun () -> run state code))
+    let! serial = runWith state false code
+    Expect.equal (expectOk spread) (expectOk serial) "the same lists"
+    Expect.equal moved 2L "both maps spread"
+    Expect.equal fellBack 2L "and both ran again here"
+  }
+
+/// A callable that fell back is remembered by the process it fell back in, not for the rest of
+/// the OS process: a later run (a later request, on `serve`) tries it again.
+let private fallbackIsPerProcess =
+  testTask "a callable that fell back in one process is tried again in the next" {
+    let! state = executionStateFor pmPT false
+    Trace.take () |> ignore<List<string>>
+    let code =
+      "Stdlib.List.map([\"a\", \"b\", \"c\", \"d\", \"e\", \"f\"], Builtin.testTrace)"
+    let! instrs = instrsFor code
+    let! ((_, fellBack), moved) =
+      delta (spreads state) (fun () ->
+        delta (fallbacks state) (fun () ->
+          task {
+            let! first = runInstrs state true instrs
+            let! second = runInstrs state true instrs
+            return first, second
+          }))
+    Trace.take () |> ignore<List<string>>
+    Expect.equal moved 2L "each run spread"
+    Expect.equal fellBack 2L "and each fell back"
+  }
+
 
 let tests =
   testSequenced (
@@ -797,7 +1197,15 @@ let tests =
         refusalGetsThrough "Darklang.LanguageTools.AtRestTypeChecker.guard"
         refusalGetsThrough "Darklang.LanguageTools.Live.apply"
         nestingIsBounded
-        watchedRunsDoNotSpread
+        viewedRunsDoNotSpread
+        recordedAsSerial
+        storedAsSerial
+        everyListAndDictTest
+        busyWorkersStaySerial
+        noSlotsStaySerial
+        chargesAsSerial
+        dearChunksRunHere
+        fallbackIsPerProcess
         cancelledLeavesNothing
         fallbackIsPreempted
         syncFallbackIsPreempted
