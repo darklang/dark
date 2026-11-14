@@ -227,6 +227,7 @@ let aRefreshDoesNotEatAnAuthorThatLandedMidway =
                 authorIntoMain $"module Darklang.{m}\n\nlet callee(): Int64 = 41"
               ()
           })
+        System.Threading.Tasks.Task.FromResult
         pmPT
     Expect.equal
       opened

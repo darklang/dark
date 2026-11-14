@@ -703,8 +703,8 @@ module ReplayStop =
 /// item with no location is printed as "Top-level expression".
 let private topLevelHash = PT.Hash "script-top-level"
 
-/// The node ids a report's definite findings point at.
-let private reportedNodeIds (report : Dval) : List<id> =
+/// A report's definite findings.
+let private reportedDiagnostics (report : Dval) : List<Dval> =
   let field name (d : Dval) =
     match d with
     | DRecord(_, _, _, fields) -> RecordFields.tryFind name fields
@@ -715,14 +715,34 @@ let private reportedNodeIds (report : Dval) : List<id> =
     | _ -> []
   list (field "items" report)
   |> List.collect (fun item -> list (field "diagnostics" item))
+
+/// The node ids a report's definite findings point at.
+let private reportedNodeIds (report : Dval) : List<id> =
+  reportedDiagnostics report
   |> List.choose (fun issue ->
-    match field "nodeId" issue with
-    | Some(DEnum(_, _, _, "Some", [ DUInt64 nodeId ])) -> Some nodeId
+    match issue with
+    | DRecord(_, _, _, fields) ->
+      match RecordFields.tryFind "nodeId" fields with
+      | Some(DEnum(_, _, _, "Some", [ DUInt64 nodeId ])) -> Some nodeId
+      | _ -> None
     | _ -> None)
+
+/// Whether a report says a bare number doesn't fit its type: refused even in a single
+/// expression, since running it could only fail the same way, less clearly.
+let private numberOutOfRange (report : Dval) : bool =
+  reportedDiagnostics report
+  |> List.exists (fun issue ->
+    match issue with
+    | DRecord(_, _, _, fields) ->
+      match RecordFields.tryFind "code" fields with
+      | Some(DEnum(_, _, _, "NumberOutOfRange", [])) -> true
+      | _ -> false
+    | _ -> false)
 
 /// Type-check a parsed script or eval expression without running any of it. Returns the
 /// checker's report when it found a definite error, which stops the run before its first
-/// effect; otherwise None, and the run goes ahead with its runtime checks.
+/// effect; otherwise None, and the run goes ahead with its runtime checks. Also returns the
+/// type each number written without a suffix takes, by node, as a save would store it.
 ///
 /// The top-level expressions become the body of one temporary function, in order, so each
 /// one but the last must return Unit exactly as it must when they run, and a branch or a
@@ -733,13 +753,11 @@ let private reportedNodeIds (report : Dval) : List<id> =
 ///
 /// Only a Failed verdict refuses: Incomplete means the checker lacked evidence, not that the
 /// code is wrong, and a checker that cannot answer lets the run go ahead.
-///
-/// Only code with a statement in it is checked (see `hasStatements`).
 let private checkGuest
   (state : RT.ExecutionState)
   (input : LibDB.Traces.ScriptOrEvalInput)
   (script : Utils.CliScript.PTCliScriptModule)
-  : Ply<Option<ExecutionError.ExecutionError>> =
+  : Ply<Option<ExecutionError.ExecutionError * bool> * Map<id, PT.TypeReference>> =
   uply {
     let isScript =
       match input with
@@ -799,6 +817,7 @@ let private checkGuest
           [ DList(VT.customType (PT2DT.PackageOp.typeName ()) [], Items(converted)) ]
       match! Exe.executeFunction state fnName [] args with
       | Ok(DRecord(_, _, _, fields) as report) ->
+        let literals = Builtins.Matter.Libs.PM.TraitCalls.literalTypesIn report
         match RecordFields.tryFind "verdict" fields with
         | Some(DEnum(_, _, _, "Failed", [])) ->
           let locations =
@@ -809,12 +828,57 @@ let private checkGuest
               | true, range ->
                 Some(nodeId, range.start.row + 1, range.start.column + 1)
               | false, _ -> None)
-          return Some(ExecutionError.TypeCheck(report, locations))
-        | _ -> return None
-      | _ -> return None
+          return
+            (Some(
+              ExecutionError.TypeCheck(report, locations),
+              numberOutOfRange report
+             ),
+             literals)
+        | _ -> return (None, literals)
+      | _ -> return (None, Map.empty)
     with _ ->
-      return None
+      return (None, Map.empty)
   }
+
+/// The script's code with each bare number written as the type <param literals> gives it.
+let private withLiteralTypes
+  (literals : Map<id, PT.TypeReference>)
+  (script : Utils.CliScript.PTCliScriptModule)
+  : Utils.CliScript.PTCliScriptModule =
+  if Map.isEmpty literals then
+    script
+  else
+    let mapping = { LibDB.AstTransformer.emptyMapping with literalTypes = literals }
+    let fns = List.map (LibDB.AstTransformer.transformFn mapping)
+    let values = List.map (LibDB.AstTransformer.transformValue mapping)
+    { script with
+        exprs =
+          script.exprs |> List.map (LibDB.AstTransformer.transformBareExpr mapping)
+        fns = fns script.fns
+        values = values script.values
+        submodules =
+          { script.submodules with
+              fns = fns script.submodules.fns
+              values = values script.submodules.values } }
+
+/// Whether a bare number in the code could take a type other than Int64 or Float64: one next to
+/// anything but other bare numbers and operators. `1 + 2` is an Int64 whatever happens.
+let private needsLiteralTypes (script : Utils.CliScript.PTCliScriptModule) : bool =
+  let rec arithmetic (expr : PT.Expr) =
+    match expr with
+    | PT.EInt64 _
+    | PT.EFloat64 _ -> true
+    | PT.EInfix(_, _, lhs, rhs, _) -> arithmetic lhs && arithmetic rhs
+    | _ -> false
+  let bodies =
+    script.exprs
+    @ ((script.fns @ script.submodules.fns)
+       |> List.map (fun (fn : PT.PackageFn.PackageFn) -> fn.body))
+    @ ((script.values @ script.submodules.values)
+       |> List.map (fun (value : PT.PackageValue.PackageValue) -> value.body))
+  bodies
+  |> List.exists (fun body ->
+    LibDB.AstTransformer.hasBareNumber body && not (arithmetic body))
 
 /// Whether one statement runs before another: more than one top-level expression, or a
 /// statement anywhere in the top-level code or the script's own declarations. Only then can an
@@ -844,11 +908,14 @@ let private prepareGuest
   uply {
     match! parse with
     | Ok script ->
-      let! refusal =
-        if hasStatements script then checkGuest state input script else Ply None
-      match refusal with
-      | Some refusal -> return Error refusal
-      | None -> return Ok script
+      let strict = hasStatements script
+      if strict || needsLiteralTypes script then
+        let! (refusal, literals) = checkGuest state input script
+        match refusal with
+        | Some(refusal, outOfRange) when strict || outOfRange -> return Error refusal
+        | _ -> return Ok(withLiteralTypes literals script)
+      else
+        return Ok script
     | Error diagnostics ->
       let message =
         match diagnostics with

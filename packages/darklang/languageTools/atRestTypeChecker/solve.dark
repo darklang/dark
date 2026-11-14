@@ -137,8 +137,7 @@ let deferDictKeys(s: State, at: Int64, keys: List<Model.Ty>): State =
   Stdlib.List.fold(keys, s, fun(s, key) ->
     let key = zonk(s, key)
     if
-      Types.isUsableDictKey(s.env, [], key)
-      && Stdlib.Bool.not(Stdlib.Dict.isEmpty(Types.freeVars(s.subst, key)))
+      Types.isUsableDictKey(s.env, [], key) && Stdlib.Dict.size(Types.freeVars(s.subst, key)) > 0
     then
       queueDeferred(s, Model.Constraint.DictKey(at, key))
     else
@@ -533,6 +532,7 @@ let mapConstraintTypes(mapType: Model.Ty -> Model.Ty, c: Model.Constraint): Mode
   | Propagate(at, operand, inner, returned) ->
     Model.Constraint.Propagate(at, mapType(operand), mapType(inner), mapType(returned))
   | Covers(at, scrutinee, cases, ids) -> Model.Constraint.Covers(at, mapType(scrutinee), cases, ids)
+  | Literal(at, typ, value, site) -> Model.Constraint.Literal(at, mapType(typ), value, site)
   | other -> other
 
 
@@ -565,6 +565,7 @@ let constraintVars(s: State, c: Model.Constraint): Dict<Model.Var, Bool> =
   | Unwrap(_, _, arg, result) -> into(into(Dict {}, arg), result)
   | Propagate(_, operand, inner, returned) -> into(into(into(Dict {}, operand), inner), returned)
   | Covers(_, scrutinee, _, _) -> into(Dict {}, scrutinee)
+  | Literal(_, typ, _, _) -> into(Dict {}, typ)
   | _ -> Dict {}
 
 
@@ -581,7 +582,18 @@ let schemeFreeVars(s: State, scheme: Model.Scheme): Dict<Model.Var, Bool> =
 let schemeFor(s: State, ty: Model.Ty, scope: List<Model.Binder>): (Model.Scheme * State) =
   let s = solvePendingConstraints(s)
   let ty = zonk(s, ty)
-  let inScope = Stdlib.List.fold(scope, Dict {}, fun(found, binder) ->
+  // A bare number the binding holds has one type, decided by its uses: `let z = 0` then `f(z)`
+  // makes it f's.
+  let held = heldVars(s, ty)
+  let heldLiterals = Stdlib.List.fold(s.waiting, Dict {}, fun(found, c) ->
+    match c with
+    | Literal(_, t, _, _) ->
+      match Types.walk(s.subst, t) with
+      | TVar(v) when Stdlib.Dict.containsKey(held, v) -> Stdlib.Dict.set(found, v, true)
+      | _ -> found
+    | _ -> found)
+
+  let inScope = Stdlib.List.fold(scope, heldLiterals, fun(found, binder) ->
     match binder with
     | Mono(t) -> Stdlib.Dict.merge(found, Types.freeVars(s.subst, t))
     | Poly(other) ->
@@ -599,6 +611,46 @@ let schemeFor(s: State, ty: Model.Ty, scope: List<Model.Binder>): (Model.Scheme 
   // Unknowns connected to outer bindings must remain shared. Making them fresh
   // would disconnect this binding from checks that still belong to its enclosing scope.
   let pinned = pinnedBy(inScope, pending)
+
+  // One in a fn the binding holds can't vary with the fn's uses either, and nothing else will
+  // decide it: it is decided here, as with nothing around it. `fun g -> g(1)` takes an Int64 fn.
+  let loose =
+    s.waiting
+    |> Stdlib.List.filter(fun c ->
+      match c with
+      | Literal(_, t, _, _) ->
+        match Types.walk(s.subst, t) with
+        | TVar(v) -> Stdlib.Bool.not(Stdlib.Dict.containsKey(pinned, v))
+        | _ -> false
+      | _ -> false)
+
+  match loose with
+  | [] -> schemeOver(s, ty, pending, pinned)
+  | _ -> schemeFor(defaultLiteralsIn(s, loose), ty, scope)
+
+
+/// The unknowns a value of <param ty> holds: those outside any fn type in it.
+let heldVars(s: State, ty: Model.Ty): Dict<Model.Var, Bool> =
+  let all(tys: List<Model.Ty>): Dict<Model.Var, Bool> =
+    Stdlib.List.fold(tys, Dict {}, fun(found, t) -> Stdlib.Dict.merge(found, heldVars(s, t)))
+
+  match Types.walk(s.subst, ty) with
+  | TVar(v) -> Stdlib.Dict.set(Dict {}, v, true)
+  | TList(inner) -> heldVars(s, inner)
+  | TStream(inner) -> heldVars(s, inner)
+  | TDict(key, value) -> all([ key, value ])
+  | TTuple(first, second, rest) -> all(Stdlib.List.concat([ first, second ], rest))
+  | TCustom(_, args) -> all(args)
+  | _ -> Dict {}
+
+
+/// <fn schemeFor> once its bare numbers are settled.
+let schemeOver(
+  s: State,
+  ty: Model.Ty,
+  pending: List<(Model.Constraint * Dict<Model.Var, Bool>)>,
+  pinned: Dict<Model.Var, Bool>)
+  : (Model.Scheme * State) =
   let notPinned(vars: Dict<Model.Var, Bool>): Dict<Model.Var, Bool> =
     Stdlib.Dict.filter(vars, fun(v, _) -> Stdlib.Bool.not(Stdlib.Dict.containsKey(pinned, v)))
 
@@ -1013,6 +1065,7 @@ let trySolveDeferred(s: State, c: Model.Constraint): Option<State> =
   | DictKey(at, key) -> dictKey(s, at, key)
   | Apply(at, callee, name, args, result) ->
     Option.Some(applyArguments(s, at, callee, name, args, result))
+  | Literal(at, typ, value, site) -> literal(s, at, typ, value, site)
   | _ -> Option.Some(solve(s, c))
 
 
@@ -1032,7 +1085,8 @@ let dictKey(s: State, at: Int64, key: Model.Ty): Option<State> =
           Option.None,
           Option.Some(key),
           Context.NoDetail)))
-  else if Stdlib.Dict.isEmpty(Types.freeVars(s.subst, key)) then
+  // `size`, not `isEmpty`, which reads a value: a reload runs this before values are evaluated.
+  else if Stdlib.Dict.size(Types.freeVars(s.subst, key)) == 0 then
     Option.Some(s)
   else
     Option.None
@@ -1121,7 +1175,7 @@ let checkDeferredKeys(s: State): State =
 /// from ?. Report remaining checks as warnings and clear the queue. Mark dependent
 /// result types unavailable where another warning would only repeat the problem.
 let reportUnsolvedConstraints(s: State): State =
-  let s = inferUnwrapReturnTypes(solvePendingConstraints(s))
+  let s = defaultLiterals(inferUnwrapReturnTypes(solvePendingConstraints(s)))
   let pending = Stdlib.List.reverse(s.waiting)
   Stdlib.List.fold(pending, { s with waiting = [] }, fun(s, c) ->
     let ambiguous(at: Int64, subject: AmbiguousSubject): State =
@@ -1165,6 +1219,38 @@ let reportUnsolvedConstraints(s: State): State =
             Context.UnwrapRequiresOptionOrResult)),
         inner)
     | _ -> s)
+
+
+/// A bare number nothing gave a type to is an Int64, or a Float64. Operators on it, and calls
+/// waiting on it, are decided after.
+let defaultLiterals(s: State): State =
+  defaultLiteralsIn(s, s.waiting)
+
+
+/// <fn defaultLiterals> for the bare numbers among <param constraints>.
+let defaultLiteralsIn(s: State, constraints: List<Model.Constraint>): State =
+  let unknown =
+    constraints
+    |> Stdlib.List.filterMap(fun c ->
+      match c with
+      | Literal(at, typ, value, _) ->
+        match Types.walk(s.subst, typ) with
+        | TVar(_) -> Option.Some((at, typ, value))
+        | _ -> Option.None
+      | _ -> Option.None)
+
+  match unknown with
+  | [] -> s
+  | _ ->
+    unknown
+    |> Stdlib.List.fold(s, fun(s, (at, typ, value)) ->
+      let fallback =
+        match value with
+        | Integer(_) -> Model.Ty.TInt64
+        | Float(_, _, _) -> Model.Ty.TFloat64
+
+      unify(s, Option.Some(at), Site.Expression, fallback, typ))
+    |> solvePendingConstraints
 
 
 /// If a lambda's return type is still unknown, use a known ? operand to choose
@@ -2241,6 +2327,72 @@ let operandFor(
     | None -> Option.Some(s)
     | Some((traitHash, method_, candidates)) ->
       recordImplChoice(s, at, traitHash, method_, subject, candidates, record)
+
+
+/// A number written without a suffix, once its slot's type <param typ> is known: which type it
+/// takes, or why it can't. This is the one place that says which numeric types a bare number
+/// may become and what fits in each.
+let literal(
+  s: State,
+  at: Int64,
+  typ: Model.Ty,
+  value: Model.NumberLiteral,
+  site: Site)
+  : Option<State> =
+  let nodeId = Option.Some(at)
+  let (subject, s) = expand(s, nodeId, typ)
+  let took(s: State): State =
+    match subject with
+    | TInt64 | TFloat64 -> s
+    | _ -> addResolution(s, Model.Resolution.Literal(at, subject))
+
+  let outOfRange(written: String, min: String, max: String): State =
+    addFinding(
+      s,
+      Types.definiteError(
+        IssueCode.NumberOutOfRange,
+        nodeId,
+        some(subject),
+        none(),
+        Context.NumberOutOfRange(written, min, max)))
+
+  match subject with
+  | TVar(_) -> Option.None
+  | TError -> Option.Some(s)
+  | _ ->
+    match value with
+    | Integer(n) ->
+      match Types.integerRange(subject) with
+      | Some((min, max)) ->
+        if n >= min && n <= max then
+          Option.Some(took(s))
+        else
+          Option.Some(outOfRange(Stdlib.display(n), Stdlib.display(min), Types.integerMax(subject)))
+      | None -> Option.Some(unify(s, nodeId, site, subject, Model.Ty.TInt64))
+    | Float(sign, whole, fraction) ->
+      match subject with
+      | TFloat64 -> Option.Some(s)
+      | TFloat32 ->
+        let minus =
+          match sign with
+          | Negative -> "-"
+          | Positive -> ""
+
+        let written = $"{minus}{whole}.{fraction}"
+        // Not `Float32.checkedParse`: a reload runs this on the stdlib before its own numbers
+        // are typed, and `Float32.isFinite` has one.
+        let finite =
+          match Stdlib.Float32.parse(written) with
+          | Ok(f) ->
+            let d = Stdlib.Float32.toFloat64(f)
+            d - d == 0.0
+          | Error(_) -> false
+
+        if finite then
+          Option.Some(took(s))
+        else
+          Option.Some(outOfRange(written, "-3.4028235e38", "3.4028235e38"))
+      | _ -> Option.Some(unify(s, nodeId, site, subject, Model.Ty.TFloat64))
 
 
 /// `-x` and `~x` are calls to `Negate.negate` and `BitwiseNot.bitwiseNot`, checked as the

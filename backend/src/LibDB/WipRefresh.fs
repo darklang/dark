@@ -324,6 +324,7 @@ let private refreshSnapshots before after =
 /// Return the number of new hashes, or None if another edit means we need to retry.
 let private refreshOnce
   (afterRead : unit -> Task<unit>)
+  (retype : List<PT.PackageOp> -> Task<List<PT.PackageOp>>)
   (pm : PT.PackageManager)
   : Task<Option<int64>> =
   task {
@@ -337,6 +338,32 @@ let private refreshOnce
       // Refresh live declarations, retaining inactive revisions for undo.
       let activeOps, restore = refreshableOps wipOps
       let! reResolvedOps = reResolveAllItems pm activeOps
+
+      // A declaration whose names just resolved can now tell what its bare numbers are: `f(0)`,
+      // saved before `f`, was an Int64 until `f` said otherwise.
+      let unchanged =
+        System.Collections.Generic.HashSet<PT.PackageOp>(
+          activeOps,
+          HashIdentity.Structural
+        )
+      let changedAt =
+        reResolvedOps
+        |> List.indexed
+        |> List.filter (fun (_, op) -> not (unchanged.Contains op))
+        |> List.map fst
+      let! reResolvedOps =
+        if List.isEmpty changedAt then
+          Task.FromResult reResolvedOps
+        else
+          task {
+            let! retyped =
+              retype (changedAt |> List.map (fun i -> List.item i reResolvedOps))
+            let replacements = List.zip changedAt retyped |> Map.ofList
+            return
+              reResolvedOps
+              |> List.mapi (fun i op ->
+                Map.tryFind i replacements |> Option.defaultValue op)
+          }
 
       // These declarations were hashed when saved. If resolving references changed
       // nothing, we can skip recalculating their hashes and rewriting the draft.
@@ -398,6 +425,7 @@ let private refreshOnce
 /// another edit at that point and check that refresh retries safely.
 let refreshWith
   (afterRead : unit -> Task<unit>)
+  (retype : List<PT.PackageOp> -> Task<List<PT.PackageOp>>)
   (pm : PT.PackageManager)
   : Task<int64> =
   Telemetry.timeTask "author.wipRefresh" [] (fun () ->
@@ -406,7 +434,7 @@ let refreshWith
       // Stop after ten attempts rather than retrying indefinitely.
       let rec attempt (attempts : int) : Task<int64> =
         task {
-          match! refreshOnce afterRead pm with
+          match! refreshOnce afterRead retype pm with
           | Some n -> return n
           | None when attempts < 10 -> return! attempt (attempts + 1)
           | None ->
@@ -423,5 +451,12 @@ let refreshWith
       return! attempt 1
     })
 
+/// <param retype> is the at-rest checker's save-time pass, for a declaration whose names resolved.
+let refreshRetyping
+  (retype : List<PT.PackageOp> -> Task<List<PT.PackageOp>>)
+  (pm : PT.PackageManager)
+  : Task<int64> =
+  refreshWith (fun () -> Task.FromResult()) retype pm
+
 let refresh (pm : PT.PackageManager) : Task<int64> =
-  refreshWith (fun () -> Task.FromResult()) pm
+  refreshRetyping Task.FromResult pm

@@ -667,3 +667,60 @@ test codeCannotChangeTheNetworkGuard = Instance.withInstance(fun i ->
             after,
             "http.loopback = on",
             "and the setting took") ] ])))
+
+
+/// A bare number takes its type from where it is used: in an eval as in a save.
+test bareNumbersTakeTheirSlotsType = Instance.withInstance(fun i ->
+  let (code, out) = Instance.ran(i, [ "eval", "Stdlib.UInt8.toFloat64(300)" ])
+  Stdlib.Test.all(
+    [ prints(i, [ "eval", "Stdlib.UInt8.toFloat64(200)" ], "200.0")
+
+      prints(
+        i,
+        [ "eval", "Stdlib.Bytes.toList(Stdlib.Bytes.fromList([ 0, 255 ]))" ],
+        "[0u8, 255u8]")
+
+      Instance.exitedWith(code, 1, "a number that doesn't fit is refused")
+      Instance.says(
+        out,
+        "`300` doesn't fit in UInt8 (0 to 255)",
+        "and the message says why") ]))
+
+
+/// A caller saved before the fn it calls, or against an older version of it, takes the fn's
+/// types for its bare numbers when the fn arrives or changes.
+test bareNumbersFollowTheirCallee = Instance.withInstance(fun i ->
+  let _ =
+    Instance.ran(
+      i,
+      [ "fn", "Me.Late.caller", "let caller(): Float64 = Me.Late.callee(7)" ])
+
+  let _ =
+    Instance.ran(
+      i,
+      [ "fn"
+        "Me.Late.callee"
+        "let callee(x: UInt8): Float64 = Stdlib.UInt8.toFloat64(x)" ])
+
+  let _ =
+    Instance.ran(
+      i,
+      [ "fn"
+        "Me.Grow.callee"
+        "let callee(x: Int64): Float64 = Stdlib.Int64.toFloat64(x)" ])
+
+  let _ =
+    Instance.ran(
+      i,
+      [ "fn", "Me.Grow.caller", "let caller(): Float64 = Me.Grow.callee(7)" ])
+
+  let _ =
+    Instance.ran(
+      i,
+      [ "fn"
+        "Me.Grow.callee"
+        "let callee(x: UInt8): Float64 = Stdlib.UInt8.toFloat64(x)" ])
+
+  Stdlib.Test.all(
+    [ prints(i, [ "eval", "Me.Late.caller()" ], "7.0")
+      prints(i, [ "eval", "Me.Grow.caller()" ], "7.0") ]))

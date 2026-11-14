@@ -162,6 +162,7 @@ let rebind
 /// existing op did not actually move: a repoint that dedupes into an op the log already holds folds
 /// nothing, and the name would be left where it was.
 let repoint
+  (retype : List<PT.PackageOp> -> System.Threading.Tasks.Task<List<PT.PackageOp>>)
   (branch : PT.BranchId)
   (location : PT.PackageLocation)
   (kind : PT.ItemKind)
@@ -169,7 +170,8 @@ let repoint
   (toHash : PT.Hash)
   : Ply<Result<List<PT.PropagateRepoint>, string>> =
   uply {
-    let! result = LibDB.Propagation.propagate branch location kind fromHashes toHash
+    let! result =
+      LibDB.Propagation.propagate retype branch location kind fromHashes toHash
     match result with
     | Error e -> return Error e
     | Ok None -> return Ok []
@@ -1329,9 +1331,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
             // The branch this propagation runs on, from the caller. Every Dark call site passes
             // `state.currentBranchId`, which is what keeps a branch's cascade off main.
+            let branch = branchOfParam branchId
             let! result =
               repoint
-                (branchOfParam branchId)
+                (TraitCalls.retype exeState branch pm)
+                branch
                 sourceLocation
                 sourceItemKind
                 fromSourceHashes
