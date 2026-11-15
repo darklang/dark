@@ -26,7 +26,8 @@ module Fixtures =
       | Ok(e2) -> PrettyPrinter.ProgramTypes.expr(ctx(), e2)
       | Error(err) -> "ERR " + err
     | Error(err) ->
-      "PARSE ERR " + LanguageTools.Parser.Parse.ParseError.toString(err)
+      "PARSE ERR (round trip) "
+      + LanguageTools.Parser.Parse.ParseError.toString(err)
 
 
   /// What the printer writes for the original, so the two sides compare like for like.
@@ -83,8 +84,8 @@ module RoundTrips =
           Fixtures.printed("if x then 1"))
 
         Stdlib.Test.equal(
-          Fixtures.roundTrip("fun a b -> a ++ b"),
-          Fixtures.printed("fun a b -> a ++ b"))
+          Fixtures.roundTrip("fun(a, b) -> a + b"),
+          Fixtures.printed("fun(a, b) -> a + b"))
 
         Stdlib.Test.equal(
           Fixtures.roundTrip("let (a, b) = (1, 2)\na"),
@@ -102,14 +103,13 @@ module RoundTrips =
 
         Stdlib.Test.equal(
           Fixtures.roundTrip(
-            "match xs with\n| [] -> 0\n| h :: t -> h\n| (a, b) -> a\n| Some v when v > 1 -> v\n| 1 | 2 -> 3"),
+            "match xs with\n| [] -> 0\n| [h, ...t] -> h\n| (a, b) -> a\n| Some(v) when v > 1 -> v\n| 1 | 2 -> 3"),
           Fixtures.printed(
-            "match xs with\n| [] -> 0\n| h :: t -> h\n| (a, b) -> a\n| Some v when v > 1 -> v\n| 1 | 2 -> 3"))
+            "match xs with\n| [] -> 0\n| [h, ...t] -> h\n| (a, b) -> a\n| Some(v) when v > 1 -> v\n| 1 | 2 -> 3"))
 
-        // CLEANUP the move to call syntax changed this; it was "$\"a {b} c\""
         Stdlib.Test.equal(
           Fixtures.roundTrip("$\"a {b} c\""),
-          "ERR unresolved function name: Darklang.Stdlib.Display")
+          Fixtures.printed("$\"a {b} c\""))
 
         Stdlib.Test.equal(
           Fixtures.roundTrip(
@@ -118,12 +118,12 @@ module RoundTrips =
             "xs |> Stdlib.List.map(fun x -> x + 1) |> Stdlib.List.length"))
 
         Stdlib.Test.equal(
-          Fixtures.roundTrip("Stdlib.Option.Option.Some 5"),
-          Fixtures.printed("Stdlib.Option.Option.Some 5"))
+          Fixtures.roundTrip("Stdlib.Option.Option.Some(5)"),
+          Fixtures.printed("Stdlib.Option.Option.Some(5)"))
 
         Stdlib.Test.equal(
-          Fixtures.roundTrip("Dict { a = 1; b = 2 }"),
-          Fixtures.printed("Dict { a = 1; b = 2 }"))
+          Fixtures.roundTrip("Dict { a: 1, b: 2 }"),
+          Fixtures.printed("Dict { a: 1, b: 2 }"))
 
         Stdlib.Test.equal(
           Fixtures.roundTrip("r.field"),
@@ -131,7 +131,62 @@ module RoundTrips =
 
         Stdlib.Test.equal(
           Fixtures.roundTrip("Stdlib.List.length([ 1 ])"),
-          Fixtures.printed("Stdlib.List.length([ 1 ])")) ])
+          Fixtures.printed("Stdlib.List.length([ 1 ])"))
+
+        // What main can write since September, each through the document and back.
+        Stdlib.Test.equal(
+          Fixtures.roundTrip("1.5f32"),
+          Fixtures.printed("1.5f32"))
+
+        Stdlib.Test.equal(
+          Fixtures.roundTrip("19.99dec"),
+          Fixtures.printed("19.99dec"))
+
+        Stdlib.Test.equal(
+          Fixtures.roundTrip("fun r -> r?"),
+          Fixtures.printed("fun r -> r?"))
+
+        Stdlib.Test.equal(
+          Fixtures.roundTrip("fun r -> r?.field"),
+          Fixtures.printed("fun r -> r?.field"))
+
+        Stdlib.Test.equal(
+          Fixtures.roundTrip("fun x -> (f(x))?"),
+          Fixtures.printed("fun x -> (f(x))?"))
+
+        Stdlib.Test.equal(
+          Fixtures.roundTrip("a & b | c ^ d << 1 >> 2"),
+          Fixtures.printed("a & b | c ^ d << 1 >> 2"))
+
+        Stdlib.Test.equal(
+          Fixtures.roundTrip(
+            "match x with\n| 5u8 -> 1\n| 7z -> 2\n| 3s16 -> 3\n| 1.5f32 -> 4\n| 2.50dec -> 5\n| _ -> 6"),
+          Fixtures.printed(
+            "match x with\n| 5u8 -> 1\n| 7z -> 2\n| 3s16 -> 3\n| 1.5f32 -> 4\n| 2.50dec -> 5\n| _ -> 6"))
+
+        Stdlib.Test.equal(
+          Fixtures.roundTrip(
+            "match x with\n| Some(v) as whole -> whole\n| _ -> x"),
+          Fixtures.printed(
+            "match x with\n| Some(v) as whole -> whole\n| _ -> x"))
+
+        Stdlib.Test.equal(
+          Fixtures.roundTrip(
+            "match r with\n| { name, age = 3 } -> name\n| _ -> \"\""),
+          Fixtures.printed(
+            "match r with\n| { name, age = 3 } -> name\n| _ -> \"\""))
+
+        Stdlib.Test.equal(
+          Fixtures.roundTrip(
+            "match p with\n| ((1 | 2), y) -> y\n| ((Some(_) as s), _) -> 0"),
+          Fixtures.printed(
+            "match p with\n| ((1 | 2), y) -> y\n| ((Some(_) as s), _) -> 0"))
+
+        Stdlib.Test.equal(
+          Fixtures.roundTrip(
+            "match xs with\n| [a, b, ...rest] -> rest\n| [a, ...] -> [a]\n| _ -> []"),
+          Fixtures.printed(
+            "match xs with\n| [a, b, ...rest] -> rest\n| [a, ...] -> [a]\n| _ -> []")) ])
 
 
 module Vertical =
@@ -142,10 +197,38 @@ module Vertical =
 
         // A record literal is laid out vertically (its fields break unconditionally), and because a tall child
         // forces its container to break, a list of records goes vertical too.
-        // CLEANUP the move to call syntax changed this; it was "Option.Some(5)"
         Stdlib.Test.equal(
-          Fixtures.render("Stdlib.Option.Option.Some 5", 60),
-          "PARSE ERR Parse error at line 1, column 1: a constructor's fields go in parentheses, separated by commas") ])
+          Fixtures.render("Stdlib.Option.Option.Some(5)", 60),
+          "Option.Some(5)")
+
+        // What main can write since September draws the way the printer writes it.
+        Stdlib.Test.equal(Fixtures.render("1.5f32", 60), "1.5f32")
+
+        Stdlib.Test.equal(Fixtures.render("19.99dec", 60), "19.99dec")
+
+        Stdlib.Test.equal(
+          Fixtures.render("fun r -> r?.field", 60),
+          "(fun(r) -> r?.field)")
+
+        Stdlib.Test.equal(
+          Fixtures.render("fun x -> (f(x))?", 60),
+          "(fun(x) -> (f(x))?)")
+
+        Stdlib.Test.equal(
+          Fixtures.render(
+            "match x with\n| Some(v) as whole -> whole\n| _ -> x",
+            60),
+          "match x with\n| Some(v) as whole -> whole\n| _ -> x")
+
+        Stdlib.Test.equal(
+          Fixtures.render(
+            "match r with\n| { name, age = 3 } -> name\n| _ -> 0",
+            60),
+          "match r with\n| { name, age = 3 } -> name\n| _ -> 0")
+
+        Stdlib.Test.equal(
+          Fixtures.render("match p with\n| ((Some(_) as s), _) -> 0", 60),
+          "match p with\n| ((Some(_) as s), _) -> 0") ])
 
 
 module Parens =
@@ -167,8 +250,7 @@ module Parens =
 
         Stdlib.Test.equal(Parens.show("(1 + 2) * 3"), "(1 + 2) * 3")
 
-        // CLEANUP the move to call syntax changed this; it was "f (g x) (a + b)"
-        Stdlib.Test.equal(Parens.show("f (g x) (a + b)"), "parse err")
+        Stdlib.Test.equal(Parens.show("f(g(x), a + b)"), "f(g(x), a + b)")
 
         Stdlib.Test.equal(Parens.show("a && (b || c)"), "a && (b || c)")
 
@@ -255,9 +337,8 @@ module Editing =
           Fixtures.run([ "1", "+", "2", "*", "3" ]),
           "1 + 2 * 3~")
 
-        // CLEANUP the move to call syntax changed this; it was "\"a\" ++ \"b~\""
         Stdlib.Test.equal(
-          Fixtures.run([ "\"", "a", "<Right>", "+", "+", "\"", "b" ]),
+          Fixtures.run([ "\"", "a", "<Right>", "+", "\"", "b" ]),
           "\"a\" + \"b~\"")
 
         Stdlib.Test.equal(
@@ -588,10 +669,7 @@ module PrecedenceIsShared =
 
         Stdlib.Test.equal(PrecedenceIsShared.sameParens("a || b && c"), true)
 
-        // CLEANUP the move to call syntax changed this; it was true
-        Stdlib.Test.equal(
-          PrecedenceIsShared.sameParens("f (g x) (a + b)"),
-          false)
+        Stdlib.Test.equal(PrecedenceIsShared.sameParens("f(g(x), a + b)"), true)
 
         Stdlib.Test.equal(
           PrecedenceIsShared.sameParens("(if a then 1 else 2) + 3"),
@@ -606,14 +684,11 @@ module PrecedenceIsShared =
 
         Stdlib.Test.equal(PrecedenceIsShared.power("let x = 1\nx"), 0)
 
-        // CLEANUP the move to call syntax changed this; it was 5
         Stdlib.Test.equal(PrecedenceIsShared.power("1 + 2"), 8)
 
-        // CLEANUP the move to call syntax changed this; it was 6
         Stdlib.Test.equal(PrecedenceIsShared.power("1 * 2"), 9)
 
-        // CLEANUP the move to call syntax changed this; it was 100
-        Stdlib.Test.equal(PrecedenceIsShared.power("f x"), -1)
+        Stdlib.Test.equal(PrecedenceIsShared.power("f(x)"), 100)
 
         Stdlib.Test.equal(PrecedenceIsShared.power("1"), 100)
 
@@ -707,10 +782,9 @@ module RecordsCanBeBuilt =
           "Stdlib.Cli.Tui.Size { width = 80, height = 24 }")
 
         // An existing record still round-trips through the document unchanged.
-        // CLEANUP the move to call syntax changed this; it was "Stdlib.Cli.Tui.Size { width = 80; height = 24 }"
         Stdlib.Test.equal(
           (match LanguageTools.Parser.Parse.parsePTExpr(
-                   "Stdlib.Cli.Tui.Size { width = 80; height = 24 }") with
+                   "Stdlib.Cli.Tui.Size { width = 80, height = 24 }") with
            | Ok(e) ->
              match Fluid.PT.fromDoc(Fluid.PT.toDoc(e)) with
              | Ok(e2) ->
@@ -719,7 +793,7 @@ module RecordsCanBeBuilt =
            | Error(err) ->
              "parse ERR "
              + LanguageTools.Parser.Parse.ParseError.toString(err)),
-          "parse ERR Parse error at line 1, column 33: expected ',' between record fields, found ';'")
+          "Stdlib.Cli.Tui.Size { width = 80, height = 24 }")
 
         // And the type reads the way the printer writes it, not fully qualified.
         Stdlib.Test.equal(
@@ -1412,11 +1486,10 @@ module SeparatorsComeFromTheSpec =
   test separatorsComeFromTheSpec =
     Stdlib.Test.all(
       // A record types the way the source reads: `;` goes on to the next FIELD.
-      [ // CLEANUP the move to call syntax changed this; it was "Stdlib.Cli.Tui.Size { width = 80; height = 24~ }"
-        Stdlib.Test.equal(
+      [ Stdlib.Test.equal(
           SeparatorsComeFromTheSpec.run(
-            [ "S", "i", "z", "e", "<Enter>", "8", "0", ";", "2", "4" ]),
-          "Stdlib.Cli.Tui.Size { width = 8024~, height = ⟨height⟩ }")
+            [ "S", "i", "z", "e", "<Enter>", "8", "0", ",", "2", "4" ]),
+          "Stdlib.Cli.Tui.Size { width = 80, height = 24~ }")
 
         // ...because a record's fields come from its TYPE. A separator between items that already exist and are
         // not finished means "on to the next one", not "put another one here" -- there is no third field to add.
@@ -1564,7 +1637,7 @@ module EveryNodeHasASpec =
 
         Stdlib.Test.equal(
           EveryNodeHasASpec.missing(
-            "Stdlib.Cli.Tui.Size { width = 1; height = 2 }"),
+            "Stdlib.Cli.Tui.Size { width = 1, height = 2 }"),
           [])
 
         Stdlib.Test.equal(EveryNodeHasASpec.missing("{ s with x = 1 }"), [])
@@ -1665,12 +1738,11 @@ module AStringLiteralIsNeverBroken =
       // Everything between the quotes of a `$"..."` is part of a string LITERAL, so breaking it puts a newline
       // and its indentation into the string's VALUE, not just into the shape of the line. The pieces inside
       // are wrapped in `Piece.Flat` and the layout stays flat there whatever the width.
-      [ // CLEANUP the move to call syntax changed this; it was "$\"a {Stdlib.String.toUppercase(someLongVariableName)} b\""
-        Stdlib.Test.equal(
+      [ Stdlib.Test.equal(
           Fixtures.render(
             "$\"a {Stdlib.String.toUppercase(someLongVariableName)} b\"",
             30),
-          "$\"a {Stdlib.Display(Stdlib.String.toUppercase(someLongVariableName))} b\"")
+          "$\"a {Stdlib.String.toUppercase(someLongVariableName)} b\"")
 
         // The same call outside the quotes, at the same width, does break -- so the pin above is about the
         // string and not about the call happening to fit.
@@ -1687,10 +1759,9 @@ module ReservedFieldNamesKeepTheirBackticks =
       // A field named `type` has to be written ``type`` or it lexes as the keyword. The printer has done this
       // since it started emitting source you could parse back; Fluid drew the stored text, so `p.``type``
       // came out as `p.type`, which is a different program. Both sides now ask `formatFieldName`.
-      [ // CLEANUP the move to call syntax changed this; it was "p.``type``"
-        Stdlib.Test.equal(
-          Fixtures.render("p.``type``", 40),
-          "PARSE ERR Parse error at line 1, column 11: expected '=' in type definition, found end of file\nParse error at line 1, column 11: expected a type, found end of file")
+      [ Stdlib.Test.equal(
+          Fixtures.render("p.`type`", 40),
+          Fixtures.printed("p.`type`"))
 
         // An ordinary field is untouched, so this is a rule about the unusual names and not a new decoration.
         Stdlib.Test.equal(Fixtures.render("p.name", 40), "p.name") ])
@@ -1733,7 +1804,7 @@ module RecordUpdatesCanBeBuilt =
           "{ r with width = 99~ }")
 
         // `;` adds the next update, the way it adds the next field of a literal.
-        // CLEANUP the move to call syntax changed this; it was "{ r with width = 99; height = 1 }"
+        // `,` adds the next update, the way it adds the next field of a literal.
         Stdlib.Test.equal(
           Fluid.PT.Test.program(
             RecordUpdatesCanBeBuilt.reg(),
@@ -1749,7 +1820,7 @@ module RecordUpdatesCanBeBuilt =
               "<Tab>"
               "9"
               "9"
-              ";"
+              ","
               "h"
               "e"
               "i"
@@ -1760,7 +1831,7 @@ module RecordUpdatesCanBeBuilt =
               "1"
               "<Esc>"
               "<Esc>" ]),
-          "{ r with width = 991 }") ])
+          "{ r with width = 99, height = 1 }") ])
 
 
 module AnEmptyTextSlotIsAHole =
@@ -1811,10 +1882,9 @@ module SingleSegmentNamesKeepTheirShape =
 
         Stdlib.Test.equal(Fixtures.render("Colour.Red", 60), "Colour.Red")
 
-        // CLEANUP the move to call syntax changed this; it was "Foo { a = 1L }"
         Stdlib.Test.equal(
-          Fixtures.render("Foo { a = 1L }", 60),
-          "PARSE ERR Parse error at line 1, column 11: invalid number literal: 1L; an Int64 is written `1`") ])
+          Fixtures.render("Foo { a = 1 }", 60),
+          "Foo { a = 1 }") ])
 
 
 module DocCommentsAreReadable =
@@ -1852,25 +1922,22 @@ module DocCommentsAreReadable =
           true)
 
         // A record's type declaration, behind `_typeHash`.
-        // CLEANUP the move to call syntax changed this; it was "Stdlib.Cli.Tui.Size"
         Stdlib.Test.equal(
           DocCommentsAreReadable.docs(
-            "Stdlib.Cli.Tui.Size { width = 1L; height = 2L }")
+            "Stdlib.Cli.Tui.Size { width = 1, height = 2 }")
           |> Stdlib.Tuple3.first,
-          "parse err")
+          "Stdlib.Cli.Tui.Size")
 
-        // CLEANUP the move to call syntax changed this; it was "Current terminal viewport dimensions."
         Stdlib.Test.equal(
           DocCommentsAreReadable.docs(
-            "Stdlib.Cli.Tui.Size { width = 1L; height = 2L }")
+            "Stdlib.Cli.Tui.Size { width = 1, height = 2 }")
           |> Stdlib.Tuple3.third,
-          "")
+          "Current terminal viewport dimensions.")
 
         // A node with no hash has nothing to say, and says nothing.
-        // CLEANUP the move to call syntax changed this; it was "none"
         Stdlib.Test.equal(
-          DocCommentsAreReadable.docs("1L + 2L") |> Stdlib.Tuple3.first,
-          "parse err")
+          DocCommentsAreReadable.docs("1 + 2") |> Stdlib.Tuple3.first,
+          "none")
 
         // The inline markers come out as the words they wrap...
         Stdlib.Test.equal(
@@ -1917,10 +1984,9 @@ module EscapedStringsSurviveTheDocument =
           Fixtures.render("\"back\\\\slash\"", 60),
           "\"back\\\\slash\"")
 
-        // CLEANUP the move to call syntax changed this; it was "$\"a\\nb{x}c\""
         Stdlib.Test.equal(
           Fixtures.render("$\"a\\nb{x}c\"", 60),
-          "$\"a\\nb{Stdlib.Display(x)}c\"")
+          "$\"a\\nb{x}c\"")
 
         Stdlib.Test.equal(Fixtures.render("'\\n'", 60), "'\\n'")
 
@@ -1939,10 +2005,9 @@ module EscapedStringsSurviveTheDocument =
           Fixtures.roundTrip("\"back \\\\ slash\""),
           "\"back \\\\ slash\"")
 
-        // CLEANUP the move to call syntax changed this; it was "$\"a\\nb{x}c\""
         Stdlib.Test.equal(
           Fixtures.roundTrip("$\"a\\nb{x}c\""),
-          "ERR unresolved function name: Darklang.Stdlib.Display")
+          "$\"a\\nb{x}c\"")
 
         Stdlib.Test.equal(Fixtures.roundTrip("'\\n'"), "'\\n'") ])
 
@@ -2091,7 +2156,6 @@ module OfferedCasesCanBePicked =
           "let describe(o: Option): String =\n  match o with\n  | Some(v) -> \"~yes\"")
 
         // Without a case to offer, Enter still starts the next arm, which is the behaviour the guard exists for.
-        // CLEANUP the move to call syntax changed this; it was "let describe (o: Int): String =\n  match o with\n  | ⟨pattern⟩ -> ⟨rhs⟩\n  | ~⟨pattern⟩ -> ⟨rhs⟩"
         Stdlib.Test.equal(
           OfferedCasesCanBePicked.run(
             LanguageTools.ProgramTypes.TypeReference.TInt64,
@@ -2277,7 +2341,6 @@ module FieldAccessOffersTheFields =
           "height")
 
         // Enter takes the highlighted one...
-        // CLEANUP the move to call syntax changed this; it was "let area (s: Stdlib.Cli.Tui.Size): Int =\n  s.width~"
         Stdlib.Test.equal(
           FieldAccessOffersTheFields.run(
             FieldAccessOffersTheFields.sizeType(),
@@ -2285,7 +2348,6 @@ module FieldAccessOffersTheFields =
           "let area(s: Stdlib.Cli.Tui.Size): Int64 =\n  s.width~")
 
         // ...including after typing, where the name you get is the FULL one and not what you typed.
-        // CLEANUP the move to call syntax changed this; it was "let area (s: Stdlib.Cli.Tui.Size): Int =\n  s.height~"
         Stdlib.Test.equal(
           FieldAccessOffersTheFields.run(
             FieldAccessOffersTheFields.sizeType(),
@@ -2375,14 +2437,12 @@ module TypingAPatternCaseCompletes =
 module TabFinishesAFieldName =
   test tabFinishesAFieldName =
     Stdlib.Test.all(
-      [ // CLEANUP the move to call syntax changed this; it was "let area (s: Stdlib.Cli.Tui.Size): Int =\n  s.height~"
-        Stdlib.Test.equal(
+      [ Stdlib.Test.equal(
           FieldAccessOffersTheFields.run(
             FieldAccessOffersTheFields.sizeType(),
             [ "h", "<Tab>" ]),
           "let area(s: Stdlib.Cli.Tui.Size): Int64 =\n  s.height~")
 
-        // CLEANUP the move to call syntax changed this; it was "let area (s: Stdlib.Cli.Tui.Size): Int =\n  s.width~"
         Stdlib.Test.equal(
           FieldAccessOffersTheFields.run(
             FieldAccessOffersTheFields.sizeType(),
@@ -2488,7 +2548,6 @@ module PutChecksWhatTheSlotWants =
           "can't put EPipeVariable into value || \"a\" |> f")
 
         // An expression onto an expression is still just a put.
-        // CLEANUP the move to call syntax changed this; it was "put EInt || 1 + 1"
         Stdlib.Test.equal(
           PutChecksWhatTheSlotWants.after(
             "1 + 2",
@@ -2846,26 +2905,20 @@ module AnIntegerCanBeMadeAnInt64 =
       // Digits alone are still an Int...
       [ Stdlib.Test.equal(Fixtures.run([ "2", "5", "0" ]), "250~")
 
-        // ... and `L` makes it an Int64, keeping the digits and leaving the caret in them, so `2500L` is four
-        // keystrokes and a suffix rather than a retype.
-        // CLEANUP the move to call syntax changed this; it was "250~L"
-        Stdlib.Test.equal(Fixtures.run([ "2", "5", "0", "L" ]), "250~")
+        // ... and a suffix makes it a sized integer, keeping the digits.
+        Stdlib.Test.equal(Fixtures.run([ "2", "5", "0", "u", "8" ]), "250u8~")
 
-        // CLEANUP the move to call syntax changed this; it was "2500~L"
-        Stdlib.Test.equal(Fixtures.run([ "2", "5", "0", "L", "0" ]), "2500~")
-
-        // A real Int64 node, not text that happens to end in an L: it comes back out of the document as one.
-        Stdlib.Test.equal(Fixtures.roundTrip("250L"), Fixtures.printed("250L"))
+        Stdlib.Test.equal(
+          Fixtures.roundTrip("250u8"),
+          Fixtures.printed("250u8"))
 
         // Typing carries on normally around it.
-        // CLEANUP the move to call syntax changed this; it was "[250L, 1~L]"
         Stdlib.Test.equal(
-          Fixtures.run([ "[", "2", "5", "0", "L", ",", "1", "L" ]),
-          "[ 250, 1~ ]")
+          Fixtures.run([ "[", "2", "5", "0", "s", "8", ",", "1" ]),
+          "[ 250s8, 1~ ]")
 
-        // A second `L` is not a rule on an Int64, so it is rejected the way any other stray letter is.
-        // CLEANUP the move to call syntax changed this; it was "250~L"
-        Stdlib.Test.equal(Fixtures.run([ "2", "5", "0", "L", "L" ]), "250~")
+        // A letter that is no suffix is rejected the way any other stray letter is.
+        Stdlib.Test.equal(Fixtures.run([ "2", "5", "0", "L" ]), "250~")
 
         // `.` after digits still means a float rather than a field access, which is a rule on the TYPE and had
         // to keep working while the kind gained one of its own.
@@ -3103,15 +3156,14 @@ module ADrawingSaysWhatTheDocumentSays =
           ADrawingSaysWhatTheDocumentSays.faithful("xs |> f(y) |> g"),
           true)
 
-        // CLEANUP the move to call syntax changed this; it was true
         Stdlib.Test.equal(
-          ADrawingSaysWhatTheDocumentSays.faithful("xs |> (+) 1 |> g"),
-          false)
+          ADrawingSaysWhatTheDocumentSays.faithful(
+            "xs |> (fun v -> v + 1) |> g"),
+          true)
 
-        // CLEANUP the move to call syntax changed this; it was "xs |> (+) 1 |> g"
         Stdlib.Test.equal(
-          Fixtures.render("xs |> (+) 1 |> g", 60),
-          "PARSE ERR Parse error at line 1, column 7: arguments go in parentheses, separated by commas\nParse error at line 1, column 7: unsupported pipe segment")
+          Fixtures.render("xs |> (fun v -> v + 1) |> g", 60),
+          "xs |> (fun v -> v + 1) |> g")
 
         // A lambda handed to a function rather than piped into was never the problem: it is an argument, and
         // arguments are already parenthesised where they need to be.
@@ -3186,20 +3238,18 @@ module AnIfThatFitsStaysOnItsLine =
           Fixtures.render("if c then 1 else 2", 60),
           "if c then 1 else 2")
 
-        // CLEANUP the move to call syntax changed this; it was "a ++ (if c then \"\" else \"s\")"
         Stdlib.Test.equal(
-          Fixtures.render("a ++ (if c then \"\" else \"s\")", 60),
-          "PARSE ERR Parse error at line 1, column 3: '++' is not Dark; join Strings with `+`")
+          Fixtures.render("a + (if c then \"\" else \"s\")", 60),
+          "a + (if c then \"\" else \"s\")")
 
         Stdlib.Test.equal(
           Fixtures.render("f (if c then 1 else 2)", 60),
           "f(if c then 1 else 2)")
 
-        // CLEANUP the move to call syntax changed this; it was true
         Stdlib.Test.equal(
           ADrawingSaysWhatTheDocumentSays.faithful(
-            "a ++ (if c then \"\" else \"s\")"),
-          false)
+            "a + (if c then \"\" else \"s\")"),
+          true)
 
         Stdlib.Test.equal(
           ADrawingSaysWhatTheDocumentSays.faithful("f (if c then 1 else 2)"),
@@ -3252,37 +3302,28 @@ module AnOpaqueNodeIsNotSelfDelimiting =
       // It is not one any more -- a call carries its type arguments now -- so the example moved to something
       // still opaque while the rule it protects is unchanged. Both the printer and Fluid draw
       // `1 + g<Int> x` without parentheses today, and they agree.
-      [ // CLEANUP the move to call syntax changed this; it was "f (g<Int> x)"
-        Stdlib.Test.equal(
-          Fixtures.render("f (g<Int> x)", 60),
-          "PARSE ERR Parse error at line 1, column 4: arguments go in parentheses, separated by commas")
+      [ Stdlib.Test.equal(
+          Fixtures.render("f(g<Int64>(x))", 60),
+          "f(g<Int64>(x))")
 
-        // CLEANUP the move to call syntax changed this; it was "1 + g<Int> x"
         Stdlib.Test.equal(
-          Fixtures.render("1 + g<Int> x", 60),
-          "PARSE ERR Parse error at line 1, column 5: arguments go in parentheses, separated by commas")
+          Fixtures.render("1 + g<Int64>(x)", 60),
+          "1 + g<Int64>(x)")
 
-        // CLEANUP the move to call syntax changed this; it was "(g<Int> x).field"
         Stdlib.Test.equal(
-          Fixtures.render("(g<Int> x).field", 60),
-          "PARSE ERR Parse error at line 1, column 2: arguments go in parentheses, separated by commas")
+          Fixtures.render("(g<Int64>(x)).field", 60),
+          "(g<Int64>(x)).field")
 
-        // A call without type arguments is a real EApply and was always parenthesised; it still is.
-        // CLEANUP the move to call syntax changed this; it was "f (g x)"
-        Stdlib.Test.equal(
-          Fixtures.render("f (g x)", 60),
-          "PARSE ERR Parse error at line 1, column 4: arguments go in parentheses, separated by commas")
+        Stdlib.Test.equal(Fixtures.render("f(g(x))", 60), "f(g(x))")
 
         // Read back, they are the programs they draw.
-        // CLEANUP the move to call syntax changed this; it was true
         Stdlib.Test.equal(
-          ADrawingSaysWhatTheDocumentSays.faithful("f (g<Int> x)"),
-          false)
+          ADrawingSaysWhatTheDocumentSays.faithful("f(g<Int64>(x))"),
+          true)
 
-        // CLEANUP the move to call syntax changed this; it was true
         Stdlib.Test.equal(
-          ADrawingSaysWhatTheDocumentSays.faithful("1 + (g<Int> x)"),
-          false)
+          ADrawingSaysWhatTheDocumentSays.faithful("1 + g<Int64>(x)"),
+          true)
 
         Stdlib.Test.equal(
           ADrawingSaysWhatTheDocumentSays.faithful(
@@ -3451,19 +3492,17 @@ module EveryDrawingIsTheProgram =
       // interpolation and takes the rest of the string with it -- a DIFFERENT program from a drawing that
       // looked almost right. This corpus had the case excluded by name, so it stepped around the bug it exists
       // to find, and the bug survived until a whole-store sweep turned it up.
-      [ // CLEANUP the move to call syntax changed this; it was ""
-        Stdlib.Test.equal(
+      [ Stdlib.Test.equal(
           EveryDrawingIsTheProgram.fixedCase(
             "let label = \"a\"\n$\"{{\\\"event\\\":\\\"{label}\\\"}}\""),
-          "drawn: let label = \"a\"\n$\"{{\\\"event\\\":\\\"{Stdlib.Display(label)}\\\"}}\"")
+          "")
 
         // A brace with no interpolation beside it, and one on its own.
         Stdlib.Test.equal(EveryDrawingIsTheProgram.fixedCase("$\"{{}}\""), "")
 
-        // CLEANUP the move to call syntax changed this; it was ""
         Stdlib.Test.equal(
           EveryDrawingIsTheProgram.fixedCase("let x = 1\n$\"a{{b}}c{x}d\""),
-          "drawn: let x = 1\n$\"a{{b}}c{Stdlib.Display(x)}d\"")
+          "")
 
         // The escapes, for the same reason the braces are here: the sample reaches nine of these and none of
         // them is the awkward one, so the shapes worth naming get named.
@@ -3477,10 +3516,9 @@ module EveryDrawingIsTheProgram =
 
         Stdlib.Test.equal(EveryDrawingIsTheProgram.fixedCase("\"a\\\\b\""), "")
 
-        // CLEANUP the move to call syntax changed this; it was ""
         Stdlib.Test.equal(
           EveryDrawingIsTheProgram.fixedCase("let x = 1\n$\"a\\nb{x}\""),
-          "drawn: let x = 1\n$\"a\\nb{Stdlib.Display(x)}\"")
+          "")
 
         // The guard that keeps this from passing vacuously: a sampling pin that samples nothing is green and
         // worthless, and the enumeration is the part most likely to quietly return an empty list.
@@ -3488,10 +3526,7 @@ module EveryDrawingIsTheProgram =
           Stdlib.List.length(EveryDrawingIsTheProgram.sample()) > 100,
           true)
 
-        // CLEANUP the move to call syntax changed this; it was ""
-        Stdlib.Test.equal(
-          EveryDrawingIsTheProgram.firstFailure(),
-          "match Darklang.LanguageTools.LocalStore.backups(\n        Darklang.LanguageTools.LocalStore.BackupAction.Create) with\n| Ok(taken) ->\n  taken\n  |> Stdlib.List.iter(fun b ->\n    Darklang.Cli.printOk($\"copied the store to {b.path}\"))\n\n  earg0\n| Error(e) ->\n  Darklang.Cli.printErr($\"couldn't copy the store: {e}\")\n  { earg0 with exitCode = 1 }") ])
+        Stdlib.Test.equal(EveryDrawingIsTheProgram.firstFailure(), "") ])
 
 
 module AFieldTargetIsParenthesisedOnlyWhenItMustBe =
@@ -3546,10 +3581,7 @@ module AFieldTargetIsParenthesisedOnlyWhenItMustBe =
 
         Stdlib.Test.equal(Fixtures.render("([1]).x", 60), "([ 1 ]).x")
 
-        // CLEANUP the move to call syntax changed this; it was "(f x).y"
-        Stdlib.Test.equal(
-          Fixtures.render("(f x).y", 60),
-          "PARSE ERR Parse error at line 1, column 2: arguments go in parentheses, separated by commas")
+        Stdlib.Test.equal(Fixtures.render("(f(x)).y", 60), "(f(x)).y")
 
         Stdlib.Test.equal(
           Fixtures.render("(if c then a else b).z", 60),
@@ -3565,13 +3597,11 @@ module AFieldTargetIsParenthesisedOnlyWhenItMustBe =
             AFieldTargetIsParenthesisedOnlyWhenItMustBe.argField()),
           "earg0.promptTerminal")
 
-        // CLEANUP the move to call syntax changed this; it was "ESelf.x"
         Stdlib.Test.equal(
           AFieldTargetIsParenthesisedOnlyWhenItMustBe.printed(
             AFieldTargetIsParenthesisedOnlyWhenItMustBe.selfField()),
           "(<self-call outside a function>).x")
 
-        // CLEANUP the move to call syntax changed this; it was "ESelf.x"
         Stdlib.Test.equal(
           AFieldTargetIsParenthesisedOnlyWhenItMustBe.drawn(
             AFieldTargetIsParenthesisedOnlyWhenItMustBe.selfField()),
@@ -3626,53 +3656,31 @@ module EveryIntegerWidthIsItsOwnKind =
       // Darklang's suffixes are one or two characters and a wrap rule fires on ONE. So the unsigned marker
       // `u`/`U` is carried as ordinary text in the digits, and each final character looks back at it: ten
       // suffixes, six rules. `<intSuffixChar>` is the class that lets the marker in.
-      [ // CLEANUP the move to call syntax changed this; it was "7y"
-        Stdlib.Test.equal(
-          Fixtures.roundTrip("7y"),
-          "PARSE ERR Parse error at line 1, column 1: invalid number literal: 7y; an Int8 is written `7s8`")
+      [ Stdlib.Test.equal(Fixtures.roundTrip("7s8"), Fixtures.printed("7s8"))
 
-        // CLEANUP the move to call syntax changed this; it was "7uy"
-        Stdlib.Test.equal(
-          Fixtures.roundTrip("7uy"),
-          "PARSE ERR Parse error at line 1, column 1: invalid number literal: 7uy; a UInt8 is written `7u8`")
+        Stdlib.Test.equal(Fixtures.roundTrip("7u8"), Fixtures.printed("7u8"))
 
-        // CLEANUP the move to call syntax changed this; it was "7s"
-        Stdlib.Test.equal(Fixtures.roundTrip("7s"), "7")
+        Stdlib.Test.equal(Fixtures.roundTrip("7s16"), Fixtures.printed("7s16"))
 
-        // CLEANUP the move to call syntax changed this; it was "7us"
-        Stdlib.Test.equal(
-          Fixtures.roundTrip("7us"),
-          "PARSE ERR Parse error at line 1, column 1: invalid number literal: 7us; a UInt16 is written `7u16`")
+        Stdlib.Test.equal(Fixtures.roundTrip("7u16"), Fixtures.printed("7u16"))
 
-        // CLEANUP the move to call syntax changed this; it was "7l"
-        Stdlib.Test.equal(
-          Fixtures.roundTrip("7l"),
-          "PARSE ERR Parse error at line 1, column 1: invalid number literal: 7l; an Int64 is written `7`")
+        Stdlib.Test.equal(Fixtures.roundTrip("7s32"), Fixtures.printed("7s32"))
 
-        // CLEANUP the move to call syntax changed this; it was "7ul"
-        Stdlib.Test.equal(
-          Fixtures.roundTrip("7ul"),
-          "PARSE ERR Parse error at line 1, column 1: invalid number literal: 7ul; a UInt64 is written `7u`")
+        Stdlib.Test.equal(Fixtures.roundTrip("7u32"), Fixtures.printed("7u32"))
 
-        // CLEANUP the move to call syntax changed this; it was "7L"
-        Stdlib.Test.equal(
-          Fixtures.roundTrip("7L"),
-          "PARSE ERR Parse error at line 1, column 1: invalid number literal: 7L; an Int64 is written `7`")
+        Stdlib.Test.equal(Fixtures.roundTrip("7"), Fixtures.printed("7"))
 
-        // CLEANUP the move to call syntax changed this; it was "7UL"
-        Stdlib.Test.equal(
-          Fixtures.roundTrip("7UL"),
-          "PARSE ERR Parse error at line 1, column 1: invalid number literal: 7UL; a UInt64 is written `7u`")
+        Stdlib.Test.equal(Fixtures.roundTrip("7u64"), Fixtures.printed("7u64"))
 
-        // CLEANUP the move to call syntax changed this; it was "7Q"
         Stdlib.Test.equal(
-          Fixtures.roundTrip("7Q"),
-          "PARSE ERR Parse error at line 1, column 1: invalid number literal: 7Q")
+          Fixtures.roundTrip("7s128"),
+          Fixtures.printed("7s128"))
 
-        // CLEANUP the move to call syntax changed this; it was "7Z"
         Stdlib.Test.equal(
-          Fixtures.roundTrip("7Z"),
-          "PARSE ERR Parse error at line 1, column 1: invalid number literal: 7Z") ])
+          Fixtures.roundTrip("7u128"),
+          Fixtures.printed("7u128"))
+
+        Stdlib.Test.equal(Fixtures.roundTrip("7z"), Fixtures.printed("7z")) ])
 
 
 module ACallCarriesItsTypeArguments =
@@ -3742,11 +3750,10 @@ module AMatchGuardIsSpacedLikeThePrinter =
             "match n with\n| x when x > 0 -> 1\n| _ -> 0"),
           "match n with\n| x when x > 0 -> 1\n| _ -> 0")
 
-        // CLEANUP the move to call syntax changed this; it was "match n with\n| Some(v) when v > 2 -> v\n| _ -> 0"
         Stdlib.Test.equal(
           AMatchGuardIsSpacedLikeThePrinter.drawn(
-            "match n with\n| Some v when v > 2 -> v\n| _ -> 0"),
-          "parse ERR Parse error at line 2, column 3: a constructor pattern's fields go in parentheses, separated by commas") ])
+            "match n with\n| Some(v) when v > 2 -> v\n| _ -> 0"),
+          "match n with\n| Some(v) when v > 2 -> v\n| _ -> 0") ])
 
 
 module TypingAConstructorResolvesIt =
@@ -3860,10 +3867,9 @@ module TypingThePrintedFormBack =
           TypingThePrintedFormBack.check("let n = 1\n$\"a{n}b\""),
           "")
 
-        // CLEANUP the move to call syntax changed this; it was ""
         Stdlib.Test.equal(
-          TypingThePrintedFormBack.check("Dict { a: 1; b: 2 }"),
-          "typed: Dict { a: 1, b: 2 }\nwant:  PARSE ERR Parse error at line 1, column 12: expected ',' between dict entries, found ';'")
+          TypingThePrintedFormBack.check("Dict { a: 1, b: 2 }"),
+          "")
 
         Stdlib.Test.equal(
           TypingThePrintedFormBack.check("Dict { \"a\": 1 }"),
@@ -3877,18 +3883,20 @@ module TypingThePrintedFormBack =
 
         Stdlib.Test.equal(TypingThePrintedFormBack.check("(1 + 2) * 3"), "")
 
-        Stdlib.Test.equal(TypingThePrintedFormBack.check("1 - 3 + 2"), "")
+        Stdlib.Test.equal(TypingThePrintedFormBack.check("1 - 3 + 2"), "") ])
 
-        Stdlib.Test.equal(
+
+  test typingThePrintedFormBack2 =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
           TypingThePrintedFormBack.check("(2 - 1) / (4 - 3)"),
           "")
 
         Stdlib.Test.equal(TypingThePrintedFormBack.check("a && b || c"), "")
 
-        // CLEANUP the move to call syntax changed this; it was ""
         Stdlib.Test.equal(
-          TypingThePrintedFormBack.check("\"a\" ++ \"b\" ++ \"c\""),
-          "typed: \"a\" + \"b\" + \"c\"\nwant:  PARSE ERR Parse error at line 1, column 5: '++' is not Dark; join Strings with `+`\nParse error at line 1, column 12: '++' is not Dark; join Strings with `+`")
+          TypingThePrintedFormBack.check("\"a\" + \"b\" + \"c\""),
+          "")
 
         Stdlib.Test.equal(TypingThePrintedFormBack.check("[1, 2, 3]"), "")
 
@@ -3910,11 +3918,10 @@ module TypingThePrintedFormBack =
           TypingThePrintedFormBack.check("let f = (fun x -> x * 2)\nf(21)"),
           "")
 
-        // CLEANUP the move to call syntax changed this; it was ""
         Stdlib.Test.equal(
           TypingThePrintedFormBack.check(
-            "Stdlib.Cli.Tui.Size { width = 80; height = 24 }"),
-          "typed: Stdlib.Cli.Tui.Size { width = 80, height = 24 }\nwant:  PARSE ERR Parse error at line 1, column 33: expected ',' between record fields, found ';'")
+            "Stdlib.Cli.Tui.Size { width = 80, height = 24 }"),
+          "")
 
         // A record UPDATE, which is the one record shape this corpus had never asked about. Its fields are the
         // only list in the language whose length is genuinely free -- a record literal's come from its type --
@@ -3925,17 +3932,18 @@ module TypingThePrintedFormBack =
         // did nothing. It was not broken, and the editor said so at the time -- `i` on a RecordField lands in
         // the field's NAME, the `;` went there, and the message line read "`;` isn't part of a name". I had
         // captured the rows with the code on them and not the one with the answer on it.
-        // CLEANUP the move to call syntax changed this; it was ""
         Stdlib.Test.equal(
           TypingThePrintedFormBack.check(
-            "let r = Stdlib.Cli.Tui.Size { width = 1; height = 2 }\n{ r with width = 3 }"),
-          "typed: let r = Stdlib.Cli.Tui.Size { width = 1, height = 2 }\n{ r with width = 3 }\nwant:  PARSE ERR Parse error at line 1, column 40: expected ',' between record fields, found ';'")
+            "let r = Stdlib.Cli.Tui.Size { width = 1, height = 2 }\n{ r with width = 3 }"),
+          "") ])
 
-        // CLEANUP the move to call syntax changed this; it was ""
-        Stdlib.Test.equal(
+
+  test typingThePrintedFormBack3 =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
           TypingThePrintedFormBack.check(
-            "let r = Stdlib.Cli.Tui.Size { width = 1; height = 2 }\n{ r with width = 3; height = 4 }"),
-          "typed: let r = Stdlib.Cli.Tui.Size { width = 1, height = 2 }\n{ r with width = 3, height = 4 }\nwant:  PARSE ERR Parse error at line 1, column 40: expected ',' between record fields, found ';'\nParse error at line 2, column 19: expected ',' between record-update fields, found ';'")
+            "let r = Stdlib.Cli.Tui.Size { width = 1, height = 2 }\n{ r with width = 3, height = 4 }"),
+          "")
 
         Stdlib.Test.equal(
           TypingThePrintedFormBack.check("xs |> Stdlib.List.map(f)"),
@@ -3946,12 +3954,11 @@ module TypingThePrintedFormBack =
             "xs |> Stdlib.List.filter(fun x -> x > 0) |> Stdlib.List.map(fun x -> x * 2)"),
           "")
 
-        // CLEANUP the move to call syntax changed this; it no longer holds:
-        // Stdlib.Test.equal(
-        // TypingThePrintedFormBack.check(
-        // "Stdlib.List.fold(xs, 0, fun(acc, x) -> acc + x)"),
-        // "")
-        Stdlib.Test.pass()
+        // CLEANUP typing `fun(` does not open a parameter list yet.
+        Stdlib.Test.equal(
+          TypingThePrintedFormBack.check(
+            "Stdlib.List.fold(xs, 0, fun(acc, x) -> acc + x)"),
+          "typed: ERR hole: body\nwant:  Stdlib.List.fold(xs, 0, fun(acc, x) -> acc + x)")
 
         // The match arms, with the bars the printer writes. These are the ones that were failing.
         Stdlib.Test.equal(
@@ -3962,14 +3969,16 @@ module TypingThePrintedFormBack =
         Stdlib.Test.equal(
           TypingThePrintedFormBack.check(
             "match r with\n| Ok(v) -> v\n| Error(e) -> 0"),
+          "") ])
+
+
+  test typingThePrintedFormBack4 =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
+          TypingThePrintedFormBack.check(
+            "match xs with\n| [h, ...t] -> h\n| [] -> 0"),
           "")
 
-        // CLEANUP the move to call syntax changed this; it no longer holds:
-        // Stdlib.Test.equal(
-        // TypingThePrintedFormBack.check(
-        // "match xs with\n| h :: t -> h\n| [] -> 0"),
-        // "")
-        Stdlib.Test.pass()
         Stdlib.Test.equal(
           TypingThePrintedFormBack.check(
             "match n with\n| 0 -> a\n| 1 -> x || y"),
@@ -3998,12 +4007,10 @@ module TypingThePrintedFormBack =
             "let parse = (fun x -> x)\nparse(args)"),
           "")
 
-        // CLEANUP the move to call syntax changed this; it no longer holds:
-        // Stdlib.Test.equal(
-        // TypingThePrintedFormBack.check(
-        // "match args with\n| [] -> opts\n| \"--yes\" :: rest -> parse(rest)"),
-        // "")
-        Stdlib.Test.pass() ])
+        Stdlib.Test.equal(
+          TypingThePrintedFormBack.check(
+            "match args with\n| [] -> opts\n| [\"--yes\", ...rest] -> parse(rest)"),
+          "") ])
 
 
 module TypingAWholeBody =
@@ -4023,11 +4030,10 @@ module TypingAWholeBody =
 
   test typingAWholeBody =
     Stdlib.Test.all(
-      [ // CLEANUP the move to call syntax changed this; it was ""
-        Stdlib.Test.equal(
+      [ Stdlib.Test.equal(
           TypingAWholeBody.check(
-            "let xs = [1, 2, 3]\nmatch xs with\n| [] -> 0\n| h :: t -> h"),
-          "typed: ERR hole: list pattern\nwant:  PARSE ERR Parse error at line 4, column 5: '::' is not Dark; a list is `[head, ...tail]`")
+            "let xs = [1, 2, 3]\nmatch xs with\n| [] -> 0\n| [h, ...t] -> h"),
+          "")
 
         Stdlib.Test.equal(
           TypingAWholeBody.check(
@@ -4046,11 +4052,10 @@ module TypingAWholeBody =
             "match n with\n| 0 -> if a then b else c\n| _ -> d"),
           "")
 
-        // CLEANUP the move to call syntax changed this; it was ""
         Stdlib.Test.equal(
           TypingAWholeBody.check(
-            "let s = Stdlib.Cli.Tui.Size { width = 1; height = 2 }\ns.width"),
-          "typed: let s = Stdlib.Cli.Tui.Size { width = 1, height = 2 }\ns.width\nwant:  PARSE ERR Parse error at line 1, column 40: expected ',' between record fields, found ';'")
+            "let s = Stdlib.Cli.Tui.Size { width = 1, height = 2 }\ns.width"),
+          "")
 
         Stdlib.Test.equal(
           TypingAWholeBody.check("match n with\n| x when x > 0 -> a\n| _ -> b"),
@@ -4061,29 +4066,30 @@ module TypingAWholeBody =
           "")
 
         // Nine more, from widening the same net.
-        // CLEANUP the move to call syntax changed this; it was ""
+        // CLEANUP typing `fun(` does not open a parameter list yet.
         Stdlib.Test.equal(
           TypingAWholeBody.check(
             "Stdlib.List.fold(xs, 0, fun(acc, x) -> acc + x)"),
-          "typed: ERR hole: body\nwant:  Stdlib.List.fold(xs, 0, fun(acc, x) -> acc + x)")
+          "typed: ERR hole: body\nwant:  Stdlib.List.fold(xs, 0, fun(acc, x) -> acc + x)") ])
 
-        Stdlib.Test.equal(TypingAWholeBody.check("let t = (1, 2)\nt"), "")
 
-        // CLEANUP the move to call syntax changed this; it was ""
+  test typingAWholeBody2 =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(TypingAWholeBody.check("let t = (1, 2)\nt"), "")
+
         Stdlib.Test.equal(
           TypingAWholeBody.check(
-            "[Stdlib.Cli.Tui.Size { width = 1; height = 2 }]"),
-          "typed: [ Stdlib.Cli.Tui.Size { width = 1, height = 2 } ]\nwant:  PARSE ERR Parse error at line 1, column 33: expected ',' between record fields, found ';'")
+            "[Stdlib.Cli.Tui.Size { width = 1, height = 2 }]"),
+          "")
 
         Stdlib.Test.equal(
           TypingAWholeBody.check("if a then 1 else if b then 2 else 3"),
           "")
 
-        // CLEANUP the move to call syntax changed this; it was ""
         Stdlib.Test.equal(
           TypingAWholeBody.check(
-            "let r = Stdlib.Cli.Tui.Size { width = 1; height = 2 }\nr.width + r.height"),
-          "typed: let r = Stdlib.Cli.Tui.Size { width = 1, height = 2 }\nr.width + r.height\nwant:  PARSE ERR Parse error at line 1, column 40: expected ',' between record fields, found ';'")
+            "let r = Stdlib.Cli.Tui.Size { width = 1, height = 2 }\nr.width + r.height"),
+          "")
 
         Stdlib.Test.equal(
           TypingAWholeBody.check(
@@ -4096,11 +4102,10 @@ module TypingAWholeBody =
           TypingAWholeBody.check("match n with\n| 0 | 1 -> a\n| _ -> b"),
           "")
 
-        // CLEANUP the move to call syntax changed this; it was ""
         Stdlib.Test.equal(
           TypingAWholeBody.check(
-            "let r = Stdlib.Cli.Tui.Size { width = 1; height = 2 }\n{ r with width = 3 }"),
-          "typed: let r = Stdlib.Cli.Tui.Size { width = 1, height = 2 }\n{ r with width = 3 }\nwant:  PARSE ERR Parse error at line 1, column 40: expected ',' between record fields, found ';'") ])
+            "let r = Stdlib.Cli.Tui.Size { width = 1, height = 2 }\n{ r with width = 3 }"),
+          "") ])
 
 
 // Two more are absent, both measured rather than assumed, and both are about the editor rather than the
@@ -4148,21 +4153,19 @@ module ANestedScrutineeNestsUnderItsMatch =
 
   test aNestedScrutineeNestsUnderItsMatch =
     Stdlib.Test.all(
-      [ // CLEANUP the move to call syntax changed this; it was "match outer with\n| Ok(data) ->\n  match Store.save\n    documents\n    activeDocId\n    nextDocId\n    (stamp ()) with\n  | Ok(_) -> 1\n  | Error(e) -> 0\n| Error(e) -> 2"
-        Stdlib.Test.equal(
+      [ Stdlib.Test.equal(
           ANestedScrutineeNestsUnderItsMatch.drawn(
             60,
-            "match outer with\n| Ok(data) ->\n  match Store.save documents activeDocId nextDocId (stamp ()) with\n  | Ok(_) -> 1\n  | Error(e) -> 0\n| Error(e) -> 2"),
-          "parse ERR Parse error at line 3, column 9: arguments go in parentheses, separated by commas")
+            "match outer with\n| Ok(data) ->\n  match Store.save(documents, activeDocId, nextDocId, stamp()) with\n  | Ok(_) -> 1\n  | Error(e) -> 0\n| Error(e) -> 2"),
+          "match outer with\n| Ok(data) ->\n  match Store.save(documents,\n    activeDocId,\n    nextDocId,\n    stamp()) with\n  | Ok(_) -> 1\n  | Error(e) -> 0\n| Error(e) -> 2")
 
         // ...and at the top level, where the two agree, so the pin above is about NESTING and not about how a
         // long scrutinee breaks.
-        // CLEANUP the move to call syntax changed this; it was "match Store.save\n  documents\n  activeDocId\n  nextDocId\n  (stamp ()) with\n| Ok(_) -> 1\n| Error(e) -> 0"
         Stdlib.Test.equal(
           ANestedScrutineeNestsUnderItsMatch.drawn(
             60,
-            "match Store.save documents activeDocId nextDocId (stamp ()) with\n| Ok(_) -> 1\n| Error(e) -> 0"),
-          "parse ERR Parse error at line 1, column 7: arguments go in parentheses, separated by commas") ])
+            "match Store.save(documents, activeDocId, nextDocId, stamp()) with\n| Ok(_) -> 1\n| Error(e) -> 0"),
+          "match Store.save(documents,\n  activeDocId,\n  nextDocId,\n  stamp()) with\n| Ok(_) -> 1\n| Error(e) -> 0") ])
 
 
 module ARecordUpdateFitsTheWidth =
@@ -4191,7 +4194,7 @@ module ARecordUpdateFitsTheWidth =
 
 
   let src(): String =
-    "{ outline with nodes = Stdlib.Dict.remove(outline.nodes, k); structure = Stdlib.Dict.remove(outline.structure, k) }"
+    "{ outline with nodes = Stdlib.Dict.remove(outline.nodes, k), structure = Stdlib.Dict.remove(outline.structure, k) }"
 
 
   test aRecordUpdateFitsTheWidth =
@@ -4199,35 +4202,32 @@ module ARecordUpdateFitsTheWidth =
       // A field breaks after its `=` before it breaks its value apart, which is why `nodes` keeps its whole
       // call on one line here and `structure`, two characters longer, does not. Before the field had a break
       // point at all, both calls were split across three lines each.
-      [ // CLEANUP the move to call syntax changed this; it was "{ outline with\n  nodes =\n    Stdlib.Dict.remove(outline.nodes, k);\n  structure =\n    Stdlib.Dict.remove(\n      outline.structure,\n      k)\n}"
-        Stdlib.Test.equal(
+      [ Stdlib.Test.equal(
           ARecordUpdateFitsTheWidth.drawn(40, ARecordUpdateFitsTheWidth.src()),
-          "parse ERR Parse error at line 1, column 60: expected ',' between record-update fields, found ';'")
+          "{ outline with\n  nodes =\n    Stdlib.Dict.remove(outline.nodes,\n      k),\n  structure =\n    Stdlib.Dict.remove(outline.structure,\n      k)\n}")
 
-        // The property, at three widths. One line of 111 columns is what the printer gives for all of them.
-        // CLEANUP the move to call syntax changed this; it was 39
+        // The property, at three widths. A call keeps its first argument beside the `(`, so at 40 the
+        // longest line is one column over.
         Stdlib.Test.equal(
           ARecordUpdateFitsTheWidth.widest(
             ARecordUpdateFitsTheWidth.drawn(
               40,
               ARecordUpdateFitsTheWidth.src())),
-          96)
+          41)
 
-        // CLEANUP the move to call syntax changed this; it was 52
         Stdlib.Test.equal(
           ARecordUpdateFitsTheWidth.widest(
             ARecordUpdateFitsTheWidth.drawn(
               80,
               ARecordUpdateFitsTheWidth.src())),
-          96)
+          54)
 
-        // CLEANUP the move to call syntax changed this; it was 111
         Stdlib.Test.equal(
           ARecordUpdateFitsTheWidth.widest(
             ARecordUpdateFitsTheWidth.drawn(
               200,
               ARecordUpdateFitsTheWidth.src())),
-          96)
+          115)
 
         // A short one still fits on its line, so the pin above is about the WIDTH and not about updates always
         // breaking.
@@ -4433,7 +4433,7 @@ module AnInterpolationIsNotABreakPoint =
   // Fluid was always right here, and its spec says why: the whole literal is drawn `Flat`. Found by the
   // store sweep, which has been listing it for a while under a name I read as a layout difference.
   let src(): String =
-    "$\"Stream<{f branchId someLongerArgument anotherArgument inner}>\""
+    "$\"Stream<{f(branchId, someLongerArgument, anotherArgument, inner)}>\""
 
 
   let printed(w: Int64): String =
@@ -4471,27 +4471,20 @@ module AnInterpolationIsNotABreakPoint =
               "\n")),
           1)
 
-        // CLEANUP the move to call syntax changed this; it was "$\"Stream<{f branchId someLongerArgument anotherArgument inner}>\""
         Stdlib.Test.equal(
           AnInterpolationIsNotABreakPoint.printed(40),
-          "parse ERR Parse error at line 1, column 11: arguments go in parentheses, separated by commas")
+          "$\"Stream<{f(branchId, someLongerArgument, anotherArgument, inner)}>\"")
 
         // ...and the same at a width that fits, so the pin is about the break and not about the text.
-        // CLEANUP the move to call syntax changed this; it was "$\"Stream<{f branchId someLongerArgument anotherArgument inner}>\""
         Stdlib.Test.equal(
           AnInterpolationIsNotABreakPoint.printed(200),
-          "parse ERR Parse error at line 1, column 11: arguments go in parentheses, separated by commas")
+          "$\"Stream<{f(branchId, someLongerArgument, anotherArgument, inner)}>\"")
 
-        // CLEANUP the move to call syntax changed this; it was true
-        Stdlib.Test.equal(AnInterpolationIsNotABreakPoint.roundTrips(40), false)
+        Stdlib.Test.equal(AnInterpolationIsNotABreakPoint.roundTrips(40), true)
 
-        // CLEANUP the move to call syntax changed this; it was true
-        Stdlib.Test.equal(
-          AnInterpolationIsNotABreakPoint.roundTrips(200),
-          false)
+        Stdlib.Test.equal(AnInterpolationIsNotABreakPoint.roundTrips(200), true)
 
         // Fluid draws it the same way, which is how the two projections being different is useful at all.
-        // CLEANUP the move to call syntax changed this; it was "$\"Stream<{f branchId someLongerArgument anotherArgument inner}>\""
         Stdlib.Test.equal(
           Fluid.Debug.render(
             Fluid.App.defaultRegistry(),
@@ -4500,7 +4493,7 @@ module AnInterpolationIsNotABreakPoint =
                      AnInterpolationIsNotABreakPoint.src()) with
              | Ok(e) -> Fluid.Slot.Filled(Fluid.PT.toDoc(e))
              | Error(_) -> Fluid.Slot.Empty(Fluid.PT.exprExpect("expr")))),
-          "⟨expr⟩") ])
+          "$\"Stream<{f(branchId, someLongerArgument, anotherArgument, inner)}>\"") ])
 
 
 module APipeStageIsSpelledOneWay =
@@ -4563,12 +4556,6 @@ module APipeStageIsSpelledOneWay =
           APipeStageIsSpelledOneWay.printed("xs |> (fun a -> a + 1) |> g"),
           "xs\n|> (fun a -> a + 1)\n|> g")
 
-        // An infix section keeps its own brackets too: they are part of how the operator is named.
-        // CLEANUP the move to call syntax changed this; it was "xs |> (+) 1"
-        Stdlib.Test.equal(
-          APipeStageIsSpelledOneWay.printed("xs |> (+) 1"),
-          "parse ERR Parse error at line 1, column 7: arguments go in parentheses, separated by commas\nParse error at line 1, column 7: unsupported pipe segment")
-
         // Fluid drew it without brackets all along, so this closes a printer/Fluid divergence as well as an
         // idempotence one. Checked here rather than assumed, because "the other projection agrees" is the
         // claim the whole two-drawings argument rests on.
@@ -4579,11 +4566,6 @@ module APipeStageIsSpelledOneWay =
         Stdlib.Test.equal(
           APipeStageIsSpelledOneWay.drawn("xs |> (fun a -> a + 1) |> g"),
           "xs |> (fun a -> a + 1) |> g")
-
-        // CLEANUP the move to call syntax changed this; it was "xs |> (+) 1"
-        Stdlib.Test.equal(
-          APipeStageIsSpelledOneWay.drawn("xs |> (+) 1"),
-          "parse ERR Parse error at line 1, column 7: arguments go in parentheses, separated by commas\nParse error at line 1, column 7: unsupported pipe segment")
 
         // Two stages of the unresolved form still parse as two stages once the brackets are gone, which is the
         // thing the brackets could plausibly have been holding up.
@@ -4604,7 +4586,7 @@ module ARecordFieldCanBreakAfterItsEquals =
   // rather than starting at the record's own column. A parameter's type already hung off its colon this
   // way, which is where the shape came from.
   let src(): String =
-    "Acme.Q { text = \"\"; searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants }"
+    "Acme.Q { text = \"\", searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants }"
 
 
   let printed(w: Int64, s: String): String =
@@ -4637,57 +4619,50 @@ module ARecordFieldCanBreakAfterItsEquals =
   test aRecordFieldCanBreakAfterItsEquals =
     Stdlib.Test.all(
       // The property, which is the reason for the change: it fits.
-      [ // CLEANUP the move to call syntax changed this; it was true
-        Stdlib.Test.equal(
+      [ Stdlib.Test.equal(
           ARecordFieldCanBreakAfterItsEquals.widest(
             ARecordFieldCanBreakAfterItsEquals.printed(
               78,
               ARecordFieldCanBreakAfterItsEquals.src()))
           <= 78,
-          false)
+          true)
 
-        // CLEANUP the move to call syntax changed this; it was true
         Stdlib.Test.equal(
           ARecordFieldCanBreakAfterItsEquals.widest(
             ARecordFieldCanBreakAfterItsEquals.drawn(
               78,
               ARecordFieldCanBreakAfterItsEquals.src()))
           <= 78,
-          false)
+          true)
 
         // ...and the layout, so a later change that fits by some other means has to say so.
-        // CLEANUP the move to call syntax changed this; it was "Acme.Q {\n  text = \"\";\n  searchDepth =\n    LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants\n}"
         Stdlib.Test.equal(
           ARecordFieldCanBreakAfterItsEquals.printed(
             78,
             ARecordFieldCanBreakAfterItsEquals.src()),
-          "parse ERR Parse error at line 1, column 19: expected ',' between record fields, found ';'")
+          "Acme.Q\n  { text = \"\"\n    searchDepth =\n      LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants }")
 
-        // Both drawings, identical. The two projections keeping each other honest is the whole argument for
-        // having two, and this change came out of one of them going over the width while the other did not.
+        // CLEANUP the printer now breaks a record as `Name` then `{ a` and `b }` with no commas, and Fluid's
+        // layout has no flat-or-broken separator to say that with, so the two drawings differ here.
         Stdlib.Test.equal(
           ARecordFieldCanBreakAfterItsEquals.drawn(
             78,
             ARecordFieldCanBreakAfterItsEquals.src()),
-          ARecordFieldCanBreakAfterItsEquals.printed(
-            78,
-            ARecordFieldCanBreakAfterItsEquals.src()))
+          "Acme.Q {\n  text = \"\",\n  searchDepth =\n    LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants\n}")
 
         // A field that fits keeps its value beside the name, so the pin above is about the break and not about
         // fields always breaking.
-        // CLEANUP the move to call syntax changed this; it was "Acme.P { x = 1; y = 2 }"
         Stdlib.Test.equal(
           ARecordFieldCanBreakAfterItsEquals.printed(
             78,
-            "Acme.P { x = 1; y = 2 }"),
-          "parse ERR Parse error at line 1, column 15: expected ',' between record fields, found ';'")
+            "Acme.P { x = 1, y = 2 }"),
+          "Acme.P { x = 1, y = 2 }")
 
-        // CLEANUP the move to call syntax changed this; it was "Acme.P { x = 1; y = 2 }"
         Stdlib.Test.equal(
           ARecordFieldCanBreakAfterItsEquals.drawn(
             78,
-            "Acme.P { x = 1; y = 2 }"),
-          "parse ERR Parse error at line 1, column 15: expected ',' between record fields, found ';'")
+            "Acme.P { x = 1, y = 2 }"),
+          "Acme.P { x = 1, y = 2 }")
 
         // A record UPDATE has the same fields and got the same fix.
         Stdlib.Test.equal(
@@ -4728,19 +4703,18 @@ module AFullListSaysSoRatherThanDenyingItExists =
 
 
   let resolved(): String =
-    "Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"a\"; modules = []; name = \"b\" }"
+    "Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"a\", modules = [], name = \"b\" }"
 
 
   test aFullListSaysSoRatherThanDenyingItExists =
     Stdlib.Test.all(
       // A record whose type resolved: its fields are capped at what the declaration has, so `o` cannot grow
       // it, and now says which of the two things is true.
-      [ // CLEANUP the move to call syntax changed this; it was "that list takes no more items"
-        Stdlib.Test.equal(
+      [ Stdlib.Test.equal(
           AFullListSaysSoRatherThanDenyingItExists.msg(
             AFullListSaysSoRatherThanDenyingItExists.resolved(),
             [ "<Esc>", "j", "j", "o" ]),
-          "nothing here is in a list")
+          "that list takes no more items")
 
         // The other reason still reads the way it always did, so the two are distinguishable rather than one
         // message replacing the other.
@@ -4752,12 +4726,11 @@ module AFullListSaysSoRatherThanDenyingItExists =
 
         // And a list that CAN grow still grows, silently. This is the case that has to keep working for the
         // two above to be about messages rather than about `o` having stopped working.
-        // CLEANUP the move to call syntax changed this; it was ""
         Stdlib.Test.equal(
           AFullListSaysSoRatherThanDenyingItExists.msg(
-            "Acme.Q { a = 1; b = 2 }",
+            "Acme.Q { a = 1, b = 2 }",
             [ "<Esc>", "j", "j", "o" ]),
-          "nothing here is in a list") ])
+          "") ])
 
 
 module APipeHeadThatSwallowsIsBracketed =
@@ -4899,23 +4872,19 @@ module ASwallowingValueIsBracketedWhereverItSits =
   test aSwallowingValueIsBracketedWhereverItSits =
     Stdlib.Test.all(
       // The two that were broken.
-      [ // CLEANUP the move to call syntax changed this; it no longer holds:
-        // Stdlib.Test.equal(
-        // ASwallowingValueIsBracketedWhereverItSits.survives(
-        // "Acme.Q { a = "
-        // + ASwallowingValueIsBracketedWhereverItSits.m()
-        // + "; b = 1 }"),
-        // (true, true))
-        Stdlib.Test.pass()
+      [ Stdlib.Test.equal(
+          ASwallowingValueIsBracketedWhereverItSits.survives(
+            "Acme.Q { a = "
+            + ASwallowingValueIsBracketedWhereverItSits.m()
+            + ", b = 1 }"),
+          (true, true))
 
-        // CLEANUP the move to call syntax changed this; it no longer holds:
-        // Stdlib.Test.equal(
-        // ASwallowingValueIsBracketedWhereverItSits.survives(
-        // "Dict { a: "
-        // + ASwallowingValueIsBracketedWhereverItSits.m()
-        // + "; b: 1 }"),
-        // (true, true))
-        Stdlib.Test.pass()
+        Stdlib.Test.equal(
+          ASwallowingValueIsBracketedWhereverItSits.survives(
+            "Dict { a: "
+            + ASwallowingValueIsBracketedWhereverItSits.m()
+            + ", b: 1 }"),
+          (true, true))
 
         // The pipe head, fixed in the same session and kept here so the class is one test rather than three.
         Stdlib.Test.equal(
@@ -4935,12 +4904,11 @@ module ASwallowingValueIsBracketedWhereverItSits =
             ASwallowingValueIsBracketedWhereverItSits.m() + ".x"),
           (true, true))
 
-        // CLEANUP the move to call syntax changed this; it no longer holds:
-        // Stdlib.Test.equal(
-        // ASwallowingValueIsBracketedWhereverItSits.survives(
-        // "f " + ASwallowingValueIsBracketedWhereverItSits.m() + " 2"),
-        // (true, true))
-        Stdlib.Test.pass()
+        Stdlib.Test.equal(
+          ASwallowingValueIsBracketedWhereverItSits.survives(
+            "f(" + ASwallowingValueIsBracketedWhereverItSits.m() + ", 2)"),
+          (true, true))
+
         Stdlib.Test.equal(
           ASwallowingValueIsBracketedWhereverItSits.survives(
             "[" + ASwallowingValueIsBracketedWhereverItSits.m() + ", 1]"),
@@ -4977,14 +4945,12 @@ module ASwallowingValueIsBracketedWhereverItSits =
             + ")"),
           (true, true))
 
-        // CLEANUP the move to call syntax changed this; it no longer holds:
-        // Stdlib.Test.equal(
-        // ASwallowingValueIsBracketedWhereverItSits.survives(
-        // "Dict { "
-        // + ASwallowingValueIsBracketedWhereverItSits.m()
-        // + ": 1; b: 2 }"),
-        // (true, true))
-        Stdlib.Test.pass()
+        Stdlib.Test.equal(
+          ASwallowingValueIsBracketedWhereverItSits.survives(
+            "Dict { a: 1, b: "
+            + ASwallowingValueIsBracketedWhereverItSits.m()
+            + " }"),
+          (true, true))
 
         // A LAST position swallows nothing, so it stays bare and the brackets do not spread.
         Stdlib.Test.equal(
@@ -5047,16 +5013,14 @@ module AnOpaqueAtomNeedsNoBrackets =
           ("earg0", "earg0"))
 
         // As an argument, where the brackets would read as a second argument.
-        // CLEANUP the move to call syntax changed this; it no longer holds:
-        // Stdlib.Test.equal(
-        // AnOpaqueAtomNeedsNoBrackets.both(
-        // LanguageTools.ProgramTypes.Expr.EApply(
-        // 2,
-        // LanguageTools.ProgramTypes.Expr.EVariable(3, "f"),
-        // [],
-        // [ AnOpaqueAtomNeedsNoBrackets.arg() ])),
-        // ("f earg0", "f earg0"))
-        Stdlib.Test.pass()
+        Stdlib.Test.equal(
+          AnOpaqueAtomNeedsNoBrackets.both(
+            LanguageTools.ProgramTypes.Expr.EApply(
+              2,
+              LanguageTools.ProgramTypes.Expr.EVariable(3, "f"),
+              [],
+              [ AnOpaqueAtomNeedsNoBrackets.arg() ])),
+          ("f(earg0)", "f(earg0)"))
 
         // As the target of a field access, which is the shape that survived longest: the printer's own bare
         // list gained `EArg` months ago and Fluid's did not.
@@ -5142,8 +5106,7 @@ module AParenthesisedFieldTargetIndentsLikeThePrinter =
 
   test aParenthesisedFieldTargetIndentsLikeThePrinter =
     Stdlib.Test.all(
-      [ // CLEANUP the move to call syntax changed this; it was "(Darklang.LanguageTools.PackageManager.Search.search(\n   Darklang.SCM.Branch.mainBranchId,\n   query)).types"
-        Stdlib.Test.equal(
+      [ Stdlib.Test.equal(
           AParenthesisedFieldTargetIndentsLikeThePrinter.drawn(),
           "(Darklang.LanguageTools.PackageManager.Search.search(Darklang.SCM.Branch.mainBranchId,\n  query)).types")
 
@@ -5153,15 +5116,14 @@ module AParenthesisedFieldTargetIndentsLikeThePrinter =
 
         // A target that fits is unbroken, so the pin is about the indent and not about field access in
         // general. Still bracketed: a call is not a name.
-        // CLEANUP the move to call syntax changed this; it was "(f a).x"
         Stdlib.Test.equal(
           Fluid.Debug.render(
             Fluid.App.defaultRegistry(),
             78,
-            (match LanguageTools.Parser.Parse.parsePTExpr("(f a).x") with
+            (match LanguageTools.Parser.Parse.parsePTExpr("(f(a)).x") with
              | Ok(e) -> Fluid.Slot.Filled(Fluid.PT.toDoc(e))
              | Error(_) -> Fluid.Slot.Empty(Fluid.PT.exprExpect("expr")))),
-          "⟨expr⟩") ])
+          "(f(a)).x") ])
 
 
 module EveryShapeSurvivesInEveryPosition =
@@ -5218,7 +5180,7 @@ module EveryShapeSurvivesInEveryPosition =
       "[1]"
       "(1, 2)"
       "Dict { a: 1 }"
-      "Stdlib.Cli.Tui.Size { width = 1; height = 2 }"
+      "Stdlib.Cli.Tui.Size { width = 1, height = 2 }"
       "{ r with width = 3 }"
       "Option.Some(1)"
       "Option.None"
@@ -5233,7 +5195,11 @@ module EveryShapeSurvivesInEveryPosition =
       "'c'"
       "()"
       "true"
-      "1.5" ]
+      "1.5"
+      "1.5f32"
+      "2.50dec"
+      "5u8"
+      "a & b" ]
 
 
   /// The shapes whose drawing does NOT read back, in either position. Empty is the assertion.
@@ -5241,15 +5207,13 @@ module EveryShapeSurvivesInEveryPosition =
     EveryShapeSurvivesInEveryPosition.shapes()
     |> Stdlib.List.filter(fun inner ->
       Stdlib.Bool.not(
-        EveryShapeSurvivesInEveryPosition.survives("f (" + inner + ") 2")
+        EveryShapeSurvivesInEveryPosition.survives("f((" + inner + "), 2)")
         && EveryShapeSurvivesInEveryPosition.survives("(" + inner + ") + 1")))
 
 
   test everyShapeSurvivesInEveryPosition =
     Stdlib.Test.all(
-      [ // CLEANUP the move to call syntax changed this; it no longer holds:
-        // Stdlib.Test.equal(EveryShapeSurvivesInEveryPosition.failures(), [])
-        Stdlib.Test.pass()
+      [ Stdlib.Test.equal(EveryShapeSurvivesInEveryPosition.failures(), [])
 
         // The guard against a vacuous pass: a list that shrank to nothing would be green and worthless.
         Stdlib.Test.equal(
@@ -5328,12 +5292,11 @@ module APipeStageHasACharacterRule =
           APipeStageHasACharacterRule.typedBack("xs |> Stdlib.List.map(g)"),
           "xs |> Stdlib.List.map(g)")
 
-        // CLEANUP the move to call syntax changed this; it was "xs |> Stdlib.Option.Some"
         Stdlib.Test.equal(
           APipeStageHasACharacterRule.typedBack("xs |> Stdlib.Option.Some"),
           "xs |> `Stdlib.Option.Some`")
 
-        // CLEANUP the move to call syntax changed this; it was "xs |> zork |> quux"
+        // CLEANUP the printer breaks a pipe one stage per line, and typing that Enter starts a statement.
         Stdlib.Test.equal(
           APipeStageHasACharacterRule.typedBack("xs |> zork |> quux"),
           "ERR hole: step")
@@ -5343,14 +5306,6 @@ module APipeStageHasACharacterRule =
         Stdlib.Test.equal(
           APipeStageHasACharacterRule.typedBack("xs |> (fun x -> x)"),
           "xs |> (fun x -> x)")
-
-        // The operator section does not, and it is a different feature -- `(+)` is a way of NAMING an
-        // operator, not a bracket around a stage. Pinned as the wrong answer it gives, which changed shape
-        // when the bracket started being swallowed: it used to keep the `(`.
-        // CLEANUP the move to call syntax changed this; it was "ERR unresolved: +)1"
-        Stdlib.Test.equal(
-          APipeStageHasACharacterRule.typedBack("xs |> (+) 1"),
-          "parse(\n  ERR,\n  Parse,\n  error,\n  at,\n  line,\n  1,\n  column,\n  7,\n  arguments,\n  go,\n  `in`,\n  parentheses,\n  separated,\n  by,\n  commas)\n\nParse(error, at, line, 1, column, 7, unsupported, pipe, segment)")
 
         // ...and the lambda IS reachable by name, which is why this is a gap in the printed form rather than a
         // missing capability.
@@ -5409,7 +5364,17 @@ module EveryIntegerWidthTypesBack =
 
 
   let widths(): List<String> =
-    [ "1", "1y", "1uy", "1s", "1us", "1l", "1ul", "1L", "1UL", "1Q", "1Z" ]
+    [ "1s8"
+      "1u8"
+      "1s16"
+      "1u16"
+      "1s32"
+      "1u32"
+      "1"
+      "1u64"
+      "1s128"
+      "1u128"
+      "1z" ]
 
 
   /// The widths whose printed form does not type back. Empty is the assertion.
@@ -5422,9 +5387,7 @@ module EveryIntegerWidthTypesBack =
 
   test everyIntegerWidthTypesBack =
     Stdlib.Test.all(
-      [ // CLEANUP the move to call syntax changed this; it no longer holds:
-        // Stdlib.Test.equal(EveryIntegerWidthTypesBack.failures(), [])
-        Stdlib.Test.pass()
+      [ Stdlib.Test.equal(EveryIntegerWidthTypesBack.failures(), [])
 
         // The guard against a vacuous pass.
         Stdlib.Test.equal(

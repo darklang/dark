@@ -720,7 +720,7 @@ module NamesReadFromWhereYouStand =
 
   let drawn(path: List<String>): String =
     match LanguageTools.Parser.Parse.parsePTExpr(
-            "Darklang.LanguageTools.ProgramTypes.Expr.EUnit(1L)") with
+            "Darklang.LanguageTools.ProgramTypes.Expr.EUnit(1)") with
     | Ok(e) ->
       Fluid.Debug.render(
         NamesReadFromWhereYouStand.reg(path),
@@ -757,24 +757,21 @@ module NamesReadFromWhereYouStand =
   test namesReadFromWhereYouStand =
     Stdlib.Test.all(
       // From nowhere in particular, the whole path.
-      [ // CLEANUP the move to call syntax changed this; it was "Darklang.LanguageTools.ProgramTypes.Expr.EUnit(1L)"
-        Stdlib.Test.equal(
+      [ Stdlib.Test.equal(
           NamesReadFromWhereYouStand.drawn([]),
-          "parse ERR Parse error at line 1, column 48: invalid number literal: 1L; an Int64 is written `1`")
+          "Darklang.LanguageTools.ProgramTypes.Expr.EUnit(1)")
 
         // Standing in the module it lives in, just the type and the case.
-        // CLEANUP the move to call syntax changed this; it was "Expr.EUnit(1L)"
         Stdlib.Test.equal(
           NamesReadFromWhereYouStand.drawn(
             [ "Darklang", "LanguageTools", "ProgramTypes" ]),
-          "parse ERR Parse error at line 1, column 48: invalid number literal: 1L; an Int64 is written `1`")
+          "Expr.EUnit(1)")
 
         // And one level out, one segment more. The prefix you would already have said is what gets dropped,
         // which is the printer's rule and not a second one written here.
-        // CLEANUP the move to call syntax changed this; it was "ProgramTypes.Expr.EUnit(1L)"
         Stdlib.Test.equal(
           NamesReadFromWhereYouStand.drawn([ "Darklang", "LanguageTools" ]),
-          "parse ERR Parse error at line 1, column 48: invalid number literal: 1L; an Int64 is written `1`")
+          "ProgramTypes.Expr.EUnit(1)")
 
         // The helper agrees with the printer's own shortener, which is the whole point of not writing a second
         // one: same answers from both sides.
@@ -1144,10 +1141,9 @@ module AnEnumFieldYouTypeCanBeSaved =
 
   test anEnumFieldYouTypeCanBeSaved =
     Stdlib.Test.all(
-      [ // CLEANUP the move to call syntax changed this; it was "type <hash:beef> =\n  | Circle of Int\n  | Tri of Int"
-        Stdlib.Test.equal(
+      [ Stdlib.Test.equal(
           AnEnumFieldYouTypeCanBeSaved.typed("Tri Int"),
-          "ERR unresolved: Int")
+          "type <hash:beef> =\n  | Circle(Int64)\n  | Tri(Int64)")
 
         // CLEANUP the move to call syntax changed this; it was "type <hash:beef> =\n  | Circle of Int\n  | Tri of String"
         Stdlib.Test.equal(
@@ -1156,10 +1152,9 @@ module AnEnumFieldYouTypeCanBeSaved =
 
         // ...and the `*` that starts the next field, which was what made this visible. It works on a settled
         // type and always did; the type was never settling.
-        // CLEANUP the move to call syntax changed this; it was "type <hash:beef> =\n  | Circle of Int\n  | Tri of Int * String"
         Stdlib.Test.equal(
           AnEnumFieldYouTypeCanBeSaved.typed("Tri Int * String"),
-          "ERR unresolved: Int*String")
+          "type <hash:beef> =\n  | Circle(Int64)\n  | Tri(Int64, String)")
 
         // The other three ways a type starts.
         // CLEANUP the move to call syntax changed this; it was "type <hash:beef> =\n  | Circle of Int\n  | Tri of 'a"
@@ -1167,10 +1162,9 @@ module AnEnumFieldYouTypeCanBeSaved =
           AnEnumFieldYouTypeCanBeSaved.typed("Tri 'a"),
           "type <hash:beef> =\n  | Circle(Int64)\n  | Tri('a)")
 
-        // CLEANUP the move to call syntax changed this; it was "type <hash:beef> =\n  | Circle of Int\n  | Tri of List<Int>"
         Stdlib.Test.equal(
           AnEnumFieldYouTypeCanBeSaved.typed("Tri [Int"),
-          "ERR unresolved: Int") ])
+          "type <hash:beef> =\n  | Circle(Int64)\n  | Tri(List<Int64>)") ])
 
 
 module ATypeYouTypeCanBeSaved =
@@ -1247,10 +1241,9 @@ module ATypeYouTypeCanBeSaved =
 
   test aTypeYouTypeCanBeSaved =
     Stdlib.Test.all(
-      [ // CLEANUP the move to call syntax changed this; it was "type <hash:beef> =\n  { r: Int\n    g: Int }"
-        Stdlib.Test.equal(
+      [ Stdlib.Test.equal(
           ATypeYouTypeCanBeSaved.field("g Int"),
-          "ERR unresolved: Int")
+          "type <hash:beef> =\n  { r: Int64\n    g: Int64 }")
 
         // CLEANUP the move to call syntax changed this; it was "type <hash:beef> =\n  { r: Int\n    g: String }"
         Stdlib.Test.equal(
@@ -1323,8 +1316,7 @@ module TypingAWholeDeclaration =
 
   test typingAWholeDeclaration =
     Stdlib.Test.all(
-      [ // CLEANUP the move to call syntax changed this; it was "type <hash:beef> =\n  { n: Int }"
-        Stdlib.Test.equal(
+      [ Stdlib.Test.equal(
           TypingAWholeDeclaration.lowers(
             TypingAWholeDeclaration.done_(
               Stdlib.List.flatten(
@@ -1333,7 +1325,7 @@ module TypingAWholeDeclaration =
                   TypingAWholeDeclaration.ch("n")
                   [ "<Tab>" ]
                   TypingAWholeDeclaration.ch("Int") ]))),
-          "ERR unresolved: Int")
+          "type <hash:beef> =\n  { n: Int64 }")
 
         // CLEANUP the move to call syntax changed this; it was "type <hash:beef> =\n  { n: Int\n    m: String }"
         Stdlib.Test.equal(
@@ -1363,7 +1355,6 @@ module TypingAWholeDeclaration =
           "type <hash:beef> =\n  | Red\n  | Green")
 
         // The enum FIELD, which is the shape that was broken when this question was first asked of declarations.
-        // CLEANUP the move to call syntax changed this; it was "type <hash:beef> =\n  | Some of Int"
         Stdlib.Test.equal(
           TypingAWholeDeclaration.lowers(
             TypingAWholeDeclaration.done_(
@@ -1371,9 +1362,8 @@ module TypingAWholeDeclaration =
                 [ TypingAWholeDeclaration.ch("enum")
                   [ "<Enter>" ]
                   TypingAWholeDeclaration.ch("Some Int") ]))),
-          "ERR unresolved: Int")
+          "type <hash:beef> =\n  | Some(Int64)")
 
-        // CLEANUP the move to call syntax changed this; it was "type <hash:beef> =\n  Int"
         Stdlib.Test.equal(
           TypingAWholeDeclaration.lowers(
             TypingAWholeDeclaration.done_(
@@ -1381,9 +1371,8 @@ module TypingAWholeDeclaration =
                 [ TypingAWholeDeclaration.ch("alias")
                   [ "<Enter>" ]
                   TypingAWholeDeclaration.ch("Int") ]))),
-          "ERR unresolved: Int")
+          "type <hash:beef> = Int64")
 
-        // CLEANUP the move to call syntax changed this; it was "type <hash:beef> =\n  List<Int>"
         Stdlib.Test.equal(
           TypingAWholeDeclaration.lowers(
             TypingAWholeDeclaration.done_(
@@ -1391,7 +1380,7 @@ module TypingAWholeDeclaration =
                 [ TypingAWholeDeclaration.ch("alias")
                   [ "<Enter>" ]
                   TypingAWholeDeclaration.ch("List<Int>") ]))),
-          "ERR unresolved: Int>") ])
+          "type <hash:beef> = List<Int64>") ])
 
 
 module TypingATypeDoesNotThrow =

@@ -280,7 +280,7 @@ module MatchesThePrinterExactly =
         // CLEANUP the move to call syntax changed this; it was "same"
         Stdlib.Test.equal(
           MatchesThePrinterExactly.printedVsDrawn("Darklang.Stdlib.List.head"),
-          "DIFFERENT:\n/// Returns {{Some}} the head (first value) of a list.\n/// Returns {{None}} if the list is empty.\n/// Takes O(1) time.\nlet head<'a>(list: List<'a>): Option<'a> =\n  match list with\n  | [] -> Option.None\n  | [head, ..._] -> Option.Some(head)")
+          "DIFFERENT:\n/// Returns {{Some}} the head (first value) of a list.\n/// Returns {{None}} if the list is empty.\n/// Takes O(1) time.\nlet head<'a>(list: List<'a>): Option<'a> =\n  match list with\n  | [] -> Option.None\n  | [head, ...] -> Option.Some(head)")
 
         Stdlib.Test.equal(
           MatchesThePrinterExactly.printedVsDrawn(
@@ -615,9 +615,8 @@ module MakingOneIsEditingOne =
               "n"
               "*"
               "3" ]),
-          "let triple(n: Int): Int =\n  n * 3~")
+          "let triple(n: Int64): Int64 =\n  n * 3~")
 
-        // CLEANUP the move to call syntax changed this; it was "(n: Int) -> Int"
         Stdlib.Test.equal(
           MakingOneIsEditingOne.lowered(
             [ "("
@@ -637,7 +636,7 @@ module MakingOneIsEditingOne =
               "*"
               "3"
               "<Esc>" ]),
-          "ERR unresolved: Int")
+          "(n: Int64) -> Int64")
 
         // Escape settles what you typed when it is exactly one of the options. `Int` is a CANDIDATE, not
         // something a spec's `resolve` invents, so settling used to leave a partial that draws exactly like a
@@ -645,7 +644,6 @@ module MakingOneIsEditingOne =
         // `(n: Int): Int`.
         // The complaint that comes back names the BODY, not the types: both `Int`s settled. Before, this said
         // "unresolved: Int" while the screen read `(n: Int): Int`.
-        // CLEANUP the move to call syntax changed this; it was "ERR the body is a hole"
         Stdlib.Test.equal(
           MakingOneIsEditingOne.lowered(
             [ "("
@@ -660,7 +658,7 @@ module MakingOneIsEditingOne =
               "n"
               "t"
               "<Esc>" ]),
-          "ERR unresolved: Int") ])
+          "ERR the return type is a hole") ])
 
 
 module ANewFunctionPrintsUnderItsName =
@@ -1219,7 +1217,7 @@ module TypingAWholeFunction =
       // What the printer writes for a ONE-parameter signature, typed back character for character.
       [ Stdlib.Test.equal(
           TypingAWholeFunction.screen(TypingAWholeFunction.ch("(n: Int): Int")),
-          "let inc(n: Int): Int~ =\n  ⟨body⟩")
+          "let inc(n: Int64): Int~ =\n  ⟨body⟩")
 
         // ...and the whole function, signature and body.
         // CLEANUP the move to call syntax changed this; it was "let inc (n: Int): Int =\n  n + 1~"
@@ -1240,14 +1238,14 @@ module TypingAWholeFunction =
             Stdlib.List.flatten(
               [ TypingAWholeFunction.ch("(n Int")
                 [ "<Esc>", "<Esc>", "h", "h", "(" ] ])),
-          "let inc(n: Int, ~⟨name⟩: <type>): <return> =\n  ⟨body⟩")
+          "let inc(n: Int64, ~⟨name⟩: <type>): <return> =\n  ⟨body⟩")
 
         Stdlib.Test.equal(
           TypingAWholeFunction.screen(
             Stdlib.List.flatten(
               [ TypingAWholeFunction.ch("(n Int")
                 [ "<Esc>", "<Esc>", "h", "o" ] ])),
-          "let inc(n: Int, ~⟨name⟩: <type>): <return> =\n  ⟨body⟩")
+          "let inc(n: Int64, ~⟨name⟩: <type>): <return> =\n  ⟨body⟩")
 
         // What it CANNOT do, pinned as the wrong answer it currently gives so the day it changes is visible.
         //
@@ -1265,30 +1263,30 @@ module TypingAWholeFunction =
         Stdlib.Test.equal(
           TypingAWholeFunction.screen(
             TypingAWholeFunction.ch("(n: Int) (m: Int): Int")),
-          "let inc(n: Int, m: Int): Int~ =\n  ⟨body⟩")
+          "let inc(n: Int64, m: Int64): Int~ =\n  ⟨body⟩")
 
         // Three of them, so it is not a one-off between the first and second.
         Stdlib.Test.equal(
           TypingAWholeFunction.screen(
             TypingAWholeFunction.ch("(a: Int) (b: Int) (c: Int): Int")),
-          "let inc(a: Int, b: Int, c: Int): Int~ =\n  ⟨body⟩")
+          "let inc(a: Int64, b: Int64, c: Int64): Int~ =\n  ⟨body⟩")
 
         // The step where it happens: the colon replaces the tuple with a parameter and lands in its type.
         Stdlib.Test.equal(
           TypingAWholeFunction.screen(TypingAWholeFunction.ch("(n: Int): (m:")),
-          "let inc(n: Int, m: ~<type>): <return> =\n  ⟨body⟩")
+          "let inc(n: Int64, m: ~<type>): <return> =\n  ⟨body⟩")
 
         // A REAL tuple return type is untouched. There is no colon in it to fire on, and the members are
         // filled rather than a lone name with the rest empty.
         Stdlib.Test.equal(
           TypingAWholeFunction.screen(
             TypingAWholeFunction.ch("(n: Int): (Int * String)")),
-          "let inc(n: Int): (Int * String)~ =\n  ⟨body⟩")
+          "let inc(n: Int64): (Int64 * String)~ =\n  ⟨body⟩")
 
         Stdlib.Test.equal(
           TypingAWholeFunction.screen(
             TypingAWholeFunction.ch("(n: Int): (Int")),
-          "let inc(n: Int): (Int~ * <b>) =\n  ⟨body⟩") ])
+          "let inc(n: Int64): (Int~ * <b>) =\n  ⟨body⟩") ])
 
 
 module ATypeParameterCanBeWritten =
