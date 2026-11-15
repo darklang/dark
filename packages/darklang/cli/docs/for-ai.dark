@@ -48,9 +48,9 @@ run its access, and holds across edits:
   status                                           # what changed
   commit "message" -y                              # record it
 
-`search` takes `--fn`, `--type`, `--val` or `--test` to narrow, and `--with-docs`
-for full comments; `--limit N` controls results per section. To find a function by what it takes and returns, search the
-types: `search bytes to string` or `search String->Int64`.
+`search` takes `--fn`, `--type`, `--val` or `--test` to narrow results,
+`--with-docs` for comments, and `--limit N` for results per section.
+Search by input and return types: `search bytes to string` or `search String->Int64`.
 
 Answers go on stdout; errors, hints and logs go on stderr; a refusal exits
 non-zero. Under `--json` a refusal leaves stdout empty, so test the exit code.
