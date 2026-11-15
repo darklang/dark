@@ -142,13 +142,13 @@ let positionShifted(nodeId: Option<UInt64>, shift: UInt64): Option<String> =
   | _ -> Option.None
 
 
-/// Show each unresolved call with its own position in the author's source.
-let printUnresolvedTraitCalls(
+/// Describe each unresolved call with its own position in the author's source.
+let unresolvedTraitCallsText(
   callsByItem: List<(String * List<LanguageTools.PackageManager.UnresolvedTraitCall>)>,
   firstLineShift: UInt64)
-  : Unit =
+  : String =
   if Stdlib.List.isEmpty(callsByItem) then
-    ()
+    ""
   else
     let which =
       callsByItem
@@ -172,12 +172,19 @@ let printUnresolvedTraitCalls(
         $"    {name}: {callNames}")
       |> Stdlib.String.join("\n")
 
-    Stdlib.printErrorLine(
-      "  Warning: could not choose implementations for these calls:\n"
+    "  Warning: could not choose implementations for these calls:\n"
       + which
       + "\n  Check for missing references or type annotations, then save again."
       + "\n  Until resolved, these calls use the newest matching implementation "
-      + "at runtime.")
+      + "at runtime."
+
+/// Print save warnings for the classic CLI.
+let printUnresolvedTraitCalls(
+  callsByItem: List<(String * List<LanguageTools.PackageManager.UnresolvedTraitCall>)>,
+  firstLineShift: UInt64)
+  : Unit =
+  let text = unresolvedTraitCallsText(callsByItem, firstLineShift)
+  if text == "" then () else Stdlib.printErrorLine(text)
 
 
 let issueLines(branchId: Uuid, issues: List<LanguageTools.AtRestTypeChecker.Issue>): List<String> =
