@@ -2884,11 +2884,27 @@ let rec private tailFrom
     | JumpBy n when n >= 0 -> tailFrom instrs (i + n + 1) cur resultReg
     | _ -> false
 
+/// Tell the tracer of a call that runs again in <param frame> (the current one) rather than in a
+/// frame of its own, as the push would have: under a new id, so each call is a frame of its own
+/// to the tracer.
+let private noteRunInPlace
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (frame : CallFrame)
+  (args : List<Dval>)
+  : unit =
+  match frame.parent with
+  | ValueSome(struct (parentId, _, _)) ->
+    frame.id <- nextFrameId vm
+    vm.currentFrameID <- frame.id
+    exeState.tracing.storeFrameEntry frame.id parentId frame.executionPoint args
+  | ValueNone -> ()
+
 /// Whether a call from <param frame> to its own fn or lambda, writing <param putResultIn>, can run
-/// in the frame itself. The call has to be the frame's last act, and nothing may be watching frames:
-/// tracing that records frames or values, and detailed timing, see a frame per call as before. A
-/// frame a builtin asked for has a continuation waiting on its result, and a lambda's frame with a
-/// return check has one for each level, so neither does.
+/// in the frame itself. The call has to be the frame's last act. A view (collecting values) and
+/// detailed timing see a frame per call as before; a recording is told of each call as a push
+/// would tell it (`noteRunInPlace`). A frame a builtin asked for has a continuation waiting on
+/// its result, and a lambda's frame with a return check has one for each level, so neither does.
 ///
 /// Deep recursion that is not a tail call still pushes a frame per level.
 let private runsInPlace
@@ -2900,7 +2916,6 @@ let private runsInPlace
   obj.ReferenceEquals(frame.continuation, null)
   && frame.parent.IsSome
   && frame.expectedLambdaReturn.IsNone
-  && not exeState.tracing.collectFrames
   && not exeState.tracing.collectExprValues
   && not (vm.stats.enabled && vm.stats.detailedTiming)
   && tailFrom
@@ -2914,7 +2929,6 @@ let private runsInPlace
 /// `callFrames` stay, so its result goes where the first call's would, and a callback check tied to
 /// its id stays live. The return check, made once when the loop ends, is the one every level would
 /// have made: the same fn, and a return type with no type variable for a level's table to change.
-/// No frame entry for tracing: nothing that records frames lets a call run in place.
 let private refillForTailCall
   (exeState : ExecutionState)
   (vm : VMState)
@@ -2935,6 +2949,9 @@ let private refillForTailCall
   // The arguments are read from the registers about to be cleared, so out first, into the frame's
   // scratch buffer, which is then cleared so it holds nothing alive.
   let args = ArgSeq.toArrayFor frame allArgs
+  if exeState.tracing.collectFrames then
+    noteRunInPlace exeState vm frame (landedForTrace (List.ofArray args))
+  if exeState.tracing.traceEffects then exeState.tracing.noteFunction fn.hash
   let regs = frame.registers
   // A loop, not a bulk copy: there are only a few, and the bulk copy's setup costs more.
   for i in 0 .. args.Length - 1 do
@@ -4215,6 +4232,7 @@ let private lambdaRunsInPlace
 /// fn: the registers are bound as `pushLambdaFrame` binds a new frame's, and the frame starts over.
 /// It keeps its execution point, rather than one a level deeper per call.
 let private refillLambdaForTailCall
+  (exeState : ExecutionState)
   (vm : VMState)
   (frame : CallFrame)
   (appLambda : ApplicableLambda)
@@ -4229,6 +4247,8 @@ let private refillLambdaForTailCall
     else TST.mergeFavoringRight appLambda.typeSymbolTable frame.typeSymbolTable
   // Out first, as in `refillForTailCall`: the arguments are in the registers about to be cleared.
   let args = ArgSeq.toArrayFor frame allArgs
+  if exeState.tracing.collectFrames then
+    noteRunInPlace exeState vm frame (landedForTrace (List.ofArray args))
   let r = frame.registers
   System.Array.Clear(r, 0, r.Length)
   bindLambdaParamsFrom vm r foundLambda.patterns args 0
@@ -4281,7 +4301,14 @@ let private applyLambda
     if
       lambdaRunsInPlace exeState vm currentFrame putResultIn appLambda foundLambda
     then
-      refillLambdaForTailCall vm currentFrame appLambda foundLambda allArgs access
+      refillLambdaForTailCall
+        exeState
+        vm
+        currentFrame
+        appLambda
+        foundLambda
+        allArgs
+        access
     else
       pushLambdaFrame
         exeState
@@ -6433,8 +6460,8 @@ let private bindAgain
 /// expectation, which is the parent's and so still applies.
 ///
 /// `false`, with nothing changed that the ordinary path does not set again, for anything else:
-/// another lambda, a read in flight, a pattern that does not match, or tracing that records
-/// frames, which then sees a frame per element as before.
+/// another lambda, a read in flight, a pattern that does not match, or a view collecting values,
+/// which then sees a frame per element as before.
 let private tryRunAgain
   (exeState : ExecutionState)
   (vm : VMState)
@@ -6444,7 +6471,9 @@ let private tryRunAgain
   match frame.appliedLambda with
   | ValueNone -> false
   | ValueSome applied ->
-    if exeState.tracing.collectFrames || hostRequested vm || not (requested vm) then
+    if
+      exeState.tracing.collectExprValues || hostRequested vm || not (requested vm)
+    then
       false
     else
       match vm.pendingApplicable with
@@ -6474,6 +6503,14 @@ let private tryRunAgain
             match applied.selfRegister with
             | Some selfReg -> r[selfReg] <- DApplicable(AppLambda applied.lambda)
             | None -> ()
+            if exeState.tracing.collectFrames then
+              noteRunInPlace
+                exeState
+                vm
+                frame
+                (match second with
+                 | ValueSome s -> [ arg; s ]
+                 | ValueNone -> [ arg ])
             frame.continuation <- vm.pendingNext
             frame.programCounter <- 0
             vm.pendingNext <- Unchecked.defaultof<_>
