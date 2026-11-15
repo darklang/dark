@@ -41,7 +41,7 @@ let seedFrom(): String =
 let cliBinary(): String =
   match Stdlib.Env.get("DARK_CLI_UNDER_TEST") with
   | Some(path) -> path
-  | None -> "backend/Build/out/Cli/Debug/net10.0/Cli"
+  | None -> "backend/Build/out/Cli/Debug/net11.0/Cli"
 
 
 /// A fresh instance. Fails with a message rather than half-existing.

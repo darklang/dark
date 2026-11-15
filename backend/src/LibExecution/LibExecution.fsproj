@@ -8,7 +8,9 @@
     <SelfContained>true</SelfContained>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="paket.references" />
+    <PackageReference Include="Ply" />
+    <PackageReference Include="FSharp.Core" />
+    <PackageReference Include="System.IO.Hashing" />
   </ItemGroup>
   <!-- Create empty package-ref-hashes.txt if missing (fresh clone / CI before reload-packages) -->
   <Target Name="EnsurePackageRefHashes" BeforeTargets="PrepareForBuild">
@@ -70,5 +72,4 @@
     <Compile Include="Scheduler.fs" />
     <Compile Include="Spread.fs" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

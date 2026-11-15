@@ -13,8 +13,7 @@ updates:
       interval: daily
     open-pull-requests-limit: 10
 
-  # The tool manifest, backend/.config/dotnet-tools.json. Dependabot can't read Paket, so
-  # the packages in paket.lock get no PRs from it; docs/dependencies.md has how to bump them.
+  # backend/Directory.Packages.props and the packages.lock.json files beside each project.
   - package-ecosystem: nuget
     directory: "/backend"
     schedule:

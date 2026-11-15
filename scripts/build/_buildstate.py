@@ -35,9 +35,6 @@ FAILED = "failed"
 # the binaries any newer, so a lint-only build must not move the last-success mark:
 # that would declare a .fs edited in the same second already built.
 BUILD_ACTIONS = {
-  "fsharp_tool_restore",
-  "fsharp_paket_restore",
-  "fsharp_paket_install",
   "backend_full_build",
   "backend_quick_build",
   "run_migrations",
@@ -153,10 +150,10 @@ def finish(ok, actions, failed_action=None, exit_code=None, skipped=None):
 # A dead end you can reach with `clear-dotnet-build`, `docker volume rm`, or a fresh
 # container on an old rundir.
 EXPECTED_OUTPUTS = [
-  ["backend/Build/out/Cli/Debug/net10.0/Cli",
-   "backend/Build/out/Cli/Release/net10.0/linux-x64/publish/Cli"],
-  ["backend/Build/out/LocalExec/Debug/net10.0/LocalExec",
-   "backend/Build/out/LocalExec/Release/net10.0/publish/LocalExec"],
+  ["backend/Build/out/Cli/Debug/net11.0/Cli",
+   "backend/Build/out/Cli/Release/net11.0/linux-x64/publish/Cli"],
+  ["backend/Build/out/LocalExec/Debug/net11.0/LocalExec",
+   "backend/Build/out/LocalExec/Release/net11.0/publish/LocalExec"],
 ]
 
 
@@ -165,9 +162,9 @@ EXPECTED_OUTPUTS = [
 # question is narrower: is the PUBLISHED tree the thing a `--published` run would execute
 # actually here, and current.
 OPTIMIZED_OUTPUTS = [
-  "backend/Build/out/Tests/Release/net10.0/publish/Tests",
-  "backend/Build/out/LocalExec/Release/net10.0/publish/LocalExec",
-  "backend/Build/out/Cli/Release/net10.0/publish/Cli",
+  "backend/Build/out/Tests/Release/net11.0/publish/Tests",
+  "backend/Build/out/LocalExec/Release/net11.0/publish/LocalExec",
+  "backend/Build/out/Cli/Release/net11.0/publish/Cli",
 ]
 
 
@@ -178,7 +175,7 @@ def optimized_outputs_stale(root=".", newer_than=None):
   says "nothing has changed", and leaves whatever Release publish happened to be lying
   around -- which `--test` then runs. A stale pass looks exactly like a real one.
   """
-  debug = os.path.join(root, "backend/Build/out/Tests/Debug/net10.0/Tests")
+  debug = os.path.join(root, "backend/Build/out/Tests/Debug/net11.0/Tests")
   reference = newer_than
   if reference is None and os.path.exists(debug):
     reference = os.path.getmtime(debug)

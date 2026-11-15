@@ -67,18 +67,24 @@
     <!-- <PublishSingleFile>true</PublishSingleFile> -->
     <!-- <PublishReadyToRun>false</PublishReadyToRun> -->
     <!-- <SelfContained>true</SelfContained> -->
+    <!-- Every runtime the release publishes, so packages.lock.json covers each one's graph and a
+         locked restore with `runtime` set has nothing to add. -->
+    <RuntimeIdentifiers>linux-x64;linux-musl-x64;linux-arm64;linux-musl-arm64;linux-arm;osx-x64;osx-arm64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="paket.references" />
+    <PackageReference Include="Ply" />
+    <PackageReference Include="FSharp.Core" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Fumble" />
   </ItemGroup>
 
   <!-- FSharp.Core's printf and reflection give the same trim/AOT warnings on every publish, and
        they are not ours to fix. One line for that assembly, so a new one from our code stands out. -->
   <Target Name="OneTrimWarningForFSharpCore" BeforeTargets="WriteIlcRspFileForCompilation">
     <ItemGroup>
-      <ManagedAssemblyToLink Condition="'%(Filename)' == 'FSharp.Core'">
+      <_IlcManagedInputAssemblies Condition="'%(Filename)' == 'FSharp.Core'">
         <TrimmerSingleWarn>true</TrimmerSingleWarn>
-      </ManagedAssemblyToLink>
+      </_IlcManagedInputAssemblies>
     </ItemGroup>
   </Target>
 
@@ -263,5 +269,4 @@
   <ItemGroup Condition="'$(Configuration)' == 'Release' And Exists('../../../rundir/seed.db.br')">
     <CustomAdditionalCompileInputs Include="../../../rundir/seed.db.br" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

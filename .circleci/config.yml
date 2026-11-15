@@ -36,6 +36,8 @@ jobs:
       - run:
           name: Find or build the images
           command: scripts/deployment/ci-images > /tmp/images.json
+          # pushing a freshly built image to ttl.sh prints nothing while it uploads
+          no_output_timeout: 30m
       # On main only: a commit main has already moved past skips the build, since the newer
       # commit's pipeline builds this one's changes too. See the script.
       - run:

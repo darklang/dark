@@ -2,10 +2,14 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <!-- It serves no static files. Left on, the SDK rewrites its staticwebassets JSON on every
+         build, so the package reload never sees the same LocalExec twice. -->
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
   </PropertyGroup>
   <!-- dependencies and code -->
   <ItemGroup>
-    <None Include="paket.references" />
+    <PackageReference Include="FSharp.Core" />
+    <PackageReference Include="Legivel" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
@@ -34,5 +38,4 @@
     <Compile Include="Benchmarks.fs" />
     <Compile Include="LocalExec.fs" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

@@ -22,5 +22,4 @@
     <Compile Include="SourceFile.fs" />
     <Compile Include="Package.fs" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

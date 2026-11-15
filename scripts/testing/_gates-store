@@ -226,7 +226,7 @@ gate_first_day() {
 gate_backups_restore() {
   set -uo pipefail
 
-  CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net11.0/Cli}
   ROOT=$(realpath -m rundir/backups-test)
   pass=0; fail=0
   ok()  { pass=$((pass+1)); printf '  ok   %s\n' "$1"; }
@@ -446,7 +446,7 @@ gate_trait_checker_vs_dispatch() {
   sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
 
   # The runner's binary, not `run-cli`: CI has no debug build and passes the published one in.
-  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
+  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net11.0/Cli}"
 
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
@@ -609,7 +609,7 @@ gate_trait_choice_survives_rival() {
   sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
 
   # The runner's binary, not `run-cli`: CI has no debug build and passes the published one in.
-  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
+  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net11.0/Cli}"
 
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
@@ -685,7 +685,7 @@ gate_trait_choice_any_batching() {
   sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
 
   # The runner's binary, not `run-cli`: CI has no debug build and passes the published one in.
-  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
+  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net11.0/Cli}"
 
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
@@ -814,7 +814,7 @@ gate_trait_deprecation_is_per_branch() {
   sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
 
   # The runner's binary, not `run-cli`: CI has no debug build and passes the published one in.
-  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
+  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net11.0/Cli}"
 
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
@@ -896,7 +896,7 @@ gate_trait_pin_across_branches() {
   sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
 
   # The runner's binary, not `run-cli`: CI has no debug build and passes the published one in.
-  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
+  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net11.0/Cli}"
 
   clean() { sed 's/\x1b\[[0-9;]*m//g'; }
 
@@ -1018,7 +1018,7 @@ DARK
 gate_shipped_tree_typechecks() {
   set -euo pipefail
 
-  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
+  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net11.0/Cli}"
   ROOT=$(realpath -m rundir/shipped-tree-typechecks)
   # What this guards is "the audit covered the tree", and the tree has to be counted OUTSIDE the
   # report or the check is circular. An earlier version compared `checked` against the report's
@@ -1114,7 +1114,7 @@ EOF
 gate_package_tests() {
   set -euo pipefail
 
-  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}"
+  CLI="$PWD/${CLI:-backend/Build/out/Cli/Debug/net11.0/Cli}"
   ROOT=$(realpath -m rundir/package-tests)
 
   rm -rf "$ROOT"; mkdir -p "$ROOT/.darklang"
@@ -1126,7 +1126,7 @@ gate_package_tests() {
   # The runner stays the Debug CLI. Made when the Debug build has changed since the last copy,
   # which costs 5 to 15 s; if that fails, everything runs on the Debug CLI as before.
   CHILD_CLI="$CLI"
-  if [[ "$CLI" == "$PWD/backend/Build/out/Cli/Debug/net10.0/Cli" ]]; then
+  if [[ "$CLI" == "$PWD/backend/Build/out/Cli/Debug/net11.0/Cli" ]]; then
     if FAST_CLI=$(scripts/testing/_fast-cli --make 2> "$ROOT/child-cli.log"); then
       CHILD_CLI="$PWD/$FAST_CLI"
     else

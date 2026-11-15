@@ -24,9 +24,9 @@ LOGS="${HOME}/.darklang/logs"
 CLI_LOG="$LOGS/cli.log"
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  EXE="backend/Build/out/Cli/Release/net10.0/linux-x64/publish/Cli"
+  EXE="backend/Build/out/Cli/Release/net11.0/linux-x64/publish/Cli"
 else
-  EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
+  EXE="backend/Build/out/Cli/Debug/net11.0/Cli"
 fi
 
 # Is what we're about to run current? This used to be inferred by tailing
