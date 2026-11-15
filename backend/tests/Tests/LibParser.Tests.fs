@@ -1105,7 +1105,10 @@ let private goldenDiagnosticsTests =
         match (P.parse "[1; 2]").diagnostics with
         | [ d ] ->
           Expect.equal d.code P.DiagnosticCode.expected "code"
-          Expect.equal d.hint (Some "use ',' instead") "hint"
+          Expect.equal
+            d.message
+            "Dark separates list items with commas: `[a, b]`"
+            "message"
         | other -> failtest $"expected one diagnostic, got {other}"
         match (P.parse "print(1); print(2)").diagnostics with
         | [ d ] ->
@@ -1140,10 +1143,9 @@ let private goldenDiagnosticsTests =
             + "  1 | let a = 1L\n"
             + "    |         ^^\n"
             + "  the same at 3:9\n"
-            + "error[PARSE-EXPECTED] at 2:11: expected ',' between list elements, found ';'\n"
+            + "error[PARSE-EXPECTED] at 2:11: Dark separates list items with commas: `[a, b]`\n"
             + "  2 | let b = [1; 2]\n"
-            + "    |           ^\n"
-            + "  hint: use ',' instead"
+            + "    |           ^"
           Expect.equal rendered expected "full rendering")
       testCase "renderDiagnostics: past ten mistakes, counts the rest" (fun _ ->
         let at row message : P.Diagnostic =

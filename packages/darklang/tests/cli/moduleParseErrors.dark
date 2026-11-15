@@ -18,3 +18,25 @@ test everyParseErrorIsShown = Instance.withInstance(fun i ->
         "the first error")
 
       Instance.says(out, "must use 'val'", "the second error") ]))
+
+
+test semicolonsSayCommas = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/semis.dark"
+  let _ =
+    Stdlib.Cli.File.writeAtomic(
+      path,
+      "type P = { x: Int64; y: Int64 }\nlet f(): List<Int64> = [1; 2]\n")
+    |> Builtin.unwrap
+
+  let (code, out) = Instance.ran(i, [ "module", "/Me.Semis", path ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 1, "nothing was saved")
+      Instance.says(
+        out,
+        "line 1, column 20: Dark separates record fields with commas: `{ x: Int64, y: Int64 }`",
+        "the record type")
+
+      Instance.says(
+        out,
+        "line 2, column 26: Dark separates list items with commas: `[a, b]`",
+        "the list") ]))

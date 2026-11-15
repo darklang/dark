@@ -6,7 +6,7 @@ module Darklang.Cli.Commits
 // a set of ops rather than a snapshot. That's why `show` takes either: a commit hash prints the ops it
 // committed, an op id prints that one op.
 
-/// One display row: [short hash; ops committed; message].
+/// One display row: [short hash, ops committed, message].
 let commitRow(c: SCM.Commits.Commit): List<String> =
   let ops = Stdlib.display(SCM.PackageOps.opCountIn(c.hash))
   [ SCM.Conflicts.shortHash(c.hash), ops, c.message ]

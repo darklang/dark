@@ -3,7 +3,7 @@
 /// One loop, written once against `Stdlib.Host.await`; how the wait happens is the runtime's:
 ///
 ///   loop session =
-///     match Host.await [Key; StoreChanged] with
+///     match Host.await [Key, StoreChanged] with
 ///     | StoreChanged c when Live.affects c entry -> loop (render (reload c session))
 ///     | Key k -> loop (render (update session k))
 ///     | _ -> loop session

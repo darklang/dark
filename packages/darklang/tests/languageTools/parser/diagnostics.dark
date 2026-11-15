@@ -107,7 +107,7 @@ test goldenMessages =
         [ "expected ']' to close the '[' at line 1:9, found end of file"
           "expected an expression, found end of file" ])
 
-      golden("[1; 2]", [ "expected ',' between list elements, found ';'" ])
+      golden("[1; 2]", [ "Dark separates list items with commas: `[a, b]`" ])
 
       // record patterns ignore the fields they leave out, so `...` is not needed
       golden(
@@ -171,28 +171,32 @@ test goldenMessages =
 
       golden(
         "[1; 2; 3]",
-        [ "expected ',' between list elements, found ';'"
-          "expected ',' between list elements, found ';'" ])
+        [ "Dark separates list items with commas: `[a, b]`"
+          "Dark separates list items with commas: `[a, b]`" ])
 
       golden(
         "match x with | [a; b] -> a",
-        [ "expected ',' between list-pattern elements, found ';'" ])
+        [ "Dark separates list items with commas: `[a, b]`" ])
+
+      golden(
+        "match x with | { a = 1; b = 2 } -> 1",
+        [ "Dark separates record fields with commas: `{ x = a, y = b }`" ])
 
       golden(
         "Point { x = 1; y = 2 }",
-        [ "expected ',' between record fields, found ';'" ])
+        [ "Dark separates record fields with commas: `Point { x = 1, y = 2 }`" ])
 
       golden(
         "Dict { 1: 2; 3: 4 }",
-        [ "expected ',' between dict entries, found ';'" ])
+        [ "Dark separates dict entries with commas: `Dict { \"a\": 1, \"b\": 2 }`" ])
 
       golden(
         "{ p with x = 1; y = 2 }",
-        [ "expected ',' between record-update fields, found ';'" ])
+        [ "Dark separates record fields with commas: `{ p with x = 1, y = 2 }`" ])
 
       golden(
         "type P = { x: Int64; y: Int64 }",
-        [ "expected ',' between record-type fields, found ';'" ])
+        [ "Dark separates record fields with commas: `{ x: Int64, y: Int64 }`" ])
 
       // only a newline separates statements: in a body, in parens, at top level
       golden(
