@@ -58,6 +58,71 @@ test parseRejectsLowercaseZ =
   |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
 
 
+// An offset from UTC is taken off, so the result is the same instant in UTC
+test parseOffsets =
+  let ok = fun s -> Stdlib.Result.Result.Ok(s)
+  let bad = Stdlib.Result.Result.Error("Invalid date format")
+  Stdlib.Test.all(
+    [ p("2026-03-10T13:55:36+02:00")
+      |> Stdlib.Test.equal(ok("2026-03-10T11:55:36Z"))
+
+      p("2026-03-10T13:55:36-05:30")
+      |> Stdlib.Test.equal(ok("2026-03-10T19:25:36Z"))
+
+      p("2026-03-10T13:55:36+00:00")
+      |> Stdlib.Test.equal(ok("2026-03-10T13:55:36Z"))
+
+      p("2026-03-10T13:55:36-00:00")
+      |> Stdlib.Test.equal(ok("2026-03-10T13:55:36Z"))
+
+      p("2026-03-10T13:55:36.250+02:00")
+      |> Stdlib.Test.equal(ok("2026-03-10T11:55:36.250Z"))
+
+      p("2026-03-10T23:59:00+23:59")
+      |> Stdlib.Test.equal(ok("2026-03-10T00:00:00Z"))
+
+      p("2026-03-10T00:00:00-23:59")
+      |> Stdlib.Test.equal(ok("2026-03-10T23:59:00Z"))
+
+      // across a day, a leap day and a year
+      p("2026-03-01T01:00:00+02:00")
+      |> Stdlib.Test.equal(ok("2026-02-28T23:00:00Z"))
+
+      p("2024-03-01T00:30:00+01:00")
+      |> Stdlib.Test.equal(ok("2024-02-29T23:30:00Z"))
+
+      p("2025-12-31T23:30:00-01:00")
+      |> Stdlib.Test.equal(ok("2026-01-01T00:30:00Z"))
+
+      p("0001-01-01T00:30:00+01:00")
+      |> Stdlib.Test.equal(ok("0000-12-31T23:30:00Z"))
+
+      // the same instant written two ways is equal
+      Stdlib.Test.equal(
+        d("2026-03-10T13:55:36+02:00"),
+        d("2026-03-10T11:55:36Z"))
+
+      // the offset must be +hh:mm or -hh:mm, in range, and end the text
+      p("2026-03-10T13:55:36+24:00") |> Stdlib.Test.equal(bad)
+      p("2026-03-10T13:55:36+02:60") |> Stdlib.Test.equal(bad)
+      p("2026-03-10T13:55:36+0200") |> Stdlib.Test.equal(bad)
+      p("2026-03-10T13:55:36+02") |> Stdlib.Test.equal(bad)
+      p("2026-03-10T13:55:36+2:00") |> Stdlib.Test.equal(bad)
+      p("2026-03-10T13:55:36+02:00Z") |> Stdlib.Test.equal(bad)
+      p("2026-03-10T13:55:36+02:00:00") |> Stdlib.Test.equal(bad)
+      p("2026-03-10T13:55:36 +02:00") |> Stdlib.Test.equal(bad)
+      p("2026-03-10T13:55:36+") |> Stdlib.Test.equal(bad)
+      p("2026-03-10T13:55:36") |> Stdlib.Test.equal(bad)
+      // the local time is checked before the offset is taken off
+      p("2026-02-29T01:00:00+02:00") |> Stdlib.Test.equal(bad)
+      p("2026-03-10T24:00:00-01:00") |> Stdlib.Test.equal(bad)
+      p("2026-03-10T13:60:00+01:00") |> Stdlib.Test.equal(bad)
+      p("2026-03-10T13:55:60+01:00") |> Stdlib.Test.equal(bad)
+      // only ASCII digits
+      p("2026-03-1١T13:55:36Z") |> Stdlib.Test.equal(bad)
+      p("2026-03-10T13:55:36+0١:00") |> Stdlib.Test.equal(bad) ])
+
+
 // Time zones aren't allowed
 test parseRejectsTimeZones =
   Stdlib.Test.all(
@@ -107,7 +172,7 @@ test parseFailInBoth =
       |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
 
       p("1999-03-22T05:06:07+01:00")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("1999-03-22T04:06:07Z"))
 
       p("1999-03-22T05:06:07.000Z")
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("1999-03-22T05:06:07Z"))
@@ -116,7 +181,7 @@ test parseFailInBoth =
       |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
 
       p("2006-06-09T10:20:30.040+02:00")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("2006-06-09T08:20:30.040Z"))
 
       p("20061204T1020Z")
       |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
