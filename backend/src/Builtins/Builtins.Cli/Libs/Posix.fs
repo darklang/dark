@@ -11,7 +11,6 @@ module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 module PackageRefs = LibExecution.PackageRefs
-module NR = LibExecution.RuntimeTypes.NameResolution
 module Bytes = LibExecution.Bytes
 open Builtin.Shortcuts
 
@@ -24,8 +23,6 @@ module Interpreter = LibExecution.Interpreter
 
 let private posixErrorTypeName () =
   FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Cli.Posix.error ())
-
-let private posixErrorTypeRef () = TCustomType(NR.ok (posixErrorTypeName ()), [])
 
 let private posixErrorKT () = KTCustomType(posixErrorTypeName (), [])
 
@@ -54,16 +51,6 @@ let private asResult
     match outcome with
     | Ok response -> Ply(Dval.resultOk kt (posixErrorKT ()) (ok response))
     | Error e -> Ply(Dval.resultError kt (posixErrorKT ()) (dPosixError e)))
-
-/// Run one posix operation through the checked host boundary and map it to
-/// `Result<kt, PosixError>`.
-let private posixResult
-  (kt : KnownType)
-  (vm : VMState)
-  (op : HostTypes.PosixOp)
-  (ok : Host.Response -> Dval)
-  : Ply<Dval> =
-  asResult kt vm (Host.Operation.Posix op) ok
 
 /// Run one posix lookup whose failure is simply absence: `Option<String>`.
 let private posixOption
