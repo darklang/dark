@@ -35,7 +35,7 @@ let private enumCase
   let name = tn f
   DEnum(name, name, [], case, fields)
 
-let private strings (items : List<Dval>) : List<string> =
+let internal strings (items : List<Dval>) : List<string> =
   items
   |> List.map (function
     | DString s -> s
