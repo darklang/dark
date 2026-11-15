@@ -330,6 +330,10 @@ module Sql =
         raiseIfStoreCondition err
         Exception.raiseInternal $"SQL query failed: {err}" [ "error", err ])
 
+  let executeRowsSync (reader : RowReader -> 't) (props : Sql.SqlProps) : List<'t> =
+    timedSync "sql.rowsSync" (fun () -> Sql.execute reader props)
+    |> unwrapDb (fun err -> $"SQL query failed in executeRowsSync: {err}")
+
   let executeExistsSync (props : Sql.SqlProps) : bool =
     match
       timedSync "sql.existsSync" (fun () ->

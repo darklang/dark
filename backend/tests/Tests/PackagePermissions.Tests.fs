@@ -741,9 +741,11 @@ let preflightCollectsOnlyCertainRequests =
          |> Set.ofList)
         (set
           [ Permission.Request.file Permission.AccessKind.Read "/tmp/report"
-            |> Result.unwrap
+            |> Result.toOption
+            |> Option.get
             Permission.Request.file Permission.AccessKind.Write "/tmp/report"
-            |> Result.unwrap ])
+            |> Result.toOption
+            |> Option.get ])
         "mutating flags require write access even with O_RDONLY"
   }
 
