@@ -76,7 +76,6 @@ let createState
     reportException = reportException
     notify = notify
 
-    lambdaInstrCache = System.Collections.Concurrent.ConcurrentDictionary()
     packageFnCallCache = System.Collections.Concurrent.ConcurrentDictionary()
 
     descriptorSession = Host.createLazyDescriptorSession ()

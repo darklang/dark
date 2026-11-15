@@ -352,6 +352,7 @@ module RuntimeTypes =
       RT.DApplicable(
         RT.AppLambda
           { exprId = 7UL
+            impl = RT.NoCode
             closedRegisters = [||]
             typeSymbolTable = RT.TST.empty
             access =

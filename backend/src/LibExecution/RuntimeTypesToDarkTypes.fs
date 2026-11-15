@@ -792,6 +792,7 @@ module ApplicableLambda =
     match d with
     | DRecord(_, _, _, fields) ->
       { exprId = fields |> D.field "exprId" |> D.uInt64
+        impl = NoCode
         closedRegisters =
           fields
           |> D.field "closedRegisters"

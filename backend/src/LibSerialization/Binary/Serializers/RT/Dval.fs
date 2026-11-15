@@ -323,6 +323,7 @@ and readApplicableLambda (r : BinaryReader) : ApplicableLambda =
       (reg, dval))
   let typeSymbolTable = readTypeSymbolTable r
   { exprId = exprId
+    impl = NoCode
     closedRegisters = Captures.ofList closedRegisters
     typeSymbolTable = typeSymbolTable
     access =

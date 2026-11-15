@@ -329,9 +329,9 @@ let rec private ofApplicable
         // the instructions and every package fn's answer are fixed for the life of the oracle.
         let lambdaMemo = (memosFor state).Lambdas
         let! own =
-          match state.lambdaInstrCache.TryGetValue lambda.exprId with
-          | false, _ -> Ply Purity.Unknown
-          | true, impl ->
+          match lambda.impl with
+          | NoCode -> Ply Purity.Unknown
+          | HasCode impl ->
             match lambdaMemo.TryGetValue lambda.exprId with
             | true, struct (readFrom, known) when obj.ReferenceEquals(readFrom, impl) ->
               Ply known
