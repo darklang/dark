@@ -516,6 +516,61 @@ test divisionResults =
         Stdlib.Result.Result.Error(Stdlib.Math.ModulusError.NegativeModulus)) ])
 
 
+/// The checked operators return what the operator computes, and {{Error}} where it raises past
+/// the range.
+test checkedArithmetic =
+  let max = 79228162514264337593543950335dec
+  Stdlib.Test.all(
+    [ Stdlib.Decimal.checkedAdd(1.5dec, 2dec)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3.5dec))
+
+      Stdlib.Decimal.checkedAdd(max, 1dec)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+
+      Stdlib.Decimal.checkedSubtract(1dec, 2.5dec)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1.5dec))
+
+      Stdlib.Decimal.checkedSubtract(-max, 1dec)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+
+      Stdlib.Decimal.checkedMultiply(1.5dec, 3dec)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(4.5dec))
+
+      Stdlib.Decimal.checkedMultiply(max, 2dec)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow))
+
+      Stdlib.Decimal.checkedDivide(max, 0.5dec)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.DivisionError.Overflow)) ])
+
+
+test checkedPower =
+  Stdlib.Test.all(
+    [ Stdlib.Decimal.checkedPower(1.1dec, 2)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.21dec))
+
+      Stdlib.Decimal.checkedPower(2dec, -2)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0.25dec))
+
+      Stdlib.Decimal.checkedPower(5dec, 0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1dec))
+
+      Stdlib.Decimal.checkedPower(10dec, 28)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(10000000000000000000000000000dec))
+
+      Stdlib.Decimal.checkedPower(10dec, 29)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.DivisionError.Overflow))
+
+      Stdlib.Decimal.checkedPower(0dec, -1)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.DivisionError.DivisionByZero)) ])
+
+
 test int64Conversions =
   Stdlib.Test.all(
     [ Stdlib.Decimal.fromInt64(-42) |> Stdlib.Test.equal(-42dec)

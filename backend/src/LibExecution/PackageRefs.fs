@@ -234,6 +234,8 @@ module Type =
 
     module Math =
       let outOfRange = p [ "Math" ] "OutOfRange"
+      let overflow = p [ "Math" ] "Overflow"
+      let divisionError = p [ "Math" ] "DivisionError"
 
     module HttpClient =
       let private p addl = p ("HttpClient" :: addl)

@@ -166,6 +166,24 @@ test fromFloatTruncatesTowardZero =
 
 // NaN and the infinities have no BigInt, so they are out of range.
 
+test checkedFromFloat64 =
+  Stdlib.Test.all(
+    [ Stdlib.BigInt.checkedFromFloat64(-3.9)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-3z))
+
+      Stdlib.BigInt.checkedFromFloat64(1e30)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(1000000000000000019884624838656z))
+
+      Stdlib.BigInt.checkedFromFloat64(0.0 / 0.0)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.NotANumber))
+
+      Stdlib.BigInt.checkedFromFloat64(-1.0 / 0.0)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Math.NonFinite.Overflow)) ])
+
+
 test fromFloatRejectsNaN =
   Stdlib.BigInt.fromFloat64(0.0 / 0.0)
   => raises "Float64 has no integer value: NaN"

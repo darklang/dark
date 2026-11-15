@@ -93,26 +93,42 @@ let toFloat64(a: Int64): Float64 =
 
 
 /// Converts a <type Float64> to an <type Int64>, truncating toward zero like
-/// <fn BigInt.fromFloat64>. Returns {{None}} for NaN, infinity, or a result that
-/// doesn't fit.
-let fromFloat64(a: Float64): Option<Int64> =
-  if Float64.isFinite(a) then
-    a
-    |> BigInt.fromFloat64
-    |> BigInt.toInt64
-  else
-    Option.None
+/// <fn BigInt.fromFloat64>. Returns {{Error NotANumber}} for NaN, or {{Error Overflow}} for
+/// an infinity or a result that doesn't fit.
+let fromFloat64(a: Float64): Result<Int64, Math.NonFinite> =
+  __inRange(a) |> Result.map(Float64.truncate)
 
 
 /// Converts a <type Float64> to an <type Int64>, rounding to the nearest integer
-/// (ties to even). Returns {{None}} for NaN, infinity, or a result that
+/// (ties to even). Returns {{Error NotANumber}} for NaN, or {{Error Overflow}} for an
+/// infinity or a result that doesn't fit.
+let fromFloatRounded(a: Float64): Result<Int64, Math.NonFinite> =
+  __inRange(a) |> Result.map(Float64.round)
+
+
+/// Converts a <type Float64> to an <type Int64>, rounding down. Returns
+/// {{Error NotANumber}} for NaN, or {{Error Overflow}} for an infinity or a result that
 /// doesn't fit.
-let fromFloatRounded(a: Float64): Option<Int64> =
-  // 2^63 is exact as a Float64, and every Float64 in [-2^63, 2^63) rounds into range
-  if a >= -9223372036854775808.0 && a < 9223372036854775808.0 then
-    Option.Some(Float64.round(a))
+let fromFloatFloor(a: Float64): Result<Int64, Math.NonFinite> =
+  __inRange(a) |> Result.map(Float64.floor)
+
+
+/// Converts a <type Float64> to an <type Int64>, rounding up. Returns
+/// {{Error NotANumber}} for NaN, or {{Error Overflow}} for an infinity or a result that
+/// doesn't fit.
+let fromFloatCeiling(a: Float64): Result<Int64, Math.NonFinite> =
+  __inRange(a) |> Result.map(Float64.ceiling)
+
+
+// 2^63 is exact as a Float64, and every Float64 in [-2^63, 2^63) rounds into range whichever
+// way it rounds: the Float64s nearest either end are whole numbers
+let __inRange(a: Float64): Result<Float64, Math.NonFinite> =
+  if Float64.isNaN(a) then
+    Result.Error(Math.NonFinite.NotANumber)
+  else if a >= -9223372036854775808.0 && a < 9223372036854775808.0 then
+    Result.Ok(a)
   else
-    Option.None
+    Result.Error(Math.NonFinite.Overflow)
 
 
 /// Parses a <type String> into an <type Int64>, returning {{Ok}} with the
