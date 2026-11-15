@@ -42,7 +42,7 @@ comes only from nuget.org.
 
 Dependabot reads `Directory.Packages.props` and opens PRs for packages and the SDK. Restore
 runs NuGet's audit and prints NU1901 to NU1904 for known advisories, transitive packages
-included. To list them, and packages nuget.org marks deprecated, from `backend/` in the dev
+included. In CI, NU1903 and NU1904 (high and critical) are errors. To list them, and packages nuget.org marks deprecated, from `backend/` in the dev
 container:
 
     dotnet list fsdark.sln package --vulnerable --include-transitive

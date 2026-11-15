@@ -2,6 +2,9 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <!-- It serves no static files. Left on, the SDK rewrites its staticwebassets JSON on every
+         build, so the package reload never sees the same LocalExec twice. -->
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
   </PropertyGroup>
   <!-- dependencies and code -->
   <ItemGroup>

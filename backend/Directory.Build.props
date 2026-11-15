@@ -49,6 +49,9 @@
     <!-- NU1603: a pinned version wasn't found, so NuGet took the next one up.
          That is a dependency changing without anyone changing it, so it fails the build. -->
     <WarningsAsErrors>$(WarningsAsErrors);NU1603</WarningsAsErrors>
+    <!-- NU1903, NU1904: a package with a known high or critical vulnerability fails CI.
+         Only in CI, so a new advisory never stops a local build. -->
+    <WarningsAsErrors Condition="'$(CI)' == 'true'">$(WarningsAsErrors);NU1903;NU1904</WarningsAsErrors>
   </PropertyGroup>
 
   <!-- A Debug build leaves the commit out of every project, so a commit or branch switch
