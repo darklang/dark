@@ -20,7 +20,7 @@ source
   │  └─ Builtins.Language.WrittenTypesToDarkTypes → Dark WrittenTypes (Dvals)
   │                                                   → Dark WT2PT (highlighter, etc.)
   └─ Parser.parseFor Mode            structural + file-purpose validation
-     └─ ValidatedSourceFile          required by Package, TestModule, and CLI
+     └─ ValidatedSourceFile          required by Package and CLI
         └─ WrittenTypesToProgramTypes → executable ProgramTypes
 ```
 
@@ -32,6 +32,8 @@ output over the real package corpus; they must be identical (node ids aside).
 
 - `Tokenizer.fs` — shared token/position types (`Token`, `Pos`, `TokenRange`)
 - `Lexer.fs` — the lexer: tokens with ranges, doc comments, trivia
+- `FloatLiteral.fs` — exact decimal precision checks and exponent-free float
+  normalization
 - `Parser.fs` — the parser: `ParserState` + module-level parse functions;
   `parse` for tooling, `parseFor` for execution, offside scopes, recovery, and
   structured diagnostics
@@ -43,7 +45,6 @@ output over the real package corpus; they must be identical (node ids aside).
 - `WrittenTypesToProgramTypes.fs` — execution lowering + name resolution glue
 - `NameResolver.fs` — name → FQName resolution against the package manager
 - `Package.fs` — package-file entrypoint used by the loader
-- `TestModule.fs` — testfile (`.dark`) classification and execution harness
 
 Value declarations use `val name = expression`. `let` is reserved for function
 declarations and local/script bindings.

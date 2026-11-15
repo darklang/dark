@@ -1,12 +1,11 @@
-# `darklang` CLI executable
+# `dark` CLI executable
 
-This is a project that yields a `darklang` executable artifact.
+This is a project that yields the `dark` executable.
 It builds to many platforms -- see the .fsproj file for details.
 
 ## Usage
 
-- create script with `#!/usr/bin/env darklang`
-- runs same as if it was bash
+- `dark run <file.dark>` runs a script
 
 ## Structure
 
