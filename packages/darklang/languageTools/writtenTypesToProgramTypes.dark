@@ -21,7 +21,7 @@ val defaultContext = Context { currentFnName = Option.None, argMap = Dict {}, lo
 
 
 let gid(): Int64 =
-  // TODO: fix upper range here
+  // stays below bit 61, which gidAt sets to mark an id that carries a position
   Stdlib.Int64.random(0, 922337203685477580)
 
 

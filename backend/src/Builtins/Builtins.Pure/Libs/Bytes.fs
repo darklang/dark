@@ -313,12 +313,6 @@ let fns () : List<BuiltInFn> =
       callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
-// TODO `bytesEmpty` is the only BuiltInValue we ship. The pattern is
-// general — `intMaxInt64`, `uuidNil`, etc. could all live here — but
-// today it's a sample size of one, so the surrounding machinery isn't
-// well-exercised. Add a second use case before relying on it for
-// anything load-bearing.
-//
 // TODO general "Builtin bytes constant" pattern: a `seeds : List<byte[]>`
 // field on Builtins, with LocalExec-startup hashing + INSERT OR IGNORE
 // into `package_blobs`. Lets `Builtin.someBytesConstant` ship bytes from
