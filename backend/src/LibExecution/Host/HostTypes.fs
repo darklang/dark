@@ -167,7 +167,9 @@ type Operation =
     headers : List<string * string> *
     body : byte[] *
     /// How long the exchange may take, body included; `None` is the profile's own.
-    timeoutMs : Option<int>
+    timeoutMs : Option<int> *
+    /// Undo a gzip or brotli `Content-Encoding` on the body.
+    decompress : bool
   /// Open a streaming response; the handle in the reply reads from the
   /// host-owned stream table.
   | HttpStreamOpen of
@@ -177,7 +179,9 @@ type Operation =
     headers : List<string * string> *
     body : byte[] *
     /// How long the response's headers may take; `None` is the profile's own.
-    timeoutMs : Option<int>
+    timeoutMs : Option<int> *
+    /// Undo a gzip or brotli `Content-Encoding` on the body.
+    decompress : bool
   /// Bind an HTTP listener and return an opaque host-owned handle.
   | HttpServerBind of address : string * port : int
   | ChildStart of program : string * args : List<string> * inheritTerminal : bool
@@ -405,9 +409,9 @@ let describeOperation (op : Operation) : string =
   | Operation.RuntimeHash -> "runtime-hash"
   | Operation.EnvGet name -> $"env-get {name}"
   | Operation.EnvList -> "env-list"
-  | Operation.HttpRequest(_, method, url, _, _, _) ->
+  | Operation.HttpRequest(_, method, url, _, _, _, _) ->
     $"http {method} {redactUrl url}"
-  | Operation.HttpStreamOpen(_, method, url, _, _, _) ->
+  | Operation.HttpStreamOpen(_, method, url, _, _, _, _) ->
     $"http-stream {method} {redactUrl url}"
   | Operation.HttpServerBind(address, port) -> $"http-server-bind {address}:{port}"
   | Operation.ChildStart(program, _, _) -> $"child-start {program}"

@@ -1,6 +1,8 @@
 [expected-request]
 GET PATH?f=5.7&n=-0L.0L&l=1231325345345345.34534534634634634 HTTP/1.1
 Host: HOST
+Accept-Encoding: gzip
+Accept-Encoding: br
 Content-Length: 0
 
 
@@ -17,6 +19,7 @@ Content-Length: LENGTH
  {response with headers = respHeaders}) ==
    Darklang.Stdlib.HttpClient.Response
     { statusCode = 200
+      url = "http://URL?f=5.7&n=-0L.0L&l=1231325345345345.34534534634634634"
       headers =
         [
           ("Server", "kestrel")

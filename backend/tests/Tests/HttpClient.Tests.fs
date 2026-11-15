@@ -673,7 +673,7 @@ module StreamDvalTests =
           let url =
             MockHelpers.registerTestCase "stream-dval-basic" 200 "text/plain" body
           let! setup =
-            HostHttp.openStream (MockHelpers.profile ()) "GET" url [] [||] None
+            HostHttp.openStream (MockHelpers.profile ()) "GET" url [] [||] None false
           match setup with
           | Error e -> failtest $"expected Ok, got Error: {e}"
           | Ok head ->
@@ -698,7 +698,7 @@ module StreamDvalTests =
           let url =
             MockHelpers.registerTestCase "stream-dval-large" 200 "text/plain" body
           let! setup =
-            HostHttp.openStream (MockHelpers.profile ()) "GET" url [] [||] None
+            HostHttp.openStream (MockHelpers.profile ()) "GET" url [] [||] None false
           match setup with
           | Error e -> failtest $"expected Ok, got Error: {e}"
           | Ok head ->
@@ -714,7 +714,7 @@ module StreamDvalTests =
           let url =
             MockHelpers.registerTestCase "stream-dval-empty" 200 "text/plain" ""
           let! setup =
-            HostHttp.openStream (MockHelpers.profile ()) "GET" url [] [||] None
+            HostHttp.openStream (MockHelpers.profile ()) "GET" url [] [||] None false
           match setup with
           | Error e -> failtest $"expected Ok, got Error: {e}"
           | Ok head ->
@@ -729,7 +729,7 @@ module StreamDvalTests =
           let url =
             MockHelpers.registerTestCase "stream-dval-close" 200 "text/plain" body
           let! setup =
-            HostHttp.openStream (MockHelpers.profile ()) "GET" url [] [||] None
+            HostHttp.openStream (MockHelpers.profile ()) "GET" url [] [||] None false
           match setup with
           | Error e -> failtest $"expected Ok, got Error: {e}"
           | Ok head ->
@@ -791,6 +791,8 @@ module ProtocolPolicyTests =
                 let profile : HostHttp.Profile =
                   { config =
                       { timeoutInMs = 1000
+                        maxConnectionsPerHost = HostHttp.defaultMaxConnectionsPerHost
+                        streamIdleTimeoutMs = HostHttp.defaultStreamIdleTimeoutMs
                         allowedIP = fun _ -> true
                         allowedHost = fun _ -> true }
                     client = client }
@@ -802,6 +804,7 @@ module ProtocolPolicyTests =
                     []
                     [||]
                     None
+                    false
                 match response with
                 | Ok(response : LibExecution.HostTypes.HttpResponse) ->
                   Expect.equal response.statusCode 200 "successful response"
@@ -866,11 +869,20 @@ module TlsFailureTests =
               let profile : HostHttp.Profile =
                 { config =
                     { timeoutInMs = 1000
+                      maxConnectionsPerHost = HostHttp.defaultMaxConnectionsPerHost
+                      streamIdleTimeoutMs = HostHttp.defaultStreamIdleTimeoutMs
                       allowedIP = fun _ -> true
                       allowedHost = fun _ -> true }
                   client = client }
               let! result =
-                HostHttp.send profile "GET" "https://fixture.test/" [] [||] None
+                HostHttp.send
+                  profile
+                  "GET"
+                  "https://fixture.test/"
+                  []
+                  [||]
+                  None
+                  false
               match result with
               | Error(LibExecution.HostTypes.HttpRequestError.TlsError _) -> ()
               | other -> failtest $"expected TlsError, got {other}"
@@ -948,11 +960,20 @@ module TimeoutTests =
               let profile : HostHttp.Profile =
                 { config =
                     { timeoutInMs = 1000
+                      maxConnectionsPerHost = HostHttp.defaultMaxConnectionsPerHost
+                      streamIdleTimeoutMs = HostHttp.defaultStreamIdleTimeoutMs
                       allowedIP = fun _ -> true
                       allowedHost = fun _ -> true }
                   client = client }
               let! result =
-                (HostHttp.send profile method "http://fixture.test/" [] [||] None)
+                (HostHttp.send
+                  profile
+                  method
+                  "http://fixture.test/"
+                  []
+                  [||]
+                  None
+                  false)
                   .WaitAsync(System.TimeSpan.FromSeconds 10.0)
               match result with
               | Error LibExecution.HostTypes.HttpRequestError.Timeout -> ()
@@ -990,6 +1011,8 @@ module TimeoutTests =
     let profile : HostHttp.Profile =
       { config =
           { timeoutInMs = timeoutInMs
+            maxConnectionsPerHost = HostHttp.defaultMaxConnectionsPerHost
+            streamIdleTimeoutMs = HostHttp.defaultStreamIdleTimeoutMs
             allowedIP = fun _ -> true
             allowedHost = fun _ -> true }
         client = client }
@@ -1004,7 +1027,14 @@ module TimeoutTests =
           try
             let started = System.Diagnostics.Stopwatch.StartNew()
             let! result =
-              (HostHttp.send profile "GET" "http://fixture.test/" [] [||] (Some 200))
+              (HostHttp.send
+                profile
+                "GET"
+                "http://fixture.test/"
+                []
+                [||]
+                (Some 200)
+                false)
                 .WaitAsync(System.TimeSpan.FromSeconds 20.0)
             match result with
             | Error LibExecution.HostTypes.HttpRequestError.Timeout -> ()
@@ -1027,12 +1057,13 @@ module TimeoutTests =
                 []
                 [||]
                 (Some 10_000)
+                false
             match result with
             | Ok(response : LibExecution.HostTypes.HttpResponse) ->
               Expect.equal response.statusCode 200 "answered"
             | Error e -> failtest $"expected the response, got {e}"
             let! cut =
-              HostHttp.send profile "GET" "http://fixture.test/" [] [||] None
+              HostHttp.send profile "GET" "http://fixture.test/" [] [||] None false
             match cut with
             | Error LibExecution.HostTypes.HttpRequestError.Timeout -> ()
             | other -> failtest $"without one, the profile's 100ms cuts it: {other}"
@@ -1050,7 +1081,8 @@ module TimeoutTests =
                 "http://fixture.test/"
                 []
                 [||]
-                (Some 200))
+                (Some 200)
+                false)
                 .WaitAsync(System.TimeSpan.FromSeconds 20.0)
             match result with
             | Error LibExecution.HostTypes.HttpRequestError.Timeout -> ()
@@ -1138,7 +1170,7 @@ module HeaderValidationTests =
             match prepare sent with
             | Error e -> failtest $"refused: {e}"
             | Ok uri ->
-              let! result = HostHttp.send profile "GET" uri sent [||] None
+              let! result = HostHttp.send profile "GET" uri sent [||] None false
               Expect.isOk result "sent"
               Expect.equal received sent "every header arrives as written"
           finally
@@ -1192,7 +1224,8 @@ module ProxyTests =
                     $"{scheme}://fixture.test/zen"
                     []
                     [||]
-                    None)
+                    None
+                    false)
                     .WaitAsync(deadline.Token)
                 let! firstLine = received
                 Expect.equal
@@ -1224,7 +1257,14 @@ module ProxyTests =
               let profile = HostHttp.profileWithProxy HostHttp.defaultConfig proxy
               use _client = profile.client
               let! result =
-                (HostHttp.send profile "GET" $"http://localhost:{port}/" [] [||] None)
+                (HostHttp.send
+                  profile
+                  "GET"
+                  $"http://localhost:{port}/"
+                  []
+                  [||]
+                  None
+                  false)
                   .WaitAsync(System.TimeSpan.FromSeconds 5.0)
               match result with
               | Error(HttpRequestError.NetworkError failure) ->
@@ -1247,7 +1287,7 @@ module ProxyTests =
               let profile = HostHttp.profileWithProxy HostHttp.defaultConfig proxy
               use _client = profile.client
               let! result =
-                HostHttp.send profile "GET" "http://fixture.test/" [] [||] None
+                HostHttp.send profile "GET" "http://fixture.test/" [] [||] None false
               match result with
               | Error(HttpRequestError.NetworkError failure) ->
                 Expect.equal
@@ -1278,6 +1318,7 @@ module ProxyTests =
                   []
                   [||]
                   None
+                  false
               match result with
               | Error(HttpRequestError.NetworkError failure) ->
                 Expect.equal
@@ -1312,7 +1353,14 @@ module ProxyTests =
               let profile = HostHttp.profileWithProxy config proxy
               use _client = profile.client
               let! result =
-                HostHttp.send profile "GET" $"http://127.0.0.1:{port}/" [] [||] None
+                HostHttp.send
+                  profile
+                  "GET"
+                  $"http://127.0.0.1:{port}/"
+                  []
+                  [||]
+                  None
+                  false
               match result with
               | Error(HttpRequestError.NetworkError failure) ->
                 Expect.equal
@@ -1375,6 +1423,8 @@ module BodyTests =
     let profile : HostHttp.Profile =
       { config =
           { timeoutInMs = 500
+            maxConnectionsPerHost = HostHttp.defaultMaxConnectionsPerHost
+            streamIdleTimeoutMs = HostHttp.defaultStreamIdleTimeoutMs
             allowedIP = (fun _ -> true)
             allowedHost = (fun _ -> true) }
         client = client }
@@ -1388,7 +1438,7 @@ module BodyTests =
       let (profile, client) = profileAnswering body limit
       try
         return!
-          (HostHttp.send profile "GET" "http://fixture.test/" [] [||] None)
+          (HostHttp.send profile "GET" "http://fixture.test/" [] [||] None false)
             .WaitAsync(System.TimeSpan.FromSeconds 10.0)
       finally
         client.Dispose()
@@ -1482,10 +1532,157 @@ module BodyTests =
                 []
                 "sent"B
                 None
+                false
             match result with
             | Ok head -> HostHttp.closeStream head.handle
             | Error e -> failtest $"expected a stream, got {e}"
             Expect.equal received "sent"B "the body reached the transport"
+          finally
+            client.Dispose()
+        } ]
+
+
+/// A gzip or brotli body, decoded when the request asks (`Middleware.decompress`) and left as it
+/// came when it does not; and a stream left unread, whose connection goes back after the idle
+/// timeout.
+module DecodingTests =
+  module HostHttp = LibExecution.HostHttp
+  module HT = LibExecution.HostTypes
+
+  let private text = "hello, compressed world"B
+
+  let private gzip (bytes : byte[]) =
+    use into = new MemoryStream()
+    do
+      use z = new GZipStream(into, CompressionLevel.Fastest)
+      z.Write(bytes, 0, bytes.Length)
+    into.ToArray()
+
+  let private brotli (bytes : byte[]) =
+    use into = new MemoryStream()
+    do
+      use z = new BrotliStream(into, CompressionLevel.Fastest)
+      z.Write(bytes, 0, bytes.Length)
+    into.ToArray()
+
+  let private profileWith (idleMs : int) (encoding : string) (body : byte[]) =
+    let handler =
+      { new System.Net.Http.HttpMessageHandler() with
+          member _.SendAsync(_, _) =
+            let content = new System.Net.Http.ByteArrayContent(body)
+            content.Headers.ContentEncoding.Add encoding
+            Task.FromResult(
+              new System.Net.Http.HttpResponseMessage(
+                System.Net.HttpStatusCode.OK,
+                Content = content
+              )
+            ) }
+    let client = new System.Net.Http.HttpClient(handler)
+    let profile : HostHttp.Profile =
+      { config =
+          { HostHttp.defaultConfig with
+              streamIdleTimeoutMs = idleMs
+              allowedIP = (fun _ -> true)
+              allowedHost = (fun _ -> true) }
+        client = client }
+    (profile, client)
+
+  let private hasHeader name (headers : List<string * string>) =
+    headers |> List.exists (fun (k, _) -> String.equalsCaseInsensitive k name)
+
+  let private sendWith encoding body decompress =
+    task {
+      let (profile, client) = profileWith 0 encoding body
+      try
+        return!
+          HostHttp.send profile "GET" "http://fixture.test/" [] [||] None decompress
+      finally
+        client.Dispose()
+    }
+
+  let tests =
+    testList
+      "decoding"
+      [ testTask "a gzip body is decoded when asked" {
+          match! sendWith "gzip" (gzip text) true with
+          | Ok(r : HT.HttpResponse) ->
+            Expect.equal r.body text "the decoded body"
+            Expect.isFalse
+              (hasHeader "Content-Encoding" r.headers)
+              "no encoding left"
+            Expect.isFalse (hasHeader "Content-Length" r.headers) "no stale length"
+          | Error e -> failtest $"expected the body, got {e}"
+        }
+
+        testTask "a brotli body is decoded when asked" {
+          match! sendWith "br" (brotli text) true with
+          | Ok(r : HT.HttpResponse) -> Expect.equal r.body text "the decoded body"
+          | Error e -> failtest $"expected the body, got {e}"
+        }
+
+        testTask "a body is left as it came when not asked" {
+          match! sendWith "gzip" (gzip text) false with
+          | Ok(r : HT.HttpResponse) ->
+            Expect.equal r.body (gzip text) "the raw body"
+            Expect.isTrue (hasHeader "Content-Encoding" r.headers) "its encoding"
+          | Error e -> failtest $"expected the body, got {e}"
+        }
+
+        testTask "a body that is not the gzip it says is a NetworkError" {
+          match! sendWith "gzip" text true with
+          | Error(HT.HttpRequestError.NetworkError(HttpNetworkFailure.IoFailure _)) ->
+            ()
+          | other -> failtest $"expected NetworkError, got {other}"
+        }
+
+        testTask "a stream is decoded when asked" {
+          let (profile, client) = profileWith 0 "gzip" (gzip text)
+          try
+            match!
+              HostHttp.openStream
+                profile
+                "GET"
+                "http://fixture.test/"
+                []
+                [||]
+                None
+                true
+            with
+            | Ok head ->
+              let! chunk = HostHttp.readChunk head.handle 1024
+              HostHttp.closeStream head.handle
+              Expect.equal chunk (Some text) "the decoded body"
+            | Error e -> failtest $"expected a stream, got {e}"
+          finally
+            client.Dispose()
+        }
+
+        testTask "a stream left unread past the idle timeout is closed" {
+          let (profile, client) = profileWith 100 "identity" text
+          try
+            match!
+              HostHttp.openStream
+                profile
+                "GET"
+                "http://fixture.test/"
+                []
+                [||]
+                None
+                false
+            with
+            | Ok head ->
+              do! Task.Delay 600
+              let! read =
+                task {
+                  try
+                    let! _ = HostHttp.readChunk head.handle 1024
+                    return "read"
+                  with _ ->
+                    return "failed"
+                }
+              HostHttp.closeStream head.handle
+              Expect.equal read "failed" "a read after the timeout fails, not EOF"
+            | Error e -> failtest $"expected a stream, got {e}"
           finally
             client.Dispose()
         } ]
@@ -1571,6 +1768,7 @@ let tests =
   [ versions |> List.map (fun v -> testList v (testsFromFiles v))
     [ StreamDvalTests.tests
       BodyTests.tests
+      DecodingTests.tests
       ProtocolPolicyTests.tests
       TlsFailureTests.tests
       ProxyTests.tests

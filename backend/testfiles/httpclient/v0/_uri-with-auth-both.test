@@ -20,6 +20,7 @@ Hello back
  {response with headers = respHeaders}) ==
    Darklang.Stdlib.HttpClient.Response
     { statusCode = 200
+      url = "http://URL"
       headers =
         [
           ("Server", "kestrel")

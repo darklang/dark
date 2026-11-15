@@ -887,7 +887,7 @@ let private resolve (op : Operation) : Result<Resolved, string> =
         |> Seq.map (fun kv -> (string kv.Key, string kv.Value))
         |> Seq.toList
         |> Response.EnvEntries))
-  | Operation.HttpRequest(profile, method, url, headers, body, timeoutMs) ->
+  | Operation.HttpRequest(profile, method, url, headers, body, timeoutMs, decompress) ->
     resolveHttp
       profile
       method
@@ -896,10 +896,17 @@ let private resolve (op : Operation) : Result<Resolved, string> =
       (Error >> Response.Http)
       (fun profile uri () ->
         task {
-          let! result = HostHttp.send profile method uri headers body timeoutMs
+          let! result =
+            HostHttp.send profile method uri headers body timeoutMs decompress
           return Ok(Response.Http result)
         })
-  | Operation.HttpStreamOpen(profile, method, url, headers, body, timeoutMs) ->
+  | Operation.HttpStreamOpen(profile,
+                             method,
+                             url,
+                             headers,
+                             body,
+                             timeoutMs,
+                             decompress) ->
     resolveHttp
       profile
       method
@@ -909,7 +916,7 @@ let private resolve (op : Operation) : Result<Resolved, string> =
       (fun profile uri () ->
         task {
           let! result =
-            HostHttp.openStream profile method uri headers body timeoutMs
+            HostHttp.openStream profile method uri headers body timeoutMs decompress
           return Ok(Response.HttpStream result)
         })
   | Operation.HttpServerBind(address, port) ->

@@ -22,20 +22,31 @@ open LibExecution.HostTypes
 
 type private Headers = List<string * string>
 
-/// The per-profile knobs: the request timeout and the SSRF guards. Scheme
-/// (http/https only) and the metadata-header ban are not configurable.
+/// The per-profile knobs: the request timeout, the connection cap, how long a stream may sit
+/// unread, and the SSRF guards. Scheme (http/https only) and the metadata-header ban are not
+/// configurable.
 type Configuration =
-  { timeoutInMs : int
+  {
+    timeoutInMs : int
+    /// How many connections one host gets at a time (`SocketsHttpHandler.MaxConnectionsPerServer`).
+    maxConnectionsPerHost : int
+    /// How long an open stream may go unread before its connection is closed; 0 is no limit.
+    streamIdleTimeoutMs : int
     allowedIP : System.Net.IPAddress -> bool
-    allowedHost : string -> bool }
+    allowedHost : string -> bool
+  }
 
 /// Preserve typed failures through .NET exception wrapping.
 type private ConnectFailed(failure : HttpNetworkFailure, inner : exn) =
   inherit System.Exception("HTTP connection failed", inner)
   member _.Failure = failure
 
-/// How many connections one host gets at a time (`SocketsHttpHandler.MaxConnectionsPerServer`).
-let maxConnectionsPerHost = 50
+/// The connection cap per host when none is configured (`http.maxConnectionsPerHost`).
+let defaultMaxConnectionsPerHost = 50
+
+/// How long a stream may go unread when none is configured: a stream left undrained and
+/// unclosed otherwise holds its connection, against the host's cap, until it is collected.
+let defaultStreamIdleTimeoutMs = 60_000
 
 module private BaseClient =
   // There are a number of different configuration options we want to enable:
@@ -188,7 +199,7 @@ module private BaseClient =
         // A cap per host, as Go's `MaxConnsPerHost` and undici's pool have: `List.map(urls, get)`
         // over one host opens 50 connections, and the rest wait for one inside their deadline.
         // 50 is curl's `--parallel-max` default; browsers use 6, which is too few for an API.
-        MaxConnectionsPerServer = maxConnectionsPerHost,
+        MaxConnectionsPerServer = config.maxConnectionsPerHost,
         PooledConnectionLifetime = System.TimeSpan.FromMinutes 10.0,
         ConnectTimeout = System.TimeSpan.FromSeconds 10.0,
 
@@ -198,7 +209,7 @@ module private BaseClient =
         // Users share the HttpClient, don't let them share cookies!
         UseCookies = false,
 
-        // Compression is disabled so response handling stays explicit.
+        // Decompression is the request's to ask for (`decoderFor`), so `client([])` stays bare.
         AutomaticDecompression = System.Net.DecompressionMethods.None,
 
         // Don't add a RequestId header for opentelemetry
@@ -403,6 +414,8 @@ module LocalAccess =
 /// package initialisation evals).
 let defaultConfig : Configuration =
   { timeoutInMs = defaultHttpTimeoutMs
+    maxConnectionsPerHost = defaultMaxConnectionsPerHost
+    streamIdleTimeoutMs = defaultStreamIdleTimeoutMs
     allowedIP = fun ip -> not (LocalAccess.bannedIp ip)
     allowedHost = fun host -> not (LocalAccess.bannedHost host) }
 
@@ -432,6 +445,11 @@ let mutable private guest : Profile = profileOf defaultConfig
 /// configuration's lifetime. A host that needs loopback reachable (a test
 /// harness with an in-process server) sets it here before guest execution.
 let setGuestConfig (config : Configuration) : unit = guest <- profileOf config
+
+/// The guest configuration with another connection cap per host (`http.maxConnectionsPerHost`):
+/// higher for a big fan-out, lower to be polite to one host.
+let setMaxConnectionsPerHost (n : int) : unit =
+  setGuestConfig { guest.config with maxConnectionsPerHost = n }
 
 /// The pair of predicates a widening moves together: an IP, and the host literal that names it.
 /// Widening the IP alone leaves what a person types refused by `allowedHost`.
@@ -723,6 +741,8 @@ let private (|SendFailure|_|)
   | :? System.UriFormatException ->
     Some(HttpRequestError.BadUrl HttpBadUrl.InvalidUri)
   | :? IOException
+  // A gzip or brotli body that does not decode.
+  | :? InvalidDataException
   // We've made a request and _potentially_ (according to .NET) have a status
   // code, but the error type has no good slot for it.
   | :? HttpRequestException ->
@@ -765,6 +785,53 @@ let private deadlineFor (profile : Profile) (timeoutMs : Option<int>) =
   | Some ms -> new System.Threading.CancellationTokenSource(ms)
   | None -> new System.Threading.CancellationTokenSource(profile.config.timeoutInMs)
 
+/// For a body with a gzip or brotli `Content-Encoding`: its headers without the two that
+/// describe the encoded body, and the decoder to read it through. `None` for any other body,
+/// which is left as it came.
+let private decoderFor (headers : Headers) : Option<Headers * (Stream -> Stream)> =
+  let isHeader name (k, _) = String.equalsCaseInsensitive k name
+  let decoder : Option<Stream -> Stream> =
+    match List.filter (isHeader "Content-Encoding") headers with
+    | [ (_, encoding) ] ->
+      match encoding.Trim().ToLowerInvariant() with
+      | "gzip" ->
+        Some(fun body ->
+          new Compression.GZipStream(body, Compression.CompressionMode.Decompress))
+      | "br" ->
+        Some(fun body ->
+          new Compression.BrotliStream(body, Compression.CompressionMode.Decompress))
+      | _ -> None
+    | _ -> None
+  decoder
+  |> Option.map (fun decode ->
+    let headers =
+      headers
+      |> List.filter (fun h ->
+        not (isHeader "Content-Encoding" h || isHeader "Content-Length" h))
+    (headers, decode))
+
+/// All of `body`, refusing past `limit` bytes as the client's own buffering does.
+let private readAll
+  (body : Stream)
+  (limit : int64)
+  (cancel : System.Threading.CancellationToken)
+  : Task<byte[]> =
+  task {
+    use into = new MemoryStream()
+    let buffer = Array.zeroCreate<byte> 81920
+    let rec loop () : Task<unit> =
+      task {
+        let! n = body.ReadAsync(buffer, 0, buffer.Length, cancel)
+        if n > 0 then
+          if into.Length + int64 n > limit then
+            raise (HttpRequestException $"The decoded body is over {limit} bytes")
+          into.Write(buffer, 0, n)
+          return! loop ()
+      }
+    do! loop ()
+    return into.ToArray()
+  }
+
 /// Send one validated request and read its whole response: the streaming send, drained here.
 /// One deadline covers the exchange, body included, and a failure reading the body is the same
 /// typed error as one sending, so a slow or broken body is a `Timeout` or a `NetworkError`.
@@ -775,6 +842,7 @@ let send
   (headers : Headers)
   (body : byte[])
   (timeoutMs : Option<int>)
+  (decompress : bool)
   : Task<Result<HttpResponse, HttpRequestError>> =
   task {
     use deadline = deadlineFor profile timeoutMs
@@ -785,18 +853,28 @@ let send
       | Error e -> return Error e
       | Ok response ->
         use response = response
-        // The client's own buffering, as a buffered send does it, under the same deadline:
-        // past the buffer limit it is an `HttpRequestException`, so a `NetworkError`.
-        do!
-          response.Content.LoadIntoBufferAsync(
-            profile.client.MaxResponseContentBufferSize,
-            deadline.Token
-          )
-        let! bytes = response.Content.ReadAsByteArrayAsync(deadline.Token)
         let headers = headersForAspNetResponse response
-        return
-          Ok
-            { statusCode = int response.StatusCode; headers = headers; body = bytes }
+        let limit = profile.client.MaxResponseContentBufferSize
+        match (if decompress then decoderFor headers else None) with
+        | Some(headers, decode) ->
+          let! raw = response.Content.ReadAsStreamAsync(deadline.Token)
+          use stream = decode raw
+          let! bytes = readAll stream limit deadline.Token
+          return
+            Ok
+              { statusCode = int response.StatusCode
+                headers = headers
+                body = bytes }
+        | None ->
+          // The client's own buffering, as a buffered send does it, under the same deadline:
+          // past the buffer limit it is an `HttpRequestException`, so a `NetworkError`.
+          do! response.Content.LoadIntoBufferAsync(limit, deadline.Token)
+          let! bytes = response.Content.ReadAsByteArrayAsync(deadline.Token)
+          return
+            Ok
+              { statusCode = int response.StatusCode
+                headers = headers
+                body = bytes }
     with SendFailure canonicalUri typed ->
       return Error typed
   }
@@ -804,13 +882,62 @@ let send
 
 // ── streaming ─────────────────────────────────────────────────────────────────
 
+/// An open stream: the response it belongs to, the body as read, and the timer that closes the
+/// connection when the body goes unread for the profile's `streamIdleTimeoutMs`.
+type private OpenStream =
+  { response : HttpResponseMessage
+    body : Stream
+    idle : System.Threading.Timer
+    idleMs : int }
+
 /// Live streaming responses, keyed by opaque handle. Guest code never holds
 /// the response object; it reads chunks and closes via the handle.
 let private streams =
-  System.Collections.Concurrent.ConcurrentDictionary<int64, HttpResponseMessage *
-  Stream>()
+  System.Collections.Concurrent.ConcurrentDictionary<int64, OpenStream>()
 
 let mutable private nextStreamId = 1L
+
+let private release (s : OpenStream) : unit =
+  // Ordered response-stream first so the stream is closed before the
+  // message — Dispose chains naturally either way, but this mirrors
+  // idiomatic .NET cleanup.
+  try
+    s.body.Dispose()
+  with _ ->
+    ()
+  try
+    s.response.Dispose()
+  with _ ->
+    ()
+
+/// Release an open stream. Idempotent; safe from finalizers.
+let closeStream (handle : int64) : unit =
+  match streams.TryRemove handle with
+  | true, s ->
+    s.idle.Dispose()
+    release s
+  | false, _ -> ()
+
+/// The connection of a stream left unread too long goes back to the pool. The handle stays until
+/// the stream is closed, so a later read fails as one on a broken connection does, rather than
+/// reading as the end of the body.
+let private expire (handle : int64) : unit =
+  match streams.TryGetValue handle with
+  | true, s -> release s
+  | false, _ -> ()
+
+/// Restart (`Some`) or stop the idle clock. A stream closed meanwhile has no clock to change.
+let private idleIn (s : OpenStream) (ms : Option<int>) : unit =
+  let due = ms |> Option.defaultValue System.Threading.Timeout.Infinite
+  try
+    s.idle.Change(due, System.Threading.Timeout.Infinite) |> ignore<bool>
+  with :? System.ObjectDisposedException ->
+    ()
+
+let private startIdle (s : OpenStream) : unit =
+  if s.idleMs > 0 then idleIn s (Some s.idleMs)
+
+let private stopIdle (s : OpenStream) : unit = idleIn s None
 
 /// Open a streaming request: headers arrive now, the body is read lazily via
 /// `readChunk`. `canonicalUri` and `profile` come from `prepare`; the URI has
@@ -823,6 +950,7 @@ let openStream
   (headers : Headers)
   (body : byte[])
   (timeoutMs : Option<int>)
+  (decompress : bool)
   : Task<Result<HttpStreamHead, HttpRequestError>> =
   task {
     let mutable responseToDispose : HttpResponseMessage option = None
@@ -838,11 +966,27 @@ let openStream
         responseToDispose <- Some response
 
         let! responseStream = response.Content.ReadAsStreamAsync()
+        let headers = headersForAspNetResponse response
+        let (headers, responseStream) =
+          match (if decompress then decoderFor headers else None) with
+          | Some(headers, decode) -> (headers, decode responseStream)
+          | None -> (headers, responseStream)
 
         let handle = System.Threading.Interlocked.Increment(&nextStreamId)
-        streams[handle] <- (response, responseStream)
+        let opened =
+          { response = response
+            body = responseStream
+            idle =
+              new System.Threading.Timer(
+                (fun _ -> expire handle),
+                null,
+                System.Threading.Timeout.Infinite,
+                System.Threading.Timeout.Infinite
+              )
+            idleMs = profile.config.streamIdleTimeoutMs }
+        streams[handle] <- opened
+        startIdle opened
 
-        let headers = headersForAspNetResponse response
         return
           Ok
             { handle = handle
@@ -859,38 +1003,25 @@ let openStream
 
 /// Pull up to `maxBytes` from an open stream; None at EOF or on an unknown
 /// handle. No fresh permission check: the transfer was authorized when the
-/// stream was opened, and the handle is host-issued.
+/// stream was opened, and the handle is host-issued. The idle clock stops while a read waits.
 let readChunk (handle : int64) (maxBytes : int) : Task<Option<byte[]>> =
   task {
     match streams.TryGetValue handle with
     | false, _ -> return None
-    | true, (_, stream) ->
-      let cap = max 1 maxBytes
-      let buf = Array.zeroCreate<byte> cap
-      let! n = stream.ReadAsync(buf, 0, cap)
-      if n = 0 then
-        return None
-      elif n = cap then
-        return Some buf
-      else
-        let trimmed = Array.zeroCreate<byte> n
-        System.Array.Copy(buf, 0, trimmed, 0, n)
-        return Some trimmed
+    | true, s ->
+      stopIdle s
+      try
+        let cap = max 1 maxBytes
+        let buf = Array.zeroCreate<byte> cap
+        let! n = s.body.ReadAsync(buf, 0, cap)
+        if n = 0 then
+          return None
+        elif n = cap then
+          return Some buf
+        else
+          let trimmed = Array.zeroCreate<byte> n
+          System.Array.Copy(buf, 0, trimmed, 0, n)
+          return Some trimmed
+      finally
+        startIdle s
   }
-
-/// Release an open stream. Idempotent; safe from finalizers.
-let closeStream (handle : int64) : unit =
-  match streams.TryRemove handle with
-  | true, (response, stream) ->
-    // Ordered response-stream first so the stream is closed before the
-    // message — Dispose chains naturally either way, but this mirrors
-    // idiomatic .NET cleanup.
-    try
-      stream.Dispose()
-    with _ ->
-      ()
-    try
-      response.Dispose()
-    with _ ->
-      ()
-  | false, _ -> ()

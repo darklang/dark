@@ -1,6 +1,8 @@
 [expected-request]
 GET PATH HTTP/1.1
 Host: HOST
+Accept-Encoding: gzip
+Accept-Encoding: br
 Content-Length: 0
 
 [response]
@@ -16,6 +18,7 @@ Location: /v0/response-redirect-destination
  {response with headers = respHeaders}) ==
    Darklang.Stdlib.HttpClient.Response
     { statusCode = 200
+      url = Darklang.Stdlib.String.replaceAll("http://URL", "redirect-308", "redirect-destination")
       headers =
         [
           ("Server", "kestrel")

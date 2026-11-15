@@ -107,6 +107,11 @@ let settings(): List<Setting> =
         byDefault = "30000" }
 
     Setting
+      { key = "http.maxConnectionsPerHost"
+        what = "How many connections your code's requests keep open to one host at once"
+        byDefault = "50" }
+
+    Setting
       { key = "trace.record", what = "Keep a record of every run, on or off", byDefault = "off" }
 
     Setting

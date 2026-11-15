@@ -245,26 +245,76 @@ module Middleware =
 
 
   /// A line on stderr per request the handler answers: method, path, status and how long it
-  /// took, as {{[HttpServer] GET /a 200 3ms}}. In <fn defaults>. A response the server
-  /// writes itself (a body over the limit, a handler that failed or timed out) is logged by the
-  /// server either way.
+  /// took, as {{[HttpServer] GET /a 200 3ms}}. The query is left out, since it may carry a
+  /// token. In <fn defaults>. A response the server writes itself (a body over the limit, a
+  /// handler that failed or timed out) is logged by the server either way.
   let logRequests(): Middleware =
     (fun next ->
        (fun req ->
           let started = DateTime.now()
           let response = next(req)
           let ms = DateTime.subtractMs(DateTime.now(), started)
-          let target = Http.requestTarget(req.url)
-          let path =
-            match target.query with
-            | Some(q) -> target.path + "?" + q
-            | None -> target.path
-
-          let path = if String.startsWith(path, "/") then path else "/" + path
+          let path = getPath(req)
           printErrorLine(
             $"[HttpServer] {req.method} {path} {display(response.statusCode)} {display(ms)}ms")
 
           response))
+
+
+  let __withHeader(response: Http.Response, name: String, value: String): Http.Response =
+    { response with headers = List.append(response.headers, (name, value)) }
+
+
+  /// CORS for browsers on <param origins>, or on any with {{"*"}}. A preflight from one (an
+  /// {{OPTIONS}} with {{Access-Control-Request-Method}}) is answered 204 without reaching the
+  /// handler, allowing the method and headers it asks for; any other response to one carries
+  /// {{Access-Control-Allow-Origin}}. A request from another origin goes through as it came,
+  /// and the browser keeps its answer from the page. Not in <fn defaults>.
+  let cors(origins: List<String>): Middleware =
+    let any = List.contains(origins, "*")
+    (fun next ->
+       (fun req ->
+          match Http.Request.header(req, "Origin") with
+          | Some(origin) ->
+            if any || List.contains(origins, origin) then
+              let allow = fun response ->
+                if any then
+                  __withHeader(response, "Access-Control-Allow-Origin", "*")
+                else
+                  __withHeader(
+                    __withHeader(response, "Access-Control-Allow-Origin", origin),
+                    "Vary",
+                    "Origin")
+
+              match req.method, Http.Request.header(req, "Access-Control-Request-Method") with
+              | "OPTIONS", Some(method) ->
+                let allowed =
+                  [ ("Access-Control-Allow-Methods", method), ("Access-Control-Max-Age", "600") ]
+
+                let headers =
+                  match Http.Request.header(req, "Access-Control-Request-Headers") with
+                  | Some(h) -> List.append(allowed, ("Access-Control-Allow-Headers", h))
+                  | None -> allowed
+
+                allow(Http.responseWithHeaders(204, headers, Bytes.empty))
+              | _ -> allow(next(req))
+            else
+              next(req)
+          | None -> next(req)))
+
+
+  /// An {{X-Request-Id}} on every request and its response: the one the client sent, or else a
+  /// new UUID, so a log line and a client's report can name the same request. Not in
+  /// <fn defaults>.
+  let requestId(): Middleware =
+    (fun next ->
+       (fun req ->
+          match Http.Request.header(req, "X-Request-Id") with
+          | Some(id) -> __withHeader(next(req), "X-Request-Id", id)
+          | None ->
+            let id = display(Uuid.generate())
+            let req = { req with headers = List.append(req.headers, ("X-Request-Id", id)) }
+            __withHeader(next(req), "X-Request-Id", id)))
 
 
   /// What <fn Config.defaults> wraps a handler in: a log line per request, and HSTS on the way

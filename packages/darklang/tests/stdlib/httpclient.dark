@@ -461,7 +461,8 @@ let __response(
     Stdlib.HttpClient.Response
       { statusCode = status
         headers = headers
-        body = Stdlib.Utf8.encode(body) })
+        body = Stdlib.Utf8.encode(body)
+        url = "https://a.test/" })
 
 
 /// Answers 200 with the request it was sent: its headers as the response's, and
@@ -502,7 +503,7 @@ let __headers(
 
 
 let __through(
-  middlewares: List<Stdlib.HttpClient.Middleware<Bytes>>,
+  middlewares: List<Stdlib.HttpClient.Middleware<Bytes, Bytes>>,
   send: Stdlib.HttpClient.Send<Bytes>,
   req: Stdlib.HttpClient.Request)
   : Stdlib.Result.Result<
@@ -518,7 +519,8 @@ test responseHeaderIsCaseInsensitive =
       { statusCode = 200
         headers =
           [ ("ETag", "\"AbC\""), ("Set-Cookie", "a=1"), ("set-cookie", "b=2") ]
-        body = Stdlib.Bytes.empty }
+        body = Stdlib.Bytes.empty
+        url = "https://a.test/" }
 
   Stdlib.Test.all(
     [ Stdlib.HttpClient.Response.header(r, "etag")
@@ -545,9 +547,41 @@ test responseText =
         Stdlib.HttpClient.Response
           { statusCode = 200
             headers = []
-            body = Stdlib.Bytes.fromList([ 255u8 ]) })
+            body = Stdlib.Bytes.fromList([ 255u8 ])
+            url = "https://a.test/" })
       |> Stdlib.Result.isError
       |> Stdlib.Test.equal(true) ])
+
+
+type User =
+  { id: Int64
+    name: String }
+
+
+test responseJson =
+  let user = fun body ->
+    match __response(200, [], body) with
+    | Ok(r) -> Stdlib.HttpClient.Response.json<User>(r)
+    | Error(e) -> Stdlib.Result.Result.Error(e)
+
+  Stdlib.Test.all(
+    [ user("{\"id\": 1, \"name\": \"Ada\"}")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(User { id = 1, name = "Ada" }))
+
+      user("{\"id\": 1}")
+      |> Stdlib.Result.mapError(Stdlib.HttpClient.toString)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          "Can't parse JSON because `name` field is not provided at path: `root`")) ])
+
+
+test jsonMiddlewareDecodesEveryResponse =
+  let json = Stdlib.HttpClient.Middleware.json<List<Int64>>()
+  let send = json(fun _ -> __response(200, [], "[1, 2, 3]"))
+  send(__request("https://a.test/", []))
+  |> Stdlib.Result.map(fun r -> r.body)
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 1, 2, 3 ]))
 
 
 test stackRunsFirstListedOutermost =
@@ -577,6 +611,37 @@ test onResponseRewritesTheResponse =
     __request("https://a.test/", []))
   |> Stdlib.Result.map(fun r -> r.statusCode)
   |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(299))
+
+
+test decodeChangesTheBodyType =
+  let length =
+    Stdlib.HttpClient.Middleware.decode(fun body ->
+      Stdlib.Result.Result.Ok(Stdlib.Bytes.length(body)))
+
+  let refuse =
+    Stdlib.HttpClient.Middleware.decode(fun _ ->
+      Stdlib.Result.Result.Error("not a number"))
+
+  let lengthSend = length(__echo)
+  let refuseSend = refuse(__echo)
+  let req = __request("https://a.test/", [])
+  Stdlib.Test.all(
+    [ lengthSend(req)
+      |> Stdlib.Result.map(fun r -> (r.statusCode, r.body))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((200, 24)))
+
+      refuseSend(req)
+      |> Stdlib.Result.map(fun r -> r.body)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.HttpClient.RequestError.Decode("not a number"))) ])
+
+
+test tapAnswersAsItCame =
+  let seen = Stdlib.HttpClient.Middleware.tap(fun(_req, _result) -> ())
+  __through([ seen ], __echo, __request("https://a.test/", []))
+  |> Stdlib.Result.map(fun r -> r.statusCode)
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(200))
 
 
 test trimNames =
@@ -629,7 +694,8 @@ test theDefaultStack =
         __echo,
         __request("https://a.test/", [ (" Accept ", "Text/HTML") ]))
       |> __headers
-      |> Stdlib.Test.equal([ ("Accept", "Text/HTML") ])
+      |> Stdlib.Test.equal(
+        [ ("Accept", "Text/HTML"), ("Accept-Encoding", "gzip, br") ])
 
       __through(
         Stdlib.HttpClient.Middleware.defaults(),
@@ -653,6 +719,30 @@ test theDefaultStack =
         __request("https://a.test/", []))
       |> __body
       |> Stdlib.Test.equal("redirects 10, retry none") ])
+
+
+test decompressAsksUnlessTheRequestDoes =
+  Stdlib.Test.all(
+    [ __through(
+        [ Stdlib.HttpClient.Middleware.decompress() ],
+        __echo,
+        __request("https://a.test/", []))
+      |> __headers
+      |> Stdlib.Test.equal([ ("Accept-Encoding", "gzip, br") ])
+
+      __through(
+        [ Stdlib.HttpClient.Middleware.decompress() ],
+        __echo,
+        __request("https://a.test/", [ ("accept-encoding", "br") ]))
+      |> __headers
+      |> Stdlib.Test.equal([ ("accept-encoding", "br") ])
+
+      __through(
+        [ Stdlib.HttpClient.Middleware.decompress() ],
+        (fun req -> __response(200, [], Stdlib.display(req.decompress))),
+        __request("https://a.test/", []))
+      |> __body
+      |> Stdlib.Test.equal("true") ])
 
 
 test timeoutSetsTheField =
@@ -787,6 +877,24 @@ test bearerSeesTheUrlTheRequestIsSentTo =
         __request("https://api.example.com/", [ ("authorization", "Basic x") ]))
       |> __headers
       |> Stdlib.Test.equal([ ("authorization", "Basic x") ]) ])
+
+
+test headerForOnlyToItsOrigin =
+  let via = fun url ->
+    __through(
+      [ Stdlib.HttpClient.Middleware.headerFor(
+          "https://api.example.com",
+          "X-Api-Key",
+          "k3y") ],
+      __echoFinal,
+      __request(url, []))
+    |> __headers
+
+  Stdlib.Test.all(
+    [ via("https://api.example.com/a")
+      |> Stdlib.Test.equal([ ("X-Api-Key", "k3y") ])
+
+      via("https://other.example.com/a") |> Stdlib.Test.equal([]) ])
 
 
 /// Answers 200 with what the request asks of the host beyond one send, as its body.

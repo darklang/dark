@@ -147,13 +147,14 @@ let private extractHeaders (req : HttpListenerRequest) : List<string * string> =
 let private hstsHeaderValue = "max-age=31536000; includeSubDomains; preload"
 
 
+/// The method and path for the log line and telemetry. Not the query, which may carry a token.
 let private methodAndPath (ctx : HttpListenerContext) : string * string =
-  let pathAndQuery =
+  let path =
     try
-      ctx.Request.Url.PathAndQuery
+      ctx.Request.Url.AbsolutePath
     with _ ->
       "?"
-  (ctx.Request.HttpMethod, pathAndQuery)
+  (ctx.Request.HttpMethod, path)
 
 /// A line on stderr for a response the server wrote itself (413, 500, 503, 504), whatever the
 /// middleware: a handler's own responses are the middleware's to log
@@ -165,8 +166,8 @@ let private logRequest
   : unit =
   try
     let durationMs = (System.DateTime.UtcNow - started).TotalMilliseconds |> int64
-    let (methodStr, pathAndQuery) = methodAndPath ctx
-    printErr $"[HttpServer] {methodStr} {pathAndQuery} {status} {durationMs}ms"
+    let (methodStr, path) = methodAndPath ctx
+    printErr $"[HttpServer] {methodStr} {path} {status} {durationMs}ms"
   with _ ->
     ()
 
@@ -178,11 +179,11 @@ let private requestEvent
   : unit =
   try
     let durationMs = (System.DateTime.UtcNow - started).TotalMilliseconds |> int64
-    let (methodStr, pathAndQuery) = methodAndPath ctx
+    let (methodStr, path) = methodAndPath ctx
     Telemetry.event
       "httpserver.request"
       [ "method", methodStr
-        "path", pathAndQuery
+        "path", path
         "status", string status
         "duration_ms", string durationMs ]
   with _ ->

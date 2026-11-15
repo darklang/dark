@@ -13,22 +13,27 @@ let content(): String =
 Each answers `Result<Response<'body>, RequestError>`:
 
   type Stdlib.HttpClient.Response<'body> =
-    { statusCode: Int64, headers: List<String * String>, body: 'body }
+    { statusCode: Int64, headers: List<String * String>, body: 'body, url: String }
 
 `body` is Bytes from `request`, `get` and the rest, and a lazy `Stream<UInt8>`
-from `stream`. Headers come back as the server sent them, names and values,
+from `stream`. `url` is where the response came from: the request's, or
+where its redirects led. A gzip or brotli body is decoded, and its
+`Content-Encoding` and `Content-Length` dropped. Headers come back as the server sent them, names and values,
 and a header sent twice (`Set-Cookie`) is two pairs. Look one up whatever its
 case:
 
   Stdlib.HttpClient.Response.header(r, "ETag")       # Some("\"AbC\"")
   Stdlib.HttpClient.Response.headers(r, "Set-Cookie") # every value
   Stdlib.HttpClient.Response.text(r)                  # body as UTF-8, or Decode
+  Stdlib.HttpClient.Response.json<User>(r)            # body as a User, or BadJson
 
 A GET or HEAD with no body is a read: it runs while your program goes on, and
 waits only where you look at the response, so `List.map(urls, get)` has them
-all in flight at once, up to 50 connections to any one host; the rest wait
-their turn. A stream holds its connection until it is drained or closed, and
-counts against the 50 until then. Every other request runs in program order.
+all in flight at once, up to 50 connections to any one host
+(`config set http.maxConnectionsPerHost`); the rest wait their turn. A stream
+holds its connection until it is drained or closed, and counts against the cap
+until then; one left unread for a minute gives its connection back, and a read
+after that fails. Every other request runs in program order.
 
 Redirects are followed, up to 10, as curl -L and fetch do: a POST after a 301
 or 302, and anything but a GET or HEAD after a 303, becomes a GET; otherwise
@@ -42,12 +47,13 @@ A request is a record, and sending is a function:
 
   type Request = { method, url, headers, body,
                    timeoutMs: Option<Int64>, redirects: Option<Int64>,
-                   retry: Option<RetryPolicy>, originHeaders }
+                   retry: Option<RetryPolicy>, originHeaders, decompress: Bool }
   type Send<'body> = Request -> Result<Response<'body>, RequestError>
-  type Middleware<'body> = Send<'body> -> Send<'body>
+  type Middleware<'inner, 'outer> = Send<'inner> -> Send<'outer>
 
 `get` and friends send through `Stdlib.HttpClient.Middleware.defaults()`: trim
-header names, refuse an empty one, and follow up to 10 redirects. Build your
+header names, refuse an empty one, follow up to 10 redirects, and decode a
+gzip or brotli body. Build your
 own client from a list, first listed outermost. For `timeout`,
 `followRedirects` and `retry` the one listed last wins, so
 `List.append(Middleware.defaults(), Middleware.followRedirects(0))` follows
@@ -70,6 +76,7 @@ nothing and follows no redirect; `streamClient` is the same for streams.
   Middleware.onRequest(f)        rewrite every request
   Middleware.onResponse(f)       rewrite every response, without waiting; f only computes
   Middleware.header(n, v)        add a header unless the request has one
+  Middleware.headerFor(o, n, v)  the same, to that origin only, for a key
   Middleware.timeout(ms)         the exchange in ms, or `Timeout`; 0 is none
   Middleware.baseUrl(base)       resolve relative urls against base
   Middleware.bearer(origin, t)   Authorization: Bearer, to that origin only,
@@ -77,6 +84,15 @@ nothing and follows no redirect; `streamClient` is the same for streams.
   Middleware.followRedirects(n)  up to n redirects, then `TooManyRedirects`
   Middleware.retry(n, ms)        n attempts in all, idempotent methods only
   Middleware.lowercaseNames()    response header names in lowercase
+  Middleware.decompress()        ask for gzip or brotli and decode it
+  Middleware.tap(f)              f(req, result) on each answer; may print
+
+A middleware in a list keeps the body's type. One that changes it wraps a
+client instead: `Middleware.decode(f)` turns each body into what `f` makes of
+it, or `Decode` with what `f` says is wrong, without waiting for the response.
+
+  let lengths = (Middleware.decode(fun b -> Ok(Stdlib.Bytes.length(b))))(send)
+  let users = (Middleware.json<List<User>>())(send)   # Response<List<User>>
 
 `retry` tries again on a failure to connect and on 429, 502, 503 or 504. It
 waits what `Retry-After` asks, or else `ms` doubled each time with some
@@ -87,9 +103,9 @@ host follows the redirects and makes the retries, so a GET through them is
 still in flight.
 
 A middleware is any function from a `Send` to a `Send`, so your own is a few
-lines, used as `logged()` in the list:
+lines, used as `logged()` in the list; `Middleware.tap` is the same in one:
 
-  let logged(): Stdlib.HttpClient.Middleware<Bytes> =
+  let logged(): Stdlib.HttpClient.Middleware<Bytes, Bytes> =
     fun next ->
       fun req ->
         let r = next(req)
@@ -116,7 +132,7 @@ send, checked again for wherever it goes.
 ## Errors
 
   BadUrl(...)  Timeout  BadHeader(...)  NetworkError  TlsError(msg)  BadMethod
-  TooManyRedirects  Decode(msg)
+  TooManyRedirects  Decode(msg)  BadJson(e)
 
 `Stdlib.HttpClient.toString(e)` says one in words.
 """

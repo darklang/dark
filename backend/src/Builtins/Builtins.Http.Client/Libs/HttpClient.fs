@@ -147,9 +147,11 @@ let private resultTypeOf (bodyType : TypeReference) =
     (TCustomType(NR.ok (responseOKType ()), [ bodyType ]))
     (TCustomType(NR.ok (responseErrorType ()), []))
 
-/// A `Response<'body>` record, headers as the host answered them.
+/// A `Response<'body>` record, headers as the host answered them, from `url`, where the last
+/// redirect led.
 let private responseOf
   (bodyType : ValueType)
+  (url : string)
   (statusCode : int)
   (headers : List<string * string>)
   (body : Dval)
@@ -158,7 +160,8 @@ let private responseOf
   let fields =
     [ ("statusCode", Dval.dint64 (int64 statusCode))
       ("headers", headersToDval headers)
-      ("body", body) ]
+      ("body", body)
+      ("url", DString url) ]
   DRecord(typ, typ, [ bodyType ], RecordFields.ofList fields)
 
 let private parameters =
@@ -181,7 +184,11 @@ let private parameters =
     Param.make
       "retryDelayMs"
       TInt64
-      "The wait before the first retry, doubled for each one after" ]
+      "The wait before the first retry, doubled for each one after"
+    Param.make
+      "decompress"
+      TBool
+      "Undo a gzip or brotli Content-Encoding on the body" ]
 
 /// Milliseconds as the host takes them. Past `Int32.MaxValue` (24 days) is as good as forever.
 let private clampMs (ms : int64) : int =
@@ -332,7 +339,7 @@ let private exchange
   (expect : Host.Response -> Result<'r, HostTypes.HttpRequestError>)
   (head : 'r -> int * List<string * string>)
   (drop : 'r -> unit)
-  (finish : Result<'r, Dval> -> Dval)
+  (finish : Result<Hop * 'r, Dval> -> Dval)
   (first : Hop)
   : Ply<Dval> =
   let access = vm.activeAccess
@@ -367,7 +374,7 @@ let private exchange
     (redirects : int64)
     (retries : int64)
     (answer : Result<'r, HostTypes.HttpRequestError>)
-    : Ply<Result<'r, Dval>> =
+    : Ply<Result<Hop * 'r, Dval>> =
     uply {
       let again = retries > 0L && isIdempotent hop.method
       let backoff () = backoffMs policy.retryDelayMs (policy.retries - retries)
@@ -402,9 +409,9 @@ let private exchange
               let! answer = send hop
               return! settle hop redirects (retries - 1L) answer
             else
-              return Ok r
+              return Ok(hop, r)
           else
-            return Ok r
+            return Ok(hop, r)
     }
   Interpreter.requestHost vm (operation first (timeoutMs ())) (fun outcome ->
     settle first policy.redirects policy.retries (answerOf outcome)
@@ -416,11 +423,11 @@ let private run
   (state : ExecutionState)
   (vm : VMState)
   (args : Dval[])
-  (operation : Hop -> int -> Host.Operation)
+  (operation : Hop -> int -> bool -> Host.Operation)
   (expect : Host.Response -> Result<'r, HostTypes.HttpRequestError>)
   (head : 'r -> int * List<string * string>)
   (drop : 'r -> unit)
-  (answer : 'r -> Dval)
+  (answer : string -> 'r -> Dval)
   (failed : Dval -> Dval)
   : Ply<Dval> =
   match args with
@@ -431,7 +438,8 @@ let private run
        timeout
        DInt64 redirects
        DInt64 retries
-       DInt64 retryDelayMs |] ->
+       DInt64 retryDelayMs
+       DBool decompress |] ->
     let overall =
       match timeout with
       | DEnum(_, _, _, "Some", [ DInt64 ms ]) -> ms
@@ -448,8 +456,9 @@ let private run
     let headers = parseHeaders reqHeaders
     let finish result =
       match result with
-      | Ok r -> answer r
+      | Ok(hop, r) -> answer hop.uri r
       | Error e -> failed e
+    let operation hop timeoutMs = operation hop timeoutMs decompress
     Bytes.withBytes state bodyRef (fun body ->
       { method = method; uri = uri; headers = headers; body = body }
       |> exchange state vm policy operation expect head drop finish)
@@ -473,21 +482,23 @@ let fns () : List<BuiltInFn> =
             state
             vm
             args
-            (fun hop timeoutMs ->
+            (fun hop timeoutMs decompress ->
               Host.Operation.HttpRequest(
                 HostTypes.HttpProfile.Guest,
                 hop.method,
                 hop.uri,
                 hop.headers,
                 hop.body,
-                Some timeoutMs
+                Some timeoutMs,
+                decompress
               ))
             Host.expectHttp
             (fun (r : HostTypes.HttpResponse) -> (r.statusCode, r.headers))
             ignore<HostTypes.HttpResponse>
-            (fun r ->
+            (fun url r ->
               responseOf
                 VT.bytes
+                url
                 r.statusCode
                 r.headers
                 (Bytes.newEphemeral r.body)
@@ -534,20 +545,21 @@ let fns () : List<BuiltInFn> =
             state
             vm
             args
-            (fun hop timeoutMs ->
+            (fun hop timeoutMs decompress ->
               Host.Operation.HttpStreamOpen(
                 HostTypes.HttpProfile.Guest,
                 hop.method,
                 hop.uri,
                 hop.headers,
                 hop.body,
-                Some timeoutMs
+                Some timeoutMs,
+                decompress
               ))
             Host.expectHttpStream
             (fun (head : HostTypes.HttpStreamHead) ->
               (head.statusCode, head.headers))
             (fun head -> Host.httpStreamClose head.handle)
-            (fun head ->
+            (fun url head ->
               let nextChunk (maxBytes : int) : Ply<Option<byte[]>> =
                 uply {
                   let! chunk = Host.httpStreamRead head.handle maxBytes
@@ -555,7 +567,7 @@ let fns () : List<BuiltInFn> =
                 }
               let disposer () = Host.httpStreamClose head.handle
               let body = Stream.newChunked VT.uint8 nextChunk (Some disposer)
-              responseOf streamOfBytes head.statusCode head.headers body
+              responseOf streamOfBytes url head.statusCode head.headers body
               |> resultOk)
             resultError)
       previewable = Impure
