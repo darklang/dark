@@ -207,8 +207,9 @@ let tests =
           splits @ adjacent @ randomJoins
           |> List.map (Array.map Normalization.normalize)
           |> List.filter (fun parts ->
-            Normalization.concat parts
-            <> Normalization.normalize (String.concat "" parts))
+            let whole = Normalization.normalize (String.concat "" parts)
+            Normalization.concat parts <> whole
+            || (parts.Length = 2 && Normalization.append parts[0] parts[1] <> whole))
           |> List.truncate 20
           |> List.map (Array.map codepointsOf >> String.concat " | ")
         Expect.equal failures [] "joins that differ"
@@ -221,6 +222,10 @@ let tests =
             (Normalization.concat [| a; b |])
             (a + b)
             $"[{codepointsOf (a + b)}]"
+          Expect.equal
+            (Normalization.append a b)
+            (a + b)
+            $"append [{codepointsOf (a + b)}]"
       }
 
       test "a lone surrogate or U+FFFE is an error, as it is for ICU" {
