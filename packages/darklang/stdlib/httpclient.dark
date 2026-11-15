@@ -142,6 +142,12 @@ module Request =
   /// <param req> as it goes to the host: its <type Request> {{originHeaders}} added for the url
   /// it is going to.
   let __final(req: Request): Request =
+    match req.originHeaders with
+    | [] -> req
+    | _ -> __addOriginHeaders(req)
+
+
+  let __addOriginHeaders(req: Request): Request =
     let origin = Middleware.__origin(req.url)
     let has = fun name ->
       List.any(req.headers, fun h ->
@@ -451,16 +457,26 @@ let __defaults(req: Request): Result<Request, RequestError> =
 /// `client([])` is the raw builtin, which follows no redirect. A timeout, redirect limit or
 /// retry policy set on the request itself wins over the middleware's.
 let client(middlewares: List<Middleware<Bytes>>): Send<Bytes> =
+  let send = Middleware.wrap(middlewares, sendRaw)
   (fun req ->
-     let send = Middleware.wrap(middlewares, fun r -> sendRaw(Request.__callerWins(req, r)))
-     send(req))
+     match req.timeoutMs, req.redirects, req.retry with
+     | None, None, None -> send(req)
+     | _ ->
+       let callerWins = Middleware.wrap(middlewares, fun r -> sendRaw(Request.__callerWins(req, r)))
+       callerWins(req))
 
 
 /// <fn client>, over <fn streamRaw>: the same middleware, with the body as a lazy stream.
 let streamClient(middlewares: List<Middleware<Stream<UInt8>>>): Send<Stream<UInt8>> =
+  let send = Middleware.wrap(middlewares, streamRaw)
   (fun req ->
-     let send = Middleware.wrap(middlewares, fun r -> streamRaw(Request.__callerWins(req, r)))
-     send(req))
+     match req.timeoutMs, req.redirects, req.retry with
+     | None, None, None -> send(req)
+     | _ ->
+       let callerWins =
+         Middleware.wrap(middlewares, fun r -> streamRaw(Request.__callerWins(req, r)))
+
+       callerWins(req))
 
 
 /// Make an HTTP call to <param uri> through the default stack (<fn Middleware.defaults>) and read the
