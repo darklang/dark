@@ -705,7 +705,7 @@ module Expr =
 
         let impl : RT.LambdaImpl =
           { exprId = id
-            patterns = rtPats |> NEList.ofListUnsafe "" []
+            patterns = rtPats
             registersToCloseOver = registersToCloseOver
             selfRegister = selfRegister
             instructions =

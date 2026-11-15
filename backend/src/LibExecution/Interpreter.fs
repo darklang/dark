@@ -120,20 +120,6 @@ module private FreeTVars =
   let private packageParams =
     System.Collections.Concurrent.ConcurrentDictionary<Hash, List<PackageFn.Parameter>>()
 
-  /// A lambda's parameter patterns, as a list. `head :: tail` conses on every lambda call, and a
-  /// lambda's patterns can't change: the instruction that created it is fixed.
-  let private lambdaPatterns =
-    System.Collections.Concurrent.ConcurrentDictionary<id, List<LetPattern>>()
-
-  let patternsOfLambda (exprId : id) (pats : NEList<LetPattern>) : List<LetPattern> =
-    let mutable cached = Unchecked.defaultof<List<LetPattern>>
-    if lambdaPatterns.TryGetValue(exprId, &cached) then
-      cached
-    else
-      let v = NEList.toList pats
-      lambdaPatterns[exprId] <- v
-      v
-
   let paramsOfPackage (fn : PackageFn.PackageFn) : List<PackageFn.Parameter> =
     let mutable cached = Unchecked.defaultof<List<PackageFn.Parameter>>
     if packageParams.TryGetValue(fn.hash, &cached) then
@@ -4026,11 +4012,7 @@ let inline private pushLambdaFrame
   let r = newFrame.registers
 
   // extract and copy over the args
-  bindLambdaParams
-    vm
-    r
-    (FreeTVars.patternsOfLambda exprId foundLambda.patterns)
-    allArgs
+  bindLambdaParams vm r foundLambda.patterns allArgs
 
   // copy over closed registers
   assignRegisters r appLambda.closedRegisters
@@ -4117,7 +4099,7 @@ let rec private beginRequest
         prior
         { Prior = []; Regs = caller.registers; Head = ValueNone; Tail = [] }
     let argCount = ArgSeq.count allArgs
-    let paramCount = NEList.length foundLambda.patterns
+    let paramCount = List.length foundLambda.patterns
     let access = applying |> Permissions.Access.constrainBy appLambda.access
     if argCount > paramCount then
       RTE.Applications.TooManyArgsForLambda(exprId, paramCount, argCount)
@@ -4127,14 +4109,10 @@ let rec private beginRequest
       RTE.Applications.TooFewArgsForLambda(exprId, paramCount, argCount)
       |> RTE.Apply
       |> raiseRTE vm.threadID
-    elif
-      lambdaArgsNeedWait
-        (FreeTVars.patternsOfLambda exprId foundLambda.patterns)
-        prior
-    then
+    elif lambdaArgsNeedWait foundLambda.patterns prior then
       // `fun (a, b) -> ...` handed a read in flight (a fold's accumulator).
-      let pats = FreeTVars.patternsOfLambda exprId foundLambda.patterns
-      let again = landThenRequest vm pats appLambda applying prior next
+      let again =
+        landThenRequest vm foundLambda.patterns appLambda applying prior next
       drive exeState vm caller reg pcAfter next finish again direct
     else
       // `pushLambdaFrame` reads the caller's counter for the return point; the request may come
@@ -4159,7 +4137,7 @@ let rec private beginRequest
       frame.appliedLambda <-
         ValueSome
           { lambda = appLambda
-            patterns = FreeTVars.patternsOfLambda exprId foundLambda.patterns
+            patterns = foundLambda.patterns
             selfRegister = foundLambda.selfRegister }
       // From an `Apply` in the drain, the frame waits in `frameToPush` for the drain to stop;
       // from a frame return or a resumed wait, the loop is between frames and it goes on right
@@ -4367,12 +4345,7 @@ let private refillLambdaForTailCall
   let args = ArgSeq.toArrayFor frame allArgs
   let r = frame.registers
   System.Array.Clear(r, 0, r.Length)
-  bindLambdaParamsFrom
-    vm
-    r
-    (FreeTVars.patternsOfLambda appLambda.exprId foundLambda.patterns)
-    args
-    0
+  bindLambdaParamsFrom vm r foundLambda.patterns args 0
   System.Array.Clear(args, 0, args.Length)
   assignRegisters r appLambda.closedRegisters
   match foundLambda.selfRegister with
@@ -4412,7 +4385,7 @@ let private applyLambda
   let allArgs = ArgSeq.ofNE registers newArgRegs
 
   let argCount = ArgSeq.count allArgs
-  let paramCount = NEList.length foundLambda.patterns
+  let paramCount = List.length foundLambda.patterns
 
   if typeArgs <> [] then
     RTE.Applications.CannotApplyTypeArgsToLambda
@@ -5263,8 +5236,8 @@ let private argMustLand
     | ForceBuiltin fn -> (withoutWaiting fn (soFar + i) dv).IsNone
     | ForceLambda lambda ->
       // Only a call that runs the lambda binds its patterns.
-      soFar + argCount >= NEList.length lambda.patterns
-      && (match List.tryItem (soFar + i) (NEList.toList lambda.patterns) with
+      soFar + argCount >= List.length lambda.patterns
+      && (match List.tryItem (soFar + i) lambda.patterns with
           | Some pat -> letNeedsValue pat dv
           | None -> false)
   | _ -> false
