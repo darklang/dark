@@ -32,19 +32,13 @@ Save a module, run its `main` by name, and test it:
 
 Save the module again to change it.
 
-A `main` reads stdin and files as any program does. Printing and stdin need
-no approval; files, the network and the environment need permission:
+Printing and stdin need no approval; files, HTTP and the environment need permission:
 
   printf 'a\nb\n' | run Me.Lines.main
   run Me.Report.main data.csv
 
-If the program already has permission, you don't need `--allow`. Otherwise,
-`run --allow "file read $PWD" Me.Report.main data.csv` lets it read files in
-the current directory and its subdirectories for this run, even if you edit
-the code during the run. This is like choosing Allow this run at the permission
-prompt. The permission isn't remembered, and rules that block access still
-apply. File rules need full paths, such as `/home/me/data`; the shell replaces
-`$PWD` with the full path to the current directory.
+To read files for this run, add `--allow "file read $PWD"` to `run`.
+If you already have permission, omit it.
 
 ## Workflow
 
