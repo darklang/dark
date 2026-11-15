@@ -41,16 +41,16 @@ run its access, and holds across edits:
 
 ## Workflow
 
-  search --batch "List.map" "Json.serialize" --fn  # three results per query
+  search --batch "List.map" "Json.serialize" --fn  # up to 20 results per section
   docs signatures Stdlib.String Stdlib.List        # every fn in these modules
   view <name>                                      # one item's source
   eval 'Stdlib.List.length([1, 2])'                # one expression
   status                                           # what changed
   commit "message" -y                              # record it
 
-`search` takes `--fn`, `--type`, `--val` or `--test` to narrow, and `--with-docs`
-for full comments. To find a function by what it takes and returns, search the
-types: `search bytes to string` or `search String->Int64`.
+`search` takes `--fn`, `--type`, `--val` or `--test` to narrow results,
+`--with-docs` for comments, and `--limit N` for results per section.
+Search by input and return types: `search bytes to string` or `search String->Int64`.
 
 Answers go on stdout; errors, hints and logs go on stderr; a refusal exits
 non-zero. Under `--json` a refusal leaves stdout empty, so test the exit code.

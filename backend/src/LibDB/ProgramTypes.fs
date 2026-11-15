@@ -529,7 +529,9 @@ let private searchRows
   // Multi-token searches require every significant token to match either the
   // qualified location or doc comment. Dotted queries use the same rule, so
   // their tokens may match non-contiguous segments of a qualified location.
-  // Single unqualified queries of 3+ chars also search docs.
+  // A single-word fuzzy search also matches the module path: `csv` finds
+  // Csv.parse even though its doc comment does not mention CSV. With three or
+  // more characters, the query also matches doc comments.
   let tokens = tokenizeQuery query.text
   let useTokenSearch = (not query.exactMatch) && (List.length tokens > 1)
 
@@ -559,10 +561,10 @@ let private searchRows
       $"{PackageLocation.qualifiedNameSql} LIKE '%%' || @searchText || '%%'"
     else if String.length query.text > 2 then
       let described = describedAs contentTable "@searchText"
-      $"(l.name LIKE '%%' || @searchText || '%%'
+      $"({PackageLocation.qualifiedNameSql} LIKE '%%' || @searchText || '%%'
         OR {described})"
     else
-      "l.name LIKE '%' || @searchText || '%'"
+      $"{PackageLocation.qualifiedNameSql} LIKE '%%' || @searchText || '%%'"
 
   // A plural matches its singular too: `split lines` finds `splitOnNewline`. The token is
   // matched as a substring, so the stem still matches the plural.
