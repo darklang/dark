@@ -82,23 +82,32 @@ module Lambdas =
   let private fullAccess =
     LibExecution.Permissions.Access.start LibExecution.Permissions.Policy.allowAll
 
-  /// An unapplied lambda evaluates to an `AppLambda` and registers its body in the
-  /// shared lambda cache.
+  /// An unapplied lambda evaluates to an `AppLambda` carrying its instructions.
   let private unapplied name ptExpr exprId closedRegisters =
-    tCheckVM
-      name
-      ptExpr
-      (RT.DApplicable(
-        RT.AppLambda
+    testTask name {
+      let vm =
+        ptExpr |> PT2RT.Expr.toRT Map.empty 0 None |> RT.VMState.createWithoutTLID
+      let! exeState = executionStateFor TestValues.pm false
+      let! actual = LibExecution.Interpreter.execute exeState vm |> Ply.toTask
+      match actual with
+      | RT.DApplicable(RT.AppLambda l) ->
+        Expect.isTrue
+          (match l.impl with
+           | RT.HasCode _ -> true
+           | RT.NoCode -> false)
+          "the lambda carries its instructions"
+        Expect.equal
+          l
           { exprId = exprId
+            impl = RT.NoCode
             closedRegisters = closedRegisters
             access = fullAccess
             typeSymbolTable = RT.TST.empty
             expectedReturn = ValueNone
             writtenIn = ValueSome RT.Source }
-      ))
-      (fun exeState _vm ->
-        Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
+          ""
+      | other -> failtestf "expected a lambda, got %A" other
+    }
 
   let identity =
     unapplied "fn x -> x" E.Lambdas.Identity.unapplied E.Lambdas.Identity.id [||]
@@ -119,17 +128,14 @@ module Lambdas =
       E.Lambdas.AddToClosedVars.id
       (RT.Captures.ofList [ (1, RT.DInt64 5); (2, RT.DInt64 10) ])
 
-  /// Two VMs, one `ExecutionState`. VM-A (built here) runs `fn x -> x` and
-  /// registers the lambda in `exeState.lambdaInstrCache`. `executeApplicable`
-  /// internally spins up VM-B to invoke the `DApplicable`; VM-B must find
-  /// the lambda in the shared exeState cache, not its own empty one.
-  /// Regression guard for moving `lambdaInstrCache` off VMState.
+  /// Two VMs, one `ExecutionState`. VM-A (built here) runs `fn x -> x`.
+  /// `executeApplicable` internally spins up VM-B to invoke the `DApplicable`,
+  /// and VM-B runs the instructions the value carries.
   let crossVM =
     testTask "cross-VM lambda invocation" {
       let! exeState = executionStateFor TestValues.pm false
 
-      // VM-A: evaluate `fn x -> x`, producing a DApplicable whose instructions
-      // live in exeState.lambdaInstrCache after this call.
+      // VM-A: evaluate `fn x -> x`, producing a DApplicable.
       let vmA =
         E.Lambdas.Identity.unapplied
         |> PT2RT.Expr.toRT Map.empty 0 None
@@ -141,9 +147,7 @@ module Lambdas =
         | RT.DApplicable app -> app
         | other -> failtestf "expected DApplicable from VM-A, got %A" other
 
-      // VM-B lives inside executeApplicable — a fresh VMState is created there
-      // to run the Apply. If lambdaInstrCache were still per-VM, VM-B's cache
-      // would be empty and this call would fail with `LambdaNotAvailable`.
+      // VM-B lives inside executeApplicable.
       let! result =
         LibExecution.Execution.executeApplicable
           exeState
@@ -170,6 +174,7 @@ module Lambdas =
       let applicable =
         RT.AppLambda
           { exprId = 987654321UL
+            impl = RT.NoCode
             closedRegisters = [||]
             typeSymbolTable = RT.TST.empty
             access = exeState.access
@@ -197,10 +202,38 @@ module Lambdas =
       | Ok dval -> failtestf "expected an error, got %A" dval
     }
 
+  /// A lambda read back from storage has no instructions. It still equals its in-memory twin:
+  /// Dark's `==` and F#'s `=` look at what the lambda is, not the code it carries.
+  let storedTwin =
+    testTask "a stored lambda equals its in-memory twin" {
+      let vm =
+        E.Lambdas.AddToClosedVars.unapplied
+        |> PT2RT.Expr.toRT Map.empty 0 None
+        |> RT.VMState.createWithoutTLID
+      let! exeState = executionStateFor TestValues.pm false
+      let! inMemory = LibExecution.Interpreter.execute exeState vm |> Ply.toTask
+      let stored =
+        inMemory
+        |> LibSerialization.Binary.Serialization.RT.Dval.serialize "lambda"
+        |> LibSerialization.Binary.Serialization.RT.Dval.deserialize "lambda"
+      Expect.isTrue (Dval.equals inMemory stored) "=="
+      match inMemory, stored with
+      | RT.DApplicable(RT.AppLambda m), RT.DApplicable(RT.AppLambda s) ->
+        // Serializing also drops access, writtenIn and expectedReturn; line those up.
+        Expect.equal
+          { m with
+              access = s.access
+              writtenIn = s.writtenIn
+              expectedReturn = s.expectedReturn }
+          s
+          "F# ="
+      | _ -> failtestf "expected two lambdas, got %A and %A" inMemory stored
+    }
+
   let tests =
     testList
       "Lambdas"
-      [ identity; add; addTuple; addToClosedVars; crossVM; staleLambda ]
+      [ identity; add; addTuple; addToClosedVars; crossVM; staleLambda; storedTwin ]
 
 
 module Fns =
@@ -822,6 +855,7 @@ module ListUnique =
     RT.DApplicable(
       RT.AppLambda
         { exprId = id
+          impl = RT.NoCode
           closedRegisters = [||]
           typeSymbolTable = RT.TST.empty
           access =

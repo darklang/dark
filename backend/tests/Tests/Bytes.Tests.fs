@@ -422,9 +422,8 @@ let fileReadMemoryBound =
 // ─────────────────────────────────────────────────────────────────────
 // Rejects shapes that can't round-trip through `package_values.rt_dval`: DStream,
 // DBytes(Ephemeral _), and a LAMBDA. A lambda serializes -- which is what made this look fine -- but
-// it serializes as an exprId alone, and the instructions it names live in the `lambdaInstrCache` of
-// the execution that created it. A stored one therefore reads back fine and dies where it is
-// applied, in a later process, with `LambdaNotAvailable`. A NAMED fn is a name and survives.
+// it serializes as an exprId alone, without its instructions. A stored one therefore reads back fine
+// and dies where it is applied, with `LambdaNotAvailable`. A NAMED fn is a name and survives.
 //
 // The Seed.fs evaluator asks before serializing, so the author gets a reason naming the shape
 // instead of a deep-stack raise later.
@@ -456,6 +455,7 @@ let persistableRejectsLambda =
       RT.DApplicable(
         RT.AppLambda
           { exprId = 1234UL
+            impl = RT.NoCode
             closedRegisters = [||]
             typeSymbolTable = RT.TST.empty
             access =
@@ -1130,6 +1130,7 @@ let private fakeAppLambda (closedRegisters : List<RT.Register * RT.Dval>) : RT.D
   RT.DApplicable(
     RT.AppLambda
       { exprId = 0UL
+        impl = RT.NoCode
         closedRegisters = RT.Captures.ofList closedRegisters
         typeSymbolTable = RT.TST.empty
         access =

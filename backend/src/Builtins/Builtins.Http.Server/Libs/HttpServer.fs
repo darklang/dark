@@ -378,7 +378,7 @@ let private notAResponse
 /// The package fns and builtins `dv` can call: a named function itself, a lambda's own body (the
 /// calls its instructions load, and the lambdas it makes), and the functions either holds, in its
 /// captures, its arguments so far, or any list, tuple, record, dict or enum among them. A lambda
-/// whose instructions this run does not have names none.
+/// read back from storage has no instructions, and names none from its body.
 let rec private callablesIn
   (state : ExecutionState)
   (dv : Dval)
@@ -388,9 +388,9 @@ let rec private callablesIn
   | DApplicable(AppNamedFn named) -> named.name :: within named.argsSoFar
   | DApplicable(AppLambda lambda) ->
     let body =
-      match state.lambdaInstrCache.TryGetValue lambda.exprId with
-      | true, impl -> callablesInBody state impl
-      | false, _ -> []
+      match lambda.impl with
+      | HasCode impl -> callablesInBody state impl
+      | NoCode -> []
     body @ within (lambda.closedRegisters |> Captures.toList |> List.map snd)
   | DList(_, items) -> within (DvalList.toList items)
   | DTuple(first, second, rest) -> within (first :: second :: rest)

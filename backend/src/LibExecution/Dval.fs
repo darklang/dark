@@ -295,10 +295,10 @@ let rec isPersistable (dv : Dval) : bool =
   | DBytes(Persistent _) -> true
 
   // A NAMED fn survives being stored: it is a name, and any process can resolve it. A lambda does
-  // not. Its instructions live in `lambdaInstrCache`, keyed by an exprId that only the execution
-  // that created it registered, and the serialized form carries the id alone -- so a stored lambda
-  // is a dangling reference that deserializes fine and dies at the moment it is applied, in a later
-  // process, with `LambdaNotAvailable` and no clue where it came from.
+  // not. Its instructions are on the value in memory, but the serialized form carries the id
+  // alone -- so a stored lambda is a dangling reference that deserializes fine and dies at the
+  // moment it is applied, in a later process, with `LambdaNotAvailable` and no clue where it came
+  // from.
   | DApplicable applicable ->
     match applicable with
     | AppNamedFn _ -> true

@@ -459,6 +459,7 @@ let materializedValuesCaptureCallablesRecursively =
 
     let lambda : RT.ApplicableLambda =
       { exprId = 1UL
+        impl = RT.NoCode
         closedRegisters = [||]
         typeSymbolTable = RT.TST.empty
         access = Permission.Access.start Permission.Policy.allowAll

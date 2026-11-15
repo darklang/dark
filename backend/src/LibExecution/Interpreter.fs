@@ -3906,6 +3906,12 @@ let private sameWrittenIn
   | Lambda(_, _, None) -> writtenIn.IsNone
   | _ -> false
 
+/// How many lambdas a VM's per-lambda memos hold before they start over. Code evaluated per
+/// request makes new lambdas forever, and a pooled VM, which lives as long as its thread, would
+/// keep every one.
+[<Literal>]
+let lambdaMemoMax = 1024
+
 /// The instructions a lambda's frame runs. Same shared InstrData the per-VM cache holds; this is a
 /// reference to it, not a copy.
 let private lambdaInstrDataFor
@@ -3940,6 +3946,8 @@ let private lambdaInstrDataFor
                 | false, _ -> Map.empty
               lambdas = Map.empty }
         quick = quicken (PackageRefs.currentGeneration ()) instructions }
+    if vm.lambdaInstrDataCache.Count >= lambdaMemoMax then
+      vm.lambdaInstrDataCache.Clear()
     vm.lambdaInstrDataCache[exprId] <- struct (foundLambda, d)
     d
 
@@ -4000,6 +4008,7 @@ let inline private pushLambdaFrame
         | ValueSome w -> Some w
         | ValueNone -> None
       let ep = Lambda(parentEp, exprId, writtenIn)
+      if vm.lambdaEpCache.Count >= lambdaMemoMax then vm.lambdaEpCache.Clear()
       vm.lambdaEpCache[exprId] <- struct (parentEp, ep)
       ep
   recordStage vm ApplyStage.LambdaExecPoint lambdaEpAlloc
@@ -4107,10 +4116,9 @@ let rec private beginRequest
   | AppLambda appLambda ->
     let exprId = appLambda.exprId
     let foundLambda =
-      let mutable cached = Unchecked.defaultof<_>
-      if exeState.lambdaInstrCache.TryGetValue(exprId, &cached) then
-        cached
-      else
+      match appLambda.impl with
+      | HasCode impl -> impl
+      | NoCode ->
         RTE.Applications.LambdaNotAvailable exprId
         |> RTE.Apply
         |> raiseRTE vm.threadID
@@ -4396,10 +4404,9 @@ let private applyLambda
   let lambdaTotalAlloc = allocNow vm
   let exprId = appLambda.exprId
   let foundLambda =
-    let mutable cached = Unchecked.defaultof<_>
-    if exeState.lambdaInstrCache.TryGetValue(exprId, &cached) then
-      cached
-    else
+    match appLambda.impl with
+    | HasCode impl -> impl
+    | NoCode ->
       RTE.Applications.LambdaNotAvailable exprId |> RTE.Apply |> raiseRTE vm.threadID
 
   let allArgs = ArgSeq.ofNE registers newArgRegs
@@ -5233,11 +5240,9 @@ let inline private argForcingFor
       else
         ForceAll
   | DApplicable(AppLambda l) ->
-    let mutable found = Unchecked.defaultof<LambdaImpl>
-    if exeState.lambdaInstrCache.TryGetValue(l.exprId, &found) then
-      ForceLambda found
-    else
-      ForceNone
+    match l.impl with
+    | HasCode impl -> ForceLambda impl
+    | NoCode -> ForceNone
   | _ -> ForceNone
 
 /// Whether argument `i` of this `Apply` (`soFar` applied before it) must land first.
@@ -6089,7 +6094,6 @@ let private runSyncInstructions
       // -- Enums --
       | CreateLambda(lambdaReg, impl) ->
         // Captures are taken as they are; the body waits where it looks.
-        exeState.lambdaInstrCache[impl.exprId] <- impl
         // The fn this lambda is written in, for call stacks. If it's written inside
         // another lambda, use the fn that lambda was written in.
         let writtenIn =
@@ -6102,6 +6106,7 @@ let private runSyncInstructions
           registers
           lambdaReg
           ({ exprId = impl.exprId
+             impl = HasCode impl
              closedRegisters = closedOver registers impl.registersToCloseOver
              typeSymbolTable = currentFrame.typeSymbolTable
              access = currentFrame.access

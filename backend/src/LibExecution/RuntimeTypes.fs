@@ -1617,14 +1617,26 @@ and ApplicableNamedFn =
       List<struct (string * FQTypeName.Package * string * FQFnName.ImplChoice)>
   }
 
+/// A lambda's instructions, left out of equality and hashing: comparing two lambdas must not
+/// walk the code they run.
+and [<Struct; CustomEquality; NoComparison>] LambdaCode =
+  | HasCode of impl : LambdaImpl
+  | NoCode
+
+  override _.Equals(other : obj) = other :? LambdaCode
+  override _.GetHashCode() = 0
+
 and ApplicableLambda =
   {
     /// The lambda's ID, corresponding to the PT.Expr
-    /// (the actual implementation is stored in the VMState)
     ///
     /// CLEANUP including the TLID of the expr here would be useful
     /// (exprId alone isn't enough to perform equality checks, etc.)
     exprId : id
+
+    /// The instructions it runs. Not serialized, so a lambda read back from storage has
+    /// none, and applying it is `LambdaNotAvailable`.
+    impl : LambdaCode
 
     /// We _could_ have this be List<Register * Register>
     /// , but we run some risk of the register's value changing
@@ -3978,10 +3990,8 @@ module RuntimeError =
       | CannotApplyTypeArgsToLambda
       | TooManyArgsForLambda of lambdaExprId : id * expected : int * actual : int
       | TooFewArgsForLambda of lambdaExprId : id * expected : int * actual : int
-      /// A lambda's instructions live in the `lambdaInstrCache` of the
-      /// execution that made it; the value carries only the id. Applied
-      /// anywhere else, typically after a later run read back a stored one,
-      /// there is nothing to call.
+      /// A lambda's instructions are not serialized, so one read back from
+      /// storage has nothing to call.
       | LambdaNotAvailable of lambdaExprId : id
 
       /// A builtin with effects, called where only computing may happen: in a chunk of a spread
@@ -6055,9 +6065,9 @@ type VMState =
 
     /// The root frame of a pooled VM, kept so `reuseFor` can re-point it rather than build another.
     mutable pooledRootFrame : CallFrame voption
-    /// Per-VM memoization of InstrData derived from `exeState.lambdaInstrCache`, with the impl it
-    /// was derived from. A pooled VM outlives a reload, and a new version of a fn keeps its lambdas'
-    /// expression ids, so an entry is only good for the impl it was built from.
+    /// Per-VM memoization of a lambda's InstrData, with the impl it was derived from. A pooled VM
+    /// outlives a reload, and a new version of a fn keeps its lambdas' expression ids, so an entry
+    /// is only good for the impl it was built from. Starts over past `Interpreter.lambdaMemoMax`.
     lambdaInstrDataCache : Dictionary<id, struct (LambdaImpl * InstrData)>
 
     /// Each lambda's symbol table, by the lambda's expression id.
@@ -6072,7 +6082,7 @@ type VMState =
 
     /// Memoized `ExecutionPoint`s for lambda frames, keyed on the lambda's expression id and holding
     /// the calling frame's execution point they derive from. See the note at the use site in
-    /// `applyInstruction`.
+    /// `applyInstruction`. Starts over past `Interpreter.lambdaMemoMax`.
     lambdaEpCache : Dictionary<id, struct (ExecutionPoint * ExecutionPoint)>
 
     /// Performance counters — incremented during execution
@@ -6557,16 +6567,8 @@ and ExecutionState =
     traceCaps : Tracing.Caps
     test : TestContext
 
-    /// Lambda instructions registered by `CreateLambda`, looked up on `Apply`.
-    /// Shared across every VM spawned under this execution so that lambdas
-    /// created in one VM (e.g. an `eval` expression) remain findable when
-    /// invoked from another (e.g. an httpServerServe request handler VM).
-    lambdaInstrCache :
-      System.Collections.Concurrent.ConcurrentDictionary<id, LambdaImpl>
-
-
     /// Memoization of what a package-fn call needs (`PackageFnCallData`).
-    /// Shared across VMs for the same reason as `lambdaInstrCache`.
+    /// Shared across VMs, so a callback's VM finds what its caller's already worked out.
     packageFnCallCache :
       System.Collections.Concurrent.ConcurrentDictionary<FQFnName.Package, PackageFnCallData>
 

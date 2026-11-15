@@ -279,6 +279,7 @@ module RT =
         RT.DApplicable(
           RT.AppLambda
             { exprId = 1UL
+              impl = RT.NoCode
               closedRegisters = [||]
               typeSymbolTable = RT.TST.empty
               access =
@@ -362,6 +363,7 @@ module RT =
         RT.DApplicable(
           RT.AppLambda
             { exprId = 7UL
+              impl = RT.NoCode
               closedRegisters = RT.Captures.ofList captures
               typeSymbolTable = RT.TST.empty
               access =
