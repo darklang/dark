@@ -88,7 +88,8 @@ let private installStoreVersionSource () : unit =
     Some LibDB.Sqlite.DataVersion.current
 
 /// The store's startup settings, read in one query (each `Config.get` is a round trip of about
-/// 8 KB, and the allocation gate counts startup): the `exec.*` knobs and the `trace.*` caps.
+/// 8 KB, and the allocation gate counts startup): the `exec.*` knobs, the HTTP client's
+/// connection cap and the `trace.*` caps.
 /// Empty when the store cannot answer. All are `dark config set`; no environment variable
 /// shadows any of them.
 let private startupSettings () : Map<string, string> =
@@ -103,6 +104,7 @@ let private startupSettings () : Map<string, string> =
         "exec.spreadCrossover"
         "exec.spreadMinChunk"
         "exec.spreadPredict"
+        "http.maxConnectionsPerHost"
         "trace.keep"
         "trace.maxMb"
         "trace.record" ])
@@ -270,6 +272,12 @@ let execute
             + $"{counted RT.SpreadCount.PredictedUnknown} unknown, "
             + $"{counted RT.SpreadCount.PredictionFailures} analyses failed"
           ))
+      match Map.tryFind "http.maxConnectionsPerHost" settings with
+      | Some v ->
+        match System.Int32.TryParse v with
+        | true, n when n >= 1 -> LibExecution.HostHttp.setMaxConnectionsPerHost n
+        | _ -> ()
+      | None -> ()
       LibExecution.Scheduler.maxInstructions <- cap "exec.maxInstructions"
       LibExecution.Scheduler.maxBytes <- cap "exec.maxBytes"
       let state =

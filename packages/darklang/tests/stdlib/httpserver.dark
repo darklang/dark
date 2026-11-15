@@ -187,3 +187,64 @@ test configDefaultsCarryTheStack =
   Stdlib.List.length(
     (Stdlib.HttpServer.Config.defaults(Stdlib.Net.Port.httpAlt)).middleware)
   |> Stdlib.Test.equal(2)
+
+
+test corsAllowsListedOrigins =
+  let cors = Stdlib.HttpServer.Middleware.cors([ "https://app.test" ])
+  let preflight =
+    { __req(
+        "http://a.test/x",
+        [ ("Origin", "https://app.test")
+          ("Access-Control-Request-Method", "PUT")
+          ("Access-Control-Request-Headers", "Content-Type") ]) with
+        method = "OPTIONS" }
+
+  Stdlib.Test.all(
+    [ (let r = __run([ cors ], preflight)
+       (r.statusCode, r.headers))
+      |> Stdlib.Test.equal(
+        (
+          204,
+          [ ("Access-Control-Allow-Methods", "PUT")
+            ("Access-Control-Max-Age", "600")
+            ("Access-Control-Allow-Headers", "Content-Type")
+            ("Access-Control-Allow-Origin", "https://app.test")
+            ("Vary", "Origin") ]))
+
+      (__run(
+         [ cors ],
+         __req("http://a.test/x", [ ("Origin", "https://app.test") ]))).headers
+      |> Stdlib.Test.equal(
+        [ ("Origin", "https://app.test")
+          ("Access-Control-Allow-Origin", "https://app.test")
+          ("Vary", "Origin") ])
+
+      (__run(
+         [ cors ],
+         __req("http://a.test/x", [ ("Origin", "https://evil.test") ]))).headers
+      |> Stdlib.Test.equal([ ("Origin", "https://evil.test") ])
+
+      (__run(
+         [ Stdlib.HttpServer.Middleware.cors([ "*" ]) ],
+         __req("http://a.test/x", [ ("Origin", "https://any.test") ]))).headers
+      |> Stdlib.Test.equal(
+        [ ("Origin", "https://any.test")
+          ("Access-Control-Allow-Origin", "*") ]) ])
+
+
+test requestIdKeepsOrMakesOne =
+  let run = fun headers ->
+    __run(
+      [ Stdlib.HttpServer.Middleware.requestId() ],
+      __req("http://a.test/", headers))
+
+  Stdlib.Test.all(
+    [ (run([ ("X-Request-Id", "abc") ])).headers
+      |> Stdlib.Test.equal([ ("X-Request-Id", "abc"), ("X-Request-Id", "abc") ])
+
+      (let r = run([])
+       match r.headers with
+       | [("X-Request-Id", seen), ("X-Request-Id", sent)] ->
+         seen == sent && Stdlib.String.length(sent) == 36
+       | _ -> false)
+      |> Stdlib.Test.equal(true) ])

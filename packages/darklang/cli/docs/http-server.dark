@@ -95,6 +95,15 @@ outermost. `Config.defaults(port)` gives `Middleware.defaults()`:
   Stdlib.HttpServer.Middleware.logRequests()      # [HttpServer] GET /a 200 3ms, on stderr
   Stdlib.HttpServer.Middleware.standardHeaders()  # HSTS
 
+The log line, and the server's own line and telemetry, leave the query out,
+since it may carry a token. Not in the defaults:
+
+  Stdlib.HttpServer.Middleware.cors([ "https://app.example.com" ])  # or [ "*" ]
+  Stdlib.HttpServer.Middleware.requestId()        # X-Request-Id, the client's or a new one
+
+`cors` answers a browser's preflight from a listed origin with 204, and adds
+`Access-Control-Allow-Origin` to everything else it sends one.
+
 `Server: darklang` is on every response whatever the list. Behind a proxy that
 sets `X-Forwarded-Proto`, add `Middleware.trustForwardedProto()` so the handler
 sees the `https://` url the client used; it is not a default, since any client

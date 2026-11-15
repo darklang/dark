@@ -52,6 +52,8 @@ type RequestError =
   | TooManyRedirects
   /// Occurs when a response's body is not what it was read as, eg. text that is not UTF-8 (<fn Response.text>). The message says why.
   | Decode(String)
+  /// Occurs when a response's body is not JSON of the type it was read as (<fn Response.json>)
+  | BadJson(Json.ParseError.ParseError)
 
 
 // TODO: move this into a RequestError module, along with the type
@@ -88,6 +90,7 @@ let toString(e: RequestError): String =
   | BadMethod -> "Bad Method"
   | TooManyRedirects -> "Too many redirects"
   | Decode(message) -> message
+  | BadJson(e) -> display(e)
 
 
 impl Display for RequestError =
@@ -121,8 +124,11 @@ type Request =
     retry: Option<RetryPolicy>
     /// Headers that go only to one origin, as {{(origin, name, value)}}: added when the request
     /// is sent, to the url it is sent to, unless it carries that header already. Set by
-    /// <fn Middleware.bearer>.
-    originHeaders: List<(String * String * String)> }
+    /// <fn Middleware.headerFor> and <fn Middleware.bearer>.
+    originHeaders: List<(String * String * String)>
+    /// Whether the host undoes a gzip or brotli {{Content-Encoding}} on the body. Set by
+    /// <fn Middleware.decompress>.
+    decompress: Bool }
 
 
 module Request =
@@ -136,7 +142,8 @@ module Request =
         timeoutMs = Option.None
         redirects = Option.None
         retry = Option.None
-        originHeaders = [] }
+        originHeaders = []
+        decompress = false }
 
 
   /// <param req> as it goes to the host: its <type Request> {{originHeaders}} added for the url
@@ -196,7 +203,9 @@ module Request =
 type Response<'body> =
   { statusCode: Int64
     headers: List<(String * String)>
-    body: 'body }
+    body: 'body
+    /// Where the response came from: the request's url, or where its redirects led.
+    url: String }
 
 
 module Response =
@@ -224,6 +233,18 @@ module Response =
     | Error(e) -> Result.Error(RequestError.Decode(e))
 
 
+  let __json(body: Bytes): Result<'a, RequestError> =
+    match Utf8.decode(body) with
+    | Ok(s) -> Json.parse<'a>(s) |> Result.mapError(fun e -> RequestError.BadJson(e))
+    | Error(e) -> Result.Error(RequestError.Decode(e))
+
+
+  /// The body as JSON of type <typeParam a>, or {{BadJson}} saying where it is not:
+  /// `Response.json<User>(r)` is a {{Result<User, RequestError>}}.
+  let json(response: Response<Bytes>): Result<'a, RequestError> =
+    __json<'a>(response.body)
+
+
 /// Sends a request and answers its response: the raw builtin (<fn sendRaw>), or one wrapped in
 /// middleware (<fn client>).
 type Send<'body> = Request -> Result<Response<'body>, RequestError>
@@ -232,8 +253,10 @@ type Send<'body> = Request -> Result<Response<'body>, RequestError>
 /// A function wrapping a <type Send>: it may change the request before handing it on, change
 /// the response on its way back, answer without sending (an error, a cached response), or send
 /// more than once (a redirect, a retry). <fn Middleware.onRequest> and
-/// <fn Middleware.onResponse> build the common two.
-type Middleware<'body> = Send<'body> -> Send<'body>
+/// <fn Middleware.onResponse> build the common two. Most keep the body as it is
+/// ({{Middleware<Bytes, Bytes>}}); one that decodes it changes its type, as
+/// <fn Middleware.decode> does, and goes outside a stack rather than in it.
+type Middleware<'inner, 'outer> = Send<'inner> -> Send<'outer>
 
 
 /// The builtins' retries and first delay for <param req>'s <type RetryPolicy>.
@@ -266,7 +289,8 @@ let sendRaw(req: Request): Result<Response<Bytes>, RequestError> =
     req.timeoutMs,
     Option.withDefault(req.redirects, 0),
     retries,
-    delayMs)
+    delayMs,
+    req.decompress)
 
 
 /// <fn sendRaw>, with the body as a lazy stream: in program order, and the timeout covers the
@@ -283,18 +307,19 @@ let streamRaw(req: Request): Result<Response<Stream<UInt8>>, RequestError> =
     req.timeoutMs,
     Option.withDefault(req.redirects, 0),
     retries,
-    delayMs)
+    delayMs,
+    req.decompress)
 
 
 module Middleware =
   /// <param send> wrapped in <param middlewares>. The first listed is the outermost: it sees
   /// the request first and the response last.
-  let wrap(middlewares: List<Middleware<'body>>, send: Send<'body>): Send<'body> =
+  let wrap(middlewares: List<Middleware<'body, 'body>>, send: Send<'body>): Send<'body> =
     List.fold(List.reverse(middlewares), send, fun(inner, m) -> m(inner))
 
 
   /// A middleware that rewrites every request with <param f> before sending it.
-  let onRequest(f: Request -> Request): Middleware<'body> =
+  let onRequest(f: Request -> Request): Middleware<'body, 'body> =
     (fun next -> (fun req -> next(f(req))))
 
 
@@ -303,27 +328,72 @@ module Middleware =
   /// so `List.map(urls, get)` keeps every request in flight at once. <param f> may only
   /// compute, whatever the method: one that prints or writes fails the request. Take an effect
   /// where you use the response.
-  let onResponse(f: Response<'body> -> Response<'body>): Middleware<'body> =
+  let onResponse(f: Response<'body> -> Response<'body>): Middleware<'body, 'body> =
     (fun next -> (fun req -> __whenReady(next(req), fun result -> Result.map(result, f))))
+
+
+  /// A middleware that runs <param f> on every request and its answer, then answers it as it
+  /// came. <param f> may take effects, such as a log line: `tap(fun(req, r) -> printLine(req.url))`.
+  /// It looks at the answer, so a GET through it is waited for where it is sent rather than
+  /// kept in flight.
+  let tap(f: (Request, Result<Response<'body>, RequestError>) -> Unit): Middleware<'body, 'body> =
+    (fun next ->
+       (fun req ->
+          let result = next(req)
+          f(req, result)
+          result))
+
+
+  let __mapBody(f: 'inner -> Result<'outer, RequestError>): Middleware<'inner, 'outer> =
+    (fun next ->
+       (fun req ->
+          __whenReady(next(req), fun result ->
+            match result with
+            | Ok(r) ->
+              match f(r.body) with
+              | Ok(body) ->
+                Result.Ok(
+                  Response
+                    { statusCode = r.statusCode, headers = r.headers, body = body, url = r.url })
+              | Error(e) -> Result.Error(e)
+            | Error(e) -> Result.Error(e))))
+
+
+  /// A middleware that turns every response's body into another type with <param f>, or
+  /// answers {{Decode}} with what <param f> says is wrong. Like <fn onResponse>, it does not
+  /// wait for the response, and <param f> may only compute.
+  let decode(f: 'inner -> Result<'outer, String>): Middleware<'inner, 'outer> =
+    __mapBody(fun body -> Result.mapError(f(body), fun e -> RequestError.Decode(e)))
+
+
+  /// A middleware that reads every response's body as JSON of type <typeParam a>
+  /// (<fn Response.json>): `(Middleware.json<User>())(send)` answers a {{Response<User>}}.
+  let json(): Middleware<Bytes, 'a> =
+    __mapBody(fun body -> Response.__json<'a>(body))
 
 
   let __trimmed(req: Request): Request =
     { req with
-        headers = List.map(req.headers, fun h -> (String.trim(Tuple2.first(h)), Tuple2.second(h))) }
+        headers =
+          List.map(req.headers, fun h ->
+            let (k, v) = h
+            (String.trim(k), v)) }
 
 
   /// Header names with the spaces around them trimmed. In the default stack.
-  let trimNames(): Middleware<'body> =
+  let trimNames(): Middleware<'body, 'body> =
     onRequest(__trimmed)
 
 
   let __hasEmptyName(req: Request): Bool =
-    List.any(req.headers, fun h -> Tuple2.first(h) == "")
+    List.any(req.headers, fun h ->
+      let (k, _) = h
+      k == "")
 
 
   /// A request with an empty header name is answered {{BadHeader(EmptyKey)}}, unsent. In the
   /// default stack, after <fn trimNames>, so a name of spaces is refused too.
-  let refuseEmptyNames(): Middleware<'body> =
+  let refuseEmptyNames(): Middleware<'body, 'body> =
     (fun next ->
        (fun req ->
           if __hasEmptyName(req) then
@@ -335,7 +405,7 @@ module Middleware =
   /// Response header names in lowercase, so a plain comparison finds {{etag}} however the
   /// server spelled it. Values are left alone. Not in the default stack: <fn Response.header>
   /// finds a header whatever its case.
-  let lowercaseNames(): Middleware<'body> =
+  let lowercaseNames(): Middleware<'body, 'body> =
     onResponse(fun response ->
       { response with
           headers =
@@ -346,13 +416,14 @@ module Middleware =
   /// Every request may take at most <param ms> milliseconds, redirects and retries included,
   /// which the host enforces: past it the answer is {{Timeout}}. For a stream it covers the
   /// headers, not the body. 0 is no limit. Listed after another, it wins.
-  let timeout(ms: Int64): Middleware<'body> =
+  let timeout(ms: Int64): Middleware<'body, 'body> =
     onRequest(fun req -> { req with timeoutMs = Option.Some(ms) })
 
 
   /// Adds the header <param name>: <param value> to every request that does not already carry
-  /// one of that name, whatever its case: a {{User-Agent}}, say.
-  let header(name: String, value: String): Middleware<'body> =
+  /// one of that name, whatever its case: a {{User-Agent}}, say. It follows a redirect to any
+  /// host; for a credential, use <fn headerFor>.
+  let header(name: String, value: String): Middleware<'body, 'body> =
     let wanted = String.toLowercase(name)
     onRequest(fun req ->
       let present = List.any(req.headers, fun h -> String.toLowercase(Tuple2.first(h)) == wanted)
@@ -366,7 +437,7 @@ module Middleware =
   /// {{"https://api.example.com/v1/"}} goes to {{https://api.example.com/users}} and
   /// {{"users"}} to {{https://api.example.com/v1/users}} (RFC 3986). An absolute url is sent as
   /// it is, and so is anything that does not parse, for the host to refuse.
-  let baseUrl(base: String): Middleware<'body> =
+  let baseUrl(base: String): Middleware<'body, 'body> =
     onRequest(fun req ->
       match Url.parse(base), Url.parseReference(req.url) with
       | Ok(b), Ok(r) -> { req with url = Url.toString(Url.resolve(b, r)) }
@@ -391,18 +462,23 @@ module Middleware =
     | Error(_) -> Option.None
 
 
-  /// {{Authorization: Bearer <param token>}} on every request to <param origin> (a url; only
-  /// its scheme, host and port count), and on no other, so the token never goes to a host a
-  /// redirect or a typo points at. Decided against the url the request is finally sent to, so
-  /// it can be listed before or after <fn baseUrl>. One the request already carries is kept.
-  let bearer(origin: String, token: String): Middleware<'body> =
+  /// The header <param name>: <param value> on every request to <param origin> (a url; only
+  /// its scheme, host and port count), and on no other, so a key never goes to a host a
+  /// redirect or a typo points at: an {{X-Api-Key}}, say, which <fn header> would send
+  /// anywhere. Decided against the url the request is finally sent to, so it can be listed
+  /// before or after <fn baseUrl>. One the request already carries is kept.
+  let headerFor(origin: String, name: String, value: String): Middleware<'body, 'body> =
     match __origin(origin) with
     | Some(wanted) ->
       onRequest(fun req ->
-        { req with
-            originHeaders =
-              List.append(req.originHeaders, (wanted, "Authorization", "Bearer " + token)) })
+        { req with originHeaders = List.append(req.originHeaders, (wanted, name, value)) })
     | None -> (fun next -> next)
+
+
+  /// {{Authorization: Bearer <param token>}} on every request to <param origin>, and on no
+  /// other (<fn headerFor>).
+  let bearer(origin: String, token: String): Middleware<'body, 'body> =
+    headerFor(origin, "Authorization", "Bearer " + token)
 
 
   /// Follows a 301, 302, 303, 307 or 308 with a {{Location}}, up to <param max> times; one more
@@ -412,8 +488,31 @@ module Middleware =
   /// dropped when a hop leaves the origin. The host follows them, checking your grants and the
   /// network guard again for each hop, so a GET through it is still in flight. In the default
   /// stack, with 10; listed after it, `followRedirects(0)` turns them off.
-  let followRedirects(max: Int64): Middleware<'body> =
+  let followRedirects(max: Int64): Middleware<'body, 'body> =
     onRequest(fun req -> { req with redirects = Option.Some(max) })
+
+
+  let __decompressed(req: Request): Request =
+    let wanted = ("Accept-Encoding", "gzip, br")
+    let headers =
+      match req.headers with
+      | [] -> [ wanted ]
+      | headers ->
+        let asked = List.any(headers, fun h ->
+          let (k, _) = h
+          String.toLowercase(k) == "accept-encoding")
+
+        if asked then headers else List.append(headers, wanted)
+
+    { req with headers = headers, decompress = true }
+
+
+  /// Asks for a gzip or brotli body ({{Accept-Encoding: gzip, br}}, unless the request names
+  /// its own) and has the host decode one, so the body is what the server meant and the
+  /// {{Content-Encoding}} and {{Content-Length}} that described the encoded one are gone. Works
+  /// for a stream too. In the default stack; `client([])` leaves the body as it came.
+  let decompress(): Middleware<'body, 'body> =
+    onRequest(__decompressed)
 
 
   /// How many redirects the default stack follows.
@@ -427,16 +526,17 @@ module Middleware =
   /// attempt (<fn timeout>). Any other method is sent once: sending a POST twice can do its work
   /// twice. The host makes the retries, so a GET through it is still in flight. Listed after
   /// another, it wins.
-  let retry(attempts: Int64, delayMs: Int64): Middleware<'body> =
+  let retry(attempts: Int64, delayMs: Int64): Middleware<'body, 'body> =
     onRequest(fun req ->
       { req with retry = Option.Some(RetryPolicy { attempts = attempts, delayMs = delayMs }) })
 
 
   /// The stack <fn request>, <fn get> and the rest send through: trim header names, refuse an
-  /// empty one (<fn refuseEmptyNames>), and follow up to 10 redirects. All three keep a GET in
-  /// flight. Build your own with <fn client>, starting from this list or from nothing.
-  let defaults(): List<Middleware<'body>> =
-    [ trimNames(), refuseEmptyNames(), followRedirects(defaultRedirects) ]
+  /// empty one (<fn refuseEmptyNames>), follow up to 10 redirects, and decode a gzip or brotli
+  /// body (<fn decompress>). All four keep a GET in flight. Build your own with <fn client>,
+  /// starting from this list or from nothing.
+  let defaults(): List<Middleware<'body, 'body>> =
+    [ trimNames(), refuseEmptyNames(), followRedirects(defaultRedirects), decompress() ]
 
 
 /// What <fn Middleware.defaults> does to a request, as one function: <fn request> and
@@ -447,6 +547,7 @@ let __defaults(req: Request): Result<Request, RequestError> =
   if Middleware.__hasEmptyName(req) then
     Result.Error(RequestError.BadHeader(BadHeader.EmptyKey))
   else
+    let req = Middleware.__decompressed(req)
     match req.redirects with
     | Some(_) -> Result.Ok(req)
     | None -> Result.Ok({ req with redirects = Option.Some(Middleware.defaultRedirects) })
@@ -456,7 +557,7 @@ let __defaults(req: Request): Result<Request, RequestError> =
 /// `client(List.append(Middleware.defaults(), Middleware.retry(3, 200)))` retries too, and
 /// `client([])` is the raw builtin, which follows no redirect. A timeout, redirect limit or
 /// retry policy set on the request itself wins over the middleware's.
-let client(middlewares: List<Middleware<Bytes>>): Send<Bytes> =
+let client(middlewares: List<Middleware<Bytes, Bytes>>): Send<Bytes> =
   let send = Middleware.wrap(middlewares, sendRaw)
   (fun req ->
      match req.timeoutMs, req.redirects, req.retry with
@@ -467,7 +568,7 @@ let client(middlewares: List<Middleware<Bytes>>): Send<Bytes> =
 
 
 /// <fn client>, over <fn streamRaw>: the same middleware, with the body as a lazy stream.
-let streamClient(middlewares: List<Middleware<Stream<UInt8>>>): Send<Stream<UInt8>> =
+let streamClient(middlewares: List<Middleware<Stream<UInt8>, Stream<UInt8>>>): Send<Stream<UInt8>> =
   let send = Middleware.wrap(middlewares, streamRaw)
   (fun req ->
      match req.timeoutMs, req.redirects, req.retry with

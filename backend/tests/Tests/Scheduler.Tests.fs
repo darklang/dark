@@ -1030,7 +1030,8 @@ let private recordFieldThroughShell =
   Stdlib.HttpClient.Response
     { statusCode = Builtin.testReadOf(95, 200)
       headers = Builtin.testReadOf(96, [])
-      body = Stdlib.Bytes.empty }
+      body = Stdlib.Bytes.empty
+      url = "" }
 let code = r.statusCode
 let _ = Builtin.testTrace("peeked")
 let c = code + 0
@@ -1053,7 +1054,8 @@ let private wrongTypeRaisesAtRebuild =
   Stdlib.HttpClient.Response
     { statusCode = Builtin.testReadOf(97, "nope")
       headers = []
-      body = Stdlib.Bytes.empty }
+      body = Stdlib.Bytes.empty
+      url = "" }
 let _ = Builtin.testTrace("built")
 Stdlib.await(r)"""
         [ 97L ]

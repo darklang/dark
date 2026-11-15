@@ -1,6 +1,8 @@
 [expected-request]
 GET PATH HTTP/1.1
 Host: HOST
+Accept-Encoding: gzip
+Accept-Encoding: br
 Content-Type: application/json; charset=invalid
 Content-Length: 0
 
@@ -20,6 +22,7 @@ Hello back
  {response with headers = respHeaders}) ==
    Darklang.Stdlib.HttpClient.Response
     { statusCode = 200
+      url = "http://URL"
       headers =
         [
           ("Server", "kestrel")

@@ -76,6 +76,7 @@ let settings : List<string> =
     "exec.spreadMinChunk"
     "exec.spreadPredict"
     "http.requestTimeoutMs"
+    "http.maxConnectionsPerHost"
     "http.loopback"
     "http.private"
     "trace.record"
@@ -112,7 +113,11 @@ let check
   (key : string)
   (value : string)
   : Result<unit, string> =
-  let int32Keys = [ "exec.workers"; "exec.storePollMs"; "http.requestTimeoutMs" ]
+  let int32Keys =
+    [ "exec.workers"
+      "exec.storePollMs"
+      "http.requestTimeoutMs"
+      "http.maxConnectionsPerHost" ]
   let int64Keys =
     [ "exec.maxInstructions"
       "exec.maxBytes"
@@ -133,6 +138,8 @@ let check
     // The boot ignores a poll under 10 ms (`Cli.fs`), so refuse it here rather than store it.
     | true, n when key = "exec.storePollMs" && n < 10 ->
       Error $"{key} takes a whole number of ms, 10 or more, not {value}"
+    | true, n when key = "http.maxConnectionsPerHost" && n < 1 ->
+      Error $"{key} takes a whole number, 1 or more, not {value}"
     | true, n when n >= 0 -> Ok()
     | _ -> wholeNumber ()
   elif List.contains key int64Keys then
