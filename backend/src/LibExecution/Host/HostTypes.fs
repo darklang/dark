@@ -217,6 +217,10 @@ type HttpBadHeader =
 type HttpBadUrl =
   | UnsupportedProtocol
   | InvalidHost
+  /// Refused by the guard until `http.loopback` is on.
+  | Loopback
+  /// Refused by the guard until `http.private` is on.
+  | PrivateNetwork
   | InvalidUri
   | InvalidRequest
 
