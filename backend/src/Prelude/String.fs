@@ -333,7 +333,7 @@ let joinNormalized (separator : string) (parts : List<string>) : string =
 
 /// <param a> then <param b>, normalized: two normalized strings can join into one that is not.
 /// What `stringAppend` and String `+` compute, in the builtins and in the VM.
-let append (a : string) (b : string) : string = concatNormalized [| a; b |]
+let append (a : string) (b : string) : string = Normalization.append a b
 
 /// Orders two strings by code point, which is also the order of their UTF-8 bytes. Only the sign
 /// of the result is meaningful.

@@ -294,6 +294,14 @@ let private isNfcBoundary (s : string) (i : int) : bool =
        properties rune.Value &&& (0xFF ||| D.nfcFails) = 0
      | _ -> false
 
+/// True when nothing in `s` is at or above U+0300, so no join in it can change under NFC.
+let private hasNoCandidates (s : string) : bool =
+  System.MemoryExtensions.IndexOfAnyExceptInRange(
+    System.MemoryExtensions.AsSpan s,
+    char 0,
+    char 0x2FF
+  ) < 0
+
 /// `s`, made of `count` pieces, `piece 0` to `piece (count - 1)`, each already NFC, as every Dark
 /// string is: in NFC. Text can change only around a join, between the last boundary before it
 /// and the first one after it, so only that is normalized. The cost then follows the pieces, not
@@ -321,13 +329,7 @@ let private normalizeJoins
         | (prevStart, prevStop) :: rest when start < prevStop ->
           windows (k + 1) join ((prevStart, max prevStop stop) :: rest)
         | _ -> windows (k + 1) join ((start, stop) :: acc)
-  let noCandidates =
-    System.MemoryExtensions.IndexOfAnyExceptInRange(
-      System.MemoryExtensions.AsSpan s,
-      char 0,
-      char 0x2FF
-    ) < 0
-  match if noCandidates then [] else windows 0 0 [] with
+  match if hasNoCandidates s then [] else windows 0 0 [] with
   | [] -> s
   | lastFirst ->
     let normalized =
@@ -361,6 +363,14 @@ let private normalizeJoins
 /// The NFC of `pieces` joined, each already NFC.
 let concat (pieces : string[]) : string =
   normalizeJoins (System.String.Concat pieces) pieces.Length (fun i -> pieces[i])
+
+/// The NFC of `a` then `b`, both already NFC.
+let append (a : string) (b : string) : string =
+  let s = System.String.Concat(a, b)
+  if hasNoCandidates s then
+    s
+  else
+    normalizeJoins s 2 (fun i -> if i = 0 then a else b)
 
 /// The NFC of `parts` joined with `separator` between each, all already NFC.
 let join (separator : string) (parts : string[]) : string =
