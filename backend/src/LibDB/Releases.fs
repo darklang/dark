@@ -137,11 +137,7 @@ exception StepFailed of step : string * inner : exn
 let populateOpKinds () : unit =
   let rows =
     Sql.query "SELECT id, op_blob FROM package_ops WHERE op_kind = 'unknown'"
-    |> Sql.execute (fun r -> r.uuid "id", r.bytes "op_blob")
-  let rows =
-    match rows with
-    | Ok rows -> rows
-    | Error error -> raise error
+    |> Sql.executeRowsSync (fun r -> r.uuid "id", r.bytes "op_blob")
   let updates =
     rows
     |> List.choose (fun (id, blob) ->
@@ -197,8 +193,7 @@ let private alreadyRun () : Set<string> =
     Set.empty
   else
     Sql.query "SELECT name FROM system_migrations_v0"
-    |> Sql.execute (fun read -> read.string "name")
-    |> Result.unwrap
+    |> Sql.executeRowsSync (fun read -> read.string "name")
     |> Set.ofList
 
 

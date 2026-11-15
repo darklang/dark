@@ -99,14 +99,13 @@ let deprecatedNamesSync (branch : PT.BranchId) : List<AtName> =
         FROM visible WHERE state = 'deprecated'"
   )
   |> Sql.parameters (Layers.sqlParams branch true)
-  |> Sql.execute (fun read ->
+  |> Sql.executeRowsSync (fun read ->
     { owner = read.string "owner"
       modules = read.string "modules"
       name = read.string "name"
       hash = read.string "item_hash"
       kind = read.string "item_kind"
       blob = read.bytesOrNone "annotation_blob" })
-  |> Result.unwrap
 
 /// The content <param rows> leave deprecated: (hash, kind, annotation), one row per name that
 /// deprecated it.
@@ -135,11 +134,10 @@ let private contentOf
       |> Sql.parameters (
         ("hashes", Sql.string (jsonStrings hashes)) :: Layers.sqlParams branch true
       )
-      |> Sql.execute (fun read ->
+      |> Sql.executeRowsSync (fun read ->
         ((read.string "owner", read.string "modules", read.string "name"),
          read.string "item_hash",
          read.string "item_type"))
-      |> Result.unwrap
       |> List.filter (fun held -> not (Set.contains held deprecatedAt))
       |> List.map (fun (_, h, k) -> (h, k))
       |> Set.ofList
