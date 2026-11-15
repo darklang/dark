@@ -48,24 +48,9 @@ let expectBytes (response : Response) : byte[] =
   | Response.Bytes bytes -> bytes
   | other -> unexpected other
 
-let expectUnit (response : Response) : unit =
-  match response with
-  | Response.Unit -> ()
-  | other -> unexpected other
-
-let expectStat (response : Response) : bool * bool =
-  match response with
-  | Response.Stat(exists, isDirectory) -> (exists, isDirectory)
-  | other -> unexpected other
-
 let expectPath (response : Response) : string =
   match response with
   | Response.Path path -> path
-  | other -> unexpected other
-
-let expectEntries (response : Response) : List<string> =
-  match response with
-  | Response.Entries entries -> entries
   | other -> unexpected other
 
 let expectEnvValue (response : Response) : Option<string> =
@@ -97,25 +82,10 @@ let expectHttpStream
   | Response.HttpStream result -> result
   | other -> unexpected other
 
-let expectFd (response : Response) : int =
-  match response with
-  | Response.Fd fd -> fd
-  | other -> unexpected other
-
 let expectDescriptor (response : Response) : bigint =
   match response with
   | Response.Fd fd -> bigint fd
   | Response.Descriptor token -> token
-  | other -> unexpected other
-
-let expectFdPath (response : Response) : int * string =
-  match response with
-  | Response.FdPath(fd, path) -> (fd, path)
-  | other -> unexpected other
-
-let expectStatInfo (response : Response) : int * int64 * int64 =
-  match response with
-  | Response.StatInfo(mode, size, mtimeSec) -> (mode, size, mtimeSec)
   | other -> unexpected other
 
 let expectOffset (response : Response) : int64 =
@@ -126,11 +96,6 @@ let expectOffset (response : Response) : int64 =
 let expectWritten (response : Response) : int =
   match response with
   | Response.Written count -> count
-  | other -> unexpected other
-
-let expectText (response : Response) : string =
-  match response with
-  | Response.Text text -> text
   | other -> unexpected other
 
 let expectOptionalText (response : Response) : Option<string> =
