@@ -955,6 +955,29 @@ let private serveBindsTheGivenPort =
           CliInstance.stop server
       })
 
+/// A package function's HTTP denial offers the whole host beside the exact URL.
+let private httpDenialOffersTheHost =
+  CliInstance.instanceTest
+    "a package function's http denial offers the host rule"
+    (fun i ->
+      task {
+        let! (saved, code) =
+          CliInstance.runWithExit
+            i
+            [ "fn"
+              "Tests.Fetch.get"
+              "(): Unit =\n  let _ = Stdlib.HttpClient.get(\"https://api.example.com/search?q=abc\", [])\n  ()" ]
+        Expect.equal code 0L saved
+        let! out = CliInstance.run i [ "run"; "Tests.Fetch.get" ]
+        Expect.isTrue
+          (out.StartsWith "permission denied")
+          $"no script prefix:\n{out}"
+        Expect.stringContains
+          out
+          "dark run --allow 'http GET '\\''https://api.example.com/*'\\'''"
+          "the host rule is offered"
+      })
+
 let noArgumentsHasExactRule =
   CliInstance.instanceTest
     "a process run with no arguments suggests an exact rule"
@@ -1567,6 +1590,7 @@ let tests =
       runAllowCoversItsServer
       serveChecksAScriptFnInItsMiddleware
       serveBindsTheGivenPort
+      httpDenialOffersTheHost
       noArgumentsHasExactRule
       capturedAccessCannotWidenCaller
       materializedValuesCaptureCallablesRecursively ]

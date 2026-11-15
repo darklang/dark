@@ -150,7 +150,7 @@ module Denials =
         deny(i, [ "eval", call ])
         |> Stdlib.Test.equal((1, "Error: " + packageRemedy))
         runScript(i, $"Stdlib.printLine({call})")
-        |> Stdlib.Test.equal((1, "Script error: " + packageRemedy)) ]))
+        |> Stdlib.Test.equal((1, packageRemedy)) ]))
 
 
   // An instance-policy denial gives the exact allow command and tells agents to submit
@@ -160,5 +160,5 @@ module Denials =
       [ deny(i, [ "eval", readAtRuntime ])
         |> Stdlib.Test.equal((1, "Error: " + instanceRemedy))
         runScript(i, $"let _ = {readAtRuntime}\n()")
-        |> Stdlib.Test.equal((1, "Script error: " + instanceRemedy)) ]))
+        |> Stdlib.Test.equal((1, instanceRemedy)) ]))
 
