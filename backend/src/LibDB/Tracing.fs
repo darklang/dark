@@ -1561,10 +1561,25 @@ let createViewTracer
       ValueSome RT.Tracing.ReplayStep.PerformOnce
     else
       // The same shape the recorder wrote: one `DList` blob of the arguments.
-      let argsBytes =
-        BinarySer.RT.Dval.serialize
-          "trace_fn_calls.args"
-          (RT.DList(LibExecution.ValueType.unknownTODO, RT.Items(List.ofArray args)))
+      // Match unsaved Bytes by their hash, as recording does. Only the lookup key changes;
+      // the live arguments keep their bytes, and viewing writes nothing to the store.
+      let args =
+        RT.DList(LibExecution.ValueType.unknownTODO, RT.Items(List.ofArray args))
+      let savedBytes dv =
+        uply {
+          match dv with
+          | RT.DBytes(RT.Ephemeral eph) ->
+            return Some(RT.DBytes(RT.Persistent(eph.ContentHash, int64 eph.count)))
+          | _ -> return None
+        }
+      let keyArgs =
+        match Ply.trySync (RT.Dval.rewriteWith savedBytes args) with
+        | ValueSome dv -> dv
+        | ValueNone ->
+          Exception.raiseInternal
+            "trace lookup normalization unexpectedly suspended"
+            []
+      let argsBytes = BinarySer.RT.Dval.serialize "trace_fn_calls.args" keyArgs
       let key = name + "\u0000" + System.Convert.ToBase64String argsBytes
       lock answersGate (fun () ->
         match Lookup.tryFindV key answers with
