@@ -209,6 +209,30 @@ test exprsDecodedValueAssertions =
         "😀") ])
 
 
+test exprsNulBraceAndHighHexEscapes =
+  Stdlib.Test.all(
+    [ // `\0`, `\{`, `\}` and `\x` above 7F: what each decodes to and how it prints back.
+      decodesToString("decoded \\0 is NUL", "\"\\0\"", "\u0000")
+      roundTrip("string NUL escape prints as \\u0000", "\"\\0\"", "\"\\u0000\"")
+      decodesToChar("decoded '\\0' is NUL", "'\\0'", "\u0000")
+      decodesToString("decoded \\{ is {", "\"\\{\"", "{")
+      roundTrip("string \\{ prints as {", "\"\\{\"", "\"{\"")
+      decodesToString("decoded \\} is }", "\"\\}\"", "}")
+      roundTrip("string \\} prints as }", "\"\\}\"", "\"}\"")
+      decodesToString(
+        "decoded \\{ in interpolation is {",
+        "$\"a\\{b {\"x\"}\"",
+        "a{b x")
+
+      decodesToString(
+        "decoded \\xE9 is the code point é, not a byte",
+        "\"\\xE9\"",
+        "é")
+
+      roundTrip("string \\xE9 prints as é", "\"\\xE9\"", "\"é\"")
+      decodesToString("decoded \\xFF is ÿ", "\"\\xFF\"", "ÿ") ])
+
+
 test exprsInterpolationTextSegments =
   Stdlib.Test.all(
     [ // Interpolation text segments decode escapes too.
