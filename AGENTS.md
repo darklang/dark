@@ -24,6 +24,7 @@ from the clone's root. In-container paths: `/home/dark/app` is the clone.
 
     scripts/dev/build                     reload packages: any .dark change reloads the whole set
     scripts/build/reload-packages         the reload alone, e.g. after truncating package-ref-hashes.txt
+    scripts/run-local-exec type-ids --write   give new package types their ids in packages/type-ids.txt
     scripts/dev/build backend/global.json a genuine full build: compile, migrate, reload
 
     ./scripts/run-tests --published                         every suite CI tests, at once, one summary

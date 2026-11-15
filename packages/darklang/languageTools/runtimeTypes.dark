@@ -3,11 +3,9 @@ module Darklang.LanguageTools.RuntimeTypes
 // <aliases>
 type Option<'a> = Stdlib.Option.Option<'a>
 
-
 // </aliases>
 
-type Hash =
-  | Hash(String)
+type Hash = ProgramTypes.Hash
 
 
 let hashToString(hash: Hash): String =

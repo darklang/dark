@@ -965,6 +965,7 @@ module ProgramTypes =
 
   let packageType : PackageType.PackageType =
     { hash = hashPT
+      id = Some(System.Guid "5b1f7d2e-3c4a-4e8b-9f60-7a2d1c3e4b5f")
       declaration =
         { typeParams = [ "a" ]
           bounds = []
@@ -983,6 +984,7 @@ module ProgramTypes =
   /// `type Set<'a: Compare> = List<'a>`
   let boundedPackageType : PackageType.PackageType =
     { hash = Hash "bounded-type"
+      id = None
       declaration =
         { typeParams = [ "a" ]
           bounds =

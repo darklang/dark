@@ -115,11 +115,9 @@ let private testMutuallyRecursiveDeclarations =
       "neither fn kept the empty placeholder"
   }
 
-/// Content addressing has to reach across the script/package boundary too: a
-/// script type with the same shape as a package type IS that type. Identifying
-/// script declarations by location instead of content would have cost this.
+/// A script type with the same shape as a package type is still its own type.
 let private testScriptTypeUnifiesWithPackageType =
-  testTask "a script type matching a package type shares its hash" {
+  testTask "a script type matching a package type has its own hash" {
     let (m : CliScript.PTCliScriptModule) = parse "type MyErr = | BadFormat\n0"
     let (reference : CliScript.PTCliScriptModule) =
       parse
@@ -129,10 +127,10 @@ let private testScriptTypeUnifiesWithPackageType =
     match m.types, reference.fns with
     | [ scriptType ], [ fn ] ->
       let (PT.Hash scriptHash) = scriptType.hash
-      Expect.equal
+      Expect.notEqual
         scriptHash
         (firstParamTypeHash fn)
-        "script-declared type hashes to the package type it duplicates"
+        "script-declared type is not the package type it looks like"
     | _ -> failtest "expected one script type and one reference fn"
   }
 
@@ -160,25 +158,19 @@ let private testDeclarationsAreNameableAfterLowering =
   }
 
 
-/// The registry is a fallback, never an override.
-///
-/// Hashes are content addressed, so a script's private name for some shape is
-/// also a name for every stored declaration of that shape. `pickLocation` breaks
-/// ties by shortest path, and a script's path is one segment, so consulting the
-/// registry first would let `type MyErr = | BadFormat` in a throwaway script
-/// rename `Stdlib.BigInt.ParseError` for the rest of the process.
+/// The registry is a fallback, never an override. An alias is another name for its
+/// target, so a script's `type MyId = Int64` hashes the same as `LanguageTools.ID`.
 let private testRegistryDoesNotDisplaceStoredNames =
   testTask "a script's name does not displace the store's" {
-    let (m : CliScript.PTCliScriptModule) = parse "type MyErr = | BadFormat\n0"
+    let (m : CliScript.PTCliScriptModule) = parse "type MyId = Int64\n0"
 
     match m.types with
-    | [ myErr ] ->
-      let locations = LibDB.PackageManager.pt.getTypeLocations myErr.hash
+    | [ myId ] ->
+      let locations = LibDB.PackageManager.pt.getTypeLocations myId.hash
       let names = locations |> List.map (fun (l : PT.PackageLocation) -> l.name)
-      // Same shape as the stdlib `ParseError`s, so the store names this hash.
-      Expect.contains names "ParseError" "the stored name is still there"
+      Expect.contains names "ID" "the stored name is still there"
       Expect.isFalse
-        (List.contains "MyErr" names)
+        (List.contains "MyId" names)
         "the script's name does not join the stored ones"
     | _ -> failtest "expected exactly one script type"
   }

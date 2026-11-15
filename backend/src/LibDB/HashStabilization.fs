@@ -349,3 +349,44 @@ let extractAllHashes (ops : List<PT.PackageOp>) : List<Hash> =
   |> List.choose (function
     | PT.PackageOp.SetName(_, target, _) -> Some target.hash
     | _ -> None)
+
+
+// An alias never gets an id: it is another name for its target, so two aliases of one type are
+// one type.
+let private needsId (t : PT.PackageType.PackageType) : bool =
+  match t.declaration.definition with
+  | PT.TypeDeclaration.Alias _ -> false
+  | PT.TypeDeclaration.Record _
+  | PT.TypeDeclaration.Enum _ -> t.id = None
+
+/// <param t> with <param id>, unless it is an alias or already has one.
+let withTypeId (id : System.Guid) (t : PT.PackageType.PackageType) =
+  if needsId t then { t with id = Some id } else t
+
+/// Where each record and enum type in <param ops> that has no id yet is being declared.
+let typesWithoutIds (ops : List<PT.PackageOp>) : List<PT.PackageLocation> =
+  ops
+  |> List.pairwise
+  |> List.choose (function
+    | PT.PackageOp.AddType t, PT.PackageOp.SetName(loc, PT.PackageType _, _) when
+      needsId t
+      ->
+      Some loc
+    | _ -> None)
+
+/// Give each type in <param ops> that has no id the one <param ids> holds for its name.
+let withTypeIds
+  (ids : Map<PT.PackageLocation, System.Guid>)
+  (ops : List<PT.PackageOp>)
+  : List<PT.PackageOp> =
+  let rec go remaining acc =
+    match remaining with
+    | PT.PackageOp.AddType t :: (PT.PackageOp.SetName(loc, PT.PackageType _, _) as binding) :: rest ->
+      let t =
+        match Map.tryFind loc ids with
+        | Some id -> withTypeId id t
+        | None -> t
+      go rest (binding :: PT.PackageOp.AddType t :: acc)
+    | op :: rest -> go rest (op :: acc)
+    | [] -> List.rev acc
+  go ops []

@@ -95,46 +95,18 @@ let typeNameWith(
 /// type in front of them is pure noise: `Some(Some([1, 2, 3]))` says everything
 /// `Option.Some(Option.Some([1, 2, 3]))` does. Every other enum keeps its type name, because `Red` on
 /// its own doesn't tell you it came from `Color`.
-let caseNameStandsAlone(
-  branchId: Uuid,
-  currentModule: List<String>,
-  t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName)
-  : Bool =
+let caseNameStandsAlone(branchId: Uuid, t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName): Bool =
   match t with
   | Package(hash) ->
     let locations = LanguageTools.PackageManager.Type.locations(branchId, ptHash(hash))
-
-    // Several names for one type, and nothing in the reader's context to choose between them.
-    //
-    // Types are content-addressed, so two declarations with the same shape ARE one type:
-    // `Stdlib.BigInt.ParseError`, `Stdlib.Float64.ParseError` and `Stdlib.Uuid.ParseError` are all
-    // `| BadFormat`, which makes them a single type with three names. Printing one of those names is
-    // picking arbitrarily, and it picks wrong most of the time -- `Stdlib.BigInt.parse "abc"` reporting a
-    // `Stdlib.Uuid.ParseError` is a real thing this used to print. The case name alone is the most that
-    // can honestly be said, so say that.
-    let ambiguous =
-      match locations with
-      | [] | [_] -> false
-      | _ ->
-        locations
-        |> Stdlib.List.map(fun l ->
-          LanguageTools.PackageManager.countMatchingPrefix(
-            currentModule,
-            Stdlib.List.prepend(l.modules, l.owner)))
-        |> Stdlib.List.fold(0, fun(acc, n) -> if n > acc then n else acc)
-        |> (fun best -> best == 0)
-
-    if ambiguous then
-      true
-    else
-      match LanguageTools.PackageManager.pickLocation(
-              LanguageTools.PackageManager.PickContext.empty,
-              locations) with
-      | Some(l) ->
-        let path = Stdlib.List.prepend(l.modules, l.owner)
-        path == [ "Darklang", "Stdlib", "Option" ] && l.name == "Option"
-        || path == [ "Darklang", "Stdlib", "Result" ] && l.name == "Result"
-      | None -> false
+    match LanguageTools.PackageManager.pickLocation(
+            LanguageTools.PackageManager.PickContext.empty,
+            locations) with
+    | Some(l) ->
+      let path = Stdlib.List.prepend(l.modules, l.owner)
+      path == [ "Darklang", "Stdlib", "Option" ] && l.name == "Option"
+      || path == [ "Darklang", "Stdlib", "Result" ] && l.name == "Result"
+    | None -> false
 
 
 module FQTypeName =
@@ -824,7 +796,7 @@ module Dval =
 
           // `Some(1)`, not `Option.Some(1)`; but `Color.Red`, not `Red`.
           let prefix =
-            if caseNameStandsAlone(branchId, opts.currentModule, typeName) then
+            if caseNameStandsAlone(branchId, typeName) then
               ""
             else
               typeNameWith(branchId, opts, typeName) + typeArgsPart + "."

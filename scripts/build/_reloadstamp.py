@@ -73,7 +73,7 @@ def inputs(optimize):
     - the LocalExec it runs, and every file beside it: its own code, the parser, the checker and
       the builtins with their signatures, all compiled in; and the .NET runtimes it runs on;
     - its flags: Debug or Release, and every DARK_CONFIG_ setting (the store, the root dir);
-    - every `.dark` file under packages/, a superset of the ones it loads;
+    - every `.dark` file under packages/, a superset of the ones it loads, and the types' ids;
     - the schema and its migrations, which the build's migration step applies first;
     - the two scripts between the build and LocalExec.
   Taken before the reload runs, so a file saved during it shows as changed afterwards.
@@ -90,6 +90,7 @@ def inputs(optimize):
     add("runtime", rt)
   files = (_files_under(local_exec_dir(optimize))
            + _files_under("packages", ".dark")
+           + ["packages/type-ids.txt"]
            + _files_under("backend/migrations")
            + ["scripts/build/reload-packages", "scripts/run-local-exec"])
   for f in files:

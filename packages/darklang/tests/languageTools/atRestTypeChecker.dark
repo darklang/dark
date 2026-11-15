@@ -188,6 +188,7 @@ let declared(
   : LanguageTools.ProgramTypes.PackageType.PackageType =
   LanguageTools.ProgramTypes.PackageType.PackageType
     { hash = hash(name)
+      id = Option.None
       declaration =
         LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration
           { // A type takes bounds on this branch too (`type Set<'a: Compare>`), and

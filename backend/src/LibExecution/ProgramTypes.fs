@@ -765,9 +765,15 @@ type Deprecation<'name> =
 
 module PackageType =
   type PackageType =
-    { hash : FQTypeName.Package
+    {
+      hash : FQTypeName.Package
+      /// Made up when the type is first saved under a name, and kept through edits and renames.
+      /// It is hashed with the declaration, so two types of the same shape are still two types.
+      /// None until then.
+      id : Option<System.Guid>
       declaration : TypeDeclaration.T
-      description : string }
+      description : string
+    }
 
 
 module PackageValue =
