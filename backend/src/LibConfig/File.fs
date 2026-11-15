@@ -55,25 +55,12 @@ let lsdir (root : Dirs.Root) (dir : string) : string list =
   |> Seq.toList
   |> List.map (String.dropLeft absoluteDir.Length)
 
-let lsPattern (root : Dirs.Root) (pattern : string) : string list =
-  let absoluteDir = checkFilename root Dir ""
-
-  System.IO.Directory.EnumerateFileSystemEntries(absoluteDir, pattern)
-  |> Seq.toList
-  |> List.map (String.dropLeft absoluteDir.Length)
-
 
 let readfile (root : Dirs.Root) (f : string) : string =
   f |> checkFilename root Read |> System.IO.File.ReadAllText
 
 let readfileBytes (root : Dirs.Root) (f : string) : byte[] =
   f |> checkFilename root Read |> System.IO.File.ReadAllBytes
-
-let tryReadFile (root : Dirs.Root) (f : string) : string option =
-  if fileExists root f then
-    f |> checkFilename root Read |> System.IO.File.ReadAllText |> Some
-  else
-    None
 
 let rec writefileBytes (root : Dirs.Root) (f : string) (contents : byte[]) : unit =
   let f = checkFilename root Write f
@@ -91,6 +78,3 @@ let rec writefileBytes (root : Dirs.Root) (f : string) (contents : byte[]) : uni
     with _ when attempt < 10 ->
       move (attempt + 1)
   move 1
-
-let rec writefile (root : Dirs.Root) (f : string) (contents : string) : unit =
-  writefileBytes root f (UTF8.toBytes contents)
