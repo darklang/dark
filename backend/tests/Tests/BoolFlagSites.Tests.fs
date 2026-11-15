@@ -18,7 +18,7 @@ let bareBoolCallsMatchTheBaseline =
       )
     let! names = LibDB.Raises.allFnNames () |> Ply.toTask
     let! sites = LibDB.BoolFlagSites.find names |> Ply.toTask
-    let found = LibDB.BoolFlagSites.baselineLines sites
+    let found = LibDB.RaiseSites.baselineLines sites
     let listed =
       System.IO.File.ReadAllLines path
       |> List.ofArray
