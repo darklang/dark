@@ -71,7 +71,11 @@ Scripts use your installation's instance policy, just like eval. File, environme
 and HTTP access may need permission; see `dark permissions`. The script's own
 functions use the run's access. Named entry points may add remembered access;
 helpers inherit it and cannot add another function's approval.
-Use `run --allow "file read /reports" report.dark` for this run only.
+If the script already has permission, you don't need `--allow`. Otherwise,
+`run --allow "file read /reports" report.dark` lets it read files in `/reports`
+and its subdirectories for this run only. This is like choosing Allow this run
+at the permission prompt. The permission isn't remembered, and rules that block
+access still apply. File rules need full paths, such as `/home/me/data`.
 Temporary grants are not saved in traces or reused by resume/fork.
 
 At a terminal, access Dark can see before the script starts is reviewed in one
