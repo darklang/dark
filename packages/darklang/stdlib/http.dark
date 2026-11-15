@@ -143,7 +143,7 @@ module Status =
     Math.__inRange("HTTP status", 100, 599, n, fun v -> Status { __status = v })
 
 
-  /// The number of <param status>, which is what <type Stdlib.Http.Response> carries
+  /// The number of <param status>
   let toInt64(status: Status): Int64 =
     status.__status
 
@@ -304,24 +304,23 @@ impl Inspect for Status =
     $"Status({status.__status})"
 
 
-/// What a handler answers. <param statusCode> is a plain number, so any helper below takes
-/// one; <fn Status.toInt64> of a <type Status> gives it for a named status.
+/// What a handler answers.
 type Response =
-  { statusCode: Int64
+  { statusCode: Status
     headers: List<(String * String)>
     body: Bytes }
 
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status <param statusCode> and <param body>.
-let response(statusCode: Int64, body: Bytes): Response =
+let response(statusCode: Status, body: Bytes): Response =
   Response { statusCode = statusCode, headers = [], body = body }
 
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status <param statusCode>, <param headers> and <param body>.
 let responseWithHeaders(
-  statusCode: Int64,
+  statusCode: Status,
   headers: List<(String * String)>,
   body: Bytes)
   : Response =
@@ -331,13 +330,13 @@ let responseWithHeaders(
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status 200 and <param body>.
 let success(body: Bytes): Response =
-  Response { statusCode = Status.toInt64(Status.ok), headers = [], body = body }
+  Response { statusCode = Status.ok, headers = [], body = body }
 
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status <param statusCode> and <param body>, with the
 /// Content-Type header set to "text/html; charset=utf-8".
-let responseWithHtml(statusCode: Int64, body: String): Response =
+let responseWithHtml(statusCode: Status, body: String): Response =
   Response
     { statusCode = statusCode
       headers = [ ("Content-Type", "text/html; charset=utf-8") ]
@@ -347,7 +346,7 @@ let responseWithHtml(statusCode: Int64, body: String): Response =
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status <param statusCode> and <param text>, with the
 /// Content-Type header set to "text/plain; charset=utf-8".
-let responseWithText(statusCode: Int64, text: String): Response =
+let responseWithText(statusCode: Status, text: String): Response =
   Response
     { statusCode = statusCode
       headers = [ ("Content-Type", "text/plain; charset=utf-8") ]
@@ -357,7 +356,7 @@ let responseWithText(statusCode: Int64, text: String): Response =
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status <param statusCode> and <param json>, with the
 /// Content-Type header set to "application/json".
-let responseWithJson(statusCode: Int64, json: String): Response =
+let responseWithJson(statusCode: Status, json: String): Response =
   Response
     { statusCode = statusCode
       headers = [ ("Content-Type", "application/json") ]
@@ -367,44 +366,37 @@ let responseWithJson(statusCode: Int64, json: String): Response =
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{302}} status code and redirect to <param url>.
 let redirectTo(url: String): Response =
-  Response
-    { statusCode = Status.toInt64(Status.found)
-      headers = [ ("Location", url) ]
-      body = Bytes.empty }
+  Response { statusCode = Status.found, headers = [ ("Location", url) ], body = Bytes.empty }
 
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{400}} status code and <param error> body.
 let badRequest(error: String): Response =
-  Response
-    { statusCode = Status.toInt64(Status.badRequest), headers = [], body = Utf8.encode(error) }
+  Response { statusCode = Status.badRequest, headers = [], body = Utf8.encode(error) }
 
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{404}} status code.
 let notFound(): Response =
-  Response { statusCode = Status.toInt64(Status.notFound), headers = [], body = Bytes.empty }
+  Response { statusCode = Status.notFound, headers = [], body = Bytes.empty }
 
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{401}} status code.
 let unauthorized(): Response =
-  Response { statusCode = Status.toInt64(Status.unauthorized), headers = [], body = Bytes.empty }
+  Response { statusCode = Status.unauthorized, headers = [], body = Bytes.empty }
 
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{403}} status code.
 let forbidden(): Response =
-  Response { statusCode = Status.toInt64(Status.forbidden), headers = [], body = Bytes.empty }
+  Response { statusCode = Status.forbidden, headers = [], body = Bytes.empty }
 
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{500}} status code and <param error> body.
 let serverError(error: String): Response =
-  Response
-    { statusCode = Status.toInt64(Status.internalServerError)
-      headers = []
-      body = Utf8.encode(error) }
+  Response { statusCode = Status.internalServerError, headers = [], body = Utf8.encode(error) }
 
 
 type Cookie =

@@ -9,8 +9,8 @@ let renderFull(state: State, size: Stdlib.Cli.Tui.Size): List<Stdlib.Cli.UI.Layo
   // Clamp to sane minimums - mid-resize the terminal reports 0/tiny sizes; without this the region math
   // goes negative and the whole view crashes back to the prompt. A safe default renders one off frame; the
   // next keypress picks up the real size.
-  let h = if size.height < 8 then 24 else size.height
-  let w = if size.width < 24 then 80 else size.width
+  let h = if size.height < 8u16 then 24 else Stdlib.Int64.fromUInt16(size.height)
+  let w = if size.width < 24u16 then 80 else Stdlib.Int64.fromUInt16(size.width)
   let screen = Stdlib.Cli.UI.Layout.Region { top = 1, left = 1, rows = h, cols = w }
   let branch = state.scmStatus.branchName
   // Off the cached SCM status rather than a query here. This runs per keypress, and it drives both the
@@ -108,7 +108,11 @@ let renderFull(state: State, size: Stdlib.Cli.Tui.Size): List<Stdlib.Cli.UI.Layo
 
           // The caret comes from the field, and sits wherever the cursor is rather than always at the
           // end -- which is the visible half of being able to move it at all.
-          let room = Stdlib.max(8, size.width - 6 - Stdlib.String.displayWidth(inp.prompt))
+          let room =
+            Stdlib.max(
+              8,
+              Stdlib.Int64.fromUInt16(size.width) - 6 - Stdlib.String.displayWidth(inp.prompt))
+
           Stdlib.Cli.UI.Colors.colorize(Stdlib.Cli.UI.Colors.cyan, "› ")
           + Stdlib.Cli.UI.Colors.boldText(inp.prompt)
           + Stdlib.Cli.UI.TextField.renderInline(inp.field, room)
@@ -267,27 +271,25 @@ let renderCommandCompletions(
 /// (per the TUI rule: degrade with a message, never render garbage). A real 0/tiny size mid-resize still falls
 /// through to renderFull's clamp, which draws one safe frame until the next keypress.
 let viewAtSize(state: State, size: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.View =
-  let tooSmall = size.width >= 24 && size.width < 56 || size.height >= 8 && size.height < 12
+  let width = Stdlib.Int64.fromUInt16(size.width)
+  let height = Stdlib.Int64.fromUInt16(size.height)
+  let tooSmall = width >= 24 && width < 56 || height >= 8 && height < 12
   let spans =
     if tooSmall then
       // Two lines, because one would be 44 columns wide and the guard fires from 24. The canvas clips at the
       // width, and the tail is the size you need, which is the only thing the message is for. Both lines fit
       // in 24.
-      let screen =
-        Stdlib.Cli.UI.Layout.Region { top = 1, left = 1, rows = size.height, cols = size.width }
-
+      let screen = Stdlib.Cli.UI.Layout.Region { top = 1, left = 1, rows = height, cols = width }
       let centred(text: String, row: Int64): List<Stdlib.Cli.UI.Layout.Span> =
         let col =
           Stdlib.max(
             0,
-            Stdlib.Int64.checkedDivide(size.width - Stdlib.String.displayWidth(text), 2)
+            Stdlib.Int64.checkedDivide(width - Stdlib.String.displayWidth(text), 2)
             |> Stdlib.Result.withDefault(0))
 
         Stdlib.Cli.UI.Layout.at(screen, row, col, Stdlib.Cli.UI.Colors.dimText(text))
 
-      let row =
-        Stdlib.max(0, Stdlib.Int64.checkedDivide(size.height, 2) |> Stdlib.Result.withDefault(0))
-
+      let row = Stdlib.max(0, Stdlib.Int64.checkedDivide(height, 2) |> Stdlib.Result.withDefault(0))
       Stdlib.List.flatten(
         [ centred("terminal too small", Stdlib.max(0, row - 1))
           centred("resize to at least 56x12", row) ])

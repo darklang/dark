@@ -13,7 +13,7 @@ let content(): String =
 Each answers `Result<Response<'body>, RequestError>`:
 
   type Stdlib.HttpClient.Response<'body> =
-    { statusCode: Int64, headers: List<String * String>, body: 'body }
+    { statusCode: Stdlib.Http.Status, headers: List<String * String>, body: 'body }
 
 `body` is Bytes from `request`, `get` and the rest, and a lazy `Stream<UInt8>`
 from `stream`. Headers come back as the server sent them, names and values,

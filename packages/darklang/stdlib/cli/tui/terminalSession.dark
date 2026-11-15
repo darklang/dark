@@ -119,7 +119,7 @@ let transitionOutput(status: Status, mode: ViewMode): String =
 /// Read and normalize the current terminal viewport dimensions.
 let currentSize(): Size =
   let (width, height) = Cli.Terminal.getSize()
-  Size { width = max(1, width), height = max(1, height) }
+  Size { width = max(1u16, width), height = max(1u16, height) }
 
 
 /// Constrain a logical view to the sampled terminal.
@@ -132,8 +132,8 @@ let currentSize(): Size =
 /// emitted. Keeping raw logical rows here makes unchanged frames cheap while
 /// the renderer remains the single terminal-safety boundary.
 let normalizeView(size: Size, view: View): View =
-  let width = max(1, size.width)
-  let height = max(1, size.height)
+  let width = max(1, Int64.fromUInt16(size.width))
+  let height = max(1, Int64.fromUInt16(size.height))
   match view.mode with
   | Fullscreen ->
     let rows =
@@ -185,18 +185,18 @@ let preparePresentAtSize(state: State, size: Size, next: View): Prepared =
     match next.mode with
     | Fullscreen ->
       if surfaceChanged then
-        Frame.renderAtWidth(size.width, Option.None, next)
+        Frame.renderAtWidth(Int64.fromUInt16(size.width), Option.None, next)
       else if sizeChanged then
-        Frame.renderFullAtWidth(size.width, state.previousView, next)
+        Frame.renderFullAtWidth(Int64.fromUInt16(size.width), state.previousView, next)
       else
-        Frame.renderAtWidth(size.width, state.previousView, next)
+        Frame.renderAtWidth(Int64.fromUInt16(size.width), state.previousView, next)
     | Inline ->
       if surfaceChanged then
-        InlineFrame.renderAtWidth(size.width, Option.None, next)
+        InlineFrame.renderAtWidth(Int64.fromUInt16(size.width), Option.None, next)
       else if sizeChanged then
-        InlineFrame.renderFullAtWidth(size.width, state.previousView, next)
+        InlineFrame.renderFullAtWidth(Int64.fromUInt16(size.width), state.previousView, next)
       else
-        InlineFrame.renderAtWidth(size.width, state.previousView, next)
+        InlineFrame.renderAtWidth(Int64.fromUInt16(size.width), state.previousView, next)
 
   let output = Ansi.wrapUpdate(transitionOutput(state.status, next.mode) + frameOutput)
   Prepared
@@ -319,12 +319,12 @@ let prepareStopInlineWithView(state: State, final: View): Prepared =
   | RunningInline ->
     let (width, final) =
       match state.terminalSize with
-      | Some(size) -> (max(1, size.width), normalizeView(size, final))
+      | Some(size) -> (max(1, Int64.fromUInt16(size.width)), normalizeView(size, final))
       | None ->
         // Unreachable: a running session always recorded a size. Sampling degrades to a maybe-stale
         // width; a guess like `1` would clip every row to a single column.
         let size = currentSize()
-        (max(1, size.width), normalizeView(size, final))
+        (max(1, Int64.fromUInt16(size.width)), normalizeView(size, final))
 
     let parked = { final with cursor = Cursor.Hidden }
     let parkOutput = InlineFrame.renderAtWidth(width, state.previousView, parked)

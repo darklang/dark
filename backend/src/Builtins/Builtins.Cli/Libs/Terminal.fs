@@ -116,13 +116,15 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "cliTerminalSize" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TTuple(TInt64, TInt64, [])
+      returnType = TTuple(TUInt16, TUInt16, [])
       description = "Sample terminal width and height together as (columns, rows)"
       fn =
         (function
         | _, _, _, [| DUnit |] ->
           let (width, height) = terminalSize ()
-          DTuple(Dval.dint64 (int64 width), Dval.dint64 (int64 height), []) |> Ply
+          let dimension (n : int64) =
+            DUInt16(uint16 (System.Math.Clamp(n, 0L, 65535L)))
+          DTuple(dimension width, dimension height, []) |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
