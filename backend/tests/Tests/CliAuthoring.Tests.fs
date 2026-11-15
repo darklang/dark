@@ -12,8 +12,11 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Expecto
+open Prelude
 
+module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module TraitCalls = Builtins.Matter.Libs.PM.TraitCalls
 
 open Tests.CliTestHarness
 open Tests.CliDsl
@@ -1363,6 +1366,223 @@ let interpolationRecordsItsImpl =
           "a fresh interpolation sees the new implementation"
     })
 
+/// Failed saves show their errors; incomplete saves still warn about trait calls.
+let failedSavesDoNotWarnAboutUnresolvedTraitCalls =
+  instanceTest
+    "failed saves omit trait-call warnings, but incomplete saves keep them"
+    (fun state ->
+      task {
+        do! start state
+        let path = System.IO.Path.GetTempFileName()
+        let unresolved =
+          String.concat
+            "\n"
+            [ "let pending(n: Int64): Int64 = Tests.TraitWarningMissing.call(n) + 1"
+              "let method(n: Int64): String = Stdlib.Display.display(Tests.TraitWarningMissing.call(n))"
+              "let bounded(n: Int64): String = Stdlib.display(Tests.TraitWarningMissing.call(n))"
+              "let pipedMethod(n: Int64): String = Tests.TraitWarningMissing.call(n) |> Stdlib.Display.display"
+              "let pipedBounded(n: Int64): String = Tests.TraitWarningMissing.call(n) |> Stdlib.display"
+              "let resolved(n: Int64): Int64 = n + 1" ]
+        let save (name : string) (source : string) =
+          task {
+            System.IO.File.WriteAllText(path, source)
+            return! runCliPlain state [ "module"; "/Tests." + name; path ]
+          }
+        let warning = "Warning: could not choose implementations for these calls:"
+        try
+          let! incomplete = save "TraitWarningIncomplete" unresolved
+          Expect.stringContains
+            incomplete
+            warning
+            $"an incomplete save still warns: {incomplete}"
+          Expect.stringContains
+            incomplete
+            "Tests.TraitWarningIncomplete.pending: operator `+`"
+            $"the warning identifies the unresolved call: {incomplete}"
+          for name, call in
+            [ "method", "Stdlib.Display.display"
+              "bounded", "Stdlib.display"
+              "pipedMethod", "Stdlib.Display.display"
+              "pipedBounded", "Stdlib.display" ] do
+            Expect.stringContains
+              incomplete
+              $"Tests.TraitWarningIncomplete.{name}: `{call}`"
+              $"the warning identifies the call in {name}: {incomplete}"
+          Expect.isFalse
+            (incomplete.Contains "Tests.TraitWarningIncomplete.resolved:")
+            $"resolved calls do not warn: {incomplete}"
+          Expect.stringContains
+            incomplete
+            "Check for missing references or type annotations, then save again."
+            $"the warning explains what to try: {incomplete}"
+          Expect.stringContains
+            incomplete
+            "newest matching implementation at runtime"
+            $"the warning explains the runtime behavior: {incomplete}"
+
+          let! typeError =
+            save
+              "TraitWarningTypeError"
+              ("let bad(n: Int64): Int64 = n + \"x\"\n" + unresolved)
+          Expect.stringContains
+            typeError
+            "Type check failed"
+            $"the type error is reported: {typeError}"
+          Expect.isFalse
+            (typeError.Contains warning)
+            $"the failed check has no trait-call warning: {typeError}"
+
+          let! valueError =
+            save
+              "TraitWarningValueError"
+              "val broken = Tests.TraitWarningMissing.call(1) + 1"
+          Expect.stringContains
+            valueError
+            "Failed to define module:"
+            $"the failed value is reported: {valueError}"
+          Expect.isFalse
+            (valueError.Contains warning)
+            $"the failed save has no trait-call warning: {valueError}"
+        finally
+          System.IO.File.Delete path
+      })
+
+/// A trait call's location names the trait, so its method must be added back.
+let unresolvedTraitCallNamesWithoutOriginalText =
+  cliTest
+    "unresolved trait calls keep their method name without original text"
+    (fun target ->
+      task {
+        let pm = TestUtils.TestUtils.pmPT
+        let! parsed =
+          LibParser.Package.parse
+            (TestUtils.TestUtils.localBuiltIns pm)
+            pm
+            LibParser.NameResolver.OnMissing.Allow
+            """module Tests.TraitWarningFallback
+let pending(n: Int64): String =
+  Stdlib.Display.display(Tests.TraitWarningMissing.call(n))
+"""
+          |> Ply.toTask
+        let ops =
+          match parsed with
+          | Ok ops -> LibDB.HashStabilization.computeRealHashes ops
+          | Error errors -> failtest $"could not parse trait call: {errors}"
+
+        for keepLocation, expected in
+          [ true, "Darklang.Stdlib.Display.display"; false, "display" ] do
+          let withoutOriginalText =
+            ops
+            |> List.map (function
+              | PT.PackageOp.AddFn fn ->
+                match fn.body with
+                | PT.EApply(id,
+                            PT.EFnName(callId, nr, bounds, selfType),
+                            types,
+                            args) ->
+                  let nr =
+                    { nr with
+                        originalName = []
+                        resolved =
+                          nr.resolved
+                          |> Result.map (fun name ->
+                            if keepLocation then
+                              name
+                            else
+                              { name with location = None }) }
+                  let body =
+                    PT.EApply(
+                      id,
+                      PT.EFnName(callId, nr, bounds, selfType),
+                      types,
+                      args
+                    )
+                  PT.PackageOp.AddFn { fn with body = body }
+                | _ -> failtest "expected a direct trait call"
+              | op -> op)
+          let! _, unresolved =
+            TraitCalls.resolveTraitCalls
+              (executionState target)
+              PT.BranchId.Main
+              pm
+              None
+              withoutOriginalText
+            |> Ply.toTask
+          Expect.equal
+            (unresolved
+             |> List.map (fun (name, calls) ->
+               name,
+               calls
+               |> List.map (function
+                 | TraitCalls.Function(_, name) -> name
+                 | TraitCalls.Operator _ -> failtest "expected a named trait call")))
+            [ "Tests.TraitWarningFallback.pending", [ expected ] ]
+            "the fallback identifies the method even without the original text"
+      })
+
+/// Equal bodies share resolution work, but each call keeps its source identity.
+let unresolvedTraitCallsKeepTheirSourceLocations =
+  instanceTest
+    "unresolved trait calls keep each name and source location"
+    (fun state ->
+      task {
+        do! start state
+        let path = System.IO.Path.GetTempFileName()
+        let save name lines =
+          task {
+            System.IO.File.WriteAllText(path, String.concat "\n" lines)
+            return! runCliPlain state [ "module"; "/Tests." + name; path ]
+          }
+        try
+          let! helpers =
+            save
+              "TraitCallHelpers"
+              [ "let first<'a: Stdlib.Display>(x: 'a): String ="
+                "  Stdlib.Display.display(x)"
+                "let second<'a: Stdlib.Display>(x: 'a): String ="
+                "  Stdlib.Display.display(x)" ]
+          Expect.isFalse
+            (helpers.Contains "Warning: could not choose implementations")
+            $"valid generic deferrals do not warn: {helpers}"
+
+          let! output =
+            save
+              "TraitCallSites"
+              [ "let usingFirst(n: Int64): String ="
+                "  Tests.TraitCallHelpers.first(Tests.MissingTraitCall.call(n))"
+                "let usingSecond(n: Int64): String ="
+                "  Tests.TraitCallHelpers.second(Tests.MissingTraitCall.call(n))"
+                "let repeated(n: Int64): Int64 ="
+                "  let first = Tests.MissingTraitCall.call(n) + 1"
+                "  first + 2" ]
+          for expected in
+            [ "usingFirst: `Tests.TraitCallHelpers.first` (line 2, column 3)"
+              "usingSecond: `Tests.TraitCallHelpers.second` (line 4, column 3)"
+              "repeated: operator `+` (line 6, column 15), operator `+` (line 7, column 3)" ] do
+            Expect.stringContains
+              output
+              expected
+              $"each call has its own source: {output}"
+          Expect.isFalse
+            (output.Contains "usingSecond: `Tests.TraitCallHelpers.first`")
+            $"a shared body cannot borrow another declaration's spelling: {output}"
+
+          let definition =
+            "(n: Int64): String = "
+            + "Stdlib.Display.display(Tests.MissingTraitCall.call(n))"
+          let! shortForm =
+            runCliPlain
+              state
+              [ "fn"; "/Tests.TraitCallSites.shortForm"; definition ]
+          let column = definition.IndexOf("Stdlib.Display.display") + 1
+          Expect.stringContains
+            shortForm
+            $"shortForm: `Stdlib.Display.display` (line 1, column {column})"
+            $"the position excludes the short-form parser prefix: {shortForm}"
+        finally
+          System.IO.File.Delete path
+      })
+
 let tests : List<Test> =
   [ aTypeIsUsableByAFunctionAuthoredAfterIt
     interpolationRecordsItsImpl
@@ -1385,5 +1605,8 @@ let tests : List<Test> =
     commitRefusesABoundThatNamesNothing
     aMismatchedImplementationIsReportedAtSave
     aFailedModuleSaveDoesNotEndOnATick
+    failedSavesDoNotWarnAboutUnresolvedTraitCalls
+    unresolvedTraitCallNamesWithoutOriginalText
+    unresolvedTraitCallsKeepTheirSourceLocations
     aReplacedImplementationIsNotChosen ]
   @ helpExamplesRun

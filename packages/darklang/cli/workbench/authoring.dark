@@ -216,6 +216,8 @@ let saveEditing(state: State, es: EditingState): Step =
             // is in `Packages.commitAuthored`; only the wording is the footer's own.
             match Packages.commitAuthored(state.branchId, loc, kind, hash, ops) with
             | Ok(committed) ->
+              let warning = Packages.AtRestCheck.unresolvedTraitCallsText(
+                committed.unresolvedTraitCalls, 0u64)
               // Land on what you just saved, in the module it went to, which is not always where
               // you were: a new item can be saved into a module below the one on screen.
               let there =
@@ -245,6 +247,11 @@ let saveEditing(state: State, es: EditingState): Step =
                     items = reloaded
                     selected = landed
                     detailScroll = 0
+                    // Keep multiline warnings inside the renderer's scrollable reader.
+                    reading =
+                      if warning == "" then there.reading
+                      else Stdlib.Option.Option.Some(warning)
+                    readingIsCode = if warning == "" then there.readingIsCode else false
                     // The save repointed items, so a preview built before it is about a tree that
                     // no longer exists; drop the page rather than trust it.
                     previews = []
