@@ -1385,8 +1385,39 @@ let private secretsAreNotInTheLog =
       })
 
 
+let private viewMatchesUnsavedBytes =
+  testTask "trace views match nested unsaved Bytes against saved arguments" {
+    let bytes = LibExecution.Bytes.newEphemeral [| 1uy; 2uy; 3uy |]
+    let nested = RT.DTuple(RT.DUnit, bytes, [])
+    let args = RT.DList(LibExecution.ValueType.unknownTODO, RT.Items [ nested ])
+    let! saved =
+      LibDB.Tracing.prepareDvalForStorage (fun _ _ -> uply { return () }) args
+      |> Ply.toTask
+    let serialized =
+      LibSerialization.Binary.Serialization.RT.Dval.serialize "test" saved
+    let tracer =
+      LibDB.Tracing.createViewTracer
+        [ "read", serialized, RT.DInt64 42L ]
+        (System.Collections.Generic.Dictionary())
+        (System.Collections.Generic.Dictionary())
+        (System.Collections.Generic.Dictionary())
+        []
+    let lookup = tracer.executionTracing.viewEffect |> Option.get
+    match lookup "read" [| nested |] with
+    | ValueSome(RT.Tracing.ReplayStep.Serve value) ->
+      Expect.equal value (RT.DInt64 42L) "the recorded answer is served"
+    | other -> failtest $"expected the recorded answer, got {other}"
+    let different =
+      RT.DTuple(RT.DUnit, LibExecution.Bytes.newEphemeral [| 4uy |], [])
+    match lookup "read" [| different |] with
+    | ValueNone -> ()
+    | other -> failtest $"different bytes must not match, got {other}"
+  }
+
+
 let tests =
-  [ scriptOrEvalInputPersistence
+  [ viewMatchesUnsavedBytes
+    scriptOrEvalInputPersistence
     legacyScriptDoesNotGuessItsInput
     resumeNamesServedRequests
     invocationCountsTowardsTraceWeight

@@ -676,14 +676,19 @@ let showCodeJson(
               count = Stdlib.List.length(loop.iterations)
               iterations = iterations })
 
-      printJson(
-        Stdlib.Json.checkedSerialize<ValuesJson>(
-          ValuesJson
-            { trace = trace.id
-              fn = FnRef { name = fnName, hash = selfHash }
-              values = values
-              loops = loopsJson
-              problem = problemJson(branchId, trace.id, problem) }))
+      let printed =
+        printJson(
+          Stdlib.Json.checkedSerialize<ValuesJson>(
+            ValuesJson
+              { trace = trace.id
+                fn = FnRef { name = fnName, hash = selfHash }
+                values = values
+                loops = loopsJson
+                problem = problemJson(branchId, trace.id, problem) }))
+
+      match problem with
+      | Some(_) -> false
+      | None -> printed
 
 
 /// A loop in one trace: a lambda call site that ran more than once.
@@ -1172,6 +1177,11 @@ let showCode(
 
         let (collected, frames, frameValues, problem, loops) =
           if wanted == [] then first else viewWith(wanted)
+
+        let state =
+          match problem with
+          | Some(_) -> { state with exitCode = 1 }
+          | None -> state
 
         // WHICH ITERATION OF EACH LOOP YOU ARE LOOKING AT: `--iteration map:2,fold:2`.
         //
