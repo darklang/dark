@@ -6,7 +6,7 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="Expecto" Version="10.1.0" />
+    <PackageVersion Include="Expecto" Version="11.1.1" />
     <PackageVersion Include="FSharp.Core" Version="11.0.101" />
     <PackageVersion Include="Fumble" Version="1.0.3" />
     <PackageVersion Include="Legivel" Version="0.4.6" />
