@@ -941,14 +941,14 @@ let isNegLitArg (state : ParserState) (k : int) : bool =
       || (rng state k).start.column > (rng state (k - 1)).end_.column) // space before `-`
 
 // Report a `;` used in place of `,`, then treat it as a `,` and keep parsing.
-let private errCollectionSemicolon (state : ParserState) (i : int) (what : string) =
-  errFull
-    state
-    DiagnosticCode.expected
-    i
-    $"expected ',' between {what}, found ';'"
-    []
-    (Some "use ',' instead")
+let private errCollectionSemicolon
+  (state : ParserState)
+  (i : int)
+  (message : string)
+  =
+  errFull state DiagnosticCode.expected i message [] None
+
+let private listCommas = "Dark separates list items with commas: `[a, b]`"
 
 // Report a `;` between statements, then skip it as if it were a newline. Only a
 // newline separates statements.
@@ -1769,7 +1769,7 @@ and private parseListPatternElems
         restAt
         (k2 + 1)
     elif tok state k2 = TSemicolon then
-      errCollectionSemicolon state k2 "list-pattern elements"
+      errCollectionSemicolon state k2 listCommas
       parseListPatternElems
         state
         ((p, Some(rng state k2)) :: elemsRev)
@@ -1831,7 +1831,10 @@ and private parseRecordPatternFields
       if tok state k2 = TComma then
         parseRecordPatternFields state fieldsRev (k2 + 1)
       elif tok state k2 = TSemicolon then
-        errCollectionSemicolon state k2 "record-pattern fields"
+        errCollectionSemicolon
+          state
+          k2
+          "Dark separates record fields with commas: `{ x = a, y = b }`"
         parseRecordPatternFields state fieldsRev (k2 + 1)
       elif k2 > k then
         if tok state k2 <> TRBrace then
@@ -3170,7 +3173,7 @@ and private parseListElems
         firstDots
         (k2 + 1)
     elif tok state k2 = TSemicolon then
-      errCollectionSemicolon state k2 "list elements"
+      errCollectionSemicolon state k2 listCommas
       parseListElems
         state
         ((e, Some(rng state k2)) :: elemsRev)
@@ -3276,7 +3279,10 @@ and private parseRecordFields
       if tok state k2 = TComma then
         parseRecordFields state fieldsRev (k2 + 1)
       elif tok state k2 = TSemicolon then
-        errCollectionSemicolon state k2 "record fields"
+        errCollectionSemicolon
+          state
+          k2
+          "Dark separates record fields with commas: `Point { x = 1, y = 2 }`"
         parseRecordFields state fieldsRev (k2 + 1)
       elif k2 > k then
         if tok state k2 <> TRBrace then
@@ -3349,7 +3355,10 @@ and private parseDictEntries
       if tok state k2 = TComma then
         parseDictEntries state entriesRev (k2 + 1)
       elif tok state k2 = TSemicolon then
-        errCollectionSemicolon state k2 "dict entries"
+        errCollectionSemicolon
+          state
+          k2
+          "Dark separates dict entries with commas: `Dict { \"a\": 1, \"b\": 2 }`"
         parseDictEntries state entriesRev (k2 + 1)
       elif k2 > kAfterKey then
         if tok state k2 <> TRBrace then
@@ -3416,7 +3425,10 @@ and private parseRecordUpdateFields
       if tok state k2 = TComma then
         parseRecordUpdateFields state updatesRev (k2 + 1)
       elif tok state k2 = TSemicolon then
-        errCollectionSemicolon state k2 "record-update fields"
+        errCollectionSemicolon
+          state
+          k2
+          "Dark separates record fields with commas: `{ p with x = 1, y = 2 }`"
         parseRecordUpdateFields state updatesRev (k2 + 1)
       elif k2 > k then
         if tok state k2 <> TRBrace then
@@ -4243,7 +4255,10 @@ and private parseRecordDefFields
           ((field, Some(rng state k2)) :: fieldsRev)
           (k2 + 1)
       elif tok state k2 = TSemicolon then
-        errCollectionSemicolon state k2 "record-type fields"
+        errCollectionSemicolon
+          state
+          k2
+          "Dark separates record fields with commas: `{ x: Int64, y: Int64 }`"
         parseRecordDefFields
           state
           ((field, Some(rng state k2)) :: fieldsRev)
