@@ -1,7 +1,6 @@
 // TODO:
 // alias PT = LanguageTools.ProgramTypes
 // alias RT = Stdlib.RuntimeTypes
-// TODO: update all of the 'namePart's to nameToStrings with fn inputs
 // CLEANUP split into a few files - easier to manage, at this point.
 // i.e. common, typeReference, expr, declarations, packages, sourceFile
 module Darklang.PrettyPrinter.ProgramTypes
@@ -2873,19 +2872,6 @@ let exprString(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
   | _expr -> "<expression this printer doesn't handle yet>"
 
 
-// CLEANUP this isn't currently used
-// if/when we uncomment this, take note that the `m` argument is a function
-// that we may not fully yet support (esp in name-resolution)
-// let deprecation<'name>
-//   (m: 'name -> String)
-//   (d: LanguageTools.ProgramTypes.Deprecation)
-//   : String =
-//   match d with
-//   | NotDeprecated -> "NotDeprecated"
-//   | RenamedTo name -> $"RenamedTo {m name}"
-//   | ReplacedBy name -> $"ReplacedBy {m name}"
-//   | DeprecatedBecause reason -> $"DeprecatedBecause {reason}"
-
 module TypeDeclaration =
   let recordFieldDoc(
     ctx: Context,
@@ -3008,7 +2994,6 @@ let typeParamsWithBounds(
 
 
 let packageType(ctx: Context, p: LanguageTools.ProgramTypes.PackageType.PackageType): String =
-  // TODO: take care of deprecated
   packageTypeNamed(ctx, FQTypeName.Package.atDefinition(ctx, p.hash), p)
 
 
@@ -3195,7 +3180,6 @@ let typeVariables(acc: List<String>, t: LanguageTools.ProgramTypes.TypeReference
 
 
 let packageFn(ctx: Context, p: LanguageTools.ProgramTypes.PackageFn.PackageFn): String =
-  // TODO: handle `deprecated`
   packageFnNamed(ctx, FQFnName.Package.atDefinition(ctx, p.hash), p)
 
 

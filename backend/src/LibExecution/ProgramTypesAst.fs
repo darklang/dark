@@ -74,7 +74,6 @@ and pipeSubExprs (pe : PipeExpr) : List<Expr> =
 
 
 /// TODO type symbols, too
-/// TODO I'm not sure if this is useful any more - wrote this when doing some Lambda work but idk
 let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
   let r = symbolsUsedInExpr
 

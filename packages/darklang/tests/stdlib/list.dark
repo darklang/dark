@@ -1242,7 +1242,6 @@ test sortRefusesFunctions =
   => raises "Cannot sort (lambda). Bytes, functions and streams have no order; use List.sortBy with a key that has one."
 
 
-//TODO: better error message
 test takeWhileRejectsNonBoolCondition =
   Stdlib.List.takeWhile([ 1, 2, 3, 4 ], fun _ -> 0 - 1)
   => raises "Darklang.Stdlib.List.takeWhile's 2nd parameter `fn` returned Int64 (-1), but should return Bool"
