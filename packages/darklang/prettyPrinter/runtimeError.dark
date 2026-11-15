@@ -673,6 +673,13 @@ module RuntimeError =
           ES.String("Store a named function (`let f() = ...`) instead, ")
           ES.String("which is rebuilt per call.") ]
 
+      | EffectWhereOnlyComputing(fn) ->
+        [ ES.FunctionName(fn)
+          ES.String(" has effects, but it was called from a function that may only compute: ")
+          ES.String("one that runs apart from the program, when a response arrives ")
+          ES.String("(`HttpClient.Middleware.onResponse`'s). Take the effect where you use the ")
+          ES.String("response instead.") ]
+
     | Statement(err) ->
       match err with
       | FirstExpressionMustBeUnit(_exprId, expectedTypes, actualType, actualValue) ->

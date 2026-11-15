@@ -6,3 +6,11 @@ module Darklang.Stdlib
 /// `Exec.spawn`.)
 let await(x: 'a): 'a =
   Builtin.runtimeForce(x)
+
+
+/// <param fn> applied to <param x>, computed apart from the program, so <param fn> may only
+/// compute. When <param x> is a read still in flight (an `HttpClient.get`, say) it is not waited
+/// for here: the answer is a read in flight too, and <param fn> runs when <param x> arrives.
+/// What `HttpClient.Middleware.onResponse` is built on.
+let __whenReady(x: 'a, fn: 'a -> 'b): 'b =
+  Builtin.runtimeWhenReady(x, fn)

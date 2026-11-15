@@ -212,6 +212,11 @@ module RuntimeTypes =
       RTE.Apply(RTE.Applications.TooManyArgsForLambda(id, 1, 2))
       RTE.Apply(RTE.Applications.TooFewArgsForLambda(id, 2, 1))
       RTE.Apply(RTE.Applications.LambdaNotAvailable id)
+      RTE.Apply(
+        RTE.Applications.EffectWhereOnlyComputing(
+          RT.FQFnName.Builtin(RT.FQFnName.builtin "printLine" 0)
+        )
+      )
       RTE.Unwrap RTE.Unwraps.GotNone
       RTE.Unwrap(RTE.Unwraps.GotError dv)
       RTE.Unwrap(RTE.Unwraps.NonOptionOrResult dv)

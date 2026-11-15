@@ -137,6 +137,13 @@ module Response =
           body = message |> String.concat "\n" |> UTF8.toBytes }
     }
 
+  /// Whether `dv` is a `Stdlib.Http.Response`.
+  let isResponse (dv : RT.Dval) : bool =
+    match dv with
+    | RT.DRecord(RT.FQTypeName.Package hash, _, [], _) ->
+      hash = RT.Hash(PackageRefs.Type.Stdlib.Http.response ())
+    | _ -> false
+
   let toHttpResponse
     (state : RT.ExecutionState)
     (result : RT.Dval)

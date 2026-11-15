@@ -1267,9 +1267,7 @@ let private servedRequestsKeepNoCredentials =
             handler
             Builtins.Http.Server.Libs.HttpServer.defaultMaxBodyBytes
             Builtins.Http.Server.Libs.HttpServer.defaultRequestTimeoutMs
-            false
-            false
-            false
+            (RT.DList(RT.ValueType.Unknown, RT.DvalList.empty))
             cts.Token
         try
           use client = new System.Net.Http.HttpClient()

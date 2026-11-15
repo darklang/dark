@@ -1,0 +1,122 @@
+module Darklang.Cli.Docs.HttpClient
+
+let content(): String =
+  """# HTTP Client
+
+## Requests
+
+  Stdlib.HttpClient.get(url, [ ("Accept", "application/json") ])
+  Stdlib.HttpClient.post(url, [ Stdlib.HttpClient.ContentType.json ], body)
+  Stdlib.HttpClient.request("PATCH", url, headers, body)   # any method; body is Bytes
+  Stdlib.HttpClient.stream("GET", url, headers, Stdlib.Bytes.empty)
+
+Each answers `Result<Response<'body>, RequestError>`:
+
+  type Stdlib.HttpClient.Response<'body> =
+    { statusCode: Int64, headers: List<String * String>, body: 'body }
+
+`body` is Bytes from `request`, `get` and the rest, and a lazy `Stream<UInt8>`
+from `stream`. Headers come back as the server sent them, names and values,
+and a header sent twice (`Set-Cookie`) is two pairs. Look one up whatever its
+case:
+
+  Stdlib.HttpClient.Response.header(r, "ETag")       # Some("\"AbC\"")
+  Stdlib.HttpClient.Response.headers(r, "Set-Cookie") # every value
+  Stdlib.HttpClient.Response.text(r)                  # body as UTF-8, or Decode
+
+A GET or HEAD with no body is a read: it runs while your program goes on, and
+waits only where you look at the response, so `List.map(urls, get)` has them
+all in flight at once, up to 50 connections to any one host; the rest wait
+their turn. A stream holds its connection until it is drained or closed, and
+counts against the 50 until then. Every other request runs in program order.
+
+Redirects are followed, up to 10, as curl -L and fetch do: a POST after a 301
+or 302, and anything but a GET or HEAD after a 303, becomes a GET; otherwise
+the method and body are kept. `Authorization`, `Cookie` and
+`Proxy-Authorization` stay behind when one leaves the origin. One more is
+`TooManyRedirects`.
+
+## Middleware
+
+A request is a record, and sending is a function:
+
+  type Request = { method, url, headers, body,
+                   timeoutMs: Option<Int64>, redirects: Option<Int64>,
+                   retry: Option<RetryPolicy>, originHeaders }
+  type Send<'body> = Request -> Result<Response<'body>, RequestError>
+  type Middleware<'body> = Send<'body> -> Send<'body>
+
+`get` and friends send through `Stdlib.HttpClient.Middleware.defaults()`: trim
+header names, refuse an empty one, and follow up to 10 redirects. Build your
+own client from a list, first listed outermost. For `timeout`,
+`followRedirects` and `retry` the one listed last wins, so
+`List.append(Middleware.defaults(), Middleware.followRedirects(0))` follows
+none; a value you set on the request yourself wins over them all:
+
+  let send =
+    Stdlib.HttpClient.client(
+      Stdlib.List.flatten(
+        [ Stdlib.HttpClient.Middleware.defaults()
+          [ Stdlib.HttpClient.Middleware.baseUrl("https://api.example.com/v1/")
+            Stdlib.HttpClient.Middleware.bearer("https://api.example.com", token)
+            Stdlib.HttpClient.Middleware.timeout(5000)
+            Stdlib.HttpClient.Middleware.retry(3, 200) ] ]))
+
+  send(Stdlib.HttpClient.Request.make("GET", "users", [], Stdlib.Bytes.empty))
+
+`client([])` is the raw builtin, `Stdlib.HttpClient.sendRaw`, which reshapes
+nothing and follows no redirect; `streamClient` is the same for streams.
+
+  Middleware.onRequest(f)        rewrite every request
+  Middleware.onResponse(f)       rewrite every response, without waiting; f only computes
+  Middleware.header(n, v)        add a header unless the request has one
+  Middleware.timeout(ms)         the exchange in ms, or `Timeout`; 0 is none
+  Middleware.baseUrl(base)       resolve relative urls against base
+  Middleware.bearer(origin, t)   Authorization: Bearer, to that origin only,
+                                 judged by the url it is finally sent to
+  Middleware.followRedirects(n)  up to n redirects, then `TooManyRedirects`
+  Middleware.retry(n, ms)        n attempts in all, idempotent methods only
+  Middleware.lowercaseNames()    response header names in lowercase
+
+`retry` tries again on a failure to connect and on 429, 502, 503 or 504. It
+waits what `Retry-After` asks, or else `ms` doubled each time with some
+jitter, never more than a minute, and gives up when the wait would pass the
+timeout. The timeout covers every attempt and every redirect: all of a
+buffered response, and up to the last response's headers for a stream. The
+host follows the redirects and makes the retries, so a GET through them is
+still in flight.
+
+A middleware is any function from a `Send` to a `Send`, so your own is a few
+lines, used as `logged()` in the list:
+
+  let logged(): Stdlib.HttpClient.Middleware<Bytes> =
+    fun next ->
+      fun req ->
+        let r = next(req)
+        let status =
+          match r with
+          | Ok(response) -> Stdlib.display(response.statusCode)
+          | Error(e) -> Stdlib.HttpClient.toString(e)
+        Stdlib.printLine(req.method + " " + req.url + " " + status)
+        r
+
+`logged` looks at the response, so it waits for it where it is sent: a GET
+through it is no longer in flight while your program goes on. `onResponse`
+does not wait: its function runs when the response arrives, apart from your
+program, so it may only compute, for a POST as for a GET. A print there fails
+the request; log where you use the response, or in your own middleware like
+`logged`.
+
+## What middleware cannot do
+
+Your grants, the network guard, and the refusal of CR, LF or NUL in a header
+are the host's, below every middleware. Each redirect and retry is a fresh
+send, checked again for wherever it goes.
+
+## Errors
+
+  BadUrl(...)  Timeout  BadHeader(...)  NetworkError  TlsError(msg)  BadMethod
+  TooManyRedirects  Decode(msg)
+
+`Stdlib.HttpClient.toString(e)` says one in words.
+"""

@@ -171,6 +171,9 @@ module Applications =
     | TooManyArgsForLambda(lambdaExprId: ID, expected: Int64, actual: Int64)
     | TooFewArgsForLambda(lambdaExprId: ID, expected: Int64, actual: Int64)
     | LambdaNotAvailable(lambdaExprId: ID)
+    /// A builtin with effects, called where only computing may happen: a spread list op's chunk,
+    /// or a function of a read in flight, which runs once the read lands.
+    | EffectWhereOnlyComputing(fn: FQFnName.FQFnName)
 
 
 module Statements =

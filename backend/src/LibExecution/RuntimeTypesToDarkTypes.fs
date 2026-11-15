@@ -1774,6 +1774,9 @@ module RuntimeError =
         | RuntimeError.Applications.LambdaNotAvailable lambdaExprId ->
           "LambdaNotAvailable", [ DUInt64 lambdaExprId ]
 
+        | RuntimeError.Applications.EffectWhereOnlyComputing fn ->
+          "EffectWhereOnlyComputing", [ FQFnName.toDT fn ]
+
 
       DEnum(typeName, typeName, [], caseName, fields)
 
@@ -1878,6 +1881,9 @@ module RuntimeError =
 
       | DEnum(_, _, [], "LambdaNotAvailable", [ lambdaExprId ]) ->
         RuntimeError.Applications.LambdaNotAvailable(D.uInt64 lambdaExprId)
+
+      | DEnum(_, _, [], "EffectWhereOnlyComputing", [ fn ]) ->
+        RuntimeError.Applications.EffectWhereOnlyComputing(FQFnName.fromDT fn)
 
       | _ -> Exception.raiseInternal "Invalid Applications.Error" []
 

@@ -14,14 +14,14 @@ Content-Length: 0
 [test]
 (let reqHeaders = [("Content-type", "application/x-www-form-urlencoded")]
  let response = (Darklang.Stdlib.HttpClient.request("get", "http://URL", reqHeaders, Darklang.Stdlib.Bytes.empty) |> Builtin.unwrap)
- let respHeaders = (response.headers |> Darklang.Stdlib.List.filter(fun h -> (Darklang.Stdlib.Tuple2.first(h)) != "date"))
+ let respHeaders = (response.headers |> Darklang.Stdlib.List.filter(fun h -> (Darklang.Stdlib.Tuple2.first(h)) != "Date"))
  {response with headers = respHeaders}) ==
    Darklang.Stdlib.HttpClient.Response
     { statusCode = 200
       headers =
         [
-          ("server", "kestrel")
-          ("transfer-encoding", "chunked")
-          ("content-type", "application/x-www-form-urlencoded; charset=utf-8")
+          ("Server", "kestrel")
+          ("Transfer-Encoding", "chunked")
+          ("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
         ]
       body = Darklang.Stdlib.Bytes.empty }

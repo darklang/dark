@@ -245,7 +245,6 @@ module Type =
       let networkFailure = p [] "NetworkFailure"
       let requestError = p [] "RequestError"
       let response = p [] "Response"
-      let streamResponse = p [] "StreamResponse"
 
     module Json =
       module ParseError =
@@ -711,6 +710,10 @@ module Fn =
     let private p addl = p ("Stdlib" :: addl)
 
     let inspect = p [] "inspect"
+
+    module HttpServer =
+      let handle = p [ "HttpServer"; "Middleware" ] "__handle"
+      let standardHeaders = p [ "HttpServer"; "Middleware" ] "standardHeaders"
 
   module LanguageTools =
     let private p addl = p ("LanguageTools" :: addl)

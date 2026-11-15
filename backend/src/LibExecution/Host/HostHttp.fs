@@ -34,6 +34,9 @@ type private ConnectFailed(failure : HttpNetworkFailure, inner : exn) =
   inherit System.Exception("HTTP connection failed", inner)
   member _.Failure = failure
 
+/// How many connections one host gets at a time (`SocketsHttpHandler.MaxConnectionsPerServer`).
+let maxConnectionsPerHost = 50
+
 module private BaseClient =
   // There are a number of different configuration options we want to enable:
   // WASM:
@@ -182,6 +185,10 @@ module private BaseClient =
            | None -> null),
         // Avoid DNS problems
         PooledConnectionIdleTimeout = System.TimeSpan.FromMinutes 5.0,
+        // A cap per host, as Go's `MaxConnsPerHost` and undici's pool have: `List.map(urls, get)`
+        // over one host opens 50 connections, and the rest wait for one inside their deadline.
+        // 50 is curl's `--parallel-max` default; browsers use 6, which is too few for an API.
+        MaxConnectionsPerServer = maxConnectionsPerHost,
         PooledConnectionLifetime = System.TimeSpan.FromMinutes 10.0,
         ConnectTimeout = System.TimeSpan.FromSeconds 10.0,
 
@@ -261,7 +268,10 @@ module private BaseClient =
     new HttpClient(
       handler,
       disposeHandler = true,
-      Timeout = System.TimeSpan.FromSeconds 30.0,
+      // No timeout of the client's own: every send runs under a deadline of its own
+      // (`deadlineFor`), the request's when it names one, so this one could only cut a
+      // longer request short.
+      Timeout = System.Threading.Timeout.InfiniteTimeSpan,
       MaxResponseContentBufferSize = 1024L * 1024L * 100L // 100MB
     )
 
@@ -392,7 +402,7 @@ module LocalAccess =
 /// anything that runs untrusted Dark code (e.g. `darklang serve` handlers,
 /// package initialisation evals).
 let defaultConfig : Configuration =
-  { timeoutInMs = 30000
+  { timeoutInMs = defaultHttpTimeoutMs
     allowedIP = fun ip -> not (LocalAccess.bannedIp ip)
     allowedHost = fun host -> not (LocalAccess.bannedHost host) }
 
@@ -611,25 +621,19 @@ let private applyRequestHeaders
   |> Result.map (fun _ -> ())
 
 
-/// Flatten the response and content header collections into a flat
-/// list, joining repeated values with ',' as ASP.NET surfaces them.
+/// The response and content header collections as a flat list, as the server sent them: names
+/// and values unchanged, and a header sent twice is two pairs rather than one joined with `,`,
+/// which would corrupt `Set-Cookie` (an `Expires` date holds a comma). `NonValidated` is the
+/// raw lines, so .NET's parsing of known headers does not reshape or split a value either.
+/// Normalizing names is Dark's (`Stdlib.HttpClient.Middleware.lowercaseNames`).
 let private headersForAspNetResponse
   (response : HttpResponseMessage)
   : List<string * string> =
   let fromAspNetHeaders (headers : Headers.HttpHeaders) : List<string * string> =
-    headers
-    |> Seq.map Tuple2.fromKeyValuePair
-    |> Seq.map (fun (k, v) -> (k, v |> Seq.toList |> String.concat ","))
-    |> Seq.toList
+    [ for KeyValue(name, values) in headers.NonValidated do
+        for value in values do
+          yield (name, value) ]
   fromAspNetHeaders response.Headers @ fromAspNetHeaders response.Content.Headers
-
-
-/// Lowercase keys + values across a response-header list. Both the
-/// buffered and streaming paths surface the same flattened shape.
-let private normalizeResponseHeaders
-  (headers : List<string * string>)
-  : List<string * string> =
-  headers |> List.map (fun (k, v) -> (String.toLowercase k, String.toLowercase v))
 
 
 /// Whether the system trust stores hold any root certificate. On Linux the
@@ -753,6 +757,14 @@ let private sendForHeaders
       return Ok response
   }
 
+/// The deadline a send runs under: the request's own when it names one, else the profile's. Zero
+/// (or less) is no limit, as the server's `http.requestTimeoutMs` is.
+let private deadlineFor (profile : Profile) (timeoutMs : Option<int>) =
+  match timeoutMs with
+  | Some ms when ms <= 0 -> new System.Threading.CancellationTokenSource()
+  | Some ms -> new System.Threading.CancellationTokenSource(ms)
+  | None -> new System.Threading.CancellationTokenSource(profile.config.timeoutInMs)
+
 /// Send one validated request and read its whole response: the streaming send, drained here.
 /// One deadline covers the exchange, body included, and a failure reading the body is the same
 /// typed error as one sending, so a slow or broken body is a `Timeout` or a `NetworkError`.
@@ -762,10 +774,10 @@ let send
   (canonicalUri : string)
   (headers : Headers)
   (body : byte[])
+  (timeoutMs : Option<int>)
   : Task<Result<HttpResponse, HttpRequestError>> =
   task {
-    use deadline =
-      new System.Threading.CancellationTokenSource(profile.config.timeoutInMs)
+    use deadline = deadlineFor profile timeoutMs
     try
       match!
         sendForHeaders profile method canonicalUri headers body deadline.Token
@@ -781,8 +793,7 @@ let send
             deadline.Token
           )
         let! bytes = response.Content.ReadAsByteArrayAsync(deadline.Token)
-        let headers =
-          response |> headersForAspNetResponse |> normalizeResponseHeaders
+        let headers = headersForAspNetResponse response
         return
           Ok
             { statusCode = int response.StatusCode; headers = headers; body = bytes }
@@ -811,12 +822,12 @@ let openStream
   (canonicalUri : string)
   (headers : Headers)
   (body : byte[])
+  (timeoutMs : Option<int>)
   : Task<Result<HttpStreamHead, HttpRequestError>> =
   task {
     let mutable responseToDispose : HttpResponseMessage option = None
     try
-      use deadline =
-        new System.Threading.CancellationTokenSource(profile.config.timeoutInMs)
+      use deadline = deadlineFor profile timeoutMs
       match!
         sendForHeaders profile method canonicalUri headers body deadline.Token
       with
@@ -831,8 +842,7 @@ let openStream
         let handle = System.Threading.Interlocked.Increment(&nextStreamId)
         streams[handle] <- (response, responseStream)
 
-        let headers =
-          response |> headersForAspNetResponse |> normalizeResponseHeaders
+        let headers = headersForAspNetResponse response
         return
           Ok
             { handle = handle

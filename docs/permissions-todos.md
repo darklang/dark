@@ -48,4 +48,3 @@ Future work beyond the runtime authorization model in docs/effects.md.
 
 - changed-contract review prompts
 - ancestor-symlink rejection
-- redirect handling at the host boundary
