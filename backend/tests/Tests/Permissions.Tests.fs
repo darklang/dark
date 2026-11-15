@@ -854,6 +854,34 @@ let private runAllowCoversItsServer =
           CliInstance.stop server
       })
 
+/// `dark serve --port N` binds the port it was given without a policy rule for it.
+let private serveBindsTheGivenPort =
+  CliInstance.instanceTest
+    "serve binds the port on its command line without a policy rule"
+    (fun i ->
+      task {
+        let! (saved, code) =
+          CliInstance.runWithExit
+            i
+            [ "fn"
+              "Tests.ServePort.router"
+              "(req: Stdlib.Http.Request): Stdlib.Http.Response =\n  Stdlib.Http.responseWithText(200, \"up\")" ]
+        Expect.equal code 0L saved
+        let! (committed, code) =
+          CliInstance.runWithExit i [ "commit"; "Tests.ServePort"; "-y" ]
+        Expect.equal code 0L committed
+        let port = Tests.HttpServer.allocateFreePort ()
+        let server =
+          CliInstance.start
+            i
+            [ "serve"; "Tests.ServePort.router"; "--port"; string port ]
+        try
+          let! (status, body) = getWhenUp port
+          Expect.equal (status, body) (200, "up") "the server answers"
+        finally
+          CliInstance.stop server
+      })
+
 let noArgumentsHasExactRule =
   CliInstance.instanceTest
     "a process run with no arguments suggests an exact rule"
@@ -1463,6 +1491,7 @@ let tests =
       serveFollowsApprovalsAndPolicy []
       serveFollowsApprovalsAndPolicy [ "--live" ]
       runAllowCoversItsServer
+      serveBindsTheGivenPort
       noArgumentsHasExactRule
       capturedAccessCannotWidenCaller
       materializedValuesCaptureCallablesRecursively ]
