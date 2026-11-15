@@ -1180,32 +1180,9 @@ gate_package_tests() {
 # copy, loads the copy into its own store, and requires every name to hash as it does from the
 # tree as written and a second run to change nothing. That is the check the sweep is made with.
 # The files scripts/formatting/dark-format-skip lists are left as written, and not checked.
-dark_format_skipped() {  # dark_format_skipped <path relative to the checkout>
-  local s
-  while IFS= read -r s; do
-    [[ -n "$s" && "$1" == "$s"* ]] && return 0
-  done < <(grep -v -e '^#' -e '^$' scripts/formatting/dark-format-skip)
-  return 1
-}
-
-dark_format_changed_files() {
-  local base=""
-  if [[ -n "${CIRCLE_SHA1:-}" ]]; then
-    git fetch -q --depth=200 --filter=blob:none origin "+refs/heads/main:refs/remotes/origin/main" 2>/dev/null || true
-  fi
-  for ref in refs/remotes/upstream/main refs/remotes/origin/main; do
-    if git rev-parse -q --verify "$ref" >/dev/null; then
-      base=$(git merge-base "$ref" HEAD 2>/dev/null || true)
-      [[ -n "$base" ]] && break
-    fi
-  done
-  [[ -n "$base" ]] || return 1
-  { git diff --name-only --no-renames "$base" HEAD; git diff --name-only HEAD; git ls-files -o --exclude-standard packages; } \
-    | sort -u
-}
-
 gate_dark_format() {
   set -euo pipefail
+  . scripts/formatting/_dark-format-scope
 
   HOME=$(realpath -m rundir/dark-format); export HOME; WORK="$HOME/.darklang"
   rm -rf "$HOME"
@@ -1218,14 +1195,8 @@ gate_dark_format() {
   local all=${DARK_FORMAT_ALL:-}
   local files=()
   if [[ -z "$all" ]]; then
-    if changed=$(dark_format_changed_files); then
-      if grep -qE '^(packages/darklang/prettyPrinter/|packages/darklang/languageTools/formatter\.dark$|packages/darklang/stdlib/pretty\.dark$|backend/src/LibParser/|backend/src/Builtins/Builtins\.(Pure/Libs/Pretty|Language/Libs/Formatter)\.fs$|scripts/formatting/dark-format-skip$)' <<<"$changed"; then
-        all=1
-      else
-        while IFS= read -r f; do
-          [[ "$f" == packages/*.dark && -f "$f" ]] && ! dark_format_skipped "$f" && files+=("$f")
-        done <<<"$changed"
-      fi
+    if changed=$(dark_format_changed_dark_files); then
+      [[ -z "$changed" ]] || mapfile -t files <<<"$changed"
     else
       all=1
     fi
@@ -1238,7 +1209,7 @@ gate_dark_format() {
     fi
     if ! DOTNET_gcServer=1 "$CLI" format --check "${files[@]}" </dev/null > "$WORK/logs/check.log" 2>&1; then
       echo "dark-format: \`dark format\` would change these; run it on them:"
-      grep -v "formatted" "$WORK/logs/check.log" | head -20
+      grep -v -e ": formatted$" -e "^[0-9]* not formatted, " "$WORK/logs/check.log" | head -20
       exit 1
     fi
     echo "dark-format: the ${#files[@]} changed .dark file(s) are formatted."
@@ -1256,8 +1227,8 @@ gate_dark_format() {
   "$CLI" permissions allow file read+write "$ROOT" </dev/null >/dev/null
   local all_files=()
   while IFS= read -r f; do
-    dark_format_skipped "$f" || all_files+=("$ROOT/$f")
-  done < <(find packages -name '*.dark' -type f | sort)
+    all_files+=("$ROOT/$f")
+  done < <(dark_format_all)
 
   start=$(date +%s)
   # A collector per core (as `scripts/formatting/format` does): the cores otherwise wait on one.

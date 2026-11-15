@@ -302,7 +302,8 @@ would have done. Checking formatting on every commit while more work is coming c
 each time and changes nothing a reviewer sees. Pre-merge does not mean optional: CI runs
 `format check` and fails on it, so run `scripts/formatting/format format` before the push that
 opens or updates a PR, then build once, because the formatter can change the program. Bare
-`scripts/formatting/format` prints usage and exits 255.
+`scripts/formatting/format` prints usage and exits 255. Of `.dark`, `format check` checks only
+the files changed against main, or all of them when the formatter changed; `--all` checks every one.
 
 `dark format` prints each declaration from what it parses to, so layout is not yours to choose:
 a header that fits in 100 columns is on one line, a short `if` is inline, enum cases go one
