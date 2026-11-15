@@ -860,7 +860,7 @@ let private approvalsDoNotPinCode =
             return output
           }
         let! _ = run [ "fn"; name; "(): Int64 = 1" ]
-        let! _ = run [ "permissions"; "approve"; name; "--yes" ]
+        let! _ = run [ "permissions"; "approve"; name; "deny all"; "--yes" ]
         let! _ = run [ "fn"; name; "(): Int64 = 2" ]
         let! edited = run [ "eval"; name + "()" ]
         Expect.equal (edited.Trim()) "2" "the edit runs without reapproval"
@@ -870,9 +870,304 @@ let private approvalsDoNotPinCode =
         let! branched = run [ "eval"; name + "()" ]
         Expect.equal (branched.Trim()) "3" "approval cannot override branch code"
         let! _ = run [ "permissions"; "unapprove"; name ]
-        let! withdrawn = run [ "eval"; name + "()" ]
-        Expect.equal (withdrawn.Trim()) "3" "withdrawal does not change code"
+        let! removed = run [ "eval"; name + "()" ]
+        Expect.equal (removed.Trim()) "3" "removal does not change code"
       })
+
+/// Missing rules never infer grants, prompt, or change an existing approval.
+let private approvalsRequireExplicitRules =
+  CliInstance.instanceTest
+    "approve requires explicit rules and never prompts without them"
+    (fun i ->
+      task {
+        let name = "Tests.ExplicitApproval.read"
+        let run args =
+          task {
+            let! output, code = CliInstance.runWithExit i args
+            Expect.equal code 0L output
+            return output
+          }
+        let! _ = run [ "permissions"; "clear" ]
+        let! _ = run [ "fn"; name; "(): Int64 = 1" ]
+        let policyPath = System.IO.Path.Combine(i.dir, "policy", "policies.bin")
+        let saved () = System.IO.File.ReadAllBytes policyPath
+        let reject args =
+          task {
+            let before = saved ()
+            let! output, code =
+              CliInstance.runWithExit i ("permissions" :: "approve" :: args)
+            Expect.equal code 1L output
+            Expect.stringContains
+              output
+              "No permission rules specified."
+              "missing rules explained"
+            Expect.stringContains output "Usage: permissions approve" "usage shown"
+            Expect.isFalse (output.Contains "[y/N]") "no confirmation"
+            Expect.isFalse
+              (output.Contains "Saved permissions")
+              "no success message"
+            Expect.equal (saved ()) before "no saved permission changed"
+            return output
+          }
+        for args in
+          [ [ name ]
+            [ "--for"; name ]
+            [ "--for=" + name; "--yes" ]
+            [ name; "-y" ]
+            [ "--for"; name; ""; "--yes" ]
+            [ "--for"; name; " ; "; "--yes" ] ] do
+          let! output = reject args
+          Expect.stringContains
+            output
+            "no approval is necessary"
+            "effect-free function explained"
+        let! pureResult = run [ "eval"; name + "()" ]
+        Expect.equal (pureResult.Trim()) "1" "a pure function runs without approval"
+        let! _ = run [ "fn"; name; "(): Option<String> = Stdlib.Env.get(\"HOME\")" ]
+        let! missing = reject [ "--for"; name; "--yes" ]
+        Expect.isFalse
+          (missing.Contains "no approval is necessary")
+          "effectful code needs rules"
+        let! _ =
+          run [ "permissions"; "approve"; "--for"; name; "env read HOME"; "--yes" ]
+        let! _ = reject [ name ]
+        let! _ = reject [ "--for"; name; "--yes" ]
+        let! shown = run [ "permissions"; "show"; name ]
+        Expect.stringContains
+          shown
+          "env read 'HOME'"
+          "existing narrow rule is preserved"
+        let! _ =
+          run
+            [ "fn"
+              name
+              "(): Option<String> =\n  let _ = 1\n  Stdlib.Env.get(\"HOME\")" ]
+        let! _ = reject [ "--for"; name; "--yes" ]
+        ()
+      })
+
+/// Approvals accumulate rules. Removing a rule keeps the approval; --all removes it.
+let private approvalsAddAndRemoveSavedRules =
+  CliInstance.instanceTest
+    "named approvals add and remove saved rules with explicit scope"
+    (fun i ->
+      task {
+        let name = "Tests.AdditiveApproval.read"
+        let alias = "Tests.AdditiveApproval.alias"
+        let envRule = "env read HOME"
+        let httpRule = "http GET https://api.github.com"
+        let run args =
+          task {
+            let! output, code = CliInstance.runWithExit i args
+            Expect.equal code 0L output
+            return output
+          }
+        let approve rules =
+          run ([ "permissions"; "approve"; "--for"; name ] @ rules @ [ "--yes" ])
+        let readHome = [ "eval"; name + "(\"HOME\")" ]
+        let assertDenied args =
+          task {
+            let! output, code = CliInstance.runWithExit i args
+            Expect.notEqual code 0L output
+            return output
+          }
+        for fn in [ name; alias ] do
+          let! _ =
+            run [ "fn"; fn; "(key: String): Option<String> = Stdlib.Env.get(key)" ]
+          ()
+        let! _ = run [ "permissions"; "approve"; "--for"; alias; envRule; "--yes" ]
+        let! _ = approve [ envRule ]
+        let! added =
+          run [ "permissions"; "approve"; httpRule; "--for=" + name; "--yes" ]
+        Expect.stringContains added "env read 'HOME'" "old access is visible"
+        Expect.stringContains added "+ allow http" "the addition is visible"
+        Expect.isFalse (added.Contains "- allow env") "no environment removal"
+        let! _ = run readHome
+        let! missing =
+          assertDenied [ "permissions"; "approve"; "--for"; name; "--yes" ]
+        Expect.stringContains
+          missing
+          "No permission rules specified."
+          "rules are required"
+        let! _ = approve [ httpRule ]
+        let! shown = run [ "permissions"; "show"; name ]
+        Expect.stringContains
+          shown
+          "env read 'HOME'"
+          "rejected bare approve keeps narrow access"
+        Expect.stringContains shown "api.github.com" "both grants persist"
+        let! _ = assertDenied [ "eval"; name + "(\"USERPROFILE\")" ]
+
+        // Invalid scopes and contradictory flags must not change saved access.
+        for args in
+          [ [ "remove"; "--for"; name; "--all"; envRule ]
+            [ "remove"; "--all" ]
+            [ "remove"; "--for"; name ]
+            [ "remove"; "--for" ]
+            [ "remove"; "--for="; envRule ]
+            [ "remove"; "--for"; name; "--for"; alias; "--all" ]
+            [ "remove"; "--for"; name; "--unknown"; envRule ]
+            [ "remove"; "--for"; name; "env read MISSING_RULE" ]
+            [ "replace"; name; httpRule; "--yes" ] ] do
+          let! _ = assertDenied ("permissions" :: args)
+          ()
+        let! _ = run readHome
+
+        let! _ = run [ "permissions"; "remove"; envRule; "--for"; name ]
+        let! _ = assertDenied readHome
+        let! shown = run [ "permissions"; "show"; name ]
+        Expect.isFalse
+          (shown.Contains "env read 'HOME'")
+          "only requested rule removed"
+        Expect.stringContains shown "api.github.com" "HTTP rule retained"
+        let! _ = approve [ "deny env read HOME" ]
+        let! _ = approve [ envRule ]
+        let! denied = assertDenied readHome
+        Expect.stringContains
+          denied
+          "explicitly denied"
+          "adding never removes a deny"
+        let! _ = run [ "permissions"; "remove"; "--for=" + name; envRule ]
+        let! _ = approve [ envRule ]
+        let! _ = run readHome
+
+        let! _ = approve [ "all" ]
+        let! _ = run [ "permissions"; "remove"; "--for"; name; "all" ]
+        let! _ = assertDenied [ "eval"; name + "(\"USERPROFILE\")" ]
+        let! _ = run readHome
+        let! _ =
+          run
+            [ "permissions"
+              "remove"
+              "--for"
+              name
+              envRule + "; http GET https://API.GITHUB.COM" ]
+        let! _ = assertDenied [ "permissions"; "approve"; "--for"; name; "--yes" ]
+        let! _ = assertDenied readHome
+        let! _ = approve [ envRule ]
+        let! _ = run [ "permissions"; "allow"; "env"; "read"; "USERPROFILE" ]
+        let! _ = run [ "permissions"; "remove"; "--all"; "--for"; name ]
+        let! _ = assertDenied readHome
+        let! _ = run [ "eval"; alias + "(\"HOME\")" ]
+        let! _ = run [ "eval"; name + "(\"USERPROFILE\")" ]
+        let! approved = run [ "permissions"; "approved" ]
+        Expect.isFalse (approved.Contains(name + " ")) "whole approval forgotten"
+        Expect.stringContains approved alias "another name's approval survives"
+        let! _ = run [ "permissions"; "remove"; "env"; "read"; "USERPROFILE" ]
+        let! _ = assertDenied [ "eval"; name + "(\"USERPROFILE\")" ]
+        let path = System.IO.Path.Combine(i.dir, "folder with spaces")
+        let! _ = approve [ "file read '" + path + "'" ]
+        let! _ =
+          run [ "permissions"; "remove"; "--for"; name; "file"; "read"; path ]
+        let! shown = run [ "permissions"; "show"; name ]
+        Expect.isFalse
+          (shown.Contains "folder with spaces")
+          "path arguments keep spaces"
+        let! _ = run [ "permissions"; "allow"; "file"; "read"; path ]
+        let! _ = run [ "permissions"; "remove"; "file"; "read"; path ]
+        let! listed = run [ "permissions"; "list" ]
+        Expect.isFalse
+          (listed.Contains "folder with spaces")
+          "instance removal keeps spaces"
+        ()
+      })
+
+/// Grants belong to the reviewed version. Updating reviews them for the new code.
+let private approvalChangesReviewNewCode =
+  CliInstance.instanceTest "approval changes review access for new code" (fun i ->
+    task {
+      let name = "Tests.AdditiveUpdate.read"
+      let run args =
+        task {
+          let! output, code = CliInstance.runWithExit i args
+          Expect.equal code 0L output
+          return output
+        }
+      let! _ = run [ "fn"; name; "(): Option<String> = Stdlib.Env.get(\"HOME\")" ]
+      let! _ = run [ "permissions"; "approve"; name; "env read HOME"; "--yes" ]
+      let! _ =
+        run
+          [ "permissions"
+            "update"
+            name
+            "http GET https://api.github.com"
+            "--yes" ]
+      let! _ = run [ "eval"; name + "()" ]
+      let! _ =
+        run
+          [ "fn"
+            name
+            "(): Option<String> =\n  let _ = 1\n  Stdlib.Env.get(\"HOME\")" ]
+      let! denied, code = CliInstance.runWithExit i [ "eval"; name + "()" ]
+      Expect.notEqual code 0L denied
+      let! _ =
+        run
+          [ "permissions"
+            "remove"
+            "--for"
+            name
+            "http GET https://api.github.com" ]
+      let! denied, code = CliInstance.runWithExit i [ "eval"; name + "()" ]
+      Expect.notEqual code 0L denied
+      let! updated =
+        run [ "permissions"; "update"; name; "env read USERPROFILE"; "--yes" ]
+      Expect.stringContains updated "env read 'HOME'" "old grants are reviewed"
+      let! _ = run [ "eval"; name + "()" ]
+      let! shown = run [ "permissions"; "show"; name ]
+      Expect.isFalse
+        (shown.Contains "api.github.com")
+        "removed rule stays removed on update"
+      for rule in [ "env read 'HOME'"; "env read 'USERPROFILE'" ] do
+        Expect.stringContains shown rule "update adds to reviewed grants"
+      let! _ =
+        run
+          [ "fn"
+            name
+            "(): Option<String> =\n  let _ = 2\n  Stdlib.Env.get(\"HOME\")" ]
+      let! fresh = run [ "permissions"; "approve"; name; "env read HOME"; "--yes" ]
+      Expect.stringContains
+        fresh
+        "Code changed"
+        "no silent transfer to changed code"
+      let! shown = run [ "permissions"; "show"; name ]
+      Expect.isFalse
+        (shown.Contains "api.github.com")
+        "fresh approve does not inherit"
+      Expect.isFalse
+        (shown.Contains "USERPROFILE")
+        "old grants stay with reviewed code"
+
+      // Older stores can contain inferred approvals. A rejected bare approve must
+      // preserve their origin, so update can still recompute their effects.
+      let inferred = "Tests.AdditiveUpdate.inferred"
+      let! _ = run [ "fn"; inferred; "(): Int64 = 1" ]
+      let! _ = run [ "permissions"; "approve"; inferred; "clock"; "--yes" ]
+      let policyPath = System.IO.Path.Combine(i.dir, "policy", "policies.bin")
+      let store = PolicyStore.fromBytes (System.IO.File.ReadAllBytes policyPath)
+      let legacy =
+        { store with
+            approvals =
+              store.approvals
+              |> Map.toList
+              |> List.map (fun (key, approval) ->
+                if snd key = inferred then
+                  key,
+                  { approval with
+                      policy = Permission.Policy.denyAll
+                      explicitRules = false }
+                else
+                  key, approval)
+              |> Map.ofList }
+      System.IO.File.WriteAllBytes(policyPath, PolicyStore.toBytes legacy)
+      let! refused, code =
+        CliInstance.runWithExit i [ "permissions"; "approve"; inferred; "--yes" ]
+      Expect.notEqual code 0L refused
+      let! _ =
+        run [ "fn"; inferred; "(): Option<String> = Stdlib.Env.get(\"HOME\")" ]
+      let! _ = run [ "permissions"; "update"; inferred; "--yes" ]
+      let! _ = run [ "eval"; inferred + "()" ]
+      ()
+    })
 
 /// Editing a helper changes its caller's hash too. Neither edit inherits access.
 let private editedCodeNeedsFreshApproval =
@@ -1057,6 +1352,9 @@ let tests =
       serverRulesCheckAddressAndPort
       approvalsDoNotPinCode
       editedCodeNeedsFreshApproval
+      approvalsAddAndRemoveSavedRules
+      approvalsRequireExplicitRules
+      approvalChangesReviewNewCode
       callerChosenImplsKeepCallerAccess
       effectsCommand
       policiesDenyByDefault

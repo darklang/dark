@@ -228,6 +228,26 @@ module Policy =
         (D.list Rule.fromDT (D.field "deny" fields))
     | _ -> Exception.raiseInternal "Invalid Permissions.Policy" [ "dval", dval ]
 
+/// Convert comparison results to Dark values. The CLI formats the messages.
+module ApprovalReviewReason =
+  let typeName () =
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.Permissions.approvalReviewReason ()
+    )
+  let knownType () = KTCustomType(typeName (), [])
+  let toDT (reason : P.ApprovalReviewReason) : Dval =
+    let make name fields = DEnum(typeName (), typeName (), [], name, fields)
+    match reason with
+    | P.ApprovalReviewReason.ApprovedVersionUnavailable hash ->
+      make "ApprovedVersionUnavailable" [ DString hash ]
+    | P.ApprovalReviewReason.FunctionTypeChanged -> make "FunctionTypeChanged" []
+    | P.ApprovalReviewReason.PermissionAnalysisIncomplete ->
+      make "PermissionAnalysisIncomplete" []
+    | P.ApprovalReviewReason.RequiredPermissionsChanged(before, after) ->
+      make
+        "RequiredPermissionsChanged"
+        [ Effects2DT.toDT (Set.ofList before); Effects2DT.toDT (Set.ofList after) ]
+
 module ApprovalFailure =
   let typeName () =
     FQTypeName.fqPackage (
@@ -238,30 +258,17 @@ module ApprovalFailure =
   let private make caseName fields =
     DEnum(typeName (), typeName (), [], caseName, fields)
 
-  let contractChanged (differences : List<string>) : Dval =
-    make "ContractChanged" [ DList(VT.string, Items(List.map DString differences)) ]
+  let contractChanged (differences : List<P.ApprovalReviewReason>) : Dval =
+    make
+      "ContractChanged"
+      [ DList(
+          VT.known (ApprovalReviewReason.knownType ()),
+          Items(List.map ApprovalReviewReason.toDT differences)
+        ) ]
 
   let refused (message : string) : Dval = make "Refused" [ DString message ]
 
-/// An instance-policy change: replace it whole, or add and remove rules.
-module PolicyEdit =
-  let typeName () =
-    FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.Permissions.policyEdit ())
-
-  type T =
-    | Replace of P.Policy
-    | Change of allow : List<P.Rule> * deny : List<P.Rule> * remove : List<P.Rule>
-
-  let fromDT (dval : Dval) : T =
-    match dval with
-    | DEnum(_, _, _, "Replace", [ policy ]) -> Replace(Policy.fromDT policy)
-    | DEnum(_, _, _, "Change", [ allow; deny; remove ]) ->
-      let rules = D.list Rule.fromDT
-      Change(rules allow, rules deny, rules remove)
-    | _ -> Exception.raiseInternal "Invalid Permissions.PolicyEdit" [ "dval", dval ]
-
-/// Which approval record a withdrawal drops: the version approved for a name,
-/// or the approval of a hash.
+/// Remove named approvals or commit a reviewed policy edit.
 module ApprovalTarget =
   let typeName () =
     FQTypeName.fqPackage (
@@ -269,13 +276,15 @@ module ApprovalTarget =
     )
 
   type T =
-    | Name of string
-    | Hash of string
+    | Names of expected : string * names : List<string>
+    | EditPolicy of name : string * expected : string * policy : P.Policy
 
   let fromDT (dval : Dval) : T =
     match dval with
-    | DEnum(_, _, _, "Name", [ DString name ]) -> Name name
-    | DEnum(_, _, _, "Hash", [ DString hash ]) -> Hash hash
+    | DEnum(_, _, _, "Names", [ DString expected; names ]) ->
+      Names(expected, D.list D.string names)
+    | DEnum(_, _, _, "EditPolicy", [ DString name; DString expected; policy ]) ->
+      EditPolicy(name, expected, Policy.fromDT policy)
     | _ ->
       Exception.raiseInternal "Invalid Permissions.ApprovalTarget" [ "dval", dval ]
 

@@ -410,8 +410,11 @@ let reviewRefusesAWidenedContractWithoutAcknowledgment =
     | Ok(PackagePermissions.Review.ContractChanged differences) ->
       Expect.equal
         differences
-        [ "permission requirements changed from clock to file-read, clock" ]
-        "the difference names the old and new requirement sets"
+        [ Permission.ApprovalReviewReason.RequiredPermissionsChanged(
+            [ Effect.Effect.Clock ],
+            [ Effect.Effect.FileRead; Effect.Effect.Clock ]
+          ) ]
+        "the host reports structured old and new requirement sets"
     | other -> failtest $"expected ContractChanged, got {other}"
     // The acknowledgment is the review: with it, the same version is approvable.
     let! acknowledged = review (Some "v1") "wider" false true

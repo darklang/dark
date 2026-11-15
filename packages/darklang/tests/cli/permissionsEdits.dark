@@ -1,0 +1,143 @@
+module Darklang.Cli.Tests.PermissionsEdits
+
+// Tests for rule edits, approval selection, and review messages in the Dark CLI.
+
+module PermissionsEdits =
+  val clock =
+    LanguageTools.Permissions.Rule.Effect(
+      LanguageTools.Permissions.Effect.Clock)
+
+
+  val random =
+    LanguageTools.Permissions.Rule.Effect(
+      LanguageTools.Permissions.Effect.Random)
+
+
+  val native =
+    LanguageTools.Permissions.Rule.Effect(
+      LanguageTools.Permissions.Effect.Native)
+
+
+  val stdout =
+    LanguageTools.Permissions.Rule.Effect(
+      LanguageTools.Permissions.Effect.Stdout)
+
+
+  let saved(): LanguageTools.Permissions.Policy =
+    LanguageTools.Permissions.Policy
+      { allow = [ clock, random ], deny = [ native ] }
+
+
+  test removingOneRuleKeepsOtherGrantsAndDenies =
+    Cli.Permissions.Command.removeApprovalRules(saved(), [ clock ])
+    |> Stdlib.Test.equal(
+      Result.Ok(
+        LanguageTools.Permissions.Policy
+          { allow = [ random ], deny = [ native ] }))
+
+
+  test missingRuleRefusesTheWholeEdit =
+    Cli.Permissions.Command.removeApprovalRules(saved(), [ clock, stdout ])
+    |> Stdlib.Test.equal(
+      Result.Error("A requested rule is not saved; nothing was removed."))
+
+
+  test emptyRuleListNeedsAnExplicitChoice =
+    Cli.Permissions.Command.removeApprovalRules(saved(), [])
+    |> Stdlib.Test.equal(
+      Result.Error("Give a saved rule to remove, or use --all."))
+
+
+  test matchingRulesAreRemovedFromBothLists =
+    let policy =
+      LanguageTools.Permissions.Policy
+        { allow = [ clock, random ], deny = [ clock, native ] }
+
+    Cli.Permissions.Command.removeApprovalRules(policy, [ clock ])
+    |> Stdlib.Test.equal(
+      Result.Ok(
+        LanguageTools.Permissions.Policy
+          { allow = [ random ], deny = [ native ] }))
+
+
+  test removingTheLastRuleKeepsAnEmptyPolicy =
+    let policy =
+      LanguageTools.Permissions.Policy { allow = [ clock ], deny = [] }
+
+    Cli.Permissions.Command.removeApprovalRules(policy, [ clock ])
+    |> Stdlib.Test.equal(Result.Ok(LanguageTools.Permissions.empty()))
+
+
+  test instanceEditsRemoveBeforeAdding =
+    let policy =
+      LanguageTools.Permissions.Policy
+        { allow = [ clock, random ], deny = [ stdout ] }
+
+    Cli.Permissions.Command.applyInstanceEdit(
+      policy,
+      [ stdout ],
+      [ clock ],
+      [ random, stdout ])
+    |> Stdlib.Test.equal(
+      LanguageTools.Permissions.Policy
+        { allow = [ clock, stdout ], deny = [ clock ] })
+
+
+  test instanceRemovalTouchesBothLists =
+    let policy =
+      LanguageTools.Permissions.Policy
+        { allow = [ clock, stdout ], deny = [ clock ] }
+
+    Cli.Permissions.Command.applyInstanceEdit(policy, [], [], [ clock, stdout ])
+    |> Stdlib.Test.equal(LanguageTools.Permissions.empty())
+
+
+  let named(name: String, hash: String): LanguageTools.Permissions.Approval =
+    LanguageTools.Permissions.Approval
+      { hash = hash
+        name = Option.Some(name)
+        policy = Option.Some(saved())
+        explicitRules = Option.None }
+
+
+  test hashRemovalSelectsEveryAliasAndOnlyThatVersion =
+    Cli.Permissions.Command.approvalNamesForHash(
+      [ named("Me.a", "H"), named("Me.b", "H"), named("Me.other", "J") ],
+      "H")
+    |> Stdlib.Test.equal([ "Me.a", "Me.b" ])
+
+
+  test unknownHashKeepsItsUnnamedPlaceholder =
+    Cli.Permissions.Command.approvalsMatching(
+      [ named("Me.other", "J") ],
+      Option.Some("H"))
+    |> Stdlib.Test.equal(
+      [ LanguageTools.Permissions.Approval
+          { hash = "H"
+            name = Option.None
+            policy = Option.None
+            explicitRules = Option.None } ])
+
+
+  test versionsKeepDistinctNamesForIdenticalCode =
+    Cli.Permissions.Command.versionsFromApprovals(
+      [ named("Me.a", "H"), named("Me.b", "H") ])
+    |> Stdlib.Test.equal([ ("Me.a", "H"), ("Me.b", "H") ])
+
+
+  test reviewMessagesUseStructuredHostReasons =
+    Stdlib.List.map(
+      [ LanguageTools.Permissions.ApprovalReviewReason.FunctionTypeChanged
+        LanguageTools.Permissions.ApprovalReviewReason.PermissionAnalysisIncomplete
+        LanguageTools.Permissions.ApprovalReviewReason.ApprovedVersionUnavailable(
+          "old")
+
+        LanguageTools.Permissions.ApprovalReviewReason.RequiredPermissionsChanged(
+          [],
+          [ LanguageTools.Permissions.Effect.Clock ]) ],
+      Cli.Permissions.Command.approvalReviewReasonText)
+    |> Stdlib.Test.equal(
+      [ "the function's type changed"
+        "permission analysis is incomplete"
+        "the previously approved version old is no longer available for comparison"
+        "permission requirements changed from effect-free to clock" ])

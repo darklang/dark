@@ -351,11 +351,12 @@ let private policyReads =
 /// The policy builtins only the trusted `dark permissions` command may call.
 let private hostOnlyPolicyBuiltins =
   set
-    [ "pmPolicyReviewToken"
+    [ "pmPolicyNormalizeRule"
+      "pmPolicyReviewToken"
       "pmPolicyEditInstance"
-      "pmPolicyListPackages"
-      "pmPolicyWithdraw"
+      "pmPolicyRemove"
       "pmPolicyApprovalsStale"
+      "pmPolicyReviewVersion"
       "pmPolicyApproveVersion" ]
 
 let everyPolicyBuiltinRefusesGuestCode =
@@ -421,17 +422,18 @@ let guestCodeCanCallPolicyReads =
       byName[name].fn (struct (guest, dummyVM (), [], args)) |> Ply.toTask
     let hash = "permissions-guest-read-unapproved"
     let! approvals =
-      call
-        "pmPolicyApprovals"
-        [| LibExecution.Dval.optionNone RT.KTUuid
-           LibExecution.Dval.optionSome RT.KTString (RT.DString hash) |]
+      call "pmPolicyApprovals" [| LibExecution.Dval.optionNone RT.KTUuid |]
     match approvals with
-    | RT.DList(_, RT.Items([ RT.DRecord(_, _, _, fields) ])) ->
-      Expect.equal
-        (RT.RecordFields.tryFind "hash" fields)
-        (Some(RT.DString hash))
-        "the entry is for the hash asked about"
-    | other -> failtestf "expected one approval entry, got %A" other
+    | RT.DTuple(RT.DString token, RT.DList(_, RT.Items entries), []) ->
+      Expect.isGreaterThan token.Length 0 "snapshot carries a revision identity"
+      for entry in entries do
+        match entry with
+        | RT.DRecord(_, _, _, fields) ->
+          match RT.RecordFields.tryFind "name" fields with
+          | Some(RT.DEnum(_, _, _, "Some", [ RT.DString _ ])) -> ()
+          | other -> failtestf "expected a named approval, got %A" other
+        | other -> failtestf "expected an approval record, got %A" other
+    | other -> failtestf "expected one consistent snapshot, got %A" other
     let! bundled = call "pmFnIsBundled" [| RT.DString hash |]
     Expect.equal bundled (RT.DBool false) "an unknown hash is not bundled code"
   }

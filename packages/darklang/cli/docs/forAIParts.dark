@@ -88,6 +88,11 @@ do. `run --allow "file read $PWD" Me.Greet.main Ada` allows them for one run,
 edits included, and `permissions profile local-dev /abs/path/to/project --yes`
 allows a project's files for every run.
 
+For a saved function-specific grant, supply explicit rules:
+`permissions approve --for Me.Client.fetch 'http GET https://api.example.com' --yes`.
+Omitting rules saves nothing. After an edit, `run` uses the edited code; use
+`permissions update Me.Client.fetch --yes` to review carrying its grants forward.
+
 Numbers arrive as strings too: parse them with `Stdlib.Int64.parse`. Only a
 `List<String>` parameter, or none, runs this way. A function with typed
 parameters, such as `add(a: Int64, b: Int64)`, goes through `eval`:
@@ -211,18 +216,35 @@ with one approved version per logical function name. The
 normal workflow uses the logical function name; immutable hashes stay behind
 the approval:
 
-  permissions approve Vendor.Package.function --yes
+  permissions approve --for Vendor.Package.function 'env read GITHUB_TOKEN' --yes
   permissions update Vendor.Package.function --yes
   permissions approved                  # each name and its approved version
-  permissions unapprove Vendor.Package.function
+  permissions remove --for Vendor.Package.function 'env read GITHUB_TOKEN'
+  permissions remove --for Vendor.Package.function --all
 
-Approval computes the function's inferred transitive needs; changing the code
-changes its hash and requires a new decision, without changing the user's
+Approval shows the function's requirements and saves the rules you supply.
+Changing the code changes its hash and requires a new decision, without changing the user's
 logical name. Running a name uses its current code on the selected branch.
 Edits to the function or its dependencies do not inherit the old approval.
 Use `permissions update` or `approve` to review access for the new code.
+For the same code version, `approve --for <fn> <rules>` adds rules and keeps existing
+grants and explicit denies. Omitting rules saves nothing, even with --yes, and never
+prompts. Effect-free functions need no approval. Unchanged approvals return
+"Already approved; no changes" without a prompt or write. New code or outdated
+analysis still needs review.
+`update` shows all changes before one confirmation (`--yes` skips it).
+It reviews carrying explicit rules to the current version; any supplied
+rules add to them. Changed code's inferred effects are recomputed.
+`remove --for <name> <rules>` removes exact rules from a saved approval; other
+grants and denies stay. If any requested rule is absent, nothing is removed.
+This edits the stored approval without approving newer code or changing instance
+rules, and works for saved script names too. Rules present in both allow and deny
+lists are removed from both.
+`remove --for <name> --all` forgets all saved access for that name. Do not combine
+--all with rules. Plain `all` removes just that rule, keeping other saved rules.
 Instance defaults and temporary run permissions still apply.
-`unapprove` removes that name's remembered access without changing its code.
+`unapprove <name>` remains an alias for `remove --for <name> --all`.
+The positional `approve <fn> <rules>` spelling remains accepted for existing scripts.
 `revoke-package <hash>` removes all named approvals for that version.
 """
 

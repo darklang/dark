@@ -332,8 +332,12 @@ let approvalsAreStale (current : string) : bool =
 
 let instancePolicy () : P.Policy = (get ()).instance
 
+/// Return only this account's approvals from the supplied store.
+let namedApprovalsInStore accountID (store : Store) : Map<string, Approval> =
+  scopedEntries accountID store.approvals
+
 let namedApprovals accountID : Map<string, Approval> =
-  scopedEntries accountID (get ()).approvals
+  namedApprovalsInStore accountID (get ())
 
 let packagePolicies accountID : Map<string, P.Policy> =
   namedApprovals accountID |> Map.map (fun approval -> approval.policy)
@@ -349,38 +353,39 @@ let approvedVersion accountID location : Option<string> =
 let setInstancePolicy (policy : P.Policy) : unit =
   set (fun store -> { store with instance = policy })
 
-/// Apply one instance-policy edit, removing rules before adding new ones.
-let applyInstanceEdit
-  (allow : List<P.Rule>)
-  (deny : List<P.Rule>)
-  (remove : List<P.Rule>)
+/// Save the instance policy only if permissions have not changed since review.
+let commitInstancePolicyInStore
+  expected
   (policy : P.Policy)
-  =
-  let keep (rule : P.Rule) : bool = not (List.contains rule remove)
-  let currentAllow, currentDeny = P.Policy.rules policy
-  P.Policy.create
-    ((currentAllow |> List.filter keep) @ allow)
-    ((currentDeny |> List.filter keep) @ deny)
+  (store : Store)
+  : Result<Store, string> =
+  if reviewToken store <> expected then
+    Error "Permissions changed during review. Review the edit again."
+  else
+    Ok { store with instance = policy }
 
-/// Atomically edit the instance policy. `set` performs the read, change, and
-/// write under the store lock so concurrent edits cannot overwrite each other.
-let editInstancePolicy
-  (allow : List<P.Rule>)
-  (deny : List<P.Rule>)
-  (remove : List<P.Rule>)
-  : unit =
-  set (fun store ->
-    { store with instance = applyInstanceEdit allow deny remove store.instance })
+let commitInstancePolicy expected policy : Result<unit, string> =
+  update (commitInstancePolicyInStore expected policy)
 
-/// Remove every named approval of this immutable version.
-let revokeRootInStore accountID hash (store : Store) : Store =
-  { store with
-      approvals =
+/// Remove the selected approvals together, from this account only.
+let removeApprovalsInStore
+  accountID
+  expected
+  names
+  (store : Store)
+  : Result<Store, string> =
+  if reviewToken store <> expected then
+    Error "Permissions changed during review. Review the removal again."
+  else
+    let remaining =
+      names
+      |> List.fold
+        (fun approvals name -> Map.remove (scopedKey accountID name) approvals)
         store.approvals
-        |> Map.filterWithIndex (fun (account, _) approval ->
-          account <> accountID || approval.hash <> hash) }
+    Ok { store with approvals = remaining }
 
-let revokePackageRoot accountID hash : unit = set (revokeRootInStore accountID hash)
+let removeApprovals accountID expected names : Result<unit, string> =
+  update (removeApprovalsInStore accountID expected names)
 
 /// Compare the complete policy reviewed before the prompt, then install one entry.
 let recordApprovalInStore
@@ -406,6 +411,30 @@ let recordApproval
   nonBlank "location" location
   nonBlank "hash" approval.hash
   update (recordApprovalInStore accountID location expected approval)
+
+/// Change saved rules only if permissions have not changed since review.
+/// Keep its approved code version and permission-analysis fingerprint.
+let commitApprovalPolicyInStore
+  accountID
+  name
+  expected
+  (policy : P.Policy)
+  (store : Store)
+  : Result<Store, string> =
+  if reviewToken store <> expected then
+    Error "Permissions changed during review. Review the edit again."
+  else
+    let key = scopedKey accountID name
+    match Map.tryFind key store.approvals with
+    | None -> Error $"{name} has no remembered approval."
+    | Some approval ->
+      let edited = { approval with policy = policy; explicitRules = true }
+      Ok { store with approvals = Map.add key edited store.approvals }
+
+/// Save the reviewed edit without changing other approvals or instance rules.
+let commitApprovalPolicy accountID name expected policy : Result<unit, string> =
+  nonBlank "name" name
+  update (commitApprovalPolicyInStore accountID name expected policy)
 
 /// Remember exactly the reviewed requests, merging only grants for this same
 /// entry version. The whole prompt is committed atomically or not at all.
@@ -443,11 +472,6 @@ let explicitApproval accountID name : Option<P.Policy> =
   |> Map.tryFind name
   |> Option.bind (fun approval ->
     if approval.explicitRules then Some approval.policy else None)
-
-let unapproveVersion accountID location : unit =
-  set (fun store ->
-    { store with
-        approvals = Map.remove (scopedKey accountID location) store.approvals })
 
 // ── guest execution ───────────────────────────────────────────────────────────
 

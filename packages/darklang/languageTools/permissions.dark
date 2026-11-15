@@ -85,34 +85,36 @@ type Policy =
     deny: List<Rule> }
 
 
+/// Why an approval needs another review. The host checks; Dark formats the messages.
+type ApprovalReviewReason =
+  /// The previously approved version could not be loaded for comparison.
+  | ApprovedVersionUnavailable(String)
+  /// The function's type parameters, parameters, or return type changed.
+  | FunctionTypeChanged
+  /// The host could not determine all required permissions.
+  | PermissionAnalysisIncomplete
+  /// The function requires a different set of permissions.
+  | RequiredPermissionsChanged(before: List<Effect>, after: List<Effect>)
+
+
 /// Why approving a version for a name did not happen. An approval outcome rather than a policy
 /// type; it lives here because the host builtin that returns it addresses Dark types through the
 /// `LanguageTools.Permissions` package ref.
 type ApprovalFailure =
-  /// The permission contract differs from the currently approved version's: the human-readable
-  /// differences, for a second explicit review.
-  | ContractChanged(List<String>)
+  /// Differences from the approved version that need another review.
+  | ContractChanged(List<ApprovalReviewReason>)
   /// The version cannot be approved as asked: an unknown hash, an
   /// unacknowledged incomplete analysis, rules that never allow an effect it
   /// requires, or a storage failure. The message is complete.
   | Refused(String)
 
 
-/// A change to the instance policy. Like `ApprovalFailure`, it lives here because the host
-/// builtin that takes it addresses Dark types through the `LanguageTools.Permissions` package ref.
-type PolicyEdit =
-  /// Replace the whole policy.
-  | Replace(Policy)
-  /// Add allow and deny rules and remove rules from both lists. Removals apply first.
-  | Change(allow: List<Rule>, deny: List<Rule>, remove: List<Rule>)
-
-
-/// Which approval to take back. The two are separate records on purpose.
+/// Remove saved approvals, or commit a policy edit calculated by the trusted CLI.
 type ApprovalTarget =
-  /// The version approved for a logical function name; the hash's approval stays.
-  | Name(String)
-  /// The approval of one immutable version, with the dependencies no other approved root needs.
-  | Hash(String)
+  /// Remove these approvals only if permissions have not changed since review.
+  | Names(expected: String, names: List<String>)
+  /// Change saved rules while keeping the approved version and its analysis fingerprint.
+  | EditPolicy(name: String, expected: String, policy: Policy)
 
 
 /// One approval as an account sees it. A hash approved under several names appears once per name.

@@ -835,11 +835,12 @@ let private raisesWithoutRaise : Map<string, string> =
     [ "cliParseAndExecuteScript"; "cliViewTrace"; "cliEvaluateExpression" ]
     "the error comes back in the Result", [ "jsonParse"; "jsonCheckedSerialize" ]
     "a permission refusal, which the permission effects describe",
-    [ "pmPolicyEditInstance"
-      "pmPolicyWithdraw"
+    [ "pmPolicyNormalizeRule"
+      "pmPolicyEditInstance"
+      "pmPolicyRemove"
       "pmPolicyApprovalsStale"
+      "pmPolicyReviewVersion"
       "pmPolicyApproveVersion"
-      "pmPolicyListPackages"
       "pmPolicyReviewToken"
       "storeBackup"
       "configSet"

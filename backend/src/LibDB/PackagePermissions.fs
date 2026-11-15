@@ -260,9 +260,8 @@ type ContractComparison =
   /// Callable type and complete transitive
   /// permission requirements all match.
   | Match
-  /// Human-readable differences. Analysis gaps are listed here too: an
-  /// unverifiable contract must be reviewed exactly like a changed one.
-  | Changed of List<string>
+  /// Differences that need review, including incomplete permission analysis.
+  | Changed of List<P.ApprovalReviewReason>
 
 let private signatureOf (fn : PT.PackageFn.PackageFn) =
   (fn.typeParams,
@@ -271,15 +270,6 @@ let private signatureOf (fn : PT.PackageFn.PackageFn) =
 
 let private permissionEffects (result : Requirements.Result) =
   LibExecution.Effects.permissionEffects result.requiredEffects
-
-let private describeEffects (effects : Set<LibExecution.Effects.Effect>) : string =
-  if Set.isEmpty effects then
-    "effect-free"
-  else
-    effects
-    |> Set.toList
-    |> List.map LibExecution.Effects.name
-    |> String.concat ", "
 
 /// Compare the previously approved version (`oldHash`) with the new version.
 /// Check their input and return types and permission requirements, including
@@ -298,23 +288,24 @@ let compareContracts
     | None ->
       return
         ContractComparison.Changed
-          [ $"the previously approved version {oldHash} is no longer available for comparison" ]
+          [ P.ApprovalReviewReason.ApprovedVersionUnavailable oldHash ]
     | Some(oldFn, _) ->
       let oldRequirements =
         Requirements.forFunction callEffectsFor oldClosure oldRoot
       let newRequirements = candidate.rootRequirements
       let differences =
         [ if signatureOf oldFn <> signatureOf candidate.root then
-            "the callable type changed"
+            P.ApprovalReviewReason.FunctionTypeChanged
           if not (oldRequirements.complete && newRequirements.complete) then
-            "permission analysis is incomplete"
+            P.ApprovalReviewReason.PermissionAnalysisIncomplete
           else
             let before = permissionEffects oldRequirements
             let after = permissionEffects newRequirements
             if before <> after then
-              $"permission requirements changed from "
-              + $"{describeEffects before} to "
-              + $"{describeEffects after}" ]
+              P.ApprovalReviewReason.RequiredPermissionsChanged(
+                Set.toList before,
+                Set.toList after
+              ) ]
       if List.isEmpty differences then
         return ContractComparison.Match
       else
@@ -327,10 +318,9 @@ type Review =
   /// The version may be approved: this is the entry policy to install
   /// together with its reviewed code identity.
   | Approvable of policies : List<string * P.Policy>
-  /// The permission contract differs from the previous approval's (the
-  /// human-readable differences) and the caller did not acknowledge a
-  /// reviewed change. Nothing may be stored.
-  | ContractChanged of List<string>
+  /// The type or permissions changed, or analysis is incomplete.
+  /// The caller must review these differences before anything is saved.
+  | ContractChanged of List<P.ApprovalReviewReason>
 
 /// Analyze `hash`, reject unacknowledged incomplete analysis, and compare it
 /// with `previousApproval` when replacing an approval. Explicit rules grant
@@ -385,7 +375,53 @@ type ApprovalOutcome =
   | Approved
   /// The approval was left where it was; see [Review.ContractChanged]. The caller shows these,
   /// obtains the review, and calls again with the acknowledgment.
-  | ContractChanged of List<string>
+  | ContractChanged of List<P.ApprovalReviewReason>
+
+/// Check whether the saved version, rules, analysis, or rule origin would change.
+/// Return that decision and the review reasons without saving anything.
+let reviewVersionForName
+  (load : Load)
+  (callEffectsFor : CallEffectsFor)
+  (accountID : Option<System.Guid>)
+  (location : string)
+  (expected : string)
+  (hash : string)
+  (explicitPolicy : Option<P.Policy>)
+  (acknowledgeIncomplete : bool)
+  (fingerprint : string)
+  : Ply<Result<bool * List<P.ApprovalReviewReason>, string>> =
+  uply {
+    let snapshot = LibDB.PolicyStore.get ()
+    if LibDB.PolicyStore.reviewToken snapshot <> expected then
+      return Error "Permissions changed during review. Review the approval again."
+    else
+      let current = Map.tryFind (accountID, location) snapshot.approvals
+      let acknowledgeContractChange = false
+      match!
+        reviewVersion
+          load
+          callEffectsFor
+          (current |> Option.map _.hash)
+          hash
+          explicitPolicy
+          acknowledgeIncomplete
+          acknowledgeContractChange
+      with
+      | Error message -> return Error message
+      | Ok(Review.Approvable policies) ->
+        let policy =
+          policies
+          |> List.tryPick (fun (h, policy) -> if h = hash then Some policy else None)
+          |> Option.defaultValue P.Policy.denyAll
+        let proposed : LibDB.PolicyStore.Approval =
+          { hash = hash
+            policy = policy
+            fingerprint = fingerprint
+            explicitRules = explicitPolicy.IsSome }
+        let needsSave = current <> Some proposed
+        return Ok(needsSave, [])
+      | Ok(Review.ContractChanged reasons) -> return Ok(true, reasons)
+  }
 
 /// Review a named immutable version and, if it passes, approve it for that name -- atomically.
 /// Analysis and contract checks happen before storage installs the closure approval.

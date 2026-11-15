@@ -25,7 +25,7 @@ test movedSectionsAreOneWordAway =
   Stdlib.Test.all(
     [ ("packages", "view Some.fn --raw > /tmp/f.dark")
       ("tests", "test run --force")
-      ("permissions", "permissions approve Vendor.Package.function")
+      ("permissions", "permissions approve --for Vendor.Package.function")
       ("traces", "dark traces show <fn> --json")
       ("scm", "dark merge feature -y")
       ("syntax", "## Name Resolution")
