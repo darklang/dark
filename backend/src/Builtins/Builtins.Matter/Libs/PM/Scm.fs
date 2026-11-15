@@ -30,16 +30,11 @@ let private depQueryTypeName () =
 let private depEdgeTypeName () =
   FQTypeName.fqPackage (PackageRefs.Type.SCM.depEdge ())
 
-let private strings (items : List<Dval>) : List<string> =
-  items
-  |> List.map (function
-    | DString s -> s
-    | other -> Exception.raiseInternal "expected a String" [ "got", other ])
-
 let private depQueryFromDT (q : Dval) : Deps.Query =
   match q with
   | DEnum(_, _, _, "Of", [ DString h ]) -> Deps.Of h
-  | DEnum(_, _, _, "Closure", [ DList(_, Items(hs)) ]) -> Deps.Closure(strings hs)
+  | DEnum(_, _, _, "Closure", [ DList(_, Items(hs)) ]) ->
+    Deps.Closure(ScmActions.strings hs)
   | DEnum(_, _, _, "Referenced", [ DString h ]) -> Deps.Referenced h
   | other -> Exception.raiseInternal "unknown DepQuery" [ "got", other ]
 
@@ -79,7 +74,7 @@ let private bindingFilterFromDT (f : Dval) : Bindings.Query =
   | DEnum(_, _, _, "LocationOf", [ DUuid g; DString h ]) ->
     Bindings.LocationOf(br g, h)
   | DEnum(_, _, _, "ByBareNames", [ DUuid g; DList(_, Items(ns)) ]) ->
-    Bindings.ByBareNames(br g, strings ns)
+    Bindings.ByBareNames(br g, ScmActions.strings ns)
   | DEnum(_, _, _, "At", [ DUuid g; DList(_, Items(ns)) ]) ->
     Bindings.At(br g, bindingNames ns)
   | DEnum(_, _, _, "CommittedAt", [ DUuid g; DList(_, Items(ns)) ]) ->
@@ -98,7 +93,7 @@ let private bindingFilterFromDT (f : Dval) : Bindings.Query =
   | DEnum(_, _, _, "ByHash", [ DUuid g; DString h; DString k ]) ->
     Bindings.ByHash(br g, h, k)
   | DEnum(_, _, _, "ByHashes", [ DUuid g; DList(_, Items(hs)) ]) ->
-    Bindings.ByHashes(br g, strings hs)
+    Bindings.ByHashes(br g, ScmActions.strings hs)
   | DEnum(_, _, _, "Own", [ DUuid g ]) -> Bindings.Own(br g)
   | DEnum(_, _, _, "BranchHistory", [ DUuid g ]) -> Bindings.BranchHistory(br g)
   | DEnum(_, _, _, "AboveBases", [ DUuid g ]) -> Bindings.AboveBases(br g)
@@ -272,7 +267,8 @@ let private opFilterFromDT (f : Dval) : Ops.Filter =
   | DEnum(_, _, _, "LandedSince", [ DUuid g; DString since ]) ->
     Ops.LandedSince(b g, since)
   | DEnum(_, _, _, "LandedLast", []) -> Ops.LandedLast
-  | DEnum(_, _, _, "Ids", [ DList(_, Items(ids)) ]) -> Ops.Ids(strings ids)
+  | DEnum(_, _, _, "Ids", [ DList(_, Items(ids)) ]) ->
+    Ops.Ids(ScmActions.strings ids)
   | DEnum(_, _, _, "Draft", [ DUuid g ]) -> Ops.Draft(b g)
   | DEnum(_, _, _, "DraftIds", [ DUuid g ]) -> Ops.DraftIds(b g)
   | DEnum(_, _, _, "Own", [ DUuid g ]) -> Ops.Own(b g)
