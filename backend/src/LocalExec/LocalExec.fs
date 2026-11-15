@@ -177,7 +177,12 @@ module HandleCommand =
           next
         else
           settle next left
-    let resolved = settle resolved (uncheckedIn (List.indexed ops) unchecked)
+    let firstUnchecked = uncheckedIn (List.indexed ops) unchecked
+    // Each one costs a refill and a second look, so a slow reload says why.
+    if not (List.isEmpty firstUnchecked) then
+      print
+        $"The checker could not check {List.length firstUnchecked} bodies on the tree as written; checking them again once it is stored resolved"
+    let resolved = settle resolved firstUnchecked
     // Ops, not items: recording the implementation changes the item's content hash, and every
     // caller's hash moves with it, so the count is larger than the number of calls resolved.
     let changed (after : List<PackageOp>) =
