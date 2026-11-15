@@ -2645,7 +2645,7 @@ let private parkedOnAHostOperation =
     | other ->
       failtest $"expected the process parked on the host operation, got {other}"
     let! result = running
-    Expect.equal (expectOk result "the run") (RT.DInt64 0L) "the run finished"
+    Expect.equal (expectOk result "the run") (RT.DUInt8 0uy) "the run finished"
   }
 
 

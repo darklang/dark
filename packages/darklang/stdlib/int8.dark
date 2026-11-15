@@ -195,12 +195,12 @@ impl Display for Int8 =
 
 impl Zero for Int8 =
   let zero(): Int8 =
-    0s8
+    0
 
 
 impl One for Int8 =
   let one(): Int8 =
-    1s8
+    1
 
 
 // Checked arithmetic. The operators wrap on overflow; these return
@@ -209,14 +209,14 @@ impl One for Int8 =
 /// Adds <param a> and <param b>, or {{Error Overflow}} where `+` would wrap
 let checkedAdd(a: Int8, b: Int8): Result<Int8, Math.Overflow> =
   let sum = a + b
-  let wrapped = if b < 0s8 then sum > a else sum < a
+  let wrapped = if b < 0 then sum > a else sum < a
   if wrapped then Result.Error(Math.Overflow.Overflow) else Result.Ok(sum)
 
 
 /// Subtracts <param b> from <param a>, or {{Error Overflow}} where `-` would wrap
 let checkedSubtract(a: Int8, b: Int8): Result<Int8, Math.Overflow> =
   let difference = a - b
-  let wrapped = if b < 0s8 then difference < a else difference > a
+  let wrapped = if b < 0 then difference < a else difference > a
   if wrapped then Result.Error(Math.Overflow.Overflow) else Result.Ok(difference)
 
 
@@ -231,15 +231,15 @@ let checkedMultiply(a: Int8, b: Int8): Result<Int8, Math.Overflow> =
 /// The negation of <param a>, or {{Error Overflow}} for the minimum value,
 /// which `-` wraps back to itself
 let checkedNegate(a: Int8): Result<Int8, Math.Overflow> =
-  if a == -128s8 then Result.Error(Math.Overflow.Overflow) else Result.Ok(-a)
+  if a == -128 then Result.Error(Math.Overflow.Overflow) else Result.Ok(-a)
 
 
 /// The distance of <param a> from zero, or {{Error Overflow}} for the minimum
 /// value, which <fn Stdlib.abs> wraps back to itself
 let checkedAbsoluteValue(a: Int8): Result<Int8, Math.Overflow> =
-  if a == -128s8 then
+  if a == -128 then
     Result.Error(Math.Overflow.Overflow)
-  else if a < 0s8 then
+  else if a < 0 then
     Result.Ok(-a)
   else
     Result.Ok(a)
@@ -248,12 +248,12 @@ let checkedAbsoluteValue(a: Int8): Result<Int8, Math.Overflow> =
 /// <param base> raised to the power of <param exponent>, or where `**` raises or wraps,
 /// {{Error NegativeExponent}} or {{Error Overflow}}
 let checkedPower(base: Int8, exponent: Int8): Result<Int8, Math.PowerError> =
-  if exponent < 0s8 then
+  if exponent < 0 then
     Result.Error(Math.PowerError.NegativeExponent)
-  else if base == 0s8 || base == 1s8 || base == -1s8 then
+  else if base == 0 || base == 1 || base == -1 then
     // 0, 1 and -1 never grow, so `**` is exact whatever the exponent
     Result.Ok(base ** exponent)
-  else if exponent >= 8s8 then
+  else if exponent >= 8 then
     // any other base is at least 2 from zero, and 2 ** 8 is past the Int8 range
     Result.Error(Math.PowerError.Overflow)
   else
@@ -272,9 +272,9 @@ let checkedPower(base: Int8, exponent: Int8): Result<Int8, Math.PowerError> =
 /// {{Error DivisionByZero}} where `/` raises, or {{Error Overflow}} for the
 /// minimum value divided by -1, where `/` wraps back to the minimum.
 let checkedDivide(a: Int8, b: Int8): Result<Int8, Math.DivisionError> =
-  if b == 0s8 then
+  if b == 0 then
     Result.Error(Math.DivisionError.DivisionByZero)
-  else if b == -1s8 && a == -128s8 then
+  else if b == -1 && a == -128 then
     Result.Error(Math.DivisionError.Overflow)
   else
     Result.Ok(a / b)
@@ -285,7 +285,7 @@ let checkedDivide(a: Int8, b: Int8): Result<Int8, Math.DivisionError> =
 /// {{Error DivisionByZero}} if <param divisor> is {{0}}.
 /// Use <fn Int8.checkedMod> to wrap around into {{0 <= res < b}} instead.
 let checkedRemainder(value: Int8, divisor: Int8): Result<Int8, Math.DivisionError> =
-  if divisor == 0s8 then
+  if divisor == 0 then
     Result.Error(Math.DivisionError.DivisionByZero)
   else
     Result.Ok(value - value / divisor * divisor)
@@ -294,9 +294,9 @@ let checkedRemainder(value: Int8, divisor: Int8): Result<Int8, Math.DivisionErro
 /// <param a> wrapped around so that {{0 <= res < b}}, or where `%` raises,
 /// {{Error ZeroModulus}} or {{Error NegativeModulus}}
 let checkedMod(a: Int8, b: Int8): Result<Int8, Math.ModulusError> =
-  if b == 0s8 then
+  if b == 0 then
     Result.Error(Math.ModulusError.ZeroModulus)
-  else if b < 0s8 then
+  else if b < 0 then
     Result.Error(Math.ModulusError.NegativeModulus)
   else
     Result.Ok(a % b)

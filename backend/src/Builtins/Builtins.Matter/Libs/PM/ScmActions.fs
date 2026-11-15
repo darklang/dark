@@ -306,7 +306,14 @@ let private resolve
                   | "impl" -> PT.ItemKind.TraitImpl
                   | "test" -> PT.ItemKind.Test
                   | _ -> PT.ItemKind.Fn
-                let! _ = Packages.repoint (branch b) location kind losers chosen
+                let! _ =
+                  Packages.repoint
+                    (TraitCalls.retype exeState (branch b) pm)
+                    (branch b)
+                    location
+                    kind
+                    losers
+                    chosen
                 return ok ()
             })
 
@@ -458,6 +465,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               uply {
                 let! _ =
                   Packages.repoint
+                    (TraitCalls.retype exeState (branch b) pm)
                     (branch b)
                     rp.dependency
                     rp.kind

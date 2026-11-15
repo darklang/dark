@@ -164,7 +164,7 @@ let expr(ctx: Context, depth: Int64, e: LanguageTools.ProgramTypes.Expr): List<L
         [ line(depth + 1, "then", "") ]
         expr(ctx, depth + 2, thenExpr)
         elseLines ])
-  | ELet(_, pat, rhs, body) ->
+  | ELet(_, pat, _, rhs, body) ->
     Stdlib.List.flatten([ here("Let", letPattern(pat)), child(rhs), child(body) ])
   | EList(_, items) ->
     let n = Stdlib.display(Stdlib.List.length(items))

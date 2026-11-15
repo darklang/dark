@@ -242,9 +242,10 @@ let private extract (roots : List<Work>) : List<Dependency> =
         cases |> List.rev |> List.iter (MatchCase >> work.Push)
         work.Push(Expr arg)
 
-      | PT.ELet(_, _pattern, value, body) ->
+      | PT.ELet(_, _pattern, typ, value, body) ->
         work.Push(Expr body)
         work.Push(Expr value)
+        typ |> Option.iter (TypeRef >> work.Push)
 
       | PT.EList(_, items) -> pushExprsInOrder items
 

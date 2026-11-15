@@ -1,0 +1,228 @@
+/// Which sized numbers can be printed without their suffix: those a bare number would become
+/// too, where they stand. Stored `Size { width = 40u16 }` prints `Size { width = 40 }`, and
+/// parsing that back stores the same thing.
+module Darklang.LanguageTools.AtRestTypeChecker.Suffixes
+
+/// The ids of the sized numbers in <param ops> that need no suffix, as strings. Each is written
+/// bare and the batch checked: one the checker gives back its own type can go without.
+let droppable(branchId: Uuid, ops: List<ProgramTypes.PackageOp>): Dict<String, Bool> =
+  let sized =
+    ops
+    |> Stdlib.List.map(fun op ->
+      match op with
+      | AddFn(fn) -> sizedIn(fn.body)
+      | AddValue(value) -> sizedIn(value.body)
+      | AddTest(test) -> sizedIn(test.body)
+      | _ -> [])
+    |> Stdlib.List.flatten
+    |> Stdlib.Dict.fromList
+
+  if Stdlib.Dict.isEmpty(sized) then
+    Dict {}
+  else
+    let bareOps =
+      ops
+      |> Stdlib.List.map(fun op ->
+        match op with
+        | AddFn(fn) -> ProgramTypes.PackageOp.AddFn({ fn with body = bare(fn.body) })
+        | AddValue(value) -> ProgramTypes.PackageOp.AddValue({ value with body = bare(value.body) })
+        | AddTest(test) -> ProgramTypes.PackageOp.AddTest({ test with body = bare(test.body) })
+        | other -> other)
+
+    (checkPackageOpsOn(branchId, bareOps)).items
+    |> Stdlib.List.map(fun item -> item.resolutions)
+    |> Stdlib.List.flatten
+    |> Stdlib.List.fold(Dict {}, fun(found, r) ->
+      match r with
+      | Literal(at, typ) ->
+        let key = Stdlib.display(at)
+        if Stdlib.Dict.get(sized, key) == Option.Some(typ) then
+          Stdlib.Dict.set(found, key, true)
+        else
+          found
+      | _ -> found)
+
+
+/// Each sized number in <param e> that a bare one could stand for, by id, with its type.
+let sizedIn(e: ProgramTypes.Expr): List<(String * Model.Ty)> =
+  let walk(nodes: List<NodeIds.Node>, found: List<(String * Model.Ty)>): List<(String * Model.Ty)> =
+    match nodes with
+    | [] -> found
+    | [node, ...rest] ->
+      let found =
+        match node with
+        | Expression(e) ->
+          match bareExpr(e) with
+          | Some((_, typ)) ->
+            Stdlib.List.prepend(found, (Stdlib.display(ProgramTypes.Expr.toID(e)), typ))
+          | None -> found
+        | MatchPattern(p) ->
+          match barePatternOf(p) with
+          | Some((id, _, typ)) -> Stdlib.List.prepend(found, (Stdlib.display(id), typ))
+          | None -> found
+        | _ -> found
+
+      let (_, children) = NodeIds.children(node)
+      walk(Stdlib.List.concat(children, rest), found)
+
+  walk([ NodeIds.Node.Expression(e) ], [])
+
+
+/// A sized number written bare, with the type it had. None for anything else, and for a number
+/// a bare one can't hold.
+let bareExpr(e: ProgramTypes.Expr): Option<(ProgramTypes.Expr * Model.Ty)> =
+  let int(id: Int64, written: String, typ: Model.Ty): Option<(ProgramTypes.Expr * Model.Ty)> =
+    asInt64(written) |> Stdlib.Option.map(fun n -> (ProgramTypes.Expr.EInt64(id, n), typ))
+
+  match e with
+  | EInt8(id, n) -> int(id, Stdlib.display(n), Model.Ty.TInt8)
+  | EUInt8(id, n) -> int(id, Stdlib.display(n), Model.Ty.TUInt8)
+  | EInt16(id, n) -> int(id, Stdlib.display(n), Model.Ty.TInt16)
+  | EUInt16(id, n) -> int(id, Stdlib.display(n), Model.Ty.TUInt16)
+  | EInt32(id, n) -> int(id, Stdlib.display(n), Model.Ty.TInt32)
+  | EUInt32(id, n) -> int(id, Stdlib.display(n), Model.Ty.TUInt32)
+  | EUInt64(id, n) -> int(id, Stdlib.display(n), Model.Ty.TUInt64)
+  | EInt128(id, n) -> int(id, Stdlib.display(n), Model.Ty.TInt128)
+  | EUInt128(id, n) -> int(id, Stdlib.display(n), Model.Ty.TUInt128)
+  | EFloat32(id, sign, whole, fraction) ->
+    Option.Some((ProgramTypes.Expr.EFloat64(id, sign, whole, fraction), Model.Ty.TFloat32))
+  | _ -> Option.None
+
+
+/// <fn bareExpr> for a match pattern, with its id.
+let barePatternOf(
+  p: ProgramTypes.MatchPattern)
+  : Option<(Int64 * ProgramTypes.MatchPattern * Model.Ty)> =
+  let int(
+    id: Int64,
+    written: String,
+    typ: Model.Ty)
+    : Option<(Int64 * ProgramTypes.MatchPattern * Model.Ty)> =
+    asInt64(written)
+    |> Stdlib.Option.map(fun n -> (id, ProgramTypes.MatchPattern.MPInt64(id, n), typ))
+
+  match p with
+  | MPInt8(id, n) -> int(id, Stdlib.display(n), Model.Ty.TInt8)
+  | MPUInt8(id, n) -> int(id, Stdlib.display(n), Model.Ty.TUInt8)
+  | MPInt16(id, n) -> int(id, Stdlib.display(n), Model.Ty.TInt16)
+  | MPUInt16(id, n) -> int(id, Stdlib.display(n), Model.Ty.TUInt16)
+  | MPInt32(id, n) -> int(id, Stdlib.display(n), Model.Ty.TInt32)
+  | MPUInt32(id, n) -> int(id, Stdlib.display(n), Model.Ty.TUInt32)
+  | MPUInt64(id, n) -> int(id, Stdlib.display(n), Model.Ty.TUInt64)
+  | MPInt128(id, n) -> int(id, Stdlib.display(n), Model.Ty.TInt128)
+  | MPUInt128(id, n) -> int(id, Stdlib.display(n), Model.Ty.TUInt128)
+  | MPFloat32(id, sign, whole, fraction) ->
+    Option.Some(
+      (id, ProgramTypes.MatchPattern.MPFloat64(id, sign, whole, fraction), Model.Ty.TFloat32))
+  | _ -> Option.None
+
+
+/// <param written> as an Int64, if it is one.
+let asInt64(written: String): Option<Int64> =
+  match Stdlib.Int64.parse(written) with
+  | Ok(n) -> Option.Some(n)
+  | Error(_) -> Option.None
+
+
+/// <param e> with every sized number <fn bareExpr> takes written bare.
+let bare(e: ProgramTypes.Expr): ProgramTypes.Expr =
+  let all(es: List<ProgramTypes.Expr>): List<ProgramTypes.Expr> =
+    Stdlib.List.map(es, fun e -> bare(e))
+
+  match bareExpr(e) with
+  | Some((written, _)) -> written
+  | None ->
+    match e with
+    | EString(id, segments) ->
+      ProgramTypes.Expr.EString(
+        id,
+        Stdlib.List.map(segments, fun s ->
+          match s with
+          | StringInterpolation(inner) ->
+            ProgramTypes.StringSegment.StringInterpolation(bare(inner))
+          | text -> text))
+    | EList(id, items) -> ProgramTypes.Expr.EList(id, all(items))
+    | EDict(id, entries) ->
+      ProgramTypes.Expr.EDict(id, Stdlib.List.map(entries, fun((k, v)) -> (bare(k), bare(v))))
+    | ETuple(id, first, second, rest) ->
+      ProgramTypes.Expr.ETuple(id, bare(first), bare(second), all(rest))
+    | ERecord(id, name, typeArgs, fields) ->
+      ProgramTypes.Expr.ERecord(
+        id,
+        name,
+        typeArgs,
+        Stdlib.List.map(fields, fun((n, v)) -> (n, bare(v))))
+    | EEnum(id, name, typeArgs, caseName, fields) ->
+      ProgramTypes.Expr.EEnum(id, name, typeArgs, caseName, all(fields))
+    | ELet(id, pattern, typ, value, body) ->
+      ProgramTypes.Expr.ELet(id, pattern, typ, bare(value), bare(body))
+    | ERecordFieldAccess(id, record, field) ->
+      ProgramTypes.Expr.ERecordFieldAccess(id, bare(record), field)
+    | EUnwrap(id, operand) -> ProgramTypes.Expr.EUnwrap(id, bare(operand))
+    | EIf(id, cond, thenExpr, elseExpr) ->
+      ProgramTypes.Expr.EIf(
+        id,
+        bare(cond),
+        bare(thenExpr),
+        Stdlib.Option.map(elseExpr, fun e -> bare(e)))
+    | EMatch(id, arg, cases) ->
+      ProgramTypes.Expr.EMatch(
+        id,
+        bare(arg),
+        Stdlib.List.map(cases, fun c ->
+          ProgramTypes.MatchCase
+            { pat = barePattern(c.pat)
+              whenCondition = Stdlib.Option.map(c.whenCondition, fun e -> bare(e))
+              rhs = bare(c.rhs) }))
+    | EPipe(id, lhs, parts) ->
+      ProgramTypes.Expr.EPipe(id, bare(lhs), Stdlib.List.map(parts, fun part -> barePipe(part)))
+    | EInfix(id, infix, lhs, rhs, choice) ->
+      ProgramTypes.Expr.EInfix(id, infix, bare(lhs), bare(rhs), choice)
+    | ELambda(id, patterns, body) -> ProgramTypes.Expr.ELambda(id, patterns, bare(body))
+    | EApply(id, callee, typeArgs, args) ->
+      ProgramTypes.Expr.EApply(id, bare(callee), typeArgs, all(args))
+    | ERecordUpdate(id, record, updates) ->
+      ProgramTypes.Expr.ERecordUpdate(
+        id,
+        bare(record),
+        Stdlib.List.map(updates, fun((n, v)) -> (n, bare(v))))
+    | EStatement(id, first, next) -> ProgramTypes.Expr.EStatement(id, bare(first), bare(next))
+    | other -> other
+
+
+let barePipe(part: ProgramTypes.PipeExpr): ProgramTypes.PipeExpr =
+  let all(es: List<ProgramTypes.Expr>): List<ProgramTypes.Expr> =
+    Stdlib.List.map(es, fun e -> bare(e))
+
+  match part with
+  | EPipeVariable(id, name, args) -> ProgramTypes.PipeExpr.EPipeVariable(id, name, all(args))
+  | EPipeLambda(id, patterns, body) -> ProgramTypes.PipeExpr.EPipeLambda(id, patterns, bare(body))
+  | EPipeInfix(id, infix, rhs, choice) ->
+    ProgramTypes.PipeExpr.EPipeInfix(id, infix, bare(rhs), choice)
+  | EPipeFnCall(id, name, typeArgs, args, bounds) ->
+    ProgramTypes.PipeExpr.EPipeFnCall(id, name, typeArgs, all(args), bounds)
+  | EPipeEnum(id, name, caseName, fields) ->
+    ProgramTypes.PipeExpr.EPipeEnum(id, name, caseName, all(fields))
+
+
+let barePattern(p: ProgramTypes.MatchPattern): ProgramTypes.MatchPattern =
+  let all(ps: List<ProgramTypes.MatchPattern>): List<ProgramTypes.MatchPattern> =
+    Stdlib.List.map(ps, fun p -> barePattern(p))
+
+  match barePatternOf(p) with
+  | Some((_, written, _)) -> written
+  | None ->
+    match p with
+    | MPList(id, items) -> ProgramTypes.MatchPattern.MPList(id, all(items))
+    | MPListCons(id, head, tail) ->
+      ProgramTypes.MatchPattern.MPListCons(id, barePattern(head), barePattern(tail))
+    | MPTuple(id, first, second, rest) ->
+      ProgramTypes.MatchPattern.MPTuple(id, barePattern(first), barePattern(second), all(rest))
+    | MPEnum(id, caseName, fields) -> ProgramTypes.MatchPattern.MPEnum(id, caseName, all(fields))
+    | MPOr(id, alternatives) -> ProgramTypes.MatchPattern.MPOr(id, all(alternatives))
+    | MPAs(id, inner, name) -> ProgramTypes.MatchPattern.MPAs(id, barePattern(inner), name)
+    | MPRecord(id, fields) ->
+      ProgramTypes.MatchPattern.MPRecord(
+        id,
+        Stdlib.List.map(fields, fun((n, p)) -> (n, barePattern(p))))
+    | other -> other

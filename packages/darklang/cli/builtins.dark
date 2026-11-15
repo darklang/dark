@@ -109,7 +109,7 @@ let isKnownGroup(prefix: String): Bool =
 
 
 let versionSuffix(v: Int32): String =
-  if v == 0s32 then "" else $"_v{Stdlib.display(v)}"
+  if v == 0 then "" else $"_v{Stdlib.display(v)}"
 
 
 let purityTag(purity: LanguageTools.BuiltinFunctionPurity): String =

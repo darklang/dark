@@ -71,7 +71,7 @@ let children(node: Node): (Option<Int64> * List<Node>) =
         | None -> []
 
       (Option.None, exprNodes(Stdlib.List.concat([ condition, thenExpr ], tail)))
-    | ELet(_, pattern, value, body) ->
+    | ELet(_, pattern, _, value, body) ->
       (Option.None, [ Node.LetPattern(pattern), Node.Expression(value), Node.Expression(body) ])
     | ETuple(_, first, second, rest) ->
       (Option.None, exprNodes(Stdlib.List.concat([ first, second ], rest)))
@@ -338,7 +338,7 @@ let visit(node: Node, ids: List<Int64>, next: List<Node>): (List<Int64> * List<N
       match elseExpr with
       | Some(otherwise) -> (ids, Stdlib.List.prepend(next, Node.Expression(otherwise)))
       | None -> (ids, next)
-    | ELet(_, pattern, value, body) ->
+    | ELet(_, pattern, _, value, body) ->
       (
         ids,
         Stdlib.List.prepend(

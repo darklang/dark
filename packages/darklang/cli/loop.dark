@@ -442,7 +442,7 @@ let applyKeyRead(
         Update.updateAppState(st, keyPressedMsg))
 
 
-let runInteractiveLoop(state: AppState): Int64 =
+let runInteractiveLoop(state: AppState): UInt8 =
   if state.isExiting then
     // Clear any retained prompt region so the shell prompt takes its place.
     let _cleared = clearPromptRegion(state)

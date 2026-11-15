@@ -4,12 +4,12 @@ module Darklang.Stdlib.String.Tests
 // as every String is.
 let decomposedEx(): String =
   Stdlib.Utf8.decodeWithReplacement(
-    Stdlib.Bytes.fromList([ 101u8, 204u8, 129u8, 120u8 ]))
+    Stdlib.Bytes.fromList([ 101, 204, 129, 120 ]))
 
 
 // A combining acute accent on its own, which stays as it is.
 let acute(): String =
-  Stdlib.Utf8.decodeWithReplacement(Stdlib.Bytes.fromList([ 204u8, 129u8 ]))
+  Stdlib.Utf8.decodeWithReplacement(Stdlib.Bytes.fromList([ 204, 129 ]))
 
 
 test stringEquality =
@@ -1823,7 +1823,7 @@ test head =
       Stdlib.String.head(decomposedEx())
       |> Stdlib.Option.map(fun c ->
         Stdlib.Utf8.encode(Stdlib.String.fromChar(c)) |> Stdlib.Bytes.toList)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some([ 195u8, 169u8 ])) ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some([ 195, 169 ])) ])
 
 
 test charAt =
@@ -1924,19 +1924,18 @@ test toCodepoints =
   Stdlib.Test.all(
     [ Stdlib.String.toCodepoints("") |> Stdlib.Test.equal([])
 
-      Stdlib.String.toCodepoints("abc")
-      |> Stdlib.Test.equal([ 97u32, 98u32, 99u32 ])
+      Stdlib.String.toCodepoints("abc") |> Stdlib.Test.equal([ 97, 98, 99 ])
 
       Stdlib.String.toCodepoints("héllo")
-      |> Stdlib.Test.equal([ 104u32, 233u32, 108u32, 108u32, 111u32 ])
+      |> Stdlib.Test.equal([ 104, 233, 108, 108, 111 ])
 
       // One cluster containing three codepoints.
       Stdlib.String.toCodepoints("👩‍👧")
-      |> Stdlib.Test.equal([ 128105u32, 8205u32, 128103u32 ])
+      |> Stdlib.Test.equal([ 128105, 8205, 128103 ])
 
       // 0, the top of Latin-1, and the largest codepoint.
       Stdlib.String.toCodepoints("\u0000ÿ\U0010FFFF")
-      |> Stdlib.Test.equal([ 0u32, 255u32, 1114111u32 ]) ])
+      |> Stdlib.Test.equal([ 0, 255, 1114111 ]) ])
 
 
 test codepointLength =
@@ -1954,20 +1953,20 @@ test codepointLength =
 test getByteAt =
   Stdlib.Test.all(
     [ Stdlib.String.getByteAt("abc", 0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(97u8))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(97))
 
       Stdlib.String.getByteAt("abc", 1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(98u8))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(98))
 
       Stdlib.String.getByteAt("abc", 2)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(99u8))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(99))
 
       // UTF-8 encodes é as C3 A9.
       Stdlib.String.getByteAt("é", 0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(195u8))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(195))
 
       Stdlib.String.getByteAt("é", 1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(169u8))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(169))
 
       Stdlib.String.getByteAt("é", 2)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
@@ -2074,12 +2073,12 @@ test appendComposesUnicode =
     [ Stdlib.String.append("a", "̂")
       |> Stdlib.Utf8.encode
       |> Stdlib.Bytes.toList
-      |> Stdlib.Test.equal([ 195u8, 162u8 ])
+      |> Stdlib.Test.equal([ 195, 162 ])
 
       Stdlib.String.append("ᄀ", "ᅡᆨ")
       |> Stdlib.Utf8.encode
       |> Stdlib.Bytes.toList
-      |> Stdlib.Test.equal([ 234u8, 176u8, 129u8 ]) ])
+      |> Stdlib.Test.equal([ 234, 176, 129 ]) ])
 
 
 // head returns the whole grapheme cluster.

@@ -374,6 +374,7 @@ type FnLayout =
 let declaration(
   branchId: Uuid,
   known: PrettyPrinter.ProgramTypes.KnownBindings,
+  bare: Dict<String, Bool>,
   width: Int64,
   file: File,
   path: List<String>,
@@ -421,7 +422,8 @@ let declaration(
         trailingComments = byKey(trailingInside, fun c -> c.node)
         compactFnBody = layout == FnLayout.Compact
         hasComments = Stdlib.Bool.not(Stdlib.List.isEmpty(inside))
-        knownBindings = Option.Some(known) }
+        knownBindings = Option.Some(known)
+        bareNumbers = Option.Some(bare) }
 
   let asWritten(): (String * String * List<String>) =
     (aboveText, sourceOf(file, d), [ declarationName(file, d) ])
@@ -448,10 +450,12 @@ let declaration(
 
     let innerPath = Stdlib.List.concat(path, Stdlib.String.split(name, "."))
     if header then
-      let (body, names) = declarations(branchId, known, width, file, innerPath, own, inner)
+      let (body, names) = declarations(branchId, known, bare, width, file, innerPath, own, inner)
       (aboveText, docText + $"module {name}\n\n" + body, names)
     else
-      let (body, names) = declarations(branchId, known, width - 2, file, innerPath, own, inner)
+      let (body, names) =
+        declarations(branchId, known, bare, width - 2, file, innerPath, own, inner)
+
       (aboveText, docText + $"module {name} =\n" + indentLines(body, 2), names)
   | _ ->
     match printed with
@@ -489,6 +493,7 @@ let widthFor(width: Int64, path: List<String>, d: Declaration): Int64 =
 let declarations(
   branchId: Uuid,
   known: PrettyPrinter.ProgramTypes.KnownBindings,
+  bare: Dict<String, Bool>,
   width: Int64,
   file: File,
   path: List<String>,
@@ -521,6 +526,7 @@ let declarations(
             declaration(
               branchId,
               known,
+              bare,
               widthFor(width, path, d),
               file,
               path,
@@ -572,7 +578,16 @@ let declarations(
       match s with
       | Some(compact) when run >= 3 -> compact
       | _ ->
-        declaration(branchId, known, widthFor(width, path, d), file, path, FnLayout.Spaced, own, d))
+        declaration(
+          branchId,
+          known,
+          bare,
+          widthFor(width, path, d),
+          file,
+          path,
+          FnLayout.Spaced,
+          own,
+          d))
 
   // One blank line between two declarations that each fit on a line, and two otherwise, or
   // between all of a run of tests when any of the run takes several lines.
@@ -612,6 +627,37 @@ let declarations(
     |> Stdlib.List.flatten
 
   (text, names)
+
+
+/// The bodies in <param ds>, modules' included, as the ops that would add them, for asking the
+/// checker about their numbers. The parse gives every declaration the same placeholder hash, so
+/// each gets one of its own; what they name resolved to the store, or doesn't count.
+let opsIn(ds: List<Declaration>): List<ProgramTypes.PackageOp> =
+  bodiesIn(ds)
+  |> Stdlib.List.indexedMap(fun(i, op) ->
+    let hash = ProgramTypes.Hash.Hash($"format-{Stdlib.display(i)}")
+    match op with
+    | AddFn(fn) -> ProgramTypes.PackageOp.AddFn({ fn with hash = hash })
+    | AddValue(v) -> ProgramTypes.PackageOp.AddValue({ v with hash = hash })
+    | AddTest(t) -> ProgramTypes.PackageOp.AddTest({ t with hash = hash })
+    | other -> other)
+
+
+let bodiesIn(ds: List<Declaration>): List<ProgramTypes.PackageOp> =
+  ds
+  |> Stdlib.List.map(fun d ->
+    match d.item with
+    | Module(_, _, inner) -> bodiesIn(inner)
+    | Fn(_, fn) -> [ ProgramTypes.PackageOp.AddFn(fn) ]
+    | Value(_, v) -> [ ProgramTypes.PackageOp.AddValue(v) ]
+    | Test(_, t) -> [ ProgramTypes.PackageOp.AddTest(t) ]
+    | Impl(_, _, members) ->
+      Stdlib.List.filterMap(members, fun m ->
+        match m with
+        | Declared(_, fn) -> Option.Some(ProgramTypes.PackageOp.AddFn(fn))
+        | Named(_) -> Option.None)
+    | _ -> [])
+  |> Stdlib.List.flatten
 
 
 /// The package references printed in <param ds>, declared at <param path>, by the module
@@ -686,7 +732,15 @@ let source(branchId: Uuid, width: Int64, source: String): Result<Formatted, Stri
               referencesIn([], file.declarations)) }
 
     let (body, asWritten) =
-      declarations(branchId, known, width, file, [], comments, file.declarations)
+      declarations(
+        branchId,
+        known,
+        AtRestTypeChecker.Suffixes.droppable(branchId, opsIn(file.declarations)),
+        width,
+        file,
+        [],
+        comments,
+        file.declarations)
 
     // Comments after the last line of code.
     let lastRow =

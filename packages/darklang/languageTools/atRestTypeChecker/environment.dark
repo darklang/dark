@@ -708,7 +708,13 @@ let exprRefsInto(
       fun(acc, (_, v)) -> exprRefsInto(env, v, acc))
   | EEnum(_, name, typeArgs, _, fields) ->
     manyRefsInto(env, fields, pushRefs(typeListRefs(typeArgs), pushRefs(typeNameRefs(name), acc)))
-  | ELet(_, _, value, body) -> exprRefsInto(env, body, exprRefsInto(env, value, acc))
+  | ELet(_, _, typ, value, body) ->
+    let acc =
+      match typ with
+      | Some(t) -> pushRefs(typeRefs(t), acc)
+      | None -> acc
+
+    exprRefsInto(env, body, exprRefsInto(env, value, acc))
   | ERecordFieldAccess(_, record, _) -> exprRefsInto(env, record, acc)
   | EValue(_, name) -> pushRefs(valueNameRefs(name), acc)
   | EIf(_, condition, thenExpr, elseExpr) ->

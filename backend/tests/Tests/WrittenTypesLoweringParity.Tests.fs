@@ -68,7 +68,7 @@ let rec private kidsE (e : PT.Expr) : List<PT.Expr> =
   | PT.EMatch(_, arg, cases) ->
     arg
     :: (cases |> List.collect (fun c -> Option.toList c.whenCondition @ [ c.rhs ]))
-  | PT.ELet(_, _, v, b) -> [ v; b ]
+  | PT.ELet(_, _, _, v, b) -> [ v; b ]
   | PT.EUnwrap(_, operand) -> [ operand ]
   | PT.EStatement(_, a, b) -> [ a; b ]
   | PT.EList(_, es) -> es
@@ -130,7 +130,7 @@ let private nodeDetail (e : PT.Expr) : string =
     sprintf "EEnum %A tas=%d case=%s" nr (List.length tas) cn
   | PT.EApply(_, _, tas, _) -> sprintf "EApply tas=%A" tas
   | PT.ELambda(_, pats, _) -> sprintf "ELambda pats=%A" (NEList.toList pats)
-  | PT.ELet(_, pat, _, _) -> sprintf "ELet pat=%A" pat
+  | PT.ELet(_, pat, _, _, _) -> sprintf "ELet pat=%A" pat
   | PT.EMatch(_, _, cases) ->
     sprintf "EMatch pats=%A" (cases |> List.map (fun c -> c.pat))
   | other -> sprintf "%A" other

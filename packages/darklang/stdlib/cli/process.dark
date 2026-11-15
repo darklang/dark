@@ -27,12 +27,19 @@ let spawn(command: String): ProcessHandle =
   __childStart("/bin/sh", [ "-c", command ], Stdio.Capture) |> Builtin.unwrap
 
 
+/// An exit code as the OS gives it, which is 0 to 255.
+let __exitCode(code: Int64): UInt8 =
+  UInt8.fromInt64(code) |> Option.withDefault(1)
+
+
+/// A command that could not start exits 127, as in a shell, with the reason in stderr.
 let __executionBytes(result: Result<(Int64 * Bytes * Bytes), Int64>): ExecutionBytes =
   match result with
   | Error(e) ->
     ExecutionBytes
-      { exitCode = -1, stdout = Bytes.empty, stderr = Utf8.encode((Posix.__fromErrno(e)).message) }
-  | Ok((code, output, error)) -> ExecutionBytes { exitCode = code, stdout = output, stderr = error }
+      { exitCode = 127, stdout = Bytes.empty, stderr = Utf8.encode((Posix.__fromErrno(e)).message) }
+  | Ok((code, output, error)) ->
+    ExecutionBytes { exitCode = __exitCode(code), stdout = output, stderr = error }
 
 
 let __executionOutcome(result: Result<(Int64 * Bytes * Bytes), Int64>): ExecutionOutcome =
@@ -54,14 +61,14 @@ let terminate(handle: ProcessHandle): ExecutionOutcome =
 
 /// Result of running a process
 type Output =
-  { exitCode: Int64
+  { exitCode: UInt8
     stdout: String
     stderr: String }
 
 
 /// Like `Output`, but with stdout and stderr exactly as the process wrote them
 type BytesOutput =
-  { exitCode: Int64
+  { exitCode: UInt8
     stdout: Bytes
     stderr: Bytes }
 
@@ -88,8 +95,9 @@ let spawnAndWaitBytes(
   program: String,
   args: List<String>,
   timeoutMs: Option<Int64>)
-  : Result<(Int64 * Bytes * Bytes), Posix.Error> =
+  : Result<(UInt8 * Bytes * Bytes), Posix.Error> =
   __childRun(program, args, timeoutMs)
+  |> Result.map(fun((code, output, error)) -> (__exitCode(code), output, error))
   |> Result.mapError(fun errno ->
     if errno == (if Posix.__abiMac() then 60 else 110) then
       Posix.Error { errno = errno, message = "Process timed out" }
@@ -102,7 +110,7 @@ let spawnAndWait(
   program: String,
   args: List<String>,
   timeoutMs: Option<Int64>)
-  : Result<(Int64 * String * String), Posix.Error> =
+  : Result<(UInt8 * String * String), Posix.Error> =
   spawnAndWaitBytes(program, args, timeoutMs)
   |> Result.map(fun result ->
     let (code, output, error) = result
@@ -130,8 +138,10 @@ let run(program: String, args: List<String>): Result<Output, Posix.Error> =
 /// anything that DRAWS needs: an editor with a redirected stdout paints into a pipe
 /// and reads keys from nowhere. Use `run` when you want the output, this when you
 /// want the program to be usable.
-let runInteractive(program: String, args: List<String>): Result<Int64, Posix.Error> =
-  __childInteractive(program, args) |> Result.mapError(Posix.__fromErrno)
+let runInteractive(program: String, args: List<String>): Result<UInt8, Posix.Error> =
+  __childInteractive(program, args)
+  |> Result.map(fun code -> __exitCode(code))
+  |> Result.mapError(Posix.__fromErrno)
 
 
 /// Run a program and return stdout as text, or stderr as error.
@@ -145,7 +155,8 @@ let exec(program: String, args: List<String>): Result<String, String> =
     else
       let err = String.trimEnd(output.stderr)
       if err == "" then
-        Result.Error($"Command failed with exit code {Posix.__decimal(output.exitCode)}")
+        Result.Error(
+          $"Command failed with exit code {Posix.__decimal(Int64.fromUInt8(output.exitCode))}")
       else
         Result.Error(err))
 
@@ -174,7 +185,7 @@ let runIn(directory: String, program: String, args: List<String>): Result<Output
 
 
 /// Run a program silently, discarding output. Returns exit code only.
-let runSilent(program: String, args: List<String>): Result<Int64, Posix.Error> =
+let runSilent(program: String, args: List<String>): Result<UInt8, Posix.Error> =
   run(program, args) |> Result.map(fun output -> output.exitCode)
 
 
@@ -476,7 +487,7 @@ let __childInteractive(program: String, args: List<String>): Result<Int64, Int64
 
 let __childNewline(bytes: Bytes): Bool =
   // An empty Bytes asks for index -1, which is None.
-  Bytes.getAt(bytes, Bytes.length(bytes) - 1) == Option.Some(10u8)
+  Bytes.getAt(bytes, Bytes.length(bytes) - 1) == Option.Some(10)
 
 
 /// Empty-input communication is immediately nonblocking. Input-driven calls

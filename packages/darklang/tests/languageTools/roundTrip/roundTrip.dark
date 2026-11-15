@@ -163,7 +163,8 @@ let restabilize(
 
 /// Real content hashes for <param ops> and the file's expressions, and the tree rewritten to use
 /// them. The parser hands out placeholder hashes named after locations, which the store does not
-/// index, so a tree printed with them would show hashes where its names should be.
+/// index, so a tree printed with them would show hashes where its names should be. Resolved first,
+/// as a save does, so a bare number has the type it would be stored with.
 let stabilize(
   tree: LanguageTools.ProgramTypes.SourceFile.SourceFile,
   ops: List<LanguageTools.ProgramTypes.PackageOp>)
@@ -172,7 +173,11 @@ let stabilize(
      List<String>) =
   let exprOps = exprsAsValues(tree.exprsToEval)
   let all = Stdlib.List.flatten([ ops, exprOps ])
-  let stableAll = LanguageTools.PackageManager.stabilizeHashes(all)
+  let stableAll =
+    all
+    |> LanguageTools.PackageManager.resolveTraitCalls
+    |> LanguageTools.PackageManager.stabilizeHashes
+
   let byPlaceholder =
     Stdlib.List.zipShortest(all, stableAll)
     |> Stdlib.List.filterMap(fun((before, after)) ->

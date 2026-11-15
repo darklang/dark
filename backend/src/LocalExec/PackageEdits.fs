@@ -393,7 +393,7 @@ let private applyEdits () : Ply<string> =
                 (RT.DString("/" + String.concat "." modules))
                 [ RT.DString source ]
             match! Exe.executeFunction state define [] args with
-            | Ok(RT.DInt64 0L) -> ()
+            | Ok(RT.DUInt8 0uy) -> ()
             | Ok _ -> refuse $"`dark module` did not apply {file}"
             | Error(rte, _) ->
               let! message = Exe.runtimeErrorMessage state rte

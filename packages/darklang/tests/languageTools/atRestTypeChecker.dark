@@ -351,10 +351,12 @@ module BindingIds =
     LanguageTools.ProgramTypes.Expr.ELet(
       1,
       LanguageTools.ProgramTypes.LetPattern.LPVariable(2, "x"),
+      Option.None,
       intExpr(3, 1),
       LanguageTools.ProgramTypes.Expr.ELet(
         4,
         LanguageTools.ProgramTypes.LetPattern.LPVariable(secondId, "y"),
+        Option.None,
         LanguageTools.ProgramTypes.Expr.EString(
           6,
           [ LanguageTools.ProgramTypes.StringSegment.StringText("s") ]),
@@ -411,7 +413,7 @@ module BindingIds =
              LanguageTools.AtRestTypeChecker.issueToString(issue))))
         |> Stdlib.Test.equal(
           [ (
-              Stdlib.Option.Option.Some(2u64),
+              Stdlib.Option.Option.Some(2),
               "Multiple let bindings share a pattern node ID; their types cannot be checked") ]) ])
 
 
@@ -437,6 +439,7 @@ module InferenceIds =
         LanguageTools.ProgramTypes.LetPattern.LPVariable(3, "a"),
         LanguageTools.ProgramTypes.LetPattern.LPVariable(4, "b"),
         []),
+      Option.None,
       LanguageTools.ProgramTypes.Expr.ETuple(
         5,
         projection(10),
@@ -468,7 +471,7 @@ module InferenceIds =
              LanguageTools.AtRestTypeChecker.issueToString(issue))))
         |> Stdlib.Test.equal(
           [ (
-              Stdlib.Option.Option.Some(10u64),
+              Stdlib.Option.Option.Some(10),
               "Multiple inference nodes share an ID; their types cannot be checked") ]) ])
 
 
@@ -535,6 +538,7 @@ module ConstructorDeclarations =
        LanguageTools.ProgramTypes.Expr.ELet(
          3,
          LanguageTools.ProgramTypes.LetPattern.LPWildcard(4),
+         Option.None,
          construction,
          intExpr(5, 1))
      checkFunctionAst([ typ ], oneArg(tUnit(), tInt(), body)))
@@ -575,6 +579,7 @@ module LambdaArgumentSlots =
             LanguageTools.ProgramTypes.Expr.ELet(
               13,
               LanguageTools.ProgramTypes.LetPattern.LPWildcard(14),
+              Option.None,
               lambda(),
               unitExpr(15))))
         |> Stdlib.Test.equal("failed:InvalidArgumentIndex")
@@ -1686,7 +1691,7 @@ module Builtins =
             resolved(
               LanguageTools.ProgramTypes.FQFnName.FQFnName.Builtin(
                 LanguageTools.ProgramTypes.FQFnName.Builtin
-                  { name = "missing", version = 0s32 })),
+                  { name = "missing", version = 0 })),
             [],
             []),
           [],
@@ -2012,7 +2017,7 @@ module PostfixUnwrap =
         check(
           "let f(u: Unit): Stdlib.Option.Option<Int64> = (fun x -> Some(x? + 1))(4)",
           "f")
-        |> Stdlib.Test.equal("failed:InvalidUnwrap") ])
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
 
 
   // Infer get's field and ? requirements separately for each call. It can accept
@@ -2908,6 +2913,7 @@ module Ambiguity =
            LanguageTools.ProgramTypes.Expr.ELet(
              1,
              LanguageTools.ProgramTypes.LetPattern.LPWildcard(2),
+             Option.None,
              LanguageTools.ProgramTypes.Expr.EApply(
                3,
                LanguageTools.ProgramTypes.Expr.ELambda(
@@ -2936,7 +2942,7 @@ module Ambiguity =
              [],
              [ LanguageTools.ProgramTypes.Expr.EList(100, []) ])))
      Stdlib.List.map(outcome.diagnostics, fun i -> i.nodeId))
-    |> Stdlib.Test.equal([ Stdlib.Option.Option.Some(3u64) ])
+    |> Stdlib.Test.equal([ Stdlib.Option.Option.Some(3) ])
 
 
   // y y would require y's function type to contain itself. With the unused local
@@ -3233,7 +3239,7 @@ module Lets =
         |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
 
         check("val f = fun g -> (g(1) + 1, if g(2) then 1 else 0)", "f")
-        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+        |> Stdlib.Test.equal("failed:MissingImpl,TypeMismatch") ])
 
 
   // Repeated uses of a field or payload must agree on its type, even before its
@@ -3242,7 +3248,7 @@ module Lets =
   test fieldUsesAgree =
     Stdlib.Test.all(
       [ check("val f = fun r -> (r.field + 1, if r.field then 1 else 0)", "f")
-        |> Stdlib.Test.equal("failed:TypeMismatch")
+        |> Stdlib.Test.equal("failed:MissingImpl,TypeMismatch")
 
         check("val f = fun r -> (r.field + 1, r.field + 2)", "f")
         |> Stdlib.Test.equal("checked:")
@@ -3256,7 +3262,7 @@ module Lets =
         |> Stdlib.Test.equal("failed:TypeMismatch")
 
         check("val f = fun r -> (r.field + 1, { r with field = true })", "f")
-        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+        |> Stdlib.Test.equal("failed:MissingImpl,TypeMismatch") ])
 
 
   // When the update comes first, it fixes field's type to Bool. The later addition
@@ -3272,7 +3278,7 @@ module Lets =
         check(
           "val f = fun x -> (Builtin.unwrap(x) + 1, if Builtin.unwrap(x) then 1 else 0)",
           "f")
-        |> Stdlib.Test.equal("failed:TypeMismatch")
+        |> Stdlib.Test.equal("failed:MissingImpl,TypeMismatch")
 
         check(
           "val f = fun x -> (Builtin.unwrap(x) + 1, Builtin.unwrap(x) + 2)",
@@ -3286,7 +3292,7 @@ module Lets =
               "  let second = match x with | Some(y) -> if y then 1 else 0 | _ -> 0"
               "  (first, second)" ]),
           "f")
-        |> Stdlib.Test.equal("failed:TypeMismatch")
+        |> Stdlib.Test.equal("failed:MissingImpl,TypeMismatch")
 
         check(
           "val f = fun x -> match x with | C(a) -> 1 | C(a, b) -> 2 | _ -> 0",
@@ -3305,7 +3311,7 @@ module Lets =
           "  let _ = if true then a else b"
           "  (first, second)" ]),
       "f")
-    |> Stdlib.Test.equal("failed:TypeMismatch")
+    |> Stdlib.Test.equal("failed:MissingImpl,TypeMismatch")
 
 
   // Once get is called with R, report both accesses to its nonexistent missing
@@ -3449,6 +3455,7 @@ module Lets =
           LanguageTools.ProgramTypes.LetPattern.LPVariable(82, "x"),
           LanguageTools.ProgramTypes.LetPattern.LPVariable(83, "x"),
           []),
+        Option.None,
         value,
         LanguageTools.ProgramTypes.Expr.EVariable(84, "x")))
 
@@ -3996,12 +4003,12 @@ module Invariants =
       [ check(
           "val f = fun x -> (Builtin.unwrap(x) + 1, match x with | Some(y) -> if y then 1 else 0 | _ -> 0)",
           "f")
-        |> Stdlib.Test.equal("failed:TypeMismatch")
+        |> Stdlib.Test.equal("failed:MissingImpl,TypeMismatch")
 
         check(
           "val f = fun x -> ((match x with | Ok(y) -> if y then 1 else 0 | _ -> 0), Builtin.unwrap(x) + 1)",
           "f")
-        |> Stdlib.Test.equal("failed:TypeMismatch")
+        |> Stdlib.Test.equal("failed:MissingImpl,TypeMismatch")
 
         check(
           "val f = fun x -> (Builtin.unwrap(x) + 1, match x with | Some(y) -> y + 1 | _ -> 0)",
@@ -4503,3 +4510,137 @@ module FunctionArgumentCountDiagnostics =
     issues("let f(s: String): String = s |> Stdlib.String.trimEnd(\"/\")", "f")
     |> Stdlib.Test.equal(
       [ "TooManyArguments: Stdlib.String.trimEnd takes 1 argument, but 2 were given" ])
+
+
+module LetAnnotations =
+  test annotatedLets =
+    Stdlib.Test.all(
+      [ check("let f(): UInt8 =\n  let x: UInt8 = 1u8\n  x", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f(): Int64 =\n  let x: String = 1\n  0", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        // the annotation, not the value, is what the body sees
+        check("let f(): String =\n  let x: Int64 = 1\n  x", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
+/// A number written without a suffix takes the numeric type its slot wants, decided at save.
+module ContextualLiterals =
+  /// The named item's hash once saved: its trait calls and bare numbers resolved, then hashed.
+  let storedHash(source: String, name: String): String =
+    match parsePackageOps(source) with
+    | Error(e) -> e
+    | Ok(ops) ->
+      let stored =
+        ops
+        |> LanguageTools.PackageManager.resolveTraitCalls
+        |> LanguageTools.PackageManager.stabilizeHashes
+
+      match itemNamed(stored, name) with
+      | Some(PackageFn(h)) -> LanguageTools.ProgramTypes.hashToString(h)
+      | Some(PackageValue(h)) -> LanguageTools.ProgramTypes.hashToString(h)
+      | _ -> "no such declaration"
+
+
+  /// <param bare> and <param suffixed> store the same `g`.
+  let sameAs(bare: String, suffixed: String): Stdlib.Test.Result =
+    let declarations =
+      [ "let f(x: UInt8): UInt8 = x"
+        "type Size = { width: UInt16, height: UInt16 }"
+        "let h(x: Float32): Float32 = x" ]
+
+    let stored(body: String): String =
+      storedHash(src(Stdlib.List.append(declarations, body)), "g")
+
+    stored(bare) |> Stdlib.Test.equal(stored(suffixed))
+
+
+  test storedAsIfSuffixed =
+    Stdlib.Test.all(
+      [ sameAs("let g(): UInt8 = f(0)", "let g(): UInt8 = f(0u8)")
+
+        sameAs(
+          "let g(): Size = Size { width = 40, height = 6 }",
+          "let g(): Size = Size { width = 40u16, height = 6u16 }")
+
+        sameAs(
+          "let g(): Stdlib.Bytes = Stdlib.Bytes.fromList([ 0, 255, 16 ])",
+          "let g(): Stdlib.Bytes = Stdlib.Bytes.fromList([ 0u8, 255u8, 16u8 ])")
+
+        sameAs(
+          "let g(c: UInt8): Bool = c == 0",
+          "let g(c: UInt8): Bool = c == 0u8")
+
+        sameAs(
+          "let g(c: UInt8): Bool = 0 == c",
+          "let g(c: UInt8): Bool = 0u8 == c")
+
+        sameAs(
+          "let g(c: UInt8): UInt8 = c + 1",
+          "let g(c: UInt8): UInt8 = c + 1u8")
+
+        sameAs("let g(): UInt8 = 0 |> f", "let g(): UInt8 = 0u8 |> f")
+
+        sameAs("let g(): UInt8 = 5", "let g(): UInt8 = 5u8")
+
+        sameAs(
+          "let g(): UInt8 =\n  let x: UInt8 = 0\n  x",
+          "let g(): UInt8 =\n  let x: UInt8 = 0u8\n  x")
+
+        sameAs(
+          "let g(): UInt8 =\n  let z = 0\n  f(z)",
+          "let g(): UInt8 =\n  let z = 0u8\n  f(z)")
+
+        sameAs(
+          "let g(c: UInt8): String =\n  match c with\n  | 0 -> \"zero\"\n  | _ -> \"other\"",
+          "let g(c: UInt8): String =\n  match c with\n  | 0u8 -> \"zero\"\n  | _ -> \"other\"")
+
+        sameAs("let g(): Float32 = h(1.5)", "let g(): Float32 = h(1.5f32)")
+
+        sameAs(
+          "let g(): List<UInt8> = Stdlib.List.push([ 1u8 ], 2)",
+          "let g(): List<UInt8> = Stdlib.List.push([ 1u8 ], 2u8)") ])
+
+
+  test noContextIsInt64 =
+    Stdlib.Test.all(
+      [ sameAs("let g(): Int64 = 5", "let g(): Int64 = 5s64")
+
+        sameAs("let g(): Bool = 1 == 1", "let g(): Bool = 1s64 == 1s64")
+
+        sameAs(
+          "let g(): Int64 = Stdlib.List.length(Stdlib.List.repeat(3, 0))",
+          "let g(): Int64 = Stdlib.List.length(Stdlib.List.repeat(3, 0s64))") ])
+
+
+  test outOfRange =
+    Stdlib.Test.all(
+      [ issues("let f(x: UInt8): UInt8 = x\nlet g(): UInt8 = f(300)", "g")
+        |> Stdlib.Test.equal(
+          [ "NumberOutOfRange: `300` doesn't fit in UInt8 (0 to 255)" ])
+
+        issues("let f(x: UInt8): UInt8 = x\nlet g(): UInt8 = f(-1)", "g")
+        |> Stdlib.Test.equal(
+          [ "NumberOutOfRange: UInt8 can't be negative: `-1`" ])
+
+        issues("let g(c: Int8): Bool = c == 200", "g")
+        |> Stdlib.Test.equal(
+          [ "NumberOutOfRange: `200` doesn't fit in Int8 (-128 to 127)" ])
+
+        check("let g(): Float32 = 1e39", "g")
+        |> Stdlib.Test.equal("failed:NumberOutOfRange") ])
+
+
+  // An integer never fills a Float64, nor a float a Decimal.
+  test noCrossingKinds =
+    Stdlib.Test.all(
+      [ check("let g(): Float64 = 1", "g")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check("let g(): Decimal = 1.5", "g")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check("let g(): String = 1", "g")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])

@@ -384,6 +384,56 @@ let private applyStabilization
       ops, mkRepoint loc currentHash PT.PackageTest
 
 
+/// The direct dependents with a number written without a suffix, re-typed against the source as it
+/// now is. Each is pointed at the source first, so the checker reads its new signature: a param
+/// that went from Int64 to UInt8 gives a caller's `f(0)` the new type rather than an Int64 that
+/// fails when it runs.
+let private retypeDirect
+  (retype : List<PT.PackageOp> -> Task<List<PT.PackageOp>>)
+  (seed : AT.HashMapping)
+  (fromSourceHashes : List<Hash>)
+  (affected : List<Affected>)
+  : Task<List<Affected>> =
+  task {
+    let names (deps : List<DependencyExtractor.Dependency>) =
+      deps |> List.exists (fun d -> List.contains d.hash fromSourceHashes)
+    let picked =
+      affected
+      |> List.indexed
+      |> List.choose (fun (i, a) ->
+        match a with
+        | AffectedFn(_, f, _, _) when
+          AT.hasBareNumber f.body && names (DependencyExtractor.extractFromFn f)
+          ->
+          Some(i, PT.PackageOp.AddFn(AT.transformFn seed f))
+        | AffectedValue(_, v, _, _) when
+          AT.hasBareNumber v.body && names (DependencyExtractor.extractFromValue v)
+          ->
+          Some(i, PT.PackageOp.AddValue(AT.transformValue seed v))
+        | AffectedTest(_, t, _, _) when
+          AT.hasBareNumber t.body && names (DependencyExtractor.extractFromTest t)
+          ->
+          Some(i, PT.PackageOp.AddTest(AT.transformTest seed t))
+        | _ -> None)
+    if List.isEmpty picked then
+      return affected
+    else
+      let! retyped = retype (List.map snd picked)
+      let replacements = List.zip (List.map fst picked) retyped |> Map.ofList
+      return
+        affected
+        |> List.mapi (fun i a ->
+          match Map.tryFind i replacements, a with
+          | Some(PT.PackageOp.AddFn f), AffectedFn(fqn, _, h, loc) ->
+            AffectedFn(fqn, f, h, loc)
+          | Some(PT.PackageOp.AddValue v), AffectedValue(fqn, _, h, loc) ->
+            AffectedValue(fqn, v, h, loc)
+          | Some(PT.PackageOp.AddTest t), AffectedTest(fqn, _, h, loc) ->
+            AffectedTest(fqn, t, h, loc)
+          | _ -> a)
+  }
+
+
 let private buildSeedMapping
   (sourceLocations : List<PT.PackageLocation>)
   (fromSourceHashes : List<Hash>)
@@ -399,7 +449,8 @@ let private buildSeedMapping
     // newer implementation does it through the ordinary fn edge, which `byHash` above covers.
     referenceName = None
     resolvedImpls = Map.empty
-    boundImpls = Map.empty }
+    boundImpls = Map.empty
+    literalTypes = Map.empty }
 
 
 /// Compute new hashes for source + all transitive dependents using SCC-aware
@@ -408,6 +459,7 @@ let private buildSeedMapping
 /// SCC hashing is required for mutually-recursive package items; location
 /// data lets stale refs be matched without relying only on old hashes.
 let private createAllItems
+  (retype : List<PT.PackageOp> -> Task<List<PT.PackageOp>>)
   (referenceNames : ReferenceNames.State)
   (branch : PT.BranchId)
   (fromSourceHashes : List<Hash>)
@@ -434,6 +486,12 @@ let private createAllItems
       match! fetchAffectedDependents referenceNames dependents with
       | Error e -> return Error e
       | Ok dependentsAffected ->
+        let! dependentsAffected =
+          retypeDirect
+            retype
+            (buildSeedMapping [ sourceLocation ] fromSourceHashes resolvedSourceHash)
+            fromSourceHashes
+            dependentsAffected
         // Only include source when mutual recursion makes it part of the
         // affected SCC; otherwise keep the user's already-computed source hash.
         let dependentHashes =
@@ -500,8 +558,10 @@ let private createAllItems
 /// dependent, transitive ones included. `None` when there are no dependents; otherwise what moved
 /// and the ops that move it.
 ///
-/// <param branch> is the branch this runs on; main is an ordinary id here.
+/// <param branch> is the branch this runs on; main is an ordinary id here. <param retype> runs the
+/// at-rest checker's save-time pass over a dependent whose bare numbers may now mean another type.
 let propagate
+  (retype : List<PT.PackageOp> -> Task<List<PT.PackageOp>>)
   (branch : PT.BranchId)
   (sourceLocation : PT.PackageLocation)
   (sourceItemKind : PT.ItemKind)
@@ -525,6 +585,7 @@ let propagate
     | _ ->
       let! result =
         createAllItems
+          retype
           referenceNames
           branch
           fromSourceHashes

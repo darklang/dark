@@ -542,9 +542,9 @@ not a constant; `val` is evaluated once. If the body doesn't depend on anything,
 `guarded` empties the whole batch, and the reload records no trait-call resolutions and still
 prints Success. Use a function there.
 
-**Value bindings take no type annotation.** `let xs = [...]`, not `let xs : List<String> = [...]`,
-which fails with "Value annotations are not supported". Function bindings do take them, and
-nested functions require them.
+**Value declarations take no type annotation.** `val xs = [...]`, not `val xs : List<String> = [...]`,
+which fails with "Value annotations are not supported". Local lets take one (`let x: UInt8 = 0`),
+function bindings do too, and nested functions require them.
 
 **For deep tree walks in Dark, avoid recursion inside builtin callbacks.** For example,
 `Stdlib.List.map(children, fun child -> visit(child))` starts a nested interpreter run at

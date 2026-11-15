@@ -13,6 +13,13 @@ test integerExitCodes =
       Cli.Run.exitCode(LanguageTools.RuntimeTypes.Dval.DInt64(3))
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3))
 
+      Cli.Run.exitCode(LanguageTools.RuntimeTypes.Dval.DUInt8(4))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(4))
+
+      // past 0 to 255 is no exit code the OS carries
+      Cli.Run.exitCode(LanguageTools.RuntimeTypes.Dval.DInt64(300))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1))
+
       Cli.Run.exitCode(
         LanguageTools.RuntimeTypes.Dval.DBigInt(9223372036854775808z))
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1)) ])
@@ -67,7 +74,7 @@ module CallStack =
     LanguageTools.RuntimeTypes.ExecutionPoint.Function(
       LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(
         LanguageTools.RuntimeTypes.FQFnName.Builtin
-          { name = "bigIntDivide", version = 0s32 }))
+          { name = "bigIntDivide", version = 0 }))
 
 
   let render(frames: List<LanguageTools.RuntimeTypes.ExecutionPoint>): String =
@@ -89,7 +96,7 @@ module CallStack =
       SCM.Branch.mainBranchId,
       LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(
         source(),
-        23u64,
+        23,
         Stdlib.Option.Option.None))
     |> Stdlib.Test.equal("Lambda 23")
 
@@ -100,7 +107,7 @@ module CallStack =
       SCM.Branch.mainBranchId,
       LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(
         builtin(),
-        23u64,
+        23,
         Stdlib.Option.Option.Some(source())))
     |> Stdlib.Test.equal("Lambda in Source (23)")
 
@@ -109,7 +116,7 @@ module CallStack =
     let lambda =
       LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(
         source(),
-        23u64,
+        23,
         Stdlib.Option.Option.None)
 
     Stdlib.Test.all(

@@ -185,7 +185,7 @@ let resolvedFn(
 /// string for package functions or other versions, so they do not match these rules.
 let builtinName(fn: ProgramTypes.FQFnName.FQFnName): String =
   match fn with
-  | Builtin(b) -> if b.version == 0s32 then b.name else ""
+  | Builtin(b) -> if b.version == 0 then b.name else ""
   | Package(_) -> ""
   // Not a builtin, so it has no builtin name. Callers use this to recognise the operator
   // builtins and a trait method is never one of those.
@@ -296,7 +296,7 @@ let isNonExpansive(expr: ProgramTypes.Expr): Bool =
   | EIf(_, _, _, _) -> false
   | EPipe(_, _, _) -> false
   | EMatch(_, _, _) -> false
-  | ELet(_, _, _, _) -> false
+  | ELet(_, _, _, _, _) -> false
   | EApply(_, _, _, _) -> false
   | EInfix(_, _, _, _, _) -> false
   | ERecordFieldAccess(_, _, _) -> false
@@ -366,12 +366,13 @@ let matchPattern(
   | MPUInt16(id, _) -> literal(id, Model.Ty.TUInt16)
   | MPInt32(id, _) -> literal(id, Model.Ty.TInt32)
   | MPUInt32(id, _) -> literal(id, Model.Ty.TUInt32)
-  | MPInt64(id, _) -> literal(id, Model.Ty.TInt64)
+  | MPInt64(id, n) -> ([], number(id, expected, Site.MatchPattern, Model.NumberLiteral.Integer(n)))
   | MPUInt64(id, _) -> literal(id, Model.Ty.TUInt64)
   | MPInt128(id, _) -> literal(id, Model.Ty.TInt128)
   | MPUInt128(id, _) -> literal(id, Model.Ty.TUInt128)
   | MPBigInt(id, _) -> literal(id, Model.Ty.TBigInt)
-  | MPFloat64(id, _, _, _) -> literal(id, Model.Ty.TFloat64)
+  | MPFloat64(id, sign, whole, fraction) ->
+    ([], number(id, expected, Site.MatchPattern, Model.NumberLiteral.Float(sign, whole, fraction)))
   | MPFloat32(id, _, _, _) -> literal(id, Model.Ty.TFloat32)
   | MPDecimal(id, _) -> literal(id, Model.Ty.TDecimal)
   | MPChar(id, _) -> literal(id, Model.Ty.TChar)
@@ -562,6 +563,9 @@ let patternIds(pattern: ProgramTypes.MatchPattern): List<Int64> =
 /// the body. For other expressions, infer their type and then require it to match.
 let check(scope: Scope, expected: Model.Ty, site: Site, expr: ProgramTypes.Expr): Model.Constraint =
   match expr with
+  | EInt64(id, n) -> number(id, expected, site, Model.NumberLiteral.Integer(n))
+  | EFloat64(id, sign, whole, fraction) ->
+    number(id, expected, site, Model.NumberLiteral.Float(sign, whole, fraction))
   | ELambda(id, patterns, body) ->
     let parameters = lambdaParameters(id, patterns)
     let ret = var(id, Model.Role.Return)
@@ -578,6 +582,18 @@ let check(scope: Scope, expected: Model.Ty, site: Site, expr: ProgramTypes.Expr)
     all([ constraints, equal(ProgramTypes.Expr.toID(expr), site, expected, actual) ])
 
 
+/// A number written without a suffix, in a slot that wants <param expected>.
+let number(
+  id: Int64,
+  expected: Model.Ty,
+  site: Site,
+  value: Model.NumberLiteral)
+  : Model.Constraint =
+  all(
+    [ equal(id, site, expected, resultOf(id))
+      Model.Constraint.Literal(id, resultOf(id), value, site) ])
+
+
 /// Return an expression's type and requirements that the solver must establish.
 /// Unknown components are linked by node IDs; literals supply their types directly.
 ///
@@ -590,11 +606,14 @@ let infer(scope: Scope, expr: ProgramTypes.Expr): (Model.Ty * Model.Constraint) 
   | EArg(id, index) -> inferArg(scope, id, index)
   | EFnName(id, name, _, typeArgs) -> useFunction(scope, id, name, typeArgs, resultOf(id))
   | EString(_, segments) -> inferString(scope, segments)
-  | ELet(id, pattern, value, body) -> inferLet(scope, id, pattern, value, body)
+  | ELet(id, pattern, typ, value, body) -> inferLet(scope, id, pattern, typ, value, body)
   | EPipe(_, lhs, parts) -> inferPipe(scope, lhs, parts)
   | ERecordFieldAccess(id, record, field) -> inferFieldAccess(scope, id, record, field)
   | EMatch(id, arg, cases) -> inferMatch(scope, id, arg, cases)
-  | EInt64(_, _) -> (Model.Ty.TInt64, nothing())
+  | EInt64(id, n) ->
+    (
+      resultOf(id),
+      Model.Constraint.Literal(id, resultOf(id), Model.NumberLiteral.Integer(n), Site.Expression))
   | EBigInt(_, _) -> (Model.Ty.TBigInt, nothing())
   | EList(id, elements) -> inferList(scope, id, elements)
   | EIf(id, condition, thenExpr, elseExpr) -> inferIf(scope, id, condition, thenExpr, elseExpr)
@@ -611,7 +630,14 @@ let infer(scope: Scope, expr: ProgramTypes.Expr): (Model.Ty * Model.Constraint) 
   | ERecordUpdate(id, record, updates) -> inferRecordUpdate(scope, id, record, updates)
   | EDict(id, entries) -> inferDict(scope, id, entries)
   | EChar(_, _) -> (Model.Ty.TChar, nothing())
-  | EFloat64(_, _, _, _) -> (Model.Ty.TFloat64, nothing())
+  | EFloat64(id, sign, whole, fraction) ->
+    (
+      resultOf(id),
+      Model.Constraint.Literal(
+        id,
+        resultOf(id),
+        Model.NumberLiteral.Float(sign, whole, fraction),
+        Site.Expression))
   | EFloat32(_, _, _, _) -> (Model.Ty.TFloat32, nothing())
   | EDecimal(_, _) -> (Model.Ty.TDecimal, nothing())
   | ESelf(id) -> inferSelf(scope, id)
@@ -721,17 +747,30 @@ let inferString(
   (Model.Ty.TString, all(constraints))
 
 
-/// Infer the bound value, check its pattern, and then infer the body with the new names.
-/// When isNonExpansive permits a generic binding, save a scheme for each name before
-/// checking its uses. Other bindings keep one type shared across all uses.
+/// Infer the bound value, or check it against the annotation, check its pattern, and then
+/// infer the body with the new names. When isNonExpansive permits a generic binding, save a
+/// scheme for each name before checking its uses. Other bindings keep one type shared across
+/// all uses.
 let inferLet(
   scope: Scope,
   id: Int64,
   pattern: ProgramTypes.LetPattern,
+  typ: Option<ProgramTypes.TypeReference>,
   value: ProgramTypes.Expr,
   body: ProgramTypes.Expr)
   : (Model.Ty * Model.Constraint) =
-  let (valueType, valueConstraints) = inferLetValue(scope, pattern, value)
+  let (valueType, valueConstraints) =
+    match typ with
+    | Some(t) ->
+      let (annotated, problems) = Types.fromReference(scope.typeVariables, at(id), t)
+      (
+        annotated,
+        all(
+          [ reports(problems)
+            Model.Constraint.WellFormed(at(id), annotated)
+            check(scope, annotated, Site.LetAnnotation, value) ]))
+    | None -> inferLetValue(scope, pattern, value)
+
   let (bindings, patternConstraints) = letPattern(valueType, pattern)
   if isNonExpansive(value) then
     let inScope = Stdlib.Dict.values(scope.locals)
@@ -1131,7 +1170,7 @@ let constantDictKey(expr: ProgramTypes.Expr): Option<String> =
 
     match Stdlib.Float32.parse(sign + whole + "." + fraction) with
     | Ok(f) ->
-      if f == 0.0f32 then
+      if f == 0.0 then
         Option.Some("0.0f32")
       else
         Option.Some(Stdlib.display(f) + "f32")

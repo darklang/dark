@@ -549,7 +549,7 @@ let saveAuthored(
           let at =
             match AtRestCheck.positionShifted(
                     committed.ownIssueNode,
-                    Stdlib.UInt64.fromInt64(firstLineShift) |> Stdlib.Option.withDefault(0u64)) with
+                    Stdlib.UInt64.fromInt64(firstLineShift) |> Stdlib.Option.withDefault(0)) with
             | Some(p) -> $" ({p})"
             | None -> ""
 
