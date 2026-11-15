@@ -18,7 +18,7 @@ Any module with these three is a view:
   let init(): Model = Model { count = 0 }
   let update(m: Model, e: Darklang.Cli.LiveView.Host.Event<Msg>): Model = ...
   let render(m: Model): Stdlib.Cli.UI.Node.Node<Msg> =
-    Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.bold("counter"); ... ])
+    Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.bold("counter"), ... ])
 
   ps --watch                    a live view: edit `render` or anything it calls from another
                                 terminal and it repaints

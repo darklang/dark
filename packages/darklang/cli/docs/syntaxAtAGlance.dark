@@ -7,7 +7,7 @@ let content(): String =
 
   Stdlib.String.trim(s)   add(a, b)   main()   calls take parentheses and commas,
                                                never `add a b`
-  "n = " + Stdlib.display(n)                  `+` joins Strings
+  "n = " + Stdlib.display(n)   $"n = {n}"      `+` joins; there is no `<Type>.toString`
   2   -7   1.5   255u8   3s32   10z   9.5dec   a plain integer is an Int64, never `2L`
   [1, 2, 3]   Point { x = 1, y = 2 }           commas, or one item per line, never `;`
   type Point = { x: Int64, y: Int64 }          the same in a record type
@@ -19,6 +19,7 @@ let content(): String =
   type Shape = | Dot | Circle(Float64) | Rect(Float64, Float64)
   let f(p: String * Int64): Option<String * Int64> = Some(p)   tuple types use `*`
   let down(n: Int64): Int64 = if n <= 0 then 0 else down(n - 1)
+  val limit = 6                                a module value: `val`, not `let`, no `: Type`
 
 A function calls itself by name; there is no `rec` keyword. Each statement goes
 on its own line, and every line of a block but the last returns Unit. Name your

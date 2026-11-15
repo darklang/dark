@@ -86,9 +86,9 @@ runner approval, without asking in chat first. Retry only if safe. Details:
 
 ## Mistakes that cost a run
 
-- There is no `Stdlib.Int64.toString`. `$"{x}"` works for any value: it uses the
-  type's `Display` impl (Strings, numbers, Bool, Char, DateTime, Uuid, Option,
-  Result, ...; `impls Display`) and falls back to `Stdlib.inspect(x)`.
+- `$"{x}"` works for any value: it uses the type's `Display` impl (Strings,
+  numbers, Bool, Char, DateTime, Uuid, Option, Result, ...; `impls Display`) and
+  falls back to `Stdlib.inspect(x)`.
   `Stdlib.display(x)` needs a `Display` impl; `Stdlib.inspect(x)` shows any value.
   An operator is not a function either: `a % b`, not `Stdlib.Int64.mod(a, b)`.
 - Operands must have one type: `1 + 2.0` is an error.
