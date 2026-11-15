@@ -1607,6 +1607,7 @@ module PackageType =
     let fields =
       RecordFields.ofList
         [ "hash", Hash.toDT p.hash
+          "id", p.id |> Option.map DUuid |> Dval.option KTUuid
           "declaration", TypeDeclaration.toDT p.declaration
           "description", DString p.description ]
     DRecord(typeName (), typeName (), [], fields)
@@ -1616,6 +1617,7 @@ module PackageType =
     match d with
     | DRecord(_, _, _, fields) ->
       { hash = fields |> D.field "hash" |> Hash.fromDT
+        id = fields |> D.field "id" |> C2DT.Option.fromDT D.uuid
         declaration = fields |> D.field "declaration" |> TypeDeclaration.fromDT
         description = fields |> D.field "description" |> D.string }
     | _ -> Exception.raiseInternal "Invalid PackageType" []

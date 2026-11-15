@@ -230,14 +230,42 @@ let parseOn(
   branchId: Uuid,
   source: String)
   : Stdlib.Result.Result<Parsed, String> =
-  parseOnAs(LanguageTools.Parser.FileKind.Script, branchId, source)
+  parseOnAs(LanguageTools.Parser.FileKind.Script, branchId, source, [])
 
 
-/// `parseOn`, parsing <param source> as a <param kind> file.
+/// <param ops> with each type taking the id of the type in the same place in <param like>, so
+/// re-parsing printed source declares the same types as the parse it was printed from.
+let sameTypeIds(
+  ops: List<LanguageTools.ProgramTypes.PackageOp>,
+  like: List<LanguageTools.ProgramTypes.PackageOp>)
+  : List<LanguageTools.ProgramTypes.PackageOp> =
+  let ids =
+    like
+    |> Stdlib.List.filterMap(fun op ->
+      match op with
+      | AddType(t) -> Stdlib.Option.Option.Some(t.id)
+      | _ -> Stdlib.Option.Option.None)
+
+  let (_, reversed) = Stdlib.List.fold(ops, (ids, []), fun(state, op) ->
+    let (remaining, acc) = state
+    match op, remaining with
+    | AddType(t), [id, ...rest] ->
+      (
+        rest,
+        Stdlib.List.prepend(
+          acc,
+          LanguageTools.ProgramTypes.PackageOp.AddType({ t with id = id })))
+    | _ -> (remaining, Stdlib.List.prepend(acc, op)))
+
+  Stdlib.List.reverse(reversed)
+
+
+/// `parseOn`, parsing <param source> as a <param kind> file, with the types' ids from <param like>.
 let parseOnAs(
   kind: LanguageTools.Parser.FileKind,
   branchId: Uuid,
-  source: String)
+  source: String,
+  like: List<LanguageTools.ProgramTypes.PackageOp>)
   : Stdlib.Result.Result<Parsed, String> =
   match LanguageTools.Parser.Parse.initialParseAs(kind, source) with
   | Error(e) ->
@@ -249,7 +277,9 @@ let parseOnAs(
         branchId,
         parsedFile)
 
-    let (stableTree, stableOps, exprHashes) = stabilize(tree, ops)
+    let (stableTree, stableOps, exprHashes) =
+      stabilize(tree, sameTypeIds(ops, like))
+
     Stdlib.Result.Result.Ok(
       Parsed
         { tree = stableTree
@@ -341,7 +371,7 @@ let roundTripAs(
   let fail = fun message -> Stdlib.Test.fail($"{name}: {message}")
   // Every parse happens on a branch that never holds the case's own declarations.
   let parseBranch = branchWith(prelude)
-  match parseOnAs(kind, parseBranch, source) with
+  match parseOnAs(kind, parseBranch, source, []) with
   | Error(e) -> fail("parse error: " + e)
   | Ok(first) ->
     let firstBranch = branchWith(prelude)
@@ -351,7 +381,7 @@ let roundTripAs(
       fail(
         $"didn't round-trip as expected.\nexpected:\n{expected}\ngot:\n{firstPrint}")
     else
-      match parseOnAs(kind, parseBranch, firstPrint) with
+      match parseOnAs(kind, parseBranch, firstPrint, first.ops) with
       | Error(e) -> fail("re-parsing the printed source: " + e)
       | Ok(second) ->
         let secondBranch = branchWith(prelude)
@@ -366,7 +396,7 @@ let roundTripAs(
 
         let widthPrint = printAt(firstBranch, width, first)
         let widthProblems =
-          match parseOnAs(kind, parseBranch, widthPrint) with
+          match parseOnAs(kind, parseBranch, widthPrint, first.ops) with
           | Error(e) ->
             [ $"width {Stdlib.display(width)}: re-parse failed: {e}\n{widthPrint}" ]
           | Ok(atWidth) ->

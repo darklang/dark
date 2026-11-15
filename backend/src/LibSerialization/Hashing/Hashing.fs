@@ -26,6 +26,10 @@ module Hashing =
   type HashRefMode = Canonical.HashRefMode
   let Normal = Canonical.Normal
 
+  /// Bump when a change moves hashes on purpose. The package ref pins record the scheme they were
+  /// written under, and pins from an older one re-pin on the next reload.
+  let scheme : int = 1
+
 
   // =====================
   // Hash computation helpers
