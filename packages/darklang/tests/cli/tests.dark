@@ -435,7 +435,8 @@ test moduleSaveNamesEachIdenticalFunctionWithUnresolvedTraitCalls =
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected the warning to name each function and call; got {output}")
+    Stdlib.Test.fail(
+      $"Expected the warning to name each function and call; got {output}")
 
 
 // Merge a child into a throwaway parent so the test leaves no function on main.

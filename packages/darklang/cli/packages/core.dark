@@ -286,8 +286,7 @@ type Committed =
     /// Another name that already held the version this name now holds.
     sameAs: Option<LanguageTools.ProgramTypes.PackageLocation>
     report: LanguageTools.AtRestTypeChecker.Report
-    unresolvedTraitCalls:
-      List<(String * List<LanguageTools.PackageManager.UnresolvedTraitCall>)> }
+    unresolvedTraitCalls: List<(String * List<LanguageTools.PackageManager.UnresolvedTraitCall>)> }
 
 
 /// Save <param ops>, which bind <param location> (a <param kind>) at the placeholder <param hash>,
@@ -548,10 +547,8 @@ let saveAuthored(
           Stdlib.printLine(
             Stdlib.Cli.UI.Colors.hint($"= {kindWord} {fullPath} is unchanged; nothing was saved"))
 
-        let sourceShift =
-          Stdlib.UInt64.fromInt64(firstLineShift) |> Stdlib.Option.withDefault(0u64)
+        let sourceShift = Stdlib.UInt64.fromInt64(firstLineShift) |> Stdlib.Option.withDefault(0u64)
         AtRestCheck.printUnresolvedTraitCalls(committed.unresolvedTraitCalls, sourceShift)
-
         match ownIssue with
         | Some(why) ->
           let at =
