@@ -902,8 +902,47 @@ test stdlibSuggestionFindsTheRealName =
       suggest("Stdlib.Int64.absoluteValue")
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.abs"))
 
+      suggest("Stdlib.Char.toString")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.String.fromChar"))
+
+      suggest("List.flatMap")
+      |> Stdlib.Test.equal(
+        Stdlib.Option.Option.Some(
+          "Stdlib.List.flatten(Stdlib.List.map(xs, f))"))
+
+      suggest("Stdlib.String.substring")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.String.slice"))
+
       suggest("Stdlib.Nope.zzz")
       |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
+
+// Each function <fn Darklang.Cli.Packages.Errors.otherLanguageNames> points at exists.
+test otherLanguageNamesPointAtRealFunctions =
+  let branch = SCM.Branch.mainBranchId
+  let missing =
+    Cli.Packages.Errors.otherLanguageNames()
+    |> Stdlib.List.map(fun((_, _, instead)) ->
+      Stdlib.String.split(instead, "(")
+      |> Stdlib.List.head
+      |> Stdlib.Option.withDefault(""))
+    |> Stdlib.List.filter(fun name ->
+      match Stdlib.String.split(name, ".") with
+      | ["Stdlib", ...rest] ->
+        match Cli.Packages.Errors.splitLast(rest) with
+        | Some((modules, fnName)) ->
+          let location =
+            LanguageTools.ProgramTypes.PackageLocation
+              { owner = "Darklang"
+                modules = Stdlib.List.prepend(modules, "Stdlib")
+                name = fnName }
+
+          Stdlib.Option.isNone(
+            LanguageTools.PackageManager.findAny(branch, location))
+        | None -> true
+      | _ -> true)
+
+  missing |> Stdlib.Test.equal([])
 
 
 test closestNamesAreSpelledNear =

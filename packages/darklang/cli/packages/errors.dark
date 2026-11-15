@@ -97,21 +97,42 @@ let stdlibSuggestionCandidates(
     | _ -> Stdlib.List.prepend(renamed([ "Stdlib" ]), stdlibCandidate([ "Stdlib" ], modules, name))
 
 
-/// The Stdlib name for a conversion people guess another name for: Stdlib turns bytes into text
-/// and back in `Utf8`, so `String.fromBytes` and `Bytes.toString` are `Stdlib.Utf8.decode`.
+/// Names other languages give a job Stdlib does under another name, or with two calls: each
+/// (module, the names lowercased, what to write instead).
+let otherLanguageNames(): List<(String * List<String> * String)> =
+  [ ("String", [ "frombytes", "fromutf8" ], "Stdlib.Utf8.decode")
+    ("Bytes", [ "tostring" ], "Stdlib.Utf8.decode")
+    ("String", [ "tobytes", "toutf8" ], "Stdlib.Utf8.encode")
+    ("Bytes", [ "fromstring" ], "Stdlib.Utf8.encode")
+    ("Char", [ "tostring" ], "Stdlib.String.fromChar")
+    (
+      "List",
+      [ "flatmap", "concatmap", "collect", "bind", "selectmany", "chain" ],
+      "Stdlib.List.flatten(Stdlib.List.map(xs, f))")
+
+    ("List", [ "choose", "mapmaybe", "compactmap" ], "Stdlib.List.filterMap")
+    ("List", [ "nth", "item", "at", "elementat", "get" ], "Stdlib.List.getAt")
+    ("List", [ "reduce", "foldl", "foldleft", "inject", "aggregate" ], "Stdlib.List.fold")
+    ("String", [ "toint", "parseint" ], "Stdlib.Int64.parse")
+    ("String", [ "tofloat", "parsefloat" ], "Stdlib.Float64.parse")
+    ("String", [ "substring", "substr" ], "Stdlib.String.slice") ]
+
+
+/// What to write for a name <fn otherLanguageNames> lists: `List.flatMap` is
+/// `Stdlib.List.flatten(Stdlib.List.map(xs, f))`, and `Bytes.toString` is `Stdlib.Utf8.decode`.
 let guessedName(originalName: List<String>): Option<String> =
   let lastTwo =
     originalName
     |> Stdlib.List.reverse
     |> Stdlib.List.take(2)
-    |> Stdlib.List.reverse
     |> Stdlib.List.map(Stdlib.String.toLowercase)
 
   match lastTwo with
-  | ["string", "frombytes"] | ["string", "fromutf8"] | ["bytes", "tostring"] ->
-    Option.Some("Stdlib.Utf8.decode")
-  | ["string", "tobytes"] | ["string", "toutf8"] | ["bytes", "fromstring"] ->
-    Option.Some("Stdlib.Utf8.encode")
+  | [name, moduleName] ->
+    otherLanguageNames()
+    |> Stdlib.List.findFirst(fun((m, names, _)) ->
+      Stdlib.String.toLowercase(m) == moduleName && Stdlib.List.contains(names, name))
+    |> Stdlib.Option.map(fun((_, _, instead)) -> instead)
   | _ -> Option.None
 
 
