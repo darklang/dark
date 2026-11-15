@@ -71,6 +71,7 @@ let settings : List<string> =
     "exec.maxInstructions"
     "exec.maxBytes"
     "exec.storePollMs"
+    "exec.spread"
     "exec.spreadCrossover"
     "exec.spreadMinChunk"
     "exec.spreadPredict"
@@ -119,7 +120,11 @@ let check
       "trace.keep"
       "trace.maxMb" ]
   let onOff =
-    [ "trace.record"; "http.loopback"; "http.private"; "exec.spreadPredict" ]
+    [ "trace.record"
+      "http.loopback"
+      "http.private"
+      "exec.spread"
+      "exec.spreadPredict" ]
   let wholeNumber () = Error $"{key} takes a whole number (0 = none), not {value}"
   if value = "" && List.contains key settings then
     Error $"{key} needs a value; `dark config unset {key}` goes back to the default"
@@ -136,8 +141,10 @@ let check
     | _ -> wholeNumber ()
   elif key = "exec.spreadCrossover" then
     match System.Int64.TryParse value with
-    | true, _ -> Ok()
-    | _ -> Error $"{key} takes a whole number (below 0 = never spread), not {value}"
+    | true, n when n >= 0L -> Ok()
+    | _ ->
+      Error
+        $"{key} takes a whole number of instructions (0 spreads anything), not {value}; `exec.spread off` turns spreading off"
   elif List.contains key onOff then
     if value = "on" || value = "off" then Ok() else Error $"{key} is on or off"
   elif key = "exec.policy" then

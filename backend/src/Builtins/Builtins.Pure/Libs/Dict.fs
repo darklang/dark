@@ -21,55 +21,11 @@ let private entryPair (dv : Dval) : Dval * Dval =
   | DTuple(k, value, []) -> (k, value)
   | dv -> Exception.raiseInternal "Not pair tuples in fromEntries" [ "dval", dv ]
 
-/// Spreads `fn` over `entries` from `start` on (`LibExecution.Spread`), as `List.map` is: a
-/// chunk is `listMap2shortest` over its keys and its values, which applies `fn` to each pair as
-/// `applyEach` does. Writes the answers of the chunks that finished into `answers` and answers
-/// where `applyEach` carries on: the first entry of the first chunk that did not. A chunk checks
-/// a callback type an enclosing fn declared (`Stdlib.Dict.filter`'s `Bool`) as a serial run does,
-/// so an answer of the wrong type fails its chunk and is raised here.
-let private spreadRest
-  (state : ExecutionState)
-  (vm : VMState)
-  (app : Applicable)
-  (keyType : ValueType)
-  (valueType : ValueType)
-  (entries : (struct (Dval * Dval))[])
-  (answers : Dval[])
-  (start : int)
-  (perElement : int64)
-  : Ply<int> =
-  let keyAt j =
-    let struct (k, _) = entries[j]
-    k
-  let valueAt j =
-    let struct (_, v) = entries[j]
-    v
-  uply {
-    let! outcome =
-      Spread.run
-        state
-        vm
-        "listMap2shortest"
-        (fun offset chunk ->
-          let first = start + offset
-          let keys = Array.init (DvalList.length chunk) (fun n -> keyAt (first + n))
-          [ DList(keyType, DvalList.ofArray keys); DList(valueType, chunk) ])
-        app
-        perElement
-        (DvalList.ofArray (
-          Array.init (entries.Length - start) (fun n -> valueAt (start + n))
-        ))
-    let results = DvalList.toArray outcome.results
-    System.Array.Copy(results, 0, answers, start, results.Length)
-    return start + results.Length
-  }
-
-/// Calls `fn` with each entry's key and value, in key order, and hands `finish` its
-/// answers. `filtering` (`dictFilter`) waits for an answer that is a read in flight first.
-///
-/// Once the rest looks worth it, it is spread across cores (`spreadRest`), and whatever the spread
-/// did not finish carries on here. `finish` sees every answer either way, so a check it makes
-/// (`dictFilter`'s Bool) is made where it always was.
+/// Calls `fn` with each entry's key and value, in key order, and hands `finish` its answers.
+/// `filtering` (`dictFilter`) waits for an answer that is a read in flight first. Spread as
+/// `List.map` is (`Spread.Walk`): a chunk is `listMap2shortest` over its keys and its values, and
+/// `finish` sees every answer either way, so a check it makes (`dictFilter`'s Bool) is made where
+/// it always was.
 let private applyEach
   (state : ExecutionState)
   (vm : VMState)
@@ -80,45 +36,25 @@ let private applyEach
   (entries : (struct (Dval * Dval))[])
   (finish : Dval[] -> Dval)
   : Ply<Dval> =
-  let answers = Array.zeroCreate entries.Length
-  let mutable i = 0
-  let probe = if entries.Length > 1 then Spread.probe state vm app else null
-  let rec next (answer : Dval) : Ply<Dval> =
-    if filtering then Interpreter.withValue vm answer store else store answer
-  and store (answer : Dval) : Ply<Dval> =
-    answers[i] <- answer
-    i <- i + 1
-    if i = entries.Length then
-      Ply(finish answers)
-    elif not (isNull probe) && probe.AskLeft(entries.Length - i) then
-      probe.Stop()
-      uply {
-        let! carryOn =
-          spreadRest
-            state
-            vm
-            app
-            keyType
-            valueType
-            entries
-            answers
-            i
-            probe.PerElement
-        i <- carryOn
-        if i = entries.Length then
-          return finish answers
-        else
-          let struct (k, v) = entries[i]
-          return! Interpreter.requestApply vm app k (ValueSome v) next
-      }
-    else
-      let struct (k, v) = entries[i]
-      Interpreter.requestApply vm app k (ValueSome v) next
-  if entries.Length = 0 then
-    Ply(finish answers)
-  else
-    let struct (k, v) = entries[0]
-    Interpreter.requestApply vm app k (ValueSome v) next
+  let keyAt (i : int64) =
+    let struct (k, _) = entries[int i]
+    k
+  Spread.walk
+    { new Spread.Walk<List<Dval>>(state, vm, app, "listMap2shortest") with
+        member this.Settle answer =
+          if filtering then this.Value answer else this.Landed answer
+        member _.Apply(index, value, next) =
+          Interpreter.requestApply vm app (keyAt index) (ValueSome value) next
+        member _.Step(acc, _, answer) = Spread.Next(answer :: acc)
+        member _.ChunkArgs(index, chunk) =
+          let keys =
+            Array.init (DvalList.length chunk) (fun n -> keyAt (index + int64 n))
+          [ DList(keyType, DvalList.ofArray keys); DList(valueType, chunk) ]
+        member _.Absorb(acc, _, spread) =
+          DvalList.fold (fun acc answer -> answer :: acc) acc spread.results
+        member _.Finish acc = Ply(finish (List.toArray (List.rev acc))) }
+    []
+    (DvalList.ofArray (Array.map (fun (struct (_, v)) -> v) entries))
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "dictSize" 0

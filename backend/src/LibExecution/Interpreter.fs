@@ -874,6 +874,10 @@ let inline private nextFrameId (vm : VMState) : uuid =
     0uy
   )
 
+/// The id the next frame pushed on `vm` would get: for frames a spread chunk recorded, renumbered
+/// as if they had been pushed here (`Spread`).
+let takeFrameId (vm : VMState) : uuid = nextFrameId vm
+
 /// The `frameId` of a check that applies for the whole of its run rather than while one frame
 /// lives: a check a spread chunk inherits (`checksInChunk`). No frame has it: pushed frames count
 /// up from 1 and root frames are random.

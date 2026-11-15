@@ -647,6 +647,54 @@ module ReplayCheck =
             Some $"this program calls `{builtin}` differently from the run: {lines}"
 
 
+/// A spread chunk's hooks for this trace: loop passes and function spans of its own, with no
+/// lock, added to the trace and to the spreading process's `spans` when the chunk is taken.
+let private chunkOf
+  (state : TracerState)
+  (spans : ProcessSpans)
+  (parent : RT.Tracing.Tracing)
+  : RT.Tracing.ChunkTrace =
+  let passes = System.Collections.Generic.Dictionary<int64, int>()
+  let own = ProcessSpans(HashPrefixComparer.Instance)
+  let rec tracing () : RT.Tracing.Tracing =
+    { parent with
+        storeFrameEntry =
+          fun _ _ ep _ ->
+            match ep with
+            | RT.ExecutionPoint.Lambda(_, lambdaExprId, _) ->
+              let key = int64 lambdaExprId
+              passes[key] <-
+                (Lookup.tryFindV key passes |> ValueOption.defaultValue 0) + 1
+            | _ -> ()
+        noteFunction = countCall own
+        enterFunction = enter own
+        leaveFunction = leave own
+        forProcess = fun _ -> tracing () }
+  let take _ _ =
+    lock state.sync (fun () ->
+      for KeyValue(key, n) in passes do
+        state.loopPasses[key] <-
+          (Lookup.tryFindV key state.loopPasses |> ValueOption.defaultValue 0) + n)
+    lock spans (fun () ->
+      for KeyValue(hash, chunk) in own do
+        let span = &slotOf spans hash
+        if System.Runtime.CompilerServices.Unsafe.IsNullRef(&span) then
+          spans.Add(hash, chunk)
+        // Inside the function already, the spreading process's own span holds the chunk's time.
+        elif span.depth > 0 then
+          span <-
+            { span with
+                cost = { span.cost with calls = span.cost.calls + chunk.cost.calls } }
+        else
+          span <-
+            { span with
+                cost =
+                  { calls = span.cost.calls + chunk.cost.calls
+                    ticks = span.cost.ticks + chunk.cost.ticks
+                    slowest = max span.cost.slowest chunk.cost.slowest } })
+  { tracing = tracing (); take = take }
+
+
 let rec private executionTracingFor
   (state : TracerState)
   (pid : System.Guid)
@@ -707,7 +755,8 @@ let rec private executionTracingFor
               | false, _ ->
                 state.replayEnded.Add pid |> ignore<bool>
                 RT.Tracing.ReplayStep.PerformOnwards))
-      forProcess = executionTracingFor state }
+      forProcess = executionTracingFor state
+      forChunk = fun () -> chunkOf state spans (executionTracingFor state pid) }
 
 
 /// What the run spent in each function, across its processes. A process's spans are its own, so

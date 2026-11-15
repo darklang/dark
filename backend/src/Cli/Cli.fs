@@ -99,6 +99,7 @@ let private startupSettings () : Map<string, string> =
         "exec.maxInstructions"
         "exec.maxBytes"
         "exec.storePollMs"
+        "exec.spread"
         "exec.spreadCrossover"
         "exec.spreadMinChunk"
         "exec.spreadPredict"
@@ -142,10 +143,32 @@ let private installPolicy
           "did not resolve to a function"
       )
 
+/// How list ops spread in this run (`LibExecution.Spread`): `exec.spread off` or `--no-spread`
+/// turns it off; the rest are expert settings, for measuring.
+let private spreadFrom
+  (settings : Map<string, string>)
+  (noSpread : bool)
+  (defaults : RT.SpreadSettings)
+  : RT.SpreadSettings =
+  let whole (key : string) (otherwise : int64) =
+    match Map.tryFind key settings with
+    | Some v ->
+      match System.Int64.TryParse v with
+      | true, n when n >= 0L -> n
+      | _ -> otherwise
+    | None -> otherwise
+  { defaults with
+      on = not noSpread && Map.tryFind "exec.spread" settings <> Some "off"
+      crossover = whole "exec.spreadCrossover" defaults.crossover
+      minChunk = whole "exec.spreadMinChunk" defaults.minChunk
+      predict = Map.tryFind "exec.spreadPredict" settings = Some "on" }
+
 let execute
   (packageManager : RT.PackageManager)
   /// `--trace` / `--no-trace`, if this run was given one.
   (traceFlag : Option<LibDB.Tracing.TraceDetail.T>)
+  /// `--no-spread`.
+  (noSpread : bool)
   (args : List<string>)
   : Task<RT.ExecutionResult> =
   task {
@@ -168,7 +191,8 @@ let execute
           fnPurity =
             LibDB.PackagePermissions.purity
               LibDB.PackagePermissions.Load.fromStore
-              state.fns.builtIn }
+              state.fns.builtIn
+              state.spread.counts }
     // `--no-input` becomes `DARK_NO_INPUT`, one switch with one spelling.
     if List.contains "--no-input" args then
       System.Environment.SetEnvironmentVariable("DARK_NO_INPUT", "1")
@@ -231,42 +255,26 @@ let execute
         | true, n when n >= 10 -> LibExecution.Scheduler.storePollMs <- n
         | _ -> ()
       | None -> ()
-      // List ops spreading across cores (`LibExecution.Spread`): interpreted instructions of
-      // projected serial work before a spread pays, and the least a chunk should carry. Expert
-      // settings, for measuring; a negative crossover turns spreading off.
-      match Map.tryFind "exec.spreadCrossover" settings with
-      | Some v ->
-        match System.Int64.TryParse v with
-        | true, n -> LibExecution.Spread.crossover <- (if n < 0L then -1L else n)
-        | _ -> ()
-      | None -> ()
-      match Map.tryFind "exec.spreadPredict" settings with
-      | Some "on" -> LibExecution.Spread.predicting <- true
-      | Some "off" -> LibExecution.Spread.predicting <- false
-      | _ -> ()
-      match Map.tryFind "exec.spreadMinChunk" settings with
-      | Some v ->
-        match System.Int64.TryParse v with
-        | true, n when n >= 0L -> LibExecution.Spread.minChunk <- n
-        | _ -> ()
-      | None -> ()
       // `DARK_SPREAD_REPORT=1` says at exit how many spreads ran and how many fell back: the way to
       // tell a run that spread from one that matched serial without spreading. A diagnostic
       // switch like `DARK_SCHEDULER`, not a setting.
       if System.Environment.GetEnvironmentVariable "DARK_SPREAD_REPORT" = "1" then
         // Not `eprintfn`: printf formats by reflection, which the AOT binary does not have.
+        let counted = state.spread.counts.Get
         System.AppDomain.CurrentDomain.ProcessExit.Add(fun _ ->
           System.Console.Error.WriteLine(
-            $"spread: {LibExecution.Spread.spreads} spreads, "
-            + $"{LibExecution.Spread.fallbacks} fell back; predicted "
-            + $"{LibExecution.Spread.predictedPure} pure, "
-            + $"{LibExecution.Spread.predictedImpure} impure, "
-            + $"{LibExecution.Spread.predictedUnknown} unknown, "
-            + $"{LibExecution.Spread.predictionFailures} analyses failed"
+            $"spread: {counted RT.SpreadCount.Spreads} spreads, "
+            + $"{counted RT.SpreadCount.Fallbacks} fell back; predicted "
+            + $"{counted RT.SpreadCount.PredictedPure} pure, "
+            + $"{counted RT.SpreadCount.PredictedImpure} impure, "
+            + $"{counted RT.SpreadCount.PredictedUnknown} unknown, "
+            + $"{counted RT.SpreadCount.PredictionFailures} analyses failed"
           ))
       LibExecution.Scheduler.maxInstructions <- cap "exec.maxInstructions"
       LibExecution.Scheduler.maxBytes <- cap "exec.maxBytes"
-      let state = tracedUnder settings
+      let state =
+        { tracedUnder settings with
+            spread = spreadFrom settings noSpread state.spread }
       installPolicy settings state
       return LibExecution.Scheduler.executeFunction state fnName [] args
   }
@@ -722,6 +730,10 @@ let private runCli (args : string[]) : int =
       elif Array.contains "--no-trace" args then Some LibDB.Tracing.TraceDetail.Off
       else None
 
+    // `--no-spread`: no list op in this run spreads across cores (`LibExecution.Spread`), for
+    // ruling spreading out of a bisect in one step.
+    let noSpread = Array.contains "--no-spread" args
+
     // Which branch this process runs on: `--branch`, then `DARK_BRANCH`, then the stored
     // `current_branch`. The order lives in `LibDB.BranchSelection`, where it has a test; this is where
     // the outcome gets SAID. A name we don't have is created and announced, because a typo would
@@ -774,7 +786,9 @@ let private runCli (args : string[]) : int =
             (Array.sub args (i + width) (args.Length - i - width))
         | None -> args
       Array.append
-        (withoutBranch |> Array.filter (fun a -> a <> "--trace" && a <> "--no-trace"))
+        (withoutBranch
+         |> Array.filter (fun a ->
+           a <> "--trace" && a <> "--no-trace" && a <> "--no-spread"))
         scriptTail
 
     LibDB.PackageManager.selectBranch (
@@ -795,7 +809,7 @@ let private runCli (args : string[]) : int =
 
     let result =
       Telemetry.time "cli.execute" [] (fun () ->
-        (execute cliPackageManager traceFlag (Array.toList args)).Result)
+        (execute cliPackageManager traceFlag noSpread (Array.toList args)).Result)
 
     Telemetry.time "cli.consoleWait" [] NonBlockingConsole.wait
 

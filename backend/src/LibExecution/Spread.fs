@@ -2,38 +2,30 @@
 ///
 /// Nobody asks for this. A list op starts serially, as it always did, and after a few elements
 /// it asks whether the rest is worth spreading: the interpreted instructions the elements so far
-/// took, times how many are left, against `crossover`. So the decision depends on the body's cost
-/// as well as the count, and a short map or a cheap body never spreads.
+/// took, times how many are left, against `crossover` (`SpreadSettings`). So the decision depends
+/// on the body's cost as well as the count, and a short map or a cheap body never spreads.
 ///
-/// A spread hands the rest of the list out in contiguous chunks, each to a process of its own
-/// running the same builtin serially over its chunk, and collects the chunks in order.
-///
-/// What keeps this from changing any program:
+/// A spread hands the rest out in contiguous chunks, as many as there are idle workers to take
+/// them, each a process running the same builtin serially over its stretch, and collects them in
+/// order. What it may change is time and CPU, never what the program does (`docs/processes.md`):
 ///
 /// - **Only computation runs in a chunk.** A chunk's process runs with `spreadChild`, under which
-///   any call that would take an effect ordinal (`Interpreter.isLogged`) is refused before it does
-///   anything. Purity is therefore not predicted, it is observed, over the whole call graph the
-///   callable reaches, trait dispatch and callbacks included.
-/// - **The first chunk that did not finish is run again, here.** Chunks are collected in input
-///   order. At the first one that failed, for any reason (it reached an effect, or the body raised),
-///   the later chunks are cancelled and the original process carries on serially from that chunk's
-///   first element. Everything before it was pure, so its results are what a serial run would
-///   have computed; everything from it on runs exactly as it always did. So an effect happens in
-///   its place in the order, and an error is raised by the element that raises it serially, with
-///   the frames it raises under serially.
-///
-///   A chunk's failure is therefore a signal to this module, and nothing in the chunk may turn
-///   it into a value: a builtin that catches its callee's failure re-raises under `spreadChild`
-///   (`atRestCheckGuarded`, `applicableTryApply`).
-/// - **A chunk checks the callable's results as serially.** A fn that declares what its callback
-///   returns (`f: Int64 -> Int64`) checks it on this VM, so each chunk gets its own copy of that
-///   check, and what the copies learn about a type comes back in input order
-///   (`Interpreter.learnFromChunk`). A result of the wrong type fails its chunk, which then runs
-///   here and raises what serially it raises.
-/// - **Nothing spreads while somebody is watching.** A recorded or viewed run keeps every pass of
-///   every loop in its own frame tree, as before.
-/// - **A chunk does not spread again.** A map inside a spread map runs serially in its chunk, so
-///   nesting cannot multiply out.
+///   any call `Interpreter.spreadRefuses` is refused before it does anything. Purity is observed,
+///   not predicted, over everything the callable reaches.
+/// - **The first chunk that did not finish runs again, here.** At the first chunk that failed for
+///   any reason, the later ones are cancelled and the spreading process carries on serially from
+///   that chunk's first element, so an effect happens in its place and an error is raised by the
+///   element and frames that raise it serially. Nothing in a chunk may turn its failure into a
+///   value: a builtin that catches its callee's failure re-raises under `spreadChild`.
+/// - **A chunk checks the callable's results as serially** (`Interpreter.checksInChunk`), and
+///   what its copies of the checks learn comes back in order (`Interpreter.learnFromChunk`).
+/// - **A recorded chunk records apart** (`Tracing.forChunk`), and what it recorded is added to
+///   the spreading process's trace when the chunk is taken, so the trace is a serial run's. A
+///   chunk that is not taken leaves nothing in it.
+/// - **A chunk is charged only for what is taken**, so `exec.maxInstructions` and `exec.maxBytes`
+///   give a serial run's verdict, and a chunk has caps of its own, past which it stops and runs
+///   again here.
+/// - **A chunk does not spread again**, so nesting cannot multiply out.
 module LibExecution.Spread
 
 open System.Threading.Tasks
@@ -45,79 +37,29 @@ open LibExecution.RuntimeTypes
 module Sched = LibExecution.Scheduler
 
 
-/// Interpreted instructions the REST of a list must be projected to take before it is worth
-/// spreading. Measured against a grid of body cost by element count
-/// (`scripts/perf/workloads/probes/spread.dark`, AOT; `docs/perf/history.md`): forced spreading lost at
-/// about 420 instructions of work, first won at about 1,700 (1.24x), and won 1.6 to 2.6x from
-/// 6,000 to 13,000 up. 10,000 sits clear of where it starts to pay. Negative turns spreading off, 0 spreads
-/// anything with at least `minRemaining` left (for tests). The CLI host sets it from
-/// `exec.spreadCrossover`.
-///
-/// Instructions, not time, so the decision is the same on a loaded box as on an idle one, and so
-/// is what a run allocates: a clock-based probe let one GC pause during the elements it timed make
-/// a cheap map look expensive, and the perf gate's reading moved by 0.9 MB between runs.
-let mutable crossover : int64 = 10_000L
-
 /// Fewer elements left than this and the rest runs where it is.
 let minRemaining = 2
 
-/// Chunks per worker. More than one so a chunk of expensive elements does not leave every other
-/// core waiting on it.
-let chunksPerWorker = 2
-
-/// The least an element must cost, in interpreted instructions, before an op spreads. In the grid
-/// (`docs/perf/history.md`) a 3-instruction body never paid at any length, and a 26-instruction
-/// one first did. Over 100,000 elements a cheap body that spreads finishes sooner only when the op
-/// is little but the body, and spends about twice the CPU either way. Not applied while
-/// `crossover` is 0, which tests use to force a spread.
-let minPerElement = 20L
-
-/// The least work, in interpreted instructions, worth a chunk of its own. A chunk is a process,
-/// and starting one costs about what a few hundred interpreted operations do, so a chunk smaller
-/// than this spends more starting than it saves. Measured: a chunk costs 3.3 to 5 KB to start,
-/// and serial work allocates about 90 B an instruction, so a 2,000-instruction chunk spends about
-/// 3% of its own allocation on starting. The CLI host sets it from `exec.spreadMinChunk`.
-let mutable minChunk : int64 = 2_000L
-
-/// How many spreads have started in this process, for tests: a result that is the same either
-/// way says nothing about whether the work was spread.
-let mutable spreads = 0L
-
-/// How many spreads fell back to running serially from some chunk on.
-let mutable fallbacks = 0L
-
-/// Which callable a spread fell back from: a lambda by its expression, a named fn by its name.
-[<Struct>]
-type CallableKey =
-  | Lambda of exprId : int64
-  | Named of name : FQFnName.FQFnName
-
-/// Callables a spread has fallen back from once. Not tried again in this process: a body that
-/// reached an effect will very likely reach it again, and a spread that falls back has paid for
-/// its chunks and gained nothing.
-///
-/// Keyed by the name itself rather than by a string of it: `string` on an `FQFnName` has no
-/// override to call, so F# prints the union through reflection, and `eligible` asks on every
-/// list op over a named fn.
-let private fellBack =
-  System.Collections.Concurrent.ConcurrentDictionary<CallableKey, byte>()
-
-/// For tests: forget which callables have fallen back.
-let forgetFallbacks () = fellBack.Clear()
-
-let private keyOf (app : Applicable) : CallableKey =
-  match app with
-  | AppLambda l -> CallableKey.Lambda(int64 l.exprId)
-  | AppNamedFn n -> CallableKey.Named n.name
-
-/// Whether a list op may spread at all, under this state. Cheap: called once per list op with
-/// more than one element, so whether `app` has fallen back is asked only once a probe says yes.
+/// Whether a list op may spread at all, under this state. A view runs serially: it keeps every
+/// value of every pass, which a chunk's buffer does not carry.
 let eligible (state : ExecutionState) : bool =
-  crossover >= 0L
+  state.spread.on
   && not state.spreadChild
-  && not state.tracing.collectFrames
+  && not state.tracing.collectExprValues
   && Option.isNone state.tracing.viewEffect
   && Sched.defaultWorkers > 1
+
+let private keyOf (app : Applicable) : SpreadCallable =
+  match app with
+  | AppLambda l -> SpreadLambda(int64 l.exprId)
+  | AppNamedFn n -> SpreadNamed n.name
+
+/// Remembered on the spreading process: a callable that fell back there is not tried again
+/// there. Another process, a later request on `serve` say, tries it afresh.
+let private fellBackIn (proc : Option<Sched.Process>) (app : Applicable) : bool =
+  match proc with
+  | Some p -> p.spreadFellBack.Contains(keyOf app)
+  | None -> false
 
 
 /// Instructions this VM has run, as of now: its budget counts down one per instruction and is
@@ -152,11 +94,12 @@ let private instructionsSince
 /// the one that loads and converts what it calls. So the earliest answer is after two measured
 /// elements.
 [<AllowNullLiteral>]
-type Probe(vm : VMState, app : Applicable) =
+type Probe(vm : VMState, settings : SpreadSettings, app : Applicable) =
   // The process stepping this VM, read once: it is the same one for the whole list op, and
   // finding it is an `AsyncLocal` lookup.
   let proc = Sched.Scheduler.CurrentProcess
-  let mutable start = struct (0L, 0L)
+  // Where the count started, and the bytes this thread had allocated then.
+  let mutable start = struct (struct (0L, 0L), 0L)
   let mutable finished = -1
   let mutable off = false
   let mutable perElement = 0L
@@ -165,7 +108,9 @@ type Probe(vm : VMState, app : Applicable) =
   member private _.Due() : bool =
     finished <- finished + 1
     if finished = 0 then
-      start <- instructionsSoFar proc vm
+      start <-
+        struct (instructionsSoFar proc vm,
+                System.GC.GetAllocatedBytesForCurrentThread())
       false
     else
       not (off || finished < 2 || (finished &&& (finished - 1)) <> 0)
@@ -175,31 +120,22 @@ type Probe(vm : VMState, app : Applicable) =
       off <- true
       false
     else
-      let ran = instructionsSince proc vm start
+      let struct (from, _) = start
+      let ran = instructionsSince proc vm from
       perElement <- ran / int64 finished
       // ran / finished * left >= crossover, without the division.
-      if ran * int64 left < crossover * int64 finished then
+      if ran * int64 left < settings.crossover * int64 finished then
         false
-      elif perElement < minPerElement && crossover > 0L then
+      elif perElement < settings.minPerElement && settings.crossover > 0L then
         false
-      elif fellBack.ContainsKey(keyOf app) then
+      elif fellBackIn proc app then
         off <- true
         false
       else
         true
 
-  /// Whether the elements so far cost less than `minPerElement` each, which needs no count of
-  /// what is left.
-  member private _.BelowFloor() : bool =
-    crossover > 0L
-    && instructionsSince proc vm start < minPerElement * int64 finished
-
   /// After an element: `left` is how many are still to go.
-  member this.Ask(left : int) : bool =
-    this.Due() && not (this.BelowFloor()) && this.Weigh left
-
-  /// `Ask`, for an op that knows how many are left (a dict's entries are an array).
-  member this.AskLeft(left : int) : bool = this.Due() && this.Weigh left
+  member this.Ask(left : int) : bool = this.Due() && this.Weigh left
 
   /// A list op that has spread does not ask again.
   member _.Stop() = off <- true
@@ -207,45 +143,21 @@ type Probe(vm : VMState, app : Applicable) =
   /// What an element has cost so far, in instructions, as of the last answer.
   member _.PerElement = perElement
 
-let probe (state : ExecutionState) (vm : VMState) (app : Applicable) : Probe =
-  if eligible state then Probe(vm, app) else null
+  /// What an element has allocated so far, on this thread.
+  member _.BytesPerElement() : int64 =
+    let struct (_, bytes) = start
+    (System.GC.GetAllocatedBytesForCurrentThread() - bytes) / int64 (max 1 finished)
 
 
 // -- Prediction --
 //
 // Before a spread starts, the callable is asked whether anything it can reach would be refused in
 // a chunk. Predicted impure, it runs serially and no chunk is started. Predicted pure, or unknown,
-// it spreads, and the refusal underneath is what keeps a wrong prediction from mattering: a pure
-// body spreads either way, and a wrong `Pure` costs one wasted spread (measured: about 15 ms and
-// 2.2 MB over 1,024 elements, once per callable per process), never a reordered effect. So the
-// prediction buys skipping that waste for code KNOWN to be impure, and an answer knowable before
-// the call. It does not make pure code faster: observing was already free there.
-
-/// Off (the default), a list op does not predict: it tries to run across cores and falls back if a
-/// chunk finds an effect. On, a callable known to reach an effect is not tried at all. Off by
-/// default because, measured on one AOT binary, predicting cost `Canvas.compose` about 6 points of
-/// allocation for no speed, and kept bodies that CAN reach an effect but do not serial, while
-/// saving only the one wasted spread an impure callable pays per process
-/// (`docs/perf/history.md`). The analysis stays: its real use is answering a question about code
-/// (can this run across cores, and if not, why) rather than deciding at a call. The CLI host sets
-/// it from `exec.spreadPredict`, once per run.
-let mutable predicting = false
-
-/// How many spreads were asked about, by answer. For `DARK_SPREAD_REPORT`.
-let mutable predictedPure = 0L
-let mutable predictedImpure = 0L
-let mutable predictedUnknown = 0L
-
-/// Analyses that raised and were answered `Unknown` (`LibDB.PackagePermissions.purity`). Safe,
-/// since unknown means observe; counted so a store that cannot be read shows up as a number
-/// rather than as spreading that quietly stopped being predicted.
-let mutable predictionFailures = 0L
-
-// Not inlined: inlined into another assembly, it reaches for this module's private static
-// field, which NativeAOT cannot load, so the caller's handler always threw instead.
-[<System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)>]
-let notePredictionFailure () =
-  System.Threading.Interlocked.Increment &predictionFailures |> ignore<int64>
+// it spreads, and the refusal underneath is what keeps a wrong prediction from mattering: a wrong
+// `Pure` costs one wasted spread, never a reordered effect. Off by default (`SpreadSettings.predict`):
+// measured, predicting cost `Canvas.compose` about 6 points of allocation for no speed, and kept
+// bodies that CAN reach an effect but do not serial (`docs/perf/history.md`). Kept for answering
+// whether code can run across cores, and why not.
 
 /// `Dval.isInertData`, for a check made on every spread decision: the same answer, without the
 /// enumerator `Map.values |> Seq.forall` allocates per record. A frame of `Canvas.compose` closes
@@ -532,33 +444,30 @@ let predict
   : Ply<Purity> =
   uply {
     let answer =
-      if not predicting then Some Purity.Unknown
+      if not state.spread.predict then Some Purity.Unknown
       elif not (DvalList.exists (holdsNoCode >> not) items) then None
       else Some Purity.Unknown
     let! answer =
       match answer with
       | Some known -> Ply known
       | None -> ofApplicable state 0 app
-    match answer with
-    | Purity.Pure -> System.Threading.Interlocked.Increment &predictedPure
-    | Purity.Impure -> System.Threading.Interlocked.Increment &predictedImpure
-    | Purity.Unknown -> System.Threading.Interlocked.Increment &predictedUnknown
-    |> ignore<int64>
+    state.spread.counts.Add(
+      match answer with
+      | Purity.Pure -> SpreadCount.PredictedPure
+      | Purity.Impure -> SpreadCount.PredictedImpure
+      | Purity.Unknown -> SpreadCount.PredictedUnknown
+    )
     return answer
   }
 
 
+// -- The spread --
+
 /// What a spread came back with: the results of the chunks that finished, in order and
-/// concatenated, and the input from the first chunk that did not, to be run serially here.
-/// `leftoverIndex` is where in the spread input `leftover` begins.
-///
-/// For a search (`search`), `found` is the answer of the first chunk, in input order, that found
-/// what it looked for, and nothing is left over.
-type Outcome =
-  { results : DvalList
-    leftover : DvalList
-    leftoverIndex : int
-    found : Dval voption }
+/// concatenated, and `leftoverIndex`, where in the spread input the first chunk that did not
+/// finish begins, to be run serially here. For a search, `found` is the answer of the first
+/// chunk, in input order, that found what it looked for.
+type Outcome = { results : DvalList; leftoverIndex : int; found : Dval voption }
 
 /// What a chunk's answer means to the spread collecting it.
 [<Struct>]
@@ -583,119 +492,63 @@ let private listAnswer (answer : Dval) : ChunkAnswer =
   | DList(_, xs) -> Finished xs
   | _ -> NotAnAnswer
 
-let private nothingSpread (items : DvalList) : Outcome =
-  { results = DvalList.empty
-    leftover = items
-    leftoverIndex = 0
-    found = ValueNone }
+let private holdsRead (args : List<Dval>) : bool =
+  args
+  |> List.exists (fun arg ->
+    match arg with
+    | DList(_, xs) -> DvalList.exists Pending.isPromise xs
+    | other -> Pending.isPromise other)
 
-let private concatAll (results : List<DvalList>) : DvalList =
-  List.fold DvalList.append DvalList.empty results
-
-/// Spread `items` over chunk processes. Each chunk applies the builtin `builtinName` to
-/// `chunkArgs offset chunk` and then to `app`; it must answer a `DList`. `offset` is where the
-/// chunk begins in `items`.
-let rec run
-  (state : ExecutionState)
-  (vm : VMState)
-  (builtinName : string)
-  (chunkArgs : int -> DvalList -> List<Dval>)
-  (app : Applicable)
+/// What a chunk may spend before it is stopped and its stretch runs here: several times what its
+/// elements cost so far, and never more than the spreading process has left under its own caps.
+let private capsFor
+  (me : Option<Sched.Process>)
   (perElement : int64)
-  (items : DvalList)
-  : Ply<Outcome> =
-  spreadIf state vm builtinName chunkArgs listAnswer app perElement items
+  (bytesPerElement : int64)
+  (size : int)
+  : struct (int64 * int64) =
+  let left (cap : int64) (used : int64) (own : int64) =
+    if cap > 0L then min own (max 1L (cap - used)) else own
+  let instructions = 8L * perElement * int64 size + 100_000L
+  let bytes = 8L * bytesPerElement * int64 size + 1_000_000L
+  match me with
+  | Some m ->
+    struct (left Sched.maxInstructions m.instructionsTaken instructions,
+            left Sched.maxBytes m.allocated bytes)
+  | None -> struct (instructions, bytes)
 
-/// `run`, for a search (`listAny`, `listFindFirst`): `answerOf` reads each chunk's answer, and
-/// the first chunk in input order that `Found` something is the answer. The chunks after it are
-/// cancelled, so what they would have raised or reached is never seen, as serially, where the
-/// search stops at its first hit. A chunk before it that did not finish is run again here, as in
-/// `run`. Each chunk runs the search serially over its stretch, so it stops at its own first hit.
-and search
+let private runChunks
   (state : ExecutionState)
   (vm : VMState)
   (builtinName : string)
-  (chunkArgs : int -> DvalList -> List<Dval>)
   (answerOf : Dval -> ChunkAnswer)
   (app : Applicable)
-  (perElement : int64)
+  (probe : Probe)
   (items : DvalList)
-  : Ply<Outcome> =
-  spreadIf state vm builtinName chunkArgs answerOf app perElement items
-
-and private spreadIf
-  (state : ExecutionState)
-  (vm : VMState)
-  (builtinName : string)
-  (chunkArgs : int -> DvalList -> List<Dval>)
-  (answerOf : Dval -> ChunkAnswer)
-  (app : Applicable)
-  (perElement : int64)
-  (items : DvalList)
-  : Ply<Outcome> =
-  uply {
-    // A list holding reads in flight runs where it is: a chunk would carry the parent's
-    // reads into a child. About this list, not the callable, so it is not remembered.
-    if DvalList.exists Pending.isPromise items then
-      return nothingSpread items
-    else
-      match! predict state app items with
-      | Purity.Impure ->
-        // Known to reach something a chunk would refuse: no chunk is started, and the list op runs
-        // the whole of it here, as it always did. Not asked again for this callable.
-        fellBack.TryAdd(keyOf app, 0uy) |> ignore<bool>
-        return nothingSpread items
-      | Purity.Pure
-      | Purity.Unknown ->
-        return!
-          spreadChunks state vm builtinName chunkArgs answerOf app perElement items
-  }
-
-/// The spread itself, once the prediction has allowed it.
-and private spreadChunks
-  (state : ExecutionState)
-  (vm : VMState)
-  (builtinName : string)
-  (chunkArgs : int -> DvalList -> List<Dval>)
-  (answerOf : Dval -> ChunkAnswer)
-  (app : Applicable)
-  (perElement : int64)
-  (items : DvalList)
+  (chunks : List<struct (int * DvalList * List<Dval>)>)
   : Ply<Outcome> =
   let count = DvalList.length items
-  // As many chunks as there are cores to keep busy, but none smaller than `minChunk` of work.
-  let byWork =
-    if minChunk <= 0L then
-      count
-    else
-      int (min (int64 count) (int64 count * perElement / minChunk))
-  let chunkCount =
-    max 1 (min byWork (min count (Sched.defaultWorkers * chunksPerWorker)))
-  // Contiguous, as even as integer division allows: the first `count % chunkCount` take one more.
-  let chunks =
-    let baseSize = count / chunkCount
-    let extra = count % chunkCount
-    List.init chunkCount (fun i -> baseSize + (if i < extra then 1 else 0))
-    |> List.mapFold
-      (fun offset size ->
-        struct (offset, DvalList.take size (DvalList.drop offset items)),
-        offset + size)
-      0
-    |> fst
-
   let sched = Sched.Scheduler.CurrentOrShared
+  let slots = sched.Workers.ChunkSlots
   let me = Sched.Scheduler.CurrentProcess
   let parent = me |> Option.map (fun p -> p.id)
-  let childState = { state with spreadChild = true }
   let builtin = FQFnName.Builtin(FQFnName.builtin builtinName 0)
+  let recording = state.tracing.collectFrames
+  let bytesPerElement = probe.BytesPerElement()
 
   // Already asked to stop: no chunk is worth starting.
   match me with
   | Some m when not (isNull m.stopReason) ->
+    slots.Release(List.length chunks) |> ignore<int>
     RuntimeError.UncaughtException(m.stopReason, []) |> raiseUntargetedRTE
   | _ -> ()
 
-  System.Threading.Interlocked.Increment &spreads |> ignore<int64>
+  state.spread.counts.Add SpreadCount.Spreads
+  let entryInstrs = (Execution.instructionsForApply app DUnit).instructions
+  // What a chunk's budget spent on its elements: less the entry's instructions and the turns of
+  // its root frame on the way in and out, which a serial run does not spend.
+  let ownWork (p : Sched.Process) =
+    max 0L (p.instructionsTaken - int64 (List.length entryInstrs) - 2L)
 
   // The callback checks an enclosing fn set up go with every chunk, each its own copy, and
   // what they learn comes back in order (`Interpreter.learnFromChunk`).
@@ -704,7 +557,7 @@ and private spreadChunks
 
   let procs =
     chunks
-    |> List.map (fun (struct (offset, chunk)) ->
+    |> List.map (fun (struct (offset, chunk, args)) ->
       let entry =
         AppNamedFn
           { name = builtin
@@ -712,11 +565,20 @@ and private spreadChunks
             typeArgs = []
             approvalName = None
             access = None
-            argsSoFar = chunkArgs offset chunk
+            argsSoFar = args
             boundImpls = [] }
       // Its run id taken here, so the checks it is handed can name its run.
       let runId = VMRuns.next ()
       let struct (chunkApp, copies) = Interpreter.checksInChunk runId checks app
+      let trace =
+        if recording then ValueSome(state.tracing.forChunk ()) else ValueNone
+      let childState =
+        { state with
+            spreadChild = true
+            tracing =
+              match trace with
+              | ValueSome t -> t.tracing
+              | ValueNone -> state.tracing }
       // Counts of its own, added to this VM's when the chunk is collected below: the chunks
       // run at once on other threads, and counting into one set from all of them lost counts.
       let p =
@@ -727,9 +589,16 @@ and private spreadChunks
           parent,
           vm.activeAccess,
           ?stats = InterpreterStats.ForChunk vm.stats,
-          runId = runId
+          runId = runId,
+          caps = capsFor me probe.PerElement bytesPerElement (DvalList.length chunk)
         )
-      struct (offset, copies, p))
+      state.spread.counts.Add SpreadCount.Chunks
+      p.completion.Task.ContinueWith(
+        (fun (_ : Task<ExecutionResult>) -> slots.Release() |> ignore<int>),
+        TaskContinuationOptions.ExecuteSynchronously
+      )
+      |> ignore<Task>
+      struct (offset, copies, trace, p))
     |> Array.ofList
 
   // Its answer is kept for an `Exec.await` until taken; nobody else will take it.
@@ -743,9 +612,31 @@ and private spreadChunks
 
   let cancelFrom (first : int) =
     for j in first .. procs.Length - 1 do
-      let struct (_, _, p) = procs[j]
+      let struct (_, _, _, p) = procs[j]
       sched.Cancel p.id |> ignore<bool>
       forget p
+
+  // A chunk that is taken counts as if this process had run it: what it spent against this
+  // process's caps, what it counted, and what it recorded, less what applying its builtin cost
+  // (`entry`), which a serial run does not spend. So the totals are a serial run's however the
+  // work was split. Over a cap, this process stops now, as serially it would have on its way
+  // through the same elements. A chunk not taken counts for nothing: its stretch runs again here.
+  let taken (i : int) (p : Sched.Process) (trace : Tracing.ChunkTrace voption) =
+    vm.stats.AddChunk p.vm.stats
+    vm.stats.TakeOffChunkEntry(entryInstrs, builtinName)
+    match trace with
+    | ValueSome t -> t.take (fun () -> Interpreter.takeFrameId vm) vm.currentFrameID
+    | ValueNone -> ()
+    match me with
+    | Some m ->
+      m.instructionsTaken <- m.instructionsTaken + ownWork p
+      m.allocated <- m.allocated + p.allocated
+      match Sched.overCap m with
+      | null -> ()
+      | reason ->
+        cancelFrom (i + 1)
+        RuntimeError.UncaughtException(reason, []) |> raiseUntargetedRTE
+    | None -> ()
 
   // The chunks' results in order, up to the first that found something or failed, and where
   // collecting stopped.
@@ -754,33 +645,30 @@ and private spreadChunks
       Ply((List.rev acc, AllFinished))
     else
       uply {
-        let struct (_, copies, p) = procs[i]
+        let struct (_, copies, trace, p) = procs[i]
         match me with
         | Some m -> m.parkHint <- ValueSome(Sched.OnProcess p.id)
         | None -> ()
         let! result = p.completion.Task
         sched.TakeResult p.id |> ignore<Option<ExecutionResult>>
-        // What the chunk spent counts against the process that asked for it, so a per-process cap
-        // (`exec.maxInstructions`, `exec.maxBytes`) caps a spread map as it caps a serial one.
-        match me with
-        | Some m ->
-          m.instructionsTaken <- m.instructionsTaken + p.instructionsTaken
-          m.allocated <- m.allocated + p.allocated
-        | None -> ()
-        // And what it counted, here on this VM's thread, once the chunk is done. A chunk that
-        // failed is counted too, since it ran; one cancelled below is not, being still unfinished.
-        vm.stats.AddChunk p.vm.stats
-        match result with
-        | Ok answer when Interpreter.learnFromChunk atSpawn checks copies ->
-          match answerOf answer with
-          | Finished xs -> return! collect (i + 1) (xs :: acc)
-          | Found dv -> return (List.rev acc, FoundAt(i, dv))
-          | NotAnAnswer -> return (List.rev acc, FailedAt i)
-        | _ -> return (List.rev acc, FailedAt i)
+        let answer =
+          match result with
+          | Ok answer when Interpreter.learnFromChunk atSpawn checks copies ->
+            answerOf answer
+          | _ -> NotAnAnswer
+        match answer with
+        | Finished xs ->
+          taken i p trace
+          return! collect (i + 1) (xs :: acc)
+        | Found dv ->
+          taken i p trace
+          return (List.rev acc, FoundAt(i, dv))
+        | NotAnAnswer -> return (List.rev acc, FailedAt i)
       }
 
   uply {
     let! results, stop = collect 0 []
+    let results = List.fold DvalList.append DvalList.empty results
 
     // Asked to stop while it waited (`Cancel`, `Kill`, a parent finishing): the chunks failed
     // because they were stopped with it, and running the rest here would be doing exactly the
@@ -793,30 +681,96 @@ and private spreadChunks
 
     match stop with
     | AllFinished ->
-      return
-        { results = concatAll results
-          leftover = DvalList.empty
-          leftoverIndex = count
-          found = ValueNone }
+      return { results = results; leftoverIndex = count; found = ValueNone }
     | FoundAt(at, answer) ->
       cancelFrom (at + 1)
-      return
-        { results = concatAll results
-          leftover = DvalList.empty
-          leftoverIndex = count
-          found = ValueSome answer }
+      return { results = results; leftoverIndex = count; found = ValueSome answer }
     | FailedAt failedAt ->
-      System.Threading.Interlocked.Increment &fallbacks |> ignore<int64>
-      fellBack.TryAdd(keyOf app, 0uy) |> ignore<bool>
+      state.spread.counts.Add SpreadCount.Fallbacks
+      let struct (offset, _, _, failed) = procs[failedAt]
+      // Stopped by a cap rather than refused: the body was dearer than it looked, not impure,
+      // so it may be tried again.
+      match me with
+      | Some m when isNull failed.stopReason || failed.stopAsked ->
+        m.spreadFellBack.Add(keyOf app) |> ignore<bool>
+      | _ -> ()
       cancelFrom (failedAt + 1)
-      let struct (offset, _, _) = procs[failedAt]
-      let leftover = DvalList.drop offset items
-      return
-        { results = concatAll results
-          leftover = leftover
-          leftoverIndex = offset
-          found = ValueNone }
+      return { results = results; leftoverIndex = offset; found = ValueNone }
   }
+
+/// Spread `items` over chunk processes, if there are idle workers to take them. Each chunk
+/// applies the builtin `builtinName` to `chunkArgs offset chunk` and then to `app`; `answerOf`
+/// reads its answer. `offset` is where the chunk begins in `items`. `ValueNone` when nothing was
+/// started, and the op carries on serially as it was.
+let private spreadOver
+  (state : ExecutionState)
+  (vm : VMState)
+  (builtinName : string)
+  (chunkArgs : int -> DvalList -> List<Dval>)
+  (answerOf : Dval -> ChunkAnswer)
+  (app : Applicable)
+  (probe : Probe)
+  (items : DvalList)
+  : Ply<Outcome voption> =
+  let settings = state.spread
+  let count = DvalList.length items
+  let sched = Sched.Scheduler.CurrentOrShared
+  let workers = sched.Workers
+  let me = Sched.Scheduler.CurrentProcess
+  let perElement = probe.PerElement
+  // No more chunks than the work is worth, the idle workers take, or the group has room for.
+  let wanted =
+    let byWork =
+      if settings.minChunk <= 0L then
+        count
+      else
+        int (min (int64 count) (int64 count * perElement / settings.minChunk))
+    min byWork (min count (workers.Idle * settings.chunksPerWorker))
+  let rec take (got : int) =
+    if got < wanted && workers.ChunkSlots.Wait 0 then take (got + 1) else got
+  let chunkCount = take 0
+  // Contiguous, as even as integer division allows: the first `count % chunkCount` take one more.
+  let chunks =
+    if chunkCount < 2 then
+      []
+    else
+      let baseSize = count / chunkCount
+      let extra = count % chunkCount
+      List.init chunkCount (fun i -> baseSize + (if i < extra then 1 else 0))
+      |> List.mapFold
+        (fun offset size ->
+          let chunk = DvalList.take size (DvalList.drop offset items)
+          struct (offset, chunk, chunkArgs offset chunk), offset + size)
+        0
+      |> fst
+  let release () =
+    if chunkCount > 0 then workers.ChunkSlots.Release chunkCount |> ignore<int>
+  if List.isEmpty chunks then
+    release ()
+    Ply ValueNone
+  // A list holding reads in flight runs where it is: a chunk would carry the parent's reads
+  // into a child. About these values, not the callable, so it is not remembered.
+  elif List.exists (fun (struct (_, _, args)) -> holdsRead args) chunks then
+    release ()
+    probe.Stop()
+    Ply ValueNone
+  else
+    uply {
+      match! predict state app items with
+      | Purity.Impure ->
+        // Known to reach something a chunk would refuse: no chunk is started, and the op runs
+        // the whole of it here. Not asked again for this callable.
+        release ()
+        probe.Stop()
+        match me with
+        | Some m -> m.spreadFellBack.Add(keyOf app) |> ignore<bool>
+        | None -> ()
+        return ValueNone
+      | Purity.Pure
+      | Purity.Unknown ->
+        let! outcome = runChunks state vm builtinName answerOf app probe items chunks
+        return ValueSome outcome
+    }
 
 
 /// What a list op makes of one element's answer (`Walk`).
@@ -827,13 +781,13 @@ type Step<'acc> =
   /// This is the op's answer, and no element after this one runs.
   | Done of answer : Dval
 
-/// A list op over a callable: the op says how to run one element and what its answer means, and
-/// this owns the rest. Element by element, as a serial run does, until the probe says the rest is
-/// worth spreading; then the rest is spread (`search`), and whatever the spread did not finish
-/// carries on here, element by element, as before.
+/// A list op over a callable, the one loop every op that spreads runs: the op says how to run one
+/// element, what its answer means, and what a chunk's arguments are, and this owns the rest.
+/// Element by element, as a serial run does, until the probe says the rest is worth spreading;
+/// then the rest is spread, and whatever the spread did not finish carries on here.
 ///
 /// `builtinName` is the builtin a chunk runs over its stretch: the op itself, or one that applies
-/// the callable the same way (`listMap` for `sortBy`'s keys).
+/// the callable the same way (`listMap` for `sortBy`'s keys, `listMap2shortest` for a dict's).
 ///
 /// One per call of the op, and it is the continuation each element's answer comes back to, so a
 /// call allocates it and the probe and nothing else per list.
@@ -897,7 +851,6 @@ type Walk<'acc>
       if DvalList.isEmpty rest then
         this.Finish acc
       elif not (isNull probe) && probe.Ask(DvalList.length rest) then
-        probe.Stop()
         this.SpreadRest()
       else
         this.CarryOn(index + 1L, rest)
@@ -907,23 +860,32 @@ type Walk<'acc>
     let spread = rest
     uply {
       let! outcome =
-        search
+        spreadOver
           state
           vm
           builtinName
           (fun offset chunk -> this.ChunkArgs(start + int64 offset, chunk))
           this.AnswerOf
           app
-          probe.PerElement
+          probe
           spread
-      match outcome.found with
-      | ValueSome found -> return this.Found found
-      | ValueNone ->
-        acc <- this.Absorb(acc, spread, outcome)
-        if DvalList.isEmpty outcome.leftover then
-          return! this.Finish acc
-        else
-          return! this.CarryOn(start + int64 outcome.leftoverIndex, outcome.leftover)
+      match outcome with
+      // Nothing started: no idle worker, or reads in flight. Asked again further on.
+      | ValueNone -> return! this.CarryOn(start, spread)
+      | ValueSome outcome ->
+        probe.Stop()
+        match outcome.found with
+        | ValueSome found -> return this.Found found
+        | ValueNone ->
+          acc <- this.Absorb(acc, spread, outcome)
+          if outcome.leftoverIndex >= DvalList.length spread then
+            return! this.Finish acc
+          else
+            return!
+              this.CarryOn(
+                start + int64 outcome.leftoverIndex,
+                DvalList.drop outcome.leftoverIndex spread
+              )
     }
 
   /// Runs the element at `at`, the first of `items`, which is not empty.
@@ -941,7 +903,11 @@ type Walk<'acc>
     else
       acc <- empty
       next <- box this :?> (Dval -> Ply<Dval>)
-      probe <- if eligible state then Probe(vm, app) else null
+      probe <-
+        if eligible state && DvalList.length items > 1 then
+          Probe(vm, state.spread, app)
+        else
+          null
       this.CarryOn(0L, items)
 
 /// Runs `op` over `items`, starting from `empty` (`Walk`).

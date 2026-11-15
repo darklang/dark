@@ -105,6 +105,14 @@ type Process =
     mutable parkHint : Parked voption
     /// Store-change generation this process has been told about (see `Subscribe`).
     mutable storeGenSeen : int64
+    /// Caps of its own, beside `maxInstructions` and `maxBytes`; 0 is none. A spread chunk's,
+    /// so a runaway chunk stops and runs again serially rather than taking the box.
+    capInstructions : int64
+    capBytes : int64
+    /// Callables a spread in this process fell back from (`LibExecution.Spread`). Not tried
+    /// again here: a body that reached an effect will very likely reach it again. Only this
+    /// process's own thread reads or writes it.
+    spreadFellBack : System.Collections.Generic.HashSet<RT.SpreadCallable>
   }
 
 /// One `Host.await` (or `readKey`) in flight: who is waiting, for what, and how to wake them.
@@ -172,6 +180,19 @@ let mutable defaultWorkers : int = max 1 System.Environment.ProcessorCount
 /// has used.
 let mutable maxInstructions : int64 = 0L
 let mutable maxBytes : int64 = 0L
+
+/// Why `p` is over a cap it runs under, or null.
+let overCap (p : Process) : string =
+  if maxInstructions > 0L && p.instructionsTaken >= maxInstructions then
+    $"over {maxInstructions} instructions (exec.maxInstructions)"
+  elif maxBytes > 0L && p.allocated >= maxBytes then
+    $"over {maxBytes} bytes allocated (exec.maxBytes)"
+  elif p.capInstructions > 0L && p.instructionsTaken >= p.capInstructions then
+    $"over its own {p.capInstructions} instructions"
+  elif p.capBytes > 0L && p.allocated >= p.capBytes then
+    $"over its own {p.capBytes} bytes"
+  else
+    null
 
 
 /// Which runnable process a scheduler steps next.
@@ -367,7 +388,8 @@ type Scheduler(quantum : int64) =
       parent : Option<ProcessId>,
       ?stats : RT.InterpreterStats,
       ?runId : int64,
-      ?keepResult : bool
+      ?keepResult : bool,
+      ?caps : struct (int64 * int64)
     ) : Process =
     let vm =
       match
@@ -423,7 +445,16 @@ type Scheduler(quantum : int64) =
         pendingResume = None
         parkedTask = null
         parkHint = ValueNone
-        storeGenSeen = Volatile.Read &storeGen }
+        storeGenSeen = Volatile.Read &storeGen
+        capInstructions =
+          (match caps with
+           | Some(struct (i, _)) -> i
+           | None -> 0L)
+        capBytes =
+          (match caps with
+           | Some(struct (_, b)) -> b
+           | None -> 0L)
+        spreadFellBack = System.Collections.Generic.HashSet() }
     lock sync (fun () ->
       processes[p.id] <- p
       runnable.Enqueue p)
@@ -448,7 +479,8 @@ type Scheduler(quantum : int64) =
       parent : Option<ProcessId>,
       ?stats : RT.InterpreterStats,
       ?runId : int64,
-      ?keepResult : bool
+      ?keepResult : bool,
+      ?caps : struct (int64 * int64)
     ) : Process =
     this.Workers.Spawn(
       exeState,
@@ -457,7 +489,8 @@ type Scheduler(quantum : int64) =
       parent,
       ?stats = stats,
       ?runId = runId,
-      ?keepResult = keepResult
+      ?keepResult = keepResult,
+      ?caps = caps
     )
 
   /// A new process that applies `applicable` to `arg` (`Exec.spawn f` runs `f ()`), starting from
@@ -472,7 +505,8 @@ type Scheduler(quantum : int64) =
       access : Permissions.Access,
       ?stats : RT.InterpreterStats,
       ?runId : int64,
-      ?keepResult : bool
+      ?keepResult : bool,
+      ?caps : struct (int64 * int64)
     ) : Process =
     let entry =
       match applicable with
@@ -487,7 +521,8 @@ type Scheduler(quantum : int64) =
         parent,
         ?stats = stats,
         ?runId = runId,
-        ?keepResult = keepResult
+        ?keepResult = keepResult,
+        ?caps = caps
       )
     p
 
@@ -930,14 +965,7 @@ type Scheduler(quantum : int64) =
         [ "thread", Thread.CurrentThread.ManagedThreadId; "scheduler", thread ]
     // A stop asked for (`Cancel`, `Kill`) or a cap crossed: the process ends here with the
     // reason, before its slice.
-    if isNull p.stopReason then
-      p.stopReason <-
-        if maxInstructions > 0L && p.instructionsTaken >= maxInstructions then
-          $"over {maxInstructions} instructions (exec.maxInstructions)"
-        elif maxBytes > 0L && p.allocated >= maxBytes then
-          $"over {maxBytes} bytes allocated (exec.maxBytes)"
-        else
-          null
+    if isNull p.stopReason then p.stopReason <- overCap p
     if not (isNull p.stopReason) then
       this.Finish(
         p,
@@ -971,8 +999,14 @@ type Scheduler(quantum : int64) =
           let allocBefore = System.GC.GetAllocatedBytesForCurrentThread()
           let outcome = Interpreter.executeSync p.exeState p.vm
           // What the slice actually spent: the budget counts down per instruction, and a
-          // process that waits or finishes leaves the rest of it.
-          p.instructionsTaken <- p.instructionsTaken + (quantum - p.vm.budget)
+          // process that waits or finishes leaves the rest of it. A slice the budget ended is
+          // charged one less, for the turn the next one spends re-entering the frame it stopped
+          // in, so what a process is charged does not depend on where its slices end.
+          p.instructionsTaken <-
+            p.instructionsTaken + (quantum - p.vm.budget)
+            - (match outcome with
+               | Interpreter.StepBudget -> 1L
+               | _ -> 0L)
           p.allocated <-
             p.allocated
             + (System.GC.GetAllocatedBytesForCurrentThread() - allocBefore)
@@ -1214,6 +1248,7 @@ and Workers(root : Scheduler, quantum : int64, count : int) =
   /// Written under `startLock`, by whichever spawn starts the thread.
   let started = Array.zeroCreate<bool> byIndex.Length
   let startLock = obj ()
+  let chunkSlots = new SemaphoreSlim(byIndex.Length * 2)
 
   let startThread (i : int) =
     let w = byIndex[i]
@@ -1240,6 +1275,13 @@ and Workers(root : Scheduler, quantum : int64, count : int) =
   /// Root first, then the workers.
   member _.All : Scheduler list = root :: workers
 
+  /// Workers with nothing on them right now.
+  member _.Idle : int = byIndex |> Array.sumBy (fun w -> if w.Live = 0 then 1 else 0)
+
+  /// Spread chunks in flight across the group, at most two a worker (`LibExecution.Spread`).
+  /// Taken without waiting, and given back as each chunk finishes.
+  member _.ChunkSlots : SemaphoreSlim = chunkSlots
+
   /// Spawn on the least loaded worker, starting its thread if it has none yet. The first idle
   /// one is the one `List.minBy` would pick.
   member _.Spawn
@@ -1250,7 +1292,8 @@ and Workers(root : Scheduler, quantum : int64, count : int) =
       parent : Option<ProcessId>,
       ?stats : RT.InterpreterStats,
       ?runId : int64,
-      ?keepResult : bool
+      ?keepResult : bool,
+      ?caps : struct (int64 * int64)
     ) : Process =
     let w =
       lock startLock (fun () ->
@@ -1266,7 +1309,8 @@ and Workers(root : Scheduler, quantum : int64, count : int) =
       parent,
       ?stats = stats,
       ?runId = runId,
-      ?keepResult = keepResult
+      ?keepResult = keepResult,
+      ?caps = caps
     )
 
   /// End every worker's loop. Processes still on them are left as they are.

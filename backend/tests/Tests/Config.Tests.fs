@@ -81,9 +81,10 @@ let tests =
           (check "exec.workers" "99999999999")
           "workers is read as an Int32"
         Expect.isOk (check "trace.maxMb" "99999999999") "the caps are Int64"
-        Expect.isOk
+        Expect.isError
           (check "exec.spreadCrossover" "-1")
-          "a negative crossover turns spreading off"
+          "spreading is turned off by exec.spread, not a negative crossover"
+        Expect.isOk (check "exec.spread" "off") "on or off"
         Expect.isError (check "trace.record" "yes") "on or off"
         Expect.isOk
           (check "exec.policy" "Darklang.Known.fn")

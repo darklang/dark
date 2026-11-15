@@ -92,6 +92,11 @@ let settings(): List<Setting> =
         byDefault = "none" }
 
     Setting
+      { key = "exec.spread"
+        what = "Spread list work across idle cores, on or off"
+        byDefault = "on" }
+
+    Setting
       { key = "exec.storePollMs"
         what = "How often a --live view looks for a change, in ms, at least 10"
         byDefault = "25" }

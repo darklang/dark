@@ -406,14 +406,14 @@ of `List.sortBy` (the sort itself stays serial), the searches `List.any` and
 spread across cores. Nobody writes anything for it. A list op starts serially,
 as it always did, and after 2, 4, 8... elements it asks whether the rest is
 worth spreading: the interpreted instructions the elements so far took, times
-how many are left, against a crossover (`Spread.crossover`). Instructions
+how many are left, against a crossover (`SpreadSettings.crossover`). Instructions
 rather than time, so the decision, and what a run allocates, is the same on a
 loaded box as on an idle one. The first element is not counted, since the
 first call of a body is the one that loads what it calls. So the decision
 depends on the body's cost as well as the count, and a short or cheap map
 never spreads.
 
-Each element also has to cost at least `Spread.minPerElement` (20)
+Each element also has to cost at least `minPerElement` (20)
 instructions, so a one-operation body over a long collection stays serial.
 Spread, such a body finishes sooner only when the op is little but the body,
 and spends two to three times the CPU either way.
@@ -440,68 +440,83 @@ reach an effect but does not on this run, a print on an error say, is
 predicted impure and runs serially where observing would have spread it.
 
 A spread hands the rest out in contiguous chunks (`LibExecution/Spread.fs`),
-as many as there are cores to keep busy and none smaller than
-`Spread.minChunk` instructions of work. Each chunk is a process running the same
-builtin serially over its slice, and the chunks are collected in input order.
-What keeps it from changing any program:
+none smaller than `minChunk` instructions of work and only as many as there
+are idle workers to take them, two each. With no worker idle it stays serial,
+so on `serve` a request spreads only into cores no other request is using.
+Each chunk is a process running the same builtin serially over its stretch,
+and the chunks are collected in input order. All nine ops run one loop
+(`Spread.Walk`): an op says how to run one element, how its answers combine,
+and which builtin a chunk runs.
 
-- A chunk only computes, whatever was predicted. It runs with `spreadChild`,
-  under which any call that would take an effect ordinal
-  (`Interpreter.spreadRefuses`, the same rule the prediction uses, so the two
-  cannot disagree) is refused before it does anything, before the permission
-  check, so no denial is recorded. A wrong prediction therefore costs a spread
-  and never an effect out of order. The
-  three `Exec.await*` are refused too: an answer is taken once its row has
-  gone, so two elements awaiting one handle would swap which one finds it
-  gone. Purity is observed rather than predicted, over everything the
-  callable reaches: package fns, trait dispatch, operators on user types,
-  callbacks.
-- The first chunk that did not finish runs again here. At the first chunk
-  that failed, for any reason, the later ones are cancelled and the original
-  process carries on serially from that chunk's first element. Everything
-  before it was pure, so its results are what a serial run computes; from
-  there on it IS a serial run. An effect happens in its place in the order,
-  and an error is raised by the element that raises it serially, under the
-  same frames. A callable that made a spread fall back is not spread again in
-  this process.
-- A chunk checks its callable's answers against the callback types the
-  enclosing fns declared, as a serial run does. One that finds a wrong answer,
-  or learns a different type than the chunks before it, runs again here, so
-  the error is the one a serial run raises.
-- A search answers the first hit in input order. Each chunk searches its
-  stretch serially and stops at its own first hit; the chunks are read in
-  order, and at the first that found something the later ones are cancelled,
-  so nothing after the hit is seen, as serially (`Spread.search`).
-- A stop wins. A process asked to stop while its chunks run answers the stop
-  rather than falling back, and its chunks go with it.
-- A chunk never spreads again, so a map inside a spread map runs serially in
-  its chunk and nesting cannot multiply out. One level, not a depth limit.
-- Nothing spreads while somebody watches. A recorded or viewed run
-  (`collectFrames`) stays serial. This is about the frame tree, not safety: a
-  chunk takes no ordinals whether or not recording is on, so a resume would
-  be fine, but a chunk's lambda passes would sit under the chunk's process
-  instead of under the `List.map` frame. The follow-up is to parent a chunk's
-  root frame onto the frame that spread it (`Tracing.fs`) and stitch it in
-  the view; viewing itself stays serial, since a view is a replay. Until
-  then, `trace.record on` means no spreading, and `config/dev` sets it, so a
-  dev container shows no speedup unless `DARK_CONFIG_TRACE_DETAIL=off`.
+Spreading may change only time and CPU. These hold, each with tests in
+`Spread.Tests.fs`:
+
+1. **The same results, effects and errors as a serial run.** A chunk only
+   computes. It runs with `spreadChild`, under which any call that would take
+   an effect ordinal, and the three `Exec.await*`
+   (`Interpreter.spreadRefuses`), is refused before it does anything, even
+   before the permission check, so no denial is recorded. At the first chunk
+   that did not finish, for any reason, the later ones are cancelled and the
+   spreading process carries on serially from that chunk's first element:
+   everything before it was pure, and from there on it IS a serial run. An
+   effect happens in its place in the order, and an error is raised by the
+   element that raises it serially, under the same frames. A chunk checks its
+   callable's answers against the callback types the enclosing fns declared,
+   as a serial run does. A search answers the first hit in input order, and
+   nothing after it is seen. Every List and Dict test in the store is run
+   forced to spread and with spreading off, and compared.
+2. **The same decision on any load.** Whether the rest is worth spreading is
+   counted in instructions, never time. How many cores it then gets depends on
+   how many are idle.
+3. **The same trace.** A recorded run spreads. Each chunk records apart
+   (`Tracing.forChunk`): the recorder counts a chunk's loop passes and
+   function calls on their own, and adds them to the trace when the chunk is
+   taken, so the trace is a serial run's. A chunk that is not taken (after a
+   hit, or one that runs again here) leaves nothing. Nothing in a chunk needs
+   replaying, since a chunk performs no effect. What differs is time: a
+   function's time in a chunk is that chunk's, added up across cores. A view
+   stays serial, since it keeps every value of every pass.
+4. **Limits give the same verdict.** A chunk is charged to its process only
+   when it is taken, and less what applying its builtin cost, so a spread op
+   charges exactly the instructions and builtin calls a serial run does,
+   however the work was split and however many workers were idle. (A process
+   is never charged for re-entering the frame a slice stopped in, so where its
+   slices end does not move the count either.) So `exec.maxInstructions`
+   counts what a serial run would; `exec.maxBytes` counts what the taken
+   chunks allocated. A process over either stops when the chunk that took it
+   there is taken. A chunk
+   also has caps of its own, several times what the elements so far cost:
+   past them it stops and its stretch runs here. That is a cost misjudged,
+   not an effect, so the body is tried again next time.
+5. **A stop stops every chunk.** A process asked to stop (Ctrl-C, `Exec.cancel`,
+   `ps cancel`) while its chunks run answers the stop rather than falling
+   back, and its chunks go with it.
+6. **Bounded resources.** At most two chunks per idle worker, at most two per
+   worker in flight across the whole process, each capped as above, and one
+   level only: a map inside a chunk runs serially.
+
+A callable that made a spread fall back is not spread again in that process
+(`Process.spreadFellBack`); another process, a later request say, tries it
+afresh. `groupBy`, `uniqueBy`, `maxBy` and `fold` stay serial, and so does
+user-written recursion: `Exec.spawn` and `List.parallelMap` are the way to
+ask for it.
 
 What it does not make consistent: package-store reads and the impl-selection
 memo are not builtins. A store change mid-map can already flip a name's
 resolution between two serial elements; under a spread the switch can land
 on chunks out of order.
 
-Knobs, for measuring: `dark config set exec.spreadCrossover <instructions>`
-(negative turns spreading off, 0 spreads anything with two elements left) and
-`exec.spreadMinChunk`, beside the other `exec.*` settings. And
+`dark config set exec.spread off` turns it off, and `dark --no-spread
+<command>` does for one command, like `--no-trace`. Knobs, for measuring:
+`exec.spreadCrossover <instructions>` (0 spreads anything with two elements
+left) and `exec.spreadMinChunk`, beside the other `exec.*` settings. And
 `exec.spreadPredict on`, which makes a map skip code known to reach an effect
-instead of trying it and falling back. The analysis it uses is kept for what
-it is better at: saying, about code, whether it can run across cores and why
-not. And
-`DARK_SPREAD_REPORT=1`, a diagnostic switch like `DARK_SCHEDULER`, which
-prints at exit how many spreads ran, fell back, and were predicted each way: the way to tell a run that
-spread from one that matched serial without spreading. `scripts/perf/workloads/probes/spread.dark` is the grid the
-defaults came from.
+instead of trying it and falling back. And `DARK_SPREAD_REPORT=1`, a
+diagnostic switch like `DARK_SCHEDULER`, which prints at exit how many spreads
+ran, fell back, and were predicted each way: the way to tell a run that spread
+from one that matched serial without spreading.
+`scripts/perf/workloads/probes/spread.dark` is the grid the defaults came
+from.
 
 ## `Exec.spawn`, `await`, `awaitWithin`, `select`, `cancel`
 
