@@ -201,6 +201,30 @@ let httpServerBindsOnlyTheCheckedAddress =
       | other -> failtest $"approved listener could not bind: {other}"
   }
 
+let workingDirectoryDiscoveryDoesNotGrantFileAccess =
+  testTask "working directory discovery needs no file grant" {
+    let access = Permission.Access.start Permission.Policy.denyAll
+    let perform op = LibExecution.Host.perform access op
+    let cwd = System.IO.Directory.GetCurrentDirectory()
+    let! current = perform HT.Operation.DirectoryCurrent
+    match current with
+    | HT.Outcome.Success(HT.Response.Path path) ->
+      Expect.equal path cwd "the process working directory"
+    | other -> failtest $"expected working directory without a grant, got {other}"
+    if LibExecution.HostPosix.isPosix then
+      let! raw = perform (HT.Operation.Posix(HT.PosixOp.GetcwdBytes 65536))
+      match raw with
+      | HT.Outcome.Success(HT.Response.Bytes bytes) ->
+        let path = System.Text.Encoding.UTF8.GetString(bytes).TrimEnd(char 0)
+        Expect.equal path cwd "the kernel working directory"
+      | other -> failtest $"expected kernel cwd without a grant, got {other}"
+    for op in [ HT.Operation.DirectoryList cwd; HT.Operation.FileRead cwd ] do
+      let! outcome = perform op
+      match outcome with
+      | HT.Outcome.Denied(Permission.Layer.Instance, _, _, _, _) -> ()
+      | other -> failtest $"discovery must not grant file access, got {other}"
+  }
+
 let rawDescriptorsRequireNativeAtHostBoundary =
   testTask "raw descriptors require Native before any kernel call" {
     let operations =
@@ -1396,6 +1420,7 @@ let tests =
       auditLineIsJsonWithTheLoggedFields
       httpServerBindUsesTheSuppliedAccess
       httpServerBindsOnlyTheCheckedAddress
+      workingDirectoryDiscoveryDoesNotGrantFileAccess
       rawDescriptorsRequireNativeAtHostBoundary
       scopedDescriptorsRecheckAccessAndOwnership
       scopedDescriptorsRespectInvocation

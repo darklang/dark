@@ -371,11 +371,7 @@ let private withChecks
 /// under deny-all: the permission prompt has to know its terminal, and whether anyone is there.
 let terminalConventions : Set<string> = Set.ofList [ "TERM"; "CI"; "DARK_NO_INPUT" ]
 
-/// An operation authorized elsewhere, which only needs to run where the host
-/// state lives: a continuation on a host-issued handle (decided when the
-/// handle was created), a Native-gated builtin (decided by the interpreter's
-/// ambient gate before the body ran), or input that already failed
-/// validation with a guest-visible typed error. Audited like the rest.
+/// Run without further permission checks; still audited.
 let private unchecked (execute : Execute) : Result<Resolved, string> =
   Ok { checks = []; execute = execute }
 
@@ -784,15 +780,10 @@ let private resolvePosix
       posixPath access path (fun path ->
         HostPosix.openFile path flags mode |> Result.map (opened path))
   | HostTypes.PosixOp.GetcwdBytes count ->
-    // Authorize the exact kernel answer, not an earlier managed cwd snapshot.
-    // Decoding here is only for policy; public decoding remains in Dark.
-    match HostPosix.getcwdBytes count with
-    | Error e -> Ok { checks = []; execute = attempt (fun () -> Error e) }
-    | Ok bytes ->
-      let length =
-        bytes |> Array.tryFindIndex ((=) 0uy) |> Option.defaultValue bytes.Length
-      let cwd = System.Text.Encoding.UTF8.GetString(bytes, 0, length)
-      resolveFile read cwd (fun _ -> produce (fun () -> Response.Bytes bytes))
+    // Knowing the working directory's path does not grant access to its contents.
+    unchecked (
+      attempt (fun () -> HostPosix.getcwdBytes count |> Result.map Response.Bytes)
+    )
   | HostTypes.PosixOp.FcntlGetPath fd ->
     // A directory may have been renamed since open. Check the returned path
     // as well as the descriptor's original grant before releasing any bytes.
@@ -868,10 +859,9 @@ let private resolve (op : Operation) : Result<Resolved, string> =
             System.IO.File.Exists path || System.IO.Directory.Exists path
           Response.Stat(exists, isDirectory)))
   | Operation.DirectoryCurrent ->
-    // The request depends on host state: reading the working directory is a
-    // read of that path.
-    let cwd = System.IO.Directory.GetCurrentDirectory()
-    resolveFile read cwd (fun cwd -> produce (fun () -> Response.Path cwd))
+    unchecked (
+      produce (fun () -> Response.Path(System.IO.Directory.GetCurrentDirectory()))
+    )
   | Operation.DirectoryList path ->
     resolveFile read path (fun path ->
       if HostPosix.isPosix then

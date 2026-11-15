@@ -28,6 +28,7 @@ impl Display for FileError =
 
 /// The process's current working directory, or "." if the kernel cannot give its path,
 /// as when it has been removed.
+/// No file permission is needed to get this path.
 let currentDirectory(): String =
   match Posix.getCwd() with
   | Ok(cwd) -> cwd
