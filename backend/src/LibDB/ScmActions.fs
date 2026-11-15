@@ -192,11 +192,6 @@ let private stampPastEverythingOn (conn : SqliteConnection) : Ply<string> =
     return List.tryHead found |> Option.defaultValue ""
   }
 
-let private sha256Hex (s : string) : string =
-  System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes s)
-  |> System.Convert.ToHexString
-  |> fun h -> h.ToLowerInvariant()
-
 /// A content-derived commit id: the same work committed onto the same history gets the same id on any
 /// machine. Message, stamp, parent and the op ids (in the order given, which callers sort) are all in
 /// the material, so identical ops committed onto different histories get different ids.
@@ -207,7 +202,8 @@ let mintCommitHash
   (parent : string)
   : string =
   let material = $"{message}|{stamp}|{parent}|" + String.concat "," opIds
-  (sha256Hex material).Substring(0, 16)
+  let bytes = System.Text.Encoding.UTF8.GetBytes material
+  (LibExecution.Bytes.sha256Hex bytes).Substring(0, 16)
 
 let private sortOrdinal (items : List<string>) : List<string> =
   items |> List.sortWith (fun a b -> System.String.CompareOrdinal(a, b))
@@ -1576,4 +1572,5 @@ let conflictById (id : string) : Task<Option<Detect.Conflict>> =
 let docPartOfKey (key : string) : Option<PT.DocPart> = Docs.partFromKey key
 
 /// The hash a doc's text is known by.
-let hashOfText (text : string) : PT.Hash = PT.Hash(sha256Hex text)
+let hashOfText (text : string) : PT.Hash =
+  PT.Hash(LibExecution.Bytes.sha256Hex (System.Text.Encoding.UTF8.GetBytes text))

@@ -73,11 +73,6 @@ let bindingKey (owner : string) (modules : string) (name : string) : string =
 let fqn (owner : string) (modules : string) (name : string) : string =
   if modules = "" then $"{owner}.{name}" else $"{owner}.{modules}.{name}"
 
-let private sha256Hex (s : string) : string =
-  System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes s)
-  |> System.Convert.ToHexString
-  |> fun h -> h.ToLowerInvariant()
-
 /// A stable short id: the first 8 hex of sha256 over the location and both candidate hashes, sorted so
 /// the id does not depend on which side happened to be local. Recorded ids from before this lived in F#
 /// were minted the same way, byte for byte, which is what lets a re-detection dedupe against them.
@@ -93,7 +88,8 @@ let conflictId
   let sorted =
     hashes |> List.sortWith (fun a b -> System.String.CompareOrdinal(a, b))
   let material = $"{owner}/{modules}/{name}|" + String.concat "," sorted
-  (sha256Hex (String.normalize material)).Substring(0, 8)
+  let bytes = System.Text.Encoding.UTF8.GetBytes(String.normalize material)
+  (LibExecution.Bytes.sha256Hex bytes).Substring(0, 8)
 
 /// Does the INCOMING binding beat the LOCAL one? The fold's own rule.
 let incomingWins (incoming : Binding) (local : Binding) : bool =
