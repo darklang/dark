@@ -76,6 +76,9 @@ type ImplMember =
 
 type Declaration =
   { item: Item
+    /// Its content hash, which leaves out ids, positions and comments; empty for a module and for
+    /// what is printed as written.
+    meaning: String
     /// The 0-based lines it spans in the source, its `///` lines included.
     row: Int64
     endRow: Int64
@@ -660,10 +663,16 @@ let commentTexts(source: String): List<String> =
   Builtin.formatterComments(source)
 
 
+/// <param source>, a package `.dark` file, parsed and lowered for formatting, or the parser's
+/// complaint.
+let parse(source: String): Result<File, String> =
+  Builtin.formatterParse(source)
+
+
 /// <param source>, a package `.dark` file, formatted for a page <param width> wide, or the
 /// parser's complaint.
 let source(branchId: Uuid, width: Int64, source: String): Result<Formatted, String> =
-  match Builtin.formatterParse(source) with
+  match parse(source) with
   | Error(e) -> Result.Error(e)
   | Ok(file) ->
     let comments = placeComments(file)
@@ -701,7 +710,9 @@ let source(branchId: Uuid, width: Int64, source: String): Result<Formatted, Stri
     let docsBefore = docLines(source)
     let docsAfter = docLines(text)
     if before == after && docsBefore == docsAfter then
-      Result.Ok(Formatted { text = text, asWritten = asWritten })
+      match meaningChange(file, text) with
+      | None -> Result.Ok(Formatted { text = text, asWritten = asWritten })
+      | Some(e) -> Result.Error(e)
     else
       let lost =
         Stdlib.List.concat(before, docsBefore)
@@ -711,3 +722,39 @@ let source(branchId: Uuid, width: Int64, source: String): Result<Formatted, Stri
         |> Stdlib.Option.withDefault("(their order)")
 
       Result.Error($"formatting would change its comments, starting with: {lost}")
+
+
+/// Each declaration in <param ds> with what it means, a module's by what is in it.
+let meanings(file: File, path: String, ds: List<Declaration>): List<(String * String)> =
+  ds
+  |> Stdlib.List.map(fun d ->
+    let name = path + declarationName(file, d)
+    match d.item with
+    | Module(_, _, inner) -> meanings(file, name + ".", inner)
+    | _ -> [ (name, d.meaning) ])
+  |> Stdlib.List.flatten
+
+
+/// Why <param formatted> can't replace <param file>: the first declaration it would change the
+/// meaning of, or that it doesn't parse. None when every declaration means what it did.
+let meaningChange(file: File, formatted: String): Option<String> =
+  if formatted == file.text then
+    Option.None
+  else
+    match parse(formatted) with
+    | Error(e) -> Option.Some($"formatting would leave it not parsing: {e}")
+    | Ok(after) ->
+      let was = meanings(file, "", file.declarations)
+      let now = meanings(after, "", after.declarations)
+      if was == now then
+        Option.None
+      else
+        let first =
+          Stdlib.List.zipShortest(was, now)
+          |> Stdlib.List.findFirst(fun pair ->
+            let (w, n) = pair
+            w != n)
+          |> Stdlib.Option.map(fun pair -> Stdlib.Tuple2.first(Stdlib.Tuple2.first(pair)))
+          |> Stdlib.Option.withDefault("the declarations after the last one it keeps")
+
+        Option.Some($"formatting would change what {first} means")

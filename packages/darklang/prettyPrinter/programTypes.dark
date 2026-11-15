@@ -2360,6 +2360,17 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
   | EInfix(_id, infixOp, _, _, _) ->
     let (power, rightAssoc) = infixPower(infixOp)
     let operands = if rightAssoc then [ e ] else infixChain(infixOp, e)
+    // A `-` starting a line in line with the operand above reads as a negation that starts a new
+    // expression, so a `-` line goes in further.
+    let continued(operand: Stdlib.Pretty.Doc): Stdlib.Pretty.Doc =
+      let line =
+        Stdlib.Pretty.concatAll(
+          [ Stdlib.Pretty.Doc.Line, Stdlib.Pretty.text($"{infix(infixOp)} "), operand ])
+
+      match infixOp with
+      | InfixFnCall(ArithmeticMinus) -> Stdlib.Pretty.nest(2, line)
+      | _ -> line
+
     match operands with
     | [EInfix(_, _, left, right, _)] ->
       let side(e: LanguageTools.ProgramTypes.Expr, isRight: Bool): Stdlib.Pretty.Doc =
@@ -2370,11 +2381,7 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
 
       Stdlib.Pretty.group(
         Stdlib.Pretty.Doc.Align(
-          Stdlib.Pretty.concatAll(
-            [ side(left, false)
-              Stdlib.Pretty.Doc.Line
-              Stdlib.Pretty.text($"{infix(infixOp)} ")
-              side(right, true) ])))
+          Stdlib.Pretty.Doc.Concat(side(left, false), continued(side(right, true)))))
     | [first, ...rest] ->
       let side(e: LanguageTools.ProgramTypes.Expr, isRight: Bool): Stdlib.Pretty.Doc =
         if infixOperandNeedsParens(e, power, rightAssoc, isRight) then
@@ -2382,14 +2389,7 @@ let exprDocBare(ctx: Context, e: LanguageTools.ProgramTypes.Expr): Stdlib.Pretty
         else
           exprDoc(ctx, e)
 
-      let tail =
-        rest
-        |> Stdlib.List.map(fun operand ->
-          Stdlib.Pretty.concatAll(
-            [ Stdlib.Pretty.Doc.Line
-              Stdlib.Pretty.text($"{infix(infixOp)} ")
-              side(operand, true) ]))
-
+      let tail = rest |> Stdlib.List.map(fun operand -> continued(side(operand, true)))
       Stdlib.Pretty.group(
         Stdlib.Pretty.Doc.Align(
           Stdlib.Pretty.Doc.Concat(side(first, false), Stdlib.Pretty.concatAll(tail))))

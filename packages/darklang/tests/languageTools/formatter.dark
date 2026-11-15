@@ -123,3 +123,123 @@ test formattingTwiceChangesNothing =
       |> Stdlib.Result.map(fun f -> f.text))
 
   twice |> Stdlib.Test.equal(once)
+
+
+// A chain of one infix operator broken across lines, in each place a line break could end it.
+val infixOperators =
+  [ "+"
+    "-"
+    "*"
+    "/"
+    "%"
+    "**"
+    "&"
+    "|"
+    "^"
+    "<<"
+    ">>"
+    "=="
+    "!="
+    "<"
+    ">"
+    "<="
+    ">="
+    "&&"
+    "||" ]
+
+
+/// For each operator, <param context> with a long chain of it in place of `{}`, and what went
+/// wrong formatting it: an error, the chain not broken, or a second format changing the first.
+let brokenChainProblems(context: String): List<String> =
+  infixOperators
+  |> Stdlib.List.filterMap(fun op ->
+    let chain =
+      [ "alphaOperand", "bravoOperand", "charlieOperand", "deltaOperand" ]
+      |> Stdlib.String.join($" {op} ")
+
+    let source =
+      "module Darklang.Tests.FormatSample\n\nlet f(): Int64 =\n  "
+      + Stdlib.String.replaceAll(context, "{}", chain)
+      + "\n"
+
+    let format(text: String): Stdlib.Result.Result<String, String> =
+      LanguageTools.Formatter.source(SCM.Branch.mainBranchId, 40, text)
+      |> Stdlib.Result.map(fun f -> f.text)
+
+    match format(source) with
+    | Error(e) -> Option.Some($"{op}: {e}")
+    | Ok(once) ->
+      let broken =
+        once
+        |> Stdlib.String.split("\n")
+        |> Stdlib.List.any(fun l ->
+          Stdlib.String.startsWith(Stdlib.String.trim(l), $"{op} "))
+
+      if Stdlib.Bool.not(broken) then
+        Option.Some($"{op}: not broken before the operator")
+      else if format(once) != Stdlib.Result.Result.Ok(once) then
+        Option.Some($"{op}: formatting again changes it")
+      else
+        Option.None)
+
+
+test keepsABrokenChainInAnArgumentList =
+  brokenChainProblems("g(1, {}, 2)") |> Stdlib.Test.equal([])
+
+
+test keepsABrokenChainInAList =
+  brokenChainProblems("[ 1, {}, 2 ]") |> Stdlib.Test.equal([])
+
+
+test keepsABrokenChainInATuple =
+  brokenChainProblems("(1, {}, 2)") |> Stdlib.Test.equal([])
+
+
+test keepsABrokenChainInARecord =
+  brokenChainProblems("R { a = 1, b = {}, c = 2 }") |> Stdlib.Test.equal([])
+
+
+test keepsABrokenChainInAPipe =
+  brokenChainProblems("xs |> Stdlib.List.map(fun x -> {})")
+  |> Stdlib.Test.equal([])
+
+
+test keepsABrokenChainInABody =
+  brokenChainProblems("{}") |> Stdlib.Test.equal([])
+
+
+val subtraction =
+  "module Darklang.Tests.FormatSample\n\nlet f(a: Int64, b: Int64): List<Int64> =\n  [ a - b ]\n"
+
+
+test refusesToChangeWhatCodeMeans =
+  LanguageTools.Formatter.parse(subtraction)
+  |> Stdlib.Result.map(fun file ->
+    // `-` at the start of a line in a list starts a new item: `[ a, -b ]`.
+    LanguageTools.Formatter.meaningChange(
+      file,
+      "module Darklang.Tests.FormatSample\n\nlet f(a: Int64, b: Int64): List<Int64> =\n  [ a\n    - b ]\n"))
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Ok(
+      Option.Some(
+        "formatting would change what Darklang.Tests.FormatSample.f means")))
+
+
+test acceptsTheSameMeaningLaidOutAnotherWay =
+  LanguageTools.Formatter.parse(subtraction)
+  |> Stdlib.Result.map(fun file ->
+    LanguageTools.Formatter.meaningChange(
+      file,
+      "module Darklang.Tests.FormatSample\n\nlet f(a: Int64, b: Int64): List<Int64> =\n  [ a\n      - b ]\n"))
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Option.None))
+
+
+test refusesWhatDoesNotParse =
+  LanguageTools.Formatter.parse(subtraction)
+  |> Stdlib.Result.map(fun file ->
+    LanguageTools.Formatter.meaningChange(
+      file,
+      "module Darklang.Tests.FormatSample\n\nlet f(a: Int64, b: Int64): List<Int64> =\n  [ a -\n")
+    |> Stdlib.Option.map(fun e ->
+      Stdlib.String.startsWith(e, "formatting would leave it not parsing")))
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Option.Some(true)))

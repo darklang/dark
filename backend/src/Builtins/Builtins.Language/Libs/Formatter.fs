@@ -25,6 +25,7 @@ module Validation = LibParser.Validation
 module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module PMPT = LibDB.ProgramTypes
+module Hashing = LibSerialization.Hashing.Hashing
 
 type private Ranges = System.Collections.Generic.Dictionary<id, WT.Range>
 
@@ -196,17 +197,21 @@ let rec private declarations
       let range = declRange d
       let first = firstRow ctx range
       let onMissing = NRslv.OnMissing.Allow
-      let lowered (f : string -> List<string> -> Ply<Dval>) : Ply<Dval> =
+      let verbatim = (enum (tn Refs.item) "Verbatim" [], "")
+      let lowered
+        (f : string -> List<string> -> Ply<Dval * string>)
+        : Ply<Dval * string> =
         uply {
           match path with
-          | [] -> return enum (tn Refs.item) "Verbatim" []
+          | [] -> return verbatim
           | owner :: modules ->
             try
               return! f owner modules
             with _ ->
-              return enum (tn Refs.item) "Verbatim" []
+              return verbatim
         }
-      let! item =
+      let hashed (PT.Hash h) = h
+      let! (item, meaning) =
         match d with
         | WT.DModule m ->
           uply {
@@ -219,12 +224,13 @@ let rec private declarations
             let! inner =
               declarations ctx (path @ WT.moduleNameParts m) m.declarations
             return
-              enum
+              (enum
                 (tn Refs.item)
                 "Module"
                 [ DString(snd m.name)
                   DBool header
-                  Dval.list (KTCustomType(tn Refs.declaration, [])) inner ]
+                  Dval.list (KTCustomType(tn Refs.declaration, [])) inner ],
+               "")
           }
         | WT.DFunction fn ->
           ctx.fnSpans.Add((fn.range, path))
@@ -240,10 +246,11 @@ let rec private declarations
                   (Some ctx.ranges)
                   wt
               return
-                enum
+                (enum
                   (tn Refs.item)
                   "Fn"
-                  [ DString fn.name.name; PT2DT.PackageFn.toDT pt ]
+                  [ DString fn.name.name; PT2DT.PackageFn.toDT pt ],
+                 hashed (Hashing.computeFnHash Hashing.Normal pt))
             })
         | WT.DValue v ->
           ctx.fnSpans.Add((v.range, path))
@@ -259,10 +266,11 @@ let rec private declarations
                   (Some ctx.ranges)
                   wt
               return
-                enum
+                (enum
                   (tn Refs.item)
                   "Value"
-                  [ DString v.name.name; PT2DT.PackageValue.toDT pt ]
+                  [ DString v.name.name; PT2DT.PackageValue.toDT pt ],
+                 hashed (Hashing.computeValueHash Hashing.Normal pt))
             })
         | WT.DTest t ->
           ctx.fnSpans.Add((t.range, path))
@@ -278,10 +286,11 @@ let rec private declarations
                   (Some ctx.ranges)
                   wt
               return
-                enum
+                (enum
                   (tn Refs.item)
                   "Test"
-                  [ DString t.name.name; PT2DT.PackageTest.toDT pt ]
+                  [ DString t.name.name; PT2DT.PackageTest.toDT pt ],
+                 hashed (Hashing.computeTestHash Hashing.Normal pt))
             })
         | WT.DType t ->
           lowered (fun owner modules ->
@@ -290,10 +299,11 @@ let rec private declarations
               let! pt =
                 WT2PT.PackageType.toPT ctx.pm onMissing (owner :: modules) wt
               return
-                enum
+                (enum
                   (tn Refs.item)
                   "Type"
-                  [ DString t.name.name; PT2DT.PackageType.toDT pt ]
+                  [ DString t.name.name; PT2DT.PackageType.toDT pt ],
+                 hashed (Hashing.computeTypeHash Hashing.Normal pt))
             })
         | WT.DTrait t ->
           lowered (fun owner modules ->
@@ -301,10 +311,11 @@ let rec private declarations
               let wt = WT.packageTrait owner modules t
               let! pt = WT2PT.Trait.toPT ctx.pm onMissing (owner :: modules) wt
               return
-                enum
+                (enum
                   (tn Refs.item)
                   "Trait"
-                  [ DString t.name.name; PT2DT.Trait.toDT pt ]
+                  [ DString t.name.name; PT2DT.Trait.toDT pt ],
+                 hashed (Hashing.computeTraitHash Hashing.Normal pt))
             })
         | WT.DImpl i ->
           lowered (fun _ _ ->
@@ -332,33 +343,41 @@ let rec private declarations
                             (Some ctx.ranges)
                             (WT.packageFn owner rest fn)
                         return
-                          enum
+                          (enum
                             (tn Refs.implMember)
                             "Declared"
-                            [ DString fn.name.name; PT2DT.PackageFn.toDT ptFn ]
+                            [ DString fn.name.name; PT2DT.PackageFn.toDT ptFn ],
+                           hashed (Hashing.computeFnHash Hashing.Normal ptFn))
                       | WT.IAlias v ->
                         return
-                          enum
+                          (enum
                             (tn Refs.implMember)
                             "Named"
-                            [ DString v.name.name ]
+                            [ DString v.name.name ],
+                           v.name.name)
                     })
                 return
-                  enum
+                  (enum
                     (tn Refs.item)
                     "Impl"
                     [ PT2DT.TraitImpl.toDT pt
                       Dval.list KTString (List.map DString memberPath)
-                      Dval.list (KTCustomType(tn Refs.implMember, [])) members ]
-              | [] -> return enum (tn Refs.item) "Verbatim" []
+                      Dval.list
+                        (KTCustomType(tn Refs.implMember, []))
+                        (List.map fst members) ],
+                   (hashed (Hashing.computeImplHash Hashing.Normal pt)
+                    :: List.map snd members)
+                   |> String.concat " ")
+              | [] -> return verbatim
             })
         | WT.DExpr _
-        | WT.DAssertion _ -> Ply(enum (tn Refs.item) "Verbatim" [])
+        | WT.DAssertion _ -> Ply verbatim
       let last = min range.end_.row (ctx.lines.Length - 1)
       return
         record
           (tn Refs.declaration)
           [ "item", item
+            "meaning", DString meaning
             "row", DInt64(int64 first)
             "endRow", DInt64(int64 range.end_.row)
             "column", DInt64(int64 range.start.column)
