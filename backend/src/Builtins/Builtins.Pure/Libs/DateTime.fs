@@ -17,6 +17,75 @@ let private isoMilliseconds =
   NodaTime.Text.LocalDateTimePattern.CreateWithInvariantCulture
     "uuuu'-'MM'-'dd'T'HH':'mm':'ss'.'fff'Z'"
 
+/// The number in the `count` ASCII digits of `s` from `at`, or -1.
+let private digitsAt (s : string) (at : int) (count : int) : int =
+  let rec go (i : int) (acc : int) =
+    if i = at + count then acc
+    elif s[i] >= '0' && s[i] <= '9' then go (i + 1) (acc * 10 + int s[i] - int '0')
+    else -1
+  if at + count > s.Length then -1 else go at 0
+
+/// The instant `s` names: `YYYY-MM-DD` as midnight UTC, or `YYYY-MM-DDThh:mm:ss`, optionally
+/// with `.fff`, then `Z` or an offset `+hh:mm` / `-hh:mm`.
+let private parseIso (s : string) : Option<Instant> =
+  let at (i : int) (c : char) = i < s.Length && s[i] = c
+  let n = digitsAt s
+  let year, month, day = n 0 4, n 5 2, n 8 2
+  let validDate =
+    at 4 '-'
+    && at 7 '-'
+    && year >= 1
+    && month >= 1
+    && month <= 12
+    && day >= 1
+    && day <= System.DateTime.DaysInMonth(year, month)
+  let instant
+    (hour : int)
+    (minute : int)
+    (second : int)
+    (ms : int)
+    (offsetMinutes : int)
+    =
+    NodaTime
+      .LocalDateTime(year, month, day, hour, minute, second, ms)
+      .InUtc()
+      .ToInstant()
+      .Minus(NodaTime.Duration.FromMinutes(int64 offsetMinutes))
+  if not validDate then
+    None
+  elif s.Length = 10 then
+    Some(instant 0 0 0 0 0)
+  else
+    let hour, minute, second = n 11 2, n 14 2, n 17 2
+    let validTime =
+      at 10 'T'
+      && at 13 ':'
+      && at 16 ':'
+      && hour >= 0
+      && hour <= 23
+      && minute >= 0
+      && minute <= 59
+      && second >= 0
+      && second <= 59
+    let ms, zone = if at 19 '.' then n 20 3, 23 else 0, 19
+    let offsetMinutes =
+      if at zone 'Z' && s.Length = zone + 1 then
+        Some 0
+      elif
+        (at zone '+' || at zone '-') && at (zone + 3) ':' && s.Length = zone + 6
+      then
+        let hours, minutes = n (zone + 1) 2, n (zone + 4) 2
+        if hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59 then
+          Some((if s[zone] = '-' then -1 else 1) * (hours * 60 + minutes))
+        else
+          None
+      else
+        None
+    match offsetMinutes with
+    | Some offset when validTime && ms >= 0 ->
+      Some(instant hour minute second ms offset)
+    | _ -> None
+
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "dateTimeFromUnixTicks" 0
@@ -51,6 +120,27 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = set [ LibExecution.Effects.Effect.Raise ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "dateTimeParse" 0
+      typeParams = []
+      parameters = [ Param.make "s" TString "" ]
+      returnType = TypeReference.option TDateTime
+      description =
+        "The date and time in <param s>: {{YYYY-MM-DD}}, or {{YYYY-MM-DDThh:mm:ss}} with an "
+        + "optional {{.fff}} and then {{Z}} or an offset such as {{+02:00}}"
+      fn =
+        (function
+        | _, _, _, [| DString s |] ->
+          match parseIso s with
+          | Some instant ->
+            Dval.optionSome KTDateTime (DDateTime(DarkDateTime.fromInstant instant))
+            |> Ply
+          | None -> Dval.optionNone KTDateTime |> Ply
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
       deprecated = NotDeprecated }
 
 

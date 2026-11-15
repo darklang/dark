@@ -229,99 +229,13 @@ let __roundedDifference(endDate: DateTime, startDate: DateTime, ticksPerUnit: In
     whole
 
 
-let __digit(c: Char): Option<Int64> =
-  match c with
-  | '0' -> Option.Some(0)
-  | '1' -> Option.Some(1)
-  | '2' -> Option.Some(2)
-  | '3' -> Option.Some(3)
-  | '4' -> Option.Some(4)
-  | '5' -> Option.Some(5)
-  | '6' -> Option.Some(6)
-  | '7' -> Option.Some(7)
-  | '8' -> Option.Some(8)
-  | '9' -> Option.Some(9)
-  | _ -> Option.None
-
-
-let __number(digits: List<Char>): Option<Int64> =
-  List.fold(digits, Option.Some(0), fun(acc, c) ->
-    match acc, __digit(c) with
-    | Some(n), Some(d) -> Option.Some(n * 10 + d)
-    | _ -> Option.None)
-
-
-let __isLeapYear(year: Int64): Bool =
-  __mod(year, 4) == 0 && __mod(year, 100) != 0 || __mod(year, 400) == 0
-
-
-let __daysInMonth(year: Int64, month: Month): Int64 =
-  match month with
-  | February -> if __isLeapYear(year) then 29 else 28
-  | April -> 30
-  | June -> 30
-  | September -> 30
-  | November -> 30
-  | _ -> 31
-
-
-let __fromParts(
-  year: List<Char>,
-  month: List<Char>,
-  day: List<Char>,
-  hour: List<Char>,
-  minute: List<Char>,
-  second: List<Char>,
-  millisecond: List<Char>)
-  : Result<DateTime, String> =
-  match __number(year), __number(month), __number(day), __number(hour), __number(minute), __number(
-          second), __number(millisecond) with
-  | Some(y), Some(mo), Some(d), Some(h), Some(mi), Some(s), Some(ms) ->
-    let valid =
-      match UInt8.fromInt64(mo) |> Option.andThen(Month.fromNumber) with
-      | Some(month) ->
-        y >= 1 && d >= 1 && d <= __daysInMonth(y, month) && h <= 23 && mi <= 59 && s <= 59
-      | None -> false
-
-    if valid then
-      let ticks =
-        __daysFromCivil(y, mo, d) * __ticksPerDay()
-        + h * __ticksPerHour()
-        + mi * __ticksPerMinute()
-        + s * __ticksPerSecond()
-        + ms * __ticksPerMillisecond()
-
-      Result.Ok(__fromTicks(ticks))
-    else
-      Result.Error("Invalid date format")
-  | _ -> Result.Error("Invalid date format")
-
-
-/// Parses a UTC date and time in {{YYYY-MM-DDTHH:mm:ssZ}} or {{YYYY-MM-DDTHH:mm:ss.fffZ}} format,
-/// or a plain {{YYYY-MM-DD}} date as midnight UTC, returning {{Result<DateTime, String>}}.
+/// Parses an ISO 8601 date and time: {{YYYY-MM-DDTHH:mm:ssZ}} or {{YYYY-MM-DDTHH:mm:ss.fffZ}},
+/// where {{Z}} can also be an offset from UTC such as {{+02:00}} or {{-05:30}}, or a plain
+/// {{YYYY-MM-DD}} date as midnight UTC. The result is in UTC.
 let parse(s: String): Result<DateTime, String> =
-  match String.toList(s) with
-  | [y1, y2, y3, y4, '-', mo1, mo2, '-', d1, d2] ->
-    __fromParts([ y1, y2, y3, y4 ], [ mo1, mo2 ], [ d1, d2 ], [], [], [], [])
-  | [y1, y2, y3, y4, '-', mo1, mo2, '-', d1, d2, 'T', h1, h2, ':', mi1, mi2, ':', s1, s2, 'Z'] ->
-    __fromParts(
-      [ y1, y2, y3, y4 ],
-      [ mo1, mo2 ],
-      [ d1, d2 ],
-      [ h1, h2 ],
-      [ mi1, mi2 ],
-      [ s1, s2 ],
-      [])
-  | [y1, y2, y3, y4, '-', mo1, mo2, '-', d1, d2, 'T', h1, h2, ':', mi1, mi2, ':', s1, s2, '.', f1, f2, f3, 'Z'] ->
-    __fromParts(
-      [ y1, y2, y3, y4 ],
-      [ mo1, mo2 ],
-      [ d1, d2 ],
-      [ h1, h2 ],
-      [ mi1, mi2 ],
-      [ s1, s2 ],
-      [ f1, f2, f3 ])
-  | _ -> Result.Error("Invalid date format")
+  match Builtin.dateTimeParse(s) with
+  | Some(date) -> Result.Ok(date)
+  | None -> Result.Error("Invalid date format")
 
 
 /// The date as {{YYYYMMDD}}. A year before 1 gets a leading {{-}}, as {{format}} writes it.
