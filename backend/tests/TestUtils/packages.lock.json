@@ -14,13 +14,13 @@
       },
       "NReco.Logging.File": {
         "type": "Direct",
-        "requested": "[1.1.7, )",
-        "resolved": "1.1.7",
-        "contentHash": "QHPFG0DZVLfXMwWErUo93xJjqqlN2zM42wBI0XRY7SydJ0IOIb21P5/1M9CSq+ND+Jal3OZUCwno7GBCprDGjw==",
+        "requested": "[1.4.0, )",
+        "resolved": "1.4.0",
+        "contentHash": "CwL4LVI2DFynoWCgtegbR1jvPVFnJ0LiQmiqGMPJlHWrL4ooMdB6E2JLjcciPEMydQMOhNdwhh6xSjzYPxoZpQ==",
         "dependencies": {
-          "Microsoft.Extensions.Logging": "2.0.0",
-          "Microsoft.Extensions.Logging.Configuration": "2.0.0",
-          "Microsoft.Extensions.Options.ConfigurationExtensions": "2.0.0"
+          "Microsoft.Extensions.Logging": "10.0.10",
+          "Microsoft.Extensions.Logging.Configuration": "10.0.10",
+          "Microsoft.Extensions.Options.ConfigurationExtensions": "10.0.10"
         }
       },
       "builtins.cli": {
