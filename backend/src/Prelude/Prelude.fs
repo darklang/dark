@@ -422,7 +422,9 @@ type NodaTime.Instant with
         str,
         formats,
         System.Globalization.CultureInfo.InvariantCulture,
-        System.Globalization.DateTimeStyles.None
+        // without these, .NET reads the `Z` and converts to the machine's local time
+        System.Globalization.DateTimeStyles.AdjustToUniversal
+        ||| System.Globalization.DateTimeStyles.AssumeUniversal
       )
 
     let utcDateTime = System.DateTime(dt.Ticks, System.DateTimeKind.Utc)
