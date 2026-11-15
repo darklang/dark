@@ -80,6 +80,7 @@
     <Compile Include="TestResultCache.Tests.fs" />
     <Compile Include="OpsProjections.Tests.fs" />
     <Compile Include="ReferenceNames.Tests.fs" />
+    <Compile Include="OpSync.Tests.fs" />
     <Compile Include="Lww.Tests.fs" />
     <Compile Include="Stream.Tests.fs" />
     <Compile Include="Permissions.Tests.fs" />
