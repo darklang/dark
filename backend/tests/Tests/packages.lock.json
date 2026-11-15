@@ -4,12 +4,12 @@
     "net11.0": {
       "Expecto": {
         "type": "Direct",
-        "requested": "[10.1.0, )",
-        "resolved": "10.1.0",
-        "contentHash": "GIyeEfhAYjvun8d760RdfHGzoY3JKmS7L3lffPRUR9AFF08AWFGaE8lEy1iEg4E71XfLSsJHk/LEC4rvaMrosQ==",
+        "requested": "[11.1.1, )",
+        "resolved": "11.1.1",
+        "contentHash": "Ux2YKGB0lpZDIQ1Y3FQzP+SihsuTiYazfs+3EMMtOGENieqXO+EQ3KYNDfDHOKX/A0c0d8dISi4Hu2s2QrSPNg==",
         "dependencies": {
           "FSharp.Core": "7.0.200",
-          "Mono.Cecil": "[0.11.4, 1.0.0)"
+          "Mono.Cecil": "[0.11.6, 1.0.0)"
         }
       },
       "FSharp.Core": {
@@ -198,7 +198,7 @@
           "Builtins.Pure": "[1.0.0, )",
           "Builtins.Random": "[1.0.0, )",
           "Builtins.Time": "[1.0.0, )",
-          "Expecto": "[10.1.0, )",
+          "Expecto": "[11.1.1, )",
           "LibDB": "[1.0.0, )",
           "LibExecution": "[1.0.0, )",
           "LibParser": "[1.0.0, )",
