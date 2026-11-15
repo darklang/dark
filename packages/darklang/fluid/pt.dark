@@ -34,7 +34,27 @@ val dictPairType = "Darklang.Fluid.PT.DictPair"
 
 val segmentType = "Darklang.LanguageTools.ProgramTypes.StringSegment"
 
+val patFieldType = "Darklang.Fluid.PT.PatField"
+
 let exprKind(case: String): Kind = Kind.ofCase(exprType, case)
+
+let patFieldKind(case: String): Kind = Kind.ofCase(patFieldType, case)
+
+let patFieldExpect(): Expect = Expect.ofKind(Kind.named(patFieldType), "field")
+
+
+let signedWhole(sign: LanguageTools.Sign, whole: String): String =
+  match sign with
+  | Negative -> "-" + whole
+  | Positive -> whole
+
+
+let unsignedWhole(whole: String): (LanguageTools.Sign * String) =
+  if Stdlib.String.startsWith(whole, "-") then
+    (LanguageTools.Sign.Negative, Stdlib.String.dropFirst(whole, 1))
+  else
+    (LanguageTools.Sign.Positive, whole)
+
 
 let letPatKind(case: String): Kind = Kind.ofCase(letPatType, case)
 
@@ -213,9 +233,17 @@ let nameOf(
   : String =
   match nr.resolved with
   | Ok(r) ->
+    // A trait method's location is the TRAIT's; the method is a field of it.
+    let method_ =
+      match r.name with
+      | TraitMethod(tm) -> [ tm.method_ ]
+      | _ -> []
+
     match r.location with
     | Some(loc) ->
-      Stdlib.String.join(Stdlib.List.flatten([ [ loc.owner ], loc.modules, [ loc.name ] ]), ".")
+      Stdlib.String.join(
+        Stdlib.List.flatten([ [ loc.owner ], loc.modules, [ loc.name ], method_ ]),
+        ".")
     | None -> Stdlib.String.join(nr.originalName, ".")
   | Error(_) -> Stdlib.String.join(nr.originalName, ".")
 
@@ -228,7 +256,8 @@ let hashOf(
     match r.name with
     | Package(h) -> LanguageTools.ProgramTypes.hashToString(h)
     | Builtin(b) -> "builtin:" + b.name + "_v" + Stdlib.display(b.version)
-    | TraitMethod(_) -> ""
+    | TraitMethod(tm) ->
+      "trait:" + LanguageTools.ProgramTypes.hashToString(tm.trait_) + ":" + tm.method_
   | Error(_) -> ""
 
 
@@ -404,6 +433,31 @@ let fnNameResolution(
   String> =
   if hash == "" then
     Result.Error("unresolved function name: " + name)
+  else if Stdlib.String.startsWith(hash, "trait:") then
+    // `trait:<trait hash>:<method>`. The implementation is not kept: a save prints and parses again,
+    // and the parse picks it.
+    match Stdlib.String.split(hash, ":") with
+    | [_, traitHash, method_] ->
+      let traitName =
+        Stdlib.String.split(name, ".")
+        |> Stdlib.List.dropLast
+        |> Stdlib.String.join(".")
+
+      Result.Ok(
+        LanguageTools.ProgramTypes.NameResolution
+          { originalName = Stdlib.String.split(name, ".")
+            resolved =
+              Result.Ok(
+                LanguageTools.ProgramTypes.ResolvedName
+                  { name =
+                      LanguageTools.ProgramTypes.FQFnName.FQFnName.TraitMethod(
+                        LanguageTools.ProgramTypes.FQFnName.TraitMethod
+                          { trait_ = LanguageTools.ProgramTypes.Hash.Hash(traitHash)
+                            method_ = method_
+                            implFn = LanguageTools.ProgramTypes.FQFnName.ImplChoice.Unknown })
+                    location =
+                      Option.Some(LanguageTools.ProgramTypes.parsePackageLocation(traitName)) }) })
+    | _ -> Result.Error("trait method without a method: " + name)
   else if Stdlib.String.startsWith(hash, "builtin:") then
     // A builtin resolves to itself, with no package location -- which is what the printer expects when it
     // writes `Builtin.listLength`. This used to refuse, so every stdlib wrapper (`let length list =
@@ -452,7 +506,25 @@ let infixText(i: LanguageTools.ProgramTypes.Infix): String =
 /// Written beside `infixOfText` so the two cannot drift: one says which texts are operators and the other
 /// says which are on their way to being one, and they are the same list.
 let infixTexts(): List<String> =
-  [ "+", "-", "*", "/", "%", "**", ">", ">=", "<", "<=", "==", "!=", "&&", "||" ]
+  [ "+"
+    "-"
+    "*"
+    "/"
+    "%"
+    "**"
+    ">"
+    ">="
+    "<"
+    "<="
+    "=="
+    "!="
+    "&&"
+    "||"
+    "&"
+    "|"
+    "^"
+    "<<"
+    ">>" ]
 
 
 let infixOfText(s: String): Option<LanguageTools.ProgramTypes.Infix> =
@@ -472,6 +544,11 @@ let infixOfText(s: String): Option<LanguageTools.ProgramTypes.Infix> =
   | "<=" -> fn(LanguageTools.ProgramTypes.InfixFnName.ComparisonLessThanOrEqual)
   | "==" -> fn(LanguageTools.ProgramTypes.InfixFnName.ComparisonEquals)
   | "!=" -> fn(LanguageTools.ProgramTypes.InfixFnName.ComparisonNotEquals)
+  | "&" -> fn(LanguageTools.ProgramTypes.InfixFnName.BitwiseAnd)
+  | "|" -> fn(LanguageTools.ProgramTypes.InfixFnName.BitwiseOr)
+  | "^" -> fn(LanguageTools.ProgramTypes.InfixFnName.BitwiseXor)
+  | "<<" -> fn(LanguageTools.ProgramTypes.InfixFnName.ShiftLeft)
+  | ">>" -> fn(LanguageTools.ProgramTypes.InfixFnName.ShiftRight)
   | "&&" ->
     Option.Some(
       LanguageTools.ProgramTypes.Infix.BinOp(LanguageTools.ProgramTypes.BinaryOperation.BinOpAnd))
@@ -503,8 +580,20 @@ let matchPatSupported(p: MatchPattern): Bool =
   | MPVariable(_, _) -> true
   | MPUnit(_) -> true
   | MPBool(_, _) -> true
+  | MPInt8(_, _) -> true
+  | MPUInt8(_, _) -> true
+  | MPInt16(_, _) -> true
+  | MPUInt16(_, _) -> true
+  | MPInt32(_, _) -> true
+  | MPUInt32(_, _) -> true
   | MPInt64(_, _) -> true
+  | MPUInt64(_, _) -> true
+  | MPInt128(_, _) -> true
+  | MPUInt128(_, _) -> true
+  | MPBigInt(_, _) -> true
   | MPFloat64(_, _, _, _) -> true
+  | MPFloat32(_, _, _, _) -> true
+  | MPDecimal(_, _) -> true
   | MPChar(_, _) -> true
   | MPString(_, _) -> true
   | MPList(_, items) -> items |> Stdlib.List.all(fun x -> matchPatSupported(x))
@@ -513,7 +602,8 @@ let matchPatSupported(p: MatchPattern): Bool =
     Stdlib.List.flatten([ [ a, b ], rest ]) |> Stdlib.List.all(fun x -> matchPatSupported(x))
   | MPEnum(_, _, fields) -> fields |> Stdlib.List.all(fun x -> matchPatSupported(x))
   | MPOr(_, alts) -> alts |> Stdlib.List.all(fun x -> matchPatSupported(x))
-  | _ -> false
+  | MPAs(_, inner, _) -> matchPatSupported(inner)
+  | MPRecord(_, fields) -> fields |> Stdlib.List.all(fun((_, p)) -> matchPatSupported(p))
 
 
 let matchPatToDoc(p: MatchPattern): Node =
@@ -524,13 +614,25 @@ let matchPatToDoc(p: MatchPattern): Node =
   | MPBool(_, b) ->
     Node.make(matchPatKind("MPBool"), [ text("value", if b then "true" else "false") ])
   | MPInt64(_, i) -> Node.make(matchPatKind("MPInt64"), [ text("digits", Stdlib.display(i)) ])
+  | MPInt8(_, i) -> Node.make(matchPatKind("MPInt8"), [ text("digits", Stdlib.display(i)) ])
+  | MPUInt8(_, i) -> Node.make(matchPatKind("MPUInt8"), [ text("digits", Stdlib.display(i)) ])
+  | MPInt16(_, i) -> Node.make(matchPatKind("MPInt16"), [ text("digits", Stdlib.display(i)) ])
+  | MPUInt16(_, i) -> Node.make(matchPatKind("MPUInt16"), [ text("digits", Stdlib.display(i)) ])
+  | MPInt32(_, i) -> Node.make(matchPatKind("MPInt32"), [ text("digits", Stdlib.display(i)) ])
+  | MPUInt32(_, i) -> Node.make(matchPatKind("MPUInt32"), [ text("digits", Stdlib.display(i)) ])
+  | MPUInt64(_, i) -> Node.make(matchPatKind("MPUInt64"), [ text("digits", Stdlib.display(i)) ])
+  | MPInt128(_, i) -> Node.make(matchPatKind("MPInt128"), [ text("digits", Stdlib.display(i)) ])
+  | MPUInt128(_, i) -> Node.make(matchPatKind("MPUInt128"), [ text("digits", Stdlib.display(i)) ])
+  | MPBigInt(_, i) -> Node.make(matchPatKind("MPBigInt"), [ text("digits", Stdlib.display(i)) ])
   | MPFloat64(_, sign, whole, fraction) ->
-    let signed =
-      match sign with
-      | Negative -> "-" + whole
-      | Positive -> whole
-
-    Node.make(matchPatKind("MPFloat64"), [ text("whole", signed), text("fraction", fraction) ])
+    Node.make(
+      matchPatKind("MPFloat64"),
+      [ text("whole", signedWhole(sign, whole)), text("fraction", fraction) ])
+  | MPFloat32(_, sign, whole, fraction) ->
+    Node.make(
+      matchPatKind("MPFloat32"),
+      [ text("whole", signedWhole(sign, whole)), text("fraction", fraction) ])
+  | MPDecimal(_, d) -> Node.make(matchPatKind("MPDecimal"), [ text("digits", Stdlib.display(d)) ])
   | MPChar(_, c) ->
     Node.make(matchPatKind("MPChar"), [ text("char", PrettyPrinter.escapeCharLiteral(c)) ])
   | MPString(_, str) ->
@@ -539,10 +641,7 @@ let matchPatToDoc(p: MatchPattern): Node =
       [ text("body", PrettyPrinter.escapeSpecialCharacters(str)) ])
   | MPList(_, items) ->
     Node.make(matchPatKind("MPList"), [ many("items", pats(items), matchPatExpect("pattern")) ])
-  | MPListCons(_, h, t) ->
-    Node.make(
-      matchPatKind("MPListCons"),
-      [ one("head", matchPatToDoc(h)), one("tail", matchPatToDoc(t)) ])
+  | MPListCons(_, h, t) -> consToDoc("MPListCons", h, t)
   | MPTuple(_, a, b, rest) ->
     Node.make(
       matchPatKind("MPTuple"),
@@ -555,7 +654,32 @@ let matchPatToDoc(p: MatchPattern): Node =
         many("fields", pats(fields), matchPatExpect("field")) ])
   | MPOr(_, alts) ->
     Node.make(matchPatKind("MPOr"), [ many("alts", pats(alts), matchPatExpect("pattern")) ])
-  | _ -> Node.make(matchPatKind("MPUnit"), [])
+  | MPAs(_, inner, name) ->
+    Node.make(matchPatKind("MPAs"), [ one("pattern", matchPatToDoc(inner)), text("name", name) ])
+  | MPRecord(_, fields) ->
+    Node.make(
+      matchPatKind("MPRecord"),
+      [ many("fields", fields |> Stdlib.List.map(fun f -> patFieldToDoc(f)), patFieldExpect()) ])
+
+
+/// `[a, b, ...rest]` is one chain of cons cells. The cells after the first are `MPListConsRest`, which
+/// draws without brackets, so the chain draws as the one list the printer writes.
+let consToDoc(kind: String, h: MatchPattern, t: MatchPattern): Node =
+  let tail =
+    match t with
+    | MPListCons(_, h2, t2) -> consToDoc("MPListConsRest", h2, t2)
+    | _ -> matchPatToDoc(t)
+
+  Node.make(matchPatKind(kind), [ one("head", matchPatToDoc(h)), one("tail", tail) ])
+
+
+/// `{ name }` is its own kind, so it draws the way it is written rather than as `name = name`.
+let patFieldToDoc(f: (String * MatchPattern)): Node =
+  match f with
+  | name, MPVariable(_, bound) when bound == name ->
+    Node.make(patFieldKind("PatFieldShort"), [ text("name", name) ])
+  | name, pat ->
+    Node.make(patFieldKind("PatField"), [ text("name", name), one("pat", matchPatToDoc(pat)) ])
 
 
 let caseToDoc(c: MatchCase): Node =
@@ -600,7 +724,24 @@ let segmentToDoc(seg: StringSegment): Node =
                 Stdlib.String.replaceAll(e, "{", "{{")
                 |> (fun e -> Stdlib.String.replaceAll(e, "}", "}}")))) ])
   | StringInterpolation(e) ->
-    Node.make(segmentKind("StringInterpolation"), [ one("expr", toDoc(e)) ])
+    Node.make(segmentKind("StringInterpolation"), [ one("expr", toDoc(unwrapDisplay(e))) ])
+
+
+/// The parser wraps each interpolated expression in a `Stdlib.Display.display` call and the printer
+/// leaves it out, so the document holds what was written and `wrapDisplay` puts the call back.
+let unwrapDisplay(e: Expr): Expr =
+  match e with
+  | EApply(_, EFnName(_, name, _, _), [], [inner])
+    when name.originalName == [ "Darklang", "Stdlib", "Display", "display" ] ->
+    inner
+  | _ -> e
+
+
+let wrapDisplay(e: Expr): Result<Expr, String> =
+  match LanguageTools.Parser.Parse.parsePTExpr("$\"{()}\"") with
+  | Ok(EString(_, [StringInterpolation(EApply(_, displayFn, [], _))])) ->
+    Result.Ok(Expr.EApply(gid(), displayFn, [], [ e ]))
+  | _ -> Result.Error("cannot resolve Stdlib.Display.display")
 
 
 let pipeToDoc(p: PipeExpr): Node =
@@ -758,6 +899,12 @@ let toDoc(e: Expr): Node =
       | Positive -> whole
 
     Node.make(exprKind("EFloat64"), [ text("whole", signed), text("fraction", fraction) ])
+  | EFloat32(_, sign, whole, fraction) ->
+    Node.make(
+      exprKind("EFloat32"),
+      [ text("whole", signedWhole(sign, whole)), text("fraction", fraction) ])
+  | EDecimal(_, d) -> Node.make(exprKind("EDecimal"), [ text("digits", Stdlib.display(d)) ])
+  | EUnwrap(_, inner) -> Node.make(exprKind("EUnwrap"), [ one("inner", toDoc(inner)) ])
   | EChar(_, c) ->
     Node.make(exprKind("EChar"), [ text("char", PrettyPrinter.escapeCharLiteral(c)) ])
   | EString(_, segments) ->
@@ -976,6 +1123,7 @@ let matchPatFromDoc(n: Node): Result<MatchPattern, String> =
   let items(name: String): Result<List<MatchPattern>, String> =
     slotResults(Node.items(n, name), fun c -> matchPatFromDoc(c))
 
+  let digits = textOf(n, "digits")
   match n.kind.case with
   | Some("MPVariable") -> ok(MatchPattern.MPVariable(gid(), textOf(n, "name")))
   | Some("MPUnit") -> ok(MatchPattern.MPUnit(gid()))
@@ -997,10 +1145,81 @@ let matchPatFromDoc(n: Node): Result<MatchPattern, String> =
         (LanguageTools.Sign.Positive, whole)
 
     ok(MatchPattern.MPFloat64(gid(), sign, digits, textOf(n, "fraction")))
+  | Some("MPFloat32") ->
+    let (sign, digits) = unsignedWhole(textOf(n, "whole"))
+    ok(MatchPattern.MPFloat32(gid(), sign, digits, textOf(n, "fraction")))
+  | Some("MPInt8") ->
+    match Stdlib.Int8.parse(digits) with
+    | Ok(i) -> ok(MatchPattern.MPInt8(gid(), i))
+    | Error(_) -> Result.Error("not an Int8: " + digits)
+  | Some("MPUInt8") ->
+    match Stdlib.UInt8.parse(digits) with
+    | Ok(i) -> ok(MatchPattern.MPUInt8(gid(), i))
+    | Error(_) -> Result.Error("not an UInt8: " + digits)
+  | Some("MPInt16") ->
+    match Stdlib.Int16.parse(digits) with
+    | Ok(i) -> ok(MatchPattern.MPInt16(gid(), i))
+    | Error(_) -> Result.Error("not an Int16: " + digits)
+  | Some("MPUInt16") ->
+    match Stdlib.UInt16.parse(digits) with
+    | Ok(i) -> ok(MatchPattern.MPUInt16(gid(), i))
+    | Error(_) -> Result.Error("not an UInt16: " + digits)
+  | Some("MPInt32") ->
+    match Stdlib.Int32.parse(digits) with
+    | Ok(i) -> ok(MatchPattern.MPInt32(gid(), i))
+    | Error(_) -> Result.Error("not an Int32: " + digits)
+  | Some("MPUInt32") ->
+    match Stdlib.UInt32.parse(digits) with
+    | Ok(i) -> ok(MatchPattern.MPUInt32(gid(), i))
+    | Error(_) -> Result.Error("not an UInt32: " + digits)
+  | Some("MPUInt64") ->
+    match Stdlib.UInt64.parse(digits) with
+    | Ok(i) -> ok(MatchPattern.MPUInt64(gid(), i))
+    | Error(_) -> Result.Error("not an UInt64: " + digits)
+  | Some("MPInt128") ->
+    match Stdlib.Int128.parse(digits) with
+    | Ok(i) -> ok(MatchPattern.MPInt128(gid(), i))
+    | Error(_) -> Result.Error("not an Int128: " + digits)
+  | Some("MPUInt128") ->
+    match Stdlib.UInt128.parse(digits) with
+    | Ok(i) -> ok(MatchPattern.MPUInt128(gid(), i))
+    | Error(_) -> Result.Error("not an UInt128: " + digits)
+  | Some("MPBigInt") ->
+    match Stdlib.BigInt.parse(digits) with
+    | Ok(i) -> ok(MatchPattern.MPBigInt(gid(), i))
+    | Error(_) -> Result.Error("not a BigInt: " + digits)
+  | Some("MPDecimal") ->
+    match Stdlib.Decimal.parse(digits) with
+    | Ok(d) -> ok(MatchPattern.MPDecimal(gid(), d))
+    | Error(_) -> Result.Error("not a Decimal: " + digits)
+  | Some("MPAs") ->
+    match Node.slot(n, "pattern") with
+    | Some(Filled(p)) ->
+      matchPatFromDoc(p)
+      |> Stdlib.Result.map(fun inner -> MatchPattern.MPAs(gid(), inner, textOf(n, "name")))
+    | _ -> Result.Error("hole: as pattern")
+  | Some("MPRecord") ->
+    slotResults(Node.items(n, "fields"), fun c -> patFieldFromDoc(c))
+    |> Stdlib.Result.map(fun fs -> MatchPattern.MPRecord(gid(), fs))
   | Some("MPChar") -> ok(MatchPattern.MPChar(gid(), TextEdit.unescape(textOf(n, "char"))))
   | Some("MPString") -> ok(MatchPattern.MPString(gid(), TextEdit.unescape(textOf(n, "body"))))
-  | Some("MPList") -> items("items") |> Stdlib.Result.map(fun ps -> MatchPattern.MPList(gid(), ps))
-  | Some("MPListCons") ->
+  | Some("MPList") ->
+    // A list whose last item is `...rest` is a cons chain ending in `rest`.
+    match Stdlib.List.last(Node.items(n, "items")) with
+    | Some(Filled(last)) when last.kind.case == Option.Some("MPSpread") ->
+      let rest =
+        match textOf(last, "name") with
+        | "" -> "_"
+        | name -> name
+
+      slotResults(Stdlib.List.dropLast(Node.items(n, "items")), fun c -> matchPatFromDoc(c))
+      |> Stdlib.Result.map(fun heads ->
+        Stdlib.List.fold(
+          Stdlib.List.reverse(heads),
+          MatchPattern.MPVariable(gid(), rest),
+          fun(acc, h) -> MatchPattern.MPListCons(gid(), h, acc)))
+    | _ -> items("items") |> Stdlib.Result.map(fun ps -> MatchPattern.MPList(gid(), ps))
+  | Some("MPListCons") | Some("MPListConsRest") ->
     match Node.slot(n, "head"), Node.slot(n, "tail") with
     | Some(Filled(h)), Some(Filled(t)) ->
       match matchPatFromDoc(h), matchPatFromDoc(t) with
@@ -1018,6 +1237,16 @@ let matchPatFromDoc(n: Node): Result<MatchPattern, String> =
     |> Stdlib.Result.map(fun ps -> MatchPattern.MPEnum(gid(), textOf(n, "case"), ps))
   | Some("MPOr") -> items("alts") |> Stdlib.Result.map(fun ps -> MatchPattern.MPOr(gid(), ps))
   | _ -> Result.Error("not a match pattern: " + Kind.toString(n.kind))
+
+
+let patFieldFromDoc(n: Node): Result<(String * MatchPattern), String> =
+  let name = textOf(n, "name")
+  match n.kind.case with
+  | Some("PatFieldShort") -> Result.Ok((name, MatchPattern.MPVariable(gid(), name)))
+  | _ ->
+    match Node.slot(n, "pat") with
+    | Some(Filled(p)) -> matchPatFromDoc(p) |> Stdlib.Result.map(fun pat -> (name, pat))
+    | _ -> Result.Error("hole: field pattern")
 
 
 let caseFromDoc(n: Node): Result<MatchCase, String> =
@@ -1065,7 +1294,9 @@ let segmentFromDoc(n: Node): Result<StringSegment, String> =
               |> (fun t ->
                     Stdlib.String.replaceAll(t, "}}", "}") |> (fun t -> TextEdit.unescape(t))))))
   | Some("StringInterpolation") ->
-    slotExpr(n, "expr") |> Stdlib.Result.map(fun e -> StringSegment.StringInterpolation(e))
+    slotExpr(n, "expr")
+    |> Stdlib.Result.andThen(fun e -> wrapDisplay(e))
+    |> Stdlib.Result.map(fun e -> StringSegment.StringInterpolation(e))
   | _ -> Result.Error("not a string segment")
 
 
@@ -1167,6 +1398,14 @@ let fromDoc(n: Node): Result<Expr, String> =
         (LanguageTools.Sign.Positive, whole)
 
     ok(Expr.EFloat64(gid(), sign, digits, textOf(n, "fraction")))
+  | Some("EFloat32") ->
+    let (sign, digits) = unsignedWhole(textOf(n, "whole"))
+    ok(Expr.EFloat32(gid(), sign, digits, textOf(n, "fraction")))
+  | Some("EDecimal") ->
+    match Stdlib.Decimal.parse(textOf(n, "digits")) with
+    | Ok(d) -> ok(Expr.EDecimal(gid(), d))
+    | Error(_) -> Result.Error("not a Decimal: " + textOf(n, "digits"))
+  | Some("EUnwrap") -> slotExpr(n, "inner") |> Stdlib.Result.map(fun e -> Expr.EUnwrap(gid(), e))
   | Some("EChar") -> ok(Expr.EChar(gid(), TextEdit.unescape(textOf(n, "char"))))
   | Some("EString") ->
     ok(
@@ -2174,6 +2413,14 @@ let completeMatchPat(_e: Expect, typed: String): List<Candidate> =
 let resolveMatchPatPartial(typed: String): Option<Node> =
   if isIdentifier(typed) then
     Option.Some(Node.make(matchPatKind("MPVariable"), [ text("name", typed) ]))
+  // `...rest` (or a bare `...`) as the last item of a list pattern: the rest of the list.
+  else if typed == "..." then
+    Option.Some(Node.make(matchPatKind("MPSpread"), [ text("name", "") ]))
+  else if
+    Stdlib.String.startsWith(typed, "...") && isIdentifier(Stdlib.String.dropFirst(typed, 3))
+  then
+    Option.Some(
+      Node.make(matchPatKind("MPSpread"), [ text("name", Stdlib.String.dropFirst(typed, 3)) ]))
   else
     Option.None
 
@@ -2477,7 +2724,13 @@ let matchPatNames(n: Node): List<String> =
   | Some("MPTuple") -> itemNames("items")
   | Some("MPEnum") -> itemNames("fields")
   | Some("MPListCons") -> Stdlib.List.concat(slotNames("head"), slotNames("tail"))
+  | Some("MPListConsRest") -> Stdlib.List.concat(slotNames("head"), slotNames("tail"))
+  | Some("MPSpread") -> if textOf(n, "name") == "" then [] else [ textOf(n, "name") ]
   | Some("MPOr") -> itemNames("alts")
+  | Some("MPAs") -> Stdlib.List.prepend(slotNames("pattern"), textOf(n, "name"))
+  | Some("MPRecord") -> itemNames("fields")
+  | Some("PatFieldShort") -> [ textOf(n, "name") ]
+  | Some("PatField") -> slotNames("pat")
   | _ -> []
 
 
@@ -3211,6 +3464,46 @@ let bracketedPieces(openP: String, slot: String, closeP: String): List<Piece> =
         Piece.Punct(closeP) ]) ]
 
 
+/// `head, ...tail`, where a tail that is more of the chain carries on without a `...`, and a `_` tail
+/// is the bare `...`.
+let consPieces(): List<Piece> =
+  [ Piece.Slot("head")
+    Piece.Punct(",")
+    Piece.Space
+    Piece.Choose(
+      "tail",
+      (fun n -> n.kind.case == Option.Some("MPListConsRest")),
+      [ Piece.Slot("tail") ],
+      [ Piece.Punct("...")
+        Piece.Choose(
+          "tail",
+          (fun n -> n.kind.case == Option.Some("MPVariable") && textOf(n, "name") == "_"),
+          [],
+          [ Piece.Slot("tail") ]) ]) ]
+
+
+/// A sized integer pattern: the digits, then the suffix the printer writes (`5u8`, `7z`).
+let suffixedIntPat(case: String, suffix: String): Spec =
+  Spec.withTextClasses(
+    simpleOf(
+      matchPatKind(case),
+      [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct(suffix) ],
+      Node.make(matchPatKind(case), [ text("digits", "") ])),
+    [ ("digits", TextClass.Word(("<numberStart>", "<digit>"))) ])
+
+
+/// An or-pattern or an `as` among commas or `|`s takes in what is around it, so it is bracketed there.
+let isOrOrAs(n: Node): Bool =
+  match n.kind.case with
+  | Some("MPOr") -> true
+  | Some("MPAs") -> true
+  | _ -> false
+
+
+let isAs(n: Node): Bool =
+  n.kind.case == Option.Some("MPAs")
+
+
 let moreSpecs(): List<Spec> =
   [ matchPatTypeSpec()
     pipeTypeSpec()
@@ -3258,6 +3551,76 @@ let moreSpecs(): List<Spec> =
       [ ("whole", TextClass.Word(("<numberStart>", "<digit>")))
         ("fraction", TextClass.Chars("<digit>")) ])
 
+    Spec.withTextClasses(
+      simpleOf(
+        matchPatKind("MPFloat32"),
+        [ Piece.Text("whole", Layout.Style.Literal)
+          Piece.Punct(".")
+          Piece.Text("fraction", Layout.Style.Literal)
+          Piece.Punct("f32") ],
+        Node.make(matchPatKind("MPFloat32"), [ text("whole", ""), text("fraction", "") ])),
+      [ ("whole", TextClass.Word(("<numberStart>", "<digit>")))
+        ("fraction", TextClass.Chars("<digit>")) ])
+
+    simpleOf(
+      matchPatKind("MPDecimal"),
+      [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct("dec") ],
+      Node.make(matchPatKind("MPDecimal"), [ text("digits", "") ]))
+
+    suffixedIntPat("MPInt8", "s8")
+    suffixedIntPat("MPUInt8", "u8")
+    suffixedIntPat("MPInt16", "s16")
+    suffixedIntPat("MPUInt16", "u16")
+    suffixedIntPat("MPInt32", "s32")
+    suffixedIntPat("MPUInt32", "u32")
+    suffixedIntPat("MPUInt64", "u64")
+    suffixedIntPat("MPInt128", "s128")
+    suffixedIntPat("MPUInt128", "u128")
+    suffixedIntPat("MPBigInt", "z")
+    Spec.withTextClasses(
+      simpleOf(
+        matchPatKind("MPAs"),
+        [ Piece.Slot("pattern")
+          Piece.Space
+          Piece.Keyword("as")
+          Piece.Space
+          Piece.Text("name", Layout.Style.Name) ],
+        Node.make(
+          matchPatKind("MPAs"),
+          [ ("pattern", Field.One(Slot.Empty(matchPatExpect("pattern")))), text("name", "") ])),
+      [ ("name", TextClass.Word(("<nameStart>", "<identifier>"))) ])
+
+    Spec.closesWith(
+      simpleOf(
+        matchPatKind("MPRecord"),
+        [ Piece.Group(
+            [ Piece.Punct("{")
+              Piece.Nest(2, [ Piece.Line, Piece.Each("fields", listSepPieces()) ])
+              Piece.Line
+              Piece.Punct("}") ]) ],
+        Node.make(matchPatKind("MPRecord"), [ ("fields", Field.Many([], patFieldExpect())) ])),
+      Closer { char = "}", slot = "fields", whenEmpty = Option.None, soloIsGroup = false })
+
+    Spec.withTextClasses(
+      simpleOf(
+        patFieldKind("PatField"),
+        [ Piece.FieldText("name", Layout.Style.Name)
+          Piece.Space
+          Piece.Punct("=")
+          Piece.Space
+          Piece.Slot("pat") ],
+        Node.make(
+          patFieldKind("PatField"),
+          [ text("name", ""), ("pat", Field.One(Slot.Empty(matchPatExpect("pattern")))) ])),
+      [ ("name", TextClass.Word(("<nameStart>", "<identifier>"))) ])
+
+    Spec.withTextClasses(
+      simpleOf(
+        patFieldKind("PatFieldShort"),
+        [ Piece.FieldText("name", Layout.Style.Name) ],
+        Node.make(patFieldKind("PatFieldShort"), [ text("name", "") ])),
+      [ ("name", TextClass.Word(("<nameStart>", "<identifier>"))) ])
+
     simpleOf(
       matchPatKind("MPChar"),
       [ Piece.Punct("'"), Piece.QuietText("char", Layout.Style.Literal), Piece.Punct("'") ],
@@ -3279,23 +3642,37 @@ let moreSpecs(): List<Spec> =
 
     simpleOf(
       matchPatKind("MPListCons"),
-      [ Piece.Punct("[")
-        Piece.Slot("head")
-        Piece.Punct(",")
-        Piece.Space
-        Piece.Punct("...")
-        Piece.Slot("tail")
-        Piece.Punct("]") ],
+      Stdlib.List.flatten([ [ Piece.Punct("[") ], consPieces(), [ Piece.Punct("]") ] ]),
       Node.make(
         matchPatKind("MPListCons"),
         [ ("head", Field.One(Slot.Empty(matchPatExpect("head"))))
           ("tail", Field.One(Slot.Empty(matchPatExpect("tail")))) ]))
     |> (fun sp -> Spec.collapsingWhenEmptied(sp, "tail", "head"))
 
+    simpleOf(
+      matchPatKind("MPSpread"),
+      [ Piece.Punct("..."), Piece.Text("name", Layout.Style.Name) ],
+      Node.make(matchPatKind("MPSpread"), [ text("name", "") ]))
+
+    simpleOf(
+      matchPatKind("MPListConsRest"),
+      consPieces(),
+      Node.make(
+        matchPatKind("MPListConsRest"),
+        [ ("head", Field.One(Slot.Empty(matchPatExpect("head"))))
+          ("tail", Field.One(Slot.Empty(matchPatExpect("tail")))) ]))
+
     Spec.closesWith(
       simpleOf(
         matchPatKind("MPTuple"),
-        bracketedPieces("(", "items", ")"),
+        [ Piece.Group(
+            [ Piece.Punct("(")
+              Piece.Nest(
+                2,
+                [ Piece.SoftLine, Piece.ParenIfEach("items", listSepPieces(), isOrOrAs) ])
+
+              Piece.SoftLine
+              Piece.Punct(")") ]) ],
         Node.make(
           matchPatKind("MPTuple"),
           [ (
@@ -3318,7 +3695,8 @@ let moreSpecs(): List<Spec> =
 
     simpleOf(
       matchPatKind("MPOr"),
-      [ Piece.Group([ Piece.Each("alts", [ Piece.Space, Piece.Punct("|"), Piece.Line ]) ]) ],
+      [ Piece.Group(
+          [ Piece.ParenIfEach("alts", [ Piece.Space, Piece.Punct("|"), Piece.Line ], isAs) ]) ],
       Node.make(
         matchPatKind("MPOr"),
         [ (
@@ -3429,7 +3807,10 @@ let moreSpecs(): List<Spec> =
               1,
               [ Piece.Keyword("fun")
                 Piece.Space
-                Piece.Each("params", [ Piece.Space ])
+                // a lone tuple parameter keeps its own brackets: `fun (a, b)` is two parameters
+                Piece.ParenIfEach("params", [ Piece.Space ], fun n ->
+                  n.kind.case == Option.Some("LPTuple"))
+
                 Piece.Space
                 Piece.Punct("->")
                 Piece.Nest(2, [ Piece.Line, Piece.Slot("body") ]) ])
@@ -3748,6 +4129,27 @@ let baseSpecs(): List<Spec> =
       [ ("whole", TextClass.Word(("<numberStart>", "<digit>")))
         ("fraction", TextClass.Chars("<digit>")) ])
 
+    Spec.withTextClasses(
+      simpleExpr(
+        "EFloat32",
+        [ Piece.Text("whole", Layout.Style.Literal)
+          Piece.Punct(".")
+          Piece.Text("fraction", Layout.Style.Literal)
+          Piece.Punct("f32") ],
+        Node.make(exprKind("EFloat32"), [ text("whole", ""), text("fraction", "") ])),
+      [ ("whole", TextClass.Word(("<numberStart>", "<digit>")))
+        ("fraction", TextClass.Chars("<digit>")) ])
+
+    simpleExpr(
+      "EDecimal",
+      [ Piece.Text("digits", Layout.Style.Literal), Piece.Punct("dec") ],
+      Node.make(exprKind("EDecimal"), [ text("digits", "") ]))
+
+    simpleExpr(
+      "EUnwrap",
+      [ Piece.FieldTargetSlot("inner"), Piece.Punct("?") ],
+      Node.make(exprKind("EUnwrap"), [ ("inner", Field.One(Slot.Empty(exprExpect("inner")))) ]))
+
     simpleExpr(
       "EChar",
       [ Piece.Punct("'"), Piece.QuietText("char", Layout.Style.Literal), Piece.Punct("'") ],
@@ -4064,7 +4466,7 @@ module Types =
       ("TString", "String")
       ("TDateTime", "DateTime")
       ("TUuid", "Uuid")
-      ("TBlob", "Blob") ]
+      ("TBytes", "Bytes") ]
 
 
   let primNode(case: String): Node =
@@ -4094,7 +4496,7 @@ module Types =
     | TString -> primNode("TString")
     | TDateTime -> primNode("TDateTime")
     | TUuid -> primNode("TUuid")
-    | TBytes -> primNode("TBlob")
+    | TBytes -> primNode("TBytes")
     | TList(inner) -> Node.make(typeKind("TList"), [ one("arg", toDoc(inner)) ])
     | TStream(inner) -> Node.make(typeKind("TStream"), [ one("arg", toDoc(inner)) ])
     | TDict(k, v) -> Node.make(typeKind("TDict"), [ one("key", toDoc(k)), one("value", toDoc(v)) ])
@@ -4160,7 +4562,7 @@ module Types =
     | Some("TString") -> ok(TypeReference.TString)
     | Some("TDateTime") -> ok(TypeReference.TDateTime)
     | Some("TUuid") -> ok(TypeReference.TUuid)
-    | Some("TBlob") -> ok(TypeReference.TBytes)
+    | Some("TBytes") -> ok(TypeReference.TBytes)
     | Some("TList") -> slotType(n, "arg") |> Stdlib.Result.map(fun t -> TypeReference.TList(t))
     | Some("TStream") -> slotType(n, "arg") |> Stdlib.Result.map(fun t -> TypeReference.TStream(t))
     | Some("TDict") ->
@@ -4256,7 +4658,12 @@ module Types =
       else
         typed
 
-    if isIdentifier(bare) && Stdlib.String.toLowercase(bare) == bare then
+    // `Int` and `Float` are the short names the parser takes for Int64 and Float64.
+    if typed == "Int" then
+      Option.Some(primNode("TInt64"))
+    else if typed == "Float" then
+      Option.Some(primNode("TFloat64"))
+    else if isIdentifier(bare) && Stdlib.String.toLowercase(bare) == bare then
       Option.Some(Node.make(typeKind("TVariable"), [ text("name", bare) ]))
     else
       Option.None

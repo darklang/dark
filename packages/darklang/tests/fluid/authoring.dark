@@ -686,11 +686,15 @@ module Precedence =
           Fixtures.program([ "1", "+", "2", "+", "3", "<Esc>" ]),
           "1 + 2 + 3")
 
-        // `^` is right-associative, so it stays right-nested.
-        // CLEANUP the move to call syntax changed this; it was "2 ^ 3 ^ 2"
+        // CLEANUP `**` is right-associative and the printer writes `2 ** 3 ** 2`; typing nests it left.
+        Stdlib.Test.equal(
+          Fixtures.program([ "2", "*", "*", "3", "*", "*", "2", "<Esc>" ]),
+          "(2 ** 3) ** 2")
+
+        // `^` is xor, and chains to the left like the other bitwise operators.
         Stdlib.Test.equal(
           Fixtures.program([ "2", "^", "3", "^", "2", "<Esc>" ]),
-          "ERR not an operator: ^")
+          "2 ^ 3 ^ 2")
 
         // A comparison is looser than arithmetic, so it takes the whole sum.
         Stdlib.Test.equal(
@@ -1096,16 +1100,12 @@ module OrOperator =
 module ConsPatterns =
   test consPatterns =
     Stdlib.Test.all(
-      // `::` makes a cons pattern: the first `:` wraps the head and draws `::`, the second `:` is swallowed,
-      // and the caret lands in the tail. `::` is right-associative, so `a :: b :: c` nests right and prints
-      // without parens.
-      [ // CLEANUP the move to call syntax changed this; it was "match n with\n| h :: t~ -> ⟨rhs⟩"
-        Stdlib.Test.equal(
-          Fixtures.screen(
-            [ "m", "a", "<Enter>", "n", "<Tab>", "h", ":", ":", "t" ]),
-          "match n with\n| [h, ...:t~] -> ⟨rhs⟩")
+      // `:` after a pattern makes it the head of `[head, ...tail]` and puts the caret in the tail.
+      // CLEANUP `[h, ...t]` is what the printer writes, and typing `...` does not build it yet.
+      [ Stdlib.Test.equal(
+          Fixtures.screen([ "m", "a", "<Enter>", "n", "<Tab>", "h", ":", "t" ]),
+          "match n with\n| [h, ...t~] -> ⟨rhs⟩")
 
-        // CLEANUP the move to call syntax changed this; it was "match n with\n| h :: t -> 0"
         Stdlib.Test.equal(
           Fixtures.program(
             [ "m"
@@ -1115,15 +1115,13 @@ module ConsPatterns =
               "<Tab>"
               "h"
               ":"
-              ":"
               "t"
               "<Tab>"
               "0"
               "<Esc>"
               "<Esc>" ]),
-          "ERR hole: list pattern")
+          "match n with\n| [h, ...t] -> 0")
 
-        // CLEANUP the move to call syntax changed this; it was "match n with\n| a :: b :: c -> 0"
         Stdlib.Test.equal(
           Fixtures.program(
             [ "m"
@@ -1133,16 +1131,14 @@ module ConsPatterns =
               "<Tab>"
               "a"
               ":"
-              ":"
               "b"
-              ":"
               ":"
               "c"
               "<Tab>"
               "0"
               "<Esc>"
               "<Esc>" ]),
-          "ERR hole: list pattern") ])
+          "match n with\n| [a, b, ...c] -> 0") ])
 
 
 module EmptyList =
@@ -1159,7 +1155,6 @@ module EmptyList =
           "[ 1, 2 ]")
 
         // Empty list as a cons tail: `1 :: []`.
-        // CLEANUP the move to call syntax changed this; it was "match n with\n| 1 :: [] -> 0"
         Stdlib.Test.equal(
           Fixtures.program(
             [ "m"
@@ -1169,14 +1164,13 @@ module EmptyList =
               "<Tab>"
               "1"
               ":"
-              ":"
               "["
               "]"
               "<Tab>"
               "0"
               "<Esc>"
               "<Esc>" ]),
-          "ERR hole: list pattern") ])
+          "match n with\n| [1] -> 0") ])
 
 
 module LeafBackspaceRevertsToHole =
@@ -1230,7 +1224,6 @@ module BinaryCollapse =
           Fixtures.screen([ "a", "|", ">", "b", "<BS>", "<BS>" ]),
           "a~")
 
-        // CLEANUP the move to call syntax changed this; it was "match n with\n| h~ -> ⟨rhs⟩"
         Stdlib.Test.equal(
           Fixtures.screen(
             [ "m"
@@ -1240,11 +1233,10 @@ module BinaryCollapse =
               "<Tab>"
               "h"
               ":"
-              ":"
               "t"
               "<BS>"
               "<BS>" ]),
-          "match n with\n| [h, ...~⟨tail⟩] -> ⟨rhs⟩")
+          "match n with\n| h~ -> ⟨rhs⟩")
 
         // A filled operand is edited, not collapsed.
         Stdlib.Test.equal(
@@ -1665,7 +1657,7 @@ module NumbersStayNumbers =
           Fixtures.program([ "1", "+", "2", "x", "<Esc>", "<Esc>" ]),
           "1 + 2")
 
-        Stdlib.Test.equal(Fixtures.screen([ "1", " ", ":", ":", "r" ]), "1~")
+        Stdlib.Test.equal(Fixtures.screen([ "1", " ", ":", "r" ]), "1~")
 
         // What a number legitimately holds still works: a fraction, a sign, and operators after it.
         Stdlib.Test.equal(
@@ -1747,7 +1739,7 @@ module LambdaParams =
           Fixtures.screen([ "f", "u", "n", " ", "a", " ", "b" ]),
           "(fun(a) -> b~)")
 
-        // CLEANUP the move to call syntax changed this; it was "(fun(a, b) -> a + b)"
+        // CLEANUP typing `fun(` does not open a parameter list yet.
         Stdlib.Test.equal(
           Fixtures.program(
             Stdlib.List.concat(
@@ -1755,7 +1747,7 @@ module LambdaParams =
               [ "<Esc>", "<Esc>" ])),
           "ERR hole: body")
 
-        // CLEANUP the move to call syntax changed this; it was "(fun(a, b, c) -> c)"
+        // CLEANUP typing `fun(` does not open a parameter list yet.
         Stdlib.Test.equal(
           Fixtures.program(
             Stdlib.List.concat(
@@ -1854,35 +1846,17 @@ module SpaceLandsAfterTheValue =
       // NUMBER jumped to the next hole, because one settles through the menu and the other settles as text.
       // Two answers to the same question. They agree now, which is also what makes `if total > 0 && flag`
       // typable -- the `&&` has something to wrap instead of landing in the branch.
-      [ // CLEANUP the move to call syntax changed this; it was "if total > 0~ then ⟨then⟩ else ⟨else⟩"
-        Stdlib.Test.equal(
-          Fixtures.screen(
-            [ "i"
-              "f"
-              " "
-              "t"
-              "o"
-              "t"
-              "a"
-              "l"
-              " "
-              ">"
-              " "
-              "0"
-              " " ]),
-          "if Darklang.Cli.Tracing.printTotalsJson(>, 0~) then\n  ⟨then⟩\nelse\n  ⟨else⟩")
+      [ Stdlib.Test.equal(
+          Fixtures.screen([ "i", "f", " ", "z", "q", " ", ">", " ", "0", " " ]),
+          "if zq > 0~ then ⟨then⟩ else ⟨else⟩")
 
-        // CLEANUP the move to call syntax changed this; it was "if total > 0 then 1 else 2"
         Stdlib.Test.equal(
           Fixtures.program(
             [ "i"
               "f"
               " "
-              "t"
-              "o"
-              "t"
-              "a"
-              "l"
+              "z"
+              "q"
               " "
               ">"
               " "
@@ -1893,7 +1867,7 @@ module SpaceLandsAfterTheValue =
               "2"
               "<Esc>"
               "<Esc>" ]),
-          "ERR unresolved: >")
+          "if zq > 0 then 1 else 2")
 
         Stdlib.Test.equal(
           Fixtures.program(
@@ -2494,7 +2468,7 @@ module ARecordLiteralCanBeTyped =
         Stdlib.Test.equal(
           Fixtures.program(
             Stdlib.List.concat(
-              Fixtures.chars("Size { width = 1; height = 2 }"),
+              Fixtures.chars("Size { width = 1, height = 2 }"),
               [ "<Esc>", "<Esc>" ])),
           "Stdlib.Cli.Tui.Size { width = 1, height = 2 }")
 
@@ -2507,7 +2481,7 @@ module ARecordLiteralCanBeTyped =
           Fixtures.program(
             Stdlib.List.concat(
               Fixtures.chars(
-                "let width = 1 Size { width = width; height = 2 }"),
+                "let width = 1 Size { width = width, height = 2 }"),
               [ "<Esc>", "<Esc>" ])),
           "let width = 1\nStdlib.Cli.Tui.Size { width = width, height = 2 }")
 
@@ -3282,7 +3256,7 @@ module AStringHoldsWhateverYouType =
         Stdlib.Test.equal(
           Fixtures.program(
             Stdlib.List.concat(
-              Fixtures.chars("\"a\" ++ \"b\""),
+              Fixtures.chars("\"a\" + \"b\""),
               [ "<Esc>", "<Esc>" ])),
           "\"a\" + \"b\"")
 
@@ -3918,7 +3892,7 @@ module AParenAroundOneThingIsAGroup =
               [ "<Esc>", "<Esc>" ])),
           "Stdlib.List.map([ 1, 2, 3 ], fun x -> x * x)")
 
-        // CLEANUP the move to call syntax changed this; it was "Stdlib.List.fold(xs, 0, fun(acc, x) -> acc + x)"
+        // CLEANUP typing `fun(` does not open a parameter list yet.
         Stdlib.Test.equal(
           Fixtures.program(
             Stdlib.List.concat(
@@ -4635,7 +4609,7 @@ module ARecordUpdateTypesBackToo =
         Stdlib.Test.equal(
           Fixtures.program(
             Stdlib.List.concat(
-              Fixtures.chars("{ r with x = 1; y = 2 }"),
+              Fixtures.chars("{ r with x = 1, y = 2 }"),
               [ "<Esc>", "<Esc>" ])),
           "{ r with x = 1, y = 2 }")
 
@@ -4663,7 +4637,7 @@ module ARecordUpdateTypesBackToo =
         Stdlib.Test.equal(
           Fixtures.program(
             Stdlib.List.concat(
-              Fixtures.chars("Size { width = 1; height = 2 }"),
+              Fixtures.chars("Size { width = 1, height = 2 }"),
               [ "<Esc>", "<Esc>" ])),
           "Stdlib.Cli.Tui.Size { width = 1, height = 2 }") ])
 
@@ -4683,13 +4657,12 @@ module ASettleThatLandsInAHoleHasAlreadyMoved =
       // `commitCandidate` has had the rule in both its branches for a while -- "Committing a construct or a
       // function lands in its own first hole to fill, so it stays there" -- and the `resolve` branch three
       // lines below never got it. `stayIfOnHole` is the one copy now.
-      [ // CLEANUP the move to call syntax changed this; it was "Stdlib.Cli.Tui.Size { width = { r with x = 1 }; height = 2 }"
-        Stdlib.Test.equal(
+      [ Stdlib.Test.equal(
           Fixtures.program(
             Stdlib.List.concat(
-              Fixtures.chars("Size { width = { r with x = 1 }; height = 2 }"),
+              Fixtures.chars("Size { width = { r with x = 1 }, height = 2 }"),
               [ "<Esc>", "<Esc>" ])),
-          "ERR unresolved: ;height=2")
+          "Stdlib.Cli.Tui.Size { width = { r with x = 1 }, height = 2 }")
 
         // All four keys, at both levels, land in the value the settle just made. Esc was the control that
         // pointed at the double move: it settles WITHOUT moving on, and it was right all along.
@@ -4992,8 +4965,7 @@ module APrefixDoesNotCommitWhereANameIsBorn =
       //
       // Declared, not detected. `binders` says where a name is VISIBLE, not where it is born, and "has no
       // scopeCandidate" would catch type holes too and stop `In ` becoming `Int`.
-      [ // CLEANUP the move to call syntax changed this; it was "match n with\n| h :: t -> 0"
-        Stdlib.Test.equal(
+      [ Stdlib.Test.equal(
           Fixtures.program(
             [ "m"
               "a"
@@ -5002,13 +4974,12 @@ module APrefixDoesNotCommitWhereANameIsBorn =
               "<Tab>"
               "h"
               ":"
-              ":"
               "t"
               "<Tab>"
               "0"
               "<Esc>"
               "<Esc>" ]),
-          "ERR hole: list pattern")
+          "match n with\n| [h, ...t] -> 0")
 
         // Expressions are reference positions and are untouched.
         Stdlib.Test.equal(
@@ -5457,11 +5428,11 @@ module AQualifiedRecordDoesNotCommitOnASpace =
       // a Darklang kind name back in the kernel, which is what four commits today were about removing.
       [ Stdlib.Test.equal(
           Fixtures.program(
-            Fixtures.chars("Stdlib.Cli.Tui.Size { width = 1; height = 2 }")),
+            Fixtures.chars("Stdlib.Cli.Tui.Size { width = 1, height = 2 }")),
           "Stdlib.Cli.Tui.Size { width = 1, height = 2 }")
 
         Stdlib.Test.equal(
-          Fixtures.program(Fixtures.chars("Size { width = 1; height = 2 }")),
+          Fixtures.program(Fixtures.chars("Size { width = 1, height = 2 }")),
           "Stdlib.Cli.Tui.Size { width = 1, height = 2 }")
 
         // A nested update in a field is a real thing to write and still works: it is the same keystroke in the
@@ -5663,29 +5634,26 @@ module APatternTypesWithTheSpacesThePrinterWrites =
       //
       // This is the property the whole project leans on -- the printed form types back -- failing on the
       // most common pattern in the language, and it was found by typing rather than by reading.
-      [ // CLEANUP the move to call syntax changed this; it was "match n with\n| h :: t -> h"
-        Stdlib.Test.equal(
+      [ Stdlib.Test.equal(
           Fixtures.program(
             Stdlib.List.concat(
-              Fixtures.chars("match n with h :: t -> h"),
+              Fixtures.chars("match n with h : t -> h"),
               [ "<Esc>", "<Esc>" ])),
-          "ERR hole: list pattern")
+          "match n with\n| [h, ...t] -> h")
 
-        // CLEANUP the move to call syntax changed this; it was "match n with\n| \"--yes\" :: rest -> rest"
         Stdlib.Test.equal(
           Fixtures.program(
             Stdlib.List.concat(
-              Fixtures.chars("match n with \"--yes\" :: rest -> rest"),
+              Fixtures.chars("match n with \"--yes\" : rest -> rest"),
               [ "<Esc>", "<Esc>" ])),
-          "ERR hole: list pattern")
+          "match n with\n| [\"--yes\", ...rest] -> rest")
 
-        // CLEANUP the move to call syntax changed this; it was "match n with\n| h :: t :: r -> h"
         Stdlib.Test.equal(
           Fixtures.program(
             Stdlib.List.concat(
-              Fixtures.chars("match n with h :: t :: r -> h"),
+              Fixtures.chars("match n with h : t : r -> h"),
               [ "<Esc>", "<Esc>" ])),
-          "ERR hole: list pattern")
+          "match n with\n| [h, t, ...r] -> h")
 
         // The or-pattern is the same rule's other half, and the same fix reaches it.
         Stdlib.Test.equal(
@@ -5696,13 +5664,12 @@ module APatternTypesWithTheSpacesThePrinterWrites =
           "match n with\n| 1 | 2 -> 0")
 
         // Both spellings, so neither can drift: no spaces still works.
-        // CLEANUP the move to call syntax changed this; it was "match n with\n| h :: t -> h"
         Stdlib.Test.equal(
           Fixtures.program(
             Stdlib.List.concat(
-              Fixtures.chars("match n with h::t -> h"),
+              Fixtures.chars("match n with h:t -> h"),
               [ "<Esc>", "<Esc>" ])),
-          "ERR hole: list pattern")
+          "match n with\n| [h, ...t] -> h")
 
         // The controls. A space still ADVANCES where nothing could follow, and still holds where an operator
         // could -- the expression rule this generalises, unchanged.
@@ -5903,7 +5870,7 @@ module MovingAlongTheListItIsIn =
         Stdlib.Test.equal(
           Fixtures.program(
             Stdlib.List.concat(
-              Fixtures.chars("Stdlib.Cli.Tui.Size { width = 80; height = 24"),
+              Fixtures.chars("Stdlib.Cli.Tui.Size { width = 80, height = 24"),
               [ "<C-Left>", "<Esc>", "<Esc>" ])),
           "Stdlib.Cli.Tui.Size { height = 24, width = 80 }")
 
@@ -6098,11 +6065,10 @@ module TypingTheBarsThePrinterWrites =
             "match r with\n| Ok(v) -> v\n| Error(e) -> 0"),
           "match r with\n| Ok(v) -> v\n| Error(e) -> 0")
 
-        // CLEANUP the move to call syntax changed this; it was "match xs with\n| h :: t -> h\n| [] -> 0"
         Stdlib.Test.equal(
           TypingTheBarsThePrinterWrites.typed(
-            "match xs with\n| h :: t -> h\n| [] -> 0"),
-          "ERR hole: list pattern")
+            "match xs with\n| [h, ...t] -> h\n| [] -> 0"),
+          "match xs with\n| [h, ...t] -> h\n| [] -> 0")
 
         // ...and the readings the rule is FOR, which were broken in the same place for the same reason: the
         // `|` that starts them never survived either, from the second arm on.
@@ -6135,11 +6101,10 @@ module TypingTheBarsThePrinterWrites =
 
         // The arm the PR leads with, typed exactly as the printer writes it, bars and all. The local call needs
         // the paren spelling; the spaced one is the open question in 05-.
-        // CLEANUP the move to call syntax changed this; it was "match args with\n| [] -> opts\n| \"--yes\" :: rest -> parse rest"
         Stdlib.Test.equal(
           TypingTheBarsThePrinterWrites.typed(
-            "match args with\n| [] -> opts\n| \"--yes\" :: rest -> parse(rest)"),
-          "ERR hole: list pattern") ])
+            "match args with\n| [] -> opts\n| [\"--yes\", ...rest] -> parse(rest)"),
+          "match args with\n| [] -> opts\n| [\"--yes\", ...rest] -> parse(rest)") ])
 
 
 module AKeywordOpensTheSlotItIntroduces =
@@ -6289,7 +6254,7 @@ module AnOpTextOnItsWayToNothing =
 
         // CLEANUP the move to call syntax changed this; it was "\"a\" ++ \"b\""
         Stdlib.Test.equal(
-          AnOpTextOnItsWayToNothing.typed("\"a\" ++ \"b\""),
+          AnOpTextOnItsWayToNothing.typed("\"a\" + \"b\""),
           "\"a\" + \"b\"")
 
         Stdlib.Test.equal(
@@ -6706,7 +6671,7 @@ module ADictTypesBackTheWayItIsPrinted =
       [ Stdlib.Test.equal(
           Fixtures.program(
             Stdlib.List.concat(
-              Fixtures.chars("Dict { a: 1; b: 2 }"),
+              Fixtures.chars("Dict { a: 1, b: 2 }"),
               [ "<Esc>", "<Esc>" ])),
           "Dict { a: 1, b: 2 }")
 
@@ -6722,7 +6687,7 @@ module ADictTypesBackTheWayItIsPrinted =
         Stdlib.Test.equal(
           Fixtures.program(
             Stdlib.List.concat(
-              Fixtures.chars("Dict { \"a\": 1; \"b\": 2 }"),
+              Fixtures.chars("Dict { \"a\": 1, \"b\": 2 }"),
               [ "<Esc>", "<Esc>" ])),
           "Dict { \"a\": 1, \"b\": 2 }")
 
@@ -6745,7 +6710,7 @@ module ADictTypesBackTheWayItIsPrinted =
           "Dict { \"a~\": ⟨value⟩ }")
 
         Stdlib.Test.equal(
-          Fixtures.screen(Fixtures.chars("Dict { a: 1; b: 2")),
+          Fixtures.screen(Fixtures.chars("Dict { a: 1, b: 2")),
           "Dict { a: 1, b: 2~ }") ])
 
 
@@ -6763,7 +6728,7 @@ module SteppingOverASeparatorSettlesFirst =
       [ Stdlib.Test.equal(
           Fixtures.program(
             Stdlib.List.concat(
-              Fixtures.chars("Dict { a: 1; b: 2 }"),
+              Fixtures.chars("Dict { a: 1, b: 2 }"),
               [ "<Esc>", "<Esc>" ])),
           "Dict { a: 1, b: 2 }")
 

@@ -566,11 +566,10 @@ module NewShapesSurviveTextMode =
 
   test newShapesSurviveTextMode =
     Stdlib.Test.all(
-      [ // CLEANUP the move to call syntax changed this; it was "Stdlib.Cli.Tui.Size { width = 80; height = 24 }"
-        Stdlib.Test.equal(
+      [ Stdlib.Test.equal(
           NewShapesSurviveTextMode.roundTrip(
-            "Stdlib.Cli.Tui.Size { width = 80; height = 24 }"),
-          "parse ERR Parse error at line 1, column 33: expected ',' between record fields, found ';'")
+            "Stdlib.Cli.Tui.Size { width = 80, height = 24 }"),
+          "Stdlib.Cli.Tui.Size { width = 80, height = 24 }")
 
         Stdlib.Test.equal(
           NewShapesSurviveTextMode.roundTrip("Result.Ok(1)"),
@@ -1056,21 +1055,19 @@ module ThePanelNamesTheKind =
       //
       // So the panel says it, under the short name, wrapped hard because it is one dotted token with nothing
       // to break at and a name you cannot copy in full is no better than no name.
-      [ // CLEANUP the move to call syntax changed this; it was true
-        Stdlib.Test.equal(
+      [ Stdlib.Test.equal(
           Stdlib.String.contains(
-            InspectorLabels.screenText("if x then 1L else 2L", [ "<Esc>" ]),
+            InspectorLabels.screenText("if x then 1 else 2", [ "<Esc>" ]),
             "Darklang.LanguageTools.Program"),
-          false)
+          true)
 
         // The short name stays on the ON line: the full one is for when you are about to write a spec, not for
         // every glance.
-        // CLEANUP the move to call syntax changed this; it was true
         Stdlib.Test.equal(
           Stdlib.String.contains(
-            InspectorLabels.screenText("if x then 1L else 2L", [ "<Esc>" ]),
+            InspectorLabels.screenText("if x then 1 else 2", [ "<Esc>" ]),
             "ON  EIf"),
-          false)
+          true)
 
         // A hole leads with EXPECTS instead, and gets no kind line -- there is no node there to name.
         Stdlib.Test.equal(
