@@ -14,7 +14,7 @@
     <PackageVersion Include="NodaTime" Version="3.2.2" />
     <PackageVersion Include="NReco.Logging.File" Version="1.1.7" />
     <PackageVersion Include="Ply" Version="0.3.1" />
-    <PackageVersion Include="SimpleBase" Version="4.0.0" />
+    <PackageVersion Include="SimpleBase" Version="5.6.4" />
     <PackageVersion Include="System.IO.Hashing" Version="11.0.0" />
     <PackageVersion Include="Wcwidth" Version="4.0.1" />
   </ItemGroup>
