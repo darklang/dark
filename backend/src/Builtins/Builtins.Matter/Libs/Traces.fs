@@ -802,6 +802,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DEnum(_, _, _, "AllButNewest", [ DInt64 keepN ]) |] ->
           let deleted = LibDB.Tracing.TraceRetention.prune (Some keepN) None
           LibDB.Tracing.TraceRetention.sweepOrphans ()
+          LibDB.Tracing.TraceRetention.vacuumIfMostlyFree ()
           Dval.dint64 (int64 deleted) |> Ply
         | _, _, _, [| (DEnum _ as which) |] ->
           uply {
@@ -812,6 +813,7 @@ let fns () : List<BuiltInFn> =
             | _ ->
               LibDB.Tracing.TraceRetention.deleteTraces ids
               LibDB.Tracing.TraceRetention.sweepOrphans ()
+              LibDB.Tracing.TraceRetention.vacuumIfMostlyFree ()
             return Dval.dint64 (int64 (List.length ids))
           }
         | _ -> incorrectArgs ())
