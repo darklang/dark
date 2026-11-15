@@ -14,10 +14,10 @@ let subtopic(name: String): String =
   | None -> ""
 
 
-// About 4,500 characters on its own; the limit leaves room for the syntax-at-a-glance block.
+// Read in full at the start of every session; the limit keeps it from growing unnoticed.
 test forAIStaysShort =
   let size = Stdlib.String.length(Cli.Docs.ForAI.content())
-  Stdlib.Test.expect(size < 7000, $"docs for-ai is {size} characters")
+  Stdlib.Test.expect(size < 7300, $"docs for-ai is {size} characters")
 
 
 // What moved out of `docs for-ai` is still there, under the part its More list names.

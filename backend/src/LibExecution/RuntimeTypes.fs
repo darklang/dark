@@ -6565,6 +6565,10 @@ and ExecutionState =
     /// Permission context for this execution, including instance and run rules.
     access : Permissions.Access
 
+    /// What `run --allow` granted this run. A state the run builds later from the instance
+    /// policy, such as the one a server's request handler runs under, gets these too.
+    runGrants : Permissions.Policy
+
     /// Host handles belong to this execution, never a process-global guest table.
     descriptorSession : Lazy<HostDescriptors.Session>
 

@@ -1412,6 +1412,7 @@ let private runGuest
   let exeState =
     { guest with
         deniedRequests = denied
+        runGrants = runGrants
         access = Permission.Access.grantRun runGrants guest.access }
   let name, hash, script = reviewIdentity filename code mod'
   let localFns = mod'.fns @ mod'.submodules.fns

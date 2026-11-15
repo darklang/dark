@@ -38,7 +38,8 @@ Printing and stdin need no approval; files, HTTP and the environment need permis
   run Me.Report.main data.csv
 
 To read files for this run, add `--allow "file read $PWD"` to `run`.
-If you already have permission, omit it.
+A server also needs its port: `--allow "http-server 127.0.0.1 8080; file read $PWD"`
+covers the server and its request handlers. If you already have permission, omit it.
 
 ## Workflow
 
