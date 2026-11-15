@@ -228,6 +228,7 @@ let unifyDifferent(
   | other, TError -> markUnknownsAsError(s, other)
   | TStream(left), TStream(right) -> unifyIn(depth, s, at, site, left, right)
   | TList(left), TList(right) -> unifyIn(depth, s, at, site, left, right)
+  | TSet(left), TSet(right) -> unifyIn(depth, s, at, site, left, right)
   | TDict(leftKey, leftValue), TDict(rightKey, rightValue) ->
     unifyIn(depth, unifyIn(depth, s, at, site, leftKey, rightKey), at, site, leftValue, rightValue)
   | TTuple(l1, l2, lr), TTuple(r1, r2, rr) ->
@@ -385,6 +386,7 @@ let mayContainVars(t: Model.Ty): Bool =
   | TVar(_) -> true
   | TStream(_) -> true
   | TList(_) -> true
+  | TSet(_) -> true
   | TDict(_, _) -> true
   | TTuple(_, _, _) -> true
   | TCustom(_, args) -> Stdlib.Bool.not(Stdlib.List.isEmpty(args))

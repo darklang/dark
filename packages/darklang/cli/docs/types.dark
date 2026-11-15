@@ -24,6 +24,7 @@ let content(): String =
 ## Collections
   List<T>     [1, 2]
   Dict<K, V>  Dict { "key": "value" }
+  Set<T>      Set { 1, 2 }        no repeats, kept in order; Stdlib.Set
   (a, b)      tuple
 
 ## Records

@@ -40,6 +40,7 @@
 
     <Compile Include="Libs/List.fs" />
     <Compile Include="Libs/Dict.fs" />
+    <Compile Include="Libs/Set.fs" />
 
     <Compile Include="Libs/DateTime.fs" />
     <Compile Include="Libs/Uuid.fs" />

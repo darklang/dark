@@ -60,6 +60,9 @@ let rec write (w : BinaryWriter) (t : TypeReference) : unit =
     w.Write 25uy
     write w inner
   | TBigInt -> w.Write 26uy
+  | TSet inner ->
+    w.Write 29uy
+    write w inner
 
 let rec read (r : BinaryReader) : TypeReference =
   match r.ReadByte() with
@@ -106,6 +109,7 @@ let rec read (r : BinaryReader) : TypeReference =
   | 24uy -> TBytes
   | 25uy -> TStream(read r)
   | 26uy -> TBigInt
+  | 29uy -> TSet(read r)
   | b -> raiseFormatError $"Invalid TypeReference tag: {b}"
 
 

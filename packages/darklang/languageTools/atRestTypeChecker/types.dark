@@ -44,6 +44,7 @@ let isWarning(code: IssueCode): Bool =
   | MissingRecordField
   | DuplicateRecordField
   | DuplicateDictKey
+  | DuplicateSetElement
   | UnknownEnumCase
   | EnumFieldCountMismatch
   | InvalidInfixOperand
@@ -132,6 +133,7 @@ let zonk(subst: Dict<Model.Var, Model.Ty>, ty: Model.Ty): Model.Ty =
   match walk(subst, ty) with
   | TStream(inner) -> Model.Ty.TStream(zonk(subst, inner))
   | TList(inner) -> Model.Ty.TList(zonk(subst, inner))
+  | TSet(inner) -> Model.Ty.TSet(zonk(subst, inner))
   | TTuple(first, second, rest) ->
     Model.Ty.TTuple(
       zonk(subst, first),
@@ -155,6 +157,7 @@ let substitute(mapping: Dict<Model.Var, Model.Ty>, ty: Model.Ty): Model.Ty =
     | None -> ty
   | TStream(inner) -> Model.Ty.TStream(substitute(mapping, inner))
   | TList(inner) -> Model.Ty.TList(substitute(mapping, inner))
+  | TSet(inner) -> Model.Ty.TSet(substitute(mapping, inner))
   | TTuple(first, second, rest) ->
     Model.Ty.TTuple(
       substitute(mapping, first),
@@ -177,6 +180,7 @@ let varsInto(found: Dict<Model.Var, Bool>, ty: Model.Ty): Dict<Model.Var, Bool> 
   | TVar(v) -> Stdlib.Dict.set(found, v, true)
   | TStream(inner) -> varsInto(found, inner)
   | TList(inner) -> varsInto(found, inner)
+  | TSet(inner) -> varsInto(found, inner)
   | TTuple(first, second, rest) ->
     Stdlib.List.fold(rest, varsInto(varsInto(found, first), second), fun(found, t) ->
       varsInto(found, t))
@@ -203,6 +207,7 @@ let freeVarsInto(
   match walk(subst, ty) with
   | TVar(v) -> Stdlib.Dict.set(found, v, true)
   | TList(inner) -> freeVarsInto(subst, found, inner)
+  | TSet(inner) -> freeVarsInto(subst, found, inner)
   | TCustom(_, args) -> freeVarsAll(subst, found, args)
   | TFn(parameters, ret) -> freeVarsAll(subst, freeVarsInto(subst, found, ret), parameters)
   | TTuple(first, second, rest) ->
@@ -231,6 +236,7 @@ let hasError(ty: Model.Ty): Bool =
   | TError -> true
   | TStream(inner) -> hasError(inner)
   | TList(inner) -> hasError(inner)
+  | TSet(inner) -> hasError(inner)
   | TTuple(first, second, rest) ->
     hasError(first) || hasError(second) || Stdlib.List.any(rest, fun t -> hasError(t))
   | TDict(key, value) -> hasError(key) || hasError(value)
@@ -255,6 +261,7 @@ let occurs(subst: Dict<Model.Var, Model.Ty>, v: Model.Var, ty: Model.Ty): Bool =
       | Some(bound) -> occurs(subst, v, bound)
       | None -> false
   | TList(inner) -> occurs(subst, v, inner)
+  | TSet(inner) -> occurs(subst, v, inner)
   | TCustom(_, args) -> occursIn(subst, v, args)
   | TFn(parameters, ret) -> occurs(subst, v, ret) || occursIn(subst, v, parameters)
   | TTuple(first, second, rest) ->
@@ -281,6 +288,7 @@ let substituteRigid(mapping: Dict<String, Model.Ty>, ty: Model.Ty): Model.Ty =
     | Some(replacement) -> replacement
     | None -> ty
   | TList(inner) -> Model.Ty.TList(substituteRigid(mapping, inner))
+  | TSet(inner) -> Model.Ty.TSet(substituteRigid(mapping, inner))
   | TCustom(name, args) -> Model.Ty.TCustom(name, substituteRigidIn(mapping, args))
   | TFn(parameters, ret) ->
     Model.Ty.TFn(substituteRigidIn(mapping, parameters), substituteRigid(mapping, ret))
@@ -335,6 +343,7 @@ let headMatches(a: Model.Ty, b: Model.Ty): Bool =
   | _, TVar(_) -> true
   | TCustom(aHash, _), TCustom(bHash, _) -> aHash == bHash
   | TList(_), TList(_) -> true
+  | TSet(_), TSet(_) -> true
   | TStream(_), TStream(_) -> true
   | TDict(_, _), TDict(_, _) -> true
   | TTuple(_, _, _), TTuple(_, _, _) -> true
@@ -392,6 +401,9 @@ let fromReferenceInto(
   | TList(inner) ->
     let (inner, found) = fromReferenceInto(mapping, at, found, inner)
     (Model.Ty.TList(inner), found)
+  | TSet(inner) ->
+    let (inner, found) = fromReferenceInto(mapping, at, found, inner)
+    (Model.Ty.TSet(inner), found)
   | TUnit -> (Model.Ty.TUnit, found)
   | TBool -> (Model.Ty.TBool, found)
   | TInt8 -> (Model.Ty.TInt8, found)
@@ -684,6 +696,7 @@ let expandDeep(
               expandDeep(env, subst, at, Stdlib.List.prepend(seen, name), target)
         | _ -> Result.Ok(Model.Ty.TCustom(name, args))
   | TList(inner) -> Stdlib.Result.map(one(inner), fun t -> Model.Ty.TList(t))
+  | TSet(inner) -> Stdlib.Result.map(one(inner), fun t -> Model.Ty.TSet(t))
   | TStream(inner) -> Stdlib.Result.map(one(inner), fun t -> Model.Ty.TStream(t))
   | TDict(key, value) ->
     match expandDeepAll(env, subst, at, seen, [ key, value ], []) with
@@ -797,6 +810,7 @@ let typeVariablesThatReachValues(
   match typ with
   | TVariable(name) -> [ name ]
   | TList(inner) -> recurse(inner)
+  | TSet(inner) -> recurse(inner)
   | TStream(inner) -> recurse(inner)
   | TDict(key, value) -> Stdlib.List.concat(recurse(key), recurse(value))
   | TTuple(first, second, rest) ->
@@ -848,6 +862,7 @@ let isUsableDictKey(env: Model.Environment, seen: List<ProgramTypes.Hash>, ty: M
   | TFn(_, _) -> false
   | TStream(_) -> false
   | TList(inner) -> isUsableDictKey(env, seen, inner)
+  | TSet(inner) -> isUsableDictKey(env, seen, inner)
   | TDict(key, value) -> isUsableDictKey(env, seen, key) && isUsableDictKey(env, seen, value)
   | TTuple(first, second, rest) ->
     isUsableDictKey(env, seen, first)
@@ -919,6 +934,7 @@ let isUsableDictKeyReference(
   | TFn(_, _) -> false
   | TStream(_) -> false
   | TList(inner) -> recurse(inner)
+  | TSet(inner) -> recurse(inner)
   | TDict(key, value) -> recurse(key) && recurse(value)
   | TTuple(first, second, rest) ->
     recurse(first) && recurse(second) && Stdlib.List.all(rest, recurse)
@@ -977,6 +993,7 @@ let implApplies(self: Model.Ty, subject: Model.Ty): Bool =
   // `fullyResolved`.
   | _, TError -> true
   | TList(a), TList(b) -> implApplies(a, b)
+  | TSet(a), TSet(b) -> implApplies(a, b)
   | TStream(a), TStream(b) -> implApplies(a, b)
   | TDict(ak, av), TDict(bk, bv) -> implApplies(ak, bk) && implApplies(av, bv)
   | TTuple(a1, a2, aRest), TTuple(b1, b2, bRest) ->
@@ -1026,6 +1043,7 @@ let toStatic(ty: Model.Ty): StaticType =
   | TBytes -> StaticType.TBytes
   | TStream(inner) -> StaticType.TStream(toStatic(inner))
   | TList(inner) -> StaticType.TList(toStatic(inner))
+  | TSet(inner) -> StaticType.TSet(toStatic(inner))
   | TTuple(first, second, rest) ->
     StaticType.TTuple(
       toStatic(first),

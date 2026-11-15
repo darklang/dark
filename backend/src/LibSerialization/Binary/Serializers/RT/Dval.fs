@@ -74,6 +74,9 @@ and writeKnownType (w : BinaryWriter) (kt : KnownType) =
     w.Write 24uy
     writeValueType w vt
   | KTBigInt -> w.Write 25uy
+  | KTSet vt ->
+    w.Write 28uy
+    writeValueType w vt
 
 and writeApplicableImpl (w : BinaryWriter) (app : Applicable) =
   match app with
@@ -206,6 +209,12 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
     |> DictMap.iter (fun k v ->
       writeDval w k
       writeDval w v)
+  | DSet(elementType, elements) ->
+    w.Write 28uy
+    writeValueType w elementType
+    // A count, then each element in ascending order.
+    Varint.write w (DictMap.count elements)
+    elements |> DictMap.iter (fun k _ -> writeDval w k)
   | DRecord(sourceTypeName, runtimeTypeName, typeArgs, fields) ->
     w.Write 20uy
     FQTypeName.write w sourceTypeName
@@ -306,6 +315,7 @@ and readKnownType (r : BinaryReader) : KnownType =
   | 23uy -> KTBytes
   | 24uy -> KTStream(readValueType r)
   | 25uy -> KTBigInt
+  | 28uy -> KTSet(readValueType r)
   | b -> raiseFormatError $"Invalid KnownType tag: {b}"
 
 and readApplicableImpl (r : BinaryReader) : Applicable =
@@ -404,6 +414,16 @@ and readDvalImpl (r : BinaryReader) : Dval =
           let v = readDval r
           (k, v) ]
     DDict(keyType, valueType, DictMap.ofList entries)
+  | 28uy ->
+    let elementType = readValueType r
+    let count = Varint.read r
+    let elements =
+      [ for _ in 1..count ->
+          let e = readDval r
+          if not (LibExecution.RuntimeTypes.Dval.isUsableDictKey e) then
+            raiseFormatError "Set element that cannot be kept in order"
+          (e, DUnit) ]
+    DSet(elementType, DictMap.ofList elements)
   | 20uy ->
     let sourceTypeName = FQTypeName.read r
     let runtimeTypeName = FQTypeName.read r

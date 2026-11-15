@@ -303,6 +303,7 @@ let rec private exprIssues (insideFunction : bool) (expr : WT.Expr) : List<Issue
   | WT.ERecordFieldAccess(_, record, _, _) -> recurse record
   | WT.EDict(_, entries, _, _, _) ->
     entries |> List.collect (fun (_, key, _, value) -> recurse key @ recurse value)
+  | WT.ESet(_, items, _, _, _) -> items |> List.collect recurse
   | WT.EEnum(_, _, _, fields, _) -> fields |> List.collect recurse
   | WT.EPipe(_, first, parts) ->
     let pipeIssues part =

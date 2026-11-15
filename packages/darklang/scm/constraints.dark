@@ -256,6 +256,7 @@ let typeKey(branchId: Uuid, t: LanguageTools.RuntimeTypes.TypeReference): String
   | TStream(inner) -> $"Stream<{typeKey(branchId, inner)}>"
   | TTuple(first, second, rest) -> $"({keys(Stdlib.List.concat([ first, second ], rest))})"
   | TList(inner) -> $"List<{typeKey(branchId, inner)}>"
+  | TSet(inner) -> $"Set<{typeKey(branchId, inner)}>"
   | TDict(k, v) -> $"Dict<{typeKey(branchId, k)}, {typeKey(branchId, v)}>"
   | TCustomType(nr, args) ->
     match nr.resolved with

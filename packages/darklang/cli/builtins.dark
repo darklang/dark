@@ -31,6 +31,7 @@ val knownGroups =
     ("string", "String")
     ("list", "List")
     ("dict", "Dict")
+    ("set", "Set")
     ("bytes", "Bytes")
     ("stream", "Stream")
     ("json", "JSON")

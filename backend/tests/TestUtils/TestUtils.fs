@@ -410,6 +410,7 @@ module Expect =
     | DList(_, Items(items)) -> List.all r items
     | DTuple(first, second, rest) -> List.all r ([ first; second ] @ rest)
     | DDict(_, _, entries) -> entries |> DictMap.forall (fun k v -> r k && r v)
+    | DSet(_, elements) -> elements |> DictMap.forall (fun k _ -> r k)
 
     | DRecord(_, _, _, fields) -> fields |> RecordFields.forall r
     | DEnum(_, _, _, _, fields) -> fields |> List.all r
@@ -533,6 +534,14 @@ module Expect =
             | None -> check (string key :: path) ls rs)
           rs
 
+      | DSet(lType, ls), DSet(rType, rs) ->
+        check ("Length" :: path) (DictMap.count ls) (DictMap.count rs)
+        checkValueType ("Type" :: path) lType rType
+        List.iteri2
+          (fun i -> de ($"[{i}]" :: path))
+          (DictMap.keys ls)
+          (DictMap.keys rs)
+
 
       | DRecord(_, ltn, ltypeArgs, ls), DRecord(_, rtn, rtypeArgs, rs) ->
         // check type name
@@ -606,6 +615,7 @@ module Expect =
       | DList _, _
       | DTuple _, _
       | DDict _, _
+      | DSet _, _
       | DRecord _, _
       | DEnum _, _
       | DApplicable _, _
@@ -859,6 +869,7 @@ module Expect =
             eq ("value" :: path) v v')
           fields
           fields'
+      | ESet(_, items), ESet(_, items') -> eqList path items items'
 
       | ERecordFieldAccess(_, e, f), ERecordFieldAccess(_, e', f') ->
         eq (f :: path) e e'
@@ -921,6 +932,7 @@ module Expect =
       | ERecord _, _
       | ERecordUpdate _, _
       | EDict _, _
+      | ESet _, _
       | ERecordFieldAccess _, _
       | EEnum _, _
       | ELambda _, _
@@ -947,6 +959,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
       |> DictMap.iter (fun k v ->
         visit k
         visit v)
+    | DSet(_, elements) -> elements |> DictMap.iter (fun k _ -> visit k)
     | DTuple(first, second, theRest) ->
       List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
 
@@ -1191,6 +1204,10 @@ let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
        [ (Dval.bigInt (bigint 1), DString "one")
          (Dval.bigInt (bigint 2), DString "two") ],
      TDict(TBigInt, TString))
+    ("set",
+     DSet(VT.int64, DictMap.ofList [ (Dval.int64 1, DUnit); (Dval.int64 2, DUnit) ]),
+     TSet TInt64)
+    ("setEmpty", DSet(VT.unknown, DictMap.empty), TSet TString)
     ("date",
      DDateTime(
        DarkDateTime.fromInstant (NodaTime.Instant.ofIsoString "2018-09-14T00:31:41Z")

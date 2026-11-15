@@ -659,6 +659,10 @@ module Expr =
           write w key
           write w value)
         pairs
+    | ESet(id, items) ->
+      w.Write 39uy
+      w.Write id
+      List.write w write items
     | EFnName(id, nameRes, boundImpls, typeArgs) ->
       w.Write 31uy
       w.Write id
@@ -896,4 +900,8 @@ module Expr =
     | 36uy ->
       let id = r.ReadUInt64()
       EUnwrap(id, read r)
+    | 39uy ->
+      let id = r.ReadUInt64()
+      let items = List.read r read
+      ESet(id, items)
     | b -> raiseFormatError $"Invalid Expr tag: {b}"

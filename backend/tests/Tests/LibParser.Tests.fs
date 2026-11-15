@@ -1254,6 +1254,7 @@ let private rangeInvariantTests =
     | WT.ERecord(_, _, fields, _, _) -> fields |> List.map (fun (_, _, v) -> v)
     | WT.EDict(_, contents, _, _, _) ->
       contents |> List.collect (fun (_, k, _, v) -> [ k; v ])
+    | WT.ESet(_, items, _, _, _) -> items
     | WT.ERecordUpdate(_, r, ups, _, _, _) ->
       r :: (ups |> List.map (fun (_, _, v) -> v))
     | WT.EEnum(_, _, _, fields, _) -> fields

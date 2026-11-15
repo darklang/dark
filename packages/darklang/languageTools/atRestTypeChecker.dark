@@ -25,6 +25,7 @@ type StaticType =
   | TBytes
   | TStream(StaticType)
   | TList(StaticType)
+  | TSet(StaticType)
   | TTuple(StaticType, StaticType, List<StaticType>)
   | TDict(key: StaticType, value: StaticType)
   | TCustom(ProgramTypes.Hash, List<StaticType>)
@@ -59,6 +60,7 @@ type IssueCode =
   | MissingRecordField
   | DuplicateRecordField
   | DuplicateDictKey
+  | DuplicateSetElement
   | UnknownEnumCase
   | EnumFieldCountMismatch
   | InvalidInfixOperand
@@ -143,6 +145,7 @@ type DuplicateSite =
   | InRecordConstruction
   | InRecordUpdate
   | InDictLiteral
+  | InSetLiteral
   | InPattern
 
 
@@ -366,6 +369,7 @@ let staticTypeToStringWith(
   | TBytes -> "Bytes"
   | TStream(inner) -> wrapped("Stream", inner)
   | TList(inner) -> wrapped("List", inner)
+  | TSet(inner) -> wrapped("Set", inner)
   | TTuple(first, second, rest) ->
     let parts =
       Stdlib.List.concat([ recurse(first), recurse(second) ], Stdlib.List.map(rest, recurse))
@@ -412,6 +416,7 @@ let issueCodeToString(code: IssueCode): String =
   | MissingRecordField -> "MissingRecordField"
   | DuplicateRecordField -> "DuplicateRecordField"
   | DuplicateDictKey -> "DuplicateDictKey"
+  | DuplicateSetElement -> "DuplicateSetElement"
   | UnknownEnumCase -> "UnknownEnumCase"
   | EnumFieldCountMismatch -> "EnumFieldCountMismatch"
   | InvalidInfixOperand -> "InvalidInfixOperand"
@@ -508,6 +513,7 @@ let duplicateSiteToString(site: DuplicateSite): String =
   | InRecordConstruction -> "specified"
   | InRecordUpdate -> "updated"
   | InDictLiteral -> "used as a key"
+  | InSetLiteral -> "listed in a set"
   | InPattern -> "bound"
 
 

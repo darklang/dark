@@ -2783,6 +2783,9 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
     // `Dict` is a keyword here, so it parses to its own node with the keyword range.
     if List.isEmpty mods && final.name = "Dict" && tok state j = TLBrace then
       parseDict state final.range j
+    // `Set { … }` likewise: a set literal, with `Set` as its keyword.
+    elif List.isEmpty mods && final.name = "Set" && tok state j = TLBrace then
+      parseSet state final.range j
     elif braceIsRecordLit then
       parseRecord
         state
@@ -3362,6 +3365,53 @@ and private parseDictEntries
       else
         (entriesRev, k)
 
+// set literal `Set { a, b, … }`. `i` is the `{`. Elements are separated as a
+// list's are: a comma, or a newline.
+and parseSet
+  (state : ParserState)
+  (keywordSet : TokenRange)
+  (i : int)
+  : WT.Expr * int =
+  let openB = rng state i
+  withElementScope state (fun () ->
+    let (itemsRev, k) = parseSetItems state [] (i + 1)
+    let (closeB, p) =
+      if tok state k = TRBrace then
+        (rng state k, k + 1)
+      else
+        errUnclosed state k "}" "{" openB
+        (zeroWidthAtEnd (rng state k), k)
+    (WT.ESet(span keywordSet closeB, List.rev itemsRev, keywordSet, openB, closeB),
+     p))
+
+// The elements of a set from `k`, last first.
+and private parseSetItems
+  (state : ParserState)
+  (itemsRev : List<WT.Expr>)
+  (k : int)
+  : List<WT.Expr> * int =
+  if tok state k = TRBrace || tok state k = TEOF then
+    (itemsRev, k)
+  else
+    setStmtCol state (rng state k).start.column
+    let (item, k2) = parseExpr state k
+    if k2 <= k then
+      errExpected state k "a set element"
+      (itemsRev, k)
+    elif tok state k2 = TComma then
+      parseSetItems state (item :: itemsRev) (k2 + 1)
+    elif tok state k2 = TSemicolon then
+      errCollectionSemicolon state k2 "set elements"
+      parseSetItems state (item :: itemsRev) (k2 + 1)
+    else
+      if tok state k2 <> TRBrace then
+        requireElementSeparator
+          state
+          (WT.exprRange item)
+          k2
+          "a comma or newline between set elements"
+      parseSetItems state (item :: itemsRev) k2
+
 // record update `{ expr with name = value, … }`. `i` is the `{`.
 and parseRecordUpdate (state : ParserState) (i : int) : WT.Expr * int =
   let openB = rng state i
@@ -3639,6 +3689,21 @@ and parseAtomType (state : ParserState) (i : int) : WT.TypeReference * int =
     let (closeB, k) = expectGt state j
     (WT.TDict(span (rng state i) closeB, kwDict, openB, key, commaR, value, closeB),
      k)
+  | TIdent "Set" when tok state (i + 1) = TLt ->
+    if
+      (rng state (i + 1)).start.row <> (rng state i).end_.row
+      || (rng state (i + 1)).start.column <> (rng state i).end_.column
+    then
+      err
+        state
+        DiagnosticCode.expected
+        (i + 1)
+        "Generic type arguments must be adjacent to the type name"
+    let kwSet = rng state i
+    let openB = rng state (i + 1)
+    let (inner, j) = parseTypeRef state (i + 2)
+    let (closeB, k) = expectGt state j
+    (WT.TSet(span (rng state i) closeB, kwSet, openB, inner, closeB), k)
   | TIdent(PrimTypeName ctor) when not ((txt state i).StartsWith "'") ->
     (ctor (rng state i), i + 1)
   // a tick-prefixed name is ALWAYS a type variable, even when uppercase

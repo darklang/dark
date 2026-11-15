@@ -260,6 +260,7 @@ let rec private holdsNoCode (dv : Dval) : bool =
   | DTuple(a, b, rest) -> holdsNoCode a && holdsNoCode b && listHoldsNoCode rest
   | DDict(_, _, entries) ->
     DictMap.forall (fun k v -> holdsNoCode k && holdsNoCode v) entries
+  | DSet(_, elements) -> DictMap.forall (fun k _ -> holdsNoCode k) elements
   | DRecord(_, _, _, fields) -> RecordFields.forall holdsNoCode fields
   | DEnum(_, _, _, _, fields) -> listHoldsNoCode fields
   | _ -> LibExecution.Dval.isInertData dv
@@ -310,6 +311,7 @@ let private writesOther (i : Instruction) : List<Register> =
   | CreateTuple(r, _, _, _)
   | CreateList(r, _)
   | CreateDict(r, _)
+  | CreateSet(r, _)
   | CreateRecord(r, _, _, _)
   | CloneRecordWithUpdates(r, _, _)
   | GetRecordField(r, _, _)

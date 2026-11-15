@@ -206,6 +206,8 @@ module RoundTripExpect =
       entries
       |> RT.DictMap.toList
       |> List.collect (fun (k, v) -> collectUnresolved k @ collectUnresolved v)
+    | RT.DSet(_, elements) ->
+      elements |> RT.DictMap.keys |> List.collect collectUnresolved
     | RT.DApplicable(RT.AppLambda lambda) ->
       let closed =
         RT.Captures.toList lambda.closedRegisters

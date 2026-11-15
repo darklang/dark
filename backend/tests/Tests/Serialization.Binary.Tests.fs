@@ -461,6 +461,54 @@ module RT =
       Expect.isTrue (LibExecution.Dval.equals dict back) "the Bytes key survives"
     }
 
+  /// A set reads back as the same elements in the same order, and a set holding a
+  /// lambda is refused on read, as a dict keyed by one is.
+  let setsRoundtrip =
+    test "a Set roundtrips, and one holding a lambda is refused on read" {
+      let set =
+        RT.DSet(
+          LibExecution.ValueType.int64,
+          RT.DictMap.ofList [ (RT.DInt64 2L, RT.DUnit); (RT.DInt64 1L, RT.DUnit) ]
+        )
+      let back = set |> BS.RT.Dval.serialize "dval" |> BS.RT.Dval.deserialize "dval"
+      Expect.isTrue (LibExecution.Dval.equals set back) "the elements survive"
+      match back with
+      | RT.DSet(_, elements) ->
+        Expect.equal
+          (RT.DictMap.keys elements)
+          [ RT.DInt64 1L; RT.DInt64 2L ]
+          "in the set's order"
+      | other -> Exception.raiseInternal "not a set" [ "back", other ]
+
+      let lambda =
+        RT.DApplicable(
+          RT.AppNamedFn
+            { name = RT.FQFnName.Builtin { name = "someFn"; version = 0 }
+              typeSymbolTable = RT.TST.empty
+              typeArgs = []
+              argsSoFar = []
+              boundImpls = []
+              access = None
+              approvalName = None }
+        )
+      let bytes =
+        RT.DSet(RT.ValueType.Unknown, RT.DictMap.ofList [ lambda, RT.DUnit ])
+        |> BS.RT.Dval.serialize "dval"
+      let thrown =
+        try
+          BS.RT.Dval.deserialize "dval" bytes |> ignore<RT.Dval>
+          None
+        with e ->
+          Some(e.ToString())
+      match thrown with
+      | None -> failtest "expected deserialize to refuse a lambda set element"
+      | Some message ->
+        Expect.stringContains
+          message
+          "Set element that cannot be kept in order"
+          "refused as a format error, not by the comparer's guard"
+    }
+
   /// Lambdas are neither valid nor comparable as keys.
   let dictWithLambdaKeyRejectedOnRead =
     test "a Dict keyed by a lambda is refused on deserialize" {
@@ -524,5 +572,6 @@ let tests =
 
           RT.dictWithBytesKeyRoundtrips
           RT.dictWithLambdaKeyRejectedOnRead
+          RT.setsRoundtrip
           RT.closureAccessIsStripped
           RT.namedFnAccessIsStripped ] ]
