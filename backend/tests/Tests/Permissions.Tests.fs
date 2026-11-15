@@ -1346,10 +1346,52 @@ let private serverRulesCheckAddressAndPort =
         "never resolve DNS or widen input"
   }
 
+let private writeFileNeedsOnlyTheTargetGrant =
+  CliInstance.instanceTest
+    "writeFile needs only the target grant when its parent exists"
+    (fun i ->
+      task {
+        let root = System.IO.Path.GetDirectoryName i.dir
+        let target = System.IO.Path.Combine(root, "target.txt")
+        let script = System.IO.Path.Combine(root, "write.dark")
+        let write path grant content =
+          task {
+            System.IO.File.WriteAllText(
+              script,
+              $"Stdlib.printLine(Stdlib.inspect(Stdlib.Cli.FileSystem.writeFile(\"{path}\", Stdlib.Utf8.encode(\"{content}\"))))"
+            )
+            let! output, code =
+              CliInstance.runWithExit i [ "run"; "--allow"; grant; script ]
+            Expect.equal code 0L output
+            Expect.equal (System.IO.File.ReadAllText path) content output
+          }
+        do! write target $"file write {target}" "created"
+        do! write target $"file write {target}" "replaced"
+        let directory = System.IO.Path.Combine(root, "missing")
+        let nested = System.IO.Path.Combine(directory, "child", "target.txt")
+        do! write nested $"file write {directory}" "nested"
+        let invalid = System.IO.Path.Combine(target, "child", "target.txt")
+        System.IO.File.WriteAllText(
+          script,
+          $"Stdlib.printLine(Stdlib.inspect(Stdlib.Cli.FileSystem.writeFile(\"{invalid}\", Stdlib.Utf8.encode(\"invalid\"))))"
+        )
+        let! output, code =
+          CliInstance.runWithExit
+            i
+            [ "run"; "--allow"; $"file write {invalid}"; script ]
+        Expect.equal code 0L output
+        Expect.stringContains output "NotFound" "ENOTDIR stays a file error"
+        Expect.equal
+          (System.IO.File.ReadAllText target)
+          "replaced"
+          "the file used as a parent is unchanged"
+      })
+
 let tests =
   testList
     "permissions"
     [ httpPathsAreExactUnlessSubtree
+      writeFileNeedsOnlyTheTargetGrant
       serverRulesCheckAddressAndPort
       approvalsDoNotPinCode
       editedCodeNeedsFreshApproval

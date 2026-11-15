@@ -192,7 +192,7 @@ let fns () : List<BuiltInFn> =
             (fun r -> Bytes.newEphemeral (Host.expectBytes r))
         | _ -> incorrectArgs ())
       previewable = Impure
-      callEffects = set [ Effect.FileRead; Effect.Raise ]
+      callEffects = set [ Effect.Raise ]
       deprecated = NotDeprecated }
 
 
