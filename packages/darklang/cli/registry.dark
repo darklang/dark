@@ -81,24 +81,26 @@ module Registry =
 
 
   let acceptsSearch(): Accepts.Accepts =
-    Accepts.freeText(
-      0,
-      [ "--type"
-        "--fn"
-        "--function"
-        "--val"
-        "--value"
-        "--trait"
-        "--impl"
-        "--test"
-        "--include-tests"
-        "--batch"
-        "--exact"
-        "--shallow"
-        "--with-docs"
-        "--include-deprecated"
-        "--include-internal"
-        "--json" ])
+    Accepts.withValues(
+      [ "--limit" ],
+      Accepts.freeText(
+        0,
+        [ "--type"
+          "--fn"
+          "--function"
+          "--val"
+          "--value"
+          "--trait"
+          "--impl"
+          "--test"
+          "--include-tests"
+          "--batch"
+          "--exact"
+          "--shallow"
+          "--with-docs"
+          "--include-deprecated"
+          "--include-internal"
+          "--json" ]))
 
 
   let acceptsTypecheck(): Accepts.Accepts =

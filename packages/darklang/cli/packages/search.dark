@@ -3,10 +3,6 @@ module Darklang.Cli.Packages.Search
 // Max results rendered per entity type.
 val displayCap = 20
 
-// Batch mode caps each entity section at three results.
-val batchDisplayCap = 3
-
-
 // An operator symbol is not a name, so searching for one literally finds nothing. Each one is
 // answered with the TRAIT it is, so `dark search %` lands on `Modulo` and every type that
 // implements it rather than on whatever happens to contain the letters. `NumericTraits.ofInfix`
@@ -755,7 +751,7 @@ let overflowNote(total: Int64, shown: Int64): Unit =
   if extra > 0 then
     Stdlib.printErrorLine(
       Stdlib.Cli.UI.Colors.hint(
-        $"  ... and {Stdlib.display(extra)} more (narrow with --exact or `nav` into a module)"))
+        $"  ... and {Stdlib.display(extra)} more (use --limit {Stdlib.display(total)} to show all; narrow with --exact or `nav` into a module)"))
   else
     ()
 
@@ -802,6 +798,7 @@ type ParsedArgs =
   { queryParts: List<String>
     entityTypes: List<LanguageTools.ProgramTypes.Search.EntityType>
     batch: Bool
+    limit: Option<Int64>
     exactMatch: Bool
     withDocs: Bool
     shallow: Bool
@@ -829,7 +826,7 @@ val argSpec =
           ("--include-internal", [])
           ("--include-tests", [])
           ("--json", []) ]
-      valueFlags = [] }
+      valueFlags = [ ("--limit", []) ] }
 
 
 let parseArgs(args: List<String>): ParsedArgs =
@@ -850,6 +847,13 @@ let parseArgs(args: List<String>): ParsedArgs =
   ParsedArgs
     { queryParts = p.positionals
       entityTypes = entityTypes
+      limit =
+        match FlagParser.getOption(p, "--limit") with
+        | None -> Option.Some(displayCap)
+        | Some(value) ->
+          match Stdlib.Int64.parse(value) with
+          | Ok(n) when n > 0 -> Option.Some(n)
+          | _ -> Option.None
       batch = FlagParser.hasFlag(p, "--batch")
       exactMatch = FlagParser.hasFlag(p, "--exact")
       withDocs = FlagParser.hasFlag(p, "--with-docs")
@@ -862,7 +866,7 @@ let parseArgs(args: List<String>): ParsedArgs =
 
 
 val usage =
-  "Usage: search <query> [--batch] [--type] [--fn] [--val] [--trait] [--impl] [--test] [--exact] [--shallow] [--with-docs] [--include-deprecated] [--include-internal] [--include-tests]"
+  "Usage: search <query> [--batch] [--limit N] [--type] [--fn] [--val] [--trait] [--impl] [--test] [--exact] [--shallow] [--with-docs] [--include-deprecated] [--include-internal] [--include-tests]"
 
 
 // The --json rendering. Typed results for the command an agent runs most; the signatures are the
@@ -1140,6 +1144,9 @@ let executeQuery(state: AppState, args: List<String>): AppState =
       Stdlib.printErrorLine("")
       Stdlib.printErrorLine(usage)
       failed(state)
+    else if parsed.limit == Option.None then
+      printErr("Error: --limit requires a positive integer")
+      failed(state)
     else
       let rawQueryText = Stdlib.String.join(parsed.queryParts, " ")
       let aliasKeyword = operatorAlias(rawQueryText)
@@ -1328,7 +1335,7 @@ let executeQuery(state: AppState, args: List<String>): AppState =
           Stdlib.printLine("")
 
           // Key format: match rank followed by the fixed section order.
-          let resultCap = if parsed.batch then batchDisplayCap else displayCap
+          let resultCap = Stdlib.Option.withDefault(parsed.limit, displayCap)
           match typeQuery(searchText) with
           | Some((source, target)) when Stdlib.Bool.not(Stdlib.List.isEmpty(typed)) ->
             Stdlib.printLine(
@@ -1496,7 +1503,7 @@ let execute(state: AppState, args: List<String>): AppState =
     // A name has no spaces, so several words under --exact are several names, not one
     // phrase that nothing could match exactly.
     let several = parsed.batch || parsed.exactMatch && Stdlib.List.length(parsed.queryParts) > 1
-    if Stdlib.Bool.not(several) || Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.parseErrors)) then
+    if Stdlib.Bool.not(several) || Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.parseErrors)) || parsed.limit == Option.None then
       executeQuery(state, args)
     else if Stdlib.List.isEmpty(parsed.queryParts) then
       printErr("Error: Batch search requires at least one query")
@@ -1504,15 +1511,14 @@ let execute(state: AppState, args: List<String>): AppState =
       Stdlib.printErrorLine(usage)
       failed(state)
     else
-      // FlagParser has no value-taking flags in this command, so retaining the
-      // original flag arguments is sufficient to give every query the same
-      // filters. Each positional remains one query even when it contains spaces. Each query
-      // gets `--batch` even when several --exact names put it here without one, so it caps
-      // its results and leaves the --with-docs hint to the end.
+      // Rebuild the arguments from the parsed flags and options so each query gets the same
+      // limit and filters. This keeps the value in `--limit 5` out of the search terms.
+      let p = FlagParser.parse(argSpec, args)
       let flags =
-        args
-        |> Stdlib.List.filter(fun arg -> Stdlib.String.startsWith(arg, "--") && arg != "--batch")
-        |> Stdlib.List.prepend("--batch")
+        Stdlib.List.flatten(
+          [ [ "--batch" ]
+            p.flags |> Stdlib.List.filter(fun flag -> flag != "--batch")
+            p.options |> Stdlib.List.map(fun((key, value)) -> [ key, value ]) |> Stdlib.List.flatten ])
 
       parsed.queryParts
       |> Stdlib.List.iter(fun query ->
@@ -1537,7 +1543,8 @@ let help(state: AppState): String =
     "With query: Execute search and display results"
     ""
     "Options:"
-    "  --batch                Treat each quoted query as an independent search (3 results each)"
+    "  --batch                Treat each quoted query as an independent search"
+    "  --limit N              Maximum results per entity section (default: 20)"
     "  --type                 Search only types"
     "  --fn                   Search only functions"
     "  --val                  Search only values"
@@ -1587,6 +1594,7 @@ let complete(_state: AppState, args: List<String>): List<Completion.CompletionIt
   | Some(lastArg) ->
     if Stdlib.String.startsWith(lastArg, "--") then
       [ "--batch"
+        "--limit"
         "--type"
         "--fn"
         "--val"
