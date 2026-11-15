@@ -261,9 +261,9 @@ let runWithExit (i : T) (args : string list) : Task<string * int64> =
     return (bothStreams out err, int64 code)
   }
 
-/// Start a command that keeps running (`serve`) in this instance and return at once. What it
-/// prints is drained and dropped, so a full pipe never stops it. The caller stops it with `stop`.
-let start (i : T) (args : string list) : System.Diagnostics.Process =
+/// Start a command in this instance and return at once, with its stdout and stderr for the caller
+/// to read. The caller stops it with `stop`.
+let startUndrained (i : T) (args : string list) : System.Diagnostics.Process =
   let psi = System.Diagnostics.ProcessStartInfo()
   psi.FileName <- i.cli
   for arg in args do
@@ -275,6 +275,12 @@ let start (i : T) (args : string list) : System.Diagnostics.Process =
   childEnv i.dir psi
   let p = System.Diagnostics.Process.Start psi
   p.StandardInput.Close()
+  p
+
+/// Start a command that keeps running (`serve`) in this instance and return at once. What it
+/// prints is drained and dropped, so a full pipe never stops it. The caller stops it with `stop`.
+let start (i : T) (args : string list) : System.Diagnostics.Process =
+  let p = startUndrained i args
   p.OutputDataReceived.Add(ignore<System.Diagnostics.DataReceivedEventArgs>)
   p.ErrorDataReceived.Add(ignore<System.Diagnostics.DataReceivedEventArgs>)
   p.BeginOutputReadLine()

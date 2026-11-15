@@ -214,6 +214,35 @@ let private processTitleSaysWhatRuns =
           "the command line names `dark`, not the binary's path"
     })
 
+/// `dark run ... | head` ends when `head` does: once nobody reads stdout, the run stops, quietly.
+let private runStopsWhenStdoutCloses =
+  Tests.CliInstance.instanceTest "a run stops when its stdout closes" (fun i ->
+    task {
+      if not (System.OperatingSystem.IsWindows()) then
+        // A line every 20 ms, for a minute.
+        let script = System.IO.Path.Combine(i.dir, "ticks.dark")
+        System.IO.File.WriteAllText(
+          script,
+          "let tick(n: Int64): Int64 =\n"
+          + "  Stdlib.printLine(Stdlib.display(n))\n"
+          + "  Stdlib.Cli.Posix.sleep(20.0)\n"
+          + "  if n >= 3000 then 0 else tick(n + 1)\n"
+          + "tick(1)\n"
+        )
+        let p = Tests.CliInstance.startUndrained i [ "run"; script ]
+        try
+          let! first = p.StandardOutput.ReadLineAsync()
+          Expect.equal first "1" "the run prints"
+          p.StandardOutput.Close()
+          Expect.isTrue
+            (p.WaitForExit 30000)
+            "it stops soon after its stdout closes"
+          Expect.equal p.ExitCode 141 "and exits as a process SIGPIPE ended"
+          Expect.equal (p.StandardError.ReadToEnd()) "" "saying nothing"
+        finally
+          Tests.CliInstance.stop p
+    })
+
 /// What a person reads while a command runs (a log line, a hint about another flag) is not part of
 /// the answer, so `dark search x | wc -l` counts results and nothing else.
 let private hintsAndLogsStayOffStdout =
@@ -2570,6 +2599,7 @@ let tests : List<Test> =
     stderrIsCapturedInOrder
     stdinThatIsNotUtf8IsRefused
     processTitleSaysWhatRuns
+    runStopsWhenStdoutCloses
     diagnosticsStayOffStdout
     hintsAndLogsStayOffStdout
     warningsAndPreviewsStayOffStdout
