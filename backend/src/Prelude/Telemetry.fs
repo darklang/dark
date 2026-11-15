@@ -145,14 +145,3 @@ let span (name : string) (ctx : (string * string) list) : Span = new Span(name, 
 let time (name : string) (ctx : (string * string) list) (f : unit -> 'a) : 'a =
   use _s = span name ctx
   f ()
-
-/// Convenience: time an async task and log the result.
-let timeTask
-  (name : string)
-  (ctx : (string * string) list)
-  (f : unit -> System.Threading.Tasks.Task<'a>)
-  : System.Threading.Tasks.Task<'a> =
-  task {
-    use _s = span name ctx
-    return! f ()
-  }

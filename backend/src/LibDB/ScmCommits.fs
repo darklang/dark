@@ -9,7 +9,6 @@
 module LibDB.ScmCommits
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -90,35 +89,33 @@ let private shape (f : Filter) : Shape =
 
 /// The commits <param f> selects, at most <param limit> of them (a negative limit means all of them).
 /// A limit of 0 counts the matches instead.
-let query (f : Filter) (limit : int64) : Task<Page> =
-  task {
-    let s = shape f
-    if limit = 0L then
-      let! n =
-        Sql.query ("SELECT count(*) AS n " + s.from)
-        |> Sql.parameters s.parameters
-        |> Sql.executeRowAsync (fun read -> read.int64 "n")
-      return { total = n; commits = [] }
-    else
-      let! rows =
-        Sql.query (
-          "SELECT c.hash, c.message, c.origin_ts, c.created_at, c.parent, c.housekeeping "
-          + s.from
-          + " "
-          + s.order
-          + " LIMIT @limit"
-        )
-        |> Sql.parameters (("limit", Sql.int64 limit) :: s.parameters)
-        |> Sql.executeAsync (fun read ->
-          let orEmpty col = read.stringOrNone col |> Option.defaultValue ""
-          read.stringOrNone "hash"
-          |> Option.map (fun h ->
-            { hash = h
-              message = orEmpty "message"
-              originTs = orEmpty "origin_ts"
-              createdAt = orEmpty "created_at"
-              parent = orEmpty "parent"
-              housekeeping = read.int64 "housekeeping" <> 0L }))
-      let commits = List.choose identity rows
-      return { total = int64 (List.length commits); commits = commits }
-  }
+let query (f : Filter) (limit : int64) : Page =
+  let s = shape f
+  if limit = 0L then
+    let n =
+      Sql.query ("SELECT count(*) AS n " + s.from)
+      |> Sql.parameters s.parameters
+      |> Sql.executeRow (fun read -> read.int64 "n")
+    { total = n; commits = [] }
+  else
+    let rows =
+      Sql.query (
+        "SELECT c.hash, c.message, c.origin_ts, c.created_at, c.parent, c.housekeeping "
+        + s.from
+        + " "
+        + s.order
+        + " LIMIT @limit"
+      )
+      |> Sql.parameters (("limit", Sql.int64 limit) :: s.parameters)
+      |> Sql.executeRows (fun read ->
+        let orEmpty col = read.stringOrNone col |> Option.defaultValue ""
+        read.stringOrNone "hash"
+        |> Option.map (fun h ->
+          { hash = h
+            message = orEmpty "message"
+            originTs = orEmpty "origin_ts"
+            createdAt = orEmpty "created_at"
+            parent = orEmpty "parent"
+            housekeeping = read.int64 "housekeeping" <> 0L }))
+    let commits = List.choose identity rows
+    { total = int64 (List.length commits); commits = commits }

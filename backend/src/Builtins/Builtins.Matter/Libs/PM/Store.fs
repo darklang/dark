@@ -4,7 +4,6 @@
 /// wrappers live under `Darklang.SCM.Wire` on the Dark side; the F# home is here.)
 module Builtins.Matter.Libs.PM.Store
 
-open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
@@ -79,7 +78,7 @@ let fns () : List<BuiltInFn> =
         // `LibDB.Sqlite.currentDbPath`, not `Config.dbPath`: the two differ under a test that
         // repointed the store, and Dark's SQL has to reach the same file as the F# it is
         // interleaved with.
-        | _, _, _, [| DUnit |] -> uply { return DString LibDB.Sqlite.currentDbPath }
+        | _, _, _, [| DUnit |] -> (DString LibDB.Sqlite.currentDbPath)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -110,32 +109,29 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, _, _, [| DEnum(_, _, _, caseName, fields) |] ->
-          uply {
-            requireHost state
-            let db = LibDB.Sqlite.currentDbPath
-            let result =
-              match caseName, fields with
-              | "List", [] -> Ok(LibDB.StoreBackups.list db)
-              | "Create", [] ->
-                LibDB.StoreBackups.create db |> Result.map List.singleton
-              | "Restore", [ DString name ] ->
-                LibDB.StoreBackups.restore db name |> Result.map List.singleton
-              | "Delete", [ DString name ] ->
-                LibDB.StoreBackups.delete db name |> Result.map List.singleton
-              | "SnapshotTo", [ DString path ] ->
-                LibDB.StoreBackups.snapshotTo db path |> Result.map List.singleton
-              | _ -> incorrectArgs ()
-            let backupKT = KTCustomType(backupTypeName (), [])
-            let listKT = KTList(ValueType.Known backupKT)
-            match result with
-            | Ok backups ->
-              return
-                backups
-                |> List.map backupToDT
-                |> Dval.list backupKT
-                |> Dval.resultOk listKT KTString
-            | Error e -> return Dval.resultError listKT KTString (DString e)
-          }
+          requireHost state
+          let db = LibDB.Sqlite.currentDbPath
+          let result =
+            match caseName, fields with
+            | "List", [] -> Ok(LibDB.StoreBackups.list db)
+            | "Create", [] ->
+              LibDB.StoreBackups.create db |> Result.map List.singleton
+            | "Restore", [ DString name ] ->
+              LibDB.StoreBackups.restore db name |> Result.map List.singleton
+            | "Delete", [ DString name ] ->
+              LibDB.StoreBackups.delete db name |> Result.map List.singleton
+            | "SnapshotTo", [ DString path ] ->
+              LibDB.StoreBackups.snapshotTo db path |> Result.map List.singleton
+            | _ -> incorrectArgs ()
+          let backupKT = KTCustomType(backupTypeName (), [])
+          let listKT = KTList(ValueType.Known backupKT)
+          match result with
+          | Ok backups ->
+            backups
+            |> List.map backupToDT
+            |> Dval.list backupKT
+            |> Dval.resultOk listKT KTString
+          | Error e -> Dval.resultError listKT KTString (DString e)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead; Effect.PackageWrite ]
@@ -150,12 +146,10 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString key |] ->
-          uply {
-            // `instance.*` is made (or moved in from `cli-config.json`) on first ask.
-            if key.StartsWith "instance." then do! LibDB.Config.ensureInstance ()
-            let! v = LibDB.Config.get key
-            return Dval.option KTString (Option.map DString v)
-          }
+          // `instance.*` is made (or moved in from `cli-config.json`) on first ask.
+          if key.StartsWith "instance." then LibDB.Config.ensureInstance ()
+          let v = LibDB.Config.get key
+          Dval.option KTString (Option.map DString v)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -176,28 +170,23 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, _, _, [| DString key; DEnum(_, _, _, "Some", [ DString value ]) |] ->
-          uply {
-            requireThePerson state key
-            let resolves name =
-              LibDB.PackageManager.resolveFnRef name |> Option.isSome
-            match LibDB.Config.check resolves key value with
-            | Error e -> return Dval.resultError KTUnit KTString (DString e)
-            | Ok() ->
-              // A name set before anything asked for the id must not stop the old file's id
-              // from moving in.
-              if key.StartsWith "instance." then do! LibDB.Config.ensureInstance ()
-              do! LibDB.Config.set key value
-              return Dval.resultOk KTUnit KTString DUnit
-          }
+          requireThePerson state key
+          let resolves name = LibDB.PackageManager.resolveFnRef name |> Option.isSome
+          match LibDB.Config.check resolves key value with
+          | Error e -> Dval.resultError KTUnit KTString (DString e)
+          | Ok() ->
+            // A name set before anything asked for the id must not stop the old file's id
+            // from moving in.
+            if key.StartsWith "instance." then LibDB.Config.ensureInstance ()
+            LibDB.Config.set key value
+            Dval.resultOk KTUnit KTString DUnit
         | state, _, _, [| DString key; DEnum(_, _, _, "None", []) |] ->
-          uply {
-            requireThePerson state key
-            match LibDB.Config.checkUnset key with
-            | Error e -> return Dval.resultError KTUnit KTString (DString e)
-            | Ok() ->
-              do! LibDB.Config.unset key
-              return Dval.resultOk KTUnit KTString DUnit
-          }
+          requireThePerson state key
+          match LibDB.Config.checkUnset key with
+          | Error e -> Dval.resultError KTUnit KTString (DString e)
+          | Ok() ->
+            LibDB.Config.unset key
+            Dval.resultOk KTUnit KTString DUnit
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageWrite ]
@@ -213,9 +202,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUnit |] ->
-          uply {
-            return LibDB.Config.readable |> List.map DString |> Dval.list KTString
-          }
+          LibDB.Config.readable |> List.map DString |> Dval.list KTString
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -235,7 +222,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUnit |] ->
-          uply { return Dval.dint64 (int64 (LibDB.Sqlite.DataVersion.current ())) }
+          (Dval.dint64 (int64 (LibDB.Sqlite.DataVersion.current ())))
         | _ -> incorrectArgs ())
       previewable = Impure
       // `PackageRead`, like every other question about the package store.
@@ -254,27 +241,23 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUnit |] ->
-          uply {
-            match HostWatch.watch with
-            | Some w ->
-              return
-                DEnum(
-                  Dval.optionType (),
-                  Dval.optionType (),
-                  [ ValueType.Unknown ],
-                  "Some",
-                  [ w ]
-                )
-            | None ->
-              return
-                DEnum(
-                  Dval.optionType (),
-                  Dval.optionType (),
-                  [ ValueType.Unknown ],
-                  "None",
-                  []
-                )
-          }
+          match HostWatch.watch with
+          | Some w ->
+            DEnum(
+              Dval.optionType (),
+              Dval.optionType (),
+              [ ValueType.Unknown ],
+              "Some",
+              [ w ]
+            )
+          | None ->
+            DEnum(
+              Dval.optionType (),
+              Dval.optionType (),
+              [ ValueType.Unknown ],
+              "None",
+              []
+            )
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -288,10 +271,8 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| w |] ->
-          uply {
-            HostWatch.watch <- Some w
-            return DUnit
-          }
+          HostWatch.watch <- Some w
+          DUnit
         | _ -> incorrectArgs ())
       previewable = Impure
       // Not a read: `Effects.readsOnly` would let a resume serve it instead of arming the watch.

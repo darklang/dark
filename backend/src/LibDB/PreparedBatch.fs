@@ -12,7 +12,6 @@
 module LibDB.PreparedBatch
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 open Microsoft.Data.Sqlite
 
 open Prelude
@@ -48,29 +47,17 @@ let command (ctx : Ctx) (sql : string) : SqliteCommand =
 
 /// Run a non-query statement and return how many rows it affected.
 /// `setParams` populates the command's parameters, which are named with `$name`.
-let execRows
-  (ctx : Ctx)
-  (sql : string)
-  (setParams : SqliteCommand -> unit)
-  : Task<int> =
-  task {
-    let cmd = command ctx sql
-    cmd.Parameters.Clear()
-    setParams cmd
-    return! cmd.ExecuteNonQueryAsync()
-  }
+let execRows (ctx : Ctx) (sql : string) (setParams : SqliteCommand -> unit) : int =
+  let cmd = command ctx sql
+  cmd.Parameters.Clear()
+  setParams cmd
+  cmd.ExecuteNonQuery()
 
 
 /// Run a non-query statement, ignoring how many rows it affected.
-let exec
-  (ctx : Ctx)
-  (sql : string)
-  (setParams : SqliteCommand -> unit)
-  : Task<unit> =
-  task {
-    let! _ = execRows ctx sql setParams
-    return ()
-  }
+let exec (ctx : Ctx) (sql : string) (setParams : SqliteCommand -> unit) : unit =
+  let _ = execRows ctx sql setParams
+  ()
 
 
 /// Read one optional BLOB scalar. Raises if the column holds something else, since
@@ -79,22 +66,19 @@ let bytesOption
   (ctx : Ctx)
   (sql : string)
   (setParams : SqliteCommand -> unit)
-  : Task<Option<byte[]>> =
-  task {
-    let cmd = command ctx sql
-    cmd.Parameters.Clear()
-    setParams cmd
-    let! value = cmd.ExecuteScalarAsync()
-    return
-      match value with
-      | :? (byte[]) as bytes -> Some bytes
-      | null -> None
-      | value when System.Convert.IsDBNull value -> None
-      | value ->
-        Exception.raiseInternal
-          "Expected a BLOB from a prepared-batch scalar read"
-          [ "actualType", value.GetType().FullName ]
-  }
+  : Option<byte[]> =
+  let cmd = command ctx sql
+  cmd.Parameters.Clear()
+  setParams cmd
+  let value = cmd.ExecuteScalar()
+  match value with
+  | :? (byte[]) as bytes -> Some bytes
+  | null -> None
+  | value when System.Convert.IsDBNull value -> None
+  | value ->
+    Exception.raiseInternal
+      "Expected a BLOB from a prepared-batch scalar read"
+      [ "actualType", value.GetType().FullName ]
 
 
 /// Read one integer scalar, through the same prepared-statement cache. `0L` for no row.
@@ -102,18 +86,15 @@ let scalarInt
   (ctx : Ctx)
   (sql : string)
   (setParams : SqliteCommand -> unit)
-  : Task<int64> =
-  task {
-    let cmd = command ctx sql
-    cmd.Parameters.Clear()
-    setParams cmd
-    let! value = cmd.ExecuteScalarAsync()
-    return
-      match value with
-      | :? int64 as n -> n
-      | :? int as n -> int64 n
-      | _ -> 0L
-  }
+  : int64 =
+  let cmd = command ctx sql
+  cmd.Parameters.Clear()
+  setParams cmd
+  let value = cmd.ExecuteScalar()
+  match value with
+  | :? int64 as n -> n
+  | :? int as n -> int64 n
+  | _ -> 0L
 
 /// Read one optional TEXT scalar. `None` for no row or NULL; raises if the column holds
 /// something else, for the same reason `bytesOption` does.
@@ -121,22 +102,19 @@ let textOption
   (ctx : Ctx)
   (sql : string)
   (setParams : SqliteCommand -> unit)
-  : Task<Option<string>> =
-  task {
-    let cmd = command ctx sql
-    cmd.Parameters.Clear()
-    setParams cmd
-    let! value = cmd.ExecuteScalarAsync()
-    return
-      match value with
-      | :? string as s -> Some s
-      | null -> None
-      | value when System.Convert.IsDBNull value -> None
-      | value ->
-        Exception.raiseInternal
-          "Expected TEXT from a prepared-batch scalar read"
-          [ "actualType", value.GetType().FullName ]
-  }
+  : Option<string> =
+  let cmd = command ctx sql
+  cmd.Parameters.Clear()
+  setParams cmd
+  let value = cmd.ExecuteScalar()
+  match value with
+  | :? string as s -> Some s
+  | null -> None
+  | value when System.Convert.IsDBNull value -> None
+  | value ->
+    Exception.raiseInternal
+      "Expected TEXT from a prepared-batch scalar read"
+      [ "actualType", value.GetType().FullName ]
 
 /// Read an optional (TEXT, nullable-TEXT) pair from the first row: `None` for no row,
 /// and the second column maps NULL to None. Per call site: the SQL and its parameters.
@@ -144,19 +122,17 @@ let pairOption
   (ctx : Ctx)
   (sql : string)
   (setParams : SqliteCommand -> unit)
-  : Task<Option<string * Option<string>>> =
-  task {
-    let cmd = command ctx sql
-    cmd.Parameters.Clear()
-    setParams cmd
-    use! reader = cmd.ExecuteReaderAsync()
-    let! hasRow = reader.ReadAsync()
-    if hasRow then
-      let second = if reader.IsDBNull 1 then None else Some(reader.GetString 1)
-      return Some(reader.GetString 0, second)
-    else
-      return None
-  }
+  : Option<string * Option<string>> =
+  let cmd = command ctx sql
+  cmd.Parameters.Clear()
+  setParams cmd
+  use reader = cmd.ExecuteReader()
+  let hasRow = reader.Read()
+  if hasRow then
+    let second = if reader.IsDBNull 1 then None else Some(reader.GetString 1)
+    Some(reader.GetString 0, second)
+  else
+    None
 
 
 /// Run <param sql> once per row, binding <param columns> of the row to its parameters by position

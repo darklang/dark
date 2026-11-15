@@ -62,7 +62,7 @@ true`, because a clock read can cost more than the call it times.
 | `traitDispatches`, `traitDispatchMisses` | Trait calls resolved at run time, and how many of those missed the cache. |
 | `buildMode`, `buildHash` | Which build: mode and commit (`dev` for a Debug CLI not run through `scripts/run-cli`). |
 | `statSets` | 0: the counters are the whole process. Positive: they are the calling VM's share (see below). |
-| `byOpcode` | Per opcode, bytes allocated and count; `syncHit`/`syncMiss` where an opcode has a synchronous fast path. |
+| `byOpcode` | Per opcode, bytes allocated and count. |
 | `byStage` | Per region of the Apply path, bytes and count. Read the fine-grained stages; the three `*.total` ones bracket nested execution and can exceed what the process allocated. |
 | `builtinTiming`, `packageFnTiming` | With detailed timing on: nanoseconds and calls, per builtin by name and per package fn by hash. `fnprofile` turns the second into a ranked table with names. |
 

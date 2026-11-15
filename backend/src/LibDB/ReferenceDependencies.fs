@@ -2,7 +2,6 @@
 module LibDB.ReferenceDependencies
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 open Fumble
 open Prelude
 open LibExecution.ProgramTypes
@@ -40,57 +39,53 @@ let private hashesJson (hashes : List<Hash>) : string =
 
 /// Which of <param hashes> the shared index names one target under more than one name: the
 /// `ambiguous` half of `indexedNames`, counted by SQLite rather than read row by row.
-let ambiguousHashes (hashes : List<Hash>) : Task<Set<Hash>> =
-  task {
-    let! rows =
-      Sql.query
-        """SELECT DISTINCT item_hash
+let ambiguousHashes (hashes : List<Hash>) : Set<Hash> =
+  let rows =
+    Sql.query
+      """SELECT DISTINCT item_hash
                    FROM package_dependencies
                    WHERE item_hash IN (SELECT value FROM json_each(@hashes)) AND depends_on_owner <> ''
                    GROUP BY item_hash, depends_on_hash, depends_on_item_type
                    HAVING COUNT(*) > 1"""
-      |> Sql.parameters [ "hashes", Sql.string (hashesJson hashes) ]
-      |> Sql.executeAsync (fun row -> Hash(row.string "item_hash"))
-    return Set.ofList rows
-  }
+    |> Sql.parameters [ "hashes", Sql.string (hashesJson hashes) ]
+    |> Sql.executeRows (fun row -> Hash(row.string "item_hash"))
+  Set.ofList rows
 
 /// The shared index may contain alias names authored on other branches.
 let indexedNames (hashes : List<Hash>) =
-  task {
-    let hashJson = hashesJson hashes
-    let! rows =
-      Sql.query
-        """SELECT item_hash, depends_on_hash, depends_on_item_type,
+  let hashJson = hashesJson hashes
+  let rows =
+    Sql.query
+      """SELECT item_hash, depends_on_hash, depends_on_item_type,
                           depends_on_owner, depends_on_modules, depends_on_name
                    FROM package_dependencies
                    WHERE item_hash IN (SELECT value FROM json_each(@hashes)) AND depends_on_owner <> ''"""
-      |> Sql.parameters [ "hashes", Sql.string hashJson ]
-      |> Sql.executeAsync (fun row ->
-        Hash(row.string "item_hash"),
-        PT.Reference.fromHashAndKind (
-          Hash(row.string "depends_on_hash"),
-          PT.ItemKind.fromString (row.string "depends_on_item_type")
-        ),
-        location
-          (row.string "depends_on_owner")
-          (row.string "depends_on_modules")
-          (row.string "depends_on_name"))
-    let indexed, _, ambiguous =
-      rows
-      |> List.fold
-        (fun (indexed, seen, ambiguous) (hash, target, name) ->
-          let ambiguous =
-            if Set.contains (hash, target) seen then
-              Set.add hash ambiguous
-            else
-              ambiguous
-          let named =
-            (target, Some name)
-            :: (Map.tryFind hash indexed |> Option.defaultValue [])
-          (Map.add hash named indexed, Set.add (hash, target) seen, ambiguous))
-        (Map.empty, Set.empty, Set.empty)
-    return indexed, ambiguous
-  }
+    |> Sql.parameters [ "hashes", Sql.string hashJson ]
+    |> Sql.executeRows (fun row ->
+      Hash(row.string "item_hash"),
+      PT.Reference.fromHashAndKind (
+        Hash(row.string "depends_on_hash"),
+        PT.ItemKind.fromString (row.string "depends_on_item_type")
+      ),
+      location
+        (row.string "depends_on_owner")
+        (row.string "depends_on_modules")
+        (row.string "depends_on_name"))
+  let indexed, _, ambiguous =
+    rows
+    |> List.fold
+      (fun (indexed, seen, ambiguous) (hash, target, name) ->
+        let ambiguous =
+          if Set.contains (hash, target) seen then
+            Set.add hash ambiguous
+          else
+            ambiguous
+        let named =
+          (target, Some name)
+          :: (Map.tryFind hash indexed |> Option.defaultValue [])
+        (Map.add hash named indexed, Set.add (hash, target) seen, ambiguous))
+      (Map.empty, Set.empty, Set.empty)
+  indexed, ambiguous
 
 /// Find callers using the reference names visible on this branch.
 /// Dependency queries and propagation both use this function.
@@ -98,96 +93,87 @@ let dependents
   (state : State)
   (branch : PT.BranchId)
   (targets : List<Queries.LocationTarget>)
-  : Task<List<Queries.LocationDependent>> =
-  task {
-    let! hashes = Queries.getDependentHashesByTargets targets
-    // The index still contains the original names. Include callers whose
-    // saved reference names now point at one of the requested targets.
-    let renamedCallers =
-      state
-      |> Map.toList
-      |> List.choose (fun ((_, caller), names) ->
-        if
-          names
-          |> List.exists (fun (target, current) ->
+  : List<Queries.LocationDependent> =
+  let hashes = Queries.getDependentHashesByTargets targets
+  // The index still contains the original names. Include callers whose
+  // saved reference names now point at one of the requested targets.
+  let renamedCallers =
+    state
+    |> Map.toList
+    |> List.choose (fun ((_, caller), names) ->
+      if
+        names
+        |> List.exists (fun (target, current) ->
+          targets
+          |> List.exists (fun t ->
+            target.kind = t.itemKind && current = Some t.location))
+      then
+        let (Hash h) = caller.hash
+        Some h
+      else
+        None)
+  let hashes = List.distinct (hashes @ renamedCallers)
+  // Where the branch's view binds each of them; several names can share one body, and each
+  // needs to follow the edit.
+  let live = Queries.getLiveLocationsForHashes branch hashes
+  let batchDependents =
+    hashes
+    |> List.collect (fun h ->
+      Map.tryFind h live
+      |> Option.defaultValue []
+      |> List.map (fun (kind, loc) ->
+        ({ itemHash = Hash h; itemKind = kind; itemLocation = loc }
+        : Queries.LocationDependent)))
+
+  // Check ambiguous indexed names even when this branch has no saved metadata.
+  // Another branch may have contributed aliases for the same shared body.
+  let ambiguous = ambiguousHashes (hashes |> List.map Hash)
+  let batchDependents =
+    if Map.isEmpty state && Set.isEmpty ambiguous then
+      batchDependents
+    else
+      let affectedVersions = state |> Map.keys |> Seq.map snd |> Set.ofSeq
+      let targetOf (d : Queries.LocationDependent) =
+        PT.Reference.fromHashAndKind (d.itemHash, d.itemKind)
+      let needsBody (target : PT.Reference) =
+        Set.contains target affectedVersions || Set.contains target.hash ambiguous
+      let originals =
+        batchDependents
+        |> List.map targetOf
+        |> List.filter needsBody
+        |> List.distinct
+        |> List.map (fun target ->
+          let names = storedNames target
+          let names =
+            names
+            |> Option.defaultWith (fun () ->
+              Exception.raiseInternal
+                "Cannot read reference names: stored declaration is missing"
+                [])
+          (target, names))
+        |> Map.ofList
+      batchDependents
+      |> List.filter (fun d ->
+        let target = targetOf d
+        if not (needsBody target) then
+          true
+        else
+          effectiveNames
+            state
+            d.itemLocation
+            target
+            (Microsoft.FSharp.Collections.Map.find target originals)
+          |> asDependencies
+          |> List.exists (fun edge ->
             targets
             |> List.exists (fun t ->
-              target.kind = t.itemKind && current = Some t.location))
-        then
-          let (Hash h) = caller.hash
-          Some h
-        else
-          None)
-    let hashes = List.distinct (hashes @ renamedCallers)
-    // Where the branch's view binds each of them; several names can share one body, and each
-    // needs to follow the edit.
-    let! live = Queries.getLiveLocationsForHashes branch hashes
-    let batchDependents =
-      hashes
-      |> List.collect (fun h ->
-        Map.tryFind h live
-        |> Option.defaultValue []
-        |> List.map (fun (kind, loc) ->
-          ({ itemHash = Hash h; itemKind = kind; itemLocation = loc }
-          : Queries.LocationDependent)))
+              let followsTarget =
+                match edge.location with
+                | Some loc -> loc = t.location
+                | None -> List.contains edge.hash t.hashes
+              edge.itemKind = t.itemKind && followsTarget)))
 
-    // Check ambiguous indexed names even when this branch has no saved metadata.
-    // Another branch may have contributed aliases for the same shared body.
-    let! ambiguous = ambiguousHashes (hashes |> List.map Hash)
-    let! batchDependents =
-      if Map.isEmpty state && Set.isEmpty ambiguous then
-        Task.FromResult batchDependents
-      else
-        task {
-          let affectedVersions = state |> Map.keys |> Seq.map snd |> Set.ofSeq
-          let targetOf (d : Queries.LocationDependent) =
-            PT.Reference.fromHashAndKind (d.itemHash, d.itemKind)
-          let needsBody (target : PT.Reference) =
-            Set.contains target affectedVersions
-            || Set.contains target.hash ambiguous
-          let! originals =
-            batchDependents
-            |> List.map targetOf
-            |> List.filter needsBody
-            |> List.distinct
-            |> Ply.List.mapSequentially (fun target ->
-              uply {
-                let! names = storedNames target
-                let names =
-                  names
-                  |> Option.defaultWith (fun () ->
-                    Exception.raiseInternal
-                      "Cannot read reference names: stored declaration is missing"
-                      [])
-                return (target, names)
-              })
-            |> Ply.map Map.ofList
-            |> Ply.toTask
-          return
-            batchDependents
-            |> List.filter (fun d ->
-              let target = targetOf d
-              if not (needsBody target) then
-                true
-              else
-                effectiveNames
-                  state
-                  d.itemLocation
-                  target
-                  (Microsoft.FSharp.Collections.Map.find target originals)
-                |> asDependencies
-                |> List.exists (fun edge ->
-                  targets
-                  |> List.exists (fun t ->
-                    let followsTarget =
-                      match edge.location with
-                      | Some loc -> loc = t.location
-                      | None -> List.contains edge.hash t.hashes
-                    edge.itemKind = t.itemKind && followsTarget)))
-        }
-
-    return batchDependents
-  }
+  batchDependents
 
 /// The bindings <param branch>'s view holds that also meet <param filter>, a condition on
 /// `visible` that may read <param keys> as `@keys`.
@@ -195,23 +181,21 @@ let private bindingsWhere
   (branch : PT.BranchId)
   (filter : string)
   (keys : string)
-  : Task<Map<PT.PackageLocation, PT.Reference>> =
-  task {
-    let! rows =
-      Sql.query (
-        Layers.view "@" Layers.locations
-        + " SELECT owner, modules, name, item_type, item_hash FROM visible WHERE item_hash <> ''"
-        + filter
-      )
-      |> Sql.parameters (("keys", Sql.string keys) :: Layers.sqlParams branch true)
-      |> Sql.executeAsync (fun row ->
-        location (row.string "owner") (row.string "modules") (row.string "name"),
-        PT.Reference.fromHashAndKind (
-          Hash(row.string "item_hash"),
-          PT.ItemKind.fromString (row.string "item_type")
-        ))
-    return Map.ofList rows
-  }
+  : Map<PT.PackageLocation, PT.Reference> =
+  let rows =
+    Sql.query (
+      Layers.view "@" Layers.locations
+      + " SELECT owner, modules, name, item_type, item_hash FROM visible WHERE item_hash <> ''"
+      + filter
+    )
+    |> Sql.parameters (("keys", Sql.string keys) :: Layers.sqlParams branch true)
+    |> Sql.executeRows (fun row ->
+      location (row.string "owner") (row.string "modules") (row.string "name"),
+      PT.Reference.fromHashAndKind (
+        Hash(row.string "item_hash"),
+        PT.ItemKind.fromString (row.string "item_type")
+      ))
+  Map.ofList rows
 
 /// One branch-visible binding snapshot for the entire review: every name the view binds.
 let liveBindings (branch : PT.BranchId) = bindingsWhere branch "" "[]"
@@ -220,9 +204,9 @@ let liveBindings (branch : PT.BranchId) = bindingsWhere branch "" "[]"
 let private bindingsOfHashes
   (branch : PT.BranchId)
   (hashes : List<Hash>)
-  : Task<Map<PT.PackageLocation, PT.Reference>> =
+  : Map<PT.PackageLocation, PT.Reference> =
   if List.isEmpty hashes then
-    Task.FromResult Map.empty
+    Map.empty
   else
     bindingsWhere
       branch
@@ -233,9 +217,9 @@ let private bindingsOfHashes
 let private bindingsAt
   (branch : PT.BranchId)
   (names : List<PT.PackageLocation>)
-  : Task<Map<PT.PackageLocation, PT.Reference>> =
+  : Map<PT.PackageLocation, PT.Reference> =
   if List.isEmpty names then
-    Task.FromResult Map.empty
+    Map.empty
   else
     bindingsWhere
       branch
@@ -249,57 +233,49 @@ let private namedReferencesFrom
   state
   (live : List<PT.PackageLocation * PT.Reference>)
   =
-  task {
-    let hashes = live |> List.map (fun (_, target) -> target.hash) |> List.distinct
-    let! indexed, ambiguous = indexedNames hashes
-    let affected = state |> Map.keys |> Seq.map snd |> Set.ofSeq
-    let needsBody (target : PT.Reference) =
-      Set.contains target affected || Set.contains target.hash ambiguous
-    // A shared index can contain aliases from another branch. Read the body whenever
-    // saved names or ambiguous aliases require it, once per content version.
-    let! stored =
-      live
-      |> List.map snd
-      |> List.filter needsBody
-      |> ReferenceNamesContent.storedNamesEach
-    if stored |> List.exists (fun (_, names) -> Option.isNone names) then
-      return Error "Cannot read reference names: stored declaration is missing"
-    else
-      let originals =
-        stored
-        |> List.choose (fun (target, names) ->
-          names |> Option.map (fun names -> (target, names)))
-        |> Map.ofList
-      return
-        live
-        |> List.collect (fun (name, caller) ->
-          let names =
-            match Map.tryFind caller originals with
-            | Some original -> effectiveNames state name caller original
-            | None -> Map.tryFind caller.hash indexed |> Option.defaultValue []
-          names
-          |> List.choose (fun (target, referenceName) ->
-            referenceName
-            |> Option.map (fun referenceName ->
-              name, caller, target, referenceName)))
-        |> List.distinct
-        |> Ok
-  }
+  let hashes = live |> List.map (fun (_, target) -> target.hash) |> List.distinct
+  let indexed, ambiguous = indexedNames hashes
+  let affected = state |> Map.keys |> Seq.map snd |> Set.ofSeq
+  let needsBody (target : PT.Reference) =
+    Set.contains target affected || Set.contains target.hash ambiguous
+  // A shared index can contain aliases from another branch. Read the body whenever
+  // saved names or ambiguous aliases require it, once per content version.
+  let stored =
+    live
+    |> List.map snd
+    |> List.filter needsBody
+    |> ReferenceNamesContent.storedNamesEach
+  if stored |> List.exists (fun (_, names) -> Option.isNone names) then
+    Error "Cannot read reference names: stored declaration is missing"
+  else
+    let originals =
+      stored
+      |> List.choose (fun (target, names) ->
+        names |> Option.map (fun names -> (target, names)))
+      |> Map.ofList
+    live
+    |> List.collect (fun (name, caller) ->
+      let names =
+        match Map.tryFind caller originals with
+        | Some original -> effectiveNames state name caller original
+        | None -> Map.tryFind caller.hash indexed |> Option.defaultValue []
+      names
+      |> List.choose (fun (target, referenceName) ->
+        referenceName
+        |> Option.map (fun referenceName -> name, caller, target, referenceName)))
+    |> List.distinct
+    |> Ok
 
 /// Explicit dependency reads still return edges; reviews filter them before crossing into Dark.
 let namedReferences branch sources =
-  task {
-    let! state = load branch
-    let! live =
-      if List.isEmpty sources then
-        task {
-          let! bindings = liveBindings branch
-          return Map.toList bindings
-        }
-      else
-        Task.FromResult(List.distinct sources)
-    return! namedReferencesFrom state live
-  }
+  let state = load branch
+  let live =
+    if List.isEmpty sources then
+      let bindings = liveBindings branch
+      Map.toList bindings
+    else
+      (List.distinct sources)
+  namedReferencesFrom state live
 
 type NamedReference =
   PT.PackageLocation * PT.Reference * PT.Reference * PT.PackageLocation
@@ -376,13 +352,12 @@ let private reviewIndexed
   (state : State)
   (changed : List<PT.PackageLocation * PT.Reference>)
   =
-  task {
-    let! candidates =
-      Sql.query (
-        Layers.view "@" Layers.locations
-        // From each binding to the callers recorded against another version of its name: one
-        // probe of `idx_package_dependencies_target` per binding.
-        + """
+  let candidates =
+    Sql.query (
+      Layers.view "@" Layers.locations
+      // From each binding to the callers recorded against another version of its name: one
+      // probe of `idx_package_dependencies_target` per binding.
+      + """
            SELECT DISTINCT d.item_hash
            FROM visible l CROSS JOIN package_dependencies d
              ON d.depends_on_owner = l.owner AND d.depends_on_modules = l.modules
@@ -393,128 +368,112 @@ let private reviewIndexed
            WHERE depends_on_owner <> ''
            GROUP BY item_hash, depends_on_hash, depends_on_item_type
            HAVING COUNT(*) > 1"""
-      )
-      |> Sql.parameters (Layers.sqlParams branch true)
-      |> Sql.executeAsync (fun row -> Hash(row.string "item_hash"))
-    // Each hash's names in the view, in name order. Read for just these hashes: the review never
-    // asks about any other binding, and reading all of them was most of what it cost.
-    let sources hashes =
-      task {
-        let hashes = List.distinct hashes
-        let! bound = bindingsOfHashes branch hashes
-        let byHash =
-          bound |> Map.toList |> List.groupBy (fun (_, target) -> target.hash)
-        return
-          hashes
-          |> List.collect (fun hash ->
-            Map.tryFind hash byHash |> Option.defaultValue [])
-      }
-    let exceptional = state |> Map.keys |> List.map (fun (_, target) -> target.hash)
-    let initialHashes = List.distinct (candidates @ exceptional)
-    let! initialSources = sources initialHashes
-    let! initial = namedReferencesFrom state initialSources
-    match initial with
-    | Error message -> return Error message
-    | Ok initial ->
-      // Overrides can point to names absent from the index. They are already in
-      // `edges`; SQL only discovers the remaining candidates, which are checked
-      // against their effective names before traversal follows them.
-      let fetchCallers
-        (edges : List<NamedReference>, fetched : Set<Hash>)
-        (names : List<PT.PackageLocation>)
-        : Task<Result<List<NamedReference> * Set<Hash>, string>> =
-        task {
-          use buffer = new System.IO.MemoryStream()
-          use writer = new System.Text.Json.Utf8JsonWriter(buffer)
-          writer.WriteStartArray()
-          for name in names do
-            writer.WriteStartArray()
-            writer.WriteStringValue(name.owner)
-            writer.WriteStringValue(String.concat "." name.modules)
-            writer.WriteStringValue(name.name)
-            writer.WriteEndArray()
-          writer.WriteEndArray()
-          writer.Flush()
-          let json = System.Text.Encoding.UTF8.GetString(buffer.ToArray())
-          let! hashes =
-            Sql.query
-              """SELECT DISTINCT d.item_hash
+    )
+    |> Sql.parameters (Layers.sqlParams branch true)
+    |> Sql.executeRows (fun row -> Hash(row.string "item_hash"))
+  // Each hash's names in the view, in name order. Read for just these hashes: the review never
+  // asks about any other binding, and reading all of them was most of what it cost.
+  let sources hashes =
+    let hashes = List.distinct hashes
+    let bound = bindingsOfHashes branch hashes
+    let byHash = bound |> Map.toList |> List.groupBy (fun (_, target) -> target.hash)
+    hashes
+    |> List.collect (fun hash -> Map.tryFind hash byHash |> Option.defaultValue [])
+  let exceptional = state |> Map.keys |> List.map (fun (_, target) -> target.hash)
+  let initialHashes = List.distinct (candidates @ exceptional)
+  let initialSources = sources initialHashes
+  let initial = namedReferencesFrom state initialSources
+  match initial with
+  | Error message -> Error message
+  | Ok initial ->
+    // Overrides can point to names absent from the index. They are already in
+    // `edges`; SQL only discovers the remaining candidates, which are checked
+    // against their effective names before traversal follows them.
+    let fetchCallers
+      (edges : List<NamedReference>, fetched : Set<Hash>)
+      (names : List<PT.PackageLocation>)
+      : Result<List<NamedReference> * Set<Hash>, string> =
+      use buffer = new System.IO.MemoryStream()
+      use writer = new System.Text.Json.Utf8JsonWriter(buffer)
+      writer.WriteStartArray()
+      for name in names do
+        writer.WriteStartArray()
+        writer.WriteStringValue(name.owner)
+        writer.WriteStringValue(String.concat "." name.modules)
+        writer.WriteStringValue(name.name)
+        writer.WriteEndArray()
+      writer.WriteEndArray()
+      writer.Flush()
+      let json = System.Text.Encoding.UTF8.GetString(buffer.ToArray())
+      let hashes =
+        Sql.query
+          """SELECT DISTINCT d.item_hash
                  FROM json_each(@names) n JOIN package_dependencies d
                    ON d.depends_on_owner = json_extract(n.value, '$[0]')
                   AND d.depends_on_modules = json_extract(n.value, '$[1]')
                   AND d.depends_on_name = json_extract(n.value, '$[2]')
                  WHERE d.depends_on_owner <> ''"""
-            |> Sql.parameters [ "names", Sql.string json ]
-            |> Sql.executeAsync (fun row -> Hash(row.string "item_hash"))
-          let fresh =
-            hashes |> List.filter (fun hash -> not (Set.contains hash fetched))
-          if List.isEmpty fresh then
-            return Ok(edges, fetched)
-          else
-            let! freshSources = sources fresh
-            match! namedReferencesFrom state freshSources with
-            | Error message -> return Error message
-            | Ok extra ->
-              return Ok(extra @ edges, Set.union fetched (Set.ofList fresh))
-        }
-      // A seed reached from another seed must still expand its current edges.
-      let rec expand edges fetched visited pending =
-        task {
-          let frontier =
-            pending
-            |> List.distinct
-            |> List.filter (fun name -> not (Set.contains name visited))
-          if List.isEmpty frontier then
-            return Ok edges
-          else
-            let frontierSet = Set.ofList frontier
-            match! fetchCallers (edges, fetched) frontier with
-            | Error message -> return Error message
-            | Ok(edges, fetched) ->
-              let pending =
-                edges
-                |> List.choose (fun (usage, _, _, dependency) ->
-                  if Set.contains dependency frontierSet then Some usage else None)
-              return! expand edges fetched (Set.union visited frontierSet) pending
-        }
-      let! expanded =
-        if List.isEmpty changed then
-          Task.FromResult(Ok initial)
-        else
-          task {
-            let seedNames = changed |> List.map fst |> List.distinct
-            match! fetchCallers (initial, Set.ofList initialHashes) seedNames with
-            | Error message -> return Error message
-            | Ok(edges, fetched) ->
-              let seeds = changed |> List.groupBy fst
-              let pending =
-                edges
-                |> List.choose (fun (usage, _, target, dependency) ->
-                  match Map.tryFind dependency seeds with
-                  | Some versions when
-                    versions
-                    |> List.exists (fun (_, current) -> current.hash <> target.hash)
-                    ->
-                    Some usage
-                  | _ -> None)
-              return! expand edges fetched Set.empty pending
-          }
-      match expanded with
-      | Error message -> return Error message
-      | Ok edges ->
-        let edges = List.distinct edges
-        // The graph only asks what each edge's dependency is bound to now.
-        let! live =
-          edges
-          |> List.map (fun (_, _, _, dependency) -> dependency)
-          |> List.distinct
-          |> bindingsAt branch
-        return Ok(reviewGraph live edges changed)
-  }
+        |> Sql.parameters [ "names", Sql.string json ]
+        |> Sql.executeRows (fun row -> Hash(row.string "item_hash"))
+      let fresh = hashes |> List.filter (fun hash -> not (Set.contains hash fetched))
+      if List.isEmpty fresh then
+        Ok(edges, fetched)
+      else
+        let freshSources = sources fresh
+        match namedReferencesFrom state freshSources with
+        | Error message -> Error message
+        | Ok extra -> Ok(extra @ edges, Set.union fetched (Set.ofList fresh))
+    // A seed reached from another seed must still expand its current edges.
+    let rec expand edges fetched visited pending =
+      let frontier =
+        pending
+        |> List.distinct
+        |> List.filter (fun name -> not (Set.contains name visited))
+      if List.isEmpty frontier then
+        Ok edges
+      else
+        let frontierSet = Set.ofList frontier
+        match fetchCallers (edges, fetched) frontier with
+        | Error message -> Error message
+        | Ok(edges, fetched) ->
+          let pending =
+            edges
+            |> List.choose (fun (usage, _, _, dependency) ->
+              if Set.contains dependency frontierSet then Some usage else None)
+          expand edges fetched (Set.union visited frontierSet) pending
+    let expanded =
+      if List.isEmpty changed then
+        (Ok initial)
+      else
+        let seedNames = changed |> List.map fst |> List.distinct
+        match fetchCallers (initial, Set.ofList initialHashes) seedNames with
+        | Error message -> Error message
+        | Ok(edges, fetched) ->
+          let seeds = changed |> List.groupBy fst
+          let pending =
+            edges
+            |> List.choose (fun (usage, _, target, dependency) ->
+              match Map.tryFind dependency seeds with
+              | Some versions when
+                versions
+                |> List.exists (fun (_, current) -> current.hash <> target.hash)
+                ->
+                Some usage
+              | _ -> None)
+          expand edges fetched Set.empty pending
+    match expanded with
+    | Error message -> Error message
+    | Ok edges ->
+      let edges = List.distinct edges
+      // The graph only asks what each edge's dependency is bound to now.
+      let live =
+        edges
+        |> List.map (fun (_, _, _, dependency) -> dependency)
+        |> List.distinct
+        |> bindingsAt branch
+      Ok(reviewGraph live edges changed)
 
 /// Share binding and reference-name state across constraint and propagation review.
 let dependencyReview branch changed =
-  task {
-    let! state = load branch
-    return! reviewIndexed branch state changed
-  }
+  let state = load branch
+  reviewIndexed branch state changed

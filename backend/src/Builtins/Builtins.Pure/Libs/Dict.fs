@@ -1,5 +1,7 @@
 module Builtins.Pure.Libs.Dict
 
+open System.Threading.Tasks
+
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
@@ -10,6 +12,7 @@ module RTE = RuntimeError
 module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
 module Spread = LibExecution.Spread
+module Pending = LibExecution.Pending
 
 let varK = TVariable "k"
 let varA = TVariable "a"
@@ -35,7 +38,7 @@ let private applyEach
   (valueType : ValueType)
   (entries : (struct (Dval * Dval))[])
   (finish : Dval[] -> Dval)
-  : Ply<Dval> =
+  : Dval =
   let keyAt (i : int64) =
     let struct (k, _) = entries[int i]
     k
@@ -52,7 +55,7 @@ let private applyEach
           [ DList(keyType, DvalList.ofArray keys); DList(valueType, chunk) ]
         member _.Absorb(acc, _, spread) =
           DvalList.fold (fun acc answer -> answer :: acc) acc spread.results
-        member _.Finish acc = Ply(finish (List.toArray (List.rev acc))) }
+        member _.Finish acc = finish (List.toArray (List.rev acc)) }
     []
     (DvalList.ofArray (Array.map (fun (struct (_, v)) -> v) entries))
 
@@ -64,7 +67,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the number of entries in <param dict>"
       fn =
         (function
-        | _, _, _, [| DDict(_, _, o) |] -> Ply(Dval.dint64 (int64 (DictMap.count o)))
+        | _, _, _, [| DDict(_, _, o) |] -> (Dval.dint64 (int64 (DictMap.count o)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -79,7 +82,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DDict(keyType, _, o) |] ->
-          DList(keyType, Items(DictMap.keys o)) |> Ply
+          DList(keyType, Items(DictMap.keys o))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -96,7 +99,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDict(_, valueType, o) |] ->
           // See `dictKeys`: a direct fold rather than a lazy sequence and its enumerator.
-          DList(valueType, Items(DictMap.values o)) |> Ply
+          DList(valueType, Items(DictMap.values o))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -115,7 +118,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DDict(keyType, valueType, o) |] ->
           DictMap.foldBack (fun k v acc -> DTuple(k, v, []) :: acc) o []
           |> fun pairs -> DList(VT.tuple keyType valueType [], Items(pairs))
-          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -135,8 +137,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DList(_, Items([])) |] ->
-          DDict(VT.unknown, VT.unknown, DictMap.empty) |> Ply
-
+          DDict(VT.unknown, VT.unknown, DictMap.empty)
         | _,
           vm,
           _,
@@ -147,7 +148,7 @@ let fns () : List<BuiltInFn> =
               keyType
               valueType
               (List.map entryPair l)
-          DDict(keyType, valueType, map) |> Ply
+          DDict(keyType, valueType, map)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -236,7 +237,6 @@ let fns () : List<BuiltInFn> =
           LibExecution.RuntimeTypes.Dval.assertUsableDictKey key
           DictMap.tryFind key o
           |> TypeChecker.DvalCreator.option vm.threadID VT.unknownTODO
-          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -255,7 +255,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDict(_, _, o); key |] ->
           LibExecution.RuntimeTypes.Dval.assertUsableDictKey key
-          Ply(DBool(DictMap.containsKey key o))
+          (DBool(DictMap.containsKey key o))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -278,7 +278,6 @@ let fns () : List<BuiltInFn> =
           match VT.merge kt1 kt2, VT.merge vt1 vt2 with
           | Ok mergedKeyType, Ok mergedValueType ->
             DDict(mergedKeyType, mergedValueType, DictMap.union intoMap fromMap)
-            |> Ply
           | _ ->
             Exception.raiseInternal
               "Builtin.dictMerge input dicts somehow bypassed fn-arg type-checking"
@@ -304,12 +303,12 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DDict(kt, vt, o); k; v |] ->
           match TypeChecker.DvalCreator.tryDictAddEntry kt vt o k v with
-          | ValueSome updated -> Ply updated
+          | ValueSome updated -> updated
           | ValueNone ->
             // raises, naming what is wrong
             let struct (kt, vt, map) =
               TypeChecker.DvalCreator.dictAddEntry vm.threadID kt vt o k v
-            DDict(kt, vt, map) |> Ply
+            DDict(kt, vt, map)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -327,7 +326,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDict(kt, vt, o); k |] ->
           LibExecution.RuntimeTypes.Dval.assertUsableDictKey k
-          DDict(kt, vt, DictMap.remove k o) |> Ply
+          DDict(kt, vt, DictMap.remove k o)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

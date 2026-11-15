@@ -6,7 +6,6 @@
     <IsTrimmable>true</IsTrimmable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Ply" />
     <PackageReference Include="FSharp.Core" />
     <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="Fumble" />

@@ -1,7 +1,6 @@
 module LibExecution.Execution
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -58,7 +57,7 @@ let mutable private callApplicableCell
       -> LibExecution.Permissions.Access
       -> RT.Applicable
       -> NEList<RT.Dval>
-      -> Ply<RT.ExecutionResult> =
+      -> Task<RT.ExecutionResult> =
   fun _ _ _ _ ->
     Exception.raiseInternal "callApplicable used before Execution initialised" []
 
@@ -99,7 +98,7 @@ let createState
     spreadChild = false
     spread = RT.SpreadSettings.defaults ()
 
-    fnPurity = fun _ -> Ply RT.Purity.Unknown
+    fnPurity = fun _ -> RT.Purity.Unknown
 
     // Fail-safe default: deny all host effects. An embedder that forgets to
     // install a policy gets a confined execution, not an unrestricted one. The
@@ -229,7 +228,7 @@ let execute
     let vm = RT.VMState.create instrs
     try
       try
-        let! result = Interpreter.execute exeState vm
+        let! result = Pending.toTask (Interpreter.execute exeState vm)
         return Ok result
 
       with
@@ -246,7 +245,7 @@ let execute
         let metadata : Metadata =
           Exception.toMetadata ex
           |> List.map (fun (k, v) -> k, metadataValueString v)
-        do! exeState.reportException exeState vm metadata ex
+        exeState.reportException exeState vm metadata ex
 
         let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
         let callStack = callStackFromVM vm
@@ -269,6 +268,15 @@ let executeToplevel
   (instrs : RT.Instructions)
   : Task<RT.ExecutionResult> =
   execute exeState (Some tlid, instrs)
+
+/// What a run with no reason to wait answered: a value, a printer over values with no read in
+/// flight, a scheduler's policy. One that has to wait anyway is a bug, raised here rather than
+/// waited for: the thread that would wait may be the one that has to finish it.
+let now (running : Task<'a>) : 'a =
+  if running.IsCompleted then
+    running.Result
+  else
+    Exception.raiseInternal "a run that cannot wait had to wait" []
 
 
 /// What a package `val` may do while it is evaluated: nothing with an effect. Whatever the
@@ -302,35 +310,32 @@ let evaluateValue
 /// anything it does not own goes to `otherwise`. `stateWith` builds the state the values run
 /// in from the reader itself, so a value can read another one.
 let evaluatingValueReader
-  (definition : RT.Hash -> Ply<Option<string * ProgramTypes.Expr>>)
-  (otherwise : RT.Hash -> Ply<Option<RT.PackageValue.PackageValue>>)
-  (stateWith :
-    (RT.Hash -> Ply<Option<RT.PackageValue.PackageValue>>) -> RT.ExecutionState)
-  : RT.Hash -> Ply<Option<RT.PackageValue.PackageValue>> =
+  (definition : RT.Hash -> Option<string * ProgramTypes.Expr>)
+  (otherwise : RT.Hash -> Option<RT.PackageValue.PackageValue>)
+  (stateWith : (RT.Hash -> Option<RT.PackageValue.PackageValue>) -> RT.ExecutionState)
+  : RT.Hash -> Option<RT.PackageValue.PackageValue> =
   let evaluated =
     System.Collections.Concurrent.ConcurrentDictionary<RT.Hash, RT.PackageValue.PackageValue>()
   let evaluating = System.Collections.Generic.HashSet<RT.Hash>()
-  let rec read (hash : RT.Hash) : Ply<Option<RT.PackageValue.PackageValue>> =
-    uply {
-      match evaluated.TryGetValue hash with
-      | true, value -> return Some value
-      | false, _ ->
-        match! definition hash with
-        | None -> return! otherwise hash
-        | Some(name, body) ->
-          if not (lock evaluating (fun () -> evaluating.Add hash)) then
-            return None
-          else
-            try
-              match! evaluateValue (stateWith read) name body with
-              | Ok body ->
-                let value = Dval.packageValue hash body
-                evaluated[hash] <- value
-                return Some value
-              | Error(error, _) -> return RT.raiseUntargetedRTE error
-            finally
-              lock evaluating (fun () -> evaluating.Remove hash |> ignore<bool>)
-    }
+  let rec read (hash : RT.Hash) : Option<RT.PackageValue.PackageValue> =
+    match evaluated.TryGetValue hash with
+    | true, value -> Some value
+    | false, _ ->
+      match definition hash with
+      | None -> otherwise hash
+      | Some(name, body) ->
+        if not (lock evaluating (fun () -> evaluating.Add hash)) then
+          None
+        else
+          try
+            match now (evaluateValue (stateWith read) name body) with
+            | Ok body ->
+              let value = Dval.packageValue hash body
+              evaluated[hash] <- value
+              Some value
+            | Error(error, _) -> RT.raiseUntargetedRTE error
+          finally
+            lock evaluating (fun () -> evaluating.Remove hash |> ignore<bool>)
   read
 
 /// Spare VMs per thread, for `executeApplicable` to borrow.
@@ -432,19 +437,16 @@ let private uncaught
   (exeState : RT.ExecutionState)
   (vm : RT.VMState)
   (ex : exn)
-  : Ply<RT.ExecutionResult> =
-  uply {
-    exitIfOutOfMemory ex
-    match Exception.findStoreCondition ex with
-    | Some condition ->
-      return Error(RTE.Condition condition.Message, callStackFromVM vm)
-    | None ->
-      let metadata : Metadata =
-        Exception.toMetadata ex |> List.map (fun (k, v) -> k, metadataValueString v)
-      do! exeState.reportException exeState vm metadata ex
-      let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
-      return Error(RTE.UncaughtException(ex.Message, metadata), callStackFromVM vm)
-  }
+  : RT.ExecutionResult =
+  exitIfOutOfMemory ex
+  match Exception.findStoreCondition ex with
+  | Some condition -> Error(RTE.Condition condition.Message, callStackFromVM vm)
+  | None ->
+    let metadata : Metadata =
+      Exception.toMetadata ex |> List.map (fun (k, v) -> k, metadataValueString v)
+    exeState.reportException exeState vm metadata ex
+    let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
+    Error(RTE.UncaughtException(ex.Message, metadata), callStackFromVM vm)
 
 
 /// A VM to apply `argCount` arguments in, borrowed from the thread's slot where one is going spare.
@@ -464,67 +466,56 @@ let private vmForApply (argCount : int) : RT.VMState =
   | ValueSome spare -> RT.VMState.reuseFor (spare, None, instrData, registerCount)
 
 
+/// A run of a loaded callable that ended, as its result. Only a VM that ran to completion is safe
+/// to hand back to the pool; one that raised may still hold frames, and `reuseFor` assumes they
+/// have all popped.
+let private finished
+  (exeState : RT.ExecutionState)
+  (vm : RT.VMState)
+  (run : unit -> RT.Dval)
+  : RT.ExecutionResult =
+  try
+    try
+      let result = run ()
+      VMSlot.Return vm
+      Ok result
+    with
+    | RT.RuntimeErrorException(_threadID, rte) -> Error(rte, callStackFromVM vm)
+    // Return stack-depth failures to the caller as runtime errors.
+    // Skip reportException, which is reserved for unexpected internal failures.
+    | ex when isOutOfStack ex ->
+      Error(RTE.UncaughtException(outOfStackMessage, []), callStackFromVM vm)
+    | ex -> uncaught exeState vm ex
+  finally
+    exeState.test.postTestExecutionHook exeState.test
+
 /// Apply the callable already loaded into `vm`'s registers.
 let private runLoaded
   (exeState : RT.ExecutionState)
   (access : LibExecution.Permissions.Access)
   (vm : RT.VMState)
-  : Ply<RT.ExecutionResult> =
-  // `Ply`, and asked synchronously first. A lambda that does not await -- which is nearly all of
-  // them: an arithmetic body, a field read, a comparison -- then costs no builder at all, where
-  // before it paid for a `task` state machine and the `Task` it returned. Same shape as the
-  // `Ply.trySync` fast paths in the type checker.
-  //
-  // The result paths are inlined, not local functions: locals would capture `vm` and
-  // allocate on every application, including the common synchronous success that
-  // calls none of them.
-  try
-    // Builtins such as List.map call Dark functions by starting another interpreter run.
-    // Repeated callbacks can exhaust the .NET call stack. Check available stack space
-    // first so excessive nesting raises a catchable exception instead of crashing.
-    System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
-    let running = Interpreter.executeUnder exeState access vm
-
-    match Ply.trySync running with
-    | ValueSome result ->
-      // Only a VM that ran to completion is safe to hand back; one that raised may still hold
-      // frames, and `reuseFor` assumes they have all popped.
-      VMSlot.Return vm
-      exeState.test.postTestExecutionHook exeState.test
-      Ply(Ok result)
-    | ValueNone ->
-      uply {
-        try
-          try
-            let! result = running
-            VMSlot.Return vm
-            return Ok result
-          with
-          | RT.RuntimeErrorException(_threadID, rte) ->
-            return Error(rte, callStackFromVM vm)
-          | ex when isOutOfStack ex ->
-            return
-              Error(RTE.UncaughtException(outOfStackMessage, []), callStackFromVM vm)
-          | ex -> return! uncaught exeState vm ex
-        finally
-          exeState.test.postTestExecutionHook exeState.test
-      }
-  with
-  | RT.RuntimeErrorException(_threadID, rte) ->
-    exeState.test.postTestExecutionHook exeState.test
-    Ply(Error(rte, callStackFromVM vm))
-  // Return stack-depth failures to the caller as runtime errors.
-  // Skip reportException, which is reserved for unexpected internal failures.
-  | ex when isOutOfStack ex ->
-    exeState.test.postTestExecutionHook exeState.test
-    Ply(Error(RTE.UncaughtException(outOfStackMessage, []), callStackFromVM vm))
-  | ex ->
-    uply {
-      try
-        return! uncaught exeState vm ex
-      finally
-        exeState.test.postTestExecutionHook exeState.test
+  : Task<RT.ExecutionResult> =
+  let running =
+    try
+      // Builtins such as List.map call Dark functions by starting another interpreter run.
+      // Repeated callbacks can exhaust the .NET call stack. Check available stack space
+      // first so excessive nesting raises a catchable exception instead of crashing.
+      System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
+      Interpreter.executeUnder exeState access vm
+    with ex ->
+      // Raised before the run had to wait: handled below as the run's own failure.
+      Pending.ofTask (Task.FromException<RT.Dval> ex)
+  match running with
+  | Pending.Wait t ->
+    task {
+      let! landed =
+        t.ContinueWith(
+          (fun (t : Task<RT.Dval>) -> t),
+          TaskContinuationOptions.ExecuteSynchronously
+        )
+      return finished exeState vm (fun () -> landed.GetAwaiter().GetResult()) // landed
     }
+  | result -> Task.FromResult(finished exeState vm (fun () -> result))
 
 
 /// Use this when calling a Darklang callback from within a builtin.
@@ -543,7 +534,7 @@ let executeApplicable
   (access : LibExecution.Permissions.Access)
   (applicable : RT.Applicable)
   (args : NEList<RT.Dval>)
-  : Ply<RT.ExecutionResult> =
+  : Task<RT.ExecutionResult> =
   let vm = vmForApply (NEList.length args)
   loadApplyRegisters vm applicable args
   runLoaded exeState access vm
@@ -558,7 +549,7 @@ let executeApplicable1
   (access : LibExecution.Permissions.Access)
   (applicable : RT.Applicable)
   (arg : RT.Dval)
-  : Ply<RT.ExecutionResult> =
+  : Task<RT.ExecutionResult> =
   let vm = vmForApply 1
   let registers = (vm.callFrames.Find vm.currentFrameID).registers
   registers[1] <- RT.DApplicable applicable
@@ -674,8 +665,8 @@ let applyCatching
   (access : LibExecution.Permissions.Access)
   (applicable : RT.Applicable)
   (arg : RT.Dval)
-  : Ply<Result<RT.Dval, CaughtFailure>> =
-  uply {
+  : Task<Result<RT.Dval, CaughtFailure>> =
+  task {
     try
       match! executeApplicable1 state access applicable arg with
       | Ok result -> return Ok result
@@ -768,33 +759,27 @@ let dvalToTypeName (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
 let executionPointToString
   (state : RT.ExecutionState)
   (ep : RT.ExecutionPoint)
-  : Ply<string> =
-  uply {
-    return!
-      callStringPrinter
-        state
-        (PackageRefs.Fn.PrettyPrinter.RuntimeTypes.executionPoint ())
-        "execution point"
-        [ RT2DT.ExecutionPoint.toDT ep ]
-  }
+  : Task<string> =
+  callStringPrinter
+    state
+    (PackageRefs.Fn.PrettyPrinter.RuntimeTypes.executionPoint ())
+    "execution point"
+    [ RT2DT.ExecutionPoint.toDT ep ]
 
 
 let callStackString
   (state : RT.ExecutionState)
   (callStack : RT.CallStack)
-  : Ply<string> =
-  uply {
-    let frames =
-      callStack
-      |> List.map RT2DT.ExecutionPoint.toDT
-      |> Dval.list (RT2DT.ExecutionPoint.knownType ())
-    return!
-      callStringPrinter
-        state
-        (PackageRefs.Fn.PrettyPrinter.RuntimeTypes.callStack ())
-        "call stack"
-        [ frames ]
-  }
+  : Task<string> =
+  let frames =
+    callStack
+    |> List.map RT2DT.ExecutionPoint.toDT
+    |> Dval.list (RT2DT.ExecutionPoint.knownType ())
+  callStringPrinter
+    state
+    (PackageRefs.Fn.PrettyPrinter.RuntimeTypes.callStack ())
+    "call stack"
+    [ frames ]
 
 
 
@@ -803,9 +788,8 @@ let rec rteToString
   (rteToDval : RT.RuntimeError.Error -> RT.Dval)
   (state : RT.ExecutionState)
   (rte : RT.RuntimeError.Error)
-  : Ply<string> =
-  let r = rteToString rteToDval state
-  uply {
+  : Task<string> =
+  task {
     let errorMessageFn =
       RT.FQFnName.fqPackage (
         PackageRefs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toErrorMessage ()
@@ -825,5 +809,5 @@ let rec rteToString
     | Ok(other) -> return prettyPrintFallback "rteToString" other rteMessage
     | Error(rte, _cs) ->
       debuG "Error converting RTE to string" rte
-      return! r rte
+      return! rteToString rteToDval state rte
   }

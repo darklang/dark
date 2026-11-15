@@ -18,8 +18,8 @@ let private pureLib name = $"backend/src/Builtins/Builtins.Pure/Libs/{name}.fs"
 
 let private checkerFiles () : Task<Set<string>> =
   task {
-    let! state = executionStateFor pmPT false
-    return! CheckerSources.checkerFiles outside state pmPT |> Ply.toTask
+    let state = executionStateFor pmPT false
+    return CheckerSources.checkerFiles outside state pmPT
   }
 
 let tests =
@@ -41,7 +41,7 @@ let tests =
       }
 
       testTask "every builtin's file is where the checker's files are looked for" {
-        let! state = executionStateFor pmPT false
+        let state = executionStateFor pmPT false
         let missing =
           CheckerSources.allFiles outside state
           |> Set.filter (fun f ->

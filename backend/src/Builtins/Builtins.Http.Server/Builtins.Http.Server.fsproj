@@ -6,7 +6,6 @@
     <IsTrimmable>true</IsTrimmable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Ply" />
     <PackageReference Include="FSharp.Core" />
     <Compile Include="Http.fs" />
     <Compile Include="Libs/HttpServer.fs" />

@@ -42,26 +42,24 @@ let private getTimed
   (column : string)
   (deserialize : Hash -> byte[] -> 'a)
   (hash : Hash)
-  : Ply<Option<'a>> =
-  uply {
-    Telemetry.count $"pkg.{kind}.get"
-    let (Hash hashStr) = hash
-    let on = LoadTiming.enabled ()
-    let t0 = LoadTiming.now on
-    let! bytes =
-      Sql.query sql
-      |> Sql.parameters [ "hash", Sql.string hashStr ]
-      |> Sql.executeRowOptionAsync (fun read -> read.bytes column)
-    let t1 = LoadTiming.now on
-    let result = bytes |> Option.map (deserialize hash)
-    let t2 = LoadTiming.now on
-    LoadTiming.record on kind t0 t1 t2
-    return result
-  }
+  : Option<'a> =
+  Telemetry.count $"pkg.{kind}.get"
+  let (Hash hashStr) = hash
+  let on = LoadTiming.enabled ()
+  let t0 = LoadTiming.now on
+  let bytes =
+    Sql.query sql
+    |> Sql.parameters [ "hash", Sql.string hashStr ]
+    |> Sql.executeRowOption (fun read -> read.bytes column)
+  let t1 = LoadTiming.now on
+  let result = bytes |> Option.map (deserialize hash)
+  let t2 = LoadTiming.now on
+  LoadTiming.record on kind t0 t1 t2
+  result
 
 
 module Type =
-  let get (hash : Hash) : Ply<Option<RT.PackageType.PackageType>> =
+  let get (hash : Hash) : Option<RT.PackageType.PackageType> =
     getTimed
       "type"
       "SELECT rt_def FROM package_types WHERE hash = @hash"
@@ -77,7 +75,7 @@ module Value =
   /// peer) before the next grow pass, or if its evaluation errored. The `IS NOT NULL` guard makes that read
   /// return None instead of throwing "data is NULL at ordinal 0" on the NULL blob; the caller treats a
   /// not-yet-evaluated value the same as an absent one (grow populates it before it's needed in the happy path).
-  let get (hash : Hash) : Ply<Option<RT.PackageValue.PackageValue>> =
+  let get (hash : Hash) : Option<RT.PackageValue.PackageValue> =
     getTimed
       "value"
       "SELECT rt_dval FROM package_values WHERE hash = @hash AND rt_dval IS NOT NULL"
@@ -88,31 +86,26 @@ module Value =
   /// Whether the value at <param hash> has a runtime value stored: false for a value whose
   /// evaluation never ran or failed (`rt_dval` NULL), and for one that is not in the store at all.
   /// Reads no blob, so it is cheap to ask of a value that did evaluate.
-  let isEvaluated (hash : Hash) : Ply<bool> =
-    uply {
-      let (Hash hashStr) = hash
-      let! row =
-        Sql.query
-          "SELECT 1 AS ok FROM package_values WHERE hash = @hash AND rt_dval IS NOT NULL"
-        |> Sql.parameters [ "hash", Sql.string hashStr ]
-        |> Sql.executeRowOptionAsync (fun read -> read.int64 "ok")
-      return Option.isSome row
-    }
+  let isEvaluated (hash : Hash) : bool =
+    let (Hash hashStr) = hash
+    let row =
+      Sql.query
+        "SELECT 1 AS ok FROM package_values WHERE hash = @hash AND rt_dval IS NOT NULL"
+      |> Sql.parameters [ "hash", Sql.string hashStr ]
+      |> Sql.executeRowOption (fun read -> read.int64 "ok")
+    Option.isSome row
 
   /// Find all value hashes that have the given ValueType (exact match)
-  let findByValueType (vt : RT.ValueType) : Ply<List<Hash>> =
-    uply {
-      let vtBytes = BS.RT.ValueType.serialize vt
-      return!
-        Sql.query
-          """
-          SELECT hash
-          FROM package_values
-          WHERE value_type = @value_type
-          """
-        |> Sql.parameters [ "value_type", Sql.bytes vtBytes ]
-        |> Sql.executeAsync (fun read -> Hash(read.string "hash"))
-    }
+  let findByValueType (vt : RT.ValueType) : List<Hash> =
+    let vtBytes = BS.RT.ValueType.serialize vt
+    Sql.query
+      """
+        SELECT hash
+        FROM package_values
+        WHERE value_type = @value_type
+        """
+    |> Sql.parameters [ "value_type", Sql.bytes vtBytes ]
+    |> Sql.executeRows (fun read -> Hash(read.string "hash"))
 
 
 module Fn =
@@ -125,31 +118,28 @@ module Fn =
   ///
   /// The symbols are NULL for a function written before the column existed, and for a body with
   /// no calls in it. Both come back empty, which shows no values and runs exactly the same.
-  let get (hash : Hash) : Ply<Option<RT.PackageFn.PackageFn>> =
-    uply {
-      let (Hash hashStr) = hash
-      Telemetry.count "pkg.fn.get"
-      let! row =
-        Sql.query
-          "SELECT rt_instrs, debug_symbols FROM package_functions WHERE hash = @hash"
-        |> Sql.parameters [ "hash", Sql.string hashStr ]
-        |> Sql.executeRowOptionAsync (fun read ->
-          (read.bytes "rt_instrs", read.bytesOrNone "debug_symbols"))
+  let get (hash : Hash) : Option<RT.PackageFn.PackageFn> =
+    let (Hash hashStr) = hash
+    Telemetry.count "pkg.fn.get"
+    let row =
+      Sql.query
+        "SELECT rt_instrs, debug_symbols FROM package_functions WHERE hash = @hash"
+      |> Sql.parameters [ "hash", Sql.string hashStr ]
+      |> Sql.executeRowOption (fun read ->
+        (read.bytes "rt_instrs", read.bytesOrNone "debug_symbols"))
 
-      match row with
-      | None -> return None
-      | Some(instrBytes, symbolBytes) ->
-        let fn = BS.RT.PackageFn.deserialize hashStr instrBytes
-        match symbolBytes with
-        | None -> return Some fn
-        | Some b ->
-          // The bytes come back with the row, which is free; turning them into a table is not,
-          // and a run that shows nobody anything never asks.
-          return
-            Some
-              { fn with
-                  symbols = lazy (BS.RT.PackageFn.deserializeDebugSymbols hashStr b) }
-    }
+    match row with
+    | None -> None
+    | Some(instrBytes, symbolBytes) ->
+      let fn = BS.RT.PackageFn.deserialize hashStr instrBytes
+      match symbolBytes with
+      | None -> Some fn
+      | Some b ->
+        // The bytes come back with the row, which is free; turning them into a table is not,
+        // and a run that shows nobody anything never asks.
+        Some
+          { fn with
+              symbols = lazy (BS.RT.PackageFn.deserializeDebugSymbols hashStr b) }
 
 
 /// Content-addressed blob storage — bytes keyed by SHA-256 hash.
@@ -158,45 +148,40 @@ module Bytes =
   ///
   /// A blob a trace captured lives in `trace_blobs`, owned by that trace, so a read that misses
   /// `package_blobs` asks there too. Same content under the same hash either way.
-  let get (hash : string) : Ply<Option<byte[]>> =
-    uply {
-      Telemetry.count "pkg.blob.get"
-      let! shared =
-        Sql.query
-          """
+  let get (hash : string) : Option<byte[]> =
+    Telemetry.count "pkg.blob.get"
+    let shared =
+      Sql.query
+        """
           SELECT bytes
           FROM package_blobs
           WHERE hash = @hash
           """
-        |> Sql.parameters [ "hash", Sql.string hash ]
-        |> Sql.executeRowOptionAsync (fun read -> read.bytes "bytes")
-      match shared with
-      | Some _ -> return shared
-      | None ->
-        return!
-          Sql.query "SELECT bytes FROM trace_blobs WHERE hash = @hash LIMIT 1"
-          |> Sql.parameters [ "hash", Sql.string hash ]
-          |> Sql.executeRowOptionAsync (fun read -> read.bytes "bytes")
-    }
+      |> Sql.parameters [ "hash", Sql.string hash ]
+      |> Sql.executeRowOption (fun read -> read.bytes "bytes")
+    match shared with
+    | Some _ -> shared
+    | None ->
+      Sql.query "SELECT bytes FROM trace_blobs WHERE hash = @hash LIMIT 1"
+      |> Sql.parameters [ "hash", Sql.string hash ]
+      |> Sql.executeRowOption (fun read -> read.bytes "bytes")
 
   /// Insert bytes under [hash]. If the row already exists (same hash
   /// = same content, by content-addressing invariant), this is a no-op
   /// — `INSERT OR IGNORE` handles dedup.
-  let insert (hash : string) (bytes : byte[]) : Ply<unit> =
-    uply {
-      let! _ =
-        Sql.query
-          """
+  let insert (hash : string) (bytes : byte[]) : unit =
+    let _ =
+      Sql.query
+        """
           INSERT OR IGNORE INTO package_blobs (hash, length, bytes)
           VALUES (@hash, @length, @bytes)
           """
-        |> Sql.parameters
-          [ "hash", Sql.string hash
-            "length", Sql.int64 (int64 bytes.Length)
-            "bytes", Sql.bytes bytes ]
-        |> Sql.executeNonQueryAsync
-      return ()
-    }
+      |> Sql.parameters
+        [ "hash", Sql.string hash
+          "length", Sql.int64 (int64 bytes.Length)
+          "bytes", Sql.bytes bytes ]
+      |> Sql.executeCount
+    ()
 
   /// Walk a Dval tree and collect every `Persistent` blob hash it
   /// references. Ephemeral blobs aren't rows in `package_blobs` — they
@@ -256,51 +241,44 @@ module Bytes =
   ///
   /// O(N+M) deserialise passes plus one DELETE per orphan; fine for CLI-triggered
   /// sweeps at current scale.
-  let sweepOrphans () : Ply<int64> =
-    uply {
-      // Pull every materialised rt_dval — deserialise and collect
-      // hashes referenced anywhere in the tree.
-      let! valueRows =
-        Sql.query
-          """
+  let sweepOrphans () : int64 =
+    // Pull every materialised rt_dval — deserialise and collect
+    // hashes referenced anywhere in the tree.
+    let valueRows =
+      Sql.query
+        """
           SELECT hash, rt_dval
           FROM package_values
           WHERE rt_dval IS NOT NULL
           """
-        |> Sql.executeAsync (fun r -> (r.string "hash", r.bytes "rt_dval"))
+      |> Sql.executeRows (fun r -> (r.string "hash", r.bytes "rt_dval"))
 
-      let referenced : Set<string> =
-        valueRows
-        |> List.fold
-          (fun acc (valueHash, rtDvalBytes) ->
-            try
-              let pv = BS.RT.PackageValue.deserialize (Hash valueHash) rtDvalBytes
-              Set.union acc (collectBytesHashes pv.body)
-            with _ ->
-              // Corrupt / stale row — don't let one bad row block the
-              // sweep; skip and carry on.
-              acc)
-          Set.empty
+    let referenced : Set<string> =
+      valueRows
+      |> List.fold
+        (fun acc (valueHash, rtDvalBytes) ->
+          try
+            let pv = BS.RT.PackageValue.deserialize (Hash valueHash) rtDvalBytes
+            Set.union acc (collectBytesHashes pv.body)
+          with _ ->
+            // Corrupt / stale row — don't let one bad row block the
+            // sweep; skip and carry on.
+            acc)
+        Set.empty
 
-      // List of candidate hashes in storage.
-      let! allHashes =
-        Sql.query "SELECT hash FROM package_blobs"
-        |> Sql.executeAsync (fun r -> r.string "hash")
+    // List of candidate hashes in storage.
+    let allHashes =
+      Sql.query "SELECT hash FROM package_blobs"
+      |> Sql.executeRows (fun r -> r.string "hash")
 
-      let orphans =
-        allHashes |> List.filter (fun h -> not (Set.contains h referenced))
+    let orphans = allHashes |> List.filter (fun h -> not (Set.contains h referenced))
 
-      return!
-        orphans
-        |> Ply.List.foldSequentially
-          (fun deleted h ->
-            uply {
-              let! count =
-                Sql.query "DELETE FROM package_blobs WHERE hash = @hash"
-                |> Sql.parameters [ "hash", Sql.string h ]
-                |> Sql.executeNonQueryAsync
-              return deleted + int64 count
-            })
-          0L
-        |> Ply.toTask
-    }
+    orphans
+    |> List.fold
+      (fun deleted h ->
+        let count =
+          Sql.query "DELETE FROM package_blobs WHERE hash = @hash"
+          |> Sql.parameters [ "hash", Sql.string h ]
+          |> Sql.executeCount
+        deleted + int64 count)
+      0L

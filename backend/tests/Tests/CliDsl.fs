@@ -9,7 +9,6 @@
 module Tests.CliDsl
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Expecto
 

@@ -55,7 +55,7 @@ for name, n in counts.most_common(28):
 
 groups = collections.Counter()
 for name, n in counts.items():
-    closure = "@" in name or "StateMachine" in name or "Ply.TplPrimitives" in name
+    closure = "@" in name or "StateMachine" in name
     groups["closures + async state machines" if closure else "other"] += n
 print("\n=== grouped ===")
 for g, n in groups.most_common():

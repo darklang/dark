@@ -1207,7 +1207,7 @@ and [<Struct; CustomEquality; NoComparison>] RecordFields =
     |> Array.fold (fun acc (struct (n, v)) -> (acc * 31 + hash n) * 31 + hash v) 17
 
 /// How a dict key is ordered and hashed (`DictMap`). Both are structural and run
-/// inside the runtime, so they cannot call the interpreter or await a `Ply`. Nothing a
+/// inside the runtime, so they cannot call the interpreter or wait on anything. Nothing a
 /// type says about equality can reach here.
 and DictKey private () =
   static member caseTag(dv : Dval) : int =
@@ -3029,6 +3029,9 @@ and [<NoComparison>] Dval =
 /// force point and for `ps`. A class, so it compares by reference. `Shell`, for a value with
 /// reads inside, is that value as built (null for a plain read), which a pattern or a field
 /// access can look at without waiting.
+///
+/// Made from a task alone, it is a builtin's wait (`Pending.ofTask`): no call is named yet, and
+/// the interpreter takes it where the builtin returns.
 and Promise
   (
     task : System.Threading.Tasks.Task<Dval>,
@@ -3037,11 +3040,19 @@ and Promise
     shell : Dval
   ) =
   new(task, fn, site) = Promise(task, fn, site, Unchecked.defaultof<Dval>)
+  new(task) =
+    Promise(
+      task,
+      Unchecked.defaultof<FQFnName.FQFnName>,
+      Unchecked.defaultof<ExecutionPoint>,
+      Unchecked.defaultof<Dval>
+    )
   member _.Task = task
   member _.Fn = fn
   member _.Site = site
   member _.Shell = shell
   member _.HasShell = not (obj.ReferenceEquals(shell, null))
+  member _.IsWait = obj.ReferenceEquals(fn, null)
 
 
 /// Lazy sequence producer. [FromIO] is the leaf — a pull-based
@@ -3082,7 +3093,7 @@ and [<CustomEquality; NoComparison>] StreamImpl =
   /// FileStream / etc.
   ///
   /// Optional `nextChunk` lets byte-stream producers avoid per-byte
-  /// Ply/Dval boxing. `nextChunk maxBytes` fills up to `maxBytes` into
+  /// Dval boxing. `nextChunk maxBytes` fills up to `maxBytes` into
   /// a fresh byte[] and returns it (or None on exhaustion). Consumers
   /// that want bulk bytes (`streamToBytes`, SSE-byte accumulator) take
   /// this path; byte-by-byte `next` stays authoritative for element-
@@ -3104,10 +3115,10 @@ and [<CustomEquality; NoComparison>] StreamImpl =
   /// what the callable captured; the builder's own access is folded into the
   /// callable when the transform is made. Native IO sources are plain closures.
   | FromIO of
-    next : (unit -> Ply<Option<Dval>>) *
+    next : (unit -> System.Threading.Tasks.ValueTask<Option<Dval>>) *
     elemType : ValueType *
     disposer : (unit -> unit) option *
-    nextChunk : (int -> Ply<Option<byte[]>>) option
+    nextChunk : (int -> System.Threading.Tasks.ValueTask<Option<byte[]>>) option
   /// A producer written in Dark: the step takes the state and answers
   /// `Some (element, nextState)` or `None`.
   | Unfold of step : Applicable * state : Dval ref * elemType : ValueType
@@ -3120,7 +3131,6 @@ and [<CustomEquality; NoComparison>] StreamImpl =
   override this.GetHashCode() : int = 0
 
 
-and DvalTask = Ply<Dval>
 
 
 
@@ -4576,148 +4586,137 @@ module Dval =
   /// Dict keys whose type is a known scalar (a String or Int64 key, say) are
   /// not passed to `f`: such a key holds nothing to rewrite, and every caller
   /// rewrites only Bytes, streams or functions.
-  let rewriteWith (f : Dval -> Ply.Ply<Dval option>) (dv : Dval) : Ply.Ply<Dval> =
+  let rewriteWith (f : Dval -> Dval option) (dv : Dval) : Dval =
     let inline same (a : obj) (b : obj) = obj.ReferenceEquals(a, b)
 
-    let rec go (dv : Dval) : Ply.Ply<Dval> =
-      uply {
-        let! substituted = f dv
-        match substituted with
-        | Some dv' -> return dv'
-        | None ->
-          match dv with
-          // A read that has landed is its value, rewritten like any other. One still in
-          // flight has nothing to rewrite yet.
-          | DPromise p when p.Task.IsCompletedSuccessfully ->
-            return! go p.Task.Result
-          | DUnit
-          | DBool _
-          | DInt8 _
-          | DUInt8 _
-          | DInt16 _
-          | DUInt16 _
-          | DInt32 _
-          | DUInt32 _
-          | DInt64 _
-          | DUInt64 _
-          | DInt128 _
-          | DUInt128 _
-          | DBigInt _
-          | DFloat64 _
-          | DFloat32 _
-          | DDecimal _
-          | DChar _
-          | DStr _
-          | DDateTime _
-          | DUuid _
-          | DStream _
-          | DPromise _
-          | DBytes _ -> return dv
+    let rec go (dv : Dval) : Dval =
+      let substituted = f dv
+      match substituted with
+      | Some dv' -> dv'
+      | None ->
+        match dv with
+        // A read that has landed is its value, rewritten like any other. One still in
+        // flight has nothing to rewrite yet.
+        | DPromise p when p.Task.IsCompletedSuccessfully -> go p.Task.Result
+        | DUnit
+        | DBool _
+        | DInt8 _
+        | DUInt8 _
+        | DInt16 _
+        | DUInt16 _
+        | DInt32 _
+        | DUInt32 _
+        | DInt64 _
+        | DUInt64 _
+        | DInt128 _
+        | DUInt128 _
+        | DBigInt _
+        | DFloat64 _
+        | DFloat32 _
+        | DDecimal _
+        | DChar _
+        | DStr _
+        | DDateTime _
+        | DUuid _
+        | DStream _
+        | DPromise _
+        | DBytes _ -> dv
 
-          | DList(vt, items) ->
-            let items = DvalList.toList items
-            let! items' = walkItems items
-            return (if same items' items then dv else DList(vt, Items(items')))
+        | DList(vt, items) ->
+          let items = DvalList.toList items
+          let items' = walkItems items
+          (if same items' items then dv else DList(vt, Items(items')))
 
-          | DTuple(a, b, rest) ->
-            let! a' = go a
-            let! b' = go b
-            let! rest' = walkItems rest
-            if same a' a && same b' b && same rest' rest then
-              return dv
-            else
-              return DTuple(a', b', rest')
+        | DTuple(a, b, rest) ->
+          let a' = go a
+          let b' = go b
+          let rest' = walkItems rest
+          if same a' a && same b' b && same rest' rest then
+            dv
+          else
+            DTuple(a', b', rest')
 
-          | DDict(kt, vt, entries) ->
-            let! entries' = walkDictEntries kt entries
-            return (if same entries' entries then dv else DDict(kt, vt, entries'))
+        | DDict(kt, vt, entries) ->
+          let entries' = walkDictEntries kt entries
+          (if same entries' entries then dv else DDict(kt, vt, entries'))
 
-          | DRecord(src, rt, typeArgs, fields) ->
-            let! entries = walkFields fields.Entries
-            return
-              (if same entries fields.Entries then
-                 dv
-               else
-                 DRecord(src, rt, typeArgs, RecordFields entries))
+        | DRecord(src, rt, typeArgs, fields) ->
+          let entries = walkFields fields.Entries
+          if same entries fields.Entries then
+            dv
+          else
+            DRecord(src, rt, typeArgs, RecordFields entries)
 
-          | DEnum(src, rt, typeArgs, caseName, fields) ->
-            let! fields' = walkItems fields
-            return
-              (if same fields' fields then
-                 dv
-               else
-                 DEnum(src, rt, typeArgs, caseName, fields'))
+        | DEnum(src, rt, typeArgs, caseName, fields) ->
+          let fields' = walkItems fields
+          if same fields' fields then
+            dv
+          else
+            DEnum(src, rt, typeArgs, caseName, fields')
 
-          | DApplicable(AppLambda lambda) ->
-            let! cr' = walkRegisters lambda.closedRegisters
-            if same cr' lambda.closedRegisters then
-              return dv
-            else
-              return DApplicable(AppLambda { lambda with closedRegisters = cr' })
+        | DApplicable(AppLambda lambda) ->
+          let cr' = walkRegisters lambda.closedRegisters
+          if same cr' lambda.closedRegisters then
+            dv
+          else
+            DApplicable(AppLambda { lambda with closedRegisters = cr' })
 
-          | DApplicable(AppNamedFn namedFn) ->
-            let! args' = walkItems namedFn.argsSoFar
-            if same args' namedFn.argsSoFar then
-              return dv
-            else
-              return DApplicable(AppNamedFn { namedFn with argsSoFar = args' })
-      }
+        | DApplicable(AppNamedFn namedFn) ->
+          let args' = walkItems namedFn.argsSoFar
+          if same args' namedFn.argsSoFar then
+            dv
+          else
+            DApplicable(AppNamedFn { namedFn with argsSoFar = args' })
 
     /// Walk a `List<Dval>` element by element; return the original list
     /// reference if every child walked to itself, else build a new list
     /// with the walked results.
-    and walkItems (xs : List<Dval>) : Ply.Ply<List<Dval>> =
-      uply {
-        match xs with
-        | [] -> return xs
-        | _ ->
-          let arr = List.toArray xs
-          let mutable changed = false
-          for i in 0 .. arr.Length - 1 do
-            let! y = go arr[i]
-            if not (same y arr[i]) then
-              changed <- true
-              arr[i] <- y
-          return (if changed then List.ofArray arr else xs)
-      }
+    and walkItems (xs : List<Dval>) : List<Dval> =
+      match xs with
+      | [] -> xs
+      | _ ->
+        let arr = List.toArray xs
+        let mutable changed = false
+        for i in 0 .. arr.Length - 1 do
+          let y = go arr[i]
+          if not (same y arr[i]) then
+            changed <- true
+            arr[i] <- y
+        (if changed then List.ofArray arr else xs)
 
     /// Walk a `List<Register * Dval>` (lambda closed registers); only
     /// the Dval can change.
     and walkRegisters
       (rs : (struct (Register * Dval))[])
-      : Ply.Ply<(struct (Register * Dval))[]> =
-      uply {
-        if rs.Length = 0 then
-          return rs
-        else
-          // Copied only once something changes, so an unchanged closure keeps its own array.
-          let mutable copy : (struct (Register * Dval))[] = null
-          for i in 0 .. rs.Length - 1 do
-            let struct (r, v) = rs[i]
-            let! v' = go v
-            if not (same v' v) then
-              if isNull copy then copy <- Array.copy rs
-              copy[i] <- struct (r, v')
-          return (if isNull copy then rs else copy)
-      }
+      : (struct (Register * Dval))[] =
+      if rs.Length = 0 then
+        rs
+      else
+        // Copied only once something changes, so an unchanged closure keeps its own array.
+        let mutable copy : (struct (Register * Dval))[] = null
+        for i in 0 .. rs.Length - 1 do
+          let struct (r, v) = rs[i]
+          let v' = go v
+          if not (same v' v) then
+            if isNull copy then copy <- Array.copy rs
+            copy[i] <- struct (r, v')
+        (if isNull copy then rs else copy)
 
     /// Walk a record's fields; the original array when nothing changes, otherwise a
     /// copy with the changed values replaced.
     and walkFields
       (entries : (struct (string * Dval))[])
-      : Ply.Ply<(struct (string * Dval))[]> =
-      uply {
-        let mutable copy : (struct (string * Dval))[] = null
-        for i in 0 .. entries.Length - 1 do
-          let struct (n, v) = entries[i]
-          let! v' = go v
-          if not (same v' v) then
-            if isNull copy then copy <- Array.copy entries
-            copy[i] <- struct (n, v')
-        return (if isNull copy then entries else copy)
-      }
+      : (struct (string * Dval))[] =
+      let mutable copy : (struct (string * Dval))[] = null
+      for i in 0 .. entries.Length - 1 do
+        let struct (n, v) = entries[i]
+        let v' = go v
+        if not (same v' v) then
+          if isNull copy then copy <- Array.copy entries
+          copy[i] <- struct (n, v')
+      (if isNull copy then entries else copy)
 
-    and walkDictEntries (kt : ValueType) (m : DictMap) : Ply.Ply<DictMap> =
+    and walkDictEntries (kt : ValueType) (m : DictMap) : DictMap =
       let scalarKeys =
         match kt with
         | ValueType.Unknown -> false
@@ -4744,28 +4743,25 @@ module Dval =
           | KTUuid
           | KTDateTime -> true
           | _ -> false
-      uply {
-        // Copied only once something changes, so an unchanged dict keeps its own entries.
-        let entries = m.Entries
-        let mutable copy : (struct (Dval * Dval))[] = null
-        for i in 0 .. entries.Length - 1 do
-          let struct (k, v) = entries[i]
-          let! k' = if scalarKeys then Ply(k) else go k
-          let! v' = go v
-          if not (same k' k && same v' v) then
-            if isNull copy then copy <- Array.copy entries
-            copy[i] <- struct (k', v')
-        // A rewritten key (ephemeral Bytes promoted to persistent) equals the key it
-        // replaces, so the order holds; rebuilding keeps the new key object either way.
-        if isNull copy then
-          return m
-        else
-          return
-            copy
-            |> Array.map (fun (struct (k, v)) -> (k, v))
-            |> List.ofArray
-            |> DictMap.ofList
-      }
+      // Copied only once something changes, so an unchanged dict keeps its own entries.
+      let entries = m.Entries
+      let mutable copy : (struct (Dval * Dval))[] = null
+      for i in 0 .. entries.Length - 1 do
+        let struct (k, v) = entries[i]
+        let k' = if scalarKeys then (k) else go k
+        let v' = go v
+        if not (same k' k && same v' v) then
+          if isNull copy then copy <- Array.copy entries
+          copy[i] <- struct (k', v')
+      // A rewritten key (ephemeral Bytes promoted to persistent) equals the key it
+      // replaces, so the order holds; rebuilding keeps the new key object either way.
+      if isNull copy then
+        m
+      else
+        copy
+        |> Array.map (fun (struct (k, v)) -> (k, v))
+        |> List.ofArray
+        |> DictMap.ofList
 
     go dv
 
@@ -5032,19 +5028,19 @@ module ImplSelectionMemo =
 /// (though, we'll likely demand deps. in the PM before committing something upstream...)
 type PackageManager =
   {
-    getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
-    getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
-    getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
-    getTrait : FQTraitName.Package -> Ply<Option<Trait.Trait>>
+    getType : FQTypeName.Package -> Option<PackageType.PackageType>
+    getValue : FQValueName.Package -> Option<PackageValue.PackageValue>
+    getFn : FQFnName.Package -> Option<PackageFn.PackageFn>
+    getTrait : FQTraitName.Package -> Option<Trait.Trait>
 
     /// Content-addressed blob bytes by SHA-256 hash. Returns [None]
     /// for missing hashes.
-    getBytes : string -> Ply<Option<byte[]>>
+    getBytes : string -> Option<byte[]>
 
     /// Insert bytes into `package_blobs` keyed by SHA-256 hash. Uses
     /// INSERT OR IGNORE — same hash = same content (content-addressing
     /// invariant), so a second insert is a cheap no-op.
-    persistBytes : string -> byte[] -> Ply<unit>
+    persistBytes : string -> byte[] -> unit
 
     /// Is this package fn hash marked Harmful? Only fns participate -- see
     /// `DeprecationKind.Harmful` for why.
@@ -5053,19 +5049,18 @@ type PackageManager =
     /// every branch. Content-addressed like the other PM lookups.
     ///
     /// Synchronous: every implementation computes this without I/O (the DB-backed one reads a cache),
-    /// so returning `Ply<bool>` would cost a computation-expression bind on every package call.
+    /// so returning `bool` would cost a computation-expression bind on every package call.
     isHarmful : FQFnName.Package -> bool
 
     /// Every impl of a trait visible on a branch. Branch-scoped, unlike the
     /// content-addressed lookups above: which impls exist is a question about
     /// NAMES (what is bound where), and a trait method call dispatches against
     /// what the caller's branch can see.
-    implCandidates :
-      Branching.BranchId -> FQTraitName.Package -> Ply<List<ImplCandidate>>
+    implCandidates : Branching.BranchId -> FQTraitName.Package -> List<ImplCandidate>
 
     /// Every visible impl, of any trait, that has a method of this name. For
     /// receiver calls: `p.show` where `p` has no field `show`.
-    implCandidatesByMethod : Branching.BranchId -> string -> Ply<List<ImplCandidate>>
+    implCandidatesByMethod : Branching.BranchId -> string -> List<ImplCandidate>
 
     /// The impl picked for (branch, trait, method, self type), remembered with the
     /// `implGeneration` it was picked under so the next call with that self type
@@ -5077,24 +5072,20 @@ type PackageManager =
     /// Moves whenever what a name binds may have changed (every fold, for the
     /// store-backed manager), which is when a remembered selection is stale.
     implGeneration : unit -> int
-
-    init : Ply<unit>
   }
 
   static member empty =
-    { getType = (fun _ -> Ply None)
-      getFn = (fun _ -> Ply None)
-      getValue = (fun _ -> Ply None)
-      getTrait = (fun _ -> Ply None)
-      getBytes = (fun _ -> Ply None)
-      persistBytes = (fun _ _ -> uply { return () })
+    { getType = (fun _ -> None)
+      getFn = (fun _ -> None)
+      getValue = (fun _ -> None)
+      getTrait = (fun _ -> None)
+      getBytes = (fun _ -> None)
+      persistBytes = (fun _ _ -> ())
       isHarmful = (fun _ -> false)
-      implCandidates = (fun _ _ -> Ply [])
-      implCandidatesByMethod = (fun _ _ -> Ply [])
+      implCandidates = (fun _ _ -> [])
+      implCandidatesByMethod = (fun _ _ -> [])
       implSelectionMemo = ImplSelectionMemo.create ()
-      implGeneration = (fun () -> 0)
-
-      init = uply { return () } }
+      implGeneration = (fun () -> 0) }
 
   /// Side-load impls that exist only in this process (a script's own `impl`
   /// blocks), ahead of whatever the store answers. One impl offered from both
@@ -5111,20 +5102,16 @@ type PackageManager =
           implSelectionMemo = ImplSelectionMemo.create ()
           implCandidates =
             fun branchId trait_ ->
-              uply {
-                let! stored = pm.implCandidates branchId trait_
-                let extra = candidates |> List.filter (fun c -> c.trait_ = trait_)
-                return extra @ stored |> List.distinctBy (fun c -> c.source)
-              }
+              let stored = pm.implCandidates branchId trait_
+              let extra = candidates |> List.filter (fun c -> c.trait_ = trait_)
+              extra @ stored |> List.distinctBy (fun c -> c.source)
           implCandidatesByMethod =
             fun branchId methodName ->
-              uply {
-                let! stored = pm.implCandidatesByMethod branchId methodName
-                let extra =
-                  candidates
-                  |> List.filter (fun c -> Map.containsKey methodName c.methods)
-                return extra @ stored |> List.distinctBy (fun c -> c.source)
-              } }
+              let stored = pm.implCandidatesByMethod branchId methodName
+              let extra =
+                candidates
+                |> List.filter (fun c -> Map.containsKey methodName c.methods)
+              extra @ stored |> List.distinctBy (fun c -> c.source) }
 
   /// Allows you to side-load a few 'extras' in-memory, along
   /// the normal fetching functionality. (Mostly helpful for tests)
@@ -5154,22 +5141,22 @@ type PackageManager =
     { getType =
         fun id ->
           match Lookup.tryFindV id typeMap with
-          | ValueSome hit -> Ply hit
+          | ValueSome hit -> hit
           | ValueNone -> pm.getType id
       getValue =
         fun id ->
           match Lookup.tryFindV id valueMap with
-          | ValueSome hit -> Ply hit
+          | ValueSome hit -> hit
           | ValueNone -> pm.getValue id
       getFn =
         fun id ->
           match Lookup.tryFindV id fnMap with
-          | ValueSome hit -> Ply hit
+          | ValueSome hit -> hit
           | ValueNone -> pm.getFn id
       getTrait =
         fun id ->
           match Lookup.tryFindV id traitMap with
-          | ValueSome hit -> Ply hit
+          | ValueSome hit -> hit
           | ValueNone -> pm.getTrait id
       getBytes = pm.getBytes
       persistBytes = pm.persistBytes
@@ -5177,8 +5164,7 @@ type PackageManager =
       implCandidates = pm.implCandidates
       implCandidatesByMethod = pm.implCandidatesByMethod
       implSelectionMemo = ImplSelectionMemo.create ()
-      implGeneration = pm.implGeneration
-      init = pm.init }
+      implGeneration = pm.implGeneration }
 
 
 // ------------
@@ -5490,7 +5476,7 @@ type CallFrame =
     /// its result goes to this rather than into the parent's register, and what this answers, or
     /// asks for next, is what reaches the parent. Null for every ordinary frame. Two plain fields
     /// rather than a record, so a chain of a thousand applications allocates nothing for them.
-    mutable continuation : Dval -> Ply<Dval>
+    mutable continuation : Dval -> Dval
     /// With `continuation`: what to do with the builtin's final result once the chain ends (the
     /// trace record, if any). Null when nothing.
     mutable finish : Dval -> unit
@@ -5752,11 +5738,6 @@ type InterpreterStats =
     allocByOpcode : int64[]
     countByOpcode : int64[]
 
-    /// For the opcodes the drain tries to run synchronously: how often the builder's `Ply` was
-    /// already complete, and how often it wasn't. Without the denominator a fast path that never
-    /// fires and a fast path that fires and saves little are the same number.
-    syncHitByOpcode : int64[]
-    syncMissByOpcode : int64[]
 
     /// Total register slots allocated across every frame pushed. Each frame gets its own
     /// `Array.zeroCreate registerCount`, so this times 8 bytes is the register-file share of Apply's
@@ -5841,8 +5822,6 @@ type InterpreterStats =
       packageFnTiming = Dictionary()
       packageFnCounts = Dictionary()
       allocByOpcode = Array.zeroCreate 32
-      syncHitByOpcode = Array.zeroCreate 32
-      syncMissByOpcode = Array.zeroCreate 32
       countByOpcode = Array.zeroCreate 32
       registersAllocated = 0L
       builtinBodyAlloc = 0L
@@ -5935,8 +5914,6 @@ type InterpreterStats =
       addInto this.packageFnCounts chunk.packageFnCounts
       addArray this.allocByOpcode chunk.allocByOpcode
       addArray this.countByOpcode chunk.countByOpcode
-      addArray this.syncHitByOpcode chunk.syncHitByOpcode
-      addArray this.syncMissByOpcode chunk.syncMissByOpcode
       this.registersAllocated <- this.registersAllocated + chunk.registersAllocated
       this.builtinBodyAlloc <- this.builtinBodyAlloc + chunk.builtinBodyAlloc
       addInto this.builtinAlloc chunk.builtinAlloc
@@ -6004,8 +5981,6 @@ type InterpreterStats =
     System.Array.Clear(this.allocByStage, 0, this.allocByStage.Length)
     System.Array.Clear(this.countByStage, 0, this.countByStage.Length)
     System.Array.Clear(this.allocByOpcode, 0, this.allocByOpcode.Length)
-    System.Array.Clear(this.syncHitByOpcode, 0, this.syncHitByOpcode.Length)
-    System.Array.Clear(this.syncMissByOpcode, 0, this.syncMissByOpcode.Length)
     System.Array.Clear(this.countByOpcode, 0, this.countByOpcode.Length)
 
   member private this.addTiming
@@ -6088,9 +6063,7 @@ type VMState =
     /// Performance counters — incremented during execution
     stats : InterpreterStats
 
-    /// Set by the instruction that wants to push a frame, read by the loop that pushes it. Lives here
-    /// rather than as a local in `executeInner` because a mutable local the Ply builder's continuations
-    /// capture becomes a heap ref cell, allocated once per frame activation.
+    /// Set by the instruction that wants to push a frame, read by the loop that pushes it.
     mutable frameToPush : CallFrame voption
 
     /// Source of frame ids. Per-VM rather than global because a VM's interpreter loop is single-threaded,
@@ -6126,7 +6099,7 @@ type VMState =
     /// body returns, which then pushes the frame instead of using the body's result. Null
     /// `pendingNext` means no request. Four slots rather than a record, so a chain of a thousand
     /// applications allocates nothing for them; one builtin is in flight per VM at a time.
-    mutable pendingNext : Dval -> Ply<Dval>
+    mutable pendingNext : Dval -> Dval
     mutable pendingApplicable : Applicable
     mutable pendingArg : Dval
     mutable pendingSecond : Dval voption
@@ -6143,15 +6116,12 @@ type VMState =
     /// `pendingHostOp` means no request. Read and cleared right after the body returns (or
     /// lands, or a continuation answers).
     mutable pendingHostOp : HostTypes.Operation
-    mutable pendingHostNext :
-      Result<HostTypes.Response, HostTypes.Failure> -> Ply<Dval>
+    mutable pendingHostNext : Result<HostTypes.Response, HostTypes.Failure> -> Dval
     /// The host operation this VM is waiting on right now, for `ps`. Null when none. Written by
     /// the interpreter around the wait and read best-effort from other threads.
     mutable hostInflight : HostTypes.Operation
 
-    /// The value the root frame returned, set when it pops. On the VM rather than a local of the
-    /// interpreter loop: a local is a field in every continuation the builder makes for the
-    /// loop body.
+    /// The value the root frame returned, set when it pops.
     /// Frames from a lambda this VM's builtins applied in a borrowed VM, for the error path only.
     ///
     /// `executeApplicable` runs the lambda in its own VM, so those frames are not reachable from
@@ -6502,7 +6472,7 @@ and BuiltInFnSig =
   //
   // A *struct* tuple, because a reference tuple is another heap object per call. The price is that
   // every implementation's pattern has to say `struct (...)`.
-  (struct (ExecutionState * VMState * List<TypeReference> * Dval[])) -> DvalTask
+  (struct (ExecutionState * VMState * List<TypeReference> * Dval[])) -> Dval
 
 
 /// Functionally written in F# and shipped with the executable
@@ -6540,9 +6510,9 @@ and TestContext =
   }
 
 
-and ExceptionReporter = ExecutionState -> VMState -> Metadata -> exn -> Ply<unit>
+and ExceptionReporter = ExecutionState -> VMState -> Metadata -> exn -> unit
 
-and Notifier = ExecutionState -> VMState -> string -> Metadata -> Ply<unit>
+and Notifier = ExecutionState -> VMState -> string -> Metadata -> unit
 
 /// All state set when starting an execution; non-changing
 /// (as opposed to the VMState, which changes as the execution progresses)
@@ -6618,7 +6588,10 @@ and ExecutionState =
     /// traces. The resolver applies only grants for this invocation context.
     permissionAccess : Permissions.Access -> Permissions.Access
     requestPermission :
-      Option<Permissions.Access -> Permissions.Request -> string -> Ply<bool>>
+      Option<Permissions.Access
+        -> Permissions.Request
+        -> string
+        -> System.Threading.Tasks.Task<bool>>
 
     /// Run an applicable to completion on a borrowed VM, as a builtin applying a
     /// callback does. Filled in by `Execution.createState`, which is where that
@@ -6630,7 +6603,7 @@ and ExecutionState =
         -> Permissions.Access
         -> Applicable
         -> NEList<Dval>
-        -> Ply<ExecutionResult>
+        -> System.Threading.Tasks.Task<ExecutionResult>
 
     /// Content-addressed persistent blob store (`package_blobs`).
     /// Ephemeral blobs carry their bytes inline and need no store;
@@ -6668,7 +6641,7 @@ and ExecutionState =
     /// Whether a package fn is pure in the sense of `Purity`, over everything it can reach.
     /// Supplied by the host, which can read the store (`LibDB.PackagePermissions.purity`);
     /// `Unknown` for everything by default, which is always safe.
-    fnPurity : FQFnName.Package -> Ply<Purity>
+    fnPurity : FQFnName.Package -> Purity
 
     /// The account this run is attributed to (the developer behind a
     /// commit / script run / handler invocation). `None` means
@@ -6688,15 +6661,15 @@ and ExecutionState =
   }
 
 
-and Types = { package : FQTypeName.Package -> Ply<Option<PackageType.PackageType>> }
+and Types = { package : FQTypeName.Package -> Option<PackageType.PackageType> }
 
 /// Trait lookup by hash. Its one field is named unlike `Types.package` so that a
 /// `{ package = … }` record literal keeps inferring `Types`.
-and Traits = { trait_ : FQTraitName.Package -> Ply<Option<Trait.Trait>> }
+and Traits = { trait_ : FQTraitName.Package -> Option<Trait.Trait> }
 
 and Values =
   { builtIn : Dictionary<FQValueName.Builtin, BuiltInValue>
-    package : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>> }
+    package : FQValueName.Package -> Option<PackageValue.PackageValue> }
 
 /// Byte storage access wired onto the ExecutionState. `get` resolves a
 /// content-addressed hash to bytes (or None if the hash is missing);
@@ -6704,18 +6677,17 @@ and Values =
 /// Needed inside builtins that manipulate blobs — eg.
 /// `Base16.encode : Bytes -> String` has to dereference its arg.
 and BytesStore =
-  { get : string -> Ply<Option<byte[]>>; persist : string -> byte[] -> Ply<unit> }
+  { get : string -> Option<byte[]>; persist : string -> byte[] -> unit }
 
 and Functions =
   {
     builtIn : Dictionary<FQFnName.Builtin, BuiltInFn>
-    package : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
+    package : FQFnName.Package -> Option<PackageFn.PackageFn>
     /// `PackageManager.isHarmful` with the state's branchId pre-applied.
     isHarmful : FQFnName.Package -> bool
     /// `PackageManager.implCandidates`; the interpreter passes the state's branch.
-    implCandidates :
-      Branching.BranchId -> FQTraitName.Package -> Ply<List<ImplCandidate>>
-    implCandidatesByMethod : Branching.BranchId -> string -> Ply<List<ImplCandidate>>
+    implCandidates : Branching.BranchId -> FQTraitName.Package -> List<ImplCandidate>
+    implCandidatesByMethod : Branching.BranchId -> string -> List<ImplCandidate>
     /// `PackageManager.implSelectionMemo` and `implGeneration`.
     implSelectionMemo :
       ConcurrentDictionary<struct (Branching.BranchId * Hash * string * KnownType), struct (int *
@@ -6726,13 +6698,12 @@ and Functions =
 
 
 module Types =
-  let empty = { package = (fun _ -> Ply None) }
+  let empty = { package = (fun _ -> None) }
 
   /// Declarations already looked up, per `Types` instance.
   ///
-  /// `find` was `types.package pkg |> Ply.map (Option.map _.declaration)`: a computation expression
-  /// *and* a fresh `Some` on every lookup, even though the package manager behind it is already a
-  /// cache hit. `unwrapAlias` reaches it constantly.
+  /// Without it every lookup made a fresh `Some`, even though the package manager behind it is
+  /// already a cache hit. `unwrapAlias` reaches it constantly.
   ///
   /// Keyed on the `Types` instance as well as the name. Keying on the name alone looks safe, since a
   /// type name is a content hash, and it isn't: tests mint their own package managers and reuse
@@ -6756,31 +6727,21 @@ module Types =
   let find
     (types : Types)
     (name : FQTypeName.FQTypeName)
-    : Ply<Option<TypeDeclaration.T>> =
+    : Option<TypeDeclaration.T> =
     // `GetValue`, not a `TryGetValue`/`AddOrUpdate` pair: the pair is not atomic, and this is the
     // one place the cache for a `Types` is created.
     let cache = declCache.GetValue(types, newDeclCache)
 
     match Lookup.tryFindV name cache with
-    | ValueSome hit -> Ply hit
+    | ValueSome hit -> hit
     | ValueNone ->
       match name with
       | FQTypeName.Package pkg ->
-        let fetch = types.package pkg
-        match Ply.trySync fetch with
-        | ValueSome found ->
-          let decl = found |> Option.map _.declaration
-          // A miss isn't cached: a type absent now could be present later, and this cache has no
-          // way to hear about it. Same rule as the package manager's own cache.
-          if Option.isSome decl then cache[name] <- decl
-          Ply decl
-        | ValueNone ->
-          uply {
-            let! found = fetch
-            let decl = found |> Option.map _.declaration
-            if Option.isSome decl then cache[name] <- decl
-            return decl
-          }
+        let decl = types.package pkg |> Option.map _.declaration
+        // A miss isn't cached: a type absent now could be present later, and this cache has no
+        // way to hear about it. Same rule as the package manager's own cache.
+        if Option.isSome decl then cache[name] <- decl
+        decl
 
   /// Swap concrete types for type parameters
   /// CLEANUP consider accepting a pre-zipped list instead
@@ -6876,211 +6837,131 @@ module TypeReference =
     | ValueSome cache -> Lookup.tryFindV typ cache
     | ValueNone -> ValueNone
 
-  let rec unwrapAlias (types : Types) (typ : TypeReference) : Ply<TypeReference> =
+  let rec unwrapAlias (types : Types) (typ : TypeReference) : TypeReference =
     match typ with
     | TCustomType({ resolved = Ok outerTypeName }, outerTypeArgs) ->
       match tryResolvedAlias types typ with
-      | ValueSome resolved -> Ply resolved
+      | ValueSome resolved -> resolved
       | ValueNone ->
-        uply {
-          match! Types.find types outerTypeName with
-          | Some declaration ->
-            let! resolved =
-              match declaration.definition with
-              | TypeDeclaration.Alias target ->
-                System
-                  .Runtime
-                  .CompilerServices
-                  .RuntimeHelpers
-                  .EnsureSufficientExecutionStack()
-                let target =
-                  Types.substitute declaration.typeParams outerTypeArgs target
-                unwrapAlias types target
-              | _ -> Ply typ
-            // Do not cache a chain with a missing declaration; it may arrive later.
-            // Cache a resolved record or enum as itself.
-            let complete =
-              match declaration.definition, resolved with
-              | TypeDeclaration.Alias _, TCustomType _ ->
-                tryResolvedAlias types resolved |> ValueOption.isSome
-              | _ -> true
-            if complete then
-              aliasCaches.GetValue(types, newAliasCache).AddOrUpdate(typ, resolved)
-            return resolved
-          | None -> return typ
-        }
-    | _ -> Ply typ
+        match Types.find types outerTypeName with
+        | Some declaration ->
+          let resolved =
+            match declaration.definition with
+            | TypeDeclaration.Alias target ->
+              System
+                .Runtime
+                .CompilerServices
+                .RuntimeHelpers
+                .EnsureSufficientExecutionStack()
+              let target =
+                Types.substitute declaration.typeParams outerTypeArgs target
+              unwrapAlias types target
+            | _ -> typ
+          // Do not cache a chain with a missing declaration; it may arrive later.
+          // Cache a resolved record or enum as itself.
+          let complete =
+            match declaration.definition, resolved with
+            | TypeDeclaration.Alias _, TCustomType _ ->
+              tryResolvedAlias types resolved |> ValueOption.isSome
+            | _ -> true
+          if complete then
+            aliasCaches.GetValue(types, newAliasCache).AddOrUpdate(typ, resolved)
+          resolved
+        | None -> typ
+    | _ -> typ
 
 
   /// A declared `TypeReference` as a `ValueType`.
   ///
-  /// Three things here matter enough to be worth stating, since together they put this at the top of
-  /// the allocation profile for an HTTP request when any of them is undone.
-  ///
-  /// Each recursion passes `types` and `tst` explicitly. A `let r = toVT types tst` alias is a
+  /// Each recursion passes `types` and `tst` explicitly: a `let r = toVT types tst` alias is a
   /// closure over both, built on entry to every call including the scalar ones that never use it.
   ///
-  /// Only the cases that can genuinely need the store enter the `uply`. With one builder around the
-  /// whole body, `TString` -- which cannot be an alias and cannot await -- pays for it too.
-  ///
-  /// And every scalar case built a fresh `Known` wrapper. They come from `KnownVT` instead, which is
-  /// the same object `Dval.toValueType` returns, so comparing a value's type against its declared
-  /// type can settle on reference equality.
+  /// Every scalar case comes from `KnownVT`, the same object `Dval.toValueType` returns, so
+  /// comparing a value's type against its declared type can settle on reference equality.
   let rec toVT
     (types : Types)
     (tst : TypeSymbolTable)
     (typeRef : TypeReference)
-    : Ply<ValueType> =
+    : ValueType =
     match typeRef with
-    | TUnit -> Ply KnownVT.unit
-    | TBool -> Ply KnownVT.bool
-    | TInt8 -> Ply KnownVT.int8
-    | TUInt8 -> Ply KnownVT.uint8
-    | TInt16 -> Ply KnownVT.int16
-    | TUInt16 -> Ply KnownVT.uint16
-    | TInt32 -> Ply KnownVT.int32
-    | TUInt32 -> Ply KnownVT.uint32
-    | TInt64 -> Ply KnownVT.int64
-    | TUInt64 -> Ply KnownVT.uint64
-    | TInt128 -> Ply KnownVT.int128
-    | TUInt128 -> Ply KnownVT.uint128
-    | TBigInt -> Ply KnownVT.bigInt
-    | TFloat64 -> Ply KnownVT.float
-    | TFloat32 -> Ply KnownVT.float32
-    | TDecimal -> Ply KnownVT.decimal
-    | TChar -> Ply KnownVT.char
-    | TString -> Ply KnownVT.string
-    | TUuid -> Ply KnownVT.uuid
-    | TDateTime -> Ply KnownVT.dateTime
-    | TBytes -> Ply KnownVT.bytes
+    | TUnit -> KnownVT.unit
+    | TBool -> KnownVT.bool
+    | TInt8 -> KnownVT.int8
+    | TUInt8 -> KnownVT.uint8
+    | TInt16 -> KnownVT.int16
+    | TUInt16 -> KnownVT.uint16
+    | TInt32 -> KnownVT.int32
+    | TUInt32 -> KnownVT.uint32
+    | TInt64 -> KnownVT.int64
+    | TUInt64 -> KnownVT.uint64
+    | TInt128 -> KnownVT.int128
+    | TUInt128 -> KnownVT.uint128
+    | TBigInt -> KnownVT.bigInt
+    | TFloat64 -> KnownVT.float
+    | TFloat32 -> KnownVT.float32
+    | TDecimal -> KnownVT.decimal
+    | TChar -> KnownVT.char
+    | TString -> KnownVT.string
+    | TUuid -> KnownVT.uuid
+    | TDateTime -> KnownVT.dateTime
+    | TBytes -> KnownVT.bytes
 
     | TVariable name ->
-      Ply(
-        match TST.tryFind name tst with
-        | ValueSome vt -> vt
-        | ValueNone -> ValueType.Unknown
-      )
+      match TST.tryFind name tst with
+      | ValueSome vt -> vt
+      | ValueNone -> ValueType.Unknown
 
     | TCustomType({ originalName = names; resolved = Error nre }, _) ->
       raiseUntargetedRTE (RuntimeError.ParseTimeNameResolution(names, nre))
 
-    // Only these can be an alias, or hold something that has to be resolved, so only these pay for
-    // the builder. `unwrapAlias` is a no-op for everything above.
+    // Only these can be an alias, or hold something that has to be resolved.
     | TStream _
     | TTuple _
     | TList _
     | TDict _
     | TCustomType _
-    | TFn _ ->
-      match toVTSync types tst typeRef with
-      | ValueSome vt -> Ply vt
-      | ValueNone -> toVTAsync types tst typeRef
+    | TFn _ -> toVTComposite types tst typeRef
 
-  /// `toVT` without a builder, for a type whose aliases are already resolved: an explicit type
-  /// argument or a declared parameter is usually that after its first use. `ValueNone` where
-  /// `toVTAsync` is needed.
-  and toVTSync
+  /// `toVT` over a list. Recursion rather than `List.map`, whose closure would be built even for
+  /// the empty list most callers pass.
+  and toVTs
     (types : Types)
     (tst : TypeSymbolTable)
-    (typeRef : TypeReference)
-    : ValueType voption =
-    match typeRef with
-    | TStream inner ->
-      match toVTSync types tst inner with
-      | ValueSome inner -> ValueSome(ValueType.Known(KTStream inner))
-      | ValueNone -> ValueNone
-    | TList inner ->
-      match toVTSync types tst inner with
-      | ValueSome inner -> ValueSome(ValueType.Known(KTList inner))
-      | ValueNone -> ValueNone
-    | TDict(key, value) ->
-      match toVTSync types tst key with
-      | ValueSome key ->
-        match toVTSync types tst value with
-        | ValueSome value -> ValueSome(ValueType.Known(KTDict(key, value)))
-        | ValueNone -> ValueNone
-      | ValueNone -> ValueNone
-    | TTuple(first, second, theRest) ->
-      match toVTSync types tst first with
-      | ValueSome first ->
-        match toVTSync types tst second with
-        | ValueSome second ->
-          match toVTsSync types tst [] theRest with
-          | ValueSome theRest ->
-            ValueSome(ValueType.Known(KTTuple(first, second, theRest)))
-          | ValueNone -> ValueNone
-        | ValueNone -> ValueNone
-      | ValueNone -> ValueNone
-    | TCustomType({ resolved = Ok _ }, _) ->
-      match tryResolvedAlias types typeRef with
-      | ValueSome(TCustomType({ resolved = Ok typeName }, typeArgs)) ->
-        match toVTsSync types tst [] typeArgs with
-        | ValueSome typeArgs ->
-          ValueSome(ValueType.Known(KTCustomType(typeName, typeArgs)))
-        | ValueNone -> ValueNone
-      | ValueSome(TCustomType _) -> ValueNone
-      | ValueSome resolved -> toVTSync types tst resolved
-      | ValueNone -> ValueNone
-    | TCustomType _
-    | TFn _ -> ValueNone
-    | _ -> Ply.trySync (toVT types tst typeRef)
-
-  /// `toVTSync` over a list, prepending onto <param acc> reversed.
-  and toVTsSync
-    (types : Types)
-    (tst : TypeSymbolTable)
-    (acc : List<ValueType>)
     (typeRefs : List<TypeReference>)
-    : List<ValueType> voption =
+    : List<ValueType> =
     match typeRefs with
-    | [] -> ValueSome(List.rev acc)
-    | t :: rest ->
-      match toVTSync types tst t with
-      | ValueSome vt -> toVTsSync types tst (vt :: acc) rest
-      | ValueNone -> ValueNone
+    | [] -> []
+    | t :: rest -> toVT types tst t :: toVTs types tst rest
 
-  and private toVTAsync
+  and private toVTComposite
     (types : Types)
     (tst : TypeSymbolTable)
     (typeRef : TypeReference)
-    : Ply<ValueType> =
-    uply {
-      match! unwrapAlias types typeRef with
-      | TStream inner ->
-        let! inner = toVT types tst inner
-        return ValueType.Known(KTStream inner)
+    : ValueType =
+    match unwrapAlias types typeRef with
+    | TStream inner -> ValueType.Known(KTStream(toVT types tst inner))
 
-      | TTuple(first, second, theRest) ->
-        let! first = toVT types tst first
-        let! second = toVT types tst second
-        let! theRest = theRest |> Ply.List.mapSequentially (toVT types tst)
-        return KTTuple(first, second, theRest) |> ValueType.Known
+    | TTuple(first, second, theRest) ->
+      KTTuple(toVT types tst first, toVT types tst second, toVTs types tst theRest)
+      |> ValueType.Known
 
-      | TList inner ->
-        let! inner = toVT types tst inner
-        return ValueType.Known(KTList inner)
+    | TList inner -> ValueType.Known(KTList(toVT types tst inner))
 
-      | TDict(key, value) ->
-        let! key = toVT types tst key
-        let! value = toVT types tst value
-        return ValueType.Known(KTDict(key, value))
+    | TDict(key, value) ->
+      ValueType.Known(KTDict(toVT types tst key, toVT types tst value))
 
-      | TCustomType({ resolved = Ok typeName }, typeArgs) ->
-        let! typeArgs = typeArgs |> Ply.List.mapSequentially (toVT types tst)
-        return KTCustomType(typeName, typeArgs) |> ValueType.Known
+    | TCustomType({ resolved = Ok typeName }, typeArgs) ->
+      KTCustomType(typeName, toVTs types tst typeArgs) |> ValueType.Known
 
-      | TCustomType({ originalName = names; resolved = Error nre }, _) ->
-        return raiseUntargetedRTE (RuntimeError.ParseTimeNameResolution(names, nre))
+    | TCustomType({ originalName = names; resolved = Error nre }, _) ->
+      raiseUntargetedRTE (RuntimeError.ParseTimeNameResolution(names, nre))
 
-      | TFn(args, result) ->
-        let! args = args |> Ply.NEList.mapSequentially (toVT types tst)
-        let! result = toVT types tst result
-        return KTFn(args, result) |> ValueType.Known
+    | TFn(args, result) ->
+      KTFn(NEList.map (toVT types tst) args, toVT types tst result)
+      |> ValueType.Known
 
-      // An alias can unwrap to any of the cases handled without the builder above; those are
-      // cheap, so recursing back into `toVT` costs nothing and keeps one copy of each rule.
-      | unwrapped -> return! toVT types tst unwrapped
-    }
+    // An alias can unwrap to any of the scalar cases handled above.
+    | unwrapped -> toVT types tst unwrapped
 
 
   /// Convert a KnownType back to a TypeReference
@@ -7169,10 +7050,8 @@ module TypeReference =
 
 let consoleReporter : ExceptionReporter =
   fun _state _vm (metadata : Metadata) (exn : exn) ->
-    uply { printException "runtime-error" metadata exn }
+    printException "runtime-error" metadata exn
 
 let consoleNotifier : Notifier =
   fun _state _vm msg tags ->
-    uply {
-      printErr $"A notification happened in the runtime:\n  {msg}\n  {tags}\n\n"
-    }
+    printErr $"A notification happened in the runtime:\n  {msg}\n  {tags}\n\n"

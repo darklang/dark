@@ -24,8 +24,8 @@ let fns () : List<BuiltInFn> =
         + "[4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and "
         + "[5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
       fn =
-        let resultOk r = Dval.resultOk KTBytes KTString r |> Ply
-        let resultError r = Dval.resultError KTBytes KTString r |> Ply
+        let resultOk r = Dval.resultOk KTBytes KTString r
+        let resultError r = Dval.resultError KTBytes KTString r
         (function
         | _, _, _, [| DString s |] ->
           let base64FromUrlEncoded (str : string) : string =
@@ -86,7 +86,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [| DBytes ref |] ->
           Bytes.withBytes state ref (fun bytes ->
-            Ply(DString(System.Convert.ToBase64String(bytes))))
+            (DString(System.Convert.ToBase64String(bytes))))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

@@ -29,7 +29,6 @@
 module LibExecution.Spread
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
@@ -266,31 +265,27 @@ let private memosFor (state : ExecutionState) : Memos =
 let private ofUndecidedTraitCall
   (state : ExecutionState)
   (tm : FQFnName.TraitMethod)
-  : Ply<Purity> =
+  : Purity =
   let key = struct (tm.trait_, tm.method_)
   let traitMemo = (memosFor state).Traits
   match traitMemo.TryGetValue key with
-  | true, known -> Ply known
+  | true, known -> known
   | false, _ ->
-    uply {
-      let! candidates = state.fns.implCandidates state.branchId tm.trait_
-      let methods =
-        candidates |> List.choose (fun c -> Map.tryFind tm.method_ c.methods)
-      let! answer =
-        methods
-        |> Ply.List.foldSequentially
-          (fun answer m ->
-            if answer <> Purity.Pure then
-              Ply answer
-            else
-              uply {
-                let! one = state.fnPurity m
-                return if one = Purity.Pure then Purity.Pure else Purity.Unknown
-              })
-          (if List.isEmpty methods then Purity.Unknown else Purity.Pure)
-      traitMemo[key] <- answer
-      return answer
-    }
+    let candidates = state.fns.implCandidates state.branchId tm.trait_
+    let methods =
+      candidates |> List.choose (fun c -> Map.tryFind tm.method_ c.methods)
+    let answer =
+      methods
+      |> List.fold
+        (fun answer m ->
+          if answer <> Purity.Pure then
+            answer
+          else
+            let one = state.fnPurity m
+            if one = Purity.Pure then Purity.Pure else Purity.Unknown)
+        (if List.isEmpty methods then Purity.Unknown else Purity.Pure)
+    traitMemo[key] <- answer
+    answer
 
 /// Whether `app`, applied to arguments already known to hold no code, can reach anything a chunk
 /// would refuse. `depth` bounds the walk through nested lambdas and captured callables.
@@ -298,79 +293,68 @@ let rec private ofApplicable
   (state : ExecutionState)
   (depth : int)
   (app : Applicable)
-  : Ply<Purity> =
+  : Purity =
   if depth > 16 then
-    Ply Purity.Unknown
+    Purity.Unknown
   else
-    uply {
-      match app with
-      | AppNamedFn named ->
-        let! own =
-          match named.name with
-          | FQFnName.Builtin b ->
-            match Lookup.tryFindV b state.fns.builtIn with
-            | ValueSome found ->
-              Ply(
-                if Interpreter.spreadRefuses found then
-                  Purity.Impure
-                else
-                  Purity.Pure
-              )
-            | ValueNone -> Ply Purity.Unknown
-          // A bound implementation the caller supplies is not something the store can answer for.
-          | FQFnName.Package p when List.isEmpty named.boundImpls -> state.fnPurity p
-          | FQFnName.TraitMethod { implFn = FQFnName.Chosen p } -> state.fnPurity p
-          | FQFnName.TraitMethod tm -> ofUndecidedTraitCall state tm
-          | FQFnName.Package _ -> Ply Purity.Unknown
-        let! args = ofValues state depth named.argsSoFar
-        return both own args
-      | AppLambda lambda ->
-        // What its own instructions reach, before its captured values: memoised per lambda, since
-        // the instructions and every package fn's answer are fixed for the life of the oracle.
-        let lambdaMemo = (memosFor state).Lambdas
-        let! own =
-          match lambda.impl with
-          | NoCode -> Ply Purity.Unknown
-          | HasCode impl ->
-            match lambdaMemo.TryGetValue lambda.exprId with
-            | true, struct (readFrom, known) when obj.ReferenceEquals(readFrom, impl) ->
-              Ply known
-            | _ ->
-              uply {
-                let! answer = ofLambdaBody state depth impl
-                lambdaMemo[lambda.exprId] <- struct (impl, answer)
-                return answer
-              }
-        // What it closed over is concrete by now, so a captured callback is judged by what it
-        // IS, which no reading of the source could know.
-        let! closed =
-          ofValues
-            state
-            depth
-            (lambda.closedRegisters |> Captures.toList |> List.map snd)
-        return both own closed
-    }
+    match app with
+    | AppNamedFn named ->
+      let own =
+        match named.name with
+        | FQFnName.Builtin b ->
+          match Lookup.tryFindV b state.fns.builtIn with
+          | ValueSome found ->
+            (if Interpreter.spreadRefuses found then Purity.Impure else Purity.Pure)
+          | ValueNone -> Purity.Unknown
+        // A bound implementation the caller supplies is not something the store can answer for.
+        | FQFnName.Package p when List.isEmpty named.boundImpls -> state.fnPurity p
+        | FQFnName.TraitMethod { implFn = FQFnName.Chosen p } -> state.fnPurity p
+        | FQFnName.TraitMethod tm -> ofUndecidedTraitCall state tm
+        | FQFnName.Package _ -> Purity.Unknown
+      let args = ofValues state depth named.argsSoFar
+      both own args
+    | AppLambda lambda ->
+      // What its own instructions reach, before its captured values: memoised per lambda, since
+      // the instructions and every package fn's answer are fixed for the life of the oracle.
+      let lambdaMemo = (memosFor state).Lambdas
+      let own =
+        match lambda.impl with
+        | NoCode -> Purity.Unknown
+        | HasCode impl ->
+          match lambdaMemo.TryGetValue lambda.exprId with
+          | true, struct (readFrom, known) when obj.ReferenceEquals(readFrom, impl) ->
+            known
+          | _ ->
+            let answer = ofLambdaBody state depth impl
+            lambdaMemo[lambda.exprId] <- struct (impl, answer)
+            answer
+      // What it closed over is concrete by now, so a captured callback is judged by what it
+      // IS, which no reading of the source could know.
+      let closed =
+        ofValues
+          state
+          depth
+          (lambda.closedRegisters |> Captures.toList |> List.map snd)
+      both own closed
 
 and private ofValues
   (state : ExecutionState)
   (depth : int)
   (values : List<Dval>)
-  : Ply<Purity> =
+  : Purity =
   values
-  |> Ply.List.foldSequentially
+  |> List.fold
     (fun answer v ->
       if answer = Purity.Impure then
-        Ply answer
+        answer
       else
-        uply {
-          let! one =
-            match v with
-            | DApplicable a -> ofApplicable state (depth + 1) a
-            | v when holdsNoCode v -> Ply Purity.Pure
-            // Code inside a structure: a record of callbacks, say. Not followed.
-            | _ -> Ply Purity.Unknown
-          return both answer one
-        })
+        let one =
+          match v with
+          | DApplicable a -> ofApplicable state (depth + 1) a
+          | v when holdsNoCode v -> Purity.Pure
+          // Code inside a structure: a record of callbacks, say. Not followed.
+          | _ -> Purity.Unknown
+        both answer one)
     Purity.Pure
 
 /// A lambda's body: every callable it loads or creates, and every call it makes. A call through a
@@ -381,84 +365,70 @@ and private ofLambdaBody
   (state : ExecutionState)
   (depth : int)
   (impl : LambdaImpl)
-  : Ply<Purity> =
-  uply {
-    let instrs = impl.instructions.instructions
-    let otherwise = instrs |> List.collect writesOther |> Set.ofList
-    let loaded =
-      instrs
-      |> List.choose (fun i ->
-        match i with
-        | LoadVal(r, DApplicable _)
-        | CreateLambda(r, _) -> Some r
-        | _ -> None)
-      |> Set.ofList
-    // Captured registers are filled at the frame's start, with values `ofApplicable` judges.
-    let captured = impl.registersToCloseOver |> List.map snd |> Set.ofList
-    return!
-      instrs
-      |> Ply.List.foldSequentially
-        (fun answer i ->
-          if answer = Purity.Impure then
-            Ply answer
-          else
-            uply {
-              let! one =
-                match i with
-                | LoadVal(_, DApplicable a) -> ofApplicable state (depth + 1) a
-                | LoadVal(_, v) when LibExecution.Dval.isInertData v ->
-                  Ply Purity.Pure
-                | LoadVal _ -> Ply Purity.Unknown
-                | CreateLambda(_, inner) -> ofLambdaBody state (depth + 1) inner
-                | LoadValue(_, FQValueName.Package v) ->
-                  uply {
-                    match! state.values.package v with
-                    | Some pv ->
-                      match pv.body with
-                      | DApplicable a -> return! ofApplicable state (depth + 1) a
-                      | _ when pv.isInert -> return Purity.Pure
-                      | _ -> return Purity.Unknown
-                    | None -> return Purity.Unknown
-                  }
-                | LoadValue _ -> Ply Purity.Unknown
-                | Apply(_, target, _, _) when
-                  (Set.contains target loaded || Set.contains target captured)
-                  && not (Set.contains target otherwise)
-                  ->
-                  Ply Purity.Pure
-                | Apply _
-                | VarNotFound _ -> Ply Purity.Unknown
-                | _ -> Ply Purity.Pure
-              return both answer one
-            })
-        Purity.Pure
-  }
+  : Purity =
+  let instrs = impl.instructions.instructions
+  let otherwise = instrs |> List.collect writesOther |> Set.ofList
+  let loaded =
+    instrs
+    |> List.choose (fun i ->
+      match i with
+      | LoadVal(r, DApplicable _)
+      | CreateLambda(r, _) -> Some r
+      | _ -> None)
+    |> Set.ofList
+  // Captured registers are filled at the frame's start, with values `ofApplicable` judges.
+  let captured = impl.registersToCloseOver |> List.map snd |> Set.ofList
+  instrs
+  |> List.fold
+    (fun answer i ->
+      if answer = Purity.Impure then
+        answer
+      else
+        let one =
+          match i with
+          | LoadVal(_, DApplicable a) -> ofApplicable state (depth + 1) a
+          | LoadVal(_, v) when LibExecution.Dval.isInertData v -> Purity.Pure
+          | LoadVal _ -> Purity.Unknown
+          | CreateLambda(_, inner) -> ofLambdaBody state (depth + 1) inner
+          | LoadValue(_, FQValueName.Package v) ->
+            match state.values.package v with
+            | Some pv ->
+              match pv.body with
+              | DApplicable a -> ofApplicable state (depth + 1) a
+              | _ when pv.isInert -> Purity.Pure
+              | _ -> Purity.Unknown
+            | None -> Purity.Unknown
+          | LoadValue _ -> Purity.Unknown
+          | Apply(_, target, _, _) when
+            (Set.contains target loaded || Set.contains target captured)
+            && not (Set.contains target otherwise)
+            ->
+            Purity.Pure
+          | Apply _
+          | VarNotFound _ -> Purity.Unknown
+          | _ -> Purity.Pure
+        both answer one)
+    Purity.Pure
 
 /// The prediction for spreading `app` over `items`. The items are its arguments, so they are
 /// checked too: an element that is itself a callable makes the body's calls through its
 /// parameter unknowable.
-let predict
-  (state : ExecutionState)
-  (app : Applicable)
-  (items : DvalList)
-  : Ply<Purity> =
-  uply {
-    let answer =
-      if not state.spread.predict then Some Purity.Unknown
-      elif not (DvalList.exists (holdsNoCode >> not) items) then None
-      else Some Purity.Unknown
-    let! answer =
-      match answer with
-      | Some known -> Ply known
-      | None -> ofApplicable state 0 app
-    state.spread.counts.Add(
-      match answer with
-      | Purity.Pure -> SpreadCount.PredictedPure
-      | Purity.Impure -> SpreadCount.PredictedImpure
-      | Purity.Unknown -> SpreadCount.PredictedUnknown
-    )
-    return answer
-  }
+let predict (state : ExecutionState) (app : Applicable) (items : DvalList) : Purity =
+  let answer =
+    if not state.spread.predict then Some Purity.Unknown
+    elif not (DvalList.exists (holdsNoCode >> not) items) then None
+    else Some Purity.Unknown
+  let answer =
+    match answer with
+    | Some known -> known
+    | None -> ofApplicable state 0 app
+  state.spread.counts.Add(
+    match answer with
+    | Purity.Pure -> SpreadCount.PredictedPure
+    | Purity.Impure -> SpreadCount.PredictedImpure
+    | Purity.Unknown -> SpreadCount.PredictedUnknown
+  )
+  answer
 
 
 // -- The spread --
@@ -526,7 +496,7 @@ let private runChunks
   (probe : Probe)
   (items : DvalList)
   (chunks : List<struct (int * DvalList * List<Dval>)>)
-  : Ply<Outcome> =
+  : Task<Outcome> =
   let count = DvalList.length items
   let sched = Sched.Scheduler.CurrentOrShared
   let slots = sched.Workers.ChunkSlots
@@ -639,12 +609,13 @@ let private runChunks
     | None -> ()
 
   // The chunks' results in order, up to the first that found something or failed, and where
-  // collecting stopped.
-  let rec collect (i : int) (acc : List<DvalList>) : Ply<List<DvalList> * Stopped> =
+  // collecting stopped. The chunks run on other workers, or on this one once this process parks,
+  // so this waits for them as a task and never blocks the thread.
+  let rec collect (i : int) (acc : List<DvalList>) : Task<List<DvalList> * Stopped> =
     if i >= procs.Length then
-      Ply((List.rev acc, AllFinished))
+      Task.FromResult((List.rev acc, AllFinished))
     else
-      uply {
+      task {
         let struct (_, copies, trace, p) = procs[i]
         match me with
         | Some m -> m.parkHint <- ValueSome(Sched.OnProcess p.id)
@@ -666,7 +637,7 @@ let private runChunks
         | NotAnAnswer -> return (List.rev acc, FailedAt i)
       }
 
-  uply {
+  task {
     let! results, stop = collect 0 []
     let results = List.fold DvalList.append DvalList.empty results
 
@@ -711,7 +682,7 @@ let private spreadOver
   (app : Applicable)
   (probe : Probe)
   (items : DvalList)
-  : Ply<Outcome voption> =
+  : Task<Outcome voption> =
   let settings = state.spread
   let count = DvalList.length items
   let sched = Sched.Scheduler.CurrentOrShared
@@ -747,30 +718,28 @@ let private spreadOver
     if chunkCount > 0 then workers.ChunkSlots.Release chunkCount |> ignore<int>
   if List.isEmpty chunks then
     release ()
-    Ply ValueNone
+    Task.FromResult ValueNone
   // A list holding reads in flight runs where it is: a chunk would carry the parent's reads
   // into a child. About these values, not the callable, so it is not remembered.
   elif List.exists (fun (struct (_, _, args)) -> holdsRead args) chunks then
     release ()
     probe.Stop()
-    Ply ValueNone
+    Task.FromResult ValueNone
   else
-    uply {
-      match! predict state app items with
-      | Purity.Impure ->
-        // Known to reach something a chunk would refuse: no chunk is started, and the op runs
-        // the whole of it here. Not asked again for this callable.
-        release ()
-        probe.Stop()
-        match me with
-        | Some m -> m.spreadFellBack.Add(keyOf app) |> ignore<bool>
-        | None -> ()
-        return ValueNone
-      | Purity.Pure
-      | Purity.Unknown ->
-        let! outcome = runChunks state vm builtinName answerOf app probe items chunks
-        return ValueSome outcome
-    }
+    match predict state app items with
+    | Purity.Impure ->
+      // Known to reach something a chunk would refuse: no chunk is started, and the op runs
+      // the whole of it here. Not asked again for this callable.
+      release ()
+      probe.Stop()
+      match me with
+      | Some m -> m.spreadFellBack.Add(keyOf app) |> ignore<bool>
+      | None -> ()
+      Task.FromResult ValueNone
+    | Purity.Pure
+    | Purity.Unknown ->
+      runChunks state vm builtinName answerOf app probe items chunks
+      |> Task.map ValueSome
 
 
 /// What a list op makes of one element's answer (`Walk`).
@@ -794,7 +763,7 @@ type Step<'acc> =
 [<AbstractClass>]
 type Walk<'acc>
   (state : ExecutionState, vm : VMState, app : Applicable, builtinName : string) =
-  inherit FSharpFunc<Dval, Ply<Dval>>()
+  inherit FSharpFunc<Dval, Dval>()
 
   // Where the walk is: what the op has so far, the element whose answer is awaited and its index,
   // and the elements after it.
@@ -804,15 +773,14 @@ type Walk<'acc>
   let mutable rest = DvalList.empty
   let mutable probe : Probe = null
   // This, as the function it is: F# has no static coercion to a function type.
-  let mutable next : Dval -> Ply<Dval> = Unchecked.defaultof<_>
+  let mutable next : Dval -> Dval = Unchecked.defaultof<_>
 
   /// Runs the callable on `elem`, the element at `index`, and hands `next` its answer.
-  abstract Apply :
-    index : int64 * elem : Dval * next : (Dval -> Ply<Dval>) -> Ply<Dval>
+  abstract Apply : index : int64 * elem : Dval * next : (Dval -> Dval) -> Dval
 
   /// Takes an answer to `Landed`. By default as it is, so a read stays in flight, as a map's
   /// results do; an op that looks inside its answers waits for them (`Value`).
-  abstract Settle : answer : Dval -> Ply<Dval>
+  abstract Settle : answer : Dval -> Dval
   default this.Settle answer = this.Landed answer
 
   /// What `answer`, the callable's for `elem`, makes of what the op has so far.
@@ -833,19 +801,19 @@ type Walk<'acc>
   default _.Found found = found
 
   /// The op's answer once every element has run.
-  abstract Finish : acc : 'acc -> Ply<Dval>
+  abstract Finish : acc : 'acc -> Dval
 
-  override this.Invoke(answer : Dval) : Ply<Dval> = this.Settle answer
+  override this.Invoke(answer : Dval) : Dval = this.Settle answer
 
   /// `Landed` with `answer` once it is a value (`Interpreter.withValue`).
-  member this.Value(answer : Dval) : Ply<Dval> =
+  member this.Value(answer : Dval) : Dval =
     match answer with
     | DPromise _ -> Interpreter.withValue vm answer this.Landed
     | _ -> this.Landed answer
 
-  member this.Landed(answer : Dval) : Ply<Dval> =
+  member this.Landed(answer : Dval) : Dval =
     match this.Step(acc, current, answer) with
-    | Done result -> Ply result
+    | Done result -> result
     | Next stepped ->
       acc <- stepped
       if DvalList.isEmpty rest then
@@ -855,41 +823,47 @@ type Walk<'acc>
       else
         this.CarryOn(index + 1L, rest)
 
-  member private this.SpreadRest() : Ply<Dval> =
+  member private this.SpreadRest() : Dval =
     let start = index + 1L
     let spread = rest
-    uply {
-      let! outcome =
-        spreadOver
-          state
-          vm
-          builtinName
-          (fun offset chunk -> this.ChunkArgs(start + int64 offset, chunk))
-          this.AnswerOf
-          app
-          probe
-          spread
+    let after (outcome : Outcome voption) =
       match outcome with
       // Nothing started: no idle worker, or reads in flight. Asked again further on.
-      | ValueNone -> return! this.CarryOn(start, spread)
+      | ValueNone -> this.CarryOn(start, spread)
       | ValueSome outcome ->
         probe.Stop()
         match outcome.found with
-        | ValueSome found -> return this.Found found
+        | ValueSome found -> this.Found found
         | ValueNone ->
           acc <- this.Absorb(acc, spread, outcome)
           if outcome.leftoverIndex >= DvalList.length spread then
-            return! this.Finish acc
+            this.Finish acc
           else
-            return!
-              this.CarryOn(
-                start + int64 outcome.leftoverIndex,
-                DvalList.drop outcome.leftoverIndex spread
-              )
-    }
+            this.CarryOn(
+              start + int64 outcome.leftoverIndex,
+              DvalList.drop outcome.leftoverIndex spread
+            )
+    let outcome =
+      spreadOver
+        state
+        vm
+        builtinName
+        (fun offset chunk -> this.ChunkArgs(start + int64 offset, chunk))
+        this.AnswerOf
+        app
+        probe
+        spread
+    if outcome.IsCompletedSuccessfully then
+      after outcome.Result
+    else
+      task {
+        let! outcome = outcome
+        return! Pending.toTask (after outcome)
+      }
+      |> Pending.ofTask
 
   /// Runs the element at `at`, the first of `items`, which is not empty.
-  member private this.CarryOn(at : int64, items : DvalList) : Ply<Dval> =
+  member private this.CarryOn(at : int64, items : DvalList) : Dval =
     let elem = DvalList.head items
     current <- elem
     index <- at
@@ -897,12 +871,12 @@ type Walk<'acc>
     this.Apply(at, elem, next)
 
   /// Runs the op over `items`, starting from `empty`.
-  member this.Run(empty : 'acc, items : DvalList) : Ply<Dval> =
+  member this.Run(empty : 'acc, items : DvalList) : Dval =
     if DvalList.isEmpty items then
       this.Finish empty
     else
       acc <- empty
-      next <- box this :?> (Dval -> Ply<Dval>)
+      next <- box this :?> (Dval -> Dval)
       probe <-
         if eligible state && DvalList.length items > 1 then
           Probe(vm, state.spread, app)
@@ -911,7 +885,7 @@ type Walk<'acc>
       this.CarryOn(0L, items)
 
 /// Runs `op` over `items`, starting from `empty` (`Walk`).
-let walk (op : Walk<'acc>) (empty : 'acc) (items : DvalList) : Ply<Dval> =
+let walk (op : Walk<'acc>) (empty : 'acc) (items : DvalList) : Dval =
   op.Run(empty, items)
 
 
@@ -929,14 +903,14 @@ let walk (op : Walk<'acc>) (empty : 'acc) (items : DvalList) : Ply<Dval> =
 
 /// What the read lands as, waiting again while it lands as another read. A failed read raises
 /// its own failure. Nothing on the VM is looked at: by now it belongs to whatever ran on.
-let rec private landedValue (dv : Dval) : Ply<Dval> =
+let rec private landedValue (dv : Dval) : Task<Dval> =
   match dv with
   | DPromise p ->
-    uply {
+    task {
       let! landed = p.Task
       return! landedValue landed
     }
-  | v -> Ply v
+  | v -> Task.FromResult v
 
 /// `app` applied to what `read` lands as (itself, when it is not a read), computed in a chunk's
 /// process once it lands: the body of `Stdlib.__whenReady`. Everything it needs from the caller (the scheduler,
@@ -946,13 +920,13 @@ let whenLanded
   (vm : VMState)
   (app : Applicable)
   (read : Dval)
-  : Ply<Dval> =
+  : Dval =
   let sched = Sched.Scheduler.CurrentOrShared
   let parent = Sched.Scheduler.CurrentProcess |> Option.map (fun p -> p.id)
   let access = vm.activeAccess
   let threadID = vm.threadID
   let childState = { state with spreadChild = true }
-  uply {
+  task {
     let! value = landedValue read
     let p = sched.SpawnApply(childState, app, value, parent, access)
     let! result = p.completion.Task
@@ -961,3 +935,4 @@ let whenLanded
     | Ok v -> return v
     | Error(rte, _) -> return raiseRTE threadID rte
   }
+  |> Pending.ofTask

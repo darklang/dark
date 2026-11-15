@@ -6,7 +6,6 @@
 module LibDB.TraitCallCache
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Fumble
 open LibDB.Sqlite
@@ -21,24 +20,22 @@ type Entry = { nodes : int; resolutions : string }
 let private exists () : bool =
   Sql.query
     "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'trait_call_resolutions'"
-  |> Sql.executeExistsSync
+  |> Sql.executeExists
 
 /// Every entry stored under <param environment>, by item.
-let load (environment : string) : Task<Map<string, Entry>> =
-  task {
-    if not (exists ()) then
-      return Map.empty
-    else
-      let! rows =
-        Sql.query
-          "SELECT item_hash, nodes, resolutions FROM trait_call_resolutions
-           WHERE environment_hash = @environment"
-        |> Sql.parameters [ "environment", Sql.string environment ]
-        |> Sql.executeAsync (fun read ->
-          (read.string "item_hash",
-           { nodes = read.int "nodes"; resolutions = read.string "resolutions" }))
-      return Map.ofList rows
-  }
+let load (environment : string) : Map<string, Entry> =
+  if not (exists ()) then
+    Map.empty
+  else
+    let rows =
+      Sql.query
+        "SELECT item_hash, nodes, resolutions FROM trait_call_resolutions
+         WHERE environment_hash = @environment"
+      |> Sql.parameters [ "environment", Sql.string environment ]
+      |> Sql.executeRows (fun read ->
+        (read.string "item_hash",
+         { nodes = read.int "nodes"; resolutions = read.string "resolutions" }))
+    Map.ofList rows
 
 /// Make <param entries>, under <param environment>, the whole cache. A reload checks the whole
 /// tree, so an entry it did not write is for a body or an environment that is gone.

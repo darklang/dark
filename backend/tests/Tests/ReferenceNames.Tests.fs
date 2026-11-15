@@ -2,7 +2,6 @@
 module Tests.ReferenceNames
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 open Expecto
 open Fumble
 open LibDB.Sqlite
@@ -17,7 +16,7 @@ let private location moduleName name : PT.PackageLocation =
 let private source moduleName name =
   task {
     let location = location moduleName name
-    let! hash = pmPT.findFn location |> Ply.toTask
+    let hash = pmPT.findFn location
     let hash =
       hash
       |> Option.defaultWith (fun () -> failtest $"missing fixture function {name}")
@@ -62,7 +61,7 @@ let wideDependencyReadsRespectSelection =
           let! sources = Task.WhenAll(names |> List.map (source moduleName))
           let sources = Array.toList sources
           let leaf = location moduleName "leaf"
-          let! result =
+          let result =
             ReferenceDependencies.namedReferences PT.BranchId.Main sources
           let edges =
             match result with
@@ -76,7 +75,7 @@ let wideDependencyReadsRespectSelection =
             (List.sort callers)
             (List.sort names)
             "no caller is missing or duplicated"
-          let! selected =
+          let selected =
             ReferenceDependencies.namedReferences PT.BranchId.Main [ sources[0] ]
           let selected =
             match selected with
@@ -104,27 +103,26 @@ let savedNamesNeedTheStoredDeclaration =
               $"module Tests.{moduleName}\nlet leaf(): Int64 = 932103\nlet caller(): Int64 = leaf()"
           let hash = hashBoundTo ops "caller"
           let caller = location moduleName "caller", PT.PackageFn hash
-          let! stored = LibDB.ReferenceNamesContent.storedNames (snd caller)
+          let stored = LibDB.ReferenceNamesContent.storedNames (snd caller)
           let names =
             match stored with
             | Some names -> names
             | None -> failtest "the fixture has a stored body"
-          let! _ =
+          let _ =
             LibDB.Inserts.insertAndApplyOps
               [ PT.PackageOp.SetReferenceNames(fst caller, snd caller, names, None) ]
           // Keep the saved names and dependency index, but remove the body they describe.
           let (PT.Hash hash) = hash
-          do!
-            Sql.query "DELETE FROM package_functions WHERE hash = @hash"
-            |> Sql.parameters [ "hash", Sql.string hash ]
-            |> Sql.executeStatementAsync
-          let! result =
+          Sql.query "DELETE FROM package_functions WHERE hash = @hash"
+          |> Sql.parameters [ "hash", Sql.string hash ]
+          |> Sql.executeStatement
+          let result =
             ReferenceDependencies.namedReferences PT.BranchId.Main [ caller ]
           Expect.equal
             result
             (Error "Cannot read reference names: stored declaration is missing")
             "saved names cannot be checked without the declaration body"
-          let! review = ReferenceDependencies.dependencyReview PT.BranchId.Main []
+          let review = ReferenceDependencies.dependencyReview PT.BranchId.Main []
           Expect.equal
             review
             (Error "Cannot read reference names: stored declaration is missing")
@@ -142,18 +140,16 @@ let ambiguousAliasesNeedTheStoredDeclaration =
           let target =
             "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
           // No saved names or body exist for this caller, and the index records two aliases.
-          do!
-            Sql.query
-              "INSERT INTO package_dependencies
-            (item_hash, depends_on_hash, depends_on_item_type, depends_on_owner, depends_on_modules, depends_on_name)
-            VALUES (@hash, @target, 'fn', 'Tests', 'MissingAliasBody', 'leaf'),
-                   (@hash, @target, 'fn', 'Tests', 'MissingAliasBody', 'alias')"
-            |> Sql.parameters
-              [ "hash", Sql.string hash; "target", Sql.string target ]
-            |> Sql.executeStatementAsync
+          Sql.query
+            "INSERT INTO package_dependencies
+          (item_hash, depends_on_hash, depends_on_item_type, depends_on_owner, depends_on_modules, depends_on_name)
+          VALUES (@hash, @target, 'fn', 'Tests', 'MissingAliasBody', 'leaf'),
+                 (@hash, @target, 'fn', 'Tests', 'MissingAliasBody', 'alias')"
+          |> Sql.parameters [ "hash", Sql.string hash; "target", Sql.string target ]
+          |> Sql.executeStatement
           let caller =
             location "MissingAliasBody" "caller", PT.PackageFn(PT.Hash hash)
-          let! result =
+          let result =
             ReferenceDependencies.namedReferences PT.BranchId.Main [ caller ]
           Expect.equal
             result
@@ -175,25 +171,24 @@ let ambiguousHashesMatchIndexedNames =
           let names = [ "a"; "b"; "c" ]
           for _ in 1..300 do
             let pick (xs : List<string>) = xs[rng.Next xs.Length]
-            do!
-              Sql.query
-                "INSERT OR IGNORE INTO package_dependencies
-              (item_hash, depends_on_hash, depends_on_item_type, depends_on_owner, depends_on_modules, depends_on_name)
-              VALUES (@hash, @target, @kind, @owner, 'Ambiguous', @name)"
-              |> Sql.parameters
-                [ "hash", Sql.string (pick callers)
-                  "target", Sql.string (pick targets)
-                  "kind", Sql.string (pick kinds)
-                  "owner", Sql.string (if rng.Next 5 = 0 then "" else "Tests")
-                  "name", Sql.string (pick names) ]
-              |> Sql.executeStatementAsync
+            Sql.query
+              "INSERT OR IGNORE INTO package_dependencies
+            (item_hash, depends_on_hash, depends_on_item_type, depends_on_owner, depends_on_modules, depends_on_name)
+            VALUES (@hash, @target, @kind, @owner, 'Ambiguous', @name)"
+            |> Sql.parameters
+              [ "hash", Sql.string (pick callers)
+                "target", Sql.string (pick targets)
+                "kind", Sql.string (pick kinds)
+                "owner", Sql.string (if rng.Next 5 = 0 then "" else "Tests")
+                "name", Sql.string (pick names) ]
+            |> Sql.executeStatement
           for round in 1..20 do
             let hashes =
               callers |> List.filter (fun _ -> rng.Next 2 = 0) |> List.map PT.Hash
-            let! (_, expected) = ReferenceDependencies.indexedNames hashes
-            let! actual = ReferenceDependencies.ambiguousHashes hashes
+            let (_, expected) = ReferenceDependencies.indexedNames hashes
+            let actual = ReferenceDependencies.ambiguousHashes hashes
             Expect.equal actual expected $"round {round}"
-          let! (_, all) =
+          let (_, all) =
             ReferenceDependencies.indexedNames (List.map PT.Hash callers)
           Expect.isNonEmpty all "some callers are ambiguous"
         })
@@ -234,7 +229,7 @@ let downstream(): Int64 = caller()
           Expect.equal aliasTarget original "the helpers share content"
           Expect.notEqual replacement original "the replacement changes content"
           Expect.equal (snd caller) (snd aliasCaller) "the callers share content"
-          let! references =
+          let references =
             ReferenceDependencies.namedReferences
               PT.BranchId.Main
               [ caller; aliasCaller ]
@@ -247,7 +242,7 @@ let downstream(): Int64 = caller()
                |> List.sort)
               (List.sort [ fst caller, leaf; fst aliasCaller, alias ])
               "shared caller content retains each authored dependency name"
-          let! clean = ReferenceDependencies.dependencyReview PT.BranchId.Main []
+          let clean = ReferenceDependencies.dependencyReview PT.BranchId.Main []
           match clean with
           | Error message -> failtest message
           | Ok(stale, _) ->
@@ -257,7 +252,7 @@ let downstream(): Int64 = caller()
                  usage.modules = [ moduleName ]))
               "the initial aliases are current"
           // Change the binding without propagation so review has a stale edge to find.
-          let! _ =
+          let _ =
             LibDB.Inserts.insertAndApplyOps
               [ PT.PackageOp.SetName(leaf, replacement, None) ]
           let! (_, current) = source moduleName "leaf"
@@ -265,7 +260,7 @@ let downstream(): Int64 = caller()
             current
             replacement
             "the changed binding is visible to review"
-          let! review =
+          let review =
             ReferenceDependencies.dependencyReview
               PT.BranchId.Main
               [ leaf, replacement ]
@@ -290,14 +285,14 @@ let downstream(): Int64 = caller()
           // through another seed while its own direct edges are still current.
           let checkFullGraph changed =
             task {
-              let! all = ReferenceDependencies.namedReferences PT.BranchId.Main []
+              let all = ReferenceDependencies.namedReferences PT.BranchId.Main []
               let edges =
                 match all with
                 | Ok edges -> edges
                 | Error message -> failtest message
-              let! live = ReferenceDependencies.liveBindings PT.BranchId.Main
+              let live = ReferenceDependencies.liveBindings PT.BranchId.Main
               let expected = ReferenceDependencies.reviewGraph live edges changed
-              let! actual =
+              let actual =
                 ReferenceDependencies.dependencyReview PT.BranchId.Main changed
               let normalize (stale, repoints) =
                 Set.ofList stale, Set.ofList repoints
@@ -309,7 +304,7 @@ let downstream(): Int64 = caller()
           do! checkFullGraph []
           do! checkFullGraph [ leaf, replacement; caller ]
           // Now stale through the saved alias rather than the canonical body name.
-          let! _ =
+          let _ =
             LibDB.Inserts.insertAndApplyOps
               [ PT.PackageOp.SetName(alias, replacement, None) ]
           do! checkFullGraph [ alias, replacement ]

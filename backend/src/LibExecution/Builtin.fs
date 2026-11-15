@@ -144,14 +144,13 @@ module Shortcuts =
   /// Converts a `float` to a `DBigInt`, truncating toward zero. NaN/Infinity have
   /// no BigInt representation, so `bigint f` would throw a host exception — surface
   /// a Dark `OutOfRange` error instead. Shared by the Float64 and BigInt builtins.
-  let roundedToBigInt (vm : VMState) (rounded : float) : Ply<Dval> =
+  let roundedToBigInt (vm : VMState) (rounded : float) : Dval =
     if System.Double.IsNaN rounded || System.Double.IsInfinity rounded then
       outOfRange vm RuntimeError.BigInts.FloatHasNoInteger (DFloat64 rounded)
     else
-      rounded |> bigint |> Dval.bigInt |> Ply
-
+      rounded |> bigint |> Dval.bigInt
   /// `roundedToBigInt` for an `Int64` result: out of its range is `OutOfRange` too.
-  let roundedToInt64 (vm : VMState) (rounded : float) : Ply<Dval> =
+  let roundedToInt64 (vm : VMState) (rounded : float) : Dval =
     // 2^63 is exact as a float; anything at or past it, or NaN, does not fit.
     if System.Double.IsNaN rounded || System.Double.IsInfinity rounded then
       outOfRange vm RuntimeError.BigInts.FloatHasNoInteger (DFloat64 rounded)
@@ -166,6 +165,5 @@ module Shortcuts =
         ))
         (DFloat64 rounded)
     else
-      rounded |> int64 |> Dval.dint64 |> Ply
-
+      rounded |> int64 |> Dval.dint64
   type Param = BuiltInParam

@@ -190,203 +190,161 @@ let rec private declarations
   (ctx : Context)
   (path : List<string>)
   (ds : List<WT.Declaration>)
-  : Ply<List<Dval>> =
+  : List<Dval> =
   ds
-  |> Ply.List.mapSequentially (fun d ->
-    uply {
-      let range = declRange d
-      let first = firstRow ctx range
-      let onMissing = NRslv.OnMissing.Allow
-      let verbatim = (enum (tn Refs.item) "Verbatim" [], "")
-      let lowered
-        (f : string -> List<string> -> Ply<Dval * string>)
-        : Ply<Dval * string> =
-        uply {
-          match path with
-          | [] -> return verbatim
-          | owner :: modules ->
-            try
-              return! f owner modules
-            with _ ->
-              return verbatim
-        }
-      let hashed (PT.Hash h) = h
-      let! (item, meaning) =
-        match d with
-        | WT.DModule m ->
-          uply {
-            let header =
-              List.isEmpty path
-              && m.keywordModule.start.column = 0
-              && (match m.declarations with
-                  | inner :: _ -> (declRange inner).start.column = 0
-                  | [] -> true)
-            let! inner =
-              declarations ctx (path @ WT.moduleNameParts m) m.declarations
-            return
-              (enum
-                (tn Refs.item)
-                "Module"
-                [ DString(snd m.name)
-                  DBool header
-                  Dval.list (KTCustomType(tn Refs.declaration, [])) inner ],
-               "")
-          }
-        | WT.DFunction fn ->
-          ctx.fnSpans.Add((fn.range, path))
-          lowered (fun owner modules ->
-            uply {
-              let wt = WT.packageFn owner modules fn
-              let! pt =
-                WT2PT.PackageFn.toPTWithRanges
-                  ctx.builtins
-                  ctx.pm
-                  onMissing
-                  (owner :: modules)
-                  (Some ctx.ranges)
-                  wt
-              return
-                (enum
-                  (tn Refs.item)
-                  "Fn"
-                  [ DString fn.name.name; PT2DT.PackageFn.toDT pt ],
-                 hashed (Hashing.computeFnHash Hashing.Normal pt))
-            })
-        | WT.DValue v ->
-          ctx.fnSpans.Add((v.range, path))
-          lowered (fun owner modules ->
-            uply {
-              let wt = WT.packageValue owner modules v
-              let! pt =
-                WT2PT.PackageValue.toPTNoting
-                  ctx.builtins
-                  ctx.pm
-                  onMissing
-                  (owner :: modules)
-                  (Some ctx.ranges)
-                  wt
-              return
-                (enum
-                  (tn Refs.item)
-                  "Value"
-                  [ DString v.name.name; PT2DT.PackageValue.toDT pt ],
-                 hashed (Hashing.computeValueHash Hashing.Normal pt))
-            })
-        | WT.DTest t ->
-          ctx.fnSpans.Add((t.range, path))
-          lowered (fun owner modules ->
-            uply {
-              let wt = WT.packageTest owner modules t
-              let! pt =
-                WT2PT.PackageTest.toPTNoting
-                  ctx.builtins
-                  ctx.pm
-                  onMissing
-                  (owner :: modules)
-                  (Some ctx.ranges)
-                  wt
-              return
-                (enum
-                  (tn Refs.item)
-                  "Test"
-                  [ DString t.name.name; PT2DT.PackageTest.toDT pt ],
-                 hashed (Hashing.computeTestHash Hashing.Normal pt))
-            })
-        | WT.DType t ->
-          lowered (fun owner modules ->
-            uply {
-              let wt = WT.packageType owner modules t
-              let! pt =
-                WT2PT.PackageType.toPT ctx.pm onMissing (owner :: modules) wt
-              return
-                (enum
-                  (tn Refs.item)
-                  "Type"
-                  [ DString t.name.name; PT2DT.PackageType.toDT pt ],
-                 hashed (Hashing.computeTypeHash Hashing.Normal pt))
-            })
-        | WT.DTrait t ->
-          lowered (fun owner modules ->
-            uply {
-              let wt = WT.packageTrait owner modules t
-              let! pt = WT2PT.Trait.toPT ctx.pm onMissing (owner :: modules) wt
-              return
-                (enum
-                  (tn Refs.item)
-                  "Trait"
-                  [ DString t.name.name; PT2DT.Trait.toDT pt ],
-                 hashed (Hashing.computeTraitHash Hashing.Normal pt))
-            })
-        | WT.DImpl i ->
-          lowered (fun _ _ ->
-            uply {
-              match WT.implMemberPath path i with
-              | owner :: rest ->
-                let memberPath = owner :: rest
-                let wt = WT.packageImpl owner rest i
-                let! pt =
-                  WT2PT.TraitImpl.toPT ctx.builtins ctx.pm onMissing memberPath wt
-                // Each method as written: a fn declared in the block, or one it names.
-                let! members =
-                  i.members
-                  |> Ply.List.mapSequentially (fun m ->
-                    uply {
-                      match m with
-                      | WT.IMethod fn ->
-                        ctx.fnSpans.Add((fn.range, memberPath))
-                        let! ptFn =
-                          WT2PT.PackageFn.toPTWithRanges
-                            ctx.builtins
-                            ctx.pm
-                            onMissing
-                            memberPath
-                            (Some ctx.ranges)
-                            (WT.packageFn owner rest fn)
-                        return
-                          (enum
-                            (tn Refs.implMember)
-                            "Declared"
-                            [ DString fn.name.name; PT2DT.PackageFn.toDT ptFn ],
-                           hashed (Hashing.computeFnHash Hashing.Normal ptFn))
-                      | WT.IAlias v ->
-                        return
-                          (enum
-                            (tn Refs.implMember)
-                            "Named"
-                            [ DString v.name.name ],
-                           v.name.name)
-                    })
-                return
+  |> List.map (fun d ->
+    let range = declRange d
+    let first = firstRow ctx range
+    let onMissing = NRslv.OnMissing.Allow
+    let verbatim = (enum (tn Refs.item) "Verbatim" [], "")
+    let lowered (f : string -> List<string> -> Dval * string) : Dval * string =
+      match path with
+      | [] -> verbatim
+      | owner :: modules ->
+        try
+          f owner modules
+        with _ ->
+          verbatim
+    let hashed (PT.Hash h) = h
+    let (item, meaning) =
+      match d with
+      | WT.DModule m ->
+        let header =
+          List.isEmpty path
+          && m.keywordModule.start.column = 0
+          && (match m.declarations with
+              | inner :: _ -> (declRange inner).start.column = 0
+              | [] -> true)
+        let inner = declarations ctx (path @ WT.moduleNameParts m) m.declarations
+        (enum
+          (tn Refs.item)
+          "Module"
+          [ DString(snd m.name)
+            DBool header
+            Dval.list (KTCustomType(tn Refs.declaration, [])) inner ],
+         "")
+      | WT.DFunction fn ->
+        ctx.fnSpans.Add((fn.range, path))
+        lowered (fun owner modules ->
+          let wt = WT.packageFn owner modules fn
+          let pt =
+            WT2PT.PackageFn.toPTWithRanges
+              ctx.builtins
+              ctx.pm
+              onMissing
+              (owner :: modules)
+              (Some ctx.ranges)
+              wt
+          (enum
+            (tn Refs.item)
+            "Fn"
+            [ DString fn.name.name; PT2DT.PackageFn.toDT pt ],
+           hashed (Hashing.computeFnHash Hashing.Normal pt)))
+      | WT.DValue v ->
+        ctx.fnSpans.Add((v.range, path))
+        lowered (fun owner modules ->
+          let wt = WT.packageValue owner modules v
+          let pt =
+            WT2PT.PackageValue.toPTNoting
+              ctx.builtins
+              ctx.pm
+              onMissing
+              (owner :: modules)
+              (Some ctx.ranges)
+              wt
+          (enum
+            (tn Refs.item)
+            "Value"
+            [ DString v.name.name; PT2DT.PackageValue.toDT pt ],
+           hashed (Hashing.computeValueHash Hashing.Normal pt)))
+      | WT.DTest t ->
+        ctx.fnSpans.Add((t.range, path))
+        lowered (fun owner modules ->
+          let wt = WT.packageTest owner modules t
+          let pt =
+            WT2PT.PackageTest.toPTNoting
+              ctx.builtins
+              ctx.pm
+              onMissing
+              (owner :: modules)
+              (Some ctx.ranges)
+              wt
+          (enum
+            (tn Refs.item)
+            "Test"
+            [ DString t.name.name; PT2DT.PackageTest.toDT pt ],
+           hashed (Hashing.computeTestHash Hashing.Normal pt)))
+      | WT.DType t ->
+        lowered (fun owner modules ->
+          let wt = WT.packageType owner modules t
+          let pt = WT2PT.PackageType.toPT ctx.pm onMissing (owner :: modules) wt
+          (enum
+            (tn Refs.item)
+            "Type"
+            [ DString t.name.name; PT2DT.PackageType.toDT pt ],
+           hashed (Hashing.computeTypeHash Hashing.Normal pt)))
+      | WT.DTrait t ->
+        lowered (fun owner modules ->
+          let wt = WT.packageTrait owner modules t
+          let pt = WT2PT.Trait.toPT ctx.pm onMissing (owner :: modules) wt
+          (enum (tn Refs.item) "Trait" [ DString t.name.name; PT2DT.Trait.toDT pt ],
+           hashed (Hashing.computeTraitHash Hashing.Normal pt)))
+      | WT.DImpl i ->
+        lowered (fun _ _ ->
+          match WT.implMemberPath path i with
+          | owner :: rest ->
+            let memberPath = owner :: rest
+            let wt = WT.packageImpl owner rest i
+            let pt =
+              WT2PT.TraitImpl.toPT ctx.builtins ctx.pm onMissing memberPath wt
+            // Each method as written: a fn declared in the block, or one it names.
+            let members =
+              i.members
+              |> List.map (fun m ->
+                match m with
+                | WT.IMethod fn ->
+                  ctx.fnSpans.Add((fn.range, memberPath))
+                  let ptFn =
+                    WT2PT.PackageFn.toPTWithRanges
+                      ctx.builtins
+                      ctx.pm
+                      onMissing
+                      memberPath
+                      (Some ctx.ranges)
+                      (WT.packageFn owner rest fn)
                   (enum
-                    (tn Refs.item)
-                    "Impl"
-                    [ PT2DT.TraitImpl.toDT pt
-                      Dval.list KTString (List.map DString memberPath)
-                      Dval.list
-                        (KTCustomType(tn Refs.implMember, []))
-                        (List.map fst members) ],
-                   (hashed (Hashing.computeImplHash Hashing.Normal pt)
-                    :: List.map snd members)
-                   |> String.concat " ")
-              | [] -> return verbatim
-            })
-        | WT.DExpr _
-        | WT.DAssertion _ -> Ply verbatim
-      let last = min range.end_.row (ctx.lines.Length - 1)
-      return
-        record
-          (tn Refs.declaration)
-          [ "item", item
-            "meaning", DString meaning
-            "row", DInt64(int64 first)
-            "endRow", DInt64(int64 range.end_.row)
-            "column", DInt64(int64 range.start.column)
-            "startOffset", DInt64(int64 ctx.lineStarts[first])
-            "endOffset",
-            DInt64(
-              int64 (ctx.lineStarts[last] + String.lengthInEgcs ctx.lines[last])
-            ) ]
-    })
+                    (tn Refs.implMember)
+                    "Declared"
+                    [ DString fn.name.name; PT2DT.PackageFn.toDT ptFn ],
+                   hashed (Hashing.computeFnHash Hashing.Normal ptFn))
+                | WT.IAlias v ->
+                  (enum (tn Refs.implMember) "Named" [ DString v.name.name ],
+                   v.name.name))
+            (enum
+              (tn Refs.item)
+              "Impl"
+              [ PT2DT.TraitImpl.toDT pt
+                Dval.list KTString (List.map DString memberPath)
+                Dval.list
+                  (KTCustomType(tn Refs.implMember, []))
+                  (List.map fst members) ],
+             (hashed (Hashing.computeImplHash Hashing.Normal pt)
+              :: List.map snd members)
+             |> String.concat " ")
+          | [] -> verbatim)
+      | WT.DExpr _
+      | WT.DAssertion _ -> verbatim
+    let last = min range.end_.row (ctx.lines.Length - 1)
+    record
+      (tn Refs.declaration)
+      [ "item", item
+        "meaning", DString meaning
+        "row", DInt64(int64 first)
+        "endRow", DInt64(int64 range.end_.row)
+        "column", DInt64(int64 range.start.column)
+        "startOffset", DInt64(int64 ctx.lineStarts[first])
+        "endOffset",
+        DInt64(int64 (ctx.lineStarts[last] + String.lengthInEgcs ctx.lines[last])) ])
 
 
 /// The signature of each local fn, `let f(x: T): R =`, by the id of the lambda it lowered to.
@@ -397,7 +355,7 @@ let private localFns
   (ctx : Context)
   (source : string)
   (tokens : Lex.SpannedToken[])
-  : Ply<List<string * Dval>> =
+  : List<string * Dval> =
   let offsetOf (p : Tok.Pos) : int =
     let mutable offset = 0
     for row in 0 .. p.row - 1 do
@@ -431,71 +389,67 @@ let private localFns
           if equals > 0 then yield (k + 2, equals)
         | _ -> () ]
   candidates
-  |> Ply.List.filterMapSequentially (fun (openParen, equals) ->
-    uply {
-      let openPos = tokens[openParen].range.start
-      let header =
-        source.Substring(
-          offsetOf openPos,
-          offsetOf tokens[equals].range.start - offsetOf openPos
-        )
-      let hasReturn =
-        tokens[openParen..equals] |> Array.exists (fun t -> t.token = Tok.TColon)
-        && (let mutable depth = 0
-            let mutable found = false
-            for t in tokens[openParen..equals] do
-              match t.token with
-              | Tok.TLParen -> depth <- depth + 1
-              | Tok.TRParen -> depth <- depth - 1
-              | Tok.TColon when depth = 0 -> found <- true
-              | _ -> ()
-            found)
-      let path =
-        ctx.fnSpans
-        |> Seq.tryFind (fun (r, _) ->
-          (r.start.row, r.start.column) <= (openPos.row, openPos.column)
-          && (openPos.row, openPos.column) <= (r.end_.row, r.end_.column))
-        |> Option.map snd
-        |> Option.defaultValue []
-      let mini =
-        "module Formatter\nlet f"
-        + header.Replace("\n", " ")
-        + (if hasReturn then "" else ": Unit")
-        + " = ()"
-      match
-        nodesStartingAt ctx.ranges openPos, P.parseFor Validation.Package mini
-      with
-      | [ lambdaId ], Ok validated when not (List.isEmpty path) ->
-        let sf = Validation.ValidatedSourceFile.toWrittenTypes validated
-        match sf.declarations with
-        | [ WT.DModule { declarations = [ WT.DFunction fn ] } ] ->
-          let wt = WT.packageFn "Formatter" [] fn
-          let onMissing = NRslv.OnMissing.Allow
-          let! parameters =
-            wt.parameters
-            |> NEList.toList
-            |> Ply.List.mapSequentially (fun p ->
-              uply {
-                let! typ = WT2PT.TypeReference.toPT ctx.pm onMissing path p.typ
-                return DTuple(DString p.name, PT2DT.TypeReference.toDT typ, [])
-              })
-          let! returnType =
-            WT2PT.TypeReference.toPT ctx.pm onMissing path wt.returnType
-          let typeRefKT = PT2DT.TypeReference.knownType ()
-          let localFn =
-            record
-              (tn Refs.localFn)
-              [ "parameters",
-                Dval.list (KTTuple(VT.string, VT.known typeRefKT, [])) parameters
-                "returnType",
-                (if hasReturn then
-                   Dval.optionSome typeRefKT (PT2DT.TypeReference.toDT returnType)
-                 else
-                   Dval.optionNone typeRefKT) ]
-          return Some(string lambdaId, localFn)
-        | _ -> return None
-      | _ -> return None
-    })
+  |> List.choose (fun (openParen, equals) ->
+    let openPos = tokens[openParen].range.start
+    let header =
+      source.Substring(
+        offsetOf openPos,
+        offsetOf tokens[equals].range.start - offsetOf openPos
+      )
+    let hasReturn =
+      tokens[openParen..equals] |> Array.exists (fun t -> t.token = Tok.TColon)
+      && (let mutable depth = 0
+          let mutable found = false
+          for t in tokens[openParen..equals] do
+            match t.token with
+            | Tok.TLParen -> depth <- depth + 1
+            | Tok.TRParen -> depth <- depth - 1
+            | Tok.TColon when depth = 0 -> found <- true
+            | _ -> ()
+          found)
+    let path =
+      ctx.fnSpans
+      |> Seq.tryFind (fun (r, _) ->
+        (r.start.row, r.start.column) <= (openPos.row, openPos.column)
+        && (openPos.row, openPos.column) <= (r.end_.row, r.end_.column))
+      |> Option.map snd
+      |> Option.defaultValue []
+    let mini =
+      "module Formatter\nlet f"
+      + header.Replace("\n", " ")
+      + (if hasReturn then "" else ": Unit")
+      + " = ()"
+    match
+      nodesStartingAt ctx.ranges openPos, P.parseFor Validation.Package mini
+    with
+    | [ lambdaId ], Ok validated when not (List.isEmpty path) ->
+      let sf = Validation.ValidatedSourceFile.toWrittenTypes validated
+      match sf.declarations with
+      | [ WT.DModule { declarations = [ WT.DFunction fn ] } ] ->
+        let wt = WT.packageFn "Formatter" [] fn
+        let onMissing = NRslv.OnMissing.Allow
+        let parameters =
+          wt.parameters
+          |> NEList.toList
+          |> List.map (fun p ->
+            let typ = WT2PT.TypeReference.toPT ctx.pm onMissing path p.typ
+            DTuple(DString p.name, PT2DT.TypeReference.toDT typ, []))
+        let returnType =
+          WT2PT.TypeReference.toPT ctx.pm onMissing path wt.returnType
+        let typeRefKT = PT2DT.TypeReference.knownType ()
+        let localFn =
+          record
+            (tn Refs.localFn)
+            [ "parameters",
+              Dval.list (KTTuple(VT.string, VT.known typeRefKT, [])) parameters
+              "returnType",
+              (if hasReturn then
+                 Dval.optionSome typeRefKT (PT2DT.TypeReference.toDT returnType)
+               else
+                 Dval.optionNone typeRefKT) ]
+        Some(string lambdaId, localFn)
+      | _ -> None
+    | _ -> None)
 
 
 /// What lowering a `[a, ...xs, b]` list leaves behind, by node id: the call to `Stdlib.List.flatten`
@@ -640,18 +594,16 @@ let private textParts
 /// lowered: the resolver asks for a name in scope after scope, the same few hundred names again and
 /// again, and most of the answers are "not there".
 let private rememberingNames (pm : PT.PackageManager) : PT.PackageManager =
-  let remember (find : PT.PackageLocation -> Ply<Option<'a>>) =
+  let remember (find : PT.PackageLocation -> Option<'a>) =
     let seen =
       System.Collections.Concurrent.ConcurrentDictionary<PT.PackageLocation, Option<'a>>()
     fun (location : PT.PackageLocation) ->
       match seen.TryGetValue location with
-      | true, found -> Ply found
+      | true, found -> found
       | _ ->
-        uply {
-          let! found = find location
-          seen[location] <- found
-          return found
-        }
+        let found = find location
+        seen[location] <- found
+        found
   { pm with
       findType = remember pm.findType
       findValue = remember pm.findValue
@@ -661,88 +613,82 @@ let private rememberingNames (pm : PT.PackageManager) : PT.PackageManager =
       findTest = remember pm.findTest }
 
 
-let private parse
-  (state : ExecutionState)
-  (source : string)
-  : Ply<Result<Dval, string>> =
-  uply {
-    match P.parseFor Validation.Package source, Lex.tokenize source with
-    | Error diagnostics, _ ->
-      let message =
-        match P.parseFor Validation.Script source with
-        // A script parses where a file of declarations doesn't: say that, not the first
-        // thing about it that a file of declarations can't have.
-        | Ok _ ->
-          "a script: `format` lays out files of declarations (`module ...` and what is in it), and leaves scripts as they are"
-        | Error _ ->
-          match diagnostics with
-          | d :: _ -> P.renderDiagnostic source d
-          | [] -> "the file doesn't parse"
-      return Error message
-    | _, Error message -> return Error message
-    | Ok validated, Ok(tokenList, _) ->
-      let tokens = Array.ofList tokenList
-      let lines = source.Split('\n')
-      let ctx =
-        { builtins = state.builtins
-          pm = rememberingNames (LibDB.PackageManager.ptForBranch state.branchId)
-          lines = lines
-          lineStarts =
-            lines
-            // In characters as Dark counts them (`String.slice`), not UTF-16 units.
-            |> Array.scan
-              (fun offset (line : string) -> offset + String.lengthInEgcs line + 1)
-              0
-          tokens = tokens
-          ranges = Ranges()
-          fnSpans = ResizeArray() }
-      let sf = Validation.ValidatedSourceFile.toWrittenTypes validated
-      let! decls = declarations ctx [] sf.declarations
-      let! locals = localFns ctx source tokens
-      // The range of every node a comment could belong to, in the order lowering noted them: a
-      // node's parts before it.
-      let (starts, rows) = commentSpots tokens
-      let ranges =
-        ctx.ranges
-        |> Seq.filter (fun kv ->
-          starts.Contains(packed kv.Value.start)
-          || rows.Contains(int64 kv.Value.end_.row))
-        |> Seq.map (fun kv ->
-          DTuple(
-            DString(string kv.Key),
-            DInt64(packed kv.Value.start),
-            [ DInt64(packed kv.Value.end_) ]
-          ))
-        |> List.ofSeq
-      // The strings written between triple quotes, which lowering doesn't keep.
-      let tripleQuoted =
-        ctx.ranges
-        |> Seq.filter (fun kv ->
-          let start = kv.Value.start
-          match tokenStartingAt ctx.tokens start with
-          | Some t -> t.text.StartsWith("\"\"\"") || t.text.StartsWith("$\"\"\"")
-          | None -> false)
-        |> Seq.map (fun kv -> DString(string kv.Key))
-        |> List.ofSeq
-      let spreads = spreads tokens ctx.ranges
-      let spellings = spellings tokens ctx.ranges
-      let textParts = textParts tokens ctx.ranges
-      return
-        Ok(
-          record
-            (tn Refs.file)
-            [ "declarations", Dval.list (KTCustomType(tn Refs.declaration, [])) decls
-              "text", DString source
-              "rawComments",
-              Dval.list (KTCustomType(tn Refs.rawComment, [])) (rawComments tokens)
-              "ranges", Dval.list (KTTuple(VT.string, VT.int64, [ VT.int64 ])) ranges
-              "localFns", Dval.stringDict (KTCustomType(tn Refs.localFn, [])) locals
-              "tripleQuoted", Dval.list KTString tripleQuoted
-              "spreads", Dval.stringDict KTString spreads
-              "spellings", Dval.stringDict KTString spellings
-              "textParts", Dval.stringDict (KTList(VT.known KTString)) textParts ]
-        )
-  }
+let private parse (state : ExecutionState) (source : string) : Result<Dval, string> =
+  match P.parseFor Validation.Package source, Lex.tokenize source with
+  | Error diagnostics, _ ->
+    let message =
+      match P.parseFor Validation.Script source with
+      // A script parses where a file of declarations doesn't: say that, not the first
+      // thing about it that a file of declarations can't have.
+      | Ok _ ->
+        "a script: `format` lays out files of declarations (`module ...` and what is in it), and leaves scripts as they are"
+      | Error _ ->
+        match diagnostics with
+        | d :: _ -> P.renderDiagnostic source d
+        | [] -> "the file doesn't parse"
+    Error message
+  | _, Error message -> Error message
+  | Ok validated, Ok(tokenList, _) ->
+    let tokens = Array.ofList tokenList
+    let lines = source.Split('\n')
+    let ctx =
+      { builtins = state.builtins
+        pm = rememberingNames (LibDB.PackageManager.ptForBranch state.branchId)
+        lines = lines
+        lineStarts =
+          lines
+          // In characters as Dark counts them (`String.slice`), not UTF-16 units.
+          |> Array.scan
+            (fun offset (line : string) -> offset + String.lengthInEgcs line + 1)
+            0
+        tokens = tokens
+        ranges = Ranges()
+        fnSpans = ResizeArray() }
+    let sf = Validation.ValidatedSourceFile.toWrittenTypes validated
+    let decls = declarations ctx [] sf.declarations
+    let locals = localFns ctx source tokens
+    // The range of every node a comment could belong to, in the order lowering noted them: a
+    // node's parts before it.
+    let (starts, rows) = commentSpots tokens
+    let ranges =
+      ctx.ranges
+      |> Seq.filter (fun kv ->
+        starts.Contains(packed kv.Value.start)
+        || rows.Contains(int64 kv.Value.end_.row))
+      |> Seq.map (fun kv ->
+        DTuple(
+          DString(string kv.Key),
+          DInt64(packed kv.Value.start),
+          [ DInt64(packed kv.Value.end_) ]
+        ))
+      |> List.ofSeq
+    // The strings written between triple quotes, which lowering doesn't keep.
+    let tripleQuoted =
+      ctx.ranges
+      |> Seq.filter (fun kv ->
+        let start = kv.Value.start
+        match tokenStartingAt ctx.tokens start with
+        | Some t -> t.text.StartsWith("\"\"\"") || t.text.StartsWith("$\"\"\"")
+        | None -> false)
+      |> Seq.map (fun kv -> DString(string kv.Key))
+      |> List.ofSeq
+    let spreads = spreads tokens ctx.ranges
+    let spellings = spellings tokens ctx.ranges
+    let textParts = textParts tokens ctx.ranges
+    Ok(
+      record
+        (tn Refs.file)
+        [ "declarations", Dval.list (KTCustomType(tn Refs.declaration, [])) decls
+          "text", DString source
+          "rawComments",
+          Dval.list (KTCustomType(tn Refs.rawComment, [])) (rawComments tokens)
+          "ranges", Dval.list (KTTuple(VT.string, VT.int64, [ VT.int64 ])) ranges
+          "localFns", Dval.stringDict (KTCustomType(tn Refs.localFn, [])) locals
+          "tripleQuoted", Dval.list KTString tripleQuoted
+          "spreads", Dval.stringDict KTString spreads
+          "spellings", Dval.stringDict KTString spellings
+          "textParts", Dval.stringDict (KTList(VT.known KTString)) textParts ]
+    )
 
 
 /// The text of every `//` comment in <param source>, in order, trimmed: what formatting must
@@ -769,7 +715,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString source |] ->
-          commentTexts source |> List.map DString |> Dval.list KTString |> Ply
+          commentTexts source |> List.map DString |> Dval.list KTString
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -786,13 +732,10 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, _, _, [| DString source |] ->
-          uply {
-            let fileKT = KTCustomType(tn Refs.file, [])
-            match! parse state source with
-            | Ok file -> return Dval.resultOk fileKT KTString file
-            | Error message ->
-              return Dval.resultError fileKT KTString (DString message)
-          }
+          let fileKT = KTCustomType(tn Refs.file, [])
+          match parse state source with
+          | Ok file -> Dval.resultOk fileKT KTString file
+          | Error message -> Dval.resultError fileKT KTString (DString message)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]

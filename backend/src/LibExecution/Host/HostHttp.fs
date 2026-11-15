@@ -14,7 +14,6 @@ open System.Security.Authentication
 open System.Security.Cryptography.X509Certificates
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -88,105 +87,108 @@ module private BaseClient =
         (context : SocketsHttpConnectionContext)
         (cancellationToken : System.Threading.CancellationToken)
         : ValueTask<Stream> =
-        vtask {
-          let uri, target =
-            match proxy with
-            | Some(uri, _) -> uri, HttpNetworkTarget.Proxy
-            | None ->
-              context.InitialRequestMessage.RequestUri, HttpNetworkTarget.Destination
-          let connectFailed (inner : exn) =
-            let detail =
-              match inner with
-              | :? System.Net.Sockets.SocketException as s -> Some s.Message
-              | _ -> None
-            ConnectFailed(
-              HttpNetworkFailure.ConnectionFailure(target uri.Authority, detail),
-              inner
-            )
-          try
-            // While this DNS call is expensive, it should be cached.
-            //
-            // Connect against the resolved IPs, not the hostname: the OS
-            // would otherwise re-resolve at connect time and a malicious
-            // resolver can return public-then-private within ms,
-            // bypassing the allow-list (DNS-rebinding TOCTOU).
-            let ips = System.Net.Dns.GetHostAddresses context.DnsEndPoint.Host
-
-            // This handler serves either direct requests or one configured proxy
-            // selected by the host. Never widen the direct handler's IP policy.
-            let isProxyConnection =
+        let connect : Task<Stream> =
+          task {
+            let uri, target =
               match proxy with
-              | Some(uri, _) ->
-                String.equalsCaseInsensitive uri.IdnHost context.DnsEndPoint.Host
-                && uri.Port = context.DnsEndPoint.Port
-              | None -> false
+              | Some(uri, _) -> uri, HttpNetworkTarget.Proxy
+              | None ->
+                context.InitialRequestMessage.RequestUri,
+                HttpNetworkTarget.Destination
+            let connectFailed (inner : exn) =
+              let detail =
+                match inner with
+                | :? System.Net.Sockets.SocketException as s -> Some s.Message
+                | _ -> None
+              ConnectFailed(
+                HttpNetworkFailure.ConnectionFailure(target uri.Authority, detail),
+                inner
+              )
+            try
+              // While this DNS call is expensive, it should be cached.
+              //
+              // Connect against the resolved IPs, not the hostname: the OS
+              // would otherwise re-resolve at connect time and a malicious
+              // resolver can return public-then-private within ms,
+              // bypassing the allow-list (DNS-rebinding TOCTOU).
+              let ips = System.Net.Dns.GetHostAddresses context.DnsEndPoint.Host
 
-            if
-              Array.isEmpty ips
-              || (not isProxyConnection && not (Array.forall config.allowedIP ips))
-            then
-              // Do not expose details about blocked addresses.
-              raise (connectFailed null)
+              // This handler serves either direct requests or one configured proxy
+              // selected by the host. Never widen the direct handler's IP policy.
+              let isProxyConnection =
+                match proxy with
+                | Some(uri, _) ->
+                  String.equalsCaseInsensitive uri.IdnHost context.DnsEndPoint.Host
+                  && uri.Port = context.DnsEndPoint.Port
+                | None -> false
 
-            // TRY EVERY resolved address, not just the first. A name routinely
-            // resolves to more than one (`localhost` is ::1 AND 127.0.0.1), only
-            // some of which have anything listening, and the order is the resolver's
-            // to choose. Connecting to ips[0] alone makes `http://localhost:<port>`
-            // fail against a server bound to IPv4, and report it as a flat "network
-            // error".
-            //
-            // Every address passed the direct guard or belongs to the trusted proxy.
-            // Trying another resolved address does not allow additional destinations:
-            // we connect to that address rather than let the OS resolve the name again,
-            // preserving the DNS-rebinding guard for each attempt.
-            //
-            // The socket's address family has to match the address it dials. The
-            // 2-arg ctor defaults to IPv6, which only reaches an IPv4 literal when
-            // the host has dual-mode, and containers often don't.
-            let mutable stream : Stream = null
-            let mutable lastError : exn = null
-            let mutable i = 0
+              if
+                Array.isEmpty ips
+                || (not isProxyConnection && not (Array.forall config.allowedIP ips))
+              then
+                // Do not expose details about blocked addresses.
+                raise (connectFailed null)
 
-            while isNull stream && i < ips.Length do
-              let ip = ips[i]
-              i <- i + 1
+              // TRY EVERY resolved address, not just the first. A name routinely
+              // resolves to more than one (`localhost` is ::1 AND 127.0.0.1), only
+              // some of which have anything listening, and the order is the resolver's
+              // to choose. Connecting to ips[0] alone makes `http://localhost:<port>`
+              // fail against a server bound to IPv4, and report it as a flat "network
+              // error".
+              //
+              // Every address passed the direct guard or belongs to the trusted proxy.
+              // Trying another resolved address does not allow additional destinations:
+              // we connect to that address rather than let the OS resolve the name again,
+              // preserving the DNS-rebinding guard for each attempt.
+              //
+              // The socket's address family has to match the address it dials. The
+              // 2-arg ctor defaults to IPv6, which only reaches an IPv4 literal when
+              // the host has dual-mode, and containers often don't.
+              let mutable stream : Stream = null
+              let mutable lastError : exn = null
+              let mutable i = 0
 
-              let socket =
-                new System.Net.Sockets.Socket(
-                  ip.AddressFamily,
-                  System.Net.Sockets.SocketType.Stream,
-                  System.Net.Sockets.ProtocolType.Tcp
-                )
-              socket.NoDelay <- true
+              while isNull stream && i < ips.Length do
+                let ip = ips[i]
+                i <- i + 1
 
-              try
-                let endpoint = System.Net.IPEndPoint(ip, context.DnsEndPoint.Port)
-                do! socket.ConnectAsync(endpoint, cancellationToken)
-                stream <- new System.Net.Sockets.NetworkStream(socket, true)
-              with e ->
-                socket.Dispose()
-                lastError <- e
-                // A cancelled request is the caller giving up, not this address
-                // being wrong. Trying the next one would ignore the timeout and dial
-                // again on a token that's already done.
-                if cancellationToken.IsCancellationRequested then i <- ips.Length
+                let socket =
+                  new System.Net.Sockets.Socket(
+                    ip.AddressFamily,
+                    System.Net.Sockets.SocketType.Stream,
+                    System.Net.Sockets.ProtocolType.Tcp
+                  )
+                socket.NoDelay <- true
 
-            match stream with
-            | null -> return raise (connectFailed lastError)
-            | s -> return s
-          with
-          | :? System.ArgumentException as e -> return raise (connectFailed e)
-          | :? System.Net.Sockets.SocketException as e ->
-            match e.SocketErrorCode with
-            | System.Net.Sockets.SocketError.HostNotFound
-            | System.Net.Sockets.SocketError.NoData
-            | System.Net.Sockets.SocketError.TryAgain ->
-              return
-                raise (
-                  ConnectFailed(HttpNetworkFailure.DnsFailure(target uri.Host), e)
-                )
-            | _ -> return raise (connectFailed e)
-        }
+                try
+                  let endpoint = System.Net.IPEndPoint(ip, context.DnsEndPoint.Port)
+                  do! socket.ConnectAsync(endpoint, cancellationToken)
+                  stream <- new System.Net.Sockets.NetworkStream(socket, true)
+                with e ->
+                  socket.Dispose()
+                  lastError <- e
+                  // A cancelled request is the caller giving up, not this address
+                  // being wrong. Trying the next one would ignore the timeout and dial
+                  // again on a token that's already done.
+                  if cancellationToken.IsCancellationRequested then i <- ips.Length
+
+              match stream with
+              | null -> return raise (connectFailed lastError)
+              | s -> return s
+            with
+            | :? System.ArgumentException as e -> return raise (connectFailed e)
+            | :? System.Net.Sockets.SocketException as e ->
+              match e.SocketErrorCode with
+              | System.Net.Sockets.SocketError.HostNotFound
+              | System.Net.Sockets.SocketError.NoData
+              | System.Net.Sockets.SocketError.TryAgain ->
+                return
+                  raise (
+                    ConnectFailed(HttpNetworkFailure.DnsFailure(target uri.Host), e)
+                  )
+              | _ -> return raise (connectFailed e)
+          }
+        ValueTask<Stream>(connect)
       new SocketsHttpHandler(
         UseProxy = Option.isSome proxy,
         Proxy =
@@ -810,6 +812,22 @@ let private decoderFor (headers : Headers) : Option<Headers * (Stream -> Stream)
         not (isHeader "Content-Encoding" h || isHeader "Content-Length" h))
     (headers, decode))
 
+let rec private readInto
+  (body : Stream)
+  (into : MemoryStream)
+  (buffer : byte[])
+  (limit : int64)
+  (cancel : System.Threading.CancellationToken)
+  : Task<unit> =
+  task {
+    let! n = body.ReadAsync(buffer, 0, buffer.Length, cancel)
+    if n > 0 then
+      if into.Length + int64 n > limit then
+        raise (HttpRequestException $"The decoded body is over {limit} bytes")
+      into.Write(buffer, 0, n)
+      return! readInto body into buffer limit cancel
+  }
+
 /// All of `body`, refusing past `limit` bytes as the client's own buffering does.
 let private readAll
   (body : Stream)
@@ -818,17 +836,7 @@ let private readAll
   : Task<byte[]> =
   task {
     use into = new MemoryStream()
-    let buffer = Array.zeroCreate<byte> 81920
-    let rec loop () : Task<unit> =
-      task {
-        let! n = body.ReadAsync(buffer, 0, buffer.Length, cancel)
-        if n > 0 then
-          if into.Length + int64 n > limit then
-            raise (HttpRequestException $"The decoded body is over {limit} bytes")
-          into.Write(buffer, 0, n)
-          return! loop ()
-      }
-    do! loop ()
+    do! readInto body into (Array.zeroCreate<byte> 81920) limit cancel
     return into.ToArray()
   }
 

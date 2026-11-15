@@ -17,7 +17,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an <type Int32> to a <type Float64>"
       fn =
         (function
-        | _, _, _, [| DInt32 a |] -> Ply(DFloat64(float a))
+        | _, _, _, [| DInt32 a |] -> (DFloat64(float a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -31,7 +31,7 @@ let fns () : List<BuiltInFn> =
       description = "Stringify <param int>"
       fn =
         (function
-        | _, _, _, [| DInt32 int |] -> Ply(DString(string int))
+        | _, _, _, [| DInt32 int |] -> (DString(string int))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

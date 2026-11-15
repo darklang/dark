@@ -80,87 +80,79 @@ let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
   (currentModule : List<string>)
   (given : NEList<string>)
   (parseName : string -> Result<string * int, string>)
-  (findInPM : PT.PackageLocation -> Ply<Option<Hash>>)
+  (findInPM : PT.PackageLocation -> Option<Hash>)
   (makePackageFQName : Hash -> 'FQName)
   (makeBuiltinFQName : string * int -> 'FQName)
   (builtinToRT : string * int -> 'Builtin)
-  : Ply<PT.NameResolution<'FQName>> =
-  uply {
-    let originalName = NEList.toList given
-    let notFoundError = Error NRE.NotFound
-    let (modules, name) = NEList.splitLast given
+  : PT.NameResolution<'FQName> =
+  let originalName = NEList.toList given
+  let notFoundError = Error NRE.NotFound
+  let (modules, name) = NEList.splitLast given
 
-    // `PACKAGE.` is not a source namespace, but agents still commonly write it.
-    // Classify it as invalid so deferred resolution does not keep retrying it.
-    let parsedName =
-      match originalName with
-      | "PACKAGE" :: _ -> Error "reserved PACKAGE prefix"
-      | _ -> parseName name
+  // `PACKAGE.` is not a source namespace, but agents still commonly write it.
+  // Classify it as invalid so deferred resolution does not keep retrying it.
+  let parsedName =
+    match originalName with
+    | "PACKAGE" :: _ -> Error "reserved PACKAGE prefix"
+    | _ -> parseName name
 
-    match parsedName with
-    | Error _ ->
-      // Invalid names should obey `OnMissing` too. In `ThrowError` mode, fail
-      // hard just like `NotFound`.
-      return
-        throwIfRelevant
-          onMissing
-          currentModule
-          given
-          { originalName = originalName; resolved = Error NRE.InvalidName }
-    | Ok(name, version) ->
-      let genericName : GenericName =
-        { modules = modules; name = name; version = version }
+  match parsedName with
+  | Error _ ->
+    // Invalid names should obey `OnMissing` too. In `ThrowError` mode, fail
+    // hard just like `NotFound`.
+    throwIfRelevant
+      onMissing
+      currentModule
+      given
+      { originalName = originalName; resolved = Error NRE.InvalidName }
+  | Ok(name, version) ->
+    let genericName : GenericName =
+      { modules = modules; name = name; version = version }
 
-      // Try a candidate. Returns the resolved FQName paired with the
-      // matched PackageLocation (None for builtins).
-      let tryResolve
-        (nameToTry : GenericName)
-        : Ply<Result<'FQName * Option<PT.PackageLocation>, unit>> =
-        uply {
-          match nameToTry.modules with
-          | [] -> return Error()
-          | owner :: modules ->
-            // Check builtins if applicable (values/fns only, not types)
-            match builtins with
-            | Some builtinSet when owner = "Builtin" && modules = [] ->
-              let builtInRT = builtinToRT (nameToTry.name, nameToTry.version)
-              if Set.contains builtInRT builtinSet then
-                let fqName = makeBuiltinFQName (nameToTry.name, nameToTry.version)
-                return Ok(fqName, None)
-              else
-                return Error()
-            | _ ->
-              // Try package manager lookup
-              let location : PT.PackageLocation =
-                { owner = owner; modules = modules; name = nameToTry.name }
-              match! findInPM location with
-              | Some id -> return Ok(makePackageFQName id, Some location)
-              | None -> return Error()
-        }
+    // Try a candidate. Returns the resolved FQName paired with the
+    // matched PackageLocation (None for builtins).
+    let tryResolve
+      (nameToTry : GenericName)
+      : Result<'FQName * Option<PT.PackageLocation>, unit> =
+      match nameToTry.modules with
+      | [] -> Error()
+      | owner :: modules ->
+        // Check builtins if applicable (values/fns only, not types)
+        match builtins with
+        | Some builtinSet when owner = "Builtin" && modules = [] ->
+          let builtInRT = builtinToRT (nameToTry.name, nameToTry.version)
+          if Set.contains builtInRT builtinSet then
+            let fqName = makeBuiltinFQName (nameToTry.name, nameToTry.version)
+            Ok(fqName, None)
+          else
+            Error()
+        | _ ->
+          // Try package manager lookup
+          let location : PT.PackageLocation =
+            { owner = owner; modules = modules; name = nameToTry.name }
+          match findInPM location with
+          | Some id -> Ok(makePackageFQName id, Some location)
+          | None -> Error()
 
-      let! (result, location) =
-        Ply.List.foldSequentially
-          (fun (currentResult, currentLoc) nameToTry ->
-            match currentResult with
-            | Ok _ -> Ply((currentResult, currentLoc))
-            | Error _ ->
-              uply {
-                match! tryResolve nameToTry with
-                | Error() -> return (currentResult, currentLoc)
-                | Ok(success, loc) -> return (Ok success, loc)
-              })
-          (notFoundError, None)
-          (namesToTry currentModule genericName)
+    let (result, location) =
+      List.fold
+        (fun (currentResult, currentLoc) nameToTry ->
+          match currentResult with
+          | Ok _ -> ((currentResult, currentLoc))
+          | Error _ ->
+            match tryResolve nameToTry with
+            | Error() -> (currentResult, currentLoc)
+            | Ok(success, loc) -> (Ok success, loc))
+        (notFoundError, None)
+        (namesToTry currentModule genericName)
 
-      let resolved =
-        result |> Result.map (fun name -> { name = name; location = location })
-      return
-        throwIfRelevant
-          onMissing
-          currentModule
-          given
-          { originalName = originalName; resolved = resolved }
-  }
+    let resolved =
+      result |> Result.map (fun name -> { name = name; location = location })
+    throwIfRelevant
+      onMissing
+      currentModule
+      given
+      { originalName = originalName; resolved = resolved }
 
 
 let resolveTypeName
@@ -168,7 +160,7 @@ let resolveTypeName
   (onMissing : OnMissing)
   (currentModule : List<string>)
   (name : WT.Name)
-  : Ply<PT.NameResolution<PT.FQTypeName.FQTypeName>> =
+  : PT.NameResolution<PT.FQTypeName.FQTypeName> =
   let warning = "Builtin types don't exist"
   let emptyBuiltins = None // irrelevant for types
 
@@ -203,7 +195,7 @@ let resolveTraitName
   (onMissing : OnMissing)
   (currentModule : List<string>)
   (name : WT.Name)
-  : Ply<PT.NameResolution<PT.FQTraitName.FQTraitName>> =
+  : PT.NameResolution<PT.FQTraitName.FQTraitName> =
   let warning = "Builtin traits don't exist"
   match name with
   | WT.KnownBuiltin(_name, _version) -> Exception.raiseInternal warning []
@@ -220,17 +212,15 @@ let resolveTraitName
         PT.FQTraitName.FQTraitName.Package
         (fun _ -> Exception.raiseInternal warning [])
         (fun _ -> Exception.raiseInternal warning [])
-    uply {
-      match given with
-      | { head = bare; tail = [] } ->
-        match! resolve OnMissing.Allow given with
-        | { resolved = Error NRE.NotFound } ->
-          let! viaStdlib = resolve onMissing (NEList.ofList "Stdlib" [ bare ])
-          // Keep the name as written, so an error names what the author typed
-          return { viaStdlib with originalName = [ bare ] }
-        | direct -> return direct
-      | _ -> return! resolve onMissing given
-    }
+    match given with
+    | { head = bare; tail = [] } ->
+      match resolve OnMissing.Allow given with
+      | { resolved = Error NRE.NotFound } ->
+        let viaStdlib = resolve onMissing (NEList.ofList "Stdlib" [ bare ])
+        // Keep the name as written, so an error names what the author typed
+        { viaStdlib with originalName = [ bare ] }
+      | direct -> direct
+    | _ -> resolve onMissing given
 
 
 let resolveValueName
@@ -239,15 +229,13 @@ let resolveValueName
   (onMissing : OnMissing)
   (currentModule : List<string>)
   (name : WT.Name)
-  : Ply<PT.NameResolution<PT.FQValueName.FQValueName>> =
+  : PT.NameResolution<PT.FQValueName.FQValueName> =
   match name with
   | WT.KnownBuiltin(name, version) ->
-    Ply(
-      { originalName = [ name ]
-        resolved =
-          Ok { name = PT.FQValueName.fqBuiltIn name version; location = None } }
-      : PT.NameResolution<_>
-    )
+    ({ originalName = [ name ]
+       resolved =
+         Ok { name = PT.FQValueName.fqBuiltIn name version; location = None } }
+    : PT.NameResolution<_>)
   | WT.Unresolved given ->
     resolveGenericName
       (Some builtins)
@@ -269,49 +257,46 @@ let private resolveTraitMethod
   (packageManager : PT.PackageManager)
   (currentModule : List<string>)
   (given : NEList<string>)
-  : Ply<Option<PT.NameResolution<PT.FQFnName.FQFnName>>> =
-  uply {
-    let (modules, methodName) = NEList.splitLast given
-    match List.tryLast modules with
-    | None -> return None
-    | Some traitName when not (System.Char.IsUpper traitName[0]) -> return None
-    | Some traitName ->
-      // One cached set answers "is any trait called that?" before the per-scope
-      // location lookups, which for `Stdlib.List.map` would all be misses.
-      let! traitNames = packageManager.traitNames ()
-      if not (traitNames.Contains traitName) then
-        return None
-      else
+  : Option<PT.NameResolution<PT.FQFnName.FQFnName>> =
+  let (modules, methodName) = NEList.splitLast given
+  match List.tryLast modules with
+  | None -> None
+  | Some traitName when not (System.Char.IsUpper traitName[0]) -> None
+  | Some traitName ->
+    // One cached set answers "is any trait called that?" before the per-scope
+    // location lookups, which for `Stdlib.List.map` would all be misses.
+    let traitNames = packageManager.traitNames ()
+    if not (traitNames.Contains traitName) then
+      None
+    else
 
-        let traitGiven = NEList.ofListUnsafe "resolveTraitMethod" [] modules
-        let! traitNR =
-          resolveTraitName
-            packageManager
-            OnMissing.Allow
-            currentModule
-            (WT.Unresolved traitGiven)
-        match traitNR.resolved with
-        | Error _ -> return None
-        | Ok { name = PT.FQTraitName.Package traitHash; location = loc } ->
-          match! packageManager.getTrait traitHash with
-          | Some t when
-            t.methods |> NEList.toList |> List.exists (fun m -> m.name = methodName)
-            ->
-            return
-              Some
-                { originalName = NEList.toList given
-                  resolved =
-                    Ok
-                      { name =
-                          // The parser has no types, so which implementation runs is decided
-                          // when the item is saved (`resolveTraitCalls`).
-                          PT.FQFnName.TraitMethod
-                            { trait_ = traitHash
-                              method_ = methodName
-                              implFn = PT.FQFnName.Unknown }
-                        location = loc } }
-          | _ -> return None
-  }
+      let traitGiven = NEList.ofListUnsafe "resolveTraitMethod" [] modules
+      let traitNR =
+        resolveTraitName
+          packageManager
+          OnMissing.Allow
+          currentModule
+          (WT.Unresolved traitGiven)
+      match traitNR.resolved with
+      | Error _ -> None
+      | Ok { name = PT.FQTraitName.Package traitHash; location = loc } ->
+        match packageManager.getTrait traitHash with
+        | Some t when
+          t.methods |> NEList.toList |> List.exists (fun m -> m.name = methodName)
+          ->
+          Some
+            { originalName = NEList.toList given
+              resolved =
+                Ok
+                  { name =
+                      // The parser has no types, so which implementation runs is decided
+                      // when the item is saved (`resolveTraitCalls`).
+                      PT.FQFnName.TraitMethod
+                        { trait_ = traitHash
+                          method_ = methodName
+                          implFn = PT.FQFnName.Unknown }
+                    location = loc } }
+        | _ -> None
 
 
 let resolveFnName
@@ -320,34 +305,29 @@ let resolveFnName
   (onMissing : OnMissing)
   (currentModule : List<string>)
   (name : WT.Name)
-  : Ply<PT.NameResolution<PT.FQFnName.FQFnName>> =
+  : PT.NameResolution<PT.FQFnName.FQFnName> =
   match name with
   | WT.KnownBuiltin(n, v) ->
-    Ply(
-      { originalName = [ n ]
-        resolved = Ok { name = PT.FQFnName.fqBuiltIn n v; location = None } }
-      : PT.NameResolution<_>
-    )
+    ({ originalName = [ n ]
+       resolved = Ok { name = PT.FQFnName.fqBuiltIn n v; location = None } }
+    : PT.NameResolution<_>)
   | WT.Unresolved given ->
-    uply {
-      // The trait method wins when the path names a trait: inside `impl Show for
-      // List<'a>`, whose members live under `List.Show`, a bare `Show.show` would
-      // otherwise find the impl's own method (`...List.Show.show`) and recurse on
-      // the whole list instead of dispatching on the element. The impl's method
-      // is still reachable by its longer name (`List.Show.show`).
-      let! asTraitMethod = resolveTraitMethod packageManager currentModule given
-      match asTraitMethod with
-      | Some nr -> return nr
-      | None ->
-        return!
-          resolveGenericName
-            (Some builtinFns)
-            onMissing
-            currentModule
-            given
-            parseFnNameString
-            packageManager.findFn
-            PT.FQFnName.FQFnName.Package
-            (fun (n, v) -> PT.FQFnName.Builtin { name = n; version = v })
-            (fun (n, v) -> { RT.FQFnName.Builtin.name = n; version = v })
-    }
+    // The trait method wins when the path names a trait: inside `impl Show for
+    // List<'a>`, whose members live under `List.Show`, a bare `Show.show` would
+    // otherwise find the impl's own method (`...List.Show.show`) and recurse on
+    // the whole list instead of dispatching on the element. The impl's method
+    // is still reachable by its longer name (`List.Show.show`).
+    let asTraitMethod = resolveTraitMethod packageManager currentModule given
+    match asTraitMethod with
+    | Some nr -> nr
+    | None ->
+      resolveGenericName
+        (Some builtinFns)
+        onMissing
+        currentModule
+        given
+        parseFnNameString
+        packageManager.findFn
+        PT.FQFnName.FQFnName.Package
+        (fun (n, v) -> PT.FQFnName.Builtin { name = n; version = v })
+        (fun (n, v) -> { RT.FQFnName.Builtin.name = n; version = v })

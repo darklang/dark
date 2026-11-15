@@ -4,7 +4,6 @@ module TestUtils.TestUtils
 open Expecto
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Fumble
 open LibDB.Sqlite
@@ -71,26 +70,26 @@ type OutputCapture() =
 // --- SQL plumbing, shared by the suites that assert on the store directly --------
 
 /// Run <param sql> against the active store, discarding any result.
-let execSql (sql : string) : Task<unit> = Sql.query sql |> Sql.executeStatementAsync
+let execSql (sql : string) : unit = Sql.query sql |> Sql.executeStatement
 
 /// `execSql` with parameters bound.
 let execSqlP
   (sql : string)
   (ps : List<string * Microsoft.Data.Sqlite.SqliteParameter>)
-  : Task<unit> =
-  Sql.query sql |> Sql.parameters ps |> Sql.executeStatementAsync
+  : unit =
+  Sql.query sql |> Sql.parameters ps |> Sql.executeStatement
 
 /// Run a one-row scalar query; the single int64 column must be aliased `n`.
 let countSql
   (sql : string)
   (ps : List<string * Microsoft.Data.Sqlite.SqliteParameter>)
-  : Task<int64> =
+  : int64 =
   Sql.query sql
   |> Sql.parameters ps
-  |> Sql.executeRowAsync (fun read -> read.int64 "n")
+  |> Sql.executeRow (fun read -> read.int64 "n")
 
 /// What main currently binds <param l> to, if anything.
-let liveBoundHash (l : PT.PackageLocation) : Task<Option<string>> =
+let liveBoundHash (l : PT.PackageLocation) : Option<string> =
   Sql.query (
     "WITH RECURSIVE chain(bid, depth) AS (SELECT '00000000-0000-0000-0000-000000000001', 0),
        layer(branch_id, draft, rank) AS (SELECT bid, 1, 0 FROM chain UNION ALL SELECT bid, 0, 1 FROM chain)
@@ -102,8 +101,8 @@ let liveBoundHash (l : PT.PackageLocation) : Task<Option<string>> =
     [ "o", Sql.string l.owner
       "m", Sql.string (String.concat "." l.modules)
       "n", Sql.string l.name ]
-  |> Sql.executeRowOptionAsync (fun read -> read.string "item_hash")
-  |> Task.map (Option.filter (fun h -> h <> ""))
+  |> Sql.executeRowOption (fun read -> read.string "item_hash")
+  |> Option.filter (fun h -> h <> "")
 
 let testPackageFn
   (typeParams : List<string>)
@@ -190,82 +189,76 @@ let executionStateFor
   (pmPT : PT.PackageManager)
   // The bool is retained for existing call sites; HTTP config is process-wide.
   (_allowLocalHttpAccess : bool)
-  : Task<RT.ExecutionState> =
-  task {
-    let domains = []
+  : RT.ExecutionState =
+  let domains = []
 
-    let testContext : RT.TestContext =
-      { isPackageTest = false
-        sideEffectCount = 0
-        inRunner = false
-        stoppedAtImpure = false
-        exceptionReports = []
-        expectedExceptionCount = 0
-        postTestExecutionHook =
-          fun tc ->
-            let exceptionCountMatches =
-              tc.exceptionReports.Length = tc.expectedExceptionCount
+  let testContext : RT.TestContext =
+    { isPackageTest = false
+      sideEffectCount = 0
+      inRunner = false
+      stoppedAtImpure = false
+      exceptionReports = []
+      expectedExceptionCount = 0
+      postTestExecutionHook =
+        fun tc ->
+          let exceptionCountMatches =
+            tc.exceptionReports.Length = tc.expectedExceptionCount
 
-            if not exceptionCountMatches then
-              List.iter
-                (fun (msg, stackTrace, metadata) ->
-                  print
-                    $"An error was reported in the runtime:  \n  {msg}\n{stackTrace}\n  {metadata}\n\n")
-                tc.exceptionReports
-              Exception.raiseInternal
-                $"UNEXPECTED EXCEPTION COUNT in test {domains}"
-                [ "expectedExceptionCount", tc.expectedExceptionCount
-                  "actualExceptionCount", tc.exceptionReports.Length
-                  "reports", tc.exceptionReports ] }
+          if not exceptionCountMatches then
+            List.iter
+              (fun (msg, stackTrace, metadata) ->
+                print
+                  $"An error was reported in the runtime:  \n  {msg}\n{stackTrace}\n  {metadata}\n\n")
+              tc.exceptionReports
+            Exception.raiseInternal
+              $"UNEXPECTED EXCEPTION COUNT in test {domains}"
+              [ "expectedExceptionCount", tc.expectedExceptionCount
+                "actualExceptionCount", tc.exceptionReports.Length
+                "reports", tc.exceptionReports ] }
 
-    // Typically, exceptions thrown in tests have surprised us. Take these errors and
-    // catch them much closer to where they happen (usually in the function
-    // definition)
-    let rec exceptionReporter : RT.ExceptionReporter =
-      fun (state : RT.ExecutionState) vm metadata (exn : exn) ->
-        uply {
-          let message = exn.Message
-          let stackTrace = exn.StackTrace
-          let metadata = Exception.toMetadata exn @ metadata
-          let inner = exn.InnerException
-          if not (isNull inner) then do! exceptionReporter state vm [] inner
-          state.test.exceptionReports <-
-            (message, stackTrace, metadata) :: state.test.exceptionReports
-        }
+  // Typically, exceptions thrown in tests have surprised us. Take these errors and
+  // catch them much closer to where they happen (usually in the function
+  // definition)
+  let rec exceptionReporter : RT.ExceptionReporter =
+    fun (state : RT.ExecutionState) vm metadata (exn : exn) ->
+      let message = exn.Message
+      let stackTrace = exn.StackTrace
+      let metadata = Exception.toMetadata exn @ metadata
+      let inner = exn.InnerException
+      if not (isNull inner) then exceptionReporter state vm [] inner
+      state.test.exceptionReports <-
+        (message, stackTrace, metadata) :: state.test.exceptionReports
 
-    // For now, lets not track notifications, as often our tests explicitly trigger
-    // things that notify, while Exceptions have historically been unexpected errors
-    // in the tests and so are worth watching out for.
-    let notifier : RT.Notifier = fun _state _vm _msg _tags -> uply { return () }
+  // For now, lets not track notifications, as often our tests explicitly trigger
+  // things that notify, while Exceptions have historically been unexpected errors
+  // in the tests and so are worth watching out for.
+  let notifier : RT.Notifier = fun _state _vm _msg _tags -> ()
 
-    let builtins = localBuiltIns pmPT
-    let state =
-      let converted = PT2RT.PackageManager.toRT pmPT
-      // Read a value from the store, where its evaluated result is, as the CLI does. One that
-      // is not in the store (an in-memory test extra) is evaluated on first read, the way a
-      // script's own values are.
-      let stateWith getValue =
-        Exe.createState
-          builtins
-          { converted with getValue = getValue }
-          Exe.noTracing
-          exceptionReporter
-          notifier
-        // Ordinary tests use allow-all; security tests install narrower access.
-        |> Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll
-      let stored = LibDB.PackageManager.rt.getValue
-      let notStored (RT.Hash h as hash) =
-        uply {
-          match! stored hash with
-          | Some _ -> return None
-          | None ->
-            let! value = pmPT.getValue (PT.Hash h)
-            return value |> Option.map (fun value -> h, value.body)
-        }
-      stateWith (Exe.evaluatingValueReader notStored stored stateWith)
-    let state = { state with test = testContext }
-    return state
-  }
+  let builtins = localBuiltIns pmPT
+  let state =
+    let converted = PT2RT.PackageManager.toRT pmPT
+    // Read a value from the store, where its evaluated result is, as the CLI does. One that
+    // is not in the store (an in-memory test extra) is evaluated on first read, the way a
+    // script's own values are.
+    let stateWith getValue =
+      Exe.createState
+        builtins
+        { converted with getValue = getValue }
+        Exe.noTracing
+        exceptionReporter
+        notifier
+      // Ordinary tests use allow-all; security tests install narrower access.
+      |> Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll
+    let stored = LibDB.PackageManager.rt.getValue
+    let notStored (RT.Hash h as hash) =
+      match stored hash with
+      | Some _ -> None
+      | None ->
+        let value = pmPT.getValue (PT.Hash h)
+        value |> Option.map (fun value -> h, value.body)
+    stateWith (Exe.evaluatingValueReader notStored stored stateWith)
+  let state = { state with test = testContext }
+  state
 
 let testMany (name : string) (fn : 'a -> 'b) (values : List<'a * 'b>) =
   testList
@@ -297,10 +290,6 @@ let testManyTask (name : string) (fn : 'a -> Task<'b>) (values : List<'a * 'b>) 
           Expect.equal result expected ""
         })
       values)
-
-let testManyPly (name : string) (fn : 'a -> Ply<'b>) (values : List<'a * 'b>) =
-  testManyTask name (fn >> Ply.toTask) values
-
 
 let testMany2Task
   (name : string)
@@ -1369,82 +1358,73 @@ let configureLogging
 let unwrapExecutionResult
   (state : RT.ExecutionState)
   (exeResult : RT.ExecutionResult)
-  : Ply.Ply<RT.Dval> =
-  uply {
-    match exeResult with
-    | Ok dval -> return dval
-    | Error(rte, callStack) ->
-      let errorMessageFn =
-        RT.FQFnName.fqPackage (
-          PackageRefs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString ()
-        )
+  : RT.Dval =
+  match exeResult with
+  | Ok dval -> dval
+  | Error(rte, callStack) ->
+    let errorMessageFn =
+      RT.FQFnName.fqPackage (
+        PackageRefs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString ()
+      )
 
-      let rteDval = RT2DT.RuntimeError.toDT rte
+    let rteDval = RT2DT.RuntimeError.toDT rte
 
-      let! rteMessage =
-        LibExecution.Execution.executeFunction
-          state
-          errorMessageFn
-          []
-          (NEList.ofList (RT.DUuid PT.BranchId.Main.Guid) [ rteDval ])
+    let rteMessage =
+      (LibExecution.Execution.executeFunction
+        state
+        errorMessageFn
+        []
+        (NEList.ofList (RT.DUuid PT.BranchId.Main.Guid) [ rteDval ]))
+        .Result
 
-      let! cs = LibExecution.Execution.callStackString state callStack
+    let cs = (LibExecution.Execution.callStackString state callStack).Result
 
-      match rteMessage with
-      | Ok(RT.DString msg) -> return RT.DString(msg + "\n" + cs)
-      | Ok dval ->
-        return RT.DString($"Error (pretty-printed as non-string): {dval}\n{cs}")
-      | Error(rte2, _) ->
-        return
-          RT.DString(
-            $"Error (pretty-printer also failed): {rte}\nPretty-printer error: {rte2}\n{cs}"
-          )
-  }
+    match rteMessage with
+    | Ok(RT.DString msg) -> RT.DString(msg + "\n" + cs)
+    | Ok dval -> RT.DString($"Error (pretty-printed as non-string): {dval}\n{cs}")
+    | Error(rte2, _) ->
+      RT.DString(
+        $"Error (pretty-printer also failed): {rte}\nPretty-printer error: {rte2}\n{cs}"
+      )
 
-let parsePTExpr (code : string) : Task<PT.Expr> =
-  uply {
-    let! (state : RT.ExecutionState) = executionStateFor pmPT false
+let parsePTExpr (code : string) : PT.Expr =
+  let (state : RT.ExecutionState) = executionStateFor pmPT false
 
-    let name =
-      RT.FQFnName.fqPackage (PackageRefs.Fn.LanguageTools.Parser.parsePTExpr ())
+  let name =
+    RT.FQFnName.fqPackage (PackageRefs.Fn.LanguageTools.Parser.parsePTExpr ())
 
-    let args = NEList.singleton (RT.DString code)
-    let! execResult = LibExecution.Execution.executeFunction state name [] args
-    let! dval =
-      match execResult with
-      | Ok dval -> Ply dval
-      | Error _ ->
-        uply {
-          let! rte = unwrapExecutionResult state execResult
-          return
-            Exception.raiseInternal
-              "parsePTExpr raised a runtime error"
-              [ "code", code; "error", rte ]
-        }
+  let args = NEList.singleton (RT.DString code)
+  let execResult = (LibExecution.Execution.executeFunction state name [] args).Result
+  let dval =
+    match execResult with
+    | Ok dval -> dval
+    | Error _ ->
+      let rte = unwrapExecutionResult state execResult
+      Exception.raiseInternal
+        "parsePTExpr raised a runtime error"
+        [ "code", code; "error", rte ]
 
-    match C2DT.Result.fromDT PT2DT.Expr.fromDT dval identity with
-    | Ok expr -> return expr
-    | Error parseError ->
-      let toStringFn =
-        RT.FQFnName.fqPackage (
-          PackageRefs.Fn.LanguageTools.Parser.parseErrorToString ()
-        )
-      let! message =
-        LibExecution.Execution.executeFunction
-          state
-          toStringFn
-          []
-          (NEList.singleton parseError)
-      let message =
-        match message with
-        | Ok(RT.DString message) -> message
-        | _ -> string parseError
-      return
-        Exception.raiseInternal
-          $"parsePTExpr refused the code: {message}"
-          [ "code", code ]
-  }
-  |> Ply.toTask
+  match C2DT.Result.fromDT PT2DT.Expr.fromDT dval identity with
+  | Ok expr -> expr
+  | Error parseError ->
+    let toStringFn =
+      RT.FQFnName.fqPackage (
+        PackageRefs.Fn.LanguageTools.Parser.parseErrorToString ()
+      )
+    let message =
+      (LibExecution.Execution.executeFunction
+        state
+        toStringFn
+        []
+        (NEList.singleton parseError))
+        .Result
+    let message =
+      match message with
+      | Ok(RT.DString message) -> message
+      | _ -> string parseError
+    Exception.raiseInternal
+      $"parsePTExpr refused the code: {message}"
+      [ "code", code ]
 
 
 // ---------------------------------------------------------------------------
@@ -1459,13 +1439,12 @@ let parsePTExpr (code : string) : Task<PT.Expr> =
 /// and all. The ops are returned, not stored.
 let parsePackageOps (source : string) : Task<List<PT.PackageOp>> =
   task {
-    let! parsed =
+    let parsed =
       LibParser.Package.parse
         (localBuiltIns pmPT)
         pmPT
         LibParser.NameResolver.OnMissing.ThrowError
         source
-      |> Ply.toTask
     match parsed with
     | Ok ops -> return LibDB.HashStabilization.computeRealHashes ops
     | Error errs ->
@@ -1479,14 +1458,14 @@ let parsePackageOps (source : string) : Task<List<PT.PackageOp>> =
 let authorIntoMain (source : string) : Task<List<PT.PackageOp>> =
   task {
     let! stabilized = parsePackageOps source
-    do! LibDB.Queries.ensureAuthoringClockIsCurrent ()
+    LibDB.Queries.ensureAuthoringClockIsCurrent ()
     // Match scmAddOps: save reference names before duplicate bodies are combined.
-    let! names = LibDB.ReferenceNames.captureForStorage PT.BranchId.Main stabilized
-    let! _ = LibDB.Inserts.insertAndApplyOps (stabilized @ names)
+    let names = LibDB.ReferenceNames.captureForStorage PT.BranchId.Main stabilized
+    let _ = LibDB.Inserts.insertAndApplyOps (stabilized @ names)
     // The same second step the authoring builtin takes: re-resolve names and recompute
     // SCC-aware hashes now that the new items exist. Skipping it leaves forward
     // references unresolved, so the dependency edges a cascade reads are never written.
-    let! _ = LibDB.WipRefresh.refresh pmPT
+    let _ = LibDB.WipRefresh.refresh pmPT
     return stabilized
   }
 
@@ -1512,7 +1491,7 @@ let hashBoundTo (ops : List<PT.PackageOp>) (name : string) : PT.Hash =
 /// themselves whether a Dark-side `Error` is a test failure or an assertion.
 let evalDarkExpr (code : string) : Task<RT.ExecutionResult> =
   task {
-    let! ptExpr = parsePTExpr code
-    let! (state : RT.ExecutionState) = executionStateFor pmPT false
+    let ptExpr = parsePTExpr code
+    let (state : RT.ExecutionState) = executionStateFor pmPT false
     return! Exe.executeExpr state (PT2RT.Expr.toRT Map.empty 0 None ptExpr)
   }

@@ -31,7 +31,7 @@ let fns () : List<BuiltInFn> =
           let buf = Array.zeroCreate<byte> (numBytes + 1)
           RNG.Fill(System.Span<byte>(buf, 0, numBytes))
           let r = System.Numerics.BigInteger(buf) % range
-          Dval.bigInt (lower + r) |> Ply
+          Dval.bigInt (lower + r)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Random ]

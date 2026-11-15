@@ -322,13 +322,10 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| q |] ->
-          uply {
-            let! edges = Deps.query (depQueryFromDT q)
-            return
-              edges
-              |> List.map depEdgeToDT
-              |> Dval.list (KTCustomType(depEdgeTypeName (), []))
-          }
+          let edges = Deps.query (depQueryFromDT q)
+          edges
+          |> List.map depEdgeToDT
+          |> Dval.list (KTCustomType(depEdgeTypeName (), []))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -348,13 +345,10 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| f |] ->
-          uply {
-            let! rows = Bindings.query (bindingFilterFromDT f)
-            return
-              rows
-              |> List.map bindingRowToDT
-              |> Dval.list (KTCustomType(bindingRowTypeName (), []))
-          }
+          let rows = Bindings.query (bindingFilterFromDT f)
+          rows
+          |> List.map bindingRowToDT
+          |> Dval.list (KTCustomType(bindingRowTypeName (), []))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -374,13 +368,10 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| f |] ->
-          uply {
-            let! rows = Branches.query (branchFilterFromDT f)
-            return
-              rows
-              |> List.map branchInfoToDT
-              |> Dval.list (KTCustomType(branchInfoTypeName (), []))
-          }
+          let rows = Branches.query (branchFilterFromDT f)
+          rows
+          |> List.map branchInfoToDT
+          |> Dval.list (KTCustomType(branchInfoTypeName (), []))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -403,10 +394,8 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| f; DInt64 limit |] ->
-          uply {
-            let! page = Commits.query (commitFilterFromDT f) limit
-            return commitPageToDT page
-          }
+          let page = Commits.query (commitFilterFromDT f) limit
+          commitPageToDT page
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -426,13 +415,10 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| f |] ->
-          uply {
-            let! rows = Conflicts.query (conflictFilterFromDT f)
-            return
-              rows
-              |> List.map conflictRowToDT
-              |> Dval.list (KTCustomType(conflictRowTypeName (), []))
-          }
+          let rows = Conflicts.query (conflictFilterFromDT f)
+          rows
+          |> List.map conflictRowToDT
+          |> Dval.list (KTCustomType(conflictRowTypeName (), []))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -456,10 +442,8 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| f; DInt64 limit |] ->
-          uply {
-            let! page = Ops.query (opFilterFromDT f) limit
-            return opPageToDT page
-          }
+          let page = Ops.query (opFilterFromDT f) limit
+          opPageToDT page
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]

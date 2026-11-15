@@ -394,7 +394,7 @@ and private inferTVarsFromArgs
 /// the shapes that already carry their element type are worth special-casing. Binding a type variable
 /// needs the whole ValueType, so that still falls through.
 ///
-/// Same trick as `TypeChecker.unifyDvalSync`, on the other walk over the same arguments.
+/// Same trick as `TypeChecker.unifyDval`, on the other walk over the same arguments.
 let rec private inferTVarsFromDval
   (acc : TypeSymbolTable)
   (tr : TypeReference)
@@ -1104,11 +1104,11 @@ let rec private inferBiParams
 
 /// Check as many arguments as can be answered without awaiting, returning where it stopped.
 ///
-/// `TypeChecker.tryUnifySync` answers the ordinary cases outright, so this walks the parameter and
+/// `TypeChecker.tryUnify` answers the ordinary cases outright, so this walks the parameter and
 /// argument lists together for as long as that keeps working, and hands the remainder to the
 /// computation-expression version. Getting all the way through, which is the usual case, allocates
 /// nothing: top-level so nothing is captured, and a struct tuple so the return isn't an allocation.
-let rec private checkBiParamsSync
+let rec private checkBiParams
   (types : Types)
   (i : int)
   (ps : List<BuiltInParam>)
@@ -1122,15 +1122,15 @@ let rec private checkBiParamsSync
     if argIdx >= args.Length then
       struct (i, ps, argIdx, tst)
     elif TypeChecker.argFitsWithNothingToBind tst p.typ args[argIdx] then
-      checkBiParamsSync types (i + 1) pRest args (argIdx + 1) tst
+      checkBiParams types (i + 1) pRest args (argIdx + 1) tst
     else
-      match TypeChecker.tryUnifyWithAliasesSync types tst p.typ args[argIdx] with
+      match TypeChecker.tryUnifyWithAliases types tst p.typ args[argIdx] with
       | ValueSome updatedTst ->
-        checkBiParamsSync types (i + 1) pRest args (argIdx + 1) updatedTst
+        checkBiParams types (i + 1) pRest args (argIdx + 1) updatedTst
       | ValueNone -> struct (i, ps, argIdx, tst)
 
-/// As [checkBiParamsSync], for package fns.
-let rec private checkPkgParamsSync
+/// As [checkBiParams], for package fns.
+let rec private checkPkgParams
   (types : Types)
   (i : int)
   (ps : List<PackageFn.Parameter>)
@@ -1145,11 +1145,10 @@ let rec private checkPkgParamsSync
     | ValueSome(struct (a, aRest)) ->
       // The common case by its case alone: no unify, and nothing to bind.
       if TypeChecker.argFitsWithNothingToBind tst p.typ a then
-        checkPkgParamsSync types (i + 1) pRest aRest tst
+        checkPkgParams types (i + 1) pRest aRest tst
       else
-        match TypeChecker.tryUnifyWithAliasesSync types tst p.typ a with
-        | ValueSome updatedTst ->
-          checkPkgParamsSync types (i + 1) pRest aRest updatedTst
+        match TypeChecker.tryUnifyWithAliases types tst p.typ a with
+        | ValueSome updatedTst -> checkPkgParams types (i + 1) pRest aRest updatedTst
         | ValueNone -> struct (i, ps, args, tst)
 
 
@@ -1347,19 +1346,15 @@ type private ApplyContext =
 /// Explicit type args, resolved against the OUTER symbol table so the wrapper-pass-through pattern works:
 /// a wrapper body calling `Builtin.x<'a>` needs `'a` resolved against the wrapper's table, not the
 /// post-shadow one.
-///
-/// `ValueNone` means it needs the package store. That is the one step that can block before any of the
-/// call has happened, and it is rare -- most calls pass no type args at all -- so the callers keep it out
-/// of line rather than awaiting on every call.
-let private resolveTypeArgsSync
+let private resolveTypeArgs
   (exeState : ExecutionState)
   (vm : VMState)
   (name : FQFnName.FQFnName)
   (typeParamCount : int)
   (ctx : ApplyContext)
-  : List<ValueType> voption =
+  : List<ValueType> =
   match ctx.typeArgs with
-  | [] -> ValueSome []
+  | [] -> []
   | typeArgs ->
     // Separate lets, not `let a, b = (x, y)`: the tuple form allocates.
     let typeArgCount = List.length typeArgs
@@ -1367,15 +1362,7 @@ let private resolveTypeArgsSync
       RTE.Applications.WrongNumberOfTypeArgsForFn(name, typeParamCount, typeArgCount)
       |> RTE.Apply
       |> raiseRTE vm.threadID
-    TypeReference.toVTsSync exeState.types ctx.tst [] typeArgs
-
-/// As `resolveTypeArgsSync`, for when it does need the store. Cold path; the arity check already ran.
-let private resolveTypeArgsAsync
-  (exeState : ExecutionState)
-  (ctx : ApplyContext)
-  : Ply<List<ValueType>> =
-  ctx.typeArgs
-  |> Ply.List.mapSequentially (TypeReference.toVT exeState.types ctx.tst)
+    TypeReference.toVTs exeState.types ctx.tst typeArgs
 
 
 
@@ -1439,9 +1426,6 @@ let private isPlainPure (fn : BuiltInFn) : bool =
 
 
 /// Record a builtin's result in the trace, and hand it back.
-///
-/// Top-level for the same reason as `finishBuiltin` below it: a local here is captured by that
-/// function's cold-path `uply`, and so gets built on every builtin call, hot path included.
 let private traceBuiltinResult
   (exeState : ExecutionState)
   (fn : BuiltInFn)
@@ -1474,7 +1458,7 @@ let private traceBuiltinResult
               fnName
               { ord = ord; durationMs = elapsedMs traceSw }
               args
-              t.Result),
+              t.Result), // landed
         TaskContinuationOptions.ExecuteSynchronously
       )
       |> ignore<Task>
@@ -1506,8 +1490,8 @@ let inline private hostRequested (vm : VMState) : bool =
 let requestHost
   (vm : VMState)
   (op : HostTypes.Operation)
-  (next : Result<HostTypes.Response, HostTypes.Failure> -> Ply<Dval>)
-  : Ply<Dval> =
+  (next : Result<HostTypes.Response, HostTypes.Failure> -> Dval)
+  : Dval =
   // Only one is ever pending, since the interpreter takes it as soon as the body returns. Another
   // still here is a request nobody took, which would be performed for the wrong builtin.
   if not (obj.ReferenceEquals(vm.pendingHostOp, null)) then
@@ -1516,7 +1500,7 @@ let requestHost
       [ "pending", vm.pendingHostOp; "named", op ]
   vm.pendingHostOp <- op
   vm.pendingHostNext <- next
-  Ply DUnit
+  DUnit
 
 /// Perform the host operation a body or continuation named, and drive its continuation: a
 /// further operation is performed in turn; the answer is what the body would have returned.
@@ -1531,8 +1515,8 @@ let rec private performRequested
   (exeState : ExecutionState)
   (vm : VMState)
   (owns : bool)
-  (out : Ply<Dval>)
-  : Ply<Dval> =
+  (out : Dval)
+  : Dval =
   if hostRequested vm then
     let op = vm.pendingHostOp
     let next = vm.pendingHostNext
@@ -1540,61 +1524,59 @@ let rec private performRequested
     vm.pendingHostNext <- Unchecked.defaultof<_>
     let performed =
       PermissionCheck.performHostWithAccess exeState vm vm.activeAccess op
-    match Ply.trySync performed with
-    | ValueSome outcome -> performRequested exeState vm owns (next outcome)
-    | ValueNone when owns ->
+    if performed.IsCompletedSuccessfully then
+      performRequested exeState vm owns (next performed.Result)
+    elif owns then
       vm.hostInflight <- op
-      uply {
-        // Cleared on the way out however it goes. A denied or rejected operation raises from
-        // inside `performed`, and a VM that goes on claiming to be inside a host call mislabels
-        // every later park in `ps`.
+      task {
+        // Cleared on the way out however it goes. A denied or rejected operation faults
+        // `performed`, and a VM that goes on claiming to be inside a host call mislabels every
+        // later park in `ps`.
         let! outcome =
-          uply {
+          task {
             try
               return! performed
             finally
               vm.hostInflight <- Unchecked.defaultof<_>
           }
-        return! performRequested exeState vm owns (next outcome)
+        return! Pending.toTask (performRequested exeState vm owns (next outcome))
       }
-    | ValueNone ->
-      uply {
+      |> Pending.ofTask
+    else
+      task {
         let! outcome = performed
-        return! next outcome
+        return! Pending.toTask (next outcome)
       }
+      |> Pending.ofTask
   else
     out
 
 
-/// `k` with `dv` once it is a value, for code that runs under a `Ply` (a builtin's
-/// continuation, a builtin's arguments, a lambda's patterns): a read in flight is waited for
-/// (the interpreter parks the process on the wait and drives on when it lands), and waited for
-/// again if what lands is a read too; a failed one raises here, naming the read below the
-/// stack. The interpreter loop's own wait is `Promises.settle`, which has no `Ply` to wait in.
-/// A continuation that only carries a result along (`List.map`) does not need this and keeps
-/// the read in flight.
-let rec withValue (vm : VMState) (dv : Dval) (k : Dval -> Ply<'a>) : Ply<'a> =
+/// `retry ()` once `t` has landed, well or not. The process parks on it meanwhile, and `retry`
+/// starts over: what has landed by then is taken as a value, and a failure raises there.
+let private afterLanding (t : Task) (retry : unit -> Dval) : Dval =
+  task {
+    do!
+      t.ContinueWith(
+        (fun (_ : Task) -> ()),
+        TaskContinuationOptions.ExecuteSynchronously
+      )
+    return! Pending.toTask (retry ())
+  }
+  |> Pending.ofTask
+
+/// `k` with `dv` once it is a value, for a builtin's continuation: a read in flight is waited
+/// for (the interpreter parks the process on the wait and drives on when it lands), and waited
+/// for again if what lands is a read too; a failed one raises here, naming the read below the
+/// stack. The interpreter loop's own wait is `Promises.settle`. A continuation that only
+/// carries a result along (`List.map`) does not need this and keeps the read in flight.
+let rec withValue (vm : VMState) (dv : Dval) (k : Dval -> Dval) : Dval =
   match dv with
   | DPromise p ->
     let t = p.Task
-    if t.IsCompletedSuccessfully then
-      withValue vm t.Result k
-    elif t.IsCompleted then
-      raiseReadFailure vm p t
-    else
-      uply {
-        // Landed one way or the other, without the await itself throwing, so the read's
-        // failure is raised here and `k`'s own failures are its own.
-        let! landed =
-          t.ContinueWith(
-            (fun (t : Task<Dval>) -> t),
-            TaskContinuationOptions.ExecuteSynchronously
-          )
-        if landed.IsCompletedSuccessfully then
-          return! withValue vm landed.Result k
-        else
-          return raiseReadFailure vm p landed
-      }
+    if t.IsCompletedSuccessfully then withValue vm t.Result k
+    elif t.IsCompleted then raiseReadFailure vm p t
+    else afterLanding t (fun () -> withValue vm dv k)
   | v -> k v
 
 
@@ -1611,7 +1593,7 @@ let private finishBuiltin
   (sw : int64)
   (bodyAllocBefore : int64)
   (result : Dval)
-  : Ply<Dval> =
+  : Dval =
   if vm.stats.enabled then
     let n = fn.name.name
     let mutable calls = 0L
@@ -1635,29 +1617,27 @@ let private finishBuiltin
     if TypeChecker.argFitsWithNothingToBind tst fn.returnType result then
       ValueSome tst
     else
-      TypeChecker.tryUnifyWithAliasesSync exeState.types tst fn.returnType result
+      TypeChecker.tryUnifyWithAliases exeState.types tst fn.returnType result
   with
   | ValueSome _ ->
     recordStage vm ApplyStage.BiCheckResult biResAlloc
-    Ply(traceBuiltinResult exeState fn ord traceSw allArgs result)
+    (traceBuiltinResult exeState fn ord traceSw allArgs result)
   | ValueNone ->
     // Closed here rather than after the await: a bracket spanning a bind measures whatever nested
     // execution resumes inside it, not this region. The async answer isn't counted, which is the
     // right call -- it's rare, and counting it wrong is worse than not counting it.
     recordStage vm ApplyStage.BiCheckResult biResAlloc
-    uply {
-      match!
-        TypeChecker.checkFnResult
-          exeState.types
-          (FQFnName.Builtin fn.name)
-          tst
-          fn.returnType
-          result
-      with
-      | Ok _ -> ()
-      | Error rte -> raiseRTE vm.threadID rte
-      return traceBuiltinResult exeState fn ord traceSw allArgs result
-    }
+    match
+      TypeChecker.checkFnResult
+        exeState.types
+        (FQFnName.Builtin fn.name)
+        tst
+        fn.returnType
+        result
+    with
+    | Ok _ -> ()
+    | Error rte -> raiseRTE vm.threadID rte
+    traceBuiltinResult exeState fn ord traceSw allArgs result
 
 
 /// What a resume does at a logged call beyond handing the result back (`docs/processes.md`,
@@ -1833,7 +1813,7 @@ let private invokeBuiltinAuthorized
   (typeArgs : List<TypeReference>)
   (allArgs : Dval[])
   (plainPure : bool)
-  : Ply<Dval> =
+  : Dval =
   // Resolve type variables in typeArgs before passing to builtin.
   // When a package function like Stdlib.Json.parse<Int64> calls
   // Builtin.jsonParse<'a>, the 'a needs to resolve to Int64.
@@ -1941,8 +1921,6 @@ let private invokeBuiltinAuthorized
   | Tracing.ReplayStep.PerformOnce
   | Tracing.ReplayStep.PerformOnwards ->
 
-    // Every builtin's signature is async because some of them have to be -- HTTP, the package store,
-    // anything touching disk. Most aren't: `Builtin.int64ToString` computes and returns.
     let body = fn.fn (struct (exeState, vm, resolvedTypeArgs, allArgs))
     // A body that named a host operation: performed here, its continuation driven; what comes
     // back is the body's real result, waited for like any other.
@@ -1952,29 +1930,9 @@ let private invokeBuiltinAuthorized
       else
         body
 
-    // `finishBuiltin` is top-level rather than a local closing over the eight values it needs, for the
-    // same reason `completeBuiltin` is: the fallback arm below is a `uply`, so a local would be captured
-    // and built on every call.
-    match Ply.trySync body with
-    | ValueSome result ->
-      // The body asked for an apply (`requestApply`): this is its placeholder, not its result.
-      // The result is checked where it is made and reaches the trace through the continuation.
-      if requested vm then
-        vm.pendingFinish <- finishFor exeState fn ord traceSw allArgs
-        Ply result
-      else
-        finishBuiltin
-          exeState
-          vm
-          fn
-          tst
-          allArgs
-          ord
-          traceSw
-          sw
-          bodyAllocBefore
-          result
-    | ValueNone ->
+    match body with
+    | Pending.Wait t ->
+      let owns = not (callReadsOnly fn allArgs)
       // `allArgs` is the frame's reused argument buffer. A read handed back as a promise lets the
       // frame run on and refill it before this completes, so the trace would record the wrong
       // arguments; copy when they will be recorded.
@@ -1982,16 +1940,16 @@ let private invokeBuiltinAuthorized
       // A read's wait may have been handed back as a promise that lands on another thread while
       // the VM runs on, mid-way through some other builtin. So once it has waited it looks at
       // nothing on the VM: a request there is that builtin's, not this one's (`performRequested`).
-      let owns = not (callReadsOnly fn allArgs)
-      uply {
-        let! result = body
+      task {
+        let! result = t
+        let! result = Pending.toTask result
         // A host operation named after the body's first wait (a request read, then a file):
         // performed now, and its continuation's answer is the result.
         let! result =
           if owns && hostRequested vm then
-            performRequested exeState vm true (Ply result)
+            Pending.toTask (performRequested exeState vm true result)
           else
-            Ply result
+            Task.FromResult result
         if owns && requested vm then
           // A request after the body's first wait (a stream that pulled from the network, then
           // has its transform to apply). The call site has moved on; the landing site, where
@@ -2000,7 +1958,7 @@ let private invokeBuiltinAuthorized
           vm.pendingFinish <- finishFor exeState fn ord traceSw allArgs
           return result
         else
-          return!
+          return
             finishBuiltin
               exeState
               vm
@@ -2013,23 +1971,17 @@ let private invokeBuiltinAuthorized
               bodyAllocBefore
               result
       }
+      |> Pending.ofTask
+    // The body asked for an apply (`requestApply`): this is its placeholder, not its result.
+    // The result is checked where it is made and reaches the trace through the continuation.
+    | result when requested vm ->
+      vm.pendingFinish <- finishFor exeState fn ord traceSw allArgs
+      result
+    | result ->
+      finishBuiltin exeState vm fn tst allArgs ord traceSw sw bodyAllocBefore result
 
 
-/// Run a builtin call without entering the interpreter's computation expression.
-///
-/// Synchronous because almost nothing here ever waits: resolving a type arg is a cache hit, checking an
-/// argument needs no lookup in the ordinary case, and a pure builtin hands back a `Ply` that is already
-/// finished. Entering the builder for those costs a continuation closure each time, and this runs once
-/// per call.
-///
-/// Two things can still need the package store, and each has an escape hatch that keeps a single
-/// implementation rather than a fast copy and a slow copy that drift:
-///
-/// The three ways a builtin call ends, once the symbol table is settled: too many arguments, too few, or
-/// exactly right.
-///
-/// Top-level rather than a local function, so it captures nothing. As a closure over the nine values it
-/// needs, it was an allocation on every builtin call.
+/// Run a builtin call: the permission question first, when the person may be asked.
 let private invokeBuiltin exeState vm fn tst typeArgs allArgs plainPure =
   match exeState.requestPermission with
   | _ when
@@ -2040,11 +1992,20 @@ let private invokeBuiltin exeState vm fn tst typeArgs allArgs plainPure =
     ->
     invokeBuiltinAuthorized exeState vm fn tst typeArgs allArgs plainPure
   | _ ->
-    uply {
-      do!
-        PermissionCheck.approveBuiltinEffects exeState vm fn.callEffects fn.name.name
-      return! invokeBuiltinAuthorized exeState vm fn tst typeArgs allArgs plainPure
-    }
+    // The person may be asked first, which waits for their answer.
+    let approved =
+      PermissionCheck.approveBuiltinEffects exeState vm fn.callEffects fn.name.name
+    if approved.IsCompletedSuccessfully then
+      invokeBuiltinAuthorized exeState vm fn tst typeArgs allArgs plainPure
+    else
+      task {
+        do! approved
+        return!
+          Pending.toTask (
+            invokeBuiltinAuthorized exeState vm fn tst typeArgs allArgs plainPure
+          )
+      }
+      |> Pending.ofTask
 
 
 let private completeBuiltin
@@ -2056,7 +2017,7 @@ let private completeBuiltin
   (argCount : int)
   (paramCount : int)
   (tst : TypeSymbolTable)
-  : Ply<Dval> =
+  : Dval =
   if argCount > paramCount then
     RTE.Applications.TooManyArgsForFn(ctx.applicable.name, paramCount, argCount)
     |> RTE.Apply
@@ -2184,22 +2145,26 @@ let private argsHoldPromise (ctx : ApplyContext) : bool =
     | ValueSome(struct (dv, rest)) -> Pending.isPromise dv || inSeq rest
   List.exists Pending.isPromise ctx.applicable.argsSoFar || inSeq ctx.args
 
-/// `xs` as `asIs` says, waiting in order (`withValue`) for each read it answers `ValueNone` for
-/// (by position from `i`). A failed read raises at its turn, naming the read.
+/// `xs` as `asIs` says, with each read it answers `ValueNone` for (by position from `i`) taken
+/// as its value: the list, or null and the first read still in flight, for the caller to wait
+/// for and try again. A failed read raises, naming the read.
 let rec private landWhere
   (vm : VMState)
   (asIs : int -> Dval -> Dval voption)
   (i : int)
   (acc : List<Dval>)
   (xs : List<Dval>)
-  : Ply<List<Dval>> =
+  : struct (List<Dval> * Task) =
   match xs with
-  | [] -> Ply(List.rev acc)
+  | [] -> struct (List.rev acc, null)
   | x :: rest ->
     match asIs i x, x with
     | ValueSome v, _ -> landWhere vm asIs (i + 1) (v :: acc) rest
-    | ValueNone, DPromise _ ->
-      withValue vm x (fun landed -> landWhere vm asIs i acc (landed :: rest))
+    | ValueNone, DPromise p ->
+      let t = p.Task
+      if t.IsCompletedSuccessfully then landWhere vm asIs i acc (t.Result :: rest)
+      elif t.IsCompleted then raiseReadFailure vm p t
+      else struct ([], t)
     | ValueNone, _ -> landWhere vm asIs (i + 1) (x :: acc) rest
 
 
@@ -2353,20 +2318,45 @@ let private tryFastOpDirect
     | _ -> ValueNone
 
 
-/// Run a builtin call without entering the interpreter's computation expression.
-///
-/// Synchronous because almost nothing here ever waits: resolving a type arg is a cache hit, checking an
-/// argument needs no lookup in the ordinary case, and a pure builtin hands back a `Ply` that is already
-/// finished. Entering the builder for those costs a continuation closure each time, and this runs once
-/// per call.
-///
-/// Two things can still need the package store, and each has an escape hatch that keeps a single
-/// implementation rather than a fast copy and a slow copy that drift:
-///
-/// - Resolving explicit type args, which happens before anything else, is done by `callBuiltin` and
-///   handed in here already resolved.
-/// - Argument checking can need `Types.find` partway through, so it hands the *remainder* to a `uply`
-///   and returns a `Called` that isn't finished yet.
+/// The argument checks `checkBiParams` could not settle, from parameter `i` on.
+let rec private checkBiParamsRest
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (name : FQFnName.FQFnName)
+  (args : Dval[])
+  (tst : TypeSymbolTable)
+  (i : int)
+  (ps : List<BuiltInParam>)
+  (idx : int)
+  : TypeSymbolTable =
+  match ps with
+  | p :: rest when idx < args.Length ->
+    match
+      TypeChecker.checkFnParam exeState.types name tst i p.name p.typ args[idx]
+    with
+    | Ok tst -> checkBiParamsRest exeState vm name args tst (i + 1) rest (idx + 1)
+    | Error rte -> raiseRTE vm.threadID rte
+  | _ -> tst
+
+/// The argument checks `checkPkgParams` could not settle, from parameter `i` on.
+let rec private checkPkgParamsRest
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (name : FQFnName.FQFnName)
+  (tst : TypeSymbolTable)
+  (i : int)
+  (ps : List<PackageFn.Parameter>)
+  (args : List<Dval>)
+  : TypeSymbolTable =
+  match ps, args with
+  | p :: pRest, a :: aRest ->
+    match TypeChecker.checkFnParam exeState.types name tst i p.name p.typ a with
+    | Ok tst -> checkPkgParamsRest exeState vm name tst (i + 1) pRest aRest
+    | Error rte -> raiseRTE vm.threadID rte
+  | _ -> tst
+
+
+/// Run a builtin call whose explicit type args `callBuiltin` has resolved.
 let rec private callBuiltinResolved
   (exeState : ExecutionState)
   (vm : VMState)
@@ -2374,7 +2364,7 @@ let rec private callBuiltinResolved
   (ctx : ApplyContext)
   (fn : BuiltInFn)
   (resolvedTypeArgsVT : List<ValueType>)
-  : Ply<Dval> =
+  : Dval =
   if argsHoldPromise ctx then
     callBuiltinForcingArgs exeState vm currentFrame ctx fn resolvedTypeArgsVT
   else
@@ -2388,13 +2378,13 @@ and private callBuiltinResolvedValues
   (ctx : ApplyContext)
   (fn : BuiltInFn)
   (resolvedTypeArgsVT : List<ValueType>)
-  : Ply<Dval> =
+  : Dval =
   match tryFastOp vm.threadID fn ctx with
   | ValueSome result ->
     // Counted, so `builtinCalls` still says how many builtin calls the program made.
     if vm.stats.enabled then
       vm.stats.builtinCallCount <- vm.stats.builtinCallCount + 1L
-    Ply result
+    result
   | ValueNone ->
     callBuiltinResolvedSlow exeState vm currentFrame ctx fn resolvedTypeArgsVT
 
@@ -2407,25 +2397,30 @@ and private callBuiltinForcingArgs
   (ctx : ApplyContext)
   (fn : BuiltInFn)
   (resolvedTypeArgsVT : List<ValueType>)
-  : Ply<Dval> =
-  let soFar = ctx.applicable.argsSoFar
-  let args = ArgSeq.toList { ctx.args with Prior = [] }
-  uply {
-    let! soFar = landWhere vm (withoutWaiting fn) 0 [] soFar
-    let! args = landWhere vm (withoutWaiting fn) (List.length soFar) [] args
-    let ctx =
-      { ctx with
-          applicable = { ctx.applicable with argsSoFar = soFar }
-          args = { Prior = args; Regs = ctx.args.Regs; Head = ValueNone; Tail = [] } }
-    let! result =
+  : Dval =
+  let again () =
+    callBuiltinForcingArgs exeState vm currentFrame ctx fn resolvedTypeArgsVT
+  let struct (soFar, waitSoFar) =
+    landWhere vm (withoutWaiting fn) 0 [] ctx.applicable.argsSoFar
+  if not (isNull waitSoFar) then
+    afterLanding waitSoFar again
+  else
+    let args = ArgSeq.toList { ctx.args with Prior = [] }
+    let struct (args, wait) =
+      landWhere vm (withoutWaiting fn) (List.length soFar) [] args
+    if not (isNull wait) then
+      afterLanding wait again
+    else
+      let ctx =
+        { ctx with
+            applicable = { ctx.applicable with argsSoFar = soFar }
+            args =
+              { Prior = args; Regs = ctx.args.Regs; Head = ValueNone; Tail = [] } }
       callBuiltinResolvedValues exeState vm currentFrame ctx fn resolvedTypeArgsVT
-    // What went in through a shell may come back out in the result, as deep as its type says.
-    return
-      Pending.wrapAlong
-        (TypeChecker.DvalCreator.recheck vm.threadID)
-        fn.returnType
-        result
-  }
+      // What went in through a shell may come back out in the result, as deep as its type says.
+      |> Pending.andThen (
+        Pending.wrapAlong (TypeChecker.DvalCreator.recheck vm.threadID) fn.returnType
+      )
 
 and private callBuiltinResolvedSlow
   (exeState : ExecutionState)
@@ -2434,9 +2429,7 @@ and private callBuiltinResolvedSlow
   (ctx : ApplyContext)
   (fn : BuiltInFn)
   (resolvedTypeArgsVT : List<ValueType>)
-  : Ply<Dval> =
-  // No local `raiseRTE` alias: the cold-path `uply` below would capture it, and a local a
-  // closure captures is an allocation on every call, not just the ones that need it.
+  : Dval =
   let applicable = ctx.applicable
   // Builtins take a `List<Dval>`, so this is the one path that still materialises one.
   let biArgListAlloc = allocNow vm
@@ -2497,7 +2490,7 @@ and private callBuiltinResolvedSlow
   let biTcRunAlloc = allocNow vm
   let already = List.length applicable.argsSoFar
   let struct (biNextI, biRestPs, biRestArgIdx, biTst) =
-    checkBiParamsSync
+    checkBiParams
       exeState.types
       already
       (List.skip already fn.parameters)
@@ -2507,37 +2500,21 @@ and private callBuiltinResolvedSlow
   tst <- biTst
   recordStage vm ApplyStage.BiTypeCheckRun biTcRunAlloc
 
-  // `if` rather than `match biRestPs, biRestArgs with`: the tuple form allocates the pair, once per
-  // call, to ask a question two `isEmpty` checks answer.
-  if List.isEmpty biRestPs || biRestArgIdx >= newArgDvals.Length then
-    completeBuiltin exeState vm ctx fn allArgs argCount paramCount tst
-  else
-    // Something in the remaining parameters needs the type store. Finish the check in a computation
-    // expression and carry on from there -- still the one implementation, just resumed asynchronously.
-    let typeCheckParam = TypeChecker.checkFnParam exeState.types applicable.name
-    // An immutable snapshot, so the `uply` below captures this instead of the mutable `tst`. A
-    // mutable a closure captures becomes a heap ref cell, allocated on every call to serve a branch
-    // that after the first call is never taken.
-    let tstAtCheck = tst
-    uply {
-      let mutable tstRest = tstAtCheck
-      let rec checkRest i (ps : List<BuiltInParam>) (idx : int) =
-        uply {
-          match ps with
-          | [] -> return ()
-          | p :: pRest ->
-            if idx >= newArgDvals.Length then
-              return ()
-            else
-              match! typeCheckParam tstRest i p.name p.typ newArgDvals[idx] with
-              | Ok updatedTst ->
-                tstRest <- updatedTst
-                return! checkRest (i + 1) pRest (idx + 1)
-              | Error rte -> return raiseRTE vm.threadID rte
-        }
-      do! checkRest biNextI biRestPs biRestArgIdx
-      return! completeBuiltin exeState vm ctx fn allArgs argCount paramCount tstRest
-    }
+  // What the quick check left: parameters whose check needs the type store.
+  let tst =
+    if List.isEmpty biRestPs || biRestArgIdx >= newArgDvals.Length then
+      tst
+    else
+      checkBiParamsRest
+        exeState
+        vm
+        applicable.name
+        newArgDvals
+        tst
+        biNextI
+        biRestPs
+        biRestArgIdx
+  completeBuiltin exeState vm ctx fn allArgs argCount paramCount tst
 
 
 
@@ -2548,24 +2525,9 @@ let private callBuiltin
   (currentFrame : CallFrame)
   (ctx : ApplyContext)
   (fn : BuiltInFn)
-  : Ply<Dval> =
-  // Spelled out in both arms rather than shared as a local `run`, for the same reason as in
-  // `callPackage`: the async arm would capture it, so the closure would be built on every call.
-  match
-    resolveTypeArgsSync
-      exeState
-      vm
-      ctx.applicable.name
-      (List.length fn.typeParams)
-      ctx
-  with
-  | ValueSome resolved ->
-    callBuiltinResolved exeState vm currentFrame ctx fn resolved
-  | ValueNone ->
-    uply {
-      let! resolved = resolveTypeArgsAsync exeState ctx
-      return! callBuiltinResolved exeState vm currentFrame ctx fn resolved
-    }
+  : Dval =
+  resolveTypeArgs exeState vm ctx.applicable.name (List.length fn.typeParams) ctx
+  |> callBuiltinResolved exeState vm currentFrame ctx fn
 
 
 
@@ -3129,45 +3091,41 @@ let private checkBoundsAtEntry
   (vm : VMState)
   (fn : PackageFn.PackageFn)
   (tst : TypeSymbolTable)
-  : Ply<unit> =
+  : unit =
   fn.bounds
-  |> Ply.List.iterSequentially (fun b ->
-    uply {
-      match b.trait_.trait_.resolved, TST.tryFind b.param tst with
-      | Ok(FQTraitName.Package traitHash), ValueSome(ValueType.Known self) ->
-        // Read before the candidates, as dispatch does, so a fold in between cannot stamp a
-        // stale answer with the new generation.
-        let generation = exeState.fns.implGeneration ()
-        let! candidates = exeState.fns.implCandidates exeState.branchId traitHash
-        match Traits.select candidates self with
-        | Traits.Selected c ->
-          exeState.fns.implSelectionMemo[struct (exeState.branchId,
-                                                 traitHash,
-                                                 boundMemoMethod,
-                                                 self)] <-
-            struct (generation, c.source)
-          return ()
-        | Traits.NoImpl ->
-          return
-            RTE.Trait(
-              RTE.Traits.MissingImpl(
-                FQTraitName.Package traitHash,
-                ValueType.Known self
-              )
-            )
-            |> raiseRTE vm.threadID
-        | Traits.Ambiguous cs ->
-          return
-            RTE.Trait(
-              RTE.Traits.DispatchAmbiguous(
-                FQTraitName.Package traitHash,
-                ValueType.Known self,
-                cs |> List.map (fun c -> c.source)
-              )
-            )
-            |> raiseRTE vm.threadID
-      | _ -> return ()
-    })
+  |> List.iter (fun b ->
+    match b.trait_.trait_.resolved, TST.tryFind b.param tst with
+    | Ok(FQTraitName.Package traitHash), ValueSome(ValueType.Known self) ->
+      // Read before the candidates, as dispatch does, so a fold in between cannot stamp a
+      // stale answer with the new generation.
+      let generation = exeState.fns.implGeneration ()
+      let candidates = exeState.fns.implCandidates exeState.branchId traitHash
+      match Traits.select candidates self with
+      | Traits.Selected c ->
+        exeState.fns.implSelectionMemo[struct (exeState.branchId,
+                                               traitHash,
+                                               boundMemoMethod,
+                                               self)] <-
+          struct (generation, c.source)
+        ()
+      | Traits.NoImpl ->
+        RTE.Trait(
+          RTE.Traits.MissingImpl(
+            FQTraitName.Package traitHash,
+            ValueType.Known self
+          )
+        )
+        |> raiseRTE vm.threadID
+      | Traits.Ambiguous cs ->
+        RTE.Trait(
+          RTE.Traits.DispatchAmbiguous(
+            FQTraitName.Package traitHash,
+            ValueType.Known self,
+            cs |> List.map (fun c -> c.source)
+          )
+        )
+        |> raiseRTE vm.threadID
+    | _ -> ())
 
 /// Everything after the explicit type args are resolved. See `callPackage`.
 let private callPackageViaFrame
@@ -3178,9 +3136,7 @@ let private callPackageViaFrame
   (fn : PackageFn.PackageFn)
   (callData : PackageFnCallData)
   (resolvedExplicitTypeArgsVT : List<ValueType>)
-  : Ply<PackageOutcome> =
-  // No local `raiseRTE` alias: the cold-path `uply` below would capture it, and a local a
-  // closure captures is an allocation on every call, not just the ones that need it.
+  : PackageOutcome =
   let applicable = ctx.applicable
   let newArgDvals = ctx.args
   let mutable tst = ctx.tst
@@ -3254,107 +3210,45 @@ let private callPackageViaFrame
 
   let pkgTcRunAlloc = allocNow vm
   let struct (pkgNextI, pkgRestPs, pkgRestArgs, pkgTst) =
-    checkPkgParamsSync exeState.types alreadyApplied pkgParams newArgDvals tst
+    checkPkgParams exeState.types alreadyApplied pkgParams newArgDvals tst
   tst <- pkgTst
   recordStage vm ApplyStage.PkgTypeCheckRun pkgTcRunAlloc
 
-  // Same as in `callBuiltinResolved`: two `isEmpty` checks, no pair.
-  if List.isEmpty pkgRestPs || ArgSeq.isEmpty pkgRestArgs then
-    if List.isEmpty fn.bounds || argCount < paramCount then
-      Ply(
-        completePackage
-          exeState
-          vm
-          currentFrame
-          ctx
-          fn
-          callData
-          implicitTypeParams
-          newlyBound
-          allArgs
-          argCount
-          paramCount
-      )
-    else if
-      boundsRemembered exeState (exeState.fns.implGeneration ()) fn.bounds tst
-    then
-      // Every bound already proved for these type args: no candidate scan, and no `uply`.
-      Ply(
-        completePackage
-          exeState
-          vm
-          currentFrame
-          ctx
-          fn
-          callData
-          implicitTypeParams
-          newlyBound
-          allArgs
-          argCount
-          paramCount
-      )
+  // What the quick check left: parameters whose check needs the type store.
+  let tst =
+    if List.isEmpty pkgRestPs || ArgSeq.isEmpty pkgRestArgs then
+      tst
     else
-      // A bounded fn: the bounds are part of the declared parameter types, checked
-      // here at entry like the parameter types just above.
-      let tstAtEntry = tst
-      uply {
-        do! checkBoundsAtEntry exeState vm fn tstAtEntry
-        return
-          completePackage
-            exeState
-            vm
-            currentFrame
-            ctx
-            fn
-            callData
-            implicitTypeParams
-            newlyBound
-            allArgs
-            argCount
-            paramCount
-      }
-  else
-    // Something in the remaining parameters needs the type store. Finish the check in a computation
-    // expression and carry on from there -- still one implementation, just resumed asynchronously.
-    let typeCheckParam = TypeChecker.checkFnParam exeState.types applicable.name
-    // An immutable snapshot, so the `uply` below captures this instead of the mutable `tst`. A
-    // mutable a closure captures becomes a heap ref cell, allocated on every call to serve a branch
-    // that after the first call is never taken.
-    let tstAtCheck = tst
-    uply {
-      let mutable tstRest = tstAtCheck
-      let rec checkRest i (ps : List<PackageFn.Parameter>) (args : List<Dval>) =
-        uply {
-          match ps with
-          | [] -> return ()
-          | p :: pRest ->
-            match args with
-            | [] -> return ()
-            | a :: aRest ->
-              match! typeCheckParam tstRest i p.name p.typ a with
-              | Ok updatedTst ->
-                tstRest <- updatedTst
-                return! checkRest (i + 1) pRest aRest
-              | Error rte -> return raiseRTE vm.threadID rte
-        }
-      // The cold path materialises: it already awaits per parameter, so a list is not the cost.
-      do! checkRest pkgNextI pkgRestPs (ArgSeq.toList pkgRestArgs)
-      if not (List.isEmpty fn.bounds) && argCount >= paramCount then
-        do! checkBoundsAtEntry exeState vm fn tstRest
-      return
-        completePackage
-          exeState
-          vm
-          currentFrame
-          ctx
-          fn
-          callData
-          implicitTypeParams
-          newlyBound
-          allArgs
-          argCount
-          paramCount
-    }
+      checkPkgParamsRest
+        exeState
+        vm
+        applicable.name
+        tst
+        pkgNextI
+        pkgRestPs
+        (ArgSeq.toList pkgRestArgs)
+
+  // A bounded fn: the bounds are part of the declared parameter types, checked here at entry like
+  // the parameter types just above, unless every one was already proved for these type args.
+  if
+    not (List.isEmpty fn.bounds)
+    && argCount >= paramCount
+    && not (boundsRemembered exeState (exeState.fns.implGeneration ()) fn.bounds tst)
+  then
+    checkBoundsAtEntry exeState vm fn tst
+
+  completePackage
+    exeState
+    vm
+    currentFrame
+    ctx
+    fn
+    callData
+    implicitTypeParams
+    newlyBound
+    allArgs
+    argCount
+    paramCount
 
 
 /// Work out `PackageFnCallData.fnParams` for a fn with a parameter whose type might be an alias of
@@ -3363,22 +3257,18 @@ let private resolveFnParams
   (exeState : ExecutionState)
   (fn : PackageFn.PackageFn)
   (callData : PackageFnCallData)
-  : Ply<unit> =
-  uply {
-    let! found =
-      FreeTVars.paramsOfPackage fn
-      |> List.indexed
-      |> Ply.List.mapSequentially (fun (i, p) ->
-        uply {
-          let! typ =
-            match p.typ with
-            | TCustomType _ -> TypeReference.unwrapAlias exeState.types p.typ
-            | t -> Ply t
-          return callbackParam i p.name typ
-        })
-    let resolved = found |> List.choose (fun x -> x) |> Array.ofList
-    System.Threading.Volatile.Write(&callData.fnParams, resolved)
-  }
+  : unit =
+  let found =
+    FreeTVars.paramsOfPackage fn
+    |> List.indexed
+    |> List.map (fun (i, p) ->
+      let typ =
+        match p.typ with
+        | TCustomType _ -> TypeReference.unwrapAlias exeState.types p.typ
+        | t -> t
+      callbackParam i p.name typ)
+  let resolved = found |> List.choose (fun x -> x) |> Array.ofList
+  System.Threading.Volatile.Write(&callData.fnParams, resolved)
 
 
 /// Run a package-fn call whose explicit type args are resolved, and whose `fnParams` are known.
@@ -3390,7 +3280,7 @@ let private callPackageResolvedReady
   (fn : PackageFn.PackageFn)
   (callData : PackageFnCallData)
   (resolvedExplicitTypeArgsVT : List<ValueType>)
-  : Ply<PackageOutcome> =
+  : PackageOutcome =
   // A bare forwarder to a builtin of the same signature runs that builtin here, instead of pushing a
   // frame whose whole job is to run the two instructions that would.
   match callData.thinWrapper with
@@ -3423,22 +3313,14 @@ let private callPackageResolvedReady
     // The elided builtin reads `vm.activeAccess`, and nothing else on this
     // path writes it.
     vm.activeAccess <- entryAccess
-    let call =
-      callBuiltinResolved
-        exeState
-        vm
-        currentFrame
-        { ctx with access = entryAccess }
-        biFn
-        []
-    // Builtins answer synchronously unless they do I/O, and a wrapper of one this thin rarely does.
-    match Ply.trySync call with
-    | ValueSome dv -> Ply(Completed dv)
-    | ValueNone ->
-      uply {
-        let! dv = call
-        return Completed dv
-      }
+    callBuiltinResolved
+      exeState
+      vm
+      currentFrame
+      { ctx with access = entryAccess }
+      biFn
+      []
+    |> Completed
   | _ ->
     callPackageViaFrame
       exeState
@@ -3459,21 +3341,18 @@ let private callPackageResolved
   (ctx : ApplyContext)
   (callData : PackageFnCallData)
   (resolvedExplicitTypeArgsVT : List<ValueType>)
-  : Ply<PackageOutcome> =
+  : PackageOutcome =
   let fn = callData.fn
   if isNull (System.Threading.Volatile.Read(&callData.fnParams)) then
-    uply {
-      do! resolveFnParams exeState fn callData
-      return!
-        callPackageResolvedReady
-          exeState
-          vm
-          currentFrame
-          ctx
-          fn
-          callData
-          resolvedExplicitTypeArgsVT
-    }
+    resolveFnParams exeState fn callData
+    callPackageResolvedReady
+      exeState
+      vm
+      currentFrame
+      ctx
+      fn
+      callData
+      resolvedExplicitTypeArgsVT
   else
     callPackageResolvedReady
       exeState
@@ -3485,34 +3364,17 @@ let private callPackageResolved
       resolvedExplicitTypeArgsVT
 
 
-/// Run a package-fn call, resolving its explicit type args first. Outside the computation expression for
-/// the same reason as `callBuiltin`.
+/// Run a package-fn call, resolving its explicit type args first.
 let private callPackageWith
   (exeState : ExecutionState)
   (vm : VMState)
   (currentFrame : CallFrame)
   (ctx : ApplyContext)
   (callData : PackageFnCallData)
-  : Ply<PackageOutcome> =
+  : PackageOutcome =
   let fn = callData.fn
-  // Both arms spell out the call rather than sharing a local `run`. The async arm would capture that
-  // local into its closure, and a local a closure captures can't be lambda-lifted away, so the six
-  // values it closes over are an allocation on every package call whether or not the async arm runs.
-  match
-    resolveTypeArgsSync
-      exeState
-      vm
-      ctx.applicable.name
-      (List.length fn.typeParams)
-      ctx
-  with
-  | ValueSome resolved ->
-    callPackageResolved exeState vm currentFrame ctx callData resolved
-  | ValueNone ->
-    uply {
-      let! resolved = resolveTypeArgsAsync exeState ctx
-      return! callPackageResolved exeState vm currentFrame ctx callData resolved
-    }
+  resolveTypeArgs exeState vm ctx.applicable.name (List.length fn.typeParams) ctx
+  |> callPackageResolved exeState vm currentFrame ctx callData
 
 /// `callPackageWith` for a fn just fetched.
 let private callPackage
@@ -3521,7 +3383,7 @@ let private callPackage
   (currentFrame : CallFrame)
   (ctx : ApplyContext)
   (fn : PackageFn.PackageFn)
-  : Ply<PackageOutcome> =
+  : PackageOutcome =
   callPackageWith exeState vm currentFrame ctx (packageFnCallData exeState fn)
 
 
@@ -3563,14 +3425,13 @@ module Promises =
     (vm : VMState)
     (frame : CallFrame)
     (fn : FQFnName.FQFnName)
-    (call : Ply<Dval>)
+    (task : Task<Dval>)
     : Dval voption =
     if Interlocked.Increment &inflight > maxInflight then
       Interlocked.Decrement &inflight |> ignore<int>
       ValueNone
     else
       Interlocked.Increment &vm.inflight |> ignore<int>
-      let task = Ply.toTask call
       task.ContinueWith(
         (fun (_ : Task<Dval>) ->
           Interlocked.Decrement &inflight |> ignore<int>
@@ -3624,13 +3485,13 @@ let requestApply
   (applicable : Applicable)
   (arg : Dval)
   (second : Dval voption)
-  (next : Dval -> Ply<Dval>)
-  : Ply<Dval> =
+  (next : Dval -> Dval)
+  : Dval =
   vm.pendingApplicable <- applicable
   vm.pendingArg <- arg
   vm.pendingSecond <- second
   vm.pendingNext <- next
-  Ply DUnit
+  DUnit
 
 /// Apply `lambda` to `args` once the reads its patterns look at have landed: a request made
 /// after the wait, under `access`, which `drive` begins. The process parks on the wait.
@@ -3640,25 +3501,27 @@ let private landThenRequest
   (lambda : ApplicableLambda)
   (access : Permissions.Access)
   (args : List<Dval>)
-  (next : Dval -> Ply<Dval>)
-  : Ply<Dval> =
+  (next : Dval -> Dval)
+  : Dval =
   let asIs i dv =
     match List.tryItem i pats with
     | Some pat when letNeedsValue pat dv -> ValueNone
     | _ -> ValueSome dv
-  uply {
-    let! landed = landWhere vm asIs 0 [] args
-    vm.activeAccess <- access
-    match landed with
-    | [ first ] -> return! requestApply vm (AppLambda lambda) first ValueNone next
-    | [ first; second ] ->
-      return! requestApply vm (AppLambda lambda) first (ValueSome second) next
-    | _ ->
-      return
+  let rec tryLand () =
+    let struct (landed, wait) = landWhere vm asIs 0 [] args
+    if not (isNull wait) then
+      afterLanding wait tryLand
+    else
+      vm.activeAccess <- access
+      match landed with
+      | [ first ] -> requestApply vm (AppLambda lambda) first ValueNone next
+      | [ first; second ] ->
+        requestApply vm (AppLambda lambda) first (ValueSome second) next
+      | _ ->
         Exception.raiseInternal
           "a callable was requested with no arguments or more than two"
           []
-  }
+  tryLand ()
 
 
 
@@ -3669,9 +3532,7 @@ type private ApplyOutcome =
   /// Finished. Nothing to await.
   | ApplyDone
   /// A builtin that had to wait. Its result goes in this register.
-  | AwaitBuiltin of bCall : Ply<Dval> * bReg : Register
-  /// A package call that had to wait. Its outcome is a value for this register, or a frame to push.
-  | AwaitPackage of pCall : Ply<PackageOutcome> * pReg : Register
+  | AwaitBuiltin of bCall : Task<Dval> * bReg : Register
   /// An operand is a read still in flight. Park on it, write its value into this register, and
   /// run the same instruction again.
   | AwaitForce of fTask : Task<Dval> * fReg : Register
@@ -3679,16 +3540,16 @@ type private ApplyOutcome =
   /// instruction again.
   | ApplyRetry
   /// A builtin's apply request is mid-chain and its continuation is waiting on something. When
-  /// `cPly` completes, `drive` it on: the value goes to the register at `cReg` (and the frame's
+  /// `cTask` completes, `drive` it on: the value goes to the register at `cReg` (and the frame's
   /// counter to `cPc`), or a further frame is pushed.
   | AwaitContinuation of
-    cPly : Ply<Dval> *
+    cTask : Task<Dval> *
     cReg : Register *
     cPc : int *
-    cNext : (Dval -> Ply<Dval>) *
+    cNext : (Dval -> Dval) *
     cFinish : (Dval -> unit)
 
-  /// Spelled out rather than compared with `=`: a `Ply` doesn't support equality, so neither does this.
+  /// Spelled out rather than compared with `=`: a `Task` doesn't support equality, so neither does this.
   member this.IsDone =
     match this with
     | ApplyDone -> true
@@ -3746,112 +3607,101 @@ let private resolveTraitMethod
   (typeArgs : List<TypeReference>)
   (tst : TypeSymbolTable)
   (args : List<Dval>)
-  : Ply<FQFnName.Package> =
-  uply {
-    let traitName = FQTraitName.Package traitHash
-    let! decl = exeState.traits.trait_ traitHash
-    let decl =
-      match decl with
-      | Some t -> t
-      | None -> RTE.Trait(RTE.Traits.TraitNotFound traitName) |> raiseRTE vm.threadID
+  : FQFnName.Package =
+  let traitName = FQTraitName.Package traitHash
+  let decl = exeState.traits.trait_ traitHash
+  let decl =
+    match decl with
+    | Some t -> t
+    | None -> RTE.Trait(RTE.Traits.TraitNotFound traitName) |> raiseRTE vm.threadID
 
-    // 1. explicit type args
-    let! explicitSelf =
-      match typeArgs with
-      | t :: _ ->
-        uply {
-          let! vt = TypeReference.toVT exeState.types tst t
-          return
-            match vt with
-            | ValueType.Known kt -> Some kt
-            | ValueType.Unknown -> None
-        }
-      | [] -> Ply None
+  // 1. explicit type args
+  let explicitSelf =
+    match typeArgs with
+    | t :: _ ->
+      let vt = TypeReference.toVT exeState.types tst t
+      match vt with
+      | ValueType.Known kt -> Some kt
+      | ValueType.Unknown -> None
+    | [] -> None
 
-    // 2. the self-positioned argument
-    let argSelf =
-      match explicitSelf with
-      | Some _ -> explicitSelf
-      | None ->
-        match traitSelfArgIndex decl methodName with
-        | Some i ->
-          traitSelfIndexMemo[struct (traitHash, methodName)] <- i
-          if i < List.length args then
-            match Dval.toValueType (List.item i args) with
-            | ValueType.Known kt -> Some kt
-            | ValueType.Unknown -> None
-          else
-            None
+  // 2. the self-positioned argument
+  let argSelf =
+    match explicitSelf with
+    | Some _ -> explicitSelf
+    | None ->
+      match traitSelfArgIndex decl methodName with
+      | Some i ->
+        traitSelfIndexMemo[struct (traitHash, methodName)] <- i
+        if i < List.length args then
+          match Dval.toValueType (List.item i args) with
+          | ValueType.Known kt -> Some kt
+          | ValueType.Unknown -> None
+        else
+          None
+      | None -> None
+
+  // 3. the caller's bound on this trait, through its type symbol table
+  let boundSelf =
+    match argSelf with
+    | Some _ -> argSelf
+    | None ->
+      match currentFrame.executionPoint with
+      | Function(FQFnName.Package callerHash) ->
+        match exeState.fns.package callerHash with
+        | Some caller ->
+          caller.bounds
+          |> List.tryPick (fun b ->
+            match b.trait_.trait_.resolved with
+            | Ok(FQTraitName.Package t) when t = traitHash ->
+              match TST.tryFind b.param tst with
+              | ValueSome(ValueType.Known kt) -> Some kt
+              | _ -> None
+            | _ -> None)
         | None -> None
+      | _ -> None
 
-    // 3. the caller's bound on this trait, through its type symbol table
-    let! boundSelf =
-      match argSelf with
-      | Some _ -> Ply argSelf
-      | None ->
-        match currentFrame.executionPoint with
-        | Function(FQFnName.Package callerHash) ->
-          uply {
-            match! exeState.fns.package callerHash with
-            | Some caller ->
-              return
-                caller.bounds
-                |> List.tryPick (fun b ->
-                  match b.trait_.trait_.resolved with
-                  | Ok(FQTraitName.Package t) when t = traitHash ->
-                    match TST.tryFind b.param tst with
-                    | ValueSome(ValueType.Known kt) -> Some kt
-                    | _ -> None
-                  | _ -> None)
-            | None -> return None
-          }
-        | _ -> Ply None
+  let self =
+    match boundSelf with
+    | Some kt -> kt
+    | None ->
+      RTE.Trait(RTE.Traits.SelfTypeUnknown(traitName, methodName))
+      |> raiseRTE vm.threadID
 
-    let self =
-      match boundSelf with
-      | Some kt -> kt
-      | None ->
-        RTE.Trait(RTE.Traits.SelfTypeUnknown(traitName, methodName))
-        |> raiseRTE vm.threadID
-
-    // Read before the candidates, so a fold in between cannot stamp a stale
-    // selection with the new generation.
-    let generation = exeState.fns.implGeneration ()
-    let! candidates = exeState.fns.implCandidates exeState.branchId traitHash
-    match Traits.select candidates self with
-    | Traits.Selected c ->
-      match Map.tryFind methodName c.methods with
-      | Some fnHash ->
-        exeState.fns.implSelectionMemo[struct (exeState.branchId,
-                                               traitHash,
-                                               methodName,
-                                               self)] <- struct (generation, fnHash)
-        return fnHash
-      | None ->
-        return
-          RTE.Trait(RTE.Traits.NoSuchMethod(traitName, methodName))
-          |> raiseRTE vm.threadID
-    | Traits.NoImpl when
-      methodName = "display" && traitHash = Hash(PackageRefs.Trait.Stdlib.display ())
-      ->
-      // A string interpolation of a type with no Display shows it as `inspect` does. The
-      // at-rest check refuses any other call of `display` on such a type.
-      return Hash(PackageRefs.Fn.Stdlib.inspect ())
-    | Traits.NoImpl ->
-      return
-        RTE.Trait(RTE.Traits.MissingImpl(traitName, ValueType.Known self))
-        |> raiseRTE vm.threadID
-    | Traits.Ambiguous cs ->
-      return
-        RTE.Trait(
-          RTE.Traits.DispatchAmbiguous(
-            traitName,
-            ValueType.Known self,
-            cs |> List.map (fun c -> c.source)
-          )
-        )
-        |> raiseRTE vm.threadID
-  }
+  // Read before the candidates, so a fold in between cannot stamp a stale
+  // selection with the new generation.
+  let generation = exeState.fns.implGeneration ()
+  let candidates = exeState.fns.implCandidates exeState.branchId traitHash
+  match Traits.select candidates self with
+  | Traits.Selected c ->
+    match Map.tryFind methodName c.methods with
+    | Some fnHash ->
+      exeState.fns.implSelectionMemo[struct (exeState.branchId,
+                                             traitHash,
+                                             methodName,
+                                             self)] <- struct (generation, fnHash)
+      fnHash
+    | None ->
+      RTE.Trait(RTE.Traits.NoSuchMethod(traitName, methodName))
+      |> raiseRTE vm.threadID
+  | Traits.NoImpl when
+    methodName = "display" && traitHash = Hash(PackageRefs.Trait.Stdlib.display ())
+    ->
+    // A string interpolation of a type with no Display shows it as `inspect` does. The
+    // at-rest check refuses any other call of `display` on such a type.
+    Hash(PackageRefs.Fn.Stdlib.inspect ())
+  | Traits.NoImpl ->
+    RTE.Trait(RTE.Traits.MissingImpl(traitName, ValueType.Known self))
+    |> raiseRTE vm.threadID
+  | Traits.Ambiguous cs ->
+    RTE.Trait(
+      RTE.Traits.DispatchAmbiguous(
+        traitName,
+        ValueType.Known self,
+        cs |> List.map (fun c -> c.source)
+      )
+    )
+    |> raiseRTE vm.threadID
 
 /// The implementation to call, from the three states the save can record.
 ///
@@ -4082,6 +3932,16 @@ let inline private enterFrame
     pushFrame vm frame
 
 
+/// The package fn `pkg`, or the runtime error that there is none.
+let private packageFn
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (pkg : FQFnName.Package)
+  : PackageFn.PackageFn =
+  match exeState.fns.package pkg with
+  | Some fn -> fn
+  | None -> RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
+
 /// Start a builtin's apply request (`requestApply`): push the callable's frame from `caller`,
 /// with the request's `next` to receive its result and `finish` for the chain's end, and answer
 /// as the `Apply` instruction would. A builtin or
@@ -4212,9 +4072,7 @@ let rec private beginRequest
                 named.typeArgs
                 tst
                 named.argsSoFar
-            match Ply.trySync resolving with
-            | ValueSome implFn -> implFn
-            | ValueNone -> (Ply.toTask resolving).Result
+            resolving
         { named with name = FQFnName.Package implFn; typeArgs = [] }
       | _ -> named
     let ctx : ApplyContext =
@@ -4234,26 +4092,19 @@ let rec private beginRequest
       vm.activeAccess <- access
       let call = callBuiltin exeState vm caller ctx found
       // The callee may itself have asked for an apply; `drive` sees that first.
-      drive exeState vm caller reg pcAfter next finish (Ply.bind next call) direct
+      drive
+        exeState
+        vm
+        caller
+        reg
+        pcAfter
+        next
+        finish
+        (Pending.andThen next call)
+        direct
     | FQFnName.Package pkg ->
-      let fetch = exeState.fns.package pkg
-      let fn =
-        match Ply.trySync fetch with
-        | ValueSome(Some fn) -> fn
-        | ValueSome None ->
-          RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
-        | ValueNone ->
-          match (Ply.toTask fetch).Result with
-          | Some fn -> fn
-          | None -> RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
-      let call = callPackage exeState vm caller ctx fn
-      // Nearly always synchronous; the await is a type argument that needs the store, and it
-      // is waited for here rather than parked on, since what comes back may be a frame to push.
-      let outcome =
-        match Ply.trySync call with
-        | ValueSome o -> o
-        | ValueNone -> (Ply.toTask call).Result
-      match outcome with
+      let call = callPackage exeState vm caller ctx (packageFn exeState vm pkg)
+      match call with
       | PushFrame frame ->
         frame.continuation <- next
         frame.finish <- finish
@@ -4261,7 +4112,16 @@ let rec private beginRequest
         if direct then pushFrame vm frame else vm.frameToPush <- ValueSome frame
         ApplyDone
       | Completed dv ->
-        drive exeState vm caller reg pcAfter next finish (next dv) direct
+        drive
+          exeState
+          vm
+          caller
+          reg
+          pcAfter
+          next
+          finish
+          (Pending.andThen next dv)
+          direct
     | FQFnName.TraitMethod _ ->
       Exception.raiseInternal "trait method left unresolved by beginRequest" []
 
@@ -4274,27 +4134,25 @@ and private drive
   (caller : CallFrame)
   (reg : Register)
   (pcAfter : int)
-  (next : Dval -> Ply<Dval>)
+  (next : Dval -> Dval)
   (finish : Dval -> unit)
-  (out : Ply<Dval>)
+  (out : Dval)
   (direct : bool)
   : ApplyOutcome =
   // A continuation that named a host operation: performed, and what its continuation answers
   // is driven in its place (rare: the ordinary answer is a value or an apply request).
   let out = if hostRequested vm then performRequested exeState vm true out else out
-  match Ply.trySync out with
-  | ValueSome dv ->
-    if requested vm then
-      beginRequest exeState vm caller reg pcAfter finish direct
-    else
-      // A builtin that applied a callable answers here, out of `wrapAlong`'s sight; a list it
-      // built from elements holding reads (`filter`) is held as a promise like any other.
-      let dv = Pending.built (TypeChecker.DvalCreator.recheck vm.threadID) dv
-      if not (obj.ReferenceEquals(finish, null)) then finish dv
-      Registers.set caller.registers reg dv
-      caller.programCounter <- pcAfter
-      ApplyDone
-  | ValueNone -> AwaitContinuation(out, reg, pcAfter, next, finish)
+  match out with
+  | Pending.Wait t -> AwaitContinuation(t, reg, pcAfter, next, finish)
+  | _ when requested vm -> beginRequest exeState vm caller reg pcAfter finish direct
+  | dv ->
+    // A builtin that applied a callable answers here, out of `wrapAlong`'s sight; a list it
+    // built from elements holding reads (`filter`) is held as a promise like any other.
+    let dv = Pending.built (TypeChecker.DvalCreator.recheck vm.threadID) dv
+    if not (obj.ReferenceEquals(finish, null)) then finish dv
+    Registers.set caller.registers reg dv
+    caller.programCounter <- pcAfter
+    ApplyDone
 
 
 /// The chain-end hook `invokeBuiltin` left on the VM, cleared so it is used once.
@@ -4450,6 +4308,24 @@ let private applyLambda
   ApplyDone
 
 
+/// A package call's outcome at an `Apply`: its value into the register, or its frame to push.
+/// A forwarder whose builtin had to wait parks the process on it.
+let private landPackage
+  (vm : VMState)
+  (registers : Dval array)
+  (putResultIn : Register)
+  (outcome : PackageOutcome)
+  : ApplyOutcome =
+  match outcome with
+  | Completed(Pending.Wait t) -> AwaitBuiltin(t, putResultIn)
+  | Completed dv ->
+    Registers.set registers putResultIn dv
+    ApplyDone
+  | PushFrame frame ->
+    vm.frameToPush <- ValueSome frame
+    ApplyDone
+
+
 /// `Apply` of a trait method whose implementation the save recorded.
 let private applyRecordedImpl
   (exeState : ExecutionState)
@@ -4470,26 +4346,9 @@ let private applyRecordedImpl
         access = implAccess tm ctx.access
         applicable =
           { applicable with name = FQFnName.Package implFn; typeArgs = [] } }
-  let call : Ply<PackageOutcome> =
-    match Ply.trySync (exeState.fns.package implFn) with
-    | ValueSome(Some fn) -> callPackage exeState vm currentFrame implCtx fn
-    | ValueSome None ->
-      RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
-    | ValueNone ->
-      uply {
-        match! exeState.fns.package implFn with
-        | Some fn -> return! callPackage exeState vm currentFrame implCtx fn
-        | None ->
-          return RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
-      }
-  match Ply.trySync call with
-  | ValueSome(Completed dv) ->
-    Registers.set registers putResultIn dv
-    ApplyDone
-  | ValueSome(PushFrame frame) ->
-    vm.frameToPush <- ValueSome frame
-    ApplyDone
-  | ValueNone -> AwaitPackage(call, putResultIn)
+  let call : PackageOutcome =
+    callPackage exeState vm currentFrame implCtx (packageFn exeState vm implFn)
+  landPackage vm registers putResultIn call
 
 
 /// `Apply` of a trait method dispatched at run time.
@@ -4585,7 +4444,7 @@ let private applyTraitMethod
     vm.stats.traitDispatchCount <- vm.stats.traitDispatchCount + 1L
     if remembered.IsNone then
       vm.stats.traitDispatchMissCount <- vm.stats.traitDispatchMissCount + 1L
-  let call : Ply<PackageOutcome> =
+  let call : PackageOutcome =
     match remembered with
     | ValueSome implFn ->
       let implCtx =
@@ -4596,53 +4455,31 @@ let private applyTraitMethod
             access = implAccess tm ctx.access
             applicable =
               { applicable with name = FQFnName.Package implFn; typeArgs = [] } }
-      match Ply.trySync (exeState.fns.package implFn) with
-      | ValueSome(Some fn) -> callPackage exeState vm currentFrame implCtx fn
-      | ValueSome None ->
-        RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
-      | ValueNone ->
-        uply {
-          match! exeState.fns.package implFn with
-          | Some fn -> return! callPackage exeState vm currentFrame implCtx fn
-          | None ->
-            return RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
-        }
+      callPackage exeState vm currentFrame implCtx (packageFn exeState vm implFn)
     | ValueNone ->
       let allArgs =
         applicable.argsSoFar
         @ (newArgRegs |> NEList.toList |> List.map (fun r -> registers[r]))
-      uply {
-        let! implFn =
-          resolveTraitMethod
-            exeState
-            vm
-            currentFrame
-            traitHash
-            methodName
-            typeArgs
-            tst
-            allArgs
-        let implCtx =
-          { ctx with
-              // The type args named the TRAIT's params (the self type first); the
-              // impl fn has its own, inferred from the arguments.
-              typeArgs = []
-              access = implAccess tm ctx.access
-              applicable =
-                { applicable with name = FQFnName.Package implFn; typeArgs = [] } }
-        match! exeState.fns.package implFn with
-        | Some fn -> return! callPackage exeState vm currentFrame implCtx fn
-        | None ->
-          return RTE.FnNotFound(FQFnName.Package implFn) |> raiseRTE vm.threadID
-      }
-  match Ply.trySync call with
-  | ValueSome(Completed dv) ->
-    Registers.set registers putResultIn dv
-    ApplyDone
-  | ValueSome(PushFrame frame) ->
-    vm.frameToPush <- ValueSome frame
-    ApplyDone
-  | ValueNone -> AwaitPackage(call, putResultIn)
+      let implFn =
+        resolveTraitMethod
+          exeState
+          vm
+          currentFrame
+          traitHash
+          methodName
+          typeArgs
+          tst
+          allArgs
+      let implCtx =
+        { ctx with
+            // The type args named the TRAIT's params (the self type first); the
+            // impl fn has its own, inferred from the arguments.
+            typeArgs = []
+            access = implAccess tm ctx.access
+            applicable =
+              { applicable with name = FQFnName.Package implFn; typeArgs = [] } }
+      callPackage exeState vm currentFrame implCtx (packageFn exeState vm implFn)
+  landPackage vm registers putResultIn call
 
 
 /// `Apply` of a builtin.
@@ -4682,28 +4519,23 @@ let private applyBuiltin
           (takeFinish vm)
           false
       else
-        // Usually already finished, in which case there's no bind to pay for.
-        match Ply.trySync call with
-        | ValueSome dv ->
-          Registers.set registers putResultIn dv
-          ApplyDone
-        | ValueNone ->
+        match call with
+        | Pending.Wait t ->
           // A read that has to wait becomes a promise and the frame runs on; anything else
           // parks the process here, in program order.
-          // Deferrable when this call is a read; the same test `invokeBuiltin` makes of
-          // a request after the body's first wait.
           // A permission question must stop this process before later effects.
           // Interactive runs await reads; unattended runs keep concurrent reads.
           if exeState.requestPermission.IsNone && contextReadsOnly fn ctx then
-            match
-              Promises.tryMake vm currentFrame (FQFnName.Builtin fn.name) call
-            with
+            match Promises.tryMake vm currentFrame (FQFnName.Builtin fn.name) t with
             | ValueSome promise ->
               Registers.set registers putResultIn promise
               ApplyDone
-            | ValueNone -> AwaitBuiltin(call, putResultIn)
+            | ValueNone -> AwaitBuiltin(t, putResultIn)
           else
-            AwaitBuiltin(call, putResultIn)
+            AwaitBuiltin(t, putResultIn)
+        | dv ->
+          Registers.set registers putResultIn dv
+          ApplyDone
     recordStage vm ApplyStage.BiTotal biTotalAlloc
     outcome
 
@@ -4726,7 +4558,7 @@ let private plainPureCallArgs
   : struct (Dval[] * TypeSymbolTable) voption =
   let args = ArgSeq.toArrayFor currentFrame (ArgSeq.ofNE registers newArgRegs)
   let struct (_, unchecked, _, checkedTst) =
-    checkBiParamsSync types 0 fn.parameters args 0 tst
+    checkBiParams types 0 fn.parameters args 0 tst
   if List.isEmpty unchecked then
     ValueSome(struct (args, checkedTst))
   else
@@ -4761,7 +4593,7 @@ let private callPackageKnown
   (newArgRegs : NEList<Register>)
   (ctx : ApplyContext)
   (callData : PackageFnCallData)
-  : Ply<PackageOutcome> =
+  : PackageOutcome =
   let fn = callData.fn
   if
     not vm.stats.enabled
@@ -4775,20 +4607,18 @@ let private callPackageKnown
     && argsFitParams callData.paramList registers newArgRegs.head newArgRegs.tail
   then
     let n = NEList.length fn.parameters
-    Ply(
-      completePackage
-        exeState
-        vm
-        currentFrame
-        ctx
-        fn
-        callData
-        Set.empty
-        TST.empty
-        ctx.args
-        n
-        n
-    )
+    completePackage
+      exeState
+      vm
+      currentFrame
+      ctx
+      fn
+      callData
+      Set.empty
+      TST.empty
+      ctx.args
+      n
+      n
   elif
     List.isEmpty ctx.typeArgs
     && callData.thinWrapper.IsNone
@@ -4945,12 +4775,11 @@ let private applyPackageFn
           (takeFinish vm)
           false
       else
-        match Ply.trySync call with
-        | ValueSome dv ->
+        match call with
+        | Pending.Wait t -> AwaitBuiltin(t, putResultIn)
+        | dv ->
           Registers.set registers putResultIn dv
           ApplyDone
-        | ValueNone -> AwaitBuiltin(call, putResultIn)
-
   | _ ->
 
     let pkgFetchAlloc = allocNow vm
@@ -4969,56 +4798,28 @@ let private applyPackageFn
             ctx
         callPackageKnown exeState vm currentFrame registers newArgRegs ctx callData
       else
-        // The first call: fetch it. The miss builds its own `uply` and the hit never touches the
-        // builder. A `let!` here instead would sit in the loop's computation expression and cost
-        // a continuation closure on every call, reached or not.
+        // The first call: fetch it.
         let fetchOnlyAlloc = allocNow vm
-        let fetch = exeState.fns.package pkg
-        let fetched = Ply.trySync fetch
+        let fn = packageFn exeState vm pkg
         recordStage vm ApplyStage.PkgFetchOnly fetchOnlyAlloc
-        match fetched with
-        | ValueSome(Some fn) -> callPackage exeState vm currentFrame ctx fn
-        | ValueSome None ->
-          RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
-        | ValueNone ->
-          uply {
-            match! fetch with
-            | Some fn -> return! callPackage exeState vm currentFrame ctx fn
-            | None ->
-              return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
-          }
+        callPackage exeState vm currentFrame ctx fn
     recordStage vm ApplyStage.PkgFetch pkgFetchAlloc
-    match Ply.trySync call with
-    | ValueSome(Completed dv) ->
-      if requested vm then
-        // The elided builtin behind this wrapper asked for an apply.
-        beginRequest
-          exeState
-          vm
-          currentFrame
-          putResultIn
-          (currentFrame.programCounter + 1)
-          (takeFinish vm)
-          false
-      else
-        Registers.set registers putResultIn dv
-        ApplyDone
-    | ValueSome(PushFrame frame) ->
-      vm.frameToPush <- ValueSome frame
-      ApplyDone
-    | ValueNone -> AwaitPackage(call, putResultIn)
+    match call with
+    | Completed _ when requested vm ->
+      // The elided builtin behind this wrapper asked for an apply.
+      beginRequest
+        exeState
+        vm
+        currentFrame
+        putResultIn
+        (currentFrame.programCounter + 1)
+        (takeFinish vm)
+        false
+    | _ -> landPackage vm registers putResultIn call
 
 
-/// One `Apply` instruction, run without entering the interpreter's computation expression.
-///
-/// Returns what, if anything, still has to be awaited. Almost nothing does: resolving a type arg is a
-/// cache hit, checking an argument needs no store lookup in the ordinary case, and a pure builtin hands
-/// back a `Ply` that is already finished. Those cases finish here and the caller never touches the
-/// builder.
-///
-/// `outcome` is a plain mutable local, not a captured one: there is no computation expression in this
-/// function, so it lives in a slot rather than a ref cell. Keeping it meant every existing branch could
-/// stay unit-typed, which made this a move rather than a rewrite.
+/// One `Apply` instruction. Returns what, if anything, still has to be waited for: a builtin that
+/// really waits, or a read still in flight.
 let private applyInstructionForced
   (exeState : ExecutionState)
   (vm : VMState)
@@ -5080,8 +4881,7 @@ let private applyInstructionForced
         access
   | AppNamedFn applicable ->
     // The symbol table the call starts from. `callBuiltin` and `callPackage` take it from here and
-    // do the rest -- shadowing, inference, checking, invocation -- outside this computation
-    // expression, so the common case never enters the builder.
+    // do the rest: shadowing, inference, checking, invocation.
     let tst =
       if TST.isEmpty applicable.typeSymbolTable then
         currentFrame.typeSymbolTable
@@ -5106,10 +4906,6 @@ let private applyInstructionForced
     // A `FastOps` operator called directly, taken before any of the call machinery: no `ApplyContext`,
     // no builtin-table lookup, no `ArgSeq`. `tryFastOp` further down catches the same operators
     // arriving through an elided package wrapper -- `Stdlib.List.length` never reaches here.
-    //
-    // A function, not a `let mutable` here: the rest of this body has `uply` blocks in it, and a
-    // mutable a continuation captures becomes a heap ref cell allocated on every `Apply`, taken
-    // branch or not. Written that way first, it cost the gate and a view build several percent each.
     // An operator would take a read in flight as a value.
     match
       if anyPromiseIn registers newArgRegs then
@@ -5323,48 +5119,28 @@ let private fieldlessEnums =
   System.Collections.Concurrent.ConcurrentDictionary<struct (FQTypeName.FQTypeName *
   string), Dval>()
 
-/// Build a record, an enum or a record update without entering a computation expression.
-///
-/// These three opcodes are async only because their builders can need the type store. That store is
-/// cached, so after the first reference to a type the `Ply` they hand back is already complete, and
-/// the drain can take the value straight out of it.
-///
-/// Returns false when the store is genuinely needed. Nothing has been written to a register in that
-/// case, and the caller leaves the counter where it is so `runRareOpcode` runs the same instruction
-/// properly. That does mean the builder runs twice on a miss: the discarded `Ply` finishes on its own
-/// and its result is dropped. These builders only read the type store and construct a value, so a
-/// repeat is wasted work rather than a second effect, and a miss happens about once per type.
-let private tryBuildSync
+/// Build a record, an enum or an updated record into its register.
+let private buildValue
   (exeState : ExecutionState)
   (vm : VMState)
   (currentFrame : CallFrame)
   (registers : Dval array)
   (inst : Instruction)
-  : bool =
+  : unit =
   let tst = currentFrame.typeSymbolTable
 
   match inst with
   | CreateRecord(recordReg, sourceTypeName, typeArgs, fields) ->
-    match TypeReference.toVTsSync exeState.types tst [] typeArgs with
-    | ValueNone -> false
-    | ValueSome typeArgs ->
-      let fields = recordFieldsOfRegisters registers fields
-
-      match
-        Ply.trySync (
-          TypeChecker.DvalCreator.record
-            exeState.types
-            vm.threadID
-            tst
-            sourceTypeName
-            typeArgs
-            fields
-        )
-      with
-      | ValueSome record ->
-        Registers.set registers recordReg record
-        true
-      | ValueNone -> false
+    let typeArgs = TypeReference.toVTs exeState.types tst typeArgs
+    let fields = recordFieldsOfRegisters registers fields
+    TypeChecker.DvalCreator.record
+      exeState.types
+      vm.threadID
+      tst
+      sourceTypeName
+      typeArgs
+      fields
+    |> Registers.set registers recordReg
 
   | CreateEnum(enumReg, typeName, typeArgs, caseName, fields) ->
     // A case with no fields and no type arguments is the same value every time it is built, so the
@@ -5377,68 +5153,49 @@ let private tryBuildSync
       && fieldlessEnums.TryGetValue(struct (typeName, caseName), &kept)
     then
       Registers.set registers enumReg kept
-      true
     else
-      match TypeReference.toVTsSync exeState.types tst [] typeArgs with
-      | ValueNone -> false
-      | ValueSome typeArgs ->
-        let fields = valuesOfRegisters registers fields
-
-        match
-          Ply.trySync (
-            TypeChecker.DvalCreator.enum
-              exeState.types
-              vm.threadID
-              tst
-              typeName
-              typeArgs
-              caseName
-              fields
-          )
-        with
-        | ValueSome newEnum ->
-          match newEnum with
-          // With no fields, the frame's type symbol table is folded in and never consulted, so the
-          // result depends only on the type and the case, generic ones like `None` included.
-          | DEnum(_, _, _, _, []) when List.isEmpty fields ->
-            fieldlessEnums.TryAdd(struct (typeName, caseName), newEnum)
-            |> ignore<bool>
-          | _ -> ()
-          Registers.set registers enumReg newEnum
-          true
-        | ValueNone -> false
+      let typeArgs = TypeReference.toVTs exeState.types tst typeArgs
+      let fields = valuesOfRegisters registers fields
+      let newEnum =
+        TypeChecker.DvalCreator.enum
+          exeState.types
+          vm.threadID
+          tst
+          typeName
+          typeArgs
+          caseName
+          fields
+      match newEnum with
+      // With no fields, the frame's type symbol table is folded in and never consulted, so the
+      // result depends only on the type and the case, generic ones like `None` included.
+      | DEnum(_, _, _, _, []) when List.isEmpty fields ->
+        fieldlessEnums.TryAdd(struct (typeName, caseName), newEnum) |> ignore<bool>
+      | _ -> ()
+      Registers.set registers enumReg newEnum
 
   | CloneRecordWithUpdates(targetReg, originalRecordReg, fieldUpdates) ->
-    // A non-record here is a runtime error, which the async path raises. Declining keeps the error
-    // construction in one place rather than duplicating it.
     match Pending.peek registers[originalRecordReg] with
     | DRecord(sourceTypeName, resolvedTypeName, typeArgs, originalFields) ->
       let fieldUpdates = recordFieldsOfRegisters registers fieldUpdates
-
-      match
-        Ply.trySync (
-          TypeChecker.DvalCreator.recordUpdate
-            exeState.types
-            vm.threadID
-            tst
-            sourceTypeName
-            resolvedTypeName
-            typeArgs
-            originalFields
-            fieldUpdates
-        )
-      with
-      | ValueSome updated ->
-        Registers.set registers targetReg updated
-        true
-      | ValueNone -> false
-    | _ -> false
+      TypeChecker.DvalCreator.recordUpdate
+        exeState.types
+        vm.threadID
+        tst
+        sourceTypeName
+        resolvedTypeName
+        typeArgs
+        originalFields
+        fieldUpdates
+      |> Registers.set registers targetReg
+    | dv ->
+      Dval.toValueType dv
+      |> RTE.Records.UpdateNotRecord
+      |> RTE.Record
+      |> raiseRTE vm.threadID
 
   | _ ->
-    // Only the three above are offered here. Anything else reaching this is a routing mistake, and
-    // silently declining would turn it into a hang or a wrong answer.
     Exception.raiseInternal
-      "tryBuildSync given an opcode it does not handle"
+      "buildValue given an opcode it does not handle"
       [ "opcode", Opcode.index inst ]
 
 
@@ -5454,25 +5211,24 @@ let private packageValueFor
   : Dval =
   if v.isInert then v.body else Dval.captureValueAccess currentFrame.access v.body
 
-/// A `LoadValue` answered without waiting: a builtin value, or a package value the store has
-/// already answered for. `ValueNone` leaves it to `runRareOpcode`, which waits for the store and
-/// raises when there is no such value.
-let private loadValueSync
+/// The value a `LoadValue` loads.
+let private loadValue
   (exeState : ExecutionState)
+  (vm : VMState)
   (currentFrame : CallFrame)
   (name : FQValueName.FQValueName)
-  : Dval voption =
+  : Dval =
   match name with
   | FQValueName.Builtin builtin ->
     let mutable v = Unchecked.defaultof<BuiltInValue>
     if exeState.values.builtIn.TryGetValue(builtin, &v) then
-      ValueSome(Dval.captureValueAccess currentFrame.access v.body)
+      Dval.captureValueAccess currentFrame.access v.body
     else
-      ValueNone
+      raiseRTE vm.threadID (RTE.ValueNotFound name)
   | FQValueName.Package pkg ->
-    match Ply.trySync (exeState.values.package pkg) with
-    | ValueSome(Some v) -> ValueSome(packageValueFor currentFrame v)
-    | _ -> ValueNone
+    match exeState.values.package pkg with
+    | Some v -> packageValueFor currentFrame v
+    | None -> raiseRTE vm.threadID (RTE.ValueNotFound name)
 
 
 /// An operator call answered as its `Apply` would answer it in `tryFastOpDirect`: true when it
@@ -5526,13 +5282,9 @@ let inline private parkOnRead
   forceReg <- reg
 
 
-/// Run consecutive instructions that need no `await`, without entering the interpreter's computation
-/// expression at all. Returns the counter where it stopped: past the end of the block, or at one of the
-/// five opcodes that must be handled on the async path.
-///
-/// Those five -- CreateRecord, CloneRecordWithUpdates, CreateEnum, LoadValue, Apply -- are the only ones
-/// that await. The other eighteen are register moves, jumps, comparisons, match tests and container
-/// construction, and they are the overwhelming majority of instructions executed.
+/// Run a frame's instructions. Returns the counter where it stopped: past the end of the block, at a
+/// frame to push, at something to wait for (an `Apply` whose builtin waits, or an operand still in
+/// flight), or at a field read that misses and may be a receiver call (`runRareOpcode`).
 let private runSyncInstructions
   (exeState : ExecutionState)
   (vm : VMState)
@@ -5609,8 +5361,8 @@ let private runSyncInstructions
     let inst = instrData.instructions[counter]
 
     match inst with
-    // Records, enums and record updates are built here when their type is already resolved, which
-    // after the first reference to it is always. Only a genuine store miss stops the drain.
+    // Records, enums and record updates are built here; only an operand still in flight stops the
+    // drain.
     | CreateRecord _
     | CloneRecordWithUpdates _
     | CreateEnum _ ->
@@ -5645,7 +5397,8 @@ let private runSyncInstructions
           force <- null
           false
         else
-          tryBuildSync exeState vm currentFrame registers inst
+          buildValue exeState vm currentFrame registers inst
+          true
 
       if vm.stats.enabled then
         let tag = Opcode.index inst
@@ -5654,22 +5407,15 @@ let private runSyncInstructions
           if delta > 0L then
             vm.stats.allocByOpcode[tag] <- vm.stats.allocByOpcode[tag] + delta
           vm.stats.countByOpcode[tag] <- vm.stats.countByOpcode[tag] + 1L
-          if handled then
-            vm.stats.syncHitByOpcode[tag] <- vm.stats.syncHitByOpcode[tag] + 1L
-          else
-            vm.stats.syncMissByOpcode[tag] <- vm.stats.syncMissByOpcode[tag] + 1L
 
       if handled then counter <- counter + 1
       elif not landedRetry then running <- false
 
     | LoadValue(createTo, name) ->
-      match loadValueSync exeState currentFrame name with
-      | ValueSome v ->
-        if vm.stats.enabled then
-          vm.stats.instructionCount <- vm.stats.instructionCount + 1L
-        Registers.set registers createTo v
-        counter <- counter + 1
-      | ValueNone -> running <- false
+      if vm.stats.enabled then
+        vm.stats.instructionCount <- vm.stats.instructionCount + 1L
+      Registers.set registers createTo (loadValue exeState vm currentFrame name)
+      counter <- counter + 1
 
     // An operator call: this `LoadVal` and the `Apply` after it, answered from the registers.
     // Only when the budget would have run the `Apply` too, so preemption falls where it did, and
@@ -5748,9 +5494,7 @@ let private runSyncInstructions
       else
         running <- false
 
-    // `Apply` is all but a handful of the instructions that could stop this drain, and it almost
-    // never has to wait. So it runs here rather than handing control to the computation expression,
-    // which would build a continuation per iteration; only a genuine await stops the drain.
+    // `Apply` runs here too; only a genuine wait stops the drain.
     | Apply(putResultIn, thingToCallReg, typeArgs, newArgRegs) ->
       if vm.stats.enabled then
         vm.stats.instructionCount <- vm.stats.instructionCount + 1L
@@ -6192,9 +5936,7 @@ type private FrameStep =
   /// The block ended, or an `Apply` pushed a frame. Either way the caller looks at `vm.frameToPush`.
   | FrameBlockEnded
   /// A builtin that had to wait. Its result goes in this register.
-  | FrameAwaitBuiltin of fbCall : Ply<Dval> * fbReg : Register
-  /// A package call that had to wait.
-  | FrameAwaitPackage of fpCall : Ply<PackageOutcome> * fpReg : Register
+  | FrameAwaitBuiltin of fbCall : Task<Dval> * fbReg : Register
   /// An operand of the instruction under the counter is a read still in flight. Wait for it, write
   /// its value into this register, and run the instruction; the counter does not move.
   | FrameAwaitForce of ffTask : Task<Dval> * ffReg : Register
@@ -6203,12 +5945,12 @@ type private FrameStep =
   | FrameAwaitReads of frTask : Task<Dval>
   /// A builtin's apply chain is waiting on its continuation. When it lands, `drive` it on.
   | FrameAwaitContinuation of
-    fcPly : Ply<Dval> *
+    fcTask : Task<Dval> *
     fcReg : Register *
     fcPc : int *
-    fcNext : (Dval -> Ply<Dval>) *
+    fcNext : (Dval -> Dval) *
     fcFinish : (Dval -> unit)
-  /// The counter is sitting on one of the four opcodes the caller still runs itself.
+  /// The counter is sitting on a field access the drain could not answer: a receiver call.
   | FrameRareOpcode
   /// The VM's instruction budget ran out. Nothing is half-done: the counter sits on the instruction
   /// that has not run, and the frame resumes exactly there once the scheduler refills the budget.
@@ -6243,12 +5985,8 @@ let private noteFinishedValue
     | None -> ()
 
 
-/// Run a frame's instructions until something needs the caller: an await, one of the four rare
-/// opcodes, a pushed frame, or the end of the block.
-///
-/// An ordinary `while`, deliberately: inside a computation expression, Ply builds a continuation
-/// for the body on every iteration. The caller enters the builder only for the cases above, which
-/// are rare.
+/// Run a frame's instructions until something needs the caller: a wait, a receiver call, a pushed
+/// frame, or the end of the block.
 let private runFrame
   (exeState : ExecutionState)
   (vm : VMState)
@@ -6295,9 +6033,6 @@ let private runFrame
     | AwaitBuiltin(call, reg) ->
       step <- FrameAwaitBuiltin(call, reg)
       running <- false
-    | AwaitPackage(call, reg) ->
-      step <- FrameAwaitPackage(call, reg)
-      running <- false
     | AwaitForce(task, reg) ->
       step <- FrameAwaitForce(task, reg)
       running <- false
@@ -6322,54 +6057,38 @@ let private runFrame
 
 
 
-/// A `Task<unit>` that is already finished, allocated once. `Task.CompletedTask` is the untyped
-/// `Task`, and `Task.FromResult ()` would allocate on every call that has nothing to await.
-let private completedUnit : System.Threading.Tasks.Task<unit> =
-  System.Threading.Tasks.Task.FromResult()
-
-
-/// The part of a frame's return check that actually needs the type store. Rare: only when the
-/// return type can't be settled without a lookup.
-///
-/// Its own small `task`, with its binds at statement position, so it reduces to a static state
-/// machine.
-let private frameReturnTypeCheckAsync
+/// The full check of a frame's result against its declared return type, for when the quick one
+/// could not tell.
+let private frameReturnTypeCheckFull
   (exeState : ExecutionState)
   (vm : VMState)
   (tst : TypeSymbolTable)
   (expectedReturnType : TypeReference)
   (resultOfFrame : Dval)
   (fnName : FQFnName.FQFnName)
-  : System.Threading.Tasks.Task<unit> =
-  task {
-    match!
-      Ply.toTask (
-        TypeChecker.unify exeState.types tst expectedReturnType resultOfFrame
-      )
-    with
-    | Ok _updatedTst ->
-      //currentFrame.typeSymbolTable <- updatedTst
-      // CLEANUP is this^ or something like it worthwhile?
-      ()
-    | Error _path ->
-      let! expectedVT =
-        Ply.toTask (TypeReference.toVT exeState.types tst expectedReturnType)
-      RuntimeError.Applications.FnResultNotExpectedType(
-        fnName,
-        Some expectedReturnType,
-        expectedVT,
-        Dval.toValueType resultOfFrame,
-        resultOfFrame
-      )
-      |> RuntimeError.Apply
-      |> raiseRTE vm.threadID
-  }
+  : unit =
+  match TypeChecker.unify exeState.types tst expectedReturnType resultOfFrame with
+  | Ok _updatedTst ->
+    //currentFrame.typeSymbolTable <- updatedTst
+    // CLEANUP is this^ or something like it worthwhile?
+    ()
+  | Error _path ->
+    let expectedVT = TypeReference.toVT exeState.types tst expectedReturnType
+    RuntimeError.Applications.FnResultNotExpectedType(
+      fnName,
+      Some expectedReturnType,
+      expectedVT,
+      Dval.toValueType resultOfFrame,
+      resultOfFrame
+    )
+    |> RuntimeError.Apply
+    |> raiseRTE vm.threadID
 
 
 /// A quick check of the lambda's result against every fn it was passed to. `true`
 /// means it passed. `false` means we couldn't tell quickly, so the slower
-/// `lambdaReturnTypeCheckAsync` decides.
-let rec private lambdaLinksPassSync
+/// `lambdaReturnTypeCheckFull` decides.
+let rec private lambdaLinksPass
   (exeState : ExecutionState)
   (vm : VMState)
   (e : LambdaReturnExpectation voption)
@@ -6384,7 +6103,7 @@ let rec private lambdaLinksPassSync
       TypeChecker.fitsWithNothingToBind x.typeSymbolTable x.returnType resultOfFrame
       || not (isLive vm x)
       || (match
-            TypeChecker.tryUnifyWithAliasesSync
+            TypeChecker.tryUnifyWithAliases
               exeState.types
               x.typeSymbolTable
               x.returnType
@@ -6394,89 +6113,75 @@ let rec private lambdaLinksPassSync
             x.typeSymbolTable <- tst
             true
           | ValueNone -> false)
-    passes && lambdaLinksPassSync exeState vm x.outer resultOfFrame
+    passes && lambdaLinksPass exeState vm x.outer resultOfFrame
 
 /// The full check of a lambda's result against every fn it was passed to. If it fails,
 /// the error names the outermost fn, the one the person called. The type it shows may
 /// come from a stricter fn further in.
-let private lambdaReturnTypeCheckAsync
+let private lambdaReturnTypeCheckFull
   (exeState : ExecutionState)
   (vm : VMState)
   (e : LambdaReturnExpectation)
   (resultOfFrame : Dval)
-  : System.Threading.Tasks.Task<unit> =
-  task {
-    let mutable link = ValueSome e
-    let mutable outermost = e
-    let mutable broken = ValueNone
-    while link.IsSome do
-      let x = link.Value
-      if isLive vm x then
-        outermost <- x
-        match!
-          Ply.toTask (
-            TypeChecker.unify
-              exeState.types
-              x.typeSymbolTable
-              x.returnType
-              resultOfFrame
-          )
-        with
-        | Ok tst -> x.typeSymbolTable <- tst
-        | Error _path -> broken <- ValueSome x
-      link <- x.outer
-    match broken with
-    | ValueNone -> ()
-    | ValueSome b ->
-      let! expectedVT =
-        Ply.toTask (TypeReference.toVT exeState.types b.typeSymbolTable b.returnType)
-      RuntimeError.Applications.LambdaResultNotExpectedType(
-        outermost.fnName,
-        outermost.paramIndex,
-        outermost.paramName,
-        Some b.returnType,
-        expectedVT,
-        Dval.toValueType resultOfFrame,
-        resultOfFrame
-      )
-      |> RuntimeError.Apply
-      |> raiseRTE vm.threadID
-  }
+  : unit =
+  let mutable link = ValueSome e
+  let mutable outermost = e
+  let mutable broken = ValueNone
+  while link.IsSome do
+    let x = link.Value
+    if isLive vm x then
+      outermost <- x
+      match
+        (TypeChecker.unify
+          exeState.types
+          x.typeSymbolTable
+          x.returnType
+          resultOfFrame)
+      with
+      | Ok tst -> x.typeSymbolTable <- tst
+      | Error _path -> broken <- ValueSome x
+    link <- x.outer
+  match broken with
+  | ValueNone -> ()
+  | ValueSome b ->
+    let expectedVT =
+      (TypeReference.toVT exeState.types b.typeSymbolTable b.returnType)
+    RuntimeError.Applications.LambdaResultNotExpectedType(
+      outermost.fnName,
+      outermost.paramIndex,
+      outermost.paramName,
+      Some b.returnType,
+      expectedVT,
+      Dval.toValueType resultOfFrame,
+      resultOfFrame
+    )
+    |> RuntimeError.Apply
+    |> raiseRTE vm.threadID
 
 
 /// Type-check what a frame is returning: a function frame against its declared return type, a
 /// lambda frame against the parameter it was passed to, if any.
-///
-/// Deliberately *not* a computation expression: it returns an already-completed task in the ordinary
-/// case and hands back the rare async one otherwise. A `match!` sitting inside a nested match arm is
-/// what F#'s resumable code cannot reduce (FS3511), and an unreduced state machine silently falls
-/// back to the dynamic, allocating implementation -- exactly what moving off Ply was meant to escape.
-/// It also breaks the Release build, where that warning is an error.
 let private checkFrameReturnType
   (exeState : ExecutionState)
   (vm : VMState)
   (currentFrame : CallFrame)
   (resultOfFrame : Dval)
-  : System.Threading.Tasks.Task<unit> =
+  : unit =
   let retTcAlloc = allocNow vm
   match currentFrame.executionPoint with
-  | Source -> completedUnit
+  | Source -> ()
   | Lambda _ ->
     match currentFrame.expectedLambdaReturn with
-    | ValueNone -> completedUnit
+    | ValueNone -> ()
     | ValueSome e ->
       if
-        lambdaLinksPassSync
-          exeState
-          vm
-          currentFrame.expectedLambdaReturn
-          resultOfFrame
+        lambdaLinksPass exeState vm currentFrame.expectedLambdaReturn resultOfFrame
       then
         recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
-        completedUnit
+        ()
       else
         recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
-        lambdaReturnTypeCheckAsync exeState vm e resultOfFrame
+        lambdaReturnTypeCheckFull exeState vm e resultOfFrame
   | Function fnName ->
     // Recorded when the frame was pushed. Builtins never get a frame, so a Function frame always
     // carries one; the fallback keeps the match total rather than asserting.
@@ -6494,10 +6199,10 @@ let private checkFrameReturnType
     // applies: skip the bind when the answer needs no type lookup.
     if TypeChecker.argFitsWithNothingToBind tst expectedReturnType resultOfFrame then
       recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
-      completedUnit
+      ()
     else
       match
-        TypeChecker.tryUnifyWithAliasesSync
+        TypeChecker.tryUnifyWithAliases
           exeState.types
           tst
           expectedReturnType
@@ -6505,10 +6210,10 @@ let private checkFrameReturnType
       with
       | ValueSome _ ->
         recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
-        completedUnit
+        ()
       | ValueNone ->
         recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
-        frameReturnTypeCheckAsync
+        frameReturnTypeCheckFull
           exeState
           vm
           tst
@@ -6530,7 +6235,7 @@ let private receiverImpl
   (vm : VMState)
   (methodName : string)
   (self : KnownType)
-  : Ply<Option<FQFnName.Package>> =
+  : Option<FQFnName.Package> =
   // Read before the candidates, as dispatch does, so a fold in between cannot stamp a stale
   // pick with the new generation.
   let generation = exeState.fns.implGeneration ()
@@ -6543,57 +6248,52 @@ let private receiverImpl
     && (let struct (g, _) = hit in g = generation)
   then
     let struct (_, fnHash) = hit
-    Ply(Some fnHash)
+    (Some fnHash)
   else
-    uply {
-      let! candidates =
-        exeState.fns.implCandidatesByMethod exeState.branchId methodName
-      // Two TRAITS that both declare this method is an ambiguity, and it is settled here
-      // rather than by `select`. `select` breaks a tie by the stamp of the op that added the
-      // implementation, which is the right answer for rivals of ONE trait (they share a
-      // signature, so the pick is invisible) and the wrong one across two: `p.describe`
-      // would silently mean whichever trait was written later. The at-rest checker has no
-      // receiver-call rule of its own yet: it reports any receiver call on a value without
-      // that field as a field-access error, ambiguous or not, so this is the only place the
-      // ambiguity is named.
-      let applicable = Traits.applicable candidates self
-      let traits = applicable |> List.map (fun c -> c.trait_) |> List.distinct
-      match traits with
-      | _ :: _ :: _ ->
-        return
-          RTE.Trait(
-            RTE.Traits.MethodAmbiguous(
-              methodName,
-              ValueType.Known self,
-              traits |> List.map FQTraitName.Package
-            )
-          )
-          |> raiseRTE vm.threadID
-      | _ ->
+    let candidates = exeState.fns.implCandidatesByMethod exeState.branchId methodName
+    // Two TRAITS that both declare this method is an ambiguity, and it is settled here
+    // rather than by `select`. `select` breaks a tie by the stamp of the op that added the
+    // implementation, which is the right answer for rivals of ONE trait (they share a
+    // signature, so the pick is invisible) and the wrong one across two: `p.describe`
+    // would silently mean whichever trait was written later. The at-rest checker has no
+    // receiver-call rule of its own yet: it reports any receiver call on a value without
+    // that field as a field-access error, ambiguous or not, so this is the only place the
+    // ambiguity is named.
+    let applicable = Traits.applicable candidates self
+    let traits = applicable |> List.map (fun c -> c.trait_) |> List.distinct
+    match traits with
+    | _ :: _ :: _ ->
+      RTE.Trait(
+        RTE.Traits.MethodAmbiguous(
+          methodName,
+          ValueType.Known self,
+          traits |> List.map FQTraitName.Package
+        )
+      )
+      |> raiseRTE vm.threadID
+    | _ ->
 
-        match Traits.select candidates self with
-        | Traits.NoImpl -> return None
-        | Traits.Selected c ->
-          match Map.tryFind methodName c.methods with
-          | Some fnHash ->
-            exeState.fns.implSelectionMemo[struct (exeState.branchId,
-                                                   receiverMemoTrait,
-                                                   methodName,
-                                                   self)] <-
-              struct (generation, fnHash)
-            return Some fnHash
-          | None -> return None
-        | Traits.Ambiguous cs ->
-          return
-            RTE.Trait(
-              RTE.Traits.MethodAmbiguous(
-                methodName,
-                ValueType.Known self,
-                cs |> List.map (fun c -> FQTraitName.Package c.trait_)
-              )
-            )
-            |> raiseRTE vm.threadID
-    }
+      match Traits.select candidates self with
+      | Traits.NoImpl -> None
+      | Traits.Selected c ->
+        match Map.tryFind methodName c.methods with
+        | Some fnHash ->
+          exeState.fns.implSelectionMemo[struct (exeState.branchId,
+                                                 receiverMemoTrait,
+                                                 methodName,
+                                                 self)] <-
+            struct (generation, fnHash)
+          Some fnHash
+        | None -> None
+      | Traits.Ambiguous cs ->
+        RTE.Trait(
+          RTE.Traits.MethodAmbiguous(
+            methodName,
+            ValueType.Known self,
+            cs |> List.map (fun c -> FQTraitName.Package c.trait_)
+          )
+        )
+        |> raiseRTE vm.threadID
 
 
 /// The four opcodes that can still need the package store: CreateRecord, CloneRecordWithUpdates,
@@ -6614,27 +6314,27 @@ let private receiverMethod
   (currentFrame : CallFrame)
   (receiver : Dval)
   (methodName : string)
-  : Ply<Option<Dval>> =
-  uply {
-    match Dval.toValueType receiver with
-    | ValueType.Unknown -> return None
-    | ValueType.Known self ->
-      match! receiverImpl exeState vm methodName self with
-      | None -> return None
-      | Some fnHash ->
-        // Chosen by the receiver's type, so by whoever made the value.
-        let access = Permissions.Access.forCallersCode currentFrame.access
-        let applicable =
-          AppNamedFn
-            { name = FQFnName.Package fnHash
-              typeSymbolTable = TST.empty
-              typeArgs = []
-              approvalName = None
-              access = Some access
-              argsSoFar = []
-              boundImpls = [] }
-        match! exeState.fns.package fnHash with
-        | Some fn when NEList.length fn.parameters = 1 ->
+  : Task<Option<Dval>> =
+  match Dval.toValueType receiver with
+  | ValueType.Unknown -> Task.FromResult None
+  | ValueType.Known self ->
+    match receiverImpl exeState vm methodName self with
+    | None -> Task.FromResult None
+    | Some fnHash ->
+      // Chosen by the receiver's type, so by whoever made the value.
+      let access = Permissions.Access.forCallersCode currentFrame.access
+      let applicable =
+        AppNamedFn
+          { name = FQFnName.Package fnHash
+            typeSymbolTable = TST.empty
+            typeArgs = []
+            approvalName = None
+            access = Some access
+            argsSoFar = []
+            boundImpls = [] }
+      match exeState.fns.package fnHash with
+      | Some fn when NEList.length fn.parameters = 1 ->
+        task {
           match!
             exeState.callApplicable
               exeState
@@ -6646,21 +6346,22 @@ let private receiverMethod
           | Error(rte, nested) ->
             vm.nestedCallStack <- nested
             return raiseRTE vm.threadID rte
-        | _ ->
-          return
-            Some(
-              DApplicable(
-                AppNamedFn
-                  { name = FQFnName.Package fnHash
-                    typeSymbolTable = TST.empty
-                    typeArgs = []
-                    approvalName = None
-                    access = Some access
-                    argsSoFar = [ receiver ]
-                    boundImpls = [] }
-              )
+        }
+      | _ ->
+        Task.FromResult(
+          Some(
+            DApplicable(
+              AppNamedFn
+                { name = FQFnName.Package fnHash
+                  typeSymbolTable = TST.empty
+                  typeArgs = []
+                  approvalName = None
+                  access = Some access
+                  argsSoFar = [ receiver ]
+                  boundImpls = [] }
             )
-  }
+          )
+        )
 
 let private runRareOpcode
   (exeState : ExecutionState)
@@ -6668,14 +6369,12 @@ let private runRareOpcode
   (currentFrame : CallFrame)
   (registers : Dval array)
   (inst : Instruction)
-  : System.Threading.Tasks.Task<unit> =
-  task {
-    match inst with
-    | GetRecordField(targetReg, recordReg, fieldName) ->
-      let receiver = registers[recordReg]
-      match!
-        Ply.toTask (receiverMethod exeState vm currentFrame receiver fieldName)
-      with
+  : Task =
+  match inst with
+  | GetRecordField(targetReg, recordReg, fieldName) ->
+    let receiver = registers[recordReg]
+    task {
+      match! receiverMethod exeState vm currentFrame receiver fieldName with
       | Some applicable -> Registers.set registers targetReg applicable
       | None ->
         match receiver with
@@ -6694,105 +6393,12 @@ let private runRareOpcode
           RTE.Records.FieldAccessNotRecord(Dval.toValueType dv)
           |> RTE.Record
           |> raiseRTE vm.threadID
-    | CreateRecord(recordReg, sourceTypeName, typeArgs, fields) ->
-      let fields = recordFieldsOfRegisters registers fields
-
-      let! typeArgs =
-        Ply.toTask (
-          typeArgs
-          |> Ply.List.mapSequentially (
-            TypeReference.toVT exeState.types currentFrame.typeSymbolTable
-          )
-        )
-
-      let! record =
-        Ply.toTask (
-          TypeChecker.DvalCreator.record
-            exeState.types
-            vm.threadID
-            currentFrame.typeSymbolTable
-            sourceTypeName
-            typeArgs
-            fields
-        )
-
-      Registers.set registers recordReg record
-    | CloneRecordWithUpdates(targetReg, originalRecordReg, fieldUpdates) ->
-      let originalRecord = Pending.peek registers[originalRecordReg]
-
-      match originalRecord with
-      | DRecord(sourceTypeName, resolvedTypeName, typeArgs, originalFields) ->
-        let fieldUpdates = recordFieldsOfRegisters registers fieldUpdates
-
-        let! updatedRecord =
-          Ply.toTask (
-            TypeChecker.DvalCreator.recordUpdate
-              exeState.types
-              vm.threadID
-              currentFrame.typeSymbolTable
-              sourceTypeName
-              resolvedTypeName
-              typeArgs
-              originalFields
-              fieldUpdates
-          )
-
-        Registers.set registers targetReg updatedRecord
-
-      | dv ->
-        Dval.toValueType dv
-        |> RTE.Records.UpdateNotRecord
-        |> RTE.Record
-        |> raiseRTE vm.threadID
-    | CreateEnum(enumReg, typeName, typeArgs, caseName, fields) ->
-      let fields = valuesOfRegisters registers fields
-
-      let tst = currentFrame.typeSymbolTable
-
-      let! typeArgs =
-        Ply.toTask (
-          typeArgs
-          |> Ply.List.mapSequentially (TypeReference.toVT exeState.types tst)
-        )
-
-      let! newEnum =
-        Ply.toTask (
-          TypeChecker.DvalCreator.enum
-            exeState.types
-            vm.threadID
-            tst
-            typeName
-            typeArgs
-            caseName
-            fields
-        )
-
-      Registers.set registers enumReg newEnum
-    | LoadValue(createTo, name) ->
-      match name with
-      | FQValueName.Builtin builtin ->
-        match exeState.values.builtIn.TryGetValue builtin with
-        | true, v ->
-          Registers.set
-            registers
-            createTo
-            (Dval.captureValueAccess currentFrame.access v.body)
-        | false, _ -> raiseRTE vm.threadID (RTE.ValueNotFound name)
-
-      | FQValueName.Package pkg ->
-        match! Ply.toTask (exeState.values.package pkg) with
-        | Some v -> registers[createTo] <- packageValueFor currentFrame v
-        | None -> raiseRTE vm.threadID (RTE.ValueNotFound name)
-    // `Apply` never arrives here: `runSyncInstructions` runs it, and `runFrame` only reports
-    // `FrameRareOpcode` for the five above. Loud rather than silent if that ever stops holding.
-    | Apply _ ->
-      Exception.raiseInternal
-        "Apply reached the interpreter's async instruction path"
-        []
-
-    // Handled by `runSyncInstructions`; the match must still be exhaustive.
-    | _ -> ()
-  }
+    }
+  // `runFrame` only reports `FrameRareOpcode` for a field access the drain could not answer.
+  | _ ->
+    Exception.raiseInternal
+      "an opcode the drain runs reached the rare path"
+      [ "opcode", Opcode.index inst ]
 
 
 
@@ -6833,7 +6439,7 @@ let private tryRunAgain
   (exeState : ExecutionState)
   (vm : VMState)
   (frame : CallFrame)
-  (out : Ply<Dval>)
+  (out : Dval)
   : bool =
   match frame.appliedLambda with
   | ValueNone -> false
@@ -6854,7 +6460,7 @@ let private tryRunAgain
           || (match second with
               | ValueSome(DPromise _) -> true
               | _ -> false)
-          || (Ply.trySync out).IsNone
+          || Pending.isWait out
         then
           false
         else
@@ -6880,28 +6486,16 @@ let private tryRunAgain
       | _ -> false
 
 
-/// Everything the interpreter loop does once `runFrame` hands control back: the awaits, the four
-/// rare opcodes, and the frame push or pop.
-///
-/// All of it lives here so the loop's body contains a single `do!` at statement position. F#'s
-/// resumable code could not reduce a state machine with these binds sitting in match arms inside a
-/// `while` (FS3511), and an unreduced machine falls back to the dynamic, allocating implementation --
-/// exactly what moving off Ply was meant to escape.
-/// Hand a finished frame's result to its parent, or record it as the whole run's result.
-///
-/// The trickiest bookkeeping in the interpreter -- the pop, the trace records, the parent's register
-/// and program counter -- and it is synchronous. Extracted so the task loop and the synchronous loop
-/// beside it share one copy rather than drifting apart.
-///
-/// The caller runs `checkFrameReturnType` first where there is a parent; it is separate because it is
-/// the one part of this that can await.
+/// Hand a finished frame's result to its parent, or record it as the whole run's result: the pop,
+/// the trace records, the parent's register and program counter. The caller runs
+/// `checkFrameReturnType` first where there is a parent.
 let inline private popFrame
   (exeState : ExecutionState)
   (vm : VMState)
   (currentFrame : CallFrame)
   (resultOfFrame : Dval)
   // What the frame's continuation already answered, if `returnFromFrame` ran it before the pop.
-  (earlyOut : Ply<Dval> voption)
+  (earlyOut : Dval voption)
   : ApplyOutcome =
   match currentFrame.parent with
   | ValueSome(parentID, regOfParentToPutResultInto, pcOfParent) ->
@@ -7001,9 +6595,9 @@ let private returnFromFrame
     popFrame exeState vm currentFrame resultOfFrame earlyOut
 
 
-/// Run the rare opcode under the frame's counter (the four the drain does not run itself). It
-/// can await, so it is a task; it writes the VM as it completes, on whatever thread completes
-/// it, and the loop does not look at the VM until it is done.
+/// Run the rare opcode under the frame's counter. It can wait (a receiver call runs the method),
+/// so it is a task; it writes the VM as it completes, on whatever thread completes it, and the
+/// loop does not look at the VM until it is done.
 let private runRareStep
   (exeState : ExecutionState)
   (vm : VMState)
@@ -7043,11 +6637,14 @@ type StepOutcome =
   /// The budget ran out with work left. Step again when it is this process's turn.
   | StepBudget
   /// Something has to be waited for. When `wait` completes, run `resume` on the stepping thread,
-  /// then step again. `wait` is a builtin's or package call's result (the ordinary case: `resume`
-  /// writes it into the frame's register), or one of the rare opcodes and the deferred return-type
-  /// check, which advance the VM themselves as they complete (`resume` is then a no-op). Either
-  /// way nothing else touches the VM until `wait` is done and `resume` has run.
-  | StepAwait of wait : System.Threading.Tasks.Task * resume : (unit -> unit)
+  /// then step again, or wait for what it answers, when what landed has to wait again. `wait` is
+  /// a builtin's or package call's result (the ordinary case: `resume` writes it into the frame's
+  /// register), or one of the rare opcodes and the deferred return-type check, which advance the
+  /// VM themselves as they complete (`resume` is then a no-op). Either way nothing else touches
+  /// the VM until `wait` is done and `resume` has run.
+  | StepAwait of
+    wait : System.Threading.Tasks.Task *
+    resume : (unit -> StepOutcome voption)
 
 
 /// A step the loop could not finish synchronously, as what to wait for and what to do when it
@@ -7057,52 +6654,35 @@ type StepOutcome =
 /// The frame is the VM's current one, read here rather than handed in: a continuation that
 /// waits from a frame's return belongs to the parent, which is current once the frame has
 /// popped, and the frame the loop was stepping is back in the pool by then.
-let private awaitOf
+let rec private awaitOf
   (exeState : ExecutionState)
   (vm : VMState)
   (step : FrameStep)
   : StepOutcome =
   let frame = vm.callFrames.Find vm.currentFrameID
-  // A chain that waits again from its resume is rare (a continuation that waits twice in a
-  // row) and is waited for on the spot.
-  let driveToValue (first : ApplyOutcome) : unit =
-    let mutable outcome = first
-    while (match outcome with
-           | AwaitContinuation _ -> true
-           | _ -> false) do
-      match outcome with
-      | AwaitContinuation(ply2, reg2, pc2, next2, finish2) ->
-        let dv2 = (Ply.toTask ply2).Result
-        outcome <- drive exeState vm frame reg2 pc2 next2 finish2 (Ply dv2) true
-      | _ -> ()
+  // A chain that waits again from its resume (a continuation that waits twice in a row) is
+  // parked on again.
+  let waitAgain (outcome : ApplyOutcome) : StepOutcome voption =
+    match outcome with
+    | AwaitContinuation(t, reg, pc, next, finish) ->
+      ValueSome(
+        awaitOf exeState vm (FrameAwaitContinuation(t, reg, pc, next, finish))
+      )
+    | _ -> ValueNone
   match step with
-  | FrameAwaitBuiltin(call, reg) ->
-    let running = Ply.toTask call
+  | FrameAwaitBuiltin(running, reg) ->
     StepAwait(
       running,
       // A request made after the wait starts a chain (`landBuiltin`).
-      fun () -> driveToValue (landBuiltin exeState vm frame reg running.Result)
+      fun () -> waitAgain (landBuiltin exeState vm frame reg running.Result) // landed
     )
-  | FrameAwaitPackage(call, reg) ->
-    let running = Ply.toTask call
-    StepAwait(
-      running,
-      fun () ->
-        frame.programCounter <- frame.programCounter + 1
-        match running.Result with
-        | Completed dv -> Registers.set frame.registers reg dv
-        | PushFrame newFrame -> enterFrame vm frame newFrame
-    )
-  | FrameAwaitContinuation(ply, reg, pc, next, finish) ->
+  | FrameAwaitContinuation(running, reg, pc, next, finish) ->
     // Parked on a builtin's continuation (a callable it asked for has returned, and what the
     // builtin does with that waits). Driven on when it lands.
-    let running = Ply.toTask ply
     StepAwait(
       running,
       fun () ->
-        driveToValue (
-          drive exeState vm frame reg pc next finish (Ply running.Result) true
-        )
+        waitAgain (drive exeState vm frame reg pc next finish running.Result true) // landed
     )
   | FrameAwaitForce(task, reg) ->
     // Parked on the read. The wait never faults: a read that failed stays a promise in the
@@ -7118,6 +6698,7 @@ let private awaitOf
       fun () ->
         if task.IsCompletedSuccessfully then
           Registers.set frame.registers reg task.Result
+        ValueNone
     )
   | FrameAwaitReads task ->
     let landed =
@@ -7125,11 +6706,11 @@ let private awaitOf
         (fun (_ : Task<Dval>) -> ()),
         TaskContinuationOptions.ExecuteSynchronously
       )
-    StepAwait(landed, (fun () -> ()))
+    StepAwait(landed, (fun () -> ValueNone))
   | FrameRareOpcode ->
     // Writes the VM as it completes, on whatever thread completes it; the process is parked
     // meanwhile and nobody looks at the VM until `wait` is done.
-    StepAwait(runRareStep exeState vm frame, (fun () -> ()))
+    StepAwait(runRareStep exeState vm frame, (fun () -> ValueNone))
   | FrameBudget -> StepBudget
   | FrameBlockEnded ->
     Exception.raiseInternal "a finished block is not a wait" [ "vm", vm.threadID ]
@@ -7169,27 +6750,19 @@ let executeSync (exeState : ExecutionState) (vm : VMState) : StepOutcome =
     // Rare by construction, and running one can await, so it is handed over rather than tried.
     | FrameRareOpcode -> bail <- ValueSome(awaitOf exeState vm step)
     | FrameAwaitBuiltin(call, reg) ->
-      match Ply.trySync call with
-      | ValueSome dv ->
-        match landBuiltin exeState vm currentFrame reg dv with
-        | AwaitContinuation(ply2, reg2, pc2, next2, finish2) ->
+      if call.IsCompletedSuccessfully then
+        match landBuiltin exeState vm currentFrame reg call.Result with
+        | AwaitContinuation(t2, reg2, pc2, next2, finish2) ->
           bail <-
             ValueSome(
               awaitOf
                 exeState
                 vm
-                (FrameAwaitContinuation(ply2, reg2, pc2, next2, finish2))
+                (FrameAwaitContinuation(t2, reg2, pc2, next2, finish2))
             )
         | _ -> ()
-      | ValueNone -> bail <- ValueSome(awaitOf exeState vm step)
-    | FrameAwaitPackage(call, reg) ->
-      match Ply.trySync call with
-      | ValueSome outcome ->
-        currentFrame.programCounter <- currentFrame.programCounter + 1
-        match outcome with
-        | Completed dv -> Registers.set registers reg dv
-        | PushFrame frame -> enterFrame vm currentFrame frame
-      | ValueNone -> bail <- ValueSome(awaitOf exeState vm step)
+      else
+        bail <- ValueSome(awaitOf exeState vm step)
     | FrameAwaitForce(task, reg) ->
       // Landed between the check and here: the value goes in and the instruction runs again.
       if task.IsCompletedSuccessfully then
@@ -7197,20 +6770,20 @@ let executeSync (exeState : ExecutionState) (vm : VMState) : StepOutcome =
       else
         bail <- ValueSome(awaitOf exeState vm step)
     | FrameAwaitReads _ -> bail <- ValueSome(awaitOf exeState vm step)
-    | FrameAwaitContinuation(ply, reg, pc, next, finish) ->
-      match Ply.trySync ply with
-      | ValueSome dv ->
-        match drive exeState vm currentFrame reg pc next finish (Ply dv) true with
-        | AwaitContinuation(ply2, reg2, pc2, next2, finish2) ->
+    | FrameAwaitContinuation(t, reg, pc, next, finish) ->
+      if t.IsCompletedSuccessfully then
+        match drive exeState vm currentFrame reg pc next finish t.Result true with
+        | AwaitContinuation(t2, reg2, pc2, next2, finish2) ->
           bail <-
             ValueSome(
               awaitOf
                 exeState
                 vm
-                (FrameAwaitContinuation(ply2, reg2, pc2, next2, finish2))
+                (FrameAwaitContinuation(t2, reg2, pc2, next2, finish2))
             )
         | _ -> ()
-      | ValueNone -> bail <- ValueSome(awaitOf exeState vm step)
+      else
+        bail <- ValueSome(awaitOf exeState vm step)
 
     if ValueOption.isNone bail && step.IsBlockEnded then
       match vm.frameToPush with
@@ -7220,34 +6793,17 @@ let executeSync (exeState : ExecutionState) (vm : VMState) : StepOutcome =
 
         match currentFrame.parent with
         | ValueSome _ ->
-          // A `Task`, so asked with `IsCompletedSuccessfully` rather than `Ply.trySync`. It answers
-          // synchronously in the ordinary case: the awaiting one is a type that needs the store.
-          let check = checkFrameReturnType exeState vm currentFrame resultOfFrame
-          if check.IsCompletedSuccessfully then
-            match returnFromFrame exeState vm currentFrame resultOfFrame with
-            | AwaitContinuation(ply, reg, pc, next, finish) ->
-              bail <-
-                ValueSome(
-                  awaitOf
-                    exeState
-                    vm
-                    (FrameAwaitContinuation(ply, reg, pc, next, finish))
-                )
-            | _ -> ()
-          else
-            // Only a package fn frame checks its return type, and a package fn is never a
-            // continuation frame (a callable that is a named fn applies through its own path),
-            // so the return never has a chain to drive.
-            let frame = currentFrame
+          checkFrameReturnType exeState vm currentFrame resultOfFrame
+          match returnFromFrame exeState vm currentFrame resultOfFrame with
+          | AwaitContinuation(t, reg, pc, next, finish) ->
             bail <-
               ValueSome(
-                StepAwait(
-                  check,
-                  (fun () ->
-                    returnFromFrame exeState vm frame resultOfFrame
-                    |> ignore<ApplyOutcome>)
-                )
+                awaitOf
+                  exeState
+                  vm
+                  (FrameAwaitContinuation(t, reg, pc, next, finish))
               )
+          | _ -> ()
         | ValueNone ->
           // The end of the run forces a read still in flight: nothing leaves as a promise. The
           // frame stays; once the read lands the block ends again, with a value this time.
@@ -7311,12 +6867,16 @@ let private driveToEnd
     | :? System.OperationCanceledException as oce ->
       finished.TrySetCanceled oce.CancellationToken |> ignore<bool>
     | _ -> finished.TrySetException e |> ignore<bool>
-  // One wait is outstanding at a time, so one continuation serves every suspension of the run, as
-  // the builder's did, rather than a closure per suspension.
+  // One wait is outstanding at a time, so one continuation serves every suspension of the run,
+  // rather than a closure per suspension.
   let pendingWait = ref Unchecked.defaultof<Task>
-  let pendingResume = ref ignore<unit>
+  let pendingResume = ref (fun () -> ValueNone)
   let pendingContext = ref (null : System.Threading.ExecutionContext)
   let landed = ref Unchecked.defaultof<System.Action>
+  let stepOn (resumed : StepOutcome voption) : StepOutcome =
+    match resumed with
+    | ValueSome outcome -> outcome
+    | ValueNone -> executeSync exeState vm
   let rec run (from : StepOutcome) : unit =
     try
       let mutable outcome = from
@@ -7332,9 +6892,8 @@ let private driveToEnd
             [ "vm", vm.threadID ]
         | StepAwait(wait, resume) when wait.IsCompleted ->
           // Rethrows a fault as itself, as `do!` did, rather than wrapped.
-          wait.GetAwaiter().GetResult()
-          resume ()
-          outcome <- executeSync exeState vm
+          wait.GetAwaiter().GetResult() // landed
+          outcome <- stepOn (resume ())
         | StepAwait(wait, resume) ->
           stop <- true
           pendingWait.Value <- wait
@@ -7348,9 +6907,8 @@ let private driveToEnd
     let wait = pendingWait.Value
     let resume = pendingResume.Value
     try
-      wait.GetAwaiter().GetResult()
-      resume ()
-      run (executeSync exeState vm)
+      wait.GetAwaiter().GetResult() // landed
+      run (stepOn (resume ()))
     with e ->
       fail e
   let carryOnIn = System.Threading.ContextCallback(fun _ -> carryOn ())
@@ -7380,24 +6938,18 @@ let seedRootAccess (access : Permissions.Access) (vm : VMState) : unit =
 /// the same restrictions.
 /// Builtin callers pass their current `vm.activeAccess`; host-initiated runs
 /// pass the state's own access through `execute`.
+///
+/// A run that had to wait answers that wait (`Pending.ofTask`).
 let executeUnder
   (exeState : ExecutionState)
   (access : Permissions.Access)
   (vm : VMState)
-  : Ply<Dval> =
+  : Dval =
   seedRootAccess access vm
   match executeSync exeState vm with
-  | StepDone dv -> Ply dv
-  | bailed ->
-    // Unwrapped by hand rather than `uply { return! ... }`, which builds a state machine per call.
-    let running = driveToEnd exeState vm bailed
-    if running.IsCompletedSuccessfully then
-      Ply running.Result
-    else
-      // The task already started; awaiting `running` continues it. Calling `driveToEnd` here
-      // would start a second run of the same VM.
-      uply { return! running }
+  | StepDone dv -> dv
+  | bailed -> Pending.ofTask (driveToEnd exeState vm bailed)
 
 /// Host-initiated: a run that begins from the state's own access.
-let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
+let execute (exeState : ExecutionState) (vm : VMState) : Dval =
   executeUnder exeState exeState.access vm

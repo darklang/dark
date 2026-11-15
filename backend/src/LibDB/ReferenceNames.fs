@@ -4,7 +4,6 @@
 module LibDB.ReferenceNames
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 open Fumble
 open Prelude
 open LibExecution.ProgramTypes
@@ -83,67 +82,62 @@ let private mainStates =
   System.Collections.Concurrent.ConcurrentDictionary<bool, System.Guid list * State>()
 do Caching.register (fun () -> mainStates.Clear())
 
-let private loadAt (branch : PT.BranchId) (before : Option<string>) : Task<State> =
-  task {
-    let cutoff =
-      before |> Option.toList |> List.map (fun stamp -> "before", Sql.string stamp)
-    let metadata = "p.op_kind IN ('rename', 'reference-names', 'decision')"
-    // Main's ops: its draft too when main is the reader, its committed work otherwise.
-    let mainPredicate =
-      let visible =
-        OpHistory.visibility (if branch.IsMain then "1 = 1" else "0 = 1") before
-      // `+` keeps SQLite on the op-kind index: main's ops are nearly the whole log.
-      $"{metadata} AND +p.branch_id = @main AND {visible}"
-    let parameters = ("main", Sql.string (string PT.BranchId.Main)) :: cutoff
-    let! ids =
-      Sql.query
-        $"SELECT p.id FROM package_ops p WHERE {mainPredicate} ORDER BY p.origin_ts, p.id"
-      |> Sql.parameters parameters
-      |> Sql.executeAsync (fun r -> r.uuid "id")
-    let! mainState =
-      match mainStates.TryGetValue branch.IsMain with
-      | true, (previous, state) when Option.isNone before && previous = ids ->
-        Task.FromResult state
-      | _ ->
-        task {
-          let! rows =
-            Sql.query
-              $"SELECT p.id, p.op_blob FROM package_ops p WHERE {mainPredicate}
-                ORDER BY p.origin_ts, p.id"
-            |> Sql.parameters parameters
-            |> Sql.executeAsync (fun r ->
-              r.uuid "id",
-              BS.PT.PackageOp.tryDeserialize (r.uuid "id") (r.bytes "op_blob"))
-          let state = rows |> List.choose snd |> List.fold apply Map.empty
-          if Option.isNone before then
-            mainStates[branch.IsMain] <- (List.map fst rows, state)
-          return state
-        }
-    // A branch's chain over main: its own ops, and what its ancestors below main committed.
-    let! overlay =
-      if branch.IsMain then
-        Task.FromResult []
-      else
-        let below =
-          Layers.chainOf branch
-          |> List.filter (fun b -> not b.IsMain)
-          |> List.map string
-        let visible = OpHistory.visibility "p.branch_id = @start" before
+let private loadAt (branch : PT.BranchId) (before : Option<string>) : State =
+  let cutoff =
+    before |> Option.toList |> List.map (fun stamp -> "before", Sql.string stamp)
+  let metadata = "p.op_kind IN ('rename', 'reference-names', 'decision')"
+  // Main's ops: its draft too when main is the reader, its committed work otherwise.
+  let mainPredicate =
+    let visible =
+      OpHistory.visibility (if branch.IsMain then "1 = 1" else "0 = 1") before
+    // `+` keeps SQLite on the op-kind index: main's ops are nearly the whole log.
+    $"{metadata} AND +p.branch_id = @main AND {visible}"
+  let parameters = ("main", Sql.string (string PT.BranchId.Main)) :: cutoff
+  let ids =
+    Sql.query
+      $"SELECT p.id FROM package_ops p WHERE {mainPredicate} ORDER BY p.origin_ts, p.id"
+    |> Sql.parameters parameters
+    |> Sql.executeRows (fun r -> r.uuid "id")
+  let mainState =
+    match mainStates.TryGetValue branch.IsMain with
+    | true, (previous, state) when Option.isNone before && previous = ids -> state
+    | _ ->
+      let rows =
         Sql.query
-          $"SELECT p.id, p.op_blob FROM package_ops p
-            WHERE {metadata} AND p.branch_id IN (SELECT value FROM json_each(@chain))
-              AND {visible}
+          $"SELECT p.id, p.op_blob FROM package_ops p WHERE {mainPredicate}
             ORDER BY p.origin_ts, p.id"
-        |> Sql.parameters (
-          [ "chain", Sql.string (jsonStrings below)
-            "start", Sql.string (string branch) ]
-          @ cutoff
-        )
-        |> Sql.executeAsync (fun r ->
+        |> Sql.parameters parameters
+        |> Sql.executeRows (fun r ->
+          r.uuid "id",
           BS.PT.PackageOp.tryDeserialize (r.uuid "id") (r.bytes "op_blob"))
-        |> Task.map (List.choose identity)
-    return List.fold apply mainState overlay
-  }
+      let state = rows |> List.choose snd |> List.fold apply Map.empty
+      if Option.isNone before then
+        mainStates[branch.IsMain] <- (List.map fst rows, state)
+      state
+  // A branch's chain over main: its own ops, and what its ancestors below main committed.
+  let overlay =
+    if branch.IsMain then
+      []
+    else
+      let below =
+        Layers.chainOf branch
+        |> List.filter (fun b -> not b.IsMain)
+        |> List.map string
+      let visible = OpHistory.visibility "p.branch_id = @start" before
+      Sql.query
+        $"SELECT p.id, p.op_blob FROM package_ops p
+          WHERE {metadata} AND p.branch_id IN (SELECT value FROM json_each(@chain))
+            AND {visible}
+          ORDER BY p.origin_ts, p.id"
+      |> Sql.parameters (
+        [ "chain", Sql.string (jsonStrings below)
+          "start", Sql.string (string branch) ]
+        @ cutoff
+      )
+      |> Sql.executeRows (fun r ->
+        BS.PT.PackageOp.tryDeserialize (r.uuid "id") (r.bytes "op_blob"))
+      |> (List.choose identity)
+  List.fold apply mainState overlay
 
 let load branch = loadAt branch None
 
@@ -218,104 +212,90 @@ let internal effectiveNames (state : State) location target original =
 let captureForStorage
   (branch : PT.BranchId)
   (ops : List<PT.PackageOp>)
-  : Task<List<PT.PackageOp>> =
-  task {
-    let captureDeclaration = ReferenceNamesContent.declaration
-    let captured = ops |> List.map (fun op -> op, captureDeclaration op)
-    let declarations =
+  : List<PT.PackageOp> =
+  let captureDeclaration = ReferenceNamesContent.declaration
+  let captured = ops |> List.map (fun op -> op, captureDeclaration op)
+  let declarations =
+    captured
+    |> List.pairwise
+    |> List.choose (fun ((declaration, names), (binding, _)) ->
+      match PT.tryDeclarationBinding (declaration, binding), names with
+      | Some(location, target), Some(_, names) -> Some(location, target, names)
+      | _ -> None)
+  if List.isEmpty declarations then
+    []
+  else
+    let state = load branch
+    // The first Add is the blob that insertion keeps, even when several names share it.
+    let canonical =
       captured
-      |> List.pairwise
-      |> List.choose (fun ((declaration, names), (binding, _)) ->
-        match PT.tryDeclarationBinding (declaration, binding), names with
-        | Some(location, target), Some(_, names) -> Some(location, target, names)
-        | _ -> None)
-    if List.isEmpty declarations then
-      return []
-    else
-      let! state = load branch
-      // The first Add is the blob that insertion keeps, even when several names share it.
-      let! canonical =
-        captured
-        |> List.choose snd
-        |> List.distinctBy fst
-        |> Ply.List.mapSequentially (fun (target, names) ->
-          uply {
-            let! stored = storedNames target
-            return (target, Option.defaultValue names stored)
-          })
-        |> Ply.map Map.ofList
-        |> Ply.toTask
-      let! edits =
-        declarations
-        |> Ply.List.mapSequentially (fun (location, target, names) ->
-          uply {
-            match Map.tryFind (location, target) state with
-            | Some existing when existing = names -> return []
-            | None when Map.tryFind target canonical = Some names -> return []
-            | existing ->
-              // Keep the original names before the first reference-only edit.
-              // A new alias has no earlier version at this location.
-              let! keepOriginal =
-                if Option.isNone existing then
-                  uply {
-                    let find =
-                      match target.kind with
-                      | PT.ItemKind.Type -> LibDB.ProgramTypes.Type.find
-                      | PT.ItemKind.Fn -> LibDB.ProgramTypes.Fn.find
-                      | PT.ItemKind.Value -> LibDB.ProgramTypes.Value.find
-                      | PT.ItemKind.Trait -> LibDB.ProgramTypes.Trait.find
-                      | PT.ItemKind.TraitImpl -> LibDB.ProgramTypes.TraitImpl.find
-                      | PT.ItemKind.Test -> LibDB.ProgramTypes.Test.find
-                    let! found = find branch location
-                    let current =
-                      found
-                      |> Option.map (fun h ->
-                        PT.Reference.fromHashAndKind (h, target.kind))
-                    if current = Some target then
-                      return
-                        Map.tryFind target canonical
-                        |> Option.map (fun original ->
-                          PT.PackageOp.SetReferenceNames(
-                            location,
-                            target,
-                            original,
-                            Some(OriginTs.next ())
-                          ))
-                    else
-                      return None
-                  }
-                else
-                  Ply None
-              let edit =
-                PT.PackageOp.SetReferenceNames(
-                  location,
-                  target,
-                  names,
-                  Some(OriginTs.next ())
-                )
-              return Option.toList keepOriginal @ [ edit ]
-          })
-        |> Ply.toTask
-      return List.concat edits
-  }
+      |> List.choose snd
+      |> List.distinctBy fst
+      |> List.map (fun (target, names) ->
+        let stored = storedNames target
+        (target, Option.defaultValue names stored))
+      |> Map.ofList
+    let edits =
+      declarations
+      |> List.map (fun (location, target, names) ->
+        match Map.tryFind (location, target) state with
+        | Some existing when existing = names -> []
+        | None when Map.tryFind target canonical = Some names -> []
+        | existing ->
+          // Keep the original names before the first reference-only edit.
+          // A new alias has no earlier version at this location.
+          let keepOriginal =
+            if Option.isNone existing then
+              let find =
+                match target.kind with
+                | PT.ItemKind.Type -> LibDB.ProgramTypes.Type.find
+                | PT.ItemKind.Fn -> LibDB.ProgramTypes.Fn.find
+                | PT.ItemKind.Value -> LibDB.ProgramTypes.Value.find
+                | PT.ItemKind.Trait -> LibDB.ProgramTypes.Trait.find
+                | PT.ItemKind.TraitImpl -> LibDB.ProgramTypes.TraitImpl.find
+                | PT.ItemKind.Test -> LibDB.ProgramTypes.Test.find
+              let found = find branch location
+              let current =
+                found
+                |> Option.map (fun h ->
+                  PT.Reference.fromHashAndKind (h, target.kind))
+              if current = Some target then
+                Map.tryFind target canonical
+                |> Option.map (fun original ->
+                  PT.PackageOp.SetReferenceNames(
+                    location,
+                    target,
+                    original,
+                    Some(OriginTs.next ())
+                  ))
+              else
+                None
+            else
+              None
+          let edit =
+            PT.PackageOp.SetReferenceNames(
+              location,
+              target,
+              names,
+              Some(OriginTs.next ())
+            )
+          Option.toList keepOriginal @ [ edit ])
+    List.concat edits
 
 
 /// Read the saved reference-name changes for these content versions.
 /// Dark combines them with the original names when building snapshots.
 let overrides branch (targets : List<PT.Reference>) before =
-  task {
-    let! state = loadAt branch before
-    let wanted = Set.ofList targets
-    return
-      state
-      |> Map.toList
-      |> List.choose (fun ((location, target), names) ->
-        if Set.contains target wanted then
-          Some
-            { PT.ReferenceNamesSnapshot.location = location
-              target = target
-              names = names
-              restating = None }
-        else
-          None)
-  }
+  let state = loadAt branch before
+  let wanted = Set.ofList targets
+  state
+  |> Map.toList
+  |> List.choose (fun ((location, target), names) ->
+    if Set.contains target wanted then
+      Some
+        { PT.ReferenceNamesSnapshot.location = location
+          target = target
+          names = names
+          restating = None }
+    else
+      None)

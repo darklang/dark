@@ -21,10 +21,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | exeState, _, _, [| value |] ->
-          uply {
-            let! repr = Exe.dvalToRepr exeState value
-            return DString repr
-          }
+          Exe.dvalToRepr exeState value |> LibExecution.Pending.map DString
         | _ -> incorrectArgs ())
       // Impure though it performs nothing: it shows type names as the branch binds them now,
       // so a rename changes the answer.
@@ -59,48 +56,45 @@ let fns () : List<BuiltInFn> =
           vm,
           _,
           [| DEnum(_, _, _, ("DRecord" | "DEnum"), _ :: runtimeTypeName :: _) as reflected |] ->
-          uply {
-            let none = Dval.optionNone KTString
-            match RT2DT.FQTypeName.fromDT runtimeTypeName with
-            | FQTypeName.Package typeHash ->
-              let! candidates =
-                exeState.fns.implCandidates
-                  exeState.branchId
-                  (Hash(PackageRefs.Trait.Stdlib.inspect ()))
-              // Rebuilding the value is the costly part, so only for a type with an impl.
-              let forThisType =
-                candidates
-                |> List.filter (fun c ->
-                  Traits.headOfTypeReference c.self = Some(
-                    Traits.Head.Custom typeHash
-                  ))
-              if List.isEmpty forThisType then
-                return none
-              else
-                let value = RT2DT.Dval.fromDT reflected
-                match Dval.toValueType value with
-                | ValueType.Known self ->
-                  match Traits.select forThisType self with
-                  | Traits.Selected c ->
-                    match Map.tryFind "inspect" c.methods with
-                    | Some fnHash ->
-                      let impl =
-                        AppNamedFn
-                          { name = FQFnName.Package fnHash
-                            typeSymbolTable = TST.empty
-                            typeArgs = []
-                            approvalName = None
-                            access = None
-                            argsSoFar = []
-                            boundImpls = [] }
-                      return!
-                        Interpreter.requestApply vm impl value ValueNone (fun text ->
-                          Ply(Dval.optionSome KTString text))
-                    | None -> return none
-                  | _ -> return none
-                | ValueType.Unknown -> return none
-          }
-        | _, _, _, [| _ |] -> Ply(Dval.optionNone KTString)
+          let none = Dval.optionNone KTString
+          match RT2DT.FQTypeName.fromDT runtimeTypeName with
+          | FQTypeName.Package typeHash ->
+            let candidates =
+              exeState.fns.implCandidates
+                exeState.branchId
+                (Hash(PackageRefs.Trait.Stdlib.inspect ()))
+            // Rebuilding the value is the costly part, so only for a type with an impl.
+            let forThisType =
+              candidates
+              |> List.filter (fun c ->
+                Traits.headOfTypeReference c.self = Some(
+                  Traits.Head.Custom typeHash
+                ))
+            if List.isEmpty forThisType then
+              none
+            else
+              let value = RT2DT.Dval.fromDT reflected
+              match Dval.toValueType value with
+              | ValueType.Known self ->
+                match Traits.select forThisType self with
+                | Traits.Selected c ->
+                  match Map.tryFind "inspect" c.methods with
+                  | Some fnHash ->
+                    let impl =
+                      AppNamedFn
+                        { name = FQFnName.Package fnHash
+                          typeSymbolTable = TST.empty
+                          typeArgs = []
+                          approvalName = None
+                          access = None
+                          argsSoFar = []
+                          boundImpls = [] }
+                    Interpreter.requestApply vm impl value ValueNone (fun text ->
+                      (Dval.optionSome KTString text))
+                  | None -> none
+                | _ -> none
+              | ValueType.Unknown -> none
+        | _, _, _, [| _ |] -> (Dval.optionNone KTString)
         | _ -> incorrectArgs ())
       // Impure, as `toRepr`: it runs an impl, and which one depends on the branch.
       previewable = Impure
@@ -128,8 +122,7 @@ let fns () : List<BuiltInFn> =
         + "LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr>)."
       fn =
         (function
-        | _, _, _, [| dv |] ->
-          dv |> LibExecution.RuntimeTypesToDarkTypes.Dval.toDT |> Ply
+        | _, _, _, [| dv |] -> dv |> LibExecution.RuntimeTypesToDarkTypes.Dval.toDT
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

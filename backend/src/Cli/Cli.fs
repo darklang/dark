@@ -2,7 +2,6 @@ module Cli.Main
 
 open System
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -54,7 +53,7 @@ let state (packageManager : RT.PackageManager) =
     (_msg : string)
     (_metadata : Metadata)
     =
-    uply { return () }
+    ()
 
   let sendException
     (_ : RT.ExecutionState)
@@ -62,14 +61,12 @@ let state (packageManager : RT.PackageManager) =
     (metadata : Metadata)
     (exn : exn)
     =
-    uply {
-      // A store condition already carries a sentence written for whoever ran the command, and
-      // `printException` buries it under a stack trace. The exception still surfaces as a runtime
-      // error, which prints that sentence once.
-      match exn with
-      | :? Exception.StoreConditionException -> ()
-      | _ -> printException "Internal error" metadata exn
-    }
+    // A store condition already carries a sentence written for whoever ran the command, and
+    // `printException` buries it under a stack trace. The exception still surfaces as a runtime
+    // error, which prints that sentence once.
+    match exn with
+    | :? Exception.StoreConditionException -> ()
+    | _ -> printException "Internal error" metadata exn
 
   Exe.createState
     (builtinsLazy.Force())
@@ -94,7 +91,7 @@ let private installStoreVersionSource () : unit =
 /// shadows any of them.
 let private startupSettings () : Map<string, string> =
   try
-    (LibDB.Config.getMany
+    LibDB.Config.getMany
       [ "exec.workers"
         "exec.policy"
         "exec.maxInstructions"
@@ -107,8 +104,7 @@ let private startupSettings () : Map<string, string> =
         "http.maxConnectionsPerHost"
         "trace.keep"
         "trace.maxMb"
-        "trace.record" ])
-      .Result
+        "trace.record" ]
   with _ ->
     Map.empty
 
@@ -333,7 +329,7 @@ let private installSuspendOnInterrupt () : unit =
     let suspended =
       try
         stopChildrenPolitely ()
-        (LibDB.Traces.Foreground.suspend ()).Result
+        LibDB.Traces.Foreground.suspend ()
       with _ ->
         None
     match suspended with
@@ -513,7 +509,7 @@ let private runCli (args : string[]) : int =
       let isOn (s : string) = s.Trim().ToLower() = "on"
       let stored =
         try
-          (LibDB.Config.get key).Result
+          LibDB.Config.get key
         with _ ->
           None
       match stored with
@@ -586,11 +582,10 @@ let private runCli (args : string[]) : int =
       // the rest find nothing left.
       use _growing = EmbeddedResources.upgradeLock LibConfig.Config.dbPath
       try
-        (LibDB.Seed.growIfNeeded
+        LibDB.Seed.growIfNeeded
           (fun () -> builtinsLazy.Force())
           cliPackageManager
-          (fun msg -> System.Console.Error.WriteLine msg))
-          .Result
+          (fun msg -> System.Console.Error.WriteLine msg)
         |> ignore<bool>
       with ex when isBinaryFormatFailure ex ->
         let path = LibConfig.Config.dbPath
@@ -620,7 +615,7 @@ let private runCli (args : string[]) : int =
       match extracted.locallyAuthored with
       | [] -> ()
       | held ->
-        let kept = (LibDB.UpgradeKeep.restore held).Result
+        let kept = LibDB.UpgradeKeep.restore held
 
         // Named separately because one edit to a core function repoints hundreds of callers, and a list
         // led by arbitrary repoints reads like a disaster rather than like "your draft survived".
@@ -656,8 +651,6 @@ let private runCli (args : string[]) : int =
           System.Console.Error.WriteLine
             $"This build ships a different version of {shown}{more}{cascade}. Kept yours; \
               the build's is still in the log.")
-
-    Telemetry.time "cli.pmInit" [] (fun () -> cliPackageManager.init.Result)
 
     // `--branch <branch>` / `--branch=<branch>`, a name, an id or an id prefix: pick the branch for
     // THIS process: names resolve as that branch sees them, so nothing is switched persistently. Both spellings, because every other CLI takes
@@ -758,7 +751,7 @@ let private runCli (args : string[]) : int =
       | name -> Some name
 
     let branchId =
-      match (LibDB.BranchSelection.select flagName envName).Result with
+      match LibDB.BranchSelection.select flagName envName with
       | Error(LibDB.BranchSelection.AmbiguousPrefix prefix) ->
         System.Console.Error.WriteLine
           $"'{prefix}' matches more than one branch; use more of the id, or its name"

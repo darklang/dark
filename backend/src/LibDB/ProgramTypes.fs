@@ -1,7 +1,6 @@
 module LibDB.ProgramTypes
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.ProgramTypes
@@ -31,92 +30,80 @@ let private findItem
   (branch : PT.BranchId)
   (itemType : string)
   (location : PT.PackageLocation)
-  : Ply<Option<Hash>> =
-  uply {
-    // The name's binding, whatever kind it holds: a branch that rebound a fn's name to a value
-    // has no fn there, whatever main says. The few live rows at the name, ranked by the view.
-    let! rows =
-      Sql.query
-        "SELECT branch_id, draft, item_hash, item_type FROM locations
-         WHERE owner = @owner AND modules = @modules AND name = @name AND live = 1"
-      |> Sql.parameters
-        [ "owner", Sql.string location.owner
-          "modules", Sql.string (String.concat "." location.modules)
-          "name", Sql.string location.name ]
-      |> Sql.executeAsync (fun read ->
-        (read.string "branch_id",
-         read.int64 "draft" <> 0L,
-         (read.string "item_hash", read.string "item_type")))
-    return
-      match Layers.pick (Layers.chainOf branch) rows with
-      | Some(h, t) when h <> "" && t = itemType -> Some(Hash h)
-      | _ -> None
-  }
+  : Option<Hash> =
+  // The name's binding, whatever kind it holds: a branch that rebound a fn's name to a value
+  // has no fn there, whatever main says. The few live rows at the name, ranked by the view.
+  let rows =
+    Sql.query
+      "SELECT branch_id, draft, item_hash, item_type FROM locations
+       WHERE owner = @owner AND modules = @modules AND name = @name AND live = 1"
+    |> Sql.parameters
+      [ "owner", Sql.string location.owner
+        "modules", Sql.string (String.concat "." location.modules)
+        "name", Sql.string location.name ]
+    |> Sql.executeRows (fun read ->
+      (read.string "branch_id",
+       read.int64 "draft" <> 0L,
+       (read.string "item_hash", read.string "item_type")))
+  match Layers.pick (Layers.chainOf branch) rows with
+  | Some(h, t) when h <> "" && t = itemType -> Some(Hash h)
+  | _ -> None
 
 /// Every binding <param branch> sees whose name is one of <param names>, with the kind it holds:
 /// `findItem` for many names in one query, for a caller that would otherwise ask name by name.
 let bindingsNamed
   (branch : PT.BranchId)
   (names : List<string>)
-  : Ply<List<PT.PackageLocation * PT.ItemKind>> =
-  uply {
-    let chain = Layers.chainOf branch
-    let! chunks =
-      names
-      |> List.distinct
-      |> List.chunkBySize 500
-      |> Ply.List.mapSequentially (fun chunk ->
-        let parameters = chunk |> List.mapi (fun i n -> $"n{i}", Sql.string n)
-        let placeholders =
-          parameters |> List.map (fun (p, _) -> "@" + p) |> String.concat ", "
-        uply {
-          return!
-            Sql.query (
-              "SELECT owner, modules, name, branch_id, draft, item_hash, item_type FROM locations
-           WHERE live = 1 AND name IN ("
-              + placeholders
-              + ")"
-            )
-            |> Sql.parameters parameters
-            |> Sql.executeAsync (fun read ->
-              ((read.string "owner", read.string "modules", read.string "name"),
-               (read.string "branch_id",
-                read.int64 "draft" <> 0L,
-                (read.string "item_hash", read.string "item_type"))))
-        })
-    return
-      chunks
-      |> List.concat
-      |> List.groupBy fst
-      |> Map.toList
-      |> List.choose (fun ((owner, modules, name), rows) ->
-        match Layers.pick chain (List.map snd rows) with
-        | Some(h, t) when h <> "" ->
-          let location : PT.PackageLocation =
-            { owner = owner
-              modules = PackageLocation.modulesOfColumn modules
-              name = name }
-          Some(location, PT.ItemKind.fromString t)
-        | _ -> None)
-  }
+  : List<PT.PackageLocation * PT.ItemKind> =
+  let chain = Layers.chainOf branch
+  let chunks =
+    names
+    |> List.distinct
+    |> List.chunkBySize 500
+    |> List.map (fun chunk ->
+      let parameters = chunk |> List.mapi (fun i n -> $"n{i}", Sql.string n)
+      let placeholders =
+        parameters |> List.map (fun (p, _) -> "@" + p) |> String.concat ", "
+      Sql.query (
+        "SELECT owner, modules, name, branch_id, draft, item_hash, item_type FROM locations
+       WHERE live = 1 AND name IN ("
+        + placeholders
+        + ")"
+      )
+      |> Sql.parameters parameters
+      |> Sql.executeRows (fun read ->
+        ((read.string "owner", read.string "modules", read.string "name"),
+         (read.string "branch_id",
+          read.int64 "draft" <> 0L,
+          (read.string "item_hash", read.string "item_type")))))
+  chunks
+  |> List.concat
+  |> List.groupBy fst
+  |> Map.toList
+  |> List.choose (fun ((owner, modules, name), rows) ->
+    match Layers.pick chain (List.map snd rows) with
+    | Some(h, t) when h <> "" ->
+      let location : PT.PackageLocation =
+        { owner = owner
+          modules = PackageLocation.modulesOfColumn modules
+          name = name }
+      Some(location, PT.ItemKind.fromString t)
+    | _ -> None)
 
 let private getItem<'a>
   (table : string)
   (lookupColumn : string)
   (deserialize : Hash -> byte[] -> 'a)
-  : Hash -> Ply<Option<'a>> =
+  : Hash -> Option<'a> =
   // Built once per item kind, not per item: a triple-quoted interpolation goes through F#'s format
   // parser, and this runs for every item loaded.
   let sql = "SELECT pt_def FROM " + table + " WHERE " + lookupColumn + " = @hash"
   fun (hash : Hash) ->
-    uply {
-      let (Hash hashStr) = hash
-      return!
-        Sql.query sql
-        |> Sql.parameters [ "hash", Sql.string hashStr ]
-        |> Sql.executeRowOptionAsync (fun read -> read.bytes "pt_def")
-        |> Task.map (Option.map (deserialize hash))
-    }
+    let (Hash hashStr) = hash
+    Sql.query sql
+    |> Sql.parameters [ "hash", Sql.string hashStr ]
+    |> Sql.executeRowOption (fun read -> read.bytes "pt_def")
+    |> (Option.map (deserialize hash))
 
 /// The names <param hash> holds on <param branch>: the nearest layer's first (a branch's own names
 /// before what it inherits), newest binding first. A caller that labels content for display and wants
@@ -125,45 +112,42 @@ let private getItemLocations
   (branch : PT.BranchId)
   (itemType : string)
   (hash : Hash)
-  : Ply<List<PT.PackageLocation>> =
-  uply {
-    let (Hash hashStr) = hash
-    // Every live row at every name some live row binds to this hash, so the view can be judged per
-    // name: a branch that rebound or removed the name hides main's row there.
-    let! rows =
-      Sql.query
-        "SELECT rowid AS seq, branch_id, draft, owner, modules, name, item_hash, item_type
-         FROM locations
-         WHERE live = 1 AND (owner, modules, name) IN
-           (SELECT owner, modules, name FROM locations
-            WHERE item_hash = @item_hash AND item_type = @item_type AND live = 1)"
-      |> Sql.parameters
-        [ "item_hash", Sql.string hashStr; "item_type", Sql.string itemType ]
-      |> Sql.executeAsync (fun read ->
-        (readLocation read,
-         (read.string "branch_id",
-          read.int64 "draft" <> 0L,
-          (read.int64 "seq", read.string "item_hash", read.string "item_type"))))
-    let chain = Layers.chainOf branch
-    return
-      rows
-      |> List.groupBy fst
-      |> Map.toList
-      |> List.choose (fun (loc, entries) ->
-        let candidates = entries |> List.map snd
-        match Layers.pick chain candidates with
-        | Some(seq, h, t) when h = hashStr && t = itemType ->
-          let rank =
-            candidates
-            |> List.choose (fun (b, d, (s, _, _)) ->
-              if s = seq then Layers.rankIn chain b d else None)
-            |> List.tryHead
-            |> Option.defaultValue 0
-          Some(rank, -seq, loc)
-        | _ -> None)
-      |> List.sortBy (fun (rank, negSeq, _) -> (rank, negSeq))
-      |> List.map (fun (_, _, loc) -> loc)
-  }
+  : List<PT.PackageLocation> =
+  let (Hash hashStr) = hash
+  // Every live row at every name some live row binds to this hash, so the view can be judged per
+  // name: a branch that rebound or removed the name hides main's row there.
+  let rows =
+    Sql.query
+      "SELECT rowid AS seq, branch_id, draft, owner, modules, name, item_hash, item_type
+       FROM locations
+       WHERE live = 1 AND (owner, modules, name) IN
+         (SELECT owner, modules, name FROM locations
+          WHERE item_hash = @item_hash AND item_type = @item_type AND live = 1)"
+    |> Sql.parameters
+      [ "item_hash", Sql.string hashStr; "item_type", Sql.string itemType ]
+    |> Sql.executeRows (fun read ->
+      (readLocation read,
+       (read.string "branch_id",
+        read.int64 "draft" <> 0L,
+        (read.int64 "seq", read.string "item_hash", read.string "item_type"))))
+  let chain = Layers.chainOf branch
+  rows
+  |> List.groupBy fst
+  |> Map.toList
+  |> List.choose (fun (loc, entries) ->
+    let candidates = entries |> List.map snd
+    match Layers.pick chain candidates with
+    | Some(seq, h, t) when h = hashStr && t = itemType ->
+      let rank =
+        candidates
+        |> List.choose (fun (b, d, (s, _, _)) ->
+          if s = seq then Layers.rankIn chain b d else None)
+        |> List.tryHead
+        |> Option.defaultValue 0
+      Some(rank, -seq, loc)
+    | _ -> None)
+  |> List.sortBy (fun (rank, negSeq, _) -> (rank, negSeq))
+  |> List.map (fun (_, _, loc) -> loc)
 
 /// Every name this hash has EVER had on <param branch>'s view, live ones first.
 ///
@@ -174,24 +158,22 @@ let private getItemLocationsEverNamed
   (branch : PT.BranchId)
   (itemType : string)
   (hash : Hash)
-  : Ply<List<PT.PackageLocation>> =
-  uply {
-    let (Hash hashStr) = hash
-    let! rows =
-      Sql.query (
-        Layers.cte "@"
-        + " SELECT l.owner, l.modules, l.name FROM locations l
-            JOIN layer y ON y.branch_id = l.branch_id AND y.draft = l.draft
-            WHERE l.item_hash = @item_hash AND l.item_type = @item_type
-            ORDER BY l.live DESC, y.rank, l.rowid DESC"
-      )
-      |> Sql.parameters (
-        [ "item_hash", Sql.string hashStr; "item_type", Sql.string itemType ]
-        @ Layers.sqlParams branch true
-      )
-      |> Sql.executeAsync readLocation
-    return List.distinct rows
-  }
+  : List<PT.PackageLocation> =
+  let (Hash hashStr) = hash
+  let rows =
+    Sql.query (
+      Layers.cte "@"
+      + " SELECT l.owner, l.modules, l.name FROM locations l
+          JOIN layer y ON y.branch_id = l.branch_id AND y.draft = l.draft
+          WHERE l.item_hash = @item_hash AND l.item_type = @item_type
+          ORDER BY l.live DESC, y.rank, l.rowid DESC"
+    )
+    |> Sql.parameters (
+      [ "item_hash", Sql.string hashStr; "item_type", Sql.string itemType ]
+      @ Layers.sqlParams branch true
+    )
+    |> Sql.executeRows readLocation
+  List.distinct rows
 
 
 module Type =
@@ -208,17 +190,15 @@ module Trait =
   let getLocationsEverNamed branch = getItemLocationsEverNamed branch "trait"
 
   /// Every live trait name's last segment on <param branch>, once.
-  let names (branch : PT.BranchId) : Ply<HashSet<string>> =
-    uply {
-      let! rows =
-        Sql.query (
-          overVisible
-            "SELECT DISTINCT name FROM visible WHERE item_type = 'trait' AND item_hash <> ''"
-        )
-        |> Sql.parameters (Layers.sqlParams branch true)
-        |> Sql.executeAsync (fun read -> read.string "name")
-      return HashSet<string>(rows)
-    }
+  let names (branch : PT.BranchId) : HashSet<string> =
+    let rows =
+      Sql.query (
+        overVisible
+          "SELECT DISTINCT name FROM visible WHERE item_type = 'trait' AND item_hash <> ''"
+      )
+      |> Sql.parameters (Layers.sqlParams branch true)
+      |> Sql.executeRows (fun read -> read.string "name")
+    HashSet<string>(rows)
 
 module TraitImpl =
   let find branch = findItem branch "impl"
@@ -226,23 +206,18 @@ module TraitImpl =
   /// Which of <param hashes> <param branch> binds at some name: what makes an impl dispatchable
   /// there. Looked up by hash, not by listing every impl the branch binds, which reads the whole
   /// locations table.
-  let liveAmong
-    (branch : PT.BranchId)
-    (hashes : List<string>)
-    : Ply<HashSet<string>> =
-    uply {
-      let! rows =
-        Sql.query (
-          overVisible
-            "SELECT DISTINCT item_hash FROM visible
-             WHERE item_type = 'impl' AND item_hash IN (SELECT value FROM json_each(@hashes))"
-        )
-        |> Sql.parameters (
-          ("hashes", Sql.string (jsonStrings hashes)) :: Layers.sqlParams branch true
-        )
-        |> Sql.executeAsync (fun read -> read.string "item_hash")
-      return HashSet<string>(rows)
-    }
+  let liveAmong (branch : PT.BranchId) (hashes : List<string>) : HashSet<string> =
+    let rows =
+      Sql.query (
+        overVisible
+          "SELECT DISTINCT item_hash FROM visible
+           WHERE item_type = 'impl' AND item_hash IN (SELECT value FROM json_each(@hashes))"
+      )
+      |> Sql.parameters (
+        ("hashes", Sql.string (jsonStrings hashes)) :: Layers.sqlParams branch true
+      )
+      |> Sql.executeRows (fun read -> read.string "item_hash")
+    HashSet<string>(rows)
   let get = getItem "package_trait_impls" "hash" BS.PT.TraitImpl.deserialize
   let getLocations branch = getItemLocations branch "impl"
   let getLocationsEverNamed branch = getItemLocationsEverNamed branch "impl"
@@ -279,7 +254,7 @@ module Fn =
           LIMIT 1
           """
         |> Sql.parameters [ "hash", Sql.string hash; "owner", Sql.string owner ]
-        |> Sql.executeExistsSync)
+        |> Sql.executeExists)
     // Cache whether each function is bundled with Dark for this snapshot,
     // so approval checks do not repeat the lookup. Keep the cache safe for
     // concurrent access because parallel workers use it too.
@@ -375,32 +350,30 @@ let private visibleAtPath =
 let private searchSubmodules
   (branch : PT.BranchId)
   (query : PT.Search.SearchQuery)
-  : Ply<List<List<string>>> =
-  uply {
-    if not (wantsModules query) then
-      return []
-    else
-      let (submoduleCondition, sqlParams) = submoduleFilter query
+  : List<List<string>> =
+  if not (wantsModules query) then
+    []
+  else
+    let (submoduleCondition, sqlParams) = submoduleFilter query
 
-      // The condition is on the module path alone, so it is asked once per distinct path, from the
-      // index, and only the paths that pass are checked against the view. Filtering `visible`
-      // instead checked every row of every module in the store, which made each listing a scan
-      // of all of it.
-      let! paths =
-        overVisible
-          $"""
+    // The condition is on the module path alone, so it is asked once per distinct path, from the
+    // index, and only the paths that pass are checked against the view. Filtering `visible`
+    // instead checked every row of every module in the store, which made each listing a scan
+    // of all of it.
+    let paths =
+      overVisible
+        $"""
       SELECT p.owner AS owner, p.modules AS modules
       FROM (SELECT DISTINCT l.owner, l.modules FROM locations l
             WHERE l.live = 1 AND {submoduleCondition}) p
       WHERE {visibleAtPath}
       ORDER BY p.owner, p.modules
       """
-        |> Sql.query
-        |> Sql.parameters (sqlParams @ Layers.sqlParams branch true)
-        |> Sql.executeAsync (fun read ->
-          modulePathOf (read.string "owner") (read.string "modules"))
-      return paths
-  }
+      |> Sql.query
+      |> Sql.parameters (sqlParams @ Layers.sqlParams branch true)
+      |> Sql.executeRows (fun read ->
+        modulePathOf (read.string "owner") (read.string "modules"))
+    paths
 
 /// `searchSubmodules` reduced to what a listing shows: the segment after the query's module in each
 /// path, distinct and sorted. Reduced here rather than in Dark (it mirrors
@@ -414,82 +387,77 @@ let private searchSubmodules
 let private searchChildModules
   (branch : PT.BranchId)
   (query : PT.Search.SearchQuery)
-  : Ply<List<string>> =
-  uply {
-    if not (wantsModules query) then
-      return []
-    else
-      let (submoduleCondition, sqlParams) = submoduleFilter query
-      let! candidates =
-        $"SELECT DISTINCT l.owner, l.modules FROM locations l
-          WHERE l.live = 1 AND {submoduleCondition}"
-        |> Sql.query
-        |> Sql.parameters sqlParams
-        |> Sql.executeAsync (fun read ->
-          (read.string "owner", read.string "modules"))
+  : List<string> =
+  if not (wantsModules query) then
+    []
+  else
+    let (submoduleCondition, sqlParams) = submoduleFilter query
+    let candidates =
+      $"SELECT DISTINCT l.owner, l.modules FROM locations l
+        WHERE l.live = 1 AND {submoduleCondition}"
+      |> Sql.query
+      |> Sql.parameters sqlParams
+      |> Sql.executeRows (fun read -> (read.string "owner", read.string "modules"))
 
-      // `List.skip` throws past the end; Dark's `List.drop` yields []. Match Dark.
-      let rec dropN n (xs : List<string>) =
-        if n <= 0 then
-          xs
-        else
-          match xs with
-          | [] -> []
-          | _ :: rest -> dropN (n - 1) rest
+    // `List.skip` throws past the end; Dark's `List.drop` yields []. Match Dark.
+    let rec dropN n (xs : List<string>) =
+      if n <= 0 then
+        xs
+      else
+        match xs with
+        | [] -> []
+        | _ :: rest -> dropN (n - 1) rest
 
-      let depth = List.length query.currentModule
-      let bySegment =
-        candidates
-        |> List.choose (fun (owner, modules) ->
-          match dropN depth (modulePathOf owner modules) with
-          | next :: _ when next <> "" -> Some(next, (owner, modules))
-          | _ -> None)
-        |> List.groupBy fst
-        |> Map.toList
-        // Each segment's paths split into the one checked first and the rest.
-        |> List.choose (fun (segment, entries) ->
-          match List.map snd entries with
-          | first :: rest -> Some(segment, first, rest)
-          | [] -> None)
+    let depth = List.length query.currentModule
+    let bySegment =
+      candidates
+      |> List.choose (fun (owner, modules) ->
+        match dropN depth (modulePathOf owner modules) with
+        | next :: _ when next <> "" -> Some(next, (owner, modules))
+        | _ -> None)
+      |> List.groupBy fst
+      |> Map.toList
+      // Each segment's paths split into the one checked first and the rest.
+      |> List.choose (fun (segment, entries) ->
+        match List.map snd entries with
+        | first :: rest -> Some(segment, first, rest)
+        | [] -> None)
 
-      let visibleAmong (paths : List<string * string>) : Task<Set<string * string>> =
-        if List.isEmpty paths then
-          Task.FromResult Set.empty
-        else
-          overVisible
-            $"""
+    let visibleAmong (paths : List<string * string>) : Set<string * string> =
+      if List.isEmpty paths then
+        Set.empty
+      else
+        overVisible
+          $"""
       SELECT p.owner AS owner, p.modules AS modules
       FROM (SELECT json_extract(value, '$[0]') AS owner, json_extract(value, '$[1]') AS modules
             FROM json_each(@paths)) p
       WHERE {visibleAtPath}
       """
-          |> Sql.query
-          |> Sql.parameters (
-            [ "paths",
-              Sql.string (jsonRows (paths |> List.map (fun (o, m) -> [ o; m ]))) ]
-            @ Layers.sqlParams branch true
-          )
-          |> Sql.executeAsync (fun read ->
-            (read.string "owner", read.string "modules"))
-          |> Task.map Set.ofList
+        |> Sql.query
+        |> Sql.parameters (
+          [ "paths",
+            Sql.string (jsonRows (paths |> List.map (fun (o, m) -> [ o; m ]))) ]
+          @ Layers.sqlParams branch true
+        )
+        |> Sql.executeRows (fun read -> (read.string "owner", read.string "modules"))
+        |> Set.ofList
 
-      let! firstVisible =
-        visibleAmong (bySegment |> List.map (fun (_, first, _) -> first))
-      let unsettled =
-        bySegment
-        |> List.filter (fun (_, first, _) -> not (Set.contains first firstVisible))
-      let! laterVisible =
-        visibleAmong (unsettled |> List.collect (fun (_, _, rest) -> rest))
+    let firstVisible =
+      visibleAmong (bySegment |> List.map (fun (_, first, _) -> first))
+    let unsettled =
+      bySegment
+      |> List.filter (fun (_, first, _) -> not (Set.contains first firstVisible))
+    let laterVisible =
+      visibleAmong (unsettled |> List.collect (fun (_, _, rest) -> rest))
 
-      return
-        bySegment
-        |> List.filter (fun (_, first, rest) ->
-          Set.contains first firstVisible
-          || List.exists (fun p -> Set.contains p laterVisible) rest)
-        |> List.map (fun (segment, _, _) -> segment)
-        |> List.distinct
-        |> List.sort
-  }
+    bySegment
+    |> List.filter (fun (_, first, rest) ->
+      Set.contains first firstVisible
+      || List.exists (fun p -> Set.contains p laterVisible) rest)
+    |> List.map (fun (segment, _, _) -> segment)
+    |> List.distinct
+    |> List.sort
 
 
 /// The kinds of item a search returns, each with the table holding its content.
@@ -519,7 +487,7 @@ let private searchRows
   (branch : PT.BranchId)
   (query : PT.Search.SearchQuery)
   (withDefinition : bool)
-  : Task<List<int64 * Hash * PT.PackageLocation * Option<byte[]>>> =
+  : List<int64 * Hash * PT.PackageLocation * Option<byte[]>> =
   let currentModule = String.concat "." query.currentModule
 
   // A dotted query (e.g. "List.map") spans module path + name, so the
@@ -608,7 +576,7 @@ let private searchRows
       query.entityTypes.IsEmpty || List.contains entityType query.entityTypes)
 
   if List.isEmpty requested then
-    Task.FromResult []
+    []
   else
     let itemTypes =
       requested
@@ -652,7 +620,7 @@ let private searchRows
       @ tokenParams
       @ Layers.sqlParams branch true
     )
-    |> Sql.executeAsync (fun read ->
+    |> Sql.executeRows (fun read ->
       (read.int64 "kind",
        Hash(read.string "lookup_id"),
        readLocation read,
@@ -673,26 +641,23 @@ let private rowsOf
 let search
   (branch : PT.BranchId)
   (query : PT.Search.SearchQuery)
-  : Ply<PT.Search.SearchResults> =
-  uply {
-    let! submodules = searchSubmodules branch query
-    let! rows = searchRows branch query true
+  : PT.Search.SearchResults =
+  let submodules = searchSubmodules branch query
+  let rows = searchRows branch query true
 
-    let located itemType deserialize =
-      rowsOf rows itemType
-      |> List.map (fun (hash, location, definition) ->
-        ({ entity = deserialize hash (Option.get definition); location = location }
-        : PT.LocatedItem<_>))
+  let located itemType deserialize =
+    rowsOf rows itemType
+    |> List.map (fun (hash, location, definition) ->
+      ({ entity = deserialize hash (Option.get definition); location = location }
+      : PT.LocatedItem<_>))
 
-    return
-      { submodules = submodules
-        types = located "type" BS.PT.PackageType.deserialize
-        values = located "value" BS.PT.PackageValue.deserialize
-        fns = located "fn" BS.PT.PackageFn.deserialize
-        traits = located "trait" BS.PT.Trait.deserialize
-        impls = located "impl" BS.PT.TraitImpl.deserialize
-        tests = located "test" BS.PT.PackageTest.deserialize }
-  }
+  { submodules = submodules
+    types = located "type" BS.PT.PackageType.deserialize
+    values = located "value" BS.PT.PackageValue.deserialize
+    fns = located "fn" BS.PT.PackageFn.deserialize
+    traits = located "trait" BS.PT.Trait.deserialize
+    impls = located "impl" BS.PT.TraitImpl.deserialize
+    tests = located "test" BS.PT.PackageTest.deserialize }
 
 
 /// `search`'s answer with only the name and hash of each item, and only the direct children of the
@@ -710,24 +675,21 @@ type NamesAndHashes =
 let searchNamesAndHashes
   (branch : PT.BranchId)
   (query : PT.Search.SearchQuery)
-  : Ply<NamesAndHashes> =
-  uply {
-    let! submodules = searchChildModules branch query
-    let! rows = searchRows branch query false
+  : NamesAndHashes =
+  let submodules = searchChildModules branch query
+  let rows = searchRows branch query false
 
-    let pairs itemType =
-      rowsOf rows itemType
-      |> List.map (fun (hash, location, _) -> (location.name, hash))
+  let pairs itemType =
+    rowsOf rows itemType
+    |> List.map (fun (hash, location, _) -> (location.name, hash))
 
-    return
-      { submodules = submodules
-        types = pairs "type"
-        values = pairs "value"
-        fns = pairs "fn"
-        traits = pairs "trait"
-        impls = pairs "impl"
-        tests = pairs "test" }
-  }
+  { submodules = submodules
+    types = pairs "type"
+    values = pairs "value"
+    fns = pairs "fn"
+    traits = pairs "trait"
+    impls = pairs "impl"
+    tests = pairs "test" }
 
 
 /// The full path (`Owner.Module.Name`) of every impl at or below <param modulePath>, without
@@ -735,17 +697,14 @@ let searchNamesAndHashes
 let implPathsBelow
   (branch : PT.BranchId)
   (modulePath : List<string>)
-  : Task<List<string>> =
-  task {
-    let query : PT.Search.SearchQuery =
-      { currentModule = modulePath
-        text = ""
-        searchDepth = PT.Search.SearchDepth.AllDescendants
-        entityTypes = [ PT.Search.EntityType.TraitImpl ]
-        exactMatch = false }
-    let! rows = searchRows branch query false
-    return
-      rows
-      |> List.map (fun (_, _, location, _) ->
-        String.concat "." (location.owner :: location.modules @ [ location.name ]))
-  }
+  : List<string> =
+  let query : PT.Search.SearchQuery =
+    { currentModule = modulePath
+      text = ""
+      searchDepth = PT.Search.SearchDepth.AllDescendants
+      entityTypes = [ PT.Search.EntityType.TraitImpl ]
+      exactMatch = false }
+  let rows = searchRows branch query false
+  rows
+  |> List.map (fun (_, _, location, _) ->
+    String.concat "." (location.owner :: location.modules @ [ location.name ]))

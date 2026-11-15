@@ -14,7 +14,6 @@
 module LibDB.UpgradeKeep
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open Fumble
@@ -35,92 +34,85 @@ type Kept =
 /// What the store binds at each of these names now.
 let private currentBindings
   (names : List<string * string * string>)
-  : Task<Map<string * string * string, string>> =
-  task {
-    let! rows =
-      Sql.query (
-        Layers.view "@" Layers.locations
-        + " SELECT owner, modules, name, item_hash FROM visible WHERE item_hash <> ''"
-      )
-      |> Sql.parameters (Layers.sqlParams PT.BranchId.Main true)
-      |> Sql.executeAsync (fun read ->
-        (read.string "owner", read.string "modules", read.string "name"),
-        read.string "item_hash")
+  : Map<string * string * string, string> =
+  let rows =
+    Sql.query (
+      Layers.view "@" Layers.locations
+      + " SELECT owner, modules, name, item_hash FROM visible WHERE item_hash <> ''"
+    )
+    |> Sql.parameters (Layers.sqlParams PT.BranchId.Main true)
+    |> Sql.executeRows (fun read ->
+      (read.string "owner", read.string "modules", read.string "name"),
+      read.string "item_hash")
 
-    let wanted = Set.ofList names
-    return rows |> List.filter (fun (k, _) -> Set.contains k wanted) |> Map.ofList
-  }
+  let wanted = Set.ofList names
+  rows |> List.filter (fun (k, _) -> Set.contains k wanted) |> Map.ofList
 
 /// Re-assert <param before> wherever the upgrade's fold moved the name. Returns what it kept.
 let restore
   (before : List<string * string * string * string * string * string>)
-  : Task<List<Kept>> =
-  task {
-    match before with
-    | [] -> return []
+  : List<Kept> =
+  match before with
+  | [] -> []
+  | _ ->
+    let keys = before |> List.map (fun (o, m, n, _, _, _) -> (o, m, n))
+    let now = currentBindings keys
+
+    let moved =
+      before
+      |> List.choose (fun (owner, modules, name, itemType, hash, source) ->
+        // `ItemKind.fromString`, not a local table: a three-arm copy here silently dropped
+        // every locally-edited trait and impl on upgrade, while the encoder below already
+        // had five arms. It raises on a kind nobody wrote, which is what we want of a
+        // string that only ever comes from `ItemKind.toString`.
+        match Map.tryFind (owner, modules, name) now with
+        // Still ours: the build shipped nothing for this name, or shipped the same content.
+        | Some current when current = hash -> None
+        // The name is gone entirely rather than rebound. Leave it; re-binding a name the build
+        // retired would resurrect it, which is a different decision from keeping an edit.
+        | None -> None
+        | Some _ ->
+          let kind = PT.ItemKind.fromString itemType
+          Some
+            { location =
+                { owner = owner
+                  modules =
+                    if modules = "" then [] else modules.Split('.') |> List.ofArray
+                  name = name }
+              kind = kind
+              hash = PT.Hash hash
+              source = source })
+
+    match moved with
+    | [] -> []
     | _ ->
-      let keys = before |> List.map (fun (o, m, n, _, _, _) -> (o, m, n))
-      let! now = currentBindings keys
+      let stamp = System.DateTime.UtcNow.ToString("o")
 
-      let moved =
-        before
-        |> List.choose (fun (owner, modules, name, itemType, hash, source) ->
-          // `ItemKind.fromString`, not a local table: a three-arm copy here silently dropped
-          // every locally-edited trait and impl on upgrade, while the encoder below already
-          // had five arms. It raises on a kind nobody wrote, which is what we want of a
-          // string that only ever comes from `ItemKind.toString`.
-          match Map.tryFind (owner, modules, name) now with
-          // Still ours: the build shipped nothing for this name, or shipped the same content.
-          | Some current when current = hash -> None
-          // The name is gone entirely rather than rebound. Leave it; re-binding a name the build
-          // retired would resurrect it, which is a different decision from keeping an edit.
-          | None -> None
-          | Some _ ->
-            let kind = PT.ItemKind.fromString itemType
-            Some
-              { location =
-                  { owner = owner
-                    modules =
-                      if modules = "" then
-                        []
-                      else
-                        modules.Split('.') |> List.ofArray
-                    name = name }
-                kind = kind
-                hash = PT.Hash hash
-                source = source })
+      let ops =
+        moved
+        |> List.map (fun k ->
+          let reference =
+            match k.kind with
+            | PT.ItemKind.Fn -> PT.Reference.PackageFn k.hash
+            | PT.ItemKind.Type -> PT.Reference.PackageType k.hash
+            | PT.ItemKind.Value -> PT.Reference.PackageValue k.hash
+            | PT.ItemKind.Trait -> PT.Reference.PackageTrait k.hash
+            | PT.ItemKind.TraitImpl -> PT.Reference.PackageTraitImpl k.hash
+            | PT.ItemKind.Test -> PT.Reference.PackageTest k.hash
 
-      match moved with
-      | [] -> return []
-      | _ ->
-        let stamp = System.DateTime.UtcNow.ToString("o")
+          let mods = String.concat "." k.location.modules
+          let (PT.Hash h) = k.hash
+          // Distinct from the SetName that first made this binding, and distinct per upgrade, so
+          // keeping the same name twice across two upgrades folds both times.
+          let decisionId =
+            $"upgrade-kept:{k.location.owner}.{mods}.{k.location.name}:{h}:{stamp}"
 
-        let ops =
-          moved
-          |> List.map (fun k ->
-            let reference =
-              match k.kind with
-              | PT.ItemKind.Fn -> PT.Reference.PackageFn k.hash
-              | PT.ItemKind.Type -> PT.Reference.PackageType k.hash
-              | PT.ItemKind.Value -> PT.Reference.PackageValue k.hash
-              | PT.ItemKind.Trait -> PT.Reference.PackageTrait k.hash
-              | PT.ItemKind.TraitImpl -> PT.Reference.PackageTraitImpl k.hash
-              | PT.ItemKind.Test -> PT.Reference.PackageTest k.hash
+          PT.PackageOp.Decision(
+            decisionId,
+            k.location,
+            "kept across an upgrade",
+            PT.DecisionKind.Override reference
+          ))
 
-            let mods = String.concat "." k.location.modules
-            let (PT.Hash h) = k.hash
-            // Distinct from the SetName that first made this binding, and distinct per upgrade, so
-            // keeping the same name twice across two upgrades folds both times.
-            let decisionId =
-              $"upgrade-kept:{k.location.owner}.{mods}.{k.location.name}:{h}:{stamp}"
-
-            PT.PackageOp.Decision(
-              decisionId,
-              k.location,
-              "kept across an upgrade",
-              PT.DecisionKind.Override reference
-            ))
-
-        let! _ = LibDB.Inserts.insertAndApplyOps ops
-        return moved
-  }
+      let _ = LibDB.Inserts.insertAndApplyOps ops
+      moved

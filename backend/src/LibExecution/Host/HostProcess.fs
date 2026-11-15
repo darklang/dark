@@ -403,18 +403,28 @@ let private loadFactor (ceiling : float) : float =
 /// a child that is stuck rather than slow is still stopped. Returns the wall-clock
 /// milliseconds waited when the budget ran out.
 let private waitScaledByLoad
-  (task : System.Threading.Tasks.Task)
+  (waited : System.Threading.Tasks.Task)
   (timeoutMs : int)
-  : Option<int64> =
+  : System.Threading.Tasks.Task<Option<int64>> =
   let maxFactor = 5.0
   let clock = System.Diagnostics.Stopwatch.StartNew()
-  let rec wait (budget : float) : Option<int64> =
+  let rec wait (budget : float) : System.Threading.Tasks.Task<Option<int64>> =
     if budget <= 0.0 then
-      Some clock.ElapsedMilliseconds
+      System.Threading.Tasks.Task.FromResult(Some clock.ElapsedMilliseconds)
     else
       let factor = loadFactor maxFactor
       let slice = min 1000.0 (budget * factor) |> ceil |> int
-      if task.Wait slice then None else wait (budget - float slice / factor)
+      task {
+        let! first =
+          System.Threading.Tasks.Task.WhenAny(
+            waited,
+            System.Threading.Tasks.Task.Delay slice
+          )
+        if obj.ReferenceEquals(first, waited) then
+          return None
+        else
+          return! wait (budget - float slice / factor)
+      }
   wait (float timeoutMs)
 
 /// Supervise a child and its descendants in a disposable directory. Preparation
@@ -425,11 +435,16 @@ let runInWorkspace
   (prefix : string)
   (prepare : string -> Result<HostTypes.ProcessWorkspace, string>)
   (timeoutMs : int)
-  : Result<int * string * string * Option<byte[]> * List<string>, int * string> =
+  : System.Threading.Tasks.Task<Result<int *
+    string *
+    string *
+    Option<byte[]> *
+    List<string>, int * string>>
+  =
   let dir = Directory.CreateTempSubdirectory(prefix).FullName
   // Shared with the Ctrl-C and exit handlers below, which stop whatever child is running.
   let mutable child : System.Diagnostics.Process option = None
-  use cancellation = new System.Threading.CancellationTokenSource()
+  let cancellation = new System.Threading.CancellationTokenSource()
   let stop () =
     let stopGroup (p : System.Diagnostics.Process) =
       if HostPosix.isPosix then
@@ -492,65 +507,74 @@ let runInWorkspace
     child <- None
     System.Console.CancelKeyPress.RemoveHandler onCancel
     System.AppDomain.CurrentDomain.ProcessExit.RemoveHandler onExit
+    cancellation.Dispose()
     stopErrors @ disposeErrors @ removeDirectory ()
   // Every failure is caught and becomes an `Error`, so cleanup always runs next.
   let outcome =
-    try
-      match prepare dir with
-      | Error message -> Error(-1, message)
-      | Ok spec ->
-        for directory in spec.directories do
-          Directory.CreateDirectory(Path.Combine(dir, directory))
-          |> ignore<DirectoryInfo>
-        for path, bytes in spec.files do
-          File.WriteAllBytes(Path.Combine(dir, path), bytes)
-        let resultPath = Path.Combine(dir, spec.resultFile)
-        let psi =
-          startInfo
-            launcher
-            ([ "--process-launch"; spec.program ] @ spec.arguments)
-            true
-        for key, value in spec.environment do
-          match value with
-          | None -> psi.Environment.Remove key |> ignore<bool>
-          | Some value -> psi.Environment[key] <- value
-        let p = System.Diagnostics.Process.Start psi
-        child <- Some p
-        p.StandardInput.Close()
-        let stdout = readCappedWithCancellation cancellation.Token p.StandardOutput
-        let stderr = readCappedWithCancellation cancellation.Token p.StandardError
-        // One deadline covers exit AND both pipes. A descendant can hold a
-        // pipe open after the worker exits, so waiting only for exit is unsafe.
-        let finished =
-          System.Threading.Tasks.Task.WhenAll
-            [| p.WaitForExitAsync(cancellation.Token)
-               stdout :> System.Threading.Tasks.Task
-               stderr :> System.Threading.Tasks.Task |]
-        match waitScaledByLoad finished timeoutMs with
-        | Some waited ->
-          Error(
-            110,
-            $"Child process timed out after {waited} ms, a {timeoutMs} ms budget stretched for machine load (worker or output still open)"
-          )
-        | None ->
-          let result =
-            if File.Exists resultPath then
-              if (FileInfo resultPath).Length > int64 maxCapturedOutput then
-                Exception.raiseInternal
-                  "Child process result exceeds the size limit"
-                  []
-              Some(File.ReadAllBytes resultPath)
-            else
-              None
-          Ok(p.ExitCode, stdout.Result, stderr.Result, result)
-    with e ->
-      Error(-1, $"Child process failed: {e.Message}")
-  let cleanupErrors = cleanup ()
-  match outcome with
-  | Ok(code, stdout, stderr, result) ->
-    Ok(code, stdout, stderr, result, cleanupErrors)
-  | Error(code, message) ->
-    Error(code, String.concat "\n" (message :: cleanupErrors))
+    task {
+      try
+        match prepare dir with
+        | Error message -> return Error(-1, message)
+        | Ok spec ->
+          for directory in spec.directories do
+            Directory.CreateDirectory(Path.Combine(dir, directory))
+            |> ignore<DirectoryInfo>
+          for path, bytes in spec.files do
+            File.WriteAllBytes(Path.Combine(dir, path), bytes)
+          let resultPath = Path.Combine(dir, spec.resultFile)
+          let psi =
+            startInfo
+              launcher
+              ([ "--process-launch"; spec.program ] @ spec.arguments)
+              true
+          for key, value in spec.environment do
+            match value with
+            | None -> psi.Environment.Remove key |> ignore<bool>
+            | Some value -> psi.Environment[key] <- value
+          let p = System.Diagnostics.Process.Start psi
+          child <- Some p
+          p.StandardInput.Close()
+          let stdout = readCappedWithCancellation cancellation.Token p.StandardOutput
+          let stderr = readCappedWithCancellation cancellation.Token p.StandardError
+          // One deadline covers exit AND both pipes. A descendant can hold a
+          // pipe open after the worker exits, so waiting only for exit is unsafe.
+          let finished =
+            System.Threading.Tasks.Task.WhenAll
+              [| p.WaitForExitAsync(cancellation.Token)
+                 stdout :> System.Threading.Tasks.Task
+                 stderr :> System.Threading.Tasks.Task |]
+          match! waitScaledByLoad finished timeoutMs with
+          | Some waited ->
+            return
+              Error(
+                110,
+                $"Child process timed out after {waited} ms, a {timeoutMs} ms budget stretched for machine load (worker or output still open)"
+              )
+          | None ->
+            let result =
+              if File.Exists resultPath then
+                if (FileInfo resultPath).Length > int64 maxCapturedOutput then
+                  Exception.raiseInternal
+                    "Child process result exceeds the size limit"
+                    []
+                Some(File.ReadAllBytes resultPath)
+              else
+                None
+            let! out = stdout
+            let! err = stderr
+            return Ok(p.ExitCode, out, err, result)
+      with e ->
+        return Error(-1, $"Child process failed: {e.Message}")
+    }
+  task {
+    let! outcome = outcome
+    let cleanupErrors = cleanup ()
+    match outcome with
+    | Ok(code, stdout, stderr, result) ->
+      return Ok(code, stdout, stderr, result, cleanupErrors)
+    | Error(code, message) ->
+      return Error(code, String.concat "\n" (message :: cleanupErrors))
+  }
 
 /// The name this process was started under: the first word of `/proc/self/cmdline`, read before
 /// `setProcessTitle` replaces it. Linux only. Not `Environment.ProcessPath`, which is the file the

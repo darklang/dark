@@ -10,7 +10,6 @@ module LibDB.PackageOpPlayback
 
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 open Microsoft.Data.Sqlite
 
 open Prelude
@@ -108,28 +107,24 @@ let private ensureExistingBodyMatches
   (hash : Hash)
   (incomingFingerprint : Hash)
   (storedFingerprint : byte[] -> Hash)
-  : Task<unit> =
-  task {
-    let (Hash hashStr) = hash
-    let! existing =
-      bytesOption ctx $"SELECT pt_def FROM {table} WHERE hash = $hash" (fun cmd ->
-        p cmd "$hash" hashStr)
+  : unit =
+  let (Hash hashStr) = hash
+  let existing =
+    bytesOption ctx $"SELECT pt_def FROM {table} WHERE hash = $hash" (fun cmd ->
+      p cmd "$hash" hashStr)
 
-    match existing with
-    | Some bytes when storedFingerprint bytes = incomingFingerprint -> return ()
-    | Some _ ->
-      return
-        raise (
-          System.InvalidOperationException(
-            $"{kind} hash {hashStr} is already stored with different content"
-          )
-        )
-    | None ->
-      return
-        Exception.raiseInternal
-          "Package projection insert conflicted, but its row was not found"
-          [ "kind", kind; "hash", hashStr; "table", table ]
-  }
+  match existing with
+  | Some bytes when storedFingerprint bytes = incomingFingerprint -> ()
+  | Some _ ->
+    raise (
+      System.InvalidOperationException(
+        $"{kind} hash {hashStr} is already stored with different content"
+      )
+    )
+  | None ->
+    Exception.raiseInternal
+      "Package projection insert conflicted, but its row was not found"
+      [ "kind", kind; "hash", hashStr; "table", table ]
 
 
 /// Write one content-addressed projection row: insert it, or, if the hash is already
@@ -159,52 +154,49 @@ let private upsertContentAddressed
   (mayRewriteExisting : bool)
   (incomingFingerprint : unit -> Hash)
   (storedFingerprint : byte[] -> Hash)
-  : Task<unit> =
-  task {
-    let (Hash hashStr) = hash
-    let names = columns |> List.map fst
+  : unit =
+  let (Hash hashStr) = hash
+  let names = columns |> List.map fst
 
-    let bind (cmd : SqliteCommand) : unit =
-      p cmd "$hash" hashStr
-      columns |> List.iter (fun (name, value) -> p cmd $"${name}" value)
+  let bind (cmd : SqliteCommand) : unit =
+    p cmd "$hash" hashStr
+    columns |> List.iter (fun (name, value) -> p cmd $"${name}" value)
 
-    let insertColumns = ("hash" :: names) @ insertOnlyNulls |> String.concat ", "
-    let insertValues =
-      ("$hash" :: (names |> List.map (fun name -> $"${name}")))
-      @ (insertOnlyNulls |> List.map (fun _ -> "NULL"))
-      |> String.concat ", "
+  let insertColumns = ("hash" :: names) @ insertOnlyNulls |> String.concat ", "
+  let insertValues =
+    ("$hash" :: (names |> List.map (fun name -> $"${name}")))
+    @ (insertOnlyNulls |> List.map (fun _ -> "NULL"))
+    |> String.concat ", "
 
-    let! inserted =
-      execRows
-        ctx
-        $"""
+  let inserted =
+    execRows
+      ctx
+      $"""
         INSERT INTO {table} ({insertColumns})
         VALUES ({insertValues})
         ON CONFLICT(hash) DO NOTHING
         """
-        bind
+      bind
 
-    if inserted = 0 then
-      do!
-        ensureExistingBodyMatches
-          ctx
-          kind
-          table
-          hash
-          (incomingFingerprint ())
-          storedFingerprint
+  if inserted = 0 then
+    ensureExistingBodyMatches
+      ctx
+      kind
+      table
+      hash
+      (incomingFingerprint ())
+      storedFingerprint
 
-      if mayRewriteExisting then
-        // Reference-name snapshots use the first stored body as their baseline.
-        // Promoting branch content to main must not change that baseline.
-        let metadata = names |> List.filter (fun name -> name <> "pt_def")
-        if not (List.isEmpty metadata) then
-          let assignments =
-            metadata
-            |> List.map (fun name -> $"{name} = ${name}")
-            |> String.concat ", "
-          do! exec ctx $"UPDATE {table} SET {assignments} WHERE hash = $hash" bind
-  }
+    if mayRewriteExisting then
+      // Reference-name snapshots use the first stored body as their baseline.
+      // Promoting branch content to main must not change that baseline.
+      let metadata = names |> List.filter (fun name -> name <> "pt_def")
+      if not (List.isEmpty metadata) then
+        let assignments =
+          metadata
+          |> List.map (fun name -> $"{name} = ${name}")
+          |> String.concat ", "
+        exec ctx $"UPDATE {table} SET {assignments} WHERE hash = $hash" bind
 
 
 /// An item's `pt_def`: cut out of its op's stored blob when there is one in this build's format
@@ -225,39 +217,34 @@ let private applyAddType
   (mayRewriteExisting : bool)
   (opBlob : Option<byte[]>)
   (typ : PT.PackageType.PackageType)
-  : Task<List<DependencyRow>> =
-  task {
-    // Use the hash already set on the item (computed by LoadPackagesFromDisk
-    // or Propagation with SCC awareness). Only recompute if hash is empty.
-    let hash, opBlob =
-      match typ.hash with
-      | Hash "" -> Hashing.computeTypeHash Hashing.Normal typ, None
-      | h -> h, opBlob
-    let typ = { typ with hash = hash }
-    let (Hash hashStr) = hash
+  : List<DependencyRow> =
+  // Use the hash already set on the item (computed by LoadPackagesFromDisk
+  // or Propagation with SCC awareness). Only recompute if hash is empty.
+  let hash, opBlob =
+    match typ.hash with
+    | Hash "" -> Hashing.computeTypeHash Hashing.Normal typ, None
+    | h -> h, opBlob
+  let typ = { typ with hash = hash }
+  let (Hash hashStr) = hash
 
-    do!
-      upsertContentAddressed
-        ctx
-        "type"
-        "package_types"
-        hash
-        [ "pt_def",
-          box (
-            storedBytes opBlob (fun () -> BS.PT.PackageType.serialize hashStr typ)
-          )
-          "rt_def",
-          box (typ |> PT2RT.PackageType.toRT |> BS.RT.PackageType.serialize hashStr)
-          "description", box typ.description ]
-        []
-        mayRewriteExisting
-        (fun () -> Hashing.computeTypeHash Hashing.Normal typ)
-        (fun bytes ->
-          BS.PT.PackageType.deserialize hash bytes
-          |> Hashing.computeTypeHash Hashing.Normal)
+  upsertContentAddressed
+    ctx
+    "type"
+    "package_types"
+    hash
+    [ "pt_def",
+      box (storedBytes opBlob (fun () -> BS.PT.PackageType.serialize hashStr typ))
+      "rt_def",
+      box (typ |> PT2RT.PackageType.toRT |> BS.RT.PackageType.serialize hashStr)
+      "description", box typ.description ]
+    []
+    mayRewriteExisting
+    (fun () -> Hashing.computeTypeHash Hashing.Normal typ)
+    (fun bytes ->
+      BS.PT.PackageType.deserialize hash bytes
+      |> Hashing.computeTypeHash Hashing.Normal)
 
-    return dependencyRows hashStr (DE.extractFromType typ)
-  }
+  dependencyRows hashStr (DE.extractFromType typ)
 
 /// Apply a single AddValue op to the package_values table.
 let private applyAddValue
@@ -265,35 +252,30 @@ let private applyAddValue
   (mayRewriteExisting : bool)
   (opBlob : Option<byte[]>)
   (value : PT.PackageValue.PackageValue)
-  : Task<List<DependencyRow>> =
-  task {
-    let hash, opBlob =
-      match value.hash with
-      | Hash "" -> Hashing.computeValueHash Hashing.Normal value, None
-      | h -> h, opBlob
-    let value = { value with hash = hash }
-    let (Hash hashStr) = hash
+  : List<DependencyRow> =
+  let hash, opBlob =
+    match value.hash with
+    | Hash "" -> Hashing.computeValueHash Hashing.Normal value, None
+    | h -> h, opBlob
+  let value = { value with hash = hash }
+  let (Hash hashStr) = hash
 
-    do!
-      upsertContentAddressed
-        ctx
-        "value"
-        "package_values"
-        hash
-        [ "pt_def",
-          box (
-            storedBytes opBlob (fun () -> BS.PT.PackageValue.serialize hashStr value)
-          )
-          "description", box value.description ]
-        [ "rt_dval"; "value_type" ]
-        mayRewriteExisting
-        (fun () -> Hashing.computeValueHash Hashing.Normal value)
-        (fun bytes ->
-          BS.PT.PackageValue.deserialize hash bytes
-          |> Hashing.computeValueHash Hashing.Normal)
+  upsertContentAddressed
+    ctx
+    "value"
+    "package_values"
+    hash
+    [ "pt_def",
+      box (storedBytes opBlob (fun () -> BS.PT.PackageValue.serialize hashStr value))
+      "description", box value.description ]
+    [ "rt_dval"; "value_type" ]
+    mayRewriteExisting
+    (fun () -> Hashing.computeValueHash Hashing.Normal value)
+    (fun bytes ->
+      BS.PT.PackageValue.deserialize hash bytes
+      |> Hashing.computeValueHash Hashing.Normal)
 
-    return dependencyRows hashStr (DE.extractFromValue value)
-  }
+  dependencyRows hashStr (DE.extractFromValue value)
 
 /// Apply a single AddTrait op to the package_traits table.
 let private applyAddTrait
@@ -301,33 +283,28 @@ let private applyAddTrait
   (mayRewriteExisting : bool)
   (opBlob : Option<byte[]>)
   (t : PT.Trait.Trait)
-  : Task<List<DependencyRow>> =
-  task {
-    let hash, opBlob =
-      match t.hash with
-      | Hash "" -> Hashing.computeTraitHash Hashing.Normal t, None
-      | h -> h, opBlob
-    let t = { t with hash = hash }
-    let (Hash hashStr) = hash
+  : List<DependencyRow> =
+  let hash, opBlob =
+    match t.hash with
+    | Hash "" -> Hashing.computeTraitHash Hashing.Normal t, None
+    | h -> h, opBlob
+  let t = { t with hash = hash }
+  let (Hash hashStr) = hash
 
-    do!
-      upsertContentAddressed
-        ctx
-        "trait"
-        "package_traits"
-        hash
-        [ "pt_def",
-          box (storedBytes opBlob (fun () -> BS.PT.Trait.serialize hashStr t))
-          "description", box t.description ]
-        []
-        mayRewriteExisting
-        (fun () -> Hashing.computeTraitHash Hashing.Normal t)
-        (fun bytes ->
-          BS.PT.Trait.deserialize hash bytes
-          |> Hashing.computeTraitHash Hashing.Normal)
+  upsertContentAddressed
+    ctx
+    "trait"
+    "package_traits"
+    hash
+    [ "pt_def", box (storedBytes opBlob (fun () -> BS.PT.Trait.serialize hashStr t))
+      "description", box t.description ]
+    []
+    mayRewriteExisting
+    (fun () -> Hashing.computeTraitHash Hashing.Normal t)
+    (fun bytes ->
+      BS.PT.Trait.deserialize hash bytes |> Hashing.computeTraitHash Hashing.Normal)
 
-    return dependencyRows hashStr (DE.extractFromTrait t)
-  }
+  dependencyRows hashStr (DE.extractFromTrait t)
 
 /// Apply a single AddTraitImpl op to the package_trait_impls table.
 ///
@@ -340,39 +317,36 @@ let private applyAddImpl
   (originTs : string)
   (opBlob : Option<byte[]>)
   (i : PT.TraitImpl.TraitImpl)
-  : Task<List<DependencyRow>> =
-  task {
-    let hash, opBlob =
-      match i.hash with
-      | Hash "" -> Hashing.computeImplHash Hashing.Normal i, None
-      | h -> h, opBlob
-    let i = { i with hash = hash }
-    let (Hash hashStr) = hash
-    let traitHash =
-      match i.trait_.resolved with
-      | Ok { name = PT.FQTraitName.Package(Hash t) } -> t
-      | Error _ -> ""
+  : List<DependencyRow> =
+  let hash, opBlob =
+    match i.hash with
+    | Hash "" -> Hashing.computeImplHash Hashing.Normal i, None
+    | h -> h, opBlob
+  let i = { i with hash = hash }
+  let (Hash hashStr) = hash
+  let traitHash =
+    match i.trait_.resolved with
+    | Ok { name = PT.FQTraitName.Package(Hash t) } -> t
+    | Error _ -> ""
 
-    do!
-      upsertContentAddressed
-        ctx
-        "impl"
-        "package_trait_impls"
-        hash
-        [ "pt_def",
-          box (storedBytes opBlob (fun () -> BS.PT.TraitImpl.serialize hashStr i))
-          "trait_hash", box traitHash
-          "description", box i.description
-          "origin_ts", box originTs ]
-        []
-        mayRewriteExisting
-        (fun () -> Hashing.computeImplHash Hashing.Normal i)
-        (fun bytes ->
-          BS.PT.TraitImpl.deserialize hash bytes
-          |> Hashing.computeImplHash Hashing.Normal)
+  upsertContentAddressed
+    ctx
+    "impl"
+    "package_trait_impls"
+    hash
+    [ "pt_def",
+      box (storedBytes opBlob (fun () -> BS.PT.TraitImpl.serialize hashStr i))
+      "trait_hash", box traitHash
+      "description", box i.description
+      "origin_ts", box originTs ]
+    []
+    mayRewriteExisting
+    (fun () -> Hashing.computeImplHash Hashing.Normal i)
+    (fun bytes ->
+      BS.PT.TraitImpl.deserialize hash bytes
+      |> Hashing.computeImplHash Hashing.Normal)
 
-    return dependencyRows hashStr (DE.extractFromImpl i)
-  }
+  dependencyRows hashStr (DE.extractFromImpl i)
 
 /// Apply a single AddFn op to the package_functions table.
 let private applyAddFn
@@ -380,41 +354,37 @@ let private applyAddFn
   (mayRewriteExisting : bool)
   (opBlob : Option<byte[]>)
   (fn : PT.PackageFn.PackageFn)
-  : Task<List<DependencyRow>> =
-  task {
-    let hash, opBlob =
-      match fn.hash with
-      | Hash "" -> Hashing.computeFnHash Hashing.Normal fn, None
-      | h -> h, opBlob
-    let fn = { fn with hash = hash }
-    let (Hash hashStr) = hash
-    // Compiled once. Both columns come out of the same compilation, and doing it twice was
-    // doing the whole of PT2RT twice for every function written.
-    let rt = PT2RT.PackageFn.toRT fn
+  : List<DependencyRow> =
+  let hash, opBlob =
+    match fn.hash with
+    | Hash "" -> Hashing.computeFnHash Hashing.Normal fn, None
+    | h -> h, opBlob
+  let fn = { fn with hash = hash }
+  let (Hash hashStr) = hash
+  // Compiled once. Both columns come out of the same compilation, and doing it twice was
+  // doing the whole of PT2RT twice for every function written.
+  let rt = PT2RT.PackageFn.toRT fn
 
-    do!
-      upsertContentAddressed
-        ctx
-        "fn"
-        "package_functions"
-        hash
-        [ "pt_def",
-          box (storedBytes opBlob (fun () -> BS.PT.PackageFn.serialize hashStr fn))
-          "rt_instrs", box (BS.RT.PackageFn.serialize hashStr rt)
-          // The other half of what the compiler makes: which instruction produced which
-          // expression's value. Its own column, because running the code never reads it.
-          "debug_symbols",
-          box (BS.RT.PackageFn.serializeDebugSymbols hashStr rt.symbols.Value)
-          "description", box fn.description ]
-        []
-        mayRewriteExisting
-        (fun () -> Hashing.computeFnHash Hashing.Normal fn)
-        (fun bytes ->
-          BS.PT.PackageFn.deserialize hash bytes
-          |> Hashing.computeFnHash Hashing.Normal)
+  upsertContentAddressed
+    ctx
+    "fn"
+    "package_functions"
+    hash
+    [ "pt_def",
+      box (storedBytes opBlob (fun () -> BS.PT.PackageFn.serialize hashStr fn))
+      "rt_instrs", box (BS.RT.PackageFn.serialize hashStr rt)
+      // The other half of what the compiler makes: which instruction produced which
+      // expression's value. Its own column, because running the code never reads it.
+      "debug_symbols",
+      box (BS.RT.PackageFn.serializeDebugSymbols hashStr rt.symbols.Value)
+      "description", box fn.description ]
+    []
+    mayRewriteExisting
+    (fun () -> Hashing.computeFnHash Hashing.Normal fn)
+    (fun bytes ->
+      BS.PT.PackageFn.deserialize hash bytes |> Hashing.computeFnHash Hashing.Normal)
 
-    return dependencyRows hashStr (DE.extractFromFn fn)
-  }
+  dependencyRows hashStr (DE.extractFromFn fn)
 
 /// Apply a single AddTest op. Unlike a function, a test is stored as source
 /// only: it is compiled when `dark test run` runs it, and the runtime package
@@ -424,35 +394,30 @@ let private applyAddTest
   (mayRewriteExisting : bool)
   (opBlob : Option<byte[]>)
   (test : PT.PackageTest.PackageTest)
-  : Task<List<DependencyRow>> =
-  task {
-    let hash, opBlob =
-      match test.hash with
-      | Hash "" -> Hashing.computeTestHash Hashing.Normal test, None
-      | h -> h, opBlob
-    let test = { test with hash = hash }
-    let (Hash hashStr) = hash
+  : List<DependencyRow> =
+  let hash, opBlob =
+    match test.hash with
+    | Hash "" -> Hashing.computeTestHash Hashing.Normal test, None
+    | h -> h, opBlob
+  let test = { test with hash = hash }
+  let (Hash hashStr) = hash
 
-    do!
-      upsertContentAddressed
-        ctx
-        "test"
-        "package_tests"
-        hash
-        [ "pt_def",
-          box (
-            storedBytes opBlob (fun () -> BS.PT.PackageTest.serialize hashStr test)
-          )
-          "description", box test.description ]
-        []
-        mayRewriteExisting
-        (fun () -> Hashing.computeTestHash Hashing.Normal test)
-        (fun bytes ->
-          BS.PT.PackageTest.deserialize hash bytes
-          |> Hashing.computeTestHash Hashing.Normal)
+  upsertContentAddressed
+    ctx
+    "test"
+    "package_tests"
+    hash
+    [ "pt_def",
+      box (storedBytes opBlob (fun () -> BS.PT.PackageTest.serialize hashStr test))
+      "description", box test.description ]
+    []
+    mayRewriteExisting
+    (fun () -> Hashing.computeTestHash Hashing.Normal test)
+    (fun bytes ->
+      BS.PT.PackageTest.deserialize hash bytes
+      |> Hashing.computeTestHash Hashing.Normal)
 
-    return dependencyRows hashStr (DE.extractFromTest test)
-  }
+  dependencyRows hashStr (DE.extractFromTest test)
 
 /// What the log says about the op being folded: its stamp, whether it is still in the draft, and what
 /// wrote it. Read from its row on the branch it is folding into, which every caller has stored first.
@@ -468,30 +433,23 @@ module OpRow =
 /// <param blob> is the op as stored, which its content goes into the content tables from.
 type LoggedOp = { op : PT.PackageOp; blob : byte[]; id : System.Guid; row : OpRow }
 
-let private opRowOf
-  (ctx : Ctx)
-  (branch : PT.BranchId)
-  (id : System.Guid)
-  : Task<OpRow> =
-  task {
-    let cmd =
-      command
-        ctx
-        "SELECT origin_ts, commit_hash IS NULL, source FROM package_ops
-         WHERE id = $id AND branch_id = $branch"
-    cmd.Parameters.Clear()
-    pUuid cmd "$id" id
-    p cmd "$branch" (string branch)
-    use! reader = cmd.ExecuteReaderAsync()
-    let! found = reader.ReadAsync()
-    if found then
-      return
-        { ts = (if reader.IsDBNull 0 then None else Some(reader.GetString 0))
-          draft = reader.GetInt64 1 <> 0L
-          source = reader.GetString 2 }
-    else
-      return OpRow.notInLog
-  }
+let private opRowOf (ctx : Ctx) (branch : PT.BranchId) (id : System.Guid) : OpRow =
+  let cmd =
+    command
+      ctx
+      "SELECT origin_ts, commit_hash IS NULL, source FROM package_ops
+       WHERE id = $id AND branch_id = $branch"
+  cmd.Parameters.Clear()
+  pUuid cmd "$id" id
+  p cmd "$branch" (string branch)
+  use reader = cmd.ExecuteReader()
+  let found = reader.Read()
+  if found then
+    { ts = (if reader.IsDBNull 0 then None else Some(reader.GetString 0))
+      draft = reader.GetInt64 1 <> 0L
+      source = reader.GetString 2 }
+  else
+    OpRow.notInLog
 
 /// The kind of item <param branch>'s view binds at <param location>, if it binds one: what a removal
 /// records on its tombstone.
@@ -499,22 +457,19 @@ let private kindInView
   (ctx : Ctx)
   (branch : PT.BranchId)
   (location : PT.PackageLocation)
-  : Task<Option<string>> =
-  task {
-    let cmd =
-      command
-        ctx
-        "SELECT branch_id, draft, item_type FROM locations
-         WHERE owner = $owner AND modules = $modules AND name = $name AND live = 1"
-    cmd.Parameters.Clear()
-    pLoc cmd location
-    use! reader = cmd.ExecuteReaderAsync()
-    let rows =
-      reader
-      |> Sqlite.readRows (fun r ->
-        (r.GetString 0, r.GetInt64 1 <> 0L, r.GetString 2))
-    return Layers.pick (Layers.chainOf branch) rows
-  }
+  : Option<string> =
+  let cmd =
+    command
+      ctx
+      "SELECT branch_id, draft, item_type FROM locations
+       WHERE owner = $owner AND modules = $modules AND name = $name AND live = 1"
+  cmd.Parameters.Clear()
+  pLoc cmd location
+  use reader = cmd.ExecuteReader()
+  let rows =
+    reader
+    |> Sqlite.readRows (fun r -> (r.GetString 0, r.GetInt64 1 <> 0L, r.GetString 2))
+  Layers.pick (Layers.chainOf branch) rows
 
 let private layerParams (cmd : SqliteCommand) (layer : Layers.Layer) =
   p cmd "$branch" (string layer.branch)
@@ -526,7 +481,7 @@ let private liveInLayer
   (ctx : Ctx)
   (layer : Layers.Layer)
   (location : PT.PackageLocation)
-  : Task<Option<string * Option<string>>> =
+  : Option<string * Option<string>> =
   pairOption ctx "SELECT item_hash, origin_ts FROM locations
      WHERE owner = $owner AND modules = $modules AND name = $name
        AND branch_id = $branch AND draft = $draft AND live = 1" (fun cmd ->
@@ -545,26 +500,23 @@ let private writeName
   (source : string)
   (opId : System.Guid)
   (previous : Option<string>)
-  : Task<unit> =
-  task {
-    do! Layers.supersede ctx Layers.locations layer (fun cmd -> pLoc cmd location)
-    do!
-      exec ctx """
-        INSERT INTO locations
-          (branch_id, draft, owner, modules, name, item_hash, item_type, origin_ts, source, op_id,
-           previous)
-        VALUES ($branch, $draft, $owner, $modules, $name, $item_hash, $item_type, $origin_ts, $source,
-                $op_id, $previous)
-        """ (fun cmd ->
-        layerParams cmd layer
-        pLoc cmd location
-        p cmd "$item_hash" itemHash
-        p cmd "$item_type" itemType
-        pOpt cmd "$origin_ts" ts
-        p cmd "$source" source
-        p cmd "$op_id" (string opId)
-        pOpt cmd "$previous" previous)
-  }
+  : unit =
+  Layers.supersede ctx Layers.locations layer (fun cmd -> pLoc cmd location)
+  exec ctx """
+      INSERT INTO locations
+        (branch_id, draft, owner, modules, name, item_hash, item_type, origin_ts, source, op_id,
+         previous)
+      VALUES ($branch, $draft, $owner, $modules, $name, $item_hash, $item_type, $origin_ts, $source,
+              $op_id, $previous)
+      """ (fun cmd ->
+    layerParams cmd layer
+    pLoc cmd location
+    p cmd "$item_hash" itemHash
+    p cmd "$item_type" itemType
+    pOpt cmd "$origin_ts" ts
+    p cmd "$source" source
+    p cmd "$op_id" (string opId)
+    pOpt cmd "$previous" previous)
 
 /// Fold a binding: <param location> holds <param itemHash> in <param layer>, unless what the layer
 /// holds there is newer.
@@ -582,38 +534,35 @@ let private applySetName
   (itemHash : Hash)
   (location : PT.PackageLocation)
   (itemKind : PT.ItemKind)
-  : Task<unit> =
-  task {
-    let (Hash itemHashStr) = itemHash
-    let previousHash =
-      match op with
-      | PT.PackageOp.SetName(_, _, Some(Hash h)) -> Some h
-      | _ -> None
+  : unit =
+  let (Hash itemHashStr) = itemHash
+  let previousHash =
+    match op with
+    | PT.PackageOp.SetName(_, _, Some(Hash h)) -> Some h
+    | _ -> None
 
-    let! current = liveInLayer ctx layer location
-    let isStale =
-      match current, row.ts with
-      | Some("", Some removedTs), Some t -> Lww.unbindBeatsBinding removedTs t
-      | Some(curHash, Some curTs), Some t when curHash <> itemHashStr ->
-        Lww.isStale t itemHashStr curTs curHash
-      // Same content again: keep the earliest stamp, so the binding's stamp does not depend on
-      // the order its ops arrived in.
-      | Some(curHash, Some curTs), Some t when curHash = itemHashStr -> t >= curTs
-      | _ -> false
+  let current = liveInLayer ctx layer location
+  let isStale =
+    match current, row.ts with
+    | Some("", Some removedTs), Some t -> Lww.unbindBeatsBinding removedTs t
+    | Some(curHash, Some curTs), Some t when curHash <> itemHashStr ->
+      Lww.isStale t itemHashStr curTs curHash
+    // Same content again: keep the earliest stamp, so the binding's stamp does not depend on
+    // the order its ops arrived in.
+    | Some(curHash, Some curTs), Some t when curHash = itemHashStr -> t >= curTs
+    | _ -> false
 
-    if not isStale then
-      do!
-        writeName
-          ctx
-          layer
-          location
-          itemHashStr
-          (itemKind.toString ())
-          row.ts
-          source
-          opId
-          previousHash
-  }
+  if not isStale then
+    writeName
+      ctx
+      layer
+      location
+      itemHashStr
+      (itemKind.toString ())
+      row.ts
+      source
+      opId
+      previousHash
 
 /// Fold an `Unbind`: the name stops existing in <param layer>, which hides it in every layer below.
 /// Content is untouched. Ties go to the binding (`Lww.unbindBeatsBinding`).
@@ -624,29 +573,26 @@ let private applyUnbind
   (opId : System.Guid)
   (location : PT.PackageLocation)
   (previous : Option<Hash>)
-  : Task<unit> =
-  task {
-    let! current = liveInLayer ctx layer location
-    let isStale =
-      match current, row.ts with
-      | Some(h, Some curTs), Some t when h <> "" ->
-        not (Lww.unbindBeatsBinding t curTs)
-      | _ -> false
+  : unit =
+  let current = liveInLayer ctx layer location
+  let isStale =
+    match current, row.ts with
+    | Some(h, Some curTs), Some t when h <> "" ->
+      not (Lww.unbindBeatsBinding t curTs)
+    | _ -> false
 
-    if not isStale then
-      let! kind = kindInView ctx layer.branch location
-      do!
-        writeName
-          ctx
-          layer
-          location
-          ""
-          (kind |> Option.defaultValue (PT.ItemKind.Fn.toString ()))
-          row.ts
-          "op"
-          opId
-          (previous |> Option.map (fun (Hash h) -> h))
-  }
+  if not isStale then
+    let kind = kindInView ctx layer.branch location
+    writeName
+      ctx
+      layer
+      location
+      ""
+      (kind |> Option.defaultValue (PT.ItemKind.Fn.toString ()))
+      row.ts
+      "op"
+      opId
+      (previous |> Option.map (fun (Hash h) -> h))
 
 /// Record a deprecation-state change in <param layer>: the newest statement stands, by the op's own
 /// stamp, whatever order the ops arrived in. Keyed on the name and the content it held: another
@@ -660,48 +606,45 @@ let private writeDeprecationState
   (target : PT.Reference)
   (state : string)
   (blob : Option<byte[]>)
-  : Task<unit> =
-  task {
-    let (Hash itemHashStr) = target.hash
-    let itemKindStr = target.kind.toString ()
-    let bindKey (cmd : SqliteCommand) =
-      pLoc cmd location
-      p cmd "$item_hash" itemHashStr
-      p cmd "$item_kind" itemKindStr
+  : unit =
+  let (Hash itemHashStr) = target.hash
+  let itemKindStr = target.kind.toString ()
+  let bindKey (cmd : SqliteCommand) =
+    pLoc cmd location
+    p cmd "$item_hash" itemHashStr
+    p cmd "$item_kind" itemKindStr
 
-    let! standingTs =
-      textOption ctx "SELECT origin_ts FROM deprecations
-         WHERE owner = $owner AND modules = $modules AND name = $name
-           AND item_hash = $item_hash AND item_kind = $item_kind
-           AND branch_id = $branch AND draft = $draft AND live = 1" (fun cmd ->
-        bindKey cmd
-        layerParams cmd layer)
+  let standingTs =
+    textOption ctx "SELECT origin_ts FROM deprecations
+       WHERE owner = $owner AND modules = $modules AND name = $name
+         AND item_hash = $item_hash AND item_kind = $item_kind
+         AND branch_id = $branch AND draft = $draft AND live = 1" (fun cmd ->
+      bindKey cmd
+      layerParams cmd layer)
 
-    let ts = row.ts |> Option.defaultValue ""
-    let stale =
-      match standingTs with
-      | Some standing when standing <> "" -> ts < standing
-      | _ -> false
+  let ts = row.ts |> Option.defaultValue ""
+  let stale =
+    match standingTs with
+    | Some standing when standing <> "" -> ts < standing
+    | _ -> false
 
-    if not stale then
-      do! Layers.supersede ctx Layers.deprecations layer bindKey
-      do!
-        exec ctx """
-          INSERT INTO deprecations
-            (branch_id, draft, owner, modules, name, item_hash, item_kind, state, annotation_blob,
-             origin_ts, op_id)
-          VALUES ($branch, $draft, $owner, $modules, $name, $item_hash, $item_kind, $state, $blob,
-                  $origin_ts, $op_id)
-          """ (fun cmd ->
-          layerParams cmd layer
-          bindKey cmd
-          p cmd "$state" state
-          p cmd "$origin_ts" ts
-          p cmd "$op_id" (string opId)
-          match blob with
-          | Some b -> p cmd "$blob" b
-          | None -> p cmd "$blob" System.DBNull.Value)
-  }
+  if not stale then
+    Layers.supersede ctx Layers.deprecations layer bindKey
+    exec ctx """
+        INSERT INTO deprecations
+          (branch_id, draft, owner, modules, name, item_hash, item_kind, state, annotation_blob,
+           origin_ts, op_id)
+        VALUES ($branch, $draft, $owner, $modules, $name, $item_hash, $item_kind, $state, $blob,
+                $origin_ts, $op_id)
+        """ (fun cmd ->
+      layerParams cmd layer
+      bindKey cmd
+      p cmd "$state" state
+      p cmd "$origin_ts" ts
+      p cmd "$op_id" (string opId)
+      match blob with
+      | Some b -> p cmd "$blob" b
+      | None -> p cmd "$blob" System.DBNull.Value)
 
 
 // ------------------------------------------------------------------
@@ -718,153 +661,112 @@ let private writeDeprecationState
 let private applyOp
   (ctx : Ctx)
   (branch : PT.BranchId)
-  (logged : unit -> Task<System.Guid * OpRow>)
+  (logged : unit -> System.Guid * OpRow)
   (opBlob : Option<byte[]>)
   (op : PT.PackageOp)
-  : Task<List<DependencyRow>> =
-  task {
-    // Content rows are shared by every branch, and identical by hash; the only thing that can
-    // differ is the doc comment, and only main's work rewrites it, or a branch's wording would be
-    // published to everyone. A branch says what it thinks an item is with an `UpdateDoc`.
-    let mayRewriteExisting = branch.IsMain
+  : List<DependencyRow> =
+  // Content rows are shared by every branch, and identical by hash; the only thing that can
+  // differ is the doc comment, and only main's work rewrites it, or a branch's wording would be
+  // published to everyone. A branch says what it thinks an item is with an `UpdateDoc`.
+  let mayRewriteExisting = branch.IsMain
+  match op with
+  | PT.PackageOp.AddType typ -> applyAddType ctx mayRewriteExisting opBlob typ
+  | PT.PackageOp.AddValue value -> applyAddValue ctx mayRewriteExisting opBlob value
+  | PT.PackageOp.AddFn fn -> applyAddFn ctx mayRewriteExisting opBlob fn
+  | PT.PackageOp.AddTrait t -> applyAddTrait ctx mayRewriteExisting opBlob t
+  | PT.PackageOp.AddTraitImpl i ->
+    // The op's own time, so two rival impls order the same way wherever they land.
+    let (_, row) = logged ()
+    applyAddImpl ctx mayRewriteExisting (Option.defaultValue "" row.ts) opBlob i
+  | PT.PackageOp.AddTest test -> applyAddTest ctx mayRewriteExisting opBlob test
+  | _ ->
+    let (opId, row) = logged ()
+    let layer : Layers.Layer = { branch = branch; draft = row.draft }
     match op with
-    | PT.PackageOp.AddType typ ->
-      return! applyAddType ctx mayRewriteExisting opBlob typ
-    | PT.PackageOp.AddValue value ->
-      return! applyAddValue ctx mayRewriteExisting opBlob value
-    | PT.PackageOp.AddFn fn -> return! applyAddFn ctx mayRewriteExisting opBlob fn
-    | PT.PackageOp.AddTrait t ->
-      return! applyAddTrait ctx mayRewriteExisting opBlob t
-    | PT.PackageOp.AddTraitImpl i ->
-      // The op's own time, so two rival impls order the same way wherever they land.
-      let! (_, row) = logged ()
-      return!
-        applyAddImpl ctx mayRewriteExisting (Option.defaultValue "" row.ts) opBlob i
-    | PT.PackageOp.AddTest test ->
-      return! applyAddTest ctx mayRewriteExisting opBlob test
-    | _ ->
-      let! (opId, row) = logged ()
-      let layer : Layers.Layer = { branch = branch; draft = row.draft }
-      match op with
-      | PT.PackageOp.SetName(loc, target, _) ->
-        do! applySetName ctx layer row row.source op opId target.hash loc target.kind
-      | PT.PackageOp.Unbind(loc, previous) ->
-        do! applyUnbind ctx layer row opId loc previous
-      // `restating` is part of the op's identity and nothing else: what it SAYS is the kind and
-      // the message.
-      | PT.PackageOp.Deprecate(location, target, kind, message, _) ->
-        do!
-          writeDeprecationState
-            ctx
-            layer
-            row
-            opId
-            location
-            target
-            "deprecated"
-            (Some(Deprecations.serializeAnnotation kind message))
-      | PT.PackageOp.Undeprecate(location, target, _) ->
-        do!
-          writeDeprecationState
-            ctx
-            layer
-            row
-            opId
-            location
-            target
-            "undeprecated"
-            None
-      // A rename is its two binding effects; the names its callers use are read from the op itself
-      // (`ReferenceNames`), as `SetReferenceNames` is.
-      | PT.PackageOp.Rename(oldLocation, newLocation, target, _, _) ->
-        do! applyUnbind ctx layer row opId oldLocation (Some target.hash)
-        do!
-          applySetName
-            ctx
-            layer
-            row
-            row.source
-            op
-            opId
-            target.hash
-            newLocation
-            target.kind
-      | PT.PackageOp.SetReferenceNames _ -> ()
-      | PT.PackageOp.UpdateDoc(location, part, text, previous, _) ->
-        do!
-          Docs.applyUpdateDoc
-            ctx
-            layer
-            opId
-            (Option.defaultValue "" row.ts)
-            location
-            part
-            text
-            previous
-      | PT.PackageOp.Decision(id, loc, reason, kind) ->
-        match kind with
-        | PT.DecisionKind.Restore(_, target, _) ->
-          // Undo putting an earlier version back: a binding, like an override.
-          do!
-            applySetName
-              ctx
-              layer
-              row
-              "resolution"
-              op
-              opId
-              target.hash
-              loc
-              target.kind
-        | PT.DecisionKind.Override target ->
-          // An override answers ONE name, so it binds one name.
-          do!
-            applySetName
-              ctx
-              layer
-              row
-              "resolution"
-              op
-              opId
-              target.hash
-              loc
-              target.kind
-          // And closes the record it settles, on the branch it is folded on. Scoped to item KIND as
-          // well as name: one location can hold a fn AND a value, and overriding the fn must not
-          // close the value's conflict.
-          do!
-            exec
-              ctx
-              "UPDATE conflicts SET status = 'overridden', resolved_by = $op
-               WHERE owner = $owner AND modules = $modules AND name = $name
-                 AND item_type = $kind AND status = 'pending' AND branch_id = $branch"
-              (fun cmd ->
-                p cmd "$op" id
-                p cmd "$kind" (target.kind.toString ())
-                p cmd "$branch" (string layer.branch)
-                pLoc cmd loc)
-        | PT.DecisionKind.Ack findingId ->
-          // A finding nobody has answered isn't stored at all -- only answers are rows, because
-          // detection re-derives the findings whenever anyone asks.
-          do!
-            exec
-              ctx
-              "INSERT INTO conflicts
-                 (id, owner, modules, name, item_type, kind, candidates, auto_resolved_to, reason,
-                  status, origin_ts, branch_id)
-               VALUES ($id, $owner, $modules, $name, '', 'stale-usage', '[]', '', $reason, 'acked',
-                       $ts, $branch)
-               ON CONFLICT(id) DO UPDATE SET
-                 status = 'acked', reason = excluded.reason, origin_ts = excluded.origin_ts"
-              (fun cmd ->
-                p cmd "$id" findingId
-                pLoc cmd loc
-                p cmd "$reason" reason
-                p cmd "$ts" (Option.defaultValue "" row.ts)
-                p cmd "$branch" (string branch))
-      | _ -> ()
-      return []
-  }
+    | PT.PackageOp.SetName(loc, target, _) ->
+      applySetName ctx layer row row.source op opId target.hash loc target.kind
+    | PT.PackageOp.Unbind(loc, previous) ->
+      applyUnbind ctx layer row opId loc previous
+    // `restating` is part of the op's identity and nothing else: what it SAYS is the kind and
+    // the message.
+    | PT.PackageOp.Deprecate(location, target, kind, message, _) ->
+      writeDeprecationState
+        ctx
+        layer
+        row
+        opId
+        location
+        target
+        "deprecated"
+        (Some(Deprecations.serializeAnnotation kind message))
+    | PT.PackageOp.Undeprecate(location, target, _) ->
+      writeDeprecationState ctx layer row opId location target "undeprecated" None
+    // A rename is its two binding effects; the names its callers use are read from the op itself
+    // (`ReferenceNames`), as `SetReferenceNames` is.
+    | PT.PackageOp.Rename(oldLocation, newLocation, target, _, _) ->
+      applyUnbind ctx layer row opId oldLocation (Some target.hash)
+      applySetName
+        ctx
+        layer
+        row
+        row.source
+        op
+        opId
+        target.hash
+        newLocation
+        target.kind
+    | PT.PackageOp.SetReferenceNames _ -> ()
+    | PT.PackageOp.UpdateDoc(location, part, text, previous, _) ->
+      Docs.applyUpdateDoc
+        ctx
+        layer
+        opId
+        (Option.defaultValue "" row.ts)
+        location
+        part
+        text
+        previous
+    | PT.PackageOp.Decision(id, loc, reason, kind) ->
+      match kind with
+      | PT.DecisionKind.Restore(_, target, _) ->
+        // Undo putting an earlier version back: a binding, like an override.
+        applySetName ctx layer row "resolution" op opId target.hash loc target.kind
+      | PT.DecisionKind.Override target ->
+        // An override answers ONE name, so it binds one name.
+        applySetName ctx layer row "resolution" op opId target.hash loc target.kind
+        // And closes the record it settles, on the branch it is folded on. Scoped to item KIND as
+        // well as name: one location can hold a fn AND a value, and overriding the fn must not
+        // close the value's conflict.
+        exec
+          ctx
+          "UPDATE conflicts SET status = 'overridden', resolved_by = $op
+           WHERE owner = $owner AND modules = $modules AND name = $name
+             AND item_type = $kind AND status = 'pending' AND branch_id = $branch"
+          (fun cmd ->
+            p cmd "$op" id
+            p cmd "$kind" (target.kind.toString ())
+            p cmd "$branch" (string layer.branch)
+            pLoc cmd loc)
+      | PT.DecisionKind.Ack findingId ->
+        // A finding nobody has answered isn't stored at all -- only answers are rows, because
+        // detection re-derives the findings whenever anyone asks.
+        exec
+          ctx
+          "INSERT INTO conflicts
+             (id, owner, modules, name, item_type, kind, candidates, auto_resolved_to, reason,
+              status, origin_ts, branch_id)
+           VALUES ($id, $owner, $modules, $name, '', 'stale-usage', '[]', '', $reason, 'acked',
+                   $ts, $branch)
+           ON CONFLICT(id) DO UPDATE SET
+             status = 'acked', reason = excluded.reason, origin_ts = excluded.origin_ts"
+          (fun cmd ->
+            p cmd "$id" findingId
+            pLoc cmd loc
+            p cmd "$reason" reason
+            p cmd "$ts" (Option.defaultValue "" row.ts)
+            p cmd "$branch" (string branch))
+    | _ -> ()
+    []
 
 
 // ------------------------------------------------------------------
@@ -875,19 +777,16 @@ let private applyOp
 let private foldOps
   (ctx : Ctx)
   (branch : PT.BranchId)
-  (ops : List<(unit -> Task<System.Guid * OpRow>) * Option<byte[]> * PT.PackageOp>)
-  : Task<List<DependencyRow>> =
-  task {
-    let! rows =
-      ops
-      |> Task.mapSequentially (fun (logged, opBlob, op) ->
-        applyOp ctx branch logged opBlob op)
+  (ops : List<(unit -> System.Guid * OpRow) * Option<byte[]> * PT.PackageOp>)
+  : List<DependencyRow> =
+  let rows =
+    ops
+    |> List.map (fun (logged, opBlob, op) -> applyOp ctx branch logged opBlob op)
 
-    // Names just changed meaning; long-lived processes hold cached answers that
-    // never expire on their own -- see `Caching.invalidateAll`.
-    Caching.invalidateAll ()
-    return List.concat rows
-  }
+  // Names just changed meaning; long-lived processes hold cached answers that
+  // never expire on their own -- see `Caching.invalidateAll`.
+  Caching.invalidateAll ()
+  List.concat rows
 
 /// Fold <param ops> into <param branch>'s projections, on a caller-provided connection, so the caller
 /// controls the transaction: one outer transaction for a bulk fold, or the action's own. Each op must
@@ -896,22 +795,18 @@ let applyOpsOnConnection
   (conn : SqliteConnection)
   (branch : PT.BranchId)
   (ops : List<PT.PackageOp>)
-  : Task<unit> =
-  task {
-    let ctx = newCtx conn
-    try
-      let lookedUp (op : PT.PackageOp) () =
-        task {
-          let id = Hashing.computeOpRowId op
-          let! row = opRowOf ctx branch id
-          return (id, row)
-        }
-      let! rows =
-        foldOps ctx branch (ops |> List.map (fun op -> (lookedUp op, None, op)))
-      writeDependencies conn rows
-    finally
-      disposeCtx ctx
-  }
+  : unit =
+  let ctx = newCtx conn
+  try
+    let lookedUp (op : PT.PackageOp) () =
+      let id = Hashing.computeOpRowId op
+      let row = opRowOf ctx branch id
+      (id, row)
+    let rows =
+      foldOps ctx branch (ops |> List.map (fun op -> (lookedUp op, None, op)))
+    writeDependencies conn rows
+  finally
+    disposeCtx ctx
 
 /// Fold ops the caller read from the log into <param branch>'s projections, on its connection and
 /// in its transaction, and return their dependency rows rather than writing them: a bulk fold writes
@@ -920,32 +815,25 @@ let foldLoggedOnConnection
   (conn : SqliteConnection)
   (branch : PT.BranchId)
   (ops : List<LoggedOp>)
-  : Task<List<DependencyRow>> =
-  task {
-    let ctx = newCtx conn
-    try
-      return!
-        foldOps
-          ctx
-          branch
-          (ops
-           |> List.map (fun logged ->
-             ((fun () -> Task.FromResult((logged.id, logged.row))),
-              Some logged.blob,
-              logged.op)))
-    finally
-      disposeCtx ctx
-  }
+  : List<DependencyRow> =
+  let ctx = newCtx conn
+  try
+    foldOps
+      ctx
+      branch
+      (ops
+       |> List.map (fun logged ->
+         ((fun () -> ((logged.id, logged.row))), Some logged.blob, logged.op)))
+  finally
+    disposeCtx ctx
 
 /// `applyOpsOnConnection` on a connection of its own, in one transaction.
-let applyOps (branch : PT.BranchId) (ops : List<PT.PackageOp>) : Task<unit> =
-  task {
-    use conn = new SqliteConnection(LibDB.Sqlite.connString)
-    do! conn.OpenAsync()
-    use tx = conn.BeginTransaction()
-    do! applyOpsOnConnection conn branch ops
-    tx.Commit()
-  }
+let applyOps (branch : PT.BranchId) (ops : List<PT.PackageOp>) : unit =
+  use conn = new SqliteConnection(LibDB.Sqlite.connString)
+  conn.Open()
+  use tx = conn.BeginTransaction()
+  applyOpsOnConnection conn branch ops
+  tx.Commit()
 
 
 /// Record the callees of these `Add*` ops' items without folding anything else, on the caller's
@@ -955,7 +843,7 @@ let applyOps (branch : PT.BranchId) (ops : List<PT.PackageOp>) : Task<unit> =
 let recordDependenciesOnConnection
   (conn : SqliteConnection)
   (ops : List<PT.PackageOp>)
-  : Task<unit> =
+  : unit =
   let adds =
     ops
     |> List.choose (fun op ->
@@ -983,4 +871,4 @@ let recordDependenciesOnConnection
   adds
   |> List.collect (fun (hash, deps) -> dependencyRows hash deps)
   |> writeDependencies conn
-  Task.FromResult(())
+  (())

@@ -82,8 +82,7 @@ let private reviewUniverse =
   |> Map.ofList
 
 let private loadFromUniverse : PackagePermissions.Load =
-  { fn = fun hash -> Ply(Map.tryFind hash reviewUniverse)
-    value = fun _ -> Ply None }
+  { fn = (fun hash -> Map.tryFind hash reviewUniverse); value = (fun _ -> None) }
 
 let private reviewUnder
   explicitPolicy
@@ -100,7 +99,6 @@ let private reviewUnder
     explicitPolicy
     acknowledgeIncomplete
     acknowledgeChange
-  |> Ply.toTask
 
 let private review previousApproval hash acknowledgeIncomplete acknowledgeChange =
   reviewUnder None previousApproval hash acknowledgeIncomplete acknowledgeChange

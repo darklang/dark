@@ -49,19 +49,18 @@ let closure
   (sourceRoot : string)
   (names : Map<PT.Hash, string>)
   (load : PackagePermissions.Load)
-  : Ply<Requirements.Closure> =
+  : Requirements.Closure =
   let byName = names |> Map.toList |> List.map (fun (h, n) -> (n, h)) |> Map.ofList
   entryPoints @ namedInStrings sourceRoot
   |> List.choose (fun n -> Map.tryFind n byName)
   |> List.distinct
-  |> Ply.List.foldSequentially
+  |> List.fold
     (fun loaded root ->
       if Map.containsKey root loaded then
-        Ply loaded
+        loaded
       else
         PackagePermissions.loadClosure load root
-        |> Ply.map (fun more ->
-          Map.fold (fun acc k v -> Map.add k v acc) loaded more))
+        |> (fun more -> Map.fold (fun acc k v -> Map.add k v acc) loaded more))
     Map.empty
 
 /// What the analysis found: each raising call, and for each callee, the raising builtins it

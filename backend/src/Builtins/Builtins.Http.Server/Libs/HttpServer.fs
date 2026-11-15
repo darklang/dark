@@ -304,7 +304,6 @@ let private resolveRouting
           stepState.access
           live.step
           (NEList.singleton live.state)
-        |> Ply.toTask
       match stepped with
       | Ok(DTuple(next, DEnum(_, _, _, "Ok", [ DApplicable handler ]), [])) ->
         live.state <- next
@@ -445,10 +444,7 @@ let private serverHeaders (middleware : Dval) : List<string * string> =
 
 /// The effects the server's middleware can reach, from what it calls
 /// (`LibDB.PackagePermissions.permissionRequirements`, as an approval reviews a function).
-let middlewareEffects
-  (exeState : ExecutionState)
-  (middleware : Dval)
-  : Ply<Set<Effect>> =
+let middlewareEffects (exeState : ExecutionState) (middleware : Dval) : Set<Effect> =
   let callEffectsFor (name, version) =
     let key : FQFnName.Builtin = { name = name; version = version }
     match exeState.fns.builtIn.TryGetValue key with
@@ -456,18 +452,18 @@ let middlewareEffects
     | _ -> None
   callablesIn exeState middleware
   |> List.distinct
-  |> Ply.List.mapSequentially (fun name ->
+  |> List.map (fun name ->
     match name with
     | FQFnName.Builtin b ->
-      Ply(callEffectsFor (b.name, b.version) |> Option.defaultValue Set.empty)
+      callEffectsFor (b.name, b.version) |> Option.defaultValue Set.empty
     | FQFnName.Package(Hash h) ->
-      LibDB.PackagePermissions.permissionRequirements
+      (LibDB.PackagePermissions.permissionRequirements
         LibDB.PackagePermissions.Load.fromStore
         callEffectsFor
-        h
-      |> Ply.map (fun result -> result.requiredEffects)
-    | FQFnName.TraitMethod _ -> Ply Set.empty)
-  |> Ply.map Set.unionMany
+        h)
+        .requiredEffects
+    | FQFnName.TraitMethod _ -> Set.empty)
+  |> Set.unionMany
 
 /// A handler that runs past `requestTimeoutMs` is cancelled (politely: what it has on the host
 /// completes, then it stops, its children with it) and the client gets a 504. A handler stopped
@@ -758,7 +754,7 @@ let private handleRequest
                 Task.FromResult
                   { response with
                       headers = response.headers @ serverHeaders middleware }
-            do! tracer.storeTraceResults perRequestState |> Ply.toTask
+            tracer.storeTraceResults perRequestState
 
             // A served request is a run like any other (`dark traces`), so it says how it went
             // and what served it. The recorder's upsert wrote the row with `done`; a 5xx is the
@@ -773,11 +769,10 @@ let private handleRequest
               // a row pointing at nothing. The trace keeps the bytes, and they go with it.
               match outcome with
               | Value dv ->
-                let! prepared =
+                let prepared =
                   Tracing.prepareDvalForStorage
                     (Tracing.TraceStorage.keepBytesIn runId)
                     dv
-                  |> Ply.toTask
                 LibDB.Traces.setResult runId (Tracing.Redact.http prepared)
               | Direct _ -> ()
               if response.statusCode >= 500 then
@@ -851,7 +846,7 @@ let private handleRequest
           // Best-effort, and swallowed: the client already has its 500, and failing to record
           // a failure must not turn into a second one.
           try
-            do! tracer.storeTraceResults perRequestState |> Ply.toTask
+            tracer.storeTraceResults perRequestState
             LibDB.Traces.setStatus (AT.TraceID.toUUID traceID) LibDB.Traces.Failed
           with _ ->
             ()
@@ -1000,8 +995,8 @@ let private serve
   (maxBodyBytes : int64)
   (middleware : Dval)
   (onListening : Applicable)
-  : Ply<Dval> =
-  uply {
+  : Task<Dval> =
+  task {
     // Run the router and callbacks with guest permissions.
     // Use those permissions both to start listening and to handle requests.
     // Named routers can use their saved approvals; anonymous handlers have none.
@@ -1035,7 +1030,7 @@ let private serve
 
     use _serveSpan = Telemetry.span "httpserver.serve" [ "port", string port ]
     // The store's `http.requestTimeoutMs`, read once per `serve`.
-    let! configuredTimeout = LibDB.Config.get "http.requestTimeoutMs"
+    let configuredTimeout = LibDB.Config.get "http.requestTimeoutMs"
     let requestTimeoutMs =
       match configuredTimeout with
       | Some s ->
@@ -1047,7 +1042,7 @@ let private serve
     // The middleware runs inside every handler, under the server's grants like the handler's
     // own calls. What it can reach is checked here, before anything binds, so a server whose
     // log line needs the clock says so at start rather than failing every request.
-    let! needs = middlewareEffects exeState middleware
+    let needs = middlewareEffects exeState middleware
     LibExecution.PermissionCheck.requireBuiltinEffectsWithAccess
       exeState
       vm
@@ -1099,7 +1094,7 @@ let private serve
           middleware
           cts.Token
 
-      listenerTask.Wait()
+      do! listenerTask
 
       Console.CancelKeyPress.RemoveHandler cancelHandler
 
@@ -1176,6 +1171,7 @@ let fns () : List<BuiltInFn> =
             maxBodyBytesArg
             middleware
             onListening
+          |> LibExecution.Pending.ofTask
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects =
@@ -1244,6 +1240,7 @@ let fns () : List<BuiltInFn> =
             maxBodyBytesArg
             middleware
             onListening
+          |> LibExecution.Pending.ofTask
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects =

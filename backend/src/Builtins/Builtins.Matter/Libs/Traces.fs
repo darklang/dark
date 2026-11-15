@@ -147,71 +147,69 @@ let private parseArgsBytes (bytes : byte[]) : List<Dval> =
 /// The display name was resolved at write time and lives in fn_hash, so
 /// reads are a flat SELECT — lambdas have NULL fn_hash and render as
 /// "(lambda)".
-let private loadFnCalls (traceId : string) : Ply<Dval> =
+let private loadFnCalls (traceId : string) : Dval =
   let typeName = fnCallTypeName ()
   let dvalKT = KTCustomType(dvalTypeName (), [])
-  uply {
-    let! events =
-      Sql.query
-        "SELECT c.call_id, c.fn_hash,
-                c.args, r.bytes AS result, c.duration_ms, c.process_id, c.seq, c.ord
-         FROM trace_fn_calls c
-         JOIN trace_blobs r ON r.trace_id = c.trace_id AND r.hash = c.result
-         WHERE c.trace_id = @traceId
-         ORDER BY c.seq, c.rowid"
-      |> Sql.parameters [ "traceId", Sql.string traceId ]
-      |> Sql.executeAsync (fun read ->
-        {| callId = read.string "call_id"
-           fnHash = read.stringOrNone "fn_hash"
-           argsBytes = read.bytes "args"
-           resultBytes = read.bytes "result"
-           durationMs = read.int64 "duration_ms"
-           processId = read.string "process_id"
-           seq = read.int64 "seq"
-           ord = read.int64 "ord" |})
+  let events =
+    Sql.query
+      "SELECT c.call_id, c.fn_hash,
+              c.args, r.bytes AS result, c.duration_ms, c.process_id, c.seq, c.ord
+       FROM trace_fn_calls c
+       JOIN trace_blobs r ON r.trace_id = c.trace_id AND r.hash = c.result
+       WHERE c.trace_id = @traceId
+       ORDER BY c.seq, c.rowid"
+    |> Sql.parameters [ "traceId", Sql.string traceId ]
+    |> Sql.executeRows (fun read ->
+      {| callId = read.string "call_id"
+         fnHash = read.stringOrNone "fn_hash"
+         argsBytes = read.bytes "args"
+         resultBytes = read.bytes "result"
+         durationMs = read.int64 "duration_ms"
+         processId = read.string "process_id"
+         seq = read.int64 "seq"
+         ord = read.int64 "ord" |})
 
-    // A row whose args / result will not deserialize is logged and dropped, not stood in for:
-    // the renderer wants each `FnCall`'s `args` / `result` as the canonical Dval custom type,
-    // so a placeholder `DString` fails the type check at apply time instead. Dropping keeps
-    // the rest of the trace readable; a raise here would lose all of it.
-    let enriched =
-      events
-      |> List.choose (fun ev ->
-        try
-          // `kind` is not read: the writer puts 'builtin' on every row, because the log is a
-          // sequence of impure builtin calls. Nor are `parent_call_id` and `lambda_expr_id`,
-          // which are NULL on every row of every trace. The columns stay in the schema, which
-          // has merged; the reader stops pretending they carry anything.
-          let displayName =
-            match ev.fnHash with
-            | Some name -> name
-            | None -> "(unknown)"
-          let args = parseArgsBytes ev.argsBytes
-          let result = parseDvalBytes ev.resultBytes
-          let fields =
-            RecordFields.ofList
-              [ "callId", DString ev.callId
-                "fnName", DString displayName
-                "args", Dval.list dvalKT args
-                "result", result
-                "durationMs", Dval.dint64 (int64 ev.durationMs)
-                "processId",
-                (match System.Guid.TryParse ev.processId with
-                 | true, g when g <> System.Guid.Empty ->
-                   Dval.optionSome KTUuid (DUuid g)
-                 | _ -> Dval.optionNone KTUuid)
-                "seq", DInt64 ev.seq
-                "ord", DInt64 ev.ord ]
-          Some(DRecord(typeName, typeName, [], fields))
-        with ex ->
-          printErr $"[tracing] dropping corrupt fn_call row: {ex.Message}"
-          Telemetry.event
-            "trace.row.parseFailed"
-            [ "callId", ev.callId; "message", ex.Message ]
-          None)
+  // A row whose args / result will not deserialize is logged and dropped, not stood in for:
+  // the renderer wants each `FnCall`'s `args` / `result` as the canonical Dval custom type,
+  // so a placeholder `DString` fails the type check at apply time instead. Dropping keeps
+  // the rest of the trace readable; a raise here would lose all of it.
+  let enriched =
+    events
+    |> List.choose (fun ev ->
+      try
+        // `kind` is not read: the writer puts 'builtin' on every row, because the log is a
+        // sequence of impure builtin calls. Nor are `parent_call_id` and `lambda_expr_id`,
+        // which are NULL on every row of every trace. The columns stay in the schema, which
+        // has merged; the reader stops pretending they carry anything.
+        let displayName =
+          match ev.fnHash with
+          | Some name -> name
+          | None -> "(unknown)"
+        let args = parseArgsBytes ev.argsBytes
+        let result = parseDvalBytes ev.resultBytes
+        let fields =
+          RecordFields.ofList
+            [ "callId", DString ev.callId
+              "fnName", DString displayName
+              "args", Dval.list dvalKT args
+              "result", result
+              "durationMs", Dval.dint64 (int64 ev.durationMs)
+              "processId",
+              (match System.Guid.TryParse ev.processId with
+               | true, g when g <> System.Guid.Empty ->
+                 Dval.optionSome KTUuid (DUuid g)
+               | _ -> Dval.optionNone KTUuid)
+              "seq", DInt64 ev.seq
+              "ord", DInt64 ev.ord ]
+        Some(DRecord(typeName, typeName, [], fields))
+      with ex ->
+        printErr $"[tracing] dropping corrupt fn_call row: {ex.Message}"
+        Telemetry.event
+          "trace.row.parseFailed"
+          [ "callId", ev.callId; "message", ex.Message ]
+        None)
 
-    return enriched |> Dval.list (KTCustomType(typeName, []))
-  }
+  enriched |> Dval.list (KTCustomType(typeName, []))
 
 // ───────── reads: one query, one answer ─────────
 
@@ -305,284 +303,250 @@ let private containing
   (exeState : ExecutionState)
   (pattern : string)
   (limit : int64)
-  : Ply<List<Dval>> =
-  uply {
-    // Newest-first, deserializing each run's input and then, only if that misses, its
-    // calls; stop at `limit` matches. Bounded at both ends on purpose: the scan window
-    // keeps a store with retention turned off from loading every input blob it has, and
-    // `limit` keeps the deserializing short. A match older than the window is not found,
-    // which is what the description says.
-    let containsPattern (dv : Dval) : Ply<bool> =
-      uply {
-        let! repr = Execution.dvalToRepr exeState dv
-        return repr.Contains(pattern)
-      }
+  : List<Dval> =
+  // Newest-first, deserializing each run's input and then, only if that misses, its
+  // calls; stop at `limit` matches. Bounded at both ends on purpose: the scan window
+  // keeps a store with retention turned off from loading every input blob it has, and
+  // `limit` keeps the deserializing short. A match older than the window is not found,
+  // which is what the description says.
+  let containsPattern (dv : Dval) : bool =
+    // A stored input holds no read in flight, so its printing never waits.
+    let repr = Execution.now (Execution.dvalToRepr exeState dv)
+    repr.Contains(pattern)
 
-    let! traces =
-      Sql.query
-        $"SELECT {traceColumns} {fromTraces}
-          ORDER BY t.timestamp DESC, t.rowid DESC LIMIT 2000"
-      |> Sql.executeAsync (fun read ->
-        {| id = read.string "id"
-           row = traceRowToDT read
-           inputBytes = read.bytes "input_value"
-           resultBytes = read.bytesOrNone "result_value" |})
+  let traces =
+    Sql.query
+      $"SELECT {traceColumns} {fromTraces}
+        ORDER BY t.timestamp DESC, t.rowid DESC LIMIT 2000"
+    |> Sql.executeRows (fun read ->
+      {| id = read.string "id"
+         row = traceRowToDT read
+         inputBytes = read.bytes "input_value"
+         resultBytes = read.bytesOrNone "result_value" |})
 
-    let! (_, hits) =
-      traces
-      |> Ply.List.foldSequentially
-        (fun (count : int64, hits : List<Dval>) t ->
-          if count >= limit then
-            uply { return (count, hits) }
-          else
-            uply {
-              let inputDval =
-                BinarySer.RT.Dval.deserialize "traces.input_value" t.inputBytes
-              let! inputHit = containsPattern inputDval
-              // What the run answered counts as the run's own text too: a pure computation
-              // logs no calls, so its result is the only place its value appears.
-              let! resultHit =
-                match t.resultBytes with
-                | Some bytes ->
-                  containsPattern (
-                    BinarySer.RT.Dval.deserialize "traces.result_value" bytes
-                  )
-                | None -> uply { return false }
-              let inputMatches = inputHit || resultHit
+  let (_, hits) =
+    traces
+    |> List.fold
+      (fun (count : int64, hits : List<Dval>) t ->
+        if count >= limit then
+          ((count, hits))
+        else
+          let inputDval =
+            BinarySer.RT.Dval.deserialize "traces.input_value" t.inputBytes
+          let inputHit = containsPattern inputDval
+          // What the run answered counts as the run's own text too: a pure computation
+          // logs no calls, so its result is the only place its value appears.
+          let resultHit =
+            match t.resultBytes with
+            | Some bytes ->
+              containsPattern (
+                BinarySer.RT.Dval.deserialize "traces.result_value" bytes
+              )
+            | None -> (false)
+          let inputMatches = inputHit || resultHit
 
-              let! matchesViaCalls =
-                if inputMatches then
-                  uply { return true }
-                else
-                  uply {
-                    let! callRows =
-                      Sql.query
-                        "SELECT c.args, r.bytes AS result
-                         FROM trace_fn_calls c
-                         JOIN trace_blobs r
-                           ON r.trace_id = c.trace_id AND r.hash = c.result
-                         WHERE c.trace_id = @traceId"
-                      |> Sql.parameters [ "traceId", Sql.string t.id ]
-                      |> Sql.executeAsync (fun read ->
-                        {| argsBytes = read.bytes "args"
-                           resultBytes = read.bytes "result" |})
+          let matchesViaCalls =
+            if inputMatches then
+              (true)
+            else
+              let callRows =
+                Sql.query
+                  "SELECT c.args, r.bytes AS result
+                   FROM trace_fn_calls c
+                   JOIN trace_blobs r
+                     ON r.trace_id = c.trace_id AND r.hash = c.result
+                   WHERE c.trace_id = @traceId"
+                |> Sql.parameters [ "traceId", Sql.string t.id ]
+                |> Sql.executeRows (fun read ->
+                  {| argsBytes = read.bytes "args"
+                     resultBytes = read.bytes "result" |})
 
-                    return!
-                      callRows
-                      |> Ply.List.foldSequentially
-                        (fun found row ->
-                          if found then
-                            uply { return true }
-                          else
-                            uply {
-                              let argsDval =
-                                BinarySer.RT.Dval.deserialize
-                                  "trace_fn_calls.args"
-                                  row.argsBytes
-                              let resultDval =
-                                BinarySer.RT.Dval.deserialize
-                                  "trace_fn_calls.result"
-                                  row.resultBytes
-                              let! argsMatch = containsPattern argsDval
-                              if argsMatch then
-                                return true
-                              else
-                                return! containsPattern resultDval
-                            })
-                        false
-                  }
+              callRows
+              |> List.fold
+                (fun found row ->
+                  if found then
+                    (true)
+                  else
+                    let argsDval =
+                      BinarySer.RT.Dval.deserialize
+                        "trace_fn_calls.args"
+                        row.argsBytes
+                    let resultDval =
+                      BinarySer.RT.Dval.deserialize
+                        "trace_fn_calls.result"
+                        row.resultBytes
+                    let argsMatch = containsPattern argsDval
+                    if argsMatch then true else containsPattern resultDval)
+                false
 
-              if matchesViaCalls then
-                return (count + 1L, t.row :: hits)
-              else
-                return (count, hits)
-            })
-        (0L, [])
+          if matchesViaCalls then (count + 1L, t.row :: hits) else (count, hits))
+      (0L, [])
 
-    return List.rev hits
-  }
+  List.rev hits
 
 
 /// One run with its inputs and its calls, as a `Tracing.TraceData`.
-let private detail (traceID : string) : Ply<Option<Dval>> =
-  uply {
-    // One SELECT covers metadata + input — both live on the trace row.
-    let! row =
-      Sql.query
-        $"SELECT {traceColumns} {fromTraces}
-          WHERE t.id = @traceId"
-      |> Sql.parameters [ "traceId", Sql.string traceID ]
-      |> Sql.executeRowOptionAsync (fun read ->
-        {| id = read.string "id"
-           trace = traceRowToDT read
-           inputName = read.string "input_name"
-           inputValueBytes = read.bytes "input_value" |})
+let private detail (traceID : string) : Option<Dval> =
+  // One SELECT covers metadata + input — both live on the trace row.
+  let row =
+    Sql.query
+      $"SELECT {traceColumns} {fromTraces}
+        WHERE t.id = @traceId"
+    |> Sql.parameters [ "traceId", Sql.string traceID ]
+    |> Sql.executeRowOption (fun read ->
+      {| id = read.string "id"
+         trace = traceRowToDT read
+         inputName = read.string "input_name"
+         inputValueBytes = read.bytes "input_value" |})
 
-    match row with
-    | Some r ->
-      let! fnCalls = loadFnCalls r.id
-      let inputVarType = inputVarTypeName ()
-      let inputFields =
-        RecordFields.ofList
-          [ "name", DString r.inputName; "value", parseDvalBytes r.inputValueBytes ]
-      let inputs =
-        [ DRecord(inputVarType, inputVarType, [], inputFields) ]
-        |> Dval.list (KTCustomType(inputVarType, []))
-      let typeName = traceDataTypeName ()
-      let fields =
-        RecordFields.ofList
-          [ "trace", r.trace; "inputs", inputs; "functionCalls", fnCalls ]
-      return Some(DRecord(typeName, typeName, [], fields))
-    | None -> return None
-  }
+  match row with
+  | Some r ->
+    let fnCalls = loadFnCalls r.id
+    let inputVarType = inputVarTypeName ()
+    let inputFields =
+      RecordFields.ofList
+        [ "name", DString r.inputName; "value", parseDvalBytes r.inputValueBytes ]
+    let inputs =
+      [ DRecord(inputVarType, inputVarType, [], inputFields) ]
+      |> Dval.list (KTCustomType(inputVarType, []))
+    let typeName = traceDataTypeName ()
+    let fields =
+      RecordFields.ofList
+        [ "trace", r.trace; "inputs", inputs; "functionCalls", fnCalls ]
+    Some(DRecord(typeName, typeName, [], fields))
+  | None -> None
 
 
 /// A recorded CLI invocation, without its result. Served requests, and invocations that are
 /// missing, incomplete or corrupt, have none.
-let private savedInput (traceID : string) : Ply<Option<Dval>> =
-  uply {
-    match System.Guid.TryParse traceID with
-    | false, _ -> return None
-    | true, id ->
-      let! input = LibDB.Traces.getCliInput id
-      return Option.map LibDB.Traces.ScriptOrEvalInput.toDT input
-  }
+let private savedInput (traceID : string) : Option<Dval> =
+  match System.Guid.TryParse traceID with
+  | false, _ -> None
+  | true, id ->
+    let input = LibDB.Traces.getCliInput id
+    Option.map LibDB.Traces.ScriptOrEvalInput.toDT input
 
 
 /// Per-entry aggregate over the last N traces: (entry, traceCount, totalMs, maxMs). The ms are
 /// each TRACE's own wall clock, which is the number a person reading "how long does this take"
 /// is asking for.
-let private statsByHandler (traceLimit : int64) : Ply<List<Dval>> =
-  uply {
-    // The TRACE's own duration, not the sum of its impure calls.
-    //
-    // It used to join `trace_fn_calls` and sum those, and its own description said
-    // per-trace latency "would need a separate column on `traces`". That column exists
-    // now. Summing the calls meant a pure `eval` that took 69 ms reported 0, which is a
-    // number nobody can act on and everybody notices.
-    //
-    // No join, so no double counting: the aggregate is over the traces themselves.
-    let! rows =
-      Sql.query
-        "SELECT handler_desc AS handler,
-                COUNT(*) AS trace_count,
-                COALESCE(SUM(duration_ms), 0) AS total_ms,
-                COALESCE(MAX(duration_ms), 0) AS max_ms
-         FROM (
-           SELECT handler_desc, duration_ms FROM traces ORDER BY rowid DESC LIMIT @traceLimit
-         )
-         GROUP BY handler_desc
-         ORDER BY trace_count DESC, handler"
-      |> Sql.parameters [ "traceLimit", Sql.int64 traceLimit ]
-      |> Sql.executeAsync (fun read ->
-        DTuple(
-          DString(read.string "handler"),
-          Dval.dint64 (read.int64 "trace_count"),
-          [ Dval.dint64 (read.int64 "total_ms"); Dval.dint64 (read.int64 "max_ms") ]
-        ))
-    return rows
-  }
+let private statsByHandler (traceLimit : int64) : List<Dval> =
+  // The TRACE's own duration, not the sum of its impure calls.
+  //
+  // It used to join `trace_fn_calls` and sum those, and its own description said
+  // per-trace latency "would need a separate column on `traces`". That column exists
+  // now. Summing the calls meant a pure `eval` that took 69 ms reported 0, which is a
+  // number nobody can act on and everybody notices.
+  //
+  // No join, so no double counting: the aggregate is over the traces themselves.
+  let rows =
+    Sql.query
+      "SELECT handler_desc AS handler,
+              COUNT(*) AS trace_count,
+              COALESCE(SUM(duration_ms), 0) AS total_ms,
+              COALESCE(MAX(duration_ms), 0) AS max_ms
+       FROM (
+         SELECT handler_desc, duration_ms FROM traces ORDER BY rowid DESC LIMIT @traceLimit
+       )
+       GROUP BY handler_desc
+       ORDER BY trace_count DESC, handler"
+    |> Sql.parameters [ "traceLimit", Sql.int64 traceLimit ]
+    |> Sql.executeRows (fun read ->
+      DTuple(
+        DString(read.string "handler"),
+        Dval.dint64 (read.int64 "trace_count"),
+        [ Dval.dint64 (read.int64 "total_ms"); Dval.dint64 (read.int64 "max_ms") ]
+      ))
+  rows
 
 
 /// Fn-call timing across the last N traces: (fnName, callCount, totalMs, maxMs), most total time
 /// first. Lambdas are excluded (no fn_hash to bucket by); builtins included, with their measured
 /// duration.
-let private hotspots (traceLimit : int64) : Ply<List<Dval>> =
-  uply {
-    // Subquery: the last N trace IDs by recency.
-    // Outer GROUP BY rolls duration up per fn_hash.
-    // WHERE fn_hash IS NOT NULL drops lambda rows.
-    let! rows =
-      Sql.query
-        "SELECT fn_hash AS name,
-                COUNT(*) AS call_count,
-                SUM(duration_ms) AS total_ms,
-                MAX(duration_ms) AS max_ms
-         FROM trace_fn_calls
-         WHERE trace_id IN (
-           SELECT id FROM traces ORDER BY rowid DESC LIMIT @traceLimit
-         )
-         AND fn_hash IS NOT NULL
-         GROUP BY fn_hash
-         ORDER BY total_ms DESC, call_count DESC
-         LIMIT 50"
-      |> Sql.parameters [ "traceLimit", Sql.int64 traceLimit ]
-      |> Sql.executeAsync (fun read ->
-        DTuple(
-          DString(read.string "name"),
-          Dval.dint64 (read.int64 "call_count"),
-          [ Dval.dint64 (read.int64 "total_ms"); Dval.dint64 (read.int64 "max_ms") ]
-        ))
-    return rows
-  }
+let private hotspots (traceLimit : int64) : List<Dval> =
+  // Subquery: the last N trace IDs by recency.
+  // Outer GROUP BY rolls duration up per fn_hash.
+  // WHERE fn_hash IS NOT NULL drops lambda rows.
+  let rows =
+    Sql.query
+      "SELECT fn_hash AS name,
+              COUNT(*) AS call_count,
+              SUM(duration_ms) AS total_ms,
+              MAX(duration_ms) AS max_ms
+       FROM trace_fn_calls
+       WHERE trace_id IN (
+         SELECT id FROM traces ORDER BY rowid DESC LIMIT @traceLimit
+       )
+       AND fn_hash IS NOT NULL
+       GROUP BY fn_hash
+       ORDER BY total_ms DESC, call_count DESC
+       LIMIT 50"
+    |> Sql.parameters [ "traceLimit", Sql.int64 traceLimit ]
+    |> Sql.executeRows (fun read ->
+      DTuple(
+        DString(read.string "name"),
+        Dval.dint64 (read.int64 "call_count"),
+        [ Dval.dint64 (read.int64 "total_ms"); Dval.dint64 (read.int64 "max_ms") ]
+      ))
+  rows
 
 
 /// What each of the runs `WentThrough` finds spent in that function: (trace id, calls, total
 /// microseconds, slowest call's microseconds), newest first. The same runs in the same order,
 /// so a caller can lay the two side by side.
-let private timeIn
-  (fnName : string)
-  (fnHash : string)
-  (limit : int64)
-  : Ply<List<Dval>> =
-  uply {
-    let! rows =
-      Sql.query
-        "SELECT t.id AS id, f.calls AS calls, f.total_us AS total_us,
-                f.slowest_us AS slowest_us
-         FROM traces t
-         JOIN trace_fns f ON f.trace_id = t.id
-         WHERE f.fn_name = @fn
-            OR (@hash <> '' AND f.fn_hash = @hash)
-         ORDER BY t.timestamp DESC, t.rowid DESC LIMIT @limit"
-      |> Sql.parameters
-        [ "fn", Sql.string fnName
-          "hash", Sql.string fnHash
-          "limit", Sql.int64 limit ]
-      |> Sql.executeAsync (fun read ->
-        DTuple(
-          DString(read.string "id"),
-          Dval.dint64 (read.int64 "calls"),
-          [ Dval.dint64 (read.int64 "total_us")
-            Dval.dint64 (read.int64 "slowest_us") ]
-        ))
-    return rows
-  }
+let private timeIn (fnName : string) (fnHash : string) (limit : int64) : List<Dval> =
+  let rows =
+    Sql.query
+      "SELECT t.id AS id, f.calls AS calls, f.total_us AS total_us,
+              f.slowest_us AS slowest_us
+       FROM traces t
+       JOIN trace_fns f ON f.trace_id = t.id
+       WHERE f.fn_name = @fn
+          OR (@hash <> '' AND f.fn_hash = @hash)
+       ORDER BY t.timestamp DESC, t.rowid DESC LIMIT @limit"
+    |> Sql.parameters
+      [ "fn", Sql.string fnName
+        "hash", Sql.string fnHash
+        "limit", Sql.int64 limit ]
+    |> Sql.executeRows (fun read ->
+      DTuple(
+        DString(read.string "id"),
+        Dval.dint64 (read.int64 "calls"),
+        [ Dval.dint64 (read.int64 "total_us")
+          Dval.dint64 (read.int64 "slowest_us") ]
+      ))
+  rows
 
 
 /// The package functions one run went through: each one's name, and the hash the run actually
 /// went through. The names are what lets `traces show <run>` offer the code the run ran; the
 /// hashes are how a resume tells you which of them have been edited since.
-let private fnsOf (traceID : string) : Ply<List<Dval>> =
-  uply {
-    let! rows =
-      Sql.query
-        "SELECT fn_name, fn_hash FROM trace_fns WHERE trace_id = @t ORDER BY fn_name"
-      |> Sql.parameters [ "t", Sql.string traceID ]
-      |> Sql.executeAsync (fun read ->
-        DTuple(DString(read.string "fn_name"), DString(read.string "fn_hash"), []))
-    return rows
-  }
+let private fnsOf (traceID : string) : List<Dval> =
+  let rows =
+    Sql.query
+      "SELECT fn_name, fn_hash FROM trace_fns WHERE trace_id = @t ORDER BY fn_name"
+    |> Sql.parameters [ "t", Sql.string traceID ]
+    |> Sql.executeRows (fun read ->
+      DTuple(DString(read.string "fn_name"), DString(read.string "fn_hash"), []))
+  rows
 
 
 /// Which package functions recent runs went through, and how many runs went through each, most
 /// first. `Hotspots` cannot answer it: it reads the effect log, which holds only the impure
 /// calls, so it can only ever name builtins.
-let private fnCounts (traceLimit : int64) : Ply<List<Dval>> =
-  uply {
-    let! rows =
-      Sql.query
-        "SELECT f.fn_name AS name, COUNT(DISTINCT f.trace_id) AS runs
-         FROM trace_fns f
-         WHERE f.trace_id IN
-           (SELECT id FROM traces ORDER BY rowid DESC LIMIT @traceLimit)
-         GROUP BY f.fn_name
-         ORDER BY runs DESC, name ASC"
-      |> Sql.parameters [ "traceLimit", Sql.int64 traceLimit ]
-      |> Sql.executeAsync (fun read ->
-        DTuple(DString(read.string "name"), DInt64(read.int64 "runs"), []))
-    return rows
-  }
+let private fnCounts (traceLimit : int64) : List<Dval> =
+  let rows =
+    Sql.query
+      "SELECT f.fn_name AS name, COUNT(DISTINCT f.trace_id) AS runs
+       FROM trace_fns f
+       WHERE f.trace_id IN
+         (SELECT id FROM traces ORDER BY rowid DESC LIMIT @traceLimit)
+       GROUP BY f.fn_name
+       ORDER BY runs DESC, name ASC"
+    |> Sql.parameters [ "traceLimit", Sql.int64 traceLimit ]
+    |> Sql.executeRows (fun read ->
+      DTuple(DString(read.string "name"), DInt64(read.int64 "runs"), []))
+  rows
 
 
 /// How many times each loop in a recorded run actually went round, as it was RECORDED: the
@@ -596,15 +560,13 @@ let private fnCounts (traceLimit : int64) : Ply<List<Dval>> =
 ///
 /// One row per loop, counted as the run went. Every pass is counted, including the ones that
 /// made no impure call. Empty for a run recorded before counts were kept.
-let private loopPasses (traceID : string) : Ply<List<Dval>> =
-  uply {
-    let! rows =
-      Sql.query "SELECT call_site, passes FROM trace_loops WHERE trace_id = @t"
-      |> Sql.parameters [ "t", Sql.string traceID ]
-      |> Sql.executeAsync (fun read ->
-        DTuple(DString(read.string "call_site"), DInt64(read.int64 "passes"), []))
-    return rows
-  }
+let private loopPasses (traceID : string) : List<Dval> =
+  let rows =
+    Sql.query "SELECT call_site, passes FROM trace_loops WHERE trace_id = @t"
+    |> Sql.parameters [ "t", Sql.string traceID ]
+    |> Sql.executeRows (fun read ->
+      DTuple(DString(read.string "call_site"), DInt64(read.int64 "passes"), []))
+  rows
 
 
 /// A `Tracing.TraceAnswer`: the field the query asked for, every other one empty.
@@ -646,58 +608,54 @@ let private answerToDT (a : Answer) : Dval =
         "totals", Dval.list totalsKT a.totals ]
   )
 
-let private answer (exeState : ExecutionState) (query : Query) : Ply<Answer> =
-  uply {
-    match query with
-    | Newest _
-    | Calling _
-    | WentThrough _
-    | ById _ ->
-      let sql, ps = runsSql query
-      let! rows = Sql.query sql |> Sql.parameters ps |> Sql.executeAsync traceRowToDT
-      return { noAnswer with runs = rows }
-    | Containing(pattern, limit) ->
-      let! rows = containing exeState pattern limit
-      return { noAnswer with runs = rows }
-    | Detail traceID ->
-      let! d = detail traceID
-      return { noAnswer with detail = d }
-    | IdsStartingWith prefix ->
-      // Six, not five: enough for the caller to tell "one more" from "several more".
-      let! ids = LibDB.Traces.idsStartingWith prefix 6
-      return { noAnswer with ids = ids }
-    | SavedInput traceID ->
-      let! input = savedInput traceID
-      return { noAnswer with savedInput = input }
-    | FnsOf traceID ->
-      let! rows = fnsOf traceID
-      return { noAnswer with fns = rows }
-    | TimeIn(fnName, fnHash, limit) ->
-      let! rows = timeIn fnName fnHash limit
-      return { noAnswer with totals = rows }
-    | LoopPasses traceID ->
-      let! rows = loopPasses traceID
-      return { noAnswer with counts = rows }
-    | FnCounts traceLimit ->
-      let! rows = fnCounts traceLimit
-      return { noAnswer with counts = rows }
-    | Hotspots traceLimit ->
-      let! rows = hotspots traceLimit
-      return { noAnswer with totals = rows }
-    | StatsByHandler traceLimit ->
-      let! rows = statsByHandler traceLimit
-      return { noAnswer with totals = rows }
-  }
+let private answer (exeState : ExecutionState) (query : Query) : Answer =
+  match query with
+  | Newest _
+  | Calling _
+  | WentThrough _
+  | ById _ ->
+    let sql, ps = runsSql query
+    let rows = Sql.query sql |> Sql.parameters ps |> Sql.executeRows traceRowToDT
+    { noAnswer with runs = rows }
+  | Containing(pattern, limit) ->
+    let rows = containing exeState pattern limit
+    { noAnswer with runs = rows }
+  | Detail traceID ->
+    let d = detail traceID
+    { noAnswer with detail = d }
+  | IdsStartingWith prefix ->
+    // Six, not five: enough for the caller to tell "one more" from "several more".
+    let ids = LibDB.Traces.idsStartingWith prefix 6
+    { noAnswer with ids = ids }
+  | SavedInput traceID ->
+    let input = savedInput traceID
+    { noAnswer with savedInput = input }
+  | FnsOf traceID ->
+    let rows = fnsOf traceID
+    { noAnswer with fns = rows }
+  | TimeIn(fnName, fnHash, limit) ->
+    let rows = timeIn fnName fnHash limit
+    { noAnswer with totals = rows }
+  | LoopPasses traceID ->
+    let rows = loopPasses traceID
+    { noAnswer with counts = rows }
+  | FnCounts traceLimit ->
+    let rows = fnCounts traceLimit
+    { noAnswer with counts = rows }
+  | Hotspots traceLimit ->
+    let rows = hotspots traceLimit
+    { noAnswer with totals = rows }
+  | StatsByHandler traceLimit ->
+    let rows = statsByHandler traceLimit
+    { noAnswer with totals = rows }
 
 
 /// The ids a `Tracing.TraceSelection` names, for the cases that delete by id.
-let private selectedIds
-  (selection : Dval)
-  : System.Threading.Tasks.Task<List<string>> =
+let private selectedIds (selection : Dval) : List<string> =
   let ids (sql : string) ps =
     Sql.query sql
     |> Sql.parameters ps
-    |> Sql.executeAsync (fun read -> read.string "id")
+    |> Sql.executeRows (fun read -> read.string "id")
   match selection with
   | DEnum(_, _, _, "One", [ DString traceID ]) ->
     ids "SELECT id FROM traces WHERE id = @id" [ "id", Sql.string traceID ]
@@ -724,7 +682,6 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUnit |] ->
           (LibDB.Tracing.TraceDetail.current () <> LibDB.Tracing.TraceDetail.Off)
           |> DBool
-          |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -751,7 +708,7 @@ let fns () : List<BuiltInFn> =
             else
               LibDB.Tracing.TraceDetail.Off
           )
-          Ply DUnit
+          DUnit
         | _ -> incorrectArgs ())
       previewable = Impure
       // Turning recording off hides what this process does, so it is a trace write, not nothing.
@@ -774,10 +731,8 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | exeState, _, _, [| q |] ->
-          uply {
-            let! a = answer exeState (queryFromDT q)
-            return answerToDT a
-          }
+          let a = answer exeState (queryFromDT q)
+          answerToDT a
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.TraceRead ]
@@ -803,19 +758,17 @@ let fns () : List<BuiltInFn> =
           let deleted = LibDB.Tracing.TraceRetention.prune (Some keepN) None
           LibDB.Tracing.TraceRetention.sweepOrphans ()
           LibDB.Tracing.TraceRetention.vacuumIfMostlyFree ()
-          Dval.dint64 (int64 deleted) |> Ply
+          Dval.dint64 (int64 deleted)
         | _, _, _, [| (DEnum _ as which) |] ->
-          uply {
-            let! ids = selectedIds which
-            match which, ids with
-            // One id nobody has: nothing to do, and no sweep either.
-            | DEnum(_, _, _, "One", _), [] -> ()
-            | _ ->
-              LibDB.Tracing.TraceRetention.deleteTraces ids
-              LibDB.Tracing.TraceRetention.sweepOrphans ()
-              LibDB.Tracing.TraceRetention.vacuumIfMostlyFree ()
-            return Dval.dint64 (int64 (List.length ids))
-          }
+          let ids = selectedIds which
+          match which, ids with
+          // One id nobody has: nothing to do, and no sweep either.
+          | DEnum(_, _, _, "One", _), [] -> ()
+          | _ ->
+            LibDB.Tracing.TraceRetention.deleteTraces ids
+            LibDB.Tracing.TraceRetention.sweepOrphans ()
+            LibDB.Tracing.TraceRetention.vacuumIfMostlyFree ()
+          Dval.dint64 (int64 (List.length ids))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.TraceWrite ]
@@ -832,10 +785,8 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString traceID; DBool pinned |] ->
-          uply {
-            let! found = LibDB.Traces.setPinned traceID pinned
-            return DBool found
-          }
+          let found = LibDB.Traces.setPinned traceID pinned
+          DBool found
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.TraceWrite ]
@@ -856,20 +807,16 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString traceID; at |] ->
-          uply {
-            let at =
-              match at with
-              | DEnum(_, _, _, "Some", [ DInt64 n ]) -> Some n
-              | _ -> None
-            match System.Guid.TryParse traceID with
-            | false, _ ->
-              return Dval.resultError KTString KTString (DString "not an id")
-            | true, id ->
-              match! LibDB.Traces.fork id at with
-              | Ok child ->
-                return Dval.resultOk KTString KTString (DString(string child))
-              | Error msg -> return Dval.resultError KTString KTString (DString msg)
-          }
+          let at =
+            match at with
+            | DEnum(_, _, _, "Some", [ DInt64 n ]) -> Some n
+            | _ -> None
+          match System.Guid.TryParse traceID with
+          | false, _ -> Dval.resultError KTString KTString (DString "not an id")
+          | true, id ->
+            match LibDB.Traces.fork id at with
+            | Ok child -> Dval.resultOk KTString KTString (DString(string child))
+            | Error msg -> Dval.resultError KTString KTString (DString msg)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.TraceWrite ]
@@ -886,13 +833,11 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString traceID |] ->
-          uply {
-            match System.Guid.TryParse traceID with
-            | false, _ -> return DBool false
-            | true, id ->
-              let! armed = LibDB.Traces.Replay.arm id
-              return DBool armed
-          }
+          match System.Guid.TryParse traceID with
+          | false, _ -> DBool false
+          | true, id ->
+            let armed = LibDB.Traces.Replay.arm id
+            DBool armed
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.TraceWrite ]

@@ -12,7 +12,6 @@
 module LibDB.Docs
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 open Fumble
 open Microsoft.Data.Sqlite
 
@@ -317,26 +316,23 @@ let private visibleDocsSql (where : string) : string =
 let docsAt
   (branchId : PT.BranchId)
   (location : PT.PackageLocation)
-  : Task<List<PT.DocPart * string>> =
-  task {
-    let! rows =
-      Sql.query (
-        visibleDocsSql "owner = @owner AND modules = @modules AND name = @name"
-      )
-      |> Sql.parameters (
-        [ "owner", Sql.string location.owner
-          "modules", Sql.string (String.concat "." location.modules)
-          "name", Sql.string location.name ]
-        @ Layers.sqlParams branchId true
-      )
-      |> Sql.executeAsync (fun read ->
-        (read.string "kind", read.string "within", read.string "text"))
+  : List<PT.DocPart * string> =
+  let rows =
+    Sql.query (
+      visibleDocsSql "owner = @owner AND modules = @modules AND name = @name"
+    )
+    |> Sql.parameters (
+      [ "owner", Sql.string location.owner
+        "modules", Sql.string (String.concat "." location.modules)
+        "name", Sql.string location.name ]
+      @ Layers.sqlParams branchId true
+    )
+    |> Sql.executeRows (fun read ->
+      (read.string "kind", read.string "within", read.string "text"))
 
-    return
-      rows
-      |> List.choose (fun (k, w, text) ->
-        partOf k w |> Option.map (fun part -> part, text))
-  }
+  rows
+  |> List.choose (fun (k, w, text) ->
+    partOf k w |> Option.map (fun part -> part, text))
 
 
 /// The same, for MANY locations at once, as the map a search result is patched from.
@@ -347,35 +343,32 @@ let docsAt
 let docsForLocations
   (branchId : PT.BranchId)
   (locations : List<PT.PackageLocation>)
-  : Task<Map<PT.PackageLocation, List<PT.DocPart * string>>> =
-  task {
-    if List.isEmpty locations then
-      return Map.empty
-    else
-      let wanted = Set.ofList locations
-      let! rows =
-        Sql.query (visibleDocsSql "1 = 1")
-        |> Sql.parameters (Layers.sqlParams branchId true)
-        |> Sql.executeAsync (fun read ->
-          let loc : PT.PackageLocation =
-            { owner = read.string "owner"
-              modules =
-                (match read.string "modules" with
-                 | "" -> []
-                 | m -> m.Split('.') |> List.ofArray)
-              name = read.string "name" }
-          (loc, (read.string "kind", read.string "within", read.string "text")))
+  : Map<PT.PackageLocation, List<PT.DocPart * string>> =
+  if List.isEmpty locations then
+    Map.empty
+  else
+    let wanted = Set.ofList locations
+    let rows =
+      Sql.query (visibleDocsSql "1 = 1")
+      |> Sql.parameters (Layers.sqlParams branchId true)
+      |> Sql.executeRows (fun read ->
+        let loc : PT.PackageLocation =
+          { owner = read.string "owner"
+            modules =
+              (match read.string "modules" with
+               | "" -> []
+               | m -> m.Split('.') |> List.ofArray)
+            name = read.string "name" }
+        (loc, (read.string "kind", read.string "within", read.string "text")))
 
-      return
-        rows
-        |> List.filter (fun (l, _) -> Set.contains l wanted)
-        |> List.choose (fun (l, (k, w, text)) ->
-          partOf k w |> Option.map (fun part -> (l, (part, text))))
-        |> List.fold
-          (fun (acc : Map<PT.PackageLocation, List<PT.DocPart * string>>) (l, pt) ->
-            Map.add l ((Map.tryFind l acc |> Option.defaultValue []) @ [ pt ]) acc)
-          Map.empty
-  }
+    rows
+    |> List.filter (fun (l, _) -> Set.contains l wanted)
+    |> List.choose (fun (l, (k, w, text)) ->
+      partOf k w |> Option.map (fun part -> (l, (part, text))))
+    |> List.fold
+      (fun (acc : Map<PT.PackageLocation, List<PT.DocPart * string>>) (l, pt) ->
+        Map.add l ((Map.tryFind l acc |> Option.defaultValue []) @ [ pt ]) acc)
+      Map.empty
 
 
 // ---------------------
@@ -398,51 +391,49 @@ let private declaredAt
   (branch : PT.BranchId)
   (location : PT.PackageLocation)
   (part : PT.DocPart)
-  : Task<Option<string>> =
-  task {
-    let! bound =
-      pairOption
-        ctx
-        (Layers.view "$" Layers.locations
-         + " SELECT item_hash, item_type FROM visible
-             WHERE owner = $owner AND modules = $modules AND name = $name AND item_hash <> ''")
-        (fun cmd ->
-          pLoc cmd location
-          Layers.bind cmd branch true)
+  : Option<string> =
+  let bound =
+    pairOption
+      ctx
+      (Layers.view "$" Layers.locations
+       + " SELECT item_hash, item_type FROM visible
+           WHERE owner = $owner AND modules = $modules AND name = $name AND item_hash <> ''")
+      (fun cmd ->
+        pLoc cmd location
+        Layers.bind cmd branch true)
 
-    match bound with
-    | None
-    | Some(_, None) -> return None
-    | Some(hashStr, Some itemType) ->
-      let hash = Hash hashStr
+  match bound with
+  | None
+  | Some(_, None) -> None
+  | Some(hashStr, Some itemType) ->
+    let hash = Hash hashStr
 
-      let table, read =
-        match PT.ItemKind.fromString itemType with
-        | PT.ItemKind.Fn ->
-          "package_functions",
-          (fun bytes -> inFn part (BS.PT.PackageFn.deserialize hash bytes))
-        | PT.ItemKind.Type ->
-          "package_types",
-          (fun bytes -> inType part (BS.PT.PackageType.deserialize hash bytes))
-        | PT.ItemKind.Value ->
-          "package_values",
-          (fun bytes -> inValue part (BS.PT.PackageValue.deserialize hash bytes))
-        | PT.ItemKind.Trait ->
-          "package_traits",
-          (fun bytes -> inTrait part (BS.PT.Trait.deserialize hash bytes))
-        | PT.ItemKind.TraitImpl ->
-          "package_trait_impls",
-          (fun bytes -> inImpl part (BS.PT.TraitImpl.deserialize hash bytes))
-        | PT.ItemKind.Test ->
-          "package_tests",
-          (fun bytes -> Test.get part (BS.PT.PackageTest.deserialize hash bytes))
+    let table, read =
+      match PT.ItemKind.fromString itemType with
+      | PT.ItemKind.Fn ->
+        "package_functions",
+        (fun bytes -> inFn part (BS.PT.PackageFn.deserialize hash bytes))
+      | PT.ItemKind.Type ->
+        "package_types",
+        (fun bytes -> inType part (BS.PT.PackageType.deserialize hash bytes))
+      | PT.ItemKind.Value ->
+        "package_values",
+        (fun bytes -> inValue part (BS.PT.PackageValue.deserialize hash bytes))
+      | PT.ItemKind.Trait ->
+        "package_traits",
+        (fun bytes -> inTrait part (BS.PT.Trait.deserialize hash bytes))
+      | PT.ItemKind.TraitImpl ->
+        "package_trait_impls",
+        (fun bytes -> inImpl part (BS.PT.TraitImpl.deserialize hash bytes))
+      | PT.ItemKind.Test ->
+        "package_tests",
+        (fun bytes -> Test.get part (BS.PT.PackageTest.deserialize hash bytes))
 
-      let! stored =
-        bytesOption ctx $"SELECT pt_def FROM {table} WHERE hash = $hash" (fun cmd ->
-          p cmd "$hash" hashStr)
+    let stored =
+      bytesOption ctx $"SELECT pt_def FROM {table} WHERE hash = $hash" (fun cmd ->
+        p cmd "$hash" hashStr)
 
-      return stored |> Option.bind read
-  }
+    stored |> Option.bind read
 
 
 /// Record that two people wrote different prose for one name, neither having seen the other's.
@@ -461,66 +452,60 @@ let private recordDocConflict
   (standingTs : string)
   (theirs : string)
   (incomingWins : bool)
-  : Task<unit> =
-  task {
-    let (Hash ourText) = Hashing.hashText ours
-    let (Hash theirText) = Hashing.hashText theirs
-    let modules = String.concat "." location.modules
+  : unit =
+  let (Hash ourText) = Hashing.hashText ours
+  let (Hash theirText) = Hashing.hashText theirs
+  let modules = String.concat "." location.modules
 
-    let material =
-      let sorted = List.sort [ ourText; theirText ]
-      $"{location.owner}/{modules}/{location.name}/{kind part}/{within part}|"
-      + String.concat "," sorted
+  let material =
+    let sorted = List.sort [ ourText; theirText ]
+    $"{location.owner}/{modules}/{location.name}/{kind part}/{within part}|"
+    + String.concat "," sorted
 
-    let id =
-      material
-      |> UTF8.toBytes
-      |> System.Security.Cryptography.SHA256.HashData
-      |> System.Convert.ToHexString
-      |> fun h -> "doc" + h.Substring(0, 8).ToLowerInvariant()
+  let id =
+    material
+    |> UTF8.toBytes
+    |> System.Security.Cryptography.SHA256.HashData
+    |> System.Convert.ToHexString
+    |> fun h -> "doc" + h.Substring(0, 8).ToLowerInvariant()
 
-    // The candidates are hashes of the TEXTS, not of items: a doc edit never moves an item's hash.
-    // Same field names as a name divergence's candidates, because the same reader decodes both and
-    // a listing that cannot find its own sides says "auto" for every row. Built by hand: the
-    // reflection serializer is disabled under AOT.
-    // The TEXT rides along too, because settling a wording disagreement means writing one of these
-    // words, and a hash cannot be turned back into the sentence it hashed.
-    let candidate (side : string) (hash : string) (text : string) (stamp : string) =
-      let escaped = System.Text.Json.JsonEncodedText.Encode(text).ToString()
+  // The candidates are hashes of the TEXTS, not of items: a doc edit never moves an item's hash.
+  // Same field names as a name divergence's candidates, because the same reader decodes both and
+  // a listing that cannot find its own sides says "auto" for every row. Built by hand: the
+  // reflection serializer is disabled under AOT.
+  // The TEXT rides along too, because settling a wording disagreement means writing one of these
+  // words, and a hash cannot be turned back into the sentence it hashed.
+  let candidate (side : string) (hash : string) (text : string) (stamp : string) =
+    let escaped = System.Text.Json.JsonEncodedText.Encode(text).ToString()
 
-      // `removed` is false for every doc candidate: a wording disagreement has two texts, never an
-      // absence. Present because the Dark `Candidate` has the field and a missing one fails the parse.
-      $"""{{"side":"{side}","hash":"{hash}","removed":false,"text":"{escaped}","originTs":"{stamp}","author":""}}"""
+    // `removed` is false for every doc candidate: a wording disagreement has two texts, never an
+    // absence. Present because the Dark `Candidate` has the field and a missing one fails the parse.
+    $"""{{"side":"{side}","hash":"{hash}","removed":false,"text":"{escaped}","originTs":"{stamp}","author":""}}"""
 
-    let candidates =
-      "["
-      + candidate "local" ourText ours standingTs
-      + ","
-      + candidate "incoming" theirText theirs ts
-      + "]"
+  let candidates =
+    "["
+    + candidate "local" ourText ours standingTs
+    + ","
+    + candidate "incoming" theirText theirs ts
+    + "]"
 
-    do!
-      exec ctx "INSERT INTO conflicts
-           (id, owner, modules, name, item_type, part, kind, candidates, auto_resolved_to, reason,
-            status, origin_ts, branch_id)
-         VALUES ($id, $owner, $modules, $name, '', $part, 'doc-divergence', $candidates,
-                 $winner, $reason, 'pending', $ts, $branch)
-         ON CONFLICT(id) DO UPDATE SET
-           auto_resolved_to = excluded.auto_resolved_to,
-           reason = excluded.reason,
-           origin_ts = excluded.origin_ts" (fun cmd ->
-        p cmd "$id" id
-        pLoc cmd location
-        p cmd "$part" (partKey part)
-        p cmd "$candidates" candidates
-        p cmd "$winner" (if incomingWins then theirText else ourText)
-        p
-          cmd
-          "$reason"
-          $"two texts for {describe part}, neither made from the other"
-        p cmd "$ts" ts
-        p cmd "$branch" (string branchId))
-  }
+  exec ctx "INSERT INTO conflicts
+       (id, owner, modules, name, item_type, part, kind, candidates, auto_resolved_to, reason,
+        status, origin_ts, branch_id)
+     VALUES ($id, $owner, $modules, $name, '', $part, 'doc-divergence', $candidates,
+             $winner, $reason, 'pending', $ts, $branch)
+     ON CONFLICT(id) DO UPDATE SET
+       auto_resolved_to = excluded.auto_resolved_to,
+       reason = excluded.reason,
+       origin_ts = excluded.origin_ts" (fun cmd ->
+    p cmd "$id" id
+    pLoc cmd location
+    p cmd "$part" (partKey part)
+    p cmd "$candidates" candidates
+    p cmd "$winner" (if incomingWins then theirText else ourText)
+    p cmd "$reason" $"two texts for {describe part}, neither made from the other"
+    p cmd "$ts" ts
+    p cmd "$branch" (string branchId))
 
 
 /// Apply an `UpdateDoc`: what the name at <param location> says at <param part> becomes <param
@@ -546,92 +531,86 @@ let applyUpdateDoc
   (part : PT.DocPart)
   (text : string)
   (previous : Option<Hash>)
-  : Task<unit> =
-  task {
-    let kind = kind part
-    let within = within part
+  : unit =
+  let kind = kind part
+  let within = within part
 
-    let bindKey (cmd : SqliteCommand) =
-      pLoc cmd location
-      p cmd "$kind" kind
-      p cmd "$within" within
+  let bindKey (cmd : SqliteCommand) =
+    pLoc cmd location
+    p cmd "$kind" kind
+    p cmd "$within" within
 
-    // What the name says now, as this branch sees it: its own words if any layer it sees holds
-    // some, else what its declaration says. "" when the name holds nothing at all, which is the
-    // ordinary case for a doc op that arrived ahead of the `SetName` that binds its subject.
-    let! seen =
-      pairOption
+  // What the name says now, as this branch sees it: its own words if any layer it sees holds
+  // some, else what its declaration says. "" when the name holds nothing at all, which is the
+  // ordinary case for a doc op that arrived ahead of the `SetName` that binds its subject.
+  let seen =
+    pairOption
+      ctx
+      (Layers.view "$" Layers.docs
+       + " SELECT text, origin_ts FROM visible
+           WHERE owner = $owner AND modules = $modules AND name = $name
+             AND kind = $kind AND within = $within")
+      (fun cmd ->
+        bindKey cmd
+        Layers.bind cmd layer.branch true)
+
+  let current =
+    match seen with
+    | Some(text, _) -> text
+    | None -> declaredAt ctx layer.branch location part |> (Option.defaultValue "")
+
+  // Staleness is the layer's own question: an older statement than the one this layer already
+  // holds is a late arrival.
+  let standingTs =
+    textOption ctx "SELECT origin_ts FROM location_docs
+       WHERE owner = $owner AND modules = $modules AND name = $name
+         AND kind = $kind AND within = $within
+         AND branch_id = $branch AND draft = $draft AND live = 1" (fun cmd ->
+      bindKey cmd
+      p cmd "$branch" (string layer.branch)
+      p cmd "$draft" (if layer.draft then 1L else 0L))
+
+  let standingTs = standingTs |> Option.defaultValue ""
+  let seenTs = seen |> Option.bind snd |> Option.defaultValue ""
+
+  if current = text then
+    ()
+  else
+    let stale = standingTs <> "" && ts < standingTs
+
+    // Did whoever wrote this see the text we hold? `previous` naming its hash says yes. None says
+    // the writer found nothing there, which is only consistent with what we hold if we have
+    // nothing either.
+    let descends =
+      match previous with
+      | Some p -> p = Hashing.hashText current
+      | None -> current = ""
+
+    // A divergence needs TWO statements. An empty local text is not a quiet disagreement, it is
+    // nobody here having said anything yet.
+    if not descends && current <> "" then
+      recordDocConflict
         ctx
-        (Layers.view "$" Layers.docs
-         + " SELECT text, origin_ts FROM visible
-             WHERE owner = $owner AND modules = $modules AND name = $name
-               AND kind = $kind AND within = $within")
+        layer.branch
+        ts
+        location
+        part
+        current
+        seenTs
+        text
+        (not stale)
+
+    if not stale then
+      Layers.supersede ctx Layers.docs layer bindKey
+      exec
+        ctx
+        "INSERT INTO location_docs
+           (branch_id, draft, owner, modules, name, kind, within, text, origin_ts, op_id)
+         VALUES ($branch, $draft, $owner, $modules, $name, $kind, $within, $text, $ts, $op_id)"
         (fun cmd ->
           bindKey cmd
-          Layers.bind cmd layer.branch true)
-
-    let! current =
-      match seen with
-      | Some(text, _) -> Task.FromResult text
-      | None ->
-        declaredAt ctx layer.branch location part
-        |> Task.map (Option.defaultValue "")
-
-    // Staleness is the layer's own question: an older statement than the one this layer already
-    // holds is a late arrival.
-    let! standingTs =
-      textOption ctx "SELECT origin_ts FROM location_docs
-         WHERE owner = $owner AND modules = $modules AND name = $name
-           AND kind = $kind AND within = $within
-           AND branch_id = $branch AND draft = $draft AND live = 1" (fun cmd ->
-        bindKey cmd
-        p cmd "$branch" (string layer.branch)
-        p cmd "$draft" (if layer.draft then 1L else 0L))
-
-    let standingTs = standingTs |> Option.defaultValue ""
-    let seenTs = seen |> Option.bind snd |> Option.defaultValue ""
-
-    if current = text then
-      return ()
-    else
-      let stale = standingTs <> "" && ts < standingTs
-
-      // Did whoever wrote this see the text we hold? `previous` naming its hash says yes. None says
-      // the writer found nothing there, which is only consistent with what we hold if we have
-      // nothing either.
-      let descends =
-        match previous with
-        | Some p -> p = Hashing.hashText current
-        | None -> current = ""
-
-      // A divergence needs TWO statements. An empty local text is not a quiet disagreement, it is
-      // nobody here having said anything yet.
-      if not descends && current <> "" then
-        do!
-          recordDocConflict
-            ctx
-            layer.branch
-            ts
-            location
-            part
-            current
-            seenTs
-            text
-            (not stale)
-
-      if not stale then
-        do! Layers.supersede ctx Layers.docs layer bindKey
-        do!
-          exec
-            ctx
-            "INSERT INTO location_docs
-               (branch_id, draft, owner, modules, name, kind, within, text, origin_ts, op_id)
-             VALUES ($branch, $draft, $owner, $modules, $name, $kind, $within, $text, $ts, $op_id)"
-            (fun cmd ->
-              bindKey cmd
-              p cmd "$branch" (string layer.branch)
-              p cmd "$draft" (if layer.draft then 1L else 0L)
-              p cmd "$text" text
-              p cmd "$ts" ts
-              p cmd "$op_id" (string opId))
-  }
+          p cmd "$branch" (string layer.branch)
+          p cmd "$draft" (if layer.draft then 1L else 0L)
+          p cmd "$text" text
+          p cmd "$ts" ts
+          p cmd "$op_id" (string opId))

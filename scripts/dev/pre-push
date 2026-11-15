@@ -7,7 +7,7 @@
 #                                  package tests, the whole suite. Expect half an hour or more.
 #
 # --quick runs, in order:
-#   lint (shellcheck), format check, the build-planning tests, the .circleci python tests (one of them
+#   lint (shellcheck, blocking waits), format check, the build-planning tests, the .circleci python tests (one of them
 #   fails when a gate has no entry in collect_diagnostics.py), the check that
 #   NormalizationData.fs is what its generator writes, a Debug build (the typecheck),
 #   the `builtin` test list (access rules, one package caller per builtin), and the
@@ -96,6 +96,7 @@ echo "pre-push --$MODE on $(git rev-parse --short HEAD)"
 
 # The static checks, the same in both modes. CI runs these first in its build job.
 step shellcheck scripts/linting/shellchecker
+step blocking-waits scripts/linting/blocking-waits
 step format scripts/formatting/format check \
   || echo "    fix with: scripts/formatting/format format, then build again"
 step build-planning-tests scripts/testing/test-build-planning.py

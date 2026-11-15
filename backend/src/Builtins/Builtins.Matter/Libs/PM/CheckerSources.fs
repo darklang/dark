@@ -94,50 +94,42 @@ let private runByBuiltin (b : RT.FQFnName.Builtin) : List<Reach> =
 let private builtinsReached
   (exeState : RT.ExecutionState)
   (pm : PT.PackageManager)
-  : Ply<Set<RT.FQFnName.Builtin>> =
+  : Set<RT.FQFnName.Builtin> =
   let implsOf (candidates : List<RT.ImplCandidate>) (method_ : string) =
     candidates
     |> List.choose (fun c -> Map.tryFind method_ c.methods)
     |> List.map (fun (RT.Hash h) -> Fn(PT.Hash h))
-  let next (r : Reach) : Ply<List<Reach>> =
-    uply {
-      match r with
-      | Fn h ->
-        let! fn = pm.getFn h
-        return fn |> Option.map (fun fn -> reachIn fn.body) |> Option.defaultValue []
-      | Value h ->
-        let! value = pm.getValue h
-        return
-          value |> Option.map (fun v -> reachIn v.body) |> Option.defaultValue []
-      | Builtin b -> return runByBuiltin b
-      | Method(PT.Hash t, method_) ->
-        let! candidates = exeState.fns.implCandidates exeState.branchId (RT.Hash t)
-        return implsOf candidates method_
-      | Receiver method_ ->
-        let! candidates =
-          exeState.fns.implCandidatesByMethod exeState.branchId method_
-        return implsOf candidates method_
-    }
+  let next (r : Reach) : List<Reach> =
+    match r with
+    | Fn h ->
+      let fn = pm.getFn h
+      fn |> Option.map (fun fn -> reachIn fn.body) |> Option.defaultValue []
+    | Value h ->
+      let value = pm.getValue h
+      value |> Option.map (fun v -> reachIn v.body) |> Option.defaultValue []
+    | Builtin b -> runByBuiltin b
+    | Method(PT.Hash t, method_) ->
+      let candidates = exeState.fns.implCandidates exeState.branchId (RT.Hash t)
+      implsOf candidates method_
+    | Receiver method_ ->
+      let candidates = exeState.fns.implCandidatesByMethod exeState.branchId method_
+      implsOf candidates method_
   // A level at a time, so the recursion is as deep as the call graph, not as wide.
-  let rec walk (seen : Set<Reach>) (level : List<Reach>) : Ply<Set<Reach>> =
-    uply {
-      let fresh =
-        level |> List.distinct |> List.filter (fun r -> not (seen.Contains r))
-      if List.isEmpty fresh then
-        return seen
-      else
-        let! after = Ply.List.mapSequentially next fresh
-        return! walk (Set.union seen (Set.ofList fresh)) (List.concat after)
-    }
+  let rec walk (seen : Set<Reach>) (level : List<Reach>) : Set<Reach> =
+    let fresh =
+      level |> List.distinct |> List.filter (fun r -> not (seen.Contains r))
+    if List.isEmpty fresh then
+      seen
+    else
+      let after = List.map next fresh
+      walk (Set.union seen (Set.ofList fresh)) (List.concat after)
   let checker = PackageRefs.Fn.LanguageTools.AtRestTypeChecker.checkPackageOpsOn ()
   walk Set.empty [ Fn(PT.Hash checker) ]
-  |> Ply.map (
-    Set.toList
-    >> List.choose (function
-      | Builtin b -> Some b
-      | _ -> None)
-    >> Set.ofList
-  )
+  |> (Set.toList
+      >> List.choose (function
+        | Builtin b -> Some b
+        | _ -> None)
+      >> Set.ofList)
 
 
 // Code to files.
@@ -301,18 +293,16 @@ let checkerFiles
   (assemblies : Set<string>)
   (exeState : RT.ExecutionState)
   (pm : PT.PackageManager)
-  : Ply<Set<string>> =
-  uply {
-    let! reached = builtinsReached exeState pm
-    let fns =
-      reached
-      |> Set.toList
-      |> List.choose (fun b ->
-        match exeState.fns.builtIn.TryGetValue b with
-        | true, fn -> Some fn
-        | _ -> None)
-    return filesRunBy assemblies fns
-  }
+  : Set<string> =
+  let reached = builtinsReached exeState pm
+  let fns =
+    reached
+    |> Set.toList
+    |> List.choose (fun b ->
+      match exeState.fns.builtIn.TryGetValue b with
+      | true, fn -> Some fn
+      | _ -> None)
+  filesRunBy assemblies fns
 
 /// Every builtin's file, out of <param assemblies>, for the test that each one is where
 /// `checkerFiles` would look.

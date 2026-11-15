@@ -22,7 +22,7 @@ let fns () : List<BuiltInFn> =
         + "hypotenuse."
       fn =
         (function
-        | _, _, _, [| DFloat64 a |] -> Ply(DFloat64(System.Math.Cos a))
+        | _, _, _, [| DFloat64 a |] -> (DFloat64(System.Math.Cos a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -40,7 +40,7 @@ let fns () : List<BuiltInFn> =
         + "hypotenuse"
       fn =
         (function
-        | _, _, _, [| DFloat64 a |] -> Ply(DFloat64(System.Math.Sin a))
+        | _, _, _, [| DFloat64 a |] -> (DFloat64(System.Math.Sin a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -58,7 +58,7 @@ let fns () : List<BuiltInFn> =
         + "side adjacent to the angle."
       fn =
         (function
-        | _, _, _, [| DFloat64 a |] -> Ply(DFloat64(System.Math.Tan a))
+        | _, _, _, [| DFloat64 a |] -> (DFloat64(System.Math.Tan a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -81,9 +81,9 @@ let fns () : List<BuiltInFn> =
           let res = System.Math.Acos r in
 
           if System.Double.IsNaN res then
-            Dval.optionNone KTFloat64 |> Ply
+            Dval.optionNone KTFloat64
           else
-            Dval.optionSome KTFloat64 (DFloat64 res) |> Ply
+            Dval.optionSome KTFloat64 (DFloat64 res)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -106,9 +106,9 @@ let fns () : List<BuiltInFn> =
           let res = System.Math.Asin r in
 
           if System.Double.IsNaN res then
-            Dval.optionNone KTFloat64 |> Ply
+            Dval.optionNone KTFloat64
           else
-            Dval.optionSome KTFloat64 (DFloat64 res) |> Ply
+            Dval.optionSome KTFloat64 (DFloat64 res)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -126,7 +126,7 @@ let fns () : List<BuiltInFn> =
         + "range, if you know the numerator and denominator of <param ratio>."
       fn =
         (function
-        | _, _, _, [| DFloat64 a |] -> Ply(DFloat64(System.Math.Atan a))
+        | _, _, _, [| DFloat64 a |] -> (DFloat64(System.Math.Atan a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -146,7 +146,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DFloat64 y; DFloat64 x |] ->
-          Ply(DFloat64(System.Math.Atan2(y, x)))
+          (DFloat64(System.Math.Atan2(y, x)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -160,7 +160,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the hyperbolic cosine of <param angleInRadians>"
       fn =
         (function
-        | _, _, _, [| DFloat64 a |] -> Ply(DFloat64(System.Math.Cosh a))
+        | _, _, _, [| DFloat64 a |] -> (DFloat64(System.Math.Cosh a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -174,7 +174,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the hyperbolic sine of <param angleInRadians>"
       fn =
         (function
-        | _, _, _, [| DFloat64 a |] -> Ply(DFloat64(System.Math.Sinh a))
+        | _, _, _, [| DFloat64 a |] -> (DFloat64(System.Math.Sinh a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -188,7 +188,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the hyperbolic tangent of <param angleInRadians>"
       fn =
         (function
-        | _, _, _, [| DFloat64 a |] -> Ply(DFloat64(System.Math.Tanh a))
+        | _, _, _, [| DFloat64 a |] -> (DFloat64(System.Math.Tanh a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

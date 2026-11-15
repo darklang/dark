@@ -17,7 +17,6 @@ module Tests.BranchOverlay
 open Expecto
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -92,10 +91,7 @@ let private darkIntResult (code : string) : Task<int64> =
 /// moved. Into main that flips and folds; into a branch it retags.
 let private mergeIntoParent (branchId : PT.BranchId) : Task<int64> =
   task {
-    match!
-      LibDB.ScmActions.merge branchId [] (fun _ -> Task.FromResult()) (fun () ->
-        Task.FromResult())
-    with
+    match LibDB.ScmActions.merge branchId [] (fun _ -> ()) (fun () -> ()) with
     | Ok r -> return r.moved
     | Error(LibDB.ScmActions.Failed e) -> return failtest $"the merge failed: {e}"
     | Error(LibDB.ScmActions.Refused _) -> return failtest "the merge was refused"
@@ -104,29 +100,31 @@ let private mergeIntoParent (branchId : PT.BranchId) : Task<int64> =
 /// The ids of main's uncommitted ops, so a test can take back exactly what it added.
 let private mainDraftIds () : Task<Set<string>> =
   task {
-    let! ids =
+    let ids =
       Sql.query
         "SELECT id FROM package_ops
          WHERE commit_hash IS NULL AND branch_id = '00000000-0000-0000-0000-000000000001'"
-      |> Sql.executeAsync (fun read -> read.string "id")
+      |> Sql.executeRows (fun read -> read.string "id")
     return Set.ofList ids
   }
 
 /// Author <param ops> onto <param b>'s draft, the path every author takes.
 let private author (b : PT.BranchId) (ops : List<PT.PackageOp>) : Task<int64> =
-  LibDB.Inserts.authorOn b "op" ops
+  Task.FromResult(LibDB.Inserts.authorOn b "op" ops)
 
 /// The ids of the ops <param b> holds.
 let private branchOpIds (b : PT.BranchId) : Task<List<string>> =
   Sql.query "SELECT id FROM package_ops WHERE branch_id = @b"
   |> Sql.parameters [ "b", Sql.string (string b) ]
-  |> Sql.executeAsync (fun read -> read.string "id")
+  |> Sql.executeRows (fun read -> read.string "id")
+  |> Task.FromResult
 
 /// How many ops <param b> holds.
 let private ownOpCount (branchId : PT.BranchId) : Task<int64> =
   countSql
     "SELECT count(*) AS n FROM package_ops WHERE branch_id = @b"
     [ "b", Sql.string (string branchId) ]
+  |> Task.FromResult
 
 /// The NAMES a branch has recorded a fork base for.
 let private baseNames (branchId : PT.BranchId) : Task<List<string>> =
@@ -169,7 +167,7 @@ let private runFooBody
         | _ -> None)
       |> Option.defaultWith (fun () ->
         Exception.raiseInternal "no AddFn op in branch ops" [])
-    let! (state : RT.ExecutionState) = executionStateFor pm false
+    let (state : RT.ExecutionState) = executionStateFor pm false
     let rtExpr = PT2RT.Expr.toRT Map.empty 0 None body
     match! Exe.executeExpr state rtExpr with
     | Ok dv -> return dv
@@ -183,9 +181,9 @@ let isolationFromCore =
     let! ops = parsePackageOps (branchSource 42)
     let branch = PM.withExtraOps pmPT ops
 
-    let! onBranch = branch.findFn fooLoc |> Ply.toTask
+    let onBranch = branch.findFn fooLoc
     Expect.isSome onBranch "foo resolves on the branch overlay"
-    let! onCore = pmPT.findFn fooLoc |> Ply.toTask
+    let onCore = pmPT.findFn fooLoc
     Expect.isNone onCore "foo does NOT leak into the shared core"
 
     let! dv = runFooBody branch ops
@@ -200,20 +198,20 @@ let unbindHidesACoreNameOnTheBranchOnly =
     // trait method lives under its impl's path, not directly under `Stdlib.Int64`.
     let addLoc : PT.PackageLocation =
       { owner = "Darklang"; modules = [ "Stdlib"; "Int64" ]; name = "checkedMod" }
-    let! onCore = pmPT.findFn addLoc |> Ply.toTask
+    let onCore = pmPT.findFn addLoc
     Expect.isSome onCore "Stdlib.Int64.checkedMod is a main fn"
     let hash = Option.get onCore
 
     let branch = PM.withExtraOps pmPT [ PT.PackageOp.Unbind(addLoc, Some hash) ]
-    let! onBranch = branch.findFn addLoc |> Ply.toTask
+    let onBranch = branch.findFn addLoc
     Expect.isNone onBranch "unbound on the branch"
-    let! stillOnCore = pmPT.findFn addLoc |> Ply.toTask
+    let stillOnCore = pmPT.findFn addLoc
     Expect.equal stillOnCore onCore "and main still has it"
 
     // The content stays reachable by hash, since callers reference it that way.
-    let! body = branch.getFn hash |> Ply.toTask
+    let body = branch.getFn hash
     Expect.isSome body "the fn's content is still there on the branch"
-    let! locs = branch.getFnLocations hash |> Ply.toTask
+    let locs = branch.getFnLocations hash
     Expect.isFalse
       (List.contains addLoc locs)
       "but the name is not among the hash's locations"
@@ -225,7 +223,7 @@ let unbindHidesACoreNameOnTheBranchOnly =
         searchDepth = PT.Search.SearchDepth.OnlyDirectDescendants
         entityTypes = [ PT.Search.EntityType.Fn ]
         exactMatch = true }
-    let! (found : PT.Search.SearchResults) = branch.search query |> Ply.toTask
+    let (found : PT.Search.SearchResults) = branch.search query
     Expect.isEmpty
       (found.fns |> List.filter (fun f -> f.location = addLoc))
       "search on the branch does not list the unbound name"
@@ -236,7 +234,7 @@ let unbindHidesACoreNameOnTheBranchOnly =
         pmPT
         [ PT.PackageOp.Unbind(addLoc, Some hash)
           PT.PackageOp.SetName(addLoc, PT.Reference.PackageFn hash, None) ]
-    let! rebound = again.findFn addLoc |> Ply.toTask
+    let rebound = again.findFn addLoc
     Expect.equal rebound onCore "a later bind on the branch revives the name"
   }
 
@@ -248,8 +246,8 @@ let isolationBetweenBranches =
     let branchA = PM.withExtraOps pmPT opsA
     let branchB = PM.withExtraOps pmPT opsB
 
-    let! hA = branchA.findFn fooLoc |> Ply.toTask
-    let! hB = branchB.findFn fooLoc |> Ply.toTask
+    let hA = branchA.findFn fooLoc
+    let hB = branchB.findFn fooLoc
     Expect.isSome hA "A resolves its own foo"
     Expect.isSome hB "B resolves its own foo"
     Expect.notEqual
@@ -258,8 +256,8 @@ let isolationBetweenBranches =
       "different bodies -> different content hashes (the branches diverge)"
 
     // Neither can fetch the other's def: an overlay holds only its own ops, falling back to core.
-    let! aHasB = branchA.getFn (Option.get hB) |> Ply.toTask
-    let! bHasA = branchB.getFn (Option.get hA) |> Ply.toTask
+    let aHasB = branchA.getFn (Option.get hB)
+    let bHasA = branchB.getFn (Option.get hA)
     Expect.isNone aHasB "branch A cannot fetch branch B's fn"
     Expect.isNone bHasA "branch B cannot fetch branch A's fn"
 
@@ -281,16 +279,16 @@ let private idForName (name : string) : Task<Option<PT.BranchId>> =
      WHERE name = @name AND archived_at IS NULL
      ORDER BY created_at DESC, rowid DESC LIMIT 1"
   |> Sql.parameters [ "name", Sql.string name ]
-  |> Sql.executeRowOptionAsync (fun read ->
-    PT.BranchId.ParseUnsafe(read.string "id"))
+  |> Sql.executeRowOption (fun read -> PT.BranchId.ParseUnsafe(read.string "id"))
+  |> Task.FromResult
 
 let private isMerged (branchId : PT.BranchId) : Task<bool> =
   task {
-    let! found =
+    let found =
       Sql.query
         "SELECT 1 AS n FROM branches WHERE id = @id AND merged_at IS NOT NULL"
       |> Sql.parameters [ "id", Sql.string (string branchId) ]
-      |> Sql.executeRowOptionAsync (fun read -> read.int64 "n")
+      |> Sql.executeRowOption (fun read -> read.int64 "n")
     return Option.isSome found
   }
 
@@ -300,15 +298,15 @@ let private cleanupBranch (branchId : PT.BranchId) : Task<unit> =
     let del (sql : string) =
       Sql.query sql
       |> Sql.parameters [ "b", Sql.string (string branchId) ]
-      |> Sql.executeStatementAsync
+      |> Sql.executeStatement
 
-    do! del "DELETE FROM package_ops WHERE branch_id = @b"
-    do! del "DELETE FROM locations WHERE branch_id = @b"
-    do! del "DELETE FROM deprecations WHERE branch_id = @b"
-    do! del "DELETE FROM location_docs WHERE branch_id = @b"
-    do! del "DELETE FROM branch_name_bases WHERE branch_id = @b"
-    do! del "DELETE FROM commits WHERE branch_id = @b"
-    do! del "DELETE FROM branches WHERE id = @b"
+    del "DELETE FROM package_ops WHERE branch_id = @b"
+    del "DELETE FROM locations WHERE branch_id = @b"
+    del "DELETE FROM deprecations WHERE branch_id = @b"
+    del "DELETE FROM location_docs WHERE branch_id = @b"
+    del "DELETE FROM branch_name_bases WHERE branch_id = @b"
+    del "DELETE FROM commits WHERE branch_id = @b"
+    del "DELETE FROM branches WHERE id = @b"
     LibDB.Caching.invalidateAll ()
   }
 
@@ -318,7 +316,7 @@ let private freshBranch (label : string) (name : string) : Task<PT.BranchId> =
   task {
     let b = testBranch label
     do! cleanupBranch b
-    do! Branches.createBranch b name PT.BranchId.Main
+    Branches.createBranch b name PT.BranchId.Main
     return b
   }
 
@@ -331,7 +329,7 @@ let private freshBranchOff
   task {
     let b = testBranch label
     do! cleanupBranch b
-    do! Branches.createBranch b name parent
+    Branches.createBranch b name parent
     return b
   }
 
@@ -345,27 +343,25 @@ let undecodableBranchOpIsSkippedNotFatal =
     let! _ = author bid ops
 
     let junkId = System.Guid.NewGuid()
-    do!
-      execSqlP
-        "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, origin_ts)
-         VALUES (@id, @b, @b, @blob, '2099-01-01T00:00:00.000Z')"
-        [ "id", Sql.string (string junkId)
-          "b", Sql.string (string bid)
-          "blob", Sql.bytes [| 0xFFuy; 0xFEuy; 0xFDuy; 0xFCuy |] ]
+    execSqlP
+      "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, origin_ts)
+       VALUES (@id, @b, @b, @blob, '2099-01-01T00:00:00.000Z')"
+      [ "id", Sql.string (string junkId)
+        "b", Sql.string (string bid)
+        "blob", Sql.bytes [| 0xFFuy; 0xFEuy; 0xFDuy; 0xFCuy |] ]
 
-    let! (own : LibDB.ScmOps.Page) = LibDB.ScmOps.query (LibDB.ScmOps.Own bid) -1L
+    let (own : LibDB.ScmOps.Page) = LibDB.ScmOps.query (LibDB.ScmOps.Own bid) -1L
     Expect.equal
       (own.ops |> List.choose (fun (r : LibDB.ScmOps.Row) -> r.op) |> List.length)
       (List.length ops)
       "the readable ops read, and the unreadable one decodes to nothing"
 
-    let! _ = Seed.applyUnappliedOps ()
+    let _ = Seed.applyUnappliedOps ()
     LibDB.Caching.invalidateAll ()
-    let! resolved =
-      (PM.ptForBranch bid).findFn (fooLocIn "UndecodableTest") |> Ply.toTask
+    let resolved = (PM.ptForBranch bid).findFn (fooLocIn "UndecodableTest")
     Expect.isSome resolved "and the branch still resolves its own fn"
 
-    let! stillThere =
+    let stillThere =
       countSql
         $"SELECT count(*) AS n FROM package_ops WHERE id = @id AND NOT {LibDB.AppliedOps.isApplied}"
         [ "id", Sql.string (string junkId) ]
@@ -392,7 +388,7 @@ let overlaySearchAgreesWithFindFn =
     let pm = PM.ptForBranch bid
     let loc = fooLocIn "SearchAgrees"
 
-    let! bound = pm.findFn loc |> Ply.toTask
+    let bound = pm.findFn loc
     Expect.isSome bound "the branch binds the name"
 
     let query : PT.Search.SearchQuery =
@@ -402,7 +398,7 @@ let overlaySearchAgreesWithFindFn =
         entityTypes = []
         exactMatch = true }
 
-    let! (results : PT.Search.SearchResults) = pm.search query |> Ply.toTask
+    let (results : PT.Search.SearchResults) = pm.search query
 
     let found =
       results.fns
@@ -442,27 +438,24 @@ let supersededBranchVersionsKeepTheirName =
       live
       "the two authorings really are different versions"
 
-    let! liveNames = LibDB.ProgramTypes.Fn.getLocations bid live |> Ply.toTask
+    let liveNames = LibDB.ProgramTypes.Fn.getLocations bid live
     Expect.equal
       (liveNames |> List.map (fun (l : PT.PackageLocation) -> l.name))
       [ "foo" ]
       "the live version is named by the live lookup"
 
-    let! supersededNames =
-      LibDB.ProgramTypes.Fn.getLocations bid superseded |> Ply.toTask
+    let supersededNames = LibDB.ProgramTypes.Fn.getLocations bid superseded
     Expect.isEmpty
       supersededNames
       "and the superseded one is not -- that is what the fallback is for"
 
-    let! everNames =
-      LibDB.ProgramTypes.Fn.getLocationsEverNamed bid superseded |> Ply.toTask
+    let everNames = LibDB.ProgramTypes.Fn.getLocationsEverNamed bid superseded
     Expect.equal
       (everNames |> List.map (fun (l : PT.PackageLocation) -> l.name))
       [ "foo" ]
       "the fallback recovers the name it had"
 
-    let! onMain =
-      LibDB.ProgramTypes.Fn.getLocationsEverNamed PT.BranchId.Main live |> Ply.toTask
+    let onMain = LibDB.ProgramTypes.Fn.getLocationsEverNamed PT.BranchId.Main live
     Expect.isEmpty onMain "and main never had a name for either"
 
     do! cleanupBranch bid
@@ -479,10 +472,10 @@ let storeThenOverlay =
     let! stored = author branchId ops
     Expect.isGreaterThan stored 0L "ops stored on the branch"
 
-    let! onCore = pmPT.findFn fooLoc |> Ply.toTask
+    let onCore = pmPT.findFn fooLoc
     Expect.isNone onCore "foo is NOT bound on main"
 
-    let! onBranch = (PM.ptForBranch branchId).findFn fooLoc |> Ply.toTask
+    let onBranch = (PM.ptForBranch branchId).findFn fooLoc
     Expect.isSome onBranch "foo resolves on the branch, from the store"
 
     do! cleanupBranch branchId
@@ -501,8 +494,9 @@ let concurrentCreateYieldsOneBranch =
     | None -> ()
 
     let! results =
-      Array.init 8 (fun _ -> Branches.resolveOrCreate name PT.BranchId.Main)
-      |> System.Threading.Tasks.Task.WhenAll
+      Array.init 8 (fun _ ->
+        Task.Run(fun () -> Branches.resolveOrCreate name PT.BranchId.Main))
+      |> Task.WhenAll
 
     let ids = results |> Array.map fst |> Array.distinct
     Expect.equal ids.Length 1 "every caller got the SAME branch id"
@@ -511,12 +505,12 @@ let concurrentCreateYieldsOneBranch =
     Expect.equal createdCount 1 "and exactly one of them reports having created it"
 
     // The store agrees, not just the return values.
-    let! live =
+    let live =
       Sql.query
         "SELECT count(*) AS n FROM branches
          WHERE name = @name AND archived_at IS NULL AND merged_at IS NULL"
       |> Sql.parameters [ "name", Sql.string name ]
-      |> Sql.executeRowAsync (fun read -> read.int64 "n")
+      |> Sql.executeRow (fun read -> read.int64 "n")
     Expect.equal live 1L "one live row for the name"
 
     do! cleanupBranch ids[0]
@@ -531,17 +525,16 @@ let mergedBranchStaysAddressable =
     do! cleanupBranch (testBranch "mergedName")
     do! cleanupBranch (testBranch "mergedName2")
 
-    do! Branches.createBranch (testBranch "mergedName") "reuse-me" PT.BranchId.Main
-    let! live = Branches.liveIdForName "reuse-me"
+    Branches.createBranch (testBranch "mergedName") "reuse-me" PT.BranchId.Main
+    let live = Branches.liveIdForName "reuse-me"
     Expect.equal
       live
       (Some(testBranch "mergedName"))
       "live branch resolves for both reads and writes"
 
-    do!
-      execSqlP
-        "UPDATE branches SET merged_at = datetime('now') WHERE id = @b"
-        [ "b", Sql.string (string (testBranch "mergedName")) ]
+    execSqlP
+      "UPDATE branches SET merged_at = datetime('now') WHERE id = @b"
+      [ "b", Sql.string (string (testBranch "mergedName")) ]
 
     let! readSide = idForName "reuse-me"
     Expect.equal
@@ -549,7 +542,7 @@ let mergedBranchStaysAddressable =
       (Some(testBranch "mergedName"))
       "merged branch still answers a read verb by name"
 
-    let! writeSide = Branches.liveIdForName "reuse-me"
+    let writeSide = Branches.liveIdForName "reuse-me"
     Expect.isNone
       writeSide
       "but is NOT what `switch <name>` lands on -- its work is already merged"
@@ -560,7 +553,7 @@ let mergedBranchStaysAddressable =
       "and reports itself merged, so `merge` can say so instead of flipping nothing"
 
     // Reusing the name starts a separate branch, and reads then mean the NEW one.
-    do! Branches.createBranch (testBranch "mergedName2") "reuse-me" PT.BranchId.Main
+    Branches.createBranch (testBranch "mergedName2") "reuse-me" PT.BranchId.Main
     let! afterReuse = idForName "reuse-me"
     Expect.equal
       afterReuse
@@ -568,10 +561,9 @@ let mergedBranchStaysAddressable =
       "the most recent branch wins the name"
 
     // Archiving is different from merging: it discards the ops, so there is nothing left to address.
-    do!
-      execSqlP
-        "UPDATE branches SET archived_at = datetime('now') WHERE id = @b"
-        [ "b", Sql.string (string (testBranch "mergedName2")) ]
+    execSqlP
+      "UPDATE branches SET archived_at = datetime('now') WHERE id = @b"
+      [ "b", Sql.string (string (testBranch "mergedName2")) ]
     let! afterArchive = idForName "reuse-me"
     Expect.equal
       afterArchive
@@ -586,23 +578,21 @@ let mergedBranchStaysAddressable =
 let processOverlaySelects =
   testTask "the branch a process is on resolves its names; leaving it stops that" {
     PM.selectBranch PT.BranchId.Main // ensure clean start (process-global)
-    let! before =
-      (PM.ptForBranch (PM.currentBranchId ())).findFn fooLoc |> Ply.toTask
+    let before = (PM.ptForBranch (PM.currentBranchId ())).findFn fooLoc
     Expect.isNone before "no branch active -> foo unresolved (main only)"
 
     let! b = freshBranch "overlaySel" "overlay-sel"
     let! ops = parsePackageOps (branchSource 42)
     let! _ = author b ops
     PM.selectBranch b
-    let! during =
-      (PM.ptForBranch (PM.currentBranchId ())).findFn fooLoc |> Ply.toTask
+    let during = (PM.ptForBranch (PM.currentBranchId ())).findFn fooLoc
     Expect.isSome during "on the branch -> foo resolves"
 
-    let! fromMain = (PM.ptForBranch PT.BranchId.Main).findFn fooLoc |> Ply.toTask
+    let fromMain = (PM.ptForBranch PT.BranchId.Main).findFn fooLoc
     Expect.isNone fromMain "and main never sees a branch's binding"
 
     PM.selectBranch PT.BranchId.Main // leave clean for other tests (process-global)
-    let! after = (PM.ptForBranch (PM.currentBranchId ())).findFn fooLoc |> Ply.toTask
+    let after = (PM.ptForBranch (PM.currentBranchId ())).findFn fooLoc
     Expect.isNone after "back on main -> foo unresolved again"
     do! cleanupBranch b
   }
@@ -612,8 +602,8 @@ let branchesOffBranches =
     "a branch off another sees its parent's committed work (branches off branches)" {
     do! cleanupBranch (testBranch "boB")
     do! cleanupBranch (testBranch "boA")
-    do! Branches.createBranch (testBranch "boA") "chain-a" PT.BranchId.Main
-    do! Branches.createBranch (testBranch "boB") "chain-b" (testBranch "boA") // B off A
+    Branches.createBranch (testBranch "boA") "chain-a" PT.BranchId.Main
+    Branches.createBranch (testBranch "boB") "chain-b" (testBranch "boA") // B off A
     let! opsA = parsePackageOps (namedSource "ChainA" 42)
     let! opsB = parsePackageOps (namedSource "ChainB" 99)
     let! _ = author (testBranch "boA") opsA
@@ -622,10 +612,10 @@ let branchesOffBranches =
     let pmB () = PM.ptForBranch (testBranch "boB")
 
     // A parent's draft is its own: until A commits, B sees none of A's work.
-    let! bSeesAWip = (pmB ()).findFn (fooLocIn "ChainA") |> Ply.toTask
+    let bSeesAWip = (pmB ()).findFn (fooLocIn "ChainA")
     Expect.isNone bSeesAWip "B does NOT see its parent A's uncommitted fn"
 
-    let! committed =
+    let committed =
       LibDB.ScmActions.commit
         (testBranch "boA")
         "chain-a work"
@@ -633,28 +623,28 @@ let branchesOffBranches =
         false
     Expect.isOk committed "A commits"
 
-    let! bSeesA = (pmB ()).findFn (fooLocIn "ChainA") |> Ply.toTask
-    let! bSeesB = (pmB ()).findFn (fooLocIn "ChainB") |> Ply.toTask
+    let bSeesA = (pmB ()).findFn (fooLocIn "ChainA")
+    let bSeesB = (pmB ()).findFn (fooLocIn "ChainB")
     Expect.isSome bSeesA "B sees its parent A's committed fn (branches off branches)"
     Expect.isSome bSeesB "B sees its own fn, uncommitted included"
 
-    let! aSeesA = (pmA ()).findFn (fooLocIn "ChainA") |> Ply.toTask
-    let! aSeesB = (pmA ()).findFn (fooLocIn "ChainB") |> Ply.toTask
+    let aSeesA = (pmA ()).findFn (fooLocIn "ChainA")
+    let aSeesB = (pmA ()).findFn (fooLocIn "ChainB")
     Expect.isSome aSeesA "A sees its own fn"
     Expect.isNone aSeesB "A does NOT see its child B's fn"
 
     // MERGE B INTO A (parent != main): B's ops become A's; main is still untouched.
-    let! parentOfB = Branches.parentOf (testBranch "boB")
+    let parentOfB = Branches.parentOf (testBranch "boB")
     Expect.equal parentOfB (testBranch "boA") "B's parent is A"
     let! draftBefore = mainDraftIds ()
     let! merged = mergeIntoParent (testBranch "boB")
     Expect.isGreaterThan merged 0L "B had ops to merge"
 
-    let! aNowSeesB = (pmA ()).findFn (fooLocIn "ChainB") |> Ply.toTask
+    let aNowSeesB = (pmA ()).findFn (fooLocIn "ChainB")
     Expect.isSome aNowSeesB "after merge, A sees B's fn"
     let! bOwn = ownOpCount (testBranch "boB")
     Expect.equal bOwn 0L "B holds no ops after the merge (they are A's now)"
-    let! stillNotMain = pmPT.findFn (fooLocIn "ChainB") |> Ply.toTask
+    let stillNotMain = pmPT.findFn (fooLocIn "ChainB")
     Expect.isNone stillNotMain "merge into a non-main parent does NOT leak into main"
     let! draftAfter = mainDraftIds ()
     Expect.equal draftAfter draftBefore "and leaves main's draft alone"
@@ -672,7 +662,7 @@ let mainDraftExcludesBranchOps =
     let! ops = parsePackageOps (branchSource 42)
     let! _ = author branchId ops
 
-    let! (draftIds, _) = Queries.getDraftOpsWithIds ()
+    let (draftIds, _) = Queries.getDraftOpsWithIds ()
     let! after = mainDraftIds ()
     let! own = ownOpCount branchId
     Expect.isGreaterThan own 0L "the branch actually stored ops"
@@ -702,15 +692,15 @@ let mergeDoesNotConsumeSiblingPendingOps =
 
     let! sAfter = ownOpCount bS
     Expect.equal sAfter sBefore "S's ops are UNTOUCHED by M's merge"
-    let! sStill = (PM.ptForBranch bS).findFn (fooLocIn "SweepSibling") |> Ply.toTask
+    let sStill = (PM.ptForBranch bS).findFn (fooLocIn "SweepSibling")
     Expect.isSome sStill "and S still resolves its own name"
-    let! notOnMain = pmPT.findFn (fooLocIn "SweepSibling") |> Ply.toTask
+    let notOnMain = pmPT.findFn (fooLocIn "SweepSibling")
     Expect.isNone notOnMain "which is still not main's"
 
     do! cleanupBranch bS
     do! cleanupBranch bM
-    do! execSql "DELETE FROM locations WHERE modules = 'SweepMerging'"
-    do! execSql "DELETE FROM conflicts WHERE modules = 'SweepMerging'"
+    execSql "DELETE FROM locations WHERE modules = 'SweepMerging'"
+    execSql "DELETE FROM conflicts WHERE modules = 'SweepMerging'"
   }
 
 /// Two branches bind the SAME name to DIFFERENT hashes, the second authored LATER. Merging older
@@ -723,6 +713,7 @@ let sameNameMergesConvergeToLater =
     let bNew = testBranch "test-cvg-new"
     let liveHash () : Task<Option<string>> =
       liveBoundHash { owner = "Tests"; modules = [ "ConvergeWin" ]; name = "foo" }
+      |> Task.FromResult
     let mergeFold (b : PT.BranchId) : Task<unit> =
       task {
         let! _ = mergeIntoParent b
@@ -730,10 +721,10 @@ let sameNameMergesConvergeToLater =
       }
     do! cleanupBranch bOld
     do! cleanupBranch bNew
-    do! execSql "DELETE FROM locations WHERE modules = 'ConvergeWin'"
+    execSql "DELETE FROM locations WHERE modules = 'ConvergeWin'"
 
-    do! Branches.createBranch bOld "cvg-old" PT.BranchId.Main
-    do! Branches.createBranch bNew "cvg-new" PT.BranchId.Main
+    Branches.createBranch bOld "cvg-old" PT.BranchId.Main
+    Branches.createBranch bNew "cvg-new" PT.BranchId.Main
     // Same module+name (ConvergeWin.foo), different bodies -> different hashes. bOld stored first, so
     // its ops get an EARLIER origin_ts than bNew's (authoring stamps from the process clock).
     let! opsOld = parsePackageOps (namedSource "ConvergeWin" 5)
@@ -753,9 +744,9 @@ let sameNameMergesConvergeToLater =
 
     do! cleanupBranch bOld
     do! cleanupBranch bNew
-    do! execSql "DELETE FROM locations WHERE modules = 'ConvergeWin'"
+    execSql "DELETE FROM locations WHERE modules = 'ConvergeWin'"
     // The second merge records the two creations of one name as a conflict on main.
-    do! execSql "DELETE FROM conflicts WHERE modules = 'ConvergeWin'"
+    execSql "DELETE FROM conflicts WHERE modules = 'ConvergeWin'"
   }
 
 /// A name a branch binds ONLY by resolving a conflict still needs a per-name base: the base is what
@@ -811,19 +802,19 @@ let reuseBranchIdRevives =
         "SELECT count(*) AS n FROM branches
          WHERE id = @b AND (archived_at IS NOT NULL OR merged_at IS NOT NULL)"
       |> Sql.parameters [ "b", Sql.string (string b) ]
-      |> Sql.executeRowAsync (fun read -> read.int64 "n")
+      |> Sql.executeRow (fun read -> read.int64 "n")
+      |> Task.FromResult
 
     // Set the flags directly: this test is about createBranch's revive-on-reuse, and `archive` is
     // in Dark (SCM.Branches), so SQL keeps the setup on the test's actual subject.
-    do!
-      execSqlP
-        "UPDATE branches SET archived_at = datetime('now'), merged_at = datetime('now')
-         WHERE id = @b"
-        [ "b", Sql.string (string b) ]
+    execSqlP
+      "UPDATE branches SET archived_at = datetime('now'), merged_at = datetime('now')
+       WHERE id = @b"
+      [ "b", Sql.string (string b) ]
     let! before = flagsSet ()
     Expect.equal before 1L "archived/merged flags are set before reuse"
 
-    do! Branches.createBranch b "revive" PT.BranchId.Main
+    Branches.createBranch b "revive" PT.BranchId.Main
     let! after = flagsSet ()
     Expect.equal
       after
@@ -831,8 +822,8 @@ let reuseBranchIdRevives =
       "reuse revived the branch (archived_at + merged_at cleared)"
 
     // re-creating with a DIFFERENT parent must NOT change the recorded parent (first-write-wins).
-    do! Branches.createBranch b "revive" (testBranch "some-other-parent")
-    let! parent = Branches.parentOf b
+    Branches.createBranch b "revive" (testBranch "some-other-parent")
+    let parent = Branches.parentOf b
     Expect.equal
       parent
       PT.BranchId.Main
@@ -861,7 +852,7 @@ let branchValueContentFoldIsolatesName =
 
     let! _ = author b ops
 
-    let! contentCount =
+    let contentCount =
       countSql
         "SELECT count(*) AS n FROM package_values WHERE hash = @h"
         [ "h", Sql.string valueHash ]
@@ -869,25 +860,24 @@ let branchValueContentFoldIsolatesName =
 
     let vvLoc : PT.PackageLocation =
       { owner = "Tests"; modules = [ "BranchValFoldTest" ]; name = "vv" }
-    let! onMain = liveBoundHash vvLoc
+    let onMain = liveBoundHash vvLoc
     Expect.isNone onMain "the branch value's NAME is not main's"
-    let! onBranch = (PM.ptForBranch b).findValue vvLoc |> Ply.toTask
+    let onBranch = (PM.ptForBranch b).findValue vvLoc
     Expect.isSome onBranch "and it is the branch's"
 
     let builtins = Builtins.CliHost.Libs.Cli.builtinsToUse ()
-    let! _ = Seed.evaluateAllValues builtins PM.rt
-    let! (evaluated : Option<RT.PackageValue.PackageValue>) =
-      LibDB.RuntimeTypes.Value.get (RT.Hash valueHash) |> Ply.toTask
+    let _ = Seed.evaluateAllValues builtins PM.rt
+    let (evaluated : Option<RT.PackageValue.PackageValue>) =
+      LibDB.RuntimeTypes.Value.get (RT.Hash valueHash)
     match evaluated with
     | Some pv ->
       Expect.equal pv.body (RT.DInt64 7L) "the value materialised to 3+4=7"
     | None -> Tests.failtest "rt_dval was NULL after evaluateAllValues"
 
     do! cleanupBranch b
-    do!
-      execSqlP
-        "DELETE FROM package_values WHERE hash = @h"
-        [ "h", Sql.string valueHash ]
+    execSqlP
+      "DELETE FROM package_values WHERE hash = @h"
+      [ "h", Sql.string valueHash ]
   }
 
 let branchExists =
@@ -895,27 +885,26 @@ let branchExists =
     "a branch is found by its registry row OR its ops, and a typo is found by neither" {
     do! cleanupBranch (testBranch "beX")
 
-    let! beforeAnything = Branches.exists (testBranch "beX")
+    let beforeAnything = Branches.exists (testBranch "beX")
     Expect.isFalse beforeAnything "an unknown branch does not exist"
 
     // Registered with no ops yet: this is what `dark switch` produces before you author anything, and
     // it has to count, or a fresh branch reads as a typo.
-    do! Branches.createBranch (testBranch "beX") "" PT.BranchId.Main
-    let! registeredOnly = Branches.exists (testBranch "beX")
+    Branches.createBranch (testBranch "beX") "" PT.BranchId.Main
+    let registeredOnly = Branches.exists (testBranch "beX")
     Expect.isTrue registeredOnly "registered with no ops still Branches.exists"
 
     // Ops with no registry row. Also has to count.
     do! cleanupBranch (testBranch "beY")
     let! ops = parsePackageOps (namedSource "BeY" 7)
     let! _ = author (testBranch "beY") ops
-    do!
-      execSqlP
-        "DELETE FROM branches WHERE id = @b"
-        [ "b", Sql.string (string (testBranch "beY")) ]
-    let! taggedOnly = Branches.exists (testBranch "beY")
+    execSqlP
+      "DELETE FROM branches WHERE id = @b"
+      [ "b", Sql.string (string (testBranch "beY")) ]
+    let taggedOnly = Branches.exists (testBranch "beY")
     Expect.isTrue taggedOnly "ops with no registry row still Branches.exists"
 
-    let! typo = Branches.exists (testBranch "beYY")
+    let typo = Branches.exists (testBranch "beYY")
     Expect.isFalse typo "a prefix of a real branch is not that branch"
 
     do! cleanupBranch (testBranch "beX")
@@ -926,8 +915,8 @@ let branchPMIsPerBranch =
   testTask "ptForBranch answers about a branch this process is NOT on" {
     do! cleanupBranch (testBranch "pfA")
     do! cleanupBranch (testBranch "pfB")
-    do! Branches.createBranch (testBranch "pfA") "" PT.BranchId.Main
-    do! Branches.createBranch (testBranch "pfB") "" PT.BranchId.Main
+    Branches.createBranch (testBranch "pfA") "" PT.BranchId.Main
+    Branches.createBranch (testBranch "pfB") "" PT.BranchId.Main
 
     let! opsA = parsePackageOps (namedSource "PfA" 42)
     let! opsB = parsePackageOps (namedSource "PfB" 99)
@@ -939,20 +928,16 @@ let branchPMIsPerBranch =
     Expect.equal (PM.currentBranchId ()) (testBranch "pfA") "process is on pfA"
 
     // Asking about a branch we're NOT on is what the LSP and any daemon will need.
-    let! aFromA =
-      (PM.ptForBranch (testBranch "pfA")).findFn (fooLocIn "PfA") |> Ply.toTask
+    let aFromA = (PM.ptForBranch (testBranch "pfA")).findFn (fooLocIn "PfA")
     Expect.isSome aFromA "on pfA, pfA's fn resolves"
 
-    let! bFromA =
-      (PM.ptForBranch (testBranch "pfB")).findFn (fooLocIn "PfB") |> Ply.toTask
+    let bFromA = (PM.ptForBranch (testBranch "pfB")).findFn (fooLocIn "PfB")
     Expect.isSome bFromA "while ON pfA, pfB's fn still resolves via ptForBranch"
 
-    let! aFromB =
-      (PM.ptForBranch (testBranch "pfB")).findFn (fooLocIn "PfA") |> Ply.toTask
+    let aFromB = (PM.ptForBranch (testBranch "pfB")).findFn (fooLocIn "PfA")
     Expect.isNone aFromB "pfB does not bind pfA's fn"
 
-    let! aFromMain =
-      (PM.ptForBranch PT.BranchId.Main).findFn (fooLocIn "PfA") |> Ply.toTask
+    let aFromMain = (PM.ptForBranch PT.BranchId.Main).findFn (fooLocIn "PfA")
     Expect.isNone aFromMain "and main sees neither"
 
     // Switching is a process operation, not a restart: what `dark switch` needs in the REPL.
@@ -961,11 +946,11 @@ let branchPMIsPerBranch =
       (PM.currentBranchId ())
       (testBranch "pfB")
       "process moved to pfB without restarting"
-    let! bAfterSwitch =
-      (PM.ptForBranch (PM.currentBranchId ())).findFn (fooLocIn "PfB") |> Ply.toTask
+    let bAfterSwitch =
+      (PM.ptForBranch (PM.currentBranchId ())).findFn (fooLocIn "PfB")
     Expect.isSome bAfterSwitch "the active branch followed the switch"
-    let! aAfterSwitch =
-      (PM.ptForBranch (PM.currentBranchId ())).findFn (fooLocIn "PfA") |> Ply.toTask
+    let aAfterSwitch =
+      (PM.ptForBranch (PM.currentBranchId ())).findFn (fooLocIn "PfA")
     Expect.isNone aAfterSwitch "and stopped answering about the branch we left"
 
     PM.selectBranch PT.BranchId.Main // leave clean for other tests (process-global)
@@ -980,23 +965,23 @@ let branchNamesResolveButDontShadowMain =
   testTask
     "a branch supplies names for hashes main can't name, and never relabels ones it can" {
     do! cleanupBranch (testBranch "lnX")
-    do! Branches.createBranch (testBranch "lnX") "" PT.BranchId.Main
+    Branches.createBranch (testBranch "lnX") "" PT.BranchId.Main
     let b = testBranch "lnX"
 
     let! ops = parsePackageOps (namedSource "LnX" 8803)
     let! _ = author b ops
     let branchHash = hashBoundTo ops "foo"
 
-    let! fromMain = PM.pt.getFnLocations branchHash |> Ply.toTask
+    let fromMain = PM.pt.getFnLocations branchHash
     Expect.isEmpty fromMain "main has no name for a branch-authored hash"
 
-    let! onBranch = LibDB.ProgramTypes.Fn.getLocations b branchHash |> Ply.toTask
+    let onBranch = LibDB.ProgramTypes.Fn.getLocations b branchHash
     Expect.equal
       (onBranch |> List.map (fun (l : PT.PackageLocation) -> l.name))
       [ "foo" ]
       "the branch supplies the name main is missing"
 
-    let! asType = LibDB.ProgramTypes.Type.getLocations b branchHash |> Ply.toTask
+    let asType = LibDB.ProgramTypes.Type.getLocations b branchHash
     Expect.isEmpty asType "the answer is per kind, not per hash alone"
 
     // Main binds the same body under another name: main's name comes first.
@@ -1007,25 +992,24 @@ let branchNamesResolveButDontShadowMain =
       // Committed: a branch sees what main committed, never main's draft.
       let! _ = author PT.BranchId.Main mainOps
       let! now0 = mainDraftIds ()
-      let! _ =
+      let _ =
         LibDB.ScmActions.commit
           PT.BranchId.Main
           "ln main name"
           (LibDB.ScmActions.Only(Set.difference now0 before |> Set.toList))
           false
       let (PT.Hash h) = branchHash
-      let! withMain = LibDB.ScmBindings.query (LibDB.ScmBindings.LocationOf(b, h))
+      let withMain = LibDB.ScmBindings.query (LibDB.ScmBindings.LocationOf(b, h))
       Expect.equal
         (withMain
          |> List.map (fun (r : LibDB.ScmBindings.Binding) -> r.modules)
          |> List.tryHead)
         (Some "LnMainName")
         "main's name comes first, so a duplicated body is never relabelled to the branch's"
-      do! execSql "DELETE FROM locations WHERE modules = 'LnMainName'"
-      do!
-        execSql
-          "DELETE FROM package_ops WHERE commit_hash IN (SELECT hash FROM commits WHERE message = 'ln main name')"
-      do! execSql "DELETE FROM commits WHERE message = 'ln main name'"
+      execSql "DELETE FROM locations WHERE modules = 'LnMainName'"
+      execSql
+        "DELETE FROM package_ops WHERE commit_hash IN (SELECT hash FROM commits WHERE message = 'ln main name')"
+      execSql "DELETE FROM commits WHERE message = 'ln main name'"
 
     do! cleanupBranch b
   }
@@ -1043,11 +1027,11 @@ let branchResolutionOrder =
     do! cleanupBranch flagB
     do! cleanupBranch envB
     do! cleanupBranch storedB
-    do! Branches.createBranch flagB "sel-flag" PT.BranchId.Main
-    do! Branches.createBranch envB "sel-env" PT.BranchId.Main
-    do! Branches.createBranch storedB "sel-stored" PT.BranchId.Main
-    let! before = LibDB.Config.get "current_branch"
-    let! beforeName = LibDB.Config.get "current_branch_name"
+    Branches.createBranch flagB "sel-flag" PT.BranchId.Main
+    Branches.createBranch envB "sel-env" PT.BranchId.Main
+    Branches.createBranch storedB "sel-stored" PT.BranchId.Main
+    let before = LibDB.Config.get "current_branch"
+    let beforeName = LibDB.Config.get "current_branch_name"
 
     let selected
       (r : Result<Sel.Selection, Sel.Refusal>)
@@ -1058,36 +1042,35 @@ let branchResolutionOrder =
 
     try
       // The id, with the name beside it, as `dark switch` writes them.
-      do! LibDB.Config.set "current_branch" (string storedB)
-      do! LibDB.Config.set "current_branch_name" "sel-stored"
-      let! s = Sel.select (Some "sel-flag") (Some "sel-env")
+      LibDB.Config.set "current_branch" (string storedB)
+      LibDB.Config.set "current_branch_name" "sel-stored"
+      let s = Sel.select (Some "sel-flag") (Some "sel-env")
       Expect.equal (selected s) (Some flagB, Sel.Flag) "the flag wins"
-      let! s = Sel.select None (Some "sel-env")
+      let s = Sel.select None (Some "sel-env")
       Expect.equal (selected s) (Some envB, Sel.Env) "then the env"
-      let! s = Sel.select None None
+      let s = Sel.select None None
       Expect.equal (selected s) (Some storedB, Sel.Stored) "then the stored branch"
       // What `selectBranch` stores: the id, and the branch's own name beside it.
-      do! LibDB.Config.set "current_branch_name" "stale"
-      do! Sel.remember storedB
-      let! s = Sel.select None None
+      LibDB.Config.set "current_branch_name" "stale"
+      Sel.remember storedB
+      let s = Sel.select None None
       Expect.equal (selected s) (Some storedB, Sel.Stored) "remember stores the id"
-      let! name = LibDB.Config.get "current_branch_name"
+      let name = LibDB.Config.get "current_branch_name"
       Expect.equal name (Some "sel-stored") "and the name beside it"
-      let! s = Sel.select (Some "main") (Some "sel-env")
+      let s = Sel.select (Some "main") (Some "sel-env")
       Expect.equal
         (selected s)
         (None, Sel.Flag)
         "the flag can name main, and that beats the env too"
 
       // A foreign uuid or an ambiguous prefix is refused, not started as a branch of that name.
-      let! s = Sel.select (Some(string (System.Guid.NewGuid()))) None
+      let s = Sel.select (Some(string (System.Guid.NewGuid()))) None
       Expect.isError s "a uuid this store lacks is refused"
 
-      do!
-        execSqlP
-          "UPDATE branches SET archived_at = datetime('now') WHERE id = @b"
-          [ "b", Sql.string (string storedB) ]
-      let! s = Sel.select None None
+      execSqlP
+        "UPDATE branches SET archived_at = datetime('now') WHERE id = @b"
+        [ "b", Sql.string (string storedB) ]
+      let s = Sel.select None None
       match s with
       | Ok(s : Sel.Selection) ->
         Expect.equal
@@ -1095,22 +1078,21 @@ let branchResolutionOrder =
           (None, Some "sel-stored")
           "a gone stored branch degrades to main and says which"
       | Error e -> failtest $"refused: {e}"
-      let! s = Sel.select None None
+      let s = Sel.select None None
       match s with
       | Ok(s : Sel.Selection) ->
         Expect.isNone s.goneStored "and says so once: the config was reset to main"
       | Error e -> failtest $"refused: {e}"
 
-      do! LibDB.Config.set "current_branch" ""
-      let! s = Sel.select None None
+      LibDB.Config.set "current_branch" ""
+      let s = Sel.select None None
       Expect.equal
         (selected s)
         (None, Sel.Default)
         "and main is the absence of all three"
     finally
-      (LibDB.Config.set "current_branch" (Option.defaultValue "" before)).Wait()
-      (LibDB.Config.set "current_branch_name" (Option.defaultValue "" beforeName))
-        .Wait()
+      LibDB.Config.set "current_branch" (Option.defaultValue "" before)
+      LibDB.Config.set "current_branch_name" (Option.defaultValue "" beforeName)
       (cleanupBranch flagB).Wait()
       (cleanupBranch envB).Wait()
       (cleanupBranch storedB).Wait()
@@ -1127,22 +1109,22 @@ let mainRetakesABranchsOp =
 
     let! ops = parsePackageOps (namedSource "MainRetake" 8801)
     let! _ = author branchId ops
-    let! onMainBefore = pmPT.findFn (fooLocIn "MainRetake") |> Ply.toTask
+    let onMainBefore = pmPT.findFn (fooLocIn "MainRetake")
     Expect.isNone onMainBefore "held by the branch only, main cannot see it"
 
-    let! inserted = LibDB.Inserts.insertAndApplyOps ops
+    let inserted = LibDB.Inserts.insertAndApplyOps ops
     Expect.equal
       inserted
       (int64 (List.length ops))
       "every op counted as main's, none as a duplicate"
 
-    let! onMainAfter = pmPT.findFn (fooLocIn "MainRetake") |> Ply.toTask
+    let onMainAfter = pmPT.findFn (fooLocIn "MainRetake")
     Expect.isSome onMainAfter "main resolves it"
     let! own = ownOpCount branchId
     Expect.equal own (int64 (List.length ops)) "and the branch still holds its own"
 
     let! now = mainDraftIds ()
-    let! _ =
+    let _ =
       LibDB.ScmActions.discard
         PT.BranchId.Main
         (LibDB.ScmActions.Ops(Set.difference now before |> Set.toList))
@@ -1159,7 +1141,7 @@ let aBranchNeverTagsWhatMainRuns =
 
     let! ops = parsePackageOps (namedSource "NoTagOnMain" 8802)
     let ids = ops |> List.map (fun op -> string (LibDB.Inserts.computeOpHash op))
-    let! _ = LibDB.Inserts.insertAndApplyOps ops
+    let _ = LibDB.Inserts.insertAndApplyOps ops
     let! _ = author branchId ops
 
     let! draft = mainDraftIds ()
@@ -1167,7 +1149,7 @@ let aBranchNeverTagsWhatMainRuns =
       Expect.isTrue (Set.contains id draft) "main's draft still lists its own op"
 
     let! now = mainDraftIds ()
-    let! _ =
+    let _ =
       LibDB.ScmActions.discard
         PT.BranchId.Main
         (LibDB.ScmActions.Ops(Set.difference now before |> Set.toList))
@@ -1184,25 +1166,25 @@ let refLookupSaysWhyItMissed =
     let two = PT.BranchId.Id(System.Guid "aaaaaaaa-0000-4000-8000-000000000002")
     do! cleanupBranch one
     do! cleanupBranch two
-    do! Branches.createBranch one "ref-one" PT.BranchId.Main
-    do! Branches.createBranch two "ref-two" PT.BranchId.Main
+    Branches.createBranch one "ref-one" PT.BranchId.Main
+    Branches.createBranch two "ref-two" PT.BranchId.Main
 
-    let! byName = Branches.lookupRef "ref-one"
+    let byName = Branches.lookupRef "ref-one"
     Expect.equal byName (Branches.Found one) "a live name is found"
-    let! byId = Branches.lookupRef (string one)
+    let byId = Branches.lookupRef (string one)
     Expect.equal byId (Branches.Found one) "a full id is found"
-    let! byPrefix = Branches.lookupRef "aaaaaaaa"
+    let byPrefix = Branches.lookupRef "aaaaaaaa"
     Expect.equal
       byPrefix
       (Branches.Ambiguous "aaaaaaaa")
       "a prefix two branches share is ambiguous"
     let foreign = PT.BranchId.Id(System.Guid.NewGuid())
-    let! unknown = Branches.lookupRef (string foreign)
+    let unknown = Branches.lookupRef (string foreign)
     Expect.equal
       unknown
       (Branches.UnknownId foreign)
       "a full id nobody has is a foreign id, not a name"
-    let! noSuch = Branches.lookupRef "no-such-branch-here"
+    let noSuch = Branches.lookupRef "no-such-branch-here"
     Expect.equal
       noSuch
       (Branches.NoSuchName "no-such-branch-here")
@@ -1238,9 +1220,9 @@ let overlayPairsByHashNotAdjacency =
 
     let bodyOf (m : string) =
       task {
-        let! found = overlay.findFn (fooLocIn m) |> Ply.toTask
+        let found = overlay.findFn (fooLocIn m)
         let hash = Expect.wantSome found $"{m}.foo resolves"
-        let! fn = overlay.getFn hash |> Ply.toTask
+        let fn = overlay.getFn hash
         let fn = Expect.wantSome fn $"{m}.foo's item is in the overlay"
         return! runFooBody overlay [ PT.PackageOp.AddFn fn ]
       }
@@ -1445,10 +1427,10 @@ let overrideClosesOnlyItsOwnKind =
           "modules", Sql.string modules
           "name", Sql.string loc.name
           "itemType", Sql.string itemType ]
-      |> Sql.executeStatementAsync
+      |> Sql.executeStatement
 
-    do! insertConflict "b1-fn" "fn"
-    do! insertConflict "b1-value" "value"
+    insertConflict "b1-fn" "fn"
+    insertConflict "b1-value" "value"
 
     // Override the FN. The value's conflict is a different question and nobody has answered it.
     let target = PT.Reference.PackageFn(PT.Hash "b1fnhash")
@@ -1459,15 +1441,15 @@ let overrideClosesOnlyItsOwnKind =
         "taking mine",
         PT.DecisionKind.Override target
       )
-    let! _ = LibDB.Inserts.insertAndApplyOps [ op ]
+    let _ = LibDB.Inserts.insertAndApplyOps [ op ]
 
     let statusOf (id : string) =
       Sql.query "SELECT status FROM conflicts WHERE id = @id"
       |> Sql.parameters [ "id", Sql.string id ]
-      |> Sql.executeRowAsync (fun read -> read.string "status")
+      |> Sql.executeRow (fun read -> read.string "status")
 
-    let! fnStatus = statusOf "b1-fn"
-    let! valueStatus = statusOf "b1-value"
+    let fnStatus = statusOf "b1-fn"
+    let valueStatus = statusOf "b1-value"
 
     Expect.equal fnStatus "overridden" "the fn conflict was the one answered"
     Expect.equal
@@ -1475,7 +1457,7 @@ let overrideClosesOnlyItsOwnKind =
       "pending"
       "the value conflict at the same name is a separate question and stays open"
 
-    do! execSql "DELETE FROM conflicts WHERE id IN ('b1-fn', 'b1-value')"
+    execSql "DELETE FROM conflicts WHERE id IN ('b1-fn', 'b1-value')"
   }
 
 
@@ -1491,44 +1473,44 @@ let private actionFootprint
   task {
     let ids = opIds |> List.map (fun i -> $"'{i}'") |> String.concat ", "
     let pb = [ "b", Sql.string (string b) ]
-    let! tags =
+    let tags =
       countSql "SELECT count(*) AS n FROM package_ops WHERE branch_id = @b" pb
-    let! bases =
+    let bases =
       countSql "SELECT count(*) AS n FROM branch_name_bases WHERE branch_id = @b" pb
-    let! baseHashes =
+    let baseHashes =
       Sql.query
         "SELECT base_hash FROM branch_name_bases WHERE branch_id = @b ORDER BY name"
       |> Sql.parameters pb
-      |> Sql.executeAsync (fun read -> read.string "base_hash")
-    let! finished =
+      |> Sql.executeRows (fun read -> read.string "base_hash")
+    let finished =
       countSql
         "SELECT count(*) AS n FROM branches
          WHERE id = @b AND (merged_at IS NOT NULL OR archived_at IS NOT NULL)"
         pb
-    let! present =
+    let present =
       countSql $"SELECT count(*) AS n FROM package_ops WHERE id IN ({ids})" []
-    let! effective =
+    let effective =
       countSql
         $"SELECT count(*) AS n FROM package_ops WHERE branch_id = '00000000-0000-0000-0000-000000000001' AND id IN ({ids})"
         []
-    let! applied =
+    let applied =
       countSql
         $"SELECT count(*) AS n FROM package_ops WHERE {LibDB.AppliedOps.isApplied} AND id IN ({ids})"
         []
-    let! committed =
+    let committed =
       countSql
         $"SELECT count(*) AS n FROM package_ops WHERE commit_hash IS NOT NULL AND id IN ({ids})"
         []
-    let! commits =
+    let commits =
       countSql
         "SELECT count(*) AS n FROM commits WHERE message = @m"
         [ "m", Sql.string message ]
     let! draft = mainDraftIds ()
-    let! live =
+    let live =
       countSql
         "SELECT count(*) AS n FROM locations WHERE modules = @m AND live = 1"
         [ "m", Sql.string modName ]
-    let! conflicts =
+    let conflicts =
       countSql
         "SELECT count(*) AS n FROM conflicts WHERE modules = @m"
         [ "m", Sql.string modName ]
@@ -1543,18 +1525,16 @@ let private actionFootprint
 let private stoppedAt
   (step : string)
   (footprint : unit -> Task<string>)
-  (action : unit -> Task<Result<'a, LibDB.ScmActions.Failure>>)
+  (action : unit -> Result<'a, LibDB.ScmActions.Failure>)
   : Task<unit> =
   task {
     let! before = footprint ()
     LibDB.ScmActions.Testing.failAt.Value <- step
-    let! result =
-      task {
-        try
-          return! action ()
-        finally
-          LibDB.ScmActions.Testing.failAt.Value <- null
-      }
+    let result =
+      try
+        action ()
+      finally
+        LibDB.ScmActions.Testing.failAt.Value <- null
     match result with
     | Error(LibDB.ScmActions.Failed _) -> ()
     | Error(LibDB.ScmActions.Refused _) ->
@@ -1569,13 +1549,12 @@ let private dropCommitsAndOps
   (opIds : List<string>)
   : Task<unit> =
   task {
-    do!
-      execSqlP
-        "DELETE FROM package_ops WHERE commit_hash IN (SELECT hash FROM commits WHERE message = @m)"
-        [ "m", Sql.string message ]
-    do! execSqlP "DELETE FROM commits WHERE message = @m" [ "m", Sql.string message ]
+    execSqlP
+      "DELETE FROM package_ops WHERE commit_hash IN (SELECT hash FROM commits WHERE message = @m)"
+      [ "m", Sql.string message ]
+    execSqlP "DELETE FROM commits WHERE message = @m" [ "m", Sql.string message ]
     for id in opIds do
-      do! execSqlP "DELETE FROM package_ops WHERE id = @id" [ "id", Sql.string id ]
+      execSqlP "DELETE FROM package_ops WHERE id = @id" [ "id", Sql.string id ]
   }
 
 let interruptedMergeLeavesNothingHalfDone =
@@ -1588,14 +1567,12 @@ let interruptedMergeLeavesNothingHalfDone =
     let! _ = author b ops
     let! opIds = branchOpIds b
     let footprint () = actionFootprint b opIds message modName
-    let merge () =
-      LibDB.ScmActions.merge b [] (fun _ -> Task.FromResult()) (fun () ->
-        Task.FromResult())
+    let merge () = LibDB.ScmActions.merge b [] (fun _ -> ()) (fun () -> ())
 
     for step in [ "merge.committed"; "merge.moved"; "merge.folded"; "merge.marked" ] do
       do! stoppedAt step footprint merge
 
-    let! done' = merge ()
+    let done' = merge ()
     match done' with
     | Ok(r : LibDB.ScmActions.Reconciled) ->
       Expect.equal r.moved (int64 (List.length opIds)) "the re-run moved every op"
@@ -1610,8 +1587,7 @@ let interruptedMergeLeavesNothingHalfDone =
 
     do! dropCommitsAndOps message opIds
     do! cleanupBranch b
-    do!
-      execSqlP "DELETE FROM locations WHERE modules = @m" [ "m", Sql.string modName ]
+    execSqlP "DELETE FROM locations WHERE modules = @m" [ "m", Sql.string modName ]
   }
 
 /// Values are evaluated after the merge commits, so an evaluation that fails cannot undo it. The merge
@@ -1627,8 +1603,8 @@ let failedEvaluationAfterAMergeIsAWarning =
     let! opIds = branchOpIds b
     let footprint () = actionFootprint b opIds message modName
 
-    let! result =
-      LibDB.ScmActions.merge b [] (fun _ -> Task.FromResult()) (fun () ->
+    let result =
+      LibDB.ScmActions.merge b [] (fun _ -> ()) (fun () ->
         Exception.raiseInternal "evaluation blew up (test)" [])
     match result with
     | Ok(r : LibDB.ScmActions.Reconciled) ->
@@ -1644,8 +1620,7 @@ let failedEvaluationAfterAMergeIsAWarning =
 
     do! dropCommitsAndOps message opIds
     do! cleanupBranch b
-    do!
-      execSqlP "DELETE FROM locations WHERE modules = @m" [ "m", Sql.string modName ]
+    execSqlP "DELETE FROM locations WHERE modules = @m" [ "m", Sql.string modName ]
   }
 
 let interruptedArchiveLeavesNothingHalfDone =
@@ -1662,7 +1637,7 @@ let interruptedArchiveLeavesNothingHalfDone =
 
     do! stoppedAt "archive.marked" footprint archive
 
-    let! done' = archive ()
+    let done' = archive ()
     Expect.isOk done' "the re-run archives"
     let! after = footprint ()
     Expect.stringContains
@@ -1688,7 +1663,7 @@ let interruptedCommitWritesNoEmptyCommit =
 
     do! stoppedAt "commit.row" footprint commit
 
-    let! done' = commit ()
+    let done' = commit ()
     match done' with
     | Ok(c : LibDB.ScmActions.Committed) ->
       Expect.equal
@@ -1713,7 +1688,7 @@ let interruptedBranchDiscardKeepsRowsWithTheirOps =
 
     do! stoppedAt "drop.rows" footprint discard
 
-    let! done' = discard ()
+    let done' = discard ()
     Expect.equal done' (Ok(List.length opIds)) "the re-run drops the draft"
     let! after = footprint ()
     Expect.stringContains after "tags=0 " "the branch holds no ops"
@@ -1728,18 +1703,17 @@ let interruptedRebaseCanBeRunAgain =
     let modName = "InterruptRebase"
     let! b = freshBranch "test-int-rebase" "int-rebase"
     // A base the parent has since moved off: main binds nothing at this name, so the parent's hash is "".
-    do!
-      execSqlP
-        "INSERT OR REPLACE INTO branch_name_bases (branch_id, owner, modules, name, base_hash)
-         VALUES (@b, 'Tests', @m, 'foo', 'stale')"
-        [ "b", Sql.string (string b); "m", Sql.string modName ]
+    execSqlP
+      "INSERT OR REPLACE INTO branch_name_bases (branch_id, owner, modules, name, base_hash)
+       VALUES (@b, 'Tests', @m, 'foo', 'stale')"
+      [ "b", Sql.string (string b); "m", Sql.string modName ]
     let footprint () = actionFootprint b [] "" modName
-    let rebase () = LibDB.ScmActions.rebase b [] (fun _ -> Task.FromResult())
+    let rebase () = LibDB.ScmActions.rebase b [] (fun _ -> ())
 
     for step in [ "rebase.repointed"; "rebase.bases" ] do
       do! stoppedAt step footprint rebase
 
-    let! done' = rebase ()
+    let done' = rebase ()
     match done' with
     | Ok(r : LibDB.ScmActions.Reconciled) ->
       Expect.equal
@@ -1762,11 +1736,10 @@ let interruptedResolutionChangesNothing =
     let! b = freshBranch "test-int-resolve" "int-resolve"
     let! ops = parsePackageOps (namedSource modName 8816)
     let! _ = author b ops
-    do!
-      execSqlP
-        "INSERT OR REPLACE INTO branch_name_bases (branch_id, owner, modules, name, base_hash)
-         VALUES (@b, 'Tests', @m, 'foo', 'stale')"
-        [ "b", Sql.string (string b); "m", Sql.string modName ]
+    execSqlP
+      "INSERT OR REPLACE INTO branch_name_bases (branch_id, owner, modules, name, base_hash)
+       VALUES (@b, 'Tests', @m, 'foo', 'stale')"
+      [ "b", Sql.string (string b); "m", Sql.string modName ]
     let! opIds = branchOpIds b
     let footprint () = actionFootprint b opIds "" modName
 
@@ -1777,7 +1750,7 @@ let interruptedResolutionChangesNothing =
       stoppedAt "resolve.untagged" footprint (fun () ->
         LibDB.ScmActions.takeTheirs b "Tests" modName "foo")
 
-    let! kept = LibDB.ScmActions.keepMine b "Tests" modName "foo"
+    let kept = LibDB.ScmActions.keepMine b "Tests" modName "foo"
     Expect.isOk kept "keep-mine goes through when nothing stops it"
     let! after = footprint ()
     Expect.stringContains

@@ -9,6 +9,7 @@ open LibExecution.Builtin.Shortcuts
 module Dval = LibExecution.Dval
 module PackageRefs = LibExecution.PackageRefs
 module Exe = LibExecution.Execution
+module Pending = LibExecution.Pending
 
 
 /// `LanguageTools.AtRestTypeChecker.CheckFailure`
@@ -46,31 +47,27 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | exeState, vm, _, [| DApplicable check; input |] ->
-          uply {
-            let failureValueType =
-              ValueType.Known(KTCustomType(checkFailureName (), []))
+          let failureValueType =
+            ValueType.Known(KTCustomType(checkFailureName (), []))
 
-            let typeArgs = [ ValueType.Unknown; failureValueType ]
+          let typeArgs = [ ValueType.Unknown; failureValueType ]
 
-            // Under the caller's own access: no approval root, so no policy view to build.
-            match!
-              Exe.applyCatching exeState vm.threadID vm.activeAccess check input
-            with
+          // Under the caller's own access: no approval root, so no policy view to build.
+          Exe.applyCatching exeState vm.threadID vm.activeAccess check input
+          |> Pending.map (fun caught ->
+            match caught with
             | Ok result ->
-              return
-                DEnum(
-                  Dval.resultType (),
-                  Dval.resultType (),
-                  [ Dval.toValueType result; failureValueType ],
-                  "Ok",
-                  [ result ]
-                )
+              DEnum(
+                Dval.resultType (),
+                Dval.resultType (),
+                [ Dval.toValueType result; failureValueType ],
+                "Ok",
+                [ result ]
+              )
             | Error Exe.OutOfStack ->
-              return failureResult typeArgs (checkFailure "TooDeep" [])
+              failureResult typeArgs (checkFailure "TooDeep" [])
             | Error(Exe.Failed message) ->
-              return
-                failureResult typeArgs (checkFailure "Failed" [ DString message ])
-          }
+              failureResult typeArgs (checkFailure "Failed" [ DString message ]))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

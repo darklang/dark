@@ -5,7 +5,6 @@ module Tests.CliTestHarness
 
 open Expecto
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open Fumble
@@ -41,7 +40,7 @@ let private buildState () : Task<RT.ExecutionState> =
       (_msg : string)
       (_metadata : Metadata)
       =
-      uply { return () }
+      ()
 
     let sendException
       (_ : RT.ExecutionState)
@@ -49,7 +48,7 @@ let private buildState () : Task<RT.ExecutionState> =
       (_metadata : Metadata)
       (_exn : exn)
       =
-      uply { return () }
+      ()
 
     // The same host posture `Cli.fs` builds for CLI control code: `createState` now defaults
     // access to deny-all (an embedder that forgets a policy gets a confined run), so without
@@ -232,7 +231,7 @@ and private runCliInProcess
     NonBlockingConsole.wait ()
 
     if not (NonBlockingConsole.startCapture ()) then
-      return Tests.failtestf "runCli: a capture was already open (nested runCli?)"
+      Tests.failtestf "runCli: a capture was already open (nested runCli?)"
 
     try
       let! completed =
@@ -345,7 +344,7 @@ let findPackageFn (name : string) : Task<LibExecution.ProgramTypes.Hash> =
         | owner :: modules -> { owner = owner; modules = modules; name = fnName }
         | [] -> Tests.failtestf "not a package fn name: %s" name
       | [] -> Tests.failtestf "not a package fn name: %s" name
-    let! found = pmPT.findFn location |> Ply.toTask
+    let found = pmPT.findFn location
     match found with
     | None -> return Tests.failtestf "no fn named %s" name
     | Some hash -> return hash
@@ -400,7 +399,7 @@ let pollQuiet (state : RT.ExecutionState) (watch : RT.Dval) : Task<RT.Dval> =
 /// Run Dark source under <param state>. Owner "Tests", so every name is fully qualified.
 let evalUnder (state : RT.ExecutionState) (code : string) : Task<RT.Dval> =
   task {
-    let! ptExpr = parsePTExpr code
+    let ptExpr = parsePTExpr code
     let rtInstrs = PT2RT.Expr.toRT Map.empty 0 None ptExpr
     match! Exe.executeExpr state rtInstrs with
     | Ok dval -> return dval
@@ -519,7 +518,7 @@ let instanceTest (name : string) (body : Target -> Task<unit>) : Test =
 /// What lets a test that checks a row or two run on an instance rather than in-process.
 let countSqlIn (target : Target) (sql : string) : Task<int64> =
   match target with
-  | InProcess _ -> countSql sql []
+  | InProcess _ -> Task.FromResult(countSql sql [])
   | Instance i ->
     task {
       let path = System.IO.Path.Combine(i.dir, "data.db")
@@ -607,7 +606,7 @@ and private runCliWithExitInProcess
     NonBlockingConsole.wait ()
 
     if not (NonBlockingConsole.startCapture ()) then
-      return Tests.failtestf "runCliWithExit: a capture was already open"
+      Tests.failtestf "runCliWithExit: a capture was already open"
 
     try
       let! result = Exe.executeFunction state fnName [] (NEList.singleton argsDval)

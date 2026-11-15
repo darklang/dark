@@ -19,7 +19,6 @@ open Expecto
 
 open System.Threading
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open System.Net
 open System.Net.Sockets
@@ -228,7 +227,7 @@ let private fixtureMiddleware (exeState : RT.ExecutionState) : Task<RT.Dval> =
   task {
     let source =
       "[ Darklang.Stdlib.HttpServer.Middleware.trustForwardedProto(), Darklang.Stdlib.HttpServer.Middleware.standardHeaders() ]"
-    let! ptExpr = TestUtils.TestUtils.parsePTExpr source
+    let ptExpr = TestUtils.TestUtils.parsePTExpr source
     let rtInstrs = PT2RT.Expr.toRT Map.empty 0 None ptExpr
     match! Execution.executeExpr exeState rtInstrs with
     | Ok dval -> return dval
@@ -252,7 +251,7 @@ let private buildRouterForTest
         Exception.raiseInternal
           "buildRouterForTest: multi-handler fixtures aren't supported"
           [ "handlerCount", List.length many ]
-    let! ptExpr = TestUtils.TestUtils.parsePTExpr routerSource
+    let ptExpr = TestUtils.TestUtils.parsePTExpr routerSource
     let rtInstrs = PT2RT.Expr.toRT Map.empty 0 None ptExpr
     let! result = Execution.executeExpr exeState rtInstrs
     match result with
@@ -470,7 +469,7 @@ module Execution =
 /// the request, compare, stop the listener.
 let private runFixture (test : Test) : Task<unit> =
   task {
-    let! exeState = executionStateFor pmPT true
+    let exeState = executionStateFor pmPT true
 
     let! handler = buildRouterForTest exeState test
     let! middleware = fixtureMiddleware exeState
@@ -520,7 +519,7 @@ let private runParsedRequestsAgainst
   (requests : (string * byte[]) list)
   : Task<Http.T array> =
   task {
-    let! exeState = executionStateFor pmPT true
+    let exeState = executionStateFor pmPT true
     let test =
       { handlers =
           [ { version = Http; route = "/"; method = method; code = routerCode } ]
@@ -775,8 +774,8 @@ let private noResponseNamesDotNet =
 /// before anything binds.
 let private serveRejectsNegativeMaxBodyBytes =
   testTask "serve refuses a negative maxBodyBytes" {
-    let! exeState = executionStateFor pmPT true
-    let! ptExpr =
+    let exeState = executionStateFor pmPT true
+    let ptExpr =
       TestUtils.TestUtils.parsePTExpr (
         "Darklang.Stdlib.HttpServer.serve("
         + "{ Darklang.Stdlib.HttpServer.Config.defaults(Darklang.Stdlib.Net.Port.httpAlt) with maxBodyBytes = -1 }, "
@@ -797,16 +796,15 @@ let private serveRejectsNegativeMaxBodyBytes =
 /// forwarded-proto rewrite only compute.
 let private middlewareEffectsAreWhatItReaches =
   testTask "serve checks the effects its middleware can reach" {
-    let! exeState = executionStateFor pmPT true
+    let exeState = executionStateFor pmPT true
     let effectsOf (source : string) =
       task {
-        let! ptExpr = TestUtils.TestUtils.parsePTExpr source
+        let ptExpr = TestUtils.TestUtils.parsePTExpr source
         match!
           Execution.executeExpr exeState (PT2RT.Expr.toRT Map.empty 0 None ptExpr)
         with
         | Ok middleware ->
-          let! effects =
-            HttpServer.middlewareEffects exeState middleware |> Ply.toTask
+          let effects = HttpServer.middlewareEffects exeState middleware
           return LibExecution.Effects.permissionEffects effects
         | Error(rte, _) -> return failtest $"the middleware: {rte}"
       }
@@ -827,10 +825,10 @@ let private middlewareEffectsAreWhatItReaches =
 /// them to every other response, and not otherwise.
 let private serverResponsesFollowTheMiddleware =
   testTask "the server's own responses carry HSTS only with standardHeaders" {
-    let! exeState = executionStateFor pmPT true
+    let exeState = executionStateFor pmPT true
     let has (source : string) =
       task {
-        let! ptExpr = TestUtils.TestUtils.parsePTExpr source
+        let ptExpr = TestUtils.TestUtils.parsePTExpr source
         match!
           Execution.executeExpr exeState (PT2RT.Expr.toRT Map.empty 0 None ptExpr)
         with

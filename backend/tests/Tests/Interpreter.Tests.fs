@@ -30,9 +30,10 @@ let tCheckVM
     let vmState =
       ptExpr |> PT2RT.Expr.toRT Map.empty 0 None |> RT.VMState.createWithoutTLID
 
-    let! exeState = executionStateFor TestValues.pm false
+    let exeState = executionStateFor TestValues.pm false
 
-    let! actual = LibExecution.Interpreter.execute exeState vmState |> Ply.toTask
+    let! actual =
+      LibExecution.Pending.toTask (LibExecution.Interpreter.execute exeState vmState)
     Expect.equal actual expectedInsts ""
 
     extraAssertions exeState vmState
@@ -45,7 +46,7 @@ let tFail name ptExpr expectedRte =
   testTask name {
     let instructions = ptExpr |> PT2RT.Expr.toRT Map.empty 0 None
 
-    let! exeState = executionStateFor TestValues.pm false
+    let exeState = executionStateFor TestValues.pm false
 
     let! actual = LibExecution.Execution.executeExpr exeState instructions
 
@@ -87,8 +88,9 @@ module Lambdas =
     testTask name {
       let vm =
         ptExpr |> PT2RT.Expr.toRT Map.empty 0 None |> RT.VMState.createWithoutTLID
-      let! exeState = executionStateFor TestValues.pm false
-      let! actual = LibExecution.Interpreter.execute exeState vm |> Ply.toTask
+      let exeState = executionStateFor TestValues.pm false
+      let! actual =
+        LibExecution.Pending.toTask (LibExecution.Interpreter.execute exeState vm)
       match actual with
       | RT.DApplicable(RT.AppLambda l) ->
         Expect.isTrue
@@ -133,14 +135,15 @@ module Lambdas =
   /// and VM-B runs the instructions the value carries.
   let crossVM =
     testTask "cross-VM lambda invocation" {
-      let! exeState = executionStateFor TestValues.pm false
+      let exeState = executionStateFor TestValues.pm false
 
       // VM-A: evaluate `fn x -> x`, producing a DApplicable.
       let vmA =
         E.Lambdas.Identity.unapplied
         |> PT2RT.Expr.toRT Map.empty 0 None
         |> RT.VMState.createWithoutTLID
-      let! lambdaDval = LibExecution.Interpreter.execute exeState vmA |> Ply.toTask
+      let! lambdaDval =
+        LibExecution.Pending.toTask (LibExecution.Interpreter.execute exeState vmA)
 
       let applicable =
         match lambdaDval with
@@ -155,7 +158,6 @@ module Lambdas =
           exeState.access
           applicable
           (NEList.singleton (RT.DInt64 42L))
-        |> Ply.toTask
 
       match result with
       | Ok dval -> Expect.equal dval (RT.DInt64 42L) "identity lambda across VMs"
@@ -169,7 +171,7 @@ module Lambdas =
   let staleLambda =
     testTask "applying a lambda from another execution is a runtime error" {
       // The real packages: the message comes from the Dark printer.
-      let! (exeState : RT.ExecutionState) = executionStateFor pmPT false
+      let (exeState : RT.ExecutionState) = executionStateFor pmPT false
 
       let applicable =
         RT.AppLambda
@@ -187,7 +189,6 @@ module Lambdas =
           exeState.access
           applicable
           (NEList.singleton (RT.DInt64 42L))
-        |> Ply.toTask
 
       match result with
       | Error((RTE.Apply(RTE.Applications.LambdaNotAvailable exprId) as rte), _) ->
@@ -210,8 +211,9 @@ module Lambdas =
         E.Lambdas.AddToClosedVars.unapplied
         |> PT2RT.Expr.toRT Map.empty 0 None
         |> RT.VMState.createWithoutTLID
-      let! exeState = executionStateFor TestValues.pm false
-      let! inMemory = LibExecution.Interpreter.execute exeState vm |> Ply.toTask
+      let exeState = executionStateFor TestValues.pm false
+      let! inMemory =
+        LibExecution.Pending.toTask (LibExecution.Interpreter.execute exeState vm)
       let stored =
         inMemory
         |> LibSerialization.Binary.Serialization.RT.Dval.serialize "lambda"
@@ -288,7 +290,7 @@ module Fns =
 
 /// The synchronous unifier must never disagree with the computation-expression one.
 ///
-/// `TypeChecker.tryUnifySync` exists purely to answer the ordinary cases without allocating a
+/// `TypeChecker.tryUnify` exists purely to answer the ordinary cases without allocating a
 /// continuation, so the only acceptable behaviours are "same answer as the slow path" or "declined, go
 /// ask the slow path". A `ValueSome` that disagrees would silently change what type-checks, which is the
 /// one way this optimisation could be dangerous rather than merely ineffective.
@@ -352,15 +354,15 @@ module SyncUnify =
 
   let agreesWithAsyncPath =
     testTask "sync unifier agrees with the async one, or declines" {
-      let! (exeState : RT.ExecutionState) = executionStateFor pmPT false
+      let (exeState : RT.ExecutionState) = executionStateFor pmPT false
       let mutable asyncAccepted = 0
       let mutable answeredWhenAccepted = 0
 
       for tst in symbolTables do
         for expected in expectations do
           for actual in actuals do
-            let sync = LibExecution.TypeChecker.tryUnifySync tst expected actual
-            let! async' =
+            let sync = LibExecution.TypeChecker.tryUnify tst expected actual
+            let async' =
               LibExecution.TypeChecker.checkFnParam
                 exeState.types
                 (RT.FQFnName.fqBuiltin "test" 0)
@@ -369,7 +371,6 @@ module SyncUnify =
                 "p"
                 expected
                 actual
-              |> Ply.toTask
 
             match async' with
             | Ok asyncTst ->
@@ -403,7 +404,7 @@ module SyncUnify =
   /// type variables inside an Option's or a list's type args included.
   let fitsMeansUnifiesUnchanged =
     testTask "a value that fits with nothing to bind unifies and binds nothing" {
-      let! (exeState : RT.ExecutionState) = executionStateFor pmPT false
+      let (exeState : RT.ExecutionState) = executionStateFor pmPT false
       let optionOf t =
         RT.TCustomType(RT.NameResolution.ok (LibExecution.Dval.optionType ()), [ t ])
       let expected =
@@ -433,7 +434,7 @@ module SyncUnify =
           for actual in actualsWithOptions do
             if LibExecution.TypeChecker.argFitsWithNothingToBind tst e actual then
               fitted <- fitted + 1
-              let! unified =
+              let unified =
                 LibExecution.TypeChecker.checkFnParam
                   exeState.types
                   (RT.FQFnName.fqBuiltin "test" 0)
@@ -442,7 +443,6 @@ module SyncUnify =
                   "p"
                   e
                   actual
-                |> Ply.toTask
               Expect.equal
                 unified
                 (Ok tst)
@@ -471,7 +471,7 @@ module AliasChecks =
         { typeParams = parameters; definition = RT.TypeDeclaration.Alias target } }
 
   let private typesFor target : RT.Types =
-    { package = fun _ -> Ply.Ply(Some(declaration aliasName [] target)) }
+    { package = fun _ -> (Some(declaration aliasName [] target)) }
 
   let private check types expected actual =
     TC.checkFnParam
@@ -482,20 +482,19 @@ module AliasChecks =
       "value"
       expected
       actual
-    |> Ply.toTask
 
   let tests =
     testList
       "AliasChecks"
       [ testTask "warm aliases use the sync path and retain their error name" {
           let types = typesFor RT.TInt64
-          let! accepted = check types alias (RT.DInt64 1L)
+          let accepted = check types alias (RT.DInt64 1L)
           Expect.equal accepted (Ok RT.TST.empty) "first call resolves the alias"
           Expect.equal
-            (TC.tryUnifyWithAliasesSync types RT.TST.empty alias (RT.DInt64 1L))
+            (TC.tryUnifyWithAliases types RT.TST.empty alias (RT.DInt64 1L))
             (ValueSome RT.TST.empty)
             "subsequent calls use the synchronous checker"
-          let! rejected = check types alias (RT.DString "wrong")
+          let rejected = check types alias (RT.DString "wrong")
           match rejected with
           | Error(RTE.Apply(RTE.Applications.FnParameterNotExpectedType(_,
                                                                         _,
@@ -506,14 +505,13 @@ module AliasChecks =
                                                                         _))) ->
             Expect.equal expected alias "error retains the declared alias"
           | _ -> failtest "expected an argument type error"
-          let! result =
+          let result =
             TC.checkFnResult
               types
               (RT.FQFnName.fqBuiltin "test" 0)
               RT.TST.empty
               alias
               (RT.DString "wrong")
-            |> Ply.toTask
           match result with
           | Error(RTE.Apply(RTE.Applications.FnResultNotExpectedType(_,
                                                                      Some expected,
@@ -544,36 +542,33 @@ module AliasChecks =
               { package =
                   fun hash ->
                     if RT.FQTypeName.Package hash = aliasName then
-                      Ply.Ply(Some(declaration aliasName [] target))
+                      (Some(declaration aliasName [] target))
                     else
-                      Ply.Ply(
-                        Some
-                          { hash = hash
-                            declaration =
-                              { typeParams = []; definition = definition } }
-                      ) }
-            let! accepted = check types alias actual
+                      (Some
+                        { hash = hash
+                          declaration = { typeParams = []; definition = definition } }) }
+            let accepted = check types alias actual
             Expect.equal
               accepted
               (Ok RT.TST.empty)
               "the alias accepts the nominal value"
             Expect.equal
-              (TC.tryUnifyWithAliasesSync types RT.TST.empty alias actual)
+              (TC.tryUnifyWithAliases types RT.TST.empty alias actual)
               (ValueSome RT.TST.empty)
               "the warm nominal alias is synchronous"
         }
         testTask "resolved aliases are scoped to their type provider" {
           let integers = typesFor RT.TInt64
           let strings = typesFor RT.TString
-          let! _ = check integers alias (RT.DInt64 1L)
+          let _ = check integers alias (RT.DInt64 1L)
           Expect.equal
-            (TC.tryUnifyWithAliasesSync strings RT.TST.empty alias (RT.DInt64 1L))
+            (TC.tryUnifyWithAliases strings RT.TST.empty alias (RT.DInt64 1L))
             ValueNone
             "another provider cannot reuse the resolution"
-          let! accepted = check strings alias (RT.DString "right")
+          let accepted = check strings alias (RT.DString "right")
           Expect.equal accepted (Ok RT.TST.empty) "the other declaration wins"
           Expect.equal
-            (TC.tryUnifyWithAliasesSync strings RT.TST.empty alias (RT.DInt64 1L))
+            (TC.tryUnifyWithAliases strings RT.TST.empty alias (RT.DInt64 1L))
             ValueNone
             "a warm cache cannot accept the other provider's type"
         }
@@ -590,15 +585,15 @@ module AliasChecks =
                         (reference targetName [ RT.TVariable "a" ])
                     else
                       declaration targetName [ "b" ] (RT.TList(RT.TVariable "b"))
-                  Ply.Ply(Some decl) }
+                  (Some decl) }
           for actual in
             [ RT.DList(VT.known RT.KTInt64, RT.Items([ RT.DInt64 1L ]))
               RT.DList(VT.known RT.KTString, RT.Items([ RT.DString "text" ])) ] do
-            let! accepted = check types expected actual
+            let accepted = check types expected actual
             match accepted with
             | Ok tst ->
               Expect.equal
-                (TC.tryUnifyWithAliasesSync types RT.TST.empty expected actual)
+                (TC.tryUnifyWithAliases types RT.TST.empty expected actual)
                 (ValueSome tst)
                 "each call binds its own type variable"
             | Error _ -> failtest "expected the generic alias to accept both calls"
@@ -609,21 +604,21 @@ module AliasChecks =
             { package =
                 fun hash ->
                   if RT.FQTypeName.Package hash = aliasName then
-                    Ply.Ply(Some(declaration aliasName [] (reference targetName [])))
+                    (Some(declaration aliasName [] (reference targetName [])))
                   elif available then
-                    Ply.Ply(Some(declaration targetName [] RT.TInt64))
+                    (Some(declaration targetName [] RT.TInt64))
                   else
-                    Ply.Ply None }
-          let! _ = RT.TypeReference.unwrapAlias types alias |> Ply.toTask
+                    None }
+          let _ = RT.TypeReference.unwrapAlias types alias
           Expect.equal
             (RT.TypeReference.tryResolvedAlias types alias)
             ValueNone
             "an incomplete chain is not cached"
           available <- true
-          let! accepted = check types alias (RT.DInt64 1L)
+          let accepted = check types alias (RT.DInt64 1L)
           Expect.equal accepted (Ok RT.TST.empty) "a newly available alias resolves"
           Expect.equal
-            (TC.tryUnifyWithAliasesSync types RT.TST.empty alias (RT.DInt64 1L))
+            (TC.tryUnifyWithAliases types RT.TST.empty alias (RT.DInt64 1L))
             (ValueSome RT.TST.empty)
             "the complete chain can now be cached"
         } ]
@@ -707,7 +702,11 @@ module DictKeyOrdering =
 
   let inadmissibleValuesPoisonTheirContainers =
     testCase "a container holding an inadmissible value is inadmissible" (fun _ ->
-      let bad = LibExecution.Stream.newFromIO VT.int64 (fun () -> Ply None) None
+      let bad =
+        LibExecution.Stream.newFromIO
+          VT.int64
+          (fun () -> System.Threading.Tasks.ValueTask<_>(None))
+          None
       let isValid = LibExecution.RuntimeTypes.Dval.isUsableDictKey
       let dictOfBad =
         RT.DDict(VT.unknown, VT.unknown, RT.DictMap.ofList [ RT.DUnit, bad ])
@@ -886,7 +885,11 @@ module ListUnique =
       let enum source args = RT.DEnum(source, name, args, "None", [])
       let dict key value =
         RT.DDict(VT.float, VT.float, RT.DictMap.ofList [ RT.DFloat64 key, value ])
-      let stream = LibExecution.Stream.newFromIO VT.unit (fun () -> Ply None) None
+      let stream =
+        LibExecution.Stream.newFromIO
+          VT.unit
+          (fun () -> System.Threading.Tasks.ValueTask<_>(None))
+          None
       let promise =
         RT.Promise(
           System.Threading.Tasks.Task.FromResult RT.DUnit,
@@ -1014,7 +1017,10 @@ module ListUnique =
       let streams =
         [ 1..256 ]
         |> List.map (fun _ ->
-          LibExecution.Stream.newFromIO VT.unit (fun () -> Ply None) None)
+          LibExecution.Stream.newFromIO
+            VT.unit
+            (fun () -> System.Threading.Tasks.ValueTask<_>(None))
+            None)
       let promises =
         [ 1..256 ]
         |> List.map (fun _ ->
@@ -1535,7 +1541,6 @@ module Reload =
           state.access
           app
           (NEList.singleton RT.DUnit)
-        |> Ply.toTask
       with
       | Ok dv -> return dv
       | Error(rte, _) -> return failtest $"the call raised: {rte}"
@@ -1550,7 +1555,7 @@ module Reload =
       let two = one + 1L
       let! v1 = authorIntoMain $"module Darklang.{m}\n\nlet answer(): Int64 = {one}"
       let h1 = hashBoundTo v1 "answer"
-      let! state = executionStateFor pmPT false
+      let state = executionStateFor pmPT false
       let held = applicableFor h1
       let! before = call state held
       Expect.equal before (RT.DInt64 one) "the first version answers"
@@ -1560,7 +1565,7 @@ module Reload =
       Expect.notEqual h1 h2 "the edit is a new hash"
 
       // The write path dropped the name caches; a fresh lookup sees the new binding...
-      let! bound = pmPT.findFn (loc "answer") |> Ply.toTask
+      let bound = pmPT.findFn (loc "answer")
       Expect.equal bound (Some h2) "the name now resolves to the new hash"
       let! fresh = call state (applicableFor h2)
       Expect.equal fresh (RT.DInt64 two) "and runs the new body"
@@ -1584,26 +1589,20 @@ module Reload =
   let lookupStillRunningAtAnEditIsNotKept =
     let check
       (name : string)
-      (makeCache : (string -> Ply<Option<int>>) -> (string -> Ply<Option<int>>))
+      (makeCache : (string -> Option<int>) -> (string -> Option<int>))
       (before : Option<int>)
       =
-      testTask name {
-        let gate = System.Threading.Tasks.TaskCompletionSource<unit>()
+      test name {
         let store = ref before
         let lookup =
           makeCache (fun _ ->
-            uply {
-              let seen = store.Value
-              do! gate.Task // the query is still running...
-              return seen
-            })
-        let running = lookup "k" |> Ply.toTask
-        store.Value <- Some 2 // ...when an edit changes the store and drops the caches
-        LibDB.Caching.invalidateAll ()
-        gate.SetResult()
-        let! _ = running
-        let! after = lookup "k" |> Ply.toTask
-        Expect.equal after (Some 2) "the next lookup sees the edit"
+            let seen = store.Value
+            // ...and an edit changes the store and drops the caches while the query runs.
+            store.Value <- Some 2
+            LibDB.Caching.invalidateAll ()
+            seen)
+        lookup "k" |> ignore<Option<int>>
+        Expect.equal (lookup "k") (Some 2) "the next lookup sees the edit"
       }
     testList
       "a lookup still running when the caches are dropped does not keep what it read"
@@ -1629,8 +1628,8 @@ module BoundMemo =
       (localBuiltIns pmPT)
       pmRT
       LibExecution.Execution.noTracing
-      (fun _ _ _ _ -> uply { return () })
-      (fun _ _ _ _ -> uply { return () })
+      (fun _ _ _ _ -> ())
+      (fun _ _ _ _ -> ())
     |> LibExecution.Execution.setInstancePolicy
       LibExecution.Permissions.Policy.allowAll
 
@@ -1652,7 +1651,6 @@ module BoundMemo =
           state.access
           app
           (NEList.singleton RT.DUnit)
-        |> Ply.toTask
     }
 
   let private entered (state : RT.ExecutionState) (hash : PT.Hash) (why : string) =
@@ -1678,19 +1676,18 @@ module BoundMemo =
   /// the authoring builtin does. `ThrowError` refuses an implementation's own methods.
   let private authorStep (label : string) (source : string) =
     task {
-      let! parsed =
+      let parsed =
         LibParser.Package.parse
           (localBuiltIns pmPT)
           pmPT
           LibParser.NameResolver.OnMissing.Allow
           source
-        |> Ply.toTask
       match parsed with
       | Error errs -> return failtest $"authoring {label} failed to parse: {errs}"
       | Ok ops ->
         let stabilized = LibDB.HashStabilization.computeRealHashes ops
-        let! _ = LibDB.Inserts.insertAndApplyOps stabilized
-        let! _ = LibDB.WipRefresh.refresh pmPT
+        let _ = LibDB.Inserts.insertAndApplyOps stabilized
+        let _ = LibDB.WipRefresh.refresh pmPT
         return stabilized
     }
 
@@ -1724,11 +1721,11 @@ let callBox(): String = {q}.guarded({q}.Box {{ boxWidth{r} = 1 }})
 let callCrate(): String = {q}.guarded({q}.Crate {{ crateDepth{r} = 1 }})"
       // Read back from the store: the refresh may have re-hashed what the parse returned.
       let current
-        (find : PT.PackageLocation -> Ply<Option<PT.Hash>>)
+        (find : PT.PackageLocation -> Option<PT.Hash>)
         (l : PT.PackageLocation)
         =
         task {
-          match! find l |> Ply.toTask with
+          match find l with
           | Some h -> return h
           | None -> return failtest $"nothing bound at {l}"
         }
@@ -1756,7 +1753,7 @@ let callCrate(): String = {q}.guarded({q}.Crate {{ crateDepth{r} = 1 }})"
           $"module {q}\n\nimpl {q}.Lbl for {q}.Crate =\n  let lbl(c: {q}.Crate): String = \"crate\""
       do! entered state callCrate "a new implementation is seen at once"
 
-      let! _ =
+      let _ =
         LibDB.Inserts.insertAndApplyOps
           [ PT.PackageOp.Deprecate(
               boxImplAt,
@@ -1781,8 +1778,8 @@ let callCrate(): String = {q}.guarded({q}.Crate {{ crateDepth{r} = 1 }})"
 module LambdaResultChecks =
   let private run (collectExprValues : bool) (code : string) =
     task {
-      let! ptExpr = parsePTExpr code
-      let! (state : RT.ExecutionState) = executionStateFor pmPT false
+      let ptExpr = parsePTExpr code
+      let (state : RT.ExecutionState) = executionStateFor pmPT false
       let state =
         { state with
             tracing = { state.tracing with collectExprValues = collectExprValues } }
@@ -2000,7 +1997,7 @@ module IntOperators =
 
   let run (collectExprValues : bool) (expr : PT.Expr) =
     task {
-      let! (state : RT.ExecutionState) = executionStateFor pmPT false
+      let (state : RT.ExecutionState) = executionStateFor pmPT false
       let state =
         { state with
             tracing = { state.tracing with collectExprValues = collectExprValues } }

@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+"""No thread blocks on a task: fail on a blocking wait in backend/src.
+
+A real wait goes through `Pending.ofTask`, and the interpreter parks on it. So `.Result`,
+`.Wait`, `GetAwaiter().GetResult()` and `RunSynchronously` may only read a task that has
+already landed. That is a use guarded by `.IsCompleted...` on its own line or the line before,
+or one marked `// landed` (a continuation that runs once the task is done). Anything else
+must be in blocking-waits.allowed, with why: the CLI's and LocalExec's own top-level waits.
+
+  scripts/linting/blocking-waits      exit 1 naming each file:line
+"""
+
+import os
+import re
+import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+SRC = os.path.join(ROOT, "backend", "src")
+ALLOWED = os.path.join(os.path.dirname(os.path.abspath(__file__)), "blocking-waits.allowed")
+
+# On a value: a dotted name that starts lowercase (`t.Result`, `p.completion.Task.Result`), a
+# call's result, `_.Result` or a line of its own. Not a module (`C2DT.Result.toDT`) or an active
+# pattern (`Pending.Wait t`).
+RECEIVER = r"(?:(?:^|[^\w.'])[a-z_][\w']*(?:\.[A-Za-z_][\w']*)*|\)|^\s*)"
+WAIT = re.compile(
+    RECEIVER + r"\.(?:Result\b(?!\s*[.<])|Wait(?:All|Any)?\b)"
+    r"|\bTask\.Wait(?:All|Any)\b"
+    r"|GetAwaiter\(\)\s*\.GetResult\(\)"
+    r"|RunSynchronously"
+)
+GUARD = re.compile(r"\.IsCompleted")
+MARKER = "// landed"
+
+
+def code_of(line):
+    """The line without a trailing `//` comment, string literals left alone."""
+    in_string = False
+    i = 0
+    while i < len(line):
+        c = line[i]
+        if c == '"' and (i == 0 or line[i - 1] != "\\"):
+            in_string = not in_string
+        elif not in_string and line.startswith("//", i):
+            return line[:i]
+        i += 1
+    return line
+
+
+def allowed_entries():
+    entries = []
+    with open(ALLOWED) as f:
+        for raw in f:
+            line = raw.rstrip("\n")
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            path, _, fragment = line.partition(" ")
+            entries.append((path, fragment.strip()))
+    return entries
+
+
+def main():
+    entries = allowed_entries()
+    used = set()
+    found = []
+    for dirpath, dirnames, filenames in os.walk(SRC):
+        dirnames[:] = [d for d in dirnames if d not in ("bin", "obj")]
+        for name in sorted(filenames):
+            if not name.endswith((".fs", ".fsi")):
+                continue
+            path = os.path.join(dirpath, name)
+            rel = os.path.relpath(path, ROOT)
+            with open(path, encoding="utf-8") as f:
+                lines = f.read().split("\n")
+            previous = ""
+            for n, line in enumerate(lines, 1):
+                code = code_of(line)
+                if code.strip() and WAIT.search(code):
+                    ok = MARKER in line or GUARD.search(code) or GUARD.search(previous)
+                    if not ok:
+                        hit = [e for e in entries if e[0] == rel and e[1] in line]
+                        if hit:
+                            used.update(hit)
+                        else:
+                            found.append(f"{rel}:{n}: {line.strip()}")
+                if code.strip():
+                    previous = code
+    stale = [e for e in entries if e not in used]
+    for f in found:
+        print(f)
+    if found:
+        print(
+            "\nblocking-waits: a thread blocks on a task here. Return a Pending (Pending.ofTask) "
+            "or chain on the task instead; mark a read of a task that has already landed "
+            "`// landed`.",
+            file=sys.stderr,
+        )
+    for path, fragment in stale:
+        print(f"blocking-waits.allowed: no longer matches: {path} {fragment}", file=sys.stderr)
+    sys.exit(1 if found or stale else 0)
+
+
+if __name__ == "__main__":
+    main()

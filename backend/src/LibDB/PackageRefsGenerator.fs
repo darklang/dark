@@ -52,14 +52,13 @@ let private readExistingFile () : Map<string, string> =
 
 
 /// Keep aliases without locations only if their content is still in the store.
-let retainStoredReferences (refs : Map<string, string>) : Ply<Map<string, string>> =
+let retainStoredReferences (refs : Map<string, string>) : Map<string, string> =
   refs
   |> Map.toList
-  |> Ply.List.filterSequentially (fun (_, hash) ->
-    uply {
-      let! exists =
-        Sql.query
-          """
+  |> List.filter (fun (_, hash) ->
+    let exists =
+      Sql.query
+        """
           SELECT EXISTS(
             SELECT 1 FROM package_types WHERE hash = @hash
             UNION ALL SELECT 1 FROM package_functions WHERE hash = @hash
@@ -67,11 +66,10 @@ let retainStoredReferences (refs : Map<string, string>) : Ply<Map<string, string
             UNION ALL SELECT 1 FROM package_trait_impls WHERE hash = @hash
           ) AS present
           """
-        |> Sql.parameters [ "hash", Sql.string hash ]
-        |> Sql.executeRowAsync (fun read -> read.int64 "present" <> 0L)
-      return exists
-    })
-  |> Ply.map Map.ofList
+      |> Sql.parameters [ "hash", Sql.string hash ]
+      |> Sql.executeRow (fun read -> read.int64 "present" <> 0L)
+    exists)
+  |> Map.ofList
 
 
 /// Initialize refs from a complete source reload before storing its functions.
@@ -99,134 +97,128 @@ let initializeFromOps (ops : List<LibExecution.ProgramTypes.PackageOp>) : unit =
 /// tree. Only a reload's FINAL state belongs in that file: every process in the
 /// checkout reads it at startup, so an intermediate state written there is a wrong
 /// answer for whoever starts next.
-let generate (writeSourceFile : bool) : Ply<unit> =
-  uply {
-    // Include keys from disk: this process may not have registered every ref yet.
-    let existingKeys =
-      readExistingFile () |> Map.toList |> List.map fst |> Set.ofList
+let generate (writeSourceFile : bool) : unit =
+  // Include keys from disk: this process may not have registered every ref yet.
+  let existingKeys = readExistingFile () |> Map.toList |> List.map fst |> Set.ofList
 
-    let allRefKeys = Set.union (PackageRefs.declaredNames ()) existingKeys
+  let allRefKeys = Set.union (PackageRefs.declaredNames ()) existingKeys
 
-    // Query all Darklang-owned locations from DB
-    let! dbRows =
-      Sql.query (
-        Layers.view "@" Layers.locations
-        + " SELECT item_type, modules, name, item_hash FROM visible
-            WHERE owner = 'Darklang' AND item_hash <> ''"
-      )
-      |> Sql.parameters (
-        Layers.sqlParams LibExecution.ProgramTypes.BranchId.Main true
-      )
-      |> Sql.executeAsync (fun read ->
-        let itemType = read.string "item_type"
-        let modules = read.string "modules"
-        let name = read.string "name"
-        let hash = read.string "item_hash"
-        (buildKey itemType modules name, hash))
+  // Query all Darklang-owned locations from DB
+  let dbRows =
+    Sql.query (
+      Layers.view "@" Layers.locations
+      + " SELECT item_type, modules, name, item_hash FROM visible
+          WHERE owner = 'Darklang' AND item_hash <> ''"
+    )
+    |> Sql.parameters (Layers.sqlParams LibExecution.ProgramTypes.BranchId.Main true)
+    |> Sql.executeRows (fun read ->
+      let itemType = read.string "item_type"
+      let modules = read.string "modules"
+      let name = read.string "name"
+      let hash = read.string "item_hash"
+      (buildKey itemType modules name, hash))
 
-    let dbMap = dbRows |> Map.ofList
+  let dbMap = dbRows |> Map.ofList
 
-    // Keep stored aliases, but drop pins to content removed by the reload.
-    let existingMap = readExistingFile ()
-    let! storedAliases =
-      existingMap
-      |> Map.filterWithIndex (fun key _ -> not (Map.containsKey key dbMap))
-      |> retainStoredReferences
+  // Keep stored aliases, but drop pins to content removed by the reload.
+  let existingMap = readExistingFile ()
+  let storedAliases =
+    existingMap
+    |> Map.filterWithIndex (fun key _ -> not (Map.containsKey key dbMap))
+    |> retainStoredReferences
 
-    // Merge: DB values win, existing file fills gaps for referenced items
-    let merged =
-      allRefKeys
-      |> Set.toList
-      |> List.choose (fun key ->
-        match Map.tryFind key dbMap with
+  // Merge: DB values win, existing file fills gaps for referenced items
+  let merged =
+    allRefKeys
+    |> Set.toList
+    |> List.choose (fun key ->
+      match Map.tryFind key dbMap with
+      | Some hash -> Some(key, hash)
+      | None ->
+        match Map.tryFind key storedAliases with
         | Some hash -> Some(key, hash)
-        | None ->
-          match Map.tryFind key storedAliases with
-          | Some hash -> Some(key, hash)
-          | None -> None)
-      |> List.sortBy fst
+        | None -> None)
+    |> List.sortBy fst
 
-    // A HARDENED pin moving is refused here rather than reported as a diff. See
-    // `PackageRefs.hardened` for which ones and why: the point is that the failure
-    // arrives at the moment the identity moves, naming what moved and what it moved
-    // to, instead of arriving in CI as "the worktree is dirty".
-    //
-    // The escape hatch is deliberate and deliberately awkward. Sometimes the move IS
-    // correct (the type genuinely changed), and then re-running with the variable
-    // set is the way to say so on purpose.
-    let hardenedMoves =
-      merged
-      |> List.choose (fun (key, hash) ->
-        if PackageRefs.hardened |> Set.contains key then
-          match Map.tryFind key existingMap with
-          | Some old when old <> hash -> Some(key, old, hash)
-          | _ -> None
-        else
-          None)
-
-    let repinAllowed =
-      match System.Environment.GetEnvironmentVariable "DARK_REPIN_HARDENED" with
-      | "1" -> true
-      | _ -> false
-
-    if not (List.isEmpty hardenedMoves) && not repinAllowed then
-      let detail =
-        hardenedMoves
-        |> List.map (fun (key, old, hash) ->
-          $"  {key}\n    was {old}\n    now {hash}")
-        |> String.concat "\n"
-
-      Exception.raiseInternal
-        ("A hardened package ref moved. These are constructed by name throughout the kernel, so their "
-         + "identity moving means something changed underneath the whole tree -- check that before "
-         + "re-pinning. If the move is correct, re-run with DARK_REPIN_HARDENED=1.\n"
-         + detail)
-        []
-
-    let lines = merged |> List.map (fun (key, hash) -> $"{key}|{hash}")
-
-    // Always set the in-memory cache so PackageRefs lookups work
-    let hashMap = merged |> Map.ofList
-    PackageRefs.setHashes hashMap
-
-    // Write the source-tree file (skip if the directory doesn't exist,
-    // e.g. on installed CLIs where the source tree isn't available).
-    //
-    // Every process in this checkout reads this one file at startup, whatever its
-    // HOME, so a reload into a private store still writes shared state.
-    // It used to be written from both fills, truncating first, so a CLI starting during
-    // any reload anywhere in the checkout could load an empty map, a half-written one,
-    // or the pre-resolution hashes, and raise FnNotFound on its first kernel call. That
-    // was every false failure `gates all --parallel` reported: reload-is-reproducible
-    // reloads twice while the other gates start dozens of CLIs. So: only the final fill
-    // writes, an identical file is left alone, and a changed one is replaced by rename,
-    // which readers see whole or not at all.
-    let dir = System.IO.Path.GetDirectoryName(sourceTreePath)
-    if writeSourceFile && System.IO.Directory.Exists(dir) then
-      let newLines = lines |> Array.ofList
-      let existingLines =
-        try
-          if System.IO.File.Exists(sourceTreePath) then
-            System.IO.File.ReadAllLines(sourceTreePath)
-          else
-            [||]
-        with _ ->
-          [||]
-      if existingLines = newLines then
-        print $"  {newLines.Length} package ref hashes unchanged in {sourceTreePath}"
+  // A HARDENED pin moving is refused here rather than reported as a diff. See
+  // `PackageRefs.hardened` for which ones and why: the point is that the failure
+  // arrives at the moment the identity moves, naming what moved and what it moved
+  // to, instead of arriving in CI as "the worktree is dirty".
+  //
+  // The escape hatch is deliberate and deliberately awkward. Sometimes the move IS
+  // correct (the type genuinely changed), and then re-running with the variable
+  // set is the way to say so on purpose.
+  let hardenedMoves =
+    merged
+    |> List.choose (fun (key, hash) ->
+      if PackageRefs.hardened |> Set.contains key then
+        match Map.tryFind key existingMap with
+        | Some old when old <> hash -> Some(key, old, hash)
+        | _ -> None
       else
-        let tmp = $"{sourceTreePath}.{System.Environment.ProcessId}.tmp"
-        System.IO.File.WriteAllLines(tmp, newLines)
-        System.IO.File.Move(tmp, sourceTreePath, true)
-        print $"  Wrote {newLines.Length} package ref hashes to {sourceTreePath}"
+        None)
 
-    // Report any items referenced but not found anywhere
-    let foundKeys = merged |> List.map fst |> Set.ofList
-    let missing = Set.difference allRefKeys foundKeys
+  let repinAllowed =
+    match System.Environment.GetEnvironmentVariable "DARK_REPIN_HARDENED" with
+    | "1" -> true
+    | _ -> false
 
-    if not (Set.isEmpty missing) then
-      print
-        $"  Warning: {Set.count missing} PackageRefs items not found in DB or existing file:"
-      for key in missing do
-        print $"    - {key}"
-  }
+  if not (List.isEmpty hardenedMoves) && not repinAllowed then
+    let detail =
+      hardenedMoves
+      |> List.map (fun (key, old, hash) -> $"  {key}\n    was {old}\n    now {hash}")
+      |> String.concat "\n"
+
+    Exception.raiseInternal
+      ("A hardened package ref moved. These are constructed by name throughout the kernel, so their "
+       + "identity moving means something changed underneath the whole tree -- check that before "
+       + "re-pinning. If the move is correct, re-run with DARK_REPIN_HARDENED=1.\n"
+       + detail)
+      []
+
+  let lines = merged |> List.map (fun (key, hash) -> $"{key}|{hash}")
+
+  // Always set the in-memory cache so PackageRefs lookups work
+  let hashMap = merged |> Map.ofList
+  PackageRefs.setHashes hashMap
+
+  // Write the source-tree file (skip if the directory doesn't exist,
+  // e.g. on installed CLIs where the source tree isn't available).
+  //
+  // Every process in this checkout reads this one file at startup, whatever its
+  // HOME, so a reload into a private store still writes shared state.
+  // It used to be written from both fills, truncating first, so a CLI starting during
+  // any reload anywhere in the checkout could load an empty map, a half-written one,
+  // or the pre-resolution hashes, and raise FnNotFound on its first kernel call. That
+  // was every false failure `gates all --parallel` reported: reload-is-reproducible
+  // reloads twice while the other gates start dozens of CLIs. So: only the final fill
+  // writes, an identical file is left alone, and a changed one is replaced by rename,
+  // which readers see whole or not at all.
+  let dir = System.IO.Path.GetDirectoryName(sourceTreePath)
+  if writeSourceFile && System.IO.Directory.Exists(dir) then
+    let newLines = lines |> Array.ofList
+    let existingLines =
+      try
+        if System.IO.File.Exists(sourceTreePath) then
+          System.IO.File.ReadAllLines(sourceTreePath)
+        else
+          [||]
+      with _ ->
+        [||]
+    if existingLines = newLines then
+      print $"  {newLines.Length} package ref hashes unchanged in {sourceTreePath}"
+    else
+      let tmp = $"{sourceTreePath}.{System.Environment.ProcessId}.tmp"
+      System.IO.File.WriteAllLines(tmp, newLines)
+      System.IO.File.Move(tmp, sourceTreePath, true)
+      print $"  Wrote {newLines.Length} package ref hashes to {sourceTreePath}"
+
+  // Report any items referenced but not found anywhere
+  let foundKeys = merged |> List.map fst |> Set.ofList
+  let missing = Set.difference allRefKeys foundKeys
+
+  if not (Set.isEmpty missing) then
+    print
+      $"  Warning: {Set.count missing} PackageRefs items not found in DB or existing file:"
+    for key in missing do
+      print $"    - {key}"

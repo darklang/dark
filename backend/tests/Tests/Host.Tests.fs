@@ -1140,6 +1140,7 @@ let isolatedTestBoundsOutputCollection =
                   : HT.ProcessWorkspace
                 ))
               2000
+            |> _.Result
           match expectedCode, outcome with
           | None, Error(110, message) ->
             Expect.stringContains message "timed out" $"{label}: wait is bounded"
@@ -1195,6 +1196,7 @@ let isolatedTestPreservesFailureWhenCleanupFails =
           "dark-worker-check-"
           (fun dir -> snapshot (System.IO.Path.Combine(dir, "data.db")))
           1000
+        |> _.Result
       with
       | Error(_, message) ->
         Expect.stringContains

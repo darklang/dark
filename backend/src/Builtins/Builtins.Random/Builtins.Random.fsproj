@@ -10,7 +10,6 @@
     <ProjectReference Include="../../LibExecution/LibExecution.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Ply" />
     <PackageReference Include="FSharp.Core" />
     <Compile Include="Libs/Uuid.fs" />
     <Compile Include="Libs/Random.fs" />

@@ -1,7 +1,6 @@
 module Builtins.Cli.Libs.Terminal
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
@@ -122,7 +121,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUnit |] ->
           let (width, height) = terminalSize ()
-          DTuple(Dval.dint64 (int64 width), Dval.dint64 (int64 height), []) |> Ply
+          DTuple(Dval.dint64 (int64 width), Dval.dint64 (int64 height), [])
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -147,7 +146,7 @@ let fns () : List<BuiltInFn> =
             | 1L -> not System.Console.IsOutputRedirected
             | 2L -> not System.Console.IsErrorRedirected
             | _ -> false
-          DBool answer |> Ply
+          DBool answer
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -161,7 +160,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the absolute path to the CLI log directory"
       fn =
         (function
-        | _, _, [], [| DUnit |] -> DString(LibConfig.Config.logDir) |> Ply
+        | _, _, [], [| DUnit |] -> DString(LibConfig.Config.logDir)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -182,7 +181,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString sequence |] ->
           TerminalRestoreGuard.arm sequence
-          Ply DUnit
+          DUnit
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Stdout ]
@@ -198,7 +197,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DUnit |] ->
           TerminalRestoreGuard.disarm ()
-          Ply DUnit
+          DUnit
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Stdout ]
@@ -214,7 +213,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString text |] ->
-          text |> TerminalText.styledWidth |> int64 |> Dval.dint64 |> Ply
+          text |> TerminalText.styledWidth |> int64 |> Dval.dint64
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -232,7 +231,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString text; DInt64 maxWidth |] ->
-          DString(TerminalText.clipToWidth text (columns maxWidth)) |> Ply
+          DString(TerminalText.clipToWidth text (columns maxWidth))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -248,7 +247,7 @@ let fns () : List<BuiltInFn> =
         "Drop SGR styling, other escapes and control characters, leaving the visible text"
       fn =
         (function
-        | _, _, _, [| DString text |] -> DString(TerminalText.stripSgr text) |> Ply
+        | _, _, _, [| DString text |] -> DString(TerminalText.stripSgr text)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -269,7 +268,6 @@ let fns () : List<BuiltInFn> =
           TerminalText.wrapAtColumn text (columns maxWidth)
           |> List.map DString
           |> fun rows -> DList(VT.string, Items(rows))
-          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -295,7 +293,6 @@ let fns () : List<BuiltInFn> =
             Dval.dint64 (int64 row),
             [ Dval.dint64 (int64 column) ]
           )
-          |> Ply
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

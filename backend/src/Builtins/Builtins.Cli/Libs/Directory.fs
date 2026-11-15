@@ -2,7 +2,6 @@
 module Builtins.Cli.Libs.Directory
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
@@ -29,7 +28,7 @@ let fns () : List<BuiltInFn> =
             Host.Operation.CurrentExecutablePath
             (fun outcome ->
               match outcome with
-              | Ok response -> Ply(DString(Host.expectPath response))
+              | Ok response -> (DString(Host.expectPath response))
               | Error failure ->
                 Exception.raiseInternal
                   "current executable path failed"

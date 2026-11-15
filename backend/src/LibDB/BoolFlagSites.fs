@@ -55,21 +55,18 @@ let private bareBoolCallees
   walk expr
 
 /// Every live package fn's bare-Bool calls.
-let find (names : Map<PT.Hash, string>) : Ply<List<RaiseSites.Site>> =
-  uply {
-    let! loaded =
-      names
-      |> Map.keys
-      |> Ply.List.mapSequentially (fun h ->
-        LibDB.PackageManager.pt.getFn h |> Ply.map (Option.map (fun fn -> (h, fn))))
-    let fns = loaded |> List.choose identity |> Map.ofList
-    return
-      fns
-      |> Map.toList
-      |> List.collect (fun (h, fn) ->
-        bareBoolCallees fns fn.body
-        |> List.map (fun callee ->
-          let nameOf h' = Map.tryFind h' names |> Option.defaultValue ""
-          ({ caller = nameOf h; callee = nameOf callee } : RaiseSites.Site)))
-      |> List.filter (fun s -> not (s.callee.StartsWith "Darklang.Stdlib.Bool."))
-  }
+let find (names : Map<PT.Hash, string>) : List<RaiseSites.Site> =
+  let loaded =
+    names
+    |> Map.keys
+    |> List.map (fun h ->
+      LibDB.PackageManager.pt.getFn h |> (Option.map (fun fn -> (h, fn))))
+  let fns = loaded |> List.choose identity |> Map.ofList
+  fns
+  |> Map.toList
+  |> List.collect (fun (h, fn) ->
+    bareBoolCallees fns fn.body
+    |> List.map (fun callee ->
+      let nameOf h' = Map.tryFind h' names |> Option.defaultValue ""
+      ({ caller = nameOf h; callee = nameOf callee } : RaiseSites.Site)))
+  |> List.filter (fun s -> not (s.callee.StartsWith "Darklang.Stdlib.Bool."))

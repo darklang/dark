@@ -7,7 +7,6 @@
     <IsTrimmable>true</IsTrimmable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Ply" />
     <PackageReference Include="FSharp.Core" />
     <PackageReference Include="NodaTime" />
     <PackageReference Include="Wcwidth" />
@@ -26,7 +25,6 @@
     <Compile Include="Option.fs" />
     <Compile Include="Result.fs" />
     <Compile Include="Task.fs" />
-    <Compile Include="Ply.fs" />
     <Compile Include="NonBlockingConsole.fs" />
     <Compile Include="Prelude.fs" />
     <Compile Include="Telemetry.fs" />

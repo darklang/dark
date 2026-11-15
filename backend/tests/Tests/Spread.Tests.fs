@@ -22,7 +22,7 @@ module Trace = TestUtils.LibTest.Trace
 
 let private instrsFor (code : string) : Task<RT.Instructions> =
   task {
-    let! ptExpr = parsePTExpr code
+    let ptExpr = parsePTExpr code
     return PT2RT.Expr.toRT Map.empty 0 None ptExpr
   }
 
@@ -123,7 +123,7 @@ let private uneven =
 
 let private inOrder =
   testTask "results come back in input order when the first chunk finishes last" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     let code = $"Stdlib.List.map(Stdlib.List.range(1, 40), {uneven})"
     let! (spread, moved) = delta (spreads state) (fun () -> run state code)
     let! serial = runWith state false code
@@ -133,7 +133,7 @@ let private inOrder =
 
 let private siblings =
   testTask "filter, filterMap and indexedMap spread and agree with serial" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     for code in
       [ "Stdlib.List.filter(Stdlib.List.range(1, 100), fun i -> i % 3 == 0)"
         "Stdlib.List.filterMap(Stdlib.List.range(1, 100), fun i -> if i % 4 == 0 then Stdlib.Option.Option.Some(i * 2) else Stdlib.Option.Option.None)"
@@ -150,7 +150,7 @@ let private dictOf (n : int) =
 
 let private dictOps =
   testTask "Dict.map and Dict.filter spread and agree with serial" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     for code in
       [ $"Stdlib.Dict.map({dictOf 40}, fun(k, v) -> {uneven}(k) + v)"
         $"Stdlib.Dict.filter({dictOf 40}, fun(k, v) -> ({uneven}(k) + v) %% 3 == 0)" ] do
@@ -165,7 +165,7 @@ let private dictOps =
 /// expensive one spreads.
 let private cheapBodyStaysSerial =
   testTask "at the shipped crossover a cheap body stays serial" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     let long = "Stdlib.List.range(1, 20000)"
     for code in
       [ $"Stdlib.List.length(Stdlib.List.map({long}, fun x -> x + 1))"
@@ -191,7 +191,7 @@ let private cheapBodyStaysSerial =
 /// non-Bools. And a map whose answers change type half way raises when the dict is built.
 let private dictErrorsAsSerial =
   testTask "Dict.map and Dict.filter raise as serially" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     for code in
       [ $"Stdlib.Dict.map({dictOf 40}, fun(k, v) -> if k == 35 then 1 / 0 else {uneven}(k))"
         $"Stdlib.Dict.filter({dictOf 40}, fun(k, v) -> if k == 3 then 1 else if k == 35 then 1 / 0 else {uneven}(k) > 0)"
@@ -210,7 +210,7 @@ let private dictErrorsAsSerial =
 /// checked in a `Dict.map` chunk as serially.
 let private dictCallbackTypeAsSerial =
   testTask "a Dict.map callback type an enclosing fn declares is checked as serially" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     let code =
       $"Darklang.Language.Tests.Lambdas.mapDictInts({dictOf 40}, fun(k, v) -> if k == 35 then \"wrong\" else {uneven}(k) + v)"
     let! ((spread, serial), moved) =
@@ -225,7 +225,7 @@ let private dictCallbackTypeAsSerial =
 
 let private dictEffectsKeepOrder =
   testTask "a Dict.map body that reaches an effect runs it in order, here" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     Trace.take () |> ignore<List<string>>
     let code =
       $"(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.Dict.map({dictOf 30}, fun(k, v) -> (let (trace, _) = hidden in if k %% 7 == 0 then (let _ = trace(Stdlib.display(k)) in v) else v * 2)))"
@@ -241,7 +241,7 @@ let private dictEffectsKeepOrder =
 
 let private sortByAndMap2 =
   testTask "sortBy and map2Shortest spread and agree with serial" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     for code in
       [ $"Stdlib.List.sortBy(Stdlib.List.range(1, 40), fun i -> {uneven}(i) %% 7)"
         $"Stdlib.List.map2Shortest(Stdlib.List.range(1, 40), Stdlib.List.range(1, 45), fun(a, b) -> {uneven}(a) + b)"
@@ -255,7 +255,7 @@ let private sortByAndMap2 =
 /// Keys of two types raise where the sort compares them, and an error in a key raises there.
 let private sortByAndMap2ErrorsAsSerial =
   testTask "sortBy and map2Shortest raise as serially" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     for code in
       [ $"Stdlib.List.sortBy(Stdlib.List.range(1, 40), fun i -> if i == 35 then 1 / 0 else {uneven}(i))"
         $"Stdlib.List.sortBy(Stdlib.List.range(1, 40), fun i -> if i > 20 then \"s\" else {uneven}(i))"
@@ -273,7 +273,7 @@ let private sortByAndMap2ErrorsAsSerial =
 /// first and an early chunk that finishes last: the uneven body.
 let private searches =
   testTask "any and findFirst spread and answer the first hit in input order" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     for code in
       [ $"Stdlib.List.any(Stdlib.List.range(1, 40), fun i -> {uneven}(i) == 0)"
         $"Stdlib.List.any(Stdlib.List.range(1, 40), fun i -> {uneven}(i) > 0 && i > 25)"
@@ -289,7 +289,7 @@ let private searches =
 /// the hit is not raised, and one before it is.
 let private searchErrorsAsSerial =
   testTask "any and findFirst raise only what serially they reach" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     for code in
       [ $"Stdlib.List.any(Stdlib.List.range(1, 40), fun i -> if i == 38 then 1 / 0 == 0 else {uneven}(i) > 0 && i == 20)"
         $"Stdlib.List.findFirst(Stdlib.List.range(1, 40), fun i -> if i > 30 then 1 / 0 == 0 else {uneven}(i) > 0 && i == 12)" ] do
@@ -309,7 +309,7 @@ let private searchErrorsAsSerial =
 /// An effect after the hit never happens; one before it happens once, in order.
 let private searchEffects =
   testTask "a search reaches the effects a serial one does, in order, and no others" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     Trace.take () |> ignore<List<string>>
     let code =
       $"(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.any(Stdlib.List.range(1, 40), fun i -> (let (trace, _) = hidden in if i == 10 || i == 39 then (let _ = trace(Stdlib.display(i)) in false) else {uneven}(i) > 0 && i == 30)))"
@@ -328,7 +328,7 @@ let private searchEffects =
 /// their types agree, so the String is met serially, and raises as it does there.
 let private enclosingCallbackType =
   testTask "a callback type an enclosing fn declares is checked as serially" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     let code =
       $"Stdlib.List.partition(Stdlib.List.range(1, 40), fun i -> if i < 37 then \"s\" else {uneven}(i) > 0)"
     let! ((spread, serial), moved) =
@@ -346,7 +346,7 @@ let private enclosingCallbackType =
 /// only after everything before it.
 let private errorAsSerial =
   testTask "an error is raised by the element that raises it serially, as serially" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     let code =
       "Stdlib.List.map(Stdlib.List.range(1, 40), fun i -> if i == 35 then 1 / 0 else ("
       + uneven
@@ -367,7 +367,7 @@ let private errorAsSerial =
 /// failed later with a different error.
 let private callbackTypeAsSerial =
   testTask "a callback type an enclosing fn declares is checked as serially" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     let code =
       "Darklang.Language.Tests.Lambdas.mapInts(Stdlib.List.range(1, 40), fun i -> if i == 35 then \"wrong\" else "
       + uneven
@@ -387,7 +387,7 @@ let private callbackTypeAsSerial =
 /// never saw 20, and learns `String` from it on its own; that disagreement sends it back here.
 let private checkLearnsAsSerial =
   testTask "a callback check learns its type across chunks as serially" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     let code =
       "Darklang.Language.Tests.Lambdas.mapOptions(Stdlib.List.range(1, 40), fun i -> let _ = "
       + uneven
@@ -405,7 +405,7 @@ let private checkLearnsAsSerial =
 /// The earliest error wins even when a later one is found first.
 let private earliestErrorWins =
   testTask "of two failing elements the earlier one raises, whichever fails first" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     let code =
       "Stdlib.List.map(Stdlib.List.range(1, 40), fun i -> if i == 3 then (let _ = ("
       + uneven
@@ -423,7 +423,7 @@ let private earliestErrorWins =
 /// callable spread and caught by the refusal.
 let private effectsKeepOrder =
   testTask "a body that reaches an effect runs it in order, here" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     Trace.take () |> ignore<List<string>>
     let code =
       "(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.map(Stdlib.List.range(1, 30), fun i -> (let (trace, _) = hidden in if i % 7 == 0 then (let _ = trace((if i == 7 then \"7\" else if i == 14 then \"14\" else if i == 21 then \"21\" else \"28\")) in i) else i * 2)))"
@@ -444,7 +444,7 @@ let private effectsKeepOrder =
 /// a second time, which is what this counts.
 let private namedFallbackIsRemembered =
   testTask "a named fn that fell back once is not spread again" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     Trace.take () |> ignore<List<string>>
     let code =
       "(let xs = [\"a\", \"b\", \"c\", \"d\", \"e\", \"f\"] in (let _ = Stdlib.List.map(xs, Builtin.testTrace) in Stdlib.List.map(xs, Builtin.testTrace)))"
@@ -464,7 +464,7 @@ let private namedFallbackIsRemembered =
 /// or the refusal becomes the answer and the spread never falls back (`Spread`).
 let private refusalGetsThrough (call : string) =
   testTask $"an effect under {call} inside a spread falls back" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     Trace.take () |> ignore<List<string>>
     let code =
       "(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.map(Stdlib.List.range(1, 30), fun i -> (let (trace, _) = hidden in "
@@ -489,7 +489,7 @@ let private refusalGetsThrough (call : string) =
 /// so THEIR inner maps spread: four in all, the outer and three inner, never one per element.
 let private nestingIsBounded =
   testTask "a map inside a spread map does not spread again" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     let code =
       "Stdlib.List.map(Stdlib.List.range(1, 20), fun i -> Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 50), fun x -> x + i)))"
     let! (result, moved) = delta (spreads state) (fun () -> run state code)
@@ -508,7 +508,7 @@ let private nestingIsBounded =
 
 let private viewedRunsDoNotSpread =
   testTask "a viewed run does not spread" {
-    let! (state : RT.ExecutionState) = executionStateFor pmPT false
+    let (state : RT.ExecutionState) = executionStateFor pmPT false
     // Viewed all the way down: a process asks its tracer for its own copy (`forProcess`).
     let tracing : RT.Tracing.Tracing = state.tracing
     let rec viewing () : RT.Tracing.Tracing =
@@ -544,7 +544,7 @@ let private startForced
 /// the rest of the map here and only then notice the cancel.
 let private cancelledLeavesNothing =
   testTask "a cancelled spread map answers no list and leaves no chunk running" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     let! instrs =
       instrsFor
         "Stdlib.List.map(Stdlib.List.range(1, 16), fun i -> Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 3000000), fun x -> x)))"
@@ -583,7 +583,7 @@ let private cancelledLeavesNothing =
 /// work: a fallback must not turn into one long uninterruptible step.
 let private fallbackIsPreempted =
   testTask "the serial rest after a fallback is preempted like any map" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     let! instrs =
       instrsFor
         "(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 400), fun i -> (let (trace, _) = hidden in if i == 10 then (let _ = trace(\"ten\") in i) else Stdlib.List.fold(Stdlib.List.range(1, 2000), i, fun(a, x) -> a + x)))))"
@@ -600,7 +600,7 @@ let private fallbackIsPreempted =
 /// has even finished starting the others: the fallback then continues inside the same step.
 let private syncFallbackIsPreempted =
   testTask "a fallback that lands at once is preempted like any map" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     let! instrs =
       instrsFor
         "(let hidden = ((fun s -> Builtin.testTrace(s)), 0) in Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 400), fun i -> (let (trace, _) = hidden in (let _ = trace(\"e\") in Stdlib.List.fold(Stdlib.List.range(1, 2000), i, fun(a, x) -> a + x))))))"
@@ -629,7 +629,7 @@ let private predicted (state : RT.ExecutionState) =
 /// host's are.
 let private predictingState () : Task<RT.ExecutionState> =
   task {
-    let! (state : RT.ExecutionState) = executionStateFor pmPT false
+    let (state : RT.ExecutionState) = executionStateFor pmPT false
     return
       predicting
         { state with
@@ -644,7 +644,7 @@ let private predictingState () : Task<RT.ExecutionState> =
 /// element ever reaches it. That is the price of predicting: observing would have spread this.
 let private visibleEffectStartsNothing =
   testTask "a body that can reach an effect is predicted impure and starts no chunk" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     let state = predicting state
     let code =
       "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> (let _ = (if i == 999 then Builtin.testTrace(\"never\") else ()) in i * 2)))"
@@ -687,8 +687,8 @@ let private packageFnsAnsweredByTheStore =
 /// and the map falls back.
 let private wrongPureFallsBack =
   testTask "a wrong pure prediction falls back like an unknown one" {
-    let! (state : RT.ExecutionState) = executionStateFor pmPT false
-    let liar = predicting { state with fnPurity = fun _ -> Ply RT.Purity.Pure }
+    let (state : RT.ExecutionState) = executionStateFor pmPT false
+    let liar = predicting { state with fnPurity = fun _ -> RT.Purity.Pure }
     let code =
       "Stdlib.List.length(Stdlib.List.map(Stdlib.List.range(1, 100), fun i -> (let _ = Stdlib.DateTime.now() in i * 2)))"
     let! (result, fellBack) = delta (fallbacks liar) (fun () -> run liar code)
@@ -705,7 +705,7 @@ type private Counts =
 let private countsAreExact (op : string) (code : string) =
   testTask
     $"a spread {op} counts every call and instruction a serial run does, on any number of workers" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     let! instrs = instrsFor code
     let counted (spread : bool) : Task<Counts> =
       task {
@@ -894,7 +894,7 @@ let private expectSameRun
 /// as serially, functions entered and left, and effects in order.
 let private recordedAsSerial =
   testTask "a recorded run spreads and records what a serial run records" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     for code in
       [ $"Stdlib.List.map(Stdlib.List.range(1, 40), {uneven})"
         $"Stdlib.List.findFirst(Stdlib.List.range(1, 40), fun i -> {uneven}(i) > 0 && i %% 9 == 0 && i > 9)"
@@ -915,7 +915,7 @@ let private recordedAsSerial =
 /// serial one.
 let private storedAsSerial =
   testTask "a recorded run that spreads stores the trace a serial run stores" {
-    let! (state : RT.ExecutionState) = executionStateFor pmPT false
+    let (state : RT.ExecutionState) = executionStateFor pmPT false
     let! instrs =
       instrsFor
         "(let _ = Builtin.testTrace(\"before\") in (let xs = Stdlib.List.map(Stdlib.List.range(1, 40), fun i -> Stdlib.List.fold(Stdlib.List.range(1, 300), i, fun(a, x) -> a + x)) in (let _ = Builtin.testTrace(\"after\") in xs)))"
@@ -934,18 +934,18 @@ let private storedAsSerial =
           let traced = { state with tracing = tracer.executionTracing }
           let! (result, moved) =
             delta (spreads state) (fun () -> runInstrs traced spread instrs)
-          do! tracer.storeTraceResults traced |> Ply.toTask
+          tracer.storeTraceResults traced
           let rows (sql : string) =
             Sql.query sql
             |> Sql.parameters [ "t", Sql.string (string traceId) ]
-            |> Sql.executeAsync (fun read -> read.string "a", read.int64 "b")
-          let! loops =
+            |> Sql.executeRows (fun read -> read.string "a", read.int64 "b")
+          let loops =
             rows
               "SELECT call_site AS a, passes AS b FROM trace_loops WHERE trace_id = @t ORDER BY call_site"
-          let! fns =
+          let fns =
             rows
               "SELECT fn_hash AS a, calls AS b FROM trace_fns WHERE trace_id = @t ORDER BY fn_hash"
-          let! calls =
+          let calls =
             rows
               "SELECT fn_hash AS a, ord AS b FROM trace_fn_calls WHERE trace_id = @t ORDER BY seq"
           return result, moved, loops, fns, calls
@@ -971,15 +971,15 @@ let private storedAsSerial =
 /// two serial runs (it counts live processes, say) says nothing here and is left out.
 let private everyListAndDictTest =
   testTask "every List and Dict test comes out the same spread and serial" {
-    let! (state : RT.ExecutionState) = executionStateFor pmPT false
+    let (state : RT.ExecutionState) = executionStateFor pmPT false
     let state : RT.ExecutionState =
       { state with test = { state.test with isPackageTest = true } }
-    let! named =
+    let named =
       Sql.query
         "SELECT DISTINCT name, item_hash FROM locations
          WHERE owner = 'Darklang' AND modules IN ('Stdlib.List.Tests', 'Stdlib.Dict.Tests')
            AND item_type = 'test' AND live = 1 AND item_hash <> ''"
-      |> Sql.executeAsync (fun read -> read.string "name", read.string "item_hash")
+      |> Sql.executeRows (fun read -> read.string "name", read.string "item_hash")
     // One group of workers for all of them, each run a process on one of its workers.
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let onWorker
@@ -1003,7 +1003,7 @@ let private everyListAndDictTest =
     try
       let mutable compared = 0
       for (name, h) in named do
-        match! pmPT.getTest (LibExecution.ProgramTypes.Hash h) |> Ply.toTask with
+        match pmPT.getTest (LibExecution.ProgramTypes.Hash h) with
         | None -> failtest $"no test at {h}"
         | Some(test : LibExecution.ProgramTypes.PackageTest.PackageTest) ->
           let instrs = PT2RT.Expr.toRT Map.empty 0 None test.body
@@ -1023,7 +1023,7 @@ let private everyListAndDictTest =
 /// busy, a map that would spread runs here.
 let private busyWorkersStaySerial =
   testTask "with no worker idle, a map runs serially" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     let! busy =
       instrsFor
         "Stdlib.List.fold(Stdlib.List.range(1, 1000000), 0, fun(a, _) -> a + Stdlib.List.fold(Stdlib.List.range(1, 1000), 0, fun(b, x) -> b + x))"
@@ -1059,7 +1059,7 @@ let private busyWorkersStaySerial =
 /// The group holds at most two chunks a worker in flight, across every spread at once.
 let private noSlotsStaySerial =
   testTask "with no chunk slot free, a map runs serially" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     let! instrs = instrsFor $"Stdlib.List.map(Stdlib.List.range(1, 40), {uneven})"
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let slots = s.Workers.ChunkSlots
@@ -1088,7 +1088,7 @@ let private noSlotsStaySerial =
 /// chunks after a hit or a fallback are not charged, and neither is the chunk that ran again here.
 let private chargesAsSerial =
   testTask "a spread charges the instructions a serial run takes" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     for code in
       [ $"Stdlib.List.map(Stdlib.List.range(1, 40), {uneven})"
         $"Stdlib.List.any(Stdlib.List.range(1, 40), fun i -> {uneven}(i) > 0 && i == 20)"
@@ -1136,7 +1136,7 @@ let private chargesAsSerial =
 /// effect, so the next map over the same body is tried again.
 let private dearChunksRunHere =
   testTask "a chunk past its own cap runs again here, and the body is tried again" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     let code =
       "(let f = (fun i -> if i < 4 then i else Stdlib.List.fold(Stdlib.List.range(1, 30000 * i), 0, fun(a, x) -> a + x)) in (let a = Stdlib.List.map(Stdlib.List.range(1, 12), f) in (a, Stdlib.List.map(Stdlib.List.range(1, 12), f))))"
     let! ((spread, fellBack), moved) =
@@ -1152,7 +1152,7 @@ let private dearChunksRunHere =
 /// the OS process: a later run (a later request, on `serve`) tries it again.
 let private fallbackIsPerProcess =
   testTask "a callable that fell back in one process is tried again in the next" {
-    let! state = executionStateFor pmPT false
+    let state = executionStateFor pmPT false
     Trace.take () |> ignore<List<string>>
     let code =
       "Stdlib.List.map([\"a\", \"b\", \"c\", \"d\", \"e\", \"f\"], Builtin.testTrace)"

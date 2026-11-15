@@ -512,13 +512,13 @@ let private integer
   (typ : TypeReference)
   (path : JsonPath.JsonPath)
   (j : JsonElement)
-  : Ply<Dval> =
+  : Dval =
   match j.TryGetInt64() with
-  | true, n when n >= t.lo && n <= t.hi -> Ply(t.ofInt64 n)
+  | true, n when n >= t.lo && n <= t.hi -> (t.ofInt64 n)
   | true, _ -> raiseCantMatchWithType typ j path
   | false, _ ->
     match parseExactJsonInteger (j.GetRawText()) with
-    | Some n when n >= t.min && n <= t.max -> Ply(t.ofBigint n)
+    | Some n when n >= t.min && n <= t.max -> (t.ofBigint n)
     | _ -> raiseCantMatchWithType typ j path
 
 
@@ -531,39 +531,35 @@ let parse
   (types : Types)
   (typ : TypeReference)
   (str : string)
-  : Ply<Result<Dval, ParseError.ParseError>> =
+  : Result<Dval, ParseError.ParseError> =
 
   let tst = TST.empty // TODO consider passing this in.. somehow?
 
   /// What <param typ> holds when it is `Option`, directly or through aliases.
-  let rec optionOf (typ : TypeReference) : Ply<TypeReference option> =
-    uply {
-      match typ with
-      | TCustomType({ resolved = Ok(FQTypeName.Package(Hash h)) }, [ inner ]) when
-        h = PackageRefs.Type.Stdlib.option ()
-        ->
-        return Some inner
-      | TCustomType({ resolved = Ok typeName }, typeArgs) ->
-        match! Types.find types typeName with
-        | Some({ definition = TypeDeclaration.Alias alias } as decl) ->
-          return! optionOf (Types.substitute decl.typeParams typeArgs alias)
-        | _ -> return None
-      | _ -> return None
-    }
+  let rec optionOf (typ : TypeReference) : TypeReference option =
+    match typ with
+    | TCustomType({ resolved = Ok(FQTypeName.Package(Hash h)) }, [ inner ]) when
+      h = PackageRefs.Type.Stdlib.option ()
+      ->
+      Some inner
+    | TCustomType({ resolved = Ok typeName }, typeArgs) ->
+      match Types.find types typeName with
+      | Some({ definition = TypeDeclaration.Alias alias } as decl) ->
+        optionOf (Types.substitute decl.typeParams typeArgs alias)
+      | _ -> None
+    | _ -> None
 
   let rec convert
     (typ : TypeReference)
     (pathSoFar : JsonPath.JsonPath)
     (j : JsonElement)
-    : Ply<Dval> =
+    : Dval =
 
     match typ, j.ValueKind with
     // basic types
-    | TUnit, JsonValueKind.Null -> DUnit |> Ply
-
-    | TBool, JsonValueKind.True -> DBool true |> Ply
-    | TBool, JsonValueKind.False -> DBool false |> Ply
-
+    | TUnit, JsonValueKind.Null -> DUnit
+    | TBool, JsonValueKind.True -> DBool true
+    | TBool, JsonValueKind.False -> DBool false
     | TInt8, JsonValueKind.Number -> integer int8Type typ pathSoFar j
     | TUInt8, JsonValueKind.Number -> integer uint8Type typ pathSoFar j
     | TInt16, JsonValueKind.Number -> integer int16Type typ pathSoFar j
@@ -576,48 +572,41 @@ let parse
     | TUInt128, JsonValueKind.Number -> integer uint128Type typ pathSoFar j
     | TBigInt, JsonValueKind.Number ->
       match jsonInteger j with
-      | Some n -> Dval.bigInt n |> Ply
-      | None -> raiseCantMatchWithType TBigInt j pathSoFar |> Ply
-
-    | TFloat64, JsonValueKind.Number -> j.GetDouble() |> DFloat64 |> Ply
+      | Some n -> Dval.bigInt n
+      | None -> raiseCantMatchWithType TBigInt j pathSoFar
+    | TFloat64, JsonValueKind.Number -> j.GetDouble() |> DFloat64
     | TFloat64, JsonValueKind.String ->
       match j.GetString() with
       | "NaN" -> DFloat64 System.Double.NaN
       | "Infinity" -> DFloat64 System.Double.PositiveInfinity
       | "-Infinity" -> DFloat64 System.Double.NegativeInfinity
       | _ -> raiseCantMatchWithType TFloat64 j pathSoFar
-      |> Ply
-
-    | TFloat32, JsonValueKind.Number -> j.GetSingle() |> DFloat32 |> Ply
+    | TFloat32, JsonValueKind.Number -> j.GetSingle() |> DFloat32
     | TFloat32, JsonValueKind.String ->
       match j.GetString() with
       | "NaN" -> DFloat32 System.Single.NaN
       | "Infinity" -> DFloat32 System.Single.PositiveInfinity
       | "-Infinity" -> DFloat32 System.Single.NegativeInfinity
       | _ -> raiseCantMatchWithType TFloat32 j pathSoFar
-      |> Ply
-
     | TDecimal, JsonValueKind.Number ->
       match parseExactJsonDecimal (j.GetRawText()) with
-      | Some d -> Ply(DDecimal d)
-      | None -> raiseCantMatchWithType TDecimal j pathSoFar |> Ply
-
+      | Some d -> (DDecimal d)
+      | None -> raiseCantMatchWithType TDecimal j pathSoFar
     | TChar, JsonValueKind.String ->
       match String.toEgcChar (j.GetString()) with
-      | Some c -> Ply(Dval.char c)
+      | Some c -> (Dval.char c)
       | None -> raiseCantMatchWithType TChar j pathSoFar
 
 
     | TString, JsonValueKind.String ->
       // A lone escaped surrogate is valid JSON, but no string can hold it.
       try
-        DString(String.normalizeOutside (j.GetString())) |> Ply
+        DString(String.normalizeOutside (j.GetString()))
       with :? System.InvalidOperationException ->
-        raiseCantMatchWithType TString j pathSoFar |> Ply
-
+        raiseCantMatchWithType TString j pathSoFar
     | TUuid, JsonValueKind.String ->
       try
-        DUuid(System.Guid(j.GetString())) |> Ply
+        DUuid(System.Guid(j.GetString()))
       with _ ->
         raiseCantMatchWithType TUuid j pathSoFar
 
@@ -627,7 +616,6 @@ let parse
         |> NodaTime.Instant.ofIsoString
         |> DarkDateTime.fromInstant
         |> DDateTime
-        |> Ply
       with _ ->
         raiseCantMatchWithType TDateTime j pathSoFar
 
@@ -638,8 +626,7 @@ let parse
       j.EnumerateArray()
       |> Seq.mapi (fun i v -> convert nested (JsonPath.Part.Index i :: pathSoFar) v)
       |> Seq.toList
-      |> Ply.List.flatten
-      |> Ply.map (TypeChecker.DvalCreator.list threadID VT.unknownTODO)
+      |> (TypeChecker.DvalCreator.list threadID VT.unknownTODO)
 
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let values = j.EnumerateArray() |> Seq.toList
@@ -648,8 +635,7 @@ let parse
 
       List.zip types values
       |> List.mapi (fun i (t, v) -> convert t (JsonPath.Part.Index i :: pathSoFar) v)
-      |> Ply.List.flatten
-      |> Ply.map (fun mapped ->
+      |> (fun mapped ->
         match mapped with
         | (d1 :: d2 :: rest) -> DTuple(d1, d2, rest)
         | _ ->
@@ -658,14 +644,11 @@ let parse
     | TDict(TString, tDict), JsonValueKind.Object ->
       j.EnumerateObject()
       |> Seq.map (fun jp ->
-        uply {
-          let! converted =
-            convert tDict (JsonPath.Part.Field jp.Name :: pathSoFar) jp.Value
-          return (DString(String.normalizeOutside jp.Name), converted)
-        })
+        let converted =
+          convert tDict (JsonPath.Part.Field jp.Name :: pathSoFar) jp.Value
+        (DString(String.normalizeOutside jp.Name), converted))
       |> Seq.toList
-      |> Ply.List.flatten
-      |> Ply.map (TypeChecker.DvalCreator.dict threadID VT.string VT.unknownTODO)
+      |> (TypeChecker.DvalCreator.dict threadID VT.string VT.unknownTODO)
 
     | TCustomType({ resolved = Ok typeName }, _), jsonValueKind when
       (RangedInt.find typeName).IsSome
@@ -685,162 +668,137 @@ let parse
         raiseError (
           ParseError.OutOfRange(range.what, n, range.min, range.max, pathSoFar)
         )
-      | ValueSome n -> RangedInt.make typeName range n |> Ply
-
+      | ValueSome n -> RangedInt.make typeName range n
     | TCustomType({ resolved = Ok typeName }, typeArgs), jsonValueKind ->
-      uply {
-        let! typeArgsVT =
-          typeArgs |> Ply.List.mapSequentially (TypeReference.toVT types tst)
+      let typeArgsVT = typeArgs |> List.map (TypeReference.toVT types tst)
 
-        match! Types.find types typeName with
-        | None ->
-          return
-            Exception.raiseInternal "Couldn't find type" [ "typeName", typeName ]
+      match Types.find types typeName with
+      | None -> Exception.raiseInternal "Couldn't find type" [ "typeName", typeName ]
 
-        | Some decl ->
-          match decl.definition with
-          | TypeDeclaration.Alias alias ->
-            let aliasType = Types.substitute decl.typeParams typeArgs alias
-            return! convert aliasType pathSoFar j
+      | Some decl ->
+        match decl.definition with
+        | TypeDeclaration.Alias alias ->
+          let aliasType = Types.substitute decl.typeParams typeArgs alias
+          convert aliasType pathSoFar j
 
-          | TypeDeclaration.Enum cases ->
-            if jsonValueKind <> JsonValueKind.Object then
-              do! raiseCantMatchWithType typ j pathSoFar
+        | TypeDeclaration.Enum cases ->
+          if jsonValueKind <> JsonValueKind.Object then
+            raiseCantMatchWithType typ j pathSoFar
 
-            let enumerated =
-              j.EnumerateObject()
-              |> Seq.map (fun jp -> (jp.Name, jp.Value))
-              |> Seq.toList
+          let enumerated =
+            j.EnumerateObject()
+            |> Seq.map (fun jp -> (jp.Name, jp.Value))
+            |> Seq.toList
 
-            match enumerated with
-            | [ (caseName, j) ] ->
-              let matchingCase =
-                match cases |> NEList.find (fun c -> c.name = caseName) with
-                | Some c -> c
-                | None ->
-                  raiseError (
-                    ParseError.EnumInvalidCasename(typ, caseName, pathSoFar)
-                  )
+          match enumerated with
+          | [ (caseName, j) ] ->
+            let matchingCase =
+              match cases |> NEList.find (fun c -> c.name = caseName) with
+              | Some c -> c
+              | None ->
+                raiseError (ParseError.EnumInvalidCasename(typ, caseName, pathSoFar))
 
-              let casePath = JsonPath.Part.Field caseName :: pathSoFar
+            let casePath = JsonPath.Part.Field caseName :: pathSoFar
 
-              // A case's fields come as an array; anything else, such as
-              // `{"Some":"x"}`, can't match the enum
-              if j.ValueKind <> JsonValueKind.Array then
-                raiseCantMatchWithType typ j casePath
+            // A case's fields come as an array; anything else, such as
+            // `{"Some":"x"}`, can't match the enum
+            if j.ValueKind <> JsonValueKind.Array then
+              raiseCantMatchWithType typ j casePath
 
-              let j = j.EnumerateArray() |> Seq.toList
+            let j = j.EnumerateArray() |> Seq.toList
 
-              // If the field count is off, process whatever fields make sense
-              // and then error afterwards
-              let expectedFieldCount = List.length matchingCase.fields
-              let actualFieldCount = List.length j
-              let maxFields = min expectedFieldCount actualFieldCount
-              let shortExpectedFields = List.take maxFields matchingCase.fields
-              let shortActualFields = List.take maxFields j
+            // If the field count is off, process whatever fields make sense
+            // and then error afterwards
+            let expectedFieldCount = List.length matchingCase.fields
+            let actualFieldCount = List.length j
+            let maxFields = min expectedFieldCount actualFieldCount
+            let shortExpectedFields = List.take maxFields matchingCase.fields
+            let shortActualFields = List.take maxFields j
 
-              let! fields =
-                List.zip shortExpectedFields shortActualFields
-                |> List.mapWithIndex (fun i (typ, j) ->
-                  let path = JsonPath.Part.Index i :: casePath
-                  let typ = Types.substitute decl.typeParams typeArgs typ
-                  convert typ path j)
-                |> Ply.List.flatten
+            let fields =
+              List.zip shortExpectedFields shortActualFields
+              |> List.mapWithIndex (fun i (typ, j) ->
+                let path = JsonPath.Part.Index i :: casePath
+                let typ = Types.substitute decl.typeParams typeArgs typ
+                convert typ path j)
 
-              if expectedFieldCount > actualFieldCount then
-                let index = actualFieldCount // one higher than greatest index
-                let expectedType =
-                  List.getAt index matchingCase.fields
-                  |> Exception.unwrapOptionInternal
-                    "Can't find expected field"
-                    [ "index", index
-                      "expectedFields", matchingCase.fields
-                      "actualFields", j ]
-                return
-                  raiseError (
-                    ParseError.EnumMissingField(expectedType, index, casePath)
-                  )
-              else if expectedFieldCount < actualFieldCount then
-                let index = expectedFieldCount // one higher than greatest index
-                let fieldJson =
-                  List.getAt index j
-                  |> Exception.unwrapOptionInternal
-                    "Can't find actual field"
-                    [ "index", index
-                      "expectedFields", matchingCase.fields
-                      "actualFields", j ]
-                let path = JsonPath.Part.Index index :: casePath
-                return
-                  raiseError (
-                    ParseError.EnumExtraField(fieldJson.GetRawText(), path)
-                  )
-              else
-                let! enum =
-                  TypeChecker.DvalCreator.enum
-                    types
-                    threadID
-                    tst
-                    typeName
-                    typeArgsVT
-                    caseName
-                    fields
-                return enum
+            if expectedFieldCount > actualFieldCount then
+              let index = actualFieldCount // one higher than greatest index
+              let expectedType =
+                List.getAt index matchingCase.fields
+                |> Exception.unwrapOptionInternal
+                  "Can't find expected field"
+                  [ "index", index
+                    "expectedFields", matchingCase.fields
+                    "actualFields", j ]
+              raiseError (ParseError.EnumMissingField(expectedType, index, casePath))
+            else if expectedFieldCount < actualFieldCount then
+              let index = expectedFieldCount // one higher than greatest index
+              let fieldJson =
+                List.getAt index j
+                |> Exception.unwrapOptionInternal
+                  "Can't find actual field"
+                  [ "index", index
+                    "expectedFields", matchingCase.fields
+                    "actualFields", j ]
+              let path = JsonPath.Part.Index index :: casePath
+              raiseError (ParseError.EnumExtraField(fieldJson.GetRawText(), path))
+            else
+              let enum =
+                TypeChecker.DvalCreator.enum
+                  types
+                  threadID
+                  tst
+                  typeName
+                  typeArgsVT
+                  caseName
+                  fields
+              enum
 
 
-            | [] -> return raiseCantMatchWithType typ j pathSoFar
-            | cases ->
-              let caseNames = List.map Tuple2.first cases
-              return
-                raiseError (ParseError.EnumTooManyCases(typ, caseNames, pathSoFar))
+          | [] -> raiseCantMatchWithType typ j pathSoFar
+          | cases ->
+            let caseNames = List.map Tuple2.first cases
+            raiseError (ParseError.EnumTooManyCases(typ, caseNames, pathSoFar))
 
-          | TypeDeclaration.Record fields ->
-            if jsonValueKind <> JsonValueKind.Object then
-              do! raiseCantMatchWithType typ j pathSoFar
+        | TypeDeclaration.Record fields ->
+          if jsonValueKind <> JsonValueKind.Object then
+            raiseCantMatchWithType typ j pathSoFar
 
-            let enumerated = j.EnumerateObject() |> Seq.toList
+          let enumerated = j.EnumerateObject() |> Seq.toList
 
-            // Extra fields are allowed, and so is leaving out an `Option` field, which
-            // parses as `None`. Any other field has to be there, so go by the
-            // definition's fields and look each one up in the JSON.
-            let! fields =
-              fields
-              |> NEList.toList
-              |> List.map (fun def ->
-                uply {
-                  let typ = Types.substitute decl.typeParams typeArgs def.typ
-                  let path = JsonPath.Part.Field def.name :: pathSoFar
-                  let! optionArg = optionOf typ
-                  let! converted =
-                    match
-                      enumerated |> List.filter (fun v -> v.Name = def.name),
-                      optionArg
-                    with
-                    | [], Some _ -> convert typ path noneJson
-                    | [], None ->
-                      raiseError (
-                        ParseError.RecordMissingField(def.name, pathSoFar)
-                      )
-                    | [ field ], Some inner ->
-                      optionField typ inner path field.Value
-                    | [ field ], None -> convert typ path field.Value
-                    | _ ->
-                      raiseError (
-                        ParseError.RecordDuplicateField(def.name, pathSoFar)
-                      )
-                  return (def.name, converted)
-                })
-              |> Ply.List.flatten
+          // Extra fields are allowed, and so is leaving out an `Option` field, which
+          // parses as `None`. Any other field has to be there, so go by the
+          // definition's fields and look each one up in the JSON.
+          let fields =
+            fields
+            |> NEList.toList
+            |> List.map (fun def ->
+              let typ = Types.substitute decl.typeParams typeArgs def.typ
+              let path = JsonPath.Part.Field def.name :: pathSoFar
+              let optionArg = optionOf typ
+              let converted =
+                match
+                  enumerated |> List.filter (fun v -> v.Name = def.name), optionArg
+                with
+                | [], Some _ -> convert typ path noneJson
+                | [], None ->
+                  raiseError (ParseError.RecordMissingField(def.name, pathSoFar))
+                | [ field ], Some inner -> optionField typ inner path field.Value
+                | [ field ], None -> convert typ path field.Value
+                | _ ->
+                  raiseError (ParseError.RecordDuplicateField(def.name, pathSoFar))
+              (def.name, converted))
 
-            let! record =
-              TypeChecker.DvalCreator.record
-                types
-                threadID
-                tst
-                typeName
-                typeArgsVT
-                (fields |> List.map (fun (n, v) -> struct (n, v)) |> Array.ofList)
-            return record
-      }
+          let record =
+            TypeChecker.DvalCreator.record
+              types
+              threadID
+              tst
+              typeName
+              typeArgsVT
+              (fields |> List.map (fun (n, v) -> struct (n, v)) |> Array.ofList)
+          record
 
 
     // Explicitly not supported
@@ -883,7 +841,7 @@ let parse
     (inner : TypeReference)
     (path : JsonPath.JsonPath)
     (j : JsonElement)
-    : Ply<Dval> =
+    : Dval =
     let asWritten =
       j.ValueKind = JsonValueKind.Object
       && (match j.EnumerateObject() |> Seq.map (fun p -> p.Name) |> Seq.toList with
@@ -895,19 +853,16 @@ let parse
     else if asWritten then
       convert typ path j
     else
-      uply {
-        let! value = convert inner path j
-        let! innerVT = TypeReference.toVT types tst inner
-        return!
-          TypeChecker.DvalCreator.enum
-            types
-            threadID
-            tst
-            (Dval.optionType ())
-            [ innerVT ]
-            "Some"
-            [ value ]
-      }
+      let value = convert inner path j
+      let innerVT = TypeReference.toVT types tst inner
+      TypeChecker.DvalCreator.enum
+        types
+        threadID
+        tst
+        (Dval.optionType ())
+        [ innerVT ]
+        "Some"
+        [ value ]
 
   let parsed =
     try
@@ -918,15 +873,13 @@ let parse
     | _ -> Error(ParseError.NotJson(1L, 1L))
 
   match parsed with
-  | Error err -> Error err |> Ply
+  | Error err -> Error err
   | Ok parsed ->
-    uply {
-      try
-        let! converted = convert typ [ JsonPath.Part.Root ] parsed
-        return Ok converted
-      with ParseError.JsonException ex ->
-        return Error ex
-    }
+    try
+      let converted = convert typ [ JsonPath.Part.Root ] parsed
+      Ok converted
+    with ParseError.JsonException ex ->
+      Error ex
 
 
 let fns () : List<BuiltInFn> =
@@ -939,7 +892,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, [ _typeToSerializeAs ], [| arg |] ->
           try
-            Ply(DString(writeJson (fun w -> serialize w arg)))
+            (DString(writeJson (fun w -> serialize w arg)))
           with CannotSerialize dv ->
             RTE.Jsons.CannotSerializeValue dv |> RTE.Json |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
@@ -962,14 +915,12 @@ let fns () : List<BuiltInFn> =
         | _, _, [ _typeToSerializeAs ], [| arg |] ->
           let errType = RT2DT.Dval.knownType ()
           try
-            Ply(
-              Dval.resultOk
-                KTString
-                errType
-                (DString(writeJson (fun w -> serialize w arg)))
-            )
+            (Dval.resultOk
+              KTString
+              errType
+              (DString(writeJson (fun w -> serialize w arg))))
           with CannotSerialize dv ->
-            Ply(Dval.resultError KTString errType (RT2DT.Dval.toDT dv))
+            (Dval.resultError KTString errType (RT2DT.Dval.toDT dv))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -996,18 +947,14 @@ let fns () : List<BuiltInFn> =
           // Applied in full in each branch rather than partially applied into `resultOk` and
           // `resultError` up front. Both closures were built on every call and exactly one was
           // ever invoked.
-          uply {
-            match! parse threadID exeState.types typeArg arg with
-            | Ok v ->
-              return TypeChecker.DvalCreator.Result.ok threadID okType errType v
-            | Error e ->
-              return
-                TypeChecker.DvalCreator.Result.error
-                  threadID
-                  okType
-                  errType
-                  (ParseError.toDT e)
-          }
+          match parse threadID exeState.types typeArg arg with
+          | Ok v -> TypeChecker.DvalCreator.Result.ok threadID okType errType v
+          | Error e ->
+            TypeChecker.DvalCreator.Result.error
+              threadID
+              okType
+              errType
+              (ParseError.toDT e)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

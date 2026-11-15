@@ -43,8 +43,8 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString s |] ->
           match System.Guid.TryParse s with
-          | true, x -> x |> DUuid |> resultOk |> Ply
-          | _ -> ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
+          | true, x -> x |> DUuid |> resultOk
+          | _ -> ParseError.BadFormat |> ParseError.toDT |> resultError
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -59,7 +59,7 @@ let fns () : List<BuiltInFn> =
         "Stringify <param uuid> to the format XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
       fn =
         (function
-        | _, _, _, [| DUuid uuid |] -> Ply(DString(string uuid))
+        | _, _, _, [| DUuid uuid |] -> (DString(string uuid))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

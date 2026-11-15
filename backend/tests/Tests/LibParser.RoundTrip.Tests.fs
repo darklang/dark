@@ -14,7 +14,6 @@
 module Tests.LibParserRoundTrip
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Expecto
 
@@ -315,13 +314,12 @@ let t
     // the source for each width.
     let parseSrc (src : string) : Task<RT.Dval * List<PT.PackageOp>> =
       task {
-        let! parseExeState = executionStateFor basePM false
+        let parseExeState = executionStateFor basePM false
         // The branch to resolve names against: main, named rather than taken from the process.
         let args = NEList.ofList (RT.DUuid PT.BranchId.Main.Guid) [ RT.DString src ]
         let! parseResult =
           LibExecution.Execution.executeFunction parseExeState parseFnName [] args
-        let! parseDval =
-          unwrapExecutionResult parseExeState parseResult |> Ply.toTask
+        let parseDval = unwrapExecutionResult parseExeState parseResult
 
         match parseDval with
         | RT.DEnum(tn, _, _, "Ok", [ RT.DTuple(sourceFile, opsList, []) ]) when
@@ -349,7 +347,7 @@ let t
       : Task<string> =
       task {
         let enhancedPM = LibDB.PackageManager.withExtraOps basePM packageOps
-        let! ppExeState = executionStateFor enhancedPM false
+        let ppExeState = executionStateFor enhancedPM false
 
         let ppArgs =
           NEList.ofList
@@ -361,7 +359,7 @@ let t
             prettyPrintFnName
             []
             ppArgs
-        let! resultDval = unwrapExecutionResult ppExeState ppResult |> Ply.toTask
+        let resultDval = unwrapExecutionResult ppExeState ppResult
 
         match resultDval with
         | RT.DString result -> return result

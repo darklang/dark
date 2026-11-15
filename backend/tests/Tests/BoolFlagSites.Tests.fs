@@ -16,8 +16,8 @@ let bareBoolCallsMatchTheBaseline =
         LibConfig.Dirs.sourceRootDir,
         "backend/tests/bool-flag-sites.txt"
       )
-    let! names = LibDB.Raises.allFnNames () |> Ply.toTask
-    let! sites = LibDB.BoolFlagSites.find names |> Ply.toTask
+    let names = LibDB.Raises.allFnNames ()
+    let sites = LibDB.BoolFlagSites.find names
     let found = LibDB.RaiseSites.baselineLines sites
     let listed =
       System.IO.File.ReadAllLines path

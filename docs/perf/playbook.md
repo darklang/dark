@@ -130,7 +130,7 @@ agrees, and let the most realistic workload decide a mixed result.
 
 **Count the hit rate before explaining a disappointing fast path.** A fast path that never fires and
 a fast path that fires but had little to remove produce the same small number, and they need
-opposite fixes. `byOpcode` in `interpreterStatsGet` reports `syncHit`/`syncMiss` for this.
+opposite fixes.
 
 ## 5. Change one thing, measure, keep or revert
 

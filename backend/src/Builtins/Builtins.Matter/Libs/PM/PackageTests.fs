@@ -1,6 +1,8 @@
 /// Runtime support for package tests: execution, counters, and cache analysis.
 module Builtins.Matter.Libs.PM.PackageTests
 
+open System.Threading.Tasks
+
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
@@ -18,6 +20,7 @@ module Execution = LibExecution.Execution
 module PackageRefs = LibExecution.PackageRefs
 module Permissions = LibExecution.Permissions
 module PackagePermissions = LibDB.PackagePermissions
+module Pending = LibExecution.Pending
 
 
 let private requireRunningPackageTest
@@ -38,14 +41,12 @@ let private requireRunningPackageTest
 let private executeTestBody
   (state : ExecutionState)
   (test : PT.PackageTest.PackageTest)
-  : Ply<ExecutionResult> =
-  uply {
-    // TODO: Store test instructions alongside PT, as functions do, to avoid
-    // converting the body on every run. Verify that runtime upgrades regenerate
-    // them and that expected-error tests still behave the same.
-    let instructions = PT2RT.Expr.toRT Map.empty 0 None test.body
-    return! Execution.executeExpr state instructions
-  }
+  : Task<ExecutionResult> =
+  // TODO: Store test instructions alongside PT, as functions do, to avoid
+  // converting the body on every run. Verify that runtime upgrades regenerate
+  // them and that expected-error tests still behave the same.
+  let instructions = PT2RT.Expr.toRT Map.empty 0 None test.body
+  Execution.executeExpr state instructions
 
 
 /// Convert a test outcome into a Dark Result. Keep runtime errors structured
@@ -74,50 +75,47 @@ let private executeWorker
   (caller : ExecutionState)
   (requestBytes : byte[])
   (accessBytes : byte[])
-  : Ply<Dval> =
-  uply {
-    let! request = LibDB.TestProcess.Request.deserialize requestBytes
-    use accessStream = new System.IO.MemoryStream(accessBytes)
-    use reader = new System.IO.BinaryReader(accessStream)
-    let inherited =
-      LibSerialization.Binary.Serializers.Permissions.readExecutionAccess reader
-    // Set up both request kinds once.
-    let guest = LibDB.PolicyStore.testState request.accountID caller
-    let workerState =
-      { guest with
-          access =
-            guest.access
-            |> Permissions.Access.constrainBy inherited
-            |> Permissions.Access.constrainBy caller.access
-          test = { guest.test with isPackageTest = true; sideEffectCount = 0 } }
+  : Task<Dval> =
+  let request = LibDB.TestProcess.Request.deserialize requestBytes
+  use accessStream = new System.IO.MemoryStream(accessBytes)
+  use reader = new System.IO.BinaryReader(accessStream)
+  let inherited =
+    LibSerialization.Binary.Serializers.Permissions.readExecutionAccess reader
+  // Set up both request kinds once.
+  let guest = LibDB.PolicyStore.testState request.accountID caller
+  let workerState =
+    { guest with
+        access =
+          guest.access
+          |> Permissions.Access.constrainBy inherited
+          |> Permissions.Access.constrainBy caller.access
+        test = { guest.test with isPackageTest = true; sideEffectCount = 0 } }
+  task {
     let! outcome =
-      uply {
-        match request.target with
-        | LibDB.TestProcess.Target.PackageTest hash ->
-          let! test = pm.getTest (PT.Hash hash)
-          let! result =
-            match test with
-            | None ->
-              Ply(Error(RuntimeError.VariableNotFound $"package test {hash}", []))
-
-            | Some test ->
-              // Execute the body directly: dispatching isolation again would recurse.
-              executeTestBody workerState test
-
-          return Ok(reflectOutcome result)
-        | LibDB.TestProcess.Target.TestCallback(hash, argument) ->
-          return!
-            Execution.executeFunction
-              workerState
-              (FQFnName.fqPackage hash)
-              []
-              (NEList.singleton argument)
-      }
+      match request.target with
+      | LibDB.TestProcess.Target.PackageTest hash ->
+        let test = pm.getTest (PT.Hash hash)
+        let result =
+          match test with
+          | None ->
+            Task.FromResult(
+              Error(RuntimeError.VariableNotFound $"package test {hash}", [])
+            )
+          | Some test ->
+            // Execute the body directly: dispatching isolation again would recurse.
+            executeTestBody workerState test
+        result |> Task.map (reflectOutcome >> Ok)
+      | LibDB.TestProcess.Target.TestCallback(hash, argument) ->
+        Execution.executeFunction
+          workerState
+          (FQFnName.fqPackage hash)
+          []
+          (NEList.singleton argument)
     let! value, code =
-      uply {
-        match outcome with
-        | Ok value -> return value, 0
-        | Error(error, stack) ->
+      match outcome with
+      | Ok value -> Task.FromResult(value, 0)
+      | Error(error, stack) ->
+        task {
           let! rendered = Execution.runtimeErrorToString workerState error
           let message =
             match rendered with
@@ -126,7 +124,7 @@ let private executeWorker
           let! stackText = Execution.callStackString workerState stack
           System.Console.Error.WriteLine($"{message}\n{stackText}")
           return DString message, 1
-      }
+        }
     let result =
       DEnum(
         Dval.resultType (),
@@ -135,7 +133,7 @@ let private executeWorker
         (if code = 0 then "Ok" else "Error"),
         [ value ]
       )
-    let! bytes = LibDB.TestProcess.WorkerResult.serialize result
+    let bytes = LibDB.TestProcess.WorkerResult.serialize result
     return
       DTuple(LibExecution.Bytes.newEphemeral bytes, Dval.dint64 (int64 code), [])
   }
@@ -184,20 +182,18 @@ let private inProcessMemo =
 let private runsInProcess
   (state : ExecutionState)
   (test : PT.PackageTest.PackageTest)
-  : Ply<bool> =
-  uply {
-    match inProcessMemo.TryGetValue test.hash with
-    | true, known -> return known
-    | false, _ ->
-      let! bodies, closure =
-        PackagePermissions.analyzeExpressions
-          PackagePermissions.Load.fromStore
-          [ test.body ]
-      let inProcess =
-        provablyEffectFree inRunner state closure (List.exactlyOne bodies)
-      inProcessMemo[test.hash] <- inProcess
-      return inProcess
-  }
+  : bool =
+  match inProcessMemo.TryGetValue test.hash with
+  | true, known -> known
+  | false, _ ->
+    let bodies, closure =
+      PackagePermissions.analyzeExpressions
+        PackagePermissions.Load.fromStore
+        [ test.body ]
+    let inProcess =
+      provablyEffectFree inRunner state closure (List.exactlyOne bodies)
+    inProcessMemo[test.hash] <- inProcess
+    inProcess
 
 /// Whether a passing result of each test may be reused: it is provably effect free and every
 /// builtin on the way is `Pure`. Stricter than `runsInProcess`. Anything unknown reruns.
@@ -208,24 +204,21 @@ let private runsInProcess
 let private areCacheSafe
   (state : ExecutionState)
   (tests : List<PT.PackageTest.PackageTest>)
-  : Ply<List<bool>> =
-  uply {
-    let! bodies, closure =
-      PackagePermissions.analyzeExpressions
-        PackagePermissions.Load.fromStore
-        (tests |> List.map _.body)
-    return
-      List.map2
-        (fun (test : PT.PackageTest.PackageTest) body ->
-          inProcessMemo.TryAdd(
-            test.hash,
-            provablyEffectFree inRunner state closure body
-          )
-          |> ignore<bool>
-          provablyEffectFree reusable state closure body)
-        tests
-        bodies
-  }
+  : List<bool> =
+  let bodies, closure =
+    PackagePermissions.analyzeExpressions
+      PackagePermissions.Load.fromStore
+      (tests |> List.map _.body)
+  List.map2
+    (fun (test : PT.PackageTest.PackageTest) body ->
+      inProcessMemo.TryAdd(
+        test.hash,
+        provablyEffectFree inRunner state closure body
+      )
+      |> ignore<bool>
+      provablyEffectFree reusable state closure body)
+    tests
+    bodies
 
 /// Run a test the analysis cleared in this process, under the same test policy a worker
 /// gets, with a counter of its own. It shares the runner's warm package caches; a worker
@@ -236,28 +229,27 @@ let private executeInProcessTest
   (vm : VMState)
   (branchId : System.Guid)
   (test : PT.PackageTest.PackageTest)
-  : Ply<Option<Dval>> =
-  uply {
-    let guest = LibDB.PolicyStore.testState caller.accountID caller
-    let state =
-      { guest with
-          branchId = LibExecution.Branching.BranchId.Id branchId
-          access = guest.access |> Permissions.Access.constrainBy vm.activeAccess
-          test =
-            { guest.test with
-                isPackageTest = true
-                sideEffectCount = 0
-                inRunner = true
-                stoppedAtImpure = false } }
-    let! result = executeTestBody state test
+  : Task<Option<Dval>> =
+  let guest = LibDB.PolicyStore.testState caller.accountID caller
+  let state =
+    { guest with
+        branchId = LibExecution.Branching.BranchId.Id branchId
+        access = guest.access |> Permissions.Access.constrainBy vm.activeAccess
+        test =
+          { guest.test with
+              isPackageTest = true
+              sideEffectCount = 0
+              inRunner = true
+              stoppedAtImpure = false } }
+  executeTestBody state test
+  |> Task.map (fun result ->
     // Checked whatever the result: a builtin that catches its callee's failure could have
     // swallowed the stop.
     if state.test.stoppedAtImpure then
       inProcessMemo[test.hash] <- false
-      return None
+      None
     else
-      return Some(reflectOutcome result)
-  }
+      Some(reflectOutcome result))
 
 /// Every other package test executes its own hash in a fresh worker on the run's read-only
 /// snapshot when sharing is available. A refused write triggers a retry on a private copy;
@@ -269,66 +261,65 @@ let private executeIsolatedTest
   (branchId : System.Guid)
   (workerHash : string)
   (hash : string)
-  : Ply<Dval> =
-  uply {
-    let guest = LibDB.PolicyStore.testState caller.accountID caller
-    let access = guest.access |> Permissions.Access.constrainBy vm.activeAccess
-    let request : LibDB.TestProcess.Request =
-      { accountID = caller.accountID
-        target = LibDB.TestProcess.Target.PackageTest hash }
-    let! outcome =
-      LibDB.TestProcess.run
-        (LibDB.TestProcess.Shared runId)
-        guest
-        vm
-        access
-        branchId
-        workerHash
-        request
-        120000
-        80
-        24
-    let fail message =
-      // A broken worker is a failed test, never an expected error from its body.
-      let resultType = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.test ())
-      Ok(
-        DEnum(
-          resultType,
-          resultType,
-          [],
-          "Fail",
-          [ DList(ValueType.Known KTString, Items([ DString message ])) ]
-        )
+  : Task<Dval> =
+  let guest = LibDB.PolicyStore.testState caller.accountID caller
+  let access = guest.access |> Permissions.Access.constrainBy vm.activeAccess
+  let request : LibDB.TestProcess.Request =
+    { accountID = caller.accountID
+      target = LibDB.TestProcess.Target.PackageTest hash }
+  let outcome =
+    LibDB.TestProcess.run
+      (LibDB.TestProcess.Shared runId)
+      guest
+      vm
+      access
+      branchId
+      workerHash
+      request
+      120000
+      80
+      24
+  let fail message =
+    // A broken worker is a failed test, never an expected error from its body.
+    let resultType = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.test ())
+    Ok(
+      DEnum(
+        resultType,
+        resultType,
+        [],
+        "Fail",
+        [ DList(ValueType.Known KTString, Items([ DString message ])) ]
       )
-      |> reflectOutcome
+    )
+    |> reflectOutcome
+  outcome
+  |> Task.map (fun outcome ->
     match outcome with
-    | Error message -> return fail message
+    | Error message -> fail message
     | Ok output ->
       match output.exitCode, output.cleanupErrors, output.result with
-      | 0, [], Some(DEnum(_, _, _, "Ok", [ result ])) -> return result
+      | 0, [], Some(DEnum(_, _, _, "Ok", [ result ])) -> result
       | _ ->
-        return
-          fail (
-            let assertionMessages =
-              match output.result with
-              | Some(DEnum(_, _, _, "Ok", [ DEnum(_, _, _, "Ok", [ value ]) ])) ->
-                match RT2DT.Dval.fromDT value with
-                | DEnum(_, _, _, "Fail", [ DList(_, Items(messages)) ]) ->
-                  messages
-                  |> List.choose (function
-                    | DString s -> Some s
-                    | _ -> None)
-                | _ -> []
+        fail (
+          let assertionMessages =
+            match output.result with
+            | Some(DEnum(_, _, _, "Ok", [ DEnum(_, _, _, "Ok", [ value ]) ])) ->
+              match RT2DT.Dval.fromDT value with
+              | DEnum(_, _, _, "Fail", [ DList(_, Items(messages)) ]) ->
+                messages
+                |> List.choose (function
+                  | DString s -> Some s
+                  | _ -> None)
               | _ -> []
-            String.concat
-              "\n"
-              (assertionMessages
-               @ [ $"Isolated test worker exited {output.exitCode} without a successful result"
-                   output.stdout
-                   output.stderr ]
-               @ output.cleanupErrors)
-          )
-  }
+            | _ -> []
+          String.concat
+            "\n"
+            (assertionMessages
+             @ [ $"Isolated test worker exited {output.exitCode} without a successful result"
+                 output.stdout
+                 output.stderr ]
+             @ output.cleanupErrors)
+        ))
 
 
 let private resultKeyType () =
@@ -377,10 +368,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | state, vm, _, [| DUuid branchId; DApplicable callback |] ->
-          uply {
-            let guest = LibDB.PolicyStore.testState state.accountID state
-            let access =
-              guest.access |> Permissions.Access.constrainBy vm.activeAccess
+          let guest = LibDB.PolicyStore.testState state.accountID state
+          let access = guest.access |> Permissions.Access.constrainBy vm.activeAccess
+          // Read now: by the time the snapshot is ready the VM may be running something else.
+          let callerAccess = vm.activeAccess
+          task {
             let! prepared =
               LibExecution.PermissionCheck.performHostWithAccess
                 state
@@ -393,12 +385,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             | Ok(LibExecution.HostTypes.Response.FileSnapshot snapshot) ->
               return!
                 LibDB.TestProcess.withStoreSnapshot snapshot (fun id ->
-                  uply {
+                  task {
                     // Keep the callback's permissions and per-test counter unchanged.
                     match!
                       Execution.executeApplicable1
                         state
-                        vm.activeAccess
+                        callerAccess
                         callback
                         (DUuid id)
                     with
@@ -415,6 +407,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   (RuntimeError.UncaughtException(error.message, []))
             | _ -> return Exception.raiseInternal "Invalid test snapshot response" []
           }
+          |> Pending.ofTask
         | _ -> incorrectArgs ())
       previewable = Impure
       // The callback may write. Keep it in program order, rather than letting
@@ -431,12 +424,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | state, vm, _, [| DBytes request; DBytes access |] ->
-          uply {
-            let! request = LibExecution.Bytes.readBytes state request
-            let! access = LibExecution.Bytes.readBytes state access
-            return!
-              executeWorker pm { state with access = vm.activeAccess } request access
-          }
+          let request = LibExecution.Bytes.readBytes state request
+          let access = LibExecution.Bytes.readBytes state access
+          executeWorker pm { state with access = vm.activeAccess } request access
+          |> Pending.ofTask
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Native ]
@@ -454,10 +445,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _, _, _, [| keyDval |] ->
           match resultKeyFromDT keyDval with
           | Some key ->
-            uply {
-              let! outcome = LibDB.TestResults.get key
-              return outcome |> Option.map DString |> Dval.option KTString
-            }
+            let outcome = LibDB.TestResults.get key
+            outcome |> Option.map DString |> Dval.option KTString
           | None -> incorrectArgs ()
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -479,18 +468,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           if keys.Length <> keyDvals.Length then
             incorrectArgs ()
           else
-            uply {
-              let! outcomes = LibDB.TestResults.getMany keys
-              return
-                outcomes
-                |> List.map (Option.map DString >> Dval.option KTString)
-                |> Dval.list (
-                  KTCustomType(
-                    Dval.optionType (),
-                    [ LibExecution.ValueType.known KTString ]
-                  )
-                )
-            }
+            let outcomes = LibDB.TestResults.getMany keys
+            outcomes
+            |> List.map (Option.map DString >> Dval.option KTString)
+            |> Dval.list (
+              KTCustomType(
+                Dval.optionType (),
+                [ LibExecution.ValueType.known KTString ]
+              )
+            )
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -512,10 +498,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _, _, _, [| keyDval; DString outcome |] ->
           match resultKeyFromDT keyDval with
           | Some key ->
-            uply {
-              do! LibDB.TestResults.put key outcome
-              return DUnit
-            }
+            LibDB.TestResults.put key outcome
+            DUnit
           | None -> incorrectArgs ()
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -537,19 +521,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | state, _, _, [| DList(_, Items(hashes)) |] ->
-          uply {
-            let! tests =
-              hashes |> Ply.List.mapSequentially (PT2DT.Hash.fromDT >> pm.getTest)
-            let found = tests |> List.choose (fun test -> test)
-            let! safe = areCacheSafe state found
-            let safe = List.zip (found |> List.map _.hash) safe |> Map.ofList
-            return
-              tests
-              |> List.map (function
-                | Some test -> DBool(Map.find test.hash safe = Some true)
-                | None -> DBool false)
-              |> Dval.list KTBool
-          }
+          let tests = hashes |> List.map (PT2DT.Hash.fromDT >> pm.getTest)
+          let found = tests |> List.choose (fun test -> test)
+          let safe = areCacheSafe state found
+          let safe = List.zip (found |> List.map _.hash) safe |> Map.ofList
+          tests
+          |> List.map (function
+            | Some test -> DBool(Map.find test.hash safe = Some true)
+            | None -> DBool false)
+          |> Dval.list KTBool
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -576,7 +556,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               System.Threading.Interlocked.Increment(&state.test.sideEffectCount)
             else
               System.Threading.Volatile.Read(&state.test.sideEffectCount)
-          count |> int64 |> Dval.int64 |> Ply
+          count |> int64 |> Dval.int64
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Raise ]
@@ -616,13 +596,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | state, _, _, [| hashDval |] ->
-          uply {
-            match! pm.getTest (PT2DT.Hash.fromDT hashDval) with
-            | None -> return DBool false
-            | Some test ->
-              let! inProcess = runsInProcess state test
-              return DBool inProcess
-          }
+          match pm.getTest (PT2DT.Hash.fromDT hashDval) with
+          | None -> DBool false
+          | Some test ->
+            let inProcess = runsInProcess state test
+            DBool inProcess
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -643,7 +621,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [| DUuid runId; hashDval |] ->
           let (PT.Hash hash) = PT2DT.Hash.fromDT hashDval
-          LibDB.TestProcess.reranIn runId hash |> DBool |> Ply
+          LibDB.TestProcess.reranIn runId hash |> DBool
         | _ -> incorrectArgs ())
       previewable = Impure
       // Changes as tests finish, so keep it in program order.
@@ -699,27 +677,28 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
              DApplicable(AppNamedFn { name = FQFnName.Package(Hash workerHash)
                                       argsSoFar = []
                                       typeArgs = [] }) |] ->
-          uply {
-            let (PT.Hash hashStr as hash) = PT2DT.Hash.fromDT hashDval
-            match! pm.getTest hash with
-            | None ->
-              return
-                reflectOutcome (
-                  Error(RuntimeError.VariableNotFound $"package test {hashStr}", [])
-                )
-            | Some test ->
-              let! inRunner =
-                uply {
-                  match! runsInProcess exeState test with
-                  | true -> return! executeInProcessTest exeState vm branchId test
-                  | false -> return None
-                }
-              match inRunner with
+          let (PT.Hash hashStr as hash) = PT2DT.Hash.fromDT hashDval
+          match pm.getTest hash with
+          | None ->
+            reflectOutcome (
+              Error(RuntimeError.VariableNotFound $"package test {hashStr}", [])
+            )
+          | Some test ->
+            // The process reads `vm.activeAccess` before anything waits, so the two runs see
+            // this call's.
+            let inRunner =
+              if runsInProcess exeState test then
+                executeInProcessTest exeState vm branchId test
+              else
+                Task.FromResult None
+            let isolated () =
+              executeIsolatedTest exeState vm runId branchId workerHash hashStr
+            task {
+              match! inRunner with
               | Some outcome -> return outcome
-              | None ->
-                return!
-                  executeIsolatedTest exeState vm runId branchId workerHash hashStr
-          }
+              | None -> return! isolated ()
+            }
+            |> Pending.ofTask
         | _ -> incorrectArgs ())
       previewable = Impure
       // Runs a whole test in a child process. As a package read alone the interpreter would

@@ -3,7 +3,6 @@
 module Tests.Permissions
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Expecto
 open Prelude
@@ -717,20 +716,21 @@ let fileDenialOffersTheFolderAndTheProfile =
 
 /// GET <param port>'s root, waiting up to a minute for the server to come up.
 let private getWhenUp (port : int) : Task<int * string> =
+  let client = new System.Net.Http.HttpClient()
+  let deadline = System.DateTime.UtcNow.AddMinutes 1.0
+  let rec attempt () =
+    task {
+      try
+        let! response = client.GetAsync($"http://127.0.0.1:{port}/")
+        let! body = response.Content.ReadAsStringAsync()
+        return (int response.StatusCode, body)
+      with :? System.Net.Http.HttpRequestException when
+          System.DateTime.UtcNow < deadline ->
+        do! Task.Delay 250
+        return! attempt ()
+    }
   task {
-    use client = new System.Net.Http.HttpClient()
-    let deadline = System.DateTime.UtcNow.AddMinutes 1.0
-    let rec attempt () =
-      task {
-        try
-          let! response = client.GetAsync($"http://127.0.0.1:{port}/")
-          let! body = response.Content.ReadAsStringAsync()
-          return (int response.StatusCode, body)
-        with :? System.Net.Http.HttpRequestException when
-            System.DateTime.UtcNow < deadline ->
-          do! Task.Delay 250
-          return! attempt ()
-      }
+    use _ = client
     return! attempt ()
   }
 

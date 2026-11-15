@@ -10,7 +10,6 @@ module Tests.CliTraces
 
 open Expecto
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open Fumble
@@ -43,13 +42,12 @@ let private testMkdirRecursiveUnderPolicyAncestor =
       System.IO.Directory.CreateDirectory root |> ignore<System.IO.DirectoryInfo>
       let restorePolicyDirectory =
         LibExecution.HostSecurity.policyDirectoryForTesting policy
-      let! found =
+      let found =
         LibDB.ProgramTypes.Fn.find
           PT.BranchId.Main
           { owner = "Darklang"
             modules = [ "Stdlib"; "Cli"; "Dir" ]
             name = "createRecursive" }
-        |> Ply.toTask
       let hash =
         match found with
         | Some(PT.Hash h) -> h
@@ -91,11 +89,11 @@ let private testRecordingSettings =
         task {
           let rows (tid : string) : Task<int> =
             task {
-              let! n =
+              let n =
                 Sql.query
                   "SELECT COUNT(*) AS n FROM trace_fn_calls WHERE trace_id = @t"
                 |> Sql.parameters [ "t", Sql.string tid ]
-                |> Sql.executeRowAsync (fun read -> read.int "n")
+                |> Sql.executeRow (fun read -> read.int "n")
               return n
             }
 
@@ -109,25 +107,25 @@ let private testRecordingSettings =
             LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.Off
             let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
             do! run ()
-            let! afterOff = Traces.list 10
+            let afterOff = Traces.list 10
             Expect.isEmpty afterOff "off records nothing"
 
             // `on`: the row with its input and its answer, plus the impure call.
             LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.On
             let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
             do! run ()
-            let! afterOn = Traces.list 10
+            let afterOn = Traces.list 10
             match afterOn with
             | [ (only : Traces.Trace) ] ->
               Expect.isSome only.result "on records what the run answered"
               let! n = rows (string only.id)
               Expect.equal n 1 "on records the one impure call"
-              let! logged =
+              let logged =
                 Sql.query
                   "SELECT fn_hash, kind, parent_call_id, ord FROM trace_fn_calls
                    WHERE trace_id = @t"
                 |> Sql.parameters [ "t", Sql.string (string only.id) ]
-                |> Sql.executeRowAsync (fun read ->
+                |> Sql.executeRow (fun read ->
                   read.string "fn_hash",
                   read.string "kind",
                   read.stringOrNone "parent_call_id",

@@ -19,7 +19,7 @@ let fns () : List<BuiltInFn> =
         "Rounds <param a> to the nearest <type Float32>, ties to even. Out of range is infinity."
       fn =
         (function
-        | _, _, _, [| DFloat64 a |] -> Ply(DFloat32(float32 a))
+        | _, _, _, [| DFloat64 a |] -> (DFloat32(float32 a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -34,7 +34,7 @@ let fns () : List<BuiltInFn> =
         "Widens <param a> to a <type Float64>. Exact: every Float32 is a Float64."
       fn =
         (function
-        | _, _, _, [| DFloat32 a |] -> Ply(DFloat64(float a))
+        | _, _, _, [| DFloat32 a |] -> (DFloat64(float a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -49,7 +49,7 @@ let fns () : List<BuiltInFn> =
         "The <type Float32> nearest <param a>, ties to even, rounded once rather than through a Float64."
       fn =
         (function
-        | _, _, _, [| DInt64 a |] -> Ply(DFloat32(float32 a))
+        | _, _, _, [| DInt64 a |] -> (DFloat32(float32 a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -70,7 +70,7 @@ let fns () : List<BuiltInFn> =
             else if System.Single.IsNegativeInfinity a then "-Infinity"
             else if System.Single.IsNaN a then "NaN"
             else float32ToShortestString a
-          Ply(DString result)
+          (DString result)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -87,9 +87,9 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString s |] ->
           try
-            float32 s |> DFloat32 |> Dval.optionSome KTFloat32 |> Ply
+            float32 s |> DFloat32 |> Dval.optionSome KTFloat32
           with :? System.FormatException ->
-            Dval.optionNone KTFloat32 |> Ply
+            Dval.optionNone KTFloat32
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -104,7 +104,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DFloat32 a |] ->
-          System.BitConverter.SingleToUInt32Bits a |> DUInt32 |> Ply
+          System.BitConverter.SingleToUInt32Bits a |> DUInt32
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -120,7 +120,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUInt32 bits |] ->
-          System.BitConverter.UInt32BitsToSingle bits |> DFloat32 |> Ply
+          System.BitConverter.UInt32BitsToSingle bits |> DFloat32
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

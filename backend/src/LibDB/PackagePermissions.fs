@@ -18,12 +18,12 @@ type CallEffectsFor = string * int -> Option<Set<LibExecution.Effects.Effect>>
 
 /// How a package fn is fetched by hash. A parameter (rather than the package
 /// DB directly) so review logic is testable against in-memory fns.
-type LoadFn = PT.Hash -> Ply<Option<PT.PackageFn.PackageFn>>
+type LoadFn = PT.Hash -> Option<PT.PackageFn.PackageFn>
 
 /// How a package value's stored, evaluated value is fetched by hash. `None`
 /// when there is no such value, when it has not been evaluated yet, or when it
 /// could not be read; all three leave a reference to it incomplete.
-type LoadValue = PT.Hash -> Ply<Option<RT.Dval>>
+type LoadValue = PT.Hash -> Option<RT.Dval>
 
 /// Everything the analysis reads from the store.
 type Load = { fn : LoadFn; value : LoadValue }
@@ -37,13 +37,11 @@ module Load =
     { fn = LibDB.PackageManager.pt.getFn
       value =
         fun (PT.Hash h) ->
-          uply {
-            try
-              let! found = LibDB.RuntimeTypes.Value.get (RT.Hash h)
-              return found |> Option.map (fun v -> v.body)
-            with _ ->
-              return None
-          } }
+          try
+            let found = LibDB.RuntimeTypes.Value.get (RT.Hash h)
+            found |> Option.map (fun v -> v.body)
+          with _ ->
+            None }
 
 /// Whether each package value `expr` references holds only data, read
 /// through `cache` so a value shared by several bodies is read once. Returns the
@@ -52,23 +50,21 @@ let private inertValuesIn
   (load : Load)
   (cache : Map<PT.Hash, bool>)
   (expr : PT.Expr)
-  : Ply<Set<PT.Hash> * Map<PT.Hash, bool>> =
+  : Set<PT.Hash> * Map<PT.Hash, bool> =
   Calls.valueRefs expr
   |> Set.toList
-  |> Ply.List.foldSequentially
+  |> List.fold
     (fun (inert, cache) value ->
       let keep isInert = if isInert then Set.add value inert else inert
       match Map.tryFind value cache with
-      | Some known -> Ply((keep known, cache))
+      | Some known -> ((keep known, cache))
       | None ->
-        uply {
-          let! stored = load.value value
-          let isInert =
-            match stored with
-            | Some dval -> LibExecution.Dval.isInertData dval
-            | None -> false
-          return (keep isInert, Map.add value isInert cache)
-        })
+        let stored = load.value value
+        let isInert =
+          match stored with
+          | Some dval -> LibExecution.Dval.isInertData dval
+          | None -> false
+        (keep isInert, Map.add value isInert cache))
     (Set.empty, cache)
 
 /// What `loadClosureFrom` has seen so far. `visited` also holds hashes that
@@ -84,46 +80,42 @@ type private Walk =
 let private loadClosureFrom
   (load : Load)
   (roots : List<PT.Hash>)
-  : Ply<Requirements.Closure> =
-  let rec loadMember (walk : Walk) (h : PT.Hash) : Ply<Walk> =
+  : Requirements.Closure =
+  let rec loadMember (walk : Walk) (h : PT.Hash) : Walk =
     if Set.contains h walk.visited then
-      Ply walk
+      walk
     else
-      uply {
-        let walk = { walk with visited = Set.add h walk.visited }
-        match! load.fn h with
-        | None -> return walk
-        | Some fn ->
-          let! inertValues, valueIsInert =
-            inertValuesIn load walk.valueIsInert fn.body
-          let calls = Calls.analyzeFn inertValues fn
-          let walk =
-            { walk with
-                loaded = Map.add h (fn, calls) walk.loaded
-                valueIsInert = valueIsInert }
-          return!
-            calls.names
-            |> Ply.List.foldSequentially
-              (fun walk callee ->
-                match callee with
-                | PT.FQFnName.Package dependency -> loadMember walk dependency
-                | PT.FQFnName.Builtin _ -> Ply walk
-                // CallGraph reports a trait call as the implementation it resolved
-                // to, or marks the analysis incomplete; none reach here.
-                | PT.FQFnName.TraitMethod _ -> Ply walk)
-              walk
-      }
+      let walk = { walk with visited = Set.add h walk.visited }
+      match load.fn h with
+      | None -> walk
+      | Some fn ->
+        let inertValues, valueIsInert = inertValuesIn load walk.valueIsInert fn.body
+        let calls = Calls.analyzeFn inertValues fn
+        let walk =
+          { walk with
+              loaded = Map.add h (fn, calls) walk.loaded
+              valueIsInert = valueIsInert }
+        calls.names
+        |> List.fold
+          (fun walk callee ->
+            match callee with
+            | PT.FQFnName.Package dependency -> loadMember walk dependency
+            | PT.FQFnName.Builtin _ -> walk
+            // CallGraph reports a trait call as the implementation it resolved
+            // to, or marks the analysis incomplete; none reach here.
+            | PT.FQFnName.TraitMethod _ -> walk)
+          walk
 
   roots
-  |> Ply.List.foldSequentially
+  |> List.fold
     loadMember
     { loaded = Map.empty; visited = Set.empty; valueIsInert = Map.empty }
-  |> Ply.map (fun walk -> walk.loaded)
+  |> (fun walk -> walk.loaded)
 
 /// Load every package function reachable from `root`, analyze each body once,
 /// and return the closure keyed by hash. Approval covers this whole closure so
 /// dependencies remain available when entered at runtime.
-let loadClosure (load : Load) (root : PT.Hash) : Ply<Requirements.Closure> =
+let loadClosure (load : Load) (root : PT.Hash) : Requirements.Closure =
   loadClosureFrom load [ root ]
 
 /// Each body's own call analysis, in order, and the closure they share: every package fn any of
@@ -131,30 +123,25 @@ let loadClosure (load : Load) (root : PT.Hash) : Ply<Requirements.Closure> =
 let analyzeExpressions
   (load : Load)
   (bodies : List<PT.Expr>)
-  : Ply<List<Calls.Analysis> * Requirements.Closure> =
-  uply {
-    let! analyses, _ =
-      bodies
-      |> Ply.List.foldSequentially
-        (fun (analyses, valueIsInert) body ->
-          uply {
-            let! inertValues, valueIsInert = inertValuesIn load valueIsInert body
-            return
-              (Calls.analyze Set.empty inertValues body :: analyses, valueIsInert)
-          })
-        ([], Map.empty)
-    let analyses = List.rev analyses
-    let roots =
-      analyses
-      |> List.collect (fun calls ->
-        calls.names
-        |> List.choose (function
-          | PT.FQFnName.Package hash -> Some hash
-          | PT.FQFnName.Builtin _
-          | PT.FQFnName.TraitMethod _ -> None))
-    let! closure = loadClosureFrom load roots
-    return analyses, closure
-  }
+  : List<Calls.Analysis> * Requirements.Closure =
+  let analyses, _ =
+    bodies
+    |> List.fold
+      (fun (analyses, valueIsInert) body ->
+        let inertValues, valueIsInert = inertValuesIn load valueIsInert body
+        (Calls.analyze Set.empty inertValues body :: analyses, valueIsInert))
+      ([], Map.empty)
+  let analyses = List.rev analyses
+  let roots =
+    analyses
+    |> List.collect (fun calls ->
+      calls.names
+      |> List.choose (function
+        | PT.FQFnName.Package hash -> Some hash
+        | PT.FQFnName.Builtin _
+        | PT.FQFnName.TraitMethod _ -> None))
+  let closure = loadClosureFrom load roots
+  analyses, closure
 
 /// Check whether a passing test has no effects, unresolved calls, or known
 /// branch-dependent calls. Assertion helpers are analyzed like any other call:
@@ -163,9 +150,9 @@ let cacheSafetyForExpression
   (load : Load)
   (callEffectsFor : CallEffectsFor)
   (body : PT.Expr)
-  : Ply<Requirements.Result> =
+  : Requirements.Result =
   analyzeExpressions load [ body ]
-  |> Ply.map (fun (analyses, closure) ->
+  |> (fun (analyses, closure) ->
     Requirements.forExpression callEffectsFor closure (List.exactlyOne analyses))
 
 /// Analyze one immutable function using the explicit effect vocabulary.
@@ -173,12 +160,10 @@ let permissionRequirements
   (load : Load)
   (callEffectsFor : CallEffectsFor)
   (hashStr : string)
-  : Ply<Requirements.Result> =
-  uply {
-    let root = PT.Hash hashStr
-    let! closure = loadClosure load root
-    return Requirements.forFunction callEffectsFor closure root
-  }
+  : Requirements.Result =
+  let root = PT.Hash hashStr
+  let closure = loadClosure load root
+  Requirements.forFunction callEffectsFor closure root
 
 /// Whether a package fn is pure for a list op deciding to spread it (`RT.Purity`), over its
 /// whole closure: impure if anything it can reach is a builtin `Interpreter.spreadRefuses`, pure
@@ -196,7 +181,7 @@ let purity
   (builtins :
     System.Collections.Generic.Dictionary<RT.FQFnName.Builtin, RT.BuiltInFn>)
   (counts : RT.SpreadCounts)
-  : RT.FQFnName.Package -> Ply<RT.Purity> =
+  : RT.FQFnName.Package -> RT.Purity =
   let memo =
     System.Collections.Concurrent.ConcurrentDictionary<RT.FQFnName.Package, RT.Purity>()
   // Any non-empty set stands for "refused"; which effect it names is not the question here.
@@ -211,26 +196,21 @@ let purity
     | ValueNone -> None
   fun (RT.Hash h as hash) ->
     match memo.TryGetValue hash with
-    | true, known -> Ply known
+    | true, known -> known
     | false, _ ->
-      uply {
-        let root = PT.Hash h
-        let! answer =
-          uply {
-            try
-              let! closure = loadClosure load root
-              let result = Requirements.forFunctionWith true classify closure root
-              return
-                if not (Set.isEmpty result.requiredEffects) then RT.Purity.Impure
-                elif result.complete then RT.Purity.Pure
-                else RT.Purity.Unknown
-            with _ ->
-              counts.Add RT.SpreadCount.PredictionFailures
-              return RT.Purity.Unknown
-          }
-        memo[hash] <- answer
-        return answer
-      }
+      let root = PT.Hash h
+      let answer =
+        try
+          let closure = loadClosure load root
+          let result = Requirements.forFunctionWith true classify closure root
+          if not (Set.isEmpty result.requiredEffects) then RT.Purity.Impure
+          elif result.complete then RT.Purity.Pure
+          else RT.Purity.Unknown
+        with _ ->
+          counts.Add RT.SpreadCount.PredictionFailures
+          RT.Purity.Unknown
+      memo[hash] <- answer
+      answer
 
 /// One root's closure, analyzed: what an approval reviews.
 type ClosureAnalysis =
@@ -242,16 +222,14 @@ let analyzeClosure
   (load : Load)
   (callEffectsFor : CallEffectsFor)
   (rootHash : string)
-  : Ply<Option<ClosureAnalysis>> =
-  uply {
-    let root = PT.Hash rootHash
-    let! closure = loadClosure load root
-    match Map.tryFind root closure with
-    | None -> return None
-    | Some(rootFn, _) ->
-      let rootRequirements = Requirements.forFunction callEffectsFor closure root
-      return Some { root = rootFn; rootRequirements = rootRequirements }
-  }
+  : Option<ClosureAnalysis> =
+  let root = PT.Hash rootHash
+  let closure = loadClosure load root
+  match Map.tryFind root closure with
+  | None -> None
+  | Some(rootFn, _) ->
+    let rootRequirements = Requirements.forFunction callEffectsFor closure root
+    Some { root = rootFn; rootRequirements = rootRequirements }
 
 
 // ── upgrade contracts ─────────────────────────────────────────────────────────
@@ -281,37 +259,33 @@ let compareContracts
   (callEffectsFor : CallEffectsFor)
   (oldHash : string)
   (candidate : ClosureAnalysis)
-  : Ply<ContractComparison> =
-  uply {
-    let oldRoot = PT.Hash oldHash
-    let! oldClosure = loadClosure load oldRoot
-    match Map.tryFind oldRoot oldClosure with
-    | None ->
-      return
-        ContractComparison.Changed
-          [ P.ApprovalReviewReason.ApprovedVersionUnavailable oldHash ]
-    | Some(oldFn, _) ->
-      let oldRequirements =
-        Requirements.forFunction callEffectsFor oldClosure oldRoot
-      let newRequirements = candidate.rootRequirements
-      let differences =
-        [ if signatureOf oldFn <> signatureOf candidate.root then
-            P.ApprovalReviewReason.FunctionTypeChanged
-          if not (oldRequirements.complete && newRequirements.complete) then
-            P.ApprovalReviewReason.PermissionAnalysisIncomplete
-          else
-            let before = permissionEffects oldRequirements
-            let after = permissionEffects newRequirements
-            if before <> after then
-              P.ApprovalReviewReason.RequiredPermissionsChanged(
-                Set.toList before,
-                Set.toList after
-              ) ]
-      if List.isEmpty differences then
-        return ContractComparison.Match
-      else
-        return ContractComparison.Changed differences
-  }
+  : ContractComparison =
+  let oldRoot = PT.Hash oldHash
+  let oldClosure = loadClosure load oldRoot
+  match Map.tryFind oldRoot oldClosure with
+  | None ->
+    ContractComparison.Changed
+      [ P.ApprovalReviewReason.ApprovedVersionUnavailable oldHash ]
+  | Some(oldFn, _) ->
+    let oldRequirements = Requirements.forFunction callEffectsFor oldClosure oldRoot
+    let newRequirements = candidate.rootRequirements
+    let differences =
+      [ if signatureOf oldFn <> signatureOf candidate.root then
+          P.ApprovalReviewReason.FunctionTypeChanged
+        if not (oldRequirements.complete && newRequirements.complete) then
+          P.ApprovalReviewReason.PermissionAnalysisIncomplete
+        else
+          let before = permissionEffects oldRequirements
+          let after = permissionEffects newRequirements
+          if before <> after then
+            P.ApprovalReviewReason.RequiredPermissionsChanged(
+              Set.toList before,
+              Set.toList after
+            ) ]
+    if List.isEmpty differences then
+      ContractComparison.Match
+    else
+      ContractComparison.Changed differences
 
 /// What reviewing a candidate version found, before anything is stored.
 [<RequireQualifiedAccess>]
@@ -334,40 +308,37 @@ let reviewVersion
   (explicitPolicy : Option<P.Policy>)
   (acknowledgeIncomplete : bool)
   (acknowledgeContractChange : bool)
-  : Ply<Result<Review, string>> =
-  uply {
-    match! analyzeClosure load callEffectsFor hash with
-    | None -> return Error $"cannot approve unknown package-function hash: {hash}"
-    | Some candidate ->
-      // Check completeness for the approved root, not each dependency. A
-      // dependency may pass on a callback supplied by its caller; that is only
-      // incomplete when the dependency itself is the root being approved.
-      match candidate.rootRequirements.complete with
-      | false when explicitPolicy.IsNone && not acknowledgeIncomplete ->
-        return
-          Error
-            "Effect analysis is incomplete. Supply explicit rules, or acknowledge an approval with no additional access."
+  : Result<Review, string> =
+  match analyzeClosure load callEffectsFor hash with
+  | None -> Error $"cannot approve unknown package-function hash: {hash}"
+  | Some candidate ->
+    // Check completeness for the approved root, not each dependency. A
+    // dependency may pass on a callback supplied by its caller; that is only
+    // incomplete when the dependency itself is the root being approved.
+    match candidate.rootRequirements.complete with
+    | false when explicitPolicy.IsNone && not acknowledgeIncomplete ->
+      Error
+        "Effect analysis is incomplete. Supply explicit rules, or acknowledge an approval with no additional access."
+    | _ ->
+      let comparison =
+        match previousApproval with
+        | Some existing when existing <> hash ->
+          compareContracts load callEffectsFor existing candidate
+        | _ -> ContractComparison.Match
+      match comparison with
+      | ContractComparison.Changed differences when not acknowledgeContractChange ->
+        Ok(Review.ContractChanged differences)
       | _ ->
-        let! comparison =
-          match previousApproval with
-          | Some existing when existing <> hash ->
-            compareContracts load callEffectsFor existing candidate
-          | _ -> Ply ContractComparison.Match
-        match comparison with
-        | ContractComparison.Changed differences when not acknowledgeContractChange ->
-          return Ok(Review.ContractChanged differences)
-        | _ ->
-          let rootPolicy =
-            match explicitPolicy with
-            | Some policy -> policy
-            | None ->
-              if candidate.rootRequirements.complete then
-                P.Policy.allowEffects (permissionEffects candidate.rootRequirements)
-              else
-                P.Policy.denyAll
-          let policies = [ hash, rootPolicy ]
-          return Ok(Review.Approvable policies)
-  }
+        let rootPolicy =
+          match explicitPolicy with
+          | Some policy -> policy
+          | None ->
+            if candidate.rootRequirements.complete then
+              P.Policy.allowEffects (permissionEffects candidate.rootRequirements)
+            else
+              P.Policy.denyAll
+        let policies = [ hash, rootPolicy ]
+        Ok(Review.Approvable policies)
 
 /// What [approveVersionForName] did with a request that storage accepted.
 [<RequireQualifiedAccess>]
@@ -390,39 +361,37 @@ let reviewVersionForName
   (explicitPolicy : Option<P.Policy>)
   (acknowledgeIncomplete : bool)
   (fingerprint : string)
-  : Ply<Result<bool * List<P.ApprovalReviewReason>, string>> =
-  uply {
-    let snapshot = LibDB.PolicyStore.get ()
-    if LibDB.PolicyStore.reviewToken snapshot <> expected then
-      return Error "Permissions changed during review. Review the approval again."
-    else
-      let current = Map.tryFind (accountID, location) snapshot.approvals
-      let acknowledgeContractChange = false
-      match!
-        reviewVersion
-          load
-          callEffectsFor
-          (current |> Option.map _.hash)
-          hash
-          explicitPolicy
-          acknowledgeIncomplete
-          acknowledgeContractChange
-      with
-      | Error message -> return Error message
-      | Ok(Review.Approvable policies) ->
-        let policy =
-          policies
-          |> List.tryPick (fun (h, policy) -> if h = hash then Some policy else None)
-          |> Option.defaultValue P.Policy.denyAll
-        let proposed : LibDB.PolicyStore.Approval =
-          { hash = hash
-            policy = policy
-            fingerprint = fingerprint
-            explicitRules = explicitPolicy.IsSome }
-        let needsSave = current <> Some proposed
-        return Ok(needsSave, [])
-      | Ok(Review.ContractChanged reasons) -> return Ok(true, reasons)
-  }
+  : Result<bool * List<P.ApprovalReviewReason>, string> =
+  let snapshot = LibDB.PolicyStore.get ()
+  if LibDB.PolicyStore.reviewToken snapshot <> expected then
+    Error "Permissions changed during review. Review the approval again."
+  else
+    let current = Map.tryFind (accountID, location) snapshot.approvals
+    let acknowledgeContractChange = false
+    match
+      reviewVersion
+        load
+        callEffectsFor
+        (current |> Option.map _.hash)
+        hash
+        explicitPolicy
+        acknowledgeIncomplete
+        acknowledgeContractChange
+    with
+    | Error message -> Error message
+    | Ok(Review.Approvable policies) ->
+      let policy =
+        policies
+        |> List.tryPick (fun (h, policy) -> if h = hash then Some policy else None)
+        |> Option.defaultValue P.Policy.denyAll
+      let proposed : LibDB.PolicyStore.Approval =
+        { hash = hash
+          policy = policy
+          fingerprint = fingerprint
+          explicitRules = explicitPolicy.IsSome }
+      let needsSave = current <> Some proposed
+      Ok(needsSave, [])
+    | Ok(Review.ContractChanged reasons) -> Ok(true, reasons)
 
 /// Review a named immutable version and, if it passes, approve it for that name -- atomically.
 /// Analysis and contract checks happen before storage installs the closure approval.
@@ -437,42 +406,39 @@ let approveVersionForName
   (acknowledgeIncomplete : bool)
   (acknowledgeContractChange : bool)
   (fingerprint : string)
-  : Ply<Result<ApprovalOutcome, string>> =
-  uply {
-    let snapshot = LibDB.PolicyStore.get ()
-    if LibDB.PolicyStore.reviewToken snapshot <> expected then
-      return Error "Permissions changed during review. Review the approval again."
-    else
-      let current =
-        Map.tryFind (accountID, location) snapshot.approvals |> Option.map _.hash
-      match!
-        reviewVersion
-          load
-          callEffectsFor
-          current
-          hash
-          explicitPolicy
-          acknowledgeIncomplete
-          acknowledgeContractChange
-      with
-      | Error message -> return Error message
-      | Ok(Review.ContractChanged differences) ->
-        return Ok(ApprovalOutcome.ContractChanged differences)
-      | Ok(Review.Approvable policies) ->
-        return
-          LibDB.PolicyStore.recordApproval
-            accountID
-            location
-            expected
-            { hash = hash
-              policy =
-                policies
-                |> List.tryPick (fun (h, p) -> if h = hash then Some p else None)
-                |> Option.defaultValue P.Policy.denyAll
-              fingerprint = fingerprint
-              explicitRules = explicitPolicy.IsSome }
-          |> Result.map (fun () -> ApprovalOutcome.Approved)
-  }
+  : Result<ApprovalOutcome, string> =
+  let snapshot = LibDB.PolicyStore.get ()
+  if LibDB.PolicyStore.reviewToken snapshot <> expected then
+    Error "Permissions changed during review. Review the approval again."
+  else
+    let current =
+      Map.tryFind (accountID, location) snapshot.approvals |> Option.map _.hash
+    match
+      reviewVersion
+        load
+        callEffectsFor
+        current
+        hash
+        explicitPolicy
+        acknowledgeIncomplete
+        acknowledgeContractChange
+    with
+    | Error message -> Error message
+    | Ok(Review.ContractChanged differences) ->
+      Ok(ApprovalOutcome.ContractChanged differences)
+    | Ok(Review.Approvable policies) ->
+      LibDB.PolicyStore.recordApproval
+        accountID
+        location
+        expected
+        { hash = hash
+          policy =
+            policies
+            |> List.tryPick (fun (h, p) -> if h = hash then Some p else None)
+            |> Option.defaultValue P.Policy.denyAll
+          fingerprint = fingerprint
+          explicitRules = explicitPolicy.IsSome }
+      |> Result.map (fun () -> ApprovalOutcome.Approved)
 
 /// Explain each effect by showing the calls that lead to it. `Raise` follows `Raises.path`.
 /// This does not grant access; permission checks use the actual resource.
@@ -480,38 +446,36 @@ let explain
   (load : Load)
   (callEffectsFor : CallEffectsFor)
   (hash : string)
-  : Ply<Requirements.Result * List<LibExecution.Effects.Effect * List<string>>> =
-  uply {
-    let root = PT.Hash hash
-    let! closure = loadClosure load root
-    let labels = System.Collections.Generic.Dictionary<PT.Hash, string>()
-    for KeyValue(_, (_, summary)) in closure do
-      for site in summary.calls do
-        match site.target, site.location with
-        | Calls.CallTarget.Named(PT.FQFnName.Package hash), Some loc ->
-          labels[hash] <- String.concat "." (loc.owner :: loc.modules @ [ loc.name ])
-        | _ -> ()
-    let name (PT.Hash h as hash) =
-      match labels.TryGetValue hash with
-      | true, name -> name
-      | _ -> "function " + h.Substring(0, min 12 h.Length)
-    let reasons =
-      (match Map.tryFind root closure with
-       | Some(_, calls) -> Requirements.effectPaths callEffectsFor closure calls
-       | None -> Map.empty)
-      |> Map.map (fun path ->
-        path
-        |> List.map (function
-          | PT.FQFnName.Package hash -> name hash
-          | PT.FQFnName.Builtin b -> "Builtin." + b.name
-          | PT.FQFnName.TraitMethod _ -> "unresolved trait method"))
-    let! names = Raises.fnNames (Map.keys closure)
-    let nameOf hash =
-      Map.tryFind hash names |> Option.defaultWith (fun () -> name hash)
-    let raisePath = Raises.path callEffectsFor nameOf closure root
-    let reasons =
-      match raisePath with
-      | Some path -> Map.add LibExecution.Effects.Effect.Raise path reasons
-      | None -> Map.remove LibExecution.Effects.Effect.Raise reasons
-    return Requirements.forFunction callEffectsFor closure root, Map.toList reasons
-  }
+  : Requirements.Result * List<LibExecution.Effects.Effect * List<string>> =
+  let root = PT.Hash hash
+  let closure = loadClosure load root
+  let labels = System.Collections.Generic.Dictionary<PT.Hash, string>()
+  for KeyValue(_, (_, summary)) in closure do
+    for site in summary.calls do
+      match site.target, site.location with
+      | Calls.CallTarget.Named(PT.FQFnName.Package hash), Some loc ->
+        labels[hash] <- String.concat "." (loc.owner :: loc.modules @ [ loc.name ])
+      | _ -> ()
+  let name (PT.Hash h as hash) =
+    match labels.TryGetValue hash with
+    | true, name -> name
+    | _ -> "function " + h.Substring(0, min 12 h.Length)
+  let reasons =
+    (match Map.tryFind root closure with
+     | Some(_, calls) -> Requirements.effectPaths callEffectsFor closure calls
+     | None -> Map.empty)
+    |> Map.map (fun path ->
+      path
+      |> List.map (function
+        | PT.FQFnName.Package hash -> name hash
+        | PT.FQFnName.Builtin b -> "Builtin." + b.name
+        | PT.FQFnName.TraitMethod _ -> "unresolved trait method"))
+  let names = Raises.fnNames (Map.keys closure)
+  let nameOf hash =
+    Map.tryFind hash names |> Option.defaultWith (fun () -> name hash)
+  let raisePath = Raises.path callEffectsFor nameOf closure root
+  let reasons =
+    match raisePath with
+    | Some path -> Map.add LibExecution.Effects.Effect.Raise path reasons
+    | None -> Map.remove LibExecution.Effects.Effect.Raise reasons
+  Requirements.forFunction callEffectsFor closure root, Map.toList reasons

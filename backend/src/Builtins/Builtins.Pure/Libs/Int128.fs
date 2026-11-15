@@ -17,7 +17,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an <type Int128> to a <type String>"
       fn =
         (function
-        | _, _, _, [| DInt128 a |] -> Ply(DString(string a))
+        | _, _, _, [| DInt128 a |] -> (DString(string a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -31,7 +31,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an <type Int128> to a <type Float64>"
       fn =
         (function
-        | _, _, _, [| DInt128 a |] -> Ply(DFloat64(float a))
+        | _, _, _, [| DInt128 a |] -> (DFloat64(float a))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

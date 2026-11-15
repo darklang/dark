@@ -6,7 +6,6 @@
 module LibDB.Deprecations
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.ProgramTypes
@@ -46,31 +45,29 @@ let standing
   (location : PT.PackageLocation)
   (itemHash : Hash)
   (itemKind : PT.ItemKind)
-  : Task<Option<PT.DeprecationKind * string>> =
-  task {
-    let (Hash itemHashStr) = itemHash
+  : Option<PT.DeprecationKind * string> =
+  let (Hash itemHashStr) = itemHash
 
-    let! rows =
-      Sql.query
-        "SELECT branch_id, draft, state, annotation_blob FROM deprecations
-         WHERE item_hash = @item_hash AND item_kind = @item_kind AND live = 1
-           AND owner = @owner AND modules = @modules AND name = @name"
-      |> Sql.parameters
-        [ "item_hash", Sql.string itemHashStr
-          "item_kind", Sql.string (itemKind.toString ())
-          "owner", Sql.string location.owner
-          "modules", Sql.string (String.concat "." location.modules)
-          "name", Sql.string location.name ]
-      |> Sql.executeAsync (fun read ->
-        (read.string "branch_id",
-         read.int64 "draft" <> 0L,
-         (read.string "state", read.bytesOrNone "annotation_blob")))
-    let row = Layers.pick (Layers.chainOf branch) rows
+  let rows =
+    Sql.query
+      "SELECT branch_id, draft, state, annotation_blob FROM deprecations
+       WHERE item_hash = @item_hash AND item_kind = @item_kind AND live = 1
+         AND owner = @owner AND modules = @modules AND name = @name"
+    |> Sql.parameters
+      [ "item_hash", Sql.string itemHashStr
+        "item_kind", Sql.string (itemKind.toString ())
+        "owner", Sql.string location.owner
+        "modules", Sql.string (String.concat "." location.modules)
+        "name", Sql.string location.name ]
+    |> Sql.executeRows (fun read ->
+      (read.string "branch_id",
+       read.int64 "draft" <> 0L,
+       (read.string "state", read.bytesOrNone "annotation_blob")))
+  let row = Layers.pick (Layers.chainOf branch) rows
 
-    match row with
-    | Some("deprecated", Some blob) -> return deserializeAnnotation blob
-    | _ -> return None
-  }
+  match row with
+  | Some("deprecated", Some blob) -> deserializeAnnotation blob
+  | _ -> None
 
 
 /// Whether an annotation says Harmful. A blob that will not parse answers no, so the fn runs: failing
@@ -92,14 +89,14 @@ type AtName =
 
 /// Every name <param branch> sees deprecated. Synchronous, for `Queries.getHarmfulFnHashesSync`,
 /// which cannot wait.
-let deprecatedNamesSync (branch : PT.BranchId) : List<AtName> =
+let deprecatedNames (branch : PT.BranchId) : List<AtName> =
   Sql.query (
     Layers.view "@" Layers.deprecations
     + " SELECT owner, modules, name, item_hash, item_kind, annotation_blob
         FROM visible WHERE state = 'deprecated'"
   )
   |> Sql.parameters (Layers.sqlParams branch true)
-  |> Sql.executeRowsSync (fun read ->
+  |> Sql.executeRows (fun read ->
     { owner = read.string "owner"
       modules = read.string "modules"
       name = read.string "name"
@@ -134,7 +131,7 @@ let private contentOf
       |> Sql.parameters (
         ("hashes", Sql.string (jsonStrings hashes)) :: Layers.sqlParams branch true
       )
-      |> Sql.executeRowsSync (fun read ->
+      |> Sql.executeRows (fun read ->
         ((read.string "owner", read.string "modules", read.string "name"),
          read.string "item_hash",
          read.string "item_type"))
@@ -153,30 +150,22 @@ let private contentOf
 /// query costs more to compile than to run.
 let private deprecatedCached =
   Caching.withCache (fun (branch : PT.BranchId) ->
-    uply {
-      let names = deprecatedNamesSync branch
-      return Some(names, contentOf branch names)
-    })
+    let names = deprecatedNames branch
+    Some(names, contentOf branch names))
 
 let private cached (branch : PT.BranchId) =
-  task {
-    match! Ply.toTask (deprecatedCached branch) with
-    | Some found -> return found
-    | None -> return ([], [])
-  }
+  match (deprecatedCached branch) with
+  | Some found -> found
+  | None -> ([], [])
 
 /// The content <param branch> sees deprecated: (hash, kind, annotation). See <fn contentOf>.
 let deprecatedIn
   (branch : PT.BranchId)
-  : Task<List<string * string * Option<byte array>>> =
-  task {
-    let! (_, content) = cached branch
-    return content
-  }
+  : List<string * string * Option<byte array>> =
+  let (_, content) = cached branch
+  content
 
 /// Every name <param branch> sees deprecated.
-let deprecatedNamesIn (branch : PT.BranchId) : Task<List<AtName>> =
-  task {
-    let! (names, _) = cached branch
-    return names
-  }
+let deprecatedNamesIn (branch : PT.BranchId) : List<AtName> =
+  let (names, _) = cached branch
+  names

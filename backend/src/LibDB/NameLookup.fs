@@ -49,23 +49,21 @@ let namesToTry
 let findFirstPackageMatch
   (currentModule : List<string>)
   (genericName : GenericName)
-  (findInPM : PT.PackageLocation -> Ply<Option<Hash>>)
-  : Ply<Option<Hash * PT.PackageLocation>> =
+  (findInPM : PT.PackageLocation -> Option<Hash>)
+  : Option<Hash * PT.PackageLocation> =
   Telemetry.count "pkg.nameLookup"
-  Ply.List.foldSequentially
+  List.fold
     (fun acc (candidate : GenericName) ->
       match acc with
-      | Some _ -> Ply acc
+      | Some _ -> acc
       | None ->
-        uply {
-          match candidate.modules with
-          | [] -> return None
-          | owner :: mods ->
-            let loc : PT.PackageLocation =
-              { owner = owner; modules = mods; name = candidate.name }
-            match! findInPM loc with
-            | Some hash -> return Some(hash, loc)
-            | None -> return None
-        })
+        match candidate.modules with
+        | [] -> None
+        | owner :: mods ->
+          let loc : PT.PackageLocation =
+            { owner = owner; modules = mods; name = candidate.name }
+          match findInPM loc with
+          | Some hash -> Some(hash, loc)
+          | None -> None)
     None
     (namesToTry currentModule genericName)

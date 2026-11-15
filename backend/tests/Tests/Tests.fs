@@ -152,11 +152,10 @@ let main (args : string array) : int =
 
     // Grow the DB from seed if needed. Builtins are deferred (constructed after
     // hashes are generated) because builtin construction triggers hash lookups.
-    (LibDB.Seed.growIfNeeded
+    LibDB.Seed.growIfNeeded
       (fun () -> TestUtils.TestUtils.localBuiltIns TestUtils.TestUtils.pmPT)
       TestUtils.TestUtils.pmRT
-      (fun msg -> System.Console.Error.WriteLine msg))
-      .Result
+      (fun msg -> System.Console.Error.WriteLine msg)
     |> ignore<bool>
 
     // Before any test touches the store: every CLI instance starts from this.

@@ -38,7 +38,7 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DUnit |] ->
           vm.stats.reset ()
           vm.stats.enabled <- true
-          DUnit |> Ply
+          DUnit
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -60,7 +60,7 @@ let fns () : List<BuiltInFn> =
           // Counting has to be on for timing to record anything; asking for timing implies it.
           if enabled then vm.stats.enabled <- true
           vm.stats.detailedTiming <- enabled
-          DUnit |> Ply
+          DUnit
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -81,7 +81,7 @@ let fns () : List<BuiltInFn> =
           // `precise: true` walks every thread's allocation context. Slower, but the imprecise
           // version rounds to allocation-context refills, which is coarse enough to hide a whole
           // request's worth of work.
-          Dval.dint64 (System.GC.GetTotalAllocatedBytes true) |> Ply
+          Dval.dint64 (System.GC.GetTotalAllocatedBytes true)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -130,16 +130,11 @@ let fns () : List<BuiltInFn> =
                       LibExecution.RuntimeTypes.Opcode.names[i]
                     else
                       string i
-                  let syncPart =
-                    if s.syncHitByOpcode[i] > 0L || s.syncMissByOpcode[i] > 0L then
-                      $",\"syncHit\":{s.syncHitByOpcode[i]},\"syncMiss\":{s.syncMissByOpcode[i]}"
-                    else
-                      ""
-                  $"\"{name}\":{{\"bytes\":{s.allocByOpcode[i]},\"n\":{s.countByOpcode[i]}{syncPart}}}" ]
+                  $"\"{name}\":{{\"bytes\":{s.allocByOpcode[i]},\"n\":{s.countByOpcode[i]}}}" ]
 
           // Per-stage bytes and counts for the Apply path. Read the fine-grained stages only: the
           // three totals (`apply.total`, `bi.total`, `lambda.total`) bracket across the builtin's
-          // `Ply`, so they measure nested execution and can exceed what the process allocated.
+          // call, so they measure nested execution and can exceed what the process allocated.
           // `stats.builtinAlloc` has the same defect, so it is collected but not reported.
           let byStage =
             [ for i in 0 .. s.countByStage.Length - 1 do
@@ -192,7 +187,6 @@ let fns () : List<BuiltInFn> =
           @ section "packageFnTiming" (timings s.packageFnTiming s.packageFnCounts)
           |> jsonObject
           |> DString
-          |> Ply
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty

@@ -7,7 +7,6 @@
 module LibDB.ScmBindings
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -87,11 +86,9 @@ let private run
   (sql : string)
   (parameters : List<string * Microsoft.Data.Sqlite.SqliteParameter>)
   (read : RowReader -> Option<Binding>)
-  : Task<List<Binding>> =
-  task {
-    let! rows = Sql.query sql |> Sql.parameters parameters |> Sql.executeAsync read
-    return List.choose identity rows
-  }
+  : List<Binding> =
+  let rows = Sql.query sql |> Sql.parameters parameters |> Sql.executeRows read
+  List.choose identity rows
 
 let private nameParams
   (n : Name)
@@ -143,7 +140,7 @@ let private fullCols =
 
 let private view (b : PT.BranchId) = Layers.sqlParams b true
 
-let query (q : Query) : Task<List<Binding>> =
+let query (q : Query) : List<Binding> =
   match q with
   | LocationOf(b, hash) ->
     run
@@ -156,7 +153,7 @@ let query (q : Query) : Task<List<Binding>> =
 
   | ByBareNames(b, names) ->
     if List.isEmpty names then
-      Task.FromResult []
+      []
     else
       run
         (visibleSql (
@@ -173,7 +170,7 @@ let query (q : Query) : Task<List<Binding>> =
       | CommittedAt _ -> Layers.committedSqlParams b
       | _ -> view b
     if List.isEmpty names then
-      Task.FromResult []
+      []
     else
       run
         (visibleSql (
@@ -217,7 +214,7 @@ let query (q : Query) : Task<List<Binding>> =
 
   | EverBound(b, keys) ->
     if List.isEmpty keys then
-      Task.FromResult []
+      []
     else
       let keysJson =
         keys
@@ -257,7 +254,7 @@ let query (q : Query) : Task<List<Binding>> =
 
   | ByHashes(b, hashes) ->
     if List.isEmpty hashes then
-      Task.FromResult []
+      []
     else
       run
         (visibleSql

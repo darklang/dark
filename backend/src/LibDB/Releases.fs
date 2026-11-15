@@ -26,13 +26,13 @@ let private hasColumn (table : string) (column : string) : bool =
   // literal in this file, never caller input.
   Sql.query $"SELECT 1 AS n FROM pragma_table_info('{table}') WHERE name = @c"
   |> Sql.parameters [ "c", Sql.string column ]
-  |> Sql.executeExistsSync
+  |> Sql.executeExists
 
 
 let private tableExists (table : string) : bool =
   Sql.query "SELECT 1 AS n FROM sqlite_master WHERE type = 'table' AND name = @t"
   |> Sql.parameters [ "t", Sql.string table ]
-  |> Sql.executeExistsSync
+  |> Sql.executeExists
 
 
 /// Create a table, or do nothing if it is already there (the FRESH store, where the schema just
@@ -40,7 +40,7 @@ let private tableExists (table : string) : bool =
 let createTableIfMissing (table : string) (ddl : string) : unit =
   if not (tableExists table) then
     System.Console.Error.WriteLine $"  release: adding {table}"
-    Sql.query ddl |> Sql.executeStatementSync
+    Sql.query ddl |> Sql.executeStatement
 
 
 /// Add a column, or do nothing if it is already there (the FRESH store, where the schema just declared
@@ -53,7 +53,7 @@ let addColumnIfMissing
   if tableExists table && not (hasColumn table column) then
     System.Console.Error.WriteLine $"  release: adding {table}.{column}"
     Sql.query $"ALTER TABLE {table} ADD COLUMN {column} {declaration}"
-    |> Sql.executeStatementSync
+    |> Sql.executeStatement
 
 
 /// The package and SCM tables of a store made before names, deprecations and docs were kept per
@@ -137,7 +137,7 @@ exception StepFailed of step : string * inner : exn
 let populateOpKinds () : unit =
   let rows =
     Sql.query "SELECT id, op_blob FROM package_ops WHERE op_kind = 'unknown'"
-    |> Sql.executeRowsSync (fun r -> r.uuid "id", r.bytes "op_blob")
+    |> Sql.executeRows (fun r -> r.uuid "id", r.bytes "op_blob")
   let updates =
     rows
     |> List.choose (fun (id, blob) ->
@@ -193,7 +193,7 @@ let private alreadyRun () : Set<string> =
     Set.empty
   else
     Sql.query "SELECT name FROM system_migrations_v0"
-    |> Sql.executeRowsSync (fun read -> read.string "name")
+    |> Sql.executeRows (fun read -> read.string "name")
     |> Set.ofList
 
 
@@ -317,7 +317,7 @@ let runPending () : unit =
           // The `sql` column wants the statement that ran; a code step has no single statement, so name
           // the step rather than leaving it empty.
           "sql", Sql.string $"(release step: {step.name})" ]
-      |> Sql.executeStatementSync
+      |> Sql.executeStatement
 
 
   // A newer decoder can classify ops an older build stored as 'unknown'; reclassify them on

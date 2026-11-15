@@ -169,26 +169,23 @@ let private streamToBytes () : List<Result> =
     let _, sample =
       measure (fun () ->
         let mutable yielded = false
-        let nextChunk (_max : int) : Ply<Option<byte[]>> =
-          uply {
-            if yielded then
-              return None
-            else
-              yielded <- true
-              return Some payload
-          }
+        let nextChunk
+          (_max : int)
+          : System.Threading.Tasks.ValueTask<Option<byte[]>> =
+          if yielded then
+            System.Threading.Tasks.ValueTask<_>(None)
+          else
+            yielded <- true
+            System.Threading.Tasks.ValueTask<_>(Some payload)
         let stream = Stream.newChunked VT.uint8 nextChunk None
         let collected = new System.IO.MemoryStream()
-        let rec drain () : Ply<unit> =
-          uply {
-            let! chunk = Stream.readChunk 65536 stream
-            match chunk with
-            | Some bs ->
-              collected.Write(bs, 0, bs.Length)
-              return! drain ()
-            | None -> return ()
-          }
-        drain () |> Ply.toTask |> _.Wait()
+        let rec drain () : unit =
+          match (Stream.readChunk 65536 stream).Result with
+          | Some bs ->
+            collected.Write(bs, 0, bs.Length)
+            drain ()
+          | None -> ()
+        drain ()
         ignore<RT.Dval> (Bytes.newEphemeral (collected.ToArray())))
     mkResult "streamToBytes" size 1 "chunked-drain" sample)
 

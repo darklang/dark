@@ -43,13 +43,12 @@ module RoundtripTests =
     testTask testName {
       let firstDT = toDT original
 
-      let! typeChecked =
+      let typeChecked =
         LibExecution.TypeChecker.unify
           types
           RT.TST.empty
           (RT.TCustomType(NR.ok typeName, []))
           firstDT
-        |> Ply.toTask
 
       let msg =
         match typeChecked with

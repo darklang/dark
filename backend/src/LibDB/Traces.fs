@@ -14,7 +14,6 @@
 module LibDB.Traces
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open Fumble
@@ -351,29 +350,27 @@ let setStatus (id : System.Guid) (status : Status) : unit =
 
 /// Read CLI input without decoding the trace's result or display value.
 /// Corrupt values there must not block a rerun.
-let getCliInput (id : System.Guid) : Task<Option<ScriptOrEvalInput>> =
-  task {
-    let! row =
-      Sql.query
-        $"SELECT {ScriptOrEvalInput.selectColumns}
-          FROM trace_cli_invocations cli WHERE cli.trace_id = @id"
-      |> Sql.parameters [ "id", Sql.uuid id ]
-      |> Sql.executeRowOptionAsync ScriptOrEvalInput.fromColumns
-    return Option.flatten row
-  }
+let getCliInput (id : System.Guid) : Option<ScriptOrEvalInput> =
+  let row =
+    Sql.query
+      $"SELECT {ScriptOrEvalInput.selectColumns}
+        FROM trace_cli_invocations cli WHERE cli.trace_id = @id"
+    |> Sql.parameters [ "id", Sql.uuid id ]
+    |> Sql.executeRowOption ScriptOrEvalInput.fromColumns
+  Option.flatten row
 
-let get (id : System.Guid) : Task<Option<Trace>> =
+let get (id : System.Guid) : Option<Trace> =
   Sql.query $"SELECT {columns} {fromTraces} WHERE traces.id = @id"
   |> Sql.parameters [ "id", Sql.uuid id ]
-  |> Sql.executeRowOptionAsync readRow
+  |> Sql.executeRowOption readRow
 
 /// The most recent `limit`, newest first.
-let list (limit : int) : Task<List<Trace>> =
+let list (limit : int) : List<Trace> =
   Sql.query
     $"SELECT {columns} {fromTraces}
       ORDER BY traces.timestamp DESC, traces.rowid DESC LIMIT @limit"
   |> Sql.parameters [ "limit", Sql.int limit ]
-  |> Sql.executeAsync readRow
+  |> Sql.executeRows readRow
 
 /// Which handler served a request, recorded once the response is known.
 /// What the run answered. Written once, when the run ends well; a run that failed or was
@@ -399,42 +396,37 @@ let setEntryHash (id : System.Guid) (hash : string) : unit =
   |> ignore<List<int>>
 
 /// Pin a run so retention never drops it, or unpin it. False when no run has that id.
-let setPinned (id : string) (pinned : bool) : Task<bool> =
-  task {
-    let! changed =
-      Sql.query
-        "UPDATE traces SET pinned = @pinned, updated = @updated WHERE id = @id"
-      |> Sql.parameters
-        [ "id", Sql.string id
-          "pinned", Sql.int (if pinned then 1 else 0)
-          "updated", Sql.string (now ()) ]
-      |> Sql.executeNonQueryAsync
-    return changed > 0
-  }
+let setPinned (id : string) (pinned : bool) : bool =
+  let changed =
+    Sql.query "UPDATE traces SET pinned = @pinned, updated = @updated WHERE id = @id"
+    |> Sql.parameters
+      [ "id", Sql.string id
+        "pinned", Sql.int (if pinned then 1 else 0)
+        "updated", Sql.string (now ()) ]
+    |> Sql.executeCount
+  changed > 0
 
 /// The ids that start with `prefix`, newest first, at most `limit` of them.
 ///
 /// The prefix is bound as a parameter, never spliced into the SQL, and its `\`, `%` and `_`
 /// are escaped, so whatever was typed (a quote included) is matched as plain text.
-let idsStartingWith (prefix : string) (limit : int) : Task<List<string>> =
+let idsStartingWith (prefix : string) (limit : int) : List<string> =
   let escaped = prefix.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_")
   Sql.query
     @"SELECT id FROM traces WHERE id LIKE @pattern ESCAPE '\'
       ORDER BY rowid DESC LIMIT @limit"
   |> Sql.parameters [ "pattern", Sql.string (escaped + "%"); "limit", Sql.int limit ]
-  |> Sql.executeAsync (fun read -> read.string "id")
+  |> Sql.executeRows (fun read -> read.string "id")
 
 /// When the log a run replays was recorded: its own start, or for a fork, the start of the run
 /// at the root of its lineage, since a fork's log is a copy of that run's.
-let rec recordedAt (e : Trace) : Task<string> =
-  task {
-    match e.parent with
-    | Some(pid, _) ->
-      match! get pid with
-      | Some p -> return! recordedAt p
-      | None -> return e.created
-    | None -> return e.created
-  }
+let rec recordedAt (e : Trace) : string =
+  match e.parent with
+  | Some(pid, _) ->
+    match get pid with
+    | Some p -> recordedAt p
+    | None -> e.created
+  | None -> e.created
 
 /// The effectful calls a trace recorded, as `(process, ordinal, answer, what was called)`, in
 /// completion order. What a replay tracer answers from, and what it checks each call against
@@ -444,149 +436,141 @@ let rec recordedAt (e : Trace) : Task<string> =
 /// and goes on replaying.
 let log
   (id : System.Guid)
-  : Task<List<System.Guid * int64 * RT.Tracing.ReplayStep * Tracing.RecordedCall>> =
-  task {
-    let! rows =
-      Sql.query
-        "SELECT c.process_id, c.ord, c.fn_hash, c.args, r.bytes AS result
-         FROM trace_fn_calls c
-         JOIN trace_blobs r ON r.trace_id = c.trace_id AND r.hash = c.result
-         WHERE c.trace_id = @t AND c.ord >= 0 ORDER BY c.seq"
-      |> Sql.parameters [ "t", Sql.uuid id ]
-      |> Sql.executeAsync (fun read ->
-        read.string "process_id",
-        read.int64 "ord",
-        (read.stringOrNone "fn_hash" |> Option.defaultValue ""),
-        read.bytes "args",
-        read.bytes "result")
-    return
-      rows
-      |> List.choose (fun (pid, ord, builtin, argBytes, bytes) ->
-        // '' is a run nobody scheduled (a plain `execute`): its process is `Guid.Empty`.
-        let g =
-          match System.Guid.TryParse pid with
-          | true, g -> g
-          | _ -> System.Guid.Empty
-        // Arguments that cannot be read back still leave the builtin's name to check; the
-        // check is weaker there and nothing is refused for it.
-        let args =
-          try
-            match BinarySer.RT.Dval.deserialize "trace_fn_calls.args" argBytes with
-            | RT.DList(_, RT.Items(items)) -> Some items
+  : List<System.Guid * int64 * RT.Tracing.ReplayStep * Tracing.RecordedCall> =
+  let rows =
+    Sql.query
+      "SELECT c.process_id, c.ord, c.fn_hash, c.args, r.bytes AS result
+       FROM trace_fn_calls c
+       JOIN trace_blobs r ON r.trace_id = c.trace_id AND r.hash = c.result
+       WHERE c.trace_id = @t AND c.ord >= 0 ORDER BY c.seq"
+    |> Sql.parameters [ "t", Sql.uuid id ]
+    |> Sql.executeRows (fun read ->
+      read.string "process_id",
+      read.int64 "ord",
+      (read.stringOrNone "fn_hash" |> Option.defaultValue ""),
+      read.bytes "args",
+      read.bytes "result")
+  rows
+  |> List.choose (fun (pid, ord, builtin, argBytes, bytes) ->
+    // '' is a run nobody scheduled (a plain `execute`): its process is `Guid.Empty`.
+    let g =
+      match System.Guid.TryParse pid with
+      | true, g -> g
+      | _ -> System.Guid.Empty
+    // Arguments that cannot be read back still leave the builtin's name to check; the
+    // check is weaker there and nothing is refused for it.
+    let args =
+      try
+        match BinarySer.RT.Dval.deserialize "trace_fn_calls.args" argBytes with
+        | RT.DList(_, RT.Items(items)) -> Some items
+        | _ -> None
+      with _ ->
+        None
+    // A spawn is performed again rather than answered, but the handle it returned names the
+    // recorded child, which is how a resume finds that child's rows for the new one.
+    let spawned =
+      if builtin = "execSpawn" then
+        try
+          match BinarySer.RT.Dval.deserialize "trace_fn_calls.result" bytes with
+          | RT.DRecord(_, _, _, fields) ->
+            match RT.RecordFields.tryFind "id" fields with
+            | Some(RT.DUuid child) -> Some child
             | _ -> None
-          with _ ->
-            None
-        // A spawn is performed again rather than answered, but the handle it returned names the
-        // recorded child, which is how a resume finds that child's rows for the new one.
-        let spawned =
-          if builtin = "execSpawn" then
-            try
-              match BinarySer.RT.Dval.deserialize "trace_fn_calls.result" bytes with
-              | RT.DRecord(_, _, _, fields) ->
-                match RT.RecordFields.tryFind "id" fields with
-                | Some(RT.DUuid child) -> Some child
-                | _ -> None
-              | _ -> None
-            with _ ->
-              None
-          else
-            None
-        let call : Tracing.RecordedCall =
-          { builtin = builtin; args = args; spawned = spawned }
-        if Set.contains builtin Tracing.Redact.performAgain then
-          Some(g, ord, RT.Tracing.ReplayStep.PerformOnce, call)
-        else
-          try
-            Some(
-              g,
-              ord,
-              RT.Tracing.ReplayStep.Serve(
-                BinarySer.RT.Dval.deserialize "trace_fn_calls.result" bytes
-              ),
-              call
-            )
-          with e ->
-            // Dropping the row quietly is what makes this dangerous: the ordinal then has no
-            // answer, which ends the replay for that process and takes the rest of the log
-            // with it, so the run goes live and performs the remaining effects for real. Say
-            // it once, with the position, rather than leaving that a mystery.
-            System.Console.Error.WriteLine(
-              $"[traces] step {ord} of this run could not be read back ({e.Message}); "
-              + "the resume goes live from there"
-            )
-            None)
-  }
+          | _ -> None
+        with _ ->
+          None
+      else
+        None
+    let call : Tracing.RecordedCall =
+      { builtin = builtin; args = args; spawned = spawned }
+    if Set.contains builtin Tracing.Redact.performAgain then
+      Some(g, ord, RT.Tracing.ReplayStep.PerformOnce, call)
+    else
+      try
+        Some(
+          g,
+          ord,
+          RT.Tracing.ReplayStep.Serve(
+            BinarySer.RT.Dval.deserialize "trace_fn_calls.result" bytes
+          ),
+          call
+        )
+      with e ->
+        // Dropping the row quietly is what makes this dangerous: the ordinal then has no
+        // answer, which ends the replay for that process and takes the rest of the log
+        // with it, so the run goes live and performs the remaining effects for real. Say
+        // it once, with the position, rather than leaving that a mystery.
+        System.Console.Error.WriteLine(
+          $"[traces] step {ord} of this run could not be read back ({e.Message}); "
+          + "the resume goes live from there"
+        )
+        None)
 
 /// A new run branched from `id`: the same input, holding the parent's log up to `at` (a `seq`;
 /// the whole log when `None`), suspended, so `resume` picks it up and it diverges from there.
 /// One table now, so the child's row and the child's log are the same copy.
-let fork
-  (id : System.Guid)
-  (at : Option<int64>)
-  : Task<Result<System.Guid, string>> =
-  task {
-    match! get id with
-    | None -> return Error "no run has this id"
-    | Some _parent ->
-      let childId = System.Guid.NewGuid()
-      // The whole log is "past its last row", stored as a position so `show` can say it.
-      let! cutoff =
-        match at with
-        | Some seq -> Task.FromResult seq
-        | None ->
-          Sql.query
-            "SELECT COALESCE(MAX(seq), -1) + 1 AS n FROM trace_fn_calls WHERE trace_id = @t"
-          |> Sql.parameters [ "t", Sql.uuid id ]
-          |> Sql.executeRowAsync (fun read -> read.int64 "n")
-      // Copy the HTTP handler hash and CLI invocation so the child can be replayed.
-      let counts =
-        Sql.executeTransactionSync
-          [ $"INSERT INTO traces
-              (id, root_tlid, handler_desc, timestamp, input_name, input_value, account_id,
-               status, parent_id, parent_seq, pinned, updated, entry_hash, bytes)
-             SELECT @child, root_tlid, handler_desc, @stamp, input_name, input_value,
-                    account_id, 'suspended', @parent, @cutoff, 0, @stamp, entry_hash, bytes
-             FROM traces WHERE id = @parent",
-            [ [ "child", Sql.uuid childId
-                "parent", Sql.uuid id
-                "cutoff", Sql.int64 cutoff
-                "stamp", Sql.string (now ()) ] ]
-            "INSERT INTO trace_cli_invocations
-              (trace_id, kind, source, filename, args, allow_harmful, sandbox)
-             SELECT @child, kind, source, filename, args, allow_harmful, sandbox
-             FROM trace_cli_invocations WHERE trace_id = @parent",
-            [ [ "child", Sql.uuid childId; "parent", Sql.uuid id ] ]
-            "INSERT INTO trace_fn_calls
-              (trace_id, call_id, parent_call_id, kind, fn_hash, lambda_expr_id, args, result,
-               duration_ms, process_id, seq, ord)
-             SELECT @child, call_id, parent_call_id, kind, fn_hash, lambda_expr_id, args,
-                    result, duration_ms, process_id, seq, ord
-             FROM trace_fn_calls WHERE trace_id = @parent AND seq < @cutoff",
-            [ [ "child", Sql.uuid childId
-                "parent", Sql.uuid id
-                "cutoff", Sql.int64 cutoff ] ]
-            // The child answers `traces calls <fn>` for the same functions the parent did, and
-            // carries the HASHES too. Without `fn_hash` the column takes its `DEFAULT ''`, and
-            // `resume` compares those against the store to decide what has been edited since, so
-            // a forked run reported every function it went through as edited, immediately, with
-            // nothing having changed. `trace_fn_calls` above copies its `fn_hash` for the same
-            // reason.
-            "INSERT OR IGNORE INTO trace_fns (trace_id, fn_name, fn_hash)
-             SELECT @child, fn_name, fn_hash FROM trace_fns WHERE trace_id = @parent",
-            [ [ "child", Sql.uuid childId; "parent", Sql.uuid id ] ]
-            // A captured body belongs to the trace that holds it, so the child takes its own
-            // copy: retention removing the parent must not take the child's request with it.
-            "INSERT OR IGNORE INTO trace_blobs (trace_id, hash, bytes)
-             SELECT @child, hash, bytes FROM trace_blobs WHERE trace_id = @parent",
-            [ [ "child", Sql.uuid childId; "parent", Sql.uuid id ] ] ]
-      // `INSERT ... SELECT` inserts nothing when the parent has gone -- retention runs every
-      // ten seconds -- and reporting a child that does not exist sends the person to a resume
-      // that cannot find it.
-      match counts with
-      | rowsInserted :: _ when rowsInserted = 0 ->
-        return Error "the run was deleted while it was being forked"
-      | _ -> return Ok childId
-  }
+let fork (id : System.Guid) (at : Option<int64>) : Result<System.Guid, string> =
+  match get id with
+  | None -> Error "no run has this id"
+  | Some _parent ->
+    let childId = System.Guid.NewGuid()
+    // The whole log is "past its last row", stored as a position so `show` can say it.
+    let cutoff =
+      match at with
+      | Some seq -> seq
+      | None ->
+        Sql.query
+          "SELECT COALESCE(MAX(seq), -1) + 1 AS n FROM trace_fn_calls WHERE trace_id = @t"
+        |> Sql.parameters [ "t", Sql.uuid id ]
+        |> Sql.executeRow (fun read -> read.int64 "n")
+    // Copy the HTTP handler hash and CLI invocation so the child can be replayed.
+    let counts =
+      Sql.executeTransactionSync
+        [ $"INSERT INTO traces
+            (id, root_tlid, handler_desc, timestamp, input_name, input_value, account_id,
+             status, parent_id, parent_seq, pinned, updated, entry_hash, bytes)
+           SELECT @child, root_tlid, handler_desc, @stamp, input_name, input_value,
+                  account_id, 'suspended', @parent, @cutoff, 0, @stamp, entry_hash, bytes
+           FROM traces WHERE id = @parent",
+          [ [ "child", Sql.uuid childId
+              "parent", Sql.uuid id
+              "cutoff", Sql.int64 cutoff
+              "stamp", Sql.string (now ()) ] ]
+          "INSERT INTO trace_cli_invocations
+            (trace_id, kind, source, filename, args, allow_harmful, sandbox)
+           SELECT @child, kind, source, filename, args, allow_harmful, sandbox
+           FROM trace_cli_invocations WHERE trace_id = @parent",
+          [ [ "child", Sql.uuid childId; "parent", Sql.uuid id ] ]
+          "INSERT INTO trace_fn_calls
+            (trace_id, call_id, parent_call_id, kind, fn_hash, lambda_expr_id, args, result,
+             duration_ms, process_id, seq, ord)
+           SELECT @child, call_id, parent_call_id, kind, fn_hash, lambda_expr_id, args,
+                  result, duration_ms, process_id, seq, ord
+           FROM trace_fn_calls WHERE trace_id = @parent AND seq < @cutoff",
+          [ [ "child", Sql.uuid childId
+              "parent", Sql.uuid id
+              "cutoff", Sql.int64 cutoff ] ]
+          // The child answers `traces calls <fn>` for the same functions the parent did, and
+          // carries the HASHES too. Without `fn_hash` the column takes its `DEFAULT ''`, and
+          // `resume` compares those against the store to decide what has been edited since, so
+          // a forked run reported every function it went through as edited, immediately, with
+          // nothing having changed. `trace_fn_calls` above copies its `fn_hash` for the same
+          // reason.
+          "INSERT OR IGNORE INTO trace_fns (trace_id, fn_name, fn_hash)
+           SELECT @child, fn_name, fn_hash FROM trace_fns WHERE trace_id = @parent",
+          [ [ "child", Sql.uuid childId; "parent", Sql.uuid id ] ]
+          // A captured body belongs to the trace that holds it, so the child takes its own
+          // copy: retention removing the parent must not take the child's request with it.
+          "INSERT OR IGNORE INTO trace_blobs (trace_id, hash, bytes)
+           SELECT @child, hash, bytes FROM trace_blobs WHERE trace_id = @parent",
+          [ [ "child", Sql.uuid childId; "parent", Sql.uuid id ] ] ]
+    // `INSERT ... SELECT` inserts nothing when the parent has gone -- retention runs every
+    // ten seconds -- and reporting a child that does not exist sends the person to a resume
+    // that cannot find it.
+    match counts with
+    | rowsInserted :: _ when rowsInserted = 0 ->
+      Error "the run was deleted while it was being forked"
+    | _ -> Ok childId
 
 
 module Foreground =
@@ -594,7 +578,7 @@ module Foreground =
     {
       id : System.Guid
       /// Write the trace as it stands now.
-      flush : unit -> Task<unit>
+      flush : unit -> unit
     }
 
   let mutable private current : Option<T> = None
@@ -619,18 +603,16 @@ module Foreground =
 
   /// Suspend the foreground run, if there is one: its log so far is stored and it is marked
   /// suspended, so `dark traces resume <id>` can take it from there. Answers the id.
-  let suspend () : Task<Option<System.Guid>> =
-    task {
-      match lock sync (fun () -> current) with
-      | None -> return None
-      | Some t ->
-        // Marked before the store, so retention sees a suspended run's trace as one it must
-        // keep even on the pass the store itself triggers.
-        setStatus t.id Suspended
-        do! t.flush ()
-        lock sync (fun () -> current <- None)
-        return Some t.id
-    }
+  let suspend () : Option<System.Guid> =
+    match lock sync (fun () -> current) with
+    | None -> None
+    | Some t ->
+      // Marked before the store, so retention sees a suspended run's trace as one it must
+      // keep even on the pass the store itself triggers.
+      setStatus t.id Suspended
+      t.flush ()
+      lock sync (fun () -> current <- None)
+      Some t.id
 
 
 /// The recorded log of a run, as a view answers from: the name of each effectful call, the
@@ -640,31 +622,28 @@ module Foreground =
 /// No arming and no shared slot: a view is one call that loads this, runs, and hands back
 /// what it collected. Two of them at once cannot take each other's log, which matters when the
 /// thing driving `dark` is an agent rather than a person at a prompt.
-let viewLog (id : System.Guid) : Task<List<string * byte[] * RT.Dval>> =
-  task {
-    let! rows =
-      Sql.query
-        "SELECT c.fn_hash, c.args, r.bytes AS result
-         FROM trace_fn_calls c
-         JOIN trace_blobs r ON r.trace_id = c.trace_id AND r.hash = c.result
-         WHERE c.trace_id = @t AND c.ord >= 0 ORDER BY c.seq"
-      |> Sql.parameters [ "t", Sql.uuid id ]
-      |> Sql.executeAsync (fun read ->
-        (read.stringOrNone "fn_hash" |> Option.defaultValue ""),
-        read.bytes "args",
-        read.bytes "result")
-    return
-      rows
-      |> List.choose (fun (name, args, resultBytes) ->
-        try
-          Some(
-            name,
-            args,
-            BinarySer.RT.Dval.deserialize "trace_fn_calls.result" resultBytes
-          )
-        with _ ->
-          None)
-  }
+let viewLog (id : System.Guid) : List<string * byte[] * RT.Dval> =
+  let rows =
+    Sql.query
+      "SELECT c.fn_hash, c.args, r.bytes AS result
+       FROM trace_fn_calls c
+       JOIN trace_blobs r ON r.trace_id = c.trace_id AND r.hash = c.result
+       WHERE c.trace_id = @t AND c.ord >= 0 ORDER BY c.seq"
+    |> Sql.parameters [ "t", Sql.uuid id ]
+    |> Sql.executeRows (fun read ->
+      (read.stringOrNone "fn_hash" |> Option.defaultValue ""),
+      read.bytes "args",
+      read.bytes "result")
+  rows
+  |> List.choose (fun (name, args, resultBytes) ->
+    try
+      Some(
+        name,
+        args,
+        BinarySer.RT.Dval.deserialize "trace_fn_calls.result" resultBytes
+      )
+    with _ ->
+      None)
 
 
 /// A resume armed for the next run the CLI host starts. `dark traces resume <id>` arms it, then
@@ -684,17 +663,15 @@ module Replay =
   let private sync = obj ()
 
   /// Arm a resume of `id`. False when no run has the id.
-  let arm (id : System.Guid) : Task<bool> =
-    task {
-      match! get id with
-      | None -> return false
-      | Some run ->
-        let! log = log run.id
-        let! recorded = recordedAt run
-        lock sync (fun () ->
-          armed <- Some { run = run; log = log; recordedAt = recorded })
-        return true
-    }
+  let arm (id : System.Guid) : bool =
+    match get id with
+    | None -> false
+    | Some run ->
+      let log = log run.id
+      let recorded = recordedAt run
+      lock sync (fun () ->
+        armed <- Some { run = run; log = log; recordedAt = recorded })
+      true
 
   /// The armed resume, if any, disarming it.
   let take () : Option<T> =

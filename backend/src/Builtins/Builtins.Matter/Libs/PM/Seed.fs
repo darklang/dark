@@ -21,15 +21,13 @@ let fns () : List<BuiltInFn> =
         let resultError = Dval.resultError KTUnit KTString
         (function
         | state, vm, _, [| DString outputPath |] ->
-          uply {
-            try
-              let outputPath = LibExecution.Host.normalizeFilePath outputPath
-              LibExecution.PermissionCheck.requireFileWrite state vm outputPath
-              do! LibDB.Seed.export outputPath
-              return resultOk DUnit
-            with ex ->
-              return resultError (DString ex.Message)
-          }
+          try
+            let outputPath = LibExecution.Host.normalizeFilePath outputPath
+            LibExecution.PermissionCheck.requireFileWrite state vm outputPath
+            LibDB.Seed.export outputPath
+            resultOk DUnit
+          with ex ->
+            resultError (DString ex.Message)
         | _ -> incorrectArgs ())
       previewable = Impure
       // `Native` plus scoped write: export copies the package store and opens

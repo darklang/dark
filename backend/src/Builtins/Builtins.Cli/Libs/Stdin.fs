@@ -2,6 +2,7 @@
 module Builtins.Cli.Libs.Stdin
 
 open System
+open System.Threading.Tasks
 
 open Prelude
 
@@ -16,6 +17,8 @@ module Dval = LibExecution.Dval
 module Bytes = LibExecution.Bytes
 
 open Builtin.Shortcuts
+
+module Pending = LibExecution.Pending
 
 /// Terminal resize, so a full-screen view can repaint without waiting for a keystroke.
 ///
@@ -326,15 +329,14 @@ let private installStdinSource () : unit =
 
 /// Park the calling process on one read of stdin, when there is a scheduler to park under.
 /// `None` outside one: the caller reads synchronously, as it always did.
-let private parkOnStdin (spec : HE.EventSpec) : Option<Ply<HE.StdinResult>> =
+let private parkOnStdin (spec : HE.EventSpec) : Option<Task<HE.StdinResult>> =
   match Scheduler.Scheduler.Current, Scheduler.Scheduler.CurrentProcess with
   | Some s, Some p ->
     installStdinSource ()
     let wake = s.Subscribe(p, [ spec ])
     Some(
-      uply {
-        let! ev = wake
-        match ev with
+      task {
+        match! wake with
         | HE.HostEvent.Stdin(_, result) -> return result
         | other ->
           return
@@ -347,10 +349,10 @@ let private parkOnStdin (spec : HE.EventSpec) : Option<Ply<HE.StdinResult>> =
 
 
 /// One line of stdin, parked on under a scheduler and read synchronously outside one.
-let private readLine () : Ply<HE.StdinResult> =
+let private readLine () : Task<HE.StdinResult> =
   match parkOnStdin HE.EventSpec.StdinLine with
   | Some wait -> wait
-  | None -> Ply(readStdinFor HE.StdinRequest.Line)
+  | None -> Task.FromResult(readStdinFor HE.StdinRequest.Line)
 
 
 /// `Stdlib.Host.EventSpec`, as F#.
@@ -479,18 +481,15 @@ let fns () : List<BuiltInFn> =
             HE.sources.readKey
           with
           | Some s, Some p, Some _ ->
-            let wake = s.Subscribe(p, [ HE.EventSpec.Key ])
-            uply {
-              let! ev = wake
+            s.Subscribe(p, [ HE.EventSpec.Key ])
+            |> Pending.map (fun ev ->
               match ev with
-              | HE.HostEvent.Key k -> return k
+              | HE.HostEvent.Key k -> k
               | other ->
-                return
-                  Exception.raiseInternal
-                    "readKey woke on something that is not a key"
-                    [ "event", other ]
-            }
-          | _ -> Ply(readOneKey ())
+                Exception.raiseInternal
+                  "readKey woke on something that is not a key"
+                  [ "event", other ])
+          | _ -> (readOneKey ())
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Stdin ]
@@ -508,7 +507,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DUnit |] ->
           readLine ()
-          |> Ply.map (fun result ->
+          |> Pending.map (fun result ->
             match result with
             | Ok line ->
               LibExecution.Dval.option
@@ -539,7 +538,7 @@ let fns () : List<BuiltInFn> =
               [ LibExecution.ValueType.string ]
             )
           readLine ()
-          |> Ply.map (fun result ->
+          |> Pending.map (fun result ->
             match result with
             | Ok line ->
               LibExecution.Dval.option
@@ -566,18 +565,16 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DUnit |] ->
           let reader, _ = input.Force()
           try
-            Ply(
-              Dval.resultOk
-                KTString
-                KTBytes
-                (DString(String.normalizeOutside (reader.ReadToEnd())))
-            )
+            (Dval.resultOk
+              KTString
+              KTBytes
+              (DString(String.normalizeOutside (reader.ReadToEnd()))))
           with :? Text.DecoderFallbackException as e ->
             let bad =
               Bytes.newEphemeral (
                 Option.ofObj e.BytesUnknown |> Option.defaultValue [||]
               )
-            Ply(Dval.resultError KTString KTBytes bad)
+            (Dval.resultError KTString KTBytes bad)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Stdin ]
@@ -621,13 +618,8 @@ let fns () : List<BuiltInFn> =
           then
             installStdinSource ()
           match Scheduler.Scheduler.Current, Scheduler.Scheduler.CurrentProcess with
-          | Some s, Some p ->
-            let wake = s.Subscribe(p, specs)
-            uply {
-              let! ev = wake
-              return eventToDval vm ev
-            }
-          | _ -> Ply(eventToDval vm (awaitBlocking specs))
+          | Some s, Some p -> s.Subscribe(p, specs) |> Pending.map (eventToDval vm)
+          | _ -> (eventToDval vm (awaitBlocking specs))
         | _ -> incorrectArgs ())
       // Static, so the union of what any spec could need: a key is stdin, a store change is a
       // package read. A `[Timer 10]` alone still declares both; narrowing per call would need

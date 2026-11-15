@@ -7,7 +7,6 @@ module Tests.PackageTests
 open Expecto
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -27,6 +26,7 @@ let private cleanup (m : string) : Task<unit> =
   execSqlP
     "DELETE FROM locations WHERE owner = 'Darklang' AND modules = @m"
     [ "m", Sql.string m ]
+  |> Task.FromResult
 
 
 /// How a test run came out, as a string an assertion can compare.
@@ -34,7 +34,7 @@ let private evalAsCli (code : string) : Task<RT.ExecutionResult> =
   Tests.CliTestHarness.withState (fun target ->
     task {
       let state = Tests.CliTestHarness.executionState target
-      let! expr = parsePTExpr code
+      let expr = parsePTExpr code
       return!
         LibExecution.Execution.executeExpr
           state
@@ -70,7 +70,7 @@ let private runHash (h : string) : Task<string> =
 /// pre-refresh content is still stored under its old hash.
 let private run (m : string) (name : string) : Task<string> =
   task {
-    let! bound = liveBoundHash { owner = "Darklang"; modules = [ m ]; name = name }
+    let bound = liveBoundHash { owner = "Darklang"; modules = [ m ]; name = name }
     match bound with
     | Some h -> return! runHash h
     | None -> return failtest $"nothing is bound at {m}.{name}"
@@ -242,13 +242,13 @@ test failsAfterObservation =
 
     // Execute several tests inside one caller state, so creating a new caller
     // for every test cannot mask leaking counters between test executions.
-    let! countHash =
+    let countHash =
       liveBoundHash { owner = "Darklang"; modules = [ m ]; name = "counts" }
-    let! emptyHash =
+    let emptyHash =
       liveBoundHash { owner = "Darklang"; modules = [ m ]; name = "startsEmpty" }
-    let! errorHash =
+    let errorHash =
       liveBoundHash { owner = "Darklang"; modules = [ m ]; name = "stopsAfterError" }
-    let! failHash =
+    let failHash =
       liveBoundHash
         { owner = "Darklang"; modules = [ m ]; name = "failsAfterObservation" }
     let execute h =

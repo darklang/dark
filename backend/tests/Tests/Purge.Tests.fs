@@ -18,7 +18,6 @@ module Tests.Purge
 open Expecto
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -43,7 +42,8 @@ let private tablesWithOpId () : Task<List<string>> =
     JOIN pragma_table_info(m.name) p
     WHERE m.type = 'table' AND p.name = 'op_id'
     """
-  |> Sql.executeAsync (fun read -> read.string "name")
+  |> Sql.executeRows (fun read -> read.string "name")
+  |> Task.FromResult
 
 
 let opIdTablesArePurged =
@@ -72,9 +72,9 @@ let purgeTablesAllExist =
     // a table renamed out from under it is silently skipped rather than failing. That is right for a store
     // mid-migration and wrong as a permanent state, because the rows it meant to delete stop being deleted
     // and nothing says so.
-    let! present =
+    let present =
       Sql.query "SELECT name FROM sqlite_master WHERE type = 'table'"
-      |> Sql.executeAsync (fun read -> read.string "name")
+      |> Sql.executeRows (fun read -> read.string "name")
 
     let ghosts = Purge.tables |> List.filter (fun t -> not (List.contains t present))
     let ghostNames = String.concat ", " ghosts
@@ -126,7 +126,7 @@ let private hashCoupledSurvivors =
 let hashCoupledTablesAreClassified =
   testTask
     "every table naming the log by hash is either purged or a declared survivor" {
-    let! withHash =
+    let withHash =
       Sql.query
         """
         SELECT DISTINCT m.name AS name
@@ -134,7 +134,7 @@ let hashCoupledTablesAreClassified =
         JOIN pragma_table_info(m.name) p
         WHERE m.type = 'table' AND p.name LIKE '%hash%'
         """
-      |> Sql.executeAsync (fun read -> read.string "name")
+      |> Sql.executeRows (fun read -> read.string "name")
 
     Expect.isNonEmpty withHash "found tables carrying a hash column"
 
@@ -251,9 +251,9 @@ let everyDeclaredTableExists =
 
     Expect.isNonEmpty declared "the schema directory declares tables"
 
-    let! present =
+    let present =
       Sql.query "SELECT name FROM sqlite_master WHERE type = 'table'"
-      |> Sql.executeAsync (fun read -> read.string "name")
+      |> Sql.executeRows (fun read -> read.string "name")
 
     let missing = declared |> List.filter (fun t -> not (List.contains t present))
 

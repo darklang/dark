@@ -7,7 +7,6 @@ open System.IO
 open System.Text.RegularExpressions
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -761,13 +760,13 @@ let debugPrintsWhatTheBuiltinPrinted =
     "Stdlib.debug prints what the debug builtin printed, for every sample value" {
     let loc : PT.PackageLocation =
       { owner = "Darklang"; modules = [ "Stdlib" ]; name = "debug" }
-    let! found = pmPT.findFn loc |> Ply.toTask
+    let found = pmPT.findFn loc
     let (PT.Hash hash) = Expect.wantSome found "Stdlib.debug is a package fn"
     let debugFn = RT.FQFnName.fqPackage hash
 
     let printed (f : RT.ExecutionState -> Task<unit>) : Task<Option<string>> =
       task {
-        let! (state : RT.ExecutionState) = executionStateFor pmPT false
+        let (state : RT.ExecutionState) = executionStateFor pmPT false
         NonBlockingConsole.wait ()
         Expect.isTrue (NonBlockingConsole.startCapture ()) "capture starts"
         try

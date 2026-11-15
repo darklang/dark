@@ -1,7 +1,5 @@
 module LibDB.Caching
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
 open System.Collections.Concurrent
 
 open Prelude
@@ -50,7 +48,7 @@ let private addIfStillCurrent
     if generation () <> generationAtStart then
       cache.TryRemove(key) |> ignore<bool * 'value>
 
-let withCache (f : 'key -> Ply<Option<'value>>) =
+let withCache (f : 'key -> Option<'value>) =
   // Holds the `Some` wrapper rather than the value, so a hit hands back the same option object instead
   // of building a fresh one. `None` still isn't cached: a lookup that missed the store might succeed
   // later, and this cache has no way to hear about it.
@@ -59,19 +57,14 @@ let withCache (f : 'key -> Ply<Option<'value>>) =
 
   fun (key : 'key) ->
     match Lookup.tryFindV key cache with
-    | ValueSome cached ->
-      // Deliberately outside the computation expression. Once a script is warm nearly every call lands
-      // here, and entering the builder to hand over a value already in hand costs more than the lookup.
-      Ply cached
+    | ValueSome cached -> cached
     | ValueNone ->
-      uply {
-        let generationAtStart = generation ()
-        let! result = f key
-        match result with
-        | Some _ -> addIfStillCurrent cache generationAtStart key result
-        | None -> ()
-        return result
-      }
+      let generationAtStart = generation ()
+      let result = f key
+      match result with
+      | Some _ -> addIfStillCurrent cache generationAtStart key result
+      | None -> ()
+      result
 
 
 /// `withCache` that also remembers a miss, for a lookup where the miss is the common
@@ -79,17 +72,15 @@ let withCache (f : 'key -> Ply<Option<'value>>) =
 /// lookup behind it misses far more often than it hits, and each miss is a query.
 /// Safe for the same reason the positive entries are: every fold and every direct
 /// write to `locations` calls `invalidateAll`, which drops this too.
-let withNegativeCache (f : 'key -> Ply<Option<'value>>) =
+let withNegativeCache (f : 'key -> Option<'value>) =
   let cache = ConcurrentDictionary<'key, Option<'value>>()
   clearActions.Add(fun () -> cache.Clear())
 
   fun (key : 'key) ->
     match Lookup.tryFindV key cache with
-    | ValueSome cached -> Ply cached
+    | ValueSome cached -> cached
     | ValueNone ->
-      uply {
-        let generationAtStart = generation ()
-        let! result = f key
-        addIfStillCurrent cache generationAtStart key result
-        return result
-      }
+      let generationAtStart = generation ()
+      let result = f key
+      addIfStillCurrent cache generationAtStart key result
+      result

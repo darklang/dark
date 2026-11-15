@@ -5,7 +5,6 @@ module Tests.OpsProjections
 open Expecto
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -81,7 +80,8 @@ let sourceRefsBeforeLowering =
 
 let private countRows (table : string) : Task<int64> =
   Sql.query $"SELECT COUNT(*) as n FROM {table}"
-  |> Sql.executeRowAsync (fun read -> read.int64 "n")
+  |> Sql.executeRow (fun read -> read.int64 "n")
+  |> Task.FromResult
 
 
 let removedPackageRefs =
@@ -89,11 +89,10 @@ let removedPackageRefs =
     let alias = "type/Tests.AliasWithoutLocation"
     let removed = "type/Tests.RemovedDeclaration"
     let optionHash = PackageRefs.Type.Stdlib.option ()
-    let! retained =
+    let retained =
       LibDB.PackageRefsGenerator.retainStoredReferences (
         Map.ofList [ alias, optionHash; removed, String.replicate 64 "0" ]
       )
-      |> Ply.toTask
     Expect.equal
       retained
       (Map.ofList [ alias, optionHash ])
@@ -108,10 +107,10 @@ let private itemHashes () : Task<string> =
   task {
     let q (table : string) =
       Sql.query $"SELECT hash FROM {table} ORDER BY hash"
-      |> Sql.executeAsync (fun read -> read.string "hash")
-    let! fns = q "package_functions"
-    let! typs = q "package_types"
-    let! vals = q "package_values"
+      |> Sql.executeRows (fun read -> read.string "hash")
+    let fns = q "package_functions"
+    let typs = q "package_types"
+    let vals = q "package_values"
     return String.concat "\n" (fns @ typs @ vals)
   }
 
@@ -130,7 +129,7 @@ let private itemHashes () : Task<string> =
 /// property the design does not have.
 let private bindingFingerprint () : Task<string> =
   task {
-    let! locs =
+    let locs =
       Sql.query
         """
         SELECT owner, modules, name, item_hash, (live = 0) AS gone,
@@ -138,7 +137,7 @@ let private bindingFingerprint () : Task<string> =
         FROM locations
         ORDER BY owner, modules, name, item_hash
         """
-      |> Sql.executeAsync (fun read ->
+      |> Sql.executeRows (fun read ->
         let o = read.string "owner"
         let m = read.string "modules"
         let n = read.string "name"
@@ -150,7 +149,7 @@ let private bindingFingerprint () : Task<string> =
         let prev = read.string "prev"
         $"LOC {o}.{m}.{n} {h} gone={gone} prev={prev}")
 
-    let! deps =
+    let deps =
       Sql.query
         """
         SELECT item_hash,
@@ -160,7 +159,7 @@ let private bindingFingerprint () : Task<string> =
         FROM package_dependencies
         ORDER BY item_hash, o, m, n
         """
-      |> Sql.executeAsync (fun read ->
+      |> Sql.executeRows (fun read ->
         let h = read.string "item_hash"
         let o = read.string "o"
         let m = read.string "m"
@@ -181,7 +180,7 @@ let refoldReproducesBindings =
     let! (before : string) = bindingFingerprint ()
     Expect.isFalse (before = "") "there are bindings to compare (not a vacuous test)"
 
-    let! reapplied = Seed.rebuildProjections ()
+    let reapplied = Seed.rebuildProjections ()
     Expect.isTrue (reapplied > 0L) "the log was actually re-folded"
 
     let! (after : string) = bindingFingerprint ()
@@ -199,7 +198,7 @@ let rebuildIsDeterministic =
     let! blobsBefore = countRows "package_blobs"
 
     // drop the regenerable projections + re-fold the entire op log
-    let! reapplied = Seed.rebuildProjections ()
+    let reapplied = Seed.rebuildProjections ()
     Expect.isTrue (reapplied > 0L) "ops were re-folded"
     let! fns1 = countRows "package_functions"
     let! locs1 = countRows "locations"
@@ -207,7 +206,7 @@ let rebuildIsDeterministic =
 
     // a SECOND rebuild reproduces the EXACT same projections — the rebuild is a deterministic function of the
     // op log. (Robust to other tests mutating the shared DB: we compare two rebuilds of the *current* log.)
-    let! _ = Seed.rebuildProjections ()
+    let _ = Seed.rebuildProjections ()
     let! fns2 = countRows "package_functions"
     let! locs2 = countRows "locations"
     Expect.equal
@@ -278,9 +277,9 @@ let opHashingIsStable =
 /// new definition. `opHashingIsStable` pins that against a literal.
 let opIdIsItsContentHash =
   testTask "every op's stored id is the first 16 bytes of its content hash" {
-    let! rows =
+    let rows =
       Sql.query "SELECT id, op_blob FROM package_ops"
-      |> Sql.executeAsync (fun read -> (read.uuid "id", read.bytes "op_blob"))
+      |> Sql.executeRows (fun read -> (read.uuid "id", read.bytes "op_blob"))
 
     Expect.isGreaterThan (List.length rows) 0 "there are ops to check"
 
@@ -316,10 +315,10 @@ let refoldReproducesContent =
   // cardinality-preserving. This is what makes "drop the projections and re-fold" safe.
   testTask
     "re-fold reproduces identical projection CONTENT (deterministic fold, not just counts)" {
-    let! _ = Seed.rebuildProjections ()
+    let _ = Seed.rebuildProjections ()
     let! fp1 = itemHashes ()
     Expect.isTrue (String.length fp1 > 0) "non-vacuous: the projections have content"
-    let! _ = Seed.rebuildProjections ()
+    let _ = Seed.rebuildProjections ()
     let! fp2 = itemHashes ()
     Expect.equal
       fp2
@@ -354,11 +353,10 @@ let durableReleaseCarriesForward =
       "there is authored work to migrate (not a vacuous test)"
     let! fpBefore = itemHashes ()
 
-    do!
-      execSql
-        "CREATE INDEX IF NOT EXISTS idx_release_migration_demo ON package_ops(origin_ts)"
+    execSql
+      "CREATE INDEX IF NOT EXISTS idx_release_migration_demo ON package_ops(origin_ts)"
 
-    let! _ = Seed.rebuildProjections ()
+    let _ = Seed.rebuildProjections ()
 
     let! opsAfter = countRows "package_ops"
     let! blobsAfter = countRows "package_blobs"
@@ -373,25 +371,25 @@ let durableReleaseCarriesForward =
       fpBefore
       "projections re-fold IDENTICALLY in the new Release — same items"
 
-    let! idxExists =
+    let idxExists =
       Sql.query
         "SELECT COUNT(*) as n FROM sqlite_master WHERE type='index' AND name='idx_release_migration_demo'"
-      |> Sql.executeRowAsync (fun read -> read.int64 "n")
+      |> Sql.executeRow (fun read -> read.int64 "n")
     Expect.equal idxExists 1L "the Release's schema change actually landed"
 
     // leave the shared store as we found it
-    do! execSql "DROP INDEX IF EXISTS idx_release_migration_demo"
+    execSql "DROP INDEX IF EXISTS idx_release_migration_demo"
   }
 
 let invalidReferenceSnapshotsAreRejectedBeforeStorage =
   testTask "invalid and protected reference snapshots are rejected before storage" {
     let location : PT.PackageLocation =
       { owner = "Darklang"; modules = [ "Stdlib"; "List" ]; name = "head" }
-    let! hash = LibDB.ProgramTypes.Fn.find PT.BranchId.Main location |> Ply.toTask
+    let hash = LibDB.ProgramTypes.Fn.find PT.BranchId.Main location
     let hash =
       hash |> Option.defaultWith (fun () -> failtest "missing List.head fixture")
     let target = PT.PackageFn hash
-    let! names = LibDB.ReferenceNamesContent.storedNames target
+    let names = LibDB.ReferenceNamesContent.storedNames target
     let names =
       names |> Option.defaultWith (fun () -> failtest "missing head content")
     Expect.isNonEmpty names "the fixture has references to validate"
@@ -425,7 +423,7 @@ let invalidReferenceSnapshotsAreRejectedBeforeStorage =
         "undo",
         PT.DecisionKind.Restore(System.Guid.NewGuid(), target, names)
       )
-    let! valid =
+    let valid =
       LibDB.ReferenceNamesContent.validate
         [ PT.PackageOp.Rename(
             own,
@@ -436,16 +434,15 @@ let invalidReferenceSnapshotsAreRejectedBeforeStorage =
           )
           restore own names ]
     Expect.isNone valid "valid rename and restore snapshots pass validation"
-    let! validProtected = LibDB.ReferenceNamesContent.validate [ protectedOp ]
+    let validProtected = LibDB.ReferenceNamesContent.validate [ protectedOp ]
     Expect.isNone
       validProtected
       "content validation leaves reserved-owner policy to the write paths"
     let branch = PT.BranchId.Id(System.Guid.NewGuid())
-    do!
-      LibDB.Branches.registerIfNew
-        branch
-        ("snapshot-validation-" + branch.Guid.ToString("N"))
-        PT.BranchId.Main
+    LibDB.Branches.registerIfNew
+      branch
+      ("snapshot-validation-" + branch.Guid.ToString("N"))
+      PT.BranchId.Main
     let! before = countRows "package_ops"
     let protectedRename =
       PT.PackageOp.Rename(location, ownNew, target, [], "protected-source")
@@ -458,12 +455,11 @@ let invalidReferenceSnapshotsAreRejectedBeforeStorage =
         "test",
         PT.DecisionKind.Override target
       )
-    let expectRejected label (write : unit -> Task<int64>) =
+    let expectRejected label (write : unit -> int64) =
       task {
         let mutable rejected = false
         try
-          let! _ = write ()
-          ()
+          write () |> ignore<int64>
         with _ ->
           rejected <- true
         Expect.isTrue rejected label
@@ -480,11 +476,11 @@ let invalidReferenceSnapshotsAreRejectedBeforeStorage =
         protectedOverride
         PT.PackageOp.Unbind(location, None)
         PT.PackageOp.SetName(location, target, None) ] do
-      let! result = LibDB.Inserts.insertUntrustedOps PT.BranchId.Main [ op ]
+      let result = LibDB.Inserts.insertUntrustedOps PT.BranchId.Main [ op ]
       match result with
       | Error _ -> ()
       | Ok _ -> failtest "invalid reference metadata was accepted"
-      let! onBranch = LibDB.Inserts.insertUntrustedOps branch [ op ]
+      let onBranch = LibDB.Inserts.insertUntrustedOps branch [ op ]
       match onBranch with
       | Error _ -> ()
       | Ok _ -> failtest "a branch write accepted invalid reference metadata"
@@ -502,7 +498,7 @@ let invalidReferenceSnapshotsAreRejectedBeforeStorage =
         names,
         Some(branch.Guid.ToString("N"))
       )
-    let! inserted = LibDB.Inserts.authorOn branch "propagation" [ trusted ]
+    let inserted = LibDB.Inserts.authorOn branch "propagation" [ trusted ]
     Expect.equal
       inserted
       1L
@@ -512,10 +508,9 @@ let invalidReferenceSnapshotsAreRejectedBeforeStorage =
     Sql.executeTransactionSync
       [ "DELETE FROM package_ops WHERE id = @id", parameters ]
     |> ignore<List<int>>
-    do!
-      Sql.query "DELETE FROM branches WHERE id = @id"
-      |> Sql.parameters [ "id", Sql.string (string branch) ]
-      |> Sql.executeStatementAsync
+    Sql.query "DELETE FROM branches WHERE id = @id"
+    |> Sql.parameters [ "id", Sql.string (string branch) ]
+    |> Sql.executeStatement
   }
 
 let committedBindingsSurviveMainDraftSuppression =
@@ -537,14 +532,14 @@ let committedBindingsSurviveMainDraftSuppression =
           (fun _ -> stamp)
           (fun _ -> committed)
           [ op ])
-    let! _ = write "2026-11-03T00:00:00.010Z" (Some "baseline") baseline
-    let! _ = write "2026-11-03T00:00:00.030Z" None draft
-    let! _ = write "2026-11-03T00:00:00.020Z" (Some "merged") incoming
+    let _ = write "2026-11-03T00:00:00.010Z" (Some "baseline") baseline
+    let _ = write "2026-11-03T00:00:00.030Z" None draft
+    let _ = write "2026-11-03T00:00:00.020Z" (Some "merged") incoming
     let name : LibDB.ScmBindings.Name =
       { owner = "Tests"; modules = "CommittedLog"; name = location.name }
     let committedHash () =
       task {
-        let! rows =
+        let rows =
           LibDB.ScmBindings.query (
             LibDB.ScmBindings.CommittedAt(PT.BranchId.Main, [ name ])
           )
@@ -564,21 +559,19 @@ let committedBindingsSurviveMainDraftSuppression =
       Expect.equal hash (String.replicate 64 "b") "the Dark branch reader agrees"
     | other -> failtestf "unexpected committed binding: %A" other
     for op in [ baseline; draft; incoming ] do
-      do!
-        Sql.query
-          "DELETE FROM locations WHERE op_id = @id; DELETE FROM package_ops WHERE id = @id"
-        |> Sql.parameters
-          [ "id", Sql.string (string (LibDB.Inserts.computeOpHash op)) ]
-        |> Sql.executeStatementAsync
+      Sql.query
+        "DELETE FROM locations WHERE op_id = @id; DELETE FROM package_ops WHERE id = @id"
+      |> Sql.parameters
+        [ "id", Sql.string (string (LibDB.Inserts.computeOpHash op)) ]
+      |> Sql.executeStatement
     LibDB.Caching.invalidateAll ()
   }
 
 let schemaColumnAdditionsAreRepeatable =
   testTask "dated schema column additions preserve rows and can run twice" {
-    do!
-      Sql.query
-        "CREATE TABLE schema_column_test (id INTEGER PRIMARY KEY); INSERT INTO schema_column_test VALUES (1)"
-      |> Sql.executeStatementAsync
+    Sql.query
+      "CREATE TABLE schema_column_test (id INTEGER PRIMARY KEY); INSERT INTO schema_column_test VALUES (1)"
+    |> Sql.executeStatement
     try
       let schema =
         "ALTER TABLE schema_column_test ADD COLUMN kind TEXT NOT NULL DEFAULT 'unknown';
@@ -587,12 +580,12 @@ let schemaColumnAdditionsAreRepeatable =
       LibDB.Releases.applySchemaIndexes schema
       LibDB.Releases.applySchemaTables schema
       LibDB.Releases.applySchemaIndexes schema
-      let! kind =
+      let kind =
         Sql.query "SELECT kind FROM schema_column_test WHERE id = 1"
-        |> Sql.executeRowAsync (fun r -> r.string "kind")
+        |> Sql.executeRow (fun r -> r.string "kind")
       Expect.equal kind "unknown" "the existing row survives with its column default"
     finally
-      Sql.query "DROP TABLE schema_column_test" |> Sql.executeStatementSync
+      Sql.query "DROP TABLE schema_column_test" |> Sql.executeStatement
   }
 
 
@@ -610,28 +603,26 @@ let operationKindsBackfillFromTheLog =
         None
       )
     let blob = LibSerialization.Binary.Serialization.PT.PackageOp.serialize id op
-    do!
-      Sql.query
-        "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, origin_ts)
-         VALUES (@id, @main, @main, @blob, '2026-11-03T00:00:00.000Z')"
-      |> Sql.parameters
-        [ "id", Sql.uuid id
-          "blob", Sql.bytes blob
-          "main", Sql.string (string PT.BranchId.Main) ]
-      |> Sql.executeStatementAsync
+    Sql.query
+      "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, origin_ts)
+       VALUES (@id, @main, @main, @blob, '2026-11-03T00:00:00.000Z')"
+    |> Sql.parameters
+      [ "id", Sql.uuid id
+        "blob", Sql.bytes blob
+        "main", Sql.string (string PT.BranchId.Main) ]
+    |> Sql.executeStatement
     try
       LibDB.Releases.runPending ()
       // Simulate an operation that becomes readable after the migration was
       // recorded. Startup must classify it without rerunning that migration.
-      do!
-        Sql.query "UPDATE package_ops SET op_kind = 'unknown' WHERE id = @id"
-        |> Sql.parameters [ "id", Sql.uuid id ]
-        |> Sql.executeStatementAsync
+      Sql.query "UPDATE package_ops SET op_kind = 'unknown' WHERE id = @id"
+      |> Sql.parameters [ "id", Sql.uuid id ]
+      |> Sql.executeStatement
       LibDB.Releases.runPending ()
-      let! (kind, stored) =
+      let (kind, stored) =
         Sql.query "SELECT op_kind, op_blob FROM package_ops WHERE id = @id"
         |> Sql.parameters [ "id", Sql.uuid id ]
-        |> Sql.executeRowAsync (fun r -> r.string "op_kind", r.bytes "op_blob")
+        |> Sql.executeRow (fun r -> r.string "op_kind", r.bytes "op_blob")
       Expect.equal kind "reference-names" "old rows become discoverable by kind"
       Expect.equal
         stored
@@ -640,25 +631,24 @@ let operationKindsBackfillFromTheLog =
     finally
       Sql.query "DELETE FROM package_ops WHERE id = @id"
       |> Sql.parameters [ "id", Sql.uuid id ]
-      |> Sql.executeStatementSync
+      |> Sql.executeStatement
   }
 
 
 let unreadableReferenceMetadataIsRetained =
   testTask "reference-name reads skip unreadable operations without deleting them" {
-    let! before = LibDB.ReferenceNames.load PT.BranchId.Main
+    let before = LibDB.ReferenceNames.load PT.BranchId.Main
     let id = System.Guid.NewGuid()
-    do!
-      Sql.query
-        "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, op_kind, origin_ts)
-         VALUES (@id, @main, @main, @blob, 'rename', '2026-11-03T00:00:00.000Z')"
-      |> Sql.parameters
-        [ "id", Sql.uuid id
-          "blob", Sql.bytes [| 0uy |]
-          "main", Sql.string (string PT.BranchId.Main) ]
-      |> Sql.executeStatementAsync
+    Sql.query
+      "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, op_kind, origin_ts)
+       VALUES (@id, @main, @main, @blob, 'rename', '2026-11-03T00:00:00.000Z')"
+    |> Sql.parameters
+      [ "id", Sql.uuid id
+        "blob", Sql.bytes [| 0uy |]
+        "main", Sql.string (string PT.BranchId.Main) ]
+    |> Sql.executeStatement
     try
-      let! after = LibDB.ReferenceNames.load PT.BranchId.Main
+      let after = LibDB.ReferenceNames.load PT.BranchId.Main
       Expect.equal
         after
         before
@@ -666,12 +656,12 @@ let unreadableReferenceMetadataIsRetained =
       let retained =
         Sql.query "SELECT 1 FROM package_ops WHERE id = @id"
         |> Sql.parameters [ "id", Sql.uuid id ]
-        |> Sql.executeExistsSync
+        |> Sql.executeExists
       Expect.isTrue retained "the original operation stays in the log"
     finally
       Sql.query "DELETE FROM package_ops WHERE id = @id"
       |> Sql.parameters [ "id", Sql.uuid id ]
-      |> Sql.executeStatementSync
+      |> Sql.executeStatement
       LibDB.Caching.invalidateAll ()
   }
 
@@ -682,27 +672,26 @@ let appliedMarkCoversOnlyWhatFolded =
     let insert () : Task<System.Guid> =
       task {
         let id = System.Guid.NewGuid()
-        do!
-          Sql.query
-            "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, origin_ts)
-             VALUES (@id, @main, @main, @blob, '2026-11-09T00:00:00.000Z')"
-          |> Sql.parameters
-            [ "id", Sql.uuid id
-              "blob", Sql.bytes [| 0uy |]
-              "main", Sql.string (string PT.BranchId.Main) ]
-          |> Sql.executeStatementAsync
+        Sql.query
+          "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, origin_ts)
+           VALUES (@id, @main, @main, @blob, '2026-11-09T00:00:00.000Z')"
+        |> Sql.parameters
+          [ "id", Sql.uuid id
+            "blob", Sql.bytes [| 0uy |]
+            "main", Sql.string (string PT.BranchId.Main) ]
+        |> Sql.executeStatement
         return id
       }
     let applied (id : System.Guid) : bool =
       Sql.query
         $"SELECT 1 FROM package_ops WHERE id = @id AND {LibDB.AppliedOps.isApplied}"
       |> Sql.parameters [ "id", Sql.uuid id ]
-      |> Sql.executeExistsSync
-    let run (sql : string) = Sql.query sql |> Sql.executeStatementSync
+      |> Sql.executeExists
+    let run (sql : string) = Sql.query sql |> Sql.executeStatement
     let remove (id : System.Guid) =
       Sql.query "DELETE FROM package_ops WHERE id = @id"
       |> Sql.parameters [ "id", Sql.uuid id ]
-      |> Sql.executeStatementSync
+      |> Sql.executeStatement
 
     let! waiting = insert ()
     // An author's save, as `Inserts.storeAndFoldOn` brackets it.
@@ -760,10 +749,10 @@ let noCanonicalInDropSet =
 
     // A name that does not exist asserts nothing, and reads exactly like one that does, so the
     // list is checked against the schema before it is used.
-    let! live =
+    let live =
       Sql.query
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
-      |> Sql.executeAsync (fun read -> read.string "name")
+      |> Sql.executeRows (fun read -> read.string "name")
     let missing = canonical |> List.filter (fun t -> not (List.contains t live))
     Expect.isEmpty
       missing
@@ -785,7 +774,7 @@ let schemaChangeKeepsWork =
     let! commitsBefore = countRows "commits"
     Expect.isTrue (opsBefore > 0L) "there are ops to preserve (not a vacuous test)"
 
-    let! _ = Seed.rebuildProjections ()
+    let _ = Seed.rebuildProjections ()
 
     let! opsAfter = countRows "package_ops"
     let! branchesAfter = countRows "branches"

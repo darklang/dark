@@ -13,7 +13,6 @@
 module LibDB.Layers
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -227,7 +226,7 @@ let supersede
   (table : Table)
   (layer : Layer)
   (bindKey : Microsoft.Data.Sqlite.SqliteCommand -> unit)
-  : Task<unit> =
+  : unit =
   let sameKey =
     table.key |> List.map (fun c -> $"{c} = ${c}") |> String.concat " AND "
   exec
@@ -252,33 +251,29 @@ let private reshape
   (opsWhere : string)
   (bind : Microsoft.Data.Sqlite.SqliteCommand -> unit)
   (change : Table -> string)
-  : Task<unit> =
-  task {
-    let bindAll (cmd : Microsoft.Data.Sqlite.SqliteCommand) =
-      p cmd "$branch" (string branch)
-      bind cmd
-    for t in all do
-      let cols = String.concat ", " t.key
-      do!
-        exec
-          ctx
-          $"UPDATE {t.name} SET live = -1
-            WHERE branch_id = $branch AND ({cols}) IN
-              (SELECT {cols} FROM {t.name} WHERE branch_id = $branch AND {opsWhere})"
-          bindAll
-      do! exec ctx (change t) bindAll
-      let sameKey =
-        t.key |> List.map (fun c -> $"x.{c} = {t.name}.{c}") |> String.concat " AND "
-      do!
-        exec
-          ctx
-          $"UPDATE {t.name} SET live = (rowid = (
-              SELECT x.rowid FROM {t.name} x
-              WHERE x.branch_id = {t.name}.branch_id AND x.draft = {t.name}.draft AND {sameKey}
-              ORDER BY {t.newestFirst} LIMIT 1))
-            WHERE branch_id = $branch AND live = -1"
-          bindAll
-  }
+  : unit =
+  let bindAll (cmd : Microsoft.Data.Sqlite.SqliteCommand) =
+    p cmd "$branch" (string branch)
+    bind cmd
+  for t in all do
+    let cols = String.concat ", " t.key
+    exec
+      ctx
+      $"UPDATE {t.name} SET live = -1
+        WHERE branch_id = $branch AND ({cols}) IN
+          (SELECT {cols} FROM {t.name} WHERE branch_id = $branch AND {opsWhere})"
+      bindAll
+    exec ctx (change t) bindAll
+    let sameKey =
+      t.key |> List.map (fun c -> $"x.{c} = {t.name}.{c}") |> String.concat " AND "
+    exec
+      ctx
+      $"UPDATE {t.name} SET live = (rowid = (
+          SELECT x.rowid FROM {t.name} x
+          WHERE x.branch_id = {t.name}.branch_id AND x.draft = {t.name}.draft AND {sameKey}
+          ORDER BY {t.newestFirst} LIMIT 1))
+        WHERE branch_id = $branch AND live = -1"
+      bindAll
 
 /// Delete what the ops <param opsWhere> selects wrote on <param branch>, in every layered table.
 let dropRowsOf
@@ -286,7 +281,7 @@ let dropRowsOf
   (branch : PT.BranchId)
   (opsWhere : string)
   (bind : Microsoft.Data.Sqlite.SqliteCommand -> unit)
-  : Task<unit> =
+  : unit =
   reshape ctx branch opsWhere bind (fun t ->
     $"DELETE FROM {t.name} WHERE branch_id = $branch AND {opsWhere}")
 
@@ -297,6 +292,6 @@ let commitRowsOf
   (branch : PT.BranchId)
   (opsWhere : string)
   (bind : Microsoft.Data.Sqlite.SqliteCommand -> unit)
-  : Task<unit> =
+  : unit =
   reshape ctx branch opsWhere bind (fun t ->
     $"UPDATE {t.name} SET draft = 0 WHERE branch_id = $branch AND draft = 1 AND {opsWhere}")

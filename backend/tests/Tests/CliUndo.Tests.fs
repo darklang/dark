@@ -2,7 +2,6 @@
 module Tests.CliUndo
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 open Expecto
 
 module RT = LibExecution.RuntimeTypes

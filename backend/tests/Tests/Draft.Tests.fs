@@ -10,7 +10,6 @@ module Tests.Draft
 open Expecto
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -37,17 +36,19 @@ let private runDarkResult (code : string) : Task<Result<int64, string>> =
 
 /// Commit everything uncommitted on main, the way `dark commit` does.
 let private commitAll (message : string) : Task<string> =
-  Inserts.commitAllAsBaseline message
+  Inserts.commitAllAsBaseline message |> Task.FromResult
 
 /// What `locations` currently binds a name to.
 let private liveHash (m : string) (name : string) : Task<Option<string>> =
   liveBoundHash { owner = "Darklang"; modules = [ m ]; name = name }
+  |> Task.FromResult
 
 let private draftOpCount () : Task<int64> =
   Sql.query
     "SELECT count(*) AS n FROM package_ops
      WHERE commit_hash IS NULL AND branch_id = '00000000-0000-0000-0000-000000000001'"
-  |> Sql.executeRowAsync (fun read -> read.int64 "n")
+  |> Sql.executeRow (fun read -> read.int64 "n")
+  |> Task.FromResult
 
 /// The op count a discard reported, or a failure that says why.
 let private unwrap (r : Result<int64, string>) : int64 =
@@ -57,16 +58,14 @@ let private unwrap (r : Result<int64, string>) : int64 =
 
 let private cleanup (m : string) : Task<unit> =
   task {
-    do!
-      Sql.query
-        "DELETE FROM package_ops WHERE id IN
-           (SELECT op_id FROM locations WHERE owner = 'Darklang' AND modules = @m)"
-      |> Sql.parameters [ "m", Sql.string m ]
-      |> Sql.executeStatementAsync
-    do!
-      Sql.query "DELETE FROM locations WHERE owner = 'Darklang' AND modules = @m"
-      |> Sql.parameters [ "m", Sql.string m ]
-      |> Sql.executeStatementAsync
+    Sql.query
+      "DELETE FROM package_ops WHERE id IN
+         (SELECT op_id FROM locations WHERE owner = 'Darklang' AND modules = @m)"
+    |> Sql.parameters [ "m", Sql.string m ]
+    |> Sql.executeStatement
+    Sql.query "DELETE FROM locations WHERE owner = 'Darklang' AND modules = @m"
+    |> Sql.parameters [ "m", Sql.string m ]
+    |> Sql.executeStatement
     LibDB.Caching.invalidateAll ()
   }
 
@@ -94,7 +93,7 @@ let keepsAnOpItCannotRead =
     let alienDraft = System.Guid.NewGuid()
     for (id, commit) in
       [ (alienCommitted, box "alien-commit"); (alienDraft, box System.DBNull.Value) ] do
-      let! _ =
+      let _ =
         Sql.query
           "INSERT INTO package_ops (id, branch_id, authored_on, op_blob, commit_hash, origin_ts)
            VALUES (@id, '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', @blob, @commit, '2026-08-28T00:00:00Z')"
@@ -105,14 +104,14 @@ let keepsAnOpItCannotRead =
             (match commit with
              | :? string as c -> Sql.string c
              | _ -> Sql.dbnull) ]
-        |> Sql.executeNonQueryAsync
+        |> Sql.executeCount
       ()
 
     // A Deprecate in the draft as well, so the discard drops a row from every layered table.
     let target = PT.Reference.PackageFn(hashBoundTo editOps "u")
     let uAt : PT.PackageLocation =
       { owner = "Darklang"; modules = [ m ]; name = "u" }
-    let! _ =
+    let _ =
       Inserts.insertAndApplyOps
         [ PT.PackageOp.Deprecate(
             uAt,
@@ -123,13 +122,13 @@ let keepsAnOpItCannotRead =
           ) ]
 
     // The draft rewrite WipRefresh does, then the discard.
-    let! _ = LibDB.WipRefresh.refresh pmPT
+    let _ = LibDB.WipRefresh.refresh pmPT
     let! result = runDarkResult "Darklang.SCM.Draft.discardAll()"
     let _ = unwrap result
 
     let! afterHash = liveHash m "u"
     Expect.equal afterHash committedHash "the discard still did its job"
-    let! deprecated =
+    let deprecated =
       LibDB.Queries.getCurrentDeprecation
         uAt
         (hashBoundTo editOps "u")
@@ -137,15 +136,15 @@ let keepsAnOpItCannotRead =
     Expect.isNone deprecated "and took the deprecation with it"
 
     for id in [ alienCommitted; alienDraft ] do
-      let! survivors =
+      let survivors =
         countSql
           "SELECT COUNT(*) AS n FROM package_ops WHERE id = @id"
           [ "id", Sql.string (string id) ]
       Expect.equal survivors 1L "an op it could not read is still in the log"
-      let! _ =
+      let _ =
         Sql.query "DELETE FROM package_ops WHERE id = @id"
         |> Sql.parameters [ "id", Sql.string (string id) ]
-        |> Sql.executeNonQueryAsync
+        |> Sql.executeCount
       ()
 
     do! cleanup m
@@ -177,8 +176,7 @@ let aFailedRewriteLeavesTheDraftIntact =
     let! outcome =
       task {
         try
-          return!
-            LibDB.ScmActions.discard PT.BranchId.Main (LibDB.ScmActions.Ops ids)
+          return LibDB.ScmActions.discard PT.BranchId.Main (LibDB.ScmActions.Ops ids)
         finally
           LibDB.ScmActions.Testing.failAt.Value <- null
       }
@@ -194,7 +192,7 @@ let aFailedRewriteLeavesTheDraftIntact =
     Expect.equal draftAfter draftBefore "and so is every draft op"
 
     // And the same discard without the stop does its job, so the test is not passing on a no-op.
-    let! dropped =
+    let dropped =
       LibDB.ScmActions.discard PT.BranchId.Main (LibDB.ScmActions.Ops ids)
     Expect.equal dropped (Ok(List.length ids)) "a clean discard drops them"
     let! again = liveHash m "a"
@@ -217,16 +215,13 @@ let aRefreshDoesNotEatAnAuthorThatLandedMidway =
         $"module Darklang.{m}\n\nlet caller(): Int64 = Darklang.{m}.callee() + 1"
 
     let mutable opened = 0
-    let! _ =
+    let _ =
       LibDB.WipRefresh.refreshWith
         (fun () ->
-          task {
-            opened <- opened + 1
-            if opened = 1 then
-              let! _ =
-                authorIntoMain $"module Darklang.{m}\n\nlet callee(): Int64 = 41"
-              ()
-          })
+          opened <- opened + 1
+          if opened = 1 then
+            (authorIntoMain $"module Darklang.{m}\n\nlet callee(): Int64 = 41")
+              .Wait())
         pmPT
     Expect.equal
       opened
@@ -250,7 +245,8 @@ let private firstCommittedRowid () : Task<int64> =
     "SELECT COALESCE(MIN(rowid), -1) AS n FROM package_ops
      WHERE commit_hash IS NOT NULL AND branch_id = @main"
   |> Sql.parameters [ "main", Sql.string (string PT.BranchId.Main) ]
-  |> Sql.executeRowAsync (fun read -> read.int64 "n")
+  |> Sql.executeRow (fun read -> read.int64 "n")
+  |> Task.FromResult
 
 /// A discard touches only the rows the draft wrote, with or without a draft to drop, so every other
 /// reader keeps a whole store; an unmoved committed rowid is the evidence.

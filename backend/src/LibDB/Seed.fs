@@ -12,7 +12,6 @@
 module LibDB.Seed
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.ProgramTypes
@@ -65,32 +64,31 @@ let checkpointWal (dbPath : string) : unit =
 
 /// Export a seed database to the given output path: copy the full source DB, then strip everything
 /// that belongs to the machine that built it rather than to the package set (see the DELETEs below).
-let export (outputPath : string) : Task<unit> =
-  task {
-    LibExecution.PackageRefs.validate ()
+let export (outputPath : string) : unit =
+  LibExecution.PackageRefs.validate ()
 
-    let sourcePath = LibConfig.Config.dbPath
+  let sourcePath = LibConfig.Config.dbPath
 
-    if System.IO.File.Exists outputPath then System.IO.File.Delete outputPath
+  if System.IO.File.Exists outputPath then System.IO.File.Delete outputPath
 
-    checkpointWal sourcePath
+  checkpointWal sourcePath
 
-    System.IO.File.Copy(sourcePath, outputPath)
+  System.IO.File.Copy(sourcePath, outputPath)
 
-    let connStr = $"Data Source={outputPath};Mode=ReadWriteCreate;Cache=Private"
+  let connStr = $"Data Source={outputPath};Mode=ReadWriteCreate;Cache=Private"
 
-    use conn = new SqliteConnection(connStr)
-    conn.Open()
+  use conn = new SqliteConnection(connStr)
+  conn.Open()
 
-    use pragmaCmd = conn.CreateCommand()
-    pragmaCmd.CommandText <-
-      "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;"
-    Telemetry.count "sql.seed"
-    pragmaCmd.ExecuteNonQuery() |> ignore<int>
+  use pragmaCmd = conn.CreateCommand()
+  pragmaCmd.CommandText <-
+    "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;"
+  Telemetry.count "sql.seed"
+  pragmaCmd.ExecuteNonQuery() |> ignore<int>
 
-    use cleanCmd = conn.CreateCommand()
-    cleanCmd.CommandText <-
-      """
+  use cleanCmd = conn.CreateCommand()
+  cleanCmd.CommandText <-
+    """
       DELETE FROM locations;
       DELETE FROM package_types;
       DELETE FROM package_values;
@@ -143,17 +141,16 @@ let export (outputPath : string) : Task<unit> =
       -- delete; every projection went above.
       DELETE FROM package_ops WHERE commit_hash IS NULL;
       """
-      + AppliedOps.reset
-    Telemetry.count "sql.seed"
-    cleanCmd.ExecuteNonQuery() |> ignore<int>
+    + AppliedOps.reset
+  Telemetry.count "sql.seed"
+  cleanCmd.ExecuteNonQuery() |> ignore<int>
 
-    use vacuumCmd = conn.CreateCommand()
-    vacuumCmd.CommandText <- "VACUUM;"
-    Telemetry.count "sql.seed"
-    vacuumCmd.ExecuteNonQuery() |> ignore<int>
+  use vacuumCmd = conn.CreateCommand()
+  vacuumCmd.CommandText <- "VACUUM;"
+  Telemetry.count "sql.seed"
+  vacuumCmd.ExecuteNonQuery() |> ignore<int>
 
-    conn.Close()
-  }
+  conn.Close()
 
 
 // ---------------------
@@ -163,21 +160,18 @@ let export (outputPath : string) : Task<unit> =
 /// The pending set: every op not yet folded, as raw (rowid, branch, id, blob) rows, in log order. The
 /// fold's half is `foldRead`; `applyUnappliedOpsPass` is the two in sequence. Split so a test can put a
 /// concurrent write between them, which is the case `foldRead`'s mark has to get right.
-let readPending () : Task<List<int64 * PT.BranchId * System.Guid * byte[]>> =
-  task {
-    // Read the raw rows WITHOUT deserializing in the reader: a malformed op_blob must not throw here
-    // and brick the whole fold -- AND every fold after it, since the op stays unapplied.
-    return!
-      Sql.query (
-        AppliedOps.pending "p.rowid AS seq, p.branch_id, p.id, p.op_blob"
-        + " ORDER BY seq"
-      )
-      |> Sql.executeAsync (fun read ->
-        (read.int64 "seq",
-         PT.BranchId.ParseUnsafe(read.string "branch_id"),
-         read.uuid "id",
-         read.bytes "op_blob"))
-  }
+let readPending () : List<int64 * PT.BranchId * System.Guid * byte[]> =
+  // Read the raw rows WITHOUT deserializing in the reader: a malformed op_blob must not throw here
+  // and brick the whole fold -- AND every fold after it, since the op stays unapplied.
+  Sql.query (
+    AppliedOps.pending "p.rowid AS seq, p.branch_id, p.id, p.op_blob"
+    + " ORDER BY seq"
+  )
+  |> Sql.executeRows (fun read ->
+    (read.int64 "seq",
+     PT.BranchId.ParseUnsafe(read.string "branch_id"),
+     read.uuid "id",
+     read.bytes "op_blob"))
 
 /// The tables a cold start fills from empty, each with the secondary indexes the fold itself reads
 /// through, which have to stay.
@@ -193,33 +187,29 @@ let private filledByColdStart : List<string * List<string>> =
 /// these tables hold, and keeping their indexes up to date row by row costs more than building them
 /// once from the finished tables. Unique indexes and keys stay: the inserts rely on them to skip
 /// duplicates.
-let private dropIndexesOfEmptyTables (conn : SqliteConnection) : Task<List<string>> =
-  task {
-    let! perTable =
-      filledByColdStart
-      |> Task.mapSequentially (fun (table, kept) ->
-        task {
-          use cmd = conn.CreateCommand()
-          let keptList = kept |> List.map (fun n -> $"'{n}'") |> String.concat ", "
-          cmd.CommandText <-
-            $"SELECT name, sql FROM sqlite_master
-              WHERE type = 'index' AND tbl_name = '{table}'
-                AND sql IS NOT NULL AND substr(sql, 1, 13) <> 'CREATE UNIQUE'
-                AND name NOT IN ({keptList})
-                AND NOT EXISTS (SELECT 1 FROM {table})"
-          Telemetry.count "sql.seed"
-          use! reader = cmd.ExecuteReaderAsync()
-          return reader |> Sqlite.readRows (fun r -> (r.GetString 0, r.GetString 1))
-        })
-    let indexes = List.concat perTable
-    for (name, _) in indexes do
-      use drop = conn.CreateCommand()
-      drop.CommandText <- $"DROP INDEX {name}"
+let private dropIndexesOfEmptyTables (conn : SqliteConnection) : List<string> =
+  let perTable =
+    filledByColdStart
+    |> List.map (fun (table, kept) ->
+      use cmd = conn.CreateCommand()
+      let keptList = kept |> List.map (fun n -> $"'{n}'") |> String.concat ", "
+      cmd.CommandText <-
+        $"SELECT name, sql FROM sqlite_master
+          WHERE type = 'index' AND tbl_name = '{table}'
+            AND sql IS NOT NULL AND substr(sql, 1, 13) <> 'CREATE UNIQUE'
+            AND name NOT IN ({keptList})
+            AND NOT EXISTS (SELECT 1 FROM {table})"
       Telemetry.count "sql.seed"
-      let! _ = drop.ExecuteNonQueryAsync()
-      ()
-    return List.map snd indexes
-  }
+      use reader = cmd.ExecuteReader()
+      reader |> Sqlite.readRows (fun r -> (r.GetString 0, r.GetString 1)))
+  let indexes = List.concat perTable
+  for (name, _) in indexes do
+    use drop = conn.CreateCommand()
+    drop.CommandText <- $"DROP INDEX {name}"
+    Telemetry.count "sql.seed"
+    let _ = drop.ExecuteNonQuery()
+    ()
+  List.map snd indexes
 
 
 /// What each row at <param rowids> says the fold needs: its stamp, whether it is still in the
@@ -227,25 +217,22 @@ let private dropIndexesOfEmptyTables (conn : SqliteConnection) : Task<List<strin
 let private logRowsOf
   (conn : SqliteConnection)
   (rowids : List<int64>)
-  : Task<Map<int64, PackageOpPlayback.OpRow>> =
-  task {
-    use cmd = conn.CreateCommand()
-    let listed = rowids |> List.map string |> String.concat ", "
-    cmd.CommandText <-
-      $"SELECT rowid, origin_ts, commit_hash IS NULL, source FROM package_ops
-        WHERE rowid IN ({listed})"
-    Telemetry.count "sql.seed"
-    use! reader = cmd.ExecuteReaderAsync()
-    return
-      reader
-      |> Sqlite.readRows (fun r ->
-        (r.GetInt64 0,
-         ({ ts = (if r.IsDBNull 1 then None else Some(r.GetString 1))
-            draft = r.GetInt64 2 <> 0L
-            source = r.GetString 3 }
-         : PackageOpPlayback.OpRow)))
-      |> Map.ofList
-  }
+  : Map<int64, PackageOpPlayback.OpRow> =
+  use cmd = conn.CreateCommand()
+  let listed = rowids |> List.map string |> String.concat ", "
+  cmd.CommandText <-
+    $"SELECT rowid, origin_ts, commit_hash IS NULL, source FROM package_ops
+      WHERE rowid IN ({listed})"
+  Telemetry.count "sql.seed"
+  use reader = cmd.ExecuteReader()
+  reader
+  |> Sqlite.readRows (fun r ->
+    (r.GetInt64 0,
+     ({ ts = (if r.IsDBNull 1 then None else Some(r.GetString 1))
+        draft = r.GetInt64 2 <> 0L
+        source = r.GetString 3 }
+     : PackageOpPlayback.OpRow)))
+  |> Map.ofList
 
 
 /// How many ops `foldRead` deserializes and folds at a time. Measured on a cold start: 250 did the
@@ -259,161 +246,150 @@ let private foldChunkSize = 250
 /// The mark moves to the last row read, and the rows this build could not read stay behind it as
 /// exceptions. Nothing else can be pending at or below that row: a row written since the read comes
 /// after it in the log, and an author that moved the mark in between kept what it passed over.
-let foldRead
-  (rawOps : List<int64 * PT.BranchId * System.Guid * byte[]>)
-  : Task<int64> =
-  task {
-    if List.isEmpty rawOps then
-      return 0L
-    else
+let foldRead (rawOps : List<int64 * PT.BranchId * System.Guid * byte[]>) : int64 =
+  if List.isEmpty rawOps then
+    0L
+  else
 
-      // Deserialize per-op; SKIP + log any that fail rather than aborting, so one bad op cannot brick a
-      // store. They stay unapplied, which is the truth -- nothing folded them -- and means a build
-      // that CAN read them still will.
-      //
-      // A chunk at a time: a cold start folds every op in the store, and all of them deserialized at
-      // once is most of its peak memory.
-      let mutable skipped : List<int64> = []
-      let mutable folded = 0L
+    // Deserialize per-op; SKIP + log any that fail rather than aborting, so one bad op cannot brick a
+    // store. They stay unapplied, which is the truth -- nothing folded them -- and means a build
+    // that CAN read them still will.
+    //
+    // A chunk at a time: a cold start folds every op in the store, and all of them deserialized at
+    // once is most of its peak memory.
+    let mutable skipped : List<int64> = []
+    let mutable folded = 0L
 
-      // Opened at the first op that deserializes, so a store holding only ops this build cannot
-      // read never takes the write lock.
-      let mutable conn : SqliteConnection = null
-      let mutable tx : SqliteTransaction = null
-      let mutable droppedIndexes : List<string> = []
-      let runRaw (conn : SqliteConnection) (sql : string) : Task<unit> =
-        task {
-          use cmd = conn.CreateCommand()
-          cmd.CommandText <- sql
-          Telemetry.count "sql.seed"
-          let! _ = cmd.ExecuteNonQueryAsync()
-          return ()
-        }
-      use _bulk =
-        Telemetry.span "seed.applyOps.bulk" [ "ops", string (List.length rawOps) ]
+    // Opened at the first op that deserializes, so a store holding only ops this build cannot
+    // read never takes the write lock.
+    let mutable conn : SqliteConnection = null
+    let mutable tx : SqliteTransaction = null
+    let mutable droppedIndexes : List<string> = []
+    let runRaw (conn : SqliteConnection) (sql : string) : unit =
+      use cmd = conn.CreateCommand()
+      cmd.CommandText <- sql
+      Telemetry.count "sql.seed"
+      let _ = cmd.ExecuteNonQuery()
+      ()
+    use _bulk =
+      Telemetry.span "seed.applyOps.bulk" [ "ops", string (List.length rawOps) ]
 
-      try
-        for chunk in List.chunkBySize foldChunkSize rawOps do
-          // What the last chunk left behind, collected before this one deserializes. Concurrent GC
-          // is off (`Cli.fsproj`), so collections are rare during a fold and each chunk's syntax
-          // trees were promoted and kept to the end of it: most of a cold start's peak memory.
-          if folded > 0L then
-            System.GC.Collect(1, System.GCCollectionMode.Forced, true)
+    try
+      for chunk in List.chunkBySize foldChunkSize rawOps do
+        // What the last chunk left behind, collected before this one deserializes. Concurrent GC
+        // is off (`Cli.fsproj`), so collections are rare during a fold and each chunk's syntax
+        // trees were promoted and kept to the end of it: most of a cold start's peak memory.
+        if folded > 0L then
+          System.GC.Collect(1, System.GCCollectionMode.Forced, true)
 
-          let unappliedOps =
-            chunk
-            |> List.choose (fun (seq, branch, opId, opBlob) ->
-              BS.PT.PackageOp.tryDeserialize opId opBlob
-              |> Option.map (fun op -> (seq, branch, opId, opBlob, op)))
-          if List.length unappliedOps < List.length chunk then
-            let read =
-              unappliedOps |> List.map (fun (seq, _, _, _, _) -> seq) |> Set.ofList
-            skipped <-
-              (chunk
-               |> List.map (fun (seq, _, _, _) -> seq)
-               |> List.filter (fun seq -> not (Set.contains seq read)))
-              @ skipped
+        let unappliedOps =
+          chunk
+          |> List.choose (fun (seq, branch, opId, opBlob) ->
+            BS.PT.PackageOp.tryDeserialize opId opBlob
+            |> Option.map (fun op -> (seq, branch, opId, opBlob, op)))
+        if List.length unappliedOps < List.length chunk then
+          let read =
+            unappliedOps |> List.map (fun (seq, _, _, _, _) -> seq) |> Set.ofList
+          skipped <-
+            (chunk
+             |> List.map (fun (seq, _, _, _) -> seq)
+             |> List.filter (fun seq -> not (Set.contains seq read)))
+            @ skipped
 
-          if not (List.isEmpty unappliedOps) then
-            if isNull conn then
-              // All ops + the mark in ONE transaction: for 9000+ ops that collapses ~20k WAL commits
-              // into one.
-              conn <- new SqliteConnection(LibDB.Sqlite.connString)
-              do! conn.OpenAsync()
-              // synchronous=NORMAL, not OFF: OFF lets the writer skip syncing the change-counter
-              // update, which poisons the page cache of a concurrent reader on another connection.
-              //
-              // 16 MB of page cache rather than SQLite's 2 MB: most of the fold's writes land in
-              // indexes keyed on random hashes, and with the default nearly every one of them misses
-              // the cache.
-              do!
-                runRaw
-                  conn
-                  "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;
-                   PRAGMA cache_size=-16384;"
-              tx <- conn.BeginTransaction()
-              // Before the first chunk folds, so the check sees the table as the fold found it.
-              let! dropped = dropIndexesOfEmptyTables conn
-              droppedIndexes <- dropped
+        if not (List.isEmpty unappliedOps) then
+          if isNull conn then
+            // All ops + the mark in ONE transaction: for 9000+ ops that collapses ~20k WAL commits
+            // into one.
+            conn <- new SqliteConnection(LibDB.Sqlite.connString)
+            conn.Open()
+            // synchronous=NORMAL, not OFF: OFF lets the writer skip syncing the change-counter
+            // update, which poisons the page cache of a concurrent reader on another connection.
+            //
+            // 16 MB of page cache rather than SQLite's 2 MB: most of the fold's writes land in
+            // indexes keyed on random hashes, and with the default nearly every one of them misses
+            // the cache.
+            runRaw
+              conn
+              "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;
+               PRAGMA cache_size=-16384;"
+            tx <- conn.BeginTransaction()
+            // Before the first chunk folds, so the check sees the table as the fold found it.
+            let dropped = dropIndexesOfEmptyTables conn
+            droppedIndexes <- dropped
 
-            // Read under the write lock, so it is what the row says now.
-            let! logRows =
-              logRowsOf
-                conn
-                (unappliedOps |> List.map (fun (seq, _, _, _, _) -> seq))
+          // Read under the write lock, so it is what the row says now.
+          let logRows =
+            logRowsOf conn (unappliedOps |> List.map (fun (seq, _, _, _, _) -> seq))
 
-            // Each run of consecutive ops on one branch folds into that branch, in log order.
-            let runs =
-              unappliedOps
-              |> List.fold
-                (fun
-                     (acc : List<PT.BranchId * List<PackageOpPlayback.LoggedOp>>)
-                     (seq, branch, opId, opBlob, op) ->
-                  let logged : PackageOpPlayback.LoggedOp =
-                    { op = op
-                      blob = opBlob
-                      id = opId
-                      row =
-                        Map.tryFind seq logRows
-                        |> Option.defaultValue PackageOpPlayback.OpRow.notInLog }
-                  match acc with
-                  | (b, ops) :: rest when b = branch -> (b, logged :: ops) :: rest
-                  | _ -> (branch, [ logged ]) :: acc)
-                []
-              |> List.rev
-              |> List.map (fun (b, ops) -> (b, List.rev ops))
-            let! dependencies =
-              runs
-              |> Task.mapSequentially (fun (branch, ops) ->
-                PackageOpPlayback.foldLoggedOnConnection conn branch ops)
-            PackageOpPlayback.writeDependencies conn (List.concat dependencies)
-            folded <- folded + int64 (List.length unappliedOps)
+          // Each run of consecutive ops on one branch folds into that branch, in log order.
+          let runs =
+            unappliedOps
+            |> List.fold
+              (fun
+                   (acc : List<PT.BranchId * List<PackageOpPlayback.LoggedOp>>)
+                   (seq, branch, opId, opBlob, op) ->
+                let logged : PackageOpPlayback.LoggedOp =
+                  { op = op
+                    blob = opBlob
+                    id = opId
+                    row =
+                      Map.tryFind seq logRows
+                      |> Option.defaultValue PackageOpPlayback.OpRow.notInLog }
+                match acc with
+                | (b, ops) :: rest when b = branch -> (b, logged :: ops) :: rest
+                | _ -> (branch, [ logged ]) :: acc)
+              []
+            |> List.rev
+            |> List.map (fun (b, ops) -> (b, List.rev ops))
+          let dependencies =
+            runs
+            |> List.map (fun (branch, ops) ->
+              PackageOpPlayback.foldLoggedOnConnection conn branch ops)
+          PackageOpPlayback.writeDependencies conn (List.concat dependencies)
+          folded <- folded + int64 (List.length unappliedOps)
 
-        if not (isNull tx) then
-          for sql in droppedIndexes do
-            do! runRaw conn sql
-          use mark = conn.CreateCommand()
-          mark.CommandText <- AppliedOps.foldedThrough
-          mark.Parameters.AddWithValue(
-            "$last",
-            rawOps
-            |> List.maxBy (fun (seq, _, _, _) -> seq)
-            |> (fun (seq, _, _, _) -> seq)
-          )
-          |> ignore<SqliteParameter>
-          mark.Parameters.AddWithValue(
-            "$skipped",
-            "[" + (skipped |> List.map string |> String.concat ",") + "]"
-          )
-          |> ignore<SqliteParameter>
-          Telemetry.count "sql.seed"
-          let! _ = mark.ExecuteNonQueryAsync()
-          tx.Commit()
-      finally
-        if not (isNull tx) then tx.Dispose()
-        if not (isNull conn) then conn.Dispose()
-
-      // ONE line, not one per op: these are re-examined on every startup.
-      if not (List.isEmpty skipped) && not warnedAboutUnreadableOps then
-        warnedAboutUnreadableOps <- true
-        NonBlockingConsole.writeErrLine (
-          $"note: {List.length skipped} op(s) in this store were written in a format this build cannot "
-          + "read, and are being skipped. They are kept, not dropped, so a later build can apply them."
+      if not (isNull tx) then
+        for sql in droppedIndexes do
+          runRaw conn sql
+        use mark = conn.CreateCommand()
+        mark.CommandText <- AppliedOps.foldedThrough
+        mark.Parameters.AddWithValue(
+          "$last",
+          rawOps
+          |> List.maxBy (fun (seq, _, _, _) -> seq)
+          |> (fun (seq, _, _, _) -> seq)
         )
+        |> ignore<SqliteParameter>
+        mark.Parameters.AddWithValue(
+          "$skipped",
+          "[" + (skipped |> List.map string |> String.concat ",") + "]"
+        )
+        |> ignore<SqliteParameter>
+        Telemetry.count "sql.seed"
+        let _ = mark.ExecuteNonQuery()
+        tx.Commit()
+    finally
+      if not (isNull tx) then tx.Dispose()
+      if not (isNull conn) then conn.Dispose()
 
-      return folded
-  }
+    // ONE line, not one per op: these are re-examined on every startup.
+    if not (List.isEmpty skipped) && not warnedAboutUnreadableOps then
+      warnedAboutUnreadableOps <- true
+      NonBlockingConsole.writeErrLine (
+        $"note: {List.length skipped} op(s) in this store were written in a format this build cannot "
+        + "read, and are being skipped. They are kept, not dropped, so a later build can apply them."
+      )
+
+    folded
 
 
 /// One pass: fold everything currently unapplied.
-let private applyUnappliedOpsPass () : Task<int64> =
-  task {
-    let! pending = readPending ()
-    return! foldRead pending
-  }
+let private applyUnappliedOpsPass () : int64 =
+  let pending = readPending ()
+  foldRead pending
 
 /// Fold every op that is unapplied. An op this build cannot read stays pending and is not counted.
-let applyUnappliedOps () : Task<int64> = applyUnappliedOpsPass ()
+let applyUnappliedOps () : int64 = applyUnappliedOpsPass ()
 
 
 /// The regenerable projections: every table the op-fold writes. `deprecations` is one: it's folded
@@ -448,19 +424,17 @@ let projectionTables : List<string> =
 /// else is wrong.
 ///
 /// Returns the count of ops re-applied.
-let rebuildProjections () : Task<int64> =
-  task {
-    // 1. clear the regenerable projection tables (single source of truth = projectionTables).
-    for t in projectionTables do
-      do! Sql.query $"DELETE FROM {t}" |> Sql.executeStatementAsync
-    // 2. mark all ops unapplied so the fold reprocesses the whole log
-    do! Sql.query AppliedOps.reset |> Sql.executeStatementAsync
-    // 3. re-fold ops -> projections via the existing playback path
-    let! folded = applyUnappliedOps ()
-    // Nothing extra to reapply for resolutions: an `Override` decision is an op, so re-folding the log
-    // rebuilds the `source = 'resolution'` rows in `locations` along with everything else.
-    return folded
-  }
+let rebuildProjections () : int64 =
+  // 1. clear the regenerable projection tables (single source of truth = projectionTables).
+  for t in projectionTables do
+    Sql.query $"DELETE FROM {t}" |> Sql.executeStatement
+  // 2. mark all ops unapplied so the fold reprocesses the whole log
+  Sql.query AppliedOps.reset |> Sql.executeStatement
+  // 3. re-fold ops -> projections via the existing playback path
+  let folded = applyUnappliedOps ()
+  // Nothing extra to reapply for resolutions: an `Override` decision is an op, so re-folding the log
+  // rebuilds the `source = 'resolution'` rows in `locations` along with everything else.
+  folded
 
 
 /// One value that could not be evaluated. Structured rather than pre-formatted
@@ -489,19 +463,17 @@ let private valueState
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
   : RT.ExecutionState =
-  let notify _ _ _ _ = uply { return () }
-  let sendException _ _ _ _ = uply { return () }
+  let notify _ _ _ _ = ()
+  let sendException _ _ _ _ = ()
   Execution.createState builtins pm Execution.noTracing sendException notify
 
 /// A failed evaluation as the message `ValueEvaluationError` carries.
 let private failureMessage
   (state : RT.ExecutionState)
   (rte : RT.RuntimeError.Error)
-  : Task<string> =
-  task {
-    let! shown = Execution.runtimeErrorMessage state rte
-    return $"evaluation failed - {shown}"
-  }
+  : string =
+  let shown = Execution.now (Execution.runtimeErrorMessage state rte)
+  $"evaluation failed - {shown}"
 
 /// What the store keeps for an evaluated value: its bytes saved, so it can be serialized, and
 /// no access captured, so a stored closure cannot keep the authority it was made under.
@@ -509,25 +481,23 @@ let private failureMessage
 let private prepareForStore
   (pm : RT.PackageManager)
   (dval : RT.Dval)
-  : Task<Result<RT.Dval, string>> =
-  task {
-    let! dval = LibExecution.Bytes.promote pm.persistBytes dval
-    let dval = LibExecution.Dval.stripCapturedAccess dval
-    if LibExecution.Dval.isPersistable dval then
-      return Ok dval
-    else
-      let reason =
-        LibExecution.Dval.nonPersistableReason dval
-        |> Option.defaultValue "value is not persistable"
-      return Error $"cannot store in val — {reason}"
-  }
+  : Result<RT.Dval, string> =
+  let dval = LibExecution.Bytes.promote pm.persistBytes dval
+  let dval = LibExecution.Dval.stripCapturedAccess dval
+  if LibExecution.Dval.isPersistable dval then
+    Ok dval
+  else
+    let reason =
+      LibExecution.Dval.nonPersistableReason dval
+      |> Option.defaultValue "value is not persistable"
+    Error $"cannot store in val — {reason}"
 
 /// Write an evaluated value's result where `getValue` reads it.
 ///
 /// TODO: open question W?.1 of the package-tree data design: whether `AddValue` should carry
 /// this result's hash (each machine evaluates and checks it) or the result itself. Until it is
 /// settled, every machine that folds the op evaluates the value again, in `evaluateAllValues`.
-let private storeResult (valueHash : PT.Hash) (dval : RT.Dval) : Task<unit> =
+let private storeResult (valueHash : PT.Hash) (dval : RT.Dval) : unit =
   let rtHash = PT2RT.Hash.toRT valueHash
   let rtValue = LibExecution.Dval.packageValue rtHash dval
   let (Hash defHash) = valueHash
@@ -541,95 +511,86 @@ let private storeResult (valueHash : PT.Hash) (dval : RT.Dval) : Task<unit> =
     [ "hash", Sql.string defHash
       "rt_dval", Sql.bytes (BS.RT.PackageValue.serialize rtHash rtValue)
       "value_type", Sql.bytes (BS.RT.ValueType.serialize (RT.Dval.toValueType dval)) ]
-  |> Sql.executeStatementAsync
+  |> Sql.executeStatement
 
 /// Evaluate all package values that have NULL rt_dval.
 /// Multi-pass: values may depend on other values, so we retry until convergence.
 let evaluateAllValues
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
-  : Task<Result<unit, List<ValueEvaluationError>>> =
-  task {
-    let exeState = valueState builtins pm
+  : Result<unit, List<ValueEvaluationError>> =
+  let exeState = valueState builtins pm
 
-    let maxPasses = 10
+  let maxPasses = 10
 
-    let unevaluated () =
-      Sql.query
-        """
+  let unevaluated () =
+    Sql.query
+      """
         SELECT pv.hash, pv.pt_def, l.owner, l.modules, l.name
         FROM package_values pv
         LEFT JOIN locations l ON l.item_hash = pv.hash AND l.live = 1
         WHERE pv.rt_dval IS NULL
         GROUP BY pv.hash
         """
-      |> Sql.executeAsync (fun read ->
-        let hash = Hash(read.string "hash")
-        let ptDef = read.bytes "pt_def"
-        let owner = read.stringOrNone "owner" |> Option.defaultValue "?"
-        let modules = read.stringOrNone "modules" |> Option.defaultValue ""
-        let name = read.stringOrNone "name" |> Option.defaultValue "?"
-        let fullName =
-          if modules = "" then $"{owner}.{name}" else $"{owner}.{modules}.{name}"
-        (hash, ptDef, fullName))
+    |> Sql.executeRows (fun read ->
+      let hash = Hash(read.string "hash")
+      let ptDef = read.bytes "pt_def"
+      let owner = read.stringOrNone "owner" |> Option.defaultValue "?"
+      let modules = read.stringOrNone "modules" |> Option.defaultValue ""
+      let name = read.stringOrNone "name" |> Option.defaultValue "?"
+      let fullName =
+        if modules = "" then $"{owner}.{name}" else $"{owner}.{modules}.{name}"
+      (hash, ptDef, fullName))
 
-    let evaluate
-      (
-        valueHash : Hash,
-        ptDefBytes : byte[],
-        fullName : string
-      ) : Ply<Result<unit, ValueEvaluationError>> =
-      uply {
-        let fail message =
-          Error { hash = Some valueHash; location = fullName; message = message }
-        try
-          let ptValue = BS.PT.PackageValue.deserialize valueHash ptDefBytes
-          match! Execution.evaluateValue exeState fullName ptValue.body with
-          | Error(rte, _callStack) ->
-            let! message = failureMessage exeState rte
-            return fail message
-          | Ok dval ->
-            match! prepareForStore pm dval with
-            | Error message -> return fail message
-            | Ok dval ->
-              do! storeResult valueHash dval
-              return Ok()
-        with ex ->
-          return fail $"exception - {ex.Message}"
-      }
+  let evaluate
+    (
+      valueHash : Hash,
+      ptDefBytes : byte[],
+      fullName : string
+    ) : Result<unit, ValueEvaluationError> =
+    let fail message =
+      Error { hash = Some valueHash; location = fullName; message = message }
+    try
+      let ptValue = BS.PT.PackageValue.deserialize valueHash ptDefBytes
+      match
+        Execution.now (Execution.evaluateValue exeState fullName ptValue.body)
+      with
+      | Error(rte, _callStack) ->
+        let message = failureMessage exeState rte
+        fail message
+      | Ok dval ->
+        match prepareForStore pm dval with
+        | Error message -> fail message
+        | Ok dval ->
+          storeResult valueHash dval
+          Ok()
+    with ex ->
+      fail $"exception - {ex.Message}"
 
-    // Stops when nothing is left, when a pass evaluates nothing, or after maxPasses.
-    let rec passes (pass : int) : Task<List<ValueEvaluationError>> =
-      task {
-        let! unevaluatedValues = unevaluated ()
-        if List.isEmpty unevaluatedValues then
-          return []
-        else if pass > maxPasses then
-          return
-            [ { hash = None
-                location = ""
-                message =
-                  $"Gave up after {maxPasses} passes with "
-                  + $"{List.length unevaluatedValues} values remaining" } ]
-        else
-          let! results =
-            Ply.List.mapSequentially evaluate unevaluatedValues |> Ply.toTask
-          let errors =
-            results
-            |> List.choose (fun r ->
-              match r with
-              | Error e -> Some e
-              | Ok() -> None)
-          if List.length errors = List.length results then
-            return errors
-          else
-            return! passes (pass + 1)
-      }
+  // Stops when nothing is left, when a pass evaluates nothing, or after maxPasses.
+  let rec passes (pass : int) : List<ValueEvaluationError> =
+    let unevaluatedValues = unevaluated ()
+    if List.isEmpty unevaluatedValues then
+      []
+    else if pass > maxPasses then
+      [ { hash = None
+          location = ""
+          message =
+            $"Gave up after {maxPasses} passes with "
+            + $"{List.length unevaluatedValues} values remaining" } ]
+    else
+      let results = List.map evaluate unevaluatedValues
+      let errors =
+        results
+        |> List.choose (fun r ->
+          match r with
+          | Error e -> Some e
+          | Ok() -> None)
+      if List.length errors = List.length results then errors else passes (pass + 1)
 
-    let! lastErrors = passes 1
+  let lastErrors = passes 1
 
-    if List.isEmpty lastErrors then return Ok() else return Error lastErrors
-  }
+  if List.isEmpty lastErrors then Ok() else Error lastErrors
 
 
 /// The grow step for CLI/test startup: apply unapplied ops, generate package ref hashes, evaluate values.
@@ -642,42 +603,39 @@ let growIfNeeded
   (getBuiltins : unit -> RT.Builtins)
   (pm : RT.PackageManager)
   (log : string -> unit)
-  : Task<bool> =
-  task {
-    use _span = Telemetry.span "seed.growIfNeeded" []
-    let! appliedCount =
-      Telemetry.timeTask "seed.applyOps" [] (fun () -> applyUnappliedOps ())
-    // A store can have every op applied yet still hold unevaluated values (rt_dval NULL): after a
-    // migration that re-marks ops applied without evaluating, or a store copied/built without a final grow
-    // (the test seed does exactly this). Gating evaluation on `appliedCount > 0` alone leaves those values
-    // NULL forever, and a NULL `rt_dval` reads as "value not found". Evaluate whenever any value is
-    // unevaluated so the store self-heals on startup. Answered from `idx_package_values_unevaluated`,
-    // which holds only those values, so a warm start does not read the table to find none.
-    let! hasUnevaluatedValues =
-      Sql.query
-        "SELECT EXISTS(SELECT 1 FROM package_values WHERE rt_dval IS NULL) AS has_null"
-      |> Sql.executeRowAsync (fun read -> read.int64 "has_null")
-      |> Task.map (fun n -> n > 0L)
-    if appliedCount > 0L then
-      log $"Growing package DB from ops ({appliedCount} ops to apply)..."
-      Telemetry.event "seed.applyOps.count" [ ("count", string appliedCount) ]
-    // ABI type identities are PINNED: the committed package-ref-hashes.txt is authoritative, loaded by
-    // PackageRefs on first access, and nothing here regenerates it. Regenerating on boot would let the
-    // kernel's type identities float on whatever the local store happened to hash to. The generator is a
-    // DEV tool (reload-packages / LocalExec fill), where regenerating produces a reviewable git diff,
-    // which is what a re-pin should be.
-    if appliedCount > 0L || hasUnevaluatedValues then
-      let! _evalResult =
-        Telemetry.timeTask "seed.evaluateValues" [] (fun () ->
-          evaluateAllValues (getBuiltins ()) pm)
-      do!
-        Telemetry.timeTask "seed.walCheckpoint" [] (fun () ->
-          Sql.query "PRAGMA wal_checkpoint(TRUNCATE);" |> Sql.executeStatementAsync)
-      // Announce only when we grew from real op work; a pure self-heal (evaluating stray unevaluated values
-      // with no new ops) is silent maintenance, and must not print to stdout, or it pollutes captured CLI
-      // output (e.g. a caller comparing exact command output).
-      if appliedCount > 0L then log "Package DB ready"
-      return true
-    else
-      return false
-  }
+  : bool =
+  use _span = Telemetry.span "seed.growIfNeeded" []
+  let appliedCount =
+    Telemetry.time "seed.applyOps" [] (fun () -> applyUnappliedOps ())
+  // A store can have every op applied yet still hold unevaluated values (rt_dval NULL): after a
+  // migration that re-marks ops applied without evaluating, or a store copied/built without a final grow
+  // (the test seed does exactly this). Gating evaluation on `appliedCount > 0` alone leaves those values
+  // NULL forever, and a NULL `rt_dval` reads as "value not found". Evaluate whenever any value is
+  // unevaluated so the store self-heals on startup. Answered from `idx_package_values_unevaluated`,
+  // which holds only those values, so a warm start does not read the table to find none.
+  let hasUnevaluatedValues =
+    Sql.query
+      "SELECT EXISTS(SELECT 1 FROM package_values WHERE rt_dval IS NULL) AS has_null"
+    |> Sql.executeRow (fun read -> read.int64 "has_null")
+    |> (fun n -> n > 0L)
+  if appliedCount > 0L then
+    log $"Growing package DB from ops ({appliedCount} ops to apply)..."
+    Telemetry.event "seed.applyOps.count" [ ("count", string appliedCount) ]
+  // ABI type identities are PINNED: the committed package-ref-hashes.txt is authoritative, loaded by
+  // PackageRefs on first access, and nothing here regenerates it. Regenerating on boot would let the
+  // kernel's type identities float on whatever the local store happened to hash to. The generator is a
+  // DEV tool (reload-packages / LocalExec fill), where regenerating produces a reviewable git diff,
+  // which is what a re-pin should be.
+  if appliedCount > 0L || hasUnevaluatedValues then
+    let _evalResult =
+      Telemetry.time "seed.evaluateValues" [] (fun () ->
+        evaluateAllValues (getBuiltins ()) pm)
+    Telemetry.time "seed.walCheckpoint" [] (fun () ->
+      Sql.query "PRAGMA wal_checkpoint(TRUNCATE);" |> Sql.executeStatement)
+    // Announce only when we grew from real op work; a pure self-heal (evaluating stray unevaluated values
+    // with no new ops) is silent maintenance, and must not print to stdout, or it pollutes captured CLI
+    // output (e.g. a caller comparing exact command output).
+    if appliedCount > 0L then log "Package DB ready"
+    true
+  else
+    false

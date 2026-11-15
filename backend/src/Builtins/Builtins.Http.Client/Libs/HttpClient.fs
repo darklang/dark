@@ -19,7 +19,6 @@
 module Builtins.Http.Client.Libs.HttpClient
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution
@@ -341,7 +340,7 @@ let private exchange
   (drop : 'r -> unit)
   (finish : Result<Hop * 'r, Dval> -> Dval)
   (first : Hop)
-  : Ply<Dval> =
+  : Dval =
   let access = vm.activeAccess
   let remaining () =
     policy.deadline |> Option.map (fun at -> at - System.Environment.TickCount64)
@@ -359,23 +358,24 @@ let private exchange
         "http request failed outside the typed error surface"
         [ "message", failure.message ]
     | Ok response -> expect response
-  let send (hop : Hop) : Ply<Result<'r, HostTypes.HttpRequestError>> =
+  let send (hop : Hop) : Task<Result<'r, HostTypes.HttpRequestError>> =
     match remaining () with
-    | Some left when left <= 0L -> Ply(Error HostTypes.HttpRequestError.Timeout)
+    | Some left when left <= 0L ->
+      Task.FromResult(Error HostTypes.HttpRequestError.Timeout)
     | _ ->
       PermissionCheck.performHostWithAccess
         state
         vm
         access
         (operation hop (timeoutMs ()))
-      |> Ply.map answerOf
+      |> Task.map answerOf
   let rec settle
     (hop : Hop)
     (redirects : int64)
     (retries : int64)
     (answer : Result<'r, HostTypes.HttpRequestError>)
-    : Ply<Result<Hop * 'r, Dval>> =
-    uply {
+    : Task<Result<Hop * 'r, Dval>> =
+    task {
       let again = retries > 0L && isIdempotent hop.method
       let backoff () = backoffMs policy.retryDelayMs (policy.retries - retries)
       match answer with
@@ -415,7 +415,7 @@ let private exchange
     }
   Interpreter.requestHost vm (operation first (timeoutMs ())) (fun outcome ->
     settle first policy.redirects policy.retries (answerOf outcome)
-    |> Ply.map finish)
+    |> Pending.map finish)
 
 /// The builtins' shared body: read the arguments, run the exchange, and answer its last
 /// response with `answer`, or why there is none.
@@ -429,7 +429,7 @@ let private run
   (drop : 'r -> unit)
   (answer : string -> 'r -> Dval)
   (failed : Dval -> Dval)
-  : Ply<Dval> =
+  : Dval =
   match args with
   | [| DString method
        DString uri
@@ -560,11 +560,8 @@ let fns () : List<BuiltInFn> =
               (head.statusCode, head.headers))
             (fun head -> Host.httpStreamClose head.handle)
             (fun url head ->
-              let nextChunk (maxBytes : int) : Ply<Option<byte[]>> =
-                uply {
-                  let! chunk = Host.httpStreamRead head.handle maxBytes
-                  return chunk
-                }
+              let nextChunk (maxBytes : int) : ValueTask<Option<byte[]>> =
+                ValueTask<Option<byte[]>>(Host.httpStreamRead head.handle maxBytes)
               let disposer () = Host.httpStreamClose head.handle
               let body = Stream.newChunked VT.uint8 nextChunk (Some disposer)
               responseOf streamOfBytes url head.statusCode head.headers body

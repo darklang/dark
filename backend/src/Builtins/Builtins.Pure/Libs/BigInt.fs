@@ -41,14 +41,12 @@ let private toFixed
   (hi : bigint)
   (make : bigint -> Dval)
   (v : Dval)
-  : Ply<Dval> =
+  : Dval =
   let b = Dval.asBigInt v
   if b >= lo && b <= hi then
-    Dval.optionSome resultType (make b) |> Ply
+    Dval.optionSome resultType (make b)
   else
-    Dval.optionNone resultType |> Ply
-
-
+    Dval.optionNone resultType
 let fns () : List<BuiltInFn> =
   [ { name = fn "bigIntToFloat64" 0
       typeParams = []
@@ -59,7 +57,7 @@ let fns () : List<BuiltInFn> =
         + "precision."
       fn =
         (function
-        | _, _, _, [| (DBigInt _) as v |] -> Ply(DFloat64(float (Dval.asBigInt v)))
+        | _, _, _, [| (DBigInt _) as v |] -> (DFloat64(float (Dval.asBigInt v)))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -103,8 +101,8 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString s |] ->
           match System.Numerics.BigInteger.TryParse(s) with
-          | true, i -> i |> Dval.bigInt |> resultOk |> Ply
-          | false, _ -> ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
+          | true, i -> i |> Dval.bigInt |> resultOk
+          | false, _ -> ParseError.BadFormat |> ParseError.toDT |> resultError
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -118,7 +116,7 @@ let fns () : List<BuiltInFn> =
       description = "Stringify <param int>"
       fn =
         (function
-        | _, _, _, [| DBigInt i |] -> Ply(DString(DarkBigInt.toString i))
+        | _, _, _, [| DBigInt i |] -> (DString(DarkBigInt.toString i))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -135,7 +133,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int8 to an arbitrary-precision BigInt."
       fn =
         (function
-        | _, _, _, [| DInt8 a |] -> Dval.bigInt (bigint a) |> Ply
+        | _, _, _, [| DInt8 a |] -> Dval.bigInt (bigint a)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -149,7 +147,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts a UInt8 to an arbitrary-precision BigInt."
       fn =
         (function
-        | _, _, _, [| DUInt8 a |] -> Dval.bigInt (bigint a) |> Ply
+        | _, _, _, [| DUInt8 a |] -> Dval.bigInt (bigint a)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -163,7 +161,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int16 to an arbitrary-precision BigInt."
       fn =
         (function
-        | _, _, _, [| DInt16 a |] -> Dval.bigInt (bigint a) |> Ply
+        | _, _, _, [| DInt16 a |] -> Dval.bigInt (bigint a)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -177,7 +175,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts a UInt16 to an arbitrary-precision BigInt."
       fn =
         (function
-        | _, _, _, [| DUInt16 a |] -> Dval.bigInt (bigint a) |> Ply
+        | _, _, _, [| DUInt16 a |] -> Dval.bigInt (bigint a)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -191,7 +189,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int32 to an arbitrary-precision BigInt."
       fn =
         (function
-        | _, _, _, [| DInt32 a |] -> Dval.bigInt (bigint a) |> Ply
+        | _, _, _, [| DInt32 a |] -> Dval.bigInt (bigint a)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -205,7 +203,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts a UInt32 to an arbitrary-precision BigInt."
       fn =
         (function
-        | _, _, _, [| DUInt32 a |] -> Dval.bigInt (bigint a) |> Ply
+        | _, _, _, [| DUInt32 a |] -> Dval.bigInt (bigint a)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -220,7 +218,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         // An Int64 is always in `DarkBigInt.Finite` range.
-        | _, _, _, [| DInt64 a |] -> Dval.dbigint (DarkBigInt.Finite a) |> Ply
+        | _, _, _, [| DInt64 a |] -> Dval.dbigint (DarkBigInt.Finite a)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -234,7 +232,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts a UInt64 to an arbitrary-precision BigInt."
       fn =
         (function
-        | _, _, _, [| DUInt64 a |] -> Dval.bigInt (bigint a) |> Ply
+        | _, _, _, [| DUInt64 a |] -> Dval.bigInt (bigint a)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -248,7 +246,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int128 to an arbitrary-precision BigInt."
       fn =
         (function
-        | _, _, _, [| DInt128 a |] -> Dval.bigInt (i128ToBig a) |> Ply
+        | _, _, _, [| DInt128 a |] -> Dval.bigInt (i128ToBig a)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -262,7 +260,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts a UInt128 to an arbitrary-precision BigInt."
       fn =
         (function
-        | _, _, _, [| DUInt128 a |] -> Dval.bigInt (u128ToBig a) |> Ply
+        | _, _, _, [| DUInt128 a |] -> Dval.bigInt (u128ToBig a)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -409,9 +407,8 @@ let fns () : List<BuiltInFn> =
         // By the invariant, a `Finite` always fits Int64 and an `Infinite` never
         // does.
         | _, _, _, [| DBigInt(DarkBigInt.Finite a) |] ->
-          Dval.optionSome someType (DInt64 a) |> Ply
-        | _, _, _, [| DBigInt(DarkBigInt.Infinite _) |] ->
-          Dval.optionNone someType |> Ply
+          Dval.optionSome someType (DInt64 a)
+        | _, _, _, [| DBigInt(DarkBigInt.Infinite _) |] -> Dval.optionNone someType
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

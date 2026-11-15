@@ -2,7 +2,6 @@
 module Builtins.Cli.Libs.Environment
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
@@ -31,11 +30,9 @@ let fns () : List<BuiltInFn> =
             | Ok response ->
               match Host.expectEnvValue response with
               | Some value ->
-                Ply(
-                  Dval.optionSome KTString (DString(String.normalizeOutside value))
-                )
-              | None -> Ply(Dval.optionNone KTString)
-            | Error _ -> Ply(Dval.optionNone KTString))
+                (Dval.optionSome KTString (DString(String.normalizeOutside value)))
+              | None -> (Dval.optionNone KTString)
+            | Error _ -> (Dval.optionNone KTString))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.EnvRead ]
@@ -58,8 +55,7 @@ let fns () : List<BuiltInFn> =
               |> List.map (fun (k, v) ->
                 (String.normalizeOutside k, DString(String.normalizeOutside v)))
               |> Dval.stringDict KTString
-              |> Ply
-            | Error _ -> Ply(Dval.stringDict KTString []))
+            | Error _ -> (Dval.stringDict KTString []))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.EnvRead ]
@@ -73,7 +69,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the git hash of the current CLI build"
       fn =
         function
-        | _, _, [], [| DUnit |] -> uply { return DString LibConfig.Config.buildHash }
+        | _, _, [], [| DUnit |] -> (DString LibConfig.Config.buildHash)
         | _ -> incorrectArgs ()
       previewable = Impure
       callEffects = Set.empty
@@ -87,21 +83,14 @@ let fns () : List<BuiltInFn> =
         "Hashes the installed runtime files for cache invalidation, or the errno of reading them"
       fn =
         function
-        | state, vm, [], [| DUnit |] ->
-          uply {
-            let! result =
-              LibExecution.PermissionCheck.performHost
-                state
-                vm
-                Host.Operation.RuntimeHash
+        | _, vm, [], [| DUnit |] ->
+          Interpreter.requestHost vm Host.Operation.RuntimeHash (fun result ->
             match result with
             | Ok(Host.Response.Text hash) ->
-              return Dval.resultOk KTString KTInt64 (DString hash)
+              Dval.resultOk KTString KTInt64 (DString hash)
             | Error error ->
-              return
-                Dval.resultError KTString KTInt64 (Dval.dint64 (int64 error.errno))
-            | _ -> return incorrectArgs ()
-          }
+              Dval.resultError KTString KTInt64 (Dval.dint64 (int64 error.errno))
+            | _ -> incorrectArgs ())
         | _ -> incorrectArgs ()
       previewable = Impure
       callEffects = set [ Effect.Raise ]

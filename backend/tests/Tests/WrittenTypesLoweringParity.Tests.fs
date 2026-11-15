@@ -15,7 +15,6 @@
 module Tests.WrittenTypesLoweringParity
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Expecto
 
@@ -241,7 +240,7 @@ let tests =
               | None -> failtest $"Unwrap fixture did not parse: {source}")
           let sample = unwrapSnippets @ sample
 
-          let! (exeState : RT.ExecutionState) = executionStateFor pmPT false
+          let (exeState : RT.ExecutionState) = executionStateFor pmPT false
           let parseFnName =
             RT.FQFnName.fqPackage (
               PackageRefs.Fn.LanguageTools.Parser.parsePTExpr ()
@@ -256,16 +255,15 @@ let tests =
           let mismatches = ResizeArray<string * string>()
           let mutable darkSideErrors = 0
           for (f, snip, wtExpr) in sample do
-            let! (fsPT : PT.Expr) =
+            let (fsPT : PT.Expr) =
               WT2PT.Expr.toPT fsBuiltins pmPT NR.OnMissing.Allow [] ctx wtExpr
-              |> Ply.toTask
             let! darkResult =
               LibExecution.Execution.executeFunction
                 exeState
                 parseFnName
                 []
                 (NEList.singleton (RT.DString snip))
-            let! darkDval = unwrapExecutionResult exeState darkResult |> Ply.toTask
+            let darkDval = unwrapExecutionResult exeState darkResult
             match darkDval with
             | RT.DEnum(tn, _, _, "Ok", [ exprDval ]) when tn = Dval.resultType () ->
               let darkPT = PT2DT.Expr.fromDT exprDval
@@ -309,7 +307,7 @@ let tests =
       // agree.
       testTask
         "F# and Dark lowerings agree under a real fn context (self-call, match-shadow)" {
-        let! (exeState : RT.ExecutionState) = executionStateFor pmPT false
+        let (exeState : RT.ExecutionState) = executionStateFor pmPT false
         let fsBuiltins = localBuiltIns pmPT
         let inCtxFn =
           RT.FQFnName.fqPackage (
@@ -375,9 +373,8 @@ let tests =
               sourceRanges = None }
           match (P.parse snip).parsed with
           | Some(WT.SourceFile { exprsToEval = [ e ] }) ->
-            let! (fsPT : PT.Expr) =
+            let (fsPT : PT.Expr) =
               WT2PT.Expr.toPT fsBuiltins pmPT NR.OnMissing.Allow cmod ctx e
-              |> Ply.toTask
             let strList xs = xs |> List.map RT.DString |> Dval.list RT.KTString
             let args =
               NEList.ofList
@@ -389,7 +386,7 @@ let tests =
                   RT.DString snip ]
             let! darkResult =
               LibExecution.Execution.executeFunction exeState inCtxFn [] args
-            let! darkDval = unwrapExecutionResult exeState darkResult |> Ply.toTask
+            let darkDval = unwrapExecutionResult exeState darkResult
             match darkDval with
             | RT.DEnum(tn, _, _, "Ok", [ exprDval ]) when tn = Dval.resultType () ->
               let darkPT = PT2DT.Expr.fromDT exprDval

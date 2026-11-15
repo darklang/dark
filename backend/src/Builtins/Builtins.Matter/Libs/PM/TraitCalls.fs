@@ -9,6 +9,8 @@
 /// resolving a call means EXECUTING Dark, which needs an execution state.
 module Builtins.Matter.Libs.PM.TraitCalls
 
+open System.Threading.Tasks
+
 open Prelude
 open LibExecution.RuntimeTypes
 
@@ -438,15 +440,16 @@ let private askChecker
   (exeState : RT.ExecutionState)
   (branchId : PT.BranchId)
   (ops : List<PT.PackageOp>)
-  : Ply<Option<Map<PT.Hash, List<Resolution>> * Set<PT.Hash>>> =
-  uply {
-    // The branch explicitly, not whatever `exeState` happens to carry: a call resolves to the
-    // implementation live on the branch being SAVED to.
-    let args =
-      NEList.ofList
-        (DUuid branchId.Guid)
-        [ Dval.list (packageOpKT ()) (ops |> List.map PT2DT.PackageOp.toDT) ]
-    match! Exe.executeFunction exeState (checkPackageOpsName ()) [] args with
+  : Task<Option<Map<PT.Hash, List<Resolution>> * Set<PT.Hash>>> =
+  // The branch explicitly, not whatever `exeState` happens to carry: a call resolves to the
+  // implementation live on the branch being SAVED to.
+  let args =
+    NEList.ofList
+      (DUuid branchId.Guid)
+      [ Dval.list (packageOpKT ()) (ops |> List.map PT2DT.PackageOp.toDT) ]
+  Exe.executeFunction exeState (checkPackageOpsName ()) [] args
+  |> Task.map (fun answer ->
+    match answer with
     | Ok report ->
       let decoded = Decode.report report
       let failed = Decode.failed report
@@ -466,11 +469,11 @@ let private askChecker
         if warnings > 0 then
           printErr
             $"  [traitcalls] the checker reported no resolutions and {warnings} warning(s); the batch was not checked"
-          return None
+          None
         else
-          return Some(decoded, failed)
+          Some(decoded, failed)
       else
-        return Some(decoded, failed)
+        Some(decoded, failed)
     | Error(rte, _) ->
       // A swallowed checker failure and a checker with nothing to say are the same zero, and
       // the zero is what nobody re-checks, so say which one happened. Kept deliberately: the
@@ -478,8 +481,7 @@ let private askChecker
       // the only place a SYSTEMIC failure of the check would otherwise be invisible.
       let shown = Exe.runtimeErrorDebugString rte
       printErr $"  [traitcalls] the at-rest checker did not answer: {shown}"
-      return None
-  }
+      None)
 
 
 /// Whether this batch could have anything to resolve at all.
@@ -546,59 +548,54 @@ let rec private calledPackageFns (expr : PT.Expr) : List<PT.Hash> =
 let private worthChecking
   (pm : PT.PackageManager)
   (ops : List<PT.PackageOp>)
-  : Ply<bool> =
-  uply {
-    let cheaply =
+  : bool =
+  let cheaply =
+    ops
+    |> List.exists (fun op ->
+      match op with
+      | PT.PackageOp.AddFn fn ->
+        hasInfix fn.body
+        || namesATraitMethod fn.body
+        || (Dependencies.extractFromFn fn
+            |> List.exists (fun d -> d.itemKind = PT.ItemKind.Trait))
+      // A value's body is an expression too, and `let scale = 3L * 4L` is an operator call
+      // the checker types the same way. It is evaluated once at load rather than per call,
+      // so this is not about speed; it is about the value meaning the same thing after
+      // someone else's implementation arrives.
+      | PT.PackageOp.AddValue value ->
+        hasInfix value.body || namesATraitMethod value.body
+      // A test body calls bounded generics and operators like any fn, and resolving them
+      // is what lets the test runner prove it effect-free and run it in-process.
+      | PT.PackageOp.AddTest test ->
+        hasInfix test.body || namesATraitMethod test.body
+      | _ -> false)
+
+  if cheaply then
+    true
+  else
+    let called =
       ops
-      |> List.exists (fun op ->
+      |> List.collect (fun op ->
         match op with
-        | PT.PackageOp.AddFn fn ->
-          hasInfix fn.body
-          || namesATraitMethod fn.body
-          || (Dependencies.extractFromFn fn
-              |> List.exists (fun d -> d.itemKind = PT.ItemKind.Trait))
-        // A value's body is an expression too, and `let scale = 3L * 4L` is an operator call
-        // the checker types the same way. It is evaluated once at load rather than per call,
-        // so this is not about speed; it is about the value meaning the same thing after
-        // someone else's implementation arrives.
-        | PT.PackageOp.AddValue value ->
-          hasInfix value.body || namesATraitMethod value.body
-        // A test body calls bounded generics and operators like any fn, and resolving them
-        // is what lets the test runner prove it effect-free and run it in-process.
-        | PT.PackageOp.AddTest test ->
-          hasInfix test.body || namesATraitMethod test.body
-        | _ -> false)
+        | PT.PackageOp.AddFn fn -> calledPackageFns fn.body
+        | PT.PackageOp.AddValue value -> calledPackageFns value.body
+        | PT.PackageOp.AddTest test -> calledPackageFns test.body
+        | _ -> [])
+      |> List.distinct
 
-    if cheaply then
-      return true
-    else
-      let called =
-        ops
-        |> List.collect (fun op ->
-          match op with
-          | PT.PackageOp.AddFn fn -> calledPackageFns fn.body
-          | PT.PackageOp.AddValue value -> calledPackageFns value.body
-          | PT.PackageOp.AddTest test -> calledPackageFns test.body
-          | _ -> [])
-        |> List.distinct
-
-      // Whether any of them is bounded. Sequential and short-circuiting, because a batch that
-      // reaches here is an authoring batch of one or two items with a handful of calls, and the
-      // lookups are what the store caches anyway.
-      return!
-        called
-        |> Ply.List.foldSequentially
-          (fun bounded h ->
-            if bounded then
-              uply { return true }
-            else
-              uply {
-                match! pm.getFn h with
-                | Some fn -> return not (List.isEmpty fn.bounds)
-                | None -> return false
-              })
-          false
-  }
+    // Whether any of them is bounded. Sequential and short-circuiting, because a batch that
+    // reaches here is an authoring batch of one or two items with a handful of calls, and the
+    // lookups are what the store caches anyway.
+    called
+    |> List.fold
+      (fun bounded h ->
+        if bounded then
+          (true)
+        else
+          match pm.getFn h with
+          | Some fn -> not (List.isEmpty fn.bounds)
+          | None -> false)
+      false
 
 
 /// Write onto each trait-method call in <param ops> the implementation it resolves to.
@@ -613,112 +610,112 @@ let private resolveIn
   (pm : PT.PackageManager)
   (reload : Option<string>)
   (ops : List<PT.PackageOp>)
-  : Ply<List<PT.PackageOp> * Set<PT.Hash>> =
-  uply {
-    let storeHoldsOps = Option.isSome reload
-    let! worth = worthChecking pm ops
-    if not worth then
-      return (ops, Set.empty)
-    else
-      // A deprecated implementation is not a candidate at run time, so it must not be one
-      // here either: `dark constraints` tells you to deprecate one of two rivals, and resolving
-      // to the one you just retired would make that advice a trap.
-      let! deprecated = LibDB.Queries.getDeprecatedTraitImplHashesFor branchId
-      let! storedStamps = LibDB.Queries.getTraitImplStamps ()
+  : Task<List<PT.PackageOp> * Set<PT.Hash>> =
+  let storeHoldsOps = Option.isSome reload
+  let worth = worthChecking pm ops
+  if not worth then
+    Task.FromResult(ops, Set.empty)
+  else
+    // A deprecated implementation is not a candidate at run time, so it must not be one
+    // here either: `dark constraints` tells you to deprecate one of two rivals, and resolving
+    // to the one you just retired would make that advice a trap.
+    let deprecated = LibDB.Queries.getDeprecatedTraitImplHashesFor branchId
+    let storedStamps = LibDB.Queries.getTraitImplStamps ()
 
-      // The batch's own traits and implementations, which the store does not hold until after
-      // this. A call saved together with the implementation it resolved to keeps it, and
-      // that implementation is the newest there is, so it carries a stamp from now.
-      let batchTraits =
-        ops
-        |> List.choose (function
-          | PT.PackageOp.AddTrait t -> Some(t.hash, t)
-          | _ -> None)
-        |> Map.ofList
-      let batchImpls =
-        ops
-        |> List.choose (function
-          | PT.PackageOp.AddTraitImpl i -> Some(i.hash, i)
-          | _ -> None)
-        |> Map.ofList
-      let getTrait (h : PT.FQTraitName.Package) : Ply<Option<PT.Trait.Trait>> =
-        match Map.tryFind h batchTraits with
-        | Some t -> Ply(Some t)
-        | None -> pm.getTrait h
-      let getTraitImpl (h : PT.Hash) : Ply<Option<PT.TraitImpl.TraitImpl>> =
-        match Map.tryFind h batchImpls with
-        | Some i -> Ply(Some i)
-        | None -> pm.getTraitImpl h
-      let stamps =
-        batchImpls
-        |> Map.fold
-          (fun found (PT.Hash h) _ ->
-            if Map.containsKey h found then
-              found
-            else
-              Map.add h (LibDB.OriginTs.next ()) found)
-          storedStamps
+    // The batch's own traits and implementations, which the store does not hold until after
+    // this. A call saved together with the implementation it resolved to keeps it, and
+    // that implementation is the newest there is, so it carries a stamp from now.
+    let batchTraits =
+      ops
+      |> List.choose (function
+        | PT.PackageOp.AddTrait t -> Some(t.hash, t)
+        | _ -> None)
+      |> Map.ofList
+    let batchImpls =
+      ops
+      |> List.choose (function
+        | PT.PackageOp.AddTraitImpl i -> Some(i.hash, i)
+        | _ -> None)
+      |> Map.ofList
+    let getTrait (h : PT.FQTraitName.Package) : Option<PT.Trait.Trait> =
+      match Map.tryFind h batchTraits with
+      | Some t -> (Some t)
+      | None -> pm.getTrait h
+    let getTraitImpl (h : PT.Hash) : Option<PT.TraitImpl.TraitImpl> =
+      match Map.tryFind h batchImpls with
+      | Some i -> (Some i)
+      | None -> pm.getTraitImpl h
+    let stamps =
+      batchImpls
+      |> Map.fold
+        (fun found (PT.Hash h) _ ->
+          if Map.containsKey h found then
+            found
+          else
+            Map.add h (LibDB.OriginTs.next ()) found)
+        storedStamps
 
-      // The reload's cache (see "The reload's cache" above). Each body's answer is looked up
-      // for its LAST copy: two items with one hash are resolved through whichever copy the
-      // checker reported, and a later report replaces an earlier one, chunk after chunk and
-      // inside the checker's own fold, so that is the last.
-      let environment =
-        reload
-        |> Option.map (fun build ->
-          environmentOf exeState build branchId deprecated storedStamps ops)
-      let! cached =
-        match environment with
-        | Some environment -> LibDB.TraitCallCache.load environment
-        | None -> System.Threading.Tasks.Task.FromResult Map.empty
-      let lastCopies =
-        ops
-        |> List.choose Positions.bodyOf
-        |> List.fold
-          (fun found (key, hash, body) -> Map.add key (hash, body) found)
-          Map.empty
-      let reused =
-        lastCopies
-        |> Map.toList
-        |> List.choose (fun (key, (hash, body)) ->
-          Map.tryFind key cached
-          |> Option.bind (fun (entry : LibDB.TraitCallCache.Entry) ->
-            let positions = Positions.ofBody body
-            if List.length positions <> entry.nodes then
-              None
-            else
-              Encoding.decode positions entry.resolutions
-              |> Option.map (fun resolutions -> (key, (hash, resolutions)))))
-        |> Map.ofList
-      let isReused (op : PT.PackageOp) =
-        match Positions.bodyOf op with
-        | Some(key, _, _) -> Map.containsKey key reused
-        | None -> false
-      let toCheck = ops |> List.filter (isReused >> not)
-      let nothingToCheck =
-        storeHoldsOps
-        && not (List.exists (Positions.bodyOf >> Option.isSome) toCheck)
+    // The reload's cache (see "The reload's cache" above). Each body's answer is looked up
+    // for its LAST copy: two items with one hash are resolved through whichever copy the
+    // checker reported, and a later report replaces an earlier one, chunk after chunk and
+    // inside the checker's own fold, so that is the last.
+    let environment =
+      reload
+      |> Option.map (fun build ->
+        environmentOf exeState build branchId deprecated storedStamps ops)
+    let cached =
+      match environment with
+      | Some environment -> LibDB.TraitCallCache.load environment
+      | None -> Map.empty
+    let lastCopies =
+      ops
+      |> List.choose Positions.bodyOf
+      |> List.fold
+        (fun found (key, hash, body) -> Map.add key (hash, body) found)
+        Map.empty
+    let reused =
+      lastCopies
+      |> Map.toList
+      |> List.choose (fun (key, (hash, body)) ->
+        Map.tryFind key cached
+        |> Option.bind (fun (entry : LibDB.TraitCallCache.Entry) ->
+          let positions = Positions.ofBody body
+          if List.length positions <> entry.nodes then
+            None
+          else
+            Encoding.decode positions entry.resolutions
+            |> Option.map (fun resolutions -> (key, (hash, resolutions)))))
+      |> Map.ofList
+    let isReused (op : PT.PackageOp) =
+      match Positions.bodyOf op with
+      | Some(key, _, _) -> Map.containsKey key reused
+      | None -> false
+    let toCheck = ops |> List.filter (isReused >> not)
+    let nothingToCheck =
+      storeHoldsOps && not (List.exists (Positions.bodyOf >> Option.isSome) toCheck)
 
-      // Chunks load what they do not carry from the store, so only a caller whose batch is
-      // already in the store can split it; an authoring batch is not, and stays whole. The
-      // count is fixed rather than per-core so every machine resolves the same tree: two
-      // items with one hash get only one copy resolved, and which one depends on the split.
-      let size =
-        if storeHoldsOps then
-          max 256 (List.length toCheck / 32 + 1)
-        else
-          max 1 (List.length toCheck)
-      let! chunks =
-        if nothingToCheck then
-          System.Threading.Tasks.Task.FromResult [||]
-        else
-          toCheck
-          |> List.chunkBySize size
-          |> List.map (fun chunk ->
-            System.Threading.Tasks.Task.Run<Option<Map<PT.Hash, List<Resolution>> *
-            Set<PT.Hash>>>
-              (fun () -> Ply.toTask (askChecker exeState branchId chunk)))
-          |> System.Threading.Tasks.Task.WhenAll
+    // Chunks load what they do not carry from the store, so only a caller whose batch is
+    // already in the store can split it; an authoring batch is not, and stays whole. The
+    // count is fixed rather than per-core so every machine resolves the same tree: two
+    // items with one hash get only one copy resolved, and which one depends on the split.
+    let size =
+      if storeHoldsOps then
+        max 256 (List.length toCheck / 32 + 1)
+      else
+        max 1 (List.length toCheck)
+    let chunks =
+      if nothingToCheck then
+        System.Threading.Tasks.Task.FromResult [||]
+      else
+        toCheck
+        |> List.chunkBySize size
+        |> List.map (fun chunk ->
+          System.Threading.Tasks.Task.Run<Option<Map<PT.Hash, List<Resolution>> *
+          Set<PT.Hash>>>
+            (fun () -> askChecker exeState branchId chunk))
+        |> System.Threading.Tasks.Task.WhenAll
+    chunks
+    |> Task.map (fun chunks ->
       let answered =
         chunks
         |> Array.choose identity
@@ -764,49 +761,46 @@ let private resolveIn
       environment |> Option.iter saveCache
 
       if Map.isEmpty resolved then
-        return (ops, failed)
+        (ops, failed)
       else
 
         /// The winner among the implementations that apply, and the fn it names for the method.
         let implFnFor
           (method_ : string)
           (implHashes : List<PT.Hash>)
-          : Ply<Option<PT.ResolvedName<PT.FQFnName.Package>>> =
-          uply {
-            let implHashes =
-              implHashes
-              |> List.filter (fun (PT.Hash h) -> not (Set.contains h deprecated))
-            // One implementation is not an ordering question: it is the answer. Several are,
-            // and an unstamped pair has no answer, so the call is left to resolve at run time
-            // and `dark constraints` reports the pair.
-            let winner =
-              match implHashes with
-              | [] -> None
-              | [ only ] -> Some only
-              | several ->
-                several
-                |> List.map (fun (PT.Hash h as hash) ->
-                  (hash, stamps |> Map.tryFind h |> Option.defaultValue "", h))
-                |> LibExecution.Lww.winnerOf
-            match winner with
-            | None -> return None
-            | Some winner ->
-              let! impl = getTraitImpl winner
-              // The implementation's own reference to the fn, location and all, which is why
-              // the edge this produces reads like any other and a rename reaches it.
-              return
-                impl
-                |> Option.bind (fun i ->
-                  i.methods
-                  |> List.tryPick (fun (name, nr) ->
-                    if name <> method_ then
-                      None
-                    else
-                      match nr.resolved with
-                      | Ok { name = PT.FQFnName.Package h; location = loc } ->
-                        Some { name = h; location = loc }
-                      | _ -> None))
-          }
+          : Option<PT.ResolvedName<PT.FQFnName.Package>> =
+          let implHashes =
+            implHashes
+            |> List.filter (fun (PT.Hash h) -> not (Set.contains h deprecated))
+          // One implementation is not an ordering question: it is the answer. Several are,
+          // and an unstamped pair has no answer, so the call is left to resolve at run time
+          // and `dark constraints` reports the pair.
+          let winner =
+            match implHashes with
+            | [] -> None
+            | [ only ] -> Some only
+            | several ->
+              several
+              |> List.map (fun (PT.Hash h as hash) ->
+                (hash, stamps |> Map.tryFind h |> Option.defaultValue "", h))
+              |> LibExecution.Lww.winnerOf
+          match winner with
+          | None -> None
+          | Some winner ->
+            let impl = getTraitImpl winner
+            // The implementation's own reference to the fn, location and all, which is why
+            // the edge this produces reads like any other and a rename reaches it.
+            impl
+            |> Option.bind (fun i ->
+              i.methods
+              |> List.tryPick (fun (name, nr) ->
+                if name <> method_ then
+                  None
+                else
+                  match nr.resolved with
+                  | Ok { name = PT.FQFnName.Package h; location = loc } ->
+                    Some { name = h; location = loc }
+                  | _ -> None))
 
         let addBound
           (at : id)
@@ -818,109 +812,93 @@ let private resolveIn
 
         let mappingOf
           (resolutions : List<Resolution>)
-          : Ply<Option<LibDB.AstTransformer.HashMapping>> =
-          uply {
-            let! chosen =
-              resolutions
-              |> Ply.List.foldSequentially
-                (fun impls resolution ->
-                  match resolution with
-                  | Call(at, method_, implHashes) ->
-                    uply {
-                      match! implFnFor method_ implHashes with
-                      | Some implFn ->
-                        return Map.add at (PT.FQFnName.Chosen implFn) impls
-                      | None -> return impls
-                    }
-                  | _ -> uply { return impls })
-                Map.empty
+          : Option<LibDB.AstTransformer.HashMapping> =
+          let chosen =
+            resolutions
+            |> List.fold
+              (fun impls resolution ->
+                match resolution with
+                | Call(at, method_, implHashes) ->
+                  match implFnFor method_ implHashes with
+                  | Some implFn -> Map.add at (PT.FQFnName.Chosen implFn) impls
+                  | None -> impls
+                | _ -> (impls))
+              Map.empty
 
-            // A call whose self type is one of the item's own type params is not a call nobody
-            // could work out: it is waiting for its caller, and it says so. Second, so that a
-            // call the checker actually resolved wins over a deferral at the same node.
-            let impls =
-              resolutions
-              |> List.fold
-                (fun impls resolution ->
-                  match resolution with
-                  | Deferred(at, param) when not (Map.containsKey at impls) ->
-                    Map.add at (PT.FQFnName.FromTypeParam param) impls
-                  | _ -> impls)
-                chosen
+          // A call whose self type is one of the item's own type params is not a call nobody
+          // could work out: it is waiting for its caller, and it says so. Second, so that a
+          // call the checker actually resolved wins over a deferral at the same node.
+          let impls =
+            resolutions
+            |> List.fold
+              (fun impls resolution ->
+                match resolution with
+                | Deferred(at, param) when not (Map.containsKey at impls) ->
+                  Map.add at (PT.FQFnName.FromTypeParam param) impls
+                | _ -> impls)
+              chosen
 
-            // The other half: what this item's CALLS worked out for the bounds of the fns they
-            // name. That is what makes a call into a bounded fn static: the callee's body defers
-            // to its type param, and the call says which implementation that param implied.
-            let! bounds =
-              resolutions
-              |> Ply.List.foldSequentially
-                (fun bounds resolution ->
-                  match resolution with
-                  | CallerBound(at, param, traitHash, implHashes) ->
-                    uply {
-                      match! getTrait traitHash with
-                      | Some trait_ ->
-                        // One entry per method of the trait, so the callee's body finds a fn for
-                        // whichever method it calls without reading the implementation item at
-                        // run time.
-                        return!
-                          NEList.toList trait_.methods
-                          |> Ply.List.foldSequentially
-                            (fun bounds (m : PT.Trait.Method) ->
-                              uply {
-                                match! implFnFor m.name implHashes with
-                                | Some implFn ->
-                                  let entry : PT.FQFnName.BoundImpl =
-                                    { param = param
-                                      trait_ = traitHash
-                                      method_ = m.name
-                                      choice = PT.FQFnName.Chosen implFn }
-                                  return addBound at entry bounds
-                                | None -> return bounds
-                              })
-                            bounds
-                      | None -> return bounds
-                    }
-                  | CallerBoundDeferred(at, param, traitHash, fromParam) ->
-                    uply {
-                      match! getTrait traitHash with
-                      | Some trait_ ->
-                        return
-                          NEList.toList trait_.methods
-                          |> List.fold
-                            (fun bounds (m : PT.Trait.Method) ->
-                              let entry : PT.FQFnName.BoundImpl =
-                                { param = param
-                                  trait_ = traitHash
-                                  method_ = m.name
-                                  choice = PT.FQFnName.FromTypeParam fromParam }
-                              addBound at entry bounds)
-                            bounds
-                      | None -> return bounds
-                    }
-                  | _ -> uply { return bounds })
-                Map.empty
+          // The other half: what this item's CALLS worked out for the bounds of the fns they
+          // name. That is what makes a call into a bounded fn static: the callee's body defers
+          // to its type param, and the call says which implementation that param implied.
+          let bounds =
+            resolutions
+            |> List.fold
+              (fun bounds resolution ->
+                match resolution with
+                | CallerBound(at, param, traitHash, implHashes) ->
+                  match getTrait traitHash with
+                  | Some trait_ ->
+                    // One entry per method of the trait, so the callee's body finds a fn for
+                    // whichever method it calls without reading the implementation item at
+                    // run time.
+                    NEList.toList trait_.methods
+                    |> List.fold
+                      (fun bounds (m : PT.Trait.Method) ->
+                        match implFnFor m.name implHashes with
+                        | Some implFn ->
+                          let entry : PT.FQFnName.BoundImpl =
+                            { param = param
+                              trait_ = traitHash
+                              method_ = m.name
+                              choice = PT.FQFnName.Chosen implFn }
+                          addBound at entry bounds
+                        | None -> bounds)
+                      bounds
+                  | None -> bounds
+                | CallerBoundDeferred(at, param, traitHash, fromParam) ->
+                  match getTrait traitHash with
+                  | Some trait_ ->
+                    NEList.toList trait_.methods
+                    |> List.fold
+                      (fun bounds (m : PT.Trait.Method) ->
+                        let entry : PT.FQFnName.BoundImpl =
+                          { param = param
+                            trait_ = traitHash
+                            method_ = m.name
+                            choice = PT.FQFnName.FromTypeParam fromParam }
+                        addBound at entry bounds)
+                      bounds
+                  | None -> bounds
+                | _ -> (bounds))
+              Map.empty
 
-            if Map.isEmpty impls && Map.isEmpty bounds then
-              return None
-            else
-              return
-                Some
-                  { LibDB.AstTransformer.emptyMapping with
-                      resolvedImpls = impls
-                      boundImpls = bounds }
-          }
+          if Map.isEmpty impls && Map.isEmpty bounds then
+            None
+          else
+            Some
+              { LibDB.AstTransformer.emptyMapping with
+                  resolvedImpls = impls
+                  boundImpls = bounds }
 
-        let! mappings =
+        let mappings =
           resolved
           |> Map.toList
-          |> Ply.List.foldSequentially
+          |> List.fold
             (fun mappings (itemHash, resolutions) ->
-              uply {
-                match! mappingOf resolutions with
-                | Some mapping -> return Map.add itemHash mapping mappings
-                | None -> return mappings
-              })
+              match mappingOf resolutions with
+              | Some mapping -> Map.add itemHash mapping mappings
+              | None -> mappings)
             Map.empty
 
         let mappingFor (hash : PT.Hash) : Option<LibDB.AstTransformer.HashMapping> =
@@ -985,8 +963,7 @@ let private resolveIn
               with
               | Some rewritten -> rewritten
               | None -> after)
-        return (rewritten, failed)
-  }
+        (rewritten, failed))
 
 
 // --------------------
@@ -1070,13 +1047,13 @@ let resolveTraitCalls
   (pm : PT.PackageManager)
   (reload : Option<string>)
   (ops : List<PT.PackageOp>)
-  : Ply<List<PT.PackageOp> * List<string * List<UnresolvedCall>>> =
-  uply {
-    let! (resolved, failed) = resolveIn exeState branchId pm reload ops
+  : Task<List<PT.PackageOp> * List<string * List<UnresolvedCall>>> =
+  resolveIn exeState branchId pm reload ops
+  |> Task.map (fun (resolved, failed) ->
 
     // A reload has its own report.
     if Option.isSome reload then
-      return resolved, []
+      resolved, []
     else
       let batchFns =
         resolved
@@ -1104,17 +1081,15 @@ let resolveTraitCalls
           | PT.PackageOp.AddTest t -> calledPackageFns t.body
           | _ -> [])
         |> List.distinct
-      let! boundedCallees =
+      let boundedCallees =
         callees
-        |> Ply.List.filterSequentially (fun h ->
+        |> List.filter (fun h ->
           match Map.tryFind h batchFns with
-          | Some fn -> Ply(not (List.isEmpty fn.bounds))
+          | Some fn -> (not (List.isEmpty fn.bounds))
           | None ->
-            uply {
-              match! pm.getFn h with
-              | Some fn -> return not (List.isEmpty fn.bounds)
-              | None -> return false
-            })
+            match pm.getFn h with
+            | Some fn -> not (List.isEmpty fn.bounds)
+            | None -> false)
       let bounded = Set.ofList boundedCallees
       let isBounded h = Set.contains h bounded
 
@@ -1168,5 +1143,4 @@ let resolveTraitCalls
               itemNames |> List.map (fun name -> name, calls)
           | _ -> [])
 
-      return resolved, left
-  }
+      resolved, left)

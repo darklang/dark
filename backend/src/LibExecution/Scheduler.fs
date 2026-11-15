@@ -25,7 +25,6 @@ module LibExecution.Scheduler
 
 open System.Threading
 open System.Threading.Tasks
-open FSharp.Control.Tasks
 
 open Prelude
 
@@ -97,7 +96,7 @@ type Process =
     /// so its result is not kept for an `Exec.await` that cannot come.
     keepsResult : bool
     /// Set at park, run on the scheduler thread right before the next step: the register write.
-    mutable pendingResume : Option<unit -> unit>
+    mutable pendingResume : Option<unit -> Interpreter.StepOutcome voption>
     /// The task the process is parked on, so a fault is seen before `pendingResume` runs.
     mutable parkedTask : Task
     /// Set by a builtin that parks the process on events, so `status` can say so rather than
@@ -250,7 +249,7 @@ type Scheduler(quantum : int64) =
   let runnable = System.Collections.Generic.Queue<Process>()
   // Touched by the scheduler thread (dispatch) and by builtins subscribing, which run on the
   // scheduler thread in the ordinary case but on a pool thread when the process is inside a
-  // builtin that re-entered the interpreter and is continuing on a Ply continuation.
+  // builtin that re-entered the interpreter and is continuing on a task continuation.
   let sync = obj ()
   let subscriptions = ResizeArray<Subscription>()
   /// Keys that arrived while nobody was waiting for one, for the next `Key` subscriber.
@@ -581,7 +580,7 @@ type Scheduler(quantum : int64) =
           return None
         else
           cts.Cancel()
-          return Some completion.Result
+          return Some completion.Result // landed
       }
 
   /// Post an event as a source would. What a test harness calls to press a key.
@@ -906,8 +905,6 @@ type Scheduler(quantum : int64) =
         |> List.map (fun (k, v) -> k, Execution.metadataValueString v)
       try
         p.exeState.reportException p.exeState p.vm metadata ex
-        |> Ply.toTask
-        |> ignore<Task<unit>>
       with _ ->
         ()
       let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
@@ -987,17 +984,21 @@ type Scheduler(quantum : int64) =
               | null -> System.Exception "parked task faulted"
               | agg -> agg.GetBaseException()
             raise inner
-          match p.pendingResume with
-          | Some resume ->
-            p.pendingResume <- None
-            p.parkedTask <- null
-            resume ()
-          | None -> ()
+          let resumed =
+            match p.pendingResume with
+            | Some resume ->
+              p.pendingResume <- None
+              p.parkedTask <- null
+              resume ()
+            | None -> ValueNone
 
           p.vm.budget <- quantum
           p.slices <- p.slices + 1L
           let allocBefore = System.GC.GetAllocatedBytesForCurrentThread()
-          let outcome = Interpreter.executeSync p.exeState p.vm
+          let outcome =
+            match resumed with
+            | ValueSome waitsAgain -> waitsAgain
+            | ValueNone -> Interpreter.executeSync p.exeState p.vm
           // What the slice actually spent: the budget counts down per instruction, and a
           // process that waits or finishes leaves the rest of it. A slice the budget ended is
           // charged one less, for the turn the next one spends re-entering the frame it stopped
@@ -1010,41 +1011,45 @@ type Scheduler(quantum : int64) =
           p.allocated <-
             p.allocated
             + (System.GC.GetAllocatedBytesForCurrentThread() - allocBefore)
-          match outcome with
-          | Interpreter.StepDone dv ->
-            // A stop that arrived during the slice is honoured even though the work got to
-            // the end: one long builtin call is a single instruction, so a cancel can land
-            // while it runs and find nothing left to stop. Reporting `Ok` would say the cancel
-            // never happened.
-            if isNull p.stopReason then
-              this.Finish(p, Ok dv)
-            else
-              // No stack: the run has returned from every frame.
-              this.Finish(p, Error(RTE.UncaughtException(p.stopReason, []), []))
-          | Interpreter.StepBudget ->
-            p.status <- Runnable
-            lock sync (fun () -> runnable.Enqueue p)
-          | Interpreter.StepAwait(wait, resume) ->
-            if wait.IsCompletedSuccessfully then
-              resume ()
+          let rec settle (outcome : Interpreter.StepOutcome) : unit =
+            match outcome with
+            | Interpreter.StepDone dv ->
+              // A stop that arrived during the slice is honoured even though the work got to
+              // the end: one long builtin call is a single instruction, so a cancel can land
+              // while it runs and find nothing left to stop. Reporting `Ok` would say the cancel
+              // never happened.
+              if isNull p.stopReason then
+                this.Finish(p, Ok dv)
+              else
+                // No stack: the run has returned from every frame.
+                this.Finish(p, Error(RTE.UncaughtException(p.stopReason, []), []))
+            | Interpreter.StepBudget ->
               p.status <- Runnable
               lock sync (fun () -> runnable.Enqueue p)
-            elif wait.IsFaulted then
-              raise (wait.Exception.GetBaseException())
-            else
-              let parkedOn =
-                match p.parkHint with
-                | ValueSome hint -> hint
-                | ValueNone -> this.Describe p
-              p.parkHint <- ValueNone
-              p.status <- Parked parkedOn
-              p.pendingResume <- Some resume
-              p.parkedTask <- wait
-              wait.ContinueWith(
-                (fun (_ : Task) -> queue.Post(HE.HostEvent.Completed p.id)),
-                TaskContinuationOptions.ExecuteSynchronously
-              )
-              |> ignore<Task>
+            | Interpreter.StepAwait(wait, resume) ->
+              if wait.IsCompletedSuccessfully then
+                match resume () with
+                | ValueSome waitsAgain -> settle waitsAgain
+                | ValueNone ->
+                  p.status <- Runnable
+                  lock sync (fun () -> runnable.Enqueue p)
+              elif wait.IsFaulted then
+                raise (wait.Exception.GetBaseException())
+              else
+                let parkedOn =
+                  match p.parkHint with
+                  | ValueSome hint -> hint
+                  | ValueNone -> this.Describe p
+                p.parkHint <- ValueNone
+                p.status <- Parked parkedOn
+                p.pendingResume <- Some resume
+                p.parkedTask <- wait
+                wait.ContinueWith(
+                  (fun (_ : Task) -> queue.Post(HE.HostEvent.Completed p.id)),
+                  TaskContinuationOptions.ExecuteSynchronously
+                )
+                |> ignore<Task>
+          settle outcome
         with ex ->
           this.Fail(p, ex)
       finally
@@ -1295,13 +1300,23 @@ and Workers(root : Scheduler, quantum : int64, count : int) =
       ?keepResult : bool,
       ?caps : struct (int64 * int64)
     ) : Process =
+    // Never the calling worker while there is another: whatever it spawns may be waited for
+    // in place (a value or a printer run synchronously inside a builtin), and a worker blocked
+    // on a child of its own would never run it.
+    let here = Scheduler.Current
+    let elsewhere (w : Scheduler) =
+      match here with
+      | Some h -> not (obj.ReferenceEquals(h, w)) || byIndex.Length = 1
+      | None -> true
     let w =
       lock startLock (fun () ->
-        match byIndex |> Array.tryFindIndex (fun w -> w.Live = 0) with
+        match
+          byIndex |> Array.tryFindIndex (fun w -> w.Live = 0 && elsewhere w)
+        with
         | Some i ->
           if not started[i] then startThread i
           byIndex[i]
-        | None -> workers |> List.minBy (fun w -> w.Live))
+        | None -> workers |> List.filter elsewhere |> List.minBy (fun w -> w.Live))
     w.Spawn(
       exeState,
       instrs,
