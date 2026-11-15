@@ -28,7 +28,7 @@
         "type": "Project",
         "dependencies": {
           "FSharp.Core": "[11.0.101, )",
-          "Fumble": "[1.0.3, )",
+          "Fumble": "[2.0.1, )",
           "LibConfig": "[1.0.0, )",
           "LibExecution": "[1.0.0, )",
           "LibSerialization": "[1.0.0, )",
@@ -72,12 +72,12 @@
       },
       "Fumble": {
         "type": "CentralTransitive",
-        "requested": "[1.0.3, )",
-        "resolved": "1.0.3",
-        "contentHash": "GJXprhc30kVZn5aVSJOESSYChLl0qKqmnkAkBd6SYh08xttass4rzXPnwy08oJlUMGaATnurLeDUJP+jPbGXug==",
+        "requested": "[2.0.1, )",
+        "resolved": "2.0.1",
+        "contentHash": "5NQfh+3z4IBS6i5CaC6SKKecPhGBsGmBH9SS9YosbUJzJgHlu+mfX8AuwgePNd0QsFvMbLwupqmDTMZyynVbuw==",
         "dependencies": {
-          "FSharp.Core": "8.0.101",
-          "Microsoft.Data.Sqlite": "8.0.1"
+          "FSharp.Core": "9.0.202",
+          "Microsoft.Data.Sqlite": "9.0.4"
         }
       },
       "Microsoft.Data.Sqlite": {
