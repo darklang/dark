@@ -33,8 +33,7 @@ let commitInstancePolicy(expected: String, policy: LanguageTools.Permissions.Pol
 /// Use the same host normalization as saving a rule.
 let canonicalRule(rule: LanguageTools.Permissions.Rule): LanguageTools.Permissions.Rule =
   match rule with
-  | LanguageTools.Permissions.Rule.FileRead(_)
-  | LanguageTools.Permissions.Rule.FileWrite(_) -> Builtin.pmPolicyNormalizeRule(rule)
+  | FileRead(_) | FileWrite(_) -> Builtin.pmPolicyNormalizeRule(rule)
   | _ -> rule
 
 
@@ -268,7 +267,12 @@ let reviewVersionFor(
   incomplete: Incomplete)
   : Result<(Bool * List<LanguageTools.Permissions.ApprovalReviewReason>), String> =
   Builtin.pmPolicyReviewVersion(
-    accountID, name, expected, hash, rules, incomplete == Incomplete.Acknowledge)
+    accountID,
+    name,
+    expected,
+    hash,
+    rules,
+    incomplete == Incomplete.Acknowledge)
 
 
 /// Remove a name's remembered access; name resolution is unchanged.
@@ -549,8 +553,7 @@ let approvalMetadataLines(
     | Some(previous) -> $"{shortVersion(previous)} → {current}"
     | None -> current
 
-  [ $"  Version:       {version}"
-    $"  Requirements:  {describeRequirements(requirements)}" ]
+  [ $"  Version:       {version}", $"  Requirements:  {describeRequirements(requirements)}" ]
 
 
 /// Print the review heading and return the requirements already read for it.
@@ -626,12 +629,15 @@ let parseApprovalRules(
     match replacePolicy(specs) with
     | Ok(policy) ->
       // Compare and show the same file paths the host will save.
-      let normalize(rules: List<LanguageTools.Permissions.Rule>): List<LanguageTools.Permissions.Rule> =
-        rules |> Stdlib.List.map(canonicalRule) |> Stdlib.List.unique
+      let normalize(
+        rules: List<LanguageTools.Permissions.Rule>)
+        : List<LanguageTools.Permissions.Rule> =
+        rules
+        |> Stdlib.List.map(canonicalRule)
+        |> Stdlib.List.unique
 
       Result.Ok(
-        Option.Some(
-          { policy with allow = normalize(policy.allow), deny = normalize(policy.deny) }))
+        Option.Some({ policy with allow = normalize(policy.allow), deny = normalize(policy.deny) }))
     | Error(message) -> Result.Error(message)
 
 
@@ -686,7 +692,8 @@ let policyForReview(
   | Some(policy), _ -> policy
   | None, (effects, true) ->
     LanguageTools.Permissions.Policy
-      { allow = Stdlib.List.map(effects, fun effect -> LanguageTools.Permissions.Rule.Effect(effect))
+      { allow =
+          Stdlib.List.map(effects, fun effect -> LanguageTools.Permissions.Rule.Effect(effect))
         deny = [] }
   | None, (_, false) -> LanguageTools.Permissions.empty()
 
@@ -704,10 +711,10 @@ let approvalReviewLines(
   let changes = approvalChanges(before, policy)
   let after =
     Stdlib.List.concat(
-      Stdlib.List.map(
-        policy.allow, fun rule -> "  allow " + LanguageTools.Permissions.renderRule(rule)),
-      Stdlib.List.map(
-        policy.deny, fun rule -> "  deny " + LanguageTools.Permissions.renderRule(rule)))
+      Stdlib.List.map(policy.allow, fun rule ->
+        "  allow " + LanguageTools.Permissions.renderRule(rule)),
+      Stdlib.List.map(policy.deny, fun rule ->
+        "  deny " + LanguageTools.Permissions.renderRule(rule)))
 
   Stdlib.List.flatten(
     [ [ "", "Changes" ]
@@ -795,17 +802,19 @@ let reviewAndApprove(
     if Stdlib.Bool.not(acceptWithoutPrompt || Stdlib.Cli.UI.Prompt.canAsk()) then
       printErr(needsYes())
       false
-    else if
-      acceptWithoutPrompt
-      || Stdlib.Cli.UI.Prompt.confirm("Save these permissions?")
-    then
-      match
-        approveVersionFor(
-          accountID, name, expected, hash, rules, incomplete, ContractChange.Acknowledge)
-      with
+    else if acceptWithoutPrompt || Stdlib.Cli.UI.Prompt.confirm("Save these permissions?") then
+      match approveVersionFor(
+              accountID,
+              name,
+              expected,
+              hash,
+              rules,
+              incomplete,
+              ContractChange.Acknowledge) with
       | Ok(_) ->
         Stdlib.printLine(
           Stdlib.Cli.UI.Colors.success($"✓ Saved permissions for {name} ({shortVersion(hash)})"))
+
         true
       | Error(failure) ->
         Stdlib.printErrorLine(approvalFailureText(failure))
@@ -867,7 +876,14 @@ let approveNamed(
         | _ -> ()
 
         reviewAndApprove(
-          state.accountID, name, expected, hash, rules, requirements, previous, acceptWithoutPrompt,
+          state.accountID,
+          name,
+          expected,
+          hash,
+          rules,
+          requirements,
+          previous,
+          acceptWithoutPrompt,
           "not approved")
 
 
@@ -889,7 +905,9 @@ let updateNamed(
   | Ok(givenRules) ->
     match previous |> Stdlib.Option.map(fun approval -> approval.hash) with
     | None ->
-      printErr($"{name} has no remembered approval; run `permissions approve --for {name} '<rule>'` first")
+      printErr(
+        $"{name} has no remembered approval; run `permissions approve --for {name} '<rule>'` first")
+
       false
     | Some(approved) ->
       match latestVersion(state.currentBranchId, name) with
@@ -912,11 +930,16 @@ let updateNamed(
           | Some(saved), None -> Option.Some(saved)
           | None, _ -> givenRules
 
-        let requirements =
-          showVersionRequirements(name, Option.Some(approved), latest)
-
+        let requirements = showVersionRequirements(name, Option.Some(approved), latest)
         reviewAndApprove(
-          accountID, name, expected, latest, rules, requirements, previous, acceptWithoutPrompt,
+          accountID,
+          name,
+          expected,
+          latest,
+          rules,
+          requirements,
+          previous,
+          acceptWithoutPrompt,
           "Approval unchanged.")
 
 
