@@ -1094,7 +1094,7 @@ let private serve
           middleware
           cts.Token
 
-      listenerTask.Wait()
+      do! listenerTask
 
       Console.CancelKeyPress.RemoveHandler cancelHandler
 

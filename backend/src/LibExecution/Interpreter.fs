@@ -1458,7 +1458,7 @@ let private traceBuiltinResult
               fnName
               { ord = ord; durationMs = elapsedMs traceSw }
               args
-              t.Result),
+              t.Result), // landed
         TaskContinuationOptions.ExecuteSynchronously
       )
       |> ignore<Task>
@@ -6637,11 +6637,14 @@ type StepOutcome =
   /// The budget ran out with work left. Step again when it is this process's turn.
   | StepBudget
   /// Something has to be waited for. When `wait` completes, run `resume` on the stepping thread,
-  /// then step again. `wait` is a builtin's or package call's result (the ordinary case: `resume`
-  /// writes it into the frame's register), or one of the rare opcodes and the deferred return-type
-  /// check, which advance the VM themselves as they complete (`resume` is then a no-op). Either
-  /// way nothing else touches the VM until `wait` is done and `resume` has run.
-  | StepAwait of wait : System.Threading.Tasks.Task * resume : (unit -> unit)
+  /// then step again, or wait for what it answers, when what landed has to wait again. `wait` is
+  /// a builtin's or package call's result (the ordinary case: `resume` writes it into the frame's
+  /// register), or one of the rare opcodes and the deferred return-type check, which advance the
+  /// VM themselves as they complete (`resume` is then a no-op). Either way nothing else touches
+  /// the VM until `wait` is done and `resume` has run.
+  | StepAwait of
+    wait : System.Threading.Tasks.Task *
+    resume : (unit -> StepOutcome voption)
 
 
 /// A step the loop could not finish synchronously, as what to wait for and what to do when it
@@ -6651,29 +6654,27 @@ type StepOutcome =
 /// The frame is the VM's current one, read here rather than handed in: a continuation that
 /// waits from a frame's return belongs to the parent, which is current once the frame has
 /// popped, and the frame the loop was stepping is back in the pool by then.
-let private awaitOf
+let rec private awaitOf
   (exeState : ExecutionState)
   (vm : VMState)
   (step : FrameStep)
   : StepOutcome =
   let frame = vm.callFrames.Find vm.currentFrameID
-  // A chain that waits again from its resume is rare (a continuation that waits twice in a
-  // row) and is waited for on the spot.
-  let driveToValue (first : ApplyOutcome) : unit =
-    let mutable outcome = first
-    while (match outcome with
-           | AwaitContinuation _ -> true
-           | _ -> false) do
-      match outcome with
-      | AwaitContinuation(t2, reg2, pc2, next2, finish2) ->
-        outcome <- drive exeState vm frame reg2 pc2 next2 finish2 t2.Result true
-      | _ -> ()
+  // A chain that waits again from its resume (a continuation that waits twice in a row) is
+  // parked on again.
+  let waitAgain (outcome : ApplyOutcome) : StepOutcome voption =
+    match outcome with
+    | AwaitContinuation(t, reg, pc, next, finish) ->
+      ValueSome(
+        awaitOf exeState vm (FrameAwaitContinuation(t, reg, pc, next, finish))
+      )
+    | _ -> ValueNone
   match step with
   | FrameAwaitBuiltin(running, reg) ->
     StepAwait(
       running,
       // A request made after the wait starts a chain (`landBuiltin`).
-      fun () -> driveToValue (landBuiltin exeState vm frame reg running.Result)
+      fun () -> waitAgain (landBuiltin exeState vm frame reg running.Result) // landed
     )
   | FrameAwaitContinuation(running, reg, pc, next, finish) ->
     // Parked on a builtin's continuation (a callable it asked for has returned, and what the
@@ -6681,7 +6682,7 @@ let private awaitOf
     StepAwait(
       running,
       fun () ->
-        driveToValue (drive exeState vm frame reg pc next finish running.Result true)
+        waitAgain (drive exeState vm frame reg pc next finish running.Result true) // landed
     )
   | FrameAwaitForce(task, reg) ->
     // Parked on the read. The wait never faults: a read that failed stays a promise in the
@@ -6697,6 +6698,7 @@ let private awaitOf
       fun () ->
         if task.IsCompletedSuccessfully then
           Registers.set frame.registers reg task.Result
+        ValueNone
     )
   | FrameAwaitReads task ->
     let landed =
@@ -6704,11 +6706,11 @@ let private awaitOf
         (fun (_ : Task<Dval>) -> ()),
         TaskContinuationOptions.ExecuteSynchronously
       )
-    StepAwait(landed, (fun () -> ()))
+    StepAwait(landed, (fun () -> ValueNone))
   | FrameRareOpcode ->
     // Writes the VM as it completes, on whatever thread completes it; the process is parked
     // meanwhile and nobody looks at the VM until `wait` is done.
-    StepAwait(runRareStep exeState vm frame, (fun () -> ()))
+    StepAwait(runRareStep exeState vm frame, (fun () -> ValueNone))
   | FrameBudget -> StepBudget
   | FrameBlockEnded ->
     Exception.raiseInternal "a finished block is not a wait" [ "vm", vm.threadID ]
@@ -6868,9 +6870,13 @@ let private driveToEnd
   // One wait is outstanding at a time, so one continuation serves every suspension of the run,
   // rather than a closure per suspension.
   let pendingWait = ref Unchecked.defaultof<Task>
-  let pendingResume = ref ignore<unit>
+  let pendingResume = ref (fun () -> ValueNone)
   let pendingContext = ref (null : System.Threading.ExecutionContext)
   let landed = ref Unchecked.defaultof<System.Action>
+  let stepOn (resumed : StepOutcome voption) : StepOutcome =
+    match resumed with
+    | ValueSome outcome -> outcome
+    | ValueNone -> executeSync exeState vm
   let rec run (from : StepOutcome) : unit =
     try
       let mutable outcome = from
@@ -6886,9 +6892,8 @@ let private driveToEnd
             [ "vm", vm.threadID ]
         | StepAwait(wait, resume) when wait.IsCompleted ->
           // Rethrows a fault as itself, as `do!` did, rather than wrapped.
-          wait.GetAwaiter().GetResult()
-          resume ()
-          outcome <- executeSync exeState vm
+          wait.GetAwaiter().GetResult() // landed
+          outcome <- stepOn (resume ())
         | StepAwait(wait, resume) ->
           stop <- true
           pendingWait.Value <- wait
@@ -6902,9 +6907,8 @@ let private driveToEnd
     let wait = pendingWait.Value
     let resume = pendingResume.Value
     try
-      wait.GetAwaiter().GetResult()
-      resume ()
-      run (executeSync exeState vm)
+      wait.GetAwaiter().GetResult() // landed
+      run (stepOn (resume ()))
     with e ->
       fail e
   let carryOnIn = System.Threading.ContextCallback(fun _ -> carryOn ())

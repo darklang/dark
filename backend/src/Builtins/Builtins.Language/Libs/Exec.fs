@@ -133,24 +133,30 @@ let chooserFor
   let complain (what : string) =
     if not complained then
       complained <- true
-      let name = (LibExecution.Execution.fnNameToString state fn).Result
+      let name =
+        LibExecution.Execution.now (LibExecution.Execution.fnNameToString state fn)
       System.Console.Error.WriteLine(policyComplaint name what)
   fun runnable ->
     let arg =
       DList(ValueType.Known(summaryType ()), Items(runnable |> List.map summaryToDT))
     try
       match
-        (LibExecution.Execution.executeFunction state fn [] (NEList.singleton arg))
-          .Result
+        LibExecution.Execution.now (
+          LibExecution.Execution.executeFunction state fn [] (NEList.singleton arg)
+        )
       with
       | Ok(DEnum(_, _, _, "Some", [ DUuid id ])) -> Some id
       | Ok(DEnum(_, _, _, "None", [])) -> None
       | Ok other ->
-        let shown = (LibExecution.Execution.dvalToRepr state other).Result
+        let shown =
+          LibExecution.Execution.now (LibExecution.Execution.dvalToRepr state other)
         complain $"answered {shown} rather than a process id"
         None
       | Error(rte, _) ->
-        let shown = (LibExecution.Execution.runtimeErrorMessage state rte).Result
+        let shown =
+          LibExecution.Execution.now (
+            LibExecution.Execution.runtimeErrorMessage state rte
+          )
         complain $"failed ({shown})"
         None
     with ex ->
@@ -483,7 +489,7 @@ let fns () : List<BuiltInFn> =
             |> raiseRTE vm.threadID
           | None, _ ->
             let answer (h : Dval, p : Scheduler.Process) : Dval =
-              DTuple(h, resultOf vm p.completion.Task.Result, [])
+              DTuple(h, resultOf vm p.completion.Task.Result, []) // landed
             match
               procs |> List.tryFind (fun (_, p) -> p.completion.Task.IsCompleted)
             with

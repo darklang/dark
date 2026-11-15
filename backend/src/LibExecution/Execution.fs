@@ -269,6 +269,15 @@ let executeToplevel
   : Task<RT.ExecutionResult> =
   execute exeState (Some tlid, instrs)
 
+/// What a run with no reason to wait answered: a value, a printer over values with no read in
+/// flight, a scheduler's policy. One that has to wait anyway is a bug, raised here rather than
+/// waited for: the thread that would wait may be the one that has to finish it.
+let now (running : Task<'a>) : 'a =
+  if running.IsCompleted then
+    running.Result
+  else
+    Exception.raiseInternal "a run that cannot wait had to wait" []
+
 
 /// What a package `val` may do while it is evaluated: nothing with an effect. Whatever the
 /// state allowed is replaced, not narrowed, because no grant could make an effect right here:
@@ -319,8 +328,7 @@ let evaluatingValueReader
           None
         else
           try
-            // A value runs no effects, so its run never waits and the task is already done.
-            match (evaluateValue (stateWith read) name body).Result with
+            match now (evaluateValue (stateWith read) name body) with
             | Ok body ->
               let value = Dval.packageValue hash body
               evaluated[hash] <- value
@@ -505,7 +513,7 @@ let private runLoaded
           (fun (t : Task<RT.Dval>) -> t),
           TaskContinuationOptions.ExecuteSynchronously
         )
-      return finished exeState vm (fun () -> landed.GetAwaiter().GetResult())
+      return finished exeState vm (fun () -> landed.GetAwaiter().GetResult()) // landed
     }
   | result -> Task.FromResult(finished exeState vm (fun () -> result))
 

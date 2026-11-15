@@ -306,7 +306,13 @@ let private fileEntryGuard (write : bool) (path : string) : Option<string> =
 /// The execution half of an operation: runs only after its checks pass. An
 /// `Error` is an OS-level failure the guest sees as a Result; an exception
 /// is classified into the same shape by `perform`.
-type private Execute = unit -> Task<Result<Response, Failure>>
+type private Execute =
+  /// On the thread that asked.
+  | Now of (unit -> Result<Response, Failure>)
+  /// On the pool, so the thread that asked is free meanwhile.
+  | Pooled of (unit -> Result<Response, Failure>)
+  /// Asynchronous already.
+  | Later of (unit -> Task<Result<Response, Failure>>)
 
 /// What `perform` needs to know about one operation: the exact requests to
 /// check (each with the description used in denial messages), and how to
@@ -340,13 +346,12 @@ let private unchecked (execute : Execute) : Result<Resolved, string> =
   Ok { checks = []; execute = execute }
 
 /// A synchronous execution that cannot fail short of an exception.
-let private produce (make : unit -> Response) : Execute =
-  fun () -> Task.FromResult(Ok(make ()))
+let private produce (make : unit -> Response) : Execute = Now(fun () -> Ok(make ()))
 
 /// A synchronous execution whose failure is an (errno, message) pair — a
 /// POSIX call, or a spawn that can time out.
 let private attempt (call : unit -> Result<Response, int * string>) : Execute =
-  fun () -> Task.FromResult(call () |> Result.mapError failureOfErrno)
+  Now(fun () -> call () |> Result.mapError failureOfErrno)
 
 /// An execution that waits on another OS process (a run to completion, a
 /// round of input and output): on the pool, so the thread that asked, which
@@ -354,7 +359,7 @@ let private attempt (call : unit -> Result<Response, int * string>) : Execute =
 /// processes meanwhile. A file or POSIX call is not moved: those finish in
 /// microseconds and the hop would cost more than the wait.
 let private blocking (call : unit -> Result<Response, int * string>) : Execute =
-  fun () -> Task.Run(fun () -> call () |> Result.mapError failureOfErrno)
+  Pooled(fun () -> call () |> Result.mapError failureOfErrno)
 
 let private unitOk
   (result : Result<unit, int * string>)
@@ -883,12 +888,13 @@ let private resolve (op : Operation) : Result<Resolved, string> =
       url
       headers
       (Error >> Response.Http)
-      (fun profile uri () ->
-        task {
-          let! result =
-            HostHttp.send profile method uri headers body timeoutMs decompress
-          return Ok(Response.Http result)
-        })
+      (fun profile uri ->
+        Later(fun () ->
+          task {
+            let! result =
+              HostHttp.send profile method uri headers body timeoutMs decompress
+            return Ok(Response.Http result)
+          }))
   | Operation.HttpStreamOpen(profile,
                              method,
                              url,
@@ -902,12 +908,20 @@ let private resolve (op : Operation) : Result<Resolved, string> =
       url
       headers
       (Error >> Response.HttpStream)
-      (fun profile uri () ->
-        task {
-          let! result =
-            HostHttp.openStream profile method uri headers body timeoutMs decompress
-          return Ok(Response.HttpStream result)
-        })
+      (fun profile uri ->
+        Later(fun () ->
+          task {
+            let! result =
+              HostHttp.openStream
+                profile
+                method
+                uri
+                headers
+                body
+                timeoutMs
+                decompress
+            return Ok(Response.HttpStream result)
+          }))
   | Operation.HttpServerBind(address, port) ->
     withChecks
       [ (Permission.Request.httpServer address port,
@@ -940,13 +954,20 @@ let private resolve (op : Operation) : Result<Resolved, string> =
   | Operation.ProcessRunInWorkspace(prefix, prepare, timeoutMs) ->
     withChecks
       [ (Permission.Request.native "child process", "running a supervised process") ]
-      (blocking (fun () ->
-        HostProcess.runInWorkspace
-          (HostProcess.processLauncherPath None)
-          prefix
-          prepare
-          timeoutMs
-        |> Result.map Response.WorkspaceProcessOutcome))
+      (Later(fun () ->
+        Task.Run<Result<Response, Failure>>(fun () ->
+          task {
+            let! outcome =
+              HostProcess.runInWorkspace
+                (HostProcess.processLauncherPath None)
+                prefix
+                prepare
+                timeoutMs
+            return
+              outcome
+              |> Result.map Response.WorkspaceProcessOutcome
+              |> Result.mapError failureOfErrno
+          })))
 
 // ── perform ───────────────────────────────────────────────────────────────────
 
@@ -976,16 +997,34 @@ let private firstDenial
         request
       )))
 
-let private execute (run : Execute) : Task<Outcome> =
-  task {
+let private outcomeOf (result : Result<Response, Failure>) : Outcome =
+  match result with
+  | Ok response -> Outcome.Success response
+  | Error failure -> Outcome.Failed failure
+
+/// A call that is not asynchronous, on this thread.
+let private executeHere (run : Execute) : Outcome =
+  match run with
+  | Now call
+  | Pooled call ->
     try
-      let! result = run ()
-      match result with
-      | Ok response -> return Outcome.Success response
-      | Error failure -> return Outcome.Failed failure
+      outcomeOf (call ())
     with e ->
-      return Outcome.Failed(classify e)
-  }
+      Outcome.Failed(classify e)
+  | Later _ -> Exception.raiseInternal "an asynchronous call cannot run in place" []
+
+let private execute (run : Execute) : Task<Outcome> =
+  match run with
+  | Now _ -> Task.FromResult(executeHere run)
+  | Pooled _ -> Task.Run(fun () -> executeHere run)
+  | Later call ->
+    task {
+      try
+        let! result = call ()
+        return outcomeOf result
+      with e ->
+        return Outcome.Failed(classify e)
+    }
 
 /// A tab has no processes and no listening sockets, and the .NET exceptions for both are
 /// unreadable: `dark serve` reported `SystemNetHttpListener_PlatformNotSupported`, a resource
@@ -1233,12 +1272,25 @@ let private resolveSessionPosix
               Permission.Request.effect request <> LibExecution.Effects.Effect.Clock)
           else
             baseChecks
-        let execute () =
+        let consumed () =
           match op, session with
           | HostTypes.PosixOp.FdClose(HostTypes.FileDescriptor.Scoped token),
             Some owner -> owner.Consume token
           | _ -> ()
-          resolved.execute ()
+        let execute =
+          match resolved.execute with
+          | Now call ->
+            Now(fun () ->
+              consumed ()
+              call ())
+          | Pooled call ->
+            Pooled(fun () ->
+              consumed ()
+              call ())
+          | Later call ->
+            Later(fun () ->
+              consumed ()
+              call ())
         Ok(scoped.checks, { checks = baseChecks; execute = execute })
 
 /// Check and perform one host operation, then audit it exactly once. Derives
@@ -1390,7 +1442,7 @@ let private performWithSession
               | None ->
                 // POSIX adapters are synchronous. Keep the descriptor lease
                 // through the kernel call, including close and multi-fd copy.
-                (execute resolved.execute).GetAwaiter().GetResult()
+                executeHere resolved.execute
           let tokens =
             descriptorUses posix
             |> List.choose (function

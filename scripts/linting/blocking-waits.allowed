@@ -1,0 +1,24 @@
+# Blocking waits scripts/linting/blocking-waits lets through: a path, then text from the line.
+# Each is a thread that is the program's own and has nothing else to do; a browser build has no
+# such thread, so these go before it can run.
+
+# The CLI's main thread, waiting for the run it started and then for its printers.
+backend/src/Cli/Cli.fs (execute cliPackageManager traceFlag noSpread (Array.toList args)).Result)
+backend/src/Cli/Cli.fs (LibExecution.Execution.callStackString state callStack).Result
+backend/src/Cli/Cli.fs (LibExecution.Execution.runtimeErrorToString state rte).Result
+backend/src/Cli/Cli.fs (Exe.dvalToRepr state dval).Result
+
+# LocalExec's main thread: a dev tool with no scheduler of its own.
+backend/src/LocalExec/BenchmarkScenarios.fs client.GetAsync("http://fake.local/body").GetAwaiter().GetResult()
+backend/src/LocalExec/BenchmarkScenarios.fs resp.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult()
+backend/src/LocalExec/BenchmarkScenarios.fs (Stream.readChunk 65536 stream).Result
+backend/src/LocalExec/LoadPackagesFromDisk.fs |> _.Result
+backend/src/LocalExec/LocalExec.fs .Result
+backend/src/LocalExec/PackageEdits.fs (Exe.executeFunction state define [] args).Result
+backend/src/LocalExec/PackageEdits.fs (Exe.runtimeErrorMessage state rte).Result
+
+# Reader threads waiting for a request, on a semaphore rather than a task.
+backend/src/LibExecution/HostEvents.fs requests.Wait()
+
+# A zero timeout: takes a slot if one is free, never waits.
+backend/src/LibExecution/Spread.fs workers.ChunkSlots.Wait 0

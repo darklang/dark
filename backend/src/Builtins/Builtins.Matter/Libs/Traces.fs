@@ -310,8 +310,8 @@ let private containing
   // `limit` keeps the deserializing short. A match older than the window is not found,
   // which is what the description says.
   let containsPattern (dv : Dval) : bool =
-    // The printer is pure Dark code, so its run never waits and the task is already done.
-    let repr = (Execution.dvalToRepr exeState dv).Result
+    // A stored input holds no read in flight, so its printing never waits.
+    let repr = Execution.now (Execution.dvalToRepr exeState dv)
     repr.Contains(pattern)
 
   let traces =

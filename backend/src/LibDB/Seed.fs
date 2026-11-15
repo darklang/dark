@@ -472,7 +472,7 @@ let private failureMessage
   (state : RT.ExecutionState)
   (rte : RT.RuntimeError.Error)
   : string =
-  let shown = (Execution.runtimeErrorMessage state rte).Result
+  let shown = Execution.now (Execution.runtimeErrorMessage state rte)
   $"evaluation failed - {shown}"
 
 /// What the store keeps for an evaluated value: its bytes saved, so it can be serialized, and
@@ -552,8 +552,9 @@ let evaluateAllValues
       Error { hash = Some valueHash; location = fullName; message = message }
     try
       let ptValue = BS.PT.PackageValue.deserialize valueHash ptDefBytes
-      // A value runs no effects, so its run never waits and the task is already done.
-      match (Execution.evaluateValue exeState fullName ptValue.body).Result with
+      match
+        Execution.now (Execution.evaluateValue exeState fullName ptValue.body)
+      with
       | Error(rte, _callStack) ->
         let message = failureMessage exeState rte
         fail message
