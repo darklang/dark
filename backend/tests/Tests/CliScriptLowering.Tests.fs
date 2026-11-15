@@ -406,10 +406,43 @@ let private testScriptInputNamesAreReserved =
   }
 
 
+let private testCallToALaterNestedFnIsNamed =
+  testTask "a script names a call to a function nested below it, before running" {
+    let! state = executionStateFor pmPT false
+    let code =
+      "let limit = 0\n"
+      + "let isEven(n: Int64): Bool = if n <= limit then true else isOdd(n - 1)\n"
+      + "let isOdd(n: Int64): Bool = if n <= 0 then false else isEven(n - 1)\n"
+      + "isEven(4)"
+    let! parsed = Cli.parseCliScript state "Tests" "script" code |> Ply.toTask
+    match parsed with
+    | Error [ (diagnostic : LibParser.Parser.Diagnostic) ] ->
+      Expect.equal
+        diagnostic.code
+        "SCRIPT-NESTED-FORWARD-CALL"
+        "a targeted diagnostic"
+      Expect.equal diagnostic.range.start.row 1 "at the call, on isEven's line"
+      Expect.equal
+        diagnostic.hint
+        (Some
+          "write `val limit = ...` if it is a constant, or move the `let` below the functions and pass the value in")
+        "naming the fix"
+    | other -> failtest $"Expected one diagnostic, got %A{other}"
+
+    let earlierOnly =
+      "let limit = 2\n"
+      + "let double(x: Int64): Int64 = x * limit\n"
+      + "let quadruple(x: Int64): Int64 = double(double(x))\n"
+      + "quadruple(3)"
+    let! parsed = Cli.parseCliScript state "Tests" "script" earlierOnly |> Ply.toTask
+    Expect.isOk parsed "a nested function may call the ones above it"
+  }
+
 let tests =
   testList
     "CliScriptLowering"
     [ testScriptInputNamesAreReserved
+      testCallToALaterNestedFnIsNamed
       testScriptArgumentsAreInvocationSpecific
       scriptValueExecution
       testUnresolvedRefsDoNotCollide

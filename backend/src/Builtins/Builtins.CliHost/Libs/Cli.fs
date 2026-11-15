@@ -417,6 +417,71 @@ let private declarationsToModule
         sourceRanges = sourceRanges }
   }
 
+/// In a script, a top-level `let` value is a statement, so every function after it is nested in
+/// it, and a nested function can't call one defined below it. Caught here, where the run would
+/// only say the later function was not found.
+let private callsToLaterNestedFns
+  (parameters : List<string>)
+  (m : Utils.CliScript.PTCliScriptModule)
+  : List<P.Diagnostic> =
+  let rangeOf (id : id) = m.sourceRanges.TryGetValue id
+  // the nearest expression around the use that has a source range: a called name has none
+  let rec firstUse (name : string) (e : PT.Expr) : Option<id> =
+    match e with
+    | PT.EVariable(id, n) when n = name -> Some id
+    | _ ->
+      PTAst.subExprs e
+      |> List.tryPick (firstUse name)
+      |> Option.map (fun id ->
+        if m.sourceRanges.ContainsKey id then id else PT.Expr.toID e)
+  let rec nestedFns (e : PT.Expr) : List<string * PT.Expr> =
+    match e with
+    | PT.ELet(_, PT.LPVariable(_, name), PT.ELambda(_, _, body), rest) ->
+      (name, body) :: nestedFns rest
+    | PT.ELet(_, _, _, rest)
+    | PT.EStatement(_, _, rest) -> nestedFns rest
+    | _ -> []
+  let rec firstLaterCall (fns : List<string * PT.Expr>) =
+    match fns with
+    | [] -> None
+    | (caller, body) :: later ->
+      later
+      |> List.tryPick (fun (callee, _) ->
+        firstUse callee body |> Option.map (fun id -> (caller, callee, id)))
+      |> Option.orElse (firstLaterCall later)
+  m.exprs
+  |> List.choose (fun e ->
+    let e =
+      match parameters, e with
+      | _ :: _, PT.ELambda(_, _, body) -> body
+      | _ -> e
+    match e with
+    | PT.ELet(letId, pat, value, rest) ->
+      match value, firstLaterCall (nestedFns rest) with
+      | PT.ELambda _, _
+      | _, None -> None
+      | _, Some(caller, callee, useId) ->
+        match rangeOf useId, rangeOf letId with
+        | (true, useRange), (true, letRange) ->
+          let hint =
+            match pat with
+            | PT.LPVariable(_, name) ->
+              $"write `val {name} = ...` if it is a constant, or move the `let` below the functions and pass the value in"
+            | _ -> "move the `let` below the functions and pass the value in"
+          Some(
+            { code = "SCRIPT-NESTED-FORWARD-CALL"
+              severity = P.DiagError
+              range = useRange
+              message =
+                $"`{caller}` calls `{callee}`, which is defined below it. The `let` on line {letRange.start.row + 1} is a statement, so the functions after it are nested, and a nested function can only call the ones above it."
+              related = []
+              hint = Some hint }
+            : P.Diagnostic
+          )
+        | _ -> None
+    | _ -> None)
+
+
 /// Parse a whole CLI script with the hand-written parser, lowering `WT → PT`. One
 /// parser feeds both the editor (WrittenTypes directly) and execution (via this
 /// lowering).
@@ -505,7 +570,7 @@ let private parseCliSource
                   )
                 | Ok _ -> None)
             traitProblem @ methodProblems)
-        match unresolved with
+        match unresolved @ callsToLaterNestedFns parameters m with
         | [] -> return Ok m
         | diagnostics -> return Error diagnostics
   }
