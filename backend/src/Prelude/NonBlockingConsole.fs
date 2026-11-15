@@ -60,6 +60,35 @@ module Ansi =
     elif env "NO_COLOR" <> "" then withoutColour
     else id
 
+/// Where stdout text goes. A pipe gets a stream of its own on fd 1, because `Console.Out` ignores a
+/// broken pipe, and a run piped into `head` went on long after `head` had exited. Only a pipe: a
+/// stream on a file would write at its own offset, over what anything else sharing fd 1 wrote.
+let private stdoutWriter () : System.IO.TextWriter =
+  if System.OperatingSystem.IsWindows() || not System.Console.IsOutputRedirected then
+    System.Console.Out
+  else
+    let stream =
+      new System.IO.FileStream(
+        new Microsoft.Win32.SafeHandles.SafeFileHandle(nativeint 1, false),
+        System.IO.FileAccess.Write,
+        1
+      )
+    if stream.CanSeek then
+      stream.Dispose()
+      System.Console.Out
+    else
+      new System.IO.StreamWriter(
+        stream,
+        System.Text.UTF8Encoding false,
+        AutoFlush = true
+      )
+
+/// `write` failing with EPIPE: whoever read stdout has gone.
+let private isBrokenPipe (e : exn) : bool =
+  match e with
+  | :? System.IO.IOException as e -> e.HResult = 32
+  | _ -> false
+
 type BlockingCollection =
   System.Collections.Concurrent.BlockingCollection<struct (Stream * string)>
 
@@ -96,6 +125,8 @@ type private State =
 
     queue : BlockingCollection
 
+    out : Lazy<System.IO.TextWriter>
+
     // Decided per stream, here, because the colouring helpers can't know where a string will land.
     forOut : Lazy<string -> string>
     forErr : Lazy<string -> string>
@@ -131,13 +162,18 @@ let private printLoop (s : State) () : unit =
           // Don't block (eg with `Take`) while holding the lock
           if s.queue.TryTake(&v) then
             match v with
-            | struct (Out, text) -> System.Console.Out.Write(s.forOut.Force () text)
+            | struct (Out, text) -> s.out.Force().Write(s.forOut.Force () text)
             | struct (Err, text) ->
               System.Console.Error.Write(s.forErr.Force () text)
             true
           else
             false
-        with e ->
+        with
+        | e when isBrokenPipe e ->
+          // Nobody reads the answer any more, so stop, quietly, as `yes | head` does. 141 is
+          // what a shell reports for a process SIGPIPE ended.
+          exit 141
+        | e ->
           System.Console.Error.WriteLine(
             $"Exception in blocking queue thread: {e.Message}"
           )
@@ -174,6 +210,7 @@ type private Instance =
             { isWasm = System.OperatingSystem.IsBrowser()
               browserSink = None
               queue = new BlockingCollection()
+              out = lazy (stdoutWriter ())
               forOut = lazy (Ansi.decide System.Console.IsOutputRedirected)
               forErr = lazy (Ansi.decide System.Console.IsErrorRedirected)
               captureLock = obj ()
