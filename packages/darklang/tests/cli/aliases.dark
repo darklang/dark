@@ -7,9 +7,7 @@ module Darklang.Cli.Tests.Aliases
 
 test followingScriptNamesTheFn =
   let text =
-    Darklang.Cli.Aliases.script(
-      "/opt/dark",
-      Darklang.Cli.Aliases.Target.Follows("Me.Demo.main"))
+    Cli.Aliases.script("/opt/dark", Cli.Aliases.Target.Follows("Me.Demo.main"))
 
   Stdlib.Test.all(
     [ Stdlib.String.startsWith(text, "#!/bin/sh\n") |> Stdlib.Test.equal(true)
@@ -19,16 +17,16 @@ test followingScriptNamesTheFn =
         "exec '/opt/dark' --entry-point 'Me.Demo.main' --branch main \"$@\"")
       |> Stdlib.Test.equal(true)
 
-      Darklang.Cli.Aliases.noteOf(text)
+      Cli.Aliases.noteOf(text)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("follows Me.Demo.main")) ])
 
 
 test pinnedScriptNamesTheHash =
   let hash = "f2fd0e0c69ac2bb88d60a9cdec94b43bb1d31bb4816feebff9d5a31cce343801"
   let text =
-    Darklang.Cli.Aliases.script(
+    Cli.Aliases.script(
       "/opt/dark",
-      Darklang.Cli.Aliases.Target.Pinned("Me.Demo.main", hash))
+      Cli.Aliases.Target.Pinned("Me.Demo.main", hash))
 
   Stdlib.Test.all(
     [ Stdlib.String.contains(text, $"--entry-point '#{hash}'")
@@ -37,20 +35,19 @@ test pinnedScriptNamesTheHash =
       Stdlib.String.contains(text, "--entry-point 'Me.Demo.main'")
       |> Stdlib.Test.equal(false)
 
-      Darklang.Cli.Aliases.noteOf(text)
+      Cli.Aliases.noteOf(text)
       |> Stdlib.Test.equal(
         Stdlib.Option.Option.Some($"pinned to Me.Demo.main at #{hash}"))
 
-      Darklang.Cli.Aliases.describe(
-        Darklang.Cli.Aliases.Target.Pinned("Me.Demo.main", hash))
+      Cli.Aliases.describe(Cli.Aliases.Target.Pinned("Me.Demo.main", hash))
       |> Stdlib.Test.equal("Me.Demo.main, pinned at #f2fd0e0c") ])
 
 
 test scriptAliasRunsTheFile =
   let text =
-    Darklang.Cli.Aliases.script(
+    Cli.Aliases.script(
       "/opt/dark",
-      Darklang.Cli.Aliases.Target.Script("/home/me/greet.dark"))
+      Cli.Aliases.Target.Script("/home/me/greet.dark"))
 
   Stdlib.Test.all(
     [ Stdlib.String.contains(
@@ -58,16 +55,14 @@ test scriptAliasRunsTheFile =
         "exec '/opt/dark' --branch main run '/home/me/greet.dark' \"$@\"")
       |> Stdlib.Test.equal(true)
 
-      Darklang.Cli.Aliases.noteOf(text)
+      Cli.Aliases.noteOf(text)
       |> Stdlib.Test.equal(
         Stdlib.Option.Option.Some("runs the script /home/me/greet.dark")) ])
 
 
 // A path with a quote in it stays one word to the shell.
 test scriptQuotesTheBinary =
-  Darklang.Cli.Aliases.script(
-    "/home/o'neil/dark",
-    Darklang.Cli.Aliases.Target.Follows("Me.x"))
+  Cli.Aliases.script("/home/o'neil/dark", Cli.Aliases.Target.Follows("Me.x"))
   |> Stdlib.String.contains("exec '/home/o'\\''neil/dark'")
   |> Stdlib.Test.equal(true)
 
@@ -75,11 +70,10 @@ test scriptQuotesTheBinary =
 // `ls` and `rm` only ever touch files that say they are aliases.
 test otherFilesAreNotAliases =
   Stdlib.Test.all(
-    [ Darklang.Cli.Aliases.noteOf("#!/bin/sh\necho hi\n")
+    [ Cli.Aliases.noteOf("#!/bin/sh\necho hi\n")
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
-      Darklang.Cli.Aliases.noteOf("")
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      Cli.Aliases.noteOf("") |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 
 // The wrapper `add` offers for a fn it can't alias: args passed through when the fn takes them,
@@ -105,7 +99,7 @@ module Wrapper =
 
 test wrapperFitsTheFn =
   Stdlib.Test.all(
-    [ Darklang.Cli.Aliases.wrapperFor(
+    [ Cli.Aliases.wrapperFor(
         "Me.run",
         Wrapper.fn(
           [ LanguageTools.ProgramTypes.TypeReference.TList(
@@ -114,14 +108,14 @@ test wrapperFitsTheFn =
       |> Stdlib.Test.equal(
         "let main(args: List<String>): Int64 =\n  let _ = Me.run(args)\n  0")
 
-      Darklang.Cli.Aliases.wrapperFor(
+      Cli.Aliases.wrapperFor(
         "Me.go",
         Wrapper.fn(
           [ LanguageTools.ProgramTypes.TypeReference.TUnit ],
           LanguageTools.ProgramTypes.TypeReference.TInt64))
       |> Stdlib.Test.equal("let main(args: List<String>): Int64 =\n  Me.go()")
 
-      Darklang.Cli.Aliases.wrapperFor(
+      Cli.Aliases.wrapperFor(
         "Me.up",
         Wrapper.fn(
           [ LanguageTools.ProgramTypes.TypeReference.TString ],
@@ -129,7 +123,7 @@ test wrapperFitsTheFn =
       |> Stdlib.Test.equal(
         "let main(args: List<String>): Int64 =\n  Stdlib.printLine(Me.up(Stdlib.String.join(args, \" \")))\n  0")
 
-      Darklang.Cli.Aliases.wrapperFor(
+      Cli.Aliases.wrapperFor(
         "Me.add",
         Wrapper.fn(
           [ LanguageTools.ProgramTypes.TypeReference.TInt64
@@ -150,24 +144,21 @@ test completion =
   let _ =
     Stdlib.Cli.File.writeText(
       $"{dir}/greet",
-      Darklang.Cli.Aliases.script(
-        "/opt/dark",
-        Darklang.Cli.Aliases.Target.Follows("Me.x")))
+      Cli.Aliases.script("/opt/dark", Cli.Aliases.Target.Follows("Me.x")))
 
   let _ = Stdlib.Cli.File.writeText($"{dir}/tool", "#!/bin/sh\necho mine\n")
   let result =
     Stdlib.Test.all(
-      [ Darklang.Cli.Aliases.completeIn(dir, [])
+      [ Cli.Aliases.completeIn(dir, [])
         |> Stdlib.Test.equal([ "ls", "add", "rm" ])
 
-        Darklang.Cli.Aliases.completeIn(dir, [ "rm" ])
+        Cli.Aliases.completeIn(dir, [ "rm" ])
         |> Stdlib.Test.equal([ "greet", "--all" ])
 
-        Darklang.Cli.Aliases.completeIn(dir, [ "add", "g", "Me.x" ])
+        Cli.Aliases.completeIn(dir, [ "add", "g", "Me.x" ])
         |> Stdlib.Test.equal([ "--pin" ])
 
-        Darklang.Cli.Aliases.completeIn(dir, [ "ls" ])
-        |> Stdlib.Test.equal([]) ])
+        Cli.Aliases.completeIn(dir, [ "ls" ]) |> Stdlib.Test.equal([]) ])
 
   let _ = Stdlib.Cli.Unix.removeDirectory(dir)
   result
@@ -202,9 +193,9 @@ test aliasRunsTheInstalledDark =
     + Stdlib.display(Stdlib.Int64.random(100000, 999999))
 
   let _ = Stdlib.Cli.Unix.ensureDirectoryExists(dir)
-  let without = Darklang.Cli.Aliases.darkFor(dir)
+  let without = Cli.Aliases.darkFor(dir)
   let _ = Stdlib.Cli.File.writeText($"{dir}/dark", "")
-  let withInstall = Darklang.Cli.Aliases.darkFor(dir)
+  let withInstall = Cli.Aliases.darkFor(dir)
   let _ = Stdlib.Cli.Unix.removeDirectory(dir)
   Stdlib.Test.all(
     [ withInstall |> Stdlib.Test.equal($"{dir}/dark")
@@ -214,42 +205,37 @@ test aliasRunsTheInstalledDark =
 test listingShortensThePinnedHash =
   let hash = "f2fd0e0c69ac2bb88d60a9cdec94b43bb1d31bb4816feebff9d5a31cce343801"
   Stdlib.Test.all(
-    [ Darklang.Cli.Aliases.shortNote($"pinned to Me.x at #{hash}")
+    [ Cli.Aliases.shortNote($"pinned to Me.x at #{hash}")
       |> Stdlib.Test.equal("pinned to Me.x at #f2fd0e0c")
 
-      Darklang.Cli.Aliases.shortNote("follows Me.x")
+      Cli.Aliases.shortNote("follows Me.x")
       |> Stdlib.Test.equal("follows Me.x") ])
 
 
 test commandNames =
   Stdlib.Test.all(
-    [ Darklang.Cli.Aliases.validName("greet") |> Stdlib.Test.equal(true)
-      Darklang.Cli.Aliases.validName("my-tool_2.0") |> Stdlib.Test.equal(true)
-      Darklang.Cli.Aliases.validName("") |> Stdlib.Test.equal(false)
-      Darklang.Cli.Aliases.validName("-x") |> Stdlib.Test.equal(false)
-      Darklang.Cli.Aliases.validName(".hidden") |> Stdlib.Test.equal(false)
-      Darklang.Cli.Aliases.validName("a/b") |> Stdlib.Test.equal(false)
-      Darklang.Cli.Aliases.validName("a b") |> Stdlib.Test.equal(false)
-      Darklang.Cli.Aliases.validName("$(rm)") |> Stdlib.Test.equal(false) ])
+    [ Cli.Aliases.validName("greet") |> Stdlib.Test.equal(true)
+      Cli.Aliases.validName("my-tool_2.0") |> Stdlib.Test.equal(true)
+      Cli.Aliases.validName("") |> Stdlib.Test.equal(false)
+      Cli.Aliases.validName("-x") |> Stdlib.Test.equal(false)
+      Cli.Aliases.validName(".hidden") |> Stdlib.Test.equal(false)
+      Cli.Aliases.validName("a/b") |> Stdlib.Test.equal(false)
+      Cli.Aliases.validName("a b") |> Stdlib.Test.equal(false)
+      Cli.Aliases.validName("$(rm)") |> Stdlib.Test.equal(false) ])
 
 
 test onPathIgnoresTrailingSlashes =
   Stdlib.Test.all(
-    [ Darklang.Cli.Aliases.onPath(
-        "/h/.darklang/bin",
-        "/usr/bin:/h/.darklang/bin/")
+    [ Cli.Aliases.onPath("/h/.darklang/bin", "/usr/bin:/h/.darklang/bin/")
       |> Stdlib.Test.equal(true)
 
-      Darklang.Cli.Aliases.onPath(
-        "/h/.darklang/bin/",
-        "/usr/bin:/h/.darklang/bin")
+      Cli.Aliases.onPath("/h/.darklang/bin/", "/usr/bin:/h/.darklang/bin")
       |> Stdlib.Test.equal(true)
 
-      Darklang.Cli.Aliases.onPath("/h/.darklang/bin", "/usr/bin")
+      Cli.Aliases.onPath("/h/.darklang/bin", "/usr/bin")
       |> Stdlib.Test.equal(false)
 
-      Darklang.Cli.Aliases.onPath("/h/.darklang/bin", "")
-      |> Stdlib.Test.equal(false) ])
+      Cli.Aliases.onPath("/h/.darklang/bin", "") |> Stdlib.Test.equal(false) ])
 
 
 // --- against an instance: make the alias, run it, edit the fn, run it again ---
@@ -464,9 +450,9 @@ test listingSaysWhatWontRun = Instance.withInstance(fun i ->
   let _ =
     Stdlib.Cli.File.writeText(
       $"{bin(i)}/old",
-      Darklang.Cli.Aliases.script(
+      Cli.Aliases.script(
         "/nowhere/dark",
-        Darklang.Cli.Aliases.Target.Follows("Tests.Greet.main")))
+        Cli.Aliases.Target.Follows("Tests.Greet.main")))
 
   let before = Instance.said(i, [ "alias" ])
   let (renameCode, renamed) =
