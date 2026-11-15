@@ -261,20 +261,3 @@ let requireFileWrite (state : ExecutionState) (vm : VMState) (path : string) : u
     vm
     (fun () -> $"writing `{path}`")
     (Permission.Request.file Permission.AccessKind.Write path)
-
-let requireFileReadWrite
-  (state : ExecutionState)
-  (vm : VMState)
-  (path : string)
-  : unit =
-  guardFile true path
-  check
-    state
-    vm
-    (fun () -> $"reading `{path}`")
-    (Permission.Request.file Permission.AccessKind.Read path)
-  check
-    state
-    vm
-    (fun () -> $"writing `{path}`")
-    (Permission.Request.file Permission.AccessKind.Write path)
