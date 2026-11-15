@@ -9,8 +9,6 @@ open Prelude
 module PT = LibExecution.ProgramTypes
 module Ast = LibExecution.ProgramTypesAst
 
-type Site = { caller : string; callee : string }
-
 /// The package fns <expr> calls with a literal Bool where the callee declares a `Bool`.
 let private bareBoolCallees
   (fns : Map<PT.Hash, PT.PackageFn.PackageFn>)
@@ -57,7 +55,7 @@ let private bareBoolCallees
   walk expr
 
 /// Every live package fn's bare-Bool calls.
-let find (names : Map<PT.Hash, string>) : Ply<List<Site>> =
+let find (names : Map<PT.Hash, string>) : Ply<List<RaiseSites.Site>> =
   uply {
     let! loaded =
       names
@@ -72,13 +70,6 @@ let find (names : Map<PT.Hash, string>) : Ply<List<Site>> =
         bareBoolCallees fns fn.body
         |> List.map (fun callee ->
           let nameOf h' = Map.tryFind h' names |> Option.defaultValue ""
-          { caller = nameOf h; callee = nameOf callee }))
+          ({ caller = nameOf h; callee = nameOf callee } : RaiseSites.Site)))
       |> List.filter (fun s -> not (s.callee.StartsWith "Darklang.Stdlib.Bool."))
   }
-
-/// The baseline's lines: `<count> <caller> <callee>`, sorted.
-let baselineLines (sites : List<Site>) : List<string> =
-  sites
-  |> List.countBy identity
-  |> List.map (fun (s, count) -> $"{count} {s.caller} {s.callee}")
-  |> List.sort

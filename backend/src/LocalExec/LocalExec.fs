@@ -292,7 +292,7 @@ module HandleCommand =
     uply {
       let! names = LibDB.Raises.allFnNames ()
       let! sites = LibDB.BoolFlagSites.find names
-      let lines = LibDB.BoolFlagSites.baselineLines sites
+      let lines = LibDB.RaiseSites.baselineLines sites
       lines |> List.iter print
       match baseline with
       | Some path ->
