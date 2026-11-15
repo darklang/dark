@@ -84,9 +84,12 @@ the number it returns is the exit code:
   run Me.Greet.main                   # the usage line on stderr; exits 2
 
 Printing and stdin need no approval. Files, the network and the environment
-do. `run --allow "file read $PWD" Me.Greet.main Ada` allows them for one run,
-edits included, and `permissions profile local-dev /abs/path/to/project --yes`
-allows a project's files for every run.
+need permission. If the program already has permission, you don't need `--allow`.
+The greeting above needs no permission. For a program that reads files,
+`run --allow "file read $PWD" Me.Report.main data.csv` lets it read files in
+the current directory and its subdirectories for one run, even if you edit
+the code during the run. File rules need full paths, such as `/home/me/data`;
+the shell replaces `$PWD` with the full path to the current directory.
 
 For a saved function-specific grant, supply explicit rules:
 `permissions approve --for Me.Client.fetch 'http GET https://api.example.com' --yes`.
@@ -207,7 +210,15 @@ Interactive `run` asks: Allow this run / Remember for this code version / Cancel
 Access Dark can see before execution is reviewed in one prompt; other access
 pauses before its operation with a prompt of its own, so a run can ask more
 than once. Approval continues without restarting earlier work.
-Unattended runs fail with guidance; use `run --allow` for temporary access.
+Without a prompt, a run fails if it needs permission and tells you how to allow it.
+`run --allow "file read $PWD" Me.Report.main data.csv` lets the program read
+files in the current directory and its subdirectories for this run, even if
+you edit the code during the run. This is like choosing Allow this run at the
+permission prompt. The permission isn't remembered, and rules that block access
+still apply. If the program already has permission, you don't need `--allow`.
+File rules need full paths, such as `/home/me/data`; the shell replaces `$PWD`
+with the full path to the current directory. For HTTP, give a method and URL:
+`run --allow 'http GET https://api.example.com/*' Me.Client.main`.
 Remembered script approvals appear as `script:/absolute/path` in `permissions approved`.
 Use that name with `permissions show` or `unapprove`.
 
