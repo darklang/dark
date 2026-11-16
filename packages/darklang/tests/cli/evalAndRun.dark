@@ -120,7 +120,20 @@ test scriptDeclarationsKeepTheirIdentity = Instance.withInstance(fun i ->
         i,
         [ "eval"
           "type Width = { pixels: Int64 }\ntype Height = { pixels: Int64 }\nHeight { pixels = 3 }" ],
-        "Height { pixels: 3 }") ]))
+        "Height { pixels: 3 }")
+
+      // A script type shaped like a stored one keeps its own name and its own impls.
+      prints(
+        i,
+        [ "eval"
+          "type Point = { x: Int64, y: Int64 }\nimpl Display for Point =\n  let display(p: Point): String = \"mine\"\n$\"{Point { x = 1, y = 2 }} {Stdlib.inspect(Point { x = 1, y = 2 })}\"" ],
+        "mine Point { x: 1, y: 2 }")
+
+      prints(
+        i,
+        [ "eval"
+          "type Person = { name: String }\nPerson { name = \"Ada\" }" ],
+        "Person { name: \"Ada\" }") ]))
 
 
 /// Script arguments, runner options and exit codes.
