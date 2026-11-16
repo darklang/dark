@@ -23,8 +23,8 @@ type Timing =
 type Counts =
   { passed: Int64
     failed: Int64
-    /// The tests inside the judged test groups, as `LanguageTools.PackageManager.Test.testCount` reads them.
-    tests: Int64
+    /// The checks inside the judged tests, as `LanguageTools.PackageManager.Test.testCount` reads them.
+    checks: Int64
     cached: Int64
     ran: Int64
     /// Of those that ran, how many needed their own process and store copy.
@@ -167,11 +167,18 @@ let lastOutcomes(
 let runFresh(
   run: LanguageTools.PackageManager.Test.Run,
   branchId: Uuid,
-  test: LanguageTools.ProgramTypes.PackageTest.PackageTest)
+  item: LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>)
   : Outcome =
+  let test = item.entity
   match LanguageTools.PackageManager.Test.executeInRun(run, branchId, test.hash) with
   | Ok(Pass) -> Outcome.Passed
-  | Ok(Fail(messages)) -> Outcome.Failed(messages)
+  | Ok(result) ->
+    let ctx =
+      PrettyPrinter.ProgramTypes.Context.forModule(
+        branchId,
+        Stdlib.List.prepend(item.location.modules, item.location.owner))
+
+    Outcome.Failed(LanguageTools.PackageManager.Test.failureLines(ctx, test.body, result))
   | Error(error) ->
     Outcome.RuntimeFailed(PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, error))
 
@@ -354,7 +361,7 @@ let finishTest(cache: Option<CacheContext>, counts: Counts, finished: FinishedTe
   Counts
     { passed = counts.passed + (if isPassed(finished.outcome) then 1 else 0)
       failed = counts.failed + (if isPassed(finished.outcome) then 0 else 1)
-      tests = counts.tests + LanguageTools.PackageManager.Test.testCount(finished.test.body)
+      checks = counts.checks + LanguageTools.PackageManager.Test.testCount(finished.test.body)
       cached = counts.cached + (if finished.wasCached then 1 else 0)
       ran = counts.ran + (if finished.wasCached then 0 else 1)
       isolated = counts.isolated + (if finished.wasCached || finished.inProcess then 0 else 1)
@@ -416,7 +423,7 @@ let runSelected(
       Stdlib.printErrorLine($"Running: {fullPath(item)}")
       let handle = Stdlib.Exec.spawn(fun () ->
         let started = Stdlib.DateTime.__monotonicMilliseconds()
-        let outcome = runFresh(run, branchId, item.entity)
+        let outcome = runFresh(run, branchId, item)
         // Asked after the run: a test stopped at an `Impure` call ran again in a worker.
         let inProcess = LanguageTools.PackageManager.Test.runsInProcess(item.entity.hash)
         FinishedTest
@@ -520,7 +527,7 @@ let runTestsInRun(
       Counts
         { passed = 0
           failed = 0
-          tests = 0
+          checks = 0
           cached = 0
           ran = 0
           isolated = 0
@@ -552,20 +559,20 @@ let runTestsInRun(
           $"; {Stdlib.display(counts.reran)} wrote to the store and reran on a copy"
 
       Stdlib.printLine(
-        $"{Stdlib.display(total)} test groups ({Stdlib.display(counts.tests)} tests): {Stdlib.display(counts.passed)} passed, {Stdlib.display(counts.failed)} failed; {Stdlib.display(counts.ran)} ran, {Stdlib.display(counts.cached)} cached; {Stdlib.display(counts.isolated)} isolated{reranNote}")
+        $"{countLine(total, counts.checks)}: {Stdlib.display(counts.passed)} passed, {Stdlib.display(counts.failed)} failed; {Stdlib.display(counts.ran)} ran, {Stdlib.display(counts.cached)} cached; {Stdlib.display(counts.isolated)} isolated{reranNote}")
 
     if counts.failed > 0 || total == 0 then { state with exitCode = 1 } else state
 
 
-/// One row of `test count`: a submodule with everything beneath it, or one test group.
+/// One row of `test count`: a submodule with everything beneath it, or one test.
 type CountRow =
   { name: String
-    groups: Int64
-    tests: Int64 }
+    tests: Int64
+    checks: Int64 }
 
 
-/// <param groups> (full name segments, tests) rolled up one level below
-/// <param prefix>: a row per submodule, plus a row per test group directly in
+/// <param groups> (full name segments, checks) rolled up one level below
+/// <param prefix>: a row per submodule, plus a row per test directly in
 /// <param prefix> when it has no submodules, or one row for them all when it has.
 let countRows(prefix: List<String>, groups: List<(List<String> * Int64)>): List<CountRow> =
   let depth = Stdlib.List.length(prefix)
@@ -575,8 +582,8 @@ let countRows(prefix: List<String>, groups: List<(List<String> * Int64)>): List<
   let row(name: String, group: List<(List<String> * Int64)>): CountRow =
     CountRow
       { name = name
-        groups = Stdlib.List.length(group)
-        tests = Stdlib.List.fold(group, 0, fun(total, (_, tests)) -> total + tests) }
+        tests = Stdlib.List.length(group)
+        checks = Stdlib.List.fold(group, 0, fun(total, (_, checks)) -> total + checks) }
 
   let modules =
     nested
@@ -594,18 +601,18 @@ let countRows(prefix: List<String>, groups: List<(List<String> * Int64)>): List<
         row(Stdlib.Option.withDefault(Stdlib.List.last(path), ""), [ (path, tests) ]))
       |> Stdlib.List.sortBy(fun r -> r.name)
     else
-      [ row("(test groups in this module)", direct) ]
+      [ row("(tests in this module)", direct) ]
 
   Stdlib.List.concat(modules, here)
 
 
-let countLine(groups: Int64, tests: Int64): String =
-  let g = if groups == 1 then "test group" else "test groups"
+let countLine(tests: Int64, checks: Int64): String =
   let t = if tests == 1 then "test" else "tests"
-  $"{Stdlib.display(groups)} {g}, {Stdlib.display(tests)} {t}"
+  let c = if checks == 1 then "check" else "checks"
+  $"{Stdlib.display(tests)} {t}, {Stdlib.display(checks)} {c}"
 
 
-/// <param prefix>, extended while every test group in <param groups> sits under the
+/// <param prefix>, extended while every test in <param groups> sits under the
 /// same submodule, so a module holding only `Tests` shows what is inside it.
 let deepestShared(prefix: List<String>, groups: List<(List<String> * Int64)>): List<String> =
   let depth = Stdlib.List.length(prefix)
@@ -638,12 +645,12 @@ let printCounts(heading: String, prefix: List<String>, groups: List<(List<String
   rows
   |> Stdlib.List.iter(fun r ->
     Stdlib.printLine(
-      $"  {Stdlib.String.padEnd(r.name, ' ', width)}  {countLine(r.groups, r.tests)}"))
+      $"  {Stdlib.String.padEnd(r.name, ' ', width)}  {countLine(r.tests, r.checks)}"))
 
 
-/// `test count [--for <item>] [module]`: how many test groups and tests are in
+/// `test count [--for <item>] [module]`: how many tests and checks are in
 /// <param module> (by full dotted name; everything when omitted), rolled up one
-/// level down. With `--for`, only the test groups that use <item>, directly or
+/// level down. With `--for`, only the tests that use <item>, directly or
 /// through anything else they call. Reads definitions only; nothing runs.
 let countTests(state: AppState, args: List<String>): AppState =
   let branchId = state.currentBranchId
@@ -708,9 +715,9 @@ let countTests(state: AppState, args: List<String>): AppState =
 
         let heading =
           if depth == 0 then
-            $"Test groups that use {name}"
+            $"Tests that use {name}"
           else
-            $"Test groups in {place} that use {name}"
+            $"Tests in {place} that use {name}"
 
         printCounts(heading, prefix, using)
         state
@@ -741,12 +748,12 @@ let help(_state: AppState): String =
     "Use --jobs <count> to change the limit, or --jobs 1 to run serially."
     "Tests start in name order; results are printed as they finish."
     ""
-    "Each test declaration is a test group. Each item of a"
-    "`Stdlib.Test.all([ ... ])` list is a test, and any other group holds one."
-    "Passed and failed count test groups."
+    "Each item of a `Stdlib.Test.all([ ... ])` list is a check, and any other"
+    "test holds one. Passed and failed count tests. A failing check is shown by"
+    "its position and source, or by the name `Stdlib.Test.named` gives it."
     "`test count` shows both for a module and each module under it, read from"
     "the definitions without running anything. `--for <item>` keeps only the"
-    "test groups that use that item, directly or through other code."
+    "tests that use that item, directly or through other code."
     ""
     "Examples:"
     "  test run"

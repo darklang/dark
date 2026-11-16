@@ -104,9 +104,7 @@ let isTrue(claim: Bool, why: String): Stdlib.Test.Result =
 let about(cmd: String, result: Stdlib.Test.Result): Stdlib.Test.Result =
   match result with
   | Pass -> result
-  | Fail(messages) ->
-    Stdlib.Test.Result.Fail(
-      Stdlib.List.map(messages, fun m -> $"`dark {cmd}`: {m}"))
+  | _ -> Stdlib.Test.named($"`dark {cmd}`", result)
 
 
 /// Run for the EFFECT. A setup step that fails is reported as itself, not as the confusing

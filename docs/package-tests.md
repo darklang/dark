@@ -43,11 +43,11 @@ count them and `dark test add` to add one.
 `dark test run` runs all tests, or you can filter them by module or test name. It skips
 deprecated tests and starts them in name order, one per core and at most 16 at
 once. Results are printed as tests finish. Use `--jobs <count>` to change the
-limit, or `--jobs 1` to run serially. The command fails if any test group
+limit, or `--jobs 1` to run serially. The command fails if any test
 fails or none match. A run of a dozen tests or more lists the ten slowest
-before the summary. The summary starts with the two numbers, test groups and the
-tests inside them (see [Counting tests](#counting-tests)); passed, failed, ran and
-cached count test groups. It ends with how many ran isolated.
+before the summary. The summary starts with the two numbers, tests and the
+checks inside them (see [Counting tests](#counting-tests)); passed, failed, ran and
+cached count tests. It ends with how many ran isolated.
 
 A test runs in one of two places. If the analysis cache safety uses walks the
 test and everything it calls, finds that walk complete, finds no effect at all
@@ -186,31 +186,44 @@ always use the real one.
 ## Assertions and expected errors
 
 `Stdlib.Test` provides helpers such as `expect`, `equal`, `notEqual` and `all`.
-These produce `Pass` or `Fail` results. `all` combines several tests into one
-test group.
+`expect`, `equal` and `notEqual` produce `Pass` or `Fail`. `all` combines several
+checks into one test, and gives `FailedChecks` with the position of each check
+that failed. `named("emoji separator", check)` gives a check a name.
+
+When a check fails, the runner prints where it sits and reads its source from
+the stored body, so a check needs no name to be found:
+
+```text
+FAIL Demo.Tests.split
+  2: Stdlib.String.split("hello&&&&world", "&&&")
+     |> Stdlib.Test.equal([ "hello", "world" ])
+     expected ["hello", "world"], got ["hello", "&world"]
+  emoji separator: expected ["a", "c"], got ["a", "b"]
+```
+
+A named check prints its name instead of its position and source, and a nested
+`all` adds its positions after its own, as in `4 > 2:`. When the list is built at
+run time, there is no source to show, so only the position is printed.
 
 ## Counting tests
 
-Each `test` declaration is a test group. Its tests are counted from its body,
+Each `test` declaration is a test. Its checks are counted from its body,
 without running it:
 
-- each item of a `Stdlib.Test.all([ ... ])` list is one test, and a nested `all`
-  adds its own items;
+- each item of a `Stdlib.Test.all([ ... ])` list is one check, a nested `all`
+  adds its own items, and `named` counts what it names;
 - a `let` counts what follows it, and an `if` or `match` counts its biggest branch;
-- anything else is one test, including an `all` over a list built at run time,
+- anything else is one check, including an `all` over a list built at run time,
   such as `Stdlib.List.map(cases, f) |> Stdlib.Test.all`.
 
 `LanguageTools.PackageManager.Test.testCount` does the counting. A count belongs
-to the group's definition, so a cached pass reports the same tests as a fresh run
+to the test's definition, so a cached pass reports the same checks as a fresh run
 and nothing extra is stored with results.
 
-`dark test count [module]` prints the test groups and tests under a module and in
-each module below it, rolled up. With `--for <item>`, it counts only the test
-groups that use that function, type or value, directly or through other code,
+`dark test count [module]` prints the tests and checks under a module and in
+each module below it, rolled up. With `--for <item>`, it counts only the tests
+that use that function, type or value, directly or through other code,
 from the same dependents index as `dark deps --deep`.
-
-In the F# suite, each Expecto `testCase` is a test and each `testList` a test
-group.
 
 `=> raises` checks that the runtime error message exactly matches the expected
 text.

@@ -59,6 +59,27 @@ let private runHash (h : string) : Task<string> =
           | RT.DString s -> s
           | other -> $"{other}")
       return "fail: " + String.concat "; " messages
+    | Ok(RT.DEnum(_,
+                  _,
+                  _,
+                  "Ok",
+                  [ RT.DEnum(_,
+                             _,
+                             _,
+                             "FailedChecks",
+                             [ RT.DList(_, RT.Items(checks)) ]) ])) ->
+      let messages =
+        checks
+        |> List.collect (function
+          | RT.DTuple(RT.DInt64 position,
+                      RT.DEnum(_, _, _, "Fail", [ RT.DList(_, RT.Items(ms)) ]),
+                      []) ->
+            ms
+            |> List.map (function
+              | RT.DString s -> $"{position}: {s}"
+              | other -> $"{position}: {other}")
+          | other -> [ $"{other}" ])
+      return "fail: " + String.concat "; " messages
     | Ok(RT.DEnum(_, _, _, "Error", [ RT.DEnum(_, _, _, caseName, _) ])) ->
       return $"error: {caseName}"
     | Ok other -> return failtest $"unexpected result shape: {other}"
@@ -127,8 +148,8 @@ test randomInherited =
     let! collects = run m "collects"
     Expect.equal
       collects
-      "fail: assertion 1: a; assertion 2: b"
-      "`all` keeps every failure and identifies its assertion"
+      "fail: 1: a; 2: b"
+      "`all` keeps every failure and its position"
 
     // The at-rest checker flags this at authoring time; the runner must not
     // take it for a pass if it gets stored anyway.
