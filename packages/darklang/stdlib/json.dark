@@ -1,21 +1,58 @@
 module Darklang.Stdlib.Json
 
-/// Serializes a Dark value to a JSON string.
+/// Serializes a Dark value to a JSON string, as <type Options.Options> describes with
+/// <fn Options.defaults>. An `Option` is its value, or `null` for `None`, and a `None`
+/// record field is left out: `{"host":"a1","cpu":38.5}`.
 let serialize(value: 'a): String =
-  Builtin.jsonSerialize<'a>(value)
+  serializeWith<'a>(Options.defaults(), value)
+
+
+/// Serializes a Dark value to a JSON string, as <param options> say.
+let serializeWith(options: Options.Options, value: 'a): String =
+  Builtin.jsonSerialize<'a>(options, value)
 
 
 /// Serializes a Dark value to a JSON string, or {{Error}} where <fn serialize> raises: a value
 /// with no JSON form, such as a function, bytes, or a dict whose keys are not Strings.
 let checkedSerialize(value: 'a): Result<String, SerializeError.SerializeError> =
-  Builtin.jsonCheckedSerialize<'a>(value)
+  checkedSerializeWith<'a>(Options.defaults(), value)
+
+
+/// <fn checkedSerialize>, as <param options> say.
+let checkedSerializeWith(
+  options: Options.Options,
+  value: 'a)
+  : Result<String, SerializeError.SerializeError> =
+  Builtin.jsonCheckedSerialize<'a>(options, value)
   |> Result.mapError(fun dv -> SerializeError.SerializeError.CannotSerialize(dv))
 
 
-/// Parses a JSON string as a Dark value, matching the type <typeParam a>.
+/// Parses a JSON string as a Dark value, matching the type <typeParam a>. It reads what
+/// <fn serialize> writes, with either <type Options.NoneFields>, and the tagged
+/// `{"Some":[1]}` form of an `Option` too. A record field of type `Option` may be missing.
 /// Show an error with `$"{e}"` or `Stdlib.display(e)`.
 let parse(json: String): Result<'a, ParseError.ParseError> =
   Builtin.jsonParse<'a>(json)
+
+
+/// How <fn serializeWith> writes JSON. Start from <fn defaults> and change what you need:
+/// `{ Stdlib.Json.Options.defaults() with noneFields = Stdlib.Json.Options.NoneFields.Null }`.
+module Options =
+  /// What a record field holding `None` becomes.
+  type NoneFields =
+    /// Left out: `{"host":"a1"}`
+    | Omit
+    /// `null`: `{"host":"a1","cpu":null}`. A field whose `Some` can itself be `null`, such
+    /// as `Option<Option<Int64>>`, leaves `None` out anyway, since `null` is its `Some(None)`.
+    | Null
+
+
+  type Options =
+    { noneFields: NoneFields }
+
+
+  let defaults(): Options =
+    Options { noneFields = NoneFields.Omit }
 
 
 module ParseError =

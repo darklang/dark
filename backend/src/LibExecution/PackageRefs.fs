@@ -247,6 +247,8 @@ module Type =
       let response = p [] "Response"
 
     module Json =
+      let options = p [ "Json"; "Options" ] "Options"
+
       module ParseError =
         let private p addl = p ("Json" :: "ParseError" :: addl)
 
