@@ -184,7 +184,7 @@ build_one() {
     return 0
   fi
 
-  local objfile="$output_base_dir/sqlite3-${rid}.o"
+  local objfile="$sqlite_dir/sqlite3-${rid}.o"
   echo "  → $rid"
   "$HOME/zig/zig" cc -target "$zig_target" $sqlite_cflags -fPIC -c \
     $sqlite_inc "$sqlite_src" -o "$objfile"
