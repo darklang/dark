@@ -1,8 +1,8 @@
 // Brotli-compress the seed for embedding: `dotnet fsi compress-seed.fsx <in> <out>`.
 //
 // A script rather than the `brotli` tool because every release host already has the .NET SDK and
-// none has `brotli`. Quality 11 with a 16 MB window (24): the seed repeats the same hashes and
-// names far apart, which a large window finds. 7.15 MB with `gzip -9`, 5.28 MB this way.
+// none has `brotli`. A 16 MB window (24): the seed repeats the same hashes and names far apart,
+// which a large window finds. Quality 9, not 11: 11 is ~6% smaller but takes ~7x as long.
 open System.IO
 open System.IO.Compression
 
@@ -16,7 +16,7 @@ if
       System.ReadOnlySpan input,
       System.Span output,
       &written.contents,
-      11,
+      9,
       24
     )
   )
