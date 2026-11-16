@@ -21,7 +21,8 @@ let resolveReplacementName(branchId: Uuid, ref: LanguageTools.ProgramTypes.Refer
   | None -> $"<hash:{LanguageTools.ProgramTypes.hashToShort(hash)}>"
 
 
-/// The declaration alone: no deprecation header, no capabilities line, no colour.
+/// The declaration alone: no deprecation header, no capabilities line, no colour. For a
+/// module, every declaration directly in it (`moduleSource`).
 /// Feed it to `dark module` or `dark edit` and it round-trips.
 ///
 /// Reading an item and writing it back should be a pipe. Stripping a trailer and a
@@ -50,15 +51,108 @@ let rawSource(branchId: Uuid, location: PackageLocation): Result<String, String>
         Result.Error($"nothing at {where}")
 
   match location with
-  | Module(_) ->
-    Result.Error(
-      "--raw prints ONE declaration. Name a fn, type, value, trait, impl or test, not a module.")
+  | Module(path) -> moduleSource(branchId, path)
   | Type(loc) -> sourceOf(loc)
   | Value(loc) -> sourceOf(loc)
   | Function(loc) -> sourceOf(loc)
   | Trait(loc) -> sourceOf(loc)
   | Impl(loc) -> sourceOf(loc)
   | Test(loc) -> sourceOf(loc)
+
+
+/// The <param kind> named <param name> in the module at <param path>, printed for `dark module`.
+let moduleDecl(
+  branchId: Uuid,
+  path: List<String>,
+  kind: LanguageTools.ProgramTypes.ItemKind,
+  name: String)
+  : Option<String> =
+  match path with
+  | [] -> Option.None
+  | [owner, ...modules] ->
+    let loc =
+      LanguageTools.ProgramTypes.PackageLocation { owner = owner, modules = modules, name = name }
+
+    // impls sit under their type's name, but are written in the type's module
+    let ctxModule =
+      if kind == LanguageTools.ProgramTypes.ItemKind.TraitImpl then
+        Stdlib.List.dropLast(path)
+      else
+        path
+
+    let ctx =
+      { PrettyPrinter.ProgramTypes.Context.forModule(branchId, ctxModule) with
+          width = PrettyPrinter.ProgramTypes.sourceWidth
+          preferredLocation = Option.Some(loc) }
+
+    let r = Query.searchExactMatch(branchId, path, name)
+    match kind with
+    | Type ->
+      r.types
+      |> Stdlib.List.head
+      |> Stdlib.Option.map(fun item -> PrettyPrinter.ProgramTypes.packageType(ctx, item.entity))
+    | Trait ->
+      r.traits
+      |> Stdlib.List.head
+      |> Stdlib.Option.map(fun item -> PrettyPrinter.ProgramTypes.packageTrait(ctx, item.entity))
+    | Value ->
+      r.values
+      |> Stdlib.List.head
+      |> Stdlib.Option.map(fun item -> PrettyPrinter.ProgramTypes.packageValue(ctx, item.entity))
+    | Fn ->
+      r.fns
+      |> Stdlib.List.head
+      |> Stdlib.Option.map(fun item -> PrettyPrinter.ProgramTypes.packageFn(ctx, item.entity))
+    | TraitImpl ->
+      r.impls
+      |> Stdlib.List.head
+      |> Stdlib.Option.map(fun item -> PrettyPrinter.ProgramTypes.packageImpl(ctx, item.entity))
+    | Test ->
+      r.tests
+      |> Stdlib.List.head
+      |> Stdlib.Option.map(fun item -> PrettyPrinter.ProgramTypes.packageTest(ctx, item.entity))
+
+
+/// Every declaration directly in the module at <param path>, as one file `dark module` reads
+/// back: types, traits, values, fns, impls, then tests. Submodules are left out; an impl
+/// for one of the module's types is kept, since `dark module` puts it under the type's name.
+let moduleSource(branchId: Uuid, path: List<String>): Result<String, String> =
+  let depSets = Query.loadDeprecationSets(branchId)
+  let decls(
+    at: List<String>,
+    pairs: List<(String * LanguageTools.ProgramTypes.Hash)>,
+    kind: LanguageTools.ProgramTypes.ItemKind)
+    : List<String> =
+    pairs
+    |> Stdlib.List.filter(fun((name, hash)) ->
+      Stdlib.Bool.not(Query.isDeprecatedAt(depSets, at, name, hash)))
+    |> Stdlib.List.filterMap(fun((name, _)) -> moduleDecl(branchId, at, kind, name))
+
+  let (_, types, values, fns, traits, _, tests) =
+    Query.allDirectDescendantNamesAndHashes(branchId, path)
+
+  let impls =
+    types
+    |> Stdlib.List.map(fun((typeName, _)) ->
+      let at = Stdlib.List.append(path, typeName)
+      let (_, _, _, _, _, typeImpls, _) = Query.allDirectDescendantNamesAndHashes(branchId, at)
+      decls(at, typeImpls, LanguageTools.ProgramTypes.ItemKind.TraitImpl))
+    |> Stdlib.List.flatten
+
+  let all =
+    Stdlib.List.flatten(
+      [ decls(path, types, LanguageTools.ProgramTypes.ItemKind.Type)
+        decls(path, traits, LanguageTools.ProgramTypes.ItemKind.Trait)
+        decls(path, values, LanguageTools.ProgramTypes.ItemKind.Value)
+        decls(path, fns, LanguageTools.ProgramTypes.ItemKind.Fn)
+        impls
+        decls(path, tests, LanguageTools.ProgramTypes.ItemKind.Test) ])
+
+  match all with
+  | [] ->
+    let name = Stdlib.String.join(path, ".")
+    Result.Error($"no declarations directly in {name} (--raw leaves out submodules)")
+  | _ -> Result.Ok(Stdlib.String.join(all, "\n\n"))
 
 
 /// Print `rawSource`, or say why there is none.
@@ -823,7 +917,9 @@ let help(_state: AppState): String =
     "Options:"
     "  --raw             The declaration alone, with no header, badge or colour."
     "                    What `dark module` and `dark edit` accept, so reading an"
-    "                    item and writing it back is a pipe."
+    "                    item and writing it back is a pipe. For a module, every"
+    "                    declaration directly in it (not its submodules), as one"
+    "                    file `dark module` reads back."
     ""
     "Options (functions only):"
     "  --include-tests   Also list the tests that call the function, each with"
@@ -840,6 +936,7 @@ let help(_state: AppState): String =
     "  view Option                     - View the Option type"
     "  view Stdlib.List                - View contents of Stdlib.List module"
     "  view List.head --raw            - Print just the declaration"
+    "  view Me.Example --raw > ex.dark - Save a module as a file `dark module` reads"
     "  view Float64.add --include-tests  - Float64.add and the tests that call it"
     "  view List.last --ast            - View List.last as a syntax tree"
     "  view List.map --instructions    - Disassemble List.map" ]
