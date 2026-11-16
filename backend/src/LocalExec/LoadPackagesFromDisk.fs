@@ -46,12 +46,12 @@ let private parseAll
   (parseOne : string -> string -> List<PT.PackageOp>)
   (files : List<string * string>)
   : List<PT.PackageOp> =
-  files
-  |> Task.mapWithConcurrency parseWorkers (fun (path, contents) ->
-    System.Threading.Tasks.Task.Run<List<PT.PackageOp>>(fun () ->
-      parseOne path contents))
-  |> Task.map List.flatten
-  |> _.Result
+  LibExecution.HostEvents.runHere (fun () ->
+    files
+    |> Task.mapWithConcurrency parseWorkers (fun (path, contents) ->
+      System.Threading.Tasks.Task.Run<List<PT.PackageOp>>(fun () ->
+        parseOne path contents))
+    |> Task.map List.flatten)
 
 
 /// Every package source a reload reads, as (path, contents).

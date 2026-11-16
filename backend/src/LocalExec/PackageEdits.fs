@@ -376,12 +376,16 @@ let private applyEdits () : string =
         NEList.ofList
           (RT.DString("/" + String.concat "." modules))
           [ RT.DString source ]
-      // LocalExec runs on its own thread, outside any scheduler, so waiting in place is safe.
-      match (Exe.executeFunction state define [] args).Result with
+      match
+        LibExecution.HostEvents.runHere (fun () ->
+          Exe.executeFunction state define [] args)
+      with
       | Ok(RT.DInt64 0L) -> ()
       | Ok _ -> refuse $"`dark module` did not apply {file}"
       | Error(rte, _) ->
-        let message = (Exe.runtimeErrorMessage state rte).Result
+        let message =
+          LibExecution.HostEvents.runHere (fun () ->
+            Exe.runtimeErrorMessage state rte)
         refuse $"`dark module` did not apply {file}: {message}")
 
     let _ = LibDB.Inserts.commitAllAsBaseline "package reload (baseline)"

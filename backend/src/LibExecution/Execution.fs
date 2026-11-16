@@ -621,15 +621,13 @@ let runtimeErrorToString
   (state : RT.ExecutionState)
   (rte : RT.RuntimeError.Error)
   : Task<RT.ExecutionResult> =
-  task {
-    let fnName =
-      RT.FQFnName.fqPackage (
-        PackageRefs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString ()
-      )
-    let args =
-      NEList.ofList (RT.DUuid state.branchId.Guid) [ RT2DT.RuntimeError.toDT rte ]
-    return! executeFunction state fnName [] args
-  }
+  let fnName =
+    RT.FQFnName.fqPackage (
+      PackageRefs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString ()
+    )
+  let args =
+    NEList.ofList (RT.DUuid state.branchId.Guid) [ RT2DT.RuntimeError.toDT rte ]
+  executeFunction state fnName [] args
 
 /// `runtimeErrorToString` as a string: the rendering, or the raw error when the printer
 /// itself fails.

@@ -3091,6 +3091,85 @@ let private cancelDuringOneLongCallIsNotOk =
   }
 
 
+let private waitResumesOnTheLoop =
+  testTask "what a process waited for resumes on its scheduler's thread" {
+    Gates.reset ()
+    let state = executionStateFor pmPT false
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! (p : Scheduler.Process) = spawn s state "Builtin.testGateThreads(1)"
+    let running = runOnThread s p
+    waitFor "parked" (fun () ->
+      match p.status with
+      | Scheduler.Parked _ -> true
+      | _ -> false)
+    Gates.release 1L
+    let! result = running
+    match expectOk result "the process" with
+    | RT.DTuple(RT.DInt64 before, RT.DInt64 after, []) ->
+      Expect.equal after before "resumed on the thread it waited on"
+    | other -> failtest $"expected two thread ids, got {other}"
+  }
+
+let private eventWakesAParkedProcess =
+  testTask
+    "an event taken while the loop drains its queue wakes the process it is for" {
+    let state = executionStateFor pmPT false
+    Gates.reset ()
+    HE.sources.readKey <-
+      Some(fun () ->
+        Gates.wait 31L |> fun t -> t.Wait()
+        aKey)
+    try
+      let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+      let! (p : Scheduler.Process) =
+        spawn s state "Stdlib.Host.await([ Stdlib.Host.EventSpec.Key ])"
+      let running = runOnThread s p
+      waitFor "parked" (fun () ->
+        match p.status with
+        | Scheduler.Parked _ -> true
+        | _ -> false)
+      // Behind a wake, so the key is taken from the queue while the loop drains it rather than
+      // where it blocks.
+      s.PushEvent HE.HostEvent.Wake
+      s.PushEvent(HE.HostEvent.Key aKey)
+      let! first = Task.WhenAny(running, Task.Delay giveUpAfter)
+      if not (obj.ReferenceEquals(first, running)) then
+        failtest "the process stayed parked after its key arrived"
+      let! result = running
+      match expectOk result "the key await" with
+      | RT.DEnum(_, _, _, "Key", [ k ]) -> Expect.equal k aKey "the pushed key"
+      | other -> failtest $"expected Key, got {other}"
+    finally
+      HE.sources.readKey <- None
+      Gates.release 31L
+  }
+
+let private runHereResumesHere =
+  testCase "runHere resumes what it awaits on the calling thread" (fun () ->
+    let here = Thread.CurrentThread.ManagedThreadId
+    let resumedOn =
+      HE.runHere (fun () ->
+        task {
+          do! Task.Delay 5
+          return Thread.CurrentThread.ManagedThreadId
+        })
+    Expect.equal resumedOn here "resumed on the calling thread")
+
+let private nestedRunLandsTheOuterWait =
+  testCase
+    "a run inside another on one thread still lands what the outer one awaits"
+    (fun () ->
+      let answer =
+        HE.runHere (fun () ->
+          let outer =
+            task {
+              do! Task.Delay 20
+              return 1
+            }
+          Task.FromResult(HE.runHere (fun () -> outer)))
+      Expect.equal answer 1 "the inner run saw the outer wait land")
+
+
 // Sequenced: the tests share the process-wide trace, gates and key source in `LibTest` and
 // `HostEvents`.
 let tests =
@@ -3185,5 +3264,9 @@ let tests =
         cancelCascadesSoftly
         cancelStopsAnEmptyLambdaMap
         cancelDuringOneLongCallIsNotOk
-        registryListsAndForgets ]
+        registryListsAndForgets
+        waitResumesOnTheLoop
+        eventWakesAParkedProcess
+        runHereResumesHere
+        nestedRunLandsTheOuterWait ]
   )

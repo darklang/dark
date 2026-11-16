@@ -135,6 +135,95 @@ type Queue() =
 
 
 
+/// A thread's event loop, as the `SynchronizationContext` its awaits resume on: what a process
+/// waited for lands back on its scheduler's thread, never on the pool. One per thread: a
+/// scheduler run inside another on the same thread (a builtin running a function to the end)
+/// shares it, so what the outer one waited for still lands while the inner one runs. `wake`
+/// rouses whichever run is innermost. Once closed, a late continuation runs on the pool, so a
+/// read still in flight when its run ends still lands.
+type Loop private (outer : SynchronizationContext, firstWake : unit -> unit) =
+  inherit SynchronizationContext()
+  let posted = ConcurrentQueue<struct (SendOrPostCallback * obj)>()
+  let gate = obj ()
+  let mutable wake = firstWake
+  let mutable closed = false
+
+  let onPool (d : SendOrPostCallback) (state : obj) =
+    ThreadPool.UnsafeQueueUserWorkItem((fun s -> d.Invoke s), state) |> ignore<bool>
+
+  let drain (run : SendOrPostCallback -> obj -> unit) =
+    let mutable next = Unchecked.defaultof<struct (SendOrPostCallback * obj)>
+    while posted.TryDequeue(&next) do
+      let struct (d, state) = next
+      run d state
+
+  override _.Post(d : SendOrPostCallback, state : obj) =
+    let rouse =
+      lock gate (fun () ->
+        if closed then
+          ValueNone
+        else
+          posted.Enqueue(struct (d, state))
+          ValueSome wake)
+    match rouse with
+    | ValueSome rouse -> rouse ()
+    | ValueNone -> onPool d state
+
+  override this.CreateCopy() = this
+
+  /// Run what has been posted so far, on the loop's thread.
+  member _.RunPosted() : unit = drain (fun d state -> d.Invoke state)
+
+  /// The calling thread's loop, made if it has none, with `wake` rousing this run. Answers how
+  /// to leave: the run outside gets its wake back, or, for the outermost, the loop closes and
+  /// whatever is still posted goes to the pool.
+  static member Enter(wake : unit -> unit) : struct (Loop * (unit -> unit)) =
+    match SynchronizationContext.Current with
+    | :? Loop as loop ->
+      let outerWake = lock loop.Gate (fun () -> loop.SwapWake wake)
+      let leave () =
+        lock loop.Gate (fun () -> loop.SwapWake outerWake) |> ignore<unit -> unit>
+        if not loop.IsEmpty then outerWake ()
+      struct (loop, leave)
+    | outer ->
+      let loop = new Loop(outer, wake)
+      SynchronizationContext.SetSynchronizationContext loop
+      struct (loop, loop.Close)
+
+  member private _.Gate = gate
+  member private _.IsEmpty = posted.IsEmpty
+
+  member private _.SwapWake(next : unit -> unit) : unit -> unit =
+    let previous = wake
+    wake <- next
+    previous
+
+  member private _.Close() : unit =
+    SynchronizationContext.SetSynchronizationContext outer
+    lock gate (fun () -> closed <- true)
+    drain onPool
+
+/// What `start` answers, with this thread as the loop its awaits come back to. For a thread
+/// with nothing else to do (the CLI's main), instead of blocking on the task.
+let runHere (start : unit -> System.Threading.Tasks.Task<'a>) : 'a =
+  let queue = Queue()
+  let struct (loop, leave) = Loop.Enter(fun () -> queue.Post HostEvent.Wake)
+  try
+    let t = start ()
+    t.ContinueWith(
+      (fun (_ : System.Threading.Tasks.Task<'a>) -> queue.Post HostEvent.Wake),
+      System.Threading.Tasks.TaskContinuationOptions.ExecuteSynchronously
+    )
+    |> ignore<System.Threading.Tasks.Task>
+    loop.RunPosted()
+    while not t.IsCompleted do
+      queue.Take() |> ignore<HostEvent>
+      loop.RunPosted()
+    t.GetAwaiter().GetResult() // landed
+  finally
+    leave ()
+
+
 /// The stdin reader thread, for one `readKey` source: reads one key per request and posts it to
 /// the queue that asked. "Demand-driven" is load-bearing: a thread that read continuously would
 /// eat keys meant for a `readLine` after the TUI has quit, and would hold `TreatControlCAsInput`

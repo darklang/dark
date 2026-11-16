@@ -103,15 +103,6 @@ let unwrapResultInternal (tags : Metadata) (r : Result<'a, 'msg>) : 'a =
 let reraiseAsPageable (msg : string) (tags : Metadata) (e : exn) =
   raise (PageableException(msg, tags, e))
 
-let taskCatch (f : unit -> Task<'r>) : Task<Option<'r>> =
-  task {
-    try
-      let! result = f ()
-      return Some result
-    with _ ->
-      return None
-  }
-
 let catch (f : unit -> 'r) : Option<'r> =
   try
     Some(f ())

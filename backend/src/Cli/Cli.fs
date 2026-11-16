@@ -810,7 +810,8 @@ let private runCli (args : string[]) : int =
 
     let result =
       Telemetry.time "cli.execute" [] (fun () ->
-        (execute cliPackageManager traceFlag noSpread (Array.toList args)).Result)
+        LibExecution.HostEvents.runHere (fun () ->
+          execute cliPackageManager traceFlag noSpread (Array.toList args)))
 
     Telemetry.time "cli.consoleWait" [] NonBlockingConsole.wait
 
@@ -932,14 +933,18 @@ let private runCli (args : string[]) : int =
         |> Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll
 
       let errorCallStackStr =
-        (LibExecution.Execution.callStackString state callStack).Result
+        LibExecution.HostEvents.runHere (fun () ->
+          LibExecution.Execution.callStackString state callStack)
 
       match rte with
       // A condition is a refusal with the sentence that resolves it: print that and nothing else,
       // with no header calling it a runtime error and no call stack under it.
       | RT.RuntimeError.Condition message -> logError message
       | _ ->
-        match (LibExecution.Execution.runtimeErrorToString state rte).Result with
+        match
+          LibExecution.HostEvents.runHere (fun () ->
+            LibExecution.Execution.runtimeErrorToString state rte)
+        with
         | Ok(RT.DString s) ->
           // "Function <64 hex chars> couldn't be found" almost always means the STORE is
           // older than the binary: package code was reloaded, every hash moved, and this
@@ -977,7 +982,8 @@ let private runCli (args : string[]) : int =
       let state =
         state cliPackageManager
         |> Exe.setInstancePolicy LibExecution.Permissions.Policy.allowAll
-      let output = (Exe.dvalToRepr state dval).Result
+      let output =
+        LibExecution.HostEvents.runHere (fun () -> Exe.dvalToRepr state dval)
       logError $"Error: main function must return an int (returned {output})"
       1
 

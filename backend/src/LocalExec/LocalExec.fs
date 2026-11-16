@@ -115,13 +115,13 @@ module HandleCommand =
     for file in checkerFiles do
       print $"  {file}"
     let chosen, _ =
-      (Builtins.Matter.Libs.PM.TraitCalls.resolveTraitCalls
-        exeState
-        BranchId.Main
-        PM.pt
-        (Some build)
-        ops)
-        .Result
+      LibExecution.HostEvents.runHere (fun () ->
+        Builtins.Matter.Libs.PM.TraitCalls.resolveTraitCalls
+          exeState
+          BranchId.Main
+          PM.pt
+          (Some build)
+          ops)
     // The choices are written at the hashes in hand, then moved by the rehash, exactly as the
     // authoring path does it.
     let resolved = LibDB.HashStabilization.computeRealHashes chosen

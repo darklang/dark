@@ -7,10 +7,10 @@
 /// waiting for, and the task's continuation posts `Completed` to the event queue; the scheduler
 /// thread resumes it from there. A preempted process goes to the back of the runnable queue.
 ///
-/// Only the scheduler thread steps. Continuations and event sources run on other threads and only
-/// ever post to the queue; the one exception (a rare opcode's deferred completion writes the VM it
-/// belongs to, while that process is parked and nobody else looks at it) is documented at
-/// `Interpreter.StepOutcome`.
+/// Only the scheduler thread steps, and what a process awaits resumes there (`HostEvents.Loop`).
+/// Event sources run on other threads and only ever post to the queue; the one exception (a rare
+/// opcode's deferred completion writes the VM it belongs to, while that process is parked and
+/// nobody else looks at it) is documented at `Interpreter.StepOutcome`.
 ///
 /// Cores: a scheduler is one thread, and a `Workers` group is N of them (one per core by default),
 /// each with its own queue and loop. A process spawned on a worker runs there for its whole life;
@@ -1060,11 +1060,16 @@ type Scheduler(quantum : int64) =
   member private this.Run(finished : unit -> bool) : unit =
     thread <- Thread.CurrentThread.ManagedThreadId
     current.Value <- Some this
+    let struct (loop, leave) = HE.Loop.Enter(fun () -> queue.Post HE.HostEvent.Wake)
     try
       let mutable ev = Unchecked.defaultof<HE.HostEvent>
       while not (finished ()) && not (Volatile.Read &stopping) do
+        loop.RunPosted()
+        // What an event posts (the continuation of the wait it ends) runs right after it: its
+        // wake may be taken in this same drain, and the loop would then block with it pending.
         while queue.TryTake(&ev) do
           this.Dispatch ev
+          loop.RunPosted()
         // A chooser is asked only when there is a choice, and outside the lock: it is Dark code
         // that may well call `Exec.list`, which takes it. It sees copies, in queue order.
         let asked =
@@ -1095,6 +1100,7 @@ type Scheduler(quantum : int64) =
           if not (finished ()) && not (Volatile.Read &stopping) then
             this.Dispatch(queue.Take())
     finally
+      leave ()
       current.Value <- None
       thread <- -1
 

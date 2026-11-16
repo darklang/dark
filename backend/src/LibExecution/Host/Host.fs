@@ -1020,7 +1020,7 @@ let private execute (run : Execute) : Task<Outcome> =
   | Later call ->
     task {
       try
-        let! result = call ()
+        let! result = Task.offLoop call
         return outcomeOf result
       with e ->
         return Outcome.Failed(classify e)
@@ -1487,7 +1487,7 @@ let performInSession session access op = performWithSession (Some session) acces
 let httpStreamRead (handle : int64) (maxBytes : int) : Task<Option<byte[]>> =
   task {
     try
-      return! HostHttp.readChunk handle maxBytes
+      return! Task.offLoop (fun () -> HostHttp.readChunk handle maxBytes)
     with e ->
       return
         Exception.raiseInternal "http stream read failed" [ "message", e.Message ]
