@@ -191,6 +191,8 @@ let refoldReproducesBindings =
   }
 
 
+/// Two rebuilds of the same log give the same projections: the same row counts and the exact set of
+/// projected item hashes. This is what makes "drop the projections and re-fold" safe.
 let rebuildIsDeterministic =
   testTask
     "rebuildProjections deterministically regenerates projections from the op log" {
@@ -202,18 +204,25 @@ let rebuildIsDeterministic =
     Expect.isTrue (reapplied > 0L) "ops were re-folded"
     let! fns1 = countRows "package_functions"
     let! locs1 = countRows "locations"
+    let! fp1 = itemHashes ()
     Expect.isTrue (fns1 > 0L) "projections regenerated (non-empty) from the op log"
+    Expect.isTrue (String.length fp1 > 0) "non-vacuous: the projections have content"
 
     // a SECOND rebuild reproduces the EXACT same projections — the rebuild is a deterministic function of the
     // op log. (Robust to other tests mutating the shared DB: we compare two rebuilds of the *current* log.)
     let _ = Seed.rebuildProjections ()
     let! fns2 = countRows "package_functions"
     let! locs2 = countRows "locations"
+    let! fp2 = itemHashes ()
     Expect.equal
       fns2
       fns1
       "package_functions: a re-rebuild reproduces the same projection"
     Expect.equal locs2 locs1 "locations: a re-rebuild reproduces the same projection"
+    Expect.equal
+      fp2
+      fp1
+      "the exact set of projected item hashes is identical across a re-fold"
 
     // canonical content (package_blobs) is NOT a projection — untouched across rebuilds
     let! blobsAfter = countRows "package_blobs"
@@ -309,23 +318,6 @@ let opIdIsItsContentHash =
         $"{List.length mismatched} op(s) are stored under an id that isn't their content hash; first is {stored}, whose blob hashes to {recomputed}"
   }
 
-let refoldReproducesContent =
-  // Stronger than the count check above: the exact CONTENT of the projections (the set of projected item
-  // hashes) is reproduced across a re-fold — the fold is a deterministic function of the op log, not merely
-  // cardinality-preserving. This is what makes "drop the projections and re-fold" safe.
-  testTask
-    "re-fold reproduces identical projection CONTENT (deterministic fold, not just counts)" {
-    let _ = Seed.rebuildProjections ()
-    let! fp1 = itemHashes ()
-    Expect.isTrue (String.length fp1 > 0) "non-vacuous: the projections have content"
-    let _ = Seed.rebuildProjections ()
-    let! fp2 = itemHashes ()
-    Expect.equal
-      fp2
-      fp1
-      "the exact set of projected item hashes is identical across a re-fold"
-  }
-
 let originTsStrictlyIncreasing =
   // The authoring stamp behind the timestamp-LWW: locally-inserted ops must get a STRICTLY-increasing
   // origin_ts, even within one wall-clock millisecond — otherwise two sequential SetNames to the same name
@@ -348,6 +340,8 @@ let durableReleaseCarriesForward =
     "a schema change keeps your work: the op log is carried forward and the projections re-fold identically" {
     let! opsBefore = countRows "package_ops"
     let! blobsBefore = countRows "package_blobs"
+    let! branchesBefore = countRows "branches"
+    let! commitsBefore = countRows "commits"
     Expect.isTrue
       (opsBefore > 0L)
       "there is authored work to migrate (not a vacuous test)"
@@ -360,12 +354,16 @@ let durableReleaseCarriesForward =
 
     let! opsAfter = countRows "package_ops"
     let! blobsAfter = countRows "package_blobs"
+    let! branchesAfter = countRows "branches"
+    let! commitsAfter = countRows "commits"
     let! fpAfter = itemHashes ()
     Expect.equal
       opsAfter
       opsBefore
       "the authored op log is PRESERVED across the migration — nothing lost"
     Expect.equal blobsAfter blobsBefore "canonical content (package_blobs) preserved"
+    Expect.equal branchesAfter branchesBefore "branches preserved across a re-fold"
+    Expect.equal commitsAfter commitsBefore "commits preserved across a re-fold"
     Expect.equal
       fpAfter
       fpBefore
@@ -765,29 +763,6 @@ let noCanonicalInDropSet =
         $"{t} is canonical and must NOT be in the projection drop-set (it would be lost on a schema change)")
   }
 
-let schemaChangeKeepsWork =
-  // A schema change now runs `rebuildProjections` (drop projections + re-fold). This pins the thing that
-  // matters — your authored op LOG (and branch/commit state) come through a full re-fold IDENTICAL.
-  testTask "a schema change keeps your work: a full re-fold preserves the op log" {
-    let! opsBefore = countRows "package_ops"
-    let! branchesBefore = countRows "branches"
-    let! commitsBefore = countRows "commits"
-    Expect.isTrue (opsBefore > 0L) "there are ops to preserve (not a vacuous test)"
-
-    let _ = Seed.rebuildProjections ()
-
-    let! opsAfter = countRows "package_ops"
-    let! branchesAfter = countRows "branches"
-    let! commitsAfter = countRows "commits"
-    Expect.equal
-      opsAfter
-      opsBefore
-      "package_ops (the authored op log) is untouched by a re-fold"
-    Expect.equal branchesAfter branchesBefore "branches preserved across a re-fold"
-    Expect.equal commitsAfter commitsBefore "commits preserved across a re-fold"
-  }
-
-
 /// Every `PackageOp` case has an arm in the Dark pretty-printer.
 ///
 /// Reflection over the F# DU on one side, text on the other, because the Dark side has no exhaustiveness
@@ -849,7 +824,6 @@ let tests =
       opIdIsItsContentHash
       rebuildIsDeterministic
       refoldReproducesBindings
-      refoldReproducesContent
       originTsStrictlyIncreasing
       durableReleaseCarriesForward
       invalidReferenceSnapshotsAreRejectedBeforeStorage
@@ -860,5 +834,4 @@ let tests =
       appliedMarkCoversOnlyWhatFolded
       registryCoversProjections
       noCanonicalInDropSet
-      schemaChangeKeepsWork
       everyPackageOpCaseIsPrintable ]
