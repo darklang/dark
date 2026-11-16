@@ -169,9 +169,13 @@ let drive(
     // the workbench refuses to start below its minimum. An earlier drive of the same
     // instance left its own log, so it goes first, or that run's line would say this child
     // was ready before it was.
+    //
+    // big match_max: with the default, a utf-8 char split across pty reads left the frame's
+    // footer in tcl's buffer with no event, so expect sat there till the timeout
     let header =
       Stdlib.List.concat(
         [ $"set timeout {Stdlib.display(timeoutSeconds)}"
+          "match_max -d 100000"
           "set env(LINES) 50"
           "set env(COLUMNS) 200"
           "file delete -force -- " + quoted(telemetryLog)
