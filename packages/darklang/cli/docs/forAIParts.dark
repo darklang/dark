@@ -80,12 +80,12 @@ even if you just saved the code.
 
 Send the changes as patch blocks in the apply_patch format:
 
-  dark edit Tools.RenameDemo.greeting --patch - <<'EOF'
+  dark edit Tools.RenameDemo.greeting --patch - <<'PATCH'
   @@
    let greeting(name: String): String =
   -  "Hello, " + name
   +  "Hi, " + name
-  EOF
+  PATCH
 
 Start each block with `@@`. Use a space for unchanged lines, `-` for removed
 lines, and `+` for added lines. Blank lines need a prefix too. Leave out filenames
