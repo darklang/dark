@@ -79,6 +79,7 @@ let createState
 
     descriptorSession = Host.createLazyDescriptorSession ()
     clock = HostClock.Real
+    random = HostRandom.Real
 
     builtins = builtins
     types = { package = pm.getType }

@@ -322,9 +322,11 @@ module Function =
 
 
 module Test =
-  /// Valid only inside the withStoreSnapshot callback that created it.
+  /// Valid only inside the withStoreSnapshot callback that created it. <param seed>
+  /// fixes the random values of each test on the virtual clock.
   type Run =
-    { id: Uuid }
+    { id: Uuid
+      seed: Int64 }
 
 
   /// Whether this test runs inside the runner rather than in a fresh process
@@ -338,8 +340,8 @@ module Test =
   /// by <param run>. Every test that cannot run in-process gets a fresh process on
   /// it; one that writes reruns on a private copy. Cached-only runs create no
   /// snapshot; cleanup also runs if the callback fails.
-  let withStoreSnapshot(branchId: Uuid, run: Run -> 'a): 'a =
-    Builtin.pmTestWithStoreSnapshot(branchId, fun id -> run(Run { id = id }))
+  let withStoreSnapshot(branchId: Uuid, seed: Int64, run: Run -> 'a): 'a =
+    Builtin.pmTestWithStoreSnapshot(branchId, fun id -> run(Run { id = id, seed = seed }))
 
 
   /// Whether the test <param hash> wrote to <param run>'s shared snapshot and so
@@ -487,7 +489,7 @@ module Test =
     hash: ProgramTypes.Hash)
     : Result<RuntimeTypes.Dval, RuntimeTypes.RuntimeError.Error> =
     // Keep the worker in the dependency graph, just like the result checker.
-    Builtin.pmExecuteTest(run.id, branchId, hash, Worker.main)
+    Builtin.pmExecuteTest(run.id, run.seed, branchId, hash, Worker.main)
 
 
   /// <param value> as a `Stdlib.Test.Result`, or None if it is anything else. The
@@ -584,9 +586,10 @@ module Test =
   /// Run one test without keeping a starting snapshot for subsequent tests.
   let execute(
     branchId: Uuid,
+    seed: Int64,
     hash: ProgramTypes.Hash)
     : Result<Stdlib.Test.Result, RuntimeTypes.RuntimeError.Error> =
-    withStoreSnapshot(branchId, fun run -> executeInRun(run, branchId, hash))
+    withStoreSnapshot(branchId, seed, fun run -> executeInRun(run, branchId, hash))
 
 
 /// Replace provisional hashes with SCC-aware content hashes, including references

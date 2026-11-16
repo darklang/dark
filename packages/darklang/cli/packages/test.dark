@@ -33,7 +33,7 @@ type Counts =
 
 
 val usage =
-  "Usage: test run [--force] [--jobs <count>] [name-or-module ...]\n       test count [--for <item>] [module]\n       test add <location> <body> | <source-file> | -"
+  "Usage: test run [--force] [--jobs <count>] [--seed <n>] [name-or-module ...]\n       test count [--for <item>] [module]\n       test add <location> <body> | <source-file> | -"
 
 
 let fullPath(
@@ -301,17 +301,41 @@ let execute(state: AppState, args: List<String>): AppState =
     { state with exitCode = 1 }
 
 
-/// `dark test run [--force] [--jobs <count>] [filters]`: run the matching tests, from the cache
-/// where it allows, print each one, and fail the command if any failed or
+/// `dark test run [--force] [--jobs <count>] [--seed <n>] [filters]`: run the matching tests,
+/// from the cache where it allows, print each one, and fail the command if any failed or
 /// nothing matched.
 let runTests(state: AppState, args: List<String>): AppState =
-  LanguageTools.PackageManager.Test.withStoreSnapshot(state.currentBranchId, fun run ->
-    runTestsInRun(run, state, args))
+  // One test per core, at most 16: every slot owns a process and a store copy.
+  // A test process holds about 90 MB (one outlier reaches ~750 MB), so 16 stay
+  // near 2 GB. `exec.workers` lowers the core count; --jobs overrides both.
+  let cores = LanguageTools.Exec.workers()
+  let defaults =
+    RunOptions
+      { force = false
+        jobs = if cores < 16 then cores else 16
+        seed = Option.None
+        filters = [] }
+
+  match parseRunOptions(defaults, args) with
+  | Error(message) ->
+    printErr(message)
+    Stdlib.printErrorLine(usage)
+    { state with exitCode = 1 }
+  | Ok(options) ->
+    let fresh =
+      Stdlib.BigInt.random(Stdlib.BigInt.fromInt64(1), Stdlib.BigInt.fromInt64(9999999))
+      |> Stdlib.BigInt.toInt64
+      |> Stdlib.Option.withDefault(1)
+
+    let seed = Stdlib.Option.withDefault(options.seed, fresh)
+    LanguageTools.PackageManager.Test.withStoreSnapshot(state.currentBranchId, seed, fun run ->
+      runTestsInRun(run, state, options))
 
 
 type RunOptions =
   { force: Bool
     jobs: Int64
+    seed: Option<Int64>
     filters: List<String> }
 
 
@@ -327,6 +351,14 @@ let parseRunOptions(options: RunOptions, args: List<String>): Result<RunOptions,
   | [arg, ...rest] when Stdlib.String.startsWith(arg, "--jobs=") ->
     let value = Stdlib.String.slice(arg, 7, Stdlib.String.length(arg))
     parseRunOptions(options, Stdlib.List.concat([ "--jobs", value ], rest))
+  | ["--seed", value, ...rest] ->
+    match Stdlib.Int64.parse(value) with
+    | Ok(seed) -> parseRunOptions({ options with seed = Option.Some(seed) }, rest)
+    | Error(_) -> Result.Error("--seed needs a whole number")
+  | ["--seed"] -> Result.Error("--seed needs a whole number")
+  | [arg, ...rest] when Stdlib.String.startsWith(arg, "--seed=") ->
+    let value = Stdlib.String.slice(arg, 7, Stdlib.String.length(arg))
+    parseRunOptions(options, Stdlib.List.concat([ "--seed", value ], rest))
   | [arg, ...rest] ->
     if Stdlib.String.startsWith(arg, "-") then
       Result.Error($"Unknown option: {arg}")
@@ -493,71 +525,66 @@ let liveTests(
 let runTestsInRun(
   run: LanguageTools.PackageManager.Test.Run,
   state: AppState,
-  args: List<String>)
+  options: RunOptions)
   : AppState =
-  // One test per core, at most 16: every slot owns a process and a store copy.
-  // A test process holds about 90 MB (one outlier reaches ~750 MB), so 16 stay
-  // near 2 GB. `exec.workers` lowers the core count; --jobs overrides both.
-  let cores = LanguageTools.Exec.workers()
-  let defaults = RunOptions { force = false, jobs = if cores < 16 then cores else 16, filters = [] }
-  match parseRunOptions(defaults, args) with
-  | Error(message) ->
-    printErr(message)
-    Stdlib.printErrorLine(usage)
-    { state with exitCode = 1 }
-  | Ok(options) ->
-    // Filtered by whole name segments. Not the package search's text match:
-    // that is fuzzy, so `WbTests.R` matched every test in every `Tests` module.
-    let liveTests =
-      liveTests(state.currentBranchId)
-      |> Stdlib.List.filter(fun item ->
-        Stdlib.List.isEmpty(options.filters)
-        || Stdlib.List.any(options.filters, fun f -> selects(f, fullPath(item))))
+  // Filtered by whole name segments. Not the package search's text match:
+  // that is fuzzy, so `WbTests.R` matched every test in every `Tests` module.
+  let liveTests =
+    liveTests(state.currentBranchId)
+    |> Stdlib.List.filter(fun item ->
+      Stdlib.List.isEmpty(options.filters)
+      || Stdlib.List.any(options.filters, fun f -> selects(f, fullPath(item))))
 
-    let selected = Stdlib.List.sortBy(liveTests, fullPath)
-    // One analysis for the whole run: the tests share most of what they call.
-    let cacheSafe =
-      LanguageTools.PackageManager.Test.areCacheSafe(
-        Stdlib.List.map(selected, fun item -> item.entity.hash))
+  let selected = Stdlib.List.sortBy(liveTests, fullPath)
+  // One analysis for the whole run: the tests share most of what they call.
+  let cacheSafe =
+    LanguageTools.PackageManager.Test.areCacheSafe(
+      Stdlib.List.map(selected, fun item -> item.entity.hash))
 
-    let initial =
-      Counts
-        { passed = 0
-          failed = 0
-          cached = 0
-          ran = 0
-          isolated = 0
-          reran = 0
-          timings = [] }
+  let initial =
+    Counts
+      { passed = 0
+        failed = 0
+        cached = 0
+        ran = 0
+        isolated = 0
+        reran = 0
+        timings = [] }
 
-    let counts =
-      runSelected(
-        run,
-        state.currentBranchId,
-        options,
-        cacheContext(state.currentBranchId),
-        Stdlib.List.zipShortest(selected, cacheSafe),
-        [],
-        initial)
+  let counts =
+    runSelected(
+      run,
+      state.currentBranchId,
+      options,
+      cacheContext(state.currentBranchId),
+      Stdlib.List.zipShortest(selected, cacheSafe),
+      [],
+      initial)
 
-    let total = counts.passed + counts.failed
-    if total == 0 then
-      printErr("No package tests matched.")
+  let total = counts.passed + counts.failed
+  if total == 0 then
+    printErr("No package tests matched.")
+  else
+    printSlowest(counts.timings)
+    Stdlib.printLine("")
+    // Said only when it happened, so a run where every test started writing
+    // shows up here rather than only as a slower run.
+    let reranNote =
+      if counts.reran == 0 then
+        ""
+      else
+        $"; {Stdlib.display(counts.reran)} wrote to the store and reran on a copy"
+
+    Stdlib.printLine(
+      $"{countLine(total)}: {Stdlib.display(counts.passed)} passed, {Stdlib.display(counts.failed)} failed; {Stdlib.display(counts.ran)} ran, {Stdlib.display(counts.cached)} cached; {Stdlib.display(counts.isolated)} isolated{reranNote}")
+
+    if counts.failed > 0 then
+      let seed = Stdlib.display(run.seed)
+      Stdlib.printLine($"Seed {seed}: rerun with --seed {seed} for the same random values")
     else
-      printSlowest(counts.timings)
-      Stdlib.printLine("")
-      // Said only when it happened, so a run where every test started writing
-      // shows up here rather than only as a slower run.
-      let reranNote =
-        if counts.reran == 0 then
-          ""
-        else
-          $"; {Stdlib.display(counts.reran)} wrote to the store and reran on a copy"
+      ()
 
-      Stdlib.printLine(
-        $"{countLine(total)}: {Stdlib.display(counts.passed)} passed, {Stdlib.display(counts.failed)} failed; {Stdlib.display(counts.ran)} ran, {Stdlib.display(counts.cached)} cached; {Stdlib.display(counts.isolated)} isolated{reranNote}")
-
-    if counts.failed > 0 || total == 0 then { state with exitCode = 1 } else state
+  if counts.failed > 0 || total == 0 then { state with exitCode = 1 } else state
 
 
 /// One row of `test count`: a submodule with everything beneath it, or one test.
@@ -737,6 +764,10 @@ let help(_state: AppState): String =
     "any other gets a fresh process and its own store copy."
     "Use --jobs <count> to change the limit, or --jobs 1 to run serially."
     "Tests start in name order; results are printed as they finish."
+    ""
+    "In a test, Stdlib.Uuid.generate and the Random functions draw from a seed"
+    "picked fresh for each run. A failed run prints its seed; --seed <n> reruns"
+    "with the same values."
     ""
     "A failing item of a `Stdlib.Test.all([ ... ])` list is shown by its"
     "position and source. `test count` shows how many tests a module and each"

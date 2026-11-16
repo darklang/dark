@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+"""Builtins draw random values from the run's source: fail on a direct call to the OS's.
+
+A test on the virtual clock seeds `ExecutionState.random`, so a rerun with the same seed gets
+the same values. A builtin that calls `Guid.NewGuid`, `System.Random` or the OS generator
+itself breaks that quietly. It uses `LibExecution.HostRandom` with `state.random` instead.
+A random value that never reaches Dark (a retry's jitter) is in random-sources.allowed, with why.
+
+  scripts/linting/random-sources      exit 1 naming each file:line
+"""
+
+import os
+import re
+import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+SRC = os.path.join(ROOT, "backend", "src", "Builtins")
+ALLOWED = os.path.join(os.path.dirname(os.path.abspath(__file__)), "random-sources.allowed")
+
+SOURCE = re.compile(
+    r"Guid\.NewGuid|Guid\.CreateVersion7|\bSystem\.Random\b|\bRandom\.Shared\b"
+    r"|RandomNumberGenerator|\bRNG\.|\brandomSeeded\b|\brandomString\b|\bguuid\b"
+)
+
+
+def code_of(line):
+    """The line without a trailing `//` comment, string literals left alone."""
+    in_string = False
+    i = 0
+    while i < len(line):
+        c = line[i]
+        if c == '"' and (i == 0 or line[i - 1] != "\\"):
+            in_string = not in_string
+        elif not in_string and line.startswith("//", i):
+            return line[:i]
+        i += 1
+    return line
+
+
+def allowed_entries():
+    entries = []
+    with open(ALLOWED) as f:
+        for raw in f:
+            line = raw.rstrip("\n")
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            path, _, fragment = line.partition(" ")
+            entries.append((path, fragment.strip()))
+    return entries
+
+
+def main():
+    entries = allowed_entries()
+    used = set()
+    found = []
+    for dirpath, dirnames, filenames in os.walk(SRC):
+        dirnames[:] = [d for d in dirnames if d not in ("bin", "obj")]
+        for name in sorted(filenames):
+            if not name.endswith((".fs", ".fsi")):
+                continue
+            path = os.path.join(dirpath, name)
+            rel = os.path.relpath(path, ROOT)
+            with open(path, encoding="utf-8") as f:
+                for n, line in enumerate(f.read().split("\n"), 1):
+                    if not SOURCE.search(code_of(line)):
+                        continue
+                    hit = [e for e in entries if e[0] == rel and e[1] in line]
+                    if hit:
+                        used.update(hit)
+                    else:
+                        found.append(f"{rel}:{n}: {line.strip()}")
+    stale = [e for e in entries if e not in used]
+    for f in found:
+        print(f)
+    if found:
+        print(
+            "\nrandom-sources: a builtin draws from the OS here, so a seeded test can't repeat "
+            "it. Use LibExecution.HostRandom with state.random.",
+            file=sys.stderr,
+        )
+    for path, fragment in stale:
+        print(f"random-sources.allowed: no longer matches: {path} {fragment}", file=sys.stderr)
+    sys.exit(1 if found or stale else 0)
+
+
+if __name__ == "__main__":
+    main()

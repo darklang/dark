@@ -255,6 +255,62 @@ let testsFollowEditsAcrossOwners =
       do! discardAll state
     })
 
+/// A run's random values come from its seed: a failure prints it, and --seed repeats them.
+let failedRunsPrintTheirSeed =
+  instanceTest
+    "a failed run prints its seed, and --seed repeats its values"
+    (fun state ->
+      task {
+        do! start state
+        do!
+          run
+            state
+            [ "test"
+              "add"
+              "Tests.Seeded.uuid"
+              "Stdlib.Test.fail(Stdlib.display(Stdlib.Uuid.generate()))" ]
+        let uuid (output : string) =
+          let found =
+            System.Text.RegularExpressions.Regex.Match(
+              output,
+              "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+            )
+          Expect.isTrue found.Success $"the failure shows a uuid: {output}"
+          found.Value
+        let! first =
+          runCliPlain state [ "test"; "run"; "--seed"; "42"; "Tests.Seeded" ]
+        Expect.stringContains
+          first
+          "Seed 42: rerun with --seed 42"
+          "a failed run prints its seed"
+        let! again =
+          runCliPlain state [ "test"; "run"; "--seed=42"; "Tests.Seeded" ]
+        Expect.equal (uuid again) (uuid first) "the same seed gives the same uuid"
+        let! fresh = runCliPlain state [ "test"; "run"; "Tests.Seeded" ]
+        Expect.notEqual
+          (uuid fresh)
+          (uuid first)
+          "a run without --seed picks a new one"
+        let seed =
+          System.Text.RegularExpressions.Regex.Match(
+            fresh,
+            "Seed (\\d+): rerun with --seed \\1"
+          )
+        Expect.isTrue seed.Success $"the fresh run prints its seed too: {fresh}"
+        let! repeated =
+          runCliPlain
+            state
+            [ "test"; "run"; "--seed"; seed.Groups[1].Value; "Tests.Seeded" ]
+        Expect.equal (uuid repeated) (uuid fresh) "its printed seed repeats it"
+        do!
+          exits
+            state
+            [ "test"; "run"; "--seed"; "x"; "Tests.Seeded" ]
+            1L
+            "--seed needs a number"
+        do! discardAll state
+      })
+
 /// The cache key includes the test's hash, but not a list of what the test uses.
 /// Propagation must therefore give it a new hash when a dependency changes,
 /// however deep. An edit two calls away must rerun it, not reuse the old pass.
@@ -651,14 +707,14 @@ let testRunUsesOneStartingStore =
           $"""let hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash("{hash}")
 let branch = Darklang.SCM.Branch.mainBranchId
 let _ = Darklang.LanguageTools.LocalStore.configSet("test.baseline-witness", "before")
-let (first, second) = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot(branch, fun run ->
+let (first, second) = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot(branch, 0, fun run ->
   let first = Darklang.LanguageTools.PackageManager.Test.executeInRun(run, branch, hash)
   let _ = Darklang.LanguageTools.LocalStore.configSet("test.baseline-witness", "after")
   let second = Darklang.LanguageTools.PackageManager.Test.executeInRun(run, branch, hash)
   (first, second))
-let later = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot(branch, fun run ->
+let later = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot(branch, 0, fun run ->
   Darklang.LanguageTools.PackageManager.Test.executeInRun(run, branch, hash))
-let ended = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot(branch, fun run -> run)
+let ended = Darklang.LanguageTools.PackageManager.Test.withStoreSnapshot(branch, 0, fun run -> run)
 let rejected =
   match Darklang.LanguageTools.PackageManager.Test.executeInRun(ended, branch, hash) with
   | Ok(Fail(messages)) -> Stdlib.String.contains(Stdlib.String.join(messages, " "), "already ended")
@@ -2390,6 +2446,7 @@ let tests : List<Test> =
     viewRefusesWhatIsNotThere
     viewListsAFunctionsTests
     testsFollowEditsAcrossOwners
+    failedRunsPrintTheirSeed
     cachedTestsRerunWhenWhatTheyUseChanges
     cachedPassesStayOnTheirBranch
     testsWithoutPurityProofAlwaysRun

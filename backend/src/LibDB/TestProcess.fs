@@ -12,8 +12,8 @@ module Host = LibExecution.HostTypes
 /// The two things a disposable worker can execute, both pinned to exact hashes.
 [<RequireQualifiedAccess>]
 type Target =
-  /// A test declaration selected by the runner.
-  | PackageTest of hash : string
+  /// A test declaration selected by the runner, and the run's seed for its random values.
+  | PackageTest of hash : string * seed : int64
   /// A package function passed to Stdlib.Test.Process.run so the calling test
   /// can check the child process's result, output, exit status or timeout.
   | TestCallback of hash : string * argument : Dval
@@ -79,16 +79,17 @@ module Request =
   let serialize (request : Request) : byte[] =
     let target =
       match request.target with
-      | Target.PackageTest hash -> (Choice1Of2 hash)
+      | Target.PackageTest(hash, seed) -> (Choice1Of2(hash, seed))
       | Target.TestCallback(hash, argument) ->
         Carried.detach argument |> (fun carried -> Choice2Of2(hash, carried))
     LibSerialization.Binary.Serialization.makeSerializer
       (fun writer () ->
         Binary.Option.write writer Binary.Guid.write request.accountID
         match target with
-        | Choice1Of2 hash ->
+        | Choice1Of2(hash, seed : int64) ->
           Binary.String.write writer "PackageTest"
           Binary.String.write writer hash
+          writer.Write seed
         | Choice2Of2(hash, carried) ->
           Binary.String.write writer "TestCallback"
           Binary.String.write writer hash
@@ -103,7 +104,9 @@ module Request =
           let accountID = Binary.Option.read reader Binary.Guid.read
           let target =
             match Binary.String.read reader with
-            | "PackageTest" -> Choice1Of2(Binary.String.read reader)
+            | "PackageTest" ->
+              let hash = Binary.String.read reader
+              Choice1Of2(hash, reader.ReadInt64())
             | "TestCallback" ->
               let hash = Binary.String.read reader
               Choice2Of2(hash, Carried.read reader)
@@ -112,7 +115,8 @@ module Request =
         "test worker request"
         bytes
     match target with
-    | Choice1Of2 hash -> { accountID = accountID; target = Target.PackageTest hash }
+    | Choice1Of2(hash, seed) ->
+      { accountID = accountID; target = Target.PackageTest(hash, seed) }
     | Choice2Of2(hash, (argument, contents)) ->
       let argument = Carried.attach contents argument
       { accountID = accountID; target = Target.TestCallback(hash, argument) }
@@ -439,7 +443,7 @@ let run
            and every later test fail. Something running then made it writable."
     | Shared run when wrote ->
       match request.target with
-      | Target.PackageTest testHash ->
+      | Target.PackageTest(testHash, _) ->
         reruns.GetOrAdd(run, (fun _ -> TestHashes()))[testHash] <- ()
       | Target.TestCallback _ -> ()
       shared.Value <- false
