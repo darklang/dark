@@ -5373,6 +5373,11 @@ type QuickOp(isTrait : bool, tag : int, args : NEList<Register>, dst : Register)
   member _.Tag = tag
   /// The `Apply`'s argument registers.
   member _.Args = args
+  /// The second argument's register, for an operator with two; -1 otherwise.
+  member val Second =
+    match args.tail with
+    | [ r ] -> r
+    | _ -> -1
   /// The `Apply`'s result register.
   member _.Dst = dst
 

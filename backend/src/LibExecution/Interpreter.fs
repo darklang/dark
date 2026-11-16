@@ -5388,33 +5388,43 @@ let private tryQuickOp
   (registers : Dval array)
   (op : QuickOp)
   : bool =
-  let binaryTrait =
-    op.IsTrait
-    && op.Tag < FastOps.divide
-    && (match op.Args.tail with
-        | [ _ ] -> true
-        | _ -> false)
-  // A binary operator on a read in flight finds no case it knows and declines, so only the others
-  // look for one first.
-  if not binaryTrait && anyPromiseIn registers op.Args then
-    false
-  else
-    let result =
-      // `/`, `%` and `**` come only from `quickTraitTag`, and only `NumOps` answers them.
-      if op.IsTrait && op.Tag >= FastOps.divide then
-        match op.Args.tail with
-        | [ secondReg ] ->
-          FastOps.evalNumbers op.Tag registers[op.Args.head] registers[secondReg]
+  // Two `Int64`s, the common case, go straight to `NumOps`, which is where the general path ends
+  // up. Anything it declines takes the general path.
+  let int64s =
+    if op.IsTrait && op.Second >= 0 then
+      match registers[op.Args.head] with
+      | DInt64 x ->
+        match registers[op.Second] with
+        | DInt64 y ->
+          NumOps.int64Op ValueSome (fun _ -> ValueNone) ValueNone op.Tag x y
         | _ -> ValueNone
-      elif op.IsTrait then
-        fastTraitOp registers op.Tag op.Args
-      else
-        fastBuiltinOp threadID registers op.Tag op.Args
-    match result with
-    | ValueSome v ->
-      Registers.set registers op.Dst v
-      true
-    | ValueNone -> false
+      | _ -> ValueNone
+    else
+      ValueNone
+  match int64s with
+  | ValueSome v ->
+    Registers.set registers op.Dst v
+    true
+  | ValueNone ->
+    if anyPromiseIn registers op.Args then
+      false
+    else
+      let result =
+        // `/`, `%` and `**` come only from `quickTraitTag`, and only `NumOps` answers them.
+        if op.IsTrait && op.Tag >= FastOps.divide then
+          match op.Args.tail with
+          | [ secondReg ] ->
+            FastOps.evalNumbers op.Tag registers[op.Args.head] registers[secondReg]
+          | _ -> ValueNone
+        elif op.IsTrait then
+          fastTraitOp registers op.Tag op.Args
+        else
+          fastBuiltinOp threadID registers op.Tag op.Args
+      match result with
+      | ValueSome v ->
+        Registers.set registers op.Dst v
+        true
+      | ValueNone -> false
 
 
 /// Why the synchronous run of a frame's instructions stopped.
