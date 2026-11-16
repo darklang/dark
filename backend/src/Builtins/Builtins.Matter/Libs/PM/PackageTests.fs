@@ -93,7 +93,7 @@ let private executeWorker
   task {
     let! outcome =
       match request.target with
-      | LibDB.TestProcess.Target.PackageTest hash ->
+      | LibDB.TestProcess.Target.PackageTest(hash, seed) ->
         let test = pm.getTest (PT.Hash hash)
         let result =
           match test with
@@ -104,6 +104,7 @@ let private executeWorker
           | Some test ->
             // Execute the body directly: dispatching isolation again would recurse. On a
             // virtual clock, as its own process: the clock moves from the scheduler loop.
+            // Its random values come from the run's seed, so a rerun with it repeats them.
             match
               LibExecution.Scheduler.Scheduler.Current,
               LibExecution.Scheduler.Scheduler.CurrentProcess
@@ -114,7 +115,8 @@ let private executeWorker
                     clock =
                       LibExecution.HostClock.startingAt (
                         NodaTime.SystemClock.Instance.GetCurrentInstant()
-                      ) }
+                      )
+                    random = LibExecution.HostRandom.seeded seed hash }
               let instructions = PT2RT.Expr.toRT Map.empty 0 None test.body
               s.Spawn(
                 state,
@@ -282,12 +284,13 @@ let private executeIsolatedTest
   (branchId : System.Guid)
   (workerHash : string)
   (hash : string)
+  (seed : int64)
   : Task<Dval> =
   let guest = LibDB.PolicyStore.testState caller.accountID caller
   let access = guest.access |> Permissions.Access.constrainBy vm.activeAccess
   let request : LibDB.TestProcess.Request =
     { accountID = caller.accountID
-      target = LibDB.TestProcess.Target.PackageTest hash }
+      target = LibDB.TestProcess.Target.PackageTest(hash, seed) }
   let outcome =
     LibDB.TestProcess.run
       (LibDB.TestProcess.Shared runId)
@@ -688,6 +691,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "runId" TUuid "The run whose starting store to use"
+          Param.make "seed" TInt64 "The run's seed for the test's random values"
           Param.make "branchId" TUuid "The branch to execute on"
           Param.make
             "testHash"
@@ -728,6 +732,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           vm,
           _,
           [| DUuid runId
+             DInt64 seed
              DUuid branchId
              hashDval
              DApplicable(AppNamedFn { name = FQFnName.Package(Hash workerHash)
@@ -748,7 +753,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               else
                 Task.FromResult None
             let isolated () =
-              executeIsolatedTest exeState vm runId branchId workerHash hashStr
+              executeIsolatedTest exeState vm runId branchId workerHash hashStr seed
             task {
               match! inRunner with
               | Some outcome -> return outcome

@@ -182,6 +182,21 @@ test timesOut =
 Only test bodies get the virtual clock. `dark run`, `eval`, `serve` and scripts
 always use the real one.
 
+## Random values
+
+On the virtual clock, `Stdlib.Uuid.generate` and the `Random` functions
+(`Int64.random`, `List.shuffle`, ...) draw from a seed. `dark test run` picks a
+fresh one each run, and prints it when a test fails:
+
+```text
+Seed 4821337: rerun with --seed 4821337 for the same random values
+```
+
+`dark test run --seed 4821337` gives every test the same values again. Each test
+mixes the seed with its own hash, so its values don't depend on which tests ran
+before it. Process ids and everything the host stores (package items, store rows,
+traces) stay random.
+
 ## Assertions and expected errors
 
 `Stdlib.Test` provides helpers such as `expect`, `equal`, `notEqual` and `all`.

@@ -97,6 +97,7 @@ echo "pre-push --$MODE on $(git rev-parse --short HEAD)"
 # The static checks, the same in both modes. CI runs these first in its build job.
 step shellcheck scripts/linting/shellchecker
 step blocking-waits scripts/linting/blocking-waits
+step random-sources scripts/linting/random-sources
 step format scripts/formatting/format check \
   || echo "    fix with: scripts/formatting/format format, then build again"
 step build-planning-tests scripts/testing/test-build-planning.py

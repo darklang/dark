@@ -16,7 +16,8 @@ let fns () : List<BuiltInFn> =
       description = "Generate a new <type Uuid> v4 according to RFC 4122"
       fn =
         (function
-        | _, _, _, [| DUnit |] -> (DUuid(System.Guid.NewGuid()))
+        | state, _, _, [| DUnit |] ->
+          DUuid(LibExecution.HostRandom.uuidV4 state.random)
         | _ -> incorrectArgs ())
       previewable =
         // Similarly to DateTime.now, it's not particularly fun for this to change
@@ -34,7 +35,13 @@ let fns () : List<BuiltInFn> =
         "Generate a new <type Uuid> v7 according to RFC 9562: the current Unix time in milliseconds, then random bits"
       fn =
         (function
-        | _, _, _, [| DUnit |] -> (DUuid(System.Guid.CreateVersion7()))
+        | state, _, _, [| DUnit |] ->
+          let now =
+            match state.clock with
+            | LibExecution.HostClock.Virtual v -> v.Now / 10_000L
+            | LibExecution.HostClock.Real ->
+              System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+          DUuid(LibExecution.HostRandom.uuidV7 state.random now)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Random; Effect.Clock ]

@@ -44,6 +44,7 @@ format_check() {
 check "Lint the shell scripts" scripts/linting/shellchecker
 check "Check formatting" format_check
 check "No thread blocks on a task" scripts/linting/blocking-waits
+check "Builtins draw random values from the run's source" scripts/linting/random-sources
 check "Test the build's planning and readiness logic" scripts/testing/test-build-planning.py
 check "Test CI diagnostic collection" python3 .circleci/test_collect_diagnostics.py
 check "Test artifact validation timeouts" python3 .circleci/test_artifact_validation.py

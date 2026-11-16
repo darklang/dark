@@ -6552,6 +6552,9 @@ and ExecutionState =
     /// The clock this execution reads and sleeps on. Real, except in tests.
     clock : HostClock.Clock
 
+    /// Where `Uuid.generate` and `Random.*` draw from. Real, except in tests.
+    random : HostRandom.Random
+
     /// Resolve an entry's exact name and version to its approval. `None`
     /// means a bundled or script-local helper that inherits invocation access.
     packagePolicy : Option<string> -> FQFnName.Package -> Option<Permissions.Policy>

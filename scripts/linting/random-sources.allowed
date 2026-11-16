@@ -1,0 +1,5 @@
+# Random values scripts/linting/random-sources lets through: a path, then text from the line.
+# Each never reaches Dark code, so a seeded test needn't repeat it.
+
+# A retry's jitter: it only decides how long to wait.
+backend/src/Builtins/Builtins.Http.Client/Libs/HttpClient.fs System.Random.Shared.NextInt64(full / 2L + 1L)

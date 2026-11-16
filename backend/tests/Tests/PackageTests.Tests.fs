@@ -41,10 +41,10 @@ let private evalAsCli (code : string) : Task<RT.ExecutionResult> =
           (LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT Map.empty 0 None expr)
     })
 
-let private runHash (h : string) : Task<string> =
+let private runHashWithSeed (seed : int64) (h : string) : Task<string> =
   task {
     let code =
-      "Darklang.LanguageTools.PackageManager.Test.execute(Darklang.SCM.Branch.mainBranchId, "
+      $"Darklang.LanguageTools.PackageManager.Test.execute(Darklang.SCM.Branch.mainBranchId, {seed}, "
       + $"Darklang.LanguageTools.ProgramTypes.Hash.Hash(\"{h}\"))"
     match! evalAsCli code with
     | Ok(RT.DEnum(_, _, _, "Ok", [ RT.DEnum(_, _, _, "Pass", []) ])) -> return "pass"
@@ -86,16 +86,20 @@ let private runHash (h : string) : Task<string> =
     | Error(rte, _) -> return failtest $"the Dark call raised: {rte}"
   }
 
+let private runHash = runHashWithSeed 0L
+
 /// Run what <param name> is bound to NOW. Not the hash the authoring batch
 /// returned: the WIP refresh after it re-resolves names and rehashes, and the
 /// pre-refresh content is still stored under its old hash.
-let private run (m : string) (name : string) : Task<string> =
+let private runWithSeed (seed : int64) (m : string) (name : string) : Task<string> =
   task {
     let bound = liveBoundHash { owner = "Darklang"; modules = [ m ]; name = name }
     match bound with
-    | Some h -> return! runHash h
+    | Some h -> return! runHashWithSeed seed h
     | None -> return failtest $"nothing is bound at {m}.{name}"
   }
+
+let private run = runWithSeed 0L
 
 
 let outcomes =
@@ -273,7 +277,7 @@ test failsAfterObservation =
       liveBoundHash
         { owner = "Darklang"; modules = [ m ]; name = "failsAfterObservation" }
     let execute h =
-      "Darklang.LanguageTools.PackageManager.Test.execute(Darklang.SCM.Branch.mainBranchId, "
+      "Darklang.LanguageTools.PackageManager.Test.execute(Darklang.SCM.Branch.mainBranchId, 0, "
       + $"Darklang.LanguageTools.ProgramTypes.Hash.Hash(\"{h}\"))"
     let check h = $"({execute h}) |> Stdlib.Test.equal(Ok(Stdlib.Test.pass()))"
     let countHash = Option.get countHash
@@ -318,9 +322,61 @@ test failsAfterObservation =
   }
 
 
+let seededRandom =
+  testTask "a test's random values come from the run's seed, and host ids do not" {
+    let m = "PackageTestSeeds"
+    do! cleanup m
+
+    let! _ =
+      authorIn
+        m
+        """test random =
+  let uuid = Stdlib.display(Stdlib.Uuid.generate())
+  let n = Stdlib.display(Stdlib.Int64.random(0, 1000000000))
+  let shuffled =
+    Stdlib.List.shuffle([ 1, 2, 3, 4, 5, 6, 7, 8 ])
+    |> Stdlib.List.map(fun i -> Stdlib.display(i))
+    |> Stdlib.String.join(",")
+  Stdlib.Test.fail($"{uuid} {n} {shuffled}")
+test hostIds =
+  let processId = Stdlib.display((Stdlib.Exec.spawn(fun () -> 1)).id)
+  let branchId =
+    match Darklang.SCM.Branch.create("seeded-ids", Darklang.SCM.Branch.mainBranchId) with
+    | Some(branch) -> Stdlib.display(branch.id)
+    | None -> "no branch"
+  Stdlib.Test.fail($"{processId} {branchId}")
+"""
+
+    let! (first : string) = runWithSeed 42L m "random"
+    let! again = runWithSeed 42L m "random"
+    let! other = runWithSeed 43L m "random"
+    Expect.equal again first "the same seed gives the same values"
+    Expect.notEqual other first "another seed gives other values"
+    // "fail: " then the uuid: its version digit is the 15th character
+    Expect.equal first[6 + 14] '4' $"a seeded uuid is still v4: {first}"
+
+    let! (ids : string) = runWithSeed 42L m "hostIds"
+    let! idsAgain = runWithSeed 42L m "hostIds"
+    Expect.notEqual idsAgain ids "process and store ids stay random under one seed"
+    Expect.isFalse (ids.Contains "no branch") $"the test made a branch: {ids}"
+
+    let! outside = evalDarkExpr "(Stdlib.Uuid.generate(), Stdlib.Uuid.generate())"
+    let! outsideAgain =
+      evalDarkExpr "(Stdlib.Uuid.generate(), Stdlib.Uuid.generate())"
+    match outside, outsideAgain with
+    | Ok(RT.DTuple(a, b, [])), Ok(RT.DTuple(c, _, [])) ->
+      Expect.notEqual a b "outside a test, uuids are random"
+      Expect.notEqual a c "and differ from run to run"
+    | other -> failtest $"unexpected result: {other}"
+    do! cleanup m
+  }
+
+
 // Authoring and WIP refresh mutate the shared package store, so these must not
 // race other store-mutating backend tests.
 let tests =
   testSequenced (
-    testList "PackageTests" [ outcomes; unknownHash; isolatedObservations ]
+    testList
+      "PackageTests"
+      [ outcomes; unknownHash; isolatedObservations; seededRandom ]
   )
