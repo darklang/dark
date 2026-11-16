@@ -497,20 +497,23 @@ let printSlowest(timings: List<Timing>): Unit =
     ()
 
 
-/// Every test on <param branchId> that is not deprecated: `delete` deprecates
-/// rather than unbinding, so a deleted test would otherwise keep running. Not
+/// The tests on <param branchId> under <param currentModule> whose names or docs
+/// hold <param text>, leaving out deprecated ones: `delete` deprecates rather than
+/// unbinding, so a deleted test would otherwise keep running. Not
 /// `Query.filterHidden`: that keeps items with live callers and, on a branch,
 /// anything the branch deprecated.
 let liveTests(
-  branchId: Uuid)
+  branchId: Uuid,
+  currentModule: List<String>,
+  text: String)
   : List<
   LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>> =
   let rawResults =
     LanguageTools.PackageManager.Search.search(
       branchId,
       LanguageTools.ProgramTypes.Search.SearchQuery
-        { currentModule = []
-          text = ""
+        { currentModule = currentModule
+          text = text
           searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
           entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Test ]
           exactMatch = false })
@@ -521,20 +524,64 @@ let liveTests(
     Stdlib.Bool.not(Query.isDeprecatedAtLocation(depSets, item.location, item.entity.hash)))
 
 
+/// The tests <param filters> select, by name, or every test when there are none.
+/// `selects` decides. The search's text match is looser (segments in any order,
+/// docs too, so `WbTests.R` alone matches every test in every `Tests` module), so
+/// searching for a filter of two or more segments finds every test it selects
+/// without reading the rest. A single segment could be a module, which the search
+/// would only look for in names.
+let selectedTests(
+  branchId: Uuid,
+  filters: List<String>)
+  : List<
+  LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>> =
+  let narrowable =
+    Stdlib.Bool.not(Stdlib.List.isEmpty(filters))
+    && Stdlib.List.all(filters, fun f ->
+      (Stdlib.String.split(f, ".") |> Stdlib.List.filter(fun seg -> seg != "") |> Stdlib.List.length) > 1)
+
+  let found =
+    if narrowable then
+      filters
+      |> Stdlib.List.map(fun f -> liveTests(branchId, [], f))
+      |> Stdlib.List.flatten
+      |> Stdlib.List.uniqueBy(fullPath)
+    else
+      liveTests(branchId, [], "")
+
+  found
+  |> Stdlib.List.filter(fun item ->
+    Stdlib.List.isEmpty(filters)
+    || Stdlib.List.any(filters, fun f -> selects(f, fullPath(item))))
+  |> Stdlib.List.sortBy(fullPath)
+
+
+/// The full names, as segments, of the tests under the module path <param prefix>.
+/// The search looks in the module above <param prefix>, whose last segment may name
+/// a test rather than a module.
+let testsUnder(branchId: Uuid, prefix: List<String>): List<List<String>> =
+  let found =
+    match prefix with
+    | [] -> liveTests(branchId, [], "")
+    | [owner] -> liveTests(branchId, [ owner ], "")
+    | _ -> liveTests(branchId, Stdlib.List.dropLast(prefix), Stdlib.String.join(prefix, "."))
+
+  let depth = Stdlib.List.length(prefix)
+  found
+  |> Stdlib.List.filterMap(fun item ->
+    let path = Stdlib.String.split(fullPath(item), ".")
+    if Stdlib.List.take(path, depth) == prefix then
+      Option.Some(path)
+    else
+      Option.None)
+
+
 let runTestsInRun(
   run: LanguageTools.PackageManager.Test.Run,
   state: AppState,
   options: RunOptions)
   : AppState =
-  // Filtered by whole name segments. Not the package search's text match:
-  // that is fuzzy, so `WbTests.R` matched every test in every `Tests` module.
-  let liveTests =
-    liveTests(state.currentBranchId)
-    |> Stdlib.List.filter(fun item ->
-      Stdlib.List.isEmpty(options.filters)
-      || Stdlib.List.any(options.filters, fun f -> selects(f, fullPath(item))))
-
-  let selected = Stdlib.List.sortBy(liveTests, fullPath)
+  let selected = selectedTests(state.currentBranchId, options.filters)
   // One analysis for the whole run: the tests share most of what they call.
   let cacheSafe =
     LanguageTools.PackageManager.Test.areCacheSafe(
@@ -692,14 +739,7 @@ let countTests(state: AppState, args: List<String>): AppState =
       | _ -> []
 
     let depth = Stdlib.List.length(prefix)
-    let under =
-      liveTests(branchId)
-      |> Stdlib.List.filterMap(fun item ->
-        let path = Stdlib.String.split(fullPath(item), ".")
-        if Stdlib.List.take(path, depth) == prefix then
-          Option.Some(path)
-        else
-          Option.None)
+    let under = testsUnder(branchId, prefix)
 
     let place = if depth == 0 then "All tests" else Stdlib.String.join(prefix, ".")
     match forItem with
