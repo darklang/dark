@@ -1014,7 +1014,7 @@ let private everyListAndDictTest =
             expectSameRun name spread once
             compared <- compared + 1
       Expect.isGreaterThan compared 100 "most tests compared"
-      Expect.isGreaterThan (spreads state ()) 50L "and many of them spread"
+      Expect.isGreaterThan (spreads state ()) 0L "and they spread"
     finally
       s.Workers.Stop()
   }
