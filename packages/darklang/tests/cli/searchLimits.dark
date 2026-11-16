@@ -8,12 +8,18 @@ test batchLimits = Instance.withInstance(fun i ->
     |> Stdlib.String.splitOnNewline
     |> Stdlib.List.map(Stdlib.Cli.Tui.Text.stripSgr)
     |> Stdlib.List.filter(fun line ->
-      Stdlib.String.contains(line, "Darklang.") && Stdlib.String.contains(line, "):"))
+      Stdlib.String.contains(line, "Darklang.")
+      && Stdlib.String.contains(line, "):"))
 
   let (plainCode, plain) = Instance.ran(i, [ "search", "Csv", "--fn" ])
-  let (batchCode, batch) = Instance.ran(i, [ "search", "--batch", "Csv", "String", "--fn" ])
+
+  let (batchCode, batch) =
+    Instance.ran(i, [ "search", "--batch", "Csv", "String", "--fn" ])
+
   let (limitedCode, limited) =
-    Instance.ran(i, [ "search", "--batch", "Csv", "String", "--fn", "--limit", "1" ])
+    Instance.ran(
+      i,
+      [ "search", "--batch", "Csv", "String", "--fn", "--limit", "1" ])
 
   let (_, broad) = Instance.ran(i, [ "search", "--batch", "String", "--fn" ])
   let csvRows = rows(plain)
@@ -21,24 +27,46 @@ test batchLimits = Instance.withInstance(fun i ->
   Stdlib.Test.all(
     [ Instance.exitedWith(plainCode, 0, "single query")
       Instance.exitedWith(batchCode, 0, "batch queries")
-      Instance.says(plain, "Darklang.Stdlib.Csv.parse", "module names find undocumented words")
+      Instance.says(
+        plain,
+        "Darklang.Stdlib.Csv.parse",
+        "module names find undocumented words")
+
       Instance.exitedWith(limitedCode, 0, "explicit limit")
-      (Stdlib.List.length(csvRows) >= 2) |> Stdlib.Test.equal(true)
+      Stdlib.List.length(csvRows) >= 2 |> Stdlib.Test.equal(true)
+
       Stdlib.List.all(csvRows, fun row -> Stdlib.List.contains(batchRows, row))
       |> Stdlib.Test.equal(true)
-      (Stdlib.List.length(rows(broad)) > 3) |> Stdlib.Test.equal(true)
-      rows(limited) |> Stdlib.List.length |> Stdlib.Test.equal(2)
-      Instance.says(limited, "use --limit", "overflow explains how to show more")
-      Instance.doesNotSay(limited, "Search results for: 1", "limit is not a query") ]))
+
+      Stdlib.List.length(rows(broad)) > 3 |> Stdlib.Test.equal(true)
+
+      rows(limited)
+      |> Stdlib.List.length
+      |> Stdlib.Test.equal(2)
+
+      Instance.says(
+        limited,
+        "use --limit",
+        "overflow explains how to show more")
+
+      Instance.doesNotSay(
+        limited,
+        "Search results for: 1",
+        "limit is not a query") ]))
 
 
 /// Invalid limits are rejected before any search runs, including in batch mode.
 test invalidLimits = Instance.withInstance(fun i ->
   [ "0", "-1", "nope", "9223372036854775808" ]
   |> Stdlib.List.map(fun value ->
-    let (code, out) = Instance.ran(i, [ "search", "--batch", "Csv", "--limit", value ])
+    let (code, out) =
+      Instance.ran(i, [ "search", "--batch", "Csv", "--limit", value ])
+
     Stdlib.Test.all(
       [ Instance.exitedWith(code, 1, value)
         Instance.says(out, "--limit requires a positive integer", value)
-        Instance.doesNotSay(out, "Search results for:", "no partial results") ]))
+        Instance.doesNotSay(
+          out,
+          "Search results for:",
+          "no partial results") ]))
   |> Stdlib.Test.all)

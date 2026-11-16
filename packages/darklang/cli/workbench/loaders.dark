@@ -78,10 +78,10 @@ let moduleRows(
         |> Stdlib.List.unique
 
       { ctx with
-          knownBindings =
-            Stdlib.Option.Option.Some(PrettyPrinter.ProgramTypes.knownBindings(branchId, names)) }
+          knownBindings = Option.Some(PrettyPrinter.ProgramTypes.knownBindings(branchId, names)) }
     else
       ctx
+
   let typeRef(t: LanguageTools.ProgramTypes.TypeReference): String =
     PrettyPrinter.ProgramTypes.typeReference(ctx, t)
 
