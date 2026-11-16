@@ -63,7 +63,15 @@ Full declarations also work directly from stdin, with no temporary file:
     "Hello, " + name
   EOF
 
-For a small edit, use exact patch blocks (the apply_patch line format):
+For a small edit, first read the current stored declaration:
+
+  dark view Tools.RenameDemo.greeting --raw
+
+Copy the unchanged and removed lines from that output. Dark may print `Error`
+as `Result.Error`, or change spacing and line breaks. Use the text from `--raw`
+even if you just saved the code.
+
+Send the changes as patch blocks in the apply_patch format:
 
   dark edit Tools.RenameDemo.greeting --patch - <<'PATCH'
   @@
@@ -72,25 +80,25 @@ For a small edit, use exact patch blocks (the apply_patch line format):
   +  "Hi, " + name
   PATCH
 
-Each patch block begins with bare `@@`; prefix unchanged lines with a space, removals
-with `-`, and additions with `+`. Blank lines need a prefix too. No file headers,
-line numbers, fuzzy matching, or whitespace normalization. Multiple patch blocks match
-in order against the remaining original lines, never earlier inserted text.
-Every patch block needs context or removals and exactly one match. Fetch fresh raw
-source first: it is normalized by the printer. All patch blocks must match before
-anything is saved. Missing or ambiguous context fails without changes.
-After matching, the complete result follows the normal edit rules: parse errors
-are refused, while type errors can be saved as drafts with a nonzero exit code.
-Errors are explained on stderr; the current raw declaration is returned on stdout
-for retry, including any draft that was saved.
+Start each block with `@@`. Use a space for unchanged lines, `-` for removed
+lines, and `+` for added lines. Blank lines need a prefix too. Leave out filenames
+and line numbers. Each block needs at least one unchanged or removed line.
 
-`--raw` prints exactly what `edit` and `module` accept, so this is a pipe rather
-than a screen-scrape. Plain `view` is for a person to read and carries a
-capabilities line you would have to strip. `edit <name>` with no file opens
-$EDITOR instead, which is the shape for a human, not for you. And `--raw` is
-the stored NORMAL FORM, not your keystrokes: formatting, redundant parens and
-annotated nested lets come back normalized, so diff against a fresh `--raw`,
-never against what you typed.
+Each block must match exactly once, including spaces. Blocks match in order
+against the original code, so a later block cannot match an earlier addition.
+All blocks must match before anything is saved.
+
+If a block has no match or more than one match, nothing changes. The error
+explains the problem on stderr and returns the current declaration on stdout.
+Use that text to rebuild the patch, then try again.
+
+Once every block matches, the result follows the usual edit rules: syntax errors
+stop the save; type errors can be saved as drafts with a nonzero exit code.
+Errors return the current declaration on stdout, including any draft that was saved.
+
+`view --raw` prints code you can pass to `edit` or `module`. Plain `view` adds
+information for a person reading the code. `edit <name>` with no file opens
+$EDITOR; the file and stdin forms work without a terminal.
 
 ## A command-line tool
 

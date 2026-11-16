@@ -44,7 +44,7 @@ If you already have permission, omit it.
 
   search --batch "List.map" "Json.serialize" --fn  # up to 20 results per section
   docs signatures Stdlib.String Stdlib.List        # every fn in these modules
-  view <name>                                      # one item's source
+  view <name> --raw                                # source for patches
   eval 'Stdlib.List.length([1, 2])'                # one expression
   status                                           # what changed
   commit "message" -y                              # record it

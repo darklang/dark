@@ -62,7 +62,10 @@ let printTraceHint(state: AppState, location: PackageLocation): Unit =
 let patchSource(source: String, patch: String): Result<String, String> =
   let splitLines(text: String): List<String> =
     let textLines = Stdlib.String.split(text, "\n")
-    if Stdlib.String.endsWith(text, "\n") then Stdlib.List.dropLast(textLines) else textLines
+    if Stdlib.String.endsWith(text, "\n") then
+      Stdlib.List.dropLast(textLines)
+    else
+      textLines
 
   let applyPatchBlock(
     remainingSource: List<String>,
@@ -71,7 +74,8 @@ let patchSource(source: String, patch: String): Result<String, String> =
     replacementLines: List<String>)
     : Result<(List<String> * List<String>), String> =
     if Stdlib.List.isEmpty(originalLines) then
-      Result.Error("A patch block needs context or removed lines; insertion without context is ambiguous.")
+      Result.Error(
+        "A patch block needs context or removed lines; insertion without context is ambiguous.")
     else
       let originalLineCount = Stdlib.List.length(originalLines)
       let matchingOffsets =
@@ -79,13 +83,16 @@ let patchSource(source: String, patch: String): Result<String, String> =
         |> Stdlib.List.filter(fun offset ->
           Stdlib.List.take(Stdlib.List.drop(remainingSource, offset), originalLineCount)
           == originalLines)
+
       match matchingOffsets with
       | [] -> Result.Error("Patch context does not match the current declaration exactly.")
       | [offset] ->
         Result.Ok(
-          (Stdlib.List.drop(remainingSource, offset + originalLineCount),
-           Stdlib.List.concat(patchedLines,
-             Stdlib.List.concat(Stdlib.List.take(remainingSource, offset), replacementLines))))
+          (
+            Stdlib.List.drop(remainingSource, offset + originalLineCount),
+            Stdlib.List.concat(
+              patchedLines,
+              Stdlib.List.concat(Stdlib.List.take(remainingSource, offset), replacementLines))))
       | _ -> Result.Error("Patch context is ambiguous: more than one exact match. Add context.")
 
   let applyPatchBlocks(
@@ -99,26 +106,40 @@ let patchSource(source: String, patch: String): Result<String, String> =
     | [] ->
       applyPatchBlock(remainingSource, patchedLines, originalLines, replacementLines)
       |> Stdlib.Result.map(fun((remainingSource, completedLines)) ->
-        let patchedSource = Stdlib.List.concat(completedLines, remainingSource) |> Stdlib.String.join("\n")
-        if Stdlib.String.endsWith(source, "\n") then patchedSource + "\n" else patchedSource)
+        let patchedSource =
+          Stdlib.List.concat(completedLines, remainingSource) |> Stdlib.String.join("\n")
+
+        if Stdlib.String.endsWith(source, "\n") then
+          patchedSource + "\n"
+        else
+          patchedSource)
     | ["@@", ...remainingPatch] ->
       match applyPatchBlock(remainingSource, patchedLines, originalLines, replacementLines) with
       | Error(message) -> Result.Error(message)
-      | Ok((remainingSource, patchedLines)) -> applyPatchBlocks(remainingPatch, remainingSource, patchedLines, [], [])
+      | Ok((remainingSource, patchedLines)) ->
+        applyPatchBlocks(remainingPatch, remainingSource, patchedLines, [], [])
     | [line, ...remainingPatch] ->
       if Stdlib.String.startsWith(line, " ") then
         let lineText = Stdlib.String.dropFirst(line, 1)
         applyPatchBlocks(
-          remainingPatch, remainingSource, patchedLines,
+          remainingPatch,
+          remainingSource,
+          patchedLines,
           Stdlib.List.append(originalLines, lineText),
           Stdlib.List.append(replacementLines, lineText))
       else if Stdlib.String.startsWith(line, "-") then
         applyPatchBlocks(
-          remainingPatch, remainingSource, patchedLines,
-          Stdlib.List.append(originalLines, Stdlib.String.dropFirst(line, 1)), replacementLines)
+          remainingPatch,
+          remainingSource,
+          patchedLines,
+          Stdlib.List.append(originalLines, Stdlib.String.dropFirst(line, 1)),
+          replacementLines)
       else if Stdlib.String.startsWith(line, "+") then
         applyPatchBlocks(
-          remainingPatch, remainingSource, patchedLines, originalLines,
+          remainingPatch,
+          remainingSource,
+          patchedLines,
+          originalLines,
           Stdlib.List.append(replacementLines, Stdlib.String.dropFirst(line, 1)))
       else
         Result.Error("Expected a context line (space), removal (-), addition (+), or bare @@.")
@@ -129,9 +150,19 @@ let patchSource(source: String, patch: String): Result<String, String> =
 
 
 /// Explain a patch failure and print the current raw declaration for retry.
-let reportPatchFailure(state: AppState, currentSource: String, message: String): AppState =
+let reportPatchFailure(
+  state: AppState,
+  name: String,
+  currentSource: String,
+  message: String)
+  : AppState =
   printErr(message)
-  Stdlib.printErrorLine("Patch not applied. Current raw declaration follows on stdout:")
+  Stdlib.printErrorLine("Dark may change names and spacing when it prints saved code.")
+
+  Stdlib.printErrorLine(
+    $"Use the code below to retry, or read it again with `dark view {name} --raw`.")
+
+  Stdlib.printErrorLine("Patch not applied. The current declaration is on stdout:")
   Stdlib.printLine(currentSource)
   failed(state)
 
@@ -147,17 +178,29 @@ let applyPatch(
     printErr(message)
     failed(state)
   | Ok(currentSource) ->
-    match Stdlib.Cli.Stdin.readAll() |> Stdlib.Result.andThen(fun patch -> patchSource(currentSource, patch)) with
-    | Error(message) -> reportPatchFailure(state, currentSource, message)
+    let name =
+      Stdlib.List.append(
+        Stdlib.List.prepend(declarationLocation.modules, declarationLocation.owner),
+        declarationLocation.name)
+      |> Stdlib.String.join(".")
+
+    match Stdlib.Cli.Stdin.readAll()
+          |> Stdlib.Result.andThen(fun patch -> patchSource(currentSource, patch)) with
+    | Error(message) -> reportPatchFailure(state, name, currentSource, message)
     | Ok(updatedSource) ->
-      let updatedState = ModuleCommand.define(state, moduleArgFor(declarationLocation),
-        updatedSource,
-        ModuleCommand.Caller.Command)
+      let updatedState =
+        ModuleCommand.define(
+          state,
+          moduleArgFor(declarationLocation),
+          updatedSource,
+          ModuleCommand.Caller.Command)
+
       if updatedState.exitCode != 0 then
         let savedSource =
           View.rawSource(state.currentBranchId, location)
           |> Stdlib.Result.withDefault(currentSource)
-        Stdlib.printErrorLine("Edit reported errors. Current raw declaration follows on stdout:")
+
+        Stdlib.printErrorLine("The edit reported errors. The current declaration is on stdout:")
         Stdlib.printLine(savedSource)
         updatedState
       else
@@ -169,10 +212,10 @@ let execute(state: AppState, args: List<String>): AppState =
   let usePatch = Stdlib.List.contains(args, "--patch")
   let positionalArgs = Stdlib.List.filter(args, fun argument -> argument != "--patch")
   let parsedArguments =
-    match (usePatch, positionalArgs) with
-    | (false, [name]) -> Result.Ok((name, Option.None))
-    | (false, [name, file]) -> Result.Ok((name, Option.Some(file)))
-    | (true, [name, "-"]) -> Result.Ok((name, Option.Some("-")))
+    match usePatch, positionalArgs with
+    | false, [name] -> Result.Ok((name, Option.None))
+    | false, [name, file] -> Result.Ok((name, Option.Some(file)))
+    | true, [name, "-"] -> Result.Ok((name, Option.Some("-")))
     | _ -> Result.Error("usage: dark edit <name> [file|-] or dark edit <name> --patch -")
 
   match parsedArguments with
@@ -201,7 +244,12 @@ let execute(state: AppState, args: List<String>): AppState =
         match fileArg with
         // No editor and no terminal: the shape a script or an agent uses.
         | Some(file) ->
-          let result = if usePatch then applyPatch(state, location, loc) else applyFile(state, loc, file)
+          let result =
+            if usePatch then
+              applyPatch(state, location, loc)
+            else
+              applyFile(state, loc, file)
+
           if result.exitCode == 0 then printTraceHint(result, location) else ()
           result
         | None ->
@@ -322,7 +370,14 @@ let help(_state: AppState): String =
     "      \"Hello, \" + name"
     "    EOF"
     ""
-    "  Exact patch blocks, using the apply_patch line format with bare @@:"
+    "  Before writing a patch, read the current declaration:"
+    ""
+    "    dark view Tools.RenameDemo.greeting --raw"
+    ""
+    "  Copy the unchanged and removed lines from that output. Dark may print"
+    "  Error as Result.Error, or change spacing and line breaks."
+    ""
+    "  Send the changes as patch blocks in the apply_patch format:"
     ""
     "    dark edit Tools.RenameDemo.greeting --patch - <<'PATCH'"
     "    @@"
@@ -331,13 +386,17 @@ let help(_state: AppState): String =
     "    +  \"Hi, \" + name"
     "    PATCH"
     ""
-    "  Each patch block starts with @@. Prefix context with space, removals with -,"
-    "  additions with + (including blank lines). No filenames or line numbers."
-    "  Patch blocks match exact lines once, in order; no whitespace normalization."
-    "  Use fresh `view <name> --raw` output. Missing or ambiguous context is"
-    "  refused without changes. Matched patches follow the normal edit rules:"
-    "  parse errors are refused; type errors can be saved as drafts."
-    "  On errors, the current raw declaration is returned for retry."
+    "  Start each block with @@. Use a space for unchanged lines, - for removed"
+    "  lines, and + for added lines. Blank lines need a prefix too."
+    "  Leave out filenames and line numbers."
+    ""
+    "  Each block must match exactly once, including spaces, in the order given."
+    "  If a block has no match or more than one match, nothing changes."
+    "  Use the current declaration returned on stdout to rebuild the patch."
+    ""
+    "  Once every block matches, the result follows the usual edit rules:"
+    "  syntax errors stop the save; type errors can be saved as drafts."
+    "  Errors return the current declaration on stdout, including a saved draft."
     ""
     "  Editing is live: the change takes effect immediately and shows up in"
     "  `dark status` as a draft item, like any other edit."
