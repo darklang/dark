@@ -309,3 +309,19 @@ test patchRetryUsesStoredSource = Instance.withInstance(fun instance ->
         after,
         "Result.Error(\"after\")",
         "patch built from raw source succeeds") ]))
+
+
+/// A module saved again without some of its names says which are still there.
+test moduleSaveNamesWhatItLeftBehind = Instance.withInstance(fun instance ->
+  let _ =
+    runWithStdin(
+      instance,
+      [ "module", "/Me.LeftBehind", "-" ],
+      "let kept(): Int64 = 1\nlet dropped(): Int64 = 2\n")
+
+  let (_, again) =
+    runWithStdin(instance, [ "module", "/Me.LeftBehind", "-" ], "let kept(): Int64 = 3\n")
+
+  Stdlib.Test.all(
+    [ Instance.says(again, "still in Me.LeftBehind from an earlier save: dropped", "names it")
+      Instance.says(again, "delete fn Me.LeftBehind.dropped --yes", "says how to take it out") ]))

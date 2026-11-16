@@ -49,7 +49,7 @@ let __expandPath(path: String): String =
 let __fromPosixError(error: Posix.Error): FileError =
   if error.errno == 2 || error.errno == 20 then
     FileError.NotFound
-  else if error.errno == 13 || error.errno == 1 || error.errno == 21 then
+  else if error.errno == 13 || error.errno == 1 then
     FileError.OsAccessDenied
   else
     FileError.Other(error.message)

@@ -107,6 +107,23 @@ type Caller =
 
 /// Save the declarations in <param source> under <param modulePath>, saying what happened, as
 /// `module` does.
+/// What is in the module at <param home> (owner first) that this save did not define, as (kind,
+/// name): names an earlier save left behind, which still run, get type-checked and can block a
+/// commit.
+let leftOver(branchId: Uuid, home: List<String>, defined: List<String>): List<(String * String)> =
+  let (_, types, values, fns, traits, _, tests) =
+    Query.allDirectDescendantNamesAndHashes(branchId, home)
+
+  let sets = Query.loadDeprecationSets(branchId)
+  [ ("type", types), ("value", values), ("fn", fns), ("trait", traits), ("test", tests) ]
+  |> Stdlib.List.map(fun((kind, items)) ->
+    Query.filterHiddenPairs(home, items, sets, Query.Deprecated.Hide, Query.Internal.Show)
+    |> Stdlib.List.map(fun((name, _)) -> (kind, name)))
+  |> Stdlib.List.flatten
+  |> Stdlib.List.filter(fun((_, name)) -> Stdlib.Bool.not(Stdlib.List.contains(defined, name)))
+  |> Stdlib.List.unique
+
+
 let define(state: AppState, modulePath: String, source: String, caller: Caller): AppState =
   let bundled = caller == Caller.DevBuild
   // Package input is declaration scope at its root. In particular, `val x`
@@ -260,6 +277,17 @@ let define(state: AppState, modulePath: String, source: String, caller: Caller):
 
                 Stdlib.Bool.not(Stdlib.List.contains(definedNames, leaf)))
 
+            let shown = Stdlib.String.join(home, ".")
+            let left = leftOver(branchId, home, definedNames)
+            match left with
+            | [] -> ()
+            | [(kind, name), ...] ->
+              let names = left |> Stdlib.List.map(fun((_, n)) -> n) |> Stdlib.String.join(", ")
+              Stdlib.printErrorLine(
+                Stdlib.Cli.UI.Colors.hint(
+                  $"  still in {shown} from an earlier save: {names}\n"
+                  + $"  `delete {kind} {shown}.{name} --yes` takes one out"))
+
             if Stdlib.List.isEmpty(missing) then
               state
             else
@@ -310,6 +338,8 @@ let help(_state: AppState): String =
     "type check is reported and `commit` refuses definite type errors."
     "Definite type errors and unresolved names exit 1; declarations remain saved"
     "as drafts. Other incomplete checks warn and exit 0."
+    "Saving again replaces what the source has; names it no longer has stay and"
+    "are listed, for `delete`."
     ""
     "Example:"
     "  dark module /Me.Example - <<'EOF'"

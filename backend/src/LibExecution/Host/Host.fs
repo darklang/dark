@@ -130,24 +130,45 @@ let takeHttpServerListener (handle : int64) : System.Net.HttpListener =
       "unknown or already-claimed HTTP server handle"
       [ "handle", string handle ]
 
+let private startHttpListener
+  (hosts : List<string>)
+  (port : int)
+  : Result<System.Net.HttpListener, System.Net.HttpListenerException> =
+  let listener = new System.Net.HttpListener()
+  for host in hosts do
+    listener.Prefixes.Add($"http://{host}:{port}/")
+  try
+    listener.Start()
+    Ok listener
+  with :? System.Net.HttpListenerException as e ->
+    listener.Close()
+    Error e
+
 let private bindHttpServer
   (address : string)
   (port : int)
   : Result<Response, int * string> =
-  let listener = new System.Net.HttpListener()
-  let host = if address = "0.0.0.0" then "*" else address
-  listener.Prefixes.Add($"http://{host}:{port}/")
-  let closeListener () = listener.Close()
-  try
-    listener.Start()
+  let started =
+    match address with
+    | "0.0.0.0" -> startHttpListener [ "*" ] port
+    // HttpListener matches the Host header and binds `localhost` on ::1, so a 127.0.0.1
+    // server answered http://localhost:N with its own 404. Serve both, or just the one
+    // asked for when ::1 can't be bound
+    | "127.0.0.1"
+    | "localhost" ->
+      match startHttpListener [ "127.0.0.1"; "localhost" ] port with
+      | Ok listener -> Ok listener
+      | Error _ -> startHttpListener [ address ] port
+    | _ -> startHttpListener [ address ] port
+  match started with
+  | Ok listener ->
     let handle = System.Threading.Interlocked.Increment(&nextHttpServerHandle)
     if httpServerListeners.TryAdd(handle, listener) then
       Ok(Response.HttpServerHandle handle)
     else
-      closeListener ()
+      listener.Close()
       Error(-1, "could not allocate an HTTP server handle")
-  with :? System.Net.HttpListenerException as e ->
-    closeListener ()
+  | Error e ->
     let inUse =
       List.contains e.ErrorCode [ 98; 48; 183; 32 ]
       || e.Message.Contains("Address already in use")

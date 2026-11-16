@@ -60,6 +60,25 @@ let otherLanguageName(name: String): Option<String> =
   | _ -> Option.None
 
 
+/// The conversion written from the other side: `UInt8.toInt64` is `Int64.fromUInt8`, and
+/// `Int64.fromUInt8` is `UInt8.toInt64`. Each as (the module it is in, its name).
+let conversionName(modules: List<String>, name: String): Option<(List<String> * String)> =
+  match splitLast(modules) with
+  | None -> Option.None
+  | Some((outer, from)) ->
+    let other = fun prefix ->
+      let rest = Stdlib.String.dropFirst(name, Stdlib.String.length(prefix))
+      match Stdlib.String.toList(rest) with
+      | [c, ...] when Stdlib.String.startsWith(name, prefix) && Stdlib.Char.isUppercase(c) ->
+        Option.Some(rest)
+      | _ -> Option.None
+
+    match other("to"), other("from") with
+    | Some(target), _ -> Option.Some((Stdlib.List.append(outer, target), "from" + from))
+    | _, Some(source) -> Option.Some((Stdlib.List.append(outer, source), "to" + from))
+    | _ -> Option.None
+
+
 /// Where an unresolved name might really be, in the order <fn stdlibSuggestion> tries them.
 ///
 /// A name without a `Stdlib.` prefix gets one: `Bool.not` -> `Stdlib.Bool.not`. A name already under
@@ -77,24 +96,33 @@ let stdlibSuggestionCandidates(
     let walkUp = fun(writtenPrefix, inner) ->
       enclosingModules(inner) |> Stdlib.List.map(fun m -> stdlibCandidate(writtenPrefix, m, name))
 
-    let renamed = fun writtenPrefix ->
+    let renamed = fun(writtenPrefix, inner) ->
+      let converted =
+        match conversionName(inner, name) with
+        | Some((m, n)) -> [ stdlibCandidate(writtenPrefix, m, n) ]
+        | None -> []
+
       match otherLanguageName(name) with
-      | Some(other) -> [ stdlibCandidate(writtenPrefix, [], other) ]
-      | None -> []
+      | Some(other) -> Stdlib.List.append(converted, stdlibCandidate(writtenPrefix, [], other))
+      | None -> converted
 
     match modules with
     | [] -> []
-    | ["Stdlib", ...inner] -> Stdlib.List.concat(walkUp([ "Stdlib" ], inner), renamed([ "Stdlib" ]))
+    | ["Stdlib", ...inner] ->
+      Stdlib.List.concat(walkUp([ "Stdlib" ], inner), renamed([ "Stdlib" ], inner))
     | ["Darklang", "Stdlib", ...inner] ->
-      Stdlib.List.concat(walkUp([ "Darklang", "Stdlib" ], inner), renamed([ "Darklang", "Stdlib" ]))
+      Stdlib.List.concat(
+        walkUp([ "Darklang", "Stdlib" ], inner),
+        renamed([ "Darklang", "Stdlib" ], inner))
     | ["Darklang", ...] -> []
     | ["PACKAGE", ...] -> []
     | [_] ->
       Stdlib.List.flatten(
         [ [ stdlibCandidate([ "Stdlib" ], modules, name) ]
           walkUp([ "Stdlib" ], modules)
-          renamed([ "Stdlib" ]) ])
-    | _ -> Stdlib.List.prepend(renamed([ "Stdlib" ]), stdlibCandidate([ "Stdlib" ], modules, name))
+          renamed([ "Stdlib" ], modules) ])
+    | _ ->
+      Stdlib.List.prepend(renamed([ "Stdlib" ], modules), stdlibCandidate([ "Stdlib" ], modules, name))
 
 
 /// Names other languages give a job Stdlib does under another name, or with two calls: each
@@ -276,16 +304,39 @@ let operatorSuggestion(branchId: Uuid, originalName: List<String>): Option<Strin
       if implemented then Option.Some(written) else Option.None
 
 
+/// The same name one module further down: `Stdlib.Http.header` is `Stdlib.Http.Request.header`.
+let namesOneModuleDown(branchId: Uuid, originalName: List<String>): List<String> =
+  match splitLast(originalName) with
+  | None -> []
+  | Some((modules, name)) ->
+    closestNameModules(modules)
+    |> Stdlib.List.map(fun((written, location)) ->
+      let (subs, _, _, _, _, _, _) = Query.allDirectDescendantNames(branchId, location)
+      subs
+      |> Stdlib.List.filter(fun sub ->
+        let (_, types, values, fns, _, _, _) =
+          Query.allDirectDescendantNames(branchId, Stdlib.List.append(location, sub))
+
+        Stdlib.List.contains(Stdlib.List.flatten([ fns, values, types ]), name))
+      |> Stdlib.List.map(fun sub ->
+        Stdlib.String.join(Stdlib.List.flatten([ written, [ sub, name ] ]), ".")))
+    |> Stdlib.List.flatten
+    |> Stdlib.List.take(3)
+
+
 /// What an unresolved name probably meant: the standard-library name it moved to
-/// (<fn stdlibSuggestion>), the operator it is (<fn operatorSuggestion>), or else the names in its
-/// module spelled closest to it.
+/// (<fn stdlibSuggestion>), the operator it is (<fn operatorSuggestion>), the same name one module
+/// down (<fn namesOneModuleDown>), or else the names in its module spelled closest to it.
 let didYouMean(branchId: Uuid, originalName: List<String>): List<String> =
   match stdlibSuggestion(branchId, originalName) with
   | Some(name) -> [ name ]
   | None ->
     match operatorSuggestion(branchId, originalName) with
     | Some(written) -> [ written ]
-    | None -> closestNames(branchId, originalName)
+    | None ->
+      match namesOneModuleDown(branchId, originalName) with
+      | [] -> closestNames(branchId, originalName)
+      | names -> names
 
 
 /// `Did you mean `A`?`, or `Did you mean `A`, `B` or `C`?`, or "" for no names.

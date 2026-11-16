@@ -234,8 +234,7 @@ let addTest(state: AppState, locationStr: String, definition: String): AppState 
   | Error(msg) -> addFailed(state, $"Invalid location: {msg}")
   | Ok(location) ->
     let trimmed = Stdlib.String.trim(definition)
-    let isFullDeclaration =
-      Stdlib.String.startsWith(trimmed, "test ") || Stdlib.String.startsWith(trimmed, "///")
+    let isFullDeclaration = Stdlib.String.startsWith(codeAfterComments(definition), "test ")
 
     let fullSource =
       if isFullDeclaration then definition else $"test {location.name} = {definition}"
