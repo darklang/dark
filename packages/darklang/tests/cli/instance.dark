@@ -44,15 +44,29 @@ let cliBinary(): String =
   | None -> "backend/Build/out/Cli/Debug/net11.0/Cli"
 
 
+/// A new `<home>/.darklang`. `mkdtemp` rather than a random suffix: under a seeded test two
+/// runs draw the same suffix, and one's dispose would delete the other's instance.
+let makeDir(): Stdlib.Result.Result<String, String> =
+  let r = root()
+  match Stdlib.Cli.Unix.ensureDirectoryExists(r) with
+  | Error(e) -> Stdlib.Result.Result.Error($"could not create {r}: {e}")
+  | Ok(_) ->
+    match Stdlib.Cli.Posix.mkdtemp($"{r}/") with
+    | Error(e) -> Stdlib.Result.Result.Error($"could not create a dir in {r}: {e.message}")
+    | Ok(instanceHome) ->
+      let dir = instanceHome + "/.darklang"
+      match Stdlib.Cli.Unix.ensureDirectoryExists(dir) with
+      | Error(e) -> Stdlib.Result.Result.Error($"could not create {dir}: {e}")
+      | Ok(_) -> Stdlib.Result.Result.Ok(dir)
+
+
 /// A fresh instance. Fails with a message rather than half-existing.
 let create(): Stdlib.Result.Result<T, String> =
-  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
-  let dir = $"{root()}/{suffix}/.darklang"
   let src = seedFrom()
   if Stdlib.Cli.Unix.fileExists(src) then
-    match Stdlib.Cli.Unix.ensureDirectoryExists(dir) with
-    | Error(e) -> Stdlib.Result.Result.Error($"could not create {dir}: {e}")
-    | Ok(_) ->
+    match makeDir() with
+    | Error(e) -> Stdlib.Result.Result.Error(e)
+    | Ok(dir) ->
       // `.backup` while the store has writes in its WAL, and a read lock rather than a
       // write one, so this is safe against a dev store something else is using. With
       // nothing in the WAL the file is the whole store, and `cp` costs a third of the

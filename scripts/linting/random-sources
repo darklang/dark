@@ -2,7 +2,7 @@
 """Builtins draw random values from the run's source: fail on a direct call to the OS's.
 
 A test on the virtual clock seeds `ExecutionState.random`, so a rerun with the same seed gets
-the same values. A builtin that calls `Guid.NewGuid`, `System.Random` or the OS generator
+the same values. A builtin that calls `Guid.NewGuid`, `System.Random`, `Path.GetRandomFileName` or the OS generator
 itself breaks that quietly. It uses `LibExecution.HostRandom` with `state.random` instead.
 A random value that never reaches Dark (a retry's jitter) is in random-sources.allowed, with why.
 
@@ -20,6 +20,7 @@ ALLOWED = os.path.join(os.path.dirname(os.path.abspath(__file__)), "random-sourc
 SOURCE = re.compile(
     r"Guid\.NewGuid|Guid\.CreateVersion7|\bSystem\.Random\b|\bRandom\.Shared\b"
     r"|RandomNumberGenerator|\bRNG\.|\brandomSeeded\b|\brandomString\b|\bguuid\b"
+    r"|Path\.GetRandomFileName|Path\.GetTempFileName|\bRandom\("
 )
 
 
