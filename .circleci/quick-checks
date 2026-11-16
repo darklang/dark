@@ -4,11 +4,12 @@
 # first compile (`.circleci/beside`), which leave a CPU free, and fails at the wait after it.
 #
 # Every check runs even when one fails, so one push shows every failure; the exit is the
-# first failure's.
+# first failure's, and the last lines name every check that failed.
 
 set -uo pipefail
 
 first_failure=0
+failed=()
 check() {
   local name="$1"
   shift
@@ -18,6 +19,7 @@ check() {
   if [[ "$status" -ne 0 ]]; then
     echo "==> FAILED: $name (exit $status)"
     [[ "$first_failure" -ne 0 ]] || first_failure=$status
+    failed+=("$name")
   fi
   echo
 }
@@ -51,4 +53,8 @@ check "Test the check for a prose-only change" python3 .circleci/test_ci_docs_on
 check "Test running steps beside each other" python3 .circleci/test_beside.py
 check "Check NormalizationData.fs is what its generator writes" scripts/build/generate-normalization-data --check
 
+if [[ "${#failed[@]}" -ne 0 ]]; then
+  echo "==> Failed checks (their output is above):"
+  printf '  %s\n' "${failed[@]}"
+fi
 exit "$first_failure"

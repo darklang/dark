@@ -59,6 +59,7 @@ class BesideTests(unittest.TestCase):
     proc = subprocess.Popen([str(SCRIPT), "start", "stuck", "--", "sleep", "30"], env=self.env,
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                             stdin=subprocess.DEVNULL)
+    self.addCleanup(proc.wait)
     self.addCleanup(proc.kill)
     time.sleep(0.5)
     wait = self.run_beside("wait", "stuck", "2s")
