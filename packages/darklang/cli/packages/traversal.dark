@@ -210,13 +210,14 @@ let applyPath(
 // Search for modules globally where a segment starts with the prefix
 // Returns only the path up to the matching segment, not descendants
 let searchModulesByPrefix(branchId: Uuid, prefixText: String): List<String> =
-  // Search from root with AllDescendants - database returns all matching paths
+  // Search from root with AllDescendants - database returns all matching paths. Modules only:
+  // asking for every kind read the definition of every item whose name matched.
   let query =
     LanguageTools.ProgramTypes.Search.SearchQuery
       { currentModule = []
         text = prefixText
         searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
-        entityTypes = []
+        entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module ]
         exactMatch = false }
 
   let results = LanguageTools.PackageManager.Search.search(branchId, query)
