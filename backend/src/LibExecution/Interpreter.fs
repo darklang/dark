@@ -847,7 +847,14 @@ let inline private takeFrame
 /// never gets reused isn't holding a call's worth of Dvals alive.
 let inline private returnFrame (vm : VMState) (frame : CallFrame) : unit =
   let count = frame.registers.Length
-  if count > 0 then System.Array.Clear(frame.registers, 0, count)
+  // A loop for the usual few: storing nulls needs no write barrier, and the bulk clear's setup
+  // costs more than that.
+  if count <= 16 then
+    let r = frame.registers
+    for i in 0 .. count - 1 do
+      r[i] <- Unchecked.defaultof<_>
+  else
+    System.Array.Clear(frame.registers, 0, count)
   frame.typeSymbolTable <- TST.empty
   frame.expectedLambdaReturn <- ValueNone
   frame.parent <- ValueNone
@@ -2927,22 +2934,24 @@ let private noteRunInPlace
 /// its result, and a lambda's frame with a return check has one for each level, so neither does.
 ///
 /// Deep recursion that is not a tail call still pushes a frame per level.
-let private runsInPlace
+let inline private runsInPlace
   (exeState : ExecutionState)
   (vm : VMState)
   (frame : CallFrame)
   (putResultIn : Register)
   : bool =
-  obj.ReferenceEquals(frame.continuation, null)
-  && frame.parent.IsSome
-  && frame.expectedLambdaReturn.IsNone
-  && not exeState.tracing.collectExprValues
-  && not (vm.stats.enabled && vm.stats.detailedTiming)
-  && tailFrom
+  // The position first: a call of its own fn that is not the frame's last act, as each call in
+  // `fib(n - 1) + fib(n - 2)` is, fails it at the next instruction.
+  tailFrom
     frame.instrData.instructions
     (frame.programCounter + 1)
     putResultIn
     frame.instrData.resultReg
+  && obj.ReferenceEquals(frame.continuation, null)
+  && frame.parent.IsSome
+  && frame.expectedLambdaReturn.IsNone
+  && not exeState.tracing.collectExprValues
+  && not (vm.stats.enabled && vm.stats.detailedTiming)
 
 /// <param frame>'s registers, access, symbol table and bounds, set for running its own fn again
 /// with <param allArgs> (`refillForTailCall`).
@@ -4799,7 +4808,7 @@ let private tryCallPlainBuiltin
 
 /// An `Apply` of a named fn with nothing captured, applied or bound before: a known package fn
 /// (`tryCallKnown`) or a plain pure builtin (`tryCallPlainBuiltin`). `ValueNone` for anything else.
-let private tryCallDirect
+let inline private tryCallDirect
   (exeState : ExecutionState)
   (vm : VMState)
   (currentFrame : CallFrame)

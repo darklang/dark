@@ -88,7 +88,7 @@ let createState
     fns =
       { builtIn = builtins.fns
         package = pm.getFn
-        isHarmful = fun pkg -> pm.isHarmful pkg
+        isHarmful = pm.isHarmful
         implCandidates = pm.implCandidates
         implCandidatesByMethod = pm.implCandidatesByMethod
         implSelectionMemo = pm.implSelectionMemo

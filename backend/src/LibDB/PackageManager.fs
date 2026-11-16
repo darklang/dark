@@ -48,17 +48,25 @@ let private storedOrEphemeral
   | locs -> locs
 
 
-// Cache of Harmful fn hashes, as underlying hex strings: PT.Hash and RT.Hash are distinct CLR
-// types, and storing strings avoids threading either wrapper through the cache layer. Main's: a
-// fn is harmful wherever it runs once main says so. `invalidateHarmful` is for a long-lived process that
-// mutates deprecation state and must not keep answering from a stale Set.
-let mutable private harmfulCache : Option<Set<string>> = None
+// Cache of Harmful fn hashes. Main's: a fn is harmful wherever it runs once main says so.
+// `invalidateHarmful` is for a long-lived process that mutates deprecation state and must not keep
+// answering from a stale set. A hash set, since the interpreter asks it on every package call.
+let mutable private harmfulCache
+  : Option<System.Collections.Generic.HashSet<RT.Hash>> =
+  None
 
-let private loadHarmful () : Set<string> =
+let private harmfulSet
+  (hashes : Set<PT.Hash>)
+  : System.Collections.Generic.HashSet<RT.Hash> =
+  System.Collections.Generic.HashSet(
+    hashes |> Seq.map (fun (PT.Hash h) -> RT.Hash h)
+  )
+
+let private loadHarmful () : System.Collections.Generic.HashSet<RT.Hash> =
   match harmfulCache with
   | Some cached -> cached
   | None ->
-    let harmful = Queries.getHarmfulFnHashesSync () |> Set.map (fun (PT.Hash h) -> h)
+    let harmful = harmfulSet (Queries.getHarmfulFnHashesSync ())
     harmfulCache <- Some harmful
     harmful
 
@@ -66,8 +74,7 @@ let private loadHarmful () : Set<string> =
 /// (the interpreter asks it before every package call); its miss path reads synchronously, so
 /// this is a warm-up, not a workaround: nothing blocks without it.
 let preloadHarmful () : unit =
-  let harmful = Queries.getHarmfulFnHashes ()
-  harmfulCache <- Some(harmful |> Set.map (fun (PT.Hash h) -> h))
+  harmfulCache <- Some(harmfulSet (Queries.getHarmfulFnHashes ()))
 
 /// Drop the Harmful set so the next lookup re-reads `deprecations`.
 let invalidateHarmful () : unit = harmfulCache <- None
@@ -836,7 +843,7 @@ let rt : RT.PackageManager =
 
     // A deprecation is a fact about a hash, and a hash means the same thing on every branch, so
     // the set needs no branch key.
-    isHarmful = fun (RT.Hash h) -> Set.contains h (loadHarmful ())
+    isHarmful = fun hash -> (loadHarmful ()).Contains hash
 
     // Branch-scoped: the candidates are whatever the branch's PT pm can see and still
     // names. Cached per (branch, trait) and dropped with the other caches on every fold.
