@@ -44,6 +44,15 @@ type Edits =
   | Inherited
 
 
+/// <param scope>'s binding, rename and decision ops, oldest first, with no definitions.
+let historyOps(
+  scope: Uuid,
+  edits: Edits,
+  cutoff: Option<String>)
+  : List<(String * String * LanguageTools.ProgramTypes.PackageOp)> =
+  Builtin.pmRevisionOperations(scope, edits == Edits.Inherited, cutoff)
+
+
 /// Undo follows this branch's edits, starting from the history it inherited.
 /// Stop a parent's history at the child's first edit: later parent commits are
 /// visible on the branch, but undo should not treat them as the branch's edits.
@@ -54,7 +63,7 @@ let readRevisionOps(
   location: LanguageTools.ProgramTypes.PackageLocation)
   : List<(Uuid * String * LanguageTools.ProgramTypes.PackageOp)> =
   let own =
-    Builtin.pmRevisionOperations(scope, edits == Edits.Inherited, cutoff)
+    historyOps(scope, edits, cutoff)
     |> Stdlib.List.filter(fun((_, _, op)) -> revisionTouches(location, op))
 
   let parent =
