@@ -1,0 +1,80 @@
+/// `view --raw` on a module prints every declaration in it as one file, so a module goes
+/// out to a file and back in with `dark module`.
+module Darklang.Cli.Tests.ViewRawModule
+
+val source: String =
+  [ "type Tally = { count: Int64 }"
+    ""
+    "val origin = Tally { count = 0 }"
+    ""
+    "let shift(t: Tally, by: Int64): Tally = Tally { count = t.count + by }"
+    ""
+    "test shiftsOrigin = shift(origin, 2) |> Stdlib.Test.equal(Tally { count = 2 })" ]
+  |> Stdlib.String.join("\n")
+
+
+test aModuleRoundTrips = Instance.withInstance(fun i ->
+  let first = Instance.home(i) + "/first.dark"
+  let _ = Stdlib.Cli.File.writeAtomic(first, source) |> Builtin.unwrap
+  let (defined, _) = Instance.ran(i, [ "module", "/Me.RawA", first ])
+  let (code, raw) = Instance.ran(i, [ "view", "Me.RawA", "--raw" ])
+  let second = Instance.home(i) + "/second.dark"
+  let _ = Stdlib.Cli.File.writeAtomic(second, raw) |> Builtin.unwrap
+  let (redefined, out) = Instance.ran(i, [ "module", "/Me.RawB", second ])
+  let again = Instance.said(i, [ "view", "Me.RawB", "--raw" ])
+
+  let shifted =
+    Instance.said(i, [ "eval", "Me.RawB.shift(Me.RawB.origin, 3).count" ])
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(defined, 0, "the first module")
+      Instance.exitedWith(code, 0, "view --raw of a module")
+      Instance.says(
+        raw,
+        "type Tally =\n  { count: Int64 }\n\nval origin",
+        "types first, then values")
+
+      Instance.says(raw, "\n\nlet shift", "then fns")
+
+      Instance.says(raw, "\n\ntest shiftsOrigin", "then tests")
+      Instance.exitedWith(redefined, 0, out)
+      again |> Stdlib.Test.equal(raw)
+      Instance.says(shifted, "3", "the copy runs") ]))
+
+
+// `dark module` puts an impl under its type's name, so it comes back with the type.
+test anImplForTheModulesTypeIsPrinted = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/impl.dark"
+  let src =
+    "type Badge = { label: String }\n\nimpl Display for Badge =\n  let display(b: Badge): String = b.label"
+
+  let _ = Stdlib.Cli.File.writeAtomic(path, src) |> Builtin.unwrap
+  let _ = Instance.ran(i, [ "module", "/Me.RawImpl", path ])
+  let (code, raw) = Instance.ran(i, [ "view", "Me.RawImpl", "--raw" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "view --raw of a module")
+      Instance.says(raw, "Display for Badge =", "the impl") ]))
+
+
+test submodulesAreLeftOut = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/outer.dark"
+  let _ =
+    Stdlib.Cli.File.writeAtomic(path, "let top(): Int64 = 1") |> Builtin.unwrap
+
+  let _ = Instance.ran(i, [ "module", "/Me.RawOuter", path ])
+  let inner = Instance.home(i) + "/inner.dark"
+  let _ =
+    Stdlib.Cli.File.writeAtomic(inner, "let deep(): Int64 = 2")
+    |> Builtin.unwrap
+
+  let _ = Instance.ran(i, [ "module", "/Me.RawOuter.Inner", inner ])
+  let (code, raw) = Instance.ran(i, [ "view", "Me.RawOuter", "--raw" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "view --raw of a module")
+      Instance.says(raw, "let top", "the module's own fn")
+      Instance.doesNotSay(raw, "deep", "the submodule's fn") ]))
+
+
+test helpSaysSubmodulesAreLeftOut = Instance.withInstance(fun i ->
+  let out = Instance.said(i, [ "help", "view" ])
+  Instance.says(out, "not its submodules", "the module form of --raw"))

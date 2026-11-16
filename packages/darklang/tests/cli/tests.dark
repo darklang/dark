@@ -1577,7 +1577,7 @@ test editLeavesTheItemAloneOnABadFile =
       + $"{hashAfterBad} / {hashAfterMissing}, said: {refused} | {missing}")
 
 
-/// `edit` and `view --raw` both take exactly one declaration, and say so.
+/// `edit` takes exactly one declaration, and says so.
 ///
 /// A module is the near miss worth naming: `dark edit Stdlib.List` is a reasonable
 /// thing to type, and the answer has to point at the command that does take one
@@ -1587,7 +1587,6 @@ test editRefusesWhatItCannotEdit =
   let tooMany = runWithCommand([ "edit", "a", "b", "c" ])
   let aModule = runWithCommand([ "edit", "Stdlib.List" ])
   let unknown = runWithCommand([ "edit", "Zz.NoSuch.thing" ])
-  let rawModule = runWithCommand([ "view", "Stdlib.List", "--raw" ])
 
   // These tests shell out, so stdin is a pipe, which is exactly the case `edit` with
   // no file has to refuse. An editor started here paints into that pipe.
@@ -1603,13 +1602,12 @@ test editRefusesWhatItCannotEdit =
     && Stdlib.String.contains(aModule, "is a module")
     && Stdlib.String.contains(aModule, "dark module")
     && Stdlib.String.contains(unknown, "Cannot edit Zz.NoSuch.thing")
-    && Stdlib.String.contains(rawModule, "ONE declaration")
   then
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
       $"Expected each refusal to name what to do instead; bare: {bare}, "
-      + $"module: {aModule}, unknown: {unknown}, raw module: {rawModule}, "
+      + $"module: {aModule}, unknown: {unknown}, "
       + $"no terminal: {noTerminal}")
 
 
