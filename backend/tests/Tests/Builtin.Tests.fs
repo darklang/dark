@@ -864,7 +864,8 @@ let private builtinRaiseSites (names : List<string>) : Map<string, List<string>>
     let blank (m : Match) = "\"" + System.String(' ', m.Length - 2) + "\""
     text, Regex.Replace(text, @"""(?:[^""\\\n]|\\.)*""", MatchEvaluator blank)
   let mentions (raising : List<string>) (body : string) =
-    raising |> List.filter (fun r -> Regex.IsMatch(body, $@"\b{r}\b"))
+    raising
+    |> List.filter (fun r -> body.Contains r && Regex.IsMatch(body, $@"\b{r}\b"))
   // The `let`s at this indent whose bodies reach something in `known`, added to it.
   let raisingHelpers (indent : string) (known : List<string>) (text : string) =
     let starts =
@@ -906,17 +907,27 @@ let private builtinRaiseSites (names : List<string>) : Map<string, List<string>>
     |> Seq.map (fun path -> path, code path)
     |> Array.ofSeq
   // `fn "name" 0` in a record, or a constructor such as `make "name"` or `policyFn` above it.
+  // Both patterns need the quoted name, so a file without it is not searched.
   let declaration (name : string) =
+    let quoted = $"\"{name}\""
     let find (pattern : string) =
       files
       |> Array.tryPick (fun (path, (text, _)) ->
-        let m = Regex.Match(text, pattern, RegexOptions.Multiline)
-        if m.Success then Some(path, m.Index) else None)
+        if not (text.Contains quoted) then
+          None
+        else
+          let m = Regex.Match(text, pattern, RegexOptions.Multiline)
+          if m.Success then Some(path, m.Index) else None)
     find $@"\bfn\s+""{name}""\s+\d"
     |> Option.orElse (
       find $@"^\s*(?:\[\s*)?(?:\{{\s*\(\s*)?(?:[a-z]\w*\s+)?""{name}"""
     )
   let declared = names |> List.map (fun name -> name, declaration name)
+  let helpersIn =
+    files
+    |> Array.map (fun (path, (_, stripped)) ->
+      path, lazy (raisingHelpers "" shared stripped))
+    |> Map.ofArray
   declared
   |> List.map (fun (name, found) ->
     match found with
@@ -931,9 +942,7 @@ let private builtinRaiseSites (names : List<string>) : Map<string, List<string>>
           | _ -> None)
         |> List.fold min stripped.Length
       name,
-      mentions
-        (raisingHelpers "" shared stripped)
-        (stripped.Substring(start, stop - start)))
+      mentions (helpersIn[path].Force()) (stripped.Substring(start, stop - start)))
   |> List.filter (fun (_, sites) -> not (List.isEmpty sites))
   |> Map.ofList
 
