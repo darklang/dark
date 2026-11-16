@@ -849,13 +849,19 @@ test stdlibSuggestionCandidatesWalkUpWithinStdlib =
 
       suggestionCandidates("Int64.toString")
       |> Stdlib.Test.equal(
-        [ "Stdlib.Int64.toString", "Stdlib.toString", "Stdlib.display" ])
+        [ "Stdlib.Int64.toString"
+          "Stdlib.toString"
+          "Stdlib.String.fromInt64"
+          "Stdlib.display" ])
 
       suggestionCandidates("Me.Utils.render")
       |> Stdlib.Test.equal([ "Stdlib.Me.Utils.render" ])
 
       suggestionCandidates("Stdlib.Int64.toString")
-      |> Stdlib.Test.equal([ "Stdlib.toString", "Stdlib.display" ])
+      |> Stdlib.Test.equal([ "Stdlib.toString", "Stdlib.String.fromInt64", "Stdlib.display" ])
+
+      suggestionCandidates("Stdlib.UInt8.toInt64")
+      |> Stdlib.Test.equal([ "Stdlib.toInt64", "Stdlib.Int64.fromUInt8" ])
 
       suggestionCandidates("Stdlib.toRepr")
       |> Stdlib.Test.equal([ "Stdlib.inspect" ])
@@ -865,13 +871,20 @@ test stdlibSuggestionCandidatesWalkUpWithinStdlib =
 
       suggestionCandidates("Darklang.Stdlib.Int64.toString")
       |> Stdlib.Test.equal(
-        [ "Darklang.Stdlib.toString", "Darklang.Stdlib.display" ])
+        [ "Darklang.Stdlib.toString"
+          "Darklang.Stdlib.String.fromInt64"
+          "Darklang.Stdlib.display" ])
 
       suggestionCandidates("Stdlib.display") |> Stdlib.Test.equal([])
 
       suggestionCandidates("Darklang.Cli.foo") |> Stdlib.Test.equal([])
 
       suggestionCandidates("toString") |> Stdlib.Test.equal([]) ])
+
+
+test didYouMeanLooksOneModuleDown =
+  Cli.Packages.Errors.didYouMean(SCM.Branch.mainBranchId, [ "Stdlib", "Http", "queryParam" ])
+  |> Stdlib.Test.equal([ "Stdlib.Http.Request.queryParam" ])
 
 
 test stdlibSuggestionFindsTheRealName =
@@ -882,6 +895,9 @@ test stdlibSuggestionFindsTheRealName =
   Stdlib.Test.all(
     [ suggest("Stdlib.Int64.toString")
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.display"))
+
+      suggest("Stdlib.UInt8.toInt64")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Int64.fromUInt8"))
 
       suggest("Stdlib.List.Nope.length")
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.List.length"))
