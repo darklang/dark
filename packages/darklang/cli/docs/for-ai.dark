@@ -58,24 +58,24 @@ non-zero. Under `--json` a refusal leaves stdout empty, so test the exit code.
 
 ## Functions most programs need
 
-  Stdlib.Int64.parse(s)   Stdlib.Float64.parse(s)   # Result<_, ParseError>
-  Stdlib.Int64.toFloat64(n)   Stdlib.Float64.round(x)  # round gives an Int64
-  Stdlib.abs(x)   Stdlib.min(a, b)   Stdlib.max(a, b)   # any number type
+  Stdlib.Int64.parse(s)   Stdlib.Float64.parse(s)   // Result<_, ParseError>
+  Stdlib.Int64.toFloat64(n)   Stdlib.Float64.round(x)  // round gives an Int64
+  Stdlib.abs(x)   Stdlib.min(a, b)   Stdlib.max(a, b)   // any number type
   Stdlib.String.split(s, ",")   Stdlib.String.join(xs, ",")   Stdlib.String.trim(s)
   Stdlib.String.toList(s)   Stdlib.String.padStart(s, '0', 2)
   Stdlib.List.range(1, n)   Stdlib.List.getAt(xs, i)   Stdlib.List.contains(xs, x)
-  Stdlib.Int64.random(1, 6)   Stdlib.List.randomElement(xs)   # both ends included
-  Stdlib.Cli.Stdin.readLineOrEnd()   # Option<String>, None at the end of input
-  Stdlib.Cli.Posix.sleep(1000.0)   Stdlib.DateTime.now()            # sleep takes ms
+  Stdlib.Int64.random(1, 6)   Stdlib.List.randomElement(xs)   // both ends included
+  Stdlib.Cli.Stdin.readLineOrEnd()   // Option<String>, None at the end of input
+  Stdlib.Cli.Posix.sleep(1000.0)   Stdlib.DateTime.now()            // sleep takes ms
 
 ## Files, HTTP and JSON
 
-  Stdlib.Cli.FileSystem.readFileAsString(path)       # Result<String, FileError>
+  Stdlib.Cli.FileSystem.readFileAsString(path)       // Result<String, FileError>
   Stdlib.Cli.FileSystem.writeFile(path, Stdlib.Utf8.encode(text))
   Stdlib.String.splitOnNewline(text)
-  Stdlib.HttpClient.get(url, [("user-agent", "me")]) # r.statusCode, r.body (Bytes)
-  Stdlib.Utf8.decode(r.body)                         # Result<String, String>
-  Stdlib.Json.parse<Profile>(text)                   # Result<Profile, ParseError>
+  Stdlib.HttpClient.get(url, [("user-agent", "me")]) // r.statusCode, r.body (Bytes)
+  Stdlib.Utf8.decode(r.body)                         // Result<String, String>
+  Stdlib.Json.parse<Profile>(text)                   // Result<Profile, ParseError>
   Stdlib.Json.serialize<Profile>(value)
 
 A JSON object parses into a record: extra fields are ignored, and a field that

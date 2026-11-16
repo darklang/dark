@@ -45,12 +45,12 @@ Handlers are values; `routeRequest` dispatches to them by method and path.
   type Stdlib.Http.Request =
     { method: String, url: String, headers: List<String * String>, body: Bytes }
 
-  req.method                            # "GET", "POST", ...
+  req.method                            // "GET", "POST", ...
 
 The path is not a field - it's derived from the url:
 
-  Stdlib.HttpServer.getPath(req)        # "/users/42"
-  Stdlib.Http.parseQueryString(req.url)  # query string -> Dict
+  Stdlib.HttpServer.getPath(req)        // "/users/42"
+  Stdlib.Http.parseQueryString(req.url)  // query string -> Dict
 
 `body` is a Bytes. For text or JSON, convert first:
 
@@ -64,7 +64,7 @@ Status first, then the body. Headers, when you give them, go in between.
   Stdlib.Http.responseWithHtml(200, "<h1>Hi</h1>")
   Stdlib.Http.responseWithJson(200, jsonString)
   Stdlib.Http.responseWithHeaders(200, [ ("x-thing", "value") ], bodyBytes)
-  Stdlib.Http.response(200, bodyBytes)  # the raw one; body is a Bytes
+  Stdlib.Http.response(200, bodyBytes)  // the raw one; body is a Bytes
   Stdlib.Http.notFound()
 
 A status is a plain number here. `Stdlib.Http.Status` names the common ones and
@@ -73,7 +73,7 @@ checks the rest: `Status.toInt64(Status.tooManyRequests)` is 429, and
 
 ## Route params
 
-  # given route "/user/:id" and a request for "/user/42"
+  // given route "/user/:id" and a request for "/user/42"
   match Stdlib.HttpServer.getPathParam(req, "/user/:id", "id") with
   | Some(id) -> Stdlib.Http.responseWithText(200, $"user {id}")
   | None -> Stdlib.Http.notFound()
@@ -92,14 +92,14 @@ function from a handler to a handler:
 `serve` runs every request through `config.middleware`, first listed
 outermost. `Config.defaults(port)` gives `Middleware.defaults()`:
 
-  Stdlib.HttpServer.Middleware.logRequests()      # [HttpServer] GET /a 200 3ms, on stderr
-  Stdlib.HttpServer.Middleware.standardHeaders()  # HSTS
+  Stdlib.HttpServer.Middleware.logRequests()      // [HttpServer] GET /a 200 3ms, on stderr
+  Stdlib.HttpServer.Middleware.standardHeaders()  // HSTS
 
 The log line, and the server's own line and telemetry, leave the query out,
 since it may carry a token. Not in the defaults:
 
-  Stdlib.HttpServer.Middleware.cors([ "https://app.example.com" ])  # or [ "*" ]
-  Stdlib.HttpServer.Middleware.requestId()        # X-Request-Id, the client's or a new one
+  Stdlib.HttpServer.Middleware.cors([ "https://app.example.com" ])  // or [ "*" ]
+  Stdlib.HttpServer.Middleware.requestId()        // X-Request-Id, the client's or a new one
 
 `cors` answers a browser's preflight from a listed origin with 204, and adds
 `Access-Control-Allow-Origin` to everything else it sends one.

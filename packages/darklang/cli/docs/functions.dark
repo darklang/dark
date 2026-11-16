@@ -15,10 +15,10 @@ let content(): String =
     let double(x: Int64): Int64 = x * 2
     double(n)
 
-  # Nested params and the return need types. `let double(x) = ...` and
-  # `let double x = ...` are parse errors.
-  # A nested fn sees the bindings above it, including other nested fns.
-  # Calling one defined further down doesn't work; use a top-level fn for that.
+  // Nested params need types; the return type is optional. `let double(x) = ...`
+  // and `let double x = ...` are parse errors.
+  // A nested fn sees the bindings above it, including other nested fns.
+  // Calling one defined further down doesn't work; use a top-level fn for that.
 
 ## Call
   add(1, 2)
@@ -26,13 +26,13 @@ let content(): String =
 
 ## Lambda
   fun x -> x + 1
-  fun(acc, x) -> acc + x     # two parameters, like a call's arguments
-  fun((a, b)) -> a + b       # one tuple parameter, taken apart
+  fun(acc, x) -> acc + x     // two parameters, like a call's arguments
+  fun((a, b)) -> a + b       // one tuple parameter, taken apart
 
 ## No partial application
-  Stdlib.max(5)   # error: Darklang.Stdlib.max expects 2 arguments, but got 1 argument
+  Stdlib.max(5)   // error: Darklang.Stdlib.max expects 2 arguments, but got 1 argument
   let addFive = fun x -> 5 + x
-  addFive(3)   # 8
+  addFive(3)   // 8
 
 ## Unit return
   let log(msg: String): Unit = Stdlib.printLine(msg)"""

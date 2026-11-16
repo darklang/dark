@@ -20,8 +20,7 @@ Any module with these three is a view:
   let render(m: Model): Stdlib.Cli.UI.Node.Node<Msg> =
     Stdlib.Cli.UI.Node.column([ Stdlib.Cli.UI.Node.bold("counter"), ... ])
 
-  ps --watch                    a live view: edit `render` or anything it calls from another
-                                terminal and it repaints
+`dark ps --watch` is a view built this way: it shows the process list.
 
 Following an edit means this process drops its own caches, and that is off
 until you allow it, once: `dark permissions allow runtime`. Without it a live

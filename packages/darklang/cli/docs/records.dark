@@ -8,13 +8,11 @@ Fields use commas or newlines. Semicolons are a parse error.
 ## Define
   type Person = { name: String, age: Int64 }
 
-## Construct (alignment matters!)
-  Person { name = "Jo", age = 30 }    # OK
-  Person                                # OK
+## Construct
+  Person { name = "Jo", age = 30 }
+  Person
     { name = "Jo"
       age = 30 }
-  Person
-  { name = "Jo" }                       # WRONG - { left of type
 
 ## Access
   person.name
@@ -24,5 +22,5 @@ Fields use commas or newlines. Semicolons are a parse error.
 
 ## Pattern matching
   match p with
-  | { age = 0 } -> "newborn"         # fields you leave out are ignored
-  | { name } -> name                 # short for { name = name }"""
+  | { age = 0 } -> "newborn"         // fields you leave out are ignored
+  | { name } -> name                 // short for { name = name }"""
