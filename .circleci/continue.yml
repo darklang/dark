@@ -68,6 +68,10 @@ executors:
     working_directory: ~/app
     environment:
       IN_DEV_CONTAINER: true
+      # Every dotnet command builds in its own process. A build server or node another step
+      # started dies with that step, and a build that was using it exits 1 printing nothing.
+      DOTNET_CLI_USE_MSBUILD_SERVER: 0
+      MSBUILDDISABLENODEREUSE: 1
     docker:
       - image: << pipeline.parameters.ci-image >>
 
