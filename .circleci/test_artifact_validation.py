@@ -72,6 +72,15 @@ if [[ "$1" == eval && "$2" == *executeWithStdOutOrStdErr* ]]; then
   inner=${2#*$q}
   bash -c "${inner%$q*}" > /dev/null
 fi
+# The native-library check asks for a Bool, rather than the arithmetic result.
+if [[ "$1" == eval && "$2" == 'Stdlib.Cli.Sys.currentPid() > 0' ]]; then
+  case "$FIXTURE_MODE" in
+    native-fail) echo 'syscall library missing' >&2; exit 23 ;;
+    native-wrong) echo 3 ;;
+    *) echo true ;;
+  esac
+  exit 0
+fi
 # A wrong answer that still contains the right one.
 if [[ "$FIXTURE_MODE" == wrong && "$1" == eval ]]; then echo 13; else echo 3; fi
 """)
@@ -153,6 +162,17 @@ exec /bin/sleep "$@"
     self.assertIn("FAIL status (first run) (exit 23)", output)
     self.assertIn("fixture error", output)
     self.assertNotIn("no answer", output)
+
+  def test_missing_native_library_fails_the_artifact(self):
+    rc, output = self.run_validator("native-fail")
+    self.assertEqual(rc, 1, output)
+    self.assertIn("FAIL native syscalls outside the checkout (exit 23)", output)
+    self.assertIn("syscall library missing", output)
+
+  def test_native_check_rejects_a_wrong_answer_with_exit_zero(self):
+    rc, output = self.run_validator("native-wrong")
+    self.assertEqual(rc, 1, output)
+    self.assertIn("FAIL native syscalls outside the checkout (exit 0)", output)
 
   def test_wrong_answer_fails_even_when_it_contains_the_right_one(self):
     rc, output = self.run_validator("wrong")

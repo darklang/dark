@@ -250,6 +250,19 @@ if [[ $outside_rc -ne 0 || "$outside_out" != "3" ]]; then
 else
   echo "  ok   eval outside the checkout"
 fi
+
+# Arithmetic eval doesn't use the syscall library. Check a syscall from the
+# copied executable too, so a missing library is caught before installation.
+outside_native_rc=0
+outside_native_out=$(run_in_home "$OUTSIDE/dark" "$OUTSIDE" \
+  eval "Stdlib.Cli.Sys.currentPid() > 0") || outside_native_rc=$?
+if [[ $outside_native_rc -ne 0 || "$outside_native_out" != "true" ]]; then
+  echo "  FAIL native syscalls outside the checkout (exit $outside_native_rc)"
+  echo "$outside_native_out" | indent
+  failures=$((failures + 1))
+else
+  echo "  ok   native syscalls outside the checkout"
+fi
 rm -rf "$OUTSIDE"
 
 echo ""

@@ -24,6 +24,16 @@
   <Target Name="BuildDarkKernel" BeforeTargets="PrepareForBuild" Condition="'$(DarkKernelEnabled)' == 'true'" Inputs="$(MSBuildThisFileDirectory)native/syscalls.c;$(MSBuildThisFileDirectory)native/build.sh" Outputs="$(DarkKernelLibrary);$(DarkKernelDirectory)/libdark_syscalls.a">
     <Exec Command="bash &quot;$(MSBuildThisFileDirectory)native/build.sh&quot; &quot;$(DarkKernelDirectory)&quot; &quot;$(DarkKernelRid)&quot;" />
   </Target>
+  <!-- Mark the syscall library as native so .NET 11 bundles it into the
+       single-file executable. Set this after publish items are resolved,
+       because the copy step drops the metadata. -->
+  <Target Name="MarkDarkKernelForBundling" BeforeTargets="_ComputeFilesToBundle" Condition="'$(DarkKernelEnabled)' == 'true' And '$(PublishSingleFile)' == 'true' And '$(PublishAot)' != 'true'">
+    <ItemGroup>
+      <ResolvedFileToPublish Update="@(ResolvedFileToPublish)" Condition="'%(ResolvedFileToPublish.Filename)%(ResolvedFileToPublish.Extension)' == 'libdark_syscalls.$(DarkKernelExtension)'">
+        <AssetType>native</AssetType>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
   <!-- Strip each assembly's F# compiler metadata (FSharpSignatureData, FSharpOptimizationData)
        from a trimmed or AOT publish. Only the F# compiler reads it, and it was about 0.7 MB of the
        binary. The F# SDK writes an ILLink.Substitutions.xml that removes it, but hands it to the
