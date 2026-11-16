@@ -5898,6 +5898,11 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
   // the instruction that has not run, and it reports `FrameBudget`.
   let mutable budget = vm.budget
 
+  // Read once rather than per instruction. A builtin can turn the counters on (`Instrumentation`),
+  // so they are read again after every `Apply` and `LoadValue`, the instructions that run code.
+  let mutable statsOn = vm.stats.enabled
+  let collecting = exeState.tracing.collectExprValues
+
   // Every turn of a frame costs one unit of budget, not only its instructions: entering it here,
   // and entering it again by a call or a return. A lambda with an empty body (`fun x -> x`) runs
   // none, so `List.map` applying it over a long list pushed and returned a frame per element
@@ -5919,11 +5924,7 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
   // The operator calls this loop answers itself (`quicken`). None while something is collecting
   // values: the pair's `LoadVal` would not report the operator it loaded. Looked up again only
   // when a call or a return moves to other instructions.
-  let mutable quick =
-    if exeState.tracing.collectExprValues then
-      Array.empty
-    else
-      quickOpsFor instrData
+  let mutable quick = if collecting then Array.empty else quickOpsFor instrData
 
   while going do
     while running && budget <> 0L && counter < instrData.instructions.Length do
@@ -5937,7 +5938,7 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
       //
       // A jump arrives here too, and the instruction it jumped over never ran, so its register
       // holds nothing; `noteValue` checks for that rather than this needing to know.
-      if counter > 0 && exeState.tracing.collectExprValues then
+      if counter > 0 && collecting then
         noteFinishedValue exeState vm registers instrData (counter - 1)
 
       let inst = instrData.instructions[counter]
@@ -5948,14 +5949,10 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
       | CreateRecord _
       | CloneRecordWithUpdates _
       | CreateEnum _ ->
-        if vm.stats.enabled then
-          vm.stats.instructionCount <- vm.stats.instructionCount + 1L
+        if statsOn then vm.stats.instructionCount <- vm.stats.instructionCount + 1L
 
         let allocBefore =
-          if vm.stats.enabled then
-            System.GC.GetAllocatedBytesForCurrentThread()
-          else
-            0L
+          if statsOn then System.GC.GetAllocatedBytesForCurrentThread() else 0L
 
         // Fields are stored as they are (`DvalCreator`); only an update's starting record is
         // looked at, through its shell if it has one.
@@ -5982,7 +5979,7 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
             buildValue exeState vm currentFrame registers inst
             true
 
-        if vm.stats.enabled then
+        if statsOn then
           let tag = Opcode.index inst
           if tag >= 0 && tag < vm.stats.allocByOpcode.Length then
             let delta = System.GC.GetAllocatedBytesForCurrentThread() - allocBefore
@@ -5994,9 +5991,9 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
         elif not landedRetry then running <- false
 
       | LoadValue(createTo, name) ->
-        if vm.stats.enabled then
-          vm.stats.instructionCount <- vm.stats.instructionCount + 1L
+        if statsOn then vm.stats.instructionCount <- vm.stats.instructionCount + 1L
         Registers.set registers createTo (loadValue exeState vm currentFrame name)
+        statsOn <- vm.stats.enabled
         counter <- counter + 1
 
       // An operator call: this `LoadVal` and the `Apply` after it, answered from the registers.
@@ -6009,7 +6006,7 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
         && tryQuickOp vm.threadID registers quick[counter]
         ->
         budget <- budget - 1L
-        if vm.stats.enabled then
+        if statsOn then
           vm.stats.instructionCount <- vm.stats.instructionCount + 2L
           vm.stats.builtinCallCount <- vm.stats.builtinCallCount + 1L
           for at in counter .. counter + 1 do
@@ -6022,8 +6019,7 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
       // the drain so `runRareOpcode` can try it as a receiver call (`p.show`), which
       // needs the impl index and may await.
       | GetRecordField(targetReg, recordReg, fieldName) ->
-        if vm.stats.enabled then
-          vm.stats.instructionCount <- vm.stats.instructionCount + 1L
+        if statsOn then vm.stats.instructionCount <- vm.stats.instructionCount + 1L
         if fieldName = "" then
           RTE.Records.FieldAccessEmptyFieldName |> RTE.Record |> raiseRTE vm.threadID
         let handled =
@@ -6078,13 +6074,9 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
 
       // `Apply` runs here too; only a genuine wait stops the drain.
       | Apply(putResultIn, thingToCallReg, typeArgs, newArgRegs) ->
-        if vm.stats.enabled then
-          vm.stats.instructionCount <- vm.stats.instructionCount + 1L
+        if statsOn then vm.stats.instructionCount <- vm.stats.instructionCount + 1L
         let allocBefore =
-          if vm.stats.enabled then
-            System.GC.GetAllocatedBytesForCurrentThread()
-          else
-            0L
+          if statsOn then System.GC.GetAllocatedBytesForCurrentThread() else 0L
 
         // The frame this pushes records `currentFrame.programCounter + 1` as where to resume the
         // caller, and this loop tracks the counter in a local, so the field has to be caught up first
@@ -6116,8 +6108,9 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
               thingToCallReg
               typeArgs
               newArgRegs
+        statsOn <- vm.stats.enabled
 
-        if vm.stats.enabled then
+        if statsOn then
           let tag = Opcode.index inst
           if tag >= 0 && tag < vm.stats.allocByOpcode.Length then
             let delta = System.GC.GetAllocatedBytesForCurrentThread() - allocBefore
@@ -6144,14 +6137,10 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
         // steps past it once the result is in its register (a force: the caller runs it again).
         | _ -> running <- false
       | _ ->
-        if vm.stats.enabled then
-          vm.stats.instructionCount <- vm.stats.instructionCount + 1L
+        if statsOn then vm.stats.instructionCount <- vm.stats.instructionCount + 1L
 
         let allocBefore =
-          if vm.stats.enabled then
-            System.GC.GetAllocatedBytesForCurrentThread()
-          else
-            0L
+          if statsOn then System.GC.GetAllocatedBytesForCurrentThread() else 0L
 
         match inst with
         | LoadVal(reg, value) ->
@@ -6513,7 +6502,7 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
           retry <- false
           force <- null
         else
-          if vm.stats.enabled then
+          if statsOn then
             let tag = Opcode.index inst
             if tag >= 0 && tag < vm.stats.allocByOpcode.Length then
               let delta = System.GC.GetAllocatedBytesForCurrentThread() - allocBefore
@@ -6535,11 +6524,7 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
       counter <- frame.programCounter
       if not (obj.ReferenceEquals(frame.instrData, instrData)) then
         instrData <- frame.instrData
-        quick <-
-          if exeState.tracing.collectExprValues then
-            Array.empty
-          else
-            quickOpsFor instrData
+        quick <- if collecting then Array.empty else quickOpsFor instrData
       running <- true
       if budget > 0L then budget <- budget - 1L
       if budget = 0L then
@@ -6561,7 +6546,7 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
         if counter >= instrData.instructions.Length then
           // The last instruction of a block. Every other value is reported by the next
           // iteration, and for this one there is none.
-          if counter > 0 && exeState.tracing.collectExprValues then
+          if counter > 0 && collecting then
             noteFinishedValue exeState vm registers instrData (counter - 1)
           if
             currentFrame.parent.IsSome
@@ -6573,11 +6558,7 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
             counter <- currentFrame.programCounter
             if not (obj.ReferenceEquals(currentFrame.instrData, instrData)) then
               instrData <- currentFrame.instrData
-              quick <-
-                if exeState.tracing.collectExprValues then
-                  Array.empty
-                else
-                  quickOpsFor instrData
+              quick <- if collecting then Array.empty else quickOpsFor instrData
             if budget > 0L then budget <- budget - 1L
             if budget = 0L then
               step <- FrameBudget

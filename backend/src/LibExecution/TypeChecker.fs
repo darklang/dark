@@ -828,7 +828,8 @@ let rec argFitsWithNothingToBind
        && argFitsWithNothingToBind tst eb b
        && argsFitWithNothingToBind tst eRest rest
      | _ -> false)
-  | _ -> fitsWithNothingToBind tst expected actual
+  | TVariable _ -> fitsWithNothingToBind tst expected actual
+  | _ -> primitiveFits expected actual
 
 and private argsFitWithNothingToBind
   (tst : TypeSymbolTable)
