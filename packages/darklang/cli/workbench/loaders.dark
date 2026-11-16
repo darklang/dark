@@ -61,6 +61,27 @@ let moduleRows(
   // Anchored at the module being listed, so a signature spells its neighbours
   // by their short names.
   let ctx = PrettyPrinter.ProgramTypes.Context.forModule(branchId, modulePath)
+
+  // Shortening a type's name checks what nearer modules bind under that name. Read those in one
+  // query here; asked per reference, `Option` and `Result` were looked up again in every signature.
+  let ctx =
+    if descriptions == Descriptions.Show then
+      let names =
+        results.fns
+        |> Stdlib.List.map(fun f ->
+          PrettyPrinter.ProgramTypes.References.inTypeRefs(
+            Stdlib.List.append(
+              f.entity.parameters |> Stdlib.List.map(fun p -> p.typ),
+              f.entity.returnType)))
+        |> Stdlib.List.flatten
+        |> Stdlib.List.map(fun r -> r.location.name)
+        |> Stdlib.List.unique
+
+      { ctx with
+          knownBindings =
+            Stdlib.Option.Option.Some(PrettyPrinter.ProgramTypes.knownBindings(branchId, names)) }
+    else
+      ctx
   let typeRef(t: LanguageTools.ProgramTypes.TypeReference): String =
     PrettyPrinter.ProgramTypes.typeReference(ctx, t)
 

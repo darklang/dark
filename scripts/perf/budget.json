@@ -90,7 +90,7 @@
       "instructionsTolerance": 0.02,
       "allocatedTolerance": 0.05,
       "sqlTolerance": 0,
-      "instructions": 26377,
+      "instructions": 27100,
       "allocated": 1278812,
       "sql": 1
     },
@@ -98,7 +98,7 @@
       "instructionsTolerance": 0.02,
       "allocatedTolerance": 0.05,
       "sqlTolerance": 0,
-      "instructions": 68929,
+      "instructions": 70365,
       "allocated": 6001556,
       "sql": 20
     }
