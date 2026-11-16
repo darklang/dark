@@ -83,11 +83,16 @@ let deprecate (state : Target) (name : string) : Task<unit> =
   run state [ "deprecate"; "fn"; name; "--kind"; "obsolete"; "-y" ]
 
 
+/// On main with an empty draft. An instance is made that way, so only the shared
+/// in-process store needs the two commands.
 let start (state : Target) : Task<unit> =
-  task {
-    do! onMain state
-    do! discardAll state
-  }
+  match state with
+  | Instance _ -> Task.FromResult()
+  | InProcess _ ->
+    task {
+      do! onMain state
+      do! discardAll state
+    }
 
 
 // ─── claiming ─────────────────────────────────────────────────────────────
