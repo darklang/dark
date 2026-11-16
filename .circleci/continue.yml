@@ -218,7 +218,14 @@ commands:
     steps:
       - run:
           name: Assert the worktree is clean
-          command: "bash -c '[[ -z $(git status -s) ]] && echo Workdir is clean || { echo Workdir is not clean:; git status -s; $(exit 1); }'"
+          command: |
+            status=$(git status -s)
+            if [[ -n "$status" ]]; then
+              echo "Workdir is not clean:"
+              echo "$status"
+              exit 1
+            fi
+            echo "Workdir is clean"
 
   ##########################
   # Checkout - need to remove some things for a clean checkout
