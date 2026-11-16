@@ -142,14 +142,15 @@ let supersededOverrides()
     let hashOf = fun target ->
       LanguageTools.ProgramTypes.hashToString(LanguageTools.ProgramTypes.Reference.hash(target))
 
-    rowsOf(OpFilter.Main)
-    |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, row) ->
-      match row.op with
-      | None -> acc
-      | Some(Decision(_, loc, _, Override(target))) ->
+    // Only main's binding and decision ops: decoding every fn body in the log took seconds.
+    historyOps(Branch.mainBranchId, Edits.Own, Option.None)
+    |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, revision) ->
+      let (_, _, op) = revision
+      match op with
+      | Decision(_, loc, _, Override(target)) ->
         let h = hashOf(target)
         Stdlib.Dict.set(acc, decisionKey(loc), (loc, h, h))
-      | Some(SetName(loc, _target, _)) ->
+      | SetName(loc, _target, _) ->
         match Stdlib.Dict.get(acc, decisionKey(loc)) with
         | None -> acc
         | Some(_entry) -> Stdlib.Dict.remove(acc, decisionKey(loc))
