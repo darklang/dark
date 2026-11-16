@@ -968,12 +968,15 @@ let private storedAsSerial =
 
 /// Every List and Dict test in the store, run forced to spread and with spreading off, recorded
 /// hook by hook: the same outcome, effects and trace. A test that does not come out the same in
-/// two serial runs (it counts live processes, say) says nothing here and is left out.
+/// two serial runs (it counts live processes, say) says nothing here and is left out. Spread onto
+/// busy workers too, so a loaded box spreads the same maps.
 let private everyListAndDictTest =
   testTask "every List and Dict test comes out the same spread and serial" {
     let (state : RT.ExecutionState) = executionStateFor pmPT false
     let state : RT.ExecutionState =
-      { state with test = { state.test with isPackageTest = true } }
+      { state with
+          test = { state.test with isPackageTest = true }
+          spread = { state.spread with idleOnly = false } }
     let named =
       Sql.query
         "SELECT DISTINCT name, item_hash FROM locations
@@ -1014,7 +1017,7 @@ let private everyListAndDictTest =
             expectSameRun name spread once
             compared <- compared + 1
       Expect.isGreaterThan compared 100 "most tests compared"
-      Expect.isGreaterThan (spreads state ()) 0L "and they spread"
+      Expect.isGreaterThan (spreads state ()) 50L "and they spread"
     finally
       s.Workers.Stop()
   }

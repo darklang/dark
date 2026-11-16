@@ -6341,6 +6341,9 @@ type SpreadSettings =
     minChunk : int64
     /// Chunks per idle worker, so one slow chunk does not leave the other cores waiting.
     chunksPerWorker : int
+    /// Spread only onto workers with nothing on them. Off in tests that need every map to
+    /// spread whatever else the box is doing.
+    idleOnly : bool
     /// Skip a callable known to reach an effect (`Spread.predict`) rather than try it.
     predict : bool
     counts : SpreadCounts
@@ -6356,6 +6359,7 @@ type SpreadSettings =
       minPerElement = 20L
       minChunk = 2_000L
       chunksPerWorker = 2
+      idleOnly = true
       predict = false
       counts = SpreadCounts() }
 
