@@ -266,7 +266,8 @@ let execute
             + $"{counted RT.SpreadCount.PredictedPure} pure, "
             + $"{counted RT.SpreadCount.PredictedImpure} impure, "
             + $"{counted RT.SpreadCount.PredictedUnknown} unknown, "
-            + $"{counted RT.SpreadCount.PredictionFailures} analyses failed"
+            + $"{counted RT.SpreadCount.PredictionFailures} analyses failed; "
+            + $"{counted RT.SpreadCount.NoChunks} ran serially for want of a worker"
           ))
       match Map.tryFind "http.maxConnectionsPerHost" settings with
       | Some v ->

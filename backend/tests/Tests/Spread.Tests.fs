@@ -1017,7 +1017,10 @@ let private everyListAndDictTest =
             expectSameRun name spread once
             compared <- compared + 1
       Expect.isGreaterThan compared 100 "most tests compared"
-      Expect.isGreaterThan (spreads state ()) 50L "and they spread"
+      let spread = spreads state ()
+      let chosen = spread + state.spread.counts.Get RT.SpreadCount.NoChunks
+      Expect.isGreaterThan spread 0L "they spread"
+      Expect.equal spread chosen "every map the probe chose to spread did"
     finally
       s.Workers.Stop()
   }

@@ -6316,11 +6316,13 @@ type SpreadCount =
   | PredictedUnknown = 4
   | PredictionFailures = 5
   | Chunks = 6
+  /// The probe said spread, but not two chunks could start (no free worker or slot).
+  | NoChunks = 7
 
 /// What spreading did in one run, for `DARK_SPREAD_REPORT` and tests. Counted from every
 /// process of the run at once, so atomically.
 type SpreadCounts() =
-  let counts : int64[] = Array.zeroCreate 7
+  let counts : int64[] = Array.zeroCreate 8
   member _.Add(which : SpreadCount) : unit =
     System.Threading.Interlocked.Increment(&counts[int which]) |> ignore<int64>
   member _.Get(which : SpreadCount) : int64 =

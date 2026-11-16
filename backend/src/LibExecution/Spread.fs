@@ -726,6 +726,7 @@ let private spreadOver
     if chunkCount > 0 then workers.ChunkSlots.Release chunkCount |> ignore<int>
   if List.isEmpty chunks then
     release ()
+    state.spread.counts.Add SpreadCount.NoChunks
     Task.FromResult ValueNone
   // A list holding reads in flight runs where it is: a chunk would carry the parent's reads
   // into a child. About these values, not the callable, so it is not remembered.
