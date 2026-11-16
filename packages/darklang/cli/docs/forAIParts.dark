@@ -28,8 +28,9 @@ and body fragment remains valid:
   let double(n: Int64): Int64 = n * 2
   EOF
 
-At module scope values use `val name = value`; `let` declares functions. Inside
-a function, local values use `let`. Nested helpers annotate every parameter
+At module scope values use `val name = value` or `val name: Type = value` (the
+type is checked); `let` declares functions. Inside a function, local values use
+`let`. Nested helpers annotate every parameter
 (the return type is optional; neither is checked): `let helper(x: Int64): Int64 = ...`.
 
 `fn`, `type`, `val` and `module` run the at-rest type checker on what they save
@@ -433,7 +434,8 @@ let syntax(): String =
 - A bare integer is an `Int64` and a bare `1.5` a `Float64`; numeric operands must
   have one type. Other number types take a suffix (table in Critical Syntax).
   As a type, `Int` means `Int64` and `Float` means `Float64`.
-- Local values use `let max = 6` without annotations; package values use `val`.
+- Local values use `let max = 6` without annotations; package values use `val`,
+  optionally typed: `val max: Int64 = 6`.
 - A keyword (type, match, in, ...; `docs syntax` lists them) is a name in
   backticks: let `type` = "json". After a `.` and as a record field name it
   needs none: r.type, Metadata { type = "json" }.

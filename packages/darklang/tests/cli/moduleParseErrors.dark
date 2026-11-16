@@ -6,18 +6,14 @@ test everyParseErrorIsShown = Instance.withInstance(fun i ->
   let _ =
     Stdlib.Cli.File.writeAtomic(
       path,
-      "let alphabet: String = \"abc\"\nlet f(x: Int64): Int64 = x\n")
+      "let alphabet: String = \"abc\"\nval limit: = 6\n")
     |> Builtin.unwrap
 
   let (code, out) = Instance.ran(i, [ "module", "/Me.TwoErrs", path ])
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "nothing was saved")
-      Instance.says(
-        out,
-        "Value annotations are not supported",
-        "the first error")
-
-      Instance.says(out, "must use 'val'", "the second error") ]))
+      Instance.says(out, "must use 'val'", "the first error")
+      Instance.says(out, "line 2, column 12", "the second error") ]))
 
 
 test semicolonsSayCommas = Instance.withInstance(fun i ->

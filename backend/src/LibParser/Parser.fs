@@ -2062,7 +2062,7 @@ and parseLet (state : ParserState) (i : int) : WT.Expr * int =
      ),
      p)
   | _ ->
-    // Value annotations are not part of Dark. Consume the type for recovery,
+    // Local value annotations are not part of Dark. Consume the type for recovery,
     // but reject the source instead of silently discarding it.
     let afterAnno =
       if tok state j = TColon then
@@ -3893,18 +3893,12 @@ and parseDecl (state : ParserState) (i : int) : WT.Declaration * int =
         description = docOf state i },
      afterBody)
   else
-    let afterAnno =
+    let (typ, afterAnno) =
       if tok state afterName = TColon then
-        state.diagnostics.Add
-          { code = DiagnosticCode.unexpected
-            severity = DiagError
-            range = rng state afterName
-            message = "Value annotations are not supported"
-            related = []
-            hint = Some "remove ': Type' from this value declaration" }
-        snd (parseTypeRef state (afterName + 1))
+        let (t, k) = parseTypeRef state (afterName + 1)
+        (Some t, k)
       else
-        afterName
+        (None, afterName)
     let (eq, afterEq) =
       if tok state afterAnno = TEquals then
         (rng state afterAnno, afterAnno + 1)
@@ -3915,6 +3909,7 @@ and parseDecl (state : ParserState) (i : int) : WT.Declaration * int =
     (WT.DValue
       { range = span keywordLet (WT.exprRange body)
         name = nameId
+        typ = typ
         body = body
         keywordVal = keywordLet
         symbolEquals = eq
@@ -4183,8 +4178,9 @@ and private parseImplMembers
     let membersRev =
       match d with
       | WT.DFunction fn -> WT.IMethod fn :: membersRev
-      | WT.DValue({ body = WT.EVariable _ } as v)
-      | WT.DValue({ body = WT.EFnName _ } as v) -> WT.IAlias v :: membersRev
+      | WT.DValue({ typ = None; body = WT.EVariable _ } as v)
+      | WT.DValue({ typ = None; body = WT.EFnName _ } as v) ->
+        WT.IAlias v :: membersRev
       | _ ->
         state.diagnostics.Add
           { code = DiagnosticCode.bound

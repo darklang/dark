@@ -776,7 +776,10 @@ module PackageType =
 
 module PackageValue =
   type PackageValue =
-    { hash : FQValueName.Package; description : string; body : Expr }
+    { hash : FQValueName.Package
+      description : string
+      typ : Option<TypeReference>
+      body : Expr }
 
 
 module PackageFn =

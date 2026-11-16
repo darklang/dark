@@ -1177,6 +1177,10 @@ module WrittenTypesToDarkTypes =
       RecordFields.ofList
         [ "range", rangeToDT v.range
           "name", identifierToDT WTRefs.valueIdentifier v.name
+          "typ",
+          v.typ
+          |> Option.map typeReferenceToDT
+          |> Dval.option (KTCustomType(tn WTRefs.typeReference, []))
           "body", exprToDT v.body
           "description", DString v.description
           "keywordVal", rangeToDT v.keywordVal

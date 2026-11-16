@@ -562,6 +562,7 @@ module ValueDeclaration =
   type ValueDeclaration =
     { range: Range
       name: ValueIdentifier
+      typ: Option<TypeReference.TypeReference>
       body: Expr
       description: String
       keywordVal: Range

@@ -490,6 +490,7 @@ type FnDecl =
 type ValueDecl =
   { range : Range
     name : Identifier
+    typ : Option<TypeReference>
     body : Expr
     keywordVal : Range
     symbolEquals : Range
@@ -760,7 +761,8 @@ module PackageType =
 module PackageValue =
   type Name = { owner : string; modules : List<string>; name : string }
 
-  type PackageValue = { name : Name; description : string; body : Expr }
+  type PackageValue =
+    { name : Name; description : string; typ : Option<TypeReference>; body : Expr }
 
 module PackageFn =
   type Name = { owner : string; modules : List<string>; name : string }
@@ -926,6 +928,7 @@ let packageValue
   : PackageValue.PackageValue =
   { name = { owner = owner; modules = modules; name = v.name.name }
     description = v.description
+    typ = v.typ
     body = v.body }
 
 

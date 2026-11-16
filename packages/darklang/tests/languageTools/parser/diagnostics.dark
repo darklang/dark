@@ -215,7 +215,9 @@ test goldenMessages =
         "let x : String = 1 in x",
         [ "Value annotations are not supported" ])
 
-      golden("val x : String = 1", [ "Value annotations are not supported" ]) ])
+      golden("val x : String = 1", [])
+
+      golden("val names: List<String> = []", []) ])
 
 
 // A malformed lexeme gets a diagnostic, never a silent success and never a throw.

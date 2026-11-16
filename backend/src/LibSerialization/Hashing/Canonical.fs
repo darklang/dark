@@ -719,7 +719,7 @@ let writeFn (mode : HashRefMode) (w : BinaryWriter) (fn : PT.PackageFn.PackageFn
   writeTypeReference mode w fn.returnType
   writeBounds mode w fn.bounds
 
-/// Write a PackageValue's hash-relevant content: its body.
+/// Write a PackageValue's hash-relevant content: its body, then its declared type if it has one.
 let writeValue
   (mode : HashRefMode)
   (w : BinaryWriter)
@@ -727,6 +727,10 @@ let writeValue
   =
   w.Write(2uy) // tag: value
   writeExpr mode w v.body
+  // nothing at all when there's no annotation, so unannotated values keep their hashes
+  match v.typ with
+  | Some typ -> writeTypeReference mode w typ
+  | None -> ()
 
 /// Write a Trait's hash-relevant content: its params, supertraits and method
 /// signatures (descriptions excluded). Its own tag, so a trait and a

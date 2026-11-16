@@ -363,10 +363,17 @@ module FnDeclaration =
 
 module ValueDeclaration =
   let tokenize(v: WrittenTypes.ValueDeclaration.ValueDeclaration): List<SemanticToken> =
+    let typ =
+      match v.typ with
+      | Some(t) -> TypeReference.tokenize(t)
+      | None -> []
+
     [ // val
       [ makeToken(v.keywordVal, TokenType.Keyword) ]
       // a
       ValueIdentifier.tokenize(v.name)
+      // `: Int64`
+      typ
       // =
       [ makeToken(v.symbolEquals, TokenType.Symbol) ]
       // 1
