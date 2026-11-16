@@ -299,9 +299,9 @@ type Scheduler(quantum : int64) =
   let mutable group : Option<Workers> = None
   let mutable spawnCount = 0L
   /// The virtual clocks of the processes spawned here, under `sync`. With one, the run is
-  /// deterministic: a host operation's completion is held until every one in flight has
-  /// landed and nothing else can run, then the held ones resume in spawn order, and only then
-  /// does time move.
+  /// deterministic: host answers are held by their clock until every one in flight has landed
+  /// and nothing else can run (`VirtualClock.Hold`), then the processes woken resume together
+  /// in spawn order, and only then does time move.
   let clocks = ResizeArray<HostClock.VirtualClock>()
   /// Scheduler thread only.
   let held = ResizeArray<Process>()
@@ -822,7 +822,7 @@ type Scheduler(quantum : int64) =
       match this.FindHere pid with
       | Some p ->
         match p.status with
-        | Parked(OnHost _) when p.exeState.clock.IsVirtual ->
+        | Parked _ when p.exeState.clock.IsVirtual ->
           if not (held.Contains p) then held.Add p
         | Parked _ ->
           p.status <- Runnable
@@ -1166,9 +1166,9 @@ type Scheduler(quantum : int64) =
       current.Value <- None
       thread <- -1
 
-  /// On a virtual clock, with nothing runnable: resume the held completions once no host
-  /// operation is in flight, or else move time to the next deadline. False when neither can
-  /// happen yet, and the loop waits for an event.
+  /// On a virtual clock, with nothing runnable and no host operation in flight: hand back the
+  /// answers the clocks hold, then resume the processes they woke, then move time to the next
+  /// deadline. False when none can happen yet, and the loop waits for an event.
   member private _.Settle() : bool =
     if clocks.Count = 0 then
       false
@@ -1176,6 +1176,8 @@ type Scheduler(quantum : int64) =
       let clocks = lock sync (fun () -> List.ofSeq clocks)
       if clocks |> List.exists (fun c -> c.Busy) then
         false
+      elif clocks |> List.map (fun c -> c.Release()) |> List.contains true then
+        true
       elif held.Count > 0 then
         let ready = held |> Seq.sortBy (fun p -> p.order) |> List.ofSeq
         held.Clear()

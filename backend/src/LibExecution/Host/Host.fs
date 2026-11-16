@@ -1543,11 +1543,4 @@ let performOnClock
         ()
       return outcome
     }
-  | HostClock.Virtual v, _ ->
-    v.Begin()
-    task {
-      try
-        return! performInSession session access op
-      finally
-        v.End()
-    }
+  | HostClock.Virtual v, _ -> v.Hold(fun () -> performInSession session access op)

@@ -22,6 +22,9 @@ type VirtualClock(start : Ticks) =
   let monotonicStart = System.Diagnostics.Stopwatch.GetElapsedTime(0L).Ticks
   let mutable armed = 0L
   let mutable inFlight = 0
+  let mutable asked = 0L
+  // answers that have landed, by the order they were asked, until `Release`
+  let landed = ResizeArray<struct (int64 * (unit -> unit))>()
 
   /// Unix time.
   member _.Now : Ticks = lock sync (fun () -> now)
@@ -50,10 +53,46 @@ type VirtualClock(start : Ticks) =
       |> ignore<System.IDisposable>
       done'.Task
 
-  /// A host operation of this run started or landed. The clock stands still while any is out.
-  member _.Begin() : unit = Interlocked.Increment &inFlight |> ignore<int>
-  member _.End() : unit = Interlocked.Decrement &inFlight |> ignore<int>
+  /// Perform a host operation of this run. The clock stands still while it is out, and its
+  /// answer is held until `Release`, so it never lands before the process that asked has
+  /// parked, however fast it came back.
+  member _.Hold(perform : unit -> Task<'a>) : Task<'a> =
+    let answer = TaskCompletionSource<'a>()
+    let order = Interlocked.Increment &asked
+    Interlocked.Increment &inFlight |> ignore<int>
+    let performed =
+      try
+        perform ()
+      with e ->
+        Task.FromException<'a> e
+    performed.ContinueWith(
+      (fun (t : Task<'a>) ->
+        lock sync (fun () ->
+          landed.Add(
+            struct (order, (fun () -> answer.TrySetFromTask t |> ignore<bool>))
+          ))
+        Interlocked.Decrement &inFlight |> ignore<int>),
+      TaskContinuationOptions.ExecuteSynchronously
+    )
+    |> ignore<Task>
+    answer.Task
+
   member _.Busy : bool = Volatile.Read &inFlight > 0
+
+  /// Hand back every answer held, in the order they were asked. False when none is.
+  member _.Release() : bool =
+    let ready =
+      lock sync (fun () ->
+        let ready =
+          landed
+          |> Seq.sortBy (fun (struct (order, _)) -> order)
+          |> Seq.map (fun (struct (_, resume)) -> resume)
+          |> List.ofSeq
+        landed.Clear()
+        ready)
+    for resume in ready do
+      resume ()
+    not ready.IsEmpty
 
   /// Jump to the earliest deadline and fire everything due then, in the order it was armed.
   /// False when nothing waits or a host operation is in flight.
