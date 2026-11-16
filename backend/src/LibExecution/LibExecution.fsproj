@@ -36,6 +36,7 @@
     <Compile Include="Host/HostProcess.fs" />
     <Compile Include="Host/HostRegistry.fs" />
     <Compile Include="Host/HostDescriptors.fs" />
+    <Compile Include="Host/HostClock.fs" />
     <Compile Include="Host/Host.fs" />
     <!-- Runtime /-->
     <Compile Include="RuntimeTypes.fs" />

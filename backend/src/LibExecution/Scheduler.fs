@@ -74,6 +74,8 @@ type Process =
     entry : Entry
     parent : Option<ProcessId>
     started : System.DateTime
+    /// Spawn order on its scheduler: the order completions are taken in on a virtual clock.
+    order : int64
     mutable status : Status
     /// Slices run so far: how many times the budget was refilled. Internal; `ps` shows the
     /// instructions, which is the number that means something to a person.
@@ -295,6 +297,14 @@ type Scheduler(quantum : int64) =
   /// The group this scheduler belongs to, when it is a root with workers or a worker itself.
   /// `ps` and `kill` answer for the whole group.
   let mutable group : Option<Workers> = None
+  let mutable spawnCount = 0L
+  /// The virtual clocks of the processes spawned here, under `sync`. With one, the run is
+  /// deterministic: a host operation's completion is held until every one in flight has
+  /// landed and nothing else can run, then the held ones resume in spawn order, and only then
+  /// does time move.
+  let clocks = ResizeArray<HostClock.VirtualClock>()
+  /// Scheduler thread only.
+  let held = ResizeArray<Process>()
   /// Live processes (runnable or parked), for placement.
   let mutable live = 0
 
@@ -429,6 +439,7 @@ type Scheduler(quantum : int64) =
         entry = entry
         parent = parent
         started = System.DateTime.UtcNow
+        order = Interlocked.Increment &spawnCount
         status = Runnable
         slices = 0L
         instructionsTaken = 0L
@@ -456,7 +467,13 @@ type Scheduler(quantum : int64) =
         spreadFellBack = System.Collections.Generic.HashSet() }
     lock sync (fun () ->
       processes[p.id] <- p
-      runnable.Enqueue p)
+      runnable.Enqueue p
+      match exeState.clock with
+      | HostClock.Virtual v when
+        not (clocks.Exists(fun c -> obj.ReferenceEquals(c, v)))
+        ->
+        clocks.Add v
+      | _ -> ())
     Interlocked.Increment &live |> ignore<int>
     match parent with
     | Some par -> childCounts.AddOrUpdate(par, 1, (fun _ n -> n + 1)) |> ignore<int>
@@ -469,7 +486,8 @@ type Scheduler(quantum : int64) =
     p
 
   /// Spawn on a worker rather than here: the process runs on another core for its whole life.
-  /// The least loaded worker takes it. `Await` and `ps` work the same either way.
+  /// The least loaded worker takes it. `Await` and `ps` work the same either way. Not on a
+  /// virtual clock: that run keeps to this one thread, so its order is its own.
   member this.SpawnOn
     (
       exeState : RT.ExecutionState,
@@ -481,16 +499,28 @@ type Scheduler(quantum : int64) =
       ?keepResult : bool,
       ?caps : struct (int64 * int64)
     ) : Process =
-    this.Workers.Spawn(
-      exeState,
-      instrs,
-      entry,
-      parent,
-      ?stats = stats,
-      ?runId = runId,
-      ?keepResult = keepResult,
-      ?caps = caps
-    )
+    if exeState.clock.IsVirtual then
+      this.Spawn(
+        exeState,
+        instrs,
+        entry,
+        parent,
+        ?stats = stats,
+        ?runId = runId,
+        ?keepResult = keepResult,
+        ?caps = caps
+      )
+    else
+      this.Workers.Spawn(
+        exeState,
+        instrs,
+        entry,
+        parent,
+        ?stats = stats,
+        ?runId = runId,
+        ?keepResult = keepResult,
+        ?caps = caps
+      )
 
   /// A new process that applies `applicable` to `arg` (`Exec.spawn f` runs `f ()`), starting from
   /// `access` rather than the state's own: the spawner's, at the moment of the spawn, exactly as
@@ -567,21 +597,44 @@ type Scheduler(quantum : int64) =
   /// `Await`, giving up after `ms`: `None` then, and the process keeps running. The timer is
   /// dropped as soon as the process wins, so a short wait inside a loop does not leave a timer
   /// per iteration ticking.
-  member _.AwaitWithin(p : Process, ms : int) : Task<Option<RT.ExecutionResult>> =
+  member _.AwaitWithin
+    (
+      p : Process,
+      ms : int,
+      clock : HostClock.Clock
+    ) : Task<Option<RT.ExecutionResult>> =
     let completion = p.completion.Task
     if completion.IsCompleted then
       Task.FromResult(Some completion.Result)
     else
-      task {
-        use cts = new CancellationTokenSource()
-        let delay = Task.Delay(ms, cts.Token)
-        let! first = Task.WhenAny(completion :> Task, delay)
-        if obj.ReferenceEquals(first, delay) then
-          return None
-        else
-          cts.Cancel()
-          return Some completion.Result // landed
-      }
+      match clock with
+      | HostClock.Virtual v ->
+        let first = TaskCompletionSource<Option<RT.ExecutionResult>>()
+        let timer =
+          v.Arm(
+            int64 ms * 10_000L,
+            (fun () -> first.TrySetResult None |> ignore<bool>)
+          )
+        // awaited, not `WhenAny`: started on the loop, the win lands back on it directly,
+        // with no hop through the pool that the clock could move during
+        task {
+          let! result = completion
+          timer.Dispose()
+          first.TrySetResult(Some result) |> ignore<bool>
+        }
+        |> ignore<Task<unit>>
+        first.Task
+      | HostClock.Real ->
+        task {
+          use cts = new CancellationTokenSource()
+          let delay = Task.Delay(ms, cts.Token)
+          let! first = Task.WhenAny(completion :> Task, delay)
+          if obj.ReferenceEquals(first, delay) then
+            return None
+          else
+            cts.Cancel()
+            return Some completion.Result // landed
+        }
 
   /// Post an event as a source would. What a test harness calls to press a key.
   member _.PushEvent(ev : HE.HostEvent) : unit = queue.Post ev
@@ -692,7 +745,12 @@ type Scheduler(quantum : int64) =
             | HE.EventSpec.StoreChanged -> HE.Shared.watchStore queue storePollMs
             | HE.EventSpec.Timer ms ->
               let id = Interlocked.Increment &nextTimerId
-              sub.timers <- (id, queue.ArmTimer(id, ms)) :: sub.timers
+              let timer =
+                match p.exeState.clock with
+                | HostClock.Real -> queue.ArmTimer(id, ms)
+                | HostClock.Virtual v ->
+                  v.Arm(ms * 10_000L, (fun () -> queue.Post(HE.HostEvent.Timer id)))
+              sub.timers <- (id, timer) :: sub.timers
             | HE.EventSpec.StdinLine
             | HE.EventSpec.StdinBytes _ ->
               match stdinOutstanding, stdinWanted with
@@ -764,6 +822,8 @@ type Scheduler(quantum : int64) =
       match this.FindHere pid with
       | Some p ->
         match p.status with
+        | Parked(OnHost _) when p.exeState.clock.IsVirtual ->
+          if not (held.Contains p) then held.Add p
         | Parked _ ->
           p.status <- Runnable
           lock sync (fun () -> runnable.Enqueue p)
@@ -1097,12 +1157,35 @@ type Scheduler(quantum : int64) =
         match next with
         | Some p -> this.Step p
         | None ->
-          if not (finished ()) && not (Volatile.Read &stopping) then
+          if
+            not (finished ()) && not (Volatile.Read &stopping) && not (this.Settle())
+          then
             this.Dispatch(queue.Take())
     finally
       leave ()
       current.Value <- None
       thread <- -1
+
+  /// On a virtual clock, with nothing runnable: resume the held completions once no host
+  /// operation is in flight, or else move time to the next deadline. False when neither can
+  /// happen yet, and the loop waits for an event.
+  member private _.Settle() : bool =
+    if clocks.Count = 0 then
+      false
+    else
+      let clocks = lock sync (fun () -> List.ofSeq clocks)
+      if clocks |> List.exists (fun c -> c.Busy) then
+        false
+      elif held.Count > 0 then
+        let ready = held |> Seq.sortBy (fun p -> p.order) |> List.ofSeq
+        held.Clear()
+        lock sync (fun () ->
+          for p in ready do
+            p.status <- Runnable
+            runnable.Enqueue p)
+        true
+      else
+        clocks |> List.exists (fun c -> c.Advance())
 
   /// Run the scheduler on this thread until `until` is done.
   member this.RunUntil(until : Process) : RT.ExecutionResult =

@@ -78,6 +78,7 @@ let createState
     packageFnCallCache = System.Collections.Concurrent.ConcurrentDictionary()
 
     descriptorSession = Host.createLazyDescriptorSession ()
+    clock = HostClock.Real
 
     builtins = builtins
     types = { package = pm.getType }

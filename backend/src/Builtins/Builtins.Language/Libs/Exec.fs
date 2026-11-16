@@ -415,7 +415,7 @@ let fns () : List<BuiltInFn> =
         + "running."
       fn =
         (function
-        | _, vm, _, [| DInt64 ms; handle |] ->
+        | state, vm, _, [| DInt64 ms; handle |] ->
           let sched = Scheduler.Scheduler.CurrentOrShared
           let some (result : ExecutionResult) =
             optionOfAny (Some(resultOf vm result))
@@ -429,7 +429,7 @@ let fns () : List<BuiltInFn> =
               (optionOfAny None)
             else
               parkOn p
-              sched.AwaitWithin(p, int ms)
+              sched.AwaitWithin(p, int ms, state.clock)
               |> LibExecution.Pending.map (fun result ->
                 match result with
                 | Some result -> some result
@@ -466,7 +466,7 @@ let fns () : List<BuiltInFn> =
         + "is an error."
       fn =
         (function
-        | _, vm, _, [| DList(_, Items(handles)) |] ->
+        | state, vm, _, [| DList(_, Items(handles)) |] ->
           let s = Scheduler.Scheduler.CurrentOrShared
           // A handle whose row has left the capped display table has finished, and its
           // answer is kept until taken, so it wins the race outright. Rows go once 64
@@ -494,6 +494,17 @@ let fns () : List<BuiltInFn> =
               procs |> List.tryFind (fun (_, p) -> p.completion.Task.IsCompleted)
             with
             | Some done' -> (answer done')
+            | None when state.clock.IsVirtual ->
+              // awaited on the loop rather than `WhenAny`, whose hop through the pool would
+              // let a virtual clock move before the winner is back
+              let first = System.Threading.Tasks.TaskCompletionSource<Dval>()
+              for won in procs do
+                task {
+                  let! _ = (snd won).completion.Task
+                  first.TrySetResult(answer won) |> ignore<bool>
+                }
+                |> ignore<System.Threading.Tasks.Task<unit>>
+              LibExecution.Pending.ofTask first.Task
             | None ->
               System.Threading.Tasks.Task.WhenAny(
                 procs

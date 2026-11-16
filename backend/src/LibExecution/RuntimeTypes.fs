@@ -6568,6 +6568,9 @@ and ExecutionState =
     /// Host handles belong to this execution, never a process-global guest table.
     descriptorSession : Lazy<HostDescriptors.Session>
 
+    /// The clock this execution reads and sleeps on. Real, except in tests.
+    clock : HostClock.Clock
+
     /// Resolve an entry's exact name and version to its approval. `None`
     /// means a bundled or script-local helper that inherits invocation access.
     packagePolicy : Option<string> -> FQFnName.Package -> Option<Permissions.Policy>

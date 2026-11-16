@@ -70,6 +70,13 @@ let private expectOk (result : RT.ExecutionResult) (what : string) : RT.Dval =
   | Ok dv -> dv
   | Error(rte, _) -> failtest $"{what} failed: {rte}"
 
+/// Where a virtual clock starts in these tests: 2026-01-01T00:00Z.
+let private virtualStart = NodaTime.Instant.FromUtc(2026, 1, 1, 0, 0)
+
+/// `state` on a fresh virtual clock: sleeps and timers take no real time.
+let private onVirtualClock (state : RT.ExecutionState) : RT.ExecutionState =
+  { state with clock = LibExecution.HostClock.startingAt virtualStart }
+
 /// How long to wait for something before failing the test. Waits end as soon as it happens,
 /// so passing tests never wait this long; it is generous so a busy machine doesn't fail them.
 let private giveUpAfter = System.TimeSpan.FromSeconds 30.
@@ -204,7 +211,7 @@ let private unkeptResultIsNotKept =
 let private hostAwaitTimerOrKey =
   testTask
     "hostAwait [Key; Timer 10] answers Timer with no key, Key when one was pushed first" {
-    let state = executionStateFor pmPT false
+    let state = onVirtualClock (executionStateFor pmPT false)
     // A fake key source stands in for the terminal: it blocks until a gate opens and then
     // yields one key, which nothing does in this test, so only pushed keys arrive.
     Gates.reset ()
@@ -241,7 +248,7 @@ let private readKeyDoesNotBlock =
   testTask "readKey in one process does not stop a sleep in another" {
     Gates.reset ()
     Trace.take () |> ignore<List<string>>
-    let state = executionStateFor pmPT false
+    let state = onVirtualClock (executionStateFor pmPT false)
     // The fake terminal: one key, once the test says so.
     HE.sources.readKey <-
       Some(fun () ->
@@ -301,7 +308,7 @@ let private readLineDoesNotBlock =
     "readLine in one process parks it, and a sleep in another finishes meanwhile" {
     Gates.reset ()
     Trace.take () |> ignore<List<string>>
-    let state = executionStateFor pmPT false
+    let state = onVirtualClock (executionStateFor pmPT false)
     let reads = ref 0
     HE.sources.readStdin <- Some(fakeStdin 50L reads)
     try
@@ -342,7 +349,7 @@ Builtin.testTrace("slept")
 let private accessIsPerProcess =
   testTask
     "a process runs under its state's access and a denial fails that process only" {
-    let state = executionStateFor pmPT false
+    let state = onVirtualClock (executionStateFor pmPT false)
     let denied =
       LibExecution.Execution.restrictRun
         LibExecution.Permissions.Policy.denyAll
@@ -1867,7 +1874,7 @@ let private execDoneWatcherGoesWithItsWait =
   testTask
     "Host.await [ExecDone id; Timer] in a loop keeps one watcher on a process still running" {
     Gates.reset ()
-    let state = executionStateFor pmPT false
+    let state = onVirtualClock (executionStateFor pmPT false)
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let! (p : Scheduler.Process) =
       spawn
@@ -2817,7 +2824,7 @@ let private spawnedCountsReachTheSpawner =
 let private awaitWithinTimesOut =
   testTask "awaitWithin gives up on a slow child, which then can be cancelled" {
     Gates.reset ()
-    let state = executionStateFor pmPT false
+    let state = onVirtualClock (executionStateFor pmPT false)
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
     let! (p : Scheduler.Process) =
       spawn
@@ -2839,7 +2846,8 @@ let private awaitWithinTimesOut =
     | Scheduler.Parked _ -> ()
     | other -> failtest $"expected the child still parked, got {other}"
     Gates.release 61L
-    let! childResult = s.Await child
+    // on a virtual clock the child shares the parent's scheduler, so its loop runs again
+    let! childResult = runOnThread s child
     match childResult with
     | Error(RTE.UncaughtException("cancelled", _), _) -> ()
     | other -> failtest $"expected the child cancelled, got {other}"
@@ -3170,6 +3178,103 @@ let private nestedRunLandsTheOuterWait =
       Expect.equal answer 1 "the inner run saw the outer wait land")
 
 
+// -- Virtual clocks --
+
+let private virtualSleepIsInstant =
+  testTask
+    "on a virtual clock an hour's sleep takes no time, and now moves by exactly that" {
+    let state = onVirtualClock (executionStateFor pmPT false)
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! (p : Scheduler.Process) =
+      spawn
+        s
+        state
+        """let before = Stdlib.DateTime.toMilliseconds(Stdlib.DateTime.now())
+let _ = Stdlib.Cli.Posix.sleep(3600000.0)
+(before, Stdlib.DateTime.toMilliseconds(Stdlib.DateTime.now()))"""
+    let sw = System.Diagnostics.Stopwatch.StartNew()
+    let! result = runOnThread s p
+    let start = virtualStart.ToUnixTimeMilliseconds()
+    Expect.equal
+      (expectOk result "the sleeper")
+      (RT.DTuple(RT.DInt64 start, RT.DInt64(start + 3_600_000L), []))
+      "now starts where the clock does and moves by the hour slept"
+    Expect.isLessThan sw.ElapsedMilliseconds 10_000L "and no real hour went by"
+  }
+
+
+/// Three processes waiting on time three ways: a sleep, a timer event, and an `awaitWithin`
+/// that gives up. Each says when it woke, in virtual milliseconds.
+let private wakeOrder =
+  """let t0 = Stdlib.DateTime.toMilliseconds(Stdlib.DateTime.now())
+let at = fun name -> Builtin.testTrace(name + " " + Stdlib.display(Stdlib.DateTime.toMilliseconds(Stdlib.DateTime.now()) - t0))
+let a = Stdlib.Exec.spawn(fun () -> (let _ = Stdlib.Cli.Posix.sleep(30.0) in at("sleep")))
+let b = Stdlib.Exec.spawn(fun () -> (let _ = Stdlib.Host.await([ Stdlib.Host.EventSpec.Timer(10) ]) in at("timer")))
+let c = Stdlib.Exec.spawn(fun () -> (let slow = Stdlib.Exec.spawn(fun () -> Stdlib.Cli.Posix.sleep(1000.0)) in (let _ = Stdlib.Exec.awaitWithin(20, slow) in at("awaitWithin"))))
+(Stdlib.Exec.await(a), Stdlib.Exec.await(b), Stdlib.Exec.await(c))"""
+
+let private virtualWakesAreExact =
+  testTask
+    "on a virtual clock sleeps, timers and awaitWithin wake at their exact times, every run" {
+    for run in 1..10 do
+      Trace.take () |> ignore<List<string>>
+      let state = onVirtualClock (executionStateFor pmPT false)
+      let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+      let! (p : Scheduler.Process) = spawn s state wakeOrder
+      let! result = runOnThread s p
+      expectOk result "the program" |> ignore<RT.Dval>
+      Expect.equal
+        (Trace.take ())
+        [ "timer 10"; "awaitWithin 20"; "sleep 30" ]
+        $"run {run}: each woke at its own time, in deadline order"
+  }
+
+
+let private virtualHostOrderIsFixed =
+  testTask
+    "on a virtual clock host results are taken in spawn order, not landing order" {
+    let answer (_ : int) (seen : Seen) =
+      if seen.path = "/slow" then Thread.Sleep 150
+      httpAnswer "200 OK" [] seen.path
+    let code =
+      """let post = fun path -> Stdlib.HttpClient.request("POST", "http://test.dlio.localhost:PORT" + path, [], Stdlib.Bytes.empty)
+let slow = Stdlib.Exec.spawn(fun () -> (let _ = post("/slow") in Builtin.testTrace("slow")))
+let fast = Stdlib.Exec.spawn(fun () -> (let _ = post("/fast") in Builtin.testTrace("fast")))
+(Stdlib.Exec.await(slow), Stdlib.Exec.await(fast))"""
+    let runOn (clock : RT.ExecutionState -> RT.ExecutionState) =
+      task {
+        installTestHttpConfig ()
+        Trace.take () |> ignore<List<string>>
+        let listener =
+          new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0)
+        listener.Start()
+        let port = (listener.LocalEndpoint :?> System.Net.IPEndPoint).Port
+        let serving = scriptedServer listener (answer port)
+        try
+          let state = clock (executionStateFor pmPT false)
+          let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+          let! (p : Scheduler.Process) =
+            spawn s state (code.Replace("PORT", string port))
+          let! result = runOnThread s p
+          expectOk result "the program" |> ignore<RT.Dval>
+          return Trace.take ()
+        finally
+          listener.Stop()
+          serving.Wait(5000) |> ignore<bool>
+      }
+    let! real = runOn (fun state -> state)
+    Expect.equal
+      real
+      [ "fast"; "slow" ]
+      "on the real clock the fast answer is taken first"
+    let! fixedOrder = runOn onVirtualClock
+    Expect.equal
+      fixedOrder
+      [ "slow"; "fast" ]
+      "on a virtual clock the first spawned is"
+  }
+
+
 // Sequenced: the tests share the process-wide trace, gates and key source in `LibTest` and
 // `HostEvents`.
 let tests =
@@ -3268,5 +3373,8 @@ let tests =
         waitResumesOnTheLoop
         eventWakesAParkedProcess
         runHereResumesHere
-        nestedRunLandsTheOuterWait ]
+        nestedRunLandsTheOuterWait
+        virtualSleepIsInstant
+        virtualWakesAreExact
+        virtualHostOrderIsFixed ]
   )

@@ -494,7 +494,8 @@ let private executeHandler
           let! r = scheduler.Await p
           return Some r
         else
-          return! scheduler.AwaitWithin(p, requestTimeoutMs)
+          return!
+            scheduler.AwaitWithin(p, requestTimeoutMs, LibExecution.HostClock.Real)
       }
     match result with
     | None ->

@@ -1516,3 +1516,38 @@ let terminalWindowSize (fd : int) : Option<int64 * int64> =
 /// Trusted host-owned policy storage; never exposed as a Darklang builtin.
 let syncPolicyDirectory (directory : string) : unit =
   HostPosix.syncDirectory directory
+
+/// `performInSession` on `clock`. A virtual one answers clock reads and sleeps itself, under the
+/// same checks, and stands still while any other operation is out, until its answer is back on
+/// the loop.
+let performOnClock
+  (clock : HostClock.Clock)
+  (session : HostDescriptors.Session)
+  (access : Permission.Access)
+  (op : Operation)
+  : Task<Outcome> =
+  match clock, op with
+  | HostClock.Real, _ -> performInSession session access op
+  | HostClock.Virtual v, Operation.Posix posix when HostClock.answers posix ->
+    task {
+      let! outcome =
+        match resolve op with
+        | Error message -> Task.FromResult(Outcome.Rejected message)
+        | Ok resolved ->
+          match firstDenial access resolved.checks with
+          | Some denied -> Task.FromResult denied
+          | None -> HostClock.answer v posix |> Task.map Outcome.Success
+      try
+        auditSink op outcome
+      with _ ->
+        ()
+      return outcome
+    }
+  | HostClock.Virtual v, _ ->
+    v.Begin()
+    task {
+      try
+        return! performInSession session access op
+      finally
+        v.End()
+    }
