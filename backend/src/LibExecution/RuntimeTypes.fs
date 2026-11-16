@@ -6047,7 +6047,7 @@ type VMState =
 
     /// Instructions this VM may still run before the scheduler takes the thread back.
     ///
-    /// `runSyncInstructions` counts it down and stops at zero, which `runFrame` reports as
+    /// `Interpreter.runFrames` counts it down and stops at zero, which it reports as
     /// `FrameBudget`; `Scheduler.Step` refills it before every slice. Negative means unlimited,
     /// which is what a VM nobody schedules runs with (`execute`, and the VM the HTTP server's
     /// handler path builds for a callable of its own).
