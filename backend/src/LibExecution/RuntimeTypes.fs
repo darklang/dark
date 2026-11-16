@@ -32,7 +32,11 @@ let contentHashCode (s : string) : int =
       System.Runtime.InteropServices.MemoryMarshal.Cast<char, uint64>(
         System.MemoryExtensions.AsSpan(s, 0, 16)
       )
-    System.HashCode.Combine(words[0], words[1], words[2], words[3])
+    // A multiply per word mixes them; `HashCode.Combine` costs several times as much, once per
+    // lookup.
+    let k = 0x9E3779B97F4A7C15UL
+    let h = ((((words[0] * k) ^^^ words[1]) * k ^^^ words[2]) * k ^^^ words[3]) * k
+    int (h >>> 32)
 
 /// Folds `name` into `h` four characters at a time, then one at a time for the rest.
 let rec private foldNameWords (name : string) (i : int) (h : uint64) : uint64 =
@@ -5369,6 +5373,11 @@ type QuickOp(isTrait : bool, tag : int, args : NEList<Register>, dst : Register)
   member _.Tag = tag
   /// The `Apply`'s argument registers.
   member _.Args = args
+  /// The second argument's register, for an operator with two; -1 otherwise.
+  member val Second =
+    match args.tail with
+    | [ r ] -> r
+    | _ -> -1
   /// The `Apply`'s result register.
   member _.Dst = dst
 
@@ -5405,18 +5414,18 @@ type InstrData =
 ///
 /// Every field is mutable because frames are pooled: a popped frame goes back into
 /// `VMState.framePool` with its register array attached and is reinitialised, field by field, by
-/// the next push of the same register count. Nothing outside the VM ever holds a `CallFrame` (the
-/// parent link is an id, not a reference), and a VM runs on one thread, so no field here is ever
+/// the next push of the same register count. Nothing outside the VM ever holds a `CallFrame`; a
+/// child holds its parent, and is popped first. A VM runs on one thread, so no field here is ever
 /// written while another reader could see it.
 type CallFrame =
   {
     mutable id : uuid
 
-    /// (Id * where to put result in parent * pc of parent to return to)
+    /// (Parent * where to put result in parent * pc of parent to return to)
     ///
     /// A struct option of a struct tuple: the root frame aside, one of these is built for every function
     /// call in the program, and the reference-typed form was two allocations each time.
-    mutable parent : voption<struct (uuid * Register * int)>
+    mutable parent : voption<struct (CallFrame * Register * int)>
 
     mutable executionPoint : ExecutionPoint
 
@@ -5501,42 +5510,6 @@ and AppliedLambda =
   { lambda : ApplicableLambda
     patterns : List<LetPattern>
     selfRegister : Register option }
-
-/// A VM's frames, oldest first. Calls nest, so the frame looked up is nearly always the newest:
-/// searching from the top finds it at once, with no hashing.
-type FrameStack() =
-  let frames = ResizeArray<CallFrame>()
-
-  let rec indexOf (id : uuid) (i : int) : int =
-    if i < 0 || frames[i].id.Equals id then i else indexOf id (i - 1)
-
-  member _.Push(frame : CallFrame) : unit = frames.Add frame
-
-  member _.Remove(id : uuid) : unit =
-    let i = indexOf id (frames.Count - 1)
-    if i >= 0 then frames.RemoveAt i
-
-  member _.TryFind
-    (
-      id : uuid,
-      [<System.Runtime.InteropServices.Out>] frame : byref<CallFrame>
-    ) : bool =
-    let i = indexOf id (frames.Count - 1)
-    if i >= 0 then
-      frame <- frames[i]
-      true
-    else
-      false
-
-  member _.Find(id : uuid) : CallFrame =
-    let i = indexOf id (frames.Count - 1)
-    if i < 0 then raise (System.Collections.Generic.KeyNotFoundException(string id))
-    frames[i]
-
-  member _.Contains(id : uuid) : bool = indexOf id (frames.Count - 1) >= 0
-
-  member _.Clear() : unit = frames.Clear()
-
 
 /// Synchronous regions of the Apply path that the allocation counters attribute to.
 module ApplyStage =
@@ -6024,8 +5997,8 @@ type VMState =
   {
     threadID : uuid
 
-    callFrames : FrameStack
-    mutable currentFrameID : uuid
+    /// The frame running now. Its parent chain is the call stack; after the run it is the root.
+    mutable currentFrame : CallFrame
 
     /// The access the builtin currently being invoked runs under: the applying
     /// frame's, narrowed by whatever the applicable captured when it escaped
@@ -6072,8 +6045,8 @@ type VMState =
 
     /// Source of frame ids. Per-VM rather than global because a VM's interpreter loop is single-threaded,
     /// so this needs no synchronization -- and a process-global counter would need it: tests run VMs in
-    /// parallel, and a non-atomic shared increment hands two frames the same id, which silently drops one
-    /// from `callFrames` and fails the parent lookup on return.
+    /// parallel, and a non-atomic shared increment hands two frames the same id, which the tracer and
+    /// the callback checks (`isLive`) then cannot tell apart.
     mutable frameIdCounter : int64
 
     /// A new number each time a VM is created or reused. Frame ids start over when a VM
@@ -6083,7 +6056,7 @@ type VMState =
 
     /// Instructions this VM may still run before the scheduler takes the thread back.
     ///
-    /// `runSyncInstructions` counts it down and stops at zero, which `runFrame` reports as
+    /// `Interpreter.runFrames` counts it down and stops at zero, which it reports as
     /// `FrameBudget`; `Scheduler.Step` refills it before every slice. Negative means unlimited,
     /// which is what a VM nobody schedules runs with (`execute`, and the VM the HTTP server's
     /// handler path builds for a callable of its own).
@@ -6158,9 +6131,9 @@ type VMState =
     /// Popped frames, with their register files still attached, bucketed by register count and handed
     /// back out to the next push of that size. A frame and its registers are what pushing a call costs,
     /// and nothing holds either past the pop: a lambda copies the values it closes over, a receiver
-    /// call copies its receiver, the tracer is handed lists, and the parent link carries a frame id
-    /// rather than a reference. Per-VM, so single-threaded and needing no synchronization.
-    framePool : Dictionary<int, Stack<CallFrame>>
+    /// call copies its receiver, the tracer is handed lists, and only a child,
+    /// popped first, links to a frame. Per-VM, so single-threaded and needing no synchronization.
+    framePool : ResizeArray<Stack<CallFrame>>
   }
 
   static member create(instrs : Option<tlid> * Instructions) : VMState =
@@ -6203,12 +6176,8 @@ type VMState =
         appliedLambda = ValueNone }
 
     { threadID = System.Guid.NewGuid()
-      currentFrameID = rootCallFrameID
+      currentFrame = rootCallFrame
       activeAccess = rootCallFrame.access
-      callFrames =
-        let frames = FrameStack()
-        frames.Push rootCallFrame
-        frames
       rootInstrData = struct (tlid, rootInstrData)
       pooledRootFrame = ValueNone
       lambdaInstrDataCache = Dictionary()
@@ -6233,7 +6202,7 @@ type VMState =
       finalResult = ValueNone
       matchBindings = ResizeArray()
       framePushTimestamps = Dictionary()
-      framePool = Dictionary() }
+      framePool = ResizeArray() }
 
   /// Re-point a finished VM at a new tiny program, instead of building another one.
   ///
@@ -6254,7 +6223,7 @@ type VMState =
     ) : VMState =
     // Keep the id when the frame is kept. `Guid.NewGuid()` draws from the cryptographic RNG, which
     // is why `nextFrameId` exists for pushes; this runs once per lambda application, so it is the
-    // same trap. Frame identity is internal to a VM -- `callFrames` and the tracer's per-frame
+    // same trap. Frame identity is internal to a VM -- the callback checks and the tracer's per-frame
     // maps key on it and it never leaves -- and the previous application's
     // frames are gone, so reusing the id collides with nothing.
     let rootCallFrameID =
@@ -6302,9 +6271,7 @@ type VMState =
           appliedLambda = ValueNone }
 
     vm.pooledRootFrame <- ValueSome rootCallFrame
-    vm.callFrames.Clear()
-    vm.callFrames.Push rootCallFrame
-    vm.currentFrameID <- rootCallFrameID
+    vm.currentFrame <- rootCallFrame
     vm.activeAccess <- rootCallFrame.access
     vm.rootInstrData <- struct (tlid, instrData)
     vm.frameToPush <- ValueNone

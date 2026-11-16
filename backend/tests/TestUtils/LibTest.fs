@@ -165,7 +165,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DInt64 n |] ->
-          let site = (vm.callFrames.Find vm.currentFrameID).executionPoint
+          let site = vm.currentFrame.executionPoint
           let name = FQFnName.Builtin(FQFnName.builtin "testRawRead" 0)
           (DPromise(Promise(RawReads.task n, name, site)))
         | _ -> incorrectArgs ())

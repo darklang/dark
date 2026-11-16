@@ -597,7 +597,7 @@ let private runChunks
     vm.stats.AddChunk p.vm.stats
     vm.stats.TakeOffChunkEntry(entryInstrs, builtinName)
     match trace with
-    | ValueSome t -> t.take (fun () -> Interpreter.takeFrameId vm) vm.currentFrameID
+    | ValueSome t -> t.take (fun () -> Interpreter.takeFrameId vm) vm.currentFrame.id
     | ValueNone -> ()
     match me with
     | Some m ->

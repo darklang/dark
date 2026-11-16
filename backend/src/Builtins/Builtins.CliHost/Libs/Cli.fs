@@ -961,7 +961,7 @@ let childState
       fns =
         { parentState.fns with
             package = pm.getFn
-            isHarmful = fun pkg -> pm.isHarmful pkg
+            isHarmful = pm.isHarmful
             implCandidates = pm.implCandidates
             implCandidatesByMethod = pm.implCandidatesByMethod
             implSelectionMemo = pm.implSelectionMemo

@@ -246,26 +246,39 @@ type RecordedCall =
 type FnCost = { calls : int64; ticks : int64; slowest : int64 }
 
 /// `FnCost` while the run is going, for one process: plus how deep the process is in the
-/// function right now, and when its outermost call started.
-[<Struct>]
-type FnSpan = { cost : FnCost; depth : int; started : int64 }
+/// function right now, and when its outermost call started. Updated in place.
+type FnSpan = { mutable cost : FnCost; mutable depth : int; mutable started : int64 }
 
-/// Function hashes compared as usual, but bucketed by their first 16 characters. A hash is
-/// 64 hex characters of SHA-256, so 16 of them are already 64 random bits; hashing all 64 was
-/// most of what a recorded call cost.
-type private HashPrefixComparer() =
-  static member val Instance = HashPrefixComparer()
-  interface System.Collections.Generic.IEqualityComparer<RT.Hash> with
-    member _.Equals(RT.Hash a, RT.Hash b) = System.String.Equals(a, b)
-    member _.GetHashCode(RT.Hash h) =
-      System.String.GetHashCode(
-        System.MemoryExtensions.AsSpan(h, 0, min 16 h.Length)
-      )
+/// One process's spans, by hash, and the one it met last. A recursive function, or a loop that
+/// calls one function, meets the same span call after call, and finding it in the table was most
+/// of what recording a call cost; the interpreter hands over the same `Hash` each time, so
+/// telling it is the same one is a reference test.
+///
+/// Only that process writes it, so its frames take its own lock, never contended but by
+/// `storeTrace`'s copy (a suspended run stores while its processes may still be recording),
+/// instead of the lock every process shares.
+type ProcessSpans() =
+  let table = System.Collections.Generic.Dictionary<RT.Hash, FnSpan>()
+  let mutable lastHash : RT.Hash = Unchecked.defaultof<_>
+  let mutable last : FnSpan = Unchecked.defaultof<_>
 
-/// One process's spans, by hash. Only that process writes it, so its frames take its own lock,
-/// never contended but by `storeTrace`'s copy (a suspended run stores while its processes may
-/// still be recording), instead of the lock every process shares.
-type ProcessSpans = System.Collections.Generic.Dictionary<RT.Hash, FnSpan>
+  member _.Table = table
+
+  /// <param hash>'s span, or null when the process has not met the function yet.
+  member _.Find(hash : RT.Hash) : FnSpan =
+    if obj.ReferenceEquals(hash, lastHash) then
+      last
+    else
+      let mutable span = Unchecked.defaultof<FnSpan>
+      if table.TryGetValue(hash, &span) then
+        lastHash <- hash
+        last <- span
+      span
+
+  member _.Add(hash : RT.Hash, span : FnSpan) : unit =
+    table.Add(hash, span)
+    lastHash <- hash
+    last <- span
 
 // Written on every traced call under `sync`; mutable collections keep that write allocation-free.
 type TracerState =
@@ -338,7 +351,7 @@ let private spansOf (state : TracerState) (pid : System.Guid) : ProcessSpans =
   match state.fns.TryGetValue pid with
   | true, spans -> spans
   | false, _ ->
-    let spans = ProcessSpans(HashPrefixComparer.Instance)
+    let spans = ProcessSpans()
     state.fns[pid] <- spans
     spans
 
@@ -348,23 +361,13 @@ let private firstCall (started : int64) (depth : int) : FnSpan =
     started = started }
 
 
-/// <param hash>'s slot in <param spans>, to update in place: one lookup, not a read and then a
-/// write. A null ref when the process has not met the function yet.
-let private slotOf (spans : ProcessSpans) (hash : RT.Hash) : byref<FnSpan> =
-  &
-    System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrNullRef(
-      spans,
-      hash
-    )
-
-
 /// One more call of <param hash>, answered without a frame. Under the process's lock.
 let private countCall (spans : ProcessSpans) (hash : RT.Hash) : unit =
-  let span = &slotOf spans hash
-  if System.Runtime.CompilerServices.Unsafe.IsNullRef(&span) then
+  let span = spans.Find hash
+  if isNull (box span) then
     spans.Add(hash, firstCall 0L 0)
   else
-    span <- { span with cost = { span.cost with calls = span.cost.calls + 1L } }
+    span.cost <- { span.cost with calls = span.cost.calls + 1L }
 
 
 /// The process entered a frame of <param hash>. Under the process's lock.
@@ -373,37 +376,31 @@ let private countCall (spans : ProcessSpans) (hash : RT.Hash) : unit =
 /// call on a host whose clock source is HPET, about 1.3 us, which on a recursive function was
 /// most of what recording cost.
 let private enter (spans : ProcessSpans) (hash : RT.Hash) : unit =
-  let span = &slotOf spans hash
-  if System.Runtime.CompilerServices.Unsafe.IsNullRef(&span) then
+  let span = spans.Find hash
+  if isNull (box span) then
     spans.Add(hash, firstCall (System.Diagnostics.Stopwatch.GetTimestamp()) 1)
   else
-    span <-
-      { cost = { span.cost with calls = span.cost.calls + 1L }
-        depth = span.depth + 1
-        started =
-          if span.depth = 0 then
-            System.Diagnostics.Stopwatch.GetTimestamp()
-          else
-            span.started }
+    span.cost <- { span.cost with calls = span.cost.calls + 1L }
+    if span.depth = 0 then
+      span.started <- System.Diagnostics.Stopwatch.GetTimestamp()
+    span.depth <- span.depth + 1
 
 
 /// The process left a frame of <param hash>; the outermost one adds its span. Under the
 /// process's lock. A frame pushed before recording began (depth 0 here) is ignored.
 let private leave (spans : ProcessSpans) (hash : RT.Hash) : unit =
-  let span = &slotOf spans hash
-  if System.Runtime.CompilerServices.Unsafe.IsNullRef(&span) then
+  let span = spans.Find hash
+  if isNull (box span) then
     ()
   elif span.depth = 1 then
     let took = System.Diagnostics.Stopwatch.GetTimestamp() - span.started
-    span <-
-      { span with
-          depth = 0
-          cost =
-            { span.cost with
-                ticks = span.cost.ticks + took
-                slowest = max span.cost.slowest took } }
+    span.depth <- 0
+    span.cost <-
+      { span.cost with
+          ticks = span.cost.ticks + took
+          slowest = max span.cost.slowest took }
   elif span.depth > 1 then
-    span <- { span with depth = span.depth - 1 }
+    span.depth <- span.depth - 1
 
 
 /// The next ordinal for `pid`'s effectful calls. Under `sync`.
@@ -687,7 +684,7 @@ let private chunkOf
   (parent : RT.Tracing.Tracing)
   : RT.Tracing.ChunkTrace =
   let passes = System.Collections.Generic.Dictionary<int64, int>()
-  let own = ProcessSpans(HashPrefixComparer.Instance)
+  let own = ProcessSpans()
   let rec tracing () : RT.Tracing.Tracing =
     { parent with
         storeFrameEntry =
@@ -708,22 +705,18 @@ let private chunkOf
         state.loopPasses[key] <-
           (Lookup.tryFindV key state.loopPasses |> ValueOption.defaultValue 0) + n)
     lock spans (fun () ->
-      for KeyValue(hash, chunk) in own do
-        let span = &slotOf spans hash
-        if System.Runtime.CompilerServices.Unsafe.IsNullRef(&span) then
+      for KeyValue(hash, chunk) in own.Table do
+        let span = spans.Find hash
+        if isNull (box span) then
           spans.Add(hash, chunk)
         // Inside the function already, the spreading process's own span holds the chunk's time.
         elif span.depth > 0 then
-          span <-
-            { span with
-                cost = { span.cost with calls = span.cost.calls + chunk.cost.calls } }
+          span.cost <- { span.cost with calls = span.cost.calls + chunk.cost.calls }
         else
-          span <-
-            { span with
-                cost =
-                  { calls = span.cost.calls + chunk.cost.calls
-                    ticks = span.cost.ticks + chunk.cost.ticks
-                    slowest = max span.cost.slowest chunk.cost.slowest } })
+          span.cost <-
+            { calls = span.cost.calls + chunk.cost.calls
+              ticks = span.cost.ticks + chunk.cost.ticks
+              slowest = max span.cost.slowest chunk.cost.slowest })
   { tracing = tracing (); take = take }
 
 
@@ -815,7 +808,7 @@ let private addedUpByFunction
   |> List.ofSeq
   |> List.collect (fun spans ->
     lock spans (fun () ->
-      spans
+      spans.Table
       |> Seq.map (fun (KeyValue(hash, span)) -> hash, span.cost)
       |> List.ofSeq))
   |> Seq.groupBy fst
