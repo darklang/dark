@@ -984,7 +984,7 @@ type Scheduler(quantum : int64) =
       if not (obj.ReferenceEquals(op, null)) then
         OnHost op
       else
-        let frame = p.vm.callFrames.Find p.vm.currentFrameID
+        let frame = p.vm.currentFrame
         match frame.instrData.instructions[frame.programCounter] with
         | RT.Apply(_, calleeReg, _, _) ->
           match frame.registers[calleeReg] with

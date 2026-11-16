@@ -150,27 +150,20 @@ let restrictRun
           LibExecution.Permissions.Layer.Run
           policy }
 
-let rec callStackForFrame
-  (vm : RT.VMState)
-  (frameID : uuid)
+let rec private callStackForFrame
+  (frame : RT.CallFrame)
   (soFar : RT.CallStack)
   : RT.CallStack =
-  match vm.callFrames.TryFind frameID with
-  | false, _ ->
-    Exception.raiseInternal
-      "Execution.callStackForFrame -- Couldn't find frame in callFrames"
-      [ "frameID", string frameID ]
-  | true, frame ->
-    match frame.parent with
-    | ValueNone -> soFar
-    | ValueSome(parentFrameID, _, _) ->
-      callStackForFrame vm parentFrameID (frame.executionPoint :: soFar)
+  match frame.parent with
+  | ValueNone -> soFar
+  | ValueSome(parent, _, _) ->
+    callStackForFrame parent (frame.executionPoint :: soFar)
 
 
 let callStackFromVM (vm : RT.VMState) : RT.CallStack =
   // The nested frames go last: the stack reads outermost first, and a lambda a builtin applied ran
   // below the builtin that applied it.
-  callStackForFrame vm vm.currentFrameID [] @ vm.nestedCallStack
+  callStackForFrame vm.currentFrame [] @ vm.nestedCallStack
 
 
 /// Message used when recursive calls leave too little stack space to continue.
@@ -421,7 +414,7 @@ let private loadApplyRegisters
   (applicable : RT.Applicable)
   (args : NEList<RT.Dval>)
   : unit =
-  let registers = (vm.callFrames.Find vm.currentFrameID).registers
+  let registers = vm.currentFrame.registers
   registers[1] <- RT.DApplicable applicable
   registers[2] <- args.head
   // Head and tail directly: `NEList.toList` would allocate a list per application. The `iteri`
@@ -552,7 +545,7 @@ let executeApplicable1
   (arg : RT.Dval)
   : Task<RT.ExecutionResult> =
   let vm = vmForApply 1
-  let registers = (vm.callFrames.Find vm.currentFrameID).registers
+  let registers = vm.currentFrame.registers
   registers[1] <- RT.DApplicable applicable
   registers[2] <- arg
   runLoaded exeState access vm

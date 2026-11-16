@@ -768,7 +768,7 @@ let inline private recordStage (vm : VMState) (stage : int) (before : int64) : u
     vm.stats.countByStage[stage] <- vm.stats.countByStage[stage] + 1L
     if d > 0L then vm.stats.allocByStage[stage] <- vm.stats.allocByStage[stage] + d
 
-/// Frame identity is internal to a VM: `callFrames` and `framePushTimestamps` key on it,
+/// Frame identity is internal to a VM: the callback checks (`isLive`) and `framePushTimestamps` key on it,
 /// and the tracer's `storeFrameEntry` ignores the argument entirely. It never reaches storage or the wire.
 ///
 /// "Internal to a VM" is the whole invariant: ids repeat across VMs, so anything keyed on one has to
@@ -781,14 +781,13 @@ let inline private recordStage (vm : VMState) (stage : int) (before : int64) : u
 ///
 /// The counter lives on the VM, not in this module. A VM's interpreter loop is single-threaded so a
 /// per-VM counter needs no synchronization, whereas a process-global `let mutable` does: tests run VMs in
-/// parallel, and a non-atomic shared increment handed two frames the same id, dropping one from
-/// `callFrames` and failing the parent lookup on return. Caught by
+/// parallel, and a non-atomic shared increment handed two frames the same id. Caught by
 /// `Interpreter.Fns.Package.Recursion.addUpTo 30000`.
 /// A frame with a register file of exactly this size, reused from the pool if one is free.
 ///
 /// A frame and its registers are what pushing a call costs. Nothing holds either past the pop -- a
 /// lambda copies the values it closes over, a receiver call copies its receiver, the tracer is
-/// handed lists, and the parent link carries a frame id rather than a reference -- so a popped frame
+/// handed lists, and only a child, popped first, links to a frame -- so a popped frame
 /// can be handed straight back out with every field overwritten.
 ///
 /// The registers of a pooled frame are already cleared; `returnFrame` does it on the way in.
@@ -796,7 +795,7 @@ let inline private takeFrame
   (vm : VMState)
   (registerCount : int)
   (id : uuid)
-  (parent : voption<struct (uuid * Register * int)>)
+  (parent : voption<struct (CallFrame * Register * int)>)
   (executionPoint : ExecutionPoint)
   // Permission context inherited or narrowed for this frame.
   (access : Permissions.Access)
@@ -850,6 +849,7 @@ let inline private returnFrame (vm : VMState) (frame : CallFrame) : unit =
   if count > 0 then System.Array.Clear(frame.registers, 0, count)
   frame.typeSymbolTable <- TST.empty
   frame.expectedLambdaReturn <- ValueNone
+  frame.parent <- ValueNone
   if frame.appliedLambda.IsSome then frame.appliedLambda <- ValueNone
   let mutable free = Unchecked.defaultof<Stack<CallFrame>>
   if not (vm.framePool.TryGetValue(count, &free)) then
@@ -885,8 +885,15 @@ let private wholeRun = System.Guid.Empty
 
 /// Whether the fn that set up this check is still running. Once it returns, its
 /// types no longer apply, so a lambda kept and called later is not checked.
+let rec private onStack (frame : CallFrame) (id : uuid) : bool =
+  frame.id.Equals id
+  || (match frame.parent with
+      | ValueSome(struct (parent, _, _)) -> onStack parent id
+      | ValueNone -> false)
+
 let inline private isLive (vm : VMState) (x : LambdaReturnExpectation) : bool =
-  x.runId = vm.runId && (vm.callFrames.Contains x.frameId || x.frameId = wholeRun)
+  x.runId = vm.runId
+  && (x.frameId = wholeRun || onStack vm.currentFrame x.frameId)
 
 /// Drops the checks whose fn has already returned, and gives back the rest.
 let rec private liveExpectation
@@ -2053,7 +2060,7 @@ let private completeBuiltin
             fnParams
             allArgs
             tst
-            vm.currentFrameID
+            vm.currentFrame.id
     | _ -> ()
     invokeBuiltin exeState vm fn tst ctx.typeArgs allArgs false
 
@@ -2904,10 +2911,9 @@ let private noteRunInPlace
   (args : List<Dval>)
   : unit =
   match frame.parent with
-  | ValueSome(struct (parentId, _, _)) ->
+  | ValueSome(struct (parent, _, _)) ->
     frame.id <- nextFrameId vm
-    vm.currentFrameID <- frame.id
-    exeState.tracing.storeFrameEntry frame.id parentId frame.executionPoint args
+    exeState.tracing.storeFrameEntry frame.id parent.id frame.executionPoint args
   | ValueNone -> ()
 
 /// Whether a call from <param frame> to its own fn or lambda, writing <param putResultIn>, can run
@@ -2936,7 +2942,7 @@ let private runsInPlace
 
 /// A self tail call (`ApplyContext.inPlace`), run in the calling frame: it takes the call's
 /// arguments, access, symbol table and bounds, and starts over. Its id, parent and place in
-/// `callFrames` stay, so its result goes where the first call's would, and a callback check tied to
+/// parent stay, so its result goes where the first call's would, and a callback check tied to
 /// its id stays live. The return check, made once when the loop ends, is the one every level would
 /// have made: the same fn, and a return type with no type variable for a level's table to change.
 let private refillForTailCall
@@ -3041,7 +3047,7 @@ let private completePackage
     if exeState.tracing.collectFrames then
       exeState.tracing.storeFrameEntry
         newFrameId
-        vm.currentFrameID
+        vm.currentFrame.id
         pkgEp
         (landedForTrace (ArgSeq.toList allArgs))
     // Names and time only, and only when something is recording: this is what lets `traces
@@ -3058,7 +3064,7 @@ let private completePackage
         vm
         fn.body.registerCount
         newFrameId
-        (ValueSome(struct (vm.currentFrameID, ctx.putResultIn, ctx.returnPc)))
+        (ValueSome(struct (vm.currentFrame, ctx.putResultIn, ctx.returnPc)))
         pkgEp
         access
         callData.instrData
@@ -3899,7 +3905,7 @@ let inline private pushLambdaFrame
       foundLambda.instructions.registerCount
       (nextFrameId vm)
       (ValueSome(
-        struct (vm.currentFrameID, putResultIn, currentFrame.programCounter + 1)
+        struct (vm.currentFrame, putResultIn, currentFrame.programCounter + 1)
       ))
       lambdaEp
       access
@@ -3934,7 +3940,7 @@ let inline private pushLambdaFrame
   if exeState.tracing.collectFrames then
     exeState.tracing.storeFrameEntry
       newFrame.id
-      vm.currentFrameID
+      vm.currentFrame.id
       newFrame.executionPoint
       (landedForTrace (ArgSeq.toList allArgs))
   vm.frameToPush <- ValueSome newFrame
@@ -3943,8 +3949,7 @@ let inline private pushLambdaFrame
 
 /// Make a freshly built frame the current one.
 let inline private pushFrame (vm : VMState) (frame : CallFrame) : unit =
-  vm.callFrames.Push frame
-  vm.currentFrameID <- frame.id
+  vm.currentFrame <- frame
 
 /// Run the frame a call handed back from <param caller>: a new one is pushed, and the caller itself,
 /// refilled for a self tail call (`refillForTailCall`), starts over.
@@ -5379,7 +5384,7 @@ let private runSyncInstructions
         // Reporting a value only when there is one is the whole check.
         let v = registers[reg]
         if not (isNull (box v)) then
-          exeState.tracing.storeExprResult exprId vm.currentFrameID v
+          exeState.tracing.storeExprResult exprId vm.currentFrame.id v
       | None -> ()
 
   while running && budget <> 0L && counter < instrData.instructions.Length do
@@ -6018,7 +6023,7 @@ let private noteFinishedValue
     | Some(struct (exprId, reg)) ->
       let v = registers[reg]
       if not (isNull (box v)) then
-        exeState.tracing.storeExprResult exprId vm.currentFrameID v
+        exeState.tracing.storeExprResult exprId vm.currentFrame.id v
     | None -> ()
 
 
@@ -6545,7 +6550,7 @@ let inline private popFrame
   (earlyOut : Dval voption)
   : ApplyOutcome =
   match currentFrame.parent with
-  | ValueSome(parentID, regOfParentToPutResultInto, pcOfParent) ->
+  | ValueSome(parentFrame, regOfParentToPutResultInto, pcOfParent) ->
     // Every package fn frame has a parent, so this is the one place its pop is seen.
     if exeState.tracing.traceEffects then
       match currentFrame.executionPoint with
@@ -6554,21 +6559,17 @@ let inline private popFrame
 
     // Record per-package-fn timing on frame return
     if vm.stats.enabled && vm.stats.detailedTiming then
-      match vm.framePushTimestamps.TryGetValue(vm.currentFrameID) with
+      match vm.framePushTimestamps.TryGetValue(currentFrame.id) with
       | true, pushTs ->
         let elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - pushTs
         match currentFrame.executionPoint with
         | Function(FQFnName.Package(Hash h)) -> vm.stats.recordPackageFn (h, elapsed)
         | _ -> ()
-        vm.framePushTimestamps.Remove(vm.currentFrameID) |> ignore<bool>
+        vm.framePushTimestamps.Remove(currentFrame.id) |> ignore<bool>
       | false, _ -> ()
 
     let framePopAlloc = allocNow vm
-    vm.callFrames.Remove vm.currentFrameID
-
-    vm.currentFrameID <- parentID
-
-    let parentFrame = vm.callFrames.Find parentID
+    vm.currentFrame <- parentFrame
 
     let next = currentFrame.continuation
     if not (obj.ReferenceEquals(next, null)) then
@@ -6603,7 +6604,6 @@ let inline private popFrame
       recordStage vm ApplyStage.FramePop framePopAlloc
       ApplyDone
   | ValueNone ->
-    vm.callFrames.Remove vm.currentFrameID
     vm.finalResult <- ValueSome resultOfFrame
     ApplyDone
 
@@ -6624,12 +6624,11 @@ let private returnFromFrame
     match currentFrame.appliedLambda with
     | ValueSome _ when not (vm.stats.enabled && vm.stats.detailedTiming) ->
       vm.activeAccess <- currentFrame.requestAccess
-      let ownId = vm.currentFrameID
       match currentFrame.parent with
-      | ValueSome(parentID, _, _) -> vm.currentFrameID <- parentID
+      | ValueSome(parent, _, _) -> vm.currentFrame <- parent
       | ValueNone -> ()
       let out = currentFrame.continuation resultOfFrame
-      vm.currentFrameID <- ownId
+      vm.currentFrame <- currentFrame
       ValueSome out
     | _ -> ValueNone
   if
@@ -6706,7 +6705,7 @@ let rec private awaitOf
   (vm : VMState)
   (step : FrameStep)
   : StepOutcome =
-  let frame = vm.callFrames.Find vm.currentFrameID
+  let frame = vm.currentFrame
   // A chain that waits again from its resume (a continuation that waits twice in a row) is
   // parked on again.
   let waitAgain (outcome : ApplyOutcome) : StepOutcome voption =
@@ -6778,12 +6777,8 @@ let rec private awaitOf
 let executeSync (exeState : ExecutionState) (vm : VMState) : StepOutcome =
   let mutable bail = ValueNone
 
-  // `TryGetValue`, not `ContainsKey` and then the indexer: the key is a `uuid`, so that was two
-  // hashes and two probes per turn of the loop for one frame.
-  let mutable currentFrame = Unchecked.defaultof<CallFrame>
-
-  while ValueOption.isNone bail
-        && vm.callFrames.TryFind(vm.currentFrameID, &currentFrame) do
+  while ValueOption.isNone bail && vm.finalResult.IsNone do
+    let currentFrame = vm.currentFrame
     let registers = currentFrame.registers
     let instrData = currentFrame.instrData
 
@@ -6971,7 +6966,7 @@ let private driveToEnd
 /// Seed the root frame with the access the run starts under: what `executeUnder` does before
 /// running, and `Scheduler.Spawn` before stepping.
 let seedRootAccess (access : Permissions.Access) (vm : VMState) : unit =
-  (vm.callFrames.Find vm.currentFrameID).access <- access
+  vm.currentFrame.access <- access
   vm.activeAccess <- access
 
 
