@@ -1377,6 +1377,10 @@ let inline private recordsCall (tracing : Tracing.Tracing) (ord : int64) : bool 
 let private awaitsElsewhere : Set<string> =
   set [ "execAwait"; "execAwaitWithin"; "execSelect" ]
 
+/// The awaits whose answer is a race: whether the wait ran out, and which process finished
+/// first. Those are logged, so a replay comes out of the race the way the run did.
+let private races : Set<string> = set [ "execAwaitWithin"; "execSelect" ]
+
 /// Whether this builtin's call is logged, and so intercepted on a resume or a preview.
 ///
 /// A builtin that declares an effect always is. One that is `Impure` with no declared effect is
@@ -1386,16 +1390,17 @@ let private awaitsElsewhere : Set<string> =
 /// Unless it only ORCHESTRATES. Applying a callable or awaiting a process performs nothing itself,
 /// and the callee's own calls are logged, so interception there would serve `List.map`'s result
 /// instead of running the lambda (losing every per-iteration value) or stop a preview at an await.
-/// An orchestrator that declares an effect of its own is still intercepted.
+/// An orchestrator that declares an effect of its own is still intercepted, and so is a race.
 let private isLogged (fn : BuiltInFn) : bool =
   if Effects.performsAny fn.callEffects then
     true
   else
     fn.previewable = Impure
-    && not (
-      Set.contains fn.name.name awaitsElsewhere
-      || List.exists (fun (p : BuiltInParam) -> p.typ.isFn ()) fn.parameters
-    )
+    && (Set.contains fn.name.name races
+        || not (
+          Set.contains fn.name.name awaitsElsewhere
+          || List.exists (fun (p : BuiltInParam) -> p.typ.isFn ()) fn.parameters
+        ))
 
 
 /// What a spread chunk may not call (`ExecutionState.spreadChild`), and so what makes a callable
@@ -1919,9 +1924,14 @@ let private invokeBuiltinAuthorized
   // redacted out of it), so it is performed for real and the replay goes on. `PerformOnwards`:
   // the log ran out, and this process is live from here.
   | Tracing.ReplayStep.PerformOnce
-  | Tracing.ReplayStep.PerformOnwards ->
+  | Tracing.ReplayStep.PerformOnwards
+  | Tracing.ReplayStep.PerformWith _ ->
 
-    let body = fn.fn (struct (exeState, vm, resolvedTypeArgs, allArgs))
+    let bodyArgs =
+      match replayed with
+      | Tracing.ReplayStep.PerformWith args -> args
+      | _ -> allArgs
+    let body = fn.fn (struct (exeState, vm, resolvedTypeArgs, bodyArgs))
     // A body that named a host operation: performed here, its continuation driven; what comes
     // back is the body's real result, waited for like any other.
     let body =

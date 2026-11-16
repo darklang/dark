@@ -399,6 +399,31 @@ let private aChildLoggedBeforeItsSpawnStillReplays =
   }
 
 
+/// A resume answers a child's sleep from the log, so it finishes at once, and a race the run
+/// lost to time would now go the other way. The log says how the run came out of it, and the
+/// resume comes out the same.
+let private aResumeComesOutOfARaceAsTheRunDid =
+  cliTestWithFreshTraces
+    "a resume comes out of awaitWithin and select the way the run did"
+    (fun state ->
+      task {
+        let awaitWithin =
+          "let slow = Stdlib.Exec.spawn(fun () -> (let _ = Stdlib.Cli.Posix.sleep(500.0) in 1))\nlet early = Stdlib.Exec.awaitWithin(50, slow)\nlet _ = Stdlib.Exec.await(slow)\nStdlib.display(early)"
+        let select =
+          "let busy = Stdlib.Exec.spawn(fun () -> Stdlib.List.fold(Stdlib.List.range(1, 200000), 0, fun(acc, n) -> acc + n))\nlet sleepy = Stdlib.Exec.spawn(fun () -> (let _ = Stdlib.Cli.Posix.sleep(3000.0) in 0))\nlet (winner, _) = Stdlib.Exec.select([ sleepy, busy ])\nlet _ = Stdlib.Exec.await(sleepy)\nif winner == busy then \"busy won\" else \"sleepy won\""
+        let last (s : string) = s.Trim().Split('\n') |> Array.last
+        for program, expected in [ awaitWithin, "None"; select, "busy won" ] do
+          let! first = runCli state [ "eval"; program ]
+          Expect.stringContains
+            (last first)
+            expected
+            "the run came out of the race this way"
+          let! prefix = latestPrefix ()
+          let! resumed = runCli state [ "exec"; "resume"; prefix ]
+          Expect.equal (last resumed) (last first) "and so does the resume"
+      })
+
+
 /// An edit that changes what the run DID: the first effect now gets different arguments. The
 /// log holds what the old program did at that step, so serving it to the new call answers an
 /// effect that never happened. The resume refuses there, says what differs, and leaves the run
@@ -1400,6 +1425,7 @@ let tests =
     rerunIsIndependentOfResult
     suspendThenResume
     aChildLoggedBeforeItsSpawnStillReplays
+    aResumeComesOutOfARaceAsTheRunDid
     replayRefusesADivergedEffect
     pureLoopPassesAreCounted
     aFunctionThatRanAndWentIsNotATypo
