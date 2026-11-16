@@ -5235,10 +5235,14 @@ module Tracing =
   /// it: a different builtin, or the same one with different arguments. The old run's effect
   /// happened in the world, so neither serving it nor performing this one is right; the
   /// resume stops, and the message says what the log holds and what was asked.
+  ///
+  /// `PerformWith` is a race the log says how it came out (`Exec.awaitWithin`, `Exec.select`):
+  /// the call is made for real on these arguments, which leave it only that outcome.
   type ReplayStep =
     | Serve of Dval
     | PerformOnce
     | PerformOnwards
+    | PerformWith of Dval[]
     | Diverged of message : string
 
   /// How much a host lets its runs record, worked out once at startup and handed to every

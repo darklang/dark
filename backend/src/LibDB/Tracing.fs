@@ -303,6 +303,8 @@ type TracerState =
     /// What the log recorded at each step a replay answers, by the same key as `replay`.
     expected :
       System.Collections.Generic.Dictionary<struct (System.Guid * int64), RecordedCall>
+    /// The recorded process each process of a replay stands for. Empty for a fresh run.
+    matched : System.Collections.Generic.Dictionary<System.Guid, System.Guid>
     /// The run being resumed, for the message a refusal prints. Empty for a fresh run.
     resuming : string
     /// Wall clock for the whole run, started when the tracer was made. What `traces inspect` prints
@@ -324,6 +326,7 @@ let private newState (maxEvents : int) (resuming : string) : TracerState =
     replay = System.Collections.Generic.Dictionary()
     replayEnded = System.Collections.Generic.HashSet()
     expected = System.Collections.Generic.Dictionary()
+    matched = System.Collections.Generic.Dictionary()
     resuming = resuming
     loopPasses = System.Collections.Generic.Dictionary()
     elapsed = System.Diagnostics.Stopwatch.StartNew()
@@ -637,6 +640,45 @@ module ReplayCheck =
             Some $"this program calls `{builtin}` differently from the run: {lines}"
 
 
+/// How a replay comes out of a race the log recorded: the way the run did. A wait that ran out
+/// runs out again at once (its answer is served); one that saw the process finish waits for it;
+/// a select waits for the process that won it. `asRecorded` is `args` with the run's process
+/// ids, as the log has them.
+module Races =
+  /// The longest wait `Exec.awaitWithin` takes.
+  let private noLimit = RT.DInt64(int64 System.Int32.MaxValue)
+
+  let private idOf (handle : RT.Dval) : Option<System.Guid> =
+    match handle with
+    | RT.DRecord(_, _, _, fields) ->
+      match RT.RecordFields.tryFind "id" fields with
+      | Some(RT.DUuid id) -> Some id
+      | _ -> None
+    | _ -> None
+
+  let steer
+    (builtin : string)
+    (args : RT.Dval[])
+    (asRecorded : RT.Dval[])
+    (answer : RT.Tracing.ReplayStep)
+    : RT.Tracing.ReplayStep =
+    match builtin, answer with
+    | "execAwaitWithin", RT.Tracing.ReplayStep.Serve(RT.DEnum(_, _, _, "Some", _)) ->
+      RT.Tracing.ReplayStep.PerformWith [| noLimit; args[1] |]
+    | "execSelect", RT.Tracing.ReplayStep.Serve(RT.DTuple(winner, _, [])) ->
+      match asRecorded[0], args[0] with
+      | RT.DList(_, RT.Items recorded), RT.DList(vt, RT.Items handles) ->
+        match List.tryFindIndex (fun h -> idOf h = idOf winner) recorded with
+        | Some i ->
+          RT.Tracing.ReplayStep.PerformWith
+            [| RT.DList(vt, RT.Items [ handles[i] ]) |]
+        | None ->
+          RT.Tracing.ReplayStep.Diverged
+            "the run's select was won by a process this one has no handle for"
+      | _ -> answer
+    | _ -> answer
+
+
 /// A spread chunk's hooks for this trace: loop passes and function spans of its own, with no
 /// lock, added to the trace and to the spreading process's `spans` when the chunk is taken.
 let private chunkOf
@@ -723,15 +765,29 @@ let rec private executionTracingFor
             else
               match state.replay.TryGetValue(struct (pid, ord)) with
               | true, answer ->
+                // The run's processes had other ids, so a handle is taken as the one it stands
+                // for.
+                let asRecorded =
+                  args
+                  |> Array.map (
+                    RT.Dval.rewriteWith (fun dv ->
+                      match dv with
+                      | RT.DUuid id ->
+                        match state.matched.TryGetValue id with
+                        | true, recorded -> Some(RT.DUuid recorded)
+                        | false, _ -> None
+                      | _ -> None)
+                  )
                 // The log's answer belongs to the call the old program made at this step. A
                 // program edited since may make a different one here; answering it from the log
                 // would report an effect that never happened as done.
                 let difference =
                   match state.expected.TryGetValue(struct (pid, ord)) with
-                  | true, recorded -> ReplayCheck.difference recorded builtin args
+                  | true, recorded ->
+                    ReplayCheck.difference recorded builtin asRecorded
                   | false, _ -> None
                 match difference with
-                | None -> answer
+                | None -> Races.steer builtin args asRecorded answer
                 | Some what ->
                   RT.Tracing.ReplayStep.Diverged(
                     $"{what}. The log answers what that program did, not this one, so the "
@@ -1378,8 +1434,7 @@ let createReplayTracer
     |> List.distinct
     |> List.filter (fun pid ->
       pid <> System.Guid.Empty && not (Set.contains pid spawned))
-  // The recorded process each new one replays.
-  let replays = System.Collections.Generic.Dictionary<System.Guid, System.Guid>()
+  let replays = state.matched
   replays[System.Guid.Empty] <- System.Guid.Empty
   // A run nobody scheduled recorded under `Guid.Empty`, and a resume nobody schedules asks
   // under it too, through the root hooks below, so those rows answer directly as well as
@@ -1532,7 +1587,12 @@ let createViewTracer
   let answersGate = obj ()
 
   let lookup (name : string) (args : RT.Dval[]) : RT.Tracing.ReplayStep voption =
-    if Set.contains name Redact.performAgain then
+    // A race is waited out for real: the processes it waits on are viewed too.
+    if
+      Set.contains name Redact.performAgain
+      || name = "execAwaitWithin"
+      || name = "execSelect"
+    then
       // Serving these is what `performAgain` exists to prevent: a spawn's recorded result is a
       // handle to a process that no longer exists, so serving it makes the next `await` fail.
       // They are made again instead. A spawned child inherits this tracer, so it is viewed too

@@ -1082,6 +1082,7 @@ and says so.
 | HTTP stream open | from the log for the open; refuse past the first unlogged chunk | later chunks were never logged; serving blindly hangs, re-performing opens a second connection |
 | process run, exec | from the log | output is logged; re-running is a second `rm` or deploy |
 | process spawn | performed again; the new child replays the recorded child's rows | a recorded result names a process that no longer exists |
+| `Exec.awaitWithin`, `Exec.select` | performed again, with the outcome from the log: a wait that ran out runs out at once, one that saw the process finish waits for it, a select waits for the process that won | the processes' sleeps return at once, so the race would come out another way |
 | process IO, terminate | from the log; refuse past a handle that was alive at suspend | the subprocess died with the old trace; nothing to serve |
 | environment read | performed again; the value is never stored | it is the secret kept out of the log, so a resume reads the resuming machine's environment |
 | environment write, chdir | from the log, then re-apply to the resuming process before going live | the live suffix assumes the env the old process set |
