@@ -129,7 +129,7 @@ type ForkJson =
 /// A trace as `--json` hands it over.
 ///
 /// Every recorded value is a STRING here, rendered the way the terminal renders it. The stored
-/// form is a typed Dval, and serializing that gives `{"Some":[{"DInt64":[42]}]}` -- faithful,
+/// form is a typed Dval, and serializing that gives `{"DInt64":[42]}` -- faithful,
 /// and not what the program said. Whoever reads this wants `42`, and a value they can paste
 /// back into Dark. The type is also flat, so `.answered` does not mean reaching through an
 /// option-of-a-union.

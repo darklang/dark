@@ -133,8 +133,102 @@ module RangedInt =
 /// The value `serialize` found with no JSON form.
 exception CannotSerialize of Dval
 
-let rec serialize (w : Utf8JsonWriter) (dv : Dval) : unit =
-  let r = serialize w
+/// <param typ> with aliases followed.
+let rec unalias (types : Types) (typ : TypeReference) : TypeReference =
+  match typ with
+  | TCustomType({ resolved = Ok typeName }, typeArgs) ->
+    match Types.find types typeName with
+    | Some({ definition = TypeDeclaration.Alias alias } as decl) ->
+      unalias types (Types.substitute decl.typeParams typeArgs alias)
+    | _ -> typ
+  | _ -> typ
+
+/// What <param typ> holds when it is `Option`, directly or through aliases.
+let optionOf (types : Types) (typ : TypeReference) : TypeReference option =
+  match unalias types typ with
+  | TCustomType({ resolved = Ok(FQTypeName.Package(Hash h)) }, [ inner ]) when
+    h = PackageRefs.Type.Stdlib.option ()
+    ->
+    Some inner
+  | _ -> None
+
+/// Whether a value of <param typ> can be written as `null`: `Unit`, or an `Option` that
+/// writes `None` as `null`. An `Option` of such a type is written in the tagged form,
+/// `{"Some":[..]}`, so that `Some(None)` and `None` stay apart.
+let rec writesNull (types : Types) (typ : TypeReference) : bool =
+  match unalias types typ with
+  | TUnit -> true
+  | typ ->
+    match optionOf types typ with
+    | Some inner -> not (writesNull types inner)
+    | None -> false
+
+/// <param typ>, or the value's own type where <param typ> is a type variable.
+let private declared
+  (types : Types)
+  (typ : TypeReference)
+  (dv : Dval)
+  : TypeReference =
+  match typ with
+  | TVariable _ ->
+    match LibExecution.RuntimeTypes.Dval.toValueType dv with
+    | ValueType.Known kt -> TypeReference.fromKnownType kt
+    | ValueType.Unknown -> typ
+  | _ -> unalias types typ
+
+let private unknownType = TVariable "_"
+
+/// The declared types of an enum case's fields, or unknown ones.
+let private caseFieldTypes
+  (types : Types)
+  (typ : TypeReference)
+  (caseName : string)
+  (fields : List<Dval>)
+  : List<TypeReference> =
+  let declaredFields =
+    match typ with
+    | TCustomType({ resolved = Ok typeName }, typeArgs) ->
+      match Types.find types typeName with
+      | Some({ definition = TypeDeclaration.Enum cases } as decl) ->
+        match cases |> NEList.find (fun c -> c.name = caseName) with
+        | Some c when List.length c.fields = List.length fields ->
+          Some(c.fields |> List.map (Types.substitute decl.typeParams typeArgs))
+        | _ -> None
+      | _ -> None
+    | _ -> None
+  declaredFields
+  |> Option.defaultWith (fun () -> fields |> List.map (fun _ -> unknownType))
+
+/// The declared type of a record's field, or an unknown one.
+let private recordFieldType
+  (types : Types)
+  (typ : TypeReference)
+  : string -> TypeReference =
+  match typ with
+  | TCustomType({ resolved = Ok typeName }, typeArgs) ->
+    match Types.find types typeName with
+    | Some({ definition = TypeDeclaration.Record defs } as decl) ->
+      fun name ->
+        match defs |> NEList.find (fun d -> d.name = name) with
+        | Some d -> Types.substitute decl.typeParams typeArgs d.typ
+        | None -> unknownType
+    | _ -> fun _ -> unknownType
+  | _ -> fun _ -> unknownType
+
+/// Writes <param dv> as JSON, going by its declared type <param typ> where an `Option` is
+/// written. An `Option` writes `None` as `null` and `Some(v)` as `v`, except where `v` itself
+/// can write `null`: see <see cref="writesNull"/>. A `None` record field is left out, or with
+/// <param noneAsNull> written as `null`; a field whose `Some` can be `null` leaves `None` out
+/// either way, and writes `Some(v)` as `v`.
+let rec serialize
+  (types : Types)
+  (noneAsNull : bool)
+  (w : Utf8JsonWriter)
+  (typ : TypeReference)
+  (dv : Dval)
+  : unit =
+  let r = serialize types noneAsNull w
+  let typ = declared types typ dv
   match dv with
   // basic types
   | DUnit -> w.WriteNullValue()
@@ -177,11 +271,26 @@ let rec serialize (w : Utf8JsonWriter) (dv : Dval) : unit =
   | DUuid uuid -> w.WriteStringValue(string uuid)
 
   // Nested types
-  | DTuple(d1, d2, rest) -> w.writeArray (fun () -> List.iter r (d1 :: d2 :: rest))
+  | DTuple(d1, d2, rest) ->
+    let items = d1 :: d2 :: rest
+    let itemTypes =
+      match typ with
+      | TTuple(t1, t2, ts) when List.length ts = List.length rest -> t1 :: t2 :: ts
+      | _ -> items |> List.map (fun _ -> unknownType)
+    w.writeArray (fun () -> List.iter2 r itemTypes items)
 
-  | DList(_, Items(items)) -> w.writeArray (fun () -> List.iter r items)
+  | DList(_, Items(items)) ->
+    let itemType =
+      match typ with
+      | TList t -> t
+      | _ -> unknownType
+    w.writeArray (fun () -> List.iter (r itemType) items)
 
   | DDict(_, _, fields) ->
+    let valueType =
+      match typ with
+      | TDict(_, t) -> t
+      | _ -> unknownType
     // `iter` rather than `toList |> List.iter`: the latter builds a tuple and a cons per
     // field, for a list that is walked once and dropped. Both visit in ascending key order.
     w.writeObject (fun () ->
@@ -190,25 +299,43 @@ let rec serialize (w : Utf8JsonWriter) (dv : Dval) : unit =
         match k with
         | DString k ->
           w.WritePropertyName k
-          r v
+          r valueType v
         | _ -> raise (CannotSerialize dv)))
 
   // Enums and Records
   | DEnum(_, _, _, caseName, fields) ->
-    w.writeObject (fun () ->
-      w.WritePropertyName caseName
-      w.writeArray (fun () -> fields |> List.iter r))
+    let tagged (fieldTypes : List<TypeReference>) =
+      w.writeObject (fun () ->
+        w.WritePropertyName caseName
+        w.writeArray (fun () -> List.iter2 r fieldTypes fields))
+    match optionOf types typ, fields with
+    | Some inner, _ when writesNull types inner ->
+      tagged (fields |> List.map (fun _ -> inner))
+    | Some inner, [ v ] -> r inner v
+    | Some _, _ -> w.WriteNullValue()
+    | None, _ -> tagged (caseFieldTypes types typ caseName fields)
 
   | DRecord(_, typeName, _, fields) ->
     match RangedInt.valueOf typeName fields with
     | ValueSome n -> w.WriteNumberValue n
     | ValueNone ->
+      let fieldType = recordFieldType types typ
       // See `DDict` above.
       w.writeObject (fun () ->
         fields
         |> RecordFields.iter (fun fieldName dval ->
-          w.WritePropertyName fieldName
-          r dval))
+          let t = declared types (fieldType fieldName) dval
+          match optionOf types t, dval with
+          | Some inner, DEnum(_, _, _, "None", _) when
+            not noneAsNull || writesNull types inner
+            ->
+            ()
+          | Some inner, DEnum(_, _, _, "Some", [ v ]) ->
+            w.WritePropertyName fieldName
+            r inner v
+          | _ ->
+            w.WritePropertyName fieldName
+            r t dval))
 
   // Not supported
   | DApplicable _
@@ -522,8 +649,13 @@ let private integer
     | _ -> raiseCantMatchWithType typ j path
 
 
-/// What a record field of type `Option` parses from when the JSON leaves it out or is `null`.
-let private noneJson : JsonElement = JsonDocument.Parse("{\"None\":[]}").RootElement
+/// `{"Some":[..]}` or `{"None":[..]}`, the tagged form of an `Option`.
+let private isTaggedOption (j : JsonElement) : bool =
+  j.ValueKind = JsonValueKind.Object
+  && (match j.EnumerateObject() |> Seq.map (fun p -> p.Name) |> Seq.toList with
+      | [ "Some" ]
+      | [ "None" ] -> true
+      | _ -> false)
 
 
 let parse
@@ -534,20 +666,6 @@ let parse
   : Result<Dval, ParseError.ParseError> =
 
   let tst = TST.empty // TODO consider passing this in.. somehow?
-
-  /// What <param typ> holds when it is `Option`, directly or through aliases.
-  let rec optionOf (typ : TypeReference) : TypeReference option =
-    match typ with
-    | TCustomType({ resolved = Ok(FQTypeName.Package(Hash h)) }, [ inner ]) when
-      h = PackageRefs.Type.Stdlib.option ()
-      ->
-      Some inner
-    | TCustomType({ resolved = Ok typeName }, typeArgs) ->
-      match Types.find types typeName with
-      | Some({ definition = TypeDeclaration.Alias alias } as decl) ->
-        optionOf (Types.substitute decl.typeParams typeArgs alias)
-      | _ -> None
-    | _ -> None
 
   let rec convert
     (typ : TypeReference)
@@ -669,7 +787,53 @@ let parse
           ParseError.OutOfRange(range.what, n, range.min, range.max, pathSoFar)
         )
       | ValueSome n -> RangedInt.make typeName range n
-    | TCustomType({ resolved = Ok typeName }, typeArgs), jsonValueKind ->
+    | TCustomType({ resolved = Ok _ }, _), _ ->
+      match optionOf types typ with
+      | Some inner -> optionValue typ inner pathSoFar j
+      | None -> customType typ pathSoFar j
+
+    // Explicitly not supported
+    | TVariable _, _
+    | TFn _, _
+    | TBytes, _
+    | TStream _, _ -> raiseError (ParseError.UnsupportedType typ)
+
+
+    // exhaust TypeReferences
+    | TUnit, _
+    | TBool, _
+    | TInt8, _
+    | TUInt8, _
+    | TInt16, _
+    | TUInt16, _
+    | TInt32, _
+    | TUInt32, _
+    | TInt64, _
+    | TUInt64, _
+    | TInt128, _
+    | TUInt128, _
+    | TBigInt, _
+    | TFloat64, _
+    | TFloat32, _
+    | TDecimal, _
+    | TChar, _
+    | TString, _
+    | TUuid, _
+    | TDateTime, _
+    | TTuple _, _
+    | TList _, _
+    | TDict _, _
+    | TCustomType _, _ -> raiseCantMatchWithType typ j pathSoFar
+
+  /// A custom type, with an `Option` read in the tagged form.
+  and customType
+    (typ : TypeReference)
+    (pathSoFar : JsonPath.JsonPath)
+    (j : JsonElement)
+    : Dval =
+    match typ with
+    | TCustomType({ resolved = Ok typeName }, typeArgs) ->
+      let jsonValueKind = j.ValueKind
       let typeArgsVT = typeArgs |> List.map (TypeReference.toVT types tst)
 
       match Types.find types typeName with
@@ -776,12 +940,12 @@ let parse
             |> List.map (fun def ->
               let typ = Types.substitute decl.typeParams typeArgs def.typ
               let path = JsonPath.Part.Field def.name :: pathSoFar
-              let optionArg = optionOf typ
+              let optionArg = optionOf types typ
               let converted =
                 match
                   enumerated |> List.filter (fun v -> v.Name = def.name), optionArg
                 with
-                | [], Some _ -> convert typ path noneJson
+                | [], Some inner -> option inner "None" []
                 | [], None ->
                   raiseError (ParseError.RecordMissingField(def.name, pathSoFar))
                 | [ field ], Some inner -> optionField typ inner path field.Value
@@ -799,70 +963,58 @@ let parse
               typeArgsVT
               (fields |> List.map (fun (n, v) -> struct (n, v)) |> Array.ofList)
           record
+    | _ -> raiseCantMatchWithType typ j pathSoFar
 
+  and option
+    (inner : TypeReference)
+    (caseName : string)
+    (fields : List<Dval>)
+    : Dval =
+    TypeChecker.DvalCreator.enum
+      types
+      threadID
+      tst
+      (Dval.optionType ())
+      [ TypeReference.toVT types tst inner ]
+      caseName
+      fields
 
-    // Explicitly not supported
-    | TVariable _, _
-    | TFn _, _
-    | TBytes, _
-    | TStream _, _ -> raiseError (ParseError.UnsupportedType typ)
+  /// An `Option` that isn't a record field: `null` is `None` and any other value is the
+  /// `Some`. Where the inner type can write `null` itself, only the tagged form is read.
+  and optionValue
+    (typ : TypeReference)
+    (inner : TypeReference)
+    (path : JsonPath.JsonPath)
+    (j : JsonElement)
+    : Dval =
+    if writesNull types inner then customType typ path j
+    else if j.ValueKind = JsonValueKind.Null then option inner "None" []
+    else someOrTagged typ inner path j
 
-
-    // exhaust TypeReferences
-    | TUnit, _
-    | TBool, _
-    | TInt8, _
-    | TUInt8, _
-    | TInt16, _
-    | TUInt16, _
-    | TInt32, _
-    | TUInt32, _
-    | TInt64, _
-    | TUInt64, _
-    | TInt128, _
-    | TUInt128, _
-    | TBigInt, _
-    | TFloat64, _
-    | TFloat32, _
-    | TDecimal, _
-    | TChar, _
-    | TString, _
-    | TUuid, _
-    | TDateTime, _
-    | TTuple _, _
-    | TList _, _
-    | TDict _, _
-    | TCustomType _, _ -> raiseCantMatchWithType typ j pathSoFar
-
-  /// A present `Option` field. `null` is `None`, `{"Some":[..]}` and `{"None":[]}` are read as
-  /// `serialize` writes them, and any other value is the `Some`.
+  /// A present `Option` record field: `null` is `None`, or `Some` of the inner type's `null`
+  /// where it has one, and any other value is the `Some`.
   and optionField
     (typ : TypeReference)
     (inner : TypeReference)
     (path : JsonPath.JsonPath)
     (j : JsonElement)
     : Dval =
-    let asWritten =
-      j.ValueKind = JsonValueKind.Object
-      && (match j.EnumerateObject() |> Seq.map (fun p -> p.Name) |> Seq.toList with
-          | [ "Some" ]
-          | [ "None" ] -> true
-          | _ -> false)
-    if j.ValueKind = JsonValueKind.Null then
-      convert typ path noneJson
-    else if asWritten then
-      convert typ path j
-    else
-      let value = convert inner path j
-      let innerVT = TypeReference.toVT types tst inner
-      TypeChecker.DvalCreator.enum
-        types
-        threadID
-        tst
-        (Dval.optionType ())
-        [ innerVT ]
-        "Some"
-        [ value ]
+    if j.ValueKind <> JsonValueKind.Null then someOrTagged typ inner path j
+    else if writesNull types inner then option inner "Some" [ convert inner path j ]
+    else option inner "None" []
+
+  /// The value as the `Some`, or else the tagged form. The `Some` is tried first, so a
+  /// record with a field named `Some` reads as that record.
+  and someOrTagged
+    (typ : TypeReference)
+    (inner : TypeReference)
+    (path : JsonPath.JsonPath)
+    (j : JsonElement)
+    : Dval =
+    try
+      option inner "Some" [ convert inner path j ]
+    with ParseError.JsonException _ when isTaggedOption j ->
+      customType typ path j
 
   let parsed =
     try
@@ -882,17 +1034,38 @@ let parse
       Error ex
 
 
+let private optionsType () : TypeReference =
+  TCustomType(
+    NR.ok (FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Json.options ())),
+    []
+  )
+
+/// Whether a `Json.Options` says to write a `None` record field as `null`.
+let private noneAsNull (options : Dval) : bool =
+  match options with
+  | DRecord(_, _, _, fields) ->
+    match RecordFields.tryFind "noneFields" fields with
+    | Some(DEnum(_, _, _, "Null", [])) -> true
+    | _ -> false
+  | _ -> false
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "jsonSerialize" 0
       typeParams = [ "a" ]
-      parameters = [ Param.make "arg" (TVariable "a") "" ]
+      parameters =
+        [ Param.make "options" (optionsType ()) ""
+          Param.make "arg" (TVariable "a") "" ]
       returnType = TString
       description = "Serializes a Dark value to a JSON string."
       fn =
         (function
-        | _, vm, [ _typeToSerializeAs ], [| arg |] ->
+        | exeState, vm, [ typ ], [| options; arg |] ->
+          let noneAsNull = noneAsNull options
           try
-            (DString(writeJson (fun w -> serialize w arg)))
+            (DString(
+              writeJson (fun w -> serialize exeState.types noneAsNull w typ arg)
+            ))
           with CannotSerialize dv ->
             RTE.Jsons.CannotSerializeValue dv |> RTE.Json |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
@@ -903,7 +1076,9 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "jsonCheckedSerialize" 0
       typeParams = [ "a" ]
-      parameters = [ Param.make "arg" (TVariable "a") "" ]
+      parameters =
+        [ Param.make "options" (optionsType ()) ""
+          Param.make "arg" (TVariable "a") "" ]
       returnType =
         TypeReference.result
           TString
@@ -912,13 +1087,16 @@ let fns () : List<BuiltInFn> =
         "Serializes a Dark value to a JSON string, or the first value found that has no JSON form."
       fn =
         (function
-        | _, _, [ _typeToSerializeAs ], [| arg |] ->
+        | exeState, _, [ typ ], [| options; arg |] ->
+          let noneAsNull = noneAsNull options
           let errType = RT2DT.Dval.knownType ()
           try
             (Dval.resultOk
               KTString
               errType
-              (DString(writeJson (fun w -> serialize w arg))))
+              (DString(
+                writeJson (fun w -> serialize exeState.types noneAsNull w typ arg)
+              )))
           with CannotSerialize dv ->
             (Dval.resultError KTString errType (RT2DT.Dval.toDT dv))
         | _ -> incorrectArgs ())

@@ -120,8 +120,8 @@ measure("  the same, via its package wrapper  ", fun i -> Stdlib.String.length("
 // machinery on its own, with and without a wrapper around it.
 // A wrapper called with an EXPLICIT type argument. The thin-wrapper elision declines when
 // `typeArgs` is non-empty, so this pair is the un-elided cost of the same forwarding.
-measure("builtin with a type arg              ", fun i -> Stdlib.String.length(Builtin.jsonSerialize<Int64>(i)))
-measure("  the same, via its package wrapper  ", fun i -> Stdlib.String.length(Stdlib.Json.serialize<Int64>(i)))
+measure("builtin with a type arg              ", fun i -> Stdlib.String.length(Builtin.jsonSerialize<Int64>(Stdlib.Json.Options.defaults(), i)))
+measure("  the same, via its package wrapper  ", fun i -> Stdlib.String.length(Stdlib.Json.serializeWith<Int64>(Stdlib.Json.Options.defaults(), i)))
 measure("call a trivial builtin (boolNot)     ", fun i -> if Builtin.boolNot(true) then 1 else 0)
 measure("  the same, via its package wrapper  ", fun i -> if Stdlib.Bool.not(true) then 1 else 0)
 
