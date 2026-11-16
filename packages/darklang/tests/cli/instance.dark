@@ -53,8 +53,11 @@ let create(): Stdlib.Result.Result<T, String> =
     match Stdlib.Cli.Unix.ensureDirectoryExists(dir) with
     | Error(e) -> Stdlib.Result.Result.Error($"could not create {dir}: {e}")
     | Ok(_) ->
-      // `.backup` rather than `cp`, and a read lock rather than a write one, so this is
-      // safe against a dev store something else is using.
+      // `.backup` while the store has writes in its WAL, and a read lock rather than a
+      // write one, so this is safe against a dev store something else is using. With
+      // nothing in the WAL the file is the whole store, and `cp` costs a third of the
+      // CPU of a page-by-page backup. A run's shared snapshot is read-only, hence the
+      // `chmod`.
       //
       // Then clear the copy's config. It would otherwise inherit the dev store's current
       // branch and identity, so if the dev store is on a branch, every test instance
@@ -62,7 +65,7 @@ let create(): Stdlib.Result.Result<T, String> =
       let copy =
         Stdlib.Cli.Unix.executeInDirectoryWithOutput(
           ".",
-          $"sqlite3 -cmd '.timeout 10000' {src} '.backup {dir}/data.db' && sqlite3 {dir}/data.db 'DELETE FROM config_v0;'")
+          $"if [ -s {src}-wal ]; then sqlite3 -cmd '.timeout 10000' {src} '.backup {dir}/data.db'; else cp {src} {dir}/data.db && chmod u+w {dir}/data.db; fi && sqlite3 {dir}/data.db 'DELETE FROM config_v0;'")
 
       if copy.exitCode != 0 then
         Stdlib.Result.Result.Error(
