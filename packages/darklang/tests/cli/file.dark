@@ -86,8 +86,17 @@ module WriteErrors =
       let _ = Stdlib.Cli.Dir.delete(directory) |> Builtin.unwrap
       result
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
-          Stdlib.Cli.FileSystem.FileError.OsAccessDenied)))
+        Stdlib.Result.Result.Error(Stdlib.Cli.FileSystem.FileError.Other("Is a directory"))))
+    |> Builtin.unwrap
+
+
+module ReadErrors =
+  // a directory is not a permission problem
+  test readingADirectory =
+    Stdlib.Cli.Dir.withTemp(fun dir ->
+      Stdlib.Cli.FileSystem.readFileAsString(dir)
+      |> Stdlib.Result.mapError(Stdlib.Cli.FileSystem.FileError.toString)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Is a directory")))
     |> Builtin.unwrap
 
 
