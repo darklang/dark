@@ -101,7 +101,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
       # CLI integration tests
       expect \
       && apt clean \
-      && rm -rf /var/lib/apt/lists/*
+      && rm -rf /var/lib/apt/lists/* \
+      # gcc's sanitizer runtimes, which come with it but which nothing here links.
+      && rm -f /usr/lib/x86_64-linux-gnu/lib*san.so.* /usr/lib/aarch64-linux-gnu/lib*san.so.*
 
 # As of Ubuntu 24.04, an install includes
 # an 'ubuntu' user, that we don't use,
@@ -196,13 +198,17 @@ RUN /home/dark/install-dotnet \
   --version=11.0.100 \
   --arm64-sha256=cfa248bb1377606e868602fb5b4d66fa16b7546156593937d1982f7f2142e6ded76d71c4a26efdab99f87c46ab40c3c672ab1b57ef7fa25449efe5b140a55af4 \
   --amd64-sha256=1bec9cca2ec689b1e80245b84f2b53c9441d1aa6daccf2ceb27490768bffa95954fa585bd275def31069d874d543d9ba9e6591fe9ade2dbd9f34ec5c0fd0050c \
-  # Parts of the SDK nothing here runs: `dotnet format` (fantomas formats), `dotnet watch`
-  # (scripts/dev/watch has its own watcher), and the .NET Framework test host, which is
-  # Windows-only. Removed in the same layer, or they would still be pulled.
+  # Parts of the SDK nothing here runs: its bundled tools (`dotnet format`, `dotnet watch`,
+  # the ASP.NET ones), the .NET Framework test host, which is Windows-only, `dotnet new`'s
+  # templates, and the SDK's messages in other languages. Removed in the same layer, or they
+  # would still be pulled.
   && sudo rm -rf \
-    /usr/share/dotnet/sdk/*/DotnetTools/dotnet-format \
-    /usr/share/dotnet/sdk/*/DotnetTools/dotnet-watch \
-    /usr/share/dotnet/sdk/*/TestHostNetFramework
+    /usr/share/dotnet/sdk/*/DotnetTools \
+    /usr/share/dotnet/sdk/*/TestHostNetFramework \
+    /usr/share/dotnet/templates \
+  && sudo find /usr/share/dotnet/sdk -type d \
+    -regex '.*/\(cs\|de\|es\|fr\|it\|ja\|ko\|pl\|pt-BR\|ru\|tr\|zh-Hans\|zh-Hant\)' -prune \
+    -exec rm -rf {} +
 
 # formatting
 RUN dotnet tool install fantomas --version 6.2.3 -g
@@ -211,36 +217,6 @@ ENV PATH="$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
 
 # without this, dotnet restore seems to fail, accessing the wrong path
 ENV NUGET_SCRATCH=/tmp/NuGetScratch
-
-#############
-# Zig,
-# for cross-compiling native libraries (e.g. SQLite) for the release CLIs.
-# TODO Occasionally, check https://ziglang.org/download to see if we're using the latest version
-# NOTE: release builds use 0.13.0 (scripts/build/install-release-toolchain), so release SQLite
-# archives and local ones are built with different zig versions.
-# The hashes are the ones https://ziglang.org/download/index.json lists.
-ENV ZIG_VERSION=0.11.0
-#############
-RUN set -e; \
-  case ${TARGETARCH} in \
-  arm64) \
-  ZIG_ARCH="aarch64"; \
-  ZIG_SHA256="956eb095d8ba44ac6ebd27f7c9956e47d92937c103bf754745d0a39cdaa5d4c6"; \
-  ;; \
-  amd64) \
-  ZIG_ARCH="x86_64"; \
-  ZIG_SHA256="2d00e789fec4f71790a6e7bf83ff91d564943c5ee843c5fd966efc474b423047"; \
-  ;; \
-  *) exit 1;; \
-  esac;  \
-  curl -fsSL -o zig.tar.xz "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz"; \
-  echo "${ZIG_SHA256}  zig.tar.xz" | sha256sum -c -; \
-  mkdir ~/zig; \
-  # Not the bundled docs (46 MB): nothing builds from them.
-  tar -xf zig.tar.xz -C ~/zig --strip-components=1 --exclude="zig-linux-${ZIG_ARCH}-${ZIG_VERSION}/doc"; \
-  rm zig.tar.xz;
-
-ENV PATH="$PATH:/home/dark/zig"
 
 ############################
 # Environment
@@ -307,6 +283,11 @@ RUN DEBIAN_FRONTEND=noninteractive \
 USER dark
 
 RUN /home/dark/.local/bin/pip install --no-cache-dir setuptools yq watchfiles yapf==0.40.1 brotli
+
+# Zig, for cross-compiling native libraries (e.g. SQLite) for the release CLIs. Not in dark-ci:
+# CI only needs it when the SQLite archive isn't cached, and build-sqlite.sh fetches it then.
+RUN /home/dark/install-zig
+ENV PATH="$PATH:/home/dark/zig"
 
 ####################################
 # CircleCI

@@ -124,6 +124,9 @@ if [[ "$needs_build" == "false" ]]; then
   exit 0
 fi
 
+# CI's image has no zig: it only needs one when the archive isn't cached.
+[[ -x "$HOME/zig/zig" ]] || app/scripts/installers/install-zig "$HOME/zig"
+
 # Fetch + verify amalgamation
 if [[ ! -d "$sqlite_dir" ]]; then
   curl -sSL -O "$sqlite_url"
