@@ -565,12 +565,14 @@ let private runChunks
           caps = capsFor me probe.PerElement bytesPerElement (DvalList.length chunk)
         )
       state.spread.counts.Add SpreadCount.Chunks
-      p.completion.Task.ContinueWith(
-        (fun (_ : Task<ExecutionResult>) -> slots.Release() |> ignore<int>),
-        TaskContinuationOptions.ExecuteSynchronously
-      )
-      |> ignore<Task>
-      struct (offset, copies, trace, p))
+      // Collected through this, so its slot is back before the op goes on: a map right after
+      // this one finds every slot free.
+      let released =
+        p.completion.Task.ContinueWith(
+          (fun (_ : Task<ExecutionResult>) -> slots.Release() |> ignore<int>),
+          TaskContinuationOptions.ExecuteSynchronously
+        )
+      struct (offset, copies, trace, p, released))
     |> Array.ofList
 
   // Its answer is kept for an `Exec.await` until taken; nobody else will take it.
@@ -584,7 +586,7 @@ let private runChunks
 
   let cancelFrom (first : int) =
     for j in first .. procs.Length - 1 do
-      let struct (_, _, _, p) = procs[j]
+      let struct (_, _, _, p, _) = procs[j]
       sched.Cancel p.id |> ignore<bool>
       forget p
 
@@ -618,10 +620,11 @@ let private runChunks
       Task.FromResult((List.rev acc, AllFinished))
     else
       task {
-        let struct (_, copies, trace, p) = procs[i]
+        let struct (_, copies, trace, p, released) = procs[i]
         match me with
         | Some m -> m.parkHint <- ValueSome(Sched.OnProcess p.id)
         | None -> ()
+        do! released
         let! result = p.completion.Task
         sched.TakeResult p.id |> ignore<Option<ExecutionResult>>
         let answer =
@@ -660,7 +663,7 @@ let private runChunks
       return { results = results; leftoverIndex = count; found = ValueSome answer }
     | FailedAt failedAt ->
       state.spread.counts.Add SpreadCount.Fallbacks
-      let struct (offset, _, _, failed) = procs[failedAt]
+      let struct (offset, _, _, failed, _) = procs[failedAt]
       // Stopped by a cap rather than refused: the body was dearer than it looked, not impure,
       // so it may be tried again.
       match me with
@@ -698,7 +701,9 @@ let private spreadOver
         count
       else
         int (min (int64 count) (int64 count * perElement / settings.minChunk))
-    min byWork (min count (workers.Idle * settings.chunksPerWorker))
+    let free =
+      if settings.idleOnly then workers.Idle else List.length workers.Members
+    min byWork (min count (free * settings.chunksPerWorker))
   let rec take (got : int) =
     if got < wanted && workers.ChunkSlots.Wait 0 then take (got + 1) else got
   let chunkCount = take 0
@@ -720,6 +725,7 @@ let private spreadOver
     if chunkCount > 0 then workers.ChunkSlots.Release chunkCount |> ignore<int>
   if List.isEmpty chunks then
     release ()
+    state.spread.counts.Add SpreadCount.NoChunks
     Task.FromResult ValueNone
   // A list holding reads in flight runs where it is: a chunk would carry the parent's reads
   // into a child. About these values, not the callable, so it is not remembered.

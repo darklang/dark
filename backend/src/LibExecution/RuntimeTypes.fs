@@ -6316,11 +6316,13 @@ type SpreadCount =
   | PredictedUnknown = 4
   | PredictionFailures = 5
   | Chunks = 6
+  /// The probe said spread, but not two chunks could start (no free worker or slot).
+  | NoChunks = 7
 
 /// What spreading did in one run, for `DARK_SPREAD_REPORT` and tests. Counted from every
 /// process of the run at once, so atomically.
 type SpreadCounts() =
-  let counts : int64[] = Array.zeroCreate 7
+  let counts : int64[] = Array.zeroCreate 8
   member _.Add(which : SpreadCount) : unit =
     System.Threading.Interlocked.Increment(&counts[int which]) |> ignore<int64>
   member _.Get(which : SpreadCount) : int64 =
@@ -6341,6 +6343,9 @@ type SpreadSettings =
     minChunk : int64
     /// Chunks per idle worker, so one slow chunk does not leave the other cores waiting.
     chunksPerWorker : int
+    /// Spread only onto workers with nothing on them. Off in tests that need every map to
+    /// spread whatever else the box is doing.
+    idleOnly : bool
     /// Skip a callable known to reach an effect (`Spread.predict`) rather than try it.
     predict : bool
     counts : SpreadCounts
@@ -6356,6 +6361,7 @@ type SpreadSettings =
       minPerElement = 20L
       minChunk = 2_000L
       chunksPerWorker = 2
+      idleOnly = true
       predict = false
       counts = SpreadCounts() }
 
