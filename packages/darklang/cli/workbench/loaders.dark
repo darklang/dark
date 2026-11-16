@@ -857,7 +857,11 @@ let refreshScmStatus(previous: State, next: State): State =
 /// Re-read the SCM picture whatever the counts say. For the actions that change it without moving an op
 /// count: an ack, and any command run in a frame (a pull lands other people's commits).
 let forceScmRefresh(state: State): State =
-  { state with scmStatus = readScmStatus(state.branchId), previews = [], liveFor = "" }
+  { state with
+      scmStatus = readScmStatus(state.branchId)
+      previews = []
+      liveFor = ""
+      liveRuns = [] }
 
 
 /// Run the selected `render` fn and hold its output, for the tree-native view peek.
@@ -903,19 +907,31 @@ let refreshLiveValues(next: State): State =
     if key == next.liveFor then
       next
     else
-      let (values, note) =
-        match LanguageTools.Live.Values.replay(next.accountId, next.branchId, entry) with
-        | Some(v) ->
-          // One line each, and short: a value beside a call is a glance, and the pane's width
-          // is the code's. `dark traces inspect` has the whole value.
-          (
-            v.byExpr
-            |> Stdlib.Dict.map(fun(_, dv) ->
-              PrettyPrinter.RuntimeTypes.dvalOneLine(next.branchId, 40, dv)),
-            Stdlib.Option.withDefault(v.skipped, ""))
-        | None -> (Stdlib.Dict.empty, "")
+      match LanguageTools.Live.Values.newestRun(next.branchId, entry) with
+      | None -> { next with liveValues = Stdlib.Dict.empty, liveFor = key, liveNote = "" }
+      | Some(run) ->
+        let runKey = key + " " + run.id
+        let others = Stdlib.List.filter(next.liveRuns, fun r -> r.key != runKey)
+        let live =
+          match Stdlib.List.findFirst(next.liveRuns, fun r -> r.key == runKey) with
+          | Some(kept) -> kept
+          | None ->
+            let v = LanguageTools.Live.Values.replayRun(next.accountId, next.branchId, run)
+            LiveRun
+              { key = runKey
+                // One line each, and short: a value beside a call is a glance, and the pane's
+                // width is the code's. `dark traces inspect` has the whole value.
+                values =
+                  v.byExpr
+                  |> Stdlib.Dict.map(fun(_, dv) ->
+                    PrettyPrinter.RuntimeTypes.dvalOneLine(next.branchId, 40, dv))
+                note = Stdlib.Option.withDefault(v.skipped, "") }
 
-      { next with liveValues = values, liveFor = key, liveNote = note }
+        { next with
+            liveValues = live.values
+            liveFor = key
+            liveNote = live.note
+            liveRuns = Stdlib.List.take(Stdlib.List.prepend(others, live), previewsKept) }
 
 
 let refreshPeek(next: State): State =

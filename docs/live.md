@@ -317,8 +317,9 @@ with every impure call answered from its own log and none performed, and returns
 callees too, under their own ids -- and `problem`, the reason the replay stopped early if it did,
 with the values up to that point still in `byExpr`. `None` means no recorded trace went through
 the function, which is not an error: there is nothing to show yet. `skipped` says the newest run
-was too large to replay at all (over a second, or through more than 500 functions); `byExpr` is
-then empty, and `replayWithin` takes other limits.
+was too large to replay at all (over 75 ms, or through more than 500 functions; a replay costs
+many times the run); `byExpr` is then empty, and `replayWithin` takes other limits. `newestRun`
+and `replayRun` are the two halves, for a caller that keeps values per run.
 
 Two consequences worth stating, because they are the point. Because the whole run is replayed
 rather than one function called, **nothing is performed**: a handler that charges a card does not
@@ -344,7 +345,9 @@ Where they show:
   the code breaks exactly as it does without the values.
 - The workbench. The Matter view's detail pane refreshes the values whenever the
   selected function or the draft changes (`refreshLiveValues`), not on every key, and prints
-  with them; a skipped run is a comment line under the code. `dark traces show
+  with them; a skipped run is a comment line under the code. It keeps the values of the last
+  few functions by their newest run, so moving back to one whose newest run has not changed
+  does not replay it. `dark traces show
   <fn> --watch` is the same thing as a panel of its own, with the traces to pick from and
   up/down to move between them (`cli/traceWatch.dark`).
 

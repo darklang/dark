@@ -789,53 +789,62 @@ module Values =
     branchId: Uuid,
     entry: ProgramTypes.PackageLocation)
     : Option<Values> =
-    replayWithin(1000, 500, accountID, branchId, entry)
+    newestRun(branchId, entry)
+    |> Stdlib.Option.map(fun run -> replayRun(accountID, branchId, run))
 
 
-  /// `replay`, refusing a recorded run that took longer than <param maxDurationMs> or went
+  /// The newest recorded run that went through <param entry>: the one `replay` shows.
+  let newestRun(branchId: Uuid, entry: ProgramTypes.PackageLocation): Option<Tracing.Trace> =
+    Stdlib.List.head(Tracing.Store.wentThroughNamed(branchId, entryName(entry), 1))
+
+
+  /// <param run> replayed, refusing one that ran longer than 75 ms or went through more than
+  /// 500 functions (`replayWithin`).
+  let replayRun(accountID: Option<Uuid>, branchId: Uuid, run: Tracing.Trace): Values =
+    replayWithin(75, 500, accountID, branchId, run)
+
+
+  /// <param run> replayed, refusing one that ran longer than <param maxDurationMs> or went
   /// through more than <param maxFns> functions.
   ///
-  /// The replay re-runs the WHOLE recorded run in this process, on the caller's thread, with
-  /// nothing bounding it but the run itself: it holds a frame for every call the run made, so
-  /// its memory is linear in the run's size. An editor or a workbench asks on a keystroke, and
-  /// on a store that records everything the newest run through `List.map` is whatever script
-  /// ran last. Both limits, because `durationMs` is 0 for a run recorded before it was kept.
+  /// The replay re-runs the WHOLE recorded run in this process, on the caller's thread, and
+  /// keeps every expression's value, so it costs many times the run: a 50,000-step loop that
+  /// ran in 41 ms takes over half a second to replay. 75 ms of run keeps a replay near a
+  /// second. An editor or a workbench asks on a keystroke, and on a store that records
+  /// everything the newest run through `List.map` is whatever script ran last. Both limits,
+  /// because `durationMs` is 0 for a run recorded before it was kept.
   let replayWithin(
     maxDurationMs: Int64,
     maxFns: Int64,
     accountID: Option<Uuid>,
     branchId: Uuid,
-    entry: ProgramTypes.PackageLocation)
-    : Option<Values> =
-    match Tracing.Store.wentThroughNamed(branchId, entryName(entry), 1) with
-    | [] -> Option.None
-    | [newest, ...] ->
-      let fns = Stdlib.List.length(Tracing.Store.fnsOf(newest.id))
-      if newest.durationMs > maxDurationMs || fns > maxFns then
-        let why =
-          $"too large to show live values: its last run took {Stdlib.display(newest.durationMs)} ms through {Stdlib.display(fns)} fns (dark traces inspect {Stdlib.String.slice(newest.id, 0, 8)})"
+    run: Tracing.Trace)
+    : Values =
+    let fns = Stdlib.List.length(Tracing.Store.fnsOf(run.id))
+    if run.durationMs > maxDurationMs || fns > maxFns then
+      let why =
+        $"too large to show live values: its last run took {Stdlib.display(run.durationMs)} ms through {Stdlib.display(fns)} fns, and a replay takes many times that (dark traces inspect {Stdlib.String.slice(run.id, 0, 8)})"
 
-        Option.Some(
-          Values { byExpr = Stdlib.Dict.empty, problem = Option.None, skipped = Option.Some(why) })
-      else
-        let (collected, stop) = Tracing.Store.viewTrace(accountID, branchId, newest.id)
+      Values { byExpr = Stdlib.Dict.empty, problem = Option.None, skipped = Option.Some(why) }
+    else
+      let (collected, stop) = Tracing.Store.viewTrace(accountID, branchId, run.id)
 
-        // Rendered here, not stored as the stop: this is stdlib, so it cannot reach the CLI's
-        // converter, and a caller holding a `ReplayStop` would have to render it anyway. The
-        // cause goes FIRST when there is one, because a drift error reads as the reader's bug.
-        let problem =
-          stop
-          |> Stdlib.Option.map(fun stop ->
-            let (message, why) = Tracing.Format.replayStop(branchId, stop)
-            match why with
-            | Some(why) -> $"{why}: {message}"
-            | None -> message)
+      // Rendered here, not stored as the stop: this is stdlib, so it cannot reach the CLI's
+      // converter, and a caller holding a `ReplayStop` would have to render it anyway. The
+      // cause goes FIRST when there is one, because a drift error reads as the reader's bug.
+      let problem =
+        stop
+        |> Stdlib.Option.map(fun stop ->
+          let (message, why) = Tracing.Format.replayStop(branchId, stop)
+          match why with
+          | Some(why) -> $"{why}: {message}"
+          | None -> message)
 
-        let byExpr =
-          collected
-          |> Stdlib.List.map(fun pair ->
-            let (id, v) = pair
-            (Stdlib.display(id), v))
-          |> Stdlib.Dict.fromEntries
+      let byExpr =
+        collected
+        |> Stdlib.List.map(fun pair ->
+          let (id, v) = pair
+          (Stdlib.display(id), v))
+        |> Stdlib.Dict.fromEntries
 
-        Option.Some(Values { byExpr = byExpr, problem = problem, skipped = Option.None })
+      Values { byExpr = byExpr, problem = problem, skipped = Option.None }

@@ -183,6 +183,13 @@ type PreviewCache =
     lines: List<String> }
 
 
+/// One fn's live values, kept for moving back to it. `key` is `State.liveFor` and the run's id.
+type LiveRun =
+  { key: String
+    values: Dict<String, String>
+    note: String }
+
+
 /// How the full-screen reader shows what it is given.
 type Reader =
   /// Source: syntax-highlighted.
@@ -278,6 +285,10 @@ type State =
     liveFor: String
     /// Why a fn with a recorded run shows no values (`Values.skipped`); "" otherwise.
     liveNote: String
+    /// The last few fns' live values, newest first, so moving back to one whose newest run has
+    /// not changed draws them again rather than replaying it. Empty whenever the store may have
+    /// moved under them.
+    liveRuns: List<LiveRun>
     /// The REPL view's own state. Everything in here belongs to that one view, so it lives in one field
     /// rather than as four more on the workbench: a view you can hand a record to is a view you could mount
     /// somewhere else, and the parent stops being the place every view keeps its things.
