@@ -377,12 +377,13 @@ let execute(state: AppState, args: List<String>): AppState =
   | ["diff", id] -> executeDiff(state, id, Source.Hide)
   | ["diff", id, "--source"] -> executeDiff(state, id, Source.Show)
   | ["log", id] -> executeLog(state, id)
-  | ["merge", id] -> executeMerge(state, id, Confirm.Ask, TypeErrors.Refuse)
+  | ["merge", id] -> executeMerge(state, id, Confirm.Ask, TypeErrors.Refuse, TouchedTestRun.UpToCap)
   | ["merge", id, "-y"] | ["merge", id, "--yes"] ->
-    executeMerge(state, id, Confirm.Assume, TypeErrors.Refuse)
-  | ["merge", id, "--allow-type-errors"] -> executeMerge(state, id, Confirm.Ask, TypeErrors.Allow)
+    executeMerge(state, id, Confirm.Assume, TypeErrors.Refuse, TouchedTestRun.UpToCap)
+  | ["merge", id, "--allow-type-errors"] ->
+    executeMerge(state, id, Confirm.Ask, TypeErrors.Allow, TouchedTestRun.UpToCap)
   | ["merge", id, "--allow-type-errors", "-y"] | ["merge", id, "-y", "--allow-type-errors"] ->
-    executeMerge(state, id, Confirm.Assume, TypeErrors.Allow)
+    executeMerge(state, id, Confirm.Assume, TypeErrors.Allow, TouchedTestRun.UpToCap)
   | ["merge", id, "--dry-run"] -> executeMergeDryRun(state, id)
   | ["rebase", id] -> executeRebase(state, id)
   | ["resolve", id, name, choice] -> executeResolve(state, id, name, choice)
