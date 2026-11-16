@@ -149,12 +149,13 @@ test keepMineAddsAnOpAndRestampsNothing =
   let before = stamps()
   let keptMine = SCM.Branches.resolveKeepMine(b, "Tests.RestampTest.foo")
   let after = stamps()
+  let afterSet = after |> Stdlib.List.map(fun s -> (s, ())) |> Stdlib.Dict.fromList
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Authoring.ok(keptMine)
       (before
        |> Stdlib.List.filter(fun s ->
-         Stdlib.Bool.not(Stdlib.List.contains(after, s))))
+         Stdlib.Bool.not(Stdlib.Dict.containsKey(afterSet, s))))
       |> Stdlib.Test.equal([])
 
       Stdlib.List.length(after) > Stdlib.List.length(before)
