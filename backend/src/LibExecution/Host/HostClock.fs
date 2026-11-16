@@ -110,10 +110,14 @@ let private pair (high : int64) (low : int64) : byte[] =
 let private timespec (ticks : Ticks) : byte[] =
   pair (ticks / 10_000_000L) (ticks % 10_000_000L * 100L)
 
+/// The clock ids a virtual clock reads for: Linux's. The kernel is asked for any other, so one
+/// it does not have fails as it would.
+let private clockIds : Set<int> = set [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 11 ]
+
 /// Whether a virtual clock answers this operation itself: a clock read or a sleep.
 let answers (op : HostTypes.PosixOp) : bool =
   match op with
-  | HostTypes.PosixOp.ClockGettime _
+  | HostTypes.PosixOp.ClockGettime id -> Set.contains id clockIds
   | HostTypes.PosixOp.Gettimeofday
   | HostTypes.PosixOp.MachAbsoluteTime
   | HostTypes.PosixOp.MachTimebaseInfo
