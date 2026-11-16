@@ -20,12 +20,17 @@ module Darklang.Cli.Component
 type Step<'s> =
   /// Keep going with this state.
   | Stay('s)
+  /// Keep going, and repaint the whole surface instead of diffing against the retained one: for a step
+  /// that let something else write to the terminal (evaluating code can print).
+  | Repaint('s)
   /// Keep going, and persist first (`save` is called with the new state).
   | Save('s)
   /// Leave the app. Nothing is persisted, so a component that wants "save on exit" says `Save` first.
   | Exit('s)
   /// Hand off to a foreground command; the CLI returns to this page (at this state) when it exits.
   | Launch('s, String)
+  /// Run an external program on this terminal (`$EDITOR`) and come straight back.
+  | RunProgram('s, String, List<String>)
 
 
 type Component<'s> =
@@ -103,10 +108,16 @@ let toSubApp(c: Component<'s>, session: Session<'s>): SubApp =
         (fun(key, modifiers, keyChar) ->
            match c.onKey(session.state, key, modifiers, keyChar) with
            | Stay(next) -> (SubAppAction.Continue, toSubApp(c, present(c, session, next)))
+           | Repaint(next) ->
+             let state = c.refresh(session.state, next)
+             let terminal = Stdlib.Cli.Tui.TerminalSession.resumed(fun size -> c.view(state, size))
+             (SubAppAction.Continue, toSubApp(c, Session { state = state, terminal = terminal }))
            | Save(next) -> (SubAppAction.Save, toSubApp(c, present(c, session, next)))
            | Exit(next) -> (SubAppAction.Exit, toSubApp(c, handOff(session, next)))
            | Launch(next, command) ->
-             (SubAppAction.LaunchCommand(command), toSubApp(c, handOff(session, next))))
+             (SubAppAction.LaunchCommand(command), toSubApp(c, handOff(session, next)))
+           | RunProgram(next, program, args) ->
+             (SubAppAction.RunProgram(program, args), toSubApp(c, handOff(session, next))))
       // The session presents on launch and on every state transition, so the returned SubApp carries the
       // matching renderer history. Nothing is drawn here.
       onDisplay = (fun () -> ())
@@ -121,12 +132,11 @@ let toSubApp(c: Component<'s>, session: Session<'s>): SubApp =
            ())
       onResume =
         (fun () ->
-           // Whatever ran on top tore the surface down, so the retained view is stale: start over and
-           // repaint from scratch rather than diffing against it.
-           let terminal =
-             Stdlib.Cli.Tui.TerminalSession.resumed(fun size -> c.view(session.state, size))
-
-           toSubApp(c, Session { state = session.state, terminal = terminal }))
+           // What ran on top may have changed what the page shows (an editor over a file it holds), so
+           // derived state is recomputed. The surface was torn down, so repaint from scratch.
+           let state = c.refresh(session.state, session.state)
+           let terminal = Stdlib.Cli.Tui.TerminalSession.resumed(fun size -> c.view(state, size))
+           toSubApp(c, Session { state = state, terminal = terminal }))
       onStoreChanged =
         (fun change -> toSubApp(c, present(c, session, c.onStoreChanged(session.state, change)))) }
 
