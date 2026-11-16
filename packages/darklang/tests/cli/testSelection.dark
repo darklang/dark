@@ -1,0 +1,67 @@
+/// `dark test run` and `dark test count` search for their filters' tests rather than
+/// reading every test, and pick the same tests as filtering all of them would.
+module Darklang.Cli.Tests.TestSelection
+
+let everyPath(): List<String> =
+  Cli.Packages.Test.liveTests(SCM.Branch.mainBranchId, [], "")
+  |> Stdlib.List.map(Cli.Packages.Test.fullPath)
+
+
+let selectedPaths(filters: List<String>): List<String> =
+  Cli.Packages.Test.selectedTests(SCM.Branch.mainBranchId, filters)
+  |> Stdlib.List.map(Cli.Packages.Test.fullPath)
+
+
+let segments(path: String): List<String> = Stdlib.String.split(path, ".")
+
+
+test runSelectsWhatFilteringEveryTestWould =
+  let all = everyPath()
+  let expected = fun filters ->
+    all
+    |> Stdlib.List.filter(fun path ->
+      Stdlib.List.isEmpty(filters)
+      || Stdlib.List.any(filters, fun f -> Cli.Packages.Test.selects(f, path)))
+    |> Stdlib.List.sort
+
+  Stdlib.Test.all(
+    [ selectedPaths([ "Darklang.Stdlib.Bool" ])
+      |> Stdlib.List.isEmpty
+      |> Stdlib.Test.equal(false)
+
+      [ "Darklang.Stdlib.Bool" ] |> selectedPaths |> Stdlib.Test.equal(expected([ "Darklang.Stdlib.Bool" ]))
+      [ "Stdlib.Bool" ] |> selectedPaths |> Stdlib.Test.equal(expected([ "Stdlib.Bool" ]))
+      [ "Float64.Tests" ] |> selectedPaths |> Stdlib.Test.equal(expected([ "Float64.Tests" ]))
+      [ "WbTests.R" ] |> selectedPaths |> Stdlib.Test.equal(expected([ "WbTests.R" ]))
+      [ "Darklang.Stdlib.Bool", "Stdlib.Float64" ]
+      |> selectedPaths
+      |> Stdlib.Test.equal(expected([ "Darklang.Stdlib.Bool", "Stdlib.Float64" ]))
+      [ "Stdlib.Bool", "Bool" ] |> selectedPaths |> Stdlib.Test.equal(expected([ "Stdlib.Bool", "Bool" ]))
+      [] |> selectedPaths |> Stdlib.Test.equal(expected([])) ])
+
+
+test countFindsWhatFilteringEveryTestWould =
+  let all = everyPath() |> Stdlib.List.map(segments)
+  let under = fun prefix ->
+    Cli.Packages.Test.testsUnder(SCM.Branch.mainBranchId, prefix)
+    |> Stdlib.List.sort
+
+  let expected = fun prefix ->
+    all
+    |> Stdlib.List.filter(fun path ->
+      Stdlib.List.take(path, Stdlib.List.length(prefix)) == prefix)
+    |> Stdlib.List.sort
+
+  let oneTest =
+    selectedPaths([ "Darklang.Stdlib.Bool" ])
+    |> Stdlib.List.head
+    |> Stdlib.Option.map(segments)
+    |> Stdlib.Option.withDefault([])
+
+  Stdlib.Test.all(
+    [ under([ "Darklang", "Stdlib" ]) |> Stdlib.Test.equal(expected([ "Darklang", "Stdlib" ]))
+      under([ "Darklang" ]) |> Stdlib.Test.equal(expected([ "Darklang" ]))
+      under(oneTest) |> Stdlib.Test.equal(expected(oneTest))
+      under(oneTest) |> Stdlib.List.length |> Stdlib.Test.equal(1)
+      under([ "Stdlib", "Bool" ]) |> Stdlib.Test.equal(expected([ "Stdlib", "Bool" ]))
+      under([]) |> Stdlib.Test.equal(expected([])) ])
