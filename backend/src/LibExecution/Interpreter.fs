@@ -807,8 +807,9 @@ let inline private takeFrame
   (boundImpls :
     List<struct (string * FQTypeName.Package * string * FQFnName.Package)>)
   : CallFrame =
-  let mutable free = Unchecked.defaultof<Stack<CallFrame>>
-  if vm.framePool.TryGetValue(registerCount, &free) && free.Count > 0 then
+  let pool = vm.framePool
+  let free = if registerCount < pool.Count then pool[registerCount] else null
+  if not (isNull free) && free.Count > 0 then
     let f = free.Pop()
     f.id <- id
     f.parent <- parent
@@ -851,10 +852,13 @@ let inline private returnFrame (vm : VMState) (frame : CallFrame) : unit =
   frame.expectedLambdaReturn <- ValueNone
   frame.parent <- ValueNone
   if frame.appliedLambda.IsSome then frame.appliedLambda <- ValueNone
-  let mutable free = Unchecked.defaultof<Stack<CallFrame>>
-  if not (vm.framePool.TryGetValue(count, &free)) then
+  let pool = vm.framePool
+  while pool.Count <= count do
+    pool.Add null
+  let mutable free = pool[count]
+  if isNull free then
     free <- Stack()
-    vm.framePool[count] <- free
+    pool[count] <- free
   free.Push frame
 
 let inline private nextFrameId (vm : VMState) : uuid =
@@ -2940,6 +2944,38 @@ let private runsInPlace
     putResultIn
     frame.instrData.resultReg
 
+/// <param frame>'s registers, access, symbol table and bounds, set for running its own fn again
+/// with <param allArgs> (`refillForTailCall`).
+let private refill
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (frame : CallFrame)
+  (fn : PackageFn.PackageFn)
+  (access : Permissions.Access)
+  (tst : TypeSymbolTable)
+  (boundImpls :
+    List<struct (string * FQTypeName.Package * string * FQFnName.Package)>)
+  (allArgs : ArgSeq)
+  : unit =
+  if vm.stats.enabled then
+    vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
+    vm.stats.framePushCount <- vm.stats.framePushCount + 1L
+  // The arguments are read from the registers about to be cleared, so out first, into the frame's
+  // scratch buffer, which is then cleared so it holds nothing alive.
+  let args = ArgSeq.toArrayFor frame allArgs
+  if exeState.tracing.collectFrames then
+    noteRunInPlace exeState vm frame (landedForTrace (List.ofArray args))
+  if exeState.tracing.traceEffects then exeState.tracing.noteFunction fn.hash
+  let regs = frame.registers
+  // A loop, not a bulk copy: there are only a few, and the bulk copy's setup costs more.
+  for i in 0 .. args.Length - 1 do
+    Registers.set regs i args[i]
+  System.Span<Dval>(regs).Slice(args.Length).Clear()
+  System.Span<Dval>(args).Clear()
+  frame.access <- access
+  frame.typeSymbolTable <- tst
+  frame.boundImpls <- boundImpls
+
 /// A self tail call (`ApplyContext.inPlace`), run in the calling frame: it takes the call's
 /// arguments, access, symbol table and bounds, and starts over. Its id, parent and place in
 /// parent stay, so its result goes where the first call's would, and a callback check tied to
@@ -2956,30 +2992,80 @@ let private refillForTailCall
   (newlyBound : TypeSymbolTable)
   (allArgs : ArgSeq)
   : PackageOutcome =
-  if vm.stats.enabled then
-    vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
-    vm.stats.framePushCount <- vm.stats.framePushCount + 1L
-  let tst = calleeTst frame implicitTypeParams newlyBound
-  let access = packageEntryAccess exeState callData ctx.applicable fn.hash ctx.access
-  let boundImpls = calleeBoundImpls frame ctx
-  // The arguments are read from the registers about to be cleared, so out first, into the frame's
-  // scratch buffer, which is then cleared so it holds nothing alive.
-  let args = ArgSeq.toArrayFor frame allArgs
-  if exeState.tracing.collectFrames then
-    noteRunInPlace exeState vm frame (landedForTrace (List.ofArray args))
-  if exeState.tracing.traceEffects then exeState.tracing.noteFunction fn.hash
-  let regs = frame.registers
-  // A loop, not a bulk copy: there are only a few, and the bulk copy's setup costs more.
-  for i in 0 .. args.Length - 1 do
-    Registers.set regs i args[i]
-  System.Span<Dval>(regs).Slice(args.Length).Clear()
-  System.Span<Dval>(args).Clear()
-  frame.access <- access
-  frame.typeSymbolTable <- tst
-  frame.boundImpls <- boundImpls
+  refill
+    exeState
+    vm
+    frame
+    fn
+    (packageEntryAccess exeState callData ctx.applicable fn.hash ctx.access)
+    (calleeTst frame implicitTypeParams newlyBound)
+    (calleeBoundImpls frame ctx)
+    allArgs
   expectCallbackReturns vm ctx callData frame
   // The run loop sets the counter back to the start.
   PushFrame frame
+
+/// The frame a call of <param callData>'s fn runs in, from the current frame, with its arguments in
+/// its registers: what every package call that pushes a frame builds.
+let private packageFrame
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (callData : PackageFnCallData)
+  (access : Permissions.Access)
+  (tst : TypeSymbolTable)
+  (boundImpls :
+    List<struct (string * FQTypeName.Package * string * FQFnName.Package)>)
+  (putResultIn : Register)
+  (returnPc : int)
+  (allArgs : ArgSeq)
+  : CallFrame =
+  let fn = callData.fn
+  if vm.stats.enabled then
+    let n = int64 (TST.count tst)
+    vm.stats.tstSizeSum <- vm.stats.tstSizeSum + n
+    if n > vm.stats.tstSizeMax then vm.stats.tstSizeMax <- n
+  let newFrameId = nextFrameId vm
+  // A lambda defined in this function is applied from somewhere else's frame, so its table
+  // has to be somewhere both can reach. Entering the function is when it becomes known.
+  if
+    exeState.tracing.collectExprValues && not (Map.isEmpty fn.symbols.Value.lambdas)
+  then
+    for KeyValue(lambdaId, table) in fn.symbols.Value.lambdas do
+      vm.lambdaSymbols[lambdaId] <- table
+  if vm.stats.enabled then
+    vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
+    vm.stats.framePushCount <- vm.stats.framePushCount + 1L
+    vm.stats.registersAllocated <-
+      vm.stats.registersAllocated + int64 fn.body.registerCount
+    if vm.stats.detailedTiming then
+      vm.framePushTimestamps[newFrameId] <-
+        System.Diagnostics.Stopwatch.GetTimestamp()
+  if exeState.tracing.collectFrames then
+    exeState.tracing.storeFrameEntry
+      newFrameId
+      vm.currentFrame.id
+      callData.executionPoint
+      (landedForTrace (ArgSeq.toList allArgs))
+  // Names and time only, and only when something is recording: this is what lets `traces
+  // calls <fn>` find the runs that went through a function, and say how long each spent in it,
+  // where the call itself is not recorded. `popFrame` is the other half.
+  if exeState.tracing.traceEffects then exeState.tracing.enterFunction fn.hash
+  let frame =
+    takeFrame
+      vm
+      fn.body.registerCount
+      newFrameId
+      (ValueSome(struct (vm.currentFrame, putResultIn, returnPc)))
+      callData.executionPoint
+      access
+      callData.instrData
+      (ValueSome fn.returnType)
+      ValueNone
+      tst
+      boundImpls
+  ArgSeq.fill frame.registers allArgs
+  frame
+
 
 /// Too many arguments for a package fn, too few, or exactly right -- in which case build the frame to
 /// run it in.
@@ -3024,56 +3110,19 @@ let private completePackage
     let frameTst = calleeTst currentFrame implicitTypeParams newlyBound
     recordStage vm ApplyStage.PkgFrameTst frameTstAlloc
     let pkgFrameAlloc = allocNow vm
-    if vm.stats.enabled then
-      let n = int64 (TST.count frameTst)
-      vm.stats.tstSizeSum <- vm.stats.tstSizeSum + n
-      if n > vm.stats.tstSizeMax then vm.stats.tstSizeMax <- n
-    let newFrameId = nextFrameId vm
-    // A lambda defined in this function is applied from somewhere else's frame, so its table
-    // has to be somewhere both can reach. Entering the function is when it becomes known.
-    if
-      exeState.tracing.collectExprValues
-      && not (Map.isEmpty fn.symbols.Value.lambdas)
-    then
-      for KeyValue(lambdaId, table) in fn.symbols.Value.lambdas do
-        vm.lambdaSymbols[lambdaId] <- table
-    if vm.stats.enabled then
-      vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
-      vm.stats.framePushCount <- vm.stats.framePushCount + 1L
-      if vm.stats.detailedTiming then
-        vm.framePushTimestamps[newFrameId] <-
-          System.Diagnostics.Stopwatch.GetTimestamp()
-    let pkgEp = callData.executionPoint
-    if exeState.tracing.collectFrames then
-      exeState.tracing.storeFrameEntry
-        newFrameId
-        vm.currentFrame.id
-        pkgEp
-        (landedForTrace (ArgSeq.toList allArgs))
-    // Names and time only, and only when something is recording: this is what lets `traces
-    // calls <fn>` find the runs that went through a function, and say how long each spent in it,
-    // where the call itself is not recorded. `returnFromFrame` is the other half.
-    if exeState.tracing.traceEffects then exeState.tracing.enterFunction fn.hash
-    if vm.stats.enabled then
-      vm.stats.registersAllocated <-
-        vm.stats.registersAllocated + int64 fn.body.registerCount
+    let access =
+      packageEntryAccess exeState callData ctx.applicable fn.hash ctx.access
     let frame =
-      let access =
-        packageEntryAccess exeState callData ctx.applicable fn.hash ctx.access
-      takeFrame
+      packageFrame
+        exeState
         vm
-        fn.body.registerCount
-        newFrameId
-        (ValueSome(struct (vm.currentFrame, ctx.putResultIn, ctx.returnPc)))
-        pkgEp
+        callData
         access
-        callData.instrData
-        (ValueSome fn.returnType)
-        ValueNone
         frameTst
         (calleeBoundImpls currentFrame ctx)
-
-    ArgSeq.fill frame.registers allArgs
+        ctx.putResultIn
+        ctx.returnPc
+        allArgs
     expectCallbackReturns vm ctx callData frame
     recordStage vm ApplyStage.PkgFrame pkgFrameAlloc
     PushFrame frame
@@ -4611,6 +4660,77 @@ let rec private argsFitParams
         | r :: rRest -> argsFitParams pRest registers r rRest)
 
 
+/// A call from the run loop of a package fn already called once, with nothing to it but its
+/// arguments: no type args, nothing applied or captured before, no bounds or type variables, no
+/// callback to check, not a forwarder, and each argument fitting its parameter by its case. Its
+/// frame is built straight from the registers and pushed, or for a self tail call the calling
+/// frame is refilled. `false`, with nothing done, for anything else, which takes the general path.
+let private tryCallKnown
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (registers : Dval array)
+  (putResultIn : Register)
+  (named : ApplicableNamedFn)
+  (pkg : FQFnName.Package)
+  (newArgRegs : NEList<Register>)
+  : bool =
+  let mutable callData = Unchecked.defaultof<PackageFnCallData>
+  if
+    vm.stats.enabled
+    || exeState.tracing.collectExprValues
+    || not (exeState.packageFnCallCache.TryGetValue(pkg, &callData))
+  then
+    false
+  else
+    let fn = callData.fn
+    let fnParams = System.Threading.Volatile.Read(&callData.fnParams)
+    if
+      isNull fnParams
+      || fnParams.Length > 0
+      || callData.thinWrapper.IsSome
+      || not (List.isEmpty fn.bounds)
+      || not (Set.isEmpty callData.freeTVars)
+      || not (
+        argsFitParams callData.paramList registers newArgRegs.head newArgRegs.tail
+      )
+      || (exeState.fns.isHarmful pkg && not exeState.allowHarmful)
+    then
+      false
+    else
+      let access = packageEntryAccess exeState callData named pkg currentFrame.access
+      let args = ArgSeq.ofNE registers newArgRegs
+      if
+        obj.ReferenceEquals(callData.instrData, currentFrame.instrData)
+        && runsInPlace exeState vm currentFrame putResultIn
+      then
+        refill
+          exeState
+          vm
+          currentFrame
+          fn
+          access
+          currentFrame.typeSymbolTable
+          []
+          args
+        vm.frameToPush <- ValueSome currentFrame
+      else
+        vm.frameToPush <-
+          ValueSome(
+            packageFrame
+              exeState
+              vm
+              callData
+              access
+              currentFrame.typeSymbolTable
+              []
+              putResultIn
+              (currentFrame.programCounter + 1)
+              args
+          )
+      true
+
+
 /// A call of a fn already called once. When every argument fits its parameter by its case alone,
 /// and there is nothing to infer, bind or check besides, the frame is built straight away: where
 /// `callPackageWith` would arrive, without its steps.
@@ -5656,7 +5776,8 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
   let mutable forceReg = 0
 
   // The operator calls this loop answers itself (`quicken`). None while something is collecting
-  // values: the pair's `LoadVal` would not report the operator it loaded.
+  // values: the pair's `LoadVal` would not report the operator it loaded. Looked up again only
+  // when a call or a return moves to other instructions.
   let mutable quick =
     if exeState.tracing.collectExprValues then
       Array.empty
@@ -5830,15 +5951,35 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
         currentFrame.programCounter <- counter
 
         pending <-
-          applyInstruction
-            exeState
-            vm
-            currentFrame
-            registers
-            putResultIn
-            thingToCallReg
-            typeArgs
-            newArgRegs
+          match registers[thingToCallReg] with
+          | DApplicable(AppNamedFn({ name = FQFnName.Package pkg } as named)) when
+            List.isEmpty typeArgs
+            && named.access.IsNone
+            && List.isEmpty named.argsSoFar
+            && List.isEmpty named.typeArgs
+            && List.isEmpty named.boundImpls
+            && TST.isEmpty named.typeSymbolTable
+            && tryCallKnown
+              exeState
+              vm
+              currentFrame
+              registers
+              putResultIn
+              named
+              pkg
+              newArgRegs
+            ->
+            ApplyDone
+          | _ ->
+            applyInstruction
+              exeState
+              vm
+              currentFrame
+              registers
+              putResultIn
+              thingToCallReg
+              typeArgs
+              newArgRegs
 
         if vm.stats.enabled then
           let tag = Opcode.index inst
@@ -6255,13 +6396,14 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
       vm.currentFrame <- frame
       currentFrame <- frame
       registers <- frame.registers
-      instrData <- frame.instrData
       counter <- frame.programCounter
-      quick <-
-        if exeState.tracing.collectExprValues then
-          Array.empty
-        else
-          quickOpsFor instrData
+      if not (obj.ReferenceEquals(frame.instrData, instrData)) then
+        instrData <- frame.instrData
+        quick <-
+          if exeState.tracing.collectExprValues then
+            Array.empty
+          else
+            quickOpsFor instrData
       running <- true
       if budget > 0L then budget <- budget - 1L
       if budget = 0L then
@@ -6292,13 +6434,14 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
             returnToParent exeState vm currentFrame registers[instrData.resultReg]
             currentFrame <- vm.currentFrame
             registers <- currentFrame.registers
-            instrData <- currentFrame.instrData
             counter <- currentFrame.programCounter
-            quick <-
-              if exeState.tracing.collectExprValues then
-                Array.empty
-              else
-                quickOpsFor instrData
+            if not (obj.ReferenceEquals(currentFrame.instrData, instrData)) then
+              instrData <- currentFrame.instrData
+              quick <-
+                if exeState.tracing.collectExprValues then
+                  Array.empty
+                else
+                  quickOpsFor instrData
             if budget > 0L then budget <- budget - 1L
             if budget = 0L then
               step <- FrameBudget

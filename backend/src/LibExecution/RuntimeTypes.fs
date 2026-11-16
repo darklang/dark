@@ -6124,7 +6124,7 @@ type VMState =
     /// and nothing holds either past the pop: a lambda copies the values it closes over, a receiver
     /// call copies its receiver, the tracer is handed lists, and only a child,
     /// popped first, links to a frame. Per-VM, so single-threaded and needing no synchronization.
-    framePool : Dictionary<int, Stack<CallFrame>>
+    framePool : ResizeArray<Stack<CallFrame>>
   }
 
   static member create(instrs : Option<tlid> * Instructions) : VMState =
@@ -6193,7 +6193,7 @@ type VMState =
       finalResult = ValueNone
       matchBindings = ResizeArray()
       framePushTimestamps = Dictionary()
-      framePool = Dictionary() }
+      framePool = ResizeArray() }
 
   /// Re-point a finished VM at a new tiny program, instead of building another one.
   ///
