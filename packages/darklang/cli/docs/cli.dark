@@ -35,7 +35,8 @@ starts there. `--branch` is for a one-off.
   type <name> "<body>"    create or update a type
   val <name> "<expr>"     create or update a value (`let` is an alias)
   module <path> -         several declarations at once, from stdin
-  edit <name> [<file>]    apply a file, or open $EDITOR on the declaration
+  edit <name> [<file|->] apply a file/stdin, or open $EDITOR
+  edit <name> --patch -  apply exact patch blocks from stdin
   typecheck               audit the declarations on this branch
   deprecate / delete      take something off the shelf (see: docs deprecation)
   undeprecate <name>      put it back

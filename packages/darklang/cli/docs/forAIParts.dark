@@ -56,6 +56,34 @@ line of it:
                                     # ...edit /tmp/f.dark...
   edit Some.fn /tmp/f.dark          # applies it; no editor, no terminal needed
 
+Full declarations also work directly from stdin, with no temporary file:
+
+  dark edit Tools.RenameDemo.greeting - <<'EOF'
+  let greeting(name: String): String =
+    "Hello, " + name
+  EOF
+
+For a small edit, use exact patch blocks (the apply_patch line format):
+
+  dark edit Tools.RenameDemo.greeting --patch - <<'PATCH'
+  @@
+   let greeting(name: String): String =
+  -  "Hello, " + name
+  +  "Hi, " + name
+  PATCH
+
+Each patch block begins with bare `@@`; prefix unchanged lines with a space, removals
+with `-`, and additions with `+`. Blank lines need a prefix too. No file headers,
+line numbers, fuzzy matching, or whitespace normalization. Multiple patch blocks match
+in order against the remaining original lines, never earlier inserted text.
+Every patch block needs context or removals and exactly one match. Fetch fresh raw
+source first: it is normalized by the printer. All patch blocks must match before
+anything is saved. Missing or ambiguous context fails without changes.
+After matching, the complete result follows the normal edit rules: parse errors
+are refused, while type errors can be saved as drafts with a nonzero exit code.
+Errors are explained on stderr; the current raw declaration is returned on stdout
+for retry, including any draft that was saved.
+
 `--raw` prints exactly what `edit` and `module` accept, so this is a pipe rather
 than a screen-scrape. Plain `view` is for a person to read and carries a
 capabilities line you would have to strip. `edit <name>` with no file opens
