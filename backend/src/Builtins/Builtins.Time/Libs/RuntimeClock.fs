@@ -21,21 +21,27 @@ let private make name parameters returnType body : BuiltInFn =
 
 let fns () =
   [ make "runtimeRealtimeTicks" [ Param.make "unit" TUnit "" ] TInt64 (function
-      | _, _, _, [| DUnit |] ->
-        NodaTime.SystemClock.Instance.GetCurrentInstant().ToUnixTimeTicks()
-        |> Dval.dint64
+      | state, _, _, [| DUnit |] ->
+        let ticks =
+          match state.clock with
+          | LibExecution.HostClock.Real ->
+            NodaTime.SystemClock.Instance.GetCurrentInstant().ToUnixTimeTicks()
+          | LibExecution.HostClock.Virtual v -> v.Now
+        Dval.dint64 ticks
       | _ -> incorrectArgs ())
     make
       "runtimeMonotonicCounter"
       [ Param.make "unit" TUnit "" ]
       (TTuple(TInt64, TInt64, []))
       (function
-       | _, _, _, [| DUnit |] ->
-         (DTuple(
-           Dval.dint64 (int64 (System.Diagnostics.Stopwatch.GetTimestamp())),
-           Dval.dint64 (int64 System.Diagnostics.Stopwatch.Frequency),
-           []
-         ))
+       | state, _, _, [| DUnit |] ->
+         let struct (ticks, frequency) =
+           match state.clock with
+           | LibExecution.HostClock.Real ->
+             struct (System.Diagnostics.Stopwatch.GetTimestamp(),
+                     System.Diagnostics.Stopwatch.Frequency)
+           | LibExecution.HostClock.Virtual v -> struct (v.Elapsed, 10_000_000L)
+         DTuple(Dval.dint64 ticks, Dval.dint64 frequency, [])
        | _ -> incorrectArgs ())
     // `Task.Delay` throws on a negative delay, or one past about 49 days.
     { (make
@@ -43,9 +49,12 @@ let fns () =
         [ Param.make "ticks" TInt64 "100ns runtime timer ticks" ]
         TUnit
         (function
-         | _, _, _, [| DInt64 ticks |] ->
+         | state, _, _, [| DInt64 ticks |] ->
            task {
-             do! System.Threading.Tasks.Task.Delay(System.TimeSpan.FromTicks ticks)
+             match state.clock with
+             | LibExecution.HostClock.Real ->
+               do! System.Threading.Tasks.Task.Delay(System.TimeSpan.FromTicks ticks)
+             | LibExecution.HostClock.Virtual v -> do! v.Delay ticks
              return DUnit
            }
            |> LibExecution.Pending.ofTask

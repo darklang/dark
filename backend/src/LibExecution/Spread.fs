@@ -40,9 +40,11 @@ module Sched = LibExecution.Scheduler
 let minRemaining = 2
 
 /// Whether a list op may spread at all, under this state. A view runs serially: it keeps every
-/// value of every pass, which a chunk's buffer does not carry.
+/// value of every pass, which a chunk's buffer does not carry. So does a run on a virtual
+/// clock, which keeps to one scheduler thread.
 let eligible (state : ExecutionState) : bool =
   state.spread.on
+  && not state.clock.IsVirtual
   && not state.spreadChild
   && not state.tracing.collectExprValues
   && Option.isNone state.tracing.viewEffect
