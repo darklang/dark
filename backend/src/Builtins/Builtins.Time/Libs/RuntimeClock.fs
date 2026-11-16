@@ -40,7 +40,7 @@ let fns () =
            | LibExecution.HostClock.Real ->
              struct (System.Diagnostics.Stopwatch.GetTimestamp(),
                      System.Diagnostics.Stopwatch.Frequency)
-           | LibExecution.HostClock.Virtual v -> struct (v.Elapsed, 10_000_000L)
+           | LibExecution.HostClock.Virtual v -> struct (v.Monotonic, 10_000_000L)
          DTuple(Dval.dint64 ticks, Dval.dint64 frequency, [])
        | _ -> incorrectArgs ())
     // `Task.Delay` throws on a negative delay, or one past about 49 days.

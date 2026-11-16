@@ -19,14 +19,15 @@ type VirtualClock(start : Ticks) =
   let waiting =
     System.Collections.Generic.SortedDictionary<struct (Ticks * int64), unit -> unit>()
   let mutable now = start
+  let monotonicStart = System.Diagnostics.Stopwatch.GetElapsedTime(0L).Ticks
   let mutable armed = 0L
   let mutable inFlight = 0
 
   /// Unix time.
   member _.Now : Ticks = lock sync (fun () -> now)
 
-  /// Time since the clock started, for the monotonic readings.
-  member this.Elapsed : Ticks = this.Now - start
+  /// The monotonic readings: the real one when the clock started, moved as this clock moves.
+  member this.Monotonic : Ticks = monotonicStart + this.Now - start
 
   /// Call `onDue` once the clock reaches `after` from now, on the thread that advances it.
   /// Disposing first means it never fires.
@@ -110,10 +111,14 @@ let private pair (high : int64) (low : int64) : byte[] =
 let private timespec (ticks : Ticks) : byte[] =
   pair (ticks / 10_000_000L) (ticks % 10_000_000L * 100L)
 
+/// The clock ids a virtual clock reads for: Linux's. The kernel is asked for any other, so one
+/// it does not have fails as it would.
+let private clockIds : Set<int> = set [ 0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 11 ]
+
 /// Whether a virtual clock answers this operation itself: a clock read or a sleep.
 let answers (op : HostTypes.PosixOp) : bool =
   match op with
-  | HostTypes.PosixOp.ClockGettime _
+  | HostTypes.PosixOp.ClockGettime id -> Set.contains id clockIds
   | HostTypes.PosixOp.Gettimeofday
   | HostTypes.PosixOp.MachAbsoluteTime
   | HostTypes.PosixOp.MachTimebaseInfo
@@ -126,12 +131,12 @@ let answer (v : VirtualClock) (op : HostTypes.PosixOp) : Task<HostTypes.Response
   match op with
   // CLOCK_REALTIME, _COARSE and _ALARM; the rest are monotonic
   | HostTypes.PosixOp.ClockGettime(0 | 5 | 8) -> bytes (timespec v.Now)
-  | HostTypes.PosixOp.ClockGettime _ -> bytes (timespec v.Elapsed)
+  | HostTypes.PosixOp.ClockGettime _ -> bytes (timespec v.Monotonic)
   | HostTypes.PosixOp.Gettimeofday ->
     let ticks = v.Now
     bytes (pair (ticks / 10_000_000L) (ticks % 10_000_000L / 10L))
   | HostTypes.PosixOp.MachAbsoluteTime ->
-    bytes (System.BitConverter.GetBytes(v.Elapsed * 100L))
+    bytes (System.BitConverter.GetBytes(v.Monotonic * 100L))
   | HostTypes.PosixOp.MachTimebaseInfo ->
     bytes (
       Array.append (System.BitConverter.GetBytes 1) (System.BitConverter.GetBytes 1)

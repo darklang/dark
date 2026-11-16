@@ -77,3 +77,22 @@ test emptyFailureIsPreserved =
         Stdlib.Test.Result.Fail(
           [ "assertion 2: failed without a message"
             "assertion 3: another failure" ])) ])
+
+
+/// A package test runs on a virtual clock: an hour's sleep finishes at once, and
+/// the clock moves by exactly the hour.
+test sleepTakesNoRealTime =
+  let before = Stdlib.DateTime.now()
+  let _ = Stdlib.Cli.Posix.sleep(3600000.0)
+  Stdlib.DateTime.subtractMs(Stdlib.DateTime.now(), before)
+  |> Stdlib.Test.equal(3600000)
+
+
+/// `onRealClock` sleeps for real, which always takes a little longer than asked.
+test onRealClockTakesRealTime =
+  let elapsed = Stdlib.Test.onRealClock(fun () ->
+    let before = Stdlib.DateTime.__ticks(Stdlib.DateTime.now())
+    let _ = Stdlib.Cli.Posix.sleep(10.0)
+    Stdlib.DateTime.__ticks(Stdlib.DateTime.now()) - before)
+
+  Stdlib.Test.expect(elapsed > 100000, $"slept {display(elapsed)} ticks")

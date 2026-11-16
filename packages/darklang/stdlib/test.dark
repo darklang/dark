@@ -42,6 +42,13 @@ let counterValue(): Int64 =
   counter(false)
 
 
+/// Run <param f> on the real clock. A package test runs on a virtual one, where
+/// sleeps and timers finish at once; wrap a test whose waits must take real time,
+/// such as one racing a timeout against real I/O. Only available in package tests.
+let onRealClock(f: Unit -> 'a): 'a =
+  Builtin.testOnRealClock(f)
+
+
 let expect(condition: Bool, message: String): Result =
   if condition then Result.Pass else Result.Fail([ message ])
 
