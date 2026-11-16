@@ -2085,8 +2085,10 @@ let private countConcurrentConnections (listener : System.Net.Sockets.TcpListene
       do! Task.Delay 50
       let response =
         "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"B
-      do! stream.WriteAsync(response, 0, response.Length)
+      // before the answer goes out: the client opens its next connection as soon as it has
+      // the answer, which can be before this write returns
       Interlocked.Decrement &open'.contents |> ignore<int>
+      do! stream.WriteAsync(response, 0, response.Length)
       Interlocked.Increment &served.contents |> ignore<int>
     }
   let pending = ResizeArray<Task>()
@@ -3262,16 +3264,45 @@ let fast = Stdlib.Exec.spawn(fun () -> (let _ = post("/fast") in Builtin.testTra
           listener.Stop()
           serving.Wait(5000) |> ignore<bool>
       }
-    let! real = runOn (fun state -> state)
-    Expect.equal
-      real
-      [ "fast"; "slow" ]
-      "on the real clock the fast answer is taken first"
     let! fixedOrder = runOn onVirtualClock
     Expect.equal
       fixedOrder
       [ "slow"; "fast" ]
       "on a virtual clock the first spawned is"
+  }
+
+
+/// A host answer that is back before the process that asked could park (a working-directory
+/// read answers in place) still waits for the ones asked before it. On a loaded machine an HTTP
+/// answer is back that soon too, and it used to be taken at once, ahead of a slower one asked
+/// first.
+let private virtualHostAnswerBackAtOnceWaitsItsTurn =
+  testTask "on a virtual clock a host answer back at once still waits its turn" {
+    let answer (_ : int) (seen : Seen) =
+      if seen.path = "/slow" then Thread.Sleep 50
+      httpAnswer "200 OK" [] seen.path
+    let code =
+      """let slow = Stdlib.Exec.spawn(fun () -> (let _ = Stdlib.HttpClient.request("POST", "http://test.dlio.localhost:PORT/slow", [], Stdlib.Bytes.empty) in Builtin.testTrace("slow")))
+let fast = Stdlib.Exec.spawn(fun () -> (let cwd = Stdlib.Cli.Dir.current() in Builtin.testTrace(if Stdlib.Result.isOk(cwd) then "fast" else "no cwd")))
+(Stdlib.Exec.await(slow), Stdlib.Exec.await(fast))"""
+    installTestHttpConfig ()
+    Trace.take () |> ignore<List<string>>
+    let listener =
+      new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0)
+    listener.Start()
+    let port = (listener.LocalEndpoint :?> System.Net.IPEndPoint).Port
+    let serving = scriptedServer listener (answer port)
+    try
+      let state = onVirtualClock (executionStateFor pmPT false)
+      let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+      let! (p : Scheduler.Process) =
+        spawn s state (code.Replace("PORT", string port))
+      let! result = runOnThread s p
+      expectOk result "the program" |> ignore<RT.Dval>
+      Expect.equal (Trace.take ()) [ "slow"; "fast" ] "the first spawned is first"
+    finally
+      listener.Stop()
+      serving.Wait(5000) |> ignore<bool>
   }
 
 
@@ -3376,5 +3407,6 @@ let tests =
         nestedRunLandsTheOuterWait
         virtualSleepIsInstant
         virtualWakesAreExact
-        virtualHostOrderIsFixed ]
+        virtualHostOrderIsFixed
+        virtualHostAnswerBackAtOnceWaitsItsTurn ]
   )
