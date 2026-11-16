@@ -417,6 +417,7 @@ test showReplaysAFunctionWithoutPerforming = Traces.withTraces(fun i ->
 test showFailsWhenTheLogCannotAnswer = Traces.withTraces(fun i ->
   let defined =
     authored(i, "Tests.Prev.changed", "(): String = \"before\"", "random")
+
   let recorded = Traces.step(i, [ "eval", "Tests.Prev.changed()" ])
   let edited =
     authored(
@@ -424,15 +425,23 @@ test showFailsWhenTheLogCannotAnswer = Traces.withTraces(fun i ->
       "Tests.Prev.changed",
       "(): String = Stdlib.display(Stdlib.Uuid.generate())",
       "random")
-  let (textCode, text) = Instance.ran(i, [ "traces", "show", "Tests.Prev.changed" ])
+
+  let (textCode, text) =
+    Instance.ran(i, [ "traces", "show", "Tests.Prev.changed" ])
+
   let (jsonCode, json) =
     Instance.ran(i, [ "traces", "show", "Tests.Prev.changed", "--json" ])
+
   Stdlib.Test.all(
     [ defined
       recorded
       edited
       Instance.exitedWith(textCode, 1, "a stopped text replay fails")
-      Instance.says(text, "the replay stopped", "the partial view explains its failure")
+      Instance.says(
+        text,
+        "the replay stopped",
+        "the partial view explains its failure")
+
       Instance.exitedWith(jsonCode, 1, "a stopped JSON replay fails")
       Instance.says(json, "problem", "the JSON retains the replay problem") ]))
 

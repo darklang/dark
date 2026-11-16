@@ -3536,11 +3536,16 @@ module Values =
   test annotatedValue =
     Stdlib.Test.all(
       [ check("val limit: Int64 = 6", "limit") |> Stdlib.Test.equal("checked:")
+
         check("val limit: Int64 = \"six\"", "limit")
         |> Stdlib.Test.equal("failed:TypeMismatch")
+
         check(annotatedEmpty(), "names") |> Stdlib.Test.equal("checked:")
+
         check(annotatedEmpty(), "strings") |> Stdlib.Test.equal("checked:")
-        check(annotatedEmpty(), "ints") |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+        check(annotatedEmpty(), "ints")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
 
 
 // ----------------------------------------------------------------------------------

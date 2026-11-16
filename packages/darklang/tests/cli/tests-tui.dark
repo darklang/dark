@@ -1123,7 +1123,8 @@ test replLetBindsWhenTyped =
   let typeLine(st: Cli.Workbench.State, line: String): Cli.Workbench.State =
     let typed =
       Stdlib.String.toList(line)
-      |> Stdlib.List.fold(st, fun(acc, c) -> (wbChar(acc, Stdlib.String.fromChar(c))).state)
+      |> Stdlib.List.fold(st, fun(acc, c) ->
+        (wbChar(acc, Stdlib.String.fromChar(c))).state)
 
     (wbKey(typed, Stdlib.Cli.Stdin.Key.Key.Enter)).state
 
@@ -1131,13 +1132,13 @@ test replLetBindsWhenTyped =
   let prompt = (wbKey(atRepl, Stdlib.Cli.Stdin.Key.Key.Enter)).state
   let bound = typeLine(prompt, "let x = 5")
   let used = typeLine(bound, "x + 1")
-
   Stdlib.Test.all(
     [ bound.repl.bindings
       |> Stdlib.List.map(fun b -> (b.name, b.value, b.captured))
       |> Stdlib.Test.equal([ ("x", "5", true) ])
 
       used.repl.last |> Stdlib.Test.equal("6") ])
+
 
 test workbenchCapturesStrayOutput =
   // The workbench owns the whole screen, so anything a command prints scrolls the alternate screen and every

@@ -3,6 +3,7 @@ module Darklang.Cli.Packages.Search
 // Max results rendered per entity type.
 val displayCap = 20
 
+
 // An operator symbol is not a name, so searching for one literally finds nothing. Each one is
 // answered with the TRAIT it is, so `dark search %` lands on `Modulo` and every type that
 // implements it rather than on whatever happens to contain the letters. `NumericTraits.ofInfix`
@@ -1503,7 +1504,11 @@ let execute(state: AppState, args: List<String>): AppState =
     // A name has no spaces, so several words under --exact are several names, not one
     // phrase that nothing could match exactly.
     let several = parsed.batch || parsed.exactMatch && Stdlib.List.length(parsed.queryParts) > 1
-    if Stdlib.Bool.not(several) || Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.parseErrors)) || parsed.limit == Option.None then
+    if
+      Stdlib.Bool.not(several)
+      || Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.parseErrors))
+      || parsed.limit == Option.None
+    then
       executeQuery(state, args)
     else if Stdlib.List.isEmpty(parsed.queryParts) then
       printErr("Error: Batch search requires at least one query")
@@ -1518,7 +1523,9 @@ let execute(state: AppState, args: List<String>): AppState =
         Stdlib.List.flatten(
           [ [ "--batch" ]
             p.flags |> Stdlib.List.filter(fun flag -> flag != "--batch")
-            p.options |> Stdlib.List.map(fun((key, value)) -> [ key, value ]) |> Stdlib.List.flatten ])
+            p.options
+            |> Stdlib.List.map(fun((key, value)) -> [ key, value ])
+            |> Stdlib.List.flatten ])
 
       parsed.queryParts
       |> Stdlib.List.iter(fun query ->

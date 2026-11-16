@@ -1257,10 +1257,7 @@ module ValueDeclaration =
     let (body, unresolvedNames) = Expr.toPT(ctx, defaultContext, d.body)
     (
       ProgramTypes.PackageValue.PackageValue
-        { hash = ProgramTypes.Hash.Hash("")
-          body = body
-          description = d.description
-          typ = typ },
+        { hash = ProgramTypes.Hash.Hash(""), body = body, description = d.description, typ = typ },
       Stdlib.List.concat(typUnresolvedNames, unresolvedNames))
 
 
