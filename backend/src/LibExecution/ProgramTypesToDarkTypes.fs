@@ -1631,7 +1631,11 @@ module PackageValue =
       RecordFields.ofList
         [ "hash", Hash.toDT p.hash
           "body", Expr.toDT p.body
-          "description", DString p.description ]
+          "description", DString p.description
+          "typ",
+          p.typ
+          |> Option.map TypeReference.toDT
+          |> Dval.option (TypeReference.knownType ()) ]
     DRecord(typeName (), typeName (), [], fields)
 
   let fromDT (d : Dval) : PT.PackageValue.PackageValue =
@@ -1639,7 +1643,8 @@ module PackageValue =
     | DRecord(_, _, _, fields) ->
       { hash = fields |> D.field "hash" |> Hash.fromDT
         body = fields |> D.field "body" |> Expr.fromDT
-        description = fields |> D.field "description" |> D.string }
+        description = fields |> D.field "description" |> D.string
+        typ = fields |> D.field "typ" |> C2DT.Option.fromDT TypeReference.fromDT }
     | _ -> Exception.raiseInternal "Invalid PackageValue" []
 
 

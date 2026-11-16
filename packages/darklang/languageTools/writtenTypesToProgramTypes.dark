@@ -1247,11 +1247,21 @@ module ValueDeclaration =
     ctx: NameResolver.NRContext,
     d: WrittenTypes.ValueDeclaration.ValueDeclaration)
     : (ProgramTypes.PackageValue.PackageValue * List<WrittenTypes.UnresolvedName>) =
+    let (typ, typUnresolvedNames) =
+      match d.typ with
+      | Some(t) ->
+        let (t, unresolved) = TypeReference.toPT(ctx, t)
+        (Option.Some(t), unresolved)
+      | None -> (Option.None, [])
+
     let (body, unresolvedNames) = Expr.toPT(ctx, defaultContext, d.body)
     (
       ProgramTypes.PackageValue.PackageValue
-        { hash = ProgramTypes.Hash.Hash(""), body = body, description = d.description },
-      unresolvedNames)
+        { hash = ProgramTypes.Hash.Hash("")
+          body = body
+          description = d.description
+          typ = typ },
+      Stdlib.List.concat(typUnresolvedNames, unresolvedNames))
 
 
 module TestDeclaration =

@@ -6,6 +6,8 @@ val unformatted = "module MyApp.Util\n\nlet double(x: Int64): Int64 = x*2\n"
 
 val formatted = "module MyApp.Util\n\nlet double(x: Int64): Int64 =\n  x * 2\n"
 
+val annotated = "module MyApp.Util\n\nval limit: Int64 = 6\n"
+
 
 /// <param name> in the instance's home, written with <param text>, and what formatting it needs:
 /// reading and writing it, and nothing else.
@@ -27,6 +29,14 @@ let file(i: Instance.T, name: String, text: String): String =
 
 let contents(path: String): String =
   Stdlib.Cli.File.readText(path) |> Stdlib.Result.withDefault("")
+
+
+test keepsAValueAnnotation = Instance.withInstance(fun i ->
+  let path = file(i, "limit.dark", annotated)
+  let (code, _) = Instance.ran(i, [ "format", path ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "formatting succeeds")
+      contents(path) |> Stdlib.Test.equal(annotated) ]))
 
 
 test formatsAFileInPlace = Instance.withInstance(fun i ->

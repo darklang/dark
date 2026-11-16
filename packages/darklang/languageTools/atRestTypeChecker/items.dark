@@ -461,7 +461,13 @@ let prepareValue(value: ProgramTypes.PackageValue.PackageValue): PendingValue =
       // produce a requirement per level, and the result could not be trusted anyway.
       match deep with
       | Some(problem) -> (Model.Ty.TError, Generate.report(problem))
-      | None -> Generate.infer(Generate.emptyScope(), value.body)
+      | None ->
+        match value.typ with
+        | Some(declared) ->
+          let (t, problems) = Types.fromReference(Dict {}, bodyNodeId(value.body), declared)
+          let body = Generate.check(Generate.emptyScope(), t, Site.ValueBody, value.body)
+          (t, Generate.all([ Generate.reports(problems), body ]))
+        | None -> Generate.infer(Generate.emptyScope(), value.body)
 
   PendingValue
     { value = value

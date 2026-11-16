@@ -1167,8 +1167,9 @@ module PackageValue =
         argMap = Map.empty
         localBindings = Set.empty
         sourceRanges = sourceRanges }
+    let typ = c.typ |> Option.map (TypeReference.toPT pm onMissing currentModule)
     let body = Expr.toPT builtins pm onMissing currentModule context c.body
-    { hash = Hash ""; description = c.description; body = body }
+    { hash = Hash ""; description = c.description; typ = typ; body = body }
 
 
 module PackageTest =

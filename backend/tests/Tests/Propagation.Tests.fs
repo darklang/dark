@@ -41,7 +41,7 @@ let dictionaryKeyReferences =
           PT.EValue(5UL, PT.NameResolution.ok (PT.FQValueName.Package(hash "value"))) ]
       )
     let value : PT.PackageValue.PackageValue =
-      { hash = hash "container"; body = body; description = "" }
+      { hash = hash "container"; body = body; description = ""; typ = None }
     let names = [ "fn"; "type"; "key"; "value" ]
     let mapping =
       { LibDB.AstTransformer.emptyMapping with

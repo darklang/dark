@@ -33,7 +33,7 @@ let private makeValue (body : PT.Expr) : PT.PackageValue.PackageValue =
   let uniqueHash =
     System.Guid.NewGuid().ToString("N") + System.Guid.NewGuid().ToString("N")
     |> PT.Hash
-  { hash = uniqueHash; body = body; description = "" }
+  { hash = uniqueHash; body = body; description = ""; typ = None }
 
 /// `Builtin.syscallGettimeofday ()`: the cheapest host effect that still needs a
 /// permission, so the test asserts the check and not the cost of the effect.

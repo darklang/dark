@@ -19,7 +19,7 @@ let content(): String =
   type Shape = | Dot | Circle(Float64) | Rect(Float64, Float64)
   let f(p: String * Int64): Option<String * Int64> = Some(p)   tuple types use `*`
   let down(n: Int64): Int64 = if n <= 0 then 0 else down(n - 1)
-  val limit = 6                                a module value: `val`, not `let`, no `: Type`
+  val limit: Int64 = 6                         a module value: `val`, not `let`; `: Int64` is optional
 
 A function calls itself by name; there is no `rec` keyword. Each statement goes
 on its own line, and every line of a block but the last returns Unit. Name your

@@ -3033,7 +3033,12 @@ let packageValueNamed(
   p: LanguageTools.ProgramTypes.PackageValue.PackageValue)
   : String =
   let ctx = { ctx with localNames = nameSet(boundNames(p.body)) }
-  let doc = letBindingDoc(ctx, $"val {namePart} =", p.body)
+  let annotation =
+    match p.typ with
+    | Some(t) -> ": " + typeReference(ctx, t)
+    | None -> ""
+
+  let doc = letBindingDoc(ctx, $"val {namePart}{annotation} =", p.body)
   formatDocComment(p.description) + Stdlib.Pretty.render(ctx.width, doc)
 
 

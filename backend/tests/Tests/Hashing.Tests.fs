@@ -24,7 +24,7 @@ let private makeType
     description = "" }
 
 let private makeValue (body : PT.Expr) : PT.PackageValue.PackageValue =
-  { hash = PT.Hash ""; body = body; description = "" }
+  { hash = PT.Hash ""; body = body; description = ""; typ = None }
 
 
 // ── meaning-stable hashing: bound-variable names don't affect the hash (alpha-normalization) ──

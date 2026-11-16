@@ -7,6 +7,13 @@ test valueDeclarationsUnit =
   Stdlib.Test.all(
     [ roundTrip("unit", "val unitVal = ()", "val unitVal = ()")
 
+      roundTrip("annotated", "val limit: Int64 = 6", "val limit: Int64 = 6")
+
+      roundTrip(
+        "annotated, generic type",
+        "val names : List<String> = []",
+        "val names: List<String> = []")
+
       roundTrip(
         "value doc comment",
         "/// Default retry count\nval retries = 3",

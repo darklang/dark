@@ -717,6 +717,7 @@ let pm : PT.PackageManager =
     let value : PT.PackageValue.PackageValue =
       { hash = PT.Hash Expressions.Values.Package.MySpecialNumber.hash
         description = ""
+        typ = None
         body = PT.EInt64(gid (), 17L) }
     [ value ] |> List.map (fun v -> v.hash, v) |> Map.ofList
 

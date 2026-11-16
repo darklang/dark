@@ -546,7 +546,8 @@ module PackageValue =
   type PackageValue =
     { hash: FQValueName.Package
       body: Expr
-      description: String }
+      description: String
+      typ: Option<TypeReference> }
 
 
 module PackageFn =

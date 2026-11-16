@@ -288,7 +288,7 @@ let valueNamed(
   body: LanguageTools.ProgramTypes.Expr)
   : LanguageTools.ProgramTypes.PackageValue.PackageValue =
   LanguageTools.ProgramTypes.PackageValue.PackageValue
-    { hash = hash(name), body = body, description = "" }
+    { hash = hash(name), body = body, description = "", typ = Option.None }
 
 
 let useValue(id: Int64, name: String): LanguageTools.ProgramTypes.Expr =
@@ -3523,6 +3523,24 @@ module Values =
       [ check(empties(), "empty") |> Stdlib.Test.equal("checked:")
         check(empties(), "ints") |> Stdlib.Test.equal("checked:")
         check(empties(), "strings") |> Stdlib.Test.equal("checked:") ])
+
+
+  // `val name: Type = value` checks the value against the type, and users see the type.
+  let annotatedEmpty(): String =
+    src(
+      [ "val names: List<String> = []"
+        "let strings(u: Unit): List<String> = names"
+        "let ints(u: Unit): List<Int64> = names" ])
+
+
+  test annotatedValue =
+    Stdlib.Test.all(
+      [ check("val limit: Int64 = 6", "limit") |> Stdlib.Test.equal("checked:")
+        check("val limit: Int64 = \"six\"", "limit")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+        check(annotatedEmpty(), "names") |> Stdlib.Test.equal("checked:")
+        check(annotatedEmpty(), "strings") |> Stdlib.Test.equal("checked:")
+        check(annotatedEmpty(), "ints") |> Stdlib.Test.equal("failed:TypeMismatch") ])
 
 
 // ----------------------------------------------------------------------------------

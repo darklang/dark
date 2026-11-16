@@ -313,7 +313,7 @@ let help(_state: AppState): String =
     ""
     "Example:"
     "  dark module /Me.Example - <<'EOF'"
-    "  val greeting = \"hello\""
+    "  val greeting: String = \"hello\""
     "  let double(n: Int64): Int64 = n * 2"
     "  let quadruple(n: Int64): Int64 = double(double(n))"
     "  test doubles = double(4) |> Stdlib.Test.equal(8)"

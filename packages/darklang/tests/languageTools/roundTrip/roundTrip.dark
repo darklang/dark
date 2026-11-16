@@ -46,7 +46,7 @@ let exprsAsValues(
 
     [ LanguageTools.ProgramTypes.PackageOp.AddValue(
         LanguageTools.ProgramTypes.PackageValue.PackageValue
-          { hash = placeholder, body = e, description = "" })
+          { hash = placeholder, body = e, description = "", typ = Option.None })
 
       LanguageTools.ProgramTypes.PackageOp.SetName(
         location,
