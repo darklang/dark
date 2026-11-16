@@ -115,7 +115,7 @@ run_in_home() {
     # shellcheck disable=SC2317  # reached through EXIT
     cleanup_check() {
       if [[ -n "$watchdog" ]]; then
-        kill "$watchdog" 2> /dev/null || true
+        kill -KILL -- "-$watchdog" 2> /dev/null || true
         wait "$watchdog" 2> /dev/null || true
       fi
       if [[ -n "$cmd" ]]; then
@@ -134,31 +134,24 @@ run_in_home() {
     set -m
     HOME="$home" "$binary" "$@" < /dev/null 2>&1 &
     cmd=$!
-    # Only the fork needs job control; the group is fixed by now. Left on, bash
-    # prints "[1]+ Done ..." into the captured output whenever the command exits
-    # before `wait` reaps it.
-    set +m
+    # The watchdog gets its own group too, so one SIGKILL stops it and its sleep
+    # together. A TERM can be lost: one that lands before a freshly forked bash
+    # subshell has reset the parent's traps is dropped, and the watchdog then
+    # sleeps out CHECK_TIMEOUT. Redirect BOTH streams: otherwise sleep inherits
+    # command substitution's output pipe.
     (
-      # Stopping the watchdog must also stop and reap its sleep. Redirect BOTH
-      # streams: otherwise sleep inherits command substitution's output pipe,
-      # making every successful check wait the whole CHECK_TIMEOUT (120s).
-      # shellcheck disable=SC2317  # reached through EXIT
-      cleanup_timer() {
-        local timer
-        for timer in $(jobs -p); do kill "$timer" 2> /dev/null || true; done
-        wait 2> /dev/null || true
-      }
-      trap cleanup_timer EXIT
-      trap 'exit 0' TERM INT
-      sleep "$CHECK_TIMEOUT" &
-      wait "$!" || exit 0
+      sleep "$CHECK_TIMEOUT"
       touch "$state/timed-out"
       kill -KILL -- "-$cmd" 2> /dev/null || true
     ) > /dev/null 2>&1 &
     watchdog=$!
+    # Only the forks need job control; the groups are fixed by now. Left on, bash
+    # prints "[1]+ Done ..." into the captured output whenever a job exits
+    # before `wait` reaps it.
+    set +m
     rc=0
     wait "$cmd" 2> /dev/null || rc=$?
-    kill "$watchdog" 2> /dev/null || true
+    kill -KILL -- "-$watchdog" 2> /dev/null || true
     wait "$watchdog" 2> /dev/null || true
     watchdog=""
     # Exit 137 can also be an independent SIGKILL; only our timer means timeout.
