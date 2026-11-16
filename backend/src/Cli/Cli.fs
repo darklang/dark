@@ -217,10 +217,14 @@ let execute
       args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
     // What this run records and keeps, from the flag and the store's `trace.*` settings.
     let tracedUnder (settings : Map<string, string>) : RT.ExecutionState =
+      // A read-only store can't keep a trace, and writing one would fail the command.
+      let stored =
+        if LibDB.Sqlite.isReadOnly LibConfig.Config.dbPath then
+          Some "off"
+        else
+          Map.tryFind "trace.record" settings
       LibDB.Tracing.TraceDetail.set (
-        LibDB.Tracing.TraceDetail.resolve
-          traceFlag
-          (Map.tryFind "trace.record" settings)
+        LibDB.Tracing.TraceDetail.resolve traceFlag stored
       )
       { state with
           traceCaps =
