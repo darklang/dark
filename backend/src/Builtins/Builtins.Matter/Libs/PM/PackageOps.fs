@@ -72,6 +72,7 @@ let private failureText (failures : List<LibDB.Seed.ValueEvaluationError>) : str
 
 /// An edit keeps the id of the type it replaces; a type with nothing at its name gets a new one.
 let private withTypeIds
+  (random : LibExecution.HostRandom.Random)
   (branchId : PT.BranchId)
   (ops : List<PT.PackageOp>)
   : List<PT.PackageOp> =
@@ -83,7 +84,7 @@ let private withTypeIds
         pm.findType location
         |> Option.bind pm.getType
         |> Option.bind (fun t -> t.id)
-        |> Option.defaultWith System.Guid.NewGuid
+        |> Option.defaultWith (fun () -> LibExecution.HostRandom.uuidV4 random)
       (location, id))
   LibDB.HashStabilization.withTypeIds (Map.ofList ids) ops
 
@@ -120,7 +121,7 @@ let private authorOpsWith
 
     // Stabilize before inserting. Raw ops carry provisional hashes, so their SetName targets would
     // too, and the only thing that repairs those is `WipRefresh.refresh` rewriting the draft.
-    let ops = withTypeIds branchId ops
+    let ops = withTypeIds exeState.random branchId ops
     let stabilizedOps = LibDB.HashStabilization.computeRealHashes ops
     // The store keeps one body per content hash. Two callers with that hash can still use
     // different aliases, such as `double` and `twice`. Save each caller's reference names before
@@ -216,7 +217,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           let ptOps =
             ops
             |> List.choose PT2DT.PackageOp.fromDT
-            |> withTypeIds exeState.branchId
+            |> withTypeIds exeState.random exeState.branchId
           let stabilized = LibDB.HashStabilization.computeRealHashes ptOps
           Dval.list (packageOpKT ()) (stabilized |> List.map PT2DT.PackageOp.toDT)
         | _ -> incorrectArgs ())

@@ -198,7 +198,8 @@ let private declarationsToModule
   let stampFn (f : PT.PackageFn.PackageFn) loc =
     { f with hash = PackageLocation.placeholderHash loc }
   // A script's types are made anew on every run, so each gets a new id.
-  let typeIds = typeLocations |> List.map (fun _ -> System.Guid.NewGuid())
+  let typeIds =
+    typeLocations |> List.map (fun _ -> LibExecution.HostRandom.uuidV4 state.random)
   let stampType (t : PT.PackageType.PackageType) (loc, id) =
     HashStabilization.withTypeId
       id
