@@ -33,7 +33,7 @@ let withTraces(f: Instance.T -> Stdlib.Test.Result): Stdlib.Test.Result =
 
     match setup with
     | Pass -> f(i)
-    | Fail(_) -> setup)
+    | _ -> setup)
 
 
 /// The rows `traces list <n> --json` answers, newest first.

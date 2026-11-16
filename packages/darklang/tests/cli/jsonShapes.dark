@@ -107,6 +107,9 @@ let about(cmd: String, result: Stdlib.Test.Result): Stdlib.Test.Result =
   | Fail(messages) ->
     Stdlib.Test.Result.Fail(
       Stdlib.List.map(messages, fun m -> $"`dark {cmd}`: {m}"))
+  | FailedChecks(checks) ->
+    Stdlib.Test.Result.FailedChecks(
+      Stdlib.List.map(checks, fun((position, check)) -> (position, about(cmd, check))))
 
 
 /// Run for the EFFECT. A setup step that fails is reported as itself, not as the confusing

@@ -413,28 +413,69 @@ module Test =
     | Error(_) -> false
 
 
-  /// How many tests the test group <param body> holds, read from its code, so a
-  /// cached or unrun group has a count too. Each item of a `Stdlib.Test.all([ ... ])`
-  /// list is a test, nested `all`s add up, a `let` counts what follows it, and an
-  /// `if` or `match` counts its biggest branch. Anything else is one test, including a list built at run
-  /// time (`Stdlib.List.map(cases, f) |> Stdlib.Test.all`).
-  let testCount(body: ProgramTypes.Expr): Int64 =
-    let sum(items: List<ProgramTypes.Expr>): Int64 =
-      Stdlib.List.fold(items, 0, fun(total, item) -> total + testCount(item))
+  /// What <param e> evaluates to, past its `let`s and statements.
+  let __resultExpr(e: ProgramTypes.Expr): ProgramTypes.Expr =
+    match e with
+    | ELet(_, _, _, next) -> __resultExpr(next)
+    | EStatement(_, _, next) -> __resultExpr(next)
+    | _ -> e
 
-    let most(branches: List<ProgramTypes.Expr>): Int64 =
-      Stdlib.List.fold(branches, 1, fun(best, branch) ->
-        let n = testCount(branch)
-        if n > best then n else best)
 
-    match body with
-    | ELet(_, _, _, next) -> testCount(next)
-    | EStatement(_, _, next) -> testCount(next)
-    | EApply(_, EFnName(_, name, _, _), _, [EList(_, items)]) when __isAll(name) -> sum(items)
-    | EPipe(_, EList(_, items), [EPipeFnCall(_, name, _, [], _)]) when __isAll(name) -> sum(items)
-    | EIf(_, _, thenExpr, Some(elseExpr)) -> most([ thenExpr, elseExpr ])
-    | EMatch(_, _, cases) -> most(Stdlib.List.map(cases, fun c -> c.rhs))
-    | _ -> 1
+  /// The items of <param e> when it is `Stdlib.Test.all` over a list written out in place.
+  let __allItems(e: ProgramTypes.Expr): Option<List<ProgramTypes.Expr>> =
+    match e with
+    | EApply(_, EFnName(_, name, _, _), _, [EList(_, items)]) when __isAll(name) ->
+      Option.Some(items)
+    | EPipe(_, EList(_, items), [EPipeFnCall(_, name, _, [], _)]) when __isAll(name) ->
+      Option.Some(items)
+    | _ -> Option.None
+
+
+  /// What <param result> says went wrong, one line each. A failing item of an `all`
+  /// shows its position (outermost first) and its source, as <param body> wrote it.
+  let failureLines(
+    ctx: PrettyPrinter.ProgramTypes.Context,
+    body: ProgramTypes.Expr,
+    result: Stdlib.Test.Result)
+    : List<String> =
+    __failureLines(ctx, [], Option.Some(body), result)
+
+
+  /// <param source> is what <param result> came from, when the code says.
+  let __failureLines(
+    ctx: PrettyPrinter.ProgramTypes.Context,
+    path: List<String>,
+    source: Option<ProgramTypes.Expr>,
+    result: Stdlib.Test.Result)
+    : List<String> =
+    let source = Stdlib.Option.map(source, __resultExpr)
+    match result with
+    | Pass -> []
+    | Fail(messages) ->
+      let messages =
+        match messages with
+        | [] -> [ "failed without a message" ]
+        | _ -> Stdlib.List.flatten(Stdlib.List.map(messages, fun m -> Stdlib.String.split(m, "\n")))
+
+      match path with
+      | [] -> messages
+      | _ ->
+        let at = Stdlib.String.join(path, " > ") + ": "
+        let indent = Stdlib.String.padEnd("", ' ', Stdlib.String.length(at))
+        match source with
+        | Some(e) ->
+          let width = Stdlib.max(40, ctx.width - Stdlib.String.length(at))
+          let printed = PrettyPrinter.ProgramTypes.expr({ ctx with width = width }, e)
+          let lines = Stdlib.List.concat(Stdlib.String.split(printed, "\n"), messages)
+          Stdlib.List.indexedMap(lines, fun(i, line) -> (if i == 0 then at else indent) + line)
+        | None -> Stdlib.List.map(messages, fun m -> at + m)
+    | FailedChecks(checks) ->
+      let items = Stdlib.Option.andThen(source, __allItems)
+      checks
+      |> Stdlib.List.map(fun((position, check)) ->
+        let itemSource = Stdlib.Option.andThen(items, fun i -> Stdlib.List.getAt(i, position - 1))
+        __failureLines(ctx, Stdlib.List.append(path, Stdlib.display(position)), itemSource, check))
+      |> Stdlib.List.flatten
 
 
   /// Run this test's body with an allow-all test instance policy and ordinary
@@ -453,33 +494,51 @@ module Test =
   /// enum's type is checked by hash, as <param branchId> sees `Stdlib.Test.Result`,
   /// so a look-alike `Pass`/`Fail` enum from elsewhere is not taken for one.
   let asTestResult(branchId: Uuid, value: RuntimeTypes.Dval): Option<Stdlib.Test.Result> =
-    let testType = resultTypeHash(branchId)
-    match value, testType with
-    | DEnum(Package(Hash(actual)), _, [], caseName, fields), Some(Hash(expected)) ->
-      if actual == expected then
-        // `caseName` is matched on its own: a string literal inside a tuple
-        // pattern can silently fall through.
-        match caseName with
-        | "Pass" ->
-          match fields with
-          | [] -> Option.Some(Stdlib.Test.Result.Pass)
-          | _ -> Option.None
-        | "Fail" ->
-          match fields with
-          | [DList(_, messages)] ->
-            let strings = Stdlib.List.filterMap(messages, fun m ->
-              match m with
-              | DString(s) -> Option.Some(s)
-              | _ -> Option.None)
+    match resultTypeHash(branchId) with
+    | Some(Hash(expected)) -> __asResultOfType(expected, value)
+    | None -> Option.None
 
-            if Stdlib.List.length(strings) == Stdlib.List.length(messages) then
-              Option.Some(Stdlib.Test.Result.Fail(strings))
-            else
-              Option.None
-          | _ -> Option.None
+
+  /// Each of <param values> through <param f>, or None if any gives None.
+  let __eachOrNone(values: List<'a>, f: 'a -> Option<'b>): Option<List<'b>> =
+    let converted = Stdlib.List.filterMap(values, f)
+    if Stdlib.List.length(converted) == Stdlib.List.length(values) then
+      Option.Some(converted)
+    else
+      Option.None
+
+
+  let __asResultOfType(expected: String, value: RuntimeTypes.Dval): Option<Stdlib.Test.Result> =
+    match value with
+    | DEnum(Package(Hash(actual)), _, [], caseName, fields) when actual == expected ->
+      // `caseName` is matched on its own: a string literal inside a tuple
+      // pattern can silently fall through.
+      match caseName with
+      | "Pass" ->
+        match fields with
+        | [] -> Option.Some(Stdlib.Test.Result.Pass)
         | _ -> Option.None
-      else
-        Option.None
+      | "Fail" ->
+        match fields with
+        | [DList(_, messages)] ->
+          __eachOrNone(messages, fun m ->
+            match m with
+            | DString(s) -> Option.Some(s)
+            | _ -> Option.None)
+          |> Stdlib.Option.map(fun strings -> Stdlib.Test.Result.Fail(strings))
+        | _ -> Option.None
+      | "FailedChecks" ->
+        match fields with
+        | [DList(_, checks)] ->
+          __eachOrNone(checks, fun check ->
+            match check with
+            | DTuple(DInt64(position), result, []) ->
+              __asResultOfType(expected, result)
+              |> Stdlib.Option.map(fun result -> (position, result))
+            | _ -> Option.None)
+          |> Stdlib.Option.map(fun checks -> Stdlib.Test.Result.FailedChecks(checks))
+        | _ -> Option.None
+      | _ -> Option.None
     | _ -> Option.None
 
 
