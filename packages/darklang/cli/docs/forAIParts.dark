@@ -220,6 +220,8 @@ still apply. If the program already has permission, you don't need `--allow`.
 File rules need full paths, such as `/home/me/data`; the shell replaces `$PWD`
 with the full path to the current directory. For HTTP, give a method and URL:
 `run --allow 'http GET https://api.example.com/*' Me.Client.main`.
+A server started by the run takes `http-server 127.0.0.1 8080`, and the run's rules
+reach its request handlers too.
 Remembered script approvals appear as `script:/absolute/path` in `permissions approved`.
 Use that name with `permissions show` or `unapprove`.
 

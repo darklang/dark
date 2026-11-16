@@ -120,6 +120,16 @@ let errInvalidHost(): GetResult =
     Stdlib.HttpClient.RequestError.BadUrl(
       Stdlib.HttpClient.BadUrlDetails.InvalidHost))
 
+let errLoopback(): GetResult =
+  Stdlib.Result.Result.Error(
+    Stdlib.HttpClient.RequestError.BadUrl(
+      Stdlib.HttpClient.BadUrlDetails.Loopback))
+
+let errPrivateNetwork(): GetResult =
+  Stdlib.Result.Result.Error(
+    Stdlib.HttpClient.RequestError.BadUrl(
+      Stdlib.HttpClient.BadUrlDetails.PrivateNetwork))
+
 
 let errInvalidUri(): GetResult =
   Stdlib.Result.Result.Error(
@@ -281,39 +291,39 @@ test disallowedHosts =
 
       get("http://0", []) |> Stdlib.Test.equal(errInvalidHost())
 
-      get("http://localhost", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://localhost", []) |> Stdlib.Test.equal(errLoopback())
 
-      get("http://127.0.0.1", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://127.0.0.1", []) |> Stdlib.Test.equal(errLoopback())
 
-      get("http://[::1]", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[::1]", []) |> Stdlib.Test.equal(errLoopback())
 
-      get("http://[0:0:0:0:0:0:0:1]", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[0:0:0:0:0:0:0:1]", []) |> Stdlib.Test.equal(errLoopback())
 
       get("http://[0000:0000:0000:0000:0000:0000:0000:0001]", [])
-      |> Stdlib.Test.equal(errInvalidHost())
+      |> Stdlib.Test.equal(errLoopback())
 
-      get("http://127.0.0.17", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://127.0.0.17", []) |> Stdlib.Test.equal(errLoopback())
 
-      get("http://[::ffff:7f00:11]", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[::ffff:7f00:11]", []) |> Stdlib.Test.equal(errLoopback())
 
       get("http://[0:0:0:0:0:ffff:7f00:0011]", [])
-      |> Stdlib.Test.equal(errInvalidHost())
+      |> Stdlib.Test.equal(errLoopback())
 
       get("http://[0000:0000:0000:0000:0000:ffff:7f00:0011]", [])
-      |> Stdlib.Test.equal(errInvalidHost())
+      |> Stdlib.Test.equal(errLoopback())
 
-      get("http://127.255.174.17", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://127.255.174.17", []) |> Stdlib.Test.equal(errLoopback())
 
       // The ranges `http.private` widens, in their default state.
-      get("http://10.0.0.5", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://10.0.0.5", []) |> Stdlib.Test.equal(errPrivateNetwork())
 
-      get("http://172.16.0.5", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://172.16.0.5", []) |> Stdlib.Test.equal(errPrivateNetwork())
 
-      get("http://192.168.1.5", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://192.168.1.5", []) |> Stdlib.Test.equal(errPrivateNetwork())
 
-      get("http://100.64.0.5", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://100.64.0.5", []) |> Stdlib.Test.equal(errPrivateNetwork())
 
-      get("http://[fd00::1]", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[fd00::1]", []) |> Stdlib.Test.equal(errPrivateNetwork())
 
       get("http://metadata.google.internal", [])
       |> Stdlib.Test.equal(errInvalidHost())
@@ -333,25 +343,25 @@ test disallowedHosts =
 
       get("http://169.254.0.0", []) |> Stdlib.Test.equal(errInvalidHost())
 
-      get("http://172.16.0.1", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://172.16.0.1", []) |> Stdlib.Test.equal(errPrivateNetwork())
 
-      get("http://[::ffff:ac10:1]", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[::ffff:ac10:1]", []) |> Stdlib.Test.equal(errPrivateNetwork())
 
       get("http://[0:0:0:0:0:ffff:ac10:0001]", [])
-      |> Stdlib.Test.equal(errInvalidHost())
+      |> Stdlib.Test.equal(errPrivateNetwork())
 
       get("http://[0000:0000:0000:0000:0000:ffff:ac10:0001]", [])
-      |> Stdlib.Test.equal(errInvalidHost())
+      |> Stdlib.Test.equal(errPrivateNetwork())
 
-      get("http://192.168.1.1", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://192.168.1.1", []) |> Stdlib.Test.equal(errPrivateNetwork())
 
-      get("http://[::ffff:c0a8:101]", []) |> Stdlib.Test.equal(errInvalidHost())
+      get("http://[::ffff:c0a8:101]", []) |> Stdlib.Test.equal(errPrivateNetwork())
 
       get("http://[0:0:0:0:0:ffff:c0a8:0101]", [])
-      |> Stdlib.Test.equal(errInvalidHost())
+      |> Stdlib.Test.equal(errPrivateNetwork())
 
       get("http://[0000:0000:0000:0000:0000:ffff:c0a8:0101]", [])
-      |> Stdlib.Test.equal(errInvalidHost()) ])
+      |> Stdlib.Test.equal(errPrivateNetwork()) ])
 
 
 // invalid uri

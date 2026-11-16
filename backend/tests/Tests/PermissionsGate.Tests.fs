@@ -716,6 +716,22 @@ let pendingReviewStopsLaterEffects =
     Expect.equal laterCalls 0 "cancelling never performs later effects"
   }
 
+// A server builds its handlers' state from the instance policy; `run --allow` must still reach them.
+let rebuiltStateKeepsRunGrants =
+  testTask "a state rebuilt from the instance policy keeps the run's grants" {
+    let exeState = executionStateFor TestValues.pm false
+    let rebuilt =
+      { exeState with runGrants = clockGrant }
+      |> LibExecution.Execution.setInstancePolicy P.Policy.denyAll
+    let! actual = LibExecution.Execution.executeExpr rebuilt (clockCall ())
+    expectNotDenied actual
+    let! without =
+      LibExecution.Execution.executeExpr
+        (LibExecution.Execution.setInstancePolicy P.Policy.denyAll exeState)
+        (clockCall ())
+    expectDenied [ "clock" ] without
+  }
+
 let tests =
   testList
     "PermissionsGate"
@@ -735,6 +751,7 @@ let tests =
       nestedApprovalCannotWiden
       explicitDenyWins
       runRestrictionWins
+      rebuiltStateKeepsRunGrants
       approvalChangeBetweenRuns
       namesSharingCallDataKeepTheirOwnApproval
       evaluatedNamedFnInContainerCannotWidenReentry

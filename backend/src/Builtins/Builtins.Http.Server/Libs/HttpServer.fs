@@ -1012,6 +1012,18 @@ let private serve
     // policy store has changed, so an approval or a policy edit made while the server runs counts
     // from the next request.
     let invokerAccess = vm.activeAccess
+    // `dark serve --port N` names the address and port on its command line, which is the
+    // consent a policy rule would record. Only the trusted CLI host can manage policies, so
+    // guest code calling `serve` still needs a rule.
+    let exeState =
+      match LibExecution.Permissions.Request.httpServer address (int port) with
+      | Ok request when exeState.canManagePolicies ->
+        { exeState with
+            runGrants =
+              LibExecution.Permissions.Policy.create
+                [ LibExecution.Permissions.Rule.forRequest request ]
+                [] }
+      | _ -> exeState
     match routing with
     | Live live -> live.stepState <- Some { exeState with access = invokerAccess }
     | Fixed _ -> ()

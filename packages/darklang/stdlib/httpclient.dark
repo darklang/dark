@@ -15,6 +15,10 @@ type BadUrlDetails =
   | UnsupportedProtocol
   /// Occurs when the host is not allowed. eg. "http://0"
   | InvalidHost
+  /// The host is this machine, eg. "http://127.0.0.1:8080", which `http.loopback` opens
+  | Loopback
+  /// The host is on a private network, eg. "http://192.168.1.5", which `http.private` opens
+  | PrivateNetwork
   /// Occurs when the URI does not conform to the format specified by RFC 2396. eg. "{ ] nonsense ^#( :"
   | InvalidUri
   /// Occurs when the request contains invalid headers. eg.A request to "http://google.com" with [("Metadata-Flavor", "Google")] header
@@ -63,6 +67,8 @@ let toString(e: RequestError): String =
     match details with
     | UnsupportedProtocol -> "Unsupported protocol"
     | InvalidHost -> "Invalid host"
+    | Loopback -> "This machine (loopback) is blocked; `dark config set http.loopback on` lets code reach it"
+    | PrivateNetwork -> "Private network addresses are blocked; `dark config set http.private on` lets code reach them"
     | InvalidUri -> "Invalid URI"
     | InvalidRequest -> "Invalid request"
   | Timeout -> "Timeout"

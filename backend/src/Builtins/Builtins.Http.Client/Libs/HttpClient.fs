@@ -57,6 +57,8 @@ module BadUrl =
       match err with
       | HostTypes.HttpBadUrl.UnsupportedProtocol -> "UnsupportedProtocol", []
       | HostTypes.HttpBadUrl.InvalidHost -> "InvalidHost", []
+      | HostTypes.HttpBadUrl.Loopback -> "Loopback", []
+      | HostTypes.HttpBadUrl.PrivateNetwork -> "PrivateNetwork", []
       | HostTypes.HttpBadUrl.InvalidUri -> "InvalidUri", []
       | HostTypes.HttpBadUrl.InvalidRequest -> "InvalidRequest", []
 

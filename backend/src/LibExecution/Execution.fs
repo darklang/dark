@@ -107,6 +107,7 @@ let createState
     // callers and tests opt into permissive explicitly with
     // `setInstancePolicy Policy.allowAll`.
     access = LibExecution.Permissions.Access.denyAll
+    runGrants = LibExecution.Permissions.Policy.denyAll
 
     packagePolicy = fun _ _ -> None
 
@@ -136,7 +137,10 @@ let setInstancePolicy
   (policy : LibExecution.Permissions.Policy)
   (state : RT.ExecutionState)
   : RT.ExecutionState =
-  { state with access = LibExecution.Permissions.Access.start policy }
+  { state with
+      access =
+        LibExecution.Permissions.Access.start policy
+        |> LibExecution.Permissions.Access.grantRun state.runGrants }
 
 /// Add a run restriction. Repeated calls only narrow access.
 let restrictRun

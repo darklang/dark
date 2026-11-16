@@ -38,7 +38,8 @@ Printing and stdin need no approval; files, HTTP and the environment need permis
   run Me.Report.main data.csv
 
 To read files for this run, add `--allow "file read $PWD"` to `run`.
-If you already have permission, omit it.
+A server also needs its port: `--allow "http-server 127.0.0.1 8080; file read $PWD"`
+covers the server and its request handlers. If you already have permission, omit it.
 
 ## Workflow
 
@@ -97,7 +98,6 @@ runner approval, without asking in chat first. Retry only if safe. Details:
 - `|>` passes the left value as the first argument. An `if` or `match` on its
   left needs parentheses.
 - Every line of a block but the last returns Unit: `let _ = f(x)` drops a value.
-- Lambdas: `fun x ->`, `fun(acc, x) ->`; one tuple parameter is `fun((a, b)) ->`.
 - A tuple inside a constructor keeps its own parentheses: `Some((a, b))`.
   Tuple parts are `pair.1`, `pair.2`, or `let (a, b) = pair`.
 - Records: `State { count = 0 }` builds, `{ state with count = 1 }` updates.

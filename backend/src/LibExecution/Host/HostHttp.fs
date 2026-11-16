@@ -500,6 +500,12 @@ let profileFor (profile : HttpProfile) : Profile =
 
 // ── request prep ──────────────────────────────────────────────────────────────
 
+/// Why the guard refused <param host>. The ranges a person can open get a case of their own.
+let private refusedHost (host : string) : HttpBadUrl =
+  if LocalAccess.isLoopbackHost host then HttpBadUrl.Loopback
+  elif LocalAccess.isPrivateNetworkHost host then HttpBadUrl.PrivateNetwork
+  else HttpBadUrl.InvalidHost
+
 /// Run the configured allow-lists over the request and return the canonical
 /// request URI. Malformed input becomes a typed error, never an exception and
 /// never a wildcard.
@@ -512,7 +518,7 @@ let private validateAndBuildUri
     let uri = System.Uri(url, System.UriKind.Absolute)
     let host = uri.Host.Trim().ToLower()
     if not (config.allowedHost host) then
-      Error(HttpRequestError.BadUrl HttpBadUrl.InvalidHost)
+      Error(HttpRequestError.BadUrl(refusedHost host))
     elif LocalAccess.hasInstanceMetadataHeader headers then
       Error(HttpRequestError.BadUrl HttpBadUrl.InvalidRequest)
     elif uri.Scheme <> "https" && uri.Scheme <> "http" then

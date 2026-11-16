@@ -813,6 +813,75 @@ let private serveFollowsApprovalsAndPolicy (flags : List<string>) =
           CliInstance.stop server
       })
 
+/// `run --allow` covers the server the run starts: its bind and its handlers.
+let private runAllowCoversItsServer =
+  CliInstance.instanceTest
+    "run --allow covers the bind and handlers of the server it starts"
+    (fun i ->
+      task {
+        let data = System.IO.Path.Combine(i.dir, "data")
+        System.IO.Directory.CreateDirectory data |> ignore<System.IO.DirectoryInfo>
+        let note = System.IO.Path.Combine(data, "note.txt")
+        System.IO.File.WriteAllText(note, "from the file")
+        let port = Tests.HttpServer.allocateFreePort ()
+        let author (name : string) (body : string) =
+          task {
+            let! (out, code) = CliInstance.runWithExit i [ "fn"; name; body ]
+            Expect.equal code 0L $"`fn {name}` saved:\n{out}"
+          }
+        do!
+          author
+            "Tests.RunAllow.handler"
+            $"(req: Stdlib.Http.Request): Stdlib.Http.Response =\n  Stdlib.Http.responseWithText(200, Stdlib.Result.withDefault(Stdlib.Cli.FileSystem.readFileAsString(\"{note}\"), \"unreadable\"))"
+        do!
+          author
+            "Tests.RunAllow.main"
+            $"(): Unit =\n  match Stdlib.Net.Port.fromInt64({port}) with\n  | Ok(p) ->\n    let config = {{ Stdlib.HttpServer.Config.defaults(p) with middleware = [] }}\n    let _ = Stdlib.HttpServer.serve(config, Tests.RunAllow.handler, fun _ -> ())\n    ()\n  | Error(_) -> ()"
+        let server =
+          CliInstance.start
+            i
+            [ "run"
+              "--allow"
+              $"http-server 127.0.0.1 {port}; file read '{data}'"
+              "Tests.RunAllow.main" ]
+        try
+          let! (status, body) = getWhenUp port
+          Expect.equal
+            (status, body)
+            (200, "from the file")
+            "the handler reads the file"
+        finally
+          CliInstance.stop server
+      })
+
+/// `dark serve --port N` binds the port it was given without a policy rule for it.
+let private serveBindsTheGivenPort =
+  CliInstance.instanceTest
+    "serve binds the port on its command line without a policy rule"
+    (fun i ->
+      task {
+        let! (saved, code) =
+          CliInstance.runWithExit
+            i
+            [ "fn"
+              "Tests.ServePort.router"
+              "(req: Stdlib.Http.Request): Stdlib.Http.Response =\n  Stdlib.Http.responseWithText(200, \"up\")" ]
+        Expect.equal code 0L saved
+        let! (committed, code) =
+          CliInstance.runWithExit i [ "commit"; "Tests.ServePort"; "-y" ]
+        Expect.equal code 0L committed
+        let port = Tests.HttpServer.allocateFreePort ()
+        let server =
+          CliInstance.start
+            i
+            [ "serve"; "Tests.ServePort.router"; "--port"; string port ]
+        try
+          let! (status, body) = getWhenUp port
+          Expect.equal (status, body) (200, "up") "the server answers"
+        finally
+          CliInstance.stop server
+      })
+
 let noArgumentsHasExactRule =
   CliInstance.instanceTest
     "a process run with no arguments suggests an exact rule"
@@ -1421,6 +1490,8 @@ let tests =
       fileDenialOffersTheFolderAndTheProfile
       serveFollowsApprovalsAndPolicy []
       serveFollowsApprovalsAndPolicy [ "--live" ]
+      runAllowCoversItsServer
+      serveBindsTheGivenPort
       noArgumentsHasExactRule
       capturedAccessCannotWidenCaller
       materializedValuesCaptureCallablesRecursively ]

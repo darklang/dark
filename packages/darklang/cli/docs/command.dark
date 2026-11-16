@@ -400,7 +400,7 @@ let execute(state: AppState, args: List<String>): AppState =
           state
         | _ ->
           // Several pages in one call, so a reader needs one more turn at most. A name
-          // is a part of <topic> or another topic; parts alone print without <topic>.
+          // is a part of <topic> or another topic, and only the names asked for print.
           let pages =
             rest
             |> Stdlib.List.map(fun name ->
@@ -420,9 +420,11 @@ let execute(state: AppState, args: List<String>): AppState =
 
           match unknown with
           | [] ->
+            // A topic with parts (for-ai) was read on its own first; another topic prints too.
             let found = pages |> Stdlib.List.filterMap(fun((_, page)) -> page)
-            let onlyParts = found |> Stdlib.List.all(fun((isPart, _)) -> isPart)
-            let shown = if onlyParts then found else [ (false, topic), ...found ]
+            let shown =
+              if Stdlib.List.isEmpty(topic.subtopics) then [ (false, topic), ...found ] else found
+
             shown
             |> Stdlib.List.uniqueBy(fun((isPart, t)) -> (isPart, t.name))
             |> Stdlib.List.map(fun((_, t)) ->
@@ -471,7 +473,7 @@ let help(_state: AppState): String =
     "  " + Stdlib.Cli.UI.Colors.command("docs for-ai tests scm") + "  - Several sections at once"
     "  "
     + Stdlib.Cli.UI.Colors.command("docs for-ai http-server")
-    + "  - The quick start and another topic"
+    + "  - Another topic, without the quick start"
 
     "  " + Stdlib.Cli.UI.Colors.command("docs syntax") + "  - Language syntax reference"
     "  " + Stdlib.Cli.UI.Colors.command("docs errors") + "  - Common errors and fixes" ]
