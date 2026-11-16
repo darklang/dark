@@ -145,7 +145,7 @@ let help(_state: AppState): String =
     "  eval Stdlib.String.length(\"test\") - Function calls"
     ""
     "  # Multi-line expression via stdin (run from shell, not the REPL):"
-    "  ./scripts/run-cli eval - <<'EOF'"
+    "  dark eval - <<'EOF'"
     "  let xs = [1, 2, 3]"
     "  Stdlib.List.length(xs)"
     "  EOF" ]

@@ -7,7 +7,7 @@ let content(): String =
   Owner.Module.SubModule.name
   Darklang.Stdlib.List.map
   MyOrg.MyApp.Utils.helper
-  MyOrg.helper      # no module needed
+  MyOrg.helper      // no module needed
 
 ## Navigate
   tree              # see hierarchy
@@ -16,10 +16,9 @@ let content(): String =
   search <term>     # find anything
 
 ## Create
-  nav MyOrg.MyApp   # go to your module
-  fn name           # create function
-  type name         # create type
-  val name          # create value
+  dark fn MyOrg.MyApp.double '(x: Int64): Int64 = x * 2'
+  dark type MyOrg.MyApp.Size '| Small | Large(Int64)'
+  dark val MyOrg.MyApp.limit '6'
 
 ## Use
   Stdlib.List.map(list, fn)

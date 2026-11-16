@@ -71,19 +71,19 @@ Tests, sandboxes, and security research can opt out:
 ## Examples
 
   # Replace one fn with another
-  deprecate fn Darklang.Stdlib.List.oldMap \\
-    --kind superseded-by --replacement Darklang.Stdlib.List.map_ \\
+  dark deprecate fn Me.Lists.oldMap \
+    --kind superseded-by --replacement Me.Lists.map \
     -m "rewrite for perf" --yes
 
   # Mark something actively dangerous
-  deprecate fn Darklang.Stdlib.Crypto.brokenHash \\
+  dark deprecate fn Me.Crypto.brokenHash \
     --kind harmful -m "CVE-2026-XXXX" --yes
 
   # Take off the shelf (catch-all)
-  delete fn Darklang.Legacy.oldThing -m "no longer maintained" --yes
+  dark delete fn Me.Legacy.oldThing -m "no longer maintained" --yes
 
   # Put it back
-  undeprecate Darklang.Stdlib.List.oldMap
+  dark undeprecate Me.Lists.oldMap
 
 ## Undeprecating
 

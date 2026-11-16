@@ -7,7 +7,7 @@ let content(): String =
 
   Stdlib.HttpClient.get(url, [ ("Accept", "application/json") ])
   Stdlib.HttpClient.post(url, [ Stdlib.HttpClient.ContentType.json ], body)
-  Stdlib.HttpClient.request("PATCH", url, headers, body)   # any method; body is Bytes
+  Stdlib.HttpClient.request("PATCH", url, headers, body)   // any method; body is Bytes
   Stdlib.HttpClient.stream("GET", url, headers, Stdlib.Bytes.empty)
 
 Each answers `Result<Response<'body>, RequestError>`:
@@ -22,10 +22,10 @@ where its redirects led. A gzip or brotli body is decoded, and its
 and a header sent twice (`Set-Cookie`) is two pairs. Look one up whatever its
 case:
 
-  Stdlib.HttpClient.Response.header(r, "ETag")       # Some("\"AbC\"")
-  Stdlib.HttpClient.Response.headers(r, "Set-Cookie") # every value
-  Stdlib.HttpClient.Response.text(r)                  # body as UTF-8, or Decode
-  Stdlib.HttpClient.Response.json<User>(r)            # body as a User, or BadJson
+  Stdlib.HttpClient.Response.header(r, "ETag")       // Some("\"AbC\"")
+  Stdlib.HttpClient.Response.headers(r, "Set-Cookie") // every value
+  Stdlib.HttpClient.Response.text(r)                  // body as UTF-8, or Decode
+  Stdlib.HttpClient.Response.json<User>(r)            // body as a User, or BadJson
 
 A GET or HEAD with no body is a read: it runs while your program goes on, and
 waits only where you look at the response, so `List.map(urls, get)` has them
@@ -92,7 +92,7 @@ client instead: `Middleware.decode(f)` turns each body into what `f` makes of
 it, or `Decode` with what `f` says is wrong, without waiting for the response.
 
   let lengths = (Middleware.decode(fun b -> Ok(Stdlib.Bytes.length(b))))(send)
-  let users = (Middleware.json<List<User>>())(send)   # Response<List<User>>
+  let users = (Middleware.json<List<User>>())(send)   // Response<List<User>>
 
 `retry` tries again on a failure to connect and on 429, 502, 503 or 504. It
 waits what `Retry-After` asks, or else `ms` doubled each time with some

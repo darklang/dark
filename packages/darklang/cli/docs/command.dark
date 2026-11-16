@@ -260,7 +260,7 @@ module Topics =
       subtopic(
         "permissions",
         "Rules, profiles and package approvals",
-        [ "perms", "http", "files" ],
+        [ "perms", "files" ],
         ForAIParts.permissions)
 
       subtopic(

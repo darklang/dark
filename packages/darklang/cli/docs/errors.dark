@@ -5,11 +5,6 @@ let content(): String =
 
 ## Parse errors -> CHECK INDENTATION FIRST
 
-## "Unsupported expression"
-  - Nested function definition
-  - Bad indentation
-  - { left of type name in record
-
 ## Type mismatch
   - Wrong literal suffix (5 vs 5.0)
   - Param order wrong
@@ -41,4 +36,4 @@ let content(): String =
 ## Debug
   1. Simplify expression
   2. Use eval to test pieces
-  3. Check packages.log"""
+  3. Check ~/.darklang/logs/cli.log"""
