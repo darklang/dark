@@ -5,11 +5,17 @@ module Darklang.Cli.Docs.SyntaxAtAGlance
 let content(): String =
   """## Dark syntax at a glance
 
-  Stdlib.String.trim(s)   add(a, b)   main()   calls take parentheses and commas,
-                                               never `add a b`
+Dark reads like F#, but a draft written as F# fails to save:
+
+- Calls: `f(a, b)`, `Ok(x)`; never `f a b` or `Ok x`.
+- Commas between list items and record fields, or one per line; never `;`.
+- Lambdas: `fun x ->`, `fun(acc, x) ->`; one pair is `fun((a, b)) ->`.
+- `val` at module level, `let` inside a function. Your own case: `Shape.Circle(1.0)`.
+  `Stdlib.Bool.not(b)`, never `not b`. An integer is `200`, never `200L`.
+
   "n = " + Stdlib.display(n)   $"n = {n}"      `+` joins; there is no `<Type>.toString`
-  2   -7   1.5   255u8   3s32   10z   9.5dec   a plain integer is an Int64, never `2L`
-  [1, 2, 3]   Point { x = 1, y = 2 }           commas, or one item per line, never `;`
+  2   -7   1.5   255u8   3s32   10z   9.5dec   a plain integer is an Int64
+  [1, 2, 3]   Point { x = 1, y = 2 }           commas, or one item per line
   type Point = { x: Int64, y: Int64 }          the same in a record type
   [x, ...xs]   [...xs, ...ys]                  prepend an item; join two lists
   Stdlib.List.append(xs, x)                    add one item at the end

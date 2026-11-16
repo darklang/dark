@@ -98,7 +98,6 @@ runner approval, without asking in chat first. Retry only if safe. Details:
 - `|>` passes the left value as the first argument. An `if` or `match` on its
   left needs parentheses.
 - Every line of a block but the last returns Unit: `let _ = f(x)` drops a value.
-- Lambdas: `fun x ->`, `fun(acc, x) ->`; one tuple parameter is `fun((a, b)) ->`.
 - A tuple inside a constructor keeps its own parentheses: `Some((a, b))`.
   Tuple parts are `pair.1`, `pair.2`, or `let (a, b) = pair`.
 - Records: `State { count = 0 }` builds, `{ state with count = 1 }` updates.
