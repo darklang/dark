@@ -118,6 +118,27 @@ let fns () : List<BuiltInFn> =
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
+    { name = fn "testGateThreads" 0
+      typeParams = []
+      parameters = [ Param.make "gate" TInt64 "" ]
+      returnType = TTuple(TInt64, TInt64, [])
+      description =
+        "Waits for the gate like `testGateWait`; answers the thread it was called on and the one its wait resumed on."
+      fn =
+        (function
+        | _, _, _, [| DInt64 n |] ->
+          let before = System.Threading.Thread.CurrentThread.ManagedThreadId
+          task {
+            do! Gates.wait n
+            let after = System.Threading.Thread.CurrentThread.ManagedThreadId
+            return DTuple(DInt64(int64 before), DInt64(int64 after), [])
+          }
+          |> Pending.ofTask
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
     /// A read that has to wait: `PackageRead` is an ambient read effect, and the gate is what it
     /// waits on. The interpreter hands it back as a promise, and the test decides when it lands.
     { name = fn "testRead" 0

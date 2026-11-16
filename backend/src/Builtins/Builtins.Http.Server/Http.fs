@@ -141,13 +141,9 @@ module Response =
     (state : RT.ExecutionState)
     (result : RT.Dval)
     : Task<HttpResponse> =
-    task {
-      match result with
-      | RT.DRecord(RT.FQTypeName.Package hash, _, [], fields) ->
-        if hash = RT.Hash(PackageRefs.Type.Stdlib.Http.response ()) then
-          return parseHttpResponseFields state fields
-        else
-          return! wrongTypeResponse state result
-
-      | dval -> return! wrongTypeResponse state dval
-    }
+    match result with
+    | RT.DRecord(RT.FQTypeName.Package hash, _, [], fields) when
+      hash = RT.Hash(PackageRefs.Type.Stdlib.Http.response ())
+      ->
+      Task.FromResult(parseHttpResponseFields state fields)
+    | dval -> wrongTypeResponse state dval

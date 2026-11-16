@@ -193,6 +193,13 @@ process-wide (`HostEvents.Shared`) and deliver to whichever queue asked:
 - `Wake`: nothing to route; the loop, blocked with nothing runnable, looks
   again (a spawn from another thread, a `Stop`).
 
+What a process awaits resumes on its scheduler's thread, between slices, not
+on the pool: the loop is the thread's `SynchronizationContext`
+(`HostEvents.Loop`). I/O starts off the loop (`Task.offLoop`, in `Host.perform`
+and for the HTTP server's listener), so only what it answers lands there. A
+continuation posted after the loop has left runs on the pool. The CLI's main
+thread waits the same way (`HostEvents.runHere`) rather than blocking on a task.
+
 The sources `LibExecution` cannot provide itself (the console, the store) are
 installed by the host: `Stdin.fs` installs the key source, `Cli.fs` the store
 version.

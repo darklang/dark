@@ -1083,16 +1083,17 @@ let private serve
       Console.CancelKeyPress.AddHandler cancelHandler
 
       let listenerTask =
-        runListenerWith
-          exeState
-          invokerAccess
-          listener
-          port
-          routing
-          maxBodyBytes
-          requestTimeoutMs
-          middleware
-          cts.Token
+        Task.offLoop (fun () ->
+          runListenerWith
+            exeState
+            invokerAccess
+            listener
+            port
+            routing
+            maxBodyBytes
+            requestTimeoutMs
+            middleware
+            cts.Token)
 
       do! listenerTask
 
