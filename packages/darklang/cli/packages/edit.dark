@@ -79,7 +79,8 @@ let patchSource(source: String, patch: String): Result<String, String> =
     else
       let originalLineCount = Stdlib.List.length(originalLines)
       let matchingOffsets =
-        Stdlib.List.range(0, Stdlib.List.length(remainingSource))
+        remainingSource
+        |> Stdlib.List.indexedMap(fun(offset, _line) -> offset)
         |> Stdlib.List.filter(fun offset ->
           Stdlib.List.take(Stdlib.List.drop(remainingSource, offset), originalLineCount)
           == originalLines)
@@ -363,7 +364,14 @@ let help(_state: AppState): String =
     "    ...edit it..."
     "    dark edit Foo.bar /tmp/bar.dark"
     ""
-    "  Full declaration from stdin (no temporary file needed):"
+    "  Create a function to try the examples:"
+    ""
+    "    dark fn /Tools.RenameDemo.greeting - <<'EOF'"
+    "    let greeting(name: String): String ="
+    "      \"Welcome, \" + name"
+    "    EOF"
+    ""
+    "  Replace its declaration from stdin (no temporary file needed):"
     ""
     "    dark edit Tools.RenameDemo.greeting - <<'EOF'"
     "    let greeting(name: String): String ="
@@ -379,12 +387,12 @@ let help(_state: AppState): String =
     ""
     "  Send the changes as patch blocks in the apply_patch format:"
     ""
-    "    dark edit Tools.RenameDemo.greeting --patch - <<'PATCH'"
+    "    dark edit Tools.RenameDemo.greeting --patch - <<'EOF'"
     "    @@"
     "     let greeting(name: String): String ="
     "    -  \"Hello, \" + name"
     "    +  \"Hi, \" + name"
-    "    PATCH"
+    "    EOF"
     ""
     "  Start each block with @@. Use a space for unchanged lines, - for removed"
     "  lines, and + for added lines. Blank lines need a prefix too."
