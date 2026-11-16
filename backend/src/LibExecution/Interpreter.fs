@@ -3005,8 +3005,9 @@ let private refillForTailCall
   // The run loop sets the counter back to the start.
   PushFrame frame
 
-/// The frame a call of <param callData>'s fn runs in, from the current frame, with its arguments in
-/// its registers: what every package call that pushes a frame builds.
+/// The frame a call of <param callData>'s fn runs in, from the current frame: what every package
+/// call that pushes a frame builds. The caller puts the arguments in its registers; the tracer is
+/// handed <param traceArgs>, which only matter when it collects frames.
 let private packageFrame
   (exeState : ExecutionState)
   (vm : VMState)
@@ -3017,7 +3018,7 @@ let private packageFrame
     List<struct (string * FQTypeName.Package * string * FQFnName.Package)>)
   (putResultIn : Register)
   (returnPc : int)
-  (allArgs : ArgSeq)
+  (traceArgs : List<Dval>)
   : CallFrame =
   let fn = callData.fn
   if vm.stats.enabled then
@@ -3045,7 +3046,7 @@ let private packageFrame
       newFrameId
       vm.currentFrame.id
       callData.executionPoint
-      (landedForTrace (ArgSeq.toList allArgs))
+      traceArgs
   // Names and time only, and only when something is recording: this is what lets `traces
   // calls <fn>` find the runs that went through a function, and say how long each spent in it,
   // where the call itself is not recorded. `popFrame` is the other half.
@@ -3063,7 +3064,6 @@ let private packageFrame
       ValueNone
       tst
       boundImpls
-  ArgSeq.fill frame.registers allArgs
   frame
 
 
@@ -3122,7 +3122,11 @@ let private completePackage
         (calleeBoundImpls currentFrame ctx)
         ctx.putResultIn
         ctx.returnPc
-        allArgs
+        (if exeState.tracing.collectFrames then
+           landedForTrace (ArgSeq.toList allArgs)
+         else
+           [])
+    ArgSeq.fill frame.registers allArgs
     expectCallbackReturns vm ctx callData frame
     recordStage vm ApplyStage.PkgFrame pkgFrameAlloc
     PushFrame frame
@@ -4699,7 +4703,6 @@ let private tryCallKnown
       false
     else
       let access = packageEntryAccess exeState callData named pkg currentFrame.access
-      let args = ArgSeq.ofNE registers newArgRegs
       if
         obj.ReferenceEquals(callData.instrData, currentFrame.instrData)
         && runsInPlace exeState vm currentFrame putResultIn
@@ -4712,23 +4715,124 @@ let private tryCallKnown
           access
           currentFrame.typeSymbolTable
           []
-          args
+          (ArgSeq.ofNE registers newArgRegs)
         vm.frameToPush <- ValueSome currentFrame
       else
-        vm.frameToPush <-
-          ValueSome(
-            packageFrame
-              exeState
-              vm
-              callData
-              access
-              currentFrame.typeSymbolTable
-              []
-              putResultIn
-              (currentFrame.programCounter + 1)
-              args
-          )
+        let frame =
+          packageFrame
+            exeState
+            vm
+            callData
+            access
+            currentFrame.typeSymbolTable
+            []
+            putResultIn
+            (currentFrame.programCounter + 1)
+            (if exeState.tracing.collectFrames then
+               landedForTrace (
+                 registers[newArgRegs.head] :: readRegs registers newArgRegs.tail
+               )
+             else
+               [])
+        let r = frame.registers
+        Registers.set r 0 registers[newArgRegs.head]
+        let mutable i = 1
+        for reg in newArgRegs.tail do
+          Registers.set r i registers[reg]
+          i <- i + 1
+        vm.frameToPush <- ValueSome frame
       true
+
+
+/// A call from the run loop of a plain pure builtin (`isPlainPure`) with exactly its arguments,
+/// none of them a read in flight: the arguments are checked and the body runs, as the general
+/// path would end up doing, without its context. `ValueNone`, with nothing done, for anything
+/// else, which takes the general path.
+let private tryCallPlainBuiltin
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (registers : Dval array)
+  (putResultIn : Register)
+  (b : FQFnName.Builtin)
+  (newArgRegs : NEList<Register>)
+  : ApplyOutcome voption =
+  let mutable fn = Unchecked.defaultof<BuiltInFn>
+  if
+    vm.stats.enabled
+    || not (exeState.fns.builtIn.TryGetValue(b, &fn))
+    || NEList.length newArgRegs <> List.length fn.parameters
+    || anyPromiseIn registers newArgRegs
+    || not (isPlainPure fn)
+  then
+    ValueNone
+  else
+    match
+      plainPureCallArgs
+        exeState.types
+        currentFrame
+        registers
+        newArgRegs
+        currentFrame.typeSymbolTable
+        fn
+    with
+    | ValueNone -> ValueNone
+    | ValueSome(struct (args, checkedTst)) ->
+      vm.activeAccess <- currentFrame.access
+      match invokeBuiltin exeState vm fn checkedTst [] args true with
+      | _ when requested vm ->
+        ValueSome(
+          beginRequest
+            exeState
+            vm
+            currentFrame
+            putResultIn
+            (currentFrame.programCounter + 1)
+            (takeFinish vm)
+            false
+        )
+      | Pending.Wait t -> ValueSome(AwaitBuiltin(t, putResultIn))
+      | dv ->
+        Registers.set registers putResultIn dv
+        ValueSome ApplyDone
+
+
+/// An `Apply` of a named fn with nothing captured, applied or bound before: a known package fn
+/// (`tryCallKnown`) or a plain pure builtin (`tryCallPlainBuiltin`). `ValueNone` for anything else.
+let private tryCallDirect
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (registers : Dval array)
+  (putResultIn : Register)
+  (named : ApplicableNamedFn)
+  (newArgRegs : NEList<Register>)
+  : ApplyOutcome voption =
+  if
+    named.access.IsSome
+    || not (List.isEmpty named.argsSoFar)
+    || not (List.isEmpty named.typeArgs)
+    || not (List.isEmpty named.boundImpls)
+    || not (TST.isEmpty named.typeSymbolTable)
+  then
+    ValueNone
+  else
+    match named.name with
+    | FQFnName.Package pkg when
+      tryCallKnown
+        exeState
+        vm
+        currentFrame
+        registers
+        putResultIn
+        named
+        pkg
+        newArgRegs
+      ->
+      ValueSome ApplyDone
+    | FQFnName.Builtin b ->
+      tryCallPlainBuiltin exeState vm currentFrame registers putResultIn b newArgRegs
+    | _ -> ValueNone
 
 
 /// A call of a fn already called once. When every argument fits its parameter by its case alone,
@@ -5987,27 +6091,22 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
         // or the callee returns to the wrong instruction.
         currentFrame.programCounter <- counter
 
-        pending <-
+        let direct =
           match registers[thingToCallReg] with
-          | DApplicable(AppNamedFn({ name = FQFnName.Package pkg } as named)) when
-            List.isEmpty typeArgs
-            && named.access.IsNone
-            && List.isEmpty named.argsSoFar
-            && List.isEmpty named.typeArgs
-            && List.isEmpty named.boundImpls
-            && TST.isEmpty named.typeSymbolTable
-            && tryCallKnown
+          | DApplicable(AppNamedFn named) when List.isEmpty typeArgs ->
+            tryCallDirect
               exeState
               vm
               currentFrame
               registers
               putResultIn
               named
-              pkg
               newArgRegs
-            ->
-            ApplyDone
-          | _ ->
+          | _ -> ValueNone
+        pending <-
+          match direct with
+          | ValueSome outcome -> outcome
+          | ValueNone ->
             applyInstruction
               exeState
               vm
