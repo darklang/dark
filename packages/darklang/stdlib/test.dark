@@ -1,13 +1,10 @@
 module Darklang.Stdlib.Test
 
-/// What a test returns: `Pass`, or what went wrong. `Fail` holds the messages of one
-/// check; `all` and `named` wrap the failing checks they hold, so the runner can say
-/// which ones failed. The test still runs and caches as a whole.
+/// What a test returns: `Pass`, or `Fail` with what went wrong. `all`
+/// combines several checks into one; the test still runs and caches as a whole.
 type Result =
   | Pass
   | Fail(messages: List<String>)
-  /// A failing check that `named` gave a name.
-  | Named(name: String, result: Result)
   /// The failing checks of an `all`, each with its position in the list, from 1.
   | FailedChecks(checks: List<(Int64 * Result)>)
 
@@ -74,8 +71,7 @@ let notEqual(actual: 'a, unexpected: 'a): Result =
     Result.Fail([ $"did not expect {inspect(unexpected)}" ])
 
 
-/// Combine checks without stopping at the first failure. A failing check is
-/// reported by its position, with its source, unless it is `named`.
+/// Combine assertions without stopping at the first failure.
 let all(checks: List<Result>): Result =
   let failed =
     checks
@@ -83,11 +79,3 @@ let all(checks: List<Result>): Result =
     |> List.filter(fun((_, check)) -> check != Result.Pass)
 
   if List.isEmpty(failed) then Result.Pass else Result.FailedChecks(failed)
-
-
-/// <param check>, reported under <param name> instead of its position and source
-/// when it fails: `Stdlib.Test.named("emoji separator", split("a🙂b", "🙂") |> equal([ "a", "b" ]))`.
-let named(name: String, check: Result): Result =
-  match check with
-  | Pass -> Result.Pass
-  | _ -> Result.Named(name, check)

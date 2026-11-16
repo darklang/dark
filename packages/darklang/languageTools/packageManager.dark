@@ -402,50 +402,15 @@ module Test =
     itemLocations(branchId, ProgramTypes.ItemKind.Test, hash)
 
 
-  /// Whether <param name> resolved to `Stdlib.Test.<param fn>`.
-  let __isTestFn(
-    name: ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName>,
-    fn: String)
-    : Bool =
+  /// Whether <param name> resolved to `Stdlib.Test.all`.
+  let __isAll(name: ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName>): Bool =
     match name.resolved with
     | Ok(resolved) ->
       resolved.location
       == Option.Some(
         ProgramTypes.PackageLocation
-          { owner = "Darklang", modules = [ "Stdlib", "Test" ], name = fn })
+          { owner = "Darklang", modules = [ "Stdlib", "Test" ], name = "all" })
     | Error(_) -> false
-
-
-  /// The arguments of <param e> when it calls `Stdlib.Test.<param fn>`, written
-  /// `fn(a, b)` or `a |> fn(b)`.
-  let __testCallArgs(e: ProgramTypes.Expr, fn: String): Option<List<ProgramTypes.Expr>> =
-    match e with
-    | EApply(_, EFnName(_, name, _, _), _, args) when __isTestFn(name, fn) -> Option.Some(args)
-    | EPipe(id, first, steps) ->
-      match Stdlib.List.last(steps) with
-      | Some(EPipeFnCall(_, name, _, args, _)) when __isTestFn(name, fn) ->
-        let input =
-          match Stdlib.List.dropLast(steps) with
-          | [] -> first
-          | before -> ProgramTypes.Expr.EPipe(id, first, before)
-
-        Option.Some(Stdlib.List.prepend(args, input))
-      | _ -> Option.None
-    | _ -> Option.None
-
-
-  /// The checks of <param e> when it is `Stdlib.Test.all` over a list written out in place.
-  let __checks(e: ProgramTypes.Expr): Option<List<ProgramTypes.Expr>> =
-    match __testCallArgs(e, "all") with
-    | Some([EList(_, items)]) -> Option.Some(items)
-    | _ -> Option.None
-
-
-  /// The check <param e> names, when it is a `Stdlib.Test.named` call.
-  let __namedCheck(e: ProgramTypes.Expr): Option<ProgramTypes.Expr> =
-    match __testCallArgs(e, "named") with
-    | Some([_, check]) -> Option.Some(check)
-    | _ -> Option.None
 
 
   /// What <param e> evaluates to, past its `let`s and statements.
@@ -456,36 +421,18 @@ module Test =
     | _ -> e
 
 
-  /// How many checks the test <param body> holds, read from its code, so a
-  /// cached or unrun test has a count too. Each item of a `Stdlib.Test.all([ ... ])`
-  /// list is a check, nested `all`s add up, `named` counts what it names, a `let`
-  /// counts what follows it, and an `if` or `match` counts its biggest branch.
-  /// Anything else is one check, including a list built at run time
-  /// (`Stdlib.List.map(cases, f) |> Stdlib.Test.all`).
-  let testCount(body: ProgramTypes.Expr): Int64 =
-    let sum(items: List<ProgramTypes.Expr>): Int64 =
-      Stdlib.List.fold(items, 0, fun(total, item) -> total + testCount(item))
-
-    let most(branches: List<ProgramTypes.Expr>): Int64 =
-      Stdlib.List.fold(branches, 1, fun(best, branch) ->
-        let n = testCount(branch)
-        if n > best then n else best)
-
-    match __resultExpr(body) with
-    | EIf(_, _, thenExpr, Some(elseExpr)) -> most([ thenExpr, elseExpr ])
-    | EMatch(_, _, cases) -> most(Stdlib.List.map(cases, fun c -> c.rhs))
-    | e ->
-      match __checks(e) with
-      | Some(items) -> sum(items)
-      | None ->
-        match __namedCheck(e) with
-        | Some(check) -> testCount(check)
-        | None -> 1
+  /// The items of <param e> when it is `Stdlib.Test.all` over a list written out in place.
+  let __allItems(e: ProgramTypes.Expr): Option<List<ProgramTypes.Expr>> =
+    match e with
+    | EApply(_, EFnName(_, name, _, _), _, [EList(_, items)]) when __isAll(name) ->
+      Option.Some(items)
+    | EPipe(_, EList(_, items), [EPipeFnCall(_, name, _, [], _)]) when __isAll(name) ->
+      Option.Some(items)
+    | _ -> Option.None
 
 
-  /// What <param result> says went wrong, one line each: a failing check by where it
-  /// sits (its position in its `all`, or its name, outermost first), then its messages.
-  /// An unnamed check also shows its source, as <param body> wrote it.
+  /// What <param result> says went wrong, one line each. A failing item of an `all`
+  /// shows its position (outermost first) and its source, as <param body> wrote it.
   let failureLines(
     ctx: PrettyPrinter.ProgramTypes.Context,
     body: ProgramTypes.Expr,
@@ -494,8 +441,7 @@ module Test =
     __failureLines(ctx, [], Option.Some(body), result)
 
 
-  /// <param source> is what <param result> came from, when the code says; a failing
-  /// check with a position and a source shows it.
+  /// <param source> is what <param result> came from, when the code says.
   let __failureLines(
     ctx: PrettyPrinter.ProgramTypes.Context,
     path: List<String>,
@@ -522,28 +468,13 @@ module Test =
           let printed = PrettyPrinter.ProgramTypes.expr({ ctx with width = width }, e)
           let lines = Stdlib.List.concat(Stdlib.String.split(printed, "\n"), messages)
           Stdlib.List.indexedMap(lines, fun(i, line) -> (if i == 0 then at else indent) + line)
-        | _ -> Stdlib.List.map(messages, fun m -> at + m)
-    | Named(name, check) ->
-      // The name stands for the check's source, so only what is inside it shows its own.
-      let inner =
-        match check with
-        | Fail(_) -> Option.None
-        | _ -> Stdlib.Option.andThen(source, __namedCheck)
-
-      __failureLines(ctx, Stdlib.List.append(path, name), inner, check)
+        | None -> Stdlib.List.map(messages, fun m -> at + m)
     | FailedChecks(checks) ->
-      let items = Stdlib.Option.andThen(source, __checks)
+      let items = Stdlib.Option.andThen(source, __allItems)
       checks
       |> Stdlib.List.map(fun((position, check)) ->
         let itemSource = Stdlib.Option.andThen(items, fun i -> Stdlib.List.getAt(i, position - 1))
-        match check with
-        | Named(_, _) -> __failureLines(ctx, path, itemSource, check)
-        | _ ->
-          __failureLines(
-            ctx,
-            Stdlib.List.append(path, Stdlib.display(position)),
-            itemSource,
-            check))
+        __failureLines(ctx, Stdlib.List.append(path, Stdlib.display(position)), itemSource, check))
       |> Stdlib.List.flatten
 
 
@@ -595,12 +526,6 @@ module Test =
             | DString(s) -> Option.Some(s)
             | _ -> Option.None)
           |> Stdlib.Option.map(fun strings -> Stdlib.Test.Result.Fail(strings))
-        | _ -> Option.None
-      | "Named" ->
-        match fields with
-        | [DString(name), check] ->
-          __asResultOfType(expected, check)
-          |> Stdlib.Option.map(fun result -> Stdlib.Test.Result.Named(name, result))
         | _ -> Option.None
       | "FailedChecks" ->
         match fields with

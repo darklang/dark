@@ -53,7 +53,7 @@ test all =
       Stdlib.Test.all([ Stdlib.Test.pass(), Stdlib.Test.pass() ])
       |> is(Stdlib.Test.Result.Pass)
 
-      // Every failing check is kept, in order, with its position.
+      // Every failure is kept, in order, not just the first.
       Stdlib.Test.all(
         [ Stdlib.Test.fail("a")
           Stdlib.Test.pass()
@@ -61,9 +61,12 @@ test all =
       |> is(
         Stdlib.Test.Result.FailedChecks(
           [ (1, Stdlib.Test.Result.Fail([ "a" ]))
-            (3, Stdlib.Test.Result.Fail([ "b", "c" ])) ]))
+            (3, Stdlib.Test.Result.Fail([ "b", "c" ])) ])) ])
 
-      Stdlib.Test.all([ Stdlib.Test.Result.Fail([]) ])
+
+test emptyFailureIsPreserved =
+  Stdlib.Test.all(
+    [ Stdlib.Test.all([ Stdlib.Test.Result.Fail([]) ])
       |> is(Stdlib.Test.Result.FailedChecks([ (1, Stdlib.Test.Result.Fail([])) ]))
 
       Stdlib.Test.all(
@@ -74,14 +77,6 @@ test all =
         Stdlib.Test.Result.FailedChecks(
           [ (2, Stdlib.Test.Result.Fail([]))
             (3, Stdlib.Test.Result.Fail([ "another failure" ])) ])) ])
-
-
-test named =
-  Stdlib.Test.all(
-    [ Stdlib.Test.named("fine", Stdlib.Test.pass()) |> is(Stdlib.Test.Result.Pass)
-
-      Stdlib.Test.named("broken", Stdlib.Test.fail("a"))
-      |> is(Stdlib.Test.Result.Named("broken", Stdlib.Test.Result.Fail([ "a" ]))) ])
 
 
 /// A package test runs on a virtual clock: an hour's sleep finishes at once, and
@@ -103,23 +98,13 @@ test onRealClockTakesRealTime =
   Stdlib.Test.expect(elapsed > 100000, $"slept {display(elapsed)} ticks")
 
 
-// Bodies for the tests below to read: what `dark test run` prints for a failure
-// comes from the stored source.
+// A body for `failureLines` below to read: what `dark test run` prints for a
+// failure comes from the stored source.
 test shownFixture =
   Stdlib.Test.all(
     [ Stdlib.Test.pass()
       Stdlib.String.length("ab") |> Stdlib.Test.equal(2)
-      Stdlib.Test.named("third", Stdlib.Test.pass())
       Stdlib.Test.all([ Stdlib.Test.pass(), Stdlib.Test.pass() ]) ])
-
-
-test countedFixture =
-  let two = 2
-
-  [ Stdlib.Test.pass()
-    Stdlib.Test.named("pair", Stdlib.Test.all([ Stdlib.Test.pass(), Stdlib.Test.pass() ]))
-    two |> Stdlib.Test.equal(2) ]
-  |> Stdlib.Test.all
 
 
 let fixtureBody(name: String): Option<LanguageTools.ProgramTypes.Expr> =
@@ -144,7 +129,7 @@ test failureLines =
       LanguageTools.PackageManager.Test.failureLines(ctx, body, result)
 
     Stdlib.Test.all(
-      [ // An unnamed check shows its position and source, then what went wrong.
+      [ // A failing item shows its position and source, then what went wrong.
         lines(
           Stdlib.Test.Result.FailedChecks(
             [ (2, Stdlib.Test.Result.Fail([ "expected 3, got 2" ])) ]))
@@ -155,27 +140,14 @@ test failureLines =
         lines(Stdlib.Test.Result.FailedChecks([ (1, Stdlib.Test.Result.Fail([])) ]))
         |> Stdlib.Test.equal([ "1: Stdlib.Test.pass()", "   failed without a message" ])
 
-        // A named check shows its name instead.
-        lines(
-          Stdlib.Test.Result.FailedChecks(
-            [ (3, Stdlib.Test.Result.Named("third", Stdlib.Test.Result.Fail([ "a", "b" ]))) ]))
-        |> Stdlib.Test.equal([ "third: a", "third: b" ])
-
         // A nested `all` adds its positions to the path.
         lines(
           Stdlib.Test.Result.FailedChecks(
-            [ (4,
+            [ (3,
                Stdlib.Test.Result.FailedChecks(
                  [ (2, Stdlib.Test.Result.Fail([ "no" ])) ])) ]))
-        |> Stdlib.Test.equal([ "4 > 2: Stdlib.Test.pass()", "       no" ])
+        |> Stdlib.Test.equal([ "3 > 2: Stdlib.Test.pass()", "       no" ])
 
         // A test that is not an `all` shows its messages alone.
         lines(Stdlib.Test.Result.Fail([ "a" ])) |> Stdlib.Test.equal([ "a" ]) ])
 
-
-test testCount =
-  match fixtureBody("countedFixture") with
-  | None -> Stdlib.Test.fail("countedFixture is not stored")
-  | Some(body) ->
-    // `named` counts what it names; a `let` counts what follows it.
-    LanguageTools.PackageManager.Test.testCount(body) |> Stdlib.Test.equal(4)
