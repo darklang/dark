@@ -1954,22 +1954,26 @@ let private pipeStagesCarryTheirValues =
 
 
 /// A replay re-runs the whole recorded run, so a run past the limits is refused rather than
-/// replayed on a keystroke, and the workbench replays once per fn rather than once per key.
+/// replayed on a keystroke, and the workbench replays once per fn and run rather than once per
+/// key or per move.
 let private liveValuesStayBounded =
   cliTestWithFreshTraces
-    "live values refuse a run past the limits, and replay once per selected fn"
+    "live values refuse a run past the limits, and replay once per selected fn and run"
     (fun target ->
       task {
         let state = executionState target
         do! author target "Tests.LiveBound.inc" "(n: Int64): Int64 = (n + 1)"
+        do! author target "Tests.LiveBound.dec" "(n: Int64): Int64 = (n - 1)"
         let! out = runCli target [ "eval"; "Tests.LiveBound.inc(41)" ]
         Expect.stringContains out "42" "the call ran"
         // pin the recorded duration: the limits are the point, not how fast this box ran it
         Sql.query "UPDATE traces SET duration_ms = 10" |> Sql.executeStatement
 
         let within (ms : string) (fns : string) =
-          $"""match Darklang.LanguageTools.Live.Values.replayWithin({ms}, {fns}, (Darklang.Cli.initState()).accountID, Darklang.SCM.Branch.mainBranchId, Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "Tests", modules = ["LiveBound"], name = "inc" }}) with
-| Some(v) -> (Darklang.Stdlib.Dict.size(v.byExpr), Darklang.Stdlib.Option.withDefault(v.skipped, ""))
+          $"""match Darklang.LanguageTools.Live.Values.newestRun(Darklang.SCM.Branch.mainBranchId, Darklang.LanguageTools.ProgramTypes.PackageLocation {{ owner = "Tests", modules = ["LiveBound"], name = "inc" }}) with
+| Some(run) ->
+  let v = Darklang.LanguageTools.Live.Values.replayWithin({ms}, {fns}, (Darklang.Cli.initState()).accountID, Darklang.SCM.Branch.mainBranchId, run)
+  (Darklang.Stdlib.Dict.size(v.byExpr), Darklang.Stdlib.Option.withDefault(v.skipped, ""))
 | None -> (-1, "no trace")"""
         let expectSkipped (label : string) (ms : string) (fns : string) =
           task {
@@ -1989,8 +1993,8 @@ let private liveValuesStayBounded =
         do! expectSkipped "over the time limit" "9" "500"
         do! expectSkipped "over the fn limit" "1000" "0"
 
-        // A sentinel in the values survives a refresh that moved nothing, so that refresh did not
-        // replay; the reload a store change forces does, and puts the real values back.
+        // A sentinel in the values survives a refresh that moved nothing and a move away and back,
+        // so neither replayed; the reload a store change forces does, and puts the real values back.
         let! wb =
           evalUnder
             state
@@ -1998,15 +2002,20 @@ let private liveValuesStayBounded =
 let s0 = { base with activeView = Darklang.Cli.Workbench.vMatter, location = Darklang.Cli.Packages.PackageLocation.Module(["Tests", "LiveBound"]) }
 let items = Darklang.Cli.Workbench.reloadItems(s0)
 let idx = (Darklang.Stdlib.List.findFirstIndex(items, fun i -> i.name == "inc")) |> Darklang.Stdlib.Option.withDefault(0)
+let other = (Darklang.Stdlib.List.findFirstIndex(items, fun i -> i.name == "dec")) |> Darklang.Stdlib.Option.withDefault(0)
 let s = Darklang.Cli.Workbench.refresh(base, { s0 with items = items, selected = idx })
-let marked = { s with liveValues = Darklang.Stdlib.Dict.singleton("sentinel", "x") }
+let sentinel = Darklang.Stdlib.Dict.singleton("sentinel", "x")
+let marked = { s with liveValues = sentinel, liveRuns = Darklang.Stdlib.List.map(s.liveRuns, fun r -> { r with values = sentinel }) }
 let kept = Darklang.Cli.Workbench.refresh(marked, { marked with detailScroll = 1 })
-let reloaded = Darklang.Cli.Workbench.refresh(kept, Darklang.Cli.Workbench.forceScmRefresh(kept))
-(Darklang.Stdlib.Dict.size(s.liveValues), Darklang.Stdlib.Dict.keys(kept.liveValues), Darklang.Stdlib.Dict.keys(reloaded.liveValues))"""
+let away = Darklang.Cli.Workbench.refresh(kept, { kept with selected = other })
+let back = Darklang.Cli.Workbench.refresh(away, { away with selected = idx })
+let reloaded = Darklang.Cli.Workbench.refresh(back, Darklang.Cli.Workbench.forceScmRefresh(back))
+(Darklang.Stdlib.Dict.size(s.liveValues), Darklang.Stdlib.Dict.keys(kept.liveValues), Darklang.Stdlib.Dict.keys(back.liveValues), Darklang.Stdlib.Dict.keys(reloaded.liveValues))"""
         match wb with
         | RT.DTuple(RT.DInt64 first,
                     RT.DList(_, RT.Items([ RT.DString "sentinel" ])),
-                    [ RT.DList(_, RT.Items(again)) ]) ->
+                    [ RT.DList(_, RT.Items([ RT.DString "sentinel" ]))
+                      RT.DList(_, RT.Items(again)) ]) ->
           Expect.isGreaterThan first 0L "the fn shows its values"
           Expect.equal
             (int64 (List.length again))
@@ -2015,7 +2024,8 @@ let reloaded = Darklang.Cli.Workbench.refresh(kept, Darklang.Cli.Workbench.force
           Expect.isFalse
             (List.contains (RT.DString "sentinel") again)
             "and the sentinel is gone"
-        | other -> failtest $"expected (n, [sentinel], keys), got {other}"
+        | other ->
+          failtest $"expected (n, [sentinel], [sentinel], keys), got {other}"
       })
 
 
