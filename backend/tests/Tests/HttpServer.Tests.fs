@@ -865,6 +865,55 @@ let private bindRetriesATakenPort =
   }
 
 
+let private loopbackAnswersBothNames =
+  testTask "a server on 127.0.0.1 answers http://localhost too" {
+    let port = allocateFreePort ()
+    let access =
+      LibExecution.Permissions.Access.start LibExecution.Permissions.Policy.allowAll
+    let! outcome =
+      LibExecution.Host.perform
+        access
+        (LibExecution.Host.Operation.HttpServerBind("127.0.0.1", port))
+    let listener =
+      match outcome with
+      | LibExecution.Host.Outcome.Success response ->
+        response
+        |> LibExecution.Host.expectHttpServerHandle
+        |> LibExecution.Host.takeHttpServerListener
+      | other -> Exception.raiseInternal "bind failed" [ "outcome", other ]
+    let statusFor (connectTo : string) =
+      task {
+        let answer =
+          task {
+            let! ctx = listener.GetContextAsync()
+            ctx.Response.StatusCode <- 200
+            ctx.Response.Close()
+          }
+        let client = new TcpClient()
+        do! client.ConnectAsync(connectTo, port)
+        let stream = client.GetStream()
+        let request =
+          UTF8.toBytes
+            $"GET / HTTP/1.1\r\nHost: {connectTo}:{port}\r\nConnection: close\r\n\r\n"
+        do! stream.WriteAsync(request, 0, request.Length)
+        let reader = new System.IO.StreamReader(stream)
+        let! statusLine = reader.ReadLineAsync()
+        client.Close()
+        if statusLine = "HTTP/1.1 200 OK" then do! answer
+        return statusLine
+      }
+    try
+      let! byIp = statusFor "127.0.0.1"
+      let! byName = statusFor "localhost"
+      Expect.equal byIp "HTTP/1.1 200 OK" "127.0.0.1 reaches the handler"
+      Expect.equal
+        byName
+        "HTTP/1.1 200 OK"
+        "so does localhost, not HttpListener's 404"
+    finally
+      listener.Close()
+  }
+
 let tests =
   let t rootDir (filename : string) =
     testTask $"Http files: {filename}" {
@@ -899,6 +948,7 @@ let tests =
      :: middlewareEffectsAreWhatItReaches
      :: serverResponsesFollowTheMiddleware
      :: bindRetriesATakenPort
+     :: loopbackAnswersBothNames
      :: noResponseNamesDotNet
      :: concurrentEphemeralBytesRequests
      :: requestsAreProcesses
