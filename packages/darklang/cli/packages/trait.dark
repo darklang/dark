@@ -38,10 +38,7 @@ let execute(state: AppState, args: List<String>): AppState =
 /// comment included) as it is, otherwise the part after the name.
 let traitSource(name: String, definition: String): String =
   let trimmedDefinition = Stdlib.String.trim(definition)
-  if
-    Stdlib.String.startsWith(trimmedDefinition, "trait ")
-    || Stdlib.String.startsWith(trimmedDefinition, "///")
-  then
+  if Stdlib.String.startsWith(codeAfterComments(definition), "trait ") then
     definition
   else
     $"trait {name}{definition}"

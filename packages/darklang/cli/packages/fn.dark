@@ -34,14 +34,11 @@ let execute(state: AppState, args: List<String>): AppState =
         createFnInline(state, location, inlineDefinition)
 
 
-/// The source to parse for <param definition>. A complete declaration (with an optional doc comment)
-/// is taken as it is; otherwise the definition is the part after the name.
+/// The source to parse for <param definition>. A complete declaration (with comments above it) is
+/// taken as it is; otherwise the definition is the part after the name.
 let fnSource(name: String, definition: String): String =
   let trimmedDefinition = Stdlib.String.trim(definition)
-  if
-    Stdlib.String.startsWith(trimmedDefinition, "let ")
-    || Stdlib.String.startsWith(trimmedDefinition, "///")
-  then
+  if Stdlib.String.startsWith(codeAfterComments(definition), "let ") then
     definition
   else if Stdlib.String.startsWith(trimmedDefinition, "<") then
     // `dark fn F "<'a: Show> (v: 'a) : String = ..."`: type parameters bind to the name and

@@ -90,6 +90,18 @@ let definitionFromArgs(args: List<String>): Result<String, String> =
       Result.Ok(joined)
 
 
+/// Where the code of <param definition> starts: past blank lines and `//` comment lines, so a
+/// declaration with a comment above it is still recognised as a whole declaration.
+let codeAfterComments(definition: String): String =
+  definition
+  |> Stdlib.String.splitOnNewline
+  |> Stdlib.List.dropWhile(fun line ->
+    let t = Stdlib.String.trim(line)
+    t == "" || Stdlib.String.startsWith(t, "//"))
+  |> Stdlib.String.join("\n")
+  |> Stdlib.String.trim
+
+
 /// Every doc comment a declaration carries, as (part, text): its own, plus one per parameter,
 /// record field or enum case.
 ///

@@ -882,6 +882,14 @@ test stdlibSuggestionCandidatesWalkUpWithinStdlib =
       suggestionCandidates("toString") |> Stdlib.Test.equal([]) ])
 
 
+test fnTakesACommentedDeclarationAsIs =
+  let commented = "// one line about it\nlet f(x: Int64): Int64 = x"
+  Stdlib.Test.all(
+    [ Cli.Packages.Fn.fnSource("f", commented) |> Stdlib.Test.equal(commented)
+      Cli.Packages.Fn.fnSource("f", "(x: Int64): Int64 = x")
+      |> Stdlib.Test.equal("let f (x: Int64): Int64 = x") ])
+
+
 test didYouMeanLooksOneModuleDown =
   Cli.Packages.Errors.didYouMean(SCM.Branch.mainBranchId, [ "Stdlib", "Http", "queryParam" ])
   |> Stdlib.Test.equal([ "Stdlib.Http.Request.queryParam" ])
