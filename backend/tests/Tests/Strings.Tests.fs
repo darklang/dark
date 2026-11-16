@@ -8,6 +8,7 @@ module Tests.Strings
 open Expecto
 
 open Prelude
+open TestUtils.TestUtils
 
 module RT = LibExecution.RuntimeTypes
 module Dval = LibExecution.Dval

@@ -353,6 +353,14 @@ let rec debugDval (v : Dval) : string =
   | _ -> v.ToString()
 
 module Expect =
+  /// Expecto's `Expect.equal` looks for the first difference between two strings a character
+  /// at a time even when there is none, about 400 ns a character. Equal strings skip that; any
+  /// other case, and every failure, is Expecto's.
+  let equal (actual : 'a) (expected : 'a) (message : string) : unit =
+    match box actual, box expected with
+    | (:? string as a), (:? string as e) when System.String.Equals(a, e) -> ()
+    | _ -> Expecto.Expect.equal actual expected message
+
   // `location` is resolver-derived metadata, not part of the user-typed
   // name. Strip it when comparing NameResolutions so test fixtures
   // predating location tracking still match.
