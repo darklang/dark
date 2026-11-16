@@ -9,6 +9,7 @@ module Tests.Lists
 open Expecto
 
 open Prelude
+open TestUtils.TestUtils
 
 module RT = LibExecution.RuntimeTypes
 type Rrb = RT.Rrb
