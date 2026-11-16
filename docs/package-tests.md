@@ -161,6 +161,28 @@ sandbox. They can still access files elsewhere or contact real servers when
 permissions allow it. For example, a test with file-write permission could modify
 a file outside its temporary directory.
 
+## Time
+
+A test in a worker runs on a virtual clock that starts at the real time. Sleeps,
+timers and `Exec.awaitWithin` wait on it, and it moves only when nothing else can
+run and no host operation is in flight: then it jumps to the next deadline. So a
+test that sleeps for an hour finishes at once, and `DateTime.now` has moved by
+exactly the hour. Real I/O still takes as long as it takes, and the clock stands
+still meanwhile.
+
+A test whose waits must take real time, such as one racing a timeout against a
+real process, wraps its body in `Stdlib.Test.onRealClock`:
+
+```fsharp
+test timesOut =
+  Stdlib.Test.onRealClock(fun () ->
+    Stdlib.Cli.Process.runWithTimeout(5, "/bin/sh", [ "-c", "sleep 1" ]))
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Process timed out"))
+```
+
+Only test bodies get the virtual clock. `dark run`, `eval`, `serve` and scripts
+always use the real one.
+
 ## Assertions and expected errors
 
 `Stdlib.Test` provides helpers such as `expect`, `equal`, `notEqual` and `all`.

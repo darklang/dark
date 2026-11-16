@@ -117,7 +117,8 @@ test rejectsInvalidTimeout =
 
 
 test timesOut =
-  Stdlib.Cli.Process.runWithTimeout(5, "/bin/sh", [ "-c", "sleep 1" ])
+  Stdlib.Test.onRealClock(fun () ->
+    Stdlib.Cli.Process.runWithTimeout(5, "/bin/sh", [ "-c", "sleep 1" ]))
   |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Process timed out"))
 
 

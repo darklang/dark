@@ -102,8 +102,29 @@ let private executeWorker
               Error(RuntimeError.VariableNotFound $"package test {hash}", [])
             )
           | Some test ->
-            // Execute the body directly: dispatching isolation again would recurse.
-            executeTestBody workerState test
+            // Execute the body directly: dispatching isolation again would recurse. On a
+            // virtual clock, as its own process: the clock moves from the scheduler loop.
+            match
+              LibExecution.Scheduler.Scheduler.Current,
+              LibExecution.Scheduler.Scheduler.CurrentProcess
+            with
+            | Some s, Some parent ->
+              let state =
+                { workerState with
+                    clock =
+                      LibExecution.HostClock.startingAt (
+                        NodaTime.SystemClock.Instance.GetCurrentInstant()
+                      ) }
+              let instructions = PT2RT.Expr.toRT Map.empty 0 None test.body
+              s.Spawn(
+                state,
+                (None, instructions),
+                LibExecution.Scheduler.EntryExpr,
+                Some parent.id,
+                keepResult = false
+              )
+              |> s.Await
+            | _ -> executeTestBody workerState test
         result |> Task.map (reflectOutcome >> Ok)
       | LibDB.TestProcess.Target.TestCallback(hash, argument) ->
         Execution.executeFunction
@@ -560,6 +581,41 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Raise ]
+      deprecated = NotDeprecated }
+
+    { name = fn "testOnRealClock" 0
+      typeParams = [ "a" ]
+      parameters =
+        [ Param.makeWithArgs
+            "f"
+            (TFn(NEList.singleton TUnit, TVariable "a"))
+            ""
+            [ "unit" ] ]
+      returnType = TVariable "a"
+      description =
+        "Applies <param f> on the real clock, in a package test, which otherwise runs on a "
+        + "virtual one. Only available while a package test is running."
+      fn =
+        (function
+        | state, vm, _, [| DApplicable f |] ->
+          requireRunningPackageTest state "onRealClock"
+          task {
+            match!
+              Execution.executeApplicable1
+                { state with clock = LibExecution.HostClock.Real }
+                vm.activeAccess
+                f
+                DUnit
+            with
+            | Ok value -> return value
+            | Error(error, stack) ->
+              vm.nestedCallStack <- stack
+              return raiseRTE vm.threadID error
+          }
+          |> Pending.ofTask
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = set [ Effect.Clock; Effect.Raise ]
       deprecated = NotDeprecated }
 
     { name = fn "pmTestRaiseRuntimeError" 0
