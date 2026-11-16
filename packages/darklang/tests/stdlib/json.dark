@@ -2726,6 +2726,102 @@ module Tree =
     |> Stdlib.Test.equal("{\"hostname\":\"a1\",\"cpu\":38.5,\"tags\":[\"x\"]}")
 
 
+module Traits =
+  /// Written as `"21.5C"`, by its impls.
+  type Celsius =
+    { degreesC: Float64 }
+
+
+  impl Stdlib.Json.ToJson for Celsius =
+    let toJson(c: Celsius): Stdlib.AltJson.Json =
+      Stdlib.AltJson.Json.String(Stdlib.display(c.degreesC) + "C")
+
+
+  impl Stdlib.Json.FromJson for Celsius =
+    let fromJson(
+      json: Stdlib.AltJson.Json)
+      : Stdlib.Result.Result<Celsius, String> =
+      let refused =
+        Stdlib.Result.Result.Error("expected a temperature like \"21.5C\"")
+
+      match json with
+      | String(s) when Stdlib.String.endsWith(s, "C") ->
+        match Stdlib.Float64.parse(Stdlib.String.dropLast(s, 1)) with
+        | Ok(degreesC) ->
+          Stdlib.Result.Result.Ok(Celsius { degreesC = degreesC })
+        | Error(_) -> refused
+      | _ -> refused
+
+
+  type Room =
+    { name: String
+      temp: Celsius
+      history: List<Celsius>
+      target: Stdlib.Option.Option<Celsius> }
+
+
+  val room =
+    Room
+      { name = "lab"
+        temp = Celsius { degreesC = 21.5 }
+        history = [ Celsius { degreesC = 20.0 }, Celsius { degreesC = 19.5 } ]
+        target = Stdlib.Option.Option.Some(Celsius { degreesC = 22.0 }) }
+
+
+  val roomJson =
+    "{\"name\":\"lab\",\"temp\":\"21.5C\",\"history\":[\"20.0C\",\"19.5C\"],\"target\":\"22.0C\"}"
+
+
+  test serialize =
+    Stdlib.Test.all(
+      [ Stdlib.Json.serialize<Celsius>(Celsius { degreesC = 21.5 })
+        |> Stdlib.Test.equal("\"21.5C\"")
+
+        Stdlib.Json.serialize<Room>(room) |> Stdlib.Test.equal(roomJson)
+
+        Stdlib.Json.checkedSerialize<Room>(room)
+        |> Stdlib.Test.equal(Result.Ok(roomJson))
+
+        Stdlib.Json.toTree<List<Celsius>>([ Celsius { degreesC = 1.0 } ])
+        |> Stdlib.Test.equal(
+          Stdlib.AltJson.Json.Array([ Stdlib.AltJson.Json.String("1.0C") ])) ])
+
+
+  test parse =
+    Stdlib.Test.all(
+      [ Stdlib.Json.parse<Celsius>("\"21.5C\"")
+        |> Stdlib.Test.equal(Result.Ok(Celsius { degreesC = 21.5 }))
+
+        Stdlib.Json.parse<Room>(roomJson) |> Stdlib.Test.equal(Result.Ok(room))
+
+        Stdlib.Json.parse<Room>(Stdlib.Json.serialize<Room>(room))
+        |> Stdlib.Test.equal(Result.Ok(room))
+
+        Stdlib.Json.parse<List<Celsius>>("[\"1C\",\"2C\",\"1C\"]")
+        |> Stdlib.Test.equal(
+          Result.Ok(
+            [ Celsius { degreesC = 1.0 }
+              Celsius { degreesC = 2.0 }
+              Celsius { degreesC = 1.0 } ])) ])
+
+
+  test parseErrors =
+    Stdlib.Test.all(
+      [ Stdlib.Json.parse<Room>(
+          "{\"history\":[],\"name\":\"lab\",\"temp\":{\"degreesC\":21.5}}")
+        |> err
+        |> Stdlib.Test.equal(
+          Result.Error(
+            "Can't parse JSON: expected a temperature like \"21.5C\" at path: `root.temp`"))
+
+        Stdlib.Json.parse<Room>(
+          "{\"history\":[\"1C\",5],\"name\":\"lab\",\"temp\":\"1C\"}")
+        |> err
+        |> Stdlib.Test.equal(
+          Result.Error(
+            "Can't parse JSON: expected a temperature like \"21.5C\" at path: `root.history[1]`")) ])
+
+
 module ParseErrorToString =
   test interpolates =
     Stdlib.Json.parse<Person>("{\"Name\":\"Bob\",\"Age\":\"x\"}")

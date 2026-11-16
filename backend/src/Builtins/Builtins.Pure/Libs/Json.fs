@@ -14,6 +14,8 @@ module PackageRefs = LibExecution.PackageRefs
 module RTE = RuntimeError
 module NR = LibExecution.RuntimeTypes.NameResolution
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+module Interpreter = LibExecution.Interpreter
+module Traits = LibExecution.Traits
 
 
 // parsing
@@ -28,7 +30,7 @@ let parseJson (s : string) : JsonElement =
 
 
 // serialization
-let writeJson (f : Utf8JsonWriter -> unit) : string =
+let writeJsonBytes (f : Utf8JsonWriter -> unit) : byte[] =
   let options =
     new JsonWriterOptions(
       Indented = false,
@@ -40,8 +42,10 @@ let writeJson (f : Utf8JsonWriter -> unit) : string =
   let w = new Utf8JsonWriter(stream, options)
   f w
   w.Flush()
+  stream.ToArray()
 
-  UTF8.ofBytesUnsafe (stream.ToArray())
+let writeJson (f : Utf8JsonWriter -> unit) : string =
+  UTF8.ofBytesUnsafe (writeJsonBytes f)
 
 type Utf8JsonWriter with
 
@@ -263,20 +267,59 @@ let private recordFieldOrder
     | _ -> None
   | _ -> None
 
+/// A value whose type has a `ToJson` impl. `serialize` writes the one byte `0` for it, at
+/// <c>at</c>, and what the impl returns replaces that.
+type Hole = { at : int64; value : Dval; impl : Hash }
+
+type Writing =
+  {
+    types : Types
+    noneAsNull : bool
+    /// The `ToJson` impl for a value, when its type has one.
+    toJson : Dval -> Hash voption
+    holes : ResizeArray<Hole>
+  }
+
+let private writeFloat64 (w : Utf8JsonWriter) (f : float) : unit =
+  if System.Double.IsNaN f then w.WriteStringValue "NaN"
+  else if System.Double.IsNegativeInfinity f then w.WriteStringValue "-Infinity"
+  else if System.Double.IsPositiveInfinity f then w.WriteStringValue "Infinity"
+  else w.WriteRawValue(floatToShortestString f)
+
 /// Writes <param dv> as JSON, going by its declared type <param typ> where an `Option` is
 /// written. An `Option` writes `None` as `null` and `Some(v)` as `v`, except where `v` itself
 /// can write `null`: see <see cref="writesNull"/>. A `None` record field is left out, or with
 /// <param noneAsNull> written as `null`; a field whose `Some` can be `null` leaves `None` out
 /// either way, and writes `Some(v)` as `v`.
 let rec serialize
-  (types : Types)
-  (noneAsNull : bool)
+  (ctx : Writing)
   (w : Utf8JsonWriter)
   (typ : TypeReference)
   (dv : Dval)
   : unit =
-  let r = serialize types noneAsNull w
-  let typ = declared types typ dv
+  let typ = declared ctx.types typ dv
+  let impl =
+    match dv with
+    | DRecord _
+    | DEnum _ when (optionOf ctx.types typ).IsNone -> ctx.toJson dv
+    | _ -> ValueNone
+  match impl with
+  | ValueSome impl ->
+    // the placeholder is the last byte once flushed, after any `,` before it
+    w.WriteRawValue "0"
+    w.Flush()
+    ctx.holes.Add { at = w.BytesCommitted - 1L; value = dv; impl = impl }
+  | ValueNone -> writeValue ctx w typ dv
+
+and private writeValue
+  (ctx : Writing)
+  (w : Utf8JsonWriter)
+  (typ : TypeReference)
+  (dv : Dval)
+  : unit =
+  let r = serialize ctx w
+  let types = ctx.types
+  let noneAsNull = ctx.noneAsNull
   match dv with
   // basic types
   | DUnit -> w.WriteNullValue()
@@ -295,11 +338,7 @@ let rec serialize
   | DUInt128 i -> w.WriteRawValue(i.ToString())
   | DBigInt i -> w.WriteRawValue(string (DarkBigInt.toBigInt i))
 
-  | DFloat64 f ->
-    if System.Double.IsNaN f then w.WriteStringValue "NaN"
-    else if System.Double.IsNegativeInfinity f then w.WriteStringValue "-Infinity"
-    else if System.Double.IsPositiveInfinity f then w.WriteStringValue "Infinity"
-    else w.WriteRawValue(floatToShortestString f)
+  | DFloat64 f -> writeFloat64 w f
 
   | DFloat32 f ->
     if System.Single.IsNaN f then w.WriteStringValue "NaN"
@@ -418,6 +457,27 @@ let rec serialize
   | DStream _
   | DPromise _ -> raise (CannotSerialize dv)
 
+/// Writes an `AltJson.Json` tree, as a `ToJson` impl returns it.
+let rec writeTree (w : Utf8JsonWriter) (tree : Dval) : unit =
+  match tree with
+  | DEnum(_, _, _, "Null", []) -> w.WriteNullValue()
+  | DEnum(_, _, _, "Bool", [ DBool b ]) -> w.WriteBooleanValue b
+  | DEnum(_, _, _, "Integer", [ DInt64 i ]) -> w.WriteNumberValue i
+  | DEnum(_, _, _, "Float", [ DFloat64 f ]) -> writeFloat64 w f
+  | DEnum(_, _, _, "String", [ DString s ]) -> w.WriteStringValue s
+  | DEnum(_, _, _, "Array", [ DList(_, Items items) ]) ->
+    w.writeArray (fun () -> items |> List.iter (writeTree w))
+  | DEnum(_, _, _, "Object", [ DList(_, Items fields) ]) ->
+    w.writeObject (fun () ->
+      fields
+      |> List.iter (fun field ->
+        match field with
+        | DTuple(DString k, v, []) ->
+          w.WritePropertyName k
+          writeTree w v
+        | _ -> Exception.raiseInternal "not an AltJson field" [ "field", field ]))
+  | _ -> Exception.raiseInternal "not an AltJson tree" [ "tree", tree ]
+
 module ParseError =
   module RT2DT = LibExecution.RuntimeTypesToDarkTypes
   let typeName () =
@@ -449,6 +509,8 @@ module ParseError =
     | NotJson of line : int64 * column : int64
     /// A type with no JSON form: a function, bytes, a stream, or a type variable
     | UnsupportedType of TypeReference
+    /// The type's `FromJson` impl refused the JSON, saying why
+    | Rejected of message : string * JsonPath.JsonPath
 
   exception JsonException of ParseError
 
@@ -458,6 +520,9 @@ module ParseError =
       | NotJson(line, column) -> "NotJson", [ Dval.dint64 line; Dval.dint64 column ]
 
       | UnsupportedType typ -> "UnsupportedType", [ RT2DT.TypeReference.toDT typ ]
+
+      | Rejected(message, errorPath) ->
+        "Rejected", [ DString message; JsonPath.toDT errorPath ]
 
       | CantMatchWithType(typ, json, errorPath) ->
         "CantMatchWithType",
@@ -733,14 +798,43 @@ let private isTaggedOption (j : JsonElement) : bool =
       | _ -> false)
 
 
+/// JSON at a type with a `FromJson` impl, waiting for the impl's answer.
+type FromJsonHole = { impl : Hash; json : JsonElement }
+
+let holeKey (hole : FromJsonHole) : string * string =
+  let (Hash impl) = hole.impl
+  (impl, hole.json.GetRawText())
+
+exception NeedsFromJson of FromJsonHole
+
+type Reading =
+  {
+    /// The `FromJson` impl for a type, when it has one.
+    fromJson : TypeReference -> Hash voption
+    /// What each impl answered, by `holeKey`.
+    answers : Map<string * string, Result<Dval, string>>
+    /// While collecting, every hole without an answer goes here, and nothing is built.
+    collecting : ResizeArray<FromJsonHole> option
+  }
+
+type Parsed =
+  | Parsed of Result<Dval, ParseError.ParseError>
+  /// The impls to ask before a parse can finish.
+  | Waiting of List<FromJsonHole>
+
 let parse
   (threadID : ThreadID)
   (types : Types)
+  (reading : Reading)
   (typ : TypeReference)
-  (str : string)
-  : Result<Dval, ParseError.ParseError> =
+  (root : JsonElement)
+  : Parsed =
 
   let tst = TST.empty // TODO consider passing this in.. somehow?
+
+  /// While collecting, a placeholder: only the holes are wanted.
+  let build (f : unit -> Dval) : Dval =
+    if reading.collecting.IsSome then DUnit else f ()
 
   let rec convert
     (typ : TypeReference)
@@ -819,7 +913,8 @@ let parse
       j.EnumerateArray()
       |> Seq.mapi (fun i v -> convert nested (JsonPath.Part.Index i :: pathSoFar) v)
       |> Seq.toList
-      |> (TypeChecker.DvalCreator.list threadID VT.unknownTODO)
+      |> (fun items ->
+        build (fun () -> TypeChecker.DvalCreator.list threadID VT.unknownTODO items))
 
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let values = j.EnumerateArray() |> Seq.toList
@@ -841,7 +936,20 @@ let parse
           convert tDict (JsonPath.Part.Field jp.Name :: pathSoFar) jp.Value
         (DString(String.normalizeOutside jp.Name), converted))
       |> Seq.toList
-      |> (TypeChecker.DvalCreator.dict threadID VT.string VT.unknownTODO)
+      |> (fun entries ->
+        build (fun () ->
+          TypeChecker.DvalCreator.dict threadID VT.string VT.unknownTODO entries))
+
+    | TCustomType({ resolved = Ok _ }, _), _ when (reading.fromJson typ).IsSome ->
+      let hole = { impl = (reading.fromJson typ).Value; json = j }
+      match Map.tryFind (holeKey hole) reading.answers, reading.collecting with
+      | Some(Ok v), _ -> v
+      | Some(Error message), _ ->
+        raiseError (ParseError.Rejected(message, pathSoFar))
+      | None, Some holes ->
+        holes.Add hole
+        DUnit
+      | None, None -> raise (NeedsFromJson hole)
 
     | TCustomType({ resolved = Ok(FQTypeName.Package(Hash h)) }, []), _ when
       AnyJson.isIt h
@@ -992,7 +1100,7 @@ let parse
               let path = JsonPath.Part.Index index :: casePath
               raiseError (ParseError.EnumExtraField(fieldJson.GetRawText(), path))
             else
-              let enum =
+              build (fun () ->
                 TypeChecker.DvalCreator.enum
                   types
                   threadID
@@ -1000,8 +1108,7 @@ let parse
                   typeName
                   typeArgsVT
                   caseName
-                  fields
-              enum
+                  fields)
 
 
           | [] -> raiseCantMatchWithType typ j pathSoFar
@@ -1038,15 +1145,14 @@ let parse
                   raiseError (ParseError.RecordDuplicateField(def.name, pathSoFar))
               (def.name, converted))
 
-          let record =
+          build (fun () ->
             TypeChecker.DvalCreator.record
               types
               threadID
               tst
               typeName
               typeArgsVT
-              (fields |> List.map (fun (n, v) -> struct (n, v)) |> Array.ofList)
-          record
+              (fields |> List.map (fun (n, v) -> struct (n, v)) |> Array.ofList))
     | _ -> raiseCantMatchWithType typ j pathSoFar
 
   and option
@@ -1054,14 +1160,15 @@ let parse
     (caseName : string)
     (fields : List<Dval>)
     : Dval =
-    TypeChecker.DvalCreator.enum
-      types
-      threadID
-      tst
-      (Dval.optionType ())
-      [ TypeReference.toVT types tst inner ]
-      caseName
-      fields
+    build (fun () ->
+      TypeChecker.DvalCreator.enum
+        types
+        threadID
+        tst
+        (Dval.optionType ())
+        [ TypeReference.toVT types tst inner ]
+        caseName
+        fields)
 
   /// An `Option` that isn't a record field: `null` is `None` and any other value is the
   /// `Some`. Where the inner type can write `null` itself, only the tagged form is read.
@@ -1100,22 +1207,166 @@ let parse
     with ParseError.JsonException _ when isTaggedOption j ->
       customType typ path j
 
-  let parsed =
-    try
-      Ok(parseJson str)
-    with
-    | :? System.Text.Json.JsonException as ex ->
-      Error(notJsonAt str ex.LineNumber ex.BytePositionInLine)
-    | _ -> Error(ParseError.NotJson(1L, 1L))
+  try
+    let converted = convert typ [ JsonPath.Part.Root ] root
+    match reading.collecting with
+    | Some holes -> Waiting(List.ofSeq holes)
+    | None -> Parsed(Ok converted)
+  with
+  | ParseError.JsonException ex -> Parsed(Error ex)
+  | NeedsFromJson hole -> Waiting [ hole ]
 
-  match parsed with
-  | Error err -> Error err
-  | Ok parsed ->
-    try
-      let converted = convert typ [ JsonPath.Part.Root ] parsed
-      Ok converted
-    with ParseError.JsonException ex ->
-      Error ex
+
+let parseText (str : string) : Result<JsonElement, ParseError.ParseError> =
+  try
+    Ok(parseJson str)
+  with
+  | :? System.Text.Json.JsonException as ex ->
+    Error(notJsonAt str ex.LineNumber ex.BytePositionInLine)
+  | _ -> Error(ParseError.NotJson(1L, 1L))
+
+
+/// What a type's impl of <param traitHash> has as <param methodName>, or `ValueNone` when no
+/// type on the branch implements the trait at all.
+let private implFinder
+  (exeState : ExecutionState)
+  (traitHash : string)
+  (methodName : string)
+  : (KnownType -> Hash voption) voption =
+  let trait_ = Hash traitHash
+  match exeState.fns.implCandidates exeState.branchId trait_ with
+  | [] -> ValueNone
+  | candidates ->
+    ValueSome(fun self ->
+      match self with
+      | KTCustomType _ ->
+        match Traits.select candidates self with
+        | Traits.Selected c ->
+          match Map.tryFind methodName c.methods with
+          | Some fnHash -> ValueSome fnHash
+          | None -> ValueNone
+        | Traits.NoImpl -> ValueNone
+        | Traits.Ambiguous cs ->
+          RTE.Trait(
+            RTE.Traits.DispatchAmbiguous(
+              FQTraitName.Package trait_,
+              VT.known self,
+              cs |> List.map (fun c -> c.source)
+            )
+          )
+          |> raiseRTE
+      | _ -> ValueNone)
+
+/// Calls the impl method <param impl> on <param arg>, and hands its answer to <param next>.
+let private applyImpl
+  (vm : VMState)
+  (impl : Hash)
+  (arg : Dval)
+  (next : Dval -> Dval)
+  : Dval =
+  let fn =
+    AppNamedFn
+      { name = FQFnName.Package impl
+        typeSymbolTable = TST.empty
+        typeArgs = []
+        approvalName = None
+        access = None
+        argsSoFar = []
+        boundImpls = [] }
+  Interpreter.requestApply vm fn arg ValueNone (fun answer ->
+    Interpreter.withValue vm answer next)
+
+/// <param arg> as JSON, handed to <param next> once each `ToJson` impl it reaches has answered.
+let private serializeThen
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (noneAsNull : bool)
+  (typ : TypeReference)
+  (arg : Dval)
+  (next : string -> Dval)
+  : Dval =
+  let toJson =
+    match implFinder exeState (PackageRefs.Trait.Stdlib.Json.toJson ()) "toJson" with
+    | ValueNone -> fun _ -> ValueNone
+    | ValueSome find ->
+      fun dv ->
+        match LibExecution.RuntimeTypes.Dval.toValueType dv with
+        | ValueType.Known self -> find self
+        | ValueType.Unknown -> ValueNone
+  let ctx =
+    { types = exeState.types
+      noneAsNull = noneAsNull
+      toJson = toJson
+      holes = ResizeArray() }
+  let bytes = writeJsonBytes (fun w -> serialize ctx w typ arg)
+  let rec fill (holes : List<Hole>) (from : int64) (parts : List<string>) : Dval =
+    match holes with
+    | [] when from = 0L -> next (UTF8.ofBytesUnsafe bytes)
+    | [] ->
+      let last = UTF8.ofBytesUnsafe bytes[int from ..]
+      next (String.concat "" (List.rev (last :: parts)))
+    | hole :: rest ->
+      applyImpl vm hole.impl hole.value (fun tree ->
+        let before = UTF8.ofBytesUnsafe bytes[int from .. int hole.at - 1]
+        let written = writeJson (fun w -> writeTree w tree)
+        fill rest (hole.at + 1L) (written :: before :: parts))
+  fill (List.ofSeq ctx.holes) 0L []
+
+/// <param root> read as <param typ>, handed to <param next> once each `FromJson` impl it
+/// reaches has answered. A read that reaches an impl not yet asked starts over with its
+/// answer; a pass that only collects the rest first asks them all at once.
+let private parseThen
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (typ : TypeReference)
+  (root : JsonElement)
+  (next : Result<Dval, ParseError.ParseError> -> Dval)
+  : Dval =
+  let fromJson =
+    match
+      implFinder exeState (PackageRefs.Trait.Stdlib.Json.fromJson ()) "fromJson"
+    with
+    | ValueNone -> fun _ -> ValueNone
+    | ValueSome find ->
+      fun typ ->
+        match TypeReference.toVT exeState.types TST.empty typ with
+        | ValueType.Known self -> find self
+        | ValueType.Unknown -> ValueNone
+  let read answers collecting =
+    parse
+      vm.threadID
+      exeState.types
+      { fromJson = fromJson; answers = answers; collecting = collecting }
+      typ
+      root
+  let rec attempt answers =
+    match read answers None with
+    | Parsed result -> next result
+    | Waiting first ->
+      let collected =
+        match read answers (Some(ResizeArray())) with
+        | Waiting holes -> holes
+        | Parsed _ -> []
+      let fresh =
+        first @ collected
+        |> List.distinctBy holeKey
+        |> List.filter (fun h -> not (Map.containsKey (holeKey h) answers))
+      ask fresh answers
+  and ask holes answers =
+    match holes with
+    | [] -> attempt answers
+    | hole :: rest ->
+      applyImpl vm hole.impl (AnyJson.ofElement hole.json) (fun answer ->
+        let answer =
+          match answer with
+          | DEnum(_, _, _, "Ok", [ v ]) -> Ok v
+          | DEnum(_, _, _, "Error", [ DString message ]) -> Error message
+          | other ->
+            Exception.raiseInternal
+              "FromJson answered a non-Result"
+              [ "answer", other ]
+        ask rest (Map.add (holeKey hole) answer answers))
+  attempt Map.empty
 
 
 let private optionsType () : TypeReference =
@@ -1144,12 +1395,10 @@ let fns () : List<BuiltInFn> =
       description = "Serializes a Dark value to a JSON string."
       fn =
         (function
-        | exeState, _, [ typ ], [| options; arg |] ->
+        | exeState, vm, [ typ ], [| options; arg |] ->
           let noneAsNull = noneAsNull options
           try
-            (DString(
-              writeJson (fun w -> serialize exeState.types noneAsNull w typ arg)
-            ))
+            serializeThen exeState vm noneAsNull typ arg DString
           with CannotSerialize dv ->
             RTE.Jsons.CannotSerializeValue dv |> RTE.Json |> raiseRTE
         | _ -> incorrectArgs ())
@@ -1171,16 +1420,12 @@ let fns () : List<BuiltInFn> =
         "Serializes a Dark value to a JSON string, or the first value found that has no JSON form."
       fn =
         (function
-        | exeState, _, [ typ ], [| options; arg |] ->
+        | exeState, vm, [ typ ], [| options; arg |] ->
           let noneAsNull = noneAsNull options
           let errType = RT2DT.Dval.knownType ()
           try
-            (Dval.resultOk
-              KTString
-              errType
-              (DString(
-                writeJson (fun w -> serialize exeState.types noneAsNull w typ arg)
-              )))
+            serializeThen exeState vm noneAsNull typ arg (fun json ->
+              Dval.resultOk KTString errType (DString json))
           with CannotSerialize dv ->
             (Dval.resultError KTString errType (RT2DT.Dval.toDT dv))
         | _ -> incorrectArgs ())
@@ -1201,18 +1446,20 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | exeState, vm, [ typeArg ], [| DString arg |] ->
-          let threadID = vm.threadID
-
           let okType = VT.unknownTODO // "a"
           let errType = KTCustomType(ParseError.typeName (), []) |> VT.known
 
           // Applied in full in each branch rather than partially applied into `resultOk` and
           // `resultError` up front. Both closures were built on every call and exactly one was
           // ever invoked.
-          match parse threadID exeState.types typeArg arg with
-          | Ok v -> TypeChecker.DvalCreator.Result.ok okType errType v
-          | Error e ->
-            TypeChecker.DvalCreator.Result.error okType errType (ParseError.toDT e)
+          let finish result =
+            match result with
+            | Ok v -> TypeChecker.DvalCreator.Result.ok okType errType v
+            | Error e ->
+              TypeChecker.DvalCreator.Result.error okType errType (ParseError.toDT e)
+          match parseText arg with
+          | Error e -> finish (Error e)
+          | Ok root -> parseThen exeState vm typeArg root finish
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

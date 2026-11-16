@@ -724,6 +724,11 @@ module Trait =
     let display = p [] "Display"
     let inspect = p [] "Inspect"
 
+    /// What `Json.serialize` and `Json.parse` ask a type of its own.
+    module Json =
+      let toJson = p [ "Json" ] "ToJson"
+      let fromJson = p [ "Json" ] "FromJson"
+
 
 module Fn =
   let private p modules name : (unit -> string) = declare "fn" modules name
