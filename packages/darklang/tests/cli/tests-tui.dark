@@ -1118,6 +1118,27 @@ test replCapturesRealValues =
     Stdlib.Test.fail($"captureValue: {Stdlib.String.join(wrong, " | ")}")
 
 
+// Typed at the prompt, the way a person does: `let` binds, and the next line sees it.
+test replLetBindsWhenTyped =
+  let typeLine(st: Cli.Workbench.State, line: String): Cli.Workbench.State =
+    let typed =
+      Stdlib.String.toList(line)
+      |> Stdlib.List.fold(st, fun(acc, c) -> (wbChar(acc, Stdlib.String.fromChar(c))).state)
+
+    (wbKey(typed, Stdlib.Cli.Stdin.Key.Key.Enter)).state
+
+  let atRepl = (wbChar(workbenchState(), "4")).state
+  let prompt = (wbKey(atRepl, Stdlib.Cli.Stdin.Key.Key.Enter)).state
+  let bound = typeLine(prompt, "let x = 5")
+  let used = typeLine(bound, "x + 1")
+
+  Stdlib.Test.all(
+    [ bound.repl.bindings
+      |> Stdlib.List.map(fun b -> (b.name, b.value, b.captured))
+      |> Stdlib.Test.equal([ ("x", "5", true) ])
+
+      used.repl.last |> Stdlib.Test.equal("6") ])
+
 test workbenchCapturesStrayOutput =
   // The workbench owns the whole screen, so anything a command prints scrolls the alternate screen and every
   // frame after it lands that many rows off, which reads as two overlapping copies of the Stdlib.Cli.UI. It's easy to

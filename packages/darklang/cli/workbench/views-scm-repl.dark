@@ -86,7 +86,7 @@ let bindSession(state: State, name: String, rhs: String): (Option<Repl.Binding> 
   match evalRaw(state, Repl.captureExpr(state.repl.bindings, state.branchId, name, rhs)) with
   | Error(message) ->
     // Report against what was typed, not against the capture wrapper, whose generated
-    // `Repl.captureValue "<branch uuid>" name` line is source the user never wrote, with a uuid that makes
+    // `Repl.captureValue(<branch uuid>, name)` line is source the user never wrote, with a uuid that makes
     // it look like an internal fault. Re-running the plain binding costs one eval on the error path and
     // points the caret at their own text.
     let plainMessage =

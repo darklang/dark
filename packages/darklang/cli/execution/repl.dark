@@ -245,7 +245,7 @@ let captureExpr(bindings: List<Binding>, branchId: Uuid, name: String, rhs: Stri
   // is no Uuid literal syntax to interpolate, and `captureValue` takes a Uuid. A string here would
   // typecheck nowhere and land as the silent degradation `captureValue`'s note describes.
   let branch = Stdlib.display(branchId)
-  $"{chain}\nDarklang.Cli.Repl.captureValue (Stdlib.Uuid.parse \"{branch}\" |> Stdlib.Result.withDefault Darklang.SCM.Branch.mainBranchId) {name}"
+  $"{chain}\nDarklang.Cli.Repl.captureValue(Stdlib.Result.withDefault(Stdlib.Uuid.parse(\"{branch}\"), Darklang.SCM.Branch.mainBranchId), {name})"
 
 
 /// Read `captureValue`'s output back. `Some source` when the value round-tripped, `None` when it has no
