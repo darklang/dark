@@ -5388,7 +5388,15 @@ let private tryQuickOp
   (registers : Dval array)
   (op : QuickOp)
   : bool =
-  if anyPromiseIn registers op.Args then
+  let binaryTrait =
+    op.IsTrait
+    && op.Tag < FastOps.divide
+    && (match op.Args.tail with
+        | [ _ ] -> true
+        | _ -> false)
+  // A binary operator on a read in flight finds no case it knows and declines, so only the others
+  // look for one first.
+  if not binaryTrait && anyPromiseIn registers op.Args then
     false
   else
     let result =
@@ -5730,8 +5738,27 @@ let private returnToParent
   (frame : CallFrame)
   (result : Dval)
   : unit =
-  checkFrameReturnType exeState vm frame result
-  popFrame exeState vm frame result ValueNone |> ignore<ApplyOutcome>
+  match frame.parent with
+  | ValueSome(struct (parent, reg, pc)) when not vm.stats.enabled ->
+    // A function's result that fits its declared type by its case is the check passing; anything
+    // else, and every lambda's result, takes the full check.
+    match frame.expectedReturnType with
+    | ValueSome t when
+      TypeChecker.argFitsWithNothingToBind frame.typeSymbolTable t result
+      ->
+      ()
+    | _ -> checkFrameReturnType exeState vm frame result
+    if exeState.tracing.traceEffects then
+      match frame.executionPoint with
+      | Function(FQFnName.Package hash) -> exeState.tracing.leaveFunction hash
+      | _ -> ()
+    vm.currentFrame <- parent
+    Registers.set parent.registers reg result
+    parent.programCounter <- pc
+    returnFrame vm frame
+  | _ ->
+    checkFrameReturnType exeState vm frame result
+    popFrame exeState vm frame result ValueNone |> ignore<ApplyOutcome>
 
 
 /// Run the VM's frames, from the current one, until something needs the caller: a wait, a receiver

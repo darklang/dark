@@ -32,7 +32,11 @@ let contentHashCode (s : string) : int =
       System.Runtime.InteropServices.MemoryMarshal.Cast<char, uint64>(
         System.MemoryExtensions.AsSpan(s, 0, 16)
       )
-    System.HashCode.Combine(words[0], words[1], words[2], words[3])
+    // A multiply per word mixes them; `HashCode.Combine` costs several times as much, once per
+    // lookup.
+    let k = 0x9E3779B97F4A7C15UL
+    let h = ((((words[0] * k) ^^^ words[1]) * k ^^^ words[2]) * k ^^^ words[3]) * k
+    int (h >>> 32)
 
 /// Folds `name` into `h` four characters at a time, then one at a time for the rest.
 let rec private foldNameWords (name : string) (i : int) (h : uint64) : uint64 =
