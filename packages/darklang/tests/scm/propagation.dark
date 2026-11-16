@@ -246,6 +246,35 @@ test identicalContentAtTwoNamesRepointsOnlyTheEditedNamesCallers =
       Authoring.fnHash(m, "sh2") |> Stdlib.Test.equal(sh2Before) ])
 
 
+// `g`'s first body is the same as `same`'s. `f` moved off that body when `g` was edited,
+// so editing `same` later must leave `f` alone.
+test editingAnItemThatSharedACallersOldDependencyLeavesTheCallerAlone =
+  let m = "PropTestFormerTwin"
+  let setup =
+    Authoring.authorAll(
+      m,
+      [ "let g(x: Int64): Int64 = x + 1"
+        "let f(x: Int64): Int64 = Tests.PropTestFormerTwin.g(x)" ])
+
+  let g1 = Authoring.fnHash(m, "g")
+  let gEdit = Authoring.author(m, "let g(x: Int64): Int64 = x + 5")
+  let gCascade = Authoring.cascade(m, "g", g1, Authoring.fnHash(m, "g"))
+  let twin = Authoring.author(m, "let same(x: Int64): Int64 = x + 1")
+  let fBefore = Authoring.fnHash(m, "f")
+  let same1 = Authoring.fnHash(m, "same")
+  let edit = Authoring.author(m, "let same(x: Int64): Int64 = x + 100")
+  Stdlib.Test.all(
+    [ Authoring.ok(setup)
+      Authoring.ok(gEdit)
+      gCascade |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "f" ]))
+      Authoring.ok(twin)
+      same1 |> Stdlib.Test.equal(g1)
+      Authoring.ok(edit)
+      Authoring.cascade(m, "same", same1, Authoring.fnHash(m, "same"))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([]))
+      Authoring.fnHash(m, "f") |> Stdlib.Test.equal(fBefore) ])
+
+
 // A repoint records that it FOLLOWED, which is how `dark status` and `dark commit` tell
 // what you edited from what came along.
 let repointIsReportedAsFollowedOnMain(unit: Unit): Stdlib.Test.Result =
