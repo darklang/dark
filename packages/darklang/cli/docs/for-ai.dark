@@ -45,7 +45,7 @@ covers the server and its request handlers. If you already have permission, omit
 
   search --batch "List.map" "Json.serialize" --fn  # up to 20 results per section
   docs signatures Stdlib.String Stdlib.List        # every fn in these modules
-  view <name>                                      # one item's source
+  view <name> --raw                                # source for patches
   eval 'Stdlib.List.length([1, 2])'                # one expression
   status                                           # what changed
   commit "message" -y                              # record it

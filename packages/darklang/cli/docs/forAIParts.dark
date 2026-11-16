@@ -56,13 +56,56 @@ line of it:
                                     # ...edit /tmp/f.dark...
   edit Some.fn /tmp/f.dark          # applies it; no editor, no terminal needed
 
-`--raw` prints exactly what `edit` and `module` accept, so this is a pipe rather
-than a screen-scrape. Plain `view` is for a person to read and carries a
-capabilities line you would have to strip. `edit <name>` with no file opens
-$EDITOR instead, which is the shape for a human, not for you. And `--raw` is
-the stored NORMAL FORM, not your keystrokes: formatting, redundant parens and
-annotated nested lets come back normalized, so diff against a fresh `--raw`,
-never against what you typed.
+First create a function to edit:
+
+  dark fn /Tools.RenameDemo.greeting - <<'EOF'
+  let greeting(name: String): String =
+    "Welcome, " + name
+  EOF
+
+Then replace its declaration directly from stdin, with no temporary file:
+
+  dark edit Tools.RenameDemo.greeting - <<'EOF'
+  let greeting(name: String): String =
+    "Hello, " + name
+  EOF
+
+For a small edit, first read the current stored declaration:
+
+  dark view Tools.RenameDemo.greeting --raw
+
+Copy the unchanged and removed lines from that output. Dark may print `Error`
+as `Result.Error`, or change spacing and line breaks. Use the text from `--raw`
+even if you just saved the code.
+
+Send the changes as patch blocks in the apply_patch format:
+
+  dark edit Tools.RenameDemo.greeting --patch - <<'EOF'
+  @@
+   let greeting(name: String): String =
+  -  "Hello, " + name
+  +  "Hi, " + name
+  EOF
+
+Start each block with `@@`. Use a space for unchanged lines, `-` for removed
+lines, and `+` for added lines. Blank lines need a prefix too. Leave out filenames
+and line numbers. Each block needs at least one unchanged or removed line.
+
+Each block must match exactly once, including spaces. Blocks match in order
+against the original code, so a later block cannot match an earlier addition.
+All blocks must match before anything is saved.
+
+If a block has no match or more than one match, nothing changes. The error
+explains the problem on stderr and returns the current declaration on stdout.
+Use that text to rebuild the patch, then try again.
+
+Once every block matches, the result follows the usual edit rules: syntax errors
+stop the save; type errors can be saved as drafts with a nonzero exit code.
+Errors return the current declaration on stdout, including any draft that was saved.
+
+`view --raw` prints code you can pass to `edit` or `module`. Plain `view` adds
+information for a person reading the code. `edit <name>` with no file opens
+$EDITOR; the file and stdin forms work without a terminal.
 
 ## A command-line tool
 

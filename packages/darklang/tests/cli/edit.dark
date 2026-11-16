@@ -1,0 +1,311 @@
+/// Patches must match exactly, then follow the normal edit rules.
+module Darklang.Cli.Tests.Edit
+
+let expectPatchedSource(
+  source: String,
+  patchText: String,
+  expected: String)
+  : Stdlib.Test.Result =
+  match Cli.Packages.Edit.patchSource(source, patchText) with
+  | Ok(actual) when actual == expected -> Stdlib.Test.pass()
+  | other -> Stdlib.Test.fail(Stdlib.display(other))
+
+
+let expectPatchFailure(
+  source: String,
+  patchText: String,
+  reason: String)
+  : Stdlib.Test.Result =
+  match Cli.Packages.Edit.patchSource(source, patchText) with
+  | Ok(patchedSource) ->
+    Stdlib.Test.fail("unexpected patch success: " + patchedSource)
+  | Error(message) -> Instance.says(message, reason, "patch refusal")
+
+
+test exactPatchBlocks =
+  Stdlib.Test.all(
+    [ expectPatchedSource(
+        "a\nb\nc\nd\n",
+        "@@\n a\n-b\n+B\n@@\n-c\n+C\n d\n",
+        "a\nB\nC\nd\n")
+
+      expectPatchedSource("a\nb", "@@\n a\n+b\n b", "a\nb\nb")
+
+      expectPatchedSource("a\n\nb\n", "@@\n a\n \n-b\n+B\n", "a\n\nB\n")
+      expectPatchFailure("a\na\n", "@@\n-a\n+b\n", "ambiguous")
+      expectPatchFailure("  a\n", "@@\n-a\n+b\n", "does not match")
+      expectPatchFailure("a\n", "@@\n+b\n", "needs context")
+      expectPatchFailure("a\n", "@@ -1 +1 @@\n-a\n+b\n", "bare @@")
+      expectPatchFailure("a\nb\n", "@@\n-a\n+A\n@@\n-x\n+X\n", "does not match")
+      expectPatchFailure("a\n", "@@\n-a\n+b\n@@\n-b\n+c\n", "does not match") ])
+
+
+/// Run the CLI with stdin in a disposable test store.
+let runWithStdin(
+  instance: Instance.T,
+  args: List<String>,
+  source: String)
+  : (Int64 * String) =
+  let environmentArgs =
+    Instance.env(instance)
+    |> Stdlib.List.map(fun((name, value)) -> name + "=" + value)
+
+  let command =
+    Stdlib.List.concat(
+      [ "/usr/bin/env" ],
+      Stdlib.List.concat(
+        environmentArgs,
+        Stdlib.List.prepend(args, instance.cli)))
+    |> Stdlib.List.map(Stdlib.Cli.Process.shellQuote)
+    |> Stdlib.String.join(" ")
+
+  let script =
+    "printf '%s' " + Stdlib.Cli.Process.shellQuote(source) + " | " + command
+
+  match Stdlib.Cli.Process.runWithTimeout(
+          Instance.commandTimeoutMs,
+          "/bin/sh",
+          [ "-c", script ]) with
+  | Ok(output) -> (output.exitCode, output.stdout + output.stderr)
+  | Error(message) -> (-1, message)
+
+
+test stdinAndPatchRoundTrip = Instance.withInstance(fun instance ->
+  let name = "Me.AgentEdit.greeting"
+  let before = "let greeting(name: String): String =\n  \"Hello, \" + name\n"
+  let (createExitCode, _) =
+    runWithStdin(instance, [ "module", "/Me.AgentEdit", "-" ], before)
+
+  let (stdinExitCode, _) =
+    runWithStdin(
+      instance,
+      [ "edit", name, "-" ],
+      "let greeting(name: String): String =\n  \"Hey, \" + name\n")
+
+  let (patchExitCode, output) =
+    runWithStdin(
+      instance,
+      [ "edit", name, "--patch", "-" ],
+      "@@\n let greeting(name: String): String =\n-  \"Hey, \" + name\n+  \"Hi, \" + name\n")
+
+  let savedSource = Instance.said(instance, [ "view", name, "--raw" ])
+
+  let evaluationOutput =
+    Instance.said(instance, [ "eval", "Me.AgentEdit.greeting(\"Ada\")" ])
+
+  let path = Instance.home(instance) + "/edit.dark"
+  let _ = Stdlib.Cli.File.writeText(path, before) |> Builtin.unwrap
+  let (fileExitCode, _) = Instance.ran(instance, [ "edit", name, path ])
+
+  let (interactiveExitCode, interactiveAdvice) =
+    Instance.ran(instance, [ "edit", name ])
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(createExitCode, 0, "fixture")
+
+      Instance.exitedWith(
+        stdinExitCode,
+        0,
+        "full declaration stdin already works")
+
+      Instance.exitedWith(patchExitCode, 0, output)
+      Instance.says(savedSource, "\"Hi, \"", "patch saved")
+      Instance.says(evaluationOutput, "Hi, Ada", "new function runs")
+      Instance.exitedWith(fileExitCode, 0, "file workflow remains")
+
+      Instance.exitedWith(
+        interactiveExitCode,
+        1,
+        "interactive still requires a terminal")
+
+      Instance.says(
+        interactiveAdvice,
+        "Cannot open an editor",
+        "interactive path remains") ]))
+
+
+test failedPatchesLeaveRawSourceUnchanged =
+  Instance.withInstance(fun instance ->
+    let name = "Me.AgentFailure.f"
+    let _ =
+      runWithStdin(
+        instance,
+        [ "module", "/Me.AgentFailure", "-" ],
+        "let f(): String =\n  \"kept\"\n")
+
+    let before = Instance.said(instance, [ "view", name, "--raw" ])
+    let cases =
+      [ ("@@\n-  \"missing\"\n+  \"changed\"\n", "does not match")
+        ("@@\n-  \"kept\"\n+  (\n", "The edit reported errors")
+        (
+          "@@\n-  \"kept\"\n+  \"changed\"\n@@\n-missing\n+later\n",
+          "does not match") ]
+
+    cases
+    |> Stdlib.List.map(fun((patchText, reason)) ->
+      let (exitCode, output) =
+        runWithStdin(instance, [ "edit", name, "--patch", "-" ], patchText)
+
+      let after = Instance.said(instance, [ "view", name, "--raw" ])
+      Stdlib.Test.all(
+        [ Instance.exitedWith(exitCode, 1, reason)
+          Instance.says(output, reason, "failure explained")
+
+          Instance.says(
+            output,
+            Stdlib.String.trim(before),
+            "raw source returned")
+
+          if after == before then
+            Stdlib.Test.pass()
+          else
+            Stdlib.Test.fail("failure changed source") ]))
+    |> Stdlib.Test.all)
+
+
+/// Ambiguous patches leave the declaration unchanged and return its raw source.
+test ambiguousPatchDoesNotSave = Instance.withInstance(fun instance ->
+  let name = "Me.AgentAmbiguous.f"
+  let _ =
+    runWithStdin(
+      instance,
+      [ "module", "/Me.AgentAmbiguous", "-" ],
+      "let f(): String =\n  Stdlib.printLine(\"same\")\n  Stdlib.printLine(\"same\")\n  \"kept\"\n")
+
+  let before = Instance.said(instance, [ "view", name, "--raw" ])
+  let (exitCode, output) =
+    runWithStdin(
+      instance,
+      [ "edit", name, "--patch", "-" ],
+      "@@\n-  Stdlib.printLine(\"same\")\n+  Stdlib.printLine(\"other\")\n")
+
+  let after = Instance.said(instance, [ "view", name, "--raw" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(exitCode, 1, "ambiguous patch")
+      Instance.says(output, "ambiguous", "refusal explains context")
+      Instance.says(output, Stdlib.String.trim(before), "raw source returned")
+      if after == before then
+        Stdlib.Test.pass()
+      else
+        Stdlib.Test.fail("ambiguous patch changed source") ]))
+
+
+/// Matched patches save type errors as drafts, just like full-declaration edits.
+test matchedPatchesFollowNormalEditRules = Instance.withInstance(fun instance ->
+  let source = "let f(): String =\n  \"kept\"\n"
+  let _ = runWithStdin(instance, [ "module", "/Me.PatchRules", "-" ], source)
+
+  let _ = runWithStdin(instance, [ "module", "/Me.EditRules", "-" ], source)
+
+  let (patchExitCode, patchOutput) =
+    runWithStdin(
+      instance,
+      [ "edit", "Me.PatchRules.f", "--patch", "-" ],
+      "@@\n-  \"kept\"\n+  42\n")
+
+  let (editExitCode, editOutput) =
+    runWithStdin(
+      instance,
+      [ "edit", "Me.EditRules.f", "-" ],
+      "let f(): String =\n  42\n")
+
+  let patchedSource =
+    Instance.said(instance, [ "view", "Me.PatchRules.f", "--raw" ])
+
+  let editedSource =
+    Instance.said(instance, [ "view", "Me.EditRules.f", "--raw" ])
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(patchExitCode, 1, "patch reports type errors")
+      Instance.exitedWith(editExitCode, 1, "full edit reports type errors")
+      Instance.says(
+        patchOutput,
+        "Saved as a draft",
+        "patch saves the broken draft")
+
+      Instance.says(
+        editOutput,
+        "Saved as a draft",
+        "full edit saves the broken draft")
+
+      Instance.says(patchedSource, "42", "patch was saved")
+
+      Instance.says(
+        patchOutput,
+        Stdlib.String.trim(patchedSource),
+        "returns the saved raw source")
+
+      Instance.doesNotSay(
+        patchOutput,
+        "Patch not applied",
+        "does not claim the save failed")
+
+      if patchedSource == editedSource then
+        Stdlib.Test.pass()
+      else
+        Stdlib.Test.fail("patch and full edit saved different declarations") ]))
+
+
+/// Read the saved code before patching it, since printed names can change.
+test patchRetryUsesStoredSource = Instance.withInstance(fun instance ->
+  let name = "Me.PatchNormalization.f"
+  let (createExitCode, _) =
+    runWithStdin(
+      instance,
+      [ "module", "/Me.PatchNormalization", "-" ],
+      "let f(): Result<Int64, String> =\n  Error(\"before\")\n")
+
+  let before = Instance.said(instance, [ "view", name, "--raw" ])
+  let (failedExitCode, failureOutput) =
+    runWithStdin(
+      instance,
+      [ "edit", name, "--patch", "-" ],
+      "@@\n-  Error(\"before\")\n+  Error(\"after\")\n")
+
+  let unchanged = Instance.said(instance, [ "view", name, "--raw" ])
+  let sourceLines = Stdlib.String.trim(before) |> Stdlib.String.split("\n")
+  let patchLines =
+    Stdlib.List.concat(
+      sourceLines |> Stdlib.List.map(fun line -> "-" + line),
+      sourceLines
+      |> Stdlib.List.map(fun line ->
+        "+" + Stdlib.String.replaceAll(line, "before", "after")))
+
+  let retryPatch = "@@\n" + Stdlib.String.join(patchLines, "\n") + "\n"
+  let (retryExitCode, retryOutput) =
+    runWithStdin(instance, [ "edit", name, "--patch", "-" ], retryPatch)
+
+  let after = Instance.said(instance, [ "view", name, "--raw" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(createExitCode, 0, "fixture")
+      Instance.says(
+        before,
+        "Result.Error",
+        "saving expands the constructor name")
+
+      Instance.exitedWith(failedExitCode, 1, "original source does not match")
+      Instance.says(
+        failureOutput,
+        "Dark may change names and spacing",
+        "explains why the code can differ")
+
+      Instance.says(
+        failureOutput,
+        "dark view Me.PatchNormalization.f --raw",
+        "gives the retry command")
+
+      Instance.says(
+        failureOutput,
+        Stdlib.String.trim(before),
+        "returns current raw declaration")
+
+      if unchanged == before then
+        Stdlib.Test.pass()
+      else
+        Stdlib.Test.fail("mismatch changed source")
+
+      Instance.exitedWith(retryExitCode, 0, retryOutput)
+      Instance.says(
+        after,
+        "Result.Error(\"after\")",
+        "patch built from raw source succeeds") ]))

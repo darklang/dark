@@ -136,7 +136,7 @@ module Registry =
 
   let acceptsModule(): Accepts.Accepts = Accepts.between(2, 2, [])
 
-  let acceptsEdit(): Accepts.Accepts = Accepts.between(1, 2, [])
+  let acceptsEdit(): Accepts.Accepts = Accepts.between(1, 2, [ "--patch" ])
 
   let acceptsRename(): Accepts.Accepts = Accepts.between(2, 2, [])
 
