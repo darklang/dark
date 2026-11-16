@@ -569,9 +569,7 @@ let private runChunks
       // this one finds every slot free.
       let released =
         p.completion.Task.ContinueWith(
-          (fun (t : Task<ExecutionResult>) ->
-            slots.Release() |> ignore<int>
-            t.Result),
+          (fun (_ : Task<ExecutionResult>) -> slots.Release() |> ignore<int>),
           TaskContinuationOptions.ExecuteSynchronously
         )
       struct (offset, copies, trace, p, released))
@@ -626,7 +624,8 @@ let private runChunks
         match me with
         | Some m -> m.parkHint <- ValueSome(Sched.OnProcess p.id)
         | None -> ()
-        let! result = released
+        do! released
+        let! result = p.completion.Task
         sched.TakeResult p.id |> ignore<Option<ExecutionResult>>
         let answer =
           match result with
