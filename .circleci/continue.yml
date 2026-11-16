@@ -17,9 +17,11 @@ version: 2.1
 #
 # Caches: any pipeline in this repo can write any cache key, including one main is about to
 # ask for, because a branch's config picks its own keys. So main and the release jobs restore
-# none, and only branch and PR builds use the NuGet one. Measured: restoring costs 1.5s and
-# saves 4.9s of restore, so it earns about 3.4s a job. The SQLite
-# archive cache (`sqlite-archive`) follows the same rule.
+# none, and only branch and PR builds use the SQLite archive cache (`sqlite-archive`).
+#
+# No NuGet cache. Grown through prefix matches, it reached 923 MiB and took about 9s to restore,
+# and the restore it was for took as long with it as without it: about 9.5s on main, which never
+# used it, and on PRs, which did.
 #
 # Main saves none either. Nothing on main reads one, and a fork PR cannot read main's (CircleCI
 # keeps fork caches apart), so each new key was stored twice and main's copy was never used.
@@ -157,24 +159,10 @@ commands:
           paths:
             - clis
 
-  # Branch and PR builds only: see the note on caches at the top of this file.
-  nuget-cache-restore:
-    steps:
-      - run: shasum backend/Directory.Packages.props backend/global.json > ../checksum
-      - unless:
-          condition:
-            equal: [main, << pipeline.git.branch >>]
-          steps:
-            - restore_cache:
-                keys:
-                  - v7-nuget-{{ checksum "../checksum" }}
-                  # prefix match: an older lockfile's downloads still beat starting empty
-                  - v7-nuget-
-
   # The SQLite archive the native link needs. It only changes with build-sqlite.sh, which
   # pins the SQLite version, so it is cached on that file; building it is about 20s of zig, on
   # one CPU, so it builds beside the steps after it and `sqlite-archive-wait` collects it.
-  # Branch and PR builds only, like the NuGet cache: see the note at the top of this file.
+  # Branch and PR builds only: see the note at the top of this file.
   sqlite-archive:
     steps:
       - run:
@@ -312,17 +300,8 @@ jobs:
       # There are currently no yaml files
       # - run: scripts/linting/yamllinter
 
-      - nuget-cache-restore
       - show-large-files-and-directories
       - run: ./scripts/build/_dotnet-wrapper restore --locked-mode fsdark.sln
-      - unless:
-          condition:
-            equal: [main, << pipeline.git.branch >>]
-          steps:
-            - save_cache:
-                paths:
-                  - /home/dark/.nuget
-                key: v7-nuget-{{ checksum "../checksum" }}
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
 
       # Each library is compiled once in this job, by this step, in Release so the package load
