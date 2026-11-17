@@ -26,7 +26,6 @@ module Sign =
 
   let fromDT (d : Dval) : Sign =
     match d with
-    //TODO: ensure that we are working with a right type
     | DEnum(_, _, [], "Positive", []) -> Positive
     | DEnum(_, _, [], "Negative", []) -> Negative
     | _ -> Exception.raiseInternal "Invalid sign" []

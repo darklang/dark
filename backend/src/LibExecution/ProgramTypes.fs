@@ -24,8 +24,6 @@ let assertBuiltin
 
 
 
-// TODO: consider grouping SCM types (BranchId, Branch, MergeError, Commit) into a
-// SourceControl module to match the Dark package structure (Darklang.SCM.*)
 /// Structural hash of a package item's content (shape, not name/location).
 type Hash =
   | Hash of string
@@ -748,8 +746,6 @@ module TypeDeclaration =
 ///
 /// Our use of this is sort of minimal currently.
 /// I'm not sure if it's still an appropriate model going forward.
-/// TODO reconsider
-/// TODO has this changed at all since -classic? Check the old source.
 type Deprecation<'name> =
   | NotDeprecated
 
@@ -1081,8 +1077,6 @@ and ItemKind =
     | _ -> Exception.raiseInternal $"Unknown item kind: {s}" []
 
   /// Convert to database string representation
-  /// CLEANUP might be appropriate to either migrate these fns to LibSerialization,
-  // or replace them w/ _binary_ serializer equivs (but, then DB is less queryable by humans directly)
   member this.toString() : string =
     match this with
     | Fn -> "fn"
@@ -1357,7 +1351,6 @@ type PackageManager =
 
     search : Search.SearchQuery -> Search.SearchResults
 
-    // CLEANUP why does the PT one even need these?
     getType : FQTypeName.Package -> Option<PackageType.PackageType>
     getValue : FQValueName.Package -> Option<PackageValue.PackageValue>
     getFn : FQFnName.Package -> Option<PackageFn.PackageFn>
