@@ -596,6 +596,11 @@ not fire.
 
 ## Permissions
 
+**Resolve links before `..`.** `ResolveLinkTarget(true)` can collapse a relative target's
+`..` before following an earlier directory link, choosing the wrong file. Use the
+component resolver in `HostSecurity.FilePath`. For a kernel reference, put `..` inside
+the stored link target: .NET file-read APIs normalize `..` in their path arguments too.
+
 **Permissions are runtime authorization, not OS isolation.** Host effects cross
 `Host.perform` and are checked against policy; this does not confine a compromised
 runtime or limit resources. OS sandboxing remains future work in `docs/permissions-todos.md`.

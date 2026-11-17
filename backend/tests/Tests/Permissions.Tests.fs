@@ -207,6 +207,40 @@ let fileRulesRespectBoundaries =
     Expect.isFalse (allows "/srv/app/data/../../secret") "parent traversal"
   }
 
+let posixPathGrantsDoNotAssumeCaseInsensitiveVolumes =
+  test "POSIX grants distinguish case while macOS denies also cover case aliases" {
+    if not (System.OperatingSystem.IsWindows()) then
+      let fileRule =
+        Permission.Rule.File(
+          Permission.AccessKind.Read,
+          only "/dark-case-test/Allowed"
+        )
+      let processRule =
+        Permission.Rule.Process
+          { executable = only "/dark-case-test/Tool"; args = Permission.Scope.All }
+      let policy = Permission.Policy.create [ fileRule; processRule ] []
+      let file =
+        Permission.Request.file
+          Permission.AccessKind.Read
+          "/dark-case-test/allowed/file"
+      let processRequest = Permission.Request.processSpawn "/dark-case-test/tool" []
+      for request in [ file; processRequest ] do
+        match request with
+        | Error message -> failtest message
+        | Ok request ->
+          Expect.isFalse
+            (Permission.Policy.allows request policy)
+            "a different case is not a grant"
+          let denied =
+            Permission.Policy.create
+              [ Permission.Rule.All ]
+              [ fileRule; processRule ]
+          Expect.equal
+            (Permission.Policy.allows request denied)
+            (not (System.OperatingSystem.IsMacOS()))
+            "macOS denies must still block case aliases"
+  }
+
 let fileRulesSeeThroughSymlinkedRoots =
   test "a file rule and a request name the directory a link resolves to" {
     // macOS: `/tmp` is a link to `/private/tmp`. A rule for either spelling
@@ -1477,6 +1511,7 @@ let tests =
       httpQueryIsPartOfTheOperation
       invalidRequestsFailClosed
       fileRulesRespectBoundaries
+      posixPathGrantsDoNotAssumeCaseInsensitiveVolumes
       fileRulesSeeThroughSymlinkedRoots
       processRulesPreserveArgumentOrder
       coverableEffectsFollowTheRules

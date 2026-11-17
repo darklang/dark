@@ -223,6 +223,15 @@ let normalizeFilePath (path : string) : string =
   with _ ->
     path
 
+/// Resolve the file itself for a read. Check and open this captured path,
+/// never the original link; the no-follow open refuses any later link swap.
+/// A resolution failure must be returned without opening its diagnostic path.
+let normalizeFileReadPath (path : string) : HostSecurity.FilePath.ReadTarget =
+  try
+    HostSecurity.FilePath.readTarget path
+  with error ->
+    { path = normalizeFilePath path; failure = Some(22, error.Message) }
+
 /// After normalization no resolvable ancestor is a link; one that still is
 /// (dangling, cyclic, inaccessible) must not reach an OS API. Fail-closed for
 /// inaccessible path components as well. On POSIX this pre-check is advisory:
@@ -392,7 +401,10 @@ let private fileCheck
   (path : string)
   : Result<Permission.Request, string> * string =
   let verb = if access = Permission.AccessKind.Write then "writing" else "reading"
-  (Permission.Request.file access path, $"{verb} `{path}`")
+  // Callers have resolved the path they will use. Re-resolving it here could
+  // check a different target, especially for a descriptor held across a rename.
+  let request = Permission.Request.fileAtResolvedPath access path
+  (request, $"{verb} `{path}`")
 
 let private envCheck
   (access : Permission.AccessKind)
@@ -477,16 +489,6 @@ let private posixEntry
   : Result<Resolved, string> =
   guardedEntry (access = Permission.AccessKind.Write) rawPath (fun path ->
     withChecks [ fileCheck access path ] (attempt (fun () -> call path)))
-
-let private posixReadWrite
-  (rawPath : string)
-  (call : string -> Result<Response, int * string>)
-  : Result<Resolved, string> =
-  guarded true rawPath (fun path ->
-    withChecks
-      [ fileCheck Permission.AccessKind.Read path
-        fileCheck Permission.AccessKind.Write path ]
-      (attempt (fun () -> call path)))
 
 /// mkstemp/mkdtemp create a random sibling of the prefix, so authorizing the
 /// prefix would check a different path from the one used. Authorize and guard
@@ -762,13 +764,32 @@ let private resolvePosix
     let reads, writes = HostPosix.openAccess flags
     if not reads && not writes then
       Error(rejected $"unsupported open access mode: {accessMode}")
-    elif reads && writes then
-      posixReadWrite path (fun path ->
-        HostPosix.openFile path flags mode |> Result.map (opened path))
     else
-      let access = if writes then write else read
-      posixPath access path (fun path ->
-        HostPosix.openFile path flags mode |> Result.map (opened path))
+      let originalPath = normalizeFilePath path
+      let path, resolutionFailure =
+        if reads && not writes && flags &&& HostPosix.O_NOFOLLOW = 0 then
+          let target = normalizeFileReadPath path
+          target.path, target.failure
+        else
+          originalPath, None
+      let protectedPath =
+        match protectedPathGuard writes originalPath with
+        | Some message -> Some message
+        | None when path <> originalPath -> protectedPathGuard writes path
+        | None -> None
+      match protectedPath with
+      | Some message -> Error message
+      | None ->
+        // Authorize the resolved target and keep it on the descriptor. The
+        // kernel still refuses links in this path, including ones swapped in
+        // after resolution. Writes and explicit O_NOFOLLOW keep the link path.
+        withChecks
+          [ if reads then fileCheck read path
+            if writes then fileCheck write path ]
+          (attempt (fun () ->
+            match resolutionFailure with
+            | Some failure -> Error failure
+            | None -> HostPosix.openFile path flags mode |> Result.map (opened path)))
   | HostTypes.PosixOp.GetcwdBytes count ->
     // Knowing the working directory's path does not grant access to its contents.
     unchecked (

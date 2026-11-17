@@ -746,6 +746,336 @@ let readlinkMayInspectTheFinalSymlink =
       System.IO.Directory.Delete(directory, true)
   }
 
+let symlinkReadsUseTheTargetsPermissions =
+  testTask "symlink reads check and retain the target's permissions" {
+    if LibExecution.HostPosix.isPosix then
+      let directory =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-read-link-{System.Guid.NewGuid()}"
+        )
+      let allowedDirectory = System.IO.Path.Combine(directory, "allowed")
+      let privateDirectory = System.IO.Path.Combine(directory, "private")
+      System.IO.Directory.CreateDirectory allowedDirectory
+      |> ignore<System.IO.DirectoryInfo>
+      System.IO.Directory.CreateDirectory privateDirectory
+      |> ignore<System.IO.DirectoryInfo>
+      let target = System.IO.Path.Combine(allowedDirectory, "file")
+      let secret = System.IO.Path.Combine(privateDirectory, "secret")
+      let absolute = System.IO.Path.Combine(allowedDirectory, "absolute")
+      let relative = System.IO.Path.Combine(allowedDirectory, "relative")
+      let chain = System.IO.Path.Combine(allowedDirectory, "chain")
+      let outside = System.IO.Path.Combine(allowedDirectory, "outside")
+      let dangling = System.IO.Path.Combine(allowedDirectory, "dangling")
+      let cycle = System.IO.Path.Combine(allowedDirectory, "cycle")
+      let access path =
+        Permission.Policy.create
+          [ Permission.Rule.File(Permission.AccessKind.Read, only path) ]
+          []
+        |> Permission.Access.start
+      let allowed = access allowedDirectory
+      let targetOnly = access target
+      let link path destination =
+        System.IO.File.CreateSymbolicLink(path, destination)
+        |> ignore<System.IO.FileSystemInfo>
+      let owner = LibExecution.Host.createDescriptorSession ()
+      try
+        let perform policy op =
+          LibExecution.Host.performInSession owner policy (HT.Operation.Posix op)
+        let openRead policy path =
+          task {
+            let! outcome = perform policy (HT.PosixOp.Open(path, 0, 0))
+            match outcome with
+            | HT.Outcome.Success(HT.Response.Descriptor token) -> return token
+            | other -> return failtestf "expected a scoped read open, got %A" other
+          }
+        let expectContents outcome =
+          match outcome with
+          | HT.Outcome.Success(HT.Response.Bytes bytes) ->
+            Expect.equal
+              bytes
+              (System.Text.Encoding.UTF8.GetBytes "public")
+              "target contents"
+          | other ->
+            failtestf "expected a read of the permitted target, got %A" other
+        System.IO.File.WriteAllText(target, "public")
+        System.IO.File.WriteAllText(secret, "private")
+        link absolute target
+        link relative "file"
+        link chain "relative"
+        link outside "../private/secret"
+        link dangling "missing"
+        link cycle "cycle"
+        for path in [ absolute; relative; chain ] do
+          // A grant on the target suffices; the alias itself needs no grant.
+          let! token = openRead targetOnly path
+          Expect.equal
+            (owner.Find token |> Option.map (fun entry -> entry.paths))
+            (Some [ (LibExecution.Host.normalizeFileReadPath target).path ])
+            "the descriptor retains the target, not the alias"
+          let! contents =
+            perform
+              targetOnly
+              (HT.PosixOp.FdRead(HT.FileDescriptor.Scoped token, 32))
+          expectContents contents
+        let! retained = openRead allowed relative
+        System.IO.File.Delete relative
+        link relative "../private/secret"
+        let! contents =
+          perform
+            targetOnly
+            (HT.PosixOp.FdRead(HT.FileDescriptor.Scoped retained, 32))
+        expectContents contents
+        for path in [ outside; relative; chain ] do
+          let! denied = perform allowed (HT.PosixOp.Open(path, 0, 0))
+          match denied with
+          | HT.Outcome.Denied(_, _, resource, _, _) ->
+            Expect.stringContains
+              resource
+              "private/secret"
+              "the denial names the target"
+          | other ->
+            failtestf "an alias must not grant access outside its root: %A" other
+        for path, errnos in [ dangling, [ 2 ]; cycle, [ 40; 62 ] ] do
+          let! failure = perform allowed (HT.PosixOp.Open(path, 0, 0))
+          match failure with
+          | HT.Outcome.Failed error ->
+            Expect.contains errnos error.errno "ordinary I/O error"
+          | other ->
+            failtestf "expected a dangling or cyclic link error, got %A" other
+        match LocalFile.path "policies.bin" with
+        | Ok policyPath ->
+          let policyLink = System.IO.Path.Combine(allowedDirectory, "policy-link")
+          link policyLink policyPath
+          let! rejected =
+            perform
+              (Permission.Access.start Permission.Policy.allowAll)
+              (HT.PosixOp.Open(policyLink, 0, 0))
+          match rejected with
+          | HT.Outcome.Rejected _ -> ()
+          | other ->
+            failtestf "a symlink must not expose host policy state: %A" other
+        | Error error -> failtestf "could not find the policy path: %A" error
+        // A changed ancestor must not lend its new target's grant to an old descriptor.
+        System.IO.Directory.Move(
+          allowedDirectory,
+          System.IO.Path.Combine(directory, "moved")
+        )
+        System.IO.Directory.CreateSymbolicLink(allowedDirectory, privateDirectory)
+        |> ignore<System.IO.FileSystemInfo>
+        let! changedAncestor =
+          perform
+            (access privateDirectory)
+            (HT.PosixOp.FdRead(HT.FileDescriptor.Scoped retained, 1))
+        match changedAncestor with
+        | HT.Outcome.Denied _ -> ()
+        | other ->
+          failtestf "a retained descriptor must keep its original resource: %A" other
+      finally
+        owner.Dispose()
+        System.IO.Directory.Delete(directory, true)
+  }
+
+let symlinkReadsPreserveParentTraversal =
+  testTask
+    "symlink reads resolve links before parent traversal and preserve path errors" {
+    if LibExecution.HostPosix.isPosix then
+      let root =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-link-parent-{System.Guid.NewGuid()}"
+        )
+      let local = System.IO.Path.Combine(root, "local")
+      let remote = System.IO.Path.Combine(root, "remote")
+      System.IO.Directory.CreateDirectory local |> ignore<System.IO.DirectoryInfo>
+      System.IO.Directory.CreateDirectory(System.IO.Path.Combine(remote, "sub"))
+      |> ignore<System.IO.DirectoryInfo>
+      let alias = System.IO.Path.Combine(local, "alias")
+      let direct = System.IO.Path.Combine(local, "dir-link/../data")
+      let access path =
+        Permission.Policy.create
+          [ Permission.Rule.File(Permission.AccessKind.Read, only path) ]
+          []
+        |> Permission.Access.start
+      let owner = LibExecution.Host.createDescriptorSession ()
+      let perform policy path =
+        LibExecution.Host.performInSession
+          owner
+          policy
+          (HT.Operation.Posix(HT.PosixOp.Open(path, 0, 0)))
+      let link name destination =
+        System.IO.File.CreateSymbolicLink(
+          System.IO.Path.Combine(local, name),
+          destination
+        )
+        |> ignore<System.IO.FileSystemInfo>
+      try
+        System.IO.File.WriteAllText(System.IO.Path.Combine(local, "data"), "local")
+        System.IO.File.WriteAllText(System.IO.Path.Combine(remote, "data"), "remote")
+        System.IO.Directory.CreateSymbolicLink(
+          System.IO.Path.Combine(local, "dir-link"),
+          System.IO.Path.Combine(remote, "sub")
+        )
+        |> ignore<System.IO.FileSystemInfo>
+        link "alias" "dir-link/../data"
+        link "missing" "missing-dir/../data"
+        link "not-directory" "data/../data"
+        link "trailing-slash" "data/"
+        for path in [ alias; direct ] do
+          let! denied = perform (access local) path
+          match denied with
+          | HT.Outcome.Denied _ -> ()
+          | other ->
+            failtestf
+              "the local directory does not grant the remote target: %A"
+              other
+          let! opened = perform (access remote) path
+          match opened with
+          | HT.Outcome.Success(HT.Response.Descriptor token) ->
+            let! read =
+              LibExecution.Host.performInSession
+                owner
+                (access remote)
+                (HT.Operation.Posix(
+                  HT.PosixOp.FdRead(HT.FileDescriptor.Scoped token, 32)
+                ))
+            match read with
+            | HT.Outcome.Success(HT.Response.Bytes bytes) ->
+              // Keep `..` inside the link: .NET collapses it in API path arguments.
+              Expect.equal
+                bytes
+                (System.Text.Encoding.UTF8.GetBytes(System.IO.File.ReadAllText alias))
+                "the same file as the kernel"
+            | other -> failtestf "could not read the resolved target: %A" other
+          | other -> failtestf "could not open the permitted remote target: %A" other
+        for name, errno in
+          [ "missing", 2
+            "missing-dir/../data", 2
+            "not-directory", 20
+            "trailing-slash", 20
+            "data/", 20 ] do
+          let! outcome = perform (access local) (System.IO.Path.Combine(local, name))
+          match outcome with
+          | HT.Outcome.Failed error ->
+            Expect.equal error.errno errno "the path error is preserved"
+          | other ->
+            failtestf
+              "a failed path must not collapse to the existing local file: %A"
+              other
+      finally
+        owner.Dispose()
+        System.IO.Directory.Delete(root, true)
+  }
+
+let resolvedReadsDoNotFollowLaterLinkSwaps =
+  test "resolved reads do not follow links swapped after resolution" {
+    if LibExecution.HostPosix.isPosix then
+      let directory =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-link-swap-{System.Guid.NewGuid()}"
+        )
+      System.IO.Directory.CreateDirectory directory
+      |> ignore<System.IO.DirectoryInfo>
+      let target = System.IO.Path.Combine(directory, "target")
+      let secret = System.IO.Path.Combine(directory, "secret")
+      let alias = System.IO.Path.Combine(directory, "alias")
+      try
+        System.IO.File.WriteAllText(target, "public")
+        System.IO.File.WriteAllText(secret, "private")
+        System.IO.File.CreateSymbolicLink(alias, target)
+        |> ignore<System.IO.FileSystemInfo>
+        let resolution = LibExecution.Host.normalizeFileReadPath alias
+        Expect.equal resolution.failure None "the initial target resolves"
+        let resolved = resolution.path
+        // Retargeting the alias does not change the captured path we authorize and open.
+        System.IO.File.Delete alias
+        System.IO.File.CreateSymbolicLink(alias, secret)
+        |> ignore<System.IO.FileSystemInfo>
+        match LibExecution.HostPosix.openFile resolved 0 0 with
+        | Ok fd ->
+          try
+            Expect.equal
+              (LibExecution.HostPosix.fdRead fd 32)
+              (Ok(System.Text.Encoding.UTF8.GetBytes "public"))
+              "the original target is still read"
+          finally
+            LibExecution.HostPosix.fdClose fd |> ignore<Result<unit, int * string>>
+        | Error error -> failtestf "could not open the captured target: %A" error
+        // Replacing the captured target itself with a link must fail at the kernel open.
+        System.IO.File.Delete target
+        System.IO.File.CreateSymbolicLink(target, secret)
+        |> ignore<System.IO.FileSystemInfo>
+        match LibExecution.HostPosix.openFile resolved 0 0 with
+        | Error(errno, _) ->
+          Expect.contains [ 40; 62 ] errno "no-follow rejects the swap"
+        | Ok fd ->
+          LibExecution.HostPosix.fdClose fd |> ignore<Result<unit, int * string>>
+          failtest "the open followed the swapped target"
+      finally
+        System.IO.Directory.Delete(directory, true)
+  }
+
+let nonFollowingSymlinkOpensReturnErrors =
+  testTask "writes and O_NOFOLLOW refuse symlinks without bypassing permissions" {
+    if LibExecution.HostPosix.isPosix then
+      let directory =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-open-link-{System.Guid.NewGuid()}"
+        )
+      let real = System.IO.Path.Combine(directory, "real")
+      let target = System.IO.Path.Combine(real, "file")
+      let link = System.IO.Path.Combine(directory, "link")
+      let dangling = System.IO.Path.Combine(directory, "dangling")
+      let ancestor = System.IO.Path.Combine(directory, "ancestor")
+      System.IO.Directory.CreateDirectory real |> ignore<System.IO.DirectoryInfo>
+      let read = Permission.Rule.File(Permission.AccessKind.Read, only directory)
+      let write = Permission.Rule.File(Permission.AccessKind.Write, only directory)
+      let access rules = Permission.Policy.create rules [] |> Permission.Access.start
+      let allowed = access [ read; write ]
+      let denied = Permission.Access.start Permission.Policy.denyAll
+      let perform policy path flags =
+        LibExecution.Host.perform
+          policy
+          (HT.Operation.Posix(HT.PosixOp.Open(path, flags, 0)))
+      try
+        System.IO.File.WriteAllText(target, "unchanged")
+        System.IO.File.CreateSymbolicLink(link, target)
+        |> ignore<System.IO.FileSystemInfo>
+        System.IO.File.CreateSymbolicLink(dangling, target + "-missing")
+        |> ignore<System.IO.FileSystemInfo>
+        // A cyclic ancestor cannot be normalized to a checked target path.
+        System.IO.Directory.CreateSymbolicLink(ancestor, ancestor)
+        |> ignore<System.IO.FileSystemInfo>
+        for path in [ link; dangling; System.IO.Path.Combine(ancestor, "file") ] do
+          for flags in
+            [ LibExecution.HostPosix.O_RDONLY ||| LibExecution.HostPosix.O_NOFOLLOW
+              LibExecution.HostPosix.O_WRONLY ||| LibExecution.HostPosix.O_TRUNC
+              LibExecution.HostPosix.O_RDWR ||| LibExecution.HostPosix.O_TRUNC ] do
+            let! refused = perform allowed path flags
+            match refused with
+            | HT.Outcome.Failed error ->
+              // Linked ancestors can report ENOTDIR; final links report ELOOP.
+              Expect.contains [ 20; 40; 62 ] error.errno "the no-follow open failed"
+            | other -> failtestf "expected an ordinary open failure, got %A" other
+            let! noPermission = perform denied path flags
+            match noPermission with
+            | HT.Outcome.Denied _ -> ()
+            | other -> failtestf "expected a policy denial, got %A" other
+        for partial in [ access [ read ]; access [ write ] ] do
+          let! readWrite = perform partial link LibExecution.HostPosix.O_RDWR
+          match readWrite with
+          | HT.Outcome.Denied _ -> ()
+          | other -> failtestf "read-write open needs both permissions, got %A" other
+        Expect.equal
+          (System.IO.File.ReadAllText target)
+          "unchanged"
+          "no write followed the link"
+      finally
+        System.IO.Directory.Delete(directory, true)
+  }
+
 let posixWalkRefusesALinkMetAtOperationTime =
   testTask
     "the POSIX host meets a link at operation time and refuses it, without the pre-check" {
@@ -897,6 +1227,16 @@ let packageStoreAncestorsAreProtected =
       | HT.Outcome.Success _ -> ()
       | other -> failtest $"{label}: expected success, got {other}"
     try
+      let storeLink = System.IO.Path.Combine(other, "store-link")
+      System.IO.File.CreateSymbolicLink(storeLink, db)
+      |> ignore<System.IO.FileSystemInfo>
+      for path in [ db; storeLink ] do
+        for flags in
+          [ LibExecution.HostPosix.O_RDONLY
+            LibExecution.HostPosix.O_WRONLY ||| LibExecution.HostPosix.O_TRUNC
+            LibExecution.HostPosix.O_RDWR ] do
+          let! opened = perform (HT.Operation.Posix(HT.PosixOp.Open(path, flags, 0)))
+          expectRefused "open the package store" opened
       // Step 1 of the attack: move the store's parent.
       let! moved =
         perform (HT.Operation.Posix(HT.PosixOp.Rename(rundir, other + "2")))
@@ -1437,6 +1777,10 @@ let tests =
       rawClocksRequireClockPermission
       tempPrefixDoesNotAuthorizeARandomSibling
       readlinkMayInspectTheFinalSymlink
+      symlinkReadsUseTheTargetsPermissions
+      symlinkReadsPreserveParentTraversal
+      resolvedReadsDoNotFollowLaterLinkSwaps
+      nonFollowingSymlinkOpensReturnErrors
       posixWalkRefusesALinkMetAtOperationTime
       localPolicyPathsRejectTraversal
       packageStoreAncestorsAreProtected

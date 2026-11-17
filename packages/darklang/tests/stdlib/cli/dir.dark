@@ -1,5 +1,33 @@
 module Darklang.Stdlib.Cli.Dir.Tests
 
+// A recursive listing reads permitted link targets and handles dangling links as errors.
+test recursiveListingCanBeReadWithSymlinks =
+  Stdlib.Cli.Dir.withTemp(fun root ->
+    let file = $"{root}/file"
+    let link = $"{root}/link"
+    let dangling = $"{root}/dangling"
+    Stdlib.Cli.File.writeText(file, "contents")
+    |> Stdlib.Result.andThen(fun _ -> Stdlib.Cli.File.createSymlink(file, link))
+    |> Stdlib.Result.andThen(fun _ ->
+      Stdlib.Cli.File.createSymlink($"{root}/missing", dangling))
+    |> Stdlib.Result.andThen(fun _ -> Stdlib.Cli.Dir.listRecursive(root))
+    |> Stdlib.Result.map(fun paths ->
+      paths
+      |> Stdlib.List.map(fun path ->
+        match Stdlib.Cli.FileSystem.readFile(path) with
+        | Ok(bytes) ->
+          (path == file || path == link)
+          && bytes == Stdlib.Utf8.encode("contents")
+        | Error(NotFound) -> path == dangling
+        | Error(_) -> false)
+      |> (fun results ->
+            (
+              Stdlib.List.length(results),
+              Stdlib.List.all(results, fun ok -> ok)))))
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Ok(Stdlib.Result.Result.Ok((3, true))))
+
+
 // walk lists each directory before its contents, in listing order; listRecursive lists the files
 // the same way; deleteRecursive removes the lot
 test walkKeepsSubtreeOrder =

@@ -114,7 +114,8 @@ module OpenFlags =
   let append(): Int64 = __abiOpenAppend()
 
 
-/// Open a file. Returns a file descriptor.
+/// Open a file. Read-only opens follow symlinks when the target is permitted; writes do not.
+/// Returns a file descriptor or an I/O error. Permission denials raise.
 let openFile(path: String, flags: Int64, mode: Int64): Result<BigInt, Error> =
   Builtin.syscallOpen(path, flags, mode) |> Result.mapError(__fromErrno)
 

@@ -249,6 +249,17 @@ module Request =
       )
     | _ -> Error $"Invalid HTTP request: {method} {url}"
 
+  /// A host path already resolved for an open or retained on a descriptor.
+  /// Validate its spelling without following links again: it names a captured resource.
+  let internal fileAtResolvedPath
+    (access : AccessKind)
+    (path : string)
+    : Result<Request, string> =
+    try
+      Ok(Request.File(access, System.IO.Path.GetFullPath path))
+    with _ ->
+      Error $"Invalid file path: {path}"
+
   /// Normalize a path before creating its request. The host operation performs
   /// final symlink checks when it opens or changes the path.
   let file (access : AccessKind) (path : string) : Result<Request, string> =
@@ -478,30 +489,36 @@ module Rule =
     else
       expected = actual
 
-  // Windows and macOS normally ignore case in filesystem paths. Use the
-  // platform comparison so alternate-case spellings refer to the same path.
-  let private pathComparison : System.StringComparison =
+  // macOS can use either filesystem case mode. Grant only the exact POSIX
+  // spelling; a deny must also cover case aliases on case-insensitive volumes.
+  let private grantPathComparison : System.StringComparison =
+    if System.OperatingSystem.IsWindows() then
+      System.StringComparison.OrdinalIgnoreCase
+    else
+      System.StringComparison.Ordinal
+
+  let private denyPathComparison : System.StringComparison =
     if System.OperatingSystem.IsWindows() || System.OperatingSystem.IsMacOS() then
       System.StringComparison.OrdinalIgnoreCase
     else
       System.StringComparison.Ordinal
 
-  let private underRoot (root : string) (path : string) : bool =
+  let private underRoot comparison (root : string) (path : string) : bool =
     let root = System.IO.Path.TrimEndingDirectorySeparator root
-    if System.String.Equals(path, root, pathComparison) then
+    if System.String.Equals(path, root, comparison) then
       true
     else
       let separator = string System.IO.Path.DirectorySeparatorChar
       let boundary = if root.EndsWith separator then root else root + separator
-      path.StartsWith(boundary, pathComparison)
+      path.StartsWith(boundary, comparison)
 
   // Compare the resolved root and its ancestor-resolved spelling. This handles
   // aliases such as macOS `/tmp` and operations on a symlink entry.
-  let private pathUnder (root : string) (path : string) : bool =
+  let private pathUnder comparison (root : string) (path : string) : bool =
     try
       let path = System.IO.Path.GetFullPath path
-      underRoot (HostSecurity.FilePath.canonical root) path
-      || underRoot (HostSecurity.FilePath.canonicalAncestors root) path
+      underRoot comparison (HostSecurity.FilePath.canonical root) path
+      || underRoot comparison (HostSecurity.FilePath.canonicalAncestors root) path
     with _ ->
       false
 
@@ -516,13 +533,13 @@ module Rule =
 
   // Executable rules must be absolute so they identify the same program in
   // every working directory.
-  let private samePath (allowed : string) (actual : string) : bool =
+  let private samePath comparison (allowed : string) (actual : string) : bool =
     try
       System.IO.Path.IsPathFullyQualified allowed
       && System.String.Equals(
         System.IO.Path.GetFullPath allowed,
         System.IO.Path.GetFullPath actual,
-        pathComparison
+        comparison
       )
     with _ ->
       false
@@ -550,7 +567,11 @@ module Rule =
   let private effectMatches (expected : Effect.Effect) (request : Request) : bool =
     Request.effect request = expected
 
-  let covers (rule : Rule) (request : Request) : bool =
+  let private coversWithPathComparison
+    comparison
+    (rule : Rule)
+    (request : Request)
+    : bool =
     match rule, request with
     | Rule.All, _ -> true
     | Rule.Effect effect, request -> effectMatches effect request
@@ -571,14 +592,17 @@ module Rule =
       Scope.covers serverAddressMatches addresses address
       && Scope.covers same ports port
     | Rule.File(expected, roots), Request.File(actual, path) when expected = actual ->
-      Scope.covers pathUnder roots path
+      Scope.covers (pathUnder comparison) roots path
     | Rule.Env(expected, names), Request.Env(actual, name) when expected = actual ->
       Scope.covers envNameMatches names name
     | Rule.Env(AccessKind.Read, Scope.All), Request.EnvList -> true
     | Rule.Process rule, Request.Process(executable, args) ->
-      Scope.covers samePath rule.executable executable
+      Scope.covers (samePath comparison) rule.executable executable
       && Scope.covers same rule.args args
     | _ -> false
+
+  let covers (rule : Rule) (request : Request) : bool =
+    coversWithPathComparison grantPathComparison rule request
 
   /// A wildcard bind includes each local address, so an address-specific deny
   /// must also block it. Checking only equal bind strings would bypass the deny.
@@ -587,7 +611,7 @@ module Rule =
     | Rule.Env(AccessKind.Read, _), Request.EnvList -> true
     | Rule.HttpServer(_, ports), Request.HttpServer("0.0.0.0", port) ->
       Scope.covers same ports port
-    | _ -> covers rule request
+    | _ -> coversWithPathComparison denyPathComparison rule request
 
   /// Return the effect kinds a rule can allow, or `None` for `All`. Approval
   /// checks this before storing an explicit consumer policy.
