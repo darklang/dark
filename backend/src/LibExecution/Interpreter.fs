@@ -5567,10 +5567,7 @@ let private frameReturnTypeCheckFull
   (fnName : FQFnName.FQFnName)
   : unit =
   match TypeChecker.unify exeState.types tst expectedReturnType resultOfFrame with
-  | Ok _updatedTst ->
-    //currentFrame.typeSymbolTable <- updatedTst
-    // CLEANUP is this^ or something like it worthwhile?
-    ()
+  | Ok _ -> ()
   | Error _path ->
     let expectedVT = TypeReference.toVT exeState.types tst expectedReturnType
     RuntimeError.Applications.FnResultNotExpectedType(
