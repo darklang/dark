@@ -1,0 +1,36 @@
+/// `delete <module>` takes out everything in it, whatever uses what inside it.
+module Darklang.Cli.Tests.DeleteModule
+
+test deleteModuleTakesEverything = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/scratch.dark"
+  let source =
+    "type Box = { n: Int64 }\nlet make(): Box = Box { n = 1 }\nlet read(b: Box): Int64 = b.n\n"
+
+  let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
+  let _ = Instance.ran(i, [ "module", "/Me.Scratch", path ])
+  let (refusedCode, refused) = Instance.ran(i, [ "delete", "Me.Scratch" ])
+  let (code, out) = Instance.ran(i, [ "delete", "Me.Scratch", "--yes" ])
+  let listed = Instance.said(i, [ "ls", "Me.Scratch" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(refusedCode, 1, "no terminal, no --yes")
+      Instance.says(refused, "add --yes to delete Me.Scratch", "says how")
+      Instance.exitedWith(code, 0, "deleted")
+      Instance.says(out, "Will delete 3 items in Me.Scratch", "names the count")
+      Instance.says(out, "Deleted Me.Scratch", "says so")
+      Instance.doesNotSay(listed, "make", "make is gone") ]))
+
+
+test deleteModuleKeepsWhatOthersUse = Instance.withInstance(fun i ->
+  let lib = Instance.home(i) + "/lib.dark"
+  let user = Instance.home(i) + "/user.dark"
+  let _ = Stdlib.Cli.File.writeAtomic(lib, "let one(): Int64 = 1\n") |> Builtin.unwrap
+  let _ =
+    Stdlib.Cli.File.writeAtomic(user, "let two(): Int64 = Me.Lib.one() + 1\n")
+    |> Builtin.unwrap
+
+  let _ = Instance.ran(i, [ "module", "/Me.Lib", lib ])
+  let _ = Instance.ran(i, [ "module", "/Me.User", user ])
+  let (code, out) = Instance.ran(i, [ "delete", "Me.Lib", "--yes" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 1, "refused")
+      Instance.says(out, "Used from outside Me.Lib: Me.User.two", "names the user") ]))
