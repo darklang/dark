@@ -420,13 +420,6 @@ jobs:
             echo; echo "package tests exited $package_tests, gate scripts exited $gates_status"
             [[ "$package_tests" -eq 0 && "$gates_status" -eq 0 ]]
 
-      ## TODO: too many race conditions. Bring back later
-      # Test package manager/cli integration works
-      # - run: scripts/build/run-migrations --published
-      # - run: sleep 5 # let migrations run
-      # - run: scripts/build/reload-packages --published
-      # - run: scripts/run-cli @Darklang.Stdlib.Float64.add 1.9 2.0
-
       # Neither the tests nor a gate may write to the source tree.
       - assert-clean-worktree
       - show-large-files-and-directories
