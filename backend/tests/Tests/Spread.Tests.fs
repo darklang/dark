@@ -966,6 +966,39 @@ let private storedAsSerial =
       LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.Off
   }
 
+/// A self tail call and a fold's later steps run in the frame they are in, even while recorded,
+/// but the recorder is told of each call as if it had been pushed: a frame and its arguments.
+let private inPlaceCallsAreRecorded =
+  testTask
+    "a recorded run is told of every call that runs in place, with its arguments" {
+    let state = executionStateFor pmPT false
+    let ints (xs : List<int64>) = xs |> List.map RT.DInt64
+    // Frames given two ints: the calls under test, not the operators inside them.
+    let pairs (hooks : List<Hook>) =
+      hooks
+      |> List.choose (fun h ->
+        match h with
+        | Hook.Frame(_, _, _, ([ RT.DInt64 _; RT.DInt64 _ ] as args)) -> Some args
+        | _ -> None)
+
+    let! instrs = instrsFor "Darklang.Language.Tests.TailCalls.count(3, 0)"
+    let! (result, _, hooks) = recorded state false instrs
+    Expect.equal (expectOk result) (RT.DInt64 6L) "count answers"
+    Expect.equal
+      (pairs hooks)
+      [ ints [ 3L; 0L ]; ints [ 2L; 3L ]; ints [ 1L; 5L ]; ints [ 0L; 6L ] ]
+      "each self tail call is a frame with its arguments"
+
+    let! instrs =
+      instrsFor "Stdlib.List.fold([10, 20, 30], 0, fun (acc, x) -> acc + x)"
+    let! (result, _, hooks) = recorded state false instrs
+    Expect.equal (expectOk result) (RT.DInt64 60L) "fold answers"
+    Expect.equal
+      (pairs hooks)
+      [ ints [ 0L; 10L ]; ints [ 10L; 20L ]; ints [ 30L; 30L ] ]
+      "each step of the fold is a frame with its accumulator and element"
+  }
+
 /// Every List and Dict test in the store, run forced to spread and with spreading off, recorded
 /// hook by hook: the same outcome, effects and trace. A test that does not come out the same in
 /// two serial runs (it counts live processes, say) says nothing here and is left out. Spread onto
@@ -1206,6 +1239,7 @@ let tests =
         viewedRunsDoNotSpread
         recordedAsSerial
         storedAsSerial
+        inPlaceCallsAreRecorded
         everyListAndDictTest
         busyWorkersStaySerial
         noSlotsStaySerial
