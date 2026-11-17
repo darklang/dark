@@ -79,6 +79,30 @@ test emptyFailureIsPreserved =
             (3, Stdlib.Test.Result.Fail([ "another failure" ])) ])) ])
 
 
+test table =
+  Stdlib.Test.all(
+    [ // Every row is kept, named by its arguments, passing or not.
+      Stdlib.Test.table([ (1, 1), (1, 2) ], fun((a, b)) -> a |> Stdlib.Test.equal(b))
+      |> is(
+        Stdlib.Test.Result.Rows(
+          [ ("(1, 1)", Stdlib.Test.Result.Pass)
+            ("(1, 2)", Stdlib.Test.Result.Fail([ "expected 2, got 1" ])) ]))
+
+      // A row that raises fails only itself; the rows after it still run.
+      Stdlib.Test.table([ 0, 3 ], fun n -> (6 / n) |> Stdlib.Test.equal(2))
+      |> is(
+        Stdlib.Test.Result.Rows(
+          [ ("(0)", Stdlib.Test.Result.Fail([ "error: Cannot divide by 0" ]))
+            ("(3)", Stdlib.Test.Result.Pass) ]))
+
+      Stdlib.Test.rowName(Stdlib.String.repeat("x", 80))
+      |> Stdlib.Test.equal("(\"" + Stdlib.String.repeat("x", 57) + "…")
+
+      // Inside an `all`, a table passes when all its rows do.
+      Stdlib.Test.all([ Stdlib.Test.table([ 1 ], fun _ -> Stdlib.Test.pass()) ])
+      |> is(Stdlib.Test.Result.Pass) ])
+
+
 /// A package test runs on a virtual clock: an hour's sleep finishes at once, and
 /// the clock moves by exactly the hour.
 test sleepTakesNoRealTime =
@@ -111,6 +135,11 @@ test groupedFixture =
   Stdlib.Test.group(
     "parsing",
     Stdlib.Test.all([ Stdlib.Test.pass(), Stdlib.String.length("ab") |> Stdlib.Test.equal(2) ]))
+
+
+test tableFixture =
+  [ ("a", 1), ("abc", 3) ]
+  |> Stdlib.Test.table(fun((s, n)) -> Stdlib.String.length(s) |> Stdlib.Test.equal(n))
 
 
 let fixtureBody(name: String): Option<LanguageTools.ProgramTypes.Expr> =
@@ -189,3 +218,28 @@ test groupedFailureLines =
       Stdlib.Test.Result.FailedChecks([ (2, Stdlib.Test.Result.Fail([ "no" ])) ]))
     |> Stdlib.Test.equal(
       [ "2: Stdlib.String.length(\"ab\") |> Stdlib.Test.equal(2)", "   no" ])
+
+
+test rowFailureLines =
+  match fixtureBody("tableFixture") with
+  | None -> Stdlib.Test.fail("tableFixture is not stored")
+  | Some(body) ->
+    let ctx =
+      PrettyPrinter.ProgramTypes.Context.forModule(
+        SCM.Branch.mainBranchId,
+        [ "Darklang", "Stdlib", "Test", "Tests" ])
+
+    Stdlib.Test.all(
+      [ // A failing row shows the table's check, then what went wrong.
+        LanguageTools.PackageManager.Test.rowFailureLines(
+          ctx,
+          body,
+          Stdlib.Test.Result.Fail([ "expected 3, got 2" ]))
+        |> Stdlib.Test.equal(
+          [ "Stdlib.String.length(s) |> Stdlib.Test.equal(n)", "expected 3, got 2" ])
+
+        // One test per row written out in place.
+        LanguageTools.PackageManager.Test.testCount(body) |> Stdlib.Test.equal(2)
+        fixtureBody("shownFixture")
+        |> Stdlib.Option.map(LanguageTools.PackageManager.Test.testCount)
+        |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1)) ])

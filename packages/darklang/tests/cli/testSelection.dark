@@ -73,3 +73,16 @@ test countFindsWhatFilteringEveryTestWould =
       under(oneTest) |> Stdlib.List.length |> Stdlib.Test.equal(1)
       under([ "Stdlib", "Bool" ]) |> Stdlib.Test.equal(expected([ "Stdlib", "Bool" ]))
       under([]) |> Stdlib.Test.equal(expected([])) ])
+
+
+test aFilterWithArgumentsPicksOneRow =
+  let path = "Darklang.Demo.Tests.lengths"
+  let picks = fun filter ->
+    [ path + "(\"a\", 1)", path + "(\"b\", 2)" ]
+    |> Stdlib.List.filter(fun name -> Cli.Packages.Test.rowSelected([ filter ], path, name))
+
+  Stdlib.Test.all(
+    [ picks("Demo.Tests.lengths") |> Stdlib.List.length |> Stdlib.Test.equal(2)
+      picks("lengths(\"b\", 2)") |> Stdlib.Test.equal([ path + "(\"b\", 2)" ])
+      picks("lengths(\"c\", 3)") |> Stdlib.Test.equal([])
+      Cli.Packages.Test.selects("Tests.lengths(\"a.b\", 1)", path) |> Stdlib.Test.equal(true) ])

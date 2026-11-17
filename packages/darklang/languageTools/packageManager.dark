@@ -453,6 +453,52 @@ module Test =
     | _ -> Option.None
 
 
+  /// The rows and the check of <param e> when it is a `Stdlib.Test.table`, written
+  /// `table(rows, check)` or `rows |> table(check)`.
+  let __table(e: ProgramTypes.Expr): Option<(ProgramTypes.Expr * ProgramTypes.Expr)> =
+    match __resultExpr(e) with
+    | EApply(_, EFnName(_, name, _, _), _, [rows, check]) when __isTestFn(name, "table") ->
+      Option.Some((rows, check))
+    | EPipe(id, first, steps) ->
+      match Stdlib.List.last(steps) with
+      | Some(EPipeFnCall(_, name, _, [check], _)) when __isTestFn(name, "table") ->
+        let rows =
+          match Stdlib.List.dropLast(steps) with
+          | [] -> first
+          | before -> ProgramTypes.Expr.EPipe(id, first, before)
+
+        Option.Some((rows, check))
+      | _ -> Option.None
+    | _ -> Option.None
+
+
+  /// How many tests <param body> holds, read from its code: one per row of a
+  /// `Stdlib.Test.table` over a list written out in place, else one.
+  let testCount(body: ProgramTypes.Expr): Int64 =
+    match __table(body) with
+    | Some((EList(_, rows), _)) -> Stdlib.List.length(rows)
+    | _ -> 1
+
+
+  /// What a failing row of the table in <param body> says went wrong: the source of
+  /// the table's check, when it is written as a `fun`, then the failure.
+  let rowFailureLines(
+    ctx: PrettyPrinter.ProgramTypes.Context,
+    body: ProgramTypes.Expr,
+    result: Stdlib.Test.Result)
+    : List<String> =
+    let check =
+      match __table(body) with
+      | Some((_, ELambda(_, _, checkBody))) -> Option.Some(__resultExpr(checkBody))
+      | _ -> Option.None
+
+    match check, result with
+    | Some(e), Fail(_) ->
+      let printed = PrettyPrinter.ProgramTypes.expr(ctx, e)
+      Stdlib.List.concat(Stdlib.String.split(printed, "\n"), __failureLines(ctx, [], check, result))
+    | _ -> __failureLines(ctx, [], check, result)
+
+
   /// What <param result> says went wrong, one line each. A failing item of an `all`
   /// shows its position (outermost first) and its source, as <param body> wrote it.
   let failureLines(
@@ -502,6 +548,11 @@ module Test =
       |> Stdlib.List.map(fun((position, check)) ->
         let itemSource = Stdlib.Option.andThen(items, fun i -> Stdlib.List.getAt(i, position - 1))
         __failureLines(ctx, Stdlib.List.append(path, Stdlib.display(position)), itemSource, check))
+      |> Stdlib.List.flatten
+    | Rows(rows) ->
+      rows
+      |> Stdlib.List.map(fun((name, row)) ->
+        __failureLines(ctx, Stdlib.List.append(path, name), Option.None, row))
       |> Stdlib.List.flatten
 
 
@@ -564,6 +615,17 @@ module Test =
               |> Stdlib.Option.map(fun result -> (position, result))
             | _ -> Option.None)
           |> Stdlib.Option.map(fun checks -> Stdlib.Test.Result.FailedChecks(checks))
+        | _ -> Option.None
+      | "Rows" ->
+        match fields with
+        | [DList(_, rows)] ->
+          __eachOrNone(rows, fun row ->
+            match row with
+            | DTuple(DString(name), result, []) ->
+              __asResultOfType(expected, result)
+              |> Stdlib.Option.map(fun result -> (name, result))
+            | _ -> Option.None)
+          |> Stdlib.Option.map(fun rows -> Stdlib.Test.Result.Rows(rows))
         | _ -> Option.None
       | _ -> Option.None
     | _ -> Option.None

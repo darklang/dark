@@ -596,6 +596,55 @@ test plain = Stdlib.Test.expect(true, "plain")
       do! discardAll state
     })
 
+/// Each row of a `Stdlib.Test.table` is its own test: run, counted and filtered.
+let tableRowsAreTests =
+  instanceTest "each row of a table is its own test" (fun state ->
+    task {
+      do! start state
+      let file =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-table-{System.Guid.NewGuid():N}.dark"
+        )
+      System.IO.File.WriteAllText(
+        file,
+        """test lengths =
+  [ ("a", 1), ("ab", 2), ("abc", 4) ]
+  |> Stdlib.Test.table(fun((s, n)) ->
+    Stdlib.Test.expect(Stdlib.String.length(s) == n, "wrong length"))
+test halves =
+  [ 2, 0 ] |> Stdlib.Test.table(fun n -> Stdlib.Test.expect(4 / n == 2, "not half"))
+"""
+      )
+      do! run state [ "module"; "Tests.Table"; file ]
+      System.IO.File.Delete file
+      do!
+        showsAll
+          state
+          [ "test"; "run"; "Tests.Table" ]
+          [ "PASS Tests.Table.lengths(\"a\", 1)"
+            "FAIL Tests.Table.lengths(\"abc\", 4)"
+            "  Stdlib.Test.expect(Stdlib.String.length(s) == n, \"wrong length\")"
+            "PASS Tests.Table.halves(2)"
+            "FAIL Tests.Table.halves(0)"
+            "error: Cannot divide by 0"
+            "5 tests: 3 passed, 2 failed" ]
+          "every row reports as its own test"
+      do!
+        showsAll
+          state
+          [ "test"; "run"; "Tests.Table.lengths(\"ab\", 2)" ]
+          [ "PASS Tests.Table.lengths(\"ab\", 2)"; "1 test: 1 passed, 0 failed" ]
+          "a filter with arguments keeps that row"
+      do!
+        showsAll
+          state
+          [ "test"; "count"; "Tests.Table" ]
+          [ "Tests.Table: 5 tests"; "lengths  3 tests"; "halves   2 tests" ]
+          "count reads one test per row"
+      do! discardAll state
+    })
+
 let cachedPassesRequireTheSameBuildAndJudge =
   instanceTest "cached passes from another build or judge rerun" (fun state ->
     task {
@@ -2542,6 +2591,7 @@ let tests : List<Test> =
     testsWithoutPurityProofAlwaysRun
     assertionFailureMessagesAlwaysRun
     groupedTestsShowTheirGroup
+    tableRowsAreTests
     cachedPassesRequireTheSameBuildAndJudge
     testAddAuthorsATest
     testRunUsesOneStartingStore

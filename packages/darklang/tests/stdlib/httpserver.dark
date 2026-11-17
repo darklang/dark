@@ -84,13 +84,11 @@ test getPath =
     // Asterisk form never reaches a handler (the listener answers 400), but
     // does not crash here either.
     ("*", "/*") ]
-  |> Stdlib.List.map(fun pair ->
-    let (url, expected) = pair
+  |> Stdlib.Test.table(fun((url, expected)) ->
     Stdlib.HttpServer.getPath(
       Stdlib.Http.Request
         { method = "GET", url = url, headers = [], body = Stdlib.Bytes.empty })
     |> Stdlib.Test.equal(expected))
-  |> Stdlib.Test.all
 
 
 // ---------------------------

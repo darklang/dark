@@ -217,6 +217,21 @@ A nested `all` adds its positions after its own, as in `4 > 2:`. When the list
 is built at run time, there is no source to show, so only the position is
 printed.
 
+`table(rows, check)` runs `check` on each row, and each row is its own test,
+named by its arguments after the test's name. A failing row shows the check's
+source, and a row that raises fails only itself:
+
+```text
+PASS Demo.Tests.lengths("a", 1)
+FAIL Demo.Tests.lengths("abc", 4)
+  Stdlib.String.length(s) |> Stdlib.Test.equal(n)
+  expected 4, got 3
+```
+
+A filter written with the arguments, as in `dark test run 'lengths("a", 1)'`,
+runs the table and reports only that row. The table runs and caches as a whole,
+so a seeded rerun gives a row the same values.
+
 ## Groups
 
 Modules group tests. Inside a module, a test can put itself in a group by
@@ -234,7 +249,8 @@ stored body, so a cached test keeps it.
 ## Counting tests
 
 `dark test count [module]` prints how many tests are under a module and in each
-module below it, rolled up. With `--for <item>`, it counts only the tests that
+module below it, rolled up. A table over a list written out in place counts one
+test per row. With `--for <item>`, it counts only the tests that
 use that function, type or value, directly or through other code, from the same
 dependents index as `dark deps --deep`.
 
