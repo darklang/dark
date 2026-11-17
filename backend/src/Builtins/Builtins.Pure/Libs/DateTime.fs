@@ -7,6 +7,23 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 module Dval = LibExecution.Dval
 module DarkDateTime = LibExecution.DarkDateTime
+module PackageRefs = LibExecution.PackageRefs
+
+module ParseError =
+  type ParseError =
+    | InvalidFormat
+    | InvalidDate
+
+  let typeName () =
+    FQTypeName.fqPackage (PackageRefs.Type.Stdlib.dateTimeParseError ())
+
+  let toDT (error : ParseError) : Dval =
+    let name = typeName ()
+    let caseName =
+      match error with
+      | InvalidFormat -> "InvalidFormat"
+      | InvalidDate -> "InvalidDate"
+    DEnum(name, name, [], caseName, [])
 
 // NodaTime's `uuuu` writes years before 1, which .NET's `DateTime` cannot hold.
 let private isoSeconds =
@@ -27,10 +44,11 @@ let private digitsAt (s : string) (at : int) (count : int) : int =
 
 /// The instant `s` names: `YYYY-MM-DD` as midnight UTC, or `YYYY-MM-DDThh:mm:ss`, optionally
 /// with `.fff`, then `Z` or an offset `+hh:mm` / `-hh:mm`.
-let private parseIso (s : string) : Option<Instant> =
+let private parseIso (s : string) : Result<Instant, ParseError.ParseError> =
   let at (i : int) (c : char) = i < s.Length && s[i] = c
   let n = digitsAt s
   let year, month, day = n 0 4, n 5 2, n 8 2
+  let dateSyntax = at 4 '-' && at 7 '-' && year >= 0 && month >= 0 && day >= 0
   let validDate =
     at 4 '-'
     && at 7 '-'
@@ -46,15 +64,19 @@ let private parseIso (s : string) : Option<Instant> =
     (ms : int)
     (offsetMinutes : int)
     =
-    NodaTime
-      .LocalDateTime(year, month, day, hour, minute, second, ms)
-      .InUtc()
-      .ToInstant()
-      .Minus(NodaTime.Duration.FromMinutes(int64 offsetMinutes))
-  if not validDate then
-    None
+    if not validDate then
+      Error ParseError.InvalidDate
+    else
+      NodaTime
+        .LocalDateTime(year, month, day, hour, minute, second, ms)
+        .InUtc()
+        .ToInstant()
+        .Minus(NodaTime.Duration.FromMinutes(int64 offsetMinutes))
+      |> Ok
+  if not dateSyntax then
+    Error ParseError.InvalidFormat
   elif s.Length = 10 then
-    Some(instant 0 0 0 0 0)
+    instant 0 0 0 0 0
   else
     let hour, minute, second = n 11 2, n 14 2, n 17 2
     let validTime =
@@ -82,9 +104,8 @@ let private parseIso (s : string) : Option<Instant> =
       else
         None
     match offsetMinutes with
-    | Some offset when validTime && ms >= 0 ->
-      Some(instant hour minute second ms offset)
-    | _ -> None
+    | Some offset when validTime && ms >= 0 -> instant hour minute second ms offset
+    | _ -> Error ParseError.InvalidFormat
 
 
 let fns () : List<BuiltInFn> =
@@ -125,17 +146,26 @@ let fns () : List<BuiltInFn> =
     { name = fn "dateTimeParse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TypeReference.option TDateTime
+      returnType =
+        TypeReference.result
+          TDateTime
+          (TCustomType(
+            { originalName = []; resolved = Ok(ParseError.typeName ()) },
+            []
+          ))
       description =
         "The date and time in <param s>: {{YYYY-MM-DD}}, or {{YYYY-MM-DDThh:mm:ss}} with an "
         + "optional {{.fff}} and then {{Z}} or an offset such as {{+02:00}}"
       fn =
         (function
         | _, _, _, [| DString s |] ->
+          let errorType = KTCustomType(ParseError.typeName (), [])
           match parseIso s with
-          | Some instant ->
-            Dval.optionSome KTDateTime (DDateTime(DarkDateTime.fromInstant instant))
-          | None -> Dval.optionNone KTDateTime
+          | Ok instant ->
+            DDateTime(DarkDateTime.fromInstant instant)
+            |> Dval.resultOk KTDateTime errorType
+          | Error error ->
+            ParseError.toDT error |> Dval.resultError KTDateTime errorType
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

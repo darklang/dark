@@ -4,7 +4,9 @@ let d(datestr: String): DateTime =
   Stdlib.DateTime.parse(datestr) |> Builtin.unwrap
 
 
-let p(datestr: String): Stdlib.Result.Result<String, String> =
+let p(
+  datestr: String)
+  : Stdlib.Result.Result<String, Stdlib.DateTime.ParseError> =
   Stdlib.DateTime.parse(datestr)
   |> Stdlib.Result.map(fun value -> Stdlib.display(value))
 
@@ -43,7 +45,42 @@ test parse =
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("2019-07-28T22:42:36Z"))
 
       p("asd")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format")) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat)) ])
+
+
+test parseDistinguishesInvalidDatesFromFormats =
+  let invalidDate =
+    Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidDate)
+
+  let invalidFormat =
+    Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat)
+
+  Stdlib.Test.all(
+    [ p("2027-02-29") |> Stdlib.Test.equal(invalidDate)
+
+      p("2027-02-29T12:00:00Z") |> Stdlib.Test.equal(invalidDate)
+
+      p("2027-04-31T12:00:00.123+02:00") |> Stdlib.Test.equal(invalidDate)
+
+      p("25/12/2026") |> Stdlib.Test.equal(invalidFormat)
+
+      p("2027-02-29garbage") |> Stdlib.Test.equal(invalidFormat)
+
+      p("2027-02-29T12:00:00") |> Stdlib.Test.equal(invalidFormat)
+
+      p("2028-02-29")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("2028-02-29T00:00:00Z")) ])
+
+
+test parseErrorDisplay =
+  Stdlib.Test.all(
+    [ Stdlib.display(Stdlib.DateTime.ParseError.InvalidFormat)
+      |> Stdlib.Test.equal(
+        "Invalid date format; expected YYYY-MM-DD or an ISO 8601 timestamp")
+
+      Stdlib.display(Stdlib.DateTime.ParseError.InvalidDate)
+      |> Stdlib.Test.equal("Invalid calendar date") ])
 
 
 // Parse in both
@@ -55,13 +92,14 @@ test parseInBoth =
 // Lowercase `z` aren't allowed
 test parseRejectsLowercaseZ =
   p("2023-09-23T18:01:24z")
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
 
 // An offset from UTC is taken off, so the result is the same instant in UTC
 test parseOffsets =
   let ok = fun s -> Stdlib.Result.Result.Ok(s)
-  let bad = Stdlib.Result.Result.Error("Invalid date format")
+  let bad = Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat)
   Stdlib.Test.all(
     [ p("2026-03-10T13:55:36+02:00")
       |> Stdlib.Test.equal(ok("2026-03-10T11:55:36Z"))
@@ -104,22 +142,39 @@ test parseOffsets =
 
       // the offset must be +hh:mm or -hh:mm, in range, and end the text
       p("2026-03-10T13:55:36+24:00") |> Stdlib.Test.equal(bad)
+
       p("2026-03-10T13:55:36+02:60") |> Stdlib.Test.equal(bad)
+
       p("2026-03-10T13:55:36+0200") |> Stdlib.Test.equal(bad)
+
       p("2026-03-10T13:55:36+02") |> Stdlib.Test.equal(bad)
+
       p("2026-03-10T13:55:36+2:00") |> Stdlib.Test.equal(bad)
+
       p("2026-03-10T13:55:36+02:00Z") |> Stdlib.Test.equal(bad)
+
       p("2026-03-10T13:55:36+02:00:00") |> Stdlib.Test.equal(bad)
+
       p("2026-03-10T13:55:36 +02:00") |> Stdlib.Test.equal(bad)
+
       p("2026-03-10T13:55:36+") |> Stdlib.Test.equal(bad)
+
       p("2026-03-10T13:55:36") |> Stdlib.Test.equal(bad)
+
       // the local time is checked before the offset is taken off
-      p("2026-02-29T01:00:00+02:00") |> Stdlib.Test.equal(bad)
+      p("2026-02-29T01:00:00+02:00")
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidDate))
+
       p("2026-03-10T24:00:00-01:00") |> Stdlib.Test.equal(bad)
+
       p("2026-03-10T13:60:00+01:00") |> Stdlib.Test.equal(bad)
+
       p("2026-03-10T13:55:60+01:00") |> Stdlib.Test.equal(bad)
+
       // only ASCII digits
       p("2026-03-1١T13:55:36Z") |> Stdlib.Test.equal(bad)
+
       p("2026-03-10T13:55:36+0١:00") |> Stdlib.Test.equal(bad) ])
 
 
@@ -128,48 +183,61 @@ test parseRejectsTimeZones =
   Stdlib.Test.all(
     [ // special cased in F#
       p("2000-11-22 09:10:15z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       // special cased in F#
       p("2008-09-15T09:30:41GMT")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2008-09-15T09:30:41UTC")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2008-09-15T09:30:41EST")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format")) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat)) ])
 
 
 // Fail in both
 test parseFailInBoth =
   Stdlib.Test.all(
     [ p("2000-11-22 09:10:15")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2000-11-22 09:10:15Z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2012-01-31 23:59:59.999")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2012-01-31 23:59:59.999+0100")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2012-01-31 23:59:59.999-0100")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2018-09-09 10:43:54+0100")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2018-09-09 11:43:54+0200")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2018-09-24T17:48:00")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2018-09-24T18:09:24+0200")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("1999-03-22T05:06:07+01:00")
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("1999-03-22T04:06:07Z"))
@@ -178,274 +246,363 @@ test parseFailInBoth =
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("1999-03-22T05:06:07Z"))
 
       p("2006-06-09T10:20:30.040")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2006-06-09T10:20:30.040+02:00")
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("2006-06-09T08:20:30.040Z"))
 
       p("20061204T1020Z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("20061204T1020")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2008-09-15T09:30:41.1")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2008-09-15T09:30:41.12")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2008-09-15T09:30:41.123")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2008-09-15T09:30:41.1234")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2008-09-15T09:30:41.12345")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2008-09-15T09:30:41.123456")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2008-09-15T09:30:41.1234567")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2008-09-15T09:30:41.1234567Z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2008-09-15T09:30:41.7752486-07:00")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2008-09-15T09:30:41.7752486-04:00")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("20061204T10:20:54.67am")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("20061204T10:20:54.67am")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("20061204T1020am")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("20061204T1020AM")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("20061204T1020PM")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("20061204T1020pm")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("15/06/2008 08:30")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("18/08/2015 06:30:15.006542")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("Mon, 15 Sep 2008 09:30:41 GMT")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2/16/2008 12:15:12 PM")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("16/02/2008 12:15:12")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("12 Juni 2008")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("Friday, April 10, 2009")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2016-12-27 14:40:46 +0000")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2T102030Z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("31-01-12")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("31-01-2012")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("Jun 5 Sun")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("Thursday, April 10, 2008")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("00:00:10.512345678")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("01-31-2012")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("10.5")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("10.5+02:00")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("10/04/2008")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("10:20:30.040")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("10:20:30.040+02:00")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("11:03:01")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("13:03:15.454+0530")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("1999-03-22 AD")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("1999-03-22+01:00")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("+2006-06-09")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("+2006-06-09T10:20:30.040")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("1999-03-22T05:06:07+01:00[Europe/Paris]")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("1999-03-22T05:06:07.000+01:00[Europe/Paris]")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("1999-03-22T05:06:07.000[Europe/Paris]")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("1999-081+01:00")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("1999-W13-2")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("19990322")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("19990322+0100")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("1999W132")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2006-06-09T+02:00")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2006-123")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2006-123T+02:00")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2006-123T10:20:30.040")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2006-123T10:20:30.040+02:00")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2006-W27-3")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2006-W27-3T+02:00")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2006-W27-3T10:20:30.040")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2006-W27-3T10:20:30.040+02:00")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("20061204T10203Z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("20061204T102Z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("20061204T10Z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("20061204T1Z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2006120T102030Z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("200612T102030Z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("20061T102030Z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2006T102030Z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("200T102030Z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("20T102030Z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("Friday the 16th of May")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("Friday, May 16th 2014")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("Sat Dec 01 00:00:00 IST 2018")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("Saturday November 2012 10:45:42.720+0100")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("Sunday, June 5, 2013")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("T10.5")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("T10.5+02:00")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("T10:20:30.040")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("T10:20:30.040+02:00")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("Thu, Aug 2 1985 08:30 PM")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("Thursday, August 2 1985 08:30 PM")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("Tue, 02 Jan 2018 18:07:59 IST")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("mardi janvier 2018 14:51:02.354+0530")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("20061204T1020 am")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("20061204T1020 AM")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2008-09-15T09:30:41 GMT")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2008-09-15T09:30.456")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format")) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat)) ])
 
 
 // a plain date is midnight UTC
@@ -460,53 +617,68 @@ test parseDateOnly =
       p("2026-12-25") |> Stdlib.Test.equal(p("2026-12-25T00:00:00Z"))
 
       p("2026-13-01")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidDate))
 
       p("2026-02-30")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidDate))
 
       p("2025-02-29")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidDate))
 
       p("2026-00-10")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidDate))
 
       p("2026-12-00")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidDate))
 
       p("0000-01-01")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidDate))
 
       p("26-12-25")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2026-12-5")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2026-12-25Z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2026-12-25T")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2026/12/25")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p(" 2026-12-25")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format")) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat)) ])
 
 
 // while space isn't allowed
 test parseRejectsSurroundingWhitespace =
   Stdlib.Test.all(
     [ p(" 2006-06-09T10:20:30.040+02:00")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2006-06-09T10:20:30.040+02:00 ")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p(" 2006-06-09T10:20:30.040+02:00 ")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format")) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat)) ])
 
 
 test lessThan =
@@ -1019,13 +1191,16 @@ test parseMilliseconds =
 
       // Fractional seconds with wrong digit count still rejected
       p("2019-07-28T22:42:36.1Z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2019-07-28T22:42:36.12Z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format"))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat))
 
       p("2019-07-28T22:42:36.1234Z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Invalid date format")) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.DateTime.ParseError.InvalidFormat)) ])
 
 
 test toMilliseconds =
