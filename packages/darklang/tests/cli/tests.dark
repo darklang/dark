@@ -1045,6 +1045,20 @@ test int64ModSuggestsPercent =
       $"Expected `a % b`; eval={evaluated.stderr}; search={searched}")
 
 
+// `Stdlib.Int64.add` pointed only at `+`, which wraps on overflow.
+test int64AddSuggestsCheckedToo =
+  let evaluated = evalOutcome("Stdlib.Int64.add(7, 3)")
+  if
+    evaluated.exitCode != 0
+    && Stdlib.String.contains(
+      evaluated.stderr,
+      "Did you mean `a + b` or `Stdlib.Int64.checkedAdd`?")
+  then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail($"Expected `a + b` and checkedAdd; eval={evaluated.stderr}")
+
+
 test didYouMeanText =
   let text = Cli.Packages.Errors.didYouMeanText
   Stdlib.Test.all(
