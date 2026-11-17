@@ -274,3 +274,14 @@ test foldAccumulatorKeepsItsType =
   Stdlib.List.fold([ 1, 2 ], Dict { }, fun(acc, x) ->
     if x == 1 then Stdlib.Dict.set(acc, "a", 1) else Dict { "b": "text" })
   => raises "Darklang.Stdlib.List.fold's 3rd parameter `fn` returned Dict<String, String> ({ \"b\": \"text\" }), but should return Dict<String, Int64>"
+
+// A fold's accumulator bound to a tuple or an enum with a type argument is still checked
+// part by part on every step.
+test foldTupleAccumulatorKeepsItsShape =
+  Stdlib.List.fold([ 1, 2 ], (0, ""), fun(acc, x) -> (x, x))
+  => raises "Darklang.Stdlib.List.fold's 3rd parameter `fn` returned (Int64 * Int64) ((1, 1)), but should return (Int64 * String)"
+
+test foldEnumAccumulatorKeepsItsTypeArg =
+  Stdlib.List.fold([ 1, 2 ], Stdlib.Option.Option.Some(0), fun(acc, x) ->
+    Stdlib.Option.Option.Some("a"))
+  => raises "Darklang.Stdlib.List.fold's 3rd parameter `fn` returned Darklang.Stdlib.Option.Option<String> (Some(\"a\")), but should return Darklang.Stdlib.Option.Option<Int64>"
