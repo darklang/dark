@@ -165,7 +165,6 @@ let resolveTypeName
   let emptyBuiltins = None // irrelevant for types
 
   match name with
-  // TODO remodel things appropriately so this is not needed
   | WT.KnownBuiltin(_name, _version) -> Exception.raiseInternal warning []
   | WT.Unresolved given ->
     // Types don't have builtins, so pass None

@@ -1,4 +1,3 @@
-// TODO tidy this file
 module LibSerialization.Binary.Serializers.RT.Dval
 
 open System

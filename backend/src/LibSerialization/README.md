@@ -9,8 +9,6 @@ How we store code on disk and produce content-addressable hashes.
 
 It's very important to maintain this as PT and RT change.
 
-TODO figure out how to properly handle schema migrations...
-
 The following changes are likely safe, and require very minor rework
 - removing a variant at the end of an Enum (so long as that variant is not used in saved data)
 - renaming a variant in an Enum (even if that variant is used)

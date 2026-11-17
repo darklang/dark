@@ -11,7 +11,6 @@ open LibSerialization.Binary.Serializers.PT.Common
 
 let rec write (w : BinaryWriter) (t : TypeReference) : unit =
   match t with
-  // CLEANUP reorder these
   | TInt64 -> w.Write 0uy
   | TUInt64 -> w.Write 1uy
   | TInt8 -> w.Write 2uy

@@ -1,5 +1,4 @@
 /// Standard libraries for printing and output
-/// TODO rename these fns...
 module Builtins.Cli.Libs.Output
 
 open System.Threading.Tasks

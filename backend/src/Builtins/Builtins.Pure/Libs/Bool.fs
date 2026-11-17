@@ -7,7 +7,6 @@ open LibExecution.Builtin.Shortcuts
 
 
 let fns () : List<BuiltInFn> =
-  // TODO: Maybe Expose ENot
   [ { name = fn "boolNot" 0
       typeParams = []
       parameters = [ Param.make "b" TBool "" ]

@@ -1,4 +1,3 @@
-// CLEANUP: split this file into smaller files
 module TestUtils.TestUtils
 
 open Expecto
@@ -438,8 +437,6 @@ module Expect =
 
     // If the dvals are not the same, call errorFn. This is in this form to allow
     // both an equality function and a test expectation function
-    //
-    // TODO remind myself why we can't use the built-in equality function
     let rec dvalEqualityBaseFn
       (path : Path)
       (actual : Dval)

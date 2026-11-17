@@ -305,7 +305,7 @@ let fns () : List<BuiltInFn> =
       callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
-// TODO general "Builtin bytes constant" pattern: a `seeds : List<byte[]>`
+// a general "Builtin bytes constant" pattern: a `seeds : List<byte[]>`
 // field on Builtins, with LocalExec-startup hashing + INSERT OR IGNORE
 // into `package_blobs`. Lets `Builtin.someBytesConstant` ship bytes from
 // F# source without per-constant plumbing. Worth doing once we have
