@@ -158,7 +158,7 @@ let moduleItems(
   branchId: Uuid,
   path: List<String>)
   : List<(LanguageTools.ProgramTypes.ItemKind * String)> =
-  let (subs, types, values, fns, traits, _, tests) =
+  let (subs, types, values, fns, traits, impls, tests) =
     Query.allDirectDescendantNamesAndHashes(branchId, path)
 
   let sets = Query.loadDeprecationSets(branchId)
@@ -167,6 +167,7 @@ let moduleItems(
       (LanguageTools.ProgramTypes.ItemKind.Value, values)
       (LanguageTools.ProgramTypes.ItemKind.Fn, fns)
       (LanguageTools.ProgramTypes.ItemKind.Trait, traits)
+      (LanguageTools.ProgramTypes.ItemKind.TraitImpl, impls)
       (LanguageTools.ProgramTypes.ItemKind.Test, tests) ]
     |> Stdlib.List.map(fun((kind, items)) ->
       Query.filterHiddenPairs(path, items, sets, Query.Deprecated.Hide, Query.Internal.Show)
@@ -203,14 +204,37 @@ let deleteModule(state: AppState, name: String, parsed: ParsedArgs): AppState =
   let currentLoc = state.packageData.currentLocation
   let path = modulePath(state, name) |> Stdlib.Option.withDefault([])
   let shown = Stdlib.String.join(path, ".")
-  let items =
-    moduleItems(branchId, path)
-    |> Stdlib.List.filterMap(fun((kind, full)) ->
-      match Location.parseRelativeTo(currentLoc, full),
-            Deprecate.resolveTarget(branchId, currentLoc, kind, full) with
-      | Ok(location), Some(reference) -> Option.Some((kind, full, location, reference))
-      | _ -> Option.None)
+  if Stdlib.List.length(path) < 2 then
+    printErr($"Won't delete all of {shown} at once; delete one module: delete {shown}.<module>")
+    failed(state)
+  else
+    let items =
+      moduleItems(branchId, path)
+      |> Stdlib.List.filterMap(fun((kind, full)) ->
+        match Location.parseRelativeTo(currentLoc, full),
+              Deprecate.resolveTarget(branchId, currentLoc, kind, full) with
+        | Ok(location), Some(reference) -> Option.Some((kind, full, location, reference))
+        | _ -> Option.None)
 
+    if Stdlib.List.isEmpty(items) then
+      printErr($"Nothing in {shown} resolves to an item to delete; nothing was deleted")
+      failed(state)
+    else
+      deleteModuleItems(state, path, items, parsed)
+
+
+let deleteModuleItems(
+  state: AppState,
+  path: List<String>,
+  items:
+    List<(LanguageTools.ProgramTypes.ItemKind *
+    String *
+    LanguageTools.ProgramTypes.PackageLocation *
+    LanguageTools.ProgramTypes.Reference)>,
+  parsed: ParsedArgs)
+  : AppState =
+  let branchId = state.currentBranchId
+  let shown = Stdlib.String.join(path, ".")
   let depth = Stdlib.List.length(path)
   let sets = Query.loadDeprecationSets(branchId)
   let outside =
@@ -224,14 +248,19 @@ let deleteModule(state: AppState, name: String, parsed: ParsedArgs): AppState =
       PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(location))
     |> Stdlib.List.unique
 
-  let names = items |> Stdlib.List.map(fun((_, full, _, _)) -> full) |> Stdlib.String.join(", ")
-  let count = Text.plural(Stdlib.List.length(items), "item")
+  let total = Stdlib.List.length(items)
+  let count = Text.plural(total, "item")
   if Stdlib.Bool.not(Stdlib.List.isEmpty(outside)) && Stdlib.Bool.not(parsed.ignoreDependents) then
     printErr($"Used from outside {shown}: " + Stdlib.String.join(outside, ", "))
     Stdlib.printErrorLine("Pass `--ignore-dependents` / `--force` to delete it anyway.")
     failed(state)
   else
-    Stdlib.printErrorLine($"  Will delete {count} in {shown}: {names}")
+    Stdlib.printErrorLine($"  Will delete {count} in {shown}:")
+    items
+    |> Stdlib.List.take(10)
+    |> Stdlib.List.iter(fun((_, full, _, _)) -> Stdlib.printErrorLine($"    {full}"))
+    if total > 10 then
+      Stdlib.printErrorLine($"    and {Stdlib.display(total - 10)} more")
     if parsed.dryRun then
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("(dry-run, no op emitted)"))
       state
