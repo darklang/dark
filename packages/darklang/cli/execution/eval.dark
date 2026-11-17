@@ -15,12 +15,27 @@ let evaluateValue(
   expr: String,
   harmful: Harmful)
   : Result<'a, ExecutionError.ExecutionError> =
+  evaluateValueUnder(accountID, branchId, expr, harmful, noGrants())
+
+
+/// <fn evaluateValue> with <param grants> allowed for this evaluation only (`eval --allow`).
+let evaluateValueUnder(
+  accountID: Option<Uuid>,
+  branchId: Uuid,
+  expr: String,
+  harmful: Harmful,
+  grants: LanguageTools.Permissions.Policy)
+  : Result<'a, ExecutionError.ExecutionError> =
   let allowHarmful =
     match harmful with
     | Allow -> true
     | Halt -> false
 
-  Builtin.cliEvaluateExpression(accountID, branchId, expr, allowHarmful)
+  Builtin.cliEvaluateExpression(accountID, branchId, expr, allowHarmful, grants)
+
+
+let noGrants(): LanguageTools.Permissions.Policy =
+  LanguageTools.Permissions.Policy { allow = [], deny = [] }
 
 
 /// Evaluate an expression, keeping errors structured for the caller.
@@ -31,7 +46,19 @@ let evaluateRaw(
   currentModule: List<String>,
   harmful: Harmful)
   : Result<Option<String>, ExecutionError.ExecutionError> =
-  match evaluateValue(accountID, branchId, expr, harmful) with
+  evaluateRawUnder(accountID, branchId, expr, currentModule, harmful, noGrants())
+
+
+/// <fn evaluateRaw> with <param grants> allowed for this evaluation only.
+let evaluateRawUnder(
+  accountID: Option<Uuid>,
+  branchId: Uuid,
+  expr: String,
+  currentModule: List<String>,
+  harmful: Harmful,
+  grants: LanguageTools.Permissions.Policy)
+  : Result<Option<String>, ExecutionError.ExecutionError> =
+  match evaluateValueUnder(accountID, branchId, expr, harmful, grants) with
   | Ok(value) ->
     // Unit has no output, and a string prints without its quotes.
     match LanguageTools.RuntimeTypes.reflect(value) with
@@ -54,9 +81,24 @@ let evaluateRaw(
 /// what this returns, and the workbench REPL keeps it as state. Takes the whole expression as one string,
 /// so a multi-line let-chain survives.
 let evaluate(state: AppState, expr: String, harmful: Harmful): Result<Option<String>, String> =
+  evaluateUnder(state, expr, harmful, noGrants())
+
+
+let evaluateUnder(
+  state: AppState,
+  expr: String,
+  harmful: Harmful,
+  grants: LanguageTools.Permissions.Policy)
+  : Result<Option<String>, String> =
   // Where the user is standing, so the printed value spells names the way they would.
   let currentModule = Packages.Traversal.getCurrentModulePath(state.packageData.currentLocation)
-  match evaluateRaw(state.accountID, state.currentBranchId, expr, currentModule, harmful) with
+  match evaluateRawUnder(
+          state.accountID,
+          state.currentBranchId,
+          expr,
+          currentModule,
+          harmful,
+          grants) with
   | Ok(result) -> Result.Ok(result)
   | Error(err) ->
     Result.Error(ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, err))
@@ -72,6 +114,31 @@ let execute(state: AppState, args: List<String>): AppState =
   // What the expression cost, net of the measuring harness itself: see Perf.floor.
   let wantStats = Stdlib.List.contains(args, "--stats")
   let args = args |> Stdlib.List.filter(fun a -> a != "--allow-harmful" && a != "--stats")
+  let (rules, args) = allowRules([], args)
+  match Permissions.Command.replacePolicy([ Stdlib.String.join(rules, ";") ]) with
+  | Error(message) ->
+    printErr(message)
+    failed(state)
+  | Ok(grants) when Stdlib.Bool.not(Stdlib.List.isEmpty(grants.deny)) ->
+    printErr("--allow takes allow rules only")
+    failed(state)
+  | Ok(grants) -> executeUnder(state, args, harmful, wantStats, grants)
+
+
+/// The `--allow <rules>` at the front of <param args>, and what follows them.
+let allowRules(rules: List<String>, args: List<String>): (List<String> * List<String>) =
+  match args with
+  | ["--allow", rule, ...rest] -> allowRules(Stdlib.List.append(rules, rule), rest)
+  | _ -> (rules, args)
+
+
+let executeUnder(
+  state: AppState,
+  args: List<String>,
+  harmful: Harmful,
+  wantStats: Bool,
+  grants: LanguageTools.Permissions.Policy)
+  : AppState =
   match args with
   | [] ->
     Stdlib.printLine(help(state))
@@ -92,10 +159,12 @@ let execute(state: AppState, args: List<String>): AppState =
       let (stats, outcome) =
         if wantStats then
           let harness = LanguageTools.Perf.floor()
-          let (raw, result) = LanguageTools.Perf.measure(fun () -> evaluate(state, expr, harmful))
+          let (raw, result) =
+            LanguageTools.Perf.measure(fun () -> evaluateUnder(state, expr, harmful, grants))
+
           (Option.Some(LanguageTools.Perf.minus(raw, harness)), result)
         else
-          (Option.None, evaluate(state, expr, harmful))
+          (Option.None, evaluateUnder(state, expr, harmful, grants))
 
       let newState =
         match outcome with
@@ -129,10 +198,11 @@ let complete(_state: AppState, _args: List<String>): List<Completion.CompletionI
 
 
 let help(_state: AppState): String =
-  [ "Usage: eval <expression>"
+  [ "Usage: eval [--allow <rules>] <expression>"
     "       eval -    (read expression from stdin, for multi-line input)"
     "Evaluate a Dark expression and display the result."
     ""
+    "  --allow   allow resources for this evaluation only, as `run --allow` does"
     "  --stats   also report what it cost: allocation, time, instructions, calls and"
     "            frame pushes, net of the measuring harness, tagged with the build they"
     "            came from. Inside a script, call Perf.measure instead: it measures the"

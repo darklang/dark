@@ -691,3 +691,27 @@ test instanceDenialOffersOneRun = Instance.withInstance(fun i ->
       Instance.says(out, "by instance policy", "the instance policy refused it")
       Instance.says(out, "For one run, leaving the policy as it is:", "offers one run")
       Instance.says(out, "dark run --allow \"file read", "with the rule") ]))
+
+
+/// `eval --allow` grants access for that one evaluation, as `run --allow` does.
+test evalAllowGrantsForOneEvaluation = Instance.withInstance(fun i ->
+  let dir = $"{Instance.home(i)}/elsewhere"
+  let target = $"{dir}/data.txt"
+  let _ = Stdlib.Cli.Posix.mkdir(dir, 493)
+  let _ = Stdlib.Cli.File.writeText(target, "hello")
+  let source = $"{Instance.home(i)}/reader.dark"
+  let _ =
+    Stdlib.Cli.File.writeText(
+      source,
+      "let size(path: String): Int64 =\n  match Stdlib.Cli.FileSystem.readFile(path) with\n  | Ok(b) -> Stdlib.Bytes.length(b)\n  | Error(_) -> -1\n")
+
+  let _ = Instance.ran(i, [ "module", "/Me.Reader", source ])
+  let call = $"Me.Reader.size(\"{target}\")"
+  let (deniedCode, _) = Instance.ran(i, [ "eval", call ])
+  let (code, out) = Instance.ran(i, [ "eval", "--allow", $"file read {dir}", call ])
+  let (againCode, _) = Instance.ran(i, [ "eval", call ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(deniedCode, 1, "denied without --allow")
+      Instance.exitedWith(code, 0, "allowed for this evaluation")
+      Instance.says(out, "5", "read the file")
+      Instance.exitedWith(againCode, 1, "nothing remembered") ]))

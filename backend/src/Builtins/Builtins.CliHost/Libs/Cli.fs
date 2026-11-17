@@ -2105,7 +2105,11 @@ let fns () : List<BuiltInFn> =
           Param.make
             "allowHarmful"
             TBool
-            "Opt out of Harmful-deprecation halting (see docs/deprecation)" ]
+            "Opt out of Harmful-deprecation halting (see docs/deprecation)"
+          Param.make
+            "runGrants"
+            (TCustomType(NR.ok (PolicyDT.Policy.typeName ()), []))
+            "Access approved by the user for this evaluation only" ]
       // Any type: the value is only known once the expression has run.
       returnType = TypeReference.result (TVariable "a") (ExecutionError.typeRef ())
       description =
@@ -2127,7 +2131,22 @@ let fns () : List<BuiltInFn> =
         | exeState,
           callerVM,
           [],
-          [| accountIDDval; DUuid branchId; DString expression; DBool allowHarmful |] ->
+          [| accountIDDval
+             DUuid branchId
+             DString expression
+             DBool allowHarmful
+             runGrantsValue |] ->
+          let runGrants = PolicyDT.Policy.fromDT runGrantsValue
+          let grants, denies = Permission.Policy.rules runGrants
+          if
+            not (List.isEmpty grants && List.isEmpty denies)
+            && not exeState.canManagePolicies
+          then
+            RT.RuntimeError.UncaughtException(
+              "eval approvals require the trusted dark eval command",
+              []
+            )
+            |> RT.raiseUntargetedRTE
           task {
             // Attribute the run to the calling account so the trace
             // insert can stamp `traces.account_id`.
@@ -2164,9 +2183,13 @@ let fns () : List<BuiltInFn> =
                     // The expression runs under the host's configured
                     // deny-by-default policy; missing or corrupt policy state
                     // remains locked down.
-                    let exeState =
+                    let guest =
                       createGuestState exeState callerVM.activeAccess mod' input
-                    let exeState = { exeState with deniedRequests = denied }
+                    let exeState =
+                      { guest with
+                          deniedRequests = denied
+                          runGrants = runGrants
+                          access = Permission.Access.grantRun runGrants guest.access }
                     match! execute exeState mod' input with
                     // A bare package fn name escaped the guest's frame, so it captured the
                     // guest's access. It carries nothing else from the guest: drop the capture,
