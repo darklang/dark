@@ -382,6 +382,13 @@ let subtract(d1: DateTime, d2: DateTime): Duration.Duration =
   __roundedDifference(d1, d2, __ticksPerSecond()) |> Duration.fromSeconds
 
 
+/// The signed number of days from the UTC date of <param d2> to the UTC date of <param d1>.
+/// Ignores time of day: two instants on the same UTC date return {{0}}, while crossing
+/// midnight counts as one day even when less than 24 hours elapsed. Negative for earlier dates.
+let daysBetween(d1: DateTime, d2: DateTime): Int64 =
+  __daysSinceEpoch(d1) - __daysSinceEpoch(d2)
+
+
 /// Converts <param date> to an <type Int64> representing milliseconds since the Unix epoch
 let toMilliseconds(date: DateTime): Int64 =
   __floorDiv(__ticks(date), __ticksPerMillisecond())
