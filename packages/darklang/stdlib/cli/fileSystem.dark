@@ -129,7 +129,8 @@ let isDirectoryAtPath(dirPath: String, fileName: String): Bool =
   Posix.isDirectory(fullPath)
 
 
-/// Read an entire file as a Bytes.
+/// Read an entire file as Bytes, following symlinks when the target is permitted.
+/// Returns an error for I/O failures, such as missing files or cyclic links.
 let readFile(path: String): Result<Bytes, FileError> =
   File.readBytes(__expandPath(path)) |> Result.mapError(__fromPosixError)
 

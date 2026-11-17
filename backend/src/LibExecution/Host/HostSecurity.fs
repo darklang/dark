@@ -20,46 +20,83 @@ module FilePath =
 
   let private maxLinkDepth = 40
 
-  /// The final target of `candidate` when it is a link, `None` when it is a
-  /// plain entry or does not exist. Raises for an inaccessible entry.
+  /// The stored target of a link, including a dangling one. Keep relative
+  /// components intact: resolving `..` before an earlier link changes its meaning.
   let private linkTarget (candidate : string) : Option<string> =
-    let info : FileSystemInfo =
-      if Directory.Exists candidate then
-        DirectoryInfo candidate
-      else
-        FileInfo candidate
-    if not info.Exists || isNull info.LinkTarget then
-      None
-    else
-      match info.ResolveLinkTarget true with
-      | null -> None
-      | target -> Some target.FullName
+    FileInfo(candidate).LinkTarget |> Option.ofObj
 
-  let rec private resolve
-    (includeFinal : bool)
-    (depth : int)
-    (path : string)
-    : string =
-    let full = Path.GetFullPath path
-    let root = Path.GetPathRoot full
-    if System.String.IsNullOrWhiteSpace root || depth > maxLinkDepth then
-      full
-    else
-      let parts : string[] =
-        full
-          .Substring(root.Length)
-          .Split(
-            [| Path.DirectorySeparatorChar; Path.AltDirectorySeparatorChar |],
-            System.StringSplitOptions.RemoveEmptyEntries
-          )
-      let last = parts.Length - 1
-      let mutable current = root
-      let mutable i = 0
-      let mutable resolved = None
-      while i <= last && resolved.IsNone do
-        let candidate = Path.Combine(current, parts[i])
+  /// A captured target, or the I/O failure encountered while resolving it.
+  type ReadTarget = { path : string; failure : Option<int * string> }
+
+  type private FinalLink =
+    | Keep
+    | Follow
+
+  let private resolve (finalLink : FinalLink) (path : string) : ReadTarget =
+    // Validate without using the collapsed spelling: `link/..` must visit
+    // the link before choosing its parent.
+    Path.GetFullPath path |> ignore<string>
+    let absolute =
+      if Path.IsPathFullyQualified path then
+        path
+      else
+        Path.Combine(Directory.GetCurrentDirectory(), path)
+    let split (value : string) =
+      let parts =
+        value.Split(
+          [| Path.DirectorySeparatorChar; Path.AltDirectorySeparatorChar |],
+          StringSplitOptions.RemoveEmptyEntries
+        )
+        |> Array.toList
+      // A trailing slash requires a directory, just like a final `/.`.
+      if
+        parts <> []
+        && (value.EndsWith(string Path.DirectorySeparatorChar)
+            || value.EndsWith(string Path.AltDirectorySeparatorChar))
+      then
+        parts @ [ "." ]
+      else
+        parts
+    let root = Path.GetPathRoot absolute
+    let failed
+      (current : string)
+      (remaining : List<string>)
+      errno
+      message
+      : ReadTarget =
+      { path = Path.Combine(current :: remaining |> List.toArray) |> Path.GetFullPath
+        failure = Some(errno, message) }
+    let loopError current remaining =
+      failed
+        current
+        remaining
+        (if OperatingSystem.IsMacOS() then 62 else 40)
+        "Too many levels of symbolic links"
+    let ioError current remaining (error : exn) =
+      let errno =
+        match error with
+        | :? UnauthorizedAccessException -> 13
+        | :? FileNotFoundException
+        | :? DirectoryNotFoundException -> 2
+        | _ -> 5
+      failed current remaining errno error.Message
+    let rec walk
+      (links : int)
+      (current : string)
+      (parents : List<string>)
+      (remaining : List<string>)
+      : ReadTarget =
+      match remaining with
+      | [] -> { path = current; failure = None }
+      | "." :: rest -> walk links current parents rest
+      | ".." :: rest ->
+        match parents with
+        | parent :: above -> walk links parent above rest
+        | [] -> walk links current [] rest
+      | part :: rest ->
+        let candidate = Path.Combine(current, part)
         let target =
-          if i = last && not includeFinal then
+          if rest.IsEmpty && finalLink = FinalLink.Keep then
             None
           else
             try
@@ -67,27 +104,45 @@ module FilePath =
             with _ ->
               None
         match target with
-        | None ->
-          current <- candidate
-          i <- i + 1
+        | Some _ when links >= maxLinkDepth -> loopError current remaining
         | Some target ->
-          // The target may itself sit under links; resolve it as a whole,
-          // then continue with what follows the link.
-          let rest = Array.sub parts (i + 1) (last - i)
-          let resumed : string = Path.Combine(Array.append [| target |] rest)
-          resolved <- Some(resolve includeFinal (depth + 1) resumed)
-      match resolved with
-      | Some path -> path
-      | None -> current
+          if Path.IsPathFullyQualified target then
+            let targetRoot = Path.GetPathRoot target
+            walk
+              (links + 1)
+              targetRoot
+              []
+              (split (target.Substring(targetRoot.Length)) @ rest)
+          else
+            walk (links + 1) current parents (split target @ rest)
+        | None when not rest.IsEmpty ->
+          // Do not let `..` skip a missing or non-directory component. A link
+          // appearing since the metadata read is also an I/O error, never followed.
+          try
+            let attributes = File.GetAttributes candidate
+            if attributes.HasFlag FileAttributes.ReparsePoint then
+              loopError current remaining
+            elif not (attributes.HasFlag FileAttributes.Directory) then
+              failed current remaining 20 "Not a directory"
+            else
+              walk links candidate (current :: parents) rest
+          with error ->
+            ioError current remaining error
+        | None -> walk links candidate (current :: parents) rest
+    walk 0 root [] (split (absolute.Substring(root.Length)))
 
   /// `path` with every symlinked ancestor replaced by its target; the final
   /// component is kept as written, so an operation on a link entry itself
   /// (readlink, unlink) still names the link.
-  let canonicalAncestors (path : string) : string = resolve false 0 path
+  let canonicalAncestors (path : string) : string =
+    (resolve FinalLink.Keep path).path
 
   /// `path` fully resolved, the final component included: what a rule root
   /// means.
-  let canonical (path : string) : string = resolve true 0 path
+  let canonical (path : string) : string = (resolve FinalLink.Follow path).path
+
+  /// Resolve a read without discarding missing-component or link-loop errors.
+  let readTarget (path : string) : ReadTarget = resolve FinalLink.Follow path
 
 let mutable private policyDirectoryOverride : string option = None
 

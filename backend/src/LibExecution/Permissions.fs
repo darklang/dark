@@ -249,6 +249,17 @@ module Request =
       )
     | _ -> Error $"Invalid HTTP request: {method} {url}"
 
+  /// A host path already resolved for an open or retained on a descriptor.
+  /// Validate its spelling without following links again: it names a captured resource.
+  let internal fileAtResolvedPath
+    (access : AccessKind)
+    (path : string)
+    : Result<Request, string> =
+    try
+      Ok(Request.File(access, System.IO.Path.GetFullPath path))
+    with _ ->
+      Error $"Invalid file path: {path}"
+
   /// Normalize a path before creating its request. The host operation performs
   /// final symlink checks when it opens or changes the path.
   let file (access : AccessKind) (path : string) : Result<Request, string> =
