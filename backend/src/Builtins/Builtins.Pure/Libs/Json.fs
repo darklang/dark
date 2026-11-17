@@ -31,7 +31,6 @@ let parseJson (s : string) : JsonElement =
 let writeJson (f : Utf8JsonWriter -> unit) : string =
   let options =
     new JsonWriterOptions(
-      // TODO: `true` here would make it hard to write tests...
       Indented = false,
       SkipValidation = true,
       Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping

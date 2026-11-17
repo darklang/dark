@@ -1,4 +1,3 @@
-// TODO tidy this file
 module rec LibSerialization.Binary.Serializers.RT.Instructions
 
 open System

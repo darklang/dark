@@ -227,9 +227,6 @@ module PT =
       tryDeserialize id data |> Option.map kind |> Option.defaultValue "unknown"
 
 module RT =
-  // TODO upstream, it might be better to serialize a slightly lower type,
-  // since we'll always have the corresponding ID in any context we use this
-  // (just for type and constants?)
   module PackageType =
     let serialize id value = makeSerializer RT.PackageType.write id value
     let deserialize id data = makeDeserializer RT.PackageType.read id data

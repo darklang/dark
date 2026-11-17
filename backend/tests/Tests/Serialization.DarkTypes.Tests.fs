@@ -28,9 +28,7 @@ module RoundtripTests =
   // most of the time, it should end up being the same as the source.
   // if there are known exceptions, break down individual mappings as separate tests
 
-  let types : RT.Types =
-    // CLEANUP could the `package` fn just return None? Not sure if we're actually using the types there
-    { package = pmRT.getType }
+  let types : RT.Types = { package = pmRT.getType }
 
   let testRoundtrip
     (testName : string)

@@ -20,8 +20,6 @@
 /// reaches a store that already exists.
 ///
 /// Synchronous on purpose: the bootstrap and the release steps run strictly in order.
-///
-/// CLEANUP maybe move this to LibDB?
 module LocalExec.Migrations
 
 open System.IO

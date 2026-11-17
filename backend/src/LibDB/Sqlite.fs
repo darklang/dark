@@ -1,8 +1,5 @@
 module LibDB.Sqlite
 
-// There's a lot of CLEANUP to do here.
-// To be reviewed by someone with more DB expertise.
-
 open System.Threading.Tasks
 open Microsoft.Data.Sqlite
 open Fumble
@@ -374,8 +371,8 @@ module Sql =
 
 
 
-// SQLite returns DateTime with Unspecified kind, but we know it's UTC
-// TODO consider if this is what we actually want - this seems risky
+// SQLite returns DateTime with Unspecified kind. We only ever store UTC
+// (`datetime('now')` and `DateTime.UtcNow`), so mark it as UTC.
 let private toUtcInstant (dateTime : System.DateTime) : NodaTime.Instant =
   let utcDateTime =
     if dateTime.Kind = System.DateTimeKind.Utc then
