@@ -95,3 +95,23 @@ test deleteModuleListsTheFirstTen = Instance.withInstance(fun i ->
       Instance.says(out, "Will delete 12 items in Me.Big:\n", "the count")
       Stdlib.Test.equal(Stdlib.List.length(named), 10)
       Instance.says(out, "\n    and 2 more", "the rest counted") ]))
+
+
+test deleteModuleTakesSubmodulesAndHonoursDryRun = Instance.withInstance(fun i ->
+  let outer = Instance.home(i) + "/outer.dark"
+  let inner = Instance.home(i) + "/inner.dark"
+  let _ = Stdlib.Cli.File.writeAtomic(outer, "let top(): Int64 = 1\n") |> Builtin.unwrap
+  let _ = Stdlib.Cli.File.writeAtomic(inner, "let deep(): Int64 = 2\n") |> Builtin.unwrap
+  let _ = Instance.ran(i, [ "module", "/Me.Outer", outer ])
+  let _ = Instance.ran(i, [ "module", "/Me.Outer.Inner", inner ])
+  let (dryCode, dry) = Instance.ran(i, [ "delete", "Me.Outer", "--dry-run" ])
+  let afterDry = Instance.said(i, [ "ls", "Me.Outer.Inner" ])
+  let (code, _) = Instance.ran(i, [ "delete", "Me.Outer", "--yes" ])
+  let after = Instance.said(i, [ "ls", "Me.Outer.Inner" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(dryCode, 0, "dry run")
+      Instance.says(dry, "Will delete 2 items in Me.Outer:", "counts the submodule's item")
+      Instance.says(dry, "    Me.Outer.Inner.deep", "names it")
+      Instance.says(afterDry, "deep", "the dry run deleted nothing")
+      Instance.exitedWith(code, 0, "deleted")
+      Instance.doesNotSay(after, "deep", "the submodule's item is gone") ]))

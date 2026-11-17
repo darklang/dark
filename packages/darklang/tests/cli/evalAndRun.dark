@@ -731,3 +731,13 @@ test scriptLambdaFramesGiveTheirLines = Instance.withInstance(fun i ->
       Instance.says(out, "- Lambda in Source (line 4)\n", "the outer lambda")
       Instance.says(out, "- Lambda in Source (line 5)\n", "the inner lambda")
       Instance.doesNotSay(out, "(×", "no lambdas merged") ]))
+
+
+/// The `--allow` note is only for a failed run; a run that succeeds got what it asked for.
+test misplacedAllowNoteOnlyOnFailure = Instance.withInstance(fun i ->
+  let path = $"{Instance.home(i)}/ok.dark"
+  let _ = Stdlib.Cli.File.writeText(path, "0\n")
+  let (code, out) = Instance.ran(i, [ "run", path, "--allow", "env-read HOME" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "succeeds")
+      Instance.doesNotSay(out, "Flags for `run` go before the name", "no note") ]))
