@@ -71,8 +71,6 @@ let namesToTry(owner: String, currentModule: List<String>, given: GenericName): 
   Stdlib.List.concat(__namesToTryHelper(currentModule, given), addl)
 
 
-// TODO we can do this without a helper function,
-// by removing the recursion and using a fold.
 let __namesToTryHelper(modulesToPrepend: List<String>, given: GenericName): List<GenericName> =
   match Stdlib.List.splitLast(modulesToPrepend) with
   | None -> [ given ]

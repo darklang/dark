@@ -37,10 +37,6 @@
 /// ```
 /// Html.document [Html.html [] [Html.body [] [...]]]
 /// ```
-///
-/// TODO think more on the organization of these
-/// - should the 'tag' helpers be in some Tag submodule?
-/// - should nodeToString be in a Node module, with HtmlTag and Node moved there?
 module Darklang.Stdlib.Html
 
 type Attribute = List<(String * Option<String>)>

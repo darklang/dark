@@ -545,10 +545,7 @@ let bytesPreview(bytes: Bytes, count: Int64): Option<String> =
 
 module Dval =
   let valueTypeName(branchId: Uuid, dv: LanguageTools.RuntimeTypes.Dval): String =
-    // TODO: When a builtin for Dval.toValueType is available, use:
-    // dv |> LanguageTools.RuntimeTypes.Dval.toValueType |> valueType
-    // This mirrors DvalReprDeveloper.toTypeName
-    // If a builtin is ever exposed, we could simplify to: Builtin.dvalToTypeName dv
+    // mirrors DvalReprDeveloper.toTypeName
     match dv with
     | DUnit -> "Unit"
     | DBool(_) -> "Bool"

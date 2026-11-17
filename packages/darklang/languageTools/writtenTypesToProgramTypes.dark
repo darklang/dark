@@ -1291,7 +1291,7 @@ module FunctionDeclaration =
       | Unit(p) ->
         (
           ProgramTypes.PackageFn.Parameter
-            { name = "_", typ = ProgramTypes.TypeReference.TUnit, description = "" },  // TODO ok?
+            { name = "_", typ = ProgramTypes.TypeReference.TUnit, description = "" },
           [])
       | Normal(p) ->
         let (typ, unresolvedNames) = TypeReference.toPT(ctx, p.typ)

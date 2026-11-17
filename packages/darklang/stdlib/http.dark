@@ -126,7 +126,6 @@ module Request =
     match found with
     | [] -> Option.None
     | [v] -> Option.Some(v)
-    // TODO: something else?
     | items -> Option.Some(String.join(items, ","))
 
 

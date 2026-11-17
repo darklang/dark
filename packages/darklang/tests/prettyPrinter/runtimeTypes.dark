@@ -426,7 +426,7 @@ test bytesShowAPreview =
 
 
 // Runtime errors print as sentences. This one was the case the printer had no arm for, and printed
-// as "RTE pretty-printing TODO" followed by its JSON.
+// as a placeholder followed by its JSON.
 test wrongNumberOfTypeArgsForTypeReadsAsASentence =
   let rte =
     LanguageTools.RuntimeTypes.RuntimeError.Error.WrongNumberOfTypeArgsForType(

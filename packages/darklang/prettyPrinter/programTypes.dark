@@ -1,8 +1,3 @@
-// TODO:
-// alias PT = LanguageTools.ProgramTypes
-// alias RT = Stdlib.RuntimeTypes
-// CLEANUP split into a few files - easier to manage, at this point.
-// i.e. common, typeReference, expr, declarations, packages, sourceFile
 module Darklang.PrettyPrinter.ProgramTypes
 
 /// Formats a description string as doc comments
@@ -1297,7 +1292,6 @@ let matchPatternGrouped(mp: LanguageTools.ProgramTypes.MatchPattern): String =
 
 let binaryOperation(b: LanguageTools.ProgramTypes.BinaryOperation): String =
   match b with
-  // CLEANUP consider surrounding with spaces
   | BinOpAnd -> "&&"
   | BinOpOr -> "||"
 
@@ -3382,9 +3376,7 @@ let sourceOf(
 
 module BuiltinFn =
   let signature(branchId: Uuid, f: LanguageTools.BuiltinFunction): String =
-    // CLEANUP: it's odd that we have to call the runtime pretty-printer here.
-    // Potential solution: update RuntimeTypes (.fs) such that BuiltInFn's returnType and parameters use PT TypeReferences.
-    // Main blocker: "RT comes before PT" in LibExecution, and it'd take some wrangling to get it all compiling again if we did that.
+    // builtin signatures hold RT types, since RT comes before PT in LibExecution, so I use the RT printer here
     let parameters =
       f.parameters
       |> Stdlib.List.map(fun p ->

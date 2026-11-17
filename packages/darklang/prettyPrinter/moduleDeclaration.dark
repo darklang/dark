@@ -289,7 +289,6 @@ let moduleDeclaration(ctx: ProgramTypes.Context, m: ModuleDeclaration.Module): S
 
   match parts with
   | [] ->
-    // CLEANUP: actually error
     "Error - module defined somehow without parts"
   | parts ->
     let bodyPart = Stdlib.String.join(parts, "\n\n") |> indent
@@ -299,7 +298,6 @@ let moduleDeclaration(ctx: ProgramTypes.Context, m: ModuleDeclaration.Module): S
 let definitions(ctx: ProgramTypes.Context, p: LanguageTools.ProgramTypes.Definitions): String =
   let modules = ModuleDeclaration.toModules(ctx.branchId, p)
 
-  // CLEANUP make ordering 'better' in some way
   modules
   |> Stdlib.List.map(fun m -> moduleDeclaration(ctx, m))
   |> Stdlib.String.join("\n\n")
