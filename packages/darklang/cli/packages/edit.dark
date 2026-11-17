@@ -194,7 +194,7 @@ let applyPatch(
           state,
           moduleArgFor(declarationLocation),
           updatedSource,
-          ModuleCommand.Caller.Command)
+          ModuleCommand.Caller.Edit)
 
       if updatedState.exitCode != 0 then
         let savedSource =

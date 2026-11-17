@@ -325,3 +325,22 @@ test moduleSaveNamesWhatItLeftBehind = Instance.withInstance(fun instance ->
   Stdlib.Test.all(
     [ Instance.says(again, "still in Me.LeftBehind from an earlier save: dropped", "names it")
       Instance.says(again, "delete fn Me.LeftBehind.dropped --yes", "says how to take it out") ]))
+
+
+/// Editing one declaration does not list the module's other names as left behind.
+test editDoesNotListSiblingsAsLeftBehind = Instance.withInstance(fun instance ->
+  let _ =
+    runWithStdin(
+      instance,
+      [ "module", "/Me.EditOne", "-" ],
+      "let one(): Int64 = 1\nlet two(): Int64 = 2\n")
+
+  let (code, out) =
+    runWithStdin(
+      instance,
+      [ "edit", "Me.EditOne.one", "--patch", "-" ],
+      "@@\n let one(): Int64 =\n-  1\n+  11\n")
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "the edit saves")
+      Instance.doesNotSay(out, "from an earlier save", "two is not left behind") ]))
