@@ -85,11 +85,13 @@ module TypeDeclaration =
 
 let write (w : BinaryWriter) (t : PackageType.PackageType) : unit =
   Hash.write w t.hash
+  Option.write w Guid.write t.id
   TypeDeclaration.write w t.declaration
   String.write w t.description
 
 let read (r : BinaryReader) : PackageType.PackageType =
   let hash = Hash.read r
+  let id = Option.read r Guid.read
   let declaration = TypeDeclaration.read r
   let description = String.read r
-  { hash = hash; declaration = declaration; description = description }
+  { hash = hash; id = id; declaration = declaration; description = description }

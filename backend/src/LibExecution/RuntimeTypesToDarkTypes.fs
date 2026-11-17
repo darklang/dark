@@ -17,7 +17,7 @@ let private dintOfInt (i : int) : Dval = RuntimeTypes.Dval.dint64 (int64 i)
 
 module Hash =
   let typeName () =
-    FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.RuntimeTypes.hash ())
+    FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.ProgramTypes.hash ())
   let knownType () = KTCustomType(typeName (), [])
 
   let toDT (RuntimeTypes.Hash h) : Dval =

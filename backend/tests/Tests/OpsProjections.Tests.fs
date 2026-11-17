@@ -100,6 +100,31 @@ let removedPackageRefs =
   }
 
 
+let hardenedPinsRepinUnderANewHashScheme =
+  test
+    "hardened pins re-pin under a new hash scheme, and refuse to move under the same one" {
+    let option = "type/Stdlib.Option.Option"
+    let current = $"# hash scheme {LibSerialization.Hashing.Hashing.scheme}"
+    let merged = [ option, "new" ]
+    Expect.equal
+      (LibDB.PackageRefsGenerator.movedHardenedPins [| $"{option}|old" |] merged)
+      []
+      "pins from before the scheme marker re-pin"
+    Expect.equal
+      (LibDB.PackageRefsGenerator.movedHardenedPins
+        [| "# hash scheme 0"; $"{option}|old" |]
+        merged)
+      []
+      "pins from an older scheme re-pin"
+    Expect.equal
+      (LibDB.PackageRefsGenerator.movedHardenedPins
+        [| current; $"{option}|old" |]
+        merged)
+      [ option, "old", "new" ]
+      "a move under the same scheme is refused"
+  }
+
+
 /// A content fingerprint of the projections: the sorted set of every projected item's hash. Two folds that
 /// produce the same fingerprint produced the same projections (down to identity), regardless of row order or
 /// nondeterministic columns like `location_id`.
@@ -820,6 +845,7 @@ let tests =
     "OpsProjections"
     [ sourceRefsBeforeLowering
       removedPackageRefs
+      hardenedPinsRepinUnderANewHashScheme
       opHashingIsStable
       opIdIsItsContentHash
       rebuildIsDeterministic

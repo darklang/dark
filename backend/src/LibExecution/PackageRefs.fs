@@ -411,7 +411,6 @@ module Type =
 
     module RuntimeTypes =
       let private p addl = p ("RuntimeTypes" :: addl)
-      let hash = p [] "Hash"
       let implCandidate = p [] "ImplCandidate"
 
       module FQTypeName =
