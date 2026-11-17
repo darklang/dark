@@ -229,13 +229,28 @@ let __roundedDifference(endDate: DateTime, startDate: DateTime, ticksPerUnit: In
     whole
 
 
+/// Why a string cannot be parsed as a date and time.
+type ParseError =
+  /// The input does not use a supported ISO 8601 format, time or UTC offset.
+  | InvalidFormat
+  /// The input uses a supported format, but its year, month or day is not a valid calendar date.
+  | InvalidDate
+
+
+impl Display for ParseError =
+  /// A readable explanation of the parse failure.
+  let display(error: ParseError): String =
+    match error with
+    | InvalidFormat -> "Invalid date format; expected YYYY-MM-DD or an ISO 8601 timestamp"
+    | InvalidDate -> "Invalid calendar date"
+
+
 /// Parses an ISO 8601 date and time: {{YYYY-MM-DDTHH:mm:ssZ}} or {{YYYY-MM-DDTHH:mm:ss.fffZ}},
 /// where {{Z}} can also be an offset from UTC such as {{+02:00}} or {{-05:30}}, or a plain
-/// {{YYYY-MM-DD}} date as midnight UTC. The result is in UTC.
-let parse(s: String): Result<DateTime, String> =
-  match Builtin.dateTimeParse(s) with
-  | Some(date) -> Result.Ok(date)
-  | None -> Result.Error("Invalid date format")
+/// {{YYYY-MM-DD}} date as midnight UTC. The result is in UTC. Returns {{Error InvalidDate}}
+/// for an impossible calendar date, or {{Error InvalidFormat}} for other rejected input.
+let parse(s: String): Result<DateTime, ParseError> =
+  Builtin.dateTimeParse(s)
 
 
 /// The date as {{YYYYMMDD}}. A year before 1 gets a leading {{-}}, as {{format}} writes it.
@@ -380,6 +395,13 @@ let atStartOfDay(date: DateTime): DateTime =
 /// Half-second ties round to the nearest even second.
 let subtract(d1: DateTime, d2: DateTime): Duration.Duration =
   __roundedDifference(d1, d2, __ticksPerSecond()) |> Duration.fromSeconds
+
+
+/// The signed number of days from the UTC date of <param d2> to the UTC date of <param d1>.
+/// Ignores time of day: two instants on the same UTC date return {{0}}, while crossing
+/// midnight counts as one day even when less than 24 hours elapsed. Negative for earlier dates.
+let daysBetween(d1: DateTime, d2: DateTime): Int64 =
+  __daysSinceEpoch(d1) - __daysSinceEpoch(d2)
 
 
 /// Converts <param date> to an <type Int64> representing milliseconds since the Unix epoch

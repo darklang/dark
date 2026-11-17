@@ -223,6 +223,7 @@ module Type =
     let floatParseError = p [ "Float64" ] "ParseError"
     let cryptoDigestAlgorithm = p [ "Crypto" ] "DigestAlgorithm"
     let uuidParseError = p [ "Uuid" ] "ParseError"
+    let dateTimeParseError = p [ "DateTime" ] "ParseError"
 
     module Http =
       let request = p [ "Http" ] "Request"
