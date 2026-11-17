@@ -204,10 +204,6 @@ do_dark() {
   fi
 }
 
-# TODO sqlfmt for sql
-# TODO add python
-# TODO bash formatter
-
 #######################
 # action files/dirs
 #######################

@@ -1,5 +1,5 @@
 ######################################
-# XXX: Changes won't take effect until you restart script/builder
+# Changes won't take effect until you restart scripts/builder
 # or rebuild the vscode dev container
 #
 # If using a VS Code devcontainer, you need to uncomment out the lines to enable this
@@ -8,7 +8,7 @@
 # Values set here override the defaults in config/dev (or whatever config is loaded)
 
 ######################################
-# XXX: Changes won't take effect until you restart script/builder
+# Changes won't take effect until you restart scripts/builder
 # or rebuild the vscode dev container
 #
 # If using a VS Code devcontainer, you need to uncomment out the lines to enable this
