@@ -676,8 +676,8 @@ test codeCannotChangeTheNetworkGuard = Instance.withInstance(fun i ->
             "and the setting took") ] ])))
 
 
-/// A script the instance policy refuses is told how to allow it for one run too.
-test instanceDenialOffersOneRun = Instance.withInstance(fun i ->
+/// A script the instance policy refuses points to the runner's approval, not a one-run grant.
+test instanceDenialKeepsToApproval = Instance.withInstance(fun i ->
   let path = $"{Instance.home(i)}/reads.dark"
   let target = $"{Instance.home(i)}/elsewhere/data.txt"
   let _ =
@@ -689,8 +689,8 @@ test instanceDenialOffersOneRun = Instance.withInstance(fun i ->
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "denied")
       Instance.says(out, "by instance policy", "the instance policy refused it")
-      Instance.says(out, "For one run, leaving the policy as it is:", "offers one run")
-      Instance.says(out, "dark run --allow \"file read", "with the rule") ]))
+      Instance.says(out, "runner's approval flow", "points to the runner's approval")
+      Instance.doesNotSay(out, "For one run", "offers no way round the policy") ]))
 
 
 /// `eval --allow` grants access for that one evaluation, as `run --allow` does.

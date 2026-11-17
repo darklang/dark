@@ -307,16 +307,6 @@ let printScriptError(state: AppState, e: ExecutionError.ExecutionError): AppStat
     ExecutionError.printCallStack(state.currentBranchId, "Script", e)
     let pretty = ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, e)
     Stdlib.printErrorLine($"Script error: {pretty}")
-    // A function's denial names its one-run grant already; the instance policy's names only
-    // policy edits.
-    match e with
-    | Denied(denied) ->
-      match denied.entry, denied.rule with
-      | None, Some(rule) ->
-        Stdlib.printErrorLine(
-          $"\nFor one run, leaving the policy as it is:\n  dark run --allow \"{rule}\" …")
-      | _ -> ()
-    | _ -> ()
 
   { state with exitCode = 1 }
 
