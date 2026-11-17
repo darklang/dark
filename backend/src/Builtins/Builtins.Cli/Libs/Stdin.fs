@@ -356,7 +356,7 @@ let private readLine () : Task<HE.StdinResult> =
 
 
 /// `Stdlib.Host.EventSpec`, as F#.
-let private eventSpecOfDval (vm : VMState) (d : Dval) : HE.EventSpec =
+let private eventSpecOfDval (d : Dval) : HE.EventSpec =
   match d with
   | DEnum(_, _, _, "Key", []) -> HE.EventSpec.Key
   | DEnum(_, _, _, "StoreChanged", []) -> HE.EventSpec.StoreChanged
@@ -369,12 +369,12 @@ let private eventSpecOfDval (vm : VMState) (d : Dval) : HE.EventSpec =
     HE.EventSpec.StdinBytes(int n)
   | _ ->
     RuntimeError.UncaughtException("hostAwait: not an EventSpec", [ "spec", d ])
-    |> raiseRTE vm.threadID
+    |> raiseRTE
 
 
 /// `Stdlib.Host.RawEvent`, from what the queue delivered. `Stdlib.Host.await` turns it into an
 /// `Event`, describing a store change on the way.
-let private eventToDval (vm : VMState) (ev : HE.HostEvent) : Dval =
+let private eventToDval (ev : HE.HostEvent) : Dval =
   let typeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Host.rawEvent ())
   let case name fields = DEnum(typeName, typeName, [], name, fields)
   match ev with
@@ -387,8 +387,7 @@ let private eventToDval (vm : VMState) (ev : HE.HostEvent) : Dval =
   | HE.HostEvent.Stdin(_, Ok None) -> case "StdinClosed" []
   // Out of step: what comes next cannot be trusted, and a guess would be read as a message.
   | HE.HostEvent.Stdin(_, Error e) ->
-    RuntimeError.UncaughtException($"reading stdin: {e}", [])
-    |> raiseRTE vm.threadID
+    RuntimeError.UncaughtException($"reading stdin: {e}", []) |> raiseRTE
   | HE.HostEvent.Completed _
   | HE.HostEvent.Wake ->
     Exception.raiseInternal
@@ -505,7 +504,7 @@ let fns () : List<BuiltInFn> =
         + "the process parks until the line arrives."
       fn =
         (function
-        | _, vm, _, [| DUnit |] ->
+        | _, _, _, [| DUnit |] ->
           readLine ()
           |> Pending.map (fun result ->
             match result with
@@ -514,8 +513,7 @@ let fns () : List<BuiltInFn> =
                 KTString
                 (Option.map (String.normalizeOutside >> DString) line)
             | Error e ->
-              RuntimeError.UncaughtException($"stdinReadLine: {e}", [])
-              |> raiseRTE vm.threadID)
+              RuntimeError.UncaughtException($"stdinReadLine: {e}", []) |> raiseRTE)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.Stdin; Effect.Raise ]
@@ -605,8 +603,8 @@ let fns () : List<BuiltInFn> =
         + "it. The contract every host loop is written against (docs/processes.md)."
       fn =
         (function
-        | _, vm, _, [| DList(_, Items(specs)) |] ->
-          let specs = specs |> List.map (eventSpecOfDval vm)
+        | _, _, _, [| DList(_, Items(specs)) |] ->
+          let specs = specs |> List.map eventSpecOfDval
           if List.contains HE.EventSpec.Key specs then installKeySource ()
           if
             specs
@@ -618,8 +616,8 @@ let fns () : List<BuiltInFn> =
           then
             installStdinSource ()
           match Scheduler.Scheduler.Current, Scheduler.Scheduler.CurrentProcess with
-          | Some s, Some p -> s.Subscribe(p, specs) |> Pending.map (eventToDval vm)
-          | _ -> (eventToDval vm (awaitBlocking specs))
+          | Some s, Some p -> s.Subscribe(p, specs) |> Pending.map eventToDval
+          | _ -> (eventToDval (awaitBlocking specs))
         | _ -> incorrectArgs ())
       // Static, so the union of what any spec could need: a key is stdin, a store change is a
       // package read. A `[Timer 10]` alone still declares both; narrowing per call would need

@@ -154,8 +154,8 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DBigInt fd; DInt64 count |] ->
           let op =
             HostTypes.PosixOp.DirectoryBytes(
-              bigIntToDescriptor vm fd,
-              int64ToInt32 vm count
+              bigIntToDescriptor fd,
+              int64ToInt32 count
             )
           syscallResult KTBytes vm op (fun r ->
             Bytes.newEphemeral (Host.expectBytes r))
@@ -175,7 +175,7 @@ let fns () : List<BuiltInFn> =
           syscallResult
             KTBytes
             vm
-            (HostTypes.PosixOp.GetcwdBytes(int64ToInt32 vm count))
+            (HostTypes.PosixOp.GetcwdBytes(int64ToInt32 count))
             (fun r -> Bytes.newEphemeral (Host.expectBytes r))
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -210,7 +210,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DString path; DInt64 mode |] ->
-          let op = HostTypes.PosixOp.Mkdir(path, int64ToInt32 vm mode)
+          let op = HostTypes.PosixOp.Mkdir(path, int64ToInt32 mode)
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -231,7 +231,7 @@ let fns () : List<BuiltInFn> =
           syscallResult
             KTUnit
             vm
-            (HostTypes.PosixOp.UnlinkAt(path, int64ToInt32 vm flags))
+            (HostTypes.PosixOp.UnlinkAt(path, int64ToInt32 flags))
             unitOk
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -267,7 +267,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DString path; DInt64 mode |] ->
-          let op = HostTypes.PosixOp.Chmod(path, int64ToInt32 vm mode)
+          let op = HostTypes.PosixOp.Chmod(path, int64ToInt32 mode)
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -309,7 +309,7 @@ let fns () : List<BuiltInFn> =
           syscallResult
             KTBytes
             vm
-            (HostTypes.PosixOp.ReadlinkBytes(path, int64ToInt32 vm count))
+            (HostTypes.PosixOp.ReadlinkBytes(path, int64ToInt32 count))
             (fun response -> Bytes.newEphemeral (Host.expectBytes response))
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -344,8 +344,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DInt64 pid; DInt64 signal |] ->
-          let op =
-            HostTypes.PosixOp.Kill(int64ToInt32 vm pid, int64ToInt32 vm signal)
+          let op = HostTypes.PosixOp.Kill(int64ToInt32 pid, int64ToInt32 signal)
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -365,7 +364,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DBigInt fd; DInt64 count |] ->
           let op =
-            HostTypes.PosixOp.FdRead(bigIntToDescriptor vm fd, int64ToInt32 vm count)
+            HostTypes.PosixOp.FdRead(bigIntToDescriptor fd, int64ToInt32 count)
           syscallResult KTBytes vm op (fun response ->
             Bytes.newEphemeral (Host.expectBytes response))
         | _ -> incorrectArgs ())
@@ -391,9 +390,9 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [| DBigInt fd; DInt64 offset; DInt64 whence |] ->
           let op =
             HostTypes.PosixOp.FdSeek(
-              bigIntToDescriptor vm fd,
+              bigIntToDescriptor fd,
               offset,
-              int64ToInt32 vm whence
+              int64ToInt32 whence
             )
           syscallResult KTInt64 vm op (fun response ->
             Dval.dint64 (int64 (Host.expectOffset response)))
@@ -414,7 +413,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, vm, _, [| DBigInt fd; DBytes ref |] ->
           Bytes.withBytes state ref (fun bytes ->
-            let op = HostTypes.PosixOp.FdWrite(bigIntToDescriptor vm fd, bytes)
+            let op = HostTypes.PosixOp.FdWrite(bigIntToDescriptor fd, bytes)
             syscallResult KTInt64 vm op (fun response ->
               Dval.dint64 (int64 (Host.expectWritten response))))
         | _ -> incorrectArgs ())
@@ -431,7 +430,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DBigInt fd |] ->
-          let op = HostTypes.PosixOp.FdClose(bigIntToDescriptor vm fd)
+          let op = HostTypes.PosixOp.FdClose(bigIntToDescriptor fd)
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -454,7 +453,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DString path; DInt64 flags; DInt64 mode |] ->
           let op =
-            HostTypes.PosixOp.Open(path, int64ToInt32 vm flags, int64ToInt32 vm mode)
+            HostTypes.PosixOp.Open(path, int64ToInt32 flags, int64ToInt32 mode)
           syscallResult KTBigInt vm op (fun response ->
             Dval.bigInt (Host.expectDescriptor response))
         | _ -> incorrectArgs ())
@@ -530,8 +529,8 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DBigInt fd; DInt64 operation |] ->
-          let lockOp = int64ToInt32 vm operation
-          let op = HostTypes.PosixOp.Flock(bigIntToDescriptor vm fd, lockOp)
+          let lockOp = int64ToInt32 operation
+          let op = HostTypes.PosixOp.Flock(bigIntToDescriptor fd, lockOp)
           syscallResult KTUnit vm op unitOk
         | _ -> incorrectArgs ())
       previewable = Impure

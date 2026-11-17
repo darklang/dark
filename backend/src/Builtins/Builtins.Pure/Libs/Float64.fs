@@ -29,7 +29,7 @@ let fns () : List<BuiltInFn> =
       description = "Round up to an integer value"
       fn =
         (function
-        | _, vm, _, [| DFloat64 a |] -> a |> System.Math.Ceiling |> roundedToInt64 vm
+        | _, _, _, [| DFloat64 a |] -> a |> System.Math.Ceiling |> roundedToInt64
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = set [ LibExecution.Effects.Effect.Raise ]
@@ -46,7 +46,7 @@ let fns () : List<BuiltInFn> =
         + "{{Float64.floor(-1.9) == -2}} but {{Float64.truncate(-1.9) == -1}}"
       fn =
         (function
-        | _, vm, _, [| DFloat64 a |] -> a |> System.Math.Floor |> roundedToInt64 vm
+        | _, _, _, [| DFloat64 a |] -> a |> System.Math.Floor |> roundedToInt64
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = set [ LibExecution.Effects.Effect.Raise ]
@@ -60,7 +60,7 @@ let fns () : List<BuiltInFn> =
       description = "Round to the nearest integer value"
       fn =
         (function
-        | _, vm, _, [| DFloat64 a |] -> a |> System.Math.Round |> roundedToInt64 vm
+        | _, _, _, [| DFloat64 a |] -> a |> System.Math.Round |> roundedToInt64
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = set [ LibExecution.Effects.Effect.Raise ]
@@ -75,8 +75,7 @@ let fns () : List<BuiltInFn> =
         "Discard the fractional portion of the float, rounding towards zero"
       fn =
         (function
-        | _, vm, _, [| DFloat64 a |] ->
-          a |> System.Math.Truncate |> roundedToInt64 vm
+        | _, _, _, [| DFloat64 a |] -> a |> System.Math.Truncate |> roundedToInt64
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = set [ LibExecution.Effects.Effect.Raise ]

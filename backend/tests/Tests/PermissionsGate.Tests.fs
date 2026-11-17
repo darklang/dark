@@ -335,7 +335,7 @@ let private refusesAsAdmin
         )
       return false
     with
-    | RT.RuntimeErrorException(_, RTE.Error.UncaughtException(message, _)) when
+    | RT.RuntimeErrorException(RTE.Error.UncaughtException(message, _)) when
       message.Contains "trusted `dark permissions` command"
       ->
       return true
@@ -407,7 +407,7 @@ let guestCannotGrantRunAccess =
           builtin.fn (struct (guest, dummyVM (), [], args))
         )
       ()
-    with RT.RuntimeErrorException(_, RTE.Error.UncaughtException(message, _)) ->
+    with RT.RuntimeErrorException(RTE.Error.UncaughtException(message, _)) ->
       refused <-
         message.Contains "run approvals require the trusted dark run command"
     Expect.isTrue refused "only the trusted CLI may supply a grant"
@@ -478,7 +478,7 @@ let guestFileApiCannotReachPolicyStore =
         try
           LibExecution.PermissionCheck.requireFileWrite exeState vm path
           Expect.equal 1 2 "expected the protected-path denial"
-        with RT.RuntimeErrorException(_, RTE.Error.UncaughtException(message, _)) ->
+        with RT.RuntimeErrorException(RTE.Error.UncaughtException(message, _)) ->
           Expect.stringContains message "protected host policy state" explanation
       assertDenied
         policyPath
@@ -657,7 +657,7 @@ let preflightKeepsNamedEntryApprovals =
           nested
           None
       ()
-    with RT.RuntimeErrorException(_, RTE.Error.UncaughtException(message, _)) ->
+    with RT.RuntimeErrorException(RTE.Error.UncaughtException(message, _)) ->
       denied <- message.Contains "permission denied"
     Expect.isTrue denied "the unapproved outer entry still fails before running"
   }

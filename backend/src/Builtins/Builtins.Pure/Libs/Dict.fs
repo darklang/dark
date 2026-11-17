@@ -213,7 +213,7 @@ let fns () : List<BuiltInFn> =
                     other
                   )
                   |> RuntimeError.Bool
-                  |> raiseRTE vm.threadID)
+                  |> raiseRTE)
               |> Array.map (fun (_, struct (k, v)) -> (k, v))
             DDict(kt, vt, DictMap.ofList (List.ofArray kept)))
         | _ -> incorrectArgs ())
@@ -233,10 +233,9 @@ let fns () : List<BuiltInFn> =
         + "{{None}}."
       fn =
         (function
-        | _, vm, _, [| DDict(_, _, o); key |] ->
+        | _, _, _, [| DDict(_, _, o); key |] ->
           LibExecution.RuntimeTypes.Dval.assertUsableDictKey key
-          DictMap.tryFind key o
-          |> TypeChecker.DvalCreator.option vm.threadID VT.unknownTODO
+          DictMap.tryFind key o |> TypeChecker.DvalCreator.option VT.unknownTODO
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -301,13 +300,13 @@ let fns () : List<BuiltInFn> =
         + "overwritten."
       fn =
         (function
-        | _, vm, _, [| DDict(kt, vt, o); k; v |] ->
+        | _, _, _, [| DDict(kt, vt, o); k; v |] ->
           match TypeChecker.DvalCreator.tryDictAddEntry kt vt o k v with
           | ValueSome updated -> updated
           | ValueNone ->
             // raises, naming what is wrong
             let struct (kt, vt, map) =
-              TypeChecker.DvalCreator.dictAddEntry vm.threadID kt vt o k v
+              TypeChecker.DvalCreator.dictAddEntry kt vt o k v
             DDict(kt, vt, map)
         | _ -> incorrectArgs ())
       previewable = Pure

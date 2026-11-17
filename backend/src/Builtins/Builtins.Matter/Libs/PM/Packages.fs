@@ -672,7 +672,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           // this builtin are precisely the ones that cannot let user code unwind them
           // (`LanguageTools.Live.call`), so `applyCatching` catches both. Running out of memory is
           // the exception: it exits, as everywhere else in the runtime.
-          Execution.applyCatching asRoot vm.threadID asRoot.access applicable arg
+          Execution.applyCatching asRoot asRoot.access applicable arg
           |> Pending.map (fun caught ->
             match caught with
             | Ok dv -> ok dv

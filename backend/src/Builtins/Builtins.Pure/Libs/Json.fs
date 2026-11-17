@@ -1060,14 +1060,14 @@ let fns () : List<BuiltInFn> =
       description = "Serializes a Dark value to a JSON string."
       fn =
         (function
-        | exeState, vm, [ typ ], [| options; arg |] ->
+        | exeState, _, [ typ ], [| options; arg |] ->
           let noneAsNull = noneAsNull options
           try
             (DString(
               writeJson (fun w -> serialize exeState.types noneAsNull w typ arg)
             ))
           with CannotSerialize dv ->
-            RTE.Jsons.CannotSerializeValue dv |> RTE.Json |> raiseRTE vm.threadID
+            RTE.Jsons.CannotSerializeValue dv |> RTE.Json |> raiseRTE
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = set [ LibExecution.Effects.Effect.Raise ]
@@ -1126,13 +1126,9 @@ let fns () : List<BuiltInFn> =
           // `resultError` up front. Both closures were built on every call and exactly one was
           // ever invoked.
           match parse threadID exeState.types typeArg arg with
-          | Ok v -> TypeChecker.DvalCreator.Result.ok threadID okType errType v
+          | Ok v -> TypeChecker.DvalCreator.Result.ok okType errType v
           | Error e ->
-            TypeChecker.DvalCreator.Result.error
-              threadID
-              okType
-              errType
-              (ParseError.toDT e)
+            TypeChecker.DvalCreator.Result.error okType errType (ParseError.toDT e)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

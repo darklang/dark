@@ -263,7 +263,7 @@ let configure
                   "Permissions changed while you were deciding. Run again to review current access.",
                   []
                 )
-                |> RT.raiseUntargetedRTE
+                |> RT.raiseRTE
             else
               let added = missing |> List.map P.Rule.forRequest
               if choice = 2L then

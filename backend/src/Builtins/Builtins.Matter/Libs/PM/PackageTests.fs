@@ -28,7 +28,7 @@ let private requireRunningPackageTest
   (helper : string)
   : unit =
   if not state.test.isPackageTest then
-    raiseUntargetedRTE (
+    raiseRTE (
       RuntimeError.UncaughtException(
         $"Stdlib.Test.{helper} requires a running package test",
         []
@@ -422,13 +422,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                     | Error(error, stack) ->
                       // VM error protocol: the callback's frames wait here for the raise.
                       vm.nestedCallStack <- stack
-                      return raiseRTE vm.threadID error
+                      return raiseRTE error
                   })
             | Error error ->
-              return
-                raiseRTE
-                  vm.threadID
-                  (RuntimeError.UncaughtException(error.message, []))
+              return raiseRTE (RuntimeError.UncaughtException(error.message, []))
             | _ -> return Exception.raiseInternal "Invalid test snapshot response" []
           }
           |> Pending.ofTask
@@ -613,7 +610,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             | Ok value -> return value
             | Error(error, stack) ->
               vm.nestedCallStack <- stack
-              return raiseRTE vm.threadID error
+              return raiseRTE error
           }
           |> Pending.ofTask
         | _ -> incorrectArgs ())
@@ -632,7 +629,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | state, _, _, [| DString message |] ->
           requireRunningPackageTest state "raiseRuntimeError"
-          raiseUntargetedRTE (RuntimeError.UncaughtException(message, []))
+          raiseRTE (RuntimeError.UncaughtException(message, []))
         | _ -> incorrectArgs ())
       // Pure: inside a test, the same message always raises the same error, so a test that
       // checks how an error propagates can run in-process and keep its cached pass.

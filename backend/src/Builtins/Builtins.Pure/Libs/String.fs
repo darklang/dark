@@ -203,10 +203,9 @@ let fns () : List<BuiltInFn> =
         "Returns <param s> repeated <param count> times. An empty string when <param count> is not positive."
       fn =
         (function
-        | _, vm, _, [| DString s; DInt64 count |] ->
+        | _, _, _, [| DString s; DInt64 count |] ->
           if count > int64 System.Int32.MaxValue then
             outOfRange
-              vm
               (RuntimeError.BigInts.RepeatCount(int64 System.Int32.MaxValue))
               (DInt64 count)
           else
@@ -292,7 +291,7 @@ let fns () : List<BuiltInFn> =
       description = "Combines a list of strings with the provided separator"
       fn =
         (function
-        | _, vm, _, [| DList(_, Items(l)) as list; DString sep |] ->
+        | _, _, _, [| DList(_, Items(l)) as list; DString sep |] ->
           l
           |> List.map (fun s ->
             match s with
@@ -308,7 +307,7 @@ let fns () : List<BuiltInFn> =
                 list
               )
               |> RuntimeError.Apply
-              |> raiseRTE vm.threadID)
+              |> raiseRTE)
           |> String.joinNormalized sep
           |> DString
         | _ -> incorrectArgs ())

@@ -102,10 +102,10 @@ let raiseDenial
           else
             Permission.Suggestion.rule suggestion })
   RuntimeError.UncaughtException(denialMessage resource reason layer suggestion, [])
-  |> raiseUntargetedRTE
+  |> raiseRTE
 
 let private raiseRejected (message : string) : 'a =
-  RuntimeError.UncaughtException(message, []) |> raiseUntargetedRTE
+  RuntimeError.UncaughtException(message, []) |> raiseRTE
 
 /// Check one exact request against the access the running builtin was
 /// applied under (`vm.activeAccess`: the frame's, narrowed by the callee's

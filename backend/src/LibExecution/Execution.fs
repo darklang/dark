@@ -231,7 +231,7 @@ let execute
         return Ok result
 
       with
-      | RT.RuntimeErrorException(_threadID, rte) ->
+      | RT.RuntimeErrorException(rte) ->
         let callStack = callStackFromVM vm
         return Error(rte, callStack)
       | ex when isOutOfStack ex ->
@@ -332,7 +332,7 @@ let evaluatingValueReader
               let value = Dval.packageValue hash body
               evaluated[hash] <- value
               Some value
-            | Error(error, _) -> RT.raiseUntargetedRTE error
+            | Error(error, _) -> RT.raiseRTE error
           finally
             lock evaluating (fun () -> evaluating.Remove hash |> ignore<bool>)
   read
@@ -479,7 +479,7 @@ let private finished
       VMSlot.Return vm
       Ok result
     with
-    | RT.RuntimeErrorException(_threadID, rte) -> Error(rte, callStackFromVM vm)
+    | RT.RuntimeErrorException(rte) -> Error(rte, callStackFromVM vm)
     // Return stack-depth failures to the caller as runtime errors.
     // Skip reportException, which is reserved for unexpected internal failures.
     | ex when isOutOfStack ex ->
@@ -658,7 +658,6 @@ type CaughtFailure =
 ///   which runs the chunk again serially, where the verdict is made.
 let applyCatching
   (state : RT.ExecutionState)
-  (threadID : RT.ThreadID)
   (access : LibExecution.Permissions.Access)
   (applicable : RT.Applicable)
   (arg : RT.Dval)
@@ -667,7 +666,7 @@ let applyCatching
     try
       match! executeApplicable1 state access applicable arg with
       | Ok result -> return Ok result
-      | Error(rte, _) when state.spreadChild -> return RT.raiseRTE threadID rte
+      | Error(rte, _) when state.spreadChild -> return RT.raiseRTE rte
       | Error(RTE.UncaughtException(message, _), _) when message = outOfStackMessage ->
         return Error OutOfStack
       | Error(rte, _) ->

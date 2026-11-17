@@ -903,7 +903,7 @@ let private prepareGuest
   }
 
 /// Run a guest entry point (`run`/`eval`), turning an escaping exception into
-/// the builtin's error result. Runtime errors raised via `raiseUntargetedRTE`
+/// the builtin's error result. Runtime errors raised via `raiseRTE`
 /// (e.g. `NoExpressionsToExecute`) escape as `RuntimeErrorException` rather
 /// than returning through the normal `Error(rte, _)` channel, so they are
 /// classified `Runtime`, not `Unhandled`.
@@ -917,7 +917,7 @@ let private guestTry
       let! result = body ()
       return result
     with
-    | RuntimeErrorException(_, rte) ->
+    | RuntimeErrorException(rte) ->
       return resultError (ExecutionError.toDT (toError rte))
     | e ->
       // A store condition raised before the run starts (the approved-version check sits in
@@ -1120,10 +1120,7 @@ let executeWith
 
     match mod'.exprs with
     | [] ->
-      return
-        RuntimeError.CLIs.NoExpressionsToExecute
-        |> RuntimeError.CLI
-        |> raiseUntargetedRTE
+      return RuntimeError.CLIs.NoExpressionsToExecute |> RuntimeError.CLI |> raiseRTE
     | exprs ->
       // Each with the id of what it runs (a script's lambda body), so a top-level statement
       // that returns something other than Unit is named the way a nested one is.
@@ -1480,7 +1477,7 @@ let private runScript
         "run approvals require the trusted dark run command",
         []
       )
-      |> RT.raiseUntargetedRTE
+      |> RT.raiseRTE
     // Attribute the run to the calling account so the trace
     // insert can stamp `traces.account_id`. None passes through
     // (anonymous runs, tests).

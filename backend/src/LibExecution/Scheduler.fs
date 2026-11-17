@@ -688,7 +688,7 @@ type Scheduler(quantum : int64) =
         | _ -> None)
     // A Dark error, not an internal one: asking for the wrong read is the program's mistake.
     let stdinRefusal (msg : string) : exn =
-      RT.RuntimeErrorException(None, RTE.UncaughtException(msg, []))
+      RT.RuntimeErrorException(RTE.UncaughtException(msg, []))
     let refuse (msg : string) = wake.SetException(stdinRefusal msg)
     let subscribed =
       lock sync (fun () ->
@@ -951,7 +951,7 @@ type Scheduler(quantum : int64) =
 
   member private this.Fail(p : Process, ex : exn) : unit =
     match ex with
-    | RT.RuntimeErrorException(_, rte) ->
+    | RT.RuntimeErrorException(rte) ->
       this.Finish(p, Error(rte, Execution.callStackFromVM p.vm))
     | ex when (Exception.findStoreCondition ex).IsSome ->
       this.Finish(
