@@ -525,9 +525,16 @@ let private resolveProcess
   (execute : string -> List<string> -> Execute)
   : Result<Resolved, string> =
   let resolved = resolveExecutable program
-  withChecks
-    [ (Permission.Request.processSpawn resolved args, $"running `{program}`") ]
-    (execute resolved args)
+  if System.IO.Path.IsPathFullyQualified resolved then
+    withChecks
+      [ (Permission.Request.processSpawn resolved args, $"running `{program}`") ]
+      (execute resolved args)
+  else
+    // A bare name PATH does not hold. There is no program to authorize, so this
+    // is ENOENT, the Result error a missing absolute path also gets, rather than
+    // a rejection raised for the unresolved name. Nothing runs, and whether a
+    // name is on PATH was already visible in the denial for one that is.
+    unchecked (attempt (fun () -> Error(2, $"command not found: {program}")))
 
 /// Validate an HTTP request against its profile; a validation failure is a
 /// guest-visible typed error that completes immediately, a valid one checks

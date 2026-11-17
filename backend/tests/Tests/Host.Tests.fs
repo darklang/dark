@@ -437,6 +437,28 @@ let descriptorLeasesDoNotSerializeUnrelatedFiles =
       release.Dispose()
   }
 
+/// `Process.run("nosuchprog", ...)` returns Result; a name PATH does not hold
+/// used to be rejected as "not an absolute path", which raised past the Result.
+let unresolvedProgramFailsWithEnoent =
+  testTask "a bare program name not on PATH fails with ENOENT, not a rejection" {
+    if System.OperatingSystem.IsLinux() || System.OperatingSystem.IsMacOS() then
+      let owner = LibExecution.Host.createDescriptorSession ()
+      for policy in [ Permission.Policy.allowAll; Permission.Policy.denyAll ] do
+        let! outcome =
+          LibExecution.Host.performInSession
+            owner
+            (Permission.Access.start policy)
+            (HT.Operation.ChildStart("dark-no-such-program-xyz", [], false))
+        match outcome with
+        | HT.Outcome.Failed error ->
+          Expect.equal error.errno 2 "ENOENT"
+          Expect.stringContains
+            error.message
+            "dark-no-such-program-xyz"
+            "names the program"
+        | other -> failtestf "expected an ENOENT failure, got %A" other
+  }
+
 let ownedChildrenRetainScopedProcessAuthority =
   testTask "owned children and pipes recheck process grants and execution ownership" {
     if System.OperatingSystem.IsLinux() || System.OperatingSystem.IsMacOS() then
@@ -1770,6 +1792,7 @@ let tests =
       scopedDescriptorsRecheckAccessAndOwnership
       scopedDescriptorsRespectInvocation
       descriptorLeasesDoNotSerializeUnrelatedFiles
+      unresolvedProgramFailsWithEnoent
       ownedChildrenRetainScopedProcessAuthority
       ownedChildWaitAllowsCleanup
       watchQueuesRetainScopedPathAuthority

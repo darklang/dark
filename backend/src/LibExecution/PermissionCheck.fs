@@ -92,15 +92,18 @@ let raiseDenial
   : 'a =
   // Shared by every process spawned under this state, on any scheduler thread; the host reads
   // the list after the run, so a child's denial has to land in the parent's list, not a copy.
+  let explicitlyDenied = reason = Permission.PolicyDenial.ExplicitlyDenied
   lock state.deniedRequests (fun () ->
     state.deniedRequests.Add
       { layer = layer
         resource = resource
         suggestion =
-          if reason = Permission.PolicyDenial.ExplicitlyDenied then
+          if explicitlyDenied then None else Permission.Suggestion.rule suggestion
+        anyArgsRule =
+          if explicitlyDenied then
             None
           else
-            Permission.Suggestion.rule suggestion })
+            Permission.Suggestion.anyArgsRule suggestion })
   RuntimeError.UncaughtException(denialMessage resource reason layer suggestion, [])
   |> raiseUntargetedRTE
 

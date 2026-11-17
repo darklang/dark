@@ -1339,6 +1339,51 @@ test isolated =
         do! discardAll state
       })
 
+/// A process denial for an unapproved function offers the program with any arguments
+/// as well as the exact argv: a tool that runs varying commands never repeats one argv.
+let processDenialOffersAnyArguments =
+  instanceTest "a process denial offers the program with any arguments" (fun state ->
+    task {
+      do! start state
+      let dir =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-proc-deny-{System.Guid.NewGuid():N}"
+        )
+      System.IO.Directory.CreateDirectory dir |> ignore
+      let sourceFile = System.IO.Path.Combine(dir, "runner.dark")
+      try
+        System.IO.File.WriteAllText(
+          sourceFile,
+          "let go(): Int64 =\n"
+          + "  match Stdlib.Cli.Process.run(\"/bin/echo\", [ \"$(printf injected)\" ]) with\n"
+          + "  | Ok(out) -> out.exitCode\n"
+          + "  | Error(_) -> 1\n"
+        )
+        do!
+          exits
+            state
+            [ "module"; "Tests.ProcDeny"; sourceFile ]
+            0L
+            "author the runner"
+        let call = [ "eval"; "Tests.ProcDeny.go()" ]
+        do!
+          shows
+            state
+            call
+            "--allow 'process '\\''/bin/echo'\\'' '\\''$(printf injected)'\\'''"
+            "the exact command quotes shell substitution literally"
+        do!
+          shows
+            state
+            call
+            "this program with any arguments:\n  dark run --allow 'process '\\''/bin/echo'\\'''"
+            "the program with any arguments is offered too"
+      finally
+        System.IO.Directory.Delete(dir, true)
+      do! discardAll state
+    })
+
 /// An entry approval authorizes both opening a file and subsequent descriptor
 /// reads. Another name for identical code receives no grant from that approval.
 let approvedFunctionReadsAFile =
@@ -2464,6 +2509,7 @@ let tests : List<Test> =
     isolatedTestsRejectUnsuccessfulWorkers
     testsUseInstancePolicy
     approvedFunctionReadsAFile
+    processDenialOffersAnyArguments
     runCallsAPackageFunctionByName
     upgradeRestoresSeedOperationKinds
     workbenchShowsTests
