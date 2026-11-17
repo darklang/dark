@@ -4176,7 +4176,13 @@ module CallStack =
 /// the denying layer, attempted resource, and suggested allow rule when one
 /// exists.
 type PermissionDenialRecord =
-  { layer : Permissions.Layer; resource : string; suggestion : Option<string> }
+  {
+    layer : Permissions.Layer
+    resource : string
+    suggestion : Option<string>
+    /// For a process denial, the rule allowing that program with any arguments.
+    anyArgsRule : Option<string>
+  }
 
 /// Internally in the runtime, we allow throwing RuntimeErrorExceptions. At the
 /// boundary, typically in Execution.fs, we will catch the exception, and return

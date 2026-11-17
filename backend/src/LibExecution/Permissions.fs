@@ -99,6 +99,15 @@ module Suggestion =
     | Suggestion.Process(rule, _) -> Some rule
     | Suggestion.NoRule -> None
 
+  /// The program with any arguments, for a process denial: the exact rule
+  /// covers one argv, which a tool that runs varying commands never repeats.
+  let anyArgsRule (suggestion : Suggestion) : Option<string> =
+    match suggestion with
+    | Suggestion.Process(_, executableRule) -> Some executableRule
+    | Suggestion.Paste _
+    | Suggestion.File _
+    | Suggestion.NoRule -> None
+
 /// URI normalization shared by requests and literal components of HTTP rules.
 module HttpUrl =
   let escaped (value : string) : string =

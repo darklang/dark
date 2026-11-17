@@ -225,6 +225,9 @@ rules allow (or deny) additional effects and resources:
   permissions allow clock
   permissions allow http GET https://api.stripe.com/v1/*
   permissions allow file write /home/me/project/data   # absolute; ~ not expanded
+  permissions allow process /usr/bin/git status     # this exact command only
+  permissions allow process /usr/bin/git            # this program, any arguments
+  permissions allow process                         # any program
   permissions deny http POST https://api.stripe.com/v1
   permissions allow native             # raw fds, process handles: cannot be scoped,
                                        # so it is granted whole or not at all

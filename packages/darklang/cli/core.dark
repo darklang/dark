@@ -287,6 +287,8 @@ module ExecutionError =
     { error: LanguageTools.RuntimeTypes.RuntimeError.Error
       resource: String
       rule: Option<String>
+      /// For a process, the rule allowing that program with any arguments.
+      anyArgsRule: Option<String>
       entry: Option<String>
       callStack: List<LanguageTools.RuntimeTypes.ExecutionPoint> }
 
@@ -321,13 +323,15 @@ module ExecutionError =
     | _ -> ""
 
 
-  /// Why <param name> was denied <param resource>, and how to allow <param rule>.
+  /// Why <param name> was denied <param resource>, and how to allow <param rule>, or, for a
+  /// process, <param anyArgsRule>: the program with any arguments.
   let entryDenial(
     accountID: Option<Uuid>,
     branchId: Uuid,
     name: String,
     resource: String,
-    rule: String)
+    rule: String,
+    anyArgsRule: Option<String>)
     : String =
     let approved = Permissions.Command.approvedVersionOf(accountID, name)
     let why =
@@ -340,7 +344,14 @@ module ExecutionError =
       | Some(_) ->
         $"The approval for `{name}` does not cover it. Show its access:\n  dark permissions show {name}"
 
-    $"permission denied:\n  {resource} is not allowed.\n\n{why}\n\nFor one run:\n  dark run --allow \"{rule}\" …"
+    let anyArgs =
+      match anyArgsRule with
+      | Some(wider) ->
+        $"\n\nFor one run, this program with any arguments:\n  dark run --allow {Stdlib.Cli.Process.shellQuote(wider)} …"
+        + "\n  (for a shell, that is any command)"
+      | None -> ""
+
+    $"permission denied:\n  {resource} is not allowed.\n\n{why}\n\nFor one run:\n  dark run --allow {Stdlib.Cli.Process.shellQuote(rule)} …{anyArgs}"
 
 
   let toString(accountID: Option<Uuid>, branchId: Uuid, err: ExecutionError): String =
@@ -352,7 +363,8 @@ module ExecutionError =
       + nameSuggestion(branchId, rte)
     | Denied(denied) ->
       match denied.entry, denied.rule with
-      | Some(name), Some(rule) -> entryDenial(accountID, branchId, name, denied.resource, rule)
+      | Some(name), Some(rule) ->
+        entryDenial(accountID, branchId, name, denied.resource, rule, denied.anyArgsRule)
       | _ ->
         match denied.error with
         | UncaughtException(message, []) -> message

@@ -602,6 +602,8 @@ module ExecutionError =
       resource : string
       /// The exact rule that would cover it, when one exists.
       rule : Option<string>
+      /// For a process, the rule allowing that program with any arguments.
+      anyArgsRule : Option<string>
       /// The function whose approval was checked; None for the instance policy.
       entry : Option<string>
       callStack : RT.CallStack
@@ -641,6 +643,7 @@ module ExecutionError =
           { error = rte
             resource = last.resource
             rule = last.suggestion
+            anyArgsRule = last.anyArgsRule
             entry = entry
             callStack = [] }
       match last.layer, last.suggestion with
@@ -684,6 +687,7 @@ module ExecutionError =
       [ "error", RT2DT.RuntimeError.toDT d.error
         "resource", DString d.resource
         "rule", (d.rule |> Option.map DString |> Dval.option KTString)
+        "anyArgsRule", (d.anyArgsRule |> Option.map DString |> Dval.option KTString)
         "entry", (d.entry |> Option.map DString |> Dval.option KTString)
         "callStack", callStackToDT d.callStack ]
     DRecord(typeName, typeName, [], RecordFields.ofList fields)
