@@ -59,3 +59,21 @@ test generateV7SetsVersionAndVariant =
         [ "8", "9", "a", "b" ],
         Stdlib.String.slice(text, 19, 20))
       |> Stdlib.Test.equal(true) ])
+
+
+// The first 48 bits are the Unix time in milliseconds, so a later one sorts after.
+test generateV7StartsWithTheTime =
+  let millis(uuid: Uuid): Int64 =
+    let text = Stdlib.display(uuid)
+    Stdlib.Base16.decode(Stdlib.String.slice(text, 0, 8) + Stdlib.String.slice(text, 9, 13))
+    |> Stdlib.Result.map(fun bytes ->
+      Stdlib.List.fold(Stdlib.Bytes.toList(bytes), 0, fun(acc, b) ->
+        acc * 256 + Stdlib.Int64.fromUInt8(b)))
+    |> Stdlib.Result.withDefault(-1)
+
+  let before = Stdlib.DateTime.toMilliseconds(Stdlib.DateTime.now())
+  let first = millis(Stdlib.Uuid.generateV7())
+  let second = millis(Stdlib.Uuid.generateV7())
+  let after = Stdlib.DateTime.toMilliseconds(Stdlib.DateTime.now())
+  (before <= first, first <= second, second <= after)
+  |> Stdlib.Test.equal((true, true, true))

@@ -269,6 +269,21 @@ let private sortByAndMap2ErrorsAsSerial =
       | _ -> failtest $"both should fail: {spread} / {serial}"
   }
 
+let private filterErrorsAsSerial =
+  testTask "filter and filterMap raise as serially" {
+    let state = executionStateFor pmPT false
+    for code in
+      [ $"Stdlib.List.filter(Stdlib.List.range(1, 40), fun i -> if i == 35 then 1 / 0 == 0 else {uneven}(i) > 0)"
+        $"Stdlib.List.filter(Stdlib.List.range(1, 40), fun i -> if i > 20 then \"s\" else {uneven}(i) > 0)"
+        $"Stdlib.List.filterMap(Stdlib.List.range(1, 40), fun i -> if i == 35 then Stdlib.Option.Option.Some(1 / 0) else Stdlib.Option.Option.Some({uneven}(i)))" ] do
+      let! (spread, serial) = both state code
+      match spread, serial with
+      | Error(e1, s1), Error(e2, s2) ->
+        Expect.equal e1 e2 $"the same error: {code}"
+        Expect.equal s1 s2 $"the same frames: {code}"
+      | _ -> failtest $"both should fail: {spread} / {serial}"
+  }
+
 /// A search answers its first hit in input order, so the hit is in a late chunk that finishes
 /// first and an early chunk that finishes last: the uneven body.
 let private searches =
@@ -1191,6 +1206,7 @@ let tests =
         dictEffectsKeepOrder
         sortByAndMap2
         sortByAndMap2ErrorsAsSerial
+        filterErrorsAsSerial
         searches
         searchErrorsAsSerial
         searchEffects

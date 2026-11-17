@@ -129,6 +129,27 @@ test bufferGrowth =
 
 
 // Account parsing handles missing users and malformed rows
+// Kernel records are little-endian; an 8-byte field covers all of Int64.
+test kernelSignedField =
+  let field(bytes: List<UInt8>, width: Int64): Stdlib.Result.Result<Int64, Int64> =
+    Stdlib.Cli.Posix.__kernelSignedField(Stdlib.Bytes.fromList(bytes), 0, width)
+
+  Stdlib.Test.all(
+    [ field([ 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 255u8 ], 8)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1))
+
+      field([ 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 128u8 ], 8)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-9223372036854775808))
+
+      field([ 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 255u8, 127u8 ], 8)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(9223372036854775807))
+
+      field([ 255u8, 255u8, 255u8, 255u8 ], 4)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1))
+
+      field([ 1u8, 2u8, 3u8 ], 8) |> Stdlib.Test.equal(Stdlib.Result.Result.Error(5)) ])
+
+
 test accountFieldFromPasswd =
   let alice = "alice:x:1000:1000::/home/alice:/bin/sh"
   Stdlib.Test.all(

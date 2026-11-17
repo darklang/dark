@@ -31,3 +31,11 @@ test countBitsAndHostFacts =
 
       Builtin.syscallSchedGetaffinity(0, 0)
       |> Stdlib.Test.equal(Stdlib.Result.Result.Error(22)) ])
+
+
+// isatty answers only for 0, 1 and 2; any other descriptor is not a terminal.
+test isTerminalForOtherDescriptors =
+  Stdlib.Test.all(
+    [ Stdlib.Cli.Sys.isTerminal(99) |> Stdlib.Test.equal(false)
+      Stdlib.Cli.Sys.isTerminal(-1) |> Stdlib.Test.equal(false)
+      Stdlib.Cli.Sys.isTerminal(9999999999) |> Stdlib.Test.equal(false) ])
