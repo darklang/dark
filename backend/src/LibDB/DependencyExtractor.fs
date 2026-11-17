@@ -358,7 +358,8 @@ let extractFromFn (fn : PT.PackageFn.PackageFn) : List<Dependency> =
 
 /// Extract all references from a value definition
 let extractFromValue (value : PT.PackageValue.PackageValue) : List<Dependency> =
-  extract [ Expr value.body ] |> List.distinct
+  extract (Expr value.body :: (value.typ |> Option.map TypeRef |> Option.toList))
+  |> List.distinct
 
 
 /// Everything a test's body refers to. Nothing can refer to a test, so a
