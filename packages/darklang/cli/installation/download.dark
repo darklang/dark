@@ -49,6 +49,28 @@ let expectedSha256(sums: String, fileName: String): Option<String> =
   |> Stdlib.List.head
 
 
+val refused =
+  "so the new version wasn't installed and nothing was changed. Please report this at https://github.com/darklang/dark/issues"
+
+
+/// Whether <param bytes> hash to what <param sums> lists for <param fileName>.
+let matchesSums(sums: String, fileName: String, bytes: Bytes): Result<Unit, String> =
+  match expectedSha256(sums, fileName) with
+  | None -> Result.Error($"The release's checksums file doesn't list {fileName}, {refused}")
+  | Some(expected) ->
+    let actual =
+      bytes
+      |> Stdlib.Crypto.sha256
+      |> Stdlib.Base16.encode
+      |> Stdlib.String.toLowercase
+
+    if actual == expected then
+      Result.Ok()
+    else
+      Result.Error(
+        $"{fileName} doesn't match the checksum its release lists for it: it was damaged or changed on the way, {refused}")
+
+
 /// Check the file at <param path> is the one <param download>'s release lists, by sha256.
 let verifyChecksum(download: GitHub.Releases.Download, path: String): Result<Unit, String> =
   let sumsPath = $"{path}.sha256sums.txt"
@@ -58,31 +80,15 @@ let verifyChecksum(download: GitHub.Releases.Download, path: String): Result<Uni
       Stdlib.Cli.File.readText(sumsPath) |> Stdlib.Result.mapError(fun e -> e.message))
 
   let _cleaned = Stdlib.Cli.File.delete(sumsPath)
-  let refused =
-    "so the new version wasn't installed and nothing was changed. Please report this at https://github.com/darklang/dark/issues"
 
   match sums with
   | Error(e) ->
     Result.Error(
       $"Couldn't download the release's checksums file ({Stdlib.String.trim(e)}), {refused}")
   | Ok(sums) ->
-    match expectedSha256(sums, download.name) with
-    | None -> Result.Error($"The release's checksums file doesn't list {download.name}, {refused}")
-    | Some(expected) ->
-      match Stdlib.Cli.File.readBytes(path) with
-      | Error(e) -> Result.Error($"Couldn't read the download to check it ({e.message}), {refused}")
-      | Ok(bytes) ->
-        let actual =
-          bytes
-          |> Stdlib.Crypto.sha256
-          |> Stdlib.Base16.encode
-          |> Stdlib.String.toLowercase
-
-        if actual == expected then
-          Result.Ok()
-        else
-          Result.Error(
-            $"{download.name} doesn't match the checksum its release lists for it: it was damaged or changed on the way, {refused}")
+    match Stdlib.Cli.File.readBytes(path) with
+    | Error(e) -> Result.Error($"Couldn't read the download to check it ({e.message}), {refused}")
+    | Ok(bytes) -> matchesSums(sums, download.name, bytes)
 
 
 /// Run a freshly downloaded binary against a COPY of this instance's store, and check it can evaluate
