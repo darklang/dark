@@ -3,6 +3,7 @@ module Darklang.Stdlib.Json
 /// Serializes a Dark value to a JSON string, as <type Options.Options> describes with
 /// <fn Options.defaults>. An `Option` is its value, or `null` for `None`, and a `None`
 /// record field is left out: `{"host":"a1","cpu":38.5}`.
+/// Record fields are written in the order the type declares them; dict keys are sorted.
 let serialize(value: 'a): String =
   serializeWith<'a>(Options.defaults(), value)
 
