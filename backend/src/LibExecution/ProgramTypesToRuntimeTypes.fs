@@ -870,8 +870,6 @@ module Expr =
       match Map.find varName symbols with
       | Some reg -> { registerCount = rc; instructions = []; resultIn = reg }
       | None ->
-        // CLEANUP see note in interpreter around VarNotFound
-        // (work should be done around _references_)
         { registerCount = rc + 1
           instructions = [ RT.VarNotFound(rc, varName) ]
           resultIn = rc }
@@ -997,7 +995,7 @@ module Expr =
 
           // `1 |> Option.Some`
           | PT.EPipeEnum(id, typeName, caseName, fields) ->
-            let typeArgs = [] // TODO
+            let typeArgs = []
             PT.EEnum(id, typeName, typeArgs, caseName, [ lhs ] @ fields)
 
           // `1 |> myLambda`
@@ -1081,7 +1079,6 @@ module Expr =
         resultIn = rc }
 
     | PT.EValue(_, { originalName = names; resolved = Error nre }) ->
-      // CLEANUP improve (see notes for EFnName)
       { registerCount = rc
         instructions = [ RT.RaiseNRE(names, NameResolutionError.toRT nre) ]
         resultIn = rc }
@@ -1119,7 +1116,6 @@ module Expr =
         resultIn = rc }
 
     | PT.EFnName(_, { originalName = names; resolved = Error nre }, _, _) ->
-      // CLEANUP make it ok to _reference_ a bad name, so long as we don't try to `apply` it.
       { registerCount = rc
         instructions = [ RT.RaiseNRE(names, NameResolutionError.toRT nre) ]
         resultIn = rc }
@@ -1222,7 +1218,6 @@ module Expr =
         casesAfterFirstPhase
         |> List.map (fun c -> (c, countInstrsForCase c))
         |> List.foldRight
-          // CLEANUP this works, but hurts the brain a bit.
           (fun (acc, runningTotal) (c, instrCount) ->
             let newTotal = runningTotal + instrCount
             (acc @ [ c, runningTotal ], newTotal))
@@ -1266,10 +1261,9 @@ module Expr =
                  { originalName = names; resolved = Error nre },
                  _typeArgs,
                  _fields) ->
-      let returnReg = 0 // TODO - not sure what to do here
       { registerCount = rc
         instructions = [ RT.RaiseNRE(names, NameResolutionError.toRT nre) ]
-        resultIn = returnReg }
+        resultIn = rc }
 
     | PT.ERecord(_id, { resolved = Ok { name = typeName } }, typeArgs, fields) ->
       let recordReg, rc = rc, rc + 1
@@ -1337,10 +1331,9 @@ module Expr =
                _caseName,
                _typeArgs,
                _fields) ->
-      let returnReg = 0 // CLEANUP this is just to fill the field, but meh
       { registerCount = rc
         instructions = [ RT.RaiseNRE(names, NameResolutionError.toRT nre) ]
-        resultIn = returnReg }
+        resultIn = rc }
 
     | PT.EEnum(_id, { resolved = Ok { name = typeName } }, typeArgs, caseName, fields) ->
       let enumReg, rc = rc, rc + 1

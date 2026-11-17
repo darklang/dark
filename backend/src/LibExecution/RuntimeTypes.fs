@@ -1,9 +1,6 @@
 /// The core types and functions used by the Dark language's runtime.
 ///
 /// This format is lossy, relative to the ProgramTypes; use IDs to refer back.
-/// CLEANUP we could realistically expand upon this a bit,
-///   excluding things like enum field names, fn param names, etc.
-///   (referring back to PT by index or something)
 module LibExecution.RuntimeTypes
 
 open Prelude
@@ -379,9 +376,8 @@ and [<RequireQualifiedAccess>] ValueType =
 /// Int64-range values are `Finite`; larger values are `Infinite`.
 /// Use `DarkBigInt.ofBigInt` to preserve that invariant.
 ///
-/// CLEANUP: because this is a DU, small BigInts still carry space for the bigint
-/// case plus a tag, not just the Int64 value. If profiling shows this matters,
-/// revisit the representation or consider caching common small values.
+/// Because this is a DU, small BigInts still carry space for the bigint case plus a
+/// tag, not just the Int64 value.
 [<Struct; RequireQualifiedAccess>]
 type DarkBigInt =
   | Finite of finite : int64
@@ -793,7 +789,7 @@ module TST =
 [<Measure>]
 type register
 
-type Register = int //<register> // TODO: unit of measure
+type Register = int
 
 /// The LHS pattern in
 /// - a `let` binding (in `let x = 1`, the `x`)
@@ -865,7 +861,7 @@ type StringSegment =
 /// `Bytes.sliceEphemeral` shares its parent's `buffer` instead of copying it, so
 /// reading a big value in pieces does not copy the rest of it at every step.
 ///
-/// CLEANUP: `buffer` can still be mutated if a caller keeps or receives the
+/// `buffer` can still be mutated if a caller keeps or receives the
 /// array, and a hand-built record can reuse an `id`. Both are by
 /// convention — not reachable from Dark, only from future internal code.
 [<CustomEquality; NoComparison>]
@@ -1700,7 +1696,6 @@ and LambdaReturnExpectation =
 
 /// Any thing that can be applied,
 /// along with anything needed within their application closure
-/// TODO: follow up with typeSymbols
 and Applicable =
   | AppLambda of ApplicableLambda
   | AppNamedFn of ApplicableNamedFn
@@ -2967,8 +2962,6 @@ and [<NoComparison>] Dval =
   | DUInt128 of System.UInt128
   // `BigInt`: arbitrary precision, with the Finite/Infinite split
   // contained in `DarkBigInt`.
-  // CLEANUP: small BigInts carry the memory overhead of the bigint case plus a tag.
-  // Revisit the representation if profiling shows BigInt memory or GC pressure.
   | DBigInt of DarkBigInt
 
   | DFloat64 of double
@@ -3864,7 +3857,6 @@ module RuntimeError =
       | PatternDoesNotMatch of dval : Dval * pat : LetPattern
 
   module Matches =
-    // TODO "When condition should be a boolean" -- this could warn _or_ error -- which do we want?
     type Error =
       /// Could not find matching case for the given value
       | MatchUnmatched of unmatchedValue : Dval
@@ -4186,7 +4178,6 @@ type ExecutionResult = Result<Dval, RuntimeError.Error * CallStack>
 /// IncorrectArgs should never happen, as all functions are type-checked before
 /// calling. If it does happen, it means that the type parameters in the Fn structure
 /// do not match the args expected in the Builtin function definition.
-/// CLEANUP should this take more args, so we can find the error? Maybe just the fn name?
 let incorrectArgs () = Exception.raiseInternal "IncorrectArgs" []
 
 
@@ -6388,7 +6379,7 @@ type BuiltInFn =
   {
     name : FQFnName.Builtin
     typeParams : List<string>
-    parameters : List<BuiltInParam> // TODO: should be NEList but there's so much to change!
+    parameters : List<BuiltInParam>
     returnType : TypeReference
     description : string
     previewable : Previewable
@@ -6466,8 +6457,6 @@ and Builtins =
 
 
 // Used for testing
-// CLEANUP maybe this belongs in Execution rather than RuntimeTypes?
-// and taken out of ExecutionState, where it's not really used?
 and TestContext =
   {
     /// Set only while executing a package test, including its nested calls.
@@ -6731,7 +6720,6 @@ module Types =
         decl
 
   /// Swap concrete types for type parameters
-  /// CLEANUP consider accepting a pre-zipped list instead
   let rec substitute
     (typeParams : List<string>)
     (typeArguments : List<TypeReference>)

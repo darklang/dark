@@ -5191,7 +5191,7 @@ let private applyInstructionForced
           returnPc = currentFrame.programCounter + 1
           inPlace = false }
 
-      // CLEANUP the two branches below are near-identical in shape, and so are `callBuiltin`
+      // the two branches below are near-identical in shape, and so are `callBuiltin`
       // and `callPackage` behind them: same five steps, different parameter and outcome types.
       // Unifying them needs `BuiltInParam` and `PackageFn.Parameter` to share an interface.
       match applicable.name with

@@ -73,7 +73,6 @@ and pipeSubExprs (pe : PipeExpr) : List<Expr> =
   | EPipeVariable(_, _, args) -> args
 
 
-/// TODO type symbols, too
 let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
   let r = symbolsUsedInExpr
 
