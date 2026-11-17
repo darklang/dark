@@ -21,7 +21,7 @@ test integerExitCodes =
 test invalidResultKeepsValue =
   let returned = LanguageTools.RuntimeTypes.Dval.DBool(true)
   match Cli.Run.exitCode(returned) with
-  | Error(Runtime(CLI(NonIntReturned(actual)), [])) ->
+  | Error(Runtime(CLI(NonIntReturned(actual)), [], [])) ->
     actual |> Stdlib.Test.equal(returned)
   | _ ->
     Stdlib.Test.fail("Expected a script result error with the returned value")
@@ -103,6 +103,18 @@ module CallStack =
         23u64,
         Stdlib.Option.Option.Some(source())))
     |> Stdlib.Test.equal("Lambda in Source (23)")
+
+
+  // A script's ids change on every parse; its lines do not.
+  test lambdaLabelGivesItsLine =
+    PrettyPrinter.RuntimeTypes.executionPointAt(
+      SCM.Branch.mainBranchId,
+      LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(
+        builtin(),
+        23u64,
+        Stdlib.Option.Option.Some(source())),
+      [ (22u64, 3), (23u64, 4) ])
+    |> Stdlib.Test.equal("Lambda in Source (line 4)")
 
 
   test entryOnlyStacksAreHidden =
