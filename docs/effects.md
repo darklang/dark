@@ -175,6 +175,12 @@ unless the CLI itself is the caller (`canManagePolicies`), the same line policy
 edits use, and says what to run instead. They are not a grant, because
 `permissions allow all` would then open the guard too.
 
+For direct connections, every resolved address must pass the address checks.
+Dark connects to those exact addresses without another DNS lookup, which could
+return different addresses. HTTP/3 is disabled because it bypasses the connection
+callback that performs these checks. See [HTTP connections](internals.md#http-connections)
+for connection ordering, cancellation and protocol details.
+
 **A configured proxy is trusted.** HTTP clients use .NET's configured proxy
 (`HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY`). The guard checks the
 destination, not the proxy:

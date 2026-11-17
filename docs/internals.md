@@ -1,6 +1,6 @@
 # Internals worth knowing before you change them
 
-The store's schema, SCM and branches, traits, and where text measurement lives. Each section is
+The store's schema, SCM and branches, traits, HTTP connections, and text measurement. Each section is
 the shape of the code and the rule that keeps it correct; the traps that are not specific to one
 of these areas are in `docs/agent-traps.md`.
 
@@ -228,6 +228,34 @@ stamp, which means nothing came from an op. Dispatch is memoised on the package 
 (`withExtraImpls`, `withExtras`) gets its own memo, and the script host's child state
 must take the grafted manager's `getTrait` too, or a script's own trait is "not in the
 package manager" at dispatch.
+
+## HTTP connections
+
+`LibExecution.HostHttp` owns HTTP connections. DNS lookup uses the connection's
+timeout. For direct connections, every returned address must pass the address
+checks before Dark connects to any of them. It uses those exact addresses without
+another lookup. See [the checked host boundary](effects.md#checked-host-boundary)
+for the permission and address rules, including how proxies are handled.
+
+`alternateIPv4AndIPv6` alternates address families, keeping the first address and
+the order within each family. `connectToFirstAvailableAddress` starts one attempt
+immediately, then another every 250 ms until one succeeds. It cancels the other
+attempts, waits for them to finish, and closes any extra connections.
+
+This follows the connection-stage guidance in
+[RFC 8305 sections 4–5](https://www.rfc-editor.org/rfc/rfc8305.html#section-4).
+Dark keeps one DNS answer so it can check every address first; it does not use the
+RFC's separate racing DNS lookups. The custom connector is needed because
+[.NET 11's address-array overload](https://github.com/dotnet/runtime/blob/v11.0.0/src/libraries/System.Net.Sockets/src/System/Net/Sockets/Socket.Tasks.cs)
+tries addresses sequentially. Passing a hostname instead would allow another DNS
+lookup after validation. This handles stalled TCP connections; TLS, proxy and
+response-body timeouts need separate investigation.
+
+The client offers HTTP/2 with HTTP/1.1 fallback. HTTP/3 is disabled because
+[.NET's QUIC connection path](https://github.com/dotnet/runtime/blob/v11.0.0/src/libraries/System.Net.Http/src/System/Net/Http/SocketsHttpHandler/ConnectionPool/HttpConnectionPool.Http3.cs)
+does not call `ConnectCallback`, where Dark checks resolved addresses. HTTP/3 can
+be restored once its connection path can enforce the same checks; .NET tracks a
+[proposed QUIC connection hook](https://github.com/dotnet/runtime/issues/64449).
 
 ## Measuring text, and what may go native
 
