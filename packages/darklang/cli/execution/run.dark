@@ -362,6 +362,7 @@ let runScriptMeasured(
       (Option.None, run())
 
   let newState = handleResult(state, result)
+  noteMisplacedAllow(newState, scriptPath, args)
   match measurement with
   | Some(m) ->
     // stdout, after whatever the script printed, as `eval --stats` does.
@@ -375,6 +376,19 @@ let runScriptMeasured(
 
     newState
   | None -> newState
+
+
+/// A failed run whose arguments hold `--allow` most likely meant it for `run`: everything after
+/// the name goes to the program, so the access was never granted.
+let noteMisplacedAllow(state: AppState, name: String, args: List<String>): Unit =
+  let misplaced =
+    Stdlib.List.any(args, fun arg -> arg == "--allow" || Stdlib.String.startsWith(arg, "--allow="))
+
+  if state.exitCode != 0 && misplaced then
+    Stdlib.printErrorLine(
+      $"Note: `--allow` came after {name}, so the program got it as an argument. Flags for `run` go before the name: dark run --allow \"<rules>\" {name} …")
+  else
+    ()
 
 
 /// Report the completed run. Permission review happens before the operation.

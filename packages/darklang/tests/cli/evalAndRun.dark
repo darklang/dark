@@ -179,7 +179,14 @@ test scriptArgumentsAndExitCodes = Instance.withInstance(fun i ->
         1,
         "A main function is not called automatically")
 
-      ("wrong result", "true", [], [], 1, "Script must finish") ]
+      ("wrong result", "true", [], [], 1, "Script must finish")
+      (
+        "--allow after the path went to the script",
+        "if args == [\"--allow\", \"env-read HOME\"] then 2 else 0",
+        [],
+        [ "--allow", "env-read HOME" ],
+        2,
+        "Flags for `run` go before the name") ]
 
   let path = $"{Instance.home(i)}/contract.dark"
   let contract =
