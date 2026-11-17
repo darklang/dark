@@ -4,7 +4,6 @@
 set -euo pipefail
 
 CHECK=255 # (0 mean check, 1 means format, 255 means error)
-PRETTIER=0 # (0 means check prettier files, 1 means don't)
 FSHARP=0 # (0 means check fsharp files, 1 means don't)
 DARK=1 # (0 means check .dark files, 1 means don't; only --dark-only checks them)
 FILES=()
@@ -19,7 +18,6 @@ function print_help ()
 	printf '\t%s\n' "check: Error if files are not formatted. No argument means check all files. Does not error if file is not supported."
 	printf '\t%s\n' "format: Format file or dir. Formats all files with no argument. Does not error or format if file is not supported."
   printf '\t%s\n' "--fsharp-only: Only check fsharp files (fsi, fs)"
-  printf '\t%s\n' "--prettier-only: Only check prettier files (js, css, etc)"
   printf '\t%s\n' "--dark-only: Only check .dark files (under packages/, with the dev CLI). Without it, .dark is not checked"
 }
 
@@ -32,17 +30,11 @@ for val in "${@}"; do
         print_help
         exit 0
         ;;
-    --prettier-only)
-        FSHARP=1
-        DARK=1
-        ;;
     --fsharp-only)
-        PRETTIER=1
         DARK=1
         ;;
     --dark-only)
         FSHARP=1
-        PRETTIER=1
         DARK=0
         ;;
     check)
@@ -84,36 +76,6 @@ is_dark() {
   [[ $1 == *.dark ]]
 }
 
-is_allowed() {
-  [[ $1 == *.fs || $1 == *.fsi \
-    || $1 == *.css || $1 == *.scss \
-    || $1 == *.js || $1 == *.ts \
-    || $1 == *.html
-    || $1 == *.res || $1 == *.resi ]]
-}
-
-all_prettier_files() {
-  find "$1" \
-    \( -path ".git" \
-    -o -path "./later" \
-    -o -path "rundir" \
-    -o -path "./rundir" \
-    -o -path "backend" \
-    -o -path "backend/static" \
-    -o -path "./backend/static" \
-    -o -path "backend/Build" \
-    -o -path "./backend/Build" \
-    \) -prune -false \
-    \
-    -o -type f \
-    \( -name "*.css" \
-    -o -name "*.scss" \
-    -o -name "*.js" \
-    -o -name "*.ts" \
-    -o -name "*.html" \
-    \) -print0
-}
-
 all_fsharp_files() {
   find "$1" \
     \( -path ".git" \
@@ -135,16 +97,8 @@ check_fantomas () {
   xargs fantomas --check
 }
 
-check_prettier () {
-  xargs -0 -r npx prettier --list-different
-}
-
 format_fantomas() {
   xargs fantomas
-}
-
-format_prettier() {
-  xargs -0 -r npx prettier --write
 }
 
 do_fantomas() {
@@ -152,14 +106,6 @@ do_fantomas() {
     check_fantomas
   else
     format_fantomas
-  fi
-}
-
-do_prettier() {
-  if [[ 0 -eq "$CHECK" ]]; then
-    check_prettier
-  else
-    format_prettier
   fi
 }
 
@@ -204,10 +150,6 @@ do_dark() {
   fi
 }
 
-# TODO sqlfmt for sql
-# TODO add python
-# TODO bash formatter
-
 #######################
 # action files/dirs
 #######################
@@ -215,11 +157,6 @@ for i in "${FILES[@]}"; do
   if [[ -d "$i" ]]; then
     if [[ 0 -eq "$FSHARP" ]]; then
       all_fsharp_files $i | do_fantomas
-    fi
-    if [[ 0 -eq "$PRETTIER" ]]; then
-      # CLEANUP there's no JS/CSS files at the moment
-      # all_prettier_files "$i" | do_prettier
-      :
     fi
     if [[ 0 -eq "$DARK" ]]; then
       dir=$(realpath --relative-to=. "$i")
@@ -231,15 +168,9 @@ for i in "${FILES[@]}"; do
     fi
   elif [[ 0 -eq "$DARK" ]] && is_dark "$i"; then
     DARK_PATHS+=("$i")
-  elif is_allowed "$i"; then
-    if is_fsharp "$i"; then
-      if [[ 0 -eq "$FSHARP" ]]; then
-        echo "$i" | do_fantomas
-      fi
-    else
-      if [[ 0 -eq "$PRETTIER" ]]; then
-        echo "$i" | do_prettier
-      fi
+  elif is_fsharp "$i"; then
+    if [[ 0 -eq "$FSHARP" ]]; then
+      echo "$i" | do_fantomas
     fi
   else
     echo "ignored : $i"

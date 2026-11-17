@@ -8,7 +8,6 @@
 # NOTE: release builds use 0.13.0 (scripts/build/install-release-toolchain), so release SQLite
 # archives and local ones are built with different zig versions.
 # The hashes are the ones https://ziglang.org/download/index.json lists.
-# TODO Occasionally, check https://ziglang.org/download to see if we're using the latest version
 
 set -euo pipefail
 

@@ -1,5 +1,5 @@
 ######################################
-# XXX: Changes won't take effect until you restart script/builder
+# Changes won't take effect until you restart scripts/builder
 # or rebuild the vscode dev container
 ######################################
 
@@ -27,6 +27,6 @@ DARK_CONFIG_TRACE_DETAIL=on
 DARK_CONFIG_PACKAGES_SOURCE=disk
 
 ######################################
-# XXX: Changes won't take effect until you restart script/builder
+# Changes won't take effect until you restart scripts/builder
 # or rebuild the vscode dev container
 ######################################
