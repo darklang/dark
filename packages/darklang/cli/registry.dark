@@ -478,7 +478,6 @@ module Registry =
       ("ps", "What is running: this instance's own processes, then every other Dark on this machine", [ "processes" ], acceptsPs, Cli.Ps.execute, Cli.Ps.help, Cli.Ps.complete)
       ("workbench", "Open the workbench -- a framed, navigable package tree (CLI-UX redesign)", [ "wb" ], acceptsWorkbench, Workbench.execute, Workbench.help, Workbench.complete) ]
     |> Stdlib.List.map((
-      // CLEANUP nitpicky: swap help and complete
       fun((name, desc, aliases, accepts, execute, help, complete)) ->
         CommandHandler
           { name = name
@@ -493,7 +492,6 @@ module Registry =
 
   let findCommandIn(commands: List<CommandHandler>, name: String): CommandHandler =
     let allMatches =
-      // CLEANUP use a Set?
       let nameMatches = commands |> Stdlib.List.filter(fun cmd -> cmd.name == name)
 
       let aliasMatches =
@@ -504,7 +502,7 @@ module Registry =
 
     match allMatches with
     | [handler] -> handler
-    | [handler, ...] -> handler  // CLEANUP?
+    | [handler, ...] -> handler
     | [] ->
       CommandHandler
         { name = name

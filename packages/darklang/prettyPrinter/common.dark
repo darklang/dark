@@ -1,7 +1,3 @@
-// TODO:
-//alias PT = LanguageTools.ProgramTypes
-//alias RT = Stdlib.RuntimeTypes
-
 module Darklang.PrettyPrinter
 
 let indent(s: String): String =

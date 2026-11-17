@@ -1,5 +1,3 @@
-// CLEANUP this might as well be one dir up
-// or moved to the version namespace
 module Darklang.Cli.Installation.Helpers
 
 /// The git sha this binary was built from. The one reader of the builtin: `cliVersion` prints it and

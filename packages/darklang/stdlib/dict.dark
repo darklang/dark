@@ -199,8 +199,6 @@ let iter(dict: Dict<'k, 'v>, fn: ('k, 'v) -> Unit): Unit =
 /// Folds <param dict> into a single value, by calling {{fn acc key value}} on each
 /// entry in key order, starting from <param init>.
 let fold(dict: Dict<'k, 'v>, init: 'b, fn: ('b, 'k, 'v) -> 'b): 'b =
-  // CLEANUP The lambda below adds a second call per entry, about 2x slower.
-  // A `dictFold` builtin would fix it, if real code ever needs it.
   List.fold(toEntries(dict), init, fun(acc, (k, v)) -> fn(acc, k, v))
 
 

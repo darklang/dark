@@ -711,7 +711,7 @@ module Sse =
   /// lines for the block we're currently assembling; `currentLine`
   /// is the byte buffer for the line we're currently reading.
   ///
-  /// TODO `currentLine` stays `List<UInt8>` (not `Bytes`) because it's
+  /// `currentLine` stays `List<UInt8>` (not `Bytes`) because it's
   /// accessed byte-by-byte during the parse — one append per byte and
   /// frequent fold-over-bytes for the line scan. Bytes.concat would
   /// reallocate the whole buffer on every append. Worth revisiting if

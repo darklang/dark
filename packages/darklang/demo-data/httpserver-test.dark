@@ -26,7 +26,6 @@ let rootHandlerFn(req: Stdlib.Http.Request): Stdlib.Http.Response =
 val rootHandler = Stdlib.HttpServer.Handler { route = "/", method = "GET", handler = rootHandlerFn }
 
 
-// CLEANUP
 /// All handlers for the test server
 val handlers = [ helloHandler, echoHandler, rootHandler ]
 

@@ -55,5 +55,3 @@ let help(_state: AppState): String =
     "  " + Stdlib.Cli.UI.Colors.command("help quit") + "   - Show help for the quit command" ]
   |> Stdlib.String.join("\n")
 
-// CLEANUP I think there's other `help` stuff we can move here
-// specifically, the commandNamesCompletino

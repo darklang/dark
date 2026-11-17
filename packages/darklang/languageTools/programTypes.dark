@@ -150,7 +150,6 @@ type TypeReference =
     typeArgs: List<TypeReference>)
 
 
-  // TODO: this should be an NEList
   | TFn(List<TypeReference>, TypeReference)
 
 
@@ -356,8 +355,6 @@ type Expr =
 
   | ELambda(ID, List<LetPattern>, Expr)
 
-  // TODO do typeArgs actually apply here?
-  // they definitely don't _always_ make sense.
   | EApply(ID, Expr, typeArgs: List<TypeReference>, args: List<Expr>)
 
   /// A fn by name. `typeArgs` are for a reference that is not called:

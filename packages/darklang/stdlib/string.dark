@@ -96,7 +96,6 @@ let capitalize(s: String): String =
   toUppercase(slice(s, 0, 1)) + dropFirst(s, 1)
 
 
-// TODO: UInt?
 /// Returns the length of the string
 let length(s: String): Int64 =
   Builtin.stringLength(s)

@@ -51,8 +51,6 @@ type QualifiedFnIdentifier =
     fn: FnIdentifier }
 
 
-// CLEANUP: Refactor List<String> to List<Range* String> or use a QualifiedTypeIdentifier.
-// Consider removing 'Unresolved' and inlining it where it's used, since all names are unresolved at this stage (wt)
 type Name =
   | Unresolved(Range, List<String>)
 
@@ -204,7 +202,6 @@ type MatchPattern =
     caseName: Range * String,
     fieldPats: List<MatchPattern>)
 
-  // CLEANUP: handle pipe symbols
   | MPOr(Range, List<MatchPattern>)
 
   /// `pattern as name`: matches what `pattern` matches and binds the whole value

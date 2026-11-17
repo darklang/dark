@@ -47,7 +47,7 @@ module RuntimeError =
     /// ". `Stdlib.inspect` shows any value" when the trait is `Stdlib.Display`, else nothing
     | InspectHint(LanguageTools.RuntimeTypes.FQTraitName.FQTraitName)
     | TypeReference(TypeReference)
-    | TypeOfValue(Dval) // CLEANUP should these all just be ValueTypes?
+    | TypeOfValue(Dval)
     | ValueType(ValueType)
     /// A value type together with the type reference it was declared as. One
     /// content hash can be bound to several names, so the declaration is the

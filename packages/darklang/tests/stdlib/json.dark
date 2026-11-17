@@ -327,9 +327,6 @@ module Int64 =
 
   module Int64Limits =
     // test the limits of int64 (-9223372036854775808 to 9223372036854775807)
-    // TODO: consider putting ints that won't fit exactly in a float into strings to
-    // be certain
-    //
     // Integer serialization is exact; no float intermediary or string coercion.
     test parseErrors =
       Stdlib.Test.all(
@@ -705,7 +702,6 @@ module UInt8 =
 
           Stdlib.Json.parse<UInt8>("0.0") |> Stdlib.Test.equal(Result.Ok(0u8))
 
-          // CLEANUP is this OK?
           Stdlib.Json.parse<UInt8>("-0.0") |> Stdlib.Test.equal(Result.Ok(0u8))
 
           Stdlib.Json.parse<UInt8>("1.2E2")

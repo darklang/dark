@@ -8,7 +8,7 @@ let allDirectDescendants(
   let query =
     LanguageTools.ProgramTypes.Search.SearchQuery
       { currentModule = modulePath
-        text = ""  // CLEANUP maybe 'none' would be better
+        text = ""
         searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
         entityTypes = []
         exactMatch = false }
