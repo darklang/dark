@@ -70,7 +70,7 @@ let evaluateRawUnder(
       Result.Ok(Option.Some(Terminal.renderValue(branchId, width, color, currentModule, dv)))
   | Error(error) ->
     match error with
-    | Runtime(_, _) -> ExecutionError.printCallStack(branchId, "expression", error)
+    | Runtime(_, _, _) -> ExecutionError.printCallStack(branchId, "expression", error)
     | _ -> ()
 
     Result.Error(error)

@@ -300,9 +300,12 @@ module ExecutionError =
     | TypeCheck(
       report: LanguageTools.AtRestTypeChecker.Report,
       locations: List<(UInt64 * Int64 * Int64)>)
+    /// `lambdaLines`: the line each lambda in the stack starts on, by its node id, when the
+    /// script's source has it.
     | Runtime(
       error: LanguageTools.RuntimeTypes.RuntimeError.Error,
-      callStack: List<LanguageTools.RuntimeTypes.ExecutionPoint>)
+      callStack: List<LanguageTools.RuntimeTypes.ExecutionPoint>,
+      lambdaLines: List<(UInt64 * Int64)>)
     | Denied(PermissionDenied)
     /// The user cancelled a permission prompt.
     | Cancelled
@@ -347,7 +350,7 @@ module ExecutionError =
     match err with
     | Parse(pe) -> LanguageTools.Parser.CliScript.ParseError.toString(pe)
     | TypeCheck(report, locations) -> Packages.AtRestCheck.scriptReport(branchId, report, locations)
-    | Runtime(rte, _) ->
+    | Runtime(rte, _, _) ->
       PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, rte)
       + nameSuggestion(branchId, rte)
     | Denied(denied) ->
@@ -391,8 +394,8 @@ module ExecutionError =
   /// an internal stack.
   let printCallStack(branchId: Uuid, what: String, error: ExecutionError): Unit =
     match error with
-    | Runtime(_, frames) when hasReadableFrames(frames) ->
-      let rendered = PrettyPrinter.RuntimeTypes.callStack(branchId, frames)
+    | Runtime(_, frames, lambdaLines) when hasReadableFrames(frames) ->
+      let rendered = PrettyPrinter.RuntimeTypes.callStackAt(branchId, frames, lambdaLines)
       Stdlib.printErrorLine($"Error when executing {what}. Call-stack:\n{rendered}\n")
     | _ -> ()
 

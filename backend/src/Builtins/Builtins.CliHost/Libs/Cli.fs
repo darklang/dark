@@ -379,8 +379,10 @@ let private declarationsToModule
       | [] -> expr
       | first :: rest ->
         let parameter name = PT.LPVariable(gid (), name)
+        let lambdaId = gid ()
+        sourceRanges[lambdaId] <- WT.exprRange e
         PT.ELambda(
-          gid (),
+          lambdaId,
           NEList.ofList (parameter first) (List.map parameter rest),
           expr
         ))
@@ -609,7 +611,9 @@ module ExecutionError =
 
   type ExecutionError =
     | Parse of ParseError.ParseError
-    | Runtime of RT.RuntimeError.Error * RT.CallStack
+    /// The error, its call stack, and the 1-based line each lambda in the stack starts on,
+    /// by the lambda's node id, when the script's source has it.
+    | Runtime of RT.RuntimeError.Error * RT.CallStack * List<id * int>
     /// The Dark checker report, kept structured for CLI rendering, and where in the
     /// source each node it names starts: (node id, line, column), both 1-based.
     | TypeCheck of Dval * List<id * int * int>
@@ -633,7 +637,7 @@ module ExecutionError =
     (rte : RT.RuntimeError.Error)
     : ExecutionError =
     if denied.Count = 0 then
-      Runtime(rte, [])
+      Runtime(rte, [], [])
     else
       let last = denied[denied.Count - 1]
       let denial entry =
@@ -646,12 +650,31 @@ module ExecutionError =
       match last.layer, last.suggestion with
       | LibExecution.Permissions.Layer.Instance, _ -> denial None
       | LibExecution.Permissions.Layer.Package name, Some _ -> denial (Some name)
-      | _ -> Runtime(rte, [])
+      | _ -> Runtime(rte, [], [])
 
   let withCallStack (stack : RT.CallStack) (error : ExecutionError) =
     match error with
-    | Runtime(rte, _) -> Runtime(rte, stack)
+    | Runtime(rte, _, lines) -> Runtime(rte, stack, lines)
     | Denied denial -> Denied { denial with callStack = stack }
+    | _ -> error
+
+  let withLambdaLines
+    (ranges : System.Collections.Generic.Dictionary<id, WT.Range>)
+    (error : ExecutionError)
+    =
+    match error with
+    | Runtime(rte, stack, _) ->
+      let lines =
+        stack
+        |> List.choose (fun point ->
+          match point with
+          | RT.ExecutionPoint.Lambda(_, lambdaId, _) ->
+            match ranges.TryGetValue lambdaId with
+            | true, range -> Some(lambdaId, range.start.row + 1)
+            | false, _ -> None
+          | _ -> None)
+        |> List.distinct
+      Runtime(rte, stack, lines)
     | _ -> error
 
   let private callStackToDT (stack : RT.CallStack) =
@@ -693,8 +716,14 @@ module ExecutionError =
     let (caseName, fields) =
       match err with
       | Parse pe -> "Parse", [ ParseError.toDT pe ]
-      | Runtime(rte, stack) ->
-        "Runtime", [ RT2DT.RuntimeError.toDT rte; callStackToDT stack ]
+      | Runtime(rte, stack, lines) ->
+        let lineKT = KTTuple(VT.uint64, VT.int64, [])
+        let lines =
+          lines
+          |> List.map (fun (lambdaId, line) ->
+            DTuple(DUInt64 lambdaId, Dval.dint64 (int64 line), []))
+          |> Dval.list lineKT
+        "Runtime", [ RT2DT.RuntimeError.toDT rte; callStackToDT stack; lines ]
       | TypeCheck(report, locations) ->
         let locationKT = KTTuple(VT.uint64, VT.int64, [ VT.int64 ])
         let locations =
@@ -1434,6 +1463,7 @@ let private runGuest
     | Error(e, callStack) ->
       ExecutionError.classify denied e
       |> ExecutionError.withCallStack callStack
+      |> ExecutionError.withLambdaLines mod'.sourceRanges
       |> ExecutionError.toDT
       |> resultError
   task {
@@ -2208,6 +2238,7 @@ let fns () : List<BuiltInFn> =
                       return
                         ExecutionError.classify denied e
                         |> ExecutionError.withCallStack callStack
+                        |> ExecutionError.withLambdaLines mod'.sourceRanges
                         |> ExecutionError.toDT
                         |> resultError
                   | Error pe -> return resultError (ExecutionError.toDT pe)

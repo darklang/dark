@@ -715,3 +715,19 @@ test evalAllowGrantsForOneEvaluation = Instance.withInstance(fun i ->
       Instance.exitedWith(code, 0, "allowed for this evaluation")
       Instance.says(out, "5", "read the file")
       Instance.exitedWith(againCode, 1, "nothing remembered") ]))
+
+
+/// Two nested lambdas in a script stay two frames, each named by the line it starts on.
+test scriptLambdaFramesGiveTheirLines = Instance.withInstance(fun i ->
+  let path = $"{Instance.home(i)}/lambdas.dark"
+  let source =
+    "let boom(n: Int64): Int64 = Stdlib.List.head([]) |> Builtin.unwrap\nlet xs = [ 1, 2 ]\nlet _ =\n  Stdlib.List.map(xs, fun a ->\n    Stdlib.List.map(xs, fun b -> boom(a + b)))\n0\n"
+
+  let _ = Stdlib.Cli.File.writeText(path, source)
+  let (code, out) = Instance.ran(i, [ "run", path ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 1, "boom fails")
+      Instance.says(out, "- Lambda in Source (line 2)\n", "the top-level expression")
+      Instance.says(out, "- Lambda in Source (line 4)\n", "the outer lambda")
+      Instance.says(out, "- Lambda in Source (line 5)\n", "the inner lambda")
+      Instance.doesNotSay(out, "(×", "no lambdas merged") ]))
