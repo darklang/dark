@@ -241,28 +241,6 @@ module DateTime =
   let read (r : BinaryReader) : NodaTime.Instant =
     NodaTime.Instant.FromUnixTimeTicks(r.ReadInt64())
 
-// Read/write from/to string for now - simpler than byte manipulation
-module Int128 =
-  let read (r : BinaryReader) : System.Int128 =
-    let str = String.read r
-    System.Int128.Parse(str)
-
-  let write (w : BinaryWriter) (value : System.Int128) =
-    let str = string value
-    String.write w str
-
-// As string for now - simpler than byte manipulation
-module UInt128 =
-  let write (w : BinaryWriter) (value : System.UInt128) =
-    let str = string value
-    String.write w str
-
-  let read (r : BinaryReader) : System.UInt128 =
-    let str = String.read r
-    System.UInt128.Parse str
-
-
-
 module Guid =
   let write (w : BinaryWriter) (guid : Guid) =
     let buffer = Scratch.Bytes 16
