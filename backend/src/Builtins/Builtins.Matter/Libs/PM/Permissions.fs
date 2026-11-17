@@ -24,7 +24,7 @@ let private policyAdminError () =
     "permission denied: policy changes require the trusted `dark permissions` command",
     []
   )
-  |> raiseUntargetedRTE
+  |> raiseRTE
 
 let private accountIDOf (dval : Dval) : Option<System.Guid> =
   CommonToDT.Option.fromDT D.uuid dval

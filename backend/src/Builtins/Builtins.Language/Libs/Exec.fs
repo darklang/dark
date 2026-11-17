@@ -176,13 +176,13 @@ let private handleOf (pid : Scheduler.ProcessId) : Dval =
   let tn = typ PackageRefs.Type.Stdlib.Exec.handle
   DRecord(tn, tn, [ ValueType.Unknown ], RecordFields.ofList [ "id", DUuid pid ])
 
-let private pidOfHandle (vm : VMState) (h : Dval) : Scheduler.ProcessId =
+let private pidOfHandle (h : Dval) : Scheduler.ProcessId =
   match h with
   | DRecord(_, _, _, fields) ->
     match RecordFields.tryFind "id" fields with
     | Some(DUuid pid) -> pid
-    | _ -> RuntimeError.UncaughtException("not a handle", []) |> raiseRTE vm.threadID
-  | _ -> RuntimeError.UncaughtException("not a handle", []) |> raiseRTE vm.threadID
+    | _ -> RuntimeError.UncaughtException("not a handle", []) |> raiseRTE
+  | _ -> RuntimeError.UncaughtException("not a handle", []) |> raiseRTE
 
 /// The result a finished process gives its awaiter: its value, or its error raised again here
 /// with the frames it failed in kept below the caller's. First, the counts of the finished
@@ -194,7 +194,7 @@ let private resultOf (vm : VMState) (result : ExecutionResult) : Dval =
   | Ok dv -> dv
   | Error(rte, stack) ->
     vm.nestedCallStack <- stack
-    raiseRTE vm.threadID rte
+    raiseRTE rte
 
 /// A handle nothing answers to: never spawned on this instance, or finished so long ago that
 /// even its answer has been dropped.
@@ -212,17 +212,13 @@ type private Found =
   | Finished of ExecutionResult
 
 /// Look up `pid`, taking its kept answer if its row has gone. Raises for a handle nobody has.
-let private find
-  (vm : VMState)
-  (sched : Scheduler.Scheduler)
-  (pid : Scheduler.ProcessId)
-  : Found =
+let private find (sched : Scheduler.Scheduler) (pid : Scheduler.ProcessId) : Found =
   match sched.Find pid with
   | Some p -> Running p
   | None ->
     match sched.TakeResult pid with
     | Some result -> Finished result
-    | None -> noSuchProcess () |> raiseRTE vm.threadID
+    | None -> noSuchProcess () |> raiseRTE
 
 /// `Option<'a>` for a handle's `'a`, which nothing here knows: an unknown.
 let private optionOfAny (dv : Option<Dval>) : Dval =
@@ -387,9 +383,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| handle |] ->
-          match
-            find vm Scheduler.Scheduler.CurrentOrShared (pidOfHandle vm handle)
-          with
+          match find Scheduler.Scheduler.CurrentOrShared (pidOfHandle handle) with
           | Running p -> awaitProcess vm p
           | Finished result -> (resultOf vm result)
         | _ -> incorrectArgs ())
@@ -419,7 +413,7 @@ let fns () : List<BuiltInFn> =
           let sched = Scheduler.Scheduler.CurrentOrShared
           let some (result : ExecutionResult) =
             optionOfAny (Some(resultOf vm result))
-          match find vm sched (pidOfHandle vm handle) with
+          match find sched (pidOfHandle handle) with
           | Finished result -> (some result)
           | Running p ->
             let task = p.completion.Task
@@ -475,18 +469,18 @@ let fns () : List<BuiltInFn> =
           let forgotten =
             handles
             |> List.tryPick (fun h ->
-              match find vm s (pidOfHandle vm h) with
+              match find s (pidOfHandle h) with
               | Running _ -> None
               | Finished result -> Some(h, result))
           let procs =
             handles
             |> List.choose (fun h ->
-              s.Find(pidOfHandle vm h) |> Option.map (fun p -> h, p))
+              s.Find(pidOfHandle h) |> Option.map (fun p -> h, p))
           match forgotten, procs with
           | Some(h, result), _ -> (DTuple(h, resultOf vm result, []))
           | None, [] ->
             RuntimeError.UncaughtException("select needs at least one handle", [])
-            |> raiseRTE vm.threadID
+            |> raiseRTE
           | None, _ ->
             let answer (h : Dval, p : Scheduler.Process) : Dval =
               DTuple(h, resultOf vm p.completion.Task.Result, []) // landed

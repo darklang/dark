@@ -76,7 +76,7 @@ let fns () : List<BuiltInFn> =
         (function
         // `bigint f` truncates toward zero; `roundedToBigInt` adds the NaN/Infinity
         // guard (shared with the Float64 builtins) so those don't throw a host exn.
-        | _, vm, _, [| DFloat64 f |] -> roundedToBigInt vm f
+        | _, _, _, [| DFloat64 f |] -> roundedToBigInt f
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = set [ LibExecution.Effects.Effect.Raise ]

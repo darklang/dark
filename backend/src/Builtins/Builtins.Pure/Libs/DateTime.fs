@@ -120,7 +120,7 @@ let fns () : List<BuiltInFn> =
         "The DateTime <param count> units of <param unit> ticks each after <param ticks>"
       fn =
         (function
-        | _, vm, _, [| DInt64 ticks; DInt64 count; DInt64 unit |] ->
+        | _, _, _, [| DInt64 ticks; DInt64 count; DInt64 unit |] ->
           // NodaTime throws on instants past its range, even ones that fit int64.
           try
             bigint ticks + bigint count * bigint unit
@@ -136,7 +136,7 @@ let fns () : List<BuiltInFn> =
               | 10000000L -> RuntimeError.BigInts.DateTimeSeconds
               | 10000L -> RuntimeError.BigInts.DateTimeMilliseconds
               | _ -> RuntimeError.BigInts.DateTimeTicks
-            outOfRange vm kind (DInt64 count)
+            outOfRange kind (DInt64 count)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = set [ LibExecution.Effects.Effect.Raise ]

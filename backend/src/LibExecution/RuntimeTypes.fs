@@ -4143,15 +4143,10 @@ module RuntimeError =
     | Condition of message : string
 
 
-// CLEANUP the ThreadID isn't useful yet -- consider abandoning for now.
-exception RuntimeErrorException of Option<ThreadID> * rte : RuntimeError.Error
+exception RuntimeErrorException of rte : RuntimeError.Error
 
 
-let raiseRTE (threadId : ThreadID) (rte : RuntimeError.Error) : 'a =
-  raise (RuntimeErrorException(Some threadId, rte))
-
-let raiseUntargetedRTE (rte : RuntimeError.Error) : 'a =
-  raise (RuntimeErrorException(None, rte))
+let raiseRTE (rte : RuntimeError.Error) : 'a = raise (RuntimeErrorException rte)
 
 
 
@@ -4561,7 +4556,7 @@ module Dval =
           RuntimeError.Dicts.NaNKey key
         else
           RuntimeError.Dicts.UnsupportedKeyType(toValueType key, key)
-      RuntimeError.Error.Dict error |> raiseUntargetedRTE
+      RuntimeError.Error.Dict error |> raiseRTE
 
 
   /// Generic Dval-rewriting walker. At each node, asks `f`:
@@ -6893,7 +6888,7 @@ module TypeReference =
       | ValueNone -> ValueType.Unknown
 
     | TCustomType({ originalName = names; resolved = Error nre }, _) ->
-      raiseUntargetedRTE (RuntimeError.ParseTimeNameResolution(names, nre))
+      raiseRTE (RuntimeError.ParseTimeNameResolution(names, nre))
 
     // Only these can be an alias, or hold something that has to be resolved.
     | TStream _
@@ -6935,7 +6930,7 @@ module TypeReference =
       KTCustomType(typeName, toVTs types tst typeArgs) |> ValueType.Known
 
     | TCustomType({ originalName = names; resolved = Error nre }, _) ->
-      raiseUntargetedRTE (RuntimeError.ParseTimeNameResolution(names, nre))
+      raiseRTE (RuntimeError.ParseTimeNameResolution(names, nre))
 
     | TFn(args, result) ->
       KTFn(NEList.map (toVT types tst) args, toVT types tst result)

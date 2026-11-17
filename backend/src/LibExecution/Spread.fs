@@ -512,7 +512,7 @@ let private runChunks
   match me with
   | Some m when not (isNull m.stopReason) ->
     slots.Release(List.length chunks) |> ignore<int>
-    RuntimeError.UncaughtException(m.stopReason, []) |> raiseUntargetedRTE
+    RuntimeError.UncaughtException(m.stopReason, []) |> raiseRTE
   | _ -> ()
 
   state.spread.counts.Add SpreadCount.Spreads
@@ -609,7 +609,7 @@ let private runChunks
       | null -> ()
       | reason ->
         cancelFrom (i + 1)
-        RuntimeError.UncaughtException(reason, []) |> raiseUntargetedRTE
+        RuntimeError.UncaughtException(reason, []) |> raiseRTE
     | None -> ()
 
   // The chunks' results in order, up to the first that found something or failed, and where
@@ -652,7 +652,7 @@ let private runChunks
     match me, stop with
     | Some m, FailedAt failedAt when not (isNull m.stopReason) ->
       cancelFrom (failedAt + 1)
-      RuntimeError.UncaughtException(m.stopReason, []) |> raiseUntargetedRTE
+      RuntimeError.UncaughtException(m.stopReason, []) |> raiseRTE
     | _ -> ()
 
     match stop with
@@ -932,7 +932,6 @@ let whenLanded
   let sched = Sched.Scheduler.CurrentOrShared
   let parent = Sched.Scheduler.CurrentProcess |> Option.map (fun p -> p.id)
   let access = vm.activeAccess
-  let threadID = vm.threadID
   let childState = { state with spreadChild = true }
   task {
     let! value = landedValue read
@@ -941,6 +940,6 @@ let whenLanded
     sched.TakeResult p.id |> ignore<Option<ExecutionResult>>
     match result with
     | Ok v -> return v
-    | Error(rte, _) -> return raiseRTE threadID rte
+    | Error(rte, _) -> return raiseRTE rte
   }
   |> Pending.ofTask

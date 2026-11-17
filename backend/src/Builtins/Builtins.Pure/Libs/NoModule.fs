@@ -22,10 +22,10 @@ let varB = TVariable "b"
 
 /// Shared body for `equals` / `notEquals` builtins — VT-merge type
 /// check + structural compare.
-let private equalsBuiltinImpl (vm : VMState) (a : Dval) (b : Dval) : bool =
+let private equalsBuiltinImpl (a : Dval) (b : Dval) : bool =
   let (vtA, vtB) = (Dval.toValueType a, Dval.toValueType b)
   match ValueType.merge vtA vtB with
-  | Error _ -> RTE.EqualityCheckOnIncompatibleTypes(vtA, vtB) |> raiseRTE vm.threadID
+  | Error _ -> RTE.EqualityCheckOnIncompatibleTypes(vtA, vtB) |> raiseRTE
   | Ok _ -> Dval.equals a b
 
 
@@ -35,21 +35,21 @@ let private equalsBuiltinImpl (vm : VMState) (a : Dval) (b : Dval) : bool =
 
 /// Raised when a numeric operator gets operands that aren't two values of the
 /// same numeric type (e.g. `1L + 2.0`, `"a" + "b"`).
-let private numericTypeError (vm : VMState) (a : Dval) (b : Dval) : 'a =
+let private numericTypeError (a : Dval) (b : Dval) : 'a =
   RTE.NumericOperationOnIncompatibleTypes(Dval.toValueType a, Dval.toValueType b)
-  |> raiseRTE vm.threadID
+  |> raiseRTE
 
 /// An operator's answer for anything `NumOps` has no answer for.
 let private notNumbers : BuiltInFnSig =
   function
-  | _, vm, _, [| a; b |] -> numericTypeError vm a b
-  | _, vm, _, [| a |] -> numericTypeError vm a a
+  | _, _, _, [| a; b |] -> numericTypeError a b
+  | _, _, _, [| a |] -> numericTypeError a a
   | _ -> incorrectArgs ()
 
 /// A polymorphic operator: `NumOps` for one or two numbers of one builtin numeric type, which is
 /// where their semantics live, and <param rest> for everything else.
 let private numeric (op : int) (rest : BuiltInFnSig) : BuiltInFnSig =
-  fun (struct (_, vm, _, args) as call) ->
+  fun (struct (_, _, _, args) as call) ->
     let outcome =
       match args with
       | [| a; b |] -> NumOps.binary op a b
@@ -57,12 +57,12 @@ let private numeric (op : int) (rest : BuiltInFnSig) : BuiltInFnSig =
       | _ -> NumOps.Unsupported
     match outcome with
     | NumOps.Value v -> v
-    | NumOps.Raises e -> raiseRTE vm.threadID e
+    | NumOps.Raises e -> raiseRTE e
     | NumOps.Unsupported -> rest call
 
 
 /// `unwrap` of a value with no read in flight at its top.
-let private unwrapLanded (vm : VMState) (dval : Dval) : Dval =
+let private unwrapLanded (dval : Dval) : Dval =
   match dval with
 
   // Success: extract `Some` out of an Option
@@ -81,21 +81,19 @@ let private unwrapLanded (vm : VMState) (dval : Dval) : Dval =
   | DEnum(FQTypeName.Package(Hash id), _, _, "None", []) when
     id = PackageRefs.Type.Stdlib.option ()
     ->
-    RuntimeError.Unwraps.GotNone |> RuntimeError.Unwrap |> raiseRTE vm.threadID
+    RuntimeError.Unwraps.GotNone |> RuntimeError.Unwrap |> raiseRTE
 
   // Error: expected Ok, got Error
   | DEnum(FQTypeName.Package(Hash id), _, _, "Error", [ value ]) when
     id = PackageRefs.Type.Stdlib.result ()
     ->
-    RuntimeError.Unwraps.GotError value
-    |> RuntimeError.Unwrap
-    |> raiseRTE vm.threadID
+    RuntimeError.Unwraps.GotError value |> RuntimeError.Unwrap |> raiseRTE
 
   // Error: single dval, but not an Option or Result
   | otherDval ->
     RuntimeError.Unwraps.NonOptionOrResult otherDval
     |> RuntimeError.Unwrap
-    |> raiseRTE vm.threadID
+    |> raiseRTE
 
 
 let fns () : List<BuiltInFn> =
@@ -106,7 +104,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns true if the two value are equal"
       fn =
         (function
-        | _, vm, _, [| a; b |] -> equalsBuiltinImpl vm a b |> Dval.bool
+        | _, _, _, [| a; b |] -> equalsBuiltinImpl a b |> Dval.bool
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -120,7 +118,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns true if the two value are not equal"
       fn =
         (function
-        | _, vm, _, [| a; b |] -> equalsBuiltinImpl vm a b |> not |> Dval.bool
+        | _, _, _, [| a; b |] -> equalsBuiltinImpl a b |> not |> Dval.bool
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -373,14 +371,14 @@ let fns () : List<BuiltInFn> =
             id = PackageRefs.Type.Stdlib.result ()
             ->
             value
-          | _ -> Interpreter.withValue vm read (fun landed -> unwrapLanded vm landed)
-        | _, vm, _, [| dval |] -> unwrapLanded vm dval
+          | _ -> Interpreter.withValue vm read (fun landed -> unwrapLanded landed)
+        | _, _, _, [| dval |] -> unwrapLanded dval
 
         // Error: multiple arguments
-        | _, vm, _, multipleArgs ->
+        | _, _, _, multipleArgs ->
           RuntimeError.Unwraps.MultipleArgs(List.ofArray multipleArgs)
           |> RuntimeError.Unwrap
-          |> raiseRTE vm.threadID)
+          |> raiseRTE)
 
       previewable = Pure
       callEffects = set [ LibExecution.Effects.Effect.Raise ]

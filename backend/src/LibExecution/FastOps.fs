@@ -244,16 +244,9 @@ let evalStrInt (tag : int) (s : string) (n : int64) : Dval voption =
 /// That helper is in `LibExecution`, so this is short-circuiting the call machinery around a
 /// builtin, not duplicating the builtin -- which is the line every entry in this table has to stay
 /// on the right side of.
-let evalDictGet
-  (threadID : ThreadID)
-  (tag : int)
-  (o : DictMap)
-  (k : Dval)
-  : Dval voption =
+let evalDictGet (tag : int) (o : DictMap) (k : Dval) : Dval voption =
   if tag = dictGet && Dval.isUsableDictKey k then
-    ValueSome(
-      DictMap.tryFind k o |> TypeChecker.DvalCreator.option threadID VT.unknownTODO
-    )
+    ValueSome(DictMap.tryFind k o |> TypeChecker.DvalCreator.option VT.unknownTODO)
   else
     ValueNone
 

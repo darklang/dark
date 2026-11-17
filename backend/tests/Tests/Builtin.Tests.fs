@@ -850,8 +850,7 @@ let private raisesWithoutRaise : Map<string, string> =
 
 /// What raises a runtime error from a builtin body. `incorrectArgs` and `raiseInternal` are
 /// left out: they guard argument shapes the type checker already ensures.
-let private raisePrimitives =
-  [ "raiseRTE"; "raiseUntargetedRTE"; "raise"; "failwith" ]
+let private raisePrimitives = [ "raiseRTE"; "raiseRTE"; "raise"; "failwith" ]
 
 /// The raise sites in each builtin's source: a primitive, or a helper that reaches one (in the
 /// builtin's own file, or `Builtin.Shortcuts`), in the builtin libraries and the test-only

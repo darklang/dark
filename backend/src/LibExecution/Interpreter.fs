@@ -1259,7 +1259,7 @@ let private raiseReadFailure (vm : VMState) (p : Promise) (t : Task<Dval>) : 'a 
   | Pending.ReadFailed(read, failure) ->
     vm.nestedCallStack <- [ read.Site; Function read.Fn ]
     match failure with
-    | RuntimeErrorException(_, rte) -> raiseRTE vm.threadID rte
+    | RuntimeErrorException(rte) -> raiseRTE rte
     | ex -> raise ex
   | ex -> raise ex
 
@@ -1273,7 +1273,6 @@ let private landedForTrace (args : List<Dval>) : List<Dval> =
 
 /// Bind one of a lambda's parameters to its argument.
 let inline private bindLambdaParam
-  (vm : VMState)
   (r : Dval array)
   (pat : LetPattern)
   (arg : Dval)
@@ -1292,7 +1291,7 @@ let inline private bindLambdaParam
           []
       | _ -> arg
     if not (assignLetPattern r pat arg) then
-      RTE.Let(RTE.Lets.PatternDoesNotMatch(arg, pat)) |> raiseRTE vm.threadID
+      RTE.Let(RTE.Lets.PatternDoesNotMatch(arg, pat)) |> raiseRTE
 
 /// Bind a lambda's parameters to its arguments, in lockstep.
 ///
@@ -1309,7 +1308,7 @@ let rec private bindLambdaParams
     match ArgSeq.uncons args with
     | ValueNone -> ()
     | ValueSome(struct (arg, argRest)) ->
-      bindLambdaParam vm r pat arg
+      bindLambdaParam r pat arg
       bindLambdaParams vm r patRest argRest
 
 /// `bindLambdaParams`, from <param args> starting at <param i>.
@@ -1322,7 +1321,7 @@ let rec private bindLambdaParamsFrom
   : unit =
   match pats with
   | pat :: patRest when i < args.Length ->
-    bindLambdaParam vm r pat args[i]
+    bindLambdaParam r pat args[i]
     bindLambdaParamsFrom vm r patRest args (i + 1)
   | _ -> ()
 
@@ -1366,7 +1365,6 @@ type private ApplyContext =
 /// post-shadow one.
 let private resolveTypeArgs
   (exeState : ExecutionState)
-  (vm : VMState)
   (name : FQFnName.FQFnName)
   (typeParamCount : int)
   (ctx : ApplyContext)
@@ -1379,7 +1377,7 @@ let private resolveTypeArgs
     if typeArgCount <> typeParamCount then
       RTE.Applications.WrongNumberOfTypeArgsForFn(name, typeParamCount, typeArgCount)
       |> RTE.Apply
-      |> raiseRTE vm.threadID
+      |> raiseRTE
     TypeReference.toVTs exeState.types ctx.tst typeArgs
 
 
@@ -1659,7 +1657,7 @@ let private finishBuiltin
         result
     with
     | Ok _ -> ()
-    | Error rte -> raiseRTE vm.threadID rte
+    | Error rte -> raiseRTE rte
     traceBuiltinResult exeState fn ord traceSw allArgs result
 
 
@@ -1703,10 +1701,10 @@ module ReplayPolicy =
 
   /// Stop the resume at this step, leaving the run as it was, the same way a handle it
   /// cannot reproduce does.
-  let refuse (vm : VMState) (ord : int64) (message : string) : 'a =
+  let refuse (ord : int64) (message : string) : 'a =
     refusedAt <- Some ord
     RuntimeError.UncaughtException($"cannot resume past step {ord}: {message}", [])
-    |> raiseRTE vm.threadID
+    |> raiseRTE
 
   /// Replayed output goes back to the stream it went to.
   let private stderrPrinters : Set<string> = set [ "printErrorLine"; "printError" ]
@@ -1717,12 +1715,7 @@ module ReplayPolicy =
     if redirected then $"[replayed] {s}" else $"\u001b[2m{s}\u001b[0m"
 
   /// Run before a logged call's result is handed back. Raises to stop the resume.
-  let beforeServing
-    (vm : VMState)
-    (fn : BuiltInFn)
-    (ord : int64)
-    (args : Dval[])
-    : unit =
+  let beforeServing (fn : BuiltInFn) (ord : int64) (args : Dval[]) : unit =
     // The runtime's own kernel-backed builtins carry `Native` too, so the effect is no test of
     // reproducibility; the names are. A user-level FFI builtin, when one exists, goes in the set.
     let name = fn.name.name
@@ -1733,7 +1726,7 @@ module ReplayPolicy =
         + "cannot have again (a process or a stream); the run is left as it was",
         []
       )
-      |> raiseRTE vm.threadID
+      |> raiseRTE
     if Set.contains Effects.Effect.Stdout fn.callEffects then
       // The logged output, dimmed: the world saw it once; the person resuming sees where the
       // run had got to.
@@ -1860,7 +1853,7 @@ let private invokeBuiltinAuthorized
     if exeState.spreadChild && spreadRefuses fn then
       RTE.Applications.EffectWhereOnlyComputing(FQFnName.Builtin fn.name)
       |> RTE.Apply
-      |> raiseRTE vm.threadID
+      |> raiseRTE
     // A package test inside the runner's process computes and nothing else, like a spread child:
     // an `Impure` call could read or change the runner's own state. It stops here, before the
     // call, and the runner runs the test again in a worker (`PackageTests.executeInProcessTest`).
@@ -1870,7 +1863,7 @@ let private invokeBuiltinAuthorized
         $"`{fn.name.name}` is Impure, so this test runs again in a worker",
         []
       )
-      |> raiseRTE vm.threadID
+      |> raiseRTE
     if Effects.performsAny fn.callEffects then
       PermissionCheck.requireBuiltinEffects exeState vm fn.callEffects fn.name.name
 
@@ -1916,7 +1909,7 @@ let private invokeBuiltinAuthorized
           + "one.",
           []
         )
-        |> raiseRTE vm.threadID
+        |> raiseRTE
     | _ -> ValueNone
 
   let fromView = ValueOption.isSome viewed
@@ -1931,12 +1924,12 @@ let private invokeBuiltinAuthorized
         Tracing.ReplayStep.PerformOnwards
 
   match replayed with
-  | Tracing.ReplayStep.Diverged message -> ReplayPolicy.refuse vm ord message
+  | Tracing.ReplayStep.Diverged message -> ReplayPolicy.refuse ord message
   | Tracing.ReplayStep.Serve result ->
     // Not for a view: the echo of a logged print, the refusal at an unreproducible handle
     // and the stale-file warning are all about a RESUME, where the person is taking a run
     // forward. Looking at code should be silent and should never refuse.
-    if not fromView then ReplayPolicy.beforeServing vm fn ord allArgs
+    if not fromView then ReplayPolicy.beforeServing fn ord allArgs
     finishBuiltin exeState vm fn tst allArgs ord traceSw sw bodyAllocBefore result
   // `PerformOnce`: the log deliberately has no answer for this one (a read whose result was
   // redacted out of it), so it is performed for real and the replay goes on. `PerformOnwards`:
@@ -2049,11 +2042,11 @@ let private completeBuiltin
   if argCount > paramCount then
     RTE.Applications.TooManyArgsForFn(ctx.applicable.name, paramCount, argCount)
     |> RTE.Apply
-    |> raiseRTE vm.threadID
+    |> raiseRTE
   elif argCount < paramCount then
     RTE.Applications.TooFewArgsForFn(ctx.applicable.name, paramCount, argCount)
     |> RTE.Apply
-    |> raiseRTE vm.threadID
+    |> raiseRTE
   else
     // Some stdlib fns, like `List.filter`, just call a builtin, so we skip the Dark fn
     // and call the builtin directly. That skip also skips the code that sets up the
@@ -2083,11 +2076,7 @@ let private completeBuiltin
 /// A view does not stop it: a view collects the VALUE each expression produced, and the fast path
 /// leaves that value in the destination register exactly as the long way round does, so the symbol
 /// table finds the same thing either way.
-let private tryFastOp
-  (threadID : ThreadID)
-  (fn : BuiltInFn)
-  (ctx : ApplyContext)
-  : Dval voption =
+let private tryFastOp (fn : BuiltInFn) (ctx : ApplyContext) : Dval voption =
   if not (List.isEmpty ctx.applicable.argsSoFar) then
     ValueNone
   else
@@ -2130,7 +2119,7 @@ let private tryFastOp
         match ArgSeq.uncons rest with
         | ValueSome(struct (k, tail)) ->
           if ArgSeq.isEmpty tail then
-            FastOps.evalDictGet threadID tag o k
+            FastOps.evalDictGet tag o k
           else
             match ArgSeq.uncons tail with
             | ValueSome(struct (v, rest3)) when ArgSeq.isEmpty rest3 ->
@@ -2198,7 +2187,6 @@ let rec private landWhere
 
 /// A builtin operator, by its `FastOps.byName` tag, on the caller's registers.
 let private fastBuiltinOp
-  (threadID : ThreadID)
   (registers : Dval array)
   (tag : int)
   (argRegs : NEList<Register>)
@@ -2233,7 +2221,7 @@ let private fastBuiltinOp
           FastOps.evalListPrepend vt1 l1 other
         else
           FastOps.evalListContains tag l1 other
-    | DDict(_, _, o) -> FastOps.evalDictGet threadID tag o registers[secondReg]
+    | DDict(_, _, o) -> FastOps.evalDictGet tag o registers[secondReg]
     // `==` and `!=` on two scalars of one type, where the builtin's check that the two types
     // match cannot fail. Each of these cases has a field, so it is its own .NET class.
     | DBool _
@@ -2309,13 +2297,12 @@ let private fastOpTagOf (b : FQFnName.Builtin) : int voption =
 /// is the path nearly every operator arrives on, because Dark code calls `Stdlib.x` rather than
 /// `Builtin.x`.
 let private tryFastOpOn
-  (threadID : ThreadID)
   (registers : Dval array)
   (b : FQFnName.Builtin)
   (argRegs : NEList<Register>)
   : Dval voption =
   match fastOpTagOf b with
-  | ValueSome tag -> fastBuiltinOp threadID registers tag argRegs
+  | ValueSome tag -> fastBuiltinOp registers tag argRegs
   | ValueNone -> ValueNone
 
 
@@ -2324,7 +2311,6 @@ let private tryFastOpOn
 /// `tryFastOp` covers the ones that arrive through an elided package wrapper and have already had a
 /// context built; this covers the ones compiled as a direct builtin call, which is what `a + b` is.
 let private tryFastOpDirect
-  (threadID : ThreadID)
   (registers : Dval array)
   (applicable : ApplicableNamedFn)
   (typeArgs : List<TypeReference>)
@@ -2334,7 +2320,7 @@ let private tryFastOpDirect
     ValueNone
   else
     match applicable.name with
-    | FQFnName.Builtin b -> tryFastOpOn threadID registers b argRegs
+    | FQFnName.Builtin b -> tryFastOpOn registers b argRegs
     | FQFnName.TraitMethod { trait_ = Hash traitHash
                              method_ = methodName
                              implFn = _ } ->
@@ -2363,7 +2349,7 @@ let rec private checkBiParamsRest
       TypeChecker.checkFnParam exeState.types name tst i p.name p.typ args[idx]
     with
     | Ok tst -> checkBiParamsRest exeState vm name args tst (i + 1) rest (idx + 1)
-    | Error rte -> raiseRTE vm.threadID rte
+    | Error rte -> raiseRTE rte
   | _ -> tst
 
 /// The argument checks `checkPkgParams` could not settle, from parameter `i` on.
@@ -2380,7 +2366,7 @@ let rec private checkPkgParamsRest
   | p :: pRest, a :: aRest ->
     match TypeChecker.checkFnParam exeState.types name tst i p.name p.typ a with
     | Ok tst -> checkPkgParamsRest exeState vm name tst (i + 1) pRest aRest
-    | Error rte -> raiseRTE vm.threadID rte
+    | Error rte -> raiseRTE rte
   | _ -> tst
 
 
@@ -2407,7 +2393,7 @@ and private callBuiltinResolvedValues
   (fn : BuiltInFn)
   (resolvedTypeArgsVT : List<ValueType>)
   : Dval =
-  match tryFastOp vm.threadID fn ctx with
+  match tryFastOp fn ctx with
   | ValueSome result ->
     // Counted, so `builtinCalls` still says how many builtin calls the program made.
     if vm.stats.enabled then
@@ -2554,7 +2540,7 @@ let private callBuiltin
   (ctx : ApplyContext)
   (fn : BuiltInFn)
   : Dval =
-  resolveTypeArgs exeState vm ctx.applicable.name (List.length fn.typeParams) ctx
+  resolveTypeArgs exeState ctx.applicable.name (List.length fn.typeParams) ctx
   |> callBuiltinResolved exeState vm currentFrame ctx fn
 
 
@@ -3098,11 +3084,11 @@ let private completePackage
   if argCount > paramCount then
     RTE.Applications.TooManyArgsForFn(applicable.name, paramCount, argCount)
     |> RTE.Apply
-    |> raiseRTE vm.threadID
+    |> raiseRTE
   elif argCount < paramCount then
     RTE.Applications.TooFewArgsForFn(applicable.name, paramCount, argCount)
     |> RTE.Apply
-    |> raiseRTE vm.threadID
+    |> raiseRTE
   elif ctx.inPlace then
     refillForTailCall
       exeState
@@ -3183,7 +3169,6 @@ let rec private boundsRemembered
 /// still Unknown here (an empty list) is left for the method call to sort out.
 let private checkBoundsAtEntry
   (exeState : ExecutionState)
-  (vm : VMState)
   (fn : PackageFn.PackageFn)
   (tst : TypeSymbolTable)
   : unit =
@@ -3210,7 +3195,7 @@ let private checkBoundsAtEntry
             ValueType.Known self
           )
         )
-        |> raiseRTE vm.threadID
+        |> raiseRTE
       | Traits.Ambiguous cs ->
         RTE.Trait(
           RTE.Traits.DispatchAmbiguous(
@@ -3219,7 +3204,7 @@ let private checkBoundsAtEntry
             cs |> List.map (fun c -> c.source)
           )
         )
-        |> raiseRTE vm.threadID
+        |> raiseRTE
     | _ -> ())
 
 /// Everything after the explicit type args are resolved. See `callPackage`.
@@ -3330,7 +3315,7 @@ let private callPackageViaFrame
     && argCount >= paramCount
     && not (boundsRemembered exeState (exeState.fns.implGeneration ()) fn.bounds tst)
   then
-    checkBoundsAtEntry exeState vm fn tst
+    checkBoundsAtEntry exeState fn tst
 
   completePackage
     exeState
@@ -3468,7 +3453,7 @@ let private callPackageWith
   (callData : PackageFnCallData)
   : PackageOutcome =
   let fn = callData.fn
-  resolveTypeArgs exeState vm ctx.applicable.name (List.length fn.typeParams) ctx
+  resolveTypeArgs exeState ctx.applicable.name (List.length fn.typeParams) ctx
   |> callPackageResolved exeState vm currentFrame ctx callData
 
 /// `callPackageWith` for a fn just fetched.
@@ -3695,7 +3680,6 @@ let private traitSelfIndexMemo
 /// package manager (`implSelectionMemo`) for the apply fast path.
 let private resolveTraitMethod
   (exeState : ExecutionState)
-  (vm : VMState)
   (currentFrame : CallFrame)
   (traitHash : FQTypeName.Package)
   (methodName : string)
@@ -3708,7 +3692,7 @@ let private resolveTraitMethod
   let decl =
     match decl with
     | Some t -> t
-    | None -> RTE.Trait(RTE.Traits.TraitNotFound traitName) |> raiseRTE vm.threadID
+    | None -> RTE.Trait(RTE.Traits.TraitNotFound traitName) |> raiseRTE
 
   // 1. explicit type args
   let explicitSelf =
@@ -3760,8 +3744,7 @@ let private resolveTraitMethod
     match boundSelf with
     | Some kt -> kt
     | None ->
-      RTE.Trait(RTE.Traits.SelfTypeUnknown(traitName, methodName))
-      |> raiseRTE vm.threadID
+      RTE.Trait(RTE.Traits.SelfTypeUnknown(traitName, methodName)) |> raiseRTE
 
   // Read before the candidates, so a fold in between cannot stamp a stale
   // selection with the new generation.
@@ -3776,9 +3759,7 @@ let private resolveTraitMethod
                                              methodName,
                                              self)] <- struct (generation, fnHash)
       fnHash
-    | None ->
-      RTE.Trait(RTE.Traits.NoSuchMethod(traitName, methodName))
-      |> raiseRTE vm.threadID
+    | None -> RTE.Trait(RTE.Traits.NoSuchMethod(traitName, methodName)) |> raiseRTE
   | Traits.NoImpl when
     methodName = "display" && traitHash = Hash(PackageRefs.Trait.Stdlib.display ())
     ->
@@ -3786,8 +3767,7 @@ let private resolveTraitMethod
     // at-rest check refuses any other call of `display` on such a type.
     Hash(PackageRefs.Fn.Stdlib.inspect ())
   | Traits.NoImpl ->
-    RTE.Trait(RTE.Traits.MissingImpl(traitName, ValueType.Known self))
-    |> raiseRTE vm.threadID
+    RTE.Trait(RTE.Traits.MissingImpl(traitName, ValueType.Known self)) |> raiseRTE
   | Traits.Ambiguous cs ->
     RTE.Trait(
       RTE.Traits.DispatchAmbiguous(
@@ -3796,7 +3776,7 @@ let private resolveTraitMethod
         cs |> List.map (fun c -> c.source)
       )
     )
-    |> raiseRTE vm.threadID
+    |> raiseRTE
 
 /// The implementation to call, from the three states the save can record.
 ///
@@ -4016,12 +3996,11 @@ let inline private pushFrame (vm : VMState) (frame : CallFrame) : unit =
 /// The package fn `pkg`, or the runtime error that there is none.
 let private packageFn
   (exeState : ExecutionState)
-  (vm : VMState)
   (pkg : FQFnName.Package)
   : PackageFn.PackageFn =
   match exeState.fns.package pkg with
   | Some fn -> fn
-  | None -> RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
+  | None -> RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE
 
 /// Start a builtin's apply request (`requestApply`): push the callable's frame from `caller`,
 /// with the request's `next` to receive its result and `finish` for the chain's end, and answer
@@ -4059,10 +4038,7 @@ let rec private beginRequest
     let foundLambda =
       match appLambda.impl with
       | HasCode impl -> impl
-      | NoCode ->
-        RTE.Applications.LambdaNotAvailable exprId
-        |> RTE.Apply
-        |> raiseRTE vm.threadID
+      | NoCode -> RTE.Applications.LambdaNotAvailable exprId |> RTE.Apply |> raiseRTE
     let allArgs =
       ArgSeq.withPrior
         prior
@@ -4073,11 +4049,11 @@ let rec private beginRequest
     if argCount > paramCount then
       RTE.Applications.TooManyArgsForLambda(exprId, paramCount, argCount)
       |> RTE.Apply
-      |> raiseRTE vm.threadID
+      |> raiseRTE
     elif argCount < paramCount then
       RTE.Applications.TooFewArgsForLambda(exprId, paramCount, argCount)
       |> RTE.Apply
-      |> raiseRTE vm.threadID
+      |> raiseRTE
     elif lambdaArgsNeedWait foundLambda.patterns prior then
       // `fun (a, b) -> ...` handed a read in flight (a fold's accumulator).
       let again =
@@ -4146,7 +4122,6 @@ let rec private beginRequest
             let resolving =
               resolveTraitMethod
                 exeState
-                vm
                 caller
                 tm.trait_
                 tm.method_
@@ -4169,7 +4144,7 @@ let rec private beginRequest
     | FQFnName.Builtin builtin ->
       let mutable found = Unchecked.defaultof<BuiltInFn>
       if not (exeState.fns.builtIn.TryGetValue(builtin, &found)) then
-        RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE vm.threadID
+        RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE
       vm.activeAccess <- access
       let call = callBuiltin exeState vm caller ctx found
       // The callee may itself have asked for an apply; `drive` sees that first.
@@ -4184,7 +4159,7 @@ let rec private beginRequest
         (Pending.andThen next call)
         direct
     | FQFnName.Package pkg ->
-      let call = callPackage exeState vm caller ctx (packageFn exeState vm pkg)
+      let call = callPackage exeState vm caller ctx (packageFn exeState pkg)
       match call with
       | PushFrame frame ->
         frame.continuation <- next
@@ -4348,8 +4323,7 @@ let private applyLambda
   let foundLambda =
     match appLambda.impl with
     | HasCode impl -> impl
-    | NoCode ->
-      RTE.Applications.LambdaNotAvailable exprId |> RTE.Apply |> raiseRTE vm.threadID
+    | NoCode -> RTE.Applications.LambdaNotAvailable exprId |> RTE.Apply |> raiseRTE
 
   let allArgs = ArgSeq.ofNE registers newArgRegs
 
@@ -4357,9 +4331,7 @@ let private applyLambda
   let paramCount = List.length foundLambda.patterns
 
   if typeArgs <> [] then
-    RTE.Applications.CannotApplyTypeArgsToLambda
-    |> RTE.Apply
-    |> raiseRTE vm.threadID
+    RTE.Applications.CannotApplyTypeArgsToLambda |> RTE.Apply |> raiseRTE
 
   if argCount = paramCount then
     if
@@ -4389,11 +4361,11 @@ let private applyLambda
   else if argCount > paramCount then
     RTE.Applications.TooManyArgsForLambda(exprId, paramCount, argCount)
     |> RTE.Apply
-    |> raiseRTE vm.threadID
+    |> raiseRTE
   else
     RTE.Applications.TooFewArgsForLambda(exprId, paramCount, argCount)
     |> RTE.Apply
-    |> raiseRTE vm.threadID
+    |> raiseRTE
 
   recordStage vm ApplyStage.LambdaTotal lambdaTotalAlloc
   ApplyDone
@@ -4438,7 +4410,7 @@ let private applyRecordedImpl
         applicable =
           { applicable with name = FQFnName.Package implFn; typeArgs = [] } }
   let call : PackageOutcome =
-    callPackage exeState vm currentFrame implCtx (packageFn exeState vm implFn)
+    callPackage exeState vm currentFrame implCtx (packageFn exeState implFn)
   landPackage vm registers putResultIn call
 
 
@@ -4479,7 +4451,7 @@ let private applyTraitMethod
        | ValueType.Known l, ValueType.Known r when
          Traits.headOfKnownType l <> Traits.headOfKnownType r
          ->
-         RTE.NumericOperationOnIncompatibleTypes(left, right) |> raiseRTE vm.threadID
+         RTE.NumericOperationOnIncompatibleTypes(left, right) |> raiseRTE
        | _ -> ()
      | _ -> ()
    | _ -> ())
@@ -4546,7 +4518,7 @@ let private applyTraitMethod
             access = implAccess tm ctx.access
             applicable =
               { applicable with name = FQFnName.Package implFn; typeArgs = [] } }
-      callPackage exeState vm currentFrame implCtx (packageFn exeState vm implFn)
+      callPackage exeState vm currentFrame implCtx (packageFn exeState implFn)
     | ValueNone ->
       let allArgs =
         applicable.argsSoFar
@@ -4554,7 +4526,6 @@ let private applyTraitMethod
       let implFn =
         resolveTraitMethod
           exeState
-          vm
           currentFrame
           traitHash
           methodName
@@ -4569,7 +4540,7 @@ let private applyTraitMethod
             access = implAccess tm ctx.access
             applicable =
               { applicable with name = FQFnName.Package implFn; typeArgs = [] } }
-      callPackage exeState vm currentFrame implCtx (packageFn exeState vm implFn)
+      callPackage exeState vm currentFrame implCtx (packageFn exeState implFn)
   landPackage vm registers putResultIn call
 
 
@@ -4590,7 +4561,7 @@ let private applyBuiltin
   // implements IDictionary, so the byref overload is available here too.
   let mutable found = Unchecked.defaultof<BuiltInFn>
   if not (exeState.fns.builtIn.TryGetValue(builtin, &found)) then
-    RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE vm.threadID
+    RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE
   else
     let fn = found
     recordStage vm ApplyStage.BiFnLookup biLookupAlloc
@@ -4913,7 +4884,7 @@ let private applyPackageFn
   // whether or not the fn definition is still available.
   let isHarmful = exeState.fns.isHarmful pkg
   if isHarmful && not exeState.allowHarmful then
-    RTE.DeprecatedItemHalted pkg |> raiseRTE vm.threadID
+    RTE.DeprecatedItemHalted pkg |> raiseRTE
   // A forwarder whose builtin is already known needs neither the fn nor the package call
   // path: the fetch, `resolveTypeArgs`, `callPackage` and `callPackageResolved` all exist to
   // reach the same `callBuiltinResolved` this reaches directly. The first call to any given fn
@@ -4978,7 +4949,7 @@ let private applyPackageFn
     let opTag = callData.fastOpTag
     let early =
       match opTag with
-      | ValueSome tag -> fastBuiltinOp vm.threadID registers tag newArgRegs
+      | ValueSome tag -> fastBuiltinOp registers tag newArgRegs
       | ValueNone -> ValueNone
 
     match early with
@@ -5062,7 +5033,7 @@ let private applyPackageFn
       else
         // The first call: fetch it.
         let fetchOnlyAlloc = allocNow vm
-        let fn = packageFn exeState vm pkg
+        let fn = packageFn exeState pkg
         recordStage vm ApplyStage.PkgFetchOnly fetchOnlyAlloc
         callPackage exeState vm currentFrame ctx fn
     recordStage vm ApplyStage.PkgFetch pkgFetchAlloc
@@ -5106,7 +5077,7 @@ let private applyInstructionForced
         thingToCall
       )
       |> RTE.Apply
-      |> raiseRTE vm.threadID
+      |> raiseRTE
 
   // The access this call runs under, for all three kinds of callee: the
   // applying frame's, narrowed by whatever the value captured when it escaped
@@ -5161,9 +5132,7 @@ let private applyInstructionForced
         match typeArgs with
         | [] -> oldTypeArgs
         | _ ->
-          RTE.Applications.CannotApplyTypeArgsMoreThanOnce
-          |> RTE.Apply
-          |> raiseRTE vm.threadID
+          RTE.Applications.CannotApplyTypeArgsMoreThanOnce |> RTE.Apply |> raiseRTE
 
     // A `FastOps` operator called directly, taken before any of the call machinery: no `ApplyContext`,
     // no builtin-table lookup, no `ArgSeq`. `tryFastOp` further down catches the same operators
@@ -5173,7 +5142,7 @@ let private applyInstructionForced
       if anyPromiseIn registers newArgRegs then
         ValueNone
       else
-        tryFastOpDirect vm.threadID registers applicable typeArgs newArgRegs
+        tryFastOpDirect registers applicable typeArgs newArgRegs
     with
     | ValueSome result ->
       if vm.stats.enabled then
@@ -5450,10 +5419,7 @@ let private buildValue
         fieldUpdates
       |> Registers.set registers targetReg
     | dv ->
-      Dval.toValueType dv
-      |> RTE.Records.UpdateNotRecord
-      |> RTE.Record
-      |> raiseRTE vm.threadID
+      Dval.toValueType dv |> RTE.Records.UpdateNotRecord |> RTE.Record |> raiseRTE
 
   | _ ->
     Exception.raiseInternal
@@ -5476,7 +5442,6 @@ let private packageValueFor
 /// The value a `LoadValue` loads.
 let private loadValue
   (exeState : ExecutionState)
-  (vm : VMState)
   (currentFrame : CallFrame)
   (name : FQValueName.FQValueName)
   : Dval =
@@ -5486,21 +5451,17 @@ let private loadValue
     if exeState.values.builtIn.TryGetValue(builtin, &v) then
       Dval.captureValueAccess currentFrame.access v.body
     else
-      raiseRTE vm.threadID (RTE.ValueNotFound name)
+      raiseRTE (RTE.ValueNotFound name)
   | FQValueName.Package pkg ->
     match exeState.values.package pkg with
     | Some v -> packageValueFor currentFrame v
-    | None -> raiseRTE vm.threadID (RTE.ValueNotFound name)
+    | None -> raiseRTE (RTE.ValueNotFound name)
 
 
 /// An operator call answered as its `Apply` would answer it in `tryFastOpDirect`: true when it
 /// was, with the result in the `Apply`'s register. False changes nothing, and the `LoadVal` and
 /// the `Apply` then run as usual.
-let private tryQuickOp
-  (threadID : ThreadID)
-  (registers : Dval array)
-  (op : QuickOp)
-  : bool =
+let private tryQuickOp (registers : Dval array) (op : QuickOp) : bool =
   // Two `Int64`s, the common case, go straight to `NumOps`, which is where the general path ends
   // up. Anything it declines takes the general path.
   let int64s =
@@ -5532,7 +5493,7 @@ let private tryQuickOp
         elif op.IsTrait then
           fastTraitOp registers op.Tag op.Args
         else
-          fastBuiltinOp threadID registers op.Tag op.Args
+          fastBuiltinOp registers op.Tag op.Args
       match result with
       | ValueSome v ->
         Registers.set registers op.Dst v
@@ -5600,7 +5561,6 @@ let private noteFinishedValue
 /// could not tell.
 let private frameReturnTypeCheckFull
   (exeState : ExecutionState)
-  (vm : VMState)
   (tst : TypeSymbolTable)
   (expectedReturnType : TypeReference)
   (resultOfFrame : Dval)
@@ -5621,7 +5581,7 @@ let private frameReturnTypeCheckFull
       resultOfFrame
     )
     |> RuntimeError.Apply
-    |> raiseRTE vm.threadID
+    |> raiseRTE
 
 
 /// A quick check of the lambda's result against every fn it was passed to. `true`
@@ -5695,7 +5655,7 @@ let private lambdaReturnTypeCheckFull
       resultOfFrame
     )
     |> RuntimeError.Apply
-    |> raiseRTE vm.threadID
+    |> raiseRTE
 
 
 /// Type-check what a frame is returning: a function frame against its declared return type, a
@@ -5731,7 +5691,7 @@ let private checkFrameReturnType
         match fnName with
         | FQFnName.Builtin builtin -> exeState.fns.builtIn[builtin].returnType
         | FQFnName.Package _
-        | FQFnName.TraitMethod _ -> RTE.FnNotFound fnName |> raiseRTE vm.threadID
+        | FQFnName.TraitMethod _ -> RTE.FnNotFound fnName |> raiseRTE
 
     let tst = currentFrame.typeSymbolTable
     // Every frame return checks its result, so the same sync-first treatment as the argument checks
@@ -5752,13 +5712,7 @@ let private checkFrameReturnType
         ()
       | ValueNone ->
         recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
-        frameReturnTypeCheckFull
-          exeState
-          vm
-          tst
-          expectedReturnType
-          resultOfFrame
-          fnName
+        frameReturnTypeCheckFull exeState tst expectedReturnType resultOfFrame fnName
 
 
 /// Hand a finished frame's result to its parent, or record it as the whole run's result: the pop,
@@ -6001,7 +5955,7 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
 
       | LoadValue(createTo, name) ->
         if statsOn then vm.stats.instructionCount <- vm.stats.instructionCount + 1L
-        Registers.set registers createTo (loadValue exeState vm currentFrame name)
+        Registers.set registers createTo (loadValue exeState currentFrame name)
         statsOn <- vm.stats.enabled
         counter <- counter + 1
 
@@ -6012,7 +5966,7 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
         quick.Length > 0
         && not (isNull quick[counter])
         && budget <> 0L
-        && tryQuickOp vm.threadID registers quick[counter]
+        && tryQuickOp registers quick[counter]
         ->
         budget <- budget - 1L
         if statsOn then
@@ -6030,7 +5984,7 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
       | GetRecordField(targetReg, recordReg, fieldName) ->
         if statsOn then vm.stats.instructionCount <- vm.stats.instructionCount + 1L
         if fieldName = "" then
-          RTE.Records.FieldAccessEmptyFieldName |> RTE.Record |> raiseRTE vm.threadID
+          RTE.Records.FieldAccessEmptyFieldName |> RTE.Record |> raiseRTE
         let handled =
           // Through a shell: the field is there whether or not its neighbours have landed.
           match Pending.peek registers[recordReg] with
@@ -6198,7 +6152,7 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
               | Some _ ->
                 RTE.Bools.OrOnlySupportsBooleans(Dval.toValueType v, VT.unknown)
               | None -> RTE.Bools.OrOnlySupportsBooleans(VT.bool, Dval.toValueType v)
-            raiseRTE vm.threadID (RTE.Bool err)
+            raiseRTE (RTE.Bool err)
         | And(createTo, operand, skipRhs) ->
           match registers[operand] with
           | DBool false ->
@@ -6215,7 +6169,7 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
                 RTE.Bools.AndOnlySupportsBooleans(Dval.toValueType v, VT.unknown)
               | None ->
                 RTE.Bools.AndOnlySupportsBooleans(VT.bool, Dval.toValueType v)
-            raiseRTE vm.threadID (RTE.Bool err)
+            raiseRTE (RTE.Bool err)
 
 
         // == Working with Variables ==
@@ -6235,21 +6189,16 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
               | LPUnit ->
                 match dv with
                 | DUnit -> ()
-                | _ ->
-                  raiseRTE
-                    vm.threadID
-                    (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
+                | _ -> raiseRTE (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
               | _ ->
                 if not (assignLetPattern registers pat dv) then
-                  raiseRTE
-                    vm.threadID
-                    (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
+                  raiseRTE (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
 
 
         // The first field is unused. The instruction keeps its shape: it carries an opcode
         // and is in the content hash, so narrowing it would renumber a format for no gain.
         | VarNotFound(_targetRegIfDB, varName) ->
-          raiseRTE vm.threadID (RTE.VariableNotFound varName)
+          raiseRTE (RTE.VariableNotFound varName)
 
 
 
@@ -6272,9 +6221,9 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
                    parkOnRead vm registers reg p &retry &force &forceReg
                  | dv ->
                    let vt = Dval.toValueType dv
-                   raiseRTE
-                     vm.threadID
-                     (RTE.String(RTE.Strings.Error.NonStringInInterpolation(vt, dv))))
+                   raiseRTE (
+                     RTE.String(RTE.Strings.Error.NonStringInInterpolation(vt, dv))
+                   ))
               rest <- tail
             | [] -> ()
 
@@ -6295,9 +6244,9 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
           | DBool true -> ()
           | DPromise p -> parkOnRead vm registers condReg p &retry &force &forceReg
           | dv ->
-            raiseRTE
-              vm.threadID
-              (RTE.Bool(RTE.Bools.ConditionRequiresBool(Dval.toValueType dv, dv)))
+            raiseRTE (
+              RTE.Bool(RTE.Bools.ConditionRequiresBool(Dval.toValueType dv, dv))
+            )
 
         // Extract Ok/Some. For Error/None, set this call's return value and skip
         // its remaining instructions. Normal return-type checks still apply.
@@ -6323,9 +6272,7 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
                 // Checked on success too, so a mismatch fails whatever the value.
                 match returns with
                 | Some expected when (isResult || isOption) && expected <> typeName ->
-                  raiseRTE
-                    vm.threadID
-                    (RTE.Unwrap(RTE.Unwraps.UnwrapContainerMismatch value))
+                  raiseRTE (RTE.Unwrap(RTE.Unwraps.UnwrapContainerMismatch value))
                 | _ -> ()
                 match caseName, fields with
                 | "Ok", [ inner ] when isResult ->
@@ -6351,13 +6298,9 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
                     DEnum(typeName, typeName, [ ValueType.Unknown ], "None", [])
                   )
                 | _ ->
-                  raiseRTE
-                    vm.threadID
-                    (RTE.Unwrap(RTE.Unwraps.UnwrapOperandNotContainer value))
+                  raiseRTE (RTE.Unwrap(RTE.Unwraps.UnwrapOperandNotContainer value))
               | _ ->
-                raiseRTE
-                  vm.threadID
-                  (RTE.Unwrap(RTE.Unwraps.UnwrapOperandNotContainer value))
+                raiseRTE (RTE.Unwrap(RTE.Unwraps.UnwrapOperandNotContainer value))
             match failure with
             | ValueSome failure ->
               Registers.set registers instrData.resultReg failure
@@ -6393,9 +6336,7 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
           match registers[valueReg] with
           | DPromise p -> parkOnRead vm registers valueReg p &retry &force &forceReg
           | unmatchedValue ->
-            raiseRTE
-              vm.threadID
-              (RTE.Match(RTE.Matches.MatchUnmatched unmatchedValue))
+            raiseRTE (RTE.Match(RTE.Matches.MatchUnmatched unmatchedValue))
 
 
         // == Working with Collections ==
@@ -6468,8 +6409,7 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
 
         // == Working with things that Apply (fns, lambdas) ==
         // `add (increment 1L) (3L)` and store results in `putResultIn`
-        | RaiseNRE(names, nre) ->
-          raiseRTE vm.threadID (RTE.ParseTimeNameResolution(names, nre))
+        | RaiseNRE(names, nre) -> raiseRTE (RTE.ParseTimeNameResolution(names, nre))
 
         // A compiler marker, not an instruction. `RT.DebugSymbols.split` collects every one of
         // these into the symbol table and removes it, on every path that turns an expression into
@@ -6492,7 +6432,7 @@ let private runFrames (exeState : ExecutionState) (vm : VMState) : FrameStep =
               dval
             )
             |> RuntimeError.Statement
-            |> raiseRTE vm.threadID
+            |> raiseRTE
         // Unreachable: these six were filtered out above, but the match must be exhaustive.
         | CreateRecord _
         | CloneRecordWithUpdates _
@@ -6599,7 +6539,6 @@ let private receiverMemoTrait = Hash ""
 /// candidate for the method.
 let private receiverImpl
   (exeState : ExecutionState)
-  (vm : VMState)
   (methodName : string)
   (self : KnownType)
   : Option<FQFnName.Package> =
@@ -6637,7 +6576,7 @@ let private receiverImpl
           traits |> List.map FQTraitName.Package
         )
       )
-      |> raiseRTE vm.threadID
+      |> raiseRTE
     | _ ->
 
       match Traits.select candidates self with
@@ -6660,7 +6599,7 @@ let private receiverImpl
             cs |> List.map (fun c -> FQTraitName.Package c.trait_)
           )
         )
-        |> raiseRTE vm.threadID
+        |> raiseRTE
 
 
 /// The four opcodes that can still need the package store: CreateRecord, CloneRecordWithUpdates,
@@ -6685,7 +6624,7 @@ let private receiverMethod
   match Dval.toValueType receiver with
   | ValueType.Unknown -> Task.FromResult None
   | ValueType.Known self ->
-    match receiverImpl exeState vm methodName self with
+    match receiverImpl exeState methodName self with
     | None -> Task.FromResult None
     | Some fnHash ->
       // Chosen by the receiver's type, so by whoever made the value.
@@ -6712,7 +6651,7 @@ let private receiverMethod
           | Ok result -> return Some result
           | Error(rte, nested) ->
             vm.nestedCallStack <- nested
-            return raiseRTE vm.threadID rte
+            return raiseRTE rte
         }
       | _ ->
         Task.FromResult(
@@ -6746,20 +6685,18 @@ let private runRareOpcode
       | None ->
         match receiver with
         | DRecord _ ->
-          RTE.Records.FieldAccessFieldNotFound fieldName
-          |> RTE.Record
-          |> raiseRTE vm.threadID
+          RTE.Records.FieldAccessFieldNotFound fieldName |> RTE.Record |> raiseRTE
         | DTuple(_, _, rest) ->
           RTE.Records.FieldAccessTupleIndexOutOfRange(
             fieldName,
             2 + List.length rest
           )
           |> RTE.Record
-          |> raiseRTE vm.threadID
+          |> raiseRTE
         | dv ->
           RTE.Records.FieldAccessNotRecord(Dval.toValueType dv)
           |> RTE.Record
-          |> raiseRTE vm.threadID
+          |> raiseRTE
     }
   // `runFrames` only reports `FrameRareOpcode` for a field access the drain could not answer.
   | _ ->

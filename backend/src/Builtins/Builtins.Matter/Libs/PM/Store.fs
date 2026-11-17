@@ -22,15 +22,14 @@ let private requireHost (state : ExecutionState) : unit =
       "permission denied: store backups require the trusted dark backups command",
       []
     )
-    |> raiseUntargetedRTE
+    |> raiseRTE
 
 
 /// Refuse a change to a `LibDB.Config.personOnly` key unless the CLI itself is making it.
 /// Guest code (`run`, `eval`, a served handler, a package test) has `canManagePolicies` off.
 let private requireThePerson (state : ExecutionState) (key : string) : unit =
   if List.contains key LibDB.Config.personOnly && not state.canManagePolicies then
-    RuntimeError.UncaughtException(LibDB.Config.refusal key, [])
-    |> raiseUntargetedRTE
+    RuntimeError.UncaughtException(LibDB.Config.refusal key, []) |> raiseRTE
 
 
 /// The watch behind `Stdlib.Host.await` (see `hostWatchGet` below). One slot per OS process,

@@ -53,7 +53,7 @@ let fns () : List<BuiltInFn> =
           let typeArgs = [ ValueType.Unknown; failureValueType ]
 
           // Under the caller's own access: no approval root, so no policy view to build.
-          Exe.applyCatching exeState vm.threadID vm.activeAccess check input
+          Exe.applyCatching exeState vm.activeAccess check input
           |> Pending.map (fun caught ->
             match caught with
             | Ok result ->

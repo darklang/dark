@@ -365,7 +365,7 @@ let rec unifyValueType
             (List.zip expected actual)
 
       | TCustomType({ originalName = names; resolved = Error err }, _), _ ->
-        RTE.ParseTimeNameResolution(names, err) |> raiseUntargetedRTE
+        RTE.ParseTimeNameResolution(names, err) |> raiseRTE
 
       | TCustomType({ resolved = Ok typeNameT }, typeArgsT), actual ->
         // CLEANUP can't we assume aliases are already unwrapped?
@@ -493,7 +493,7 @@ let rec resolveType
   else
 
     match Types.find types typeName with
-    | None -> RTE.TypeNotFound typeName |> raiseRTE threadID
+    | None -> RTE.TypeNotFound typeName |> raiseRTE
     | Some decl ->
       match decl.definition with
       | TypeDeclaration.Alias aliasedType ->
@@ -501,7 +501,7 @@ let rec resolveType
         match resolvedType with
         | TCustomType({ resolved = Ok innerTypeName }, innerTypeArgs) ->
           match Types.find types innerTypeName with
-          | None -> RTE.TypeNotFound innerTypeName |> raiseRTE threadID
+          | None -> RTE.TypeNotFound innerTypeName |> raiseRTE
           | Some targetDecl ->
             // Create mapping from original type params to provided args/unknowns
             let typeArgsMap =
@@ -527,7 +527,7 @@ let rec resolveType
             resolveType types threadID tst innerTypeName []
             |> (fun (resolvedName, _, def) -> (resolvedName, mappedInnerArgsVT, def))
 
-        | _ -> RTE.TypeNotFound typeName |> raiseRTE threadID
+        | _ -> RTE.TypeNotFound typeName |> raiseRTE
 
       | definition ->
         let typeArgsVT =
@@ -1051,7 +1051,7 @@ module DvalCreator =
       | Error() ->
         RTE.Lists.Error.TriedToAddMismatchedData(i, typ, Dval.toValueType dv, dv)
         |> RTE.Error.List
-        |> raiseRTE threadID
+        |> raiseRTE
 
   /// The key and value types `remaining` agree on; raises at the first entry that
   /// does not.
@@ -1072,7 +1072,7 @@ module DvalCreator =
         | Error() ->
           RTE.Dicts.Error.MismatchedKeyType(keyType, kt, k)
           |> RTE.Error.Dict
-          |> raiseRTE threadID
+          |> raiseRTE
 
       let vt = Dval.toValueType v
 
@@ -1081,7 +1081,7 @@ module DvalCreator =
       | Error() ->
         RTE.Dicts.Error.TriedToAddMismatchedData(k, valueType, vt, v)
         |> RTE.Error.Dict
-        |> raiseRTE threadID
+        |> raiseRTE
 
   /// A dict's entries, checked, and the types they agree on. Built in one go rather
   /// than an insert per entry. Later entries replace earlier ones with the same key;
@@ -1180,7 +1180,6 @@ module DvalCreator =
       | Error() -> ValueNone
 
   let dictAddEntry
-    (threadID : ThreadID)
     (keyType : ValueType)
     (valueType : ValueType)
     (entries : DictMap)
@@ -1195,7 +1194,7 @@ module DvalCreator =
       | Error() ->
         RTE.Dicts.Error.MismatchedKeyType(keyType, kt, k)
         |> RTE.Error.Dict
-        |> raiseRTE threadID
+        |> raiseRTE
 
     let vt = Dval.toValueType v
     match VT.merge valueType vt with
@@ -1203,7 +1202,7 @@ module DvalCreator =
     | Error() ->
       RTE.Dicts.Error.TriedToAddMismatchedData(k, valueType, vt, v)
       |> RTE.Error.Dict
-      |> raiseRTE threadID
+      |> raiseRTE
 
   /// The `None` an unknown-typed lookup returns, kept rather than rebuilt: a dict miss returns
   /// one, and it is the same value every time. Keyed by the type name object, which `optionType`
@@ -1223,22 +1222,14 @@ module DvalCreator =
         none
     | ValueType.Known _ -> DEnum(typeName, typeName, [ innerType ], "None", [])
 
-  let rec optionSome
-    (threadID : ThreadID)
-    (expected : ValueType)
-    (dv : Dval)
-    : Dval =
+  let rec optionSome (expected : ValueType) (dv : Dval) : Dval =
     match dv with
     | DPromise _ ->
-      optionSomeNow threadID expected dv
-      |> Pending.built (fun _ -> (optionSome threadID expected (Pending.settled dv)))
-    | _ -> optionSomeNow threadID expected dv
+      optionSomeNow expected dv
+      |> Pending.built (fun _ -> (optionSome expected (Pending.settled dv)))
+    | _ -> optionSomeNow expected dv
 
-  and private optionSomeNow
-    (threadID : ThreadID)
-    (expected : ValueType)
-    (dv : Dval)
-    =
+  and private optionSomeNow (expected : ValueType) (dv : Dval) =
     let typeName = Dval.optionType ()
 
     let vt = Dval.toValueType dv
@@ -1259,26 +1250,17 @@ module DvalCreator =
           dv
         )
         |> RuntimeError.Enum
-        |> raiseRTE threadID
+        |> raiseRTE
 
 
-  let option
-    (threadID : ThreadID)
-    (expectedType : ValueType)
-    (dv : Option<Dval>)
-    : Dval =
+  let option (expectedType : ValueType) (dv : Option<Dval>) : Dval =
     match dv with
-    | Some dv -> optionSome threadID expectedType dv
+    | Some dv -> optionSome expectedType dv
     | None -> optionNone expectedType
 
 
   module Result =
-    let ok
-      (threadID : ThreadID)
-      (okType : ValueType)
-      (errorType : ValueType)
-      (dvOk : Dval)
-      : Dval =
+    let ok (okType : ValueType) (errorType : ValueType) (dvOk : Dval) : Dval =
       let typeName = Dval.resultType ()
       let dvalType = Dval.toValueType dvOk
       match VT.merge okType dvalType with
@@ -1293,14 +1275,9 @@ module DvalCreator =
           dvOk
         )
         |> RuntimeError.Enum
-        |> raiseRTE threadID
+        |> raiseRTE
 
-    let error
-      (threadID : ThreadID)
-      (okType : ValueType)
-      (errorType : ValueType)
-      (dvError : Dval)
-      : Dval =
+    let error (okType : ValueType) (errorType : ValueType) (dvError : Dval) : Dval =
       let typeName = Dval.resultType ()
       let dvalType = Dval.toValueType dvError
       match VT.merge errorType dvalType with
@@ -1315,17 +1292,16 @@ module DvalCreator =
           dvError
         )
         |> RuntimeError.Enum
-        |> raiseRTE threadID
+        |> raiseRTE
 
     let result
-      (threadID : ThreadID)
       (okType : ValueType)
       (errorType : ValueType)
       (dv : Result<Dval, Dval>)
       : Dval =
       match dv with
-      | Ok dv -> ok threadID okType errorType dv
-      | Error dv -> error threadID okType errorType dv
+      | Ok dv -> ok okType errorType dv
+      | Error dv -> error okType errorType dv
 
 
   /// Narrow a resolved definition to an enum's cases. Top-level so neither path allocates a closure.
@@ -1347,7 +1323,6 @@ module DvalCreator =
 
   /// Narrow a resolved definition to a record's fields. Top-level, as above.
   let private recordFieldsOf
-    (threadID : ThreadID)
     (typeName : FQTypeName.FQTypeName)
     (resolvedName : FQTypeName.FQTypeName)
     (typeArgs : List<string * ValueType>)
@@ -1358,8 +1333,7 @@ module DvalCreator =
     =
     match definition with
     | TypeDeclaration.Record fields -> struct (resolvedName, typeArgs, fields)
-    | _ ->
-      RTE.Records.CreationTypeNotRecord typeName |> RTE.Record |> raiseRTE threadID
+    | _ -> RTE.Records.CreationTypeNotRecord typeName |> RTE.Record |> raiseRTE
 
   let resolveEnumType
     (types : Types)
@@ -1541,7 +1515,7 @@ module DvalCreator =
           actualField
         )
         |> RTE.Error.Enum
-        |> raiseRTE threadID
+        |> raiseRTE
 
       | Ok newTST ->
         // A type with no parameters has nothing to learn from its fields, and that's the common
@@ -1572,7 +1546,7 @@ module DvalCreator =
                       actualField
                     )
                     |> RTE.Enum
-                    |> raiseRTE threadID)
+                    |> raiseRTE)
               typeArgs
 
         checkEnumFields
@@ -1590,7 +1564,6 @@ module DvalCreator =
   /// declared field types with the values given. Raises on an unknown case or the wrong arity, so
   /// both of `enum`'s paths report those identically.
   let private enumCaseFields
-    (threadID : ThreadID)
     (tst : TypeSymbolTable)
     (resolvedTypeName : FQTypeName.FQTypeName)
     (typeArgs : List<string * ValueType>)
@@ -1604,7 +1577,7 @@ module DvalCreator =
     | None ->
       RTE.Enums.ConstructionCaseNotFound(resolvedTypeName, caseName)
       |> RTE.Error.Enum
-      |> raiseRTE threadID
+      |> raiseRTE
 
     | Some case ->
       let expected, actual = (List.length case.fields, List.length fields)
@@ -1617,7 +1590,7 @@ module DvalCreator =
           actual
         )
         |> RTE.Error.Enum
-        |> raiseRTE threadID
+        |> raiseRTE
       else
         struct (tst, List.zip case.fields fields)
 
@@ -1703,14 +1676,7 @@ module DvalCreator =
       (DEnum(sourceTypeName, resolvedTypeName, typeArgValues, caseName, fields))
     | ValueNone ->
       let struct (tst, fieldsZipped) =
-        enumCaseFields
-          threadID
-          tst
-          resolvedTypeName
-          typeArgs
-          caseDefs
-          caseName
-          fields
+        enumCaseFields tst resolvedTypeName typeArgs caseDefs caseName fields
 
       let checked' =
         checkEnumFields types threadID caseName 0 fieldsZipped typeArgs [] tst
@@ -1782,7 +1748,7 @@ module DvalCreator =
     let resolved = resolveType types threadID TST.empty typeName typeArgs
 
     let resolvedName, typeArgs, definition = resolved
-    (recordFieldsOf threadID typeName resolvedName typeArgs definition)
+    (recordFieldsOf typeName resolvedName typeArgs definition)
   /// The declared field with this name, or nothing.
   ///
   /// A loop rather than `NEList.find (fun f -> f.name = name)`: that lambda captures the name, so
@@ -1828,19 +1794,14 @@ module DvalCreator =
       (struct (currentTypeArgs, tst))
     else
       let struct (fieldName, fieldValue) = entries[i]
-      if fieldName = "" then
-        RTE.Records.CreationEmptyKey |> RTE.Record |> raiseRTE threadID
+      if fieldName = "" then RTE.Records.CreationEmptyKey |> RTE.Record |> raiseRTE
 
       if not (RecordFields.insertSorted entries i) then
-        RTE.Records.CreationDuplicateField fieldName
-        |> RTE.Record
-        |> raiseRTE threadID
+        RTE.Records.CreationDuplicateField fieldName |> RTE.Record |> raiseRTE
 
       match findExpectedField expectedFields fieldName with
       | ValueNone ->
-        RTE.Records.CreationFieldNotExpected fieldName
-        |> RTE.Record
-        |> raiseRTE threadID
+        RTE.Records.CreationFieldNotExpected fieldName |> RTE.Record |> raiseRTE
 
       | ValueSome fieldDef ->
         // The overwhelming majority of fields unify without needing the type store, and a type with
@@ -1883,7 +1844,7 @@ module DvalCreator =
               fieldValue
             )
             |> RTE.Record
-            |> raiseRTE threadID
+            |> raiseRTE
 
           | Ok newTST ->
             // Update the type args with anything this field pinned down. See the note in
@@ -1913,7 +1874,7 @@ module DvalCreator =
                           fieldValue
                         )
                         |> RTE.Record
-                        |> raiseRTE threadID)
+                        |> raiseRTE)
                   currentTypeArgs
 
             checkRecordFields
@@ -1959,18 +1920,15 @@ module DvalCreator =
       (struct (fieldsSoFar, currentTypeArgs, tst))
     else
       let struct (fieldName, fieldValue) = updates[i]
-      if fieldName = "" then
-        RTE.Records.UpdateEmptyKey |> RTE.Record |> raiseRTE threadID
+      if fieldName = "" then RTE.Records.UpdateEmptyKey |> RTE.Record |> raiseRTE
 
       // `fieldsSoFar` starts with the original record's fields, so it can't tell a repeat.
       if namedBefore updates fieldName i then
-        RTE.Records.UpdateDuplicateField fieldName |> RTE.Record |> raiseRTE threadID
+        RTE.Records.UpdateDuplicateField fieldName |> RTE.Record |> raiseRTE
 
       match findExpectedField expectedFields fieldName with
       | ValueNone ->
-        RTE.Records.UpdateFieldNotExpected fieldName
-        |> RTE.Record
-        |> raiseRTE threadID
+        RTE.Records.UpdateFieldNotExpected fieldName |> RTE.Record |> raiseRTE
 
       | ValueSome fieldDef ->
         // The common case: the field unifies without the type store and the type has no parameters
@@ -2014,7 +1972,7 @@ module DvalCreator =
               fieldValue
             )
             |> RTE.Record
-            |> raiseRTE threadID
+            |> raiseRTE
 
           | Ok newTST ->
             // No type parameters means nothing to learn, and no walk.
@@ -2043,7 +2001,7 @@ module DvalCreator =
                           fieldValue
                         )
                         |> RTE.Record
-                        |> raiseRTE threadID)
+                        |> raiseRTE)
                   currentTypeArgs
 
             updateRecordFields
@@ -2062,7 +2020,6 @@ module DvalCreator =
   /// note: if provided, the typeArgs must match the # of typeArgs expected by the type
   /// Reject a record that is missing a declared field, or build it. Top-level, as above.
   let private finishRecord
-    (threadID : ThreadID)
     (sourceTypeName : FQTypeName.FQTypeName)
     (resolvedTypeName : FQTypeName.FQTypeName)
     (expectedFields : NEList<TypeDeclaration.RecordField>)
@@ -2084,9 +2041,7 @@ module DvalCreator =
         |> NEList.find (fun f -> RecordFields.indexOf entries f.name < 0)
       with
       | Some missing ->
-        RTE.Records.CreationMissingField missing.name
-        |> RTE.Record
-        |> raiseRTE threadID
+        RTE.Records.CreationMissingField missing.name |> RTE.Record |> raiseRTE
       | None ->
         Exception.raiseInternal "A record had more fields than its type declares" []
 
@@ -2109,13 +2064,7 @@ module DvalCreator =
       checkRecordFields types threadID expectedFields fields 0 resolvedTypeArgs tst
 
     let struct (finalTypeArgs, _updatedTST) = checked'
-    (finishRecord
-      threadID
-      sourceTypeName
-      resolvedTypeName
-      expectedFields
-      fields
-      finalTypeArgs)
+    (finishRecord sourceTypeName resolvedTypeName expectedFields fields finalTypeArgs)
   let rec private holdsRead (fields : (struct (string * Dval))[]) (i : int) : bool =
     if i = fields.Length then
       false

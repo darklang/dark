@@ -41,10 +41,9 @@ module DvalComparator =
         Dval.toValueType e.Left,
         Dval.toValueType e.Right
       )
-      |> raiseUntargetedRTE
+      |> raiseRTE
     | :? DvalUnsortableException as e ->
-      RuntimeError.Error.List(RuntimeError.Lists.CannotSort e.Value)
-      |> raiseUntargetedRTE
+      RuntimeError.Error.List(RuntimeError.Lists.CannotSort e.Value) |> raiseRTE
 
   let compareDval (dv1 : Dval) (dv2 : Dval) : Order =
     order (guarded DvalOrdering.compareForSort dv1 dv2) 0
@@ -486,7 +485,7 @@ let fns () : List<BuiltInFn> =
                   match answer with
                   | DEnum(_, _, _, "Some", [ v ]) -> Spread.Next(v :: acc)
                   | DEnum(_, _, _, "None", []) -> Spread.Next acc
-                  | other -> raiseRTE vm.threadID (notAnOption other)
+                  | other -> raiseRTE (notAnOption other)
                 member _.Absorb(acc, _, spread) = resultsOnto acc spread
                 member _.Finish acc = (mappedList vm (DvalList.ofRevList acc)) }
             []
@@ -621,7 +620,7 @@ let fns () : List<BuiltInFn> =
                 member _.Step(acc, elem, answer) =
                   match answer with
                   | DBool keep -> Spread.Next(if keep then elem :: acc else acc)
-                  | other -> raiseRTE vm.threadID (predicateNotBool other)
+                  | other -> raiseRTE (predicateNotBool other)
                 member _.Absorb(acc, _, spread) = resultsOnto acc spread
                 member _.Finish acc = (DList(vt, DvalList.ofRevList acc)) }
             []
@@ -682,7 +681,7 @@ let fns () : List<BuiltInFn> =
                   match answer with
                   | DBool true -> Spread.Done(DBool true)
                   | DBool false -> Spread.Next DUnit
-                  | other -> raiseRTE vm.threadID (predicateNotBool other)
+                  | other -> raiseRTE (predicateNotBool other)
                 member _.AnswerOf answer =
                   match answer with
                   | DBool true -> Spread.Found answer
@@ -706,7 +705,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns true if <param value> is in <param list>"
       fn =
         (function
-        | _, vm, [], [| DList(_, items); value |] ->
+        | _, _, [], [| DList(_, items); value |] ->
           // The Dark version of this was `findFirst list (fun e -> e == value)`, which pays a
           // lambda application per element to run what is only an equality test.
           //
@@ -724,8 +723,7 @@ let fns () : List<BuiltInFn> =
               |> List.find (fun vt -> Result.isError (VT.merge vt vtValue))
             with
             | Some vtElem ->
-              RTE.EqualityCheckOnIncompatibleTypes(vtElem, vtValue)
-              |> raiseRTE vm.threadID
+              RTE.EqualityCheckOnIncompatibleTypes(vtElem, vtValue) |> raiseRTE
             | None ->
               Exception.raiseInternal
                 "listContains declined a list it could answer"
@@ -748,7 +746,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, vm, [], [| DList(vt, items); DApplicable app |] ->
           // Spread as `listAny` is. A chunk's `Some` is the element its own search stopped at.
-          let option found = TypeChecker.DvalCreator.option vm.threadID vt found
+          let option found = TypeChecker.DvalCreator.option vt found
           Spread.walk
             { new OverList<Dval>(state, vm, app, vt, "listFindFirst") with
                 member this.Settle answer = this.Value answer
@@ -756,7 +754,7 @@ let fns () : List<BuiltInFn> =
                   match answer with
                   | DBool true -> Spread.Done(option (Some elem))
                   | DBool false -> Spread.Next DUnit
-                  | other -> raiseRTE vm.threadID (predicateNotBool other)
+                  | other -> raiseRTE (predicateNotBool other)
                 member _.AnswerOf answer =
                   match answer with
                   | DEnum(_, _, _, "Some", [ found ]) -> Spread.Found found
@@ -875,7 +873,7 @@ let fns () : List<BuiltInFn> =
                   cs |> List.map (fun c -> c.source)
                 )
               )
-              |> raiseRTE vm.threadID
+              |> raiseRTE
           | _ -> structural ()
         | _ -> incorrectArgs ())
       // Impure, like `sortBy`: it can call a person's `Compare` implementation.
@@ -1008,8 +1006,8 @@ let fns () : List<BuiltInFn> =
         "Returns {{Some value}} at <param index> in <param list>, or {{None}} if out of bounds."
       fn =
         (function
-        | _, vm, _, [| DList(vt, l); DInt64 index |] ->
-          (TypeChecker.DvalCreator.option vm.threadID vt (DvalList.tryItem index l))
+        | _, _, _, [| DList(vt, l); DInt64 index |] ->
+          (TypeChecker.DvalCreator.option vt (DvalList.tryItem index l))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

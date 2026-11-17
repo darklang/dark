@@ -256,8 +256,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DInt64 n |] ->
           Gates.wait n
           |> Pending.map (fun () ->
-            RuntimeError.UncaughtException($"read {n} failed", [])
-            |> raiseUntargetedRTE)
+            RuntimeError.UncaughtException($"read {n} failed", []) |> raiseRTE)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects =
