@@ -327,6 +327,12 @@ Only the person running Dark sets them, with `dark config set`, or
 (`canManagePolicies`), the same line policy edits use. They are settings rather
 than rules so that `permissions allow all` does not open them too.
 
+For direct connections, every resolved address must pass the address checks.
+Dark connects to those exact addresses without another DNS lookup, which could
+return different addresses. HTTP/3 is disabled because it bypasses the connection
+callback that performs these checks. See [HTTP connections](internals.md#http-connections)
+for connection ordering, cancellation and protocol details.
+
 **A configured proxy is trusted.** HTTP clients use the configured proxy
 (`HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY`). The guard checks the
 destination, not the proxy:
