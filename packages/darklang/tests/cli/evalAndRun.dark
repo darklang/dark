@@ -674,3 +674,20 @@ test codeCannotChangeTheNetworkGuard = Instance.withInstance(fun i ->
             after,
             "http.loopback = on",
             "and the setting took") ] ])))
+
+
+/// A script the instance policy refuses is told how to allow it for one run too.
+test instanceDenialOffersOneRun = Instance.withInstance(fun i ->
+  let path = $"{Instance.home(i)}/reads.dark"
+  let target = $"{Instance.home(i)}/elsewhere/data.txt"
+  let _ =
+    Stdlib.Cli.File.writeText(
+      path,
+      $"let _ = Stdlib.Cli.FileSystem.readFile(\"{target}\")\n0")
+
+  let (code, out) = Instance.ran(i, [ "run", path ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 1, "denied")
+      Instance.says(out, "by instance policy", "the instance policy refused it")
+      Instance.says(out, "For one run, leaving the policy as it is:", "offers one run")
+      Instance.says(out, "dark run --allow \"file read", "with the rule") ]))
