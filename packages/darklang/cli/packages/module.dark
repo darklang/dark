@@ -101,6 +101,8 @@ let landDocEdits(branchId: Uuid, ops: List<LanguageTools.ProgramTypes.PackageOp>
 type Caller =
   /// `dark module`.
   | Command
+  /// `dark edit`, which saves one declaration through its module.
+  | Edit
   /// `defineBundled`, for the dev build.
   | DevBuild
 
@@ -278,7 +280,8 @@ let define(state: AppState, modulePath: String, source: String, caller: Caller):
                 Stdlib.Bool.not(Stdlib.List.contains(definedNames, leaf)))
 
             let shown = Stdlib.String.join(home, ".")
-            let left = leftOver(branchId, home, definedNames)
+            let left =
+              if caller == Caller.Command then leftOver(branchId, home, definedNames) else []
             match left with
             | [] -> ()
             | [(kind, name), ...] ->
