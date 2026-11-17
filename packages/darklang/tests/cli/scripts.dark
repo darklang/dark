@@ -94,7 +94,8 @@ module CallStack =
     |> Stdlib.Test.equal("Lambda 23")
 
 
-  // A lambda is shown with the fn it was written in, when that is known.
+  // A lambda is shown with the fn it was written in, when that is known. A script's
+  // expression ids change on every parse, so they are left out.
   test lambdaLabelSaysWhereItWasWritten =
     PrettyPrinter.RuntimeTypes.executionPoint(
       SCM.Branch.mainBranchId,
@@ -102,7 +103,7 @@ module CallStack =
         builtin(),
         23u64,
         Stdlib.Option.Option.Some(source())))
-    |> Stdlib.Test.equal("Lambda in Source (23)")
+    |> Stdlib.Test.equal("Lambda in Source")
 
 
   test entryOnlyStacksAreHidden =

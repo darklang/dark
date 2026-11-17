@@ -244,11 +244,12 @@ let executionPoint(branchId: Uuid, point: LanguageTools.RuntimeTypes.ExecutionPo
   | Source -> "Source"
   | Lambda(_, expressionId, writtenIn) ->
     // Named after the fn it is written in, not the fn that called it. The id tells
-    // two lambdas in one fn apart.
+    // two lambdas in one fn apart; a script's ids are new on every parse, so they would
+    // only make two runs' output differ.
     let id = Stdlib.display(expressionId)
     match writtenIn with
     | Some(Function(name)) -> $"Lambda in {fnName(branchId, name)} ({id})"
-    | Some(Source) -> $"Lambda in Source ({id})"
+    | Some(Source) -> "Lambda in Source"
     | _ -> $"Lambda {id}"
   | Function(name) ->
     match name with
