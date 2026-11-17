@@ -50,3 +50,24 @@ test calledValueHasNameAndLine = Instance.withInstance(fun i ->
         "the called value")
 
       Instance.says(out, "(line 1, column 18)", "the call's location") ]))
+
+
+/// A `val` of a type declared in the same save is fully checked, here and from another module.
+test valOfSiblingTypeIsChecked = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/store.dark"
+  let source =
+    [ "type Store = { items: List<String>, n: Int64 }"
+      "val empty: Store = Store { items = [], n = 0 }" ]
+    |> Stdlib.String.join("\n")
+
+  let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
+  let (_, out) = Instance.ran(i, [ "module", "/Me.Store", path ])
+  let user = Instance.home(i) + "/user.dark"
+  let _ =
+    Stdlib.Cli.File.writeAtomic(user, "let count(): Int64 = Me.Store.empty.n")
+    |> Builtin.unwrap
+
+  let (_, userOut) = Instance.ran(i, [ "module", "/Me.StoreUser", user ])
+  Stdlib.Test.all(
+    [ Instance.doesNotSay(out, "incomplete", "the value's type is known")
+      Instance.doesNotSay(userOut, "incomplete", "a use from another module too") ]))

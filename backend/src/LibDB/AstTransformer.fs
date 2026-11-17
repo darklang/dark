@@ -490,7 +490,9 @@ let transformValue
   (mapping : HashMapping)
   (value : PT.PackageValue.PackageValue)
   : PT.PackageValue.PackageValue =
-  { value with body = transformExpr mapping value.body }
+  { value with
+      body = transformExpr mapping value.body
+      typ = value.typ |> Option.map (transformTypeRef mapping) }
 
 let transformTest
   (mapping : HashMapping)
