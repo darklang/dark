@@ -1,0 +1,117 @@
+/// `delete <module>` takes out everything in it, whatever uses what inside it.
+module Darklang.Cli.Tests.DeleteModule
+
+test deleteModuleTakesEverything = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/scratch.dark"
+  let source =
+    "type Box = { n: Int64 }\nlet make(): Box = Box { n = 1 }\nlet read(b: Box): Int64 = b.n\n"
+
+  let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
+  let _ = Instance.ran(i, [ "module", "/Me.Scratch", path ])
+  let (refusedCode, refused) = Instance.ran(i, [ "delete", "Me.Scratch" ])
+  let (code, out) = Instance.ran(i, [ "delete", "Me.Scratch", "--yes" ])
+  let listed = Instance.said(i, [ "ls", "Me.Scratch" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(refusedCode, 1, "no terminal, no --yes")
+      Instance.says(refused, "add --yes to delete Me.Scratch", "says how")
+      Instance.exitedWith(code, 0, "deleted")
+      Instance.says(out, "Will delete 3 items in Me.Scratch", "names the count")
+      Instance.says(out, "Deleted Me.Scratch", "says so")
+      Instance.doesNotSay(listed, "make", "make is gone") ]))
+
+
+test deleteModuleKeepsWhatOthersUse = Instance.withInstance(fun i ->
+  let lib = Instance.home(i) + "/lib.dark"
+  let user = Instance.home(i) + "/user.dark"
+  let _ = Stdlib.Cli.File.writeAtomic(lib, "let one(): Int64 = 1\n") |> Builtin.unwrap
+  let _ =
+    Stdlib.Cli.File.writeAtomic(user, "let two(): Int64 = Me.Lib.one() + 1\n")
+    |> Builtin.unwrap
+
+  let _ = Instance.ran(i, [ "module", "/Me.Lib", lib ])
+  let _ = Instance.ran(i, [ "module", "/Me.User", user ])
+  let (code, out) = Instance.ran(i, [ "delete", "Me.Lib", "--yes" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 1, "refused")
+      Instance.says(out, "Used from outside Me.Lib: Me.User.two", "names the user") ]))
+
+
+test deleteModuleTakesImpls = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/impl.dark"
+  let source =
+    "type Point = { x: Int64 }\n\nimpl Display for Point =\n  let display(p: Point): String = \"point\"\n\nlet make(): Point = Point { x = 1 }\n"
+
+  let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
+  let _ = Instance.ran(i, [ "module", "/Me.ImplCheck", path ])
+  let before = Instance.said(i, [ "ls", "Me.ImplCheck.Point" ])
+  let (code, _) = Instance.ran(i, [ "delete", "Me.ImplCheck", "--yes" ])
+  let after = Instance.said(i, [ "ls", "Me.ImplCheck.Point" ])
+  Stdlib.Test.all(
+    [ Instance.says(before, "implementation of trait \"Display\"", "the impl was saved")
+      Instance.exitedWith(code, 0, "deleted")
+      Instance.doesNotSay(after, "implementation of trait", "the impl is gone too") ]))
+
+
+test deleteModuleRefusesWhenNothingResolves = Instance.withInstance(fun i ->
+  let (code, out) = Instance.ran(i, [ "delete", "Stdlib.List", "--yes" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 1, "nothing to delete")
+      Instance.says(out, "nothing was deleted", "says so")
+      Instance.doesNotSay(out, "Deleted", "claims no delete") ]))
+
+
+test deleteModuleRefusesAnOwner = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/scratch.dark"
+  let _ = Stdlib.Cli.File.writeAtomic(path, "let one(): Int64 = 1\n") |> Builtin.unwrap
+  let _ = Instance.ran(i, [ "module", "/Me.Scratch", path ])
+  let (darklangCode, darklang) = Instance.ran(i, [ "delete", "Darklang", "--dry-run" ])
+  let (meCode, me) = Instance.ran(i, [ "delete", "Me", "--yes" ])
+  let listed = Instance.said(i, [ "ls", "Me.Scratch" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(darklangCode, 1, "Darklang refused")
+      Instance.says(darklang, "delete Darklang.<module>", "points at a module")
+      Instance.exitedWith(meCode, 1, "Me refused")
+      Instance.says(me, "delete Me.<module>", "points at a module")
+      Instance.says(listed, "one", "Me.Scratch is still there") ]))
+
+
+test deleteModuleListsTheFirstTen = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/big.dark"
+  let source =
+    Stdlib.List.range(1, 12)
+    |> Stdlib.List.map(fun n -> $"let f{Stdlib.display(n)}(): Int64 = 1\n")
+    |> Stdlib.String.join("")
+
+  let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
+  let _ = Instance.ran(i, [ "module", "/Me.Big", path ])
+  let (code, out) = Instance.ran(i, [ "delete", "Me.Big", "--dry-run" ])
+  let named =
+    out
+    |> Stdlib.String.split("\n")
+    |> Stdlib.List.filter(fun line -> Stdlib.String.startsWith(line, "    Me.Big.f"))
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "dry run")
+      Instance.says(out, "Will delete 12 items in Me.Big:\n", "the count")
+      Stdlib.Test.equal(Stdlib.List.length(named), 10)
+      Instance.says(out, "\n    and 2 more", "the rest counted") ]))
+
+
+test deleteModuleTakesSubmodulesAndHonoursDryRun = Instance.withInstance(fun i ->
+  let outer = Instance.home(i) + "/outer.dark"
+  let inner = Instance.home(i) + "/inner.dark"
+  let _ = Stdlib.Cli.File.writeAtomic(outer, "let top(): Int64 = 1\n") |> Builtin.unwrap
+  let _ = Stdlib.Cli.File.writeAtomic(inner, "let deep(): Int64 = 2\n") |> Builtin.unwrap
+  let _ = Instance.ran(i, [ "module", "/Me.Outer", outer ])
+  let _ = Instance.ran(i, [ "module", "/Me.Outer.Inner", inner ])
+  let (dryCode, dry) = Instance.ran(i, [ "delete", "Me.Outer", "--dry-run" ])
+  let afterDry = Instance.said(i, [ "ls", "Me.Outer.Inner" ])
+  let (code, _) = Instance.ran(i, [ "delete", "Me.Outer", "--yes" ])
+  let after = Instance.said(i, [ "ls", "Me.Outer.Inner" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(dryCode, 0, "dry run")
+      Instance.says(dry, "Will delete 2 items in Me.Outer:", "counts the submodule's item")
+      Instance.says(dry, "    Me.Outer.Inner.deep", "names it")
+      Instance.says(afterDry, "deep", "the dry run deleted nothing")
+      Instance.exitedWith(code, 0, "deleted")
+      Instance.doesNotSay(after, "deep", "the submodule's item is gone") ]))
