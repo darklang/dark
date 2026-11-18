@@ -82,7 +82,7 @@ let private all () : List<InfixFnName * (string * string)> =
 /// after, so readers on other threads only ever see a finished one.
 ///
 /// A reference tuple rather than a struct one, so the generation and the table it
-/// belongs to are published in ONE store. As a struct it took two, and a reader
+/// belongs to are published in ONE store. As a struct it would take two, and a reader
 /// between them could pair the new generation with the old table and answer from it.
 let mutable private cache
   : int *

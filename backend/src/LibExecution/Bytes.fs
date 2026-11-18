@@ -22,11 +22,8 @@ open LibExecution.RuntimeTypes
 /// SHA-256 of zero bytes. The well-known canonical hash backing
 /// `Builtin.bytesEmpty`; short-circuited in [readBytes] because
 /// Microsoft.Data.Sqlite/Fumble's `read.bytes` on a zero-length BLOB
-/// column returns None (not Some [||]) even when the row exists.
-/// We could seed the row via migration or LocalExec, but the read
-/// would still fail — empty-blob handling has to live here. Future
-/// non-empty blob constants don't have this problem and could be
-/// seeded via LocalExec at startup.
+/// column returns None (not Some [||]) even when the row exists, so seeding
+/// the row would not help.
 let emptyHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 
 

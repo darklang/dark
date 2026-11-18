@@ -233,15 +233,14 @@ let stateForProcess
 type Scheduler(quantum : int64) =
   /// Who is waiting on `ExecDone` for which process, across every scheduler in the process:
   /// registered at subscribe time, taken at finish or when the subscription is dropped. So a
-  /// finish posts to the schedulers that asked, not to every worker in the group: with one
-  /// worker per core that was fifty queue posts per finished process, most of a server's
-  /// per-request cost.
+  /// finish posts to the schedulers that asked, not to every worker in the group, which would
+  /// be one post per core for every finished process.
   static let execDoneWatchers =
     System.Collections.Concurrent.ConcurrentDictionary<ProcessId, Scheduler list>()
 
   /// How many live children each parent has, across the group. A finish cascades to children
-  /// by scanning every scheduler's table; for a leaf (an HTTP request, a spawned read) that scan
-  /// was most of the per-process cost, so a parent with no entry here is skipped.
+  /// by scanning every scheduler's table; most processes are leaves (an HTTP request, a spawned
+  /// read), so a parent with no entry here is skipped.
   static let childCounts =
     System.Collections.Concurrent.ConcurrentDictionary<ProcessId, int>()
 
@@ -287,9 +286,8 @@ type Scheduler(quantum : int64) =
   /// `await`: `List.parallelMap` over five hundred elements spawns five hundred children, and
   /// the first of them are long forgotten by the time the awaits reach them. So the answer
   /// outlives the row. An entry goes when it is taken; one nobody ever takes (a dropped
-  /// handle) is evicted oldest-first past `keepResults`, which is where the old
-  /// "no process has this handle" came from and is now far enough out to be a real leak rather
-  /// than an ordinary list length.
+  /// handle) is evicted oldest-first past `keepResults`, far enough out that only a real leak
+  /// reaches it.
   let finishedResults =
     System.Collections.Concurrent.ConcurrentDictionary<ProcessId, RT.ExecutionResult>()
   let resultOrder = System.Collections.Generic.Queue<ProcessId>()
@@ -352,9 +350,9 @@ type Scheduler(quantum : int64) =
     | Some s -> s
     | None ->
       // The browser has one thread, so the shared scheduler cannot have its own and
-      // `thread.Start()` throws `PlatformNotSupportedException` here. That reached people as a
-      // .NET type name from `Exec.spawn`. A store condition rather than an internal error:
-      // nothing is broken, this runtime simply cannot run two things at once.
+      // `thread.Start()` throws `PlatformNotSupportedException` here. A store condition rather
+      // than an internal error: nothing is broken, this runtime simply cannot run two things at
+      // once.
       if System.OperatingSystem.IsBrowser() then
         Exception.raiseStoreCondition
           "running work beside the caller is not available in the browser: a tab has one thread"
@@ -1348,7 +1346,7 @@ and Workers(root : Scheduler, quantum : int64, count : int) =
   let byIndex = Array.ofList workers
   /// Which workers have a thread. A worker's starts the first time a spawn picks it, so a spread
   /// of four chunks starts four threads rather than one per core: each has a 16 MB stack, and
-  /// starting all of them on a 48-core box was about a tenth of a `view`.
+  /// starting one per core up front is a real share of a short command on a big box.
   /// Written under `startLock`, by whichever spawn starts the thread.
   let started = Array.zeroCreate<bool> byIndex.Length
   let startLock = obj ()

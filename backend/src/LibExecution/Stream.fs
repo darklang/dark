@@ -98,9 +98,8 @@ let newFromIO
 /// that want full-chunk bytes — `streamToBytes`, SSE byte
 /// accumulators — bypass per-byte Dval boxing by calling
 /// `readChunk` instead of `readNext`. The `next` path stays
-/// available so `streamNext` returns one DUInt8 at a time as before
-/// — the implementation synthesises single-byte pulls from the
-/// chunk buffer.
+/// available so `streamNext` returns one DUInt8 at a time — the
+/// implementation synthesises single-byte pulls from the chunk buffer.
 let newChunked
   (elemType : ValueType)
   (nextChunk : int -> ValueTask<Option<byte[]>>)

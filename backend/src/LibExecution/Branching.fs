@@ -12,8 +12,7 @@ open Prelude
 /// against a literal "main".
 type BranchId =
   /// Named `Id`, not `BranchId`: a case with the same name as its type shadows the type for QUALIFIED
-  /// access, and `PT.BranchId.Main` then fails with "'Main' is not defined". (`ProgramTypes.Hash` is
-  /// shaped that way; nothing references its module, which is why nobody has hit it there.)
+  /// access, and `PT.BranchId.Main` then fails with "'Main' is not defined".
   | Id of System.Guid
 
   // Explicit ToString -- F# unions' default override goes through StructuredPrintfImpl

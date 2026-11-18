@@ -2,8 +2,7 @@
 ///
 /// The process table lives here, behind the checked boundary; guest code holds
 /// only opaque integer handles and reaches the table through
-/// `Host.perform`. Moved from the CLI builtins so the door owns the resource,
-/// not the code asking to use it.
+/// `Host.perform`, so the door owns the resource, not the code asking to use it.
 module LibExecution.HostProcess
 
 open Prelude

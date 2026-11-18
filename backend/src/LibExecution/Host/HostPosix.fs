@@ -252,10 +252,9 @@ let private withParent
     if root < 0 then failed () else walk root 0
 
 /// The root directory itself, for the operations that read it. `withParent`
-/// is a walk to a parent plus a final name, which the root does not have;
-/// listing, stat and chdir on `/` all failed with "no final component" and
-/// `pathExists "/"` answered false. Entry-creating operations keep the
-/// requirement: there is nothing to create AT the root.
+/// is a walk to a parent plus a final name, which the root does not have.
+/// Entry-creating operations keep the requirement: there is nothing to create
+/// AT the root.
 let private withRoot
   (action : int -> Result<'a, int * string>)
   : Result<'a, int * string> =

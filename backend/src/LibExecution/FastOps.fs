@@ -2,9 +2,6 @@
 /// around it. Two values of one builtin numeric type, two `String`s, or two `List`s -- every mixed
 /// pair goes the ordinary way and gets the ordinary error.
 ///
-/// Not a compiler change: the `Apply` still happens, so a real opcode emitted by `PT2RT` would win
-/// more again. This is the part that needed no new instruction.
-///
 /// Only pure `noCaps` builtins belong here: this path skips the capability check and both type
 /// checks, which is right for an operator whose operand types the caller has just matched, and wrong
 /// for anything guarding a side effect. Every entry must also produce exactly what its builtin
@@ -165,9 +162,8 @@ let evalDisplay (a : Dval) : Dval voption =
 /// The operator itself, for one argument.
 ///
 /// Only operators whose implementation can be restated exactly belong here -- these three are a
-/// `not`, a length and a stringify. `cliTerminalStyledWidth` is busier than any of them and still
-/// does not qualify: restating it would mean copying an escape-sequence walker into the interpreter,
-/// which is duplicating a builtin rather than short-circuiting one.
+/// `not`, a length and a stringify. Anything longer would duplicate a builtin rather than
+/// short-circuit one.
 let eval1 (tag : int) (arg : Dval) : Dval voption =
   if tag = intToString then
     match arg with
