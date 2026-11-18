@@ -179,7 +179,7 @@ module Trait =
   /// The trait an operator is, and the method it maps to.
   ///
   /// None for an operator that is not a trait: `==` and `!=` are structural equality for
-  /// every value, and `++` is no longer in the language.
+  /// every value.
   ///
   /// The operator-to-trait table is not duplicated here on purpose. It lives once in F#
   /// (`NumericTraits`), which is also what the lowering uses, so the checker and the

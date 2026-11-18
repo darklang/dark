@@ -12,8 +12,7 @@ type OnMissing =
   | Allow
 
 
-/// Context for name resolution — bundles the 5 parameters that were
-/// previously threaded individually through every function.
+/// Context for name resolution.
 type NRContext =
   { onMissing: OnMissing
     pm: ProgramTypes.PackageManager.PackageManager
