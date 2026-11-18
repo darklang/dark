@@ -852,7 +852,7 @@ let executeFnCounts(state: AppState, traceLimit: Int64, showAll: Bool): AppState
     let rows = fnCountRows(all, showAll)
     let hidden = Stdlib.List.length(all) - Stdlib.List.length(rows)
     let display(name: String): String =
-      if isGone(name) then $"(gone) {Stdlib.String.slice(name, 0, 8)}" else name
+      if isGone(name) then $"(gone) {Stdlib.String.first(name, 8)}" else name
 
     match rows with
     | [] ->
@@ -1327,7 +1327,7 @@ let formatFnCalls(opts: ViewOptions, branchId: Uuid, fnCalls: List<FnCall>): Str
           match Stdlib.List.findFirstIndex(processes, fun p -> p == Stdlib.display(pid)) with
           | Some(i) ->
             let letter = Stdlib.Int64.checkedMod(i, 26) |> Stdlib.Result.withDefault(0)
-            $" {Stdlib.String.slice("ABCDEFGHIJKLMNOPQRSTUVWXYZ", letter, letter + 1)} "
+            $" {Stdlib.String.slice("ABCDEFGHIJKLMNOPQRSTUVWXYZ", letter, letter + 1) |> Stdlib.Result.withDefault(" ")} "
           | None -> "   "
 
     let lines =

@@ -1174,7 +1174,7 @@ let floatDigits(whole: String, remainder: String): String =
       if Stdlib.String.length(significant) == 1 then
         significant
       else
-        Stdlib.String.slice(significant, 0, 1) + "." + Stdlib.String.dropFirst(significant, 1)
+        Stdlib.String.first(significant, 1) + "." + Stdlib.String.dropFirst(significant, 1)
 
     $"{mantissa}e{exponent}"
   else
@@ -3427,7 +3427,7 @@ module PackageOp =
 
       let source =
         if Stdlib.String.length(source) > 48 then
-          Stdlib.String.slice(source, 0, 48) + "..."
+          Stdlib.String.first(source, 48) + "..."
         else
           source
 
@@ -3509,7 +3509,7 @@ module PackageOp =
 
       let summary =
         if Stdlib.String.length(firstLine) > 40 then
-          Stdlib.String.slice(firstLine, 0, 40) + "..."
+          Stdlib.String.first(firstLine, 40) + "..."
         else if firstLine == "" then
           "(cleared)"
         else

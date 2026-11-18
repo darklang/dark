@@ -1528,40 +1528,59 @@ test contains =
 
 test slice =
   Stdlib.Test.all(
-    [ Stdlib.String.slice("abcd", -2, 4) |> Stdlib.Test.equal("cd")
+    [ Stdlib.String.slice("abcd", -2, 4)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
-      Stdlib.String.slice("a\r\nb", 1, 2) |> Stdlib.Test.equal("\r\n")
+      Stdlib.String.slice("a\r\nb", 1, 2) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("\r\n"))
 
       Stdlib.String.last("a\r\n", 1) |> Stdlib.Test.equal("\r\n")
 
-      Stdlib.String.slice("abcd", -5, -6) |> Stdlib.Test.equal("")
+      Stdlib.String.slice("abcd", -5, -6)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
-      Stdlib.String.slice("abcd", -5, 1) |> Stdlib.Test.equal("a")
+      Stdlib.String.slice("abcd", -5, 1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
-      Stdlib.String.slice("abcd", 0, -1) |> Stdlib.Test.equal("abc")
+      Stdlib.String.slice("abcd", 0, -1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
-      Stdlib.String.slice("abcd", 2, 3) |> Stdlib.Test.equal("c")
+      Stdlib.String.slice("abcd", 2, 3) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("c"))
 
-      Stdlib.String.slice("abcd", 2, 6) |> Stdlib.Test.equal("cd")
+      Stdlib.String.slice("abcd", 0, 4) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("abcd"))
 
-      Stdlib.String.slice("abcd", 3, 2) |> Stdlib.Test.equal("")
+      Stdlib.String.slice("abcd", 4, 4) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
 
-      Stdlib.String.slice("abcd", 5, 6) |> Stdlib.Test.equal("")
+      Stdlib.String.slice("", 0, 0) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(""))
 
-      Stdlib.String.slice("🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿", 2, 10) |> Stdlib.Test.equal("✋✋🏻✋🏿")
+      Stdlib.String.slice("abcd", 2, 6)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
-      Stdlib.String.slice("Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇", 1, 3) |> Stdlib.Test.equal("ä͖̭̈̇lͮ̒ͫ")
+      Stdlib.String.slice("abcd", 3, 2)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
-      Stdlib.String.slice("﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽", 2, 6) |> Stdlib.Test.equal("﷽﷽﷽﷽")
+      Stdlib.String.slice("abcd", 5, 6)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
 
-      Stdlib.String.slice("👱👱🏻👱🏼👱🏽👱🏾👱🏿", 2, 6) |> Stdlib.Test.equal("👱🏼👱🏽👱🏾👱🏿")
+      Stdlib.String.slice("🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿", 2, 5)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("✋✋🏻✋🏿"))
 
-      Stdlib.String.slice("🧟‍♀️🧟‍♂️", 2, 4) |> Stdlib.Test.equal("")
+      Stdlib.String.slice("Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇", 1, 3)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("ä͖̭̈̇lͮ̒ͫ"))
 
-      Stdlib.String.slice("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷", 2, 10) |> Stdlib.Test.equal("🏳️‍⚧️‍️🇵🇷")
+      Stdlib.String.slice("﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽", 2, 6)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("﷽﷽﷽﷽"))
+
+      Stdlib.String.slice("👱👱🏻👱🏼👱🏽👱🏾👱🏿", 2, 6)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("👱🏼👱🏽👱🏾👱🏿"))
+
+      Stdlib.String.slice("🧟‍♀️🧟‍♂️", 2, 4)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds))
+
+      Stdlib.String.slice("👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷", 2, 4)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("🏳️‍⚧️‍️🇵🇷"))
 
       Stdlib.String.slice("abc", 0, 4503599627370498)
-      |> Stdlib.Test.equal("abc") ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.String.IndexError.IndexOutOfBounds)) ])
 
 
 test first =

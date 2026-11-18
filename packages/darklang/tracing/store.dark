@@ -273,7 +273,7 @@ let resolveID(input: String): Result<String, String> =
     let suffix = if Stdlib.List.length(candidates) > 5 then "\n  and more" else ""
     let body =
       shown
-      |> Stdlib.List.map(fun id -> $"  {Stdlib.String.slice(id, 0, 12)}")
+      |> Stdlib.List.map(fun id -> $"  {Stdlib.String.first(id, 12)}")
       |> Stdlib.String.join("\n")
 
     Result.Error($"more than one trace starts with {input}; give more of the id:\n{body}{suffix}")

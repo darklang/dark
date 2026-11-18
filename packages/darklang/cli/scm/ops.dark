@@ -11,7 +11,7 @@ module Darklang.Cli.Ops
 // returns.
 
 let short(s: String): String =
-  if Stdlib.String.length(s) <= 8 then s else Stdlib.String.slice(s, 0, 8)
+  if Stdlib.String.length(s) <= 8 then s else Stdlib.String.first(s, 8)
 
 
 /// The first line of an op's pretty-printed form, clipped to fit a column.
@@ -32,7 +32,7 @@ let describe(branchId: Uuid, width: Int64, s: SCM.PackageOps.OpSummary): String 
     if Stdlib.String.displayWidth(firstLine) <= width then
       firstLine
     else
-      Stdlib.String.slice(firstLine, 0, width - 1) + "..."
+      Stdlib.String.first(firstLine, width - 1) + "..."
 
 
 /// One display row for an op summary: [short id; what it does; when].

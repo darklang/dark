@@ -222,7 +222,7 @@ let loadTraceBodyItems(): List<BodyItem> =
   runs
   |> Stdlib.List.map(fun t ->
     BodyItem
-      { name = Stdlib.String.slice(t.id, 0, width)
+      { name = Stdlib.String.first(t.id, width)
         kind = "trace"
         isModule = false
         desc =

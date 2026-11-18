@@ -204,7 +204,7 @@ let empty(): Policy =
 let isAbsolutePath(path: String): Bool =
   Stdlib.String.startsWith(path, "/")
   || Stdlib.String.startsWith(path, "\\\\")
-  || Stdlib.String.length(path) >= 3 && Stdlib.String.slice(path, 1, 3) == ":\\"
+  || Stdlib.String.startsWith(Stdlib.String.dropFirst(path, 1), ":\\")
 
 
 let scope(value: String): Scope<String> =

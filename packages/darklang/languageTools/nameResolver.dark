@@ -322,7 +322,7 @@ module FnName =
     let modules = Stdlib.List.dropLast(given)
     match Stdlib.List.last(given), Stdlib.List.last(modules) with
     | Some(methodName), Some(traitName) ->
-      let firstChar = Stdlib.String.slice(traitName, 0, 1)
+      let firstChar = Stdlib.String.first(traitName, 1)
       if firstChar != Stdlib.String.toUppercase(firstChar) then
         Option.None
       else

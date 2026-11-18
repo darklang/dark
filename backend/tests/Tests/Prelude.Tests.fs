@@ -70,6 +70,18 @@ let graphemeTests =
     let last = max first (norm last)
     String.concat "" clusters[first .. last - 1]
 
+  // `String.slice`: the clusters in range, or None unless 0 <= first <= last <= length.
+  let referenceStrictSlice
+    (s : string)
+    (first : int64)
+    (last : int64)
+    : Option<string> =
+    let len = int64 (reference s).Length
+    if first < 0L || last < first || last > len then
+      None
+    else
+      Some(referenceSlice s first last)
+
   let pieces =
     [| "a"
        "Z"
@@ -155,7 +167,7 @@ let graphemeTests =
             for last in indices do
               Expect.equal
                 (String.sliceEgcs s first last)
-                (referenceSlice s first last)
+                (referenceStrictSlice s first last)
                 $"slice {s} {first} {last}"
             let dropped = if first < 0L then s else referenceSlice s first len
             Expect.equal
@@ -227,7 +239,7 @@ let graphemeTests =
             for last in [ 40L; 80L; 81L; 120L; len - 1L; len ] do
               Expect.equal
                 (String.sliceEgcs s first last)
-                (referenceSlice s first last)
+                (referenceStrictSlice s first last)
                 $"slice {s} {first} {last}"
       }
 

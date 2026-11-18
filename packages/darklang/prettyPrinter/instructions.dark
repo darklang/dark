@@ -114,10 +114,7 @@ let segment(branchId: Uuid, s: LanguageTools.RuntimeTypes.StringSegment): String
 /// docstring pushes everything else off the page, so anything long is summarised by shape instead.
 let inlineDval(branchId: Uuid, dv: LanguageTools.RuntimeTypes.Dval): String =
   let clip(s: String): String =
-    if Stdlib.String.length(s) <= 40 then
-      s
-    else
-      Stdlib.String.slice(s, 0, 37) + "..."
+    if Stdlib.String.length(s) <= 40 then s else Stdlib.String.first(s, 37) + "..."
 
   match dv with
   | DUnit -> "unit"

@@ -823,7 +823,7 @@ module Values =
     let fns = Stdlib.List.length(Tracing.Store.fnsOf(run.id))
     if run.durationMs > maxDurationMs || fns > maxFns then
       let why =
-        $"too large to show live values: its last run took {Stdlib.display(run.durationMs)} ms through {Stdlib.display(fns)} fns, and a replay takes many times that (dark traces inspect {Stdlib.String.slice(run.id, 0, 8)})"
+        $"too large to show live values: its last run took {Stdlib.display(run.durationMs)} ms through {Stdlib.display(fns)} fns, and a replay takes many times that (dark traces inspect {Stdlib.String.first(run.id, 8)})"
 
       Values { byExpr = Stdlib.Dict.empty, problem = Option.None, skipped = Option.Some(why) }
     else

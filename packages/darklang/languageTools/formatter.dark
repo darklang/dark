@@ -129,7 +129,9 @@ let sourceOf(file: File, d: Declaration): String =
 
 /// <param d>'s lines of <param file>, exactly as written.
 let linesOf(file: File, d: Declaration): List<String> =
-  Stdlib.String.slice(file.text, d.startOffset, d.endOffset) |> Stdlib.String.split("\n")
+  Stdlib.String.dropFirst(file.text, d.startOffset)
+  |> Stdlib.String.first(d.endOffset - d.startOffset)
+  |> Stdlib.String.split("\n")
 
 
 /// <param line> of <param d> less <param d>'s own indentation and any trailing spaces.

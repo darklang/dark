@@ -80,7 +80,7 @@ let compactDvalTo(branchId: Uuid, budget: Int64, dv: LanguageTools.RuntimeTypes.
         | Some(size) -> $"... ({size}, use --full)"
         | None -> "..."
 
-      Stdlib.String.slice(oneLine, 0, budget - Stdlib.String.length(note)) + note
+      Stdlib.String.first(oneLine, budget - Stdlib.String.length(note)) + note
     else
       oneLine
 

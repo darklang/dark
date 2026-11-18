@@ -225,7 +225,7 @@ let showDependencies(
       let kind = LanguageTools.ProgramTypes.ItemKind.toString(refKind)
       let behind =
         if isBehind(loc, targetHash) then
-          let h = LanguageTools.ProgramTypes.hashToString(targetHash) |> Stdlib.String.slice(0, 8)
+          let h = LanguageTools.ProgramTypes.hashToString(targetHash) |> Stdlib.String.first(8)
           $"  (on {h}, no longer current)"
         else
           ""

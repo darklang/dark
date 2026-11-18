@@ -19,7 +19,7 @@ let valueDesc(
 
   let clipped =
     if Stdlib.String.length(firstLine) > width then
-      Stdlib.String.slice(firstLine, 0, width - 1) + "…"
+      Stdlib.String.first(firstLine, width - 1) + "…"
     else
       firstLine
 

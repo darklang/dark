@@ -45,7 +45,7 @@ let printWrappedErr(colour: String -> String, indent: String, text: String): Uni
 /// The first eight characters of an id: how every table and message names a process, a run or
 /// a commit. Eight is enough to be unique in practice and short enough to read in a column.
 let shortIdText(id: String): String =
-  Stdlib.String.slice(id, 0, 8)
+  Stdlib.String.first(id, 8)
 
 
 /// <fn shortIdText> for an id that is already a `Uuid`.
@@ -59,7 +59,7 @@ let shortId(id: Uuid): String =
 let oneLineAt(width: Int64, text: String): String =
   let flat = Stdlib.String.join(Stdlib.String.splitOnNewline(text), " ")
   if Stdlib.String.length(flat) > width then
-    Stdlib.String.slice(flat, 0, width - 3) + "..."
+    Stdlib.String.first(flat, width - 3) + "..."
   else
     flat
 

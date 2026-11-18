@@ -40,7 +40,7 @@ let escapeCharLiteral(s: String): String =
 
 /// One hex digit (0-15) as its source character.
 let __hexDigitChar(n: Int64): String =
-  Stdlib.String.slice("0123456789ABCDEF", n, n + 1)
+  Stdlib.String.slice("0123456789ABCDEF", n, n + 1) |> Stdlib.Result.withDefault("")
 
 
 /// Text a `"..."` literal holds as it is: printable ASCII but `"` and `\`.

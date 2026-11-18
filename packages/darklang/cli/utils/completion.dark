@@ -82,7 +82,7 @@ let getMatchedSegmentSuffix(completion: String, partial: String): String =
     let rest = Stdlib.String.dropFirst(completion, afterMatch)
     // Find end of current segment (next "." or end of string)
     match Stdlib.String.indexOf(rest, ".") with
-    | Some(dotPos) -> Stdlib.String.slice(rest, 0, dotPos)
+    | Some(dotPos) -> Stdlib.String.first(rest, dotPos)
     | None -> rest
 
 
@@ -123,8 +123,8 @@ let findCommonLength(str1: String, str2: String, index: Int64, maxLen: Int64): I
   if index >= maxLen then
     index
   else
-    let char1 = Stdlib.String.slice(str1, index, index + 1)
-    let char2 = Stdlib.String.slice(str2, index, index + 1)
+    let char1 = Stdlib.String.charAt(str1, index)
+    let char2 = Stdlib.String.charAt(str2, index)
     if char1 == char2 then
       findCommonLength(str1, str2, index + 1, maxLen)
     else
@@ -139,7 +139,7 @@ let findCommonPrefix(strings: List<String>): String =
     Stdlib.List.fold(rest, first, fun(acc, next) ->
       let maxLen = Stdlib.min(Stdlib.String.length(acc), Stdlib.String.length(next))
       let commonLen = findCommonLength(acc, next, 0, maxLen)
-      Stdlib.String.slice(acc, 0, commonLen))
+      Stdlib.String.first(acc, commonLen))
 
 
 /// The prompt text after Tab when several completions share more than was typed,
@@ -180,7 +180,7 @@ let completeFilesystemPath(partialArg: String): List<String> =
   else if Stdlib.String.contains(partialArg, "/") then
     match Stdlib.String.lastIndexOf(partialArg, "/") with
     | Some(idx) ->
-      let dirPart = Stdlib.String.slice(partialArg, 0, idx + 1)
+      let dirPart = Stdlib.String.first(partialArg, idx + 1)
       let filePart = Stdlib.String.dropFirst(partialArg, idx + 1)
       let fullPath =
         if Stdlib.String.startsWith(dirPart, "/") then

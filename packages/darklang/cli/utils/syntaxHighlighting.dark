@@ -42,7 +42,7 @@ let highlightLine(
     reversedInsertions
     |> Stdlib.List.fold(line, fun(currentLine, (pos, colorCode)) ->
       if pos >= 0 && pos <= Stdlib.String.length(currentLine) then
-        let before = Stdlib.String.slice(currentLine, 0, pos)
+        let before = Stdlib.String.first(currentLine, pos)
         let after = Stdlib.String.dropFirst(currentLine, pos)
         before + colorCode + after
       else

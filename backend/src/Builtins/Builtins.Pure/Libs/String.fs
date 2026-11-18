@@ -388,17 +388,16 @@ let fns () : List<BuiltInFn> =
         [ Param.make "string" TString ""
           Param.make "from" TInt64 ""
           Param.make "to" TInt64 "" ]
-      returnType = TString
+      returnType = TypeReference.option TString
       description =
-        "Returns the substring of <param string> between the <param from> and "
-        + "<param to> indices. Negative indices start counting from the end of "
-        + "<param string>."
+        "Returns {{Some}} the characters of <param string> from <param from> up to, but not "
+        + "including, <param to>, or {{None}} unless {{0 <= from <= to <= length}}."
       fn =
         (function
         | _, _, _, [| DString s; DInt64 firstD; DInt64 lastD |] ->
-          // Normalizing the indices here rather than in the Dark wrapper, which built a lambda and
-          // applied it twice to do exactly this. That wrapper is a bare forwarder now, so it elides.
-          String.sliceEgcs s firstD lastD |> DString
+          match String.sliceEgcs s firstD lastD with
+          | Some sliced -> Dval.optionSome KTString (DString sliced)
+          | None -> Dval.optionNone KTString
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

@@ -50,7 +50,7 @@ let whyEmpty(doing: String): List<String> =
 /// width on nothing. Git shortens commit ids the same way, for the same reason.
 let idWidth(ids: List<String>): Int64 =
   let distinct(w: Int64): Bool =
-    let prefixes = ids |> Stdlib.List.map(fun id -> Stdlib.String.slice(id, 0, w))
+    let prefixes = ids |> Stdlib.List.map(fun id -> Stdlib.String.first(id, w))
     Stdlib.List.length(Stdlib.List.unique(prefixes)) == Stdlib.List.length(ids)
 
   match Stdlib.List.findFirst([ 8, 12, 16, 24 ], fun w -> distinct(w)) with
@@ -98,9 +98,9 @@ let row(width: Int64, e: Tracing.Trace): List<String> =
   // every row for a flag almost no row has, and `input` is the column that truncates.
   let id =
     if e.pinned then
-      $"*{Stdlib.String.slice(e.id, 0, width)}"
+      $"*{Stdlib.String.first(e.id, width)}"
     else
-      $" {Stdlib.String.slice(e.id, 0, width)}"
+      $" {Stdlib.String.first(e.id, width)}"
 
   [ id
     statusText(e.status)
