@@ -100,6 +100,31 @@ module RecordAndEnumFields =
     => raises
       "Failed to create updated record. Expected Darklang.Stdlib.BigInt.ParseError for field `e`, but got 5 (an Int64)"
 
+module WrittenShort =
+  // A shorter spelling of the same name prints the same full name, so a reformat that
+  // shortens a name can't change what an error says.
+  let takesShortUuidParseError(e: Stdlib.Uuid.ParseError): Int64 = 5
+  let takesShortListOfBigInt(x: List<Stdlib.BigInt.ParseError>): Int64 = 6
+
+  type HasShortUuidParseError = { shortE: Stdlib.Uuid.ParseError }
+
+  let makeShortRecord(): HasShortUuidParseError = HasShortUuidParseError { shortE = 5 }
+
+  test shortParamRaises =
+    (takesShortUuidParseError(5))
+    => raises
+      "Darklang.Language.Tests.ErrorTypeNames.WrittenShort.takesShortUuidParseError's 1st parameter `e` expects Darklang.Stdlib.Uuid.ParseError, but got Int64 (5)"
+
+  test shortTypeArgRaises =
+    (takesShortListOfBigInt(5))
+    => raises
+      "Darklang.Language.Tests.ErrorTypeNames.WrittenShort.takesShortListOfBigInt's 1st parameter `x` expects List<Darklang.Stdlib.BigInt.ParseError>, but got Int64 (5)"
+
+  test shortRecordRaises =
+    (makeShortRecord())
+    => raises
+      "Failed to create record. Expected Darklang.Stdlib.Uuid.ParseError for field `shortE`, but got 5 (an Int64)"
+
 module UnambiguousHash =
   // One location, so there is nothing to choose between and the canonical name
   // is printed however the author spelled it. Type arguments survive either way.
