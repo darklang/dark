@@ -274,28 +274,41 @@ test exprsInterpolationTextSegments =
 test exprsInvalidEscapeSequences =
   Stdlib.Test.all(
     [ // Invalid escape sequences are rejected instead of dropped.
-      rejected("invalid escape in string literal", "\"\\d+\"")
+      rejected(
+        "invalid escape in string literal",
+        "\"\\d+\"",
+        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in string literal")
 
-      rejected("invalid escape in interpolation", "$\"a\\d+b\"")
+      rejected(
+        "invalid escape in interpolation",
+        "$\"a\\d+b\"",
+        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in interpolated string")
 
-      rejected("invalid escape in char literal", "'\\d'")
+      rejected(
+        "invalid escape in char literal",
+        "'\\d'",
+        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in character literal")
 
       rejected(
         "invalid escape in string match pattern",
-        "match s with\n| \"\\d+\" -> 1\n| _ -> 0")
+        "match s with\n| \"\\d+\" -> 1\n| _ -> 0",
+        "Parse error at line 2, column 3: Invalid escape sequence or codepoint in string literal")
 
       rejected(
         "invalid escape in char match pattern",
-        "match c with\n| '\\d' -> 1\n| _ -> 0")
+        "match c with\n| '\\d' -> 1\n| _ -> 0",
+        "Parse error at line 2, column 3: Invalid escape sequence or codepoint in character literal")
 
       // A constructor pattern's fields go in parentheses, qualified or not.
       rejected(
         "enum-case match pattern with a spaced field",
-        "match x with\n| Ok n -> 1\n| _ -> 0")
+        "match x with\n| Ok n -> 1\n| _ -> 0",
+        "Parse error at line 2, column 3: a constructor pattern's fields go in parentheses, separated by commas")
 
       rejected(
         "qualified enum-case match pattern with a spaced field",
-        "match x with\n| Result.Ok n -> 1\n| _ -> 0")
+        "match x with\n| Result.Ok n -> 1\n| _ -> 0",
+        "Parse error at line 2, column 3: a constructor pattern's fields go in parentheses, separated by commas")
 
       rejectedWithNote(
         "a spaced constructor-pattern field says to use parentheses",
@@ -305,11 +318,15 @@ test exprsInvalidEscapeSequences =
 
 test exprEntryPointsRejectSyntaxErrors =
   Stdlib.Test.all(
-    [ exprRejected("garbage tokens", "@@@")
+    [ exprRejected(
+        "garbage tokens",
+        "@@@",
+        "Parse error at line 1, column 1: '@' is not Dark; join lists with `[...a, ...b]`\nParse error at line 1, column 1: expected an expression, found '@'\nParse error at line 1, column 2: '@' is not Dark; join lists with `[...a, ...b]`\nParse error at line 1, column 3: '@' is not Dark; join lists with `[...a, ...b]`\nParse error at line 1, column 3: expected an expression, found '@'")
 
       exprRejected(
         "a spaced constructor-pattern field",
-        "match x with\n| Ok n -> 1\n| _ -> 0")
+        "match x with\n| Ok n -> 1\n| _ -> 0",
+        "Parse error at line 2, column 3: a constructor pattern's fields go in parentheses, separated by commas")
 
       sourceFileRejected(
         "a fn whose body has a syntax error",
@@ -335,13 +352,37 @@ test exprsWellFormedEscapes =
     [ // Well-formed escapes that are not valid Unicode scalars are rejected:
       // - surrogate range (D800..DFFF)
       // - above the Unicode max (>0x10FFFF)
-      rejected("surrogate codepoint \\uD800", "\"\\uD800\"")
-      rejected("surrogate codepoint \\U0000D800", "\"\\U0000D800\"")
-      rejected("codepoint above max \\U00110000", "\"\\U00110000\"")
-      rejected("surrogate codepoint in char", "'\\uD800'")
-      rejected("codepoint above max in char", "'\\U00110000'")
+      rejected(
+        "surrogate codepoint \\uD800",
+        "\"\\uD800\"",
+        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in string literal")
+
+      rejected(
+        "surrogate codepoint \\U0000D800",
+        "\"\\U0000D800\"",
+        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in string literal")
+
+      rejected(
+        "codepoint above max \\U00110000",
+        "\"\\U00110000\"",
+        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in string literal")
+
+      rejected(
+        "surrogate codepoint in char",
+        "'\\uD800'",
+        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in character literal")
+
+      rejected(
+        "codepoint above max in char",
+        "'\\U00110000'",
+        "Parse error at line 1, column 1: Invalid escape sequence or codepoint in character literal")
+
       // Pure syntax-rejection cases (no escape involvement).
-      rejected("garbage tokens produce a parse error", "@@@")
+      rejected(
+        "garbage tokens produce a parse error",
+        "@@@",
+        "Parse error at line 1, column 1: '@' is not Dark; join lists with `[...a, ...b]`")
+
       roundTrip(
         "string interpolation - multiple expr to eval",
         "$\"Name: {name}, Age: {age}\"",

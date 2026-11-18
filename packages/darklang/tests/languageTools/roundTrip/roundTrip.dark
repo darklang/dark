@@ -473,11 +473,17 @@ let decodesToChar(
       $"{name}: parse error: {LanguageTools.Parser.Parse.ParseError.toString(e)}")
 
 
-/// <param source> as an expression is refused. The parser recovers a tree from most syntax errors,
-/// and `parsePTExpr` used to lower that tree, holes and all, and return `Ok`.
-let exprRejected(name: String, source: String): Stdlib.Test.Result =
+/// <param source> as an expression is refused with <param message>. The parser recovers a tree from
+/// most syntax errors, and `parsePTExpr` used to lower that tree, holes and all, and return `Ok`.
+let exprRejected(
+  name: String,
+  source: String,
+  message: String)
+  : Stdlib.Test.Result =
   match LanguageTools.Parser.Parse.parsePTExpr(source) with
-  | Error(_) -> Stdlib.Test.pass()
+  | Error(e) ->
+    LanguageTools.Parser.Parse.ParseError.toString(e)
+    |> Stdlib.Test.equal(message)
   | Ok(_) -> Stdlib.Test.fail($"{name}: parsed, but should have been rejected")
 
 
@@ -508,9 +514,14 @@ let cliParse(
     source)
 
 
-let rejected(name: String, source: String): Stdlib.Test.Result =
+/// Rejected with exactly <param message>, which starts with the position.
+let rejected(
+  name: String,
+  source: String,
+  message: String)
+  : Stdlib.Test.Result =
   match cliParse(source) with
-  | Error(_) -> Stdlib.Test.pass()
+  | Error(Message(m)) -> m |> Stdlib.Test.equal(message)
   | Ok(_) -> Stdlib.Test.fail($"{name}: parsed, but should have been rejected")
 
 
@@ -529,9 +540,22 @@ let rejectedWithNote(
   | Ok(_) -> Stdlib.Test.fail($"{name}: parsed, but should have been rejected")
 
 
-let parsesOk(name: String, source: String): Stdlib.Test.Result =
+/// Parses into fns taking <param parameters>, leaving <param unresolved> for the editor to report.
+let parsesOk(
+  name: String,
+  source: String,
+  parameters: List<List<String>>,
+  unresolved: List<List<String>>)
+  : Stdlib.Test.Result =
   match cliParse(source) with
-  | Ok(_) -> Stdlib.Test.pass()
+  | Ok((parsed, names)) ->
+    let fns =
+      parsed.fns
+      |> Stdlib.List.map(fun fn ->
+        fn.parameters |> Stdlib.List.map(fun p -> p.name))
+
+    let names = names |> Stdlib.List.map(fun((_, path, _)) -> path)
+    (fns, names) |> Stdlib.Test.equal((parameters, unresolved))
   | Error(Message(message)) -> Stdlib.Test.fail($"{name}: {message}")
 
 

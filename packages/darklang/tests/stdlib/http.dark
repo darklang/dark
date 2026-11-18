@@ -313,8 +313,10 @@ test statusFromInt64 =
           "99 is not a valid HTTP status (100 to 599)"))
 
       Stdlib.Http.Status.fromInt64(600)
-      |> Stdlib.Result.isError
-      |> Stdlib.Test.equal(true) ])
+      |> Stdlib.Result.mapError(Stdlib.display)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          "600 is not a valid HTTP status (100 to 599)")) ])
 
 
 test statusNamed =

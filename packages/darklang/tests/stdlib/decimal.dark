@@ -294,8 +294,11 @@ test json =
 
 test jsonRefusesWhatItWouldRound =
   Stdlib.Json.parse<Decimal>("0.00000000000000000000000000001")
-  |> Stdlib.Result.isError
-  |> Stdlib.Test.equal(true)
+  |> Stdlib.Result.mapError(fun e ->
+    Stdlib.Json.ParseError.toString(SCM.Branch.mainBranchId, e))
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Error(
+      "Can't parse JSON `0.00000000000000000000000000001` as type `Decimal` at path: `root`"))
 
 
 test arithmeticAtTheLimits =

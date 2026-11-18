@@ -21,8 +21,10 @@ test portFromInt64 =
             { what = "port", value = 65536, min = 0, max = 65535 }))
 
       Stdlib.Net.Port.fromInt64(-1)
-      |> Stdlib.Result.isError
-      |> Stdlib.Test.equal(true) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Math.OutOfRange
+            { what = "port", value = -1, min = 0, max = 65535 })) ])
 
 
 test portNamed =
