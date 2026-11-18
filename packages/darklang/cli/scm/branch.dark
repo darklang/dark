@@ -359,10 +359,13 @@ let help(_state: AppState): String =
 /// `dark branch ...`. Bare `dark branch <id>` switches (creating the branch if it's new), which is why
 /// the subcommand arms come first: a subcommand name can't also be a branch you switch to.
 let execute(state: AppState, args: List<String>): AppState =
-  match args with
+  // Flags come out before the words are matched, so they work anywhere on the line:
+  // `archive -y x` is `archive x -y`. `Accepts` has already refused any a subcommand doesn't take.
+  let (flags, words) = Stdlib.List.partition(args, fun a -> Stdlib.String.startsWith(a, "-"))
+  let has(flag: String): Bool = Stdlib.List.contains(flags, flag)
+  match words with
   | [] -> executeCurrent(state)
-  | ["list"] -> executeList(state, Merged.Hide)
-  | ["list", "--all"] -> executeList(state, Merged.Show)
+  | ["list"] -> executeList(state, Merged.showIf(has("--all")))
   | ["current"] -> executeCurrent(state)
   | ["switch", id] -> executeSwitch(state, id)
   | ["new", id] | ["create", id] when id == SCM.Branch.mainBranchName ->
@@ -373,19 +376,11 @@ let execute(state: AppState, args: List<String>): AppState =
   // nothing holds.
   | ["new", id] -> executeSwitch(state, id)
   | ["create", id] -> executeSwitch(state, id)
-  | ["archive", id] -> executeArchive(state, id, Confirm.Ask)
-  | ["archive", id, "-y"] | ["archive", id, "--yes"] -> executeArchive(state, id, Confirm.Assume)
+  | ["archive", id] -> executeArchive(state, id, Confirm.assumeIf(has("-y") || has("--yes")))
   | ["rename", id, newName] -> executeRename(state, id, newName)
-  | ["diff", id] -> executeDiff(state, id, Source.Hide)
-  | ["diff", id, "--source"] -> executeDiff(state, id, Source.Show)
+  | ["diff", id] -> executeDiff(state, id, Source.showIf(has("--source")))
   | ["log", id] -> executeLog(state, id)
-  | ["merge", id] -> executeMerge(state, id, Confirm.Ask, TypeErrors.Refuse)
-  | ["merge", id, "-y"] | ["merge", id, "--yes"] ->
-    executeMerge(state, id, Confirm.Assume, TypeErrors.Refuse)
-  | ["merge", id, "--allow-type-errors"] -> executeMerge(state, id, Confirm.Ask, TypeErrors.Allow)
-  | ["merge", id, "--allow-type-errors", "-y"] | ["merge", id, "-y", "--allow-type-errors"] ->
-    executeMerge(state, id, Confirm.Assume, TypeErrors.Allow)
-  | ["merge", id, "--dry-run"] -> executeMergeDryRun(state, id)
+  | ["merge", id] -> executeMergeCmd(state, Stdlib.List.prepend(flags, id))
   | ["rebase", id] -> executeRebase(state, id)
   | ["resolve", id, name, choice] -> executeResolve(state, id, name, choice)
   | [id] ->
