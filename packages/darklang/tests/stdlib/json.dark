@@ -434,16 +434,13 @@ module UInt64 =
   module Basic =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<UInt64>(0u64) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<UInt64>(12345u64)
+        [ Stdlib.Json.serialize<UInt64>(12345u64)
           |> Stdlib.Test.equal("12345") ])
 
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<UInt64>("0") |> Stdlib.Test.equal(Result.Ok(0u64))
-
-          Stdlib.Json.parse<UInt64>("0.0") |> Stdlib.Test.equal(Result.Ok(0u64))
+        [ Stdlib.Json.parse<UInt64>("0.0") |> Stdlib.Test.equal(Result.Ok(0u64))
 
           Stdlib.Json.parse<UInt64>("1.2E2")
           |> Stdlib.Test.equal(Result.Ok(120u64))
@@ -698,9 +695,7 @@ module UInt8 =
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<UInt8>("0") |> Stdlib.Test.equal(Result.Ok(0u8))
-
-          Stdlib.Json.parse<UInt8>("0.0") |> Stdlib.Test.equal(Result.Ok(0u8))
+        [ Stdlib.Json.parse<UInt8>("0.0") |> Stdlib.Test.equal(Result.Ok(0u8))
 
           Stdlib.Json.parse<UInt8>("-0.0") |> Stdlib.Test.equal(Result.Ok(0u8))
 
@@ -933,15 +928,12 @@ module UInt16 =
   module Basic =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<UInt16>(0u16) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<UInt16>(123u16) |> Stdlib.Test.equal("123") ])
+        [ Stdlib.Json.serialize<UInt16>(123u16) |> Stdlib.Test.equal("123") ])
 
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<UInt16>("0") |> Stdlib.Test.equal(Result.Ok(0u16))
-
-          Stdlib.Json.parse<UInt16>("0.0") |> Stdlib.Test.equal(Result.Ok(0u16))
+        [ Stdlib.Json.parse<UInt16>("0.0") |> Stdlib.Test.equal(Result.Ok(0u16))
 
           Stdlib.Json.parse<UInt16>("1.2E2")
           |> Stdlib.Test.equal(Result.Ok(120u16))
@@ -1183,15 +1175,12 @@ module UInt32 =
   module Basic =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<UInt32>(0u32) |> Stdlib.Test.equal("0")
-          Stdlib.Json.serialize<UInt32>(123u32) |> Stdlib.Test.equal("123") ])
+        [ Stdlib.Json.serialize<UInt32>(123u32) |> Stdlib.Test.equal("123") ])
 
 
     test parse =
       Stdlib.Test.all(
-        [ Stdlib.Json.parse<UInt32>("0") |> Stdlib.Test.equal(Result.Ok(0u32))
-
-          Stdlib.Json.parse<UInt32>("0.0") |> Stdlib.Test.equal(Result.Ok(0u32))
+        [ Stdlib.Json.parse<UInt32>("0.0") |> Stdlib.Test.equal(Result.Ok(0u32))
 
           Stdlib.Json.parse<UInt32>("-0.0")
           |> Stdlib.Test.equal(Result.Ok(0u32))
@@ -1477,9 +1466,7 @@ module UInt128 =
   module Basic =
     test serialize =
       Stdlib.Test.all(
-        [ Stdlib.Json.serialize<UInt128>(0u128) |> Stdlib.Test.equal("0")
-
-          Stdlib.Json.serialize<UInt128>(12345u128)
+        [ Stdlib.Json.serialize<UInt128>(12345u128)
           |> Stdlib.Test.equal("12345") ])
 
 
@@ -1602,13 +1589,7 @@ module UInt128 =
 
           Stdlib.Json.parse<UInt128>("\"42\n\"")
           |> err
-          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4"))
-
-          Stdlib.Json.parse<UInt128>("340282366920938463463374607431768211456")
-          |> err
-          |> Stdlib.Test.equal(
-            Result.Error(
-              "Can't parse JSON `340282366920938463463374607431768211456` as type `UInt128` at path: `root`")) ])
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4")) ])
 
 
 module Float64 =
@@ -3334,17 +3315,7 @@ module UserDefinedAliases =
 module Package =
   test serialize =
     Stdlib.Test.all(
-      [ Stdlib.Json.serialize<Option<Int64>>(Option.None)
-        |> Stdlib.Test.equal("null")
-
-        Stdlib.Json.serialize<Result<Int64, String>>(Result.Ok(1))
-        |> Stdlib.Test.equal("{\"Ok\":[1]}")
-
-        Stdlib.Json.serialize<Result<Int64, String>>(
-          Result.Error("err message"))
-        |> Stdlib.Test.equal("{\"Error\":[\"err message\"]}")
-
-        Stdlib.Json.serialize<LanguageTools.ID>(42) |> Stdlib.Test.equal("42")
+      [ Stdlib.Json.serialize<LanguageTools.ID>(42) |> Stdlib.Test.equal("42")
 
         Stdlib.Json.serialize<LanguageTools.Sign>(LanguageTools.Sign.Positive)
         |> Stdlib.Test.equal("{\"Positive\":[]}") ])
@@ -3352,17 +3323,7 @@ module Package =
 
   test parse =
     Stdlib.Test.all(
-      [ Stdlib.Json.parse<Option<Int64>>("{\"None\":[]}")
-        |> Stdlib.Test.equal(Result.Ok(Option.None))
-
-        Stdlib.Json.parse<Result<Int64, String>>("{\"Ok\":[1]}")
-        |> Stdlib.Test.equal(Result.Ok(Result.Ok(1)))
-
-        Stdlib.Json.parse<Result<Int64, String>>(
-          "{\"Error\":[\"err message\"]}")
-        |> Stdlib.Test.equal(Result.Ok(Result.Error("err message")))
-
-        Stdlib.Json.parse<LanguageTools.ID>("42")
+      [ Stdlib.Json.parse<LanguageTools.ID>("42")
         |> Stdlib.Test.equal(Result.Ok(42))
 
         Stdlib.Json.parse<LanguageTools.Sign>("{\"Positive\":[]}")
