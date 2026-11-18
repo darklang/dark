@@ -1,5 +1,5 @@
-/// Parse + lower package files with the hand-written parser. `parse` is the public
-/// entrypoint used by the package loader (LocalExec).
+/// Parse + lower package files. `parse` is the public entrypoint used by the
+/// package loader (LocalExec).
 module LibParser.Package
 
 open Prelude

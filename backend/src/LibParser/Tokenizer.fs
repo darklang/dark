@@ -1,4 +1,4 @@
-/// Shared lexer types for the range-complete parser: source positions and the
+/// Shared lexer types for the parser: source positions and the
 /// `Token` DU (produced by `Lexer`, consumed by `Parser` and the
 /// syntax-highlighter's token-kind classifier).
 module LibParser.Tokenizer

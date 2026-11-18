@@ -127,7 +127,6 @@ let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
           else
             Error()
         | _ ->
-          // Try package manager lookup
           let location : PT.PackageLocation =
             { owner = owner; modules = modules; name = nameToTry.name }
           match findInPM location with
@@ -167,8 +166,7 @@ let resolveTypeName
   match name with
   | WT.KnownBuiltin(_name, _version) -> Exception.raiseInternal warning []
   | WT.Unresolved given ->
-    // Types don't have builtins, so pass None
-    // parseTypeName returns just name (version always 0 for types)
+    // version always 0 for types
     let parseTypeName name = parseTypeNameString name |> Result.map (fun n -> (n, 0))
 
     resolveGenericName

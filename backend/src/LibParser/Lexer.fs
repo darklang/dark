@@ -1,5 +1,5 @@
-/// Lexer for the Darklang syntax this repo uses. Produces `Tokenizer.Token`s
-/// with source ranges for the parser.
+/// Lexer for Darklang source. Produces `Tokenizer.Token`s with source ranges
+/// for the parser.
 ///
 /// Regular string/char escapes are processed (`unescape`); triple-quoted strings
 /// stay raw.

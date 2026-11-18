@@ -2577,7 +2577,7 @@ and parseInterpString (state : ParserState) (i : int) : WT.Expr * int =
             match tokenize exprText with
             | Ok(innerToks, innerLexDiags) ->
               // lexical-recovery diagnostics from inside `{…}` (unterminated
-              // literals etc.) surface like any other — previously dropped
+              // literals etc.) surface like any other
               for (r, msg) in innerLexDiags do
                 if not state.abandoned then
                   state.diagnostics.Add
@@ -2625,8 +2625,8 @@ and parseInterpString (state : ParserState) (i : int) : WT.Expr * int =
                   WT.EUnit bodyRange
               | None -> WT.EUnit(rangeAt (k + 1) found)
             | Error e ->
-              // a hard tokenize failure inside `{…}` (e.g. nesting cap) was
-              // previously swallowed as a silent unit
+              // a hard tokenize failure inside `{…}` (e.g. nesting cap) is an
+              // error, not a silent unit
               err state DiagnosticCode.lex i e
               WT.EUnit(rangeAt (k + 1) found)
         contents.Add(
@@ -3463,8 +3463,8 @@ and parseTypeRef (state : ParserState) (i : int) : WT.TypeReference * int =
 // `A -> B` takes one argument, and `(A, B) -> C` two (the arguments are a
 // parenthesized list, parsed by parseAtomType, which returns the whole TFn). A
 // chain `A -> B -> C` is an error: write `(A, B) -> C` for two arguments, or
-// `A -> (B -> C)` for one argument returning a function. The chain is still
-// parsed as the two-argument function it used to mean, for recovery.
+// `A -> (B -> C)` for one argument returning a function. For recovery, the
+// chain is still parsed as a two-argument function.
 and parseFnType (state : ParserState) (i : int) : WT.TypeReference * int =
   let (first, j) = parseTupleType state i
   // A remaining `>` from a split `>>` must close the outer generic first.
