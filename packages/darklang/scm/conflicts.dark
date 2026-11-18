@@ -108,8 +108,6 @@ type ConflictFilter =
   | ByRef(reference: String, branchId: Uuid)
   /// The acked records that are not name conflicts: the constraint acks. Only `id` is filled.
   | AckedConstraints
-  /// Whether anything was ever overridden: at most one row, only `id` filled.
-  | AnyOverridden
 
 
 /// One row of the `conflicts` table as the store holds it. `candidates` is the stored JSON, parsed by

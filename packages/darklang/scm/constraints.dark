@@ -26,16 +26,6 @@ type Kind =
   /// a value reference's hash to a fn's produces code that claims one thing and points at another. Nothing
   /// breaks meanwhile: references resolve by hash, and the old item is still there.
   | KindChanged
-  /// A deliberate DECISION of yours is no longer what the store reflects: you overrode a conflict to
-  /// pin a name to one version, and a later ordinary edit rebound it.
-  ///
-  /// Its own kind because the advice is different again: nothing is stale and no kind moved, the name is
-  /// simply not where you put it. Last-writer-wins is working as designed here; it just discards the
-  /// losing side SILENTLY, and with sync running as a daemon that can happen while you are asleep. This
-  /// is how you find out.
-  ///
-  /// Only an override qualifies (see `SCM.PackageOps.supersededOverrides`).
-  | DecisionSuperseded
   /// Two visible implementations of one trait for one type. Legal to store, and a call runs the
   /// newer of them: the same last-writer-wins rule that settles two bindings of one name, so every
   /// instance runs the same one. This says so, because the loser is still there and the second
@@ -47,7 +37,6 @@ let kindToString(k: Kind): String =
   match k with
   | StaleUsage -> "stale-usage"
   | KindChanged -> "kind-changed"
-  | DecisionSuperseded -> "decision-superseded"
   | RivalImplementations -> "rival-implementations"
 
 
@@ -56,7 +45,6 @@ let kindFromString(s: String): Option<Kind> =
   match s with
   | "stale-usage" -> Option.Some(Kind.StaleUsage)
   | "kind-changed" -> Option.Some(Kind.KindChanged)
-  | "decision-superseded" -> Option.Some(Kind.DecisionSuperseded)
   | "rival-implementations" -> Option.Some(Kind.RivalImplementations)
   | _ -> Option.None
 
@@ -73,11 +61,6 @@ let resolutionsFor(k: Kind): List<String> =
   // read a value, which is a change to what the code MEANS, not to which version it points at. Ack it, or
   // edit the usage yourself.
   | KindChanged -> []
-  // Nothing automatic, deliberately. Re-asserting the decision means authoring a new override, which is
-  // `dark conflicts override` -- a different verb with its own confirmation. `dark constraints resolve`
-  // does one thing (repoint a usage), and offering a name here that it does not implement would run the
-  // repoint instead. Ack it, or override again.
-  | DecisionSuperseded -> []
   // Nothing automatic: the call already runs the newer one, and making that permanent is `deprecate`
   // on the other, its own verb with its own confirmation. Ack it, or pick.
   | RivalImplementations -> []
@@ -193,40 +176,6 @@ let outdatedUsagesOn(branchId: Uuid): Result<List<Finding>, String> =
 /// make an ack given on main stop counting the moment you switched.
 let ackedIds(): List<String> =
   Conflicts.query(Conflicts.ConflictFilter.AckedConstraints) |> Stdlib.List.map(fun row -> row.id)
-
-
-/// A deliberate OVERRIDE of yours that a later ordinary edit undid.
-///
-/// The op log holds both facts, so this needs no storage and no authorship: `SCM.PackageOps` walks it and
-/// reports (location, the hash the override chose, the hash bound now). See its comment for why only an
-/// override qualifies.
-///
-/// The `Finding` fields are the stale-usage ones reused: `dependency` is the location ITSELF, because the
-/// thing whose version moved is this name rather than something it calls. That is the one field here that
-/// reads oddly, and it is why `line` in the CLI prints this kind separately.
-let detectSupersededDecisions(): Result<List<Finding>, String> =
-  PackageOps.supersededOverrides()
-  |> Stdlib.Result.map(fun entries ->
-    entries
-    |> Stdlib.List.map(fun entry ->
-      let (loc, chosen, live) = entry
-
-      // The item's REAL kind, from the live binding: a hardcoded Fn feeds `--json` the wrong kind for a
-      // decision on a type or value.
-      let kind =
-        Propagation.kindAt(loc) |> Stdlib.Option.withDefault(LanguageTools.ProgramTypes.ItemKind.Fn)
-
-      Finding
-        { kind = Kind.DecisionSuperseded
-          id = findingId(loc, loc, chosen)
-          usage = loc
-          usageKind = kind
-          dependency = loc
-          dependencyKind = kind
-          detail =
-            FindingDetail.Versions(
-              LanguageTools.ProgramTypes.Hash.Hash(chosen),
-              LanguageTools.ProgramTypes.Hash.Hash(live)) }))
 
 
 /// Two visible implementations of one trait for one type, on <param branchId>, and which one a
@@ -346,7 +295,7 @@ let detectOutdatedUsagesOn(branchId: Uuid): Result<List<Finding>, String> =
 
 /// Everything detection turned up, and everything it could not look at.
 ///
-/// Two of these detectors read the op log, and a failed read used to come back empty. A caller that
+/// The outdated-usage detector reads the op log, and a failed read used to come back empty. A caller that
 /// prints "no constraints" has to be able to tell that from "nothing found".
 type Detection =
   { findings: List<Finding>
@@ -360,17 +309,11 @@ let detectWithOutdated(outdated: Result<List<Finding>, String>): Detection =
     | Ok(fs) -> (fs, [])
     | Error(e) -> ([], [ e ])
 
-  // Detection and acknowledgement are independent of dependency upgrades.
-  let (decisions, decisionsBlocked) =
-    match detectSupersededDecisions() with
-    | Ok(fs) -> (fs, [])
-    | Error(e) -> ([], [ e ])
-
   Detection
     { findings =
         Stdlib.List.flatten(
-          [ outdated, decisions, detectRivalImplementations(PackageOps.currentBranch()) ])
-      blocked = Stdlib.List.concat(outdatedBlocked, decisionsBlocked) }
+          [ outdated, detectRivalImplementations(PackageOps.currentBranch()) ])
+      blocked = outdatedBlocked }
 
 
 /// Findings that have not been acknowledged.
@@ -418,7 +361,6 @@ let ack(branchId: Uuid, s: Finding, note: String): Result<Unit, String> =
       match s.kind with
       | StaleUsage -> $"stale use of {fqnOf(s.dependency)}"
       | KindChanged -> $"{fqnOf(s.dependency)} is a different kind of item now"
-      | DecisionSuperseded -> $"decision on {fqnOf(s.usage)} superseded"
       | RivalImplementations ->
         $"{fqnOf(s.usage)} is one of two implementations of {fqnOf(s.dependency)}"
 

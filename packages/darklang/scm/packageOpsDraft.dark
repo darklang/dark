@@ -111,55 +111,10 @@ let draftEntries(): List<DraftEntry> =
   draftEntriesFor(currentBranch())
 
 
-/// The per-location key the two decision folds below group on. A string built here rather than through
+/// The per-location key the binding fold below groups on. A string built here rather than through
 /// `Constraints.fqnOf`: this silo owns the op log and must not depend on the one that reports findings.
 let decisionKey(loc: LanguageTools.ProgramTypes.PackageLocation): String =
   loc.owner + "|" + Stdlib.String.join(loc.modules, ".") + "|" + loc.name
-
-
-/// Where a human's OVERRIDE was later undone by an ordinary edit.
-///
-/// Returns (location, the hash the override chose, the hash bound now) per name.
-///
-/// Last-writer-wins is working as designed here; what is missing is that the losing side goes silently.
-/// `SCM.Constraints` turns these into standing findings.
-///
-/// Only an override counts: an ordinary edit can replace it without another explicit decision.
-///
-/// Guarded on the `conflicts` projection first, which is small and usually empty of overrides, so the
-/// op-log decode below costs nothing on the common path.
-/// A failed read of the op log is reported rather than mistaken for no findings.
-let supersededOverrides()
-  : Result<List<(LanguageTools.ProgramTypes.PackageLocation * String * String)>, String> =
-  match Conflicts.query(Conflicts.ConflictFilter.AnyOverridden) with
-  | [] -> Result.Ok([])
-  | _ ->
-    // Fold the log in order, remembering per location: the hash the last LOCAL override chose, and
-    // the hash bound now. Order is the fold's own (origin_ts, rowid), so "later" means what the fold
-    // means. Only YOUR override can be superseded
-    // (a peer's is theirs to watch), and a later edit of YOURS is a change of mind, which closes the
-    // record rather than reporting you to yourself.
-    let hashOf = fun target ->
-      LanguageTools.ProgramTypes.hashToString(LanguageTools.ProgramTypes.Reference.hash(target))
-
-    // Only main's binding and decision ops: decoding every fn body in the log took seconds.
-    historyOps(Branch.mainBranchId, Edits.Own, Option.None)
-    |> Stdlib.List.fold(Stdlib.Dict.empty, fun(acc, revision) ->
-      let (_, _, op) = revision
-      match op with
-      | Decision(_, loc, _, Override(target)) ->
-        let h = hashOf(target)
-        Stdlib.Dict.set(acc, decisionKey(loc), (loc, h, h))
-      | SetName(loc, _target, _) ->
-        match Stdlib.Dict.get(acc, decisionKey(loc)) with
-        | None -> acc
-        | Some(_entry) -> Stdlib.Dict.remove(acc, decisionKey(loc))
-      | _ -> acc)
-    |> Stdlib.Dict.values
-    |> Stdlib.List.filter(fun entry ->
-      let (_loc, chosen, live) = entry
-      chosen != live)
-    |> Result.Ok
 
 
 /// The at-rest check over any set of ops, with the same live-items rule the draft gate uses:

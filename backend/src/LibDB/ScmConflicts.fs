@@ -25,8 +25,6 @@ type Query =
   | ByRef of reference : string * branchId : uuid
   /// The ids of acked records that are not name conflicts: the constraint acks. Every branch.
   | AckedConstraints
-  /// Whether any conflict was overridden, on any branch: at most one row, id only.
-  | AnyOverridden
 
 
 /// One row of `conflicts`. `candidates` is the JSON as stored; Dark parses it. Which fields are
@@ -129,6 +127,3 @@ let query (q : Query) : List<Row> =
          AND kind NOT IN ('same-name-different-hash', 'independent-creation')"
       []
       idOnly
-
-  | AnyOverridden ->
-    run "SELECT id FROM conflicts WHERE status = 'overridden' LIMIT 1" [] idOnly

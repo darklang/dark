@@ -457,7 +457,7 @@ module Registry =
       ("diff", "What a branch changes vs its parent", [], acceptsDiff, Cli.Branch.executeDiffCmd, Cli.Branch.help, Cli.Branch.complete)
       ("log", "History: commits on main, a branch's ops on a branch", [], acceptsLog, Cli.Branch.executeLogCmd, Cli.Branch.help, Cli.Branch.complete)
       ("resolve", "Settle one conflicted name on a branch", [], acceptsResolve, Cli.Branch.executeResolveCmd, Cli.Branch.help, Cli.Branch.complete)
-      ("constraints", "Standing findings: stale usages, kind changes, superseded overrides, rival impls", [], acceptsConstraints, Cli.ConstraintsCmd.execute, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
+      ("constraints", "Standing findings: stale usages, kind changes, rival impls", [], acceptsConstraints, Cli.ConstraintsCmd.execute, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
       ("ack", "Leave a constraint finding for now (`dark ack --all`)", [], acceptsAck, Cli.ConstraintsCmd.executeAckCmd, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
       ("undeprecate", "Put a deprecated fn/type/value/trait/impl/test back on the shelf", [ "restore" ], acceptsUndeprecate, Packages.Deprecate.executeUndeprecate, Packages.Deprecate.undeprecateHelp, Packages.Deprecate.complete)
       ("backups", "Copies of the store: what exists, take one, prune", [], acceptsBackups, Cli.Backups.execute, Cli.Backups.help, Cli.Backups.complete)

@@ -220,7 +220,6 @@ let private conflictFilterFromDT (f : Dval) : Conflicts.Query =
   | DEnum(_, _, _, "Pending", [ DUuid b ]) -> Conflicts.Pending b
   | DEnum(_, _, _, "ByRef", [ DString r; DUuid b ]) -> Conflicts.ByRef(r, b)
   | DEnum(_, _, _, "AckedConstraints", []) -> Conflicts.AckedConstraints
-  | DEnum(_, _, _, "AnyOverridden", []) -> Conflicts.AnyOverridden
   | other -> Exception.raiseInternal "unknown ConflictFilter" [ "got", other ]
 
 let private conflictRowToDT (r : Conflicts.Row) : Dval =
