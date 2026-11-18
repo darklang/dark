@@ -780,15 +780,60 @@ let source(branchId: Uuid, width: Int64, source: String): Result<Formatted, Stri
       Result.Error($"formatting would change its comments, starting with: {lost}")
 
 
-/// Each declaration in <param ds> with what it means, a module's by what is in it.
-let meanings(file: File, path: String, ds: List<Declaration>): List<(String * String)> =
+/// Each declaration in <param ds> by its full name, a module's by what is in it.
+let named(file: File, path: String, ds: List<Declaration>): List<(String * Declaration)> =
   ds
   |> Stdlib.List.map(fun d ->
     let name = path + declarationName(file, d)
     match d.item with
-    | Module(_, _, inner) -> meanings(file, name + ".", inner)
-    | _ -> [ (name, d.meaning) ])
+    | Module(_, _, inner) -> named(file, name + ".", inner)
+    | _ -> [ (name, d) ])
   |> Stdlib.List.flatten
+
+
+/// What <param d> stores once saved. The save gives a bare number the type its slot wants,
+/// which the parse alone can't see, so a suffix the printer dropped leaves this the same.
+let stored(d: Declaration): String =
+  // Stabilizing rehashes only an item bound to a name, so each gets one.
+  let bound =
+    opsIn([ d ])
+    |> Stdlib.List.map(fun op ->
+      let at = ProgramTypes.PackageLocation { owner = "Format", modules = [], name = "item" }
+      match op with
+      | AddFn(fn) ->
+        [ op
+          ProgramTypes.PackageOp.SetName(
+            at,
+            ProgramTypes.Reference.PackageFn(fn.hash),
+            Option.None) ]
+      | AddValue(v) ->
+        [ op
+          ProgramTypes.PackageOp.SetName(
+            at,
+            ProgramTypes.Reference.PackageValue(v.hash),
+            Option.None) ]
+      | AddTest(t) ->
+        [ op
+          ProgramTypes.PackageOp.SetName(
+            at,
+            ProgramTypes.Reference.PackageTest(t.hash),
+            Option.None) ]
+      | _ -> [ op ])
+    |> Stdlib.List.flatten
+
+  match d.item with
+  | Fn(_, _) | Value(_, _) | Test(_, _) ->
+    let (resolved, _) = PackageManager.resolveTraitCalls(bound)
+    PackageManager.stabilizeHashes(resolved)
+    |> Stdlib.List.filterMap(fun op ->
+      match op with
+      | AddFn(fn) -> Option.Some(fn.hash)
+      | AddValue(v) -> Option.Some(v.hash)
+      | AddTest(t) -> Option.Some(t.hash)
+      | _ -> Option.None)
+    |> Stdlib.List.map(ProgramTypes.hashToString)
+    |> Stdlib.String.join(" ")
+  | _ -> d.meaning
 
 
 /// Why <param formatted> can't replace <param file>: the first declaration it would change the
@@ -800,17 +845,20 @@ let meaningChange(file: File, formatted: String): Option<String> =
     match parse(formatted) with
     | Error(e) -> Option.Some($"formatting would leave it not parsing: {e}")
     | Ok(after) ->
-      let was = meanings(file, "", file.declarations)
-      let now = meanings(after, "", after.declarations)
-      if was == now then
-        Option.None
-      else
-        let first =
-          Stdlib.List.zipShortest(was, now)
-          |> Stdlib.List.findFirst(fun pair ->
-            let (w, n) = pair
-            w != n)
-          |> Stdlib.Option.map(fun pair -> Stdlib.Tuple2.first(Stdlib.Tuple2.first(pair)))
-          |> Stdlib.Option.withDefault("the declarations after the last one it keeps")
+      let was = named(file, "", file.declarations)
+      let now = named(after, "", after.declarations)
+      let first =
+        Stdlib.List.zipShortest(was, now)
+        |> Stdlib.List.findFirst(fun pair ->
+          let ((wName, w), (nName, n)) = pair
+          wName != nName || w.meaning != n.meaning && stored(w) != stored(n))
+        |> Stdlib.Option.map(fun pair -> Stdlib.Tuple2.first(Stdlib.Tuple2.first(pair)))
 
-        Option.Some($"formatting would change what {first} means")
+      match first with
+      | Some(name) -> Option.Some($"formatting would change what {name} means")
+      | None ->
+        if Stdlib.List.length(was) == Stdlib.List.length(now) then
+          Option.None
+        else
+          Option.Some(
+            "formatting would change what the declarations after the last one it keeps means")
