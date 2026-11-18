@@ -808,12 +808,6 @@ test fieldsIn1970 =
       Stdlib.DateTime.minute(d("1970-07-28T22:42:36Z"))
       |> Stdlib.Test.equal(42u8)
 
-      Stdlib.DateTime.minute(d("1970-07-28T22:42:36Z"))
-      |> Stdlib.Test.equal(42u8)
-
-      Stdlib.DateTime.second(d("1970-07-28T22:42:36Z"))
-      |> Stdlib.Test.equal(36u8)
-
       Stdlib.DateTime.second(d("1970-07-28T22:42:36Z"))
       |> Stdlib.Test.equal(36u8) ])
 
@@ -1184,10 +1178,6 @@ test parseMilliseconds =
 
       p("2019-07-28T22:42:36.999Z")
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("2019-07-28T22:42:36.999Z"))
-
-      // Original format still works
-      p("2019-07-28T22:42:36Z")
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("2019-07-28T22:42:36Z"))
 
       // Fractional seconds with wrong digit count still rejected
       p("2019-07-28T22:42:36.1Z")

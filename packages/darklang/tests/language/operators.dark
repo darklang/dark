@@ -138,10 +138,7 @@ test bitwise =
       12u32 ^ 10u32 |> Stdlib.Test.equal(6u32)
       12u64 & 10u64 |> Stdlib.Test.equal(8u64)
       12s128 | 10s128 |> Stdlib.Test.equal(14s128)
-      12u128 ^ 10u128 |> Stdlib.Test.equal(6u128)
-      12 & 10 |> Stdlib.Test.equal(8)
-      12 | 10 |> Stdlib.Test.equal(14)
-      12 ^ 10 |> Stdlib.Test.equal(6) ])
+      12u128 ^ 10u128 |> Stdlib.Test.equal(6u128) ])
 
 test shifts =
   Stdlib.Test.all(
@@ -169,7 +166,6 @@ test bitwiseNot =
     [ ~0 |> Stdlib.Test.equal(-1)
       ~5 |> Stdlib.Test.equal(-6)
       ~0u8 |> Stdlib.Test.equal(255u8)
-      ~0 |> Stdlib.Test.equal(-1)
       ~(-1) |> Stdlib.Test.equal(0)
       ~(2 + 3) |> Stdlib.Test.equal(-6) ])
 
