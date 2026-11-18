@@ -1517,7 +1517,7 @@ let processDenialOffersAnyArguments =
           shows
             state
             call
-            "this program with any arguments:\n  dark run --allow 'process '\\''/bin/echo'\\'''"
+            "this program with any arguments:\n  dark run --allow \"process '/bin/echo'\""
             "the program with any arguments is offered too"
       finally
         System.IO.Directory.Delete(dir, true)

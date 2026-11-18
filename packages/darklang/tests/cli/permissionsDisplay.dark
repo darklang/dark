@@ -127,7 +127,7 @@ module Denials =
 
 
   val packageRemedy =
-    "permission denied:\n  reading `/denied/secret.txt` is not allowed.\n\n`Tests.Denied.readAt` has no remembered approval. Remember this access:\n  dark permissions approve Tests.Denied.readAt file read '/denied/secret.txt'\n\nFor one run:\n  dark run --allow 'file read '\\''/denied/secret.txt'\\''' …"
+    "permission denied:\n  reading `/denied/secret.txt` is not allowed.\n\n`Tests.Denied.readAt` has no remembered approval. Remember this access:\n  dark permissions approve Tests.Denied.readAt file read '/denied/secret.txt'\n\nFor one run:\n  dark run --allow \"file read '/denied/secret.txt'\" …"
 
 
   val instanceRemedy =
