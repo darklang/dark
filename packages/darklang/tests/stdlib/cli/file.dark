@@ -218,6 +218,18 @@ test copyFallbackAndFinish =
 
       Stdlib.Cli.File.__copyUnsupported(28) |> Stdlib.Test.equal(false)
 
+      Stdlib.Cli.File.__copyUnsupported(Stdlib.Cli.Posix.__abiErrnoNoSys())
+      |> Stdlib.Test.equal(true)
+
+      // the other OS's ENOSYS and ENOTSUP mean something else here
+      Stdlib.Cli.File.__copyUnsupported(
+        if Stdlib.Cli.Posix.__abiMac() then 38 else 78)
+      |> Stdlib.Test.equal(false)
+
+      Stdlib.Cli.File.__copyUnsupported(
+        if Stdlib.Cli.Posix.__abiMac() then 95 else 45)
+      |> Stdlib.Test.equal(false)
+
       Stdlib.Cli.File.__copyFinish(
         Stdlib.Result.Result.Error(posixError(28, "full")),
         Stdlib.Result.Result.Error(posixError(5, "close")))

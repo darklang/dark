@@ -437,6 +437,12 @@ let __abiOpenExclusive(): Int64 = if __abiMac() then 2048 else 128
 
 let __abiRemoveDirectory(): Int64 = if __abiMac() then 128 else 512
 
+let __abiErrnoAgain(): Int64 = if __abiMac() then 35 else 11
+
+let __abiErrnoNoSys(): Int64 = if __abiMac() then 78 else 38
+
+let __abiErrnoNotSupported(): Int64 = if __abiMac() then 45 else 95
+
 
 let __abiOpenDirectory(): Int64 =
   if __abiMac() then

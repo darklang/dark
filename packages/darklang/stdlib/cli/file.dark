@@ -395,13 +395,11 @@ let watch(
 /// File-copy algorithms. Each Builtin underneath performs one kernel operation.
 let __copyUnsupported(errno: Int64): Bool =
   errno == 18
+  || errno == 19
   || errno == 22
   || errno == 25
-  || errno == 38
-  || errno == 78
-  || errno == 95
-  || errno == 45
-  || errno == 19
+  || errno == Posix.__abiErrnoNoSys()
+  || errno == Posix.__abiErrnoNotSupported()
 
 
 /// Finish a positional write, including short writes and EINTR, without losing
