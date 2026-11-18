@@ -940,9 +940,6 @@ let loadDependency(
   // reached. The closure holds types, values and fns and not traits, and it does not need to:
   // `resolveCallable` reads a trait from the batch (`withBatch`) or else straight from the
   // store. Nothing to load, and no further references to follow.
-  //
-  // Without an arm here it RAISED, the per-item guard turned that into an Incomplete verdict,
-  // and `dark typecheck` reported this very function as incomplete. Which is how it was found.
   | PackageTrait(_) | PackageTraitImpl(_) -> ([], closure)
   // Expressions cannot reference tests; only candidate tests are checked, and
   // their dependencies are queued by the caller.

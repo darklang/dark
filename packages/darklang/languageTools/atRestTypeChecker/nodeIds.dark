@@ -234,8 +234,7 @@ let typeDeeperThan(limit: Int64, depth: Int64, level: List<ProgramTypes.TypeRefe
     typeDeeperThan(limit, depth + 1, next)
 
 
-/// A declared type too deep to work on. Applies wherever the type sits, which it did not
-/// before: it used to depend on whether that shape's walk recursed through a builtin callback.
+/// A declared type too deep to work on. Applies wherever the type sits, whatever the shape.
 let typeTooDeep(types: List<ProgramTypes.TypeReference>): Option<Model.Finding> =
   if typeDeeperThan(maxDeclarationDepth(), 0, types) then
     Option.Some(

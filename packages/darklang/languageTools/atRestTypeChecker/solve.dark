@@ -2273,14 +2273,9 @@ let bitwiseNot(s: State, at: Int64, operand: Model.Ty, record: Bool): Option<Sta
   unaryOperand(s, at, operand, "unary ~", record)
 
 
-/// Resolve a unary operator's operand against the implementations of its trait.
-///
-/// This used to take a PREDICATE over types, `isSignedNumeric` for `-x` and an integer test
-/// for `~x`, left behind when the binary operators moved to implementation lookup. That is
-/// what made `dark typecheck` fail `Stdlib.abs`: its operand is `'a` under a `Negate` bound,
-/// a predicate asks "is this a signed numeric" and a rigid type variable is not one, so it
-/// refused the very thing the bound guarantees. A bound is a promise to be deferred, not a
-/// type to be recognised.
+/// Resolve a unary operator's operand against the implementations of its trait. Not a
+/// predicate over types: `Stdlib.abs` takes `'a` under a `Negate` bound, and a bound is a
+/// promise to be deferred, not a type to be recognised.
 let unaryOperand(s: State, at: Int64, operand: Model.Ty, key: String, record: Bool): Option<State> =
   let nodeId = Option.Some(at)
   let (subject, s) = expand(s, nodeId, operand)

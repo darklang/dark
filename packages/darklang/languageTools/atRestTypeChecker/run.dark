@@ -422,10 +422,7 @@ let checkReferencesFrom(
 /// syntax trees, so checkReferences can catch each loading or conversion error separately
 /// and continue checking the other declarations.
 let checkQuery(branchId: Uuid, query: ProgramTypes.Search.SearchQuery): Report =
-  // SEVEN lists, not four. The search returns submodules, types, values, fns, TRAITS, IMPLS
-  // and TESTS; this once destructured four and so matched nothing, which raised and took `dark typecheck` with
-  // it: the whole command, not one declaration. The guard turned that into an empty report, so
-  // `typecheck <module>` answered "nothing to audit" about a module full of declarations.
+  // the search returns seven lists: submodules, types, values, fns, traits, impls and tests.
   //
   // Traits themselves are not audited yet; implementations are, against their traits.
   let (_, types, values, fns, _traits, impls, tests) =

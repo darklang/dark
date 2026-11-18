@@ -275,8 +275,7 @@ type Template =
     problems: List<Finding>
     /// What this function's type parameters owe. A CALL has to record which implementation
     /// each one turned out to mean, because the callee's body defers to the parameter and
-    /// cannot know. Discarded before this existed, which is why a bounded call recorded
-    /// nothing at save.
+    /// cannot know.
     bounds: List<ProgramTypes.Bound> }
 
 

@@ -55,10 +55,6 @@ let isWarning(code: IssueCode): Bool =
   // that both fit, an impl that misses a method or mismatches its signature, and a
   // bound on a type param the enclosing fn never declared, are each
   // something the checker PROVED rather than something it could not finish.
-  //
-  // They were absent here, and `isWarning` has no catch-all, so producing any trait
-  // diagnostic raised inside the per-item guard and came back as `UnsupportedConstruct`
-  // Incomplete instead. 4,359 items in one reload.
   | MissingImpl
   | AmbiguousImpl
   | ImplMethodSet
@@ -971,10 +967,9 @@ let implApplies(self: Model.Ty, subject: Model.Ty): Bool =
   // The subject's own type is not decided yet, so it cannot disagree.
   // NOT a match when the subject is still undecided. `Traits.argsAgree` is permissive about
   // an unknown because at RUN TIME it has a value in hand and an untracked value type must
-  // not block dispatch. At CHECK time an undecided type means "not yet", and answering `true`
-  // here made `Option<Int64>` match an `impl for Option<String>`, so the save chose by
-  // timestamp and a green save raised on its first call. Callers WAIT instead; see
-  // `fullyResolved`.
+  // not block dispatch. At CHECK time an undecided type means "not yet": answering `true`
+  // here would let `Option<Int64>` match an `impl for Option<String>`. Callers WAIT instead;
+  // see `fullyResolved`.
   | _, TError -> true
   | TList(a), TList(b) -> implApplies(a, b)
   | TStream(a), TStream(b) -> implApplies(a, b)
