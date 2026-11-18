@@ -7,7 +7,9 @@ test savingAFunctionRepointsItsCallers =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.helper", "1")
       save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 10")
+      evals(dark, "Tests.App.caller()", "11", "new code runs before any commit")
       commit(dark, "base")
+      draftIsEmpty(dark, "the commit empties the draft")
       says(
         dark,
         [ "fn", "Tests.App.helper", "(): Int64 = 2" ],
@@ -21,7 +23,8 @@ test savingAFunctionRepointsItsCallers =
 
       evals(dark, "Tests.App.caller()", "12", "the caller runs the new helper")
       commit(dark, "edit")
-      draftIsEmpty(dark, "both commit together") ])
+      draftIsEmpty(dark, "both commit together")
+      evals(dark, "Tests.App.caller()", "12", "and the new answer stays") ])
 
 
 test callersOfCallersFollowOnABranchAndThroughTheMerge =

@@ -222,7 +222,24 @@ test aMergeLeavesMainsOwnDraftAlone =
         [ "merged branch \"feat\"", "feat work" ],
         "the merge committed only the branch's work")
 
-      evals(dark, "Tests.App.onFeat()", "1", "which landed") ])
+      evals(dark, "Tests.App.onFeat()", "1", "which landed")
+      says(
+        dark,
+        [ "log", "feat" ],
+        "merged from branch \"feat\"",
+        "the merged branch's log reads its merge")
+
+      says(
+        dark,
+        [ "log", "feat" ],
+        "SetName Tests.App.onFeat",
+        "and lists the ops it carried")
+
+      says(
+        dark,
+        [ "diff", "feat" ],
+        "is merged",
+        "its diff says it is merged") ])
 
 
 test docsAndDeprecationsMadeOnABranchArriveWithTheMerge =

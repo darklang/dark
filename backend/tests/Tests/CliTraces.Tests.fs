@@ -465,10 +465,7 @@ let private slowCliTests =
       Tests.CliSurface.everyCommandRefusesAWordItDoesNotKnow
       Tests.CliSurface.everyCommandRefusesAFlagItDoesNotHave
       Tests.CliSurface.everyCommandSurvivesABranch
-      Tests.CliScm.editingOnABranchRepointsItsCallers
-      Tests.CliScm.discardOnABranchLeavesMainsDraftAlone
       Tests.CliSurface.everyCommandAnswersWhenBare
-      Tests.CliScm.partialCommitTakesOnlyWhatYouNamed
       Tests.CliScm.commitRefusesUnresolvedReferences ]
 
 /// Tracing costs more than anything else these tests do: it records every call's ARGUMENTS,
