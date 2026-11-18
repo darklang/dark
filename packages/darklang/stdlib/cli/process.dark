@@ -334,7 +334,11 @@ let __childRead(fd: BigInt, eof: Bool): Result<(Bytes * Bool), Int64> =
   else
     match Builtin.syscallRead(fd, 65536) with
     | Error(4) -> __childRead(fd, false)
-    | Error(e) -> if e == 11 || e == 35 then Result.Ok((Bytes.empty, false)) else Result.Error(e)
+    | Error(e) ->
+      if e == Posix.__abiErrnoAgain() then
+        Result.Ok((Bytes.empty, false))
+      else
+        Result.Error(e)
     | Ok(chunk) -> Result.Ok((chunk, Bytes.length(chunk) == 0))
 
 
@@ -349,7 +353,7 @@ let __childWrite(fd: BigInt, pending: Bytes): Result<Bytes, Int64> =
     let chunk = if count == length then pending else Bytes.take(pending, count)
     match Builtin.syscallWrite(fd, chunk) with
     | Error(4) -> __childWrite(fd, pending)
-    | Error(e) -> if e == 11 || e == 35 then Result.Ok(pending) else Result.Error(e)
+    | Error(e) -> if e == Posix.__abiErrnoAgain() then Result.Ok(pending) else Result.Error(e)
     | Ok(written) ->
       if written <= 0 || written > count then
         Result.Error(5)

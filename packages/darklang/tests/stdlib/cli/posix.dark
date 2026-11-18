@@ -193,6 +193,16 @@ test errorMessages =
       (Stdlib.Cli.Posix.__fromErrno(22)).message
       |> Stdlib.Test.equal("Invalid argument")
 
+      (Stdlib.Cli.Posix.__fromErrno(Stdlib.Cli.Posix.__abiErrnoAgain())).message
+      |> Stdlib.Test.equal("Resource temporarily unavailable")
+
+      (Stdlib.Cli.Posix.__fromErrno(Stdlib.Cli.Posix.__abiErrnoNoSys())).message
+      |> Stdlib.Test.equal("Function not implemented")
+
+      (Stdlib.Cli.Posix.__fromErrno(
+         Stdlib.Cli.Posix.__abiErrnoNotSupported())).message
+      |> Stdlib.Test.equal("Operation not supported")
+
       Stdlib.Cli.Posix.__decimal(0) |> Stdlib.Test.equal("0")
 
       Stdlib.Cli.Posix.__decimal(-1) |> Stdlib.Test.equal("-1") ])
