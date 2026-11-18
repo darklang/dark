@@ -1,0 +1,56 @@
+/// CLI tests: `dark search`, driven by shelling out to the real binary.
+module Darklang.Cli.Tests.TestSuite
+
+test searchMatchesModuleAndCamelCaseName =
+  let output = runWithCommand([ "search", "string toList", "--fn" ])
+  if Stdlib.String.contains(output, "Darklang.Stdlib.String.toList") then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      $"Expected `string toList` to find Stdlib.String.toList, got: {output}")
+
+
+test searchMatchesModuleAndOperationName =
+  let output = runWithCommand([ "search", "json parse", "--fn" ])
+  if Stdlib.String.contains(output, "Darklang.Stdlib.Json.parse") then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      $"Expected `json parse` to find Stdlib.Json.parse, got: {output}")
+
+
+test searchFindsNestedHelpersFromParentModule =
+  let output = runWithCommand([ "search", "AltJson.get", "--fn" ])
+  if
+    Stdlib.String.contains(
+      output,
+      "Darklang.Stdlib.AltJson.Helpers.getInt64Result")
+  then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      $"Expected `AltJson.get` to find nested AltJson helpers, got: {output}")
+
+
+test batchSearchKeepsQueriesIndependent =
+  let output =
+    runWithCommand(
+      [ "search"
+        "--batch"
+        "string toList"
+        "json parse"
+        "list map"
+        "--fn" ])
+
+  if
+    Stdlib.String.contains(output, "Search results for: string toList")
+    && Stdlib.String.contains(output, "Darklang.Stdlib.String.toList")
+    && Stdlib.String.contains(output, "Search results for: json parse")
+    && Stdlib.String.contains(output, "Darklang.Stdlib.Json.parse")
+    && Stdlib.String.contains(output, "Search results for: list map")
+    && Stdlib.String.contains(output, "Darklang.Stdlib.List.map")
+  then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      $"Expected three independent batch search results, got: {output}")

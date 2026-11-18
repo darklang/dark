@@ -1,0 +1,330 @@
+/// CLI tests: "Did you mean" and not-found guidance for names that do not resolve.
+module Darklang.Cli.Tests.TestSuite
+
+test unresolvedNameGuidance =
+  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
+  let branchName = "cli-name-guidance-test-" + suffix
+  let moduleName = "Tests.CliNameGuidance"
+  let _ = runWithCommand([ "branch", "create", branchName ])
+  // Both streams: the suggestion is a warning, so it is on stderr beside the "Created" line.
+  let stdlibOutput =
+    runWithBothStreams(
+      [ "--branch"
+        branchName
+        "fn"
+        "/" + moduleName + ".negate"
+        "(value: Bool) : Bool = Bool.not(value)" ])
+
+  let internalSource =
+    "(values: List<Int64>) : List<Int64> = "
+    + "PACKAGE.Darklang.Stdlib.List.map(values, fun value -> value)"
+
+  let packageOutput =
+    runWithCommand(
+      [ "--branch"
+        branchName
+        "fn"
+        "/" + moduleName + ".map"
+        internalSource ])
+
+  // `-y`: the branch holds unmerged names, so a bare archive is refused and every later test would run
+  // on this branch. Archiving the branch you stand on moves the process (and the config) back to main.
+  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
+  if
+    Stdlib.String.contains(stdlibOutput, "Did you mean `Stdlib.Bool.not`?")
+    && Stdlib.String.contains(packageOutput, "`PACKAGE.` is internal notation")
+    && Stdlib.String.contains(packageOutput, "write `Stdlib.List.map`")
+    && Stdlib.Bool.not(
+      Stdlib.String.contains(packageOutput, "Created function"))
+  then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      $"Expected source-name guidance; stdlib={stdlibOutput}; "
+      + $"PACKAGE={packageOutput}")
+
+
+/// Eval with stdout and stderr apart, for an error whose text and exit code are both asserted.
+let evalOutcome(expr: String): Stdlib.Cli.ExecutionOutcome =
+  let cli = Stdlib.Cli.Process.shellQuote(cliUnderTest())
+  let quoted = Stdlib.Cli.Process.shellQuote(expr)
+  Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", $"{cli} eval {quoted}")
+
+
+// #6024: agents guess `Stdlib.Int64.toString`; the function is `Stdlib.display`, and the error
+// should say so. A name with nothing near it gets no guess.
+test notFoundSuggestsTheEnclosingStdlibName =
+  let moved = evalOutcome("Stdlib.Int64.toString(5)")
+  let unprefixed = evalOutcome("Int64.toString(5)")
+  let nowhere = evalOutcome("Stdlib.Nope.zzz(5)")
+  if
+    moved.exitCode != 0
+    && Stdlib.String.contains(moved.stderr, "Did you mean `Stdlib.display`?")
+    && Stdlib.String.contains(
+      unprefixed.stderr,
+      "Did you mean `Stdlib.display`?")
+    && nowhere.exitCode != 0
+    && Stdlib.String.contains(nowhere.stderr, "Stdlib.Nope.zzz not found")
+    && Stdlib.Bool.not(Stdlib.String.contains(nowhere.stderr, "Did you mean"))
+  then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      $"Expected a suggestion for the moved name only; moved={moved.stderr}; "
+      + $"unprefixed={unprefixed.stderr}; nowhere={nowhere.stderr}")
+
+
+/// The written names <fn Darklang.Cli.Packages.Errors.stdlibSuggestion> would try, in order.
+let suggestionCandidates(name: String): List<String> =
+  Cli.Packages.Errors.stdlibSuggestionCandidates(Stdlib.String.split(name, "."))
+  |> Stdlib.List.map(fun((written, _)) -> written)
+
+
+test stdlibSuggestionCandidatesWalkUpWithinStdlib =
+  Stdlib.Test.all(
+    [ suggestionCandidates("Bool.not")
+      |> Stdlib.Test.equal([ "Stdlib.Bool.not", "Stdlib.not" ])
+
+      suggestionCandidates("Int64.toString")
+      |> Stdlib.Test.equal(
+        [ "Stdlib.Int64.toString"
+          "Stdlib.toString"
+          "Stdlib.String.fromInt64"
+          "Stdlib.display" ])
+
+      suggestionCandidates("Me.Utils.render")
+      |> Stdlib.Test.equal([ "Stdlib.Me.Utils.render" ])
+
+      suggestionCandidates("Stdlib.Int64.toString")
+      |> Stdlib.Test.equal([ "Stdlib.toString", "Stdlib.String.fromInt64", "Stdlib.display" ])
+
+      suggestionCandidates("Stdlib.UInt8.toInt64")
+      |> Stdlib.Test.equal([ "Stdlib.toInt64", "Stdlib.Int64.fromUInt8" ])
+
+      suggestionCandidates("Stdlib.toRepr")
+      |> Stdlib.Test.equal([ "Stdlib.inspect" ])
+
+      suggestionCandidates("Stdlib.A.B.name")
+      |> Stdlib.Test.equal([ "Stdlib.A.name", "Stdlib.name" ])
+
+      suggestionCandidates("Darklang.Stdlib.Int64.toString")
+      |> Stdlib.Test.equal(
+        [ "Darklang.Stdlib.toString"
+          "Darklang.Stdlib.String.fromInt64"
+          "Darklang.Stdlib.display" ])
+
+      suggestionCandidates("Stdlib.display") |> Stdlib.Test.equal([])
+
+      suggestionCandidates("Darklang.Cli.foo") |> Stdlib.Test.equal([])
+
+      suggestionCandidates("toString") |> Stdlib.Test.equal([]) ])
+
+
+test didYouMeanLooksOneModuleDown =
+  Cli.Packages.Errors.didYouMean(SCM.Branch.mainBranchId, [ "Stdlib", "Http", "queryParam" ])
+  |> Stdlib.Test.equal([ "Stdlib.Http.Request.queryParam" ])
+
+
+test stdlibSuggestionFindsTheRealName =
+  let branch = SCM.Branch.mainBranchId
+  let suggest = fun name ->
+    Cli.Packages.Errors.stdlibSuggestion(branch, Stdlib.String.split(name, "."))
+
+  Stdlib.Test.all(
+    [ suggest("Stdlib.Int64.toString")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.display"))
+
+      suggest("Stdlib.UInt8.toInt64")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Int64.fromUInt8"))
+
+      suggest("Stdlib.List.Nope.length")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.List.length"))
+
+      suggest("Bool.not")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Bool.not"))
+
+      suggest("Stdlib.String.fromBytes")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.decode"))
+
+      suggest("Bytes.toString")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.decode"))
+
+      suggest("String.toBytes")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Utf8.encode"))
+
+      suggest("Stdlib.Int64.absoluteValue")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.abs"))
+
+      suggest("Stdlib.Char.toString")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.String.fromChar"))
+
+      suggest("List.flatMap")
+      |> Stdlib.Test.equal(
+        Stdlib.Option.Option.Some(
+          "Stdlib.List.flatten(Stdlib.List.map(xs, f))"))
+
+      suggest("Stdlib.String.substring")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.String.slice"))
+
+      suggest("Stdlib.Nope.zzz")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
+
+// Each function <fn Darklang.Cli.Packages.Errors.otherLanguageNames> points at exists.
+test otherLanguageNamesPointAtRealFunctions =
+  let branch = SCM.Branch.mainBranchId
+  let missing =
+    Cli.Packages.Errors.otherLanguageNames()
+    |> Stdlib.List.map(fun((_, _, instead)) ->
+      Stdlib.String.split(instead, "(")
+      |> Stdlib.List.head
+      |> Stdlib.Option.withDefault(""))
+    |> Stdlib.List.filter(fun name ->
+      match Stdlib.String.split(name, ".") with
+      | ["Stdlib", ...rest] ->
+        match Cli.Packages.Errors.splitLast(rest) with
+        | Some((modules, fnName)) ->
+          let location =
+            LanguageTools.ProgramTypes.PackageLocation
+              { owner = "Darklang"
+                modules = Stdlib.List.prepend(modules, "Stdlib")
+                name = fnName }
+
+          Stdlib.Option.isNone(
+            LanguageTools.PackageManager.findAny(branch, location))
+        | None -> true
+      | _ -> true)
+
+  missing |> Stdlib.Test.equal([])
+
+
+test closestNamesAreSpelledNear =
+  let branch = SCM.Branch.mainBranchId
+  let closest = fun name ->
+    Cli.Packages.Errors.closestNames(branch, Stdlib.String.split(name, "."))
+
+  Stdlib.Test.all(
+    [ closest("Stdlib.List.lenght")
+      |> Stdlib.Test.equal([ "Stdlib.List.length" ])
+
+      closest("Stdlib.String.touppercase")
+      |> Stdlib.Test.equal([ "Stdlib.String.toUppercase" ])
+
+      Stdlib.List.contains(
+        closest("Stdlib.String.toUpper"),
+        "Stdlib.String.toUppercase")
+      |> Stdlib.Test.equal(true)
+
+      closest("String.lenght") |> Stdlib.Test.equal([ "Stdlib.String.length" ])
+
+      closest("Darklang.Stdlib.List.revers")
+      |> Stdlib.Test.equal([ "Darklang.Stdlib.List.reverse" ])
+
+      closest("Stdlib.List.zzzzzzzz") |> Stdlib.Test.equal([])
+
+      closest("Stdlib.Nope.zzz") |> Stdlib.Test.equal([])
+
+      closest("lenght") |> Stdlib.Test.equal([])
+
+      closest("Stdlib.List.member")
+      |> Stdlib.Test.equal([ "Stdlib.List.contains" ])
+
+      closest("Stdlib.String.size")
+      |> Stdlib.Test.equal([ "Stdlib.String.length" ]) ])
+
+
+// A function name for an operator points at the operator, when the type has it.
+test operatorNamesSuggestTheOperator =
+  let branch = SCM.Branch.mainBranchId
+  let suggest = fun name ->
+    Cli.Packages.Errors.operatorSuggestion(
+      branch,
+      Stdlib.String.split(name, "."))
+
+  Stdlib.Test.all(
+    [ suggest("Stdlib.Int64.mod")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a % b"))
+
+      suggest("Int64.modulo")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a % b"))
+
+      suggest("Stdlib.Float64.pow")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("a ** b"))
+
+      suggest("Stdlib.String.mod")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      suggest("Stdlib.Int64.zzz")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      suggest("mod") |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
+
+// `Stdlib.Int64.mod` said only "not found", and searching for it never showed `%`.
+test int64ModSuggestsPercent =
+  let evaluated = evalOutcome("Stdlib.Int64.mod(7, 3)")
+  let searched = runWithBothStreams([ "search", "Int64.mod", "--fn" ])
+  if
+    evaluated.exitCode != 0
+    && Stdlib.String.contains(evaluated.stderr, "Did you mean `a % b`?")
+    && Stdlib.String.contains(searched, "Int64.mod is the operator: a % b")
+  then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      $"Expected `a % b`; eval={evaluated.stderr}; search={searched}")
+
+
+// `Stdlib.Int64.add` pointed only at `+`, which wraps on overflow.
+test int64AddSuggestsCheckedToo =
+  let evaluated = evalOutcome("Stdlib.Int64.add(7, 3)")
+  if
+    evaluated.exitCode != 0
+    && Stdlib.String.contains(
+      evaluated.stderr,
+      "Did you mean `a + b` or `Stdlib.Int64.checkedAdd`?")
+  then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail($"Expected `a + b` and checkedAdd; eval={evaluated.stderr}")
+
+
+test didYouMeanText =
+  let text = Cli.Packages.Errors.didYouMeanText
+  Stdlib.Test.all(
+    [ text([]) |> Stdlib.Test.equal("")
+
+      text([ "A.a" ]) |> Stdlib.Test.equal("Did you mean `A.a`?")
+
+      text([ "A.a", "A.b", "A.c" ])
+      |> Stdlib.Test.equal("Did you mean `A.a`, `A.b` or `A.c`?") ])
+
+
+// A misspelt name gets the names spelled near it, on eval and on save.
+test notFoundSuggestsNamesSpelledNear =
+  let evaluated = evalOutcome("Stdlib.List.lenght([1])")
+  let branchName =
+    "cli-did-you-mean-test-"
+    + Stdlib.display(Stdlib.Int64.random(100000, 999999))
+
+  let _ = runWithCommand([ "branch", "create", branchName ])
+  let saved =
+    runWithBothStreams(
+      [ "--branch"
+        branchName
+        "fn"
+        "/Tests.CliDidYouMean.size"
+        "(xs: List<Int64>) : Int64 = Stdlib.List.lenght(xs)" ])
+
+  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
+  if
+    evaluated.exitCode != 0
+    && Stdlib.String.contains(
+      evaluated.stderr,
+      "Did you mean `Stdlib.List.length`?")
+    && Stdlib.String.contains(saved, "Did you mean `Stdlib.List.length`?")
+  then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      $"Expected a near name; eval={evaluated.stderr}; save={saved}")
