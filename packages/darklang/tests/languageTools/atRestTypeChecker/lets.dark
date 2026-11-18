@@ -1,0 +1,529 @@
+module Darklang.LanguageTools.AtRestTypeChecker.Tests
+
+// ----------------------------------------------------------------------------------
+// Local bindings, lambdas, and generalization (checking each use at its own type)
+// ----------------------------------------------------------------------------------
+
+module ProvisionalDiagnostics =
+  // A finding that still depends on unresolved types stays a WARNING even when a separate
+  // definite error makes the function Failed.
+  //
+  // The split is the CHECKER's, which is what these cases assert. How an editor renders the two
+  // severities is a separate question, and nothing in this tree answers it.
+  let displayed(last: String): String =
+    let source =
+      src([ "let f () : Int64 =", "  let g = fun y -> y(y)", "  " + last ])
+
+    match parsePackageOps(source) with
+    | Error(message) -> message
+    | Ok(ops) ->
+      let report = LanguageTools.AtRestTypeChecker.checkPackageOps(ops)
+      match report.items with
+      | [item] ->
+        verdictWord(item.verdict)
+        + ":"
+        + codesOf(item.diagnostics)
+        + "/"
+        + codesOf(item.warnings)
+      | _ -> "expected one item"
+
+
+  test warningsStayWarnings =
+    Stdlib.Test.all(
+      [ displayed("1")
+        |> Stdlib.Test.equal("incomplete:/AmbiguousType,OccursCheckFailed")
+
+        displayed("\"wrong\"")
+        |> Stdlib.Test.equal(
+          "failed:TypeMismatch/AmbiguousType,OccursCheckFailed") ])
+
+
+module Lets =
+  // Generalizing the local identity lambda lets one call use Int64 and another use
+  // String. Neither call should fix the parameter type for the other.
+  test genericLocalLambda =
+    check(
+      src(
+        [ "let f(u: Unit): (Int64 * String) ="
+          "  let identity = (fun x -> x)"
+          "  (identity(1), identity(\"ok\"))" ]),
+      "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  // Recognize loop's recursive call and check its two arguments against loop's
+  // parameters, independently of the outer function's single parameter.
+  test recursiveLocalCall =
+    check(
+      src(
+        [ "let f(value: Int64): Int64 ="
+          "  let loop(n: Int64, step: Int64): Int64 = if n == 0 then 0 else loop(n - step, step)"
+          "  loop(value, 1)" ]),
+      "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  // A recursive call to loop must use its declared Int64 parameter; reject the String.
+  test recursiveCallArgType =
+    check(
+      src(
+        [ "let f(value: Int64): Int64 ="
+          "  let loop(n: Int64): Int64 = loop(\"wrong\")"
+          "  loop(value)" ]),
+      "f")
+    |> Stdlib.Test.equal("failed:TypeMismatch")
+
+
+  // If f is already in scope, the new lambda's body refers to that existing Int64
+  // binding. Do not mistake the captured f for a recursive call to the new lambda.
+  test capturedNameIsNotRecursion =
+    check(
+      src(
+        [ "let g(value: Int64): Int64 ="
+          "  let f = 1"
+          "  let f = (fun x -> f + x)"
+          "  f(value)" ]),
+      "g")
+    |> Stdlib.Test.equal("checked:")
+
+
+  // Defer checking record.count until getCount is called with the Counted type.
+  val counted = "type Counted = { count: Int64 }"
+
+
+  test deferredRecordField =
+    check(
+      src(
+        [ counted
+          "let f (value: Counted) : Int64 ="
+          "  let getCount = (fun record -> record.count)"
+          "  getCount(value)" ]),
+      "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  // Check record.value separately for each call to getValue, allowing an Int64 field
+  // in RowInt and a String field in RowString.
+  test fieldPerCall =
+    check(
+      src(
+        [ "type RowInt = { value: Int64 }"
+          "type RowString = { value: String }"
+          "let f(a: RowInt, b: RowString): (Int64 * String) ="
+          "  let getValue = (fun record -> record.value)"
+          "  (getValue(a), getValue(b))" ]),
+      "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  // List.map supplies Option<Int64> as get's parameter type. Use it to check the
+  // lambda's Some and None patterns and infer the payload as Int64.
+  test mapSuppliesParamType =
+    check(
+      src(
+        [ "let f(xs: List<Stdlib.Option.Option<Int64>>): List<Int64> ="
+          "  let get = (fun o -> match o with | Some(x) -> x | None -> 0)"
+          "  Stdlib.List.map(xs, get)" ]),
+      "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  // g calls the captured x.field, whose Box declaration requires Int64 -> Int64.
+  // Reject a String argument to g whether requireBox fixes x's type before or
+  // after g is defined.
+  let boxed(lines: List<String>): String =
+    src(
+      Stdlib.List.flatten(
+        [ [ "type Box = { field: Int64 -> Int64 }"
+            "let requireBox (b: Box) : Unit = ()"
+            "let f (u: Unit) : Unit ="
+            "  let outer = fun x ->" ]
+
+          lines
+          [ "    ()", "  outer(Box { field = (fun y -> y) })" ] ]))
+
+
+  test capturedFieldCall =
+    Stdlib.Test.all(
+      [ check(
+          boxed(
+            [ "    let g = fun y -> x.field(y)"
+              "    let _ = requireBox(x)"
+              "    let _ = g(\"wrong\")" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check(
+          boxed(
+            [ "    let _ = requireBox(x)"
+              "    let g = fun y -> x.field(y)"
+              "    let _ = g(\"wrong\")" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check(
+          boxed(
+            [ "    let g = fun y -> x.field(y)"
+              "    let _ = requireBox(x)"
+              "    let _ = g(1)" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // g(1, 2) calls a two-parameter function; invoke's argument decides whether g is one.
+  let invoked(callee: String, declarations: List<String>): String =
+    src(
+      Stdlib.List.concat(
+        declarations,
+        [ "let f (u: Unit) : Int64 ="
+          "  let invoke = fun g -> g(1, 2)"
+          $"  invoke({callee})" ]))
+
+
+  test twoParamNotCurried =
+    Stdlib.Test.all(
+      [ check(
+          invoked("add", [ "let add(a: Int64, b: Int64): Int64 = a + b" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(invoked("(fun(a, b) -> a + b)", []), "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          invoked("add", [ "let add(a: Int64, b: String): Int64 = a" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check(invoked("inc", [ "let inc(a: Int64): Int64 = a" ]), "f")
+        |> Stdlib.Test.equal("failed:TooManyArguments")
+
+        check(
+          invoked(
+            "adder",
+            [ "let adder(a: Int64): Int64 -> Int64 = fun b -> a + b" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TooManyArguments") ])
+
+
+  // A two-parameter function cannot stand in for a function returning a function.
+  // Preserve this distinction inside custom type arguments too.
+  test curriedAndTwoParamDiffer =
+    Stdlib.Test.all(
+      [ check(
+          src(
+            [ "let add(a: Int64, b: Int64): Int64 = a + b"
+              "let takes(f: Int64 -> (Int64 -> Int64)): Int64 = 1"
+              "let f(u: Unit): Int64 = takes(add)" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check(
+          src(
+            [ "type Tag<'a> = { value: Unit }"
+              "let f(x: Tag<(Int64, Int64) -> Int64>): Tag<Int64 -> (Int64 -> Int64)> = x" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
+  // Expanding Identity<'a> yields 'a, so comparing x with identity x introduces
+  // no recursive type. Expand the alias before deciding whether there is a cycle.
+  test selfApplicationCycles =
+    Stdlib.Test.all(
+      [ check(
+          src(
+            [ "type Identity<'a> = 'a"
+              "let identity<'a>(x: 'a): Identity<'a> = x"
+              "val f = fun x -> if true then x else identity(x)" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("val f = fun x -> x(x)", "f")
+        |> Stdlib.Test.equal("failed:OccursCheckFailed") ])
+
+
+  // In a b and b a, each function's type would contain the other's type, creating
+  // a cycle. Independent calls and ordinary function composition have no such cycle.
+  test mutualApplicationCycle =
+    Stdlib.Test.all(
+      [ check("val f = fun(a, b) -> (a(b), b(a))", "f")
+        |> Stdlib.Test.equal("failed:OccursCheckFailed")
+
+        check("val f = fun(a, b) -> (a(1), b(2))", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("val f = fun(a, b) -> a(b(1))", "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // The parameter g has one type throughout the lambda, even before its number
+  // of parameters is known. Its calls must agree on argument and result types.
+  test parameterHasOneType =
+    Stdlib.Test.all(
+      [ check("val f = fun g -> (g(1), g(true))", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check("val f = fun g -> (g(1), g(2))", "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // All uses of x must be compatible: it cannot be both a record and a function, and
+  // a function cannot be a dictionary key. Detect this in either expression order.
+  test incompatibleUses =
+    Stdlib.Test.all(
+      [ check("val f = fun x -> (x.field, x(1))", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check("val f = fun x -> (x(1), x.field)", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check("val f = fun x -> (x(1), Dict { x: 1 })", "f")
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+        check("val f = fun x -> (Dict { x: 1 }, x(1))", "f")
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+        check("val f = fun g -> (g(1) + 1, if g(2) then 1 else 0)", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
+  // Repeated uses of a field or payload must agree on its type, even before its
+  // record or enum declaration is known. Compare reads, updates, unwraps, and
+  // patterns before allowing the helper to be reused at different types.
+  test fieldUsesAgree =
+    Stdlib.Test.all(
+      [ check("val f = fun r -> (r.field + 1, if r.field then 1 else 0)", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check("val f = fun r -> (r.field + 1, r.field + 2)", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("val f = fun r -> (r.first + 1, if r.second then 1 else 0)", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          "val f = fun r -> ({ r with field = 1 }, { r with field = true })",
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check("val f = fun r -> (r.field + 1, { r with field = true })", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
+  // When the update comes first, it fixes field's type to Bool. The later addition
+  // then reports both the invalid numeric operand and the conflicting field type.
+  test updateAndPayloadUses =
+    Stdlib.Test.all(
+      [ check("val f = fun r -> ({ r with field = true }, r.field + 1)", "f")
+        |> Stdlib.Test.equal("failed:MissingImpl,TypeMismatch")
+
+        check("val f = fun r -> (r.field + 1, { r with field = 2 })", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          "val f = fun x -> (Builtin.unwrap(x) + 1, if Builtin.unwrap(x) then 1 else 0)",
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check(
+          "val f = fun x -> (Builtin.unwrap(x) + 1, Builtin.unwrap(x) + 2)",
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          src(
+            [ "val f = fun x ->"
+              "  let first = match x with | Some(y) -> y + 1 | _ -> 0"
+              "  let second = match x with | Some(y) -> if y then 1 else 0 | _ -> 0"
+              "  (first, second)" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check(
+          "val f = fun x -> match x with | C(a) -> 1 | C(a, b) -> 2 | _ -> 0",
+          "f")
+        |> Stdlib.Test.equal("failed:EnumFieldCountMismatch") ])
+
+
+  // The final if requires a and b to have the same type. Revisit their earlier
+  // field uses and detect that one requires Int64 while the other requires Bool.
+  test ifJoinsFieldUses =
+    check(
+      src(
+        [ "val f = fun(a, b) ->"
+          "  let first = a.field + 1"
+          "  let second = if b.field then 1 else 0"
+          "  let _ = if true then a else b"
+          "  (first, second)" ]),
+      "f")
+    |> Stdlib.Test.equal("failed:TypeMismatch")
+
+
+  // Once get is called with R, report both accesses to its nonexistent missing
+  // field. Combining their type requirements must not lose either source location.
+  test bothMissingFieldsReported =
+    Stdlib.List.length(
+      issues(
+        src(
+          [ "type R = { value: Int64 }"
+            "let f(u: Unit): Unit ="
+            "  let get = fun r -> (r.missing, r.missing)"
+            "  let _ = get(R { value = 1 })"
+            "  ()" ]),
+        "f"))
+    |> Stdlib.Test.equal(2)
+
+
+  // A call gives exactly as many arguments as the function takes. A function a call
+  // returns is called by a call of its own, so g(1)(2) and g(1, 2) are different
+  // shapes and one unknown g cannot be both.
+  test callArityIsExact =
+    Stdlib.Test.all(
+      [ check("val f = fun g -> (g(1), g(1, 2))", "f")
+        |> Stdlib.Test.equal("failed:TooManyArguments")
+
+        check("val f = fun g -> (g(1, 2), g(1))", "f")
+        |> Stdlib.Test.equal("failed:TooFewArguments")
+
+        check("val f = fun g -> (g(1)(2), g(3)(4))", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          src(
+            [ "let adder(a: Int64): Int64 -> Int64 = fun b -> a + b"
+              "let f(u: Unit): Int64 = adder(1, 2)" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TooManyArguments")
+
+        check(
+          src(
+            [ "let adder(a: Int64): Int64 -> Int64 = fun b -> a + b"
+              "let f(u: Unit): Int64 = adder(1)(2)" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          src(
+            [ "let add(a: Int64, b: Int64): Int64 = a + b"
+              "let f(u: Unit): Int64 = add(1)" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TooFewArguments")
+
+        // a pipe gives its stage one argument
+        check("val f = 1 |> (fun(a, b) -> a)", "f")
+        |> Stdlib.Test.equal("failed:TooFewArguments")
+
+        check("val f = 1 |> (fun a -> a)", "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // takes establishes that g accepts an Int64 first. Checking that argument in g(1)(a)
+  // exposes a cycle with a g. Keep solving after an argument is consumed, even if no
+  // new type is inferred and the number of deferred checks stays the same.
+  test consumedArgumentCycle =
+    Stdlib.Test.all(
+      [ check(
+          src(
+            [ "let takes<'a>(g: Int64 -> 'a): Unit = ()"
+              "val f = fun(a, g) ->"
+              "  let first = a(g)"
+              "  let second = g(1)(a)"
+              "  let _ = takes(g)"
+              "  (first, second)" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:OccursCheckFailed")
+
+        check(
+          src(
+            [ "let takes<'a>(g: Int64 -> 'a): Unit = ()"
+              "val f = fun(a, g) ->"
+              "  let first = g(1)(a)"
+              "  let second = a(g)"
+              "  let _ = takes(g)"
+              "  (first, second)" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:OccursCheckFailed") ])
+
+
+  // Validate keys in dictionary literals even when the dictionary is only local.
+  // If a key's type is initially unknown, retain the check until a call supplies it.
+  test localDictKeys =
+    check(
+      src(
+        [ "let f(u: Unit): Unit ="
+          "  let bad = Dict { (fun () -> ()): 1 }"
+          "  ()" ]),
+      "f")
+    |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+
+  let single(key: String): String =
+    src(
+      [ "let f (u: Unit) : Int64 ="
+        "  let single = fun k -> Dict { k: 1 }"
+        $"  let _ = single({key})"
+        "  1" ])
+
+
+  test keyFromHelperCall =
+    check(single("\"a\""), "f") |> Stdlib.Test.equal("checked:")
+
+
+  // Knowing that a key is a function is enough to reject it; its parameter type
+  // does not need to be known. Apply this rule to literals and helper calls.
+  test functionKeysRejected =
+    Stdlib.Test.all(
+      [ check(
+          src(
+            [ "let f(u: Unit): Unit ="
+              "  let bad = Dict { (fun x -> x): 1 }"
+              "  ()" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+        check(single("(fun () -> ())"), "f")
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType") ])
+
+
+  // Reject let (x, x) regardless of whether the bound expression is generalized.
+  // Construct the syntax tree directly because the parser rejects duplicate names.
+  let bindsTwice(
+    value: LanguageTools.ProgramTypes.Expr)
+    : LanguageTools.ProgramTypes.PackageFn.PackageFn =
+    oneArg(
+      tInt(),
+      tInt(),
+      LanguageTools.ProgramTypes.Expr.ELet(
+        80,
+        LanguageTools.ProgramTypes.LetPattern.LPTuple(
+          81,
+          LanguageTools.ProgramTypes.LetPattern.LPVariable(82, "x"),
+          LanguageTools.ProgramTypes.LetPattern.LPVariable(83, "x"),
+          []),
+        value,
+        LanguageTools.ProgramTypes.Expr.EVariable(84, "x")))
+
+
+  // A tuple of existing arguments is eligible for generalization. Duplicate
+  // names in its binding pattern must still be rejected.
+  test tupleBindingDuplicates =
+    checkFunctionAst(
+      [],
+      bindsTwice(
+        LanguageTools.ProgramTypes.Expr.ETuple(85, arg(86), arg(87), [])))
+    |> Stdlib.Test.equal("failed:DuplicatePatternBinding")
+
+
+  // The checker does not generalize if expressions. This takes the other binding
+  // path, which must also reject the duplicate name x.
+  test ifBindingDuplicates =
+    checkFunctionAst(
+      [],
+      bindsTwice(
+        LanguageTools.ProgramTypes.Expr.EIf(
+          88,
+          LanguageTools.ProgramTypes.Expr.EBool(89, true),
+          LanguageTools.ProgramTypes.Expr.ETuple(85, arg(86), arg(87), []),
+          Stdlib.Option.Option.Some(
+            LanguageTools.ProgramTypes.Expr.ETuple(90, arg(91), arg(92), [])))))
+    |> Stdlib.Test.equal("failed:DuplicatePatternBinding")

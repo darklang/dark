@@ -1,0 +1,493 @@
+module Darklang.LanguageTools.AtRestTypeChecker.Tests
+
+// ----------------------------------------------------------------------------------
+// Postfix `?`
+// ----------------------------------------------------------------------------------
+
+module PostfixUnwrap =
+  let optionOf(
+    inner: LanguageTools.ProgramTypes.TypeReference)
+    : LanguageTools.ProgramTypes.TypeReference =
+    LanguageTools.ProgramTypes.TypeReference.TCustomType(
+      resolved(
+        LanguageTools.ProgramTypes.FQTypeName.FQTypeName.Package(
+          (LanguageTools.AtRestTypeChecker.Environment.builtins(
+             SCM.Branch.mainBranchId)).optionType)),
+      [ inner ])
+
+
+  let unwrapArg(id: Int64): LanguageTools.ProgramTypes.Expr =
+    LanguageTools.ProgramTypes.Expr.EUnwrap(id, arg(id + 1))
+
+
+  /// Build a function that applies ? to an `input` parameter, then returns
+  /// `success "success"` with declared type `output`. `success` is Ok or Some.
+  let returning(input: String, output: String, success: String): String =
+    src(
+      [ $"let f (r: {input}) : {output} ="
+        "  let _ = r?"
+        $"  {success}(\"success\")" ])
+
+
+  // ? requires its operand and the enclosing return type to both be Option or
+  // both be Result. For Result, their error types must also match; their success
+  // types may differ.
+  test operandMatchesReturnType =
+    Stdlib.Test.all(
+      [ check(
+          returning(
+            "Stdlib.Result.Result<Int64, String>",
+            "Stdlib.Result.Result<String, String>",
+            "Ok"),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          returning(
+            "Stdlib.Option.Option<Int64>",
+            "Stdlib.Option.Option<String>",
+            "Some"),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          returning(
+            "Stdlib.Result.Result<Int64, String>",
+            "Stdlib.Result.Result<String, Bool>",
+            "Ok"),
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check(
+          returning(
+            "Stdlib.Result.Result<Int64, String>",
+            "Stdlib.Option.Option<String>",
+            "Some"),
+          "f")
+        |> Stdlib.Test.equal("failed:InvalidUnwrap")
+
+        check(
+          returning(
+            "Stdlib.Option.Option<Int64>",
+            "Stdlib.Result.Result<String, String>",
+            "Ok"),
+          "f")
+        |> Stdlib.Test.equal("failed:InvalidUnwrap")
+
+        check(
+          returning("Int64", "Stdlib.Result.Result<String, String>", "Ok"),
+          "f")
+        |> Stdlib.Test.equal("failed:InvalidUnwrap")
+
+        check("let f(r: Stdlib.Result.Result<Int64, String>): Int64 = r?", "f")
+        |> Stdlib.Test.equal("failed:InvalidUnwrap") ])
+
+
+  // r? produces the unwrapped Int64. The function must explicitly wrap its success
+  // value in Ok to satisfy its declared Result return type.
+  test successValueMustBeWrapped =
+    check(
+      "let f(r: Stdlib.Result.Result<Int64, String>): Stdlib.Result.Result<Int64, String> = r?",
+      "f")
+    |> Stdlib.Test.equal("failed:TypeMismatch")
+
+
+  // Report a Result error-type mismatch at the ? expression and name both types.
+  test errorTypeMismatchNamesBothTypes =
+    issues(
+      returning(
+        "Stdlib.Result.Result<Int64, Bool>",
+        "Stdlib.Result.Result<String, String>",
+        "Ok"),
+      "f")
+    |> Stdlib.Test.equal(
+      [ "TypeMismatch: In the error returned by ?: expected String, got Bool" ])
+
+
+  // An Int64 handed where a String is expected names the conversion.
+  test intWhereStringExpectedNamesToString =
+    issues("let f(n: Int64): String = n", "f")
+    |> Stdlib.Test.equal(
+      [ "TypeMismatch: In the function's return value: expected String, got Int64 (wrap it in `Stdlib.display`)" ])
+
+
+  // An operator given an Int64 and a Float64 says both sides must match and how to convert.
+  test mixedNumbersNameTheOperatorAndTheConversion =
+    Stdlib.Test.all(
+      [ issues("let f(n: Int64): Int64 = n / 2.0", "f")
+        |> Stdlib.Test.equal(
+          [ "TypeMismatch: `/` needs both sides to be the same type, but got Int64 and Float64. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat64(n)`." ])
+
+        issues("let f(x: Float64): Bool = x == 2", "f")
+        |> Stdlib.Test.equal(
+          [ "TypeMismatch: `==` needs both sides to be the same type, but got Float64 and Int64. Write the number with a decimal point, as `5.0`, or convert with `Stdlib.Int64.toFloat64(n)`." ])
+
+        issues("let f(a: Int64, b: Int32): Int64 = a + b", "f")
+        |> Stdlib.Test.equal(
+          [ "TypeMismatch: `+` needs both sides to be the same type, but got Int64 and Int32." ]) ])
+
+
+  // Apply the same ? rules when the operand uses a type alias or the Result
+  // error type is a declared type parameter.
+  test aliasesAndTypeParams =
+    Stdlib.Test.all(
+      [ check(
+          src(
+            [ "type Checked = Stdlib.Result.Result<Int64, String>"
+              "let f(r: Checked): Stdlib.Result.Result<String, String> ="
+              "  let _ = r?"
+              "  Ok(\"success\")" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          returning(
+            "Stdlib.Result.Result<Int64, 'e>",
+            "Stdlib.Result.Result<String, 'e>",
+            "Ok"),
+          "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // Unwrapping Option<Int64> tells the checker that n is Int64 before checking n + n.
+  test unwrapRefinesType =
+    check(
+      src(
+        [ "let f(o: Stdlib.Option.Option<Int64>): Stdlib.Option.Option<Int64> ="
+          "  let n = o?"
+          "  Some(n + n)" ]),
+      "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  // ? returns from the nearest lambda. Check against that lambda's return type;
+  // the outer function's return type does not determine whether the ? is valid.
+  test nearestLambdaReturn =
+    Stdlib.Test.all(
+      [ check(
+          src(
+            [ "let f(r: Stdlib.Result.Result<Int64, String>): Int64 ="
+              "  let g = fun u -> Ok(r? + 1)"
+              "  1" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          src(
+            [ "let f(r: Stdlib.Result.Result<Int64, String>): Stdlib.Result.Result<String, String> ="
+              "  let g = fun u -> r?"
+              "  Ok(\"success\")" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:InvalidUnwrap")
+
+        check(
+          src(
+            [ "let f(o: Stdlib.Option.Option<Int64>): Stdlib.Option.Option<Int64> ="
+              "  o |> fun x -> Some(x? + 1)" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // Returning Some tells the checker that x? needs an Option operand. Accept
+  // Some 4 as the argument and reject the plain Int64 4.
+  test lambdaReturnDecidesOperand =
+    Stdlib.Test.all(
+      [ check(
+          "let f(u: Unit): Stdlib.Option.Option<Int64> = (fun x -> Some(x? + 1))(Some(4))",
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          "let f(u: Unit): Stdlib.Option.Option<Int64> = (fun x -> Some(x? + 1))(4)",
+          "f")
+        |> Stdlib.Test.equal("failed:InvalidUnwrap") ])
+
+
+  // Infer get's field and ? requirements separately for each call. It can accept
+  // both IntRow and StringRow, while each result must match the caller's return
+  // type.
+  let rows(body: List<String>): String =
+    src(
+      Stdlib.List.concat(
+        [ "type IntRow = { item: Stdlib.Option.Option<Int64> }"
+          "type StringRow = { item: Stdlib.Option.Option<String> }"
+          "type NestedRow = { item: Stdlib.Option.Option<Stdlib.Option.Option<Int64>> }" ],
+        body))
+
+
+  test rowsPerCall =
+    Stdlib.Test.all(
+      [ check(
+          rows(
+            [ "let f(a: IntRow): Stdlib.Option.Option<String> ="
+              "  let get = fun row -> Some(row.item?)"
+              "  get(a)" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check(
+          rows(
+            [ "let f(a: IntRow): Stdlib.Option.Option<Int64> ="
+              "  let get = fun row -> Some(row.item?)"
+              "  get(a)" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          rows(
+            [ "let f(a: IntRow, b: StringRow): Stdlib.Option.Option<String> ="
+              "  let get = fun row -> Some(row.item?)"
+              "  let _ = get(a)"
+              "  get(b)" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // Infer the ? operand from row.item after the call supplies the row's type.
+  // Here unwrapping Option<Option<Int64>> leaves the Option<Int64> the lambda returns.
+  test nestedOptionRow =
+    check(
+      rows(
+        [ "let f(a: NestedRow): Stdlib.Option.Option<Int64> ="
+          "  let get = fun row -> row.item?"
+          "  get(a)" ]),
+      "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  // Keep the field type and ? requirement together when checking each call to get.
+  // Calling it with NestedIntRow must not fix the type used for NestedStringRow.
+  let nestedRows(body: List<String>): String =
+    src(
+      Stdlib.List.concat(
+        [ "type NestedIntRow = { item: Stdlib.Option.Option<Stdlib.Option.Option<Int64>> }"
+          "type NestedStringRow = { item: Stdlib.Option.Option<Stdlib.Option.Option<String>> }" ],
+        body))
+
+
+  test nestedRowsPerCall =
+    Stdlib.Test.all(
+      [ check(
+          nestedRows(
+            [ "let f(a: NestedIntRow, b: NestedStringRow): (Stdlib.Option.Option<Int64> * Stdlib.Option.Option<String>) ="
+              "  let get = fun row -> row.item?"
+              "  (get(a), get(b))" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          nestedRows(
+            [ "let f(a: NestedIntRow): Stdlib.Option.Option<String> ="
+              "  let get = fun row -> row.item?"
+              "  get(a)" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
+  // Reject row.item? when the caller supplies a record whose item field is Int64.
+  test scalarFieldRejected =
+    check(
+      src(
+        [ "type ScalarRow = { item: Int64 }"
+          "let f(a: ScalarRow): Stdlib.Option.Option<Int64> ="
+          "  let get = fun row -> row.item?"
+          "  get(a)" ]),
+      "f")
+    |> Stdlib.Test.equal("failed:InvalidUnwrap")
+
+
+  // An unavailable operand type might be an alias for Option. Report Incomplete
+  // for the missing declaration instead of assuming the ? is invalid.
+  test unavailableOperandIsIncomplete =
+    checkFunctionAst(
+      [],
+      oneArg(
+        custom("unwrap-missing-alias", []),
+        optionOf(tInt()),
+        unwrapArg(30)))
+    |> Stdlib.Test.equal("incomplete:MissingTypeDeclaration")
+
+
+  // An Int64 operand is definitely invalid for ?, even if an unavailable return
+  // type also makes part of the check incomplete. Keep both findings.
+  test intOperandStaysInvalid =
+    checkFunctionAst(
+      [],
+      oneArg(tInt(), custom("unwrap-missing-alias", []), unwrapArg(32)))
+    |> Stdlib.Test.equal("failed:InvalidUnwrap,MissingTypeDeclaration")
+
+
+  // Reject ? outside a function because there is no enclosing call to return from.
+  // Construct this invalid value directly to test the checker independently of
+  // the parser, which also rejects it.
+  test outsideFunctionRejected =
+    checkValueAsts(
+      [ valueNamed(
+          "unwrap-outside",
+          LanguageTools.ProgramTypes.Expr.EUnwrap(34, intExpr(35, 1))) ])
+    |> Stdlib.Test.equal([ "failed:InvalidUnwrap" ])
+
+
+// ----------------------------------------------------------------------------------
+// Tuple element access
+// ----------------------------------------------------------------------------------
+
+module TupleAccess =
+  test indexWithinTuple =
+    Stdlib.Test.all(
+      [ check("let f(x: (Int64 * String * Bool)): String = x.2", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f(x: (Int64 * String)): Int64 = x.3", "f")
+        |> Stdlib.Test.equal("failed:UnknownTupleElement") ])
+
+
+  // Tuple indexes start at 1, so x.0 is invalid.
+  test indexStartsAtOne =
+    Stdlib.Test.all(
+      [ check("let f(x: (Int64 * String)): Int64 = x.0", "f")
+        |> Stdlib.Test.equal("failed:UnknownTupleElement")
+
+        check("let f(x: (Int64 * String)): String = x.1", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
+  // Int64 has no tuple elements. Reject x.1 both directly and through a lambda
+  // whose parameter type becomes known only when the lambda is called.
+  test intHasNoElements =
+    Stdlib.Test.all(
+      [ check("let f(x: Int64): Int64 = x.1", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check("let f(x: Int64): Int64 = (fun t -> t.1)(x)", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
+  // A function declared for every 'a cannot assume that x has a field or tuple
+  // element. Reject that assumption even when the access occurs in a local helper.
+  test genericAndAliasedTuples =
+    Stdlib.Test.all(
+      [ check("let f<'a>(x: 'a): Int64 = x.1", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check(
+          src(
+            [ "let f<'a>(x: 'a): Int64 ="
+              "  let get = fun t -> t.field"
+              "  get(x)" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check(
+          src(
+            [ "let f<'a>(x: 'a): Int64 ="
+              "  let get = fun t -> t.1"
+              "  get(x)" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check(
+          src(
+            [ "type Pair = (Int64 * String)", "let f(x: Pair): String = x.2" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f<'a, 'b>(x: ('a * 'b)): 'b = x.2", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f<'a, 'b>(x: ('a * 'b)): 'b = x.1", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
+  // Defer checking t.1 until first x supplies the tuple type for t.
+  test deferredUntilCall =
+    check(
+      src(
+        [ "let f(x: (Int64 * String)): Int64 ="
+          "  let first = fun t -> t.1"
+          "  first(x)" ]),
+      "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  // Infer a separate tuple type for each use of first, allowing different element
+  // types and tuple lengths in the two calls.
+  test separateTypePerCall =
+    check(
+      src(
+        [ "let f(u: Unit): (Int64 * String) ="
+          "  let first = fun t -> t.1"
+          "  (first((1, \"a\")), first((\"b\", 2, true)))" ]),
+      "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  // Once t.1 is known to be a pair, accept its second element and reject its
+  // third. Report the invalid index rather than an unresolved-type warning.
+  test nestedPairAccess =
+    Stdlib.Test.all(
+      [ check("let f(u: Unit): Int64 = (fun t -> t.1.2)(((1, 2), 3))", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f(u: Unit): Int64 = (fun t -> t.1.3)(((1, 2), 3))", "f")
+        |> Stdlib.Test.equal("failed:UnknownTupleElement") ])
+
+
+  // Each use of f must get a separate type for the intermediate t.1 too.
+  // That type appears only in the deferred field checks, not in f's parameter
+  // or return type, so copying only the function type would lose it.
+  let letBoundChain(index: String, returnType: String, call: String): String =
+    check(
+      src(
+        [ $"let g (u: Unit) : {returnType} ="
+          $"  let f = fun t -> t.1.{index}"
+          $"  {call}" ]),
+      "g")
+
+
+  test letBoundChains =
+    Stdlib.Test.all(
+      [ letBoundChain("2", "Int64", "f(((1, 2), 3))")
+        |> Stdlib.Test.equal("checked:")
+
+        letBoundChain("3", "Int64", "f(((1, 2), 3))")
+        |> Stdlib.Test.equal("failed:UnknownTupleElement") ])
+
+
+  // Calling f on Int64 tuples must not force a later call's String elements to be Int64.
+  test callsDoNotShareElementTypes =
+    letBoundChain(
+      "2",
+      "(Int64 * String)",
+      "(f(((1, 2), 3)), f(((\"a\", \"b\"), 3)))")
+    |> Stdlib.Test.equal("checked:")
+
+
+  // inner captures t from outer. Its tuple accesses must use the type supplied
+  // to outer, even though inner's own parameter is unrelated to t.
+  let capturedChain(index: String): String =
+    check(
+      src(
+        [ "let g (u: Unit) : Int64 ="
+          "  let outer ="
+          "    fun t ->"
+          $"      let inner = fun v -> t.1.{index}"
+          "      inner()"
+          "  outer(((1, 2), 3))" ]),
+      "g")
+
+
+  test capturedChains =
+    Stdlib.Test.all(
+      [ capturedChain("2") |> Stdlib.Test.equal("checked:")
+        capturedChain("3") |> Stdlib.Test.equal("failed:UnknownTupleElement") ])
+
+
+  // Resolve t.1 to the Counted record before checking its count field.
+  test resolvesToRecord =
+    check(
+      src(
+        [ "type Counted = { count: Int64 }"
+          "let f(r: Counted): Int64 = (fun t -> t.1.count)((r, 3))" ]),
+      "f")
+    |> Stdlib.Test.equal("checked:")
