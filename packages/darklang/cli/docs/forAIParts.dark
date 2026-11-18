@@ -170,6 +170,13 @@ To group tests inside a module, wrap a body in `Stdlib.Test.group("parsing", ...
 `test run` shows it as `Me.Example.Tests › parsing › doubles`, and the filter
 `Tests.parsing` runs the group.
 
+For many cases of one check, use a table; each row is its own test, named by
+its arguments, as in `Me.Example.Tests.doubles(4, 8)`:
+
+  test doubles =
+    [ (4, 8), (0, 0) ]
+    |> Stdlib.Test.table(fun((n, expected)) -> Me.Example.double(n) |> Stdlib.Test.equal(expected))
+
 Run all tests with `test run`, or filter by name/module with `test run Example`.
 `search` leaves tests and `Tests` modules out; add `--include-tests`, or `--test`
 for tests only.

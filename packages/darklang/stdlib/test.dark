@@ -7,6 +7,8 @@ type Result =
   | Fail(messages: List<String>)
   /// The failing checks of an `all`, each with its position in the list, from 1.
   | FailedChecks(checks: List<(Int64 * Result)>)
+  /// Each row of a `table`, named by its arguments, with how it went.
+  | Rows(rows: List<(String * Result)>)
 
 
 let pass(): Result =
@@ -71,12 +73,20 @@ let notEqual(actual: 'a, unexpected: 'a): Result =
     Result.Fail([ $"did not expect {inspect(unexpected)}" ])
 
 
+/// Whether <param result> passed: `Pass`, or a table whose rows all passed.
+let passed(result: Result): Bool =
+  match result with
+  | Pass -> true
+  | Rows(rows) -> List.all(rows, fun((_, row)) -> passed(row))
+  | _ -> false
+
+
 /// Combine assertions without stopping at the first failure.
 let all(checks: List<Result>): Result =
   let failed =
     checks
     |> List.indexedMap(fun(index, check) -> (index + 1, check))
-    |> List.filter(fun((_, check)) -> check != Result.Pass)
+    |> List.filter(fun((_, check)) -> Bool.not(passed(check)))
 
   if List.isEmpty(failed) then Result.Pass else Result.FailedChecks(failed)
 
@@ -86,3 +96,32 @@ let all(checks: List<Result>): Result =
 /// `Module › parsing › emptyInput`, and a filter can name the group.
 let group(name: String, check: Result): Result =
   check
+
+
+/// <param check> on each of <param rows>. Each row is its own test, named by its
+/// arguments: `[ ("a", 1), ("", 0) ] |> Stdlib.Test.table(fun((s, n)) -> ...)`
+/// gives the tests `("a", 1)` and `("", 0)`. A row that raises fails only itself.
+let table(rows: List<'a>, check: 'a -> Result): Result =
+  rows
+  |> List.map(fun row ->
+    // A lambda, so the call runs under this test's policies rather than as an approval root.
+    let result =
+      match LanguageTools.Live.apply(fun r -> check(r), row) with
+      | Ok(result) -> result
+      | Error(message) -> Result.Fail([ $"error: {message}" ])
+
+    (rowName(row), result))
+  |> Result.Rows
+
+
+/// How a `table` names <param row>: its value in parentheses, on one line and
+/// at most 60 characters.
+let rowName(row: 'a): String =
+  let shown =
+    inspect(row)
+    |> String.split("\n")
+    |> List.map(String.trim)
+    |> String.join(" ")
+
+  let shown = if String.startsWith(shown, "(") then shown else $"({shown})"
+  if String.length(shown) > 60 then String.first(shown, 59) + "…" else shown

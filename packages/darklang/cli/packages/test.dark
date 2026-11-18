@@ -11,6 +11,34 @@ type Outcome =
   | Passed
   | Failed(messages: List<String>)
   | RuntimeFailed(message: String)
+  /// A `Stdlib.Test.table`: each row is its own test, named by its arguments.
+  | Rows(rows: List<(String * Outcome)>)
+
+
+/// The tests <param outcome> reports, each as its name and how it went: one per
+/// table row, after <param name>, or the test itself.
+let reported(name: String, outcome: Outcome): List<(String * Outcome)> =
+  match outcome with
+  | Rows(rows) -> Stdlib.List.map(rows, fun((args, row)) -> (name + args, row))
+  | _ -> [ (name, outcome) ]
+
+
+/// <param outcome> as one result for the whole declaration, for views that show one
+/// line per test: a table passes when every row did, else lists its failing rows.
+let summary(outcome: Outcome): Outcome =
+  match outcome with
+  | Rows(rows) ->
+    let failing =
+      rows
+      |> Stdlib.List.filter(fun((_, row)) -> Stdlib.Bool.not(isPassed(row)))
+      |> Stdlib.List.map(fun((args, row)) ->
+        match row with
+        | Failed(messages) -> args + ": " + Stdlib.String.join(messages, " ")
+        | RuntimeFailed(message) -> args + ": " + message
+        | _ -> args)
+
+    if Stdlib.List.isEmpty(failing) then Outcome.Passed else Outcome.Failed(failing)
+  | _ -> outcome
 
 
 /// How long one test took to run, and where.
@@ -86,7 +114,7 @@ let segmentsIn(have: List<String>, want: List<String>): Bool =
 /// `doubles` selects a test named `doubles`, `Tests.parsing` the tests in the group
 /// `parsing`, and `Float64.T` selects nothing.
 let selects(filter: String, path: String): Bool =
-  segmentsIn(Stdlib.String.split(path, "."), filterSegments(filter))
+  segmentsIn(filterSegments(path), filterSegments(testPart(filter)))
 
 
 /// <param filter> split at `.` or `›`, as `test run` prints a test in a group.
@@ -96,6 +124,25 @@ let filterSegments(filter: String): List<String> =
   |> Stdlib.String.split(".")
   |> Stdlib.List.map(Stdlib.String.trim)
   |> Stdlib.List.filter(fun seg -> seg != "")
+
+
+/// <param filter> up to a table row's arguments: `lengths` of `lengths("a", 1)`.
+let testPart(filter: String): String =
+  match Stdlib.String.indexOf(filter, "(") with
+  | Some(at) -> Stdlib.String.slice(filter, 0, at)
+  | None -> filter
+
+
+/// Whether <param filters> keep the test <param name> reports for the test at
+/// <param path>: any filter that selects the test, unless it names a table row,
+/// as in `lengths("a", 1)`, and <param name> is another one.
+let rowSelected(filters: List<String>, path: String, name: String): Bool =
+  Stdlib.List.isEmpty(filters)
+  || Stdlib.List.any(filters, fun f ->
+    let test = testPart(f)
+    selects(test, path)
+    && (test == f
+        || name == path + Stdlib.String.slice(f, Stdlib.String.length(test), Stdlib.String.length(f))))
 
 
 /// The actual judging function, including its followed dependencies, and the
@@ -172,7 +219,7 @@ let storeOutcome(
 /// A failed result is shown in views but is never reused by `dark test run`.
 let lastOutcome(branchId: Uuid, testHash: LanguageTools.ProgramTypes.Hash): Option<Outcome> =
   match cacheContext(branchId) with
-  | Some(cache) -> storedOutcome(cache, testHash)
+  | Some(cache) -> storedOutcome(cache, testHash) |> Stdlib.Option.map(summary)
   | None -> Option.None
 
 
@@ -192,7 +239,8 @@ let lastOutcomes(
       |> Stdlib.List.map(fun stored ->
         stored
         |> Stdlib.Option.andThen(fun json ->
-          Stdlib.Json.parse<Outcome>(json) |> Stdlib.Result.toOption))
+          Stdlib.Json.parse<Outcome>(json) |> Stdlib.Result.toOption)
+        |> Stdlib.Option.map(summary))
     | None -> testHashes |> Stdlib.List.map(fun _ -> Option.None)
 
 
@@ -203,15 +251,25 @@ let runFresh(
   item: LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>)
   : Outcome =
   let test = item.entity
+  let ctx(_u: Unit): PrettyPrinter.ProgramTypes.Context =
+    PrettyPrinter.ProgramTypes.Context.forModule(
+      branchId,
+      Stdlib.List.prepend(item.location.modules, item.location.owner))
+
   match LanguageTools.PackageManager.Test.executeInRun(run, branchId, test.hash) with
   | Ok(Pass) -> Outcome.Passed
+  | Ok(Rows(rows)) ->
+    rows
+    |> Stdlib.List.map(fun((args, result)) ->
+      if Stdlib.Test.passed(result) then
+        (args, Outcome.Passed)
+      else
+        (args,
+         Outcome.Failed(
+           LanguageTools.PackageManager.Test.rowFailureLines(ctx(), test.body, result))))
+    |> Outcome.Rows
   | Ok(result) ->
-    let ctx =
-      PrettyPrinter.ProgramTypes.Context.forModule(
-        branchId,
-        Stdlib.List.prepend(item.location.modules, item.location.owner))
-
-    Outcome.Failed(LanguageTools.PackageManager.Test.failureLines(ctx, test.body, result))
+    Outcome.Failed(LanguageTools.PackageManager.Test.failureLines(ctx(), test.body, result))
   | Error(error) ->
     Outcome.RuntimeFailed(PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, error))
 
@@ -242,12 +300,14 @@ let printOutcome(name: String, outcome: Outcome, reran: Bool): Unit =
   | RuntimeFailed(message) ->
     Stdlib.printLine(Stdlib.Cli.UI.Colors.error($"ERROR {name}"))
     Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"  {message}"))
+  | Rows(_) -> reported(name, outcome) |> Stdlib.List.iter(fun((n, o)) -> printOutcome(n, o, reran))
 
 
 let isPassed(outcome: Outcome): Bool =
   match outcome with
   | Passed -> true
   | Failed(_) | RuntimeFailed(_) -> false
+  | Rows(rows) -> Stdlib.List.all(rows, fun((_, row)) -> isPassed(row))
 
 
 val addUsage = "Usage: test add <location> <body> | <source-file> | -"
@@ -413,7 +473,14 @@ type FinishedTest =
     ms: Int64 }
 
 
-let finishTest(cache: Option<CacheContext>, counts: Counts, finished: FinishedTest): Counts =
+/// <param filters> pick rows too: one with an argument list, as in
+/// `lengths("a", 1)`, keeps only the row of that name.
+let finishTest(
+  cache: Option<CacheContext>,
+  filters: List<String>,
+  counts: Counts,
+  finished: FinishedTest)
+  : Counts =
   if Stdlib.Bool.not(finished.wasCached) then
     match cache, finished.outcome with
     | _, RuntimeFailed(_) -> ()
@@ -421,14 +488,20 @@ let finishTest(cache: Option<CacheContext>, counts: Counts, finished: FinishedTe
       storeOutcome(context, finished.test.hash, finished.outcome)
     | _ -> ()
 
-  printOutcome(finished.name, finished.outcome, finished.reran)
+  let tests =
+    reported(finished.name, finished.outcome)
+    |> Stdlib.List.filter(fun((name, _)) -> rowSelected(filters, finished.name, name))
+
+  Stdlib.List.iter(tests, fun((name, outcome)) -> printOutcome(name, outcome, finished.reran))
+  let n = Stdlib.List.length(tests)
+  let passed = tests |> Stdlib.List.filter(fun((_, o)) -> isPassed(o)) |> Stdlib.List.length
   Counts
-    { passed = counts.passed + (if isPassed(finished.outcome) then 1 else 0)
-      failed = counts.failed + (if isPassed(finished.outcome) then 0 else 1)
-      cached = counts.cached + (if finished.wasCached then 1 else 0)
-      ran = counts.ran + (if finished.wasCached then 0 else 1)
-      isolated = counts.isolated + (if finished.wasCached || finished.inProcess then 0 else 1)
-      reran = counts.reran + (if finished.reran then 1 else 0)
+    { passed = counts.passed + passed
+      failed = counts.failed + n - passed
+      cached = counts.cached + (if finished.wasCached then n else 0)
+      ran = counts.ran + (if finished.wasCached then 0 else n)
+      isolated = counts.isolated + (if finished.wasCached || finished.inProcess then 0 else n)
+      reran = counts.reran + (if finished.reran then n else 0)
       timings =
         if finished.wasCached then
           counts.timings
@@ -463,7 +536,8 @@ let runSelected(
         match cache with
         | Some(context) when mayCache(item.entity) ->
           match storedOutcome(context, item.entity.hash) with
-          | Some(Passed) when isCacheable(item.entity, cacheSafe) -> Option.Some(Outcome.Passed)
+          | Some(outcome) when isPassed(outcome) && isCacheable(item.entity, cacheSafe) ->
+            Option.Some(outcome)
           | _ -> Option.None
         | _ -> Option.None
 
@@ -480,7 +554,14 @@ let runSelected(
             reran = false
             ms = 0 }
 
-      runSelected(run, branchId, options, cache, rest, running, finishTest(cache, counts, finished))
+      runSelected(
+        run,
+        branchId,
+        options,
+        cache,
+        rest,
+        running,
+        finishTest(cache, options.filters, counts, finished))
     | None ->
       // Progress, not a result: stderr, so the answer on stdout is the PASS/FAIL lines and the verdict.
       Stdlib.printErrorLine($"Running: {shownName(item)}")
@@ -513,7 +594,7 @@ let runSelected(
         cache,
         remaining,
         running,
-        finishTest(cache, counts, finished))
+        finishTest(cache, options.filters, counts, finished))
 
 
 /// The ten slowest tests that ran, slowest first, so a log says where the time
@@ -572,12 +653,13 @@ let selectedTests(
   LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>> =
   let narrowable =
     Stdlib.Bool.not(Stdlib.List.isEmpty(filters))
-    && Stdlib.List.all(filters, fun f -> Stdlib.List.length(filterSegments(f)) > 1)
+    && Stdlib.List.all(filters, fun f -> Stdlib.List.length(filterSegments(testPart(f))) > 1)
 
   let found =
     if narrowable then
       filters
-      |> Stdlib.List.map(fun f -> liveTests(branchId, [], Stdlib.String.join(filterSegments(f), ".")))
+      |> Stdlib.List.map(fun f ->
+        liveTests(branchId, [], Stdlib.String.join(filterSegments(testPart(f)), ".")))
       |> Stdlib.List.prepend(groupedTests(branchId))
       |> Stdlib.List.flatten
       |> Stdlib.List.uniqueBy(fullPath)
@@ -616,6 +698,16 @@ let groupedTests(
 /// The search looks in the module above <param prefix>, whose last segment may name
 /// a test rather than a module.
 let testsUnder(branchId: Uuid, prefix: List<String>): List<List<String>> =
+  testItemsUnder(branchId, prefix) |> Stdlib.List.map(fun((path, _)) -> path)
+
+
+/// <fn testsUnder>, each with its test.
+let testItemsUnder(
+  branchId: Uuid,
+  prefix: List<String>)
+  : List<
+  (List<String> *
+   LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>)> =
   let found =
     match prefix with
     | [] -> liveTests(branchId, [], "")
@@ -627,7 +719,7 @@ let testsUnder(branchId: Uuid, prefix: List<String>): List<List<String>> =
   |> Stdlib.List.filterMap(fun item ->
     let path = Stdlib.String.split(groupedPath(item), ".")
     if Stdlib.List.take(path, depth) == prefix then
-      Option.Some(path)
+      Option.Some((path, item))
     else
       Option.None)
 
@@ -695,22 +787,23 @@ type CountRow =
     tests: Int64 }
 
 
-/// <param tests> (full name segments) rolled up one level below <param prefix>:
-/// a row per submodule, plus a row per test directly in <param prefix> when it
-/// has no submodules, or one row for them all when it has.
-let countRows(prefix: List<String>, tests: List<List<String>>): List<CountRow> =
+/// <param tests> (full name segments, and how many tests each holds) rolled up one
+/// level below <param prefix>: a row per submodule, plus a row per test directly in
+/// <param prefix> when it has no submodules, or one row for them all when it has.
+let countRows(prefix: List<String>, tests: List<(List<String> * Int64)>): List<CountRow> =
   let depth = Stdlib.List.length(prefix)
   let (direct, nested) =
-    Stdlib.List.partition(tests, fun path -> Stdlib.List.length(path) == depth + 1)
+    Stdlib.List.partition(tests, fun((path, _)) -> Stdlib.List.length(path) == depth + 1)
 
-  let row(name: String, group: List<List<String>>): CountRow =
+  let row(name: String, group: List<(List<String> * Int64)>): CountRow =
     CountRow
       { name = name
-        tests = Stdlib.List.length(group) }
+        tests = total(group) }
 
   let modules =
     nested
-    |> Stdlib.List.groupBy(fun path -> Stdlib.Option.withDefault(Stdlib.List.getAt(path, depth), ""))
+    |> Stdlib.List.groupBy(fun((path, _)) ->
+      Stdlib.Option.withDefault(Stdlib.List.getAt(path, depth), ""))
     |> Stdlib.List.map(fun((name, group)) -> row(name, group))
     |> Stdlib.List.sortBy(fun r -> r.name)
 
@@ -719,13 +812,17 @@ let countRows(prefix: List<String>, tests: List<List<String>>): List<CountRow> =
       []
     else if Stdlib.List.isEmpty(modules) then
       direct
-      |> Stdlib.List.map(fun path ->
-        row(Stdlib.Option.withDefault(Stdlib.List.last(path), ""), [ path ]))
+      |> Stdlib.List.map(fun((path, n)) ->
+        row(Stdlib.Option.withDefault(Stdlib.List.last(path), ""), [ (path, n) ]))
       |> Stdlib.List.sortBy(fun r -> r.name)
     else
       [ row("(tests in this module)", direct) ]
 
   Stdlib.List.concat(modules, here)
+
+
+let total(tests: List<(List<String> * Int64)>): Int64 =
+  Stdlib.List.fold(tests, 0, fun(sum, (_, n)) -> sum + n)
 
 
 let countLine(tests: Int64): String =
@@ -735,11 +832,11 @@ let countLine(tests: Int64): String =
 
 /// <param prefix>, extended while every test in <param tests> sits under the
 /// same submodule, so a module holding only `Tests` shows what is inside it.
-let deepestShared(prefix: List<String>, tests: List<List<String>>): List<String> =
+let deepestShared(prefix: List<String>, tests: List<(List<String> * Int64)>): List<String> =
   let depth = Stdlib.List.length(prefix)
   let next =
     tests
-    |> Stdlib.List.map(fun path ->
+    |> Stdlib.List.map(fun((path, _)) ->
       if Stdlib.List.length(path) > depth + 1 then
         Stdlib.List.getAt(path, depth)
       else
@@ -753,11 +850,11 @@ let deepestShared(prefix: List<String>, tests: List<List<String>>): List<String>
 
 /// Print the total for <param heading>, then a row per entry of `countRows`
 /// below the deepest module all of <param tests> share.
-let printCounts(heading: String, prefix: List<String>, tests: List<List<String>>): Unit =
+let printCounts(heading: String, prefix: List<String>, tests: List<(List<String> * Int64)>): Unit =
   let shared = deepestShared(prefix, tests)
   let rows = countRows(shared, tests)
   let below = if shared == prefix then "" else $" (all in {Stdlib.String.join(shared, ".")})"
-  Stdlib.printLine($"{heading}: {countLine(Stdlib.List.length(tests))}{below}")
+  Stdlib.printLine($"{heading}: {countLine(total(tests))}{below}")
   let width = Stdlib.List.fold(rows, 0, fun(w, r) ->
     let n = Stdlib.String.length(r.name)
     if n > w then n else w)
@@ -795,7 +892,10 @@ let countTests(state: AppState, args: List<String>): AppState =
       | _ -> []
 
     let depth = Stdlib.List.length(prefix)
-    let under = testsUnder(branchId, prefix)
+    let under =
+      testItemsUnder(branchId, prefix)
+      |> Stdlib.List.map(fun((path, item)) ->
+        (path, LanguageTools.PackageManager.Test.testCount(item.entity.body)))
 
     let place = if depth == 0 then "All tests" else Stdlib.String.join(prefix, ".")
     match forItem with
@@ -827,7 +927,7 @@ let countTests(state: AppState, args: List<String>): AppState =
             |> Stdlib.Dict.fromList
 
           let using =
-            Stdlib.List.filter(under, fun path ->
+            Stdlib.List.filter(under, fun((path, _)) ->
               Stdlib.Dict.containsKey(users, Stdlib.String.join(path, ".")))
 
           let heading =
@@ -872,7 +972,10 @@ let help(_state: AppState): String =
     "A failing item of a `Stdlib.Test.all([ ... ])` list is shown by its"
     "position and source. `test emptyInput = Stdlib.Test.group(\"parsing\", ...)`"
     "puts a test in a group: it shows as `Module › parsing › emptyInput`, and"
-    "a filter can name the group, as in `Tests.parsing`."
+    "a filter can name the group, as in `Tests.parsing`. Each row of a"
+    "`Stdlib.Test.table(rows, check)` is its own test, named by its arguments,"
+    "as in `lengths(\"a\", 1)`; a filter written that way runs the table and"
+    "keeps only that row."
     "`test count` shows how many tests a module and each"
     "module under it hold, without running anything. `--for <item>` keeps only the"
     "tests that use that item, directly or through other code."
