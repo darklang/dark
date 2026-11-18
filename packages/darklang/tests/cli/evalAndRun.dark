@@ -810,10 +810,13 @@ test evalAllowGrantsForOneEvaluation = Instance.withInstance(fun i ->
   let (deniedCode, _) = Instance.ran(i, [ "eval", call ])
   let (code, out) = Instance.ran(i, [ "eval", "--allow", $"file read {dir}", call ])
   let (againCode, _) = Instance.ran(i, [ "eval", call ])
+  let (afterCode, afterOut) = Instance.ran(i, [ "eval", call, "--allow", $"file read {dir}" ])
   Stdlib.Test.all(
     [ Instance.exitedWith(deniedCode, 1, "denied without --allow")
       Instance.exitedWith(code, 0, "allowed for this evaluation")
       Instance.says(out, "5", "read the file")
+      Instance.exitedWith(afterCode, 0, "--allow after the expression counts too")
+      Instance.says(afterOut, "5", "and reads the file")
       Instance.exitedWith(againCode, 1, "nothing remembered") ]))
 
 
