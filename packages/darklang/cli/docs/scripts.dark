@@ -45,16 +45,23 @@ for example `main(args)`. Functions above the first top-level `let` do not captu
 top-level variables, so pass any arguments they need explicitly. A function below a
 top-level `let` can use it, but can only call the functions above it.
 
+Runner options such as `--sandbox` go before the file path; everything after it,
+flags included, is the script's. A path starting with a dash goes after `--`.
+
 ## Tests
 
 A script can hold tests, written as in a package: `test doubles = Stdlib.Test.equal(double(4), 8)`.
 `dark test run todo.dark` runs them with the file's functions, types and `val`s in
-scope and nothing else: no top-level statement runs, and a test can't use a top-level
-`let`. Use a `val` for a constant. `dark run todo.dark` skips the tests. Tests go above
-the first top-level `let`.
+scope and nothing else: no top-level statement runs. `dark run todo.dark` skips the
+tests. Tests go above the first top-level `let`.
 
-Runner options such as `--sandbox` go before the file path; everything after it,
-flags included, is the script's. A path starting with a dash goes after `--`.
+A test can't use a top-level `let`, or call a function below the first one. Such a test
+stops the run before any test starts:
+
+  error[SCRIPT-TEST-USES-LET] at 1:39: `totalForEast` calls `total`, which uses the top-level `let rows` on line 3.
+    hint: make it a `val` if it's a constant, or pass it to `total` as an argument
+  error[SCRIPT-TEST-BELOW-LET] at 2:33: `greets` calls `greet`, which is defined below the top-level `let rows` on line 3.
+    hint: move `greet` above line 3
 
 ## Results and exit codes
 

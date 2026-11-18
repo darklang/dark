@@ -1,0 +1,228 @@
+/// A script's tests see its declarations and none of its top-level statements. A function
+/// below the first top-level `let` is one of those statements, so a test can't call it.
+module Darklang.LanguageTools.ScriptTests
+
+/// A test that calls a function below the first top-level `let`, or uses a top-level `let`
+/// directly.
+type BelowLet =
+  { test: String
+    /// where the test names the first of `calls`, or the `let` itself
+    range: Parser.Range
+    /// When `usesLet`, the script's functions from the one the test names to the one that uses
+    /// the `let`, empty when the test uses it directly. Otherwise the one function the test names.
+    calls: List<String>
+    /// Whether `calls` reaches the `let`. If not, the `let` is the first top-level one, which
+    /// `calls` is below.
+    usesLet: Bool
+    letName: String
+    /// counted from 1
+    letLine: Int64 }
+
+
+/// A name bound by the top-level statements: a `let` value, or a function with the names its
+/// body uses.
+type Local =
+  | Let(line: Int64)
+  | Fn(uses: List<String>)
+
+
+/// Each test in <param sourceFile> that uses a top-level `let` or calls a function below the
+/// first one, by the first such name it uses.
+let belowLet(sourceFile: WrittenTypes.SourceFile.SourceFile): List<BelowLet> =
+  let declared =
+    sourceFile.declarations
+    |> Stdlib.List.filterMap(fun d ->
+      match d with
+      | Function(f) -> Option.Some(f.name.name)
+      | Value(v) -> Option.Some(v.name.name)
+      | _ -> Option.None)
+
+  let locals =
+    Stdlib.List.fold(sourceFile.exprsToEval, Dict {}, fun(acc, e) -> statementLocals(acc, e))
+
+  let (firstName, firstLine) =
+    sourceFile.exprsToEval
+    |> Stdlib.List.filterMap(firstLet)
+    |> Stdlib.List.head
+    |> Stdlib.Option.withDefault(("", 0))
+
+  sourceFile.declarations
+  |> Stdlib.List.filterMap(fun d ->
+    match d with
+    | Test(t) ->
+      used([], t.body)
+      |> Stdlib.List.filter(fun((name, _)) -> Stdlib.Bool.not(Stdlib.List.contains(declared, name)))
+      |> Stdlib.List.filterMap(fun((name, range)) ->
+        match pathToLet(locals, [], name) with
+        | Some((calls, letName, letLine)) ->
+          Option.Some(
+            BelowLet
+              { test = t.name.name
+                range = range
+                calls = calls
+                usesLet = true
+                letName = letName
+                letLine = letLine })
+        | None ->
+          match Stdlib.Dict.get(locals, name) with
+          | Some(Fn(_)) ->
+            Option.Some(
+              BelowLet
+                { test = t.name.name
+                  range = range
+                  calls = [ name ]
+                  usesLet = false
+                  letName = firstName
+                  letLine = firstLine })
+          | _ -> Option.None)
+      |> Stdlib.List.head
+    | _ -> Option.None)
+
+
+/// The first name a chain of top-level statements binds with `let`, and its line.
+let firstLet(e: WrittenTypes.Expr): Option<(String * Int64)> =
+  match e with
+  | ELet(_, pattern, _, rest, keywordLet, _) ->
+    match letBindings(pattern) with
+    | [name, ...] -> Option.Some((name, keywordLet.start.row + 1))
+    | [] -> firstLet(rest)
+  | EStatement(_, _, next) -> firstLet(next)
+  | _ -> Option.None
+
+
+/// The names a chain of top-level statements binds, added to <param acc>.
+let statementLocals(acc: Dict<String, Local>, e: WrittenTypes.Expr): Dict<String, Local> =
+  match e with
+  | ELet(_, LPVariable(_, name), ELambda(_, params, body, _, _), rest, _, _) ->
+    let uses = used(Stdlib.List.flatten(Stdlib.List.map(params, letBindings)), body)
+    let acc = Stdlib.Dict.set(acc, name, Local.Fn(uses |> Stdlib.List.map(Stdlib.Tuple2.first)))
+    statementLocals(acc, rest)
+  | ELet(_, pattern, _, rest, keywordLet, _) ->
+    let line = keywordLet.start.row + 1
+    let acc =
+      Stdlib.List.fold(letBindings(pattern), acc, fun(acc, name) ->
+        Stdlib.Dict.set(acc, name, Local.Let(line)))
+
+    statementLocals(acc, rest)
+  | EStatement(_, _, next) -> statementLocals(acc, next)
+  | _ -> acc
+
+
+/// The calls from <param name> to a top-level `let`, the `let`'s name and its line. <param seen>
+/// holds the functions already on the way, so a recursive one ends the search.
+let pathToLet(
+  locals: Dict<String, Local>,
+  seen: List<String>,
+  name: String)
+  : Option<(List<String> * String * Int64)> =
+  match Stdlib.Dict.get(locals, name) with
+  | Some(Let(line)) -> Option.Some(([], name, line))
+  | Some(Fn(uses)) when Stdlib.Bool.not(Stdlib.List.contains(seen, name)) ->
+    firstPathToLet(locals, Stdlib.List.append(seen, name), uses)
+    |> Stdlib.Option.map(fun((calls, letName, line)) ->
+      (Stdlib.List.prepend(calls, name), letName, line))
+  | _ -> Option.None
+
+
+let firstPathToLet(
+  locals: Dict<String, Local>,
+  seen: List<String>,
+  names: List<String>)
+  : Option<(List<String> * String * Int64)> =
+  match names with
+  | [] -> Option.None
+  | [name, ...rest] ->
+    match pathToLet(locals, seen, name) with
+    | Some(path) -> Option.Some(path)
+    | None -> firstPathToLet(locals, seen, rest)
+
+
+let letBindings(p: WrittenTypes.LetPattern): List<String> =
+  match p with
+  | LPVariable(_, name) -> [ name ]
+  | LPTuple(_, first, _, second, rest, _, _) ->
+    Stdlib.List.flatten(
+      [ letBindings(first)
+        letBindings(second)
+        rest
+        |> Stdlib.List.map(fun((_, p)) -> letBindings(p))
+        |> Stdlib.List.flatten ])
+  | LPUnit(_) | LPWildcard(_) -> []
+
+
+/// The unqualified names <param e> uses that are not in <param bound>, with where, in source order.
+let used(bound: List<String>, e: WrittenTypes.Expr): List<(String * Parser.Range)> =
+  let all(es: List<WrittenTypes.Expr>): List<(String * Parser.Range)> =
+    es
+    |> Stdlib.List.map(fun e -> used(bound, e))
+    |> Stdlib.List.flatten
+
+  let name(n: String, range: Parser.Range): List<(String * Parser.Range)> =
+    if Stdlib.List.contains(bound, n) then [] else [ (n, range) ]
+
+  match e with
+  | EVariable(range, n) -> name(n, range)
+  | EFnName(range, q) when Stdlib.List.isEmpty(q.modules) -> name(q.fn.name, range)
+  | ELet(_, pattern, value, body, _, _) ->
+    Stdlib.List.concat(
+      used(bound, value),
+      used(Stdlib.List.concat(bound, letBindings(pattern)), body))
+  | ELambda(_, params, body, _, _) ->
+    used(Stdlib.List.concat(bound, Stdlib.List.flatten(Stdlib.List.map(params, letBindings))), body)
+  | EMatch(_, subject, cases, _, _) ->
+    let inCases =
+      cases
+      |> Stdlib.List.map(fun c ->
+        let (_, pattern, _) = c.pat
+        let bound =
+          Stdlib.List.concat(bound, WrittenTypesToProgramTypes.Expr.MatchPattern.bindings(pattern))
+
+        let guard =
+          match c.whenCondition with
+          | Some((_, g)) -> used(bound, g)
+          | None -> []
+
+        Stdlib.List.concat(guard, used(bound, c.rhs)))
+      |> Stdlib.List.flatten
+
+    Stdlib.List.concat(used(bound, subject), inCases)
+  | EString(_, _, segments, _, _) ->
+    segments
+    |> Stdlib.List.map(fun s ->
+      match s with
+      | StringInterpolation(_, e, _, _) -> used(bound, e)
+      | StringText(_, _) -> [])
+    |> Stdlib.List.flatten
+  | EList(_, items, _, _) -> all(Stdlib.List.map(items, Stdlib.Tuple2.first))
+  | EDict(_, entries, _, _, _) -> all(Stdlib.List.map(entries, fun((_, _, _, v)) -> v))
+  | ETuple(_, first, _, second, rest, _, _) ->
+    all(Stdlib.List.concat([ first, second ], Stdlib.List.map(rest, Stdlib.Tuple2.second)))
+  | ERecord(_, _, fields, _, _) -> all(Stdlib.List.map(fields, fun((_, _, v)) -> v))
+  | ERecordUpdate(_, record, updates, _, _, _) ->
+    all(Stdlib.List.prepend(Stdlib.List.map(updates, fun((_, _, v)) -> v), record))
+  | EEnum(_, _, _, fields, _) -> all(fields)
+  | EUnwrap(_, inner, _) -> used(bound, inner)
+  | ERecordFieldAccess(_, record, _, _) -> used(bound, record)
+  | EIf(_, cond, thenExpr, elseExpr, _, _, _) ->
+    all(Stdlib.List.concat([ cond, thenExpr ], Stdlib.Option.toList(elseExpr)))
+  | EPipe(_, lhs, parts) ->
+    let inParts =
+      parts
+      |> Stdlib.List.map(fun((_, part)) ->
+        match part with
+        | EPipeLambda(_, params, body, _, _) ->
+          used(
+            Stdlib.List.concat(bound, Stdlib.List.flatten(Stdlib.List.map(params, letBindings))),
+            body)
+        | EPipeEnum(_, _, _, fields, _) -> all(fields)
+        | EPipeFnCall(range, q, _, args) when Stdlib.List.isEmpty(q.modules) ->
+          Stdlib.List.concat(name(q.fn.name, range), all(args))
+        | EPipeFnCall(_, _, _, args) -> all(args)
+        | EPipeVariableOrFnCall(range, n) -> name(n, range))
+      |> Stdlib.List.flatten
+
+    Stdlib.List.concat(used(bound, lhs), inParts)
+  | EInfix(_, _, left, right) -> all([ left, right ])
+  | EApply(_, callee, _, args) -> all(Stdlib.List.prepend(args, callee))
+  | EStatement(_, first, next) -> all([ first, next ])
+  | _ -> []

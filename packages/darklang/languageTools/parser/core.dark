@@ -13,7 +13,7 @@ type Range =
 
 
 /// The kind of file `Builtin.parse` reads. In a `Script`, a top-level `let x = ...` binds
-/// over the rest of the file, and named tests and test assertions are errors. In a
+/// over the rest of the file, and test assertions are errors. In a
 /// `Package` that `let` is an error (values use `val`), and so are top-level expressions
 /// and test assertions.
 type FileKind =
