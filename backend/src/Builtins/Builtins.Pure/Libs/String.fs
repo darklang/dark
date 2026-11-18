@@ -326,7 +326,6 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString s; DInt64 countD |] ->
-          // The Dark version was two `String.length` calls, two comparisons and a `slice`.
           (DString(String.dropFirstEgcs s countD))
         | _ -> incorrectArgs ())
       previewable = Pure
@@ -357,8 +356,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString subject; DString prefix |] ->
-          // Exactly what the Dark version computed -- `slice subject 0 (length prefix) == prefix` --
-          // but without the three package calls, and without walking either string to its end.
+          // `slice subject 0 (length prefix) == prefix`, without walking either string to its end.
           (DBool(String.startsWithEgcs subject prefix))
         | _ -> incorrectArgs ())
       previewable = Pure

@@ -13,8 +13,8 @@ open Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
 
-/// Which build produced the numbers below. Reported with them because Debug and Release are up to
-/// 3x apart and AOT and R2R about 5x on startup, so the same workload has three right answers.
+/// Which build produced the numbers below. Reported with them because Debug, Release, AOT and R2R
+/// give the same workload different numbers.
 /// `IsDynamicCodeSupported` is false under NativeAOT and true wherever a JIT exists.
 let private buildMode : string =
 #if DEBUG

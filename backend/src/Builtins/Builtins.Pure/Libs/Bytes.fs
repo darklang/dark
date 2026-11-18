@@ -134,8 +134,8 @@ let fns () : List<BuiltInFn> =
 
 
     // Native because record decoders call it once per byte of every field, and
-    // the Dark version, a one-byte `slice`, allocated more than reading the
-    // whole buffer as a list.
+    // a one-byte `slice` in Dark allocates more than reading the whole buffer
+    // as a list.
     { name = fn "bytesGetAt" 0
       typeParams = []
       parameters = [ Param.make "bytes" TBytes ""; Param.make "index" TInt64 "" ]

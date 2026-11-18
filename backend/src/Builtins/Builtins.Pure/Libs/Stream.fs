@@ -32,11 +32,8 @@ let varA = TVariable "a"
 
 
 /// Resolve the declared element TypeReference to a concrete
-/// ValueType using the program's type table. This handles primitives
-/// as well as custom types — the earlier sync-only version fell back
-/// to Unknown for anything non-leaf, which broke `streamToList<T>`
-/// when T was a package type (empty-result case got KTUnit tagged,
-/// diverging from the return annotation).
+/// ValueType using the program's type table, so a package `T` in
+/// `streamToList<T>` resolves too, even for an empty result.
 let private resolveElemVT (state : ExecutionState) (t : TypeReference) : ValueType =
   LibExecution.RuntimeTypes.TypeReference.toVT
     state.types
@@ -45,8 +42,7 @@ let private resolveElemVT (state : ExecutionState) (t : TypeReference) : ValueTy
 
 
 /// Fallback-aware KnownType helper for callsites that need a
-/// KnownType directly (Dval.list, Dval.option). Unknown -> KTUnit,
-/// matching prior behaviour.
+/// KnownType directly (Dval.list, Dval.option). Unknown -> KTUnit.
 let private resolveElemKT (state : ExecutionState) (t : TypeReference) : KnownType =
   let vt = resolveElemVT state t
   match vt with
@@ -189,7 +185,7 @@ let fns () : List<BuiltInFn> =
         (function
         | state, vm, [ elemType ], [| s |] ->
           // Filled in place: threading a list through the continuation instead costs a
-          // closure per element and a reversal, 15% more allocation for a drain.
+          // closure per element and a reversal.
           let collected = ResizeArray<Dval>()
           // Prefer the first drained element's actual ValueType: it captures the lambda's
           // real return type even when the wrapper couldn't tell us via a `'b` bind. Fall

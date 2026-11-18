@@ -12,10 +12,9 @@
 ///
 /// .NET has only the simple mapping, so the multi-character rules are carried here.
 ///
-/// This is F# rather than Dark for speed. A Dark `toUppercase` with this table as a
-/// package `val` measured 125 to 263x slower (a 1 MB string: 91 ms here, 11.4 s in
-/// Dark), mostly from copying the whole table on every read of the `val` and from the
-/// cost of each call. Revisit once the VM is within about 10x of this.
+/// This is F# rather than Dark for speed: in Dark, every read of the table as a package
+/// `val` copies it whole, and each call costs more. Revisit once the VM is within about
+/// 10x of this.
 module Builtins.Pure.CaseMapping
 
 open System.Text

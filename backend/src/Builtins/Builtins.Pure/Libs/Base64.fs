@@ -36,7 +36,7 @@ let fns () : List<BuiltInFn> =
             else if length % 4 = 3 then $"{initial}="
             else initial
 
-          // .NET 11 refuses a last char whose unused low bits aren't zero; older ones dropped them
+          // .NET refuses a last char whose unused low bits aren't zero
           let clearUnusedBits (str : string) : string =
             let alphabet =
               "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"

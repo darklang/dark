@@ -81,11 +81,8 @@ let varB = TVariable "b"
 let varC = TVariable "c"
 
 
-/// Sort (key, value) pairs the way the Dark `sortBy` did.
-///
-/// It was `map (fun x -> (fn x, x)) |> sort |> map Tuple2.second`, so it sorted the *tuple*, and
-/// comparing a tuple compares its fields in order. The tie-break on the value is therefore not
-/// incidental -- dropping it would silently reorder elements with equal keys.
+/// Sort (key, value) pairs as `(key, value)` tuples sort: by key, then by value. The tie-break on
+/// the value is part of `sortBy`'s order -- dropping it would reorder elements with equal keys.
 let private sortedByKey
   (vt : ValueType)
   (keyed : List<struct (Dval * Dval)>)
@@ -138,8 +135,7 @@ let private sortedByKeyLanding
 ///
 /// Same shape as `listFlatten`. Merge the element ValueTypes where they agree and build the list
 /// directly; where they do not, hand it to `DvalCreator.list`, which is the general path and reports
-/// the mismatch properly. Accumulating with `prepend`, which is what the Dark version did, merged the
-/// same types one element at a time.
+/// the mismatch properly.
 let private mappedList (vm : VMState) (items : DvalList) : Dval =
   let merged =
     items
@@ -161,9 +157,7 @@ let private mappedList (vm : VMState) (items : DvalList) : Dval =
 
 /// A `filterMap` function that returned something other than an `Option`.
 ///
-/// The Dark version matched `Some`/`None` and would fail with "No matching case found" on anything
-/// else; this reports the type instead, which is strictly more useful and is what the other
-/// wrong-return-type helpers here do.
+/// Reports the type it got, as the other wrong-return-type helpers here do.
 let private notAnOption (actual : Dval) =
   RuntimeError.UncaughtException(
     "filterMap's function must return an Option",
@@ -173,8 +167,7 @@ let private notAnOption (actual : Dval) =
 
 /// A `filter` predicate returned something other than a bool.
 ///
-/// The same error the Dark version raised, since its body was `if f elem then ... else ...` and this
-/// is what the interpreter says about an `if` on a non-bool.
+/// The error an `if` on a non-bool raises.
 let private predicateNotBool (actual : Dval) =
   RuntimeError.Bool(
     RuntimeError.Bools.ConditionRequiresBool(Dval.toValueType actual, actual)
@@ -306,8 +299,7 @@ let fns () : List<BuiltInFn> =
             (DList(VT.unknown, DvalList.empty))
           else
             // The element ValueType is merged from what was actually taken, not inherited from the
-            // source list. That is what the Dark version did -- it rebuilt the prefix with `prepend` --
-            // and a prefix can be narrower than the whole.
+            // source list: a prefix can be narrower than the whole.
             let taken = int (min count (int64 (DvalList.length items)))
             (mappedList vm (DvalList.take taken items))
         | _ -> incorrectArgs ())
@@ -419,16 +411,13 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, [], [| DList(vt, items); DApplicable app |] ->
-          // Was two interpreted passes and a tuple per element around a native sort: one `map` to
-          // build `(key, value)`, the sort, then a second `map` of `Tuple2.second`, which is why
-          // `Tuple2.second` showed up in profiles of code that never mentions it. Only the key
-          // function needs interpreting.
+          // Only the key function is interpreted.
           //
           // The result keeps the source list's ValueType: sorting is a permutation, so the elements
           // are exactly the ones already merged into it. `listSort` does the same.
           //
           // The keys are spread as `listMap` is, a chunk being `listMap` over its elements; the
-          // sort itself runs here, once every key is in, as it always did.
+          // sort itself runs here, once every key is in.
           Spread.walk
             { new OverList<List<struct (Dval * Dval)>>(state, vm, app, vt, "listMap") with
                 member this.Settle key = this.Value key
@@ -466,10 +455,6 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, vm, [], [| DList(vt, items); DApplicable app |] ->
-          // The Dark version recursed a package call, an Option match and a `prepend` per element on
-          // top of the lambda application, and it is used widely enough for that to show up in a
-          // profile of anything.
-          //
           // Built back to front and reversed once, and spread as `listMap` is.
           Spread.walk
             { new OverList<List<Dval>>(state, vm, app, vt, "listFilterMap") with
@@ -586,7 +571,7 @@ let fns () : List<BuiltInFn> =
           // in flight in the list, which the interpreter holds as a promise.
           //
           // Once the rest looks worth it, it is spread across cores (`LibExecution.Spread`), and
-          // whatever a spread could not finish carries on here exactly as before.
+          // whatever a spread could not finish carries on here.
           Spread.walk
             { new OverList<List<Dval>>(state, vm, app, vt, "listMap") with
                 member _.Step(acc, _, mapped) = Spread.Next(mapped :: acc)
@@ -640,13 +625,12 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, [], [| DInt64 lowest; DInt64 highest |] ->
-          // An empty range keeps an unknown element type, which is what the Dark version did: it
-          // returned the literal `[]`, and only `prepend` ever made it a `List<Int64>`.
+          // An empty range keeps an unknown element type, as the literal `[]` does.
           if highest < lowest then
             (DList(VT.unknown, DvalList.empty))
           else
             let span = uint64 (highest - lowest)
-            // Past what an array holds, a range ran out of memory as a cons list too.
+            // Past what an array holds, a range is out of memory however it is built.
             if span >= uint64 System.Array.MaxLength then
               raise (System.OutOfMemoryException())
             (DList(
@@ -706,12 +690,9 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, [], [| DList(_, items); value |] ->
-          // The Dark version of this was `findFirst list (fun e -> e == value)`, which pays a
-          // lambda application per element to run what is only an equality test.
-          //
           // `==` type-checks before comparing, and raises rather than answering false on
-          // incompatible types; so does this, so a heterogeneous list still reports the same
-          // error it always did: at the first element whose type does not merge.
+          // incompatible types; so does this, so a heterogeneous list reports the same error
+          // `==` would: at the first element whose type does not merge.
           match Dval.listContains items value with
           | ValueSome found -> (DBool found)
           | ValueNone ->
@@ -917,8 +898,8 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DList(vt, l); value |] ->
-          // Native because every list built by a fold goes through here, once per element, and the
-          // Dark version had to build a one-element list to append.
+          // Native because every list built by a fold goes through here, once per element, and
+          // Dark would build a one-element list to append.
           match TypeChecker.DvalCreator.tryPrepend vt l value with
           | ValueSome prepended -> prepended
           | ValueNone ->
