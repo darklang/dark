@@ -214,6 +214,20 @@ let private recordFieldType
     | _ -> fun _ -> unknownType
   | _ -> fun _ -> unknownType
 
+/// A record's field names in the order its type declares them, or None when the type is not
+/// known; JSON objects are written in that order, as a reader of the type expects.
+let private recordFieldOrder
+  (types : Types)
+  (typ : TypeReference)
+  : Option<List<string>> =
+  match typ with
+  | TCustomType({ resolved = Ok typeName }, _) ->
+    match Types.find types typeName with
+    | Some({ definition = TypeDeclaration.Record defs }) ->
+      defs |> NEList.toList |> List.map (fun d -> d.name) |> Some
+    | _ -> None
+  | _ -> None
+
 /// Writes <param dv> as JSON, going by its declared type <param typ> where an `Option` is
 /// written. An `Option` writes `None` as `null` and `Some(v)` as `v`, except where `v` itself
 /// can write `null`: see <see cref="writesNull"/>. A `None` record field is left out, or with
@@ -320,21 +334,28 @@ let rec serialize
     | ValueNone ->
       let fieldType = recordFieldType types typ
       // See `DDict` above.
+      let field fieldName dval =
+        let t = declared types (fieldType fieldName) dval
+        match optionOf types t, dval with
+        | Some inner, DEnum(_, _, _, "None", _) when
+          not noneAsNull || writesNull types inner
+          ->
+          ()
+        | Some inner, DEnum(_, _, _, "Some", [ v ]) ->
+          w.WritePropertyName fieldName
+          r inner v
+        | _ ->
+          w.WritePropertyName fieldName
+          r t dval
       w.writeObject (fun () ->
-        fields
-        |> RecordFields.iter (fun fieldName dval ->
-          let t = declared types (fieldType fieldName) dval
-          match optionOf types t, dval with
-          | Some inner, DEnum(_, _, _, "None", _) when
-            not noneAsNull || writesNull types inner
-            ->
-            ()
-          | Some inner, DEnum(_, _, _, "Some", [ v ]) ->
-            w.WritePropertyName fieldName
-            r inner v
-          | _ ->
-            w.WritePropertyName fieldName
-            r t dval))
+        match recordFieldOrder types typ with
+        | Some names when List.length names = RecordFields.count fields ->
+          names
+          |> List.iter (fun name ->
+            match RecordFields.tryFind name fields with
+            | Some dval -> field name dval
+            | None -> raise (CannotSerialize dv))
+        | _ -> fields |> RecordFields.iter field)
 
   // Not supported
   | DApplicable _

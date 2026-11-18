@@ -2135,7 +2135,7 @@ module List =
             Person { Name = "Bob", Age = 27 }
             Person { Name = "Charlie", Age = 99 } ])
         |> Stdlib.Test.equal(
-          """[{"Age":42,"Name":"Alice"},{"Age":27,"Name":"Bob"},{"Age":99,"Name":"Charlie"}]""") ])
+          """[{"Name":"Alice","Age":42},{"Name":"Bob","Age":27},{"Name":"Charlie","Age":99}]""") ])
 
 
   test parse =
@@ -2222,7 +2222,7 @@ module Tuples =
 
         Stdlib.Json.serialize<(List<Int64> * List<Person>)>(
           ([ 1, 2, 3 ], [ Person { Name = "Alice", Age = 42 } ]))
-        |> Stdlib.Test.equal("[[1,2,3],[{\"Age\":42,\"Name\":\"Alice\"}]]")
+        |> Stdlib.Test.equal("[[1,2,3],[{\"Name\":\"Alice\",\"Age\":42}]]")
 
         Stdlib.Json.serialize<
           ((Int64 * String) * (Person * Dict<String, String>))>(
@@ -2232,7 +2232,7 @@ module Tuples =
               Person { Name = "Alice", Age = 42 },
               Stdlib.Dict.singleton("a", "b"))))
         |> Stdlib.Test.equal(
-          "[[1,\"two\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]")
+          "[[1,\"two\"],[{\"Name\":\"Alice\",\"Age\":42},{\"a\":\"b\"}]]")
 
         Stdlib.Json.serialize<
           ((List<(Int64 * String)> * List<UInt8>) *
@@ -2243,11 +2243,11 @@ module Tuples =
               Person { Name = "Alice", Age = 42 },
               Stdlib.Dict.singleton("a", "b"))))
         |> Stdlib.Test.equal(
-          "[[[[1,\"two\"],[3,\"four\"]],[]],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]")
+          "[[[[1,\"two\"],[3,\"four\"]],[]],[{\"Name\":\"Alice\",\"Age\":42},{\"a\":\"b\"}]]")
 
         Stdlib.Json.serialize<(Person * Option<Int64>)>(
           (Person { Name = "Alice", Age = 42 }, Option.Some(1)))
-        |> Stdlib.Test.equal("[{\"Age\":42,\"Name\":\"Alice\"},1]")
+        |> Stdlib.Test.equal("[{\"Name\":\"Alice\",\"Age\":42},1]")
 
         Stdlib.Json.serialize<(Option<Int64> * Result<Int64, String>)>(
           (Option.Some(1), Result.Ok(2)))
@@ -2270,12 +2270,12 @@ module Tuples =
         |> Stdlib.Test.equal(Result.Ok((1, "two", 3)))
 
         Stdlib.Json.parse<(List<Int64> * List<Person>)>(
-          "[[1,2,3],[{\"Age\":42,\"Name\":\"Alice\"}]]")
+          "[[1,2,3],[{\"Name\":\"Alice\",\"Age\":42}]]")
         |> Stdlib.Test.equal(
           Result.Ok(([ 1, 2, 3 ], [ Person { Name = "Alice", Age = 42 } ])))
 
         Stdlib.Json.parse<((Int64 * String) * (Person * Dict<String, String>))>(
-          "[[1,\"two\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]")
+          "[[1,\"two\"],[{\"Name\":\"Alice\",\"Age\":42},{\"a\":\"b\"}]]")
         |> Stdlib.Test.equal(
           Result.Ok(
             (
@@ -2287,7 +2287,7 @@ module Tuples =
         Stdlib.Json.parse<
           ((List<(Int64 * String)> * List<UInt8>) *
            (Person * Dict<String, String>))>(
-          "[[[[1,\"two\"],[3,\"four\"]],[]],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]")
+          "[[[[1,\"two\"],[3,\"four\"]],[]],[{\"Name\":\"Alice\",\"Age\":42},{\"a\":\"b\"}]]")
         |> Stdlib.Test.equal(
           Result.Ok(
             (
@@ -2456,18 +2456,18 @@ module Option =
     Stdlib.Test.all(
       [ Stdlib.Json.serialize<Reading>(
           Reading { host = "a1", cpu = Option.Some(38.5), note = Option.None })
-        |> Stdlib.Test.equal("{\"cpu\":38.5,\"host\":\"a1\"}")
+        |> Stdlib.Test.equal("{\"host\":\"a1\",\"cpu\":38.5}")
 
         Stdlib.Json.serializeWith<Reading>(
           nullFields,
           Reading { host = "a1", cpu = Option.Some(38.5), note = Option.None })
-        |> Stdlib.Test.equal("{\"cpu\":38.5,\"host\":\"a1\",\"note\":null}")
+        |> Stdlib.Test.equal("{\"host\":\"a1\",\"cpu\":38.5,\"note\":null}")
 
         Stdlib.Json.checkedSerializeWith<Reading>(
           nullFields,
           Reading { host = "a1", cpu = Option.None, note = Option.None })
         |> Stdlib.Test.equal(
-          Result.Ok("{\"cpu\":null,\"host\":\"a1\",\"note\":null}"))
+          Result.Ok("{\"host\":\"a1\",\"cpu\":null,\"note\":null}"))
 
         // a field needs no tags: missing is `None`, `null` is `Some(None)`
         Stdlib.Json.serialize<Twice>(Twice { x = Option.None })
@@ -2876,7 +2876,7 @@ module UserDefinedRecords =
   test serialize =
     Stdlib.Test.all(
       [ Stdlib.Json.serialize<Person>(Person { Name = "Bob", Age = 42 })
-        |> Stdlib.Test.equal("""{"Age":42,"Name":"Bob"}""")
+        |> Stdlib.Test.equal("""{"Name":"Bob","Age":42}""")
 
         Stdlib.Json.serialize<People>(
           People
@@ -2885,7 +2885,7 @@ module UserDefinedRecords =
                 [ Person { Name = "George A", Age = 27 }
                   Person { Name = "George B", Age = 42 } ] })
         |> Stdlib.Test.equal(
-          """{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]}""")
+          """{"GroupName":"Two Georges","People":[{"Name":"George A","Age":27},{"Name":"George B","Age":42}]}""")
 
         Stdlib.Json.serialize<Combo<Person, Combo<People, Int64>>>(
           Combo
@@ -2900,7 +2900,7 @@ module UserDefinedRecords =
                               Person { Name = "George B", Age = 42 } ] }
                     e2 = 5 } })
         |> Stdlib.Test.equal(
-          """{"e1":{"Age":42,"Name":"Bob"},"e2":{"e1":{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]},"e2":5}}""")
+          """{"e1":{"Name":"Bob","Age":42},"e2":{"e1":{"GroupName":"Two Georges","People":[{"Name":"George A","Age":27},{"Name":"George B","Age":42}]},"e2":5}}""")
 
         Combo
           { e1 = Person { Name = "Bob", Age = 42 }
@@ -2948,7 +2948,7 @@ module UserDefinedRecords =
         |> Stdlib.Test.equal(42)
 
         Stdlib.Json.parse<People>(
-          """{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]}""")
+          """{"GroupName":"Two Georges","People":[{"Name":"George A","Age":27},{"Name":"George B","Age":42}]}""")
         |> Stdlib.Test.equal(
           Result.Ok(
             People
@@ -2958,7 +2958,7 @@ module UserDefinedRecords =
                     Person { Name = "George B", Age = 42 } ] }))
 
         Stdlib.Json.parse<Combo<Person, Combo<People, Int64>>>(
-          """{"e1":{"Age":42,"Name":"Bob"},"e2":{"e1":{"GroupName":"Two Georges","People":[{"Age":27,"Name":"George A"},{"Age":42,"Name":"George B"}]},"e2":5}}""")
+          """{"e1":{"Name":"Bob","Age":42},"e2":{"e1":{"GroupName":"Two Georges","People":[{"Name":"George A","Age":27},{"Name":"George B","Age":42}]},"e2":5}}""")
         |> Stdlib.Test.equal(
           Result.Ok(
             Combo
@@ -3099,7 +3099,7 @@ module UserDefinedAliases =
       [ Stdlib.Json.serialize<MyInt>(42) |> Stdlib.Test.equal("42")
 
         Stdlib.Json.serialize<MyPerson>(Person { Name = "Bob", Age = 42 })
-        |> Stdlib.Test.equal("""{"Age":42,"Name":"Bob"}""")
+        |> Stdlib.Test.equal("""{"Name":"Bob","Age":42}""")
 
         Stdlib.Json.serialize<MyPrettyLikely>(
           UserDefinedEnums.PrettyLikely.Enh("printer broke", 7))
@@ -3108,7 +3108,7 @@ module UserDefinedAliases =
         // With content-addressed hashing, Person1 and Person2 are structurally
         // identical and share the same Hash, so they're the same type.
         Stdlib.Json.serialize<Person2>(Person1 { Name = "Bob", Age = 42 })
-        |> Stdlib.Test.equal("""{"Age":42,"Name":"Bob"}""")
+        |> Stdlib.Test.equal("""{"Name":"Bob","Age":42}""")
 
         Stdlib.Json.serialize<StringResult<Int64>>(Result.Ok(1))
         |> Stdlib.Test.equal("{\"Ok\":[1]}")
