@@ -107,6 +107,12 @@ test shownFixture =
       Stdlib.Test.all([ Stdlib.Test.pass(), Stdlib.Test.pass() ]) ])
 
 
+test groupedFixture =
+  Stdlib.Test.group(
+    "parsing",
+    Stdlib.Test.all([ Stdlib.Test.pass(), Stdlib.String.length("ab") |> Stdlib.Test.equal(2) ]))
+
+
 let fixtureBody(name: String): Option<LanguageTools.ProgramTypes.Expr> =
   LanguageTools.PackageManager.Test.find(
     SCM.Branch.mainBranchId,
@@ -151,3 +157,35 @@ test failureLines =
         // A test that is not an `all` shows its messages alone.
         lines(Stdlib.Test.Result.Fail([ "a" ])) |> Stdlib.Test.equal([ "a" ]) ])
 
+
+
+test group =
+  Stdlib.Test.all(
+    [ Stdlib.Test.group("parsing", Stdlib.Test.fail("a"))
+      |> is(Stdlib.Test.Result.Fail([ "a" ]))
+
+      fixtureBody("groupedFixture")
+      |> Stdlib.Option.andThen(LanguageTools.PackageManager.Test.testGroup)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("parsing"))
+
+      fixtureBody("shownFixture")
+      |> Stdlib.Option.andThen(LanguageTools.PackageManager.Test.testGroup)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
+
+test groupedFailureLines =
+  match fixtureBody("groupedFixture") with
+  | None -> Stdlib.Test.fail("groupedFixture is not stored")
+  | Some(body) ->
+    let ctx =
+      PrettyPrinter.ProgramTypes.Context.forModule(
+        SCM.Branch.mainBranchId,
+        [ "Darklang", "Stdlib", "Test", "Tests" ])
+
+    // A failing check inside a group still shows its source.
+    LanguageTools.PackageManager.Test.failureLines(
+      ctx,
+      body,
+      Stdlib.Test.Result.FailedChecks([ (2, Stdlib.Test.Result.Fail([ "no" ])) ]))
+    |> Stdlib.Test.equal(
+      [ "2: Stdlib.String.length(\"ab\") |> Stdlib.Test.equal(2)", "   no" ])

@@ -404,15 +404,35 @@ module Test =
     itemLocations(branchId, ProgramTypes.ItemKind.Test, hash)
 
 
-  /// Whether <param name> resolved to `Stdlib.Test.all`.
-  let __isAll(name: ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName>): Bool =
+  /// Whether <param name> resolved to `Stdlib.Test.<param fn>`.
+  let __isTestFn(
+    name: ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName>,
+    fn: String)
+    : Bool =
     match name.resolved with
     | Ok(resolved) ->
       resolved.location
       == Option.Some(
         ProgramTypes.PackageLocation
-          { owner = "Darklang", modules = [ "Stdlib", "Test" ], name = "all" })
+          { owner = "Darklang", modules = [ "Stdlib", "Test" ], name = fn })
     | Error(_) -> false
+
+
+  let __isAll(name: ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName>): Bool =
+    __isTestFn(name, "all")
+
+
+  /// The group and check of <param body> when it is `Stdlib.Test.group("name", check)`.
+  let __group(body: ProgramTypes.Expr): Option<(String * ProgramTypes.Expr)> =
+    match __resultExpr(body) with
+    | EApply(_, EFnName(_, name, _, _), _, [EString(_, [StringText(group)]), check]) when __isTestFn(name, "group") ->
+      Option.Some((group, check))
+    | _ -> Option.None
+
+
+  /// The group the test <param body> puts itself in with `Stdlib.Test.group`, if any.
+  let testGroup(body: ProgramTypes.Expr): Option<String> =
+    __group(body) |> Stdlib.Option.map(fun((group, _)) -> group)
 
 
   /// What <param e> evaluates to, past its `let`s and statements.
@@ -440,7 +460,12 @@ module Test =
     body: ProgramTypes.Expr,
     result: Stdlib.Test.Result)
     : List<String> =
-    __failureLines(ctx, [], Option.Some(body), result)
+    let check =
+      match __group(body) with
+      | Some((_, check)) -> check
+      | None -> body
+
+    __failureLines(ctx, [], Option.Some(check), result)
 
 
   /// <param source> is what <param result> came from, when the code says.

@@ -551,6 +551,51 @@ test notEqualMessage =
         do! discardAll state
       })
 
+/// `Stdlib.Test.group` puts a test in a group: shown, filtered and counted by it.
+let groupedTestsShowTheirGroup =
+  instanceTest "a test in a group shows and filters by it" (fun state ->
+    task {
+      do! start state
+      let file =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-group-{System.Guid.NewGuid():N}.dark"
+        )
+      System.IO.File.WriteAllText(
+        file,
+        """test empty = Stdlib.Test.group("parsing", Stdlib.Test.expect(true, "empty"))
+test spaces = Stdlib.Test.group("parsing", Stdlib.Test.expect(false, "spaces"))
+test plain = Stdlib.Test.expect(true, "plain")
+"""
+      )
+      do! run state [ "module"; "Tests.Grouped"; file ]
+      System.IO.File.Delete file
+      do!
+        showsAll
+          state
+          [ "test"; "run"; "Tests.Grouped" ]
+          [ "PASS Tests.Grouped › parsing › empty"
+            "FAIL Tests.Grouped › parsing › spaces"
+            "PASS Tests.Grouped.plain"
+            "3 tests: 2 passed, 1 failed" ]
+          "a grouped test shows its group"
+      for filter in [ "Tests.Grouped.parsing"; "Tests.Grouped › parsing" ] do
+        do!
+          showsAll
+            state
+            [ "test"; "run"; filter ]
+            [ "PASS Tests.Grouped › parsing › empty"
+              "2 tests: 1 passed, 1 failed" ]
+            $"the filter {filter} picks the group"
+      do!
+        showsAll
+          state
+          [ "test"; "count"; "Tests.Grouped" ]
+          [ "Tests.Grouped: 3 tests"; "parsing                 2 tests" ]
+          "count rolls a group up"
+      do! discardAll state
+    })
+
 let cachedPassesRequireTheSameBuildAndJudge =
   instanceTest "cached passes from another build or judge rerun" (fun state ->
     task {
@@ -2496,6 +2541,7 @@ let tests : List<Test> =
     cachedPassesStayOnTheirBranch
     testsWithoutPurityProofAlwaysRun
     assertionFailureMessagesAlwaysRun
+    groupedTestsShowTheirGroup
     cachedPassesRequireTheSameBuildAndJudge
     testAddAuthorsATest
     testRunUsesOneStartingStore

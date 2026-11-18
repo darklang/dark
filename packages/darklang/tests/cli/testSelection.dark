@@ -4,12 +4,12 @@ module Darklang.Cli.Tests.TestSelection
 
 let everyPath(): List<String> =
   Cli.Packages.Test.liveTests(SCM.Branch.mainBranchId, [], "")
-  |> Stdlib.List.map(Cli.Packages.Test.fullPath)
+  |> Stdlib.List.map(Cli.Packages.Test.groupedPath)
 
 
 let selectedPaths(filters: List<String>): List<String> =
   Cli.Packages.Test.selectedTests(SCM.Branch.mainBranchId, filters)
-  |> Stdlib.List.map(Cli.Packages.Test.fullPath)
+  |> Stdlib.List.map(Cli.Packages.Test.groupedPath)
 
 
 let segments(path: String): List<String> = Stdlib.String.split(path, ".")
@@ -37,6 +37,14 @@ test runSelectsWhatFilteringEveryTestWould =
       |> selectedPaths
       |> Stdlib.Test.equal(expected([ "Darklang.Stdlib.Bool", "Stdlib.Float64" ]))
       [ "Stdlib.Bool", "Bool" ] |> selectedPaths |> Stdlib.Test.equal(expected([ "Stdlib.Bool", "Bool" ]))
+      // A filter can name a group, which the search does not know.
+      [ "Duration.Tests.errors" ]
+      |> selectedPaths
+      |> Stdlib.Test.equal(expected([ "Duration.Tests.errors" ]))
+      [ "Duration.Tests › units" ]
+      |> selectedPaths
+      |> Stdlib.Test.equal(expected([ "Duration.Tests.units" ]))
+      [ "Duration.Tests.errors" ] |> selectedPaths |> Stdlib.List.length |> Stdlib.Test.equal(3)
       [] |> selectedPaths |> Stdlib.Test.equal(expected([])) ])
 
 

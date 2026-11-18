@@ -166,6 +166,10 @@ One test at a time, quoting the body so the shell leaves `|>` alone:
 
   test add Me.Example.Tests.doubles 'Me.Example.double(4) |> Stdlib.Test.equal(8)'
 
+To group tests inside a module, wrap a body in `Stdlib.Test.group("parsing", ...)`;
+`test run` shows it as `Me.Example.Tests › parsing › doubles`, and the filter
+`Tests.parsing` runs the group.
+
 Run all tests with `test run`, or filter by name/module with `test run Example`.
 `search` leaves tests and `Tests` modules out; add `--include-tests`, or `--test`
 for tests only.

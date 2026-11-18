@@ -44,6 +44,32 @@ let fullPath(
   |> Stdlib.String.join(".")
 
 
+/// The test's name with its group, for a filter to match: `Module.group.name`.
+let groupedPath(
+  item: LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>)
+  : String =
+  match LanguageTools.PackageManager.Test.testGroup(item.entity.body) with
+  | Some(group) ->
+    [ [ item.location.owner ], item.location.modules, [ group, item.location.name ] ]
+    |> Stdlib.List.flatten
+    |> Stdlib.String.join(".")
+  | None -> fullPath(item)
+
+
+/// How `test run` names the test: `Module.name`, or `Module › group › name` when
+/// it is in a group.
+let shownName(
+  item: LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>)
+  : String =
+  match LanguageTools.PackageManager.Test.testGroup(item.entity.body) with
+  | Some(group) ->
+    let moduleName =
+      Stdlib.String.join(Stdlib.List.prepend(item.location.modules, item.location.owner), ".")
+
+    $"{moduleName} › {group} › {item.location.name}"
+  | None -> fullPath(item)
+
+
 /// Whether <param want> appears in <param have> as a contiguous run.
 let segmentsIn(have: List<String>, want: List<String>): Bool =
   if Stdlib.List.take(have, Stdlib.List.length(want)) == want then
@@ -55,12 +81,21 @@ let segmentsIn(have: List<String>, want: List<String>): Bool =
 
 
 /// Whether <param filter> selects the test named <param path>: the filter's
-/// dot-separated segments appear whole and in order in the test's full name.
-/// `Stdlib.Float64` selects `Darklang.Stdlib.Float64.Tests.add`, `doubles` selects
-/// a test named `doubles`, and `Float64.T` selects nothing.
+/// segments, split at `.` or `›`, appear whole and in order in the test's full name,
+/// its group included. `Stdlib.Float64` selects `Darklang.Stdlib.Float64.Tests.add`,
+/// `doubles` selects a test named `doubles`, `Tests.parsing` the tests in the group
+/// `parsing`, and `Float64.T` selects nothing.
 let selects(filter: String, path: String): Bool =
-  let want = Stdlib.String.split(filter, ".") |> Stdlib.List.filter(fun seg -> seg != "")
-  segmentsIn(Stdlib.String.split(path, "."), want)
+  segmentsIn(Stdlib.String.split(path, "."), filterSegments(filter))
+
+
+/// <param filter> split at `.` or `›`, as `test run` prints a test in a group.
+let filterSegments(filter: String): List<String> =
+  filter
+  |> Stdlib.String.replaceAll("›", ".")
+  |> Stdlib.String.split(".")
+  |> Stdlib.List.map(Stdlib.String.trim)
+  |> Stdlib.List.filter(fun seg -> seg != "")
 
 
 /// The actual judging function, including its followed dependencies, and the
@@ -436,7 +471,7 @@ let runSelected(
     | Some(outcome) ->
       let finished =
         FinishedTest
-          { name = fullPath(item)
+          { name = shownName(item)
             test = item.entity
             cacheSafe = cacheSafe
             outcome = outcome
@@ -448,14 +483,14 @@ let runSelected(
       runSelected(run, branchId, options, cache, rest, running, finishTest(cache, counts, finished))
     | None ->
       // Progress, not a result: stderr, so the answer on stdout is the PASS/FAIL lines and the verdict.
-      Stdlib.printErrorLine($"Running: {fullPath(item)}")
+      Stdlib.printErrorLine($"Running: {shownName(item)}")
       let handle = Stdlib.Exec.spawn(fun () ->
         let started = Stdlib.DateTime.__monotonicMilliseconds()
         let outcome = runFresh(run, branchId, item)
         // Asked after the run: a test stopped at an `Impure` call ran again in a worker.
         let inProcess = LanguageTools.PackageManager.Test.runsInProcess(item.entity.hash)
         FinishedTest
-          { name = fullPath(item)
+          { name = shownName(item)
             test = item.entity
             cacheSafe = cacheSafe
             outcome = outcome
@@ -537,13 +572,13 @@ let selectedTests(
   LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>> =
   let narrowable =
     Stdlib.Bool.not(Stdlib.List.isEmpty(filters))
-    && Stdlib.List.all(filters, fun f ->
-      (Stdlib.String.split(f, ".") |> Stdlib.List.filter(fun seg -> seg != "") |> Stdlib.List.length) > 1)
+    && Stdlib.List.all(filters, fun f -> Stdlib.List.length(filterSegments(f)) > 1)
 
   let found =
     if narrowable then
       filters
-      |> Stdlib.List.map(fun f -> liveTests(branchId, [], f))
+      |> Stdlib.List.map(fun f -> liveTests(branchId, [], Stdlib.String.join(filterSegments(f), ".")))
+      |> Stdlib.List.prepend(groupedTests(branchId))
       |> Stdlib.List.flatten
       |> Stdlib.List.uniqueBy(fullPath)
     else
@@ -552,8 +587,29 @@ let selectedTests(
   found
   |> Stdlib.List.filter(fun item ->
     Stdlib.List.isEmpty(filters)
-    || Stdlib.List.any(filters, fun f -> selects(f, fullPath(item))))
-  |> Stdlib.List.sortBy(fullPath)
+    || Stdlib.List.any(filters, fun f -> selects(f, groupedPath(item))))
+  |> Stdlib.List.sortBy(groupedPath)
+
+
+/// The tests in the modules of every test that calls `Stdlib.Test.group`: the search
+/// knows names, not groups, so a filter that names a group finds its tests here.
+let groupedTests(
+  branchId: Uuid)
+  : List<
+  LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>> =
+  let group =
+    LanguageTools.ProgramTypes.PackageLocation
+      { owner = "Darklang", modules = [ "Stdlib", "Test" ], name = "group" }
+
+  SCM.Deps.dependentsFor(branchId, [ (group, LanguageTools.ProgramTypes.ItemKind.Fn) ])
+  |> Stdlib.List.filterMap(fun((_, loc, kind)) ->
+    if kind == LanguageTools.ProgramTypes.ItemKind.Test then
+      Option.Some(Stdlib.List.prepend(loc.modules, loc.owner))
+    else
+      Option.None)
+  |> Stdlib.List.unique
+  |> Stdlib.List.map(fun modules -> liveTests(branchId, modules, ""))
+  |> Stdlib.List.flatten
 
 
 /// The full names, as segments, of the tests under the module path <param prefix>.
@@ -569,7 +625,7 @@ let testsUnder(branchId: Uuid, prefix: List<String>): List<List<String>> =
   let depth = Stdlib.List.length(prefix)
   found
   |> Stdlib.List.filterMap(fun item ->
-    let path = Stdlib.String.split(fullPath(item), ".")
+    let path = Stdlib.String.split(groupedPath(item), ".")
     if Stdlib.List.take(path, depth) == prefix then
       Option.Some(path)
     else
@@ -809,7 +865,10 @@ let help(_state: AppState): String =
     "with the same values."
     ""
     "A failing item of a `Stdlib.Test.all([ ... ])` list is shown by its"
-    "position and source. `test count` shows how many tests a module and each"
+    "position and source. `test emptyInput = Stdlib.Test.group(\"parsing\", ...)`"
+    "puts a test in a group: it shows as `Module › parsing › emptyInput`, and"
+    "a filter can name the group, as in `Tests.parsing`."
+    "`test count` shows how many tests a module and each"
     "module under it hold, without running anything. `--for <item>` keeps only the"
     "tests that use that item, directly or through other code."
     ""
