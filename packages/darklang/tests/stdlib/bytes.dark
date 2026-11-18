@@ -50,12 +50,11 @@ let hex(s: String): Bytes =
   Stdlib.Base16.decode(s) |> Stdlib.Result.withDefault(Stdlib.Bytes.empty)
 
 
-let outOfRange(width: Int64, value: Int64, max: Int64): Stdlib.Math.OutOfRange =
-  Stdlib.Math.OutOfRange
-    { what = $"offset for a {Stdlib.display(width)}-byte read"
-      value = value
-      min = 0
-      max = max }
+let outOfRange(width: Int64, value: Int64, max: Int64): Stdlib.Bytes.ReadOutOfRange =
+  Stdlib.Bytes.ReadOutOfRange
+    { offset = value
+      width = width
+      length = max + width }
 
 
 test readUInt8AndInt8 =
@@ -249,6 +248,30 @@ test readOutOfRangeSaysWhatFits =
   |> Stdlib.Test.equal(
     Stdlib.Result.Result.Error(
       "9 is not a valid offset for a 4-byte read (0 to 8)"))
+
+
+test readFromTooShortBufferSaysHowShort =
+  Stdlib.Bytes.readUInt32(hex("44AC"), 0, Stdlib.Bytes.Endianness.LittleEndian)
+  |> Stdlib.Result.mapError(Stdlib.display)
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Error(
+      "a 4-byte read needs at least 4 bytes, but there are only 2"))
+
+
+test readFromOneByteBufferSaysThereIsOnlyOne =
+  Stdlib.Bytes.readUInt16(hex("44"), 0, Stdlib.Bytes.Endianness.LittleEndian)
+  |> Stdlib.Result.mapError(Stdlib.display)
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Error(
+      "a 2-byte read needs at least 2 bytes, but there is only 1"))
+
+
+test getAtOnEmptyBufferSaysItIsEmpty =
+  Stdlib.Bytes.getAt(Stdlib.Bytes.empty, 0)
+  |> Stdlib.Result.mapError(Stdlib.display)
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Error(
+      "a 1-byte read needs at least 1 byte, but the buffer is empty"))
 
 
 test readFromSharedSlice =
