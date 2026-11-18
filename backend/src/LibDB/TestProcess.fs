@@ -237,12 +237,23 @@ module SharedStoreWrites =
       if SQLitePCL.raw.sqlite3_config_log (log, null) <> 0 then
         mark "Could not watch for writes"
 
-let private setConfig (path : string) (settings : List<string * string>) : unit =
+/// Put the test store at <param path> in <param journalMode> and set <param settings> in it.
+///
+/// Nothing here is synced: a test store is thrown away, never recovered after a crash. On a
+/// busy disk the syncs were most of what it cost to start a test on a copy.
+let private setConfig
+  (path : string)
+  (journalMode : string)
+  (settings : List<string * string>)
+  : unit =
   let builder = Microsoft.Data.Sqlite.SqliteConnectionStringBuilder()
   builder.DataSource <- path
   builder.Pooling <- false
   use connection = new Microsoft.Data.Sqlite.SqliteConnection(builder.ToString())
   connection.Open()
+  use pragmas = connection.CreateCommand()
+  pragmas.CommandText <- $"PRAGMA synchronous=OFF; PRAGMA journal_mode={journalMode}"
+  pragmas.ExecuteNonQuery() |> ignore<int>
   for key, value in settings do
     use command = connection.CreateCommand()
     command.CommandText <-
@@ -253,9 +264,10 @@ let private setConfig (path : string) (settings : List<string * string>) : unit 
     |> ignore<Microsoft.Data.Sqlite.SqliteParameter>
     command.ExecuteNonQuery() |> ignore<int>
 
-/// Disable automatic publishing only in the disposable copy.
+/// Disable automatic publishing only in the disposable copy. WAL already, which is what the
+/// worker would switch it to.
 let private prepareStore (path : string) : unit =
-  setConfig path [ "live.autopush", "off" ]
+  setConfig path "WAL" [ "live.autopush", "off" ]
 
 /// Prepare the run's starting store with its branch and autopush settings so
 /// workers can read those settings without writing at startup.
@@ -269,15 +281,10 @@ let createRunSnapshot
   : Result<unit, string> =
   LibDB.Sqlite.Backup.toTestBaseline path
   |> Result.map (fun () ->
-    setConfig path [ "live.autopush", "off"; "current_branch", string branchId ]
-    let builder = Microsoft.Data.Sqlite.SqliteConnectionStringBuilder()
-    builder.DataSource <- path
-    builder.Pooling <- false
-    use connection = new Microsoft.Data.Sqlite.SqliteConnection(builder.ToString())
-    connection.Open()
-    use command = connection.CreateCommand()
-    command.CommandText <- "PRAGMA journal_mode=DELETE"
-    command.ExecuteNonQuery() |> ignore<int>)
+    setConfig
+      path
+      "DELETE"
+      [ "live.autopush", "off"; "current_branch", string branchId ])
 
 
 type Outcome =

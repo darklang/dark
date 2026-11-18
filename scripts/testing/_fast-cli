@@ -50,9 +50,11 @@ make_it() {
   # The real HOME, not a test's throwaway one: dotnet keeps its packages under it.
   local home
   home=$(getent passwd "$(id -un)" | cut -d: -f6)
+  # Not the lock's fd: the MSBuild node dotnet leaves running would hold the lock after it,
+  # and the next --make (run-tests makes it from two suites at once) would wait on that node.
   if ! (cd backend && HOME="$home" dotnet publish src/Cli/Cli.fsproj --configuration Debug \
           --runtime "$RID" --self-contained false -p:PublishReadyToRun=true \
-          --no-dependencies --output "../$out" --verbosity quiet) < /dev/null >&2 \
+          --no-dependencies --output "../$out" --verbosity quiet) < /dev/null >&2 9>&- \
       || [[ ! -x "$out/Cli" ]]; then
     rm -rf "$out"
     echo "_fast-cli: could not make the ReadyToRun CLI" >&2
