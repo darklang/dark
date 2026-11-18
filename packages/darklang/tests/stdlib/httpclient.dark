@@ -366,9 +366,8 @@ test unspecifiedAddressIsRefused =
 // Blocked in the connect callback, after resolution, rather than by the URL
 // validation above. This is the case that actually matters for SSRF.
 //
-// These names are in the container's /etc/hosts (scripts/devcontainer/_setup-hosts).
-// They used to be borrowed third-party domains, localtest.me and c.cx, until c.cx
-// stopped resolving to 0.0.0.0 and started answering for real.
+// These names are in the container's /etc/hosts (scripts/devcontainer/_setup-hosts),
+// not borrowed third-party domains, which can start answering for real.
 //
 // Guard refusals omit details. DNS failures must not satisfy these checks,
 // so missing /etc/hosts entries fail the test.

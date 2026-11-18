@@ -28,8 +28,8 @@ test shallowScopeFollowsTheQuery =
       |> Stdlib.Test.equal(([], "Nope.Nothing.Here")) ])
 
 
-// From the root, `--shallow` used to find nothing for a qualified query, because
-// nothing lives directly at the root.
+// from the root, `--shallow` must still find a qualified query, though nothing lives
+// directly at the root.
 test shallowSearchListsTheNamedModule = Instance.withInstance(fun i ->
   JsonShapes.check(
     i,

@@ -447,7 +447,7 @@ test showFailsWhenTheLogCannotAnswer = Traces.withTraces(fun i ->
 
 
 /// Looking at code must never touch the world, and a SPAWNED process is where that
-/// was easiest to get wrong: a preview records nothing, so a spawned child used to
+/// is easiest to get wrong: a preview records nothing, so a spawned child must not
 /// get the tracer that performs effects for real. A uuid is evidence either way:
 /// served from the log it matches the recording, rolled for real it cannot.
 test showServesASpawnedChildFromTheLog = Traces.withTraces(fun i ->

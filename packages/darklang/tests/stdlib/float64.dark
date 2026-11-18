@@ -386,8 +386,8 @@ test toString =
       |> Stdlib.Test.equal("1.0000000000000002")
 
       // Fixed notation from 1e-4 up to 1e16, scientific outside, no zero
-      // padding, and no `.0` on scientific (it used to print `1e+17.0`, which
-      // Float64.parse refuses). Same layout as the compiler's Float64.toString.
+      // padding, and no `.0` on scientific (`1e+17.0` is something Float64.parse
+      // refuses). Same layout as the compiler's Float64.toString.
       Stdlib.display(0.0001) |> Stdlib.Test.equal("0.0001")
 
       Stdlib.display(0.00001) |> Stdlib.Test.equal("1e-5")

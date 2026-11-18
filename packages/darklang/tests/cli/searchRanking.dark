@@ -1,9 +1,8 @@
 module Darklang.Cli.Tests.SearchRanking
 
 // How `dark search` orders what the store matched. A person types words, not camelCase: `read file`
-// used to rank by "file" alone, so `overwriteFile` came before `readFile` and the Types section,
-// holding `ReadFileParams`, printed before any function. The plain-words cases are the fix; the
-// one-word and dotted cases are the ones that already worked and must not move.
+// must rank on both words, so `readFile` comes before `overwriteFile` and functions print before
+// the Types section. The one-word and dotted cases must not move.
 
 module Rank =
   /// The names in the order search shows them, from a fixed set of candidates, so the answer does
@@ -23,9 +22,8 @@ module Rank =
 
 
   // A fixture, not a reading of the store: these are the (module, name) pairs the ranker is
-  // asked to order. `fromFile` no longer exists; it is kept because the case it carries is "a
-  // name the query spells only partly, in a module whose path does not spell it either", which
-  // is what puts it last. The module must not contain "file" or it scores on the path.
+  // asked to order. `fromFile` is "a name the query spells only partly, in a module whose path
+  // does not spell it either", which is what puts it last. The module must not contain "file" or it scores on the path.
   let fileFns(): List<(String * String)> =
     [ ("Stdlib.Cli.FileSystem", "overwriteFile")
       ("Stdlib.Cli.FileSystem", "readFile")

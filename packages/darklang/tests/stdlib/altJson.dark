@@ -441,9 +441,8 @@ test parseErrors =
       |> Stdlib.Test.equal(parseError(ParseError.NotJson)) ])
 
 
-// Characters outside what JSON requires escaping are written as themselves.
-// Non-BMP ones used to come out as a `\u` surrogate pair; either form parses
-// back to the same string.
+// Characters outside what JSON requires escaping are written as themselves,
+// non-BMP ones too; a `\u` surrogate pair parses back to the same string.
 test nonAsciiIsWrittenAsItself =
   Stdlib.Test.all(
     [ format(Json.String("é中😀")) |> Stdlib.Test.equal("\"é中😀\"")

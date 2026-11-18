@@ -199,7 +199,7 @@ module BigInt =
           Stdlib.Json.parse<BigInt>("1200E-1")
           |> Stdlib.Test.equal(Result.Ok(120z))
 
-          // exact even past 2^53 — guards the precision-loss regression
+          // exact even past 2^53
           Stdlib.Json.parse<BigInt>("9007199254740993.0")
           |> Stdlib.Test.equal(Result.Ok(9007199254740993z)) ])
 
@@ -1637,7 +1637,7 @@ module Float64 =
         Stdlib.Json.serialize<Float64>(1.618033988749895)
         |> Stdlib.Test.equal("1.618033988749895")
 
-        // Needs all seventeen digits; "G16" used to write this as 0.3.
+        // needs all seventeen digits; "G16" would write 0.3
         Stdlib.Json.serialize<Float64>(0.1 + 0.2)
         |> Stdlib.Test.equal("0.30000000000000004")
 

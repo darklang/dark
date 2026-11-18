@@ -99,8 +99,7 @@ test tuplePatterns =
        let transformer = fun(((str1), str2)) -> str1 + str2
        Stdlib.List.map(sing, transformer))
       |> Stdlib.Test.equal([ "12", "34" ])
-      // Nested tuple lambda destructuring regression test.
-      // Keep this coverage in place to catch parser/lowering regressions.
+      // nested tuple destructuring in a lambda
       (let triplets = [ ((1, "one"), true), ((2, "two"), false) ]
 
        let transformer =

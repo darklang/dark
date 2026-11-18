@@ -1,7 +1,6 @@
 module Darklang.Cli.Tests.Telemetry
 
-// `logFilePath` used to be a `val`, evaluated once when the package store was built, so it
-// held the build machine's log dir plus a doubled slash. It is worked out per process now.
+// `logFilePath` must be worked out per process, not baked in when the package store is built.
 test telemetryLogsToTheRunningCLIsLogDir = Instance.withInstance(fun i ->
   Instance.output(i, [ "eval", "Darklang.Cli.Telemetry.logFilePath()" ])
   |> Stdlib.Test.equal($"{i.dir}/logs/telemetry.jsonl"))

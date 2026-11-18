@@ -51,7 +51,7 @@ let evalOutcome(expr: String): Stdlib.Cli.ExecutionOutcome =
   Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", $"{cli} eval {quoted}")
 
 
-// #6024: agents guess `Stdlib.Int64.toString`; the function is `Stdlib.display`, and the error
+// Agents guess `Stdlib.Int64.toString`; the function is `Stdlib.display`, and the error
 // should say so. A name with nothing near it gets no guess.
 test notFoundSuggestsTheEnclosingStdlibName =
   let moved = evalOutcome("Stdlib.Int64.toString(5)")

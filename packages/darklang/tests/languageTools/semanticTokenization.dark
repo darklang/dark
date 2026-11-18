@@ -673,9 +673,7 @@ test tokenizeExpression =
           (TokenType.Keyword, (0, 14), (0, 18))
           (TokenType.Symbol, (0, 18), (0, 19)) ])
 
-      // Record/record-update tokenization regression coverage.
-      // A previous .range-related RTE in this area makes this worth keeping
-      // explicit.
+      // record and record-update tokens must not raise on their ranges
       "MyRecord {fieldOne = 1, fieldTwo = 2} "
       |> tokenize
       |> Stdlib.Test.equal(

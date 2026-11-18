@@ -1,7 +1,4 @@
-// The one-shot colourisers. They used to be `Stdlib.Cli.UI.Color`, a module whose
-// names collided with the palette in `Colors` one letter away (`Color.red` a
-// function, `Colors.red` a code); they live in `Colors` now as `<name>Text`,
-// alongside the `boldText`/`dimText` that were already there.
+// The one-shot colourisers, `Colors.<name>Text`, alongside `boldText`/`dimText`.
 module Darklang.Stdlib.Cli.UI.Colors.Tests
 
 test foregroundColors =

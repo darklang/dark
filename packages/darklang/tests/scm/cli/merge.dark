@@ -111,8 +111,8 @@ test aMergeIntoABranchMakesNoMergeCommit =
         "under one merge commit") ])
 
 
-// #6039, exactly as reported: a caller added on a branch, then main changes what it calls. The merge
-// repoints the caller at main's version, as a rebase would.
+// A caller added on a branch, then main changes what it calls. The merge repoints the caller
+// at main's version, as a rebase would.
 test aCallerAddedOnABranchFollowsWhatMainChangedWhenItMerges =
   scenario(fun dark ->
     [ switch(dark, "main")
