@@ -57,6 +57,91 @@ let waitingLongForTheUpgradeLock =
           CliInstance.stop p
       })
 
+/// Four darks started at once on an empty home. The test holds the setup lock until each one has
+/// said it is waiting for it, so all four have already seen that there is no store; then exactly
+/// one sets it up, and the others find it there once they get the lock.
+let firstRunAtOnceSetsUpOneStore =
+  CliInstance.instanceTest
+    "four darks started at once on an empty home set up one store"
+    (fun i ->
+      task {
+#if DEBUG
+        // Only a published build carries the seed it sets a store up from.
+        skiptest "this CLI carries no seed (a Debug build); run with --published"
+#endif
+        for file in System.IO.Directory.GetFiles i.dir do
+          System.IO.File.Delete file
+        for dir in System.IO.Directory.GetDirectories i.dir do
+          System.IO.Directory.Delete(dir, true)
+        let dbPath = System.IO.Path.Combine(i.dir, "data.db")
+        let setupLock =
+          new System.IO.FileStream(
+            dbPath + ".upgrade-lock",
+            System.IO.FileMode.OpenOrCreate,
+            System.IO.FileAccess.ReadWrite,
+            System.IO.FileShare.None
+          )
+        let procs = [ for _ in 1..4 -> CliInstance.startUndrained i [ "branches" ] ]
+        try
+          let stdouts =
+            procs |> List.map (fun p -> p.StandardOutput.ReadToEndAsync())
+          // Up to and including the line saying it waits, or everything if it never does.
+          let readUntilWaiting
+            (p : System.Diagnostics.Process)
+            : Task<List<string>> =
+            task {
+              let lines = ResizeArray<string>()
+              let mutable reading = true
+              while reading do
+                let! line = p.StandardError.ReadLineAsync()
+                if isNull line then
+                  reading <- false
+                else
+                  lines.Add line
+                  if line.StartsWith "Waiting for another dark" then
+                    reading <- false
+              return List.ofSeq lines
+            }
+          let! before = procs |> List.map readUntilWaiting |> Task.WhenAll
+          let waited =
+            before
+            |> Array.filter (
+              List.exists (fun l -> l.StartsWith "Waiting for another dark")
+            )
+          Expect.equal waited.Length 4 $"all four wait for the lock: {before}"
+          Expect.isFalse
+            (System.IO.File.Exists dbPath)
+            "and none of them made a store before taking it"
+          setupLock.Dispose()
+          let! after =
+            procs
+            |> List.map (fun p -> p.StandardError.ReadToEndAsync())
+            |> Task.WhenAll
+          let! outs = Task.WhenAll stdouts
+          for p in procs do
+            do! p.WaitForExitAsync()
+          let said =
+            Array.map2 (fun b a -> String.concat "\n" b + "\n" + a) before after
+          for (p, err, out) in Array.zip3 (Array.ofList procs) said outs do
+            Expect.equal p.ExitCode 0 $"each one exits 0: {out}\n{err}"
+          Expect.equal
+            (said
+             |> Array.filter (fun e ->
+               e.Contains "Setting up Darklang CLI data directory"))
+              .Length
+            1
+            "one of them sets up the store"
+          Expect.isTrue (System.IO.File.Exists dbPath) "the store is there"
+          Expect.isEmpty
+            (System.IO.Directory.GetFiles(i.dir, "data.db.partial*"))
+            "no half-written store is left behind"
+        finally
+          setupLock.Dispose()
+          for p in procs do
+            CliInstance.stop p
+      })
+
+
 let versionAndStatusAnswer =
   instanceTest "version and install-status describe this install" (fun state ->
     task {
@@ -2252,6 +2337,7 @@ let private observeAndShow =
 let tests : List<Test> =
   [ waitingLongForTheUpgradeLock
     versionAndStatusAnswer
+    firstRunAtOnceSetsUpOneStore
     configRoundTrips
     instanceMovesIntoTheStore
     configRefusesUnknownKeysAndBadValues

@@ -8,6 +8,8 @@ module TerminalRestoreGuard = Builtins.Cli.Libs.Terminal.TerminalRestoreGuard
 module TerminalText = Builtins.Cli.Libs.TerminalText
 module Stdin = Builtins.Cli.Libs.Stdin
 module HostPosix = LibExecution.HostPosix
+module PT = LibExecution.ProgramTypes
+module RT = LibExecution.RuntimeTypes
 
 
 let private red = "\u001b[31m"
@@ -186,6 +188,48 @@ let readExactlyBytesTests =
       } ]
 
 
+/// A key's case is its ConsoleKey name, so every name has to be a case of `Stdin.Key`, or
+/// reading that key builds an enum value the type does not have.
+let keyNamesAreKeyCases =
+  test "every key a console can read is a case of Stdin.Key" {
+    let cases =
+      match
+        LibDB.PackageManager.pt.getType (
+          PT.FQTypeName.package (
+            LibExecution.PackageRefs.Type.Stdlib.Cli.Stdin.key ()
+          )
+        )
+      with
+      | Some t ->
+        match t.declaration.definition with
+        | PT.TypeDeclaration.Enum cases ->
+          cases |> NEList.toList |> List.map (fun c -> c.name) |> Set.ofList
+        | other -> failtest $"Stdin.Key is not an enum: {other}"
+      | None -> failtest "Stdin.Key is not in the package store"
+    let caseOf (key : System.ConsoleKey) =
+      match
+        Stdin.keyReadToDval
+          (System.ConsoleKeyInfo('\000', key, false, false, false))
+          None
+          1
+      with
+      | RT.DRecord(_, _, _, fields) ->
+        match RT.RecordFields.tryFind "key" fields with
+        | Some(RT.DEnum(_, _, _, name, [])) -> name
+        | other -> failtest $"no key case in {other}"
+      | other -> failtest $"not a KeyRead: {other}"
+    let missing =
+      System.Enum.GetValues<System.ConsoleKey>()
+      |> Array.map caseOf
+      |> Array.filter (fun name -> not (Set.contains name cases))
+    Expect.isEmpty missing "every ConsoleKey reads as a Stdin.Key case"
+    Expect.equal
+      (caseOf (enum<System.ConsoleKey> 255))
+      "None"
+      "a key ConsoleKey does not name reads as None"
+  }
+
+
 let tests =
   testList
     "Terminal"
@@ -247,4 +291,5 @@ let tests =
           System.IO.File.Delete path
       }
       terminalTextTests
-      readExactlyBytesTests ]
+      readExactlyBytesTests
+      keyNamesAreKeyCases ]

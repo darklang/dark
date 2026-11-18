@@ -2908,6 +2908,57 @@ Stdlib.Exec.await(h)"""
   }
 
 
+/// A parent that `ps kill` stops mid-slice finishes on its own, after `Kill` has already
+/// looked for its children, so the children it spawned since hear of the stop only from its
+/// end. They were killed from ps as much as it was.
+let private killedParentPassesItsReason =
+  testTask "a parent killed from ps passes that reason to children it spawned after" {
+    Gates.reset ()
+    let state = executionStateFor pmPT false
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! (parent : Scheduler.Process) =
+      spawn
+        s
+        state
+        """let _ = Builtin.testGateBlock(66, 67)
+let h = Stdlib.Exec.spawn(fun () -> Builtin.testGateWait(68))
+let _ = Builtin.testGateBlock(69, 70)
+h.id"""
+    let running = runOnThread s parent
+    let blockedOn (gate : int64) =
+      task {
+        let! first = Task.WhenAny(Gates.wait gate :> Task, running :> Task)
+        if first = (running :> Task) then
+          failtestf "the parent ended before gate %d: %A" gate running.Result
+      }
+    do! blockedOn 66L
+    Expect.isTrue (s.Kill parent.id) "kill found the parent"
+    Expect.isEmpty
+      (s.Snapshot() |> List.filter (fun q -> q.parent = Some parent.id))
+      "no child yet when the kill looked"
+    Gates.release 67L
+    do! blockedOn 69L
+    let child =
+      s.Snapshot()
+      |> List.find (fun q -> q.parent = Some parent.id)
+      |> Option.get
+      |> fun q -> s.Find q.id |> Option.get
+    waitFor "the child parked on its gate" (fun () ->
+      match child.status with
+      | Scheduler.Parked _ -> true
+      | _ -> false)
+    Gates.release 70L
+    let! result = running
+    match result with
+    | Error(RTE.UncaughtException("killed from ps", _), _) -> ()
+    | other -> failtestf "expected the parent killed, got %A" other
+    let! childResult = s.Await child
+    match childResult with
+    | Error(RTE.UncaughtException("killed from ps", _), _) -> ()
+    | other -> failtestf "expected the child killed from ps, got %A" other
+  }
+
+
 /// A `ps kill` that lands while the process is running is left for its next turn. A slice that
 /// then ends in a wait has to give it that turn, or the kill waits on the wait.
 let private killMidSliceThenPark =
@@ -3444,6 +3495,7 @@ let tests =
         awaitWithinTimesOut
         killCascadesHard
         killMidSliceThenPark
+        killedParentPassesItsReason
         capsEndARunaway
         byteCapEndsARunaway
         cancelCascadesSoftly
