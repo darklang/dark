@@ -48,163 +48,124 @@ let execute(state: AppState, args: List<String>): AppState =
 
         { state with exitCode = 1 }
       else
-        createImplInline(state.packageData.currentLocation, modulePath, inlineDefinition, state)
+        createImplInline(state, modulePath, inlineDefinition)
 
 
-let createImplInline(
-  currentLocation: PackageLocation,
-  modulePath: String,
-  definition: String,
-  state: AppState)
+/// The source to parse for <param definition>: a complete `impl ...` declaration as it is,
+/// otherwise the part after the keyword.
+let implSource(definition: String): String =
+  let trimmedDefinition = Stdlib.String.trim(definition)
+  let code = codeAfterComments(definition)
+  if Stdlib.String.startsWith(code, "impl ") || Stdlib.String.startsWith(code, "impl<") then
+    definition
+  else if Stdlib.String.startsWith(trimmedDefinition, "<") then
+    // `dark impl Acme "<'a: Show> Show for List<'a> = ..."`, the conditional form `docs
+    // traits` documents. Type parameters bind to the `impl` keyword and the parser refuses a
+    // space between them, so there is nowhere for the usual one to go.
+    $"impl{trimmedDefinition}"
+  else
+    $"impl {definition}"
+
+
+let createImplInline(state: AppState, modulePath: String, definition: String): AppState =
+  let hint =
+    [ Stdlib.Cli.UI.Colors.error("Expected exactly one impl declaration")
+      ""
+      "Example:"
+      "  dark impl Me.Demo 'Display for Point = let display(p: Point): String = Stdlib.display(p.x)'"
+      "" ]
+
+  // a synthetic item below the module, so the module path follows the same rules as `fn`,
+  // `type` and `module`. `.` means here.
+  let locationStr = if modulePath == "." then "__impl__" else modulePath + ".__impl__"
+  authorInline(
+    state,
+    locationStr,
+    (fun _ -> implSource(definition)),
+    hint,
+    fun(baseLocation, declaration) ->
+      match declaration with
+      | Impl(implDecl) -> Option.Some(saveImpl(state, baseLocation, implDecl))
+      | _ -> Option.None)
+
+
+let saveImpl(
+  state: AppState,
+  baseLocation: LanguageTools.ProgramTypes.PackageLocation,
+  implDecl: LanguageTools.WrittenTypes.ImplDeclaration.ImplDeclaration)
   : AppState =
-  // Resolve a synthetic item path below the requested module, so the module
-  // path follows the same rules as `fn`, `type` and `module`. `.` means here.
-  let locationInput = if modulePath == "." then "__impl__" else modulePath + ".__impl__"
-  match Location.parseRelativeTo(currentLocation, locationInput) with
-  | Ok(baseLocation) ->
-    let trimmedDefinition = Stdlib.String.trim(definition)
-    let fullSource =
-      let code = codeAfterComments(definition)
-      if Stdlib.String.startsWith(code, "impl ") || Stdlib.String.startsWith(code, "impl<") then
-        definition
-      else if Stdlib.String.startsWith(trimmedDefinition, "<") then
-        // `dark impl Acme "<'a: Show> Show for List<'a> = ..."`, the conditional form `docs
-        // traits` documents. Type parameters bind to the `impl` keyword and the parser refuses a
-        // space between them, so there is nowhere for the usual one to go.
-        $"impl{trimmedDefinition}"
-      else
-        $"impl {definition}"
+  // The item's own location: the member path's last segment is the trait.
+  let memberPath =
+    LanguageTools.WrittenTypesToProgramTypes.ImplDeclaration.memberPath(
+      baseLocation.modules,
+      implDecl)
 
-    let (tree, diagnostics) =
-      LanguageTools.Parser.Parse.parse(LanguageTools.Parser.FileKind.Package, fullSource)
+  let location =
+    match Stdlib.List.reverse(memberPath) with
+    | [name, ...revModules] ->
+      LanguageTools.ProgramTypes.PackageLocation
+        { owner = baseLocation.owner, modules = Stdlib.List.reverse(revModules), name = name }
+    | [] ->
+      LanguageTools.ProgramTypes.PackageLocation
+        { owner = baseLocation.owner
+          modules = baseLocation.modules
+          name = implDecl.trait_.typ.name }
 
-    match tree with
-    | Some(SourceFile(sourceFile)) ->
-      // The parser may recover a tree after errors; do not save it.
-      let hasParseError = Errors.reportParseErrors(diagnostics) || Errors.reportTrailing(sourceFile)
-      let parsed =
-        if hasParseError then
+  // One name holds ONE item, and an implementation written in a module named for its type
+  // lands on `<module>.<Trait>`, where a trait declared in that module already sits. Binding
+  // over it would unlist the trait, so this refuses and the author moves one of them.
+  match traitTakesTheName(state.currentBranchId, location) with
+  | Some(fullName) ->
+    [ ""
+      Stdlib.Cli.UI.Colors.error(
+        $"A trait is already called {fullName}, so this implementation cannot take that name.")
+
+      ""
+      "An implementation written in this module is named for its trait, which is "
+      + "where the trait itself already is."
+
+      ""
+      Stdlib.Cli.UI.Colors.hint(
+        "  Move either one: write the implementation from the module above, or declare the trait there.")
+
+      Stdlib.Cli.UI.Colors.hint($"  `dark view {fullName}` shows what holds the name now.")
+      "" ]
+    |> Stderr.lines
+
+    failed(state)
+  | None ->
+    saveAuthored(
+      state,
+      location,
+      LanguageTools.ProgramTypes.ItemKind.TraitImpl,
+      "implementation",
+      0,
+      fun ctx ->
+        // Lower from the MODULE the impl is written in; `implWithOps` builds
+        // the member path and lowers the method fns beneath it.
+        let moduleCtx = { ctx with currentModule = baseLocation.modules }
+        let (packageImpl, _fns, ops, unresolvedNames) =
+          LanguageTools.WrittenTypesToProgramTypes.implWithOps(moduleCtx, implDecl)
+
+        // An implementation of a trait that does not exist is not a forward reference
+        // worth waiting on: without the trait there is nothing to implement, and the
+        // generic "will resolve when dependencies are added" sends you looking for a
+        // missing dependency rather than a missing trait. Say which it is, and refuse.
+        let traitName = Stdlib.String.join(packageImpl.trait_.originalName, ".")
+        let traitUnresolved =
+          match packageImpl.trait_.resolved with
+          | Ok(_) -> false
+          | Error(_) -> true
+
+        if traitUnresolved then
+          printErr($"There is no trait called {traitName}.")
+          Stdlib.printErrorLine(
+            Stdlib.Cli.UI.Colors.hint(
+              "  `dark search <name> --trait` finds one; `dark trait` writes one; `docs traits` explains them."))
+
           Option.None
         else
-          match sourceFile.declarations with
-          | [Impl(i)] -> Option.Some(i)
-          | _ -> Option.None
-
-      match parsed with
-      | Some(implDecl) ->
-        // The item's own location: the member path's last segment is the trait.
-        let memberPath =
-          LanguageTools.WrittenTypesToProgramTypes.ImplDeclaration.memberPath(
-            baseLocation.modules,
-            implDecl)
-
-        let location =
-          match Stdlib.List.reverse(memberPath) with
-          | [name, ...revModules] ->
-            LanguageTools.ProgramTypes.PackageLocation
-              { owner = baseLocation.owner, modules = Stdlib.List.reverse(revModules), name = name }
-          | [] ->
-            LanguageTools.ProgramTypes.PackageLocation
-              { owner = baseLocation.owner
-                modules = baseLocation.modules
-                name = implDecl.trait_.typ.name }
-
-        // One name holds ONE item here, and an implementation written in a module named for
-        // its type lands on `<module>.<Trait>`, which is exactly where a trait DECLARED in
-        // that module already sits. Binding over it unlists the trait, and the trait then
-        // cannot be reached by name at all: `dark view <that name>` answers with the
-        // implementation, and resolving the trait for any other type fails.
-        //
-        // That used to be dodged by naming the implementation `<module>.<Type>.<Trait>`
-        // unconditionally, so it never collided. The cost was a name nobody wants to read or
-        // type, and `dark constraints` prints these. A real name conflict told to the author
-        // beats a verbose name that silently avoids it, so this refuses instead. The author
-        // moves either one; both are one command.
-        let traitAlreadyHere =
-          Stdlib.Option.isSome(traitTakesTheName(state.currentBranchId, location))
-
-        if traitAlreadyHere then
-          let fullName =
-            Stdlib.String.join(
-              Stdlib.List.append(
-                Stdlib.List.prepend(location.modules, location.owner),
-                location.name),
-              ".")
-
-          [ ""
-            Stdlib.Cli.UI.Colors.error(
-              $"A trait is already called {fullName}, so this implementation cannot take that name.")
-
-            ""
-            "An implementation written in this module is named for its trait, which is "
-            + "where the trait itself already is."
-
-            ""
-            Stdlib.Cli.UI.Colors.hint(
-              "  Move either one: write the implementation from the module above, or declare the trait there.")
-
-            Stdlib.Cli.UI.Colors.hint($"  `dark view {fullName}` shows what holds the name now.")
-            "" ]
-          |> Stderr.lines
-
-          failed(state)
-        else
-          saveAuthored(
-            state,
-            location,
-            LanguageTools.ProgramTypes.ItemKind.TraitImpl,
-            "implementation",
-            0,
-            fun ctx ->
-              // Lower from the MODULE the impl is written in; `implWithOps` builds
-              // the member path and lowers the method fns beneath it.
-              let moduleCtx = { ctx with currentModule = baseLocation.modules }
-              let (packageImpl, _fns, ops, unresolvedNames) =
-                LanguageTools.WrittenTypesToProgramTypes.implWithOps(moduleCtx, implDecl)
-
-              // An implementation of a trait that does not exist is not a forward reference
-              // worth waiting on: without the trait there is nothing to implement, and the
-              // generic "will resolve when dependencies are added" sends you looking for a
-              // missing dependency rather than a missing trait. Say which it is, and refuse.
-              let traitName = Stdlib.String.join(packageImpl.trait_.originalName, ".")
-              let traitUnresolved =
-                match packageImpl.trait_.resolved with
-                | Ok(_) -> false
-                | Error(_) -> true
-
-              if traitUnresolved then
-                printErr($"There is no trait called {traitName}.")
-                Stdlib.printErrorLine(
-                  Stdlib.Cli.UI.Colors.hint(
-                    "  `dark search <name> --trait` finds one; `dark trait` writes one; `docs traits` explains them."))
-
-                Option.None
-              else
-                Option.Some((ops, packageImpl.hash, unresolvedNames)))
-      | None ->
-        if hasParseError then
-          { state with exitCode = 1 }
-        else
-          [ Stdlib.Cli.UI.Colors.error("Expected exactly one impl declaration")
-            ""
-            "Example:"
-            "  dark impl Me.Demo 'Display for Point = let display(p: Point): String = Stdlib.display(p.x)'"
-            "" ]
-          |> Stderr.lines
-
-          { state with exitCode = 1 }
-    | None ->
-      [ Stdlib.Cli.UI.Colors.error("Failed to parse the implementation")
-        ""
-        "Example:"
-        "  dark impl Me.Demo 'Display for Point = let display(p: Point): String = Stdlib.display(p.x)'"
-        "" ]
-      |> Stderr.lines
-
-      { state with exitCode = 1 }
-  | Error(msg) ->
-    printErr($"Invalid module: {msg}")
-    { state with exitCode = 1 }
+          Option.Some((ops, packageImpl.hash, unresolvedNames)))
 
 
 let help(_state: AppState): String =
