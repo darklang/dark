@@ -50,14 +50,26 @@ module TerminalRestoreGuard =
       // Cleanup must never replace the failure that caused it.
       ()
 
+  /// Ctrl-C. Not `Console.CancelKeyPress`: subscribing to that switches a terminal to keypad
+  /// mode. Held here for the life of the process, since a collected registration stops listening.
+  let interruptRegistration =
+    if System.OperatingSystem.IsBrowser() then
+      None
+    else
+      Some(
+        System.Runtime.InteropServices.PosixSignalRegistration.Create(
+          System.Runtime.InteropServices.PosixSignal.SIGINT,
+          fun _ -> restoreToTerminal ()
+        )
+      )
+
   do
-    // A browser tab has no process exit and no Ctrl-C; subscribing to CancelKeyPress
+    // A browser tab has no process exit and no Ctrl-C; subscribing to them
     // there throws PlatformNotSupportedException out of this module's initializer.
     if not (System.OperatingSystem.IsBrowser()) then
       System.AppDomain.CurrentDomain.ProcessExit.Add(fun _ -> restoreToTerminal ())
       System.AppDomain.CurrentDomain.UnhandledException.Add(fun _ ->
         restoreToTerminal ())
-      System.Console.CancelKeyPress.Add(fun _ -> restoreToTerminal ())
 
 
 /// Read one terminal dimension, preferring an explicit environment override.

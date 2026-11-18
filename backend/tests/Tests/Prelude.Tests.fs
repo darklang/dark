@@ -323,6 +323,21 @@ let ansiTests =
           (NonBlockingConsole.Ansi.withoutColour $"{esc}[48;2;1;2;3;7mx")
           $"{esc}[7mx"
           "a truecolour background goes whole and reverse video stays"
+      }
+      test "NO_COLOR drops a reset that only ended a colour" {
+        Expect.equal
+          (NonBlockingConsole.Ansi.withoutColour $"{esc}[31mx{esc}[0m y")
+          "x y"
+          "nothing is left for the reset to undo"
+        Expect.equal
+          (NonBlockingConsole.Ansi.withoutColour
+            $"{esc}[1m{esc}[31mx{esc}[0m{esc}[32my{esc}[m")
+          $"{esc}[1mx{esc}[0my"
+          "a reset after bold stays; the next one only ends green"
+        Expect.equal
+          (NonBlockingConsole.Ansi.withoutColour $"x{esc}[0m")
+          $"x{esc}[0m"
+          "a reset with nothing before it may end a style an earlier write set"
       } ]
 
 let assertions =

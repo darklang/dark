@@ -1,0 +1,54 @@
+/// What a one-shot command writes to a terminal: no keypad-mode switch, and under `NO_COLOR` no
+/// reset left behind by a colour that was taken out.
+module Darklang.Cli.Tests.TerminalEscapes
+
+/// Everything a command wrote, run under `script` so its stdout and stderr are a terminal, sized
+/// like a real one.
+let onTerminal(i: Instance.T, env: List<String>, args: List<String>): String =
+  let instanceEnv =
+    Instance.env(i)
+    |> Stdlib.List.map(fun pair ->
+      let (k, v) = pair
+      $"{k}={v}")
+
+  let command =
+    Stdlib.List.flatten(
+      [ [ "/usr/bin/env", "TERM=xterm-256color" ]
+        instanceEnv
+        env
+        [ i.cli ]
+        args ])
+    |> Stdlib.String.join(" ")
+
+  match Stdlib.Cli.Process.runWithTimeout(
+          Instance.commandTimeoutMs,
+          "script",
+          [ "-qec", $"stty cols 100 rows 30; {command}", "/dev/null" ]) with
+  | Ok(out) -> out.stdout
+  | Error(e) -> $"could not run: {e}"
+
+
+test oneShotCommandsLeaveKeypadModeAlone = Instance.withInstance(fun i ->
+  let out = onTerminal(i, [ "CLICOLOR_FORCE=" ], [ "version", "--local" ])
+  Stdlib.Test.all(
+    [ Instance.says(out, "Darklang CLI", "the version is printed")
+      Instance.doesNotSay(out, "\u001b[?1h", "no keypad mode")
+      Instance.doesNotSay(out, "\u001b=", "no keypad mode") ]))
+
+
+/// How many times `needle` appears in `out`.
+let count(out: String, needle: String): Int64 =
+  Stdlib.List.length(Stdlib.String.split(out, needle)) - 1
+
+
+test noColorLeavesNoStrayReset = Instance.withInstance(fun i ->
+  let env = [ "NO_COLOR=1", "CLICOLOR_FORCE=" ]
+  let value = onTerminal(i, env, [ "eval", "1" ])
+  let status = onTerminal(i, env, [ "status" ])
+  let resets = count(status, "\u001b[0m")
+  let styles = count(status, "\u001b[") - resets
+  Stdlib.Test.all(
+    [ Instance.says(value, "1", "the value is printed")
+      Instance.doesNotSay(value, "\u001b", "a plain value has no escape codes")
+      Instance.says(status, "On branch main", "status answers")
+      resets |> Stdlib.Test.equal(styles) ]))
