@@ -64,6 +64,7 @@ let statusText(status: Tracing.Status): String =
   | Done -> "done"
   | Failed -> "failed"
   | Suspended -> "suspended"
+  | Lost -> "lost"
 
 
 /// The trace whose id starts with `prefix`, when exactly one does.

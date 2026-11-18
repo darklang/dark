@@ -127,7 +127,10 @@ module Status =
         |> Stdlib.Test.equal("failed")
 
         Cli.TraceVerbs.statusText(Tracing.Status.Suspended)
-        |> Stdlib.Test.equal("suspended") ])
+        |> Stdlib.Test.equal("suspended")
+
+        Cli.TraceVerbs.statusText(Tracing.Status.Lost)
+        |> Stdlib.Test.equal("lost") ])
 
 
 module ShortId =

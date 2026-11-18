@@ -194,6 +194,8 @@ type Status =
   | Done
   | Failed
   | Suspended
+  /// Was running, but the process running it is gone: killed, or crashed, before it could say.
+  | Lost
 
 module Status =
   let name (s : Status) : string =
@@ -202,6 +204,7 @@ module Status =
     | Done -> "done"
     | Failed -> "failed"
     | Suspended -> "suspended"
+    | Lost -> "lost"
 
   let parse (s : string) : Status =
     match s with
@@ -209,6 +212,7 @@ module Status =
     | "done" -> Done
     | "failed" -> Failed
     | "suspended" -> Suspended
+    | "lost" -> Lost
     | other -> Exception.raiseInternal "unknown run status" [ "status", other ]
 
 type Trace =
@@ -240,6 +244,38 @@ type Trace =
     created : string
     updated : string
   }
+
+
+/// The OS process running a trace: its pid, and when it started, so a pid the OS has since
+/// handed to another process does not count as the run's.
+module Owner =
+  let private startOf (pid : int64) : Option<string> =
+    try
+      if System.OperatingSystem.IsLinux() then
+        // Field 22 of /proc/<pid>/stat, counted from after the `)` that ends the command name,
+        // which may itself hold spaces.
+        let stat = System.IO.File.ReadAllText $"/proc/{pid}/stat"
+        Some(stat.Substring(stat.LastIndexOf ')' + 2).Split(' ')[19])
+      else
+        let p = System.Diagnostics.Process.GetProcessById(int pid)
+        Some(string (p.StartTime.ToUniversalTime().Ticks))
+    with _ ->
+      None
+
+  let private me : Lazy<Option<int64 * string>> =
+    lazy
+      (let pid = int64 System.Environment.ProcessId
+       startOf pid |> Option.map (fun start -> pid, start))
+
+  let current () : Option<int64 * string> = me.Force()
+
+  let alive (pid : int64) (start : string) : bool = startOf pid = Some start
+
+  let params' () : List<string * Microsoft.Data.Sqlite.SqliteParameter> =
+    match current () with
+    | Some(pid, start) ->
+      [ "ownerPid", Sql.int64 pid; "ownerStart", Sql.string start ]
+    | None -> [ "ownerPid", Sql.dbnull; "ownerStart", Sql.dbnull ]
 
 
 /// Fractional seconds, so two rows made within a second still order.
@@ -294,10 +330,10 @@ let private fromTraces =
 let private insertSql =
   "INSERT INTO traces
     (id, root_tlid, handler_desc, timestamp, input_name, input_value, account_id,
-     status, parent_id, parent_seq, pinned, updated)
+     status, parent_id, parent_seq, pinned, updated, owner_pid, owner_start)
    VALUES
     (@id, 0, @desc, @created, @inputName, @input, NULL,
-     @status, @parentId, @parentSeq, 0, @updated)"
+     @status, @parentId, @parentSeq, 0, @updated, @ownerPid, @ownerStart)"
 
 let private insertParams
   (id : System.Guid)
@@ -321,6 +357,7 @@ let private insertParams
      | None -> Sql.dbnull)
     "created", Sql.string created
     "updated", Sql.string updated ]
+  @ Owner.params' ()
 
 /// Create a trace and save its CLI invocation, if any, in the same transaction.
 let create
@@ -340,13 +377,37 @@ let create
   Sql.executeTransactionSync (trace :: Option.toList invocation)
   |> ignore<List<int>>
 
+/// Whoever sets a status owns the run from then on: a resumed run is this process's now.
 let setStatus (id : System.Guid) (status : Status) : unit =
   Sql.executeTransactionSync
-    [ "UPDATE traces SET status = @status, updated = @updated WHERE id = @id",
+    [ "UPDATE traces
+       SET status = @status, updated = @updated, owner_pid = @ownerPid, owner_start = @ownerStart
+       WHERE id = @id",
       [ [ "id", Sql.uuid id
           "status", Sql.string (Status.name status)
-          "updated", Sql.string (now ()) ] ] ]
+          "updated", Sql.string (now ()) ]
+        @ Owner.params' () ] ]
   |> ignore<List<int>>
+
+/// Mark `lost` each running trace whose process is gone. A row with no owner (a served request,
+/// or one written before owners were kept) is left as it is.
+let markLost () : unit =
+  let gone =
+    Sql.query
+      "SELECT id, owner_pid, owner_start FROM traces
+       WHERE status = 'running' AND owner_pid IS NOT NULL AND owner_start IS NOT NULL"
+    |> Sql.executeRows (fun read ->
+      read.string "id", read.int64 "owner_pid", read.string "owner_start")
+    |> List.filter (fun (_, pid, start) -> not (Owner.alive pid start))
+
+  if not (List.isEmpty gone) then
+    Sql.executeTransactionSync
+      [ "UPDATE traces SET status = 'lost', updated = @updated
+         WHERE id = @id AND status = 'running'",
+        gone
+        |> List.map (fun (id, _, _) ->
+          [ "id", Sql.string id; "updated", Sql.string (now ()) ]) ]
+    |> ignore<List<int>>
 
 /// Read CLI input without decoding the trace's result or display value.
 /// Corrupt values there must not block a rerun.

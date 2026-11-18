@@ -18,6 +18,8 @@ type Status =
   | Failed
   /// Stopped by Ctrl-C, or a fork nobody has resumed yet. `resume` takes it from here.
   | Suspended
+  /// Was running when its process went away (killed, or crashed), so it never finished.
+  | Lost
 
 
 /// Script options preserved for replay. Permissions are checked on each run.

@@ -789,7 +789,7 @@ run with `--no-trace`.
 
 One row (`LibDB.Traces`, the `traces` table): what was run (`eval`,
 `run <file>`, `GET /path`), its input, its status (`running`, `done`,
-`failed`, `suspended`), whether it is pinned, and, for a fork, the trace and the
+`failed`, `suspended`, or `lost` for a run whose process died while it ran), whether it is pinned, and, for a fork, the trace and the
 position it branched from. Its calls are `trace_fn_calls` under the same id.
 `dark traces` lists them; `traces inspect|show|resume|fork|pin|rerun|delete`.
 `Darklang.Tracing.Store` is the Dark side. It runs no SQL of its own: every read and
