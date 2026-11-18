@@ -100,3 +100,65 @@ module PermissionsDisplay =
         "  Effects: none"
         "  Permissions needed: none"
         "  Remembered approval: for an older version (abcdef01); `permissions update Acme.Client.fetch` reviews this one" ])
+
+
+/// What a denied `eval` or `run` prints: the denial and its remedy, exactly, with no
+/// internal call stack. The path is worked out at runtime, so the denial comes from
+/// inside the call rather than from the check before the run.
+module Denials =
+  /// Exit code and both streams, without colors. Line by line, since `stripSgr` also
+  /// drops newlines.
+  let deny(i: Instance.T, args: List<String>): (Int64 * String) =
+    let (code, out) = Instance.ran(i, args)
+    let lines =
+      Stdlib.String.split(out, "\n")
+      |> Stdlib.List.map(fun line -> Stdlib.Cli.Tui.Text.stripSgr(line))
+    (code, Stdlib.String.trim(Stdlib.String.join(lines, "\n")))
+
+
+  /// A `run` of a script holding `source`.
+  let runScript(i: Instance.T, source: String): (Int64 * String) =
+    let path = $"{Instance.home(i)}/denied.dark"
+    let _ = Stdlib.Cli.File.writeText(path, source)
+    deny(i, [ "run", path ])
+
+
+  val readAtRuntime = "Stdlib.Cli.File.readText(Stdlib.String.reverse(\"txt.terces/deined/\"))"
+
+
+  val packageRemedy =
+    "permission denied:\n  reading `/denied/secret.txt` is not allowed.\n\n`Tests.Denied.readAt` has no remembered approval. Remember this access:\n  dark permissions approve Tests.Denied.readAt file read '/denied/secret.txt'\n\nFor one run:\n  dark run --allow 'file read '\\''/denied/secret.txt'\\''' …"
+
+
+  val instanceRemedy =
+    "permission denied by instance policy:\n  reading `/denied/secret.txt` is not allowed.\n\nTo allow:\n  dark permissions allow file read '/denied/secret.txt'\n\nFor everything in its folder:\n  dark permissions allow file read '/denied'\n\nPreview a policy for working in that folder:\n  dark permissions profile read-only '/denied'\n  This replaces the whole instance policy; add --yes to apply it.\n\nAgents:\n  Submit the exact allow command through your runner's approval flow.\n  The current approval mode applies.\n  After it succeeds, retry only if earlier side effects will not be repeated."
+
+
+  // A package fn's denial names the fn and the command that approves it, and leaves
+  // the runner hint to instance denials.
+  test packageFnDenialNamesTheFnAndItsApproval = Instance.withInstance(fun i ->
+    let source = $"{Instance.home(i)}/denied-module.dark"
+    let _ =
+      Stdlib.Cli.File.writeText(
+        source,
+        "let readAt(path: String): String =\n  match Stdlib.Cli.File.readText(path) with\n  | Ok(t) -> t\n  | Error(e) -> e.message\n")
+
+    let (saved, _) = Instance.ran(i, [ "module", "Tests.Denied", source ])
+    let call = "Tests.Denied.readAt(Stdlib.String.reverse(\"txt.terces/deined/\"))"
+    Stdlib.Test.all(
+      [ saved |> Stdlib.Test.equal(0)
+        deny(i, [ "eval", call ])
+        |> Stdlib.Test.equal((1, "Error: " + packageRemedy))
+        runScript(i, $"Stdlib.printLine({call})")
+        |> Stdlib.Test.equal((1, "Script error: " + packageRemedy)) ]))
+
+
+  // An instance-policy denial gives the exact allow command and tells agents to submit
+  // it through their runner's approval.
+  test instanceDenialGivesTheAllowCommandAndRunnerHint = Instance.withInstance(fun i ->
+    Stdlib.Test.all(
+      [ deny(i, [ "eval", readAtRuntime ])
+        |> Stdlib.Test.equal((1, "Error: " + instanceRemedy))
+        runScript(i, $"let _ = {readAtRuntime}\n()")
+        |> Stdlib.Test.equal((1, "Script error: " + instanceRemedy)) ]))
+

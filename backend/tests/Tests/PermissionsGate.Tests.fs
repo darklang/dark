@@ -732,6 +732,87 @@ let rebuiltStateKeepsRunGrants =
     expectDenied [ "clock" ] without
   }
 
+let packageValueFnsKeepTheReadersAccess =
+  testTask "a package value's nested fns keep the reader's access" {
+    let exeState = executionStateFor TestValues.pm false
+    let clock =
+      RT.DApplicable(
+        RT.AppNamedFn
+          { name = RT.FQFnName.fqBuiltin "syscallGettimeofday" 0
+            typeSymbolTable = RT.TST.empty
+            typeArgs = []
+            approvalName = None
+            access = Some(P.Access.start P.Policy.allowAll)
+            argsSoFar = []
+            boundImpls = [] }
+      )
+    let recordName = RT.FQTypeName.fqPackage "valueHoldingAFn"
+    let bodies =
+      [ RT.DRecord(recordName, recordName, [], RT.RecordFields.ofList [ "f", clock ])
+        RT.DDict(
+          RT.ValueType.Known RT.KTString,
+          RT.ValueType.Unknown,
+          RT.DictMap.ofList [ RT.DString "f", clock ]
+        ) ]
+    for body in bodies do
+      let hash = RT.Hash "valueHoldingAFn"
+      let reader =
+        { denyAll exeState with
+            values =
+              { exeState.values with
+                  package =
+                    fun h ->
+                      if h = hash then
+                        Some(LibExecution.Dval.packageValue hash body)
+                      else
+                        None } }
+      let! read =
+        LibExecution.Execution.executeExpr
+          reader
+          (ePackageValue "valueHoldingAFn" |> PT2RT.Expr.toRT Map.empty 0 None)
+      let fn =
+        match read with
+        | Ok(RT.DRecord(_, _, _, fields)) -> RT.RecordFields.tryFind "f" fields
+        | Ok(RT.DDict(_, _, entries)) -> RT.DictMap.tryFind (RT.DString "f") entries
+        | _ -> None
+      match fn with
+      | Some(RT.DApplicable(RT.AppNamedFn named)) ->
+        let! actual =
+          LibExecution.Execution.executeApplicable
+            exeState
+            exeState.access
+            (RT.AppNamedFn named)
+            (NEList.singleton RT.DUnit)
+        expectDenied [ "clock" ] actual
+      | _ -> failtest $"expected the value with its fn, got {read}"
+  }
+
+let promptAsksOnlyForAmbientEffects =
+  testTask "under a prompt, an ambient-effect builtin asks and a pure one does not" {
+    let (original : RT.ExecutionState) = executionStateFor TestValues.pm false
+    let mutable prompts = 0
+    let ask _ =
+      prompts <- prompts + 1
+      System.Threading.Tasks.Task.FromResult 1L
+    let! (reviewed : RT.ExecutionState), _ =
+      LibDB.PermissionReview.configure
+        (denyAll original)
+        "Me.prompted"
+        "prompted-version"
+        false
+        []
+        (Some ask)
+    let addition =
+      eApply (eBuiltinFn "int64ToString" 0) [] [ eInt64 3L ]
+      |> PT2RT.Expr.toRT Map.empty 0 None
+    let! sum = LibExecution.Execution.executeExpr reviewed addition
+    Expect.equal sum (Ok(RT.DString "3")) "the pure builtin ran"
+    Expect.equal prompts 0 "a pure builtin does not ask"
+    let! time = LibExecution.Execution.executeExpr reviewed (clockCall ())
+    expectNotDenied time
+    Expect.equal prompts 1 "the clock asks once"
+  }
+
 let tests =
   testList
     "PermissionsGate"
@@ -755,6 +836,8 @@ let tests =
       approvalChangeBetweenRuns
       namesSharingCallDataKeepTheirOwnApproval
       evaluatedNamedFnInContainerCannotWidenReentry
+      packageValueFnsKeepTheReadersAccess
+      promptAsksOnlyForAmbientEffects
       everyPolicyBuiltinRefusesGuestCode
       guestCannotGrantRunAccess
       guestCodeCanCallPolicyReads
