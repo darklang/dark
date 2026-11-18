@@ -2,7 +2,7 @@
 """Perf over releases: measure the ones a history does not have yet, chart all of it, print it.
 
     scripts/perf/track --history H --out-dir D             measure up to --max new releases, chart, print
-    scripts/perf/track --history H --out-dir D --max 200   backfill every release with a linux-x64 binary
+    scripts/perf/track --history H --out-dir D --max 200   backfill every release with a Linux x64 binary
     scripts/perf/track --history H --out-dir D --render-only --no-print
 
 Each release is one `scripts/perf/measure-release <tag>`, whose JSON line is appended to the history
@@ -22,7 +22,7 @@ import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 RELEASES = "https://api.github.com/repos/darklang/dark/releases?per_page=100&page={}"
-RUNTIME = "linux-x64"
+RUNTIMES = ["linux-x64", "linux-musl-x64"]  # newer releases ship only the musl build
 
 # What is charted, in this order, and how. Anything else in the readings is kept in the history
 # and listed in the table, just not drawn.
@@ -58,7 +58,7 @@ def get(url, binary=False):
 
 
 def releases():
-    """Every release with a linux-x64 binary, oldest first."""
+    """Every release with a linux-x64 or linux-musl-x64 binary, oldest first."""
     out, page = [], 1
     while True:
         batch = get(RELEASES.format(page))
@@ -66,7 +66,7 @@ def releases():
             break
         for r in batch:
             assets = {a["name"]: a["browser_download_url"] for a in r["assets"]}
-            gz = next((n for n in assets if n.endswith(f"-{RUNTIME}.gz")), None)
+            gz = next((n for rt in RUNTIMES for n in assets if n.endswith(f"-{rt}.gz")), None)
             sums = next((n for n in assets if n.endswith("-sha256sums.txt")), None)
             if gz and not r.get("draft"):
                 out.append({"tag": r["tag_name"], "publishedAt": r["published_at"],

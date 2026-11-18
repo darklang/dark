@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Every perf number for one release binary, as one JSON line on stdout.
 
-    scripts/perf/measure-release v0.0.110           download that release's linux-x64 binary
+    scripts/perf/measure-release v0.0.110           download that release's linux-x64 (or linux-musl-x64) binary
     scripts/perf/measure-release path/to/darklang   a binary you already have
     scripts/perf/measure-release v0.0.110 --log run.log
 
@@ -49,7 +49,7 @@ import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 RELEASE = "https://api.github.com/repos/darklang/dark/releases/tags/{}"
-RUNTIME = "linux-x64"
+RUNTIMES = ["linux-x64", "linux-musl-x64"]  # newer releases ship only the musl build
 CACHE = os.path.expanduser("~/.cache/darklang-perf")
 
 
@@ -63,11 +63,11 @@ def get(url, binary=False):
 def release_info(tag):
     r = get(RELEASE.format(tag))
     assets = {a["name"]: a["browser_download_url"] for a in r["assets"]}
-    gz = next((n for n in assets if n.endswith(f"-{RUNTIME}.gz")), None)
+    gz, runtime = next(((n, rt) for rt in RUNTIMES for n in assets if n.endswith(f"-{rt}.gz")), (None, None))
     if not gz:
-        raise RuntimeError(f"{tag} has no {RUNTIME} binary")
+        raise RuntimeError(f"{tag} has no {' or '.join(RUNTIMES)} binary")
     sums = next((n for n in assets if n.endswith("-sha256sums.txt")), None)
-    return {"tag": tag, "publishedAt": r["published_at"], "commit": gz.split("-")[2],
+    return {"tag": tag, "publishedAt": r["published_at"], "commit": gz.split("-")[2], "runtime": runtime,
             "gz": gz, "gzUrl": assets[gz], "sumsUrl": assets.get(sums)}
 
 
@@ -167,7 +167,8 @@ def main():
             ref = args.workloads_from or "current"
         else:
             rel = release_info(args.release)
-            row.update(tag=rel["tag"], publishedAt=rel["publishedAt"], commit=rel["commit"])
+            row.update(tag=rel["tag"], publishedAt=rel["publishedAt"], commit=rel["commit"],
+                       runtime=rel["runtime"])
             exe = fetch(rel)
             ref = args.workloads_from or rel["tag"]
         row["workloadsFrom"] = ref
