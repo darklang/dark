@@ -6,10 +6,6 @@ let execute(request: Bytes, access: Bytes): (Bytes * Int64) =
   Builtin.pmTestWorkerExecute(request, access)
 
 
-let read(path: String): Bytes =
-  Builtin.unwrap(Stdlib.Cli.FileSystem.readFile(path))
-
-
 let main(args: List<String>): Int64 =
   match args with
   | [requestPath, resultPath] ->
@@ -34,11 +30,20 @@ let main(args: List<String>): Int64 =
         else
           branch
 
-      let access = read(Stdlib.Cli.Path.join([ dir, "access.bin" ]))
-      let (result, code) = execute(read(requestPath), access)
-      match Stdlib.Cli.FileSystem.overwriteFile(resultPath, result) with
-      | Ok(()) -> code
-      | Error(error) ->
+      let access = Stdlib.Cli.FileSystem.readFile(Stdlib.Cli.Path.join([ dir, "access.bin" ]))
+      let request = Stdlib.Cli.FileSystem.readFile(requestPath)
+      match access, request with
+      | Ok(access), Ok(request) ->
+        let (result, code) = execute(request, access)
+        match Stdlib.Cli.FileSystem.overwriteFile(resultPath, result) with
+        | Ok(()) -> code
+        | Error(error) ->
+          Stdlib.printLine(Stdlib.Cli.FileSystem.FileError.toString(error))
+          1
+      | Error(error), _ ->
+        Stdlib.printLine(Stdlib.Cli.FileSystem.FileError.toString(error))
+        1
+      | _, Error(error) ->
         Stdlib.printLine(Stdlib.Cli.FileSystem.FileError.toString(error))
         1
   | _ ->

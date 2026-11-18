@@ -6,37 +6,41 @@ let hasFlag(args: List<String>, longFlag: String, shortFlag: String): Bool =
 
 
 let execute(state: AppState, args: List<String>): AppState =
-  let host = Stdlib.Cli.Host.getRuntimeHost() |> Builtin.unwrap
-  let confirm = Confirm.assumeIf(hasFlag(args, "--yes", "-y"))
-  match System.installedBinaryPath(host) with
+  match Stdlib.Cli.Host.getRuntimeHost() with
   | Error(e) ->
-    Stdlib.printErrorLine(View.formatError(e))
+    Stdlib.printErrorLine(e)
     failed(state)
-  | Ok(target) ->
-    if System.isRunningInstalled(target) then
-      Stdlib.printLine(View.formatSuccess($"Already installed at {target}"))
-      state
-    else
-      let go =
-        if System.isInstalled(target) then
-          Prompt.confirmExplicit(
-            confirm,
-            $"A dark is already installed at {target}. Replace it with this one? (y/n): ")
-        else
-          true
-
-      if go then
-        match System.installFromCurrentBinary(host) with
-        | Ok(message) ->
-          Stdlib.printLine(View.formatSuccess(message))
-          state
-        | Error(e) ->
-          Stdlib.printErrorLine(View.formatError(e))
-          { state with exitCode = 1 }
+  | Ok(host) ->
+    let confirm = Confirm.assumeIf(hasFlag(args, "--yes", "-y"))
+    match System.installedBinaryPath(host) with
+    | Error(e) ->
+      Stdlib.printErrorLine(View.formatError(e))
+      failed(state)
+    | Ok(target) ->
+      if System.isRunningInstalled(target) then
+        Stdlib.printLine(View.formatSuccess($"Already installed at {target}"))
+        state
       else
-        printErr("Nothing installed.")
-        printHint("  dark install --yes replaces it without asking")
-        failed(state)
+        let go =
+          if System.isInstalled(target) then
+            Prompt.confirmExplicit(
+              confirm,
+              $"A dark is already installed at {target}. Replace it with this one? (y/n): ")
+          else
+            true
+
+        if go then
+          match System.installFromCurrentBinary(host) with
+          | Ok(message) ->
+            Stdlib.printLine(View.formatSuccess(message))
+            state
+          | Error(e) ->
+            Stdlib.printErrorLine(View.formatError(e))
+            { state with exitCode = 1 }
+        else
+          printErr("Nothing installed.")
+          printHint("  dark install --yes replaces it without asking")
+          failed(state)
 
 
 let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
