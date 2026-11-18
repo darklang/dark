@@ -2891,6 +2891,36 @@ Stdlib.Exec.await(h)"""
   }
 
 
+/// A `ps kill` that lands while the process is running is left for its next turn. A slice that
+/// then ends in a wait has to give it that turn, or the kill waits on the wait.
+let private killMidSliceThenPark =
+  testTask "ps kill during a slice that then waits ends the process at once" {
+    Gates.reset ()
+    let state = executionStateFor pmPT false
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! (p : Scheduler.Process) =
+      spawn
+        s
+        state
+        """let _ = Builtin.testGateBlock(71, 72)
+Builtin.testGateWait(73)"""
+    let running = runOnThread s p
+    do! Gates.wait 71L
+    Expect.isTrue (s.Kill p.id) "kill found it"
+    Gates.release 72L
+    let! first = Task.WhenAny(running :> Task, Task.Delay giveUpAfter)
+    let status = p.status
+    Gates.release 73L
+    let! result = running
+    Expect.isTrue
+      (first = (running :> Task))
+      $"it ended without its wait landing; status before the wait landed: {status}"
+    match result with
+    | Error(RTE.UncaughtException("killed from ps", _), _) -> ()
+    | other -> failtest $"expected it killed, got {other}"
+  }
+
+
 let private capsEndARunaway =
   testTask
     "a process over exec.maxInstructions ends with the reason; ps shows what it ran" {
@@ -3395,6 +3425,7 @@ let tests =
         spawnedCountsReachTheSpawner
         awaitWithinTimesOut
         killCascadesHard
+        killMidSliceThenPark
         capsEndARunaway
         byteCapEndsARunaway
         cancelCascadesSoftly

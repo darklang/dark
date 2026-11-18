@@ -139,6 +139,23 @@ let fns () : List<BuiltInFn> =
       callEffects = Set.empty
       deprecated = NotDeprecated }
 
+    { name = fn "testGateBlock" 0
+      typeParams = []
+      parameters = [ Param.make "entered" TInt64 ""; Param.make "gate" TInt64 "" ]
+      returnType = TUnit
+      description =
+        "Releases `entered`, then blocks its thread until the test releases `gate`: one instruction, so nothing can stop the process inside it."
+      fn =
+        (function
+        | _, _, _, [| DInt64 entered; DInt64 n |] ->
+          Gates.release entered
+          (Gates.wait n).Wait()
+          DUnit
+        | _ -> incorrectArgs ())
+      previewable = Impure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
     /// A read that has to wait: `PackageRead` is an ambient read effect, and the gate is what it
     /// waits on. The interpreter hands it back as a promise, and the test decides when it lands.
     { name = fn "testRead" 0
