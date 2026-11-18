@@ -775,11 +775,15 @@ let contextFor(
   Signatures.rootContext(branchId, modulePath)
 
 
-// Renders one result section (types/values/fns): header, the ranked hits capped
-// (one line each via `renderItem`), and an overflow footer. Nothing is printed
-// for an empty section. `renderItem` does the per-entity formatting at the call
-// site, so this stays generic over the entity type.
+/// Controls how much context appears around text search results.
+type DisplayMode =
+  | Detailed
+  | Brief
+
+
+/// Print the top <param cap> results in one search section.
 let renderSection(
+  mode: DisplayMode,
   header: String,
   cap: Int64,
   items: List<LanguageTools.ProgramTypes.LocatedItem<'a>>,
@@ -788,11 +792,13 @@ let renderSection(
   if Stdlib.List.isEmpty(items) then
     ()
   else
-    Stdlib.printLine(Display.getSectionHeader(header))
+    if mode == DisplayMode.Detailed then
+      Stdlib.printLine(Display.getSectionHeader(header))
     let shown = Stdlib.List.take(items, cap)
     shown |> Stdlib.List.iter(fun item -> Stdlib.printLine(renderItem(item)))
-    overflowNote(Stdlib.List.length(items), Stdlib.List.length(shown))
-    Stdlib.printLine("")
+    if mode == DisplayMode.Detailed then
+      overflowNote(Stdlib.List.length(items), Stdlib.List.length(shown))
+      Stdlib.printLine("")
 
 
 type ParsedArgs =
@@ -807,6 +813,7 @@ type ParsedArgs =
     internal: Query.Internal
     includeTests: Bool
     asJson: Bool
+    mode: DisplayMode
     parseErrors: List<FlagParser.ParseError> }
 
 
@@ -823,6 +830,7 @@ val argSpec =
           ("--exact", [])
           ("--shallow", [])
           ("--with-docs", [])
+          ("--brief", [])
           ("--include-deprecated", [])
           ("--include-internal", [])
           ("--include-tests", [])
@@ -858,6 +866,7 @@ let parseArgs(args: List<String>): ParsedArgs =
       batch = FlagParser.hasFlag(p, "--batch")
       exactMatch = FlagParser.hasFlag(p, "--exact")
       withDocs = FlagParser.hasFlag(p, "--with-docs")
+      mode = if FlagParser.hasFlag(p, "--brief") then DisplayMode.Brief else DisplayMode.Detailed
       shallow = FlagParser.hasFlag(p, "--shallow")
       deprecated = Query.Deprecated.showIf(FlagParser.hasFlag(p, "--include-deprecated"))
       internal = Query.Internal.showIf(FlagParser.hasFlag(p, "--include-internal"))
@@ -867,7 +876,7 @@ let parseArgs(args: List<String>): ParsedArgs =
 
 
 val usage =
-  "Usage: search <query> [--batch] [--limit N] [--type] [--fn] [--val] [--trait] [--impl] [--test] [--exact] [--shallow] [--with-docs] [--include-deprecated] [--include-internal] [--include-tests]"
+  "Usage: search <query> [--batch] [--limit N] [--type] [--fn] [--val] [--trait] [--impl] [--test] [--exact] [--shallow] [--with-docs] [--brief] [--include-deprecated] [--include-internal] [--include-tests]"
 
 
 // The --json rendering. Typed results for the command an agent runs most; the signatures are the
@@ -1392,7 +1401,8 @@ let executeQuery(state: AppState, args: List<String>): AppState =
 
           Stdlib.printErrorLine("")
         else
-          Stdlib.printLine(Stdlib.Cli.UI.Colors.boldText($"Search results for: {queryText}"))
+          if parsed.mode == DisplayMode.Detailed then
+            Stdlib.printLine(Stdlib.Cli.UI.Colors.boldText($"Search results for: {queryText}"))
           match aliasKeyword with
           | Some(kw) ->
             Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint($"  ({rawQueryText} is {kw})"))
@@ -1409,11 +1419,12 @@ let executeQuery(state: AppState, args: List<String>): AppState =
 
             Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint($"  (also searched {shown})"))
 
-          Stdlib.printLine("")
+          if parsed.mode == DisplayMode.Detailed then Stdlib.printLine("")
           match typeQuery(searchText) with
           | Some((source, target)) when Stdlib.Bool.not(Stdlib.List.isEmpty(typed)) ->
-            Stdlib.printLine(
-              $"{Glyphs.forKind("fn")} Functions from {typeLabel(source)} to {typeLabel(target)}:")
+            if parsed.mode == DisplayMode.Detailed then
+              Stdlib.printLine(
+                $"{Glyphs.forKind("fn")} Functions from {typeLabel(source)} to {typeLabel(target)}:")
 
             let shownTyped = Stdlib.List.take(typed, resultCap)
             shownTyped
@@ -1423,8 +1434,9 @@ let executeQuery(state: AppState, args: List<String>): AppState =
               let line = $"{fullPathOf(item)} {Stdlib.Cli.UI.Colors.dimText(sigBody)}"
               Stdlib.printLine(withOptionalDoc(parsed.withDocs, line, item.entity.description)))
 
-            overflowNote(Stdlib.List.length(typed), Stdlib.List.length(shownTyped))
-            Stdlib.printLine("")
+            if parsed.mode == DisplayMode.Detailed then
+              overflowNote(Stdlib.List.length(typed), Stdlib.List.length(shownTyped))
+              Stdlib.printLine("")
           | _ -> ()
 
           let named =
@@ -1444,7 +1456,7 @@ let executeQuery(state: AppState, args: List<String>): AppState =
           |> Stdlib.List.iter(fun tag ->
             match tag with
             | "function" ->
-              renderSection("function", resultCap, results.fns, fun item ->
+              renderSection(parsed.mode, "function", resultCap, results.fns, fun item ->
                 let mark = Query.deprecationMarkerAt(depSets, item.location, item.entity.hash)
                 let ctx = contextFor(state.currentBranchId, item)
                 let sigBody = Signatures.formatFn(ctx, item.entity)
@@ -1457,27 +1469,27 @@ let executeQuery(state: AppState, args: List<String>): AppState =
 
                 withOptionalDoc(parsed.withDocs, line, item.entity.description))
             | "value" ->
-              renderSection("value", resultCap, results.values, fun item ->
+              renderSection(parsed.mode, "value", resultCap, results.values, fun item ->
                 let mark = Query.deprecationMarkerAt(depSets, item.location, item.entity.hash)
                 withOptionalDoc(
                   parsed.withDocs,
                   $"{fullPathOf(item)}{mark}",
                   item.entity.description))
             | "type" ->
-              renderSection("type", resultCap, results.types, fun item ->
+              renderSection(parsed.mode, "type", resultCap, results.types, fun item ->
                 let mark = Query.deprecationMarkerAt(depSets, item.location, item.entity.hash)
                 let ctx = contextFor(state.currentBranchId, item)
                 let defn = Signatures.formatType(ctx, fullPathOf(item), item.entity)
                 withOptionalDoc(parsed.withDocs, $"{defn}{mark}", item.entity.description))
             | "trait" ->
-              renderSection("trait", resultCap, results.traits, fun item ->
+              renderSection(parsed.mode, "trait", resultCap, results.traits, fun item ->
                 let mark = Query.deprecationMarkerAt(depSets, item.location, item.entity.hash)
                 withOptionalDoc(
                   parsed.withDocs,
                   $"{fullPathOf(item)}{mark}",
                   item.entity.description))
             | "impl" ->
-              renderSection("impl", resultCap, results.impls, fun item ->
+              renderSection(parsed.mode, "impl", resultCap, results.impls, fun item ->
                 let mark = Query.deprecationMarkerAt(depSets, item.location, item.entity.hash)
                 let ctx = contextFor(state.currentBranchId, item)
                 // The call first, as it is written (`a % b`, `Stdlib.display(v)`): the impl's own
@@ -1493,7 +1505,7 @@ let executeQuery(state: AppState, args: List<String>): AppState =
 
                 withOptionalDoc(parsed.withDocs, line, item.entity.description))
             | "test" ->
-              renderSection("test", resultCap, results.tests, fun item ->
+              renderSection(parsed.mode, "test", resultCap, results.tests, fun item ->
                 let mark = Query.deprecationMarkerAt(depSets, item.location, item.entity.hash)
                 withOptionalDoc(
                   parsed.withDocs,
@@ -1501,7 +1513,8 @@ let executeQuery(state: AppState, args: List<String>): AppState =
                   item.entity.description))
             | "module" ->
               if Stdlib.Bool.not(Stdlib.List.isEmpty(results.submodules)) then
-                Stdlib.printLine(Display.getSectionHeader("module"))
+                if parsed.mode == DisplayMode.Detailed then
+                  Stdlib.printLine(Display.getSectionHeader("module"))
                 let sortedMods = results.submodules
                 let shownMods = Stdlib.List.take(sortedMods, resultCap)
                 shownMods
@@ -1509,15 +1522,20 @@ let executeQuery(state: AppState, args: List<String>): AppState =
                   let moduleStr = Stdlib.String.join(modulePath, ".")
                   Stdlib.printLine(moduleStr))
 
-                overflowNote(Stdlib.List.length(sortedMods), Stdlib.List.length(shownMods))
-                Stdlib.printLine("")
+                if parsed.mode == DisplayMode.Detailed then
+                  overflowNote(Stdlib.List.length(sortedMods), Stdlib.List.length(shownMods))
+                  Stdlib.printLine("")
               else
                 ()
             | _ -> ())
 
           hiddenTestsHint(hiddenTests)
           hiddenHelpersHint(hiddenHelpers)
-          if Stdlib.Bool.not(parsed.withDocs) && Stdlib.Bool.not(parsed.batch) then
+          if
+            parsed.mode == DisplayMode.Detailed
+            && Stdlib.Bool.not(parsed.withDocs)
+            && Stdlib.Bool.not(parsed.batch)
+          then
             Stdlib.printErrorLine(
               Stdlib.Cli.UI.Colors.hint("  (add --with-docs to show doc comments)"))
           else
@@ -1563,7 +1581,7 @@ let execute(state: AppState, args: List<String>): AppState =
         let _ = executeQuery(state, queryArgs)
         ())
 
-      if Stdlib.Bool.not(parsed.withDocs) then
+      if parsed.mode == DisplayMode.Detailed && Stdlib.Bool.not(parsed.withDocs) then
         Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("  (add --with-docs to show doc comments)"))
       else
         ()
@@ -1593,6 +1611,7 @@ let help(state: AppState): String =
     "                         are looked up one by one"
     "  --shallow              Search only direct children (default: all descendants);"
     "                         a qualified query searches inside the module it names"
+    "  --brief                Print matching items without section headings"
     "  --with-docs            Also show doc comments"
     "  --include-deprecated   Include items deprecated with no live callers"
     "  --include-internal     Include internal helpers (names starting with __)"
@@ -1640,6 +1659,7 @@ let complete(_state: AppState, args: List<String>): List<Completion.CompletionIt
         "--test"
         "--exact"
         "--shallow"
+        "--brief"
         "--with-docs"
         "--include-deprecated"
         "--include-internal"
