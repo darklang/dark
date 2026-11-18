@@ -1,0 +1,81 @@
+/// `dark test count` rolls tests up one module down, and leaves out deleted tests.
+module Darklang.Cli.Tests.TestCount
+
+let row(name: String, tests: Int64): Cli.Packages.Test.CountRow =
+  Cli.Packages.Test.CountRow { name = name, tests = tests }
+
+
+test rowsPerSubmoduleOrPerTest =
+  Stdlib.Test.all(
+    [ Cli.Packages.Test.countRows([ "A" ], [ [ "A", "y" ], [ "A", "x" ] ])
+      |> Stdlib.Test.equal([ row("x", 1), row("y", 1) ])
+
+      Cli.Packages.Test.countRows(
+        [ "A" ],
+        [ [ "A", "x" ], [ "A", "B", "y" ], [ "A", "B", "z" ], [ "A", "C", "D", "w" ] ])
+      |> Stdlib.Test.equal([ row("B", 2), row("C", 1), row("(tests in this module)", 1) ])
+
+      Cli.Packages.Test.deepestShared([ "A" ], [ [ "A", "T", "x" ], [ "A", "T", "U", "y" ] ])
+      |> Stdlib.Test.equal([ "A", "T" ])
+
+      Cli.Packages.Test.deepestShared([ "A" ], [ [ "A", "x" ], [ "A", "T", "y" ] ])
+      |> Stdlib.Test.equal([ "A" ]) ])
+
+
+val outer: String =
+  [ "let f(): Int64 = 1"
+    ""
+    "test usesF = f() |> Stdlib.Test.equal(1)"
+    ""
+    "test plain = 1 |> Stdlib.Test.equal(1)" ]
+  |> Stdlib.String.join("\n")
+
+
+val inner: String =
+  [ "test alsoUsesF = Me.Counted.f() |> Stdlib.Test.equal(1)"
+    ""
+    "test other = 2 |> Stdlib.Test.equal(2)" ]
+  |> Stdlib.String.join("\n")
+
+
+let define(i: Instance.T): Unit =
+  let outerPath = Instance.home(i) + "/outer.dark"
+  let innerPath = Instance.home(i) + "/inner.dark"
+  let _ = Stdlib.Cli.File.writeAtomic(outerPath, outer) |> Builtin.unwrap
+  let _ = Stdlib.Cli.File.writeAtomic(innerPath, inner) |> Builtin.unwrap
+  let _ = Instance.ran(i, [ "module", "/Me.Counted", outerPath ])
+  let _ = Instance.ran(i, [ "module", "/Me.Counted.Inner", innerPath ])
+  ()
+
+
+test countRollsUpOneModuleDown = Instance.withInstance(fun i ->
+  let _ = define(i)
+  Instance.output(i, [ "test", "count", "Me.Counted" ])
+  |> Stdlib.Test.equal(
+    [ "Me.Counted: 4 tests"
+      "  Inner                   2 tests"
+      "  (tests in this module)  2 tests" ]
+    |> Stdlib.String.join("\n")))
+
+
+test countForKeepsTheTestsThatUseIt = Instance.withInstance(fun i ->
+  let _ = define(i)
+  Instance.output(i, [ "test", "count", "--for", "Me.Counted.f", "Me.Counted" ])
+  |> Stdlib.Test.equal(
+    [ "Tests in Me.Counted that use Me.Counted.f: 2 tests"
+      "  Inner                   1 test"
+      "  (tests in this module)  1 test" ]
+    |> Stdlib.String.join("\n")))
+
+
+test aDeletedTestIsNotCountedOrRun = Instance.withInstance(fun i ->
+  let _ = define(i)
+  let (deleted, out) = Instance.ran(i, [ "delete", "Me.Counted.plain", "--yes" ])
+  let counted = Instance.output(i, [ "test", "count", "Me.Counted" ])
+  let (ran, runOut) = Instance.ran(i, [ "test", "run", "Me.Counted" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(deleted, 0, out)
+      Instance.says(counted, "Me.Counted: 3 tests", "the deleted test is not counted")
+      Instance.exitedWith(ran, 0, runOut)
+      Instance.says(runOut, "usesF", "a live test runs")
+      Instance.doesNotSay(runOut, "plain", "the deleted test does not") ]))

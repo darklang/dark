@@ -328,6 +328,45 @@ let storeBackupsKeepTheWal =
       System.IO.Directory.Delete(root, true)
   }
 
+/// An upgrade backup's name puts its time before the build, so a build named by digits does not
+/// read as a newer time than a backup taken after it.
+let upgradeBackupSortsByItsTime =
+  testTask "an upgrade backup sorts by its time, not by its build" {
+    let root =
+      System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(),
+        $"upgrade-backup-{System.Guid.NewGuid()}"
+      )
+    System.IO.Directory.CreateDirectory root |> ignore<System.IO.DirectoryInfo>
+    try
+      let db = System.IO.Path.Combine(root, "data.db")
+      do
+        use c =
+          new Microsoft.Data.Sqlite.SqliteConnection(
+            $"Data Source={db};Pooling=False"
+          )
+        c.Open()
+      let (upgrade, taken) =
+        LibDB.StoreBackups.beforeUpgrade db "999999999999abc"
+        |> Result.defaultWith failwith
+      Expect.isTrue taken "the first upgrade to a build takes a copy"
+      let second = System.DateTime.UtcNow.Second
+      while System.DateTime.UtcNow.Second = second do
+        do! System.Threading.Tasks.Task.Delay 50
+      let manual = LibDB.StoreBackups.create db |> Result.defaultWith failwith
+      Expect.equal
+        (LibDB.StoreBackups.list db |> List.map (fun b -> b.path))
+        [ manual.path; upgrade ]
+        "the later manual backup is newer"
+      Expect.equal
+        (LibDB.StoreBackups.beforeUpgrade db "999999999999abc")
+        (Ok(upgrade, false))
+        "a second start towards the same build keeps the first copy"
+    finally
+      Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools()
+      System.IO.Directory.Delete(root, true)
+  }
+
 let permissionsLists =
   instanceTest "permissions list names the effects the policy covers" (fun state ->
     task {
@@ -2173,6 +2212,7 @@ let tests : List<Test> =
     backupsCanBeTaken
     backupsRefusesToRestoreWhatIsNotThere
     storeBackupsKeepTheWal
+    upgradeBackupSortsByItsTime
     permissionsLists
     storeReadsRequirePackageRead
     approvalsNameTheirDependencies
