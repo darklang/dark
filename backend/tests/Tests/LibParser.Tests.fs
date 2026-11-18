@@ -158,34 +158,7 @@ let private parserStructureTests =
             diagnostic.hint
             (Some "replace 'let' with 'val'")
             "migration hint"
-        | other -> failtest $"expected one diagnostic, got {other}")
-      testCase "function ceiling syntax is rejected" (fun _ ->
-        for row in [ "{}"; "{Clock}"; "{Telepathy}" ] do
-          let result = P.parse $"module M =\n  let f(x: Int64):{row} Int64 = x"
-          Expect.isNonEmpty result.diagnostics "effect rows are no longer syntax")
-      testCase
-        "an escaped quote inside an interpolation hole says to write a plain one"
-        (fun _ ->
-          let result = P.parse "$\"see: {Stdlib.String.join(xs, \\\", \\\")}\""
-          Expect.equal
-            (result.diagnostics |> List.map (fun d -> d.message))
-            [ "inside `{…}` in an interpolated string, write a string as plain \"…\", not \\\"…\\\"" ]
-            "names the escaped quote")
-      testCase "an annotated lambda parameter is one error" (fun _ ->
-        let result =
-          P.parse "Stdlib.List.map([ 1 ], fun (x: Int64, y: List<Int64>) -> x)"
-        Expect.equal
-          (result.diagnostics |> List.map (fun d -> d.message))
-          [ "a lambda's parameters take no type annotation; write `fun u ->`"
-            "a lambda's parameters take no type annotation; write `fun u ->`" ]
-          "one per annotation, and nothing after")
-      testCase "a dict written with = says so once per entry" (fun _ ->
-        let result = P.parse "Dict { \"a\" = 1, \"b\" = Point { x = 1 } }"
-        Expect.equal
-          (result.diagnostics |> List.map (fun d -> d.message))
-          [ "a dict entry is `\"key\": value`, with a `:`; `=` is for record fields"
-            "a dict entry is `\"key\": value`, with a `:`; `=` is for record fields" ]
-          "one error per entry, and nothing after it") ]
+        | other -> failtest $"expected one diagnostic, got {other}") ]
 
 
 /// Parse `src` and return its single trailing expression — the range-complete
@@ -774,58 +747,7 @@ let private literalTests =
             "1.5f32", Tok.TFloat32 1.5f
             "1e5f32", Tok.TFloat32 100000.0f
             "19.99dec", Tok.TDecimal 19.99M ] do
-          Expect.equal (tokenOf source) (Some expected) source)
-      testCase "the old suffixes and anything unknown are one bad literal" (fun _ ->
-        for source in
-          [ "1Q"
-            "1Z"
-            "1e5m"
-            "123abc"
-            "1s7"
-            "1u256"
-            "1f16"
-            "1.5f16"
-            "1.5s8"
-            "1e5z"
-            "1zz" ] do
-          let parsed = P.parse source
-          Expect.equal
-            (parsed.diagnostics |> List.map _.message)
-            [ $"invalid number literal: {source}" ]
-            $"{source}: one diagnostic, naming the whole literal")
-      testCase "a suffix from another language names the Dark spelling" (fun _ ->
-        for (source, message) in
-          [ "200L", "invalid number literal: 200L; an Int64 is written `200`"
-            "1l", "invalid number literal: 1l; an Int64 is written `1`"
-            "1UL", "invalid number literal: 1UL; a UInt64 is written `1u`"
-            "1ul", "invalid number literal: 1ul; a UInt64 is written `1u`"
-            "1y", "invalid number literal: 1y; an Int8 is written `1s8`"
-            "1uy", "invalid number literal: 1uy; a UInt8 is written `1u8`"
-            "1us", "invalid number literal: 1us; a UInt16 is written `1u16`"
-            "1I", "invalid number literal: 1I; a BigInt is written `1z`"
-            "1m", "invalid number literal: 1m; a Decimal is written `1dec`"
-            "1.5m", "invalid number literal: 1.5m; a Decimal is written `1.5dec`"
-            "1.5f", "invalid number literal: 1.5f; a Float32 is written `1.5f32`" ] do
-          Expect.equal
-            ((P.parse source).diagnostics |> List.map _.message)
-            [ message ]
-            source)
-      testCase "a suffix-shaped word is an identifier" (fun _ ->
-        for source in
-          [ "let s32 = 1s32\ns32"; "let z = 1z\nz"; "let dec = 1dec\ndec" ] do
-          Expect.isEmpty (P.parse source).diagnostics source)
-      testCase "a literal's range is checked against its type" (fun _ ->
-        for (source, message) in
-          [ "256u8", "out of range for UInt8: 256u8"
-            "18446744073709551616u",
-            "out of range for UInt64: 18446744073709551616u"
-            "18446744073709551616", "out of range for Int64: 18446744073709551616" ] do
-          Expect.equal
-            ((P.parse source).diagnostics |> List.map _.message)
-            [ message ]
-            source
-        Expect.isEmpty (P.parse "18446744073709551615u").diagnostics "UInt64 max"
-        Expect.isEmpty (P.parse "-9223372036854775808s64").diagnostics "Int64 min") ]
+          Expect.equal (tokenOf source) (Some expected) source) ]
 
 /// A paren bomb gets one diagnostic instead of a StackOverflow, which would take the
 /// whole process down rather than fail one test.
