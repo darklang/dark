@@ -2486,8 +2486,39 @@ let private moduleDocOnlyEditLands =
 
 
 /// In the run order CliTraces.Tests.fs composes; sequencing lives there too.
+/// An answer that is not UTF-8 is a no, not a crash. Only a terminal is asked, so `script` gives
+/// `discard` one, with CI's "nobody is here" switches off.
+let nonUtf8AnswerIsANo =
+  CliInstance.instanceTest "an answer that is not UTF-8 is a no" (fun i ->
+    task {
+      let! (code, _, err) = CliInstance.runRaw i [ "val"; "Tests.Utf8Probe.x"; "1" ]
+      Expect.equal code 0 $"the draft has something to drop: {err}"
+      let! (code, out, err) =
+        CliInstance.runRawWithBytes
+          { i with cli = "/usr/bin/env" }
+          [ "-u"
+            "CI"
+            "-u"
+            "DARK_NO_INPUT"
+            "script"
+            "-qec"
+            $"{i.cli} discard"
+            "/dev/null" ]
+          (Some [| 0xFFuy; byte '\n' |])
+      Expect.equal code 1 $"a no exits 1: {out}{err}"
+      Expect.stringContains out "Drop these? [y/N]" "it was asked"
+      Expect.stringContains out "kept." "and kept the draft"
+      let! status = CliInstance.run i [ "status" ]
+      Expect.stringContains
+        status
+        "draft: 1 item changed"
+        "the draft is still there"
+    })
+
+
 let tests : List<Test> =
   [ unwrapErrorsAreReadable
+    nonUtf8AnswerIsANo
     missingApprovalVersionDoesNotBlockCurrentCode
     damagedPolicyIsARefusal
     httpRuleWithTrailingStarMatches
