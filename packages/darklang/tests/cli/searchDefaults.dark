@@ -4,8 +4,8 @@ module Darklang.Cli.Tests.SearchDefaults
 // its impl, and test helpers are left out and counted.
 // A trait method is listed with its impl, as the call, even when only the method's own name
 // matched the query.
-test searchListsNoImplMethodAsAFunction =
-  let found = Cli.Tests.TestSuite.runWithCommand([ "search", "Int64.display" ])
+test searchListsNoImplMethodAsAFunction = Instance.withInstance(fun i ->
+  let found = Instance.output(i, [ "search", "Int64.display" ])
   if
     Stdlib.String.contains(found, "impl Display for Int64")
     && Stdlib.Bool.not(
@@ -13,17 +13,19 @@ test searchListsNoImplMethodAsAFunction =
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail(found)
+    Stdlib.Test.fail(found))
 
 
 // `docs signatures` leaves out test helpers the same way.
-test signaturesHideTestModules =
+test signaturesHideTestModules = Instance.withInstance(fun i ->
   let plain =
-    Cli.Tests.TestSuite.runWithBothStreams(
+    Instance.said(
+      i,
       [ "docs", "signatures", "Stdlib.DateTime" ])
 
   let included =
-    Cli.Tests.TestSuite.runWithCommand(
+    Instance.output(
+      i,
       [ "docs", "signatures", "Stdlib.DateTime", "--include-tests" ])
 
   if
@@ -36,4 +38,4 @@ test signaturesHideTestModules =
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"plain={plain}; included={included}")
+    Stdlib.Test.fail($"plain={plain}; included={included}"))

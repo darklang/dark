@@ -75,3 +75,17 @@ test descriptionsFitInEightyColumns =
   |> Stdlib.List.filter(fun cmd -> Stdlib.String.length(cmd.description) > 80)
   |> Stdlib.List.map(fun cmd -> cmd.name)
   |> Stdlib.Test.equal([])
+
+
+// Assert the RENDERED ROW, not the bare word. `contains output "nav"` passed on the word "navigable" in
+// the workbench's description, so it would have stayed green with the `nav` command deleted; "help",
+// "version" and "status" all appear in other commands' descriptions too. The row shape
+// (`  name (aliases) - `) is what `formatCommandGroup` emits and is unique per command.
+test helpListsCommandsByGroup = Instance.withInstance(fun i ->
+  let output = Instance.output(i, [ "help" ])
+  Stdlib.Test.all(
+    [ Instance.says(output, "Packages:", "help is grouped by category")
+      Instance.says(output, "  nav (cd) -", "the nav row")
+      Instance.says(output, "  ls (dir) -", "the ls row")
+      Instance.says(output, "  version (--version, -v) -", "the version row")
+      Instance.says(output, "  status (wip, changes) -", "the status row") ]))

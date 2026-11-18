@@ -7,9 +7,8 @@ module Darklang.Cli.Tests.TestSuite
 /// at author time: a draft may be broken because you write the caller before the callee, a commit may
 /// not, because a commit is what other machines pull. So after an invalid module the item EXISTS, the
 /// message says it is WIP, and the definitions that were already there are untouched.
-test moduleCommand =
-  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
-  let branchName = "cli-module-test-" + suffix
+test moduleCommand = Instance.withInstance(fun i ->
+  let branchName = "cli-module-test"
   let moduleName = "Tests.CliModule"
   let initialSource =
     [ "type Counter = { value: Int64 }"
@@ -54,30 +53,36 @@ test moduleCommand =
   let _ =
     Stdlib.Cli.File.writeAtomic(invalidPath, invalidSource) |> Builtin.unwrap
 
-  let _ = runWithCommand([ "branch", "create", branchName ])
+  let _ = Instance.output(i, [ "branch", "create", branchName ])
 
   let moduleOutput =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch", branchName, "module", "/" + moduleName, initialPath ])
 
   let initialEval =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch", branchName, "eval", moduleName + ".quadruple(3)" ])
 
   let updateOutput =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch", branchName, "module", "/" + moduleName, updatedPath ])
 
   let updatedEval =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch", branchName, "eval", moduleName + ".quadruple(3)" ])
 
   let invalidOutput =
-    runWithBothStreams(
+    Instance.said(
+      i,
       [ "--branch", branchName, "module", "/" + moduleName, invalidPath ])
 
   let searchOutput =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch"
         branchName
         "search"
@@ -86,10 +91,10 @@ test moduleCommand =
         "--fn" ])
 
   let afterInvalidEval =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch", branchName, "eval", moduleName + ".quadruple(3)" ])
 
-  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
   let _ = Stdlib.Cli.File.delete(initialPath)
   let _ = Stdlib.Cli.File.delete(updatedPath)
   let _ = Stdlib.Cli.File.delete(invalidPath)
@@ -116,12 +121,11 @@ test moduleCommand =
       |> Stdlib.String.join("; ")
 
     Stdlib.Test.fail(
-      $"Expected atomic create, update, and rejection; got {details}")
+      $"Expected atomic create, update, and rejection; got {details}"))
 
 
-test moduleRejectsDuplicateNames =
-  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
-  let branchName = "cli-module-duplicate-test-" + suffix
+test moduleRejectsDuplicateNames = Instance.withInstance(fun i ->
+  let branchName = "cli-module-duplicate-test"
   let moduleName = "Tests.CliModuleDuplicate"
   let source =
     [ "let duplicate(n: Int64): Int64 = n"
@@ -131,14 +135,16 @@ test moduleRejectsDuplicateNames =
 
   let sourcePath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
   let _ = Stdlib.Cli.File.writeAtomic(sourcePath, source) |> Builtin.unwrap
-  let _ = runWithCommand([ "branch", "create", branchName ])
+  let _ = Instance.output(i, [ "branch", "create", branchName ])
 
   let moduleOutput =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch", branchName, "module", "/" + moduleName, sourcePath ])
 
   let searchOutput =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch"
         branchName
         "search"
@@ -146,7 +152,6 @@ test moduleRejectsDuplicateNames =
         "--exact"
         "--fn" ])
 
-  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
   let _ = Stdlib.Cli.File.delete(sourcePath)
   if
     Stdlib.String.contains(moduleOutput, "duplicate declaration names")
@@ -157,13 +162,12 @@ test moduleRejectsDuplicateNames =
   else
     Stdlib.Test.fail(
       "Expected duplicate declarations to be rejected without mutation; "
-      + $"module={moduleOutput}; search={searchOutput}")
+      + $"module={moduleOutput}; search={searchOutput}"))
 
 
 // A module save that fails the type check says which function each error is in.
-test moduleSaveNamesTheFunctionsWithTypeErrors =
-  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
-  let branchName = "cli-module-type-errors-test-" + suffix
+test moduleSaveNamesTheFunctionsWithTypeErrors = Instance.withInstance(fun i ->
+  let branchName = "cli-module-type-errors-test"
   let moduleName = "Tests.CliModuleTypeErrors"
   let source =
     [ "let addsText(n: Int64): Int64 = n + \"x\""
@@ -175,12 +179,12 @@ test moduleSaveNamesTheFunctionsWithTypeErrors =
 
   let sourcePath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
   let _ = Stdlib.Cli.File.writeAtomic(sourcePath, source) |> Builtin.unwrap
-  let _ = runWithCommand([ "branch", "create", branchName ])
+  let _ = Instance.output(i, [ "branch", "create", branchName ])
   let output =
-    runWithBothStreams(
+    Instance.said(
+      i,
       [ "--branch", branchName, "module", "/" + moduleName, sourcePath ])
 
-  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
   let _ = Stdlib.Cli.File.delete(sourcePath)
   let namedAboveItsError(fnName: String): Bool =
     Stdlib.String.contains(
@@ -195,15 +199,14 @@ test moduleSaveNamesTheFunctionsWithTypeErrors =
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      $"Expected each failing function named above its error; got {output}")
+      $"Expected each failing function named above its error; got {output}"))
 
 
 // Two functions with identical bodies share a hash, and the warning still names each.
 // The bodies call a name that does not exist yet, so the check is incomplete rather than failed:
 // a failed item reports its type error instead of this line.
-test moduleSaveNamesEachIdenticalFunctionWithUnresolvedTraitCalls =
-  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
-  let branchName = "cli-module-trait-calls-test-" + suffix
+test moduleSaveNamesEachIdenticalFunctionWithUnresolvedTraitCalls = Instance.withInstance(fun i ->
+  let branchName = "cli-module-trait-calls-test"
   let moduleName = "Tests.CliModuleTraitCalls"
   let source =
     [ "let addsText(n: Int64): Int64 = Tests.CliModuleTraitCallsMissing.g(n) + 1"
@@ -213,12 +216,12 @@ test moduleSaveNamesEachIdenticalFunctionWithUnresolvedTraitCalls =
 
   let sourcePath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
   let _ = Stdlib.Cli.File.writeAtomic(sourcePath, source) |> Builtin.unwrap
-  let _ = runWithCommand([ "branch", "create", branchName ])
+  let _ = Instance.output(i, [ "branch", "create", branchName ])
   let output =
-    runWithBothStreams(
+    Instance.said(
+      i,
       [ "--branch", branchName, "module", "/" + moduleName, sourcePath ])
 
-  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
   let _ = Stdlib.Cli.File.delete(sourcePath)
   if
     Stdlib.String.contains(output, $"{moduleName}.addsText: operator `+`")
@@ -227,12 +230,11 @@ test moduleSaveNamesEachIdenticalFunctionWithUnresolvedTraitCalls =
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      $"Expected the warning to name each function and call; got {output}")
+      $"Expected the warning to name each function and call; got {output}"))
 
 
-test fnAcceptsCompleteDeclaration =
-  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
-  let branchName = "cli-authoring-test-" + suffix
+test fnAcceptsCompleteDeclaration = Instance.withInstance(fun i ->
+  let branchName = "cli-authoring-test"
   let moduleName = "Tests.CliAuthoring"
   let fnSource =
     [ "/// Greets someone by name."
@@ -245,18 +247,21 @@ test fnAcceptsCompleteDeclaration =
     [ "let extra(n: Int64): Int64 = n", "let ignored(n: Int64): Int64 = n" ]
     |> Stdlib.String.join("\n")
 
-  let _ = runWithCommand([ "branch", "create", branchName ])
+  let _ = Instance.output(i, [ "branch", "create", branchName ])
 
   let fnOutput =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch", branchName, "fn", "/" + moduleName + ".main", fnSource ])
 
   let evalOutput =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch", branchName, "eval", moduleName + ".main(\"Dark\")" ])
 
   let fragmentOutput =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch"
         branchName
         "fn"
@@ -264,11 +269,13 @@ test fnAcceptsCompleteDeclaration =
         "(n: Int64) : Int64 = n * 2" ])
 
   let fragmentEval =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch", branchName, "eval", moduleName + ".double(4)" ])
 
   let mismatchOutput =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch"
         branchName
         "fn"
@@ -276,14 +283,14 @@ test fnAcceptsCompleteDeclaration =
         mismatchedSource ])
 
   let multipleOutput =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch"
         branchName
         "fn"
         "/" + moduleName + ".extra"
         multipleSource ])
 
-  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
   if
     Stdlib.String.contains(fnOutput, "Created function")
     && evalOutput == "Hello, Dark"
@@ -301,7 +308,7 @@ test fnAcceptsCompleteDeclaration =
       "Expected complete and fragment fn input with target-name validation; "
       + $"fn={fnOutput}; eval={evalOutput}; fragment={fragmentOutput}; "
       + $"fragment eval={fragmentEval}; mismatch={mismatchOutput}; "
-      + $"multiple={multipleOutput}")
+      + $"multiple={multipleOutput}"))
 
 
 /// Saving broken code keeps the draft and returns a failing exit code.

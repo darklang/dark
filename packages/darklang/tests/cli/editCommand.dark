@@ -6,31 +6,31 @@ module Darklang.Cli.Tests.TestSuite
 /// This is the property that makes `view --raw` usable as a pipe: if the printer and
 /// the parser disagree anywhere, a round trip authors a second version of the item
 /// and the op log grows every time someone looks at it.
-test editRoundTripsThroughRaw =
-  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
-  let branchName = "cli-edit-test-" + suffix
+test editRoundTripsThroughRaw = Instance.withInstance(fun i ->
+  let branchName = "cli-edit-test"
   let name = "Tests.CliEdit.tripled"
   let sourcePath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
   let changedPath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
-  let _ = runWithCommand([ "branch", "create", branchName ])
+  let _ = Instance.output(i, [ "branch", "create", branchName ])
 
   let _ =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch"
         branchName
         "fn"
         "/" + name
         "let tripled(n: Int64): Int64 = (n * 3)" ])
 
-  let before = runWithCommand([ "--branch", branchName, "view", name, "--raw" ])
+  let before = Instance.output(i, [ "--branch", branchName, "view", name, "--raw" ])
 
   // The hash, not the op count: an apply that changes nothing still records that the
   // name was set, so the log grows either way. What must not change is the item.
-  let hashBefore = runWithCommand([ "--branch", branchName, "hash", name ])
+  let hashBefore = Instance.output(i, [ "--branch", branchName, "hash", name ])
   let _ = Stdlib.Cli.File.writeAtomic(sourcePath, before) |> Builtin.unwrap
-  let _ = runWithCommand([ "--branch", branchName, "edit", name, sourcePath ])
-  let after = runWithCommand([ "--branch", branchName, "view", name, "--raw" ])
-  let hashAfter = runWithCommand([ "--branch", branchName, "hash", name ])
+  let _ = Instance.output(i, [ "--branch", branchName, "edit", name, sourcePath ])
+  let after = Instance.output(i, [ "--branch", branchName, "view", name, "--raw" ])
+  let hashAfter = Instance.output(i, [ "--branch", branchName, "hash", name ])
 
   // And a real change still lands, so the assertion above is not passing because
   // `edit` quietly does nothing.
@@ -40,12 +40,11 @@ test editRoundTripsThroughRaw =
       "let tripled(n: Int64): Int64 = (n * 30)")
     |> Builtin.unwrap
 
-  let _ = runWithCommand([ "--branch", branchName, "edit", name, changedPath ])
+  let _ = Instance.output(i, [ "--branch", branchName, "edit", name, changedPath ])
 
   let evaluated =
-    runWithCommand([ "--branch", branchName, "eval", name + "(2)" ])
+    Instance.output(i, [ "--branch", branchName, "eval", name + "(2)" ])
 
-  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
   if
     before == after
     && hashBefore == hashAfter
@@ -55,7 +54,7 @@ test editRoundTripsThroughRaw =
   else
     Stdlib.Test.fail(
       $"Expected a no-op round trip then a landed change; before: {before}, "
-      + $"after: {after}, eval: {evaluated}")
+      + $"after: {after}, eval: {evaluated}"))
 
 
 /// Every kind `--raw` prints round-trips, not just functions.
@@ -64,17 +63,17 @@ test editRoundTripsThroughRaw =
 /// layout is where they are likeliest to drift apart. A round trip that changes the
 /// item is worse than one that fails: nothing says so, and the store quietly holds
 /// something you did not write.
-test editRoundTripsTypesAndValues =
-  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
-  let branchName = "cli-edit-kinds-" + suffix
+test editRoundTripsTypesAndValues = Instance.withInstance(fun i ->
+  let branchName = "cli-edit-kinds"
   let typeName = "Tests.CliEditKinds.Pair"
   let valueName = "Tests.CliEditKinds.answer"
   let typePath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
   let valuePath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
-  let _ = runWithCommand([ "branch", "create", branchName ])
+  let _ = Instance.output(i, [ "branch", "create", branchName ])
 
   let _ =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch"
         branchName
         "type"
@@ -82,40 +81,39 @@ test editRoundTripsTypesAndValues =
         "{ a: Int64, b: String }" ])
 
   let _ =
-    runWithCommand([ "--branch", branchName, "val", "/" + valueName, "42" ])
+    Instance.output(i, [ "--branch", branchName, "val", "/" + valueName, "42" ])
 
   let typeBefore =
-    runWithCommand([ "--branch", branchName, "view", typeName, "--raw" ])
+    Instance.output(i, [ "--branch", branchName, "view", typeName, "--raw" ])
 
   let typeHashBefore =
-    runWithCommand([ "--branch", branchName, "hash", typeName ])
+    Instance.output(i, [ "--branch", branchName, "hash", typeName ])
 
   let valueBefore =
-    runWithCommand([ "--branch", branchName, "view", valueName, "--raw" ])
+    Instance.output(i, [ "--branch", branchName, "view", valueName, "--raw" ])
 
   let valueHashBefore =
-    runWithCommand([ "--branch", branchName, "hash", valueName ])
+    Instance.output(i, [ "--branch", branchName, "hash", valueName ])
 
   let _ = Stdlib.Cli.File.writeAtomic(typePath, typeBefore) |> Builtin.unwrap
   let _ = Stdlib.Cli.File.writeAtomic(valuePath, valueBefore) |> Builtin.unwrap
-  let _ = runWithCommand([ "--branch", branchName, "edit", typeName, typePath ])
+  let _ = Instance.output(i, [ "--branch", branchName, "edit", typeName, typePath ])
 
   let _ =
-    runWithCommand([ "--branch", branchName, "edit", valueName, valuePath ])
+    Instance.output(i, [ "--branch", branchName, "edit", valueName, valuePath ])
 
   let typeAfter =
-    runWithCommand([ "--branch", branchName, "view", typeName, "--raw" ])
+    Instance.output(i, [ "--branch", branchName, "view", typeName, "--raw" ])
 
   let typeHashAfter =
-    runWithCommand([ "--branch", branchName, "hash", typeName ])
+    Instance.output(i, [ "--branch", branchName, "hash", typeName ])
 
   let valueAfter =
-    runWithCommand([ "--branch", branchName, "view", valueName, "--raw" ])
+    Instance.output(i, [ "--branch", branchName, "view", valueName, "--raw" ])
 
   let valueHashAfter =
-    runWithCommand([ "--branch", branchName, "hash", valueName ])
+    Instance.output(i, [ "--branch", branchName, "hash", valueName ])
 
-  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
   if
     typeBefore == typeAfter
     && typeHashBefore == typeHashAfter
@@ -128,7 +126,7 @@ test editRoundTripsTypesAndValues =
   else
     Stdlib.Test.fail(
       $"Expected types and values to round-trip; type: {typeBefore} -> {typeAfter}, "
-      + $"value: {valueBefore} -> {valueAfter}")
+      + $"value: {valueBefore} -> {valueAfter}"))
 
 
 /// A file `edit` cannot use leaves the item exactly as it was.
@@ -136,34 +134,35 @@ test editRoundTripsTypesAndValues =
 /// `edit` hands the file to the same validation `module` does, so a rejection has to
 /// be a rejection: half-applying it, or reporting a failure while the store moved,
 /// would make an editor round trip something you cannot trust.
-test editLeavesTheItemAloneOnABadFile =
-  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
-  let branchName = "cli-edit-bad-" + suffix
+test editLeavesTheItemAloneOnABadFile = Instance.withInstance(fun i ->
+  let branchName = "cli-edit-bad"
   let name = "Tests.CliEditBad.kept"
   let badPath = Stdlib.Cli.File.createTemp() |> Builtin.unwrap
-  let _ = runWithCommand([ "branch", "create", branchName ])
+  let _ = Instance.output(i, [ "branch", "create", branchName ])
 
   let _ =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch"
         branchName
         "fn"
         "/" + name
         "let kept(n: Int64): Int64 = n" ])
 
-  let hashBefore = runWithCommand([ "--branch", branchName, "hash", name ])
+  let hashBefore = Instance.output(i, [ "--branch", branchName, "hash", name ])
   let _ =
     Stdlib.Cli.File.writeAtomic(badPath, "this is not dark") |> Builtin.unwrap
 
   let refused =
-    runWithCommand([ "--branch", branchName, "edit", name, badPath ])
+    Instance.output(i, [ "--branch", branchName, "edit", name, badPath ])
 
-  let hashAfterBad = runWithCommand([ "--branch", branchName, "hash", name ])
+  let hashAfterBad = Instance.output(i, [ "--branch", branchName, "hash", name ])
 
   // A path that is not there at all takes the same route, and must also change
   // nothing.
   let missing =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch"
         branchName
         "edit"
@@ -171,9 +170,8 @@ test editLeavesTheItemAloneOnABadFile =
         "/tmp/cli-edit-no-such-file.dark" ])
 
   let hashAfterMissing =
-    runWithCommand([ "--branch", branchName, "hash", name ])
+    Instance.output(i, [ "--branch", branchName, "hash", name ])
 
-  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
   if
     hashBefore == hashAfterBad
     && hashBefore == hashAfterMissing
@@ -184,7 +182,7 @@ test editLeavesTheItemAloneOnABadFile =
   else
     Stdlib.Test.fail(
       $"Expected a rejected file to change nothing; hashes {hashBefore} / "
-      + $"{hashAfterBad} / {hashAfterMissing}, said: {refused} | {missing}")
+      + $"{hashAfterBad} / {hashAfterMissing}, said: {refused} | {missing}"))
 
 
 /// `edit` takes exactly one declaration, and says so.
@@ -192,15 +190,15 @@ test editLeavesTheItemAloneOnABadFile =
 /// A module is the near miss worth naming: `dark edit Stdlib.List` is a reasonable
 /// thing to type, and the answer has to point at the command that does take one
 /// rather than leaving you to guess.
-test editRefusesWhatItCannotEdit =
-  let bare = runWithCommand([ "edit" ])
-  let tooMany = runWithCommand([ "edit", "a", "b", "c" ])
-  let aModule = runWithCommand([ "edit", "Stdlib.List" ])
-  let unknown = runWithCommand([ "edit", "Zz.NoSuch.thing" ])
+test editRefusesWhatItCannotEdit = Instance.withInstance(fun i ->
+  let bare = Instance.output(i, [ "edit" ])
+  let tooMany = Instance.output(i, [ "edit", "a", "b", "c" ])
+  let aModule = Instance.output(i, [ "edit", "Stdlib.List" ])
+  let unknown = Instance.output(i, [ "edit", "Zz.NoSuch.thing" ])
 
-  // These tests shell out, so stdin is a pipe, which is exactly the case `edit` with
-  // no file has to refuse. An editor started here paints into that pipe.
-  let noTerminal = runWithCommand([ "edit", "Stdlib.List.head" ])
+  // An instance's commands run with no terminal on stdin, which is exactly the case
+  // `edit` with no file has to refuse. An editor started here would paint into nothing.
+  let noTerminal = Instance.output(i, [ "edit", "Stdlib.List.head" ])
   if
     Stdlib.String.contains(noTerminal, "Cannot open an editor")
     && Stdlib.String.contains(noTerminal, "not a terminal")
@@ -218,4 +216,4 @@ test editRefusesWhatItCannotEdit =
     Stdlib.Test.fail(
       $"Expected each refusal to name what to do instead; bare: {bare}, "
       + $"module: {aModule}, unknown: {unknown}, "
-      + $"no terminal: {noTerminal}")
+      + $"no terminal: {noTerminal}"))

@@ -147,9 +147,8 @@ let run(
 
 /// What a command printed: stdout, or stderr when stdout said nothing.
 ///
-/// Same rule as `TestSuite.callOutput`, because the reason is the same: a refused command
-/// exits nonzero and explains itself on stdout, so dropping stdout on a failure hides
-/// exactly the text a test wants to read.
+/// A refused command exits nonzero and explains itself on stdout, so dropping stdout on a
+/// failure hides exactly the text a test wants to read.
 let output(i: T, args: List<String>): String =
   match run(i, args) with
   | Error(e) -> $"ERROR: {e}"

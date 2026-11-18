@@ -1,0 +1,46 @@
+/// CLI tests: authoring items with `fn`, `type` and `val`.
+module Darklang.Cli.Tests.Authoring
+
+test fnTakesACommentedDeclarationAsIs =
+  let commented = "// one line about it\nlet f(x: Int64): Int64 = x"
+  Stdlib.Test.all(
+    [ Cli.Packages.Fn.fnSource("f", commented) |> Stdlib.Test.equal(commented)
+      Cli.Packages.Fn.fnSource("f", "(x: Int64): Int64 = x")
+      |> Stdlib.Test.equal("let f (x: Int64): Int64 = x") ])
+
+
+/// Every way of passing a definition authors the same item. The `=` is a separator:
+/// unquoted the shell splits it off, quoted it arrives attached, and both come off.
+test authoringAcceptsAQuotedSeparator = Instance.withInstance(fun i ->
+  let run(args: List<String>): String = Instance.output(i, args)
+  let body = "(x: Int64) : Int64 = (x * 2)"
+  let _ = run([ "fn", "/Tests.QuotedEq.quoted", "= " + body ])
+  let _ = run([ "fn", "/Tests.QuotedEq.split", "=", body ])
+  let typed = run([ "type", "/Tests.QuotedEq.T", "= { x: Int64 }" ])
+  let valued = run([ "val", "/Tests.QuotedEq.v", "= 42" ])
+
+  // The hash is the assertion: the same item, not merely both accepted. Evaluating it
+  // shows the `=` inside the body survived.
+  let quotedHash = run([ "hash", "Tests.QuotedEq.quoted" ])
+  let splitHash = run([ "hash", "Tests.QuotedEq.split" ])
+  Stdlib.Test.all(
+    [ Stdlib.Test.expect(
+        quotedHash == splitHash,
+        $"one item either way: {quotedHash} / {splitHash}")
+      Instance.says(
+        run([ "eval", "Tests.QuotedEq.quoted(21)" ]),
+        "42",
+        "the body's own `=` survived")
+      Instance.says(typed, "Created type", "a type takes a quoted `=`")
+      Instance.says(valued, "Created value", "and a value") ]))
+
+
+/// A lowercase module segment is refused. It would be read as the item's NAME, so
+/// `Tests.lower.f` authors `Tests.lower` and nothing can refer to it afterwards.
+test authoringRefusesALowercaseModule = Instance.withInstance(fun i ->
+  let refused = Instance.output(i, [ "fn", "/Tests.lower.f", "() : Int64 = 1" ])
+  let listed = Instance.output(i, [ "ls", "Tests.lower" ])
+  Stdlib.Test.all(
+    [ Instance.says(refused, "must start with a capital", "the module is refused")
+      Instance.doesNotSay(refused, "Created", "and nothing is saved")
+      Instance.says(listed, "Not found", "so nothing is listed") ]))

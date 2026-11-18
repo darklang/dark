@@ -311,3 +311,26 @@ test aValueMadeOnABranchWorksAfterTheMerge =
       evals(dark, "Tests.App.plusOne()", "43", "and so does its caller")
       draftIsEmpty(dark, "nothing is left in main's draft")
       same(conflicts(dark), [], "and nothing collided") ])
+
+
+// A branch merged into a parent that is not main lands there, and `--dry-run` says so first.
+test aMergeIntoABranchLandsThereAndNotOnMain =
+  scenario(fun dark ->
+    let f = "Tests.CliMerge.landed"
+    let setup =
+      Stdlib.Test.all(
+        [ switch(dark, "parent")
+          switch(dark, "child")
+          saveNumber(dark, f, "7")
+          commit(dark, "merge fixture") ])
+
+    // --dry-run records nothing, so it has to answer the same question the merge does without doing it.
+    let dryRun = Cli.Tests.Instance.output(dark, [ "merge", "child", "--dry-run" ])
+
+    [ setup
+      Cli.Tests.Instance.doesNotSay(dryRun, "ERROR:", "`merge --dry-run` runs")
+      Cli.Tests.Instance.says(dryRun, "parent", "it names the parent it would merge into")
+      Cli.Tests.Instance.says(dryRun, f, "and the name that would land")
+      says(dark, [ "merge", "child", "-y" ], "Merged", "the merge reports what it merged")
+      evalsOn(dark, "parent", f + "()", "7", "the merged fn runs on the parent")
+      notFoundOn(dark, "main", f + "()", "and the merge did not reach main") ])
