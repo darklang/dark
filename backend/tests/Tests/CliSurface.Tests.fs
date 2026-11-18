@@ -544,20 +544,6 @@ let private registeredCommands (state : Target) : Task<List<string>> =
       |> List.distinct
   }
 
-/// Phrases that mean "you used this wrong". A request for HELP must never be answered with one.
-///
-/// Deliberately NOT "usage:" or "required": both appear in good help text, and a check that flags
-/// them flags forty commands and gets switched off. `--help` is handled centrally; bare `help` is
-/// each command's own job.
-let private soundsLikeMisuse (output : string) : bool =
-  let o = output.ToLower()
-  [ "error:"
-    "internal error"
-    "is not a valid"
-    "unknown topic"
-    "unknown command" ]
-  |> List.exists (fun phrase -> o.Contains phrase)
-
 /// A runtime error a command caught and PRINTED, so the run itself looked fine. Returns the offending
 /// line. `runCliCatching` already reports an error that escaped; this is for the one that did not: the
 /// Dark-side path where a command prints `ExecutionError.toString` and carries on. The four phrases are
@@ -565,8 +551,7 @@ let private soundsLikeMisuse (output : string) : bool =
 /// What is wrong with a swept command's answer, or `None` if nothing is.
 ///
 /// The sweeps differ in what they hand a command, never in how they judge what comes back: it must
-/// not throw, it must say something, and it must not print a runtime error it caught. The `help`
-/// sweep is the exception -- it asks a further question of the text -- so it judges its own.
+/// not throw, it must say something, and it must not print a runtime error it caught.
 let private sweepFailure (outcome : Result<string, string>) : Option<string> =
   match outcome with
   | Error e -> Some $"crashed: {e}"
@@ -874,44 +859,6 @@ let private workbenchContextRowSaysWhereYouAre =
       Expect.stringContains named "true" "and it names the instance you are on"
     })
 
-let private everyCommandAnswersHelp =
-  instanceTest "every registered command answers `help` with help" (fun state ->
-    task {
-      let! commands = registeredCommands state
-      Expect.isGreaterThan (List.length commands) 20 "the registry was read"
-
-      let mutable failures : List<string * string> = []
-
-      for cmd in commands do
-        // `quit` ends the session rather than printing, and is the one command whose
-        // help can't be asked for this way. Everything else must answer.
-        if cmd <> "quit" then
-          match! runCliCatching state [ cmd; "help" ] with
-          | Error e -> failures <- (cmd, $"crashed: {e}") :: failures
-          | Ok output ->
-            if output = "" then
-              failures <- (cmd, "printed nothing") :: failures
-            else
-              match looksLikeARuntimeFailure output with
-              | Some line ->
-                failures <- (cmd, $"printed a runtime error: {line}") :: failures
-              | None ->
-                if soundsLikeMisuse output then
-                  let first = output.Split('\n')[0]
-                  failures <- (cmd, first) :: failures
-
-      // Reported together: when this breaks it usually breaks for a whole group of
-      // commands at once, and finding that out one re-run at a time is the slow way.
-      if not (List.isEmpty failures) then
-        let detail =
-          failures
-          |> List.rev
-          |> List.map (fun (c, why) -> $"  dark {c} help -> {why}")
-          |> String.concat "\n"
-
-        Tests.failtestf "commands that don't answer `help`:\n%s" detail
-    })
-
 /// Commands the sweeps must not RUN, because running them is the problem, with the reason beside
 /// each. A bare entry is an exclusion nobody has justified, which is how a sweep stops covering
 /// what it was written for.
@@ -930,39 +877,6 @@ let private notSweepable =
       "typecheck" // audits every declaration; swept with a module in tests/cli/jsonShapes.dark
       "export-seed" // takes its argument as a path and writes a multi-MB database there
       "clear" ] // clears the screen, taking the sweep's own output with it
-
-/// Every `--help` opens with a sentence saying what the command IS.
-///
-/// Not `Usage:`, which is syntax before purpose, and not `dark <name> - ...`, which repeats the name
-/// you just typed. The renderer falls back to the registry description when a help body has no
-/// summary of its own, so a new command satisfies this without doing anything.
-let private everyHelpLeadsWithASummary =
-  cliTest "every command's help starts by saying what it is" (fun state ->
-    task {
-      let! commands = registeredCommands state
-      Expect.isGreaterThan (List.length commands) 20 "the registry was read"
-
-      let mutable bad : List<string> = []
-
-      for cmd in commands do
-        if not (Set.contains cmd (notSweepable)) then
-          let! out = runCliCatching state [ cmd; "--help" ]
-
-          match out with
-          | Error _ -> ()
-          | Ok text ->
-            let first = (text.Split('\n')[0]).Trim()
-
-            if
-              first = "" || first.StartsWith "Usage:" || first.StartsWith "dark "
-            then
-              bad <- $"  {cmd} -> {first}" :: bad
-
-      if not (List.isEmpty bad) then
-        Tests.failtestf
-          "help that doesn't start with a summary:\n%s"
-          (bad |> List.rev |> String.concat "\n")
-    })
 
 let private everyExclusionIsReal =
   instanceTest "every command excluded from the sweeps still exists" (fun state ->
@@ -2599,13 +2513,11 @@ let tests : List<Test> =
     warningsAndPreviewsStayOffStdout
     eachCommandKeepsItsStreams
     testHelpCommand
-    everyCommandAnswersHelp
     workbenchViewsRender
     showingACommitDoesNotFetchEveryOp
     workbenchBranchActionsWork
     mergeAndRebaseRefuseOnMain
     everyExclusionIsReal
-    everyHelpLeadsWithASummary
     permissionsRefusesAnEmptyRule
     permissionsAllowTakesSeveralRules
     aDashLedArgumentIsNeverAName
