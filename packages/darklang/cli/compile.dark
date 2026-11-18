@@ -18,7 +18,8 @@ let compilerPath(): String =
   | Some(path) -> path
   | None ->
     let home = Stdlib.Cli.Env.home() |> Stdlib.Option.withDefault("")
-    $"{home}/.darklang/compiler/{Stdlib.String.slice(pinnedCommit, 0, 9)}/darkc"
+    let short = Stdlib.String.slice(pinnedCommit, 0, 9) |> Stdlib.Result.withDefault(pinnedCommit)
+    $"{home}/.darklang/compiler/{short}/darkc"
 
 
 /// Serve this instance's packages for as long as the compiler runs with <param args>.

@@ -49,7 +49,7 @@ test functionWithLocation =
 
       Stdlib.String.contains(
         body,
-        "\"location\":{\"modules\":[\"Stdlib\",\"List\"],\"name\":\"length\",\"owner\":\"Darklang\"}")
+        "\"location\":{\"owner\":\"Darklang\",\"modules\":[\"Stdlib\",\"List\"],\"name\":\"length\"}")
       |> Stdlib.Test.equal(true) ])
 
 
