@@ -1,6 +1,6 @@
 # LibParser
 
-The hand-written recursive-descent parser for Darklang source. One lexer, one
+The recursive-descent parser for Darklang source. One lexer, one
 parser, one syntax tree.
 
 **[GRAMMAR.md](GRAMMAR.md) is the spec for the grammar it accepts** — operator
