@@ -36,6 +36,53 @@ let parse(json: String): Result<'a, ParseError.ParseError> =
   Builtin.jsonParse<'a>(json)
 
 
+/// <param value> as an <type AltJson.Json> tree, the JSON <fn serialize> writes, to change
+/// with list functions before <fn serialize> writes it. A tree holds a number as an
+/// `Int64` or a `Float64`, so a wider integer or a `Decimal` becomes the nearest `Float64`.
+let toTree(value: 'a): AltJson.Json =
+  toTreeWith<'a>(Options.defaults(), value)
+
+
+/// <fn toTree>, as <param options> say.
+let toTreeWith(options: Options.Options, value: 'a): AltJson.Json =
+  // `serialize` only writes JSON that `parse` reads
+  serializeWith<'a>(options, value)
+  |> parse<AltJson.Json>
+  |> Result.withDefault(AltJson.Json.Null)
+
+
+/// <fn toTree>, or {{Error}} where it raises, as <fn checkedSerialize>.
+let checkedToTree(value: 'a): Result<AltJson.Json, SerializeError.SerializeError> =
+  checkedToTreeWith<'a>(Options.defaults(), value)
+
+
+/// <fn checkedToTree>, as <param options> say.
+let checkedToTreeWith(
+  options: Options.Options,
+  value: 'a)
+  : Result<AltJson.Json, SerializeError.SerializeError> =
+  checkedSerializeWith<'a>(options, value)
+  |> Result.map(fun json -> parse<AltJson.Json>(json) |> Result.withDefault(AltJson.Json.Null))
+
+
+/// Reads <param tree> as a value of <typeParam a>, the way <fn parse> reads JSON text.
+let fromTree(tree: AltJson.Json): Result<'a, ParseError.ParseError> =
+  parse<'a>(serialize<AltJson.Json>(tree))
+
+
+/// How a type of your own is written as JSON, in place of the form <fn serialize> gives it.
+/// <fn serialize> calls it for each value of the type it reaches, nested ones too:
+/// `impl ToJson for Celsius = let toJson(c: Celsius): AltJson.Json = AltJson.Json.Float(c.degrees)`.
+trait ToJson<'a> =
+  let toJson(value: 'a): AltJson.Json
+
+
+/// How a type of your own is read from JSON, in place of the form <fn parse> reads. {{Error}}
+/// says why the JSON can't be one, and <fn parse> reports it with the path.
+trait FromJson<'a> =
+  let fromJson(json: AltJson.Json): Result<'a, String>
+
+
 /// How <fn serializeWith> writes JSON. Start from <fn defaults> and change what you need:
 /// `{ Stdlib.Json.Options.defaults() with noneFields = Stdlib.Json.Options.NoneFields.Null }`.
 module Options =
@@ -104,6 +151,8 @@ module ParseError =
     | NotJson(line: Int64, column: Int64)
     /// A type with no JSON form: a function, bytes, a stream, or a type variable
     | UnsupportedType(LanguageTools.RuntimeTypes.TypeReference)
+    /// The type's <type FromJson> impl refused the JSON, saying why
+    | Rejected(message: String, JsonPath.JsonPath)
 
 
   let toString(branchId: Uuid, e: ParseError): String =
@@ -177,6 +226,9 @@ module ParseError =
       "Can't parse JSON as type `"
       + PrettyPrinter.RuntimeTypes.typeReference(branchId, typ)
       + "`, which has no JSON form"
+    // Can't parse JSON: expected a temperature like "21.5C" at path: `root.temp`
+    | Rejected(message, path) ->
+      "Can't parse JSON: " + message + " at path: `" + JsonPath.toString(path) + "`"
 
 
   impl Display for ParseError =

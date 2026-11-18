@@ -2645,6 +2645,183 @@ module Option =
               "Can't parse JSON `null` as type `Darklang.Stdlib.Option.Option<Darklang.Stdlib.Option.Option<Int64>>` at path: `root`")) ])
 
 
+module Tree =
+  type Reading =
+    { host: String
+      cpu: Stdlib.Option.Option<Float64>
+      tags: List<String> }
+
+
+  val reading =
+    Reading
+      { host = "a1", cpu = Stdlib.Option.Option.Some(38.5), tags = [ "x" ] }
+
+
+  test toTree =
+    Stdlib.Test.all(
+      [ Stdlib.Json.toTree<Reading>(reading)
+        |> Stdlib.Test.equal(
+          Stdlib.AltJson.Json.Object(
+            [ ("host", Stdlib.AltJson.Json.String("a1"))
+              ("cpu", Stdlib.AltJson.Json.Float(38.5))
+              (
+                "tags",
+                Stdlib.AltJson.Json.Array(
+                  [ Stdlib.AltJson.Json.String("x") ])) ]))
+
+        Stdlib.Json.toTreeWith<Reading>(
+          Stdlib.Json.Options.Options
+            { noneFields = Stdlib.Json.Options.NoneFields.Null },
+          { reading with cpu = Stdlib.Option.Option.None })
+        |> Stdlib.Test.equal(
+          Stdlib.AltJson.Json.Object(
+            [ ("host", Stdlib.AltJson.Json.String("a1"))
+              ("cpu", Stdlib.AltJson.Json.Null)
+              (
+                "tags",
+                Stdlib.AltJson.Json.Array(
+                  [ Stdlib.AltJson.Json.String("x") ])) ]))
+
+        Stdlib.Json.toTree<List<Option<Int64>>>([ Option.Some(1), Option.None ])
+        |> Stdlib.Test.equal(
+          Stdlib.AltJson.Json.Array(
+            [ Stdlib.AltJson.Json.Integer(1), Stdlib.AltJson.Json.Null ]))
+
+        Stdlib.Json.checkedToTree<Int64 -> Int64>(fun x -> x)
+        |> Stdlib.Result.mapError(fun e -> Stdlib.display(e))
+        |> Stdlib.Test.equal(
+          Result.Error("Cannot serialize a function into JSON")) ])
+
+
+  test fromTree =
+    Stdlib.Test.all(
+      [ Stdlib.Json.fromTree<Reading>(Stdlib.Json.toTree<Reading>(reading))
+        |> Stdlib.Test.equal(Result.Ok(reading))
+
+        Stdlib.Json.fromTree<Reading>(
+          Stdlib.AltJson.Json.Object(
+            [ ("host", Stdlib.AltJson.Json.String("b2"))
+              ("tags", Stdlib.AltJson.Json.Array([])) ]))
+        |> Stdlib.Test.equal(
+          Result.Ok(Reading { host = "b2", cpu = Option.None, tags = [] }))
+
+        Stdlib.Json.fromTree<Reading>(Stdlib.AltJson.Json.Integer(1))
+        |> err
+        |> Stdlib.Test.equal(
+          Result.Error(
+            "Can't parse JSON `1` as type `Darklang.Stdlib.Json.Tests.Tree.Reading` at path: `root`")) ])
+
+
+  /// Derive the default, then change what you need.
+  test editTheTree =
+    let renamed =
+      match Stdlib.Json.toTree<Reading>(reading) with
+      | Object(fields) ->
+        Stdlib.AltJson.Json.Object(
+          Stdlib.List.map(fields, fun((k, v)) ->
+            if k == "host" then ("hostname", v) else (k, v)))
+      | other -> other
+
+    Stdlib.Json.serialize<Stdlib.AltJson.Json>(renamed)
+    |> Stdlib.Test.equal("{\"hostname\":\"a1\",\"cpu\":38.5,\"tags\":[\"x\"]}")
+
+
+module Traits =
+  /// Written as `"21.5C"`, by its impls.
+  type Celsius =
+    { degreesC: Float64 }
+
+
+  impl Stdlib.Json.ToJson for Celsius =
+    let toJson(c: Celsius): Stdlib.AltJson.Json =
+      Stdlib.AltJson.Json.String(Stdlib.display(c.degreesC) + "C")
+
+
+  impl Stdlib.Json.FromJson for Celsius =
+    let fromJson(
+      json: Stdlib.AltJson.Json)
+      : Stdlib.Result.Result<Celsius, String> =
+      let refused =
+        Stdlib.Result.Result.Error("expected a temperature like \"21.5C\"")
+
+      match json with
+      | String(s) when Stdlib.String.endsWith(s, "C") ->
+        match Stdlib.Float64.parse(Stdlib.String.dropLast(s, 1)) with
+        | Ok(degreesC) ->
+          Stdlib.Result.Result.Ok(Celsius { degreesC = degreesC })
+        | Error(_) -> refused
+      | _ -> refused
+
+
+  type Room =
+    { name: String
+      temp: Celsius
+      history: List<Celsius>
+      target: Stdlib.Option.Option<Celsius> }
+
+
+  val room =
+    Room
+      { name = "lab"
+        temp = Celsius { degreesC = 21.5 }
+        history = [ Celsius { degreesC = 20.0 }, Celsius { degreesC = 19.5 } ]
+        target = Stdlib.Option.Option.Some(Celsius { degreesC = 22.0 }) }
+
+
+  val roomJson =
+    "{\"name\":\"lab\",\"temp\":\"21.5C\",\"history\":[\"20.0C\",\"19.5C\"],\"target\":\"22.0C\"}"
+
+
+  test serialize =
+    Stdlib.Test.all(
+      [ Stdlib.Json.serialize<Celsius>(Celsius { degreesC = 21.5 })
+        |> Stdlib.Test.equal("\"21.5C\"")
+
+        Stdlib.Json.serialize<Room>(room) |> Stdlib.Test.equal(roomJson)
+
+        Stdlib.Json.checkedSerialize<Room>(room)
+        |> Stdlib.Test.equal(Result.Ok(roomJson))
+
+        Stdlib.Json.toTree<List<Celsius>>([ Celsius { degreesC = 1.0 } ])
+        |> Stdlib.Test.equal(
+          Stdlib.AltJson.Json.Array([ Stdlib.AltJson.Json.String("1.0C") ])) ])
+
+
+  test parse =
+    Stdlib.Test.all(
+      [ Stdlib.Json.parse<Celsius>("\"21.5C\"")
+        |> Stdlib.Test.equal(Result.Ok(Celsius { degreesC = 21.5 }))
+
+        Stdlib.Json.parse<Room>(roomJson) |> Stdlib.Test.equal(Result.Ok(room))
+
+        Stdlib.Json.parse<Room>(Stdlib.Json.serialize<Room>(room))
+        |> Stdlib.Test.equal(Result.Ok(room))
+
+        Stdlib.Json.parse<List<Celsius>>("[\"1C\",\"2C\",\"1C\"]")
+        |> Stdlib.Test.equal(
+          Result.Ok(
+            [ Celsius { degreesC = 1.0 }
+              Celsius { degreesC = 2.0 }
+              Celsius { degreesC = 1.0 } ])) ])
+
+
+  test parseErrors =
+    Stdlib.Test.all(
+      [ Stdlib.Json.parse<Room>(
+          "{\"history\":[],\"name\":\"lab\",\"temp\":{\"degreesC\":21.5}}")
+        |> err
+        |> Stdlib.Test.equal(
+          Result.Error(
+            "Can't parse JSON: expected a temperature like \"21.5C\" at path: `root.temp`"))
+
+        Stdlib.Json.parse<Room>(
+          "{\"history\":[\"1C\",5],\"name\":\"lab\",\"temp\":\"1C\"}")
+        |> err
+        |> Stdlib.Test.equal(
+          Result.Error(
+            "Can't parse JSON: expected a temperature like \"21.5C\" at path: `root.history[1]`")) ])
+
+
 module ParseErrorToString =
   test interpolates =
     Stdlib.Json.parse<Person>("{\"Name\":\"Bob\",\"Age\":\"x\"}")
@@ -3502,3 +3679,46 @@ module RangedInts =
           |> Stdlib.Test.equal(
             Result.Error(
               "Can't parse JSON `\"80\"` as type `Darklang.Stdlib.Net.Port` at path: `root`")) ])
+
+
+
+// `Stdlib.AltJson.Json` as a parse target takes any JSON value, so mixed data needs no
+// hand-written decoder; serialize writes it back as the same JSON.
+module AnyJson =
+  type Row =
+    { name: String
+      extra: Stdlib.AltJson.Json }
+
+
+  test parseMixedValues =
+    Stdlib.Json.parse<Dict<String, Stdlib.AltJson.Json>>(
+      "{\"a\":1,\"b\":\"x\",\"c\":[true,null],\"d\":{\"e\":1.5}}")
+    |> Stdlib.Test.equal(
+      Stdlib.Result.Result.Ok(
+        Dict { "a": Stdlib.AltJson.Json.Integer(1)
+               "b": Stdlib.AltJson.Json.String("x")
+               "c": Stdlib.AltJson.Json.Array(
+                 [ Stdlib.AltJson.Json.Bool(true), Stdlib.AltJson.Json.Null ])
+               "d": Stdlib.AltJson.Json.Object(
+                 [ ("e", Stdlib.AltJson.Json.Float(1.5)) ]) }))
+
+
+  test aRecordFieldOfAnyShape =
+    Stdlib.Json.parse<List<Row>>(
+      "[{\"name\":\"a\",\"extra\":7},{\"name\":\"b\",\"extra\":[\"x\"]}]")
+    |> Stdlib.Test.equal(
+      Stdlib.Result.Result.Ok(
+        [ Row { name = "a", extra = Stdlib.AltJson.Json.Integer(7) }
+          Row
+            { name = "b"
+              extra =
+                Stdlib.AltJson.Json.Array(
+                  [ Stdlib.AltJson.Json.String("x") ]) } ]))
+
+
+  test serializeWritesTheJsonItHolds =
+    let text = "[{\"n\":1,\"s\":\"x\",\"o\":{\"z\":null,\"a\":[1.5,false]}}]"
+    Stdlib.Json.parse<List<Stdlib.AltJson.Json>>(text)
+    |> Stdlib.Result.map(fun v ->
+      Stdlib.Json.serialize<List<Stdlib.AltJson.Json>>(v))
+    |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(text))
