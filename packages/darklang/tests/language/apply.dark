@@ -268,10 +268,10 @@ test argumentsThatFitExactly =
       optionArg(Stdlib.Option.Option.Some(ArgMode.Break)) |> Stdlib.Test.equal(true) ])
 
 test aTupleThatDoesNotFitRaises =
-  tupleArg((1, 2)) => raises "Darklang.Language.Tests.Apply.tupleArg's 1st parameter `t` expects (Int64 * ArgMode), but got (Int64 * Int64) ((1, 2))"
+  tupleArg((1, 2)) => raises "Darklang.Language.Tests.Apply.tupleArg's 1st parameter `t` expects (Int64 * Darklang.Language.Tests.Apply.ArgMode), but got (Int64 * Int64) ((1, 2))"
 
 test aListOfTuplesThatDoesNotFitRaises =
-  tuplesArg([ (1, 2) ]) => raises "Darklang.Language.Tests.Apply.tuplesArg's 1st parameter `ts` expects List<(Int64 * ArgMode)>, but got List<(Int64 * Int64)> ([(1, 2)])"
+  tuplesArg([ (1, 2) ]) => raises "Darklang.Language.Tests.Apply.tuplesArg's 1st parameter `ts` expects List<(Int64 * Darklang.Language.Tests.Apply.ArgMode)>, but got List<(Int64 * Int64)> ([(1, 2)])"
 
 test anOptionThatDoesNotFitRaises =
-  optionArg(Stdlib.Option.Option.Some(3)) => raises "Darklang.Language.Tests.Apply.optionArg's 1st parameter `o` expects Darklang.Stdlib.Option.Option<ArgMode>, but got Darklang.Stdlib.Option.Option<Int64> (Some(3))"
+  optionArg(Stdlib.Option.Option.Some(3)) => raises "Darklang.Language.Tests.Apply.optionArg's 1st parameter `o` expects Darklang.Stdlib.Option.Option<Darklang.Language.Tests.Apply.ArgMode>, but got Darklang.Stdlib.Option.Option<Int64> (Some(3))"
