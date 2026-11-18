@@ -6,7 +6,7 @@ open Prelude
 
 /// The calls passing a bare `true`/`false` to a `Bool` parameter (`LibDB.BoolFlagSites`) are
 /// the ones `backend/tests/bool-flag-sites.txt` lists. A new one fails here: take a two-case
-/// enum named for what the flag means instead (#6150). One taken away fails too, until the file
+/// enum named for what the flag means instead. One taken away fails too, until the file
 /// is rewritten, so the list only shrinks.
 let bareBoolCallsMatchTheBaseline =
   testTask
@@ -31,7 +31,7 @@ let bareBoolCallsMatchTheBaseline =
         failtest $"{what} bare true/false calls; {fix}:\n{shown}"
     fail
       "new or more"
-      "take a two-case enum named for what the flag means (#6150)"
+      "take a two-case enum named for what the flag means"
       (found |> List.filter (fun line -> not (List.contains line listed)))
     fail
       "fewer"

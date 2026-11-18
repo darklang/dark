@@ -98,6 +98,7 @@ echo "pre-push --$MODE on $(git rev-parse --short HEAD)"
 step shellcheck scripts/linting/shellchecker
 step blocking-waits scripts/linting/blocking-waits
 step random-sources scripts/linting/random-sources
+step issue-refs scripts/linting/issue-refs
 step format scripts/formatting/format check \
   || echo "    fix with: scripts/formatting/format format, then build again"
 step build-planning-tests scripts/testing/test-build-planning.py

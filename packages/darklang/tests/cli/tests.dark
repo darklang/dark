@@ -401,7 +401,7 @@ test fnTakesACommentedDeclarationAsIs =
       |> Stdlib.Test.equal("let f (x: Int64): Int64 = x") ])
 
 
-// #6024: an impl's methods are called through its trait, never at the type's module, so
+// An impl's methods are called through its trait, never at the type's module, so
 // `view` and `search` say where: the `Stdlib.display` shortcut beside `Display`, and the
 // trait's own path for one without a shortcut.
 test implListingsSayWhereTheMethodsAreCalled =

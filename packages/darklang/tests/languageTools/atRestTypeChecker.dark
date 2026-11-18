@@ -1916,7 +1916,7 @@ module PostfixUnwrap =
       [ "TypeMismatch: In the error returned by ?: expected String, got Bool" ])
 
 
-  // #6024: an Int64 handed where a String is expected names the conversion.
+  // An Int64 handed where a String is expected names the conversion.
   test intWhereStringExpectedNamesToString =
     issues("let f(n: Int64): String = n", "f")
     |> Stdlib.Test.equal(
