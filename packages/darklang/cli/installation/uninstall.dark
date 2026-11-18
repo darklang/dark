@@ -35,18 +35,22 @@ let runUninstall(host: Stdlib.Cli.Host.Host): Result<Unit, String> =
 
 
 let execute(state: AppState, args: List<String>): AppState =
-  let host = Stdlib.Cli.Host.getRuntimeHost() |> Builtin.unwrap
-  let confirm =
-    Confirm.assumeIf(Stdlib.List.contains(args, "--yes") || Stdlib.List.contains(args, "-y"))
-
-  match System.uninstallWithConfirmation(host, confirm) with
-  | Ok(message) ->
-    Stdlib.printLine(View.formatSuccess(message))
-    // Exit after successful uninstall since the executable is being removed
-    { state with isExiting = true }
+  match Stdlib.Cli.Host.getRuntimeHost() with
   | Error(e) ->
-    Stdlib.printErrorLine(View.formatError(e))
+    Stdlib.printErrorLine(e)
     failed(state)
+  | Ok(host) ->
+    let confirm =
+      Confirm.assumeIf(Stdlib.List.contains(args, "--yes") || Stdlib.List.contains(args, "-y"))
+
+    match System.uninstallWithConfirmation(host, confirm) with
+    | Ok(message) ->
+      Stdlib.printLine(View.formatSuccess(message))
+      // Exit after successful uninstall since the executable is being removed
+      { state with isExiting = true }
+    | Error(e) ->
+      Stdlib.printErrorLine(View.formatError(e))
+      failed(state)
 
 
 let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =

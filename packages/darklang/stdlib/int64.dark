@@ -74,7 +74,7 @@ impl Compare for Int64 =
 let random(start: Int64, end: Int64): Int64 =
   BigInt.random(BigInt.fromInt64(start), BigInt.fromInt64(end))
   |> BigInt.toInt64
-  |> Builtin.unwrap
+  |> Option.withDefault(start)
 
 
 /// Get the square root of an <type Int64>
@@ -147,32 +147,32 @@ let parse(s: String): Result<Int64, ParseError> =
 
 /// Converts an <type Int8> to an <type Int64>.
 let fromInt8(i: Int8): Int64 =
-  BigInt.toInt64(BigInt.fromInt8(i)) |> Builtin.unwrap
+  BigInt.toInt64(BigInt.fromInt8(i)) |> Option.withDefault(0)
 
 
 /// Converts a <type UInt8> to an <type Int64>.
 let fromUInt8(i: UInt8): Int64 =
-  BigInt.toInt64(BigInt.fromUInt8(i)) |> Builtin.unwrap
+  BigInt.toInt64(BigInt.fromUInt8(i)) |> Option.withDefault(0)
 
 
 /// Converts an <type Int16> to an <type Int64>.
 let fromInt16(i: Int16): Int64 =
-  BigInt.toInt64(BigInt.fromInt16(i)) |> Builtin.unwrap
+  BigInt.toInt64(BigInt.fromInt16(i)) |> Option.withDefault(0)
 
 
 /// Converts a <type UInt16> to an <type Int64>.
 let fromUInt16(i: UInt16): Int64 =
-  BigInt.toInt64(BigInt.fromUInt16(i)) |> Builtin.unwrap
+  BigInt.toInt64(BigInt.fromUInt16(i)) |> Option.withDefault(0)
 
 
 /// Converts an <type Int32> to an <type Int64>.
 let fromInt32(i: Int32): Int64 =
-  BigInt.toInt64(BigInt.fromInt32(i)) |> Builtin.unwrap
+  BigInt.toInt64(BigInt.fromInt32(i)) |> Option.withDefault(0)
 
 
 /// Converts a <type UInt32> to an <type Int64>.
 let fromUInt32(i: UInt32): Int64 =
-  BigInt.toInt64(BigInt.fromUInt32(i)) |> Builtin.unwrap
+  BigInt.toInt64(BigInt.fromUInt32(i)) |> Option.withDefault(0)
 
 
 /// Converts a <type UInt64> to an <type Int64>. Returns {{None}} if the value is greater than 9223372036854775807

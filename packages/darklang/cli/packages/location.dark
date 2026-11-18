@@ -26,7 +26,7 @@ let parseRelativeTo(
   | [name] ->
     Result.Error($"a name starts with its owner, Owner.name or Owner.Module.name; try `Me.{name}`")
   | [owner, ...rest] ->
-    let name = Stdlib.List.last(rest) |> Builtin.unwrap
+    let name = Stdlib.List.last(rest) |> Stdlib.Option.withDefault("")
     let modules = Stdlib.List.dropLast(rest)
 
     // Module segments must be capitalised. A lowercase one is read as the item's NAME,

@@ -2,38 +2,42 @@ module Darklang.Cli.Installation.Update
 
 let execute(state: AppState, args: List<String>): AppState =
   let currentVersion = Helpers.cliVersion()
-  let host = Stdlib.Cli.Host.getRuntimeHost() |> Builtin.unwrap
-  let parsed =
-    FlagParser.parse(
-      FlagParser.Spec { flags = [ ("--yes", [ "-y" ]) ], valueFlags = [ ("--to", []) ] },
-      args)
-
-  match parsed.errors with
-  | [_, ...] ->
-    printErr(FlagParser.parseErrorsMessage(parsed.errors))
-    Stdlib.printErrorLine(help(state))
+  match Stdlib.Cli.Host.getRuntimeHost() with
+  | Error(e) ->
+    Stdlib.printErrorLine(e)
     failed(state)
-  | [] ->
-    let pinned = FlagParser.getOption(parsed, "--to")
-    match System.installedBinaryPath(host) with
-    | Error(e) ->
-      Stdlib.printErrorLine(View.formatError(e))
+  | Ok(host) ->
+    let parsed =
+      FlagParser.parse(
+        FlagParser.Spec { flags = [ ("--yes", [ "-y" ]) ], valueFlags = [ ("--to", []) ] },
+        args)
+
+    match parsed.errors with
+    | [_, ...] ->
+      printErr(FlagParser.parseErrorsMessage(parsed.errors))
+      Stdlib.printErrorLine(help(state))
       failed(state)
-    | Ok(target) ->
-      if Stdlib.Bool.not(System.isRunningInstalled(target)) then
-        printErr($"This dark isn't the installed one ({target}), so there's nothing to update.")
-        printHint("  dark install installs this one; the installed dark updates itself")
+    | [] ->
+      let pinned = FlagParser.getOption(parsed, "--to")
+      match System.installedBinaryPath(host) with
+      | Error(e) ->
+        Stdlib.printErrorLine(View.formatError(e))
         failed(state)
-      else
-        let replace = fun () -> Download.installRelease(host, pinned)
-        Stdlib.printErrorLine($"Checking for updates from Darklang CLI {currentVersion}...")
-        match System.updateIfAvailable(currentVersion, pinned, replace) with
-        | Ok(message) ->
-          Stdlib.printLine(View.formatSuccess(message))
-          state
-        | Error(e) ->
-          Stdlib.printErrorLine(View.formatError(e))
+      | Ok(target) ->
+        if Stdlib.Bool.not(System.isRunningInstalled(target)) then
+          printErr($"This dark isn't the installed one ({target}), so there's nothing to update.")
+          printHint("  dark install installs this one; the installed dark updates itself")
           failed(state)
+        else
+          let replace = fun () -> Download.installRelease(host, pinned)
+          Stdlib.printErrorLine($"Checking for updates from Darklang CLI {currentVersion}...")
+          match System.updateIfAvailable(currentVersion, pinned, replace) with
+          | Ok(message) ->
+            Stdlib.printLine(View.formatSuccess(message))
+            state
+          | Error(e) ->
+            Stdlib.printErrorLine(View.formatError(e))
+            failed(state)
 
 
 let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =

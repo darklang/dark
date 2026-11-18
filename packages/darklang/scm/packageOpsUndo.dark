@@ -86,7 +86,11 @@ let readRevisionOps(
 
   Stdlib.List.concat(
     parent,
-    own |> Stdlib.List.map(fun((id, ts, op)) -> (Builtin.unwrap(Stdlib.Uuid.parse(id)), ts, op)))
+    own
+    |> Stdlib.List.filterMap(fun((id, ts, op)) ->
+      Stdlib.Uuid.parse(id)
+      |> Stdlib.Result.toOption
+      |> Stdlib.Option.map(fun uuid -> (uuid, ts, op))))
 
 
 /// Read the edits undo can follow for this package location on this branch.
