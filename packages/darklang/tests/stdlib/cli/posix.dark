@@ -47,7 +47,9 @@ test syscallErrnos =
 test unlinkAtRemovesDirectory =
   Stdlib.Cli.Dir.withTemp(fun dir ->
     let path = Stdlib.String.append(dir, "/child")
-    let created = Stdlib.Cli.Posix.mkdir(path, 448)
+    let created =
+      Stdlib.Cli.Posix.mkdir(path, Stdlib.Cli.Posix.Modes.ownerOnlyDir)
+
     let removed =
       Builtin.syscallUnlinkAt(path, Stdlib.Cli.Posix.__abiRemoveDirectory())
 
@@ -288,7 +290,7 @@ test publicWrappers =
       |> Stdlib.Result.map(fun path -> Stdlib.String.startsWith(path, "/"))
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
 
-      Stdlib.Cli.Posix.fdRead(-1z, 1)
+      Stdlib.Cli.Posix.fdRead(Stdlib.Cli.Posix.Fd { __fd = -1z }, 1)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(posixError(9, "Bad file descriptor"))) ])
 
@@ -394,6 +396,35 @@ test exitCodeFromInt64 =
 
       Stdlib.display(Stdlib.Cli.Posix.ExitCode.failure)
       |> Stdlib.Test.equal("1") ])
+
+
+test fileModes =
+  Stdlib.Test.all(
+    [ Stdlib.Cli.Posix.FileMode.fromInt64(420)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(Stdlib.Cli.Posix.Modes.defaultFile))
+
+      Stdlib.Cli.Posix.FileMode.fromInt64(65536)
+      |> Stdlib.Result.mapError(Stdlib.display)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          "65536 is not a valid file mode (0 to 65535)"))
+
+      Stdlib.display(Stdlib.Cli.Posix.Modes.defaultDir)
+      |> Stdlib.Test.equal("0755")
+
+      Stdlib.inspect(Stdlib.Cli.Posix.Modes.defaultFile)
+      |> Stdlib.Test.equal("FileMode(0644)")
+
+      // a directory's st_mode: the type bits and 0755
+      Stdlib.Cli.Posix.FileMode.fromInt64(16877)
+      |> Stdlib.Result.map(fun mode ->
+        (
+          Stdlib.Cli.Posix.FileMode.fileType(mode)
+          == Stdlib.Cli.Posix.StatMode.ifdir,
+          Stdlib.Cli.Posix.FileMode.permissions(mode)
+          == Stdlib.Cli.Posix.Modes.defaultDir))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((true, true))) ])
 
 
 // A signal is sent as its number, the same on Linux and macOS

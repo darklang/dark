@@ -39,7 +39,7 @@ let move(src: String, dst: String): Result<Unit, Posix.Error> =
 
 /// Read the entire contents of a file as a Bytes.
 let readBytes(path: String): Result<Bytes, Posix.Error> =
-  match Posix.openFile(path, Posix.OpenFlags.rdonly(), 0) with
+  match Posix.openFile(path, Posix.OpenFlags.rdonly(), Posix.Modes.none) with
   | Ok(fd) ->
     let result = Posix.fdReadAll(fd, [])
     let closed = Posix.fdClose(fd)
@@ -51,7 +51,7 @@ let readBytes(path: String): Result<Bytes, Posix.Error> =
 
 /// Read the entire contents of a file as a string.
 let readText(path: String): Result<String, Posix.Error> =
-  match Posix.openFile(path, Posix.OpenFlags.rdonly(), 0) with
+  match Posix.openFile(path, Posix.OpenFlags.rdonly(), Posix.Modes.none) with
   | Ok(fd) ->
     let result = Posix.fdReadAll(fd, [])
     let _ = Posix.fdClose(fd)
@@ -92,7 +92,7 @@ let __dropThroughFirstNewline(bytes: Bytes): Bytes =
 /// addresses the file by absolute offset, so a short read there would silently drop bytes out of the middle
 /// of the window and hand back lines that never existed. Loop instead. (`fdReadAll` above loops for the same
 /// reason.)
-let readFully(fd: BigInt, count: Int64, acc: List<Bytes>): Result<Bytes, Posix.Error> =
+let readFully(fd: Posix.Fd, count: Int64, acc: List<Bytes>): Result<Bytes, Posix.Error> =
   if count <= 0 then
     Result.Ok(Bytes.concatAll(acc))
   else
@@ -107,7 +107,7 @@ let readFully(fd: BigInt, count: Int64, acc: List<Bytes>): Result<Bytes, Posix.E
 
 
 let __readTailChunks(
-  fd: BigInt,
+  fd: Posix.Fd,
   cursor: Int64,
   requiredNewlines: Int64,
   foundNewlines: Int64,
@@ -140,7 +140,7 @@ let readLastLines(path: String, count: Int64): Result<List<String>, Posix.Error>
     // caller) yields a slightly stale tail rather than the newest lines. Fine here; surprising elsewhere.
     size(path)
     |> Result.andThen(fun fileSize ->
-      match Posix.openFile(path, Posix.OpenFlags.rdonly(), 0) with
+      match Posix.openFile(path, Posix.OpenFlags.rdonly(), Posix.Modes.none) with
       | Error(e) -> Result.Error(e)
       | Ok(fd) ->
         let tailResult = __readTailChunks(fd, fileSize, count, 0, [])
@@ -206,8 +206,8 @@ let touch(path: String): Result<Unit, Posix.Error> =
     | Error(e) -> Result.Error(e)
 
 
-/// Set file permissions (e.g. 493 for 0755).
-let setPermissions(path: String, mode: Int64): Result<Unit, Posix.Error> =
+/// Set file permissions (e.g. <val Posix.Modes.defaultFile>).
+let setPermissions(path: String, mode: Posix.FileMode): Result<Unit, Posix.Error> =
   Posix.chmod(path, mode)
 
 
@@ -488,30 +488,33 @@ let __copyFinish(
 
 
 let __copyDescriptors(
-  source: BigInt,
-  destination: BigInt,
+  source: Posix.Fd,
+  destination: Posix.Fd,
   sourceInfo: Posix.__KernelMetadata)
   : Result<Unit, Int64> =
-  Builtin.syscallFstat(destination)
+  Builtin.syscallFstat(destination.__fd)
   |> Result.andThen(Posix.__kernelMetadata)
   |> Result.andThen(fun destinationInfo ->
     // Never truncate the source, even when a different path names a hard link.
     if sourceInfo.device == destinationInfo.device && sourceInfo.inode == destinationInfo.inode then
       Result.Error(22)
     else
-      Builtin.syscallFtruncate(destination, 0)
-      |> Result.andThen(fun _ -> __copyTransfer(source, destination))
-      |> Result.andThen(fun _ -> Builtin.syscallFchmod(destination, sourceInfo.mode & 511)))
+      Builtin.syscallFtruncate(destination.__fd, 0)
+      |> Result.andThen(fun _ -> __copyTransfer(source.__fd, destination.__fd))
+      |> Result.andThen(fun _ ->
+        Builtin.syscallFchmod(
+          destination.__fd,
+          Posix.FileMode.toInt64(Posix.FileMode.permissions(sourceInfo.mode)))))
 
 
 let __copyOpenDestination(
-  sourceFd: BigInt,
+  sourceFd: Posix.Fd,
   destination: String,
   sourceInfo: Posix.__KernelMetadata)
   : Result<Unit, Posix.Error> =
   // No O_TRUNC until the descriptor identity check above has succeeded.
   let flags = 1 | Posix.__abiOpenCreate()
-  match Posix.openFile(destination, flags, sourceInfo.mode & 511) with
+  match Posix.openFile(destination, flags, Posix.FileMode.permissions(sourceInfo.mode)) with
   | Error(e) -> Result.Error(e)
   | Ok(destinationFd) ->
     let copied =
@@ -522,12 +525,12 @@ let __copyOpenDestination(
 
 
 let __copyCloneDestination(
-  sourceFd: BigInt,
+  sourceFd: Posix.Fd,
   destination: String,
   sourceInfo: Posix.__KernelMetadata)
   : Result<Unit, Posix.Error> =
-  match Builtin.syscallFclonefileAt(sourceFd, destination, 3) with
-  | Ok(()) -> Posix.chmod(destination, sourceInfo.mode & 511)
+  match Builtin.syscallFclonefileAt(sourceFd.__fd, destination, 3) with
+  | Ok(()) -> Posix.chmod(destination, Posix.FileMode.permissions(sourceInfo.mode))
   | Error(4) -> __copyCloneDestination(sourceFd, destination, sourceInfo)
   | Error(e) ->
     // fclonefileat creates a new entry. An existing destination (EEXIST)
@@ -541,16 +544,17 @@ let __copyCloneDestination(
 /// Best-effort copy of a concurrently mutable file, not an atomic snapshot.
 /// Source metadata comes from the opened descriptor, not a second path lookup.
 let __copyCopy(source: String, destination: String): Result<Unit, Posix.Error> =
-  match Posix.openFile(source, 0, 0) with
+  match Posix.openFile(source, 0, Posix.Modes.none) with
   | Error(e) -> Result.Error(e)
   | Ok(sourceFd) ->
     let result =
-      Builtin.syscallFstat(sourceFd)
+      Builtin.syscallFstat(sourceFd.__fd)
       |> Result.andThen(Posix.__kernelMetadata)
       |> Result.mapError(Posix.__fromErrno)
       |> Result.andThen(fun sourceInfo ->
+        let fileType = Posix.FileMode.fileType(sourceInfo.mode)
         if
-          sourceInfo.mode & 61440 == 16384 || Posix.__abiMac() && sourceInfo.mode & 61440 != 32768
+          fileType == Posix.StatMode.ifdir || Posix.__abiMac() && fileType != Posix.StatMode.ifreg
         then
           Result.Error(Posix.__fromErrno(21))
         else if Posix.__abiMac() then
@@ -607,8 +611,8 @@ let __watchEvents(
           __watchEvents(bytes, at + length, nextChanged, nextRearm)))
 
 
-let __watchDrain(fd: BigInt): Result<(Bool * Bool), Int64> =
-  match Builtin.syscallRead(fd, 65536) with
+let __watchDrain(fd: Posix.Fd): Result<(Bool * Bool), Int64> =
+  match Builtin.syscallRead(fd.__fd, 65536) with
   | Error(4) -> __watchDrain(fd)
   | Error(11) -> Result.Ok((false, false))
   | Error(e) -> Result.Error(e)
@@ -616,7 +620,7 @@ let __watchDrain(fd: BigInt): Result<(Bool * Bool), Int64> =
 
 
 let __watchLoop(
-  fd: BigInt,
+  fd: Posix.Fd,
   intervalMs: Int64,
   shouldStop: Unit -> Bool,
   fn: Unit -> Unit)
@@ -624,7 +628,7 @@ let __watchLoop(
   if shouldStop() then
     Result.Ok(false)
   else
-    match Builtin.syscallPpoll([ (fd, 1) ], intervalMs) with
+    match Builtin.syscallPpoll([ (fd.__fd, 1) ], intervalMs) with
     | Error(4) -> __watchLoop(fd, intervalMs, shouldStop, fn)
     | Error(e) -> Result.Error(e)
     | Ok(record) ->
@@ -655,12 +659,13 @@ let __watchLinux(
   else
     match Builtin.syscallInotifyInit1(526336) with
     | Error(e) -> Result.Error(e)
-    | Ok(fd) ->
+    | Ok(raw) ->
+      let fd = Posix.Fd { __fd = raw }
       let result =
-        Builtin.syscallInotifyAddWatch(fd, path, 3086)
+        Builtin.syscallInotifyAddWatch(raw, path, 3086)
         |> Result.andThen(fun _ -> __watchLoop(fd, intervalMs, shouldStop, fn))
 
-      let closed = Builtin.syscallClose(fd)
+      let closed = Builtin.syscallClose(raw)
       match result with
       | Error(e) -> Result.Error(e)
       | Ok(rearm) ->

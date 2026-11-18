@@ -1,7 +1,9 @@
 module Darklang.Stdlib.Cli.Process
 
-/// Process handle for interacting with spawned processes
-type ProcessHandle = BigInt
+/// Process handle for interacting with spawned processes, as <fn spawn> hands one back; the
+/// field is not for constructing directly.
+type ProcessHandle =
+  { __child: BigInt }
 
 
 /// Where a child process's stdin, stdout and stderr go.
@@ -24,7 +26,8 @@ let __childStart(program: String, args: List<String>, stdio: Stdio): Result<BigI
 
 /// Spawn a new process and return a handle for interaction
 let spawn(command: String): ProcessHandle =
-  __childStart("/bin/sh", [ "-c", command ], Stdio.Capture) |> Builtin.unwrap
+  let child = __childStart("/bin/sh", [ "-c", command ], Stdio.Capture) |> Builtin.unwrap
+  ProcessHandle { __child = child }
 
 
 let __executionBytes(result: Result<(Int64 * Bytes * Bytes), Int64>): ExecutionBytes =
@@ -42,12 +45,12 @@ let __executionOutcome(result: Result<(Int64 * Bytes * Bytes), Int64>): Executio
 /// Send input to a process and read any available output (non-blocking)
 /// Use empty string for input to just read output without sending anything
 let communicate(handle: ProcessHandle, input: String): ExecutionOutcome =
-  __executionOutcome(__childCommunicate(handle, input))
+  __executionOutcome(__childCommunicate(handle.__child, input))
 
 
 /// Terminate a process and get final output
 let terminate(handle: ProcessHandle): ExecutionOutcome =
-  __executionOutcome(__childTerminate(handle))
+  __executionOutcome(__childTerminate(handle.__child))
 
 
 // ─── Posix-based process execution (no bash, no shell) ───
@@ -328,11 +331,11 @@ let __childFinish(child: BigInt, result: Result<'a, Int64>): Result<'a, Int64> =
   | Ok(value) -> closed |> Result.map(fun _ -> value)
 
 
-let __childRead(fd: BigInt, eof: Bool): Result<(Bytes * Bool), Int64> =
+let __childRead(fd: Posix.Fd, eof: Bool): Result<(Bytes * Bool), Int64> =
   if eof then
     Result.Ok((Bytes.empty, true))
   else
-    match Builtin.syscallRead(fd, 65536) with
+    match Builtin.syscallRead(fd.__fd, 65536) with
     | Error(4) -> __childRead(fd, false)
     | Error(e) ->
       if e == Posix.__abiErrnoAgain() then
@@ -344,14 +347,14 @@ let __childRead(fd: BigInt, eof: Bool): Result<(Bytes * Bool), Int64> =
 
 /// One write per turn, interleaved with both readers, so a child producing
 /// output while accepting a large input cannot deadlock on a full pipe.
-let __childWrite(fd: BigInt, pending: Bytes): Result<Bytes, Int64> =
+let __childWrite(fd: Posix.Fd, pending: Bytes): Result<Bytes, Int64> =
   let length = Bytes.length(pending)
   if length == 0 then
     Result.Ok(pending)
   else
     let count = if length < 65536 then length else 65536
     let chunk = if count == length then pending else Bytes.take(pending, count)
-    match Builtin.syscallWrite(fd, chunk) with
+    match Builtin.syscallWrite(fd.__fd, chunk) with
     | Error(4) -> __childWrite(fd, pending)
     | Error(e) -> if e == Posix.__abiErrnoAgain() then Result.Ok(pending) else Result.Error(e)
     | Ok(written) ->
@@ -361,12 +364,18 @@ let __childWrite(fd: BigInt, pending: Bytes): Result<Bytes, Int64> =
         Result.Ok(Bytes.drop(pending, written))
 
 
-let __childPoll(fds: List<(BigInt * Int64)>, milliseconds: Int64): Result<Unit, Int64> =
+let __childPoll(fds: List<(Posix.Fd * Int64)>, milliseconds: Int64): Result<Unit, Int64> =
+  let raw =
+    fds
+    |> List.map(fun pair ->
+      let (fd, events) = pair
+      (fd.__fd, events))
+
   let result =
     if Posix.__abiMac() then
-      Builtin.syscallPollDarwin(fds, milliseconds)
+      Builtin.syscallPollDarwin(raw, milliseconds)
     else
-      Builtin.syscallPpoll(fds, milliseconds)
+      Builtin.syscallPpoll(raw, milliseconds)
 
   match result with
   | Error(4) -> __childPoll(fds, milliseconds)
@@ -375,14 +384,18 @@ let __childPoll(fds: List<(BigInt * Int64)>, milliseconds: Int64): Result<Unit, 
 
 
 let __childDescriptors(
-  stdin: BigInt,
-  stdout: BigInt,
-  stderr: BigInt,
+  stdin: Option<Posix.Fd>,
+  stdout: Posix.Fd,
+  stderr: Posix.Fd,
   pending: Bytes,
   outEOF: Bool,
   errEOF: Bool)
-  : List<(BigInt * Int64)> =
-  let input = if Bytes.length(pending) == 0 then [] else [ (stdin, 4) ]
+  : List<(Posix.Fd * Int64)> =
+  let input =
+    match stdin with
+    | Some(fd) when Bytes.length(pending) > 0 -> [ (fd, 4) ]
+    | _ -> []
+
   let output = if outEOF then [] else [ (stdout, 1) ]
   let error = if errEOF then [] else [ (stderr, 1) ]
   List.concat(input, List.concat(output, error))
@@ -390,8 +403,8 @@ let __childDescriptors(
 
 let __childCapture(
   child: BigInt,
-  stdout: BigInt,
-  stderr: BigInt,
+  stdout: Posix.Fd,
+  stderr: Posix.Fd,
   deadline: Option<Int64>,
   output: __ChildBuffer,
   error: __ChildBuffer,
@@ -430,7 +443,9 @@ let __childCapture(
                 __childCapture(child, stdout, stderr, deadline, output, error, outEOF, errEOF)
           else
             let wait = if remaining < 100 then remaining else 100
-            __childPoll(__childDescriptors(-1z, stdout, stderr, Bytes.empty, outEOF, errEOF), wait)
+            __childPoll(
+              __childDescriptors(Option.None, stdout, stderr, Bytes.empty, outEOF, errEOF),
+              wait)
             |> Result.andThen(fun _ ->
               __childCapture(child, stdout, stderr, deadline, output, error, outEOF, errEOF)))))
 
@@ -461,8 +476,8 @@ let __childRun(
 
             __childCapture(
               child,
-              stdout,
-              stderr,
+              Posix.Fd { __fd = stdout },
+              Posix.Fd { __fd = stderr },
               deadline,
               __childEmpty(),
               __childEmpty(),
@@ -488,7 +503,7 @@ let __childNewline(bytes: Bytes): Bool =
 /// earlier. Each turn drains both streams and advances a partial input write.
 let __childCommunicateLoop(
   child: BigInt,
-  ports: (BigInt * BigInt * BigInt),
+  ports: (Posix.Fd * Posix.Fd * Posix.Fd),
   pending: Bytes,
   turns: Int64,
   output: __ChildBuffer,
@@ -520,7 +535,9 @@ let __childCommunicateLoop(
           if turns <= 0 || complete || outEOF && errEOF then
             Result.Ok((code, __childBytes(output), __childBytes(error)))
           else
-            __childPoll(__childDescriptors(stdin, stdout, stderr, pending, outEOF, errEOF), 100)
+            __childPoll(
+              __childDescriptors(Option.Some(stdin), stdout, stderr, pending, outEOF, errEOF),
+              100)
             |> Result.andThen(fun _ ->
               __childCommunicateLoop(
                 child,
@@ -548,7 +565,7 @@ let __childCommunicate(child: BigInt, input: String): Result<(Int64 * Bytes * By
       let turns = if input == "" then 0 else 100
       __childCommunicateLoop(
         child,
-        (stdin, stdout, stderr),
+        (Posix.Fd { __fd = stdin }, Posix.Fd { __fd = stdout }, Posix.Fd { __fd = stderr }),
         pending,
         turns,
         __childEmpty(),
@@ -566,8 +583,8 @@ let __childCommunicate(child: BigInt, input: String): Result<(Int64 * Bytes * By
 /// future output from an unowned grandchild retaining a pipe. Bound draining
 /// turns as well as stored bytes so such a grandchild cannot keep cleanup busy.
 let __childDrain(
-  stdout: BigInt,
-  stderr: BigInt,
+  stdout: Posix.Fd,
+  stderr: Posix.Fd,
   turns: Int64,
   output: __ChildBuffer,
   error: __ChildBuffer)
@@ -604,8 +621,8 @@ let __childTerminate(child: BigInt): Result<(Int64 * Bytes * Bytes), Int64> =
               Builtin.runtimeChildBufferGet(child, 1)
               |> Result.andThen(fun previousErr ->
                 __childDrain(
-                  stdout,
-                  stderr,
+                  Posix.Fd { __fd = stdout },
+                  Posix.Fd { __fd = stderr },
                   1024,
                   __childAppend(__childEmpty(), previousOut),
                   __childAppend(__childEmpty(), previousErr))
