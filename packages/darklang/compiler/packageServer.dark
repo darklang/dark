@@ -9,8 +9,8 @@
 ///   /{type,value,function}/find/:name       name -> hash
 ///   /{type,value,function}/get/with-location/:hash
 ///
-/// Reads the main branch. `dark compile` starts it on a loopback port for the length of
-/// one compile; it is not meant to be served to anyone else.
+/// Reads the main branch. `dark compile` serves <fn guardedRouter> on a loopback port for
+/// the length of one compile; it is not meant to be served to anyone else.
 module Darklang.Compiler.PackageServer
 
 type Request = Stdlib.Http.Request
@@ -182,3 +182,13 @@ let handlers(): List<Stdlib.HttpServer.Handler> =
 
 let router(req: Request): Response =
   Stdlib.HttpServer.routeRequest(handlers(), req)
+
+
+/// <fn router> for requests that send <param token> as the basic-auth password. Any local
+/// process can reach the port; only the compiler is given the token.
+let guardedRouter(token: String, req: Request): Response =
+  let expected = "Basic " + Stdlib.Base64.encodeText("dark:" + token)
+  if Stdlib.Http.Request.header(req, "authorization") == Option.Some(expected) then
+    router(req)
+  else
+    Stdlib.Http.unauthorized()

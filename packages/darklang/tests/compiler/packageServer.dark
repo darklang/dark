@@ -69,3 +69,28 @@ test browseModule =
       searchStatus |> Stdlib.Test.equal(200)
 
       searchBody |> Stdlib.Test.equal(body) ])
+
+
+test refusedWithoutTheToken =
+  let req =
+    Stdlib.Http.Request
+      { method = "GET", url = "/ping", headers = [], body = Stdlib.Bytes.empty }
+
+  let wrong = { req with headers = [ ("Authorization", "Basic " + Stdlib.Base64.encodeText("dark:other")) ] }
+  Stdlib.Test.all(
+    [ Darklang.Compiler.PackageServer.guardedRouter("secret", req).statusCode
+      |> Stdlib.Test.equal(401)
+      Darklang.Compiler.PackageServer.guardedRouter("secret", wrong).statusCode
+      |> Stdlib.Test.equal(401) ])
+
+
+test servedWithTheToken =
+  let req =
+    Stdlib.Http.Request
+      { method = "GET"
+        url = "/ping"
+        headers = [ ("authorization", "Basic " + Stdlib.Base64.encodeText("dark:secret")) ]
+        body = Stdlib.Bytes.empty }
+
+  Darklang.Compiler.PackageServer.guardedRouter("secret", req).statusCode
+  |> Stdlib.Test.equal(200)

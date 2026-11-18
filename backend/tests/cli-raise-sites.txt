@@ -1,8 +1,11 @@
+1 Darklang.Cli.Compile.compilerDigest Darklang.Stdlib.Cli.File.readBytes
 1 Darklang.Cli.Compile.compilerPath Darklang.Stdlib.Cli.Env.home
-1 Darklang.Cli.Compile.withServer Darklang.Stdlib.Cli.File.exists
-1 Darklang.Cli.Compile.withServer Darklang.Stdlib.Cli.Process.run
-1 Darklang.Cli.Compile.withServer Darklang.Stdlib.Exec.awaitWithin
-1 Darklang.Cli.Compile.withServer Darklang.Stdlib.HttpServer.serve
+1 Darklang.Cli.Compile.startServer Darklang.Stdlib.Exec.awaitWithin
+1 Darklang.Cli.Compile.startServer Darklang.Stdlib.HttpServer.serve
+1 Darklang.Cli.Compile.stdlibCacheDir Darklang.Stdlib.Cli.Env.home
+1 Darklang.Cli.Compile.stdlibPrepared Darklang.Stdlib.Cli.FileSystem.listDirectory
+1 Darklang.Cli.Compile.waitShowingProgress Darklang.Stdlib.Exec.await
+1 Darklang.Cli.Compile.waitShowingProgress Darklang.Stdlib.Exec.awaitWithin
 1 Darklang.Cli.Completion.addSlashToDirectories Darklang.Stdlib.Cli.FileSystem.isDirectoryAtPath
 1 Darklang.Cli.Completion.completeFilesystemPath Darklang.Stdlib.Cli.FileSystem.isDirectoryAtPath
 1 Darklang.Cli.Docs.StdlibOverview.execute Darklang.Stdlib.List.sort
@@ -76,6 +79,7 @@
 1 Darklang.PrettyPrinter.RuntimeTypes.dvalWith Darklang.Stdlib.Pretty.render
 1 Darklang.SCM.Deps.dependentsFor Builtin.unwrap
 1 Darklang.SCM.PartialCommit.stringGt Darklang.Stdlib.List.sort
+2 Darklang.Cli.Compile.runCompiler Darklang.Stdlib.Cli.Process.run
 2 Darklang.Cli.Packages.Edit.execute Darklang.Stdlib.Cli.Dir.deleteRecursive
 2 Darklang.Cli.Packages.Signatures.namedLike Darklang.Stdlib.List.sort
 2 Darklang.LanguageTools.AtRestTypeChecker.Generate.orPattern Darklang.Stdlib.List.sort

@@ -1,16 +1,14 @@
-/// `dark compile <expression>`: compile an expression to a native binary with the Darklang
-/// compiler (darklang/compiler) and run it. `dark compile <fn> -o <file>`: write an
-/// executable that calls a package fn with its command-line arguments. Package items are
-/// read from this instance's main branch through `Darklang.Compiler.PackageServer`, which
-/// this command serves on port 9098 for as long as the compile takes.
+/// `dark compile <fn>`: write a native executable of a package fn with the Darklang compiler
+/// (darklang/compiler). `dark compile --run <expression>`: compile an expression, run it and
+/// print what it prints. Package items are read from this instance's main branch through
+/// `Darklang.Compiler.PackageServer`, served on a free loopback port for as long as the
+/// compile takes.
 module Darklang.Cli.Compile
 
-/// The compiler commit this CLI is tested against. `scripts/compiler/build` builds it to
-/// `~/.darklang/compiler/<commit>/darkc`; `DARK_COMPILER` points somewhere else.
+/// The compiler commit this CLI is tested against. `scripts/compiler/build` reads it from
+/// here and builds it to `~/.darklang/compiler/<first 9>/darkc`; `DARK_COMPILER` points
+/// somewhere else.
 val pinnedCommit = "f93ad99aa421157738101851680716d35c09feff"
-
-
-val port = 9098
 
 
 let compilerPath(): String =
@@ -22,48 +20,180 @@ let compilerPath(): String =
     $"{home}/.darklang/compiler/{short}/darkc"
 
 
-/// Serve this instance's packages for as long as the compiler runs with <param args>.
-let withServer(args: List<String>): Result<Stdlib.Cli.Process.Output, String> =
+/// darkc's flag for how much goes on stderr: -1 for `-q`, 0 by default, 1 to 3 for `-v` to
+/// `-vvv`. `--check` takes none.
+let compilerVerbosity(verbosity: Int64): String =
+  match verbosity with
+  | 1 -> "-v"
+  | 2 -> "-vv"
+  | 3 -> "-vvv"
+  | _ -> "-q"
+
+
+let div(a: Int64, b: Int64): Int64 =
+  Stdlib.Int64.checkedDivide(a, b) |> Stdlib.Result.withDefault(0)
+
+
+/// "0.4 s", "2.4 s", "81 s".
+let seconds(ms: Int64): String =
+  if ms >= 10000 then
+    $"{Stdlib.display(div(ms, 1000))} s"
+  else
+    let tenths = div(ms, 100)
+    $"{Stdlib.display(div(tenths, 10))}.{Stdlib.display(tenths - div(tenths, 10) * 10)} s"
+
+
+// darkc keeps its prepared stdlib in $XDG_CACHE_HOME/dark-compiler (else
+// ~/.cache/dark-compiler) as stdlib-<target>-<md5 of the darkc binary>.bin
+let stdlibCacheDir(): String =
+  match Stdlib.Env.get("XDG_CACHE_HOME") with
+  | Some(dir) when Stdlib.String.startsWith(dir, "/") -> $"{dir}/dark-compiler"
+  | _ ->
+    let home = Stdlib.Cli.Env.home() |> Stdlib.Option.withDefault("")
+    $"{home}/.cache/dark-compiler"
+
+
+let compilerDigest(compiler: String): String =
+  Stdlib.Cli.File.readBytes(compiler)
+  |> Stdlib.Result.map(fun bytes ->
+    Stdlib.String.toLowercase(Stdlib.Base16.encode(Stdlib.Crypto.md5(bytes))))
+  |> Stdlib.Result.withDefault("")
+
+
+let stdlibPrepared(digest: String): Bool =
+  Stdlib.Cli.FileSystem.listDirectory(stdlibCacheDir())
+  |> Stdlib.Result.withDefault([])
+  |> Stdlib.List.any(fun path -> Stdlib.String.endsWith(path, $"-{digest}.bin"))
+
+
+val preparing = "Preparing the compiler's stdlib"
+
+
+/// Before darkc builds its stdlib cache, ask; with nobody to ask, go ahead and say so.
+let confirmStdlib(verbosity: Int64): Bool =
+  if Stdlib.Cli.UI.Prompt.canAsk() then
+    Stdlib.printError(
+      "The first compile prepares the compiler's stdlib: about a minute and 150 MB. Continue? [Y/n] ")
+
+    match Stdlib.Cli.Stdin.checkedReadLine() with
+    | Ok(Some(typed)) ->
+      let answer = Stdlib.String.toLowercase(Stdlib.String.trim(typed))
+      answer == "" || answer == "y" || answer == "yes"
+    | _ -> false
+  else
+    if verbosity >= 0 then
+      Stdlib.printErrorLine($"{preparing} (once per compiler: about a minute and 150 MB).")
+    else
+      ()
+
+    true
+
+
+/// Wait for <param run>, counting seconds on stderr until the stdlib cache appears.
+let waitShowingProgress(
+  run: Stdlib.Exec.Handle<Result<Stdlib.Cli.Process.Output, Stdlib.Cli.Posix.Error>>,
+  digest: String,
+  started: Int64)
+  : Result<Stdlib.Cli.Process.Output, Stdlib.Cli.Posix.Error> =
+  match Stdlib.Exec.awaitWithin(1000, run) with
+  | Some(result) ->
+    Stdlib.printError("\r\x1b[K")
+    result
+  | None ->
+    if stdlibPrepared(digest) then
+      Stdlib.printError("\r\x1b[K")
+      Stdlib.Exec.await(run)
+    else
+      Stdlib.printError($"\r{preparing}... {Stdlib.display(div(Telemetry.elapsedMs(started), 1000))} s")
+      waitShowingProgress(run, digest, started)
+
+
+let runCompiler(
+  compiler: String,
+  args: List<String>,
+  verbosity: Int64,
+  digest: Option<String>)
+  : Result<Stdlib.Cli.Process.Output, Stdlib.Cli.Posix.Error> =
+  match digest with
+  | Some(d) when verbosity >= 0 && Stdlib.Cli.Sys.isTerminal(2) ->
+    let run = Stdlib.Exec.spawn(fun () -> Stdlib.Cli.Process.run(compiler, args))
+    waitShowingProgress(run, d, Telemetry.now())
+  | _ -> Stdlib.Cli.Process.run(compiler, args)
+
+
+/// Serve this instance's packages on a random high port, retrying a few ports when one is
+/// taken. `serve` only returns if it could not bind, so a server still running after a
+/// second is listening. (`HttpClient` refuses loopback addresses, so it cannot be asked.)
+let startServer(
+  token: String,
+  attempts: Int64)
+  : Result<(Stdlib.Exec.Handle<Result<Unit, String>> * Int64), String> =
+  let port = Stdlib.Int64.random(49152, 65535)
+  match Stdlib.Net.Port.fromInt64(port) with
+  | Error(e) -> Result.Error(Stdlib.display(e))
+  | Ok(p) ->
+    let defaults = Stdlib.HttpServer.Config.defaults(p)
+    let config = { defaults with middleware = [ Stdlib.HttpServer.Middleware.standardHeaders() ] }
+    let server =
+      Stdlib.Exec.spawn(fun () ->
+        Stdlib.HttpServer.serve(
+          config,
+          (fun req -> Compiler.PackageServer.guardedRouter(token, req)),
+          fun () -> ()))
+
+    match Stdlib.Exec.awaitWithin(1000, server) with
+    | None -> Result.Ok((server, port))
+    | Some(Error(e)) ->
+      if attempts > 1 then
+        startServer(token, attempts - 1)
+      else
+        Result.Error($"The package server could not start: {e}")
+    | Some(Ok(_)) -> Result.Error("The package server stopped before the compile.")
+
+
+/// Run the compiler with <param args> while this instance's packages are served to it.
+let withServer(args: List<String>, verbosity: Int64): Result<Stdlib.Cli.Process.Output, String> =
   let compiler = compilerPath()
   if Stdlib.Bool.not(Stdlib.Cli.File.exists(compiler)) then
     Result.Error(
       $"No compiler at {compiler}. Build the pinned one with scripts/compiler/build, or set DARK_COMPILER.")
   else
-    match Stdlib.Net.Port.fromInt64(port) with
-    | Error(e) -> Result.Error(Stdlib.display(e))
-    | Ok(p) ->
-      let defaults = Stdlib.HttpServer.Config.defaults(p)
-      let config = { defaults with middleware = [ Stdlib.HttpServer.Middleware.standardHeaders() ] }
-      let server =
-        Stdlib.Exec.spawn(fun () ->
-          Stdlib.HttpServer.serve(config, (fun req -> Compiler.PackageServer.router(req)), fun () ->
-            ()))
+    let digest = compilerDigest(compiler)
+    // Some(digest) while the stdlib is still to be prepared
+    let toPrepare = if stdlibPrepared(digest) then Option.None else Option.Some(digest)
+    if Stdlib.Option.isSome(toPrepare) && Stdlib.Bool.not(confirmStdlib(verbosity)) then
+      Result.Error("Not compiling.")
+    else
+      // darkc sends the URL's user and password as basic auth on every request
+      let token = Stdlib.String.replaceAll(Stdlib.display(Stdlib.Uuid.generate()), "-", "")
+      match startServer(token, 5) with
+      | Error(e) -> Result.Error(e)
+      | Ok((server, port)) ->
+        if verbosity > 0 then
+          Stdlib.printErrorLine($"serving packages on 127.0.0.1:{Stdlib.display(port)}")
+          Stdlib.printErrorLine($"running {compiler}")
+        else
+          ()
 
-      let url = $"http://127.0.0.1:{Stdlib.display(port)}"
-      // `serve` only returns if it could not bind, so a server still running after a second
-      // is listening. (`HttpClient` refuses loopback addresses, so it cannot just be asked.)
-      let result =
-        match Stdlib.Exec.awaitWithin(1000, server) with
-        | None ->
-          Stdlib.Cli.Process.run(
+        let url = $"http://dark:{token}@127.0.0.1:{Stdlib.display(port)}"
+        let result =
+          runCompiler(
             compiler,
-            Stdlib.List.concat([ "--syntax=current", "--package-server", url ], args))
+            Stdlib.List.concat([ "--package-server", url ], args),
+            verbosity,
+            toPrepare)
           |> Stdlib.Result.mapError(fun e -> e.message)
-        | Some(Error(e)) -> Result.Error($"The package server could not start: {e}")
-        | Some(Ok(_)) -> Result.Error("The package server stopped before the compile.")
 
-      let _ = Stdlib.Exec.stop(server, Stdlib.Exec.Stop.Kill)
-      result
-
-
-/// Compile <param expr> and run it.
-let run(expr: String): Result<Stdlib.Cli.Process.Output, String> =
-  withServer([ "-q", "-r", "-e", "--", expr ])
+        let _ = Stdlib.Exec.stop(server, Stdlib.Exec.Stop.Kill)
+        // darkc names the URL when a fetch fails
+        result
+        |> Stdlib.Result.map(fun output ->
+          { output with stderr = Stdlib.String.replaceAll(output.stderr, $"dark:{token}@", "") })
 
 
 /// Ask the compiler whether each package fn or value in <param names> compiles, and why not.
-let check(names: List<String>): Result<Stdlib.Cli.Process.Output, String> =
-  withServer(Stdlib.List.concat([ "--check" ], names))
+let check(names: List<String>, verbosity: Int64): Result<Stdlib.Cli.Process.Output, String> =
+  withServer(Stdlib.List.concat([ "--check" ], names), verbosity)
 
 
 // `Stdlib.Cli.__argv` is the compiler's own: argument <i>, after the program's name.
@@ -101,23 +231,99 @@ let entryExpression(name: String): Result<String, String> =
         $"{name}{signature} can't be an executable yet: it needs to take List<String>, or nothing.")
 
 
+/// Where an executable of <param name> goes with no `-o`: its last segment, here.
+let defaultOutput(name: String): String =
+  let leaf = Stdlib.String.split(name, ".") |> Stdlib.List.last |> Stdlib.Option.withDefault(name)
+  $"./{leaf}"
+
+
 /// Compile the package fn <param name> to an executable at <param output>.
-let executable(name: String, output: String): Result<Stdlib.Cli.Process.Output, String> =
+let executable(
+  name: String,
+  output: String,
+  verbosity: Int64)
+  : Result<Stdlib.Cli.Process.Output, String> =
+  let started = Telemetry.now()
   entryExpression(name)
   |> Stdlib.Result.andThen(fun expr ->
-    withServer([ "--allow-internal", "-q", "-o", output, "-e", "--", expr ]))
+    withServer(
+      [ "--allow-internal", compilerVerbosity(verbosity), "-o", output, "-e", "--", expr ],
+      verbosity))
+  |> Stdlib.Result.map(fun result ->
+    if result.exitCode == 0 && verbosity >= 0 then
+      let size =
+        Stdlib.Cli.File.size(output)
+        |> Stdlib.Result.map(fun n -> $" ({Text.bytes(n)})")
+        |> Stdlib.Result.withDefault("")
+
+      { result with
+          stderr = result.stderr + $"wrote {output}{size} in {seconds(Telemetry.elapsedMs(started))}\n" }
+    else
+      result)
+
+
+/// What the command line asks for, once the verbosity flags are taken out.
+type Request =
+  | Executable(name: String, output: String)
+  | Run(expr: String)
+  | Check(names: List<String>)
+
+
+val usage = "Usage: compile <fn> [-o <file>] | compile --run <expression> | compile --check <fn>..."
+
+
+let parse(args: List<String>): Result<Request, String> =
+  match args with
+  | ["--run", expr] -> Result.Ok(Request.Run(expr))
+  | ["--check"] -> Result.Error("Usage: compile --check <fn>...")
+  | ["--check", ...names] -> Result.Ok(Request.Check(names))
+  | [name] when Stdlib.Bool.not(Stdlib.String.startsWith(name, "-")) ->
+    Result.Ok(Request.Executable(name, defaultOutput(name)))
+  | [name, "-o", output] -> Result.Ok(Request.Executable(name, output))
+  | ["-o", output, name] -> Result.Ok(Request.Executable(name, output))
+  | _ -> Result.Error(usage)
+
+
+let verbosityFlag(arg: String): Option<Int64> =
+  match arg with
+  | "-q" -> Option.Some(-1)
+  | "-v" -> Option.Some(1)
+  | "-vv" -> Option.Some(2)
+  | "-vvv" -> Option.Some(3)
+  | _ -> Option.None
+
+
+let withoutVerbosity(args: List<String>): List<String> =
+  args |> Stdlib.List.filter(fun a -> Stdlib.Option.isNone(verbosityFlag(a)))
+
+
+/// <param args> without the verbosity flags, and the level they ask for. `--run`'s
+/// expression is left alone, whatever it looks like.
+let verbosityOf(args: List<String>): (List<String> * Int64) =
+  let (flags, rest) =
+    match args with
+    | ["--run", expr, ...after] ->
+      (after, Stdlib.List.concat([ "--run", expr ], withoutVerbosity(after)))
+    | _ -> (args, withoutVerbosity(args))
+
+  let level =
+    flags
+    |> Stdlib.List.filterMap(fun a -> verbosityFlag(a))
+    |> Stdlib.List.last
+    |> Stdlib.Option.withDefault(0)
+
+  (rest, level)
 
 
 let execute(state: AppState, args: List<String>): AppState =
+  let (rest, verbosity) = verbosityOf(args)
   let result =
-    match args with
-    | ["--check"] -> Result.Error("Usage: compile --check <fn>...")
-    | ["--check", ...names] -> check(names)
-    | [name, "-o", output] -> executable(name, output)
-    | ["-o", output, name] -> executable(name, output)
-    | [expr] -> run(expr)
-    | _ ->
-      Result.Error("Usage: compile <expression> | compile <fn> -o <file> | compile --check <fn>...")
+    parse(rest)
+    |> Stdlib.Result.andThen(fun request ->
+      match request with
+      | Executable(name, output) -> executable(name, output, verbosity)
+      | Run(expr) -> withServer([ compilerVerbosity(verbosity), "-r", "-e", "--", expr ], verbosity)
+      | Check(names) -> check(names, verbosity))
 
   match result with
   | Ok(output) ->
@@ -138,20 +344,29 @@ let complete(_state: AppState, _args: List<String>): List<Completion.CompletionI
 
 
 let help(_state: AppState): String =
-  [ "Compile an expression to a native binary with the Darklang compiler, run it, and print"
-    "what it prints, or compile a package fn to an executable. Package fns come from this"
-    "instance's main branch."
+  [ "Compile a package fn to a native executable with the Darklang compiler. Experimental."
     ""
-    "Usage: compile <expression>"
-    "       compile <fn> -o <file>    write an executable: `./file a b` prints what"
-    "                                 `eval '<fn>([\"a\", \"b\"])'` prints. The fn takes"
-    "                                 List<String>, or nothing."
-    "       compile --check <fn>...   does each package fn compile, and if not, why not"
+    "Usage: compile <fn>                 write an executable named after the fn: ./join"
+    "       compile <fn> -o <file>       write it to <file>"
+    "       compile --run <expression>   compile an expression, run it, print what it prints"
+    "       compile --check <fn>...      does each fn compile, and if not, why not"
     ""
-    "Experimental. The compiler is pinned; DARK_COMPILER overrides where it is found."
+    "The fn takes List<String>, the command-line arguments, or nothing: `./join a b`"
+    "prints what `eval 'Stdlib.Cli.Path.join([\"a\", \"b\"])'` prints. Package fns come"
+    "from this instance's main branch."
+    ""
+    "An executable runs with the access of whoever runs it: it checks no permission"
+    "policy, and has no store, traces or DB."
+    ""
+    "Options:"
+    "  -q              nothing on stderr"
+    "  -v, -vv, -vvv   also what the compiler did, each pass's time, each intermediate form"
+    ""
+    "The compiler is pinned; DARK_COMPILER overrides where it is found. See docs/compile.md."
     ""
     "Example:"
-    "  compile 'Stdlib.List.length(Darklang.Cli.Http.Serve.usageLines())'"
-    "  compile Stdlib.Cli.Path.join -o join"
+    "  compile Stdlib.Cli.Path.join"
+    "  compile Stdlib.Cli.Path.join -o bin/join"
+    "  compile --run 'Stdlib.English.toOrdinal(22)'"
     "  compile --check Stdlib.English.toOrdinal Stdlib.Decimal.scale" ]
   |> Stdlib.String.join("\n")
