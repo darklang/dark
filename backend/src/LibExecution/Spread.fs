@@ -906,8 +906,10 @@ let walk (op : Walk<'acc>) (empty : 'acc) (items : DvalList) : Dval =
 // (`spreadChild`). It runs whenever the read lands, by which time the program has moved on, so an
 // effect there would land out of order; a chunk refuses it before it does anything
 // (`EffectWhereOnlyComputing`), and the refusal is what the read fails with, where the program
-// waits for it. A read that has landed already, and a plain value, take the same path, so
-// whether `f` may take an effect never depends on the method or on how fast the read was.
+// waits for it. A read that has landed already, and a plain value, are applied at once, on this
+// thread, but under the same `spreadChild` state a chunk runs with: no process is spawned for a
+// value already here, and whether `f` may take an effect still never depends on the method or
+// on how fast the read was.
 
 /// What the read lands as, waiting again while it lands as another read. A failed read raises
 /// its own failure. Nothing on the VM is looked at: by now it belongs to whatever ran on.
@@ -920,26 +922,37 @@ let rec private landedValue (dv : Dval) : Task<Dval> =
     }
   | v -> Task.FromResult v
 
-/// `app` applied to what `read` lands as (itself, when it is not a read), computed in a chunk's
-/// process once it lands: the body of `Stdlib.__whenReady`. Everything it needs from the caller (the scheduler,
-/// the parent process, the access) is taken now, before the first wait.
+/// `app` applied to what `read` lands as (itself, when it is not a read), computed as a chunk is:
+/// the body of `Stdlib.__whenReady`. Applied at once when `read` has landed already, else in a
+/// process of its own once it lands. Everything it needs from the caller (the scheduler, the
+/// parent process, the access) is taken now, before the first wait.
 let whenLanded
   (state : ExecutionState)
   (vm : VMState)
   (app : Applicable)
   (read : Dval)
   : Dval =
-  let sched = Sched.Scheduler.CurrentOrShared
-  let parent = Sched.Scheduler.CurrentProcess |> Option.map (fun p -> p.id)
   let access = vm.activeAccess
   let childState = { state with spreadChild = true }
-  task {
-    let! value = landedValue read
-    let p = sched.SpawnApply(childState, app, value, parent, access)
-    let! result = p.completion.Task
-    sched.TakeResult p.id |> ignore<Option<ExecutionResult>>
+  let answer (result : ExecutionResult) =
     match result with
-    | Ok v -> return v
-    | Error(rte, _) -> return raiseRTE rte
-  }
-  |> Pending.ofTask
+    | Ok v -> v
+    | Error(rte, _) -> raiseRTE rte
+  let landed = landedValue read
+  if landed.IsCompletedSuccessfully then
+    task {
+      let! result = Execution.executeApplicable1 childState access app landed.Result // landed
+      return answer result
+    }
+    |> Pending.ofTask
+  else
+    let sched = Sched.Scheduler.CurrentOrShared
+    let parent = Sched.Scheduler.CurrentProcess |> Option.map (fun p -> p.id)
+    task {
+      let! value = landed
+      let p = sched.SpawnApply(childState, app, value, parent, access)
+      let! result = p.completion.Task
+      sched.TakeResult p.id |> ignore<Option<ExecutionResult>>
+      return answer result
+    }
+    |> Pending.ofTask
