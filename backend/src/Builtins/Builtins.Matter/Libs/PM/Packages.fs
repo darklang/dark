@@ -29,6 +29,22 @@ let private repointListKT =
   KTList(ValueType.Known(PT2DT.PropagateRepoint.knownType ()))
 
 
+/// `SCM.Deps.ReadError`
+let private readErrorName () =
+  FQTypeName.fqPackage (PackageRefs.Type.SCM.readError ())
+
+let private readErrorType () = TCustomType(NR.ok (readErrorName ()), [])
+
+let private readErrorKT () = KTCustomType(readErrorName (), [])
+
+let private readErrorToDT (error : LibDB.ReferenceDependencies.ReadError) : Dval =
+  let caseName =
+    match error with
+    | LibDB.ReferenceDependencies.StoredDeclarationMissing ->
+      "StoredDeclarationMissing"
+  DEnum(readErrorName (), readErrorName (), [], caseName, [])
+
+
 /// A branch parameter as the PM layer wants it.
 ///
 /// The branch is a PARAMETER here rather than process state, so a caller can ask about a branch it isn't
@@ -855,13 +871,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             ))
             "Names to find callers for" ]
       returnType =
-        TList(
-          TTuple(
-            TCustomType(NR.ok (PT2DT.Hash.typeName ()), []),
-            TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []),
-            [ TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), []) ]
-          )
-        )
+        TypeReference.result
+          (TList(
+            TTuple(
+              TCustomType(NR.ok (PT2DT.Hash.typeName ()), []),
+              TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []),
+              [ TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), []) ]
+            )
+          ))
+          (readErrorType ())
       description = "Find callers using this branch's reference names."
       fn =
         (function
@@ -877,22 +895,26 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               | v ->
                 Exception.raiseInternal "Invalid dependency target" [ "value", v ])
           let state = LibDB.ReferenceNames.load branch
-          let dependents =
-            LibDB.ReferenceDependencies.dependents state branch targets
           let tupleKT =
             KTTuple(
               VT.known (PT2DT.Hash.knownType ()),
               VT.known (PT2DT.PackageLocation.knownType ()),
               [ VT.known (PT2DT.ItemKind.knownType ()) ]
             )
-          dependents
-          |> List.map (fun d ->
-            DTuple(
-              PT2DT.Hash.toDT d.itemHash,
-              PT2DT.PackageLocation.toDT d.itemLocation,
-              [ PT2DT.ItemKind.toDT d.itemKind ]
-            ))
-          |> Dval.list tupleKT
+          let listKT = KTList(VT.known tupleKT)
+          match LibDB.ReferenceDependencies.dependents state branch targets with
+          | Error error ->
+            Dval.resultError listKT (readErrorKT ()) (readErrorToDT error)
+          | Ok dependents ->
+            dependents
+            |> List.map (fun d ->
+              DTuple(
+                PT2DT.Hash.toDT d.itemHash,
+                PT2DT.PackageLocation.toDT d.itemLocation,
+                [ PT2DT.ItemKind.toDT d.itemKind ]
+              ))
+            |> Dval.list tupleKT
+            |> Dval.resultOk listKT (readErrorKT ())
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -960,7 +982,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []) ]
             )
           ))
-          TString
+          (readErrorType ())
       description = "Read callers' dependencies using this branch's reference names."
       fn =
         (function
@@ -979,7 +1001,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             )
           let listKT = KTList(VT.known edgeKT)
           match edges with
-          | Error message -> Dval.resultError listKT KTString (DString message)
+          | Error error ->
+            Dval.resultError listKT (readErrorKT ()) (readErrorToDT error)
           | Ok edges ->
             let values =
               edges
@@ -989,7 +1012,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   PT2DT.Reference.toDT caller,
                   [ PT2DT.Reference.toDT target; PT2DT.PackageLocation.toDT name ]
                 ))
-            Dval.resultOk listKT KTString (Dval.list edgeKT values)
+            Dval.resultOk listKT (readErrorKT ()) (Dval.list edgeKT values)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
@@ -1018,7 +1041,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             TList(TTuple(location, location, [])),
             []
           ))
-          TString
+          (readErrorType ())
       description =
         "Review stale references and reachable caller updates using one branch snapshot."
       fn =
@@ -1041,7 +1064,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               []
             )
           match result with
-          | Error message -> Dval.resultError resultKT KTString (DString message)
+          | Error error ->
+            Dval.resultError resultKT (readErrorKT ()) (readErrorToDT error)
           | Ok(stale, repoints) ->
             let stale =
               stale
@@ -1063,7 +1087,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   []
                 ))
               |> Dval.list repointKT
-            Dval.resultOk resultKT KTString (DTuple(stale, repoints, []))
+            Dval.resultOk resultKT (readErrorKT ()) (DTuple(stale, repoints, []))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]

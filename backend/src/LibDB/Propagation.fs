@@ -58,7 +58,10 @@ let private discoverDependents
         toProcess |> List.fold (fun acc target -> Set.add (key target) acc) processed
 
       let batchDependents =
-        ReferenceDependencies.dependents referenceNames branch toProcess
+        match ReferenceDependencies.dependents referenceNames branch toProcess with
+        | Ok dependents -> dependents
+        | Error error ->
+          Exception.raiseInternal "Cannot read dependents" [ "error", error ]
 
       let unseen =
         batchDependents

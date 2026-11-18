@@ -72,19 +72,21 @@ let isBehind(
   | None -> false
 
 
-/// Display dependents: what uses this entity.
+/// Display dependents: what uses this entity. Whether they could be read.
 let showDependents(
   targetLoc: LanguageTools.ProgramTypes.PackageLocation,
   targetKind: LanguageTools.ProgramTypes.ItemKind,
   entityName: String,
   cap: Bool)
-  : Unit =
-  let dependents =
-    SCM.Deps.dependentsFor(SCM.PackageOps.currentBranch(), [ (targetLoc, targetKind) ])
-
-  match dependents with
-  | [] -> Stdlib.printErrorLine($"No dependents found for {entityName}")
-  | deps ->
+  : Bool =
+  match SCM.Deps.dependents(SCM.PackageOps.currentBranch(), [ (targetLoc, targetKind) ]) with
+  | Error(e) ->
+    printErr($"Couldn't read the dependents of {entityName}: {e}")
+    false
+  | Ok([]) ->
+    Stdlib.printErrorLine($"No dependents found for {entityName}")
+    true
+  | Ok(deps) ->
     let count = Stdlib.List.length(deps)
     Stdlib.printLine($"Found {Stdlib.display(count)} dependents of {entityName}:")
     Stdlib.printLine("")
@@ -97,6 +99,7 @@ let showDependents(
     |> (fun groups ->
           Listing.cappedGroups(groups, Listing.defaultLimit, cap, "dependents")
           |> Stdlib.printLines)
+    true
 
 
 /// Transitive traversal, collecting dependents via batched FQN-keyed queries. Each level's results carry
@@ -105,10 +108,10 @@ let collectTransitiveDependents(
   processed: List<String>,
   pending: List<Item>,
   accumulated: List<Item>)
-  : List<Item> =
+  : Result<List<Item>, String> =
   let fqn = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation
   match pending with
-  | [] -> accumulated
+  | [] -> Result.Ok(accumulated)
   | _ ->
     let toProcess =
       pending
@@ -117,32 +120,33 @@ let collectTransitiveDependents(
         Stdlib.Bool.not(Stdlib.List.contains(processed, key)))
 
     match toProcess with
-    | [] -> accumulated
+    | [] -> Result.Ok(accumulated)
     | targets ->
-      let batchResults = SCM.Deps.dependentsFor(SCM.PackageOps.currentBranch(), targets)
+      match SCM.Deps.dependents(SCM.PackageOps.currentBranch(), targets) with
+      | Error(e) -> Result.Error(e)
+      | Ok(batchResults) ->
+        // Each result already carries its own location, so this level's dependents are
+        // next level's targets with no hash -> location round-trip in between.
+        let newDeps =
+          batchResults
+          |> Stdlib.List.map(fun result ->
+            let (_sourceHash, sourceLoc, refKind) = result
+            (sourceLoc, refKind))
 
-      // Each result already carries its own location, so this level's dependents are
-      // next level's targets with no hash -> location round-trip in between.
-      let newDeps =
-        batchResults
-        |> Stdlib.List.map(fun result ->
-          let (_sourceHash, sourceLoc, refKind) = result
-          (sourceLoc, refKind))
+        let newProcessed =
+          Stdlib.List.concat(
+            processed,
+            targets
+            |> Stdlib.List.map(fun((loc, kind)) ->
+              $"{fqn(loc)}:{LanguageTools.ProgramTypes.ItemKind.toString(kind)}"))
 
-      let newProcessed =
-        Stdlib.List.concat(
-          processed,
-          targets
-          |> Stdlib.List.map(fun((loc, kind)) ->
-            $"{fqn(loc)}:{LanguageTools.ProgramTypes.ItemKind.toString(kind)}"))
-
-      let newAccumulated = Stdlib.List.concat(accumulated, newDeps)
-      collectTransitiveDependents(newProcessed, newDeps, newAccumulated)
+        let newAccumulated = Stdlib.List.concat(accumulated, newDeps)
+        collectTransitiveDependents(newProcessed, newDeps, newAccumulated)
 
 
 /// Get all transitive dependents of one or more targets.
-let getTransitiveDependentsFor(_branchId: Uuid, targets: List<Item>): List<Item> =
-  collectTransitiveDependents([], targets, []) |> Stdlib.List.unique
+let getTransitiveDependentsFor(_branchId: Uuid, targets: List<Item>): Result<List<Item>, String> =
+  collectTransitiveDependents([], targets, []) |> Stdlib.Result.map(Stdlib.List.unique)
 
 
 /// Get all transitive dependents (everything that could break if this changes).
@@ -150,22 +154,27 @@ let getTransitiveDependents(
   branchId: Uuid,
   targetLoc: LanguageTools.ProgramTypes.PackageLocation,
   targetKind: LanguageTools.ProgramTypes.ItemKind)
-  : List<Item> =
+  : Result<List<Item>, String> =
   getTransitiveDependentsFor(branchId, [ (targetLoc, targetKind) ])
 
 
-/// Display all transitive dependents: everything that could break if this changes.
+/// Display all transitive dependents: everything that could break if this changes. Whether they
+/// could be read.
 let showTransitiveDependents(
   branchId: Uuid,
   targetLoc: LanguageTools.ProgramTypes.PackageLocation,
   targetKind: LanguageTools.ProgramTypes.ItemKind,
   entityName: String,
   cap: Bool)
-  : Unit =
-  let allDependents = getTransitiveDependents(branchId, targetLoc, targetKind)
-  match allDependents with
-  | [] -> Stdlib.printErrorLine($"Nothing depends on {entityName}")
-  | deps ->
+  : Bool =
+  match getTransitiveDependents(branchId, targetLoc, targetKind) with
+  | Error(e) ->
+    printErr($"Couldn't read the dependents of {entityName}: {e}")
+    false
+  | Ok([]) ->
+    Stdlib.printErrorLine($"Nothing depends on {entityName}")
+    true
+  | Ok(deps) ->
     let count = Stdlib.List.length(deps)
     Stdlib.printLine(
       $"Found {Stdlib.display(count)} items that could break if {entityName} changes:")
@@ -180,6 +189,7 @@ let showTransitiveDependents(
     |> (fun groups ->
           Listing.cappedGroups(groups, Listing.defaultLimit, cap, "dependents")
           |> Stdlib.printLines)
+    true
 
 
 /// Display dependencies (what this entity uses).
@@ -194,13 +204,17 @@ let showDependencies(
   sourceHash: LanguageTools.ProgramTypes.Hash,
   entityName: String,
   cap: Bool)
-  : Unit =
+  : Bool =
   match SCM.Deps.dependencyEdges(
           branchId,
           location,
           LanguageTools.ProgramTypes.Reference.fromHashAndKind(sourceHash, kind)) with
-  | Error(e) -> printErr($"Couldn't read the dependencies of {entityName}: {e}")
-  | Ok([]) -> Stdlib.printErrorLine($"No dependencies found for {entityName}")
+  | Error(e) ->
+    printErr($"Couldn't read the dependencies of {entityName}: {e}")
+    false
+  | Ok([]) ->
+    Stdlib.printErrorLine($"No dependencies found for {entityName}")
+    true
   | Ok(deps) ->
     let count = Stdlib.List.length(deps)
     Stdlib.printLine($"Found {Stdlib.display(count)} dependencies of {entityName}:")
@@ -219,6 +233,7 @@ let showDependencies(
       $"  [{kind}] {fqnOf(loc)}{behind}")
     |> (fun rows ->
           Listing.capped(rows, Listing.defaultLimit, cap, "dependencies") |> Stdlib.printLines)
+    true
 
 
 /// Resolve a path to (hash, location, kind, displayName).
@@ -327,21 +342,26 @@ let executeJson(
     printErr($"Couldn't read the dependencies of {entityName}: {e}")
     failed(state)
   | Ok(edges) ->
-    let dependencies = edges |> Stdlib.List.map(edgeJson)
+    match SCM.Deps.dependents(SCM.PackageOps.currentBranch(), [ (loc, kind) ]) with
+    | Error(e) ->
+      printErr($"Couldn't read the dependents of {entityName}: {e}")
+      failed(state)
+    | Ok(found) ->
+      let dependencies = edges |> Stdlib.List.map(edgeJson)
 
-    let dependents =
-      SCM.Deps.dependentsFor(SCM.PackageOps.currentBranch(), [ (loc, kind) ])
-      |> Stdlib.List.map(fun d ->
-        let (h, dLoc, dKind) = d
-        edgeJson((h, dKind, dLoc)))
+      let dependents =
+        found
+        |> Stdlib.List.map(fun d ->
+          let (h, dLoc, dKind) = d
+          edgeJson((h, dKind, dLoc)))
 
-    let printed =
-      printJson(
-        ScmJson.depsJson(
-          ScmJson.DepsJson
-            { item = entityName, dependencies = dependencies, dependents = dependents }))
+      let printed =
+        printJson(
+          ScmJson.depsJson(
+            ScmJson.DepsJson
+              { item = entityName, dependencies = dependencies, dependents = dependents }))
 
-    exitWith(state, printed)
+      exitWith(state, printed)
 
 
 let execute(state: AppState, args: List<String>): AppState =
@@ -392,8 +412,7 @@ let execute(state: AppState, args: List<String>): AppState =
         if wantsJson then
           executeJson(state, hash, loc, entityType, name)
         else
-          showDependencies(branchId, loc, entityType, hash, name, cap)
-          state
+          exitWith(state, showDependencies(branchId, loc, entityType, hash, name, cap))
     | ["usedby", pathArg] ->
       match resolvePath(branchId, state.packageData.currentLocation, pathArg) with
       | Error(errMsg) ->
@@ -407,12 +426,13 @@ let execute(state: AppState, args: List<String>): AppState =
         if wantsJson then
           executeJson(state, hash, loc, entityType, name)
         else
-          if deep then
-            showTransitiveDependents(branchId, loc, entityType, name, cap)
-          else
-            showDependents(loc, entityType, name, cap)
+          let ok =
+            if deep then
+              showTransitiveDependents(branchId, loc, entityType, name, cap)
+            else
+              showDependents(loc, entityType, name, cap)
 
-          state
+          exitWith(state, ok)
     | [pathArg] ->
       // Default to showing both uses and usedby
       match resolvePath(branchId, state.packageData.currentLocation, pathArg) with
@@ -425,14 +445,15 @@ let execute(state: AppState, args: List<String>): AppState =
         if wantsJson then
           executeJson(state, hash, loc, entityType, name)
         else
-          showDependencies(branchId, loc, entityType, hash, name, cap)
+          let usesOk = showDependencies(branchId, loc, entityType, hash, name, cap)
           Stdlib.printErrorLine("")
-          if deep then
-            showTransitiveDependents(branchId, loc, entityType, name, cap)
-          else
-            showDependents(loc, entityType, name, cap)
+          let usedByOk =
+            if deep then
+              showTransitiveDependents(branchId, loc, entityType, name, cap)
+            else
+              showDependents(loc, entityType, name, cap)
 
-          state
+          exitWith(state, usesOk && usedByOk)
     | _ ->
       Stdlib.printErrorLine(help(state))
       failed(state)

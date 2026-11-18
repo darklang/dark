@@ -2682,6 +2682,60 @@ let private anOverrideOnABranchLeavesMainsConflictOpen =
       })
 
 
+/// `deps usedby` that cannot read a caller says so and exits 1, rather than raising. A second
+/// indexed name for the callee makes the caller's names ambiguous, so the read needs the caller's
+/// stored body, and the body is gone.
+let private aDependentsReadThatFailsIsReported =
+  instanceTest "deps usedby reports a caller it cannot read" (fun state ->
+    task {
+      do! fn state "Tests.DepFail.callee" "(): Int64 = 1"
+      do! fn state "Tests.DepFail.caller" "(): Int64 = Tests.DepFail.callee() + 1"
+      do! commit state "dep fail"
+      do! switch state "depfail"
+
+      let dir =
+        match state with
+        | Instance i -> i.dir
+        | InProcess _ -> failtest "needs an instance's store"
+      let db = System.IO.Path.Combine(dir, "data.db")
+      use conn =
+        new Microsoft.Data.Sqlite.SqliteConnection(
+          $"Data Source={db};Pooling=False"
+        )
+      conn.Open()
+      use cmd = conn.CreateCommand()
+      cmd.CommandText <-
+        "WITH caller AS (SELECT item_hash FROM locations
+           WHERE owner = 'Tests' AND modules = 'DepFail' AND name = 'caller' AND item_hash <> '')
+         INSERT INTO package_dependencies
+           SELECT item_hash, depends_on_hash, depends_on_item_type, depends_on_owner,
+                  depends_on_modules, 'calleeAlias'
+           FROM package_dependencies
+           WHERE item_hash IN (SELECT item_hash FROM caller) AND depends_on_name = 'callee';
+         DELETE FROM package_functions WHERE hash IN
+           (SELECT item_hash FROM locations
+            WHERE owner = 'Tests' AND modules = 'DepFail' AND name = 'caller')"
+      cmd.ExecuteNonQuery() |> ignore<int>
+      conn.Close()
+
+      let why =
+        "Couldn't read the dependents of Tests.DepFail.callee: Cannot read reference names: stored declaration is missing"
+
+      for args in
+        [ [ "deps"; "usedby"; "Tests.DepFail.callee" ]
+          [ "deps"; "usedby"; "Tests.DepFail.callee"; "--deep" ]
+          [ "deps"; "Tests.DepFail.callee" ]
+          [ "deps"; "Tests.DepFail.callee"; "--json" ] ] do
+        let! (out, err, status) = runCliStreams state args
+        let ran = String.concat " " args
+        Expect.equal status 1 $"{ran} fails, got: {out} / {err}"
+        Expect.stringContains (plain err) why $"{ran} names what it couldn't read"
+        Expect.isFalse
+          (err.Contains "Internal error" || err.Contains "Uncaught exception")
+          $"{ran} reports rather than raising, got: {err}"
+    })
+
+
 let tests : List<Test> =
   [ commitRefusesDefiniteTypeErrors
     failedValueSaveLeavesNothingBehind false
@@ -2737,4 +2791,5 @@ let tests : List<Test> =
     aFailedJsonCommitExitsNonzero
     aConflictCloseThatFailsIsReported
     aCommitKeepsTheDraftOverAnOlderMergedEdit
-    anOverrideOnABranchLeavesMainsConflictOpen ]
+    anOverrideOnABranchLeavesMainsConflictOpen
+    aDependentsReadThatFailsIsReported ]

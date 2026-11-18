@@ -30,7 +30,7 @@ let private withStore (run : unit -> Task<unit>) =
     let original = LibDB.Sqlite.currentDbPath
     let path = System.IO.Path.Combine(directory.FullName, "data.db")
     match LibDB.Sqlite.Backup.toTestBaseline path with
-    | Error message -> failtest message
+    | Error error -> failtest $"{error}"
     | Ok() -> ()
     try
       Sql.useStoreForTesting path
@@ -66,7 +66,7 @@ let wideDependencyReadsRespectSelection =
           let edges =
             match result with
             | Ok edges -> edges
-            | Error message -> failtest message
+            | Error error -> failtest $"{error}"
           let callers =
             edges
             |> List.choose (fun (caller, _, _, dependency) ->
@@ -80,7 +80,7 @@ let wideDependencyReadsRespectSelection =
           let selected =
             match selected with
             | Ok edges -> edges
-            | Error message -> failtest message
+            | Error error -> failtest $"{error}"
           let callers =
             selected
             |> List.choose (fun (caller, _, _, dependency) ->
@@ -120,12 +120,12 @@ let savedNamesNeedTheStoredDeclaration =
             ReferenceDependencies.namedReferences PT.BranchId.Main [ caller ]
           Expect.equal
             result
-            (Error "Cannot read reference names: stored declaration is missing")
+            (Error ReferenceDependencies.StoredDeclarationMissing)
             "saved names cannot be checked without the declaration body"
           let review = ReferenceDependencies.dependencyReview PT.BranchId.Main []
           Expect.equal
             review
-            (Error "Cannot read reference names: stored declaration is missing")
+            (Error ReferenceDependencies.StoredDeclarationMissing)
             "review must not hide an unreadable graph behind an empty findings list"
         })
   }
@@ -153,7 +153,7 @@ let ambiguousAliasesNeedTheStoredDeclaration =
             ReferenceDependencies.namedReferences PT.BranchId.Main [ caller ]
           Expect.equal
             result
-            (Error "Cannot read reference names: stored declaration is missing")
+            (Error ReferenceDependencies.StoredDeclarationMissing)
             "an ambiguous index cannot supply the caller's reference names"
         })
   }
@@ -234,7 +234,7 @@ let downstream(): Int64 = caller()
               PT.BranchId.Main
               [ caller; aliasCaller ]
           match references with
-          | Error message -> failtest message
+          | Error error -> failtest $"{error}"
           | Ok edges ->
             Expect.equal
               (edges
@@ -244,7 +244,7 @@ let downstream(): Int64 = caller()
               "shared caller content retains each authored dependency name"
           let clean = ReferenceDependencies.dependencyReview PT.BranchId.Main []
           match clean with
-          | Error message -> failtest message
+          | Error error -> failtest $"{error}"
           | Ok(stale, _) ->
             Expect.isFalse
               (stale
@@ -265,7 +265,7 @@ let downstream(): Int64 = caller()
               PT.BranchId.Main
               [ leaf, replacement ]
           match review with
-          | Error message -> failtest message
+          | Error error -> failtest $"{error}"
           | Ok(stale, repoints) ->
             let usages =
               stale
@@ -289,7 +289,7 @@ let downstream(): Int64 = caller()
               let edges =
                 match all with
                 | Ok edges -> edges
-                | Error message -> failtest message
+                | Error error -> failtest $"{error}"
               let live = ReferenceDependencies.liveBindings PT.BranchId.Main
               let expected = ReferenceDependencies.reviewGraph live edges changed
               let actual =

@@ -6,7 +6,7 @@ let namedReferencesFor(
   branchId: Uuid,
   sources: List<PackageOps.ReferenceSource>)
   : Result<List<NamedReference>, String> =
-  Builtin.pmNamedReferences(branchId, sources)
+  Builtin.pmNamedReferences(branchId, sources) |> Stdlib.Result.mapError(readErrorToString)
 
 
 /// Only stale references cross into Dark during a review, with the current target.
@@ -27,4 +27,4 @@ let review(
   branchId: Uuid,
   changed: List<PackageOps.ReferenceSource>)
   : Result<DependencyReview, String> =
-  Builtin.pmDependencyReview(branchId, changed)
+  Builtin.pmDependencyReview(branchId, changed) |> Stdlib.Result.mapError(readErrorToString)

@@ -7,7 +7,7 @@ module Darklang.SCM.Deps
 // Several names can point at the same content, so keep the names separate when finding callers.
 //
 // Plain edge reads by hash go through `scmDeps`, and the SQL lives with it in F# (`LibDB.ScmDeps`).
-// Name-aware reads (callers, reference names) go through `pmDependents` and `namedReferencesFor`.
+// Name-aware reads (callers, reference names) go through `dependents` and `namedReferencesFor`.
 
 /// What `query` is asked.
 type DepQuery =
@@ -61,8 +61,32 @@ let dependenciesOf(
     (LanguageTools.ProgramTypes.Hash.Hash(e.dependsOnHash), e.dependsOnType))
 
 
+/// Why a name-aware read (`dependents`, `namedReferencesFor`, `review`) could not answer.
+type ReadError =
+  /// A caller's names need its stored body, and the body is gone.
+  | StoredDeclarationMissing
+
+
+let readErrorToString(e: ReadError): String =
+  match e with
+  | StoredDeclarationMissing -> "Cannot read reference names: stored declaration is missing"
+
+
 /// Find callers of these names using this branch's saved reference names.
 /// A rename updates these names without changing the caller's content hash.
+let dependents(
+  branch: Uuid,
+  targets: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>)
+  : Result<
+  List<
+    (LanguageTools.ProgramTypes.Hash *
+     LanguageTools.ProgramTypes.PackageLocation *
+     LanguageTools.ProgramTypes.ItemKind)>,
+  String> =
+  Builtin.pmDependents(branch, targets) |> Stdlib.Result.mapError(readErrorToString)
+
+
+/// <fn dependents>, for callers with no way to report a failed read yet.
 let dependentsFor(
   branch: Uuid,
   targets: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>)
@@ -70,7 +94,7 @@ let dependentsFor(
   (LanguageTools.ProgramTypes.Hash *
    LanguageTools.ProgramTypes.PackageLocation *
    LanguageTools.ProgramTypes.ItemKind)> =
-  Builtin.pmDependents(branch, targets)
+  dependents(branch, targets) |> Builtin.unwrap
 
 
 /// The name MAIN gives this hash, if any.

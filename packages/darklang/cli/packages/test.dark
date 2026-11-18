@@ -756,27 +756,32 @@ let countTests(state: AppState, args: List<String>): AppState =
         printErr(message)
         { state with exitCode = 1 }
       | Ok((_, loc, name, kind)) ->
-        let users =
-          Deps.getTransitiveDependentsFor(branchId, [ (loc, kind) ])
-          |> Stdlib.List.filterMap(fun((depLoc, depKind)) ->
-            if depKind == LanguageTools.ProgramTypes.ItemKind.Test then
-              Option.Some((Deps.fqnOf(depLoc), true))
+        match Deps.getTransitiveDependentsFor(branchId, [ (loc, kind) ]) with
+        | Error(e) ->
+          printErr($"Couldn't read what uses {name}: {e}")
+          { state with exitCode = 1 }
+        | Ok(dependents) ->
+          let users =
+            dependents
+            |> Stdlib.List.filterMap(fun((depLoc, depKind)) ->
+              if depKind == LanguageTools.ProgramTypes.ItemKind.Test then
+                Option.Some((Deps.fqnOf(depLoc), true))
+              else
+                Option.None)
+            |> Stdlib.Dict.fromList
+
+          let using =
+            Stdlib.List.filter(under, fun path ->
+              Stdlib.Dict.containsKey(users, Stdlib.String.join(path, ".")))
+
+          let heading =
+            if depth == 0 then
+              $"Tests that use {name}"
             else
-              Option.None)
-          |> Stdlib.Dict.fromList
+              $"Tests in {place} that use {name}"
 
-        let using =
-          Stdlib.List.filter(under, fun path ->
-            Stdlib.Dict.containsKey(users, Stdlib.String.join(path, ".")))
-
-        let heading =
-          if depth == 0 then
-            $"Tests that use {name}"
-          else
-            $"Tests in {place} that use {name}"
-
-        printCounts(heading, prefix, using)
-        state
+          printCounts(heading, prefix, using)
+          state
 
 
 let help(_state: AppState): String =
