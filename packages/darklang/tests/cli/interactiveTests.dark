@@ -28,7 +28,7 @@ test exitBeforeMarkerFails =
       i,
       [ "help" ],
       [ Interactive.Step.Await("never-rendered-test-marker") ],
-      10)
+      Interactive.untilExit)
     |> expectFailure("EXITED BEFORE: never-rendered-test-marker"))
 
 
@@ -38,7 +38,7 @@ test literalTextAndArgumentsArePreserved =
       i,
       [ "eval", "\"literal [brackets] $variable * ?\"" ],
       [ Interactive.Step.Await("literal [brackets] $variable * ?") ],
-      10))
+      Interactive.untilExit))
 
 
 test nonzeroExitFailsAfterMatching =
@@ -47,5 +47,5 @@ test nonzeroExitFailsAfterMatching =
       i,
       [ "eval", "1 / 0" ],
       [ Interactive.Step.Await("Cannot divide by 0") ],
-      10)
+      Interactive.untilExit)
     |> expectFailure("CHILD EXIT FAILED:"))
