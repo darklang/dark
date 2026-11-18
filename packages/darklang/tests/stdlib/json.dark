@@ -3330,8 +3330,10 @@ module RestoredArchive =
       "1e-2000000000" ]
     |> Stdlib.List.map(fun text ->
       Stdlib.Json.parse<UInt64>(text)
-      |> Stdlib.Result.isError
-      |> Stdlib.Test.equal(true))
+      |> err
+      |> Stdlib.Test.equal(
+        Result.Error(
+          $"Can't parse JSON `{text}` as type `UInt64` at path: `root`")))
     |> Stdlib.Test.all
 
 
@@ -3484,13 +3486,19 @@ module RangedInts =
               "Can't parse JSON: 256 is not a valid exit code (0 to 255) at path: `root`"))
 
           Stdlib.Json.parse<Stdlib.Net.Port>("{\"__value\":80}")
-          |> Stdlib.Result.isError
-          |> Stdlib.Test.equal(true)
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `{\"__value\":80}` as type `Darklang.Stdlib.Net.Port` at path: `root`"))
 
           Stdlib.Json.parse<Stdlib.Net.Port>("80.5")
-          |> Stdlib.Result.isError
-          |> Stdlib.Test.equal(true)
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `80.5` as type `Darklang.Stdlib.Net.Port` at path: `root`"))
 
           Stdlib.Json.parse<Stdlib.Net.Port>("\"80\"")
-          |> Stdlib.Result.isError
-          |> Stdlib.Test.equal(true) ])
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"80\"` as type `Darklang.Stdlib.Net.Port` at path: `root`")) ])

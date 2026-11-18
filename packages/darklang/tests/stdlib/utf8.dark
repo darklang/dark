@@ -64,19 +64,22 @@ test decode =
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("hello 😀"))
 
       Stdlib.Base64.decode("ww==")
-      |> Stdlib.Result.map(fun b ->
-        Stdlib.Result.isError(Stdlib.Utf8.decode(b)))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+      |> Stdlib.Result.map(Stdlib.Utf8.decode)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          Stdlib.Result.Result.Error("Invalid UTF-8 at byte 0: C3")))
 
       Stdlib.Base64.decode("7aCA")
-      |> Stdlib.Result.map(fun b ->
-        Stdlib.Result.isError(Stdlib.Utf8.decode(b)))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+      |> Stdlib.Result.map(Stdlib.Utf8.decode)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          Stdlib.Result.Result.Error("Invalid UTF-8 at byte 0: ED")))
 
       Stdlib.Base64.decode("aMM=")
-      |> Stdlib.Result.map(fun b ->
-        Stdlib.Result.isError(Stdlib.Utf8.decode(b)))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true)) ])
+      |> Stdlib.Result.map(Stdlib.Utf8.decode)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Ok(
+          Stdlib.Result.Result.Error("Invalid UTF-8 at byte 1: C3"))) ])
 
 
 // The Error says where the first bad bytes are, and what they are.

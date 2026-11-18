@@ -131,7 +131,10 @@ test bufferGrowth =
 // Account parsing handles missing users and malformed rows
 // Kernel records are little-endian; an 8-byte field covers all of Int64.
 test kernelSignedField =
-  let field(bytes: List<UInt8>, width: Int64): Stdlib.Result.Result<Int64, Int64> =
+  let field(
+    bytes: List<UInt8>,
+    width: Int64)
+    : Stdlib.Result.Result<Int64, Int64> =
     Stdlib.Cli.Posix.__kernelSignedField(Stdlib.Bytes.fromList(bytes), 0, width)
 
   Stdlib.Test.all(
@@ -147,7 +150,8 @@ test kernelSignedField =
       field([ 255u8, 255u8, 255u8, 255u8 ], 4)
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1))
 
-      field([ 1u8, 2u8, 3u8 ], 8) |> Stdlib.Test.equal(Stdlib.Result.Result.Error(5)) ])
+      field([ 1u8, 2u8, 3u8 ], 8)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(5)) ])
 
 
 test accountFieldFromPasswd =
@@ -265,9 +269,10 @@ test writeAll =
 // The public wrappers reach the host and format their results
 test publicWrappers =
   Stdlib.Test.all(
-    [ Stdlib.Test.expect(
-        Stdlib.Result.isOk(Stdlib.Cli.Posix.uname()),
-        "uname is Ok")
+    [ Stdlib.Cli.Posix.uname()
+      |> Stdlib.Result.map(fun((sysname, nodename, machine)) ->
+        sysname != "" && nodename != "" && machine != "")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
 
       Stdlib.Cli.Posix.getCwd()
       |> Stdlib.Result.map(fun path -> Stdlib.String.startsWith(path, "/"))
@@ -321,12 +326,19 @@ test pidFromInt64 =
           "0 is not a valid process ID (1 to 2147483647)"))
 
       Stdlib.Cli.Posix.Pid.fromInt64(-1)
-      |> Stdlib.Result.isError
-      |> Stdlib.Test.equal(true)
+      |> Stdlib.Result.mapError(Stdlib.display)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          "-1 is not a valid process ID (1 to 2147483647)"))
 
       Stdlib.Cli.Posix.Pid.fromInt64(2147483648)
-      |> Stdlib.Result.isError
-      |> Stdlib.Test.equal(true) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.Math.OutOfRange
+            { what = "process ID"
+              value = 2147483648
+              min = 1
+              max = 2147483647 })) ])
 
 
 test pidAndExitCodeInspect =

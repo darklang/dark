@@ -79,12 +79,12 @@ test literals =
 // `NaN.0` / `Infinity.0` / `1e+30.0` would wedge a session.
 test floatsWithoutLiteralSyntax =
   Stdlib.Test.all(
-    [ Stdlib.Result.isError(promote(Darklang.LanguageTools.RuntimeTypes.Dval.DFloat64(0.0 / 0.0)))
-      |> Stdlib.Test.equal(true)
-      Stdlib.Result.isError(promote(Darklang.LanguageTools.RuntimeTypes.Dval.DFloat64(1.0 / 0.0)))
-      |> Stdlib.Test.equal(true)
-      Stdlib.Result.isError(promote(Darklang.LanguageTools.RuntimeTypes.Dval.DFloat64(1e30)))
-      |> Stdlib.Test.equal(true) ])
+    [ promote(Darklang.LanguageTools.RuntimeTypes.Dval.DFloat64(0.0 / 0.0))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("this float has no literal form (NaN, an infinity, or exponent notation)"))
+      promote(Darklang.LanguageTools.RuntimeTypes.Dval.DFloat64(1.0 / 0.0))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("this float has no literal form (NaN, an infinity, or exponent notation)"))
+      promote(Darklang.LanguageTools.RuntimeTypes.Dval.DFloat64(1e30))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("this float has no literal form (NaN, an infinity, or exponent notation)")) ])
 
 // --- collections ---
 test collections =
@@ -152,16 +152,14 @@ test recordsAndEnums =
       |> Stdlib.Test.equal(2)
       // a field that can't be promoted fails the whole enum, rather than
       // dropping it
-      Stdlib.Result.isError((
-        promote((
-          Darklang.LanguageTools.RuntimeTypes.Dval.DEnum(
-            fakeType(),
-            fakeType(),
-            [],
-            "Some",
-            [ Darklang.LanguageTools.RuntimeTypes.Dval.DUuid(Stdlib.Uuid.generate()) ])))
-      ))
-      |> Stdlib.Test.equal(true) ])
+      promote(
+        Darklang.LanguageTools.RuntimeTypes.Dval.DEnum(
+          fakeType(),
+          fakeType(),
+          [],
+          "Some",
+          [ Darklang.LanguageTools.RuntimeTypes.Dval.DUuid(Stdlib.Uuid.generate()) ]))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Uuid has no literal expression (parse one with Stdlib.Uuid.parse)")) ])
 
 // The expression names the source type (the alias, if one was used), not the
 // runtime one it resolved to.
@@ -207,7 +205,5 @@ test recordsAndEnumsUseTheSourceTypeName =
 // --- values with no literal syntax fail (Error), so the caller can fall back ---
 test valuesWithoutLiteralSyntax =
   Stdlib.Test.all(
-    [ Stdlib.Result.isError((
-        promote(Darklang.LanguageTools.RuntimeTypes.Dval.DUuid(Stdlib.Uuid.generate()))
-      ))
-      |> Stdlib.Test.equal(true) ])
+    [ promote(Darklang.LanguageTools.RuntimeTypes.Dval.DUuid(Stdlib.Uuid.generate()))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Uuid has no literal expression (parse one with Stdlib.Uuid.parse)")) ])

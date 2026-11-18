@@ -120,10 +120,12 @@ let errInvalidHost(): GetResult =
     Stdlib.HttpClient.RequestError.BadUrl(
       Stdlib.HttpClient.BadUrlDetails.InvalidHost))
 
+
 let errLoopback(): GetResult =
   Stdlib.Result.Result.Error(
     Stdlib.HttpClient.RequestError.BadUrl(
       Stdlib.HttpClient.BadUrlDetails.Loopback))
+
 
 let errPrivateNetwork(): GetResult =
   Stdlib.Result.Result.Error(
@@ -330,7 +332,8 @@ test disallowedHosts =
 
       get("http://172.16.0.1", []) |> Stdlib.Test.equal(errPrivateNetwork())
 
-      get("http://[::ffff:ac10:1]", []) |> Stdlib.Test.equal(errPrivateNetwork())
+      get("http://[::ffff:ac10:1]", [])
+      |> Stdlib.Test.equal(errPrivateNetwork())
 
       get("http://[0:0:0:0:0:ffff:ac10:0001]", [])
       |> Stdlib.Test.equal(errPrivateNetwork())
@@ -340,7 +343,8 @@ test disallowedHosts =
 
       get("http://192.168.1.1", []) |> Stdlib.Test.equal(errPrivateNetwork())
 
-      get("http://[::ffff:c0a8:101]", []) |> Stdlib.Test.equal(errPrivateNetwork())
+      get("http://[::ffff:c0a8:101]", [])
+      |> Stdlib.Test.equal(errPrivateNetwork())
 
       get("http://[0:0:0:0:0:ffff:c0a8:0101]", [])
       |> Stdlib.Test.equal(errPrivateNetwork())
@@ -544,8 +548,10 @@ test responseText =
             headers = []
             body = Stdlib.Bytes.fromList([ 255u8 ])
             url = "https://a.test/" })
-      |> Stdlib.Result.isError
-      |> Stdlib.Test.equal(true) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(
+          Stdlib.HttpClient.RequestError.Decode(
+            "Invalid UTF-8 at byte 0: FF"))) ])
 
 
 type User =

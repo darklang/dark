@@ -83,7 +83,7 @@ test aConflictIsFlaggedAndRebaseClearsIt =
     [ Authoring.ok(branchEdit)
       Authoring.ok(mainEdit)
       before |> Stdlib.Test.equal([])
-      Stdlib.List.length(diverged) > 0 |> Stdlib.Test.equal(true)
+      diverged |> Stdlib.Test.equal([ "Tests.RebaseGate.foo" ])
       Authoring.ok(rebased)
       SCM.Branches.nameConflicts(b) |> Stdlib.Test.equal([]) ])
 
@@ -149,7 +149,11 @@ test keepMineAddsAnOpAndRestampsNothing =
   let before = stamps()
   let keptMine = SCM.Branches.resolveKeepMine(b, "Tests.RestampTest.foo")
   let after = stamps()
-  let afterSet = after |> Stdlib.List.map(fun s -> (s, ())) |> Stdlib.Dict.fromList
+  let afterSet =
+    after
+    |> Stdlib.List.map(fun s -> (s, ()))
+    |> Stdlib.Dict.fromList
+
   Stdlib.Test.all(
     [ Authoring.ok(setup)
       Authoring.ok(keptMine)
