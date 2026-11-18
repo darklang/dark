@@ -32,8 +32,8 @@ let setLine(lines: List<String>, row: Int64, s: String): List<String> =
 
 let insertChar(buf: Buf, ch: String): Buf =
   let line = currentLine(buf)
-  let before = String.slice(line, 0, buf.col)
-  let after = String.slice(line, buf.col, String.length(line))
+  let before = String.first(line, buf.col)
+  let after = String.dropFirst(line, buf.col)
   Buf
     { lines = setLine(buf.lines, buf.row, before + ch + after)
       row = buf.row
@@ -42,8 +42,8 @@ let insertChar(buf: Buf, ch: String): Buf =
 
 let newline(buf: Buf): Buf =
   let line = currentLine(buf)
-  let before = String.slice(line, 0, buf.col)
-  let after = String.slice(line, buf.col, String.length(line))
+  let before = String.first(line, buf.col)
+  let after = String.dropFirst(line, buf.col)
   let newLines =
     buf.lines
     |> List.indexedMap(fun(i, l) -> if i == buf.row then [ before, after ] else [ l ])
@@ -65,8 +65,8 @@ let insertText(buf: Buf, text: String): Buf =
 let backspace(buf: Buf): Buf =
   if buf.col > 0 then
     let line = currentLine(buf)
-    let before = String.slice(line, 0, buf.col - 1)
-    let after = String.slice(line, buf.col, String.length(line))
+    let before = String.first(line, buf.col - 1)
+    let after = String.dropFirst(line, buf.col)
     Buf { lines = setLine(buf.lines, buf.row, before + after), row = buf.row, col = buf.col - 1 }
   else if buf.row > 0 then
     let prev = List.getAt(buf.lines, buf.row - 1) |> Option.withDefault("")
@@ -95,8 +95,8 @@ let deleteForward(buf: Buf): Buf =
   let line = currentLine(buf)
   let len = String.length(line)
   if buf.col < len then
-    let before = String.slice(line, 0, buf.col)
-    let after = String.slice(line, buf.col + 1, len)
+    let before = String.first(line, buf.col)
+    let after = String.dropFirst(line, buf.col + 1)
     Buf { lines = setLine(buf.lines, buf.row, before + after), row = buf.row, col = buf.col }
   else if buf.row < List.length(buf.lines) - 1 then
     let next = List.getAt(buf.lines, buf.row + 1) |> Option.withDefault("")
@@ -128,7 +128,7 @@ let moveLineEnd(buf: Buf): Buf =
 /// rather than one per character.
 let killToLineEnd(buf: Buf): Buf =
   let line = currentLine(buf)
-  let kept = String.slice(line, 0, buf.col)
+  let kept = String.first(line, buf.col)
   Buf { lines = setLine(buf.lines, buf.row, kept), row = buf.row, col = buf.col }
 
 

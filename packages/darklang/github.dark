@@ -100,7 +100,7 @@ module Releases =
     |> Stdlib.List.head
     |> Stdlib.Option.andThen(fun asset ->
       Stdlib.List.getAt(Stdlib.String.split(asset.name, "-"), 2))
-    |> Stdlib.Option.map(fun hash -> $"alpha-{Stdlib.String.slice(hash, 0, 7)}")
+    |> Stdlib.Option.map(fun hash -> $"alpha-{Stdlib.String.first(hash, 7)}")
 
 
   /// The tag of the release that shipped <param cliVersion> (`v0.0.104`), if one of these did.

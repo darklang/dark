@@ -168,7 +168,7 @@ let parseLetBinding(text: String): Option<(String * String)> =
     match Stdlib.String.indexOf(body, "=") with
     | None -> Option.None
     | Some(i) ->
-      let name = Stdlib.String.trim(Stdlib.String.slice(body, 0, i))
+      let name = Stdlib.String.trim(Stdlib.String.first(body, i))
       let rhs = Stdlib.String.trim(Stdlib.String.dropFirst(body, i + 1))
       // `let x == y` is a comparison typo, not a binding; and an empty right-hand side isn't one either.
       if isSimpleName(name) && rhs != "" && Stdlib.Bool.not(Stdlib.String.startsWith(rhs, "=")) then

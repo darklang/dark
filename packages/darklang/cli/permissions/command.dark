@@ -283,7 +283,7 @@ let removeNamedApprovalFor(accountID: Option<Uuid>, expected: String, name: Stri
 // Requirements display.
 
 let shortVersion(hash: String): String =
-  Stdlib.String.slice(hash, 0, 8)
+  Stdlib.String.first(hash, 8)
 
 
 let requirementSummary(requirements: List<LanguageTools.Permissions.Effect>): String =
@@ -998,7 +998,7 @@ let permissionArgs(args: List<String>): FlagParser.Parsed =
     args
     |> Stdlib.List.map(fun arg ->
       if Stdlib.String.startsWith(arg, "--for=") then
-        [ "--for", Stdlib.String.slice(arg, 6, Stdlib.String.length(arg)) ]
+        [ "--for", Stdlib.String.dropFirst(arg, 6) ]
       else
         [ arg ])
     |> Stdlib.List.flatten

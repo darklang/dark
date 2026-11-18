@@ -42,7 +42,7 @@ let clipToWidth(s: String, width: Int64): String =
     s
   else
     // Prefix widths never decrease, so binary search finds the cut without measuring every prefix.
-    let fits(n: Int64): Bool = String.displayWidth(String.slice(s, 0, n)) <= width
+    let fits(n: Int64): Bool = String.displayWidth(String.first(s, n)) <= width
 
     // The first `lo` characters fit; the first `hi` characters exceed the width.
     let search(lo: Int64, hi: Int64): Int64 =
@@ -52,7 +52,7 @@ let clipToWidth(s: String, width: Int64): String =
         let mid = Int64.checkedDivide(lo + hi, 2) |> Result.withDefault(0)
         if fits(mid) then search(mid, hi) else search(lo, mid)
 
-    String.slice(s, 0, search(0, String.length(s)))
+    String.first(s, search(0, String.length(s)))
 
 
 /// The marker appended by <fn ellipsis> when text is shortened.

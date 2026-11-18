@@ -148,46 +148,29 @@ let rec private countClusters (s : string) (offset : int) (count : int) : int =
 let lengthInEgcs (s : string) : int =
   if isCharwise s then s.Length else countClusters s 0 0
 
-/// Clamp a Dark `Int64` index against a cluster length, the way `String.slice` always has: a negative
-/// index counts from the end, then the result is clamped to [0, len].
-///
-/// Clamps in the `Int64` domain and only then narrows -- narrowing first raises `OutOfRange` on an
-/// index past int32, where this clamps. `String.slice "abc" 0 4503599627370498` is "abc", and there
-/// is a testfile line for it.
-let private normalizeEgcIndex (len : int) (i : int64) : int =
-  // `len + i` cannot overflow for a negative `i`: `len` is at most int32.
-  let i = if i < 0L then int64 len + i else i
-  if i < 0L then 0
-  elif i > int64 len then len
-  else int i
-
 /// A non-negative index, clamped to `s.Length`. No string has more clusters than chars, so a
 /// walk from the start that runs out of text stops where clamping to the length would.
 let private clampToChars (s : string) (i : int64) : int =
   if i > int64 s.Length then s.Length else int i
 
-/// The clusters of `s` from index `first` up to `last`, as `String.slice` counts them: a negative
-/// index counts from the end, and both are clamped to the string.
+/// The clusters of `s` from index `first` up to `last`, or None unless
+/// `0 <= first <= last <= ` the number of clusters.
 ///
-/// With both indices from the start there is no need to know the length, so the walk stops at
-/// `last` rather than going on to the end of the string.
-let sliceEgcs (s : string) (first : int64) (last : int64) : string =
-  if isCharwise s then
-    let first = normalizeEgcIndex s.Length first
-    let last = normalizeEgcIndex s.Length last
-    if first >= last then "" else s.Substring(first, last - first)
+/// The walk stops at `last`, so only a slice that reaches the end of the text counts the
+/// clusters to check it isn't past it.
+let sliceEgcs (s : string) (first : int64) (last : int64) : Option<string> =
+  // No string has more clusters than chars.
+  if first < 0L || last < first || last > int64 s.Length then
+    None
+  elif isCharwise s then
+    Some(s.Substring(int first, int (last - first)))
   else
-    let first, last =
-      if first >= 0L && last >= 0L then
-        clampToChars s first, clampToChars s last
-      else
-        let len = lengthInEgcs s
-        normalizeEgcIndex len first, normalizeEgcIndex len last
-    if first >= last then
-      ""
+    let start = clusterOffset s 0 (int first)
+    let stop = clusterOffset s start (int (last - first))
+    if stop = s.Length && int64 (lengthInEgcs s) < last then
+      None
     else
-      let start = clusterOffset s 0 first
-      s.Substring(start, clusterOffset s start (last - first) - start)
+      Some(s.Substring(start, stop - start))
 
 /// `s` without its first `count` clusters, or all of it when `count` is negative.
 let dropFirstEgcs (s : string) (count : int64) : string =

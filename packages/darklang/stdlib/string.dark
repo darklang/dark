@@ -93,7 +93,7 @@ let toLowercase(s: String): String =
 /// The first character is the first whole Char (EGC), so an accent that follows it
 /// stays with it. An empty string, or one that starts with no case, comes back unchanged.
 let capitalize(s: String): String =
-  toUppercase(slice(s, 0, 1)) + dropFirst(s, 1)
+  toUppercase(first(s, 1)) + dropFirst(s, 1)
 
 
 /// Returns the length of the string
@@ -253,7 +253,7 @@ let random(length: Int64): Result<String, String> =
     let characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     let randomChar = fun _ ->
       let index = Int64.random(0, String.length(characters) - 1)
-      slice(characters, index, index + 1)
+      slice(characters, index, index + 1) |> Result.withDefault("")
 
     let result =
       List.range(0, length - 1)
@@ -269,10 +269,19 @@ let contains(lookingIn: String, searchingFor: String): Bool =
   Builtin.stringContains(lookingIn, searchingFor)
 
 
-/// Returns the substring of <param string> between the <param from> and <param to> indices.
-/// Negative indices start counting from the end of <param string>.
-let slice(string: String, from: Int64, to: Int64): String =
-  Builtin.stringSlice(string, from, to)
+type IndexError =
+  /// The range was outside the bounds of the String.
+  | IndexOutOfBounds
+
+
+/// Returns {{Ok}} the characters of <param string> from <param from> up to, but not
+/// including, <param to> (0-based, EGC, not byte). Returns {{Error IndexOutOfBounds}}
+/// unless {{0 <= from <= to <= length}}. <fn String.first> and <fn String.dropFirst>
+/// take characters without the check.
+let slice(string: String, from: Int64, to: Int64): Result<String, IndexError> =
+  match Builtin.stringSlice(string, from, to) with
+  | Some(sliced) -> Result.Ok(sliced)
+  | None -> Result.Error(IndexError.IndexOutOfBounds)
 
 
 /// Returns the first <param characterCount> characters of <param string>, as a <type String>.
@@ -281,10 +290,9 @@ let slice(string: String, from: Int64, to: Int64): String =
 let first(string: String, characterCount: Int64): String =
   if characterCount < 0 then
     ""
-  else if characterCount > length(string) then
-    string
   else
-    slice(string, 0, characterCount)
+    // only a count past the end is refused
+    slice(string, 0, characterCount) |> Result.withDefault(string)
 
 
 /// Returns the last <param characterCount> characters of <param string>, as a <type String>.
@@ -297,7 +305,7 @@ let last(string: String, characterCount: Int64): String =
   else if characterCount > len then
     string
   else
-    slice(string, len - characterCount, len)
+    dropFirst(string, len - characterCount)
 
 
 /// Returns all but the last <param characterCount> characters of <param string>, as a <type String>.
@@ -310,7 +318,7 @@ let dropLast(string: String, characterCount: Int64): String =
   else if characterCount > len then
     ""
   else
-    slice(string, 0, len - characterCount)
+    first(string, len - characterCount)
 
 
 /// Returns all but the first <param characterCount> characters of <param string>, as a <type String>.
@@ -408,8 +416,8 @@ let stripPrefix(subject: String, prefix: String): Option<String> =
 let stripSuffix(subject: String, suffix: String): Option<String> =
   let len = length(subject)
   let start = len - length(suffix)
-  if start >= 0 && slice(subject, start, len) == suffix then
-    Option.Some(slice(subject, 0, start))
+  if start >= 0 && dropFirst(subject, start) == suffix then
+    Option.Some(first(subject, start))
   else
     Option.None
 
@@ -470,7 +478,7 @@ let splitOnNewline(str: String): List<String> =
 /// Returns {{Some char}} of the first character of <param str>, or returns {{None}} if <param str> is empty.
 let head(str: String): Option<Char> =
   str
-  |> slice(0, 1)
+  |> first(1)
   |> toList
   |> List.head
 
@@ -478,18 +486,15 @@ let head(str: String): Option<Char> =
 /// Returns {{Some c}} for the character at <param index> (0-based, EGC, not
 /// byte), or {{None}} if <param index> is negative or past the end.
 let charAt(str: String, index: Int64): Option<Char> =
-  // `slice` counts a negative index from the end, so it is ruled out first. No string is long
-  // enough to reach the index where `index + 1` overflows.
-  if index < 0 then
-    Option.None
-  else
-    match Int64.checkedAdd(index, 1) with
-    | Ok(next) ->
-      str
-      |> slice(index, next)
+  match Int64.checkedAdd(index, 1) with
+  | Ok(next) ->
+    match slice(str, index, next) with
+    | Ok(c) ->
+      c
       |> toList
       |> List.head
     | Error(_) -> Option.None
+  | Error(_) -> Option.None
 
 
 /// Orders two strings by code point: negative when <param a> sorts first, 0 when they

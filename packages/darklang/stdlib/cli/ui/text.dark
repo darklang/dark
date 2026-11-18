@@ -29,7 +29,7 @@ let lines(node: Node.Node<'msg>): List<String> =
   | Region(rows, cols, inner) ->
     lines(inner)
     |> List.take(rows)
-    |> List.map(fun l -> String.slice(l, 0, cols))
+    |> List.map(fun l -> String.first(l, cols))
   | Column(children) ->
     children
     |> List.map(fun c -> lines(c))

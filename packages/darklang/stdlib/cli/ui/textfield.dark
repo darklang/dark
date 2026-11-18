@@ -47,7 +47,7 @@ let clampCursor(state: State): State =
 
 /// Insert a string of any length at the cursor, and move past all of it.
 let insert(state: State, s: String): State =
-  let before = String.slice(state.text, 0, state.cursor)
+  let before = String.first(state.text, state.cursor)
   let after = String.dropFirst(state.text, state.cursor)
   State { text = before + s + after, cursor = state.cursor + String.length(s) }
 
@@ -56,7 +56,7 @@ let backspace(state: State): State =
   if state.cursor == 0 then
     state
   else
-    let before = String.slice(state.text, 0, state.cursor - 1)
+    let before = String.first(state.text, state.cursor - 1)
     let after = String.dropFirst(state.text, state.cursor)
     State { text = before + after, cursor = state.cursor - 1 }
 
@@ -66,14 +66,14 @@ let deleteForward(state: State): State =
   if state.cursor >= String.length(state.text) then
     state
   else
-    let before = String.slice(state.text, 0, state.cursor)
+    let before = String.first(state.text, state.cursor)
     let after = String.dropFirst(state.text, state.cursor + 1)
     { state with text = before + after }
 
 
 /// Drop everything from the cursor to the end (readline's ^k), so replacing a line is two keys.
 let killToEnd(state: State): State =
-  { state with text = String.slice(state.text, 0, state.cursor) }
+  { state with text = String.first(state.text, state.cursor) }
 
 
 let moveLeft(state: State): State =
@@ -156,12 +156,12 @@ let renderInline(state: State, width: Int64): String =
   let start = windowFor(state, w)
   let len = String.length(state.text)
   let stop = min(len, start + w)
-  let visible = String.slice(state.text, start, stop)
+  let visible = String.dropFirst(state.text, start) |> String.first(stop - start)
   let cursorAt = state.cursor - start
-  let before = String.slice(visible, 0, cursorAt)
+  let before = String.first(visible, cursorAt)
   let cursorChar =
     if state.cursor < len then
-      String.slice(visible, cursorAt, cursorAt + 1)
+      String.slice(visible, cursorAt, cursorAt + 1) |> Result.withDefault(" ")
     else
       " "
 

@@ -573,7 +573,7 @@ let percentDecode(s: String): String =
   | [first, ...rest] ->
     rest
     |> List.fold([ Utf8.encode(first) ], fun(reversed, piece) ->
-      let hex = String.slice(piece, 0, 2)
+      let hex = String.first(piece, 2)
 
       // The length check is not redundant: `Base16.decode ""` succeeds, so a `%`
       // at the very end of the string decodes to no bytes at all and vanishes.

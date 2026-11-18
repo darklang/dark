@@ -450,7 +450,7 @@ let nameRefToStringWith(resolve: ProgramTypes.Hash -> Option<String>, name: Name
     | Some(name) -> name
     | None ->
       let hex = ProgramTypes.hashToString(hash)
-      let short = Stdlib.String.slice(hex, 0, 12)
+      let short = Stdlib.String.first(hex, 12)
       $"#{short}"
   | TraitMethod(traitHash, method) ->
     let traitName =
@@ -458,7 +458,7 @@ let nameRefToStringWith(resolve: ProgramTypes.Hash -> Option<String>, name: Name
       | Some(name) -> name
       | None ->
         let hex = ProgramTypes.hashToString(traitHash)
-        $"#{Stdlib.String.slice(hex, 0, 12)}"
+        $"#{Stdlib.String.first(hex, 12)}"
 
     $"{traitName}.{method}"
 
@@ -556,7 +556,7 @@ let contextToStringWith(
     | Some(name) -> name
     | None ->
       let hex = ProgramTypes.hashToString(hash)
-      let short = Stdlib.String.slice(hex, 0, 12)
+      let short = Stdlib.String.first(hex, 12)
       $"the type #{short}"
 
   let name = fun ref -> nameRefToStringWith(customTypeName, ref)
@@ -581,7 +581,7 @@ let contextToStringWith(
     let traitName =
       match customTypeName(traitHash) with
       | Some(name) -> name
-      | None -> $"#{Stdlib.String.slice(ProgramTypes.hashToString(traitHash), 0, 12)}"
+      | None -> $"#{Stdlib.String.first(ProgramTypes.hashToString(traitHash), 12)}"
 
     match code with
     | ImplMethodSet ->
@@ -684,7 +684,7 @@ let contextToStringWith(
     let traitName =
       match customTypeName(traitHash) with
       | Some(name) -> name
-      | None -> $"#{Stdlib.String.slice(ProgramTypes.hashToString(traitHash), 0, 12)}"
+      | None -> $"#{Stdlib.String.first(ProgramTypes.hashToString(traitHash), 12)}"
 
     // `subject` is the type the diagnostic is about, named when we know it. The run-time
     // message for the same situation says "Bool has no implementation of X", and these used

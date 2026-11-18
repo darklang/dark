@@ -53,11 +53,11 @@ test parseRejectsBadFormat =
 test generateV7SetsVersionAndVariant =
   let text = Stdlib.display(Stdlib.Uuid.generateV7())
   Stdlib.Test.all(
-    [ Stdlib.String.slice(text, 14, 15) |> Stdlib.Test.equal("7")
+    [ Stdlib.String.slice(text, 14, 15) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("7"))
 
       Stdlib.List.contains(
         [ "8", "9", "a", "b" ],
-        Stdlib.String.slice(text, 19, 20))
+        Stdlib.String.slice(text, 19, 20) |> Stdlib.Result.withDefault(""))
       |> Stdlib.Test.equal(true) ])
 
 
@@ -65,7 +65,7 @@ test generateV7SetsVersionAndVariant =
 test generateV7StartsWithTheTime =
   let millis(uuid: Uuid): Int64 =
     let text = Stdlib.display(uuid)
-    Stdlib.Base16.decode(Stdlib.String.slice(text, 0, 8) + Stdlib.String.slice(text, 9, 13))
+    Stdlib.Base16.decode(Stdlib.String.first(text, 8) + Stdlib.String.first(Stdlib.String.dropFirst(text, 9), 4))
     |> Stdlib.Result.map(fun bytes ->
       Stdlib.List.fold(Stdlib.Bytes.toList(bytes), 0, fun(acc, b) ->
         acc * 256 + Stdlib.Int64.fromUInt8(b)))

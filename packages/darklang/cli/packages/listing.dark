@@ -29,7 +29,7 @@ let printVersionLines(
     versions
     |> Stdlib.List.iter(fun v ->
       let tag = if v == live then "  (live)" else ""
-      Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"      {Stdlib.String.slice(v, 0, 8)}{tag}")))
+      Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"      {Stdlib.String.first(v, 8)}{tag}")))
 
 
 let listModule(

@@ -237,8 +237,8 @@ let modulePreviewLines(state: State, item: BodyItem): List<String> =
     // `moduleContents` spells a fn as `sig  [effects]`; paint the two halves apart.
     match Stdlib.String.lastIndexOf(desc, "  [") with
     | Some(i) ->
-      let sig_ = Stdlib.String.slice(desc, 0, i)
-      let effects = Stdlib.String.slice(desc, i + 3, Stdlib.String.length(desc) - 1)
+      let sig_ = Stdlib.String.first(desc, i)
+      let effects = Stdlib.String.dropFirst(desc, i + 3) |> Stdlib.String.dropLast(1)
       Stdlib.Cli.UI.Colors.dimText(sig_) + "  " + effectsBadge(effects)
     | None -> Stdlib.Cli.UI.Colors.dimText(desc)
 

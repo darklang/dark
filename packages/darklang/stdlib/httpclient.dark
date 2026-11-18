@@ -731,8 +731,8 @@ module Sse =
     match String.indexOf(line, ":") with
     | None -> (line, "")
     | Some(idx) ->
-      let field = String.slice(line, 0, idx)
-      let afterColon = String.slice(line, idx + 1, String.length(line))
+      let field = String.first(line, idx)
+      let afterColon = String.dropFirst(line, idx + 1)
       let value =
         if String.startsWith(afterColon, " ") then
           String.dropFirst(afterColon, 1)

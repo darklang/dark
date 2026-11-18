@@ -102,15 +102,11 @@ let renderEditing(
       let (i, l) = pair
       let screenRow = bodyTop + (i - scroll)
       if i == es.buf.row then
-        let llen = Stdlib.String.length(l)
-        let before = Stdlib.String.slice(l, 0, es.buf.col)
+        let before = Stdlib.String.first(l, es.buf.col)
         let atCursor =
-          if es.buf.col < llen then
-            Stdlib.String.slice(l, es.buf.col, es.buf.col + 1)
-          else
-            " "
+          Stdlib.String.slice(l, es.buf.col, es.buf.col + 1) |> Stdlib.Result.withDefault(" ")
 
-        let after = if es.buf.col < llen then Stdlib.String.slice(l, es.buf.col + 1, llen) else ""
+        let after = Stdlib.String.dropFirst(l, es.buf.col + 1)
         Stdlib.Cli.UI.Layout.at(
           inner,
           screenRow,

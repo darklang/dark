@@ -129,7 +129,7 @@ let filterSegments(filter: String): List<String> =
 /// <param filter> up to a table row's arguments: `lengths` of `lengths("a", 1)`.
 let testPart(filter: String): String =
   match Stdlib.String.indexOf(filter, "(") with
-  | Some(at) -> Stdlib.String.slice(filter, 0, at)
+  | Some(at) -> Stdlib.String.first(filter, at)
   | None -> filter
 
 
@@ -142,7 +142,7 @@ let rowSelected(filters: List<String>, path: String, name: String): Bool =
     let test = testPart(f)
     selects(test, path)
     && (test == f
-        || name == path + Stdlib.String.slice(f, Stdlib.String.length(test), Stdlib.String.length(f))))
+        || name == path + Stdlib.String.dropFirst(f, Stdlib.String.length(test))))
 
 
 /// The actual judging function, including its followed dependencies, and the
@@ -443,7 +443,7 @@ let parseRunOptions(options: RunOptions, args: List<String>): Result<RunOptions,
     | _ -> Result.Error("--jobs needs a positive whole number")
   | ["--jobs"] -> Result.Error("--jobs needs a positive whole number")
   | [arg, ...rest] when Stdlib.String.startsWith(arg, "--jobs=") ->
-    let value = Stdlib.String.slice(arg, 7, Stdlib.String.length(arg))
+    let value = Stdlib.String.dropFirst(arg, 7)
     parseRunOptions(options, Stdlib.List.concat([ "--jobs", value ], rest))
   | ["--seed", value, ...rest] ->
     match Stdlib.Int64.parse(value) with
@@ -451,7 +451,7 @@ let parseRunOptions(options: RunOptions, args: List<String>): Result<RunOptions,
     | Error(_) -> Result.Error("--seed needs a whole number")
   | ["--seed"] -> Result.Error("--seed needs a whole number")
   | [arg, ...rest] when Stdlib.String.startsWith(arg, "--seed=") ->
-    let value = Stdlib.String.slice(arg, 7, Stdlib.String.length(arg))
+    let value = Stdlib.String.dropFirst(arg, 7)
     parseRunOptions(options, Stdlib.List.concat([ "--seed", value ], rest))
   | [arg, ...rest] ->
     if Stdlib.String.startsWith(arg, "-") then

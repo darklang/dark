@@ -34,7 +34,7 @@ let parent(path: String): String =
   let p = stripTrailing(path)
   match String.lastIndexOf(p, "/") with
   | Some(0) -> "/"
-  | Some(i) -> String.slice(p, 0, i)
+  | Some(i) -> String.first(p, i)
   | None -> "."
 
 
@@ -70,7 +70,7 @@ let withExtension(path: String, ext: String): String =
   let stem =
     match String.lastIndexOf(name, ".") with
     | Some(0) -> name
-    | Some(i) -> String.slice(name, 0, i)
+    | Some(i) -> String.first(name, i)
     | None -> name
 
   let ext = if ext == "" || String.startsWith(ext, ".") then ext else "." + ext

@@ -567,7 +567,8 @@ let bytesPreview(bytes: Bytes, count: Int64): Option<String> =
     let pairs =
       (Stdlib.List.checkedRange(0, Stdlib.Bytes.length(prefix) - 1)
        |> Stdlib.Result.withDefault([]))
-      |> Stdlib.List.map(fun i -> Stdlib.String.slice(hex, i * 2, i * 2 + 2))
+      |> Stdlib.List.map(fun i ->
+        Stdlib.String.slice(hex, i * 2, i * 2 + 2) |> Stdlib.Result.withDefault(""))
 
     Stdlib.String.join(pairs, " "))
 
@@ -917,7 +918,7 @@ let dvalOneLine(branchId: Uuid, maxChars: Int64, dv: LanguageTools.RuntimeTypes.
     |> Stdlib.String.join(" ")
 
   if Stdlib.String.length(oneLine) > maxChars then
-    Stdlib.String.slice(oneLine, 0, maxChars - 3) + "..."
+    Stdlib.String.first(oneLine, maxChars - 3) + "..."
   else
     oneLine
 

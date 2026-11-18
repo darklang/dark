@@ -106,7 +106,7 @@ let startsAWord(line: String, word: String): Bool =
 /// <param line> without a trailing `// comment` set off by two spaces.
 let code(line: String): String =
   match Stdlib.String.indexOf(line, "  //") with
-  | Some(i) -> Stdlib.String.slice(line, 0, i)
+  | Some(i) -> Stdlib.String.first(line, i)
   | None -> line
 
 

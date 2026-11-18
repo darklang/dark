@@ -22,10 +22,7 @@ let line(depth: Int64, label: String, detail: String): Line =
 
 let clip(s: String): String =
   let s = Stdlib.String.replaceAll(s, "\n", "\\n")
-  if Stdlib.String.length(s) <= 48 then
-    s
-  else
-    Stdlib.String.slice(s, 0, 45) + "..."
+  if Stdlib.String.length(s) <= 48 then s else Stdlib.String.first(s, 45) + "..."
 
 
 let letPattern(pat: LanguageTools.ProgramTypes.LetPattern): String =

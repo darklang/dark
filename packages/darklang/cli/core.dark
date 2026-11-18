@@ -191,7 +191,7 @@ let failed(state: AppState): AppState =
 
 /// First 8 hex chars of a hash, for human-readable display.
 let shortHash(h: LanguageTools.ProgramTypes.Hash): String =
-  LanguageTools.ProgramTypes.hashToString(h) |> Stdlib.String.slice(0, 8)
+  LanguageTools.ProgramTypes.hashToString(h) |> Stdlib.String.first(8)
 
 
 /// Escape a string for a hand-assembled JSON body. Backslash first, or it would
