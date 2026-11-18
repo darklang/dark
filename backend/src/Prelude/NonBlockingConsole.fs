@@ -22,31 +22,44 @@ module Ansi =
     (n >= 30 && n <= 49) || (n >= 90 && n <= 107)
 
   /// For `NO_COLOR`, which asks for no colour, not no style: bold and the like stay.
+  /// A reset that would only end a colour dropped earlier in the same text goes too.
   let withoutColour (text : string) : string =
     if text.IndexOf '\u001b' < 0 then
       text
     else
-      sgr.Value.Replace(
-        text,
-        fun m ->
-          let ps =
-            if m.Groups[1].Value = "" then
-              [ "0" ]
-            else
-              List.ofArray (m.Groups[1].Value.Split ';')
-          let rec keep (ps : string list) : string list =
-            match ps with
-            | ("38" | "48") :: "5" :: _ :: rest -> keep rest
-            | ("38" | "48") :: "2" :: _ :: _ :: _ :: rest -> keep rest
-            | p :: rest ->
-              match System.Int32.TryParse p with
-              | true, n when isColour n -> keep rest
-              | _ -> p :: keep rest
-            | [] -> []
-          match keep ps with
-          | [] -> ""
-          | kept -> "\u001b[" + String.concat ";" kept + "m"
-      )
+      let rec keep (ps : string list) : string list =
+        match ps with
+        | ("38" | "48") :: "5" :: _ :: rest -> keep rest
+        | ("38" | "48") :: "2" :: _ :: _ :: _ :: rest -> keep rest
+        | p :: rest ->
+          match System.Int32.TryParse p with
+          | true, n when isColour n -> keep rest
+          | _ -> p :: keep rest
+        | [] -> []
+      // Since the last reset (or the start): was a style kept, and was a colour dropped? A reset
+      // with no style to end and only a dropped colour behind it has nothing left to undo.
+      let (pieces, last, _) =
+        sgr.Value.Matches text
+        |> Seq.fold
+          (fun
+               (pieces, at, (styled, dropped))
+               (m : System.Text.RegularExpressions.Match) ->
+            let before = text.Substring(at, m.Index - at)
+            let ps =
+              if m.Groups[1].Value = "" then
+                [ "0" ]
+              else
+                List.ofArray (m.Groups[1].Value.Split ';')
+            let kept = keep ps
+            let code, state =
+              match kept with
+              | [] -> "", (styled, true)
+              | _ when List.forall (fun p -> p = "0") kept ->
+                (if dropped && not styled then "" else "\u001b[0m"), (false, false)
+              | _ -> "\u001b[" + String.concat ";" kept + "m", (true, dropped)
+            (code :: before :: pieces, m.Index + m.Length, state))
+          ([], 0, (false, false))
+      String.concat "" (List.rev (text.Substring last :: pieces))
 
   /// A pipe, a file or `TERM=dumb` gets no escape sequences; `CLICOLOR_FORCE` keeps them anyway.
   let decide (redirected : bool) : string -> string =
@@ -60,22 +73,27 @@ module Ansi =
     elif env "NO_COLOR" <> "" then withoutColour
     else id
 
-/// Where stdout text goes. A pipe gets a stream of its own on fd 1, because `Console.Out` ignores a
-/// broken pipe, and a run piped into `head` went on long after `head` had exited. Only a pipe: a
-/// stream on a file would write at its own offset, over what anything else sharing fd 1 wrote.
-let private stdoutWriter () : System.IO.TextWriter =
-  if System.OperatingSystem.IsWindows() || not System.Console.IsOutputRedirected then
-    System.Console.Out
+/// Where a stream's text goes. A pipe or a terminal gets a stream of its own on the fd:
+/// `Console.Out` ignores a broken pipe, so a run piped into `head` went on long after `head` had
+/// exited, and the first write through `Console` to a terminal switches it to keypad mode
+/// (`ESC[?1h ESC=`), which only the interactive loop wants. Not a file: a stream on a file would
+/// write at its own offset, over what anything else sharing the fd wrote.
+let private writerFor
+  (fd : int)
+  (console : unit -> System.IO.TextWriter)
+  : System.IO.TextWriter =
+  if System.OperatingSystem.IsWindows() then
+    console ()
   else
     let stream =
       new System.IO.FileStream(
-        new Microsoft.Win32.SafeHandles.SafeFileHandle(nativeint 1, false),
+        new Microsoft.Win32.SafeHandles.SafeFileHandle(nativeint fd, false),
         System.IO.FileAccess.Write,
         1
       )
     if stream.CanSeek then
       stream.Dispose()
-      System.Console.Out
+      console ()
     else
       new System.IO.StreamWriter(
         stream,
@@ -126,6 +144,7 @@ type private State =
     queue : BlockingCollection
 
     out : Lazy<System.IO.TextWriter>
+    err : Lazy<System.IO.TextWriter>
 
     // Decided per stream, here, because the colouring helpers can't know where a string will land.
     forOut : Lazy<string -> string>
@@ -163,8 +182,7 @@ let private printLoop (s : State) () : unit =
           if s.queue.TryTake(&v) then
             match v with
             | struct (Out, text) -> s.out.Force().Write(s.forOut.Force () text)
-            | struct (Err, text) ->
-              System.Console.Error.Write(s.forErr.Force () text)
+            | struct (Err, text) -> s.err.Force().Write(s.forErr.Force () text)
             true
           else
             false
@@ -210,7 +228,8 @@ type private Instance =
             { isWasm = System.OperatingSystem.IsBrowser()
               browserSink = None
               queue = new BlockingCollection()
-              out = lazy (stdoutWriter ())
+              out = lazy (writerFor 1 (fun () -> System.Console.Out))
+              err = lazy (writerFor 2 (fun () -> System.Console.Error))
               forOut = lazy (Ansi.decide System.Console.IsOutputRedirected)
               forErr = lazy (Ansi.decide System.Console.IsErrorRedirected)
               captureLock = obj ()

@@ -329,23 +329,30 @@ let private stopChildrenPolitely () : unit =
   with _ ->
     ()
 
-let private installSuspendOnInterrupt () : unit =
-  System.Console.CancelKeyPress.Add(fun args ->
-    let suspended =
-      try
-        stopChildrenPolitely ()
-        LibDB.Traces.Foreground.suspend ()
-      with _ ->
-        None
-    match suspended with
-    | Some id ->
-      args.Cancel <- true
-      let prefix = (string id).Substring(0, 8)
-      System.Console.Error.WriteLine ""
-      System.Console.Error.WriteLine
-        $"stopped; the run is kept. Take it up again with: dark traces resume {prefix}"
-      exit 130
-    | None -> ())
+/// A signal registration rather than `Console.CancelKeyPress`: subscribing to that switches a
+/// terminal to keypad mode, which only the interactive loop wants.
+let private installSuspendOnInterrupt
+  ()
+  : System.Runtime.InteropServices.PosixSignalRegistration =
+  System.Runtime.InteropServices.PosixSignalRegistration.Create(
+    System.Runtime.InteropServices.PosixSignal.SIGINT,
+    fun args ->
+      let suspended =
+        try
+          stopChildrenPolitely ()
+          LibDB.Traces.Foreground.suspend ()
+        with _ ->
+          None
+      match suspended with
+      | Some id ->
+        args.Cancel <- true
+        let prefix = (string id).Substring(0, 8)
+        System.Console.Error.WriteLine ""
+        System.Console.Error.WriteLine
+          $"stopped; the run is kept. Take it up again with: dark traces resume {prefix}"
+        exit 130
+      | None -> ()
+  )
 
 /// Record host-operation decisions for troubleshooting and review in
 /// `rundir/logs/host-audit.jsonl`. Set `DARK_AUDIT=off` to skip this audit file.
@@ -486,7 +493,7 @@ let private runCli (args : string[]) : int =
 
     // Record host-operation decisions at the boundary.
     installAuditLog ()
-    installSuspendOnInterrupt ()
+    use _interrupt = installSuspendOnInterrupt ()
     let shortTitle, title =
       let ownName = System.IO.Path.GetFileName System.Environment.ProcessPath
       let alias =
