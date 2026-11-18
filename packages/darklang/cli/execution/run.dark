@@ -366,13 +366,13 @@ let runScriptMeasured(
   noteMisplacedAllow(newState, scriptPath, args)
   match measurement with
   | Some(m) ->
-    // stdout, after whatever the script printed, as `eval --stats` does.
-    let _ = Stdlib.printLine("")
+    // stderr, as `eval --stats` does, so stdout carries only what the script printed.
+    let _ = Stdlib.printErrorLine("")
 
-    let _ = Stdlib.printLine(LanguageTools.Perf.render(m))
+    let _ = Stdlib.printErrorLine(LanguageTools.Perf.render(m))
 
     let _ =
-      Stdlib.printLine(
+      Stdlib.printErrorLine(
         "  (includes parsing the script; Perf.measure inside it brackets execution alone)")
 
     newState
