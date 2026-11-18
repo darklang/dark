@@ -1,0 +1,67 @@
+module Darklang.Cli.Tests.UnknownCommand
+
+let refusal(
+  name: String,
+  accepts: Cli.Accepts.Accepts,
+  args: List<String>)
+  : String =
+  Cli.Accepts.check(name, accepts, args) |> Stdlib.Option.withDefault("")
+
+
+test didYouMeanPicksTheNearest =
+  Stdlib.Test.all(
+    [ Cli.Accepts.didYouMean("stauts", [ "fn", "status", "switch" ])
+      |> Stdlib.Test.equal(" Did you mean `status`?")
+
+      Cli.Accepts.didYouMean("zzzzzz", [ "status" ]) |> Stdlib.Test.equal("")
+
+      // Two letters are near too many words to say anything useful.
+      Cli.Accepts.didYouMean("x", [ "q" ]) |> Stdlib.Test.equal("") ])
+
+
+test unknownFlagSuggestsOne =
+  refusal("status", Cli.Registry.acceptsStatus(), [ "--jsno" ])
+  |> Stdlib.Test.equal(
+    "`dark status` does not take `--jsno`. Did you mean `--json`?")
+
+
+test unknownSubcommandSuggestsOne =
+  Stdlib.Test.all(
+    [ refusal("traces", Cli.Registry.acceptsTraces(), [ "lsit" ])
+      |> Stdlib.Test.equal(
+        "`dark traces` does not take `lsit`. Did you mean `list`?")
+
+      refusal("branch", Cli.Registry.acceptsBranch(), [ "craete", "foo" ])
+      |> Stdlib.Test.equal(
+        "`dark branch` does not take `foo`. Did you mean `create`?") ])
+
+
+test unknownCommandSuggestsAndHelpIsRefused = Instance.withInstance(fun i ->
+  let typo = Instance.run(i, [ "stauts" ])
+  let asked = Instance.run(i, [ "help", "stauts" ])
+  let unknownHelp = Instance.run(i, [ "frobnicate", "--help" ])
+  match typo, asked, unknownHelp with
+  | Ok(typo), Ok(asked), Ok(unknownHelp) ->
+    Stdlib.Test.all(
+      [ Instance.exitedWith(typo.exitCode, 1, "an unknown command fails")
+        Instance.says(
+          typo.stderr,
+          "Did you mean `status`?",
+          "an unknown command")
+
+        Instance.says(
+          asked.stderr,
+          "Did you mean `status`?",
+          "`help` on an unknown command")
+
+        Instance.exitedWith(
+          unknownHelp.exitCode,
+          1,
+          "`--help` on an unknown command fails")
+
+        unknownHelp.stdout |> Stdlib.Test.equal("")
+        Instance.says(
+          unknownHelp.stderr,
+          "Unknown command: frobnicate",
+          "and says why") ])
+  | _ -> Stdlib.Test.fail("a command could not run"))
