@@ -32,6 +32,22 @@ module MissingFile =
     |> Builtin.unwrap
 
 
+  // An empty path names no file, as for the OS; it is not a permission problem.
+  test emptyPathIsNotFound =
+    Stdlib.Test.all(
+      [ Stdlib.Cli.FileSystem.readFile("")
+        |> Stdlib.Test.equal(
+          Stdlib.Result.Result.Error(Stdlib.Cli.FileSystem.FileError.NotFound))
+
+        Stdlib.Cli.FileSystem.writeFile("", Stdlib.Utf8.encode("x"))
+        |> Stdlib.Test.equal(
+          Stdlib.Result.Result.Error(Stdlib.Cli.FileSystem.FileError.NotFound))
+
+        Stdlib.Cli.FileSystem.deleteFile("")
+        |> Stdlib.Test.equal(
+          Stdlib.Result.Result.Error(Stdlib.Cli.FileSystem.FileError.NotFound)) ])
+
+
   // `Stdlib.display` takes the error as it comes out of a failed read.
   test fileErrorHasToString =
     Stdlib.Test.all(

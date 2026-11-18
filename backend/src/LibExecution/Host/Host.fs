@@ -413,6 +413,11 @@ let private envCheck
   let verb = if access = Permission.AccessKind.Write then "setting" else "reading"
   (Permission.Request.env access name, $"{verb} env `{name}`")
 
+/// An empty path names nothing, so it fails as the OS fails it (ENOENT), with nothing to check.
+/// Every guard below would otherwise refuse it: no full path resolves from it.
+let private emptyPath : Result<Resolved, string> =
+  unchecked (Now(fun () -> Error(failureOfErrno (2, "No such file or directory"))))
+
 /// Normalize and guard a path before its requests are built; the
 /// continuation receives the normalized path both the check and the OS call
 /// use.
@@ -422,9 +427,12 @@ let private guarded
   (resolve : string -> Result<Resolved, string>)
   : Result<Resolved, string> =
   let path = normalizeFilePath rawPath
-  match fileGuard write path with
-  | Some message -> Error message
-  | None -> resolve path
+  if rawPath = "" then
+    emptyPath
+  else
+    match fileGuard write path with
+    | Some message -> Error message
+    | None -> resolve path
 
 let private guardedEntry
   (write : bool)
@@ -432,9 +440,12 @@ let private guardedEntry
   (resolve : string -> Result<Resolved, string>)
   : Result<Resolved, string> =
   let path = normalizeFilePath rawPath
-  match fileEntryGuard write path with
-  | Some message -> Error message
-  | None -> resolve path
+  if rawPath = "" then
+    emptyPath
+  else
+    match fileEntryGuard write path with
+    | Some message -> Error message
+    | None -> resolve path
 
 /// For an operation that moves or removes a directory ENTRY -- rename, rmdir,
 /// unlink, delete -- refuse an ancestor of the package store: moving the
@@ -448,7 +459,9 @@ let private mutatingEntry
   (proceed : unit -> Result<Resolved, string>)
   : Result<Resolved, string> =
   let path = normalizeFilePath rawPath
-  if HostSecurity.canAffectPackageDbPath path then
+  if rawPath = "" then
+    emptyPath
+  elif HostSecurity.canAffectPackageDbPath path then
     Error
       $"permission denied: mutating `{path}` could move or replace the host-owned package store"
   else
@@ -771,6 +784,8 @@ let private resolvePosix
     let reads, writes = HostPosix.openAccess flags
     if not reads && not writes then
       Error(rejected $"unsupported open access mode: {accessMode}")
+    elif path = "" then
+      emptyPath
     else
       let originalPath = normalizeFilePath path
       let path, resolutionFailure =
