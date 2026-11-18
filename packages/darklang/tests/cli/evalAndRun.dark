@@ -585,23 +585,26 @@ test lsViewAndHelpAnswer = Instance.withInstance(fun i ->
   let helpLs = Instance.said(i, [ "help", "ls" ])
   Stdlib.Test.all(
     [ Instance.says(lsList, "Functions", "ls: the section")
-      Instance.says(lsList, "head", "ls: a fn")
-      Instance.says(view, "head", "view: the fn's name")
-      Instance.says(view, "Option", "view: Option in the signature")
-      Instance.says(view, "->", "view: the signature's arrow")
-      Instance.says(lsOption, "Types", "ls: the types section")
-      Instance.says(lsOption, "Option", "ls: the Option type")
-      Instance.says(helpRun, "run", "help run: the command")
-      Stdlib.Test.expect(
-        Stdlib.String.contains(helpRun, "function")
-        || Stdlib.String.contains(helpRun, "execute"),
-        $"help run describes it: {helpRun}")
 
-      Instance.says(helpLs, "ls", "help ls: the command")
-      Stdlib.Test.expect(
-        Stdlib.String.contains(helpLs, "list")
-        || Stdlib.String.contains(helpLs, "List"),
-        $"help ls describes it: {helpLs}") ]))
+      Instance.says(lsList, "head", "ls: a fn")
+
+      Instance.says(view, "head", "view: the fn's name")
+
+      Instance.says(view, "Option", "view: Option in the signature")
+
+      Instance.says(view, "->", "view: the signature's arrow")
+
+      Instance.says(lsOption, "Types", "ls: the types section")
+
+      Instance.says(lsOption, "Option", "ls: the Option type")
+
+      // the usage line only the real topic prints; for `run` it also shows the alias resolved
+      Instance.says(
+        helpRun,
+        "Usage: run-script",
+        "help run: run-script's usage")
+
+      Instance.says(helpLs, "Usage: ls", "help ls: ls's usage") ]))
 
 
 /// A `__` name is an internal helper: listings and search leave it out unless asked, and naming it

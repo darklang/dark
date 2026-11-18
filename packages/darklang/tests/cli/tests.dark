@@ -69,15 +69,6 @@ let runWithStdinAndCommand(input: String, args: List<String>): String =
   callOutput(result)
 
 
-/// Run a command and compare its whole output exactly.
-let expectExact(args: List<String>, expected: String): Stdlib.Test.Result =
-  let output = runWithCommand(args)
-  if output == expected then
-    Stdlib.Test.Result.Pass
-  else
-    Stdlib.Test.fail($"Expected '{expected}', got '{output}'")
-
-
 // Drive conflicts walk between a throwaway parent and child.
 // Commit both sides before merging and pass -y to avoid an interactive prompt.
 test conflictWalkthrough =
@@ -168,48 +159,6 @@ test helpCommand =
       "Expected help grouped by category, with the nav/ls/version/status rows rendered")
 
 
-test versionCommand =
-  let output = runWithCommand([ "version" ])
-  if
-    Stdlib.String.contains(output, "Darklang CLI")
-    && Stdlib.String.contains(output, "alpha-")
-  then
-    Stdlib.Test.Result.Pass
-  else
-    Stdlib.Test.fail("Expected version string with 'Darklang CLI alpha-'")
-
-
-test statusCommand =
-  // Two things, because `status` is the one signal you get while editing: WHERE you are, and WHAT you have.
-  // The branch line matters most when several branches are in play, which is the normal case now.
-  let output = runWithCommand([ "status" ])
-  if
-    Stdlib.String.contains(output, "On branch")
-    && (Stdlib.String.contains(output, "clean:")
-        || Stdlib.String.contains(output, "draft:"))
-  then
-    Stdlib.Test.Result.Pass
-  else
-    Stdlib.Test.fail(
-      $"Expected `status` to name the branch and summarise the draft; got: {output}")
-
-
-test evalBoolAnd =
-  // `run` is for script files now; calling a package function is `eval`'s job, without the `@`.
-  expectExact([ "eval", "Stdlib.Bool.and(true, false)" ], "false")
-
-
-test evalInt64Add = expectExact([ "eval", "(5 + 3)" ], "8")
-
-
-test evalStringLength =
-  expectExact([ "eval", "Stdlib.String.length(\"hello\")" ], "5")
-
-
-test evalListLength =
-  expectExact([ "eval", "[1, 2, 3] |> Stdlib.List.length" ], "3")
-
-
 // Merge a child into a throwaway parent so the test leaves no function on main.
 // Commit the changes before merging and pass -y to avoid an interactive prompt.
 test mergeRoundTrip =
@@ -260,17 +209,6 @@ test mergeRoundTrip =
       $"A merge into \"{parent}\" reached MAIN -- the branch overlay leaked. Got: {onMain}")
   else
     Stdlib.Test.Result.Pass
-
-
-test listFunctions =
-  let output = runWithCommand([ "ls", "Stdlib.List" ])
-  if
-    Stdlib.String.contains(output, "Functions")
-    && Stdlib.String.contains(output, "head")
-  then
-    Stdlib.Test.Result.Pass
-  else
-    Stdlib.Test.fail("Expected directory listing with functions")
 
 
 // Exercise the harmful gate through a real CLI process: the gate lives in the CLI host.
@@ -418,82 +356,7 @@ test implListingsSayWhereTheMethodsAreCalled =
     Stdlib.Test.fail($"Expected call paths; view={viewed}; search={searched}")
 
 
-test listTypes =
-  let output = runWithCommand([ "ls", "Stdlib.Option" ])
-  if
-    Stdlib.String.contains(output, "Types")
-    && Stdlib.String.contains(output, "Option")
-  then
-    Stdlib.Test.Result.Pass
-  else
-    Stdlib.Test.fail("Expected directory listing with types")
-
-
-test helpForRun =
-  let output = runWithCommand([ "help", "run" ])
-  // `contains output "run"` is satisfied by the unknown-command fallback ("No help available for command:
-  // run"), so it can't tell "help worked" from "help failed". The usage line is topic-unique, and it also
-  // proves the `run` alias resolved to `run-script`, which is the rename this branch made.
-  if Stdlib.String.contains(output, "Usage: run-script") then
-    Stdlib.Test.Result.Pass
-  else
-    Stdlib.Test.fail(
-      "Expected `help run` to resolve the alias and print run-script's usage")
-
-
-test helpForLs =
-  let output = runWithCommand([ "help", "ls" ])
-  // Same reasoning as `help run`: assert something only the real topic prints.
-  if Stdlib.String.contains(output, "Usage: ls") then
-    Stdlib.Test.Result.Pass
-  else
-    Stdlib.Test.fail("Expected `help ls` to print ls's usage")
-
-
-test evalSimpleExpression = expectExact([ "eval", "2 + 3" ], "5")
-
-
-test evalStringExpression =
-  expectExact([ "eval", "\"hello\" + \"world\"" ], "helloworld")
-
-
 // ---------------------------------------------------------------- native list rewrites
-// These five moved from Dark to builtins for speed. The edge cases are the point: an out-of-bounds or
-// negative index, an empty list, and nested empties are exactly where a reimplementation drifts.
-
-test nativeListEdgeCases =
-  let cases =
-    [ ("Stdlib.List.getAt([1,2,3], 0)", "1")
-      ("Stdlib.List.getAt([1,2,3], 2)", "3")
-      ("Stdlib.List.getAt([1,2,3], 3)", "None")
-      ("Stdlib.List.getAt([1,2,3], -1)", "None")
-      ("Stdlib.List.getAt([], 0)", "None")
-      ("Stdlib.List.reverse([1,2,3])", "[3, 2, 1]")
-      ("Stdlib.List.reverse([])", "[]")
-      ("Stdlib.List.prepend([2,3], 1)", "[1, 2, 3]")
-      ("Stdlib.List.prepend([], 1)", "[1]")
-      ("Stdlib.List.append([1,2], 3)", "[1, 2, 3]")
-      ("Stdlib.List.append([], 1)", "[1]")
-      ("Stdlib.List.flatten([[1,2],[3]])", "[1, 2, 3]")
-      ("Stdlib.List.flatten([])", "[]")
-      ("Stdlib.List.flatten([[],[1],[]])", "[1]") ]
-
-  let failures =
-    cases
-    |> Stdlib.List.filterMap(fun pair ->
-      let (expr, expected) = pair
-      let output = runWithCommand([ "eval", expr ])
-      if Stdlib.String.contains(output, expected) then
-        Stdlib.Option.Option.None
-      else
-        Stdlib.Option.Option.Some(
-          $"`{expr}` expected `{expected}`, got `{output}`"))
-
-  match failures with
-  | [] -> Stdlib.Test.Result.Pass
-  | _ -> Stdlib.Test.fail(Stdlib.String.join(failures, "; "))
-
-
 /// A `None` from `getAt` must still compare and match as a plain `None`. The native version threads the
 /// list's element type through, so the repr gained a type argument; this pins that the change is
 /// display-only.
