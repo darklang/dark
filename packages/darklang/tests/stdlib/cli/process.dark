@@ -178,9 +178,20 @@ test reportsRuntimeHost =
   |> Stdlib.Test.equal(true)
 
 
+/// Read <param handle>'s output until it has printed "ready", for at most <param turns> 10 ms turns.
+let readUntilReady(handle: Stdlib.Cli.Process.ProcessHandle, seen: String, turns: Int64): String =
+  if turns <= 0 || Stdlib.String.contains(seen, "ready") then
+    seen
+  else
+    let _ = Stdlib.DateTime.__sleepMilliseconds(10.0)
+    let output = (Stdlib.Cli.Process.communicate(handle, "")).stdout
+    readUntilReady(handle, Stdlib.String.append(seen, output), turns - 1)
+
+
 test closedStdinReturnsFailure =
+  // the child prints "ready" only after closing stdin, so the write below can't land before the close
   let handle = Stdlib.Cli.Process.spawn("exec 0<&-; printf ready; sleep 1")
-  let _ = Stdlib.DateTime.__sleepMilliseconds(100.0)
+  let _ = readUntilReady(handle, "", 500)
   let response = Stdlib.Cli.Process.communicate(handle, "input")
   let _ = Stdlib.Cli.Process.terminate(handle)
   response.exitCode |> Stdlib.Test.equal(-1)
