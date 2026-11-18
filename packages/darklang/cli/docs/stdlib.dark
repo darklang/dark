@@ -21,4 +21,18 @@ string handling, JSON, HTTP, and other utilities — all written in Dark.
 
 ## Param order (collection usually first)
   Stdlib.List.map(list, fn)
-  Stdlib.String.join(list, separator)"""
+  Stdlib.String.join(list, separator)
+
+## Counts and positions
+A count clamps: too many means all, zero or less means none.
+  Stdlib.List.take([ 1, 2, 3 ], 99) // [ 1, 2, 3 ]
+  Stdlib.String.random(-1) // ""
+
+A position that isn't there is refused: reading one item gives None,
+writing or slicing gives an Error. There are no positions from the end.
+  Stdlib.List.getAt([ 1, 2, 3 ], 10) // None
+  Stdlib.List.setAt([ 1, 2, 3 ], -1, 9) // Error(IndexOutOfBounds)
+  Stdlib.List.removeAt([ 1, 2, 3 ], 3) // Error(IndexOutOfBounds)
+
+A size that can't make progress is an Error.
+  Stdlib.List.chunkBySize([ 1, 2, 3 ], 0) // Error(SizeMustBeGreaterThanZero)"""

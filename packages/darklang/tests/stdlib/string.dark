@@ -372,21 +372,18 @@ test endsWith =
 test randomLength =
   Stdlib.Test.all(
     [ Stdlib.String.random(10)
-      |> Stdlib.Result.map(Stdlib.String.length)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(10))
+      |> Stdlib.String.length
+      |> Stdlib.Test.equal(10)
 
       Stdlib.String.random(5)
-      |> Stdlib.Result.map(Stdlib.String.length)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(5))
+      |> Stdlib.String.length
+      |> Stdlib.Test.equal(5)
 
-      Stdlib.String.random(0)
-      |> Stdlib.Result.map(Stdlib.String.length)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0))
+      Stdlib.String.random(0) |> Stdlib.Test.equal("")
 
-      Stdlib.String.random(-1)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
-          "Expected `length` to be positive, but it was `-1`")) ])
+      Stdlib.String.random(-1) |> Stdlib.Test.equal("")
+
+      Stdlib.String.random(-9223372036854775807) |> Stdlib.Test.equal("") ])
 
 
 test isEmpty =
@@ -451,7 +448,9 @@ test lengthCountsClusters =
 test lengthOfLongStringsReadTwice =
   let piece = "é👍🏽ｱ"
   let repeated = Stdlib.String.repeat(piece, 20)
-  let joined = Stdlib.List.fold(Stdlib.List.range(1, 20), "", fun(acc, _) -> acc + piece)
+  let joined =
+    Stdlib.List.fold(Stdlib.List.range(1, 20), "", fun(acc, _) -> acc + piece)
+
   let longer = joined + "x"
   Stdlib.Test.all(
     [ Stdlib.String.length(repeated) |> Stdlib.Test.equal(60)
@@ -2098,13 +2097,9 @@ test randomProducesDifferentStrings =
   let samples =
     Stdlib.List.range(1, 16)
     |> Stdlib.List.map(fun _ -> Stdlib.String.random(5))
-    |> Stdlib.Result.collect
 
-  match samples with
-  | Error(message) -> Stdlib.Test.fail(message)
-  | Ok(values) ->
-    Stdlib.List.length(Stdlib.List.unique(values)) > 1
-    |> Stdlib.Test.expect("random returned the same string for all 16 samples")
+  Stdlib.List.length(Stdlib.List.unique(samples)) > 1
+  |> Stdlib.Test.expect("random returned the same string for all 16 samples")
 
 
 // Check that map calls its callback once per character.
