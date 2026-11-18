@@ -224,6 +224,21 @@ module CLIs =
     | NonIntReturned(actuallyReturned: Dval)
 
 
+/// What only the CLI itself may do, never code it runs.
+module TrustedCommands =
+  type Action =
+    /// `dark run` with `--allow` or an approval prompt
+    | RunApprovals
+    /// `dark eval` with `--allow`
+    | EvalApprovals
+    /// `dark permissions`
+    | PolicyChanges
+    /// `dark backups`
+    | StoreBackups
+    /// `dark config set` of a setting that opens the network guard or decides what traces record
+    | PersonOnlySetting(key: String)
+
+
 type Error =
   | Bool(Bools.Error)
   | BigInt(BigInts.Error)
@@ -253,6 +268,8 @@ type Error =
   | Trait(Traits.Error)
   | CLI(CLIs.Error)
   | Statement(Statements.Error)
+  /// Code asked for something only the trusted CLI command may do
+  | TrustedCommandOnly(action: TrustedCommands.Action)
   | UncaughtException(msg: String, metadata: List<(String * Dval)>)
   /// Something the person running the program can resolve once told, with the sentence that tells
   /// them: an approval names a version the store no longer holds, the policy file cannot be trusted.

@@ -335,9 +335,7 @@ let private refusesAsAdmin
         )
       return false
     with
-    | RT.RuntimeErrorException(RTE.Error.UncaughtException(message, _)) when
-      message.Contains "trusted `dark permissions` command"
-      ->
+    | RT.RuntimeErrorException(RTE.Error.TrustedCommandOnly RTE.TrustedCommands.PolicyChanges) ->
       return true
     | _ -> return false
   }
@@ -407,9 +405,33 @@ let guestCannotGrantRunAccess =
           builtin.fn (struct (guest, dummyVM (), [], args))
         )
       ()
-    with RT.RuntimeErrorException(RTE.Error.UncaughtException(message, _)) ->
-      refused <-
-        message.Contains "run approvals require the trusted dark run command"
+    with RT.RuntimeErrorException(RTE.Error.TrustedCommandOnly RTE.TrustedCommands.RunApprovals) ->
+      refused <- true
+    Expect.isTrue refused "only the trusted CLI may supply a grant"
+  }
+
+let guestCannotGrantEvalAccess =
+  testTask "guest code cannot supply temporary eval grants" {
+    let guest = executionStateFor TestValues.pm false
+    let builtin =
+      Builtins.CliHost.Libs.Cli.fns ()
+      |> List.find (fun b -> b.name.name = "cliEvaluateExpression")
+      |> Option.defaultWith (fun () -> failtest "missing eval builtin")
+    let args =
+      [| LibExecution.Dval.optionNone RT.KTUuid
+         RT.DUuid(System.Guid.NewGuid())
+         RT.DString "1"
+         RT.DBool false
+         LibExecution.PermissionsToDarkTypes.Policy.toDT P.Policy.allowAll |]
+    let mutable refused = false
+    try
+      let! _ =
+        LibExecution.Pending.toTask (
+          builtin.fn (struct (guest, dummyVM (), [], args))
+        )
+      ()
+    with RT.RuntimeErrorException(RTE.Error.TrustedCommandOnly RTE.TrustedCommands.EvalApprovals) ->
+      refused <- true
     Expect.isTrue refused "only the trusted CLI may supply a grant"
   }
 
@@ -840,6 +862,7 @@ let tests =
       promptAsksOnlyForAmbientEffects
       everyPolicyBuiltinRefusesGuestCode
       guestCannotGrantRunAccess
+      guestCannotGrantEvalAccess
       guestCodeCanCallPolicyReads
       guestStatesCannotManagePolicies
       guestFileApiCannotReachPolicyStore

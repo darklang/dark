@@ -2074,6 +2074,44 @@ module RuntimeError =
         RuntimeError.CLIs.NonIntReturned(Dval.fromDT actualReturned)
       | _ -> Exception.raiseInternal "Invalid CLIs.Error" []
 
+  module TrustedCommands =
+    let toDT (a : RuntimeError.TrustedCommands.Action) : Dval =
+      let typeName =
+        FQTypeName.fqPackage (
+          PackageRefs
+            .Type
+            .LanguageTools
+            .RuntimeTypes
+            .RuntimeError
+            .TrustedCommands
+            .action ()
+        )
+
+      let (caseName, fields) =
+        match a with
+        | RuntimeError.TrustedCommands.RunApprovals -> "RunApprovals", []
+        | RuntimeError.TrustedCommands.EvalApprovals -> "EvalApprovals", []
+        | RuntimeError.TrustedCommands.PolicyChanges -> "PolicyChanges", []
+        | RuntimeError.TrustedCommands.StoreBackups -> "StoreBackups", []
+        | RuntimeError.TrustedCommands.PersonOnlySetting key ->
+          "PersonOnlySetting", [ DString key ]
+
+      DEnum(typeName, typeName, [], caseName, fields)
+
+    let fromDT (d : Dval) : RuntimeError.TrustedCommands.Action =
+      match d with
+      | DEnum(_, _, [], "RunApprovals", []) ->
+        RuntimeError.TrustedCommands.RunApprovals
+      | DEnum(_, _, [], "EvalApprovals", []) ->
+        RuntimeError.TrustedCommands.EvalApprovals
+      | DEnum(_, _, [], "PolicyChanges", []) ->
+        RuntimeError.TrustedCommands.PolicyChanges
+      | DEnum(_, _, [], "StoreBackups", []) ->
+        RuntimeError.TrustedCommands.StoreBackups
+      | DEnum(_, _, [], "PersonOnlySetting", [ DString key ]) ->
+        RuntimeError.TrustedCommands.PersonOnlySetting key
+      | _ -> Exception.raiseInternal "Invalid TrustedCommands.Action" []
+
 
   let toDT (e : RuntimeError.Error) : Dval =
     let typeName =
@@ -2122,6 +2160,8 @@ module RuntimeError =
       | RuntimeError.Json e -> "Json", [ Jsons.toDT e ]
       | RuntimeError.Trait e -> "Trait", [ Traits.toDT e ]
       | RuntimeError.CLI e -> "CLI", [ CLIs.toDT e ]
+      | RuntimeError.TrustedCommandOnly action ->
+        "TrustedCommandOnly", [ TrustedCommands.toDT action ]
       | RuntimeError.UncaughtException(msg, metadata) ->
         "UncaughtException",
         [ DString msg
@@ -2197,6 +2237,8 @@ module RuntimeError =
     | DEnum(_, _, [], "Json", [ e ]) -> RuntimeError.Json(Jsons.fromDT e)
     | DEnum(_, _, [], "Trait", [ e ]) -> RuntimeError.Trait(Traits.fromDT e)
     | DEnum(_, _, [], "CLI", [ e ]) -> RuntimeError.CLI(CLIs.fromDT e)
+    | DEnum(_, _, [], "TrustedCommandOnly", [ action ]) ->
+      RuntimeError.TrustedCommandOnly(TrustedCommands.fromDT action)
     | DEnum(_, _, [], "UncaughtException", [ DString msg; DList(_, Items(metadata)) ]) ->
       RuntimeError.UncaughtException(
         msg,

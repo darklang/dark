@@ -236,6 +236,11 @@ module RuntimeTypes =
       RTE.CLI RTE.CLIs.NoExpressionsToExecute
       RTE.CLI(RTE.CLIs.NonIntReturned dv)
       RTE.Statement(RTE.Statements.FirstExpressionMustBeUnit(id, vt, vt2, dv))
+      RTE.TrustedCommandOnly RTE.TrustedCommands.RunApprovals
+      RTE.TrustedCommandOnly RTE.TrustedCommands.EvalApprovals
+      RTE.TrustedCommandOnly RTE.TrustedCommands.PolicyChanges
+      RTE.TrustedCommandOnly RTE.TrustedCommands.StoreBackups
+      RTE.TrustedCommandOnly(RTE.TrustedCommands.PersonOnlySetting "http.loopback")
       RTE.UncaughtException("msg", [ ("k", dv) ])
       RTE.Condition "c" ]
 

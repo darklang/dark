@@ -772,6 +772,18 @@ module RuntimeError =
           ES.FullValue(returnedValue)
           ES.String(". A main function is not called automatically: finish with `main(args)` to call it. See `dark docs scripts`.") ]
 
+    | TrustedCommandOnly(action) ->
+      let text =
+        match action with
+        | RunApprovals -> "run approvals require the trusted `dark run` command"
+        | EvalApprovals -> "eval approvals require the trusted `dark eval` command"
+        | PolicyChanges -> "policy changes require the trusted `dark permissions` command"
+        | StoreBackups -> "store backups require the trusted `dark backups` command"
+        | PersonOnlySetting(key) ->
+          $"code cannot change `{key}`, which decides what code may reach or what traces record. To change it yourself: `dark config set {key} on|off`"
+
+      [ ES.String($"permission denied: {text}") ]
+
     | UncaughtException(msg, metadata) ->
       let withMetadata =
         match metadata with

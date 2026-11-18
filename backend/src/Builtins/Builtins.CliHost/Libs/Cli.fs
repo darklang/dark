@@ -1507,10 +1507,7 @@ let private runScript
       (ask.IsSome || not (List.isEmpty grants && List.isEmpty denies))
       && not exeState.canManagePolicies
     then
-      RT.RuntimeError.UncaughtException(
-        "run approvals require the trusted dark run command",
-        []
-      )
+      RT.RuntimeError.TrustedCommandOnly RT.RuntimeError.TrustedCommands.RunApprovals
       |> RT.raiseRTE
     // Attribute the run to the calling account so the trace
     // insert can stamp `traces.account_id`. None passes through
@@ -2173,10 +2170,8 @@ let fns () : List<BuiltInFn> =
             not (List.isEmpty grants && List.isEmpty denies)
             && not exeState.canManagePolicies
           then
-            RT.RuntimeError.UncaughtException(
-              "eval approvals require the trusted dark eval command",
-              []
-            )
+            RT.RuntimeError.TrustedCommandOnly
+              RT.RuntimeError.TrustedCommands.EvalApprovals
             |> RT.raiseRTE
           task {
             // Attribute the run to the calling account so the trace

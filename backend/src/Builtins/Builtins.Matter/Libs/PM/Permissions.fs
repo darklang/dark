@@ -20,10 +20,7 @@ open Builtin.Shortcuts
 
 
 let private policyAdminError () =
-  RuntimeError.UncaughtException(
-    "permission denied: policy changes require the trusted `dark permissions` command",
-    []
-  )
+  RuntimeError.TrustedCommandOnly RuntimeError.TrustedCommands.PolicyChanges
   |> raiseRTE
 
 let private accountIDOf (dval : Dval) : Option<System.Guid> =

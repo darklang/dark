@@ -4063,6 +4063,20 @@ module RuntimeError =
       | NoExpressionsToExecute
       | NonIntReturned of actuallyReturned : Dval
 
+  /// What only the CLI itself may do, never code it runs (`canManagePolicies` off).
+  module TrustedCommands =
+    type Action =
+      /// `dark run` with `--allow` or an approval prompt.
+      | RunApprovals
+      /// `dark eval` with `--allow`.
+      | EvalApprovals
+      /// `dark permissions`.
+      | PolicyChanges
+      /// `dark backups`.
+      | StoreBackups
+      /// `dark config set` of a key in `LibDB.Config.personOnly`.
+      | PersonOnlySetting of key : string
+
 
 
   /// RuntimeError is the major way of representing errors that occur at runtime.
@@ -4127,6 +4141,9 @@ module RuntimeError =
     | CLI of CLIs.Error
 
     | Statement of Statements.Error
+
+    /// Code asked for something only the trusted CLI command may do.
+    | TrustedCommandOnly of action : TrustedCommands.Action
 
 
     /// Sometimes, very-unexpected things happen. This is a catch-all for those.

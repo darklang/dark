@@ -701,7 +701,9 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [| DBool on |] ->
           if not state.canManagePolicies then
-            RuntimeError.UncaughtException(LibDB.Config.refusal "trace.record", [])
+            RuntimeError.TrustedCommandOnly(
+              RuntimeError.TrustedCommands.PersonOnlySetting "trace.record"
+            )
             |> raiseRTE
           LibDB.Tracing.TraceDetail.set (
             if on then

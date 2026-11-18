@@ -18,10 +18,7 @@ module NR = LibExecution.RuntimeTypes.NameResolution
 /// Calling a wrapper does not give guest code that authority.
 let private requireHost (state : ExecutionState) : unit =
   if not state.canManagePolicies then
-    RuntimeError.UncaughtException(
-      "permission denied: store backups require the trusted dark backups command",
-      []
-    )
+    RuntimeError.TrustedCommandOnly RuntimeError.TrustedCommands.StoreBackups
     |> raiseRTE
 
 
@@ -29,7 +26,10 @@ let private requireHost (state : ExecutionState) : unit =
 /// Guest code (`run`, `eval`, a served handler, a package test) has `canManagePolicies` off.
 let private requireThePerson (state : ExecutionState) (key : string) : unit =
   if List.contains key LibDB.Config.personOnly && not state.canManagePolicies then
-    RuntimeError.UncaughtException(LibDB.Config.refusal key, []) |> raiseRTE
+    RuntimeError.TrustedCommandOnly(
+      RuntimeError.TrustedCommands.PersonOnlySetting key
+    )
+    |> raiseRTE
 
 
 /// The watch behind `Stdlib.Host.await` (see `hostWatchGet` below). One slot per OS process,
