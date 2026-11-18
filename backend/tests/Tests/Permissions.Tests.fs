@@ -888,6 +888,45 @@ let private runAllowCoversItsServer =
           CliInstance.stop server
       })
 
+/// `serve` checks what its middleware reaches before it binds, through a function the script
+/// defines as well as through a saved one.
+let private serveChecksAScriptFnInItsMiddleware =
+  CliInstance.instanceTest
+    "serve refuses middleware that reaches a denied effect through a script fn"
+    (fun i ->
+      task {
+        let port = Tests.HttpServer.allocateFreePort ()
+        let script = System.IO.Path.Combine(i.dir, "middleware.dark")
+        System.IO.File.WriteAllText(
+          script,
+          $"""let stamp(r: Stdlib.Http.Response): Stdlib.Http.Response =
+  let _ = Stdlib.Uuid.generate()
+  r
+
+match Stdlib.Net.Port.fromInt64({port}) with
+| Ok(p) ->
+  let mw = Stdlib.HttpServer.Middleware.onResponse(fun r -> stamp(r))
+  let config = {{ Stdlib.HttpServer.Config.defaults(p) with middleware = [ mw ] }}
+  let _ = Stdlib.HttpServer.serve(config, fun _ -> Stdlib.Http.notFound(), fun _ -> ())
+  0
+| Error(_) -> 2
+"""
+        )
+        let! (denied, code) =
+          CliInstance.runWithExit i [ "permissions"; "deny"; "random" ]
+        Expect.equal code 0L $"random denied:\n{denied}"
+        let! (out, code) =
+          CliInstance.runWithExit
+            i
+            [ "run"; "--allow"; $"http-server 127.0.0.1 {port}"; script ]
+        Expect.equal code 1L $"refused before it binds:\n{out}"
+        Expect.stringContains
+          out
+          "Config.middleware"
+          "the middleware is what was refused"
+        Expect.stringContains out "(random)" "for the effect the script fn reaches"
+      })
+
 /// `dark serve --port N` binds the port it was given without a policy rule for it.
 let private serveBindsTheGivenPort =
   CliInstance.instanceTest
@@ -1526,6 +1565,7 @@ let tests =
       serveFollowsApprovalsAndPolicy []
       serveFollowsApprovalsAndPolicy [ "--live" ]
       runAllowCoversItsServer
+      serveChecksAScriptFnInItsMiddleware
       serveBindsTheGivenPort
       noArgumentsHasExactRule
       capturedAccessCannotWidenCaller
