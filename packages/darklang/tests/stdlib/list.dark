@@ -296,23 +296,33 @@ test remove =
 
 test removeAt =
   Stdlib.Test.all(
-    [ Stdlib.List.removeAt([], 0) |> Stdlib.Test.equal([])
+    [ Stdlib.List.removeAt([], 0)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
-      Stdlib.List.removeAt([ 1, 2, 3 ], -1) |> Stdlib.Test.equal([ 1, 2, 3 ])
+      Stdlib.List.removeAt([ 1, 2, 3 ], -1)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
-      Stdlib.List.removeAt([ 1, 2, 3 ], 3) |> Stdlib.Test.equal([ 1, 2, 3 ])
+      Stdlib.List.removeAt([ 1, 2, 3 ], 3)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.removeAt([ 1, 2, 3 ], 9223372036854775807)
-      |> Stdlib.Test.equal([ 1, 2, 3 ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
-      Stdlib.List.removeAt([ 1, 2, 3 ], 0) |> Stdlib.Test.equal([ 2, 3 ])
+      Stdlib.List.removeAt([ 1, 2, 3 ], 0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 2, 3 ]))
 
-      Stdlib.List.removeAt([ 1, 2, 3 ], 1) |> Stdlib.Test.equal([ 1, 3 ])
+      Stdlib.List.removeAt([ 1, 2, 3 ], 1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 1, 3 ]))
 
       Stdlib.List.removeAt([ "a", "b", "c" ], 2)
-      |> Stdlib.Test.equal([ "a", "b" ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "a", "b" ]))
 
-      Stdlib.List.removeAt([ 1 ], 0) |> Stdlib.Test.equal([]) ])
+      Stdlib.List.removeAt([ 1 ], 0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([])) ])
 
 
 test flatten =
@@ -421,13 +431,16 @@ test setAt =
         Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.setAt([ 1, 2, 3 ], -1, 9)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 1, 2, 9 ]))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.setAt([ 1, 2, 3 ], -2, 9)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 1, 9, 3 ]))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.setAt([ 1, 2, 3 ], -3, 9)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 9, 2, 3 ]))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
 
       Stdlib.List.setAt([ 1, 2, 3 ], -4, 9)
       |> Stdlib.Test.equal(

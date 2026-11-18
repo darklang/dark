@@ -245,22 +245,16 @@ let fromChar(c: Char): String =
 
 
 /// Generate a random alphanumeric <type String> of length <param length>.
-/// Charset is {{[A-Za-z0-9]}} (62 chars). Errors if <param length> is negative.
-let random(length: Int64): Result<String, String> =
-  if length < 0 then
-    Result.Error($"Expected `length` to be positive, but it was `{length |> display}`")
-  else
-    let characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    let randomChar = fun _ ->
-      let index = Int64.random(0, String.length(characters) - 1)
-      slice(characters, index, index + 1) |> Result.withDefault("")
+/// Charset is {{[A-Za-z0-9]}} (62 chars). A <param length> of zero or less gives {{""}}.
+let random(length: Int64): String =
+  let characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+  let randomChar = fun _ ->
+    let index = Int64.random(0, String.length(characters) - 1)
+    slice(characters, index, index + 1) |> Result.withDefault("")
 
-    let result =
-      List.range(0, length - 1)
-      |> List.map(fun _ -> randomChar())
-      |> join("")
-
-    Result.Ok(result)
+  List.range(1, length)
+  |> List.map(fun _ -> randomChar())
+  |> join("")
 
 
 /// Checks if <param lookingIn> contains <param searchingFor> as whole Chars (EGC, not

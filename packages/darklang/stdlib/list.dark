@@ -383,16 +383,14 @@ let remove(list: List<'a>, x: 'a): List<'a> =
   | [head, ...tail] -> if head == x then tail else prepend(remove(tail, x), head)
 
 
-/// Removes the element at zero-based index <param i> from <param list>.
-/// Returns the list unchanged if <param i> is negative or out of range.
+/// Returns {{Ok}} <param list> without the value at zero-based <param index>.
+/// Returns {{Error IndexOutOfBounds}} if <param index> is negative or past the end.
 /// Takes O(n) time.
-let removeAt(list: List<'a>, i: Int64): List<'a> =
-  if i < 0 then
-    list
+let removeAt(list: List<'a>, index: Int64): Result<List<'a>, IndexError> =
+  if index < 0 || index >= length(list) then
+    Result.Error(IndexError.IndexOutOfBounds)
   else
-    match list with
-    | [] -> []
-    | [head, ...tail] -> if i == 0 then tail else prepend(removeAt(tail, i - 1), head)
+    Result.Ok(flatten([ take(list, index), drop(list, index + 1) ]))
 
 
 /// Drops the first <param count> values from <param list>
@@ -557,18 +555,15 @@ type IndexError =
   | IndexOutOfBounds
 
 
-/// Returns {{Ok}} <param list> with the value at <param index> replaced by
-/// <param value>. Negative indexes count backward from the end of the list, so
-/// {{-1}} replaces the last value and {{-2}} replaces the second-to-last value.
-/// Returns {{Error IndexOutOfBounds}} if the resolved index is outside the list.
+/// Returns {{Ok}} <param list> with the value at zero-based <param index> replaced
+/// by <param value>. Returns {{Error IndexOutOfBounds}} if <param index> is negative
+/// or past the end.
 /// Takes O(n) time (O(log n) in the interpreter).
 let setAt(list: List<'a>, index: Int64, value: 'a): Result<List<'a>, IndexError> =
-  let listLength = length(list)
-  let resolvedIndex = if index < 0 then listLength + index else index
-  if resolvedIndex < 0 || resolvedIndex >= listLength then
+  if index < 0 || index >= length(list) then
     Result.Error(IndexError.IndexOutOfBounds)
   else
-    Result.Ok(Builtin.listSetAt(list, resolvedIndex, value))
+    Result.Ok(Builtin.listSetAt(list, index, value))
 
 
 /// Returns {{Some <var randomValue>}}, where <var randomValue> is a randomly
