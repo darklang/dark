@@ -147,6 +147,22 @@ let private extractHeaders (req : HttpListenerRequest) : List<string * string> =
 let private hstsHeaderValue = "max-age=31536000; includeSubDomains; preload"
 
 
+/// A POST or PUT with neither a Content-Length nor a chunked body. `HttpListener` answers these
+/// with its own 411 and closes the response, but still hands the request over.
+let answeredWith411
+  (method : string)
+  (headers : System.Collections.Specialized.NameValueCollection)
+  : bool =
+  let chunked =
+    match headers["Transfer-Encoding"] with
+    | null -> false
+    | te -> te.Trim().ToLowerInvariant() = "chunked"
+  (String.equalsCaseInsensitive method "POST"
+   || String.equalsCaseInsensitive method "PUT")
+  && isNull headers["Content-Length"]
+  && not chunked
+
+
 /// The method and path for the log line and telemetry. Not the query, which may carry a token.
 let private methodAndPath (ctx : HttpListenerContext) : string * string =
   let path =
@@ -689,6 +705,7 @@ let private handleRequest
       | Live live -> live.dev
       | Fixed _ -> false
     let isLiveStream = dev && ctx.Request.Url.AbsolutePath = "/__live"
+    let lengthRequired = answeredWith411 ctx.Request.HttpMethod ctx.Request.Headers
     // `HttpListener` writes `Server: Microsoft-NetCore/2.0` on any response without a `Server`
     // header, and has no switch to leave it off. So every response starts with `Server: darklang`,
     // including the 413, 500 and 504 written here. A handler's own `Server` replaces it.
@@ -701,8 +718,11 @@ let private handleRequest
       try
         if isLiveStream then
           do! serveLiveEvents exeState invokerAccess routing ctx
+        elif lengthRequired then
+          // the client already has the listener's 411; running the handler would do its work
+          // for a response nobody gets
+          logRequest ctx 411 started
         else
-
           let! bodyResult = readRequestBodyWithLimit ctx.Request maxBodyBytes
           match bodyResult with
           | Error() ->
@@ -878,7 +898,8 @@ let private handleRequest
             ()
         | _ -> ()
     finally
-      if not isLiveStream then requestEvent ctx ctx.Response.StatusCode started
+      if lengthRequired then requestEvent ctx 411 started
+      elif not isLiveStream then requestEvent ctx ctx.Response.StatusCode started
       try
         ctx.Response.OutputStream.Close()
         ctx.Response.Close()

@@ -508,6 +508,30 @@ let private runFixture (test : Test) : Task<unit> =
   }
 
 
+/// Send <param request> as it stands and read until the server closes the connection.
+let private sendRaw (port : int) (request : byte[]) : Task<Http.T> =
+  task {
+    use client = new TcpClient()
+    do! client.ConnectAsync("127.0.0.1", port)
+    use stream = client.GetStream()
+    do! stream.WriteAsync(request, 0, request.Length)
+    do! stream.FlushAsync()
+    // Read until the server closes (Connection: close); the cancel guards against a hang
+    // if a connection is ever kept alive.
+    use ms = new System.IO.MemoryStream()
+    let buf = Array.zeroCreate 8192
+    use readCts = new CancellationTokenSource(20_000)
+    let mutable reading = true
+    try
+      while reading do
+        let! n = stream.ReadAsync(buf, 0, buf.Length, readCts.Token)
+        if n = 0 then reading <- false else ms.Write(buf, 0, n)
+    with :? System.OperationCanceledException ->
+      ()
+    return Http.split (ms.ToArray())
+  }
+
+
 /// One server, one router, driven by raw sockets so the requests really are concurrent:
 /// `requests` are (path, body) pairs sent with `method`, all at once. Returns each response
 /// as `Http.split` parses it, in request order.
@@ -543,25 +567,7 @@ let private runParsedRequestsAgainst
         let header =
           UTF8.toBytes
             $"{method} {path} HTTP/1.1\r\nHost: localhost:{port}\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n"
-        let reqBytes = Array.append header body
-        use client = new TcpClient()
-        do! client.ConnectAsync("127.0.0.1", port)
-        use stream = client.GetStream()
-        do! stream.WriteAsync(reqBytes, 0, reqBytes.Length)
-        do! stream.FlushAsync()
-        // Read until the server closes (Connection: close); the cancel guards against a hang
-        // if a connection is ever kept alive.
-        use ms = new System.IO.MemoryStream()
-        let buf = Array.zeroCreate 8192
-        use readCts = new CancellationTokenSource(20_000)
-        let mutable reading = true
-        try
-          while reading do
-            let! n = stream.ReadAsync(buf, 0, buf.Length, readCts.Token)
-            if n = 0 then reading <- false else ms.Write(buf, 0, n)
-        with :? System.OperationCanceledException ->
-          ()
-        return Http.split (ms.ToArray())
+        return! sendRaw port (Array.append header body)
       }
     try
       // `task { }` is hot, so mapping starts all requests concurrently.
@@ -770,6 +776,77 @@ let private noResponseNamesDotNet =
   }
 
 
+/// `HttpListener` answers a POST that has no Content-Length with its own 411 and still hands the
+/// request over. The handler must not run for it: its answer would go nowhere.
+let private postWithNoLengthSkipsTheHandler =
+  testTask "a POST with no Content-Length gets 411 and the handler does not run" {
+    use output = new OutputCapture()
+    let exeState = executionStateFor pmPT true
+    let test =
+      { handlers =
+          [ { version = Http
+              route = "/"
+              method = "POST"
+              code = "Darklang.Stdlib.Http.responseWithText(200, \"ran\")" } ]
+        request = [||]
+        expectedResponse = [||] }
+    let! handler = buildRouterForTest exeState test
+    let cts = new CancellationTokenSource()
+    let! port, listener = bindFreshListener ()
+    let listenerTask =
+      HttpServer.runListener
+        exeState
+        listener
+        (int64 port)
+        handler
+        HttpServer.defaultMaxBodyBytes
+        HttpServer.defaultRequestTimeoutMs
+        noMiddleware
+        cts.Token
+    let request (headers : string) =
+      UTF8.toBytes
+        $"POST / HTTP/1.1\r\nHost: localhost:{port}\r\n{headers}Connection: close\r\n\r\n"
+    try
+      let! (noLength : Http.T) = sendRaw port (request "")
+      let! (emptyBody : Http.T) = sendRaw port (request "Content-Length: 0\r\n")
+      Expect.stringContains noLength.status "411" "no length: the listener's 411"
+      Expect.stringContains
+        emptyBody.status
+        "200"
+        "a zero length still reaches the handler"
+      Expect.equal (UTF8.ofBytesUnsafe emptyBody.body) "ran" "the handler answers it"
+    finally
+      cts.Cancel()
+      try
+        listenerTask.Wait 2000 |> ignore<bool>
+      with _ ->
+        ()
+    output.Check(fun _ stderr ->
+      Expect.stringContains stderr "POST / 411" "the 411 is logged"
+      Expect.isFalse (stderr.Contains "internal error") "no internal error")
+  }
+
+let private answeredWith411Cases =
+  testCase "which requests the listener answers with 411" (fun _ ->
+    let headers (pairs : List<string * string>) =
+      let h = System.Collections.Specialized.NameValueCollection()
+      for (k, v) in pairs do
+        h.Add(k, v)
+      h
+    let cases =
+      [ "POST", [], true
+        "put", [], true
+        "POST", [ "Content-Length", "0" ], false
+        "POST", [ "Transfer-Encoding", "chunked" ], false
+        "GET", [], false
+        "DELETE", [], false ]
+    for (method, pairs, expected) in cases do
+      Expect.equal
+        (HttpServer.answeredWith411 method (headers pairs))
+        expected
+        $"{method} {pairs}")
+
+
 /// `Stdlib.HttpServer.serve` refuses a negative body limit, which would reject every request,
 /// before anything binds.
 let private serveRejectsNegativeMaxBodyBytes =
@@ -950,6 +1027,8 @@ let tests =
      :: bindRetriesATakenPort
      :: loopbackAnswersBothNames
      :: noResponseNamesDotNet
+     :: postWithNoLengthSkipsTheHandler
+     :: answeredWith411Cases
      :: concurrentEphemeralBytesRequests
      :: requestsAreProcesses
      :: fileTestLists)
