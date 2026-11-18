@@ -974,7 +974,7 @@ let private httpDenialOffersTheHost =
           $"no script prefix:\n{out}"
         Expect.stringContains
           out
-          "dark run --allow 'http GET '\\''https://api.example.com/*'\\'''"
+          "dark run --allow \"http GET 'https://api.example.com/*'\""
           "the host rule is offered"
       })
 
