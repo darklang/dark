@@ -2,7 +2,7 @@
 ///
 /// Part of `Darklang.Cli.Tests`.
 ///
-/// Native TestSuite tests invoke these helpers inside a disposable snapshot. Nested
+/// Native package tests invoke these helpers inside a disposable snapshot. Nested
 /// instances live beside that snapshot's store, so the isolation worker's cleanup also
 /// removes them if a runtime error interrupts an assertion.
 module Darklang.Cli.Tests.Instance

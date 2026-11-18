@@ -1,5 +1,5 @@
 /// CLI tests: `dark edit` round trips and refusals.
-module Darklang.Cli.Tests.TestSuite
+module Darklang.Cli.Tests.EditCommand
 
 /// Reading an item and writing it straight back changes nothing.
 ///

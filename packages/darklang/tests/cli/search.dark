@@ -1,5 +1,5 @@
 /// CLI tests: `dark search`, each in its own instance.
-module Darklang.Cli.Tests.TestSuite
+module Darklang.Cli.Tests.Search
 
 test searchMatchesModuleAndCamelCaseName = Instance.withInstance(fun i ->
   let output = Instance.output(i, [ "search", "string toList", "--fn" ])

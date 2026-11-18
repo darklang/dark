@@ -1,5 +1,5 @@
 /// CLI tests: "Did you mean" and not-found guidance for names that do not resolve.
-module Darklang.Cli.Tests.TestSuite
+module Darklang.Cli.Tests.DidYouMean
 
 test unresolvedNameGuidance = Instance.withInstance(fun i ->
   let branchName = "cli-name-guidance-test"
