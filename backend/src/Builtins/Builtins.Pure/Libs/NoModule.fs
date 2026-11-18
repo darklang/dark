@@ -401,10 +401,9 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // `fn` of `value` in a process that may only compute (`Spread.whenLanded`), whatever `value`
-    // is, so `fn` behaves the same over a read in flight, a landed one and a plain value. Over a
-    // read in flight the call is a read itself (`Interpreter.callReadsOnly`) and is not waited
-    // for here.
+    // `fn` of `value`, where it may only compute (`Spread.whenLanded`), whatever `value` is, so
+    // `fn` behaves the same over a read in flight, a landed one and a plain value. Over a read in
+    // flight the call is a read itself (`Interpreter.callReadsOnly`) and is not waited for here.
     { name = fn Interpreter.whenReadyBuiltin 0
       typeParams = []
       parameters =

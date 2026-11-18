@@ -1968,6 +1968,23 @@ let private whenReadyOfAValueOnlyComputes =
     | other -> failtest $"expected the refusal, got {other}"
   }
 
+/// A value already here is applied at once, with no process spawned for it to land in.
+let private whenReadyOfAValueAnswersAtOnce =
+  testTask "whenReady over a plain value answers at once" {
+    let state = executionStateFor pmPT false
+    let! fnInstrs = instrsFor "fun x -> x + 1"
+    match! LibExecution.Execution.executeExpr state fnInstrs with
+    | Ok(RT.DApplicable app) ->
+      let vm =
+        RT.VMState.createWithoutTLID
+          { registerCount = 1
+            instructions = [ RT.LoadVal(0, RT.DUnit) ]
+            resultIn = 0 }
+      let answer = LibExecution.Spread.whenLanded state vm app (RT.DInt64 41L)
+      Expect.equal answer (RT.DInt64 42L) "the answer itself, not a read in flight"
+    | other -> failtest $"expected a function, got {other}"
+  }
+
 /// A server on loopback that holds every response until `count` requests have arrived, then
 /// answers them all. A client that sends them one at a time gets its first answer only after 3s,
 /// once the server gives up waiting. Answers whether every response went out because all the
@@ -3405,6 +3422,7 @@ let tests =
         whenReadyRefusesAnEffectAfterTheFact
         whenReadyRefusesAnEffectOnALandedRead
         whenReadyOfAValueOnlyComputes
+        whenReadyOfAValueAnswersAtOnce
         defaultStackKeepsGetsParallel
         responseMiddlewareKeepsGetsParallel
         getsPerHostAreCapped
