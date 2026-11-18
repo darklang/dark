@@ -1,5 +1,5 @@
 /// CLI tests: saving with `module` and `fn`.
-module Darklang.Cli.Tests.TestSuite
+module Darklang.Cli.Tests.Save
 
 /// Create, update, and what happens to a module that does not type-check.
 ///

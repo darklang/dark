@@ -2,7 +2,7 @@ module Darklang.Cli.Tests.WorkbenchRepl
 
 // The workbench REPL's session bindings: `let x = ...` binds for the rest of the session by being re-injected
 // as a `let` chain around every later expression. The parse, injection and value-capture halves are tested
-// directly; typing at the prompt is in tests-tui.dark.
+// directly; typing at the prompt is in workbench.dark.
 //
 // --- what binds ---
 test letBinding =

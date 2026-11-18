@@ -1,5 +1,5 @@
 /// CLI tests: `dark view` and its flags.
-module Darklang.Cli.Tests.TestSuite
+module Darklang.Cli.Tests.View
 
 // ---------------------------------------------------------------- compiler views
 // `view --ast` and `view --instructions`. These assert on structure rather than exact text, because

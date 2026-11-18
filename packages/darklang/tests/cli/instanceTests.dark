@@ -3,7 +3,7 @@
 /// Part of `Darklang.Cli.Tests`. These are the proof that `Instance` gives a test a store
 /// of its own: if they pass, a CLI test written against it cannot see the developer's
 /// work and cannot be seen by the next test.
-module Darklang.Cli.Tests.TestSuite
+module Darklang.Cli.Tests.Instance.Tests
 
 /// An instance answers at all, from its own directory.
 ///

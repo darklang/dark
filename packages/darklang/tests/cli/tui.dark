@@ -1,0 +1,395 @@
+/// The terminal UI layer: the span canvas, Unicode-aware text, inline frame diffing, and session
+/// lifecycle through the `Prepared` seam (so none of this needs a real terminal), and the
+/// completion picker's layout and fullscreen row protocol.
+///
+/// Part of `Darklang.Cli.Tests`.
+module Darklang.Cli.Tests.Tui
+
+// ── Workbench canvas (spans -> rows) ──
+
+let canvasRegion(): Stdlib.Cli.UI.Layout.Region =
+  Stdlib.Cli.UI.Layout.Region { top = 1, left = 1, rows = 4, cols = 10 }
+
+
+let canvasRow(spans: List<Stdlib.Cli.UI.Layout.Span>): String =
+  Stdlib.Cli.UI.Canvas.compose(10, 2, spans)
+  |> Stdlib.List.head
+  |> Stdlib.Option.withDefault("")
+  |> Stdlib.Cli.Tui.Text.stripSgr
+
+
+test canvasPlacesSpans =
+  let region = canvasRegion()
+  let spans = Stdlib.Cli.UI.Layout.at(region, 0, 2, "hi")
+  let row = canvasRow(spans)
+
+  // No trailing pad: the renderer erases each row before writing it, so padding would be bytes on the wire
+  // for nothing, and unpadded rows compare equal across frames more often.
+  if row == "  hi" then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail($"Expected span at column 2, got '{row}'")
+
+
+test canvasLayersLaterSpans =
+  let region = canvasRegion()
+  let spans =
+    Stdlib.List.flatten(
+      [ Stdlib.Cli.UI.Layout.at(region, 0, 0, "aaaaa")
+        Stdlib.Cli.UI.Layout.at(region, 0, 2, "BB") ])
+
+  let row = canvasRow(spans)
+
+  // The later span wins. Where it lands inside an earlier one, the earlier one's right-hand remainder is
+  // dropped rather than split in two: the only thing that ever gets covered this way is the uniform blank
+  // padding an overlay lays down first, and the renderer erases each row before writing it, so a row that
+  // stops early is indistinguishable from one padded out with spaces.
+  if row == "aaBB" then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail($"Expected later span to layer over earlier, got '{row}'")
+
+
+test canvasWideGlyphOccupiesTwoColumns =
+  let region = canvasRegion()
+  let spans =
+    Stdlib.List.flatten(
+      [ Stdlib.Cli.UI.Layout.at(region, 0, 0, "界")
+        Stdlib.Cli.UI.Layout.at(region, 0, 2, "X") ])
+
+  let row = canvasRow(spans)
+
+  // The wide glyph eats two cells, so the next span still lands where it was asked to: no gap, no overlap.
+  if row == "界X" then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail($"Expected wide glyph to occupy two columns, got '{row}'")
+
+
+test canvasStylingIsZeroWidth =
+  let region = canvasRegion()
+  let spans =
+    Stdlib.List.flatten(
+      [ Stdlib.Cli.UI.Layout.at(region, 0, 0, Stdlib.Cli.UI.Colors.info("ab"))
+        Stdlib.Cli.UI.Layout.at(region, 0, 2, "cd") ])
+
+  let row = canvasRow(spans)
+
+  // Colour codes carry no width, so the second span is not pushed sideways by them.
+  if row == "abcd" then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail($"Expected SGR to consume no columns, got '{row}'")
+
+
+test canvasUntouchedRowsAreEmpty =
+  let region = canvasRegion()
+  let spans = Stdlib.Cli.UI.Layout.at(region, 0, 0, "x")
+  let rows = Stdlib.Cli.UI.Canvas.compose(10, 3, spans)
+  match Stdlib.List.getAt(rows, 1) with
+  | Some(second) ->
+    // Rows nobody painted stay empty so they compare equal frame to frame and cost no redraw.
+    if second == "" && Stdlib.List.length(rows) == 3 then
+      Stdlib.Test.Result.Pass
+    else
+      Stdlib.Test.fail($"Expected untouched rows to be empty, got '{second}'")
+  | None -> Stdlib.Test.fail("Expected three composed rows")
+
+
+// -- Stdlib.Cli.Tui.Text: fitting styled rows to a column count --
+
+test textClipsByColumnsNotCharacters =
+  let clipped = Stdlib.Cli.Tui.Text.clipToWidth("\u001b[31mabcdef", 3)
+
+  // SGR carries no width, so 3 columns means 3 visible characters, styling retained.
+  if
+    Stdlib.Cli.Tui.Text.stripSgr(clipped) == "abc"
+    && Stdlib.String.contains(clipped, "\u001b[31m")
+  then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      $"Expected styled clip to 'abc', got '{Stdlib.Cli.Tui.Text.stripSgr(clipped)}'")
+
+
+test textNeverSplitsAWideGlyph =
+  // Two double-width glyphs in three columns: the second cannot fit, and half of it must not be emitted.
+  let clipped = Stdlib.Cli.Tui.Text.clipToWidth("界界", 3)
+  if Stdlib.String.displayWidth(clipped) == 2 then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      $"Expected a wide glyph to be dropped whole, got width {Stdlib.display(Stdlib.String.displayWidth(clipped))}")
+
+
+test textDropsNonSgrEscapes =
+  // A cursor-forward escape in dynamic content must not survive into a row: rows are text, not commands.
+  let clipped = Stdlib.Cli.Tui.Text.clipToWidth("a\u001b[5Cb", 10)
+  if clipped == "ab" then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      $"Expected non-SGR escapes to be stripped, got '{clipped}'")
+
+
+test textWrapReappliesStyleAcrossRows =
+  let rows = Stdlib.Cli.Tui.Text.wrapAtColumn("\u001b[31mabcd", 2)
+  let first = Stdlib.List.getAt(rows, 0) |> Stdlib.Option.withDefault("")
+  let second = Stdlib.List.getAt(rows, 1) |> Stdlib.Option.withDefault("")
+
+  // The renderer resets style after every row, so a style spanning a wrap has to be restated on the next.
+  if
+    Stdlib.List.length(rows) == 2
+    && Stdlib.Cli.Tui.Text.stripSgr(first) == "ab"
+    && Stdlib.Cli.Tui.Text.stripSgr(second) == "cd"
+    && Stdlib.String.contains(second, "\u001b[31m")
+  then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      "Expected wrapped rows to carry the active style onto the continuation row")
+
+
+test textCursorAfterFullRowWraps =
+  // Text that exactly fills the width leaves the cursor at the start of the following row, matching what
+  // the terminal does. Prompt cursor placement depends on this.
+  let (_rows, row, column) = Stdlib.Cli.Tui.Text.wrapWithCursor("abcd", "", 4)
+  if row == 1 && column == 0 then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      $"Expected (1, 0), got ({Stdlib.display(row)}, {Stdlib.display(column)})")
+
+
+test promptCursorFollowsWordWrap =
+  // At 10 columns "> echo hello world" draws as "> echo", "hello", "world": the cursor belongs after
+  // "world", not where a column wrap would have put it.
+  let state =
+    Cli.Prompt.Editing.setText(Cli.Prompt.initState(), "echo hello world")
+
+  let size = Stdlib.Cli.Tui.Size { width = 10, height = 5 }
+  let view = Cli.Prompt.Display.viewAtSize(state, "", "", size)
+  match view.cursor with
+  | Visible(row, column) ->
+    if row == 2 && column == 5 then
+      Stdlib.Test.Result.Pass
+    else
+      Stdlib.Test.fail(
+        $"Expected (2, 5), got ({Stdlib.display(row)}, {Stdlib.display(column)})")
+  | Hidden -> Stdlib.Test.fail("Expected a visible cursor")
+
+
+test textFitPadsByColumnsNotCharacters =
+  // A wide glyph is one character in two columns, so padding by character count comes out short.
+  let fitted = Stdlib.Cli.Tui.Text.fitToWidth("界a", 6)
+  if Stdlib.String.displayWidth(fitted) == 6 then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      $"Expected 6 columns, got {Stdlib.display(Stdlib.String.displayWidth(fitted))}")
+
+
+test textFitIgnoresStylingWhenPadding =
+  // Styling costs no columns, so a styled row pads to what its plain text would.
+  let fitted = Stdlib.Cli.Tui.Text.fitToWidth("\u001b[31mab\u001b[0m", 5)
+  if Stdlib.Cli.Tui.Text.stripSgr(fitted) == "ab   " then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      $"Expected 'ab' padded to 5 columns, got '{Stdlib.Cli.Tui.Text.stripSgr(fitted)}'")
+
+
+test textWrapAtWordsBreaksAtSpaces =
+  // The word wrapper stays in Dark, measuring whole words.
+  let rows = Stdlib.Cli.Tui.Text.wrapAtWords("alpha beta gamma", 11)
+  if rows == [ "alpha beta", "gamma" ] then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      $"Expected a break at the space, got {Stdlib.String.join(rows, " | ")}")
+
+
+// -- InlineFrame: relative addressing, the part that can wreck scrollback --
+
+let inlineView(rows: List<String>): Stdlib.Cli.Tui.View =
+  Stdlib.Cli.Tui.View
+    { rows = rows
+      cursor = Stdlib.Cli.Tui.Cursor.Hidden
+      mode = Stdlib.Cli.Tui.ViewMode.Inline }
+
+
+test inlineFrameEmitsNothingWhenUnchanged =
+  let view = inlineView([ "a", "b" ])
+  let output =
+    Stdlib.Cli.Tui.InlineFrame.renderAtWidth(
+      20,
+      Stdlib.Option.Option.Some(view),
+      view)
+
+  // An unchanged frame must write literally nothing, or an idle prompt would still churn the terminal.
+  if output == "" then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail("Expected an unchanged inline frame to emit no output")
+
+
+test inlineFrameMovesRelativeToPreviousCursor =
+  let previous = inlineView([ "a", "b" ])
+  let next = inlineView([ "a", "B" ])
+  let output =
+    Stdlib.Cli.Tui.InlineFrame.renderAtWidth(
+      20,
+      Stdlib.Option.Option.Some(previous),
+      next)
+
+  // Only the changed row is rewritten, and it's addressed by moving from where the last frame left the
+  // cursor rather than by absolute position, because inline rows travel with scrollback.
+  if
+    Stdlib.String.contains(output, "B")
+    && Stdlib.Bool.not(Stdlib.String.contains(output, "a"))
+  then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      $"Expected only the changed inline row to be rewritten, got '{output}'")
+
+
+// -- TerminalSession lifecycle, through the `Prepared` seam that exists so this needs no real terminal --
+
+let fullscreenView(rows: List<String>): Stdlib.Cli.Tui.View =
+  Stdlib.Cli.Tui.View
+    { rows = rows
+      cursor = Stdlib.Cli.Tui.Cursor.Hidden
+      mode = Stdlib.Cli.Tui.ViewMode.Fullscreen }
+
+
+test sessionTakesAlternateScreenOnFirstPresent =
+  let prepared =
+    Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize(
+      Stdlib.Cli.Tui.TerminalSession.init(),
+      Stdlib.Cli.Tui.Size { width = 20, height = 5 },
+      fullscreenView([ "hello" ]))
+
+  if Stdlib.String.contains(prepared.output, "\u001b[?1049h") then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      "Expected the first fullscreen present to enter the alternate screen")
+
+
+test sessionSecondIdenticalPresentIsSilent =
+  let size = Stdlib.Cli.Tui.Size { width = 20, height = 5 }
+  let view = fullscreenView([ "hello" ])
+  let first =
+    Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize(
+      Stdlib.Cli.Tui.TerminalSession.init(),
+      size,
+      view)
+
+  let second =
+    Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize(first.state, size, view)
+
+  // Presenting the same view again is the common case in a render loop; it must cost nothing.
+  if second.output == "" then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      $"Expected a repeat present to emit nothing, got '{second.output}'")
+
+
+test sessionStopRestoresOnlyWhenRunning =
+  let size = Stdlib.Cli.Tui.Size { width = 20, height = 5 }
+  let started =
+    Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize(
+      Stdlib.Cli.Tui.TerminalSession.init(),
+      size,
+      fullscreenView([ "hello" ]))
+
+  let stopped = Stdlib.Cli.Tui.TerminalSession.prepareStop(started.state)
+  let stoppedAgain = Stdlib.Cli.Tui.TerminalSession.prepareStop(stopped.state)
+
+  // Stopping a live session leaves the alternate screen; stopping an already-stopped one is a no-op.
+  if
+    Stdlib.String.contains(stopped.output, "\u001b[?1049l")
+    && stoppedAgain.output == ""
+  then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail("Expected stop to restore once and then be a no-op")
+
+
+// ── Completion picker layout and the fullscreen row protocol ──
+
+let completionPickerState(itemCount: Int64): CompletionPicker.State =
+  let items =
+    Stdlib.List.range(1, itemCount)
+    |> Stdlib.List.map(fun index ->
+      Completion.simple($"item-{Stdlib.display(index)}"))
+
+  CompletionPicker.create("", items)
+
+
+test completionPickerTwoRows =
+  let size = Stdlib.Cli.Tui.Size { width = 80, height = 2 }
+  let state = completionPickerState(3)
+  let layout = CompletionPicker.layoutAtSize(state, size)
+  let view = CompletionPicker.viewAtSize(state, size)
+  match Stdlib.List.last(view.rows) with
+  | Some(helpRow) ->
+    if
+      layout.itemCapacity == 1
+      && Stdlib.Bool.not(layout.showScrollIndicator)
+      && Stdlib.List.length(view.rows) == 2
+      && Stdlib.String.contains(helpRow, "Enter")
+    then
+      Stdlib.Test.Result.Pass
+    else
+      Stdlib.Test.fail(
+        "Two-row picker should show one item and one complete help row")
+  | None -> Stdlib.Test.fail("Two-row picker should include a help row")
+
+
+test completionPickerNarrowHelp =
+  let width = CompletionPicker.minimumWidth
+  let help = CompletionPicker.helpTextAtWidth(width)
+  if
+    CompletionPicker.supportsSize(
+      Stdlib.Cli.Tui.Size { width = width, height = 2 })
+    && Stdlib.Bool.not(
+      CompletionPicker.supportsSize(
+        Stdlib.Cli.Tui.Size { width = width - 1, height = 2 }))
+    && help == CompletionPicker.minimumHelpText
+    && Stdlib.String.displayWidth(help) <= width
+  then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail("Narrow picker should use an untruncated minimum help row")
+
+
+test completionPickerLongList =
+  let size = Stdlib.Cli.Tui.Size { width = 80, height = 3 }
+  let state = completionPickerState(5)
+  let layout = CompletionPicker.layoutAtSize(state, size)
+  let view = CompletionPicker.viewAtSize(state, size)
+  if
+    layout.itemCapacity == 1
+    && layout.showScrollIndicator
+    && Stdlib.List.length(view.rows) == 3
+  then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      "Long picker should reserve rows for its indicator and help")
+
+
+test fullscreenRowCancelsDeferredWrap =
+  let output =
+    Stdlib.Cli.Tui.Frame.renderRowChangeAtWidth(
+      3,
+      Stdlib.Cli.Tui.Frame.RowChange { row = 0, content = "abc" })
+
+  if Stdlib.String.endsWith(output, "\r") then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail(
+      "Fullscreen rows should return to column one after filling the terminal")

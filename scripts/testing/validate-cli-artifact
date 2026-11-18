@@ -326,12 +326,19 @@ if [[ -n "$missing_tools" ]]; then
 else
   # The modules whose tests drive the CLI as a process, so they test the artifact itself.
   SUITE_MODULES=(
-    Darklang.Cli.Tests.TestSuite
     Darklang.Cli.Tests.Authoring
     Darklang.Cli.Tests.CommandHelp
     Darklang.Cli.Tests.Deprecate
+    Darklang.Cli.Tests.DidYouMean
+    Darklang.Cli.Tests.EditCommand
     Darklang.Cli.Tests.EvalAndRun
+    Darklang.Cli.Tests.Instance.Tests
     Darklang.Cli.Tests.Listing
+    Darklang.Cli.Tests.Save
+    Darklang.Cli.Tests.Search
+    Darklang.Cli.Tests.Tui
+    Darklang.Cli.Tests.View
+    Darklang.Cli.Tests.Workbench
   )
   suite_out=""
   suite_rc=0

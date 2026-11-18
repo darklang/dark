@@ -53,7 +53,7 @@ if [[ "$1" == test ]]; then
   # printenv: bash gives itself an unexported TERM=dumb when the environment has none.
   if printenv TERM > /dev/null; then echo "suite fixture: TERM is $(printenv TERM)"; exit 9; fi
   case "$FIXTURE_SUITE" in
-    fail) echo 'FAIL Darklang.Cli.Tests.TestSuite.fixture'; echo '0 passed, 1 failed'; exit 1 ;;
+    fail) echo 'FAIL Darklang.Cli.Tests.Save.fixture'; echo '0 passed, 1 failed'; exit 1 ;;
     hang)
       sleep "$FIXTURE_CHILD_SECONDS" &
       echo $! > "$FIXTURE_CHILD_PID"
@@ -206,7 +206,7 @@ exec /bin/sleep "$@"
     rc, output = self.run_validator("success", suite="fail")
     self.assertEqual(rc, 1, output)
     self.assertIn("FAIL suite (exit 1)", output)
-    self.assertIn("FAIL Darklang.Cli.Tests.TestSuite.fixture", output)
+    self.assertIn("FAIL Darklang.Cli.Tests.Save.fixture", output)
 
   def test_suite_that_never_finishes_fails_as_a_timeout_and_is_stopped(self):
     rc, output = self.run_validator("success", suite="hang", suite_timeout="0.2")
