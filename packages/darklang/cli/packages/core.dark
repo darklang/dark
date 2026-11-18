@@ -580,7 +580,7 @@ let saveAuthored(
         | None -> ()
 
         Propagate.printFollowed(followed)
-        state
+        if Stdlib.Option.isSome(ownIssue) then failed(state) else state
       | Error(msg) ->
         let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(location)
         Text.printWrappedErr(

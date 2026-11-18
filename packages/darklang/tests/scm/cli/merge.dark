@@ -185,7 +185,12 @@ test mergeRefusesAndSaysWhy =
         "a branch with a live child")
 
       run(dark, [ "branch", "archive", "kid", "-y" ])
-      save(dark, "Tests.App.bad", "(): Int64 = \"text\"")
+      refuses(
+        dark,
+        [ "fn", "Tests.App.bad", "(): Int64 = \"text\"" ],
+        "type error",
+        "a save with a type error")
+
       run(dark, [ "commit", "bad", "-y", "--allow-type-errors" ])
       refuses(
         dark,

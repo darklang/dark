@@ -382,7 +382,8 @@ let executeJson(state: AppState, args: List<String>): AppState =
   let r = selectedReview(state, review(state), parsed.include)
 
   // --json implies non-interactive: there is nobody to prompt. -y is still required to actually commit, so a
-  // plain `dark commit --json` is a safe dry review an agent can look at before deciding.
+  // plain `dark commit --json` is a safe dry review an agent can look at before deciding. Like the text
+  // view, it exits 1 whenever nothing was committed.
   // The same two gates the pretty path runs: an agent driving `--json -y` must not commit an unresolvable
   // reference, or a definite type error, that a person at the pretty prompt would have been refused.
   // Refusals are DATA here, not prose: `commit --json` is the documented dry review, and its
@@ -448,7 +449,7 @@ let executeJson(state: AppState, args: List<String>): AppState =
             conflicts = r.conflicts }))
 
   if failure == "" then
-    exitWith(state, printed)
+    exitWith(state, printed && didCommit)
   else
     printErr(failure)
     { state with exitCode = 1 }

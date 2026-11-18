@@ -201,7 +201,7 @@ Bulk where the decision is made: `ack --all`,
 and doesn't abort, so you never have to bisect a batch.
 
 `commit --json` without `-y` is a safe dry run: it tells you exactly what
-committing would do without committing.
+committing would do without committing. It exits 1, as nothing was committed.
 
 ## Worked example
 
