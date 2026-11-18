@@ -1,5 +1,6 @@
 /// The reload's trait-call cache is keyed on the source files of the builtins the at-rest checker
-/// runs (`CheckerSources`), not on the whole of the assemblies they are in.
+/// runs (`CheckerSources`), not on the whole of the assemblies they are in, and misses once an
+/// impl a body resolved to changes.
 module Tests.TraitCallCache
 
 open Expecto
@@ -11,6 +12,7 @@ open TestUtils.TestUtils
 
 module CheckerSources = Builtins.Matter.Libs.PM.CheckerSources
 module TraitCalls = Builtins.Matter.Libs.PM.TraitCalls
+module PT = LibExecution.ProgramTypes
 
 let private outside = TraitCalls.outsideTheChecker
 let private root = LibConfig.Dirs.sourceRootDir
@@ -76,4 +78,113 @@ let tests =
           Expect.notEqual (key ()) before "Dict.fs is the checker's"
         finally
           dir.Delete true
+      }
+      testTask "a reload checks a body again once an impl it resolved to changes" {
+        // Fresh names per run: a type is content-addressed, and an earlier run's answers would
+        // otherwise already be in the cache.
+        let r = System.Random.Shared.Next(1_000, 1_000_000_000)
+        let m = "TraitCallCacheImplEdit"
+        let q = $"Darklang.{m}"
+        let tag = $"tag{r}"
+        let author = Tests.Interpreter.BoundMemo.authorStep
+        let! _ = author "type" $"module {q}\n\ntype Box = {{ boxWidth{r}: Int64 }}"
+        let! _ =
+          author "trait" $"module {q}\n\ntrait Tag<'a> =\n  let {tag}(v: 'a): String"
+        let impl answer =
+          author
+            "impl"
+            $"module {q}\n\nimpl {q}.Tag for {q}.Box =\n  let {tag}(b: {q}.Box): String = \"{answer}\""
+        let! implOps = impl "one"
+        let! _ =
+          author
+            "caller"
+            $"module {q}\n\nlet caller(): String = {q}.Tag.{tag}({q}.Box {{ boxWidth{r} = 1 }})"
+        let at name : PT.PackageLocation =
+          { owner = "Darklang"; modules = [ m ]; name = name }
+        let bound what =
+          implOps
+          |> List.pick (fun op ->
+            match op with
+            | PT.PackageOp.SetName(at, target, _) when what target -> Some at
+            | _ -> None)
+        let implAt =
+          bound (function
+            | PT.Reference.PackageTraitImpl _ -> true
+            | _ -> false)
+        let methodAt =
+          bound (function
+            | PT.Reference.PackageFn _ -> true
+            | _ -> false)
+        let found (what : string) (hash : Option<'a>) : 'a =
+          hash |> Option.defaultWith (fun () -> failtest $"no {what} in the store")
+
+        // The tree as the store holds it now, as a reload would hand it over: the refresh may
+        // have re-hashed what the parses returned.
+        let reload () =
+          task {
+            let typeHash = found "type" (pmPT.findType (at "Box"))
+            let traitHash = found "trait" (pmPT.findTrait (at "Tag"))
+            let implHash = found "impl" (pmPT.findTraitImpl implAt)
+            let methodHash = found "method" (pmPT.findFn methodAt)
+            let callerHash = found "caller" (pmPT.findFn (at "caller"))
+            let fn h = PT.PackageOp.AddFn(found "fn" (pmPT.getFn h))
+            let ops =
+              [ PT.PackageOp.AddType(found "type" (pmPT.getType typeHash))
+                PT.PackageOp.SetName(
+                  at "Box",
+                  PT.Reference.PackageType typeHash,
+                  None
+                )
+                PT.PackageOp.AddTrait(found "trait" (pmPT.getTrait traitHash))
+                PT.PackageOp.SetName(
+                  at "Tag",
+                  PT.Reference.PackageTrait traitHash,
+                  None
+                )
+                PT.PackageOp.AddTraitImpl(found "impl" (pmPT.getTraitImpl implHash))
+                PT.PackageOp.SetName(
+                  implAt,
+                  PT.Reference.PackageTraitImpl implHash,
+                  None
+                )
+                fn methodHash
+                PT.PackageOp.SetName(
+                  methodAt,
+                  PT.Reference.PackageFn methodHash,
+                  None
+                )
+                fn callerHash
+                PT.PackageOp.SetName(
+                  at "caller",
+                  PT.Reference.PackageFn callerHash,
+                  None
+                ) ]
+            let! resolved, _ =
+              TraitCalls.resolveTraitCalls
+                (executionStateFor pmPT false)
+                PT.BranchId.Main
+                pmPT
+                (Some "trait-call-cache-test")
+                ops
+            let body =
+              resolved
+              |> List.pick (function
+                | PT.PackageOp.AddFn fn when fn.hash = callerHash -> Some fn.body
+                | _ -> None)
+            let (PT.Hash methodHash) = methodHash
+            return sprintf "%A" body, methodHash
+          }
+
+        let! first, firstMethod = reload ()
+        Expect.stringContains first firstMethod "the call resolves to the impl"
+        let! again, _ = reload ()
+        Expect.equal again first "and to the same one from the cache"
+
+        let! _ = impl "two"
+        let! afterEdit, secondMethod = reload ()
+        Expect.notEqual secondMethod firstMethod "the edit is a new method fn"
+        Expect.stringContains
+          afterEdit
+          secondMethod
+          "after the impl changes, the call resolves to the new one"
       } ]
