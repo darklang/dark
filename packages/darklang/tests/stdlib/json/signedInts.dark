@@ -1,0 +1,864 @@
+module Darklang.Stdlib.Json.Tests
+
+module BigInt =
+  module Basic =
+    test serialize =
+      Stdlib.Test.all(
+        [ Stdlib.Json.serialize<BigInt>(0z) |> Stdlib.Test.equal("0")
+          Stdlib.Json.serialize<BigInt>(12345z) |> Stdlib.Test.equal("12345")
+          Stdlib.Json.serialize<BigInt>(-12345z)
+          |> Stdlib.Test.equal("-12345") ])
+
+
+    test parse =
+      Stdlib.Test.all(
+        [ Stdlib.Json.parse<BigInt>("0") |> Stdlib.Test.equal(Result.Ok(0z))
+
+          Stdlib.Json.parse<BigInt>("12345")
+          |> Stdlib.Test.equal(Result.Ok(12345z))
+
+          Stdlib.Json.parse<BigInt>("-12345")
+          |> Stdlib.Test.equal(Result.Ok(-12345z)) ])
+
+
+  module Huge =
+    test serialize =
+      Stdlib.Test.all(
+        [ // arbitrary precision: well past Int64, exact round-trip
+          Stdlib.Json.serialize<BigInt>(123456789012345678901234567890z)
+          |> Stdlib.Test.equal("123456789012345678901234567890")
+
+          Stdlib.Json.parse<BigInt>(
+            Stdlib.Json.serialize<BigInt>(99999999999999999999999999999999z))
+          |> Stdlib.Test.equal(Result.Ok(99999999999999999999999999999999z)) ])
+
+
+    test parse =
+      Stdlib.Test.all(
+        [ Stdlib.Json.parse<BigInt>("123456789012345678901234567890")
+          |> Stdlib.Test.equal(Result.Ok(123456789012345678901234567890z))
+
+          Stdlib.Json.parse<BigInt>("-123456789012345678901234567890")
+          |> Stdlib.Test.equal(Result.Ok(-123456789012345678901234567890z)) ])
+
+
+  module PastInt64 =
+    test serialize =
+      // BigInt is unbounded: it serializes/parses values that overflow Int64.
+      // Compare the Int64Limits module above, which *errors* on these exact values.
+      Stdlib.Json.serialize<BigInt>(9223372036854775808z)
+      |> Stdlib.Test.equal("9223372036854775808")
+
+
+    test parse =
+      Stdlib.Test.all(
+        [ Stdlib.Json.parse<BigInt>("9223372036854775808")
+          |> Stdlib.Test.equal(Result.Ok(9223372036854775808z))
+
+          Stdlib.Json.parse<BigInt>("-9223372036854775809")
+          |> Stdlib.Test.equal(Result.Ok(-9223372036854775809z))
+
+          // a float-form just above the Int64 max (Int64 rejects "9.3E18")
+          Stdlib.Json.parse<BigInt>("9.3E18")
+          |> Stdlib.Test.equal(Result.Ok(9300000000000000000z)) ])
+
+
+  module IntegerValuedFloatForms =
+    test parse =
+      Stdlib.Test.all(
+        [ // integer-valued decimal/exponent forms are accepted, parsed EXACTLY
+          // (the same forms the fixed-width int parsers accept)
+          Stdlib.Json.parse<BigInt>("0.0") |> Stdlib.Test.equal(Result.Ok(0z))
+
+          Stdlib.Json.parse<BigInt>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1z))
+
+          Stdlib.Json.parse<BigInt>("1.2E2")
+          |> Stdlib.Test.equal(Result.Ok(120z))
+
+          Stdlib.Json.parse<BigInt>("1.2E+2")
+          |> Stdlib.Test.equal(Result.Ok(120z))
+
+          Stdlib.Json.parse<BigInt>("1200E-1")
+          |> Stdlib.Test.equal(Result.Ok(120z))
+
+          // exact even past 2^53
+          Stdlib.Json.parse<BigInt>("9007199254740993.0")
+          |> Stdlib.Test.equal(Result.Ok(9007199254740993z)) ])
+
+
+  module Errors =
+    test parseErrors =
+      Stdlib.Test.all(
+        [ // genuinely fractional values are rejected, never rounded
+          Stdlib.Json.parse<BigInt>("1.5")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `1.5` as type `BigInt` at path: `root`"))
+
+          Stdlib.Json.parse<BigInt>("9007199254740993.5")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `9007199254740993.5` as type `BigInt` at path: `root`"))
+
+          Stdlib.Json.parse<BigInt>("\"42\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"42\"` as type `BigInt` at path: `root`"))
+
+          Stdlib.Json.parse<BigInt>("null")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `null` as type `BigInt` at path: `root`"))
+
+          // extreme exponents are rejected cleanly, never crash or hang the parser
+          Stdlib.Json.parse<BigInt>("1e2147483647")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `1e2147483647` as type `BigInt` at path: `root`"))
+
+          Stdlib.Json.parse<BigInt>("1e-2147483647")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `1e-2147483647` as type `BigInt` at path: `root`"))
+
+          Stdlib.Json.parse<BigInt>("1e-2147483648")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `1e-2147483648` as type `BigInt` at path: `root`")) ])
+
+
+    test parse =
+      // ...but zero with an extreme negative exponent is still exactly zero
+      Stdlib.Json.parse<BigInt>("0e-2147483648")
+      |> Stdlib.Test.equal(Result.Ok(0z))
+
+
+module Int64 =
+  module Basic =
+    test serialize =
+      Stdlib.Test.all(
+        [ Stdlib.Json.serialize<Int64>(0) |> Stdlib.Test.equal("0")
+          Stdlib.Json.serialize<Int64>(12345) |> Stdlib.Test.equal("12345")
+          Stdlib.Json.serialize<Int64>(-12345) |> Stdlib.Test.equal("-12345") ])
+
+
+    test parse =
+      Stdlib.Test.all(
+        [ Stdlib.Json.parse<Int64>("0") |> Stdlib.Test.equal(Result.Ok(0))
+
+          Stdlib.Json.parse<Int64>("0.0") |> Stdlib.Test.equal(Result.Ok(0))
+
+          Stdlib.Json.parse<Int64>("-0.0") |> Stdlib.Test.equal(Result.Ok(0))
+
+          Stdlib.Json.parse<Int64>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1))
+
+          Stdlib.Json.parse<Int64>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120))
+
+          Stdlib.Json.parse<Int64>("1.2E+2")
+          |> Stdlib.Test.equal(Result.Ok(120))
+
+          Stdlib.Json.parse<Int64>("1200E-1")
+          |> Stdlib.Test.equal(Result.Ok(120))
+
+          // exact past 2^53, never through a double
+          Stdlib.Json.parse<Int64>("9007199254740993.0")
+          |> Stdlib.Test.equal(Result.Ok(9007199254740993))
+
+          Stdlib.Json.parse<Int64>("9223372036854775806.0")
+          |> Stdlib.Test.equal(Result.Ok(9223372036854775806)) ])
+
+
+  module Int32Limits =
+    test serialize =
+      Stdlib.Test.all(
+        [ // test the limits of int32 (-2147483648 to 2147483647)
+          Stdlib.Json.serialize<Int64>(-2147483648)
+          |> Stdlib.Test.equal("-2147483648")
+
+          Stdlib.Json.serialize<Int64>(2147483647)
+          |> Stdlib.Test.equal("2147483647")
+
+          Stdlib.Json.serialize<Int64>(-2147483649)
+          |> Stdlib.Test.equal("-2147483649")
+
+          Stdlib.Json.serialize<Int64>(2147483648)
+          |> Stdlib.Test.equal("2147483648") ])
+
+
+    test parse =
+      Stdlib.Test.all(
+        [ Stdlib.Json.parse<Int64>("-2147483648")
+          |> Stdlib.Test.equal(Result.Ok(-2147483648))
+
+          Stdlib.Json.parse<Int64>("2147483647")
+          |> Stdlib.Test.equal(Result.Ok(2147483647))
+
+          Stdlib.Json.parse<Int64>("-2147483649")
+          |> Stdlib.Test.equal(Result.Ok(-2147483649))
+
+          Stdlib.Json.parse<Int64>("2147483648")
+          |> Stdlib.Test.equal(Result.Ok(2147483648)) ])
+
+
+  module Int64Limits =
+    // test the limits of int64 (-9223372036854775808 to 9223372036854775807)
+    // Integer serialization is exact; no float intermediary or string coercion.
+    test parseErrors =
+      Stdlib.Test.all(
+        [ // First number that doesn't fit in an int64
+          Stdlib.Json.parse<Int64>("9223372036854775808")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `9223372036854775808` as type `Int64` at path: `root`"))
+
+          // This is a float that is slightly above the int64 max
+          Stdlib.Json.parse<Int64>("9.3E18")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `9.3E18` as type `Int64` at path: `root`")) ])
+
+
+    test parse =
+      Stdlib.Test.all(
+        [ // This is a float that is a valid int64
+          Stdlib.Json.parse<Int64>("9.2E18")
+          |> Stdlib.Test.equal(Result.Ok(9200000000000000000))
+
+          Stdlib.Json.parse<Int64>("9223372036854775807")
+          |> Stdlib.Test.equal(Result.Ok(9223372036854775807))
+
+          Stdlib.Json.parse<Int64>("-9223372036854775808")
+          |> Stdlib.Test.equal(Result.Ok(-9223372036854775808)) ])
+
+
+    test serialize =
+      Stdlib.Test.all(
+        [ Stdlib.Json.serialize<Int64>(9223372036854775807)
+          |> Stdlib.Test.equal("9223372036854775807")
+
+          Stdlib.Json.serialize<Int64>(-9223372036854775808)
+          |> Stdlib.Test.equal("-9223372036854775808") ])
+
+
+  module Errors =
+    test parseErrors =
+      Stdlib.Test.all(
+        [ // not ints
+          Stdlib.Json.parse<Int64>(" ")
+          |> err
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
+
+          Stdlib.Json.parse<Int64>("4a")
+          |> err
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
+
+          Stdlib.Json.parse<Int64>("- 42")
+          |> err
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
+
+          Stdlib.Json.parse<Int64>("null")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `null` as type `Int64` at path: `root`"))
+
+          Stdlib.Json.parse<Int64>("true")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `true` as type `Int64` at path: `root`"))
+
+          Stdlib.Json.parse<Int64>("false")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `false` as type `Int64` at path: `root`"))
+
+          Stdlib.Json.parse<Int64>("\"42\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"42\"` as type `Int64` at path: `root`"))
+
+          Stdlib.Json.parse<Int64>("[42]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[42]` as type `Int64` at path: `root`"))
+
+          Stdlib.Json.parse<Int64>("{ \"key\": 42 }")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `{ \"key\": 42 }` as type `Int64` at path: `root`"))
+
+          Stdlib.Json.parse<Int64>("42.5")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `42.5` as type `Int64` at path: `root`"))
+
+          Stdlib.Json.parse<Int64>("\"42\n\"")
+          |> err
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4")) ])
+
+
+module Int8 =
+  module Basic =
+    test serialize =
+      Stdlib.Test.all(
+        [ Stdlib.Json.serialize<Int8>(0s8) |> Stdlib.Test.equal("0")
+          Stdlib.Json.serialize<Int8>(123s8) |> Stdlib.Test.equal("123")
+          Stdlib.Json.serialize<Int8>(-123s8) |> Stdlib.Test.equal("-123") ])
+
+
+    test parse =
+      Stdlib.Test.all(
+        [ Stdlib.Json.parse<Int8>("0") |> Stdlib.Test.equal(Result.Ok(0s8))
+
+          Stdlib.Json.parse<Int8>("0.0") |> Stdlib.Test.equal(Result.Ok(0s8))
+
+          Stdlib.Json.parse<Int8>("-0.0") |> Stdlib.Test.equal(Result.Ok(0s8))
+
+          Stdlib.Json.parse<Int8>("-1.0") |> Stdlib.Test.equal(Result.Ok(-1s8))
+
+          Stdlib.Json.parse<Int8>("1.2E2")
+          |> Stdlib.Test.equal(Result.Ok(120s8))
+
+          Stdlib.Json.parse<Int8>("1.2E+2")
+          |> Stdlib.Test.equal(Result.Ok(120s8))
+
+          Stdlib.Json.parse<Int8>("1200E-1")
+          |> Stdlib.Test.equal(Result.Ok(120s8)) ])
+
+
+  module Int8Limits =
+    test serialize =
+      Stdlib.Test.all(
+        [ Stdlib.Json.serialize<Int8>(-128s8) |> Stdlib.Test.equal("-128")
+          Stdlib.Json.serialize<Int8>(127s8) |> Stdlib.Test.equal("127") ])
+
+
+    test parse =
+      Stdlib.Test.all(
+        [ Stdlib.Json.parse<Int8>("-128")
+          |> Stdlib.Test.equal(Result.Ok(-128s8))
+
+          Stdlib.Json.parse<Int8>("127")
+          |> Stdlib.Test.equal(Result.Ok(127s8)) ])
+
+
+    test parseErrors =
+      Stdlib.Test.all(
+        [ Stdlib.Json.parse<Int8>("-129")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `-129` as type `Int8` at path: `root`"))
+
+          Stdlib.Json.parse<Int8>("128")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `128` as type `Int8` at path: `root`")) ])
+
+
+  module Errors =
+    test parseErrors =
+      Stdlib.Test.all(
+        [ Stdlib.Json.parse<Int8>(" ")
+          |> err
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
+
+          Stdlib.Json.parse<Int8>("4a")
+          |> err
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
+
+          Stdlib.Json.parse<Int8>("- 42")
+          |> err
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
+
+          Stdlib.Json.parse<Int8>("null")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `null` as type `Int8` at path: `root`"))
+
+          Stdlib.Json.parse<Int8>("true")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `true` as type `Int8` at path: `root`"))
+
+          Stdlib.Json.parse<Int8>("false")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `false` as type `Int8` at path: `root`"))
+
+          Stdlib.Json.parse<Int8>("\"42\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"42\"` as type `Int8` at path: `root`"))
+
+          Stdlib.Json.parse<Int8>("[42]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[42]` as type `Int8` at path: `root`"))
+
+          Stdlib.Json.parse<Int8>("{ \"key\": 42 }")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `{ \"key\": 42 }` as type `Int8` at path: `root`"))
+
+          Stdlib.Json.parse<Int8>("42.5")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `42.5` as type `Int8` at path: `root`"))
+
+          Stdlib.Json.parse<Int8>("\"42\n\"")
+          |> err
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4")) ])
+
+
+module Int16 =
+  module Basic =
+    test serialize =
+      Stdlib.Test.all(
+        [ Stdlib.Json.serialize<Int16>(0s16) |> Stdlib.Test.equal("0")
+          Stdlib.Json.serialize<Int16>(123s16) |> Stdlib.Test.equal("123")
+          Stdlib.Json.serialize<Int16>(-123s16) |> Stdlib.Test.equal("-123") ])
+
+
+    test parse =
+      Stdlib.Test.all(
+        [ Stdlib.Json.parse<Int16>("0") |> Stdlib.Test.equal(Result.Ok(0s16))
+
+          Stdlib.Json.parse<Int16>("0.0") |> Stdlib.Test.equal(Result.Ok(0s16))
+
+          Stdlib.Json.parse<Int16>("-0.0") |> Stdlib.Test.equal(Result.Ok(0s16))
+
+          Stdlib.Json.parse<Int16>("-1.0")
+          |> Stdlib.Test.equal(Result.Ok(-1s16))
+
+          Stdlib.Json.parse<Int16>("1.2E2")
+          |> Stdlib.Test.equal(Result.Ok(120s16))
+
+          Stdlib.Json.parse<Int16>("1.2E+2")
+          |> Stdlib.Test.equal(Result.Ok(120s16))
+
+          Stdlib.Json.parse<Int16>("1200E-1")
+          |> Stdlib.Test.equal(Result.Ok(120s16)) ])
+
+
+  module Int16Limits =
+    test serialize =
+      Stdlib.Test.all(
+        [ Stdlib.Json.serialize<Int16>(-32768s16) |> Stdlib.Test.equal("-32768")
+          Stdlib.Json.serialize<Int16>(32767s16)
+          |> Stdlib.Test.equal("32767") ])
+
+
+    test parse =
+      Stdlib.Test.all(
+        [ Stdlib.Json.parse<Int16>("-32768")
+          |> Stdlib.Test.equal(Result.Ok(-32768s16))
+
+          Stdlib.Json.parse<Int16>("32767")
+          |> Stdlib.Test.equal(Result.Ok(32767s16)) ])
+
+
+    test parseErrors =
+      Stdlib.Test.all(
+        [ Stdlib.Json.parse<Int16>("-32769")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `-32769` as type `Int16` at path: `root`"))
+
+          Stdlib.Json.parse<Int16>("32768")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `32768` as type `Int16` at path: `root`")) ])
+
+
+  module Errors =
+    test parseErrors =
+      Stdlib.Test.all(
+        [ Stdlib.Json.parse<Int16>(" ")
+          |> err
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
+
+          Stdlib.Json.parse<Int16>("4a")
+          |> err
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
+
+          Stdlib.Json.parse<Int16>("- 42")
+          |> err
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
+
+          Stdlib.Json.parse<Int16>("null")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `null` as type `Int16` at path: `root`"))
+
+          Stdlib.Json.parse<Int16>("true")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `true` as type `Int16` at path: `root`"))
+
+          Stdlib.Json.parse<Int16>("false")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `false` as type `Int16` at path: `root`"))
+
+          Stdlib.Json.parse<Int16>("\"42\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"42\"` as type `Int16` at path: `root`"))
+
+          Stdlib.Json.parse<Int16>("[42]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[42]` as type `Int16` at path: `root`"))
+
+          Stdlib.Json.parse<Int16>("{ \"key\": 42 }")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `{ \"key\": 42 }` as type `Int16` at path: `root`"))
+
+          Stdlib.Json.parse<Int16>("42.5")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `42.5` as type `Int16` at path: `root`"))
+
+          Stdlib.Json.parse<Int16>("\"42\n\"")
+          |> err
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4")) ])
+
+
+module Int32 =
+  module Basic =
+    test serialize =
+      Stdlib.Test.all(
+        [ Stdlib.Json.serialize<Int32>(0s32) |> Stdlib.Test.equal("0")
+          Stdlib.Json.serialize<Int32>(123s32) |> Stdlib.Test.equal("123")
+          Stdlib.Json.serialize<Int32>(-123s32) |> Stdlib.Test.equal("-123") ])
+
+
+    test parse =
+      Stdlib.Test.all(
+        [ Stdlib.Json.parse<Int32>("0") |> Stdlib.Test.equal(Result.Ok(0s32))
+
+          Stdlib.Json.parse<Int32>("0.0") |> Stdlib.Test.equal(Result.Ok(0s32))
+
+          Stdlib.Json.parse<Int32>("-0.0") |> Stdlib.Test.equal(Result.Ok(0s32))
+
+          Stdlib.Json.parse<Int32>("-1.0")
+          |> Stdlib.Test.equal(Result.Ok(-1s32))
+
+          Stdlib.Json.parse<Int32>("1.2E2")
+          |> Stdlib.Test.equal(Result.Ok(120s32))
+
+          Stdlib.Json.parse<Int32>("1.2E+2")
+          |> Stdlib.Test.equal(Result.Ok(120s32))
+
+          Stdlib.Json.parse<Int32>("1200E-1")
+          |> Stdlib.Test.equal(Result.Ok(120s32)) ])
+
+
+  module Int32Limits =
+    test serialize =
+      Stdlib.Test.all(
+        [ Stdlib.Json.serialize<Int32>(-2147483648s32)
+          |> Stdlib.Test.equal("-2147483648")
+
+          Stdlib.Json.serialize<Int32>(2147483647s32)
+          |> Stdlib.Test.equal("2147483647") ])
+
+
+    test parse =
+      Stdlib.Test.all(
+        [ Stdlib.Json.parse<Int32>("-2147483648")
+          |> Stdlib.Test.equal(Result.Ok(-2147483648s32))
+
+          Stdlib.Json.parse<Int32>("2147483647")
+          |> Stdlib.Test.equal(Result.Ok(2147483647s32)) ])
+
+
+    test parseErrors =
+      Stdlib.Test.all(
+        [ Stdlib.Json.parse<Int32>("-2147483649")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `-2147483649` as type `Int32` at path: `root`"))
+
+          Stdlib.Json.parse<Int32>("2147483648")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `2147483648` as type `Int32` at path: `root`"))
+
+          // a fraction a double would round away is still a fraction
+          Stdlib.Json.parse<Int32>("1.00000000000000001")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `1.00000000000000001` as type `Int32` at path: `root`")) ])
+
+
+  module Errors =
+    test parseErrors =
+      Stdlib.Test.all(
+        [ Stdlib.Json.parse<Int32>(" ")
+          |> err
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
+
+          Stdlib.Json.parse<Int32>("4a")
+          |> err
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
+
+          Stdlib.Json.parse<Int32>("- 42")
+          |> err
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
+
+          Stdlib.Json.parse<Int32>("\"42\n\"")
+          |> err
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4"))
+
+          Stdlib.Json.parse<Int32>("null")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `null` as type `Int32` at path: `root`"))
+
+          Stdlib.Json.parse<Int32>("true")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `true` as type `Int32` at path: `root`"))
+
+          Stdlib.Json.parse<Int32>("false")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `false` as type `Int32` at path: `root`"))
+
+          Stdlib.Json.parse<Int32>("\"42\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"42\"` as type `Int32` at path: `root`"))
+
+          Stdlib.Json.parse<Int32>("[42]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[42]` as type `Int32` at path: `root`"))
+
+          Stdlib.Json.parse<Int32>("{ \"key\": 42 }")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `{ \"key\": 42 }` as type `Int32` at path: `root`"))
+
+          Stdlib.Json.parse<Int32>("42.5")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `42.5` as type `Int32` at path: `root`")) ])
+
+
+module Int128 =
+  module Basic =
+    test serialize =
+      Stdlib.Test.all(
+        [ Stdlib.Json.serialize<Int128>(0s128) |> Stdlib.Test.equal("0")
+
+          Stdlib.Json.serialize<Int128>(12345s128) |> Stdlib.Test.equal("12345")
+
+          Stdlib.Json.serialize<Int128>(-12345s128)
+          |> Stdlib.Test.equal("-12345") ])
+
+
+    test parse =
+      Stdlib.Test.all(
+        [ Stdlib.Json.parse<Int128>("0") |> Stdlib.Test.equal(Result.Ok(0s128))
+
+          Stdlib.Json.parse<Int128>("0.0")
+          |> Stdlib.Test.equal(Result.Ok(0s128))
+
+          Stdlib.Json.parse<Int128>("-0.0")
+          |> Stdlib.Test.equal(Result.Ok(0s128))
+
+          Stdlib.Json.parse<Int128>("-1.0")
+          |> Stdlib.Test.equal(Result.Ok(-1s128))
+
+          Stdlib.Json.parse<Int128>("1.2E2")
+          |> Stdlib.Test.equal(Result.Ok(120s128))
+
+          Stdlib.Json.parse<Int128>("1.2E+2")
+          |> Stdlib.Test.equal(Result.Ok(120s128))
+
+          Stdlib.Json.parse<Int128>("1200E-1")
+          |> Stdlib.Test.equal(Result.Ok(120s128))
+
+          Stdlib.Json.parse<Int128>("9007199254740993.0")
+          |> Stdlib.Test.equal(Result.Ok(9007199254740993s128))
+
+          Stdlib.Json.parse<Int128>("170141183460469231731687303715884105727.0")
+          |> Stdlib.Test.equal(
+            Result.Ok(170141183460469231731687303715884105727s128)) ])
+
+
+  module Int128Limits =
+    test serialize =
+      Stdlib.Test.all(
+        [ Stdlib.Json.serialize<Int128>(
+            -170141183460469231731687303715884105728s128)
+          |> Stdlib.Test.equal("-170141183460469231731687303715884105728")
+
+          Stdlib.Json.serialize<Int128>(
+            170141183460469231731687303715884105727s128)
+          |> Stdlib.Test.equal("170141183460469231731687303715884105727") ])
+
+
+    test parse =
+      Stdlib.Test.all(
+        [ Stdlib.Json.parse<Int128>("-170141183460469231731687303715884105728")
+          |> Stdlib.Test.equal(
+            Result.Ok(-170141183460469231731687303715884105728s128))
+
+          Stdlib.Json.parse<Int128>("170141183460469231731687303715884105727")
+          |> Stdlib.Test.equal(
+            Result.Ok(170141183460469231731687303715884105727s128))
+
+          // Float64 form, read exactly rather than through a double
+          Stdlib.Json.parse<Int128>("1.7E38")
+          |> Stdlib.Test.equal(
+            Result.Ok(170000000000000000000000000000000000000s128))
+
+          Stdlib.Json.parse<Int128>("-1.7E38")
+          |> Stdlib.Test.equal(
+            Result.Ok(-170000000000000000000000000000000000000s128)) ])
+
+
+    test parseErrors =
+      Stdlib.Test.all(
+        [ // First number that doesn't fit in an Int128
+          Stdlib.Json.parse<Int128>("170141183460469231731687303715884105728")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `170141183460469231731687303715884105728` as type `Int128` at path: `root`"))
+
+          // This is a float that is slightly above the Int128 max
+          Stdlib.Json.parse<Int128>("1.8E38")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `1.8E38` as type `Int128` at path: `root`"))
+
+          // A negative number that is too small for Int128
+          Stdlib.Json.parse<Int128>("-1.8E38")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `-1.8E38` as type `Int128` at path: `root`")) ])
+
+
+  module Errors =
+    test parseErrors =
+      Stdlib.Test.all(
+        [ Stdlib.Json.parse<Int128>(" ")
+          |> err
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
+
+          Stdlib.Json.parse<Int128>("4a")
+          |> err
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
+
+          Stdlib.Json.parse<Int128>("- 42")
+          |> err
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 2"))
+
+          Stdlib.Json.parse<Int128>("null")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `null` as type `Int128` at path: `root`"))
+
+          Stdlib.Json.parse<Int128>("true")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `true` as type `Int128` at path: `root`"))
+
+          Stdlib.Json.parse<Int128>("false")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `false` as type `Int128` at path: `root`"))
+
+          Stdlib.Json.parse<Int128>("\"42\"")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `\"42\"` as type `Int128` at path: `root`"))
+
+          Stdlib.Json.parse<Int128>("[42]")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `[42]` as type `Int128` at path: `root`"))
+
+          Stdlib.Json.parse<Int128>("{ \"key\": 42 }")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `{ \"key\": 42 }` as type `Int128` at path: `root`"))
+
+          Stdlib.Json.parse<Int128>("42.5")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `42.5` as type `Int128` at path: `root`"))
+
+          Stdlib.Json.parse<Int128>("\"42\n\"")
+          |> err
+          |> Stdlib.Test.equal(Result.Error("Not JSON at line 1, column 4"))
+
+          Stdlib.Json.parse<Int128>("170141183460469231731687303715884105800")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `170141183460469231731687303715884105800` as type `Int128` at path: `root`"))
+
+          // just past the minimum, which a double rounded onto it
+          Stdlib.Json.parse<Int128>("-170141183460469231731687303715884105800")
+          |> err
+          |> Stdlib.Test.equal(
+            Result.Error(
+              "Can't parse JSON `-170141183460469231731687303715884105800` as type `Int128` at path: `root`")) ])
