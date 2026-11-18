@@ -319,6 +319,9 @@ let printScriptError(state: AppState, e: ExecutionError.ExecutionError): AppStat
   match e with
   // The prompt already said so.
   | Cancelled -> ()
+  | Denied(_) ->
+    Stdlib.printErrorLine(
+      ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, e))
   | _ ->
     ExecutionError.printCallStack(state.currentBranchId, "Script", e)
     let pretty = ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, e)

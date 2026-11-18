@@ -354,7 +354,13 @@ module ExecutionError =
         + "\n  (for a shell, that is any command)"
       | None -> ""
 
-    $"permission denied:\n  {resource} is not allowed.\n\n{why}\n\nFor one run:\n  dark run --allow {Stdlib.Cli.Process.shellQuote(rule)} …{anyArgs}"
+    let wholeHost =
+      match LanguageTools.Permissions.hostWideHttpRule(rule) with
+      | Some(hostRule) ->
+        $"\n\nFor any path on that host:\n  dark run --allow {Stdlib.Cli.Process.shellQuote(hostRule)} …"
+      | None -> ""
+
+    $"permission denied:\n  {resource} is not allowed.\n\n{why}\n\nFor one run:\n  dark run --allow {Stdlib.Cli.Process.shellQuote(rule)} …{anyArgs}{wholeHost}"
 
 
   let toString(accountID: Option<Uuid>, branchId: Uuid, err: ExecutionError): String =

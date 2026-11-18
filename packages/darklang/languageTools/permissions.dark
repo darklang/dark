@@ -597,6 +597,20 @@ let renderHttpRule(rule: HttpRule): String =
     $"http {method} {quoteToken(url)}"
 
 
+/// For an HTTP rule on one host's exact path or query, the rule for any path on that host,
+/// as `http GET 'https://api.example.com/*'`.
+let hostWideHttpRule(text: String): Option<String> =
+  match parseRuleText(text) with
+  | Some([Http(rule)]) when rule.path != HttpPath.Subtree("/") ->
+    match rule.scheme, rule.host, rule.port with
+    | Only(scheme), Exact(_), Only(port) ->
+      let port = if port == defaultPort(scheme) then "" else ":" + Stdlib.display(port)
+      let url = $"{scheme}://{renderHostRule(rule.host)}{port}/*"
+      Option.Some($"http {scopeText(rule.method)} {quoteToken(url)}")
+    | _ -> Option.None
+  | _ -> Option.None
+
+
 /// Faithful text for one process rule: `process <executable> [args…]`.
 let renderProcessRule(rule: ProcessRule): String =
   let executable = renderStringScope(rule.executable)
