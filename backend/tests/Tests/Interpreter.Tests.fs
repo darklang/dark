@@ -1623,7 +1623,7 @@ module BoundMemo =
   /// One state for every call, over the store's own package manager: the memo lives there, and
   /// only it has a generation that moves when the store changes. A state per call, or one over
   /// `PT2RT.PackageManager.toRT`, would start empty each time and could not go stale.
-  let private sharedState () : RT.ExecutionState =
+  let sharedState () : RT.ExecutionState =
     LibExecution.Execution.createState
       (localBuiltIns pmPT)
       pmRT
@@ -1633,7 +1633,7 @@ module BoundMemo =
     |> LibExecution.Execution.setInstancePolicy
       LibExecution.Permissions.Policy.allowAll
 
-  let private call (state : RT.ExecutionState) (hash : PT.Hash) =
+  let call (state : RT.ExecutionState) (hash : PT.Hash) =
     task {
       let (PT.Hash h) = hash
       let app =
@@ -1674,7 +1674,7 @@ module BoundMemo =
 
   /// `authorIntoMain`, but leaving a name the parser cannot resolve yet for the refresh, as
   /// the authoring builtin does. `ThrowError` refuses an implementation's own methods.
-  let private authorStep (label : string) (source : string) =
+  let authorStep (label : string) (source : string) =
     task {
       let parsed =
         LibParser.Package.parse
@@ -1770,6 +1770,104 @@ let callCrate(): String = {q}.guarded({q}.Crate {{ crateDepth{r} = 1 }})"
     }
 
   let tests = testList "BoundMemo" [ boundCheckFollowsImplementations ]
+
+
+/// A receiver call (`b.tag`) remembers which implementation it picked. The pick has to follow
+/// implementations edited and added, and the branch the call runs on.
+module ReceiverMemo =
+  let private m = "InterpReceiverMemo"
+
+  let private tagged
+    (state : RT.ExecutionState)
+    (hash : PT.Hash)
+    (expected : string)
+    (why : string)
+    =
+    task {
+      match! BoundMemo.call state hash with
+      | Ok dv -> Expect.equal dv (RT.DString expected) why
+      | Error(rte, _) -> return failtest $"{why}: the call raised {rte}"
+    }
+
+  let receiverPickFollowsImplementations =
+    testTask
+      "a receiver call's remembered pick follows impl edits, a second impl and the branch" {
+      // Fresh names per run: a type is content-addressed, and the method name must be one no
+      // earlier run's implementation has.
+      let r = System.Random.Shared.Next(1_000, 1_000_000_000)
+      let q = $"Darklang.{m}"
+      let tag = $"tag{r}"
+      let impl (trait_ : string) (answer : string) =
+        $"module {q}\n\nimpl {q}.{trait_} for {q}.Box =\n  let {tag}(b: {q}.Box): String = \"{answer}\""
+      let! _ =
+        BoundMemo.authorStep
+          "type"
+          $"module {q}\n\ntype Box = {{ boxWidth{r}: Int64 }}"
+      let! _ =
+        BoundMemo.authorStep
+          "trait"
+          $"module {q}\n\ntrait Tag<'a> =\n  let {tag}(v: 'a): String"
+      let! _ = BoundMemo.authorStep "impl" (impl "Tag" "one")
+      let! _ =
+        BoundMemo.authorStep
+          "fn"
+          $"module {q}\n\nlet callBox(): String = ({q}.Box {{ boxWidth{r} = 1 }}).{tag}"
+      let callBox =
+        match
+          pmPT.findFn { owner = "Darklang"; modules = [ m ]; name = "callBox" }
+        with
+        | Some h -> h
+        | None -> failtest "callBox is not bound"
+
+      let state = BoundMemo.sharedState ()
+      do! tagged state callBox "one" "the only impl is picked"
+      do! tagged state callBox "one" "and picked again from what was remembered"
+
+      let! _ = BoundMemo.authorStep "impl edit" (impl "Tag" "two")
+      do! tagged state callBox "two" "an edited impl is seen at once"
+
+      let branch = PT.BranchId.Id(System.Guid.NewGuid())
+      LibDB.Branches.createBranch branch $"receiver-memo-{r}" PT.BranchId.Main
+      let _ =
+        match
+          LibParser.Package.parse
+            (localBuiltIns pmPT)
+            pmPT
+            LibParser.NameResolver.OnMissing.Allow
+            (impl "Tag" "branch")
+        with
+        | Ok ops ->
+          LibDB.Inserts.authorOn
+            branch
+            "op"
+            (LibDB.HashStabilization.computeRealHashes ops)
+        | Error errs -> failtest $"the branch's impl failed to parse: {errs}"
+      let onBranch = { state with branchId = branch }
+      do! tagged state callBox "two" "main keeps its impl"
+      do! tagged onBranch callBox "branch" "the branch's impl is picked there"
+      do! tagged state callBox "two" "and main's again on main"
+
+      // Another signature, or the second trait would hash the same as the first.
+      let! _ =
+        BoundMemo.authorStep
+          "second trait"
+          $"module {q}\n\ntrait Label<'a> =\n  let {tag}(v: 'a): Int64"
+      let! _ =
+        BoundMemo.authorStep
+          "second impl"
+          $"module {q}\n\nimpl {q}.Label for {q}.Box =\n  let {tag}(b: {q}.Box): Int64 = 7"
+      match! BoundMemo.call state callBox with
+      | Error(RT.RuntimeError.Trait(RT.RuntimeError.Traits.MethodAmbiguous(name,
+                                                                           _,
+                                                                           traits)),
+              _) ->
+        Expect.equal name tag "the ambiguous method is named"
+        Expect.equal (List.length traits) 2 "both traits are named"
+      | other ->
+        return failtest $"a second impl makes the call ambiguous, got %A{other}"
+    }
+
+  let tests = testList "ReceiverMemo" [ receiverPickFollowsImplementations ]
 
 
 /// `List.filter` only calls a builtin, so the interpreter usually skips it and calls
@@ -2651,6 +2749,7 @@ let tests =
       DeepValues.tests
       Reload.tests
       BoundMemo.tests
+      ReceiverMemo.tests
       LambdaResultChecks.tests
       DebugText.tests
       IntOperators.tests

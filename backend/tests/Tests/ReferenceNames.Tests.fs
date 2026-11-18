@@ -359,6 +359,67 @@ let reviewKeepsAliasesAndTraversesCycles =
     Expect.isEmpty unchanged "a seed with no stale direct edge causes no repoints"
   }
 
+/// Two callers can hold one body while calling twin callees by different names. A reload saves
+/// no reference names, only the rows each name's parse gives. A repoint rewrites the one body,
+/// so its new version has to keep the rows of both names.
+let repointKeepsBothTwinNames =
+  testTask "a repointed body keeps the dependency rows of every name that held it" {
+    do!
+      withStore (fun () ->
+        task {
+          let moduleName = "RepointTwins"
+          let! _ =
+            authorIntoMain
+              $"""module Tests.{moduleName}
+let leaf(): Int64 = 932130
+let left(): Int64 = 932131
+let right(): Int64 = 932131
+"""
+          let! callers =
+            parsePackageOps
+              $"""module Tests.{moduleName}
+let x(): Int64 = leaf() + left()
+let y(): Int64 = leaf() + right()
+"""
+          let _ = LibDB.Inserts.insertAndApplyOps callers
+          let names (PT.Hash hash) =
+            Sql.query
+              "SELECT depends_on_name FROM package_dependencies WHERE item_hash = @hash"
+            |> Sql.parameters [ "hash", Sql.string hash ]
+            |> Sql.executeRows (fun read -> read.string "depends_on_name")
+            |> Set.ofList
+          let! (leaf, before) = source moduleName "leaf"
+          let! (_, x) = source moduleName "x"
+          let! (_, y) = source moduleName "y"
+          Expect.equal x y "the callers share content"
+          Expect.equal
+            (names x.hash)
+            (Set.ofList [ "leaf"; "left"; "right" ])
+            "the shared body is recorded under both twins"
+
+          let! _ =
+            authorIntoMain $"module Tests.{moduleName}\nlet leaf(): Int64 = 932132"
+          let! (_, after) = source moduleName "leaf"
+          match
+            Builtins.Matter.Libs.PM.Packages.repoint
+              PT.BranchId.Main
+              leaf
+              PT.ItemKind.Fn
+              [ before.hash ]
+              after.hash
+          with
+          | Error message -> failtest message
+          | Ok _ -> ()
+          let! (_, x) = source moduleName "x"
+          let! (_, y) = source moduleName "y"
+          Expect.equal x y "both callers follow to one new body"
+          Expect.equal
+            (names x.hash)
+            (Set.ofList [ "leaf"; "left"; "right" ])
+            "the new body is still recorded under both twins"
+        })
+  }
+
 let tests =
   testSequenced
   <| testList
@@ -368,4 +429,5 @@ let tests =
       wideDependencyReadsRespectSelection
       savedNamesNeedTheStoredDeclaration
       ambiguousAliasesNeedTheStoredDeclaration
-      ambiguousHashesMatchIndexedNames ]
+      ambiguousHashesMatchIndexedNames
+      repointKeepsBothTwinNames ]
