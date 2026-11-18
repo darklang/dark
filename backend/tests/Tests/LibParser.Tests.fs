@@ -1648,16 +1648,63 @@ let tests =
             (LibExecution.Builtin.make [] [])
             PT.PackageManager.empty
             NR.OnMissing.Allow
-            "module Me.Probe =\n  let f(x: Int64): Int64 = Me.Gone.g(x)\n  let h(x: Int64): Int64 = x"
+            "module Me.Probe =\n  let f(x: Int64): Int64 = Me.Gone.g(x)\n  let h(x: Int64): Int64 = x\n  let p(x: Int64): Int64 = x |> Me.Gone.piped\n  val v = Me.Gone.k(1)\n  test callsNothing = Me.Gone.t(1) == 1"
         match ops with
         | Ok ops ->
           Expect.equal
             (LibParser.Package.unresolvedCalls (
               LibDB.HashStabilization.computeRealHashes ops
             ))
-            [ "Me.Probe.f calls Me.Gone.g, which does not exist" ]
-            "only the call to nothing"
+            [ "Me.Probe.v calls Me.Gone.k, which does not exist"
+              "Me.Probe.f calls Me.Gone.g, which does not exist"
+              "Me.Probe.p calls Me.Gone.piped, which does not exist" ]
+            "the calls to nothing, in fns, pipes and values; a test may call a missing name"
         | Error e -> failtest $"did not parse: {e}")
+      testTask "a reload refuses package code that calls a missing fn" {
+        let localExec =
+          match System.Environment.GetEnvironmentVariable "DARK_TEST_LOCALEXEC" with
+          | null
+          | "" -> "backend/Build/out/LocalExec/Debug/net11.0/LocalExec"
+          | path -> path
+        // No underscore anywhere in the path: a reload skips any file whose path has one.
+        let root =
+          System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            System.Guid.NewGuid().ToString("N")
+          )
+        try
+          let packages = System.IO.Path.Combine(root, "packages")
+          System.IO.Directory.CreateDirectory packages
+          |> ignore<System.IO.DirectoryInfo>
+          System.IO.File.WriteAllText(
+            System.IO.Path.Combine(packages, "probe.dark"),
+            "module Me.Probe\n\nlet f(x: Int64): Int64 = Me.Gone.g(x)\n"
+          )
+          let psi = System.Diagnostics.ProcessStartInfo(localExec)
+          psi.ArgumentList.Add "reload-packages"
+          psi.UseShellExecute <- false
+          psi.RedirectStandardOutput <- true
+          psi.RedirectStandardError <- true
+          psi.Environment["HOME"] <- root
+          psi.Environment["DARK_CONFIG_ROOT_DIR"] <- root
+          psi.Environment["DARK_CONFIG_DB_NAME"] <- "data.db"
+          psi.Environment["DARK_CONFIG_TELEMETRY_EXPORTER"] <- "none"
+          let p = System.Diagnostics.Process.Start psi
+          let stdout = p.StandardOutput.ReadToEndAsync()
+          let stderr = p.StandardError.ReadToEndAsync()
+          do! p.WaitForExitAsync()
+          let! out = stdout
+          let! err = stderr
+          let code = p.ExitCode
+          p.Dispose()
+          Expect.equal code 1 $"the reload fails: {out}\n{err}"
+          Expect.stringContains
+            (out + err)
+            "Package code calls names that do not exist: Me.Probe.f calls Me.Gone.g, which does not exist"
+            "naming the call"
+        finally
+          System.IO.Directory.Delete(root, true)
+      }
       testCase "private names reach package lookup" (fun _ ->
         for name in [ "__helper"; "__helper_v0" ] do
           let result =

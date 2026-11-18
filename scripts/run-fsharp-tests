@@ -113,6 +113,8 @@ else
     fi
   fi
 fi
+# The reload tests run it as a child, on a package tree of their own.
+export DARK_TEST_LOCALEXEC="${DARK_TEST_LOCALEXEC:-$PWD/backend/$LOCALEXEC}"
 
 
 # Debug compiles F# with optimisations off, and the interpreter the suite spends its time in
