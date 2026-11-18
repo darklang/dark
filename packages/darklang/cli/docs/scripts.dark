@@ -8,7 +8,7 @@ let content(): String =
   + """
 Anything you will run again, such as a game or a tool, goes in a module with
 tests: save it and run its `main` by name (`docs for-ai`). A script file is for
-a quick one-off, and has no tests.
+a quick one-off; it can carry tests (see Tests below), but is not saved.
 
 Save your code in a .dark file and run it with `dark run <file> [args...]`.
 
@@ -41,8 +41,17 @@ It is [] when none are given. Use shell quotes to keep spaces in one argument,
 or `""` to pass an empty string.
 
 You do not need a main function. If you write one, call it in the final expression,
-for example `main(args)`. Functions do not capture top-level variables, so pass any
-arguments they need explicitly.
+for example `main(args)`. Functions above the first top-level `let` do not capture
+top-level variables, so pass any arguments they need explicitly. A function below a
+top-level `let` can use it, but can only call the functions above it.
+
+## Tests
+
+A script can hold tests, written as in a package: `test doubles = Stdlib.Test.equal(double(4), 8)`.
+`dark test run todo.dark` runs them with the file's functions, types and `val`s in
+scope and nothing else: no top-level statement runs, and a test can't use a top-level
+`let`. Use a `val` for a constant. `dark run todo.dark` skips the tests. Tests go above
+the first top-level `let`.
 
 Runner options such as `--sandbox` go before the file path; everything after it,
 flags included, is the script's. A path starting with a dash goes after `--`.

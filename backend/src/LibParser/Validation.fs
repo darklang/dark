@@ -415,9 +415,10 @@ let rec private declarationPurposeIssues
   | WT.DImpl _ -> []
   | WT.DTest test ->
     match mode with
-    | Package -> []
-    | Test
-    | Script ->
+    // `dark run` skips a script's tests; `dark test run` runs them.
+    | Package
+    | Script -> []
+    | Test ->
       [ issue
           test.range
           TestMode
