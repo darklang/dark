@@ -129,14 +129,14 @@ let execute(state: AppState, args: List<String>): AppState =
             Stdlib.Cli.UI.Colors.error($"Could not resolve {itemTypeStr} {target}: {errMsg}"))
 
           failed(state)
-        | Ok(targetLoc) ->
-          match Deprecate.resolveTarget(branchId, currentLoc, itemKind, target) with
+        | Ok(_) ->
+          match Deprecate.resolveLocated(branchId, currentLoc, itemKind, target) with
           | None ->
             Stdlib.printErrorLine(
               Stdlib.Cli.UI.Colors.error($"Could not resolve {itemTypeStr} {target}"))
 
             failed(state)
-          | Some(_targetRef) ->
+          | Some((targetLoc, _targetRef)) ->
             // Only gate `delete` adds over `deprecate --kind obsolete`: refuse
             // when LIVE dependents exist. Deprecated-only callers don't block.
             let depCount = countLiveDependents(branchId, targetLoc, itemKind)
@@ -192,8 +192,7 @@ let modulePath(state: AppState, name: String): Option<List<String>> =
 
 let moduleHasItems(state: AppState, name: String): Bool =
   match modulePath(state, name) with
-  | Some(path) ->
-    Stdlib.Bool.not(Stdlib.List.isEmpty(moduleItems(state.currentBranchId, path)))
+  | Some(path) -> Stdlib.Bool.not(Stdlib.List.isEmpty(moduleItems(state.currentBranchId, path)))
   | None -> false
 
 
@@ -211,10 +210,8 @@ let deleteModule(state: AppState, name: String, parsed: ParsedArgs): AppState =
     let items =
       moduleItems(branchId, path)
       |> Stdlib.List.filterMap(fun((kind, full)) ->
-        match Location.parseRelativeTo(currentLoc, full),
-              Deprecate.resolveTarget(branchId, currentLoc, kind, full) with
-        | Ok(location), Some(reference) -> Option.Some((kind, full, location, reference))
-        | _ -> Option.None)
+        Deprecate.resolveLocated(branchId, currentLoc, kind, full)
+        |> Stdlib.Option.map(fun((location, reference)) -> (kind, full, location, reference)))
 
     if Stdlib.List.isEmpty(items) then
       printErr($"Nothing in {shown} resolves to an item to delete; nothing was deleted")
@@ -227,10 +224,11 @@ let deleteModuleItems(
   state: AppState,
   path: List<String>,
   items:
-    List<(LanguageTools.ProgramTypes.ItemKind *
-    String *
-    LanguageTools.ProgramTypes.PackageLocation *
-    LanguageTools.ProgramTypes.Reference)>,
+    List<
+      (LanguageTools.ProgramTypes.ItemKind *
+       String *
+       LanguageTools.ProgramTypes.PackageLocation *
+       LanguageTools.ProgramTypes.Reference)>,
   parsed: ParsedArgs)
   : AppState =
   let branchId = state.currentBranchId
@@ -259,8 +257,10 @@ let deleteModuleItems(
     items
     |> Stdlib.List.take(10)
     |> Stdlib.List.iter(fun((_, full, _, _)) -> Stdlib.printErrorLine($"    {full}"))
+
     if total > 10 then
       Stdlib.printErrorLine($"    and {Stdlib.display(total - 10)} more")
+
     if parsed.dryRun then
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("(dry-run, no op emitted)"))
       state
