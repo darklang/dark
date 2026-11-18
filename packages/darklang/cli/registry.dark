@@ -512,7 +512,13 @@ module Registry =
           accepts = (fun () -> Accepts.text(0))
           execute =
             (fun(state, args) ->
-               Stdlib.printErrorLine(View.formatError($"Unknown command: {name}"))
+               let names =
+                 commands
+                 |> Stdlib.List.map(fun cmd -> Stdlib.List.prepend(cmd.aliases, cmd.name))
+                 |> Stdlib.List.flatten
+
+               let hint = Accepts.didYouMean(name, names)
+               Stdlib.printErrorLine(View.formatError($"Unknown command: {name}.{hint}"))
                Stdlib.printErrorLine("Use 'help' to see available commands.")
                { state with exitCode = 1 })
           help = (fun _state -> $"No help available for command: {name}")
@@ -538,7 +544,10 @@ module Registry =
       handler.name != "run-script"
       && (Stdlib.List.contains(options, "--help") || Stdlib.List.contains(options, "-h") || firstIsHelp)
 
-    if asksForHelp then
+    // An unknown name has no help to show; `dark frobnicate --help` is refused like `dark frobnicate`.
+    let known = Stdlib.List.any(state.allCommandsCache, fun cmd -> cmd.name == handler.name)
+
+    if asksForHelp && known then
       executeCommandHelp(name, state)
     else
       // What the command takes is declared beside it (`accepts`), and checked here, once, before it

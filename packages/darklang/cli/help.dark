@@ -14,7 +14,13 @@ let execute(state: AppState, args: List<String>): AppState =
     if known then
       Registry.executeCommandHelp(commandName, state)
     else
-      printErr($"No command called `{commandName}`.")
+      let names =
+        state.allCommandsCache
+        |> Stdlib.List.map(fun cmd -> Stdlib.List.prepend(cmd.aliases, cmd.name))
+        |> Stdlib.List.flatten
+
+      let hint = Accepts.didYouMean(commandName, names)
+      printErr($"No command called `{commandName}`.{hint}")
       printHint("  `dark help` lists them.")
       failed(state)
   | _ ->
@@ -54,4 +60,3 @@ let help(_state: AppState): String =
     "  " + Stdlib.Cli.UI.Colors.command("help") + "        - Show all available commands"
     "  " + Stdlib.Cli.UI.Colors.command("help quit") + "   - Show help for the quit command" ]
   |> Stdlib.String.join("\n")
-
