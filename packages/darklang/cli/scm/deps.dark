@@ -500,6 +500,7 @@ let help(_state: AppState): String =
     "Options:"
     "  --deep         - Show transitive dependents (everything that could break)"
     "  --all          - Show every row; listings are capped at 20 otherwise"
+    "  --json         - The same answer, typed"
     ""
     "Without subcommand, shows both uses and usedby."
     ""

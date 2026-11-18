@@ -574,6 +574,8 @@ let undeprecateHelp(_state: AppState): String =
     ""
     "Usage: undeprecate <name>"
     ""
+    "  -y, --yes are taken and change nothing: there is no question to skip."
+    ""
     "  The name of a deprecated item; `dark ls --include-deprecated` finds them. Authors an"
     "  Undeprecate op in the current draft, so `dark commit` ships it."
     ""

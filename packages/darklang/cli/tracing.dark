@@ -1708,6 +1708,7 @@ let help(_state: AppState): String =
     "Throw some away"
     "  delete <trace>                one trace"
     "  delete --all | --keep <n> | --before <duration>   (duration: 30s, 10m, 2h, 7d)"
+    "  -y, --yes                     delete without the question"
     ""
     "A <trace> is any unambiguous prefix of its id: `inspect fe62`, `resume fe6219e9-4705`."
     "`--json` works on every verb that prints something: list, inspect, show, calls, find, stats,"

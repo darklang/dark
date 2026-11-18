@@ -1,0 +1,77 @@
+module Darklang.Cli.Tests.CommandHelp
+
+// Each command declares what it takes (`accepts`) and, separately, writes its `--help` by hand.
+// Nothing ties the two, so a flag can be accepted and never mentioned. These tests read both.
+
+module Help =
+  let shapeFlags(s: Cli.Accepts.Shape): List<String> =
+    Stdlib.List.concat(s.flags, s.valueFlags)
+
+
+  let flagsOf(accepts: Cli.Accepts.Accepts): List<String> =
+    match accepts with
+    | Takes(s) -> shapeFlags(s)
+    | Subcommands(named, otherwise) ->
+      named
+      |> Stdlib.List.map(fun pair -> flagsOf(Stdlib.Tuple2.second(pair)))
+      |> Stdlib.List.flatten
+      |> Stdlib.List.concat(shapeFlags(otherwise))
+
+
+  // `--all` must not count as mentioned because `--allow-unresolved` is.
+  let mentions(help: String, flag: String): Bool =
+    Stdlib.String.split(help, flag)
+    |> Stdlib.List.drop(1)
+    |> Stdlib.List.any(fun rest ->
+      match Stdlib.String.head(rest) with
+      | None -> true
+      | Some(c) -> Stdlib.Bool.not(c == '-' || Stdlib.Char.isAlphanumeric(c)))
+
+
+  // Accepted only so the command can say what replaced them; help has no reason to name them.
+  val retired =
+    [ "serve: --dev"
+      "serve: --no-live"
+      "traces: --depth"
+      "traces: -d"
+      "traces: --no-builtins"
+      "traces: --no-stdlib" ]
+
+
+  /// `command: flag` for every accepted flag its `--help` never mentions.
+  let unmentioned(): List<String> =
+    let state = Cli.initState()
+    Cli.Registry.allCommands()
+    |> Stdlib.List.map(fun cmd ->
+      let accepts = cmd.accepts
+      let help = cmd.help
+      let text = help(state)
+      flagsOf(accepts())
+      |> Stdlib.List.unique
+      |> Stdlib.List.filter(fun f -> Stdlib.Bool.not(mentions(text, f)))
+      |> Stdlib.List.map(fun f -> $"{cmd.name}: {f}"))
+    |> Stdlib.List.flatten
+    |> Stdlib.List.filter(fun f ->
+      Stdlib.Bool.not(Stdlib.List.contains(retired, f)))
+
+
+test mentionsMatchesWholeFlags =
+  Stdlib.Test.all(
+    [ Help.mentions("  --all  every one", "--all") |> Stdlib.Test.equal(true)
+      Help.mentions("  [--all]", "--all") |> Stdlib.Test.equal(true)
+      Help.mentions("  --allow-unresolved", "--all") |> Stdlib.Test.equal(false)
+      Help.mentions("  --depth=N", "--depth") |> Stdlib.Test.equal(true) ])
+
+
+// A flag `dark <cmd>` takes but `dark <cmd> --help` never names can only be found by reading
+// the source. The failure lists each one.
+test helpNamesEveryAcceptedFlag =
+  Stdlib.List.sort(Help.unmentioned()) |> Stdlib.Test.equal([])
+
+
+// `dark help` prints one line per command; a long description wraps it on an 80-column terminal.
+test descriptionsFitInEightyColumns =
+  Cli.Registry.allCommands()
+  |> Stdlib.List.filter(fun cmd -> Stdlib.String.length(cmd.description) > 80)
+  |> Stdlib.List.map(fun cmd -> cmd.name)
+  |> Stdlib.Test.equal([])

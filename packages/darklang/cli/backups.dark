@@ -170,6 +170,7 @@ let help(_state: AppState): String =
     "  dark backups now                  take one now"
     "  dark backups restore <name> [-y]  put one in place of the store (asks first)"
     "  dark backups prune <n> [-y]       keep the newest n, delete the rest (asks first)"
+    "  -y, --yes                         skip the question"
     ""
     "  A backup is taken automatically before an upgrade folds a new seed:"
     "  one per calendar day, kept next to the store. Nothing prunes them for"
