@@ -48,6 +48,16 @@ fails or none match. A run of a dozen tests or more lists the ten slowest
 before the summary. The summary counts tests: how many there were, passed,
 failed, ran and were cached, then how many ran isolated.
 
+`dark test run --json` prints one JSON object at the end instead of a line per
+test, for CI and agents:
+
+```json
+{"tests":[{"name":"Demo.Json.plain","status":"passed","messages":[],"cached":true},{"name":"Demo.Json.oops","status":"error","messages":["Cannot divide by 0"],"cached":false}],"passed":1,"failed":1,"ran":1,"cached":1,"seed":4457238}
+```
+
+`status` is `passed`, `failed`, or `error` for a test that could not be judged.
+The exit code is the same as without `--json`.
+
 A test runs in one of two places. If the analysis cache safety uses walks the
 test and everything it calls, finds that walk complete, finds no effect at all
 (not even the clock), and every builtin on the way is marked `Pure` (the tag that

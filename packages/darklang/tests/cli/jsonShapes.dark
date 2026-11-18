@@ -719,3 +719,33 @@ test deprecateAndDeleteAnswerInJson = Instance.withInstance(fun i ->
         i,
         [ "delete", "Tests.JsonDep.leaf", "--json", "--yes" ],
         "live dependent") ]))
+
+
+/// `test run --json`: one answer with every test and the totals, passing or failing, and the
+/// same keys when nothing matched.
+test testRunAnswersWithEveryTest = Instance.withInstance(fun i ->
+  let runKeys = [ "tests", "passed", "failed", "ran", "cached", "seed" ]
+  let statuses = fun j ->
+    rows(field(j, "tests"))
+    |> Stdlib.List.map(fun t -> (string(t, "name"), string(t, "status")))
+    |> Stdlib.List.sort
+
+  Stdlib.Test.all(
+    [ step(i, [ "test", "add", "Tests.JsonRun.passes", "Stdlib.Test.pass()" ])
+      step(i, [ "test", "add", "Tests.JsonRun.fails", "Stdlib.Test.fail(\"nope\")" ])
+      check(
+        i,
+        [ "test", "run", "--json", "Tests.JsonRun" ],
+        [ (fun j -> hasKeys(j, runKeys))
+          (fun j -> rowsHaveKeys(field(j, "tests"), [ "name", "status", "messages", "cached" ]))
+          (fun j ->
+             statuses(j)
+             |> Stdlib.Test.equal(
+               [ ("Tests.JsonRun.fails", "failed"), ("Tests.JsonRun.passes", "passed") ]))
+          (fun j -> int(j, "passed") |> Stdlib.Test.equal(1))
+          (fun j -> int(j, "failed") |> Stdlib.Test.equal(1)) ])
+
+      check(
+        i,
+        [ "test", "run", "--json", "Tests.JsonRunNothing" ],
+        [ (fun j -> hasKeys(j, runKeys)), (fun j -> fieldIsArray(j, "tests")) ]) ]))
