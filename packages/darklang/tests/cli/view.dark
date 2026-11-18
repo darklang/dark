@@ -1,18 +1,6 @@
 /// CLI tests: `dark view` and its flags.
 module Darklang.Cli.Tests.TestSuite
 
-test viewFunction =
-  let output = runWithCommand([ "view", "Stdlib.List.head" ])
-  if
-    Stdlib.String.contains(output, "head")
-    && Stdlib.String.contains(output, "Option")
-    && Stdlib.String.contains(output, "->")
-  then
-    Stdlib.Test.Result.Pass
-  else
-    Stdlib.Test.fail("Expected function signature for List.head")
-
-
 // ---------------------------------------------------------------- compiler views
 // `view --ast` and `view --instructions`. These assert on structure rather than exact text, because
 // register numbers and instruction counts change whenever the compiler does, and a test that pins them

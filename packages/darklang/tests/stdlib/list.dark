@@ -324,6 +324,8 @@ test flatten =
 
       Stdlib.List.flatten([ [] ]) |> Stdlib.Test.equal([])
 
+      Stdlib.List.flatten([ [], [ 1 ], [] ]) |> Stdlib.Test.equal([ 1 ])
+
       Stdlib.List.flatten([]) |> Stdlib.Test.equal([]) ])
 
 
@@ -389,6 +391,9 @@ test getAt =
 
       Stdlib.List.getAt([ 1, 2, 3, 4 ], 0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+
+      Stdlib.List.getAt([ 1, 2, 3 ], 2)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(3))
 
       Stdlib.List.getAt([ 3, 3, 3 ], -5)
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
