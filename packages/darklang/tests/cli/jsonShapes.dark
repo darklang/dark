@@ -752,7 +752,9 @@ test testRunAnswersWithEveryTest = Instance.withInstance(fun i ->
         [ (fun j -> hasKeys(j, runKeys)), (fun j -> fieldIsArray(j, "tests")) ]) ]))
 
 
-/// Bare `traces --json` is the listing bare `traces` prints, as JSON.
+/// Bare `traces --json` is the listing bare `traces` prints, as JSON. Only the eval's own row,
+/// the newest: the instance is a copy of the dev store, whose traces include runs still going,
+/// which have no answer yet.
 test bareTracesAnswersInJson =
   Instance.withInstance(fun i ->
     Stdlib.Test.all(
@@ -761,8 +763,8 @@ test bareTracesAnswersInJson =
           i,
           [ "traces", "--json" ],
           [ (fun j ->
-               rowsHaveKeys(
-                 j,
+               hasKeys(
+                 Stdlib.List.head(rows(j)) |> Stdlib.Option.withDefault(Stdlib.AltJson.Json.Null),
                  [ "id"
                    "entry"
                    "input"
