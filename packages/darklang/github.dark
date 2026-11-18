@@ -169,6 +169,14 @@ module Releases =
       sumsUrl: String }
 
 
+  /// What a status other than 200 means when looking up release <param releaseTag>.
+  let statusError(releaseTag: String, code: Int64): ReleaseError =
+    if code == 404 then
+      ReleaseError.ReleaseNotFound(releaseTag)
+    else
+      ReleaseError.BadStatus(code)
+
+
   /// The binary in release <param releaseTag> for this host's OS and architecture.
   ///
   /// A release with no checksums file is an error, so nothing installs a download it can't check.
@@ -177,7 +185,7 @@ module Releases =
     | Error(_e) -> Result.Error(ReleaseError.UnsupportedHost)
     | Ok(hostStr) ->
       match __fetchString($"{darklangRepoBaseUrl}/releases/tags/{releaseTag}") with
-      | Error(BadStatus(404)) -> Result.Error(ReleaseError.ReleaseNotFound(releaseTag))
+      | Error(BadStatus(code)) -> Result.Error(statusError(releaseTag, code))
       | Error(e) -> Result.Error(e)
       | Ok(releaseJsonString) ->
         match Stdlib.Json.parse<Release>(releaseJsonString) with

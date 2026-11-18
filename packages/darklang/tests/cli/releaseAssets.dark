@@ -229,3 +229,83 @@ module Checksums =
           sums,
           "darklang-alpha-abc1234-osx-x64.gz")
         |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
+
+  val refused =
+    "so the new version wasn't installed and nothing was changed. Please report this at https://github.com/darklang/dark/issues"
+
+
+  // sha256 of "abc".
+  val abcSums =
+    "BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD  darklang-alpha-abc1234-linux-x64.gz\n"
+
+
+  test downloadMatchingItsSumIsAccepted =
+    Cli.Installation.Download.matchesSums(
+      abcSums,
+      "darklang-alpha-abc1234-linux-x64.gz",
+      Stdlib.Utf8.encode("abc"))
+    |> Stdlib.Test.equal(Stdlib.Result.Result.Ok())
+
+
+  test changedDownloadIsRefused =
+    Cli.Installation.Download.matchesSums(
+      abcSums,
+      "darklang-alpha-abc1234-linux-x64.gz",
+      Stdlib.Utf8.encode("abd"))
+    |> Stdlib.Test.equal(
+      Stdlib.Result.Result.Error(
+        $"darklang-alpha-abc1234-linux-x64.gz doesn't match the checksum its release lists for it: it was damaged or changed on the way, {refused}"))
+
+
+  test downloadMissingFromSumsIsRefused =
+    Cli.Installation.Download.matchesSums(
+      abcSums,
+      "darklang-alpha-abc1234-osx-arm64.gz",
+      Stdlib.Utf8.encode("abc"))
+    |> Stdlib.Test.equal(
+      Stdlib.Result.Result.Error(
+        $"The release's checksums file doesn't list darklang-alpha-abc1234-osx-arm64.gz, {refused}"))
+
+
+// Why a release lookup failed, as `update` and `install` say it.
+module ReleaseErrors =
+  test notFoundIsItsOwnError =
+    Stdlib.Test.all(
+      [ GitHub.Releases.statusError("v0.0.1", 404)
+        |> Stdlib.Test.equal(GitHub.ReleaseError.ReleaseNotFound("v0.0.1"))
+
+        GitHub.Releases.statusError("v0.0.1", 500)
+        |> Stdlib.Test.equal(GitHub.ReleaseError.BadStatus(500))
+
+        GitHub.Releases.statusError("v0.0.1", 403)
+        |> Stdlib.Test.equal(GitHub.ReleaseError.BadStatus(403)) ])
+
+
+  test messages =
+    Stdlib.Test.all(
+      [ GitHub.releaseErrorMessage(
+          GitHub.ReleaseError.RequestFailed(Stdlib.HttpClient.RequestError.Timeout))
+        |> Stdlib.Test.equal("Couldn't reach the GitHub API: Timeout")
+
+        GitHub.releaseErrorMessage(GitHub.ReleaseError.BadStatus(500))
+        |> Stdlib.Test.equal("The GitHub API answered with status 500")
+
+        GitHub.releaseErrorMessage(GitHub.ReleaseError.UnexpectedResponse)
+        |> Stdlib.Test.equal("Couldn't read the GitHub API's answer")
+
+        GitHub.releaseErrorMessage(GitHub.ReleaseError.NoReleases)
+        |> Stdlib.Test.equal("No releases found")
+
+        GitHub.releaseErrorMessage(GitHub.ReleaseError.ReleaseNotFound("v0.0.1"))
+        |> Stdlib.Test.equal("No release is tagged v0.0.1")
+
+        GitHub.releaseErrorMessage(GitHub.ReleaseError.UnsupportedHost)
+        |> Stdlib.Test.equal("No Darklang build for this OS and architecture")
+
+        GitHub.releaseErrorMessage(GitHub.ReleaseError.NoAssetForPlatform("linux-x64"))
+        |> Stdlib.Test.equal("No asset named `-linux-x64.gz` in this release")
+
+        GitHub.releaseErrorMessage(GitHub.ReleaseError.NoChecksums("v0.0.1"))
+        |> Stdlib.Test.equal(
+          "Release v0.0.1 has no checksums file, so its download can't be checked") ])
