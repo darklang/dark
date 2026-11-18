@@ -873,22 +873,28 @@ val usage =
 // The --json rendering. Typed results for the command an agent runs most; the signatures are the
 // same rendering the human view shows, minus color. `alsoSearched` is the synonym queries that ran
 // too; `wordCounts` and `didYouMean` are what the human view hints when nothing matched, and are
-// empty otherwise.
+// empty otherwise. The sections come in `order`, each ranked and capped the way the text view
+// shows them.
 let jsonOutput(
   branchId: Uuid,
   queryText: String,
   alsoSearched: List<String>,
   found: NothingFound,
+  order: List<String>,
+  typed:
+    List<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>>,
   results: LanguageTools.ProgramTypes.Search.SearchResults)
   : String =
-  let fnRows =
-    results.fns
-    |> Stdlib.List.map(fun item ->
-      let ctx = contextFor(branchId, item)
-      Stdlib.AltJson.Json.Object(
-        [ ("name", Stdlib.AltJson.Json.String(fullPathOf(item)))
-          ("kind", Stdlib.AltJson.Json.String("fn"))
-          ("signature", Stdlib.AltJson.Json.String(Signatures.formatFn(ctx, item.entity))) ]))
+  let fnRow(
+    item: LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>)
+    : Stdlib.AltJson.Json =
+    let ctx = contextFor(branchId, item)
+    Stdlib.AltJson.Json.Object(
+      [ ("name", Stdlib.AltJson.Json.String(fullPathOf(item)))
+        ("kind", Stdlib.AltJson.Json.String("fn"))
+        ("signature", Stdlib.AltJson.Json.String(Signatures.formatFn(ctx, item.entity))) ])
+
+  let fnRows = results.fns |> Stdlib.List.map(fnRow)
 
   let typeRows =
     results.types
@@ -965,7 +971,19 @@ let jsonOutput(
           "results",
           Stdlib.AltJson.Json.Array(
             Stdlib.List.flatten(
-              [ fnRows, typeRows, valueRows, traitRows, implRows, testRows, moduleRows ])))
+              Stdlib.List.prepend(
+                order
+                |> Stdlib.List.map(fun tag ->
+                  match tag with
+                  | "function" -> fnRows
+                  | "type" -> typeRows
+                  | "value" -> valueRows
+                  | "trait" -> traitRows
+                  | "impl" -> implRows
+                  | "test" -> testRows
+                  | "module" -> moduleRows
+                  | _ -> []),
+                typed |> Stdlib.List.map(fnRow)))))
 
         (
           "alsoSearched",
@@ -1292,6 +1310,50 @@ let executeQuery(state: AppState, args: List<String>): AppState =
         let ranker =
           rankerWith(searchText, synonyms |> Stdlib.List.map(fun((_, target)) -> target), uses)
 
+        let resultCap = Stdlib.Option.withDefault(parsed.limit, displayCap)
+        let moduleRank =
+          if Stdlib.List.isEmpty(parsed.entityTypes) then
+            bestModuleRank(searchText, results.submodules)
+          else
+            9
+
+        let results =
+          { results with
+              types = ranked(ranker, results.types)
+              values = ranked(ranker, results.values)
+              fns = ranked(ranker, results.fns)
+              traits = ranked(ranker, results.traits)
+              impls = ranked(ranker, results.impls)
+              tests = ranked(ranker, results.tests)
+              submodules =
+                if Stdlib.List.isEmpty(parsed.entityTypes) then
+                  results.submodules
+                  |> Stdlib.List.sortBy(fun modulePath ->
+                    let modName = Stdlib.Option.withDefault(Stdlib.List.last(modulePath), "")
+                    let owner = Stdlib.Option.withDefault(Stdlib.List.head(modulePath), "")
+                    let mods = Stdlib.Option.withDefault(Stdlib.List.tail(modulePath), [])
+                    rankKey(ranker, owner, mods, modName))
+                else
+                  [] }
+
+        // Suffix orders sections on a rank tie. Modules are navigation, not the
+        // usual discovery target, so they sort last - a wall of namespace
+        // matches shouldn't precede an equally-ranked fn/type/value hit.
+        let moduleKey = Stdlib.String.padEnd($"{Stdlib.display(moduleRank)}1", '9', rankKeyHead)
+        let sectionKeys =
+          [ ($"{moduleKey}4", "module")
+            ($"{bestItemKey(ranker, results.types)}1", "type")
+            ($"{bestItemKey(ranker, results.values)}2", "value")
+            ($"{bestItemKey(ranker, results.fns)}3", "function")
+            ($"{bestItemKey(ranker, results.traits)}0", "trait")
+            ($"{bestItemKey(ranker, results.impls)}5", "impl")
+            ($"{bestItemKey(ranker, results.tests)}6", "test") ]
+
+        let order =
+          sectionKeys
+          |> Stdlib.List.sortBy(fun((key, _)) -> key)
+          |> Stdlib.List.map(fun((_, tag)) -> tag)
+
         if parsed.asJson then
           let found =
             if totalResults == 0 then
@@ -1299,13 +1361,27 @@ let executeQuery(state: AppState, args: List<String>): AppState =
             else
               nothingToTry
 
+          let shownTyped =
+            match typeQuery(searchText) with
+            | Some(_) -> Stdlib.List.take(typed, resultCap)
+            | None -> []
+
           Stdlib.printLine(
             jsonOutput(
               state.currentBranchId,
               queryText,
               alsoSearched,
               found,
-              { results with fns = Stdlib.List.flatten([ typed, results.fns ]) }))
+              order,
+              shownTyped,
+              { results with
+                  types = Stdlib.List.take(results.types, resultCap)
+                  values = Stdlib.List.take(results.values, resultCap)
+                  fns = Stdlib.List.take(results.fns, resultCap)
+                  traits = Stdlib.List.take(results.traits, resultCap)
+                  impls = Stdlib.List.take(results.impls, resultCap)
+                  tests = Stdlib.List.take(results.tests, resultCap)
+                  submodules = Stdlib.List.take(results.submodules, resultCap) }))
         else if totalResults == 0 then
           Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText($"No results found for: {queryText}"))
           operatorHint(state.currentBranchId, rawQueryText)
@@ -1334,9 +1410,6 @@ let executeQuery(state: AppState, args: List<String>): AppState =
             Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint($"  (also searched {shown})"))
 
           Stdlib.printLine("")
-
-          // Key format: match rank followed by the fixed section order.
-          let resultCap = Stdlib.Option.withDefault(parsed.limit, displayCap)
           match typeQuery(searchText) with
           | Some((source, target)) when Stdlib.Bool.not(Stdlib.List.isEmpty(typed)) ->
             Stdlib.printLine(
@@ -1354,21 +1427,6 @@ let executeQuery(state: AppState, args: List<String>): AppState =
             Stdlib.printLine("")
           | _ -> ()
 
-          let moduleRank =
-            if Stdlib.List.isEmpty(parsed.entityTypes) then
-              bestModuleRank(searchText, results.submodules)
-            else
-              9
-
-          let results =
-            { results with
-                types = ranked(ranker, results.types)
-                values = ranked(ranker, results.values)
-                fns = ranked(ranker, results.fns)
-                traits = ranked(ranker, results.traits)
-                impls = ranked(ranker, results.impls)
-                tests = ranked(ranker, results.tests) }
-
           let named =
             Stdlib.List.flatten(
               [ results.types |> Stdlib.List.map(fun i -> i.location)
@@ -1381,24 +1439,6 @@ let executeQuery(state: AppState, args: List<String>): AppState =
                 $"  (no name matches `{queryText}`; these mention it in their docs)"))
           else
             ()
-
-          // Suffix orders sections on a rank tie. Modules are navigation, not the
-          // usual discovery target, so they sort last - a wall of namespace
-          // matches shouldn't precede an equally-ranked fn/type/value hit.
-          let moduleKey = Stdlib.String.padEnd($"{Stdlib.display(moduleRank)}1", '9', rankKeyHead)
-          let sectionKeys =
-            [ ($"{moduleKey}4", "module")
-              ($"{bestItemKey(ranker, results.types)}1", "type")
-              ($"{bestItemKey(ranker, results.values)}2", "value")
-              ($"{bestItemKey(ranker, results.fns)}3", "function")
-              ($"{bestItemKey(ranker, results.traits)}0", "trait")
-              ($"{bestItemKey(ranker, results.impls)}5", "impl")
-              ($"{bestItemKey(ranker, results.tests)}6", "test") ]
-
-          let order =
-            sectionKeys
-            |> Stdlib.List.sortBy(fun((key, _)) -> key)
-            |> Stdlib.List.map(fun((_, tag)) -> tag)
 
           order
           |> Stdlib.List.iter(fun tag ->
@@ -1460,19 +1500,9 @@ let executeQuery(state: AppState, args: List<String>): AppState =
                   $"{fullPathOf(item)}{mark}",
                   item.entity.description))
             | "module" ->
-              if
-                Stdlib.List.isEmpty(parsed.entityTypes)
-                && Stdlib.Bool.not(Stdlib.List.isEmpty(results.submodules))
-              then
+              if Stdlib.Bool.not(Stdlib.List.isEmpty(results.submodules)) then
                 Stdlib.printLine(Display.getSectionHeader("module"))
-                let sortedMods =
-                  results.submodules
-                  |> Stdlib.List.sortBy(fun modulePath ->
-                    let modName = Stdlib.Option.withDefault(Stdlib.List.last(modulePath), "")
-                    let owner = Stdlib.Option.withDefault(Stdlib.List.head(modulePath), "")
-                    let mods = Stdlib.Option.withDefault(Stdlib.List.tail(modulePath), [])
-                    rankKey(ranker, owner, mods, modName))
-
+                let sortedMods = results.submodules
                 let shownMods = Stdlib.List.take(sortedMods, resultCap)
                 shownMods
                 |> Stdlib.List.iter(fun modulePath ->

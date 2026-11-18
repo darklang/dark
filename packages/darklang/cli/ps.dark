@@ -14,9 +14,31 @@
 /// the workbench or a REPL it is everything that instance is running.
 module Darklang.Cli.Ps
 
+/// One process as `ps --json` gives it: the table's words, not the runtime's types.
+/// `status` is `running`, `waiting`, `finished` or `failed`; `waitingOn` and `error` say
+/// more when it is one of the last.
+type PsProcess =
+  { id: Uuid
+    entry: String
+    status: String
+    waitingOn: Option<String>
+    error: Option<String>
+    parent: Option<Uuid>
+    started: DateTime
+    instructionsTaken: Int64
+    allocated: Int64
+    inflight: Int64 }
+
+
+/// What `ps show <id> --json` gives: the process, and its call stack outermost first.
+type PsDetail =
+  { process: PsProcess
+    frames: List<String> }
+
+
 /// What `ps --json` hands back: the same two groups the two tables print.
 type PsSnapshot =
-  { thisInstance: List<LanguageTools.Exec.Summary>
+  { thisInstance: List<PsProcess>
     machine: List<LanguageTools.Exec.MachineProcess> }
 
 
@@ -62,6 +84,34 @@ let statusText(branchId: Uuid, status: LanguageTools.Exec.Status): String =
   | Failed(rte) ->
     let message = PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, rte)
     $"failed: {Text.oneLine(message)}"
+
+
+let psProcess(branchId: Uuid, p: LanguageTools.Exec.Summary): PsProcess =
+  let (status, waitingOn, error) =
+    match p.status with
+    | Runnable -> ("running", Option.None, Option.None)
+    | Parked(on) -> ("waiting", Option.Some(parkedText(branchId, on)), Option.None)
+    | Done -> ("finished", Option.None, Option.None)
+    | Failed(rte) ->
+      (
+        "failed",
+        Option.None,
+        Option.Some(PrettyPrinter.RuntimeTypes.RuntimeError.toString(branchId, rte)))
+
+  PsProcess
+    { id = p.id
+      entry =
+        match p.entry with
+        | Function(name) -> PrettyPrinter.RuntimeTypes.fnName(branchId, name)
+        | Expr -> "eval"
+      status = status
+      waitingOn = waitingOn
+      error = error
+      parent = p.parent
+      started = p.started
+      instructionsTaken = p.instructionsTaken
+      allocated = p.allocated
+      inflight = p.inflight }
 
 
 /// One row of the process tree. No `parent` column: the indentation is the parent, and
@@ -337,8 +387,8 @@ let stop(target: String, how: Stdlib.Exec.Stop): Result<String, String> =
 
 /// Everything `ps` knows, as JSON, for something that is not a person: this instance's
 /// processes and the machine's other Dark processes, in the same two groups the tables print.
-let printJson(): Bool =
-  let processes = LanguageTools.Exec.list()
+let printJson(branchId: Uuid): Bool =
+  let processes = LanguageTools.Exec.list() |> Stdlib.List.map(fun p -> psProcess(branchId, p))
   // Self is filtered out, the same way the table does it: the process answering the question is
   // not news, and the two renderings must not disagree about what is running.
   let me = Stdlib.Cli.Sys.currentPid()
@@ -355,7 +405,7 @@ let execute(state: AppState, args: List<String>): AppState =
   match args with
   | [] ->
     if wantsJson then
-      exitWith(state, printJson())
+      exitWith(state, printJson(state.currentBranchId))
     else
       printList(state.currentBranchId)
       state
@@ -395,7 +445,15 @@ let execute(state: AppState, args: List<String>): AppState =
           | None ->
             printErr($"process {Text.shortId(p.id)} finished while you were asking")
             false
-          | Some(d) -> Cli.printJson(Stdlib.Json.checkedSerialize<LanguageTools.Exec.Detail>(d))
+          | Some(d) ->
+            let detail =
+              PsDetail
+                { process = psProcess(state.currentBranchId, d.summary)
+                  frames =
+                    d.frames
+                    |> Stdlib.List.map(fun ep -> executionPointText(state.currentBranchId, ep)) }
+
+            Cli.printJson(Stdlib.Json.checkedSerialize<PsDetail>(detail))
       else
         printShow(state.currentBranchId, prefix)
 
