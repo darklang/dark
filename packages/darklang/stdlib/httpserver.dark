@@ -19,6 +19,21 @@ let post(route: String, fn: Http.Request -> Http.Response): Handler =
   Handler { route = route, method = "POST", handler = fn }
 
 
+/// A PUT route. See <fn Stdlib.HttpServer.get>.
+let put(route: String, fn: Http.Request -> Http.Response): Handler =
+  Handler { route = route, method = "PUT", handler = fn }
+
+
+/// A PATCH route. See <fn Stdlib.HttpServer.get>.
+let patch(route: String, fn: Http.Request -> Http.Response): Handler =
+  Handler { route = route, method = "PATCH", handler = fn }
+
+
+/// A DELETE route. See <fn Stdlib.HttpServer.get>.
+let delete(route: String, fn: Http.Request -> Http.Response): Handler =
+  Handler { route = route, method = "DELETE", handler = fn }
+
+
 /// Result of matching a route pattern against a request path
 type RouteMatch =
   { matched: Bool
