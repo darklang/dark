@@ -46,39 +46,6 @@ let private propagationLeavesBranchWorkAlone =
         do! archiveBranches state [ "cascbr" ]
       })
 
-/// Rebase moves a branch's bases onto main's COMMITTED versions, never onto main's draft, which main
-/// might still discard.
-let private rebaseIgnoresMainsDraft =
-  instanceTest
-    "rebase moves onto the parent's committed state, not its draft"
-    (fun state ->
-      task {
-        do! start state
-        do! fn state "Tests.Reb.root" "() : Int64 = 111"
-        do! commit state "reb v1"
-
-        do! switch state "rebbr"
-        do! fn state "Tests.Reb.user" "(): Int64 = Tests.Reb.root()"
-        do! commit state "branch user"
-
-        // Main edits the dependency and does NOT commit it.
-        do! onMain state
-        do! fn state "Tests.Reb.root" "() : Int64 = 222"
-        do! dirty state "main's edit is a draft"
-
-        do! switch state "rebbr"
-        do! rebase state "rebbr"
-
-        // Both answers come from the same committed version: the branch must not call 222 through
-        // its caller while `root` reads 111.
-        do!
-          evals state "Tests.Reb.root()" "111" "the branch sees the committed root"
-        do! evals state "Tests.Reb.user()" "111" "and its caller agrees with it"
-
-        do! start state
-        do! archiveBranches state [ "rebbr" ]
-      })
-
 /// Archiving a parent must not take its work out from under its children: their code would stop
 /// resolving and their listing would show a parent that is not in this store.
 let private archiveRefusesToOrphanAChild =
@@ -423,60 +390,6 @@ let private renameRefusesTheBadCases =
 
 // ─── the everyday path ────────────────────────────────────────────────────
 
-/// The loop the whole system exists for, asserted end to end: author, see it live, commit, see it
-/// clean, edit, see the cascade, commit again. Nothing exotic: every bug above sits on this
-/// path.
-let private theEverydayLoop =
-  instanceTest "author, run, commit, edit, cascade, commit" (fun state ->
-    task {
-      do! start state
-      do! fn state "Tests.Day.cents" "(d: Int64) : Int64 = d * 100"
-      do! fn state "Tests.Day.total" "(a: Int64): Int64 = Tests.Day.cents(a)"
-
-      // Live on write: no build step between authoring and running it.
-      do! evals state "Tests.Day.total(3)" "300" "the new code runs immediately"
-      do! dirty state "and it is a draft until committed"
-
-      do! commit state "money helpers"
-      do! clean state "committing empties the draft"
-
-      // An edit to a dependency repoints its callers, in the draft, before any commit.
-      do! fn state "Tests.Day.cents" "(d: Int64) : Int64 = d * 1000"
-      do! evals state "Tests.Day.total(3)" "3000" "the caller followed the edit"
-      do! dirty state "the repoint is staged, not committed"
-
-      do! commit state "cents in mills"
-      do! clean state "and committing seals it"
-      do!
-        evals
-          state
-          "Tests.Day.total(3)"
-          "3000"
-          "with the new behaviour still in place"
-    })
-
-/// A branch, end to end, from the outside: it starts, it holds work main cannot see, main's work
-/// stays visible to it, and merging moves the work over.
-let private theBranchLoop =
-  instanceTest "a branch holds its own work, sees main's, and merges" (fun state ->
-    task {
-      do! start state
-      do! fn state "Tests.Loop.shared" "() : Int64 = 1"
-      do! commit state "shared, on main"
-
-      do! switch state "looper"
-      do! shows state [ "branch" ] "looper" "switch says where you are"
-      do! fn state "Tests.Loop.mine" "(): Int64 = Tests.Loop.shared() + 1"
-      do! commit state "branch work"
-      do! evals state "Tests.Loop.mine()" "2" "the branch resolves main's names"
-
-      do! onMain state
-      do! notFound state "Tests.Loop.mine()" "main cannot see the branch's work"
-
-      do! merge state "looper"
-      do! evals state "Tests.Loop.mine()" "2" "until it is merged"
-    })
-
 /// The refusals a person meets by typing something reasonable that is not available. Each of these
 /// answered wrongly at some point: a fall-through arm that reports success is the failure mode the
 /// CLI sweep exists to catch, and these are the specific cases worth pinning.
@@ -521,7 +434,6 @@ let private theCommonRefusals =
 
 let tests : List<Test> =
   [ propagationLeavesBranchWorkAlone
-    rebaseIgnoresMainsDraft
     archiveRefusesToOrphanAChild
     deprecateIsVisibleOnItsBranch
     branchDiscardKeepsCommittedWork
@@ -532,6 +444,4 @@ let tests : List<Test> =
     mergeIsGatedLikeCommit
     renameMovesANameNotItsContent
     renameRefusesTheBadCases
-    theEverydayLoop
-    theBranchLoop
     theCommonRefusals ]

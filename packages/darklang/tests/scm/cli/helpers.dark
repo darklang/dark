@@ -128,6 +128,22 @@ let says(
       $"{why}: `{shown(args)}` should say '{needle}'. It said (exit {Stdlib.display(code)}): {said}")
 
 
+/// `dark <args>` prints every one of <param needles>, from one run.
+let saysAll(
+  dark: Cli.Tests.Instance.T,
+  args: List<String>,
+  needles: List<String>,
+  why: String)
+  : Stdlib.Test.Result =
+  let (code, _, said) = exec(dark, args)
+  match Stdlib.List.filter(needles, fun n ->
+          Stdlib.Bool.not(Stdlib.String.contains(said, n))) with
+  | [] -> Stdlib.Test.Result.Pass
+  | missing ->
+    Stdlib.Test.fail(
+      $"{why}: `{shown(args)}` should say {Stdlib.inspect(missing)}. It said (exit {Stdlib.display(code)}): {said}")
+
+
 /// `dark <args>` prints something, and it does not include <param needle>.
 let doesNotSay(
   dark: Cli.Tests.Instance.T,

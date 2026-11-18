@@ -9,6 +9,7 @@ test aBranchSeesMainsCommitsButNotMainsDraft =
       commit(dark, "base")
       saveNumber(dark, "Tests.App.a", "2")
       saveNumber(dark, "Tests.App.draftOnly", "3")
+      evals(dark, "Tests.App.a()", "2", "main runs its own draft")
       switch(dark, "feat")
       evals(
         dark,
@@ -60,13 +61,16 @@ test aBranchOffABranchSeesItsParentsCommits =
       notFound(dark, "Tests.App.featDraft()", "but not the parent's draft")
       saveNumber(dark, "Tests.App.onChild", "3")
       commit(dark, "child work")
+      evals(dark, "Tests.App.onChild()", "3", "the child sees its own work")
       notFoundOn(
         dark,
         "feat",
         "Tests.App.onChild()",
         "the parent does not see the child's work")
 
-      notFoundOn(dark, "main", "Tests.App.onFeat()", "and main sees neither") ])
+      notFoundOn(dark, "main", "Tests.App.onFeat()", "and main sees neither")
+
+      notFoundOn(dark, "main", "Tests.App.onChild()", "of the two") ])
 
 
 test switchStaysButBranchFlagAndEnvVarAreForOneCommand =

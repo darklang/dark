@@ -30,13 +30,22 @@ test discardOnABranchLeavesMainsDraftAlone =
     [ saveNumber(dark, "Tests.App.onMain", "1")
       switch(dark, "feat")
       saveNumber(dark, "Tests.App.onFeat", "2")
-      run(dark, [ "discard", "-y" ])
+      saysAll(
+        dark,
+        [ "discard", "-y" ],
+        [ "branch \"feat\" is back to its last commit."
+          "DISCARDING (1) on branch \"feat\", 2 ops"
+          "Tests.App.onFeat" ],
+        "discard names the branch and what it dropped")
+
       draftIsEmpty(dark, "the branch's draft is gone")
       notFound(dark, "Tests.App.onFeat()", "and so is what it held")
       same(
         draftOn(dark, "main"),
         [ "new Tests.App.onMain" ],
-        "main's draft is still there") ])
+        "main's draft is still there")
+
+      evalsOn(dark, "main", "Tests.App.onMain()", "1", "and still runs") ])
 
 
 // Odd, but today's behaviour: discarding a name leaves its caller's follow in the draft, so the

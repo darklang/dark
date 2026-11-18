@@ -63,6 +63,24 @@ test rebaseThenMergeKeepsTheBranchsLosingVersionRecorded =
         "the branch's version is recorded as the loser on main") ])
 
 
+// Rebase moves onto the parent's committed versions, never its draft, which the parent might still
+// discard: the branch's caller and the name it calls agree.
+test rebaseMovesOntoTheParentsCommitsNotItsDraft =
+  scenario(fun dark ->
+    [ saveNumber(dark, "Tests.App.root", "1")
+      commit(dark, "base")
+      switch(dark, "feat")
+      save(dark, "Tests.App.user", "(): Int64 = Tests.App.root()")
+      commit(dark, "feat adds a caller")
+      switch(dark, "main")
+      saveNumber(dark, "Tests.App.root", "2")
+      draftIsNotEmpty(dark, "main's edit is only a draft")
+      switch(dark, "feat")
+      run(dark, [ "rebase" ])
+      evals(dark, "Tests.App.root()", "1", "the branch sees the committed root")
+      evals(dark, "Tests.App.user()", "1", "and its caller agrees") ])
+
+
 test rebaseRepointsTheBranchsCallersOfANameMainChanged =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.helper", "1")

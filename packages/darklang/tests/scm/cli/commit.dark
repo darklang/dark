@@ -117,18 +117,42 @@ test commitIncludeTakesWhatTheNameNeedsAndJsonOnlyPreviews =
         "the draft is untouched")
 
       same(commits(dark), [], "and so is history")
-      says(
+      refuses(
+        dark,
+        [ "commit", "nope", "--include=Tests.App.absent", "-y" ],
+        "--include names things not in your draft: Tests.App.absent",
+        "a name the draft does not hold is refused")
+
+      same(commits(dark), [], "and the refusal commits nothing")
+      saysAll(
         dark,
         [ "commit", "caller", "--include=Tests.App.caller", "-y" ],
-        "still in the draft",
-        "a partial commit says what it left behind")
+        [ "also committed (needed by what you named): Tests.App.helper"
+          "still in the draft" ],
+        "a partial commit names the dependency it took and says what it left behind")
 
       same(
         draft(dark),
         [ "new Tests.App.other" ],
         "the caller took its helper with it; the rest stayed")
 
-      same(commits(dark), [ "caller" ], "one commit") ])
+      same(commits(dark), [ "caller" ], "one commit")
+      evals(dark, "Tests.App.caller()", "2", "and the committed caller runs")
+
+      // a name edited twice in one draft has two namings, and --include= takes both
+      saveNumber(dark, "Tests.App.twice", "3001")
+      saveNumber(dark, "Tests.App.twice", "3002")
+      run(dark, [ "commit", "twice", "--include=Tests.App.twice", "-y" ])
+      same(
+        draft(dark),
+        [ "new Tests.App.other" ],
+        "only the unnamed item is still in the draft")
+
+      evals(
+        dark,
+        "Tests.App.twice()",
+        "3002",
+        "and the later edit is committed") ])
 
 
 test undoStepsBackOneCommittedVersionAtATime =

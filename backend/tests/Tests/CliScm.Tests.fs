@@ -88,103 +88,6 @@ let private commitsChainToTheirParent =
       return ()
     })
 
-/// Editing something on a BRANCH repoints what calls it, there and then.
-///
-/// Propagation runs off "what versions has this name had", and the branch-blind form of that lookup
-/// reads `locations` -- main's projection, which a branch never writes to. On a branch it then finds
-/// no earlier version, concludes nothing needs repointing, and leaves every caller on the version you
-/// just edited past: the caller keeps returning the old answer while the callee plainly says otherwise.
-///
-/// Asserted by RUNNING the caller rather than by reading the draft: what a repoint is for is that the
-/// thing above you gets the new answer.
-let editingOnABranchRepointsItsCallers =
-  instanceTest "editing an item on a branch repoints what calls it" (fun state ->
-    task {
-      do!
-        shows
-          state
-          [ "switch"; "cli-propagate-branch" ]
-          "cli-propagate-branch"
-          "the test is on the branch"
-
-      do! fn state "Tests.BranchProp.base" "() : Int64 = 1"
-      do!
-        author
-          state
-          "Tests.BranchProp.caller"
-          "(): Int64 = (Tests.BranchProp.base()) * 7"
-
-      do!
-        shows
-          state
-          [ "eval"; "Tests.BranchProp.caller()" ]
-          "7"
-          "the caller runs against the first version"
-
-      do! fn state "Tests.BranchProp.base" "() : Int64 = 2"
-      let! after = runCli state [ "eval"; "Tests.BranchProp.caller()" ]
-
-      do! shows state [ "switch"; "main" ] "main" "and it put the run back on main"
-
-      Expect.stringContains
-        after
-        "14"
-        "the caller was repointed onto the edit, on the branch"
-    })
-
-/// A merge into main commits what it landed. The branch's ops arrive uncommitted (a pulled branch, or
-/// one authored and never committed) and the merge event is authored uncommitted, so without this they
-/// sit in main's draft afterwards, reading as "1 item changed" that nobody edited, until the next
-/// unrelated commit sweeps them up under its message.
-let private aMergeCommitsWhatItLands =
-  instanceTest
-    "merging a branch leaves main's draft as it was, under a merge commit"
-    (fun state ->
-      task {
-        do! discardAll state
-        do! switch state "mergecommit"
-        do! fn state "Tests.MergeCommit.f" "() : Int64 = 6006"
-        // Committed on the branch first: merge refuses uncommitted work now, so that it arrives
-        // in the parent under a message somebody wrote. What this test is about is the OTHER
-        // draft -- main's, which must survive the merge untouched.
-        do! commit state "mergecommit work"
-        let! merged = runCli state [ "merge"; "mergecommit"; "-y" ]
-        Expect.stringContains merged "Merged" $"the merge went through: {merged}"
-
-        do!
-          shows
-            state
-            [ "status" ]
-            "clean"
-            "main's draft holds nothing the merge landed"
-        do!
-          shows
-            state
-            [ "commits"; "3" ]
-            "merged branch \"mergecommit\""
-            "and a merge commit names it"
-        do!
-          shows
-            state
-            [ "eval"; "Tests.MergeCommit.f()" ]
-            "6006"
-            "and the work is live on main"
-
-        // The merge deleted the branch's tags, so `log` and `diff` read the merge event
-        // instead of reporting a branch that never held anything.
-        let! log = runCli state [ "log"; "mergecommit" ]
-        Expect.stringContains
-          log
-          "merged from branch \"mergecommit\""
-          $"log of a merged branch reads its merge event: {log}"
-        Expect.stringContains log "AddFn f" $"and lists the ops it carried: {log}"
-        let! diff = runCli state [ "diff"; "mergecommit" ]
-        Expect.stringContains
-          diff
-          "is merged"
-          $"diff of a merged branch says so rather than 'changes nothing': {diff}"
-      })
-
 /// An `Unbind` on a branch takes a main name away on that branch, shows in the draft as a removal, and
 /// takes it off main when the branch merges. Authored through `SCM.PackageOps.add`, since no verb writes
 /// one yet; the importer will, once the reload becomes a diff.
@@ -584,55 +487,6 @@ let private aBranchDiscardLeavesNoDanglingTags =
         do! archiveBranches state [ "dangletags" ]
       })
 
-/// `discard` on a branch drops the BRANCH's work and leaves main's draft alone.
-///
-/// Worth asserting because the command is destructive and the two drafts are kept apart by a `WHERE`
-/// clause rather than by anything the type system checks: main's draft is main's uncommitted ops, so a
-/// query that forgot the branch would take both, and the way you would find out is that
-/// work you never mentioned had gone.
-let discardOnABranchLeavesMainsDraftAlone =
-  instanceTest
-    "discard on a branch drops the branch's work, not main's draft"
-    (fun state ->
-      task {
-        do! fn state "Tests.DiscardIso.onMain" "() : Int64 = 1"
-
-        do!
-          shows
-            state
-            [ "switch"; "cli-discard-branch" ]
-            "cli-discard-branch"
-            "the test is on the branch"
-
-        let! _ =
-          runCli state [ "fn"; "Tests.DiscardIso.onBranch"; "() : Int64 = 2" ]
-        let! discarded = runCli state [ "discard"; "--yes" ]
-        Expect.stringContains discarded "onBranch" "it discarded the branch's item"
-        Expect.isFalse
-          (discarded.Contains "onMain")
-          "and did not touch the one on main"
-
-        do!
-          shows
-            state
-            [ "eval"; "Tests.DiscardIso.onBranch()" ]
-            "not found"
-            "the branch's item really went"
-
-        do!
-          shows state [ "switch"; "main" ] "main" "and it put the run back on main"
-
-        do!
-          shows
-            state
-            [ "eval"; "Tests.DiscardIso.onMain()" ]
-            "1"
-            "main's draft survived the branch's discard"
-
-        let! _ = runCli state [ "discard"; "--yes" ]
-        ()
-      })
-
 /// A commit refuses a draft with a definite at-rest type error, and `--allow-type-errors` is the way past.
 ///
 /// The save path PRINTS "commit will refuse it until fixed", so the gate has to exist or the
@@ -966,95 +820,16 @@ let private deprecationTakesEffectInTheSameProcess =
           "and runs again as soon as it's unmarked"
     })
 
-/// The `--allow-harmful` pair of tests lived here and CANNOT work here, which is worth stating rather
-/// than leaving as a gap someone re-adds.
-///
-/// `runCli` builds an RT-level `ExecutionState`, and that default is permissive BY DESIGN ("tests run
-/// permissive" in `Execution.createState`). The harmful gate is narrowed by the CLI HOST, per entry
-/// point, so in this harness the halt never fires and the test asserts a halt that cannot happen.
-///
-/// It is tested where it can be: "Harmful Gate" in `packages/darklang/tests/cli/tests.dark`, which drives
-/// a real CLI process and asserts BOTH directions -- a fn marked harmful refuses to run, and
-/// `--allow-harmful` runs it anyway.
-/// `commit --include=` turns part of a draft into history: an unnamed item stays in the draft, a
-/// named item's uncommitted dependency comes WITH it (a commit referencing uncommitted content
-/// would be internally inconsistent), and a name the draft does not hold is refused.
-let partialCommitTakesOnlyWhatYouNamed =
-  instanceTest
-    "commit --include= takes the named items plus their dependencies"
-    (fun state ->
-      task {
-        do! switch state "main"
-        let! _ = runCli state [ "discard"; "--yes" ]
-
-        let! _ =
-          runCli state [ "fn"; "Tests.Pc.solo"; "(x: Int64) : Int64 = x + 1" ]
-        let! _ =
-          runCli state [ "fn"; "Tests.Pc.base"; "(x: Int64) : Int64 = x + 2" ]
-        let! _ =
-          runCli
-            state
-            [ "fn"; "Tests.Pc.user"; "(x: Int64): Int64 = Tests.Pc.base(x)" ]
-
-        let! refused =
-          runCli state [ "commit"; "nope"; "--include=Tests.Pc.absent"; "-y" ]
-        // The refusal fires BEFORE the review renders, and names both the missing name and where
-        // to look -- showing the whole draft over a selection that commits none of it was the one
-        // dishonesty a review screen cannot afford.
-        Expect.stringContains
-          refused
-          "--include names things not in your draft: Tests.Pc.absent"
-          "an unknown name is refused"
-
-        do!
-          shows
-            state
-            [ "status" ]
-            "changed"
-            "and the draft is untouched by the refusal"
-
-        // Naming `user` has to bring `base`, which it references and which is still a draft.
-        let! partial =
-          runCli state [ "commit"; "user"; "--include=Tests.Pc.user"; "-y" ]
-        Expect.stringContains partial "commit" "the selection was committed"
-        Expect.stringContains
-          partial
-          "Tests.Pc.base"
-          "and said which dependency it pulled in"
-
-        // `solo` was never named, so it is still a draft.
-        do! shows state [ "status" ] "1 item" "the unnamed item stayed in the draft"
-
-        do!
-          shows
-            state
-            [ "eval"; "Tests.Pc.user(0)" ]
-            "2"
-            "the committed item still evaluates"
-
-        // A name edited twice in one draft has two namings, and `--include=` takes both: leaving the
-        // earlier one behind would describe a version nobody has.
-        do! fn state "Tests.Pc.twice" "() : Int64 = 3001"
-        do! fn state "Tests.Pc.twice" "() : Int64 = 3002"
-        let! both =
-          runCli state [ "commit"; "twice"; "--include=Tests.Pc.twice"; "-y" ]
-        Expect.stringContains both "commit" $"the twice-edited name commits: {both}"
-        do!
-          shows
-            state
-            [ "status" ]
-            "1 item"
-            "and only the unnamed item is still in the draft"
-        do!
-          shows
-            state
-            [ "eval"; "Tests.Pc.twice()" ]
-            "3002"
-            "and the committed version is the later edit"
-
-        let! _ = runCli state [ "discard"; "--yes" ]
-        return ()
-      })
+// The `--allow-harmful` pair of tests lived here and CANNOT work here, which is worth stating rather
+// than leaving as a gap someone re-adds.
+//
+// `runCli` builds an RT-level `ExecutionState`, and that default is permissive BY DESIGN ("tests run
+// permissive" in `Execution.createState`). The harmful gate is narrowed by the CLI HOST, per entry
+// point, so in this harness the halt never fires and the test asserts a halt that cannot happen.
+//
+// It is tested where it can be: "Harmful Gate" in `packages/darklang/tests/cli/tests.dark`, which drives
+// a real CLI process and asserts BOTH directions -- a fn marked harmful refuses to run, and
+// `--allow-harmful` runs it anyway.
 
 /// Shared content must remain bound at every alias when propagation crosses owners.
 let private allConsumersFollowAcrossOwners =
@@ -1303,71 +1078,6 @@ let private aNameHoldsOneItemWhateverItsKind =
 
       return ()
     })
-
-/// A branch off a branch sees its whole ancestry, and nothing sees its descendants.
-///
-/// Nested branches are not exotic: `dark branch new` parents the new branch to the one you are standing
-/// on, so you get a chain by not thinking about it. They are the shape that exercises the view's walk up
-/// the parent chain (`Layers.chainOf`), which everything else trusts.
-let private branchChainSeesItsAncestry =
-  instanceTest
-    "a branch off a branch sees its parent's COMMITTED work, and main sees neither"
-    (fun state ->
-      task {
-        do! switch state "chainOne"
-        do! fn state "Tests.Chain.one" "() : Int64 = 11"
-
-        // Created while standing on chainOne, so its parent is chainOne rather than main.
-        let! _ = runCli state [ "branch"; "new"; "chainTwo" ]
-        do! fn state "Tests.Chain.two" "() : Int64 = 22"
-
-        // The parent's edit is still WIP, so the child does not see it yet: a parent's draft is its
-        // own until committed, all the way up the chain.
-        do!
-          shows
-            state
-            [ "eval"; "Tests.Chain.one()" ]
-            "not found"
-            "a parent's WIP does not leak down"
-
-        // Committed on the parent, the child sees the whole chain.
-        do! switch state "chainOne"
-        do! commit state "chain one"
-        do! switch state "chainTwo"
-        do! shows state [ "eval"; "Tests.Chain.two()" ] "22" "its own work"
-        do!
-          shows
-            state
-            [ "eval"; "Tests.Chain.one()" ]
-            "11"
-            "and its parent's committed work, through the chain"
-
-        // The parent does NOT see its child's.
-        do! switch state "chainOne"
-        do!
-          shows
-            state
-            [ "eval"; "Tests.Chain.one()" ]
-            "11"
-            "the parent still sees its own work"
-        do!
-          shows
-            state
-            [ "eval"; "Tests.Chain.two()" ]
-            "not found"
-            "and not the child's, which would be work leaking DOWN the chain"
-
-        // Main sees neither.
-        do! switch state "main"
-        do!
-          shows
-            state
-            [ "eval"; "Tests.Chain.one()" ]
-            "not found"
-            "main sees no branch work"
-
-        do! archiveBranches state [ "chainTwo"; "chainOne" ]
-      })
 
 /// Reads on a branch answer about the branch, each with its own scenario. `dark ops` on a branch off a
 /// branch includes the intermediate branch; `undo` on a branch never steps onto a version main authored
@@ -1902,71 +1612,6 @@ let commitRefusesUnresolvedReferences =
         ()
       })
 
-/// `discard` is one verb over two implementations.
-///
-/// That MAIN's draft survives a branch's discard has to be asserted on the OP LOG, not on whether
-/// main's names still resolve. Resolution cannot see a deleted op whose rows outlived it; the op
-/// count can.
-let private discardOnABranchLeavesMainAlone =
-  instanceTest
-    "discard on a branch drops that branch's draft and leaves main's alone"
-    (fun state ->
-      task {
-        // Something uncommitted on MAIN, which must survive the branch's discard.
-        do! switch state "main"
-
-        // Measured as a DELTA, not an absolute: the store is shared with every other
-        // cliTest, so whatever else is uncommitted on main is in this number too.
-        let! baseline =
-          runCli state [ "eval"; "Darklang.SCM.PackageOps.draftOpCount()" ]
-
-        // A body no other test uses. Content-addressing means an identical body is the SAME item and its
-        // `AddFn` dedups, so a shared body would add one op here rather than two and the delta below
-        // would be measuring how many other tests happened to write the same function.
-        do! author state "Tests.Disc.onMain" "(x: Int64) : Int64 = x + 90210"
-
-        // Fully qualified: `SCM.PackageOps.draftOpCount` does not resolve here and comes
-        // back as an error STRING, so before-vs-after would compare two identical error
-        // messages and pass whatever the code does.
-        let! before =
-          runCli state [ "eval"; "Darklang.SCM.PackageOps.draftOpCount()" ]
-        Expect.equal
-          (int (before.Trim()))
-          (int (baseline.Trim()) + 2)
-          "authoring one fn on main added exactly its two ops (AddFn + SetName) to the draft"
-
-        do! switch state "discardbr"
-        do! author state "Tests.Disc.onBranch" "(x: Int64) : Int64 = x + 90211"
-        do!
-          shows
-            state
-            [ "eval"; "Tests.Disc.onBranch(1)" ]
-            "90212"
-            "the branch item is live before the discard"
-
-        do!
-          shows
-            state
-            [ "discard"; "-y" ]
-            "discardbr"
-            "discard names the branch as its scope, not main"
-
-        let! gone = runCli state [ "eval"; "Tests.Disc.onBranch(1)" ]
-        Expect.isFalse
-          (gone.Trim() = "90212")
-          $"the branch draft is gone, got: {gone}"
-
-        do! switch state "main"
-        let! after =
-          runCli state [ "eval"; "Darklang.SCM.PackageOps.draftOpCount()" ]
-        Expect.equal
-          (after.Trim())
-          (before.Trim())
-          "main's uncommitted ops all survived the branch's discard"
-
-        do! archiveBranches state [ "discardbr" ]
-      })
-
 let private conflictsBelongToTheBranchTheyHappenedOn =
   cliTestOnMain "a conflict is answered on the branch it happened on" (fun state ->
     task {
@@ -2026,51 +1671,6 @@ let private conflictsBelongToTheBranchTheyHappenedOn =
       let! _ = runCli state [ "conflicts"; "ack"; "cnfmain0001" ]
       do! archiveBranches state [ "confbr" ]
     })
-
-/// Main's uncommitted draft never leaks into a branch's view: a draft-born name does not resolve
-/// there, and a draft edit over a committed version resolves to the committed one. The branch sees
-/// COMMITTED main; `dark commit` is what publishes work downstream.
-let private aBranchNeverSeesMainsDraft =
-  instanceTest
-    "a branch resolves through committed main, not main's draft"
-    (fun state ->
-      task {
-        do! fn state "Tests.DraftMask.f" "() : Int64 = 1"
-
-        do! shows state [ "switch"; "dmask" ] "dmask" "switched"
-        do!
-          shows
-            state
-            [ "eval"; "Tests.DraftMask.f()" ]
-            "not found"
-            "a draft-born name is invisible from a branch"
-
-        do! switch state "main"
-        do! commit state "draft mask v1"
-        do! switch state "dmask"
-        let! committed = runCli state [ "eval"; "Tests.DraftMask.f()" ]
-        Expect.stringContains committed "1" "committed work is visible"
-
-        do! switch state "main"
-        do! fn state "Tests.DraftMask.f" "() : Int64 = 2"
-        do!
-          shows
-            state
-            [ "eval"; "Tests.DraftMask.f()" ]
-            "2"
-            "main runs its own draft"
-        do! switch state "dmask"
-        do!
-          shows
-            state
-            [ "eval"; "Tests.DraftMask.f()" ]
-            "1"
-            "the branch stays on the committed version"
-
-        do! switch state "main"
-        do! discardAll state
-        do! archiveBranches state [ "dmask" ]
-      })
 
 /// `dark commits` hides housekeeping (event-only commits: a branch archive or merge marker with no
 /// authored work) behind `--all`, and says how many it hid.
@@ -2534,16 +2134,13 @@ let tests : List<Test> =
     editsAreVisibleInTheSameProcess
     deprecationTakesEffectInTheSameProcess
     conflictsBelongToTheBranchTheyHappenedOn
-    discardOnABranchLeavesMainAlone
     diffAndLogAnswerInJson
     mergeAsksBeforeItGoes
     mergeGatesAreDecidedInDark
     bareDiffShowsTheDraft
     dependentsSeeTheBranchYouAreOn
     bareMergeAndRebaseMeanThisBranch
-    branchChainSeesItsAncestry
     branchReadsAnswerAboutTheBranch
-    aMergeCommitsWhatItLands
     anUnbindRemovesANameThroughTheCli
     aDeprecationCommitsByEitherPath
     archivingABranchCommitsItsEvent
@@ -2560,7 +2157,6 @@ let tests : List<Test> =
     everyJsonSurfaceParses
     allConsumersFollowAcrossOwners
     crossOwnerPropagationIsBranchLocal
-    aBranchNeverSeesMainsDraft
     mergeCommitsWhatASiblingStillTags
     commitsHideHousekeeping
     commitsChainToTheirParent
