@@ -97,7 +97,7 @@ let testJson(name: String, outcome: Outcome, cached: Bool): TestJson =
 
 
 val usage =
-  "Usage: test run [--force] [--json] [--jobs <count>] [--seed <n>] [name-or-module ...]\n       test count [--for <item>] [module]\n       test add <location> <body> | <source-file> | -"
+  "Usage: test run [--force] [--json] [--jobs <count>] [--seed <n>] [name-or-module ... | <script>.dark]\n       test count [--for <item>] [module]\n       test add <location> <body> | <source-file> | -"
 
 
 let fullPath(
@@ -452,15 +452,114 @@ let runTests(state: AppState, args: List<String>): AppState =
     printErr(message)
     Stdlib.printErrorLine(usage)
     { state with exitCode = 1 }
+  | Ok(options) when Stdlib.List.any(options.filters, isScript) ->
+    match options.filters with
+    | [path] -> runScriptTests(state, options, path)
+    | _ ->
+      printErr("test run takes one script, or test names and modules, not both")
+      Stdlib.printErrorLine(usage)
+      { state with exitCode = 1 }
   | Ok(options) ->
-    let fresh =
-      Stdlib.BigInt.random(Stdlib.BigInt.fromInt64(1), Stdlib.BigInt.fromInt64(9999999))
-      |> Stdlib.BigInt.toInt64
-      |> Stdlib.Option.withDefault(1)
-
-    let seed = Stdlib.Option.withDefault(options.seed, fresh)
+    let seed = Stdlib.Option.withDefault(options.seed, freshSeed())
     LanguageTools.PackageManager.Test.withStoreSnapshot(state.currentBranchId, seed, fun run ->
       runTestsInRun(run, state, options))
+
+
+/// Whether <param arg> names a script rather than a test: test names never end in `.dark`.
+let isScript(arg: String): Bool = Stdlib.String.endsWith(arg, ".dark")
+
+
+/// The module a script's tests are saved under while they run.
+val scriptModule = "Script"
+
+
+/// `dark test run todo.dark`: run the tests in a script with only its declarations in scope. No
+/// top-level statement runs. The declarations go into the current branch's draft under `Script`
+/// for the run, which runs them like stored tests (in this process when pure, else in a worker on
+/// the virtual clock) and never from the cache, and those ops are dropped after.
+let runScriptTests(state: AppState, options: RunOptions, path: String): AppState =
+  match Stdlib.Cli.File.readText(path) with
+  | Error(_) ->
+    printErr($"Can't read {path}")
+    { state with exitCode = 1 }
+  | Ok(source) ->
+    match LanguageTools.Parser.Parse.parse(LanguageTools.Parser.FileKind.Script, source) with
+    | (Some(SourceFile(sourceFile)), []) -> runScriptTestsIn(state, options, sourceFile)
+    | (_, diagnostics) ->
+      let _ = Errors.reportParseErrors(diagnostics)
+      { state with exitCode = 1 }
+
+
+let runScriptTestsIn(
+  state: AppState,
+  options: RunOptions,
+  sourceFile: LanguageTools.WrittenTypes.SourceFile.SourceFile)
+  : AppState =
+  let branchId = state.currentBranchId
+  let rootModule =
+    LanguageTools.WrittenTypes.ModuleDeclaration.ModuleDeclaration
+      { range = sourceFile.range
+        name = (sourceFile.range, scriptModule)
+        declarations =
+          sourceFile.declarations
+          |> Stdlib.List.map(LanguageTools.Parser.Parse.toModuleDeclaration)
+        keywordModule = sourceFile.range }
+
+  let ctx =
+    LanguageTools.NameResolver.NRContext
+      { onMissing = LanguageTools.NameResolver.OnMissing.Allow
+        pm = LanguageTools.PackageManager.pm()
+        branchId = branchId
+        owner = scriptModule
+        currentModule = [] }
+
+  let (ops, unresolvedNames) = LanguageTools.Parser.Parse.moduleToPackageOps(ctx, rootModule)
+  let locations =
+    ops
+    |> Stdlib.List.filterMap(fun op ->
+      match op with
+      | SetName(location, _, _) -> Option.Some(location)
+      | _ -> Option.None)
+
+  let taken =
+    locations
+    |> Stdlib.List.filter(fun location -> Stdlib.Option.isSome(Rename.referenceAt(branchId, location)))
+
+  if Stdlib.Bool.not(Stdlib.List.isEmpty(taken)) then
+    printErr($"`{scriptModule}` already holds names on this branch; a script's tests run under it")
+    { state with exitCode = 1 }
+  else if Errors.reportUnresolvedNames(branchId, [ scriptModule ], unresolvedNames) then
+    { state with exitCode = 1 }
+  else
+    let draftBefore =
+      SCM.PackageOps.draftEntriesFor(branchId) |> Stdlib.List.map(fun e -> e.id)
+
+    let result =
+      match SCM.PackageOps.addAuthored(branchId, ops) with
+      | Error(message) ->
+        printErr($"Couldn't save the script's declarations to run its tests: {message}")
+        { state with exitCode = 1 }
+      | Ok(_) ->
+        let options = { options with force = true, filters = [ scriptModule ] }
+        LanguageTools.PackageManager.Test.withStoreSnapshot(
+          branchId,
+          Stdlib.Option.withDefault(options.seed, freshSeed()),
+          fun run -> runTestsInRun(run, state, options))
+
+    let added =
+      SCM.PackageOps.draftEntriesFor(branchId)
+      |> Stdlib.List.map(fun e -> e.id)
+      |> Stdlib.List.filter(fun id -> Stdlib.Bool.not(Stdlib.List.contains(draftBefore, id)))
+
+    let _ = SCM.PackageOps.dropBranchOps(branchId, added)
+    result
+
+
+/// A seed for a run that was not given one.
+let freshSeed(): Int64 =
+  Stdlib.BigInt.random(Stdlib.BigInt.fromInt64(1), Stdlib.BigInt.fromInt64(9999999))
+  |> Stdlib.BigInt.toInt64
+  |> Stdlib.Option.withDefault(1)
 
 
 type RunOptions =
@@ -1085,8 +1184,13 @@ let help(_state: AppState): String =
     "`› name`. `--for <item>` keeps only the"
     "tests that use that item, directly or through other code."
     ""
+    "A path ending in `.dark` runs that script's tests: `test name = ...`"
+    "declarations in the file, which see its functions, types and `val`s but"
+    "none of its top-level statements. `dark run` skips them."
+    ""
     "Examples:"
     "  test run"
+    "  test run todo.dark"
     "  test run MyApp.Math"
     "  test run --force MyApp.Math.doubles"
     "  test count Darklang.Stdlib"

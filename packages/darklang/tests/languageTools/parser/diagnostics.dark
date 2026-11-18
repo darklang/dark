@@ -539,11 +539,9 @@ test namedTests =
         "module M =\n"
         + "  test divisionByZero raises \"Cannot divide by 0\" = 1 / 0")
 
-      // a script refuses a named test
+      // a script holds a named test too
       cleanPackage("test passes = true")
-      messages("test passes = true")
-      |> Stdlib.Test.equal(
-        [ "Named package tests are only allowed in package files" ]) ])
+      messages("test passes = true") |> Stdlib.Test.equal([]) ])
 
 
 // At a package root, a `let` value gets one focused diagnostic rather than an

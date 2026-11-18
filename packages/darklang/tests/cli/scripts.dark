@@ -141,3 +141,30 @@ module CallStack =
 
     PrettyPrinter.RuntimeTypes.executionPoint(SCM.Branch.mainBranchId, frame)
     |> Stdlib.Test.equal("Lambda 18446744073709551615")
+
+
+/// A script's tests run under `test run`, seeing its declarations and none of its statements;
+/// `run` skips them.
+test scriptTestsSeeDeclarationsOnly = Instance.withInstance(fun i ->
+  let path = $"{Instance.home(i)}/todo.dark"
+  let source =
+    [ "val factor = 2"
+      "let double(x: Int64): Int64 = x * factor"
+      "test doubles = Stdlib.Test.equal(double(4), 8)"
+      "test wrong = Stdlib.Test.equal(double(1), 3)"
+      "Stdlib.printLine(\"statement ran\")"
+      "0" ]
+    |> Stdlib.String.join("\n")
+
+  let _ = Stdlib.Cli.File.writeText(path, source)
+  let (testCode, tested) = Instance.ran(i, [ "test", "run", path ])
+  let (runCode, ran) = Instance.ran(i, [ "run", path ])
+  let (_, status) = Instance.ran(i, [ "status" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(testCode, 1, $"a test failed: {tested}")
+      Instance.says(tested, "PASS Script.doubles", "the passing test")
+      Instance.says(tested, "FAIL Script.wrong", "the failing test")
+      Instance.doesNotSay(tested, "statement ran", "no statement runs under test")
+      Instance.exitedWith(runCode, 0, $"run skips the tests: {ran}")
+      Instance.says(ran, "statement ran", "run runs the statements")
+      Instance.doesNotSay(status, "draft:", "nothing the run saved is left in the draft") ]))

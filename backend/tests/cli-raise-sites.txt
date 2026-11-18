@@ -38,6 +38,7 @@
 1 Darklang.Cli.Packages.ModuleCommand.execute Darklang.Stdlib.Cli.File.readText
 1 Darklang.Cli.Packages.Query.getDirectSubmodules Darklang.Stdlib.List.sort
 1 Darklang.Cli.Packages.Signatures.executeFiltered Darklang.Stdlib.List.sort
+1 Darklang.Cli.Packages.Test.runScriptTests Darklang.Stdlib.Cli.File.readText
 1 Darklang.Cli.Packages.Test.runSelected Darklang.Stdlib.Exec.select
 1 Darklang.Cli.Packages.Traversal.searchModulesByPrefix Darklang.Stdlib.List.sort
 1 Darklang.Cli.Packages.Typecheck.itemLabelIn Darklang.Stdlib.List.sort

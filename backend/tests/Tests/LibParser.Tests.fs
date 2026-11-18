@@ -462,19 +462,14 @@ let private validationTests =
             diagnostics
             (fun diagnostic -> diagnostic.code = packageExpressionCode)
             "package purpose diagnostic")
-      testCase "named tests are package declarations only" (fun _ ->
+      testCase "named tests are package and script declarations" (fun _ ->
         let source = "test passes = true"
         Expect.isOk
           (P.parseFor Validation.Package source)
           "package mode accepts a named test"
-        match P.parseFor Validation.Script source with
-        | Ok _ -> failtest "script mode accepted a named package test"
-        | Error diagnostics ->
-          Expect.exists
-            diagnostics
-            (fun diagnostic ->
-              diagnostic.code = Validation.IssueCode.toString Validation.TestMode)
-            "script purpose diagnostic")
+        Expect.isOk
+          (P.parseFor Validation.Script source)
+          "script mode accepts a named test")
       testCase "parseFor does not validate syntax-recovery trees" (fun _ ->
         let recoveryHoleCode = Validation.IssueCode.toString Validation.RecoveryHole
         match P.parseFor Validation.Script "let x =" with
