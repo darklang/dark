@@ -684,3 +684,68 @@ test misplacedAllowNoteOnlyOnFailure = Instance.withInstance(fun i ->
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 0, "succeeds")
       Instance.doesNotSay(out, "Flags for `run` go before the name", "no note") ]))
+
+
+/// The `dark run --allow` rules a function's process denial offers, pasted into a
+/// shell, allow what they say: the exact one that argv and no other, the wider one any.
+test processDenialHintsPasteIntoRun = Instance.withInstance(fun i ->
+  let source =
+    script(
+      i,
+      "hints.dark",
+      "let echo(arg: String): String =\n  match Stdlib.Cli.Process.run(\"echo\", [ \"it's\", arg ]) with\n  | Ok(out) -> out.stdout\n  | Error(e) -> e.message\n")
+
+  let authored = Instance.ran(i, [ "module", "Tests.ProcHints", source ])
+  let denied =
+    Instance.said(i, [ "eval", "Tests.ProcHints.echo(\"a b\")" ])
+    |> Stdlib.Cli.Tui.Text.stripSgr
+
+  // what `dark` receives when the `dark run --allow` hint after `label` is pasted
+  // into a shell
+  let pasted = fun label ->
+    let hint =
+      Stdlib.String.splitFirst(denied, label)
+      |> Stdlib.Option.andThen(fun((_, rest)) ->
+        Stdlib.String.splitFirst(rest, "dark run --allow "))
+      |> Stdlib.Option.andThen(fun((_, rest)) ->
+        Stdlib.String.splitFirst(rest, " …"))
+
+    match hint with
+    | None -> $"no hint after '{label}' in: {denied}"
+    | Some((quoted, _)) ->
+      let printf = "printf '%s' " + quoted
+      match Stdlib.Cli.Process.run("/bin/sh", [ "-c", printf ]) with
+      | Ok(out) -> out.stdout
+      | Error(e) -> e.message
+
+  let exact = pasted("For one run:")
+  let wider = pasted("this program with any arguments:")
+  let runWith = fun(rule, arg) ->
+    let call =
+      script(
+        i,
+        "call.dark",
+        $"Stdlib.printLine(Tests.ProcHints.echo(\"{arg}\"))\n")
+
+    Instance.ran(i, [ "run", "--allow", rule, call ])
+
+  let (exactCode, exactOut) = runWith(exact, "a b")
+  let (otherCode, otherOut) = runWith(exact, "a c")
+  let (widerCode, widerOut) = runWith(wider, "a c")
+  Stdlib.Test.all(
+    [ Instance.exitedWith(Stdlib.Tuple2.first(authored), 0, "the module saves")
+
+      Instance.exitedWith(
+        exactCode,
+        0,
+        $"`{exact}` allows its argv: {exactOut}")
+
+      Instance.says(exactOut, "it's a b", "and the program ran")
+      Instance.exitedWith(otherCode, 1, $"`{exact}` allows no other argv")
+      Instance.says(otherOut, "permission denied", "it is refused")
+      Instance.exitedWith(
+        widerCode,
+        0,
+        $"`{wider}` allows another argv: {widerOut}")
+
+      Instance.says(widerOut, "it's a c", "and the program ran") ]))
