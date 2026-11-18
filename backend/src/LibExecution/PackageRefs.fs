@@ -638,6 +638,8 @@ module Type =
     /// What `scmDeps` is asked, and what it answers with.
     let depQuery = p [ "SCM"; "Deps" ] "DepQuery"
     let depEdge = p [ "SCM"; "Deps" ] "DepEdge"
+    /// Why `pmDependents`, `pmNamedReferences` or `pmDependencyReview` could not answer.
+    let readError = p [ "SCM"; "Deps" ] "ReadError"
     /// What `scmBindings` is asked, and what it answers with.
     let bindingFilter = p [ "SCM"; "Bindings" ] "BindingFilter"
     let bindingRow = p [ "SCM"; "Bindings" ] "BindingRow"

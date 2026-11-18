@@ -11,7 +11,24 @@ open LibDB.ReferenceNames
 module PT = LibExecution.ProgramTypes
 module DE = DependencyExtractor
 
-let private storedNames = ReferenceNamesContent.storedNames
+/// Why a name-aware dependency read could not answer.
+type ReadError =
+  /// A caller's names need its stored body, and the body is gone.
+  | StoredDeclarationMissing
+
+/// Each target's stored names, or an error if any body is gone.
+let private originalsOf
+  (targets : List<PT.Reference>)
+  : Result<Map<PT.Reference, Names>, ReadError> =
+  let stored = ReferenceNamesContent.storedNamesEach targets
+  if stored |> List.exists (fun (_, names) -> Option.isNone names) then
+    Error StoredDeclarationMissing
+  else
+    stored
+    |> List.choose (fun (target, names) ->
+      names |> Option.map (fun names -> (target, names)))
+    |> Map.ofList
+    |> Ok
 
 let private asDependencies (names : Names) : List<DE.Dependency> =
   names
@@ -93,7 +110,7 @@ let dependents
   (state : State)
   (branch : PT.BranchId)
   (targets : List<Queries.LocationTarget>)
-  : List<Queries.LocationDependent> =
+  : Result<List<Queries.LocationDependent>, ReadError> =
   let hashes = Queries.getDependentHashesByTargets targets
   // The index still contains the original names. Include callers whose
   // saved reference names now point at one of the requested targets.
@@ -128,30 +145,19 @@ let dependents
   // Check ambiguous indexed names even when this branch has no saved metadata.
   // Another branch may have contributed aliases for the same shared body.
   let ambiguous = ambiguousHashes (hashes |> List.map Hash)
-  let batchDependents =
-    if Map.isEmpty state && Set.isEmpty ambiguous then
-      batchDependents
-    else
-      let affectedVersions = state |> Map.keys |> Seq.map snd |> Set.ofSeq
-      let targetOf (d : Queries.LocationDependent) =
-        PT.Reference.fromHashAndKind (d.itemHash, d.itemKind)
-      let needsBody (target : PT.Reference) =
-        Set.contains target affectedVersions || Set.contains target.hash ambiguous
-      let originals =
-        batchDependents
-        |> List.map targetOf
-        |> List.filter needsBody
-        |> List.distinct
-        |> List.map (fun target ->
-          let names = storedNames target
-          let names =
-            names
-            |> Option.defaultWith (fun () ->
-              Exception.raiseInternal
-                "Cannot read reference names: stored declaration is missing"
-                [])
-          (target, names))
-        |> Map.ofList
+  if Map.isEmpty state && Set.isEmpty ambiguous then
+    Ok batchDependents
+  else
+    let affectedVersions = state |> Map.keys |> Seq.map snd |> Set.ofSeq
+    let targetOf (d : Queries.LocationDependent) =
+      PT.Reference.fromHashAndKind (d.itemHash, d.itemKind)
+    let needsBody (target : PT.Reference) =
+      Set.contains target affectedVersions || Set.contains target.hash ambiguous
+    batchDependents
+    |> List.map targetOf
+    |> List.filter needsBody
+    |> originalsOf
+    |> Result.map (fun originals ->
       batchDependents
       |> List.filter (fun d ->
         let target = targetOf d
@@ -171,9 +177,7 @@ let dependents
                 match edge.location with
                 | Some loc -> loc = t.location
                 | None -> List.contains edge.hash t.hashes
-              edge.itemKind = t.itemKind && followsTarget)))
-
-  batchDependents
+              edge.itemKind = t.itemKind && followsTarget))))
 
 /// The bindings <param branch>'s view holds that also meet <param filter>, a condition on
 /// `visible` that may read <param keys> as `@keys`.
@@ -240,19 +244,11 @@ let private namedReferencesFrom
     Set.contains target affected || Set.contains target.hash ambiguous
   // A shared index can contain aliases from another branch. Read the body whenever
   // saved names or ambiguous aliases require it, once per content version.
-  let stored =
-    live
-    |> List.map snd
-    |> List.filter needsBody
-    |> ReferenceNamesContent.storedNamesEach
-  if stored |> List.exists (fun (_, names) -> Option.isNone names) then
-    Error "Cannot read reference names: stored declaration is missing"
-  else
-    let originals =
-      stored
-      |> List.choose (fun (target, names) ->
-        names |> Option.map (fun names -> (target, names)))
-      |> Map.ofList
+  live
+  |> List.map snd
+  |> List.filter needsBody
+  |> originalsOf
+  |> Result.map (fun originals ->
     live
     |> List.collect (fun (name, caller) ->
       let names =
@@ -263,8 +259,7 @@ let private namedReferencesFrom
       |> List.choose (fun (target, referenceName) ->
         referenceName
         |> Option.map (fun referenceName -> name, caller, target, referenceName)))
-    |> List.distinct
-    |> Ok
+    |> List.distinct)
 
 /// Explicit dependency reads still return edges; reviews filter them before crossing into Dark.
 let namedReferences branch sources =
@@ -392,7 +387,7 @@ let private reviewIndexed
     let fetchCallers
       (edges : List<NamedReference>, fetched : Set<Hash>)
       (names : List<PT.PackageLocation>)
-      : Result<List<NamedReference> * Set<Hash>, string> =
+      : Result<List<NamedReference> * Set<Hash>, ReadError> =
       use buffer = new System.IO.MemoryStream()
       use writer = new System.Text.Json.Utf8JsonWriter(buffer)
       writer.WriteStartArray()

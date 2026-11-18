@@ -83,6 +83,7 @@
 1 Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.toSegments Darklang.Stdlib.Int64.fromInt32
 1 Darklang.PrettyPrinter.RuntimeTypes.dvalWith Darklang.Stdlib.Pretty.render
 1 Darklang.PrettyPrinter.__escapeGrapheme Darklang.Stdlib.Int64.fromUInt32
+1 Darklang.SCM.Deps.dependentsFor Builtin.unwrap
 1 Darklang.SCM.PackageOps.readRevisionOps Builtin.unwrap
 1 Darklang.SCM.PartialCommit.stringGt Darklang.Stdlib.List.sort
 2 Darklang.Cli.Packages.Edit.execute Darklang.Stdlib.Cli.Dir.deleteRecursive
