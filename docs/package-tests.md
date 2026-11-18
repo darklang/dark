@@ -228,17 +228,18 @@ is built at run time, there is no source to show, so only the position is
 printed.
 
 `table(rows, check)` runs `check` on each row, and each row is its own test,
-named by its arguments after the test's name. A failing row shows the check's
-source, and a row that raises fails only itself:
+shown as a group named after the test, holding a test per row named by its
+arguments. A failing row shows the check's source, and a row that raises fails
+only itself:
 
 ```text
-PASS Demo.Tests.lengths("a", 1)
-FAIL Demo.Tests.lengths("abc", 4)
+PASS Demo.Tests.lengths › ("a", 1)
+FAIL Demo.Tests.lengths › ("abc", 4)
   Stdlib.String.length(s) |> Stdlib.Test.equal(n)
   expected 4, got 3
 ```
 
-A filter written with the arguments, as in `dark test run 'lengths("a", 1)'`,
+A filter written with the arguments, as in `dark test run 'lengths › ("a", 1)'`,
 runs the table and reports only that row. The table runs and caches as a whole,
 so a seeded rerun gives a row the same values.
 
@@ -253,14 +254,14 @@ test emptyInput = Stdlib.Test.group("parsing", Parser.parse("") |> Stdlib.Test.e
 
 `dark test run` shows it as `Demo.Tests › parsing › emptyInput`. A filter can name
 the group like a module, as `Demo.Tests.parsing` or `Demo.Tests › parsing`, and
-`dark test count` counts a group as a row of its own. The group is read from the
+`dark test count` counts a group as a row of its own, marked `› parsing`. The group is read from the
 stored body, so a cached test keeps it.
 
 ## Counting tests
 
 `dark test count [module]` prints how many tests are under a module and in each
 module below it, rolled up. A table over a list written out in place counts one
-test per row. With `--for <item>`, it counts only the tests that
+test per row, and shows as a group, `› lengths`. With `--for <item>`, it counts only the tests that
 use that function, type or value, directly or through other code, from the same
 dependents index as `dark deps --deep`.
 

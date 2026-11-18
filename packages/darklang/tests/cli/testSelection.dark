@@ -75,14 +75,25 @@ test countFindsWhatFilteringEveryTestWould =
       under([]) |> Stdlib.Test.equal(expected([])) ])
 
 
+test tableRowsShowAsAGroup =
+  Cli.Packages.Test.reported(
+    "Demo.Tests.halves",
+    Cli.Packages.Test.Outcome.Rows(
+      [ ("(4, 2)", Cli.Packages.Test.Outcome.Passed)
+        ("(6, 4)", Cli.Packages.Test.Outcome.Failed([ "expected 4, got 3" ])) ]))
+  |> Stdlib.List.map(fun((name, _)) -> name)
+  |> Stdlib.Test.equal([ "Demo.Tests.halves › (4, 2)", "Demo.Tests.halves › (6, 4)" ])
+
+
 test aFilterWithArgumentsPicksOneRow =
   let path = "Darklang.Demo.Tests.lengths"
   let picks = fun filter ->
-    [ path + "(\"a\", 1)", path + "(\"b\", 2)" ]
+    [ path + " › (\"a\", 1)", path + " › (\"b\", 2)" ]
     |> Stdlib.List.filter(fun name -> Cli.Packages.Test.rowSelected([ filter ], path, name))
 
   Stdlib.Test.all(
     [ picks("Demo.Tests.lengths") |> Stdlib.List.length |> Stdlib.Test.equal(2)
-      picks("lengths(\"b\", 2)") |> Stdlib.Test.equal([ path + "(\"b\", 2)" ])
-      picks("lengths(\"c\", 3)") |> Stdlib.Test.equal([])
+      picks("lengths › (\"b\", 2)") |> Stdlib.Test.equal([ path + " › (\"b\", 2)" ])
+      picks("lengths(\"b\", 2)") |> Stdlib.Test.equal([ path + " › (\"b\", 2)" ])
+      picks("lengths › (\"c\", 3)") |> Stdlib.Test.equal([])
       Cli.Packages.Test.selects("Tests.lengths(\"a.b\", 1)", path) |> Stdlib.Test.equal(true) ])

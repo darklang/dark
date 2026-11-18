@@ -11,15 +11,15 @@ type Outcome =
   | Passed
   | Failed(messages: List<String>)
   | RuntimeFailed(message: String)
-  /// A `Stdlib.Test.table`: each row is its own test, named by its arguments.
+  /// A `Stdlib.Test.table`: each row is its own test, in a group named after the test.
   | Rows(rows: List<(String * Outcome)>)
 
 
 /// The tests <param outcome> reports, each as its name and how it went: one per
-/// table row, after <param name>, or the test itself.
+/// table row, as `name › (args)`, or the test itself.
 let reported(name: String, outcome: Outcome): List<(String * Outcome)> =
   match outcome with
-  | Rows(rows) -> Stdlib.List.map(rows, fun((args, row)) -> (name + args, row))
+  | Rows(rows) -> Stdlib.List.map(rows, fun((args, row)) -> ($"{name} › {args}", row))
   | _ -> [ (name, outcome) ]
 
 
@@ -162,7 +162,7 @@ let filterSegments(filter: String): List<String> =
   |> Stdlib.List.filter(fun seg -> seg != "")
 
 
-/// <param filter> up to a table row's arguments: `lengths` of `lengths("a", 1)`.
+/// <param filter> up to a table row's arguments: `lengths › ` of `lengths › ("a", 1)`.
 let testPart(filter: String): String =
   match Stdlib.String.indexOf(filter, "(") with
   | Some(at) -> Stdlib.String.first(filter, at)
@@ -171,14 +171,14 @@ let testPart(filter: String): String =
 
 /// Whether <param filters> keep the test <param name> reports for the test at
 /// <param path>: any filter that selects the test, unless it names a table row,
-/// as in `lengths("a", 1)`, and <param name> is another one.
+/// as in `lengths › ("a", 1)` or `lengths("a", 1)`, and <param name> is another one.
 let rowSelected(filters: List<String>, path: String, name: String): Bool =
   Stdlib.List.isEmpty(filters)
   || Stdlib.List.any(filters, fun f ->
     let test = testPart(f)
     selects(test, path)
     && (test == f
-        || name == path + Stdlib.String.dropFirst(f, Stdlib.String.length(test))))
+        || name == $"{path} › {Stdlib.String.dropFirst(f, Stdlib.String.length(test))}"))
 
 
 /// The actual judging function, including its followed dependencies, and the
@@ -514,7 +514,7 @@ type FinishedTest =
 
 
 /// <param filters> pick rows too: one with an argument list, as in
-/// `lengths("a", 1)`, keeps only the row of that name.
+/// `lengths › ("a", 1)`, keeps only the row of that name.
 let finishTest(
   cache: Option<CacheContext>,
   options: RunOptions,
@@ -914,10 +914,22 @@ let deepestShared(prefix: List<String>, tests: List<(List<String> * Int64)>): Li
 
 
 /// Print the total for <param heading>, then a row per entry of `countRows`
-/// below the deepest module all of <param tests> share.
-let printCounts(heading: String, prefix: List<String>, tests: List<(List<String> * Int64)>): Unit =
+/// below the deepest module all of <param tests> share. A row for one of
+/// <param groups>, a `Stdlib.Test.group` or a table, is marked `› name`.
+let printCounts(
+  heading: String,
+  prefix: List<String>,
+  tests: List<(List<String> * Int64)>,
+  groups: List<List<String>>)
+  : Unit =
   let shared = deepestShared(prefix, tests)
-  let rows = countRows(shared, tests)
+  let rows =
+    countRows(shared, tests)
+    |> Stdlib.List.map(fun r ->
+      if Stdlib.List.contains(groups, Stdlib.List.append(shared, r.name)) then
+        { r with name = $"› {r.name}" }
+      else
+        r)
   let below = if shared == prefix then "" else $" (all in {Stdlib.String.join(shared, ".")})"
   Stdlib.printLine($"{heading}: {countLine(total(tests))}{below}")
   let width = Stdlib.List.fold(rows, 0, fun(w, r) ->
@@ -927,6 +939,28 @@ let printCounts(heading: String, prefix: List<String>, tests: List<(List<String>
   rows
   |> Stdlib.List.iter(fun r ->
     Stdlib.printLine($"  {Stdlib.String.padEnd(r.name, ' ', width)}  {countLine(r.tests)}"))
+
+
+/// The full names of the groups among <param items>: each `Stdlib.Test.group`, and
+/// each table, whose rows `test run` shows as a group.
+let countGroups(
+  items:
+    List<
+    (List<String> *
+     LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>)>)
+  : List<List<String>> =
+  items
+  |> Stdlib.List.map(fun((path, item)) ->
+    let body = item.entity.body
+    let group =
+      match LanguageTools.PackageManager.Test.testGroup(body) with
+      | Some(_) -> [ Stdlib.List.dropLast(path) ]
+      | None -> []
+
+    let table = if LanguageTools.PackageManager.Test.isTable(body) then [ path ] else []
+    Stdlib.List.concat(group, table))
+  |> Stdlib.List.flatten
+  |> Stdlib.List.unique
 
 
 /// `test count [--for <item>] [module]`: how many tests are in
@@ -957,10 +991,13 @@ let countTests(state: AppState, args: List<String>): AppState =
       | _ -> []
 
     let depth = Stdlib.List.length(prefix)
+    let items = testItemsUnder(branchId, prefix)
     let under =
-      testItemsUnder(branchId, prefix)
+      items
       |> Stdlib.List.map(fun((path, item)) ->
         (path, LanguageTools.PackageManager.Test.testCount(item.entity.body)))
+
+    let groups = countGroups(items)
 
     let place = if depth == 0 then "All tests" else Stdlib.String.join(prefix, ".")
     match forItem with
@@ -969,7 +1006,7 @@ let countTests(state: AppState, args: List<String>): AppState =
         printErr($"No package tests under {place}.")
         { state with exitCode = 1 }
       else
-        printCounts(place, prefix, under)
+        printCounts(place, prefix, under, groups)
         state
     | Some(item) ->
       match Deps.resolvePath(branchId, state.packageData.currentLocation, item) with
@@ -1001,7 +1038,7 @@ let countTests(state: AppState, args: List<String>): AppState =
             else
               $"Tests in {place} that use {name}"
 
-          printCounts(heading, prefix, using)
+          printCounts(heading, prefix, using, groups)
           state
 
 
@@ -1040,11 +1077,12 @@ let help(_state: AppState): String =
     "position and source. `test emptyInput = Stdlib.Test.group(\"parsing\", ...)`"
     "puts a test in a group: it shows as `Module › parsing › emptyInput`, and"
     "a filter can name the group, as in `Tests.parsing`. Each row of a"
-    "`Stdlib.Test.table(rows, check)` is its own test, named by its arguments,"
-    "as in `lengths(\"a\", 1)`; a filter written that way runs the table and"
-    "keeps only that row."
+    "`Stdlib.Test.table(rows, check)` is its own test, in a group named after the"
+    "test, as in `lengths › (\"a\", 1)`; a filter written that way runs the table"
+    "and keeps only that row."
     "`test count` shows how many tests a module and each"
-    "module under it hold, without running anything. `--for <item>` keeps only the"
+    "module under it hold, without running anything; a group or table shows as"
+    "`› name`. `--for <item>` keeps only the"
     "tests that use that item, directly or through other code."
     ""
     "Examples:"

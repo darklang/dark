@@ -6,19 +6,28 @@ let row(name: String, tests: Int64): Cli.Packages.Test.CountRow =
 
 
 test rowsPerSubmoduleOrPerTest =
+  let one = fun path -> (path, 1)
   Stdlib.Test.all(
-    [ Cli.Packages.Test.countRows([ "A" ], [ [ "A", "y" ], [ "A", "x" ] ])
+    [ Cli.Packages.Test.countRows([ "A" ], [ one([ "A", "y" ]), one([ "A", "x" ]) ])
       |> Stdlib.Test.equal([ row("x", 1), row("y", 1) ])
 
       Cli.Packages.Test.countRows(
         [ "A" ],
-        [ [ "A", "x" ], [ "A", "B", "y" ], [ "A", "B", "z" ], [ "A", "C", "D", "w" ] ])
+        [ one([ "A", "x" ])
+          one([ "A", "B", "y" ])
+          one([ "A", "B", "z" ])
+          one([ "A", "C", "D", "w" ]) ])
       |> Stdlib.Test.equal([ row("B", 2), row("C", 1), row("(tests in this module)", 1) ])
 
-      Cli.Packages.Test.deepestShared([ "A" ], [ [ "A", "T", "x" ], [ "A", "T", "U", "y" ] ])
+      Cli.Packages.Test.countRows([ "A" ], [ ([ "A", "B", "t" ], 3), one([ "A", "B", "u" ]) ])
+      |> Stdlib.Test.equal([ row("B", 4) ])
+
+      Cli.Packages.Test.deepestShared(
+        [ "A" ],
+        [ one([ "A", "T", "x" ]), one([ "A", "T", "U", "y" ]) ])
       |> Stdlib.Test.equal([ "A", "T" ])
 
-      Cli.Packages.Test.deepestShared([ "A" ], [ [ "A", "x" ], [ "A", "T", "y" ] ])
+      Cli.Packages.Test.deepestShared([ "A" ], [ one([ "A", "x" ]), one([ "A", "T", "y" ]) ])
       |> Stdlib.Test.equal([ "A" ]) ])
 
 

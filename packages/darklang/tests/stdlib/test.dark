@@ -142,6 +142,14 @@ test tableFixture =
   |> Stdlib.Test.table(fun((s, n)) -> Stdlib.String.length(s) |> Stdlib.Test.equal(n))
 
 
+test groupedTableFixture =
+  Stdlib.Test.group(
+    "lengths",
+    [ ("a", 1), ("ab", 2), ("abc", 3) ]
+    |> Stdlib.Test.table(fun((s, n)) ->
+      Stdlib.String.length(s) |> Stdlib.Test.equal(n)))
+
+
 let fixtureBody(name: String): Option<LanguageTools.ProgramTypes.Expr> =
   LanguageTools.PackageManager.Test.find(
     SCM.Branch.mainBranchId,
@@ -243,3 +251,26 @@ test rowFailureLines =
         fixtureBody("shownFixture")
         |> Stdlib.Option.map(LanguageTools.PackageManager.Test.testCount)
         |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1)) ])
+
+
+test groupedTableRows =
+  match fixtureBody("groupedTableFixture") with
+  | None -> Stdlib.Test.fail("groupedTableFixture is not stored")
+  | Some(body) ->
+    let ctx =
+      PrettyPrinter.ProgramTypes.Context.forModule(
+        SCM.Branch.mainBranchId,
+        [ "Darklang", "Stdlib", "Test", "Tests" ])
+
+    // A table inside a group still counts and explains its rows.
+    Stdlib.Test.all(
+      [ LanguageTools.PackageManager.Test.testCount(body)
+        |> Stdlib.Test.equal(3)
+
+        LanguageTools.PackageManager.Test.rowFailureLines(
+          ctx,
+          body,
+          Stdlib.Test.Result.Fail([ "expected 3, got 2" ]))
+        |> Stdlib.Test.equal(
+          [ "Stdlib.String.length(s) |> Stdlib.Test.equal(n)"
+            "expected 3, got 2" ]) ])
