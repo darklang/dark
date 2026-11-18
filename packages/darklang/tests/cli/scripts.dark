@@ -168,3 +168,65 @@ test scriptTestsSeeDeclarationsOnly = Instance.withInstance(fun i ->
       Instance.exitedWith(runCode, 0, $"run skips the tests: {ran}")
       Instance.says(ran, "statement ran", "run runs the statements")
       Instance.doesNotSay(status, "draft:", "nothing the run saved is left in the draft") ]))
+
+
+/// A script test that reaches a top-level `let` through a function below it, directly or through
+/// a chain of them, or calls a function below the `let` at all, is refused before any test or
+/// statement runs.
+test scriptTestUsesLet = Instance.withInstance(fun i ->
+  let path = $"{Instance.home(i)}/sales.dark"
+  let source =
+    [ "test totalForEast = Stdlib.Test.equal(total(\"east\"), 120)"
+      "test countsRows = Stdlib.Test.equal(count(), 1)"
+      "test greets = Stdlib.Test.equal(greet(), \"hi\")"
+      "let rows = [ 120 ]"
+      "let total(region: String): Int64 = Stdlib.List.length(rows)"
+      "let size(): Int64 = Stdlib.List.length(rows)"
+      "let count(): Int64 = size()"
+      "let greet(): String = \"hi\""
+      "Stdlib.printLine(\"statement ran\")" ]
+    |> Stdlib.String.join("\n")
+
+  let _ = Stdlib.Cli.File.writeText(path, source)
+  let (code, out) = Instance.ran(i, [ "test", "run", path ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 1, $"refused: {out}")
+      Instance.says(
+        out,
+        "error[SCRIPT-TEST-USES-LET] at 1:39: `totalForEast` calls `total`, which uses the top-level `let rows` on line 4.\n  hint: make it a `val` if it's a constant, or pass it to `total` as an argument",
+        "the direct call")
+      Instance.says(
+        out,
+        "error[SCRIPT-TEST-USES-LET] at 2:37: `countsRows` calls `count`, which calls `size`, which uses the top-level `let rows` on line 4.\n  hint: make it a `val` if it's a constant, or pass it to `size` as an argument",
+        "the call through another function")
+      Instance.says(
+        out,
+        "error[SCRIPT-TEST-BELOW-LET] at 3:33: `greets` calls `greet`, which is defined below the top-level `let rows` on line 4.\n  hint: move `greet` above line 4",
+        "the call to a function below the let that doesn't use it")
+      Instance.doesNotSay(out, "PASS", "no test runs")
+      Instance.doesNotSay(out, "statement ran", "no statement runs") ]))
+
+
+/// A test that uses only functions and `val`s still runs when a top-level `let` sits below it,
+/// even through a lambda parameter named like the `let`.
+test scriptTestAboveLetRuns = Instance.withInstance(fun i ->
+  let path = $"{Instance.home(i)}/size.dark"
+  let source =
+    [ "val factor = 2"
+      "let double(x: Int64): Int64 = x * factor"
+      "test doubles = Stdlib.Test.equal(double(4), 8)"
+      "test shadows = Stdlib.Test.equal(Stdlib.List.map([ 1 ], fun rows -> rows), [ 1 ])"
+      "let rows = [ 1, 2 ]"
+      "let size(): Int64 = Stdlib.List.length(rows)"
+      "Stdlib.printLine(Stdlib.display(size()))" ]
+    |> Stdlib.String.join("\n")
+
+  let _ = Stdlib.Cli.File.writeText(path, source)
+  let (testCode, tested) = Instance.ran(i, [ "test", "run", path ])
+  let (runCode, ran) = Instance.ran(i, [ "run", path ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(testCode, 0, $"the tests pass: {tested}")
+      Instance.says(tested, "PASS Script.doubles", "the function and val test")
+      Instance.says(tested, "PASS Script.shadows", "the lambda parameter test")
+      Instance.exitedWith(runCode, 0, $"run still works: {ran}")
+      Instance.says(ran, "2", "run uses the let") ]))

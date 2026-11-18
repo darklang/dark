@@ -484,10 +484,37 @@ let runScriptTests(state: AppState, options: RunOptions, path: String): AppState
     { state with exitCode = 1 }
   | Ok(source) ->
     match LanguageTools.Parser.Parse.parse(LanguageTools.Parser.FileKind.Script, source) with
-    | (Some(SourceFile(sourceFile)), []) -> runScriptTestsIn(state, options, sourceFile)
+    | (Some(SourceFile(sourceFile)), []) ->
+      match LanguageTools.ScriptTests.belowLet(sourceFile) with
+      | [] -> runScriptTestsIn(state, options, sourceFile)
+      | belowLet ->
+        Stdlib.List.iter(belowLet, fun b -> Stdlib.printErrorLine(belowLetText(b)))
+        { state with exitCode = 1 }
     | (_, diagnostics) ->
       let _ = Errors.reportParseErrors(diagnostics)
       { state with exitCode = 1 }
+
+
+/// A script test that uses a top-level `let` or calls a function below the first one, as a
+/// diagnostic with a hint.
+let belowLetText(b: LanguageTools.ScriptTests.BelowLet): String =
+  let at = $"{Stdlib.display(b.range.start.row + 1)}:{Stdlib.display(b.range.start.column + 1)}"
+  let letLine = Stdlib.display(b.letLine)
+  if b.usesLet then
+    let calls =
+      b.calls
+      |> Stdlib.List.map(fun c -> $"calls `{c}`, which ")
+      |> Stdlib.String.join("")
+
+    let passTo =
+      match Stdlib.List.last(b.calls) with
+      | Some(fn) -> $", or pass it to `{fn}` as an argument"
+      | None -> ""
+
+    $"error[SCRIPT-TEST-USES-LET] at {at}: `{b.test}` {calls}uses the top-level `let {b.letName}` on line {letLine}.\n  hint: make it a `val` if it's a constant{passTo}"
+  else
+    let fn = Stdlib.String.join(b.calls, "")
+    $"error[SCRIPT-TEST-BELOW-LET] at {at}: `{b.test}` calls `{fn}`, which is defined below the top-level `let {b.letName}` on line {letLine}.\n  hint: move `{fn}` above line {letLine}"
 
 
 let runScriptTestsIn(
