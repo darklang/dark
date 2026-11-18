@@ -240,16 +240,30 @@ let fnName(branchId: Uuid, t: LanguageTools.RuntimeTypes.FQFnName.FQFnName): Str
 
 /// A call frame, using the function's name when it is available.
 let executionPoint(branchId: Uuid, point: LanguageTools.RuntimeTypes.ExecutionPoint): String =
+  executionPointAt(branchId, point, [])
+
+
+/// <fn executionPoint>, with a lambda labelled by the line it starts on when <param lambdaLines>
+/// (node id, line) has it.
+let executionPointAt(
+  branchId: Uuid,
+  point: LanguageTools.RuntimeTypes.ExecutionPoint,
+  lambdaLines: List<(UInt64 * Int64)>)
+  : String =
   match point with
   | Source -> "Source"
   | Lambda(_, expressionId, writtenIn) ->
-    // Named after the fn it is written in, not the fn that called it. The id tells
-    // two lambdas in one fn apart.
-    let id = Stdlib.display(expressionId)
+    // Named after the fn it is written in, not the fn that called it. The line, or else the
+    // id, tells two lambdas in one fn apart; a script's ids are new on every parse.
+    let where =
+      match Stdlib.List.findFirst(lambdaLines, fun((id, _)) -> id == expressionId) with
+      | Some((_, line)) -> $"line {Stdlib.display(line)}"
+      | None -> Stdlib.display(expressionId)
+
     match writtenIn with
-    | Some(Function(name)) -> $"Lambda in {fnName(branchId, name)} ({id})"
-    | Some(Source) -> $"Lambda in Source ({id})"
-    | _ -> $"Lambda {id}"
+    | Some(Function(name)) -> $"Lambda in {fnName(branchId, name)} ({where})"
+    | Some(Source) -> $"Lambda in Source ({where})"
+    | _ -> $"Lambda {where}"
   | Function(name) ->
     match name with
     | Package(_) -> $"Package Function {fnName(branchId, name)}"
@@ -259,6 +273,15 @@ let executionPoint(branchId: Uuid, point: LanguageTools.RuntimeTypes.ExecutionPo
 
 /// Show the stack in call order, grouping consecutive identical frames.
 let callStack(branchId: Uuid, frames: List<LanguageTools.RuntimeTypes.ExecutionPoint>): String =
+  callStackAt(branchId, frames, [])
+
+
+/// <fn callStack>, with lambdas labelled by line (see <fn executionPointAt>).
+let callStackAt(
+  branchId: Uuid,
+  frames: List<LanguageTools.RuntimeTypes.ExecutionPoint>,
+  lambdaLines: List<(UInt64 * Int64)>)
+  : String =
   let label(frame: String, count: Int64): String =
     if count == 1 then frame else $"{frame} (×{Stdlib.display(count)})"
 
@@ -277,7 +300,7 @@ let callStack(branchId: Uuid, frames: List<LanguageTools.RuntimeTypes.ExecutionP
         group(rest, head, 1, Stdlib.List.prepend(lines, label(current, count)))
 
   let lines =
-    match Stdlib.List.map(frames, fun frame -> executionPoint(branchId, frame)) with
+    match Stdlib.List.map(frames, fun frame -> executionPointAt(branchId, frame, lambdaLines)) with
     | [] -> []
     | [head, ...rest] -> group(rest, head, 1, [])
 

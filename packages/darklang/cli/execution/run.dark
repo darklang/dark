@@ -25,6 +25,7 @@ let exitCode(value: LanguageTools.RuntimeTypes.Dval): Result<Int64, ExecutionErr
       ExecutionError.ExecutionError.Runtime(
         LanguageTools.RuntimeTypes.RuntimeError.Error.CLI(
           LanguageTools.RuntimeTypes.RuntimeError.CLIs.Error.NonIntReturned(value)),
+        [],
         []))
 
 
