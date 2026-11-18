@@ -10,10 +10,20 @@ test shellQuote =
 
       Stdlib.Cli.Process.shellQuote("") |> Stdlib.Test.equal("''")
 
-      Stdlib.Cli.Process.shellQuote("it's") |> Stdlib.Test.equal("'it'\\''s'")
+      Stdlib.Cli.Process.shellQuote("it's") |> Stdlib.Test.equal("\"it's\"")
 
-      Stdlib.Cli.Process.shellQuote("a'b'c")
-      |> Stdlib.Test.equal("'a'\\''b'\\''c'")
+      Stdlib.Cli.Process.shellQuote("a'b'c") |> Stdlib.Test.equal("\"a'b'c\"")
+
+      Stdlib.Cli.Process.shellQuote("it's $HOME")
+      |> Stdlib.Test.equal("'it'\\''s $HOME'")
+
+      Stdlib.Cli.Process.shellQuote("say \"it's\"")
+      |> Stdlib.Test.equal("'say \"it'\\''s\"'")
+
+      Stdlib.Cli.Process.shellQuote("it's!") |> Stdlib.Test.equal("'it'\\''s!'")
+
+      Stdlib.Cli.Process.shellQuote("it's\\n")
+      |> Stdlib.Test.equal("'it'\\''s\\n'")
 
       Stdlib.Cli.Process.shellQuote("no-special")
       |> Stdlib.Test.equal("'no-special'")
@@ -34,6 +44,20 @@ test shellQuote =
 
       Stdlib.Cli.Process.shellQuote("`backtick`")
       |> Stdlib.Test.equal("'`backtick`'") ])
+
+
+// whichever quotes it picks, the shell reads the word back unchanged
+test shellQuoteRoundTrips =
+  let words =
+    [ "plain", "it's", "file read '/x/y.json'", "a'b'c", "it's $HOME", "say \"it's\"",
+      "it's!", "back\\slash's", "`cmd`'s", "", "two  spaces", "'" ]
+  words
+  |> Stdlib.List.map(fun w ->
+    let script = "printf %s " + Stdlib.Cli.Process.shellQuote(w)
+    match Stdlib.Cli.Process.run("/bin/sh", [ "-c", script ]) with
+    | Ok(output) -> output.stdout
+    | Error(_) -> "<failed>")
+  |> Stdlib.Test.equal(words)
 
 
 // A child on this process's own terminal still hands back its exit code.

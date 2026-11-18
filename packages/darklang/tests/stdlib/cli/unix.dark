@@ -9,7 +9,7 @@ test quote =
       |> Stdlib.Test.equal("'/Users/Jo Smith/.darklang'")
 
       Stdlib.Cli.Unix.quote("/home/o'brien")
-      |> Stdlib.Test.equal("'/home/o'\\''brien'")
+      |> Stdlib.Test.equal("\"/home/o'brien\"")
 
       Stdlib.Cli.Unix.quote("-rf") |> Stdlib.Test.equal("'-rf'")
 

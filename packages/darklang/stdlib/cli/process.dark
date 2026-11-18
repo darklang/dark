@@ -77,11 +77,18 @@ let outputText(output: BytesOutput): Output =
       stderr = Utf8.decodeWithReplacement(output.stderr) }
 
 
-/// Escape a string for safe use inside single quotes in a shell command.
-/// Replaces ' with '\'' (end quote, escaped quote, start quote).
+/// <param s> as one shell word: in single quotes, or, when <param s> has a single quote
+/// and nothing that expands in double quotes, in double quotes, which reads better than
+/// `'\''`.
 let shellQuote(s: String): String =
-  let escaped = String.replaceAll(s, "'", "'\\''")
-  $"'{escaped}'"
+  let expands =
+    String.toList(s)
+    |> List.any(fun c -> c == '"' || c == '$' || c == '`' || c == '\\' || c == '!')
+  if String.contains(s, "'") && Bool.not(expands) then
+    "\"" + s + "\""
+  else
+    let escaped = String.replaceAll(s, "'", "'\\''")
+    $"'{escaped}'"
 
 
 /// Spawn <param program> directly (no shell), wait for it, and return
