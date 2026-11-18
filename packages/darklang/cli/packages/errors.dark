@@ -304,6 +304,26 @@ let operatorSuggestion(branchId: Uuid, originalName: List<String>): Option<Strin
       if implemented then Option.Some(written) else Option.None
 
 
+/// The overflow-checked function next to an operator's name, when its module has one:
+/// `Stdlib.Int64.add` is `+`, which wraps, or `Stdlib.Int64.checkedAdd`, which says so.
+let checkedSibling(branchId: Uuid, originalName: List<String>): List<String> =
+  match splitLast(originalName) with
+  | None -> []
+  | Some((modules, name)) ->
+    match operatorOfName(name) with
+    | None -> []
+    | Some((_, methodName, _)) ->
+      let checked = "checked" + Stdlib.String.capitalize(methodName)
+      closestNameModules(modules)
+      |> Stdlib.List.filterMap(fun((written, location)) ->
+        let (_, _, _, fns, _, _, _) = Query.allDirectDescendantNames(branchId, location)
+        if Stdlib.List.contains(fns, checked) then
+          Option.Some(Stdlib.String.join(Stdlib.List.append(written, checked), "."))
+        else
+          Option.None)
+      |> Stdlib.List.take(1)
+
+
 /// The same name one module further down: `Stdlib.Http.header` is `Stdlib.Http.Request.header`.
 let namesOneModuleDown(branchId: Uuid, originalName: List<String>): List<String> =
   match splitLast(originalName) with
@@ -332,7 +352,8 @@ let didYouMean(branchId: Uuid, originalName: List<String>): List<String> =
   | Some(name) -> [ name ]
   | None ->
     match operatorSuggestion(branchId, originalName) with
-    | Some(written) -> [ written ]
+    | Some(written) ->
+      Stdlib.List.concat([ written ], checkedSibling(branchId, originalName))
     | None ->
       match namesOneModuleDown(branchId, originalName) with
       | [] -> closestNames(branchId, originalName)
