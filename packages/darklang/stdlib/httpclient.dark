@@ -67,8 +67,10 @@ let toString(e: RequestError): String =
     match details with
     | UnsupportedProtocol -> "Unsupported protocol"
     | InvalidHost -> "Invalid host"
-    | Loopback -> "This machine (loopback) is blocked; `dark config set http.loopback on` lets code reach it"
-    | PrivateNetwork -> "Private network addresses are blocked; `dark config set http.private on` lets code reach them"
+    | Loopback ->
+      "This machine (loopback) is blocked; `dark config set http.loopback on` lets code reach it"
+    | PrivateNetwork ->
+      "Private network addresses are blocked; `dark config set http.private on` lets code reach them"
     | InvalidUri -> "Invalid URI"
     | InvalidRequest -> "Invalid request"
   | Timeout -> "Timeout"

@@ -724,9 +724,9 @@ test moduloRejectsMinusOne =
 
 test sqrt =
   Stdlib.Test.all(
-    [ Stdlib.Int16.sqrt(4s16) |> Stdlib.Test.equal(2.0)
-      Stdlib.Int16.sqrt(86s16) |> Stdlib.Test.equal(9.273618495495704)
-      Stdlib.Int16.sqrt(32767s16) |> Stdlib.Test.equal(181.01657382681842) ])
+    [ Stdlib.Int16.sqrt(4) |> Stdlib.Test.equal(2.0)
+      Stdlib.Int16.sqrt(86) |> Stdlib.Test.equal(9.273618495495704)
+      Stdlib.Int16.sqrt(32767) |> Stdlib.Test.equal(181.01657382681842) ])
 
 
 test checkedSqrt =

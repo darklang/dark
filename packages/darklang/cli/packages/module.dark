@@ -252,7 +252,7 @@ let define(state: AppState, modulePath: String, source: String, caller: Caller):
             Stdlib.printLine(
               $"{glyph} Defined {Stdlib.display(count)} {what} in {modulePath}{docNote}")
 
-            AtRestCheck.printUnresolvedTraitCalls(authored.unresolvedTraitCalls, 0u64)
+            AtRestCheck.printUnresolvedTraitCalls(authored.unresolvedTraitCalls, 0)
 
             // main's at-rest type check reports on every save; keep it ahead of propagation
             // so a type error is on screen before anything follows the change.
@@ -282,10 +282,15 @@ let define(state: AppState, modulePath: String, source: String, caller: Caller):
             let shown = Stdlib.String.join(home, ".")
             let left =
               if caller == Caller.Command then leftOver(branchId, home, definedNames) else []
+
             match left with
             | [] -> ()
             | [(kind, name), ...] ->
-              let names = left |> Stdlib.List.map(fun((_, n)) -> n) |> Stdlib.String.join(", ")
+              let names =
+                left
+                |> Stdlib.List.map(fun((_, n)) -> n)
+                |> Stdlib.String.join(", ")
+
               Stdlib.printErrorLine(
                 Stdlib.Cli.UI.Colors.hint(
                   $"  still in {shown} from an earlier save: {names}\n"

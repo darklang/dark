@@ -696,7 +696,7 @@ module UInt8 =
 
           Stdlib.Json.parse<UInt8>("0.0") |> Stdlib.Test.equal(Result.Ok(0))
 
-          Stdlib.Json.parse<UInt8>("-0.0") |> Stdlib.Test.equal(Result.Ok(0u8))
+          Stdlib.Json.parse<UInt8>("-0.0") |> Stdlib.Test.equal(Result.Ok(0))
 
           Stdlib.Json.parse<UInt8>("1.2E2") |> Stdlib.Test.equal(Result.Ok(120))
 

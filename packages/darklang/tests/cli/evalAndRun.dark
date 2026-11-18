@@ -683,7 +683,10 @@ test misplacedAllowNoteOnlyOnFailure = Instance.withInstance(fun i ->
   let (code, out) = Instance.ran(i, [ "run", path, "--allow", "env-read HOME" ])
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 0, "succeeds")
-      Instance.doesNotSay(out, "Flags for `run` go before the name", "no note") ]))
+      Instance.doesNotSay(
+        out,
+        "Flags for `run` go before the name",
+        "no note") ]))
 
 
 /// The `dark run --allow` rules a function's process denial offers, pasted into a
@@ -761,8 +764,13 @@ test scriptLambdaFramesGiveTheirLines = Instance.withInstance(fun i ->
   let (code, out) = Instance.ran(i, [ "run", path ])
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "boom fails")
-      Instance.says(out, "- Lambda in Source (line 2)\n", "the top-level expression")
+      Instance.says(
+        out,
+        "- Lambda in Source (line 2)\n",
+        "the top-level expression")
+
       Instance.says(out, "- Lambda in Source (line 4)\n", "the outer lambda")
+
       Instance.says(out, "- Lambda in Source (line 5)\n", "the inner lambda")
       Instance.doesNotSay(out, "(×", "no lambdas merged") ]))
 
@@ -782,7 +790,10 @@ test evalAllowGrantsForOneEvaluation = Instance.withInstance(fun i ->
   let _ = Instance.ran(i, [ "module", "/Me.Reader", source ])
   let call = $"Me.Reader.size(\"{target}\")"
   let (deniedCode, _) = Instance.ran(i, [ "eval", call ])
-  let (code, out) = Instance.ran(i, [ "eval", "--allow", $"file read {dir}", call ])
+
+  let (code, out) =
+    Instance.ran(i, [ "eval", "--allow", $"file read {dir}", call ])
+
   let (againCode, _) = Instance.ran(i, [ "eval", call ])
   Stdlib.Test.all(
     [ Instance.exitedWith(deniedCode, 1, "denied without --allow")

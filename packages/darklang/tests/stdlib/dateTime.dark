@@ -806,7 +806,7 @@ test fieldsIn1970 =
       Stdlib.DateTime.minute(d("1970-07-28T22:42:36Z")) |> Stdlib.Test.equal(42)
 
       Stdlib.DateTime.second(d("1970-07-28T22:42:36Z"))
-      |> Stdlib.Test.equal(36u8) ])
+      |> Stdlib.Test.equal(36) ])
 
 
 // A month read from a date, its number both ways, and how `%m` prints it

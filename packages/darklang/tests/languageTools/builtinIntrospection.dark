@@ -56,13 +56,12 @@ module Resolution =
       LanguageTools.PackageManager.pm(),
       SCM.Branch.mainBranchId,
       LanguageTools.NameResolver.GenericName
-        { modules = [ "Builtin" ]
-          name = name
-          version = version })
+        { modules = [ "Builtin" ], name = name, version = version })
     |> Stdlib.Result.isOk
+
 
   // A builtin resolves by its name and version, not by its name alone.
   test builtinResolvesOnlyAtItsVersion =
     Stdlib.Test.all(
-      [ resolves("int64ToFloat64", 0s32) |> Stdlib.Test.equal(true)
-        resolves("int64ToFloat64", 999s32) |> Stdlib.Test.equal(false) ])
+      [ resolves("int64ToFloat64", 0) |> Stdlib.Test.equal(true)
+        resolves("int64ToFloat64", 999) |> Stdlib.Test.equal(false) ])

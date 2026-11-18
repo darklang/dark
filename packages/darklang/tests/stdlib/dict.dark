@@ -527,7 +527,8 @@ test stringKeysSortByCodePoint =
   let large =
     Stdlib.Dict.fromList(
       Stdlib.List.concat(
-        Stdlib.List.map(Stdlib.List.range(1, 30), fun i -> ("k" + Stdlib.display(i), i)),
+        Stdlib.List.map(Stdlib.List.range(1, 30), fun i ->
+          ("k" + Stdlib.display(i), i)),
         [ ("😀", 0), ("ｱ", 0), ("é", 0) ]))
 
   Stdlib.Test.all(

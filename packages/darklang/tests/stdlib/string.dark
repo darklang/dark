@@ -273,11 +273,11 @@ test interpolationNormalizesToComposedBytes =
   Stdlib.Test.all(
     [ Stdlib.Utf8.encode($"{e}{acute()}")
       |> Stdlib.Bytes.toList
-      |> Stdlib.Test.equal([ 195u8, 169u8 ])
+      |> Stdlib.Test.equal([ 195, 169 ])
 
       Stdlib.Utf8.encode($"x{e}{acute()}y")
       |> Stdlib.Bytes.toList
-      |> Stdlib.Test.equal([ 120u8, 195u8, 169u8, 121u8 ]) ])
+      |> Stdlib.Test.equal([ 120, 195, 169, 121 ]) ])
 
 
 test interpolationOfPrimitives =
@@ -451,7 +451,9 @@ test lengthCountsClusters =
 test lengthOfLongStringsReadTwice =
   let piece = "é👍🏽ｱ"
   let repeated = Stdlib.String.repeat(piece, 20)
-  let joined = Stdlib.List.fold(Stdlib.List.range(1, 20), "", fun(acc, _) -> acc + piece)
+  let joined =
+    Stdlib.List.fold(Stdlib.List.range(1, 20), "", fun(acc, _) -> acc + piece)
+
   let longer = joined + "x"
   Stdlib.Test.all(
     [ Stdlib.String.length(repeated) |> Stdlib.Test.equal(60)

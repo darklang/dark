@@ -208,7 +208,11 @@ test reportsRuntimeHost =
 
 
 /// Read <param handle>'s output until it has printed "ready", for at most <param turns> 10 ms turns.
-let readUntilReady(handle: Stdlib.Cli.Process.ProcessHandle, seen: String, turns: Int64): String =
+let readUntilReady(
+  handle: Stdlib.Cli.Process.ProcessHandle,
+  seen: String,
+  turns: Int64)
+  : String =
   if turns <= 0 || Stdlib.String.contains(seen, "ready") then
     seen
   else

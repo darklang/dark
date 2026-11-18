@@ -118,9 +118,9 @@ module CallStack =
       SCM.Branch.mainBranchId,
       LanguageTools.RuntimeTypes.ExecutionPoint.Lambda(
         builtin(),
-        23u64,
+        23,
         Stdlib.Option.Option.Some(source())),
-      [ (22u64, 3), (23u64, 4) ])
+      [ (22, 3), (23, 4) ])
     |> Stdlib.Test.equal("Lambda in Source (line 4)")
 
 
