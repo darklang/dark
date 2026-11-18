@@ -2436,6 +2436,95 @@ let private aDependentsReadThatFailsIsReported =
     })
 
 
+/// A dependency review that cannot read what it needs is reported, rather than raising. Here a
+/// second indexed name for the callee makes the caller's names ambiguous, so the review reads the
+/// caller's stored body, and the body is gone.
+let private aDependencyReviewThatFailsIsReported =
+  instanceTest "constraints reports a dependency review that fails" (fun state ->
+    task {
+      do! fn state "Tests.DepFail.callee" "(): Int64 = 1"
+      do! fn state "Tests.DepFail.caller" "(): Int64 = Tests.DepFail.callee() + 1"
+      do! commit state "dep fail"
+      do! switch state "depfail"
+
+      let dir =
+        match state with
+        | Instance i -> i.dir
+        | InProcess _ -> failtest "needs an instance's store"
+      let db = System.IO.Path.Combine(dir, "data.db")
+      use conn =
+        new Microsoft.Data.Sqlite.SqliteConnection(
+          $"Data Source={db};Pooling=False"
+        )
+      conn.Open()
+      use cmd = conn.CreateCommand()
+      cmd.CommandText <-
+        "WITH caller AS (SELECT item_hash FROM locations
+           WHERE owner = 'Tests' AND modules = 'DepFail' AND name = 'caller' AND item_hash <> '')
+         INSERT INTO package_dependencies
+           SELECT item_hash, depends_on_hash, depends_on_item_type, depends_on_owner,
+                  depends_on_modules, 'calleeAlias'
+           FROM package_dependencies
+           WHERE item_hash IN (SELECT item_hash FROM caller) AND depends_on_name = 'callee';
+         DELETE FROM package_functions WHERE hash IN
+           (SELECT item_hash FROM locations
+            WHERE owner = 'Tests' AND modules = 'DepFail' AND name = 'caller')"
+      cmd.ExecuteNonQuery() |> ignore<int>
+      conn.Close()
+
+      let why = "Cannot read reference names: stored declaration is missing"
+
+      let! (out, err, status) = runCliStreams state [ "constraints" ]
+      Expect.equal status 0 $"constraints still answers, got: {out} / {err}"
+      Expect.stringContains
+        err
+        $"couldn't check everything: {why}"
+        "naming the check it couldn't run"
+      Expect.stringContains
+        (plain out)
+        "nothing found by the checks that DID run."
+        "and not claiming there is nothing to find"
+
+      let! (out, _, status) = runCliStreams state [ "constraints"; "--json" ]
+      Expect.equal status 0 $"constraints --json answers, got: {out}"
+      use doc = System.Text.Json.JsonDocument.Parse out
+      Expect.equal
+        [ for b in doc.RootElement.GetProperty("blocked").EnumerateArray() ->
+            b.GetString() ]
+        [ why ]
+        "with the reason under blocked"
+    })
+
+
+/// A store whose deprecation query fails says what SQLite said and exits 1.
+let private aFailingDeprecationQueryIsAStoreError =
+  instanceTest "a deprecation query that fails names the SQL failure" (fun state ->
+    task {
+      let dir =
+        match state with
+        | Instance i -> i.dir
+        | InProcess _ -> failtest "needs an instance's store"
+      let db = System.IO.Path.Combine(dir, "data.db")
+      use conn =
+        new Microsoft.Data.Sqlite.SqliteConnection(
+          $"Data Source={db};Pooling=False"
+        )
+      conn.Open()
+      use cmd = conn.CreateCommand()
+      cmd.CommandText <- "ALTER TABLE deprecations RENAME TO deprecationsgone"
+      cmd.ExecuteNonQuery() |> ignore<int>
+      conn.Close()
+
+      let! (out, status) = runCliWithStatus state [ "eval"; "1 + 1" ]
+      Expect.equal status 1 $"the command fails, got: {out}"
+      Expect.stringContains out "SQL query failed" "as a failed query"
+      Expect.stringContains
+        out
+        "no such table: deprecations"
+        "naming what SQLite said"
+    })
+
+
 let tests : List<Test> =
   [ commitRefusesDefiniteTypeErrors
     failedValueSaveLeavesNothingBehind false
@@ -2484,4 +2573,6 @@ let tests : List<Test> =
     aConflictCloseThatFailsIsReported
     aCommitKeepsTheDraftOverAnOlderMergedEdit
     anOverrideOnABranchLeavesMainsConflictOpen
-    aDependentsReadThatFailsIsReported ]
+    aDependentsReadThatFailsIsReported
+    aDependencyReviewThatFailsIsReported
+    aFailingDeprecationQueryIsAStoreError ]
