@@ -410,7 +410,7 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     [ "config"; "list" ], 0, Says "exec.workers", Silent
     [ "config"; "get"; "zzznope" ], 1, Silent, Says "not a config key"
     [ "permissions"; "show"; "Tests.Rows.f" ], 0, Says "Effects:", Silent
-    [ "commit"; "-m"; "rows"; "--json" ], 0, Says "\"committed\":false", Any
+    [ "commit"; "-m"; "rows"; "--json" ], 1, Says "\"committed\":false", Any
     [ "commit"; "-m"; "rows"; "-y" ], 0, Says "commit ", Says "CHANGED"
     [ "commits"; "1"; "--json" ], 0, Says "\"hash\"", Silent
     [ "log" ], 0, Says "commits", Silent
@@ -1242,7 +1242,6 @@ let private knownGood (seed : Seeded) : Map<string, List<string>> =
       // Scoped to a module that is clean. The shared store holds failing fixtures other tests
       // leave on purpose, so an audit of all of it rightly exits 1.
       "typecheck", [ "Darklang.Stdlib.Bool" ]
-      "commit", [ "--json" ]
       // Reads the implementations of a trait on the branch. Fully qualified, like `nav` and
       // `find-values` above, rather than relying on the bare-name fallback to the stdlib.
       "impls", [ "Darklang.Stdlib.Add" ]
@@ -1271,6 +1270,8 @@ let private unsafeWithArguments : Map<string, string> =
       "discard",
       "drops the WHOLE draft, which takes other tests' uncommitted work with it"
       "delete", "takes an item off the shelf"
+      "commit",
+      "only a real commit exits 0, and that changes history; `eachCommandKeepsItsStreams` checks both"
       "deprecate", "ditto, by the other door"
       "undeprecate", "puts one back"
       "undo", "steps a real item back a version"

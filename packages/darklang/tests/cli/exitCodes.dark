@@ -1,0 +1,39 @@
+/// Exit codes a script can branch on: a command that did not do what was asked exits 1.
+module Darklang.Cli.Tests.ExitCodes
+
+let draftWithTypeError(i: Instance.T): (Int64 * String) =
+  Instance.ran(i, [ "fn", "Me.ExitCodes.bad", "(x: Int64): String = x" ])
+
+
+test fnWithATypeErrorSavesTheDraftAndExitsOne = Instance.withInstance(fun i ->
+  let (code, out) = draftWithTypeError(i)
+  let (viewCode, _) = Instance.ran(i, [ "view", "Me.ExitCodes.bad" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 1, "a save with a type error")
+      Instance.says(out, "saved as a draft", "it says the draft was kept")
+      Instance.exitedWith(viewCode, 0, "and the draft is there") ]))
+
+
+test commitJsonWithoutYesExitsOne = Instance.withInstance(fun i ->
+  let _ = Instance.ran(i, [ "fn", "Me.ExitCodes.ok", "(x: Int64): Int64 = x" ])
+  let (code, out) = Instance.ran(i, [ "commit", "probe", "--json" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 1, "a dry review commits nothing")
+      Instance.says(out, "\"committed\":false", "and says so in the JSON") ]))
+
+
+let scriptExit(i: Instance.T, last: String): (Int64 * String) =
+  let path = Instance.home(i) + "/exit.dark"
+  let _ = Stdlib.Cli.File.writeText(path, last + "\n")
+  Instance.ran(i, [ "run", path ])
+
+
+test scriptExitCodeOutsideTheByteFails = Instance.withInstance(fun i ->
+  let (big, bigOut) = scriptExit(i, "256")
+  let (negative, _) = scriptExit(i, "-1")
+  let (top, _) = scriptExit(i, "255")
+  Stdlib.Test.all(
+    [ Instance.exitedWith(big, 1, "256 would wrap to 0")
+      Instance.says(bigOut, "must be 0-255", "and it says why")
+      Instance.exitedWith(negative, 1, "-1 would wrap to 255")
+      Instance.exitedWith(top, 255, "255 is a real exit code") ]))

@@ -395,9 +395,15 @@ let noteMisplacedAllow(state: AppState, name: String, args: List<String>): Unit 
 /// Report the completed run. Permission review happens before the operation.
 let handleResult(state: AppState, result: Result<Int64, ExecutionError.ExecutionError>): AppState =
   match result with
-  | Ok(exitCode) ->
+  | Ok(exitCode) when exitCode >= 0 && exitCode <= 255 ->
     // The script chose this code and printed its own reason, as a program in any language does.
     { state with exitCode = exitCode }
+  | Ok(exitCode) ->
+    // the OS keeps only the low 8 bits, so 256 would read as success
+    Stdlib.printErrorLine(
+      $"Script returned {Stdlib.display(exitCode)}, but an exit code must be 0-255.")
+
+    { state with exitCode = 1 }
   | Error(e) -> printScriptError(state, e)
 
 
