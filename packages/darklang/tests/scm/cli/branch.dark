@@ -206,3 +206,255 @@ test switchingToAMergedBranchsNameStartsAFreshBranch =
         "Tests.App.a()",
         "1",
         "and sees the merged work through main") ])
+
+
+test aBranchSubcommandWithNoArgumentsCreatesNothing = scenario(fun dark ->
+  let before = Cli.Tests.Instance.said(dark, [ "branches" ])
+  [ says(
+      dark,
+      [ "branch", "rename" ],
+      "needs 2 arguments",
+      "a subcommand with no arguments says so")
+
+    same(
+      Cli.Tests.Instance.said(dark, [ "branches" ]),
+      before,
+      "and the branch list is untouched")
+
+    says(
+      dark,
+      [ "branch", "renam" ],
+      "Did you mean",
+      "a typo is still named as a typo") ])
+
+
+/// The number in `status`'s "N followed", or 0 when it says none.
+let followedCount(dark: Cli.Tests.Instance.T): Int64 =
+  let said = Cli.Tests.Instance.said(dark, [ "status" ])
+  match Stdlib.Regex.find(said, "\\d+ followed") with
+  | Ok(Some(found)) ->
+    found
+    |> Stdlib.String.split(" ")
+    |> Stdlib.List.head
+    |> Stdlib.Option.withDefault("")
+    |> Stdlib.Int64.parse
+    |> Stdlib.Result.withDefault(0)
+  | _ -> 0
+
+
+/// A branch keeps its own record of what followed an edit: `status` on the branch reports the
+/// branch's follower, and main's staged repoint is left as it was.
+test statusOnABranchReportsTheBranchsOwnFollowers = scenario(fun dark ->
+  let base = "Tests.BranchFollow.base"
+  let caller = "Tests.BranchFollow.caller()"
+  let setup =
+    [ save(dark, base, "() : Int64 = 1001")
+
+      save(
+        dark,
+        "Tests.BranchFollow.caller",
+        "(): Int64 = (Tests.BranchFollow.base()) * 7")
+
+      commit(dark, "branchfollow v1") ]
+
+  let mainBefore = followedCount(dark)
+  let mainEdit = save(dark, base, "() : Int64 = 1003")
+  let mainStatus = followedCount(dark)
+  let onTheBranch =
+    [ switch(dark, "follow-branch")
+      save(dark, base, "() : Int64 = 1002")
+      evals(dark, caller, "7014", "the caller followed the edit, on the branch")
+      says(
+        dark,
+        [ "status" ],
+        "1 followed",
+        "the branch reports its own follower, from its own record")
+
+      switch(dark, "main") ]
+
+  Stdlib.List.flatten(
+    [ setup
+      [ mainEdit
+        same(
+          mainStatus,
+          mainBefore + 1,
+          "main's draft gained its own follower") ]
+
+      onTheBranch
+      [ same(
+          followedCount(dark),
+          mainStatus,
+          "main's own staged repoint is untouched")
+
+        evals(
+          dark,
+          caller,
+          "7021",
+          "and main's caller still follows main's edit") ] ]))
+
+
+/// Only a name nobody has starts a branch: a full branch id this store does not hold is refused.
+test switchRefusesAnIdThisStoreDoesNotHave = scenario(fun dark ->
+  let foreign = Stdlib.display(Stdlib.Uuid.generate())
+  [ says(
+      dark,
+      [ "switch", foreign ],
+      "no branch with id",
+      "the switch is refused, saying why")
+
+    says(dark, [ "branch" ], "on main", "and the process stayed where it was")
+    Cli.Tests.Instance.doesNotSay(
+      Cli.Tests.Instance.said(dark, [ "branches" ]),
+      foreign,
+      "no branch was started under the id's name") ])
+
+
+/// A branch pulled without its parent lists a parent this store has never registered, and says so.
+test aBranchWhoseParentIsNotInThisStoreSaysSo = scenario(fun dark ->
+  // A fresh instance denies guests package-write, which `SCM.Branch.create` needs.
+  [ run(dark, [ "permissions", "allow", "package-write" ])
+
+    run(
+      dark,
+      [ "eval"
+        "Darklang.SCM.Branch.create(\"orphan13\", Stdlib.Uuid.parse(\"11111111-2222-3333-4444-555555555555\") |> Builtin.unwrap) |> Stdlib.Option.isSome" ])
+
+    says(dark, [ "branches" ], "orphan13 (", "the orphan is listed")
+
+    says(
+      dark,
+      [ "branches" ],
+      "11111111 (a branch not in this store",
+      "and its parent is explained rather than shown as an id") ])
+
+
+test archivingAChildFromAtopItLandsOnItsParent =
+  scenario(fun dark ->
+    [ switch(dark, "archparent")
+      switch(dark, "archchild")
+      says(
+        dark,
+        [ "branch", "archive", "archchild", "-y" ],
+        "now on branch \"archparent\"",
+        "the child's parent, not main") ])
+
+
+/// Commit collapses MAIN's draft. A commit on a branch must leave main's draft as it was.
+test committingOnABranchLeavesMainsDraftUncollapsed = scenario(fun dark ->
+  // Two versions of one name: draft ops that a collapse would reduce.
+  let setup =
+    [ save(dark, "Tests.CollapseIso.item", "() : Int64 = 1")
+      save(dark, "Tests.CollapseIso.item", "() : Int64 = 2") ]
+
+  let before = number(status(dark), "draftOps")
+  Stdlib.List.concat(
+    setup,
+    [ says(
+        dark,
+        [ "switch", "cli-collapse-branch" ],
+        "cli-collapse-branch",
+        "the test is on the branch")
+
+      save(dark, "Tests.CollapseIso.onBranch", "() : Int64 = 9")
+      commit(dark, "branch commit")
+      says(
+        dark,
+        [ "switch", "main" ],
+        "main",
+        "and it put the run back on main")
+
+      same(
+        number(status(dark), "draftOps"),
+        before,
+        "the branch's commit left main's draft exactly as it was") ]))
+
+
+/// A branch verb takes the name `dark branches` prints, not only the id behind it.
+test everyBranchVerbAcceptsTheNameTheListingPrints = scenario(fun dark ->
+  let resolves(args: List<String>, why: String): Stdlib.Test.Result =
+    Cli.Tests.Instance.doesNotSay(
+      Cli.Tests.Instance.said(dark, args),
+      "no branch",
+      why)
+
+  [ switch(dark, "verbname")
+    save(dark, "Tests.Vn.one", "(x: Int64) : Int64 = x + 1")
+    switch(dark, "main")
+    says(dark, [ "branches" ], "verbname", "the listing prints the name")
+    resolves([ "diff", "verbname" ], "`dark diff verbname` resolves the name")
+    resolves([ "log", "verbname" ], "`dark log verbname` resolves the name")
+    resolves(
+      [ "rebase", "verbname" ],
+      "`dark rebase verbname` resolves the name")
+
+    resolves(
+      [ "conflicts", "branch", "verbname" ],
+      "and so does the conflicts preview")
+
+    says(
+      dark,
+      [ "diff", "notabranch" ],
+      "no branch",
+      "a name we don't have is still an error") ])
+
+
+/// Asking about a branch you're not on answers with the branch as it is now, not as it was.
+test askingAboutAnotherBranchGivesACurrentAnswer =
+  scenario(fun dark ->
+    [ switch(dark, "cachebr")
+      save(dark, "Tests.Br.one", "(x: Int64) : Int64 = x + 11")
+      switch(dark, "main")
+      says(dark, [ "diff", "cachebr" ], "one", "the first item shows up")
+      switch(dark, "cachebr")
+      save(dark, "Tests.Br.two", "(x: Int64) : Int64 = x + 22")
+      switch(dark, "main")
+      says(
+        dark,
+        [ "diff", "cachebr" ],
+        "two",
+        "and so does what was added since") ])
+
+
+/// Committing on a branch commits that branch's ops, under a commit of the branch's own.
+test committingOnABranchCommitsThatBranchsOps = scenario(fun dark ->
+  let setup =
+    [ switch(dark, "commitbr")
+      save(dark, "Tests.CommitBr.item", "() : Int64 = 7") ]
+
+  let committed =
+    Cli.Tests.Instance.said(dark, [ "commit", "on the branch", "-y" ])
+
+  let (_, onBranch, _) =
+    exec(
+      dark,
+      [ "eval"
+        "Stdlib.List.length(Darklang.SCM.PackageOps.commitsOnBranch(Darklang.SCM.PackageOps.currentBranch(), 100))" ])
+
+  let ownCommits =
+    onBranch
+    |> Stdlib.String.trim
+    |> Stdlib.Int64.parse
+    |> Stdlib.Result.withDefault(0)
+
+  Stdlib.List.flatten(
+    [ setup
+      [ Cli.Tests.Instance.says(
+          committed,
+          "commit",
+          "the branch commit reports a commit")
+
+        Cli.Tests.Instance.doesNotSay(
+          committed,
+          "Runtime Error",
+          "and does not throw on the way")
+
+        same(
+          ownCommits >= 1,
+          true,
+          $"the branch has a commit of its own, got: {onBranch}")
+
+        evals(
+          dark,
+          "Darklang.SCM.PackageOps.draftOpCount()",
+          "0",
+          "the branch's draft is empty once committed") ] ]))

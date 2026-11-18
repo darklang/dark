@@ -41,33 +41,6 @@ let private bareDiffShowsTheDraft =
       return ()
     })
 
-/// A subcommand typed without its arguments must not leave state behind.
-let private bareSubcommandDoesNotBecomeABranch =
-  instanceTest "a branch subcommand with no arguments creates nothing" (fun state ->
-    task {
-      let! before = runCli state [ "branches" ]
-
-      do!
-        shows
-          state
-          [ "branch"; "rename" ]
-          "needs 2 arguments"
-          "a subcommand with no arguments says so"
-
-      let! after = runCli state [ "branches" ]
-      Expect.equal after before "and the branch list is untouched"
-
-      // A genuine near-miss still gets the typo message rather than this one.
-      do!
-        shows
-          state
-          [ "branch"; "renam" ]
-          "Did you mean"
-          "a typo is still named as a typo"
-
-      return ()
-    })
-
 /// A commit id is derived from what the commit HOLDS and where it sits, not only from who typed what and
 /// when, and the graph is a chain rather than a flat list.
 let private commitsChainToTheirParent =
@@ -158,96 +131,6 @@ let editingOnABranchRepointsItsCallers =
         "14"
         "the caller was repointed onto the edit, on the branch"
     })
-
-/// A branch records what put each of its bindings there (`package_ops.source`), so on a branch `status`
-/// can split what you typed from what followed, and `pin` un-stages the BRANCH's repoint. Without the
-/// column `pin` on a branch finds MAIN's staged repoint and drops it -- a pin issued on a branch
-/// reverting main -- and `status` on a branch reports main's followers as the branch's.
-let private aBranchKnowsWhatFollowed =
-  instanceTest
-    "status reports branch-local followers without changing main"
-    (fun state ->
-      task {
-        // On main: a base, a caller, committed. Then an edit to the base on MAIN, uncommitted, so main's
-        // draft holds a staged repoint of its own for the pin on the branch to leave alone.
-        do! switch state "main"
-        let! _ =
-          runCli state [ "fn"; "Tests.BranchFollow.base"; "() : Int64 = 1001" ]
-        do!
-          author
-            state
-            "Tests.BranchFollow.caller"
-            "(): Int64 = (Tests.BranchFollow.base()) * 7"
-        do! commit state "branchfollow v1"
-        // Other tests leave followers in main's draft too, so main is asserted RELATIVE to itself.
-        let followedIn (status : string) =
-          let m =
-            System.Text.RegularExpressions.Regex.Match(status, @"(\d+) followed")
-          if m.Success then int m.Groups[1].Value else 0
-        let! mainBefore = runCli state [ "status" ]
-        let! _ =
-          runCli state [ "fn"; "Tests.BranchFollow.base"; "() : Int64 = 1003" ]
-        let! mainStatus = runCli state [ "status" ]
-        Expect.equal
-          (followedIn mainStatus)
-          (followedIn mainBefore + 1)
-          $"main's draft gained its own follower: {mainStatus}"
-
-        // On a branch: edit the base; the caller follows, on the branch.
-        do! switch state "follow-branch"
-        let! _ =
-          runCli state [ "fn"; "Tests.BranchFollow.base"; "() : Int64 = 1002" ]
-        let! after = runCli state [ "eval"; "Tests.BranchFollow.caller()" ]
-        Expect.stringContains
-          after
-          "7014"
-          "the caller followed the edit, on the branch"
-        do!
-          shows
-            state
-            [ "status" ]
-            "1 followed"
-            "the branch reports its own follower, from its own record"
-
-        // Main's draft is exactly as it was: the edit and ITS follower.
-        do! switch state "main"
-        let! mainAfter = runCli state [ "status" ]
-        Expect.equal
-          (followedIn mainAfter)
-          (followedIn mainStatus)
-          $"main's own staged repoint is untouched: {mainAfter}"
-        do!
-          shows
-            state
-            [ "eval"; "Tests.BranchFollow.caller()" ]
-            "7021"
-            "and main's caller still follows main's edit"
-
-        do! discardAll state
-        do! archiveBranches state [ "follow-branch" ]
-      })
-
-/// A full branch id this store does not hold is REFUSED. Only a name nobody has starts a branch, so
-/// `dark switch <a peer's uuid>` cannot quietly mint one named after the uuid and read as success.
-let private switchRefusesAForeignId =
-  instanceTest
-    "switch refuses a uuid this store does not have, rather than starting a branch named after it"
-    (fun state ->
-      task {
-        do! switch state "main"
-        let foreign = string (System.Guid.NewGuid())
-        do!
-          shows
-            state
-            [ "switch"; foreign ]
-            "no branch with id"
-            "the switch is refused, saying why"
-        do! shows state [ "branch" ] "on main" "and the process stayed where it was"
-        let! listed = runCli state [ "branches" ]
-        Expect.isFalse
-          (listed.Contains foreign)
-          "no branch was started under the id's name"
-      })
 
 /// A merge into main commits what it landed. The branch's ops arrive uncommitted (a pulled branch, or
 /// one authored and never committed) and the merge event is authored uncommitted, so without this they
@@ -601,27 +484,6 @@ let private aMissingNameIsOneLineNotAStackHeader =
         ()
       })
 
-/// A branch pulled without its parent lists a parent this store has never registered. The list says
-/// what it is, since a bare id reads as corruption.
-let private anUnknownParentIsNamedAsSuch =
-  instanceTest
-    "a branch whose parent is not in this store says so in the list"
-    (fun state ->
-      task {
-        let! _ =
-          runCli
-            state
-            [ "eval"
-              "Darklang.SCM.Branch.create(\"orphan13\", Stdlib.Uuid.parse(\"11111111-2222-3333-4444-555555555555\") |> Builtin.unwrap) |> Stdlib.Option.isSome" ]
-        let! listed = runCli state [ "branches" ]
-        Expect.stringContains listed "orphan13 (" $"the orphan is listed: {listed}"
-        Expect.stringContains
-          listed
-          "11111111 (a branch not in this store"
-          $"and its parent is explained rather than shown as an id: {listed}"
-        do! archiveBranches state [ "orphan13" ]
-      })
-
 /// Scripts and agents branch on the exit, so failure has to BE one, not prose. The full sweep of
 /// error paths is not wired yet; the two a script hits first are, and this pins them.
 let private failuresExitNonzero =
@@ -722,25 +584,6 @@ let private aBranchDiscardLeavesNoDanglingTags =
         do! archiveBranches state [ "dangletags" ]
       })
 
-/// Archiving the branch you stand on moves you to its PARENT -- read before the archive drops the
-/// row from the listing, or a branch-of-a-branch landed you on main.
-let private archivingAChildLandsOnItsParent =
-  instanceTest
-    "archiving a child branch from atop it lands on the parent, not main"
-    (fun state ->
-      task {
-        do! switch state "archparent"
-        do! switch state "archchild"
-        do!
-          shows
-            state
-            [ "branch"; "archive"; "archchild"; "-y" ]
-            "now on branch \"archparent\""
-            "the child's parent, not main"
-        do! archiveBranches state [ "archparent" ]
-      })
-
-
 /// `discard` on a branch drops the BRANCH's work and leaves main's draft alone.
 ///
 /// Worth asserting because the command is destructive and the two drafts are kept apart by a `WHERE`
@@ -789,56 +632,6 @@ let discardOnABranchLeavesMainsDraftAlone =
         let! _ = runCli state [ "discard"; "--yes" ]
         ()
       })
-
-/// Committing on a branch does not collapse main's draft.
-///
-/// Commit collapses the draft's superseded namings, keeping the last binding per name -- and "the draft"
-/// means MAIN's uncommitted ops. A branch's ops are collapsed when they merge. Nothing in the types says which one `collapse` is about; it is a guard on
-/// the current branch, and if that guard went, committing anything anywhere would quietly rewrite work
-/// sitting on main.
-let committingOnABranchLeavesMainsDraftUncollapsed =
-  instanceTest "committing on a branch does not collapse main's draft" (fun state ->
-    task {
-      // Two versions of one name: four draft ops that a collapse would reduce.
-      do! fn state "Tests.CollapseIso.item" "() : Int64 = 1"
-      do! fn state "Tests.CollapseIso.item" "() : Int64 = 2"
-
-      let! beforeJson = runCli state [ "status"; "--json" ]
-      let draftOps (json : string) =
-        let marker = "\"draftOps\":"
-        let i = json.IndexOf marker
-        if i < 0 then
-          Tests.failtestf "no draftOps in status --json: %s" json
-        else
-          let rest = json.Substring(i + marker.Length)
-          let upToComma = rest.Split(',') |> Array.head
-          let digits = upToComma.Split('}') |> Array.head
-          digits.Trim()
-
-      let before = draftOps beforeJson
-
-      do!
-        shows
-          state
-          [ "switch"; "cli-collapse-branch" ]
-          "cli-collapse-branch"
-          "the test is on the branch"
-
-      let! _ = runCli state [ "fn"; "Tests.CollapseIso.onBranch"; "() : Int64 = 9" ]
-      do! commit state "branch commit"
-
-      do! shows state [ "switch"; "main" ] "main" "and it put the run back on main"
-
-      let! afterJson = runCli state [ "status"; "--json" ]
-
-      Expect.equal
-        (draftOps afterJson)
-        before
-        "the branch's commit left main's draft exactly as it was"
-
-      let! _ = runCli state [ "discard"; "--yes" ]
-      ()
-    })
 
 /// A commit refuses a draft with a definite at-rest type error, and `--allow-type-errors` is the way past.
 ///
@@ -1261,66 +1054,6 @@ let partialCommitTakesOnlyWhatYouNamed =
 
         let! _ = runCli state [ "discard"; "--yes" ]
         return ()
-      })
-
-/// A branch verb takes the name you can see, not the id it resolves to: every branch has a uuid
-/// behind it, and a verb handed the name printed by `dark branches` must not treat it as an id.
-let private branchVerbsTakeTheNameYouSee =
-  instanceTest "every branch verb accepts the name the listing prints" (fun state ->
-    task {
-      do! switch state "verbname"
-      let! _ = runCli state [ "fn"; "Tests.Vn.one"; "(x: Int64) : Int64 = x + 1" ]
-      do! switch state "main"
-
-      let! listing = runCli state [ "branches" ]
-      Expect.stringContains listing "verbname" "the listing prints the name"
-
-      for verb in [ "diff"; "log"; "rebase" ] do
-        let! out = runCli state [ verb; "verbname" ]
-        Expect.isFalse
-          (out.Contains "no branch")
-          $"`dark {verb} verbname` resolves the name the listing just printed"
-
-      let! preview = runCli state [ "conflicts"; "branch"; "verbname" ]
-      Expect.isFalse
-        (preview.Contains "no branch")
-        "and so does the conflicts preview"
-
-      do!
-        shows
-          state
-          [ "diff"; "notabranch" ]
-          "no branch"
-          "a name we don't have is still an error"
-    })
-
-
-let private otherBranchAnswersStayCurrent =
-  instanceTest
-    "asking about a branch you're not on gives a current answer"
-    (fun state ->
-      task {
-        do! switch state "cachebr"
-        let! _ =
-          runCli state [ "fn"; "Tests.Br.one"; "(x: Int64) : Int64 = x + 11" ]
-
-        do! switch state "main"
-
-        // Populates the memo of "ops for a branch I'm not on".
-        do! shows state [ "diff"; "cachebr" ] "one" "the first item shows up"
-
-        do! switch state "cachebr"
-        let! _ =
-          runCli state [ "fn"; "Tests.Br.two"; "(x: Int64) : Int64 = x + 22" ]
-
-        do! switch state "main"
-
-        // The branch moved while we weren't on it, and a memo loaded once and never
-        // dropped answers with the branch as it was -- right before you decide to merge.
-        do!
-          shows state [ "diff"; "cachebr" ] "two" "and so does what was added since"
-
-        do! archiveBranches state [ "cachebr" ]
       })
 
 /// Shared content must remain bound at every alias when propagation crosses owners.
@@ -2234,39 +1967,6 @@ let private discardOnABranchLeavesMainAlone =
         do! archiveBranches state [ "discardbr" ]
       })
 
-/// Committing on a branch commits THAT BRANCH's ops.
-///
-/// A failed branch commit must not leave behind a commit row that names nothing.
-let private committingOnABranchCommitsItsOps =
-  instanceTest "committing on a branch commits that branch's ops" (fun state ->
-    task {
-      do! switch state "commitbr"
-      do! fn state "Tests.CommitBr.item" "() : Int64 = 7"
-
-      let! out = runCli state [ "commit"; "on the branch"; "-y" ]
-      Expect.stringContains out "commit" "the branch commit reports a commit"
-      Expect.isFalse
-        (out.Contains "Runtime Error")
-        $"and does not throw on the way, got: {out}"
-
-      // The point: the branch's own commit, not the store's. Counting `Commits.recent` here would pass
-      // even if the branch committed nothing, since main's commits are in that number too.
-      let! onBranch =
-        runCli
-          state
-          [ "eval"
-            "Stdlib.List.length(Darklang.SCM.PackageOps.commitsOnBranch(Darklang.SCM.PackageOps.currentBranch(), 100))" ]
-      Expect.isTrue
-        ((int (onBranch.Trim())) >= 1)
-        $"the branch has a commit of its own, got: {onBranch}"
-
-      // And the draft is empty afterwards, which is what "committed" means.
-      let! draft = runCli state [ "eval"; "Darklang.SCM.PackageOps.draftOpCount()" ]
-      Expect.equal (draft.Trim()) "0" "the branch's draft is empty once committed"
-
-      do! archiveBranches state [ "commitbr" ]
-    })
-
 let private conflictsBelongToTheBranchTheyHappenedOn =
   cliTestOnMain "a conflict is answered on the branch it happened on" (fun state ->
     task {
@@ -2744,22 +2444,16 @@ let tests : List<Test> =
     theWorkedExampleWorks
     editsAreVisibleInTheSameProcess
     deprecationTakesEffectInTheSameProcess
-    otherBranchAnswersStayCurrent
-    branchVerbsTakeTheNameYouSee
-    committingOnABranchCommitsItsOps
     conflictsBelongToTheBranchTheyHappenedOn
     discardOnABranchLeavesMainAlone
     diffAndLogAnswerInJson
     mergeAsksBeforeItGoes
     mergeGatesAreDecidedInDark
     bareDiffShowsTheDraft
-    bareSubcommandDoesNotBecomeABranch
     dependentsSeeTheBranchYouAreOn
     bareMergeAndRebaseMeanThisBranch
     branchChainSeesItsAncestry
     branchReadsAnswerAboutTheBranch
-    aBranchKnowsWhatFollowed
-    switchRefusesAForeignId
     aMergeCommitsWhatItLands
     anUnbindRemovesANameThroughTheCli
     aDeprecationCommitsByEitherPath
@@ -2768,12 +2462,10 @@ let tests : List<Test> =
     fnReadsItsDefinitionFromAFile
     statusSeparatesTheDraftsConstraintsFromStandingOnes
     aMissingNameIsOneLineNotAStackHeader
-    anUnknownParentIsNamedAsSuch
     failuresExitNonzero
     commitAsksAndNeedsAMessage
     constraintFlagsAreNotTargets
     aBranchDiscardLeavesNoDanglingTags
-    archivingAChildLandsOnItsParent
     aNameHoldsOneItemWhateverItsKind
     editChangesAnItemWithoutRetypingIt
     everyJsonSurfaceParses
