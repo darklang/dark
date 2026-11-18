@@ -345,6 +345,7 @@ let private unusedAllowlist : Set<string> =
       // use them: a gate blocks until F# releases it.
       "testGateWait"
       "testGateThreads"
+      "testGateBlock"
       "testTrace"
       "testRead"
       "testReadOf"

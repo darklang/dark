@@ -1101,9 +1101,14 @@ type Scheduler(quantum : int64) =
                   | ValueSome hint -> hint
                   | ValueNone -> this.Describe p
                 p.parkHint <- ValueNone
-                p.status <- Parked parkedOn
                 p.pendingResume <- Some resume
                 p.parkedTask <- wait
+                // A stop that landed during the slice found the process running and left it the
+                // next turn; this park is that turn. Under `sync`, with `StopHere`'s check, so one
+                // of the two sees the other.
+                lock sync (fun () ->
+                  p.status <- Parked parkedOn
+                  if not (isNull p.stopReason) then this.CutWaits p)
                 wait.ContinueWith(
                   (fun (_ : Task) -> queue.Post(HE.HostEvent.Completed p.id)),
                   TaskContinuationOptions.ExecuteSynchronously
@@ -1277,22 +1282,25 @@ type Scheduler(quantum : int64) =
     ) : bool =
     match lock sync (fun () -> processes.TryGetValue pid) with
     | true, p ->
-      p.stopAsked <- true
-      p.stopReason <- reason
-      p.stopHard <- hard
       lock sync (fun () ->
-        let mine =
-          subscriptions |> Seq.filter (fun s -> s.proc.id = pid) |> List.ofSeq
-        for sub in mine do
-          this.Drop sub |> ignore<bool>
-          sub.wake.TrySetCanceled() |> ignore<bool>)
-      // A hard stop abandons the wait: the turn is posted now. A soft one lets it land; a
-      // cut event subscription lands on its own (the cancelled wake posts like any completion).
-      match p.status with
-      | Parked _ when hard -> queue.Post(HE.HostEvent.Completed pid)
-      | _ -> ()
+        p.stopAsked <- true
+        p.stopReason <- reason
+        p.stopHard <- hard
+        this.CutWaits p)
       true
     | false, _ -> false
+
+  /// What a stop does to a process's waits, under `sync`. Its event subscriptions are cut (the
+  /// cancelled wake posts like any completion). A hard stop abandons any other wait: the turn is
+  /// posted now. A soft one lets it land.
+  member private this.CutWaits(p : Process) : unit =
+    let mine = subscriptions |> Seq.filter (fun s -> s.proc.id = p.id) |> List.ofSeq
+    for sub in mine do
+      this.Drop sub |> ignore<bool>
+      sub.wake.TrySetCanceled() |> ignore<bool>
+    match p.status with
+    | Parked _ when p.stopHard -> queue.Post(HE.HostEvent.Completed p.id)
+    | _ -> ()
 
   /// Every process the group knows, as copies.
   member this.Snapshot() : list<ProcessSummary> =
