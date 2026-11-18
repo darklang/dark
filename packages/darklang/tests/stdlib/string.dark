@@ -2037,7 +2037,9 @@ test getByteAt =
 test getByteAtMatchesToBytes =
   // Match the full UTF-8 encoding.
   Stdlib.String.getByteAt("héllo", 2)
-  |> Stdlib.Test.equal(Stdlib.Bytes.getAt(Stdlib.Utf8.encode("héllo"), 2))
+  |> Stdlib.Test.equal(
+    Stdlib.Bytes.getAt(Stdlib.Utf8.encode("héllo"), 2) |> Stdlib.Result.toOption
+  )
 
 
 test slugify =

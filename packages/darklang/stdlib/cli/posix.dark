@@ -600,8 +600,8 @@ let __kernelField(bytes: Bytes, offset: Int64, width: Int64): Result<Int64, Int6
     Result.Ok(0)
   else
     match Bytes.getAt(bytes, offset) with
-    | None -> Result.Error(5)
-    | Some(byte) ->
+    | Error(_) -> Result.Error(5)
+    | Ok(byte) ->
       match __kernelField(bytes, offset + 1, width - 1) with
       | Error(e) -> Result.Error(e)
       | Ok(high) -> Result.Ok(Int64.fromUInt8(byte) + 256 * high)

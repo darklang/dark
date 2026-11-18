@@ -30,19 +30,19 @@ test getAt =
   let bytes = Stdlib.Bytes.fromList([ 10u8, 20u8, 30u8 ])
   Stdlib.Test.all(
     [ Stdlib.Bytes.getAt(bytes, 0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(10u8))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(10u8))
 
       Stdlib.Bytes.getAt(bytes, 2)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(30u8))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(30u8))
 
       Stdlib.Bytes.getAt(bytes, 3)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(1, 3, 2)))
 
       Stdlib.Bytes.getAt(bytes, -1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(1, -1, 2)))
 
       Stdlib.Bytes.getAt(Stdlib.Bytes.empty, 0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(1, 0, -1))) ])
 
 
 // reading numbers
@@ -867,13 +867,13 @@ test sharedSlices =
         Stdlib.Result.Result.Ok(Stdlib.String.repeat("0123456789", 30)))
 
       Stdlib.Bytes.getAt(inner, 0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(48u8))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(48u8))
 
       Stdlib.Bytes.getAt(inner, 299)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(57u8))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(57u8))
 
       Stdlib.Bytes.getAt(inner, 300)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(1, 300, 299)))
 
       Stdlib.Bytes.indexOfFrom(inner, 57u8, 0)
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some(9))

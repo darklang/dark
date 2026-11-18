@@ -21,10 +21,10 @@ let isEmpty(bytes: Bytes): Bool =
   length(bytes) == 0
 
 
-/// Returns {{Some byte}} at <param index> in <param bytes> if <param index> is
-/// less than the length, otherwise returns {{None}}.
-let getAt(bytes: Bytes, index: Int64): Option<UInt8> =
-  Builtin.bytesGetAt(bytes, index)
+/// Returns {{Ok}} the byte at <param index> in <param bytes>, or {{Error}} if
+/// <param index> is out of range.
+let getAt(bytes: Bytes, index: Int64): Result<UInt8, Math.OutOfRange> =
+  __inRange(Builtin.bytesGetAt(bytes, index), bytes, index, 1)
 
 
 /// The byte order of a number stored in <type Bytes>.
@@ -47,7 +47,7 @@ let __readBits(bytes: Bytes, offset: Int64, width: Int64, endianness: Endianness
 
     Option.Some(
       List.fold(indexes, 0u64, fun(acc, i) ->
-        let byte = getAt(bytes, i) |> Option.withDefault(0u8)
+        let byte = getAt(bytes, i) |> Result.withDefault(0u8)
         Builtin.bitwiseOr(acc << 8u64, UInt64.fromUInt8(byte))))
 
 
@@ -86,7 +86,7 @@ let __inRange(
 /// Returns {{Ok}} the byte at <param offset> in <param bytes>, or {{Error}}
 /// if <param offset> is out of range.
 let readUInt8(bytes: Bytes, offset: Int64): Result<UInt8, Math.OutOfRange> =
-  __inRange(getAt(bytes, offset), bytes, offset, 1)
+  getAt(bytes, offset)
 
 
 /// Returns {{Ok}} the byte at <param offset> in <param bytes> as a signed
@@ -335,7 +335,7 @@ let trimEnd(bytes: Bytes, byte: UInt8): Bytes =
 /// does not hold <param byte>. Runs off either end to {{-1}} or the length.
 let __skipFrom(bytes: Bytes, byte: UInt8, index: Int64, step: Int64): Int64 =
   match getAt(bytes, index) with
-  | Some(found) when found == byte -> __skipFrom(bytes, byte, index + step, step)
+  | Ok(found) when found == byte -> __skipFrom(bytes, byte, index + step, step)
   | _ -> index
 
 
