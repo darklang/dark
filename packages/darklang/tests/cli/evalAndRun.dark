@@ -815,3 +815,50 @@ test evalAllowGrantsForOneEvaluation = Instance.withInstance(fun i ->
       Instance.exitedWith(code, 0, "allowed for this evaluation")
       Instance.says(out, "5", "read the file")
       Instance.exitedWith(againCode, 1, "nothing remembered") ]))
+
+
+/// Calls carrying an EXPLICIT type argument take a different path through Apply than the usual inferred
+/// case: resolving the type argument is the one step that can need the package store before anything has
+/// run, so it hands off to `callBuiltinAsync`/`callPackageAsync` instead of staying synchronous.
+///
+/// Nothing else in either suite exercises that. It must not retry the synchronous path after the await:
+/// cache misses aren't cached, so that never ends for a type argument not in the store. A scalar type
+/// arg, a container one and a custom one each resolve differently, so all three are here.
+test explicitTypeArgs = Instance.withInstance(fun i ->
+  let scalar = Instance.output(i, [ "eval", "Stdlib.Json.parse<Int64>(\"3\")" ])
+
+  let container =
+    Instance.output(i, [ "eval", "Stdlib.Json.parse<List<Int64>>(\"[1,2]\")" ])
+
+  let custom =
+    Instance.output(
+      i,
+      [ "eval", "Stdlib.Json.parse<Stdlib.Uuid.ParseError>(\"{}\")" ])
+
+  Stdlib.Test.all(
+    [ Instance.says(scalar, "Ok", "a scalar type arg resolves")
+      Instance.says(scalar, "3", "and parses")
+      Instance.says(container, "Ok", "a container type arg resolves")
+      Instance.says(container, "[1, 2]", "and parses")
+      Instance.says(custom, "ParseError", "a custom type arg resolves") ]))
+
+
+/// A `None` from `getAt` must still compare and match as a plain `None`. The native version threads the
+/// list's element type through, so the repr gained a type argument; this pins that the change is
+/// display-only.
+test getAtNoneIsStillNone = Instance.withInstance(fun i ->
+  let eq =
+    Instance.output(
+      i,
+      [ "eval"
+        "(Stdlib.List.getAt([1,2,3], 99)) == Stdlib.Option.Option.None" ])
+
+  let dflt =
+    Instance.output(
+      i,
+      [ "eval"
+        "Stdlib.Option.withDefault(Stdlib.List.getAt([1,2,3], 99), 0)" ])
+
+  Stdlib.Test.all(
+    [ Instance.says(eq, "true", "out-of-bounds None equals None")
+      Instance.says(dflt, "0", "and withDefault sees it as None") ]))

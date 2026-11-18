@@ -1,14 +1,14 @@
 /// CLI tests: "Did you mean" and not-found guidance for names that do not resolve.
 module Darklang.Cli.Tests.TestSuite
 
-test unresolvedNameGuidance =
-  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
-  let branchName = "cli-name-guidance-test-" + suffix
+test unresolvedNameGuidance = Instance.withInstance(fun i ->
+  let branchName = "cli-name-guidance-test"
   let moduleName = "Tests.CliNameGuidance"
-  let _ = runWithCommand([ "branch", "create", branchName ])
+  let _ = Instance.output(i, [ "branch", "create", branchName ])
   // Both streams: the suggestion is a warning, so it is on stderr beside the "Created" line.
   let stdlibOutput =
-    runWithBothStreams(
+    Instance.said(
+      i,
       [ "--branch"
         branchName
         "fn"
@@ -20,16 +20,14 @@ test unresolvedNameGuidance =
     + "PACKAGE.Darklang.Stdlib.List.map(values, fun value -> value)"
 
   let packageOutput =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch"
         branchName
         "fn"
         "/" + moduleName + ".map"
         internalSource ])
 
-  // `-y`: the branch holds unmerged names, so a bare archive is refused and every later test would run
-  // on this branch. Archiving the branch you stand on moves the process (and the config) back to main.
-  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
   if
     Stdlib.String.contains(stdlibOutput, "Did you mean `Stdlib.Bool.not`?")
     && Stdlib.String.contains(packageOutput, "`PACKAGE.` is internal notation")
@@ -41,22 +39,20 @@ test unresolvedNameGuidance =
   else
     Stdlib.Test.fail(
       $"Expected source-name guidance; stdlib={stdlibOutput}; "
-      + $"PACKAGE={packageOutput}")
+      + $"PACKAGE={packageOutput}"))
 
 
 /// Eval with stdout and stderr apart, for an error whose text and exit code are both asserted.
-let evalOutcome(expr: String): Stdlib.Cli.ExecutionOutcome =
-  let cli = Stdlib.Cli.Process.shellQuote(cliUnderTest())
-  let quoted = Stdlib.Cli.Process.shellQuote(expr)
-  Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", $"{cli} eval {quoted}")
+let evalOutcome(i: Instance.T, expr: String): Stdlib.Cli.Process.Output =
+  Instance.run(i, [ "eval", expr ]) |> Builtin.unwrap
 
 
 // Agents guess `Stdlib.Int64.toString`; the function is `Stdlib.display`, and the error
 // should say so. A name with nothing near it gets no guess.
-test notFoundSuggestsTheEnclosingStdlibName =
-  let moved = evalOutcome("Stdlib.Int64.toString(5)")
-  let unprefixed = evalOutcome("Int64.toString(5)")
-  let nowhere = evalOutcome("Stdlib.Nope.zzz(5)")
+test notFoundSuggestsTheEnclosingStdlibName = Instance.withInstance(fun i ->
+  let moved = evalOutcome(i, "Stdlib.Int64.toString(5)")
+  let unprefixed = evalOutcome(i, "Int64.toString(5)")
+  let nowhere = evalOutcome(i, "Stdlib.Nope.zzz(5)")
   if
     moved.exitCode != 0
     && Stdlib.String.contains(moved.stderr, "Did you mean `Stdlib.display`?")
@@ -71,7 +67,7 @@ test notFoundSuggestsTheEnclosingStdlibName =
   else
     Stdlib.Test.fail(
       $"Expected a suggestion for the moved name only; moved={moved.stderr}; "
-      + $"unprefixed={unprefixed.stderr}; nowhere={nowhere.stderr}")
+      + $"unprefixed={unprefixed.stderr}; nowhere={nowhere.stderr}"))
 
 
 /// The written names <fn Darklang.Cli.Packages.Errors.stdlibSuggestion> would try, in order.
@@ -261,9 +257,9 @@ test operatorNamesSuggestTheOperator =
 
 
 // `Stdlib.Int64.mod` said only "not found", and searching for it never showed `%`.
-test int64ModSuggestsPercent =
-  let evaluated = evalOutcome("Stdlib.Int64.mod(7, 3)")
-  let searched = runWithBothStreams([ "search", "Int64.mod", "--fn" ])
+test int64ModSuggestsPercent = Instance.withInstance(fun i ->
+  let evaluated = evalOutcome(i, "Stdlib.Int64.mod(7, 3)")
+  let searched = Instance.said(i, [ "search", "Int64.mod", "--fn" ])
   if
     evaluated.exitCode != 0
     && Stdlib.String.contains(evaluated.stderr, "Did you mean `a % b`?")
@@ -272,12 +268,12 @@ test int64ModSuggestsPercent =
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      $"Expected `a % b`; eval={evaluated.stderr}; search={searched}")
+      $"Expected `a % b`; eval={evaluated.stderr}; search={searched}"))
 
 
 // `Stdlib.Int64.add` pointed only at `+`, which wraps on overflow.
-test int64AddSuggestsCheckedToo =
-  let evaluated = evalOutcome("Stdlib.Int64.add(7, 3)")
+test int64AddSuggestsCheckedToo = Instance.withInstance(fun i ->
+  let evaluated = evalOutcome(i, "Stdlib.Int64.add(7, 3)")
   if
     evaluated.exitCode != 0
     && Stdlib.String.contains(
@@ -286,7 +282,7 @@ test int64AddSuggestsCheckedToo =
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected `a + b` and checkedAdd; eval={evaluated.stderr}")
+    Stdlib.Test.fail($"Expected `a + b` and checkedAdd; eval={evaluated.stderr}"))
 
 
 test didYouMeanText =
@@ -301,22 +297,20 @@ test didYouMeanText =
 
 
 // A misspelt name gets the names spelled near it, on eval and on save.
-test notFoundSuggestsNamesSpelledNear =
-  let evaluated = evalOutcome("Stdlib.List.lenght([1])")
-  let branchName =
-    "cli-did-you-mean-test-"
-    + Stdlib.display(Stdlib.Int64.random(100000, 999999))
+test notFoundSuggestsNamesSpelledNear = Instance.withInstance(fun i ->
+  let evaluated = evalOutcome(i, "Stdlib.List.lenght([1])")
+  let branchName = "cli-did-you-mean-test"
 
-  let _ = runWithCommand([ "branch", "create", branchName ])
+  let _ = Instance.output(i, [ "branch", "create", branchName ])
   let saved =
-    runWithBothStreams(
+    Instance.said(
+      i,
       [ "--branch"
         branchName
         "fn"
         "/Tests.CliDidYouMean.size"
         "(xs: List<Int64>) : Int64 = Stdlib.List.lenght(xs)" ])
 
-  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
   if
     evaluated.exitCode != 0
     && Stdlib.String.contains(
@@ -327,4 +321,4 @@ test notFoundSuggestsNamesSpelledNear =
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      $"Expected a near name; eval={evaluated.stderr}; save={saved}")
+      $"Expected a near name; eval={evaluated.stderr}; save={saved}"))

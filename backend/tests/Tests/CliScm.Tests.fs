@@ -827,7 +827,7 @@ let private deprecationTakesEffectInTheSameProcess =
 // permissive" in `Execution.createState`). The harmful gate is narrowed by the CLI HOST, per entry
 // point, so in this harness the halt never fires and the test asserts a halt that cannot happen.
 //
-// It is tested where it can be: "Harmful Gate" in `packages/darklang/tests/cli/tests.dark`, which drives
+// It is tested where it can be: `harmfulGate` in `packages/darklang/tests/cli/deprecate.dark`, which drives
 // a real CLI process and asserts BOTH directions -- a fn marked harmful refuses to run, and
 // `--allow-harmful` runs it anyway.
 

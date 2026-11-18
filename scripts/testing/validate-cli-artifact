@@ -324,6 +324,15 @@ if [[ -n "$missing_tools" ]]; then
   echo "  FAIL suite (needs${missing_tools} on PATH)"
   failures=$((failures + 1))
 else
+  # The modules whose tests drive the CLI as a process, so they test the artifact itself.
+  SUITE_MODULES=(
+    Darklang.Cli.Tests.TestSuite
+    Darklang.Cli.Tests.Authoring
+    Darklang.Cli.Tests.CommandHelp
+    Darklang.Cli.Tests.Deprecate
+    Darklang.Cli.Tests.EvalAndRun
+    Darklang.Cli.Tests.Listing
+  )
   suite_out=""
   suite_rc=0
   # Give the native runner its own store and policy as well as its own HOME.
@@ -340,7 +349,7 @@ else
   # Without TERM, as in CircleCI's macOS shell, so a local run sees what a release job does.
   suite_out=$(
     unset TERM
-    CHECK_TIMEOUT="$SUITE_TIMEOUT" suite_cli test run --force Darklang.Cli.Tests.TestSuite
+    CHECK_TIMEOUT="$SUITE_TIMEOUT" suite_cli test run --force "${SUITE_MODULES[@]}"
   ) || suite_rc=$?
 
   if [[ $suite_rc -eq 124 ]]; then

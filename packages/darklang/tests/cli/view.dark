@@ -6,8 +6,8 @@ module Darklang.Cli.Tests.TestSuite
 // register numbers and instruction counts change whenever the compiler does, and a test that pins them
 // fails on every unrelated codegen improvement.
 
-test viewAst =
-  let output = runWithCommand([ "view", "Stdlib.List.dropLast", "--ast" ])
+test viewAst = Instance.withInstance(fun i ->
+  let output = Instance.output(i, [ "view", "Stdlib.List.dropLast", "--ast" ])
 
   // A signature line, then the body tree with its node kinds. `Match`/`Arg` are what `dropLast` is made
   // of.
@@ -22,12 +22,12 @@ test viewAst =
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      $"Expected an AST tree with signature rows and node kinds, got: {output}")
+      $"Expected an AST tree with signature rows and node kinds, got: {output}"))
 
 
-test viewInstructions =
+test viewInstructions = Instance.withInstance(fun i ->
   let output =
-    runWithCommand([ "view", "Stdlib.List.prepend", "--instructions" ])
+    Instance.output(i, [ "view", "Stdlib.List.prepend", "--instructions" ])
 
   // `prepend` is a thin wrapper over a builtin, so it must load the builtin and apply it.
   if
@@ -40,27 +40,26 @@ test viewInstructions =
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      $"Expected an instruction listing for List.prepend, got: {output}")
+      $"Expected an instruction listing for List.prepend, got: {output}"))
 
 
-test viewInstructionsShowsLambdas =
+test viewInstructionsShowsLambdas = Instance.withInstance(fun i ->
   // A listing that stopped at `CreateLambda` would be a dead end, so a lambda gets its own section
   // below the function that creates it.
   //
   // The subject is authored here rather than borrowed from the stdlib. Whether a given stdlib function
   // compiles to a lambda is an implementation detail: it can become a direct builtin call, and then a
   // test pointing at it still runs, still fails, and covers nothing.
-  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
-  let name = "Tests.CliLambda.keepBig" + suffix
+  let name = "Tests.CliLambda.keepBig"
   let _ =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "fn"
         "/" + name
         "(xs: List<Int64>) : List<Int64> = Stdlib.List.filter(xs, fun x -> if x > 2 then true else false)" ])
 
-  let output = runWithCommand([ "view", name, "--instructions" ])
+  let output = Instance.output(i, [ "view", name, "--instructions" ])
 
-  let _ = runWithCommand([ "delete", "fn", name, "--yes" ])
   if
     Stdlib.String.contains(output, "CreateLambda")
     && Stdlib.String.contains(output, "lambda#")
@@ -69,13 +68,13 @@ test viewInstructionsShowsLambdas =
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      $"Expected the lambda's own listing under {name}'s, got: {output}")
+      $"Expected the lambda's own listing under {name}'s, got: {output}"))
 
 
-test viewCompilerViewsRejectNonFunctions =
+test viewCompilerViewsRejectNonFunctions = Instance.withInstance(fun i ->
   // Both views are function-only, and saying which kind of thing you pointed at beats "not found".
-  let typeOutput = runWithCommand([ "view", "Stdlib.Option.Option", "--ast" ])
-  let moduleOutput = runWithCommand([ "view", "Stdlib.List", "--instructions" ])
+  let typeOutput = Instance.output(i, [ "view", "Stdlib.Option.Option", "--ast" ])
+  let moduleOutput = Instance.output(i, [ "view", "Stdlib.List", "--instructions" ])
   if
     Stdlib.String.contains(typeOutput, "type")
     && Stdlib.String.contains(moduleOutput, "module")
@@ -83,23 +82,23 @@ test viewCompilerViewsRejectNonFunctions =
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      $"Expected kind-specific refusals, got type: {typeOutput}, module: {moduleOutput}")
+      $"Expected kind-specific refusals, got type: {typeOutput}, module: {moduleOutput}"))
 
 
-test viewFlagBeforePath =
+test viewFlagBeforePath = Instance.withInstance(fun i ->
   // Flags are position-independent; this is the ordering people actually type.
-  let output = runWithCommand([ "view", "--ast", "Stdlib.List.prepend" ])
+  let output = Instance.output(i, [ "view", "--ast", "Stdlib.List.prepend" ])
   if
     Stdlib.String.contains(output, "prepend")
     && Stdlib.String.contains(output, "->")
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected --ast to work before the path, got: {output}")
+    Stdlib.Test.fail($"Expected --ast to work before the path, got: {output}"))
 
 
-test viewUnknownFlag =
-  let output = runWithCommand([ "view", "Stdlib.List.prepend", "--nope" ])
+test viewUnknownFlag = Instance.withInstance(fun i ->
+  let output = Instance.output(i, [ "view", "Stdlib.List.prepend", "--nope" ])
   if
     Stdlib.String.contains(output, "does not take `--nope`")
     && Stdlib.String.contains(output, "dark view --help")
@@ -107,7 +106,7 @@ test viewUnknownFlag =
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      $"Expected a refusal naming the flag and pointing to help, got: {output}")
+      $"Expected a refusal naming the flag and pointing to help, got: {output}"))
 
 
 /// `view --raw` prints the declaration and nothing else.
@@ -115,10 +114,10 @@ test viewUnknownFlag =
 /// The point of `--raw` is that another program consumes it, so anything decorative
 /// in there is a bug rather than a cosmetic complaint: a colour code or a badge line
 /// ends up in whatever the output was piped into.
-test viewRawIsUndecorated =
+test viewRawIsUndecorated = Instance.withInstance(fun i ->
   let esc = "\u001b"
-  let raw = runWithCommand([ "view", "Stdlib.List.head", "--raw" ])
-  let decorated = runWithCommand([ "view", "Stdlib.List.head" ])
+  let raw = Instance.output(i, [ "view", "Stdlib.List.head", "--raw" ])
+  let decorated = Instance.output(i, [ "view", "Stdlib.List.head" ])
   if
     Stdlib.String.contains(raw, "let head")
     && Stdlib.Bool.not(Stdlib.String.contains(raw, esc))
@@ -126,7 +125,7 @@ test viewRawIsUndecorated =
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected an undecorated declaration, got: {raw}")
+    Stdlib.Test.fail($"Expected an undecorated declaration, got: {raw}"))
 
 
 /// A definition is headed with the name you asked for.
@@ -136,35 +135,35 @@ test viewRawIsUndecorated =
 /// than one candidate that resolution has to prefer the one that was typed;
 /// otherwise `view Zz.alpha` prints a definition headed `Zz.beta`, and `--raw` feeds
 /// that wrong name to whatever writes it back.
-test viewHeadsWithTheNameYouAskedFor =
-  let suffix = Stdlib.display(Stdlib.Int64.random(100000, 999999))
-  let branchName = "cli-sharedbody-test-" + suffix
+test viewHeadsWithTheNameYouAskedFor = Instance.withInstance(fun i ->
+  let branchName = "cli-sharedbody-test"
   let alpha = "Tests.CliShared.alpha"
   let beta = "Tests.CliShared.beta"
-  let _ = runWithCommand([ "branch", "create", branchName ])
+  let _ = Instance.output(i, [ "branch", "create", branchName ])
 
   // The same body on purpose: that is what makes them one item.
   let _ =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch", branchName, "fn", "/" + alpha, "let alpha(): Int64 = 7" ])
 
   let _ =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "--branch", branchName, "fn", "/" + beta, "let beta(): Int64 = 7" ])
 
   let rawAlpha =
-    runWithCommand([ "--branch", branchName, "view", alpha, "--raw" ])
+    Instance.output(i, [ "--branch", branchName, "view", alpha, "--raw" ])
 
   let rawBeta =
-    runWithCommand([ "--branch", branchName, "view", beta, "--raw" ])
+    Instance.output(i, [ "--branch", branchName, "view", beta, "--raw" ])
 
   // The decorated view resolves the name the same way, so it needs the same answer.
   // Only `--raw` gets written back, but a wrong name on screen is wrong either way.
-  let shownAlpha = runWithCommand([ "--branch", branchName, "view", alpha ])
+  let shownAlpha = Instance.output(i, [ "--branch", branchName, "view", alpha ])
 
-  let shownBeta = runWithCommand([ "--branch", branchName, "view", beta ])
+  let shownBeta = Instance.output(i, [ "--branch", branchName, "view", beta ])
 
-  let _ = runWithCommand([ "branch", "archive", branchName, "-y" ])
   if
     Stdlib.String.contains(rawAlpha, "let alpha")
     && Stdlib.Bool.not(Stdlib.String.contains(rawAlpha, "let beta"))
@@ -179,4 +178,18 @@ test viewHeadsWithTheNameYouAskedFor =
   else
     Stdlib.Test.fail(
       $"Expected each name to head its own declaration; alpha: {rawAlpha}, "
-      + $"beta: {rawBeta}, shown: {shownAlpha} / {shownBeta}")
+      + $"beta: {rawBeta}, shown: {shownAlpha} / {shownBeta}"))
+
+
+// An impl's methods are called through its trait, never at the type's module, so `view` and `search`
+// say where: the `Stdlib.display` shortcut beside `Display`, and the trait's own path for one without
+// a shortcut.
+test implListingsSayWhereTheMethodsAreCalled = Instance.withInstance(fun i ->
+  let viewed = Instance.output(i, [ "view", "Stdlib.Int64" ])
+  let searched = Instance.output(i, [ "search", "Int64.display", "--impl" ])
+  Stdlib.Test.all(
+    [ Instance.says(viewed, "Stdlib.display", "view names the display shortcut")
+      Instance.says(viewed, "Stdlib.Add.add", "and the trait path")
+      Instance.doesNotSay(viewed, "Stdlib.Int64.toString", "not a module path")
+      Instance.says(searched, "Stdlib.display(v)", "search shows the call")
+      Instance.says(searched, "impl Display for Int64", "and the impl") ]))

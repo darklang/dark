@@ -1,26 +1,26 @@
-/// CLI tests: `dark search`, driven by shelling out to the real binary.
+/// CLI tests: `dark search`, each in its own instance.
 module Darklang.Cli.Tests.TestSuite
 
-test searchMatchesModuleAndCamelCaseName =
-  let output = runWithCommand([ "search", "string toList", "--fn" ])
+test searchMatchesModuleAndCamelCaseName = Instance.withInstance(fun i ->
+  let output = Instance.output(i, [ "search", "string toList", "--fn" ])
   if Stdlib.String.contains(output, "Darklang.Stdlib.String.toList") then
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      $"Expected `string toList` to find Stdlib.String.toList, got: {output}")
+      $"Expected `string toList` to find Stdlib.String.toList, got: {output}"))
 
 
-test searchMatchesModuleAndOperationName =
-  let output = runWithCommand([ "search", "json parse", "--fn" ])
+test searchMatchesModuleAndOperationName = Instance.withInstance(fun i ->
+  let output = Instance.output(i, [ "search", "json parse", "--fn" ])
   if Stdlib.String.contains(output, "Darklang.Stdlib.Json.parse") then
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      $"Expected `json parse` to find Stdlib.Json.parse, got: {output}")
+      $"Expected `json parse` to find Stdlib.Json.parse, got: {output}"))
 
 
-test searchFindsNestedHelpersFromParentModule =
-  let output = runWithCommand([ "search", "AltJson.get", "--fn" ])
+test searchFindsNestedHelpersFromParentModule = Instance.withInstance(fun i ->
+  let output = Instance.output(i, [ "search", "AltJson.get", "--fn" ])
   if
     Stdlib.String.contains(
       output,
@@ -29,12 +29,13 @@ test searchFindsNestedHelpersFromParentModule =
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      $"Expected `AltJson.get` to find nested AltJson helpers, got: {output}")
+      $"Expected `AltJson.get` to find nested AltJson helpers, got: {output}"))
 
 
-test batchSearchKeepsQueriesIndependent =
+test batchSearchKeepsQueriesIndependent = Instance.withInstance(fun i ->
   let output =
-    runWithCommand(
+    Instance.output(
+      i,
       [ "search"
         "--batch"
         "string toList"
@@ -53,4 +54,4 @@ test batchSearchKeepsQueriesIndependent =
     Stdlib.Test.Result.Pass
   else
     Stdlib.Test.fail(
-      $"Expected three independent batch search results, got: {output}")
+      $"Expected three independent batch search results, got: {output}"))

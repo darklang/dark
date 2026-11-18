@@ -364,3 +364,52 @@ test resolveTheirsDropsTheBranchsVersionSoMineHasNothingToKeep =
         "after theirs, the branch has no version of its own left to keep")
 
       evals(dark, "Tests.App.helper()", "3", "the helper is still main's") ])
+
+
+// `conflicts walk` asks about each conflict between two branches, and `b` takes the other side.
+// The answer settles it on the branch and nowhere else.
+test conflictsWalkTakesTheOtherSideOnB =
+  scenario(fun dark ->
+    let f = "Tests.CliWalk.f"
+
+    // A shared base for the name: both sides have to move it from something.
+    let setup =
+      Stdlib.Test.all(
+        [ switch(dark, "parent")
+          saveNumber(dark, f, "1")
+          commit(dark, "shared base")
+          switch(dark, "child")
+          saveNumber(dark, f, "222")
+          commit(dark, "child change")
+          switch(dark, "parent")
+          saveNumber(dark, f, "111")
+          commit(dark, "parent change") ])
+
+    let merged =
+      says(dark, [ "merge", "child", "-y" ], "conflict", "the merge records a conflict")
+
+    let before =
+      says(
+        dark,
+        [ "conflicts", "--json" ],
+        "\"pending\":1",
+        "one conflict is pending before the walk")
+
+    let (walkCode, walked) =
+      Cli.Tests.Edit.runWithStdin(dark, [ "conflicts", "walk" ], "b\n")
+
+    [ setup
+      merged
+      before
+      Cli.Tests.Instance.exitedWith(walkCode, 0, "`conflicts walk` runs")
+      Cli.Tests.Instance.says(walked, "took theirs", "`b` takes the other side")
+      says(
+        dark,
+        [ "conflicts", "--json" ],
+        "\"pending\":0",
+        "nothing is pending after the walk")
+      notFoundOn(
+        dark,
+        "main",
+        f + "()",
+        "a conflict settled between two branches does not reach main") ])

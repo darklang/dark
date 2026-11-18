@@ -168,3 +168,14 @@ test discardAfterAnUndoAndARenameGoesBackToTheCommittedVersion =
         "f is on its committed version, not the restored one")
 
       evals(dark, "Tests.App.other()", "5", "and the rename is gone too") ])
+
+
+// `discard` throws the whole draft away, so an unanswerable prompt is not a yes: it refuses, and
+// the work is still there. `-y` is how a script says yes.
+test discardWithoutAYesKeepsTheDraft =
+  scenario(fun dark ->
+    [ saveNumber(dark, "Tests.Discard.a", "1")
+      says(dark, [ "discard" ], "kept.", "no answer is not a yes")
+      says(dark, [ "status" ], "1 item", "the draft is still there")
+      says(dark, [ "discard", "-y" ], "discarded", "-y says yes")
+      doesNotSay(dark, [ "status" ], "1 item", "and the draft is gone") ])
