@@ -2,10 +2,98 @@
 /// Linux (x86_64, aarch64, armv7) and macOS only. Will not work on Windows.
 module Darklang.Stdlib.Cli.Posix
 
-/// Structured error from posix operations, carrying the errno code.
+/// An operating system. Error numbers past about 34 differ between them.
+type Os =
+  | Linux
+  | Darwin
+
+
+/// What went wrong, the same on every OS. Many error numbers map to one kind, and kinds may be
+/// added, so a match needs a `_` arm.
+type ErrorKind =
+  /// ENOENT
+  | NotFound
+  /// EPERM, EACCES
+  | PermissionDenied
+  /// EEXIST
+  | AlreadyExists
+  /// ENOTDIR
+  | NotADirectory
+  /// EISDIR
+  | IsADirectory
+  /// ENOTEMPTY
+  | DirectoryNotEmpty
+  /// EINVAL
+  | InvalidInput
+  /// Bytes that cannot be read as what they should be
+  | InvalidData
+  /// EINTR
+  | Interrupted
+  /// EAGAIN: nothing to read or no room to write yet
+  | WouldBlock
+  /// ETIMEDOUT
+  | TimedOut
+  /// ESRCH
+  | NoSuchProcess
+  /// ENOSYS, ENOTSUP, EOPNOTSUPP, ENODEV, ENOTTY
+  | Unsupported
+  /// EXDEV
+  | CrossesDevices
+  /// EPIPE
+  | BrokenPipe
+  /// ENOSPC, EDQUOT
+  | StorageFull
+  /// EROFS
+  | ReadOnlyFilesystem
+  /// ELOOP
+  | FilesystemLoop
+  /// ENAMETOOLONG
+  | InvalidFilename
+  /// EBUSY, ETXTBSY
+  | ResourceBusy
+  /// ENOMEM
+  | OutOfMemory
+  /// Any other error number
+  | Other
+
+
+/// An error number, and the OS whose numbering it uses: 35 is EAGAIN on Darwin and EDEADLK on
+/// Linux.
+type Errno =
+  { os: Os
+    code: Int64 }
+
+
+/// Why a Posix operation failed. <fn Error.kind> says what kind of failure it is.
 type Error =
-  { errno: Int64
-    message: String }
+  /// The kernel refused the call
+  | Os(Errno)
+  /// A file's contents are not valid UTF-8
+  | InvalidUtf8
+  /// The kernel answered with a record too short to read, or a write that made no progress
+  | BadKernelReply
+  /// The process ran past its timeout and was killed
+  | ProcessTimedOut
+
+
+module Error =
+  /// What kind of failure <param error> is
+  let kind(error: Error): ErrorKind =
+    match error with
+    | Os(errno) -> Errno.kind(errno)
+    | InvalidUtf8 -> ErrorKind.InvalidData
+    | BadKernelReply -> ErrorKind.InvalidData
+    | ProcessTimedOut -> ErrorKind.TimedOut
+
+
+impl Display for Error =
+  /// The OS's text for an error number, {{No such file or directory}}
+  let display(error: Error): String =
+    match error with
+    | Os(errno) -> Errno.message(errno)
+    | InvalidUtf8 -> "File contents are not valid UTF-8"
+    | BadKernelReply -> "The kernel's reply could not be read"
+    | ProcessTimedOut -> "Process timed out"
 
 
 /// Result of a stat() call.
@@ -237,8 +325,8 @@ let fdSeekFromStart(fd: Fd, offset: Int64): Result<Int64, Error> =
 /// Stat a file. Returns mode, size, and modification time.
 let stat(path: String): Result<StatResult, Error> =
   Builtin.syscallStatAt(path)
-  |> Result.andThen(__kernelMetadata)
   |> Result.mapError(__fromErrno)
+  |> Result.andThen(__kernelMetadata)
   |> Result.map(fun metadata ->
     StatResult { mode = metadata.mode, size = metadata.size, mtimeSec = metadata.mtimeSec })
 
@@ -306,7 +394,10 @@ let readlink(path: String): Result<String, Error> =
 let isSymlink(path: String): Result<Bool, Error> =
   match readlink(path) with
   | Ok(_) -> Result.Ok(true)
-  | Error(e) -> if e.errno == Errno.einval then Result.Ok(false) else Result.Error(e)
+  | Error(e) ->
+    match Error.kind(e) with
+    | InvalidInput -> Result.Ok(false)
+    | _ -> Result.Error(e)
 
 
 /// Create a unique temporary file. Returns (fd, path).
@@ -340,8 +431,8 @@ let flock(fd: Fd, lock: Lock): Result<Unit, Error> =
 /// Get the owner username of a file.
 let fileOwner(path: String): Result<String, Error> =
   Builtin.syscallStatAt(path)
-  |> Result.andThen(__kernelMetadata)
   |> Result.mapError(__fromErrno)
+  |> Result.andThen(__kernelMetadata)
   |> Result.map(fun metadata ->
     let uid = __decimal(metadata.uid)
     match __accountLookup(uid, 0) with
@@ -405,26 +496,33 @@ let kill(pid: Pid, signal: Signal): Result<Unit, Error> =
   Builtin.syscallKill(Pid.toInt64(pid), Signal.toInt64(signal)) |> Result.mapError(__fromErrno)
 
 
-/// Common errno values (Linux/macOS)
 module Errno =
-  /// Invalid argument
-  val einval = 22
+  /// What kind of failure <param errno> is
+  let kind(errno: Errno): ErrorKind =
+    match __errnoTable(errno) with
+    | Some(entry) -> entry.kind
+    | None -> ErrorKind.Other
 
 
-  /// No such process
-  val esrch = 3
+  /// The C name of <param errno>, {{ENOENT}}, or None for a number its OS does not define
+  let name(errno: Errno): Option<String> =
+    __errnoTable(errno) |> Option.map(fun entry -> entry.name)
 
 
-  /// Operation not permitted
-  val eperm = 1
+  /// The OS's text for <param errno>, {{No such file or directory}}
+  let message(errno: Errno): String =
+    match __errnoTable(errno) with
+    | Some(entry) -> entry.message
+    | None ->
+      match errno.os with
+      | Linux -> String.append("Unknown error ", __decimal(errno.code))
+      | Darwin -> String.append("Unknown error: ", __decimal(errno.code))
 
 
-  /// No such file or directory: a parent component is missing
-  val enoent = 2
-
-
-  /// File exists
-  val eexist = 17
+impl Display for Errno =
+  /// The OS's text, {{No such file or directory}}
+  let display(errno: Errno): String =
+    message(errno)
 
 
 /// Stat file-type mask and constants
@@ -462,9 +560,9 @@ let isDirectory(path: String): Bool =
 /// Signal 0 checks process existence without sending a signal.
 let isProcessRunning(pid: Pid): Bool =
   // EPERM means the process exists but we lack permission to signal it
-  match Builtin.syscallKill(Pid.toInt64(pid), 0) with
+  match Builtin.syscallKill(Pid.toInt64(pid), 0) |> Result.mapError(__fromErrno) with
   | Ok(_) -> true
-  | Error(errno) -> errno == Errno.eperm
+  | Error(e) -> Error.kind(e) == ErrorKind.PermissionDenied
 
 
 /// Create a directory and all missing parents (like mkdir -p).
@@ -477,10 +575,11 @@ let mkdirRecursive(path: String): Result<Unit, Error> =
   match mkdir(target, Modes.defaultDir) with
   | Ok(()) -> Result.Ok()
   | Error(e) ->
-    if e.errno == Errno.eexist then
+    match Error.kind(e) with
+    | AlreadyExists ->
       // Something is there already; only a directory satisfies mkdir -p.
       if isDirectory(target) then Result.Ok() else Result.Error(e)
-    else if e.errno == Errno.enoent then
+    | NotFound ->
       let parent = Path.parent(target)
       if parent == target || parent == "." || parent == "/" then
         Result.Error(e)
@@ -492,12 +591,11 @@ let mkdirRecursive(path: String): Result<Unit, Error> =
           | Ok(()) -> Result.Ok()
           | Error(again) ->
             // Lost a race to something that created it meanwhile.
-            if again.errno == Errno.eexist && isDirectory(target) then
+            if Error.kind(again) == ErrorKind.AlreadyExists && isDirectory(target) then
               Result.Ok()
             else
               Result.Error(again)
-    else
-      Result.Error(e)
+    | _ -> Result.Error(e)
 
 
 /// Target kernel constants and structure layouts. These are Dark data, shared
@@ -519,12 +617,6 @@ let __abiOpenAppend(): Int64 = if __abiMac() then 8 else 1024
 let __abiOpenExclusive(): Int64 = if __abiMac() then 2048 else 128
 
 let __abiRemoveDirectory(): Int64 = if __abiMac() then 128 else 512
-
-let __abiErrnoAgain(): Int64 = if __abiMac() then 35 else 11
-
-let __abiErrnoNoSys(): Int64 = if __abiMac() then 78 else 38
-
-let __abiErrnoNotSupported(): Int64 = if __abiMac() then 45 else 95
 
 
 let __abiOpenDirectory(): Int64 =
@@ -595,19 +687,19 @@ let __abiDirectoryNameOffset(): Int64 = if __abiMac() then 21 else 19
 
 /// Bounds-checked decoding of kernel byte records. No OS effects occur here.
 /// <param width> bytes of <param bytes> from <param offset>, little-endian.
-let __kernelField(bytes: Bytes, offset: Int64, width: Int64): Result<Int64, Int64> =
+let __kernelField(bytes: Bytes, offset: Int64, width: Int64): Result<Int64, Error> =
   if width == 0 then
     Result.Ok(0)
   else
     match Bytes.getAt(bytes, offset) with
-    | Error(_) -> Result.Error(5)
+    | Error(_) -> Result.Error(Error.BadKernelReply)
     | Ok(byte) ->
       match __kernelField(bytes, offset + 1, width - 1) with
       | Error(e) -> Result.Error(e)
       | Ok(high) -> Result.Ok(Int64.fromUInt8(byte) + 256 * high)
 
 
-let __kernelSignedField(bytes: Bytes, offset: Int64, width: Int64): Result<Int64, Int64> =
+let __kernelSignedField(bytes: Bytes, offset: Int64, width: Int64): Result<Int64, Error> =
   match __kernelField(bytes, offset, width) with
   | Error(e) -> Result.Error(e)
   | Ok(n) ->
@@ -629,7 +721,7 @@ type __KernelMetadata =
     inode: Int64 }
 
 
-let __kernelMetadata(bytes: Bytes): Result<__KernelMetadata, Int64> =
+let __kernelMetadata(bytes: Bytes): Result<__KernelMetadata, Error> =
   __kernelField(bytes, __abiStatModeOffset(), __abiStatModeWidth())
   |> Result.andThen(fun mode ->
     __kernelSignedField(bytes, __abiStatSizeOffset(), 8)
@@ -656,7 +748,7 @@ let __kernelEntriesFrom(
   bytes: Bytes,
   at: Int64,
   reversed: List<String>)
-  : Result<List<String>, Int64> =
+  : Result<List<String>, Error> =
   let remaining = Bytes.length(bytes) - at
   if remaining <= 0 then
     Result.Ok(reversed)
@@ -665,7 +757,7 @@ let __kernelEntriesFrom(
     |> Result.andThen(fun length ->
       let nameOffset = __abiDirectoryNameOffset()
       if length <= nameOffset || length > remaining then
-        Result.Error(5)
+        Result.Error(Error.BadKernelReply)
       else
         let nameStart = at + nameOffset
         let recordEnd = at + length
@@ -678,18 +770,19 @@ let __kernelEntriesFrom(
               if name == "." || name == ".." then reversed else List.prepend(reversed, name)
 
             __kernelEntriesFrom(bytes, recordEnd, next)
-          | Error(_) -> Result.Error(5)
-        | _ -> Result.Error(5))
+          | Error(_) -> Result.Error(Error.BadKernelReply)
+        | _ -> Result.Error(Error.BadKernelReply))
 
 
-let __kernelEntries(bytes: Bytes, reversed: List<String>): Result<List<String>, Int64> =
+let __kernelEntries(bytes: Bytes, reversed: List<String>): Result<List<String>, Error> =
   __kernelEntriesFrom(bytes, 0, reversed)
 
 
 /// Directory iteration and record decoding over single-call kernel primitives.
-let __directoryReadAll(fd: Fd, reversed: List<String>): Result<List<String>, Int64> =
+let __directoryReadAll(fd: Fd, reversed: List<String>): Result<List<String>, Error> =
   match Builtin.syscallGetdents(fd.__fd, 32768) with
-  | Error(e) -> if e == 4 then __directoryReadAll(fd, reversed) else Result.Error(e)
+  | Error(4) -> __directoryReadAll(fd, reversed)
+  | Error(e) -> Result.Error(__fromErrno(e))
   | Ok(bytes) ->
     if Bytes.length(bytes) == 0 then
       Result.Ok(List.reverse(reversed))
@@ -703,7 +796,7 @@ let __directoryList(path: String): Result<List<String>, Error> =
   match openFile(path, __abiOpenDirectory(), Modes.none) with
   | Error(e) -> Result.Error(e)
   | Ok(fd) ->
-    let result = __directoryReadAll(fd, []) |> Result.mapError(__fromErrno)
+    let result = __directoryReadAll(fd, [])
     let closed = fdClose(fd)
     match result with
     | Error(e) -> Result.Error(e)
@@ -711,17 +804,18 @@ let __directoryList(path: String): Result<List<String>, Error> =
 
 
 /// Path buffer growth and text decoding over one-call kernel primitives.
-let __pathReadlinkWith(read: Int64 -> Result<Bytes, Int64>, count: Int64): Result<Bytes, Int64> =
+let __pathReadlinkWith(read: Int64 -> Result<Bytes, Int64>, count: Int64): Result<Bytes, Error> =
   if count <= 0 then
-    Result.Error(22)
+    Result.Error(__fromErrno(22))
   else
     match read(count) with
-    | Error(e) -> if e == 4 then __pathReadlinkWith(read, count) else Result.Error(e)
+    | Error(4) -> __pathReadlinkWith(read, count)
+    | Error(e) -> Result.Error(__fromErrno(e))
     | Ok(bytes) ->
       if Bytes.length(bytes) < count then
         Result.Ok(bytes)
       else if count >= 1048576 then
-        Result.Error(if __abiMac() then 63 else 36)
+        Result.Error(__fromErrno(if __abiMac() then 63 else 36))
       else
         __pathReadlinkWith(read, count * 2)
 
@@ -729,17 +823,17 @@ let __pathReadlinkWith(read: Int64 -> Result<Bytes, Int64>, count: Int64): Resul
 let __pathReadlink(path: String): Result<String, Error> =
   __pathReadlinkWith((fun count -> Builtin.syscallReadlinkAt(path, count)), 256)
   |> Result.map(Utf8.decodeWithReplacement)
-  |> Result.mapError(__fromErrno)
 
 
-let __pathCwdWith(read: Int64 -> Result<Bytes, Int64>, count: Int64): Result<Bytes, Int64> =
+let __pathCwdWith(read: Int64 -> Result<Bytes, Int64>, count: Int64): Result<Bytes, Error> =
   if count <= 0 then
-    Result.Error(22)
+    Result.Error(__fromErrno(22))
   else
     match read(count) with
     | Error(4) -> __pathCwdWith(read, count)
-    | Error(34) -> if count >= 1048576 then Result.Error(34) else __pathCwdWith(read, count * 2)
-    | other -> other
+    | Error(34) when count < 1048576 -> __pathCwdWith(read, count * 2)
+    | Error(e) -> Result.Error(__fromErrno(e))
+    | Ok(bytes) -> Result.Ok(bytes)
 
 
 let __pathPathText(bytes: Bytes): String =
@@ -755,22 +849,20 @@ let __pathGetCwd(): Result<String, Error> =
   let bytes =
     if __abiMac() then
       match Builtin.syscallOpen(".", __abiOpenDirectory(), 0) with
-      | Error(e) -> Result.Error(e)
+      | Error(e) -> Result.Error(__fromErrno(e))
       | Ok(fd) ->
         let result = Builtin.syscallFcntlGetPath(fd)
         let closed = Builtin.syscallClose(fd)
         match result with
-        | Error(e) -> Result.Error(e)
+        | Error(e) -> Result.Error(__fromErrno(e))
         | Ok(bytes) ->
           match closed with
-          | Error(e) -> Result.Error(e)
+          | Error(e) -> Result.Error(__fromErrno(e))
           | Ok(_) -> Result.Ok(bytes)
     else
       __pathCwdWith(Builtin.syscallGetcwd, 256)
 
-  bytes
-  |> Result.map(__pathPathText)
-  |> Result.mapError(__fromErrno)
+  bytes |> Result.map(__pathPathText)
 
 
 // Keep errno rendering shared while the engines have different Display APIs.
@@ -807,495 +899,283 @@ let __decimal(value: Int64): String =
     if quotient == 0 then suffix else String.append(__decimal(quotient), suffix)
 
 
-let __macMessage(errno: Int64): String =
-  if errno == 1 then
-    "Operation not permitted"
-  else if errno == 2 then
-    "No such file or directory"
-  else if errno == 3 then
-    "No such process"
-  else if errno == 4 then
-    "Interrupted system call"
-  else if errno == 5 then
-    "Input/output error"
-  else if errno == 6 then
-    "Device not configured"
-  else if errno == 7 then
-    "Argument list too long"
-  else if errno == 8 then
-    "Exec format error"
-  else if errno == 9 then
-    "Bad file descriptor"
-  else if errno == 10 then
-    "No child processes"
-  else if errno == 11 then
-    "Resource deadlock avoided"
-  else if errno == 12 then
-    "Cannot allocate memory"
-  else if errno == 13 then
-    "Permission denied"
-  else if errno == 14 then
-    "Bad address"
-  else if errno == 15 then
-    "Block device required"
-  else if errno == 16 then
-    "Device / Resource busy"
-  else if errno == 17 then
-    "File exists"
-  else if errno == 18 then
-    "Cross-device link"
-  else if errno == 19 then
-    "Operation not supported by device"
-  else if errno == 20 then
-    "Not a directory"
-  else if errno == 21 then
-    "Is a directory"
-  else if errno == 22 then
-    "Invalid argument"
-  else if errno == 23 then
-    "Too many open files in system"
-  else if errno == 24 then
-    "Too many open files"
-  else if errno == 25 then
-    "Inappropriate ioctl for device"
-  else if errno == 26 then
-    "Text file busy"
-  else if errno == 27 then
-    "File too large"
-  else if errno == 28 then
-    "No space left on device"
-  else if errno == 29 then
-    "Illegal seek"
-  else if errno == 30 then
-    "Read-only file system"
-  else if errno == 31 then
-    "Too many links"
-  else if errno == 32 then
-    "Broken pipe"
-  else if errno == 33 then
-    "Numerical argument out of domain"
-  else if errno == 34 then
-    "Result too large"
-  else if errno == 35 then
-    "Resource temporarily unavailable"
-  else if errno == 36 then
-    "Operation now in progress"
-  else if errno == 37 then
-    "Operation already in progress"
-  else if errno == 38 then
-    "Socket operation on non-socket"
-  else if errno == 39 then
-    "Destination address required"
-  else if errno == 40 then
-    "Message too long"
-  else if errno == 41 then
-    "Protocol wrong type for socket"
-  else if errno == 42 then
-    "Protocol not available"
-  else if errno == 43 then
-    "Protocol not supported"
-  else if errno == 44 then
-    "Socket type not supported"
-  else if errno == 45 then
-    "Operation not supported"
-  else if errno == 46 then
-    "Protocol family not supported"
-  else if errno == 47 then
-    "Address family not supported by protocol family"
-  else if errno == 48 then
-    "Address already in use"
-  else if errno == 49 then
-    "Can't assign requested address"
-  else if errno == 50 then
-    "Network is down"
-  else if errno == 51 then
-    "Network is unreachable"
-  else if errno == 52 then
-    "Network dropped connection on reset"
-  else if errno == 53 then
-    "Software caused connection abort"
-  else if errno == 54 then
-    "Connection reset by peer"
-  else if errno == 55 then
-    "No buffer space available"
-  else if errno == 56 then
-    "Socket is already connected"
-  else if errno == 57 then
-    "Socket is not connected"
-  else if errno == 58 then
-    "Can't send after socket shutdown"
-  else if errno == 59 then
-    "Too many references: can't splice"
-  else if errno == 60 then
-    "Operation timed out"
-  else if errno == 61 then
-    "Connection refused"
-  else if errno == 62 then
-    "Too many levels of symbolic links"
-  else if errno == 63 then
-    "File name too long"
-  else if errno == 64 then
-    "Host is down"
-  else if errno == 65 then
-    "No route to host"
-  else if errno == 66 then
-    "Directory not empty"
-  else if errno == 67 then
-    "Too many processes"
-  else if errno == 68 then
-    "Too many users"
-  else if errno == 69 then
-    "Disc quota exceeded"
-  else if errno == 70 then
-    "Stale NFS file handle"
-  else if errno == 71 then
-    "Too many levels of remote in path"
-  else if errno == 72 then
-    "RPC struct is bad"
-  else if errno == 73 then
-    "RPC version wrong"
-  else if errno == 74 then
-    "RPC prog. not avail"
-  else if errno == 75 then
-    "Program version wrong"
-  else if errno == 76 then
-    "Bad procedure for program"
-  else if errno == 77 then
-    "No locks available"
-  else if errno == 78 then
-    "Function not implemented"
-  else if errno == 79 then
-    "Inappropriate file type or format"
-  else if errno == 80 then
-    "Authentication error"
-  else if errno == 81 then
-    "Need authenticator"
-  else if errno == 82 then
-    "Device power is off"
-  else if errno == 83 then
-    "Device error, e.g. paper out"
-  else if errno == 84 then
-    "Value too large to be stored in data type"
-  else if errno == 85 then
-    "Bad executable"
-  else if errno == 86 then
-    "Bad CPU type in executable"
-  else if errno == 87 then
-    "Shared library version mismatch"
-  else if errno == 88 then
-    "Malformed Macho file"
-  else if errno == 89 then
-    "Operation canceled"
-  else if errno == 90 then
-    "Identifier removed"
-  else if errno == 91 then
-    "No message of desired type"
-  else if errno == 92 then
-    "Illegal byte sequence"
-  else if errno == 93 then
-    "Attribute not found"
-  else if errno == 94 then
-    "Bad message"
-  else if errno == 95 then
-    "Reserved"
-  else if errno == 96 then
-    "No message available on STREAM"
-  else if errno == 97 then
-    "Reserved"
-  else if errno == 98 then
-    "No STREAM resources"
-  else if errno == 99 then
-    "Not a STREAM"
-  else if errno == 100 then
-    "Protocol error"
-  else if errno == 101 then
-    "STREAM ioctl timeout"
-  else if errno == 102 then
-    "Operation not supported on socket"
-  else if errno == 103 then
-    "No such policy registered"
-  else if errno == 104 then
-    "State not recoverable"
-  else if errno == 105 then
-    "Previous owner died"
-  else if errno == 106 then
-    "Interface output queue is full"
-  else if errno == 107 then
-    "Capabilities insufficient"
-  else
-    String.append("Unknown error: ", __decimal(errno))
+/// The host's numbering: Darwin on macOS, Linux everywhere else Posix calls run.
+let __os(): Os =
+  if __abiMac() then Os.Darwin else Os.Linux
 
 
-let __fromErrno(errno: Int64): Error =
-  let message =
-    if __abiMac() then
-      __macMessage(errno)
-    else if errno == 1 then
-      "Operation not permitted"
-    else if errno == 2 then
-      "No such file or directory"
-    else if errno == 3 then
-      "No such process"
-    else if errno == 4 then
-      "Interrupted system call"
-    else if errno == 5 then
-      "Input/output error"
-    else if errno == 6 then
-      "No such device or address"
-    else if errno == 7 then
-      "Argument list too long"
-    else if errno == 8 then
-      "Exec format error"
-    else if errno == 9 then
-      "Bad file descriptor"
-    else if errno == 10 then
-      "No child processes"
-    else if errno == 11 then
-      "Resource temporarily unavailable"
-    else if errno == 12 then
-      "Cannot allocate memory"
-    else if errno == 13 then
-      "Permission denied"
-    else if errno == 14 then
-      "Bad address"
-    else if errno == 15 then
-      "Block device required"
-    else if errno == 16 then
-      "Device or resource busy"
-    else if errno == 17 then
-      "File exists"
-    else if errno == 18 then
-      "Invalid cross-device link"
-    else if errno == 19 then
-      "No such device"
-    else if errno == 20 then
-      "Not a directory"
-    else if errno == 21 then
-      "Is a directory"
-    else if errno == 22 then
-      "Invalid argument"
-    else if errno == 23 then
-      "Too many open files in system"
-    else if errno == 24 then
-      "Too many open files"
-    else if errno == 25 then
-      "Inappropriate ioctl for device"
-    else if errno == 26 then
-      "Text file busy"
-    else if errno == 27 then
-      "File too large"
-    else if errno == 28 then
-      "No space left on device"
-    else if errno == 29 then
-      "Illegal seek"
-    else if errno == 30 then
-      "Read-only file system"
-    else if errno == 31 then
-      "Too many links"
-    else if errno == 32 then
-      "Broken pipe"
-    else if errno == 33 then
-      "Numerical argument out of domain"
-    else if errno == 34 then
-      "Numerical result out of range"
-    else if errno == 35 then
-      "Resource deadlock avoided"
-    else if errno == 36 then
-      "File name too long"
-    else if errno == 37 then
-      "No locks available"
-    else if errno == 38 then
-      "Function not implemented"
-    else if errno == 39 then
-      "Directory not empty"
-    else if errno == 40 then
-      "Too many levels of symbolic links"
-    else if errno == 42 then
-      "No message of desired type"
-    else if errno == 43 then
-      "Identifier removed"
-    else if errno == 44 then
-      "Channel number out of range"
-    else if errno == 45 then
-      "Level 2 not synchronized"
-    else if errno == 46 then
-      "Level 3 halted"
-    else if errno == 47 then
-      "Level 3 reset"
-    else if errno == 48 then
-      "Link number out of range"
-    else if errno == 49 then
-      "Protocol driver not attached"
-    else if errno == 50 then
-      "No CSI structure available"
-    else if errno == 51 then
-      "Level 2 halted"
-    else if errno == 52 then
-      "Invalid exchange"
-    else if errno == 53 then
-      "Invalid request descriptor"
-    else if errno == 54 then
-      "Exchange full"
-    else if errno == 55 then
-      "No anode"
-    else if errno == 56 then
-      "Invalid request code"
-    else if errno == 57 then
-      "Invalid slot"
-    else if errno == 59 then
-      "Bad font file format"
-    else if errno == 60 then
-      "Device not a stream"
-    else if errno == 61 then
-      "No data available"
-    else if errno == 62 then
-      "Timer expired"
-    else if errno == 63 then
-      "Out of streams resources"
-    else if errno == 64 then
-      "Machine is not on the network"
-    else if errno == 65 then
-      "Package not installed"
-    else if errno == 66 then
-      "Object is remote"
-    else if errno == 67 then
-      "Link has been severed"
-    else if errno == 68 then
-      "Advertise error"
-    else if errno == 69 then
-      "Srmount error"
-    else if errno == 70 then
-      "Communication error on send"
-    else if errno == 71 then
-      "Protocol error"
-    else if errno == 72 then
-      "Multihop attempted"
-    else if errno == 73 then
-      "RFS specific error"
-    else if errno == 74 then
-      "Bad message"
-    else if errno == 75 then
-      "Value too large for defined data type"
-    else if errno == 76 then
-      "Name not unique on network"
-    else if errno == 77 then
-      "File descriptor in bad state"
-    else if errno == 78 then
-      "Remote address changed"
-    else if errno == 79 then
-      "Can not access a needed shared library"
-    else if errno == 80 then
-      "Accessing a corrupted shared library"
-    else if errno == 81 then
-      ".lib section in a.out corrupted"
-    else if errno == 82 then
-      "Attempting to link in too many shared libraries"
-    else if errno == 83 then
-      "Cannot exec a shared library directly"
-    else if errno == 84 then
-      "Invalid or incomplete multibyte or wide character"
-    else if errno == 85 then
-      "Interrupted system call should be restarted"
-    else if errno == 86 then
-      "Streams pipe error"
-    else if errno == 87 then
-      "Too many users"
-    else if errno == 88 then
-      "Socket operation on non-socket"
-    else if errno == 89 then
-      "Destination address required"
-    else if errno == 90 then
-      "Message too long"
-    else if errno == 91 then
-      "Protocol wrong type for socket"
-    else if errno == 92 then
-      "Protocol not available"
-    else if errno == 93 then
-      "Protocol not supported"
-    else if errno == 94 then
-      "Socket type not supported"
-    else if errno == 95 then
-      "Operation not supported"
-    else if errno == 96 then
-      "Protocol family not supported"
-    else if errno == 97 then
-      "Address family not supported by protocol"
-    else if errno == 98 then
-      "Address already in use"
-    else if errno == 99 then
-      "Cannot assign requested address"
-    else if errno == 100 then
-      "Network is down"
-    else if errno == 101 then
-      "Network is unreachable"
-    else if errno == 102 then
-      "Network dropped connection on reset"
-    else if errno == 103 then
-      "Software caused connection abort"
-    else if errno == 104 then
-      "Connection reset by peer"
-    else if errno == 105 then
-      "No buffer space available"
-    else if errno == 106 then
-      "Transport endpoint is already connected"
-    else if errno == 107 then
-      "Transport endpoint is not connected"
-    else if errno == 108 then
-      "Cannot send after transport endpoint shutdown"
-    else if errno == 109 then
-      "Too many references: cannot splice"
-    else if errno == 110 then
-      "Connection timed out"
-    else if errno == 111 then
-      "Connection refused"
-    else if errno == 112 then
-      "Host is down"
-    else if errno == 113 then
-      "No route to host"
-    else if errno == 114 then
-      "Operation already in progress"
-    else if errno == 115 then
-      "Operation now in progress"
-    else if errno == 116 then
-      "Stale file handle"
-    else if errno == 117 then
-      "Structure needs cleaning"
-    else if errno == 118 then
-      "Not a XENIX named type file"
-    else if errno == 119 then
-      "No XENIX semaphores available"
-    else if errno == 120 then
-      "Is a named type file"
-    else if errno == 121 then
-      "Remote I/O error"
-    else if errno == 122 then
-      "Disk quota exceeded"
-    else if errno == 123 then
-      "No medium found"
-    else if errno == 124 then
-      "Wrong medium type"
-    else if errno == 125 then
-      "Operation canceled"
-    else if errno == 126 then
-      "Required key not available"
-    else if errno == 127 then
-      "Key has expired"
-    else if errno == 128 then
-      "Key has been revoked"
-    else if errno == 129 then
-      "Key was rejected by service"
-    else if errno == 130 then
-      "Owner died"
-    else if errno == 131 then
-      "State not recoverable"
-    else if errno == 132 then
-      "Operation not possible due to RF-kill"
-    else if errno == 133 then
-      "Memory page has hardware error"
-    else
-      String.append("Unknown error ", __decimal(errno))
+/// An error number the host's kernel returned
+let __fromErrno(code: Int64): Error =
+  Error.Os(Errno { os = __os(), code = code })
 
-  Error { errno = errno, message = message }
+
+type __ErrnoEntry =
+  { name: String
+    kind: ErrorKind
+    message: String }
+
+
+let __errnoEntry(name: String, kind: ErrorKind, message: String): Option<__ErrnoEntry> =
+  Option.Some(__ErrnoEntry { name = name, kind = kind, message = message })
+
+
+/// The one table of error numbers: name, kind and the OS's own text, per OS.
+let __errnoTable(errno: Errno): Option<__ErrnoEntry> =
+  match errno.os with
+  | Linux -> __linuxErrno(errno.code)
+  | Darwin -> __darwinErrno(errno.code)
+
+
+let __linuxErrno(code: Int64): Option<__ErrnoEntry> =
+  match code with
+  | 1 -> __errnoEntry("EPERM", ErrorKind.PermissionDenied, "Operation not permitted")
+  | 2 -> __errnoEntry("ENOENT", ErrorKind.NotFound, "No such file or directory")
+  | 3 -> __errnoEntry("ESRCH", ErrorKind.NoSuchProcess, "No such process")
+  | 4 -> __errnoEntry("EINTR", ErrorKind.Interrupted, "Interrupted system call")
+  | 5 -> __errnoEntry("EIO", ErrorKind.Other, "Input/output error")
+  | 6 -> __errnoEntry("ENXIO", ErrorKind.Other, "No such device or address")
+  | 7 -> __errnoEntry("E2BIG", ErrorKind.Other, "Argument list too long")
+  | 8 -> __errnoEntry("ENOEXEC", ErrorKind.Other, "Exec format error")
+  | 9 -> __errnoEntry("EBADF", ErrorKind.Other, "Bad file descriptor")
+  | 10 -> __errnoEntry("ECHILD", ErrorKind.Other, "No child processes")
+  | 11 -> __errnoEntry("EAGAIN", ErrorKind.WouldBlock, "Resource temporarily unavailable")
+  | 12 -> __errnoEntry("ENOMEM", ErrorKind.OutOfMemory, "Cannot allocate memory")
+  | 13 -> __errnoEntry("EACCES", ErrorKind.PermissionDenied, "Permission denied")
+  | 14 -> __errnoEntry("EFAULT", ErrorKind.Other, "Bad address")
+  | 15 -> __errnoEntry("ENOTBLK", ErrorKind.Other, "Block device required")
+  | 16 -> __errnoEntry("EBUSY", ErrorKind.ResourceBusy, "Device or resource busy")
+  | 17 -> __errnoEntry("EEXIST", ErrorKind.AlreadyExists, "File exists")
+  | 18 -> __errnoEntry("EXDEV", ErrorKind.CrossesDevices, "Invalid cross-device link")
+  | 19 -> __errnoEntry("ENODEV", ErrorKind.Unsupported, "No such device")
+  | 20 -> __errnoEntry("ENOTDIR", ErrorKind.NotADirectory, "Not a directory")
+  | 21 -> __errnoEntry("EISDIR", ErrorKind.IsADirectory, "Is a directory")
+  | 22 -> __errnoEntry("EINVAL", ErrorKind.InvalidInput, "Invalid argument")
+  | 23 -> __errnoEntry("ENFILE", ErrorKind.Other, "Too many open files in system")
+  | 24 -> __errnoEntry("EMFILE", ErrorKind.Other, "Too many open files")
+  | 25 -> __errnoEntry("ENOTTY", ErrorKind.Unsupported, "Inappropriate ioctl for device")
+  | 26 -> __errnoEntry("ETXTBSY", ErrorKind.ResourceBusy, "Text file busy")
+  | 27 -> __errnoEntry("EFBIG", ErrorKind.Other, "File too large")
+  | 28 -> __errnoEntry("ENOSPC", ErrorKind.StorageFull, "No space left on device")
+  | 29 -> __errnoEntry("ESPIPE", ErrorKind.Other, "Illegal seek")
+  | 30 -> __errnoEntry("EROFS", ErrorKind.ReadOnlyFilesystem, "Read-only file system")
+  | 31 -> __errnoEntry("EMLINK", ErrorKind.Other, "Too many links")
+  | 32 -> __errnoEntry("EPIPE", ErrorKind.BrokenPipe, "Broken pipe")
+  | 33 -> __errnoEntry("EDOM", ErrorKind.Other, "Numerical argument out of domain")
+  | 34 -> __errnoEntry("ERANGE", ErrorKind.Other, "Numerical result out of range")
+  | 35 -> __errnoEntry("EDEADLK", ErrorKind.Other, "Resource deadlock avoided")
+  | 36 -> __errnoEntry("ENAMETOOLONG", ErrorKind.InvalidFilename, "File name too long")
+  | 37 -> __errnoEntry("ENOLCK", ErrorKind.Other, "No locks available")
+  | 38 -> __errnoEntry("ENOSYS", ErrorKind.Unsupported, "Function not implemented")
+  | 39 -> __errnoEntry("ENOTEMPTY", ErrorKind.DirectoryNotEmpty, "Directory not empty")
+  | 40 -> __errnoEntry("ELOOP", ErrorKind.FilesystemLoop, "Too many levels of symbolic links")
+  | 42 -> __errnoEntry("ENOMSG", ErrorKind.Other, "No message of desired type")
+  | 43 -> __errnoEntry("EIDRM", ErrorKind.Other, "Identifier removed")
+  | 44 -> __errnoEntry("ECHRNG", ErrorKind.Other, "Channel number out of range")
+  | 45 -> __errnoEntry("EL2NSYNC", ErrorKind.Other, "Level 2 not synchronized")
+  | 46 -> __errnoEntry("EL3HLT", ErrorKind.Other, "Level 3 halted")
+  | 47 -> __errnoEntry("EL3RST", ErrorKind.Other, "Level 3 reset")
+  | 48 -> __errnoEntry("ELNRNG", ErrorKind.Other, "Link number out of range")
+  | 49 -> __errnoEntry("EUNATCH", ErrorKind.Other, "Protocol driver not attached")
+  | 50 -> __errnoEntry("ENOCSI", ErrorKind.Other, "No CSI structure available")
+  | 51 -> __errnoEntry("EL2HLT", ErrorKind.Other, "Level 2 halted")
+  | 52 -> __errnoEntry("EBADE", ErrorKind.Other, "Invalid exchange")
+  | 53 -> __errnoEntry("EBADR", ErrorKind.Other, "Invalid request descriptor")
+  | 54 -> __errnoEntry("EXFULL", ErrorKind.Other, "Exchange full")
+  | 55 -> __errnoEntry("ENOANO", ErrorKind.Other, "No anode")
+  | 56 -> __errnoEntry("EBADRQC", ErrorKind.Other, "Invalid request code")
+  | 57 -> __errnoEntry("EBADSLT", ErrorKind.Other, "Invalid slot")
+  | 59 -> __errnoEntry("EBFONT", ErrorKind.Other, "Bad font file format")
+  | 60 -> __errnoEntry("ENOSTR", ErrorKind.Other, "Device not a stream")
+  | 61 -> __errnoEntry("ENODATA", ErrorKind.Other, "No data available")
+  | 62 -> __errnoEntry("ETIME", ErrorKind.Other, "Timer expired")
+  | 63 -> __errnoEntry("ENOSR", ErrorKind.Other, "Out of streams resources")
+  | 64 -> __errnoEntry("ENONET", ErrorKind.Other, "Machine is not on the network")
+  | 65 -> __errnoEntry("ENOPKG", ErrorKind.Other, "Package not installed")
+  | 66 -> __errnoEntry("EREMOTE", ErrorKind.Other, "Object is remote")
+  | 67 -> __errnoEntry("ENOLINK", ErrorKind.Other, "Link has been severed")
+  | 68 -> __errnoEntry("EADV", ErrorKind.Other, "Advertise error")
+  | 69 -> __errnoEntry("ESRMNT", ErrorKind.Other, "Srmount error")
+  | 70 -> __errnoEntry("ECOMM", ErrorKind.Other, "Communication error on send")
+  | 71 -> __errnoEntry("EPROTO", ErrorKind.Other, "Protocol error")
+  | 72 -> __errnoEntry("EMULTIHOP", ErrorKind.Other, "Multihop attempted")
+  | 73 -> __errnoEntry("EDOTDOT", ErrorKind.Other, "RFS specific error")
+  | 74 -> __errnoEntry("EBADMSG", ErrorKind.Other, "Bad message")
+  | 75 -> __errnoEntry("EOVERFLOW", ErrorKind.Other, "Value too large for defined data type")
+  | 76 -> __errnoEntry("ENOTUNIQ", ErrorKind.Other, "Name not unique on network")
+  | 77 -> __errnoEntry("EBADFD", ErrorKind.Other, "File descriptor in bad state")
+  | 78 -> __errnoEntry("EREMCHG", ErrorKind.Other, "Remote address changed")
+  | 79 -> __errnoEntry("ELIBACC", ErrorKind.Other, "Can not access a needed shared library")
+  | 80 -> __errnoEntry("ELIBBAD", ErrorKind.Other, "Accessing a corrupted shared library")
+  | 81 -> __errnoEntry("ELIBSCN", ErrorKind.Other, ".lib section in a.out corrupted")
+  | 82 ->
+    __errnoEntry("ELIBMAX", ErrorKind.Other, "Attempting to link in too many shared libraries")
+  | 83 -> __errnoEntry("ELIBEXEC", ErrorKind.Other, "Cannot exec a shared library directly")
+  | 84 ->
+    __errnoEntry("EILSEQ", ErrorKind.Other, "Invalid or incomplete multibyte or wide character")
+  | 85 -> __errnoEntry("ERESTART", ErrorKind.Other, "Interrupted system call should be restarted")
+  | 86 -> __errnoEntry("ESTRPIPE", ErrorKind.Other, "Streams pipe error")
+  | 87 -> __errnoEntry("EUSERS", ErrorKind.Other, "Too many users")
+  | 88 -> __errnoEntry("ENOTSOCK", ErrorKind.Other, "Socket operation on non-socket")
+  | 89 -> __errnoEntry("EDESTADDRREQ", ErrorKind.Other, "Destination address required")
+  | 90 -> __errnoEntry("EMSGSIZE", ErrorKind.Other, "Message too long")
+  | 91 -> __errnoEntry("EPROTOTYPE", ErrorKind.Other, "Protocol wrong type for socket")
+  | 92 -> __errnoEntry("ENOPROTOOPT", ErrorKind.Other, "Protocol not available")
+  | 93 -> __errnoEntry("EPROTONOSUPPORT", ErrorKind.Other, "Protocol not supported")
+  | 94 -> __errnoEntry("ESOCKTNOSUPPORT", ErrorKind.Other, "Socket type not supported")
+  | 95 -> __errnoEntry("EOPNOTSUPP", ErrorKind.Unsupported, "Operation not supported")
+  | 96 -> __errnoEntry("EPFNOSUPPORT", ErrorKind.Other, "Protocol family not supported")
+  | 97 -> __errnoEntry("EAFNOSUPPORT", ErrorKind.Other, "Address family not supported by protocol")
+  | 98 -> __errnoEntry("EADDRINUSE", ErrorKind.Other, "Address already in use")
+  | 99 -> __errnoEntry("EADDRNOTAVAIL", ErrorKind.Other, "Cannot assign requested address")
+  | 100 -> __errnoEntry("ENETDOWN", ErrorKind.Other, "Network is down")
+  | 101 -> __errnoEntry("ENETUNREACH", ErrorKind.Other, "Network is unreachable")
+  | 102 -> __errnoEntry("ENETRESET", ErrorKind.Other, "Network dropped connection on reset")
+  | 103 -> __errnoEntry("ECONNABORTED", ErrorKind.Other, "Software caused connection abort")
+  | 104 -> __errnoEntry("ECONNRESET", ErrorKind.Other, "Connection reset by peer")
+  | 105 -> __errnoEntry("ENOBUFS", ErrorKind.Other, "No buffer space available")
+  | 106 -> __errnoEntry("EISCONN", ErrorKind.Other, "Transport endpoint is already connected")
+  | 107 -> __errnoEntry("ENOTCONN", ErrorKind.Other, "Transport endpoint is not connected")
+  | 108 ->
+    __errnoEntry("ESHUTDOWN", ErrorKind.Other, "Cannot send after transport endpoint shutdown")
+  | 109 -> __errnoEntry("ETOOMANYREFS", ErrorKind.Other, "Too many references: cannot splice")
+  | 110 -> __errnoEntry("ETIMEDOUT", ErrorKind.TimedOut, "Connection timed out")
+  | 111 -> __errnoEntry("ECONNREFUSED", ErrorKind.Other, "Connection refused")
+  | 112 -> __errnoEntry("EHOSTDOWN", ErrorKind.Other, "Host is down")
+  | 113 -> __errnoEntry("EHOSTUNREACH", ErrorKind.Other, "No route to host")
+  | 114 -> __errnoEntry("EALREADY", ErrorKind.Other, "Operation already in progress")
+  | 115 -> __errnoEntry("EINPROGRESS", ErrorKind.Other, "Operation now in progress")
+  | 116 -> __errnoEntry("ESTALE", ErrorKind.Other, "Stale file handle")
+  | 117 -> __errnoEntry("EUCLEAN", ErrorKind.Other, "Structure needs cleaning")
+  | 118 -> __errnoEntry("ENOTNAM", ErrorKind.Other, "Not a XENIX named type file")
+  | 119 -> __errnoEntry("ENAVAIL", ErrorKind.Other, "No XENIX semaphores available")
+  | 120 -> __errnoEntry("EISNAM", ErrorKind.Other, "Is a named type file")
+  | 121 -> __errnoEntry("EREMOTEIO", ErrorKind.Other, "Remote I/O error")
+  | 122 -> __errnoEntry("EDQUOT", ErrorKind.StorageFull, "Disk quota exceeded")
+  | 123 -> __errnoEntry("ENOMEDIUM", ErrorKind.Other, "No medium found")
+  | 124 -> __errnoEntry("EMEDIUMTYPE", ErrorKind.Other, "Wrong medium type")
+  | 125 -> __errnoEntry("ECANCELED", ErrorKind.Other, "Operation canceled")
+  | 126 -> __errnoEntry("ENOKEY", ErrorKind.Other, "Required key not available")
+  | 127 -> __errnoEntry("EKEYEXPIRED", ErrorKind.Other, "Key has expired")
+  | 128 -> __errnoEntry("EKEYREVOKED", ErrorKind.Other, "Key has been revoked")
+  | 129 -> __errnoEntry("EKEYREJECTED", ErrorKind.Other, "Key was rejected by service")
+  | 130 -> __errnoEntry("EOWNERDEAD", ErrorKind.Other, "Owner died")
+  | 131 -> __errnoEntry("ENOTRECOVERABLE", ErrorKind.Other, "State not recoverable")
+  | 132 -> __errnoEntry("ERFKILL", ErrorKind.Other, "Operation not possible due to RF-kill")
+  | 133 -> __errnoEntry("EHWPOISON", ErrorKind.Other, "Memory page has hardware error")
+  | _ -> Option.None
+
+
+let __darwinErrno(code: Int64): Option<__ErrnoEntry> =
+  match code with
+  | 1 -> __errnoEntry("EPERM", ErrorKind.PermissionDenied, "Operation not permitted")
+  | 2 -> __errnoEntry("ENOENT", ErrorKind.NotFound, "No such file or directory")
+  | 3 -> __errnoEntry("ESRCH", ErrorKind.NoSuchProcess, "No such process")
+  | 4 -> __errnoEntry("EINTR", ErrorKind.Interrupted, "Interrupted system call")
+  | 5 -> __errnoEntry("EIO", ErrorKind.Other, "Input/output error")
+  | 6 -> __errnoEntry("ENXIO", ErrorKind.Other, "Device not configured")
+  | 7 -> __errnoEntry("E2BIG", ErrorKind.Other, "Argument list too long")
+  | 8 -> __errnoEntry("ENOEXEC", ErrorKind.Other, "Exec format error")
+  | 9 -> __errnoEntry("EBADF", ErrorKind.Other, "Bad file descriptor")
+  | 10 -> __errnoEntry("ECHILD", ErrorKind.Other, "No child processes")
+  | 11 -> __errnoEntry("EDEADLK", ErrorKind.Other, "Resource deadlock avoided")
+  | 12 -> __errnoEntry("ENOMEM", ErrorKind.OutOfMemory, "Cannot allocate memory")
+  | 13 -> __errnoEntry("EACCES", ErrorKind.PermissionDenied, "Permission denied")
+  | 14 -> __errnoEntry("EFAULT", ErrorKind.Other, "Bad address")
+  | 15 -> __errnoEntry("ENOTBLK", ErrorKind.Other, "Block device required")
+  | 16 -> __errnoEntry("EBUSY", ErrorKind.ResourceBusy, "Device / Resource busy")
+  | 17 -> __errnoEntry("EEXIST", ErrorKind.AlreadyExists, "File exists")
+  | 18 -> __errnoEntry("EXDEV", ErrorKind.CrossesDevices, "Cross-device link")
+  | 19 -> __errnoEntry("ENODEV", ErrorKind.Unsupported, "Operation not supported by device")
+  | 20 -> __errnoEntry("ENOTDIR", ErrorKind.NotADirectory, "Not a directory")
+  | 21 -> __errnoEntry("EISDIR", ErrorKind.IsADirectory, "Is a directory")
+  | 22 -> __errnoEntry("EINVAL", ErrorKind.InvalidInput, "Invalid argument")
+  | 23 -> __errnoEntry("ENFILE", ErrorKind.Other, "Too many open files in system")
+  | 24 -> __errnoEntry("EMFILE", ErrorKind.Other, "Too many open files")
+  | 25 -> __errnoEntry("ENOTTY", ErrorKind.Unsupported, "Inappropriate ioctl for device")
+  | 26 -> __errnoEntry("ETXTBSY", ErrorKind.ResourceBusy, "Text file busy")
+  | 27 -> __errnoEntry("EFBIG", ErrorKind.Other, "File too large")
+  | 28 -> __errnoEntry("ENOSPC", ErrorKind.StorageFull, "No space left on device")
+  | 29 -> __errnoEntry("ESPIPE", ErrorKind.Other, "Illegal seek")
+  | 30 -> __errnoEntry("EROFS", ErrorKind.ReadOnlyFilesystem, "Read-only file system")
+  | 31 -> __errnoEntry("EMLINK", ErrorKind.Other, "Too many links")
+  | 32 -> __errnoEntry("EPIPE", ErrorKind.BrokenPipe, "Broken pipe")
+  | 33 -> __errnoEntry("EDOM", ErrorKind.Other, "Numerical argument out of domain")
+  | 34 -> __errnoEntry("ERANGE", ErrorKind.Other, "Result too large")
+  | 35 -> __errnoEntry("EAGAIN", ErrorKind.WouldBlock, "Resource temporarily unavailable")
+  | 36 -> __errnoEntry("EINPROGRESS", ErrorKind.Other, "Operation now in progress")
+  | 37 -> __errnoEntry("EALREADY", ErrorKind.Other, "Operation already in progress")
+  | 38 -> __errnoEntry("ENOTSOCK", ErrorKind.Other, "Socket operation on non-socket")
+  | 39 -> __errnoEntry("EDESTADDRREQ", ErrorKind.Other, "Destination address required")
+  | 40 -> __errnoEntry("EMSGSIZE", ErrorKind.Other, "Message too long")
+  | 41 -> __errnoEntry("EPROTOTYPE", ErrorKind.Other, "Protocol wrong type for socket")
+  | 42 -> __errnoEntry("ENOPROTOOPT", ErrorKind.Other, "Protocol not available")
+  | 43 -> __errnoEntry("EPROTONOSUPPORT", ErrorKind.Other, "Protocol not supported")
+  | 44 -> __errnoEntry("ESOCKTNOSUPPORT", ErrorKind.Other, "Socket type not supported")
+  | 45 -> __errnoEntry("ENOTSUP", ErrorKind.Unsupported, "Operation not supported")
+  | 46 -> __errnoEntry("EPFNOSUPPORT", ErrorKind.Other, "Protocol family not supported")
+  | 47 ->
+    __errnoEntry("EAFNOSUPPORT", ErrorKind.Other, "Address family not supported by protocol family")
+  | 48 -> __errnoEntry("EADDRINUSE", ErrorKind.Other, "Address already in use")
+  | 49 -> __errnoEntry("EADDRNOTAVAIL", ErrorKind.Other, "Can't assign requested address")
+  | 50 -> __errnoEntry("ENETDOWN", ErrorKind.Other, "Network is down")
+  | 51 -> __errnoEntry("ENETUNREACH", ErrorKind.Other, "Network is unreachable")
+  | 52 -> __errnoEntry("ENETRESET", ErrorKind.Other, "Network dropped connection on reset")
+  | 53 -> __errnoEntry("ECONNABORTED", ErrorKind.Other, "Software caused connection abort")
+  | 54 -> __errnoEntry("ECONNRESET", ErrorKind.Other, "Connection reset by peer")
+  | 55 -> __errnoEntry("ENOBUFS", ErrorKind.Other, "No buffer space available")
+  | 56 -> __errnoEntry("EISCONN", ErrorKind.Other, "Socket is already connected")
+  | 57 -> __errnoEntry("ENOTCONN", ErrorKind.Other, "Socket is not connected")
+  | 58 -> __errnoEntry("ESHUTDOWN", ErrorKind.Other, "Can't send after socket shutdown")
+  | 59 -> __errnoEntry("ETOOMANYREFS", ErrorKind.Other, "Too many references: can't splice")
+  | 60 -> __errnoEntry("ETIMEDOUT", ErrorKind.TimedOut, "Operation timed out")
+  | 61 -> __errnoEntry("ECONNREFUSED", ErrorKind.Other, "Connection refused")
+  | 62 -> __errnoEntry("ELOOP", ErrorKind.FilesystemLoop, "Too many levels of symbolic links")
+  | 63 -> __errnoEntry("ENAMETOOLONG", ErrorKind.InvalidFilename, "File name too long")
+  | 64 -> __errnoEntry("EHOSTDOWN", ErrorKind.Other, "Host is down")
+  | 65 -> __errnoEntry("EHOSTUNREACH", ErrorKind.Other, "No route to host")
+  | 66 -> __errnoEntry("ENOTEMPTY", ErrorKind.DirectoryNotEmpty, "Directory not empty")
+  | 67 -> __errnoEntry("EPROCLIM", ErrorKind.Other, "Too many processes")
+  | 68 -> __errnoEntry("EUSERS", ErrorKind.Other, "Too many users")
+  | 69 -> __errnoEntry("EDQUOT", ErrorKind.StorageFull, "Disc quota exceeded")
+  | 70 -> __errnoEntry("ESTALE", ErrorKind.Other, "Stale NFS file handle")
+  | 71 -> __errnoEntry("EREMOTE", ErrorKind.Other, "Too many levels of remote in path")
+  | 72 -> __errnoEntry("EBADRPC", ErrorKind.Other, "RPC struct is bad")
+  | 73 -> __errnoEntry("ERPCMISMATCH", ErrorKind.Other, "RPC version wrong")
+  | 74 -> __errnoEntry("EPROGUNAVAIL", ErrorKind.Other, "RPC prog. not avail")
+  | 75 -> __errnoEntry("EPROGMISMATCH", ErrorKind.Other, "Program version wrong")
+  | 76 -> __errnoEntry("EPROCUNAVAIL", ErrorKind.Other, "Bad procedure for program")
+  | 77 -> __errnoEntry("ENOLCK", ErrorKind.Other, "No locks available")
+  | 78 -> __errnoEntry("ENOSYS", ErrorKind.Unsupported, "Function not implemented")
+  | 79 -> __errnoEntry("EFTYPE", ErrorKind.Other, "Inappropriate file type or format")
+  | 80 -> __errnoEntry("EAUTH", ErrorKind.Other, "Authentication error")
+  | 81 -> __errnoEntry("ENEEDAUTH", ErrorKind.Other, "Need authenticator")
+  | 82 -> __errnoEntry("EPWROFF", ErrorKind.Other, "Device power is off")
+  | 83 -> __errnoEntry("EDEVERR", ErrorKind.Other, "Device error, e.g. paper out")
+  | 84 -> __errnoEntry("EOVERFLOW", ErrorKind.Other, "Value too large to be stored in data type")
+  | 85 -> __errnoEntry("EBADEXEC", ErrorKind.Other, "Bad executable")
+  | 86 -> __errnoEntry("EBADARCH", ErrorKind.Other, "Bad CPU type in executable")
+  | 87 -> __errnoEntry("ESHLIBVERS", ErrorKind.Other, "Shared library version mismatch")
+  | 88 -> __errnoEntry("EBADMACHO", ErrorKind.Other, "Malformed Macho file")
+  | 89 -> __errnoEntry("ECANCELED", ErrorKind.Other, "Operation canceled")
+  | 90 -> __errnoEntry("EIDRM", ErrorKind.Other, "Identifier removed")
+  | 91 -> __errnoEntry("ENOMSG", ErrorKind.Other, "No message of desired type")
+  | 92 -> __errnoEntry("EILSEQ", ErrorKind.Other, "Illegal byte sequence")
+  | 93 -> __errnoEntry("ENOATTR", ErrorKind.Other, "Attribute not found")
+  | 94 -> __errnoEntry("EBADMSG", ErrorKind.Other, "Bad message")
+  | 95 -> __errnoEntry("EMULTIHOP", ErrorKind.Other, "Reserved")
+  | 96 -> __errnoEntry("ENODATA", ErrorKind.Other, "No message available on STREAM")
+  | 97 -> __errnoEntry("ENOLINK", ErrorKind.Other, "Reserved")
+  | 98 -> __errnoEntry("ENOSR", ErrorKind.Other, "No STREAM resources")
+  | 99 -> __errnoEntry("ENOSTR", ErrorKind.Other, "Not a STREAM")
+  | 100 -> __errnoEntry("EPROTO", ErrorKind.Other, "Protocol error")
+  | 101 -> __errnoEntry("ETIME", ErrorKind.Other, "STREAM ioctl timeout")
+  | 102 -> __errnoEntry("EOPNOTSUPP", ErrorKind.Unsupported, "Operation not supported on socket")
+  | 103 -> __errnoEntry("ENOPOLICY", ErrorKind.Other, "No such policy registered")
+  | 104 -> __errnoEntry("ENOTRECOVERABLE", ErrorKind.Other, "State not recoverable")
+  | 105 -> __errnoEntry("EOWNERDEAD", ErrorKind.Other, "Previous owner died")
+  | 106 -> __errnoEntry("EQFULL", ErrorKind.Other, "Interface output queue is full")
+  | 107 -> __errnoEntry("ENOTCAPABLE", ErrorKind.Other, "Capabilities insufficient")
+  | _ -> Option.None
 
 
 /// Complete a descriptor write when the kernel accepts only part of a buffer.
@@ -1310,13 +1190,12 @@ let __writeAll(
   else
     match write(bytes) with
     | Error(error) ->
-      if error.errno == 4 then
-        __writeAll(write, bytes, written)
-      else
-        Result.Error(error)
+      match Error.kind(error) with
+      | Interrupted -> __writeAll(write, bytes, written)
+      | _ -> Result.Error(error)
     | Ok(count) ->
       if count <= 0 || count > length then
-        Result.Error(Error { errno = 5, message = "write made invalid progress" })
+        Result.Error(Error.BadKernelReply)
       else if count == length then
         Result.Ok(written + count)
       else
@@ -1347,30 +1226,29 @@ let __accountLookup(uid: String, index: Int64): Option<String> =
 
 
 /// Collision retries for exclusive temporary-entry creation.
-let __tempEntropy(remaining: Int64, reversed: List<Bytes>): Result<Bytes, Int64> =
+let __tempEntropy(remaining: Int64, reversed: List<Bytes>): Result<Bytes, Error> =
   if remaining == 0 then
     Result.Ok(Bytes.concatAll(List.reverse(reversed)))
   else
     match Builtin.syscallGetentropy(remaining) with
-    | Error(e) -> if e == 4 then __tempEntropy(remaining, reversed) else Result.Error(e)
+    | Error(4) -> __tempEntropy(remaining, reversed)
+    | Error(e) -> Result.Error(__fromErrno(e))
     | Ok(bytes) ->
       let count = Bytes.length(bytes)
       if count <= 0 || count > remaining then
-        Result.Error(5)
+        Result.Error(Error.BadKernelReply)
       else
         __tempEntropy(remaining - count, List.prepend(reversed, bytes))
 
 
 let __tempCandidate(prefix: String): Result<String, Error> =
-  __tempEntropy(12, [])
-  |> Result.mapError(__fromErrno)
-  |> Result.map(fun bytes -> String.append(prefix, Base16.encode(bytes)))
+  __tempEntropy(12, []) |> Result.map(fun bytes -> String.append(prefix, Base16.encode(bytes)))
 
 
 let __tempRetry(create: Int64 -> Result<'a, Error>, remaining: Int64): Result<'a, Error> =
   match create(remaining) with
   | Error(error) ->
-    if error.errno == 17 && remaining > 0 then
+    if Error.kind(error) == ErrorKind.AlreadyExists && remaining > 0 then
       __tempRetry(create, remaining - 1)
     else
       Result.Error(error)
@@ -1409,11 +1287,12 @@ let __uname(): Result<(String * String * String), Error> =
           Sys.__sysctlText([ 6, 1 ]) |> Result.map(fun machine -> (os, host, machine))))
     else
       Builtin.syscallUname()
+      |> Result.mapError(__fromErrno)
       |> Result.andThen(fun bytes ->
         if Bytes.length(bytes) < 390 then
-          Result.Error(5)
+          Result.Error(Error.BadKernelReply)
         else
           Result.Ok(
             (Sys.__text(bytes, 0, 65), Sys.__text(bytes, 65, 65), Sys.__text(bytes, 260, 65))))
 
-  result |> Result.mapError(__fromErrno)
+  result

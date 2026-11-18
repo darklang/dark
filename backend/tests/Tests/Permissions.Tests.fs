@@ -1538,14 +1538,14 @@ let private writeFileNeedsOnlyTheTargetGrant =
         let invalid = System.IO.Path.Combine(target, "child", "target.txt")
         System.IO.File.WriteAllText(
           script,
-          $"Stdlib.printLine(Stdlib.inspect(Stdlib.Cli.FileSystem.writeFile(\"{invalid}\", Stdlib.Utf8.encode(\"invalid\"))))"
+          $"Stdlib.printLine(Stdlib.inspect(Stdlib.Cli.FileSystem.writeFile(\"{invalid}\", Stdlib.Utf8.encode(\"invalid\")) |> Stdlib.Result.mapError(Stdlib.Cli.Posix.Error.kind)))"
         )
         let! output, code =
           CliInstance.runWithExit
             i
             [ "run"; "--allow"; $"file write {invalid}"; script ]
         Expect.equal code 0L output
-        Expect.stringContains output "NotFound" "ENOTDIR stays a file error"
+        Expect.stringContains output "NotADirectory" "ENOTDIR stays a file error"
         Expect.equal
           (System.IO.File.ReadAllText target)
           "replaced"

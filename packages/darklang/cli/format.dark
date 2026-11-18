@@ -42,7 +42,7 @@ let settle(
     else
       match Stdlib.Cli.File.writeText(path, formatted.text) with
       | Ok(_) -> (Outcome.Changed, formatted.asWritten)
-      | Error(e) -> (Outcome.Failed(e.message), [])
+      | Error(e) -> (Outcome.Failed(Stdlib.display(e)), [])
 
 
 /// Every file in <param files>, read, formatted and settled. The formatting, which is all
@@ -55,7 +55,7 @@ let formatFiles(
   let reads =
     files
     |> Stdlib.List.map(fun f ->
-      (f, Stdlib.Cli.File.readText(f) |> Stdlib.Result.mapError(fun e -> e.message)))
+      (f, Stdlib.Cli.File.readText(f) |> Stdlib.Result.mapError(Stdlib.display)))
 
   // Longest first, so the cores finish together instead of one of them starting the biggest file
   // last; then back in order.

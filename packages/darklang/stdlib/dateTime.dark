@@ -522,55 +522,62 @@ let format(date: DateTime, pattern: String): Result<String, String> =
 
 // Shared clock implementation.
 /// Clock record decoding, scaling and interrupted-sleep retries in shared Dark.
-let __timespec(bytes: Bytes): Result<(Int64 * Int64), Int64> =
+let __timespec(bytes: Bytes): Result<(Int64 * Int64), Cli.Posix.Error> =
   let width = if Cli.Posix.__abiArm32() then 4 else 8
   Cli.Posix.__kernelSignedField(bytes, 0, width)
   |> Result.andThen(fun seconds ->
     Cli.Posix.__kernelSignedField(bytes, width, width) |> Result.map(fun nanos -> (seconds, nanos)))
 
 
-let __realtimeNanoseconds(): Result<(Int64 * Int64), Int64> =
+let __realtimeNanoseconds(): Result<(Int64 * Int64), Cli.Posix.Error> =
   if Builtin.runtimeTargetOS() == "browser" then
     let ticks = Builtin.runtimeRealtimeTicks()
     Result.Ok((ticks / 10000000, ticks % 10000000 * 100))
   else if Cli.Posix.__abiMac() then
     Builtin.syscallGettimeofday()
+    |> Result.mapError(Cli.Posix.__fromErrno)
     |> Result.andThen(fun bytes ->
       Cli.Posix.__kernelSignedField(bytes, 0, 8)
       |> Result.andThen(fun seconds ->
         Cli.Posix.__kernelSignedField(bytes, 8, 4)
         |> Result.map(fun micros -> (seconds, micros * 1000))))
   else
-    Builtin.syscallClockGettime(0) |> Result.andThen(__timespec)
+    Builtin.syscallClockGettime(0)
+    |> Result.mapError(Cli.Posix.__fromErrno)
+    |> Result.andThen(__timespec)
 
 
-let __monotonicNanoseconds(): Result<(Int64 * Int64), Int64> =
+let __monotonicNanoseconds(): Result<(Int64 * Int64), Cli.Posix.Error> =
   if Builtin.runtimeTargetOS() == "browser" then
     let (ticks, frequency) = Builtin.runtimeMonotonicCounter()
     if frequency <= 0 then
-      Result.Error(5)
+      Result.Error(Cli.Posix.Error.BadKernelReply)
     else
       Result.Ok((ticks / frequency, ticks % frequency * 1000000000 / frequency))
   else if Cli.Posix.__abiMac() then
     Builtin.syscallMachAbsoluteTime()
+    |> Result.mapError(Cli.Posix.__fromErrno)
     |> Result.andThen(fun bytes ->
       Cli.Posix.__kernelField(bytes, 0, 8)
       |> Result.andThen(fun ticks ->
         Builtin.syscallMachTimebaseInfo()
+        |> Result.mapError(Cli.Posix.__fromErrno)
         |> Result.andThen(fun base ->
           Cli.Posix.__kernelField(base, 0, 4)
           |> Result.andThen(fun numerator ->
             Cli.Posix.__kernelField(base, 4, 4)
             |> Result.andThen(fun denominator ->
               if denominator == 0 then
-                Result.Error(5)
+                Result.Error(Cli.Posix.Error.BadKernelReply)
               else
                 let nanos =
                   ticks / denominator * numerator + ticks % denominator * numerator / denominator
 
                 Result.Ok((nanos / 1000000000, nanos % 1000000000)))))))
   else
-    Builtin.syscallClockGettime(1) |> Result.andThen(__timespec)
+    Builtin.syscallClockGettime(1)
+    |> Result.mapError(Cli.Posix.__fromErrno)
+    |> Result.andThen(__timespec)
 
 
 /// When the clock syscall fails, the runtime's own clock answers.
@@ -600,7 +607,7 @@ let __sleepWith(
   sleep: (Int64, Int64) -> (Int64 * Bytes),
   seconds: Int64,
   nanos: Int64)
-  : Result<Unit, Int64> =
+  : Result<Unit, Cli.Posix.Error> =
   let (rc, remaining) = sleep(seconds, nanos)
   if rc == 0 then
     Result.Ok()
@@ -610,10 +617,10 @@ let __sleepWith(
       let (seconds, nanos) = pair
       __sleepWith(sleep, seconds, nanos))
   else
-    Result.Error(0 - rc)
+    Result.Error(Cli.Posix.__fromErrno(0 - rc))
 
 
-let __sleepNanoseconds(seconds: Int64, nanos: Int64): Result<Unit, Int64> =
+let __sleepNanoseconds(seconds: Int64, nanos: Int64): Result<Unit, Cli.Posix.Error> =
   __sleepWith(Builtin.syscallNanosleep, seconds, nanos)
 
 

@@ -71,7 +71,7 @@ non-zero. Under `--json` a refusal leaves stdout empty, so test the exit code.
 
 ## Files, HTTP and JSON
 
-  Stdlib.Cli.FileSystem.readFileAsString(path)       // Result<String, FileError>
+  Stdlib.Cli.FileSystem.readFileAsString(path)       // Result<String, Posix.Error>
   Stdlib.Cli.FileSystem.writeFile(path, Stdlib.Utf8.encode(text))
   Stdlib.String.splitOnNewline(text)
   Stdlib.HttpClient.get(url, [("user-agent", "me")]) // r.statusCode, r.body (Bytes)

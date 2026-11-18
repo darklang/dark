@@ -15,13 +15,13 @@ type Stdio =
 
 
 /// Start <param program> with <param args>, its standard streams wired as <param stdio> says.
-let __childStart(program: String, args: List<String>, stdio: Stdio): Result<BigInt, Int64> =
+let __childStart(program: String, args: List<String>, stdio: Stdio): Result<BigInt, Posix.Error> =
   let inheritTerminal =
     match stdio with
     | Capture -> false
     | Inherit -> true
 
-  Builtin.runtimeChildStart(program, args, inheritTerminal)
+  Builtin.runtimeChildStart(program, args, inheritTerminal) |> Result.mapError(Posix.__fromErrno)
 
 
 /// Spawn a new process and return a handle for interaction
@@ -30,15 +30,14 @@ let spawn(command: String): ProcessHandle =
   ProcessHandle { __child = child }
 
 
-let __executionBytes(result: Result<(Int64 * Bytes * Bytes), Int64>): ExecutionBytes =
+let __executionBytes(result: Result<(Int64 * Bytes * Bytes), Posix.Error>): ExecutionBytes =
   match result with
   | Error(e) ->
-    ExecutionBytes
-      { exitCode = -1, stdout = Bytes.empty, stderr = Utf8.encode((Posix.__fromErrno(e)).message) }
+    ExecutionBytes { exitCode = -1, stdout = Bytes.empty, stderr = Utf8.encode(display(e)) }
   | Ok((code, output, error)) -> ExecutionBytes { exitCode = code, stdout = output, stderr = error }
 
 
-let __executionOutcome(result: Result<(Int64 * Bytes * Bytes), Int64>): ExecutionOutcome =
+let __executionOutcome(result: Result<(Int64 * Bytes * Bytes), Posix.Error>): ExecutionOutcome =
   executionText(__executionBytes(result))
 
 
@@ -93,18 +92,13 @@ let shellQuote(s: String): String =
 
 /// Spawn <param program> directly (no shell), wait for it, and return
 /// (exitCode, stdout, stderr) as bytes. With a timeout the child is killed when
-/// it elapses and the call fails with ETIMEDOUT.
+/// it elapses and the call fails with <type Posix.Error> {{ProcessTimedOut}}.
 let spawnAndWaitBytes(
   program: String,
   args: List<String>,
   timeoutMs: Option<Int64>)
   : Result<(Int64 * Bytes * Bytes), Posix.Error> =
   __childRun(program, args, timeoutMs)
-  |> Result.mapError(fun errno ->
-    if errno == (if Posix.__abiMac() then 60 else 110) then
-      Posix.Error { errno = errno, message = "Process timed out" }
-    else
-      Posix.__fromErrno(errno))
 
 
 /// Same as `spawnAndWaitBytes`, with stdout and stderr decoded as UTF-8.
@@ -141,14 +135,14 @@ let run(program: String, args: List<String>): Result<Output, Posix.Error> =
 /// and reads keys from nowhere. Use `run` when you want the output, this when you
 /// want the program to be usable.
 let runInteractive(program: String, args: List<String>): Result<Int64, Posix.Error> =
-  __childInteractive(program, args) |> Result.mapError(Posix.__fromErrno)
+  __childInteractive(program, args)
 
 
 /// Run a program and return stdout as text, or stderr as error.
 /// Returns String errors because it mixes spawn failures with command failures.
 let exec(program: String, args: List<String>): Result<String, String> =
   run(program, args)
-  |> Result.mapError(fun e -> e.message)
+  |> Result.mapError(display)
   |> Result.andThen(fun output ->
     if output.exitCode == 0 then
       Result.Ok(String.trimEnd(output.stdout))
@@ -218,7 +212,7 @@ let runWithEnv(
         $"{k}={v}")
 
     run("/usr/bin/env", List.concat(envArgs, List.prepend(args, program)))
-    |> Result.mapError(fun e -> e.message)
+    |> Result.mapError(display)
 
 
 /// Run a program with a timeout in milliseconds.
@@ -229,7 +223,7 @@ let runWithTimeout(timeoutMs: Int64, program: String, args: List<String>): Resul
     Result.Error("timeoutMs must be positive")
   else
     spawnAndWait(program, args, Option.Some(timeoutMs))
-    |> Result.mapError(fun e -> e.message)
+    |> Result.mapError(display)
     |> Result.map(fun result ->
       Output
         { exitCode = Tuple3.first(result)
@@ -307,71 +301,73 @@ let __childBytes(buffer: __ChildBuffer): Bytes =
   Bytes.concatAll(List.reverse(buffer.chunks))
 
 
-let __childPollChild(child: BigInt): Result<Option<Int64>, Int64> =
+let __childPollChild(child: BigInt): Result<Option<Int64>, Posix.Error> =
   match Builtin.runtimeChildPoll(child) with
   | Error(4) -> __childPollChild(child)
-  | result -> result
+  | result -> result |> Result.mapError(Posix.__fromErrno)
 
 
-let __childWaitChild(child: BigInt): Result<Int64, Int64> =
+let __childWaitChild(child: BigInt): Result<Int64, Posix.Error> =
   match Builtin.runtimeChildWait(child) with
   | Error(4) -> __childWaitChild(child)
-  | result -> result
+  | result -> result |> Result.mapError(Posix.__fromErrno)
 
 
-let __childKillChild(child: BigInt): Result<Unit, Int64> =
+let __childKillChild(child: BigInt): Result<Unit, Posix.Error> =
   match Builtin.runtimeChildKill(child) with
   | Error(4) -> __childKillChild(child)
-  | result -> result
+  | result -> result |> Result.mapError(Posix.__fromErrno)
 
 
-let __childCloseChild(child: BigInt): Result<Unit, Int64> =
+let __childCloseChild(child: BigInt): Result<Unit, Posix.Error> =
   match Builtin.runtimeChildClose(child) with
   | Error(4) -> __childCloseChild(child)
-  | result -> result
+  | result -> result |> Result.mapError(Posix.__fromErrno)
 
 
-let __childFinish(child: BigInt, result: Result<'a, Int64>): Result<'a, Int64> =
+let __childFinish(child: BigInt, result: Result<'a, Posix.Error>): Result<'a, Posix.Error> =
   let closed = __childCloseChild(child)
   match result with
   | Error(e) -> Result.Error(e)
   | Ok(value) -> closed |> Result.map(fun _ -> value)
 
 
-let __childRead(fd: Posix.Fd, eof: Bool): Result<(Bytes * Bool), Int64> =
+let __childRead(fd: Posix.Fd, eof: Bool): Result<(Bytes * Bool), Posix.Error> =
   if eof then
     Result.Ok((Bytes.empty, true))
   else
-    match Builtin.syscallRead(fd.__fd, 65536) with
-    | Error(4) -> __childRead(fd, false)
+    match Builtin.syscallRead(fd.__fd, 65536) |> Result.mapError(Posix.__fromErrno) with
     | Error(e) ->
-      if e == Posix.__abiErrnoAgain() then
-        Result.Ok((Bytes.empty, false))
-      else
-        Result.Error(e)
+      match Posix.Error.kind(e) with
+      | Interrupted -> __childRead(fd, false)
+      | WouldBlock -> Result.Ok((Bytes.empty, false))
+      | _ -> Result.Error(e)
     | Ok(chunk) -> Result.Ok((chunk, Bytes.length(chunk) == 0))
 
 
 /// One write per turn, interleaved with both readers, so a child producing
 /// output while accepting a large input cannot deadlock on a full pipe.
-let __childWrite(fd: Posix.Fd, pending: Bytes): Result<Bytes, Int64> =
+let __childWrite(fd: Posix.Fd, pending: Bytes): Result<Bytes, Posix.Error> =
   let length = Bytes.length(pending)
   if length == 0 then
     Result.Ok(pending)
   else
     let count = if length < 65536 then length else 65536
     let chunk = if count == length then pending else Bytes.take(pending, count)
-    match Builtin.syscallWrite(fd.__fd, chunk) with
-    | Error(4) -> __childWrite(fd, pending)
-    | Error(e) -> if e == Posix.__abiErrnoAgain() then Result.Ok(pending) else Result.Error(e)
+    match Builtin.syscallWrite(fd.__fd, chunk) |> Result.mapError(Posix.__fromErrno) with
+    | Error(e) ->
+      match Posix.Error.kind(e) with
+      | Interrupted -> __childWrite(fd, pending)
+      | WouldBlock -> Result.Ok(pending)
+      | _ -> Result.Error(e)
     | Ok(written) ->
       if written <= 0 || written > count then
-        Result.Error(5)
+        Result.Error(Posix.Error.BadKernelReply)
       else
         Result.Ok(Bytes.drop(pending, written))
 
 
-let __childPoll(fds: List<(Posix.Fd * Int64)>, milliseconds: Int64): Result<Unit, Int64> =
+let __childPoll(fds: List<(Posix.Fd * Int64)>, milliseconds: Int64): Result<Unit, Posix.Error> =
   let raw =
     fds
     |> List.map(fun pair ->
@@ -386,7 +382,7 @@ let __childPoll(fds: List<(Posix.Fd * Int64)>, milliseconds: Int64): Result<Unit
 
   match result with
   | Error(4) -> __childPoll(fds, milliseconds)
-  | Error(e) -> Result.Error(e)
+  | Error(e) -> Result.Error(Posix.__fromErrno(e))
   | Ok(_) -> Result.Ok()
 
 
@@ -417,7 +413,7 @@ let __childCapture(
   error: __ChildBuffer,
   outEOF: Bool,
   errEOF: Bool)
-  : Result<(Int64 * Bytes * Bytes), Int64> =
+  : Result<(Int64 * Bytes * Bytes), Posix.Error> =
   let remaining =
     match deadline with
     | None -> 100
@@ -425,7 +421,7 @@ let __childCapture(
 
   if remaining <= 0 then
     let _ = __childKillChild(child)
-    Result.Error(if Posix.__abiMac() then 60 else 110)
+    Result.Error(Posix.Error.ProcessTimedOut)
   else
     __childRead(stdout, outEOF)
     |> Result.andThen(fun out ->
@@ -461,18 +457,19 @@ let __childRun(
   program: String,
   args: List<String>,
   timeoutMs: Option<Int64>)
-  : Result<(Int64 * Bytes * Bytes), Int64> =
+  : Result<(Int64 * Bytes * Bytes), Posix.Error> =
   __childStart(program, args, Stdio.Capture)
   |> Result.andThen(fun child ->
     let result =
       Builtin.runtimeChildDescriptors(child)
+      |> Result.mapError(Posix.__fromErrno)
       |> Result.andThen(fun ports ->
         match ports with
         | [_stdin, stdout, stderr] ->
           let closed =
             match Builtin.runtimeChildClosePort(child, 0) with
             | Error(4) -> Result.Ok()
-            | result -> result
+            | result -> result |> Result.mapError(Posix.__fromErrno)
 
           closed
           |> Result.andThen(fun _ ->
@@ -490,12 +487,12 @@ let __childRun(
               __childEmpty(),
               false,
               false))
-        | _ -> Result.Error(9))
+        | _ -> Result.Error(Posix.Error.BadKernelReply))
 
     __childFinish(child, result))
 
 
-let __childInteractive(program: String, args: List<String>): Result<Int64, Int64> =
+let __childInteractive(program: String, args: List<String>): Result<Int64, Posix.Error> =
   __childStart(program, args, Stdio.Inherit)
   |> Result.andThen(fun child -> __childFinish(child, __childWaitChild(child)))
 
@@ -516,7 +513,7 @@ let __childCommunicateLoop(
   output: __ChildBuffer,
   error: __ChildBuffer,
   eof: (Bool * Bool))
-  : Result<(Int64 * Bytes * Bytes), Int64> =
+  : Result<(Int64 * Bytes * Bytes), Posix.Error> =
   let (stdin, stdout, stderr) = ports
   let (outEOF, errEOF) = eof
   __childWrite(stdin, pending)
@@ -556,15 +553,17 @@ let __childCommunicateLoop(
                 (outEOF, errEOF)))))))
 
 
-let __childSaveHistory(child: BigInt, index: Int64, chunk: Bytes): Result<Unit, Int64> =
+let __childSaveHistory(child: BigInt, index: Int64, chunk: Bytes): Result<Unit, Posix.Error> =
   Builtin.runtimeChildBufferGet(child, index)
   |> Result.andThen(fun previous ->
     let next = __childAppend(__childAppend(__childEmpty(), previous), chunk)
     Builtin.runtimeChildBufferSet(child, index, __childBytes(next)))
+  |> Result.mapError(Posix.__fromErrno)
 
 
-let __childCommunicate(child: BigInt, input: String): Result<(Int64 * Bytes * Bytes), Int64> =
+let __childCommunicate(child: BigInt, input: String): Result<(Int64 * Bytes * Bytes), Posix.Error> =
   Builtin.runtimeChildDescriptors(child)
+  |> Result.mapError(Posix.__fromErrno)
   |> Result.andThen(fun ports ->
     match ports with
     | [stdin, stdout, stderr] ->
@@ -583,7 +582,7 @@ let __childCommunicate(child: BigInt, input: String): Result<(Int64 * Bytes * By
         __childSaveHistory(child, 0, output)
         |> Result.andThen(fun _ ->
           __childSaveHistory(child, 1, error) |> Result.map(fun _ -> (code, output, error))))
-    | _ -> Result.Error(9))
+    | _ -> Result.Error(Posix.Error.BadKernelReply))
 
 
 /// After terminating the owned child, drain currently available bytes, not
@@ -595,7 +594,7 @@ let __childDrain(
   turns: Int64,
   output: __ChildBuffer,
   error: __ChildBuffer)
-  : Result<(Bytes * Bytes), Int64> =
+  : Result<(Bytes * Bytes), Posix.Error> =
   if turns <= 0 then
     Result.Ok((__childBytes(output), __childBytes(error)))
   else
@@ -613,19 +612,22 @@ let __childDrain(
           __childDrain(stdout, stderr, turns - 1, output, error)))
 
 
-let __childTerminate(child: BigInt): Result<(Int64 * Bytes * Bytes), Int64> =
+let __childTerminate(child: BigInt): Result<(Int64 * Bytes * Bytes), Posix.Error> =
   let result =
     __childKillChild(child)
     |> Result.andThen(fun _ ->
       __childWaitChild(child)
       |> Result.andThen(fun code ->
         Builtin.runtimeChildDescriptors(child)
+        |> Result.mapError(Posix.__fromErrno)
         |> Result.andThen(fun ports ->
           match ports with
           | [_stdin, stdout, stderr] ->
             Builtin.runtimeChildBufferGet(child, 0)
+            |> Result.mapError(Posix.__fromErrno)
             |> Result.andThen(fun previousOut ->
               Builtin.runtimeChildBufferGet(child, 1)
+              |> Result.mapError(Posix.__fromErrno)
               |> Result.andThen(fun previousErr ->
                 __childDrain(
                   Posix.Fd { __fd = stdout },
@@ -636,6 +638,6 @@ let __childTerminate(child: BigInt): Result<(Int64 * Bytes * Bytes), Int64> =
                 |> Result.map(fun pair ->
                   let (output, error) = pair
                   (code, output, error))))
-          | _ -> Result.Error(9))))
+          | _ -> Result.Error(Posix.Error.BadKernelReply))))
 
   __childFinish(child, result)

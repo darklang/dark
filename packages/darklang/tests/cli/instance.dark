@@ -52,7 +52,9 @@ let makeDir(): Stdlib.Result.Result<String, String> =
   | Error(e) -> Stdlib.Result.Result.Error($"could not create {r}: {e}")
   | Ok(_) ->
     match Stdlib.Cli.Posix.mkdtemp($"{r}/") with
-    | Error(e) -> Stdlib.Result.Result.Error($"could not create a dir in {r}: {e.message}")
+    | Error(e) ->
+      Stdlib.Result.Result.Error(
+        $"could not create a dir in {r}: {Stdlib.display(e)}")
     | Ok(instanceHome) ->
       let dir = instanceHome + "/.darklang"
       match Stdlib.Cli.Unix.ensureDirectoryExists(dir) with

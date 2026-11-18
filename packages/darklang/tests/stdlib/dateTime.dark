@@ -1444,7 +1444,7 @@ test clockSyscalls =
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok())
 
       Stdlib.DateTime.__sleepNanoseconds(0, -1)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(22))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.Cli.Posix.__fromErrno(22)))
 
       Stdlib.DateTime.__realtimeNanoseconds()
       |> Stdlib.Result.map(fun pair ->

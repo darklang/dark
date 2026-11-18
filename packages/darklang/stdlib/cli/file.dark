@@ -59,8 +59,7 @@ let readText(path: String): Result<String, Posix.Error> =
     | Ok(blob) ->
       match Utf8.decode(blob) with
       | Ok(s) -> Result.Ok(s)
-      | Error(msg) ->
-        Result.Error(Posix.Error { errno = -1, message = $"File contents not valid UTF-8: {msg}" })
+      | Error(_) -> Result.Error(Posix.Error.InvalidUtf8)
     | Error(e) -> Result.Error(e)
   | Error(e) -> Result.Error(e)
 
@@ -149,9 +148,7 @@ let readLastLines(path: String, count: Int64): Result<List<String>, Posix.Error>
         |> Result.andThen(fun((blob, startedAtBeginning)) ->
           let bytes = if startedAtBeginning then blob else __dropThroughFirstNewline(blob)
           match Utf8.decode(bytes) with
-          | Error(message) ->
-            Result.Error(
-              Posix.Error { errno = -1, message = $"File contents not valid UTF-8: {message}" })
+          | Error(_) -> Result.Error(Posix.Error.InvalidUtf8)
           | Ok(text) ->
             let lines = String.splitOnNewline(text)
             let total = List.length(lines)
@@ -257,7 +254,7 @@ let withTemp(fn: String -> 'a): Result<'a, Posix.Error> =
     let result = fn(tmpPath)
     match delete(tmpPath) with
     | Ok(_) -> ()
-    | Error(e) -> Log.warn($"withTemp: failed to clean up {tmpPath}: {e.message}")
+    | Error(e) -> Log.warn($"withTemp: failed to clean up {tmpPath}: {display(e)}")
 
     result)
 
@@ -377,15 +374,15 @@ let watch(
     | Error(e) ->
       // Kernel/procfs support can be absent in constrained hosts. The fallback
       // still uses checked stat operations; never retry through an unsafe path.
-      if e == 38 || e == 95 || e == 2 then
+      match Posix.Error.kind(e) with
+      | Unsupported | NotFound ->
         match getModifiedTime(path) with
         | Ok(mtime) -> __watchPolling(path, intervalMs, mtime, shouldStop, fn)
         | Error(error) -> Result.Error(error)
-      else
-        Result.Error(Posix.__fromErrno(e))
+      | _ -> Result.Error(e)
   else if Builtin.runtimeTargetOS() == "darwin" then
     let waitMs = if intervalMs < 1.0 then 1 else Float64.toInt64(intervalMs)
-    __watchDarwin(path, waitMs, shouldStop, fn) |> Result.mapError(Posix.__fromErrno)
+    __watchDarwin(path, waitMs, shouldStop, fn)
   else
     match getModifiedTime(path) with
     | Ok(mtime) -> __watchPolling(path, intervalMs, mtime, shouldStop, fn)
@@ -393,13 +390,10 @@ let watch(
 
 
 /// File-copy algorithms. Each Builtin underneath performs one kernel operation.
-let __copyUnsupported(errno: Int64): Bool =
-  errno == 18
-  || errno == 19
-  || errno == 22
-  || errno == 25
-  || errno == Posix.__abiErrnoNoSys()
-  || errno == Posix.__abiErrnoNotSupported()
+let __copyUnsupported(error: Posix.Error): Bool =
+  match Posix.Error.kind(error) with
+  | Unsupported | CrossesDevices | InvalidInput -> true
+  | _ -> false
 
 
 /// Finish a positional write, including short writes and EINTR, without losing
@@ -408,16 +402,17 @@ let __copyWriteAt(
   write: (Bytes, Int64) -> Result<Int64, Int64>,
   bytes: Bytes,
   offset: Int64)
-  : Result<Unit, Int64> =
+  : Result<Unit, Posix.Error> =
   let length = Bytes.length(bytes)
   if length == 0 then
     Result.Ok()
   else
     match write(bytes, offset) with
-    | Error(e) -> if e == 4 then __copyWriteAt(write, bytes, offset) else Result.Error(e)
+    | Error(4) -> __copyWriteAt(write, bytes, offset)
+    | Error(e) -> Result.Error(Posix.__fromErrno(e))
     | Ok(count) ->
       if count <= 0 || count > length then
-        Result.Error(5)
+        Result.Error(Posix.Error.BadKernelReply)
       else
         let remaining = Bytes.drop(bytes, count)
         __copyWriteAt(write, remaining, offset + count)
@@ -429,9 +424,10 @@ let __copyBuffered(
   read: (Int64, Int64) -> Result<Bytes, Int64>,
   write: (Bytes, Int64) -> Result<Int64, Int64>,
   offset: Int64)
-  : Result<Unit, Int64> =
+  : Result<Unit, Posix.Error> =
   match read(65536, offset) with
-  | Error(e) -> if e == 4 then __copyBuffered(read, write, offset) else Result.Error(e)
+  | Error(4) -> __copyBuffered(read, write, offset)
+  | Error(e) -> Result.Error(Posix.__fromErrno(e))
   | Ok(bytes) ->
     let length = Bytes.length(bytes)
     if length == 0 then
@@ -441,41 +437,52 @@ let __copyBuffered(
       |> Result.andThen(fun _ -> __copyBuffered(read, write, offset + length))
 
 
-let __copyBufferedBetween(source: BigInt, destination: BigInt, offset: Int64): Result<Unit, Int64> =
+let __copyBufferedBetween(
+  source: BigInt,
+  destination: BigInt,
+  offset: Int64)
+  : Result<Unit, Posix.Error> =
   __copyBuffered(
     (fun(length, at) -> Builtin.syscallPread(source, length, at)),
     (fun(bytes, at) -> Builtin.syscallPwrite(destination, bytes, at)),
     offset)
 
 
-let __copyKernelCopy(source: BigInt, destination: BigInt, offset: Int64): Result<Unit, Int64> =
-  match Builtin.syscallCopyFileRange(source, destination, 1048576) with
+let __copyKernelCopy(
+  source: BigInt,
+  destination: BigInt,
+  offset: Int64)
+  : Result<Unit, Posix.Error> =
+  match Builtin.syscallCopyFileRange(source, destination, 1048576)
+        |> Result.mapError(Posix.__fromErrno) with
   | Error(e) ->
-    if e == 4 then
-      __copyKernelCopy(source, destination, offset)
-    else if __copyUnsupported(e) then
-      __copyBufferedBetween(source, destination, offset)
-    else
-      Result.Error(e)
+    match Posix.Error.kind(e) with
+    | Interrupted -> __copyKernelCopy(source, destination, offset)
+    | _ ->
+      if __copyUnsupported(e) then
+        __copyBufferedBetween(source, destination, offset)
+      else
+        Result.Error(e)
   | Ok(count) ->
     if count < 0 || count > 1048576 then
-      Result.Error(5)
+      Result.Error(Posix.Error.BadKernelReply)
     else if count == 0 then
       __copyBufferedBetween(source, destination, offset)
     else
       __copyKernelCopy(source, destination, offset + count)
 
 
-let __copyTransfer(source: BigInt, destination: BigInt): Result<Unit, Int64> =
-  match Builtin.syscallCloneFile(source, destination) with
+let __copyTransfer(source: BigInt, destination: BigInt): Result<Unit, Posix.Error> =
+  match Builtin.syscallCloneFile(source, destination) |> Result.mapError(Posix.__fromErrno) with
   | Ok(()) -> Result.Ok()
   | Error(e) ->
-    if e == 4 then
-      __copyTransfer(source, destination)
-    else if __copyUnsupported(e) then
-      __copyKernelCopy(source, destination, 0)
-    else
-      Result.Error(e)
+    match Posix.Error.kind(e) with
+    | Interrupted -> __copyTransfer(source, destination)
+    | _ ->
+      if __copyUnsupported(e) then
+        __copyKernelCopy(source, destination, 0)
+      else
+        Result.Error(e)
 
 
 let __copyFinish(
@@ -491,20 +498,23 @@ let __copyDescriptors(
   source: Posix.Fd,
   destination: Posix.Fd,
   sourceInfo: Posix.__KernelMetadata)
-  : Result<Unit, Int64> =
+  : Result<Unit, Posix.Error> =
   Builtin.syscallFstat(destination.__fd)
+  |> Result.mapError(Posix.__fromErrno)
   |> Result.andThen(Posix.__kernelMetadata)
   |> Result.andThen(fun destinationInfo ->
     // Never truncate the source, even when a different path names a hard link.
     if sourceInfo.device == destinationInfo.device && sourceInfo.inode == destinationInfo.inode then
-      Result.Error(22)
+      Result.Error(Posix.__fromErrno(22))
     else
       Builtin.syscallFtruncate(destination.__fd, 0)
+      |> Result.mapError(Posix.__fromErrno)
       |> Result.andThen(fun _ -> __copyTransfer(source.__fd, destination.__fd))
       |> Result.andThen(fun _ ->
         Builtin.syscallFchmod(
           destination.__fd,
-          Posix.FileMode.toInt64(Posix.FileMode.permissions(sourceInfo.mode)))))
+          Posix.FileMode.toInt64(Posix.FileMode.permissions(sourceInfo.mode)))
+        |> Result.mapError(Posix.__fromErrno)))
 
 
 let __copyOpenDestination(
@@ -517,9 +527,7 @@ let __copyOpenDestination(
   match Posix.openFile(destination, flags, Posix.FileMode.permissions(sourceInfo.mode)) with
   | Error(e) -> Result.Error(e)
   | Ok(destinationFd) ->
-    let copied =
-      __copyDescriptors(sourceFd, destinationFd, sourceInfo) |> Result.mapError(Posix.__fromErrno)
-
+    let copied = __copyDescriptors(sourceFd, destinationFd, sourceInfo)
     let closed = Posix.fdClose(destinationFd)
     __copyFinish(copied, closed)
 
@@ -529,16 +537,20 @@ let __copyCloneDestination(
   destination: String,
   sourceInfo: Posix.__KernelMetadata)
   : Result<Unit, Posix.Error> =
-  match Builtin.syscallFclonefileAt(sourceFd.__fd, destination, 3) with
+  match Builtin.syscallFclonefileAt(sourceFd.__fd, destination, 3)
+        |> Result.mapError(Posix.__fromErrno) with
   | Ok(()) -> Posix.chmod(destination, Posix.FileMode.permissions(sourceInfo.mode))
-  | Error(4) -> __copyCloneDestination(sourceFd, destination, sourceInfo)
   | Error(e) ->
     // fclonefileat creates a new entry. An existing destination (EEXIST)
     // needs the same held-descriptor identity check as the buffered path.
-    if e == 17 || __copyUnsupported(e) then
-      __copyOpenDestination(sourceFd, destination, sourceInfo)
-    else
-      Result.Error(Posix.__fromErrno(e))
+    match Posix.Error.kind(e) with
+    | Interrupted -> __copyCloneDestination(sourceFd, destination, sourceInfo)
+    | AlreadyExists -> __copyOpenDestination(sourceFd, destination, sourceInfo)
+    | _ ->
+      if __copyUnsupported(e) then
+        __copyOpenDestination(sourceFd, destination, sourceInfo)
+      else
+        Result.Error(e)
 
 
 /// Best-effort copy of a concurrently mutable file, not an atomic snapshot.
@@ -549,8 +561,8 @@ let __copyCopy(source: String, destination: String): Result<Unit, Posix.Error> =
   | Ok(sourceFd) ->
     let result =
       Builtin.syscallFstat(sourceFd.__fd)
-      |> Result.andThen(Posix.__kernelMetadata)
       |> Result.mapError(Posix.__fromErrno)
+      |> Result.andThen(Posix.__kernelMetadata)
       |> Result.andThen(fun sourceInfo ->
         let fileType = Posix.FileMode.fileType(sourceInfo.mode)
         if
@@ -581,12 +593,12 @@ let __watchEvents(
   at: Int64,
   changed: Bool,
   rearm: Bool)
-  : Result<(Bool * Bool), Int64> =
+  : Result<(Bool * Bool), Posix.Error> =
   let remaining = Bytes.length(bytes) - at
   if remaining == 0 then
     Result.Ok((changed, rearm))
   else if remaining < 16 then
-    Result.Error(5)
+    Result.Error(Posix.Error.BadKernelReply)
   else
     Posix.__kernelField(bytes, at + 4, 4)
     |> Result.andThen(fun mask ->
@@ -594,7 +606,7 @@ let __watchEvents(
       |> Result.andThen(fun nameLength ->
         let length = 16 + nameLength
         if length > remaining then
-          Result.Error(5)
+          Result.Error(Posix.Error.BadKernelReply)
         else
           let nextChanged =
             changed
@@ -611,11 +623,13 @@ let __watchEvents(
           __watchEvents(bytes, at + length, nextChanged, nextRearm)))
 
 
-let __watchDrain(fd: Posix.Fd): Result<(Bool * Bool), Int64> =
-  match Builtin.syscallRead(fd.__fd, 65536) with
-  | Error(4) -> __watchDrain(fd)
-  | Error(11) -> Result.Ok((false, false))
-  | Error(e) -> Result.Error(e)
+let __watchDrain(fd: Posix.Fd): Result<(Bool * Bool), Posix.Error> =
+  match Builtin.syscallRead(fd.__fd, 65536) |> Result.mapError(Posix.__fromErrno) with
+  | Error(e) ->
+    match Posix.Error.kind(e) with
+    | Interrupted -> __watchDrain(fd)
+    | WouldBlock -> Result.Ok((false, false))
+    | _ -> Result.Error(e)
   | Ok(buffer) -> __watchEvents(buffer, 0, false, false)
 
 
@@ -624,20 +638,21 @@ let __watchLoop(
   intervalMs: Int64,
   shouldStop: Unit -> Bool,
   fn: Unit -> Unit)
-  : Result<Bool, Int64> =
+  : Result<Bool, Posix.Error> =
   if shouldStop() then
     Result.Ok(false)
   else
     match Builtin.syscallPpoll([ (fd.__fd, 1) ], intervalMs) with
     | Error(4) -> __watchLoop(fd, intervalMs, shouldStop, fn)
-    | Error(e) -> Result.Error(e)
+    | Error(e) -> Result.Error(Posix.__fromErrno(e))
     | Ok(record) ->
       Posix.__kernelField(record, 6, 2)
       |> Result.andThen(fun returned ->
+        // POLLNVAL is EBADF; POLLERR and POLLHUP are EIO
         if __watchHas(returned, 32) then
-          Result.Error(9)
+          Result.Error(Posix.__fromErrno(9))
         else if __watchHas(returned, 8) || __watchHas(returned, 16) then
-          Result.Error(5)
+          Result.Error(Posix.__fromErrno(5))
         else if __watchHas(returned, 1) then
           __watchDrain(fd)
           |> Result.andThen(fun pair ->
@@ -653,19 +668,20 @@ let __watchLinux(
   intervalMs: Int64,
   shouldStop: Unit -> Bool,
   fn: Unit -> Unit)
-  : Result<Unit, Int64> =
+  : Result<Unit, Posix.Error> =
   if shouldStop() then
     Result.Ok()
   else
     match Builtin.syscallInotifyInit1(526336) with
-    | Error(e) -> Result.Error(e)
+    | Error(e) -> Result.Error(Posix.__fromErrno(e))
     | Ok(raw) ->
       let fd = Posix.Fd { __fd = raw }
       let result =
         Builtin.syscallInotifyAddWatch(raw, path, 3086)
+        |> Result.mapError(Posix.__fromErrno)
         |> Result.andThen(fun _ -> __watchLoop(fd, intervalMs, shouldStop, fn))
 
-      let closed = Builtin.syscallClose(raw)
+      let closed = Builtin.syscallClose(raw) |> Result.mapError(Posix.__fromErrno)
       match result with
       | Error(e) -> Result.Error(e)
       | Ok(rearm) ->
@@ -680,12 +696,12 @@ let __watchVnodeEvents(
   at: Int64,
   changed: Bool,
   rearm: Bool)
-  : Result<(Bool * Bool), Int64> =
+  : Result<(Bool * Bool), Posix.Error> =
   let remaining = Bytes.length(bytes) - at
   if remaining == 0 then
     Result.Ok((changed, rearm))
   else if remaining < 32 then
-    Result.Error(5)
+    Result.Error(Posix.Error.BadKernelReply)
   else
     Posix.__kernelField(bytes, at + 10, 2)
     |> Result.andThen(fun flags ->
@@ -697,7 +713,8 @@ let __watchVnodeEvents(
             if errno == 0 then
               __watchVnodeEvents(bytes, at + 32, changed, rearm)
             else
-              Result.Error(errno))
+              // kevent reports Darwin's numbering, whatever the host
+              Result.Error(Posix.Error.Os(Posix.Errno { os = Posix.Os.Darwin, code = errno })))
         else
           let nextRearm =
             rearm || __watchHas(mask, 1) || __watchHas(mask, 32) || __watchHas(mask, 64)
@@ -710,13 +727,13 @@ let __watchVnodeLoop(
   intervalMs: Int64,
   shouldStop: Unit -> Bool,
   fn: Unit -> Unit)
-  : Result<Bool, Int64> =
+  : Result<Bool, Posix.Error> =
   if shouldStop() then
     Result.Ok(false)
   else
     match Builtin.syscallKeventVnode(queue, [], 16, intervalMs) with
     | Error(4) -> __watchVnodeLoop(queue, intervalMs, shouldStop, fn)
-    | Error(e) -> Result.Error(e)
+    | Error(e) -> Result.Error(Posix.__fromErrno(e))
     | Ok(buffer) ->
       __watchVnodeEvents(buffer, 0, false, false)
       |> Result.andThen(fun pair ->
@@ -729,12 +746,12 @@ let __watchVnodeLoop(
           __watchVnodeLoop(queue, intervalMs, shouldStop, fn))
 
 
-let __watchCloseBoth(queue: BigInt, source: BigInt): Result<Unit, Int64> =
+let __watchCloseBoth(queue: BigInt, source: BigInt): Result<Unit, Posix.Error> =
   let first = Builtin.syscallClose(queue)
   let second = Builtin.syscallClose(source)
   match first with
-  | Error(e) -> Result.Error(e)
-  | Ok(()) -> second
+  | Error(e) -> Result.Error(Posix.__fromErrno(e))
+  | Ok(()) -> second |> Result.mapError(Posix.__fromErrno)
 
 
 let __watchDarwin(
@@ -742,23 +759,24 @@ let __watchDarwin(
   intervalMs: Int64,
   shouldStop: Unit -> Bool,
   fn: Unit -> Unit)
-  : Result<Unit, Int64> =
+  : Result<Unit, Posix.Error> =
   if shouldStop() then
     Result.Ok()
   else
     // O_EVTONLY holds the vnode without needing data-access permission. The
     // trusted open boundary supplies no-follow and scoped read authorization.
     match Builtin.syscallOpen(path, 32768, 0) with
-    | Error(e) -> Result.Error(e)
+    | Error(e) -> Result.Error(Posix.__fromErrno(e))
     | Ok(source) ->
       match Builtin.syscallKqueue() with
       | Error(e) ->
         let _ = Builtin.syscallClose(source)
-        Result.Error(e)
+        Result.Error(Posix.__fromErrno(e))
       | Ok(queue) ->
         let result =
           // EV_ADD | EV_ENABLE | EV_CLEAR; seven vnode-change notes.
           Builtin.syscallKeventVnode(queue, [ (source, 37, 127) ], 0, 0)
+          |> Result.mapError(Posix.__fromErrno)
           |> Result.andThen(fun _ -> __watchVnodeLoop(queue, intervalMs, shouldStop, fn))
 
         let closed = __watchCloseBoth(queue, source)

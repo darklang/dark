@@ -714,7 +714,7 @@ test processDenialHintsPasteIntoRun = Instance.withInstance(fun i ->
     script(
       i,
       "hints.dark",
-      "let echo(arg: String): String =\n  match Stdlib.Cli.Process.run(\"echo\", [ \"it's\", arg ]) with\n  | Ok(out) -> out.stdout\n  | Error(e) -> e.message\n")
+      "let echo(arg: String): String =\n  match Stdlib.Cli.Process.run(\"echo\", [ \"it's\", arg ]) with\n  | Ok(out) -> out.stdout\n  | Error(e) -> Stdlib.display(e)\n")
 
   let authored = Instance.ran(i, [ "module", "Tests.ProcHints", source ])
   let denied =
@@ -737,7 +737,7 @@ test processDenialHintsPasteIntoRun = Instance.withInstance(fun i ->
       let printf = "printf '%s' " + quoted
       match Stdlib.Cli.Process.run("/bin/sh", [ "-c", printf ]) with
       | Ok(out) -> out.stdout
-      | Error(e) -> e.message
+      | Error(e) -> Stdlib.display(e)
 
   let exact = pasted("For one run:")
   let wider = pasted("this program with any arguments:")
