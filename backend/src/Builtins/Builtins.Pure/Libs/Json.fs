@@ -97,7 +97,7 @@ module RangedInt =
   [<Struct>]
   type Range = { field : string; what : string; min : int64; max : int64 }
 
-  /// The F# side of each type's `fromInt64`; `tests/stdlib/json.dark` checks they agree.
+  /// The F# side of each type's `fromInt64`; `tests/stdlib/json/userTypes.dark` checks they agree.
   let find (typeName : FQTypeName.FQTypeName) : ValueOption<Range> =
     match typeName with
     | FQTypeName.Package(Hash h) ->
