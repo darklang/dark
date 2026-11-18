@@ -260,6 +260,68 @@ test deleteSaysOneOrMany = withTraces(fun i ->
       Instance.says(pruneOne, "kept the most-recent", "--keep 1") ]))
 
 
+/// Run a shell command against an instance's files, and fail with what it said when it did not
+/// exit 0.
+let shell(command: String): Stdlib.Test.Result =
+  let out = Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", command)
+  Instance.exitedWith(out.exitCode, 0, $"`{command}` ({out.stderr})")
+
+
+/// What the instance's store file weighs, once its log is folded in.
+let storeSize(i: Instance.T): Int64 =
+  let db = $"{i.dir}/data.db"
+  let _ = Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", $"sqlite3 {db} 'PRAGMA wal_checkpoint(TRUNCATE);'")
+  Stdlib.Cli.File.size(db) |> Stdlib.Result.withDefault(0)
+
+
+/// SQLite only reuses the pages a delete frees, so a store that once held big traces stays big
+/// unless `traces delete` gives them back. It does once they are over a quarter of the file.
+test deleteGivesFreedSpaceBack = withTraces(fun i ->
+  let db = $"{i.dir}/data.db"
+  let ran = step(i, [ "eval", "1 + 2" ])
+  // Freed pages worth half the store: a third of the grown file, over the quarter.
+  let blobs = Stdlib.display(storeSize(i) / 2097152 + 1)
+  let freed =
+    shell(
+      $"sqlite3 {db} 'CREATE TABLE junk (b BLOB); WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM n WHERE x < {blobs}) INSERT INTO junk SELECT randomblob(1048576) FROM n; DROP TABLE junk;'")
+
+  let before = storeSize(i)
+  let deleted = step(i, [ "traces", "delete", "--all", "--yes" ])
+  let after = storeSize(i)
+  Stdlib.Test.all(
+    [ ran
+      freed
+      deleted
+      Stdlib.Test.expect(
+        after * 3 < before * 2,
+        $"the file shrank by the freed third: {Stdlib.display(before)} -> {Stdlib.display(after)}") ]))
+
+
+/// A test run shares one read-only store. A run on it with recording on still answers, and
+/// leaves the store as it found it.
+test evalOnAReadOnlyStoreAnswersAndRecordsNothing = withTraces(fun i ->
+  let db = $"{i.dir}/data.db"
+  let ran = step(i, [ "eval", "1 + 2" ])
+  // A shared snapshot is not WAL: switching a store to WAL is a write.
+  let sealed =
+    shell($"sqlite3 {db} 'PRAGMA journal_mode = DELETE;' && chmod a-w {db}")
+
+  let sumBefore = Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", $"cksum < {db}")
+  let (code, out) = Instance.ran(i, [ "eval", "40 + 2" ])
+  let sumAfter = Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", $"cksum < {db}")
+  let unsealed = shell($"chmod u+w {db}")
+  Stdlib.Test.all(
+    [ ran
+      sealed
+      Instance.exitedWith(code, 0, $"the read-only run ({out})")
+      Instance.says(out, "42", "and it answered")
+      unsealed
+      Stdlib.Test.expect(
+        sumBefore.stdout == sumAfter.stdout,
+        "the store file is unchanged")
+      Stdlib.List.length(listed(i, 10)) |> Stdlib.Test.equal(1) ]))
+
+
 /// `pin` and `unpin` write the store; nothing else here runs either verb.
 test pinRoundTrips = withTraces(fun i ->
   let ran = step(i, [ "eval", "1 + 2" ])

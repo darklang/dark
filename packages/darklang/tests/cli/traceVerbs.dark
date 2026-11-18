@@ -863,3 +863,23 @@ test callsSaysHowOftenAndHowLongEachRunWasInTheFunction =
           asJson,
           "\"totalUs\":0",
           "the run spent time in it") ]))
+
+
+/// A self tail call runs in the frame it is in, even while recorded, and is still counted as a
+/// call of its own.
+test callsCountsEverySelfTailCall = Traces.withTraces(fun i ->
+  let defined =
+    authored(
+      i,
+      "Tests.Prev.sumTo",
+      "(n: Int64, acc: Int64): Int64 =\n  if n == 0 then acc else Tests.Prev.sumTo(n - 1, acc + n)",
+      "deny all")
+
+  let ran = Instance.said(i, [ "eval", "Tests.Prev.sumTo(100, 0)" ])
+  let asJson =
+    Instance.output(i, [ "traces", "calls", "Tests.Prev.sumTo", "--json" ])
+
+  Stdlib.Test.all(
+    [ defined
+      Instance.says(ran, "5050", "the run happened")
+      Instance.says(asJson, "\"calls\":101", "one call for each of 100 down to 0") ]))
