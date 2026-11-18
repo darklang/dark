@@ -480,7 +480,10 @@ let runTestHandler (ctx : HttpListenerContext) : Task<unit> =
           // the testcase included Content-Length (whose value may differ
           // from data.Length, e.g. HEAD responses that advertise the
           // length GET would return). Don't override.
-          if ctx.Response.StatusCode <> 304 then
+          //
+          // no empty write: on a chunked response it sends the closing chunk, and Close
+          // sends another, which the client reads as the next response's status line
+          if ctx.Response.StatusCode <> 304 && data.Length > 0 then
             do! ctx.Response.OutputStream.WriteAsync(data, 0, data.Length)
     with e ->
       // Best-effort: if we can still set status, do so.
