@@ -84,3 +84,447 @@ test everyCommandAnswersHelp = Instance.withInstance(fun i ->
         problems == [],
         "commands that don't answer help:\n"
         + Stdlib.String.join(problems, "\n")) ]))
+
+
+// ─── the other sweeps ────────────────────────────────────────────────────────
+//
+// Each runs every registered command one way: bare, with a flag it does not have, with a word it
+// does not know, standing on a branch, and with a fair question. They differ in what they hand a
+// command, never in how they judge what comes back: it must say something, and it must not print
+// a runtime error it caught.
+
+/// Commands no sweep runs, with why. Each must still be registered (`everyExclusionIsReal`).
+val notSweepable: List<String> =
+  [ "quit"  // ends the session
+    "install"  // rewrites the install
+    "uninstall"  // ditto, destructively
+    "update"  // ditto, and fetches a build
+    "install-status"  // reports on the machine's install, which an instance is not
+    "serve"  // binds a port and blocks; its refusals are in refusals.dark
+    "typecheck"  // audits every declaration; swept with a module in jsonShapes.dark
+    "export-seed"  // takes its argument as a path and writes a multi-MB database there
+    "clear" ]  // clears the screen, taking the sweep's own output with it
+
+
+let registered(): List<String> =
+  Cli.Registry.allCommands() |> Stdlib.List.map(fun c -> c.name)
+
+
+let swept(): List<String> =
+  registered()
+  |> Stdlib.List.filter(fun name ->
+    Stdlib.Bool.not(Stdlib.List.contains(notSweepable, name)))
+
+
+/// `dark <args>`: its exit code, everything it printed, and what is wrong with that whatever the
+/// code says: it could not run, it said nothing, or it printed a runtime error it caught.
+let sweepRun(
+  i: Instance.T,
+  args: List<String>)
+  : (Int64 * String * Stdlib.Option.Option<String>) =
+  match Instance.run(i, args) with
+  | Error(e) -> (-1, "", Stdlib.Option.Option.Some($"could not run: {e}"))
+  | Ok(out) ->
+    let text = Stdlib.String.trim(out.stdout + out.stderr)
+    if text == "" then
+      (out.exitCode, text, Stdlib.Option.Option.Some("said nothing"))
+    else
+      match runtimeFailure(text) with
+      | Some(line) ->
+        (
+          out.exitCode,
+          text,
+          Stdlib.Option.Option.Some($"printed a runtime error: {line}"))
+      | None -> (out.exitCode, text, Stdlib.Option.Option.None)
+
+
+let firstLine(text: String): String =
+  Stdlib.String.splitOnNewline(text)
+  |> Stdlib.List.head
+  |> Stdlib.Option.withDefault("")
+  |> Stdlib.Cli.Tui.Text.stripSgr
+
+
+/// What is wrong with `dark <args>`, judged as a refusal (non-zero exit) or as an answer (exit 0).
+let didNotExit(
+  i: Instance.T,
+  refusal: Bool,
+  args: List<String>)
+  : Stdlib.Option.Option<String> =
+  let cmd = Stdlib.String.join(args, " ")
+  let (code, text, problem) = sweepRun(i, args)
+  let refused = code != 0
+  let why =
+    match problem with
+    | Some(p) -> Stdlib.Option.Option.Some(p)
+    | None ->
+      if refused == refusal then
+        Stdlib.Option.Option.None
+      else
+        Stdlib.Option.Option.Some(
+          $"exited {Stdlib.display(code)}: {firstLine(text)}")
+
+  why |> Stdlib.Option.map(fun w -> $"  dark {cmd} -> {w}")
+
+
+let noFailures(title: String, failures: List<String>): Stdlib.Test.Result =
+  Stdlib.Test.expect(
+    failures == [],
+    title + ":\n" + Stdlib.String.join(failures, "\n"))
+
+
+test everyExclusionIsReal =
+  let names = registered()
+  let stale =
+    notSweepable
+    |> Stdlib.List.filter(fun n ->
+      Stdlib.Bool.not(Stdlib.List.contains(names, n)))
+
+  Stdlib.Test.all(
+    [ Stdlib.Test.expect(
+        Stdlib.List.length(names) > 20,
+        "the registry was read")
+
+      Stdlib.Test.expect(
+        stale == [],
+        $"excluded from the sweeps but not registered: {Stdlib.String.join(stale, ", ")}") ])
+
+
+/// Whether a command's declaration needs a word, so running it bare must refuse.
+let needsAWord(c: Cli.Registry.CommandHandler): Bool =
+  let accepts = c.accepts
+  match accepts() with
+  | Takes(s) -> s.atLeast > 0
+  | Subcommands(_, s) -> s.atLeast > 0
+
+
+/// Every command, BARE. With nothing to read, a command must print help, print a result, or
+/// refuse, never block on a stdin that never arrives; an instance is not a terminal, so anything
+/// that would go interactive is told the terminal is unavailable. And a command whose declaration
+/// needs a word refuses, read from the declarations so a command that comes to need one is covered
+/// the day it says so.
+test everyCommandAnswersWhenBare = Instance.withInstance(fun i ->
+  let needing =
+    Cli.Registry.allCommands()
+    |> Stdlib.List.filter(needsAWord)
+    |> Stdlib.List.map(fun c -> c.name)
+
+  let failures =
+    swept()
+    |> Stdlib.List.filterMap(fun cmd ->
+      let (code, _, problem) = sweepRun(i, [ cmd ])
+      let why =
+        match problem with
+        | Some(p) -> Stdlib.Option.Option.Some(p)
+        | None ->
+          if code == 0 && Stdlib.List.contains(needing, cmd) then
+            Stdlib.Option.Option.Some(
+              "needs an argument, and exited 0 without one")
+          else
+            Stdlib.Option.Option.None
+
+      why |> Stdlib.Option.map(fun w -> $"  dark {cmd} -> {w}"))
+
+  Stdlib.Test.all(
+    [ Stdlib.Test.expect(
+        Stdlib.List.length(needing) > 15,
+        "the declarations name the commands that need an argument")
+
+      noFailures("commands that answer nothing when run bare", failures) ]))
+
+
+/// The argument check itself, on declarations made for the purpose: what counts as a word, a flag
+/// and a value. Each row is the declaration, the arguments, and whether they are refused.
+test theArgumentCheckReadsFlagsValuesAndWords =
+  let listing =
+    Cli.Accepts.everywhere(
+      [ "--json" ],
+      [],
+      Cli.Accepts.subcommands(
+        [ ("list", Cli.Accepts.upTo(1, [])) ],
+        Cli.Accepts.nothing()))
+
+  let depth = Cli.Accepts.withValues([ "--depth" ], Cli.Accepts.upTo(1, []))
+  let rows =
+    [ (
+        "upTo(1, --json)",
+        Cli.Accepts.upTo(1, [ "--json" ]),
+        [ "x", "--json" ],
+        false)
+
+      ("upTo(1, --json)", Cli.Accepts.upTo(1, [ "--json" ]), [ "x", "y" ], true)
+      ("flagsOnly", Cli.Accepts.flagsOnly([]), [ "--zzz" ], true)
+      ("depth", depth, [ "--depth=1" ], false)
+      ("depth", depth, [ "--depth", "3", "path" ], false)
+      ("depth", depth, [ "--depth" ], true)
+      // A lone "-" is a word: standard input.
+      (
+        "between(2, 2)",
+        Cli.Accepts.between(2, 2, []),
+        [ "Some.Module", "-" ],
+        false)
+
+      // Every word a word: an expression may start with a minus.
+      ("text(1)", Cli.Accepts.text(1), [ "-1L", "+", "2" ], false)
+      ("between(1, 1)", Cli.Accepts.between(1, 1, []), [], true)
+      // The subcommand is the first word that is not a flag.
+      ("listing", listing, [ "--json", "list", "3" ], false)
+      ("listing", listing, [ "zzz" ], true) ]
+
+  rows
+  |> Stdlib.List.map(fun row ->
+    let (label, accepts, args, refused) = row
+    let got = Stdlib.Option.isSome(Cli.Accepts.check("t", accepts, args))
+    Stdlib.Test.expect(
+      got == refused,
+      $"{label} with {Stdlib.inspect(args)}: refused is {Stdlib.display(got)}"))
+  |> Stdlib.Test.all
+
+
+test everyCommandRefusesAFlagItDoesNotHave = Instance.withInstance(fun i ->
+  let commands = swept()
+  let failures =
+    commands
+    |> Stdlib.List.filterMap(fun cmd ->
+      didNotExit(i, true, [ cmd, "--zzz-no-such-flag" ]))
+
+  Stdlib.Test.all(
+    [ Stdlib.Test.expect(
+        Stdlib.List.length(commands) > 40,
+        "the registry was read")
+
+      noFailures("commands that took a flag they do not have", failures) ]))
+
+
+/// Where a word a command has never seen is not a mistake: it is a query, so the command answers
+/// it, and an answer that matches nothing is a true one.
+val wordIsAQuery: List<String> = [ "search", "builtins" ]
+
+
+/// Where the word names or describes something the command makes (`switch` starts a
+/// branch and moves onto it; `commit`'s words are the message, and it commits the draft). Not run
+/// with a word; their own tests make one on purpose.
+val wordIsWhatItMakes: List<String> = [ "switch", "commit" ]
+
+
+test everyCommandRefusesAWordItDoesNotKnow = Instance.withInstance(fun i ->
+  let commands = swept()
+  let names = registered()
+  let unregistered =
+    Stdlib.List.concat(wordIsAQuery, wordIsWhatItMakes)
+    |> Stdlib.List.filter(fun c ->
+      Stdlib.Bool.not(Stdlib.List.contains(names, c)))
+
+  let failures =
+    commands
+    |> Stdlib.List.filter(fun cmd ->
+      Stdlib.Bool.not(Stdlib.List.contains(wordIsWhatItMakes, cmd)))
+    |> Stdlib.List.filterMap(fun cmd ->
+      didNotExit(
+        i,
+        Stdlib.Bool.not(Stdlib.List.contains(wordIsAQuery, cmd)),
+        [ cmd, "zzz-no-such-thing-zzz" ]))
+
+  Stdlib.Test.all(
+    [ Stdlib.Test.expect(
+        Stdlib.List.length(commands) > 40,
+        "the registry was read")
+
+      Stdlib.Test.expect(
+        unregistered == [],
+        $"listed as taking a word, but not registered: {Stdlib.String.join(unregistered, ", ")}")
+
+      noFailures(
+        "commands that did not do what a word they do not know calls for",
+        failures) ]))
+
+
+/// The bare and word sweeps again, standing on a branch: a read that skips the branch answers
+/// about main, plausibly, so a command that only misbehaves on a branch is invisible to the sweeps
+/// above.
+test everyCommandSurvivesABranch = Instance.withInstance(fun i ->
+  let switched = Instance.said(i, [ "switch", "cli-sweep-branch" ])
+  let sweep = fun extra ->
+    swept()
+    |> Stdlib.List.filter(fun cmd ->
+      extra == []
+      || Stdlib.Bool.not(Stdlib.List.contains(wordIsWhatItMakes, cmd)))
+    |> Stdlib.List.filterMap(fun cmd ->
+      let args = Stdlib.List.prepend(extra, cmd)
+      let (_, _, problem) = sweepRun(i, args)
+      problem
+      |> Stdlib.Option.map(fun p ->
+        $"  dark {Stdlib.String.join(args, " ")} (on a branch) -> {p}"))
+
+  let bare = sweep([])
+  let withAWord = sweep([ "zzz-no-such-thing-zzz" ])
+  let status = Instance.said(i, [ "status", "--json" ])
+  Stdlib.Test.all(
+    [ Instance.says(switched, "cli-sweep-branch", "the sweep is on the branch")
+
+      Instance.says(
+        status,
+        "\"branch\":\"cli-sweep-branch\"",
+        "and nothing in it moved off the branch")
+
+      noFailures(
+        "commands that misbehave while on a branch",
+        Stdlib.List.concat(bare, withAWord)) ]))
+
+
+/// Commands that are safe to run bare but are not given real arguments, with why: each takes
+/// over the screen, never returns, or changes what the other rows stand on.
+val unsafeWithArguments: List<String> =
+  [ "run-script"  // takes a path and executes whatever is at it
+    "format"  // rewrites the files it is given
+    "fn"  // authors; the seed is the only fixture the sweep should make
+    "val"  // ditto
+    "type"  // ditto
+    "module"  // ditto
+    "trait"  // ditto
+    "impl"  // ditto
+    "rename"  // moves an item the table names
+    "edit"  // without a file argument it spawns $EDITOR as an interactive child
+    "discard"  // drops the whole draft
+    "delete"  // takes an item off the shelf
+    "commit"  // only a real commit exits 0; streams.dark checks both
+    "deprecate"  // ditto `delete`, by the other door
+    "undeprecate"  // puts one back
+    "undo"  // steps a real item back a version
+    "resolve"  // writes a Resolve op
+    "ack"  // closes a finding
+    "back"  // a one-shot run has no history to go back to, so it refuses
+    "workbench" ]  // without a terminal it refuses; streams.dark checks that
+
+
+/// The invocation a person would type, per command, against a store holding a committed fn with a
+/// caller and a test, a branch that differs from main, a commit and a recorded run.
+let knownGood(
+  fnName: String,
+  branch: String,
+  commit: String,
+  run: String)
+  : List<(String * List<String>)> =
+  [ ("help", [ "status" ])
+    // `config set` writes keys the boot reads at startup.
+    ("config", [ "list" ])
+    // Bare asks GitHub for the latest release.
+    ("version", [ "--local" ])
+    ("nav", [ "Darklang.Stdlib.List" ])
+    ("ls", [ "Darklang.Stdlib.List" ])
+    ("eval", [ "1 + 1" ])
+    ("view", [ fnName ])
+    ("tree", [ "Darklang.Stdlib", "--depth", "1" ])
+    ("search", [ "mergeFavoring" ])
+    ("deps", [ fnName ])
+    ("hash", [ fnName ])
+    ("status", [ "--json" ])
+    ("commits", [ "3", "--json" ])
+    ("show", [ commit ])
+    ("branch", [ "list" ])
+    ("branches", [ "--json" ])
+    ("switch", [ "main" ])
+    ("diff", [ branch, "--json" ])
+    ("log", [ "--json" ])
+    ("rebase", [ branch, "--dry-run" ])
+    ("merge", [ branch, "--dry-run" ])
+    ("constraints", [ "--json" ])
+    ("builtins", [ "listMap" ])
+    ("find-values", [ "Darklang.Stdlib.Option.Option" ])
+    ("docs", [ "scm" ])
+    ("ops", [ "3" ])
+    ("ps", [ "--json" ])
+    ("traces", [ "inspect", run ])
+    ("conflicts", [ "list" ])
+    ("backups", [ "list" ])
+    ("permissions", [ "show", fnName ])
+    ("effects", [ fnName ])
+    ("typecheck", [ "Darklang.Stdlib.Bool" ])
+    ("impls", [ "Darklang.Stdlib.Add" ])
+    ("test", [ "run", "Tests.Sweep.passes" ]) ]
+
+
+/// The first `"<key>":"<value>"` in a line of JSON, or "".
+let firstJsonString(text: String, key: String): String =
+  Stdlib.String.split(text, $"\"{key}\":\"")
+  |> Stdlib.List.getAt(1)
+  |> Stdlib.Option.andThen(fun rest ->
+    Stdlib.List.head(Stdlib.String.split(rest, "\"")))
+  |> Stdlib.Option.withDefault("")
+
+
+/// Every command answers a fair question with exit 0, and the table cannot quietly stop covering
+/// the registry: a registered command with no row and no reason fails, and so does a row for a
+/// command that is gone. The other sweeps never give a command something to DO, and a Dark call
+/// site is not type-checked until it runs.
+test everyCommandAnswersAFairQuestion = Instance.withInstance(fun i ->
+  let branch = "cli-sweep-args"
+  let fnName = "Tests.Sweep.f"
+  let step = fun args ->
+    let (code, said) = Instance.ran(i, args)
+    Instance.exitedWith(
+      code,
+      0,
+      $"dark {Stdlib.String.join(args, " ")}: {said}")
+
+  let seeded =
+    [ step([ "fn", "Tests.Sweep.dep", "() : Int64 = 1" ])
+      step([ "fn", fnName, "(): Int64 = Tests.Sweep.dep()" ])
+      step([ "test", "add", "Tests.Sweep.passes", "Stdlib.Test.pass()" ])
+      step([ "commit", "cli-sweep fixture", "-y" ])
+      step([ "switch", branch ])
+      step([ "fn", "Tests.Sweep.onBranch", "() : Int64 = 2" ])
+      step([ "switch", "main" ])
+      step([ "traces", "record", "on" ])
+      step([ "eval", "1 + 1" ]) ]
+
+  let commit =
+    firstJsonString(Instance.said(i, [ "commits", "1", "--json" ]), "hash")
+
+  let run =
+    firstJsonString(Instance.said(i, [ "traces", "list", "1", "--json" ]), "id")
+
+  let table = knownGood(fnName, branch, commit, run)
+  let inTable = table |> Stdlib.List.map(fun row -> Stdlib.Tuple2.first(row))
+  let names = registered()
+  let accounted =
+    Stdlib.List.flatten([ inTable, unsafeWithArguments, notSweepable ])
+
+  let unaccounted =
+    names
+    |> Stdlib.List.filter(fun n ->
+      Stdlib.Bool.not(Stdlib.List.contains(accounted, n)))
+
+  let stale =
+    Stdlib.List.concat(inTable, unsafeWithArguments)
+    |> Stdlib.List.filter(fun n ->
+      Stdlib.Bool.not(Stdlib.List.contains(names, n)))
+
+  let failures =
+    table
+    |> Stdlib.List.filterMap(fun row ->
+      let (cmd, args) = row
+      didNotExit(i, false, Stdlib.List.prepend(args, cmd)))
+
+  Stdlib.Test.all(
+    Stdlib.List.concat(
+      seeded,
+      [ Stdlib.Test.expect(commit != "", "the seed made a commit to name")
+
+        Stdlib.Test.expect(run != "", "the seed made a run to name")
+
+        Stdlib.Test.expect(
+          Stdlib.List.length(names) > 20,
+          "the registry was read")
+
+        Stdlib.Test.expect(
+          unaccounted == [],
+          $"registered but no known-good invocation and no stated reason not to sweep: {Stdlib.String.join(unaccounted, ", ")}")
+
+        Stdlib.Test.expect(
+          stale == [],
+          $"named in the valid-argument table but not registered: {Stdlib.String.join(stale, ", ")}")
+
+        noFailures(
+          "commands that did not answer a fair question",
+          failures) ])))
