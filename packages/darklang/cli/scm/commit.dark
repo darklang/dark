@@ -52,6 +52,7 @@ let parseInclude(args: List<String>): List<String> =
 /// message text while the command quietly commits the whole draft.
 let unknownFlags(args: List<String>): List<String> =
   args
+  |> Stdlib.List.takeWhile(fun a -> a != "--")
   |> Stdlib.List.filter(fun a ->
     Stdlib.String.startsWith(a, "-") && Stdlib.Bool.not(isKnownFlag(a)))
 
@@ -67,6 +68,11 @@ let refuseUnknownFlags(args: List<String>): Bool =
 
 
 let parseArgs(args: List<String>): Args =
+  // Every word after `--` is message.
+  let afterDashes =
+    args |> Stdlib.List.dropWhile(fun a -> a != "--") |> Stdlib.List.drop(1)
+
+  let args = args |> Stdlib.List.takeWhile(fun a -> a != "--")
   let autoConfirm = Stdlib.List.contains(args, "-y") || Stdlib.List.contains(args, "--yes")
 
   // `-m` is accepted as a no-op marker: the message is positional, but a decade of git muscle
@@ -75,7 +81,10 @@ let parseArgs(args: List<String>): Args =
   let args = args |> Stdlib.List.filter(fun a -> a != "-m" && a != "--message")
 
   // Everything that isn't a flag is the message, so the flags have to come out first or they land in it.
-  let words = args |> Stdlib.List.filter(fun a -> Stdlib.Bool.not(Stdlib.String.startsWith(a, "-")))
+  let words =
+    args
+    |> Stdlib.List.filter(fun a -> Stdlib.Bool.not(Stdlib.String.startsWith(a, "-")))
+    |> Stdlib.List.concat(afterDashes)
   Args
     { message = Stdlib.String.trim(Stdlib.String.join(words, " "))
       autoConfirm = autoConfirm

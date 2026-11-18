@@ -15,7 +15,8 @@ module ScriptArguments =
       | "--" :: rest -> List.rev ("--" :: options), rest
       | ("--branch" | "--entry-point" | "--allow" as flag) :: value :: rest ->
         loop (value :: flag :: options) rest
-      | flag :: rest when flag.StartsWith "-" -> loop (flag :: options) rest
+      | flag :: rest when flag <> "-" && flag.StartsWith "-" ->
+        loop (flag :: options) rest
       | rest -> List.rev options, rest
     loop [] args
 

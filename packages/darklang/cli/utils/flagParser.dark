@@ -65,6 +65,7 @@ let addMissingValue(acc: Parsed, token: String): Parsed =
 let __parseLoop(spec: Spec, acc: Parsed, remaining: List<String>): Parsed =
   match remaining with
   | [] -> acc
+  | ["--", ...rest] -> { acc with positionals = Stdlib.List.concat(acc.positionals, rest) }
   | [token, ...rest] ->
     match canonicalFor(spec.valueFlags, token) with
     | Some(name) ->

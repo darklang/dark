@@ -277,7 +277,8 @@ test splitArgumentsLikeTheHost =
       split([ "-v", "--", "--sandbox" ])
       |> Stdlib.Test.equal(([ "-v", "--" ], [ "--sandbox" ]))
 
-      split([ "-", "s.dark" ]) |> Stdlib.Test.equal(([ "-" ], [ "s.dark" ]))
+      // a lone `-` is the script, read from stdin
+      split([ "-", "x" ]) |> Stdlib.Test.equal(([], [ "-", "x" ]))
 
       split([ "", "-v" ]) |> Stdlib.Test.equal(([], [ "", "-v" ]))
 

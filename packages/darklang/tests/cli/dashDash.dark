@@ -1,0 +1,67 @@
+/// `--` ends the options of every command, and `run -` reads the script from stdin.
+module Darklang.Cli.Tests.DashDash
+
+test acceptsTakesWordsAfterDashDash =
+  let search = Cli.Accepts.freeText(0, [ "--json" ])
+  let one = Cli.Accepts.between(1, 1, [])
+  Stdlib.Test.all(
+    [ Cli.Accepts.check("search", search, [ "--", "-foo" ])
+      |> Stdlib.Test.equal(Option.None)
+
+      Cli.Accepts.check("search", search, [ "--json", "--", "--bogus" ])
+      |> Stdlib.Test.equal(Option.None)
+
+      Cli.Accepts.check("search", search, [ "--bogus" ])
+      |> Stdlib.Test.equal(
+        Option.Some("`dark search` does not take `--bogus`."))
+
+      Cli.Accepts.check("view", one, [ "--", "-x", "y" ])
+      |> Stdlib.Test.equal(Option.Some("`dark view` does not take `y`."))
+
+      Cli.Accepts.check("view", one, [ "--" ])
+      |> Stdlib.Test.equal(Option.Some("`dark view` needs an argument.")) ])
+
+
+test flagParserStopsAtDashDash =
+  let spec =
+    Cli.FlagParser.Spec { flags = [ ("--yes", [ "-y" ]) ], valueFlags = [] }
+
+  let parsed = Cli.FlagParser.parse(spec, [ "-y", "--", "-y", "--nope" ])
+  Stdlib.Test.all(
+    [ parsed.flags |> Stdlib.Test.equal([ "--yes" ])
+      parsed.positionals |> Stdlib.Test.equal([ "-y", "--nope" ])
+      parsed.errors |> Stdlib.Test.equal([]) ])
+
+
+test commitMessageAfterDashDash =
+  let parsed = Cli.Commit.parseArgs([ "-y", "--", "-fix", "--yes" ])
+  Stdlib.Test.all(
+    [ parsed.message |> Stdlib.Test.equal("-fix --yes")
+      parsed.autoConfirm |> Stdlib.Test.equal(true)
+      Cli.Commit.unknownFlags([ "--", "-fix" ]) |> Stdlib.Test.equal([]) ])
+
+
+test dashDashOnTheCommandLine = Instance.withInstance(fun i ->
+  let (searchCode, search) = Instance.ran(i, [ "search", "--", "-zzqx" ])
+  let (viewCode, view) = Instance.ran(i, [ "view", "--", "Stdlib.List.head" ])
+  let (helpCode, help) = Instance.ran(i, [ "search", "--", "--help" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(searchCode, 0, "search takes a word after --")
+      Instance.doesNotSay(search, "does not take", "search is not refused")
+      Instance.exitedWith(viewCode, 0, "view takes a name after --")
+      Instance.says(view, "head", "view shows the item")
+      Instance.exitedWith(helpCode, 0, "--help after -- is a search term")
+      Instance.doesNotSay(help, "Usage:", "--help after -- is not help") ]))
+
+
+test runReadsTheScriptFromStdin = Instance.withInstance(fun i ->
+  let source =
+    "Stdlib.printLine(\"from stdin: \" + Stdlib.String.join(args, \",\"))\n3"
+
+  let (code, out) = Edit.runWithStdin(i, [ "run", "-", "a", "-b" ], source)
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 3, "the script's exit code")
+      Instance.says(
+        out,
+        "from stdin: a,-b",
+        "the script ran with its arguments") ]))

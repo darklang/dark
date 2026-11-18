@@ -533,9 +533,10 @@ module Registry =
       | _ -> false
 
     // The script runner decides whether --help is an option or a script argument.
+    let options = args |> Stdlib.List.takeWhile(fun a -> a != "--")
     let asksForHelp =
       handler.name != "run-script"
-      && (Stdlib.List.contains(args, "--help") || Stdlib.List.contains(args, "-h") || firstIsHelp)
+      && (Stdlib.List.contains(options, "--help") || Stdlib.List.contains(options, "-h") || firstIsHelp)
 
     if asksForHelp then
       executeCommandHelp(name, state)
@@ -551,6 +552,20 @@ module Registry =
         printHint($"  `dark {name} --help` shows what it takes.")
         { state with exitCode = 1 }
       | None ->
+        // A `--` with no flag-like word after it changes nothing, so it goes, and commands that
+        // match their words by position never see it. One before a word like `-foo` stays, for
+        // the command's own parsing to honour.
+        let words = Stdlib.List.drop(args, Stdlib.List.length(options) + 1)
+        let args =
+          if
+            handler.name != "run-script"
+            && Stdlib.List.length(options) < Stdlib.List.length(args)
+            && Stdlib.Bool.not(Stdlib.List.any(words, fun a -> Stdlib.String.startsWith(a, "-")))
+          then
+            Stdlib.List.concat(options, words)
+          else
+            args
+
         let ex = handler.execute
         ex(state, args)
 
