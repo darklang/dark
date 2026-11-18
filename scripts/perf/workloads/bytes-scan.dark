@@ -2,8 +2,8 @@
 // under 0.1 s, about 3,000 CPU instructions a step. `_paired.py` times it against a release.
 let scan(bytes: Bytes, byte: UInt8, i: Int64): Int64 =
   match Stdlib.Bytes.getAt(bytes, i) with
-  | None -> -1
-  | Some(b) -> if b == byte then i else scan(bytes, byte, i - 1)
+  | Error(_) -> -1
+  | Ok(b) -> if b == byte then i else scan(bytes, byte, i - 1)
 
 let bytes =
   Stdlib.Bytes.concat(

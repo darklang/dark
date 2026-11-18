@@ -479,8 +479,8 @@ let __childInteractive(program: String, args: List<String>): Result<Int64, Int64
 
 
 let __childNewline(bytes: Bytes): Bool =
-  // An empty Bytes asks for index -1, which is None.
-  Bytes.getAt(bytes, Bytes.length(bytes) - 1) == Option.Some(10u8)
+  // An empty Bytes asks for index -1, which is an Error.
+  Bytes.getAt(bytes, Bytes.length(bytes) - 1) == Result.Ok(10u8)
 
 
 /// Empty-input communication is immediately nonblocking. Input-driven calls
