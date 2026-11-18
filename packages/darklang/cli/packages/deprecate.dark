@@ -39,6 +39,70 @@ let parseArgs(args: List<String>): ParsedArgs =
       parseErrors = p.errors }
 
 
+/// The places <param target> may name, in the order to try them. `Stdlib.String.trim` is
+/// `Darklang.Stdlib.String.trim`, as it is in code and in `view`.
+let candidateLocations(
+  currentLocation: PackageLocation,
+  target: String)
+  : List<LanguageTools.ProgramTypes.PackageLocation> =
+  match Location.parseRelativeTo(currentLocation, target) with
+  | Ok(location) ->
+    if location.owner == "Stdlib" then
+      [ location
+        { location with
+            owner = "Darklang"
+            modules = Stdlib.List.prepend(location.modules, "Stdlib") } ]
+    else
+      [ location ]
+  | Error(_) -> []
+
+
+let findAt(
+  branchId: Uuid,
+  itemKind: LanguageTools.ProgramTypes.ItemKind,
+  location: LanguageTools.ProgramTypes.PackageLocation)
+  : Option<LanguageTools.ProgramTypes.Reference> =
+  match itemKind with
+  | Fn ->
+    match LanguageTools.PackageManager.Function.find(branchId, location) with
+    | Some(h) -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageFn(h))
+    | None -> Option.None
+  | Type ->
+    match LanguageTools.PackageManager.Type.find(branchId, location) with
+    | Some(h) -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageType(h))
+    | None -> Option.None
+  | Value ->
+    match LanguageTools.PackageManager.Value.find(branchId, location) with
+    | Some(h) -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageValue(h))
+    | None -> Option.None
+  | Trait ->
+    match LanguageTools.PackageManager.Trait.find(branchId, location) with
+    | Some(h) -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageTrait(h))
+    | None -> Option.None
+  | TraitImpl ->
+    match LanguageTools.PackageManager.TraitImpl.find(branchId, location) with
+    | Some(h) -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageTraitImpl(h))
+    | None -> Option.None
+  | Test ->
+    match LanguageTools.PackageManager.Test.find(branchId, location) with
+    | Some(h) -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageTest(h))
+    | None -> Option.None
+
+
+/// Where <param target> resolves as an item of <param itemKind>, and the item there.
+let resolveLocated(
+  branchId: Uuid,
+  currentLocation: PackageLocation,
+  itemKind: LanguageTools.ProgramTypes.ItemKind,
+  target: String)
+  : Option<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.Reference)> =
+  candidateLocations(currentLocation, target)
+  |> Stdlib.List.filterMap(fun location ->
+    findAt(branchId, itemKind, location)
+    |> Stdlib.Option.map(fun reference -> (location, reference)))
+  |> Stdlib.List.head
+
+
 /// Build a Reference by resolving a location string (FQN).
 /// Returns None if the name can't be resolved on the current branch.
 /// TODO: the design doc also promises hash-prefix resolution (e.g.
@@ -50,34 +114,8 @@ let resolveTarget(
   itemKind: LanguageTools.ProgramTypes.ItemKind,
   target: String)
   : Option<LanguageTools.ProgramTypes.Reference> =
-  match Location.parseRelativeTo(currentLocation, target) with
-  | Ok(location) ->
-    match itemKind with
-    | Fn ->
-      match LanguageTools.PackageManager.Function.find(branchId, location) with
-      | Some(h) -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageFn(h))
-      | None -> Option.None
-    | Type ->
-      match LanguageTools.PackageManager.Type.find(branchId, location) with
-      | Some(h) -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageType(h))
-      | None -> Option.None
-    | Value ->
-      match LanguageTools.PackageManager.Value.find(branchId, location) with
-      | Some(h) -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageValue(h))
-      | None -> Option.None
-    | Trait ->
-      match LanguageTools.PackageManager.Trait.find(branchId, location) with
-      | Some(h) -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageTrait(h))
-      | None -> Option.None
-    | TraitImpl ->
-      match LanguageTools.PackageManager.TraitImpl.find(branchId, location) with
-      | Some(h) -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageTraitImpl(h))
-      | None -> Option.None
-    | Test ->
-      match LanguageTools.PackageManager.Test.find(branchId, location) with
-      | Some(h) -> Option.Some(LanguageTools.ProgramTypes.Reference.PackageTest(h))
-      | None -> Option.None
-  | Error(_) -> Option.None
+  resolveLocated(branchId, currentLocation, itemKind, target)
+  |> Stdlib.Option.map(fun((_, reference)) -> reference)
 
 
 /// What `deprecate` is being pointed at: the kind, its word (for the messages), the name as typed,
@@ -98,17 +136,14 @@ let resolveAt(
   itemTypeStr: String,
   target: String)
   : Option<Target> =
-  match Location.parseRelativeTo(currentLoc, target) with
-  | Ok(location) ->
-    resolveTarget(branchId, currentLoc, itemKind, target)
-    |> Stdlib.Option.map(fun targetRef ->
-      Target
-        { itemKind = itemKind
-          itemTypeStr = itemTypeStr
-          target = target
-          location = location
-          targetRef = targetRef })
-  | Error(_) -> Option.None
+  resolveLocated(branchId, currentLoc, itemKind, target)
+  |> Stdlib.Option.map(fun((location, targetRef)) ->
+    Target
+      { itemKind = itemKind
+        itemTypeStr = itemTypeStr
+        target = target
+        location = location
+        targetRef = targetRef })
 
 
 val allItemKinds =
@@ -338,9 +373,9 @@ let execute(state: AppState, args: List<String>): AppState =
           failed(state)
         | Ok(deprecationKind) ->
           let fullPathOf = fun name ->
-            match Location.parseRelativeTo(currentLoc, name) with
-            | Ok(l) -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(l)
-            | Error(_) -> name
+            match resolveLocated(branchId, currentLoc, itemKind, name) with
+            | Some((l, _)) -> PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(l)
+            | None -> name
 
           let fullPath = fullPathOf(target)
 

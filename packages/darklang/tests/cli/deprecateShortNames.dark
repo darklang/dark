@@ -1,0 +1,51 @@
+/// `delete`, `deprecate` and `undeprecate` take `Stdlib.String.trim` the way `view` and code do:
+/// as `Darklang.Stdlib.String.trim`.
+module Darklang.Cli.Tests.DeprecateShortNames
+
+test deleteTakesTheShortName = Instance.withInstance(fun i ->
+  let (inferredCode, inferred) =
+    Instance.ran(
+      i,
+      [ "delete", "Stdlib.String.trim", "--dry-run", "--ignore-dependents" ])
+
+  let (kindCode, kind) =
+    Instance.ran(
+      i,
+      [ "delete"
+        "fn"
+        "Stdlib.String.trim"
+        "--dry-run"
+        "--ignore-dependents" ])
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(inferredCode, 0, "the kind is inferred")
+      Instance.says(
+        inferred,
+        "Will deprecate fn Darklang.Stdlib.String.trim",
+        "names it in full")
+
+      Instance.exitedWith(kindCode, 0, "the kind is given")
+      Instance.says(
+        kind,
+        "Will deprecate fn Darklang.Stdlib.String.trim",
+        "names it in full") ]))
+
+
+test deprecateAndUndeprecateTakeTheShortName = Instance.withInstance(fun i ->
+  let (deprecatedCode, deprecated) =
+    Instance.ran(
+      i,
+      [ "deprecate", "Stdlib.String.trim", "--kind", "obsolete", "--yes" ])
+
+  let (restoredCode, restored) =
+    Instance.ran(i, [ "undeprecate", "Stdlib.String.trim" ])
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(deprecatedCode, 0, "deprecated")
+      Instance.says(
+        deprecated,
+        "Deprecated fn Darklang.Stdlib.String.trim",
+        "at its full name")
+
+      Instance.exitedWith(restoredCode, 0, "and put back")
+      Instance.says(restored, "Undeprecated Stdlib.String.trim", "says so") ]))
