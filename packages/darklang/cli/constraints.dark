@@ -33,10 +33,6 @@ let line(f: SCM.Constraints.Finding): String =
     $"  #{f.id}  {u}\n             uses {d} as a {was}; that name is something else now (still resolves, by hash)"
   | StaleUsage, Versions(using, current) ->
     $"  #{f.id}  {u}\n             still on the version it was written against ({shortHash(using)}); {d} is at {shortHash(current)} now"
-  // Its own sentence: `dependency` is the location itself here, so the stale-usage phrasing ("uses X")
-  // would read as if the name called itself.
-  | DecisionSuperseded, Versions(using, current) ->
-    $"  #{f.id}  {u}\n             you overrode this to the version you chose ({shortHash(using)}); a later edit rebound it to {shortHash(current)}"
   | RivalImplementations, Rivals(self, rival, choice) ->
     let r = SCM.Constraints.fqnOf(rival)
 
@@ -103,13 +99,13 @@ let kindArgChecked(args: List<String>): Result<Unit, String> =
     match Stdlib.List.getAt(args, i + 1) with
     | None ->
       Result.Error(
-        "--kind needs a value: stale-usage, kind-changed, decision-superseded, or rival-implementations.")
+        "--kind needs a value: stale-usage, kind-changed, or rival-implementations.")
     | Some(wanted) ->
       match SCM.Constraints.kindFromString(wanted) with
       | Some(_) -> Result.Ok()
       | None ->
         Result.Error(
-          $"\"{wanted}\" isn't a kind -- stale-usage, kind-changed, decision-superseded, or rival-implementations.")
+          $"\"{wanted}\" isn't a kind -- stale-usage, kind-changed, or rival-implementations.")
 
 
 let executeJson(state: AppState, args: List<String>): AppState =
@@ -296,8 +292,8 @@ let resolutionFor(
     match choices with
     | [only] ->
       // One choice ACROSS the batch is not one choice for EVERY member: a batch mixing a stale
-      // usage with a superseded decision unions to ["repoint"], and repointing the decision
-      // finding is not a thing. Every target has to offer it, same as the `--as` arm checks.
+      // usage with a kind change unions to ["repoint"], and repointing the kind change is not
+      // a thing. Every target has to offer it, same as the `--as` arm checks.
       let cannot =
         targets
         |> Stdlib.List.filter(fun f ->
@@ -397,7 +393,7 @@ let executeResolve(state: AppState, args: List<String>): AppState =
 
 let help(_state: AppState): String =
   [ ""
-    "  Checks you RUN, not warnings at commit. Four kinds today:"
+    "  Checks you RUN, not warnings at commit. Three kinds today:"
     ""
     "    stale-usage    a live item still uses a version that is not"
     "                   what the name means now. Not a backlog: a caller"
@@ -407,10 +403,6 @@ let help(_state: AppState): String =
     "    kind-changed   the name is a different KIND of thing now, so"
     "                   the usage cannot be repointed at all. Ack it, or"
     "                   edit the usage yourself."
-    "    decision-superseded"
-    "                   a conflict override of yours was undone by a"
-    "                   later ordinary edit. Ack it, or override again"
-    "                   with `dark conflicts override`."
     "    rival-implementations"
     "                   two implementations of one trait for one type."
     "                   Calls use the later one; this says which, so the"
