@@ -2,8 +2,8 @@
 # Build the pinned native compiler and put it where `dark compile` looks for it:
 #   rundir/compiler/<first 9 of the commit>/darkc   (~/.darklang/compiler/... in the container)
 #
-# Runs on the HOST, not in the dev container: it needs docker. The commit is in
-# scripts/compiler/COMPILER_COMMIT and must match `Darklang.Cli.Compile.pinnedCommit`.
+# Runs on the HOST, not in the dev container: it needs docker. The commit is
+# `Darklang.Cli.Compile.pinnedCommit`, read from packages/darklang/cli/compile.dark.
 #
 #   scripts/compiler/build            build the pinned commit
 #   scripts/compiler/build <commit>   build another one (set DARK_COMPILER to use it)
@@ -11,7 +11,12 @@
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-COMMIT="${1:-$(tr -d '[:space:]' < "$DIR/scripts/compiler/COMPILER_COMMIT")}"
+PINNED=$(sed -n 's/^val pinnedCommit = "\([0-9a-f]*\)"$/\1/p' "$DIR/packages/darklang/cli/compile.dark")
+COMMIT="${1:-$PINNED}"
+if [[ -z "$COMMIT" ]]; then
+  echo "No pinnedCommit in packages/darklang/cli/compile.dark" >&2
+  exit 1
+fi
 SHORT="${COMMIT:0:9}"
 OUT="$DIR/rundir/compiler/$SHORT"
 IMAGE="dark-compiler:$SHORT"
