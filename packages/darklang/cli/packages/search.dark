@@ -1529,7 +1529,7 @@ let execute(state: AppState, args: List<String>): AppState =
 
       parsed.queryParts
       |> Stdlib.List.iter(fun query ->
-        let queryArgs = Stdlib.List.prepend(flags, query)
+        let queryArgs = Stdlib.List.concat(flags, [ "--", query ])
         let _ = executeQuery(state, queryArgs)
         ())
 

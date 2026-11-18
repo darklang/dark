@@ -86,7 +86,7 @@ let splitArgumentsAfter(
 /// Whether <param arg> starts with a `-`. By its first byte, not its first character, so a `-`
 /// that a combining mark follows still counts, as it does for the host.
 let isFlag(arg: String): Bool =
-  Stdlib.String.getByteAt(arg, 0) == Option.Some(45u8)
+  arg != "-" && Stdlib.String.getByteAt(arg, 0) == Option.Some(45u8)
 
 
 let execute(state: AppState, args: List<String>): AppState =
@@ -144,6 +144,7 @@ let executeOptions(
   | ["--stats", ...rest] -> executeOptions(state, rest, script, options, true)
   | [] | ["--"] ->
     match script with
+    | ["-", ...scriptArgs] -> executeStdinScript(state, scriptArgs, options, stats)
     | [scriptPath, ...scriptArgs] -> executeScript(state, scriptPath, scriptArgs, options, stats)
     | [] ->
       Stdlib.printLine(help(state))
@@ -161,6 +162,20 @@ let looksLikePackageName(path: String): Bool =
   Stdlib.String.contains(path, ".")
   && (Stdlib.String.contains(path, "/") |> Stdlib.Bool.not)
   && (Stdlib.String.endsWith(path, ".dark") |> Stdlib.Bool.not)
+
+
+/// `run -`: the script is standard input.
+let executeStdinScript(
+  state: AppState,
+  args: List<String>,
+  options: Options,
+  stats: Bool)
+  : AppState =
+  match Stdlib.Cli.Stdin.readAll() with
+  | Error(message) ->
+    printErr(message)
+    failed(state)
+  | Ok(source) -> runScriptMeasured(state, "-", source, args, options, Approval.Offer, stats)
 
 
 let executeScript(
@@ -439,6 +454,7 @@ let help(_state: AppState): String =
     "  run-script Me.Todo.main list      - Run a package function"
     "  run-script script.dark a b c      - Run a script file with args"
     "  run-script --stats script.dark    - Run and report what it cost"
+    "  run-script - a b < script.dark    - Read the script from stdin"
     ""
     "Everything after the name or path is passed unchanged, including flags and --."
     "A program you will run again goes in a module with tests: `docs for-ai`."

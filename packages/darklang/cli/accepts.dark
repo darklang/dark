@@ -185,6 +185,7 @@ let check(name: String, accepts: Accepts, args: List<String>): Option<String> =
     : Result<List<String>, String> =
     match remaining with
     | [] -> Result.Ok(Stdlib.List.reverse(words))
+    | ["--", ...rest] -> Result.Ok(Stdlib.List.concat(Stdlib.List.reverse(words), rest))
     | [a, ...rest] ->
       if Stdlib.Bool.not(isFlag(s, a)) then
         walk(name, s, rest, Stdlib.List.prepend(words, a))
@@ -221,7 +222,7 @@ let check(name: String, accepts: Accepts, args: List<String>): Option<String> =
   | Takes(s) -> checkShape(name, s, args)
   | Subcommands(named, otherwise) ->
     // The subcommand is the first word that is not a flag: `traces --json list` is `list`.
-    let leadingFlags = args |> Stdlib.List.takeWhile(fun a -> isFlag(otherwise, a))
+    let leadingFlags = args |> Stdlib.List.takeWhile(fun a -> a != "--" && isFlag(otherwise, a))
     let afterFlags = Stdlib.List.drop(args, Stdlib.List.length(leadingFlags))
     let picked =
       match afterFlags with
