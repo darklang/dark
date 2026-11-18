@@ -29,8 +29,8 @@ let isStale
 
 
 /// An Unbind against a live BINDING on an exact stamp tie: the binding wins. SetName/SetName ties
-/// break on the hash; a tombstone has no hash to offer, so without a rule the SECOND arrival won
-/// and two stores that saw the pair in different orders diverged forever. Strict `>` is that rule,
+/// break on the hash; a tombstone has no hash to offer, so without a rule the SECOND arrival would
+/// win and two stores that saw the pair in different orders would diverge. Strict `>` is that rule,
 /// used by both sides of the pair in `PackageOpPlayback` (applyUnbind, and the removal arm of applySetName).
 let unbindBeatsBinding (unbindTs : string) (bindingTs : string) : bool =
   unbindTs > bindingTs

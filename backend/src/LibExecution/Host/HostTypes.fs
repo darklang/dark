@@ -41,7 +41,7 @@ type FileDescriptor =
 
 module FileDescriptor =
   /// How the audit log names a descriptor. Spelled out: `%A` needs reflection that a
-  /// release build does not keep, so it printed `Scoped` and dropped the number.
+  /// release build does not keep.
   let describe (fd : FileDescriptor) : string =
     match fd with
     | FileDescriptor.Raw n -> $"Raw {n}"
@@ -138,7 +138,7 @@ type PosixOp =
 /// Which host HTTP configuration an operation runs under. `Guest` is the
 /// SSRF-guarded configuration every guest request uses (the host may replace
 /// it with `HostHttp.setGuestConfig`). It is the only one; the DU stays so a
-/// second configuration does not have to widen every call site again.
+/// second configuration does not have to widen every call site.
 [<RequireQualifiedAccess>]
 type HttpProfile = | Guest
 
@@ -439,7 +439,7 @@ let redactAuditDetail (op : Operation) (detail : string) : string =
   | Operation.HttpStreamOpen _ -> redactUrl detail
   | _ -> detail
 
-/// The layer as the audit log has always spelled it (what `%A` gave), without `%A`.
+/// The layer as the audit log spells it.
 let private auditLayer (layer : Permission.Layer) : string =
   match layer with
   | Permission.Layer.Instance -> "Instance"
@@ -449,7 +449,7 @@ let private auditLayer (layer : Permission.Layer) : string =
 
 /// One line of the host audit log: `{"decision","detail","layer","op","ts"}`.
 /// Written with the writer, never the reflecting serializer, which the published (AOT)
-/// binary does not have: there it threw, the sink swallowed it, and nothing was logged.
+/// binary does not have: there it throws, and the sink swallows the line.
 let auditLine (now : System.DateTime) (op : Operation) (outcome : Outcome) : string =
   let decision, layer, detail =
     match outcome with

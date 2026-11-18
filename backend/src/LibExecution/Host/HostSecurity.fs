@@ -170,8 +170,7 @@ let policyDirectory () : Result<string, string> =
 /// The default is `$HOME/.darklang/policy`, which says one policy per USER. An instance is a
 /// store plus its config, and a machine routinely has several: clones side by side, a gate's
 /// scratch rundir, a relay, an agent's throwaway. Keyed on `$HOME` they share one policy, and any
-/// instance whose home is not writable falls back to deny-all and then refuses its own work --
-/// which is how a read-only container ends up unable to print a value.
+/// instance whose home is not writable falls back to deny-all and then refuses its own work.
 ///
 /// For an ordinary install the rundir IS `~/.darklang`, so the file does not move.
 let setPolicyDirectory (path : string) : unit =

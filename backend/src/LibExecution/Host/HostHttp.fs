@@ -1,11 +1,10 @@
 /// Host-owned HTTP: client configuration, SSRF guards, the send machinery,
 /// and the streaming-response table.
 ///
-/// Moved from the HTTP client builtins so the checked boundary owns the
-/// network. Two configurations exist: the guest one (SSRF-guarded by default;
-/// a host may replace it with `setGuestConfig`) and the trusted sync one. An
-/// `Operation.HttpRequest` names which it wants with `HostTypes.HttpProfile`,
-/// so timeouts and allow-lists stay in host-owned state.
+/// The checked boundary owns the network. Guest requests run under one
+/// SSRF-guarded configuration, which a host may replace with `setGuestConfig`.
+/// An `Operation.HttpRequest` names it with `HostTypes.HttpProfile`, so
+/// timeouts and allow-lists stay in host-owned state.
 module LibExecution.HostHttp
 
 open System.IO
@@ -48,37 +47,14 @@ let defaultMaxConnectionsPerHost = 50
 let defaultStreamIdleTimeoutMs = 60_000
 
 module private BaseClient =
-  // There are a number of different configuration options we want to enable:
-  // WASM:
-  //   when using Blazor/WASM, dotnet doesn't allow using a SocketsHttpHandler
-  //   (errors at runtime). So we need to use a HttpClientHandler instead.
-  // Cloud:
-  //   when in the cloud, we want to include telemetry, as well as security measures
-  //   to prevent access to local infrastructure (this is defense-in-depth: obvi we
-  //   also use a firewall)
-  // Local:
-  //   when running locally, we want to use SocketsHttpHandler and no cloud
-  //   features/restrictions.
-  //
-  // We enable these in two ways:
-  // - if SocketsHttpHandler is avaiable (cloud and local), we use that
-  // - we provide a Configuration record when initializing, that carries the
-  //   allow-lists and timeout
+  // SocketsHttpHandler wherever it runs; Blazor/WASM refuses it at runtime, so the browser
+  // gets an HttpClientHandler instead. The allow-lists and timeouts come from `Configuration`.
 
 
   module SocketBasedHandler =
-    // There has been quite a history of .NET's HttpClient having problems,
-    // including socket exhaustion and DNS results not expiring.
-    // The history is outlined well here:
-    // https://www.stevejgordon.co.uk/httpclient-connection-pooling-in-dotnet-core
-    //
-    // As of .NET 6 it seems we no longer need to worry about either socket
-    // exhaustion or DNS issues. It appears that we can use either multiple HTTP
-    // clients or just one, we use just one for efficiency.
-    // See https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-requests?view=aspnetcore-7.0#alternatives-to-ihttpclientfactory
-    //
-    // Note that the number of sockets was verified manually, with:
-    // `sudo netstat -apn | grep _WAIT`
+    // One shared client: SocketsHttpHandler's pooled-connection lifetime keeps sockets from
+    // piling up and DNS answers from going stale.
+    // https://learn.microsoft.com/en-us/aspnet/core/fundamentals/http-requests#alternatives-to-ihttpclientfactory
     let handler
       (config : Configuration)
       (proxy : Option<System.Uri * System.Net.ICredentials>)

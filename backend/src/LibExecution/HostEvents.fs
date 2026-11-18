@@ -94,7 +94,7 @@ type Sources =
   // Mutable fields: the host installs these after this module has loaded, and tests swap them.
   {
     /// Block until one key is available and return it as `KeyRead`, or `None` when stdin is not a
-    /// terminal (the reader thread then never starts; `readKey` answers as it always did).
+    /// terminal (the reader thread then never starts).
     mutable readKey : Option<unit -> RT.Dval>
     /// The store's current data version, cheap enough to call five times a second.
     mutable storeVersion : Option<unit -> int64>
