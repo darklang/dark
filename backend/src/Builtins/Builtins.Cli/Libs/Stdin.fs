@@ -23,7 +23,7 @@ module Pending = LibExecution.Pending
 /// Terminal resize, so a full-screen view can repaint without waiting for a keystroke.
 ///
 /// The render loop samples the terminal size at the top of each pass, but the pass blocks on a keypress, so
-/// resizing while idle left a stale frame until you pressed something. SIGWINCH sets a flag; `readKeyOrPaste`
+/// resizing while idle would leave a stale frame until a key. SIGWINCH sets a flag; `readKeyOrPaste`
 /// polls it and reports a keypress nobody handles, which is enough to send the loop round again and repaint
 /// at the new size.
 module private Resize =
@@ -42,7 +42,7 @@ module private Resize =
           )
         )
        with _ ->
-         // Windows, or a runtime without POSIX signals. Resize just keeps its old behaviour there.
+         // Windows, or a runtime without POSIX signals: a resize repaints on the next key there.
          None)
 
   /// Start listening. Idempotent, and safe to call from the read path.
@@ -85,7 +85,7 @@ let mutable private pushedBack : ConsoleKeyInfo option = None
 /// one key plus its count.
 ///
 /// Which it was is decided AFTER draining, on whether any insertable text came out - not on the first key.
-/// Deciding up front destroyed any paste beginning with a newline or tab, which is what you get selecting
+/// Deciding up front would lose any paste beginning with a newline or tab, which is what you get selecting
 /// from the end of a line.
 let private readKeyOrPaste () : ConsoleKeyInfo * string option * int =
   // What a single key contributes to pasted text (newlines/tabs preserved).
@@ -255,9 +255,8 @@ let private installKeySource () : unit =
 /// before it is read a line at a time through the same buffered `Console.In`. So
 /// the body has to come through that reader too (a raw-stream read would miss
 /// whatever it already buffered), and its chars are counted back into the bytes
-/// `encoding` decoded them from. Reading chars against a byte count instead read
-/// one char past the end per multi-byte char, into the next message's header,
-/// and the server took the broken header for the client hanging up.
+/// `encoding` decoded them from. Counting chars against a byte count would read
+/// one char past the end per multi-byte char, into the next message's header.
 ///
 /// Never asks for more chars than could fit in the bytes left, so it cannot
 /// over-read. An `Error` when input ends early, or when the length ends inside a
@@ -328,7 +327,7 @@ let private installStdinSource () : unit =
   if HE.sources.readStdin.IsNone then HE.sources.readStdin <- Some readStdinFor
 
 /// Park the calling process on one read of stdin, when there is a scheduler to park under.
-/// `None` outside one: the caller reads synchronously, as it always did.
+/// `None` outside one: the caller reads synchronously.
 let private parkOnStdin (spec : HE.EventSpec) : Option<Task<HE.StdinResult>> =
   match Scheduler.Scheduler.Current, Scheduler.Scheduler.CurrentProcess with
   | Some s, Some p ->
