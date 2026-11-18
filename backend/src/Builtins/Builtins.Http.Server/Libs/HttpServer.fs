@@ -404,7 +404,13 @@ and private callablesInBody
   (state : ExecutionState)
   (impl : LambdaImpl)
   : List<FQFnName.FQFnName> =
-  impl.instructions.instructions
+  callablesInInstructions state impl.instructions
+
+and private callablesInInstructions
+  (state : ExecutionState)
+  (instructions : Instructions)
+  : List<FQFnName.FQFnName> =
+  instructions.instructions
   |> List.collect (fun instruction ->
     match instruction with
     | LoadVal(_, value) -> callablesIn state value
@@ -443,27 +449,46 @@ let private serverHeaders (middleware : Dval) : List<string * string> =
     []
 
 /// The effects the server's middleware can reach, from what it calls
-/// (`LibDB.PackagePermissions.permissionRequirements`, as an approval reviews a function).
+/// (`LibDB.PackagePermissions.permissionRequirements`, as an approval reviews a function). A
+/// function the script itself defines is not in the store, so its body is walked here instead.
 let middlewareEffects (exeState : ExecutionState) (middleware : Dval) : Set<Effect> =
   let callEffectsFor (name, version) =
     let key : FQFnName.Builtin = { name = name; version = version }
     match exeState.fns.builtIn.TryGetValue key with
     | true, builtin -> Some builtin.callEffects
     | _ -> None
-  callablesIn exeState middleware
-  |> List.distinct
-  |> List.map (fun name ->
+  let rec reach
+    (seen : Set<Hash>, effects : Set<Effect>)
+    (name : FQFnName.FQFnName)
+    : Set<Hash> * Set<Effect> =
     match name with
     | FQFnName.Builtin b ->
-      callEffectsFor (b.name, b.version) |> Option.defaultValue Set.empty
-    | FQFnName.Package(Hash h) ->
-      (LibDB.PackagePermissions.permissionRequirements
-        LibDB.PackagePermissions.Load.fromStore
-        callEffectsFor
-        h)
-        .requiredEffects
-    | FQFnName.TraitMethod _ -> Set.empty)
-  |> Set.unionMany
+      let found = callEffectsFor (b.name, b.version) |> Option.defaultValue Set.empty
+      seen, Set.union effects found
+    | FQFnName.Package hash when Set.contains hash seen -> seen, effects
+    | FQFnName.Package(Hash h as hash) ->
+      let seen = Set.add hash seen
+      match
+        LibDB.PackageManager.pt.getFn (LibExecution.ProgramTypes.Hash h),
+        exeState.fns.package hash
+      with
+      | None, Some scriptFn ->
+        callablesInInstructions exeState scriptFn.body
+        |> List.distinct
+        |> List.fold reach (seen, effects)
+      | _ ->
+        let required =
+          (LibDB.PackagePermissions.permissionRequirements
+            LibDB.PackagePermissions.Load.fromStore
+            callEffectsFor
+            h)
+            .requiredEffects
+        seen, Set.union effects required
+    | FQFnName.TraitMethod _ -> seen, effects
+  callablesIn exeState middleware
+  |> List.distinct
+  |> List.fold reach (Set.empty, Set.empty)
+  |> snd
 
 /// A handler that runs past `requestTimeoutMs` is cancelled (politely: what it has on the host
 /// completes, then it stops, its children with it) and the client gets a 504. A handler stopped
