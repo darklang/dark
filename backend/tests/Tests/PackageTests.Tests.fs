@@ -29,24 +29,33 @@ let private cleanup (m : string) : Task<unit> =
   |> Task.FromResult
 
 
-/// How a test run came out, as a string an assertion can compare.
-let private evalAsCli (code : string) : Task<RT.ExecutionResult> =
-  Tests.CliTestHarness.withState (fun target ->
-    task {
-      let state = Tests.CliTestHarness.executionState target
-      let expr = parsePTExpr code
-      return!
-        LibExecution.Execution.executeExpr
-          state
-          (LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT Map.empty 0 None expr)
-    })
+let private evalOn
+  (target : Tests.CliTestHarness.Target)
+  (code : string)
+  : Task<RT.ExecutionResult> =
+  task {
+    let state = Tests.CliTestHarness.executionState target
+    let expr = parsePTExpr code
+    return!
+      LibExecution.Execution.executeExpr
+        state
+        (LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT Map.empty 0 None expr)
+  }
 
-let private runHashWithSeed (seed : int64) (h : string) : Task<string> =
+let private evalAsCli (code : string) : Task<RT.ExecutionResult> =
+  Tests.CliTestHarness.withState (fun target -> evalOn target code)
+
+/// How a test run came out, as a string an assertion can compare.
+let private runHashOn
+  (eval : string -> Task<RT.ExecutionResult>)
+  (seed : int64)
+  (h : string)
+  : Task<string> =
   task {
     let code =
       $"Darklang.LanguageTools.PackageManager.Test.execute(Darklang.SCM.Branch.mainBranchId, {seed}, "
       + $"Darklang.LanguageTools.ProgramTypes.Hash.Hash(\"{h}\"))"
-    match! evalAsCli code with
+    match! eval code with
     | Ok(RT.DEnum(_, _, _, "Ok", [ RT.DEnum(_, _, _, "Pass", []) ])) -> return "pass"
     | Ok(RT.DEnum(_,
                   _,
@@ -85,6 +94,8 @@ let private runHashWithSeed (seed : int64) (h : string) : Task<string> =
     | Ok other -> return failtest $"unexpected result shape: {other}"
     | Error(rte, _) -> return failtest $"the Dark call raised: {rte}"
   }
+
+let private runHashWithSeed = runHashOn evalAsCli
 
 let private runHash = runHashWithSeed 0L
 
@@ -293,7 +304,13 @@ test failsAfterObservation =
     | Ok(RT.DEnum(_, _, _, "Pass", [])) -> ()
     | other -> failtest $"test counters leaked in a shared caller: {other}"
 
-    let! concurrentResults = [| for _ in 1..8 -> runHash countHash |] |> Task.WhenAll
+    // one state for all eight: `withState` points the process-wide policy directory at
+    // a temp dir and deletes it after, so eight of them deleted each other's files mid-write
+    let! concurrentResults =
+      Tests.CliTestHarness.withState (fun target ->
+        [| for _ in 1..8 ->
+             Task.Run<string>(fun () -> runHashOn (evalOn target) 0L countHash) |]
+        |> Task.WhenAll)
     for result in concurrentResults do
       Expect.equal result "pass" "concurrent executions have separate counters"
 
