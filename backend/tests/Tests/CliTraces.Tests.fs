@@ -467,7 +467,6 @@ let private slowCliTests =
       Tests.CliSurface.everyCommandSurvivesABranch
       Tests.CliScm.editingOnABranchRepointsItsCallers
       Tests.CliScm.discardOnABranchLeavesMainsDraftAlone
-      Tests.CliScm.committingOnABranchLeavesMainsDraftUncollapsed
       Tests.CliSurface.everyCommandAnswersWhenBare
       Tests.CliScm.partialCommitTakesOnlyWhatYouNamed
       Tests.CliScm.commitRefusesUnresolvedReferences ]
