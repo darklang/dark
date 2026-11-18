@@ -1,0 +1,177 @@
+/// Refusals: a command that cannot do what was asked leaves stdout empty, says why on stderr, and
+/// exits 1. stdout is the answer or nothing, `--json` included, so `dark x --json | jq` meets an
+/// empty input and the exit code says why; a refusal that exits 0 is success to a shell, a CI step
+/// or an agent.
+module Darklang.Cli.Tests.Refusals
+
+/// Trimmed, with the colour taken out and the lines kept.
+let plain(text: String): String =
+  Stdlib.Regex.replaceAll(Stdlib.String.trim(text), "\\x1b\\[[0-9;]*m", "")
+  |> Stdlib.Result.withDefault(text)
+
+
+/// A command's exit code, stdout and stderr, trimmed and without colour.
+let streams(i: Instance.T, args: List<String>): (Int64 * String * String) =
+  match Instance.run(i, args) with
+  | Error(e) -> (-1, "", $"could not run: {e}")
+  | Ok(out) ->
+    (out.exitCode, plain(out.stdout), plain(out.stderr))
+
+
+/// Each refusal and everything it says on stderr. Every row runs on one fresh store, on main with
+/// an empty draft, and changes nothing, so the order does not matter.
+val refusals: List<(List<String> * String)> =
+  [ ([ "trait", "Tests.ExitT.T" ], "`dark trait` needs 2 arguments, and was given 1.\n  `dark trait --help` shows what it takes.")
+    ([ "impl", "Tests.ExitT" ], "`dark impl` needs 2 arguments, and was given 1.\n  `dark impl --help` shows what it takes.")
+    ([ "impls", "Zzz.Nope.Trait" ], "Not found: Zzz\n  `dark search Zzz.Nope.Trait --trait` looks for a trait by name")
+    ([ "impls", "Darklang.Stdlib.Option.Option" ], "Darklang.Stdlib.Option.Option is not a trait.\n  `dark search Darklang.Stdlib.Option.Option --trait` looks for a trait by name")
+    ([ "impls", "Darklang.Stdlib.Add", "extra" ], "`dark impls` does not take `extra`.\n  `dark impls --help` shows what it takes.")
+    ([ "impls", "Zzz.Nope.Trait", "--json" ], "Not found: Zzz")
+    ([ "constraints", "zzznope" ], "`dark constraints` does not take `zzznope`.\n  `dark constraints --help` shows what it takes.")
+    ([ "constraints", "resolve", "#deadbeef" ], "no constraint matching \"deadbeef\" -- skipped.")
+    ([ "ack", "#deadbeef" ], "no constraint matching \"deadbeef\" -- skipped.")
+    ([ "ack" ], "which findings? `dark ack <id>...`, or `dark ack --all`.\n  `dark constraints` lists them.")
+    ([ "ps", "show", "" ], "that id is empty -- `dark ps` lists the ids")
+    ([ "ps", "cancel", "" ], "that id is empty -- `dark ps` lists the ids")
+    ([ "ps", "show", "zzznope" ], "no process whose id starts with zzznope -- `dark ps` lists them")
+    ([ "commit", "--zzznope" ], "`dark commit` does not take `--zzznope`.\n  `dark commit --help` shows what it takes.")
+    ([ "commits", "zzznope" ], "`dark commits` takes a count, not a branch name.\n  this branch's commits:  dark commits\n  that branch's history:  dark log zzznope")
+    ([ "backups", "restore" ], "`dark backups restore` needs an argument.\n  `dark backups --help` shows what it takes.")
+    ([ "diff", "zzznope" ], "no branch \"zzznope\".\n  `dark branches` lists them.")
+    ([ "log", "zzznope" ], "no branch \"zzznope\".\n  `dark branches` lists them.")
+    ([ "rebase", "zzznope" ], "no branch \"zzznope\".\n  `dark branches` lists them.")
+    ([ "config", "get", "zzznope" ], "zzznope is not a config key. `config list` names the keys.")
+    ([ "config", "set", "zzznope", "on" ], "zzznope is not a config key. `config list` names the keys.")
+    ([ "config", "set", "exec.policy", "Zzz.Nope.nope" ], "exec.policy names a package function, and Zzz.Nope.nope is not one on main")
+    ([ "traces", "list", "zzznope" ], "Invalid limit: zzznope")
+    ([ "traces", "list", "zzznope", "--json" ], "Invalid limit: zzznope")
+    ([ "traces", "delete", "--before" ], "`--before` needs a value.\n  `dark traces --help` shows what it takes.")
+    ([ "traces", "rerun" ], "`dark traces rerun` needs an argument.\n  `dark traces --help` shows what it takes.")
+    ([ "permissions", "show", "Zzz.Nope.nope" ], "unknown function: Zzz.Nope.nope")
+    ([ "permissions", "allow", "zzznope" ], "invalid permission rule: zzznope")
+    ([ "undeprecate", "Zzz.Nope.nope" ], "Could not resolve Zzz.Nope.nope\n  deprecated items are hidden; `dark ls --include-deprecated` shows them.")
+    ([ "export-seed", "/zzznope/dir/seed.db" ], "Error: Export failed: IO_PathNotFound_Path, /zzznope/dir/seed.db")
+    ([ "conflicts", "show", "zzznope", "--json" ], "no conflict matching \"zzznope\" -- `dark conflicts` to list them.")
+    ([ "conflicts", "ack", "zzznope", "--json" ], "no conflict matching \"zzznope\" -- `dark conflicts` to list them.")
+    ([ "deps", "Zzz.Nope.nope", "--json" ], "Cannot show deps for Zzz.Nope.nope: Not found: Zzz")
+    ([ "log", "zzznope", "--json" ], "no branch \"zzznope\".\n  `dark branches` lists them.")
+    ([ "ps", "show", "zzznope", "--json" ], "no process whose id starts with zzznope -- `dark ps` lists them")
+    ([ "typecheck", "Zzz.Nope" ], "no module named Zzz.Nope on this branch")
+    ([ "typecheck", "Zzz.Nope", "--json" ], "no module named Zzz.Nope on this branch")
+    ([ "traces", "calls", "Zzz.Nope.nope" ], "no function named Zzz.Nope.nope on this branch")
+    ([ "traces", "calls", "Zzz.Nope.nope", "--json" ], "no function named Zzz.Nope.nope on this branch")
+    ([ "permissions", "revoke-package", "0123456789abcdef" ], "0123456789abcdef has no approval; `permissions approvals` lists the ones that do")
+    ([ "ls", "Darklang.Stdlib.List.map" ], "'/Darklang.Stdlib.List.map (fn)' is not a module.\n`dark view` shows one item; `dark ls` lists a module.")
+    ([ "docs", "signatures", "--module", "Zzz.Nope" ], "no module named Zzz.Nope on this branch")
+    ([ "docs", "signatures", "zzznope" ], "no functions in Darklang.Stdlib match `zzznope`")
+    ([ "traces", "tail", "999999" ], "there is no 999999th-most-recent trace")
+    ([ "diff", "zzznope", "--json" ], "no branch \"zzznope\".\n  `dark branches` lists them.")
+    ([ "conflicts", "branch", "zzznope", "--json" ], "no branch \"zzznope\".\n  `dark branches` lists them.")
+    ([ "deps", "usedby", "Zzz.Nope.nope", "--json" ], "Cannot show deps for Zzz.Nope.nope: Not found: Zzz")
+    ([ "ps", "cancel", "zzznope", "--json" ], "no process whose id starts with zzznope -- `dark ps` lists them")
+    ([ "traces", "show", "Zzz.Nope.nope", "--json" ], "no recorded trace went through Zzz.Nope.nope")
+    ([ "traces", "inspect", "zzznope", "--json" ], "no trace whose id starts with zzznope -- `dark traces` lists them")
+    ([ "traces", "find", "Zzz.NothingRanThis", "--inspect" ], "no kept trace matches Zzz.NothingRanThis")
+    ([ "traces", "fork", "zzznope" ], "no trace whose id starts with zzznope -- `dark traces` lists them")
+    ([ "traces", "pin", "zzznope" ], "no trace whose id starts with zzznope -- `dark traces` lists them")
+    ([ "traces", "resume", "zzznope" ], "no trace whose id starts with zzznope -- `dark traces` lists them")
+    ([ "ps", "kill", "zzznope" ], "no process whose id starts with zzznope -- `dark ps` lists them")
+    ([ "ps", "show" ], "`dark ps show` needs an argument.\n  `dark ps --help` shows what it takes.")
+    ([ "permissions", "approve", "Zzz.Nope.nope" ], "unknown function: Zzz.Nope.nope")
+    ([ "permissions", "update", "Zzz.Nope.nope" ], "Zzz.Nope.nope has no remembered approval; run `permissions approve --for Zzz.Nope.nope '<rule>'` first")
+    ([ "permissions", "unapprove", "Zzz.Nope.nope" ], "Zzz.Nope.nope has no remembered approval; `permissions approved` lists the ones that do")
+    ([ "permissions", "profile", "zzznope" ], "unknown permission profile: zzznope")
+    ([ "back" ], "No previous location in history")
+    ([ "traces", "delete", "--before", "1d" ], "Cancelled. (`--yes` deletes without the prompt -- a piped stdin can't answer it.)")
+    ([ "view", "Zzz.Nope.nope" ], "Cannot view: Not found: Zzz")
+    ([ "deps", "Zzz.Nope.nope" ], "Cannot show deps for Zzz.Nope.nope: Not found: Zzz")
+    ([ "undo", "Zzz.Nope.nope" ], "nothing named Zzz.Nope.nope.\n  `dark ls <module>` lists what's there; `dark status` shows what you've changed.")
+    ([ "merge", "zzznope" ], "no branch \"zzznope\".\n  `dark branches` lists them.")
+    ([ "show", "zzznope" ], "nothing matching zzznope -- not a commit, not an op.\n  `dark commits` lists commits, `dark ops` lists ops.")
+    ([ "branch", "archive", "zzznope" ], "no branch \"zzznope\".\n  `dark branches` lists them.")
+    ([ "conflicts", "show", "zzznope" ], "no conflict matching \"zzznope\" -- `dark conflicts` to list them.")
+    ([ "conflicts", "branch", "zzznope" ], "no branch \"zzznope\".\n  `dark branches` lists them.")
+    ([ "constraints", "resolve", "zzznope" ], "no constraint matching \"zzznope\" -- skipped.")
+    ([ "ack", "zzznope" ], "no constraint matching \"zzznope\" -- skipped.")
+    ([ "permissions", "requirements", "Zzz.Nope.nope" ], "unknown function: Zzz.Nope.nope")
+    ([ "permissions", "approve", "--yes", "Zzz.Nope.nope" ], "unknown function: Zzz.Nope.nope")
+    ([ "serve" ], "`dark serve` needs an argument.\n  `dark serve --help` shows what it takes.")
+    ([ "serve", "--live" ], "`dark serve` needs an argument.\n  `dark serve --help` shows what it takes.")
+    ([ "serve", "Tests.NoSuch.router", "--live" ], "No function named Tests.NoSuch.router -- is it defined and committed on this branch?")
+    ([ "merge", "no-such-branch-here" ], "no branch \"no-such-branch-here\".\n  `dark branches` lists them.")
+    ([ "rebase" ], "usage: dark rebase <branch>\n  on main there is no branch to rebase. `dark branches` lists them.")
+    ([ "undo", "Tests.Nothing.here" ], "nothing named Tests.Nothing.here.\n  `dark ls <module>` lists what's there; `dark status` shows what you've changed.")
+    ([ "commit", "nothing here", "-y" ], "nothing to commit -- your draft is empty.") ]
+
+
+test eachRefusalSaysWhyOnStderrAndExits1 = Instance.withInstance(fun i ->
+  let faults =
+    refusals
+    |> Stdlib.List.filterMap(fun row ->
+      let (args, reason) = row
+      let (code, out, err) = streams(i, args)
+      if code == 1 && out == "" && err == reason then
+        Stdlib.Option.Option.None
+      else
+        let cmd = Stdlib.String.join(args, " ")
+        Stdlib.Option.Option.Some(
+          $"  dark {cmd} -> exit {Stdlib.display(code)}, stdout {Stdlib.inspect(out)}, stderr {Stdlib.inspect(err)}"))
+
+  Stdlib.Test.expect(
+    faults == [],
+    "refusals that wrote to stdout, said something else, or did not exit 1:\n"
+    + Stdlib.String.join(faults, "\n")))
+
+
+/// Discarding an empty draft is not a refusal: there was nothing to do, and nothing was done.
+test discardingAnEmptyDraftSaysSo = Instance.withInstance(fun i ->
+  let (code, out, err) = streams(i, [ "discard", "-y" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "nothing to discard is not a failure")
+      Stdlib.Test.equal(out, "")
+      Stdlib.Test.equal(err, "nothing to discard -- your draft on main is empty.") ]))
+
+
+/// A dash-led argument is a flag someone mistyped, never a name: unguarded, `dark switch --help`
+/// started a branch called "--help" and moved the store onto it.
+test aDashLedArgumentIsNeverAName = Instance.withInstance(fun i ->
+  [ "switch", "branch" ]
+  |> Stdlib.List.map(fun cmd ->
+    let (code, out, err) = streams(i, [ cmd, "--zzz-not-a-branch" ])
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 1, $"dark {cmd} --zzz-not-a-branch refuses")
+        Stdlib.Test.equal(out, "")
+        Stdlib.Test.equal(
+          err,
+          $"`dark {cmd}` does not take `--zzz-not-a-branch`.\n  `dark {cmd} --help` shows what it takes.")
+        Instance.doesNotSay(
+          Instance.said(i, [ "branches" ]),
+          "--zzz-not-a-branch",
+          $"dark {cmd} --zzz-not-a-branch must not start a branch")
+        Instance.says(
+          Instance.said(i, [ "branch" ]),
+          "on main",
+          "and must not move you off main") ]))
+  |> Stdlib.Test.all)
+
+
+/// The refusals a sweep cannot run, because a mistake there costs something: a mistyped flag beside
+/// `-y` used to discard the whole draft, and a stray word after an inline definition used to be
+/// dropped and the rest saved.
+test aMistypedFlagOrAStrayWordChangesNothing = Instance.withInstance(fun i ->
+  let (savedCode, _) = Instance.ran(i, [ "fn", "Tests.Costly.kept", "() : Int64 = 1" ])
+  let (discardCode, _) = Instance.ran(i, [ "discard", "--only-this", "-y" ])
+  let (keptCode, kept, _) = streams(i, [ "eval", "Tests.Costly.kept()" ])
+  let (valCode, _) = Instance.ran(i, [ "val", "Tests.Costly.x", "42", "zzz" ])
+  let (xCode, _) = Instance.ran(i, [ "eval", "Tests.Costly.x" ])
+  let (fnCode, _) = Instance.ran(i, [ "fn", "Tests.Costly.f", "() : Int64 = 90817", "zzz" ])
+  let (fCode, _) = Instance.ran(i, [ "eval", "Tests.Costly.f()" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(savedCode, 0, "the fixture saved")
+      Instance.exitedWith(discardCode, 1, "discard refuses a flag it does not have")
+      Instance.exitedWith(keptCode, 0, "and the draft is still there")
+      Stdlib.Test.equal(kept, "1")
+      Instance.exitedWith(valCode, 1, "val refuses a word after the definition")
+      Instance.exitedWith(xCode, 1, "and saves nothing")
+      Instance.exitedWith(fnCode, 1, "fn refuses a word after the definition")
+      Instance.exitedWith(fCode, 1, "and saves nothing") ]))

@@ -388,50 +388,6 @@ let private renameRefusesTheBadCases =
     })
 
 
-// ─── the everyday path ────────────────────────────────────────────────────
-
-/// The refusals a person meets by typing something reasonable that is not available. Each of these
-/// answered wrongly at some point: a fall-through arm that reports success is the failure mode the
-/// CLI sweep exists to catch, and these are the specific cases worth pinning.
-let private theCommonRefusals =
-  instanceTest
-    "the everyday refusals say what is wrong, and do not claim success"
-    (fun state ->
-      task {
-        do! start state
-
-        do!
-          refuses
-            state
-            [ "merge"; "no-such-branch-here" ]
-            "no branch"
-            "Merged"
-            "merging a branch that does not exist"
-
-        do!
-          refuses
-            state
-            [ "rebase" ]
-            "usage"
-            "rebased"
-            "a bare rebase on main has nothing to rebase"
-
-        do!
-          shows
-            state
-            [ "discard"; "-y" ]
-            "nothing to discard"
-            "discarding an empty draft says so"
-
-        do!
-          shows
-            state
-            [ "undo"; "Tests.Nothing.here" ]
-            "not"
-            "undoing a name that does not exist says so"
-      })
-
-
 let tests : List<Test> =
   [ propagationLeavesBranchWorkAlone
     archiveRefusesToOrphanAChild
@@ -443,5 +399,4 @@ let tests : List<Test> =
     discardCountsOpsNotNames
     mergeIsGatedLikeCommit
     renameMovesANameNotItsContent
-    renameRefusesTheBadCases
-    theCommonRefusals ]
+    renameRefusesTheBadCases ]
