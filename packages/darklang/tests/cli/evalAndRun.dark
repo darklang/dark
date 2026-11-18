@@ -179,7 +179,14 @@ test scriptArgumentsAndExitCodes = Instance.withInstance(fun i ->
         1,
         "A main function is not called automatically")
 
-      ("wrong result", "true", [], [], 1, "Script must finish") ]
+      ("wrong result", "true", [], [], 1, "Script must finish")
+      (
+        "--allow after the path went to the script",
+        "if args == [\"--allow\", \"env-read HOME\"] then 2 else 0",
+        [],
+        [ "--allow", "env-read HOME" ],
+        2,
+        "Flags for `run` go before the name") ]
 
   let path = $"{Instance.home(i)}/contract.dark"
   let contract =
@@ -667,3 +674,13 @@ test codeCannotChangeTheNetworkGuard = Instance.withInstance(fun i ->
             after,
             "http.loopback = on",
             "and the setting took") ] ])))
+
+
+/// The `--allow` note is only for a failed run; a run that succeeds got what it asked for.
+test misplacedAllowNoteOnlyOnFailure = Instance.withInstance(fun i ->
+  let path = $"{Instance.home(i)}/ok.dark"
+  let _ = Stdlib.Cli.File.writeText(path, "0\n")
+  let (code, out) = Instance.ran(i, [ "run", path, "--allow", "env-read HOME" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "succeeds")
+      Instance.doesNotSay(out, "Flags for `run` go before the name", "no note") ]))
