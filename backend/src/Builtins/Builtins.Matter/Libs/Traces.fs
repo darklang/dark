@@ -62,6 +62,7 @@ let private statusToDT (status : string) : Dval =
     | "running" -> "Running"
     | "failed" -> "Failed"
     | "suspended" -> "Suspended"
+    | "lost" -> "Lost"
     | "done" -> "Done"
     | other ->
       // `LibDB.Traces.Status.parse` raises on an unknown status; reading it as a finished run
@@ -731,6 +732,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | exeState, _, _, [| q |] ->
+          LibDB.Traces.markLost ()
           let a = answer exeState (queryFromDT q)
           answerToDT a
         | _ -> incorrectArgs ())

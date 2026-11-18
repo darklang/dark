@@ -897,3 +897,22 @@ test exitCodesSayWhetherItWorked = Instance.withInstance(fun i ->
       expected,
       $"{what}: dark {cmd}"))
   |> Stdlib.Test.all)
+
+
+// A run whose process is killed never gets to say it stopped. Shown as `lost`, not `running`.
+test aKilledRunShowsAsLost = withTraces(fun i ->
+  let env =
+    Instance.env(i)
+    |> Stdlib.List.map(fun((k, v)) -> $"{k}={v}")
+    |> Stdlib.String.join(" ")
+
+  let db = $"{i.dir}/data.db"
+  // Wait for the run's row before killing it, so the kill lands on a run that has started.
+  let script =
+    $"env {env} {i.cli} eval 'Stdlib.Cli.Posix.sleep(60000.0)' >/dev/null 2>&1 & pid=$!; for n in $(seq 300); do [ \"$(sqlite3 {db} \"SELECT COUNT(*) FROM traces WHERE status = 'running'\")\" = 1 ] && break; sleep 0.1; done; kill -TERM $pid; wait $pid; true"
+
+  let _ = Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", script)
+  let out = Instance.said(i, [ "traces" ])
+  Stdlib.Test.all(
+    [ Instance.says(out, "lost", "the killed run is lost")
+      Instance.doesNotSay(out, "running", "and not still running") ]))
