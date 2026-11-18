@@ -65,22 +65,40 @@ let helpProblem(
     problem |> Stdlib.Option.map(fun why -> $"dark {cmd} -> {why}")
 
 
-/// Every registered command answers `--help`, and `help` as its first word, with help.
-test everyCommandAnswersHelp = Instance.withInstance(fun i ->
+/// What is wrong with the help of every command whose registry position is `part` modulo
+/// `parts`, asked both as `--help` and with `help` as the first word.
+let helpProblems(i: Instance.T, part: Int64, parts: Int64): List<String> =
+  Cli.Registry.allCommands()
+  |> Stdlib.List.indexedMap(fun(n, c) -> (n, c.name))
+  |> Stdlib.List.filter(fun((n, _)) -> n % parts == part)
+  |> Stdlib.List.map(fun((_, name)) ->
+    [ helpProblem(i, [ name, "--help" ]), helpProblem(i, [ name, "help" ]) ])
+  |> Stdlib.List.flatten
+  |> Stdlib.List.filterMap(fun p -> p)
+
+
+// A quarter of the registry per test: as one test, two calls per command outgrew a test's
+// time budget on a loaded machine.
+let answersHelp(part: Int64): Stdlib.Test.Result =
+  Instance.withInstance(fun i ->
+    let problems = helpProblems(i, part, 4)
+    Stdlib.Test.expect(
+      problems == [],
+      "commands that don't answer help:\n" + Stdlib.String.join(problems, "\n")))
+
+
+test theRegistryIsRead =
   let names = Cli.Registry.allCommands() |> Stdlib.List.map(fun c -> c.name)
-  let problems =
-    names
-    |> Stdlib.List.map(fun name ->
-      [ helpProblem(i, [ name, "--help" ]), helpProblem(i, [ name, "help" ]) ])
-    |> Stdlib.List.flatten
-    |> Stdlib.List.filterMap(fun p -> p)
+  Stdlib.Test.expect(
+    Stdlib.List.length(names) > 20,
+    $"the registry was read: {Stdlib.inspect(names)}")
 
-  Stdlib.Test.all(
-    [ Stdlib.Test.expect(
-        Stdlib.List.length(names) > 20,
-        $"the registry was read: {Stdlib.inspect(names)}")
 
-      Stdlib.Test.expect(
-        problems == [],
-        "commands that don't answer help:\n"
-        + Stdlib.String.join(problems, "\n")) ]))
+/// Every registered command answers `--help`, and `help` as its first word, with help.
+test everyCommandAnswersHelp1 = answersHelp(0)
+
+test everyCommandAnswersHelp2 = answersHelp(1)
+
+test everyCommandAnswersHelp3 = answersHelp(2)
+
+test everyCommandAnswersHelp4 = answersHelp(3)
