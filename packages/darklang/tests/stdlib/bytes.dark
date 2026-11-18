@@ -50,32 +50,40 @@ let hex(s: String): Bytes =
   Stdlib.Base16.decode(s) |> Stdlib.Result.withDefault(Stdlib.Bytes.empty)
 
 
+let outOfRange(width: Int64, value: Int64, max: Int64): Stdlib.Math.OutOfRange =
+  Stdlib.Math.OutOfRange
+    { what = $"offset for a {Stdlib.display(width)}-byte read"
+      value = value
+      min = 0
+      max = max }
+
+
 test readUInt8AndInt8 =
   let bytes = hex("007F80FF")
   Stdlib.Test.all(
     [ Stdlib.Bytes.readUInt8(bytes, 0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(0u8))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0u8))
 
       Stdlib.Bytes.readUInt8(bytes, 3)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(255u8))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(255u8))
 
       Stdlib.Bytes.readInt8(bytes, 1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(127s8))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(127s8))
 
       Stdlib.Bytes.readInt8(bytes, 2)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-128s8))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-128s8))
 
       Stdlib.Bytes.readInt8(bytes, 3)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1s8))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1s8))
 
       Stdlib.Bytes.readUInt8(bytes, 4)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(1, 4, 3)))
 
       Stdlib.Bytes.readInt8(bytes, -1)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(1, -1, 3)))
 
       Stdlib.Bytes.readUInt8(Stdlib.Bytes.empty, 0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(1, 0, -1))) ])
 
 
 test read16 =
@@ -84,31 +92,31 @@ test read16 =
   let be = Stdlib.Bytes.Endianness.BigEndian
   Stdlib.Test.all(
     [ Stdlib.Bytes.readUInt16(bytes, 0, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(513u16))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(513u16))
 
       Stdlib.Bytes.readUInt16(bytes, 0, be)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(258u16))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(258u16))
 
       Stdlib.Bytes.readInt16(bytes, 2, be)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-32768s16))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32768s16))
 
       Stdlib.Bytes.readInt16(bytes, 2, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(128s16))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(128s16))
 
       Stdlib.Bytes.readInt16(bytes, 4, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1s16))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1s16))
 
       Stdlib.Bytes.readUInt16(bytes, 4, be)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(65535u16))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(65535u16))
 
       Stdlib.Bytes.readUInt16(bytes, 5, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(2, 5, 4)))
 
       Stdlib.Bytes.readInt16(bytes, 6, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(2, 6, 4)))
 
       Stdlib.Bytes.readUInt16(bytes, -1, be)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(2, -1, 4))) ])
 
 
 test read32 =
@@ -117,31 +125,31 @@ test read32 =
   let be = Stdlib.Bytes.Endianness.BigEndian
   Stdlib.Test.all(
     [ Stdlib.Bytes.readUInt32(bytes, 0, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(44100u32))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(44100u32))
 
       Stdlib.Bytes.readUInt32(bytes, 0, be)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1152122880u32))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1152122880u32))
 
       Stdlib.Bytes.readInt32(bytes, 4, be)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-2147483648s32))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2147483648s32))
 
       Stdlib.Bytes.readInt32(bytes, 4, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(128s32))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(128s32))
 
       Stdlib.Bytes.readInt32(bytes, 8, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1s32))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1s32))
 
       Stdlib.Bytes.readUInt32(bytes, 8, be)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(4294967295u32))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(4294967295u32))
 
       Stdlib.Bytes.readUInt32(bytes, 9, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(4, 9, 8)))
 
       Stdlib.Bytes.readInt32(bytes, 12, be)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(4, 12, 8)))
 
       Stdlib.Bytes.readUInt32(bytes, -4, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(4, -4, 8))) ])
 
 
 test read64 =
@@ -150,31 +158,31 @@ test read64 =
   let be = Stdlib.Bytes.Endianness.BigEndian
   Stdlib.Test.all(
     [ Stdlib.Bytes.readUInt64(bytes, 0, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1u64))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1u64))
 
       Stdlib.Bytes.readUInt64(bytes, 0, be)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(72057594037927936u64))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(72057594037927936u64))
 
       Stdlib.Bytes.readInt64(bytes, 8, be)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-9223372036854775808))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-9223372036854775808))
 
       Stdlib.Bytes.readInt64(bytes, 8, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(128))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(128))
 
       Stdlib.Bytes.readInt64(bytes, 16, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1))
 
       Stdlib.Bytes.readUInt64(bytes, 16, be)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(18446744073709551615u64))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(18446744073709551615u64))
 
       Stdlib.Bytes.readUInt64(bytes, 17, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(8, 17, 16)))
 
       Stdlib.Bytes.readInt64(bytes, 24, be)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(8, 24, 16)))
 
       Stdlib.Bytes.readInt64(bytes, -8, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(8, -8, 16))) ])
 
 
 test readFloats =
@@ -184,33 +192,33 @@ test readFloats =
   let f64 = hex("000000000000F03FFFF00000000000007FF8000000000000")
   Stdlib.Test.all(
     [ Stdlib.Bytes.readFloat32(f32, 0, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1.0f32))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.0f32))
 
       Stdlib.Bytes.readFloat32(f32, 4, be)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1.0f32 / 0.0f32))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.0f32 / 0.0f32))
 
       Stdlib.Bytes.readFloat32(f32, 8, be)
-      |> Stdlib.Option.map(Stdlib.Float32.isNaN)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(true))
+      |> Stdlib.Result.map(Stdlib.Float32.isNaN)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
 
       Stdlib.Bytes.readFloat32(f32, 9, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(4, 9, 8)))
 
       Stdlib.Bytes.readFloat64(f64, 0, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1.0))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.0))
 
       Stdlib.Bytes.readFloat64(f64, 8, be)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(-1.0 / 0.0))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1.0 / 0.0))
 
       Stdlib.Bytes.readFloat64(f64, 16, be)
-      |> Stdlib.Option.map(Stdlib.Float64.isNaN)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(true))
+      |> Stdlib.Result.map(Stdlib.Float64.isNaN)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
 
       Stdlib.Bytes.readFloat64(f64, 17, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(8, 17, 16)))
 
       Stdlib.Bytes.readFloat64(f64, -1, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(8, -1, 16))) ])
 
 
 // any bit pattern but a NaN payload comes back through Float64.toBits unchanged
@@ -230,8 +238,17 @@ test readFloat64KeepsTheBits =
     Stdlib.List.map(patterns, fun p ->
       let bytes = hex(p)
       Stdlib.Bytes.readFloat64(bytes, 0, be)
-      |> Stdlib.Option.map(fun f -> Stdlib.Float64.toBits(f))
+      |> Stdlib.Result.map(fun f -> Stdlib.Float64.toBits(f))
       |> Stdlib.Test.equal(Stdlib.Bytes.readUInt64(bytes, 0, be))))
+
+
+test readOutOfRangeSaysWhatFits =
+  let bytes = hex("44AC000080000000FFFFFFFF")
+  Stdlib.Bytes.readUInt32(bytes, 9, Stdlib.Bytes.Endianness.LittleEndian)
+  |> Stdlib.Result.mapError(Stdlib.display)
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Error(
+      "9 is not a valid offset for a 4-byte read (0 to 8)"))
 
 
 test readFromSharedSlice =
@@ -240,13 +257,14 @@ test readFromSharedSlice =
   let le = Stdlib.Bytes.Endianness.LittleEndian
   Stdlib.Test.all(
     [ Stdlib.Bytes.readUInt8(rest, 0)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(51u8))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(51u8))
 
       Stdlib.Bytes.readUInt16(rest, 0, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(13363u16))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(13363u16))
 
       Stdlib.Bytes.readUInt16(rest, 796, le)
-      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(outOfRange(2, 796, 795))) ])
 
 
 // setAt

@@ -64,62 +64,121 @@ let __signed(bits: UInt64, width: Int64): BigInt =
   if n >= half then n - half - half else n
 
 
-/// Returns {{Some}} the byte at <param offset> in <param bytes>, or {{None}}
+/// {{Ok}} what a read found, or {{Error}} the offsets a <param width>-byte read could have
+/// started at.
+let __inRange(
+  found: Option<'a>,
+  bytes: Bytes,
+  offset: Int64,
+  width: Int64)
+  : Result<'a, Math.OutOfRange> =
+  match found with
+  | Some(n) -> Result.Ok(n)
+  | None ->
+    Result.Error(
+      Math.OutOfRange
+        { what = $"offset for a {display(width)}-byte read"
+          value = offset
+          min = 0
+          max = length(bytes) - width })
+
+
+/// Returns {{Ok}} the byte at <param offset> in <param bytes>, or {{Error}}
 /// if <param offset> is out of range.
-let readUInt8(bytes: Bytes, offset: Int64): Option<UInt8> =
-  getAt(bytes, offset)
+let readUInt8(bytes: Bytes, offset: Int64): Result<UInt8, Math.OutOfRange> =
+  __inRange(getAt(bytes, offset), bytes, offset, 1)
 
 
-/// Returns {{Some}} the byte at <param offset> in <param bytes> as a signed
-/// number, or {{None}} if <param offset> is out of range.
-let readInt8(bytes: Bytes, offset: Int64): Option<Int8> =
-  __readBits(bytes, offset, 1, Endianness.BigEndian)
-  |> Option.andThen(fun bits -> BigInt.toInt8(__signed(bits, 1)))
+/// Returns {{Ok}} the byte at <param offset> in <param bytes> as a signed
+/// number, or {{Error}} if <param offset> is out of range.
+let readInt8(bytes: Bytes, offset: Int64): Result<Int8, Math.OutOfRange> =
+  __inRange(
+    __readBits(bytes, offset, 1, Endianness.BigEndian)
+    |> Option.andThen(fun bits -> BigInt.toInt8(__signed(bits, 1))),
+    bytes,
+    offset,
+    1)
 
 
-/// Returns {{Some}} the UInt16 in the 2 bytes at <param offset> in <param bytes>,
-/// in <param endianness> order, or {{None}} if they don't all fit.
-let readUInt16(bytes: Bytes, offset: Int64, endianness: Endianness): Option<UInt16> =
-  __readBits(bytes, offset, 2, endianness) |> Option.andThen(fun bits -> UInt16.fromUInt64(bits))
+/// Returns {{Ok}} the UInt16 in the 2 bytes at <param offset> in <param bytes>,
+/// in <param endianness> order, or {{Error}} if they don't all fit.
+let readUInt16(
+  bytes: Bytes,
+  offset: Int64,
+  endianness: Endianness)
+  : Result<UInt16, Math.OutOfRange> =
+  __inRange(
+    __readBits(bytes, offset, 2, endianness) |> Option.andThen(fun bits -> UInt16.fromUInt64(bits)),
+    bytes,
+    offset,
+    2)
 
 
-/// Returns {{Some}} the Int16 in the 2 bytes at <param offset> in <param bytes>,
-/// in <param endianness> order, or {{None}} if they don't all fit.
-let readInt16(bytes: Bytes, offset: Int64, endianness: Endianness): Option<Int16> =
-  __readBits(bytes, offset, 2, endianness)
-  |> Option.andThen(fun bits -> BigInt.toInt16(__signed(bits, 2)))
+/// Returns {{Ok}} the Int16 in the 2 bytes at <param offset> in <param bytes>,
+/// in <param endianness> order, or {{Error}} if they don't all fit.
+let readInt16(bytes: Bytes, offset: Int64, endianness: Endianness): Result<Int16, Math.OutOfRange> =
+  __inRange(
+    __readBits(bytes, offset, 2, endianness)
+    |> Option.andThen(fun bits -> BigInt.toInt16(__signed(bits, 2))),
+    bytes,
+    offset,
+    2)
 
 
-/// Returns {{Some}} the UInt32 in the 4 bytes at <param offset> in <param bytes>,
-/// in <param endianness> order, or {{None}} if they don't all fit.
-let readUInt32(bytes: Bytes, offset: Int64, endianness: Endianness): Option<UInt32> =
-  __readBits(bytes, offset, 4, endianness) |> Option.andThen(fun bits -> UInt32.fromUInt64(bits))
+/// Returns {{Ok}} the UInt32 in the 4 bytes at <param offset> in <param bytes>,
+/// in <param endianness> order, or {{Error}} if they don't all fit.
+let readUInt32(
+  bytes: Bytes,
+  offset: Int64,
+  endianness: Endianness)
+  : Result<UInt32, Math.OutOfRange> =
+  __inRange(
+    __readBits(bytes, offset, 4, endianness) |> Option.andThen(fun bits -> UInt32.fromUInt64(bits)),
+    bytes,
+    offset,
+    4)
 
 
-/// Returns {{Some}} the Int32 in the 4 bytes at <param offset> in <param bytes>,
-/// in <param endianness> order, or {{None}} if they don't all fit.
-let readInt32(bytes: Bytes, offset: Int64, endianness: Endianness): Option<Int32> =
-  __readBits(bytes, offset, 4, endianness)
-  |> Option.andThen(fun bits -> BigInt.toInt32(__signed(bits, 4)))
+/// Returns {{Ok}} the Int32 in the 4 bytes at <param offset> in <param bytes>,
+/// in <param endianness> order, or {{Error}} if they don't all fit.
+let readInt32(bytes: Bytes, offset: Int64, endianness: Endianness): Result<Int32, Math.OutOfRange> =
+  __inRange(
+    __readBits(bytes, offset, 4, endianness)
+    |> Option.andThen(fun bits -> BigInt.toInt32(__signed(bits, 4))),
+    bytes,
+    offset,
+    4)
 
 
-/// Returns {{Some}} the UInt64 in the 8 bytes at <param offset> in <param bytes>,
-/// in <param endianness> order, or {{None}} if they don't all fit.
-let readUInt64(bytes: Bytes, offset: Int64, endianness: Endianness): Option<UInt64> =
-  __readBits(bytes, offset, 8, endianness)
+/// Returns {{Ok}} the UInt64 in the 8 bytes at <param offset> in <param bytes>,
+/// in <param endianness> order, or {{Error}} if they don't all fit.
+let readUInt64(
+  bytes: Bytes,
+  offset: Int64,
+  endianness: Endianness)
+  : Result<UInt64, Math.OutOfRange> =
+  __inRange(__readBits(bytes, offset, 8, endianness), bytes, offset, 8)
 
 
-/// Returns {{Some}} the Int64 in the 8 bytes at <param offset> in <param bytes>,
-/// in <param endianness> order, or {{None}} if they don't all fit.
-let readInt64(bytes: Bytes, offset: Int64, endianness: Endianness): Option<Int64> =
-  __readBits(bytes, offset, 8, endianness)
-  |> Option.andThen(fun bits -> BigInt.toInt64(__signed(bits, 8)))
+/// Returns {{Ok}} the Int64 in the 8 bytes at <param offset> in <param bytes>,
+/// in <param endianness> order, or {{Error}} if they don't all fit.
+let readInt64(bytes: Bytes, offset: Int64, endianness: Endianness): Result<Int64, Math.OutOfRange> =
+  __inRange(
+    __readBits(bytes, offset, 8, endianness)
+    |> Option.andThen(fun bits -> BigInt.toInt64(__signed(bits, 8))),
+    bytes,
+    offset,
+    8)
 
 
-/// Returns {{Some}} the Float32 in the 4 bytes at <param offset> in <param bytes>,
-/// in <param endianness> order, or {{None}} if they don't all fit.
-let readFloat32(bytes: Bytes, offset: Int64, endianness: Endianness): Option<Float32> =
-  readUInt32(bytes, offset, endianness) |> Option.map(fun bits -> Float32.fromBits(bits))
+/// Returns {{Ok}} the Float32 in the 4 bytes at <param offset> in <param bytes>,
+/// in <param endianness> order, or {{Error}} if they don't all fit.
+let readFloat32(
+  bytes: Bytes,
+  offset: Int64,
+  endianness: Endianness)
+  : Result<Float32, Math.OutOfRange> =
+  readUInt32(bytes, offset, endianness) |> Result.map(fun bits -> Float32.fromBits(bits))
 
 
 /// The IEEE 754 binary64 number whose bits are <param bits>. A NaN's payload is not kept.
@@ -137,10 +196,14 @@ let __float64OfBits(bits: UInt64): Float64 =
     sign * mantissa * 2.0 ** (UInt64.toFloat64(exponent) - 1075.0)
 
 
-/// Returns {{Some}} the Float64 in the 8 bytes at <param offset> in <param bytes>,
-/// in <param endianness> order, or {{None}} if they don't all fit.
-let readFloat64(bytes: Bytes, offset: Int64, endianness: Endianness): Option<Float64> =
-  readUInt64(bytes, offset, endianness) |> Option.map(fun bits -> __float64OfBits(bits))
+/// Returns {{Ok}} the Float64 in the 8 bytes at <param offset> in <param bytes>,
+/// in <param endianness> order, or {{Error}} if they don't all fit.
+let readFloat64(
+  bytes: Bytes,
+  offset: Int64,
+  endianness: Endianness)
+  : Result<Float64, Math.OutOfRange> =
+  readUInt64(bytes, offset, endianness) |> Result.map(fun bits -> __float64OfBits(bits))
 
 
 /// Returns {{Some index}} of the first <param byte> in <param bytes> at or
