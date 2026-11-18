@@ -1042,6 +1042,7 @@ let private serve
   (maxBodyBytes : int64)
   (middleware : Dval)
   (onListening : Applicable)
+  (runGrants : LibExecution.Permissions.Policy)
   : Task<Dval> =
   task {
     // Run the router and callbacks with guest permissions.
@@ -1058,16 +1059,26 @@ let private serve
     // policy store has changed, so an approval or a policy edit made while the server runs counts
     // from the next request.
     let invokerAccess = vm.activeAccess
+    let grants, denies = LibExecution.Permissions.Policy.rules runGrants
+    if
+      not (List.isEmpty grants && List.isEmpty denies)
+      && not exeState.canManagePolicies
+    then
+      RuntimeError.UncaughtException(
+        "serve approvals require the trusted dark serve command",
+        []
+      )
+      |> raiseRTE
     // `dark serve --port N` names the address and port on its command line, which is the
-    // consent a policy rule would record. Only the trusted CLI host can manage policies, so
-    // guest code calling `serve` still needs a rule.
+    // consent a policy rule would record, and `--allow` names the rest. Only the trusted CLI
+    // host can manage policies, so guest code calling `serve` still needs a rule.
     let exeState =
       match LibExecution.Permissions.Request.httpServer address (int port) with
       | Ok request when exeState.canManagePolicies ->
         { exeState with
             runGrants =
               LibExecution.Permissions.Policy.create
-                [ LibExecution.Permissions.Rule.forRequest request ]
+                (LibExecution.Permissions.Rule.forRequest request :: grants)
                 [] }
       | _ -> exeState
     match routing with
@@ -1191,7 +1202,14 @@ let private commonParams =
       "onListening"
       (TFn(NEList.singleton TUnit, TUnit))
       "Fired once the port is bound — announce here, so a banner is never printed before it's true"
-      [ "unit" ] ]
+      [ "unit" ]
+    Param.make
+      "runGrants"
+      (TCustomType(
+        NR.ok (LibExecution.PermissionsToDarkTypes.Policy.typeName ()),
+        []
+      ))
+      "Access approved by the user for this server only (`dark serve --allow`)" ]
 
 
 let fns () : List<BuiltInFn> =
@@ -1220,7 +1238,8 @@ let fns () : List<BuiltInFn> =
              DApplicable handler
              DInt64 maxBodyBytesArg
              DList(_, _) as middleware
-             DApplicable onListening |] ->
+             DApplicable onListening
+             runGrants |] ->
           serve
             exeState
             vm
@@ -1231,6 +1250,7 @@ let fns () : List<BuiltInFn> =
             maxBodyBytesArg
             middleware
             onListening
+            (LibExecution.PermissionsToDarkTypes.Policy.fromDT runGrants)
           |> LibExecution.Pending.ofTask
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -1284,7 +1304,8 @@ let fns () : List<BuiltInFn> =
              DBool dev
              DInt64 maxBodyBytesArg
              DList(_, _) as middleware
-             DApplicable onListening |] ->
+             DApplicable onListening
+             runGrants |] ->
           serve
             exeState
             vm
@@ -1300,6 +1321,7 @@ let fns () : List<BuiltInFn> =
             maxBodyBytesArg
             middleware
             onListening
+            (LibExecution.PermissionsToDarkTypes.Policy.fromDT runGrants)
           |> LibExecution.Pending.ofTask
         | _ -> incorrectArgs ())
       previewable = Impure

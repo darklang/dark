@@ -73,7 +73,8 @@ let private denialMessage
         // Approve parses the rule text again, so preserve its token quotes in argv.
         let spec = Permission.Request.quoteRuleToken rule
         "To remember access for this function:\n"
-        + $"  dark permissions approve --for {target} {spec} --yes"
+        + $"  dark permissions approve --for {target} {spec} --yes\n\n"
+        + $"For one run only, add `--allow {spec}` to `dark run`, `dark eval` or `dark serve`."
       | None -> "Review the function's permission requirements."
     | Permission.Layer.Value _, _ ->
       "A `val` is evaluated once, when it is saved, so it cannot use effects. "

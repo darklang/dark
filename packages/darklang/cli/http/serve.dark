@@ -13,6 +13,8 @@ type Args =
     /// moves. OFF unless asked for: a server that changes under you while you edit is a thing
     /// to opt into, not something to discover.
     live: Bool
+    /// `--allow`: access granted for this server's run only, as `run --allow` does.
+    grants: LanguageTools.Permissions.Policy
     error: Option<String> }
 
 
@@ -23,11 +25,13 @@ let defaultArgs(): Args =
       port = Stdlib.Net.Port.httpAlt
       maxBodyBytes = Stdlib.HttpServer.Config.defaultMaxBodyBytes
       live = false
+      grants = LanguageTools.Permissions.Policy { allow = [], deny = [] }
       error = Option.None }
 
 
 /// Parse a list of args left-to-right. Recognized: a single positional
-/// (the router path), `--bind ADDRESS`, `--port N`, `--max-body-bytes N`, `--live`. Unknown flags or a duplicate
+/// (the router path), `--bind ADDRESS`, `--port N`, `--max-body-bytes N`, `--live`, `--allow RULES`
+/// (repeatable). Unknown flags or a duplicate
 /// positional -> an error string in `args.error`. `--dev` and `--no-live` were the two halves of
 /// this before it was one flag, and each is refused by name rather than ignored.
 let parseArgs(rest: List<String>, acc: Args): Args =
@@ -49,6 +53,14 @@ let parseArgs(rest: List<String>, acc: Args): Args =
     | Error(_) -> { acc with error = Option.Some($"Invalid --max-body-bytes: {value}") }
     | Ok(n) -> parseArgs(tail, { acc with maxBodyBytes = n })
   | ["--live", ...tail] -> parseArgs(tail, { acc with live = true })
+  | ["--allow", rules, ...tail] ->
+    match Permissions.Command.replacePolicy([ rules ]) with
+    | Error(message) -> { acc with error = Option.Some(message) }
+    | Ok(grants) when Stdlib.Bool.not(Stdlib.List.isEmpty(grants.deny)) ->
+      { acc with error = Option.Some("--allow takes allow rules only") }
+    | Ok(grants) ->
+      let allow = Stdlib.List.concat(acc.grants.allow, grants.allow)
+      parseArgs(tail, { acc with grants = { acc.grants with allow = allow } })
   | ["--no-live", ...] ->
     { acc with
         error =
@@ -70,6 +82,7 @@ let parseArgs(rest: List<String>, acc: Args): Args =
 
 let usageLines(): List<String> =
   [ "Usage: serve <router-path> [--bind ADDRESS] [--port N] [--max-body-bytes N] [--live]"
+    "             [--allow RULES]"
     ""
     "Arguments:"
     "  router-path        Dotted path to a router fn or value (Request -> Response)"
@@ -81,6 +94,8 @@ let usageLines(): List<String> =
     "                     browser page reloads itself when the version moves. Without it the"
     "                     version resolved at start serves until you restart. Not for"
     "                     production: every HTML response carries a small script."
+    "  --allow RULES      Allow resources for this server only, as `run --allow` does"
+    "                     (; separates rules; repeatable)."
     ""
     "Each request runs as a process of its own (`ps` shows them under the server). A handler"
     "past `http.requestTimeoutMs` (config; 30 s unset) is cancelled and answers 504; one that"
@@ -90,7 +105,8 @@ let usageLines(): List<String> =
     "  serve Darklang.DemoData.HttpServerTest.router"
     "  serve Some.Adhoc.Router --port 9000"
     "  serve My.Service.app --port 80 --max-body-bytes 5242880"
-    "  serve My.Site.router --port 9095 --live      # follows your edits while you work" ]
+    "  serve My.Site.router --port 9095 --live      # follows your edits while you work"
+    "  serve My.Site.router --allow \"file read /srv/site\"  # this server only" ]
 
 
 let printUsage(): Unit =
@@ -185,6 +201,7 @@ let execute(state: AppState, args: List<String>): AppState =
             | true, Some(location) ->
               Stdlib.HttpServer.serveLive(
                 config,
+                parsed.grants,
                 LanguageTools.Live.Router.start(state.currentBranchId, location),
                 LanguageTools.Live.Router.step,
                 router,
@@ -193,7 +210,7 @@ let execute(state: AppState, args: List<String>): AppState =
                 // nothing.
                 Stdlib.HttpServer.Reload.OnSave,
                 announce)
-            | _ -> Stdlib.HttpServer.serve(config, router, announce)
+            | _ -> Stdlib.HttpServer.serveUnder(config, parsed.grants, router, announce)
 
           match served with
           | Ok(_) -> state

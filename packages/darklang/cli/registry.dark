@@ -244,7 +244,7 @@ module Registry =
 
   let acceptsServe(): Accepts.Accepts =
     Accepts.withValues(
-      [ "--bind", "--port", "--max-body-bytes" ],
+      [ "--bind", "--port", "--max-body-bytes", "--allow" ],
       Accepts.between(1, 1, [ "--live", "--no-live", "--dev" ]))
 
 

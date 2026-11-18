@@ -7,8 +7,8 @@
 1 Darklang.Cli.Format.formatFiles Darklang.Stdlib.Cli.File.readText
 1 Darklang.Cli.Format.formatFiles Darklang.Stdlib.List.parallelMap
 1 Darklang.Cli.Format.settle Darklang.Stdlib.Cli.File.writeText
-1 Darklang.Cli.Http.Serve.execute Darklang.Stdlib.HttpServer.serve
 1 Darklang.Cli.Http.Serve.execute Darklang.Stdlib.HttpServer.serveLive
+1 Darklang.Cli.Http.Serve.execute Darklang.Stdlib.HttpServer.serveUnder
 1 Darklang.Cli.Installation.Config.getDarklangHomeDir Darklang.Stdlib.Cli.Unix.getHomeDirectory
 1 Darklang.Cli.Installation.Download.installRelease Darklang.Stdlib.Cli.Unix.addToPath
 1 Darklang.Cli.Installation.Download.replaceBinary Darklang.Stdlib.Cli.Curl.downloadFileToPath

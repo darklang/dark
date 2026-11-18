@@ -93,10 +93,10 @@ Your edits are LIVE as soon as you write them. There is no build step.
   (see: docs scm)
 
 ## Serving
-  serve <router> [--bind ADDRESS] [--port N] [--live]
+  serve <router> [--bind ADDRESS] [--port N] [--live] [--allow RULES]
                               an HTTP server backed by a Darklang router
                               (alias: http-server; --bind defaults to 127.0.0.1; --port to 8080;
-                              --live follows your edits)
+                              --live follows your edits; --allow grants for this server only)
 
 ## The full-screen experience (`dark` with no args opens it)
   workbench         the framed, navigable workbench (alias: wb)

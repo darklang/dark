@@ -45,8 +45,9 @@ needs `--allow <rule>` on `run`, placed before the function name:
   run --allow 'http GET https://api.example.com/*' MyApp.Fetch.main
                                          # any path on that host; `*` only after a `/`
 
-`serve` takes no `--allow`, so allow what it needs first: `permissions allow http-server
-127.0.0.1 <port>`, and `permissions allow file read <dir>` / `file write <dir>`.
+`serve` takes `--allow` too, for what its handlers need; the port it is given needs no rule:
+
+  serve MyApp.Site.router --port 8080 --allow "file read $PWD"
 
 Effects are inferred, never declared; a save says what they are (`effects: none`). Keep pure
 code pure: pass what reads, writes or fetches in as an argument instead of calling it inside.

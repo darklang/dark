@@ -371,6 +371,17 @@ let serve(
   handler: Http.Request -> Http.Response,
   onListening: Unit -> Unit)
   : Result<Unit, String> =
+  serveUnder(config, LanguageTools.Permissions.Policy { allow = [], deny = [] }, handler, onListening)
+
+
+/// <fn serve> with <param grants> allowed for this server only (`dark serve --allow`). Only the
+/// trusted CLI can grant; anything else passing a rule gets an error.
+let serveUnder(
+  config: Config.Config,
+  grants: LanguageTools.Permissions.Policy,
+  handler: Http.Request -> Http.Response,
+  onListening: Unit -> Unit)
+  : Result<Unit, String> =
   if config.maxBodyBytes < 0 then
     Result.Error("maxBodyBytes must not be negative")
   else
@@ -380,7 +391,8 @@ let serve(
       handler,
       config.maxBodyBytes,
       config.middleware,
-      onListening)
+      onListening,
+      grants)
 
 
 /// Whether an open page reloads itself when what served it is saved.
@@ -397,9 +409,10 @@ type Reload =
 /// runs <param step> over a state it keeps between requests, and <param step> answers with the handler
 /// to use this time. <param first> is the handler as resolved at start, for the bind-time approval
 /// root. `LanguageTools.Live.Router` is the step a router-by-name wants. <param reload> says whether an open
-/// page reloads itself on a save.
+/// page reloads itself on a save. <param grants> is as for <fn serveUnder>.
 let serveLive(
   config: Config.Config,
+  grants: LanguageTools.Permissions.Policy,
   init: 's,
   step: 's -> ('s * Result<Http.Request -> Http.Response, String>),
   first: Http.Request -> Http.Response,
@@ -423,4 +436,5 @@ let serveLive(
       dev,
       config.maxBodyBytes,
       config.middleware,
-      onListening)
+      onListening,
+      grants)

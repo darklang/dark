@@ -848,6 +848,10 @@ let private serveFollowsApprovalsAndPolicy (flags : List<string>) =
                 failtest $"expected a live error page with a diagnostic:\n{body}"
             else
               body
+          Expect.stringContains
+            diagnostic
+            "For one run only, add `--allow"
+            "and the one-run --allow"
           let approvalArgs =
             match
               readSuggestedCommandArguments "  dark permissions approve " diagnostic
@@ -1008,6 +1012,45 @@ let private httpDenialOffersTheHost =
           out
           "dark run --allow \"http GET 'https://api.example.com/*'\""
           "the host rule is offered"
+      })
+
+/// `dark serve --allow` grants its handlers access for that server only.
+let private serveAllowCoversItsHandlers =
+  CliInstance.instanceTest
+    "serve --allow covers the handlers of that server only"
+    (fun i ->
+      task {
+        let data = System.IO.Path.Combine(i.dir, "data")
+        System.IO.Directory.CreateDirectory data |> ignore<System.IO.DirectoryInfo>
+        let note = System.IO.Path.Combine(data, "note.txt")
+        System.IO.File.WriteAllText(note, "from the file")
+        let! (saved, code) =
+          CliInstance.runWithExit
+            i
+            [ "fn"
+              "Tests.ServeAllow.router"
+              $"(req: Stdlib.Http.Request): Stdlib.Http.Response =\n  match Stdlib.Cli.FileSystem.readFileAsString(\"{note}\") with\n  | Ok(text) -> Stdlib.Http.responseWithText(200, text)\n  | Error(_) -> Stdlib.Http.responseWithText(403, \"unreadable\")" ]
+        Expect.equal code 0L saved
+        let! (committed, code) =
+          CliInstance.runWithExit i [ "commit"; "Tests.ServeAllow"; "-y" ]
+        Expect.equal code 0L committed
+        let serveOn (flags : List<string>) =
+          task {
+            let port = Tests.HttpServer.allocateFreePort ()
+            let server =
+              CliInstance.start
+                i
+                ([ "serve"; "Tests.ServeAllow.router"; "--port"; string port ]
+                 @ flags)
+            try
+              return! getWhenUp port
+            finally
+              CliInstance.stop server
+          }
+        let! (status, _) = serveOn [ "--allow"; $"file read '{data}'" ]
+        Expect.equal status 200 "the handler reads the file"
+        let! (status, _) = serveOn []
+        Expect.notEqual status 200 "nothing remembered for the next server"
       })
 
 let noArgumentsHasExactRule =
@@ -1623,6 +1666,7 @@ let tests =
       runAllowCoversItsServer
       serveChecksAScriptFnInItsMiddleware
       serveBindsTheGivenPort
+      serveAllowCoversItsHandlers
       httpDenialOffersTheHost
       noArgumentsHasExactRule
       capturedAccessCannotWidenCaller
