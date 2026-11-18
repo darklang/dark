@@ -728,6 +728,13 @@ test moduloRejectsMinusOne =
   => raises "Cannot evaluate modulus against a negative number"
 
 
+test sqrt =
+  Stdlib.Test.all(
+    [ Stdlib.Int16.sqrt(4s16) |> Stdlib.Test.equal(2.0)
+      Stdlib.Int16.sqrt(86s16) |> Stdlib.Test.equal(9.273618495495704)
+      Stdlib.Int16.sqrt(32767s16) |> Stdlib.Test.equal(181.01657382681842) ])
+
+
 test checkedSqrt =
   Stdlib.Test.all(
     [ Stdlib.Int16.checkedSqrt(4s16)

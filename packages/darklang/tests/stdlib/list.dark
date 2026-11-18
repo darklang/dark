@@ -1193,6 +1193,16 @@ test allStopsAtTheFirstFalse =
   Stdlib.List.all([ 1, 7, 0 ], fun x -> 10 / x > 5) |> Stdlib.Test.equal(false)
 
 
+test anyStopsAtTheFirstTrue =
+  // 10 / 0 would raise; `any` never gets that far.
+  Stdlib.List.any([ 1, 0 ], fun x -> 10 / x > 5) |> Stdlib.Test.equal(true)
+
+
+test findFirstStopsAtTheFirstMatch =
+  Stdlib.List.findFirst([ 1, 0 ], fun x -> 10 / x > 5)
+  |> Stdlib.Test.equal(Stdlib.Option.Option.Some(1))
+
+
 test allRejectsStringCondition =
   Stdlib.List.all([ 1, 2 ], fun _ -> "a")
   => raises "Darklang.Stdlib.List.all's 2nd parameter `fn` returned String (\"a\"), but should return Bool"

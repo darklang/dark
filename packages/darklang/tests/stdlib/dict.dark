@@ -519,6 +519,24 @@ test fromListPastTwentyFourKeepsKeyOrder =
       Stdlib.Dict.size(tuples) |> Stdlib.Test.equal(30) ])
 
 
+// UTF-16 order would put the emoji (a surrogate pair) before the fullwidth katakana.
+test stringKeysSortByCodePoint =
+  let small =
+    Stdlib.Dict.fromList([ ("😀", 1), ("ｱ", 2), ("é", 3), ("a", 4), ("Z", 5) ])
+
+  let large =
+    Stdlib.Dict.fromList(
+      Stdlib.List.concat(
+        Stdlib.List.map(Stdlib.List.range(1, 30), fun i -> ("k" + Stdlib.display(i), i)),
+        [ ("😀", 0), ("ｱ", 0), ("é", 0) ]))
+
+  Stdlib.Test.all(
+    [ Stdlib.Dict.keys(small) |> Stdlib.Test.equal([ "Z", "a", "é", "ｱ", "😀" ])
+
+      Stdlib.List.drop(Stdlib.Dict.keys(large), 30)
+      |> Stdlib.Test.equal([ "é", "ｱ", "😀" ]) ])
+
+
 test values =
   Stdlib.Dict.values(Dict { "key1": "val1" }) |> Stdlib.Test.equal([ "val1" ])
 
