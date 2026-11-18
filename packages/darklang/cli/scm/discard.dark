@@ -9,7 +9,7 @@ module Darklang.Cli.Discard
 let help(_state: AppState): String =
   [ ""
     "  dark discard          review what would go, then confirm"
-    "  dark discard -y       skip the confirmation"
+    "  dark discard -y       skip the confirmation (also --yes)"
     "  dark discard <name>   drop just that item from your draft"
     ""
     "  Committed work is never touched: this drops the uncommitted ops of the branch you're on,"

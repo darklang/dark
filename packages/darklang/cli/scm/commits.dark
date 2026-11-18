@@ -108,6 +108,7 @@ let help(_state: AppState): String =
     "  dark commits <n>       the n most recent"
     "  dark commits --detailed   each commit followed by its ops"
     "  dark commits --all        include housekeeping (branch archive) commits"
+    "  dark commits --json       the same list, typed"
     "  dark show <id>         what a commit contains, or what one op does"
     ""
     "  A commit marks the ops that belong to it; it does not snapshot"

@@ -462,7 +462,7 @@ let execute(state: AppState, args: List<String>): AppState =
         failed(state)
 
 
-let help(_state: AppState): String =
+let help(state: AppState): String =
   [ Stdlib.Cli.UI.Colors.info("Usage: ") + Stdlib.Cli.UI.Colors.command("docs [topic]")
     "Browse in-CLI documentation."
     ""
@@ -476,7 +476,9 @@ let help(_state: AppState): String =
     + "  - Another topic, without the quick start"
 
     "  " + Stdlib.Cli.UI.Colors.command("docs syntax") + "  - Language syntax reference"
-    "  " + Stdlib.Cli.UI.Colors.command("docs errors") + "  - Common errors and fixes" ]
+    "  " + Stdlib.Cli.UI.Colors.command("docs errors") + "  - Common errors and fixes"
+    ""
+    Packages.Signatures.help(state) ]
   |> Stdlib.String.join("\n")
 
 

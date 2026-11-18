@@ -278,10 +278,11 @@ let executeResolve(state: AppState, branchRef: String, name: String, choice: Str
 let mergeHelp(_state: AppState): String =
   [ ""
     "  dark merge                 merge the branch you're on, after showing what would land"
-    "  dark merge -y              the same, without the confirmation"
+    "  dark merge -y, --yes       the same, without the confirmation"
     "  dark merge <branch>        merge that one"
     "  dark merge --dry-run       show what would land, change nothing"
     "  dark merge <branch> --dry-run"
+    "  dark merge --allow-type-errors   merge even with type errors in the branch"
     ""
     "  Conflicts do not block a merge. Both sides are folded, the later edit wins by"
     "  recency, and the version that lost is recorded rather than dropped --"

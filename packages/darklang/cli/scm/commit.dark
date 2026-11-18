@@ -691,6 +691,7 @@ let help(_state: AppState): String =
     "                      they depend on comes along and is named;"
     "                      everything else stays a draft."
     "  -y, --yes           commit without the prompt (what an agent or a script wants)"
+    "  -m, --message       optional; the words after it are the message, as without it"
     "  --json              the same review, typed. Implies non-interactive, so a"
     "                      plain `dark commit --json` is a safe dry review."
     ""

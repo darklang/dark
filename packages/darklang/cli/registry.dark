@@ -457,7 +457,7 @@ module Registry =
       ("diff", "What a branch changes vs its parent", [], acceptsDiff, Cli.Branch.executeDiffCmd, Cli.Branch.help, Cli.Branch.complete)
       ("log", "History: commits on main, a branch's ops on a branch", [], acceptsLog, Cli.Branch.executeLogCmd, Cli.Branch.help, Cli.Branch.complete)
       ("resolve", "Settle one conflicted name on a branch", [], acceptsResolve, Cli.Branch.executeResolveCmd, Cli.Branch.help, Cli.Branch.complete)
-      ("constraints", "Standing findings about the store: stale usages, kind changes, superseded overrides, rival implementations", [], acceptsConstraints, Cli.ConstraintsCmd.execute, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
+      ("constraints", "Standing findings: stale usages, kind changes, superseded overrides, rival impls", [], acceptsConstraints, Cli.ConstraintsCmd.execute, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
       ("ack", "Leave a constraint finding for now (`dark ack --all`)", [], acceptsAck, Cli.ConstraintsCmd.executeAckCmd, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
       ("undeprecate", "Put a deprecated fn/type/value/trait/impl/test back on the shelf", [ "restore" ], acceptsUndeprecate, Packages.Deprecate.executeUndeprecate, Packages.Deprecate.undeprecateHelp, Packages.Deprecate.complete)
       ("backups", "Copies of the store: what exists, take one, prune", [], acceptsBackups, Cli.Backups.execute, Cli.Backups.help, Cli.Backups.complete)
@@ -468,14 +468,14 @@ module Registry =
       ("docs", "Browse in-CLI documentation", [ "doc", "man" ], acceptsDocs, Docs.Command.execute, Docs.Command.help, Docs.Command.complete)
       ("undo", "Step an item back to its previous version", [], acceptsUndo, Cli.Undo.execute, Cli.Undo.help, Cli.Undo.complete)
       ("deprecate", "Mark a fn/type/value/trait/impl/test as deprecated", [], acceptsDeprecate, Packages.Deprecate.execute, Packages.Deprecate.help, Packages.Deprecate.complete)
-      ("delete", "Take a fn/type/value/trait/impl/test off the shelf (sugar for deprecate --kind obsolete)", [], acceptsDelete, Packages.Delete.execute, Packages.Delete.help, Packages.Delete.complete)
+      ("delete", "Take a fn/type/value/trait/impl/test off the shelf (deprecate as obsolete)", [], acceptsDelete, Packages.Delete.execute, Packages.Delete.help, Packages.Delete.complete)
       ("export-seed", "Export minimal seed.db from current database", [], acceptsExportSeed, ExportSeed.execute, ExportSeed.help, ExportSeed.complete)
       ("traces", "The runs this instance has kept: what ran, what it did, and resuming one", [ "trace", "exec", "runs" ], acceptsTraces, Tracing.execute, Tracing.help, Tracing.complete)
       ("conflicts", "Review what a merge or rebase auto-resolved", [], acceptsConflicts, Conflicts.execute, Conflicts.help, Conflicts.complete)
       ("effects", "See what code might do and why", [], acceptsEffects, Effects.execute, Effects.help, Effects.complete)
       ("permissions", "Review effects and runtime permission policies", [ "perms" ], acceptsPermissions, Permissions.Command.execute, Permissions.Command.help, Permissions.Command.complete)
       ("ops", "Read this instance's op log", [], acceptsOps, Ops.execute, Ops.help, Ops.complete)
-      ("ps", "What is running: this instance's own processes, then every other Dark on this machine", [ "processes" ], acceptsPs, Cli.Ps.execute, Cli.Ps.help, Cli.Ps.complete)
+      ("ps", "What is running: this instance's processes, then other Darks on this machine", [ "processes" ], acceptsPs, Cli.Ps.execute, Cli.Ps.help, Cli.Ps.complete)
       ("workbench", "Open the workbench -- a framed, navigable package tree (CLI-UX redesign)", [ "wb" ], acceptsWorkbench, Workbench.execute, Workbench.help, Workbench.complete) ]
     |> Stdlib.List.map((
       fun((name, desc, aliases, accepts, execute, help, complete)) ->
