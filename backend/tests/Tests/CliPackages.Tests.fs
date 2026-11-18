@@ -596,7 +596,8 @@ test plain = Stdlib.Test.expect(true, "plain")
       do! discardAll state
     })
 
-/// Each row of a `Stdlib.Test.table` is its own test: run, counted and filtered.
+/// Each row of a `Stdlib.Test.table` is its own test, in a group or not: run, counted
+/// and filtered.
 let tableRowsAreTests =
   instanceTest "each row of a table is its own test" (fun state ->
     task {
@@ -642,6 +643,45 @@ test halves =
           [ "test"; "count"; "Tests.Table" ]
           [ "Tests.Table: 5 tests"; "lengths  3 tests"; "halves   2 tests" ]
           "count reads one test per row"
+      let grouped =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          $"dark-grouped-table-{System.Guid.NewGuid():N}.dark"
+        )
+      System.IO.File.WriteAllText(
+        grouped,
+        """test lengths =
+  Stdlib.Test.group(
+    "strings",
+    [ ("a", 1), ("abc", 4) ]
+    |> Stdlib.Test.table(fun((s, n)) ->
+      Stdlib.Test.expect(Stdlib.String.length(s) == n, "wrong length")))
+"""
+      )
+      do! run state [ "module"; "Tests.GroupedTable"; grouped ]
+      System.IO.File.Delete grouped
+      do!
+        showsAll
+          state
+          [ "test"; "run"; "Tests.GroupedTable" ]
+          [ "PASS Tests.GroupedTable › strings › lengths(\"a\", 1)"
+            "FAIL Tests.GroupedTable › strings › lengths(\"abc\", 4)"
+            "  Stdlib.Test.expect(Stdlib.String.length(s) == n, \"wrong length\")"
+            "2 tests: 1 passed, 1 failed" ]
+          "a table in a group shows each row in the group"
+      do!
+        showsAll
+          state
+          [ "test"; "run"; "Tests.GroupedTable › strings › lengths(\"a\", 1)" ]
+          [ "PASS Tests.GroupedTable › strings › lengths(\"a\", 1)"
+            "1 test: 1 passed, 0 failed" ]
+          "a filter with the group and arguments keeps that row"
+      do!
+        showsAll
+          state
+          [ "test"; "count"; "Tests.GroupedTable" ]
+          [ "Tests.GroupedTable: 2 tests (all in Tests.GroupedTable.strings)" ]
+          "count reads one test per row in a group"
       do! discardAll state
     })
 

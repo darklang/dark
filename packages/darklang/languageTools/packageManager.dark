@@ -454,22 +454,25 @@ module Test =
 
 
   /// The rows and the check of <param e> when it is a `Stdlib.Test.table`, written
-  /// `table(rows, check)` or `rows |> table(check)`.
+  /// `table(rows, check)` or `rows |> table(check)`, in a group or not.
   let __table(e: ProgramTypes.Expr): Option<(ProgramTypes.Expr * ProgramTypes.Expr)> =
-    match __resultExpr(e) with
-    | EApply(_, EFnName(_, name, _, _), _, [rows, check]) when __isTestFn(name, "table") ->
-      Option.Some((rows, check))
-    | EPipe(id, first, steps) ->
-      match Stdlib.List.last(steps) with
-      | Some(EPipeFnCall(_, name, _, [check], _)) when __isTestFn(name, "table") ->
-        let rows =
-          match Stdlib.List.dropLast(steps) with
-          | [] -> first
-          | before -> ProgramTypes.Expr.EPipe(id, first, before)
-
+    match __group(e) with
+    | Some((_, check)) -> __table(check)
+    | None ->
+      match __resultExpr(e) with
+      | EApply(_, EFnName(_, name, _, _), _, [rows, check]) when __isTestFn(name, "table") ->
         Option.Some((rows, check))
+      | EPipe(id, first, steps) ->
+        match Stdlib.List.last(steps) with
+        | Some(EPipeFnCall(_, name, _, [check], _)) when __isTestFn(name, "table") ->
+          let rows =
+            match Stdlib.List.dropLast(steps) with
+            | [] -> first
+            | before -> ProgramTypes.Expr.EPipe(id, first, before)
+
+          Option.Some((rows, check))
+        | _ -> Option.None
       | _ -> Option.None
-    | _ -> Option.None
 
 
   /// How many tests <param body> holds, read from its code: one per row of a
