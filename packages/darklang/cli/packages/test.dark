@@ -57,11 +57,47 @@ type Counts =
     isolated: Int64
     /// Of those isolated, how many wrote to the shared store and reran on a copy.
     reran: Int64
-    timings: List<Timing> }
+    timings: List<Timing>
+    /// Each test reported so far, latest first, for `--json`.
+    results: List<TestJson> }
+
+
+/// One test as `test run --json` reports it. <param status> is `passed`, `failed`, or
+/// `error` when the test could not be judged; <param messages> say why.
+type TestJson =
+  { name: String
+    status: String
+    messages: List<String>
+    cached: Bool }
+
+
+/// What `test run --json` prints: every test, in the order they finished, and the totals.
+type RunJson =
+  { tests: List<TestJson>
+    passed: Int64
+    failed: Int64
+    ran: Int64
+    cached: Int64
+    seed: Int64 }
+
+
+let testJson(name: String, outcome: Outcome, cached: Bool): TestJson =
+  let (status, messages) =
+    match outcome with
+    | Passed -> ("passed", [])
+    | Failed(messages) -> ("failed", messages)
+    | RuntimeFailed(message) -> ("error", [ message ])
+    | Rows(_) -> if isPassed(outcome) then ("passed", []) else ("failed", [])
+
+  TestJson
+    { name = name
+      status = status
+      messages = messages
+      cached = cached }
 
 
 val usage =
-  "Usage: test run [--force] [--jobs <count>] [--seed <n>] [name-or-module ...]\n       test count [--for <item>] [module]\n       test add <location> <body> | <source-file> | -"
+  "Usage: test run [--force] [--json] [--jobs <count>] [--seed <n>] [name-or-module ...]\n       test count [--for <item>] [module]\n       test add <location> <body> | <source-file> | -"
 
 
 let fullPath(
@@ -406,6 +442,7 @@ let runTests(state: AppState, args: List<String>): AppState =
   let defaults =
     RunOptions
       { force = false
+        json = false
         jobs = if cores < 16 then cores else 16
         seed = Option.None
         filters = [] }
@@ -428,6 +465,8 @@ let runTests(state: AppState, args: List<String>): AppState =
 
 type RunOptions =
   { force: Bool
+    /// Print one JSON answer instead of a line per test.
+    json: Bool
     jobs: Int64
     seed: Option<Int64>
     filters: List<String> }
@@ -437,6 +476,7 @@ let parseRunOptions(options: RunOptions, args: List<String>): Result<RunOptions,
   match args with
   | [] -> Result.Ok(options)
   | ["--force", ...rest] -> parseRunOptions({ options with force = true }, rest)
+  | ["--json", ...rest] -> parseRunOptions({ options with json = true }, rest)
   | ["--jobs", value, ...rest] ->
     match Stdlib.Int64.parse(value) with
     | Ok(jobs) when jobs > 0 -> parseRunOptions({ options with jobs = jobs }, rest)
@@ -477,7 +517,7 @@ type FinishedTest =
 /// `lengths("a", 1)`, keeps only the row of that name.
 let finishTest(
   cache: Option<CacheContext>,
-  filters: List<String>,
+  options: RunOptions,
   counts: Counts,
   finished: FinishedTest)
   : Counts =
@@ -490,9 +530,15 @@ let finishTest(
 
   let tests =
     reported(finished.name, finished.outcome)
-    |> Stdlib.List.filter(fun((name, _)) -> rowSelected(filters, finished.name, name))
+    |> Stdlib.List.filter(fun((name, _)) -> rowSelected(options.filters, finished.name, name))
 
-  Stdlib.List.iter(tests, fun((name, outcome)) -> printOutcome(name, outcome, finished.reran))
+  if Stdlib.Bool.not(options.json) then
+    Stdlib.List.iter(tests, fun((name, outcome)) -> printOutcome(name, outcome, finished.reran))
+
+  let results =
+    Stdlib.List.fold(tests, counts.results, fun(acc, (name, outcome)) ->
+      Stdlib.List.prepend(acc, testJson(name, outcome, finished.wasCached)))
+
   let n = Stdlib.List.length(tests)
   let passed = tests |> Stdlib.List.filter(fun((_, o)) -> isPassed(o)) |> Stdlib.List.length
   Counts
@@ -508,7 +554,8 @@ let finishTest(
         else
           Stdlib.List.prepend(
             counts.timings,
-            Timing { name = finished.name, ms = finished.ms, inProcess = finished.inProcess }) }
+            Timing { name = finished.name, ms = finished.ms, inProcess = finished.inProcess })
+      results = results }
 
 
 /// Run up to `jobs` tests at once. Start the next whenever one finishes.
@@ -561,7 +608,7 @@ let runSelected(
         cache,
         rest,
         running,
-        finishTest(cache, options.filters, counts, finished))
+        finishTest(cache, options, counts, finished))
     | None ->
       // Progress, not a result: stderr, so the answer on stdout is the PASS/FAIL lines and the verdict.
       Stdlib.printErrorLine($"Running: {shownName(item)}")
@@ -594,7 +641,7 @@ let runSelected(
         cache,
         remaining,
         running,
-        finishTest(cache, options.filters, counts, finished))
+        finishTest(cache, options, counts, finished))
 
 
 /// The ten slowest tests that ran, slowest first, so a log says where the time
@@ -743,7 +790,8 @@ let runTestsInRun(
         ran = 0
         isolated = 0
         reran = 0
-        timings = [] }
+        timings = []
+        results = [] }
 
   let counts =
     runSelected(
@@ -756,29 +804,46 @@ let runTestsInRun(
       initial)
 
   let total = counts.passed + counts.failed
-  if total == 0 then
-    printErr("No package tests matched.")
-  else
-    printSlowest(counts.timings)
-    Stdlib.printLine("")
-    // Said only when it happened, so a run where every test started writing
-    // shows up here rather than only as a slower run.
-    let reranNote =
-      if counts.reran == 0 then
-        ""
-      else
-        $"; {Stdlib.display(counts.reran)} wrote to the store and reran on a copy"
-
-    Stdlib.printLine(
-      $"{countLine(total)}: {Stdlib.display(counts.passed)} passed, {Stdlib.display(counts.failed)} failed; {Stdlib.display(counts.ran)} ran, {Stdlib.display(counts.cached)} cached; {Stdlib.display(counts.isolated)} isolated{reranNote}")
-
-    if counts.failed > 0 then
-      let seed = Stdlib.display(run.seed)
-      Stdlib.printLine($"Seed {seed}: rerun with --seed {seed} for the same random values")
+  let printed =
+    if options.json then
+      RunJson
+        { tests = Stdlib.List.reverse(counts.results)
+          passed = counts.passed
+          failed = counts.failed
+          ran = counts.ran
+          cached = counts.cached
+          seed = run.seed }
+      |> Stdlib.Json.checkedSerialize<RunJson>
+      |> printJson
+    else if total == 0 then
+      printErr("No package tests matched.")
+      true
     else
-      ()
+      printSlowest(counts.timings)
+      Stdlib.printLine("")
+      // Said only when it happened, so a run where every test started writing
+      // shows up here rather than only as a slower run.
+      let reranNote =
+        if counts.reran == 0 then
+          ""
+        else
+          $"; {Stdlib.display(counts.reran)} wrote to the store and reran on a copy"
 
-  if counts.failed > 0 || total == 0 then { state with exitCode = 1 } else state
+      Stdlib.printLine(
+        $"{countLine(total)}: {Stdlib.display(counts.passed)} passed, {Stdlib.display(counts.failed)} failed; {Stdlib.display(counts.ran)} ran, {Stdlib.display(counts.cached)} cached; {Stdlib.display(counts.isolated)} isolated{reranNote}")
+
+      if counts.failed > 0 then
+        let seed = Stdlib.display(run.seed)
+        Stdlib.printLine($"Seed {seed}: rerun with --seed {seed} for the same random values")
+      else
+        ()
+
+      true
+
+  if Stdlib.Bool.not(printed) || counts.failed > 0 || total == 0 then
+    { state with exitCode = 1 }
+  else
+    state
 
 
 /// One row of `test count`: a submodule with everything beneath it, or one test.
@@ -963,7 +1028,9 @@ let help(_state: AppState): String =
     "shows is pure (no effect, only pure builtins) runs inside this process;"
     "any other gets a fresh process and its own store copy."
     "Use --jobs <count> to change the limit, or --jobs 1 to run serially."
-    "Tests start in name order; results are printed as they finish."
+    "Tests start in name order; results are printed as they finish. --json prints"
+    "one answer at the end instead: each test's name, status (passed, failed or"
+    "error), messages and whether it was cached, then the totals and the seed."
     ""
     "In a test, Stdlib.Uuid.generate and the Random functions draw from a seed"
     "picked fresh for each run. A failed run prints its seed; --seed <n> reruns"
@@ -1005,7 +1072,7 @@ let complete(_state: AppState, args: List<String>): List<Completion.CompletionIt
   | [] -> [ "run", "count", "add" ] |> Stdlib.List.map(Completion.simple)
   | ["run", ...runArgs] ->
     let partial = Stdlib.Option.withDefault(Stdlib.List.last(runArgs), "")
-    [ "--force", "--jobs" ]
+    [ "--force", "--json", "--jobs" ]
     |> Stdlib.List.filter(fun flag -> Stdlib.String.startsWith(flag, partial))
     |> Stdlib.List.map(Completion.simple)
   | ["add", ...] -> []
