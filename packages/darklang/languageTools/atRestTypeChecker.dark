@@ -807,10 +807,41 @@ let appendListHint(callee: String, expected: StaticType, actual: StaticType): St
   | _ -> ""
 
 
+/// A Result or Option handed over where the value inside it was wanted, as `Stdlib.List.zip`'s
+/// Result passed straight to `Stdlib.List.map`.
+let unwrapHint(
+  customTypeName: ProgramTypes.Hash -> Option<String>,
+  expected: StaticType,
+  actual: StaticType)
+  : String =
+  let kind = fun t ->
+    match t with
+    | TCustom(hash, _) ->
+      match customTypeName(hash) with
+      | Some(name) when Stdlib.String.endsWith(name, "Stdlib.Result.Result") -> "Result"
+      | Some(name) when Stdlib.String.endsWith(name, "Stdlib.Option.Option") -> "Option"
+      | _ -> ""
+    | _ -> ""
+
+  let wanted =
+    match expected with
+    | TInferenceVariable(_) -> "unknown"
+    | TRigidVariable(_) -> "unknown"
+    | _ -> kind(expected)
+
+  match kind(actual), wanted with
+  | "Result", "" -> " (that is a Result: match `Ok(x)` and `Error(e)` to get at the value)"
+  | "Option", "" -> " (that is an Option: match `Some(x)` and `None` to get at the value)"
+  | _ -> ""
+
+
 let issueToStringWith(customTypeName: ProgramTypes.Hash -> Option<String>, issue: Issue): String =
   // Only where a value is handed over: an Int64 where `?` wanted a String error wants `mapError`.
   let hint = fun(expected, actual) ->
-    let typeHint = stringExpectedHint(expected, actual) + tupleParameterHint(expected, actual)
+    let typeHint =
+      stringExpectedHint(expected, actual)
+      + tupleParameterHint(expected, actual)
+      + unwrapHint(customTypeName, expected, actual)
     match issue.code, issue.context with
     | TypeMismatch, At(FunctionArgument(1, Some(callee))) ->
       typeHint + appendListHint(callee, expected, actual)
