@@ -56,7 +56,6 @@ type MyEnum = A(Int64, Int64, Int64)
 test constructorsAndOptions =
   Stdlib.Test.all(
     [ (33 |> MyEnum.A(21, 42)) |> Stdlib.Test.equal(MyEnum.A(33, 21, 42))
-      (33 |> MyEnum.A(21, 42)) |> Stdlib.Test.equal(MyEnum.A(33, 21, 42))
       (3 |> Stdlib.Result.Result.Ok)
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(3))
       (4 |> (fun v -> v + 3) |> Stdlib.Option.Option.Some)

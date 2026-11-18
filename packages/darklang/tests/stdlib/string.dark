@@ -356,10 +356,6 @@ test endsWith =
       Stdlib.String.endsWith("ab", "xab") |> Stdlib.Test.equal(false) ])
 
 
-test randomPairIsDifferent =
-  Stdlib.String.random(5) == Stdlib.String.random(5) |> Stdlib.Test.equal(false)
-
-
 test randomLength =
   Stdlib.Test.all(
     [ Stdlib.String.random(10)

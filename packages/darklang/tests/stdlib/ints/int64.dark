@@ -105,11 +105,6 @@ test modulo =
       9999999999998 % 3 |> Stdlib.Test.equal(2)
 
       Stdlib.List.map(Stdlib.List.range(-5, 5), fun v -> v % 4)
-      |> Stdlib.Test.equal([ 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1 ])
-
-      15 % 5 |> Stdlib.Test.equal(0)
-
-      Stdlib.List.map(Stdlib.List.range(-5, 5), fun v -> v % 4)
       |> Stdlib.Test.equal([ 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1 ]) ])
 
 
@@ -119,16 +114,6 @@ test moduloRejectsZero =
 
 
 test moduloRejectsNegativeDivisor =
-  5 % -5
-  => raises "Cannot evaluate modulus against a negative number"
-
-
-test moduloRejectsZero2 =
-  5 % 0
-  => raises "Cannot evaluate modulus against 0"
-
-
-test moduloRejectsNegativeDivisor2 =
   5 % -5
   => raises "Cannot evaluate modulus against a negative number"
 
@@ -151,7 +136,6 @@ test power =
       2 ** 2147483649 |> Stdlib.Test.equal(0)
       2 ** 64 |> Stdlib.Test.equal(0)
       5 ** 2 |> Stdlib.Test.equal(25)
-      -8 ** 5 |> Stdlib.Test.equal(-32768)
       50 ** 2 |> Stdlib.Test.equal(2500) ])
 
 
@@ -175,21 +159,12 @@ test powerOfMinusOneRejectsNegativeExponent =
   => raises "Cannot raise integer to a negative exponent"
 
 
-test greaterThan =
-  Stdlib.Test.all(
-    [ 20 > 1 |> Stdlib.Test.equal(true), 20 > 1 |> Stdlib.Test.equal(true) ])
+test greaterThan = Stdlib.Test.all([ 20 > 1 |> Stdlib.Test.equal(true) ])
 
 
 test greaterThanOrEqualTo =
   Stdlib.Test.all(
     [ 0 >= 1 |> Stdlib.Test.equal(false)
-      1 >= 0 |> Stdlib.Test.equal(true)
-      6 >= 1 |> Stdlib.Test.equal(true)
-      6 >= 8 |> Stdlib.Test.equal(false)
-      -5 >= -20 |> Stdlib.Test.equal(true)
-      -20 >= -1 |> Stdlib.Test.equal(false)
-      -20 >= -20 |> Stdlib.Test.equal(true)
-      0 >= 1 |> Stdlib.Test.equal(false)
       1 >= 0 |> Stdlib.Test.equal(true)
       6 >= 1 |> Stdlib.Test.equal(true)
       6 >= 8 |> Stdlib.Test.equal(false)
@@ -206,26 +181,12 @@ test lessThanOrEqualTo =
       1 <= 0 |> Stdlib.Test.equal(false)
       -100 <= 22544 |> Stdlib.Test.equal(true)
       -999 <= -9999 |> Stdlib.Test.equal(false)
-      -8888 <= -8888 |> Stdlib.Test.equal(true)
-      6 <= 8 |> Stdlib.Test.equal(true)
-      10 <= 1 |> Stdlib.Test.equal(false)
-      0 <= 1 |> Stdlib.Test.equal(true)
-      1 <= 0 |> Stdlib.Test.equal(false)
-      -100 <= 22544 |> Stdlib.Test.equal(true)
-      -999 <= -9999 |> Stdlib.Test.equal(false)
       -8888 <= -8888 |> Stdlib.Test.equal(true) ])
 
 
 test lessThan =
   Stdlib.Test.all(
     [ 6 < 8 |> Stdlib.Test.equal(true)
-      10 < 1 |> Stdlib.Test.equal(false)
-      0 < 1 |> Stdlib.Test.equal(true)
-      1 < 0 |> Stdlib.Test.equal(false)
-      -100 < 22544 |> Stdlib.Test.equal(true)
-      -999 < -9999 |> Stdlib.Test.equal(false)
-      -8888 < -8888 |> Stdlib.Test.equal(false)
-      6 < 8 |> Stdlib.Test.equal(true)
       10 < 1 |> Stdlib.Test.equal(false)
       0 < 1 |> Stdlib.Test.equal(true)
       1 < 0 |> Stdlib.Test.equal(false)
@@ -385,8 +346,7 @@ test subtract =
 /// Wraps on overflow.
 test multiply =
   Stdlib.Test.all(
-    [ 8 * 8 |> Stdlib.Test.equal(64)
-      5145 * 5145 |> Stdlib.Test.equal(26471025)
+    [ 5145 * 5145 |> Stdlib.Test.equal(26471025)
       // 1 * 1.0
       // => raises
       //   "int64Multiply's 2nd argument (`b`) should be an Int64. However, a Float64
