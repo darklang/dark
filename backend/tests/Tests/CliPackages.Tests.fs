@@ -945,9 +945,11 @@ let packageTestsRespectParallelLimit =
             | Instance i -> i
             | _ -> failtest "requires a disposable CLI instance"
           let source = System.IO.Path.Combine(instance.dir, "parallel.dark")
+          // One more case than the widest run's refill, so a runner that refills more
+          // than the freed slot has a case to start.
           System.IO.File.WriteAllText(
             source,
-            [ 1..5 ]
+            [ 1..4 ]
             |> List.map (fun n ->
               $"""test case{n} =
   let before = Darklang.LanguageTools.LocalStore.configGet("test.parallel-witness")
@@ -1053,13 +1055,13 @@ let packageTestsRespectParallelLimit =
             Expect.equal code 0 $"parallel run succeeds: {output}"
             Expect.stringContains
               output
-              "5 passed, 0 failed; 5 ran, 0 cached"
+              "4 passed, 0 failed; 4 ran, 0 cached"
               "every declaration runs once"
-            Expect.equal (started ()).Length 5 "one first attempt per test"
+            Expect.equal (started ()).Length 4 "one first attempt per test"
             if sharing then
               Expect.stringContains
                 output
-                "5 wrote to the store and reran on a copy"
+                "4 wrote to the store and reran on a copy"
                 "the summary says every case reran on a copy"
           // Ordinary eval still uses the saved deny-all policy. Grant only the
           // read needed for this final check, after all test workers have exited.

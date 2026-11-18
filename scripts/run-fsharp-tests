@@ -101,10 +101,17 @@ if [[ "$PUBLISHED" == "true" ]]; then
 else
   EXE=Build/out/Tests/Debug/net11.0/Tests
   LOCALEXEC=Build/out/LocalExec/Debug/net11.0/LocalExec
-  # The debug build answers in about a second; the published one, which is what CI runs
-  # and what a user has, answers several times quicker. Nearly all of that difference is
-  # JIT. Point this at a publish build if you are timing these tests.
-  export DARK_TEST_CLI="${DARK_TEST_CLI:-$PWD/backend/Build/out/Cli/Debug/net11.0/Cli}"
+  # The children start a ReadyToRun copy of the Debug CLI (`scripts/testing/_fast-cli`, as
+  # package-tests does): the same code, without the JIT that is most of a Debug start. One
+  # test starts dozens of them, and on a loaded box those starts were what ran out its time.
+  # The Debug CLI itself if the copy can't be made.
+  if [[ -z "${DARK_TEST_CLI:-}" ]]; then
+    if FAST_CLI=$(scripts/testing/_fast-cli --make 2> /dev/null); then
+      export DARK_TEST_CLI="$PWD/$FAST_CLI"
+    else
+      export DARK_TEST_CLI="$PWD/backend/Build/out/Cli/Debug/net11.0/Cli"
+    fi
+  fi
 fi
 
 
