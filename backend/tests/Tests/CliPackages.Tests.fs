@@ -591,7 +591,7 @@ test plain = Stdlib.Test.expect(true, "plain")
         showsAll
           state
           [ "test"; "count"; "Tests.Grouped" ]
-          [ "Tests.Grouped: 3 tests"; "parsing                 2 tests" ]
+          [ "Tests.Grouped: 3 tests"; "› parsing               2 tests" ]
           "count rolls a group up"
       do! discardAll state
     })
@@ -623,25 +623,28 @@ test halves =
         showsAll
           state
           [ "test"; "run"; "Tests.Table" ]
-          [ "PASS Tests.Table.lengths(\"a\", 1)"
-            "FAIL Tests.Table.lengths(\"abc\", 4)"
+          [ "PASS Tests.Table.lengths › (\"a\", 1)"
+            "FAIL Tests.Table.lengths › (\"abc\", 4)"
             "  Stdlib.Test.expect(Stdlib.String.length(s) == n, \"wrong length\")"
-            "PASS Tests.Table.halves(2)"
-            "FAIL Tests.Table.halves(0)"
+            "PASS Tests.Table.halves › (2)"
+            "FAIL Tests.Table.halves › (0)"
             "error: Cannot divide by 0"
             "5 tests: 3 passed, 2 failed" ]
           "every row reports as its own test"
-      do!
-        showsAll
-          state
-          [ "test"; "run"; "Tests.Table.lengths(\"ab\", 2)" ]
-          [ "PASS Tests.Table.lengths(\"ab\", 2)"; "1 test: 1 passed, 0 failed" ]
-          "a filter with arguments keeps that row"
+      for filter in
+        [ "Tests.Table.lengths › (\"ab\", 2)"; "Tests.Table.lengths(\"ab\", 2)" ] do
+        do!
+          showsAll
+            state
+            [ "test"; "run"; filter ]
+            [ "PASS Tests.Table.lengths › (\"ab\", 2)"
+              "1 test: 1 passed, 0 failed" ]
+            $"the filter {filter} keeps that row"
       do!
         showsAll
           state
           [ "test"; "count"; "Tests.Table" ]
-          [ "Tests.Table: 5 tests"; "lengths  3 tests"; "halves   2 tests" ]
+          [ "Tests.Table: 5 tests"; "› lengths  3 tests"; "› halves   2 tests" ]
           "count reads one test per row"
       let grouped =
         System.IO.Path.Combine(
@@ -664,23 +667,24 @@ test halves =
         showsAll
           state
           [ "test"; "run"; "Tests.GroupedTable" ]
-          [ "PASS Tests.GroupedTable › strings › lengths(\"a\", 1)"
-            "FAIL Tests.GroupedTable › strings › lengths(\"abc\", 4)"
+          [ "PASS Tests.GroupedTable › strings › lengths › (\"a\", 1)"
+            "FAIL Tests.GroupedTable › strings › lengths › (\"abc\", 4)"
             "  Stdlib.Test.expect(Stdlib.String.length(s) == n, \"wrong length\")"
             "2 tests: 1 passed, 1 failed" ]
           "a table in a group shows each row in the group"
       do!
         showsAll
           state
-          [ "test"; "run"; "Tests.GroupedTable › strings › lengths(\"a\", 1)" ]
-          [ "PASS Tests.GroupedTable › strings › lengths(\"a\", 1)"
+          [ "test"; "run"; "Tests.GroupedTable › strings › lengths › (\"a\", 1)" ]
+          [ "PASS Tests.GroupedTable › strings › lengths › (\"a\", 1)"
             "1 test: 1 passed, 0 failed" ]
           "a filter with the group and arguments keeps that row"
       do!
         showsAll
           state
           [ "test"; "count"; "Tests.GroupedTable" ]
-          [ "Tests.GroupedTable: 2 tests (all in Tests.GroupedTable.strings)" ]
+          [ "Tests.GroupedTable: 2 tests (all in Tests.GroupedTable.strings)"
+            "› lengths  2 tests" ]
           "count reads one test per row in a group"
       do! discardAll state
     })

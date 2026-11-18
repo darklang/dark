@@ -475,6 +475,10 @@ module Test =
       | _ -> Option.None
 
 
+  /// Whether <param body> is a `Stdlib.Test.table`, in a group or not.
+  let isTable(body: ProgramTypes.Expr): Bool = Stdlib.Option.isSome(__table(body))
+
+
   /// How many tests <param body> holds, read from its code: one per row of a
   /// `Stdlib.Test.table` over a list written out in place, else one.
   let testCount(body: ProgramTypes.Expr): Int64 =
