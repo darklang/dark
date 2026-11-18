@@ -30,7 +30,7 @@ five input sizes, a survey of twenty builtins, are all loops over it, which is c
 curating input sets per function.
 
 From the command line, `dark eval --stats <expr>` and `dark run --stats <file>` print the same
-block, after whatever the expression or script printed. Note what they measure: evaluating an
+block on stderr, after whatever the expression or script printed. Note what they measure: evaluating an
 expression or running a script parses and resolves it too, and for anything small that is most of
 the allocation, while the instruction count is execution only. Inside a script, `Perf.measure`
 brackets the work alone. Neither counts process startup, which `gate` measures on its own and takes

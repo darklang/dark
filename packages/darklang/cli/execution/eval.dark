@@ -178,15 +178,16 @@ let executeUnder(
 
       match stats with
       | Some(m) ->
-        let _ = Stdlib.printLine("")
+        // stderr, so stdout carries only the value
+        let _ = Stdlib.printErrorLine("")
 
-        let _ = Stdlib.printLine(LanguageTools.Perf.render(m))
+        let _ = Stdlib.printErrorLine(LanguageTools.Perf.render(m))
 
         // TODO: report the phases instead of warning about them. `cliEvaluateExpression` already
         // splits `parseCliExpr` from `execute`, so bracketing each would turn this line into two
         // rows. F# on the eval path, so it wants its own change and its own measurement.
         let _ =
-          Stdlib.printLine(
+          Stdlib.printErrorLine(
             "  (includes parsing and name resolution; Perf.measure in a script brackets execution alone)")
 
         newState
