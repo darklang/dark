@@ -45,6 +45,228 @@ test getAt =
       |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 
+// reading numbers
+let hex(s: String): Bytes =
+  Stdlib.Base16.decode(s) |> Stdlib.Result.withDefault(Stdlib.Bytes.empty)
+
+
+let outOfRange(width: Int64, value: Int64, max: Int64): Stdlib.Math.OutOfRange =
+  Stdlib.Math.OutOfRange
+    { what = $"offset for a {Stdlib.display(width)}-byte read"
+      value = value
+      min = 0
+      max = max }
+
+
+test readUInt8AndInt8 =
+  let bytes = hex("007F80FF")
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.readUInt8(bytes, 0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0u8))
+
+      Stdlib.Bytes.readUInt8(bytes, 3)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(255u8))
+
+      Stdlib.Bytes.readInt8(bytes, 1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(127s8))
+
+      Stdlib.Bytes.readInt8(bytes, 2)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-128s8))
+
+      Stdlib.Bytes.readInt8(bytes, 3)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1s8))
+
+      Stdlib.Bytes.readUInt8(bytes, 4)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(1, 4, 3)))
+
+      Stdlib.Bytes.readInt8(bytes, -1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(1, -1, 3)))
+
+      Stdlib.Bytes.readUInt8(Stdlib.Bytes.empty, 0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(1, 0, -1))) ])
+
+
+test read16 =
+  let bytes = hex("01028000FFFF")
+  let le = Stdlib.Bytes.Endianness.LittleEndian
+  let be = Stdlib.Bytes.Endianness.BigEndian
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.readUInt16(bytes, 0, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(513u16))
+
+      Stdlib.Bytes.readUInt16(bytes, 0, be)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(258u16))
+
+      Stdlib.Bytes.readInt16(bytes, 2, be)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-32768s16))
+
+      Stdlib.Bytes.readInt16(bytes, 2, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(128s16))
+
+      Stdlib.Bytes.readInt16(bytes, 4, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1s16))
+
+      Stdlib.Bytes.readUInt16(bytes, 4, be)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(65535u16))
+
+      Stdlib.Bytes.readUInt16(bytes, 5, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(2, 5, 4)))
+
+      Stdlib.Bytes.readInt16(bytes, 6, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(2, 6, 4)))
+
+      Stdlib.Bytes.readUInt16(bytes, -1, be)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(2, -1, 4))) ])
+
+
+test read32 =
+  let bytes = hex("44AC000080000000FFFFFFFF")
+  let le = Stdlib.Bytes.Endianness.LittleEndian
+  let be = Stdlib.Bytes.Endianness.BigEndian
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.readUInt32(bytes, 0, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(44100u32))
+
+      Stdlib.Bytes.readUInt32(bytes, 0, be)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1152122880u32))
+
+      Stdlib.Bytes.readInt32(bytes, 4, be)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-2147483648s32))
+
+      Stdlib.Bytes.readInt32(bytes, 4, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(128s32))
+
+      Stdlib.Bytes.readInt32(bytes, 8, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1s32))
+
+      Stdlib.Bytes.readUInt32(bytes, 8, be)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(4294967295u32))
+
+      Stdlib.Bytes.readUInt32(bytes, 9, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(4, 9, 8)))
+
+      Stdlib.Bytes.readInt32(bytes, 12, be)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(4, 12, 8)))
+
+      Stdlib.Bytes.readUInt32(bytes, -4, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(4, -4, 8))) ])
+
+
+test read64 =
+  let bytes = hex("01000000000000008000000000000000FFFFFFFFFFFFFFFF")
+  let le = Stdlib.Bytes.Endianness.LittleEndian
+  let be = Stdlib.Bytes.Endianness.BigEndian
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.readUInt64(bytes, 0, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1u64))
+
+      Stdlib.Bytes.readUInt64(bytes, 0, be)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(72057594037927936u64))
+
+      Stdlib.Bytes.readInt64(bytes, 8, be)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-9223372036854775808))
+
+      Stdlib.Bytes.readInt64(bytes, 8, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(128))
+
+      Stdlib.Bytes.readInt64(bytes, 16, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1))
+
+      Stdlib.Bytes.readUInt64(bytes, 16, be)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(18446744073709551615u64))
+
+      Stdlib.Bytes.readUInt64(bytes, 17, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(8, 17, 16)))
+
+      Stdlib.Bytes.readInt64(bytes, 24, be)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(8, 24, 16)))
+
+      Stdlib.Bytes.readInt64(bytes, -8, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(8, -8, 16))) ])
+
+
+test readFloats =
+  let le = Stdlib.Bytes.Endianness.LittleEndian
+  let be = Stdlib.Bytes.Endianness.BigEndian
+  let f32 = hex("0000803F7F8000007FC00000")
+  let f64 = hex("000000000000F03FFFF00000000000007FF8000000000000")
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.readFloat32(f32, 0, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.0f32))
+
+      Stdlib.Bytes.readFloat32(f32, 4, be)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.0f32 / 0.0f32))
+
+      Stdlib.Bytes.readFloat32(f32, 8, be)
+      |> Stdlib.Result.map(Stdlib.Float32.isNaN)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+
+      Stdlib.Bytes.readFloat32(f32, 9, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(4, 9, 8)))
+
+      Stdlib.Bytes.readFloat64(f64, 0, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(1.0))
+
+      Stdlib.Bytes.readFloat64(f64, 8, be)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1.0 / 0.0))
+
+      Stdlib.Bytes.readFloat64(f64, 16, be)
+      |> Stdlib.Result.map(Stdlib.Float64.isNaN)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
+
+      Stdlib.Bytes.readFloat64(f64, 17, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(8, 17, 16)))
+
+      Stdlib.Bytes.readFloat64(f64, -1, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(outOfRange(8, -1, 16))) ])
+
+
+// any bit pattern but a NaN payload comes back through Float64.toBits unchanged
+test readFloat64KeepsTheBits =
+  let be = Stdlib.Bytes.Endianness.BigEndian
+  let patterns =
+    [ "3FB999999999999A"  // 0.1
+      "400921FB54442D18"  // pi
+      "8000000000000000"  // -0.0
+      "0000000000000001"  // smallest subnormal
+      "800FFFFFFFFFFFFF"  // largest negative subnormal
+      "0010000000000000"  // smallest normal
+      "7FEFFFFFFFFFFFFF"  // largest finite
+      "C3E0000000000000" ]  // -2^63
+
+  Stdlib.Test.all(
+    Stdlib.List.map(patterns, fun p ->
+      let bytes = hex(p)
+      Stdlib.Bytes.readFloat64(bytes, 0, be)
+      |> Stdlib.Result.map(fun f -> Stdlib.Float64.toBits(f))
+      |> Stdlib.Test.equal(Stdlib.Bytes.readUInt64(bytes, 0, be))))
+
+
+test readOutOfRangeSaysWhatFits =
+  let bytes = hex("44AC000080000000FFFFFFFF")
+  Stdlib.Bytes.readUInt32(bytes, 9, Stdlib.Bytes.Endianness.LittleEndian)
+  |> Stdlib.Result.mapError(Stdlib.display)
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Error(
+      "9 is not a valid offset for a 4-byte read (0 to 8)"))
+
+
+test readFromSharedSlice =
+  let whole = Stdlib.Utf8.encode(Stdlib.String.repeat("0123456789", 100))
+  let rest = Stdlib.Bytes.drop(whole, 203)
+  let le = Stdlib.Bytes.Endianness.LittleEndian
+  Stdlib.Test.all(
+    [ Stdlib.Bytes.readUInt8(rest, 0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(51u8))
+
+      Stdlib.Bytes.readUInt16(rest, 0, le)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(13363u16))
+
+      Stdlib.Bytes.readUInt16(rest, 796, le)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(outOfRange(2, 796, 795))) ])
+
+
 // setAt
 test setAt =
   let bytes = Stdlib.Bytes.fromList([ 10u8, 20u8, 30u8 ])
