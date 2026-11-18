@@ -129,6 +129,41 @@ module RangedInt =
     DRecord(typeName, typeName, [], RecordFields.ofList [ range.field, DInt64 n ])
 
 
+/// `Stdlib.AltJson.Json`: any JSON value. Asked for by name in `parse<'a>`, it takes whatever is
+/// there, so a record or dict can hold a field of mixed or unknown shape; `serialize` writes it back
+/// as that JSON.
+module AnyJson =
+  let isIt (h : string) : bool = h = PackageRefs.Type.Stdlib.AltJson.json ()
+
+  let typeName () = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.AltJson.json ())
+
+  let rec ofElement (j : JsonElement) : Dval =
+    let typeName = typeName ()
+    let make caseName fields = DEnum(typeName, typeName, [], caseName, fields)
+    match j.ValueKind with
+    | JsonValueKind.Null -> make "Null" []
+    | JsonValueKind.True -> make "Bool" [ DBool true ]
+    | JsonValueKind.False -> make "Bool" [ DBool false ]
+    | JsonValueKind.Number ->
+      match j.TryGetInt64() with
+      | true, n -> make "Integer" [ DInt64 n ]
+      | false, _ -> make "Float" [ DFloat64(j.GetDouble()) ]
+    | JsonValueKind.String ->
+      make "String" [ DString(String.normalizeOutside (j.GetString())) ]
+    | JsonValueKind.Array ->
+      let items = j.EnumerateArray() |> Seq.map ofElement |> Seq.toList
+      make "Array" [ DList(VT.customType typeName [], Items(items)) ]
+    | _ ->
+      let fields =
+        j.EnumerateObject()
+        |> Seq.map (fun p ->
+          DTuple(DString(String.normalizeOutside p.Name), ofElement p.Value, []))
+        |> Seq.toList
+      make
+        "Object"
+        [ DList(VT.tuple VT.string (VT.customType typeName []) [], Items(fields)) ]
+
+
 /// The value `serialize` found with no JSON form.
 exception CannotSerialize of Dval
 
@@ -314,6 +349,26 @@ let rec serialize
           w.WritePropertyName k
           r valueType v
         | _ -> raise (CannotSerialize dv)))
+
+  | DEnum(FQTypeName.Package(Hash h), _, _, caseName, fields) when AnyJson.isIt h ->
+    match caseName, fields with
+    | "Null", [] -> w.WriteNullValue()
+    | "Bool", [ b ] -> r TBool b
+    | "Integer", [ n ] -> r TInt64 n
+    | "Float", [ f ] -> r TFloat64 f
+    | "String", [ str ] -> r TString str
+    | "Array", [ DList(_, Items(items)) ] ->
+      w.writeArray (fun () -> List.iter (r typ) items)
+    | "Object", [ DList(_, Items(pairs)) ] ->
+      w.writeObject (fun () ->
+        pairs
+        |> List.iter (fun pair ->
+          match pair with
+          | DTuple(DString k, v, []) ->
+            w.WritePropertyName k
+            r typ v
+          | _ -> raise (CannotSerialize dv)))
+    | _ -> raise (CannotSerialize dv)
 
   // Enums and Records
   | DEnum(_, _, _, caseName, fields) ->
@@ -787,6 +842,15 @@ let parse
         (DString(String.normalizeOutside jp.Name), converted))
       |> Seq.toList
       |> (TypeChecker.DvalCreator.dict threadID VT.string VT.unknownTODO)
+
+    | TCustomType({ resolved = Ok(FQTypeName.Package(Hash h)) }, []), _ when
+      AnyJson.isIt h
+      ->
+      // a lone escaped surrogate is valid JSON, but no string can hold it
+      try
+        AnyJson.ofElement j
+      with :? System.InvalidOperationException ->
+        raiseCantMatchWithType typ j pathSoFar
 
     | TCustomType({ resolved = Ok typeName }, _), jsonValueKind when
       (RangedInt.find typeName).IsSome

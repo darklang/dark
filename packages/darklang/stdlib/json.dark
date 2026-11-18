@@ -36,6 +36,40 @@ let parse(json: String): Result<'a, ParseError.ParseError> =
   Builtin.jsonParse<'a>(json)
 
 
+/// <param value> as an <type AltJson.Json> tree, the JSON <fn serialize> writes, to change
+/// with list functions before <fn serialize> writes it. A tree holds a number as an
+/// `Int64` or a `Float64`, so a wider integer or a `Decimal` becomes the nearest `Float64`.
+let toTree(value: 'a): AltJson.Json =
+  toTreeWith<'a>(Options.defaults(), value)
+
+
+/// <fn toTree>, as <param options> say.
+let toTreeWith(options: Options.Options, value: 'a): AltJson.Json =
+  // `serialize` only writes JSON that `parse` reads
+  serializeWith<'a>(options, value)
+  |> parse<AltJson.Json>
+  |> Result.withDefault(AltJson.Json.Null)
+
+
+/// <fn toTree>, or {{Error}} where it raises, as <fn checkedSerialize>.
+let checkedToTree(value: 'a): Result<AltJson.Json, SerializeError.SerializeError> =
+  checkedToTreeWith<'a>(Options.defaults(), value)
+
+
+/// <fn checkedToTree>, as <param options> say.
+let checkedToTreeWith(
+  options: Options.Options,
+  value: 'a)
+  : Result<AltJson.Json, SerializeError.SerializeError> =
+  checkedSerializeWith<'a>(options, value)
+  |> Result.map(fun json -> parse<AltJson.Json>(json) |> Result.withDefault(AltJson.Json.Null))
+
+
+/// Reads <param tree> as a value of <typeParam a>, the way <fn parse> reads JSON text.
+let fromTree(tree: AltJson.Json): Result<'a, ParseError.ParseError> =
+  parse<'a>(serialize<AltJson.Json>(tree))
+
+
 /// How <fn serializeWith> writes JSON. Start from <fn defaults> and change what you need:
 /// `{ Stdlib.Json.Options.defaults() with noneFields = Stdlib.Json.Options.NoneFields.Null }`.
 module Options =
