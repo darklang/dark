@@ -1,0 +1,167 @@
+module Darklang.LanguageTools.AtRestTypeChecker.Tests
+
+// ----------------------------------------------------------------------------------
+// Package tests
+// ----------------------------------------------------------------------------------
+// An ordinary test must return Stdlib.Test.Result, even when its body never names
+// it.
+test testsMustReturnResult =
+  Stdlib.Test.all(
+    [ check(src([ "test passes = 8 |> Stdlib.Test.equal(8)" ]), "passes")
+      |> Stdlib.Test.equal("checked:")
+
+      check(src([ "test literal = 8" ]), "literal")
+      |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
+// Values and functions in the same batch are visible to the test.
+test batchIsVisibleToTests =
+  Stdlib.Test.all(
+    [ check(
+        src(
+          [ "let double(x: Int64): Int64 = x * 2"
+            "val four = 4"
+            "test doubles = double(four) |> Stdlib.Test.equal(8)" ]),
+        "doubles")
+      |> Stdlib.Test.equal("checked:")
+
+      check(
+        src(
+          [ "let double(x: Int64): Int64 = x * 2"
+            "test wrongArg = double(\"four\") |> Stdlib.Test.equal(8)" ]),
+        "wrongArg")
+      |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
+// A `raises` test is observed only through its runtime error, so its body may
+// have any type; it is still checked.
+test raisesTestsAreChecked =
+  Stdlib.Test.all(
+    [ check(src([ "test raisesAny = 8 => raises \"anything\"" ]), "raisesAny")
+      |> Stdlib.Test.equal("checked:")
+
+      check(
+        src([ "test raisesIllTyped = 8 + \"x\" => raises \"anything\"" ]),
+        "raisesIllTyped")
+      |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
+// The checker finds the standard types by name. The hash it finds must be the one
+// their values carry, and a name nothing is bound to gives the empty hash.
+module StandardTypes =
+  let carried(value: 'a): LanguageTools.ProgramTypes.Hash =
+    match LanguageTools.RuntimeTypes.reflect(value) with
+    | DEnum(Package(hash), _, _, _, _) -> hash
+    | _ -> LanguageTools.ProgramTypes.Hash.Hash("")
+
+
+  let byName(
+    modules: List<String>,
+    name: String)
+    : LanguageTools.ProgramTypes.Hash =
+    LanguageTools.AtRestTypeChecker.Environment.standardTypeHash(
+      SCM.Branch.mainBranchId,
+      modules,
+      name)
+
+
+  test foundByName =
+    Stdlib.Test.all(
+      [ byName([ "Stdlib", "Option" ], "Option")
+        |> Stdlib.Test.equal(carried(Stdlib.Option.Option.None))
+
+        byName([ "Stdlib", "Result" ], "Result")
+        |> Stdlib.Test.equal(carried(Stdlib.Result.Result.Ok()))
+
+        byName([ "Stdlib", "Test" ], "Result")
+        |> Stdlib.Test.equal(carried(Stdlib.Test.Result.Pass))
+
+        byName([ "Stdlib", "Option" ], "NoSuchType")
+        |> Stdlib.Test.equal(LanguageTools.ProgramTypes.Hash.Hash("")) ])
+
+
+module NotCallableDiagnostics =
+  test noDetailFormatting =
+    let render(code: LanguageTools.AtRestTypeChecker.IssueCode): String =
+      LanguageTools.AtRestTypeChecker.contextToStringWith(
+        (fun _ -> Stdlib.Option.Option.None),
+        Stdlib.Option.Option.None,
+        code,
+        LanguageTools.AtRestTypeChecker.Context.NoDetail)
+
+    Stdlib.Test.all(
+      [ render(LanguageTools.AtRestTypeChecker.IssueCode.NotCallable)
+        |> Stdlib.Test.equal("This value is not a function")
+
+        render(LanguageTools.AtRestTypeChecker.IssueCode.TypeMismatch)
+        |> Stdlib.Test.equal("") ])
+
+
+  test packageValue =
+    issues("let f(): Bytes = Stdlib.Bytes.empty()", "f")
+    |> Stdlib.Test.equal(
+      [ "NotCallable: Stdlib.Bytes.empty is a value, not a function. Use Stdlib.Bytes.empty without calling it." ])
+
+
+  test localValue =
+    issues(src([ "let f(): Int64 =", "  let n = 1", "  n()" ]), "f")
+    |> Stdlib.Test.equal(
+      [ "NotCallable: n is a value, not a function. Use n without calling it." ])
+
+
+  // The parser rejects literal callees; exercise the checker with an AST.
+  test unnamedExpression =
+    let body =
+      LanguageTools.ProgramTypes.Expr.EApply(
+        1,
+        intExpr(2, 1),
+        [],
+        [ intExpr(3, 2) ])
+
+    let outcome = checkFunctionAstOutcome([], oneArg(tUnit(), tInt(), body))
+    outcome.diagnostics
+    |> Stdlib.List.map(fun issue ->
+      LanguageTools.AtRestTypeChecker.issueToString(issue))
+    |> Stdlib.Test.equal(
+      [ "This value has type Int64, not a function type, and cannot be called." ])
+
+
+module FunctionArgumentCountDiagnostics =
+  test namedTooMany =
+    issues(
+      src(
+        [ "let f(s: String): String ="
+          "  let a = Stdlib.String.trim(s)"
+          "  Stdlib.String.trimEnd(a, \"/\")" ]),
+      "f")
+    |> Stdlib.Test.equal(
+      [ "TooManyArguments: Stdlib.String.trimEnd takes 1 argument, but 2 were given" ])
+
+
+  test namedTooFew =
+    issues("let f(s: String): List<String> = Stdlib.String.split(s)", "f")
+    |> Stdlib.Test.equal(
+      [ "TooFewArguments: Stdlib.String.split takes 2 arguments, but 1 was given" ])
+
+
+  test localFunction =
+    issues(
+      src(
+        [ "let f(s: String): String ="
+          "  let g = (fun x -> x)"
+          "  g(s, s)" ]),
+      "f")
+    |> Stdlib.Test.equal(
+      [ "TooManyArguments: g takes 1 argument, but 2 were given" ])
+
+
+  test anonymousFunction =
+    issues("let f(): Int64 = (fun x -> x)(1, 2)", "f")
+    |> Stdlib.Test.equal(
+      [ "TooManyArguments: This function takes 1 argument, but 2 were given" ])
+
+
+  test pipeline =
+    issues("let f(s: String): String = s |> Stdlib.String.trimEnd(\"/\")", "f")
+    |> Stdlib.Test.equal(
+      [ "TooManyArguments: Stdlib.String.trimEnd takes 1 argument, but 2 were given" ])

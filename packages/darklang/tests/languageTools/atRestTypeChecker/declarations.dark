@@ -1,0 +1,329 @@
+module Darklang.LanguageTools.AtRestTypeChecker.Tests
+
+// ----------------------------------------------------------------------------------
+// Records and enums
+// ----------------------------------------------------------------------------------
+
+module Constructors =
+  val pair = "type Pair = | None | Some(Int64 * String)"
+
+
+  // Pair.Some takes one tuple field. Some(1, "url") supplies two fields;
+  // Some((1, "url")) supplies the single tuple the declaration requires.
+  test constructorsAndFields =
+    Stdlib.Test.all(
+      [ check(
+          src([ pair, "let f(u: Unit): Pair = Pair.Some(1, \"url\")" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:EnumFieldCountMismatch")
+
+        check(
+          src([ pair, "let f(u: Unit): Pair = Pair.Some((1, \"url\"))" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          src(
+            [ "type Target = | Only"
+              "type Aliased = Target"
+              "let f(u: Unit): Aliased = Aliased.Only" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          "let f(x: Int64): Stdlib.Option.Option<Int64> = Stdlib.Option.Option.Nope(x)",
+          "f")
+        |> Stdlib.Test.equal("failed:UnknownEnumCase")
+
+        check(
+          src(
+            [ "type R = { a: Int64, b: Int64 }"
+              "let f(u: Unit): R = R { a = 1 }" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:MissingRecordField")
+
+        check(
+          src(
+            [ "type R = { a: Int64 }"
+              "let f(u: Unit): R = R { a = 1, nope = 2 }" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:UnknownRecordField")
+
+        check(
+          src(
+            [ "type R = { a: Int64 }"
+              "let f(u: Unit): R = R { a = 1, a = 2 }" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:DuplicateRecordField")
+
+        check(
+          src(
+            [ "type R = { a: Int64 }"
+              "let f(r: R): R = { r with a = 1, a = 2 }" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:DuplicateRecordField")
+
+        check(
+          src([ "type R = { a: Int64 }", "let f(r: R): Int64 = r.nope" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:UnknownRecordField")
+
+        check(
+          src(
+            [ "type R = { a: Int64 }"
+              "let f(r: R): R = { r with a = \"x\" }" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
+  // Two keys written as the same constant are an error, compared as the runtime
+  // compares keys. A key known only at run time replaces, so it is not reported.
+  test duplicateDictKeys =
+    let dictFn(body: String): String =
+      "let f (k: String) : Dict<String, Int64> = " + body
+
+    let floatFn(body: String): String =
+      "let f (u: Unit) : Dict<Float64, Int64> = " + body
+
+    Stdlib.Test.all(
+      [ check(dictFn("Dict { \"a\": 1, \"a\": 2 }"), "f")
+        |> Stdlib.Test.equal("failed:DuplicateDictKey")
+
+        issues(dictFn("Dict { \"a\": 1, \"b\": 2, \"a\": 3 }"), "f")
+        |> Stdlib.Test.equal(
+          [ "DuplicateDictKey: '\"a\"' is used as a key more than once" ])
+
+        check(floatFn("Dict { 1.0: 1, 1.00: 2 }"), "f")
+        |> Stdlib.Test.equal("failed:DuplicateDictKey")
+
+        check(floatFn("Dict { 0.0: 1, -0.0: 2 }"), "f")
+        |> Stdlib.Test.equal("failed:DuplicateDictKey")
+
+        check(
+          "let f(u: Unit): Dict<(Int64 * String), Int64> = Dict { (1, \"a\"): 1, (1, \"a\"): 2 }",
+          "f")
+        |> Stdlib.Test.equal("failed:DuplicateDictKey")
+
+        check(dictFn("Dict { k: 1, \"a\": 2 }"), "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(dictFn("Dict { k: 1, k: 2 }"), "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(dictFn("Dict { $\"{k}\": 1, $\"{k}\": 2 }"), "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(floatFn("Dict { 1.0: 1, 1.5: 2 }"), "f")
+        |> Stdlib.Test.equal("checked:")
+
+        // a string holding `", "` is one key, not the two it would spell unquoted
+        check(
+          "let f(u: Unit): Dict<List<String>, Int64> = Dict { [ \"a\\\", \\\"b\" ]: 1, [ \"a\", \"b\" ]: 2 }",
+          "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // Resolve 'a in Box<'a>.Box using the enclosing function's type parameters.
+  test constructorUsesFunctionTypeParams =
+    check(
+      src(
+        [ "type Box<'item> = | Box('item)"
+          "let f(x: 'a): Box<'a> = Box<'a>.Box(x)" ]),
+      "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+// ----------------------------------------------------------------------------------
+// Type declarations, aliases, and missing dependencies
+// ----------------------------------------------------------------------------------
+
+module Declarations =
+  test duplicateMembersAndTypeParams =
+    Stdlib.Test.all(
+      [ check("type T = { field: Int64, field: String }", "T")
+        |> Stdlib.Test.equal("failed:DuplicateTypeMember")
+
+        check("type E = | A | A", "E")
+        |> Stdlib.Test.equal("failed:DuplicateTypeMember")
+
+        check("let f<'a, 'a>(x: 'a): 'a = x", "f")
+        |> Stdlib.Test.equal("failed:DuplicateTypeParameter") ])
+
+
+  // Expanding A<'a> repeatedly adds another List layer. Detect this alias cycle
+  // and return Incomplete instead of expanding it forever.
+  test growingAliasCycleIsIncomplete =
+    check(
+      src([ "type A<'a> = A<List<'a>>", "let f(x: A<Int64>): Int64 = x" ]),
+      "f")
+    |> Stdlib.Test.equal("incomplete:AliasCycle")
+
+
+  // Loop still refers to itself when the reference passes through Identity.
+  // Detect the cycle after substituting Identity's type argument.
+  test aliasCycleThroughIdentity =
+    check(
+      src(
+        [ "type Identity<'a> = 'a"
+          "type Loop = Identity<Loop>"
+          "let f(x: Loop): Int64 = x" ]),
+      "f")
+    |> Stdlib.Test.equal("incomplete:AliasCycle")
+
+
+  // Identity<Identity<Int64>> expands to Int64 and terminates. Reusing an alias in
+  // nested type arguments is valid when the alias definition is not recursive.
+  test nestedNonRecursiveAliasesExpand =
+    Stdlib.Test.all(
+      [ check(
+          src(
+            [ "type Identity<'a> = 'a"
+              "let f(x: Identity<Identity<Int64>>): Int64 = x" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          src(
+            [ "type Identity<'a> = 'a"
+              "let f(x: Identity<Identity<Int64>>): String = x" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
+  // Forward<Forward<Int64>> also expands to Int64 through Identity. Accept an Int64
+  // return, reject a String return, and still detect the actual Loop cycle below.
+  test aliasThroughAliasExpands =
+    Stdlib.Test.all(
+      [ check(
+          src(
+            [ "type Identity<'a> = 'a"
+              "type Forward<'a> = Identity<'a>"
+              "let f(x: Forward<Forward<Int64>>): Int64 = x" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          src(
+            [ "type Identity<'a> = 'a"
+              "type Forward<'a> = Identity<'a>"
+              "let f(x: Forward<Forward<Int64>>): String = x" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check(
+          src(
+            [ "type Identity<'a> = 'a"
+              "type Forward<'a> = Identity<'a>"
+              "type Loop = Forward<Loop>"
+              "let f(x: Loop): Int64 = x" ]),
+          "f")
+        |> Stdlib.Test.equal("incomplete:AliasCycle") ])
+
+
+  // An unavailable type might be an alias for Int64. Report a missing declaration
+  // instead of claiming its value cannot satisfy an Int64 return type.
+  test unavailableTypeIsMissingNotMismatch =
+    checkFunctionAst([], oneArg(custom("not-available", []), tInt(), arg(1)))
+    |> Stdlib.Test.equal("incomplete:MissingTypeDeclaration")
+
+
+  // This syntax tree uses 'b without declaring it as a type parameter. Construct
+  // it directly because the parser normally adds referenced type parameters.
+  test undeclaredParamsAndRecursiveTypes =
+    Stdlib.Test.all(
+      [ checkFunctionAst(
+          [],
+          fnNamed(
+            "undeclared-variable",
+            [],
+            [ ("x", LanguageTools.ProgramTypes.TypeReference.TVariable("b")) ],
+            tUnit(),
+            unitExpr(1)))
+        |> Stdlib.Test.equal("incomplete:UnknownDeclaredTypeVariable")
+
+        check(
+          src(
+            [ "type AliasA = AliasB"
+              "type AliasB = AliasA"
+              "let f(x: AliasA): AliasA = x" ]),
+          "f")
+        |> Stdlib.Test.equal("incomplete:AliasCycle")
+
+        check(src([ "type Rec = List<Rec>", "let f(x: Rec): Unit = ()" ]), "f")
+        |> Stdlib.Test.equal("incomplete:AliasCycle")
+
+        check(
+          src(
+            [ "type Rows<'a> = List<'a>"
+              "let f(x: Rows<Rows<Int64>>): Unit = ()" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          src(
+            [ "type Node = { children: List<Node> }"
+              "let f(x: Node): Unit = ()" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  val pair = "type Pair<'a, 'b> = { first: 'a, second: 'b }"
+
+
+  test wrongTypeArgCount =
+    Stdlib.Test.all(
+      [ check(
+          src([ pair, "let f(x: (Int64 * List<Pair<String>>)): Unit = ()" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check(
+          src(
+            [ pair
+              "let f(x: (Int64 * List<Pair<String, Bool>>)): Unit = ()" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // Pair requires two type arguments. Supplying one should report the type error
+  // without crashing or adding a misleading warning about x.first's type.
+  test tooFewTypeArgsReportsCleanly =
+    check(src([ pair, "let f(x: Pair<Int64>): Int64 = x.first" ]), "f")
+    |> Stdlib.Test.equal("failed:TypeMismatch")
+
+
+  // Find unavailable types even when nested inside a function parameter's type
+  // or reached by expanding an alias.
+  test unavailableNestedTypesAreFound =
+    Stdlib.Test.all(
+      [ checkFunctionAst(
+          [],
+          oneArg(
+            tList(
+              LanguageTools.ProgramTypes.TypeReference.TDict(
+                LanguageTools.ProgramTypes.TypeReference.TString,
+                custom("nowhere", []))),
+            tUnit(),
+            unitExpr(1)))
+        |> Stdlib.Test.equal("incomplete:MissingTypeDeclaration")
+
+        checkFunctionAst(
+          [ declared(
+              "alias-to-nowhere",
+              [],
+              LanguageTools.ProgramTypes.TypeDeclaration.Definition.Alias(
+                tList(custom("nowhere", [])))) ],
+          oneArg(custom("alias-to-nowhere", []), tUnit(), unitExpr(1)))
+        |> Stdlib.Test.equal("incomplete:MissingTypeDeclaration") ])
+
+
+  // Inspect the fields of dependency types too. An unavailable field type makes
+  // this function's check Incomplete even though its body does not read the field.
+  test dependencyFieldsAreChecked =
+    checkFunctionAst(
+      [ declared(
+          "box-with-missing-field",
+          [],
+          recordOf([ ("hidden", custom("nowhere", [])) ])) ],
+      oneArg(custom("box-with-missing-field", []), tUnit(), unitExpr(1)))
+    |> Stdlib.Test.equal("incomplete:MissingTypeDeclaration")

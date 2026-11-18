@@ -230,7 +230,7 @@ signature at the self type (`ImplMethodSignature`). `AmbiguousImpl` and
 ./scripts/run-cli test run Darklang.LanguageTools.AtRestTypeChecker
 ./scripts/run-cli typecheck
 
-`packages/darklang/tests/languageTools/atRestTypeChecker.dark` tests each rule and issue code. Cases use source parsed by
+`packages/darklang/tests/languageTools/atRestTypeChecker/` tests each rule and issue code, with shared helpers in `atRestTypeChecker.dark` beside it. Cases use source parsed by
 `LanguageTools.Parser.Parse.packageSourceToOps` where possible, including declarations that refer to each other. Hand-built cases cover inputs the parser cannot produce: unresolved names, missing hashes, and or-alternatives binding different names. Guarded deep-input tests must either check successfully or return `Incomplete` for excessive depth, without crashing the process.
 
 `CliScm.Tests.fs` tests rollout policy through the real CLI: definite errors are saved as WIP, rejected at commit, and accepted with `--allow-type-errors`.

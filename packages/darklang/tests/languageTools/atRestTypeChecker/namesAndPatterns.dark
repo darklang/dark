@@ -1,0 +1,644 @@
+module Darklang.LanguageTools.AtRestTypeChecker.Tests
+
+// ----------------------------------------------------------------------------------
+// Dictionary keys and reusing inferred types
+// ----------------------------------------------------------------------------------
+
+module DictGeneralization =
+  // ? in a dictionary key returns from the enclosing lambda. It is invalid if
+  // that lambda returns a plain Dict, and valid with a matching Option or Result.
+  // Use an anonymous lambda so a separate self-reference cannot accidentally
+  // preserve the return-type constraint and hide a bug in checking the key.
+  test unwrapInDictKey =
+    Stdlib.Test.all(
+      [ check(
+          src(
+            [ "let f(): Dict<Int64, Int64> ="
+              "  (fun () ->"
+              "    let entries = Dict { (None?) : 1 }"
+              "    entries)()" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:InvalidUnwrap")
+
+        check(
+          src(
+            [ "let f(): Dict<Int64, Int64> ="
+              "  (fun () ->"
+              "    let entries = Dict { ((Error(\"stop\"))?) : 1 }"
+              "    entries)()" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:InvalidUnwrap")
+
+        check(
+          src(
+            [ "let f(): Stdlib.Option.Option<Dict<Int64, Int64>> ="
+              "  (fun () ->"
+              "    let entries = Dict { ((Some(1))?) : 1 }"
+              "    Some(entries))()" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          src(
+            [ "let f(): Stdlib.Result.Result<Dict<Int64, Int64>, String> ="
+              "  (fun () ->"
+              "    let entries = Dict { ((Error(\"stop\"))?) : 1 }"
+              "    Ok(entries))()" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // With a literal key, the dictionary's empty-list values can be used as both
+  // List<Int64> and List<String>. A key containing a function call prevents that
+  // generalization, so both uses must agree on one element type.
+  let dictionaryUses(key: String): String =
+    src(
+      [ "let identity(x: Int64): Int64 = x"
+        "let ints(d: Dict<Int64, List<Int64>>): Unit = ()"
+        "let strings(d: Dict<Int64, List<String>>): Unit = ()"
+        "let f () : Unit ="
+        $"  let entries = Dict {{ {key}: [] }}"
+        "  ints(entries)"
+        "  strings(entries)" ])
+
+
+  test keyGeneralization =
+    Stdlib.Test.all(
+      [ check(dictionaryUses("1"), "f") |> Stdlib.Test.equal("checked:")
+
+        check(dictionaryUses("identity(1)"), "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
+// ----------------------------------------------------------------------------------
+// Unresolved names
+// ----------------------------------------------------------------------------------
+
+module Unresolved =
+  test unresolvedNamesAreIncomplete =
+    Stdlib.Test.all(
+      [ checkFunctionAst(
+          [],
+          oneArg(
+            tUnit(),
+            tInt(),
+            LanguageTools.ProgramTypes.Expr.EValue(
+              1,
+              unresolved([ "Missing", "value" ]))))
+        |> Stdlib.Test.equal("incomplete:UnresolvedValueName")
+
+        checkFunctionAst(
+          [],
+          oneArg(
+            tUnit(),
+            tInt(),
+            LanguageTools.ProgramTypes.Expr.EFnName(
+              1,
+              unresolved([ "Missing", "fn" ]),
+              [],
+              [])))
+        |> Stdlib.Test.equal("incomplete:UnresolvedFunctionName")
+
+        checkFunctionAst(
+          [],
+          oneArg(
+            LanguageTools.ProgramTypes.TypeReference.TCustomType(
+              unresolved([ "Missing", "Type" ]),
+              []),
+            tUnit(),
+            unitExpr(1)))
+        |> Stdlib.Test.equal("incomplete:UnresolvedTypeName") ])
+
+
+  // Without a package value's definition, the checker cannot infer its type.
+  // Report MissingValueSignature and return Incomplete.
+  test missingValueSignature =
+    checkFunctionAst([], oneArg(tUnit(), tInt(), useValue(1, "no-such-value")))
+    |> Stdlib.Test.equal("incomplete:MissingValueSignature")
+
+
+  // When the value being matched has an unresolved name, report that problem
+  // without adding warnings about pattern types that depend on the missing value.
+  test unresolvedMatchSkipsPatternWarnings =
+    checkFunctionAst(
+      [],
+      oneArg(
+        tUnit(),
+        tInt(),
+        LanguageTools.ProgramTypes.Expr.EMatch(
+          170,
+          LanguageTools.ProgramTypes.Expr.EValue(
+            171,
+            unresolved([ "Missing", "value" ])),
+          [ LanguageTools.ProgramTypes.MatchCase
+              { pat =
+                  LanguageTools.ProgramTypes.MatchPattern.MPEnum(
+                    172,
+                    "Some",
+                    [ LanguageTools.ProgramTypes.MatchPattern.MPVariable(
+                        173,
+                        "value") ])
+                whenCondition = Stdlib.Option.Option.None
+                rhs =
+                  LanguageTools.ProgramTypes.Expr.EVariable(174, "value") } ])))
+    |> Stdlib.Test.equal("incomplete:UnresolvedValueName")
+
+
+// ----------------------------------------------------------------------------------
+// Pattern types and whether matches cover every possible value
+// ----------------------------------------------------------------------------------
+
+module Patterns =
+  test exhaustiveMatches =
+    Stdlib.Test.all(
+      [ check(
+          "let f(value: Bool): String = match value with | true -> \"yes\" | false -> \"no\"",
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          "let f(value: (Int64 * String)): Int64 = match value with | (_, _) -> 1",
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          src(
+            [ "let f(value: List<String>): Int64 ="
+              "  match value with"
+              "  | [] -> 0"
+              "  | [ _ ] -> 1"
+              "  | [_, _, ...] -> 2" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          src(
+            [ "let f(value: (List<String> * List<String>)): Int64 ="
+              "  match value with"
+              "  | ([], []) -> 0"
+              "  | ([_, ...], []) -> 1"
+              "  | ([], [_, ...]) -> 2"
+              "  | ([_, ...], [_, ...]) -> 3" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          "let f(value: (Bool * Bool)): Int64 = match value with | (true, _) -> 1 | (false, _) -> 0",
+          "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  let nested(): String =
+    src(
+      [ "type Inner = | SourceFile(String)"
+        "type Outer = | Nothing | Something(Inner)"
+        "let f(value: Outer): Int64 ="
+        "  match value with"
+        "  | Nothing -> 0"
+        "  | Something(SourceFile(_)) -> 1" ])
+
+
+  test nestedEnumPatterns =
+    check(nested(), "f") |> Stdlib.Test.equal("checked:")
+
+
+  let restrictive(): String =
+    src(
+      [ "type E = | A(Bool) | B"
+        "let f(value: E): Int64 ="
+        "  match value with"
+        "  | A(true) -> 1"
+        "  | B -> 2" ])
+
+
+  // Matching A true leaves A false uncovered. Report Incomplete and include
+  // A(false) as an example of the missing input.
+  test missingCaseExample =
+    Stdlib.Test.all(
+      [ check(restrictive(), "f")
+        |> Stdlib.Test.equal("incomplete:NonExhaustiveMatch")
+
+        issues(restrictive(), "f")
+        |> Stdlib.Test.equal(
+          [ "NonExhaustiveMatch: Match is not exhaustive; an uncovered pattern is A(false)" ])
+
+        check(
+          "let f(x: Stdlib.Option.Option<Int64>): Int64 = match x with | Some(y) -> y",
+          "f")
+        |> Stdlib.Test.equal("incomplete:NonExhaustiveMatch") ])
+
+
+  // Identify missing Tree cases without following Node's recursive field forever.
+  // Use an abbreviated example such as Node(…) in the diagnostic.
+  let tree(cases: List<String>): String =
+    src(
+      Stdlib.List.concat(
+        [ "type Tree = | Node(Tree) | Leaf"
+          "let f (t: Tree) : Int64 ="
+          "  match t with" ],
+        cases))
+
+
+  test recursiveTreeCoverage =
+    Stdlib.Test.all(
+      [ check(tree([ "  | Leaf -> 0" ]), "f")
+        |> Stdlib.Test.equal("incomplete:NonExhaustiveMatch")
+
+        issues(tree([ "  | Leaf -> 0" ]), "f")
+        |> Stdlib.Test.equal(
+          [ "NonExhaustiveMatch: Match is not exhaustive; an uncovered pattern is Node(…)" ])
+
+        check(tree([ "  | Leaf -> 0", "  | Node(Leaf) -> 1" ]), "f")
+        |> Stdlib.Test.equal("incomplete:NonExhaustiveMatch")
+
+        check(tree([ "  | Leaf -> 0", "  | Node(_) -> 1" ]), "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // In (_, true), the wildcard covers every Tree. Check the Bool element without
+  // repeatedly expanding the recursive Tree type, then check the false cases.
+  let treeAndBool(cases: List<String>): String =
+    src(
+      Stdlib.List.concat(
+        [ "type Tree = | Node(Tree) | Leaf"
+          "let f (x: (Tree * Bool)) : Int64 ="
+          "  match x with" ],
+        cases))
+
+
+  test wildcardCoversRecursiveType =
+    Stdlib.Test.all(
+      [ check(treeAndBool([ "  | (_, true) -> 1" ]), "f")
+        |> Stdlib.Test.equal("incomplete:NonExhaustiveMatch")
+
+        check(
+          treeAndBool(
+            [ "  | (_, true) -> 1"
+              "  | (Leaf, false) -> 2"
+              "  | (Node(_), false) -> 3" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // A when condition may be false. The checker does not evaluate it, so a guarded
+  // case cannot prove that its input is covered, even for the constant condition
+  // here.
+  test whenConditionDoesNotCover =
+    check(
+      "let f(x: Bool): Int64 = match x with | true -> 1 | false when 1 == 1 -> 0",
+      "f")
+    |> Stdlib.Test.equal("incomplete:NonExhaustiveMatch")
+
+
+  // `p as x` covers what `p` covers, and x has the matched value's type.
+  test asPatterns =
+    Stdlib.Test.all(
+      [ check(
+          "let f(x: Bool): Bool = match x with | true as t -> t | false -> false",
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f(x: Int64): Int64 = match x with | n as m -> n + m", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          "let f(x: Stdlib.Option.Option<Int64>): Int64 = match x with | Some(y) as o -> y | None -> 0",
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          "let f(x: Stdlib.Option.Option<Int64>): Int64 = match x with | Some(_) as o -> 1",
+          "f")
+        |> Stdlib.Test.equal("incomplete:NonExhaustiveMatch")
+
+        check("let f(x: Int64): String = match x with | n as m -> m", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
+  // A record pattern's fields are looked up on the matched type, and each binds
+  // that field's type. Fields it leaves out match anything.
+  let account(cases: List<String>, returns: String): String =
+    src(
+      Stdlib.List.concat(
+        [ "type Status = | Active | Inactive"
+          "type Account = { name: String, age: Int64, status: Status }"
+          $"let f (a: Account) : {returns} ="
+          "  match a with" ],
+        cases))
+
+
+  test recordPatterns =
+    Stdlib.Test.all(
+      [ check(account([ "  | { name } -> name" ], "String"), "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          account(
+            [ "  | { age = 30, name = n } -> n", "  | { name } -> name" ],
+            "String"),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(account([ "  | { age } -> age" ], "String"), "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check(account([ "  | { nmae } -> nmae" ], "String"), "f")
+        |> Stdlib.Test.equal("failed:UnknownRecordField")
+
+        check(account([ "  | { name = 3 } -> 1" ], "Int64"), "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check("let f(x: Int64): Int64 = match x with | { field } -> field", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
+  // A partial record pattern covers every value of the fields it leaves out.
+  test recordPatternCoverage =
+    Stdlib.Test.all(
+      [ check(
+          account(
+            [ "  | { status = Active } -> 1"
+              "  | { status = Inactive, age } -> age" ],
+            "Int64"),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(account([ "  | { status = Active } -> 1" ], "Int64"), "f")
+        |> Stdlib.Test.equal("incomplete:NonExhaustiveMatch")
+
+        issues(account([ "  | { status = Active } -> 1" ], "Int64"), "f")
+        |> Stdlib.Test.equal(
+          [ "NonExhaustiveMatch: Match is not exhaustive; an uncovered pattern is { status = Inactive }" ])
+
+        check(account([ "  | { age = 30 } -> 1" ], "Int64"), "f")
+        |> Stdlib.Test.equal("incomplete:NonExhaustiveMatch")
+
+        check(account([ "  | { age = 30 } -> 1", "  | _ -> 0" ], "Int64"), "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // An Int64 is not a record: reject field access and record updates on it.
+  test intIsNotRecord =
+    Stdlib.Test.all(
+      [ check("let f(x: Int64): Int64 = x.field", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check("let f(x: Int64): Int64 = { x with field = 1 }", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
+  // An empty list's element type may be unknown, but it is still a list.
+  // Record operations and enum patterns on that list are definite errors.
+  test emptyListAndIntShapes =
+    Stdlib.Test.all(
+      [ check(
+          src([ "let f(u: Unit): Int64 =", "  let xs = []", "  xs.field" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check(
+          src(
+            [ "let f(u: Unit): Unit ="
+              "  let xs = []"
+              "  let _ = { xs with field = 1 }"
+              "  ()" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check(
+          src(
+            [ "let f(u: Unit): Int64 ="
+              "  let xs = []"
+              "  match xs with | Missing -> 1 | _ -> 2" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:InvalidPattern")
+
+        check(
+          "let f(x: Int64): Int64 = match x with | Some(y) -> y | _ -> 0",
+          "f")
+        |> Stdlib.Test.equal("failed:InvalidPattern") ])
+
+
+  // f must work for every possible 'a, so it cannot assume that x has a field.
+  test genericParamHasNoFields =
+    check("let f<'a>(x: 'a): Int64 = x.field", "f")
+    |> Stdlib.Test.equal("failed:TypeMismatch")
+
+
+  // Reject an enum-case pattern when the matched value is a record.
+  test enumPatternOnRecord =
+    check(
+      src(
+        [ "type R = { a: Int64 }"
+          "let f(r: R): Int64 = match r with | Foo -> 1" ]),
+      "f")
+    |> Stdlib.Test.equal("failed:InvalidPattern")
+
+
+  // Report the unknown case Missing. Still recognize its binding x, and skip
+  // coverage checking so this one mistake does not cause extra diagnostics.
+  test unknownCaseReportedOnce =
+    check(
+      src(
+        [ "type Only = | Valid"
+          "let f(value: Only): Int64 = match value with | Missing(x) -> x" ]),
+      "f")
+    |> Stdlib.Test.equal("failed:UnknownEnumCase")
+
+
+  // Reject (x, x) within an or-pattern because it binds x twice. Construct the
+  // syntax tree directly because the parser would reject this source pattern.
+  test orPatternBindsTwice =
+    checkFunctionAst(
+      [],
+      oneArg(
+        LanguageTools.ProgramTypes.TypeReference.TTuple(tInt(), tInt(), []),
+        tInt(),
+        LanguageTools.ProgramTypes.Expr.EMatch(
+          47,
+          arg(48),
+          [ LanguageTools.ProgramTypes.MatchCase
+              { pat =
+                  LanguageTools.ProgramTypes.MatchPattern.MPOr(
+                    49,
+                    [ LanguageTools.ProgramTypes.MatchPattern.MPTuple(
+                        50,
+                        LanguageTools.ProgramTypes.MatchPattern.MPVariable(
+                          51,
+                          "x"),
+                        LanguageTools.ProgramTypes.MatchPattern.MPVariable(
+                          52,
+                          "x"),
+                        [])
+
+                      LanguageTools.ProgramTypes.MatchPattern.MPTuple(
+                        60,
+                        LanguageTools.ProgramTypes.MatchPattern.MPVariable(
+                          61,
+                          "x"),
+                        LanguageTools.ProgramTypes.MatchPattern.MPVariable(
+                          62,
+                          "x"),
+                        []) ])
+                whenCondition = Stdlib.Option.Option.None
+                rhs = LanguageTools.ProgramTypes.Expr.EVariable(70, "x") } ])))
+    |> Stdlib.Test.equal("failed:DuplicatePatternBinding")
+
+
+  // Every alternative in an or-pattern must bind the same names. Check that the
+  // checker rejects (x, _) | (_, y), independently of the parser's own rejection.
+  test orPatternBindingsDiffer =
+    checkFunctionAst(
+      [],
+      oneArg(
+        LanguageTools.ProgramTypes.TypeReference.TTuple(tInt(), tInt(), []),
+        tInt(),
+        LanguageTools.ProgramTypes.Expr.EMatch(
+          47,
+          arg(48),
+          [ LanguageTools.ProgramTypes.MatchCase
+              { pat =
+                  LanguageTools.ProgramTypes.MatchPattern.MPOr(
+                    49,
+                    [ LanguageTools.ProgramTypes.MatchPattern.MPTuple(
+                        50,
+                        LanguageTools.ProgramTypes.MatchPattern.MPVariable(
+                          51,
+                          "x"),
+                        LanguageTools.ProgramTypes.MatchPattern.MPVariable(
+                          52,
+                          "_"),
+                        [])
+
+                      LanguageTools.ProgramTypes.MatchPattern.MPTuple(
+                        60,
+                        LanguageTools.ProgramTypes.MatchPattern.MPVariable(
+                          61,
+                          "_"),
+                        LanguageTools.ProgramTypes.MatchPattern.MPVariable(
+                          62,
+                          "y"),
+                        []) ])
+                whenCondition = Stdlib.Option.Option.None
+                rhs = intExpr(70, 1) } ])))
+    |> Stdlib.Test.equal("failed:InvalidPattern")
+
+
+// ----------------------------------------------------------------------------------
+// Unknown types and avoiding misleading extra diagnostics
+// ----------------------------------------------------------------------------------
+
+module Ambiguity =
+  // The discarded empty list's element type does not affect the function's result,
+  // so leaving it unknown must not make the check Incomplete.
+  test discardedEmptyListChecks =
+    check(src([ "let f(u: Unit): Int64 =", "  let _ = []", "  1" ]), "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  // The unknown element type of a discarded list must not hide a wrong return type.
+  test discardedListKeepsReturnError =
+    check(
+      src([ "let f(u: Unit): Int64 =", "  let _ = []", "  \"wrong\"" ]),
+      "f")
+    |> Stdlib.Test.equal("failed:TypeMismatch")
+
+
+  // A list cannot satisfy a Bytes return type, regardless of its unknown element
+  // type.
+  test listIsNotBytes =
+    check("let f(u: Unit): Bytes = []", "f")
+    |> Stdlib.Test.equal("failed:TypeMismatch")
+
+
+  // Preserve the definite return-type error alongside the warning that the match
+  // does not handle false. The overall verdict remains Failed.
+  test returnErrorWithMissingCase =
+    check("let f(value: Bool): String = match value with | true -> 1", "f")
+    |> Stdlib.Test.equal("failed:NonExhaustiveMatch,TypeMismatch")
+
+
+  // The unused lambda never receives a record type, so the checker cannot verify
+  // that its parameter has a path field. Report Incomplete.
+  test unusedLambdaFieldIsIncomplete =
+    check(
+      src(
+        [ "let f(u: Unit): Unit ="
+          "  let _ = (fun record -> record.path)"
+          "  ()" ]),
+      "f")
+    |> Stdlib.Test.equal("incomplete:AmbiguousType")
+
+
+  // f reads only the known String field path, so its result can be checked while
+  // the unused value field's type remains unknown. Binding the whole record as
+  // unfixed leaves an unknown in the value's public type and is Incomplete.
+  let found(): String =
+    src(
+      [ "type FoundValue<'a> = { path: String, value: 'a }"
+        "let source(u: Unit): FoundValue<'a> = source(u)"
+        "let f(u: Unit): String ="
+        "  let discovered = source()"
+        "  discovered.path"
+        "val unfixed = source()" ])
+
+
+  test unusedRecordField =
+    Stdlib.Test.all(
+      [ check(found(), "f") |> Stdlib.Test.equal("checked:")
+
+        check(found(), "unfixed")
+        |> Stdlib.Test.equal("incomplete:AmbiguousType") ])
+
+
+  // Passing an empty list through identity and discarding the result does not
+  // require the checker to determine the list's element type.
+  test discardedIdentityCall =
+    (let outcome =
+       checkFunctionAstOutcome(
+         [],
+         oneArg(
+           tUnit(),
+           tUnit(),
+           LanguageTools.ProgramTypes.Expr.ELet(
+             1,
+             LanguageTools.ProgramTypes.LetPattern.LPWildcard(2),
+             LanguageTools.ProgramTypes.Expr.EApply(
+               3,
+               LanguageTools.ProgramTypes.Expr.ELambda(
+                 4,
+                 [ LanguageTools.ProgramTypes.LetPattern.LPVariable(5, "x") ],
+                 LanguageTools.ProgramTypes.Expr.EVariable(6, "x")),
+               [],
+               [ LanguageTools.ProgramTypes.Expr.EList(100, []) ]),
+             LanguageTools.ProgramTypes.Expr.EUnit(7))))
+     outcomeSummary(outcome))
+    |> Stdlib.Test.equal("checked:")
+
+
+  // Calling the Unit parameter is an error at the application node (3), not
+  // at the empty-list argument (100), whose element type is still unknown.
+  test errorAtApplicationNode =
+    (let outcome =
+       checkFunctionAstOutcome(
+         [],
+         oneArg(
+           tUnit(),
+           tList(tInt()),
+           LanguageTools.ProgramTypes.Expr.EApply(
+             3,
+             LanguageTools.ProgramTypes.Expr.EVariable(4, "value"),
+             [],
+             [ LanguageTools.ProgramTypes.Expr.EList(100, []) ])))
+     Stdlib.List.map(outcome.diagnostics, fun i -> i.nodeId))
+    |> Stdlib.Test.equal([ Stdlib.Option.Option.Some(3u64) ])
+
+
+  // y y would require y's function type to contain itself. With the unused local
+  // helper's types unresolved, retain this finding as a warning and return
+  // Incomplete.
+  test selfApplicationIsWarning =
+    check(
+      src([ "let f(u: Unit): Int64 =", "  let g = (fun y -> y(y))", "  1" ]),
+      "f")
+    |> Stdlib.Test.equal("incomplete:AmbiguousType,OccursCheckFailed")

@@ -1,0 +1,420 @@
+module Darklang.LanguageTools.AtRestTypeChecker.Tests
+
+// ----------------------------------------------------------------------------------
+// Syntax-node IDs, function arguments, and return types
+// ----------------------------------------------------------------------------------
+
+module BindingIds =
+  // Build `let x = 1; let y = "s"; x`. The caller chooses y's binding ID
+  // so a test can make it collide with x's ID.
+  let body(secondId: Int64): LanguageTools.ProgramTypes.Expr =
+    LanguageTools.ProgramTypes.Expr.ELet(
+      1,
+      LanguageTools.ProgramTypes.LetPattern.LPVariable(2, "x"),
+      intExpr(3, 1),
+      LanguageTools.ProgramTypes.Expr.ELet(
+        4,
+        LanguageTools.ProgramTypes.LetPattern.LPVariable(secondId, "y"),
+        LanguageTools.ProgramTypes.Expr.EString(
+          6,
+          [ LanguageTools.ProgramTypes.StringSegment.StringText("s") ]),
+        LanguageTools.ProgramTypes.Expr.EVariable(7, "x")))
+
+
+  // Duplicate binding IDs make the result Incomplete because the checker cannot
+  // distinguish the bindings. With unique IDs, returning x is valid only as Int64.
+  test duplicateBindingIdsAreIncomplete =
+    Stdlib.Test.all(
+      [ checkPackageOpsSummary(
+          [],
+          [ oneArg(
+              tUnit(),
+              LanguageTools.ProgramTypes.TypeReference.TString,
+              body(2)) ])
+        |> Stdlib.Test.equal("incomplete:UnsupportedConstruct")
+
+        checkPackageOpsSummary([], [ oneArg(tUnit(), tInt(), body(2)) ])
+        |> Stdlib.Test.equal("incomplete:UnsupportedConstruct")
+
+        checkPackageOpsSummary(
+          [],
+          [ oneArg(
+              tUnit(),
+              LanguageTools.ProgramTypes.TypeReference.TString,
+              body(5)) ])
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        checkPackageOpsSummary([], [ oneArg(tUnit(), tInt(), body(5)) ])
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // A duplicate-ID warning in one function must preserve the definite return-type
+  // error reported for a different function in the same batch.
+  test duplicateIdFindings =
+    Stdlib.Test.all(
+      [ checkPackageOpsSummary(
+          [],
+          [ oneArg(tUnit(), tInt(), body(2))
+            fnNamed(
+              "wrong-return",
+              [],
+              [ ("value", tInt()) ],
+              tUnit(),
+              arg(8)) ])
+        |> Stdlib.Test.equal("failed:TypeMismatch,UnsupportedConstruct")
+
+        (let outcome =
+           checkFunctionAstOutcome([], oneArg(tUnit(), tInt(), body(2)))
+         Stdlib.List.map(outcome.warnings, fun issue ->
+           (
+             issue.nodeId,
+             LanguageTools.AtRestTypeChecker.issueToString(issue))))
+        |> Stdlib.Test.equal(
+          [ (
+              Stdlib.Option.Option.Some(2u64),
+              "Multiple let bindings share a pattern node ID; their types cannot be checked") ]) ])
+
+
+module InferenceIds =
+  let projection(id: Int64): LanguageTools.ProgramTypes.Expr =
+    LanguageTools.ProgramTypes.Expr.ELambda(
+      id,
+      [ LanguageTools.ProgramTypes.LetPattern.LPVariable(id + 1, "x") ],
+      LanguageTools.ProgramTypes.Expr.ERecordFieldAccess(
+        id + 2,
+        LanguageTools.ProgramTypes.Expr.EVariable(id + 3, "x"),
+        "field"))
+
+
+  // Build `let (a, b) = (fun x -> x.field, fun x -> x.field); b 1`.
+  // If both lambdas share an ID, the checker can mistakenly attach b's field
+  // requirement to a and miss the invalid call b 1. Reject the duplicate IDs.
+  let body(secondId: Int64): LanguageTools.ProgramTypes.Expr =
+    LanguageTools.ProgramTypes.Expr.ELet(
+      1,
+      LanguageTools.ProgramTypes.LetPattern.LPTuple(
+        2,
+        LanguageTools.ProgramTypes.LetPattern.LPVariable(3, "a"),
+        LanguageTools.ProgramTypes.LetPattern.LPVariable(4, "b"),
+        []),
+      LanguageTools.ProgramTypes.Expr.ETuple(
+        5,
+        projection(10),
+        projection(secondId),
+        []),
+      LanguageTools.ProgramTypes.Expr.EApply(
+        6,
+        LanguageTools.ProgramTypes.Expr.EVariable(7, "b"),
+        [],
+        [ intExpr(8, 1) ]))
+
+
+  test duplicateLambdaIdsAreRejected =
+    Stdlib.Test.all(
+      [ checkPackageOpsSummary([], [ oneArg(tUnit(), tInt(), body(10)) ])
+        |> Stdlib.Test.equal("incomplete:UnsupportedConstruct")
+
+        checkPackageOpsSummary([], [ oneArg(tUnit(), tInt(), body(20)) ])
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        checkValueAsts([ valueNamed("duplicate-inference", body(10)) ])
+        |> Stdlib.Test.equal([ "incomplete:UnsupportedConstruct" ])
+
+        (let outcome =
+           checkFunctionAstOutcome([], oneArg(tUnit(), tInt(), body(10)))
+         Stdlib.List.map(outcome.warnings, fun issue ->
+           (
+             issue.nodeId,
+             LanguageTools.AtRestTypeChecker.issueToString(issue))))
+        |> Stdlib.Test.equal(
+          [ (
+              Stdlib.Option.Option.Some(10u64),
+              "Multiple inference nodes share an ID; their types cannot be checked") ]) ])
+
+
+module ConstructorDeclarations =
+  test constructingCaseChecksWholeDeclaration =
+    Stdlib.Test.all(
+      [ check(
+          src(
+            [ "type E = | A | B(Dict<(Int64 -> Int64), Int64>)"
+              "let f(): Int64 ="
+              "  let e = E.A"
+              "  1" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+        check(
+          src(
+            [ "type Bad = Dict<(Int64 -> Int64), Int64>"
+              "type R = { xs: List<Bad> }"
+              "let f(): Int64 ="
+              "  let r = R { xs = [] }"
+              "  1" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+        check(
+          src(
+            [ "type Bad = List<Bad>"
+              "type E = | A | B(Bad)"
+              "let f(): Int64 ="
+              "  let e = E.A"
+              "  1" ]),
+          "f")
+        |> Stdlib.Test.equal("incomplete:AliasCycle")
+
+        check(
+          src(
+            [ "type R<'a> = { xs: List<'a> }"
+              "let f(): Int64 ="
+              "  let r = R { xs = [1] }"
+              "  1" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // Only the function receives a report here; the record type is a dependency.
+  // Its unavailable field type makes the function's check Incomplete, even when
+  // the function constructs the record with an empty list.
+  test unavailableFieldTypeIsIncomplete =
+    (let typ =
+       declared(
+         "record",
+         [],
+         recordOf([ ("xs", tList(custom("missing", []))) ]))
+     let construction =
+       LanguageTools.ProgramTypes.Expr.ERecord(
+         1,
+         resolved(
+           LanguageTools.ProgramTypes.FQTypeName.FQTypeName.Package(
+             hash("record"))),
+         [],
+         [ ("xs", LanguageTools.ProgramTypes.Expr.EList(2, [])) ])
+     let body =
+       LanguageTools.ProgramTypes.Expr.ELet(
+         3,
+         LanguageTools.ProgramTypes.LetPattern.LPWildcard(4),
+         construction,
+         intExpr(5, 1))
+     checkFunctionAst([ typ ], oneArg(tUnit(), tInt(), body)))
+    |> Stdlib.Test.equal("incomplete:MissingTypeDeclaration")
+
+
+module LambdaArgumentSlots =
+  // EArg refers to a package function's parameter by position. Inside a lambda,
+  // it must be rejected rather than mistaken for the outer function's Int64 argument.
+  // Build the value in a function so its custom type stays current across package reloads.
+  let parameters(): List<LanguageTools.ProgramTypes.LetPattern> =
+    [ LanguageTools.ProgramTypes.LetPattern.LPVariable(11, "text") ]
+
+
+  let lambda(): LanguageTools.ProgramTypes.Expr =
+    LanguageTools.ProgramTypes.Expr.ELambda(10, parameters(), arg(12))
+
+
+  // Reject the invalid EArg when checking a lambda against a declared type,
+  // inferring a discarded lambda's type, or checking a lambda in a pipeline.
+  test invalidLambdaArgIsRejected =
+    Stdlib.Test.all(
+      [ checkFunctionAst(
+          [],
+          oneArg(
+            tInt(),
+            LanguageTools.ProgramTypes.TypeReference.TFn(
+              [ LanguageTools.ProgramTypes.TypeReference.TString ],
+              tInt()),
+            lambda()))
+        |> Stdlib.Test.equal("failed:InvalidArgumentIndex")
+
+        checkFunctionAst(
+          [],
+          oneArg(
+            tInt(),
+            tUnit(),
+            LanguageTools.ProgramTypes.Expr.ELet(
+              13,
+              LanguageTools.ProgramTypes.LetPattern.LPWildcard(14),
+              lambda(),
+              unitExpr(15))))
+        |> Stdlib.Test.equal("failed:InvalidArgumentIndex")
+
+        checkFunctionAst(
+          [],
+          oneArg(
+            tInt(),
+            tInt(),
+            LanguageTools.ProgramTypes.Expr.EPipe(
+              13,
+              unitExpr(14),
+              [ LanguageTools.ProgramTypes.PipeExpr.EPipeLambda(
+                  10,
+                  parameters(),
+                  arg(12)) ])))
+        |> Stdlib.Test.equal("failed:InvalidArgumentIndex") ])
+
+
+  // Valid source refers to captured outer parameters by name, so these lambdas pass.
+  test capturedParametersPass =
+    Stdlib.Test.all(
+      [ check("let f(x: Int64): String -> Int64 = fun text -> x", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f(x: Int64): Int64 = x |> (fun y -> x + y)", "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+// Each fn below misuses a Stdlib fn, which reaches the checker only as a DEPENDENCY: loaded for
+// its signature, never checked in this batch. These pin what a dependency's signature has to
+// catch on its own, so a change to how dependencies are loaded cannot quietly make callers
+// unchecked. Each mistake has a correct twin that must stay checked.
+module ThroughADependency =
+  test acceptsCorrectArgument =
+    check("let f(s: String): Int64 = Stdlib.String.length(s)", "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  test rejectsWrongArgument =
+    check("let f(): Int64 = Stdlib.String.length(5)", "f")
+    |> Stdlib.Test.equal("failed:TypeMismatch")
+
+
+  test rejectsWrongReturnType =
+    check("let f(): String = Stdlib.String.length(\"x\")", "f")
+    |> Stdlib.Test.equal("failed:TypeMismatch")
+
+
+  test acceptsCorrectGenericArgument =
+    check(
+      "let f(): Int64 = Stdlib.Option.withDefault(Stdlib.List.head([ 1 ]), 0)",
+      "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  test rejectsWrongGenericArgument =
+    check(
+      "let f(): String = Stdlib.Option.withDefault(Stdlib.List.head([ 1, 2 ]), \"x\")",
+      "f")
+    |> Stdlib.Test.equal("failed:TypeMismatch")
+
+
+  test rejectsNonListArgument =
+    check("let f(): Bool = Stdlib.List.isEmpty(\"x\")", "f")
+    |> Stdlib.Test.equal("failed:TypeMismatch")
+
+
+  // A dependency passed by name, and one given too few arguments.
+  test checksNamedCallback =
+    check(
+      "let f(): Int64 = Stdlib.List.length(Stdlib.List.map([ 1 ], Stdlib.String.length))",
+      "f")
+    |> Stdlib.Test.equal("failed:TypeMismatch")
+
+
+  test rejectsPartialApplication =
+    check("let f(): String = (Stdlib.String.append(\"a\"))(3)", "f")
+    |> Stdlib.Test.equal("failed:TooFewArguments")
+
+
+  // A dependency's trait bound, met and not met at the call.
+  test acceptsMetTraitBound =
+    check("let f(): String = Stdlib.display(5)", "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  test rejectsUnmetTraitBound =
+    check("let f(): String = Stdlib.display(fun x -> x)", "f")
+    |> Stdlib.Test.equal("failed:MissingImpl")
+
+
+module StringInterpolation =
+  test conversionResultMessage =
+    LanguageTools.AtRestTypeChecker.issueToString(
+      LanguageTools.AtRestTypeChecker.Issue
+        { code = LanguageTools.AtRestTypeChecker.IssueCode.TypeMismatch
+          nodeId = Stdlib.Option.Option.None
+          expected =
+            Stdlib.Option.Option.Some(
+              LanguageTools.AtRestTypeChecker.StaticType.TString)
+          actual =
+            Stdlib.Option.Option.Some(
+              LanguageTools.AtRestTypeChecker.StaticType.TInt64)
+          context =
+            LanguageTools.AtRestTypeChecker.Context.At(
+              LanguageTools.AtRestTypeChecker.Site.InterpolatedSegment) })
+    |> Stdlib.Test.equal(
+      "String interpolation conversion must return String; got Int64.")
+
+
+  test acceptsToString =
+    check("let f(n: Int64): String = $\"Int64: {n}\"", "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  // A type with no Display interpolates through inspect, so it is not an error.
+  test acceptsTypeWithoutDisplay =
+    check("let f(n: Int64 -> Int64): String = $\"function: {n}\"", "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  test acceptsUnboundTypeVariable =
+    check("let f(v: 'a): String = $\"value: {v}\"", "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  test displayStillNeedsAnImpl =
+    check("let f(n: Int64 -> Int64): String = Stdlib.display(n)", "f")
+    |> Stdlib.Test.equal("failed:MissingImpl")
+
+
+module Basics =
+  test argumentAndReturnTypes =
+    Stdlib.Test.all(
+      [ check("let f(value: Int64): Int64 = value", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f(value: Int64): String = value", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check("let f(x: Int64): String = x |> Stdlib.display", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f(x: Int64): Int64 = Stdlib.String.length(x)", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
+  // Looking up `other` by name must use its declared String type.
+  test lookupUsesDeclaredType =
+    check("let f(value: Int64, other: String): String = other", "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  // An enum pattern on a value that is not an enum names the value's type.
+  test enumPatternOnAListNamesTheType =
+    issues(
+      "let f(xs: List<Int64>): Int64 =\n  match xs with\n  | Ok(_) -> 1\n  | _ -> 0",
+      "f")
+    |> Stdlib.Test.equal(
+      [ "InvalidPattern: An enum pattern such as `Ok(x)` or `Some(x)` cannot match a List<Int64>" ])
+
+
+  // Calling an Int64 as though it were a function must report NotCallable.
+  test callingIntIsNotCallable =
+    check("let f(x: Int64): Int64 = x(1)", "f")
+    |> Stdlib.Test.equal("failed:NotCallable")
+
+
+  // Check builtin calls using their declared parameter and return types;
+  // builtin implementations are not Dark bodies the checker can inspect.
+  test builtinCallsUseSignatures =
+    check("let f(u: Unit): String = Builtin.int64ToString(1)", "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  // Reject an argument index outside the function's parameter list. Construct
+  // the syntax tree directly because source code cannot express this invalid index.
+  test argIndexOutOfRangeIsRejected =
+    checkFunctionAst(
+      [],
+      oneArg(tInt(), tInt(), LanguageTools.ProgramTypes.Expr.EArg(2, 5)))
+    |> Stdlib.Test.equal("failed:InvalidArgumentIndex")

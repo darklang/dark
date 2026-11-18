@@ -1,0 +1,382 @@
+module Darklang.LanguageTools.AtRestTypeChecker.Tests
+
+// ----------------------------------------------------------------------------------
+// Operators
+// ----------------------------------------------------------------------------------
+
+module Operators =
+  // Bitwise NOT (~) is `BitwiseNot.bitwiseNot`, and which types it accepts is which
+  // types implement it rather than a list the checker carries. Bool, Float64 and
+  // String have no implementation, so they are refused as a missing one, the same
+  // way a named call is. The runtime refuses them for the same reason, which is the
+  // point.
+  test bitwiseNot =
+    Stdlib.Test.all(
+      [ Stdlib.List.map(
+          [ "Int8"
+            "UInt8"
+            "Int16"
+            "UInt16"
+            "Int32"
+            "UInt32"
+            "Int64"
+            "UInt64"
+            "Int128"
+            "UInt128"
+            "Int64" ],
+          fun typ -> check($"let f (x: {typ}) : {typ} = ~x", "f"))
+        |> Stdlib.Test.equal(
+          [ "checked:"
+            "checked:"
+            "checked:"
+            "checked:"
+            "checked:"
+            "checked:"
+            "checked:"
+            "checked:"
+            "checked:"
+            "checked:"
+            "checked:" ])
+
+        check("let f(x: Bool): Bool = ~x", "f")
+        |> Stdlib.Test.equal("failed:MissingImpl")
+
+        check("let f(x: Float64): Float64 = ~x", "f")
+        |> Stdlib.Test.equal("failed:MissingImpl")
+
+        check("let f(x: String): String = Builtin.bitwiseNot(x)", "f")
+        |> Stdlib.Test.equal("failed:MissingImpl")
+
+        check("let f(x: Bool): Bool = x |> Builtin.bitwiseNot", "f")
+        |> Stdlib.Test.equal("failed:MissingImpl")
+
+        check("let f(x: UInt128): UInt128 = x |> Builtin.bitwiseNot", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f(): Bool -> Bool = Builtin.bitwiseNot", "f")
+        |> Stdlib.Test.equal("incomplete:UnsupportedConstruct")
+
+        check(
+          src(
+            [ "let f(): Bool =", "  let flip = fun x -> ~x", "  flip(true)" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:MissingImpl")
+
+        check(
+          src([ "let f(): Int64 =", "  let flip = fun x -> ~x", "  flip(1)" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("val f = fun x -> (~x, x.field)", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
+  // String implements Add, so `+` joins Strings and the checker must accept it.
+  test stringAddition =
+    check("let f(x: String): String = x + x", "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  // `Power` has implementations for all twelve numeric types, these two included, so the
+  // checker must accept `**` on them, same as dispatch does.
+  test int128Arithmetic =
+    Stdlib.Test.all(
+      [ check("let f(value: Int128): Int128 = value ** value", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f(value: UInt128): UInt128 = value ** value", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f(value: Int128): Int128 = value + value", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f(value: UInt128): UInt128 = value * value", "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // Bitwise operators still refuse Float64, but as the ABSENCE of an implementation
+  // rather than a predicate in the checker: there is no `impl BitwiseAnd for Float64`.
+  // Same answer, and now it is the same answer dispatch gives.
+  test bitwiseOperators =
+    Stdlib.Test.all(
+      [ check("let f(value: Float64): Float64 = value & value", "f")
+        |> Stdlib.Test.equal("failed:MissingImpl")
+
+        check("let f(value: Float64): Float64 = value << value", "f")
+        |> Stdlib.Test.equal("failed:MissingImpl")
+
+        check("let f(value: Int128): Int128 = value ^ value", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f(value: Int64): Int64 = value >> value", "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // Direct calls such as Builtin.add must follow the operator's typing rules.
+  // Their generic builtin signatures alone would allow invalid operand types.
+  test directBuiltinCallsFollowOperatorRules =
+    Stdlib.Test.all(
+      [ check("let f(u: Unit): Bool = Builtin.lessThan(1, \"x\")", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check("let f(u: Unit): Int64 = Builtin.add(1, 2)", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f(u: Unit): String = Builtin.add(1, 2)", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch") ])
+
+
+  // `Compare` has an implementation for String, so comparing two Strings is
+  // accepted. The old table allowed only numerics.
+  test stringComparison =
+    Stdlib.Test.all(
+      [ check("let f(u: Unit): Bool = Builtin.greaterThan(\"x\", \"x\")", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f(u: Unit): Bool = Builtin.equals(\"x\", \"x\")", "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // The checker cannot fully describe an operator's type restrictions when it is
+  // passed around or partially applied. Report Incomplete for Builtin.add 1.
+  test partialOperatorIsIncomplete =
+    check("let f(u: Unit): Int64 -> Int64 = Builtin.add(1)", "f")
+    |> Stdlib.Test.equal("incomplete:UnsupportedConstruct")
+
+
+  // A pipeline supplies the operator's first argument, and gets the same answer as a
+  // direct call. Power on UInt128 is accepted through both, for the reason above.
+  test pipedOperators =
+    Stdlib.Test.all(
+      [ check("let f(value: Int64): Int64 = value |> Builtin.subtract(1)", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          "let f(value: UInt128): UInt128 = value |> Builtin.power(value)",
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          "let f(value: UInt128): UInt128 = Builtin.power(value, value)",
+          "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // Unary minus is `Negate.negate`, so the unsigned integers are refused because
+  // nothing implements it for them, not because a predicate knows they are unsigned.
+  // The resulting type is still checked against the return type.
+  test unaryMinus =
+    Stdlib.Test.all(
+      [ check("let f(value: Int64): Int64 = -value", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f(value: Float64): Float64 = -value", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f(value: Int64): String = -value", "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check("let f(value: UInt8): UInt8 = -value", "f")
+        |> Stdlib.Test.equal("failed:MissingImpl")
+
+        check("let f(value: String): String = -value", "f")
+        |> Stdlib.Test.equal("failed:MissingImpl") ])
+
+
+// ----------------------------------------------------------------------------------
+// Builtins requiring special typing rules
+// ----------------------------------------------------------------------------------
+
+module Builtins =
+  // Infer Builtin.unwrap's result from an Option or Result payload. For other
+  // input types, report Incomplete because its result type cannot be established.
+  test unwrapResultType =
+    Stdlib.Test.all(
+      [ check(
+          "let f(x: Stdlib.Option.Option<Int64>): Int64 = Builtin.unwrap(x)",
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f(u: Unit): Int64 = Builtin.unwrap(1)", "f")
+        |> Stdlib.Test.equal("incomplete:UnsupportedConstruct") ])
+
+
+  // jsonParse needs an explicit type argument to determine the parsed value's type.
+  test jsonParseNeedsTypeArg =
+    check("let f(u: Unit): Int64 = Builtin.jsonParse(\"1\")", "f")
+    |> Stdlib.Test.equal("incomplete:UnsupportedConstruct")
+
+
+  // jsonParse<Int64> supplies the missing type information. Also load the types
+  // named in its signature, including Result and the ParseError error type.
+  test jsonParseWithTypeArg =
+    check(
+      src(
+        [ "let f(u: Unit): Int64 ="
+          "  match Builtin.jsonParse<Int64>(\"1\") with"
+          "  | Ok(x) -> x"
+          "  | Error(_) -> 0" ]),
+      "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  // Load Option from listGetAt's return type so the checker can validate these
+  // Some and None patterns, even though the function's own signature omits Option.
+  test listGetAtLoadsOption =
+    check(
+      src(
+        [ "let f(x: List<Int64>): Int64 ="
+          "  match Builtin.listGetAt(x, 0) with"
+          "  | Some(y) -> y"
+          "  | None -> 0" ]),
+      "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  // applicableByHash returns a type variable that its inputs do not determine
+  // and its signature does not declare. Report Incomplete for that unknown result.
+  test undeterminedResultIsIncomplete =
+    check(
+      "let f(h: String): Int64 = match Builtin.applicableByHash(h) with | Ok(_) -> 1 | Error(_) -> 0",
+      "f")
+    |> Stdlib.Test.equal("incomplete:UnsupportedConstruct")
+
+
+  // A builtin missing from the registry makes the check Incomplete.
+  test missingBuiltinIsIncomplete =
+    checkFunctionAst(
+      [],
+      oneArg(
+        tUnit(),
+        tInt(),
+        LanguageTools.ProgramTypes.Expr.EApply(
+          10,
+          LanguageTools.ProgramTypes.Expr.EFnName(
+            11,
+            resolved(
+              LanguageTools.ProgramTypes.FQFnName.FQFnName.Builtin(
+                LanguageTools.ProgramTypes.FQFnName.Builtin
+                  { name = "missing", version = 0s32 })),
+            [],
+            []),
+          [],
+          [ intExpr(12, 1) ])))
+    |> Stdlib.Test.equal("incomplete:MissingFunctionSignature")
+
+
+  // Accept the required number of explicit type arguments, including type parameters
+  // from the calling function. Reject calls supplying too many type arguments.
+  test explicitTypeArgCount =
+    Stdlib.Test.all(
+      [ check(
+          src(
+            [ "let same(x: 'a): 'a = x"
+              "let f(u: Unit): Int64 = same<Int64>(1)" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          src([ "let same(x: 'a): 'a = x", "let f(x: 'b): 'b = same<'b>(x)" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          "let f(u: Unit): Int64 = Stdlib.List.length<Int64, Int64, Int64>([])",
+          "f")
+        |> Stdlib.Test.equal("failed:ExplicitTypeArgumentCountMismatch") ])
+
+
+  // A fn named with type args and not called is a value of the specialised fn type:
+  // the type args are counted, and calls through it are checked against them.
+  test uncalledFnWithTypeArgs =
+    Stdlib.Test.all(
+      [ check(
+          src(
+            [ "let same(x: 'a): 'a = x"
+              "let f(u: Unit): Int64 =\n  let h = same<Int64>\n  h(1)" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          src(
+            [ "let same(x: 'a): 'a = x"
+              "let f(u: Unit): Int64 =\n  let h = same<String>\n  h(1)" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:TypeMismatch")
+
+        check(
+          "let f(u: Unit): Int64 =\n  let h = Stdlib.List.length<Int64, Int64, Int64>\n  h([])",
+          "f")
+        |> Stdlib.Test.equal("failed:ExplicitTypeArgumentCountMismatch") ])
+
+
+  // `append` adds one value; a whole list as its second argument was meant to join two lists.
+  test appendGivenAListPointsAtConcat =
+    issues(
+      "let f(xs: List<Int64>): List<Int64> = Stdlib.List.append(xs, [ 1 ])",
+      "f")
+    |> Stdlib.Test.equal(
+      [ "TypeMismatch: In `Stdlib.List.append`, argument 2: expected Int64, got List<Int64> (`append` adds one item; to join two lists use `Stdlib.List.concat(a, b)` or `[...a, ...b]`)" ])
+
+
+// ----------------------------------------------------------------------------------
+// Tuple callbacks
+// ----------------------------------------------------------------------------------
+
+module TupleCallbacks =
+  test pairParameterSuggestsTuplePattern =
+    issues(
+      src(
+        [ "let f(): Unit ="
+          "  Stdlib.List.iter([(\"a\", 1)], fun (k, v) -> Stdlib.printLine(k))" ]),
+      "f")
+    |> Stdlib.Test.equal(
+      [ "TypeMismatch: In `Stdlib.List.iter`, argument 2: "
+        + "expected ((String * Int64)) -> Unit, got (String, _) -> Unit"
+        + " (a pair is one argument; write `fun ((a, b)) -> ...`)" ])
+
+
+  test tripleParameterSuggestsTuplePattern =
+    issues(
+      src(
+        [ "let f(): Unit ="
+          "  Stdlib.List.iter([(\"a\", 1, true)], fun (k, v, b) -> Stdlib.printLine(k))" ]),
+      "f")
+    |> Stdlib.Test.equal(
+      [ "TypeMismatch: In `Stdlib.List.iter`, argument 2: "
+        + "expected ((String * Int64 * Bool)) -> Unit, got (String, _, _) -> Unit"
+        + " (a tuple is one argument; write `fun ((a, b, c)) -> ...`)" ])
+
+
+  test tuplePatternChecks =
+    Stdlib.Test.all(
+      [ check(
+          src(
+            [ "let f(): Unit ="
+              "  Stdlib.List.iter([(\"a\", 1)], fun ((k, v)) -> Stdlib.printLine(k))" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          src(
+            [ "let f(items: List<(String * Decimal)>): List<String> ="
+              "  Stdlib.List.map(items, fun ((k, v)) -> k)" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  test otherArityErrorsDoNotSuggestTuplePattern =
+    [ "Stdlib.List.iter([\"a\"], fun (k, v) -> Stdlib.printLine(k))"
+      "Stdlib.List.iter([(\"a\", 1)], fun (k, v, x) -> Stdlib.printLine(k))"
+      "Stdlib.List.iter([(\"a\", 1, true)], fun (k, v) -> Stdlib.printLine(k))" ]
+    |> Stdlib.List.map(fun call ->
+      let messages = issues("let f(): Unit = " + call, "f")
+      Stdlib.Test.all(
+        [ Stdlib.List.any(messages, fun m ->
+            Stdlib.String.startsWith(m, "TypeMismatch:"))
+          |> Stdlib.Test.equal(true)
+
+          Stdlib.List.any(messages, fun m ->
+            Stdlib.String.contains(m, "is one argument"))
+          |> Stdlib.Test.equal(false) ]))
+    |> Stdlib.Test.all

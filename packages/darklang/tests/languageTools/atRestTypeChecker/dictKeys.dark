@@ -1,0 +1,337 @@
+module Darklang.LanguageTools.AtRestTypeChecker.Tests
+
+// ----------------------------------------------------------------------------------
+// Types allowed as dictionary keys
+// ----------------------------------------------------------------------------------
+
+module DictKeys =
+  let key(declarations: List<String>, keyType: String): String =
+    check(
+      src(
+        Stdlib.List.append(
+          declarations,
+          $"let f (x: Dict<{keyType}, String>) : Unit = ()")),
+      "f")
+
+
+  val rejected = "failed:UnsupportedDictKeyType"
+
+  val accepted = "checked:"
+
+
+  test functionKeysRejectedAndBytesKeysAccepted =
+    Stdlib.Test.all(
+      [ key([], "Int64 -> Int64") |> Stdlib.Test.equal(rejected)
+
+        key([], "Bytes") |> Stdlib.Test.equal(accepted)
+
+        key([], "List<Bytes>") |> Stdlib.Test.equal(accepted)
+
+        key([ "type ByteKey = { payload: Bytes }" ], "ByteKey")
+        |> Stdlib.Test.equal(accepted) ])
+
+
+  test reflectedValuesStayWellTyped =
+    check(
+      src(
+        [ "let f(u: Unit): Darklang.LanguageTools.RuntimeTypes.Dval ="
+          "  Darklang.LanguageTools.RuntimeTypes.reflect(Stdlib.Utf8.encode(\"hello\"))" ]),
+      "f")
+    |> Stdlib.Test.equal(accepted)
+
+
+  // Construct TStream directly because the parser has no source syntax for it.
+  test structuredKeyTypes =
+    Stdlib.Test.all(
+      [ checkFunctionAst(
+          [],
+          oneArg(
+            LanguageTools.ProgramTypes.TypeReference.TDict(
+              LanguageTools.ProgramTypes.TypeReference.TStream(tInt()),
+              LanguageTools.ProgramTypes.TypeReference.TString),
+            tUnit(),
+            unitExpr(1)))
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+        checkFunctionAst(
+          [],
+          oneArg(
+            LanguageTools.ProgramTypes.TypeReference.TDict(
+              LanguageTools.ProgramTypes.TypeReference.TStream(tInt()),
+              LanguageTools.ProgramTypes.TypeReference.TString),
+            tUnit(),
+            unitExpr(1)))
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+        key([], "(String * (Int64 -> Int64))") |> Stdlib.Test.equal(rejected)
+
+        key([], "(Int64 * String)") |> Stdlib.Test.equal(accepted)
+
+        key([], "'k") |> Stdlib.Test.equal(accepted)
+
+        key(
+          [ "type Handler = { name: String, run: Int64 -> Int64 }" ],
+          "Handler")
+        |> Stdlib.Test.equal(rejected)
+
+        key([ "type Plain = { x: Int64 }" ], "Plain")
+        |> Stdlib.Test.equal(accepted)
+
+        key([ "type Node = { kids: List<Node> }" ], "Node")
+        |> Stdlib.Test.equal(accepted) ])
+
+
+  // A type argument affects key validity only when a field can contain a value
+  // of that type. Box stores its argument; Phantom has only a String field.
+  test typeArgsMatterOnlyWhenStored =
+    Stdlib.Test.all(
+      [ key([ "type Box<'a> = { v: 'a }" ], "Box<Int64 -> Int64>")
+        |> Stdlib.Test.equal(rejected)
+
+        key([ "type Box<'a> = { v: 'a }" ], "Box<Box<Int64 -> Int64>>")
+        |> Stdlib.Test.equal(rejected)
+
+        key([ "type Box<'a> = { v: 'a }" ], "Box<Box<Int64>>")
+        |> Stdlib.Test.equal(accepted)
+
+        key([ "type Identity<'a> = 'a" ], "Identity<Identity<Int64 -> Int64>>")
+        |> Stdlib.Test.equal(rejected)
+
+        key([ "type Phantom<'a> = { x: String }" ], "Phantom<Int64 -> Int64>")
+        |> Stdlib.Test.equal(accepted)
+
+        key(
+          [ "type Box<'a> = { v: 'a }", "type Phantom<'a> = { x: String }" ],
+          "Box<Box<Phantom<Int64 -> Int64>>>")
+        |> Stdlib.Test.equal(accepted)
+
+        key([], "((Int64 -> Int64) * 'a)") |> Stdlib.Test.equal(rejected)
+
+        key(
+          [ "type Inner<'a> = { v: 'a, run: Int64 -> Int64 }"
+            "type Outer = { i: Inner<Int64> }" ],
+          "Outer")
+        |> Stdlib.Test.equal(rejected)
+
+        key(
+          [ "type Phantom<'a> = { x: String }"
+            "type Holder = { p: Phantom<Int64 -> Int64> }" ],
+          "Holder")
+        |> Stdlib.Test.equal(accepted)
+
+        key(
+          [ "type Phantom<'a> = { x: String }"
+            "type Wrapper<'a> = { p: Phantom<'a> }" ],
+          "Wrapper<Int64 -> Int64>")
+        |> Stdlib.Test.equal(accepted) ])
+
+
+module RecursivePhantomKeys =
+  test phantomRecursionAllowsFunctionArgs =
+    Stdlib.Test.all(
+      [ DictKeys.key([ "type P<'a> = End | Next(P<'a>)" ], "P<Int64 -> Int64>")
+        |> Stdlib.Test.equal("checked:")
+
+        DictKeys.key(
+          [ "type P<'a> = End | Next(P<List<'a>>)" ],
+          "P<Int64 -> Int64>")
+        |> Stdlib.Test.equal("checked:")
+
+        DictKeys.key(
+          [ "type P<'a> = End | Next(P<'a -> Int64>)" ],
+          "P<Int64 -> Int64>")
+        |> Stdlib.Test.equal("checked:")
+
+        DictKeys.key(
+          [ "type P<'a> = { children: List<P<'a>> }" ],
+          "P<Int64 -> Int64>")
+        |> Stdlib.Test.equal("checked:")
+
+        DictKeys.key(
+          [ "type P<'a> = End | Next(Q<'a>)", "type Q<'a> = { p: P<'a> }" ],
+          "P<Int64 -> Int64>")
+        |> Stdlib.Test.equal("checked:")
+
+        DictKeys.key(
+          [ "type P<'a> = End | Next(Alias<'a>)", "type Alias<'a> = P<'a>" ],
+          "P<Int64 -> Int64>")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // A's second type argument becomes B's `value` field. Track the argument swap
+  // through the recursive declarations: only that argument must be a valid key type.
+  let swapped(typ: String): String =
+    DictKeys.key(
+      [ "type A<'a, 'b> = End | Next(B<'b, 'a>)"
+        "type B<'a, 'b> = { value: 'a, next: List<A<'b, 'a>> }" ],
+      typ)
+
+
+  test swappedAndStoredTypeArgs =
+    Stdlib.Test.all(
+      [ swapped("A<Int64 -> Int64, Int64>") |> Stdlib.Test.equal("checked:")
+
+        swapped("A<Int64, Int64 -> Int64>")
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+        DictKeys.key(
+          [ "type P<'a> = End | Next(P<'a>) | Value('a)" ],
+          "P<Int64 -> Int64>")
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+        DictKeys.key(
+          [ "type P<'a> = End | Next(P<'a>) | Run(Int64 -> Int64)" ],
+          "P<Int64>")
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType") ])
+
+
+  // In the first P declaration, 'a never appears in a stored payload, so P can
+  // be a key even when 'a is a function. Adding Value of 'a makes that invalid.
+  // Preserve this distinction when the dictionary is hidden behind alias D.
+  test aliasedDictKeepsPhantomDistinction =
+    Stdlib.Test.all(
+      [ check(
+          src(
+            [ "type P<'a> = End | Next(P<'a>)"
+              "type D<'a> = Dict<P<'a>, Int64>"
+              "let f(d: D<Int64 -> Int64>): Unit = ()" ]),
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          src(
+            [ "type P<'a> = End | Next(P<'a>) | Value('a)"
+              "type D<'a> = Dict<P<'a>, Int64>"
+              "let f(d: D<Int64 -> Int64>): Unit = ()" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType") ])
+
+
+module InstantiatedDictKeys =
+  let signature(declarations: List<String>, typ: String): String =
+    check(
+      src(Stdlib.List.append(declarations, $"let f (x: {typ}) : Unit = ()")),
+      "f")
+
+
+  test instantiatedSignatures =
+    Stdlib.Test.all(
+      [ signature([ "type D<'a> = Dict<'a, Int64>" ], "D<Int64 -> Int64>")
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+        signature([ "type D<'a> = Dict<'a, Int64>" ], "D<Int64>")
+        |> Stdlib.Test.equal("checked:")
+
+        signature(
+          [ "type R<'a> = { items: Dict<'a, Int64> }" ],
+          "R<Int64 -> Int64>")
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+        signature([ "type E<'a> = | E(Dict<'a, Int64>)" ], "E<Int64 -> Int64>")
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+        signature(
+          [ "type R<'a> = { items: Dict<'a, Int64> }"
+            "type W<'a> = { wrapped: R<List<'a>> }" ],
+          "W<Int64 -> Int64>")
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+        signature(
+          [ "type R<'a> = { items: Dict<'a, Int64> }"
+            "type W<'a> = { wrapped: R<List<'a>> }" ],
+          "W<Int64>")
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // Phantom stores no value of type 'a, so D can use a function as its type
+  // argument.
+  test phantomArgAllowsFunction =
+    signature(
+      [ "type Phantom<'a> = { label: String }"
+        "type D<'a> = Dict<Phantom<'a>, Int64>" ],
+      "D<Int64 -> Int64>")
+    |> Stdlib.Test.equal("checked:")
+
+
+  // Follow dictionary-key requirements through recursive declarations, including
+  // references that wrap the next type argument in List or in a function type.
+  test recursiveDeclarations =
+    Stdlib.Test.all(
+      [ signature(
+          [ "type A<'a> = { next: List<B<'a>> }"
+            "type B<'b> = { next: List<A<'b>>, items: Dict<'b, Int64> }" ],
+          "A<Int64 -> Int64>")
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+        signature(
+          [ "type A<'a> = { next: List<B<'a>> }"
+            "type B<'b> = { next: List<A<'b>>, items: Dict<'b, Int64> }" ],
+          "A<Int64>")
+        |> Stdlib.Test.equal("checked:")
+
+        signature(
+          [ "type Node<'a> = { next: List<Node<List<'a>>>, items: Dict<'a, Int64> }" ],
+          "Node<Int64 -> Int64>")
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+        signature(
+          [ "type Node<'a> = { next: List<Node<List<'a>>>, items: Dict<'a, Int64> }" ],
+          "Node<Int64>")
+        |> Stdlib.Test.equal("checked:")
+
+        signature(
+          [ "type Node<'a> = { next: List<Node<'a -> Int64>>, items: Dict<'a, Int64> }" ],
+          "Node<Int64>")
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType") ])
+
+
+  let call(body: List<String>): String =
+    check(
+      src(
+        Stdlib.List.concat(
+          [ "let make<'a> (x: 'a) : Dict<'a, Int64> = Dict { x: 1 }"
+            "let f () : Unit =" ],
+          body)),
+      "f")
+
+
+  test genericCallKeys =
+    Stdlib.Test.all(
+      [ call([ "  let _ = make(fun y -> y + 1)", "  ()" ])
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+        call([ "  let _ = make<Int64 -> Int64>(fun y -> y + 1)", "  ()" ])
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+        call([ "  let _ = make(1)", "  let _ = make(\"ok\")", "  ()" ])
+        |> Stdlib.Test.equal("checked:") ])
+
+
+  // Calls through a local alias or lambda must still enforce make's key requirement.
+  // Check each use of g separately, allowing Int64 and String but rejecting functions.
+  test localAliasAndLambdaCalls =
+    Stdlib.Test.all(
+      [ call([ "  let g = make", "  let _ = g(fun y -> y + 1)", "  ()" ])
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+        call(
+          [ "  let g = fun x -> make(x)"
+            "  let _ = g(fun y -> y + 1)"
+            "  ()" ])
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType")
+
+        call(
+          [ "  let g = fun x -> make(x)"
+            "  let _ = g(1)"
+            "  let _ = g(\"ok\")"
+            "  ()" ])
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          src(
+            [ "type R<'a> = { items: Dict<'a, Int64>, value: 'a }"
+              "let f(): Unit ="
+              "  let _ = R { items = Dict {}, value = fun x -> x + 1 }"
+              "  ()" ]),
+          "f")
+        |> Stdlib.Test.equal("failed:UnsupportedDictKeyType") ])
