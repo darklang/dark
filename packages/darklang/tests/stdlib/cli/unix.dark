@@ -16,7 +16,7 @@ test quote =
       Stdlib.Cli.Unix.quote("") |> Stdlib.Test.equal("''") ])
 
 
-// The bug: `rm -rf /Users/Jo Smith/.darklang` deleted `/Users/Jo` and `Smith/.darklang`
+// removing `/Users/Jo Smith/.darklang` must not touch `/Users/Jo` or `Smith/.darklang`
 test removeDirectoryWithSpaceLeavesNeighbours =
   Stdlib.Cli.Dir.withTemp(fun dir ->
     let target = $"{dir}/Jo Smith/.darklang"

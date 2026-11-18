@@ -474,7 +474,7 @@ let decodesToChar(
 
 
 /// <param source> as an expression is refused with <param message>. The parser recovers a tree from
-/// most syntax errors, and `parsePTExpr` used to lower that tree, holes and all, and return `Ok`.
+/// most syntax errors, and `parsePTExpr` must not lower that tree, holes and all, into an `Ok`.
 let exprRejected(
   name: String,
   source: String,

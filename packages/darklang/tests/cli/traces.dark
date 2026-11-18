@@ -550,8 +550,7 @@ test recordingIsOneKeyWithTwoDoors = Instance.withInstance(fun i ->
 
 
 /// "Nothing here" has more than one cause, and the advice under each is different:
-/// one vague line used to tell someone with recording OFF to go and run the thing
-/// again, which is the one piece of advice that cannot work.
+/// someone with recording OFF must not be told to go and run the thing again.
 test anEmptyAnswerSaysWhyItIsEmpty = Instance.withInstance(fun i ->
   let _ = step(i, [ "traces", "record", "on" ])
   let onCase =

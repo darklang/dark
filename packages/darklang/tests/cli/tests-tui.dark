@@ -552,8 +552,7 @@ test workbenchDiffLinesRenderThroughPipe =
 
 test workbenchModuleInspectPreviewsChildren =
   // `LanguageTools` and its child `AtRestTypeChecker`, because the subject only has to be a
-  // module under `Darklang` that itself holds a child module. It used to be `LspExtension` and
-  // `FileSystemProvider`, which moved to `later/` with the Language Server.
+  // module under `Darklang` that itself holds a child module.
   let location = Cli.Packages.PackageLocation.Module([ "Darklang" ])
   let items = Cli.Workbench.loadItems(SCM.Branch.mainBranchId, location)
   let selected =

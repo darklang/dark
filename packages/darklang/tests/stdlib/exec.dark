@@ -2,9 +2,8 @@ module Darklang.Stdlib.Exec.Tests
 
 /// `select` still answers for a handle whose process finished long ago. The
 /// scheduler's display table keeps the last 64 finished processes; the answer is
-/// kept past that, and `select` has to find it there. The package test runner
-/// selects over tests that themselves spawn work, and used to fail with "no
-/// process has this handle" once enough of that work finished.
+/// kept past that, and `select` has to find it there: the package test runner
+/// selects over tests that themselves spawn work.
 test selectAfterManyOthersFinish =
   let early = Stdlib.Exec.spawn(fun () -> 41 + 1)
   let others =

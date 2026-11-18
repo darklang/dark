@@ -98,8 +98,8 @@ test numbersPrintWithTheirSuffix =
 //
 // `processRemainder` is what the ProgramTypes printer runs a float literal's
 // fraction through, to drop trailing zeros. It parses and reprints the fraction,
-// which comes back in exponent form when small enough; that used to print
-// `0.00001` as `0.-05`.
+// which comes back in exponent form when small enough; `0.00001` must not print
+// as `0.-05`.
 test floatLiterals =
   Stdlib.Test.all(
     [ PrettyPrinter.processRemainder("5") |> Stdlib.Test.equal("5")
@@ -114,9 +114,8 @@ test floatLiterals =
 
 // Escaping
 //
-// Strings and chars used to be wrapped in their quotes unescaped, so a value
-// holding a newline printed as a real line break inside its own literal and one
-// holding a quote closed it early.
+// Strings and chars are escaped inside their quotes: a newline must not print as a
+// real line break, and a quote must not close the literal early.
 test escaping =
   Stdlib.Test.all(
     [ pp("a\nb") |> Stdlib.Test.equal("\"a\\nb\"")
@@ -315,9 +314,7 @@ test widths =
 
 test enumTypeNames =
   Stdlib.Test.all(
-    [ // Nested wrappers, which is where the old output was worst: this used to be
-      // three lines of
-      // `Darklang.Stdlib.Option.Option<Darklang.Stdlib.Option.Option<List<Int64>>>.Some(...)`.
+    [ // nested wrappers print without their type names
       pp(Stdlib.Option.Option.Some(Stdlib.Option.Option.Some([ 1, 2, 3 ])))
       |> Stdlib.Test.equal("Some(Some([1, 2, 3]))")
 
@@ -329,21 +326,16 @@ test enumTypeNames =
       // Unless the type has several names and nothing says which.
       // `Stdlib.BigInt.ParseError`, `Stdlib.Float64.ParseError` and
       // `Stdlib.Uuid.ParseError` are all `| BadFormat`, so content-addressing
-      // makes them one type with three names; naming one is guessing, and it
-      // used to guess wrong often enough that `Stdlib.BigInt.parse` would report a
-      // `Stdlib.Uuid.ParseError`. The case alone is honest.
+      // makes them one type with three names; naming one is guessing. The case
+      // alone is honest.
       pp(Stdlib.Int64.parse("abc")) |> Stdlib.Test.equal("Error(BadFormat)") ])
 
 
 // `dvalOneLine` renders only as much as it can show
 //
-// It formats a value and then cuts the result to a character budget, so a long
-// list used to be formatted in full to produce sixty characters of it. A
-// 2000-element list cost 2.1 seconds of a 2.6 second trace page, and it scaled
-// with the DATA rather than with the trace, which is the wrong axis entirely.
-//
-// Only a prefix is rendered now. These pin that the prefix is
-// character-for-character what the whole value would have produced. The second
+// Only a prefix of a long value is rendered, so its cost doesn't scale with the
+// data. These pin that the prefix is character-for-character what the whole
+// value would have produced. The second
 // case is the one that caught the subtle half: cut a list down far enough and the
 // printer lays it out INLINE instead of wrapped, and the two differ by the space
 // after the bracket, so the cut has to stay above the width where that flips.

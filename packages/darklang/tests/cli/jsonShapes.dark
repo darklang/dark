@@ -528,8 +528,8 @@ test typecheckNamesOnlyWhatIsInScope = Instance.withInstance(fun i ->
 
 
 /// A module's fns are checked against what their bodies call, wherever that lives. Their
-/// signatures here name nothing outside the module, and the audit once took that to mean it
-/// had everything, never loaded the callee and reported the fn incomplete. One calls into
+/// signatures here name nothing outside the module, and the audit must still load the callee
+/// rather than report the fn incomplete. One calls into
 /// Stdlib; the other into a fn in another module that takes a type of that module's own.
 test typecheckLoadsWhatAModuleBodyCalls =
   Instance.withInstance(fun i ->

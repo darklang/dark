@@ -298,9 +298,8 @@ test harmfulGate =
     Stdlib.Test.Result.Pass
 
 
-/// Two names holding one body are one item, so deleting or deprecating one used to deprecate
-/// both: deleting a probe `= 5` took stdlib constants with it. Now it is said at the name, and the
-/// other name stays undeprecated and resolvable.
+/// Two names holding one body are one item, so deleting or deprecating one must be said at the
+/// name: the other name stays undeprecated and resolvable.
 test deprecateLeavesATwinAlone = Instance.withInstance(fun i ->
   let said = fun args ->
     Instance.said(i, Stdlib.List.concat([ "--branch", "main" ], args))
@@ -401,7 +400,7 @@ test fnTakesACommentedDeclarationAsIs =
       |> Stdlib.Test.equal("let f (x: Int64): Int64 = x") ])
 
 
-// #6024: an impl's methods are called through its trait, never at the type's module, so
+// An impl's methods are called through its trait, never at the type's module, so
 // `view` and `search` say where: the `Stdlib.display` shortcut beside `Display`, and the
 // trait's own path for one without a shortcut.
 test implListingsSayWhereTheMethodsAreCalled =
@@ -502,10 +501,9 @@ test nativeListEdgeCases =
 /// case: resolving the type argument is the one step that can need the package store before anything has
 /// run, so it hands off to `callBuiltinAsync`/`callPackageAsync` instead of staying synchronous.
 ///
-/// Nothing else in either suite exercises that, and it has already been wrong once: an earlier version
-/// awaited and then retried the synchronous path, which never terminates for a type argument that isn't
-/// in the store, because cache misses aren't cached. A scalar type arg, a container one and a custom one
-/// each resolve differently, so all three are here.
+/// Nothing else in either suite exercises that. It must not retry the synchronous path after the await:
+/// cache misses aren't cached, so that never ends for a type argument not in the store. A scalar type
+/// arg, a container one and a custom one each resolve differently, so all three are here.
 test explicitTypeArgs =
   let scalar = runWithCommand([ "eval", "Stdlib.Json.parse<Int64>(\"3\")" ])
 
@@ -624,8 +622,8 @@ test notFoundNamesThePath =
     Stdlib.Test.fail($"view: {viewed}, ls: {listed}, nav: {navigated}")
 
 
-/// `tree` refuses what it cannot show. Both arms used to answer instead: an unknown flag
-/// was dropped with the real ones, and an unresolvable path fell back to where you stood.
+/// `tree` refuses what it cannot show: an unknown flag must not be dropped with the real ones,
+/// and an unresolvable path must not fall back to where you stand.
 test treeRefusesWhatItCannotShow =
   let badFlag = runWithCommand([ "tree", "--zzbogus" ])
 

@@ -1497,18 +1497,14 @@ module Operators =
         |> Stdlib.Test.equal("failed:TypeMismatch") ])
 
 
-  // String implements Add, which is what made `++` redundant, so `+` joins Strings
-  // and the checker accepts it. It used to refuse, from a table that did not know.
+  // String implements Add, so `+` joins Strings and the checker must accept it.
   test stringAddition =
     check("let f(x: String): String = x + x", "f")
     |> Stdlib.Test.equal("checked:")
 
 
-  // Exponentiation on 128-bit integers is ACCEPTED now, and the old expectation was
-  // asserting a checker bug: `Power` has implementations for all twelve numeric
-  // types, including these two, and the runtime has always answered `Int128 **
-  // Int128`. The rule that refused them was a hand-written table in the checker that
-  // disagreed with dispatch.
+  // `Power` has implementations for all twelve numeric types, these two included, so the
+  // checker must accept `**` on them, same as dispatch does.
   test int128Arithmetic =
     Stdlib.Test.all(
       [ check("let f(value: Int128): Int128 = value ** value", "f")
@@ -1916,7 +1912,7 @@ module PostfixUnwrap =
       [ "TypeMismatch: In the error returned by ?: expected String, got Bool" ])
 
 
-  // #6024: an Int64 handed where a String is expected names the conversion.
+  // An Int64 handed where a String is expected names the conversion.
   test intWhereStringExpectedNamesToString =
     issues("let f(n: Int64): String = n", "f")
     |> Stdlib.Test.equal(
@@ -3580,14 +3576,8 @@ module Batches =
   // is a limit it chooses: `NodeIds.maxDeclarationDepth`, applied wherever the type
   // sits.
   //
-  // The first of these expected "checked:" until that limit existed, and the reason
-  // was an accident rather than an intention. A 5,000-deep LIST type was accepted
-  // while the 3,000-deep TUPLE type below was refused, because walking a tuple calls
-  // back through List.map at each level and so nests on the .NET stack, while
-  // walking a list does not. Deeper and fine, shallower and refused, decided by the
-  // shape of the traversal. So this line is a TIGHTENING: the checker now refuses a
-  // 5,000-deep type here where it used to accept one, and the rule is sayable
-  // without reference to how the walk is written.
+  // the limit must not depend on the shape of the walk: a 5,000-deep list type is
+  // refused just like the 3,000-deep tuple below.
   test depthLimit =
     Stdlib.Test.all(
       [ checkPackageOpsSummary(

@@ -28,8 +28,7 @@ module AssetForPlatform =
       asset("darklang-alpha-abc1234-osx-arm64.gz") ]
 
 
-  // The one that was wrong: arm64 must not be served the 32-bit build, and arm must not be
-  // served the 64-bit one.
+  // arm64 must not be served the 32-bit build, and arm must not be served the 64-bit one.
   test armBuilds =
     Stdlib.Test.all(
       [ GitHub.Releases.assetUrlFor(assets(), "linux-arm64")
