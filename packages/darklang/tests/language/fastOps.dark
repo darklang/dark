@@ -80,3 +80,26 @@ test stringDisplayWidth =
       check("width empty", Stdlib.display(Stdlib.String.displayWidth("")), "0")
       check("width wide", Stdlib.display(Stdlib.String.displayWidth("世界")), "4")
       check("width combining", Stdlib.display(Stdlib.String.displayWidth("é")), "1") ])
+
+// The tests above run at the top level, which never takes the quickened path. Inside a package
+// fn the interpreter answers the same operators from its quickened instructions.
+let quickened(unit: Unit): Stdlib.Test.Result =
+  Stdlib.Test.all(
+    [ check("dict get hit", Stdlib.display(Stdlib.Option.withDefault(Stdlib.Dict.get(d, "a"), 0)), "1")
+      check("dict get miss", Stdlib.display(Stdlib.Option.withDefault(Stdlib.Dict.get(d, "zz"), -1)), "-1")
+      check("dict set overwrite", Stdlib.display(Stdlib.Option.withDefault(Stdlib.Dict.get(Stdlib.Dict.set(d, "a", 9), "a"), 0)), "9")
+      check("dict set does not mutate", Stdlib.display(Stdlib.List.length(Stdlib.Dict.keys(d))), "2")
+      check("int64 toString negative", Stdlib.display(-7), "-7")
+      check("bigint toString past Int64", Stdlib.display(2z ** 70z), "1180591620717411303424")
+      check("bool not", (if Stdlib.Bool.not(true) then "y" else "n"), "n")
+      check("list concat", Stdlib.display(Stdlib.List.length(Stdlib.List.concat([ 1, 2 ], [ 3 ]))), "3")
+      check("string append", "a" + "b", "ab")
+      check("string equals", (if "x" == "x" then "y" else "n"), "y")
+      check("int64 add", Stdlib.display(2 + 3), "5")
+      check("int64 less than", (if 2 < 3 then "y" else "n"), "y")
+      check("repeat negative", Stdlib.String.repeat("x", -2), "")
+      check("list isEmpty no", (if Stdlib.List.isEmpty([ 1 ]) then "y" else "n"), "n")
+      check("contains half a cluster", (if Stdlib.String.contains("éx", "e") then "y" else "n"), "n")
+      check("width wide", Stdlib.display(Stdlib.String.displayWidth("世界")), "4") ])
+
+test insideAPackageFn = quickened()

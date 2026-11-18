@@ -29,3 +29,20 @@ test dictLiterals =
 test dictLiteralLastDuplicateWins =
   Dict { "t": true, "f": false, "t": false }
   |> Stdlib.Test.equal(Dict { "f": false, "t": false })
+
+// A list keeps one element type, down to tuple parts and type arguments.
+test mixedTupleListRaises =
+  [ (1, "a"), (1, 2) ]
+  => raises "Cannot add an (Int64 * Int64) ((1, 2)) to a list of (Int64 * String). Failed at index 1."
+
+test mixedTypeArgListRaises =
+  [ Stdlib.Option.Option.Some(1), Stdlib.Option.Option.Some("a") ]
+  => raises "Cannot add a Darklang.Stdlib.Option.Option<String> (Some(\"a\")) to a list of Darklang.Stdlib.Option.Option<Int64>. Failed at index 1."
+
+test appendOfAMismatchedTupleRaises =
+  Stdlib.List.append([ (1, "a") ], (1, 2))
+  => raises "Darklang.Stdlib.List.append's 2nd parameter `value` expects (Int64 * String), but got (Int64 * Int64) ((1, 2))"
+
+test prependOfAMismatchedTupleRaises =
+  Stdlib.List.prepend([ (1, "a") ], (1, 2))
+  => raises "Darklang.Stdlib.List.prepend's 2nd parameter `value` expects (Int64 * String), but got (Int64 * Int64) ((1, 2))"
