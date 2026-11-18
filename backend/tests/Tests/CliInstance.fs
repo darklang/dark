@@ -260,8 +260,12 @@ let runWithExit (i : T) (args : string list) : Task<string * int64> =
   }
 
 /// Start a command in this instance and return at once, with its stdout and stderr for the caller
-/// to read. The caller stops it with `stop`.
-let startUndrained (i : T) (args : string list) : System.Diagnostics.Process =
+/// to read, and `env` set on top of the instance's own. The caller stops it with `stop`.
+let startUndrainedWithEnv
+  (i : T)
+  (env : List<string * string>)
+  (args : string list)
+  : System.Diagnostics.Process =
   let psi = System.Diagnostics.ProcessStartInfo()
   psi.FileName <- i.cli
   for arg in args do
@@ -271,9 +275,14 @@ let startUndrained (i : T) (args : string list) : System.Diagnostics.Process =
   psi.RedirectStandardOutput <- true
   psi.RedirectStandardError <- true
   childEnv i.dir psi
+  for (name, value) in env do
+    psi.Environment[name] <- value
   let p = System.Diagnostics.Process.Start psi
   p.StandardInput.Close()
   p
+
+let startUndrained (i : T) (args : string list) : System.Diagnostics.Process =
+  startUndrainedWithEnv i [] args
 
 /// Start a command that keeps running (`serve`) in this instance and return at once. What it
 /// prints is drained and dropped, so a full pipe never stops it. The caller stops it with `stop`.

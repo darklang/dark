@@ -132,16 +132,33 @@ let private refuseToOpen
 let upgradeLock (dbPath : string) : System.IDisposable =
   let path = dbPath + ".upgrade-lock"
   let deadline = System.DateTime.UtcNow.AddMinutes 5.0
-  let rec acquire (said : bool) : System.IDisposable =
+  // tests shorten it to drive many retries quickly
+  let retryMs =
+    LibConfig.ConfigDsl.getEnv "DARK_CONFIG_UPGRADE_LOCK_RETRY_MS"
+    |> Option.bind (fun s ->
+      match System.Int32.TryParse s with
+      | true, ms when ms >= 0 -> Some ms
+      | _ -> None)
+    |> Option.defaultValue 100
+  let tryOpen () : Result<System.IDisposable, IOException> =
     try
-      new FileStream(
-        path,
-        FileMode.OpenOrCreate,
-        FileAccess.ReadWrite,
-        FileShare.None
+      Ok(
+        new FileStream(
+          path,
+          FileMode.OpenOrCreate,
+          FileAccess.ReadWrite,
+          FileShare.None
+        )
+        :> System.IDisposable
       )
-      :> System.IDisposable
     with :? IOException as e ->
+      Error e
+  // The retry is outside the `with`: a call from inside a handler is never a tail call, so each
+  // retry kept a frame and a minute of waiting overflowed the stack.
+  let rec acquire (said : bool) : System.IDisposable =
+    match tryOpen () with
+    | Ok held -> held
+    | Error e ->
       if System.DateTime.UtcNow > deadline then
         refuseToOpen
           dbPath
@@ -150,7 +167,7 @@ let upgradeLock (dbPath : string) : System.IDisposable =
           e.Message
       if not said then
         eprintfn "Waiting for another dark to finish upgrading the store..."
-      System.Threading.Thread.Sleep 100
+      System.Threading.Thread.Sleep retryMs
       acquire true
   acquire false
 

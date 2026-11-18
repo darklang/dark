@@ -20,6 +20,43 @@ open Tests.CliDsl
 
 // ─── this instance ────────────────────────────────────────────────────────
 
+/// Each retry of the upgrade lock used to recurse from inside its catch, so a dark kept waiting
+/// past about 530 retries (54 seconds at the real interval, while another folded a big upgrade on a
+/// busy box) died of a stack overflow. With no pause between retries, a second is thousands of them.
+let waitingLongForTheUpgradeLock =
+  CliInstance.instanceTest
+    "a dark kept waiting thousands of retries for the upgrade lock still runs"
+    (fun i ->
+      task {
+        use held =
+          new System.IO.FileStream(
+            System.IO.Path.Combine(i.dir, "data.db.upgrade-lock"),
+            System.IO.FileMode.OpenOrCreate,
+            System.IO.FileAccess.ReadWrite,
+            System.IO.FileShare.None
+          )
+        let p =
+          CliInstance.startUndrainedWithEnv
+            i
+            [ "DARK_CONFIG_UPGRADE_LOCK_RETRY_MS", "0" ]
+            [ "branches" ]
+        try
+          let stdout = p.StandardOutput.ReadToEndAsync()
+          let! waiting = p.StandardError.ReadLineAsync()
+          Expect.equal
+            waiting
+            "Waiting for another dark to finish upgrading the store..."
+            "it waits on the lock"
+          do! Task.Delay(System.TimeSpan.FromSeconds 1.0)
+          held.Dispose()
+          let! err = p.StandardError.ReadToEndAsync()
+          let! out = stdout
+          do! p.WaitForExitAsync()
+          Expect.equal p.ExitCode 0 $"it runs once the lock is free: {out}\n{err}"
+        finally
+          CliInstance.stop p
+      })
+
 let versionAndStatusAnswer =
   instanceTest "version and install-status describe this install" (fun state ->
     task {
@@ -2205,7 +2242,8 @@ let private observeAndShow =
 
 
 let tests : List<Test> =
-  [ versionAndStatusAnswer
+  [ waitingLongForTheUpgradeLock
+    versionAndStatusAnswer
     configRoundTrips
     instanceMovesIntoTheStore
     configRefusesUnknownKeysAndBadValues
