@@ -40,7 +40,7 @@ Test bodies are stored as PT and converted into interpreter instructions when th
 `dark test` shows help. Use `dark test run` to execute tests, `dark test count` to
 count them and `dark test add` to add one.
 
-`dark test run` runs all tests, or you can filter them by module or test name. It skips
+`dark test run` runs all tests, or you can filter them by module, group or test name. It skips
 deprecated tests and starts them in name order, one per core and at most 16 at
 once. Results are printed as tests finish. Use `--jobs <count>` to change the
 limit, or `--jobs 1` to run serially. The command fails if any test
@@ -216,6 +216,20 @@ FAIL Demo.Tests.split
 A nested `all` adds its positions after its own, as in `4 > 2:`. When the list
 is built at run time, there is no source to show, so only the position is
 printed.
+
+## Groups
+
+Modules group tests. Inside a module, a test can put itself in a group by
+wrapping its body in `Stdlib.Test.group`:
+
+```fsharp
+test emptyInput = Stdlib.Test.group("parsing", Parser.parse("") |> Stdlib.Test.equal([]))
+```
+
+`dark test run` shows it as `Demo.Tests › parsing › emptyInput`. A filter can name
+the group like a module, as `Demo.Tests.parsing` or `Demo.Tests › parsing`, and
+`dark test count` counts a group as a row of its own. The group is read from the
+stored body, so a cached test keeps it.
 
 ## Counting tests
 

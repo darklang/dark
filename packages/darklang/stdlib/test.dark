@@ -79,3 +79,10 @@ let all(checks: List<Result>): Result =
     |> List.filter(fun((_, check)) -> check != Result.Pass)
 
   if List.isEmpty(failed) then Result.Pass else Result.FailedChecks(failed)
+
+
+/// <param check> as a test in the group <param name>, inside its module:
+/// `test emptyInput = Stdlib.Test.group("parsing", ...)` runs as
+/// `Module › parsing › emptyInput`, and a filter can name the group.
+let group(name: String, check: Result): Result =
+  check
