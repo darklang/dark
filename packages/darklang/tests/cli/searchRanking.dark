@@ -193,6 +193,23 @@ test synonyms =
       Cli.Packages.Search.synonymQueries("random number")
       |> Stdlib.Test.equal([ ("Int64.random", "Int64.random") ])
 
+      Cli.Packages.Search.synonymQueries("get a value from a dictionary")
+      |> Stdlib.Test.equal([ ("dict.get", "dict.get") ])
+
+      Cli.Packages.Search.synonymQueries("remove key from dict")
+      |> Stdlib.Test.equal([ ("dict.remove", "dict.remove") ])
+
+      Cli.Packages.Search.synonymQueries("find an item in list")
+      |> Stdlib.Test.equal([ ("list.find", "list.find") ])
+
+      Cli.Packages.Search.synonymQueries("encode a value as JSON")
+      |> Stdlib.Test.equal([ ("Json.serialize", "Json.serialize") ])
+
+      Cli.Packages.Search.synonymQueries("encode utf8") |> Stdlib.Test.equal([])
+
+      Cli.Packages.Search.synonymQueries("count items in list")
+      |> Stdlib.Test.equal([ ("length items list", "length"), ("list.count", "list.count") ])
+
       Cli.Packages.Search.synonymQueries("String.size") |> Stdlib.Test.equal([])
 
       Cli.Packages.Search.synonymQueries("split") |> Stdlib.Test.equal([])

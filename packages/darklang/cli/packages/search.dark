@@ -99,24 +99,22 @@ let itemQuery(query: String): String =
 // out loud: `read file` is asking for `readFile`. For a one-word query this is
 // the word itself, so it changes nothing there.
 let joinedQuery(query: String): String =
+  queryTokens(query) |> Stdlib.String.join("")
+
+
+/// Split the query into lowercase words at spaces and dots.
+let queryTokens(query: String): List<String> =
   query
   |> Stdlib.String.toLowercase
   |> Stdlib.String.replaceAll(".", " ")
   |> Stdlib.String.split(" ")
   |> Stdlib.List.filter(fun token -> Stdlib.Bool.not(Stdlib.String.isEmpty(token)))
-  |> Stdlib.String.join("")
 
 
 // The query's words, lowercased, the way the store matched them: split on spaces
 // and dots, and short filler like `of` and `to` dropped unless every word is short.
 let queryWords(query: String): List<String> =
-  let words =
-    query
-    |> Stdlib.String.toLowercase
-    |> Stdlib.String.replaceAll(".", " ")
-    |> Stdlib.String.split(" ")
-    |> Stdlib.List.filter(fun token -> Stdlib.Bool.not(Stdlib.String.isEmpty(token)))
-
+  let words = queryTokens(query)
   let kept = words |> Stdlib.List.filter(fun w -> Stdlib.String.length(w) > 2)
   if Stdlib.List.isEmpty(kept) then words else kept
 
@@ -154,6 +152,26 @@ let phraseSynonyms(words: List<String>): List<String> =
   | _ -> []
 
 
+/// Search for `dict.remove` when someone asks to remove a key from a dictionary.
+/// For JSON queries, also look for `Json.serialize` when someone says `encode`.
+let moduleQueries(tokens: List<String>): List<String> =
+  let words =
+    tokens |> Stdlib.List.filter(fun word -> word != "a" && word != "an" && word != "the")
+
+  let moduleHint =
+    match words, Stdlib.List.reverse(words) with
+    | [operation, _, _, ...], [moduleWord, relation, ...]
+      when relation == "from" || relation == "in" ->
+      let moduleName = if moduleWord == "dictionary" then "dict" else moduleWord
+      [ moduleName + "." + operation ]
+    | _ -> []
+
+  if Stdlib.List.contains(tokens, "json") && Stdlib.List.contains(tokens, "encode") then
+    Stdlib.List.prepend(moduleHint, "Json.serialize")
+  else
+    moduleHint
+
+
 // The other queries <param query> is searched as, and the names they stand for:
 // `size of string` is also `length string`, for `length`. None for a dotted query,
 // which names what it wants.
@@ -162,16 +180,22 @@ let synonymQueries(query: String): List<(String * String)> =
     []
   else
     let words = queryWords(query)
-    match phraseSynonyms(words) with
-    | [] ->
-      words
-      |> Stdlib.List.map(fun word ->
-        wordSynonyms(word)
-        |> Stdlib.List.map(fun target ->
-          let swapped = words |> Stdlib.List.map(fun w -> if w == word then target else w)
-          (Stdlib.String.join(swapped, " "), target)))
-      |> Stdlib.List.flatten
-    | targets -> targets |> Stdlib.List.map(fun target -> (target, target))
+    let synonyms =
+      match phraseSynonyms(words) with
+      | [] ->
+        words
+        |> Stdlib.List.map(fun word ->
+          wordSynonyms(word)
+          |> Stdlib.List.map(fun target ->
+            let swapped = words |> Stdlib.List.map(fun w -> if w == word then target else w)
+            (Stdlib.String.join(swapped, " "), target)))
+        |> Stdlib.List.flatten
+      | targets -> targets |> Stdlib.List.map(fun target -> (target, target))
+
+    let qualified =
+      moduleQueries(queryTokens(query)) |> Stdlib.List.map(fun target -> (target, target))
+
+    Stdlib.List.concat(synonyms, qualified)
 
 
 // A query read once for ranking, since a search ranks every result against it.
