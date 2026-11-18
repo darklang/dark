@@ -458,3 +458,41 @@ test committingOnABranchCommitsThatBranchsOps = scenario(fun dark ->
           "Darklang.SCM.PackageOps.draftOpCount()",
           "0",
           "the branch's draft is empty once committed") ] ]))
+
+
+test branchSubcommandFlagsGoAnywhere =
+  scenario(fun dark ->
+    [ switch(dark, "feat")
+      saveNumber(dark, "Tests.App.a", "1")
+      commit(dark, "feat work")
+      switch(dark, "main")
+      switch(dark, "doomed")
+      switch(dark, "main")
+      says(
+        dark,
+        [ "branch", "diff", "--source", "feat" ],
+        "let a(): Int64",
+        "diff takes --source before the name")
+
+      says(
+        dark,
+        [ "branch", "merge", "--dry-run", "feat" ],
+        "feat",
+        "merge takes --dry-run before the name")
+
+      says(
+        dark,
+        [ "branch", "archive", "-y", "doomed" ],
+        "archived branch \"doomed\"",
+        "archive takes -y before the name")
+
+      says(
+        dark,
+        [ "branch", "merge", "-y", "feat" ],
+        "Merged 2 op(s) from branch \"feat\"",
+        "merge takes -y before the name")
+
+      same(
+        branches(dark),
+        [ "feat <- main [merged]" ],
+        "feat is merged and doomed is archived") ])
