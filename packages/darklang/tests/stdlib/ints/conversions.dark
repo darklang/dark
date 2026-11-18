@@ -1,0 +1,348 @@
+// Every `X.fromY` has a `Y.toX`, and every type converts to and from BigInt. Each `to` answers what
+// the matching `from` answers.
+module Darklang.Stdlib.IntConversions.Tests
+
+test everyToMatchesItsFrom =
+  Stdlib.Test.all(
+    [ Stdlib.Int8.toUInt8(7s8) |> Stdlib.Test.equal(Stdlib.UInt8.fromInt8(7s8))
+
+      Stdlib.Int8.toInt16(7s8) |> Stdlib.Test.equal(Stdlib.Int16.fromInt8(7s8))
+
+      Stdlib.Int8.toUInt16(7s8)
+      |> Stdlib.Test.equal(Stdlib.UInt16.fromInt8(7s8))
+
+      Stdlib.Int8.toInt32(7s8) |> Stdlib.Test.equal(Stdlib.Int32.fromInt8(7s8))
+
+      Stdlib.Int8.toUInt32(7s8)
+      |> Stdlib.Test.equal(Stdlib.UInt32.fromInt8(7s8))
+
+      Stdlib.Int8.toInt64(7s8) |> Stdlib.Test.equal(Stdlib.Int64.fromInt8(7s8))
+
+      Stdlib.Int8.toUInt64(7s8)
+      |> Stdlib.Test.equal(Stdlib.UInt64.fromInt8(7s8))
+
+      Stdlib.Int8.toInt128(7s8)
+      |> Stdlib.Test.equal(Stdlib.Int128.fromInt8(7s8))
+
+      Stdlib.Int8.toUInt128(7s8)
+      |> Stdlib.Test.equal(Stdlib.UInt128.fromInt8(7s8))
+
+      Stdlib.Int8.toBigInt(7s8)
+      |> Stdlib.Test.equal(Stdlib.BigInt.fromInt8(7s8))
+
+      Stdlib.Int8.fromBigInt(Stdlib.BigInt.fromInt8(7s8))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7s8))
+
+      Stdlib.UInt8.toInt8(7u8) |> Stdlib.Test.equal(Stdlib.Int8.fromUInt8(7u8))
+
+      Stdlib.UInt8.toInt16(7u8)
+      |> Stdlib.Test.equal(Stdlib.Int16.fromUInt8(7u8))
+
+      Stdlib.UInt8.toUInt16(7u8)
+      |> Stdlib.Test.equal(Stdlib.UInt16.fromUInt8(7u8))
+
+      Stdlib.UInt8.toInt32(7u8)
+      |> Stdlib.Test.equal(Stdlib.Int32.fromUInt8(7u8))
+
+      Stdlib.UInt8.toUInt32(7u8)
+      |> Stdlib.Test.equal(Stdlib.UInt32.fromUInt8(7u8))
+
+      Stdlib.UInt8.toInt64(7u8)
+      |> Stdlib.Test.equal(Stdlib.Int64.fromUInt8(7u8))
+
+      Stdlib.UInt8.toUInt64(7u8)
+      |> Stdlib.Test.equal(Stdlib.UInt64.fromUInt8(7u8))
+
+      Stdlib.UInt8.toInt128(7u8)
+      |> Stdlib.Test.equal(Stdlib.Int128.fromUInt8(7u8))
+
+      Stdlib.UInt8.toUInt128(7u8)
+      |> Stdlib.Test.equal(Stdlib.UInt128.fromUInt8(7u8))
+
+      Stdlib.UInt8.toBigInt(7u8)
+      |> Stdlib.Test.equal(Stdlib.BigInt.fromUInt8(7u8))
+
+      Stdlib.UInt8.fromBigInt(Stdlib.BigInt.fromUInt8(7u8))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7u8))
+
+      Stdlib.Int16.toInt8(7s16)
+      |> Stdlib.Test.equal(Stdlib.Int8.fromInt16(7s16))
+
+      Stdlib.Int16.toUInt8(7s16)
+      |> Stdlib.Test.equal(Stdlib.UInt8.fromInt16(7s16))
+
+      Stdlib.Int16.toUInt16(7s16)
+      |> Stdlib.Test.equal(Stdlib.UInt16.fromInt16(7s16))
+
+      Stdlib.Int16.toInt32(7s16)
+      |> Stdlib.Test.equal(Stdlib.Int32.fromInt16(7s16))
+
+      Stdlib.Int16.toUInt32(7s16)
+      |> Stdlib.Test.equal(Stdlib.UInt32.fromInt16(7s16))
+
+      Stdlib.Int16.toInt64(7s16)
+      |> Stdlib.Test.equal(Stdlib.Int64.fromInt16(7s16))
+
+      Stdlib.Int16.toUInt64(7s16)
+      |> Stdlib.Test.equal(Stdlib.UInt64.fromInt16(7s16))
+
+      Stdlib.Int16.toInt128(7s16)
+      |> Stdlib.Test.equal(Stdlib.Int128.fromInt16(7s16))
+
+      Stdlib.Int16.toUInt128(7s16)
+      |> Stdlib.Test.equal(Stdlib.UInt128.fromInt16(7s16))
+
+      Stdlib.Int16.toBigInt(7s16)
+      |> Stdlib.Test.equal(Stdlib.BigInt.fromInt16(7s16))
+
+      Stdlib.Int16.fromBigInt(Stdlib.BigInt.fromInt16(7s16))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7s16))
+
+      Stdlib.UInt16.toInt8(7u16)
+      |> Stdlib.Test.equal(Stdlib.Int8.fromUInt16(7u16))
+
+      Stdlib.UInt16.toUInt8(7u16)
+      |> Stdlib.Test.equal(Stdlib.UInt8.fromUInt16(7u16))
+
+      Stdlib.UInt16.toInt16(7u16)
+      |> Stdlib.Test.equal(Stdlib.Int16.fromUInt16(7u16))
+
+      Stdlib.UInt16.toInt32(7u16)
+      |> Stdlib.Test.equal(Stdlib.Int32.fromUInt16(7u16))
+
+      Stdlib.UInt16.toUInt32(7u16)
+      |> Stdlib.Test.equal(Stdlib.UInt32.fromUInt16(7u16))
+
+      Stdlib.UInt16.toInt64(7u16)
+      |> Stdlib.Test.equal(Stdlib.Int64.fromUInt16(7u16))
+
+      Stdlib.UInt16.toUInt64(7u16)
+      |> Stdlib.Test.equal(Stdlib.UInt64.fromUInt16(7u16))
+
+      Stdlib.UInt16.toInt128(7u16)
+      |> Stdlib.Test.equal(Stdlib.Int128.fromUInt16(7u16))
+
+      Stdlib.UInt16.toUInt128(7u16)
+      |> Stdlib.Test.equal(Stdlib.UInt128.fromUInt16(7u16))
+
+      Stdlib.UInt16.toBigInt(7u16)
+      |> Stdlib.Test.equal(Stdlib.BigInt.fromUInt16(7u16))
+
+      Stdlib.UInt16.fromBigInt(Stdlib.BigInt.fromUInt16(7u16))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7u16))
+
+      Stdlib.Int32.toInt8(7s32)
+      |> Stdlib.Test.equal(Stdlib.Int8.fromInt32(7s32))
+
+      Stdlib.Int32.toUInt8(7s32)
+      |> Stdlib.Test.equal(Stdlib.UInt8.fromInt32(7s32))
+
+      Stdlib.Int32.toInt16(7s32)
+      |> Stdlib.Test.equal(Stdlib.Int16.fromInt32(7s32))
+
+      Stdlib.Int32.toUInt16(7s32)
+      |> Stdlib.Test.equal(Stdlib.UInt16.fromInt32(7s32))
+
+      Stdlib.Int32.toUInt32(7s32)
+      |> Stdlib.Test.equal(Stdlib.UInt32.fromInt32(7s32))
+
+      Stdlib.Int32.toInt64(7s32)
+      |> Stdlib.Test.equal(Stdlib.Int64.fromInt32(7s32))
+
+      Stdlib.Int32.toUInt64(7s32)
+      |> Stdlib.Test.equal(Stdlib.UInt64.fromInt32(7s32))
+
+      Stdlib.Int32.toInt128(7s32)
+      |> Stdlib.Test.equal(Stdlib.Int128.fromInt32(7s32))
+
+      Stdlib.Int32.toUInt128(7s32)
+      |> Stdlib.Test.equal(Stdlib.UInt128.fromInt32(7s32))
+
+      Stdlib.Int32.toBigInt(7s32)
+      |> Stdlib.Test.equal(Stdlib.BigInt.fromInt32(7s32))
+
+      Stdlib.Int32.fromBigInt(Stdlib.BigInt.fromInt32(7s32))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7s32))
+
+      Stdlib.UInt32.toInt8(7u32)
+      |> Stdlib.Test.equal(Stdlib.Int8.fromUInt32(7u32))
+
+      Stdlib.UInt32.toUInt8(7u32)
+      |> Stdlib.Test.equal(Stdlib.UInt8.fromUInt32(7u32))
+
+      Stdlib.UInt32.toInt16(7u32)
+      |> Stdlib.Test.equal(Stdlib.Int16.fromUInt32(7u32))
+
+      Stdlib.UInt32.toUInt16(7u32)
+      |> Stdlib.Test.equal(Stdlib.UInt16.fromUInt32(7u32))
+
+      Stdlib.UInt32.toInt32(7u32)
+      |> Stdlib.Test.equal(Stdlib.Int32.fromUInt32(7u32))
+
+      Stdlib.UInt32.toInt64(7u32)
+      |> Stdlib.Test.equal(Stdlib.Int64.fromUInt32(7u32))
+
+      Stdlib.UInt32.toUInt64(7u32)
+      |> Stdlib.Test.equal(Stdlib.UInt64.fromUInt32(7u32))
+
+      Stdlib.UInt32.toInt128(7u32)
+      |> Stdlib.Test.equal(Stdlib.Int128.fromUInt32(7u32))
+
+      Stdlib.UInt32.toUInt128(7u32)
+      |> Stdlib.Test.equal(Stdlib.UInt128.fromUInt32(7u32))
+
+      Stdlib.UInt32.toBigInt(7u32)
+      |> Stdlib.Test.equal(Stdlib.BigInt.fromUInt32(7u32))
+
+      Stdlib.UInt32.fromBigInt(Stdlib.BigInt.fromUInt32(7u32))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7u32))
+
+      Stdlib.Int64.toInt8(7) |> Stdlib.Test.equal(Stdlib.Int8.fromInt64(7))
+
+      Stdlib.Int64.toUInt8(7) |> Stdlib.Test.equal(Stdlib.UInt8.fromInt64(7))
+
+      Stdlib.Int64.toInt16(7) |> Stdlib.Test.equal(Stdlib.Int16.fromInt64(7))
+
+      Stdlib.Int64.toUInt16(7) |> Stdlib.Test.equal(Stdlib.UInt16.fromInt64(7))
+
+      Stdlib.Int64.toInt32(7) |> Stdlib.Test.equal(Stdlib.Int32.fromInt64(7))
+
+      Stdlib.Int64.toUInt32(7) |> Stdlib.Test.equal(Stdlib.UInt32.fromInt64(7))
+
+      Stdlib.Int64.toUInt64(7) |> Stdlib.Test.equal(Stdlib.UInt64.fromInt64(7))
+
+      Stdlib.Int64.toInt128(7) |> Stdlib.Test.equal(Stdlib.Int128.fromInt64(7))
+
+      Stdlib.Int64.toUInt128(7)
+      |> Stdlib.Test.equal(Stdlib.UInt128.fromInt64(7))
+
+      Stdlib.Int64.toBigInt(7) |> Stdlib.Test.equal(Stdlib.BigInt.fromInt64(7))
+
+      Stdlib.Int64.fromBigInt(Stdlib.BigInt.fromInt64(7))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7))
+
+      Stdlib.UInt64.toInt8(7u64)
+      |> Stdlib.Test.equal(Stdlib.Int8.fromUInt64(7u64))
+
+      Stdlib.UInt64.toUInt8(7u64)
+      |> Stdlib.Test.equal(Stdlib.UInt8.fromUInt64(7u64))
+
+      Stdlib.UInt64.toInt16(7u64)
+      |> Stdlib.Test.equal(Stdlib.Int16.fromUInt64(7u64))
+
+      Stdlib.UInt64.toUInt16(7u64)
+      |> Stdlib.Test.equal(Stdlib.UInt16.fromUInt64(7u64))
+
+      Stdlib.UInt64.toInt32(7u64)
+      |> Stdlib.Test.equal(Stdlib.Int32.fromUInt64(7u64))
+
+      Stdlib.UInt64.toUInt32(7u64)
+      |> Stdlib.Test.equal(Stdlib.UInt32.fromUInt64(7u64))
+
+      Stdlib.UInt64.toInt64(7u64)
+      |> Stdlib.Test.equal(Stdlib.Int64.fromUInt64(7u64))
+
+      Stdlib.UInt64.toInt128(7u64)
+      |> Stdlib.Test.equal(Stdlib.Int128.fromUInt64(7u64))
+
+      Stdlib.UInt64.toUInt128(7u64)
+      |> Stdlib.Test.equal(Stdlib.UInt128.fromUInt64(7u64))
+
+      Stdlib.UInt64.toBigInt(7u64)
+      |> Stdlib.Test.equal(Stdlib.BigInt.fromUInt64(7u64))
+
+      Stdlib.UInt64.fromBigInt(Stdlib.BigInt.fromUInt64(7u64))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7u64))
+
+      Stdlib.Int128.toInt8(7s128)
+      |> Stdlib.Test.equal(Stdlib.Int8.fromInt128(7s128))
+
+      Stdlib.Int128.toUInt8(7s128)
+      |> Stdlib.Test.equal(Stdlib.UInt8.fromInt128(7s128))
+
+      Stdlib.Int128.toInt16(7s128)
+      |> Stdlib.Test.equal(Stdlib.Int16.fromInt128(7s128))
+
+      Stdlib.Int128.toUInt16(7s128)
+      |> Stdlib.Test.equal(Stdlib.UInt16.fromInt128(7s128))
+
+      Stdlib.Int128.toInt32(7s128)
+      |> Stdlib.Test.equal(Stdlib.Int32.fromInt128(7s128))
+
+      Stdlib.Int128.toUInt32(7s128)
+      |> Stdlib.Test.equal(Stdlib.UInt32.fromInt128(7s128))
+
+      Stdlib.Int128.toInt64(7s128)
+      |> Stdlib.Test.equal(Stdlib.Int64.fromInt128(7s128))
+
+      Stdlib.Int128.toUInt64(7s128)
+      |> Stdlib.Test.equal(Stdlib.UInt64.fromInt128(7s128))
+
+      Stdlib.Int128.toUInt128(7s128)
+      |> Stdlib.Test.equal(Stdlib.UInt128.fromInt128(7s128))
+
+      Stdlib.Int128.toBigInt(7s128)
+      |> Stdlib.Test.equal(Stdlib.BigInt.fromInt128(7s128))
+
+      Stdlib.Int128.fromBigInt(Stdlib.BigInt.fromInt128(7s128))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7s128))
+
+      Stdlib.UInt128.toInt8(7u128)
+      |> Stdlib.Test.equal(Stdlib.Int8.fromUInt128(7u128))
+
+      Stdlib.UInt128.toUInt8(7u128)
+      |> Stdlib.Test.equal(Stdlib.UInt8.fromUInt128(7u128))
+
+      Stdlib.UInt128.toInt16(7u128)
+      |> Stdlib.Test.equal(Stdlib.Int16.fromUInt128(7u128))
+
+      Stdlib.UInt128.toUInt16(7u128)
+      |> Stdlib.Test.equal(Stdlib.UInt16.fromUInt128(7u128))
+
+      Stdlib.UInt128.toInt32(7u128)
+      |> Stdlib.Test.equal(Stdlib.Int32.fromUInt128(7u128))
+
+      Stdlib.UInt128.toUInt32(7u128)
+      |> Stdlib.Test.equal(Stdlib.UInt32.fromUInt128(7u128))
+
+      Stdlib.UInt128.toInt64(7u128)
+      |> Stdlib.Test.equal(Stdlib.Int64.fromUInt128(7u128))
+
+      Stdlib.UInt128.toUInt64(7u128)
+      |> Stdlib.Test.equal(Stdlib.UInt64.fromUInt128(7u128))
+
+      Stdlib.UInt128.toInt128(7u128)
+      |> Stdlib.Test.equal(Stdlib.Int128.fromUInt128(7u128))
+
+      Stdlib.UInt128.toBigInt(7u128)
+      |> Stdlib.Test.equal(Stdlib.BigInt.fromUInt128(7u128))
+
+      Stdlib.UInt128.fromBigInt(Stdlib.BigInt.fromUInt128(7u128))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(7u128)) ])
+
+
+test aFewByValue =
+  Stdlib.Test.all(
+    [ Stdlib.UInt8.toInt64(200u8) |> Stdlib.Test.equal(200)
+
+      Stdlib.Int64.toUInt8(300) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Int64.toUInt8(-1) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Int8.toUInt128(-1s8)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.UInt128.fromInt64(5)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5u128))
+
+      Stdlib.UInt128.fromInt128(-5s128)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Int128.fromUInt128(5u128)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(5s128))
+
+      Stdlib.UInt128.toInt128(340282366920938463463374607431768211455u128)
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+
+      Stdlib.Int64.fromBigInt(Stdlib.BigInt.fromInt64(9))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(9)) ])
