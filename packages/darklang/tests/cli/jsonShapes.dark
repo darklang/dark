@@ -109,7 +109,8 @@ let about(cmd: String, result: Stdlib.Test.Result): Stdlib.Test.Result =
       Stdlib.List.map(messages, fun m -> $"`dark {cmd}`: {m}"))
   | FailedChecks(checks) ->
     Stdlib.Test.Result.FailedChecks(
-      Stdlib.List.map(checks, fun((position, check)) -> (position, about(cmd, check))))
+      Stdlib.List.map(checks, fun((position, check)) ->
+        (position, about(cmd, check))))
 
 
 /// Run for the EFFECT. A setup step that fails is reported as itself, not as the confusing
@@ -749,3 +750,61 @@ test testRunAnswersWithEveryTest = Instance.withInstance(fun i ->
         i,
         [ "test", "run", "--json", "Tests.JsonRunNothing" ],
         [ (fun j -> hasKeys(j, runKeys)), (fun j -> fieldIsArray(j, "tests")) ]) ]))
+
+
+/// Bare `traces --json` is the listing bare `traces` prints, as JSON.
+test bareTracesAnswersInJson =
+  Instance.withInstance(fun i ->
+    Stdlib.Test.all(
+      [ step(i, [ "eval", "1 + 1" ])
+        check(
+          i,
+          [ "traces", "--json" ],
+          [ (fun j ->
+               rowsHaveKeys(
+                 j,
+                 [ "id"
+                   "entry"
+                   "input"
+                   "answered"
+                   "status"
+                   "pinned"
+                   "durationMs"
+                   "created"
+                   "updated" ])) ]) ]))
+
+
+/// `ps --json` says what a process runs and how it stands in the table's words, not in the
+/// runtime's union encoding.
+test psAnswersInPlainWords = Instance.withInstance(fun i ->
+  check(
+    i,
+    [ "ps", "--json" ],
+    [ (fun j ->
+         match rows(field(j, "thisInstance")) with
+         | [] -> Stdlib.Test.fail("lists no process, not even itself")
+         | [me, ...] ->
+           Stdlib.Test.all(
+             [ string(me, "entry")
+               |> Stdlib.Test.equal("Darklang.Cli.executeCliCommand")
+
+               string(me, "status") |> Stdlib.Test.equal("running") ])) ]))
+
+
+/// `search --json` ranks and caps each section the way the text view does.
+test searchJsonRanksAndLimitsLikeText = Instance.withInstance(fun i ->
+  check(
+    i,
+    [ "search", "List.map", "--json", "--limit", "2" ],
+    [ (fun j ->
+         let results = rows(field(j, "results"))
+         let fns =
+           results |> Stdlib.List.filter(fun r -> string(r, "kind") == "fn")
+
+         Stdlib.Test.all(
+           [ results
+             |> Stdlib.List.head
+             |> Stdlib.Option.map(fun r -> string(r, "name"))
+             |> Stdlib.Test.equal(Option.Some("Darklang.Stdlib.List.map"))
+
+             Stdlib.List.length(fns) |> Stdlib.Test.equal(2) ])) ]))

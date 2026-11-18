@@ -391,8 +391,11 @@ let execute(state: AppState, args: List<String>): AppState =
     else
       match args with
       | [] ->
-        printMatches("", Tracing.Store.list(50))
-        state
+        if wantsJson then
+          executeListJson(state, 50)
+        else
+          printMatches("", Tracing.Store.list(50))
+          state
       | ["list"] -> if wantsJson then executeListJson(state, 20) else executeList(state, 20)
       | ["list", "--fn"] -> refuse(state, "Usage: traces list --fn <name> [limit] [--json]")
       | ["list", "--route"] ->
