@@ -140,6 +140,6 @@ let withTemp(fn: String -> 'a): Result<'a, Posix.Error> =
     let result = fn(tmpDir)
     match deleteRecursive(tmpDir) with
     | Ok(_) -> ()
-    | Error(e) -> Log.warn($"withTemp: failed to clean up {tmpDir}: {e.message}")
+    | Error(e) -> Log.warn($"withTemp: failed to clean up {tmpDir}: {display(e)}")
 
     result)

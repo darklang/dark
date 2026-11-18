@@ -27,8 +27,9 @@ module MissingFile =
     Stdlib.Cli.File.withTemp(fun filename ->
       let missing = filename + "-does-not-exist"
       Stdlib.Cli.FileSystem.readFile(missing)
+      |> Stdlib.Result.mapError(Stdlib.Cli.Posix.Error.kind)
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Cli.FileSystem.FileError.NotFound)))
+        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.ErrorKind.NotFound)))
     |> Builtin.unwrap
 
 
@@ -36,26 +37,27 @@ module MissingFile =
   test emptyPathIsNotFound =
     Stdlib.Test.all(
       [ Stdlib.Cli.FileSystem.readFile("")
+        |> Stdlib.Result.mapError(Stdlib.Cli.Posix.Error.kind)
         |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(Stdlib.Cli.FileSystem.FileError.NotFound))
+          Stdlib.Result.Result.Error(Stdlib.Cli.Posix.ErrorKind.NotFound))
 
         Stdlib.Cli.FileSystem.writeFile("", Stdlib.Utf8.encode("x"))
+        |> Stdlib.Result.mapError(Stdlib.Cli.Posix.Error.kind)
         |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(Stdlib.Cli.FileSystem.FileError.NotFound))
+          Stdlib.Result.Result.Error(Stdlib.Cli.Posix.ErrorKind.NotFound))
 
         Stdlib.Cli.FileSystem.deleteFile("")
+        |> Stdlib.Result.mapError(Stdlib.Cli.Posix.Error.kind)
         |> Stdlib.Test.equal(
-          Stdlib.Result.Result.Error(Stdlib.Cli.FileSystem.FileError.NotFound)) ])
+          Stdlib.Result.Result.Error(Stdlib.Cli.Posix.ErrorKind.NotFound)) ])
 
 
   // `Stdlib.display` takes the error as it comes out of a failed read.
-  test fileErrorHasToString =
-    Stdlib.Test.all(
-      [ Stdlib.display(Stdlib.Cli.FileSystem.FileError.NotFound)
-        |> Stdlib.Test.equal("File not found")
-
-        Stdlib.display(Stdlib.Cli.FileSystem.FileError.Other("disk full"))
-        |> Stdlib.Test.equal("disk full") ])
+  test missingFileDisplay =
+    Stdlib.Cli.FileSystem.readFile("/nonexistent-dark-test-file")
+    |> Stdlib.Result.mapError(Stdlib.display)
+    |> Stdlib.Test.equal(
+      Stdlib.Result.Result.Error("No such file or directory"))
 
 
 module AreIdentical =
@@ -86,8 +88,9 @@ module WriteErrors =
       Stdlib.Cli.FileSystem.writeFile(
         filename + "/child/file",
         Stdlib.Utf8.encode("x"))
+      |> Stdlib.Result.mapError(Stdlib.Cli.Posix.Error.kind)
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Cli.FileSystem.FileError.NotFound)))
+        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.ErrorKind.NotADirectory)))
     |> Builtin.unwrap
 
 
@@ -101,8 +104,9 @@ module WriteErrors =
 
       let _ = Stdlib.Cli.Dir.delete(directory) |> Builtin.unwrap
       result
+      |> Stdlib.Result.mapError(Stdlib.Cli.Posix.Error.kind)
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(Stdlib.Cli.FileSystem.FileError.Other("Is a directory"))))
+        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.ErrorKind.IsADirectory)))
     |> Builtin.unwrap
 
 
@@ -111,7 +115,7 @@ module ReadErrors =
   test readingADirectory =
     Stdlib.Cli.Dir.withTemp(fun dir ->
       Stdlib.Cli.FileSystem.readFileAsString(dir)
-      |> Stdlib.Result.mapError(Stdlib.Cli.FileSystem.FileError.toString)
+      |> Stdlib.Result.mapError(Stdlib.display)
       |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Is a directory")))
     |> Builtin.unwrap
 
@@ -119,8 +123,9 @@ module ReadErrors =
 module ListErrors =
   test missingDirectory =
     Stdlib.Cli.FileSystem.listDirectory("/nonexistent-dark-test-dir")
+    |> Stdlib.Result.mapError(Stdlib.Cli.Posix.Error.kind)
     |> Stdlib.Test.equal(
-      Stdlib.Result.Result.Error(Stdlib.Cli.FileSystem.FileError.NotFound))
+      Stdlib.Result.Result.Error(Stdlib.Cli.Posix.ErrorKind.NotFound))
 
 
   test existingDirectory =

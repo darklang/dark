@@ -10,7 +10,6 @@ open LibExecution.Effects
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
-module PackageRefs = LibExecution.PackageRefs
 module Bytes = LibExecution.Bytes
 open Builtin.Shortcuts
 
@@ -20,37 +19,6 @@ module HostPosix = LibExecution.HostPosix
 module HostTypes = LibExecution.HostTypes
 module Host = LibExecution.Host
 module Interpreter = LibExecution.Interpreter
-
-let private posixErrorTypeName () =
-  FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Cli.Posix.error ())
-
-let private posixErrorKT () = KTCustomType(posixErrorTypeName (), [])
-
-/// A failure is the kernel (errno, message) pair (errno -1 for a .NET-level
-/// failure), mirroring the Stdlib PosixError type.
-let private dPosixError (failure : Host.Failure) : Dval =
-  let tn = posixErrorTypeName ()
-  DRecord(
-    tn,
-    tn,
-    [],
-    RecordFields.ofList
-      [ "errno", Dval.dint64 (int64 failure.errno)
-        "message", DString failure.message ]
-  )
-
-/// Name one host operation for the interpreter to perform, its outcome mapped to
-/// `Result<kt, PosixError>`; `ok` shapes the success.
-let private asResult
-  (kt : KnownType)
-  (vm : VMState)
-  (op : Host.Operation)
-  (ok : Host.Response -> Dval)
-  : Dval =
-  Interpreter.requestHost vm op (fun outcome ->
-    match outcome with
-    | Ok response -> (Dval.resultOk kt (posixErrorKT ()) (ok response))
-    | Error e -> (Dval.resultError kt (posixErrorKT ()) (dPosixError e)))
 
 /// Run one posix lookup whose failure is simply absence: `Option<String>`.
 let private posixOption

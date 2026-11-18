@@ -18,8 +18,10 @@ test recursiveListingCanBeReadWithSymlinks =
         | Ok(bytes) ->
           (path == file || path == link)
           && bytes == Stdlib.Utf8.encode("contents")
-        | Error(NotFound) -> path == dangling
-        | Error(_) -> false)
+        | Error(e) ->
+          path == dangling
+          && Stdlib.Cli.Posix.Error.kind(e)
+             == Stdlib.Cli.Posix.ErrorKind.NotFound)
       |> (fun results ->
             (
               Stdlib.List.length(results),

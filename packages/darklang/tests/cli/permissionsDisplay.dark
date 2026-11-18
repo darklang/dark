@@ -141,7 +141,7 @@ module Denials =
     let _ =
       Stdlib.Cli.File.writeText(
         source,
-        "let readAt(path: String): String =\n  match Stdlib.Cli.File.readText(path) with\n  | Ok(t) -> t\n  | Error(e) -> e.message\n")
+        "let readAt(path: String): String =\n  match Stdlib.Cli.File.readText(path) with\n  | Ok(t) -> t\n  | Error(e) -> Stdlib.display(e)\n")
 
     let (saved, _) = Instance.ran(i, [ "module", "Tests.Denied", source ])
     let call = "Tests.Denied.readAt(Stdlib.String.reverse(\"txt.terces/deined/\"))"

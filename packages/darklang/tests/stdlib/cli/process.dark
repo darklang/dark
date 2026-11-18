@@ -130,28 +130,28 @@ test closesStdin =
 
 test missingExecutable =
   (match Stdlib.Cli.Process.run("/definitely/not/a/dark/executable", []) with
-   | Error(error) -> error.errno
-   | Ok(_) -> 0)
-  |> Stdlib.Test.equal(2)
+   | Error(error) -> Stdlib.Cli.Posix.Error.kind(error)
+   | Ok(_) -> Stdlib.Cli.Posix.ErrorKind.Other)
+  |> Stdlib.Test.equal(Stdlib.Cli.Posix.ErrorKind.NotFound)
 
 
 // A name PATH does not hold, a relative path, or no name at all is an Error, not a raise.
 test missingProgramsAreErrors =
   Stdlib.Test.all(
     [ (match Stdlib.Cli.Process.run("dark-no-such-program-xyz", []) with
-       | Error(error) -> error.errno
-       | Ok(_) -> 0)
-      |> Stdlib.Test.equal(2)
+       | Error(error) -> Stdlib.Cli.Posix.Error.kind(error)
+       | Ok(_) -> Stdlib.Cli.Posix.ErrorKind.Other)
+      |> Stdlib.Test.equal(Stdlib.Cli.Posix.ErrorKind.NotFound)
 
       (match Stdlib.Cli.Process.run("./dark-no-such-program-xyz", []) with
-       | Error(error) -> error.errno
-       | Ok(_) -> 0)
-      |> Stdlib.Test.equal(2)
+       | Error(error) -> Stdlib.Cli.Posix.Error.kind(error)
+       | Ok(_) -> Stdlib.Cli.Posix.ErrorKind.Other)
+      |> Stdlib.Test.equal(Stdlib.Cli.Posix.ErrorKind.NotFound)
 
       (match Stdlib.Cli.Process.run("", []) with
-       | Error(error) -> error.errno
-       | Ok(_) -> 0)
-      |> Stdlib.Test.equal(2) ])
+       | Error(error) -> Stdlib.Cli.Posix.Error.kind(error)
+       | Ok(_) -> Stdlib.Cli.Posix.ErrorKind.Other)
+      |> Stdlib.Test.equal(Stdlib.Cli.Posix.ErrorKind.NotFound) ])
 
 
 test nonExecutableFileIsEacces =
@@ -159,9 +159,10 @@ test nonExecutableFileIsEacces =
     let path = $"{dir}/script"
     let _ = Stdlib.Cli.File.writeText(path, "#!/bin/sh\nexit 0\n")
     match Stdlib.Cli.Process.run(path, []) with
-    | Error(error) -> error.errno
-    | Ok(_) -> 0)
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(13))
+    | Error(error) -> Stdlib.Cli.Posix.Error.kind(error)
+    | Ok(_) -> Stdlib.Cli.Posix.ErrorKind.Other)
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Ok(Stdlib.Cli.Posix.ErrorKind.PermissionDenied))
 
 
 test rejectsInvalidTimeout =

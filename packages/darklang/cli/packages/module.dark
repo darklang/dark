@@ -310,7 +310,7 @@ let execute(state: AppState, args: List<String>): AppState =
     | [modulePath, sourcePath] ->
       match Stdlib.Cli.File.readText(sourcePath) with
       | Ok(source) -> Result.Ok((modulePath, source))
-      | Error(err) -> Result.Error($"Could not read '{sourcePath}': {err.message}")
+      | Error(err) -> Result.Error($"Could not read '{sourcePath}': {Stdlib.display(err)}")
     | _ -> Result.Error("Usage: module <module> <source-file|->")
 
   match input with

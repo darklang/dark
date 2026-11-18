@@ -144,7 +144,8 @@ test savingAFunctionAndItsCalleeTogetherLeavesNoStaleCaller =
     let write(source: String): Stdlib.Test.Result =
       match Stdlib.Cli.File.writeAtomic(path, source) with
       | Ok(_) -> Stdlib.Test.Result.Pass
-      | Error(e) -> Stdlib.Test.fail($"could not write {path}: {e.message}")
+      | Error(e) ->
+        Stdlib.Test.fail($"could not write {path}: {Stdlib.display(e)}")
 
     [ write("let b(x: Int64): Int64 = x + 1\nlet a(x: Int64): Int64 = b(x) * 2")
       run(dark, [ "module", "/Tests.Pair", path ])

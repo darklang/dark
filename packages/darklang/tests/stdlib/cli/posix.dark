@@ -5,8 +5,16 @@ let errnoOr(linux: Int64): Int64 =
   if Stdlib.Cli.Posix.__abiMac() then 78 else linux
 
 
-let posixError(errno: Int64, message: String): Stdlib.Cli.Posix.Error =
-  Stdlib.Cli.Posix.Error { errno = errno, message = message }
+let posixError(code: Int64): Stdlib.Cli.Posix.Error =
+  Stdlib.Cli.Posix.__fromErrno(code)
+
+
+let linux(code: Int64): Stdlib.Cli.Posix.Errno =
+  Stdlib.Cli.Posix.Errno { os = Stdlib.Cli.Posix.Os.Linux, code = code }
+
+
+let darwin(code: Int64): Stdlib.Cli.Posix.Errno =
+  Stdlib.Cli.Posix.Errno { os = Stdlib.Cli.Posix.Os.Darwin, code = code }
 
 
 // Raw syscalls refuse bad descriptors and arguments with their errno
@@ -127,7 +135,7 @@ test bufferGrowth =
       Stdlib.Cli.Posix.__pathReadlinkWith(
         (fun _ -> Stdlib.Result.Result.Ok(Stdlib.Bytes.empty)),
         0)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(22)) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(posixError(22))) ])
 
 
 // Account parsing handles missing users and malformed rows
@@ -136,7 +144,7 @@ test kernelSignedField =
   let field(
     bytes: List<UInt8>,
     width: Int64)
-    : Stdlib.Result.Result<Int64, Int64> =
+    : Stdlib.Result.Result<Int64, Stdlib.Cli.Posix.Error> =
     Stdlib.Cli.Posix.__kernelSignedField(Stdlib.Bytes.fromList(bytes), 0, width)
 
   Stdlib.Test.all(
@@ -153,7 +161,8 @@ test kernelSignedField =
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(-1))
 
       field([ 1u8, 2u8, 3u8 ], 8)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(5)) ])
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.Error.BadKernelReply)) ])
 
 
 test accountFieldFromPasswd =
@@ -178,36 +187,94 @@ test accountFieldFromPasswd =
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("/home/alice")) ])
 
 
-// Errno messages and decimal formatting
-test errorMessages =
+// One table per OS gives each number its kind, name and text
+test errnoTables =
+  let kind = Stdlib.Cli.Posix.Errno.kind
   Stdlib.Test.all(
-    [ Stdlib.Cli.Posix.__macMessage(35)
-      |> Stdlib.Test.equal("Resource temporarily unavailable")
+    [ kind(linux(2)) |> Stdlib.Test.equal(Stdlib.Cli.Posix.ErrorKind.NotFound)
 
-      Stdlib.Cli.Posix.__macMessage(62)
-      |> Stdlib.Test.equal("Too many levels of symbolic links")
+      kind(darwin(2)) |> Stdlib.Test.equal(Stdlib.Cli.Posix.ErrorKind.NotFound)
 
-      Stdlib.Cli.Posix.__macMessage(78)
-      |> Stdlib.Test.equal("Function not implemented")
+      kind(linux(13))
+      |> Stdlib.Test.equal(Stdlib.Cli.Posix.ErrorKind.PermissionDenied)
 
-      Stdlib.Cli.Posix.__macMessage(999)
-      |> Stdlib.Test.equal("Unknown error: 999")
+      kind(darwin(1))
+      |> Stdlib.Test.equal(Stdlib.Cli.Posix.ErrorKind.PermissionDenied)
 
-      (Stdlib.Cli.Posix.__fromErrno(2)).message
-      |> Stdlib.Test.equal("No such file or directory")
+      kind(linux(39))
+      |> Stdlib.Test.equal(Stdlib.Cli.Posix.ErrorKind.DirectoryNotEmpty)
 
-      (Stdlib.Cli.Posix.__fromErrno(22)).message
-      |> Stdlib.Test.equal("Invalid argument")
+      kind(darwin(66))
+      |> Stdlib.Test.equal(Stdlib.Cli.Posix.ErrorKind.DirectoryNotEmpty)
 
-      (Stdlib.Cli.Posix.__fromErrno(Stdlib.Cli.Posix.__abiErrnoAgain())).message
-      |> Stdlib.Test.equal("Resource temporarily unavailable")
+      kind(linux(40))
+      |> Stdlib.Test.equal(Stdlib.Cli.Posix.ErrorKind.FilesystemLoop)
 
-      (Stdlib.Cli.Posix.__fromErrno(Stdlib.Cli.Posix.__abiErrnoNoSys())).message
-      |> Stdlib.Test.equal("Function not implemented")
+      kind(darwin(62))
+      |> Stdlib.Test.equal(Stdlib.Cli.Posix.ErrorKind.FilesystemLoop)
 
-      (Stdlib.Cli.Posix.__fromErrno(
-         Stdlib.Cli.Posix.__abiErrnoNotSupported())).message
-      |> Stdlib.Test.equal("Operation not supported")
+      kind(linux(999)) |> Stdlib.Test.equal(Stdlib.Cli.Posix.ErrorKind.Other)
+
+      Stdlib.Cli.Posix.Errno.name(linux(2))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("ENOENT"))
+
+      Stdlib.Cli.Posix.Errno.name(darwin(102))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("EOPNOTSUPP"))
+
+      Stdlib.Cli.Posix.Errno.name(linux(41))
+      |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
+
+// EAGAIN and the not-supported numbers differ by OS; each OS reads only its own
+test wouldBlockAndUnsupportedPerOs =
+  let kind = Stdlib.Cli.Posix.Errno.kind
+  let wouldBlock = Stdlib.Cli.Posix.ErrorKind.WouldBlock
+  let unsupported = Stdlib.Cli.Posix.ErrorKind.Unsupported
+  Stdlib.Test.all(
+    [ kind(linux(11)) |> Stdlib.Test.equal(wouldBlock)
+      kind(darwin(35)) |> Stdlib.Test.equal(wouldBlock)
+      // EDEADLK on Linux, EAGAIN on Darwin
+      kind(linux(35)) |> Stdlib.Test.equal(Stdlib.Cli.Posix.ErrorKind.Other)
+      kind(darwin(11)) |> Stdlib.Test.equal(Stdlib.Cli.Posix.ErrorKind.Other)
+
+      // ENOSYS and EOPNOTSUPP on Linux, ENOSYS and ENOTSUP on Darwin
+      kind(linux(38)) |> Stdlib.Test.equal(unsupported)
+      kind(linux(95)) |> Stdlib.Test.equal(unsupported)
+      kind(darwin(78)) |> Stdlib.Test.equal(unsupported)
+      kind(darwin(45)) |> Stdlib.Test.equal(unsupported)
+      // the other OS's numbers mean something else
+      kind(darwin(38)) |> Stdlib.Test.equal(Stdlib.Cli.Posix.ErrorKind.Other)
+      kind(linux(78)) |> Stdlib.Test.equal(Stdlib.Cli.Posix.ErrorKind.Other) ])
+
+
+// Display gives the OS's own text, or says what went wrong outside the kernel
+test errorDisplay =
+  let os = fun errno -> Stdlib.display(Stdlib.Cli.Posix.Error.Os(errno))
+  Stdlib.Test.all(
+    [ os(linux(2)) |> Stdlib.Test.equal("No such file or directory")
+
+      os(darwin(2)) |> Stdlib.Test.equal("No such file or directory")
+
+      os(linux(11)) |> Stdlib.Test.equal("Resource temporarily unavailable")
+
+      os(darwin(35)) |> Stdlib.Test.equal("Resource temporarily unavailable")
+
+      os(linux(35)) |> Stdlib.Test.equal("Resource deadlock avoided")
+
+      os(darwin(62)) |> Stdlib.Test.equal("Too many levels of symbolic links")
+
+      os(linux(999)) |> Stdlib.Test.equal("Unknown error 999")
+
+      os(darwin(999)) |> Stdlib.Test.equal("Unknown error: 999")
+
+      Stdlib.display(Stdlib.Cli.Posix.Error.InvalidUtf8)
+      |> Stdlib.Test.equal("File contents are not valid UTF-8")
+
+      Stdlib.display(Stdlib.Cli.Posix.Error.ProcessTimedOut)
+      |> Stdlib.Test.equal("Process timed out")
+
+      Stdlib.Cli.Posix.Error.kind(Stdlib.Cli.Posix.Error.InvalidUtf8)
+      |> Stdlib.Test.equal(Stdlib.Cli.Posix.ErrorKind.InvalidData)
 
       Stdlib.Cli.Posix.__decimal(0) |> Stdlib.Test.equal("0")
 
@@ -220,25 +287,26 @@ test tempRetry =
     [ Stdlib.Cli.Posix.__tempRetry(
         (fun remaining ->
            if remaining > 0 then
-             Stdlib.Result.Result.Error(posixError(17, "File exists"))
+             Stdlib.Result.Result.Error(posixError(17))
            else
              Stdlib.Result.Result.Ok("created")),
         2)
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("created"))
 
+      // EINVAL on the first try (2 left) stops at once
       Stdlib.Cli.Posix.__tempRetry(
         (fun remaining ->
-           Stdlib.Result.Result.Error(
-             posixError(22, Stdlib.display(remaining)))),
+           Stdlib.Result.Result.Error(posixError(20 + remaining))),
         2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(posixError(22, "2")))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(posixError(22)))
 
+      // EEXIST every time: the last try, with none left, is the answer
       Stdlib.Cli.Posix.__tempRetry(
         (fun remaining ->
            Stdlib.Result.Result.Error(
-             posixError(17, Stdlib.display(remaining)))),
+             posixError(if remaining == 0 then 28 else 17))),
         2)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(posixError(17, "0"))) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(posixError(28))) ])
 
 
 // Partial writes complete, zero-progress writes fail, and errors propagate
@@ -260,8 +328,7 @@ test writeAll =
         Stdlib.Utf8.encode("abc"),
         0)
       |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(
-          posixError(5, "write made invalid progress")))
+        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.Error.BadKernelReply))
 
       Stdlib.Cli.Posix.__writeAll(
         (fun _ -> Stdlib.Result.Result.Ok(0)),
@@ -270,12 +337,10 @@ test writeAll =
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0))
 
       Stdlib.Cli.Posix.__writeAll(
-        (fun _ ->
-           Stdlib.Result.Result.Error(posixError(9, "Bad file descriptor"))),
+        (fun _ -> Stdlib.Result.Result.Error(posixError(9))),
         Stdlib.Utf8.encode("abc"),
         0)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(posixError(9, "Bad file descriptor"))) ])
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(posixError(9))) ])
 
 
 // The public wrappers reach the host and format their results
@@ -291,8 +356,8 @@ test publicWrappers =
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(true))
 
       Stdlib.Cli.Posix.fdRead(Stdlib.Cli.Posix.Fd { __fd = -1z }, 1)
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Error(posixError(9, "Bad file descriptor"))) ])
+      |> Stdlib.Result.mapError(Stdlib.display)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error("Bad file descriptor")) ])
 
 
 // Setting a file's times through the platform syscall shows up in stat

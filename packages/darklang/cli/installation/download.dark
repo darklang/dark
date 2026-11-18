@@ -77,7 +77,7 @@ let verifyChecksum(download: GitHub.Releases.Download, path: String): Result<Uni
   let sums =
     Stdlib.Cli.Curl.downloadFileToPath(download.sumsUrl, sumsPath)
     |> Stdlib.Result.andThen(fun _ ->
-      Stdlib.Cli.File.readText(sumsPath) |> Stdlib.Result.mapError(fun e -> e.message))
+      Stdlib.Cli.File.readText(sumsPath) |> Stdlib.Result.mapError(Stdlib.display))
 
   let _cleaned = Stdlib.Cli.File.delete(sumsPath)
 
@@ -87,7 +87,8 @@ let verifyChecksum(download: GitHub.Releases.Download, path: String): Result<Uni
       $"Couldn't download the release's checksums file ({Stdlib.String.trim(e)}), {refused}")
   | Ok(sums) ->
     match Stdlib.Cli.File.readBytes(path) with
-    | Error(e) -> Result.Error($"Couldn't read the download to check it ({e.message}), {refused}")
+    | Error(e) ->
+      Result.Error($"Couldn't read the download to check it ({Stdlib.display(e)}), {refused}")
     | Ok(bytes) -> matchesSums(sums, download.name, bytes)
 
 

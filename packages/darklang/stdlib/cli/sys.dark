@@ -62,19 +62,17 @@ let __text(buffer: Bytes, offset: Int64, length: Int64): String =
   Utf8.decodeWithReplacement(text)
 
 
-let __sysctlWith(mib: List<Int64>, count: Int64): Result<Bytes, Int64> =
-  match Builtin.syscallSysctl(mib, count) with
+let __sysctlWith(mib: List<Int64>, count: Int64): Result<Bytes, Posix.Error> =
+  match Builtin.syscallSysctl(mib, count) |> Result.mapError(Posix.__fromErrno) with
   | Error(e) ->
-    if e == 4 then
-      __sysctlWith(mib, count)
-    else if e == 12 && count < 1048576 then
-      __sysctlWith(mib, count * 2)
-    else
-      Result.Error(e)
+    match Posix.Error.kind(e) with
+    | Interrupted -> __sysctlWith(mib, count)
+    | OutOfMemory when count < 1048576 -> __sysctlWith(mib, count * 2)
+    | _ -> Result.Error(e)
   | Ok(bytes) -> Result.Ok(bytes)
 
 
-let __sysctlText(mib: List<Int64>): Result<String, Int64> =
+let __sysctlText(mib: List<Int64>): Result<String, Posix.Error> =
   __sysctlWith(mib, 256) |> Result.map(fun bytes -> __text(bytes, 0, Bytes.length(bytes)))
 
 
@@ -86,21 +84,19 @@ let __countBits(value: Int64): Int64 =
     + __countBits(Int64.checkedDivide(value, 2) |> Result.withDefault(0))
 
 
-let __affinityWith(count: Int64): Result<Bytes, Int64> =
-  match Builtin.syscallSchedGetaffinity(0, count) with
+let __affinityWith(count: Int64): Result<Bytes, Posix.Error> =
+  match Builtin.syscallSchedGetaffinity(0, count) |> Result.mapError(Posix.__fromErrno) with
   | Error(e) ->
-    if e == 4 then
-      __affinityWith(count)
-    else if e == 22 && count < 1048576 then
-      __affinityWith(count * 2)
-    else
-      Result.Error(e)
+    match Posix.Error.kind(e) with
+    | Interrupted -> __affinityWith(count)
+    | InvalidInput when count < 1048576 -> __affinityWith(count * 2)
+    | _ -> Result.Error(e)
   | Ok(mask) -> Result.Ok(mask)
 
 
 /// Available CPUs means the calling process's affinity on Linux, hw.ncpu on
 /// Darwin, and one on the interpreter's single-threaded browser runtime.
-let __cpuCount(): Result<Int64, Int64> =
+let __cpuCount(): Result<Int64, Posix.Error> =
   let result =
     if Builtin.runtimeTargetOS() == "browser" then
       Result.Ok(1)
@@ -112,4 +108,6 @@ let __cpuCount(): Result<Int64, Int64> =
         List.fold(Bytes.toList(bytes), 0, fun(total, byte) ->
           total + __countBits(Int64.fromUInt8(byte))))
 
-  result |> Result.andThen(fun count -> if count > 0 then Result.Ok(count) else Result.Error(5))
+  result
+  |> Result.andThen(fun count ->
+    if count > 0 then Result.Ok(count) else Result.Error(Posix.Error.BadKernelReply))

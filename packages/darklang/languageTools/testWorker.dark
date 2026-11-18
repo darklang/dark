@@ -38,13 +38,13 @@ let main(args: List<String>): Int64 =
         match Stdlib.Cli.FileSystem.overwriteFile(resultPath, result) with
         | Ok(()) -> code
         | Error(error) ->
-          Stdlib.printLine(Stdlib.Cli.FileSystem.FileError.toString(error))
+          Stdlib.printLine(Stdlib.display(error))
           1
       | Error(error), _ ->
-        Stdlib.printLine(Stdlib.Cli.FileSystem.FileError.toString(error))
+        Stdlib.printLine(Stdlib.display(error))
         1
       | _, Error(error) ->
-        Stdlib.printLine(Stdlib.Cli.FileSystem.FileError.toString(error))
+        Stdlib.printLine(Stdlib.display(error))
         1
   | _ ->
     Stdlib.printLine("Invalid test worker arguments")

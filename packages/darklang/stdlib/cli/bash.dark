@@ -4,7 +4,7 @@ module Darklang.Stdlib.Cli.Bash
 let readBashrc(): Result<String, String> =
   FileSystem.readFile("$HOME/.bashrc")
   |> Result.map(Utf8.decodeWithReplacement)
-  |> Result.mapError(FileSystem.FileError.toString)
+  |> Result.mapError(display)
 
 
 /// A program cannot change the shell that started it, so after editing .bashrc
@@ -16,8 +16,7 @@ let printSourceHint(): Unit =
 
 /// Write content to .bashrc file
 let overwriteBashrc(content: String): Result<Unit, String> =
-  FileSystem.overwriteFile("$HOME/.bashrc", Utf8.encode(content))
-  |> Result.mapError(FileSystem.FileError.toString)
+  FileSystem.overwriteFile("$HOME/.bashrc", Utf8.encode(content)) |> Result.mapError(display)
 
 
 /// Delete an alias from .bashrc

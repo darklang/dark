@@ -1,31 +1,6 @@
 /// User-facing file operations over shared Dark algorithms and kernel primitives.
 module Darklang.Stdlib.Cli.FileSystem
 
-/// Structured error from file I/O.
-type FileError =
-  /// File or directory at the given path doesn't exist.
-  | NotFound
-  /// The OS refused access to the path (EACCES). A policy denial never
-  /// appears here: it raises before the operation runs.
-  | OsAccessDenied
-  /// Any other I/O failure — carries the original message.
-  | Other(String)
-
-
-module FileError =
-  /// Render a FileError for display or for callers that haven't migrated to
-  /// pattern-matching on the enum yet.
-  let toString(err: FileError): String =
-    match err with
-    | NotFound -> "File not found"
-    | OsAccessDenied -> "Permission denied"
-    | Other(msg) -> msg
-
-
-impl Display for FileError =
-  let display = Stdlib.Cli.FileSystem.FileError.toString
-
-
 /// The process's current working directory, or "." if the kernel cannot give its path,
 /// as when it has been removed.
 /// No file permission is needed to get this path.
@@ -46,17 +21,8 @@ let __expandPath(path: String): String =
     path
 
 
-let __fromPosixError(error: Posix.Error): FileError =
-  if error.errno == 2 || error.errno == 20 then
-    FileError.NotFound
-  else if error.errno == 13 || error.errno == 1 then
-    FileError.OsAccessDenied
-  else
-    FileError.Other(error.message)
-
-
 /// Full paths of the entries in the directory at <param path>.
-let listDirectory(path: String): Result<List<String>, FileError> =
+let listDirectory(path: String): Result<List<String>, Posix.Error> =
   let expanded = __expandPath(path)
   let full =
     if Path.isAbsolute(expanded) then
@@ -66,7 +32,6 @@ let listDirectory(path: String): Result<List<String>, FileError> =
 
   Posix.listDir(full)
   |> Result.map(fun names -> List.map(names, fun name -> Path.join([ full, name ])))
-  |> Result.mapError(__fromPosixError)
 
 
 /// Is there a file or directory at <param path>?
@@ -80,14 +45,14 @@ let isDirectory(path: String): Bool =
 
 
 /// Delete the file at <param path>.
-let deleteFile(path: String): Result<Unit, FileError> =
-  File.delete(__expandPath(path)) |> Result.mapError(__fromPosixError)
+let deleteFile(path: String): Result<Unit, Posix.Error> =
+  File.delete(__expandPath(path))
 
 
 /// Append <param content> to the file at <param path>, creating the file if
 /// it isn't there.
-let appendToFile(path: String, content: String): Result<Unit, FileError> =
-  File.appendText(__expandPath(path), content) |> Result.mapError(__fromPosixError)
+let appendToFile(path: String, content: String): Result<Unit, Posix.Error> =
+  File.appendText(__expandPath(path), content)
 
 
 // Get files in a directory - returns just filenames
@@ -131,42 +96,42 @@ let isDirectoryAtPath(dirPath: String, fileName: String): Bool =
 
 /// Read an entire file as Bytes, following symlinks when the target is permitted.
 /// Returns an error for I/O failures, such as missing files or cyclic links.
-let readFile(path: String): Result<Bytes, FileError> =
-  File.readBytes(__expandPath(path)) |> Result.mapError(__fromPosixError)
+let readFile(path: String): Result<Bytes, Posix.Error> =
+  File.readBytes(__expandPath(path))
 
 
 /// Write <param content> to <param path>, replacing whatever's there. The
 /// parent directory has to exist already; <fn writeFile> is this plus the
 /// mkdir.
-let overwriteFile(path: String, content: Bytes): Result<Unit, FileError> =
-  File.__writeBytes(__expandPath(path), content) |> Result.mapError(__fromPosixError)
+let overwriteFile(path: String, content: Bytes): Result<Unit, Posix.Error> =
+  File.__writeBytes(__expandPath(path), content)
 
 
 /// Read an entire file and decode it as UTF-8. Convenience over
 /// <fn readFile> + <fn Stdlib.Utf8.decode> for text files. Returns
-/// {{FileError.Other}} if the bytes aren't valid UTF-8.
-let readFileAsString(path: String): Result<String, FileError> =
+/// {{Posix.Error.InvalidUtf8}} if the bytes aren't valid UTF-8.
+let readFileAsString(path: String): Result<String, Posix.Error> =
   match readFile(path) with
   | Ok(blob) ->
     match Utf8.decode(blob) with
     | Ok(s) -> Result.Ok(s)
-    | Error(_) -> Result.Error(FileError.Other("File contents are not valid UTF-8"))
+    | Error(_) -> Result.Error(Posix.Error.InvalidUtf8)
   | Error(e) -> Result.Error(e)
 
 
 /// Write content to a file, creating any missing parent directories.
-let writeFile(path: String, content: Bytes): Result<Unit, FileError> =
+let writeFile(path: String, content: Bytes): Result<Unit, Posix.Error> =
   let expanded = __expandPath(path)
   match File.__writeBytes(expanded, content) with
   | Error(e) ->
-    if e.errno != Posix.Errno.enoent then
-      Result.Error(__fromPosixError(e))
-    else
+    match Posix.Error.kind(e) with
+    | NotFound ->
       let parentDir = Path.parent(expanded)
       if parentDir == "" || parentDir == "/" then
-        Result.Error(__fromPosixError(e))
+        Result.Error(e)
       else
-        match Dir.createRecursive(parentDir) |> Result.mapError(__fromPosixError) with
+        match Dir.createRecursive(parentDir) with
         | Error(parentError) -> Result.Error(parentError)
         | Ok(_) -> overwriteFile(expanded, content)
+    | _ -> Result.Error(e)
   | Ok(()) -> Result.Ok()

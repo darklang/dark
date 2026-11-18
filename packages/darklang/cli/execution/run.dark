@@ -178,6 +178,10 @@ let executeStdinScript(
   | Ok(source) -> runScriptMeasured(state, "-", source, args, options, Approval.Offer, stats)
 
 
+let isNotFound(e: Stdlib.Cli.Posix.Error): Bool =
+  Stdlib.Cli.Posix.Error.kind(e) == Stdlib.Cli.Posix.ErrorKind.NotFound
+
+
 let executeScript(
   state: AppState,
   scriptPath: String,
@@ -186,13 +190,13 @@ let executeScript(
   stats: Bool)
   : AppState =
   match Stdlib.Cli.FileSystem.readFile(scriptPath) with
-  | Error(NotFound) when looksLikePackageName(scriptPath) ->
+  | Error(e) when isNotFound(e) && looksLikePackageName(scriptPath) ->
     executePackageFn(state, scriptPath, args, options, stats)
   | Error(e) ->
-    match e with
-    | NotFound -> Stdlib.printErrorLine($"Script not found: {scriptPath}")
-    | OsAccessDenied -> Stdlib.printErrorLine($"Permission denied: {scriptPath}")
-    | Other(msg) -> Stdlib.printErrorLine($"Could not read script {scriptPath}: {msg}")
+    match Stdlib.Cli.Posix.Error.kind(e) with
+    | NotFound | NotADirectory -> Stdlib.printErrorLine($"Script not found: {scriptPath}")
+    | PermissionDenied -> Stdlib.printErrorLine($"Permission denied: {scriptPath}")
+    | _ -> Stdlib.printErrorLine($"Could not read script {scriptPath}: {Stdlib.display(e)}")
 
     // Every branch above printed a reason the script did not run, so this is a failure. Saying
     // so in the exit code is the only part a script or an agent can read.

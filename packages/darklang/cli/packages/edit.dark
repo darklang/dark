@@ -276,7 +276,7 @@ let execute(state: AppState, args: List<String>): AppState =
               | Error(e) ->
                 Stdlib.printErrorLine(
                   Stdlib.Cli.UI.Colors.error(
-                    $"Cannot edit {name}: no temp directory ({e.message})"))
+                    $"Cannot edit {name}: no temp directory ({Stdlib.display(e)})"))
 
                 failed(state)
               | Ok(dir) ->
@@ -285,14 +285,14 @@ let execute(state: AppState, args: List<String>): AppState =
                 | Error(e) ->
                   Stdlib.printErrorLine(
                     Stdlib.Cli.UI.Colors.error(
-                      $"Cannot edit {name}: could not write {path} ({e.message})"))
+                      $"Cannot edit {name}: could not write {path} ({Stdlib.display(e)})"))
 
                   failed(state)
                 | Ok(_) ->
                   let editor = editorCommand()
                   match Stdlib.Cli.Process.runInteractive(editor, [ path ]) with
                   | Error(e) ->
-                    printErr($"Could not run `{editor}`: {e.message}")
+                    printErr($"Could not run `{editor}`: {Stdlib.display(e)}")
                     Stdlib.printErrorLine(
                       Stdlib.Cli.UI.Colors.dimText(
                         $"  Set $EDITOR, or edit {path} and run `dark edit {name} {path}`."))
@@ -312,7 +312,7 @@ let execute(state: AppState, args: List<String>): AppState =
                   | Ok(_) ->
                     match Stdlib.Cli.File.readText(path) with
                     | Error(e) ->
-                      printErr($"Could not read back {path}: {e.message}")
+                      printErr($"Could not read back {path}: {Stdlib.display(e)}")
                       failed(state)
                     | Ok(after) ->
                       if Stdlib.String.trim(after) == Stdlib.String.trim(before) then
