@@ -1,0 +1,86 @@
+/// Sweeps that run every registered command one way and judge the answers the same way.
+module Darklang.Cli.Tests.CommandSweeps
+
+/// A runtime error a command caught and printed, so the run itself looked fine.
+let runtimeFailure(output: String): Stdlib.Option.Option<String> =
+  Stdlib.String.splitOnNewline(output)
+  |> Stdlib.List.findFirst(fun line ->
+    Stdlib.String.contains(line, "Encountered a Runtime Error")
+    || Stdlib.String.contains(line, "No matching case found")
+    || Stdlib.String.contains(line, "couldn't be found")
+    || Stdlib.String.contains(line, "Internal error:")
+    || Stdlib.String.contains(line, "expects ")
+       && Stdlib.String.contains(line, " but got"))
+
+
+/// Phrases that mean "you used this wrong", which a request for help must never get. Not "usage:"
+/// or "required": both appear in good help text.
+let soundsLikeMisuse(output: String): Bool =
+  let o = Stdlib.String.toLowercase(output)
+  [ "error:"
+    "internal error"
+    "is not a valid"
+    "unknown topic"
+    "unknown command" ]
+  |> Stdlib.List.any(fun phrase -> Stdlib.String.contains(o, phrase))
+
+
+/// What is wrong with `dark <args>` as an answer to a request for help, if anything.
+let helpProblem(
+  i: Instance.T,
+  args: List<String>)
+  : Stdlib.Option.Option<String> =
+  let cmd = Stdlib.String.join(args, " ")
+  match Instance.run(i, args) with
+  | Error(e) -> Stdlib.Option.Option.Some($"dark {cmd} -> could not run: {e}")
+  | Ok(out) ->
+    let text = Stdlib.String.trim(out.stdout + out.stderr)
+    let first =
+      Stdlib.String.splitOnNewline(text)
+      |> Stdlib.List.head
+      |> Stdlib.Option.withDefault("")
+      |> Stdlib.String.trim
+
+    let problem =
+      if out.exitCode != 0 then
+        Stdlib.Option.Option.Some($"exited {Stdlib.display(out.exitCode)}")
+      else if text == "" then
+        Stdlib.Option.Option.Some("printed nothing")
+      else
+        match runtimeFailure(text) with
+        | Some(line) ->
+          Stdlib.Option.Option.Some($"printed a runtime error: {line}")
+        | None ->
+          if soundsLikeMisuse(text) then
+            Stdlib.Option.Option.Some($"sounds like misuse: {first}")
+          // every help opens with what the command is, not with syntax or the name you typed
+          else if
+            Stdlib.String.startsWith(first, "Usage:")
+            || Stdlib.String.startsWith(first, "dark ")
+          then
+            Stdlib.Option.Option.Some($"does not start with a summary: {first}")
+          else
+            Stdlib.Option.Option.None
+
+    problem |> Stdlib.Option.map(fun why -> $"dark {cmd} -> {why}")
+
+
+/// Every registered command answers `--help`, and `help` as its first word, with help.
+test everyCommandAnswersHelp = Instance.withInstance(fun i ->
+  let names = Cli.Registry.allCommands() |> Stdlib.List.map(fun c -> c.name)
+  let problems =
+    names
+    |> Stdlib.List.map(fun name ->
+      [ helpProblem(i, [ name, "--help" ]), helpProblem(i, [ name, "help" ]) ])
+    |> Stdlib.List.flatten
+    |> Stdlib.List.filterMap(fun p -> p)
+
+  Stdlib.Test.all(
+    [ Stdlib.Test.expect(
+        Stdlib.List.length(names) > 20,
+        $"the registry was read: {Stdlib.inspect(names)}")
+
+      Stdlib.Test.expect(
+        problems == [],
+        "commands that don't answer help:\n"
+        + Stdlib.String.join(problems, "\n")) ]))
