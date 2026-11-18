@@ -779,7 +779,7 @@ let independentRenamesCompose =
       })
 
 /// A caller written on a branch against an older version arrives through merge already
-/// moved to the parent's newer version (#6039); a rename afterwards still has to find it.
+/// moved to the parent's newer version; a rename afterwards still has to find it.
 let aRenameIncludesACallerArrivingThroughMerge =
   instanceTest "a rename includes a caller arriving through merge" (fun state ->
     task {

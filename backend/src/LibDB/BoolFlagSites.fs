@@ -1,6 +1,6 @@
 /// Calls that pass a bare `true` or `false` to a package fn's `Bool` parameter, when the fn
 /// takes two or more. `f(x, true)` does not say what `true` means; a two-case enum named for
-/// it does (#6150). A fn of one parameter, such as a predicate or a setter, is left out, and so
+/// it does. A fn of one parameter, such as a predicate or a setter, is left out, and so
 /// is `Stdlib.Bool`, whose Bools are the values themselves.
 module LibDB.BoolFlagSites
 

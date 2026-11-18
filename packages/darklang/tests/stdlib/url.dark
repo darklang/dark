@@ -29,7 +29,7 @@ let roundTrip(s: String): Stdlib.Result.Result<String, Stdlib.Url.ParseError> =
   Stdlib.Url.parse(s) |> Stdlib.Result.map(fun u -> Stdlib.Url.toString(u))
 
 
-// The example from darklang/dark#2792, every part at once.
+// A URL with every part at once.
 test parseEveryPart =
   Stdlib.Url.parse(
     "https://user:pw@Example.com:8080/foo/bar?arg1=some_val&arg2=other_val#somehash")
