@@ -217,6 +217,35 @@ let entry(name: String): Result<Run.Entry, String> =
       | None -> Result.Ok(found)
 
 
+/// What darkc's <param reason> means, as the end of a sentence.
+let describeReason(diagnostic: Compiler.Darkc.Diagnostic): String =
+  match diagnostic.reason with
+  | MissingBuiltin(name) -> $"compiled code doesn't have {name}"
+  | MissingFunction(name) -> $"the compiler can't find {name}"
+  | MissingType(name) -> $"the compiler can't find the type {name}"
+  | UnsupportedFeature(feature) -> $"compiled code doesn't support {feature} yet"
+  | NeedsTypeArguments(_) -> "it needs type arguments to compile"
+  | NotAnEntry -> "it isn't a program's fn"
+  | EntryNotFound -> "the compiler couldn't read it"
+  | Other(_) -> diagnostic.message
+
+
+/// darkc's `--json` diagnostics on <param stderr> as text, or <param stderr> as it is.
+let renderFailure(name: String, stderr: String): String =
+  match Compiler.Darkc.parseDiagnostics(stderr) with
+  | [] -> stderr
+  | diagnostics ->
+    let lines =
+      diagnostics
+      |> Stdlib.List.map(fun d ->
+        let first = $"{name} can't be compiled yet: {describeReason(d)}."
+        match d.path with
+        | [] -> first
+        | path -> $"{first}\n  {Stdlib.String.join(path, " -> ")}")
+
+    Stdlib.String.join(lines, "\n") + "\n"
+
+
 /// Where an executable of <param name> goes with no `-o`: its last segment, here.
 let defaultOutput(name: String): String =
   let leaf =
@@ -250,8 +279,10 @@ let executable(
         { result with
             stderr =
               result.stderr + $"wrote {output}{size} in {seconds(Telemetry.elapsedMs(started))}\n" }
+      else if result.exitCode == 0 then
+        result
       else
-        result)
+        { result with stderr = renderFailure(name, result.stderr) })
 
 
 /// What `--check` says about one name.
@@ -259,7 +290,7 @@ type Verdict =
   | Compiles
   /// It reaches something only an instance has, or access compiled code can't limit yet.
   | Refused(blocker: Compiler.Access.Blocker, reasons: List<Compiler.Access.Reason>)
-  | Fails(reason: String, error: String)
+  | Fails(diagnostic: Option<Compiler.Darkc.Diagnostic>)
   | NotFound
 
 
@@ -310,9 +341,8 @@ let withReport(row: CheckRow, reports: List<Compiler.Darkc.CheckReport>): CheckR
   | Compiles ->
     match reports |> Stdlib.List.findFirst(fun r -> r.name == row.name) with
     | Some(report) when report.status == "compiles" -> row
-    | Some(report) -> { row with verdict = Verdict.Fails(report.reason, report.error) }
-    | None ->
-      { row with verdict = Verdict.Fails("no-answer", "the compiler said nothing about it") }
+    | Some(report) -> { row with verdict = Verdict.Fails(report.diagnostic) }
+    | None -> { row with verdict = Verdict.Fails(Option.None) }
   | _ -> row
 
 
@@ -347,7 +377,12 @@ let rowColumns(row: CheckRow): (String * String) =
       reasons
       |> Stdlib.List.map(via)
       |> Stdlib.String.join("; "))
-  | Fails(_, error) -> ("not yet", error)
+  | Fails(Some(diagnostic)) ->
+    match diagnostic.path with
+    | [_, ...rest] when Stdlib.Bool.not(Stdlib.List.isEmpty(rest)) ->
+      ("not yet", $"{describeReason(diagnostic)}, via {Stdlib.String.join(rest, " -> ")}")
+    | _ -> ("not yet", describeReason(diagnostic))
+  | Fails(None) -> ("not yet", "the compiler said nothing about it")
   | NotFound -> ("not found", "no package fn or value by that name")
 
 

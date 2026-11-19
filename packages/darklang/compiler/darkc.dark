@@ -80,7 +80,9 @@ let arguments(invocation: Invocation): List<String> =
   let job =
     match invocation.job with
     | Executable(Hash(hash), output) ->
-      Stdlib.List.concat(verbosityFlag(invocation.verbosity), [ "--entry", hash, "-o", output ])
+      Stdlib.List.concat(
+        verbosityFlag(invocation.verbosity),
+        [ "--json", "--entry", hash, "-o", output ])
     | Run(expr) ->
       Stdlib.List.concat(verbosityFlag(invocation.verbosity), [ "-r", "-e", "--", expr ])
     | Check(names) -> Stdlib.List.concat([ "--check", "--json" ], names)
@@ -93,20 +95,92 @@ let prepareArguments(): List<String> =
   [ "prepare", "--cache-dir", cacheDir() ]
 
 
+/// Why darkc couldn't compile something, from its `--json` diagnostics.
+type Reason =
+  | MissingBuiltin(name: String)
+  | MissingFunction(name: String)
+  | MissingType(name: String)
+  | UnsupportedFeature(feature: String)
+  | NeedsTypeArguments(name: Option<String>)
+  | NotAnEntry
+  | EntryNotFound
+  /// a bad command line, or anything else; the diagnostic's message says what
+  | Other(kind: String)
+
+
+type Diagnostic =
+  { reason: Reason
+    /// from the entry or checked name, through package references, to what failed
+    path: List<String>
+    /// darkc's own text, for when <param reason> is `Other`
+    message: String }
+
+
 /// One line of `darkc --check --json`.
 type CheckReport =
   { name: String
     /// "compiles", "failed" or "undetermined"
     status: String
-    /// darkc's tag for why not, such as "missing-builtin"
-    reason: String
-    error: String }
+    diagnostic: Option<Diagnostic> }
+
+
+let reasonOf(fields: List<(String * Stdlib.AltJson.Json)>): Reason =
+  let named = Stdlib.AltJson.Helpers.getString("name", fields) |> Stdlib.Option.withDefault("")
+  match Stdlib.AltJson.Helpers.getString("kind", fields) |> Stdlib.Option.withDefault("") with
+  | "missing-builtin" -> Reason.MissingBuiltin(named)
+  | "missing-function" -> Reason.MissingFunction(named)
+  | "missing-type" -> Reason.MissingType(named)
+  | "unsupported-feature" ->
+    Reason.UnsupportedFeature(
+      Stdlib.AltJson.Helpers.getString("feature", fields) |> Stdlib.Option.withDefault(""))
+  | "needs-type-arguments" ->
+    Reason.NeedsTypeArguments(Stdlib.AltJson.Helpers.getString("name", fields))
+  | "not-an-entry" -> Reason.NotAnEntry
+  | "entry-not-found" -> Reason.EntryNotFound
+  | kind -> Reason.Other(kind)
+
+
+let diagnosticOf(fields: List<(String * Stdlib.AltJson.Json)>): Diagnostic =
+  Diagnostic
+    { reason = reasonOf(Stdlib.AltJson.Helpers.getObject("reason", fields))
+      path =
+        Stdlib.AltJson.Helpers.getArray("path", fields)
+        |> Stdlib.List.filterMap(fun step ->
+          match step with
+          | String(text) -> Option.Some(text)
+          | _ -> Option.None)
+      message =
+        Stdlib.AltJson.Helpers.getString("message", fields) |> Stdlib.Option.withDefault("") }
+
+
+let objects(text: String): List<List<(String * Stdlib.AltJson.Json)>> =
+  text
+  |> Stdlib.String.splitOnNewline
+  |> Stdlib.List.filterMap(fun line ->
+    match Stdlib.AltJson.parse(line) with
+    | Ok(Object(fields)) -> Option.Some(fields)
+    | _ -> Option.None)
+
+
+/// The diagnostics darkc wrote to stderr with `--json`. Other lines are skipped.
+let parseDiagnostics(stderr: String): List<Diagnostic> =
+  objects(stderr)
+  |> Stdlib.List.filter(fun fields ->
+    Stdlib.Option.isSome(Stdlib.AltJson.Helpers.getValue("reason", fields)))
+  |> Stdlib.List.map(diagnosticOf)
 
 
 let parseCheckReports(stdout: String): List<CheckReport> =
-  stdout
-  |> Stdlib.String.splitOnNewline
-  |> Stdlib.List.filter(fun line ->
-    Stdlib.Bool.not(Stdlib.String.isEmpty(Stdlib.String.trim(line))))
-  |> Stdlib.List.filterMap(fun line ->
-    Stdlib.Json.parse<CheckReport>(line) |> Stdlib.Result.toOption)
+  objects(stdout)
+  |> Stdlib.List.filterMap(fun fields ->
+    match Stdlib.AltJson.Helpers.getString("name", fields), Stdlib.AltJson.Helpers.getString(
+            "status",
+            fields) with
+    | Some(name), Some(status) ->
+      let diagnostic =
+        match Stdlib.AltJson.Helpers.getValue("diagnostic", fields) with
+        | Some(Object(d)) -> Option.Some(diagnosticOf(d))
+        | _ -> Option.None
+
+      Option.Some(CheckReport { name = name, status = status, diagnostic = diagnostic })
+    | _ -> Option.None)

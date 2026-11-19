@@ -135,7 +135,7 @@ test anExecutableIsNamedByItsHash =
   let hash = LanguageTools.ProgramTypes.Hash.Hash("abc123")
   argumentsFor(Compiler.Darkc.Job.Executable(hash, "./echo"), 1)
   |> Stdlib.List.drop(4)
-  |> Stdlib.Test.equal([ "-v", "--entry", "abc123", "-o", "./echo" ])
+  |> Stdlib.Test.equal([ "-v", "--json", "--entry", "abc123", "-o", "./echo" ])
 
 
 test theCacheAndServerAreSaidEveryTime =
@@ -159,31 +159,47 @@ test checkAsksForJson =
 
 
 test checkReportsAreRead =
-  "{\"name\":\"A.b\",\"status\":\"compiles\",\"reason\":\"\",\"error\":\"\"}\n\n{\"name\":\"A.c\",\"status\":\"failed\",\"reason\":\"missing-builtin\",\"error\":\"no Builtin.x\"}\n"
+  [ "{\"name\":\"A.b\",\"status\":\"compiles\",\"typeArguments\":null,\"diagnostic\":null}"
+    ""
+    "{\"name\":\"A.c\",\"status\":\"failed\",\"typeArguments\":null,\"diagnostic\":{\"reason\":{\"kind\":\"missing-builtin\",\"name\":\"Builtin.x\"},\"location\":null,\"path\":[\"A.c\",\"Builtin.x\"],\"message\":\"m\"}}" ]
+  |> Stdlib.String.join("\n")
   |> Compiler.Darkc.parseCheckReports
-  |> Stdlib.List.map(fun r -> (r.name, r.status))
-  |> Stdlib.Test.equal([ ("A.b", "compiles"), ("A.c", "failed") ])
+  |> Stdlib.List.map(fun r ->
+    (r.name, r.status, Stdlib.Option.map(r.diagnostic, fun d -> d.reason)))
+  |> Stdlib.Test.equal(
+    [ ("A.b", "compiles", Stdlib.Option.Option.None)
+      (
+        "A.c",
+        "failed",
+        Stdlib.Option.Option.Some(
+          Compiler.Darkc.Reason.MissingBuiltin("Builtin.x"))) ])
+
+
+test aCompilerGapNamesWhatIsMissing =
+  Cli.Compile.renderFailure(
+    "Me.report",
+    "progress text\n{\"reason\":{\"kind\":\"missing-builtin\",\"name\":\"Builtin.decimalScale\"},\"location\":null,\"path\":[\"Me.report\",\"Stdlib.Decimal.scale\",\"Builtin.decimalScale\"],\"message\":\"m\"}\n")
+  |> Stdlib.Test.equal(
+    "Me.report can't be compiled yet: compiled code doesn't have Builtin.decimalScale.\n  Me.report -> Stdlib.Decimal.scale -> Builtin.decimalScale\n")
 
 
 test checkAnswersInstanceOnlyFnsItself =
-  [ Darklang.Cli.Compile.precheck($"{fixtures}.countsFns")
-    Darklang.Cli.Compile.precheck("Stdlib.NoSuch.fn") ]
+  [ Cli.Compile.precheck($"{fixtures}.countsFns")
+    Cli.Compile.precheck("Stdlib.NoSuch.fn") ]
   |> Stdlib.List.map(fun row ->
-    Stdlib.Tuple2.first(Darklang.Cli.Compile.rowColumns(row)))
+    Stdlib.Tuple2.first(Cli.Compile.rowColumns(row)))
   |> Stdlib.Test.equal([ "needs dark", "not found" ])
 
 
 test checkLinesLineUp =
-  [ Darklang.Cli.Compile.CheckRow
+  [ Cli.Compile.CheckRow
       { name = "A.long.name"
-        verdict = Darklang.Cli.Compile.Verdict.Compiles
+        verdict = Cli.Compile.Verdict.Compiles
         effects = [] }
 
-    Darklang.Cli.Compile.CheckRow
-      { name = "A.b"
-        verdict = Darklang.Cli.Compile.Verdict.NotFound
-        effects = [] } ]
-  |> Darklang.Cli.Compile.checkLines
+    Cli.Compile.CheckRow
+      { name = "A.b", verdict = Cli.Compile.Verdict.NotFound, effects = [] } ]
+  |> Cli.Compile.checkLines
   |> Stdlib.Test.equal(
     [ "compiles      A.long.name  no effects"
       "not found     A.b          no package fn or value by that name" ])
@@ -226,17 +242,17 @@ test seconds =
 
 
 test preparingIsItsOwnCommand =
-  Darklang.Compiler.Darkc.prepareArguments()
+  Compiler.Darkc.prepareArguments()
   |> Stdlib.Test.equal([ "prepare", "--cache-dir", Compiler.Darkc.cacheDir() ])
 
 
 test noBackgroundPreparationWithoutATerminal =
-  Darklang.Compiler.Prepare.skip()
+  Compiler.Prepare.skip()
   |> Stdlib.Test.equal(
-    Stdlib.Option.Option.Some(Darklang.Compiler.Prepare.Skip.NotATerminal))
+    Stdlib.Option.Option.Some(Compiler.Prepare.Skip.NotATerminal))
 
 
 test freeMemoryIsRead =
   "MemTotal:       65536000 kB\nMemFree:         1000 kB\nMemAvailable:    2048 kB\n"
-  |> Darklang.Compiler.Prepare.memAvailable
+  |> Compiler.Prepare.memAvailable
   |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2097152))
