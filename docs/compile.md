@@ -108,6 +108,24 @@ analysis behind `dark effects` (`Builtin.pmFnEffectReasons`). `PackageRead`,
 other effect except `Stdin`, `Stdout`, `Clock`, `Random` and `Raise` waits until
 compiled code enforces access.
 
+Access past stdin, stdout, the clock and randomness is approved the way `dark run`
+approves it, for the fn's name and version, and saved in the same place: at a
+terminal `dark compile` asks (allow this build, remember for this code version,
+cancel); without one it prints the `dark permissions approve` line to run first.
+The approved policy goes to `~/.darklang/compiler/<commit>/policies/<fn hash>.json`
+and to darkc as `--policy FILE`. It is `LanguageTools.Permissions.Policy` as
+`Stdlib.Json.serialize` writes it:
+
+```json
+{"allow":[{"Effect":[{"FileRead":[]}]}],"deny":[]}
+```
+
+darkc is to bake it into the executable and check it where compiled code reaches
+the OS: opening, writing and removing files, connecting, binding, starting a
+child, reading or setting an environment variable. A denial prints what
+`dark run` prints for it and exits 1. Until the pinned darkc does that
+(`Darkc.enforcesAccess`), such fns are refused instead.
+
 While a compile runs, the instance serves its packages to the compiler on a random
 loopback port, with a one-time token so other local processes can't read the store
 through it.

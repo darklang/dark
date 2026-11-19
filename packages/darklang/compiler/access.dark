@@ -93,7 +93,9 @@ let pathLine(reason: Reason): String =
 /// stands in the way.
 let refusal(name: String, reasons: List<Reason>): Option<String> =
   let instance = blocking(reasons, Blocker.NeedsInstance)
-  let unenforced = blocking(reasons, Blocker.NotEnforced)
+  // with darkc limiting it, that access is the user's to approve instead
+  let unenforced = if Darkc.enforcesAccess then [] else blocking(reasons, Blocker.NotEnforced)
+
   let lines =
     if Stdlib.Bool.not(Stdlib.List.isEmpty(instance)) then
       Stdlib.List.flatten(

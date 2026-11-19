@@ -133,9 +133,21 @@ let argumentsFor(job: Compiler.Darkc.Job, verbosity: Int64): List<String> =
 
 test anExecutableIsNamedByItsHash =
   let hash = LanguageTools.ProgramTypes.Hash.Hash("abc123")
-  argumentsFor(Compiler.Darkc.Job.Executable(hash, "./echo"), 1)
+  argumentsFor(
+    Compiler.Darkc.Job.Executable(hash, "./echo", Stdlib.Option.Option.None),
+    1)
   |> Stdlib.List.drop(4)
   |> Stdlib.Test.equal([ "-v", "--json", "--entry", "abc123", "-o", "./echo" ])
+
+
+test theApprovedAccessGoesToDarkc =
+  let hash = LanguageTools.ProgramTypes.Hash.Hash("abc123")
+  argumentsFor(
+    Compiler.Darkc.Job.Executable(hash, "./cat", Stdlib.Option.Option.Some("/p/abc123.json")),
+    -1)
+  |> Stdlib.List.drop(4)
+  |> Stdlib.Test.equal(
+    [ "-q", "--json", "--entry", "abc123", "-o", "./cat", "--policy", "/p/abc123.json" ])
 
 
 test theCacheAndServerAreSaidEveryTime =
@@ -256,3 +268,40 @@ test freeMemoryIsRead =
   "MemTotal:       65536000 kB\nMemFree:         1000 kB\nMemAvailable:    2048 kB\n"
   |> Compiler.Prepare.memAvailable
   |> Stdlib.Test.equal(Stdlib.Option.Option.Some(2097152))
+
+
+test aScopedRuleCountsForItsWholeEffect =
+  Cli.Compile.Approval.uncovered(
+    LanguageTools.Permissions.Policy
+      { allow =
+          [ LanguageTools.Permissions.Rule.FileRead(
+              LanguageTools.Permissions.Scope.Only("/tmp")) ]
+        deny = [] },
+    [ LanguageTools.Permissions.Effect.FileRead
+      LanguageTools.Permissions.Effect.Http ])
+  |> Stdlib.Test.equal([ LanguageTools.Permissions.Effect.Http ])
+
+
+test withNobodyToAskItSaysHowToApprove =
+  let name = $"{fixtures}.catFile"
+  let hash =
+    match LanguageTools.PackageManager.Function.find(
+            SCM.Branch.mainBranchId,
+            LanguageTools.ProgramTypes.parsePackageLocation(name)) with
+    | Some(Hash(h)) -> h
+    | None -> ""
+
+  let reasons =
+    Compiler.Access.reasons(name, LanguageTools.ProgramTypes.Hash.Hash(hash))
+
+  match Cli.Compile.Approval.decide(
+          Stdlib.Option.Option.None,
+          name,
+          hash,
+          "./catFile",
+          reasons) with
+  | Refused(message) ->
+    message
+    |> Stdlib.Test.equal(
+      $"{name} needs access that isn't approved: file-read.\nApprove it first: dark permissions approve --for {name} 'file-read' --yes")
+  | Approved(_) -> Stdlib.Test.fail("expected a refusal")

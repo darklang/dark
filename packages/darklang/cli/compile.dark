@@ -217,6 +217,34 @@ let entry(name: String): Result<Run.Entry, String> =
       | None -> Result.Ok(found)
 
 
+/// The access approved for the executable of <param found>, written where darkc reads it, or
+/// None when it needs nothing past what every executable has.
+let approvedPolicy(
+  accountID: Option<Uuid>,
+  name: String,
+  found: Run.Entry,
+  output: String)
+  : Result<Option<String>, String> =
+  let hash =
+    match found.hash with
+    | Hash(h) -> h
+
+  match Approval.decide(
+          accountID,
+          found.name,
+          hash,
+          output,
+          Compiler.Access.reasons(name, found.hash)) with
+  | Refused(message) -> Result.Error(message)
+  | Approved(policy) when Stdlib.List.isEmpty(policy.allow) -> Result.Ok(Option.None)
+  | Approved(policy) ->
+    let path = Compiler.Darkc.policyPath(hash)
+    let _ = Stdlib.Cli.Dir.createRecursive(Stdlib.Cli.Path.parent(path))
+    Stdlib.Cli.File.writeText(path, Stdlib.Json.serialize<LanguageTools.Permissions.Policy>(policy))
+    |> Stdlib.Result.map(fun _ -> Option.Some(path))
+    |> Stdlib.Result.mapError(fun e -> $"Could not write {path}: {Stdlib.display(e)}")
+
+
 /// What darkc's <param reason> means, as the end of a sentence.
 let describeReason(diagnostic: Compiler.Darkc.Diagnostic): String =
   match diagnostic.reason with
@@ -258,6 +286,7 @@ let defaultOutput(name: String): String =
 
 /// Compile the package fn <param name> to an executable at <param output>.
 let executable(
+  accountID: Option<Uuid>,
   name: String,
   output: String,
   verbosity: Int64)
@@ -268,7 +297,9 @@ let executable(
   else
     entry(name)
     |> Stdlib.Result.andThen(fun found ->
-      withServer(Compiler.Darkc.Job.Executable(found.hash, output), verbosity))
+      approvedPolicy(accountID, name, found, output)
+      |> Stdlib.Result.andThen(fun policy ->
+        withServer(Compiler.Darkc.Job.Executable(found.hash, output, policy), verbosity)))
     |> Stdlib.Result.map(fun result ->
       if result.exitCode == 0 && verbosity >= 0 then
         let size =
@@ -512,7 +543,7 @@ let execute(state: AppState, args: List<String>): AppState =
     parse(rest)
     |> Stdlib.Result.andThen(fun request ->
       match request with
-      | Executable(name, output) -> executable(name, output, verbosity)
+      | Executable(name, output) -> executable(state.accountID, name, output, verbosity)
       | Run(expr) -> withServer(Compiler.Darkc.Job.Run(expr), verbosity)
       | Check(names, json) -> check(names, json))
 

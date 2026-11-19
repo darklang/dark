@@ -1,0 +1,135 @@
+/// The access an executable gets: what was approved for its fn version, asked for the way
+/// `dark run` asks and saved where `dark run` saves it, so each sees what the other remembered.
+module Darklang.Cli.Compile.Approval
+
+type Effect = LanguageTools.Permissions.Effect
+
+type Policy = LanguageTools.Permissions.Policy
+
+
+type Outcome =
+  | Approved(policy: Policy)
+  | Refused(message: String)
+
+
+/// Whether <param rule> allows at least some of <param effect>. An executable is limited to
+/// whole effects for now, so a scoped rule counts for its whole effect.
+let ruleCovers(rule: LanguageTools.Permissions.Rule, effect: Effect): Bool =
+  match rule with
+  | All -> true
+  | Effect(e) -> e == effect
+  | Http(_) -> effect == LanguageTools.Permissions.Effect.Http
+  | HttpServer(_, _) -> effect == LanguageTools.Permissions.Effect.HttpServer
+  | FileRead(_) -> effect == LanguageTools.Permissions.Effect.FileRead
+  | FileWrite(_) -> effect == LanguageTools.Permissions.Effect.FileWrite
+  | EnvRead(_) -> effect == LanguageTools.Permissions.Effect.EnvRead
+  | EnvWrite(_) -> effect == LanguageTools.Permissions.Effect.EnvWrite
+  | Process(_) -> effect == LanguageTools.Permissions.Effect.Process
+
+
+/// The effects in <param effects> that <param policy> allows none of.
+let uncovered(policy: Policy, effects: List<Effect>): List<Effect> =
+  effects
+  |> Stdlib.List.filter(fun effect ->
+    Stdlib.Bool.not(Stdlib.List.any(policy.allow, fun rule -> ruleCovers(rule, effect))))
+
+
+/// The rules saved for <param name> at version <param hash>, by `dark run` or `dark compile`.
+let saved(accountID: Option<Uuid>, name: String, hash: String): Option<Policy> =
+  let (_bundled, approvals) = Permissions.Command.packageAccess(accountID, hash)
+  approvals
+  |> Stdlib.List.findFirst(fun((approved, _)) -> approved == name)
+  |> Stdlib.Option.map(Stdlib.Tuple2.second)
+
+
+let rulesText(effects: List<Effect>): String =
+  effects
+  |> Stdlib.List.map(LanguageTools.Permissions.effectName)
+  |> Stdlib.String.join("; ")
+
+
+let withEffects(policy: Policy, effects: List<Effect>): Policy =
+  { policy with
+      allow =
+        Stdlib.List.concat(
+          policy.allow,
+          effects |> Stdlib.List.map(fun e -> LanguageTools.Permissions.Rule.Effect(e))) }
+
+
+/// What to say when there's nobody to ask.
+let unapproved(name: String, missing: List<Effect>): String =
+  let names =
+    missing
+    |> Stdlib.List.map(LanguageTools.Permissions.effectName)
+    |> Stdlib.String.join(", ")
+
+  [ $"{name} needs access that isn't approved: {names}."
+    $"Approve it first: dark permissions approve --for {name} '{rulesText(missing)}' --yes" ]
+  |> Stdlib.String.join("\n")
+
+
+let ask(
+  accountID: Option<Uuid>,
+  name: String,
+  hash: String,
+  output: String,
+  reasons: List<Compiler.Access.Reason>,
+  base: Policy,
+  missing: List<Effect>)
+  : Outcome =
+  // taken before the prompt, so a change made meanwhile refuses the save
+  let (expected, _) = Permissions.Command.approvalSnapshot(accountID)
+  let shown = reasons |> Stdlib.List.filter(fun r -> Stdlib.List.contains(missing, r.effect))
+  Stdlib.printErrorLine(
+    $"{name} {Compiler.Access.describeAll(shown)}. {output} gets only the access you approve now.")
+
+  Stdlib.List.iter(shown, fun r ->
+    Stdlib.printErrorLine(
+      $"  {LanguageTools.Permissions.effectName(r.effect)}  via {Stdlib.String.join(r.path, " -> ")}"))
+
+  let policy = withEffects(base, missing)
+  let once = "Allow this build"
+  let remember = "Remember for this code version"
+  match Stdlib.Cli.UI.Prompt.select(
+          "Choose how long to allow this access:",
+          [ once, remember, "Cancel" ]) with
+  | Some(choice) when choice == once -> Outcome.Approved(policy)
+  | Some(choice) when choice == remember ->
+    match Permissions.Command.approveVersionFor(
+            accountID,
+            name,
+            expected,
+            hash,
+            Option.Some(policy),
+            Permissions.Command.Incomplete.Refuse,
+            Permissions.Command.ContractChange.Refuse) with
+    | Ok(_) -> Outcome.Approved(policy)
+    | Error(failure) -> Outcome.Refused(Permissions.Command.approvalFailureText(failure))
+  | _ -> Outcome.Refused("Cancelled. Nothing was compiled, and no permissions were saved.")
+
+
+/// The access the executable of <param name> (version <param hash>) gets, given what its fn may
+/// do: none past stdin, stdout, the clock and randomness unless approved. At a terminal it asks
+/// with `dark run`'s choices; without one it says how to approve first.
+let decide(
+  accountID: Option<Uuid>,
+  name: String,
+  hash: String,
+  output: String,
+  reasons: List<Compiler.Access.Reason>)
+  : Outcome =
+  let needed =
+    Compiler.Access.blocking(reasons, Compiler.Access.Blocker.NotEnforced)
+    |> Stdlib.List.map(fun r -> r.effect)
+    |> Stdlib.List.unique
+
+  let base =
+    saved(accountID, name, hash) |> Stdlib.Option.withDefault(LanguageTools.Permissions.empty())
+
+  match uncovered(base, needed) with
+  | [] -> Outcome.Approved(base)
+  | missing ->
+    if Stdlib.Cli.UI.Prompt.canAsk() then
+      ask(accountID, name, hash, output, reasons, base, missing)
+    else
+      Outcome.Refused(unapproved(name, missing))

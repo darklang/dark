@@ -48,11 +48,21 @@ let unsupportedHost(): Option<String> =
   | _ -> Option.Some("this platform")
 
 
+/// Whether the pinned darkc limits a compiled program to the access in its `--policy`. Until
+/// it does, a fn that needs more than stdin, stdout, the clock and randomness isn't compiled.
+val enforcesAccess = false
+
+
+/// Where the access approved for the fn <param hash> is written for darkc.
+let policyPath(hash: String): String =
+  $"{directory()}/policies/{hash}.json"
+
+
 type Job =
   /// Write an executable at <param output> that runs the package fn <param entry> as
   /// `dark run` does: darkc passes it the command-line words and turns its result into the
   /// exit code.
-  | Executable(entry: LanguageTools.ProgramTypes.Hash, output: String)
+  | Executable(entry: LanguageTools.ProgramTypes.Hash, output: String, policy: Option<String>)
   /// Compile <param expr>, run it, and print what it prints.
   | Run(expr: String)
   /// Whether each package fn or value compiles: one JSON object per name on stdout.
@@ -79,10 +89,16 @@ let arguments(invocation: Invocation): List<String> =
   let common = [ "--cache-dir", cacheDir(), "--package-server", invocation.packageServer ]
   let job =
     match invocation.job with
-    | Executable(Hash(hash), output) ->
-      Stdlib.List.concat(
-        verbosityFlag(invocation.verbosity),
-        [ "--json", "--entry", hash, "-o", output ])
+    | Executable(Hash(hash), output, policy) ->
+      let policyFlag =
+        match policy with
+        | Some(file) -> [ "--policy", file ]
+        | None -> []
+
+      Stdlib.List.flatten(
+        [ verbosityFlag(invocation.verbosity)
+          [ "--json", "--entry", hash, "-o", output ]
+          policyFlag ])
     | Run(expr) ->
       Stdlib.List.concat(verbosityFlag(invocation.verbosity), [ "-r", "-e", "--", expr ])
     | Check(names) -> Stdlib.List.concat([ "--check", "--json" ], names)
