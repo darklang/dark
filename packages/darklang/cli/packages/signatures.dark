@@ -257,20 +257,42 @@ let executeFiltered(
   let rootName = Stdlib.String.join(rootPath, ".")
   let branchId = state.currentBranchId
 
-  // Always pull the full subtree, then apply our own substring filter against
-  // (module path + name). The search builtin's `text` param is fuzzy and only
-  // matches entity names, so `signatures uuid` would miss `Stdlib.Uuid.generate`.
-  let query =
-    LanguageTools.ProgramTypes.Search.SearchQuery
-      { currentModule = rootPath
-        text = ""
-        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
-        entityTypes = []
-        exactMatch = false }
+  let searchAt = fun path ->
+    LanguageTools.PackageManager.Search.search(
+      branchId,
+      LanguageTools.ProgramTypes.Search.SearchQuery
+        { currentModule = path
+          text = ""
+          searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+          entityTypes = []
+          exactMatch = false })
 
-  let raw = LanguageTools.PackageManager.Search.search(branchId, query)
+  // Look in the named module first. If it does not exist, search the full scope
+  // for partial names and suggestions.
+  let qualifiedModulePath =
+    filterText
+    |> Stdlib.Option.andThen(fun needle ->
+      let segments = Stdlib.String.split(needle, ".")
+      let path =
+        match segments with
+        | ["Stdlib", ...rest] -> ["Darklang", "Stdlib", ...rest]
+        | _ -> segments
+      match Stdlib.List.last(path) |> Stdlib.Option.andThen(Stdlib.String.head) with
+      | Some(c) when Stdlib.Char.isUppercase(c)
+                     && path != rootPath
+                     && Stdlib.List.take(path, Stdlib.List.length(rootPath)) == rootPath ->
+        Some(path)
+      | _ -> None)
+
+  let searchResults =
+    match qualifiedModulePath with
+    | Some(path) ->
+      let moduleResults = searchAt(path)
+      if Query.hasContent(moduleResults) then moduleResults else searchAt(rootPath)
+    | None -> searchAt(rootPath)
+
   let depSets = Query.loadDeprecationSets(branchId)
-  let unfiltered = Query.filterHidden(raw, depSets, deprecated, internal)
+  let unfiltered = Query.filterHidden(searchResults, depSets, deprecated, internal)
   let results =
     match filterText with
     | None -> unfiltered
@@ -373,15 +395,7 @@ let executeFiltered(
 
   // A module exists only through what it holds, so a root that holds nothing is a typo, and
   // "0 fns across 0 modules" would read as an answer. The same goes for a filter.
-  if
-    Stdlib.List.isEmpty(raw.submodules)
-    && Stdlib.List.isEmpty(raw.types)
-    && Stdlib.List.isEmpty(raw.values)
-    && Stdlib.List.isEmpty(raw.fns)
-    && Stdlib.List.isEmpty(raw.traits)
-    && Stdlib.List.isEmpty(raw.impls)
-    && Stdlib.List.isEmpty(raw.tests)
-  then
+  if Stdlib.Bool.not(Query.hasContent(searchResults)) then
     printErr($"no module named {rootName} on this branch")
     failed(state)
   else if matchedNothing then

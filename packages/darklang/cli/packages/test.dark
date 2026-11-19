@@ -97,7 +97,7 @@ let testJson(name: String, outcome: Outcome, cached: Bool): TestJson =
 
 
 val usage =
-  "Usage: test run [--force] [--json] [--jobs <count>] [--seed <n>] [name-or-module ... | <script>.dark]\n       test count [--for <item>] [module]\n       test add <location> <body> | <source-file> | -"
+  "Usage: test run [--force] [--brief] [--json] [--jobs <count>] [--seed <n>] [name-or-module ... | <script>.dark]\n       test count [--for <item>] [module]\n       test add <location> <body> | <source-file> | -"
 
 
 let fullPath(
@@ -443,6 +443,7 @@ let runTests(state: AppState, args: List<String>): AppState =
     RunOptions
       { force = false
         json = false
+        brief = false
         jobs = if cores < 16 then cores else 16
         seed = Option.None
         filters = [] }
@@ -462,7 +463,7 @@ let runTests(state: AppState, args: List<String>): AppState =
   | Ok(options) ->
     let seed = Stdlib.Option.withDefault(options.seed, freshSeed())
     LanguageTools.PackageManager.Test.withStoreSnapshot(state.currentBranchId, seed, fun run ->
-      runTestsInRun(run, state, options))
+      runTestsInRun(run, state, options, selectedTests(state.currentBranchId, options.filters)))
 
 
 /// Whether <param arg> names a script rather than a test: test names never end in `.dark`.
@@ -571,7 +572,14 @@ let runScriptTestsIn(
         LanguageTools.PackageManager.Test.withStoreSnapshot(
           branchId,
           Stdlib.Option.withDefault(options.seed, freshSeed()),
-          fun run -> runTestsInRun(run, state, options))
+          fun run ->
+            // Look up only tests declared in this file. The general "Script" filter
+            // would load every visible test before narrowing the list.
+            let selected =
+              liveTests(branchId, [ scriptModule ], "")
+              |> Stdlib.List.filter(fun item -> Stdlib.List.contains(locations, item.location))
+              |> Stdlib.List.sortBy(groupedPath)
+            runTestsInRun(run, state, options, selected))
 
     let added =
       SCM.PackageOps.draftEntriesFor(branchId)
@@ -593,6 +601,8 @@ type RunOptions =
   { force: Bool
     /// Print one JSON answer instead of a line per test.
     json: Bool
+    /// Show failures and the final counts without progress or passing rows.
+    brief: Bool
     jobs: Int64
     seed: Option<Int64>
     filters: List<String> }
@@ -603,6 +613,7 @@ let parseRunOptions(options: RunOptions, args: List<String>): Result<RunOptions,
   | [] -> Result.Ok(options)
   | ["--force", ...rest] -> parseRunOptions({ options with force = true }, rest)
   | ["--json", ...rest] -> parseRunOptions({ options with json = true }, rest)
+  | ["--brief", ...rest] -> parseRunOptions({ options with brief = true }, rest)
   | ["--jobs", value, ...rest] ->
     match Stdlib.Int64.parse(value) with
     | Ok(jobs) when jobs > 0 -> parseRunOptions({ options with jobs = jobs }, rest)
@@ -659,11 +670,19 @@ let finishTest(
     |> Stdlib.List.filter(fun((name, _)) -> rowSelected(options.filters, finished.name, name))
 
   if Stdlib.Bool.not(options.json) then
-    Stdlib.List.iter(tests, fun((name, outcome)) -> printOutcome(name, outcome, finished.reran))
+    tests
+    |> Stdlib.List.iter(fun((name, outcome)) ->
+      if options.brief && isPassed(outcome) then
+        ()
+      else
+        printOutcome(name, outcome, finished.reran))
 
   let results =
-    Stdlib.List.fold(tests, counts.results, fun(acc, (name, outcome)) ->
-      Stdlib.List.prepend(acc, testJson(name, outcome, finished.wasCached)))
+    if options.json then
+      Stdlib.List.fold(tests, counts.results, fun(acc, (name, outcome)) ->
+        Stdlib.List.prepend(acc, testJson(name, outcome, finished.wasCached)))
+    else
+      counts.results
 
   let n = Stdlib.List.length(tests)
   let passed = tests |> Stdlib.List.filter(fun((_, o)) -> isPassed(o)) |> Stdlib.List.length
@@ -737,7 +756,8 @@ let runSelected(
         finishTest(cache, options, counts, finished))
     | None ->
       // Progress, not a result: stderr, so the answer on stdout is the PASS/FAIL lines and the verdict.
-      Stdlib.printErrorLine($"Running: {shownName(item)}")
+      if Stdlib.Bool.not(options.brief) then
+        Stdlib.printErrorLine($"Running: {shownName(item)}")
       let handle = Stdlib.Exec.spawn(fun () ->
         let started = Stdlib.DateTime.__monotonicMilliseconds()
         let outcome = runFresh(run, branchId, item)
@@ -900,9 +920,10 @@ let testItemsUnder(
 let runTestsInRun(
   run: LanguageTools.PackageManager.Test.Run,
   state: AppState,
-  options: RunOptions)
+  options: RunOptions,
+  selected: List<
+    LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>>)
   : AppState =
-  let selected = selectedTests(state.currentBranchId, options.filters)
   // One analysis for the whole run: the tests share most of what they call.
   let cacheSafe =
     LanguageTools.PackageManager.Test.areCacheSafe(
@@ -945,8 +966,9 @@ let runTestsInRun(
       printErr("No package tests matched.")
       true
     else
-      printSlowest(counts.timings)
-      Stdlib.printLine("")
+      if Stdlib.Bool.not(options.brief) then
+        printSlowest(counts.timings)
+        Stdlib.printLine("")
       // Said only when it happened, so a run where every test started writing
       // shows up here rather than only as a slower run.
       let reranNote =
@@ -1190,6 +1212,7 @@ let help(_state: AppState): String =
     "Tests run in parallel, one per core, up to 16 at once. A test that analysis"
     "shows is pure (no effect, only pure builtins) runs inside this process;"
     "any other gets a fresh process and its own store copy."
+    "Use --brief to print failures and the final counts."
     "Use --jobs <count> to change the limit, or --jobs 1 to run serially."
     "Tests start in name order; results are printed as they finish. --json prints"
     "one answer at the end instead: each test's name, status (passed, failed or"
@@ -1241,7 +1264,7 @@ let complete(_state: AppState, args: List<String>): List<Completion.CompletionIt
   | [] -> [ "run", "count", "add" ] |> Stdlib.List.map(Completion.simple)
   | ["run", ...runArgs] ->
     let partial = Stdlib.Option.withDefault(Stdlib.List.last(runArgs), "")
-    [ "--force", "--json", "--jobs" ]
+    [ "--force", "--brief", "--json", "--jobs" ]
     |> Stdlib.List.filter(fun flag -> Stdlib.String.startsWith(flag, partial))
     |> Stdlib.List.map(Completion.simple)
   | ["add", ...] -> []

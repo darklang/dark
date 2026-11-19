@@ -98,6 +98,7 @@ module Registry =
           "--exact"
           "--shallow"
           "--with-docs"
+          "--brief"
           "--include-deprecated"
           "--include-internal"
           "--json" ]))
@@ -109,7 +110,7 @@ module Registry =
 
   let acceptsTest(): Accepts.Accepts =
     Accepts.subcommands(
-      [ ("run", Accepts.withValues([ "--jobs", "--seed" ], Accepts.freeText(0, [ "--force", "--json" ])))
+      [ ("run", Accepts.withValues([ "--jobs", "--seed" ], Accepts.freeText(0, [ "--force", "--brief", "--json" ])))
         ("count", Accepts.withValues([ "--for" ], Accepts.freeText(0, [])))
         ("add", Accepts.text(2)) ],
       Accepts.nothing())

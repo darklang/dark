@@ -6,119 +6,86 @@ let content(): String =
 """
   + SyntaxAtAGlance.content()
   + """
-Darklang is a persistent package tree, not a directory of scripts. CLI process
-state resets between calls; package changes persist.
+Code lives in a persistent package tree, not in files. Put your code in your own
+namespace; `Darklang` is reserved.
 
-## A command-line tool
+## Build, run, test
 
-Save a module, run its `main` by name, and test it:
-
-  module /Me.Greet - <<'EOF'
+  module /MyApp.Greet - <<'EOF'
   let greeting(name: String): String = "Hello, " + name
   let main(args: List<String>): Int64 =
     match args with
     | [ name ] ->
       Stdlib.printLine(greeting(name))
       0
-    | _ ->
-      Stdlib.printErrorLine("usage: Me.Greet.main <name>")
-      2
+    | _ -> 2
+  module Tests =
+    test hello = MyApp.Greet.greeting("Ada") |> Stdlib.Test.equal("Hello, Ada")
   EOF
-  run Me.Greet.main Ada    # `args` is ["Ada"]; exits 0
-  module /Me.Greet.Tests - <<'EOF'
-  test hello = Me.Greet.greeting("Ada") |> Stdlib.Test.equal("Hello, Ada")
-  EOF
-  test run Me.Greet
+  run MyApp.Greet.main Ada               # args = ["Ada"]; stdin is piped in as usual
+  test run --brief MyApp.Greet
+  edit MyApp.Greet.greeting --patch - <<'PATCH'   # lines copied exactly from `view <name> --raw`
+  @@
+   let greeting(name: String): String =
+  -  "Hello, " + name
+  +  "Hi, " + name
+  PATCH
+  rename MyApp.Greet.greeting MyApp.Greet.salutation   # updates callers
+  search --batch --exact --fn --brief Stdlib.List.map Stdlib.Json.parse
+  search --fn --limit 3 "get a value from a dictionary"
+  docs signatures Stdlib.String          # every function in a module
 
-Save the module again to change it.
+## Permissions
 
-Printing and stdin need no approval; files, HTTP and the environment need permission:
+Printing, reading stdin, the clock and random numbers need no permission. Anything else
+needs `--allow <rule>` on `run`, placed before the function name:
 
-  printf 'a\nb\n' | run Me.Lines.main
-  run Me.Report.main data.csv
+  run --allow "file read $PWD" --allow "file write $PWD" MyApp.Report.main sales.csv
+                                         # $PWD: this folder and everything in it
+  run --allow 'http GET https://api.example.com/*' MyApp.Fetch.main
+                                         # any path on that host; `*` only after a `/`
 
-To read files for this run, add `--allow "file read $PWD"` to `run`.
-A server also needs its port: `--allow "http-server 127.0.0.1 8080; file read $PWD"`
-covers the server and its request handlers. If you already have permission, omit it.
-
-## Workflow
-
-  search --batch "List.map" "Json.serialize" --fn  # up to 20 results per section
-  docs signatures Stdlib.String Stdlib.List        # every fn in these modules
-  view <name> --raw                                # source for patches
-  eval 'Stdlib.List.length([1, 2])'                # one expression
-  status                                           # what changed
-  commit "message" -y                              # record it
-
-`search` takes `--fn`, `--type`, `--val` or `--test` to narrow results,
-`--with-docs` for comments, and `--limit N` for results per section.
-Search by input and return types: `search bytes to string` or `search String->Int64`.
-
-Answers go on stdout; errors, hints and logs go on stderr; a refusal exits
-non-zero. Under `--json` a refusal leaves stdout empty, so test the exit code.
+`serve` takes no `--allow`, so allow what it needs first: `permissions allow http-server
+127.0.0.1 <port>`, and `permissions allow file read <dir>` / `file write <dir>`.
 
 ## Functions most programs need
 
-  Stdlib.Int64.parse(s)   Stdlib.Float64.parse(s)   // Result<_, ParseError>
-  Stdlib.Int64.toFloat64(n)   Stdlib.Float64.round(x)  // round gives an Int64
-  Stdlib.abs(x)   Stdlib.min(a, b)   Stdlib.max(a, b)   // any number type
+Anything that can fail returns a Result or an Option: unwrap it with `match`,
+`Stdlib.Result.withDefault(r, x)`, or `r?` in a function that returns a Result.
+
+Can fail:
+  Stdlib.Int64.parse(s)   Stdlib.Float64.parse(s)                // Result
+  Stdlib.String.slice(s, from, to)                               // Result
+  Stdlib.Utf8.decode(bytes)   Stdlib.Json.parse<Profile>(text)   // Result
+  Stdlib.Cli.FileSystem.readFileAsString(path)                   // Result<String, Posix.Error>
+  Stdlib.Cli.FileSystem.writeFile(path, Stdlib.Utf8.encode(s))   // Result
+  Stdlib.HttpClient.get(url, [("user-agent", "me")])             // Result; then r.statusCode, r.body
+  Stdlib.List.getAt(xs, i)   Stdlib.List.randomElement(xs)       // Option
+  Stdlib.Dict.get(d, k)                                          // Option; Stdlib.Dict.set(d, k, v) adds
+  Stdlib.Cli.Stdin.readLineOrEnd()                               // Option; None at the end of input
+
+Always give a value:
   Stdlib.String.split(s, ",")   Stdlib.String.join(xs, ",")   Stdlib.String.trim(s)
-  Stdlib.String.toList(s)   Stdlib.String.padStart(s, '0', 2)
-  Stdlib.List.range(1, n)   Stdlib.List.getAt(xs, i)   Stdlib.List.contains(xs, x)
-  Stdlib.Int64.random(1, 6)   Stdlib.List.randomElement(xs)   // both ends included
-  Stdlib.Cli.Stdin.readLineOrEnd()   // Option<String>, None at the end of input
-  Stdlib.Cli.Posix.sleep(1000.0)   Stdlib.DateTime.now()            // sleep takes ms
+  Stdlib.List.contains(xs, x)   Stdlib.String.fromChar(c)   Stdlib.Json.serialize<Profile>(v)
+  Stdlib.Int64.toFloat64(n)   Stdlib.Float64.round(x)            // round gives an Int64
+  Stdlib.List.parallelMap(xs, f)                                 // runs f concurrently
+  Stdlib.Int64.random(1, 6)                                      // both ends included
+  Stdlib.DateTime.now()   Stdlib.DateTime.subtractMs(later, earlier)    // the gap in ms, an Int64
+  Stdlib.Cli.Posix.sleep(1000.0)                                 // ms, as a Float64
 
-## Files, HTTP and JSON
+## Common slips
 
-  Stdlib.Cli.FileSystem.readFileAsString(path)       // Result<String, Posix.Error>
-  Stdlib.Cli.FileSystem.writeFile(path, Stdlib.Utf8.encode(text))
-  Stdlib.String.splitOnNewline(text)
-  Stdlib.HttpClient.get(url, [("user-agent", "me")]) // r.statusCode, r.body (Bytes)
-  Stdlib.Utf8.decode(r.body)                         // Result<String, String>
-  Stdlib.Json.parse<Profile>(text)                   // Result<Profile, ParseError>
-  Stdlib.Json.serialize<Profile>(value)
-
-A JSON object parses into a record: extra fields are ignored, and a field that
-may be absent or `null` is an `Option` field.
-
-When access is denied, submit the exact `permissions allow` command through
-runner approval, without asking in chat first. Retry only if safe. Details:
-`docs for-ai permissions`.
-
-## Mistakes that cost a run
-
-- `$"{x}"` works for any value: it uses the type's `Display` impl (Strings,
-  numbers, Bool, Char, DateTime, Uuid, Option, Result, ...; `impls Display`) and
-  falls back to `Stdlib.inspect(x)`.
-  `Stdlib.display(x)` needs a `Display` impl; `Stdlib.inspect(x)` shows any value.
-  An operator is not a function either: `a % b`, not `Stdlib.Int64.mod(a, b)`.
-- Operands must have one type: `1 + 2.0` is an error.
-- No partial application: write the lambda, `fun x -> Stdlib.max(1, x)`.
-- `|>` passes the left value as the first argument. An `if` or `match` on its
-  left needs parentheses.
-- Every line of a block but the last returns Unit: `let _ = f(x)` drops a value.
-- A tuple inside a constructor keeps its own parentheses: `Some((a, b))`.
-  Tuple parts are `pair.1`, `pair.2`, or `let (a, b) = pair`.
-- Records: `State { count = 0 }` builds, `{ state with count = 1 }` updates.
-- Chars use single quotes, `'a'`. Interpolation is `$"x = {x}"`.
-- `f(x)?` returns early from the function on `Error` or `None`.
-- Modules are not values: `let c = Stdlib.List` is invalid.
-- A nested function annotates its parameters and cannot call one defined below it.
-- A keyword such as type is a name in backticks: let `type` = 1. After a `.` and
-  as a record field name it needs none: r.type, { type = 1 }.
-- `Stdlib.X` is `Darklang.Stdlib.X`. Your own names go under an owner such as
-  `Me`; `Darklang` is reserved.
+- `$"{x}"` shows any value; there is no `Int64.toString`. Inside `{…}` never write `\"…\"`.
+- Commas between record fields, never `;`. A lambda takes no type annotations.
+- A Dict type names both key and value: `Dict<String, Float64>`; an empty one is `Dict {}`.
+- `{ s with count = 1 }` updates a record. `Some((a, b))` keeps the tuple's parentheses.
+- `|>` passes the first argument; an `if` or `match` on its left needs parentheses.
+- An HTTP request runs in the background until its result is used. To time one, wrap it in
+  `Stdlib.await(...)` before reading the clock again, or the time comes out near zero.
 
 Logs: ~/.darklang/logs/cli.log
 
 ## More
-  docs for-ai packages      saving and changing declarations, the type checker, a command-line tool
-  docs for-ai tests         package tests in full
-  docs for-ai permissions   rules, profiles and package approvals
-  docs for-ai traces        what a run did, without print statements
-  docs for-ai scm           drafts, commits, branches, deprecation
-  docs for-ai syntax        the rest of the syntax notes, and name resolution
+  docs for-ai packages | tests | permissions | traces | scm | syntax
   docs for-ai tests http-server   several parts and topics in one call
-  docs syntax | errors | stdlib | signatures <module>
   help <command>"""

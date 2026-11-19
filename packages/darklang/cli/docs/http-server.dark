@@ -81,6 +81,20 @@ checks the rest: `Status.toInt64(Status.tooManyRequests)` is 429, and
 `matchRoute pattern path` is the lower-level form. It returns a record, not an
 Option: `{ matched: Bool, vars: List<String * String> }`.
 
+## Permissions and file storage
+
+Grant the bind address and port before starting the server:
+
+  permissions allow http-server 127.0.0.1 9090
+  serve MyApp.router --port 9090
+
+If a handler stores data in a file, grant access to its directory:
+
+  permissions allow file read <dir>
+  permissions allow file write <dir>
+
+Check for a missing file separately from other read errors before treating it as empty.
+
 ## Middleware
 
 A handler is `Stdlib.Http.Request -> Stdlib.Http.Response`, so middleware is a
