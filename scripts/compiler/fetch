@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Download the pinned darkc release builds a release CLI embeds, and check them:
+#   scripts/compiler/fetch <dir>
+#
+# Writes <dir>/darkc-linux-x64, <dir>/darkc-linux-arm64 and <dir>/darkc-osx-arm64, the static
+# builds darklang/compiler attaches to the release for `pinnedCommit` in
+# packages/darklang/compiler/darkc.dark, each checked against the sha256 published beside it.
+# `build-release-cli-exes.sh --darkc-dir=<dir>` embeds them.
+
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+  sed -n "2,8p" "$0" | sed "s/^# \{0,1\}//" >&2
+  exit 1
+fi
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+OUT="$1"
+PINNED=$(sed -n "s/^val pinnedCommit = \"\([0-9a-f]*\)\"$/\1/p" "$DIR/packages/darklang/compiler/darkc.dark")
+if [[ -z "$PINNED" ]]; then
+  echo "No pinnedCommit in packages/darklang/compiler/darkc.dark" >&2
+  exit 1
+fi
+BASE="https://github.com/darklang/compiler/releases/download/darkc-${PINNED:0:9}"
+
+sha256_of() {
+  if command -v sha256sum > /dev/null; then
+    sha256sum "$1" | cut -d" " -f1
+  else
+    shasum -a 256 "$1" | cut -d" " -f1
+  fi
+}
+
+mkdir -p "$OUT"
+for target in linux-x64 linux-arm64 osx-arm64; do
+  file="$OUT/darkc-$target"
+  curl --fail --silent --show-error --location --retry 3 -o "$file.partial" "$BASE/darkc-$target"
+  want=$(curl --fail --silent --show-error --location --retry 3 "$BASE/darkc-$target.sha256" | cut -d" " -f1)
+  got=$(sha256_of "$file.partial")
+  if [[ "$want" != "$got" ]]; then
+    echo "darkc-$target: sha256 is $got, the release says $want" >&2
+    rm -f "$file.partial"
+    exit 1
+  fi
+  chmod +x "$file.partial"
+  mv "$file.partial" "$file"
+  echo "Fetched $file ($got)"
+done

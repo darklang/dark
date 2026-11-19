@@ -10,6 +10,7 @@
 #   ./scripts/build/build-release-cli-exes.sh --runtimes=linux-x64,osx-arm64  # Build for specific runtimes
 #   ./scripts/build/build-release-cli-exes.sh --mode=aot         # NativeAOT publish (see below)
 #   ./scripts/build/build-release-cli-exes.sh --seed=path/to.db  # Use a pre-exported seed
+#   ./scripts/build/build-release-cli-exes.sh --darkc-dir=DIR    # Embed the compiler (see below)
 #   ./scripts/build/build-release-cli-exes.sh --rebuild          # Publish even if clis/ has this build
 #   ./scripts/build/build-release-cli-exes.sh --reuse-libraries  # Compile only Cli (see below)
 #
@@ -29,6 +30,11 @@
 # (an arm64 mac targeting osx-x64) is allowed and left to ilc to accept or
 # reject; cross-OS is refused up front, because the failure is otherwise a
 # confusing link error several minutes in.
+#
+# The compiler: with --darkc-dir, each runtime darkc has a backend for embeds the matching
+# DIR/darkc-<linux-x64|linux-arm64|osx-arm64> (`scripts/compiler/fetch DIR` downloads them), and a
+# missing one is an error. linux-arm and osx-x64 have no backend and embed nothing. Without
+# --darkc-dir, whatever rundir/compiler/<pin>/<runtime>/darkc.br holds is embedded.
 #
 # A runtime whose binary in clis/ was built from this exact input is not built again:
 # same tree (uncommitted and untracked files included), commit, seed, sqlite archive,
@@ -53,6 +59,7 @@ GZIP_OUTPUT=false
 # `--mode=r2r` is the explicit fast path.
 MODE="auto"
 SEED_PATH=""
+DARKC_DIR=""
 DRY_RUN=false
 REBUILD=false
 REUSE_LIBRARIES=false
@@ -86,6 +93,9 @@ for arg in "$@"; do
       # the export isn't safe against concurrent use of the store, and doing it
       # N times is N chances to embed a corrupt seed.
       SEED_PATH="${arg#*=}"
+      ;;
+    --darkc-dir=*)
+      DARKC_DIR="${arg#*=}"
       ;;
     --reuse-libraries)
       # Compile only Cli, against the Release libraries an earlier build in this tree left
@@ -267,6 +277,23 @@ sha256_of() {
   fi
 }
 
+DARKC_PIN=$(sed -n 's/^val pinnedCommit = "\([0-9a-f]*\)"$/\1/p' packages/darklang/compiler/darkc.dark | cut -c 1-9)
+
+# The darkc build a runtime embeds, DIR/darkc-<target>; none where darkc has no backend.
+darkc_target_for() {
+  case "$1" in
+    linux-x64|linux-musl-x64) echo "linux-x64" ;;
+    linux-arm64|linux-musl-arm64) echo "linux-arm64" ;;
+    osx-arm64) echo "osx-arm64" ;;
+    *) echo "" ;;
+  esac
+}
+
+# Where Cli.fsproj looks for a runtime's compressed darkc.
+darkc_embed_for() {
+  echo "rundir/compiler/$DARKC_PIN/$1/darkc.br"
+}
+
 # Everything that goes into one runtime's binary, one `name value` per line. The tree
 # covers the source, the package locks and global.json; the rest are inputs git ignores, or
 # that come from the build host.
@@ -290,6 +317,7 @@ build_key() {
   echo "package-ref-hashes $(sha256_of backend/src/LibExecution/package-ref-hashes.txt)"
   echo "sqlite $(sha256_of "backend/src/Cli/lib/libe_sqlite3-$rt.a")"
   echo "runtime $rt"
+  echo "darkc $(sha256_of "$(darkc_embed_for "$rt")")"
   echo "mode $rt_mode"
   echo "gzip $GZIP_OUTPUT"
   echo "host $(uname -sm)"
@@ -304,6 +332,21 @@ output_for_runtime() {
   if [[ "$GZIP_OUTPUT" == "true" ]]; then out="$out.gz"; fi
   echo "$out"
 }
+
+if [[ -n "$DARKC_DIR" ]]; then
+  for rt in $runtimes; do
+    target="$(darkc_target_for "$rt")"
+    if [[ -z "$target" ]]; then
+      rm -f "$(darkc_embed_for "$rt")"
+      echo "$rt: no compiler backend, nothing to embed"
+    elif [[ -f "$DARKC_DIR/darkc-$target" ]]; then
+      scripts/compiler/embed "$DARKC_DIR/darkc-$target" "$rt"
+    else
+      echo "--darkc-dir=$DARKC_DIR has no darkc-$target for $rt. scripts/compiler/fetch $DARKC_DIR downloads it."
+      exit 1
+    fi
+  done
+fi
 
 # Leave out each runtime already built from this exact input, before the seed export, the
 # SQLite archives and the publish, which are what take the time.
