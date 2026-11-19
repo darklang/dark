@@ -73,7 +73,8 @@ let prefixOf (listen : string) : Result<string, string> =
       | "[::]" -> "+"
       | h -> h
     Ok $"http://{host}:{p}/"
-  | _ -> Error $"`{listen}` isn't an address to listen on; say `host:port` or `:port`"
+  | _ ->
+    Error $"`{listen}` isn't an address to listen on; say `host:port` or `:port`"
 
 /// A copy of the store at <param storePath> at <param target>, taken while it is in use: SQLite's
 /// `VACUUM INTO` reads one moment of it.
@@ -112,7 +113,9 @@ let private backupNow (storePath : string) (dir : string) (keep : int) : unit =
       [ "path", target
         "bytes", FileInfo(target).Length
         "ms", clock.ElapsedMilliseconds ]
-    for old in scheduledBackups dir |> List.skip (min keep (List.length (scheduledBackups dir))) do
+    for old in
+      scheduledBackups dir
+      |> List.skip (min keep (List.length (scheduledBackups dir))) do
       old.Delete()
       log "backup-pruned" [ "path", old.FullName ]
   with e ->
@@ -150,11 +153,16 @@ let private reply
 
 /// What the server is doing: its sessions by connection, and whether it is stopping.
 type private Running =
-  { sessions : System.Collections.Concurrent.ConcurrentDictionary<System.Guid, string>
+  { sessions :
+      System.Collections.Concurrent.ConcurrentDictionary<System.Guid, string>
     stopping : System.Threading.ManualResetEventSlim
     started : System.DateTime }
 
-let private health (storePath : string) (running : Running) (ctx : HttpListenerContext) =
+let private health
+  (storePath : string)
+  (running : Running)
+  (ctx : HttpListenerContext)
+  =
   try
     let (id, name) = LibDB.OpSync.identityOf storePath
     let cursor = LibDB.OpSync.cursorOf storePath
@@ -169,7 +177,8 @@ let private health (storePath : string) (running : Running) (ctx : HttpListenerC
         "name", name
         "journal", cursor.journal
         "sessions", running.sessions.Count
-        "uptimeSeconds", int64 (System.DateTime.UtcNow - running.started).TotalSeconds ]
+        "uptimeSeconds",
+        int64 (System.DateTime.UtcNow - running.started).TotalSeconds ]
   with e ->
     reply ctx 503 [] [ "status", "store-unreadable"; "error", e.Message ]
 
@@ -193,7 +202,12 @@ let private session
       "refused"
       [ "remote", remote
         "why", "format"
-        "theirs", box (ctx.Request.Headers[SyncLink.formatHeader] |> Option.ofObj |> Option.defaultValue "") ]
+        "theirs",
+        box (
+          ctx.Request.Headers[SyncLink.formatHeader]
+          |> Option.ofObj
+          |> Option.defaultValue ""
+        ) ]
     reply
       ctx
       426
@@ -216,8 +230,7 @@ let private session
       let ws =
         ctx
           .AcceptWebSocketAsync(null, 64 * 1024, System.TimeSpan.FromSeconds 15.0)
-          .Result
-          .WebSocket
+          .Result.WebSocket
       running.sessions[id] <- account.person
       log
         "session-start"
@@ -239,10 +252,12 @@ let private session
           let lastCheck = ref System.DateTime.UtcNow
           let stillValid = ref true
           let keepGoing () =
-            if System.DateTime.UtcNow - lastCheck.Value > System.TimeSpan.FromSeconds 30.0 then
+            if
+              System.DateTime.UtcNow - lastCheck.Value > System.TimeSpan.FromSeconds
+                30.0
+            then
               lastCheck.Value <- System.DateTime.UtcNow
-              stillValid.Value <-
-                SyncTokens.isLive storePath account.tokenId
+              stillValid.Value <- SyncTokens.isLive storePath account.tokenId
             not running.stopping.IsSet && stillValid.Value
           let side = makeSide account workDir keepGoing
           SyncLink.run side stream stream false
@@ -276,7 +291,14 @@ let run
     Directory.CreateDirectory(SyncLink.dir ()) |> ignore<DirectoryInfo>
     let held =
       try
-        Some(new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
+        Some(
+          new FileStream(
+            lockPath,
+            FileMode.OpenOrCreate,
+            FileAccess.ReadWrite,
+            FileShare.None
+          )
+        )
       with :? IOException ->
         None
     match held with
@@ -306,7 +328,9 @@ let run
         let stop (signal : System.Runtime.InteropServices.PosixSignalContext) =
           signal.Cancel <- true
           if not running.stopping.IsSet then
-            log "stopping" [ "signal", string signal.Signal; "sessions", running.sessions.Count ]
+            log
+              "stopping"
+              [ "signal", string signal.Signal; "sessions", running.sessions.Count ]
             running.stopping.Set()
             try
               listener.Stop()
@@ -330,7 +354,11 @@ let run
             "name", name
             "format", LibDB.OpSync.formatVersion
             "build", LibConfig.Config.buildHash
-            "tokens", List.length (SyncTokens.list storePath |> List.filter (fun t -> Option.isNone t.revokedAt))
+            "tokens",
+            List.length (
+              SyncTokens.list storePath
+              |> List.filter (fun t -> Option.isNone t.revokedAt)
+            )
             "backupDir", box (options.backupDir |> Option.defaultValue "") ]
         match options.backupDir with
         | Some dir ->
@@ -372,7 +400,9 @@ let run
           System.Threading.Thread.Sleep 50
         (try
           use conn =
-            new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={storePath};Pooling=false")
+            new Microsoft.Data.Sqlite.SqliteConnection(
+              $"Data Source={storePath};Pooling=false"
+            )
           conn.Open()
           use cmd = conn.CreateCommand()
           cmd.CommandText <- "PRAGMA wal_checkpoint(TRUNCATE)"

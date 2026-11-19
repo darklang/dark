@@ -756,21 +756,18 @@ let private applyOp
         let namesAConflict =
           System.Text.RegularExpressions.Regex.IsMatch(id, "^[0-9a-f]{8}$")
         if closed = 0 && namesAConflict then
-          exec
-            ctx
-            "INSERT OR IGNORE INTO conflicts
+          exec ctx "INSERT OR IGNORE INTO conflicts
                (id, owner, modules, name, item_type, part, kind, candidates, auto_resolved_to,
                 reason, status, resolved_by, origin_ts, branch_id)
              VALUES ($op, $owner, $modules, $name, $kind, '', 'same-name-different-hash', '[]',
-                     $target, $reason, 'overridden', $op, $ts, $branch)"
-            (fun cmd ->
-              p cmd "$op" id
-              p cmd "$kind" (target.kind.toString ())
-              p cmd "$target" (let (Hash h) = target.hash in h)
-              p cmd "$reason" reason
-              p cmd "$ts" (Option.defaultValue "" row.ts)
-              p cmd "$branch" (string layer.branch)
-              pLoc cmd loc)
+                     $target, $reason, 'overridden', $op, $ts, $branch)" (fun cmd ->
+            p cmd "$op" id
+            p cmd "$kind" (target.kind.toString ())
+            p cmd "$target" (let (Hash h) = target.hash in h)
+            p cmd "$reason" reason
+            p cmd "$ts" (Option.defaultValue "" row.ts)
+            p cmd "$branch" (string layer.branch)
+            pLoc cmd loc)
       | PT.DecisionKind.Ack findingId ->
         // A finding nobody has answered isn't stored at all -- only answers are rows, because
         // detection re-derives the findings whenever anyone asks.

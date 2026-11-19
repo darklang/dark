@@ -262,7 +262,8 @@ let readFrame (maxPayload : int) (input : Stream) : Frame =
           System.ReadOnlySpan<byte>(header, 1, 4)
         )
       if length < 0 || length > maxPayload then
-        Closed $"the other end sent a frame of {length} bytes, over the limit of {maxPayload}"
+        Closed
+          $"the other end sent a frame of {length} bytes, over the limit of {maxPayload}"
       else
         match readExactly input length with
         | None -> Closed "the connection ended in the middle of a frame"
@@ -595,7 +596,10 @@ let private session
       | _, None ->
         lock importing (fun () ->
           let importBundle =
-            if st.fromScratch && not st.caughtUp then OpSync.importFirst else OpSync.import
+            if st.fromScratch && not st.caughtUp then
+              OpSync.importFirst
+            else
+              OpSync.import
           match importBundle side.store bundleIn with
           | Error reason -> Error reason
           | Ok counts ->
@@ -678,13 +682,16 @@ let private session
             side.log $"hello from {who}"
             greeted.Set()
             side.note (fun s ->
-              { Standing.into "connected" "" s with peer = h.id; readOnly = h.readOnly })
+              { Standing.into "connected" "" s with
+                  peer = h.id
+                  readOnly = h.readOnly })
             match h.clock with
             | Some theirs when Option.isNone side.account ->
               let skew = System.DateTime.UtcNow - theirs
               if skew.Duration() > skewWorthSaying then
                 let minutes = int (skew.Duration().TotalMinutes)
-                let way = if skew > System.TimeSpan.Zero then "ahead of" else "behind"
+                let way =
+                  if skew > System.TimeSpan.Zero then "ahead of" else "behind"
                 side.say
                   $"sync: this machine's clock is about {minutes} minutes {way} {h.name}'s. Set it right (NTP), or edits made at the same time may settle the wrong way."
             | _ -> ()
@@ -770,7 +777,8 @@ let private session
           elif not (side.keepGoing ()) then
             Choice2Of2 Stopped
           elif
-            (System.DateTime.UtcNow - st.heard).TotalMilliseconds > float side.quietMs
+            (System.DateTime.UtcNow - st.heard).TotalMilliseconds > float
+              side.quietMs
           then
             Choice2Of2 Unanswered
           else
@@ -1038,7 +1046,10 @@ let private connectServer
   ws.Options.KeepAliveInterval <- System.TimeSpan.FromSeconds 15.0
   let opened =
     try
-      use cts = new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds 15.0)
+      use cts =
+        new System.Threading.CancellationTokenSource(
+          System.TimeSpan.FromSeconds 15.0
+        )
       ws.ConnectAsync(target, cts.Token).Wait()
       Ok()
     with e ->

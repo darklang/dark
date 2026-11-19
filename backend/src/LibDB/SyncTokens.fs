@@ -44,20 +44,27 @@ let private command
   cmd
 
 let private hashOf (token : string) : string =
-  System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes token)
+  System.Security.Cryptography.SHA256.HashData(
+    System.Text.Encoding.UTF8.GetBytes token
+  )
   |> System.Convert.ToHexStringLower
 
 /// A person's name as a token may carry it: letters, digits, `.`, `_` and `-`.
 let validPerson (person : string) : bool =
   person <> ""
   && person.Length <= 64
-  && person |> Seq.forall (fun c -> System.Char.IsAsciiLetterOrDigit c || c = '.' || c = '_' || c = '-')
+  && person
+     |> Seq.forall (fun c ->
+       System.Char.IsAsciiLetterOrDigit c || c = '.' || c = '_' || c = '-')
 
 /// A new token: 32 random bytes, so guessing one is not a plan.
 let generate () : string =
   let bytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes 32
   "dsync_"
-  + (System.Convert.ToBase64String bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+  + (System.Convert.ToBase64String bytes)
+    .TrimEnd('=')
+    .Replace('+', '-')
+    .Replace('/', '_')
 
 /// Keep <param token> as one of <param person>'s, and answer its id. Adding a token already kept
 /// changes nothing, so a server's bootstrap token can be added on every start.

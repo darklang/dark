@@ -141,10 +141,7 @@ let private scalar (conn : SqliteConnection) (sql : string) : string =
   | :? System.DBNull -> ""
   | v -> string v
 
-let private pairs
-  (conn : SqliteConnection)
-  (sql : string)
-  : List<string * string> =
+let private pairs (conn : SqliteConnection) (sql : string) : List<string * string> =
   use cmd = conn.CreateCommand()
   cmd.CommandText <- sql
   use reader = cmd.ExecuteReader()
@@ -156,18 +153,12 @@ let private count (conn : SqliteConnection) (table : string) : int64 =
 
 /// None when the store on <param conn> keeps a sync journal; otherwise why not. A store that predates
 /// it can say what it holds but not what it removed, and syncing with it would bring removed ops back.
-let private checkJournal
-  (conn : SqliteConnection)
-  (path : string)
-  : Option<string> =
+let private checkJournal (conn : SqliteConnection) (path : string) : Option<string> =
   let has =
     scalar
       conn
       "SELECT COUNT(*) FROM main.sqlite_master WHERE type = 'table' AND name = 'sync_journal'"
-  if has = "1" then
-    None
-  else
-    Some $"the store at {path} keeps no sync journal"
+  if has = "1" then None else Some $"the store at {path} keeps no sync journal"
 
 /// A fresh file at <param path>: an earlier one there is replaced, never added to.
 let private fresh (path : string) : unit =
@@ -451,16 +442,13 @@ let private exportWith
         "SELECT id, op_blob FROM bundle.sync_ops WHERE op_kind = 'add-value'"
       use reader = cmd.ExecuteReader()
       Sqlite.readRows
-        (fun r ->
-          (System.Guid.Parse(r.GetString 0), r.GetFieldValue<byte[]>(1)))
+        (fun r -> (System.Guid.Parse(r.GetString 0), r.GetFieldValue<byte[]>(1)))
         reader
     let valueHashes =
       valueOps
       |> List.choose (fun (id, blob) ->
         match
-          LibSerialization.Binary.Serialization.PT.PackageOp.tryDeserialize
-            id
-            blob
+          LibSerialization.Binary.Serialization.PT.PackageOp.tryDeserialize id blob
         with
         | Some(PT.PackageOp.AddValue value) ->
           let (PT.Hash h) =
@@ -785,8 +773,7 @@ let private recordDivergences
     let ended, edited = if local.removed then local, incoming else incoming, local
     let removalWins =
       LibExecution.Lww.unbindBeatsBinding ended.originTs edited.originTs
-    { id =
-        ScmDetect.conflictId last.owner last.modules last.name [ edited.hash; "" ]
+    { id = ScmDetect.conflictId last.owner last.modules last.name [ edited.hash; "" ]
       owner = last.owner
       modules = last.modules
       name = last.name
@@ -1309,8 +1296,7 @@ let private importWith
           journal = journal
           conflicts = conflicts
           journalBefore = int64 journalBefore
-          upTo =
-            { Cursor.journal = int64 journalAfter; blobs = int64 blobsAfter }
+          upTo = { Cursor.journal = int64 journalAfter; blobs = int64 blobsAfter }
           sentUpTo = sentUpTo }
 
 

@@ -174,8 +174,7 @@ let private side
 let private serveStdio (fold : unit -> unit) : int =
   let input = System.Console.OpenStandardInput()
   let output = System.Console.OpenStandardOutput()
-  let ended =
-    SyncLink.run (side fold (fun () -> true) false log) input output false
+  let ended = SyncLink.run (side fold (fun () -> true) false log) input output false
   log $"serve ended: {ended}"
   0
 
@@ -231,7 +230,8 @@ let private watch (fold : unit -> unit) : int =
     use _lock = lock
     match transportFor host with
     | None ->
-      say $"sync: there is no token for {host} on this machine. `dark sync add {host} --token -` to give it one."
+      say
+        $"sync: there is no token for {host} on this machine. `dark sync add {host} --token -` to give it one."
       0
     | Some transport ->
       let keepGoing () = config peerKey = Some host
@@ -336,11 +336,13 @@ let private addServer
   else
     match readToken token text with
     | None ->
-      err $"a server needs a token: `dark sync add {text} --token <token>`, or `--token -` to read it from stdin."
+      err
+        $"a server needs a token: `dark sync add {text} --token <token>`, or `--token -` to read it from stdin."
       2
     | Some token ->
       // Kept only once the server takes it.
-      connectFirst fold text (SyncLink.Server(url, token)) (fun () -> storeToken token)
+      connectFirst fold text (SyncLink.Server(url, token)) (fun () ->
+        storeToken token)
 
 let private addHost
   (fold : unit -> unit)
@@ -349,15 +351,11 @@ let private addHost
   : int =
   let remote =
     command |> Option.orElse (config commandKey) |> Option.defaultValue "dark"
-  connectFirst
-    fold
-    host
-    (SyncLink.ssh host remote)
-    (fun () ->
-      forgetToken ()
-      match command with
-      | Some c -> LibDB.Config.set commandKey c
-      | None -> ())
+  connectFirst fold host (SyncLink.ssh host remote) (fun () ->
+    forgetToken ()
+    match command with
+    | Some c -> LibDB.Config.set commandKey c
+    | None -> ())
 
 /// `dark sync off`: forget the peer and wait for the watcher to let go, so nothing travels after
 /// this returns.
@@ -403,16 +401,25 @@ let private parseServe (args : List<string>) : Result<SyncServer.Options, string
       | true, n when n > 0 -> go (f n)
       | _ -> fun _ -> Error $"{flag} takes a whole number above 0, not `{text}`"
     match rest with
-    | [] when o.listen = "" -> Error "say where to listen: `dark sync serve --listen :8080`"
+    | [] when o.listen = "" ->
+      Error "say where to listen: `dark sync serve --listen :8080`"
     | [] -> Ok o
     | "--listen" :: addr :: rest -> go { o with listen = addr } rest
     | "--backup-dir" :: dir :: rest -> go { o with backupDir = Some dir } rest
     | "--backup-every" :: hours :: rest ->
-      positive "--backup-every" hours (fun n ->
-        { o with backupEvery = System.TimeSpan.FromHours(float n) }) rest
-    | "--keep" :: n :: rest -> positive "--keep" n (fun n -> { o with keep = n }) rest
+      positive
+        "--backup-every"
+        hours
+        (fun n -> { o with backupEvery = System.TimeSpan.FromHours(float n) })
+        rest
+    | "--keep" :: n :: rest ->
+      positive "--keep" n (fun n -> { o with keep = n }) rest
     | "--max-frame-mb" :: n :: rest ->
-      positive "--max-frame-mb" n (fun n -> { o with maxFrame = n * 1024 * 1024 }) rest
+      positive
+        "--max-frame-mb"
+        n
+        (fun n -> { o with maxFrame = n * 1024 * 1024 })
+        rest
     | flag :: _ -> Error $"`{flag}` isn't an option of `dark sync serve`"
   go
     { listen = ""
@@ -430,7 +437,11 @@ let private serveListening (fold : unit -> unit) (args : List<string>) : int =
   | Ok options ->
     ensureIdentity ()
     let store = LibConfig.Config.dbPath
-    let makeSide (account : SyncTokens.Account) (workDir : string) keepGoing : SyncLink.Side =
+    let makeSide
+      (account : SyncTokens.Account)
+      (workDir : string)
+      keepGoing
+      : SyncLink.Side =
       let fields (line : string) : List<string * obj> =
         [ "person", account.person; "line", line ]
       { store = store
@@ -447,15 +458,14 @@ let private serveListening (fold : unit -> unit) (args : List<string>) : int =
         account = Some account }
     SyncServer.run store options makeSide
 
-let private parseTokenOptions
-  (args : List<string>)
-  : Result<bool * string, string> =
+let private parseTokenOptions (args : List<string>) : Result<bool * string, string> =
   let rec go (readOnly : bool) (label : string) (rest : List<string>) =
     match rest with
     | [] -> Ok(readOnly, label)
     | "--read-only" :: rest -> go true label rest
     | "--label" :: text :: rest -> go readOnly text rest
-    | flag :: _ -> Error $"`{flag}` isn't an option here; `--read-only` and `--label <text>` are"
+    | flag :: _ ->
+      Error $"`{flag}` isn't an option here; `--read-only` and `--label <text>` are"
   go false "" args
 
 let private tokenVerb (args : List<string>) : int =
@@ -493,7 +503,8 @@ let private tokenVerb (args : List<string>) : int =
         err "`dark sync token add` reads the token from stdin, and there was none."
         2
       | Ok _, token when token.Trim().Length < 16 ->
-        err "that token is too short to keep; one from `dark sync token new` is 49 characters."
+        err
+          "that token is too short to keep; one from `dark sync token new` is 49 characters."
         2
       | Ok(readOnly, label), token ->
         let id = SyncTokens.add store person (token.Trim()) readOnly label
@@ -518,7 +529,9 @@ let private tokenVerb (args : List<string>) : int =
       let widths =
         header
         |> List.mapi (fun i h ->
-          (h :: (rows |> List.map (fun r -> r[i]))) |> List.map String.length |> List.max)
+          (h :: (rows |> List.map (fun r -> r[i])))
+          |> List.map String.length
+          |> List.max)
       let line (cells : List<string>) =
         List.zip widths cells
         |> List.map (fun (w, c) -> c.PadRight w)
@@ -530,11 +543,13 @@ let private tokenVerb (args : List<string>) : int =
   | [ "revoke"; idOrPerson ] ->
     match SyncTokens.revoke store idOrPerson with
     | [] ->
-      err $"no live token has the id or person `{idOrPerson}`. `dark sync token list` shows them."
+      err
+        $"no live token has the id or person `{idOrPerson}`. `dark sync token list` shows them."
       1
     | revoked ->
       for t in revoked do
-        err $"revoked {t.id} ({t.person}). Sessions it opened end at their next reconnect."
+        err
+          $"revoked {t.id} ({t.person}). Sessions it opened end at their next reconnect."
       0
   | _ ->
     err
@@ -561,7 +576,13 @@ let private restoreVerb (source : string) : int =
     try
       let path = Path.Combine(SyncLink.dir (), "serve.lock")
       Directory.CreateDirectory(SyncLink.dir ()) |> ignore<DirectoryInfo>
-      use _ = new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None)
+      use _ =
+        new FileStream(
+          path,
+          FileMode.OpenOrCreate,
+          FileAccess.ReadWrite,
+          FileShare.None
+        )
       false
     with :? IOException ->
       true
@@ -595,14 +616,19 @@ let private restoreVerb (source : string) : int =
       err $"won't restore from {source}: {reason}."
       1
     | Ok() ->
-      let aside = store + ".before-restore-" + System.DateTime.UtcNow.ToString "yyyyMMdd-HHmmss"
+      let aside =
+        store
+        + ".before-restore-"
+        + System.DateTime.UtcNow.ToString "yyyyMMdd-HHmmss"
       SyncServer.backup store aside
       Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools()
       for suffix in [ "-wal"; "-shm" ] do
         if File.Exists(store + suffix) then File.Delete(store + suffix)
       File.Copy(source, store, true)
       (use conn =
-        new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={store};Pooling=false")
+        new Microsoft.Data.Sqlite.SqliteConnection(
+          $"Data Source={store};Pooling=false"
+        )
        conn.Open()
        use cmd = conn.CreateCommand()
        cmd.CommandText <-

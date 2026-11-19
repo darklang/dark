@@ -326,8 +326,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "changes it lacks, and when it was last heard from. Empty when sync is off."
       fn =
         (function
-        | _, _, _, [| DUnit |] ->
-          DString(LibDB.SyncLink.statusNow ())
+        | _, _, _, [| DUnit |] -> DString(LibDB.SyncLink.statusNow ())
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
