@@ -44,6 +44,14 @@ module Topics =
           subtopics = [] }
 
       DocTopic
+        { name = "compile"
+          description = "Native executables of package fns"
+          aliases = [ "darkc", "executables" ]
+          context = "cli"
+          content = Docs.Compile.content
+          subtopics = [] }
+
+      DocTopic
         { name = "syntax"
           description = "Language syntax reference"
           aliases = [ "lang" ]

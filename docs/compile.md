@@ -4,65 +4,102 @@
 compiler (darklang/compiler). It is experimental.
 
 ```bash
-$ dark compile Stdlib.Cli.Path.join
-wrote ./join (327 KB) in 2.4 s
-$ ./join usr local bin
-usr/local/bin
+$ dark compile Me.Tools.wc
+wrote ./wc (341 KB) in 2.1 s
+$ ./wc notes.txt
+112 notes.txt
 ```
 
 ## Which fns can be executables
 
-A fn that takes `List<String>` gets the command-line arguments. A fn that takes
-nothing is called with nothing. The executable prints what `dark eval` prints for
-that call. Any other signature is refused:
+The same fns `dark run <fn>` runs. The fn takes `List<String>`, the command-line
+arguments, or nothing, and returns `Int64`, the exit code, or `Unit`, which is 0.
+`./wc a b` does what `dark run Me.Tools.wc a b` does. Any other fn is refused:
 
 ```bash
 $ dark compile Stdlib.String.padStart
-Stdlib.String.padStart(string: String, padWith: Char, goalLength: Int64): String can't be an executable yet: it needs to take List<String>, or nothing.
+Stdlib.String.padStart takes (string: String, padWith: Char, goalLength: Int64); an executable's fn takes List<String> or nothing, as for `dark run`.
 ```
+
+`dark compile --run <expression>` compiles an expression, runs it, and prints
+what `dark eval` prints.
+
+## What an executable can do
+
+An executable has no store, no traces and no DB. A fn that reads the package
+store, records traces or uses dark's own runtime state is refused before
+anything compiles, with the calls that lead there:
+
+```bash
+$ dark compile Me.Tools.listFns
+Me.Tools.listFns can't be an executable: it reads the package store, which only a Dark instance has.
+  Me.Tools.listFns -> Darklang.LanguageTools.PackageManager.Search.search -> Builtin.pmSearch
+`dark run Me.Tools.listFns` runs it here.
+```
+
+Every access is off by default, and compiled code can't limit access yet, so an
+executable gets only stdin, stdout, the clock and randomness. A fn that reads
+files, the environment or the network, or starts programs, is refused for now.
+`dark effects <fn>` lists what a fn may do.
 
 ## What compiles
 
 The fn and every package fn, type and value it uses are read from this instance's
-main branch. Most of the stdlib compiles. Fns that need something only the
-interpreter has, like the store, source control, traces or the parser, do not.
-`dark compile --check <fn>...` says whether each fn compiles, and if not, why.
+main branch. Most of the stdlib compiles. `dark compile --check <fn>...` says, for
+each fn, whether it compiles and if not, why; `--json` gives one object per fn.
 
-`dark compile --run <expression>` compiles an expression, runs it, and prints only
-what it prints.
+```text
+compiles      Stdlib.English.toOrdinal   no effects
+needs dark    Me.Tools.listFns           reads the package store, via ...
+not yet       Me.Tools.cat               reads files, via Darklang.Stdlib.Cli.File.readText -> ...
+```
 
 ## The command
 
 ```text
-dark compile <fn>                write ./<last part of the fn's name>
-dark compile <fn> -o <file>      write <file>
-dark compile --run <expression>  compile, run, print what it prints
-dark compile --check <fn>...     does each fn compile
-  -q                             nothing on stderr
-  -v, -vv, -vvv                  also the compiler's passes, their times, every intermediate form
+dark compile <fn>                       write ./<last part of the fn's name>
+dark compile <fn> -o <file>             write <file>
+dark compile --run <expression>         compile, run, print what it prints
+dark compile --check [--json] <fn>...   does each fn compile
+  -q                                    nothing on stderr
+  -v, -vv, -vvv                         also the compiler's passes, their times, every intermediate form
 ```
-
-## What an executable is
-
-An executable is a standalone tool. It has no store, no traces and no DB, and it
-does not check this instance's permission policy: it runs with the access of
-whoever runs it.
 
 ## Platforms
 
-The compiler and the executables it writes run on Linux, x86-64 or arm64, with
-glibc 2.38 or newer.
+The compiler runs on Linux x86-64 and arm64, and macOS arm64. Elsewhere,
+`dark compile` says so before doing anything.
 
-## The compiler
+## Where things live
 
-`dark compile` uses the compiler at `~/.darklang/compiler/<commit>/darkc`, where
-`<commit>` is the pinned darklang/compiler commit (`pinnedCommit` in
-`packages/darklang/cli/compile.dark`). `scripts/compiler/build` builds it there.
-`DARK_COMPILER` points at another one.
+The compiler is `~/.darklang/compiler/<commit>/darkc`, where `<commit>` is the
+first 9 characters of the pinned darklang/compiler commit (`pinnedCommit` in
+`packages/darklang/compiler/darkc.dark`). A release CLI carries it and writes it
+there the first time it starts. In a dev build, `scripts/compiler/build` builds
+it there.
 
-The first compile with a compiler prepares its stdlib, which takes about a minute
-and 150 MB in `~/.cache/dark-compiler`. It asks first. Later compiles take a few
-seconds.
+The first compile prepares the compiler's stdlib: about a minute and 150 MB, in
+`~/.darklang/compiler/<commit>/cache`. Later compiles take a few seconds.
+
+## Internals
+
+`Darklang.Compiler.Darkc` holds every flag `dark compile` passes to darkc:
+
+```text
+darkc --cache-dir D --package-server URL -q --entry <fn hash> -o <file>
+darkc --cache-dir D --package-server URL -q -r -e -- <expression>
+darkc --cache-dir D --package-server URL --check --json <name>...
+```
+
+The entry is the fn's hash. darkc passes it the command-line words and turns its
+result into the exit code. Dark checks the signature first, with the rule
+`dark run` uses (`Darklang.Cli.Run.entry`).
+
+Before darkc starts, `Darklang.Compiler.Access` reads the fn's effects from the
+analysis behind `dark effects` (`Builtin.pmFnEffectReasons`). `PackageRead`,
+`PackageWrite`, `TraceRead`, `TraceWrite` and `Runtime` need an instance. Every
+other effect except `Stdin`, `Stdout`, `Clock`, `Random` and `Raise` waits until
+compiled code enforces access.
 
 While a compile runs, the instance serves its packages to the compiler on a random
 loopback port, with a one-time token so other local processes can't read the store
