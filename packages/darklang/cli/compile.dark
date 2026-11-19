@@ -159,7 +159,7 @@ let withServer(
 
 
 /// The package fn <param name> as an executable's entry, or why it can't be one. Takes and
-/// returns what `dark run <fn>` takes and returns.
+/// returns what `dark run <fn>` takes and returns, and does nothing only an instance can do.
 let entry(name: String): Result<Run.Entry, String> =
   let branchId = Compiler.PackageServer.branchId
   match Run.entry(branchId, name) with
@@ -174,7 +174,10 @@ let entry(name: String): Result<Run.Entry, String> =
       let shown = PrettyPrinter.ProgramTypes.typeReference(ctx, typ)
       Result.Error(
         $"{name} returns {shown}; an executable's fn returns Int64, the exit code, or Unit, as for `dark run`.")
-    | _ -> Result.Ok(found)
+    | _ ->
+      match Compiler.Access.refusal(name, Compiler.Access.reasons(name, found.hash)) with
+      | Some(message) -> Result.Error(message)
+      | None -> Result.Ok(found)
 
 
 /// Where an executable of <param name> goes with no `-o`: its last segment, here.
@@ -214,26 +217,166 @@ let executable(
         result)
 
 
-let checkLine(report: Compiler.Darkc.CheckReport): String =
-  if report.status == "compiles" then
-    $"{report.name}: compiles"
-  else
-    $"{report.name}: can't compile: {report.error}"
+/// What `--check` says about one name.
+type Verdict =
+  | Compiles
+  /// It reaches something only an instance has, or access compiled code can't limit yet.
+  | Refused(blocker: Compiler.Access.Blocker, reasons: List<Compiler.Access.Reason>)
+  | Fails(reason: String, error: String)
+  | NotFound
 
 
-/// Whether each package fn or value in <param names> compiles, and why not.
-let check(names: List<String>, _json: Bool): Result<Stdlib.Cli.Process.Output, String> =
-  withServer(Compiler.Darkc.Job.Check(names), -1)
-  |> Stdlib.Result.map(fun output ->
-    let reports = Compiler.Darkc.parseCheckReports(output.stdout)
-    let lines = reports |> Stdlib.List.map(checkLine)
-    { output with
-        exitCode =
-          if Stdlib.List.all(reports, fun r -> r.status == "compiles") then
-            output.exitCode
-          else
-            1
-        stdout = Stdlib.String.join(lines, "\n") + "\n" })
+type CheckRow =
+  { name: String
+    verdict: Verdict
+    /// what the fn may do that an executable allows: may raise, reads the clock
+    effects: List<Compiler.Access.Reason> }
+
+
+/// <param name>'s row as far as the effect analysis answers it. A row left at `Compiles` goes
+/// to darkc.
+let precheck(name: String): CheckRow =
+  let branchId = Compiler.PackageServer.branchId
+  let location =
+    LanguageTools.ProgramTypes.parsePackageLocation(TraceVerbs.canonicalFnName(branchId, name))
+
+  match LanguageTools.PackageManager.Function.find(branchId, location) with
+  | None ->
+    match LanguageTools.PackageManager.Value.find(branchId, location) with
+    | Some(_) -> CheckRow { name = name, verdict = Verdict.Compiles, effects = [] }
+    | None -> CheckRow { name = name, verdict = Verdict.NotFound, effects = [] }
+  | Some(hash) ->
+    let reasons = Compiler.Access.reasons(name, hash)
+    let instance = Compiler.Access.blocking(reasons, Compiler.Access.Blocker.NeedsInstance)
+    let unenforced = Compiler.Access.blocking(reasons, Compiler.Access.Blocker.NotEnforced)
+    let allowed =
+      reasons
+      |> Stdlib.List.filter(fun r -> Stdlib.Option.isNone(Compiler.Access.blocker(r.effect)))
+
+    if Stdlib.Bool.not(Stdlib.List.isEmpty(instance)) then
+      CheckRow
+        { name = name
+          verdict = Verdict.Refused(Compiler.Access.Blocker.NeedsInstance, instance)
+          effects = allowed }
+    else if Stdlib.Bool.not(Stdlib.List.isEmpty(unenforced)) then
+      CheckRow
+        { name = name
+          verdict = Verdict.Refused(Compiler.Access.Blocker.NotEnforced, unenforced)
+          effects = allowed }
+    else
+      CheckRow { name = name, verdict = Verdict.Compiles, effects = allowed }
+
+
+/// <param row> with darkc's answer for it.
+let withReport(row: CheckRow, reports: List<Compiler.Darkc.CheckReport>): CheckRow =
+  match row.verdict with
+  | Compiles ->
+    match reports |> Stdlib.List.findFirst(fun r -> r.name == row.name) with
+    | Some(report) when report.status == "compiles" -> row
+    | Some(report) -> { row with verdict = Verdict.Fails(report.reason, report.error) }
+    | None ->
+      { row with verdict = Verdict.Fails("no-answer", "the compiler said nothing about it") }
+  | _ -> row
+
+
+let via(reason: Compiler.Access.Reason): String =
+  // the path starts at the fn itself, which the row already names
+  match reason.path with
+  | [_, ...rest] when Stdlib.Bool.not(Stdlib.List.isEmpty(rest)) ->
+    $"{Compiler.Access.describe(reason.effect)}, via {Stdlib.String.join(rest, " -> ")}"
+  | _ -> Compiler.Access.describe(reason.effect)
+
+
+let rowColumns(row: CheckRow): (String * String) =
+  let effects =
+    match row.effects with
+    | [] -> "no effects"
+    | reasons ->
+      reasons
+      |> Stdlib.List.map(via)
+      |> Stdlib.String.join("; ")
+
+  match row.verdict with
+  | Compiles -> ("compiles", effects)
+  | Refused(NeedsInstance, reasons) ->
+    (
+      "needs dark",
+      reasons
+      |> Stdlib.List.map(via)
+      |> Stdlib.String.join("; "))
+  | Refused(NotEnforced, reasons) ->
+    (
+      "not yet",
+      reasons
+      |> Stdlib.List.map(via)
+      |> Stdlib.String.join("; "))
+  | Fails(_, error) -> ("not yet", error)
+  | NotFound -> ("not found", "no package fn or value by that name")
+
+
+let pad(text: String, width: Int64): String =
+  Stdlib.String.padEnd(text, ' ', width)
+
+
+let checkLines(rows: List<CheckRow>): List<String> =
+  let width =
+    rows
+    |> Stdlib.List.map(fun r -> Stdlib.String.length(r.name))
+    |> Stdlib.List.fold(0, fun(acc, n) -> if n > acc then n else acc)
+
+  rows
+  |> Stdlib.List.map(fun row ->
+    let (status, detail) = rowColumns(row)
+    $"{pad(status, 12)}  {pad(row.name, width)}  {detail}")
+
+
+/// One JSON object per name: `{name, status, detail}`.
+type CheckJson =
+  { name: String
+    status: String
+    detail: String }
+
+
+let checkJsonLines(rows: List<CheckRow>): List<String> =
+  rows
+  |> Stdlib.List.map(fun row ->
+    let (status, detail) = rowColumns(row)
+    Stdlib.Json.serialize<CheckJson>(
+      CheckJson { name = row.name, status = status, detail = detail }))
+
+
+let checkOk(row: CheckRow): Bool =
+  match row.verdict with
+  | Compiles -> true
+  | _ -> false
+
+
+/// Whether each package fn or value in <param names> compiles, and why not. Fns that need an
+/// instance are answered without starting darkc.
+let check(names: List<String>, json: Bool): Result<Stdlib.Cli.Process.Output, String> =
+  let rows = names |> Stdlib.List.map(precheck)
+
+  let toCompiler =
+    rows
+    |> Stdlib.List.filter(checkOk)
+    |> Stdlib.List.map(fun r -> r.name)
+
+  let answered =
+    match toCompiler with
+    | [] -> Result.Ok(rows)
+    | _ ->
+      withServer(Compiler.Darkc.Job.Check(toCompiler), -1)
+      |> Stdlib.Result.map(fun output ->
+        let reports = Compiler.Darkc.parseCheckReports(output.stdout)
+        rows |> Stdlib.List.map(fun row -> withReport(row, reports)))
+
+  answered
+  |> Stdlib.Result.map(fun rows ->
+    let lines = if json then checkJsonLines(rows) else checkLines(rows)
+    Stdlib.Cli.Process.Output
+      { exitCode = if Stdlib.List.all(rows, checkOk) then 0 else 1
+        stdout = Stdlib.String.join(lines, "\n") + "\n"
+        stderr = "" })
 
 
 /// What the command line asks for, once the verbosity flags are taken out.
@@ -243,13 +386,15 @@ type Request =
   | Check(names: List<String>, json: Bool)
 
 
-val usage = "Usage: compile <fn> [-o <file>] | compile --run <expression> | compile --check <fn>..."
+val usage =
+  "Usage: compile <fn> [-o <file>] | compile --run <expression> | compile --check [--json] <fn>..."
 
 
 let parse(args: List<String>): Result<Request, String> =
   match args with
   | ["--run", expr] -> Result.Ok(Request.Run(expr))
-  | ["--check"] -> Result.Error("Usage: compile --check <fn>...")
+  | ["--check"] | ["--check", "--json"] -> Result.Error("Usage: compile --check [--json] <fn>...")
+  | ["--check", "--json", ...names] -> Result.Ok(Request.Check(names, true))
   | ["--check", ...names] -> Result.Ok(Request.Check(names, false))
   | [name] when Stdlib.Bool.not(Stdlib.String.startsWith(name, "-")) ->
     Result.Ok(Request.Executable(name, defaultOutput(name)))
@@ -313,31 +458,44 @@ let execute(state: AppState, args: List<String>): AppState =
     { state with exitCode = 1 }
 
 
-let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
-  []
+let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =
+  let partial =
+    match args with
+    | [] -> Option.Some("")
+    | [one] when Stdlib.Bool.not(Stdlib.String.startsWith(one, "-")) -> Option.Some(one)
+    | ["--check", ...names] -> Stdlib.List.last(names)
+    | _ -> Option.None
+
+  match partial with
+  | Some(text) ->
+    Packages.Traversal.completePartialPath(
+      state.currentBranchId,
+      state.packageData.currentLocation,
+      text)
+  | None -> []
 
 
 let help(_state: AppState): String =
   [ "Compile a package fn to a native executable with the Darklang compiler. Experimental."
     ""
-    "Usage: compile <fn>                    write an executable named after the fn: ./wc"
-    "       compile <fn> -o <file>          write it to <file>"
-    "       compile --run <expression>      compile an expression, run it, print what it prints"
-    "       compile --check <fn>...         does each fn compile, and if not, why not"
+    "Usage: compile <fn>                       write an executable named after the fn: ./wc"
+    "       compile <fn> -o <file>             write it to <file>"
+    "       compile --run <expression>         compile an expression, run it, print what it prints"
+    "       compile --check [--json] <fn>...   does each fn compile, and if not, why not"
     ""
     "The fn is what `dark run <fn>` runs: it takes List<String>, the command-line"
     "arguments, or nothing, and returns Int64, the exit code, or Unit. `./wc a b` does"
     "what `dark run Me.Tools.wc a b` does. `--run` prints what `dark eval` prints."
     "Package fns come from this instance's main branch."
     ""
-    "An executable runs with the access of whoever runs it: it checks no permission"
-    "policy, and has no store, traces or DB."
+    "An executable has no store, traces or DB. It gets stdin, stdout, the clock and"
+    "randomness; a fn that needs other access isn't compiled yet."
     ""
     "Options:"
     "  -q              nothing on stderr"
     "  -v, -vv, -vvv   also what the compiler did, each pass's time, each intermediate form"
     ""
-    "See docs/compile.md."
+    "See `dark docs compile`."
     ""
     "Example:"
     "  compile Me.Tools.wc"

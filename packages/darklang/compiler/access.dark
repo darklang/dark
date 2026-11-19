@@ -1,0 +1,113 @@
+/// What a package fn may do, read from the effect analysis behind `dark effects`, and which of
+/// it an executable can't have. Asked before darkc starts.
+module Darklang.Compiler.Access
+
+type Effect = LanguageTools.Permissions.Effect
+
+
+/// Why an effect keeps a fn from being an executable.
+type Blocker =
+  /// What the effect reaches exists only inside a Dark instance.
+  | NeedsInstance
+  /// Compiled code can't limit this access yet, and every access is off by default.
+  | NotEnforced
+
+
+let blocker(effect: Effect): Option<Blocker> =
+  match effect with
+  | PackageRead | PackageWrite | TraceRead | TraceWrite | Runtime ->
+    Option.Some(Blocker.NeedsInstance)
+  // every executable has these
+  | Stdin | Stdout | Clock | Random | Raise -> Option.None
+  | Http
+  | HttpServer
+  | FileRead
+  | FileWrite
+  | EnvRead
+  | EnvWrite
+  | Process
+  | Concurrency
+  | Native ->
+    Option.Some(Blocker.NotEnforced)
+
+
+let describe(effect: Effect): String =
+  match effect with
+  | PackageRead -> "reads the package store"
+  | PackageWrite -> "changes the package store"
+  | TraceRead -> "reads traces"
+  | TraceWrite -> "records traces"
+  | Runtime -> "uses this dark's own runtime state"
+  | Http -> "makes HTTP requests"
+  | HttpServer -> "serves HTTP"
+  | FileRead -> "reads files"
+  | FileWrite -> "writes files"
+  | EnvRead -> "reads environment variables"
+  | EnvWrite -> "sets environment variables"
+  | Process -> "starts programs"
+  | Concurrency -> "runs work alongside itself"
+  | Native -> "calls into the dark host"
+  | Stdin -> "reads stdin"
+  | Stdout -> "writes to the terminal"
+  | Clock -> "reads the clock"
+  | Random -> "uses randomness"
+  | Raise -> "may raise"
+
+
+/// One effect the fn has, and the calls that lead to it, starting at the fn.
+type Reason =
+  { effect: Effect
+    path: List<String> }
+
+
+/// Every known effect of the package fn <param hash>, each with one call path from <param name>.
+let reasons(name: String, hash: LanguageTools.ProgramTypes.Hash): List<Reason> =
+  let text =
+    match hash with
+    | Hash(h) -> h
+
+  let (_complete, found) = LanguageTools.Permissions.effectReasons(text)
+  found
+  |> Stdlib.List.map(fun((effect, path)) ->
+    Reason { effect = effect, path = Stdlib.List.prepend(path, name) })
+
+
+let blocking(reasons: List<Reason>, kind: Blocker): List<Reason> =
+  reasons |> Stdlib.List.filter(fun r -> blocker(r.effect) == Option.Some(kind))
+
+
+/// "reads files", "reads files and starts programs", "a, b and c".
+let describeAll(reasons: List<Reason>): String =
+  let phrases = reasons |> Stdlib.List.map(fun r -> describe(r.effect))
+  match Stdlib.List.reverse(phrases) with
+  | [] -> ""
+  | [only] -> only
+  | [last, ...rest] -> $"{Stdlib.String.join(Stdlib.List.reverse(rest), ", ")} and {last}"
+
+
+let pathLine(reason: Reason): String =
+  "  " + Stdlib.String.join(reason.path, " -> ")
+
+
+/// Why the package fn <param name> can't be an executable, or None when nothing it may do
+/// stands in the way.
+let refusal(name: String, reasons: List<Reason>): Option<String> =
+  let instance = blocking(reasons, Blocker.NeedsInstance)
+  let unenforced = blocking(reasons, Blocker.NotEnforced)
+  let lines =
+    if Stdlib.Bool.not(Stdlib.List.isEmpty(instance)) then
+      Stdlib.List.flatten(
+        [ [ $"{name} can't be an executable: it {describeAll(instance)}, which only a Dark instance has." ]
+          Stdlib.List.map(instance, pathLine)
+          [ $"`dark run {name}` runs it here." ] ])
+    else if Stdlib.Bool.not(Stdlib.List.isEmpty(unenforced)) then
+      Stdlib.List.flatten(
+        [ [ $"{name} can't be an executable yet: it {describeAll(unenforced)}, and compiled code can't limit that access yet." ]
+          Stdlib.List.map(unenforced, pathLine)
+          [ $"`dark run {name}` runs it here, under your permissions." ] ])
+    else
+      []
+
+  match lines with
+  | [] -> Option.None
+  | _ -> Option.Some(Stdlib.String.join(lines, "\n"))

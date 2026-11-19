@@ -1,4 +1,4 @@
-// What `dark compile` asks the compiler to build. Needs no compiler.
+// What `dark compile` asks the compiler to build, and what it refuses first. Needs no compiler.
 module Darklang.Cli.Compile.Tests
 
 module Fixtures =
@@ -15,6 +15,26 @@ module Fixtures =
 
   let hello(): Unit =
     Stdlib.printLine("hello")
+
+
+  let countsFns(_args: List<String>): Int64 =
+    match LanguageTools.PackageManager.Function.find(
+            SCM.Branch.mainBranchId,
+            LanguageTools.ProgramTypes.parsePackageLocation(
+              "Darklang.Stdlib.List.map")) with
+    | Some(_) -> 0
+    | None -> 1
+
+
+  let catFile(args: List<String>): Int64 =
+    match args with
+    | [path] ->
+      match Stdlib.Cli.File.readText(path) with
+      | Ok(text) ->
+        Stdlib.print(text)
+        0
+      | Error(_) -> 1
+    | _ -> 2
 
 
 val fixtures = "Darklang.Cli.Compile.Tests.Fixtures"
@@ -65,6 +85,46 @@ test unknownFn =
     Stdlib.Result.Result.Error("No package fn named Stdlib.NoSuch.fn."))
 
 
+test aFnThatNeedsTheStoreIsRefusedWithItsPath =
+  let name = $"{fixtures}.countsFns"
+  match Cli.Compile.entry(name) with
+  | Error(message) ->
+    Stdlib.String.splitOnNewline(message)
+    |> Stdlib.Test.equal(
+      [ $"{name} can't be an executable: it reads the package store, which only a Dark instance has."
+        $"  {name} -> Darklang.LanguageTools.PackageManager.Function.find -> Darklang.LanguageTools.PackageManager.findItem -> Builtin.pmFind"
+        $"`dark run {name}` runs it here." ])
+  | Ok(_) -> Stdlib.Test.fail("expected a refusal")
+
+
+test accessCompiledCodeCantLimitIsRefused =
+  let name = $"{fixtures}.catFile"
+  match Cli.Compile.entry(name) with
+  | Error(message) ->
+    Stdlib.String.splitOnNewline(message)
+    |> Stdlib.List.head
+    |> Stdlib.Test.equal(
+      Stdlib.Option.Option.Some(
+        $"{name} can't be an executable yet: it reads files, and compiled code can't limit that access yet."))
+  | Ok(_) -> Stdlib.Test.fail("expected a refusal")
+
+
+test stdoutIsAllowed =
+  Cli.Compile.entry($"{fixtures}.echo")
+  |> Stdlib.Result.map(fun e -> e.parameters)
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Cli.Run.EntryParameters.Words))
+
+
+test describesSeveralEffects =
+  [ LanguageTools.Permissions.Effect.FileRead
+    LanguageTools.Permissions.Effect.FileWrite
+    LanguageTools.Permissions.Effect.Process ]
+  |> Stdlib.List.map(fun effect ->
+    Darklang.Compiler.Access.Reason { effect = effect, path = [] })
+  |> Darklang.Compiler.Access.describeAll
+  |> Stdlib.Test.equal("reads files, writes files and starts programs")
+
+
 let argumentsFor(job: Compiler.Darkc.Job, verbosity: Int64): List<String> =
   Compiler.Darkc.arguments(
     Compiler.Darkc.Invocation
@@ -105,11 +165,41 @@ test checkReportsAreRead =
   |> Stdlib.Test.equal([ ("A.b", "compiles"), ("A.c", "failed") ])
 
 
+test checkAnswersInstanceOnlyFnsItself =
+  [ Darklang.Cli.Compile.precheck($"{fixtures}.countsFns")
+    Darklang.Cli.Compile.precheck("Stdlib.NoSuch.fn") ]
+  |> Stdlib.List.map(fun row ->
+    Stdlib.Tuple2.first(Darklang.Cli.Compile.rowColumns(row)))
+  |> Stdlib.Test.equal([ "needs dark", "not found" ])
+
+
+test checkLinesLineUp =
+  [ Darklang.Cli.Compile.CheckRow
+      { name = "A.long.name"
+        verdict = Darklang.Cli.Compile.Verdict.Compiles
+        effects = [] }
+
+    Darklang.Cli.Compile.CheckRow
+      { name = "A.b"
+        verdict = Darklang.Cli.Compile.Verdict.NotFound
+        effects = [] } ]
+  |> Darklang.Cli.Compile.checkLines
+  |> Stdlib.Test.equal(
+    [ "compiles      A.long.name  no effects"
+      "not found     A.b          no package fn or value by that name" ])
+
+
 test noOutputIsNamedAfterTheFn =
   Cli.Compile.parse([ "Me.Tools.wc" ])
   |> Stdlib.Test.equal(
     Stdlib.Result.Result.Ok(
       Cli.Compile.Request.Executable("Me.Tools.wc", "./wc")))
+
+
+test checkTakesJson =
+  Cli.Compile.parse([ "--check", "--json", "A.b" ])
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Ok(Cli.Compile.Request.Check([ "A.b" ], true)))
 
 
 test runTakesAnExpression =

@@ -211,6 +211,12 @@ let effectRow(effect: Effect): (Effect * String * String) =
   |> Stdlib.Option.withDefault((effect, "Unknown", "unknown"))
 
 
+/// What the package fn <param hash> may do, found without running it: whether the analysis
+/// is complete, and each effect with one call path to it.
+let effectReasons(hash: String): (Bool * List<(Effect * List<String>)>) =
+  Builtin.pmFnEffectReasons(hash)
+
+
 /// The rule name of an effect: `FileRead` -> `"file-read"`.
 let effectName(effect: Effect): String =
   let (_e, _case, name) = effectRow(effect)
