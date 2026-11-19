@@ -264,7 +264,8 @@ let private failureLine
     $"{host} refused the token: it isn't one the server knows. Check it was copied whole."
   | Some(SyncLink.NoDark reason) ->
     $"there is no dark to run on {host} ({reason}). Say where it is: `dark sync add {host} --command <path>`."
-  | Some(SyncLink.NotSpoken reason) -> $"{reason}."
+  | Some(SyncLink.NotSpoken reason) ->
+    if reason.EndsWith "." || reason.EndsWith "?" then reason else $"{reason}."
   | Some(SyncLink.Unreachable reason) -> $"couldn't reach {host}: {reason}."
   | None -> $"couldn't finish catching up with {host}."
 
