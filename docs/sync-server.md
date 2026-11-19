@@ -163,7 +163,7 @@ The server writes one JSON object a line to stdout (`fly logs`, `docker compose 
 | `notice` | a conflict the server recorded (nobody acts on these; the people's machines record their own) |
 | `refused` | a connection turned away: `unknown-token`, `revoked` or `format` |
 | `backup`, `backup-pruned`, `backup-failed` | the scheduled backups |
-| `stopping`, `stopped` | a SIGTERM or SIGINT, and the exit after sessions ended |
+| `signal`, `stopping`, `stopped` | a SIGTERM or SIGINT; the sessions still open as it stops; the exit after they ended |
 
 ## How it's kept safe
 
