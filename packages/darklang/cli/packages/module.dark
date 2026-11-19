@@ -201,7 +201,7 @@ let define(state: AppState, modulePath: String, source: String, caller: Caller):
                 updates,
                 if bundled then Propagate.FollowerCheck.Skip else Propagate.FollowerCheck.Check)
 
-            Propagate.printFollowed(followed)
+            if caller != Caller.Edit then Propagate.printFollowed(followed) else ()
 
             // A reload never leaves an edit's dependents behind, so the build fails over to one
             // when they could not follow.
@@ -249,14 +249,32 @@ let define(state: AppState, modulePath: String, source: String, caller: Caller):
               else
                 $"; updated {Stdlib.display(docsUpdated)} doc comments"
 
-            Stdlib.printLine(
-              $"{glyph} Defined {Stdlib.display(count)} {what} in {modulePath}{docNote}")
+            let updatedName =
+              match (caller, definedNames, updates) with
+              | (Edit, [_], [item]) ->
+                let loc = item.location
+                let parts = Stdlib.List.prepend(loc.modules, loc.owner)
+                Option.Some(Stdlib.String.join(Stdlib.List.append(parts, loc.name), "."))
+              | _ -> Option.None
+
+            match updatedName with
+            | Some(name) -> Stdlib.printLine($"{glyph} Updated {name}{docNote}")
+            | None ->
+              Stdlib.printLine(
+                $"{glyph} Defined {Stdlib.display(count)} {what} in {modulePath}{docNote}")
 
             AtRestCheck.printUnresolvedTraitCalls(authored.unresolvedTraitCalls, 0u64)
 
             // main's at-rest type check reports on every save; keep it ahead of propagation
             // so a type error is on screen before anything follows the change.
             AtRestCheck.printSaveReport(branchId, report)
+
+            if caller == Caller.Edit then
+              match (updatedName, report.verdict) with
+              | (Some(_), Checked) -> Propagate.printEditPropagation(followed)
+              | _ -> Propagate.printFollowed(followed)
+            else
+              ()
 
             // Save the code so it can be fixed, and signal errors through the exit code.
             let state = if AtRestCheck.saveHasErrors(report) then failed(state) else state
@@ -302,15 +320,20 @@ let define(state: AppState, modulePath: String, source: String, caller: Caller):
               failed(state)
 
 
+/// Read declaration source from a file, or from stdin when the path is `-`.
+let readSource(path: String): Result<String, String> =
+  if path == "-" then
+    Stdlib.Cli.Stdin.readAll()
+  else
+    Stdlib.Cli.File.readText(path)
+    |> Stdlib.Result.mapError(fun err -> $"Could not read '{path}': {Stdlib.display(err)}")
+
+
 let execute(state: AppState, args: List<String>): AppState =
   let input =
     match args with
-    | [modulePath, "-"] ->
-      Stdlib.Cli.Stdin.readAll() |> Stdlib.Result.map(fun source -> (modulePath, source))
     | [modulePath, sourcePath] ->
-      match Stdlib.Cli.File.readText(sourcePath) with
-      | Ok(source) -> Result.Ok((modulePath, source))
-      | Error(err) -> Result.Error($"Could not read '{sourcePath}': {Stdlib.display(err)}")
+      readSource(sourcePath) |> Stdlib.Result.map(fun source -> (modulePath, source))
     | _ -> Result.Error("Usage: module <module> <source-file|->")
 
   match input with

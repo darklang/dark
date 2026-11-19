@@ -344,3 +344,33 @@ test editDoesNotListSiblingsAsLeftBehind = Instance.withInstance(fun instance ->
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 0, "the edit saves")
       Instance.doesNotSay(out, "from an earlier save", "two is not left behind") ]))
+
+
+/// A single-item edit names the updated function before its dependents.
+test editReportsUpdatedFunctionAndDependents = Instance.withInstance(fun instance ->
+  let (_, _) =
+    runWithStdin(
+      instance,
+      [ "module", "/Me.Follow", "-" ],
+      "let helper(): Int64 = 1\n"
+      + "let b(): Int64 = helper() + 20\n"
+      + "let a(): Int64 = helper() + 10\n")
+
+  let (code, out) =
+    runWithStdin(instance, [ "edit", "Me.Follow.helper", "-" ], "let helper(): Int64 = 2\n")
+
+  let report =
+    match Stdlib.String.splitOnNewline(out) with
+    | [summary, dependents, ..._] ->
+      Stdlib.Test.all(
+        [ Instance.says(summary, "Updated Me.Follow.helper", "names the update first")
+          Instance.says(
+            dependents,
+            "  Me.Follow.a and Me.Follow.b now use the new version",
+            "names the dependents in order") ])
+    | _ -> Stdlib.Test.fail($"expected two report lines: {out}")
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, out)
+      report
+      Instance.doesNotSay(out, "from an earlier save", "siblings are expected") ]))
