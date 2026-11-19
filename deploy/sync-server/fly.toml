@@ -1,0 +1,45 @@
+# A dark sync server on Fly.io. One machine, one volume: the store is one SQLite file, and two
+# machines would be two stores. Deploy from this directory (see docs/sync-server.md).
+app = "dark-sync-CHANGE-ME"
+primary_region = "yul"
+
+kill_signal = "SIGTERM"
+kill_timeout = "30s"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  DARK_SYNC_LISTEN = ":8080"
+  DARK_SYNC_BACKUP_EVERY_HOURS = "6"
+  DARK_SYNC_BACKUP_KEEP = "28"
+
+[[mounts]]
+  source = "dark_sync_data"
+  destination = "/data"
+  initial_size = "3gb"
+  snapshot_retention = 14
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # A sync server holds connections open all day; it is never stopped for being idle.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 200
+    hard_limit = 250
+
+  [[http_service.checks]]
+    grace_period = "120s"
+    interval = "30s"
+    method = "GET"
+    path = "/health"
+    timeout = "5s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"

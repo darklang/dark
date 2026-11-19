@@ -1,0 +1,6 @@
+{$DARK_SYNC_DOMAIN} {
+	reverse_proxy dark-sync:8080 {
+		# Sessions stay open for hours; WebSockets pass through as they are.
+		flush_interval -1
+	}
+}

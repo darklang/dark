@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Put the `dark` this image ships beside the Dockerfile.
+#
+#   deploy/sync-server/prepare <path to a linux-x64 dark>
+#   deploy/sync-server/prepare --built      the newest one scripts/build/build-release-cli-exes.sh made
+set -euo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
+case "${1:-}" in
+  --built)
+    src=$(ls -t "$here"/../../clis/darklang-*-linux-x64 2>/dev/null | head -1 || true)
+    [ -n "$src" ] || { echo "no linux-x64 build in clis/. Build one: scripts/build/build-release-cli-exes.sh --runtimes=linux-x64"; exit 1; }
+    ;;
+  "") echo "usage: $0 <path to dark> | --built"; exit 2 ;;
+  *) src="$1" ;;
+esac
+cp "$src" "$here/dark"
+chmod 0755 "$here/dark"
+echo "deploy/sync-server/dark is $(basename "$src")"
