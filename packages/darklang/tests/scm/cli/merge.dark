@@ -255,7 +255,7 @@ test docsAndDeprecationsMadeOnABranchArriveWithTheMerge =
 
       run(
         dark,
-        [ "deprecate", "fn", "Tests.App.old", "--kind", "obsolete", "-y" ])
+        [ "deprecate", "fn", "Tests.App.old", "-y" ])
 
       says(
         dark,

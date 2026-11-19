@@ -21,13 +21,13 @@ test deleteTakesTheShortName = Instance.withInstance(fun i ->
     [ Instance.exitedWith(inferredCode, 0, "the kind is inferred")
       Instance.says(
         inferred,
-        "Will deprecate fn Darklang.Stdlib.String.trim",
+        "Would deprecate fn Darklang.Stdlib.String.trim",
         "names it in full")
 
       Instance.exitedWith(kindCode, 0, "the kind is given")
       Instance.says(
         kind,
-        "Will deprecate fn Darklang.Stdlib.String.trim",
+        "Would deprecate fn Darklang.Stdlib.String.trim",
         "names it in full") ]))
 
 
@@ -35,7 +35,7 @@ test deprecateAndUndeprecateTakeTheShortName = Instance.withInstance(fun i ->
   let (deprecatedCode, deprecated) =
     Instance.ran(
       i,
-      [ "deprecate", "Stdlib.String.trim", "--kind", "obsolete", "--yes" ])
+      [ "deprecate", "Stdlib.String.trim", "--yes" ])
 
   let (restoredCode, restored) =
     Instance.ran(i, [ "undeprecate", "Stdlib.String.trim" ])

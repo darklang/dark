@@ -48,43 +48,14 @@ let private storedOrEphemeral
   | locs -> locs
 
 
-// Cache of Harmful fn hashes. Main's: a fn is harmful wherever it runs once main says so.
-// `invalidateHarmful` is for a long-lived process that mutates deprecation state and must not keep
-// answering from a stale set. A hash set, since the interpreter asks it on every package call.
-let mutable private harmfulCache
-  : Option<System.Collections.Generic.HashSet<RT.Hash>> =
-  None
-
-let private harmfulSet
-  (hashes : Set<PT.Hash>)
-  : System.Collections.Generic.HashSet<RT.Hash> =
-  System.Collections.Generic.HashSet(
-    hashes |> Seq.map (fun (PT.Hash h) -> RT.Hash h)
-  )
-
-let private loadHarmful () : System.Collections.Generic.HashSet<RT.Hash> =
-  match harmfulCache with
-  | Some cached -> cached
-  | None ->
-    let harmful = harmfulSet (Queries.getHarmfulFnHashesSync ())
-    harmfulCache <- Some harmful
-    harmful
-
-/// Fill the Harmful cache ahead of the first lookup. `isHarmful` is synchronous by contract
-/// (the interpreter asks it before every package call); its miss path reads synchronously, so
-/// this is a warm-up, not a workaround: nothing blocks without it.
-let preloadHarmful () : unit =
-  harmfulCache <- Some(harmfulSet (Queries.getHarmfulFnHashes ()))
-
-/// Drop the Harmful set so the next lookup re-reads `deprecations`.
-let invalidateHarmful () : unit = harmfulCache <- None
-
-// Registered so a fold drops it along with everything else: unregistered, `deprecate --kind
-// harmful` in a REPL session halts nothing until the process restarts.
-Caching.register invalidateHarmful
-
-
-
+/// Cache the execution blocks visible on each branch. Package-store writes clear it
+/// so the next call in the same process sees a block or restore.
+let private harmfulOn =
+  Caching.withCache (fun branch ->
+    let hashes =
+      Queries.getHarmfulFnHashesSync branch
+      |> Seq.map (fun (PT.Hash hash) -> RT.Hash hash)
+    Some(System.Collections.Generic.HashSet<RT.Hash>(hashes)))
 
 
 /// <param pm>'s LOCATED results, with each name's own doc in place of its declaration's.
@@ -841,9 +812,11 @@ let rt : RT.PackageManager =
     getBytes = PMRT.Bytes.get
     persistBytes = PMRT.Bytes.insert
 
-    // A deprecation is a fact about a hash, and a hash means the same thing on every branch, so
-    // the set needs no branch key.
-    isHarmful = fun hash -> (loadHarmful ()).Contains hash
+    isHarmful =
+      fun branch hash ->
+        match harmfulOn branch with
+        | Some hashes -> hashes.Contains hash
+        | None -> false
 
     // Branch-scoped: the candidates are whatever the branch's PT pm can see and still
     // names. Cached per (branch, trait) and dropped with the other caches on every fold.

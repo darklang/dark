@@ -1,4 +1,3 @@
-1 Darklang.Cli.Packages.Deprecate.executeUndeprecate Darklang.Cli.Packages.Deprecate.sayShared
 1 Darklang.Cli.Run.execute Darklang.Cli.Run.executeOptions
 1 Darklang.Cli.Run.runScript Darklang.Cli.Run.runScriptMeasured
 1 Darklang.LanguageTools.AtRestTypeChecker.Generate.infer Darklang.LanguageTools.AtRestTypeChecker.Generate.inferInfix
@@ -22,7 +21,6 @@
 1 Darklang.Stdlib.Url.parse Darklang.Stdlib.Url.__parseWith
 1 Darklang.Stdlib.Url.parseLenient Darklang.Stdlib.Url.__parseWith
 1 Darklang.Stdlib.Url.parseReference Darklang.Stdlib.Url.__parseWith
-2 Darklang.Cli.Packages.Deprecate.execute Darklang.Cli.Packages.Deprecate.sayShared
 2 Darklang.Stdlib.Cli.Process.__childDrain Darklang.Stdlib.Cli.Process.__childRead
 2 Darklang.Stdlib.Pretty.__breaksLoop Darklang.Stdlib.Pretty.__fits
 2 Darklang.Stdlib.Pretty.__renderLoop Darklang.Stdlib.Pretty.__fits

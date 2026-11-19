@@ -50,17 +50,17 @@ module Reference =
 module DeprecationKind =
   let write (w : BinaryWriter) (k : DeprecationKind) : unit =
     match k with
-    | SupersededBy ref ->
+    | WithReplacement ref ->
       w.Write(0uy)
       Reference.write w ref
     | Harmful -> w.Write(1uy)
-    | Obsolete -> w.Write(2uy)
+    | Deprecated -> w.Write(2uy)
 
   let read (r : BinaryReader) : DeprecationKind =
     match r.ReadByte() with
-    | 0uy -> SupersededBy(Reference.read r)
+    | 0uy -> WithReplacement(Reference.read r)
     | 1uy -> Harmful
-    | 2uy -> Obsolete
+    | 2uy -> Deprecated
     | b -> raiseFormatError $"Invalid DeprecationKind tag: {b}"
 
 

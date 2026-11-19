@@ -14,7 +14,7 @@ open Prelude
 let private clearActions = ConcurrentBag<unit -> unit>()
 
 /// Sign a cache up to be dropped by `invalidateAll`. `withCache` does this for itself;
-/// hand-rolled caches (the Harmful set) have to say so, or they go stale for the life of
+/// hand-rolled caches have to say so, or they go stale for the life of
 /// the process.
 let register (clear : unit -> unit) : unit = clearActions.Add clear
 

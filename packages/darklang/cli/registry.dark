@@ -295,13 +295,13 @@ module Registry =
 
   let acceptsDeprecate(): Accepts.Accepts =
     Accepts.withValues(
-      [ "--kind", "--replacement", "--message", "-m" ],
-      Accepts.between(1, 2, [ "-y", "--yes", "--dry-run", "--json" ]))
+      [ "--replacement", "--reason", "-m" ],
+      Accepts.between(1, 2, [ "--block-execution", "-y", "--yes", "--dry-run", "--json" ]))
 
 
   let acceptsDelete(): Accepts.Accepts =
     Accepts.withValues(
-      [ "--message", "-m" ],
+      [ "--reason", "-m" ],
       Accepts.between(
         1,
         2,
@@ -460,7 +460,7 @@ module Registry =
       ("resolve", "Settle one conflicted name on a branch", [], acceptsResolve, Cli.Branch.executeResolveCmd, Cli.Branch.help, Cli.Branch.complete)
       ("constraints", "Standing findings: stale usages, kind changes, rival impls", [], acceptsConstraints, Cli.ConstraintsCmd.execute, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
       ("ack", "Leave a constraint finding for now (`dark ack --all`)", [], acceptsAck, Cli.ConstraintsCmd.executeAckCmd, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
-      ("undeprecate", "Put a deprecated fn/type/value/trait/impl/test back on the shelf", [ "restore" ], acceptsUndeprecate, Packages.Deprecate.executeUndeprecate, Packages.Deprecate.undeprecateHelp, Packages.Deprecate.complete)
+      ("undeprecate", "Put a deprecated fn/type/value/trait/impl/test back on the shelf", [ "restore" ], acceptsUndeprecate, Packages.Deprecate.executeUndeprecate, Packages.Deprecate.undeprecateHelp, (fun(_, args) -> Packages.Deprecate.completeItemTypes(args)))
       ("backups", "Copies of the store: what exists, take one, prune", [], acceptsBackups, Cli.Backups.execute, Cli.Backups.help, Cli.Backups.complete)
       ("builtins", "List all builtin functions and values", [], acceptsBuiltins, Builtins.execute, Builtins.help, Builtins.complete)
       ("find-values", "Find values of a given type", [], acceptsFindValues, Packages.FindValues.execute, Packages.FindValues.help, Packages.FindValues.complete)
@@ -469,7 +469,7 @@ module Registry =
       ("docs", "Browse in-CLI documentation", [ "doc", "man" ], acceptsDocs, Docs.Command.execute, Docs.Command.help, Docs.Command.complete)
       ("undo", "Step an item back to its previous version", [], acceptsUndo, Cli.Undo.execute, Cli.Undo.help, Cli.Undo.complete)
       ("deprecate", "Mark a fn/type/value/trait/impl/test as deprecated", [], acceptsDeprecate, Packages.Deprecate.execute, Packages.Deprecate.help, Packages.Deprecate.complete)
-      ("delete", "Take a fn/type/value/trait/impl/test off the shelf (deprecate as obsolete)", [], acceptsDelete, Packages.Delete.execute, Packages.Delete.help, Packages.Delete.complete)
+      ("delete", "Deprecate items with a live-dependents check", [], acceptsDelete, Packages.Delete.execute, Packages.Delete.help, Packages.Delete.complete)
       ("export-seed", "Export minimal seed.db from current database", [], acceptsExportSeed, ExportSeed.execute, ExportSeed.help, ExportSeed.complete)
       ("traces", "The runs this instance has kept: what ran, what it did, and resuming one", [ "trace", "exec", "runs" ], acceptsTraces, Tracing.execute, Tracing.help, Tracing.complete)
       ("conflicts", "Review what a merge or rebase auto-resolved", [], acceptsConflicts, Conflicts.execute, Conflicts.help, Conflicts.complete)

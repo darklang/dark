@@ -925,8 +925,8 @@ type PackageOp =
   // the author, who can then pick from:
   //   (a) commit the auto-ignore ("reviewed, intentional") — records the
   //       acknowledgement so the signal doesn't re-fire on every future op,
-  //   (b) emit an explicit resolution: a Deprecate op (usually Obsolete
-  //       with a message, or SupersededBy pointing at the new item), a
+  //   (b) emit an explicit resolution: a Deprecate op (usually Deprecated
+  //       with a message, or WithReplacement pointing at the new item), a
   //       SetName rebinding, or an Unbind.
   //
   // The point is a prompt-for-committed-resolution loop that parallels
@@ -1173,13 +1173,10 @@ and DecisionKind =
   /// what you are asked about, never what a name resolves to.
   | Ack of findingId : string
 
-/// Why a package item has been deprecated. Author-supplied metadata on the
-/// Deprecate op; consumers (LSP, CLI, runtime) decide how loud to be.
-/// TODO: `Harmful` is the only kind SCM can't already express via rebinding;
-///   if usage confirms `SupersededBy`/`Obsolete` overlap, fold into one.
+/// What a Deprecate op tells callers to do with a package item.
 and DeprecationKind =
   /// A different item (different hash) should be used instead.
-  | SupersededBy of replacement : Reference
+  | WithReplacement of replacement : Reference
 
   /// Actively dangerous (security, correctness, data loss).
   /// Runtime halts on invocation by default; `--allow-harmful` overrides.
@@ -1188,8 +1185,8 @@ and DeprecationKind =
   /// legitimately be Harmful if it holds a secret accidentally.)
   | Harmful
 
-  /// Don't use this anymore (catch-all; no halt, no replacement pointer).
-  | Obsolete
+  /// The item remains callable and has no named replacement.
+  | Deprecated
 
 
 // A single repoint: what propagation moved, reported back to the caller so it can say so.

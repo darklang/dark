@@ -584,15 +584,7 @@ let traitsAreAuthoredListedAndDisambiguated =
             "editing the method updates the caller"
 
         // Deprecating the one that RUNS leaves the other, which then runs.
-        do!
-          run
-            state
-            [ "deprecate"
-              "impl"
-              "Tests.TrOther.Point.Describe"
-              "--kind"
-              "obsolete"
-              "-y" ]
+        do! run state [ "deprecate"; "impl"; "Tests.TrOther.Point.Describe"; "-y" ]
         do!
           evals
             state
@@ -619,7 +611,7 @@ let traitsAreAuthoredListedAndDisambiguated =
           shows
             state
             [ "delete"; "Tests.Tr.Point.Describe"; "-y" ]
-            "Deprecated impl Tests.Tr.Point.Describe"
+            "Deprecated Tests.Tr.Point.Describe."
             "delete infers the impl kind"
         do! discardAll state
       })

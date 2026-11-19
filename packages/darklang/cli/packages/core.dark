@@ -486,6 +486,40 @@ let authorInline(
       failed(state)
 
 
+/// Capture the current hash if this name is deprecated before the save.
+let deprecatedHashBeforeSave(
+  branchId: Uuid,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  kind: LanguageTools.ProgramTypes.ItemKind)
+  : Option<LanguageTools.ProgramTypes.Hash> =
+  match SCM.Propagation.hashOn(branchId, location, kind) with
+  | None -> Option.None
+  | Some(hash) ->
+    LanguageTools.PackageManager.currentDeprecation(branchId, location, hash, kind)
+    |> Stdlib.Option.map(fun _ -> hash)
+
+
+/// Whether the code stayed the same and what to tell the author about its deprecation.
+let deprecationSaveNote(
+  branchId: Uuid,
+  location: LanguageTools.ProgramTypes.PackageLocation,
+  kind: LanguageTools.ProgramTypes.ItemKind,
+  previous: LanguageTools.ProgramTypes.Hash)
+  : Option<(Bool * String)> =
+  let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(location)
+  match SCM.Propagation.hashOn(branchId, location, kind) with
+  | None -> Option.None
+  | Some(current) ->
+    let unchanged = current == previous
+    match LanguageTools.PackageManager.currentDeprecation(branchId, location, current, kind) with
+    | Some(_) ->
+      let status = if unchanged then "unchanged and still deprecated" else "still deprecated"
+      Option.Some((unchanged, $"{name} is {status}. Use `dark restore {name}` to reactivate it."))
+    | None when Stdlib.Bool.not(unchanged) ->
+      Option.Some((false, $"The new definition of {name} is active."))
+    | _ -> Option.None
+
+
 /// Shared tail of the authoring flow: build the name-resolution context, convert the written
 /// declaration, check unresolved names, take the previous hashes, save, report, and repoint
 /// dependents. `kindWord` fills the output lines ("function" | "type" | "value"). `convert`
@@ -524,6 +558,7 @@ let saveAuthored(
     if Errors.reportUnresolvedNames(state.currentBranchId, home, unresolvedNames) then
       failed(state)
     else
+      let previouslyDeprecated = deprecatedHashBeforeSave(state.currentBranchId, location, kind)
       match commitAuthored(state.currentBranchId, location, kind, hash, ops) with
       | Ok(committed) ->
         let isUpdate = committed.isUpdate
@@ -544,6 +579,11 @@ let saveAuthored(
           else
             Stdlib.Cli.UI.Colors.success("✓")
 
+        let deprecationNote =
+          previouslyDeprecated
+          |> Stdlib.Option.andThen(fun previous ->
+            deprecationSaveNote(state.currentBranchId, location, kind, previous))
+
         if reverted then
           Stdlib.printLine($"{glyph} Put {kindWord} {fullPath} back to an earlier version")
         else if landed then
@@ -555,9 +595,13 @@ let saveAuthored(
             | None -> ""
 
           Stdlib.printLine($"{glyph} {action} {kindWord} {fullPath}{alsoNamed}")
-        else
+        else if deprecationNote == Option.None then
           Stdlib.printLine(
             Stdlib.Cli.UI.Colors.hint($"= {kindWord} {fullPath} is unchanged; nothing was saved"))
+
+        deprecationNote
+        |> Stdlib.Option.toList
+        |> Stdlib.List.iter(fun((_, message)) -> Stdlib.printLine(message))
 
         let sourceShift = Stdlib.UInt64.fromInt64(firstLineShift) |> Stdlib.Option.withDefault(0u64)
         AtRestCheck.printUnresolvedTraitCalls(committed.unresolvedTraitCalls, sourceShift)

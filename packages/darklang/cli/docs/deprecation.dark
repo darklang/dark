@@ -6,7 +6,7 @@ let content(): String =
 Author-initiated notes that a fn/type/value/trait/impl shouldn't be used anymore.
 A deprecation is said at a NAME, about the content it holds then. Content is
 shared -- `Probe.v = 5` is the same item as every other `= 5` -- so deleting or
-deprecating one name leaves the others alone. `harmful` is the exception: it is
+deprecating one name leaves the others alone. `--block-execution` is the exception: it is
 about the code, so it marks every name holding that code. A pure rename of the same hash is not a
 deprecation (name changes go through `SetName`); a rewrite with
 a replacement is. Removing a NAME is a different op again, `Unbind`: the name
@@ -14,32 +14,24 @@ stops resolving, the content stays reachable by hash, and nothing is said
 about the content. A deprecated name still resolves; an unbound one does not.
 No verb writes an `Unbind` yet; the package importer will.
 
-## Three kinds
-
-  superseded-by    Use a different item (different hash) instead.
-                   Requires --replacement.
-  harmful          Actively dangerous (security, correctness, data loss).
-                   Runtime halts on invocation unless --allow-harmful is set.
-                   FNS ONLY: the halt happens at a call, so there is nowhere
-                   for a marked type or value to stop. Those are refused.
-  obsolete         Don't use this anymore (catch-all; no halt, no replacement).
-
 ## Commands
 
-  deprecate <fn|type|value> <name-or-hash> --kind <k> [options]
-  delete    <fn|type|value> <name-or-hash> [options]
-  undeprecate <name>                         # put it back on the shelf
+  deprecate [<fn|type|value|trait|impl|test>] <name> [options]
+  delete <name> [options]
+  undeprecate <name>                         # or restore
 
-`delete` is sugar for `deprecate --kind obsolete`, but it requires
---ignore-dependents when the target has live dependents. Prefer
-`deprecate --kind superseded-by` or `deprecate --kind harmful` when a
-replacement or runtime-halt is wanted.
+By default, a deprecated item can still be used by name. Use
+`--replacement` to point to a replacement of the same kind. Use
+`--block-execution` to block calls to a function. Choose at most one.
+
+`delete` deprecates items and requires `--ignore-dependents` when there
+are live dependents.
 
 ## Options
 
-  --kind <k>                    superseded-by, harmful, or obsolete
-  --replacement <name-or-hash>  Required for --kind superseded-by
-  -m, --message <text>          Free-form reason; shown in view and search
+  --replacement <name>          Point callers to a replacement of the same kind
+  --block-execution             Reject calls unless --allow-harmful is set (functions only)
+  --reason <text>, -m            Reason for deprecating the item
   --yes, -y                     Skip confirmation prompt
   --dry-run                     Print what would happen; emit no ops
   --json                        Print the result as JSON (see below)
@@ -50,37 +42,40 @@ replacement or runtime-halt is wanted.
 
 `deprecate --json` and `delete --json` print one object:
 
-  { "deprecated": "Acme.oldThing", "itemType": "fn", "kind": "obsolete",
+  { "deprecated": "Acme.oldThing", "itemType": "fn", "kind": "deprecated",
     "replacement": "", "message": "", "names": ["Acme.oldThing"], "dryRun": false }
 
-`names` is every name the deprecation reaches: the target alone, or for
-`harmful` every name holding the code. Without
+`names` lists the declarations affected. A module delete reports
+`"itemType": "module"` and lists each declaration in the batch. An execution
+block lists every name holding the code. Without
 --yes (or --force) nothing is written and `dryRun` is true. A refusal (not found,
 live dependents) prints nothing on stdout, says why on stderr, and exits 1.
 
 ## Runtime behaviour
 
-Invoking a `harmful`-marked item raises `RuntimeError.DeprecatedItemHalted`.
-Tests, sandboxes, and security research can opt out:
+A function blocked on the selected branch raises `RuntimeError.DeprecatedItemHalted`.
+Child branches inherit committed blocks. Restoring a function on a child branch
+clears the block there, while the parent branch keeps its block.
+Tests and sandboxes can opt out:
 
-  run --allow-harmful fn <target> [args...]
+  run --allow-harmful <target> [args...]
   eval --allow-harmful <expr>
 
-`obsolete` and `superseded-by` do not halt. They surface in `view` and `ls`.
+`view` and `ls` show deprecation notices.
 
 ## Examples
 
   # Replace one fn with another
   dark deprecate fn Me.Lists.oldMap \
-    --kind superseded-by --replacement Me.Lists.map \
-    -m "rewrite for perf" --yes
+    --replacement Me.Lists.map \
+    --reason "rewrite for perf" --yes
 
-  # Mark something actively dangerous
+  # Block calls to a function
   dark deprecate fn Me.Crypto.brokenHash \
-    --kind harmful -m "CVE-2026-XXXX" --yes
+    --block-execution --reason "CVE-2026-XXXX" --yes
 
-  # Take off the shelf (catch-all)
-  dark delete fn Me.Legacy.oldThing -m "no longer maintained" --yes
+  # Deprecate an item with no live dependents
+  dark delete fn Me.Legacy.oldThing --reason "no longer maintained" --yes
 
   # Put it back
   dark undeprecate Me.Lists.oldMap
@@ -89,10 +84,7 @@ Tests, sandboxes, and security research can opt out:
 
   undeprecate <name>      # or `restore`
 
-No `--kind` and no item type: you know the name, and making you also name the
-kind to UN-do something is a question asked because it's easy to implement.
-It clears any kind, including `harmful`, so the fn runs again without
-`--allow-harmful`.
+`undeprecate` clears the deprecation, including any execution block.
 
 Deprecating the last implementation of a trait for a type is the one deprecation
 that can refuse a later save: nothing is left to discharge the trait, so a new
@@ -102,8 +94,8 @@ the order is: deprecate, then move the callers.
 
 Deprecation is said at the name, so if two names hold the same bytes,
 deleting or deprecating one leaves the other as it was, and `deprecate` says so
-in one line on stderr. `harmful` marks both, and names the others; undeprecating
-a harmful item clears it at every name holding the code. Trait dispatch counts
+in one line on stderr. `--block-execution` marks every name holding the code.
+Restoring one of those names clears the block for all of them. Trait dispatch counts
 content as deprecated only when no name holds it undeprecated.
 
 ## Visibility in package tree

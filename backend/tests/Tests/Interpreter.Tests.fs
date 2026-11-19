@@ -1758,7 +1758,7 @@ let callCrate(): String = {q}.guarded({q}.Crate {{ crateDepth{r} = 1 }})"
           [ PT.PackageOp.Deprecate(
               boxImplAt,
               PT.Reference.PackageTraitImpl boxImpl,
-              PT.DeprecationKind.Obsolete,
+              PT.DeprecationKind.Deprecated,
               "bound memo test",
               None
             ) ]

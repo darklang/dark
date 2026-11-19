@@ -1095,7 +1095,7 @@ module ProgramTypes =
       Deprecate(
         loc,
         Reference.PackageFn hashPT,
-        DeprecationKind.Obsolete,
+        DeprecationKind.Deprecated,
         "gone",
         None
       )
@@ -1103,7 +1103,7 @@ module ProgramTypes =
       Deprecate(
         otherLoc,
         Reference.PackageType hashPT,
-        DeprecationKind.SupersededBy(Reference.PackageType shortHash),
+        DeprecationKind.WithReplacement(Reference.PackageType shortHash),
         "use the other one",
         None
       )
@@ -1113,7 +1113,7 @@ module ProgramTypes =
       Deprecate(
         loc,
         Reference.PackageFn hashPT,
-        DeprecationKind.Obsolete,
+        DeprecationKind.Deprecated,
         "gone",
         Some "2026-01-01T00:00:00.000Z-0001"
       )
