@@ -48,9 +48,7 @@ test discardOnABranchLeavesMainsDraftAlone =
       evalsOn(dark, "main", "Tests.App.onMain()", "1", "and still runs") ])
 
 
-// Odd, but today's behaviour: discarding a name leaves its caller's follow in the draft, so the
-// caller keeps running the version that was just thrown away. If that changes, update this test.
-test discardingANameLeavesItsCallerOnTheDiscardedVersion =
+test discardingAnUndoRestoresItsCaller =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.helper", "1")
       save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 10")
@@ -77,25 +75,31 @@ test discardingANameLeavesItsCallerOnTheDiscardedVersion =
         "2",
         "the helper is back on its committed version")
 
-      same(
-        draft(dark),
-        [ "followed Tests.App.caller" ],
-        "the caller's follow is still in the draft")
-
       evals(
         dark,
         "Tests.App.caller()",
-        "11",
-        "so the caller still runs the discarded version")
+        "12",
+        "the caller runs the restored version")
 
-      same(
-        staleCallers(dark),
-        1,
-        "and status counts it as pointing at an old version") ])
+      same(staleCallers(dark), 0, "the caller is current") ])
 
 
-// The same on a branch, followed by archiving the branch: archiving throws the stale follow
-// away with everything else, and main's caller is untouched.
+test discardPreservesCallerEditsAndUpdatesTransitiveCallers =
+  scenario(fun dark ->
+    [ saveNumber(dark, "Tests.App.helper", "1")
+      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 10")
+      save(dark, "Tests.App.outer", "(): Int64 = Tests.App.caller() * 2")
+      commit(dark, "base")
+      saveNumber(dark, "Tests.App.helper", "2")
+      saveNumber(dark, "Tests.App.helper", "3")
+      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.helper() + 20")
+      evals(dark, "Tests.App.outer()", "46", "the edited caller uses the latest draft")
+      run(dark, [ "discard", "Tests.App.helper", "-y" ])
+      evals(dark, "Tests.App.caller()", "21", "the caller keeps its own edit")
+      evals(dark, "Tests.App.outer()", "42", "the transitive caller updates too")
+      same(staleCallers(dark), 0, "the callers are current") ])
+
+
 test discardOnABranchThenArchiveLeavesMainUntouched =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.helper", "1")
@@ -118,18 +122,10 @@ test discardOnABranchThenArchiveLeavesMainUntouched =
       evals(
         dark,
         "Tests.App.caller()",
-        "12",
-        "but the caller still runs the discarded one")
+        "11",
+        "the branch caller runs the restored version")
 
-      same(
-        draft(dark),
-        [ "followed Tests.App.caller" ],
-        "because its follow stayed in the draft")
-
-      same(
-        staleCallers(dark),
-        1,
-        "which status counts as pointing at an old version")
+      same(staleCallers(dark), 0, "the branch caller is current")
 
       saveNumber(dark, "Tests.App.helper", "3")
       commit(dark, "feat work")
