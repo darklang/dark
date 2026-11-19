@@ -3480,9 +3480,9 @@ module PackageOp =
     | Deprecate(loc, target, kind, _message, _restating) ->
       let kindStr =
         match kind with
-        | SupersededBy(_) -> "superseded-by"
+        | WithReplacement(_) -> "replacement"
         | Harmful -> "harmful"
-        | Obsolete -> "obsolete"
+        | Deprecated -> "deprecated"
 
       let path = PackageLocation.packageLocation(loc)
       let hash = LanguageTools.ProgramTypes.Reference.hash(target)

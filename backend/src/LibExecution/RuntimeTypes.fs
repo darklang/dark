@@ -5038,15 +5038,9 @@ type PackageManager =
     /// invariant), so a second insert is a cheap no-op.
     persistBytes : string -> byte[] -> unit
 
-    /// Is this package fn hash marked Harmful? Only fns participate -- see
-    /// `DeprecationKind.Harmful` for why.
-    ///
-    /// No branch, because a deprecation keys on the CONTENT hash and content is the same thing on
-    /// every branch. Content-addressed like the other PM lookups.
-    ///
-    /// Synchronous: every implementation computes this without I/O (the DB-backed one reads a cache),
-    /// so returning `bool` would cost a computation-expression bind on every package call.
-    isHarmful : FQFnName.Package -> bool
+    /// Whether the branch can see an execution block for this function hash.
+    /// The store-backed implementation caches blocks per branch for synchronous calls.
+    isHarmful : Branching.BranchId -> FQFnName.Package -> bool
 
     /// Every impl of a trait visible on a branch. Branch-scoped, unlike the
     /// content-addressed lookups above: which impls exist is a question about
@@ -5077,7 +5071,7 @@ type PackageManager =
       getTrait = (fun _ -> None)
       getBytes = (fun _ -> None)
       persistBytes = (fun _ _ -> ())
-      isHarmful = (fun _ -> false)
+      isHarmful = (fun _ _ -> false)
       implCandidates = (fun _ _ -> [])
       implCandidatesByMethod = (fun _ _ -> [])
       implSelectionMemo = ImplSelectionMemo.create ()
@@ -6660,8 +6654,8 @@ and Functions =
   {
     builtIn : Dictionary<FQFnName.Builtin, BuiltInFn>
     package : FQFnName.Package -> Option<PackageFn.PackageFn>
-    /// `PackageManager.isHarmful` with the state's branchId pre-applied.
-    isHarmful : FQFnName.Package -> bool
+    /// `PackageManager.isHarmful` checked with the calling state's branch.
+    isHarmful : Branching.BranchId -> FQFnName.Package -> bool
     /// `PackageManager.implCandidates`; the interpreter passes the state's branch.
     implCandidates : Branching.BranchId -> FQTraitName.Package -> List<ImplCandidate>
     implCandidatesByMethod : Branching.BranchId -> string -> List<ImplCandidate>

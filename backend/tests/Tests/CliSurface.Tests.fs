@@ -297,7 +297,7 @@ let private warningsAndPreviewsStayOffStdout =
         Expect.equal status 0 "the dry run answered"
         Expect.stringContains
           out
-          "Will deprecate fn Tests.Streams.f"
+          "Would deprecate fn Tests.Streams.f"
           "the preview is the answer"
         Expect.isFalse (out.Contains "dry-run") "the dry-run note is not"
         Expect.stringContains (CliDsl.plain err) "no op emitted" "it is on stderr"
@@ -439,13 +439,13 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     Says "callers now use"
     [ "delete"; "Tests.Rows.g2"; "--dry-run" ],
     0,
-    Says "Will deprecate",
+    Says "Would deprecate",
     Says "dry-run"
     [ "delete"; "Tests.Rows.g2" ], 1, Silent, Says "no terminal to confirm at"
     [ "delete"; "Tests.Rows.g2"; "-y" ],
     0,
-    Says "Deprecated fn Tests.Rows.g2",
-    Says "Will deprecate"
+    Says "Deprecated Tests.Rows.g2 (still callable).",
+    Silent
     [ "undeprecate"; "Tests.Rows.g2" ], 0, Says "Undeprecated", Silent
     [ "fn"; "Tests.Rows.f"; "(x: Int64): Int64 = x + 2" ],
     0,

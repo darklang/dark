@@ -622,7 +622,10 @@ let private deprecationIsReversible =
       let! _ =
         runCli state [ "delete"; "fn"; "Tests.Undep.item"; "-m"; "t"; "--yes" ]
       let! hidden = runCli state [ "ls"; "Tests.Undep" ]
-      Expect.isFalse (hidden.Contains "item") "a deleted item is hidden"
+      Expect.stringContains
+        hidden
+        "No visible items in /Tests.Undep."
+        "a deleted item leaves the module listing empty"
 
       do!
         shows
@@ -631,7 +634,7 @@ let private deprecationIsReversible =
           "Undeprecated"
           "undeprecate reports what it did"
 
-      do! shows state [ "ls"; "Tests.Undep" ] "item" "and it is back on the shelf"
+      do! shows state [ "ls"; "Tests.Undep" ] "  item" "the item appears again"
 
       do! shows state [ "eval"; "Tests.Undep.item(1)" ] "4243" "and it still runs"
     })
@@ -795,8 +798,7 @@ let private deprecationTakesEffectInTheSameProcess =
           [ "deprecate"
             "fn"
             "Tests.Harm.f"
-            "--kind"
-            "harmful"
+            "--block-execution"
             "-m"
             "t"
             "--yes" ]
@@ -1913,8 +1915,7 @@ let private aCommitKeepsTheDraftOverAnOlderMergedEdit =
             [ "deprecate"
               "fn"
               "Tests.CommitLww.g"
-              "--kind"
-              "harmful"
+              "--block-execution"
               "-m"
               "main's draft"
               "-y" ]

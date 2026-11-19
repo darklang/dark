@@ -224,6 +224,19 @@ let executePackageFn(
     Stdlib.printErrorLine($"No script file or function named {name}")
     { state with exitCode = 1 }
   | Some(hash) ->
+    let deprecation =
+      LanguageTools.PackageManager.currentDeprecation(
+        branchId, location, hash, LanguageTools.ProgramTypes.ItemKind.Fn)
+
+    match deprecation with
+    | Some((WithReplacement(reference), _)) ->
+      let replacement = Packages.View.resolveReplacementName(branchId, reference)
+      Stdlib.printErrorLine(
+        Stdlib.Cli.UI.Colors.warning($"Warning: {fnName} is deprecated. Use {replacement} instead."))
+    | Some(_) ->
+      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.warning($"Warning: {fnName} is deprecated."))
+    | None -> ()
+
     match LanguageTools.PackageManager.Function.getSignature(hash) with
     | Some(fn) ->
       match fn.parameters |> Stdlib.List.map(fun p -> p.typ) with

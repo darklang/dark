@@ -705,7 +705,7 @@ test aReplayTellsDriftFromARaise = withTraces(fun i ->
   let deprecated =
     step(
       i,
-      [ "deprecate", "fn", "Tests.DriftT.inner", "--kind", "harmful", "--yes" ])
+      [ "deprecate", "fn", "Tests.DriftT.inner", "--block-execution", "--yes" ])
 
   let page = Instance.said(i, [ "traces", "show", "Tests.DriftT.outer", id ])
 

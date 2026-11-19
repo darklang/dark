@@ -1550,7 +1550,7 @@ module PackageManager =
 
       // PT PackageManager doesn't surface deprecation state; transient
       // wrappers (tests, in-memory flows) have no branch chain anyway.
-      isHarmful = fun _ -> false
+      isHarmful = fun _ _ -> false
 
       // The PT pm already answers for one branch, so the branch id is not needed.
       implCandidates = fun _ traitHash -> ImplCandidate.ofPackageManager pm traitHash

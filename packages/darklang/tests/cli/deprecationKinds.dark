@@ -1,80 +1,47 @@
 module Darklang.Cli.Tests.DeprecationKinds
 
-// `--kind harmful` is a promise about the RUNTIME, and the runtime can only keep it for fns: the gate is a
-// call-site check, so a marked type or value has no point at which to halt. Accepting the combination
-// reports success for a safety marking that can never fire, which is the failure worth a test -- nothing
-// errors, and you believe something dangerous is fenced off when it isn't.
-//
-// `parseKind` is where that belongs, because it is the one place all three kinds meet the item kind.
+test blockExecutionIsFunctionOnly = Instance.withInstance(fun i ->
+  let _ = Instance.ran(i, [ "type", "Tests.Dep.T", "= { n: Int64 }" ])
+  let (code, out) =
+    Instance.ran(i, [ "deprecate", "Tests.Dep.T", "--block-execution", "--yes" ])
 
-module Kinds =
-  let parse(
-    item: LanguageTools.ProgramTypes.ItemKind,
-    kind: String)
-    : Stdlib.Result.Result<LanguageTools.ProgramTypes.DeprecationKind, String> =
-    Cli.Packages.Deprecate.parseKind(item, kind, Stdlib.Option.Option.None)
-
-
-  /// The refusal's TEXT, so an assertion can say which refusal it means: `Error _ -> true`
-  /// passed for "harmful is fn-only" and "no such kind" alike.
-  let refusalText(
-    item: LanguageTools.ProgramTypes.ItemKind,
-    kind: String)
-    : String =
-    match Kinds.parse(item, kind) with
-    | Error(e) -> e
-    | Ok(_) -> ""
-
-
-// Harmful is fn-only.
-test harmfulIsFnOnly =
+  let (defaultCode, _) = Instance.ran(i, [ "deprecate", "Tests.Dep.T", "--yes" ])
   Stdlib.Test.all(
-    [ Kinds.parse(LanguageTools.ProgramTypes.ItemKind.Fn, "harmful")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(
-          LanguageTools.ProgramTypes.DeprecationKind.Harmful))
-
-      Stdlib.String.contains(
-        Kinds.refusalText(LanguageTools.ProgramTypes.ItemKind.Value, "harmful"),
-        "only applies to fns")
-      |> Stdlib.Test.equal(true)
-
-      Stdlib.String.contains(
-        Kinds.refusalText(LanguageTools.ProgramTypes.ItemKind.Type, "harmful"),
-        "only applies to fns")
-      |> Stdlib.Test.equal(true) ])
+    [ Instance.exitedWith(code, 1, "execution block refused for a type")
+      Instance.says(out, "--block-execution only applies to functions", "explains the refusal")
+      Instance.exitedWith(defaultCode, 0, "plain deprecation works for a type") ]))
 
 
-// Obsolete is the kind that DOES apply to all three, and is what the refusal points at.
-test obsoleteAppliesToAll =
+test refusesConflictingEffects = Instance.withInstance(fun i ->
+  let (code, out) =
+    Instance.ran(
+      i,
+      [ "deprecate", "Tests.Dep.f", "--replacement", "Tests.Dep.g", "--block-execution" ])
+
   Stdlib.Test.all(
-    [ Kinds.parse(LanguageTools.ProgramTypes.ItemKind.Fn, "obsolete")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(
-          LanguageTools.ProgramTypes.DeprecationKind.Obsolete))
-
-      Kinds.parse(LanguageTools.ProgramTypes.ItemKind.Value, "obsolete")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(
-          LanguageTools.ProgramTypes.DeprecationKind.Obsolete))
-
-      Kinds.parse(LanguageTools.ProgramTypes.ItemKind.Type, "obsolete")
-      |> Stdlib.Test.equal(
-        Stdlib.Result.Result.Ok(
-          LanguageTools.ProgramTypes.DeprecationKind.Obsolete)) ])
+    [ Instance.exitedWith(code, 1, "conflicting flags refused")
+      Instance.says(out, "Use either --replacement or --block-execution", "names the conflict") ]))
 
 
-// superseded-by needs a replacement, whatever the item kind.
-test supersededByNeedsReplacement =
-  Stdlib.String.contains(
-    Kinds.refusalText(LanguageTools.ProgramTypes.ItemKind.Fn, "superseded-by"),
-    "requires --replacement")
-  |> Stdlib.Test.equal(true)
+test oldKindFlagIsRejected = Instance.withInstance(fun i ->
+  let (code, out) =
+    Instance.ran(i, [ "deprecate", "Tests.Dep.f", "--kind", "deprecated" ])
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 1, "old kind flag refused")
+      Instance.says(out, "does not take `--kind`", "refusal names the old kind flag") ]))
 
 
-// An unknown kind is still an unknown kind, not a harmful-shaped refusal.
-test unknownKind =
-  Stdlib.String.contains(
-    Kinds.refusalText(LanguageTools.ProgramTypes.ItemKind.Fn, "not-a-kind"),
-    "Unknown kind")
-  |> Stdlib.Test.equal(true)
+test replacementShowsInRunWarning = Instance.withInstance(fun i ->
+  let _ = Instance.ran(i, [ "fn", "Tests.Replace.old", "(): Int64 = 0" ])
+  let _ = Instance.ran(i, [ "fn", "Tests.Replace.newer", "(): Int64 = 1" ])
+  let (deprecateCode, _) =
+    Instance.ran(i, [ "deprecate", "Tests.Replace.old", "--replacement", "Tests.Replace.newer", "--yes" ])
+
+  let (runCode, runOut) = Instance.ran(i, [ "run", "Tests.Replace.old" ])
+  let saved = Instance.said(i, [ "fn", "Tests.Replace.old", "(): Int64 = 0" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(deprecateCode, 0, "registered the replacement")
+      Instance.exitedWith(runCode, 0, "the original function still runs")
+      Instance.says(runOut, "Use Tests.Replace.newer instead.", "the warning names the replacement")
+      Instance.says(saved, "is unchanged and still deprecated", "saving identical code explains the status") ]))

@@ -188,6 +188,15 @@ let define(state: AppState, modulePath: String, source: String, caller: Caller):
         else if refused then
           failed(state)
         else
+          let previouslyDeprecated =
+            if bundled then
+              []
+            else
+              updates
+              |> Stdlib.List.filterMap(fun item ->
+                deprecatedHashBeforeSave(branchId, item.location, item.kind)
+                |> Stdlib.Option.map(fun hash -> (item.location, item.kind, hash)))
+
           // Stabilize and store the module as one mutually recursive batch.
           match SCM.PackageOps.addAuthored(branchId, ops) with
           | Error(message) ->
@@ -213,9 +222,17 @@ let define(state: AppState, modulePath: String, source: String, caller: Caller):
 
             let docsUpdated = landDocEdits(branchId, ops)
 
-            // Counted from the ops that were recorded, not from the declarations
-            // that were parsed, so the number is what happened rather than what
-            // was asked for.
+            let deprecationNotes =
+              previouslyDeprecated
+              |> Stdlib.List.filterMap(fun((location, kind, hash)) ->
+                deprecationSaveNote(branchId, location, kind, hash))
+
+            let unchangedDeprecated =
+              deprecationNotes
+              |> Stdlib.List.filter(Stdlib.Tuple2.first)
+              |> Stdlib.List.length
+
+            // Keep every submitted binding for the missing-declaration and leftover checks.
             let definedNames =
               ops
               |> Stdlib.List.filterMap(fun op ->
@@ -225,7 +242,7 @@ let define(state: AppState, modulePath: String, source: String, caller: Caller):
                 | SetName(location, _, _) -> Option.Some(location.name)
                 | _ -> Option.None)
 
-            let count = Stdlib.List.length(definedNames)
+            let count = Stdlib.List.length(definedNames) - unchangedDeprecated
 
             // "1 declarations" is the sort of thing you stop reading, and `edit`
             // routes through here for a single item, so the singular is a common
@@ -240,17 +257,21 @@ let define(state: AppState, modulePath: String, source: String, caller: Caller):
               | Checked -> Stdlib.Cli.UI.Colors.success("✓")
               | Failed | Incomplete -> Stdlib.Cli.UI.Colors.warning("!")
 
-            // A doc-only edit is otherwise indistinguishable from a save that changed nothing.
             let docNote =
               if docsUpdated == 0 then
                 ""
-              else if docsUpdated == 1 then
-                "; updated 1 doc comment"
               else
-                $"; updated {Stdlib.display(docsUpdated)} doc comments"
+                let comments = Text.plural(docsUpdated, "doc comment")
+                $"Updated {comments}."
 
-            Stdlib.printLine(
-              $"{glyph} Defined {Stdlib.display(count)} {what} in {modulePath}{docNote}")
+            if count > 0 || unchangedDeprecated == 0 then
+              let summary = $"{glyph} Defined {count} {what} in {modulePath}"
+              Stdlib.printLine(if docNote == "" then summary else $"{summary}. {docNote}")
+            else if docNote != "" then
+              Stdlib.printLine($"{glyph} {docNote}")
+
+            deprecationNotes
+            |> Stdlib.List.iter(fun((_, message)) -> Stdlib.printLine(message))
 
             AtRestCheck.printUnresolvedTraitCalls(authored.unresolvedTraitCalls, 0u64)
 

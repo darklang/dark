@@ -53,10 +53,6 @@ let listModule(
   let traits = Query.filterHiddenPairs(modulePath, rawTraits, depSets, deprecated, internal)
   let impls = Query.filterHiddenPairs(modulePath, rawImpls, depSets, deprecated, internal)
   let tests = Query.filterHiddenPairs(modulePath, rawTests, depSets, deprecated, internal)
-  let locationStr = formatLocation(location)
-  Stdlib.printLine($"Contents of {locationStr}:")
-  Stdlib.printLine("")
-
   // An implementation is named `<module>.<Type>.<Trait>`, so the ones written in THIS module are
   // stored one level down, under the type they are for. A listing of the module shows them anyway:
   // you wrote `impl Show for Pt` in `Acme`, so `ls Acme` is where you look for it. They also show
@@ -117,9 +113,48 @@ let listModule(
 
   let implNames = impls |> Stdlib.List.map(fun((name, _)) -> name)
   let submodules = LanguageTools.PackageManager.Search.readerSubmodules(allSubmodules, implNames)
-  if Stdlib.Bool.not(Stdlib.List.isEmpty(submodules)) then
+  let submodules =
+    match deprecated with
+    | Show -> submodules
+    | Hide ->
+      submodules
+      |> Stdlib.List.filter(fun name ->
+        Query.moduleHasVisibleItems(
+          branchId,
+          Stdlib.List.append(modulePath, name),
+          depSets,
+          deprecated,
+          internal))
+
+  let hasItems =
+    submodules != []
+    || implEntries != []
+    || Stdlib.List.any([ types, values, fns, traits, tests ], fun items -> items != [])
+
+  if hasItems then
+    Stdlib.printLine($"Contents of {formatLocation(location)}:")
+    Stdlib.printLine("")
+  else
+    let path = "/" + Stdlib.String.join(modulePath, ".")
+    Stdlib.printLine($"No visible items in {path}.")
+    if deprecated == Query.Deprecated.Hide
+       && Query.moduleHasVisibleItems(
+         branchId, modulePath, depSets, Query.Deprecated.Show, internal) then
+      Stderr.line($"Use `dark ls {path} --include-deprecated` to show deprecated items.")
+
+  if submodules != [] then
     Stdlib.printLine(Display.getSectionHeader("module"))
-    submodules |> Stdlib.List.iter(fun name -> Stdlib.printLine($"  {name}/"))
+    submodules
+    |> Stdlib.List.iter(fun name ->
+      let path = Stdlib.List.append(modulePath, name)
+      let mark =
+        if deprecated == Query.Deprecated.Show
+           && Stdlib.Bool.not(Query.moduleHasActiveItems(branchId, path, depSets)) then
+          " (deprecated)"
+        else
+          ""
+
+      Stdlib.printLine($"  {name}/{mark}"))
     Stdlib.printLine("")
 
   let printSection(header: String, items: List<(String * LanguageTools.ProgramTypes.Hash)>): Unit =

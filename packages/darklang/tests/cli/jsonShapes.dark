@@ -657,10 +657,10 @@ test deprecateAndDeleteAnswerInJson = Instance.withInstance(fun i ->
         i,
         [ "deprecate"
           "Tests.JsonDep.alone"
-          "--kind"
-          "superseded-by"
           "--replacement"
           "Tests.JsonDep.newer"
+          "--reason"
+          "Use newer"
           "--dry-run"
           "--json" ],
         [ (fun j -> hasKeys(j, keys))
@@ -669,7 +669,8 @@ test deprecateAndDeleteAnswerInJson = Instance.withInstance(fun i ->
              |> Stdlib.Test.equal("Tests.JsonDep.alone"))
 
           (fun j -> string(j, "itemType") |> Stdlib.Test.equal("fn"))
-          (fun j -> string(j, "kind") |> Stdlib.Test.equal("superseded-by"))
+          (fun j -> string(j, "kind") |> Stdlib.Test.equal("replacement"))
+          (fun j -> string(j, "message") |> Stdlib.Test.equal("Use newer"))
           (fun j ->
              string(j, "replacement")
              |> Stdlib.Test.equal("Tests.JsonDep.newer"))
@@ -690,9 +691,9 @@ test deprecateAndDeleteAnswerInJson = Instance.withInstance(fun i ->
 
       check(
         i,
-        [ "delete", "Tests.JsonDep.alone", "-m", "unused", "--json", "--yes" ],
+        [ "delete", "Tests.JsonDep.alone", "--reason", "unused", "--json", "--yes" ],
         [ (fun j -> hasKeys(j, keys))
-          (fun j -> string(j, "kind") |> Stdlib.Test.equal("obsolete"))
+          (fun j -> string(j, "kind") |> Stdlib.Test.equal("deprecated"))
           (fun j -> string(j, "message") |> Stdlib.Test.equal("unused"))
           dryRun(false) ])
 
@@ -710,8 +711,6 @@ test deprecateAndDeleteAnswerInJson = Instance.withInstance(fun i ->
         i,
         [ "deprecate"
           "Tests.JsonDep.nothing"
-          "--kind"
-          "obsolete"
           "--json"
           "--yes" ],
         "Could not resolve")
@@ -720,6 +719,47 @@ test deprecateAndDeleteAnswerInJson = Instance.withInstance(fun i ->
         i,
         [ "delete", "Tests.JsonDep.leaf", "--json", "--yes" ],
         "live dependent") ]))
+
+
+test deleteModuleAnswersInJson = Instance.withInstance(fun i ->
+  let names =
+    Stdlib.AltJson.Json.Array(
+      [ Stdlib.AltJson.Json.String("Tests.JsonDeleteBatch.Nested.second")
+        Stdlib.AltJson.Json.String("Tests.JsonDeleteBatch.first") ])
+
+  let dryRun = fun expected ->
+    (fun j -> field(j, "dryRun") |> Stdlib.Test.equal(Stdlib.AltJson.Json.Bool(expected)))
+
+  Stdlib.Test.all(
+    [ step(i, [ "fn", "Tests.JsonDeleteBatch.first", "(): Int64 = 2573" ])
+      step(i, [ "fn", "Tests.JsonDeleteBatch.Nested.second", "(): Int64 = 2574" ])
+      check(
+        i,
+        [ "delete", "Tests.JsonDeleteBatch", "--json" ],
+        [ (fun j -> string(j, "deprecated") |> Stdlib.Test.equal("Tests.JsonDeleteBatch"))
+          (fun j -> string(j, "itemType") |> Stdlib.Test.equal("module"))
+          (fun j -> field(j, "names") |> Stdlib.Test.equal(names))
+          dryRun(true) ])
+      check(
+        i,
+        [ "delete", "Tests.JsonDeleteBatch", "--json", "--dry-run", "--yes" ],
+        [ dryRun(true) ])
+      Instance.says(
+        Instance.said(i, [ "restore", "Tests.JsonDeleteBatch.first" ]),
+        "is not deprecated",
+        "the previews write nothing")
+
+      check(
+        i,
+        [ "delete", "Tests.JsonDeleteBatch", "--json", "--yes", "--reason", "unused" ],
+        [ (fun j -> string(j, "kind") |> Stdlib.Test.equal("deprecated"))
+          (fun j -> string(j, "message") |> Stdlib.Test.equal("unused"))
+          (fun j -> field(j, "names") |> Stdlib.Test.equal(names))
+          dryRun(false) ])
+      Instance.says(
+        Instance.said(i, [ "restore", "Tests.JsonDeleteBatch.first" ]),
+        "Undeprecated",
+        "confirmed module delete writes the deprecation") ]))
 
 
 /// `test run --json`: one answer with every test and the totals, passing or failing, and the

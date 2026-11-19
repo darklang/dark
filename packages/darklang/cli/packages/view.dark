@@ -175,11 +175,11 @@ let deprecationHeaderRowsFor(
     let (kind, message) = tuple
     let (header, replacementLine) =
       match kind with
-      | SupersededBy(ref) ->
+      | WithReplacement(ref) ->
         let replName = resolveReplacementName(branchId, ref)
-        ("DEPRECATED (superseded)", Option.Some($"   → use {replName} instead"))
+        ("DEPRECATED", Option.Some($"   → use {replName} instead"))
       | Harmful -> ("DEPRECATED (HARMFUL -- runtime will halt)", Option.None)
-      | Obsolete -> ("DEPRECATED (obsolete)", Option.None)
+      | Deprecated -> ("DEPRECATED", Option.None)
 
     let replacementRows =
       match replacementLine with

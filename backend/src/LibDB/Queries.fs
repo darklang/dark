@@ -327,16 +327,16 @@ let getDeprecatedTraitImplHashesFor (branchId : PT.BranchId) : Set<string> =
   |> Set.ofList
 
 
-/// The fns marked Harmful, read synchronously.
+/// Function hashes blocked by deprecations visible on <param branch>.
 ///
 /// Synchronous on purpose: `PackageManager.isHarmful` answers before every package call and
 /// cannot wait. It used to block on the async form below with `Async.RunSynchronously`, which
 /// never returns in a browser tab, where there is one thread and nothing else to run the wait.
 /// Boot preloaded the cache to dodge that, but authoring invalidates every cache, so the first
 /// package call after any `dark fn` in a tab hung there for good.
-let getHarmfulFnHashesSync () : Set<Hash> =
+let getHarmfulFnHashesSync (branch : PT.BranchId) : Set<Hash> =
   // Harmful is about the code, not the name: any name saying it marks the content.
-  Deprecations.deprecatedNames PT.BranchId.Main
+  Deprecations.deprecatedNames branch
   |> List.choose (fun r ->
     match r.blob with
     | Some blob when
@@ -345,5 +345,3 @@ let getHarmfulFnHashesSync () : Set<Hash> =
       Some(Hash r.hash)
     | _ -> None)
   |> Set.ofList
-
-let getHarmfulFnHashes () : Set<Hash> = (getHarmfulFnHashesSync ())

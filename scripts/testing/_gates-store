@@ -469,7 +469,7 @@ DARK
     exit 1
   fi
 
-  $CLI deprecate impl Stachu.Dep.Dt.Add --kind obsolete -m 'gate' --yes >/dev/null
+  $CLI deprecate impl Stachu.Dep.Dt.Add --reason 'gate' --yes >/dev/null
 
   # Dispatch's answer, first, so the rest of the gate is measuring a real retirement and not a
   # deprecate that did nothing.
@@ -841,12 +841,12 @@ DARK
   $CLI commit -m 'gate: the pair' --yes >/dev/null
   $CLI branch create gate-dep >/dev/null
 
-  $CLI deprecate impl Stachu.BDepRival.Pt.Show --kind obsolete -m 'gate' --yes >/dev/null
+  $CLI deprecate impl Stachu.BDepRival.Pt.Show --reason 'gate' --yes >/dev/null
 
   # The display half, which was right all along.
   viewed=$($CLI view Stachu.BDepRival.Pt.Show 2>&1 | clean || true)
   # The banner line, not the word: the source printed below it could hold it.
-  if ! grep -q '^⚠ DEPRECATED ' <<<"$viewed"; then
+  if ! grep -Fxq '⚠ DEPRECATED' <<<"$viewed"; then
     echo "trait-deprecation-is-per-branch: the branch does not even DISPLAY the implementation as"
     echo "  deprecated, so the two halves cannot be compared. It showed:"
     echo "    ${viewed//$'\n'/$'\n'    }"
@@ -973,7 +973,7 @@ DARK
     exit 1
   fi
 
-  $CLI deprecate impl Stachu.PinE.Other.Tr --kind obsolete -m 'gate' --yes >/dev/null
+  $CLI deprecate impl Stachu.PinE.Other.Tr --reason 'gate' --yes >/dev/null
   if [[ "$(other)" != 10 ]]; then
     echo "trait-pin-across-branches: deprecating on main did not retire the implementation there."
     exit 1
