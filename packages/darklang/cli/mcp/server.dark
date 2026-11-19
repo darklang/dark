@@ -81,6 +81,14 @@ let handle(line: String, runner: Tools.Runner): Option<String> =
   | Response -> None
 
 
+/// A child's output as text, without colour: `CLICOLOR_FORCE` would otherwise reach the model.
+let unstyled(bytes: Bytes): String =
+  Stdlib.Utf8.decodeWithReplacement(bytes)
+  |> Stdlib.String.split("\n")
+  |> Stdlib.List.map(Stdlib.Cli.Tui.Text.stripSgr)
+  |> Stdlib.String.join("\n")
+
+
 /// Runs each call in a child of this same binary.
 let childRunner(): Tools.Runner =
   let self = Stdlib.Cli.Sys.currentExecutablePath()
@@ -98,8 +106,8 @@ let childRunner(): Tools.Runner =
           | Ok(output) ->
             Tools.Outcome.Exited(
               output.exitCode,
-              Stdlib.Utf8.decodeWithReplacement(output.stdout),
-              Stdlib.Utf8.decodeWithReplacement(output.stderr))
+              unstyled(output.stdout),
+              unstyled(output.stderr))
           | Error(ProcessTimedOut) -> Tools.Outcome.TimedOut(call.timeoutMs)
           | Error(e) -> Tools.Outcome.NotStarted(e) }
 

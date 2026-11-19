@@ -1,0 +1,333 @@
+/// `dark mcp`: the protocol, each tool's command line, and a real session in an instance.
+///
+/// Part of `Darklang.Cli.Tests`.
+module Darklang.Cli.Tests.Mcp
+
+/// A stand-in `dark` that says back the words it was given on stdout and its stdin on stderr.
+let echo(): Cli.Mcp.Tools.Runner =
+  Cli.Mcp.Tools.Runner
+    { run = fun call -> Cli.Mcp.Tools.Outcome.Exited(0, Stdlib.String.join(call.args, " "), call.stdin) }
+
+
+/// A stand-in that answers `module` and `test run` the way the CLI does.
+let saver(testJson: String): Cli.Mcp.Tools.Runner =
+  Cli.Mcp.Tools.Runner
+    { run =
+        fun call ->
+          match call.args with
+          | [ "module", path, "-" ] -> Cli.Mcp.Tools.Outcome.Exited(0, $"✓ Defined 2 declarations in {path}", "")
+          | [ "test", "run", _, "--json" ] -> Cli.Mcp.Tools.Outcome.Exited(1, testJson, "Running: Me.A.Tests.t1\n")
+          | _ -> Cli.Mcp.Tools.Outcome.Exited(2, "", "unexpected") }
+
+
+let request(id: Int64, method: String, params: Stdlib.AltJson.Json): String =
+  Stdlib.AltJson.format(
+    Stdlib.AltJson.Json.Object(
+      [ ("jsonrpc", Stdlib.AltJson.Json.String("2.0"))
+        ("id", Stdlib.AltJson.Json.Integer(id))
+        ("method", Stdlib.AltJson.Json.String(method))
+        ("params", params) ]))
+
+
+let toolLine(name: String, arguments: List<(String * Stdlib.AltJson.Json)>): String =
+  request(
+    1,
+    "tools/call",
+    Stdlib.AltJson.Json.Object(
+      [ ("name", Stdlib.AltJson.Json.String(name))
+        ("arguments", Stdlib.AltJson.Json.Object(arguments)) ]))
+
+
+let s(text: String): Stdlib.AltJson.Json = Stdlib.AltJson.Json.String(text)
+
+
+let strings(items: List<String>): Stdlib.AltJson.Json =
+  Stdlib.AltJson.Json.Array(items |> Stdlib.List.map(fun item -> Stdlib.AltJson.Json.String(item)))
+
+
+let field(json: Stdlib.AltJson.Json, key: String): Stdlib.AltJson.Json =
+  match json with
+  | Object(fields) ->
+    Stdlib.AltJson.Helpers.getValue(key, fields) |> Stdlib.Option.withDefault(Stdlib.AltJson.Json.Null)
+  | _ -> Stdlib.AltJson.Json.Null
+
+
+let replyJson(reply: Option<String>): Stdlib.AltJson.Json =
+  match reply with
+  | Some(text) ->
+    match Stdlib.AltJson.parse(text) with
+    | Ok(json) -> json
+    | Error(_) -> Stdlib.AltJson.Json.Null
+  | None -> Stdlib.AltJson.Json.Null
+
+
+/// What a tool call's reply says to the model, and whether it is an error.
+let called(
+  runner: Cli.Mcp.Tools.Runner,
+  name: String,
+  arguments: List<(String * Stdlib.AltJson.Json)>)
+  : (String * Bool) =
+  let result = field(replyJson(Cli.Mcp.handle(toolLine(name, arguments), runner)), "result")
+
+  let text =
+    match field(result, "content") with
+    | Array([ Object(fields) ]) -> Stdlib.AltJson.Helpers.getString("text", fields) |> Stdlib.Option.withDefault("")
+    | _ -> "<no content>"
+
+  let isError =
+    match field(result, "isError") with
+    | Bool(b) -> b
+    | _ -> false
+
+  (text, isError)
+
+
+// ── protocol ──
+
+test parsesRequestsAndNotifications =
+  Stdlib.Test.all(
+    [ Cli.Mcp.Protocol.parse("{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"ping\"}")
+      |> Stdlib.Test.equal(Cli.Mcp.Protocol.Message.Request(Stdlib.AltJson.Json.Integer(7), "ping", []))
+
+      Cli.Mcp.Protocol.parse("{\"jsonrpc\":\"2.0\",\"id\":\"a\",\"method\":\"x\",\"params\":{\"k\":1}}")
+      |> Stdlib.Test.equal(
+        Cli.Mcp.Protocol.Message.Request(
+          Stdlib.AltJson.Json.String("a"),
+          "x",
+          [ ("k", Stdlib.AltJson.Json.Integer(1)) ]))
+
+      Cli.Mcp.Protocol.parse("{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}")
+      |> Stdlib.Test.equal(Cli.Mcp.Protocol.Message.Notification("notifications/initialized"))
+
+      Cli.Mcp.Protocol.parse("{\"jsonrpc\":\"2.0\",\"id\":3,\"result\":{}}")
+      |> Stdlib.Test.equal(Cli.Mcp.Protocol.Message.Response) ])
+
+
+test refusesWhatIsNotAMessage =
+  Stdlib.Test.all(
+    [ Cli.Mcp.Protocol.parse("not json")
+      |> Stdlib.Test.equal(
+        Cli.Mcp.Protocol.Message.Invalid(Stdlib.AltJson.Json.Null, -32700, "Parse error: not JSON"))
+
+      Cli.Mcp.Protocol.parse("[{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}]")
+      |> Stdlib.Test.equal(
+        Cli.Mcp.Protocol.Message.Invalid(
+          Stdlib.AltJson.Json.Null,
+          -32600,
+          "Invalid request: batches are not supported"))
+
+      Cli.Mcp.Protocol.parse("{\"jsonrpc\":\"2.0\",\"id\":4}")
+      |> Stdlib.Test.equal(
+        Cli.Mcp.Protocol.Message.Invalid(Stdlib.AltJson.Json.Integer(4), -32600, "Invalid request: no method")) ])
+
+
+test answersWithTheClientsVersion =
+  Stdlib.Test.all(
+    [ Cli.Mcp.Protocol.version(Some("2025-03-26")) |> Stdlib.Test.equal("2025-03-26")
+      Cli.Mcp.Protocol.version(Some("1999-01-01")) |> Stdlib.Test.equal("2025-11-25")
+      Cli.Mcp.Protocol.version(None) |> Stdlib.Test.equal("2025-11-25") ])
+
+
+test notificationsGetNoReply =
+  Cli.Mcp.handle("{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}", echo())
+  |> Stdlib.Test.equal(None)
+
+
+test unknownMethodsAndToolsAreErrors =
+  let unknownMethod = replyJson(Cli.Mcp.handle(request(2, "resources/list", Stdlib.AltJson.Json.Object([])), echo()))
+  let unknownTool = replyJson(Cli.Mcp.handle(toolLine("nope", []), echo()))
+  Stdlib.Test.all(
+    [ field(field(unknownMethod, "error"), "code") |> Stdlib.Test.equal(Stdlib.AltJson.Json.Integer(-32601))
+      field(unknownMethod, "id") |> Stdlib.Test.equal(Stdlib.AltJson.Json.Integer(2))
+      field(field(unknownTool, "error"), "code") |> Stdlib.Test.equal(Stdlib.AltJson.Json.Integer(-32602)) ])
+
+
+test initializeCarriesTheQuickReference =
+  let reply =
+    replyJson(
+      Cli.Mcp.handle(
+        request(1, "initialize", Stdlib.AltJson.Json.Object([ ("protocolVersion", s("2025-06-18")) ])),
+        echo()))
+
+  let result = field(reply, "result")
+
+  let instructions =
+    match field(result, "instructions") with
+    | String(text) -> text
+    | _ -> ""
+
+  Stdlib.Test.all(
+    [ field(result, "protocolVersion") |> Stdlib.Test.equal(s("2025-06-18"))
+      field(field(result, "serverInfo"), "name") |> Stdlib.Test.equal(s("dark"))
+      // the stand-in says back its words, so the reference is what `docs for-ai` printed
+      Stdlib.Test.expect(Stdlib.String.contains(instructions, "\ndocs for-ai"), instructions)
+      Stdlib.Test.expect(Stdlib.String.contains(instructions, "grants nothing"), instructions) ])
+
+
+test listsEveryToolWithASchema =
+  let result = field(replyJson(Cli.Mcp.handle(request(1, "tools/list", Stdlib.AltJson.Json.Object([])), echo())), "result")
+
+  let tools =
+    match field(result, "tools") with
+    | Array(items) -> items
+    | _ -> []
+
+  let names =
+    tools
+    |> Stdlib.List.map(fun tool ->
+      match field(tool, "name") with
+      | String(n) -> n
+      | _ -> "")
+
+  let schemaTypes = tools |> Stdlib.List.map(fun tool -> field(field(tool, "inputSchema"), "type")) |> Stdlib.List.unique
+
+  Stdlib.Test.all(
+    [ names
+      |> Stdlib.Test.equal(
+        [ "docs", "search", "view", "save", "edit", "run", "eval", "test", "typecheck", "status", "commit", "dark" ])
+      schemaTypes |> Stdlib.Test.equal([ s("object") ]) ])
+
+
+// ── each tool's command line ──
+
+test toolsBecomeCommandLines =
+  let r = echo()
+  Stdlib.Test.all(
+    [ called(r, "docs", []) |> Stdlib.Test.equal(("docs for-ai", false))
+      called(r, "docs", [ ("topics", strings([ "tests", "permissions" ])) ])
+      |> Stdlib.Test.equal(("docs for-ai tests permissions", false))
+      called(r, "docs", [ ("signatures", strings([ "Stdlib.List" ])) ])
+      |> Stdlib.Test.equal(("docs signatures Stdlib.List", false))
+      called(r, "search", [ ("queries", strings([ "List.map" ])), ("kind", s("fn")) ])
+      |> Stdlib.Test.equal(("search List.map --fn", false))
+      called(r, "search", [ ("queries", strings([ "a", "b" ])), ("limit", Stdlib.AltJson.Json.Integer(5)) ])
+      |> Stdlib.Test.equal(("search --batch a b --limit 5", false))
+      called(r, "view", [ ("names", strings([ "Me.A.f", "Me.B" ])) ])
+      |> Stdlib.Test.equal(("view Me.A.f Me.B --raw", false))
+      called(r, "eval", [ ("expr", s("-1 + 2")) ]) |> Stdlib.Test.equal(("eval -- -1 + 2", false))
+      called(r, "test", [ ("target", s("Me.A")) ]) |> Stdlib.Test.equal(("test run Me.A --json", false))
+      called(r, "status", []) |> Stdlib.Test.equal(("status", false))
+      called(r, "commit", [ ("message", s("first")) ]) |> Stdlib.Test.equal(("commit first -y", false))
+      called(r, "dark", [ ("args", strings([ "traces", "list" ])) ]) |> Stdlib.Test.equal(("traces list", false)) ])
+
+
+test runPassesArgsStdinAndAllow =
+  called(
+    echo(),
+    "run",
+    [ ("fn", s("Me.A.main"))
+      ("args", strings([ "--check", "x y" ]))
+      ("stdin", s("line 1\n"))
+      ("allow", strings([ "file read /data", "http GET https://e.com/*" ])) ])
+  |> Stdlib.Test.equal(
+    ("run --allow file read /data; http GET https://e.com/* -- Me.A.main --check x y\n[stderr]\nline 1", false))
+
+
+test saveSendsSourceOnStdin =
+  called(echo(), "save", [ ("module", s("Me.A")), ("source", s("let f(): Int64 = 1")), ("test", Stdlib.AltJson.Json.Bool(false)) ])
+  |> Stdlib.Test.equal(("module /Me.A -\n[stderr]\nlet f(): Int64 = 1", false))
+
+
+test editTakesAPatchOrSource =
+  let r = echo()
+  Stdlib.Test.all(
+    [ called(r, "edit", [ ("name", s("Me.A.f")), ("patch", s("@@\n-a\n+b")) ])
+      |> Stdlib.Test.equal(("edit Me.A.f --patch -\n[stderr]\n@@\n-a\n+b", false))
+      called(r, "edit", [ ("name", s("Me.A.f")), ("source", s("let f() = 2")) ])
+      |> Stdlib.Test.equal(("edit Me.A.f -\n[stderr]\nlet f() = 2", false))
+      called(r, "edit", [ ("name", s("Me.A.f")) ])
+      |> Stdlib.Test.equal(("give `patch` or `source`, not both", true)) ])
+
+
+test saveRunsTheModulesTests =
+  let report =
+    "{\"tests\":[{\"name\":\"Me.A.Tests.t1\",\"status\":\"passed\",\"messages\":[],\"cached\":false},{\"name\":\"Me.A.Tests.t2\",\"status\":\"failed\",\"messages\":[\"expected 5, got 4\"],\"cached\":false}],\"passed\":1,\"failed\":1,\"ran\":2,\"cached\":0,\"seed\":1}"
+
+  called(saver(report), "save", [ ("module", s("Me.A")), ("source", s("...")) ])
+  |> Stdlib.Test.equal(
+    ("✓ Defined 2 declarations in /Me.A\n\n[tests]\nFAILED Me.A.Tests.t2\n  expected 5, got 4\n2 tests: 1 passed, 1 failed", true))
+
+
+test badArgumentsComeBackAsToolErrors =
+  let r = echo()
+  Stdlib.Test.all(
+    [ called(r, "run", []) |> Stdlib.Test.equal(("`fn` is required", true))
+      called(r, "view", [ ("names", Stdlib.AltJson.Json.Integer(3)) ])
+      |> Stdlib.Test.equal(("`names` must be a list of strings", true))
+      called(r, "run", [ ("fn", s("Me.A.main")), ("timeoutMs", Stdlib.AltJson.Json.Integer(0)) ])
+      |> Stdlib.Test.equal(("`timeoutMs` must be between 1 and 600000", true))
+      called(r, "search", [ ("queries", strings([ "x" ])), ("kind", s("module")) ])
+      |> Stdlib.Test.equal(("`kind` is fn, type, val, trait, impl or test, not `module`", true)) ])
+
+
+test neverChangesPermissions =
+  let r = echo()
+  let (allowText, allowError) = called(r, "dark", [ ("args", strings([ "permissions", "allow", "process" ])) ])
+  let (_, profileError) = called(r, "dark", [ ("args", strings([ "perms", "profile", "local-dev", "/x", "--yes" ])) ])
+  Stdlib.Test.all(
+    [ Stdlib.Test.expect(allowError && profileError, "policy edits are refused")
+      Stdlib.Test.expect(Stdlib.String.contains(allowText, "does not change permissions"), allowText)
+      called(r, "dark", [ ("args", strings([ "permissions", "list" ])) ])
+      |> Stdlib.Test.equal(("permissions list", false)) ])
+
+
+test denialsSayWhatToAllow =
+  let denied =
+    Cli.Mcp.Tools.Runner
+      { run =
+          fun _ ->
+            Cli.Mcp.Tools.Outcome.Exited(
+              1,
+              "",
+              "Error: permission denied by instance policy:\n  reading `/d/x` is not allowed.\n\nTo allow:\n  dark permissions allow file read '/d/x'\n") }
+
+  let (text, isError) = called(denied, "run", [ ("fn", s("Me.A.main")) ])
+  Stdlib.Test.all(
+    [ Stdlib.Test.expect(isError, "a denial is an error")
+      Stdlib.Test.expect(
+        Stdlib.String.contains(text, "retry with allow: [\"file read '/d/x'\"]"),
+        text) ])
+
+
+test timeoutsSayWhatToDoInstead =
+  let slow = Cli.Mcp.Tools.Runner { run = fun call -> Cli.Mcp.Tools.Outcome.TimedOut(call.timeoutMs) }
+  let (text, isError) = called(slow, "run", [ ("fn", s("Me.Srv.main")), ("timeoutMs", Stdlib.AltJson.Json.Integer(2000)) ])
+  Stdlib.Test.all(
+    [ Stdlib.Test.expect(isError, "a timeout is an error")
+      Stdlib.Test.expect(Stdlib.String.startsWith(text, "Stopped after 2s."), text) ])
+
+
+// ── a real session ──
+
+test aSessionInAnInstance = Instance.withInstance(fun i ->
+  let lines =
+    [ request(1, "initialize", Stdlib.AltJson.Json.Object([ ("protocolVersion", s("2025-06-18")) ]))
+      "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}"
+      toolLine(
+        "save",
+        [ ("module", s("Me.Greet"))
+          ("source", s("let main(args: List<String>): Int64 =\n  match Stdlib.Cli.Stdin.readLineOrEnd() with\n  | Some(name) ->\n    Stdlib.printLine(\"Hello, \" + name + \" \" + Stdlib.String.join(args, \",\"))\n    0\n  | None -> 2")) ])
+      toolLine("run", [ ("fn", s("Me.Greet.main")), ("args", strings([ "a", "-b" ])), ("stdin", s("Ada\n")) ])
+      toolLine("eval", [ ("expr", s("1 + 1")) ]) ]
+
+  let (code, out) = Edit.runWithStdin(i, [ "mcp" ], Stdlib.String.join(lines, "\n") + "\n")
+
+  let replies =
+    out
+    |> Stdlib.String.splitOnNewline
+    |> Stdlib.List.filter(fun line -> Stdlib.String.startsWith(line, "{"))
+    |> Stdlib.List.map(fun line -> replyJson(Some(line)))
+
+  let texts =
+    replies
+    |> Stdlib.List.map(fun reply ->
+      match field(field(reply, "result"), "content") with
+      | Array([ Object(fields) ]) -> Stdlib.AltJson.Helpers.getString("text", fields) |> Stdlib.Option.withDefault("")
+      | _ -> "")
+
+  Stdlib.Test.all(
+    [ code |> Stdlib.Test.equal(0)
+      Stdlib.List.length(replies) |> Stdlib.Test.equal(4)
+      Stdlib.List.getAt(texts, 1) |> Stdlib.Test.equal(Some("✓ Defined 1 declaration in /Me.Greet"))
+      Stdlib.List.getAt(texts, 2) |> Stdlib.Test.equal(Some("Hello, Ada a,-b"))
+      Stdlib.List.getAt(texts, 3) |> Stdlib.Test.equal(Some("2")) ]))

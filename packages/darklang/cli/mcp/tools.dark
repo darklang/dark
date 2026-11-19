@@ -421,8 +421,16 @@ let saveCall(args: List<(String * Stdlib.AltJson.Json)>, runner: Runner): Result
     let target = Stdlib.String.dropFirst(path, 1)
     let tested = testReply(runner.run(call([ "test", "run", target, "--json" ])))
 
+    let ran =
+      match tested.data with
+      | Object(fields) ->
+        match Stdlib.AltJson.Helpers.getValue("report", fields) with
+        | Some(Object(report)) -> Stdlib.AltJson.Helpers.getArray("tests", report) != []
+        | _ -> false
+      | _ -> false
+
     match tested.data with
-    | Object(fields) when Stdlib.Option.isSome(Stdlib.AltJson.Helpers.getValue("report", fields)) ->
+    | _ when ran ->
       Ok(
         Reply
           { text = reply.text + "\n\n[tests]\n" + tested.text
