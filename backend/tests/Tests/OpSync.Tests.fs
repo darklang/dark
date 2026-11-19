@@ -1572,6 +1572,84 @@ let frames =
   }
 
 
+let serverOverWebSocket =
+  testTask
+    "a server takes a person's token over a WebSocket, and refuses a wrong one, a revoked one, and another person's on a bound store" {
+    withTwoStores (fun dir a srv ->
+      setId a "store-a"
+      setId srv "store-srv"
+      let token = LibDB.SyncTokens.generate ()
+      let tokenId = LibDB.SyncTokens.add srv "stachu" token false "laptop"
+      let other = LibDB.SyncTokens.generate ()
+      let _ = LibDB.SyncTokens.add srv "oceanoak" other false "laptop"
+      let port = 20000 + System.Random.Shared.Next(20000)
+      let url = System.Uri($"http://127.0.0.1:{port}")
+      use stopping = new System.Threading.ManualResetEventSlim(false)
+      let serverSaid = System.Collections.Concurrent.ConcurrentQueue<string>()
+      let makeSide account workDir keepGoing : SyncLink.Side =
+        { sideOf dir "srv" srv keepGoing serverSaid with
+            workDir = workDir
+            account = Some account }
+      let options : LibDB.SyncServer.Options =
+        { listen = $"127.0.0.1:{port}"
+          backupDir = None
+          backupEvery = System.TimeSpan.FromHours 1.0
+          keep = 1
+          maxFrame = SyncLink.defaultMaxFrame }
+      let server =
+        Task.Factory.StartNew(
+          (fun () -> LibDB.SyncServer.serve srv options makeSide stopping),
+          TaskCreationOptions.LongRunning
+        )
+      use http = new System.Net.Http.HttpClient()
+      try
+        eventually "the server answers its health check" (fun () ->
+          try
+            (http.GetStringAsync(System.Uri(url, "/health")).Result).Contains
+              "\"ok\""
+          with _ ->
+            false)
+        let client =
+          sideOf
+            dir
+            "a"
+            a
+            (fun () -> true)
+            (System.Collections.Concurrent.ConcurrentQueue())
+        let connectWith (t : string) =
+          SyncLink.connect client (SyncLink.Server(url, t)) true
+
+        let ids = authorOn a "module Tests.OpSync\nlet overTheWire(): Int64 = 31"
+        match connectWith token with
+        | SyncLink.Exchanged, _, _ -> ()
+        | ended, failure, _ -> failtest $"no exchange: {ended}, {failure}"
+        Expect.equal
+          (heldCount srv ids)
+          (int64 (List.length ids))
+          "the edit reached the server"
+
+        match connectWith (token + "x") with
+        | _, Some(SyncLink.TokenRefused false), _ -> ()
+        | ended, failure, _ ->
+          failtest $"a wrong token was taken: {ended}, {failure}"
+
+        match connectWith other with
+        | _, Some(SyncLink.NotSpoken reason), _ ->
+          Expect.stringContains reason "syncs as stachu" "the store is stachu's"
+        | ended, failure, _ ->
+          failtest $"another person's token used stachu's store: {ended}, {failure}"
+
+        let _ = LibDB.SyncTokens.revoke srv tokenId
+        match connectWith token with
+        | _, Some(SyncLink.TokenRefused true), _ -> ()
+        | ended, failure, _ ->
+          failtest $"a revoked token was taken: {ended}, {failure}"
+      finally
+        stopping.Set()
+        server.Wait(30000) |> ignore<bool>)
+  }
+
+
 let tests =
   testSequenced
   <| testList
@@ -1605,4 +1683,5 @@ let tests =
       sameNamedBranchesJoin
       firstJoinSendsWhatDiffers
       tokens
-      frames ]
+      frames
+      serverOverWebSocket ]

@@ -30,6 +30,7 @@ open Prelude
 
 module SyncLink = LibDB.SyncLink
 module SyncTokens = LibDB.SyncTokens
+module SyncServer = LibDB.SyncServer
 
 let private peerKey = SyncLink.peerKey
 let private commandKey = "sync.command"

@@ -11,15 +11,13 @@
 /// (`SyncLink.importing`). What it does is logged as one JSON object a line on stdout. On SIGTERM or
 /// SIGINT it stops taking connections, ends the sessions it has (each import is one transaction, so
 /// none is half-applied), and exits; the machines it served reconnect and resume where they were.
-module Cli.SyncServer
+module LibDB.SyncServer
 
 open System.IO
 open System.Net
 
 open Prelude
 
-module SyncLink = LibDB.SyncLink
-module SyncTokens = LibDB.SyncTokens
 
 type Options =
   {
@@ -164,14 +162,14 @@ let private health
   (ctx : HttpListenerContext)
   =
   try
-    let (id, name) = LibDB.OpSync.identityOf storePath
-    let cursor = LibDB.OpSync.cursorOf storePath
+    let (id, name) = OpSync.identityOf storePath
+    let cursor = OpSync.cursorOf storePath
     reply
       ctx
       (if running.stopping.IsSet then 503 else 200)
       []
       [ "status", (if running.stopping.IsSet then "stopping" else "ok")
-        "format", LibDB.OpSync.formatVersion
+        "format", OpSync.formatVersion
         "build", LibConfig.Config.buildHash
         "store", id
         "name", name
@@ -197,7 +195,7 @@ let private session
   let remote = string ctx.Request.RemoteEndPoint
   if not ctx.Request.IsWebSocketRequest then
     reply ctx 400 [] [ "error", "websocket-required" ]
-  elif ctx.Request.Headers[SyncLink.formatHeader] <> LibDB.OpSync.formatVersion then
+  elif ctx.Request.Headers[SyncLink.formatHeader] <> OpSync.formatVersion then
     log
       "refused"
       [ "remote", remote
@@ -212,7 +210,7 @@ let private session
       ctx
       426
       [ SyncLink.refusalHeader, "format" ]
-      [ "error", "format"; "format", LibDB.OpSync.formatVersion ]
+      [ "error", "format"; "format", OpSync.formatVersion ]
   elif running.stopping.IsSet then
     reply ctx 503 [] [ "error", "stopping" ]
   else
@@ -288,12 +286,13 @@ let private session
           "ended", string ended
           "seconds", clock.Elapsed.TotalSeconds ]
 
-/// Run the server until SIGTERM or SIGINT. <param makeSide> makes one session's end, for a person,
-/// in a directory of its own, that stops when told.
-let run
+/// Serve until <param stopping> is set. <param makeSide> makes one session's end, for a person, in a
+/// directory of its own, that stops when told.
+let serve
   (storePath : string)
   (options : Options)
   (makeSide : SyncTokens.Account -> string -> (unit -> bool) -> SyncLink.Side)
+  (stopping : System.Threading.ManualResetEventSlim)
   : int =
   match prefixOf options.listen with
   | Error reason ->
@@ -323,7 +322,7 @@ let run
       use _held = held
       let running =
         { sessions = System.Collections.Concurrent.ConcurrentDictionary()
-          stopping = new System.Threading.ManualResetEventSlim(false)
+          stopping = stopping
           started = System.DateTime.UtcNow }
       let listener = new HttpListener()
       listener.Prefixes.Add prefix
@@ -338,30 +337,13 @@ let run
         System.Console.Error.WriteLine $"can't listen on {options.listen}: {reason}"
         1
       | Ok() ->
-        let stop (signal : System.Runtime.InteropServices.PosixSignalContext) =
-          signal.Cancel <- true
-          if not running.stopping.IsSet then
-            log
-              "stopping"
-              [ "signal", string signal.Signal; "sessions", running.sessions.Count ]
-            running.stopping.Set()
-        use _term =
-          System.Runtime.InteropServices.PosixSignalRegistration.Create(
-            System.Runtime.InteropServices.PosixSignal.SIGTERM,
-            stop
-          )
-        use _int =
-          System.Runtime.InteropServices.PosixSignalRegistration.Create(
-            System.Runtime.InteropServices.PosixSignal.SIGINT,
-            stop
-          )
-        let (id, name) = LibDB.OpSync.identityOf storePath
+        let (id, name) = OpSync.identityOf storePath
         log
           "listening"
           [ "prefix", prefix
             "store", id
             "name", name
-            "format", LibDB.OpSync.formatVersion
+            "format", OpSync.formatVersion
             "build", LibConfig.Config.buildHash
             "tokens",
             List.length (
@@ -403,6 +385,7 @@ let run
         let acceptor = System.Threading.Thread(accept, IsBackground = true)
         acceptor.Start()
         running.stopping.Wait()
+        log "stopping" [ "sessions", running.sessions.Count ]
         // Each session sees `stopping` within a poll and ends between imports.
         let deadline = System.DateTime.UtcNow.AddSeconds 25.0
         while running.sessions.Count > 0 && System.DateTime.UtcNow < deadline do
@@ -425,3 +408,27 @@ let run
            ())
         log "stopped" [ "sessions", running.sessions.Count ]
         0
+
+
+/// Run the server until SIGTERM or SIGINT.
+let run
+  (storePath : string)
+  (options : Options)
+  (makeSide : SyncTokens.Account -> string -> (unit -> bool) -> SyncLink.Side)
+  : int =
+  use stopping = new System.Threading.ManualResetEventSlim(false)
+  let stop (signal : System.Runtime.InteropServices.PosixSignalContext) =
+    signal.Cancel <- true
+    log "signal" [ "signal", string signal.Signal ]
+    stopping.Set()
+  use _term =
+    System.Runtime.InteropServices.PosixSignalRegistration.Create(
+      System.Runtime.InteropServices.PosixSignal.SIGTERM,
+      stop
+    )
+  use _int =
+    System.Runtime.InteropServices.PosixSignalRegistration.Create(
+      System.Runtime.InteropServices.PosixSignal.SIGINT,
+      stop
+    )
+  serve storePath options makeSide stopping

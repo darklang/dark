@@ -75,6 +75,7 @@
     <Compile Include="OpSync.fs" />
     <Compile Include="SyncTokens.fs" />
     <Compile Include="SyncLink.fs" />
+    <Compile Include="SyncServer.fs" />
     <Compile Include="PackagePermissions.fs" />
     <Compile Include="PermissionReview.fs" />
     <Compile Include="RaiseSites.fs" />
