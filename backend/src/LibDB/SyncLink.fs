@@ -1234,7 +1234,11 @@ let watch (watch : Watch) : unit =
               $"sync: there is no dark to run on {watch.peer} ({reason}). `dark sync add {watch.peer} --command <path>` says where it is.",
             reason
           | NotSpoken reason ->
-            Some $"sync: {reason}. Update dark on both machines.", reason
+            let advice =
+              if reason.Contains "sync format" then " Update dark on both ends."
+              elif reason.EndsWith "." || reason.EndsWith "?" then ""
+              else "."
+            Some $"sync: {reason}{advice}", reason
           | Unreachable reason ->
             (if now - since >= watch.patience then
                Some
