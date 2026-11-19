@@ -35,7 +35,7 @@
 1 Darklang.Cli.Packages.Impls.complete Darklang.Stdlib.List.sort
 1 Darklang.Cli.Packages.Impls.execute Darklang.Stdlib.List.sort
 1 Darklang.Cli.Packages.Impls.printJson Darklang.Stdlib.List.sort
-1 Darklang.Cli.Packages.ModuleCommand.execute Darklang.Stdlib.Cli.File.readText
+1 Darklang.Cli.Packages.ModuleCommand.readAndSave Darklang.Stdlib.Cli.File.readText
 1 Darklang.Cli.Packages.Query.getDirectSubmodules Darklang.Stdlib.List.sort
 1 Darklang.Cli.Packages.Signatures.executeFiltered Darklang.Stdlib.List.sort
 1 Darklang.Cli.Packages.Test.runScriptTests Darklang.Stdlib.Cli.File.readText

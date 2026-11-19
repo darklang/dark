@@ -97,18 +97,16 @@ let landDocEdits(branchId: Uuid, ops: List<LanguageTools.ProgramTypes.PackageOp>
   |> Stdlib.List.length
 
 
-/// Who is saving a module.
-type Caller =
-  /// `dark module`.
-  | Command
+/// Save rules for module input.
+type SaveMode =
+  /// `dark module` can save the declarations that passed parsing.
+  | Module
   /// `dark edit`, which saves one declaration through its module.
   | Edit
   /// `defineBundled`, for the dev build.
   | DevBuild
 
 
-/// Save the declarations in <param source> under <param modulePath>, saying what happened, as
-/// `module` does.
 /// What is in the module at <param home> (owner first) that this save did not define, as (kind,
 /// name): names an earlier save left behind, which still run, get type-checked and can block a
 /// commit.
@@ -126,17 +124,21 @@ let leftOver(branchId: Uuid, home: List<String>, defined: List<String>): List<(S
   |> Stdlib.List.unique
 
 
-let define(state: AppState, modulePath: String, source: String, caller: Caller): AppState =
-  let bundled = caller == Caller.DevBuild
-  // Package input is declaration scope at its root. In particular, `val x`
-  // declares a package value while `let x` is diagnosed directly instead of
-  // being consumed as a script binding and failing later at EOF.
-  match LanguageTools.Parser.Parse.packageToWrittenTypes(source) with
-  | Error(diagnostics) ->
-    let _ = Errors.reportParseErrors(diagnostics)
-    // Nothing was saved: an agent's authoring loop branches on the exit.
-    { state with exitCode = 1 }
-  | Ok(SourceFile(sourceFile)) ->
+let save(state: AppState, modulePath: String, source: String, mode: SaveMode): AppState =
+  let bundled = mode == SaveMode.DevBuild
+  let moduleCommand = mode == SaveMode.Module
+  let kind =
+    if moduleCommand then
+      LanguageTools.Parser.FileKind.PackagePartialSave
+    else
+      LanguageTools.Parser.FileKind.Package
+
+  let (parsed, diagnostics) = LanguageTools.Parser.Parse.parse(kind, source)
+  let parseFailed = Errors.reportParseErrors(diagnostics)
+  let state = if parseFailed then failed(state) else state
+
+  match parsed with
+  | Some(SourceFile(sourceFile)) when moduleCommand || Stdlib.Bool.not(parseFailed) ->
     let declarations =
       let moduleDecls =
         sourceFile.declarations |> Stdlib.List.map(LanguageTools.Parser.Parse.toModuleDeclaration)
@@ -145,7 +147,10 @@ let define(state: AppState, modulePath: String, source: String, caller: Caller):
 
     let duplicateNames = duplicateDeclarationNames(declarations)
     if Stdlib.List.isEmpty(declarations) then
-      printErr("Package source contains no declarations")
+      if parseFailed then
+        printErr("Nothing was saved. No declarations could be recovered.")
+      else
+        printErr("Package source contains no declarations")
       { state with exitCode = 1 }
     else if Stdlib.Bool.not(Stdlib.List.isEmpty(duplicateNames)) then
       printErr("Package source contains duplicate declaration names:")
@@ -236,9 +241,12 @@ let define(state: AppState, modulePath: String, source: String, caller: Caller):
             // line, both matching a single-item save in `core.dark`. A tick printed under the
             // reasons a save is broken is read as success by anybody who reads the last line.
             let glyph =
-              match report.verdict with
-              | Checked -> Stdlib.Cli.UI.Colors.success("✓")
-              | Failed | Incomplete -> Stdlib.Cli.UI.Colors.warning("!")
+              if parseFailed then
+                Stdlib.Cli.UI.Colors.warning("!")
+              else
+                match report.verdict with
+                | Checked -> Stdlib.Cli.UI.Colors.success("✓")
+                | Failed | Incomplete -> Stdlib.Cli.UI.Colors.warning("!")
 
             // A doc-only edit is otherwise indistinguishable from a save that changed nothing.
             let docNote =
@@ -251,6 +259,13 @@ let define(state: AppState, modulePath: String, source: String, caller: Caller):
 
             Stdlib.printLine(
               $"{glyph} Defined {Stdlib.display(count)} {what} in {modulePath}{docNote}")
+
+            if parseFailed then
+              printHint("  Fix and resend only the declarations that failed to parse.")
+              printHint("  Use `module` for one or more declarations or `fn` for a function.")
+              printHint("  Use `edit` only if the item already had a saved version.")
+            else
+              ()
 
             AtRestCheck.printUnresolvedTraitCalls(authored.unresolvedTraitCalls, 0u64)
 
@@ -281,7 +296,10 @@ let define(state: AppState, modulePath: String, source: String, caller: Caller):
 
             let shown = Stdlib.String.join(home, ".")
             let left =
-              if caller == Caller.Command then leftOver(branchId, home, definedNames) else []
+              if moduleCommand && Stdlib.Bool.not(parseFailed) then
+                leftOver(branchId, home, definedNames)
+              else
+                []
             match left with
             | [] -> ()
             | [(kind, name), ...] ->
@@ -300,24 +318,42 @@ let define(state: AppState, modulePath: String, source: String, caller: Caller):
                   "  the rest of the module was defined; fix these and run it again."))
 
               failed(state)
+  | _ ->
+    if moduleCommand then printErr("Nothing was saved.") else ()
+    failed(state)
 
 
-let execute(state: AppState, args: List<String>): AppState =
+let readAndSave(state: AppState, modulePath: String, sourcePath: String, mode: SaveMode): AppState =
   let input =
-    match args with
-    | [modulePath, "-"] ->
-      Stdlib.Cli.Stdin.readAll() |> Stdlib.Result.map(fun source -> (modulePath, source))
-    | [modulePath, sourcePath] ->
-      match Stdlib.Cli.File.readText(sourcePath) with
-      | Ok(source) -> Result.Ok((modulePath, source))
-      | Error(err) -> Result.Error($"Could not read '{sourcePath}': {Stdlib.display(err)}")
-    | _ -> Result.Error("Usage: module <module> <source-file|->")
+    if sourcePath == "-" then
+      Stdlib.Cli.Stdin.readAll()
+    else
+      Stdlib.Cli.File.readText(sourcePath)
+      |> Stdlib.Result.mapError(fun err -> $"Could not read '{sourcePath}': {Stdlib.display(err)}")
 
   match input with
   | Error(message) ->
     printErr(message)
-    { state with exitCode = 1 }
-  | Ok((modulePath, source)) -> define(state, modulePath, source, Caller.Command)
+    failed(state)
+  | Ok(source) -> save(state, modulePath, source, mode)
+
+
+/// Save replacement source for an edit.
+let saveEdit(state: AppState, modulePath: String, source: String): AppState =
+  save(state, modulePath, source, SaveMode.Edit)
+
+
+/// Read replacement source from a file or stdin and save it as an edit.
+let readAndSaveEdit(state: AppState, modulePath: String, sourcePath: String): AppState =
+  readAndSave(state, modulePath, sourcePath, SaveMode.Edit)
+
+
+let execute(state: AppState, args: List<String>): AppState =
+  match args with
+  | [modulePath, sourcePath] -> readAndSave(state, modulePath, sourcePath, SaveMode.Module)
+  | _ ->
+    printErr("Usage: module <module> <source-file|->")
+    failed(state)
 
 
 /// `module` for `LocalExec apply-package-edits`, which lands the dev build's edits to `packages/` on
@@ -328,17 +364,19 @@ let defineBundled(modulePath: String, source: String): Int64 =
   let state =
     { Cli.initState() with nonInteractive = true, currentBranchId = SCM.Branch.mainBranchId }
 
-  (define(state, modulePath, source, Caller.DevBuild)).exitCode
+  (save(state, modulePath, source, SaveMode.DevBuild)).exitCode
 
 
 let help(_state: AppState): String =
-  [ "Define a module from multiple package declarations atomically"
+  [ "Define a module from multiple package declarations"
     ""
     "Usage: module <module> <source-file|->"
     ""
     "The source may contain functions, types, values, tests, and nested modules."
-    "All declarations are validated, then saved as WIP in one batch; the at-rest"
+    "Valid declarations are saved as WIP in one batch; the at-rest"
     "type check is reported and `commit` refuses definite type errors."
+    "Parse errors exit 1. Declarations the parser can recover and validate are"
+    "still saved. Fix the rejected declarations and send only those."
     "Definite type errors and unresolved names exit 1; declarations remain saved"
     "as drafts. Other incomplete checks warn and exit 0."
     "Saving again replaces what the source has; names it no longer has stay and"

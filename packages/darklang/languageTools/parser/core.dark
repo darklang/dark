@@ -19,6 +19,8 @@ type Range =
 type FileKind =
   | Script
   | Package
+  /// Package input for `dark module`. Keep declarations that pass syntax and package checks.
+  | PackagePartialSave
 
 
 /// The words the parser reserves, from the lexer itself: each one is a name in

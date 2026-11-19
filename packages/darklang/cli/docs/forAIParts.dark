@@ -13,13 +13,17 @@ A name is Owner.name, or Owner.Module.name to put it in a module. Use an owner
 of your own, such as `Me`: `Darklang` is reserved for the standard library and
 refuses a save.
 
-Create several declarations atomically:
+Create several declarations in one batch:
 
   module /Me.Example - <<'EOF'
   type State = { count: Int64 }
   let double(n: Int64): Int64 = n * 2
   let main(n: Int64): Int64 = double(n)
   EOF
+
+A module save reports parse errors and exits 1. Declarations the parser can
+recover and validate are still saved as WIP. Send a corrected declaration with
+`edit` for an existing item, `fn` for a new function, or `module` for any subset.
 
 For one function, stdin accepts a complete declaration; the shorter signature
 and body fragment remains valid:
