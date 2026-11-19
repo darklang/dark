@@ -11,6 +11,9 @@
 #   DARK_SYNC_MAINTENANCE          when set, start without serving, so the store can be restored
 set -eu
 
+# `fly ssh console` and `docker exec` don't always carry the image's environment.
+export HOME=/data
+
 # A fresh volume is root's.
 if [ "$(id -u)" = 0 ]; then
   chown dark:dark /data
@@ -19,13 +22,14 @@ fi
 
 mkdir -p /data/backups
 
+# With arguments, it is `dark` on the server's store: `dark-sync-entrypoint sync token list`.
+if [ "$#" -gt 0 ]; then
+  exec dark "$@"
+fi
+
 if [ -n "${DARK_SYNC_BOOTSTRAP_PERSON:-}" ] && [ -n "${DARK_SYNC_BOOTSTRAP_TOKEN:-}" ]; then
   printf '%s\n' "$DARK_SYNC_BOOTSTRAP_TOKEN" \
     | dark sync token add "$DARK_SYNC_BOOTSTRAP_PERSON" --label bootstrap
-fi
-
-if [ "$#" -gt 0 ]; then
-  exec dark "$@"
 fi
 
 if [ -n "${DARK_SYNC_MAINTENANCE:-}" ]; then
