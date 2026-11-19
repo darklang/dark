@@ -11,6 +11,23 @@ module Darklang.Cli.Tests.PermissionsGrammar
 //
 
 module PermissionsGrammar =
+  test policySeparatorsRespectQuotesAndEscapes =
+    Cli.Permissions.Command.replacePolicy(
+      [ "; file read '/tmp/one;two'; file read /tmp/three\\;four; "
+        + "deny file write \"/tmp/five;six\"; " ])
+    |> Stdlib.Test.equal(
+      Result.Ok(
+        LanguageTools.Permissions.Policy
+          { allow =
+              [ LanguageTools.Permissions.Rule.FileRead(
+                  LanguageTools.Permissions.Scope.Only("/tmp/one;two"))
+                LanguageTools.Permissions.Rule.FileRead(
+                  LanguageTools.Permissions.Scope.Only("/tmp/three;four")) ]
+            deny =
+              [ LanguageTools.Permissions.Rule.FileWrite(
+                  LanguageTools.Permissions.Scope.Only("/tmp/five;six")) ] }))
+
+
   let only(value: String): LanguageTools.Permissions.Scope<String> =
     LanguageTools.Permissions.Scope.Only(value)
 

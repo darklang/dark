@@ -30,9 +30,8 @@ let private reasonText (reason : Permission.PolicyDenial) : string =
 
 /// The one denial message. `suggestion` is the exact `permissions allow`
 /// argument that would cover the denied request, or why none is offered; it is
-/// only actionable for an instance-layer denial, since that is the policy
-/// `permissions allow` edits. Other layers need the approval changes the
-/// remedy names.
+/// passed to `permissions allow` for instance denials and to
+/// `permissions approve --for` for named package denials.
 let private denialMessage
   (resource : string)
   (reason : Permission.PolicyDenial)
@@ -64,10 +63,18 @@ let private denialMessage
     | Permission.Layer.Package name, _ when
       reason = Permission.PolicyDenial.ExplicitlyDenied
       ->
-      $"Its remembered approval denies this; `dark permissions show {name}` shows it."
+      let target = Permission.Request.quoteRuleToken name
+      "Its remembered approval denies this. Review it with:\n"
+      + $"  dark permissions show {target}"
     | Permission.Layer.Package name, _ ->
-      $"Remember access with `dark permissions approve {name}` (`permissions update {name}` "
-      + "after an edit), or allow it for one run with `dark run --allow`."
+      match Permission.Suggestion.rule suggestion with
+      | Some rule ->
+        let target = Permission.Request.quoteRuleToken name
+        // Approve parses the rule text again, so preserve its token quotes in argv.
+        let spec = Permission.Request.quoteRuleToken rule
+        "To remember access for this function:\n"
+        + $"  dark permissions approve --for {target} {spec} --yes"
+      | None -> "Review the function's permission requirements."
     | Permission.Layer.Value _, _ ->
       "A `val` is evaluated once, when it is saved, so it cannot use effects. "
       + "Make it a function to do this each time it is called."
