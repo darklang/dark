@@ -956,8 +956,8 @@ let private editChangesAnItemWithoutRetypingIt =
           shows
             state
             [ "edit"; "Tests.Edit.target"; file ]
-            "Defined 1 declaration"
-            "one declaration, said in the singular"
+            "Updated Tests.Edit.target"
+            "names the updated declaration"
 
         do!
           shows state [ "eval"; "Tests.Edit.target(3)" ] "15" "the edit took effect"

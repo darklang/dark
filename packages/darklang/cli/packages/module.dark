@@ -215,7 +215,7 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
                 updates,
                 if bundled then Propagate.FollowerCheck.Skip else Propagate.FollowerCheck.Check)
 
-            Propagate.printFollowed(followed)
+            if mode != SaveMode.Edit then Propagate.printFollowed(followed) else ()
 
             // A reload never leaves an edit's dependents behind, so the build fails over to one
             // when they could not follow.
@@ -272,8 +272,20 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
                 let comments = Text.plural(docsUpdated, "doc comment")
                 $"Updated {comments}."
 
+            let updatedName =
+              match (mode, definedNames, updates) with
+              | (Edit, [_], [item]) ->
+                let loc = item.location
+                let parts = Stdlib.List.prepend(loc.modules, loc.owner)
+                Option.Some(Stdlib.String.join(Stdlib.List.append(parts, loc.name), "."))
+              | _ -> Option.None
+
             if count > 0 || unchangedDeprecated == 0 then
-              let summary = $"{glyph} Defined {count} {what} in {modulePath}"
+              let summary =
+                match updatedName with
+                | Some(name) -> $"{glyph} Updated {name}"
+                | None -> $"{glyph} Defined {count} {what} in {modulePath}"
+
               Stdlib.printLine(if docNote == "" then summary else $"{summary}. {docNote}")
             else if docNote != "" then
               Stdlib.printLine($"{glyph} {docNote}")
@@ -293,6 +305,13 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
             // main's at-rest type check reports on every save; keep it ahead of propagation
             // so a type error is on screen before anything follows the change.
             AtRestCheck.printSaveReport(branchId, report)
+
+            if mode == SaveMode.Edit then
+              match (updatedName, report.verdict) with
+              | (Some(_), Checked) -> Propagate.printEditPropagation(followed)
+              | _ -> Propagate.printFollowed(followed)
+            else
+              ()
 
             // Save the code so it can be fixed, and signal errors through the exit code.
             let state = if AtRestCheck.saveHasErrors(report) then failed(state) else state
