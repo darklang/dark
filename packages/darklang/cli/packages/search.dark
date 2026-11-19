@@ -673,16 +673,23 @@ let namesUnder(branchId: Uuid, currentModule: List<String>): List<String> =
   Query.withoutInternalNames(Stdlib.List.flatten([ fns, types, values ]))
 
 
+/// The word dropped from the search and the names found without it.
+type FallbackSuggestions =
+  { dropped: String
+    names: List<String> }
+
+
 // What to try when a query found nothing.
 type NothingFound =
   { // Each word of a several-word query, and how many items it finds alone. Empty
     // for a one-word query.
     wordCounts: List<(String * Int64)>
     // Each word that finds nothing, and the names it may be a typo of.
-    didYouMean: List<(String * List<String>)> }
+    didYouMean: List<(String * List<String>)>
+    fallback: Option<FallbackSuggestions> }
 
 
-val nothingToTry = NothingFound { wordCounts = [], didYouMean = [] }
+val nothingToTry = NothingFound { wordCounts = [], didYouMean = [], fallback = None }
 
 
 // What to try when <param query> found nothing. Each word of a several-word query
@@ -719,7 +726,7 @@ let nothingFound(
         | [] -> Option.None
         | near -> Option.Some((w, near)))
 
-  NothingFound { wordCounts = if several then counts else [], didYouMean = didYouMean }
+  NothingFound { wordCounts = if several then counts else [], didYouMean = didYouMean, fallback = None }
 
 
 // <type NothingFound> as hint lines.
@@ -747,7 +754,11 @@ let nothingFoundLines(found: NothingFound): List<String> =
       let forWord = if several then $" (for `{w}`)" else ""
       $"  Did you mean {shown}?{forWord}")
 
-  Stdlib.List.flatten([ alone, typos ])
+  match found.fallback with
+  | Some(matches) ->
+    let names = matches.names |> Stdlib.List.map(fun name -> $"`{name}`") |> Stdlib.String.join(", ")
+    [ $"  Without `{matches.dropped}`: {names}" ]
+  | None -> Stdlib.List.concat(alone, typos)
 
 
 let docBlock(desc: String, indent: String): String =
@@ -997,34 +1008,45 @@ let jsonOutput(
             Stdlib.AltJson.Json.Array(
               names |> Stdlib.List.map(fun n -> Stdlib.AltJson.Json.String(n)))) ]))
 
-  Stdlib.AltJson.format(
-    Stdlib.AltJson.Json.Object(
-      [ ("query", Stdlib.AltJson.Json.String(queryText))
-        (
-          "results",
-          Stdlib.AltJson.Json.Array(
-            Stdlib.List.flatten(
-              Stdlib.List.prepend(
-                order
-                |> Stdlib.List.map(fun tag ->
-                  match tag with
-                  | "function" -> fnRows
-                  | "type" -> typeRows
-                  | "value" -> valueRows
-                  | "trait" -> traitRows
-                  | "impl" -> implRows
-                  | "test" -> testRows
-                  | "module" -> moduleRows
-                  | _ -> []),
-                typed |> Stdlib.List.map(fnRow)))))
+  let fallbackFields =
+    match found.fallback with
+    | None -> []
+    | Some(matches) ->
+      let names = matches.names |> Stdlib.List.map(fun name -> Stdlib.AltJson.Json.String(name))
+      [ ("relaxed",
+         Stdlib.AltJson.Json.Object(
+           [ ("dropped", Stdlib.AltJson.Json.String(matches.dropped))
+             ("names", Stdlib.AltJson.Json.Array(names)) ])) ]
 
-        (
-          "alsoSearched",
-          Stdlib.AltJson.Json.Array(
-            alsoSearched |> Stdlib.List.map(fun q -> Stdlib.AltJson.Json.String(q))))
+  let fields =
+    [ ("query", Stdlib.AltJson.Json.String(queryText))
+      (
+        "results",
+        Stdlib.AltJson.Json.Array(
+          Stdlib.List.flatten(
+            Stdlib.List.prepend(
+              order
+              |> Stdlib.List.map(fun tag ->
+                match tag with
+                | "function" -> fnRows
+                | "type" -> typeRows
+                | "value" -> valueRows
+                | "trait" -> traitRows
+                | "impl" -> implRows
+                | "test" -> testRows
+                | "module" -> moduleRows
+                | _ -> []),
+              typed |> Stdlib.List.map(fnRow)))))
 
-        ("wordCounts", Stdlib.AltJson.Json.Array(wordCountRows))
-        ("didYouMean", Stdlib.AltJson.Json.Array(didYouMeanRows)) ]))
+      (
+        "alsoSearched",
+        Stdlib.AltJson.Json.Array(
+          alsoSearched |> Stdlib.List.map(fun q -> Stdlib.AltJson.Json.String(q))))
+
+      ("wordCounts", Stdlib.AltJson.Json.Array(wordCountRows))
+      ("didYouMean", Stdlib.AltJson.Json.Array(didYouMeanRows)) ]
+
+  Stdlib.AltJson.format(Stdlib.AltJson.Json.Object(Stdlib.List.concat(fields, fallbackFields)))
 
 
 // Execute one query. `execute` below fans batch arguments out through this
@@ -1173,6 +1195,53 @@ let callerUses(
           results.tests |> Stdlib.List.filterMap(fun i -> calledPath(byHash, i.entity.hash, i)) ]))
 
 
+/// Pair each name with a sort key that puts standard library results first.
+let suggestionWithSortKey(
+  ranker: Ranker,
+  item: LanguageTools.ProgramTypes.LocatedItem<'a>)
+  : (String * String) =
+  let loc = item.location
+  (tier(loc.owner, loc.modules) + rankKey(ranker, loc.owner, loc.modules, loc.name), fullPathOf(item))
+
+
+/// For a phrase with no matches, try dropping each of its first three search terms in order.
+/// Stop at the first query with matches, and always keep at least two terms.
+let fallbackSuggestions(
+  query: LanguageTools.ProgramTypes.Search.SearchQuery,
+  cap: Int64,
+  search: String -> LanguageTools.ProgramTypes.Search.SearchResults)
+  : Option<FallbackSuggestions> =
+  let words = queryWords(query.text) |> Stdlib.List.unique
+  if query.exactMatch || Stdlib.String.contains(query.text, ".") || Stdlib.List.length(words) < 3 then
+    None
+  else
+    words
+    |> Stdlib.List.take(3)
+    |> Stdlib.List.fold(Option.None, fun(found, droppedWord) ->
+      match found with
+      | Some(_) -> found
+      | None ->
+        let shorterQuery =
+          words |> Stdlib.List.filter(fun word -> word != droppedWord) |> Stdlib.String.join(" ")
+        let results = search(shorterQuery)
+        let ranker = rankerFor(shorterQuery)
+        let names =
+          Stdlib.List.flatten(
+            [ results.fns |> Stdlib.List.map(fun item -> suggestionWithSortKey(ranker, item))
+              results.types |> Stdlib.List.map(fun item -> suggestionWithSortKey(ranker, item))
+              results.values |> Stdlib.List.map(fun item -> suggestionWithSortKey(ranker, item))
+              results.traits |> Stdlib.List.map(fun item -> suggestionWithSortKey(ranker, item))
+              results.impls |> Stdlib.List.map(fun item -> suggestionWithSortKey(ranker, item))
+              results.tests |> Stdlib.List.map(fun item -> suggestionWithSortKey(ranker, item)) ])
+          |> Stdlib.List.sortBy(fun((key, _)) -> key)
+          |> Stdlib.List.map(Stdlib.Tuple2.second)
+          |> Stdlib.List.unique
+          |> Stdlib.List.take(Stdlib.min(3, cap))
+        match names with
+        | [] -> None
+        | _ -> Some(FallbackSuggestions { dropped = droppedWord, names = names }))
+
+
 let executeQuery(state: AppState, args: List<String>): AppState =
   match args with
   | [] ->
@@ -1254,7 +1323,6 @@ let executeQuery(state: AppState, args: List<String>): AppState =
                   { query with text = q })))
 
         let depSets = Query.loadDeprecationSets(state.currentBranchId)
-        let results = Query.filterHidden(rawResults, depSets, parsed.deprecated, parsed.internal)
 
         // An implementation is one result. Its method fns live under it and its path reads as a
         // module, so without this each one was listed three times. A method matches on its own
@@ -1266,16 +1334,6 @@ let executeQuery(state: AppState, args: List<String>): AppState =
           |> Stdlib.Dict.fromList
 
         let isImpl = fun path -> Stdlib.Dict.containsKey(implPaths, Stdlib.String.join(path, "."))
-        let results =
-          { results with
-              fns =
-                results.fns
-                |> Stdlib.List.filter(fun f ->
-                  Stdlib.Bool.not(
-                    isImpl(Stdlib.List.prepend(f.location.modules, f.location.owner))))
-              submodules =
-                results.submodules |> Stdlib.List.filter(fun m -> Stdlib.Bool.not(isImpl(m))) }
-
         // Tests are left out unless asked for. A test is usually named after what
         // it tests, so every search for a function would also list its tests;
         // `dark test run <filter>` and `view --include-tests` are where to find them.
@@ -1286,16 +1344,31 @@ let executeQuery(state: AppState, args: List<String>): AppState =
             parsed.entityTypes,
             LanguageTools.ProgramTypes.Search.EntityType.Test)
 
-        let hiddenTests = if showTests then 0 else Stdlib.List.length(results.tests)
+        let visibleResults = fun raw ->
+          let results = Query.filterHidden(raw, depSets, parsed.deprecated, parsed.internal)
+          let results =
+            { results with
+                fns =
+                  results.fns
+                  |> Stdlib.List.filter(fun f ->
+                    Stdlib.Bool.not(
+                      isImpl(Stdlib.List.prepend(f.location.modules, f.location.owner))))
+                submodules =
+                  results.submodules |> Stdlib.List.filter(fun m -> Stdlib.Bool.not(isImpl(m))) }
 
-        let results = if showTests then results else { results with tests = [] }
+          let hiddenTests = if showTests then 0 else Stdlib.List.length(results.tests)
 
-        // Test helpers go with the tests, unless the search is about tests.
-        let (results, hiddenHelpers) =
-          if showTests || showsTestHelpers(searchText, currentModule) then
-            (results, 0)
-          else
-            withoutTestHelpers(results)
+          let results = if showTests then results else { results with tests = [] }
+
+          // Test helpers go with the tests, unless the search is about tests.
+          let (results, hiddenHelpers) =
+            if showTests || showsTestHelpers(searchText, currentModule) then
+              (results, 0)
+            else
+              withoutTestHelpers(results)
+          (results, hiddenTests, hiddenHelpers)
+
+        let (results, hiddenTests, hiddenHelpers) = visibleResults(rawResults)
 
         // `bytes to string`: the Stdlib functions by what they take and return. They
         // print in a section of their own, so they leave the name matches.
@@ -1387,13 +1460,23 @@ let executeQuery(state: AppState, args: List<String>): AppState =
           |> Stdlib.List.sortBy(fun((key, _)) -> key)
           |> Stdlib.List.map(fun((_, tag)) -> tag)
 
-        if parsed.asJson then
-          let found =
-            if totalResults == 0 then
-              nothingFound(state.currentBranchId, query)
-            else
-              nothingToTry
+        let found =
+          if totalResults > 0 then
+            nothingToTry
+          else
+            let fallback =
+              fallbackSuggestions(query, resultCap, fun text ->
+                let (visible, _, _) =
+                  visibleResults(
+                    LanguageTools.PackageManager.Search.search(
+                      state.currentBranchId,
+                      { query with text = text }))
+                visible)
+            match fallback with
+            | Some(_) -> { nothingToTry with fallback = fallback }
+            | None -> nothingFound(state.currentBranchId, query)
 
+        if parsed.asJson then
           let shownTyped =
             match typeQuery(searchText) with
             | Some(_) -> Stdlib.List.take(typed, resultCap)
@@ -1420,7 +1503,7 @@ let executeQuery(state: AppState, args: List<String>): AppState =
           operatorHint(state.currentBranchId, rawQueryText)
           hiddenTestsHint(hiddenTests)
           hiddenHelpersHint(hiddenHelpers)
-          nothingFoundLines(nothingFound(state.currentBranchId, query))
+          nothingFoundLines(found)
           |> Stdlib.List.iter(fun line -> Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(line)))
 
           Stdlib.printErrorLine("")

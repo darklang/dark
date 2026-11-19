@@ -410,3 +410,16 @@ test docOnlyMatchesAreFlagged =
         Cli.Packages.Search.rankerFor("table"),
         [ loc([ "Stdlib", "Cli", "UI", "Table" ], "print") ])
       |> Stdlib.Test.equal(false) ])
+
+
+test searchSuggestsMatchesAfterDroppingAWord = Instance.withInstance(fun i ->
+  let query = "read environment variable"
+  let (code, out) = Instance.ran(i, [ "search", "--fn", "--brief", query ])
+  let (_, exact) = Instance.ran(i, [ "search", "--fn", "--exact", query ])
+  let (_, nonsense) = Instance.ran(i, [ "search", "zzzunknown zzmissing zzvoid" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "a miss can suggest alternatives")
+      Instance.says(out, "Without `read`", "names the word dropped")
+      Instance.says(out, "Stdlib.Cli.Posix.getenv", "suggests the environment reader")
+      Instance.doesNotSay(exact, "Without", "exact search stays exact")
+      Instance.doesNotSay(nonsense, "Without", "a nonsense query has no alternatives") ]))
