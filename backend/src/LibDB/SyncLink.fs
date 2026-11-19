@@ -580,9 +580,14 @@ let private session
         )
       with
       | true, newest when newest > System.DateTime.UtcNow + clockTolerance ->
-        let minutes = int (newest - System.DateTime.UtcNow).TotalMinutes
+        let ahead = newest - System.DateTime.UtcNow
+        let howFar =
+          if ahead.TotalDays >= 2.0 then
+            $"{int ahead.TotalDays} days"
+          else
+            $"{int ahead.TotalMinutes} minutes"
         Some
-          $"this machine's clock is about {minutes} minutes ahead of the server's; its changes wait until the clock is right"
+          $"this machine's changes are stamped about {howFar} ahead of the server's clock; they wait until that time comes. Is this machine's clock right?"
       | _ -> None
 
   let receive (st : State) (bytes : byte[]) : Result<State, Ended> =
@@ -827,25 +832,32 @@ let private session
     | Some ended -> ended
     | None ->
       pinger.Start()
-      let ended =
-        iterate
-          step
-          { cursor = None
-            peer = None
-            caughtUp = false
-            acked = None
-            heard = System.DateTime.UtcNow
-            readOnly = false
-            trimming = false
-            fromScratch = false }
+      let ended, why =
+        try
+          let ended =
+            iterate
+              step
+              { cursor = None
+                peer = None
+                caughtUp = false
+                acked = None
+                heard = System.DateTime.UtcNow
+                readOnly = false
+                trimming = false
+                fromScratch = false }
+          match ended with
+          | Refused reason -> ended, Some reason
+          | _ -> ended, None
+        with e ->
+          PeerGone e.Message, Some $"{selfName} failed: {e.Message}"
       // Say why, so the other end can tell its person rather than retry in silence.
-      match ended with
-      | Refused reason ->
+      match why with
+      | Some reason ->
         try
           write (Bye reason)
         with _ ->
           ()
-      | _ -> ()
+      | None -> ()
       ended
   finally
     finished.Set()
