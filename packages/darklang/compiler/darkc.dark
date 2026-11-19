@@ -1,0 +1,104 @@
+/// The native compiler, darkc (darklang/compiler): where it and its cache live, and the
+/// command line each job becomes. Every darkc flag `dark compile` passes is in <fn arguments>.
+module Darklang.Compiler.Darkc
+
+/// The compiler commit this CLI is tested against. `scripts/compiler/build` and the release
+/// build read it from here.
+val pinnedCommit = "f93ad99aa421157738101851680716d35c09feff"
+
+
+/// `~/.darklang/compiler/<first 9 of the pin>`: darkc and its prepared stdlib. The CLI
+/// extracts its embedded darkc here; `scripts/compiler/build` builds one here.
+let directory(): String =
+  let home = Stdlib.Cli.Env.home() |> Stdlib.Option.withDefault("")
+  let short = Stdlib.String.slice(pinnedCommit, 0, 9) |> Stdlib.Result.withDefault(pinnedCommit)
+  $"{home}/.darklang/compiler/{short}"
+
+
+let path(): String =
+  $"{directory()}/darkc"
+
+
+let cacheDir(): String =
+  $"{directory()}/cache"
+
+
+/// darkc writes its prepared stdlib as `stdlib-<target>-<digest>.bin`, and a `.partial`
+/// beside it while it works.
+let stdlibPrepared(): Bool =
+  Stdlib.Cli.FileSystem.listDirectory(cacheDir())
+  |> Stdlib.Result.withDefault([])
+  |> Stdlib.List.any(fun file ->
+    let name = Stdlib.Cli.Path.basename(file)
+    Stdlib.String.startsWith(name, "stdlib-") && Stdlib.String.endsWith(name, ".bin"))
+
+
+/// Where darkc has a backend: Linux x86-64 and arm64, macOS arm64. Elsewhere, the host's
+/// name as the message says it.
+let unsupportedHost(): Option<String> =
+  match Stdlib.Cli.OS.getOS(), Stdlib.Cli.Architecture.getArchitecture() with
+  | Ok(Linux), Ok(X86_64) -> Option.None
+  | Ok(Linux), Ok(Aarch64) -> Option.None
+  | Ok(MacOS), Ok(Arm64) -> Option.None
+  | Ok(Linux), Ok(Arm) -> Option.Some("linux-arm (32-bit)")
+  | Ok(MacOS), Ok(X86_64) -> Option.Some("macOS x86-64")
+  | _ -> Option.Some("this platform")
+
+
+type Job =
+  /// Write an executable at <param output> that runs the package fn <param entry> as
+  /// `dark run` does: darkc passes it the command-line words and turns its result into the
+  /// exit code.
+  | Executable(entry: LanguageTools.ProgramTypes.Hash, output: String)
+  /// Compile <param expr>, run it, and print what it prints.
+  | Run(expr: String)
+  /// Whether each package fn or value compiles: one JSON object per name on stdout.
+  | Check(names: List<String>)
+
+
+type Invocation =
+  { job: Job
+    /// -1 for `-q`, 0 by default, 1 to 3 for `-v` to `-vvv`
+    verbosity: Int64
+    packageServer: String }
+
+
+let verbosityFlag(verbosity: Int64): List<String> =
+  match verbosity with
+  | 1 -> [ "-v" ]
+  | 2 -> [ "-vv" ]
+  | 3 -> [ "-vvv" ]
+  // darkc's own default prints a line per compile, which `dark compile` says itself
+  | _ -> [ "-q" ]
+
+
+let arguments(invocation: Invocation): List<String> =
+  let common = [ "--cache-dir", cacheDir(), "--package-server", invocation.packageServer ]
+  let job =
+    match invocation.job with
+    | Executable(Hash(hash), output) ->
+      Stdlib.List.concat(verbosityFlag(invocation.verbosity), [ "--entry", hash, "-o", output ])
+    | Run(expr) ->
+      Stdlib.List.concat(verbosityFlag(invocation.verbosity), [ "-r", "-e", "--", expr ])
+    | Check(names) -> Stdlib.List.concat([ "--check", "--json" ], names)
+
+  Stdlib.List.concat(common, job)
+
+
+/// One line of `darkc --check --json`.
+type CheckReport =
+  { name: String
+    /// "compiles", "failed" or "undetermined"
+    status: String
+    /// darkc's tag for why not, such as "missing-builtin"
+    reason: String
+    error: String }
+
+
+let parseCheckReports(stdout: String): List<CheckReport> =
+  stdout
+  |> Stdlib.String.splitOnNewline
+  |> Stdlib.List.filter(fun line ->
+    Stdlib.Bool.not(Stdlib.String.isEmpty(Stdlib.String.trim(line))))
+  |> Stdlib.List.filterMap(fun line ->
+    Stdlib.Json.parse<CheckReport>(line) |> Stdlib.Result.toOption)

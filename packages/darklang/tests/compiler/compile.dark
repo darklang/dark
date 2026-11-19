@@ -1,61 +1,135 @@
-// What `dark compile` asks the compiler to build, and how it reads its arguments. Needs no compiler.
+// What `dark compile` asks the compiler to build. Needs no compiler.
 module Darklang.Cli.Compile.Tests
 
-test listOfStringsGetsTheArgs =
-  match Darklang.Cli.Compile.entryExpression("Stdlib.Cli.Path.join") with
-  | Ok(expr) ->
-    Stdlib.String.endsWith(
-      expr,
-      "\nDarklang.Stdlib.Cli.Path.join(commandLineArgs(0, []))")
-    |> Stdlib.Test.equal(true)
-  | Error(e) -> Stdlib.Test.fail(e)
+module Fixtures =
+  let echo(args: List<String>): Int64 =
+    Stdlib.List.iter(args, fun a -> Stdlib.printLine(a))
+    0
 
 
-test noParametersIsJustCalled =
-  Darklang.Cli.Compile.entryExpression("Darklang.Cli.Http.Serve.usageLines")
+  let exitWith(args: List<String>): Int64 =
+    match args with
+    | [code] -> Stdlib.Int64.parse(code) |> Stdlib.Result.withDefault(2)
+    | _ -> 2
+
+
+  let hello(): Unit =
+    Stdlib.printLine("hello")
+
+
+val fixtures = "Darklang.Cli.Compile.Tests.Fixtures"
+
+
+let entryOf(name: String): Result<Cli.Run.EntryParameters, Cli.Run.EntryError> =
+  Cli.Run.entry(SCM.Branch.mainBranchId, name)
+  |> Stdlib.Result.map(fun e -> e.parameters)
+
+
+test entryTakesWordsOrNothing =
+  [ entryOf($"{fixtures}.echo"), entryOf($"{fixtures}.hello") ]
   |> Stdlib.Test.equal(
-    Stdlib.Result.Result.Ok("Darklang.Cli.Http.Serve.usageLines()"))
+    [ Stdlib.Result.Result.Ok(Cli.Run.EntryParameters.Words)
+      Stdlib.Result.Result.Ok(Cli.Run.EntryParameters.Nothing) ])
 
 
-test otherSignaturesAreRefused =
-  Darklang.Cli.Compile.entryExpression("Stdlib.String.padStart")
+test entryRefusesOtherParameters =
+  entryOf("Stdlib.String.padStart")
   |> Stdlib.Test.equal(
     Stdlib.Result.Result.Error(
-      "Stdlib.String.padStart(string: String, padWith: Char, goalLength: Int64): String can't be an executable yet: it needs to take List<String>, or nothing."))
+      Cli.Run.EntryError.OtherParameters(
+        "string: String, padWith: Char, goalLength: Int64")))
+
+
+test entryOfNoFn =
+  entryOf("Stdlib.NoSuch.fn")
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Cli.Run.EntryError.NoFn))
+
+
+test executablesTakeWhatRunTakes =
+  Cli.Compile.entry("Stdlib.String.padStart")
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Error(
+      "Stdlib.String.padStart takes (string: String, padWith: Char, goalLength: Int64); an executable's fn takes List<String> or nothing, as for `dark run`."))
+
+
+test executablesReturnAnExitCode =
+  Cli.Compile.entry("Stdlib.Cli.Path.join")
+  |> Stdlib.Test.equal(
+    Stdlib.Result.Result.Error(
+      "Stdlib.Cli.Path.join returns String; an executable's fn returns Int64, the exit code, or Unit, as for `dark run`."))
 
 
 test unknownFn =
-  Darklang.Cli.Compile.entryExpression("Stdlib.NoSuch.fn")
+  Cli.Compile.entry("Stdlib.NoSuch.fn")
   |> Stdlib.Test.equal(
     Stdlib.Result.Result.Error("No package fn named Stdlib.NoSuch.fn."))
 
 
+let argumentsFor(job: Compiler.Darkc.Job, verbosity: Int64): List<String> =
+  Compiler.Darkc.arguments(
+    Compiler.Darkc.Invocation
+      { job = job, verbosity = verbosity, packageServer = "http://s" })
+
+
+test anExecutableIsNamedByItsHash =
+  let hash = LanguageTools.ProgramTypes.Hash.Hash("abc123")
+  argumentsFor(Compiler.Darkc.Job.Executable(hash, "./echo"), 1)
+  |> Stdlib.List.drop(4)
+  |> Stdlib.Test.equal([ "-v", "--entry", "abc123", "-o", "./echo" ])
+
+
+test theCacheAndServerAreSaidEveryTime =
+  argumentsFor(Compiler.Darkc.Job.Run("1 + 2"), -1)
+  |> Stdlib.Test.equal(
+    [ "--cache-dir"
+      Compiler.Darkc.cacheDir()
+      "--package-server"
+      "http://s"
+      "-q"
+      "-r"
+      "-e"
+      "--"
+      "1 + 2" ])
+
+
+test checkAsksForJson =
+  argumentsFor(Compiler.Darkc.Job.Check([ "A.b", "A.c" ]), 2)
+  |> Stdlib.List.drop(4)
+  |> Stdlib.Test.equal([ "--check", "--json", "A.b", "A.c" ])
+
+
+test checkReportsAreRead =
+  "{\"name\":\"A.b\",\"status\":\"compiles\",\"reason\":\"\",\"error\":\"\"}\n\n{\"name\":\"A.c\",\"status\":\"failed\",\"reason\":\"missing-builtin\",\"error\":\"no Builtin.x\"}\n"
+  |> Compiler.Darkc.parseCheckReports
+  |> Stdlib.List.map(fun r -> (r.name, r.status))
+  |> Stdlib.Test.equal([ ("A.b", "compiles"), ("A.c", "failed") ])
+
+
 test noOutputIsNamedAfterTheFn =
-  Darklang.Cli.Compile.parse([ "Stdlib.Cli.Path.join" ])
+  Cli.Compile.parse([ "Me.Tools.wc" ])
   |> Stdlib.Test.equal(
     Stdlib.Result.Result.Ok(
-      Darklang.Cli.Compile.Request.Executable("Stdlib.Cli.Path.join", "./join")))
+      Cli.Compile.Request.Executable("Me.Tools.wc", "./wc")))
 
 
 test runTakesAnExpression =
-  Darklang.Cli.Compile.verbosityOf([ "--run", "-1 + 2", "-v" ])
+  Cli.Compile.verbosityOf([ "--run", "-1 + 2", "-v" ])
   |> Stdlib.Test.equal(([ "--run", "-1 + 2" ], 1))
 
 
 test verbosityLevels =
-  [ [ "Stdlib.Cli.Path.join" ]
-    [ "-q", "Stdlib.Cli.Path.join" ]
-    [ "Stdlib.Cli.Path.join", "-vvv" ] ]
-  |> Stdlib.List.map(fun args -> Stdlib.Tuple2.second(Darklang.Cli.Compile.verbosityOf(args)))
+  [ [ "Me.Tools.wc" ], [ "-q", "Me.Tools.wc" ], [ "Me.Tools.wc", "-vvv" ] ]
+  |> Stdlib.List.map(fun args ->
+    Stdlib.Tuple2.second(Cli.Compile.verbosityOf(args)))
   |> Stdlib.Test.equal([ 0, -1, 3 ])
 
 
 test bareExpressionIsRefused =
-  Darklang.Cli.Compile.parse([ "-1 + 2" ])
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Darklang.Cli.Compile.usage))
+  Cli.Compile.parse([ "-1 + 2" ])
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Cli.Compile.usage))
 
 
 test seconds =
   [ 400, 2449, 81234 ]
-  |> Stdlib.List.map(fun ms -> Darklang.Cli.Compile.seconds(ms))
+  |> Stdlib.List.map(fun ms -> Cli.Compile.seconds(ms))
   |> Stdlib.Test.equal([ "0.4 s", "2.4 s", "81 s" ])

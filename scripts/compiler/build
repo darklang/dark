@@ -3,18 +3,15 @@
 #   rundir/compiler/<first 9 of the commit>/darkc   (~/.darklang/compiler/... in the container)
 #
 # Runs on the HOST, not in the dev container: it needs docker. The commit is
-# `Darklang.Cli.Compile.pinnedCommit`, read from packages/darklang/cli/compile.dark.
-#
-#   scripts/compiler/build            build the pinned commit
-#   scripts/compiler/build <commit>   build another one (set DARK_COMPILER to use it)
+# `Darklang.Compiler.Darkc.pinnedCommit`, read from packages/darklang/compiler/darkc.dark.
 
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PINNED=$(sed -n 's/^val pinnedCommit = "\([0-9a-f]*\)"$/\1/p' "$DIR/packages/darklang/cli/compile.dark")
-COMMIT="${1:-$PINNED}"
+PINNED=$(sed -n 's/^val pinnedCommit = "\([0-9a-f]*\)"$/\1/p' "$DIR/packages/darklang/compiler/darkc.dark")
+COMMIT="$PINNED"
 if [[ -z "$COMMIT" ]]; then
-  echo "No pinnedCommit in packages/darklang/cli/compile.dark" >&2
+  echo "No pinnedCommit in packages/darklang/compiler/darkc.dark" >&2
   exit 1
 fi
 SHORT="${COMMIT:0:9}"
