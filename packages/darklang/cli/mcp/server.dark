@@ -1,0 +1,138 @@
+/// `dark mcp`: Dark's CLI as an MCP server on stdio.
+///
+/// Each tool call runs one `dark` command in a child process, so a program that prints cannot
+/// corrupt the stream, and the child runs under the same store and policy a shell call would.
+///
+/// Part of `Darklang.Cli`.
+module Darklang.Cli.Mcp
+
+let intro(cwd: String): String =
+  [ "Dark's CLI as tools. Each tool runs one `dark` command, in " + cwd + ", against this instance's store, and returns its stdout, stderr and exit code apart. Nothing goes through a shell: source, patches and arguments need no quoting or heredocs."
+    ""
+    "The shell forms in the reference below map to tools:"
+    "  module /Me.X - <<'EOF' ... EOF    save {module: \"Me.X\", source}   (also runs Me.X's tests)"
+    "  run --allow \"r\" Me.X.main a b     run {fn: \"Me.X.main\", args: [\"a\", \"b\"], allow: [\"r\"], stdin}"
+    "  eval '...'                         eval {expr}"
+    "  view X --raw / edit X --patch -     view {names: [\"X\"]} / edit {name: \"X\", patch}"
+    "  search --batch a b --fn           search {queries: [\"a\", \"b\"], kind: \"fn\"}"
+    "  docs for-ai tests                 docs {topics: [\"tests\"]}"
+    "  test run Me.X / typecheck Me      test {target: \"Me.X\"} / typecheck {target: \"Me\"}"
+    "  anything else                     dark {args: [...]}"
+    ""
+    "Permissions: this server grants nothing and never edits the policy. `allow` on run and eval covers one call, like `run --allow`; file rules need absolute paths."
+    "" ]
+  |> Stdlib.String.join("\n")
+
+
+let instructions(runner: Tools.Runner): String =
+  let reference =
+    match runner.run(Tools.call([ "docs", "for-ai" ])) with
+    | Exited(0, stdout, _) -> stdout
+    | _ -> "Call `docs` for the quick reference."
+
+  intro(Stdlib.Cli.FileSystem.currentDirectory()) + "\n" + reference
+
+
+let initialize(params: List<(String * Stdlib.AltJson.Json)>, runner: Tools.Runner): Stdlib.AltJson.Json =
+  let requested = Stdlib.AltJson.Helpers.getString("protocolVersion", params)
+
+  Stdlib.AltJson.Json.Object(
+    [ ("protocolVersion", Stdlib.AltJson.Json.String(Protocol.version(requested)))
+      (
+        "capabilities",
+        Stdlib.AltJson.Json.Object(
+          [ ("tools", Stdlib.AltJson.Json.Object([ ("listChanged", Stdlib.AltJson.Json.Bool(false)) ])) ]))
+      (
+        "serverInfo",
+        Stdlib.AltJson.Json.Object(
+          [ ("name", Stdlib.AltJson.Json.String("dark"))
+            ("version", Stdlib.AltJson.Json.String(Installation.Helpers.cliVersion())) ]))
+      ("instructions", Stdlib.AltJson.Json.String(instructions(runner))) ])
+
+
+let respond(
+  id: Stdlib.AltJson.Json,
+  method: String,
+  params: List<(String * Stdlib.AltJson.Json)>,
+  runner: Tools.Runner)
+  : String =
+  match method with
+  | "initialize" -> Protocol.result(id, initialize(params, runner))
+  | "ping" -> Protocol.result(id, Stdlib.AltJson.Json.Object([]))
+  | "tools/list" ->
+    let tools = Tools.all() |> Stdlib.List.map(Tools.toJson)
+    Protocol.result(id, Stdlib.AltJson.Json.Object([ ("tools", Stdlib.AltJson.Json.Array(tools)) ]))
+  | "tools/call" ->
+    let name = Stdlib.AltJson.Helpers.getString("name", params) |> Stdlib.Option.withDefault("")
+    let arguments = Stdlib.AltJson.Helpers.getObject("arguments", params)
+
+    match Tools.find(name) with
+    | None -> Protocol.error(id, Protocol.invalidParams, $"Unknown tool: {name}")
+    | Some(tool) -> Protocol.result(id, Tools.replyJson(Tools.checked(tool.call(arguments, runner))))
+  | _ -> Protocol.error(id, Protocol.methodNotFound, $"Method not found: {method}")
+
+
+/// The reply to one line, if it wants one.
+let handle(line: String, runner: Tools.Runner): Option<String> =
+  match Protocol.parse(line) with
+  | Request(id, method, params) -> Some(respond(id, method, params, runner))
+  | Invalid(id, code, message) -> Some(Protocol.error(id, code, message))
+  | Notification(_) -> None
+  | Response -> None
+
+
+/// Runs each call in a child of this same binary.
+let childRunner(): Tools.Runner =
+  let self = Stdlib.Cli.Sys.currentExecutablePath()
+
+  Tools.Runner
+    { run =
+        fun call ->
+          match
+            Stdlib.Cli.Process.runWithInput(
+              self,
+              call.args,
+              Stdlib.Utf8.encode(call.stdin),
+              Some(call.timeoutMs))
+          with
+          | Ok(output) ->
+            Tools.Outcome.Exited(
+              output.exitCode,
+              Stdlib.Utf8.decodeWithReplacement(output.stdout),
+              Stdlib.Utf8.decodeWithReplacement(output.stderr))
+          | Error(ProcessTimedOut) -> Tools.Outcome.TimedOut(call.timeoutMs)
+          | Error(e) -> Tools.Outcome.NotStarted(e) }
+
+
+let serve(runner: Tools.Runner): Unit =
+  match Stdlib.Cli.Stdin.readLineOrEnd() with
+  | None -> ()
+  | Some(line) ->
+    if Stdlib.String.trim(line) != "" then
+      match handle(line, runner) with
+      | Some(reply) -> Stdlib.printLine(reply)
+      | None -> ()
+    else
+      ()
+
+    serve(runner)
+
+
+let execute(state: AppState, _args: List<String>): AppState =
+  serve(childRunner())
+  state
+
+
+let help(_state: AppState): String =
+  [ "Usage: mcp"
+    "Serve Dark's CLI to an AI client over MCP, on stdin and stdout."
+    ""
+    "Each tool runs one `dark` command here and returns its output and exit code apart. The"
+    "server grants no permissions; `run` and `eval` take `allow` rules for one call."
+    ""
+    "Claude Code:  claude mcp add dark -- dark mcp" ]
+  |> Stdlib.String.join("\n")
+
+
+let complete(_state: AppState, _args: List<String>): List<Completion.CompletionItem> =
+  []

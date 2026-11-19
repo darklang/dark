@@ -1,0 +1,82 @@
+/// JSON-RPC 2.0 as MCP speaks it over stdio: one message per line, no batches.
+///
+/// Part of `Darklang.Cli.Mcp`.
+module Darklang.Cli.Mcp.Protocol
+
+val parseError = -32700
+val invalidRequest = -32600
+val methodNotFound = -32601
+val invalidParams = -32602
+
+
+/// One line from the client, sorted by what it wants back.
+type Message =
+  /// Wants a reply carrying `id` exactly as it came.
+  | Request(id: Stdlib.AltJson.Json, method: String, params: List<(String * Stdlib.AltJson.Json)>)
+  /// Wants no reply.
+  | Notification(method: String)
+  /// A reply to a request of ours. The server sends none, so these are dropped.
+  | Response
+  /// Not a message: answered with this error.
+  | Invalid(id: Stdlib.AltJson.Json, code: Int64, message: String)
+
+
+let parse(line: String): Message =
+  match Stdlib.AltJson.parse(line) with
+  | Error(_) -> Message.Invalid(Stdlib.AltJson.Json.Null, parseError, "Parse error: not JSON")
+  | Ok(Object(fields)) ->
+    let id = Stdlib.AltJson.Helpers.getValue("id", fields)
+    let idOrNull = Stdlib.Option.withDefault(id, Stdlib.AltJson.Json.Null)
+
+    match Stdlib.AltJson.Helpers.getValue("method", fields) with
+    | Some(String(method)) ->
+      let params =
+        match Stdlib.AltJson.Helpers.getValue("params", fields) with
+        | Some(Object(p)) -> p
+        | _ -> []
+
+      match id with
+      | None -> Message.Notification(method)
+      | Some(i) -> Message.Request(i, method, params)
+    | Some(_) -> Message.Invalid(idOrNull, invalidRequest, "Invalid request: method must be a string")
+    | None ->
+      let answers =
+        Stdlib.Option.isSome(Stdlib.AltJson.Helpers.getValue("result", fields))
+        || Stdlib.Option.isSome(Stdlib.AltJson.Helpers.getValue("error", fields))
+
+      if answers then
+        Message.Response
+      else
+        Message.Invalid(idOrNull, invalidRequest, "Invalid request: no method")
+  | Ok(Array(_)) ->
+    Message.Invalid(Stdlib.AltJson.Json.Null, invalidRequest, "Invalid request: batches are not supported")
+  | Ok(_) -> Message.Invalid(Stdlib.AltJson.Json.Null, invalidRequest, "Invalid request: not an object")
+
+
+let result(id: Stdlib.AltJson.Json, value: Stdlib.AltJson.Json): String =
+  Stdlib.AltJson.format(
+    Stdlib.AltJson.Json.Object(
+      [ ("jsonrpc", Stdlib.AltJson.Json.String("2.0")), ("id", id), ("result", value) ]))
+
+
+let error(id: Stdlib.AltJson.Json, code: Int64, message: String): String =
+  Stdlib.AltJson.format(
+    Stdlib.AltJson.Json.Object(
+      [ ("jsonrpc", Stdlib.AltJson.Json.String("2.0"))
+        ("id", id)
+        (
+          "error",
+          Stdlib.AltJson.Json.Object(
+            [ ("code", Stdlib.AltJson.Json.Integer(code))
+              ("message", Stdlib.AltJson.Json.String(message)) ])) ]))
+
+
+/// The versions this server speaks, newest first.
+val versions = [ "2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05" ]
+
+
+/// The client's version when this server speaks it, else the newest it does.
+let version(requested: Option<String>): String =
+  match requested with
+  | Some(v) when Stdlib.List.contains(versions, v) -> v
+  | _ -> Stdlib.List.head(versions) |> Stdlib.Option.withDefault("2025-06-18")
