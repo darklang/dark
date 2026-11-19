@@ -57,7 +57,7 @@ let private note (change : SyncLink.Standing -> SyncLink.Standing) : unit =
 
 let private config (key : string) : Option<string> =
   try
-    (LibDB.Config.get key).Result
+    LibDB.Config.get key
   with _ ->
     None
 
@@ -128,7 +128,7 @@ let private side
   (record : bool)
   : SyncLink.Side =
   let before = config "instance.id"
-  (LibDB.Config.ensureInstance ()).Wait()
+  LibDB.Config.ensureInstance ()
   match before, config "instance.id" with
   | Some old, Some now when old <> now ->
     log
@@ -216,9 +216,9 @@ let private add
         true
     with
     | SyncLink.Exchanged, _, _ ->
-      (LibDB.Config.set peerKey host).Wait()
+      LibDB.Config.set peerKey host
       match command with
-      | Some c -> (LibDB.Config.set commandKey c).Wait()
+      | Some c -> LibDB.Config.set commandKey c
       | None -> ()
       startWatcher ()
       let seconds = float clock.ElapsedMilliseconds / 1000.0
@@ -238,8 +238,8 @@ let private off () : int =
     System.Console.Error.WriteLine "sync is already off."
     0
   | Some host ->
-    (LibDB.Config.unset peerKey).Wait()
-    (LibDB.Config.unset commandKey).Wait()
+    LibDB.Config.unset peerKey
+    LibDB.Config.unset commandKey
     let deadline = System.DateTime.UtcNow.AddSeconds 15.0
     let rec wait () =
       if SyncLink.watcherRunning () && System.DateTime.UtcNow < deadline then
@@ -258,7 +258,7 @@ let private status () : int =
       "sync is off. `dark sync add <host>` keeps this store in step with a machine you own, over ssh."
     0
   | Some _ ->
-    System.Console.Error.WriteLine((SyncLink.statusNow ()).Result)
+    System.Console.Error.WriteLine(SyncLink.statusNow ())
     0
 
 /// The forms of `dark sync` handled here, or None for Dark to answer `help`.

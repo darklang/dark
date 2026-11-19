@@ -464,7 +464,7 @@ let private session
       | Some ended -> Error ended
       | None -> Ok(Some now)
     else
-      match (OpSync.exportSince side.store since peerId bundleOut).Result with
+      match OpSync.exportSince side.store since peerId bundleOut with
       | Error reason -> Error(Refused reason)
       | Ok counts when carries counts ->
         match sendBundle counts what with
@@ -477,7 +477,7 @@ let private session
 
   let sendHave () : Option<Ended> =
     let clock = System.Diagnostics.Stopwatch.StartNew()
-    match (OpSync.writeHave side.store haveOut).Result with
+    match OpSync.writeHave side.store haveOut with
     | Error reason -> Some(Refused reason)
     | Ok() ->
       let bytes = File.ReadAllBytes haveOut
@@ -491,7 +491,7 @@ let private session
     match st.peer with
     | None -> Error(Refused "the other end sent changes before saying who it is")
     | Some(id, name) ->
-      (OpSync.recordReceived side.store id name upTo).Wait()
+      OpSync.recordReceived side.store id name upTo
       match send (Ack upTo) with
       | Some ended -> Error ended
       | None ->
@@ -502,7 +502,7 @@ let private session
   let receive (st : State) (bytes : byte[]) : Result<State, Ended> =
     File.WriteAllBytes(bundleIn, bytes)
     let started = System.Diagnostics.Stopwatch.StartNew()
-    match (OpSync.import side.store bundleIn).Result with
+    match OpSync.import side.store bundleIn with
     | Error reason -> Error(Refused reason)
     | Ok counts ->
       if changed counts then
@@ -562,7 +562,7 @@ let private session
             let st = { st with peer = Some(id, name) }
             // From the point the two last agreed on, or from scratch.
             let asked =
-              match (OpSync.receivedFrom side.store id).Result with
+              match OpSync.receivedFrom side.store id with
               | Some c ->
                 side.log $"resuming from {c.journal}/{c.blobs}"
                 send (Resume c)
@@ -571,7 +571,7 @@ let private session
             | Some ended -> Choice2Of2 ended
             | None -> Choice1Of2 st
         | Resume c ->
-          if (OpSync.reaches side.store c).Result then
+          if OpSync.reaches side.store c then
             answered st (sendSince c (peerIdOf st) "catch-up")
           else
             side.log
@@ -586,7 +586,7 @@ let private session
         | Have bytes ->
           File.WriteAllBytes(haveIn, bytes)
           let clock = System.Diagnostics.Stopwatch.StartNew()
-          let exported = (OpSync.export side.store haveIn bundleOut).Result
+          let exported = OpSync.export side.store haveIn bundleOut
           side.log
             $"have of {bytes.Length} bytes answered in {clock.ElapsedMilliseconds} ms"
           match exported with
@@ -618,8 +618,7 @@ let private session
           | Some(id, name) ->
             let firstThisSession = Option.isNone st.acked
             let trimmed =
-              (OpSync.recordAcked side.store id name c.journal firstThisSession)
-                .Result
+              OpSync.recordAcked side.store id name c.journal firstThisSession
             if trimmed > 0L then
               side.log $"trimmed {trimmed} journal entries every peer holds"
             Choice1Of2 { st with acked = Some c.journal }
@@ -638,7 +637,7 @@ let private session
             let now = standing conn
             if now.journal > c.journal || now.blobs > c.blobs then
               match
-                (OpSync.exportSince side.store c (peerIdOf st) bundleOut).Result
+                OpSync.exportSince side.store c (peerIdOf st) bundleOut
               with
               | Error reason -> Choice2Of2(Refused reason)
               | Ok counts ->
@@ -1050,19 +1049,17 @@ let watcherRunning () : bool =
   | None -> true
 
 /// `dark status`'s line about sync, or "" when sync is off.
-let statusNow () : Task<string> =
-  task {
-    match! Config.get peerKey with
-    | None -> return ""
-    | Some host ->
-      let s = Standing.read (standingPath ())
-      // A watcher that has stopped holds no connection, whatever it last recorded; the next
-      // command starts another.
-      let s =
-        if s.state = "connected" && not (watcherRunning ()) then
-          Standing.into "connecting" "" s
-        else
-          s
-      let! behind = OpSync.notYetAcked Sqlite.currentDbPath s.peer
-      return statusLine host s behind System.DateTime.UtcNow
-  }
+let statusNow () : string =
+  match Config.get peerKey with
+  | None -> ""
+  | Some host ->
+    let s = Standing.read (standingPath ())
+    // A watcher that has stopped holds no connection, whatever it last recorded; the next
+    // command starts another.
+    let s =
+      if s.state = "connected" && not (watcherRunning ()) then
+        Standing.into "connecting" "" s
+      else
+        s
+    let behind = OpSync.notYetAcked Sqlite.currentDbPath s.peer
+    statusLine host s behind System.DateTime.UtcNow

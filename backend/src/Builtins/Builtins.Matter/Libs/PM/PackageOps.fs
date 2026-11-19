@@ -327,10 +327,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUnit |] ->
-          uply {
-            let! line = LibDB.SyncLink.statusNow ()
-            return DString line
-          }
+          DString(LibDB.SyncLink.statusNow ())
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
