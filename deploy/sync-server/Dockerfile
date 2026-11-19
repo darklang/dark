@@ -8,7 +8,7 @@ FROM ubuntu:24.04
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates curl libicu74 \
   && rm -rf /var/lib/apt/lists/* \
-  && useradd --uid 1000 --user-group --home-dir /data --no-create-home dark
+  && useradd --uid 10001 --user-group --home-dir /data --no-create-home dark
 
 COPY --chmod=0755 dark /usr/local/bin/dark
 COPY --chmod=0755 entrypoint.sh /usr/local/bin/dark-sync-entrypoint
