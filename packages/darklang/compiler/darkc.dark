@@ -88,6 +88,11 @@ let arguments(invocation: Invocation): List<String> =
   Stdlib.List.concat(common, job)
 
 
+/// darkc's command line for preparing its stdlib and nothing else.
+let prepareArguments(): List<String> =
+  [ "prepare", "--cache-dir", cacheDir() ]
+
+
 /// One line of `darkc --check --json`.
 type CheckReport =
   { name: String

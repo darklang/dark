@@ -1,0 +1,115 @@
+/// darkc's prepared stdlib, made once per compiler: in the background at the first `dark` at
+/// a terminal, otherwise by the first compile. Both take `prepare.lock` in the cache, so
+/// there is never more than one at a time. Linux only: it leans on setsid and flock.
+module Darklang.Compiler.Prepare
+
+let lockPath(): String =
+  $"{Darkc.cacheDir()}/prepare.lock"
+
+
+let logPath(): String =
+  $"{Darkc.cacheDir()}/prepare.log"
+
+
+/// Preparing peaks at about 5.4 GB.
+val memoryNeeded = 6000000000
+
+
+/// MemAvailable in <param meminfo>, the text of /proc/meminfo, in bytes.
+let memAvailable(meminfo: String): Option<Int64> =
+  Stdlib.String.splitOnNewline(meminfo)
+  |> Stdlib.List.findFirst(fun line -> Stdlib.String.startsWith(line, "MemAvailable:"))
+  |> Stdlib.Option.andThen(fun line ->
+    Stdlib.String.split(line, " ")
+    |> Stdlib.List.filter(fun word -> word != "")
+    |> Stdlib.List.getAt(1)
+    |> Stdlib.Option.andThen(fun kb -> Stdlib.Int64.parse(kb) |> Stdlib.Result.toOption)
+    |> Stdlib.Option.map(fun kb -> kb * 1024))
+
+
+let availableMemory(): Option<Int64> =
+  Stdlib.Cli.File.readText("/proc/meminfo")
+  |> Stdlib.Result.toOption
+  |> Stdlib.Option.andThen(memAvailable)
+
+
+let isLinux(): Bool =
+  Stdlib.Cli.OS.getOS() == Result.Ok(Stdlib.Cli.OS.OS.Linux)
+
+
+/// Whether a preparation holds the lock right now.
+let running(): Bool =
+  if isLinux() && Stdlib.Cli.File.exists(lockPath()) then
+    match Stdlib.Cli.Process.run("flock", [ "-n", lockPath(), "true" ]) with
+    | Ok(output) -> output.exitCode != 0
+    | Error(_) -> false
+  else
+    false
+
+
+/// Why the background preparation doesn't start, checked cheapest first.
+type Skip =
+  | NotATerminal
+  | InCi
+  | TurnedOff
+  | NotLinux
+  | NoCompiler
+  | Prepared
+  /// One was started before, and either runs or failed; the first compile takes it from there.
+  | Started
+  | LowMemory(available: Int64)
+
+
+let skip(): Option<Skip> =
+  if Stdlib.Bool.not(Stdlib.Cli.Sys.isTerminal(0) && Stdlib.Cli.Sys.isTerminal(2)) then
+    Option.Some(Skip.NotATerminal)
+  else if Stdlib.Option.isSome(Stdlib.Env.get("CI")) then
+    Option.Some(Skip.InCi)
+  else if LanguageTools.LocalStore.configGet("compile.prepare") == Option.Some("off") then
+    Option.Some(Skip.TurnedOff)
+  else if Stdlib.Bool.not(isLinux()) then
+    Option.Some(Skip.NotLinux)
+  else if Stdlib.Bool.not(Stdlib.Cli.File.exists(Darkc.path())) then
+    Option.Some(Skip.NoCompiler)
+  else if Darkc.stdlibPrepared() then
+    Option.Some(Skip.Prepared)
+  else if Stdlib.Cli.File.exists(logPath()) then
+    Option.Some(Skip.Started)
+  else
+    match availableMemory() with
+    | Some(bytes) when bytes < memoryNeeded -> Option.Some(Skip.LowMemory(bytes))
+    | _ -> Option.None
+
+
+/// Start preparing in its own session at the lowest priority, and return at once. `flock -n`
+/// gives up if a compile is preparing already.
+let startInBackground(): Result<Unit, String> =
+  let _ = Stdlib.Cli.Dir.createRecursive(Darkc.cacheDir())
+  // the paths go in as arguments, never into the script's text
+  Stdlib.Cli.Process.run(
+    "/bin/sh",
+    Stdlib.List.concat(
+      [ "-c"
+        "lock=$1; darkc=$2; log=$3; shift 3; cd / && exec setsid -f nice -n 19 flock -n \"$lock\" \"$darkc\" \"$@\" > \"$log\" 2>&1 < /dev/null"
+        "sh"
+        lockPath()
+        Darkc.path()
+        logPath() ],
+      Darkc.prepareArguments()))
+  |> Stdlib.Result.mapError(fun e -> Stdlib.display(e))
+  |> Stdlib.Result.andThen(fun output ->
+    if output.exitCode == 0 then Result.Ok() else Result.Error(output.stderr))
+
+
+val notice =
+  "Preparing the compiler in the background (about a minute, 150 MB in ~/.darklang/compiler)."
+
+
+/// At the first `dark` at a terminal: start preparing, and say so in one line.
+let startIfDue(): Unit =
+  match skip() with
+  | Some(_) -> ()
+  | None ->
+    match startInBackground() with
+    | Ok(_) -> Stdlib.printErrorLine(notice)
+    | Error(_) -> ()

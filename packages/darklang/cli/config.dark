@@ -74,6 +74,11 @@ let settings(): List<Setting> =
       { key = "trace.record", what = "Keep a record of every run, on or off", byDefault = "off" }
 
     Setting
+      { key = "compile.prepare"
+        what = "Prepare the compiler's stdlib in the background at the first `dark`, on or off"
+        byDefault = "on" }
+
+    Setting
       { key = "http.loopback"
         what = "let your code reach 127.0.0.1, on or off"
         byDefault = "off" }

@@ -21,11 +21,20 @@ let seconds(ms: Int64): String =
 val preparing = "Preparing the compiler's stdlib"
 
 
+/// " It needs about 6 GB of memory, and 2.1 GB is free." when that's so.
+let memoryNote(): String =
+  match Compiler.Prepare.availableMemory() with
+  | Some(bytes) when bytes < Compiler.Prepare.memoryNeeded ->
+    let tenths = div(bytes, 100000000)
+    $" It needs about 6 GB of memory, and {Stdlib.display(div(tenths, 10))}.{Stdlib.display(tenths - div(tenths, 10) * 10)} GB is free."
+  | _ -> ""
+
+
 /// Before darkc builds its stdlib cache, ask; with nobody to ask, go ahead and say so.
 let confirmStdlib(verbosity: Int64): Bool =
   if Stdlib.Cli.UI.Prompt.canAsk() then
     Stdlib.printError(
-      "The first compile prepares the compiler's stdlib: about a minute and 150 MB. Continue? [Y/n] ")
+      $"The first compile prepares the compiler's stdlib: about a minute and 150 MB.{memoryNote()} Continue? [Y/n] ")
 
     match Stdlib.Cli.Stdin.checkedReadLine() with
     | Ok(Some(typed)) ->
@@ -34,16 +43,19 @@ let confirmStdlib(verbosity: Int64): Bool =
     | _ -> false
   else
     if verbosity >= 0 then
-      Stdlib.printErrorLine($"{preparing} (once per compiler: about a minute and 150 MB).")
+      Stdlib.printErrorLine(
+        $"{preparing} (once per compiler: about a minute and 150 MB).{memoryNote()}")
     else
       ()
 
     true
 
 
-/// Wait for <param run>, counting seconds on stderr until the stdlib cache appears.
+/// Wait for <param run>, counting seconds after <param label> on stderr until the stdlib
+/// cache appears.
 let waitShowingProgress(
   run: Stdlib.Exec.Handle<Result<Stdlib.Cli.Process.Output, Stdlib.Cli.Posix.Error>>,
+  label: String,
   started: Int64)
   : Result<Stdlib.Cli.Process.Output, Stdlib.Cli.Posix.Error> =
   match Stdlib.Exec.awaitWithin(1000, run) with
@@ -55,10 +67,8 @@ let waitShowingProgress(
       Stdlib.printError("\r\x1b[K")
       Stdlib.Exec.await(run)
     else
-      Stdlib.printError(
-        $"\r{preparing}... {Stdlib.display(div(Telemetry.elapsedMs(started), 1000))} s")
-
-      waitShowingProgress(run, started)
+      Stdlib.printError($"\r{label}... {Stdlib.display(div(Telemetry.elapsedMs(started), 1000))} s")
+      waitShowingProgress(run, label, started)
 
 
 let runCompiler(
@@ -66,12 +76,38 @@ let runCompiler(
   verbosity: Int64,
   preparingStdlib: Bool)
   : Result<Stdlib.Cli.Process.Output, Stdlib.Cli.Posix.Error> =
-  let compiler = Compiler.Darkc.path()
+  // under the lock a background preparation takes, so the two never both prepare
+  let (program, programArgs) =
+    if preparingStdlib && Compiler.Prepare.isLinux() then
+      let _ = Stdlib.Cli.Dir.createRecursive(Compiler.Darkc.cacheDir())
+      ("flock", Stdlib.List.concat([ Compiler.Prepare.lockPath(), Compiler.Darkc.path() ], args))
+    else
+      (Compiler.Darkc.path(), args)
+
   if preparingStdlib && verbosity >= 0 && Stdlib.Cli.Sys.isTerminal(2) then
-    let run = Stdlib.Exec.spawn(fun () -> Stdlib.Cli.Process.run(compiler, args))
-    waitShowingProgress(run, Telemetry.now())
+    let run = Stdlib.Exec.spawn(fun () -> Stdlib.Cli.Process.run(program, programArgs))
+    waitShowingProgress(run, preparing, Telemetry.now())
   else
-    Stdlib.Cli.Process.run(compiler, args)
+    Stdlib.Cli.Process.run(program, programArgs)
+
+
+/// When the stdlib is being prepared in the background, wait for it.
+let waitForBackground(verbosity: Int64): Unit =
+  if Compiler.Prepare.running() then
+    let wait = fun () -> Stdlib.Cli.Process.run("flock", [ Compiler.Prepare.lockPath(), "true" ])
+    if verbosity >= 0 && Stdlib.Cli.Sys.isTerminal(2) then
+      let _ =
+        waitShowingProgress(
+          Stdlib.Exec.spawn(wait),
+          "Waiting for the compiler's stdlib, preparing in the background",
+          Telemetry.now())
+
+      ()
+    else
+      let _ = wait()
+      ()
+  else
+    ()
 
 
 /// Serve this instance's packages on a random high port, retrying a few ports when one is
@@ -126,6 +162,7 @@ let withServer(
   match unavailable() with
   | Some(message) -> Result.Error(message)
   | None ->
+    waitForBackground(verbosity)
     let preparingStdlib = Stdlib.Bool.not(Compiler.Darkc.stdlibPrepared())
     if preparingStdlib && Stdlib.Bool.not(confirmStdlib(verbosity)) then
       Result.Error("Not compiling.")

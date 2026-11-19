@@ -82,8 +82,11 @@ A Release build embeds `rundir/compiler/<commit>/<runtime>/darkc.br` when it is
 there: `scripts/compiler/embed <static darkc> linux-x64 linux-musl-x64` writes it.
 linux-arm and osx-x64 have no compiler backend, so nothing is embedded for them.
 
-The first compile prepares the compiler's stdlib: about a minute and 150 MB, in
-`~/.darklang/compiler/<commit>/cache`. Later compiles take a few seconds.
+The compiler's stdlib is prepared once: about a minute and 150 MB, in
+`~/.darklang/compiler/<commit>/cache`. The first `dark` at a terminal starts it in
+the background on Linux, when 6 GB of memory is free; otherwise the first compile
+does it. `dark config set compile.prepare off` turns the background start off.
+Later compiles take a few seconds.
 
 ## Internals
 

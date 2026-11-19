@@ -75,7 +75,8 @@ let settings : List<string> =
     "trace.record"
     "trace.keep"
     "trace.maxMb"
-    "instance.name" ]
+    "instance.name"
+    "compile.prepare" ]
 
 /// The settings that open HTTP's network guard or decide what traces record. They are the
 /// person's to change, like the permission policy: `dark config set` or the `DARK_CONFIG_*`
@@ -117,7 +118,8 @@ let check
       "http.loopback"
       "http.private"
       "exec.spread"
-      "exec.spreadPredict" ]
+      "exec.spreadPredict"
+      "compile.prepare" ]
   let wholeNumber () = Error $"{key} takes a whole number (0 = none), not {value}"
   if value = "" && List.contains key settings then
     Error $"{key} needs a value; `dark config unset {key}` goes back to the default"

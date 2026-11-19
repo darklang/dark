@@ -45,7 +45,8 @@ Linux x86-64 and arm64, and macOS arm64. Elsewhere, `dark compile` says so.
 
 ## Where things live
 
-The compiler is ~/.darklang/compiler/<commit>/darkc. The first compile prepares
-its stdlib there, in cache/: about a minute and 150 MB. Later compiles take a few
-seconds.
+The compiler is ~/.darklang/compiler/<commit>/darkc. Its stdlib is prepared once,
+in cache/: about a minute and 150 MB. The first `dark` at a terminal starts that in
+the background when 6 GB of memory is free; otherwise the first compile does it.
+`dark config set compile.prepare off` turns the background start off.
 """
