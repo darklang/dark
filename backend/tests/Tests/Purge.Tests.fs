@@ -120,7 +120,9 @@ let private hashCoupledSurvivors =
     // make a row describe something that did not happen. And it belongs to a trace, which
     // outlives its code like the rows above.
     "trace_blobs"
-    "type_checked" ] // content-addressed cache: a clean result stays clean
+    "type_checked" // content-addressed cache: a clean result stays clean
+    // A sync server's tokens: `hash` is a token's SHA-256, nothing in the log.
+    "sync_tokens" ]
 
 
 let hashCoupledTablesAreClassified =

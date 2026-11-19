@@ -1495,7 +1495,7 @@ let firstJoinSendsWhatDiffers =
       let (sent, _) = sync dir a b
       Expect.isLessThan
         sent.journal
-        20L
+        (int64 entries / 100L)
         "only what changed goes, not the whole journal"
       Expect.equal
         (heldCount b ids)
