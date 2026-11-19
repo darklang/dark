@@ -260,7 +260,20 @@ let private session
               stillValid.Value <- SyncTokens.isLive storePath account.tokenId
             not running.stopping.IsSet && stillValid.Value
           let side = makeSide account workDir keepGoing
-          SyncLink.run side stream stream false
+          let ended = SyncLink.run side stream stream false
+          // A closing handshake, so the other end reads an end rather than a broken stream.
+          (try
+            use cts = new System.Threading.CancellationTokenSource(2000)
+            ws
+              .CloseOutputAsync(
+                System.Net.WebSockets.WebSocketCloseStatus.NormalClosure,
+                "",
+                cts.Token
+              )
+              .Wait()
+           with _ ->
+             ())
+          ended
         with e ->
           SyncLink.PeerGone e.Message
       running.sessions.TryRemove id |> ignore<bool * string>
@@ -332,10 +345,6 @@ let run
               "stopping"
               [ "signal", string signal.Signal; "sessions", running.sessions.Count ]
             running.stopping.Set()
-            try
-              listener.Stop()
-            with _ ->
-              ()
         use _term =
           System.Runtime.InteropServices.PosixSignalRegistration.Create(
             System.Runtime.InteropServices.PosixSignal.SIGTERM,
@@ -398,6 +407,11 @@ let run
         let deadline = System.DateTime.UtcNow.AddSeconds 25.0
         while running.sessions.Count > 0 && System.DateTime.UtcNow < deadline do
           System.Threading.Thread.Sleep 50
+        // Only now: stopping the listener drops the connections it still holds, mid-frame.
+        (try
+          listener.Stop()
+         with _ ->
+           ())
         (try
           use conn =
             new Microsoft.Data.Sqlite.SqliteConnection(

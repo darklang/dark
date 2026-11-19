@@ -549,7 +549,7 @@ let private tokenVerb (args : List<string>) : int =
     | revoked ->
       for t in revoked do
         err
-          $"revoked {t.id} ({t.person}). Sessions it opened end at their next reconnect."
+          $"revoked {t.id} ({t.person}). Its open sessions end within half a minute."
       0
   | _ ->
     err
@@ -621,22 +621,28 @@ let private restoreVerb (source : string) : int =
         + ".before-restore-"
         + System.DateTime.UtcNow.ToString "yyyyMMdd-HHmmss"
       SyncServer.backup store aside
-      Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools()
-      for suffix in [ "-wal"; "-shm" ] do
-        if File.Exists(store + suffix) then File.Delete(store + suffix)
-      File.Copy(source, store, true)
+      // The new store is made whole beside the old one, with its new identity, then moved over it
+      // in one rename: this process has the old one open, and nothing writes the new one in place.
+      let incoming = store + ".restoring"
+      if File.Exists incoming then File.Delete incoming
+      File.Copy(source, incoming)
       (use conn =
         new Microsoft.Data.Sqlite.SqliteConnection(
-          $"Data Source={store};Pooling=false"
+          $"Data Source={incoming};Pooling=false"
         )
        conn.Open()
        use cmd = conn.CreateCommand()
        cmd.CommandText <-
          "INSERT INTO config_v0 (key, value) VALUES ('instance.id', $id)
-          ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+          ON CONFLICT(key) DO UPDATE SET value = excluded.value;
+          PRAGMA wal_checkpoint(TRUNCATE);"
        cmd.Parameters.AddWithValue("$id", string (System.Guid.NewGuid()))
        |> ignore<Microsoft.Data.Sqlite.SqliteParameter>
        cmd.ExecuteNonQuery() |> ignore<int>)
+      Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools()
+      for suffix in [ "-wal"; "-shm" ] do
+        if File.Exists(store + suffix) then File.Delete(store + suffix)
+      File.Move(incoming, store, true)
       err
         $"restored from {source}. The store as it was is at {aside}. Machines that sync with it compare whole stores once and send back what the backup lacks."
       0

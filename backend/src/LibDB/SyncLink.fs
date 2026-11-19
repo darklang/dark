@@ -918,6 +918,9 @@ let ssh (host : string) (command : string) : Transport =
       $"{command} sync serve" ]
   )
 
+/// What the link's standing says when a server refused this machine's token.
+let tokenRefusedDetail = "token refused"
+
 /// Why a connection failed, as far as what ssh said tells.
 type Failure =
   /// The key was refused or the host key does not match: only the person can fix that.
@@ -1213,7 +1216,7 @@ let watch (watch : Watch) : unit =
             let what = if revoked then "was revoked" else "isn't one it knows"
             Some
               $"sync: {watch.peer} refused this machine's token: it {what}. Nothing syncs until `dark sync add {watch.peer} --token <new token>`.",
-            "token refused"
+            tokenRefusedDetail
           | NoDark reason ->
             Some
               $"sync: there is no dark to run on {watch.peer} ({reason}). `dark sync add {watch.peer} --command <path>` says where it is.",
@@ -1311,6 +1314,8 @@ let statusLine
     $"sync: up to date with {host}, read-only: what you change stays on this machine ({contact})."
   | "connected" when behind = 0L -> $"sync: up to date with {host} ({contact})."
   | "connected" -> $"sync: {changes} on their way to {host} ({contact})."
+  | "offline" when s.detail = tokenRefusedDetail ->
+    $"sync: {host} refused this machine's token. `dark sync add {host} --token -` with a new one."
   | "offline" ->
     let since =
       match s.since with
