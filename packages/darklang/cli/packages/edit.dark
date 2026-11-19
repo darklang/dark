@@ -40,13 +40,17 @@ let itemLocation(location: PackageLocation): Option<LanguageTools.ProgramTypes.P
   | Test(loc) -> Option.Some(loc)
 
 
-/// Hand the file to `dark module`, which validates and applies it.
+/// Read the source and apply it using the module save rules.
 let applyFile(
   state: AppState,
   loc: LanguageTools.ProgramTypes.PackageLocation,
   path: String)
   : AppState =
-  ModuleCommand.execute(state, [ moduleArgFor(loc), path ])
+  match ModuleCommand.readSource(path) with
+  | Ok(source) -> ModuleCommand.define(state, moduleArgFor(loc), source, ModuleCommand.Caller.Edit)
+  | Error(message) ->
+    printErr(message)
+    failed(state)
 
 
 /// After an edit lands: the runs that went through this function, if any. A replay recomputes

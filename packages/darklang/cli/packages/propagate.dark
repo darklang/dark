@@ -318,6 +318,30 @@ let printFollowed(followed: Followed): Unit =
         Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "  ", text))
 
 
+/// Report the propagation result for a single declaration edit.
+let printEditPropagation(followed: Followed): Unit =
+  let names =
+    Stdlib.List.sortWith(followed.names, fun(a, b) ->
+      let order = Stdlib.String.compare(a, b)
+      if order < 0 then Stdlib.Ordering.Less
+      else if order > 0 then Stdlib.Ordering.Greater
+      else Stdlib.Ordering.Equal)
+
+  match (followed.failure, followed.broken, names) with
+  | (None, [], [first, ...rest]) ->
+    let message =
+      match rest with
+      | [] -> $"{first} now uses the new version"
+      | [second] -> $"{first} and {second} now use the new version"
+      | [second, third] -> $"{first}, {second}, and {third} now use the new version"
+      | [second, third, ...others] ->
+        let more = Stdlib.display(Stdlib.List.length(others))
+        $"{first}, {second}, {third}, and {more} more now use the new version"
+
+    Text.printWrapped(Stdlib.Cli.UI.Colors.hint, "  ", message)
+  | _ -> printFollowed(followed)
+
+
 /// <fn printFollowed> as one clause for a footer that already says what was saved (the workbench's):
 /// "" when nothing followed, else `; ` and the same news, shortest first.
 let followedNote(followed: Followed): String =
