@@ -22,11 +22,13 @@ type Outcome =
 type Runner = { run: Call -> Outcome }
 
 
-/// What a tool call gives back: what the model reads, whether it failed, the data behind it.
+/// What a tool call gives back: what the model reads, whether it failed, and the data behind it
+/// where there is more to it than text. Clients that show `structuredContent` show it instead of
+/// the text, so plain output stays text.
 type Reply =
   { text: String
     isError: Bool
-    data: Stdlib.AltJson.Json }
+    data: Option<Stdlib.AltJson.Json> }
 
 
 type ParamKind =
@@ -134,7 +136,7 @@ let refused(message: String): Reply =
   Reply
     { text = message
       isError = true
-      data = Stdlib.AltJson.Json.Object([ ("refused", Stdlib.AltJson.Json.String(message)) ]) }
+      data = None }
 
 
 /// The rule a permission denial suggests, as `allow` takes it.
@@ -165,18 +167,6 @@ let plainText(code: Int64, stdout: String, stderr: String): String =
   | _ -> Stdlib.String.join(parts, "\n")
 
 
-let outcomeData(code: Int64, stdout: String, stderr: String): List<(String * Stdlib.AltJson.Json)> =
-  let base =
-    [ ("exitCode", Stdlib.AltJson.Json.Integer(code))
-      ("stdout", Stdlib.AltJson.Json.String(stdout))
-      ("stderr", Stdlib.AltJson.Json.String(stderr)) ]
-
-  match deniedRule(stderr + "\n" + stdout) with
-  | Some(rule) when code != 0 ->
-    Stdlib.List.append(base, ("allowToRetry", Stdlib.AltJson.Json.String(rule)))
-  | _ -> base
-
-
 let notRun(outcome: Outcome): Reply =
   match outcome with
   | TimedOut(ms) ->
@@ -200,7 +190,7 @@ let plain(outcome: Outcome): Reply =
     Reply
       { text = plainText(code, stdout, stderr) + hint
         isError = code != 0
-        data = Stdlib.AltJson.Json.Object(outcomeData(code, stdout, stderr)) }
+        data = None }
   | _ -> notRun(outcome)
 
 
@@ -257,16 +247,26 @@ let testReply(outcome: Outcome): Reply =
         | Error(_) -> None)
 
     match parsed with
-    | Some((line, report)) ->
-      let data =
-        match Stdlib.AltJson.parse(line) with
-        | Ok(json) -> json
-        | Error(_) -> Stdlib.AltJson.Json.Null
+    | Some((_, report)) ->
+      let failures =
+        report.tests
+        |> Stdlib.List.filter(fun row -> row.status != "passed")
+        |> Stdlib.List.map(fun row ->
+          Stdlib.AltJson.Json.Object(
+            [ ("name", Stdlib.AltJson.Json.String(row.name))
+              ("status", Stdlib.AltJson.Json.String(row.status))
+              ("messages", Stdlib.AltJson.Json.Array(row.messages |> Stdlib.List.map(fun m -> Stdlib.AltJson.Json.String(m)))) ]))
 
       Reply
         { text = testText(report)
           isError = report.failed > 0 || code != 0
-          data = Stdlib.AltJson.Json.Object([ ("exitCode", Stdlib.AltJson.Json.Integer(code)), ("report", data) ]) }
+          data =
+            Some(Stdlib.AltJson.Json.Object(
+              [ ("exitCode", Stdlib.AltJson.Json.Integer(code))
+                ("tests", Stdlib.AltJson.Json.Integer(Stdlib.List.length(report.tests)))
+                ("passed", Stdlib.AltJson.Json.Integer(report.passed))
+                ("failed", Stdlib.AltJson.Json.Integer(report.failed))
+                ("failures", Stdlib.AltJson.Json.Array(failures)) ])) }
     | None -> plain(outcome)
   | _ -> notRun(outcome)
 
@@ -296,7 +296,16 @@ let typecheckReply(outcome: Outcome): Reply =
         | Error(_) -> None)
 
     match parsed with
-    | Some((line, report)) ->
+    | Some((_, report)) ->
+      let problems =
+        report.items
+        |> Stdlib.List.filter(fun item -> item.verdict != "passed")
+        |> Stdlib.List.map(fun item ->
+          Stdlib.AltJson.Json.Object(
+            [ ("name", Stdlib.AltJson.Json.String(item.name))
+              ("verdict", Stdlib.AltJson.Json.String(item.verdict))
+              ("issues", Stdlib.AltJson.Json.Array(item.issues |> Stdlib.List.map(fun i -> Stdlib.AltJson.Json.String(i)))) ]))
+
       let items =
         report.items
         |> Stdlib.List.filter(fun item -> item.verdict != "passed")
@@ -306,15 +315,17 @@ let typecheckReply(outcome: Outcome): Reply =
       let summary =
         $"{report.verdict}: {report.checked} checked, {report.failed} failed, {report.incomplete} incomplete"
 
-      let data =
-        match Stdlib.AltJson.parse(line) with
-        | Ok(json) -> json
-        | Error(_) -> Stdlib.AltJson.Json.Null
-
       Reply
         { text = Stdlib.String.join(Stdlib.List.append(items, summary), "\n")
           isError = report.failed > 0 || code != 0
-          data = Stdlib.AltJson.Json.Object([ ("exitCode", Stdlib.AltJson.Json.Integer(code)), ("report", data) ]) }
+          data =
+            Some(Stdlib.AltJson.Json.Object(
+              [ ("exitCode", Stdlib.AltJson.Json.Integer(code))
+                ("verdict", Stdlib.AltJson.Json.String(report.verdict))
+                ("checked", Stdlib.AltJson.Json.Integer(report.checked))
+                ("failed", Stdlib.AltJson.Json.Integer(report.failed))
+                ("incomplete", Stdlib.AltJson.Json.Integer(report.incomplete))
+                ("problems", Stdlib.AltJson.Json.Array(problems)) ])) }
     | None -> plain(outcome)
   | _ -> notRun(outcome)
 
@@ -421,22 +432,24 @@ let saveCall(args: List<(String * Stdlib.AltJson.Json)>, runner: Runner): Result
     let target = Stdlib.String.dropFirst(path, 1)
     let tested = testReply(runner.run(call([ "test", "run", target, "--json" ])))
 
-    let ran =
+    let fields =
       match tested.data with
-      | Object(fields) ->
-        match Stdlib.AltJson.Helpers.getValue("report", fields) with
-        | Some(Object(report)) -> Stdlib.AltJson.Helpers.getArray("tests", report) != []
-        | _ -> false
-      | _ -> false
+      | Some(Object(fields)) -> fields
+      | _ -> []
+
+    let count = Stdlib.AltJson.Helpers.getInt64Option("tests", fields) |> Stdlib.Option.withDefault(0)
 
     match tested.data with
-    | _ when ran ->
+    | Some(_) when count > 0 ->
       Ok(
         Reply
           { text = reply.text + "\n\n[tests]\n" + tested.text
             isError = reply.isError || tested.isError
             data =
-              Stdlib.AltJson.Json.Object([ ("save", reply.data), ("tests", tested.data) ]) })
+              Some(
+                Stdlib.AltJson.Json.Object(
+                  [ ("save", Stdlib.AltJson.Json.String(reply.text))
+                    ("tests", Stdlib.AltJson.Json.Object(fields)) ])) })
     | _ -> Ok(reply)
   | _ -> Ok(reply)
 
@@ -675,12 +688,14 @@ let toJson(tool: Tool): Stdlib.AltJson.Json =
 
 /// A reply as `tools/call` returns it.
 let replyJson(reply: Reply): Stdlib.AltJson.Json =
-  Stdlib.AltJson.Json.Object(
-    [ (
-        "content",
-        Stdlib.AltJson.Json.Array(
-          [ Stdlib.AltJson.Json.Object(
-              [ ("type", Stdlib.AltJson.Json.String("text"))
-                ("text", Stdlib.AltJson.Json.String(reply.text)) ]) ]))
-      ("structuredContent", reply.data)
-      ("isError", Stdlib.AltJson.Json.Bool(reply.isError)) ])
+  let content =
+    Stdlib.AltJson.Json.Array(
+      [ Stdlib.AltJson.Json.Object(
+          [ ("type", Stdlib.AltJson.Json.String("text"))
+            ("text", Stdlib.AltJson.Json.String(reply.text)) ]) ])
+
+  let fields = [ ("content", content), ("isError", Stdlib.AltJson.Json.Bool(reply.isError)) ]
+
+  match reply.data with
+  | Some(data) -> Stdlib.AltJson.Json.Object(Stdlib.List.append(fields, ("structuredContent", data)))
+  | None -> Stdlib.AltJson.Json.Object(fields)
