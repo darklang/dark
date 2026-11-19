@@ -305,3 +305,9 @@ test withNobodyToAskItSaysHowToApprove =
     |> Stdlib.Test.equal(
       $"{name} needs access that isn't approved: file-read.\nApprove it first: dark permissions approve --for {name} 'file-read' --yes")
   | Approved(_) -> Stdlib.Test.fail("expected a refusal")
+
+
+test freeDiskIsRead =
+  "Filesystem     1024-blocks      Used Available Capacity Mounted on\n/dev/sda1        1000000    400000    512000      44% /\n"
+  |> Compiler.Prepare.dfAvailable
+  |> Stdlib.Test.equal(Stdlib.Option.Option.Some(524288000))

@@ -33,6 +33,29 @@ let availableMemory(): Option<Int64> =
   |> Stdlib.Option.andThen(memAvailable)
 
 
+/// The stdlib is about 150 MB, written beside a partial copy, with room to spare.
+val diskNeeded = 1000000000
+
+
+/// The bytes free on the file system, from the second line of `df -Pk`'s <param output>.
+let dfAvailable(output: String): Option<Int64> =
+  Stdlib.String.splitOnNewline(output)
+  |> Stdlib.List.getAt(1)
+  |> Stdlib.Option.andThen(fun line ->
+    Stdlib.String.split(line, " ")
+    |> Stdlib.List.filter(fun word -> word != "")
+    |> Stdlib.List.getAt(3)
+    |> Stdlib.Option.andThen(fun kb -> Stdlib.Int64.parse(kb) |> Stdlib.Result.toOption)
+    |> Stdlib.Option.map(fun kb -> kb * 1024))
+
+
+/// The bytes free where the compiler keeps its cache.
+let availableDisk(): Option<Int64> =
+  match Stdlib.Cli.Process.run("df", [ "-Pk", Darkc.directory() ]) with
+  | Ok(output) when output.exitCode == 0 -> dfAvailable(output.stdout)
+  | _ -> Option.None
+
+
 let isLinux(): Bool =
   Stdlib.Cli.OS.getOS() == Result.Ok(Stdlib.Cli.OS.OS.Linux)
 
@@ -58,6 +81,7 @@ type Skip =
   /// One was started before, and either runs or failed; the first compile takes it from there.
   | Started
   | LowMemory(available: Int64)
+  | LowDisk(available: Int64)
 
 
 let skip(): Option<Skip> =
@@ -76,8 +100,9 @@ let skip(): Option<Skip> =
   else if Stdlib.Cli.File.exists(logPath()) then
     Option.Some(Skip.Started)
   else
-    match availableMemory() with
-    | Some(bytes) when bytes < memoryNeeded -> Option.Some(Skip.LowMemory(bytes))
+    match availableMemory(), availableDisk() with
+    | Some(bytes), _ when bytes < memoryNeeded -> Option.Some(Skip.LowMemory(bytes))
+    | _, Some(bytes) when bytes < diskNeeded -> Option.Some(Skip.LowDisk(bytes))
     | _ -> Option.None
 
 

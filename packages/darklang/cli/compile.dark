@@ -154,6 +154,15 @@ let unavailable(): Option<String> =
       Option.Some($"No compiler at {compiler}. Build the pinned one with scripts/compiler/build.")
 
 
+/// Why the stdlib can't be prepared on this disk, when it can't.
+let lowDiskMessage(): Option<String> =
+  match Compiler.Prepare.availableDisk() with
+  | Some(bytes) when bytes < Compiler.Prepare.diskNeeded ->
+    Option.Some(
+      $"The first compile prepares the compiler's stdlib, which needs about 1 GB free in {Compiler.Darkc.directory()}, and {Text.bytes(bytes)} is free.")
+  | _ -> Option.None
+
+
 /// Run darkc on <param job> while this instance's packages are served to it.
 let withServer(
   job: Compiler.Darkc.Job,
@@ -164,7 +173,10 @@ let withServer(
   | None ->
     waitForBackground(verbosity)
     let preparingStdlib = Stdlib.Bool.not(Compiler.Darkc.stdlibPrepared())
-    if preparingStdlib && Stdlib.Bool.not(confirmStdlib(verbosity)) then
+    let lowDisk = if preparingStdlib then lowDiskMessage() else Option.None
+    if Stdlib.Option.isSome(lowDisk) then
+      Result.Error(Stdlib.Option.withDefault(lowDisk, ""))
+    else if preparingStdlib && Stdlib.Bool.not(confirmStdlib(verbosity)) then
       Result.Error("Not compiling.")
     else
       // darkc sends the URL's user and password as basic auth on every request
