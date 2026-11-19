@@ -1,0 +1,58 @@
+module Darklang.SCM.Sync
+
+/// How sync stands, as `dark status` shows it: what the background process last recorded about the
+/// link, and how many changes made here the other end hasn't said it holds.
+type Standing =
+  { /// "connecting", "connected", "offline", or "refused" when a server turned this machine's token away.
+    state: String
+    /// The other end, as the person named it: a server's address or an ssh host.
+    peer: String
+    /// Changes made here that the other end hasn't said it holds.
+    behind: Int64
+    /// The token only reads: nothing made here goes.
+    readOnly: Bool
+    /// How long ago the other end was last heard from, in seconds.
+    lastContactSecondsAgo: Option<Int64>
+    /// How long the link has been in this state, in seconds.
+    stateSecondsAgo: Option<Int64> }
+
+
+/// How sync stands, or None when it is off.
+let standing(): Option<Standing> = Builtin.scmSyncStanding()
+
+
+/// A span of <param seconds>, the way a person says it.
+let span(seconds: Int64): String =
+  if seconds < 3600 then $"{Stdlib.display(seconds / 60)} min"
+  else if seconds < 86400 then $"{Stdlib.display(seconds / 3600)} h"
+  else $"{Stdlib.display(seconds / 86400)} days"
+
+
+/// The one line `dark status` prints about sync.
+let line(s: Standing): String =
+  let contact =
+    match s.lastContactSecondsAgo with
+    | Some(secs) -> if secs < 60 then "last contact just now" else $"last contact {span(secs)} ago"
+    | None -> "no contact yet"
+  let changes = if s.behind == 1 then "1 change" else $"{Stdlib.display(s.behind)} changes"
+  let lasting =
+    match s.stateSecondsAgo with
+    | Some(secs) -> if secs < 60 then "" else $" for {span(secs)}"
+    | None -> ""
+  match s.state with
+  | "refused" -> $"sync: {s.peer} refused this machine's token. `dark sync add {s.peer} --token -` with a new one."
+  | "connected" ->
+    if s.readOnly then
+      $"sync: up to date with {s.peer}, read-only: what you change stays on this machine ({contact})."
+    else if s.behind == 0 then
+      $"sync: up to date with {s.peer} ({contact})."
+    else
+      $"sync: {changes} on their way to {s.peer} ({contact})."
+  | "offline" ->
+    let held = if s.behind == 0 then $"nothing here that {s.peer} lacks" else $"{changes} not on {s.peer} yet"
+    $"sync: can't reach {s.peer}{lasting}; {held} ({contact})."
+  | _ ->
+    if s.behind == 0 then
+      $"sync: connecting to {s.peer} ({contact})."
+    else
+      $"sync: connecting to {s.peer}; {changes} not on it yet ({contact})."

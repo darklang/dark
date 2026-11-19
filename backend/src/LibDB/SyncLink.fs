@@ -1368,10 +1368,11 @@ let watcherRunning () : bool =
     false
   | None -> true
 
-/// `dark status`'s line about sync, or "" when sync is off.
-let statusNow () : string =
+/// How the link stands now: the peer, the watcher's record, and how many changes it lacks. None
+/// when sync is off.
+let standingNow () : Option<string * Standing * int64> =
   match Config.get peerKey with
-  | None -> ""
+  | None -> None
   | Some host ->
     let s = Standing.read (standingPath ())
     // A watcher that has stopped holds no connection, whatever it last recorded; the next
@@ -1381,5 +1382,10 @@ let statusNow () : string =
         Standing.into "connecting" "" s
       else
         s
-    let behind = OpSync.notYetAcked Sqlite.currentDbPath s.peer
-    statusLine host s behind System.DateTime.UtcNow
+    Some(host, s, OpSync.notYetAcked Sqlite.currentDbPath s.peer)
+
+/// `dark sync`'s line about the link, or "" when sync is off.
+let statusNow () : string =
+  match standingNow () with
+  | None -> ""
+  | Some(host, s, behind) -> statusLine host s behind System.DateTime.UtcNow

@@ -491,7 +491,7 @@ let private tokenVerb (args : List<string>) : int =
         // The token alone on stdout, so it can be piped; this is the only time it is shown.
         System.Console.Out.WriteLine token
         err
-          $"a {kind} for {person} (id {id}). It isn't kept here and won't be shown again; on their machine: dark sync add <this server's url> --token -"
+          $"a {kind} for {person} (id {id}). Only its hash is kept, so it won't be shown again. On their machine: dark sync add <this server's url> --token -"
         0)
   | "add" :: person :: rest ->
     checkPerson person (fun () ->

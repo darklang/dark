@@ -315,18 +315,57 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
 
 
-    // What `dark status` says about sync, in one line; "" when sync is off. Read from the
-    // watcher's record of the link and the store's journal (`LibDB.SyncLink.statusNow`).
-    { name = fn "scmSyncLine" 0
+    // How sync stands, for `dark status` to word (`SCM.Sync.line`): what the watcher last recorded
+    // about the link, and how many changes the other end lacks.
+    { name = fn "scmSyncStanding" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TString
+      returnType =
+        TypeReference.option (
+          TCustomType(
+            NR.ok (FQTypeName.fqPackage (PackageRefs.Type.SCM.syncStanding ())),
+            []
+          )
+        )
       description =
-        "One line on how sync with the other machine stands: up to date or how many "
-        + "changes it lacks, and when it was last heard from. Empty when sync is off."
+        "How sync with the other end stands: its state, the peer, how many changes it lacks, "
+        + "whether this machine's token only reads, and how long ago it was last heard from. "
+        + "None when sync is off."
       fn =
         (function
-        | _, _, _, [| DUnit |] -> DString(LibDB.SyncLink.statusNow ())
+        | _, _, _, [| DUnit |] ->
+          let typeName = FQTypeName.fqPackage (PackageRefs.Type.SCM.syncStanding ())
+          let kt = KTCustomType(typeName, [])
+          match LibDB.SyncLink.standingNow () with
+          | None -> Dval.optionNone kt
+          | Some(peer, s, behind) ->
+            let now = System.DateTime.UtcNow
+            let ago (t : Option<System.DateTime>) =
+              match t with
+              | Some t ->
+                Dval.optionSome KTInt64 (DInt64(int64 (now - t).TotalSeconds))
+              | None -> Dval.optionNone KTInt64
+            let state =
+              if
+                s.state = "offline" && s.detail = LibDB.SyncLink.tokenRefusedDetail
+              then
+                "refused"
+              else
+                s.state
+            Dval.optionSome
+              kt
+              (DRecord(
+                typeName,
+                typeName,
+                [],
+                RecordFields.ofList
+                  [ "state", DString state
+                    "peer", DString peer
+                    "behind", DInt64 behind
+                    "readOnly", DBool s.readOnly
+                    "lastContactSecondsAgo", ago s.contact
+                    "stateSecondsAgo", ago s.since ]
+              ))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.PackageRead ]
