@@ -24,6 +24,7 @@ let execute(state: AppState, args: List<String>): AppState =
         Helpers.versionInfoWithUpdateCheck()
 
     Stdlib.printLine(line)
+    Stdlib.printLine($"Compiler darklang/compiler@{Compiler.Darkc.shortPin()}")
     // No store-format line: an op log needs no format coordinate. Ops are content-addressed and a binary
     // tops its own store up, so there is nothing for a version number to gate.
     state

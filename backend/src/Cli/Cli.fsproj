@@ -211,6 +211,23 @@
     </EmbeddedResource>
   </ItemGroup>
 
+  <!-- The native compiler for `dark compile`, Brotli-compressed, for the pinned commit and this
+       target: rundir/compiler/<pin>/<runtime>/darkc.br, from `scripts/compiler/embed`. Targets the
+       compiler has no backend for (linux-arm, osx-x64) have none, and `dark compile` says so.
+       `EmbeddedResources.extractCompiler` writes it to ~/.darklang/compiler/<pin>/darkc. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DarkcPin>$([System.Text.RegularExpressions.Regex]::Replace($([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)../../../packages/darklang/compiler/darkc.dark')), '(?s).*val pinnedCommit = "([0-9a-f]{9})[0-9a-f]*".*', '$1'))</DarkcPin>
+    <DarkcRuntime>$(RuntimeIdentifier)</DarkcRuntime>
+    <DarkcRuntime Condition="'$(DarkcRuntime)' == ''">$(NETCoreSdkRuntimeIdentifier)</DarkcRuntime>
+    <DarkcEmbed>../../../rundir/compiler/$(DarkcPin)/$(DarkcRuntime)/darkc.br</DarkcEmbed>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(Configuration)' == 'Release' And Exists('$(DarkcEmbed)')">
+    <EmbeddedResource Include="$(DarkcEmbed)">
+      <LogicalName>compiler/$(DarkcPin)/darkc.br</LogicalName>
+    </EmbeddedResource>
+    <CustomAdditionalCompileInputs Include="$(DarkcEmbed)" />
+  </ItemGroup>
+
   <!-- Fail the build if there's no SEED to embed in Release mode.
        Deliberately rundir/seed.db and NOT rundir/data.db: data.db is a working store, holding relay
        secrets, sync identity and cursors in the same file as the packages. `export-seed`

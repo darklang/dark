@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Put a darkc where a Release build of the CLI embeds it:
+#   rundir/compiler/<first 9 of the pin>/<runtime>/darkc.br
+#
+#   scripts/compiler/embed <darkc> [<runtime>...]    default runtime: linux-x64
+#
+# <darkc> is a static build of the pinned commit (`pinnedCommit` in
+# packages/darklang/compiler/darkc.dark). One static Linux build serves both libcs, so
+# `embed darkc linux-x64 linux-musl-x64` is the usual call. Runs in the dev container.
+
+set -euo pipefail
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+if [[ $# -lt 1 ]]; then
+  sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//' >&2
+  exit 1
+fi
+DARKC="$1"
+shift
+RUNTIMES=("${@:-linux-x64}")
+PINNED=$(sed -n 's/^val pinnedCommit = "\([0-9a-f]*\)"$/\1/p' "$DIR/packages/darklang/compiler/darkc.dark")
+if [[ -z "$PINNED" ]]; then
+  echo "No pinnedCommit in packages/darklang/compiler/darkc.dark" >&2
+  exit 1
+fi
+
+FIRST=""
+for runtime in "${RUNTIMES[@]}"; do
+  OUT="$DIR/rundir/compiler/${PINNED:0:9}/$runtime/darkc.br"
+  mkdir -p "$(dirname "$OUT")"
+  if [[ -z "$FIRST" ]]; then
+    dotnet fsi "$DIR/scripts/build/compress-seed.fsx" "$DARKC" "$OUT"
+    FIRST="$OUT"
+  else
+    cp "$FIRST" "$OUT"
+  fi
+  echo "Wrote $OUT ($(du -h "$OUT" | cut -f1))"
+done

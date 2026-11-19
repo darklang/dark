@@ -7,12 +7,15 @@ module Darklang.Compiler.Darkc
 val pinnedCommit = "f93ad99aa421157738101851680716d35c09feff"
 
 
+let shortPin(): String =
+  Stdlib.String.slice(pinnedCommit, 0, 9) |> Stdlib.Result.withDefault(pinnedCommit)
+
+
 /// `~/.darklang/compiler/<first 9 of the pin>`: darkc and its prepared stdlib. The CLI
 /// extracts its embedded darkc here; `scripts/compiler/build` builds one here.
 let directory(): String =
   let home = Stdlib.Cli.Env.home() |> Stdlib.Option.withDefault("")
-  let short = Stdlib.String.slice(pinnedCommit, 0, 9) |> Stdlib.Result.withDefault(pinnedCommit)
-  $"{home}/.darklang/compiler/{short}"
+  $"{home}/.darklang/compiler/{shortPin()}"
 
 
 let path(): String =

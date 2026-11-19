@@ -330,6 +330,44 @@ let private reseedFromEmbedded (dbPath : string) : bool * List<HeldBinding> =
       ()
 
 
+/// Write the embedded native compiler for `dark compile` to `~/.darklang/compiler/<pin>/darkc`
+/// when it isn't there yet, and remove other pins' directories: one compiler per release.
+///
+/// The resource is `compiler/<pin>/darkc.br`, and only a release build for a target the
+/// compiler runs on has one. A dev build embeds none; `scripts/compiler/build` puts one there.
+let private extractCompiler (darklangDir : string) : unit =
+  let assembly = Assembly.GetExecutingAssembly()
+  assembly.GetManifestResourceNames()
+  |> Array.filter (fun n -> n.StartsWith "compiler/" && n.EndsWith "/darkc.br")
+  |> Array.iter (fun name ->
+    let dir = Path.Combine(darklangDir, Path.GetDirectoryName name)
+    let target = Path.Combine(dir, "darkc")
+    if not (File.Exists target) then
+      let partial = $"{target}.partial-{Guid.NewGuid()}"
+      try
+        try
+          extractBrotliResource name partial
+          File.SetUnixFileMode(
+            partial,
+            UnixFileMode.UserRead
+            ||| UnixFileMode.UserWrite
+            ||| UnixFileMode.UserExecute
+            ||| UnixFileMode.GroupRead
+            ||| UnixFileMode.GroupExecute
+            ||| UnixFileMode.OtherRead
+            ||| UnixFileMode.OtherExecute
+          )
+          // a rename, so another dark starting at the same time never runs half a file
+          File.Move(partial, target, true)
+
+          for other in Directory.GetDirectories(Path.GetDirectoryName dir) do
+            if other <> dir then Directory.Delete(other, true)
+        with e ->
+          eprintfn $"could not write the compiler to {target}: {e.Message}"
+      finally
+        if File.Exists partial then File.Delete partial)
+
+
 /// What `extract` found that `Cli.Main` acts on later.
 type Extracted =
   {
@@ -409,6 +447,10 @@ let extract () : Extracted =
     { timings = [ hasResourceTiming ]; locallyAuthored = [] }
   else
     let darklangDir = LibConfig.StoreLocation.defaultDirectory ()
+
+    let (), compilerTiming =
+      timed "extract.compiler" (fun () -> extractCompiler darklangDir)
+
     let dbPath = Path.Combine(darklangDir, "data.db")
 
     // Asked ONCE, and it decides everything below.
@@ -537,5 +579,5 @@ let extract () : Extracted =
 
         eprintfn "CLI data directory setup complete"
 
-    { timings = hasResourceTiming :: upgradeTimings
+    { timings = hasResourceTiming :: compilerTiming :: upgradeTimings
       locallyAuthored = locallyAuthored }
