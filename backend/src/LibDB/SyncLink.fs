@@ -365,8 +365,9 @@ type private State =
     heard : System.DateTime
     /// The other end said this one may only read: nothing of this store's goes to it.
     readOnly : bool
-    /// The last trim stopped at its batch, so the next acknowledgement trims on.
-    trimming : bool
+    /// Where the journal's trim goes on from, a window at a time while nothing else is going on
+    /// (`OpSync.trimStep`). Started by the session's first acknowledgement.
+    trimming : Option<int64>
     /// This end asked with a have file: the two stores are comparing whole, and the catch-up that
     /// answers joins same-named branches (`OpSync.importFirst`).
     fromScratch : bool
@@ -761,21 +762,19 @@ let private session
           | None ->
             Choice2Of2(Refused "the other end acknowledged before saying who it is")
           | Some(id, name) ->
-            let trim = Option.isNone st.acked || st.trimming
-            let trimmed = OpSync.recordAcked side.store id name c.journal trim
-            if trimmed > 0L then
-              side.log $"trimmed {trimmed} journal entries every peer holds"
+            OpSync.recordAcked side.store id name c.journal false |> ignore<int64>
             Choice1Of2
               { st with
                   acked = Some c.journal
-                  trimming = trimmed >= int64 OpSync.trimBatch }
+                  trimming = if Option.isNone st.acked then Some 0L else st.trimming }
       | _ ->
-        match st.peer, st.acked with
-        // Nothing to read: the trim the last acknowledgement left unfinished goes on.
-        | Some(id, name), Some acked when st.trimming ->
-          let trimmed = OpSync.recordAcked side.store id name acked true
-          side.log $"trimmed {trimmed} journal entries every peer holds"
-          Choice1Of2 { st with trimming = trimmed >= int64 OpSync.trimBatch }
+        match st.trimming with
+        // Nothing to read: the trim goes on, a window at a time.
+        | Some after ->
+          let dropped, next = OpSync.trimStep side.store after
+          if dropped > 0L then
+            side.log $"trimmed {dropped} journal entries every peer holds"
+          Choice1Of2 { st with trimming = next }
         | _ ->
           if frames.Reader.WaitToReadAsync().AsTask().Wait(side.pollMs) then
             Choice1Of2 st
@@ -843,7 +842,7 @@ let private session
                 acked = None
                 heard = System.DateTime.UtcNow
                 readOnly = false
-                trimming = false
+                trimming = None
                 fromScratch = false }
           match ended with
           | Refused reason -> ended, Some reason

@@ -1361,19 +1361,45 @@ let reaches (storePath : string) (cursor : Cursor) : bool =
   let v = cmd.ExecuteScalar()
   string v = "1"
 
+/// How many entries one step of a trim looks at. A trim runs between a session's steps, and on a
+/// busy machine tens of thousands at once held a session for seconds; the rest go in later steps.
+let trimWindow = 5000L
+
+/// Drop, among the journal entries numbered past <param after> and within one `trimWindow`, each
+/// that a later entry for the same row replaced and that every store this one has heard from in the
+/// last `sync.keepDays` days (7 unless set) holds. Answers how many went, and where the next step
+/// starts, or None when this one reached what every store holds.
+let trimStep (storePath : string) (after : int64) : int64 * Option<int64> =
+  use conn = openStore storePath
+  let held =
+    scalar
+      conn
+      "SELECT COALESCE(MIN(acked_journal), 0) FROM main.sync_peers
+       WHERE seen_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now',
+         '-' || COALESCE(
+           (SELECT value FROM main.config_v0 WHERE key = 'sync.keepDays'), '7') || ' days')"
+    |> int64
+  let upTo = min held (after + trimWindow)
+  // `k.at >= j.at` first, so the (key, at) index finds the later entries by range.
+  let dropped =
+    run
+      conn
+      "DELETE FROM main.sync_journal
+       WHERE seq > $after AND seq <= $upTo
+         AND EXISTS (
+           SELECT 1 FROM main.sync_journal k
+           WHERE k.key = sync_journal.key AND k.at >= sync_journal.at
+             AND (k.at > sync_journal.at OR k.id > sync_journal.id))"
+      [ "$after", box after; "$upTo", box upTo ]
+  dropped, (if upTo < held then Some upTo else None)
+
 /// Remember that <param peer> holds everything of the store at <param storePath>'s journal up to
-/// <param journal>. With <param trim>, also drop each entry that a later entry for the same row
-/// replaced, and that every store this one has heard from in the last `sync.keepDays` days (7 unless
-/// set) holds; answers how many went. A store that comes back later still gets the entry that
-/// replaced it, which is the one that counts.
+/// <param journal>. With <param trim>, also drop every entry a later one replaced that every store
+/// holds (`trimStep`, to the end), and answer how many went.
 ///
 /// The latest entry for a row always stays: it is what says a removed op is removed when a copy of
 /// it comes back from a store that has not heard. So the journal shrinks to one entry a row, and the
 /// churn above that (a draft refreshed a hundred times, an edit undone) goes.
-/// The most entries one trim drops. A trim runs between a session's steps, and on a busy machine
-/// tens of thousands at once held the session for seconds; the rest go at the next acknowledgement.
-let trimBatch = 2000
-
 let recordAcked
   (storePath : string)
   (peer : string)
@@ -1381,37 +1407,22 @@ let recordAcked
   (journal : int64)
   (trim : bool)
   : int64 =
-  use conn = openStore storePath
-  let _ =
-    run
-      conn
-      "INSERT INTO main.sync_peers (id, name, acked_journal, seen_at)
-       VALUES ($peer, $name, $journal, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-       ON CONFLICT(id) DO UPDATE SET
-         name = excluded.name,
-         acked_journal = MAX(acked_journal, excluded.acked_journal),
-         seen_at = excluded.seen_at"
-      [ "$peer", box peer; "$name", box name; "$journal", box journal ]
-  if trim then
-    run
-      conn
-      ("DELETE FROM main.sync_journal WHERE seq IN (
-       SELECT seq FROM main.sync_journal
-       WHERE seq <= (SELECT MIN(acked_journal) FROM main.sync_peers
-                     WHERE seen_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now',
-                       '-' || COALESCE(
-                         (SELECT value FROM main.config_v0 WHERE key = 'sync.keepDays'),
-                         '7') || ' days'))
-         AND EXISTS (
-           SELECT 1 FROM main.sync_journal k
-           WHERE k.key = sync_journal.key
-             AND (k.at > sync_journal.at OR (k.at = sync_journal.at AND k.id > sync_journal.id)))
-       ORDER BY seq LIMIT "
-       + string trimBatch
-       + ")")
-      []
-  else
-    0L
+  (use conn = openStore storePath
+   run
+     conn
+     "INSERT INTO main.sync_peers (id, name, acked_journal, seen_at)
+      VALUES ($peer, $name, $journal, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        acked_journal = MAX(acked_journal, excluded.acked_journal),
+        seen_at = excluded.seen_at"
+     [ "$peer", box peer; "$name", box name; "$journal", box journal ]
+   |> ignore<int64>)
+  let rec trimAll (after : int64) (total : int64) =
+    match trimStep storePath after with
+    | dropped, Some next -> trimAll next (total + dropped)
+    | dropped, None -> total + dropped
+  if trim then trimAll 0L 0L else 0L
 
 /// How many changes made in the store at <param storePath> the store <param peer> has not said it
 /// holds. An op that only adds content goes with the binding that names it, so it is not counted
