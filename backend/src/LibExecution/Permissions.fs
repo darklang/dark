@@ -123,10 +123,10 @@ module HttpUrl =
   let query (uri : System.Uri) = escaped uri.Query
 
 module Request =
-  /// One shell-safe token for an actionable `permissions allow` command.
+  /// One shell-safe argument for an actionable permissions command.
   /// Always quote guest-controlled text: paths and URLs may contain spaces or
   /// shell metacharacters, and a denial must never print an injectable command.
-  let private quoteRuleToken (value : string) : string =
+  let quoteRuleToken (value : string) : string =
     "'" + value.Replace("'", "'\\''") + "'"
 
   let effect (request : Request) : Effect.Effect =
