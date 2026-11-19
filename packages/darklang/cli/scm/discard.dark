@@ -10,7 +10,7 @@ let help(_state: AppState): String =
   [ ""
     "  dark discard          review what would go, then confirm"
     "  dark discard -y       skip the confirmation (also --yes)"
-    "  dark discard <name>   drop just that item from your draft"
+    "  dark discard <name>   restore the item and update callers that followed its draft versions"
     ""
     "  Committed work is never touched: this drops the uncommitted ops of the branch you're on,"
     "  main included, and each name they touched is back to its committed version."
@@ -20,13 +20,62 @@ let help(_state: AppState): String =
   |> Stdlib.String.join("\n")
 
 
+/// Repoint callers off the versions bound by this draft, keeping their current bodies.
+let restoreCallers(
+  branchId: Uuid,
+  loc: LanguageTools.ProgramTypes.PackageLocation,
+  discarded: List<LanguageTools.ProgramTypes.Reference>)
+  : Unit =
+  match SCM.PackageOps.liveBindingFor(branchId, loc) with
+  | Some(binding) ->
+    let kind = SCM.Deps.kindOf(binding.itemType)
+    let restored = LanguageTools.ProgramTypes.Hash.Hash(binding.hash)
+    let previous =
+      discarded
+      |> Stdlib.List.filterMap(fun target ->
+        let hash = LanguageTools.ProgramTypes.Reference.hash(target)
+        if LanguageTools.ProgramTypes.Reference.kind(target) == kind && hash != restored then
+          Option.Some(hash)
+        else
+          Option.None)
+      |> Stdlib.List.unique
+
+    Packages.Propagate.repointNow(
+      branchId,
+      loc,
+      previous,
+      restored,
+      kind,
+      Packages.Propagate.FollowerCheck.Check)
+    |> Packages.Propagate.printFollowed
+  | None ->
+    if Stdlib.Bool.not(Stdlib.List.isEmpty(discarded)) then
+      let dotted = PropagateCmd.dotted(loc)
+      match SCM.Deps.namedReferences(branchId) with
+      | Ok(edges) ->
+        edges
+        |> Stdlib.List.filterMap(fun((caller, _, target, dependency)) ->
+          if dependency == loc && Stdlib.List.contains(discarded, target) then
+            Option.Some(PropagateCmd.dotted(caller))
+          else
+            Option.None)
+        |> Stdlib.List.unique
+        |> Stdlib.List.iter(fun caller ->
+          Stderr.line(Stdlib.Cli.UI.Colors.warning($"  {caller} still uses the discarded {dotted}.")))
+      | Error(e) ->
+        Stderr.line(Stdlib.Cli.UI.Colors.warning($"  Couldn't check callers of {dotted}: {e}"))
+    else
+      ()
+
+
 let execute(state: AppState, args: List<String>): AppState =
   let confirm =
     Confirm.assumeIf(Stdlib.List.contains(args, "-y") || Stdlib.List.contains(args, "--yes"))
 
   let named = args |> Stdlib.List.filter(fun a -> Stdlib.Bool.not(Stdlib.String.startsWith(a, "-")))
+  let branchId = SCM.PackageOps.currentBranch()
   let scope =
-    match SCM.PackageOps.currentBranch() with
+    match branchId with
     | id when SCM.Branch.isMain(id) -> SCM.Branch.mainBranchName
     | id -> $"branch \"{SCM.PackageOps.branchName(id)}\""
 
@@ -47,8 +96,9 @@ let execute(state: AppState, args: List<String>): AppState =
         |> Stdlib.List.filter(fun b ->
           b.owner == loc.owner && b.name == loc.name && b.modules == mods)
 
+      let draft = SCM.PackageOps.draftEntriesFor(branchId)
       let isRenamed =
-        SCM.PackageOps.draftEntries()
+        draft
         |> Stdlib.List.any(fun entry ->
           match entry.op with
           | Rename(oldLocation, newLocation, _, _, _) -> oldLocation == loc || newLocation == loc
@@ -69,9 +119,33 @@ let execute(state: AppState, args: List<String>): AppState =
 
         failed(state)
       else
+        let discarded =
+          draft
+          |> Stdlib.List.filterMap(fun entry ->
+            match entry.op with
+            | SetName(location, target, _)
+            | Decision(_, location, _, Override(target))
+            | Decision(_, location, _, Restore(_, target, _)) when location == loc ->
+              Option.Some(target)
+            | Rename(_, location, target, _, _) when location == loc -> Option.Some(target)
+            | _ -> Option.None)
+
         match SCM.PackageOps.discardDraftName(loc.owner, loc.modules, loc.name) with
         | Ok(n) ->
           printOk($"dropped {dotted} from your draft ({Text.plural(n, "op")}).")
+          restoreCallers(branchId, loc, discarded)
+          match SCM.Constraints.outdatedUsagesOn(branchId) with
+          | Ok(findings) ->
+            let affected = Stdlib.List.filter(findings, fun finding -> finding.dependency == loc)
+            if Stdlib.List.isEmpty(affected) then
+              ()
+            else
+              Stderr.line(Stdlib.Cli.UI.Colors.warning($"  Callers still use another version of {dotted}:"))
+              Stdlib.List.iter(affected, fun finding -> Stderr.line(ConstraintsCmd.line(finding)))
+              Stderr.hint("  `dark constraints` lists these references and how to resolve them.")
+          | Error(e) ->
+            Stderr.line(Stdlib.Cli.UI.Colors.warning($"  Couldn't check callers of {dotted}: {e}"))
+
           state
         | Error(e) ->
           printErr($"couldn't drop {dotted}: {e}")
