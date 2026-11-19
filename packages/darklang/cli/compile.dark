@@ -182,7 +182,7 @@ let withServer(args: List<String>, verbosity: Int64): Result<Stdlib.Cli.Process.
             Stdlib.List.concat([ "--package-server", url ], args),
             verbosity,
             toPrepare)
-          |> Stdlib.Result.mapError(fun e -> e.message)
+          |> Stdlib.Result.mapError(fun e -> Stdlib.display(e))
 
         let _ = Stdlib.Exec.stop(server, Stdlib.Exec.Stop.Kill)
         // darkc names the URL when a fetch fails
