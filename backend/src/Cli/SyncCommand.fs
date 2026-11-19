@@ -234,7 +234,9 @@ let private watch (fold : unit -> unit) : int =
         $"sync: there is no token for {host} on this machine. `dark sync add {host} --token -` to give it one."
       0
     | Some transport ->
-      let keepGoing () = config peerKey = Some host
+      // A new token (`dark sync add` again) ends this watcher; the next one uses it.
+      let token = storedToken ()
+      let keepGoing () = config peerKey = Some host && storedToken () = token
       log $"watching {host}"
       SyncLink.watch
         { side = side fold keepGoing true say
