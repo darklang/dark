@@ -6,32 +6,47 @@ module Darklang.Cli.Sync
 
 let execute(state: AppState, _args: List<String>): AppState =
   printErr("`dark sync` runs from your shell, not inside this prompt.")
-  printHint("  dark sync add <host>   keep this store in step with a machine you own")
+  printHint("  dark sync add <url> --token -   keep this store in step with a sync server")
   failed(state)
 
 
 let complete(_state: AppState, args: List<String>): List<Completion.CompletionItem> =
   match args with
-  | [] -> [ "add", "off" ] |> Stdlib.List.map(Completion.simple)
+  | [] -> [ "add", "off", "token", "serve", "backup", "restore" ] |> Stdlib.List.map(Completion.simple)
+  | [ "token" ] -> [ "new", "add", "list", "revoke" ] |> Stdlib.List.map(Completion.simple)
   | _ -> []
 
 
 let help(_state: AppState): String =
   [ ""
-    "  dark sync                                how the link stands"
-    "  dark sync add <host> [--command <dark>]  keep this store in step with <host>"
-    "  dark sync off                            stop; nothing goes or comes after this"
+    "  dark sync                                 how the link stands"
+    "  dark sync add <url> [--token <t> | -]     keep this store in step with a sync server"
+    "  dark sync add <host> [--command <dark>]   ... or with a machine you own, over ssh"
+    "  dark sync off                             stop; nothing goes or comes after this"
     ""
-    "  <host> is a machine you own that `ssh <host>` reaches without a prompt. There"
-    "  is no server to run: ssh starts the same dark there, so your ssh key is the"
-    "  only key. `--command` says where dark is on that machine, if not on its PATH."
+    "  A sync server is shared: everyone with a token from it syncs through it. Your"
+    "  drafts go only to your own machines; what you commit goes to everyone. The"
+    "  token is kept in a file only you can read, and never printed; with `--token -`"
+    "  it is read from stdin, and with no `--token` you are asked for it."
     ""
-    "  `add` catches up both ways once, then a background process keeps one ssh"
-    "  connection open: what you save here is there within about a second, drafts"
-    "  included, on every branch, and the same the other way."
+    "  <host> is a machine you own that `ssh <host>` reaches without a prompt. ssh"
+    "  starts the same dark there, so your ssh key is the only key. `--command` says"
+    "  where dark is on that machine, if not on its PATH."
     ""
-    "  Nothing is printed unless it needs you: a name changed on both machines"
-    "  (kept the newer; `dark conflicts` to choose), a refused key, or the other"
-    "  machine out of reach for ten minutes. Each is one line, at your next command."
+    "  `add` catches up both ways once, then a background process keeps one"
+    "  connection open: what you save here is there within about a second."
+    ""
+    "  Nothing is printed unless it needs you: a name changed in two places (kept the"
+    "  newer; `dark conflicts` to choose), a refused token or key, a clock that is"
+    "  off, or the other end out of reach for ten minutes. Each is one line, at your"
+    "  next command."
+    ""
+    "  Running a server (see docs/sync-server.md):"
+    "  dark sync serve --listen <addr> [--backup-dir <dir>] [--backup-every <hours>]"
+    "                  [--keep <n>] [--max-frame-mb <n>]"
+    "  dark sync token new <person> [--read-only] [--label <text>]"
+    "  dark sync token add <person> [--read-only] [--label <text>]   (token on stdin)"
+    "  dark sync token list | dark sync token revoke <id or person>"
+    "  dark sync backup <file> | dark sync restore <file>"
     "" ]
   |> Stdlib.String.join("\n")

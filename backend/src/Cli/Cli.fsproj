@@ -153,6 +153,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="EmbeddedResources.fs" />
+    <Compile Include="SyncServer.fs" />
     <Compile Include="SyncCommand.fs" />
     <Compile Include="Cli.fs" />
   </ItemGroup>

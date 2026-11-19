@@ -54,7 +54,7 @@ module PT = LibExecution.ProgramTypes
 
 
 /// The shape of the have and bundle files. Each side refuses a file of another version.
-let formatVersion = "5"
+let formatVersion = "6"
 
 /// How far into a store another store has been sent: its journal's `seq` and its blobs' `rowid`.
 /// Both only grow; blobs are never removed except by a purge, which empties the journal too.
@@ -252,8 +252,8 @@ let private checkMeta
 
 
 /// Write what the store at <param storePath> holds to <param havePath>, for the other side's
-/// `export`: each op's (id, branch, commit), the commit and blob hashes, and the ids of the journal
-/// entries it holds. Reads the store only.
+/// `export`: each op's (id, branch, commit), each commit's hash and branch, the blob hashes, each
+/// branch's name and marks, and the ids of the journal entries it holds. Reads the store only.
 let writeHave (storePath : string) (havePath : string) : Result<unit, string> =
   use conn = openStore storePath
   match checkJournal conn storePath with
@@ -277,10 +277,27 @@ let writeHave (storePath : string) (havePath : string) : Result<unit, string> =
     let _ =
       run
         conn
-        "CREATE TABLE have.have_commits (hash TEXT PRIMARY KEY) WITHOUT ROWID"
+        "CREATE TABLE have.have_commits (
+           hash TEXT PRIMARY KEY, branch_id TEXT NOT NULL) WITHOUT ROWID"
         []
     let _ =
-      run conn "INSERT INTO have.have_commits SELECT hash FROM main.commits" []
+      run
+        conn
+        "INSERT INTO have.have_commits SELECT hash, branch_id FROM main.commits"
+        []
+    let _ =
+      run
+        conn
+        "CREATE TABLE have.have_branches (
+           id TEXT PRIMARY KEY, name TEXT NOT NULL, merged_at TEXT, archived_at TEXT)
+         WITHOUT ROWID"
+        []
+    let _ =
+      run
+        conn
+        "INSERT INTO have.have_branches
+         SELECT id, name, merged_at, archived_at FROM main.branches"
+        []
     let _ =
       run
         conn
@@ -305,10 +322,19 @@ type private Wanted =
   | Against of havePath : string
   | Since of Cursor * peer : string
 
+/// Whose drafts a bundle may carry. A server shared by several people sends each person their own
+/// drafts and everyone's commits: a draft is work in progress, and two people's drafts of one name
+/// would otherwise overwrite each other. A draft's owner is the person whose store it came from
+/// (`sync_peers.person`); one this store made itself, or took from the seed, is everyone's.
+type DraftScope =
+  | AllDrafts
+  | DraftsOf of person : string
+
 /// A bundle of the rows <param wanted> picks from the store at <param storePath>, written to
 /// <param bundlePath>, in one read transaction so it is one moment of the store. Reads the store only.
 let private exportWith
   (storePath : string)
+  (scope : DraftScope)
   (wanted : Wanted)
   (bundlePath : string)
   : Result<Counts, string> =
@@ -342,10 +368,26 @@ let private exportWith
       match wanted with
       | Since(_, peer) -> peer
       | Against _ -> ""
+    let person =
+      match scope with
+      | AllDrafts -> ""
+      | DraftsOf person -> person
     let ps =
       [ "$journal", box since.journal
         "$blobs", box since.blobs
-        "$peer", box peer ]
+        "$peer", box peer
+        "$person", box person ]
+    // A draft goes only to its owner's stores; anything committed goes to everyone.
+    let othersStores =
+      "SELECT id FROM main.sync_peers WHERE person <> '' AND person <> $person"
+    let opVisible =
+      $"($person = '' OR p.commit_hash IS NOT NULL OR NOT EXISTS (
+          SELECT 1 FROM main.sync_journal o
+          WHERE o.key = 'op ' || p.branch_id || ' ' || p.id
+            AND o.came_from IN ({othersStores})))"
+    let entryVisible =
+      $"($person = '' OR j.kind NOT IN ('op', 'op-gone') OR j.commit_hash IS NOT NULL
+         OR j.came_from NOT IN ({othersStores}))"
     // What each table sends: the rows the receiver lacks, or the rows the journal names past the
     // cursor. Ops and commits a later entry changed in place (a commit adopting a draft op, a merge
     // moving a commit) are named by that entry, so they go again.
@@ -358,7 +400,27 @@ let private exportWith
            WHERE h.id = p.id AND h.branch_id = p.branch_id AND h.commit_hash IS p.commit_hash)",
         "NOT EXISTS (SELECT 1 FROM have.have_commits h WHERE h.hash = c.hash)",
         "NOT EXISTS (SELECT 1 FROM have.have_blobs h WHERE h.hash = b.hash)",
-        "NOT EXISTS (SELECT 1 FROM have.have_journal h WHERE h.id = j.id)"
+        // A fresh install holds the same seed rows under journal entries of its own, so an entry
+        // goes only when it says something the receiver doesn't already hold, and only the latest
+        // one for its row: on first contact, what a row is now is all that matters.
+        "NOT EXISTS (SELECT 1 FROM have.have_journal h WHERE h.id = j.id)
+         AND NOT EXISTS (
+           SELECT 1 FROM main.sync_journal k
+           WHERE k.key = j.key AND (k.at > j.at OR (k.at = j.at AND k.id > j.id)))
+         AND NOT CASE j.kind
+           WHEN 'op' THEN EXISTS (
+             SELECT 1 FROM have.have_ops h
+             WHERE h.id = j.op AND h.branch_id = j.branch AND h.commit_hash IS j.commit_hash)
+           WHEN 'op-gone' THEN NOT EXISTS (
+             SELECT 1 FROM have.have_ops h WHERE h.id = j.op AND h.branch_id = j.branch)
+           WHEN 'commit' THEN EXISTS (
+             SELECT 1 FROM have.have_commits h
+             WHERE h.hash = j.commit_hash AND h.branch_id = j.branch)
+           WHEN 'branch' THEN EXISTS (
+             SELECT 1 FROM have.have_branches h
+             WHERE h.id = j.branch AND h.name IS j.name AND h.merged_at IS j.merged_at
+               AND h.archived_at IS j.archived_at)
+           ELSE 0 END"
       // Nothing goes back to the store it came from.
       | Since _ ->
         "FROM (SELECT DISTINCT branch, op FROM main.sync_journal
@@ -377,6 +439,7 @@ let private exportWith
           SELECT p.rowid AS seq, p.id, p.branch_id, p.authored_on, p.op_blob, p.op_kind,
                  p.commit_hash, p.source, p.origin_ts
           {opsFrom}
+          AND {opVisible}
           ORDER BY p.rowid"
         ps
     // What the values among them evaluated to here, so a receiver of the same build takes the
@@ -452,7 +515,7 @@ let private exportWith
           SELECT j.seq, j.id, j.at, j.kind, j.key, j.branch, j.op, j.commit_hash, j.name,
                  j.merged_at, j.archived_at
           FROM main.sync_journal j
-          WHERE {journalWhere}
+          WHERE {journalWhere} AND {entryVisible}
           ORDER BY j.seq"
         ps
     let upToJournal =
@@ -494,24 +557,37 @@ let private exportWith
 /// entries (in the order this store learned them), plus the branch registry and the name bases of
 /// every branch an exported op is on. Reads the store only. The answer's `upTo` is where the store
 /// stood, for the `exportSince` after it.
-let export
+let exportFor
+  (scope : DraftScope)
   (storePath : string)
   (havePath : string)
   (bundlePath : string)
   : Result<Counts, string> =
-  exportWith storePath (Against havePath) bundlePath
+  exportWith storePath scope (Against havePath) bundlePath
+
+let export (storePath : string) (havePath : string) (bundlePath : string) =
+  exportFor AllDrafts storePath havePath bundlePath
 
 /// Write to <param bundlePath> what changed in the store at <param storePath> after <param cursor>,
 /// for the store <param peer> (an `instance.id`): the journal entries past it, the ops and commits
 /// they name, and the blobs added since, except what arrived from that store. A store that already
 /// has some of it ignores that part, so this needs no have file and no round trip.
-let exportSince
+let exportSinceFor
+  (scope : DraftScope)
   (storePath : string)
   (cursor : Cursor)
   (peer : string)
   (bundlePath : string)
   : Result<Counts, string> =
-  exportWith storePath (Since(cursor, peer)) bundlePath
+  exportWith storePath scope (Since(cursor, peer)) bundlePath
+
+let exportSince
+  (storePath : string)
+  (cursor : Cursor)
+  (peer : string)
+  (bundlePath : string)
+  =
+  exportSinceFor AllDrafts storePath cursor peer bundlePath
 
 /// What the store at <param storePath> calls itself to the other side: its `instance.name`, else the
 /// machine's name.
@@ -922,7 +998,49 @@ let private foldPending (conn : SqliteConnection) : int64 =
 /// what it wrote, a commit moves to the branch it names, a branch takes the name and marks it names.
 /// The triggers are held off meanwhile, so none of this is journalled a second time. Names both
 /// stores moved apart are recorded as conflicts (see `recordDivergences`).
-let import
+/// Join each branch the bundle on <param conn> brings under an id this store doesn't know to this
+/// store's live branch of the same name, if it has exactly one, and remember it. Then rewrite the
+/// bundle so whatever it carries on a joined branch lands on this store's: by its new alias, or by
+/// one an earlier first contact made.
+let private joinBranches (conn : SqliteConnection) (firstContact : bool) : unit =
+  if firstContact then
+    let _ =
+      run
+        conn
+        "INSERT OR IGNORE INTO main.sync_branch_aliases (foreign_id, local_id)
+         SELECT b.id, (SELECT l.id FROM main.branches l
+                       WHERE l.name = b.name AND l.merged_at IS NULL AND l.archived_at IS NULL)
+         FROM bundle.sync_branches b
+         WHERE NOT EXISTS (SELECT 1 FROM main.branches k WHERE k.id = b.id)
+           AND (SELECT COUNT(*) FROM main.branches l
+                WHERE l.name = b.name AND l.merged_at IS NULL AND l.archived_at IS NULL) = 1"
+        []
+    ()
+  let aliased (column : string) =
+    $"COALESCE((SELECT a.local_id FROM main.sync_branch_aliases a WHERE a.foreign_id = {column}), {column})"
+  let branchId = aliased "branch_id"
+  let parentId = aliased "parent_id"
+  let branch = aliased "branch"
+  for sql in
+    [ $"UPDATE bundle.sync_ops SET branch_id = {branchId}"
+      $"UPDATE bundle.sync_commits SET branch_id = {branchId}"
+      $"UPDATE bundle.sync_bases SET branch_id = {branchId}"
+      $"UPDATE bundle.sync_branches SET parent_id = {parentId}"
+      "DELETE FROM bundle.sync_branches
+       WHERE id IN (SELECT foreign_id FROM main.sync_branch_aliases)"
+      $"UPDATE bundle.sync_journal SET
+          key = CASE kind
+            WHEN 'op' THEN 'op ' || {branch} || ' ' || op
+            WHEN 'op-gone' THEN 'op ' || {branch} || ' ' || op
+            WHEN 'branch' THEN 'branch ' || {branch}
+            ELSE key END,
+          branch = {branch}
+        WHERE branch IN (SELECT foreign_id FROM main.sync_branch_aliases)" ] do
+    let _ = run conn sql []
+    ()
+
+let private importWith
+  (firstContact : bool)
   (storePath : string)
   (bundlePath : string)
   : Result<Counts, string> =
@@ -944,6 +1062,7 @@ let import
         conn
         "SELECT COALESCE(MAX(value), 0) FROM bundle.sync_meta WHERE key = 'blobs'"
     let sentUpTo = { Cursor.journal = int64 sentJournal; blobs = int64 sentBlobs }
+    joinBranches conn firstContact
     // The import looks rows of the bundle up by key, once per row of the store or of the bundle.
     for index in
       [ "CREATE INDEX IF NOT EXISTS bundle.sync_ops_key ON sync_ops (id, branch_id)"
@@ -1265,6 +1384,10 @@ let reaches (storePath : string) (cursor : Cursor) : bool =
 /// The latest entry for a row always stays: it is what says a removed op is removed when a copy of
 /// it comes back from a store that has not heard. So the journal shrinks to one entry a row, and the
 /// churn above that (a draft refreshed a hundred times, an edit undone) goes.
+/// The most entries one trim drops. A trim runs between a session's steps, and on a busy machine
+/// tens of thousands at once held the session for seconds; the rest go at the next acknowledgement.
+let trimBatch = 2000
+
 let recordAcked
   (storePath : string)
   (peer : string)
@@ -1286,7 +1409,8 @@ let recordAcked
   if trim then
     run
       conn
-      "DELETE FROM main.sync_journal
+      ("DELETE FROM main.sync_journal WHERE seq IN (
+       SELECT seq FROM main.sync_journal
        WHERE seq <= (SELECT MIN(acked_journal) FROM main.sync_peers
                      WHERE seen_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now',
                        '-' || COALESCE(
@@ -1295,7 +1419,10 @@ let recordAcked
          AND EXISTS (
            SELECT 1 FROM main.sync_journal k
            WHERE k.key = sync_journal.key
-             AND (k.at > sync_journal.at OR (k.at = sync_journal.at AND k.id > sync_journal.id)))"
+             AND (k.at > sync_journal.at OR (k.at = sync_journal.at AND k.id > sync_journal.id)))
+       ORDER BY seq LIMIT "
+       + string trimBatch
+       + ")")
       []
   else
     0L
@@ -1316,3 +1443,46 @@ let notYetAcked (storePath : string) (peer : string) : int64 =
   cmd.Parameters.AddWithValue("$peer", peer) |> ignore<SqliteParameter>
   let n = cmd.ExecuteScalar()
   unbox<int64> n
+
+/// On a server that knows people by their tokens: record that the store <param peer> is
+/// <param person>'s. A store belongs to the first person it syncs as, and is refused to anyone
+/// else, because its drafts go only to that person.
+let bindPerson
+  (storePath : string)
+  (peer : string)
+  (name : string)
+  (person : string)
+  : Result<unit, string> =
+  use conn = openStore storePath
+  let _ =
+    run
+      conn
+      "INSERT INTO main.sync_peers (id, name, seen_at, person)
+       VALUES ($peer, $name, strftime('%Y-%m-%dT%H:%M:%fZ','now'), $person)
+       ON CONFLICT(id) DO UPDATE SET
+         person = CASE WHEN person = '' THEN excluded.person ELSE person END"
+      [ "$peer", box peer; "$name", box name; "$person", box person ]
+  use cmd = conn.CreateCommand()
+  cmd.CommandText <- "SELECT person FROM main.sync_peers WHERE id = $peer"
+  cmd.Parameters.AddWithValue("$peer", peer) |> ignore<SqliteParameter>
+  match string (cmd.ExecuteScalar()) with
+  | owner when owner = person -> Ok()
+  | owner -> Error owner
+
+/// The newest stamp an op or a commit in the bundle at <param bundlePath> carries, or "" when it
+/// carries none.
+let newestStampIn (bundlePath : string) : string =
+  use conn = openStore bundlePath
+  scalar
+    conn
+    "SELECT COALESCE(MAX(stamp), '') FROM (
+       SELECT MAX(origin_ts) AS stamp FROM main.sync_ops
+       UNION ALL SELECT MAX(origin_ts) AS stamp FROM main.sync_commits)"
+
+let import (storePath : string) (bundlePath : string) : Result<Counts, string> =
+  importWith false storePath bundlePath
+
+/// `import`, for the first bundle two stores exchange: a branch it brings that has the name of one
+/// of this store's live branches is joined to it, and stays joined (`sync_branch_aliases`).
+let importFirst (storePath : string) (bundlePath : string) : Result<Counts, string> =
+  importWith true storePath bundlePath

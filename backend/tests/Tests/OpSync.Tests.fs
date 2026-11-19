@@ -330,9 +330,19 @@ let commitThenDiscard =
         let found = findOn store dropped
         Expect.isNone found "the discarded one is not"
 
-      let journalA = rowCount a "sync_journal"
-      let journalB = rowCount b "sync_journal"
-      Expect.equal journalA journalB "both hold the same journal")
+      // What each row is now, by its latest entry. Entries a later one replaced don't travel on
+      // first contact, so the journals need not hold the same number of entries.
+      let latest =
+        "SELECT group_concat(state, ';') FROM (
+           SELECT j.key || '=' || j.kind || '/' || COALESCE(j.commit_hash, '') || '/'
+                  || COALESCE(j.name, '') || '/' || COALESCE(j.merged_at, '') || '/'
+                  || COALESCE(j.archived_at, '') AS state
+           FROM sync_journal j
+           WHERE NOT EXISTS (
+             SELECT 1 FROM sync_journal k
+             WHERE k.key = j.key AND (k.at > j.at OR (k.at = j.at AND k.id > j.id)))
+           ORDER BY j.key)"
+      Expect.equal (textIn a latest) (textIn b latest) "every row is the same on both")
   }
 
 let importTwice =
@@ -493,7 +503,9 @@ let private sideOf
         )
     keepGoing = keepGoing
     pollMs = 20
-    quietMs = 5000 }
+    quietMs = 5000
+    maxFrame = SyncLink.defaultMaxFrame
+    account = None }
 
 /// Run a session between <param a> and <param b> over in-process pipes while <param body> runs,
 /// then end it. <param stopA> turns A's side off, as `dark sync off` does. Answers how each end ended.
@@ -753,9 +765,9 @@ let peerDown =
     withTwoStores (fun dir a _ ->
       for (what, transport) in
         [ "down",
-          { SyncLink.program = "sh"; SyncLink.arguments = [ "-c"; "exit 255" ] }
+          SyncLink.Program("sh", [ "-c"; "exit 255" ])
           "stalled",
-          { SyncLink.program = "sh"; SyncLink.arguments = [ "-c"; "sleep 30" ] } ] do
+          SyncLink.Program("sh", [ "-c"; "sleep 30" ]) ] do
         use stop = noStop ()
         let said = System.Collections.Concurrent.ConcurrentQueue<string>()
         let watcher =
@@ -1168,10 +1180,10 @@ let firstCommandOutOfReach =
     withTwoStores (fun dir a _ ->
       for (what, transport, expected) in
         [ "down",
-          { SyncLink.program = "sh"; SyncLink.arguments = [ "-c"; "exit 255" ] },
+          SyncLink.Program("sh", [ "-c"; "exit 255" ]),
           "out of reach"
           "stalled",
-          { SyncLink.program = "sh"; SyncLink.arguments = [ "-c"; "sleep 30" ] },
+          SyncLink.Program("sh", [ "-c"; "sleep 30" ]),
           "still going" ] do
         use stop = noStop ()
         let said = System.Collections.Concurrent.ConcurrentQueue<string>()
@@ -1272,8 +1284,7 @@ let quietPeer =
             SyncLink.watch
               { side = side
                 transport =
-                  { SyncLink.program = "sh"
-                    SyncLink.arguments = [ "-c"; $"exec sleep {marker}" ] }
+                  SyncLink.Program("sh", [ "-c"; $"exec sleep {marker}" ])
                 peer = "peer"
                 patience = System.TimeSpan.Zero
                 mention = attempts.Enqueue }),
@@ -1401,6 +1412,205 @@ let keepDays =
       Expect.isGreaterThan trimmed 0L "past the setting, it does not")
   }
 
+// ------------------
+// A server several people share, and what two stores agree on when they first meet
+// ------------------
+
+/// Give <param store> the `instance.id` <param id>: the test stores are copies of one, and share it.
+let private setId (store : string) (id : string) : unit =
+  use conn =
+    new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={store};Pooling=false")
+  conn.Open()
+  use cmd = conn.CreateCommand()
+  cmd.CommandText <-
+    "INSERT INTO config_v0 (key, value) VALUES ('instance.id', $id)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+  cmd.Parameters.AddWithValue("$id", id)
+  |> ignore<Microsoft.Data.Sqlite.SqliteParameter>
+  cmd.ExecuteNonQuery() |> ignore<int>
+
+/// What a bundle for the store <param toStore> from <param fromStore> would carry, as a server
+/// sends to <param scope>. Writes nothing to <param toStore>.
+let private wouldSend
+  (dir : string)
+  (scope : OpSync.DraftScope)
+  (fromStore : string)
+  (toStore : string)
+  : OpSync.Counts =
+  let have = System.IO.Path.Combine(dir, "have.db")
+  let bundle = System.IO.Path.Combine(dir, "bundle.db")
+  match OpSync.writeHave toStore have with
+  | Error reason -> failtest reason
+  | Ok() -> ()
+  ok (OpSync.exportFor scope fromStore have bundle)
+
+let draftsStayWithTheirPerson =
+  testTask "on a shared server, a draft goes only to its person's stores, and a commit to everyone" {
+    withTwoStores (fun dir a b ->
+      let srv = System.IO.Path.Combine(dir, "srv.db")
+      match LibDB.Sqlite.Backup.toTestBaseline srv with
+      | Error message -> failtest message
+      | Ok() -> ()
+      setId a "store-a"
+      setId b "store-b"
+      setId srv "store-srv"
+      Expect.isOk (OpSync.bindPerson srv "store-a" "a" "stachu") "a is stachu's"
+      Expect.isOk (OpSync.bindPerson srv "store-b" "b" "oceanoak") "b is oceanoak's"
+      Expect.equal
+        (OpSync.bindPerson srv "store-a" "a" "oceanoak")
+        (Error "stachu")
+        "a store stays its first person's"
+
+      let before = OpSync.cursorOf srv
+      let ids = authorOn a "module Tests.OpSync\nlet shared(): Int64 = 6421"
+      let _ = sync dir a srv
+      Expect.equal (heldCount srv ids) (int64 (List.length ids)) "the server holds the draft"
+
+      let toOcean = wouldSend dir (OpSync.DraftsOf "oceanoak") srv b
+      Expect.equal toOcean.ops 0L "oceanoak's store is sent none of stachu's draft"
+      let toStachu = wouldSend dir (OpSync.DraftsOf "stachu") srv b
+      Expect.isGreaterThanOrEqual
+        toStachu.ops
+        (int64 (List.length ids))
+        "another of stachu's stores is sent it"
+
+      let bundle = System.IO.Path.Combine(dir, "since.db")
+      let since =
+        ok (OpSync.exportSinceFor (OpSync.DraftsOf "oceanoak") srv before "store-b" bundle)
+      Expect.equal since.ops 0L "nor does it go past a cursor"
+      Expect.equal since.journal 0L "and nor do its journal entries"
+
+      commitOn a
+      let _ = sync dir a srv
+      let committed = wouldSend dir (OpSync.DraftsOf "oceanoak") srv b
+      Expect.isGreaterThanOrEqual
+        committed.ops
+        (int64 (List.length ids))
+        "once committed, it goes to everyone")
+  }
+
+let sameNamedBranchesJoin =
+  testTask "on first contact, a branch of the same name on both stores is one branch, and stays so" {
+    withTwoStores (fun dir a b ->
+      let branchOf (store : string) (source : string) : PT.BranchId * List<string> =
+        useStore store
+        let branch = PT.BranchId.Id(System.Guid.NewGuid())
+        LibDB.Branches.createBranch branch "fix-parser" PT.BranchId.Main
+        let ops = (parsePackageOps source).Result
+        let _ = LibDB.Inserts.authorOn branch "op" ops
+        branch, ops |> List.map (LibDB.Inserts.computeOpHash >> string)
+      let onA, fromA = branchOf a "module Tests.OpSync\nlet onA(): Int64 = 1"
+      let onB, fromB = branchOf b "module Tests.OpSync\nlet onB(): Int64 = 2"
+      let firstContact (fromStore : string) (toStore : string) =
+        let have = System.IO.Path.Combine(dir, "have.db")
+        let bundle = System.IO.Path.Combine(dir, "bundle.db")
+        match OpSync.writeHave toStore have with
+        | Error reason -> failtest reason
+        | Ok() -> ()
+        let _ = ok (OpSync.export fromStore have bundle)
+        ok (OpSync.importFirst toStore bundle)
+      let _ = firstContact a b
+      let _ = firstContact b a
+      let named = "SELECT COUNT(*) FROM branches WHERE name = 'fix-parser'"
+      let on (branch : PT.BranchId) =
+        $"SELECT COUNT(*) FROM package_ops WHERE branch_id = '{branch}'
+            AND id IN (SELECT value FROM json_each($ids))"
+      Expect.equal (countIn a named []) 1L "a holds one fix-parser"
+      Expect.equal (countIn b named []) 1L "b holds one fix-parser"
+      Expect.equal (countIn b (on onB) fromA) (int64 (List.length fromA)) "a's work is on b's branch"
+      Expect.equal (countIn a (on onA) fromB) (int64 (List.length fromB)) "b's work is on a's branch"
+
+      // Later, ids travel: what a adds to its branch lands on b's.
+      useStore a
+      let later = (parsePackageOps "module Tests.OpSync\nlet laterOnA(): Int64 = 3").Result
+      let _ = LibDB.Inserts.authorOn onA "op" later
+      let laterIds = later |> List.map (LibDB.Inserts.computeOpHash >> string)
+      let _ = sync dir a b
+      Expect.equal
+        (countIn b (on onB) laterIds)
+        (int64 (List.length laterIds))
+        "a later edit lands on the joined branch")
+  }
+
+let firstJoinSendsWhatDiffers =
+  testTask "a first join sends only journal entries that say something the other store lacks" {
+    withTwoStores (fun dir a b ->
+      // A fresh install holds the same seed rows as everyone, under journal entries of its own.
+      use conn =
+        new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={b};Pooling=false")
+      conn.Open()
+      use cmd = conn.CreateCommand()
+      cmd.CommandText <- "UPDATE sync_journal SET id = lower(hex(randomblob(16)))"
+      let entries = cmd.ExecuteNonQuery()
+      conn.Close()
+      Expect.isGreaterThan entries 1000 "the stores hold many entries"
+      let ids = authorOn a "module Tests.OpSync\nlet joined(): Int64 = 77"
+      let (sent, _) = sync dir a b
+      Expect.isLessThan sent.journal 20L "only what changed goes, not the whole journal"
+      Expect.equal (heldCount b ids) (int64 (List.length ids)) "and what changed arrives")
+  }
+
+let tokens =
+  testTask "a token is kept as a hash, says whose it is, and stops working once revoked" {
+    withTwoStores (fun _ a _ ->
+      let token = LibDB.SyncTokens.generate ()
+      let id = LibDB.SyncTokens.add a "oceanoak" token false "laptop"
+      let kept =
+        textIn
+          a
+          ("SELECT COUNT(*) FROM sync_tokens WHERE instr(hash || id || person || label, '"
+           + token
+           + "') > 0")
+      Expect.equal kept "0" "the token itself is not kept"
+      match LibDB.SyncTokens.check a token with
+      | Ok account ->
+        Expect.equal account.person "oceanoak" "the token is oceanoak's"
+        Expect.isFalse account.readOnly "and writes"
+      | Error e -> failtest $"the token was refused: {e}"
+      Expect.equal (LibDB.SyncTokens.check a (token + "x")) (Error LibDB.SyncTokens.Unknown) "another is not taken"
+      let revoked = LibDB.SyncTokens.revoke a id
+      Expect.equal (List.length revoked) 1 "revoking by id revokes it"
+      Expect.equal
+        (LibDB.SyncTokens.check a token)
+        (Error(LibDB.SyncTokens.Revoked "oceanoak"))
+        "a revoked token is refused, saying so"
+      Expect.isFalse (LibDB.SyncTokens.isLive a id) "and is not live")
+  }
+
+let frames =
+  testTask "frames say who an end is, its access and clock, and refuse what is too large" {
+    let roundTrip (frame : SyncLink.Frame) =
+      use stream = new System.IO.MemoryStream()
+      SyncLink.writeFrame stream frame
+      stream.Position <- 0L
+      SyncLink.readFrame SyncLink.defaultMaxFrame stream
+    let now = System.DateTime.UtcNow
+    match
+      roundTrip (
+        SyncLink.Hello
+          { SyncLink.Hello.version = OpSync.formatVersion
+            name = "laptop"
+            id = "store-a"
+            readOnly = true
+            clock = Some now }
+      )
+    with
+    | SyncLink.Hello h ->
+      Expect.equal h.name "laptop" "the name"
+      Expect.equal h.id "store-a" "the id"
+      Expect.isTrue h.readOnly "the access"
+      Expect.equal h.clock (Some now) "the clock"
+    | other -> failtest $"read back {other}"
+    Expect.equal (roundTrip (SyncLink.Bye "why")) (SyncLink.Bye "why") "a bye says why"
+    use stream = new System.IO.MemoryStream()
+    SyncLink.writeFrame stream (SyncLink.Bundle(Array.zeroCreate 2048))
+    stream.Position <- 0L
+    match SyncLink.readFrame 1024 stream with
+    | SyncLink.Closed _ -> ()
+    | other -> failtest $"a frame over the limit was taken: {other}"
+  }
+
+
 let tests =
   testSequenced
   <| testList
@@ -1429,4 +1639,9 @@ let tests =
       recreatedAfterRemoval
       quietPeer
       copiedStore
-      keepDays ]
+      keepDays
+      draftsStayWithTheirPerson
+      sameNamedBranchesJoin
+      firstJoinSendsWhatDiffers
+      tokens
+      frames ]

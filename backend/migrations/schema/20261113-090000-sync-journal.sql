@@ -51,14 +51,38 @@ CREATE TABLE IF NOT EXISTS sync_replaying (
 -- Each store this one has synced with, by its `instance.id`. `received_*` is how far into ITS
 -- journal and blobs this store holds everything, so the next session starts there instead of
 -- comparing whole stores. `acked_journal` is how far into THIS store's journal it said it holds
--- everything. `seen_at` is the last time it said so.
+-- everything. `seen_at` is the last time it said so. `person` is whose store it is, on a server that
+-- knows people by their tokens, and '' elsewhere: a store belongs to the first person it syncs as.
 CREATE TABLE IF NOT EXISTS sync_peers (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   received_journal INTEGER NULL,
   received_blobs INTEGER NULL,
   acked_journal INTEGER NOT NULL DEFAULT 0,
-  seen_at TEXT NOT NULL
+  seen_at TEXT NOT NULL,
+  person TEXT NOT NULL DEFAULT ''
+);
+
+-- Branches another store made under ids of its own, that this store took as its own branch of the
+-- same name when the two first synced (`OpSync.import`). What arrives on `foreign_id` lands on
+-- `local_id`, so the two stay one branch from then on, each store keeping its own id.
+CREATE TABLE IF NOT EXISTS sync_branch_aliases (
+  foreign_id TEXT PRIMARY KEY,
+  local_id TEXT NOT NULL
+);
+
+-- The tokens a sync server accepts (`dark sync token`). Only a token's SHA-256 is kept, so a copy
+-- of the store gives nobody a way in. `id` is the first 8 hex digits of the hash: what a person
+-- names to revoke one. A read-only token takes what the server holds and sends nothing.
+CREATE TABLE IF NOT EXISTS sync_tokens (
+  hash TEXT PRIMARY KEY,
+  id TEXT NOT NULL,
+  person TEXT NOT NULL,
+  read_only INTEGER NOT NULL DEFAULT 0,
+  label TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  last_used_at TEXT NULL,
+  revoked_at TEXT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_sync_journal_at ON sync_journal(at);

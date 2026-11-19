@@ -146,6 +146,9 @@ let export (outputPath : string) : unit =
       DELETE FROM sync_journal;
       DELETE FROM sync_peers;
 
+      -- A sync server's tokens are its own, and never go out in a seed.
+      DELETE FROM sync_tokens;
+
       """
     + AppliedOps.reset
   Telemetry.count "sql.seed"

@@ -61,6 +61,8 @@ type Standing =
     caughtUp : Option<System.DateTime>
     /// The other store's `instance.id`, once it has said hello.
     peer : string
+    /// The other end said this machine's token only reads.
+    readOnly : bool
   }
 
 module Standing =
@@ -70,7 +72,8 @@ module Standing =
       since = None
       contact = None
       caughtUp = None
-      peer = "" }
+      peer = ""
+      readOnly = false }
 
   let private stamp (t : Option<System.DateTime>) : string =
     t
@@ -107,7 +110,8 @@ module Standing =
       since = parseStamp (field "since")
       contact = parseStamp (field "contact")
       caughtUp = parseStamp (field "caughtUp")
-      peer = field "peer" }
+      peer = field "peer"
+      readOnly = field "access" = "read" }
 
   /// Replace what <param path> says, whole, so a reader never sees half of it.
   let write (path : string) (s : Standing) : unit =
@@ -119,7 +123,8 @@ module Standing =
           $"since {stamp s.since}"
           $"contact {stamp s.contact}"
           $"caughtUp {stamp s.caughtUp}"
-          $"peer {s.peer}" ]
+          $"peer {s.peer}"
+          "access " + (if s.readOnly then "read" else "write") ]
         |> String.concat "\n"
       let temporary = path + ".new"
       File.WriteAllText(temporary, text + "\n")
@@ -146,8 +151,9 @@ module Standing =
 /// the payload. Have and bundle frames carry the SQLite files `OpSync` writes, whole; a cursor is
 /// two 8-byte big-endian numbers.
 type Frame =
-  /// The format both ends must speak, and who this end is: its name and its `instance.id`.
-  | Hello of version : string * name : string * id : string
+  /// The format both ends must speak, who this end is (its name and its `instance.id`), whether the
+  /// other end may only read (a server says so to a read-only token), and this end's clock.
+  | Hello of Hello
   /// "I hold everything of yours up to here; send what came after."
   | Resume of OpSync.Cursor
   /// "That point is not one I can send from (the store was emptied since); send a have file."
@@ -161,11 +167,21 @@ type Frame =
   /// Nothing to say; sent every few seconds, whatever this end is busy with, so the other end
   /// knows it is alive.
   | Ping
+  /// "I am ending this session, and why": sent before a refusal, so the other end can say it.
+  | Bye of reason : string
   /// Not sent: what reading says when the other end has gone, and why.
   | Closed of reason : string
 
-/// A frame larger than this is refused rather than allocated: no honest bundle comes near it.
-let private maxPayload = 1 <<< 30
+and Hello =
+  { version : string
+    name : string
+    id : string
+    readOnly : bool
+    clock : Option<System.DateTime> }
+
+/// A frame larger than this is refused rather than allocated, unless the end says otherwise
+/// (`Side.maxFrame`): no honest bundle comes near it.
+let defaultMaxFrame = 1 <<< 30
 
 let private cursorBytes (c : OpSync.Cursor) : byte[] =
   let bytes = Array.zeroCreate<byte> 16
@@ -196,8 +212,14 @@ let private cursorOfBytes (bytes : byte[]) : Option<OpSync.Cursor> =
 let writeFrame (output : Stream) (frame : Frame) : unit =
   let kind, payload =
     match frame with
-    | Hello(version, name, id) ->
-      'H', System.Text.Encoding.UTF8.GetBytes($"{version}\n{name}\n{id}")
+    | Hello h ->
+      let mode = if h.readOnly then "read" else "write"
+      let clock =
+        h.clock |> Option.map (fun t -> t.ToString("o")) |> Option.defaultValue ""
+      'H',
+      System.Text.Encoding.UTF8.GetBytes(
+        $"{h.version}\n{h.name}\n{h.id}\n{mode}\n{clock}"
+      )
     | Resume c -> 'R', cursorBytes c
     | Rehave -> 'Q', [||]
     | Have bytes -> 'V', bytes
@@ -205,6 +227,7 @@ let writeFrame (output : Stream) (frame : Frame) : unit =
     | UpToDate c -> 'U', cursorBytes c
     | Ack c -> 'A', cursorBytes c
     | Ping -> 'P', [||]
+    | Bye reason -> 'X', System.Text.Encoding.UTF8.GetBytes reason
     | Closed _ -> 'P', [||]
   let header = Array.zeroCreate<byte> 5
   header[0] <- byte kind
@@ -229,7 +252,7 @@ let private readExactly (input : Stream) (count : int) : Option<byte[]> =
 
 /// The next frame, blocking until it is whole. A truncated or unknown frame closes the session: a
 /// half-delivered bundle must never count as delivered.
-let readFrame (input : Stream) : Frame =
+let readFrame (maxPayload : int) (input : Stream) : Frame =
   try
     match readExactly input 5 with
     | None -> Closed "the other end closed the connection"
@@ -239,7 +262,7 @@ let readFrame (input : Stream) : Frame =
           System.ReadOnlySpan<byte>(header, 1, 4)
         )
       if length < 0 || length > maxPayload then
-        Closed "the other end sent a frame too large to be a bundle"
+        Closed $"the other end sent a frame of {length} bytes, over the limit of {maxPayload}"
       else
         match readExactly input length with
         | None -> Closed "the connection ended in the middle of a frame"
@@ -250,11 +273,24 @@ let readFrame (input : Stream) : Frame =
             | None -> Closed "the other end sent a point that did not parse"
           match char header[0] with
           | 'H' ->
-            match System.Text.Encoding.UTF8.GetString(payload).Split('\n', 3) with
-            | [| version; name; id |] -> Hello(version, name, id)
-            // An older end says only its version and name, and is refused by the version.
-            | [| version; name |] -> Hello(version, name, name)
-            | _ -> Closed "the other end's hello did not parse"
+            let fields = System.Text.Encoding.UTF8.GetString(payload).Split('\n')
+            let field (i : int) = if i < fields.Length then fields[i] else ""
+            // Only the version is read from an end that speaks another format: it is refused by it.
+            Hello
+              { version = field 0
+                name = field 1
+                id = (if field 2 = "" then field 1 else field 2)
+                readOnly = field 3 = "read"
+                clock =
+                  match
+                    System.DateTime.TryParse(
+                      field 4,
+                      System.Globalization.CultureInfo.InvariantCulture,
+                      System.Globalization.DateTimeStyles.RoundtripKind
+                    )
+                  with
+                  | true, t -> Some(t.ToUniversalTime())
+                  | _ -> None }
           | 'R' -> cursorFrame Resume
           | 'Q' -> Rehave
           | 'V' -> Have payload
@@ -262,6 +298,7 @@ let readFrame (input : Stream) : Frame =
           | 'U' -> cursorFrame UpToDate
           | 'A' -> cursorFrame Ack
           | 'P' -> Ping
+          | 'X' -> Bye(System.Text.Encoding.UTF8.GetString payload)
           | _ -> Closed "the other end does not speak dark sync"
   with e ->
     Closed e.Message
@@ -293,6 +330,11 @@ type Side =
     /// How long the other end may say nothing before the session is given up: it is asleep,
     /// stopped, or the network dropped without a word. Each end pings four times as often.
     quietMs : int
+    /// The largest frame this end takes.
+    maxFrame : int
+    /// On a server: whose token the other end came with. Its drafts go only to that person's
+    /// stores, and a read-only token sends nothing. None between one person's own machines.
+    account : Option<SyncTokens.Account>
   }
 
 /// How a session ended.
@@ -320,6 +362,13 @@ type private State =
     acked : Option<int64>
     /// When the other end last said anything.
     heard : System.DateTime
+    /// The other end said this one may only read: nothing of this store's goes to it.
+    readOnly : bool
+    /// The last trim stopped at its batch, so the next acknowledgement trims on.
+    trimming : bool
+    /// This end asked with a have file: the two stores are comparing whole, and the catch-up that
+    /// answers joins same-named branches (`OpSync.importFirst`).
+    fromScratch : bool
   }
 
 let private fileIn (side : Side) (name : string) : string =
@@ -380,6 +429,18 @@ let conflictLine (c : ScmDetect.Conflict) : string =
     let newer = if c.reason = "later-origin-ts" then " (newer)" else ""
     $"sync: {name} changed on both machines; kept {kept}{newer}. `dark conflicts` to choose."
 
+/// One import and its fold at a time in this process: a server runs a session per connection, all on
+/// one store, and the fold works on the process's one view of it.
+let private importing = obj ()
+
+/// How far ahead of this end's clock a change may be stamped before a server turns it away. A
+/// stamp decides which of two edits made at once wins, so a machine whose clock runs ahead would
+/// win every one of them, and pull every other machine's clock forward with it.
+let private clockTolerance = System.TimeSpan.FromMinutes 5.0
+
+/// How far apart two ends' clocks may be before the person is told.
+let private skewWorthSaying = System.TimeSpan.FromMinutes 2.0
+
 /// Run one session on <param input> and <param output> until it ends, setting <param greeted> when
 /// the other end says who it is. With <param once>, it ends as soon as each end has sent the other
 /// everything it lacked and the other has said it holds it.
@@ -396,13 +457,18 @@ let private session
   let bundleOut = fileIn side "bundle-out"
   let bundleIn = fileIn side "bundle-in"
   let (selfId, selfName) = OpSync.identityOf side.store
+  let scope =
+    match side.account with
+    | Some a -> OpSync.DraftsOf a.person
+    | None -> OpSync.AllDrafts
+  let readOnlyAccount = side.account |> Option.exists (fun a -> a.readOnly)
   // Every frame is read as it comes, on a thread of its own, whatever this end is busy with: a have
   // file is far bigger than a pipe holds, and both ends may be sending at once.
   let frames = System.Threading.Channels.Channel.CreateUnbounded<Frame>()
   let pump () =
     iterate
       (fun () ->
-        let frame = readFrame input
+        let frame = readFrame side.maxFrame input
         frames.Writer.TryWrite frame |> ignore<bool>
         match frame with
         | Closed _ -> Choice2Of2()
@@ -464,7 +530,7 @@ let private session
       | Some ended -> Error ended
       | None -> Ok(Some now)
     else
-      match OpSync.exportSince side.store since peerId bundleOut with
+      match OpSync.exportSinceFor scope side.store since peerId bundleOut with
       | Error reason -> Error(Refused reason)
       | Ok counts when carries counts ->
         match sendBundle counts what with
@@ -499,17 +565,49 @@ let private session
           side.note (fun s -> { s with caughtUp = Some System.DateTime.UtcNow })
         Ok { st with caughtUp = true }
 
+  /// On a server, why a bundle is stamped too far past this end's clock to take, if it is.
+  let aheadOfClock () : Option<string> =
+    match side.account with
+    | None -> None
+    | Some _ ->
+      match
+        System.DateTime.TryParse(
+          OpSync.newestStampIn bundleIn,
+          System.Globalization.CultureInfo.InvariantCulture,
+          System.Globalization.DateTimeStyles.AdjustToUniversal
+          ||| System.Globalization.DateTimeStyles.AssumeUniversal
+        )
+      with
+      | true, newest when newest > System.DateTime.UtcNow + clockTolerance ->
+        let minutes = int (newest - System.DateTime.UtcNow).TotalMinutes
+        Some
+          $"this machine's clock is about {minutes} minutes ahead of the server's; its changes wait until the clock is right"
+      | _ -> None
+
   let receive (st : State) (bytes : byte[]) : Result<State, Ended> =
     File.WriteAllBytes(bundleIn, bytes)
     let started = System.Diagnostics.Stopwatch.StartNew()
-    match OpSync.import side.store bundleIn with
+    let imported =
+      match side.account, aheadOfClock () with
+      | Some a, _ when a.readOnly ->
+        Error $"{a.person}'s token can only read from this server"
+      | _, Some reason -> Error reason
+      | _, None ->
+        lock importing (fun () ->
+          let importBundle =
+            if st.fromScratch && not st.caughtUp then OpSync.importFirst else OpSync.import
+          match importBundle side.store bundleIn with
+          | Error reason -> Error reason
+          | Ok counts ->
+            let importMs = started.ElapsedMilliseconds
+            if changed counts then side.afterImport counts
+            Ok(counts, importMs))
+    match imported with
     | Error reason -> Error(Refused reason)
-    | Ok counts ->
+    | Ok(counts, importMs) ->
       if changed counts then
-        let imported = started.ElapsedMilliseconds
-        side.afterImport counts
         side.log
-          $"received {bytes.Length} bytes: {counts.ops} ops, {counts.dropped} dropped, {counts.committed} committed, {counts.journal} entries, applied in {started.ElapsedMilliseconds} ms ({imported} ms importing)"
+          $"received {bytes.Length} bytes: {counts.ops} ops, {counts.dropped} dropped, {counts.committed} committed, {counts.journal} entries, applied in {started.ElapsedMilliseconds} ms ({importMs} ms importing)"
       for c in counts.conflicts do
         side.say (conflictLine c)
       // What the import added is the other end's own, so the cursor steps over it, unless this
@@ -531,8 +629,15 @@ let private session
     | Ok cursor -> Choice1Of2 { st with cursor = Option.orElse st.cursor cursor }
 
   let step (st : State) : Choice<State, Ended> =
-    if once && st.caughtUp && Option.isSome st.cursor && Option.isSome st.acked then
+    if
+      once
+      && st.caughtUp
+      && (st.readOnly || (Option.isSome st.cursor && Option.isSome st.acked))
+    then
       Choice2Of2 Exchanged
+    // Turned off: nothing more is taken, even what already arrived.
+    elif not (side.keepGoing ()) then
+      Choice2Of2 Stopped
     else
       match frames.Reader.TryRead() with
       | true, frame ->
@@ -548,28 +653,56 @@ let private session
             st
         match frame with
         | Closed reason -> Choice2Of2(PeerGone reason)
+        | Bye reason -> Choice2Of2(Refused reason)
         | Ping -> Choice1Of2 st
-        | Hello(version, name, id) ->
-          if version <> OpSync.formatVersion then
-            Choice2Of2(
-              Refused
-                $"{name} runs a dark that speaks sync format {version}; this one speaks {OpSync.formatVersion}"
-            )
-          else
-            side.log $"hello from {name}"
+        | Hello h when h.version <> OpSync.formatVersion ->
+          Choice2Of2(
+            Refused
+              $"{h.name} runs a dark that speaks sync format {h.version}; this one speaks {OpSync.formatVersion}"
+          )
+        | Hello h ->
+          let bound =
+            match side.account with
+            | None -> Ok()
+            | Some a ->
+              OpSync.bindPerson side.store h.id h.name a.person
+              |> Result.mapError (fun owner ->
+                $"the store on {h.name} syncs as {owner}; {a.person}'s token can't use it")
+          match bound with
+          | Error reason -> Choice2Of2(Refused reason)
+          | Ok() ->
+            let who =
+              match side.account with
+              | Some a -> $"{h.name} ({a.person}, token {a.tokenId})"
+              | None -> h.name
+            side.log $"hello from {who}"
             greeted.Set()
-            side.note (fun s -> { Standing.into "connected" "" s with peer = id })
-            let st = { st with peer = Some(id, name) }
-            // From the point the two last agreed on, or from scratch.
-            let asked =
-              match OpSync.receivedFrom side.store id with
-              | Some c ->
-                side.log $"resuming from {c.journal}/{c.blobs}"
-                send (Resume c)
-              | None -> sendHave ()
+            side.note (fun s ->
+              { Standing.into "connected" "" s with peer = h.id; readOnly = h.readOnly })
+            match h.clock with
+            | Some theirs when Option.isNone side.account ->
+              let skew = System.DateTime.UtcNow - theirs
+              if skew.Duration() > skewWorthSaying then
+                let minutes = int (skew.Duration().TotalMinutes)
+                let way = if skew > System.TimeSpan.Zero then "ahead of" else "behind"
+                side.say
+                  $"sync: this machine's clock is about {minutes} minutes {way} {h.name}'s. Set it right (NTP), or edits made at the same time may settle the wrong way."
+            | _ -> ()
+            let st = { st with peer = Some(h.id, h.name); readOnly = h.readOnly }
+            // From the point the two last agreed on, or from scratch. Nothing is asked of an end
+            // whose token only reads.
+            let asked, fromScratch =
+              if readOnlyAccount then
+                None, false
+              else
+                match OpSync.receivedFrom side.store h.id with
+                | Some c ->
+                  side.log $"resuming from {c.journal}/{c.blobs}"
+                  send (Resume c), false
+                | None -> sendHave (), true
             match asked with
             | Some ended -> Choice2Of2 ended
-            | None -> Choice1Of2 st
+            | None -> Choice1Of2 { st with fromScratch = fromScratch }
         | Resume c ->
           if OpSync.reaches side.store c then
             answered st (sendSince c (peerIdOf st) "catch-up")
@@ -582,11 +715,11 @@ let private session
         | Rehave ->
           match sendHave () with
           | Some ended -> Choice2Of2 ended
-          | None -> Choice1Of2 st
+          | None -> Choice1Of2 { st with fromScratch = true }
         | Have bytes ->
           File.WriteAllBytes(haveIn, bytes)
           let clock = System.Diagnostics.Stopwatch.StartNew()
-          let exported = OpSync.export side.store haveIn bundleOut
+          let exported = OpSync.exportFor scope side.store haveIn bundleOut
           side.log
             $"have of {bytes.Length} bytes answered in {clock.ElapsedMilliseconds} ms"
           match exported with
@@ -616,39 +749,48 @@ let private session
           | None ->
             Choice2Of2(Refused "the other end acknowledged before saying who it is")
           | Some(id, name) ->
-            let firstThisSession = Option.isNone st.acked
-            let trimmed =
-              OpSync.recordAcked side.store id name c.journal firstThisSession
+            let trim = Option.isNone st.acked || st.trimming
+            let trimmed = OpSync.recordAcked side.store id name c.journal trim
             if trimmed > 0L then
               side.log $"trimmed {trimmed} journal entries every peer holds"
-            Choice1Of2 { st with acked = Some c.journal }
+            Choice1Of2
+              { st with
+                  acked = Some c.journal
+                  trimming = trimmed >= int64 OpSync.trimBatch }
       | _ ->
-        if frames.Reader.WaitToReadAsync().AsTask().Wait(side.pollMs) then
-          Choice1Of2 st
-        elif not (side.keepGoing ()) then
-          Choice2Of2 Stopped
-        elif
-          (System.DateTime.UtcNow - st.heard).TotalMilliseconds > float side.quietMs
-        then
-          Choice2Of2 Unanswered
-        else
-          match st.cursor with
-          | Some c ->
-            let now = standing conn
-            if now.journal > c.journal || now.blobs > c.blobs then
-              match
-                OpSync.exportSince side.store c (peerIdOf st) bundleOut
-              with
-              | Error reason -> Choice2Of2(Refused reason)
-              | Ok counts ->
-                let sent =
-                  if carries counts then sendBundle counts "change" else None
-                match sent with
-                | Some ended -> Choice2Of2 ended
-                | None -> Choice1Of2 { st with cursor = Some counts.upTo }
-            else
-              Choice1Of2 st
-          | None -> Choice1Of2 st
+        match st.peer, st.acked with
+        // Nothing to read: the trim the last acknowledgement left unfinished goes on.
+        | Some(id, name), Some acked when st.trimming ->
+          let trimmed = OpSync.recordAcked side.store id name acked true
+          side.log $"trimmed {trimmed} journal entries every peer holds"
+          Choice1Of2 { st with trimming = trimmed >= int64 OpSync.trimBatch }
+        | _ ->
+          if frames.Reader.WaitToReadAsync().AsTask().Wait(side.pollMs) then
+            Choice1Of2 st
+          elif not (side.keepGoing ()) then
+            Choice2Of2 Stopped
+          elif
+            (System.DateTime.UtcNow - st.heard).TotalMilliseconds > float side.quietMs
+          then
+            Choice2Of2 Unanswered
+          else
+            match st.cursor with
+            | Some c when not st.readOnly ->
+              let now = standing conn
+              if now.journal > c.journal || now.blobs > c.blobs then
+                match
+                  OpSync.exportSinceFor scope side.store c (peerIdOf st) bundleOut
+                with
+                | Error reason -> Choice2Of2(Refused reason)
+                | Ok counts ->
+                  let sent =
+                    if carries counts then sendBundle counts "change" else None
+                  match sent with
+                  | Some ended -> Choice2Of2 ended
+                  | None -> Choice1Of2 { st with cursor = Some counts.upTo }
+              else
+                Choice1Of2 st
+            | _ -> Choice1Of2 st
 
   // Pings go out on a timer of their own, not between steps: a step can be a long import, and the
   // other end must not take that for silence.
@@ -667,17 +809,36 @@ let private session
   try
     // Reading starts before anything is sent.
     Task.Factory.StartNew(pump, TaskCreationOptions.LongRunning) |> ignore<Task>
-    match send (Hello(OpSync.formatVersion, selfName, selfId)) with
+    let hello =
+      { version = OpSync.formatVersion
+        name = selfName
+        id = selfId
+        readOnly = readOnlyAccount
+        clock = Some System.DateTime.UtcNow }
+    match send (Hello hello) with
     | Some ended -> ended
     | None ->
       pinger.Start()
-      iterate
-        step
-        { cursor = None
-          peer = None
-          caughtUp = false
-          acked = None
-          heard = System.DateTime.UtcNow }
+      let ended =
+        iterate
+          step
+          { cursor = None
+            peer = None
+            caughtUp = false
+            acked = None
+            heard = System.DateTime.UtcNow
+            readOnly = false
+            trimming = false
+            fromScratch = false }
+      // Say why, so the other end can tell its person rather than retry in silence.
+      match ended with
+      | Refused reason ->
+        try
+          write (Bye reason)
+        with _ ->
+          ()
+      | _ -> ()
+      ended
   finally
     finished.Set()
     for path in [ haveOut; haveIn; bundleOut; bundleIn ] do
@@ -693,35 +854,68 @@ let run (side : Side) (input : Stream) (output : Stream) (once : bool) : Ended =
 // The transport
 // ------------------
 
-/// The program that reaches the other end and runs `dark sync serve` there, speaking frames on its
-/// stdin and stdout.
-type Transport = { program : string; arguments : List<string> }
+/// How to reach the other end: a program that runs `dark sync serve` there and speaks frames on its
+/// stdin and stdout (ssh), or a sync server's address and the token it knows this person by.
+type Transport =
+  | Program of program : string * arguments : List<string>
+  | Server of url : System.Uri * token : string
+
+/// A server's address as a person may type it: `https://host[:port][/path]`, or `http://` to a
+/// machine that is this one or on a private network (a token must not cross the internet in the
+/// clear). None when it is not one.
+let serverUrl (text : string) : Option<System.Uri> =
+  match System.Uri.TryCreate(text, System.UriKind.Absolute) with
+  | true, uri when uri.Scheme = "https" || uri.Scheme = "http" -> Some uri
+  | _ -> None
+
+/// Whether <param uri> may be spoken to without TLS: this machine, a private network, or a tailnet
+/// (WireGuard already encrypts it).
+let plainHttpAllowed (uri : System.Uri) : bool =
+  let host = uri.IdnHost
+  match System.Net.IPAddress.TryParse host with
+  | true, ip ->
+    System.Net.IPAddress.IsLoopback ip
+    || (let b = ip.GetAddressBytes()
+        b.Length = 4
+        && (b[0] = 10uy
+            || (b[0] = 172uy && b[1] >= 16uy && b[1] < 32uy)
+            || (b[0] = 192uy && b[1] = 168uy)
+            || (b[0] = 100uy && b[1] >= 64uy && b[1] < 128uy)))
+  | _ ->
+    host = "localhost"
+    || host.EndsWith ".localhost"
+    || host.EndsWith ".ts.net"
+    || host.EndsWith ".internal"
+    || not (host.Contains ".")
 
 /// ssh to <param host>, with the person's own keys and config and never a prompt, running
 /// <param command> (the `dark` on that machine). A connection that stops answering is given up on
 /// after about 15 seconds.
 let ssh (host : string) (command : string) : Transport =
-  { program = "ssh"
-    arguments =
-      [ "-T"
-        "-o"
-        "BatchMode=yes"
-        // Rides a shared connection the person already has open, but never leaves one behind.
-        "-o"
-        "ControlMaster=no"
-        "-o"
-        "ConnectTimeout=10"
-        "-o"
-        "ServerAliveInterval=5"
-        "-o"
-        "ServerAliveCountMax=3"
-        host
-        $"{command} sync serve" ] }
+  Program(
+    "ssh",
+    [ "-T"
+      "-o"
+      "BatchMode=yes"
+      // Rides a shared connection the person already has open, but never leaves one behind.
+      "-o"
+      "ControlMaster=no"
+      "-o"
+      "ConnectTimeout=10"
+      "-o"
+      "ServerAliveInterval=5"
+      "-o"
+      "ServerAliveCountMax=3"
+      host
+      $"{command} sync serve" ]
+  )
 
 /// Why a connection failed, as far as what ssh said tells.
 type Failure =
   /// The key was refused or the host key does not match: only the person can fix that.
   | NotAllowed of reason : string
+  /// The server does not take this token: it never knew it, or it was revoked.
+  | TokenRefused of revoked : bool
   /// The other machine has no `dark` where the command says.
   | NoDark of reason : string
   /// Off, asleep, or offline: it will come back.
@@ -754,15 +948,16 @@ let classify (exitCode : int) (stderr : string) : Failure =
   else
     Unreachable line
 
-/// Start <param transport> and run a session over it: how it ended, why it failed if it did, and
-/// whether the other end said hello first. The child is always gone when this returns.
-let connect
+/// Start <param program> and run a session over its stdin and stdout. The child is always gone when
+/// this returns.
+let private connectProgram
   (side : Side)
-  (transport : Transport)
+  (program : string)
+  (arguments : List<string>)
   (once : bool)
   : Ended * Option<Failure> * bool =
-  let psi = System.Diagnostics.ProcessStartInfo(transport.program)
-  for a in transport.arguments do
+  let psi = System.Diagnostics.ProcessStartInfo(program)
+  for a in arguments do
     psi.ArgumentList.Add a
   psi.UseShellExecute <- false
   psi.RedirectStandardInput <- true
@@ -813,6 +1008,107 @@ let connect
       | Refused reason -> Some(NotSpoken reason)
       | _ -> None
     ended, failure, greeted.IsSet
+
+/// The header a server answers a refused connection with: why, as a word (`ServerRefusal`).
+let refusalHeader = "Dark-Sync-Refusal"
+
+/// The header a client names the sync format it speaks in, so a server can refuse it before
+/// anything else is said.
+let formatHeader = "Dark-Sync-Format"
+
+/// Where on a server sessions are opened.
+let sessionPath = "/sync"
+
+/// Open a session to the sync server at <param url> with <param token>, over a WebSocket, and run it.
+let private connectServer
+  (side : Side)
+  (url : System.Uri)
+  (token : string)
+  (once : bool)
+  : Ended * Option<Failure> * bool =
+  let target =
+    let b = System.UriBuilder(url)
+    b.Scheme <- if url.Scheme = "https" then "wss" else "ws"
+    b.Path <- b.Path.TrimEnd('/') + sessionPath
+    b.Uri
+  let ws = new System.Net.WebSockets.ClientWebSocket()
+  ws.Options.SetRequestHeader("Authorization", $"Bearer {token}")
+  ws.Options.SetRequestHeader(formatHeader, OpSync.formatVersion)
+  ws.Options.CollectHttpResponseDetails <- true
+  ws.Options.KeepAliveInterval <- System.TimeSpan.FromSeconds 15.0
+  let opened =
+    try
+      use cts = new System.Threading.CancellationTokenSource(System.TimeSpan.FromSeconds 15.0)
+      ws.ConnectAsync(target, cts.Token).Wait()
+      Ok()
+    with e ->
+      let refusal =
+        match ws.HttpResponseHeaders with
+        | null -> ""
+        | headers ->
+          match headers.TryGetValue refusalHeader with
+          | true, values -> values |> Seq.tryHead |> Option.defaultValue ""
+          | _ -> ""
+      let rec innermost (e : exn) =
+        match e.InnerException with
+        | null -> e.Message
+        | inner -> innermost inner
+      match int ws.HttpStatusCode, refusal with
+      | _, "revoked" -> Error(TokenRefused true)
+      | 401, _
+      | _, "unknown-token" -> Error(TokenRefused false)
+      | _, "format" ->
+        Error(NotSpoken "the server runs a dark that speaks another sync format")
+      | 0, _ -> Error(Unreachable(innermost e))
+      | 404, _ -> Error(NotSpoken $"{url} answers, but isn't a dark sync server")
+      | code, _ -> Error(Unreachable $"the server answered HTTP {code}")
+  match opened with
+  | Error failure ->
+    ws.Dispose()
+    PeerGone "not connected", Some failure, false
+  | Ok() ->
+    use stream =
+      System.Net.WebSockets.WebSocketStream.Create(
+        ws,
+        System.Net.WebSockets.WebSocketMessageType.Binary,
+        true
+      )
+    use greeted = new System.Threading.ManualResetEventSlim(false)
+    let ended =
+      try
+        session greeted side stream stream once
+      with e ->
+        PeerGone e.Message
+    // A closing handshake the other end may never answer is not waited on for long.
+    (try
+      use cts = new System.Threading.CancellationTokenSource(2000)
+      ws
+        .CloseOutputAsync(
+          System.Net.WebSockets.WebSocketCloseStatus.NormalClosure,
+          "",
+          cts.Token
+        )
+        .Wait()
+     with _ ->
+       ())
+    let failure =
+      match ended with
+      | PeerGone reason -> Some(Unreachable reason)
+      | Unanswered -> Some(Unreachable "the server stopped answering")
+      | Refused reason -> Some(NotSpoken reason)
+      | _ -> None
+    ended, failure, greeted.IsSet
+
+/// Reach the other end over <param transport> and run a session: how it ended, why it failed if it
+/// did, and whether the other end said hello first.
+let connect
+  (side : Side)
+  (transport : Transport)
+  (once : bool)
+  : Ended * Option<Failure> * bool =
+  match transport with
+  | Program(program, arguments) -> connectProgram side program arguments once
+  | Server(url, token) -> connectServer side url token once
 
 
 // ------------------
@@ -902,6 +1198,11 @@ let watch (watch : Watch) : unit =
             Some
               $"sync: {watch.peer} refused this machine's ssh key ({reason}). Nothing syncs until `ssh {watch.peer}` works without a prompt.",
             reason
+          | TokenRefused revoked ->
+            let what = if revoked then "was revoked" else "isn't one it knows"
+            Some
+              $"sync: {watch.peer} refused this machine's token: it {what}. Nothing syncs until `dark sync add {watch.peer} --token <new token>`.",
+            "token refused"
           | NoDark reason ->
             Some
               $"sync: there is no dark to run on {watch.peer} ({reason}). `dark sync add {watch.peer} --command <path>` says where it is.",
@@ -923,6 +1224,7 @@ let watch (watch : Watch) : unit =
             watch.mention l
             Some now
           | Some l, NotAllowed _
+          | Some l, TokenRefused _
           | Some l, NoDark _
           | Some l, NotSpoken _ when hourly ->
             watch.side.say l
@@ -994,6 +1296,8 @@ let statusLine
     | None -> "no contact yet"
   let changes = if behind = 1L then "1 change" else $"{behind} changes"
   match s.state with
+  | "connected" when s.readOnly ->
+    $"sync: up to date with {host}, read-only: what you change stays on this machine ({contact})."
   | "connected" when behind = 0L -> $"sync: up to date with {host} ({contact})."
   | "connected" -> $"sync: {changes} on their way to {host} ({contact})."
   | "offline" ->
