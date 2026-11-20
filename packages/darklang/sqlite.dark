@@ -1,0 +1,176 @@
+/// Read and write SQLite database files, through the `sqlite3` program.
+///
+/// Each call runs `sqlite3` once on the file, in its safe mode: the SQL can reach that one
+/// database and no other file (no ATTACH, no VACUUM INTO, no dot-commands). Parameters are
+/// bound with `.parameter set`, never spliced into the SQL.
+module Darklang.Sqlite
+
+/// One SQLite value: a column of a row, or a parameter.
+type Value =
+  | Null
+  | Integer(Int64)
+  | Real(Float64)
+  | Text(String)
+
+
+/// Why a call failed.
+type Error =
+  /// `sqlite3` could not be started: not installed, or not allowed
+  | CouldNotStart(Stdlib.Cli.Posix.Error)
+  /// `sqlite3` refused the database or the SQL, with its own message
+  | Failed(message: String)
+  /// `sqlite3` printed something that is not rows
+  | UnexpectedOutput(output: String)
+
+
+impl Stdlib.Display for Error =
+  let display(e: Error): String =
+    match e with
+    | CouldNotStart(e) -> $"could not start sqlite3: {e.message}"
+    | Failed(message) -> message
+    | UnexpectedOutput(output) -> $"unexpected output from sqlite3: {output}"
+
+
+/// <param value> as an SQL expression with no double quote, backslash or newline, so it cannot
+/// end the `.parameter set` command or start another one. Text goes in as hex.
+let __literal(value: Value): String =
+  match value with
+  | Null -> "NULL"
+  | Integer(i) -> Stdlib.display(i)
+  | Real(f) ->
+    // SQLite has no NaN (it stores NULL), and reads 9e999 as infinity
+    if Stdlib.Float64.isNaN(f) then
+      "NULL"
+    else if Stdlib.Float64.isFinite(f) then
+      $"CAST({Stdlib.display(f)} AS REAL)"
+    else if f > 0.0 then
+      "9e999"
+    else
+      "-9e999"
+  | Text(s) -> $"CAST(X'{Stdlib.Base16.encode(Stdlib.Utf8.encode(s))}' AS TEXT)"
+
+
+let __args(
+  path: String,
+  sql: String,
+  params: List<Value>,
+  before: List<String>,
+  after: List<String>)
+  : List<String> =
+  // a path starting with `-` would be read as an option
+  let file = if Stdlib.String.startsWith(path, "-") then "./" + path else path
+  let bindings =
+    params
+    |> Stdlib.List.indexedMap(fun(index, value) ->
+      $".parameter set ?{index + 1} \"{__literal(value)}\"")
+
+  // -init /dev/null: a ~/.sqliterc could change the output mode.
+  // The space before the SQL keeps sqlite3 from reading it as a dot-command.
+  Stdlib.List.flatten(
+    [ [ "-init", "/dev/null", "-bail", "-safe", "-json", file ]
+      bindings
+      before
+      [ " " + sql ]
+      after ])
+
+
+let __value(json: Stdlib.AltJson.Json): Option<Value> =
+  match json with
+  | Null -> Option.Some(Value.Null)
+  | Integer(i) -> Option.Some(Value.Integer(i))
+  | Float(f) -> Option.Some(Value.Real(f))
+  | String(s) -> Option.Some(Value.Text(s))
+  | _ -> Option.None
+
+
+let __row(json: Stdlib.AltJson.Json): Option<Dict<String, Value>> =
+  match json with
+  | Object(fields) ->
+    let values =
+      fields
+      |> Stdlib.List.filterMap(fun((name, value)) ->
+        __value(value) |> Stdlib.Option.map(fun v -> (name, v)))
+
+    if Stdlib.List.length(values) == Stdlib.List.length(fields) then
+      Option.Some(Stdlib.Dict.fromList(values))
+    else
+      Option.None
+  | _ -> Option.None
+
+
+/// The rows of every statement's JSON array, in order. A raw newline is never inside a JSON
+/// string, so `]` newline `[` only ever falls between two arrays.
+let __rows(stdout: String): Result<List<Dict<String, Value>>, Error> =
+  let output = Stdlib.String.trim(stdout)
+  let unexpected = Result.Error(Error.UnexpectedOutput(output))
+  if output == "" then
+    Result.Ok([])
+  else
+    match Stdlib.AltJson.parse("[" + Stdlib.String.replaceAll(output, "]\n[", "],[") + "]") with
+    | Ok(Array(arrays)) ->
+      let rows =
+        arrays
+        |> Stdlib.List.map(fun array ->
+          match array with
+          | Array(rows) -> Stdlib.List.map(rows, __row)
+          | _ -> [ Option.None ])
+        |> Stdlib.List.flatten
+
+      let parsed = Stdlib.List.filterMap(rows, fun row -> row)
+      if Stdlib.List.length(parsed) == Stdlib.List.length(rows) then
+        Result.Ok(parsed)
+      else
+        unexpected
+    | _ -> unexpected
+
+
+let __run(
+  path: String,
+  sql: String,
+  params: List<Value>,
+  before: List<String>,
+  after: List<String>)
+  : Result<List<Dict<String, Value>>, Error> =
+  match Stdlib.Cli.Process.run("sqlite3", __args(path, sql, params, before, after)) with
+  | Error(e) -> Result.Error(Error.CouldNotStart(e))
+  | Ok(output) ->
+    if output.exitCode == 0 then
+      __rows(output.stdout)
+    else
+      Result.Error(Error.Failed(Stdlib.String.trim(output.stderr)))
+
+
+/// Runs <param sql> on the database at <param path> and returns its rows, each keyed by column
+/// name. <param params> bind to `?1`, `?2`, ... in order. `sqlite3` cannot print a BLOB
+/// column faithfully, so select `hex(column)` instead.
+///
+/// {{Darklang.Sqlite.query("app.db", "SELECT name FROM users WHERE id = ?1", [ Darklang.Sqlite.Value.Integer(1) ])}}
+/// is {{Ok([ Dict { "name": Darklang.Sqlite.Value.Text("Alice") } ])}}
+let query(
+  path: String,
+  sql: String,
+  params: List<Value>)
+  : Result<List<Dict<String, Value>>, Error> =
+  __run(path, sql, params, [], [])
+
+
+let __changes(row: Option<Dict<String, Value>>): Option<Int64> =
+  match row |> Stdlib.Option.andThen(fun r -> Stdlib.Dict.get(r, "changes")) with
+  | Some(Integer(n)) -> Option.Some(n)
+  | _ -> Option.None
+
+
+/// Runs the statements in <param sql> on the database at <param path>, creating the file if it
+/// does not exist, and returns how many rows they changed. <param params> bind to `?1`, `?2`,
+/// ... in order.
+///
+/// {{Darklang.Sqlite.execute("app.db", "INSERT INTO users (name) VALUES (?1)", [ Darklang.Sqlite.Value.Text("Alice") ])}}
+/// is {{Ok(1)}}
+let execute(path: String, sql: String, params: List<Value>): Result<Int64, Error> =
+  // binding the parameters changes rows too, so count from after the binding
+  let count = [ "SELECT total_changes() AS changes" ]
+  __run(path, sql, params, count, count)
+  |> Stdlib.Result.andThen(fun rows ->
+    match __changes(Stdlib.List.head(rows)), __changes(Stdlib.List.last(rows)) with
+    | Some(before), Some(after) -> Result.Ok(after - before)
+    | _ -> Result.Error(Error.UnexpectedOutput("no row count")))
