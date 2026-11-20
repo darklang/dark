@@ -253,6 +253,9 @@ type ParserState =
   { toks : SpannedToken[] // the token stream being parsed
     tokenCount : int // = toks.Length, cached (read on every bounds check)
     diagnostics : System.Collections.Generic.List<Diagnostic> // parse errors collected during recovery
+    // The lexer and literal checks run before item parsing. Partial saves match
+    // those errors to each item's source range.
+    partialSaveSourceErrors : Option<List<Diagnostic> ref>
     scopes : System.Collections.Generic.Stack<OffsideScope> // offside anchor stack (a frame per let/if/match/paren body)
     // `|` is both bitwise-or and the match-arm separator. Each anchor records an
     // enclosing match's arm row and column so `barStartsArm` leaves arm-position
@@ -283,6 +286,10 @@ type ParserState =
 type ItemScope =
   | Script
   | Module
+
+type private ParseTree =
+  | RecoverSyntax
+  | ValidPackageItems
 
 let private maxDepth = 200
 
@@ -2595,7 +2602,7 @@ and parseInterpString (state : ParserState) (i : int) : WT.Expr * int =
               // Parse `{...}` as an expression. Package declaration scope applies
               // only to the outer file, not to interpolation contents.
               let subResult =
-                parseTokensAt (state.interpDepth + 1) ItemScope.Script offToks
+                parseTokensAt (state.interpDepth + 1) ItemScope.Script None offToks
               // surface parse errors from inside the interpolation `{…}` (their
               // ranges are already offset to the outer source) rather than dropping them
               subResult.diagnostics |> List.iter state.diagnostics.Add
@@ -4504,8 +4511,65 @@ and parseItemsBody
   (start : int)
   (minCol : int)
   : List<WT.Declaration> * List<WT.Expr> * int =
-  let (declsRev, exprsRev, k) = parseItemsFrom state itemScope minCol [] [] start
+  let (declsRev, exprsRev, k) =
+    parseItemsFrom state itemScope minCol None [] [] start
   (List.rev declsRev, List.rev exprsRev, k)
+
+// The lexer can skip bad characters outside the item's tokens. Include errors
+// before the first token on the same line, and after the last token on the same
+// line or on a line indented under the item.
+and private hasSourceError (state : ParserState) (first : int) (next : int) : bool =
+  match state.partialSaveSourceErrors with
+  | None -> false
+  | Some errors ->
+    let start = (rng state first).start
+    let last = (rng state (max first (next - 1))).end_
+    let boundary = (rng state (max (first + 1) next)).start
+    errors.Value
+    |> List.exists (fun d ->
+      let p = d.range.start
+      let prefix =
+        p.row = start.row
+        && p < start
+        && (first = 0 || p >= (rng state (first - 1)).end_)
+      prefix
+      || (start <= p
+          && p < boundary
+          && (p.row <= last.row || p.column > start.column)))
+
+and private startsPackageItem (state : ParserState) (index : int) : bool =
+  match tok state index, tok state (index + 1) with
+  | TLet, TIdent _
+  | TVal, TIdent _
+  | TType, TIdent _
+  | TTrait, TIdent _
+  | TImpl, _
+  | TIdent "module", _
+  | TIdent "test", TIdent _ -> true
+  | _ -> false
+
+// A missing body can make the parser read the next declaration as a local `let`.
+// Look for a declaration on a new line at the same or lower indentation.
+and private nextDeclarationBoundary
+  (state : ParserState)
+  (first : int)
+  (next : int)
+  : int =
+  let start = (rng state first).start
+  let rec find index =
+    if index >= next then
+      next
+    else
+      let p = (rng state index).start
+      if
+        p.row > (rng state (index - 1)).end_.row
+        && p.column <= start.column
+        && startsPackageItem state index
+      then
+        index
+      else
+        find (index + 1)
+  find (first + 1)
 
 // The items from `k` whose start column is at least `minCol`: the declarations and the
 // expressions, each prepended to its list.
@@ -4513,6 +4577,7 @@ and private parseItemsFrom
   (state : ParserState)
   (itemScope : ItemScope)
   (minCol : int)
+  (rejectedAt : Option<Pos>)
   (declsRev : List<WT.Declaration>)
   (exprsRev : List<WT.Expr>)
   (k : int)
@@ -4521,6 +4586,12 @@ and private parseItemsFrom
     (declsRev, exprsRev, k)
   else
     let before = k
+    let originalDecls = declsRev
+    let originalExprs = exprsRev
+    let diagnosticsBefore = state.diagnostics.Count
+    let pendingGt = state.pendingGt
+    let pendingGtRange = state.pendingGtRange
+    let mutable moduleHeaderError = None
     setStmtCol state (rng state k).start.column
     state.declAnchor <- (rng state k).start.column
     // the item at `k`: the lists with it added, where it ends, and whether it ends the scope
@@ -4597,13 +4668,28 @@ and private parseItemsFrom
         let nameStr = String.concat "." (List.rev partsRev)
         // `module X =`: body is offside-indented under the keyword.
         // `module Darklang.X` (no `=`): file-level header wrapping the rest.
+        let block = tok state nk = TEquals
+        let bodyStart = if block then nk + 1 else nk
+        let headerError =
+          hasSourceError state k bodyStart
+          || tok state nk = TDot
+          || (not block
+              && tok state nk <> TEOF
+              && (rng state nk).start.row = nameRange.end_.row
+              && not (startsPackageItem state nk))
         let (mdecls, mexprs, k2) =
-          if tok state nk = TEquals then
-            parseItems state ItemScope.Module (nk + 1) (moduleCol + 1)
-          else
-            parseItems state ItemScope.Module nk minCol
-        if tok state nk = TEquals && List.isEmpty mdecls && List.isEmpty mexprs then
-          errExpected state (nk + 1) "an indented module body"
+          parseItems
+            state
+            ItemScope.Module
+            bodyStart
+            (if block then moduleCol + 1 else minCol)
+        let emptyBody =
+          block
+          && List.isEmpty mdecls
+          && List.isEmpty mexprs
+          && (Option.isNone state.partialSaveSourceErrors || k2 = bodyStart)
+        if emptyBody then errExpected state bodyStart "an indented module body"
+        moduleHeaderError <- Some(headerError || emptyBody)
         // A module's trailing expressions belong to the module (as `DExpr`
         // declarations), not the enclosing scope — so they pretty-print nested.
         // span the whole module (header through last child), like other decls —
@@ -4616,7 +4702,17 @@ and private parseItemsFrom
               declarations = mdecls @ (mexprs |> List.map WT.DExpr)
               keywordModule = kwModule }
         // a file header consumes the rest
-        (d :: declsRev, exprsRev, k2, tok state nk <> TEquals)
+        (d :: declsRev, exprsRev, k2, not block)
+      | TIdent "module", _ when Option.isSome state.partialSaveSourceErrors ->
+        // A malformed file header leaves the module path unclear. Skip the rest
+        // of this scope so its items cannot be saved under the wrong module.
+        errExpectedName state (k + 1) "a module name"
+        let rec endOfScope index =
+          if tok state index = TEOF || (rng state index).start.column < minCol then
+            index
+          else
+            endOfScope (index + 1)
+        (declsRev, exprsRev, endOfScope (k + 1), true)
       | TSemicolon, _ ->
         errStatementSemicolon state k
         (declsRev, exprsRev, k + 1, false)
@@ -4633,18 +4729,113 @@ and private parseItemsFrom
           (d :: declsRev, exprsRev, k3, false)
         else
           (declsRev, e :: exprsRev, k2, false)
+    let (declsRev, exprsRev, rejectedAt, k) =
+      match state.partialSaveSourceErrors with
+      | None -> (declsRev, exprsRev, None, k)
+      | Some _ ->
+        let start = (rng state before).start
+        let unsafeBoundary =
+          rejectedAt
+          |> Option.exists (fun p -> start.row <= p.row || start.column > p.column)
+        let parserError = state.diagnostics.Count > diagnosticsBefore
+        let declaration =
+          if not (obj.ReferenceEquals(originalDecls, declsRev)) then
+            List.tryHead declsRev
+          elif not (obj.ReferenceEquals(originalExprs, exprsRev)) then
+            exprsRev |> List.tryHead |> Option.map WT.DExpr
+          else
+            None
+        let trailingText =
+          not parserError
+          && Option.isSome declaration
+          && k > before
+          && tok state k <> TEOF
+          && (rng state k).start.row = (rng state (k - 1)).end_.row
+          && not (startsPackageItem state k)
+        if trailingText then
+          err
+            state
+            DiagnosticCode.unexpected
+            k
+            "Unexpected text after the declaration"
+        let syntaxError =
+          trailingText
+          || (moduleHeaderError
+              |> Option.defaultWith (fun () ->
+                parserError || hasSourceError state before k))
+        if syntaxError then
+          let rejectedAt = if unsafeBoundary then rejectedAt else Some start
+          let boundary =
+            if
+              parserError
+              && not unsafeBoundary
+              && not scopeEnds
+              && not state.abandoned
+              && Option.isNone moduleHeaderError
+              && Option.isSome declaration
+            then
+              nextDeclarationBoundary state before k
+            else
+              k
+          if boundary < k then
+            // Restarting at the next declaration will report its own errors.
+            let resumeAt = (rng state boundary).start
+            let earlierErrors =
+              state.diagnostics
+              |> Seq.skip diagnosticsBefore
+              |> Seq.filter (fun diagnostic -> diagnostic.range.start < resumeAt)
+              |> List.ofSeq
+            state.diagnostics.RemoveRange(
+              diagnosticsBefore,
+              state.diagnostics.Count - diagnosticsBefore
+            )
+            match earlierErrors with
+            | [] ->
+              err
+                state
+                DiagnosticCode.expected
+                before
+                "Incomplete declaration before the next item"
+            | errors -> errors |> List.iter state.diagnostics.Add
+            state.pendingGt <- pendingGt
+            state.pendingGtRange <- pendingGtRange
+          (originalDecls, originalExprs, rejectedAt, boundary)
+        elif unsafeBoundary then
+          if Option.isSome declaration then
+            err
+              state
+              DiagnosticCode.unexpected
+              before
+              "Unable to recover this item after a parse error. Submit it separately."
+          (originalDecls, originalExprs, rejectedAt, k)
+        else
+          let issues =
+            match declaration with
+            | Some(WT.DModule _)
+            | None -> []
+            | Some item -> Validation.validatePackageItem item
+          match issues with
+          | [] -> (declsRev, exprsRev, None, k)
+          | _ ->
+            issues
+            |> List.map diagnosticOfValidationIssue
+            |> List.iter state.diagnostics.Add
+            (originalDecls, originalExprs, Some start, k)
     if scopeEnds then
       (declsRev, exprsRev, k)
     elif k = before then
       if tok state k = TEOF then
         (declsRev, exprsRev, k)
       else
-        parseItemsFrom state itemScope minCol declsRev exprsRev (k + 1)
+        parseItemsFrom state itemScope minCol rejectedAt declsRev exprsRev (k + 1)
     else
-      parseItemsFrom state itemScope minCol declsRev exprsRev k
+      parseItemsFrom state itemScope minCol rejectedAt declsRev exprsRev k
 
 and parseFile (rootScope : ItemScope) (state : ParserState) : ParseResult =
   validateLiterals state
+  state.partialSaveSourceErrors
+  |> Option.iter (fun errors ->
+    errors.Value <- errors.Value @ List.ofSeq state.diagnostics)
   let (topDecls, topExprs, _) = parseItems state rootScope 0 0
   let fileRange =
     if state.tokenCount > 1 then
@@ -4660,6 +4851,7 @@ and parseFile (rootScope : ItemScope) (state : ParserState) : ParseResult =
 and parseTokensAt
   (interpDepth : int)
   (rootScope : ItemScope)
+  (partialSaveSourceErrors : Option<List<Diagnostic>>)
   (toks : SpannedToken[])
   : ParseResult =
   let scopes = System.Collections.Generic.Stack<OffsideScope>()
@@ -4668,6 +4860,7 @@ and parseTokensAt
     { toks = toks
       tokenCount = toks.Length
       diagnostics = System.Collections.Generic.List<Diagnostic>()
+      partialSaveSourceErrors = Option.map ref partialSaveSourceErrors
       scopes = scopes
       matchArms = []
       pendingGt = 0
@@ -4684,10 +4877,11 @@ and parseTokensAt
     { parsed = None; diagnostics = [ stackExhaustionDiagnostic () ] }
 
 and parseTokens (toks : SpannedToken[]) : ParseResult =
-  parseTokensAt 0 ItemScope.Script toks
+  parseTokensAt 0 ItemScope.Script None toks
 
 let private parseSyntaxWithRootScope
   (rootScope : ItemScope)
+  (tree : ParseTree)
   (source : string)
   : ParseResult =
   match tokenize source with
@@ -4704,7 +4898,6 @@ let private parseSyntaxWithRootScope
   | Ok(toksList, lexDiags) ->
     // lexical-recovery diagnostics (malformed lexemes the tokenizer recovered from)
     // are surfaced alongside the parser's own diagnostics.
-    let result = parseTokensAt 0 rootScope (List.toArray toksList)
     let lexDiagnostics =
       lexDiags
       |> List.map (fun (r, m) ->
@@ -4714,6 +4907,12 @@ let private parseSyntaxWithRootScope
           message = m
           related = []
           hint = None })
+    let partialSaveSourceErrors =
+      match tree with
+      | RecoverSyntax -> None
+      | ValidPackageItems -> Some lexDiagnostics
+    let result =
+      parseTokensAt 0 rootScope partialSaveSourceErrors (List.toArray toksList)
     // in source order, so the first error printed is the first one in the file
     { result with
         diagnostics =
@@ -4726,7 +4925,7 @@ let private parseRecovering
   (source : string)
   : ParseResult =
   try
-    let result = parseSyntaxWithRootScope rootScope source
+    let result = parseSyntaxWithRootScope rootScope RecoverSyntax source
     let syntaxDiagnostics = result.diagnostics
     // Validation owns checks that inspect the whole parsed syntax tree.
     // Run them only when parsing reports no errors, because placeholders inserted
@@ -4759,6 +4958,14 @@ let parseScript (source : string) : ParseResult =
 let parsePackage (source : string) : ParseResult =
   parseRecovering ItemScope.Module (withPurpose Validation.Package) source
 
+/// Parse source for `dark module`. Keep declarations that pass syntax and package
+/// checks, and return diagnostics for the whole source.
+let parsePackagePartialSave (source : string) : ParseResult =
+  try
+    parseSyntaxWithRootScope ItemScope.Module ValidPackageItems source
+  with :? System.InsufficientExecutionStackException ->
+    { parsed = None; diagnostics = [ stackExhaustionDiagnostic () ] }
+
 /// Parse for execution: syntax, structural, and file-purpose validation run
 /// once, and only a validated source file can be returned on success.
 let parseFor
@@ -4771,7 +4978,7 @@ let parseFor
       | Validation.Package -> ItemScope.Module
       | Validation.Script
       | Validation.Test -> ItemScope.Script
-    let result = parseSyntaxWithRootScope rootScope source
+    let result = parseSyntaxWithRootScope rootScope RecoverSyntax source
     match result.diagnostics, result.parsed with
     | [], Some(WT.SourceFile sourceFile) ->
       match Validation.validate mode sourceFile with
