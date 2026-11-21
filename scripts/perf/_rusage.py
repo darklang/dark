@@ -31,7 +31,7 @@ def run(argv, env=None, cwd=None):
         text = out.read().decode("utf-8", "replace")
     # `dark run` exits 0 when the script itself fails; see the same check in _bench.py.
     rc = proc.returncode
-    if rc == 0 and ("Error when executing Script" in text or "Script error:" in text):
+    if rc == 0 and "Script error:" in text:
         rc = 1
     # ru_maxrss is in KB on Linux.
     return usage.ru_utime + usage.ru_stime, usage.ru_maxrss / 1024, rc, text

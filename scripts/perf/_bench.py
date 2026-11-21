@@ -293,7 +293,7 @@ def run_once(binary, argv, trace, telemetry, fixture="UNSET"):
     # run is fast, so it would pass as a good measurement.
     rc = proc.returncode
     both = proc.stdout + proc.stderr
-    if rc == 0 and ("Error when executing Script" in both or "Script error:" in both):
+    if rc == 0 and "Script error:" in both:
         rc = 1
     return wall_ms, rc, read_telemetry(tel_path) if telemetry else {}
 

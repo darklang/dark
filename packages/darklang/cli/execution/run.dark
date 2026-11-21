@@ -340,7 +340,7 @@ let printScriptError(state: AppState, e: ExecutionError.ExecutionError): AppStat
     Stdlib.printErrorLine(
       ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, e))
   | _ ->
-    ExecutionError.printCallStack(state.currentBranchId, "Script", e)
+    ExecutionError.printCallStack(state.currentBranchId, e)
     let pretty = ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, e)
     Stdlib.printErrorLine($"Script error: {pretty}")
 
