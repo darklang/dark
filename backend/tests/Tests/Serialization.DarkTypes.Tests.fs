@@ -293,6 +293,29 @@ module DeepProgramTypes =
           PT2DT.MatchPattern.toDT ]
 
 
+  let runtimeTests =
+    testList
+      "deep outbound RT conversion"
+      [ refusesToOverflow
+          "dvals"
+          (fun () ->
+            nested
+              (fun dv -> RT.DList(RT.ValueType.Unknown, RT.Items [ dv ]))
+              RT.DUnit)
+          RT2DT.Dval.toDT
+        refusesToOverflow
+          "type references"
+          (fun () -> nested RT.TList RT.TBigInt)
+          RT2DT.TypeReference.toDT
+        refusesToOverflow
+          "known types"
+          (fun () -> nested (fun kt -> RT.KTList(RT.ValueType.Known kt)) RT.KTBigInt)
+          RT2DT.KnownType.toDT
+        refusesToOverflow
+          "match patterns"
+          (fun () -> nested (fun p -> RT.MPList [ p ]) RT.MPUnit)
+          RT2DT.MatchPattern.toDT ]
+
 let tests =
   testList
     "DarkTypes Serialization"
@@ -304,4 +327,5 @@ let tests =
         "roundtrip RTs between internal types and dark types"
         RoundtripTests.RuntimeTypes.tests
 
-      DeepProgramTypes.tests ]
+      DeepProgramTypes.tests
+      DeepProgramTypes.runtimeTests ]

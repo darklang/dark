@@ -13,6 +13,9 @@ module C2DT = LibExecution.CommonToDarkTypes
 /// native-`int` → `Int64` conversions (small counts/indices/arities).
 let private dintOfInt (i : int) : Dval = RuntimeTypes.Dval.dint64 (int64 i)
 
+let private ensureSufficientExecutionStack () : unit =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
+
 
 
 module Hash =
@@ -326,6 +329,7 @@ module TypeReference =
   let knownType () = KTCustomType(typeName (), [])
 
   let rec toDT (t : TypeReference) : Dval =
+    ensureSufficientExecutionStack ()
     let (caseName, fields) =
       match t with
       | TVariable name -> "TVariable", [ DString name ]
@@ -486,6 +490,7 @@ module MatchPattern =
   let knownType () = KTCustomType(typeName (), [])
 
   let rec toDT (p : MatchPattern) : Dval =
+    ensureSufficientExecutionStack ()
     let (caseName, fields) =
       match p with
       | MPVariable(reg) -> "MPVariable", [ DInt32 reg ]
@@ -600,6 +605,7 @@ module KnownType =
     FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.RuntimeTypes.knownType ())
 
   let toDT (kt : KnownType) : Dval =
+    ensureSufficientExecutionStack ()
     let (caseName, fields) =
       match kt with
       | KTUnit -> "KTUnit", []
@@ -851,6 +857,7 @@ module Dval =
     DEnum(tn, tn, [], "DStreamStub", [ ValueType.toDT (StreamImpl.elemType impl) ])
 
   let rec toDT (dv : Dval) : Dval =
+    ensureSufficientExecutionStack ()
     let tn = typeName ()
     let mk caseName fields = DEnum(tn, tn, [], caseName, fields)
     match dv with
