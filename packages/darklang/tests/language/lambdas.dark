@@ -284,3 +284,16 @@ test foldEnumAccumulatorKeepsItsTypeArg =
   Stdlib.List.fold([ 1, 2 ], Stdlib.Option.Option.Some(0), fun(acc, x) ->
     Stdlib.Option.Option.Some("a"))
   => raises "Darklang.Stdlib.List.fold's 3rd parameter `fn` returned Darklang.Stdlib.Option.Option<String> (Some(\"a\")), but should return Darklang.Stdlib.Option.Option<Int64>"
+
+// A lambda keeps the type arguments of the fn that made it, even when it is
+// applied in a fn whose own type variable has the same name.
+let idOf<'b>(x: 'b): 'b = x
+
+let makeIdentity<'a>(): ('a -> 'a) = fun y -> idOf<'a>(y)
+
+let applyToOne<'a>(v: 'a, f: Int64 -> Int64): 'a =
+  let _ = f(1)
+  v
+
+test lambdaKeepsItsOwnTypeVariable =
+  applyToOne<String>("s", makeIdentity<Int64>()) |> Stdlib.Test.equal("s")
