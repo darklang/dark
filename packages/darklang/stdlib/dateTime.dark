@@ -424,6 +424,61 @@ let subtractMilliseconds(d: DateTime, milliseconds: Int64): DateTime =
   __fromOffset(__ticks(d), -milliseconds, __ticksPerMillisecond())
 
 
+// Checked versions of the functions above that build a DateTime from a count. A DateTime runs
+// from -9998-01-01 to 9999-12-31; past either end those raise, and these return {{Error Overflow}}.
+
+/// The DateTime <param count> units of <param unit> ticks each after <param ticks>, or
+/// {{Error Overflow}} outside the DateTime range.
+let __checkedOffset(ticks: Int64, count: BigInt, unit: Int64): Result<DateTime, Math.Overflow> =
+  let total = BigInt.fromInt64(ticks) + count * BigInt.fromInt64(unit)
+  // -9998-01-01T00:00:00Z and 9999-12-31T23:59:59.9999999Z
+  if total < -3776735808000000000z || total > 2534023007999999999z then
+    Result.Error(Math.Overflow.Overflow)
+  else
+    match BigInt.toInt64(total) with
+    | Some(t) -> Result.Ok(__fromTicks(t))
+    | None -> Result.Error(Math.Overflow.Overflow)
+
+
+/// A <type DateTime> <param seconds> seconds after <param d>, as <fn DateTime.addSeconds>
+/// returns, or {{Error Overflow}} past the DateTime range
+let checkedAddSeconds(d: DateTime, seconds: Int64): Result<DateTime, Math.Overflow> =
+  __checkedOffset(__ticks(d), BigInt.fromInt64(seconds), __ticksPerSecond())
+
+
+/// A <type DateTime> <param seconds> seconds before <param d>, as <fn DateTime.subtractSeconds>
+/// returns, or {{Error Overflow}} past the DateTime range
+let checkedSubtractSeconds(d: DateTime, seconds: Int64): Result<DateTime, Math.Overflow> =
+  __checkedOffset(__ticks(d), 0z - BigInt.fromInt64(seconds), __ticksPerSecond())
+
+
+/// The <type DateTime> <param seconds> seconds after the Unix epoch, as
+/// <fn DateTime.fromSeconds> returns, or {{Error Overflow}} past the DateTime range
+let checkedFromSeconds(seconds: Int64): Result<DateTime, Math.Overflow> =
+  __checkedOffset(0, BigInt.fromInt64(seconds), __ticksPerSecond())
+
+
+/// A <type DateTime> <param milliseconds> milliseconds after <param d>, as
+/// <fn DateTime.addMilliseconds> returns, or {{Error Overflow}} past the DateTime range
+let checkedAddMilliseconds(d: DateTime, milliseconds: Int64): Result<DateTime, Math.Overflow> =
+  __checkedOffset(__ticks(d), BigInt.fromInt64(milliseconds), __ticksPerMillisecond())
+
+
+/// A <type DateTime> <param milliseconds> milliseconds before <param d>, as
+/// <fn DateTime.subtractMilliseconds> returns, or {{Error Overflow}} past the DateTime range
+let checkedSubtractMilliseconds(
+  d: DateTime,
+  milliseconds: Int64)
+  : Result<DateTime, Math.Overflow> =
+  __checkedOffset(__ticks(d), 0z - BigInt.fromInt64(milliseconds), __ticksPerMillisecond())
+
+
+/// The <type DateTime> <param milliseconds> milliseconds after the Unix epoch, as
+/// <fn DateTime.fromMilliseconds> returns, or {{Error Overflow}} past the DateTime range
+let checkedFromMilliseconds(milliseconds: Int64): Result<DateTime, Math.Overflow> =
+  __checkedOffset(0, BigInt.fromInt64(milliseconds), __ticksPerMillisecond())
+
+
 /// Returns the millisecond portion of <param date> as a <type UInt16> between {{0}} and {{999}}
 let millisecond(date: DateTime): UInt16 =
   UInt16.fromInt64(__ticksWithinDay(date) / __ticksPerMillisecond() % 1000) |> Builtin.unwrap
