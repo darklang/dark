@@ -1228,22 +1228,6 @@ let inline private allocNow (vm : VMState) : int64 =
   if vm.stats.enabled then System.GC.GetAllocatedBytesForCurrentThread() else 0L
 
 
-/// Copy a call's arguments into the callee's register file, positionally.
-///
-/// Top-level and taking the array, rather than a local `let rec` that closes over it: F# cannot lift
-/// a recursive local that captures, so a local here means a closure on every package call.
-let rec private fillRegisters
-  (registers : Dval array)
-  (i : int)
-  (args : List<Dval>)
-  : unit =
-  match args with
-  | [] -> ()
-  | a :: rest ->
-    Registers.set registers i a
-    fillRegisters registers (i + 1) rest
-
-
 let private assignRegisters
   (r : Dval array)
   (assignments : (struct (Register * Dval))[])

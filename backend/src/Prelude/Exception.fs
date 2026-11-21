@@ -34,15 +34,6 @@ type StoreConditionException(message : string, metadata : Metadata, inner : exn)
     StoreConditionException(msg, metadata, null)
 
 
-// A pageable exception will cause the pager to go off! This is something that should
-// never happen and is an indicator that the service is broken in some way.  The
-// pager goes off because a pageable exception sets the `{ is_pageable: true }`
-// metadata, which causes a honeycomb trigger that sets off PagerDuty.
-type PageableException(message : string, metadata : Metadata, inner : exn) =
-  inherit System.Exception(message, inner)
-  member _.metadata = metadata
-
-
 /// Returns a list of exceptions of this exception, and all nested inner
 /// exceptions.
 let rec getMessages (e : exn) : List<string> =
@@ -52,22 +43,9 @@ let rec getMessages (e : exn) : List<string> =
     e.Message :: getMessages e.InnerException
 
 let toMetadata (e : exn) : Metadata =
-  let thisMetadata =
-    match e with
-    | :? PageableException as e -> [ "is_pageable", true :> obj ] @ e.metadata
-    | :? InternalException as e -> e.metadata
-    | _ -> []
-  thisMetadata
-
-let rec nestedMetadata (e : exn) : Metadata =
-  let innerMetadata =
-    if not (isNull e.InnerException) then nestedMetadata e.InnerException else []
-  let thisMetadata =
-    match e with
-    | :? PageableException as e -> [ "is_pageable", true :> obj ] @ e.metadata
-    | :? InternalException as e -> e.metadata
-    | _ -> []
-  thisMetadata @ innerMetadata
+  match e with
+  | :? InternalException as e -> e.metadata
+  | _ -> []
 
 
 // CLEANUP reduce usages of all of these raiseInternal fns
@@ -95,25 +73,11 @@ let unwrapOptionInternal (msg : string) (tags : Metadata) (o : Option<'a>) : 'a 
   | Some v -> v
   | None -> raiseInternal msg tags
 
-let unwrapResultInternal (tags : Metadata) (r : Result<'a, 'msg>) : 'a =
-  match r with
-  | Ok v -> v
-  | Error msg -> raiseInternal (string msg) tags
-
-let reraiseAsPageable (msg : string) (tags : Metadata) (e : exn) =
-  raise (PageableException(msg, tags, e))
-
 let catch (f : unit -> 'r) : Option<'r> =
   try
     Some(f ())
   with _ ->
     None
-
-let catchError (f : unit -> 'r) : Result<'r, string> =
-  try
-    Ok(f ())
-  with e ->
-    Error e.Message
 
 
 /// <summary>
