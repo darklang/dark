@@ -222,6 +222,15 @@ let ran(i: T, args: List<String>): (Int64 * String) =
   | Ok(out) -> (out.exitCode, out.stdout + out.stderr)
 
 
+/// A command's exit code, stdout and stderr, each trimmed and kept apart: `said` and `output`
+/// join them, so they can't tell which stream a line went to.
+let streams(i: T, args: List<String>): (Int64 * String * String) =
+  match run(i, args) with
+  | Error(e) -> (-1, "", $"could not run: {e}")
+  | Ok(out) ->
+    (out.exitCode, Stdlib.String.trim(out.stdout), Stdlib.String.trim(out.stderr))
+
+
 /// Everything a command printed, both streams. See `ran`.
 let said(i: T, args: List<String>): String =
   Stdlib.Tuple2.second(ran(i, args))
