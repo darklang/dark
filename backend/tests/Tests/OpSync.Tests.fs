@@ -1531,7 +1531,20 @@ let tokens =
         (LibDB.SyncTokens.check a token)
         (Error(LibDB.SyncTokens.Revoked "oceanoak"))
         "a revoked token is refused, saying so"
-      Expect.isFalse (LibDB.SyncTokens.isLive a id) "and is not live")
+      Expect.isFalse (LibDB.SyncTokens.isLive a id) "and is not live"
+      let live =
+        LibDB.SyncTokens.add
+          a
+          "oceanoak"
+          (LibDB.SyncTokens.generate ())
+          false
+          "phone"
+      Expect.isTrue (LibDB.SyncTokens.isLive a live) "another of hers is"
+      Expect.isFalse
+        (LibDB.SyncTokens.isLive
+          (System.IO.Path.Combine(a + ".gone", "data.db"))
+          live)
+        "and a store that cannot be read takes no token")
   }
 
 let frames =

@@ -164,7 +164,8 @@ let check (storePath : string) (token : string) : Result<Account, Refusal> =
     used.ExecuteNonQuery() |> ignore<int>
     Ok { person = person; readOnly = readOnly; tokenId = id }
 
-/// Whether the token with id <param id> is still taken.
+/// Whether the token with id <param id> is still taken. A store that cannot be read says no: the
+/// session ends and the machine reconnects, rather than a revoked token carrying on.
 let isLive (storePath : string) (id : string) : bool =
   try
     use conn = openStore storePath
@@ -175,4 +176,4 @@ let isLive (storePath : string) (id : string) : bool =
         [ "$id", box id ]
     unbox<int64> (cmd.ExecuteScalar()) > 0L
   with _ ->
-    true
+    false
