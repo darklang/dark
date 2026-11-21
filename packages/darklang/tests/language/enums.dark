@@ -252,3 +252,12 @@ module Polymorphism =
      ([ 1, -2, 5, 3 ] |> ofList(intCmp) |> toList)
      == ([ 3, 5, -2, 1 ] |> ofList(intCmp) |> toList))
     |> Stdlib.Test.equal(true)
+
+// A type argument the first field leaves partial is filled in by a later one.
+type BothSides<'a> = Sides('a, 'a)
+
+let takesStringListSides(s: BothSides<List<String>>): Int64 = 1
+
+test laterFieldFillsInPartialTypeArg =
+  takesStringListSides(BothSides.Sides([], [ 1 ])) => raises
+    "Darklang.Language.Tests.Enums.takesStringListSides's 1st parameter `s` expects Darklang.Language.Tests.Enums.BothSides<List<String>>, but got Darklang.Language.Tests.Enums.BothSides<List<Int64>> (Darklang.Language.Tests.Enums.BothSides<List<Int64>>.Sides(List<_> [], [1]))"
