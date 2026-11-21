@@ -292,8 +292,10 @@ let executeArchive(state: AppState, branchRef: String, confirm: Confirm): AppSta
         Prompt.confirmExplicit(confirm, Stdlib.Cli.UI.Colors.warning("\n  Archive it? [y/N]: "))
 
     if Stdlib.Bool.not(confirmed) then
-      Stderr.ok(
-        "  kept. (`dark branch archive <name> -y` if you mean it -- a piped stdin can't answer this.)")
+      if Stdlib.Cli.UI.Prompt.canAsk() then
+        Stderr.ok("  kept.")
+      else
+        printErr(Prompt.refuseWithoutTerminal("Archive", $"dark branch archive {branchRef}"))
 
       failed(state)
     else

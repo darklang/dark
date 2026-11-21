@@ -636,8 +636,7 @@ let executePretty(state: AppState, args: List<String>): AppState =
       if Stdlib.Cli.UI.Prompt.canAsk() || parsed.autoConfirm then
         Stderr.ok("  left as a draft.")
       else
-        Stderr.ok(
-          "  left as a draft. (`dark commit <message> -y` commits without the prompt -- a piped stdin can't answer it.)")
+        printErr(Prompt.refuseWithoutTerminal("Commit", "dark commit <message>"))
 
       failed(state)
     else

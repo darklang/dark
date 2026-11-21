@@ -330,7 +330,7 @@ let deleteModuleItems(
       if Stdlib.Cli.UI.Prompt.canAsk() then
         Stderr.line("Delete cancelled.")
       else
-        printErr($"no terminal to confirm at; add --yes to delete {shown}")
+        printErr(Prompt.refuseWithoutTerminal("Delete", $"dark delete {shown}"))
 
       failed(state)
 

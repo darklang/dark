@@ -177,11 +177,11 @@ let confirmDestructive(confirm: Confirm, action: String): Bool =
 
 /// What a no from <fn confirmDestructive> says, and the exit it hands back. With nobody there to
 /// answer, "Cancelled." alone reads as if someone said no; it names the flag that gets past it.
-let cancelled(state: AppState): AppState =
+let cancelled(state: AppState, cmd: String): AppState =
   if Stdlib.Cli.UI.Prompt.canAsk() then
     Stderr.line("Cancelled.")
   else
-    Stderr.line("Cancelled. (`--yes` deletes without the prompt -- a piped stdin can't answer it.)")
+    printErr(Prompt.refuseWithoutTerminal("Delete", cmd))
 
   failed(state)
 
@@ -655,12 +655,12 @@ let execute(state: AppState, args: List<String>): AppState =
         if confirmDestructive(confirm, "Delete all traces?") then
           executeClear(state)
         else
-          cancelled(state)
+          cancelled(state, "dark traces delete --all")
       | ["delete", "--before", durationStr] ->
         if confirmDestructive(confirm, $"Delete traces older than {durationStr}?") then
           executeClearBefore(state, durationStr)
         else
-          cancelled(state)
+          cancelled(state, $"dark traces delete --before {durationStr}")
       | ["delete", "--keep", nStr] ->
         match Stdlib.Int64.parse(nStr) with
         | Ok(n) ->
@@ -671,7 +671,7 @@ let execute(state: AppState, args: List<String>): AppState =
           then
             executePruneKeep(state, n)
           else
-            cancelled(state)
+            cancelled(state, $"dark traces delete --keep {nStr}")
         | Error(_) -> refuse(state, parsePositionalErr(nStr, "--keep N"))
       | ["delete", traceID] ->
         match resolveTraceID(traceID) with
@@ -679,7 +679,7 @@ let execute(state: AppState, args: List<String>): AppState =
           if confirmDestructive(confirm, $"Delete trace {full}?") then
             executeDelete(state, full)
           else
-            cancelled(state)
+            cancelled(state, $"dark traces delete {traceID}")
         | None -> failed(state)
       // Focused usage messages for the remaining "flag without arg" cases
       // that don't conflict with positional-catching arms higher up

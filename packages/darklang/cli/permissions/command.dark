@@ -637,11 +637,6 @@ let parseApprovalRules(
     | Error(message) -> Result.Error(message)
 
 
-/// Refuse to remember access with nobody at a terminal to confirm it.
-let needsYes(): String =
-  "no terminal to confirm at; add --yes to remember this access"
-
-
 /// Adding access keeps both saved grants and explicit denies.
 let addApprovalRules(
   saved: LanguageTools.Permissions.Policy,
@@ -775,7 +770,8 @@ let reviewAndApprove(
   requirements: (List<LanguageTools.Permissions.Effect> * Bool),
   previous: Option<LanguageTools.Permissions.Approval>,
   acceptWithoutPrompt: Bool,
-  kept: String)
+  kept: String,
+  command: String)
   : Bool =
   let (_effects, complete) = requirements
   let incomplete = if complete then Incomplete.Refuse else Incomplete.Acknowledge
@@ -796,7 +792,7 @@ let reviewAndApprove(
 
     showApprovalReview(previous, policyForReview(rules, requirements))
     if Stdlib.Bool.not(acceptWithoutPrompt || Stdlib.Cli.UI.Prompt.canAsk()) then
-      printErr(needsYes())
+      printErr(Prompt.refuseWithoutTerminal("Approval", command))
       false
     else if acceptWithoutPrompt || Stdlib.Cli.UI.Prompt.confirm("Save these permissions?") then
       match approveVersionFor(
@@ -880,7 +876,8 @@ let approveNamed(
           requirements,
           previous,
           acceptWithoutPrompt,
-          "not approved")
+          "not approved",
+          $"dark permissions approve --for {name} '<rule>'")
 
 
 /// Show the complete update, then ask once. Declining keeps the saved approval.
@@ -936,7 +933,8 @@ let updateNamed(
           requirements,
           previous,
           acceptWithoutPrompt,
-          "Approval unchanged.")
+          "Approval unchanged.",
+          $"dark permissions update {name}")
 
 
 /// Run <param show> against the version <param target> names, or report an

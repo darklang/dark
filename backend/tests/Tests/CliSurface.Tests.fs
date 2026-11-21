@@ -312,7 +312,7 @@ let private warningsAndPreviewsStayOffStdout =
           "the preview is on stderr"
         Expect.stringContains
           (CliDsl.plain err)
-          "add --yes to delete Tests.Streams.f"
+          "`dark delete Tests.Streams.f -y` does it without asking"
           "with the flag that gets past the prompt"
       })
 
@@ -441,7 +441,7 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     0,
     Says "Would deprecate",
     Says "dry-run"
-    [ "delete"; "Tests.Rows.g2" ], 1, Silent, Says "no terminal to confirm at"
+    [ "delete"; "Tests.Rows.g2" ], 1, Silent, Says "Delete not done"
     [ "delete"; "Tests.Rows.g2"; "-y" ],
     0,
     Says "Deprecated Tests.Rows.g2 (still callable).",
@@ -459,7 +459,7 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     [ "export-seed" ], 1, Silent, Says "needs an argument"
     [ "workbench" ], 1, Silent, Says "unavailable"
     [], 1, Silent, Says "unavailable"
-    [ "uninstall" ], 1, Silent, Says "--yes"
+    [ "uninstall" ], 1, Silent, Says "`dark uninstall -y`"
     [ "quit" ], 0, Silent, Says "Goodbye!"
     [ "run-script"; "/zzznope/x.dark" ], 1, Silent, Says "Script not found"
     [ "zzznope" ], 1, Silent, Says "Unknown command" ]

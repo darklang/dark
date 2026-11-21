@@ -497,7 +497,8 @@ let executeWithVerb(state: AppState, args: List<String>, verb: String): AppState
               if Stdlib.Cli.UI.Prompt.canAsk() then
                 Stderr.line("Deprecation cancelled.")
               else
-                printErr($"no terminal to confirm at; add --yes to {verb} {fullPath}")
+                let what = if verb == "delete" then "Delete" else "Deprecation"
+                printErr(Prompt.refuseWithoutTerminal(what, $"dark {verb} {fullPath}"))
 
               failed(state)
 

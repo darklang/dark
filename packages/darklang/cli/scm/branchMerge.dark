@@ -166,8 +166,10 @@ let executeMerge(
             confirm,
             Stdlib.Cli.UI.Colors.warning($"\n  Merge \"{branchRef}\" into its parent? [y/N]: ")))
       then
-        Stderr.ok(
-          $"  not merged. (`dark merge {branchRef} -y` if you mean it -- a piped stdin can't answer this.)")
+        if Stdlib.Cli.UI.Prompt.canAsk() then
+          Stderr.ok("  not merged.")
+        else
+          printErr(Prompt.refuseWithoutTerminal("Merge", $"dark merge {branchRef}"))
 
         failed(state)
       else
@@ -321,8 +323,10 @@ let executeMergeBare(state: AppState, confirm: Confirm, typeErrors: TypeErrors):
       Stdlib.Bool.not(
         Prompt.confirmExplicit(confirm, Stdlib.Cli.UI.Colors.warning("\n  Merge it? [y/N]: ")))
     then
-      Stderr.ok(
-        "  not merged. (`dark merge -y` if you mean it -- a piped stdin can't answer this.)")
+      if Stdlib.Cli.UI.Prompt.canAsk() then
+        Stderr.ok("  not merged.")
+      else
+        printErr(Prompt.refuseWithoutTerminal("Merge", "dark merge"))
 
       failed(previewed)
     else
