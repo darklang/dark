@@ -102,7 +102,6 @@ let addAlias(shell: Shell.Shell, alias: String, command: String): Result<Unit, S
   | Bash -> Bash.addAlias(alias, command)
   | Zsh -> Zsh.addAlias(alias, command)
   | Fish -> Fish.addAlias(alias, command)
-  | _ -> Result.Error("Unsupported shell")
 
 
 /// Deletes an alias from the user's default shell configuration file.
@@ -111,7 +110,6 @@ let deleteAlias(shell: Shell.Shell, alias: String): Result<Unit, String> =
   | Bash -> Bash.deleteAlias(alias)
   | Zsh -> Zsh.deleteAlias(alias)
   | Fish -> Fish.deleteAlias(alias)
-  | _ -> Result.Error("Unsupported OS or shell")
 
 
 /// Adds a directory to PATH in the user's default shell configuration file.
@@ -122,7 +120,6 @@ let addToPath(shell: Shell.Shell, dir: String): Result<Unit, String> =
   | Bash -> Bash.addToPath(dir)
   | Zsh -> Zsh.addToPath(dir)
   | Fish -> Fish.addToPath(dir)
-  | _ -> Result.Error("Unsupported shell")
 
 
 /// Gets the home directory of the current user using $HOME environment variable.

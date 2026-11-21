@@ -569,7 +569,6 @@ module MatchPattern =
       let caseName =
         match caseName with
         | range, _ -> [ makeToken(range, TokenType.EnumMember) ]
-        | _ -> []
 
       let fields =
         fields
@@ -674,7 +673,6 @@ module Expr =
         let caseName =
           match caseName with
           | range, _ -> [ makeToken(range, TokenType.EnumMember) ]
-          | _ -> []
 
         let fields =
           fields
@@ -938,7 +936,6 @@ module Expr =
       let caseName =
         match caseName with
         | (range, _) -> [ makeToken(range, TokenType.EnumMember) ]
-        | _ -> []
 
       let fields =
         fields

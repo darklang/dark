@@ -685,9 +685,6 @@ let execute(state: AppState, args: List<String>): AppState =
       // that don't conflict with positional-catching arms higher up
       // (the list/tail variants are handled inline above).
       | ["follow", "--route"] -> refuse(state, "Usage: traces follow --route <substring> [--json]")
-      | ["delete", "--keep"] -> refuse(state, "Usage: traces delete --keep <N>")
-      | ["delete", "--before"] ->
-        refuse(state, "Usage: traces delete --before <duration> (e.g. 30s, 5m, 1h, 2d)")
       // Focused usage messages for arity-1 commands when invoked with no
       // argument. Better than dumping the full multi-page help — the user
       // ran a known command, just forgot the id/path.

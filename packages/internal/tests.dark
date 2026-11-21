@@ -18,7 +18,6 @@ let parseTest(pf: LanguageTools.WrittenTypes.ParsedFile): Result<WTTest, String>
   let exprsToEval =
     match pf with
     | SourceFile(s) -> s.exprsToEval
-    | _ -> []
 
   match exprsToEval with
   | [] -> Result.Error("no exprs to eval")
