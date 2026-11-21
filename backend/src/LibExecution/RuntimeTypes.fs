@@ -6396,11 +6396,7 @@ and PackageFnCallData =
 
     /// The parameters that take a callback, as (index, name, what the callback should
     /// return). Empty for most fns.
-    ///
-    /// Null until we've worked it out, which for some fns happens on the first call
-    /// (`Interpreter.resolveFnParams`). Use `Volatile` to read and write it, since
-    /// several threads share it.
-    mutable fnParams : (struct (int * string * TypeReference))[]
+    fnParams : (struct (int * string * TypeReference))[]
 
     /// What entering the fn needs on every call -- its free type variables, its parameters as a
     /// list, the execution point its frames run under -- worked out once with the rest of this, so
