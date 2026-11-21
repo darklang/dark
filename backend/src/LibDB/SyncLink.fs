@@ -598,6 +598,8 @@ let private session
       match side.account, aheadOfClock () with
       | Some a, _ when a.readOnly ->
         Error $"{a.person}'s token can only read from this server"
+      | Some a, _ when not (SyncTokens.isLive side.store a.tokenId) ->
+        Error $"this server no longer takes {a.person}'s token"
       | _, Some reason -> Error reason
       | _, None ->
         lock importing (fun () ->

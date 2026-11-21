@@ -1595,11 +1595,20 @@ let serverOverWebSocket =
       let tokenId = LibDB.SyncTokens.add srv "stachu" token false "laptop"
       let other = LibDB.SyncTokens.generate ()
       let _ = LibDB.SyncTokens.add srv "oceanoak" other false "laptop"
+      // revoked after it is let in, before anything it sends arrives
+      let late = LibDB.SyncTokens.generate ()
+      let lateId = LibDB.SyncTokens.add srv "stachu" late false "phone"
       let port = 20000 + System.Random.Shared.Next(20000)
       let url = System.Uri($"http://127.0.0.1:{port}")
       use stopping = new System.Threading.ManualResetEventSlim(false)
       let serverSaid = System.Collections.Concurrent.ConcurrentQueue<string>()
-      let makeSide account workDir keepGoing : SyncLink.Side =
+      let makeSide
+        (account : LibDB.SyncTokens.Account)
+        workDir
+        keepGoing
+        : SyncLink.Side =
+        if account.tokenId = lateId then
+          LibDB.SyncTokens.revoke srv lateId |> ignore<List<LibDB.SyncTokens.Token>>
         { sideOf dir "srv" srv keepGoing serverSaid with
             workDir = workDir
             account = Some account }
@@ -1640,6 +1649,17 @@ let serverOverWebSocket =
           (heldCount srv ids)
           (int64 (List.length ids))
           "the edit reached the server"
+
+        let sentLate =
+          authorOn a "module Tests.OpSync\nlet afterRevoke(): Int64 = 32"
+        match connectWith late with
+        | SyncLink.Exchanged, _, _ ->
+          failtest "a token revoked mid-session still pushed"
+        | _ -> ()
+        Expect.equal
+          (heldCount srv sentLate)
+          0L
+          "what it sent after the revoke is refused"
 
         match connectWith (token + "x") with
         | _, Some(SyncLink.TokenRefused false), _ -> ()
