@@ -129,11 +129,7 @@ test editRoundTripsTypesAndValues = Instance.withInstance(fun i ->
       + $"value: {valueBefore} -> {valueAfter}"))
 
 
-/// A file `edit` cannot use leaves the item exactly as it was.
-///
-/// `edit` hands the file to the same validation `module` does, so a rejection has to
-/// be a rejection: half-applying it, or reporting a failure while the store moved,
-/// would make an editor round trip something you cannot trust.
+/// A malformed or missing replacement file leaves the original item intact.
 test editLeavesTheItemAloneOnABadFile = Instance.withInstance(fun i ->
   let branchName = "cli-edit-bad"
   let name = "Tests.CliEditBad.kept"
@@ -151,7 +147,10 @@ test editLeavesTheItemAloneOnABadFile = Instance.withInstance(fun i ->
 
   let hashBefore = Instance.output(i, [ "--branch", branchName, "hash", name ])
   let _ =
-    Stdlib.Cli.File.writeAtomic(badPath, "this is not dark") |> Builtin.unwrap
+    Stdlib.Cli.File.writeAtomic(
+      badPath,
+      "let kept(n: Int64): Int64 = n + 1\nlet bad(): Int64 = (fun (n: Int64) -> n)(1)\n")
+    |> Builtin.unwrap
 
   let refused =
     Instance.output(i, [ "--branch", branchName, "edit", name, badPath ])

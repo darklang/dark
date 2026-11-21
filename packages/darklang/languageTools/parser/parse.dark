@@ -1,7 +1,7 @@
 module Darklang.LanguageTools.Parser.Parse
 
-/// The parser's tree for <param code> and its diagnostics, as (range, message) pairs. The tree is
-/// best-effort, {{None}} only if the tokenizer failed outright.
+/// Parse <param code> and return a syntax tree if available, with (range, message) diagnostics.
+/// `PackagePartialSave` keeps only declarations that pass syntax and package checks.
 let parse(
   kind: FileKind,
   code: String)

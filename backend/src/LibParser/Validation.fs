@@ -469,6 +469,11 @@ let validatePurpose (mode : Mode) (sourceFile : WT.SourceFile) : List<Issue> =
       | Script -> [])
   declarationIssues @ trailingExpressionIssues
 
+/// Check a single parsed item against the package rules.
+let validatePackageItem (declaration : WT.Declaration) : List<Issue> =
+  declarationStructureIssues declaration
+  @ declarationPurposeIssues Package declaration
+
 /// Validate every pre-lowering rule and return an opaque wrapper on success.
 let validate
   (mode : Mode)

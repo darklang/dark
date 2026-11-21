@@ -1516,10 +1516,10 @@ let fns () : List<BuiltInFn> =
           []
         )
       description =
-        "Parses Darklang source into the range-complete WrittenTypes.ParsedFile, with the "
-        + "parser's diagnostics as (range, message) pairs: a best-effort tree whenever the "
-        + "source tokenizes, even with diagnostics, and None only when it can't be tokenized "
-        + "at all. <param kind> says which kind of file the source is (see FileKind)."
+        "Parses Darklang source and returns diagnostics as (range, message) pairs, "
+        + "along with a syntax tree when available. If <param kind> is Script or "
+        + "Package, the tree may include incomplete nodes after an error. "
+        + "PackagePartialSave keeps only declarations that pass syntax and package checks."
       fn =
         let pfKT = KTCustomType(FQTypeName.fqPackage (WTRefs.parsedFile ()), [])
         let toDT (r : P.ParseResult) =
@@ -1534,6 +1534,11 @@ let fns () : List<BuiltInFn> =
           toDT (P.parseScript sourceCode)
         | _, _, _, [| DEnum(_, _, [], "Package", []); DString sourceCode |] ->
           toDT (P.parsePackage sourceCode)
+        | _,
+          _,
+          _,
+          [| DEnum(_, _, [], "PackagePartialSave", []); DString sourceCode |] ->
+          toDT (P.parsePackagePartialSave sourceCode)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
