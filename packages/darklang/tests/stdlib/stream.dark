@@ -66,9 +66,9 @@ test unfoldReadTwice =
   |> Stdlib.Test.equal(([ 0, 1, 2 ], [ 0, 1, 2 ]))
 
 
-// toBytes drains a Stream<UInt8> into a Bytes
-test toBytesDrainsBytes =
-  let s = Stdlib.Stream.fromList([ 104u8, 105u8 ])
+// toBytes joins a Stream<Bytes> into one Bytes
+test toBytesJoinsChunks =
+  let s = Stdlib.Stream.fromList([ Stdlib.Utf8.encode("h"), Stdlib.Utf8.encode("i") ])
   let b = Stdlib.Stream.toBytes(s)
   Stdlib.Utf8.decode(b) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("hi"))
 

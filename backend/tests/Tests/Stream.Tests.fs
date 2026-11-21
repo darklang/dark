@@ -1,7 +1,7 @@
 /// Tests for the Stream Dval.
 ///
 /// Covers IO-backed streams (read once, kept for every holder), what Dark can't see of
-/// the transform nodes, releasing IO sources, and reading a byte source in whole chunks.
+/// the transform nodes, releasing IO sources, and a byte source's Bytes chunks.
 module Tests.Stream
 
 open Expecto
@@ -454,7 +454,7 @@ let gcSkipsFinalizerAfterStreamClose =
 
 
 // ─────────────────────────────────────────────────────────────────────
-// Reading a byte source in whole chunks
+// A byte source: one Bytes element per read
 // ─────────────────────────────────────────────────────────────────────
 
 /// A nextChunk callback that yields each entry of `buffers` once, then None.
@@ -469,49 +469,38 @@ let private chunkPullFn
       System.Threading.Tasks.ValueTask<_>(Some head)
     | [] -> System.Threading.Tasks.ValueTask<_>(None)
 
-let readAllBytesTakesWholeChunks =
-  testTask "chunked: readAllBytes joins the chunks, and answers the same again" {
-    let s =
-      Stream.newChunked
-        VT.uint8
-        (chunkPullFn [ [| 0x01uy; 0x02uy |]; [| 0x03uy |] ])
-        None
-    let! first = Option.get (Stream.readAllBytes s)
-    let! second = Option.get (Stream.readAllBytes s)
-    Expect.equal first [| 0x01uy; 0x02uy; 0x03uy |] "both chunks"
-    Expect.equal second first "the same again"
-  }
+let private chunkBytes (dv : RT.Dval) : byte[] =
+  match dv with
+  | RT.DBytes(RT.Ephemeral b) -> b.ToArray()
+  | other -> Exception.raiseInternal "expected Bytes" [ "got", other ]
 
-let chunkedServesByteNext =
-  testTask "chunked: next answers a byte at a time, across chunks" {
-    let s =
-      Stream.newChunked
-        VT.uint8
-        (chunkPullFn [ [| 0x10uy; 0x20uy |]; [| 0x30uy |] ])
-        None
-    let! bytes = drain s
+let byteSourceYieldsOneBytesPerRead =
+  testTask "bytes: one Bytes element per read, and the same again" {
+    let s = Stream.newBytes (chunkPullFn [ [| 0x01uy; 0x02uy |]; [| 0x03uy |] ]) None
+    let! first = drain s
+    let! second = drain s
     Expect.equal
-      bytes
-      [ RT.DUInt8 0x10uy; RT.DUInt8 0x20uy; RT.DUInt8 0x30uy ]
-      "every byte, in order"
+      (first |> List.map chunkBytes)
+      [ [| 0x01uy; 0x02uy |]; [| 0x03uy |] ]
+      "each read is one element"
+    Expect.equal
+      (second |> List.map chunkBytes)
+      (first |> List.map chunkBytes)
+      "the same again"
+    Expect.equal
+      (RT.Dval.toValueType s)
+      (RT.ValueType.Known(RT.KTStream VT.bytes))
+      "a Stream<Bytes>"
   }
 
-let readAllBytesMidChunk =
-  testTask "chunked: readAllBytes from the middle of a chunk starts there" {
-    let s =
-      Stream.newChunked VT.uint8 (chunkPullFn [ [| 0x01uy; 0x02uy; 0x03uy |] ]) None
-    let! head = pull s
-    let (_, rest) = Option.get head
-    let! bytes = Option.get (Stream.readAllBytes rest)
-    Expect.equal bytes [| 0x02uy; 0x03uy |] "the rest of the chunk"
-  }
-
-let readAllBytesOnlyOffASource =
-  test "chunked: readAllBytes is None for a stream not straight off an IO source" {
-    let s = RT.DStream(RT.FromList([ RT.DUInt8 0xAAuy ], VT.uint8))
-    Expect.isNone
-      (Stream.readAllBytes s)
-      "a list stream is pulled element by element"
+let byteSourceEndsOnEmptyRead =
+  testTask "bytes: an empty read ends the stream" {
+    let s = Stream.newBytes (chunkPullFn [ [| 0x01uy |]; [||]; [| 0x02uy |] ]) None
+    let! chunks = drain s
+    Expect.equal
+      (chunks |> List.map chunkBytes)
+      [ [| 0x01uy |] ]
+      "stops at the empty read"
   }
 
 
@@ -538,7 +527,5 @@ let tests =
       gcFinalizesAbandonedStream
       gcFinalizesMidDrainStream
       gcSkipsFinalizerAfterStreamClose
-      readAllBytesTakesWholeChunks
-      chunkedServesByteNext
-      readAllBytesMidChunk
-      readAllBytesOnlyOffASource ]
+      byteSourceYieldsOneBytesPerRead
+      byteSourceEndsOnEmptyRead ]

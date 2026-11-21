@@ -200,8 +200,8 @@ module Request =
 
 
 /// The response from an HTTP request. <param body> is {{Bytes}} when the whole response was
-/// read (<fn request>, <fn get>, ...) and a lazy {{Stream<UInt8>}} when it is pulled as it
-/// arrives (<fn stream>): the bytes arrive as the server writes them, and the connection is
+/// read (<fn request>, <fn get>, ...) and a lazy {{Stream<Bytes>}} when it is pulled as it
+/// arrives (<fn stream>): chunks of up to 64 KB, as the server writes them, and the connection is
 /// released when the stream is drained or `Stdlib.Stream.close`d.
 ///
 /// Header names and values are as the server sent them, and a header sent twice is two pairs.
@@ -302,7 +302,7 @@ let sendRaw(req: Request): Result<Response<Bytes>, RequestError> =
 /// <fn sendRaw>, with the body as a lazy stream: in program order, and the timeout covers the
 /// headers, not the body, so a long-lived stream is not cut off. A stream holds its connection
 /// until it is drained or closed, and counts against the host's 50 until then.
-let streamRaw(req: Request): Result<Response<Stream<UInt8>>, RequestError> =
+let streamRaw(req: Request): Result<Response<Stream<Bytes>>, RequestError> =
   let req = Request.__final(req)
   let (retries, delayMs) = __retryArgs(req)
   Builtin.httpClientStream(
@@ -574,7 +574,7 @@ let client(middlewares: List<Middleware<Bytes, Bytes>>): Send<Bytes> =
 
 
 /// <fn client>, over <fn streamRaw>: the same middleware, with the body as a lazy stream.
-let streamClient(middlewares: List<Middleware<Stream<UInt8>, Stream<UInt8>>>): Send<Stream<UInt8>> =
+let streamClient(middlewares: List<Middleware<Stream<Bytes>, Stream<Bytes>>>): Send<Stream<Bytes>> =
   let send = Middleware.wrap(middlewares, streamRaw)
   (fun req ->
      match req.timeoutMs, req.redirects, req.retry with
@@ -639,7 +639,7 @@ let head(uri: String): Result<Response<Bytes>, RequestError> =
 
 
 /// Make a streaming HTTP call to <param uri> through the default stack, in program order. The
-/// response's body is a lazy `Stream<UInt8>`: bytes arrive as the server writes them. Drain
+/// response's body is a lazy `Stream<Bytes>`: chunks arrive as the server writes them. Drain
 /// with `Stdlib.Stream.toList`, `Stdlib.Stream.toBytes`, or compose with `Stdlib.Stream.map` /
 /// `Stdlib.Stream.filter` etc. The timeout covers the response's headers, not its body, so a
 /// long-lived stream is not cut off.
@@ -651,7 +651,7 @@ let stream(
   uri: String,
   headers: List<(String * String)>,
   body: Bytes)
-  : Result<Response<Stream<UInt8>>, RequestError> =
+  : Result<Response<Stream<Bytes>>, RequestError> =
   match __defaults(Request.make(method, uri, headers, body)) with
   | Ok(req) -> streamRaw(req)
   | Error(e) -> Result.Error(e)
@@ -689,15 +689,11 @@ module ContentType =
 
 
 module Sse =
-  // Server-Sent Events parsing over a Stream<UInt8>. Consumers
-  // compose with the standard Stream builtins:
+  // Server-Sent Events parsing over a body's chunks. One `Event` is emitted as soon as its
+  // terminating blank line arrives, rather than after the whole response:
   //
   //     HttpClient.stream("GET", url, headers, Stdlib.Bytes.empty)
   //     |> Stdlib.Result.map (fun r -> HttpClient.Sse.parse r.body)
-  //
-  // Implemented as a true streaming parser via `Stdlib.Stream.unfold`:
-  // one `Event` is emitted as soon as its terminating blank line
-  // arrives on the wire, rather than buffering the entire response.
 
   /// A parsed Server-Sent Event.
   type Event =
@@ -706,21 +702,13 @@ module Sse =
       id: String }
 
 
-  /// Intermediate state threaded through parsing. `lastId` persists
-  /// across events per the SSE spec; `currentLines` holds the field
-  /// lines for the block we're currently assembling; `currentLine`
-  /// is the byte buffer for the line we're currently reading.
-  ///
-  /// `currentLine` stays `List<UInt8>` (not `Bytes`) because it's
-  /// accessed byte-by-byte during the parse — one append per byte and
-  /// frequent fold-over-bytes for the line scan. Bytes.concat would
-  /// reallocate the whole buffer on every append. Worth revisiting if
-  /// anyone profiles the SSE parser; could become Bytes with an
-  /// internal append-segments representation.
+  /// Intermediate state threaded through parsing. `lastId` persists across events per the SSE
+  /// spec; `currentLines` holds the field lines of the block being assembled; `pending` is
+  /// what has arrived after the last complete line.
   type ParseState =
     { lastId: String
       currentLines: List<String>
-      currentLine: List<UInt8> }
+      pending: Bytes }
 
 
   /// Split a `field: value` line into its two parts. Per the SSE
@@ -784,80 +772,71 @@ module Sse =
       Option.None
 
 
-  /// Read bytes until a complete event terminator (blank line)
-  /// arrives, then emit it with the bytes after it. Returns None once
-  /// the bytes end and no buffered data remains.
+  let __decodeLine(bytes: Bytes): String =
+    match Utf8.decode(bytes) with
+    | Ok(s) -> s
+    | Error(_) -> ""
+
+
+  /// Read chunks until a complete event terminator (blank line) arrives, then emit it with the
+  /// chunks after it. Returns None once the chunks end and no buffered data remains.
   let __pullNextEvent(
-    bytes: Stream<UInt8>,
+    chunks: Stream<Bytes>,
     state: ParseState)
-    : Option<(Event * (Stream<UInt8> * ParseState))> =
-    match Stream.next<UInt8>(bytes) with
-    | None ->
-      // End of stream. Flush any buffered lines as a final event
-      // (SSE spec: a trailing blank line is optional).
-      let pending =
-        if List.isEmpty(state.currentLine) then
-          state.currentLines
-        else
-          let tailLine =
-            match Utf8.decode(Bytes.fromList(state.currentLine)) with
-            | Ok(s) -> s
-            | Error(_) -> ""
+    : Option<(Event * (Stream<Bytes> * ParseState))> =
+    // 10u8 = '\n'
+    match Bytes.indexOf(state.pending, 10u8) with
+    | Some(at) ->
+      let line = __decodeLine(Bytes.take(state.pending, at))
+      let pending = Bytes.drop(state.pending, at + 1)
 
-          List.append(state.currentLines, tailLine)
-
-      if List.isEmpty(pending) then
-        Option.None
-      else
-        match __tryEmitBlock(pending, state.lastId) with
+      if String.isEmpty(line) then
+        // Blank line terminates the block. Try to emit an Event.
+        match __tryEmitBlock(state.currentLines, state.lastId) with
         | Some(event) ->
-          let nextState = ParseState { lastId = event.id, currentLines = [], currentLine = [] }
-          Option.Some((event, (bytes, nextState)))
-        | None -> Option.None
-    | Some((b, rest)) ->
-      // 10u8 = '\n'. End of a line.
-      if b == 10u8 then
-        let line =
-          match Utf8.decode(Bytes.fromList(state.currentLine)) with
-          | Ok(s) -> s
-          | Error(_) -> ""
-
-        if String.isEmpty(line) then
-          // Blank line terminates the block. Try to emit an Event.
-          match __tryEmitBlock(state.currentLines, state.lastId) with
-          | Some(event) ->
-            let nextState = ParseState { lastId = event.id, currentLines = [], currentLine = [] }
-            Option.Some((event, (rest, nextState)))
-          | None ->
-            // Block had no data; reset and keep reading.
-            let nextState =
-              ParseState { lastId = state.lastId, currentLines = [], currentLine = [] }
-
-            __pullNextEvent(rest, nextState)
-        else
-          // Regular line; append and keep reading.
-          let nextState =
-            ParseState
-              { lastId = state.lastId
-                currentLines = List.append(state.currentLines, line)
-                currentLine = [] }
-
-          __pullNextEvent(rest, nextState)
+          let nextState = ParseState { lastId = event.id, currentLines = [], pending = pending }
+          Option.Some((event, (chunks, nextState)))
+        | None ->
+          // Block had no data; reset and keep reading.
+          __pullNextEvent(
+            chunks,
+            ParseState { lastId = state.lastId, currentLines = [], pending = pending })
       else
-        let nextState =
+        __pullNextEvent(
+          chunks,
           ParseState
             { lastId = state.lastId
-              currentLines = state.currentLines
-              currentLine = List.append(state.currentLine, b) }
+              currentLines = List.append(state.currentLines, line)
+              pending = pending })
+    | None ->
+      match Stream.next<Bytes>(chunks) with
+      | Some((chunk, rest)) ->
+        __pullNextEvent(rest, { state with pending = Bytes.concat(state.pending, chunk) })
+      | None ->
+        // End of stream. Flush any buffered lines as a final event
+        // (SSE spec: a trailing blank line is optional).
+        let lines =
+          if Bytes.isEmpty(state.pending) then
+            state.currentLines
+          else
+            List.append(state.currentLines, __decodeLine(state.pending))
 
-        __pullNextEvent(rest, nextState)
+        if List.isEmpty(lines) then
+          Option.None
+        else
+          match __tryEmitBlock(lines, state.lastId) with
+          | Some(event) ->
+            let nextState =
+              ParseState { lastId = event.id, currentLines = [], pending = Bytes.empty }
+            Option.Some((event, (chunks, nextState)))
+          | None -> Option.None
 
 
-  /// Parse an SSE byte stream into a stream of Events. Lazy: events
+  /// Parse an SSE body into a stream of Events. Lazy: events
   /// flow to the consumer as their terminating blank lines arrive,
   /// so a slow LLM response surfaces tokens as they're produced.
-  let parse(bytes: Stream<UInt8>): Stream<Event> =
-    let initial = ParseState { lastId = "", currentLines = [], currentLine = [] }
-    Stream.unfold<(Stream<UInt8> * ParseState), Event>((bytes, initial), fun s ->
+  let parse(chunks: Stream<Bytes>): Stream<Event> =
+    let initial = ParseState { lastId = "", currentLines = [], pending = Bytes.empty }
+    Stream.unfold<(Stream<Bytes> * ParseState), Event>((chunks, initial), fun s ->
       let (rest, state) = s
       __pullNextEvent(rest, state))

@@ -1,6 +1,6 @@
 /// Stream builtins. Surfaces the lazy `DStream` value from `LibExecution.RuntimeTypes` to
 /// user code:
-/// `fromList`, `next`, `toList`, `toBytes`, `close`, and the transforms
+/// `fromList`, `next`, `toList`, `close`, and the transforms
 /// `map` / `filter` / `take` / `concat`.
 ///
 /// Alternatives considered but not taken:
@@ -21,7 +21,6 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module Bytes = LibExecution.Bytes
 module Interpreter = LibExecution.Interpreter
 module Permissions = LibExecution.Permissions
 module Stream = LibExecution.Stream
@@ -191,43 +190,6 @@ let fns () : List<BuiltInFn> =
               drivePull vm onPulled (Stream.pull rest)
             | None -> finish ()
           drivePull vm onPulled (Stream.pullNext s)
-        | _ -> incorrectArgs ())
-      previewable = Impure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "streamToBytes" 0
-      typeParams = []
-      parameters = [ Param.make "stream" (TStream TUInt8) "" ]
-      returnType = TBytes
-      description = "All the bytes of <param stream>, as one Bytes value."
-      fn =
-        (function
-        | _, vm, _, [| DStream _ as s |] ->
-          match Stream.readAllBytes s with
-          // Straight off an IO source (HttpClient.stream): whole buffers, not a DUInt8 per byte.
-          | Some read -> read |> Pending.map Bytes.newEphemeral
-          | None ->
-            // Anything else (a transform chain, an in-memory stream) is pulled a byte at a time;
-            // a transform's callable runs as a frame of this process.
-            let collected = new System.IO.MemoryStream()
-            let rec onPulled (r : Option<Dval * StreamImpl>) : Dval =
-              match r with
-              | Some(DPromise _ as read, rest) ->
-                Interpreter.withValue vm read (fun b -> onPulled (Some(b, rest)))
-              | Some(DUInt8 b, rest) ->
-                collected.WriteByte b
-                drivePull vm onPulled (Stream.pull rest)
-              | Some _ ->
-                Exception.raiseInternal
-                  "streamToBytes: expected Stream<UInt8> element"
-                  []
-              | None ->
-                let bytes = collected.ToArray()
-                collected.Dispose()
-                (Bytes.newEphemeral bytes)
-            drivePull vm onPulled (Stream.pullNext s)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty

@@ -627,7 +627,7 @@ module StreamDvalTests =
     let disposer () =
       disposerRan.Value <- true
       HostHttp.closeStream head.handle
-    Stream.newChunked VT.uint8 nextChunk (Some disposer), disposerRan
+    Stream.newBytes nextChunk (Some disposer), disposerRan
 
 
   let drainToBytes (s : RT.Dval) : Task<byte[]> =
@@ -637,10 +637,10 @@ module StreamDvalTests =
       while rest.IsSome do
         let! pulled = Stream.readNext rest.Value
         match pulled with
-        | Some(RT.DUInt8 b, after) ->
-          ms.WriteByte b
+        | Some(RT.DBytes(RT.Ephemeral chunk), after) ->
+          ms.Write(chunk.buffer, chunk.offset, chunk.count)
           rest <- Some after
-        | Some _ -> Exception.raiseInternal "expected DUInt8" []
+        | Some _ -> Exception.raiseInternal "expected Bytes" []
         | None -> rest <- None
       return ms.ToArray()
     }
