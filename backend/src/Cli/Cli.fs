@@ -591,14 +591,16 @@ let private runCli (args : string[]) : int =
     Telemetry.time "cli.growIfNeeded" [] (fun () ->
       // Under the upgrade lock: right after an upgrade every dark started at once finds the same ops
       // unapplied, and folding them side by side fails some with "database is locked". One folds;
-      // the rest find nothing left.
-      use _growing = EmbeddedResources.upgradeLock LibConfig.Config.dbPath
+      // the rest find nothing left. A start with nothing to grow, nearly every one, takes no lock,
+      // so darks started together do not queue behind each other.
       try
-        LibDB.Seed.growIfNeeded
-          (fun () -> builtinsLazy.Force())
-          cliPackageManager
-          (fun msg -> System.Console.Error.WriteLine msg)
-        |> ignore<bool>
+        if LibDB.Seed.needsGrowing () then
+          use _growing = EmbeddedResources.upgradeLock LibConfig.Config.dbPath
+          LibDB.Seed.growIfNeeded
+            (fun () -> builtinsLazy.Force())
+            cliPackageManager
+            (fun msg -> System.Console.Error.WriteLine msg)
+          |> ignore<bool>
       with ex when isBinaryFormatFailure ex ->
         let path = LibConfig.Config.dbPath
 

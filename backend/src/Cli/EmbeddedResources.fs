@@ -128,9 +128,18 @@ let private refuseToOpen
 /// An exclusive open of a file beside the store, which .NET holds as an OS lock (`flock` on Unix). The
 /// kernel drops it when the process exits however it exits, so a crash leaves no stale lock, and a
 /// leftover FILE is not a held lock. A waiter re-reads what it was about to do once it gets in, and
-/// gives up after five minutes.
+/// gives up after five minutes. The holder writes its pid beside the lock, so a waiter can say
+/// which dark it waits on.
 let upgradeLock (dbPath : string) : System.IDisposable =
   let path = dbPath + ".upgrade-lock"
+  let holderPath = path + ".pid"
+  let holder () =
+    try
+      match System.Int32.TryParse(File.ReadAllText holderPath) with
+      | true, pid -> $"another dark (pid {pid})"
+      | _ -> "another dark"
+    with _ ->
+      "another dark"
   let deadline = System.DateTime.UtcNow.AddMinutes 5.0
   // tests shorten it to drive many retries quickly
   let retryMs =
@@ -157,16 +166,21 @@ let upgradeLock (dbPath : string) : System.IDisposable =
   // retry kept a frame and a minute of waiting overflowed the stack.
   let rec acquire (said : bool) : System.IDisposable =
     match tryOpen () with
-    | Ok held -> held
+    | Ok held ->
+      try
+        File.WriteAllText(holderPath, string System.Environment.ProcessId)
+      with _ ->
+        ()
+      held
     | Error e ->
       if System.DateTime.UtcNow > deadline then
         refuseToOpen
           dbPath
           None
-          "another dark has been upgrading this store for five minutes"
+          $"{holder ()} has been upgrading this store for five minutes"
           e.Message
       if not said then
-        eprintfn "Waiting for another dark to finish upgrading the store..."
+        eprintfn $"Waiting for {holder ()} to finish upgrading the store..."
       System.Threading.Thread.Sleep retryMs
       acquire true
   acquire false
