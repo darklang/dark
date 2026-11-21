@@ -28,7 +28,8 @@ let loop(
   lg: LanguageTools.Live.LastGood,
   state: 's,
   intervalMs: Int64,
-  live: Bool)
+  live: Bool,
+  watch: LanguageTools.Live.Watch)
   : Int64 =
   let state =
     match LanguageTools.Live.call(lg, state) with
@@ -44,7 +45,9 @@ let loop(
     else
       [ Stdlib.Host.EventSpec.Timer(timerMs(intervalMs)) ]
 
-  match Stdlib.Host.await(specs) with
+  let awaited = Stdlib.Host.await(watch, specs)
+  let watch = awaited.watch
+  match awaited.event with
   | StoreChanged(change) when LanguageTools.Live.affects(change, lg.entry) ->
     let refreshed = LanguageTools.Live.refresh(branchId, lg)
     match LanguageTools.Live.transition(lg, refreshed) with
@@ -53,13 +56,13 @@ let loop(
 
     // The wait was cut short by the change; the next tick runs on the new version after a
     // full interval, not at once. A change that lands during this plain wait is reported by
-    // the next `StoreChanged` wait, since the poll behind it accumulates.
-    let _ = Stdlib.Host.await([ Stdlib.Host.EventSpec.Timer(timerMs(intervalMs)) ])
-    loop(name, branchId, refreshed, state, intervalMs, live)
+    // the next `StoreChanged` wait, since the watch has not looked past it.
+    let _ = Stdlib.Host.await(watch, [ Stdlib.Host.EventSpec.Timer(timerMs(intervalMs)) ])
+    loop(name, branchId, refreshed, state, intervalMs, live, watch)
   | StoreChanged(_) ->
-    let _ = Stdlib.Host.await([ Stdlib.Host.EventSpec.Timer(timerMs(intervalMs)) ])
-    loop(name, branchId, lg, state, intervalMs, live)
-  | _ -> loop(name, branchId, lg, state, intervalMs, live)
+    let _ = Stdlib.Host.await(watch, [ Stdlib.Host.EventSpec.Timer(timerMs(intervalMs)) ])
+    loop(name, branchId, lg, state, intervalMs, live, watch)
+  | _ -> loop(name, branchId, lg, state, intervalMs, live, watch)
 
 
 /// Run <param stepName> over <param init> every <param intervalMs>, forever. What a daemon
@@ -70,7 +73,7 @@ let run(name: String, stepName: String, init: 's, intervalMs: Int64, live: Bool)
     Stdlib.printLine($"{name}: {stepName} is not a package fn name")
     1
   | Some(entry) ->
-    Stdlib.Host.begin()
+    let watch = Stdlib.Host.begin()
     let branchId = SCM.PackageOps.currentBranch()
     let lg = LanguageTools.Live.refresh(branchId, LanguageTools.Live.start(entry))
     match lg.hash with
@@ -80,4 +83,4 @@ let run(name: String, stepName: String, init: 's, intervalMs: Int64, live: Bool)
 
       Stdlib.printLine($"{name}: {why}")
       1
-    | Some(_) -> loop(name, branchId, lg, init, intervalMs, live)
+    | Some(_) -> loop(name, branchId, lg, init, intervalMs, live, watch)

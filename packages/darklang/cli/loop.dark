@@ -442,7 +442,8 @@ let applyKeyRead(
         Update.updateAppState(st, keyPressedMsg))
 
 
-let runInteractiveLoop(state: AppState): Int64 =
+/// <param watch> is how far this loop has looked at the op log (`Stdlib.Host.begin`).
+let runInteractiveLoop(state: AppState, watch: LanguageTools.Live.Watch): Int64 =
   if state.isExiting then
     // Clear any retained prompt region so the shell prompt takes its place.
     let _cleared = clearPromptRegion(state)
@@ -492,9 +493,13 @@ let runInteractiveLoop(state: AppState): Int64 =
       // Wait for a key, or for the package store to change under the page. The waiting is
       // `Stdlib.Host.await`'s business; this loop only says what it is waiting for.
       let tReadKey = if renderedState.telemetryEnabled then Telemetry.now() else 0
+      let awaited =
+        Stdlib.Host.await(
+          watch,
+          [ Stdlib.Host.EventSpec.Key, Stdlib.Host.EventSpec.StoreChanged ])
+
       let newState =
-        match Stdlib.Host.await(
-                [ Stdlib.Host.EventSpec.Key, Stdlib.Host.EventSpec.StoreChanged ]) with
+        match awaited.event with
         | Key(keyInput) ->
           // Process the key. A coalesced burst (a mouse wheel, or a held-down key) arrives as one read
           // with a repeat count; applying it here means every page gets wheel-aware scrolling without
@@ -537,4 +542,5 @@ let runInteractiveLoop(state: AppState): Int64 =
             cachedCompletionKey = contextKey
             cachedCompletionItems = contextItems
             cachedFilterPartial = filterPartial
-            cachedFilterItems = filterItems })
+            cachedFilterItems = filterItems },
+        awaited.watch)

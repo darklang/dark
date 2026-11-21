@@ -222,7 +222,7 @@ let private hostAwaitTimerOrKey =
     try
       let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
       let program =
-        "Stdlib.Host.await([ Stdlib.Host.EventSpec.Key, Stdlib.Host.EventSpec.Timer(10) ])"
+        "(Stdlib.Host.await(Stdlib.Host.begin(), [ Stdlib.Host.EventSpec.Key, Stdlib.Host.EventSpec.Timer(10) ])).event"
       let! (timedOut : Scheduler.Process) = spawn s state program
       let! result = runOnThread s timedOut
       match expectOk result "the timer await" with
@@ -355,7 +355,8 @@ let private accessIsPerProcess =
         LibExecution.Permissions.Policy.denyAll
         state
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
-    let program = "Stdlib.Host.await([ Stdlib.Host.EventSpec.Timer(1) ])"
+    let program =
+      "(Stdlib.Host.await(Stdlib.Host.begin(), [ Stdlib.Host.EventSpec.Timer(1) ])).event"
     let! (confined : Scheduler.Process) = spawn s denied program
     let! (free : Scheduler.Process) = spawn s state program
     let! freeResult = runOnThread s free
@@ -1816,8 +1817,8 @@ let private execDoneAnswersAFinishedProcess =
               """let done_ = Stdlib.Exec.spawn(fun () -> 1)
 let _ = Stdlib.Exec.await(done_)
 let bad = Stdlib.Exec.spawn(fun () -> 1 / 0)
-let first = Stdlib.Host.await([ Stdlib.Host.EventSpec.ExecDone(done_.id) ])
-let second = Stdlib.Host.await([ Stdlib.Host.EventSpec.ExecDone(bad.id) ])
+let first = (Stdlib.Host.await(Stdlib.Host.begin(), [ Stdlib.Host.EventSpec.ExecDone(done_.id) ])).event
+let second = (Stdlib.Host.await(Stdlib.Host.begin(), [ Stdlib.Host.EventSpec.ExecDone(bad.id) ])).event
 match (first, second) with
 | (ExecDone(a), ExecDone(b)) -> a == done_.id && b == bad.id
 | _ -> false"""
@@ -1843,7 +1844,7 @@ let private execDoneWakesForAFinishInTheGap =
               root
               state
               """let child = Stdlib.Exec.spawn(fun () -> Builtin.testGateWait(61))
-let woke = Stdlib.Host.await([ Stdlib.Host.EventSpec.ExecDone(child.id) ])
+let woke = (Stdlib.Host.await(Stdlib.Host.begin(), [ Stdlib.Host.EventSpec.ExecDone(child.id) ])).event
 match woke with
 | ExecDone(id) -> id == child.id
 | _ -> false"""
@@ -1887,11 +1888,12 @@ let private execDoneWatcherGoesWithItsWait =
    else
      let _ =
        Stdlib.Host.await(
+         Stdlib.Host.begin(),
          [ Stdlib.Host.EventSpec.ExecDone(id), Stdlib.Host.EventSpec.Timer(1) ]
        )
      poll(id, n - 1)
  let _ = poll(child.id, 20)
- Stdlib.Host.await([ Stdlib.Host.EventSpec.ExecDone(child.id) ]))"""
+ (Stdlib.Host.await(Stdlib.Host.begin(), [ Stdlib.Host.EventSpec.ExecDone(child.id) ])).event)"""
     let running = runOnThread s p
     // Past the loop: parked on the child alone.
     waitFor "the last wait to park" (fun () ->
@@ -3230,7 +3232,10 @@ let private eventWakesAParkedProcess =
     try
       let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
       let! (p : Scheduler.Process) =
-        spawn s state "Stdlib.Host.await([ Stdlib.Host.EventSpec.Key ])"
+        spawn
+          s
+          state
+          "(Stdlib.Host.await(Stdlib.Host.begin(), [ Stdlib.Host.EventSpec.Key ])).event"
       let running = runOnThread s p
       waitFor "parked" (fun () ->
         match p.status with
@@ -3309,7 +3314,7 @@ let private wakeOrder =
   """let t0 = Stdlib.DateTime.toMilliseconds(Stdlib.DateTime.now())
 let at = fun name -> Builtin.testTrace(name + " " + Stdlib.display(Stdlib.DateTime.toMilliseconds(Stdlib.DateTime.now()) - t0))
 let a = Stdlib.Exec.spawn(fun () -> (let _ = Stdlib.Cli.Posix.sleep(30.0) in at("sleep")))
-let b = Stdlib.Exec.spawn(fun () -> (let _ = Stdlib.Host.await([ Stdlib.Host.EventSpec.Timer(10) ]) in at("timer")))
+let b = Stdlib.Exec.spawn(fun () -> (let _ = (Stdlib.Host.await(Stdlib.Host.begin(), [ Stdlib.Host.EventSpec.Timer(10) ])).event in at("timer")))
 let c = Stdlib.Exec.spawn(fun () -> (let slow = Stdlib.Exec.spawn(fun () -> Stdlib.Cli.Posix.sleep(1000.0)) in (let _ = Stdlib.Exec.awaitWithin(20, slow) in at("awaitWithin"))))
 (Stdlib.Exec.await(a), Stdlib.Exec.await(b), Stdlib.Exec.await(c))"""
 
