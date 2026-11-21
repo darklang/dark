@@ -940,7 +940,7 @@ module Dval =
     // pretty-printer, trace viewer) silently breaks for streams. The
     // asymmetry isn't documented in the public API. Document it or
     // add a "rehydrate as a no-op stub stream" path.
-    | DStream(impl, _, _) -> streamStubDT impl
+    | DStream impl -> streamStubDT impl
     // A frame's argument, recorded while the read was in flight and shown after it landed.
     | DPromise p when p.Task.IsCompletedSuccessfully -> toDT p.Task.Result
     | DPromise _ ->

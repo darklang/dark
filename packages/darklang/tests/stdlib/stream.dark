@@ -20,17 +20,50 @@ test nextOnEmptyStreamIsNone =
   Stdlib.Stream.next(s) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
 
-// next pulls head, leaves rest
-test nextPullsHeadLeavesRest =
+// next answers the head and the rest
+test nextAnswersHeadAndRest =
   let s = Stdlib.Stream.fromList([ 7, 8 ])
-  let first = Stdlib.Stream.next(s)
-  let second = Stdlib.Stream.next(s)
-  let third = Stdlib.Stream.next(s)
-  [ first, second, third ]
-  |> Stdlib.Test.equal(
-    [ Stdlib.Option.Option.Some(7)
-      Stdlib.Option.Option.Some(8)
-      Stdlib.Option.Option.None ])
+  match Stdlib.Stream.next(s) with
+  | Some((first, rest)) ->
+    Stdlib.Test.all(
+      [ first |> Stdlib.Test.equal(7)
+        Stdlib.Stream.toList(rest) |> Stdlib.Test.equal([ 8 ]) ])
+  | None -> Stdlib.Test.fail("expected an element")
+
+
+let firstTwo(s: Stream<Int64>): List<Int64> =
+  match Stdlib.Stream.next(s) with
+  | Some((a, rest)) ->
+    match Stdlib.Stream.next(rest) with
+    | Some((b, _)) -> [ a, b ]
+    | None -> [ a ]
+  | None -> []
+
+
+// reading a stream does not change it: the same function on the same stream answers the same
+test readingDoesNotChangeTheStream =
+  let s = Stdlib.Stream.fromList([ 1, 2, 3, 4 ])
+  (firstTwo(s), firstTwo(s), Stdlib.Stream.toList(s))
+  |> Stdlib.Test.equal(([ 1, 2 ], [ 1, 2 ], [ 1, 2, 3, 4 ]))
+
+
+// a transform leaves its source as it was
+test transformLeavesSource =
+  let s = Stdlib.Stream.fromList([ 1, 2, 3 ])
+  let taken = Stdlib.Stream.toList(Stdlib.Stream.take(s, 2))
+  (taken, Stdlib.Stream.toList(s))
+  |> Stdlib.Test.equal(([ 1, 2 ], [ 1, 2, 3 ]))
+
+
+// an unfold read twice gives the same elements
+test unfoldReadTwice =
+  let s =
+    Stdlib.Stream.take(
+      Stdlib.Stream.unfold(0, fun n -> Stdlib.Option.Option.Some((n, n + 1))),
+      3)
+
+  (Stdlib.Stream.toList(s), Stdlib.Stream.toList(s))
+  |> Stdlib.Test.equal(([ 0, 1, 2 ], [ 0, 1, 2 ]))
 
 
 // toBytes drains a Stream<UInt8> into a Bytes
@@ -40,12 +73,12 @@ test toBytesDrainsBytes =
   Stdlib.Utf8.decode(b) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("hi"))
 
 
-// close is idempotent; subsequent next returns None
-test closeIsIdempotent =
+// close on a stream with no IO source changes nothing
+test closeWithoutSourceChangesNothing =
   let s = Stdlib.Stream.fromList([ 1, 2 ])
   let _ = Stdlib.Stream.close(s)
   let _ = Stdlib.Stream.close(s)
-  Stdlib.Stream.next(s) |> Stdlib.Test.equal(Stdlib.Option.Option.None)
+  Stdlib.Stream.toList(s) |> Stdlib.Test.equal([ 1, 2 ])
 
 
 // --- transforms ---

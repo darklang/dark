@@ -375,8 +375,8 @@ type TypeReference =
   /// content-addressed `package_blobs` table (persistent).
   | TBytes
 
-  /// Lazy, single-consumer, non-persistable sequence of values of
-  /// the given element type.
+  /// Lazy, non-persistable sequence of values of the given element type.
+  /// A value: reading it does not change it.
   | TStream of TypeReference
 
   | TList of TypeReference

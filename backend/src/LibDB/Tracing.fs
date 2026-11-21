@@ -592,7 +592,7 @@ module ReplayCheck =
   let private asStored (builtin : string) (args : List<RT.Dval>) : List<RT.Dval> =
     let leaf (dv : RT.Dval) : RT.Dval option =
       match dv with
-      | RT.DStream(impl, _, _) -> Some(RTToDT.Dval.streamStubDT impl)
+      | RT.DStream impl -> Some(RTToDT.Dval.streamStubDT impl)
       | RT.DApplicable _ -> Some RT.DUnit
       | _ -> None
     Redact.args builtin args |> List.map (RT.Dval.rewriteWith leaf)
@@ -1256,7 +1256,7 @@ let prepareDvalForStorage
   dv
   |> RT.Dval.rewriteWith (fun dv ->
     match dv with
-    | RT.DStream(impl, _, _) -> Some(RTToDT.Dval.streamStubDT impl)
+    | RT.DStream impl -> Some(RTToDT.Dval.streamStubDT impl)
     | _ -> promoteBytes dv)
 
 

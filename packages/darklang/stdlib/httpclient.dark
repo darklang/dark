@@ -784,10 +784,13 @@ module Sse =
       Option.None
 
 
-  /// Pull bytes from the underlying stream until a complete event
-  /// terminator (blank line) arrives, then emit. Returns None once
-  /// the stream is exhausted and no buffered data remains.
-  let __pullNextEvent(bytes: Stream<UInt8>, state: ParseState): Option<(Event * ParseState)> =
+  /// Read bytes until a complete event terminator (blank line)
+  /// arrives, then emit it with the bytes after it. Returns None once
+  /// the bytes end and no buffered data remains.
+  let __pullNextEvent(
+    bytes: Stream<UInt8>,
+    state: ParseState)
+    : Option<(Event * (Stream<UInt8> * ParseState))> =
     match Stream.next<UInt8>(bytes) with
     | None ->
       // End of stream. Flush any buffered lines as a final event
@@ -809,9 +812,9 @@ module Sse =
         match __tryEmitBlock(pending, state.lastId) with
         | Some(event) ->
           let nextState = ParseState { lastId = event.id, currentLines = [], currentLine = [] }
-          Option.Some((event, nextState))
+          Option.Some((event, (bytes, nextState)))
         | None -> Option.None
-    | Some(b) ->
+    | Some((b, rest)) ->
       // 10u8 = '\n'. End of a line.
       if b == 10u8 then
         let line =
@@ -824,13 +827,13 @@ module Sse =
           match __tryEmitBlock(state.currentLines, state.lastId) with
           | Some(event) ->
             let nextState = ParseState { lastId = event.id, currentLines = [], currentLine = [] }
-            Option.Some((event, nextState))
+            Option.Some((event, (rest, nextState)))
           | None ->
             // Block had no data; reset and keep reading.
             let nextState =
               ParseState { lastId = state.lastId, currentLines = [], currentLine = [] }
 
-            __pullNextEvent(bytes, nextState)
+            __pullNextEvent(rest, nextState)
         else
           // Regular line; append and keep reading.
           let nextState =
@@ -839,7 +842,7 @@ module Sse =
                 currentLines = List.append(state.currentLines, line)
                 currentLine = [] }
 
-          __pullNextEvent(bytes, nextState)
+          __pullNextEvent(rest, nextState)
       else
         let nextState =
           ParseState
@@ -847,7 +850,7 @@ module Sse =
               currentLines = state.currentLines
               currentLine = List.append(state.currentLine, b) }
 
-        __pullNextEvent(bytes, nextState)
+        __pullNextEvent(rest, nextState)
 
 
   /// Parse an SSE byte stream into a stream of Events. Lazy: events
@@ -855,4 +858,6 @@ module Sse =
   /// so a slow LLM response surfaces tokens as they're produced.
   let parse(bytes: Stream<UInt8>): Stream<Event> =
     let initial = ParseState { lastId = "", currentLines = [], currentLine = [] }
-    Stream.unfold<ParseState, Event>(initial, fun state -> __pullNextEvent(bytes, state))
+    Stream.unfold<(Stream<UInt8> * ParseState), Event>((bytes, initial), fun s ->
+      let (rest, state) = s
+      __pullNextEvent(rest, state))
