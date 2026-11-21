@@ -2989,6 +2989,25 @@ Builtin.testGateWait(73)"""
   }
 
 
+let private outOfStackIsARuntimeError =
+  testTask "running out of stack in a process is the out-of-stack error" {
+    let state = executionStateFor pmPT false
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! (p : Scheduler.Process) =
+      spawn
+        s
+        state
+        """let a =
+  Stdlib.List.fold(Stdlib.List.range(1, 100000), Stdlib.AltJson.Json.Null, fun (acc, _) ->
+    Stdlib.AltJson.Json.Array([ acc ]))
+a == a"""
+    match! runOnThread s p with
+    | Error(RTE.UncaughtException(msg, []), _) ->
+      Expect.equal msg LibExecution.Execution.outOfStackMessage "the message"
+    | other -> failtest $"expected the out-of-stack error, got {other}"
+  }
+
+
 let private capsEndARunaway =
   testTask
     "a process over exec.maxInstructions ends with the reason; ps shows what it ran" {
@@ -3496,6 +3515,7 @@ let tests =
         killCascadesHard
         killMidSliceThenPark
         killedParentPassesItsReason
+        outOfStackIsARuntimeError
         capsEndARunaway
         byteCapEndsARunaway
         cancelCascadesSoftly
