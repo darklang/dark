@@ -63,6 +63,17 @@ type Status =
   | Done of RT.Dval
   | Failed of RTE.Error * RT.CallStack
 
+/// Why a process was stopped, read at its next step.
+type Stop =
+  {
+    reason : string
+    /// A `Kill` (abandon what it waits on) rather than a `Cancel`.
+    hard : bool
+    /// Asked for (`Kill`, `Cancel`, a parent's end) rather than a cap crossed. Its children are
+    /// then stopped with the same reason when it finishes.
+    asked : bool
+  }
+
 /// The mutable fields are the scheduler's per-process bookkeeping, written every slice on the
 /// hot path; a fresh record per slice would allocate on every yield.
 type Process =
@@ -84,14 +95,9 @@ type Process =
     mutable instructionsTaken : int64
     /// Bytes this process allocated on its scheduler's thread, summed over its slices.
     mutable allocated : int64
-    /// Why the process was asked to stop (`Kill`), or null; the next step finishes it with
-    /// this message instead of running it.
-    mutable stopReason : string
-    /// True when the stop was a `Kill` (abandon what it waits on) rather than a `Cancel`.
-    mutable stopHard : bool
-    /// True when `stopReason` was asked for (`Kill`, `Cancel`, a parent's end) rather than set
-    /// by a cap. Its children are then stopped with the same reason when it finishes.
-    mutable stopAsked : bool
+    /// Set when the process is to stop; the next step finishes it with the reason instead of
+    /// running it.
+    mutable stop : Option<Stop>
     /// Completes when the process finishes, for F# callers (`Await`).
     completion : TaskCompletionSource<RT.ExecutionResult>
     /// False for a process an F# host spawned and awaits itself: no Dark handle to it exists,
@@ -442,9 +448,7 @@ type Scheduler(quantum : int64) =
         slices = 0L
         instructionsTaken = 0L
         allocated = 0L
-        stopReason = null
-        stopHard = false
-        stopAsked = false
+        stop = None
         completion =
           TaskCompletionSource<RT.ExecutionResult>(
             TaskCreationOptions.RunContinuationsAsynchronously
@@ -941,11 +945,10 @@ type Scheduler(quantum : int64) =
     // which can finish here before `StopProcess` gets to its children, and they were killed
     // from ps as much as it was. A cap is the parent's alone, so not that one.
     if childCounts.ContainsKey p.id then
-      let reason =
-        match p.stopReason with
-        | asked when p.stopAsked && not (isNull asked) -> asked
-        | _ -> "its parent finished"
-      this.StopChildrenOf(p.id, reason, p.stopHard)
+      match p.stop with
+      | Some({ asked = true } as stop) ->
+        this.StopChildrenOf(p.id, stop.reason, stop.hard)
+      | _ -> this.StopChildrenOf(p.id, "its parent finished", false)
 
   member private this.Fail(p : Process, ex : exn) : unit =
     match ex with
@@ -1020,16 +1023,17 @@ type Scheduler(quantum : int64) =
         [ "thread", Thread.CurrentThread.ManagedThreadId; "scheduler", thread ]
     // A stop asked for (`Cancel`, `Kill`) or a cap crossed: the process ends here with the
     // reason, before its slice.
-    if isNull p.stopReason then p.stopReason <- overCap p
-    if not (isNull p.stopReason) then
+    if p.stop.IsNone then
+      match overCap p with
+      | null -> ()
+      | reason -> p.stop <- Some { reason = reason; hard = false; asked = false }
+    match p.stop with
+    | Some stop ->
       this.Finish(
         p,
-        Error(
-          RTE.UncaughtException(p.stopReason, []),
-          Execution.callStackFromVM p.vm
-        )
+        Error(RTE.UncaughtException(stop.reason, []), Execution.callStackFromVM p.vm)
       )
-    else
+    | None ->
       currentProcess.Value <- Some p
       try
         try
@@ -1076,11 +1080,11 @@ type Scheduler(quantum : int64) =
               // the end: one long builtin call is a single instruction, so a cancel can land
               // while it runs and find nothing left to stop. Reporting `Ok` would say the cancel
               // never happened.
-              if isNull p.stopReason then
-                this.Finish(p, Ok dv)
-              else
+              match p.stop with
+              | None -> this.Finish(p, Ok dv)
+              | Some stop ->
                 // No stack: the run has returned from every frame.
-                this.Finish(p, Error(RTE.UncaughtException(p.stopReason, []), []))
+                this.Finish(p, Error(RTE.UncaughtException(stop.reason, []), []))
             | Interpreter.StepBudget ->
               p.status <- Runnable
               lock sync (fun () -> runnable.Enqueue p)
@@ -1106,7 +1110,7 @@ type Scheduler(quantum : int64) =
                 // of the two sees the other.
                 lock sync (fun () ->
                   p.status <- Parked parkedOn
-                  if not (isNull p.stopReason) then this.CutWaits p)
+                  if p.stop.IsSome then this.CutWaits p)
                 wait.ContinueWith(
                   (fun (_ : Task) -> queue.Post(HE.HostEvent.Completed p.id)),
                   TaskContinuationOptions.ExecuteSynchronously
@@ -1260,7 +1264,7 @@ type Scheduler(quantum : int64) =
         processes.Values
         |> Seq.filter (fun c ->
           c.parent = Some pid
-          && isNull c.stopReason
+          && c.stop.IsNone
           && (match c.status with
               | Done _
               | Failed _ -> false
@@ -1281,9 +1285,7 @@ type Scheduler(quantum : int64) =
     match lock sync (fun () -> processes.TryGetValue pid) with
     | true, p ->
       lock sync (fun () ->
-        p.stopAsked <- true
-        p.stopReason <- reason
-        p.stopHard <- hard
+        p.stop <- Some { reason = reason; hard = hard; asked = true }
         this.CutWaits p)
       true
     | false, _ -> false
@@ -1297,7 +1299,8 @@ type Scheduler(quantum : int64) =
       this.Drop sub |> ignore<bool>
       sub.wake.TrySetCanceled() |> ignore<bool>
     match p.status with
-    | Parked _ when p.stopHard -> queue.Post(HE.HostEvent.Completed p.id)
+    | Parked _ when p.stop |> Option.exists (fun s -> s.hard) ->
+      queue.Post(HE.HostEvent.Completed p.id)
     | _ -> ()
 
   /// Every process the group knows, as copies.
