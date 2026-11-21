@@ -2766,6 +2766,26 @@ module VMReuse =
 
   let tests = testList "VM reuse" [ rootFrameStartsClean ]
 
+module ErrorText =
+  let private printerFails =
+    testTask "an error the error printer cannot print falls back to its raw form" {
+      let state = executionStateFor pmPT false
+      let printing =
+        LibExecution.Execution.rteToString
+          (fun _ -> RT.DInt64 1L)
+          state
+          (RTE.UncaughtException("boom", []))
+      let! first =
+        System.Threading.Tasks.Task.WhenAny(
+          printing :> System.Threading.Tasks.Task,
+          System.Threading.Tasks.Task.Delay(System.TimeSpan.FromSeconds 30.)
+        )
+      Expect.isTrue (obj.ReferenceEquals(first, printing)) "it finishes"
+      Expect.stringContains printing.Result "pretty-print failed" "the fallback"
+    }
+
+  let tests = testList "error text" [ printerFails ]
+
 
 let tests =
   testList
@@ -2788,4 +2808,5 @@ let tests =
       DebugText.tests
       IntOperators.tests
       NumOperators.tests
-      VMReuse.tests ]
+      VMReuse.tests
+      ErrorText.tests ]
