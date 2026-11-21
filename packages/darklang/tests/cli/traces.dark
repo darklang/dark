@@ -339,17 +339,19 @@ test pinRoundTrips = withTraces(fun i ->
 test rerunEvaluatesTheRecordedInputAgain = withTraces(fun i ->
   let ran = step(i, [ "eval", "1 + 2" ])
   let id = latestId(i)
-  let out = Instance.said(i, [ "traces", "rerun", id ])
+  let (code, out, err) =
+    match Instance.run(i, [ "traces", "rerun", id ]) with
+    | Ok(o) ->
+      (o.exitCode, Stdlib.String.trim(o.stdout), Stdlib.String.trim(o.stderr))
+    | Error(e) -> (-1, "", e)
+
   Stdlib.Test.all(
     [ ran
-      Instance.says(
-        out,
-        $"rerunning {short(id)}: 1 + 2",
-        "the header previews the saved source")
-
-      Instance.says(out, "3", "the result")
-
-      Instance.says(out, "rerun complete", "the completion line")
+      Instance.exitedWith(code, 0, "the rerun")
+      out |> Stdlib.Test.equal("3")
+      err
+      |> Stdlib.Test.equal(
+        $"rerunning {short(id)}: 1 + 2\n\n\nrerun complete; it was kept as a trace of its own (`dark traces` lists it)")
       // A rerun is a trace of its own.
       Stdlib.List.length(listed(i, 10)) |> Stdlib.Test.equal(2) ]))
 
@@ -526,10 +528,10 @@ test recordingIsOneKeyWithTwoDoors = Instance.withInstance(fun i ->
         "a word that is neither on nor off is refused")
 
       on
-      Instance.says(storedOn, "on", "`traces record on` writes the stored key")
+      Stdlib.String.trim(storedOn) |> Stdlib.Test.equal("trace.record = on")
       Instance.says(shownOn, "recording: on", "and reading it back says so")
       off
-      Instance.says(storedOff, "off", "`config set` writes the same key")
+      Stdlib.String.trim(storedOff) |> Stdlib.Test.equal("trace.record = off")
 
       Instance.says(shownOff, "recording: off", "and `traces record` reads it")
 
