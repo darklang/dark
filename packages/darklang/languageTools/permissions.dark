@@ -136,6 +136,41 @@ type TokenMode =
   | EscapedDouble
 
 
+/// Split policy text at bare semicolons, preserving the syntax of each rule for tokens().
+let splitRuleSpecs(text: String): List<String> =
+  let finish(current: List<Char>, specs: List<String>): List<String> =
+    let spec = current |> Stdlib.List.reverse |> Stdlib.String.fromList |> Stdlib.String.trim
+    if spec == "" then specs else Stdlib.List.prepend(specs, spec)
+
+  let walk(
+    remaining: List<Char>,
+    mode: TokenMode,
+    current: List<Char>,
+    specs: List<String>)
+    : List<String> =
+    match remaining with
+    | [] -> Stdlib.List.reverse(finish(current, specs))
+    | [c, ...rest] ->
+      match mode, Stdlib.display(c) with
+      | Bare, ";" -> walk(rest, TokenMode.Bare, [], finish(current, specs))
+      | mode, charText ->
+        let next =
+          match mode, charText with
+          | Bare, "'" -> TokenMode.SingleQuoted
+          | SingleQuoted, "'" -> TokenMode.Bare
+          | Bare, "\"" -> TokenMode.DoubleQuoted
+          | DoubleQuoted, "\"" -> TokenMode.Bare
+          | Bare, "\\" -> TokenMode.EscapedBare
+          | DoubleQuoted, "\\" -> TokenMode.EscapedDouble
+          | EscapedBare, _ -> TokenMode.Bare
+          | EscapedDouble, _ -> TokenMode.DoubleQuoted
+          | _ -> mode
+
+        walk(rest, next, Stdlib.List.prepend(current, c), specs)
+
+  walk(Stdlib.String.toList(text), TokenMode.Bare, [], [])
+
+
 /// Every effect with its source case name and its rule name, in the F#
 /// `Effects.all` order. The rule name is what `permissions allow` and
 /// denial messages use.

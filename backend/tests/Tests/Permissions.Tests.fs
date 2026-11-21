@@ -776,8 +776,10 @@ let private serveFollowsApprovalsAndPolicy (flags : List<string>) =
      + " uses an approval or a policy change from the next request")
     (fun i ->
       task {
-        // An environment read, which is one host operation: the server's HOME is the instance's.
-        let home = System.IO.Path.GetDirectoryName i.dir
+        let note = System.IO.Path.Combine(i.dir, "someone's notes;draft.json")
+        let contents = "from the file"
+        System.IO.File.WriteAllText(note, contents)
+        let rule = $"file read \"{note}\""
         let author (name : string) (body : string) =
           task {
             let! (out, code) = CliInstance.runWithExit i [ "fn"; name; body ]
@@ -786,7 +788,7 @@ let private serveFollowsApprovalsAndPolicy (flags : List<string>) =
         do!
           author
             "Tests.Follow.load"
-            "(): String = Stdlib.Option.withDefault(Stdlib.Env.get(\"HOME\"), \"unset\")"
+            $"(): String = Stdlib.Result.withDefault(Stdlib.Cli.FileSystem.readFileAsString(\"{note}\"), \"unreadable\")"
         do!
           author
             "Tests.Follow.router"
@@ -813,33 +815,40 @@ let private serveFollowsApprovalsAndPolicy (flags : List<string>) =
             $"neither the approval nor the read is allowed yet:\n{body}"
           Expect.stringContains body "permission denied" "and the handler says why"
           Expect.stringContains body "the access of" "missing entry approval"
+          let diagnostic =
+            if List.contains "--live" flags then
+              match
+                body.Split([| "<pre>"; "</pre>" |], System.StringSplitOptions.None)
+              with
+              | [| _; text; _ |] -> System.Net.WebUtility.HtmlDecode text
+              | _ ->
+                failtest $"expected a live error page with a diagnostic:\n{body}"
+            else
+              body
+          let approvalArgs =
+            match
+              readSuggestedCommandArguments "  dark permissions approve " diagnostic
+            with
+            | Some args -> "permissions" :: "approve" :: shellWords args
+            | None -> failtest $"the denial suggests no approval command:\n{body}"
 
           // Approving a dependency cannot give the router additional access.
           let! _ =
             CliInstance.run
               i
-              [ "permissions"
-                "approve"
-                "Tests.Follow.load"
-                "env read HOME"
-                "--yes" ]
+              [ "permissions"; "approve"; "Tests.Follow.load"; rule; "--yes" ]
           let! (status, _) = getWhenUp port
           Expect.equal status 500 "a helper's approval cannot widen its caller"
 
-          let! (approved, code) =
-            CliInstance.runWithExit
-              i
-              [ "permissions"
-                "approve"
-                "Tests.Follow.router"
-                "env read HOME"
-                "--yes" ]
+          let! (approved, code) = CliInstance.runWithExit i approvalArgs
           Expect.equal code 0L $"approved:\n{approved}"
           let! (status, body) = getWhenUp port
-          Expect.equal (status, body) (200, home) "entry approval supplies access"
+          Expect.equal
+            (status, body)
+            (200, contents)
+            "entry approval supplies access"
 
-          let! _ =
-            CliInstance.run i [ "permissions"; "deny"; "env"; "read"; "HOME" ]
+          let! _ = CliInstance.run i [ "permissions"; "deny"; rule ]
           let! (status, body) = getWhenUp port
           Expect.equal status 500 "a new explicit deny reaches the running server"
           Expect.stringContains body "explicitly denied" "the deny wins"

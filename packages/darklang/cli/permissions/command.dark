@@ -453,9 +453,7 @@ let editPolicy(
 /// One rule, or several separated by `;` like `set`. Error is the first rule that did not parse.
 let parseRuleList(args: List<String>): Result<List<LanguageTools.Permissions.Rule>, String> =
   if Stdlib.List.any(args, fun arg -> Stdlib.String.contains(arg, ";")) then
-    Stdlib.String.split(Stdlib.String.join(args, " "), ";")
-    |> Stdlib.List.map(Stdlib.String.trim)
-    |> Stdlib.List.filter(fun spec -> spec != "")
+    LanguageTools.Permissions.splitRuleSpecs(Stdlib.String.join(args, " "))
     |> Stdlib.List.fold(Result.Ok([]), fun(result, spec) ->
       match result with
       | Error(bad) -> Result.Error(bad)
@@ -494,9 +492,7 @@ let editRules(
 /// `set a; deny b; c` replaces the whole policy.
 let replacePolicy(specs: List<String>): Result<LanguageTools.Permissions.Policy, String> =
   let specs =
-    Stdlib.String.split(Stdlib.String.join(specs, " "), ";")
-    |> Stdlib.List.map(Stdlib.String.trim)
-    |> Stdlib.List.filter(fun spec -> spec != "")
+    LanguageTools.Permissions.splitRuleSpecs(Stdlib.String.join(specs, " "))
 
   match LanguageTools.Permissions.parse(specs) with
   | Ok(policy) -> Result.Ok(policy)
