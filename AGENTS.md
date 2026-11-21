@@ -36,26 +36,22 @@ from the clone's root. In-container paths: `/home/dark/app` is the clone.
     scripts/testing/gates <name>          one gate (first-day, package-tests, workbench-scm, ...)
     scripts/testing/gates all             every gate at once, against the Debug CLI
 
-What CI runs, on `darklang/dark`. Locally, run what your change touches before the push that
-opens or updates a PR:
+Before the push that opens or updates a PR, run what CI runs. CI's `build` job is in
+`.circleci/continue.yml`; its quick checks (lint, `format check`, the small linters, the CI
+scripts' tests) are `.circleci/quick-checks`.
 
-    build    scripts/linting/shellchecker
-             scripts/formatting/format check        fix with `format format`, then build again
-             scripts/testing/test-build-planning.py
-             scripts/dev/build --optimize
-             scripts/build/build-release-cli-exes.sh
-             ./scripts/run-fsharp-tests --published --split
-             scripts/testing/gates first-day $(ls clis/darklang-*-linux-x64)
-             CLI=$(ls clis/darklang-*-linux-x64) scripts/testing/gates ci --parallel
-             CLI=$(ls clis/darklang-*-linux-x64) scripts/testing/gates package-tests
+    scripts/dev/pre-push                  the checks behind most red PRs, a few minutes
+    scripts/dev/pre-push --full           CI's build job as closely as the container gets, 30m+
+    scripts/formatting/format check       fix with `format format`, then build again
 
-Is a pushed commit green? Ask `darklang/dark`, even for a branch pushed to a fork; nothing runs on
-the fork, so asking it answers `pending` forever:
+Is a pushed commit green? CI runs on `darklang/dark`, never on the fork, whichever remote you
+pushed to. A change to prose alone skips the build.
 
-    curl -s https://api.github.com/repos/darklang/dark/commits/<sha>/status   # state + one row per job
+    scripts/dev/ci-status                 this clone's HEAD; also takes a PR number, branch or sha
+    scripts/dev/ci-status --wait <pr>     block until every job is done
 
 `ci/circleci: ok-to-deploy` passes only when `build` did. On main the release-matrix jobs can report
-there too, so read the rows, not just the overall `state`.
+there too, so read the rows, not just the overall state.
 
 The traps that cost the most, one line each. The stories are in `docs/agent-traps.md`.
 
@@ -63,7 +59,7 @@ The traps that cost the most, one line each. The stories are in `docs/agent-trap
   changed; run `./scripts/run-fsharp-tests --published` and read its `EXPECTO!` line AND exit code.
 - `run-fsharp-tests` does not compile. Build first, or the `.fs` change is not in the run.
 - A test run that returns in 0s is a held lock, not a pass. Never wrap the runner in a host
-  `timeout`; stop a run by pid inside the container.
+  `timeout`: use `scripts/dev/exec --timeout <s>`, and `scripts/dev/stop-tests` to stop a run.
 - Wait on `scripts/dev/status`, never on `ps`/`pgrep`, and never send a build's output to
   `/dev/null` or through `| tail`: the refusal disappears and the exit code with it.
 - `--optimize` builds Release INSTEAD of Debug, and the gates default to Debug: pass them `CLI=`.
@@ -184,6 +180,10 @@ know is stale; `docs/agent-traps.md` says when you need it.
 Find what you want before guessing at a filter: `--groups` and `--find` need no
 database and no package reload, and print the exact command for what they found.
 
+The whole-suite runs (`run-tests`, an unfiltered `run-fsharp-tests`, `gates ci`, `gates all`,
+`gates package-tests`) first wait for a test slot shared by every clone on the machine.
+`DARK_SUITE_SLOTS` sets how many; `docs/unittests.md` has the rest.
+
 Run the WHOLE suite published. Debug compiles F# with optimisations off, and the interpreter
 the suite spends its time in is F#, so the suite takes several times longer in Debug than the
 extra build costs. `--optimize` builds Release INSTEAD of Debug, so `run-cli` will say the debug
@@ -272,7 +272,7 @@ caller anywhere in the repo. So give each builtin exactly one Dark wrapper -- a 
 or CLI fn that names it, types it and documents it -- and route callers through the
 wrapper. The wrapper is where the raw builtin's `List<'a>` becomes `List<TraceSummary>`.
 The allowlists in `backend/tests/Tests/Builtin.Tests.fs` are for cases that genuinely
-can't work that way. `multiUseAllowlist` is empty and `unusedAllowlist` has one entry;
+can't work that way. `multiUseAllowlist` is empty and `unusedAllowlist` is short;
 before adding to either, check whether a wrapper already exists that the new caller has
 simply not been pointed at, which is what a second `Builtin.x` reference usually means.
 
@@ -315,12 +315,17 @@ test fails on a new one.
     docs/agent-testing.md    sweeping the CLI, interactive testing, servers in tests, CI's
                              terminal, tests for code moved into Dark, debugging, performance
     docs/internals.md        the schema, SCM and branches, traits, measuring text
-    docs/unittests.md        running and filtering both test suites
+    docs/unittests.md        running and filtering both test suites, the test slot
+    docs/package-tests.md    how Dark package tests are found, run and judged
+    docs/effects.md          effects, approvals and the permission checks
+    docs/errors.md           which F# error mechanism to use where
+    docs/release.md          cutting a release
+    CODING-GUIDE.md          naming and layout rules for F#
     docs/processes.md        the scheduler: processes, the loop, `Exec.spawn`, executions, `dark ps`
     docs/live.md             live programming: the host loop, `serve` following edits, live values
     docs/perf/playbook.md    how to do perf work here. Read it before starting
 
-`dark docs processes` and `dark docs live` are the short forms of those two.
+`dark docs processes` and `dark docs live` are the short forms of `processes.md` and `live.md`.
 
 ## Keep this file honest
 
