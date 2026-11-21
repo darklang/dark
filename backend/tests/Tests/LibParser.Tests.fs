@@ -820,25 +820,25 @@ let private callSyntaxTests =
       testCase "arguments after a space are an error with a hint" (fun _ ->
         Expect.equal
           (hint "Stdlib.String.length s")
-          [ "write `length(a)` rather than `length a`" ]
-          "the old form names the new one"
+          [ "write `Stdlib.String.length(s)` rather than `Stdlib.String.length s`" ]
+          "the old form names the new one, with what was written"
         Expect.equal
           (hint "f 1 2")
-          [ "write `f(a, b)` rather than `f a b`" ]
+          [ "write `f(1, 2)` rather than `f 1 2`" ]
           "with as many arguments as were written")
       testCase "a constructor's fields go in parentheses" (fun _ ->
         Expect.equal
           (hint "Ok 5")
-          [ "write `Ok(a)` rather than `Ok a`" ]
+          [ "write `Ok(5)` rather than `Ok 5`" ]
           "the old form names the new one"
         Expect.equal
           (hint "Stdlib.Result.Result.Error 1")
-          [ "write `Error(a)` rather than `Error a`" ]
+          [ "write `Error(1)` rather than `Error 1`" ]
           "qualified too")
       testCase "a constructor pattern's fields go in parentheses" (fun _ ->
         Expect.equal
           (hint "match x with | Ok v -> v | _ -> 0")
-          [ "write `Ok(a)` rather than `Ok a`" ]
+          [ "write `Ok(v)` rather than `Ok v`" ]
           "the old form names the new one"
         Expect.equal
           (hint "match x with | Pair a b -> a | _ -> 0")
@@ -862,8 +862,8 @@ let private callSyntaxTests =
         | other -> failtest $"match: {other}")
       testCase "lambda parameters take the shape of a call's arguments" (fun _ ->
         Expect.equal
-          (hint "fun a b -> a")
-          [ "write `fun(a, b) ->` rather than `fun a b ->`; a tuple parameter is `fun((a, b)) ->`" ]
+          (hint "fun x y -> x")
+          [ "write `fun(x, y) ->` rather than `fun x y ->`; a tuple parameter is `fun((a, b)) ->`" ]
           "the old form names the new one")
       testCase
         "a function type with several arguments lists them in parentheses"
@@ -872,6 +872,18 @@ let private callSyntaxTests =
             (hint "let f(g: Int64 -> Int64 -> Int64): Int64 = 1")
             [ "write `(A, B) -> C` for a function of two arguments, or `A -> (B -> C)` for one that returns a function" ]
             "a chain is an error")
+      testCase "a one-argument Dict is one error" (fun _ ->
+        let diagnostics (src : string) =
+          (P.parse src).diagnostics |> List.map (fun d -> d.message, d.hint)
+        let one = "a Dict names its key type and its value type"
+        Expect.equal
+          (diagnostics "let f(d: Dict<Int64>): Int64 = 1")
+          [ one, Some "write `Dict<String, Int64>`" ]
+          "names the dict it meant"
+        Expect.equal
+          (diagnostics "let f(d: Dict<List<Int64>>): Int64 = 1")
+          [ one, Some "write `Dict<String, List<Int64>>`" ]
+          "a nested type closed by `>>`")
       testCase "a declaration lists its parameters once" (fun _ ->
         Expect.equal
           (hint "let add (a: Int64) (b: Int64) : Int64 = a + b")

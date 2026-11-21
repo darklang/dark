@@ -985,9 +985,35 @@ let private placeholders (count : int) : List<string> =
   let names = [ "a"; "b"; "c"; "d"; "e"; "f"; "g"; "h" ] |> List.truncate count
   if count > names.Length then names @ [ "..." ] else names
 
-/// The hint for `Ok 5` / `| Ok x`: write `Ok(a)` rather than `Ok a`.
-let private spacedFieldsHint (caseName : string) (count : int) : string =
-  let shown = placeholders count
+/// A hint's names for the items at <param ranges>: what was written, where an item is one
+/// token, and a placeholder where it is more.
+let private writtenOrPlaceholders
+  (state : ParserState)
+  (ranges : List<TokenRange>)
+  : List<string> =
+  let written (r : TokenRange) =
+    match
+      state.toks
+      |> Array.filter (fun t ->
+        t.range.start < t.range.end_
+        && t.range.start >= r.start
+        && t.range.end_ <= r.end_)
+    with
+    | [| t |] -> Some t.text
+    | _ -> None
+  placeholders (List.length ranges)
+  |> List.mapi (fun i p ->
+    match List.tryItem i ranges with
+    | Some r -> written r |> Option.defaultValue p
+    | None -> p)
+
+/// The hint for `Ok 5` / `| Ok x`: write `Ok(5)` rather than `Ok 5`.
+let private spacedFieldsHint
+  (state : ParserState)
+  (caseName : string)
+  (fields : List<TokenRange>)
+  : string =
+  let shown = writtenOrPlaceholders state fields
   let commaList = String.concat ", " shown
   let spaceList = String.concat " " shown
   $"write `{caseName}({commaList})` rather than `{caseName} {spaceList}`"
@@ -1681,7 +1707,13 @@ and parsePatternBaseInner (state : ParserState) (i : int) : WT.MatchPattern * in
               message =
                 "a constructor pattern's fields go in parentheses, separated by commas"
               related = []
-              hint = Some(spacedFieldsHint final.name (List.length fieldPatsRev)) }
+              hint =
+                Some(
+                  spacedFieldsHint
+                    state
+                    final.name
+                    (fieldPatsRev |> List.rev |> List.map WT.mpRange)
+                ) }
           endR
         | [] -> final.range
       (WT.MPEnum(
@@ -2312,7 +2344,6 @@ and private parseSpacedApp
   (k : int)
   : WT.Expr * int =
   let args = List.rev argsRev
-  let argCount = List.length args
   let endR = WT.exprRange (Seq.head argsRev)
   match callee with
   // `Ok 5` is not Dark: a constructor's fields go in parentheses, like a call's
@@ -2324,13 +2355,15 @@ and private parseSpacedApp
         range = span er endR
         message = "a constructor's fields go in parentheses, separated by commas"
         related = []
-        hint = Some(spacedFieldsHint cn argCount) }
+        hint = Some(spacedFieldsHint state cn (List.map WT.exprRange args)) }
     (WT.EEnum(span er endR, tname, (cr, cn), args, dot), k)
   | _ ->
     let calleeText =
       match callee with
       | WT.EVariable(_, name) -> name
-      | WT.EFnName(_, q) -> q.fn.name
+      | WT.EFnName(_, q) ->
+        (q.modules |> List.map (fun (m, _) -> m.name)) @ [ q.fn.name ]
+        |> String.concat "."
       | _ -> "f"
     state.diagnostics.Add
       { code = DiagnosticCode.unexpected
@@ -2339,10 +2372,7 @@ and private parseSpacedApp
         message = "arguments go in parentheses, separated by commas"
         related = []
         hint =
-          // as many placeholder names as there were arguments: `f(a)` for `f a`
-          let names =
-            [ "a"; "b"; "c"; "d"; "e"; "f"; "g"; "h" ] |> List.truncate argCount
-          let shown = if argCount > names.Length then names @ [ "..." ] else names
+          let shown = writtenOrPlaceholders state (List.map WT.exprRange args)
           let commaList = String.concat ", " shown
           let spaceList = String.concat " " shown
           Some
@@ -2897,7 +2927,13 @@ and parsePrimary (state : ParserState) (i : int) : WT.Expr * int =
     let (patsRev, k) = parseSpacedLambdaParams state patsRev k
     let patCount = List.length patsRev
     if k > firstExtra then
-      let shown = placeholders patCount
+      let shown =
+        placeholders patCount
+        |> List.mapi (fun i p ->
+          match List.tryItem i (List.rev patsRev) with
+          | Some(WT.LPVariable(_, name)) -> name
+          | Some(WT.LPWildcard _) -> "_"
+          | _ -> p)
       let commaList = String.concat ", " shown
       let spaceList = String.concat " " shown
       errFull
@@ -3648,13 +3684,33 @@ and parseAtomType (state : ParserState) (i : int) : WT.TypeReference * int =
     let kwDict = rng state i
     let openB = rng state (i + 1)
     let (key, j) = parseTypeRef state (i + 2)
-    let (commaR, j) =
+    let (key, commaR, value, j) =
       if tok state j = TComma then
-        (rng state j, j + 1)
+        let (value, j2) = parseTypeRef state (j + 1)
+        (key, rng state j, value, j2)
+      elif state.pendingGt > 0 || tok state j = TGt || tok state j = TShr then
+        // `Dict<V>`, the old one-argument form: one error, and the dict it meant.
+        let written =
+          [ for t in i + 2 .. j - 1 ->
+              let gap = t > i + 2 && (rng state t).start <> (rng state (t - 1)).end_
+              (if gap then " " else "") + txt state t ]
+          |> String.concat ""
+        // a `>>` that closed the key as well left its second `>` for this Dict
+        let written =
+          if state.pendingGt > 0 then written.TrimEnd('>') + ">" else written
+        errFull
+          state
+          DiagnosticCode.expected
+          j
+          "a Dict names its key type and its value type"
+          []
+          (Some $"write `Dict<String, {written}>`")
+        let at = zeroWidthAtEnd (rng state (j - 1))
+        (WT.TString at, at, key, j)
       else
         errExpected state j "a comma between Dict's key and value types"
-        (zeroWidthAtEnd (rng state j), j)
-    let (value, j) = parseTypeRef state j
+        let (value, j2) = parseTypeRef state j
+        (key, zeroWidthAtEnd (rng state j), value, j2)
     let (closeB, k) = expectGt state j
     (WT.TDict(span (rng state i) closeB, kwDict, openB, key, commaR, value, closeB),
      k)
