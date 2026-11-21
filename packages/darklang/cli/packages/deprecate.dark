@@ -2,15 +2,12 @@ module Darklang.Cli.Packages.Deprecate
 
 // `deprecate` marks a fn/type/value/trait/impl/test as deprecated.
 //
-// TODO (v1.5): interactive kind picker when stdin is a TTY and --kind is
-//   missing (reuse CompletionPicker).
-
 type ParsedArgs =
   { itemType: Option<String>
     target: Option<String>
-    kind: Option<String>
+    blockExecution: Bool
     replacement: Option<String>
-    message: String
+    reason: String
     autoConfirm: Bool
     dryRun: Bool
     json: Bool
@@ -19,8 +16,8 @@ type ParsedArgs =
 
 val argSpec =
   FlagParser.Spec
-    { flags = [ ("--yes", [ "-y" ]), ("--dry-run", []), ("--json", []) ]
-      valueFlags = [ ("--kind", []), ("--replacement", []), ("--message", [ "-m" ]) ] }
+    { flags = [ ("--yes", [ "-y" ]), ("--dry-run", []), ("--json", []), ("--block-execution", []) ]
+      valueFlags = [ ("--replacement", []), ("--reason", [ "-m" ]) ] }
 
 
 /// Parse `--key value` / `--flag` style args into a ParsedArgs.
@@ -30,9 +27,9 @@ let parseArgs(args: List<String>): ParsedArgs =
   ParsedArgs
     { itemType = Stdlib.List.getAt(p.positionals, 0)
       target = Stdlib.List.getAt(p.positionals, 1)
-      kind = FlagParser.getOption(p, "--kind")
+      blockExecution = FlagParser.hasFlag(p, "--block-execution")
       replacement = FlagParser.getOption(p, "--replacement")
-      message = FlagParser.getOptionOr(p, "--message", "")
+      reason = FlagParser.getOptionOr(p, "--reason", "")
       autoConfirm = FlagParser.hasFlag(p, "--yes")
       dryRun = FlagParser.hasFlag(p, "--dry-run")
       json = FlagParser.hasFlag(p, "--json")
@@ -199,31 +196,23 @@ let resolveKindAndTarget(
         + $"Say which: `dark deprecate <{kinds |> Stdlib.String.replaceAll(", ", "|")}> {first}`")
 
 
-let parseKind(
+/// Select the stored deprecation kind from the requested effect.
+let selectKind(
   itemKind: LanguageTools.ProgramTypes.ItemKind,
-  kindStr: String,
+  parsed: ParsedArgs,
   replacementRef: Option<LanguageTools.ProgramTypes.Reference>)
   : Result<LanguageTools.ProgramTypes.DeprecationKind, String> =
-  match kindStr with
-  | "superseded-by" ->
-    match replacementRef with
-    | Some(r) -> Result.Ok(LanguageTools.ProgramTypes.DeprecationKind.SupersededBy(r))
-    | None -> Result.Error("--kind superseded-by requires --replacement <location-or-hash>")
-  // Harmful is a promise the runtime can only keep for fns: the gate is a call-site check
-  // (`ExecutionState.fns.isHarmful`), so there is nowhere for a marked type or value to halt. Accepting it
-  // would report success for a safety marking that can never fire, which is worse than refusing.
-  | "harmful" ->
-    match itemKind with
-    | Fn -> Result.Ok(LanguageTools.ProgramTypes.DeprecationKind.Harmful)
-    | _ ->
-      Result.Error(
-        "--kind harmful only applies to fns: the runtime halts at a CALL, so another item kind has no point to halt at. Use --kind obsolete to take it off the shelf.")
-  | "obsolete" -> Result.Ok(LanguageTools.ProgramTypes.DeprecationKind.Obsolete)
-  | other -> Result.Error($"Unknown kind '{other}'. Expected: superseded-by, harmful, obsolete")
+  match replacementRef with
+  | Some(r) -> Result.Ok(LanguageTools.ProgramTypes.DeprecationKind.WithReplacement(r))
+  | None when parsed.blockExecution && itemKind == LanguageTools.ProgramTypes.ItemKind.Fn ->
+    Result.Ok(LanguageTools.ProgramTypes.DeprecationKind.Harmful)
+  | None when parsed.blockExecution ->
+    Result.Error("--block-execution only applies to functions.")
+  | None -> Result.Ok(LanguageTools.ProgramTypes.DeprecationKind.Deprecated)
 
 
-/// The other names holding the content `target` holds at `location`. Deprecated and deleted leave
-/// them alone; harmful marks them too, because it is about the code.
+/// Other names that hold the same content as <param target> at <param location>.
+/// An execution block applies to all of these names.
 let twinsOf(
   branchId: Uuid,
   location: LanguageTools.ProgramTypes.PackageLocation,
@@ -246,10 +235,16 @@ let twinsOf(
 
 
 /// The one line that says other names share this code: `what` is what happens to them.
+/// Whether the shared-code notice lists the other names or just counts them.
+type SharedNameDetail =
+  | ListNames
+  | CountOnly
+
+
 let sayShared(
   twins: List<LanguageTools.ProgramTypes.PackageLocation>,
   what: String,
-  listed: Bool)
+  detail: SharedNameDetail)
   : Unit =
   match twins with
   | [] -> ()
@@ -260,13 +255,13 @@ let sayShared(
     let are = if n == 1 then "is" else "are"
 
     let names =
-      if listed then
+      match detail with
+      | ListNames ->
         ": "
         + (twins
            |> Stdlib.List.map(PrettyPrinter.ProgramTypes.PackageLocation.packageLocation)
            |> Stdlib.String.join(", "))
-      else
-        ""
+      | CountOnly -> ""
 
     Stdlib.printErrorLine(
       Stdlib.Cli.UI.Colors.hint(
@@ -305,23 +300,37 @@ type DeprecateJson =
     dryRun: Bool }
 
 
+/// Print the JSON result shared by item and module deprecations.
+let printReport(state: AppState, report: DeprecateJson): AppState =
+  exitWith(state, printJson(Stdlib.Json.checkedSerialize<DeprecateJson>(report)))
+
+
+/// A confirmed deletion leaves the item available by name.
+let deletedItemMessage(name: String, kind: LanguageTools.ProgramTypes.ItemKind): String =
+  match kind with
+  | Fn -> $"Deprecated {name} (still callable)."
+  | _ -> $"Deprecated {name}. It can still be used by name."
+
+
 let execute(state: AppState, args: List<String>): AppState =
+  executeWithVerb(state, args, "deprecate")
+
+
+let executeWithVerb(state: AppState, args: List<String>, verb: String): AppState =
   let parsed = parseArgs(args)
   let branchId = state.currentBranchId
-  match parsed.itemType, parsed.kind with
+  match parsed.itemType with
   | _ when Stdlib.Bool.not(Stdlib.List.isEmpty(parsed.parseErrors)) ->
     printErr(FlagParser.parseErrorsMessage(parsed.parseErrors))
     Stdlib.printErrorLine(help(state))
     failed(state)
-  | None, _ ->
+  | None ->
     Stdlib.printLine(help(state))
     failed(state)
-  | _, None ->
-    Stdlib.printErrorLine(
-      Stdlib.Cli.UI.Colors.error("Error: Missing --kind. Use: superseded-by, harmful, or obsolete"))
-
+  | Some(_) when parsed.blockExecution && Stdlib.Option.isSome(parsed.replacement) ->
+    printErr("Use either --replacement or --block-execution.")
     failed(state)
-  | Some(first), Some(kindStr) ->
+  | Some(first) ->
     let currentLoc = state.packageData.currentLocation
     match resolveKindAndTarget(branchId, currentLoc, first, parsed.target) with
     | Error(msg) ->
@@ -333,11 +342,6 @@ let execute(state: AppState, args: List<String>): AppState =
       let target = found.target
       let location = found.location
       let targetRef = found.targetRef
-      // --replacement has three outcomes we care about:
-      //   - absent: None (only valid for non-superseded-by kinds)
-      //   - given and resolves: Some ref
-      //   - given and doesn't resolve: error out here, don't let parseKind
-      //     report "missing" (which would be misleading)
       let replacementResult =
         match parsed.replacement with
         | None -> Result.Ok(Option.None)
@@ -345,9 +349,8 @@ let execute(state: AppState, args: List<String>): AppState =
           match resolveTarget(branchId, currentLoc, itemKind, r) with
           | Some(ref) -> Result.Ok(Option.Some(ref))
           | None ->
-            // A replacement is resolved AS the kind being deprecated, so a real name of the wrong kind
-            // lands here looking exactly like a typo. It is not the same mistake and should not read
-            // like one: say which kind it actually is, and why that cannot be a replacement.
+            // Check other item kinds so the error can distinguish a kind mismatch
+            // from an unknown name.
             let otherKind =
               allItemKinds
               |> Stdlib.List.filter(fun pair ->
@@ -359,7 +362,8 @@ let execute(state: AppState, args: List<String>): AppState =
             | Some(found) ->
               let (_, foundName) = found
               Result.Error(
-                $"{r} is a {foundName}, but you are deprecating a {itemTypeStr}. \"Use this instead\" has to point at something that can stand in its place; use --kind obsolete to retire it with no replacement.")
+                $"{r} is a {foundName}, but you are deprecating a {itemTypeStr}. "
+                + "Choose a replacement of the same kind, or omit --replacement.")
             | None -> Result.Error($"Could not resolve --replacement {itemTypeStr} {r}")
 
       match replacementResult with
@@ -367,7 +371,7 @@ let execute(state: AppState, args: List<String>): AppState =
         printErr(msg)
         failed(state)
       | Ok(replacementRef) ->
-        match parseKind(itemKind, kindStr, replacementRef) with
+        match selectKind(itemKind, parsed, replacementRef) with
         | Error(msg) ->
           printErr(msg)
           failed(state)
@@ -379,52 +383,63 @@ let execute(state: AppState, args: List<String>): AppState =
 
           let fullPath = fullPathOf(target)
 
-          // Harmful is about the code, so it marks every name holding it; the rest are by name.
+          // The execution block follows the content across all names that hold it.
           let twins = twinsOf(branchId, location, targetRef)
           let harmful =
             match deprecationKind with
             | Harmful -> true
             | _ -> false
 
+          let kindStr =
+            match deprecationKind with
+            | Deprecated -> "deprecated"
+            | WithReplacement(_) -> "replacement"
+            | Harmful -> "harmful"
+
           let marked = if harmful then Stdlib.List.prepend(twins, location) else [ location ]
           let report = fun dryRun ->
-            printJson(
-              Stdlib.Json.checkedSerialize<DeprecateJson>(
-                DeprecateJson
-                  { deprecated = fullPath
-                    itemType = itemTypeStr
-                    kind = kindStr
-                    replacement =
-                      parsed.replacement
-                      |> Stdlib.Option.map(fullPathOf)
-                      |> Stdlib.Option.withDefault("")
-                    message = parsed.message
-                    names =
-                      marked
-                      |> Stdlib.List.map(PrettyPrinter.ProgramTypes.PackageLocation.packageLocation)
-                    dryRun = dryRun }))
+            printReport(
+              state,
+              DeprecateJson
+                { deprecated = fullPath
+                  itemType = itemTypeStr
+                  kind = kindStr
+                  replacement =
+                    parsed.replacement
+                    |> Stdlib.Option.map(fullPathOf)
+                    |> Stdlib.Option.withDefault("")
+                  message = parsed.reason
+                  names =
+                    marked |> Stdlib.List.map(PrettyPrinter.ProgramTypes.PackageLocation.packageLocation)
+                  dryRun = dryRun })
 
           // Under --dry-run the preview is the answer, so it goes to stdout. Otherwise it is what the
           // prompt asks about, and goes to stderr with the prompt, so a refusal leaves stdout empty.
           let preview = fun line ->
             if parsed.dryRun then Stdlib.printLine(line) else Stdlib.printErrorLine(line)
 
-          if Stdlib.Bool.not(parsed.json) then
-            preview($"  Will deprecate {itemTypeStr} {fullPath}")
-            preview($"    kind: {kindStr}")
-            if parsed.message != "" then preview($"    message: {parsed.message}")
-            match parsed.replacement with
-            | Some(r) -> preview($"    replacement: {r}")
-            | None -> ()
+          let showPreview =
+            Stdlib.Bool.not(parsed.json)
+            && (verb != "delete" || parsed.dryRun || Stdlib.Bool.not(parsed.autoConfirm))
+
+          if showPreview then
+            let action = if parsed.dryRun then "Would deprecate" else "Will deprecate"
+            preview($"  {action} {itemTypeStr} {fullPath}")
+            match deprecationKind, parsed.replacement with
+            | WithReplacement(_), Some(r) -> preview($"    Use {fullPathOf(r)} instead.")
+            | Harmful, _ -> preview("    Calls will fail unless --allow-harmful is set.")
+            | _ -> preview("    Deprecated items can still be used by name.")
+
+            if parsed.reason != "" then preview($"    reason: {parsed.reason}")
 
           if harmful then
-            sayShared(twins, "also marked harmful", true)
+            sayShared(twins, "also marked harmful", SharedNameDetail.ListNames)
           else
-            sayShared(twins, "unaffected", false)
+            sayShared(twins, "unaffected", SharedNameDetail.CountOnly)
 
           if parsed.dryRun || parsed.json && Stdlib.Bool.not(parsed.autoConfirm) then
             if parsed.json then
-              exitWith(state, report(true))
+              report(true)
             else
               Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint("(dry-run, no op emitted)"))
               state
@@ -442,7 +457,7 @@ let execute(state: AppState, args: List<String>): AppState =
                     l,
                     targetRef,
                     deprecationKind,
-                    parsed.message,
+                    parsed.reason,
                     Option.None))
 
               match SCM.PackageOps.add(branchId, ops) with
@@ -459,10 +474,15 @@ let execute(state: AppState, args: List<String>): AppState =
                         itemKind) with
                 | Some(_) ->
                   if parsed.json then
-                    exitWith(state, report(false))
+                    report(false)
                   else
-                    Stdlib.printLine(
-                      Stdlib.Cli.UI.Colors.success($"Deprecated {itemTypeStr} {fullPath}"))
+                    let message =
+                      if verb == "delete" && parsed.autoConfirm then
+                        deletedItemMessage(fullPath, itemKind)
+                      else
+                        $"Deprecated {itemTypeStr} {fullPath}"
+
+                    Stdlib.printLine(Stdlib.Cli.UI.Colors.success(message))
 
                     state
                 | None ->
@@ -477,7 +497,6 @@ let execute(state: AppState, args: List<String>): AppState =
               if Stdlib.Cli.UI.Prompt.canAsk() then
                 Stderr.line("Deprecation cancelled.")
               else
-                let verb = if kindStr == "obsolete" then "delete" else "deprecate"
                 printErr($"no terminal to confirm at; add --yes to {verb} {fullPath}")
 
               failed(state)
@@ -582,7 +601,7 @@ let executeUndeprecate(state: AppState, args: List<String>): AppState =
           |> Stdlib.List.map(fun l ->
             LanguageTools.ProgramTypes.PackageOp.Undeprecate(l, targetRef, Option.None))
 
-        sayShared(harmfulTwins, "no longer harmful", true)
+        sayShared(harmfulTwins, "no longer harmful", SharedNameDetail.ListNames)
         match SCM.PackageOps.add(branchId, ops) with
         | Ok(_) ->
           match standing() with
@@ -615,50 +634,68 @@ let undeprecateHelp(_state: AppState): String =
     "  Undeprecate op in the current draft, so `dark commit` ships it."
     ""
     "Related:"
-    "  deprecate -- mark an item superseded, harmful or obsolete" ]
+    "  deprecate -- mark an item as deprecated" ]
   |> Stdlib.String.join("\n")
 
 
 let help(_state: AppState): String =
   [ "Mark a function, type, value, trait, implementation or test as deprecated."
     ""
-    "Usage: deprecate [<fn|type|value|trait|impl|test>] <name-or-hash> --kind <k> [options]"
+    "Usage: deprecate [<fn|type|value|trait|impl|test>] <name> [options]"
     ""
-    "  The kind is optional: `deprecate Acme.Point.Show --kind obsolete` infers it. Name it"
-    "  when one name holds two kinds, which is the only case inference refuses."
-    ""
-    "Kinds:"
-    "  superseded-by   new item exists -- use that instead (requires --replacement)"
-    "  harmful         actively dangerous -- runtime halts unless --allow-harmful (fns only)"
-    "  obsolete        don't use this anymore (catch-all)"
+    "  Specify the item type when more than one kind shares the name."
+    "  By default, deprecated items remain usable by name."
     ""
     "Options:"
-    "  --kind <k>                    One of the three kinds above"
-    "  --replacement <name-or-hash>  Replacement item (required for superseded-by)"
-    "  -m, --message <text>          Free-form reason; tooling surfaces it"
+    "  --replacement <name>           Point callers to a replacement of the same kind"
+    "  --block-execution             Reject calls unless --allow-harmful is set (functions only)"
+    "  --reason <text>, -m            Reason for deprecating the item"
     "  --yes, -y                     Skip confirmation prompt"
     "  --dry-run                     Print what would happen; emit no ops"
     "  --json                        Print the result as JSON; without --yes it is a dry run"
     ""
     "Examples:"
     "  deprecate fn Darklang.Stdlib.List.oldMap \\"
-    "    --kind superseded-by --replacement Darklang.Stdlib.List.map_ \\"
-    "    -m 'rewrite for perf' --yes"
+    "    --replacement Darklang.Stdlib.List.map_ \\"
+    "    --reason 'rewrite for perf' --yes"
     ""
     "  deprecate fn Darklang.Stdlib.Crypto.brokenHash \\"
-    "    --kind harmful -m 'CVE-2026-XXXX' --yes"
+    "    --block-execution --reason 'CVE-2026-XXXX' --yes"
     ""
-    "  deprecate fn Darklang.Legacy.oldThing --kind obsolete --yes"
+    "  deprecate fn Darklang.Legacy.oldThing --yes"
     ""
-    "  deprecate Darklang.Legacy.oldThing --kind obsolete --yes"
+    "  deprecate Darklang.Legacy.oldThing --yes"
     ""
     "Related:"
-    "  delete -- sugar for `deprecate --kind obsolete` with dependents gate"
+    "  delete -- deprecate items with a live-dependents check"
     "  undeprecate <name> -- put a deprecated item back on the shelf" ]
   |> Stdlib.String.join("\n")
 
 
-let complete(_state: AppState, args: List<String>): List<Completion.CompletionItem> =
+let completeItemTypes(args: List<String>): List<Completion.CompletionItem> =
   match args with
-  | [] -> [ "fn", "type", "value", "trait", "impl", "test" ] |> Stdlib.List.map(Completion.simple)
+  | [] -> allItemKinds |> Stdlib.List.map(fun((_, name)) -> Completion.simple(name))
   | _ -> []
+
+
+let complete(_state: AppState, args: List<String>): List<Completion.CompletionItem> =
+  let parsed = parseArgs(args)
+  let hasTarget =
+    match parsed.itemType with
+    | Some(first) ->
+      LanguageTools.ProgramTypes.ItemKind.fromString(first) == Option.None
+      || Stdlib.Option.isSome(parsed.target)
+    | None -> false
+
+  if hasTarget && parsed.parseErrors == [] then
+    let chooseEffect = Stdlib.Bool.not(parsed.blockExecution) && parsed.replacement == Option.None
+    [ (chooseEffect, "--replacement")
+      (chooseEffect, "--block-execution")
+      (parsed.reason == "", "--reason")
+      (Stdlib.Bool.not(parsed.autoConfirm), "--yes")
+      (Stdlib.Bool.not(parsed.dryRun), "--dry-run")
+      (Stdlib.Bool.not(parsed.json), "--json") ]
+    |> Stdlib.List.filterMap(fun((show, flag)) ->
+      if show then Option.Some(Completion.simple(flag)) else Option.None)
+  else
+    completeItemTypes(args)

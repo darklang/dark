@@ -1999,17 +1999,17 @@ module DeprecationKind =
   let toDT (k : PT.DeprecationKind) : Dval =
     let (caseName, fields) =
       match k with
-      | PT.SupersededBy ref -> "SupersededBy", [ Reference.toDT ref ]
+      | PT.WithReplacement ref -> "WithReplacement", [ Reference.toDT ref ]
       | PT.Harmful -> "Harmful", []
-      | PT.Obsolete -> "Obsolete", []
+      | PT.Deprecated -> "Deprecated", []
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let fromDT (d : Dval) : PT.DeprecationKind =
     match d with
-    | DEnum(_, _, [], "SupersededBy", [ ref ]) ->
-      PT.SupersededBy(Reference.fromDT ref)
+    | DEnum(_, _, [], "WithReplacement", [ ref ]) ->
+      PT.WithReplacement(Reference.fromDT ref)
     | DEnum(_, _, [], "Harmful", []) -> PT.Harmful
-    | DEnum(_, _, [], "Obsolete", []) -> PT.Obsolete
+    | DEnum(_, _, [], "Deprecated", []) -> PT.Deprecated
     | _ -> Exception.raiseInternal "Invalid DeprecationKind" []
 
 

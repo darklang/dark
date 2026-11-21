@@ -318,6 +318,41 @@ let isHiddenAtLocation(
   isHiddenAt(sets, Stdlib.List.prepend(location.modules, location.owner), location.name, hash)
 
 
+/// Look for matching declarations in a module and its descendants.
+let moduleHasMatchingItems(
+  branchId: Uuid,
+  path: List<String>,
+  matches: (List<String>, List<(String * LanguageTools.ProgramTypes.Hash)>) -> Bool)
+  : Bool =
+  let (subs, types, values, fns, traits, impls, tests) =
+    allDirectDescendantNamesAndHashes(branchId, path)
+
+  let here =
+    Stdlib.List.any([ types, values, fns, traits, impls, tests ], fun items -> matches(path, items))
+
+  here || Stdlib.List.any(subs, fun sub ->
+    moduleHasMatchingItems(branchId, Stdlib.List.append(path, sub), matches))
+
+
+/// Whether the module or one of its descendants has a visible declaration.
+let moduleHasVisibleItems(
+  branchId: Uuid,
+  path: List<String>,
+  sets: DeprecationSets,
+  deprecated: Deprecated,
+  internal: Internal)
+  : Bool =
+  moduleHasMatchingItems(branchId, path, fun(home, items) ->
+    filterHiddenPairs(home, items, sets, deprecated, internal) != [])
+
+
+/// Whether the module or one of its descendants has a declaration that is not deprecated.
+let moduleHasActiveItems(branchId: Uuid, path: List<String>, sets: DeprecationSets): Bool =
+  moduleHasMatchingItems(branchId, path, fun(home, items) ->
+    Stdlib.List.any(items, fun((name, hash)) ->
+      Stdlib.Bool.not(isDeprecatedAt(sets, home, name, hash))))
+
+
 /// A name whose last segment starts with `__` is an internal helper: callable and viewable by
 /// name, but left out of listings, search and completion unless asked for.
 let isInternalName(name: String): Bool =

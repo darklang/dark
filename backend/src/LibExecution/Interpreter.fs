@@ -4678,7 +4678,7 @@ let private tryCallKnown
       || not (
         argsFitParams callData.paramList registers newArgRegs.head newArgRegs.tail
       )
-      || (exeState.fns.isHarmful pkg && not exeState.allowHarmful)
+      || (exeState.fns.isHarmful exeState.branchId pkg && not exeState.allowHarmful)
     then
       false
     else
@@ -4882,7 +4882,7 @@ let private applyPackageFn
   // Harmful-deprecation runtime halt.
   // Checked before even fetching the fn so the error is surfaced
   // whether or not the fn definition is still available.
-  let isHarmful = exeState.fns.isHarmful pkg
+  let isHarmful = exeState.fns.isHarmful exeState.branchId pkg
   if isHarmful && not exeState.allowHarmful then
     RTE.DeprecatedItemHalted pkg |> raiseRTE
   // A forwarder whose builtin is already known needs neither the fn nor the package call

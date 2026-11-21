@@ -703,15 +703,14 @@ module Reference =
     | Test -> Reference.PackageTest(h)
 
 
-/// Why a package item has been deprecated. Author-supplied metadata on the
-/// Deprecate op; consumers decide how loud to be.
+/// What a Deprecate op tells callers to do with a package item.
 type DeprecationKind =
   /// A different item (different hash) should be used instead.
-  | SupersededBy(replacement: Reference)
+  | WithReplacement(replacement: Reference)
   /// Actively dangerous — runtime halts on invocation by default.
   | Harmful
-  /// Don't use this anymore (catch-all).
-  | Obsolete
+  /// The item remains callable and has no named replacement.
+  | Deprecated
 
 
 /// A single repoint: what propagation moved. Reported back to the caller; NOT an op.

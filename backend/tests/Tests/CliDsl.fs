@@ -80,7 +80,7 @@ let rebase (state : Target) (branch : string) : Task<unit> =
   run state [ "rebase"; branch ]
 
 let deprecate (state : Target) (name : string) : Task<unit> =
-  run state [ "deprecate"; "fn"; name; "--kind"; "obsolete"; "-y" ]
+  run state [ "deprecate"; "fn"; name; "-y" ]
 
 
 /// On main with an empty draft. An instance is made that way, so only the shared

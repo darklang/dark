@@ -227,7 +227,7 @@ module Topics =
 
       DocTopic
         { name = "deprecation"
-          description = "Mark package items as deprecated / obsolete / harmful"
+          description = "Mark package items as deprecated"
           aliases = [ "deprecate", "delete" ]
           context = "cli"
           content = Docs.Deprecation.content

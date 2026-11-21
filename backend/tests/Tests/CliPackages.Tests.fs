@@ -2028,7 +2028,7 @@ let deleteRefusesWhatIsNotThere =
         refuses
           state
           [ "delete"; "Tests.Nope.nope"; "-y" ]
-          "live item"
+          "No item or module named Tests.Nope.nope was found."
           "deleted"
           "delete says what it looked for"
     })

@@ -1370,6 +1370,26 @@ let executeQuery(state: AppState, args: List<String>): AppState =
 
         let (results, hiddenTests, hiddenHelpers) = visibleResults(rawResults)
 
+        let (visibleModules, hiddenModules) =
+          if parsed.deprecated == Query.Deprecated.Hide && parsed.entityTypes == [] then
+            Stdlib.List.partition(results.submodules, fun path ->
+              Query.moduleHasVisibleItems(
+                state.currentBranchId, path, depSets, parsed.deprecated, parsed.internal))
+          else
+            (results.submodules, [])
+
+        let hiddenDeprecatedModules =
+          Stdlib.Bool.not(parsed.asJson)
+          && Stdlib.List.any(hiddenModules, fun path ->
+            Query.moduleHasVisibleItems(
+              state.currentBranchId, path, depSets, Query.Deprecated.Show, parsed.internal))
+
+        let printHiddenModulesHint(): Unit =
+          if hiddenDeprecatedModules then
+            Stderr.line("Matching deprecated modules are hidden. Use --include-deprecated to show them.")
+
+        let results = { results with submodules = visibleModules }
+
         // `bytes to string`: the Stdlib functions by what they take and return. They
         // print in a section of their own, so they leave the name matches.
         let wantsFns =
@@ -1500,6 +1520,7 @@ let executeQuery(state: AppState, args: List<String>): AppState =
                   submodules = Stdlib.List.take(results.submodules, resultCap) }))
         else if totalResults == 0 then
           Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText($"No results found for: {queryText}"))
+          printHiddenModulesHint()
           operatorHint(state.currentBranchId, rawQueryText)
           hiddenTestsHint(hiddenTests)
           hiddenHelpersHint(hiddenHelpers)
@@ -1510,6 +1531,8 @@ let executeQuery(state: AppState, args: List<String>): AppState =
         else
           if parsed.mode == DisplayMode.Detailed then
             Stdlib.printLine(Stdlib.Cli.UI.Colors.boldText($"Search results for: {queryText}"))
+
+          printHiddenModulesHint()
           match aliasKeyword with
           | Some(kw) ->
             Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint($"  ({rawQueryText} is {kw})"))
@@ -1550,12 +1573,19 @@ let executeQuery(state: AppState, args: List<String>): AppState =
             Stdlib.List.flatten(
               [ results.types |> Stdlib.List.map(fun i -> i.location)
                 results.values |> Stdlib.List.map(fun i -> i.location)
-                results.fns |> Stdlib.List.map(fun i -> i.location) ])
+                results.fns |> Stdlib.List.map(fun i -> i.location)
+                results.traits |> Stdlib.List.map(fun i -> i.location)
+                results.impls |> Stdlib.List.map(fun i -> i.location)
+                results.tests |> Stdlib.List.map(fun i -> i.location) ])
 
-          if Stdlib.List.isEmpty(typed) && onlyDocMatches(ranker, named) then
-            Stdlib.printErrorLine(
-              Stdlib.Cli.UI.Colors.hint(
-                $"  (no name matches `{queryText}`; these mention it in their docs)"))
+          if typed == [] && submodulesCount == 0 && named != [] && onlyDocMatches(ranker, named) then
+            let hint =
+              if hiddenDeprecatedModules then
+                $"  (the results below mention `{queryText}` in their docs)"
+              else
+                $"  (no name matches `{queryText}`; these mention it in their docs)"
+
+            Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(hint))
           else
             ()
 
@@ -1627,7 +1657,15 @@ let executeQuery(state: AppState, args: List<String>): AppState =
                 shownMods
                 |> Stdlib.List.iter(fun modulePath ->
                   let moduleStr = Stdlib.String.join(modulePath, ".")
-                  Stdlib.printLine(moduleStr))
+                  let mark =
+                    if parsed.deprecated == Query.Deprecated.Show
+                       && Stdlib.Bool.not(
+                         Query.moduleHasActiveItems(state.currentBranchId, modulePath, depSets)) then
+                      " (deprecated)"
+                    else
+                      ""
+
+                  Stdlib.printLine(moduleStr + mark))
 
                 if parsed.mode == DisplayMode.Detailed then
                   overflowNote(Stdlib.List.length(sortedMods), Stdlib.List.length(shownMods))
