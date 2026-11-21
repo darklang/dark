@@ -31,11 +31,14 @@ upload() {
   [[ -f "$site/cli.html" && -d "$site/_framework" && -f "$site/data.db.br" ]] \
     || { echo "no site at $site; publish, then make-store.sh" >&2; exit 1; }
 
-  # Stage: drop symbols, the publish's .br and stale .gz, and the raw store; gzip what is
-  # worth it; then drop the _framework originals, since nginx serves the .gz regardless.
-  local ctx; ctx="$(mktemp -d)"; trap "rm -rf '$ctx'" EXIT
+  # Stage: drop symbols, the publish's .br and stale .gz (not the store's), and the raw store,
+  # whose .br and .gz nginx serves in its place; gzip what is worth it; then drop the
+  # _framework originals, since nginx serves the .gz regardless.
+  local ctx; ctx="$(mktemp -d)"
+  # shellcheck disable=SC2064 # expanded now on purpose: ctx is local to this function
+  trap "rm -rf '$ctx'" EXIT
   cp -r "$site/." "$ctx/site/"
-  find "$ctx/site" \( -name '*.pdb' -o -name '*.gz' -o -path '*/_framework/*.br' \) -delete
+  find "$ctx/site" \( -name '*.pdb' -o \( -name '*.gz' ! -name 'data.db.gz' \) -o -path '*/_framework/*.br' \) -delete
   rm -f "$ctx/site/data.db"
   find "$ctx/site" -type f \( -name '*.wasm' -o -name '*.js' -o -name '*.json' -o -name '*.html' \
     -o -name '*.css' -o -name '*.dat' \) -size +1k -exec gzip -k -f -6 {} +

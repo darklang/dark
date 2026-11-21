@@ -6,7 +6,7 @@
 #                                       (build-wasm halts on that before the publish)
 #
 # Two things are hosted. latest/ is the newest release tag, from darklang/dark's own tag
-# pipeline. pulls/<n>/ is an open PR on darklang/dark whose head is the branch this
+# pipeline (scripts/deployment/release pushes the tag; nothing tags every merge). pulls/<n>/ is an open PR on darklang/dark whose head is the branch this
 # pipeline built. Nothing here decides who is trusted: a pipeline deploys only if its
 # CircleCI project holds PREVIEW_FLY_API_TOKEN, and CircleCI never hands project secrets
 # to a forked PR's build. See the README.
@@ -56,7 +56,7 @@ marker="<!-- dark-preview -->"
 body="$marker
 Browser CLI built from this branch, at ${sha:0:7}: $url
 
-\`cli.html?cmd=<argv>\` runs a command first, \`?fn=<name>\` lands on an item, \`eval.html?e=<expr>\` is an expression box. Nothing persists between reloads."
+\`cli.html?cmd=<argv>\` runs a command first, \`?fn=<name>\` lands on an item, \`eval.html?e=<expr>\` is an expression box. Work is kept in your browser per preview; \`?fresh\` starts over."
 existing=$(gh "https://api.github.com/repos/$REPO/issues/$pr/comments?per_page=100" \
   | jq -r --arg m "$marker" 'map(select(.body | startswith($m)))[0].id // empty')
 payload=$(jq -n --arg body "$body" '{body:$body}')
