@@ -232,6 +232,60 @@ test aBranchSubcommandWithNoArgumentsCreatesNothing = scenario(fun dark ->
       "a typo is still named as a typo") ])
 
 
+test aBareWordAfterBranchIsRefusedAndStartsNothing = scenario(fun dark ->
+  let before = Cli.Tests.Instance.said(dark, [ "branches" ])
+  [ refuses(
+      dark,
+      [ "branch", "craete" ],
+      "Did you mean `create`?",
+      "a mistyped subcommand is named as one")
+
+    says(
+      dark,
+      [ "branch", "craete" ],
+      "dark branch create craete",
+      "and says how to make a branch by that name")
+
+    refuses(
+      dark,
+      [ "branch", "status" ],
+      "does not take `status`",
+      "a word that is no subcommand is refused too")
+
+    same(
+      Cli.Tests.Instance.said(dark, [ "branches" ]),
+      before,
+      "and no branch was started")
+
+    says(dark, [ "branch" ], "on main", "nor were we moved") ])
+
+
+test branchCreateStartsABranchAndRefusesATakenName = scenario(fun dark ->
+  [ says(dark, [ "branch", "create", "list" ], "started branch \"list\"", "any name can be created")
+    same(branches(dark), [ "list <- main" ], "it is listed")
+    switch(dark, "main")
+    refuses(
+      dark,
+      [ "branch", "create", "list" ],
+      "already exists",
+      "creating it again is refused")
+
+    says(dark, [ "branch" ], "on main", "and does not switch onto it")
+    says(dark, [ "branch", "list" ], "list", "`branch list` still lists, with a branch called list")
+    refuses(
+      dark,
+      [ "branch", "fixme" ],
+      "dark branch create fixme",
+      "a new name points at create")
+
+    switch(dark, "list")
+    refuses(
+      dark,
+      [ "branch", "main" ],
+      "dark switch main",
+      "an existing name points at switch") ])
+
+
 /// The number in `status`'s "N followed", or 0 when it says none.
 let followedCount(dark: Cli.Tests.Instance.T): Int64 =
   let said = Cli.Tests.Instance.said(dark, [ "status" ])
