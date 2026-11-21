@@ -38,4 +38,11 @@
     <ProjectReference Include="Lib/Wasm.Lib.fsproj" />
   </ItemGroup>
 
+  <!-- `PackageRefs` reads the hashes from the entry assembly, as it does from the CLI's. -->
+  <ItemGroup>
+    <EmbeddedResource Include="../LibExecution/package-ref-hashes.txt">
+      <LogicalName>package-ref-hashes.txt</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
 </Project>

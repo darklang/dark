@@ -291,7 +291,8 @@ module BrowserBuiltins =
         typeParams = []
         parameters = [ Param.make "unit" TUnit "" ]
         returnType = TypeReference.result (TypeReference.option TString) TUnit
-        description = "Reads a line from the keys the page pushes in. Never Error: keys are text."
+        description =
+          "Reads a line from the keys the page pushes in. Never Error: keys are text."
         fn =
           (function
           | _, _, _, [| DUnit |] ->
@@ -446,14 +447,14 @@ module Cli =
   module Exe = LibExecution.Execution
   module PackageRefs = LibExecution.PackageRefs
 
-  /// Where the store lives in the tab's virtual filesystem. `DARK_CONFIG_RUNDIR` must be
-  /// absolute, and this is set before `LibConfig` computes its paths (`Startup.Start`).
+  /// Where the store lives in the tab's virtual filesystem. Handed to `LibConfig` before it
+  /// computes its paths (`Startup.Start`).
   let runDir = "/dark"
 
   /// Set the environment the CLI expects to find. Called first thing in `Startup.Start`, so
   /// it precedes every module initializer that reads `LibConfig`.
   let configureEnvironment () : unit =
-    Environment.SetEnvironmentVariable("DARK_CONFIG_RUNDIR", runDir)
+    LibConfig.StoreLocation.set runDir
     Environment.SetEnvironmentVariable("HOME", runDir)
     Environment.SetEnvironmentVariable("TERM", "xterm-256color")
     Environment.SetEnvironmentVariable("DARK_AUDIT", "off")
@@ -674,10 +675,8 @@ module Cli =
 
         LibDB.Sqlite.Sql.warm ()
         let pm = LibDB.PackageManager.rt
-        LibDB.Seed.growIfNeeded
-          (fun () -> builtinsLazy.Force())
-          pm
-          (fun msg -> Browser.writeToTerminal (msg + "\r\n"))
+        LibDB.Seed.growIfNeeded (fun () -> builtinsLazy.Force()) pm (fun msg ->
+          Browser.writeToTerminal (msg + "\r\n"))
         |> ignore<bool>
         // After the fold, never before: an edit the shipped store also carries has just lost its name
         // to the newer stamp, and this puts it back, as the desktop CLI does after an upgrade.
