@@ -1,0 +1,34 @@
+<!-- The F# half of the browser build: the CLI host for a tab. ../Wasm.csproj is the site and
+     holds the JS exports, which F# cannot generate. -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <AssemblyName>Darklang.Wasm.Lib</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="CatchUpStore.fs" />
+    <Compile Include="Host.fs" />
+    <Compile Include="Startup.fs" />
+  </ItemGroup>
+
+  <!-- The schema, for bringing a store the page restored from the browser's storage up to this
+       build (`Host.fs`, `upgradeRestored`). Same resource names as the CLI's
+       (`CatchUpStore.schemaFrom`). -->
+  <ItemGroup>
+    <EmbeddedResource Include="../../../migrations/schema/*.sql">
+      <LogicalName>schema/%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FSharp.Core" />
+    <ProjectReference Include="../../Prelude/Prelude.fsproj" />
+    <ProjectReference Include="../../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../../LibDB/LibDB.fsproj" />
+    <ProjectReference Include="../../Builtins/Builtins.Cli/Builtins.Cli.fsproj" />
+    <ProjectReference Include="../../Builtins/Builtins.CliHost/Builtins.CliHost.fsproj" />
+  </ItemGroup>
+
+</Project>
