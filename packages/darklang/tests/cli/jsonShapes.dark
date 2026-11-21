@@ -352,7 +352,7 @@ test aNameSavedTwiceIsStillNew = Instance.withInstance(fun i ->
 test branchListingsAreArrays =
   Instance.withInstance(fun i ->
     Stdlib.Test.all(
-      [ step(i, [ "switch", "jsonbr" ])
+      [ step(i, [ "switch", "-c", "jsonbr" ])
         step(i, [ "switch", "main" ])
         check(
           i,

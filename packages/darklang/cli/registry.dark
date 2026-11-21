@@ -197,7 +197,7 @@ module Registry =
 
   let acceptsBranches(): Accepts.Accepts = Accepts.flagsOnly([ "--all", "--json" ])
 
-  let acceptsSwitch(): Accepts.Accepts = Accepts.upTo(1, [])
+  let acceptsSwitch(): Accepts.Accepts = Accepts.upTo(1, [ "-c", "--create" ])
 
   let acceptsDiff(): Accepts.Accepts = Accepts.upTo(1, [ "--source", "--json" ])
 
