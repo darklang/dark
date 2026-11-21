@@ -240,15 +240,22 @@ let writeFrame (output : Stream) (frame : Frame) : unit =
   output.Flush()
 
 /// Read exactly <param count> bytes, or None at the end of the stream.
+/// Grows as the bytes arrive, so a header naming a frame of the largest size costs nothing until
+/// the other end actually sends that much.
 let private readExactly (input : Stream) (count : int) : Option<byte[]> =
-  let buffer = Array.zeroCreate<byte> count
-  let rec fill (at : int) =
-    if at = count then
+  use buffer = new MemoryStream()
+  let chunk = Array.zeroCreate<byte> (min count (64 * 1024))
+  let rec fill (left : int) =
+    if left = 0 then
       true
     else
-      let n = input.Read(buffer, at, count - at)
-      if n <= 0 then false else fill (at + n)
-  if fill 0 then Some buffer else None
+      let n = input.Read(chunk, 0, min left chunk.Length)
+      if n <= 0 then
+        false
+      else
+        buffer.Write(chunk, 0, n)
+        fill (left - n)
+  if fill count then Some(buffer.ToArray()) else None
 
 /// The next frame, blocking until it is whole. A truncated or unknown frame closes the session: a
 /// half-delivered bundle must never count as delivered.

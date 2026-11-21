@@ -1549,7 +1549,7 @@ let tokens =
 
 let frames =
   testTask
-    "frames say who an end is, its access and clock, and refuse what is too large" {
+    "frames say who an end is, its access and clock, and refuse what is too large or cut short" {
     let roundTrip (frame : SyncLink.Frame) =
       use stream = new System.IO.MemoryStream()
       SyncLink.writeFrame stream frame
@@ -1582,6 +1582,22 @@ let frames =
     match SyncLink.readFrame 1024 stream with
     | SyncLink.Closed _ -> ()
     | other -> failtest $"a frame over the limit was taken: {other}"
+
+    let header = Array.zeroCreate<byte> 5
+    header[0] <- byte 'B'
+    System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(
+      System.Span<byte>(header, 1, 4),
+      200 * 1024 * 1024
+    )
+    use cut = new System.IO.MemoryStream(header)
+    let before = System.GC.GetAllocatedBytesForCurrentThread()
+    match SyncLink.readFrame SyncLink.defaultMaxFrame cut with
+    | SyncLink.Closed _ -> ()
+    | other -> failtest $"a frame cut short was taken: {other}"
+    Expect.isLessThan
+      (System.GC.GetAllocatedBytesForCurrentThread() - before)
+      (1024L * 1024L)
+      "a header naming 200 MB takes no memory for bytes that never came"
   }
 
 
