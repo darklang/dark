@@ -313,17 +313,18 @@ let executable(
       |> Stdlib.Result.andThen(fun policy ->
         withServer(Compiler.Darkc.Job.Executable(found.hash, output, policy), verbosity)))
     |> Stdlib.Result.map(fun result ->
+      // stdout is the executable's path and nothing else, so a script can use it
       if result.exitCode == 0 && verbosity >= 0 then
         let size =
           Stdlib.Cli.File.size(output)
-          |> Stdlib.Result.map(fun n -> $" ({Text.bytes(n)})")
+          |> Stdlib.Result.map(fun n -> $"{Text.bytes(n)}, ")
           |> Stdlib.Result.withDefault("")
 
         { result with
-            stderr =
-              result.stderr + $"wrote {output}{size} in {seconds(Telemetry.elapsedMs(started))}\n" }
+            stdout = $"{output}\n"
+            stderr = result.stderr + $"{size}{seconds(Telemetry.elapsedMs(started))}\n" }
       else if result.exitCode == 0 then
-        result
+        { result with stdout = $"{output}\n" }
       else
         { result with stderr = renderFailure(name, result.stderr) })
 

@@ -5,7 +5,8 @@ compiler (darklang/compiler). It is experimental.
 
 ```bash
 $ dark compile Me.Tools.wc
-wrote ./wc (341 KB) in 2.1 s
+./wc
+341 KB, 2.1 s
 $ ./wc notes.txt
 112 notes.txt
 ```
