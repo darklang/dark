@@ -1,4 +1,4 @@
-/// `dark commit`, `dark undo`: saving into the draft and committing it, on main and on a branch.
+/// `dark commit`: saving into the draft and committing it, on main and on a branch.
 /// The helpers are in `helpers.dark`.
 module Darklang.SCM.Tests.Cli
 
@@ -153,30 +153,6 @@ test commitIncludeTakesWhatTheNameNeedsAndJsonOnlyPreviews =
         "Tests.App.twice()",
         "3002",
         "and the later edit is committed") ])
-
-
-test undoStepsBackOneCommittedVersionAtATime =
-  scenario(fun dark ->
-    [ saveNumber(dark, "Tests.App.a", "1")
-      commit(dark, "one")
-      saveNumber(dark, "Tests.App.a", "2")
-      commit(dark, "two")
-      saveNumber(dark, "Tests.App.a", "3")
-      commit(dark, "three")
-      run(dark, [ "undo", "Tests.App.a" ])
-      evals(dark, "Tests.App.a()", "2", "one step back")
-      run(dark, [ "undo", "Tests.App.a" ])
-      evals(dark, "Tests.App.a()", "1", "two steps back")
-      says(
-        dark,
-        [ "undo", "Tests.App.a" ],
-        "first version",
-        "a third undo says there is nothing further")
-
-      evals(dark, "Tests.App.a()", "1", "and stays put")
-      commit(dark, "undone")
-      draftIsEmpty(dark, "the undo commits like any edit")
-      evals(dark, "Tests.App.a()", "1", "the first version is now committed") ])
 
 
 test aTypeErrorIsSavedButRefusesToCommit =

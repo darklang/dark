@@ -1,0 +1,373 @@
+/// `dark undo`: stepping a name back one version at a time, on main and on branches, and how that
+/// survives commits, partial commits, discards and forward-reference refreshes.
+/// The helpers are in `helpers.dark`.
+module Darklang.SCM.Tests.Cli
+
+/// `dark view <name> --raw`.
+let rawOf(name: String): List<String> =
+  [ "view", name, "--raw" ]
+
+
+/// `dark view <name> --raw` shows <param call>.
+let callsInRaw(
+  dark: Cli.Tests.Instance.T,
+  name: String,
+  call: String,
+  why: String)
+  : Stdlib.Test.Result =
+  says(dark, rawOf(name), call, why)
+
+
+/// The same steps on main and then on a branch, since a branch resolves names in its own view.
+/// Leaves you on main.
+let onMainAndABranch(
+  dark: Cli.Tests.Instance.T,
+  branch: String,
+  steps: String -> List<Stdlib.Test.Result>)
+  : List<Stdlib.Test.Result> =
+  Stdlib.List.flatten(
+    [ [ switch(dark, "main") ]
+      steps("Main")
+      [ switch(dark, branch) ]
+      steps("Branch")
+      [ switch(dark, "main") ] ])
+
+
+test undoStepsBackOneCommittedVersionAtATime =
+  scenario(fun dark ->
+    [ saveNumber(dark, "Tests.App.a", "1")
+      commit(dark, "one")
+      saveNumber(dark, "Tests.App.a", "2")
+      commit(dark, "two")
+      saveNumber(dark, "Tests.App.a", "3")
+      commit(dark, "three")
+      run(dark, [ "undo", "Tests.App.a" ])
+      evals(dark, "Tests.App.a()", "2", "one step back")
+      run(dark, [ "undo", "Tests.App.a" ])
+      evals(dark, "Tests.App.a()", "1", "two steps back")
+      says(
+        dark,
+        [ "undo", "Tests.App.a" ],
+        "first version",
+        "a third undo says there is nothing further")
+
+      evals(dark, "Tests.App.a()", "1", "and stays put")
+      commit(dark, "undone")
+      draftIsEmpty(dark, "the undo commits like any edit")
+      evals(dark, "Tests.App.a()", "1", "the first version is now committed") ])
+
+
+test undoRestoresReferenceOnlyEdits = scenario(fun dark ->
+  onMainAndABranch(dark, "undo-references", fun side ->
+    let p = $"Tests.UndoRefs{side}"
+    [ saveNumber(dark, $"{p}.a", "773991")
+      saveNumber(dark, $"{p}.b", "773991")
+      saveNumber(dark, $"{p}.c", "773991")
+      save(dark, $"{p}.caller", $"(): Int64 = {p}.a()")
+      commit(dark, "initial reference version")
+      save(dark, $"{p}.other", $"(): Int64 = {p}.b()")
+      commit(dark, "new caller using a shared body")
+      says(
+        dark,
+        [ "undo", $"{p}.other" ],
+        "first version",
+        "a new caller has no earlier alias version")
+
+      save(dark, $"{p}.caller", $"(): Int64 = {p}.b()")
+      commit(dark, "change followed alias")
+      save(dark, $"{p}.caller", $"(): Int64 = {p}.c()")
+      commit(dark, "change followed alias")
+      run(dark, [ "undo", $"{p}.caller" ])
+      callsInRaw(
+        dark,
+        $"{p}.caller",
+        $"{p}.b()",
+        "undo restores the previous reference name")
+
+      run(dark, [ "undo", $"{p}.caller" ])
+      callsInRaw(dark, $"{p}.caller", $"{p}.a()", "and the one before that")
+      says(
+        dark,
+        [ "undo", $"{p}.caller" ],
+        "first version",
+        "repeated undo stops at the first reference version")
+
+      saveNumber(dark, $"{p}.a", "773992")
+      evals(
+        dark,
+        $"{p}.caller()",
+        "773992",
+        "the restored caller follows its old alias")
+
+      run(dark, [ "discard", "-y" ])
+      callsInRaw(
+        dark,
+        $"{p}.caller",
+        $"{p}.c()",
+        "discard restores the committed reference version") ]))
+
+
+test undoKeepsRepeatedRevisionsAndEditsAfterUndo = scenario(fun dark ->
+  onMainAndABranch(dark, "repeat-undo", fun side ->
+    let p = $"Tests.Repeat{side}"
+    [ saveNumber(dark, $"{p}.a", "781551")
+      saveNumber(dark, $"{p}.b", "781551")
+      saveNumber(dark, $"{p}.c", "781551")
+      save(dark, $"{p}.caller", $"(): Int64 = {p}.a()")
+      commit(dark, "alias revision")
+      save(dark, $"{p}.caller", $"(): Int64 = {p}.b()")
+      commit(dark, "alias revision")
+      save(dark, $"{p}.caller", $"(): Int64 = {p}.a()")
+      commit(dark, "alias revision")
+      run(dark, [ "undo", $"{p}.caller" ])
+      callsInRaw(dark, $"{p}.caller", $"{p}.b()", "undo keeps repeated states")
+      save(dark, $"{p}.caller", $"(): Int64 = {p}.c()")
+      commit(dark, "edit after undo")
+      says(
+        dark,
+        [ "undo", $"{p}.caller" ],
+        "is back on the version before",
+        "undo selects the revision before the new edit")
+
+      callsInRaw(
+        dark,
+        $"{p}.caller",
+        $"{p}.b()",
+        "new edits follow the restored revision")
+
+      saveNumber(dark, $"{p}.unrelated", "781552")
+      run(dark, [ "commit", "commit undo", $"--include={p}.caller", "-y" ])
+      run(dark, [ "discard", "-y" ])
+      callsInRaw(
+        dark,
+        $"{p}.caller",
+        $"{p}.b()",
+        "a partial commit keeps the restored names")
+
+      run(dark, [ "undo", $"{p}.caller" ])
+      callsInRaw(
+        dark,
+        $"{p}.caller",
+        $"{p}.a()",
+        "undo continues from the committed cursor")
+
+      says(
+        dark,
+        [ "undo", $"{p}.caller" ],
+        "first version",
+        "undo stops at the initial revision")
+
+      run(dark, [ "discard", "-y" ])
+      callsInRaw(
+        dark,
+        $"{p}.caller",
+        $"{p}.b()",
+        "discard restores the committed undo") ]))
+
+
+test undoOnABranchUsesTheBranchBaseline =
+  let p = "Tests.UndoBaseline"
+  scenario(fun dark ->
+    [ saveNumber(dark, $"{p}.a", "781561")
+      saveNumber(dark, $"{p}.b", "781561")
+      saveNumber(dark, $"{p}.c", "781561")
+      save(dark, $"{p}.caller", $"(): Int64 = {p}.a()")
+      commit(dark, "baseline")
+      switch(dark, "undo-baseline")
+      save(dark, $"{p}.caller", $"(): Int64 = {p}.b()")
+      commit(dark, "branch edit")
+      switch(dark, "main")
+      save(dark, $"{p}.caller", $"(): Int64 = {p}.c()")
+      commit(dark, "later main edit")
+      switch(dark, "undo-baseline")
+      says(
+        dark,
+        [ "undo", $"{p}.caller" ],
+        "is back on the version before",
+        "undo selects the branch's earlier revision")
+
+      callsInRaw(
+        dark,
+        $"{p}.caller",
+        $"{p}.a()",
+        "undo restores the branch's original alias")
+
+      run(dark, [ "discard", "-y" ])
+      callsInRaw(
+        dark,
+        $"{p}.caller",
+        $"{p}.b()",
+        "discard restores the branch edit")
+
+      switch(dark, "main")
+      callsInRaw(
+        dark,
+        $"{p}.caller",
+        $"{p}.c()",
+        "main keeps its later edit") ])
+
+
+test undoFollowsBodyAndAliasEditsInOneOrder =
+  let p = "Tests.UndoMixed"
+  scenario(fun dark ->
+    let setup =
+      [ saveNumber(dark, $"{p}.a", "781571")
+        saveNumber(dark, $"{p}.b", "781571") ]
+
+    let revisions =
+      [ "a()", "b()", "b() + 1", "a() + 1" ]
+      |> Stdlib.List.map(fun body ->
+        [ save(dark, $"{p}.caller", $"(): Int64 = {p}.{body}")
+          commit(dark, "mixed revision") ])
+      |> Stdlib.List.flatten
+
+    let undos =
+      [ "b() + 1", "b()", "a()" ]
+      |> Stdlib.List.map(fun body ->
+        [ run(dark, [ "undo", $"{p}.caller" ])
+          callsInRaw(
+            dark,
+            $"{p}.caller",
+            $"{p}.{body}",
+            "undo restores the preceding complete revision") ])
+      |> Stdlib.List.flatten
+
+    Stdlib.List.flatten(
+      [ setup
+        revisions
+        undos
+        [ says(
+            dark,
+            [ "undo", $"{p}.caller" ],
+            "first version",
+            "undo stops after both kinds of edit") ] ]))
+
+
+test undoKeepsDraftRevisionsAcrossAForwardReferenceRefresh =
+  let p = "Tests.UndoRefresh"
+  scenario(fun dark ->
+    [ saveNumber(dark, $"{p}.f", "667741")
+      commit(dark, "undo refresh baseline")
+      saveNumber(dark, $"{p}.f", "667742")
+      saveNumber(dark, $"{p}.f", "667743")
+      saveNumber(dark, $"{p}.f", "667744")
+      save(dark, $"{p}.pending", $"(): Int64 = {p}.missing()")
+      saveNumber(dark, $"{p}.missing", "667745")
+      evals(dark, $"{p}.pending()", "667745", "the forward reference refreshed")
+      run(dark, [ "undo", $"{p}.f" ])
+      evals(
+        dark,
+        $"{p}.f()",
+        "667743",
+        "undo keeps its earlier history after refresh")
+
+      run(dark, [ "undo", $"{p}.f" ])
+      evals(dark, $"{p}.f()", "667742", "and the version before")
+      run(dark, [ "undo", $"{p}.f" ])
+      evals(dark, $"{p}.f()", "667741", "back to the committed one")
+      says(
+        dark,
+        [ "undo", $"{p}.f" ],
+        "first version",
+        "undo stops only at the original revision") ])
+
+
+test undoFollowsItsRevisionWhenARefreshChangesItsId =
+  let p = "Tests.UndoRefreshedId"
+  scenario(fun dark ->
+    [ saveNumber(dark, $"{p}.a", "667751")
+      saveNumber(dark, $"{p}.b", "667751")
+      saveNumber(dark, $"{p}.c", "667751")
+      saveNumber(dark, $"{p}.caller", "667750")
+      commit(dark, "undo id baseline")
+      save(dark, $"{p}.caller", $"(): Int64 = {p}.later() + {p}.a()")
+      save(dark, $"{p}.caller", $"(): Int64 = {p}.later() + {p}.b()")
+      save(dark, $"{p}.caller", $"(): Int64 = {p}.later() + {p}.c()")
+      run(dark, [ "undo", $"{p}.caller" ])
+      saveNumber(dark, $"{p}.later", "2")
+      evals(
+        dark,
+        $"{p}.caller()",
+        "667753",
+        "refresh resolves the selected revision")
+
+      run(dark, [ "undo", $"{p}.caller" ])
+      callsInRaw(
+        dark,
+        $"{p}.caller",
+        $"{p}.a()",
+        "refresh keeps each earlier alias choice")
+
+      run(dark, [ "undo", $"{p}.caller" ])
+      evals(
+        dark,
+        $"{p}.caller()",
+        "667750",
+        "undo still reaches the preceding committed revision") ])
+
+
+test undoContinuesAfterCommittingARestoredDraftRevision =
+  let name = "Tests.UndoCommit.f"
+  scenario(fun dark ->
+    [ saveNumber(dark, name, "91837400")
+      commit(dark, "baseline")
+      saveNumber(dark, name, "91837401")
+      saveNumber(dark, name, "91837402")
+      saveNumber(dark, name, "91837403")
+      run(dark, [ "undo", name ])
+      evals(
+        dark,
+        $"{name}()",
+        "91837402",
+        "undo selects an earlier draft revision")
+
+      run(dark, [ "undo", name ])
+      evals(dark, $"{name}()", "91837401", "and the one before")
+      commit(dark, "commit restored revision")
+      evals(dark, $"{name}()", "91837401", "commit keeps the restored version")
+      run(dark, [ "undo", name ])
+      evals(
+        dark,
+        $"{name}()",
+        "91837400",
+        "undo reaches the committed baseline")
+
+      says(
+        dark,
+        [ "undo", name ],
+        "first version",
+        "undo stops at the baseline")
+
+      run(dark, [ "discard", "-y" ])
+      evals(
+        dark,
+        $"{name}()",
+        "91837401",
+        "discard returns to the committed restore") ])
+
+
+test aRefreshResolvesTheBodyUndoSelected =
+  let name = "Tests.UndoForward.f"
+  let helper = "Tests.UndoForward.helper"
+  scenario(fun dark ->
+    [ saveNumber(dark, name, "91838000")
+      commit(dark, "baseline")
+      save(dark, name, $"(): Int64 = {helper}() + 1")
+      save(dark, name, $"(): Int64 = {helper}() + 2")
+      run(dark, [ "undo", name ])
+      saveNumber(dark, helper, "91838010")
+      evals(dark, $"{name}()", "91838011", "refresh resolves the restored body")
+      commit(dark, "resolved restore")
+      run(dark, [ "undo", name ])
+      evals(
+        dark,
+        $"{name}()",
+        "91838000",
+        "refresh and commit keep the undo cursor")
+
+      run(dark, [ "discard", "-y" ])
+      evals(
+        dark,
+        $"{name}()",
+        "91838011",
+        "discard restores the resolved commit") ])
