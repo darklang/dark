@@ -3,7 +3,7 @@
 /// It speaks plain HTTP. TLS is the platform's job in front of it (Fly, Cloud Run, Caddy, `tailscale
 /// serve`), so the server never holds a certificate. Two paths:
 ///
-///   GET /health   how the server stands, as JSON, for a platform's health check
+///   GET /health   whether it is up, as JSON, for a platform's health check
 ///   GET /sync     a WebSocket carrying one sync session (`LibDB.SyncLink`), opened with a token
 ///                 (`Authorization: Bearer ...`) that says whose machine it is
 ///
@@ -156,29 +156,20 @@ type private Running =
     stopping : System.Threading.ManualResetEventSlim
     started : System.DateTime }
 
+/// Only whether it is up: anyone can ask, so it says nothing about the store or the build.
 let private health
   (storePath : string)
   (running : Running)
   (ctx : HttpListenerContext)
   =
   try
-    let (id, name) = OpSync.identityOf storePath
-    let cursor = OpSync.cursorOf storePath
-    reply
-      ctx
-      (if running.stopping.IsSet then 503 else 200)
-      []
-      [ "status", (if running.stopping.IsSet then "stopping" else "ok")
-        "format", OpSync.formatVersion
-        "build", LibConfig.Config.buildHash
-        "store", id
-        "name", name
-        "journal", cursor.journal
-        "sessions", running.sessions.Count
-        "uptimeSeconds",
-        int64 (System.DateTime.UtcNow - running.started).TotalSeconds ]
-  with e ->
-    reply ctx 503 [] [ "status", "store-unreadable"; "error", e.Message ]
+    OpSync.identityOf storePath |> ignore<string * string>
+    if running.stopping.IsSet then
+      reply ctx 503 [] [ "status", "stopping" ]
+    else
+      reply ctx 200 [] [ "status", "ok" ]
+  with _ ->
+    reply ctx 503 [] [ "status", "store-unreadable" ]
 
 let private bearer (ctx : HttpListenerContext) : string =
   match ctx.Request.Headers["Authorization"] with

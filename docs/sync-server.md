@@ -55,7 +55,7 @@ curl https://<app>.fly.dev/health
 printf '%s\n' "$token" | dark sync add https://<app>.fly.dev --token -
 ```
 
-The health check answers JSON: `status`, the sync `format`, the `build`, the store's id, its journal position and how many sessions are open.
+The health check answers `{"status":"ok"}`, or a 503 with `stopping` or `store-unreadable`. Anyone can reach it, so it says nothing about the store or the build; the server's log has those.
 
 ## Deploy on Google Cloud
 
