@@ -189,6 +189,75 @@ let private testTracesIdPrefixIsPlainText =
       })
 
 
+/// Replaying a recorded run with unchanged code gives back what the run answered, and a run that
+/// failed fails again. An effect answered from the wrong log entry, or a builtin marked pure
+/// that is not, shows up as an answer that differs.
+let private testReplayGivesBackTheRecordedAnswer =
+  cliTestWithFreshTraces
+    "replaying a recorded run gives back the answer it recorded"
+    (fun state ->
+      task {
+        let file =
+          System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"dark-replay-{System.Guid.NewGuid()}"
+          )
+        let runs =
+          [ "Stdlib.printLine(\"x\")"
+            "Stdlib.DateTime.now()"
+            "(Stdlib.Uuid.generate(), Stdlib.Uuid.generate())"
+            "Stdlib.List.map(Stdlib.List.range(1, 20), fun _ -> Stdlib.Uuid.generate())"
+            $"let _ = Stdlib.Cli.File.writeText(\"{file}\", Stdlib.display(Stdlib.Uuid.generate()))\nStdlib.Cli.File.readText(\"{file}\")"
+            "Stdlib.Cli.Process.run(\"/usr/bin/date\", [ \"+%N\" ])"
+            "Stdlib.Exec.await(Stdlib.Exec.spawn(fun () -> Stdlib.Uuid.generate()))"
+            "Stdlib.List.map([ 1, 0 ], fun d -> 10 / d)" ]
+        let! _ =
+          runCli
+            state
+            [ "permissions"
+              "allow"
+              $"file read+write {file}; process /usr/bin/date" ]
+        try
+          for code in runs do
+            let! _ = runCli state [ "eval"; code ]
+            ()
+        finally
+          System.IO.File.Delete file
+        let recorded = Traces.list 50
+        Expect.equal
+          (List.length recorded)
+          (List.length runs)
+          "every run is recorded once"
+        Expect.equal
+          (recorded
+           |> List.filter (fun run -> Option.isNone run.result)
+           |> List.length)
+          1
+          "only the division by zero fails"
+        let exeState = executionState state
+        for run in recorded do
+          let tracer =
+            LibDB.Tracing.createViewTracer
+              (Traces.viewLog run.id)
+              (System.Collections.Generic.Dictionary())
+              (System.Collections.Generic.Dictionary())
+              (System.Collections.Generic.Dictionary())
+              []
+          let! replayed =
+            Builtins.CliHost.Libs.Cli.replayRun
+              exeState
+              exeState.access
+              PT.BranchId.Main
+              run
+              tracer
+          match run.result, replayed with
+          | Some answer, Ok again -> Expect.equal again answer run.entry
+          | None, Error(Builtins.CliHost.Libs.Cli.ReplayStop.Raised _) -> ()
+          | answer, again ->
+            failtestf "%s: recorded %A, replayed %A" run.entry answer again
+      })
+
+
 let private testTracesLargeTraceListSurvives =
   cliTestWithFreshTraces
     "traces list survives a 50-trace store; find still returns banner"
@@ -489,6 +558,7 @@ let tests =
      @ [ testMkdirRecursiveUnderPolicyAncestor ]
      @ [ // Trace store
          testRecordingSettings
+         testReplayGivesBackTheRecordedAnswer
          testTracesIdPrefixIsPlainText
          testPsShowTakesAPid
          testTracesLargeTraceListSurvives

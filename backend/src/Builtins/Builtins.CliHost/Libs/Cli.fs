@@ -1673,6 +1673,59 @@ let private runIsolated
       }
 
 
+/// Replay a recorded run with today's code, every effect answered by `tracer` from the run's
+/// log, and hand back what the replay answered or why it stopped.
+let replayRun
+  (exeState : RT.ExecutionState)
+  (callerAccess : Permission.Access)
+  (branchId : PT.BranchId)
+  (run : LibDB.Traces.Trace)
+  (tracer : Tracing.T)
+  : Task<Result<Dval, ReplayStop.ReplayStop>> =
+  let finish (execute : unit -> Task<RT.ExecutionResult>) =
+    task {
+      try
+        match! execute () with
+        | Ok dv -> return Ok dv
+        | Error(rte, _) -> return Error(ReplayStop.Raised rte)
+      with e ->
+        return Error(ReplayStop.HostFailure e.Message)
+    }
+  match run.cli with
+  | Some input ->
+    let exeState = { exeState with branchId = branchId }
+    let branchState = createBranchState exeState false
+    match parseScriptOrEvalInput branchState input with
+    | Error _ -> Task.FromResult(Error ReplayStop.InputNoLongerParses)
+    | Ok mod' ->
+      let viewState = createGuestState exeState callerAccess mod' input
+      finish (fun () -> executeWith viewState mod' input (Some tracer))
+  | None ->
+    // A served request: its input is a record, so there is no source to re-run. The handler
+    // that served it was recorded on the row, so the replay applies that to the request.
+    match run.entryHash with
+    | None -> Task.FromResult(Error ReplayStop.MissingHandler)
+    | Some hash ->
+      let applicable =
+        AppNamedFn
+          { name = FQFnName.Package(Hash hash)
+            typeSymbolTable = TST.empty
+            typeArgs = []
+            approvalName = None
+            access = None
+            argsSoFar = []
+            boundImpls = [] }
+      let viewState =
+        { PolicyStore.rootState exeState exeState.access [ Hash hash ] with
+            tracing = tracer.executionTracing }
+      finish (fun () ->
+        Exe.executeApplicable
+          viewState
+          viewState.access
+          applicable
+          (NEList.singleton run.input))
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "testRunIsolated" 0
       typeParams = [ "a"; "b" ]
@@ -2026,91 +2079,31 @@ let fns () : List<BuiltInFn> =
               match LibDB.Traces.get id with
               | None -> return emptyAnswer (Some(ReplayStop.TraceNotFound))
               | Some run ->
-                // Only a run whose input is source can be replayed from the CLI. A served
-                // request is a run too, and re-running one needs the server's handler, which
-                // is the next piece of this.
-                match run.cli with
-                | Some input ->
-                  let log = LibDB.Traces.viewLog id
-                  let collected =
-                    System.Collections.Generic.Dictionary<struct (System.Guid * int64), RT.Dval>()
-                  let frames =
-                    System.Collections.Generic.Dictionary<System.Guid, Tracing.ViewFrame>()
-                  let lastByExpr =
-                    System.Collections.Generic.Dictionary<int64, RT.Dval>()
-                  let tracer =
-                    Tracing.createViewTracer log collected frames lastByExpr focus
-                  let accountID =
-                    C2DT.Option.fromDT D.uuid accountIDDval
-                    |> Option.orElse exeState.accountID
-                  let exeState =
-                    { exeState with
-                        accountID = accountID
-                        branchId = PT.BranchId.Id branchId }
-                  let branchState = createBranchState exeState false
-                  let parsed = parseScriptOrEvalInput branchState input
-                  match parsed with
-                  | Error _ ->
-                    return emptyAnswer (Some(ReplayStop.InputNoLongerParses))
-                  | Ok mod' ->
-                    let viewState =
-                      createGuestState exeState callerVM.activeAccess mod' input
-                    let! problem =
-                      task {
-                        try
-                          match! executeWith viewState mod' input (Some tracer) with
-                          | Ok _ -> return None
-                          | Error(rte, _) -> return Some(ReplayStop.Raised rte)
-                        with e ->
-                          return Some(ReplayStop.HostFailure e.Message)
-                      }
-                    return! answerOf frames collected lastByExpr problem
-                | None ->
-                  let requestDval = run.input
-                  // A served request: its input is a record, so there is no source to re-run.
-                  // The handler that served it was recorded on the row, so the view applies
-                  // that to the request instead -- the same replay, a different way in.
-                  match run.entryHash with
-                  | None -> return emptyAnswer (Some(ReplayStop.MissingHandler))
-                  | Some hash ->
-                    let log = LibDB.Traces.viewLog id
-                    let collected =
-                      System.Collections.Generic.Dictionary<struct (System.Guid *
-                      int64), RT.Dval>()
-                    let frames =
-                      System.Collections.Generic.Dictionary<System.Guid, Tracing.ViewFrame>()
-                    let lastByExpr =
-                      System.Collections.Generic.Dictionary<int64, RT.Dval>()
-                    let tracer =
-                      Tracing.createViewTracer log collected frames lastByExpr focus
-                    let applicable =
-                      AppNamedFn
-                        { name = FQFnName.Package(Hash hash)
-                          typeSymbolTable = TST.empty
-                          typeArgs = []
-                          approvalName = None
-                          access = None
-                          argsSoFar = []
-                          boundImpls = [] }
-                    let viewState =
-                      { PolicyStore.rootState exeState exeState.access [ Hash hash ] with
-                          tracing = tracer.executionTracing }
-                    let! problem =
-                      task {
-                        try
-                          match!
-                            Exe.executeApplicable
-                              viewState
-                              viewState.access
-                              applicable
-                              (NEList.singleton requestDval)
-                          with
-                          | Ok _ -> return None
-                          | Error(rte, _) -> return Some(ReplayStop.Raised rte)
-                        with e ->
-                          return Some(ReplayStop.HostFailure e.Message)
-                      }
-                    return! answerOf frames collected lastByExpr problem
+                let collected =
+                  System.Collections.Generic.Dictionary<struct (System.Guid * int64), RT.Dval>()
+                let frames =
+                  System.Collections.Generic.Dictionary<System.Guid, Tracing.ViewFrame>()
+                let lastByExpr =
+                  System.Collections.Generic.Dictionary<int64, RT.Dval>()
+                let tracer =
+                  Tracing.createViewTracer
+                    (LibDB.Traces.viewLog id)
+                    collected
+                    frames
+                    lastByExpr
+                    focus
+                let! replayed =
+                  replayRun
+                    exeState
+                    callerVM.activeAccess
+                    (PT.BranchId.Id branchId)
+                    run
+                    tracer
+                let problem =
+                  match replayed with
+                  | Ok _ -> None
+                  | Error stop -> Some stop
+                return! answerOf frames collected lastByExpr problem
           }
           |> LibExecution.Pending.ofTask
         | _ -> incorrectArgs ())
