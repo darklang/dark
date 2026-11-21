@@ -157,10 +157,12 @@ Checker node IDs are not source locations. Diagnostics use declaration locations
 
 ## Coverage policy
 
-Every `ProgramTypes.Expr`, let-pattern, match-pattern, pipe, type-reference, record, and enum case has an explicit checker arm. Darklang does not check exhaustiveness at compile time. A new AST case without a rule causes a "No matching case" runtime error, which the guard turns into `Incomplete`. Add the rule and a checker test in the same change as the syntax. Rules that cannot prove a construct must add a warning and return an unknown.
+Every `ProgramTypes.Expr`, let-pattern, match-pattern, pipe, type-reference, record, and enum case has an explicit checker arm. A `match` that misses a case is only a warning (see below), so the checker's own code can miss one and still run: a new AST case without a rule causes a "No matching case" runtime error, which the guard turns into `Incomplete`. Add the rule and a checker test in the same change as the syntax. Rules that cannot prove a construct must add a warning and return an unknown.
 
-Match exhaustiveness uses a constructor matrix for unit, boolean, tuple, and enum types, including nested and correlated patterns. Lists support the common
-empty/cons split. A column's constructors expand only when its patterns name all of them; otherwise, only rows matching anything decide coverage. Unconditional expansion can loop on recursive types: specializing a wildcard to `Node(Tree)` repeats the same row. Infinite literal domains and coverage relying only on guards are conservative: if full coverage cannot be proved, the expression is
+Every `match` is checked for exhaustiveness. A match that misses values gets a `NonExhaustiveMatch` warning naming one of them, such as "Match is not exhaustive; an uncovered pattern is A(false)". Like every warning it makes the item `Incomplete`, not `Failed`: it still saves and commits, and at run time a value no case matches raises "No matching case found". `let` and lambda parameters take only names, `()` and tuples, so they cannot miss.
+
+The check uses a constructor matrix for unit, boolean, tuple, record, and enum types (with generic payloads), including nested and correlated patterns. Lists support the common
+empty/cons split. A record pattern's missing fields match anything, and `p as x` covers what `p` covers. Int, String, Char and the other literal types need a catch-all. A column's constructors expand only when its patterns name all of them; otherwise, only rows matching anything decide coverage. Unconditional expansion can loop on recursive types: specializing a wildcard to `Node(Tree)` repeats the same row. Guarded cases never count toward coverage, since the guard can be false. Infinite literal domains and coverage relying only on guards are conservative: if full coverage cannot be proved, the expression is
 `Incomplete`.
 
 The checker needs a declared or trusted signature to use a runtime value as evidence of its type. Builtin signatures are part of the trust boundary.
