@@ -19,21 +19,13 @@ let step(i: Instance.T, args: List<String>): Stdlib.Test.Result =
   Instance.exitedWith(code, 0, $"`dark {cmd}` ({out})")
 
 
-/// An instance with recording on and no trace in it yet.
-///
-/// The store an instance starts from is a copy of the dev store, so it may hold
-/// traces and a stored `trace.record` of its own. Setting it here makes the test
-/// mean the same thing whatever the environment's default is.
+/// An instance with recording on and no trace in it yet. Recording is set here so the
+/// test means the same thing whatever the environment's default is.
 let withTraces(f: Instance.T -> Stdlib.Test.Result): Stdlib.Test.Result =
   Instance.withInstance(fun i ->
-    let setup =
-      Stdlib.Test.all(
-        [ step(i, [ "traces", "record", "on" ])
-          step(i, [ "traces", "delete", "--all", "--yes" ]) ])
-
-    match setup with
+    match step(i, [ "traces", "record", "on" ]) with
     | Pass -> f(i)
-    | _ -> setup)
+    | failed -> failed)
 
 
 /// The rows `traces list <n> --json` answers, newest first.
