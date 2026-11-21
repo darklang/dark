@@ -3061,8 +3061,6 @@ and Promise
 /// spreading to Dval.
 and [<CustomEquality; NoComparison>] StreamImpl =
   | FromIO of cell : StreamCell * elemType : ValueType
-  /// The rest of a chunk an IO byte source read, from `offset`, then the cell after it.
-  | InChunk of chunk : byte[] * offset : int * rest : StreamCell
   | FromList of items : List<Dval> * elemType : ValueType
   /// A producer written in Dark: the step takes the state and answers
   /// `Some (element, nextState)` or `None`.
@@ -3082,7 +3080,6 @@ and [<NoEquality; NoComparison>] StreamCell =
 
 and [<NoEquality; NoComparison>] StreamRead =
   | Item of Dval * StreamCell
-  | Chunk of byte[] * StreamCell
   | Ended
 
 /// An IO source's release: run once, at its end, on `Stream.close`, or when the GC finds no
@@ -3195,7 +3192,6 @@ module StreamImpl =
     | FromList(_, t)
     | Unfold(_, _, t)
     | Mapped(_, _, t) -> t
-    | InChunk _ -> ValueType.Known KTUInt8
     | Filtered(src, _)
     | Take(src, _) -> elemType src
     | Concat streams ->

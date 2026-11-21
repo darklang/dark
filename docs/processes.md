@@ -611,12 +611,12 @@ closure over it (`StreamImpl.Unfold/Mapped/Filtered`). A pull is a step machine
 (`Stream.pull`): `Pulled` an element and the rest of the stream, `Apply` this
 callable to this element and continue, or `Wait` on native IO and continue.
 Native IO is read once per cell (`StreamCell`) and kept, so two processes
-holding one stream see the same elements; the callables re-run for each. The pulling builtin (`next`, `toList`,
-`toBytes`) drives it: an `Apply` is a `requestApply`, so the transform runs
+holding one stream see the same elements; the callables re-run for each. A
+byte source (an HTTP body) is a `Stream<Bytes>`, one element per read. The pulling builtin (`next`, `toList`) drives it: an `Apply` is a `requestApply`, so the transform runs
 as a frame of the pulling process and its answer handed back to the pull,
 waited for first (`withValue`) where the node looks at it (`filter`,
 `unfold`) and in flight where it does not (`map`), so a drained `map` of
-reads is a list of reads; `toBytes` waits for each byte. A `Wait` is waited
+reads is a list of reads. A `Wait` is waited
 for, and a request after it is the landing case above. The builder's active access is folded into the
 callable once, when the transform is built (`narrowedBy`), and the frame push
 narrows the puller's access by it, as `Apply` narrows any frame's. So a

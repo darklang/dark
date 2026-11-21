@@ -37,9 +37,9 @@ let rec private cellOf
            }) }
 
 
-/// A stream over a native element-at-a-time source. [disposer], when `Some`, runs once: when
-/// the source reaches its end, when a stream over it is closed, or when the GC finds nothing
-/// left that could read it. Use [newChunked] for byte sources that can yield whole buffers.
+/// A stream over a native source. [disposer], when `Some`, runs once: when the source reaches
+/// its end, when a stream over it is closed, or when the GC finds nothing left that could read
+/// it.
 let newFromIO
   (elemType : ValueType)
   (next : unit -> ValueTask<Option<Dval>>)
@@ -52,28 +52,29 @@ let newFromIO
   DStream(FromIO(cellOf (StreamSource disposer) next landed, elemType))
 
 
-/// A byte stream over a source that fills up to `maxBytes` into a fresh byte[] per read (or
-/// None at its end). It keeps whole buffers, so draining it to Bytes copies buffers rather
-/// than boxing a `DUInt8` per byte; `Stream.next` still answers one byte at a time.
-let newChunked
-  (elemType : ValueType)
+/// A `Stream<Bytes>` over a source that fills up to `maxBytes` into a fresh byte[] per read
+/// (or None at its end): one element per read.
+let newBytes
   (nextChunk : int -> ValueTask<Option<byte[]>>)
   (disposer : (unit -> unit) option)
   : Dval =
-  let landed (after : StreamCell) (r : Option<byte[]>) =
-    match r with
-    | Some buf when buf.Length > 0 -> Chunk(buf, after)
-    | _ -> Ended
-  let read () = nextChunk chunkSize
-  DStream(FromIO(cellOf (StreamSource disposer) read landed, elemType))
+  let next () : ValueTask<Option<Dval>> =
+    let read : Task<Option<Dval>> =
+      task {
+        match! nextChunk chunkSize with
+        | Some buf when buf.Length > 0 ->
+          return Some(LibExecution.Bytes.newEphemeral buf)
+        | _ -> return None
+      }
+    ValueTask<Option<Dval>>(read)
+  newFromIO (ValueType.Known KTBytes) next disposer
 
 
 /// Release every IO source a stream would still read from. What was read stays readable;
 /// cells not read yet end. A step's state or captures are not looked into. Idempotent.
 let rec close (impl : StreamImpl) : unit =
   match impl with
-  | FromIO(cell, _)
-  | InChunk(_, _, cell) -> cell.source.Release()
+  | FromIO(cell, _) -> cell.source.Release()
   | FromList _
   | Unfold _ -> ()
   | Mapped(src, _, _)
@@ -119,14 +120,10 @@ let rec private andThen
     )
 
 
-let private inChunk (buf : byte[]) (offset : int) (rest : StreamCell) : PullStep =
-  Pulled(Some(RuntimeTypes.Dval.duint8 buf[offset], InChunk(buf, offset + 1, rest)))
-
 let private readCell (cell : StreamCell) (elemType : ValueType) : PullStep =
   let landed (r : StreamRead) =
     match r with
     | Item(v, after) -> Pulled(Some(v, FromIO(after, elemType)))
-    | Chunk(buf, after) -> inChunk buf 0 after
     | Ended -> Pulled None
   let t = cell.read.Force()
   if t.IsCompletedSuccessfully then
@@ -148,12 +145,6 @@ let private readCell (cell : StreamCell) (elemType : ValueType) : PullStep =
 let rec pull (impl : StreamImpl) : PullStep =
   match impl with
   | FromIO(cell, elemType) -> readCell cell elemType
-
-  | InChunk(buf, offset, rest) ->
-    if offset < buf.Length then
-      inChunk buf offset rest
-    else
-      readCell rest (ValueType.Known KTUInt8)
 
   | FromList(items, elemType) ->
     match items with
@@ -257,32 +248,3 @@ let readNext (dv : Dval) : Task<Option<Dval * Dval>> =
     | Some(v, rest) -> return Some(v, DStream rest)
     | None -> return None
   }
-
-
-/// All the bytes of a byte stream read straight off an IO source, a whole chunk at a time;
-/// `None` for any other stream, which has to be pulled element by element.
-let readAllBytes (dv : Dval) : Option<Task<byte[]>> =
-  let fromCell (start : StreamCell) (prefix : byte[]) =
-    task {
-      use collected = new System.IO.MemoryStream()
-      collected.Write(prefix, 0, prefix.Length)
-      let mutable cell = start
-      let mutable reading = true
-      while reading do
-        match! cell.read.Force() with
-        | Chunk(buf, after) ->
-          collected.Write(buf, 0, buf.Length)
-          cell <- after
-        | Item(DUInt8 b, after) ->
-          collected.WriteByte b
-          cell <- after
-        | Item _ ->
-          Exception.raiseInternal "readAllBytes: expected Stream<UInt8> element" []
-        | Ended -> reading <- false
-      return collected.ToArray()
-    }
-  match dv with
-  | DStream(FromIO(cell, _)) -> Some(fromCell cell [||])
-  | DStream(InChunk(buf, offset, rest)) ->
-    Some(fromCell rest (Array.sub buf offset (max 0 (buf.Length - offset))))
-  | _ -> None

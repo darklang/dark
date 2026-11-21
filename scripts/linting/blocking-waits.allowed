@@ -5,7 +5,7 @@
 # LocalExec's benchmarks: what one call allocates, against a source that answers at once.
 backend/src/LocalExec/BenchmarkScenarios.fs client.GetAsync("http://fake.local/body").GetAwaiter().GetResult()
 backend/src/LocalExec/BenchmarkScenarios.fs resp.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult()
-backend/src/LocalExec/BenchmarkScenarios.fs (Option.get (Stream.readAllBytes stream)).Result
+backend/src/LocalExec/BenchmarkScenarios.fs (Stream.readNext rest.Value).Result
 
 # Reader threads waiting for a request, on a semaphore rather than a task.
 backend/src/LibExecution/HostEvents.fs requests.Wait()

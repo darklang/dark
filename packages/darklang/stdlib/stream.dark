@@ -26,10 +26,9 @@ let toList(stream: Stream<'a>): List<'a> =
   Builtin.streamToList<'a>(stream)
 
 
-/// All the bytes of a byte stream, as a Bytes. Reads whole chunks when
-/// the stream comes straight from an IO source (e.g. HttpClient.stream).
-let toBytes(stream: Stream<UInt8>): Bytes =
-  Builtin.streamToBytes(stream)
+/// All the chunks of <param stream> joined into one Bytes.
+let toBytes(stream: Stream<Bytes>): Bytes =
+  Bytes.concatAll(toList<Bytes>(stream))
 
 
 /// Releases the IO source behind <param stream> now, rather than at its
