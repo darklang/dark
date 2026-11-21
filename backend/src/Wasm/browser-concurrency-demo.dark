@@ -1,6 +1,6 @@
 // The concurrency demo the browser build boots into, and the one worth showing first.
 //
-//   dark module /Demo.Browser - < docs/browser-concurrency-demo.dark
+//   dark module /Demo.Browser - < backend/src/Wasm/browser-concurrency-demo.dark
 //
 // In a tab: open `/?cmd=eval Demo.Browser.bothWays ()`.
 //
