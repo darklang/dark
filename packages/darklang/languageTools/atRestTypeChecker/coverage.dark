@@ -1,5 +1,6 @@
 /// Check whether match patterns cover every value of the matched type and
-/// describe a missing value when coverage is incomplete.
+/// describe a missing value when coverage is incomplete. Also find cases that
+/// can never match because earlier cases cover them.
 ///
 /// Track patterns as rows, with one column for each value being matched. Start
 /// with one column; checking a tuple, record, enum case, or non-empty list
@@ -390,3 +391,122 @@ let uncovered(
     match findUncovered(env, subst, 8, [ scrutinee ], rows) with
     | Some([first, ...]) -> Option.Some(first)
     | _ -> Option.Some(Missing.Anything)
+
+
+/// Check whether two literal patterns match the same value. Patterns that are
+/// not literals never count as the same here.
+let sameLiteral(a: ProgramTypes.MatchPattern, b: ProgramTypes.MatchPattern): Bool =
+  match a, b with
+  | MPInt8(_, x), MPInt8(_, y) -> x == y
+  | MPUInt8(_, x), MPUInt8(_, y) -> x == y
+  | MPInt16(_, x), MPInt16(_, y) -> x == y
+  | MPUInt16(_, x), MPUInt16(_, y) -> x == y
+  | MPInt32(_, x), MPInt32(_, y) -> x == y
+  | MPUInt32(_, x), MPUInt32(_, y) -> x == y
+  | MPInt64(_, x), MPInt64(_, y) -> x == y
+  | MPUInt64(_, x), MPUInt64(_, y) -> x == y
+  | MPInt128(_, x), MPInt128(_, y) -> x == y
+  | MPUInt128(_, x), MPUInt128(_, y) -> x == y
+  | MPBigInt(_, x), MPBigInt(_, y) -> x == y
+  | MPFloat64(_, s1, w1, f1), MPFloat64(_, s2, w2, f2) -> s1 == s2 && w1 == w2 && f1 == f2
+  | MPFloat32(_, s1, w1, f1), MPFloat32(_, s2, w2, f2) -> s1 == s2 && w1 == w2 && f1 == f2
+  | MPDecimal(_, x), MPDecimal(_, y) -> x == y
+  | MPChar(_, x), MPChar(_, y) -> x == y
+  | MPString(_, x), MPString(_, y) -> x == y
+  | _ -> false
+
+
+/// Check whether some value matches the row's patterns but none of the rows.
+/// When unsure, answer true: a case is reported unreachable only when it is proved.
+let isUseful(
+  env: Model.Environment,
+  subst: Dict<Model.Var, Model.Ty>,
+  types: List<Model.Ty>,
+  rows: List<List<ProgramTypes.MatchPattern>>,
+  row: List<ProgramTypes.MatchPattern>)
+  : Bool =
+  match types, row with
+  | [], _ -> Stdlib.List.isEmpty(rows)
+  | [ty, ...rest], [pattern, ...others] ->
+    Stdlib.List.any(alternatives(pattern), fun p ->
+      isUsefulFirst(env, subst, ty, rest, rows, p, others))
+  | _ -> true
+
+
+/// isUseful for a row whose first pattern is not an or-pattern.
+let isUsefulFirst(
+  env: Model.Environment,
+  subst: Dict<Model.Var, Model.Ty>,
+  ty: Model.Ty,
+  rest: List<Model.Ty>,
+  rows: List<List<ProgramTypes.MatchPattern>>,
+  pattern: ProgramTypes.MatchPattern,
+  others: List<ProgramTypes.MatchPattern>)
+  : Bool =
+  let byConstructor(constructor: Constructor, fieldTypes: List<Model.Ty>): Bool =
+    let fieldCount = Stdlib.List.length(fieldTypes)
+    Stdlib.List.any(specialize(constructor, fieldCount, pattern), fun fields ->
+      isUseful(
+        env,
+        subst,
+        Stdlib.List.concat(fieldTypes, rest),
+        specializeRows(constructor, fieldCount, rows),
+        Stdlib.List.concat(fields, others)))
+
+  let cases = constructors(env, subst, ty) |> Stdlib.Option.withDefault([])
+  match pattern with
+  | MPVariable(_, _) ->
+    // a wildcard is useful if any constructor is, but only the constructors the rows
+    // name need checking; when one is left out, the rows' catch-alls decide
+    if Stdlib.Bool.not(Stdlib.List.isEmpty(cases)) && headsCoverAllConstructors(cases, rows) then
+      Stdlib.List.any(cases, fun((constructor, fieldTypes)) -> byConstructor(constructor, fieldTypes))
+    else
+      isUseful(env, subst, rest, catchAllRows(rows), others)
+  | _ ->
+    match
+      Stdlib.List.findFirst(cases, fun((constructor, fieldTypes)) ->
+        namesConstructor(constructor, Stdlib.List.length(fieldTypes), pattern))
+    with
+    | Some((constructor, fieldTypes)) -> byConstructor(constructor, fieldTypes)
+    | None ->
+      // a literal, or a type whose constructors are unknown: only catch-alls and the
+      // same literal match what it matches
+      let covering =
+        rows
+        |> Stdlib.List.map(fun row ->
+          match row with
+          | [] -> []
+          | [head, ...tail] ->
+            if Stdlib.List.any(alternatives(head), fun p -> isIrrefutable(p) || sameLiteral(p, pattern)) then
+              [ tail ]
+            else
+              [])
+        |> Stdlib.List.flatten
+
+      isUseful(env, subst, rest, covering, others)
+
+
+/// Find the cases that can never match because earlier unguarded cases already
+/// match every value they would. A guarded case can be unreachable too.
+let unreachable(
+  env: Model.Environment,
+  subst: Dict<Model.Var, Model.Ty>,
+  scrutinee: Model.Ty,
+  cases: List<ProgramTypes.MatchCase>)
+  : List<ProgramTypes.MatchCase> =
+  let (_, found) =
+    Stdlib.List.fold(cases, ([], []), fun((rows, found), case) ->
+      let found =
+        if isUseful(env, subst, [ scrutinee ], rows, [ case.pat ]) then
+          found
+        else
+          Stdlib.List.prepend(found, case)
+
+      let rows =
+        match case.whenCondition with
+        | Some(_) -> rows
+        | None -> Stdlib.List.concat(rows, Stdlib.List.map(alternatives(case.pat), fun p -> [ p ]))
+
+      (rows, found))
+
+  Stdlib.List.reverse(found)

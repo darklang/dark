@@ -28,6 +28,7 @@ let isWarning(code: IssueCode): Bool =
   | UnknownDeclaredTypeVariable
   | AmbiguousType
   | NonExhaustiveMatch
+  | UnreachableMatchCase
   | UnsupportedConstruct -> true
   | TypeMismatch
   | OccursCheckFailed
