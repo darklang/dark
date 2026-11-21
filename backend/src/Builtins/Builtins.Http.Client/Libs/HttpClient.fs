@@ -515,16 +515,14 @@ let fns () : List<BuiltInFn> =
     // Streaming HTTP.
     //
     // The body is not buffered into a byte[]; the host opens the response and
-    // keeps it in its stream table, and the DStream pulls chunks through the
-    // host-issued handle. Bulk consumers (`streamToBytes`) pull whole buffers
-    // via `nextChunk`; byte-wise consumers (`streamNext`) see one `DUInt8` at
-    // a time synthesised from the same buffer.
+    // keeps it in its stream table, and the DStream reads chunks through the
+    // host-issued handle, each once, kept for every holder of the body. Bulk
+    // consumers (`streamToBytes`) take whole buffers; byte-wise ones
+    // (`streamNext`) see one `DUInt8` at a time from the same buffers.
     //
-    // The disposer releases the host-side response when the consumer drains
-    // to EOF or calls `Builtin.streamClose`. Abandoning a stream mid-drain
-    // falls back to the GC-triggered finalizer on `Dval.StreamFinalizer`,
-    // which runs the same disposer chain when the DStream becomes
-    // unreachable. Chunk reads and the close go directly to `HostHttp` — the
+    // The disposer releases the host-side response when the body is read to
+    // its end, on `Builtin.streamClose`, or when the GC finds nothing left
+    // that could read it (`StreamSource`'s finalizer). Chunk reads and the close go directly to `HostHttp` — the
     // transfer was authorized when the stream was opened, and the handle is
     // host-issued, so no further policy decision is involved.
     // ——————————————————————————————————————————————————————————
@@ -535,9 +533,9 @@ let fns () : List<BuiltInFn> =
       description =
         "Make a streaming HTTP call to <param uri>, in program order. Returns a <type "
         + "Response> whose `body` is a lazy <type Stream> that yields bytes "
-        + "as they arrive. Drain with `Builtin.streamToList`/`streamToBytes`, or "
+        + "as they arrive. Read with `Builtin.streamToList`/`streamToBytes`, or "
         + "compose with `streamMap`/`streamFilter`/etc. The underlying HTTP "
-        + "response is released when the stream is drained to completion or "
+        + "response is released when the stream is read to its end or "
         + "`Builtin.streamClose`d."
       fn =
         let streamOfBytes = ValueType.Known(KTStream VT.uint8)

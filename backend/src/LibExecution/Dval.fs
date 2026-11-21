@@ -428,10 +428,8 @@ let inline private ensureSufficientExecutionStack () : unit =
 /// bytes cache that hash lazily; persistent bytes already carry it. Comparison
 /// never loads or saves bytes and gives the same answer before and after saving.
 ///
-/// Streams compare by reference identity on their `lockObj`. Same
-/// handle → true (preserves reflexivity). Different handles → false;
-/// cross-handle equality would require draining, which violates
-/// single-consumer semantics.
+/// Streams compare by reference: the same stream is equal to itself, and two streams built
+/// apart are not, even with the same elements (comparing those would read them).
 ///
 /// Check stack space before comparing nested values. Execution turns a failed
 /// check into a runtime error. Leaf comparisons need no check.
@@ -528,11 +526,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
 
   | DBytes refA, DBytes refB -> refA.Equals refB
 
-  | DStream(_, _, lockA), DStream(_, _, lockB) ->
-    // Reference equality on lockObj — same-handle preserves
-    // reflexivity. Cross-handle compare without consuming the streams
-    // is fundamentally impossible under the single-consumer rule.
-    System.Object.ReferenceEquals(lockA, lockB)
+  | DStream a, DStream b -> System.Object.ReferenceEquals(a, b)
 
   // The interpreter forces a promise before anything compares it; two that meet here anyway are
   // the same read or not.
@@ -673,8 +667,8 @@ let private tryHashLeaf (value : Dval) : ValueOption<int> =
     | DApplicable(AppLambda lambda) ->
       code.Add lambda.exprId
       true
-    | DStream(_, _, lockObj) ->
-      code.Add(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode lockObj)
+    | DStream impl ->
+      code.Add(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode impl)
       true
     | DPromise promise ->
       code.Add(System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode promise)

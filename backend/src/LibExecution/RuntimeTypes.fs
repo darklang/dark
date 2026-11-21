@@ -3006,14 +3006,9 @@ and [<NoComparison>] Dval =
   /// hold a content hash and resolve via `package_blobs`. See [BytesRef].
   | DBytes of BytesRef
 
-  /// Lazy, single-consumer, non-persistable sequence. The inner
-  /// [StreamImpl] is the lazy tree (FromIO plus Mapped / Filtered /
-  /// Take / Concat transforms). The `disposed` flag + `lockObj` live
-  /// alongside for lifecycle management — `disposed` short-circuits
-  /// subsequent pulls once the stream drains, `lockObj` doubles as
-  /// the GC finalizer target so abandoned streams still release
-  /// their IO source.
-  | DStream of StreamImpl * disposed : bool ref * lockObj : obj
+  /// Lazy, non-persistable sequence. A value: reading it never changes it, so every holder
+  /// sees the same elements (`Stream.next` answers the first and the rest).
+  | DStream of StreamImpl
 
   /// A read in flight, or a value with one inside it (`Pending`). Handed back instead of
   /// parking when a read builtin has to wait, and waited for only where its value is needed;
@@ -3052,80 +3047,59 @@ and Promise
   member _.IsWait = obj.ReferenceEquals(fn, null)
 
 
-/// Lazy sequence producer. [FromIO] is the leaf — a pull-based
-/// producer. Mapped / Filtered / Take / Concat wrap other StreamImpls
-/// as transformation nodes; each is pull-driven and does no work
-/// until the enclosing [DStream] is drained via `readStreamNext` or
-/// `readStreamChunk`.
+/// A stream: where its elements come from and the transforms over them. Every node is
+/// immutable; pulling one answers the element and a new node for the rest (`Stream.pull`).
 ///
-/// Mapped/Filtered hold the [Applicable] itself; the puller applies it
-/// as a frame on its own stack (`Interpreter.requestApply`), so a
-/// stream captures no execution state and Dval.fs runs no Dark code.
+/// A node that runs Dark code (`Unfold`, `Mapped`, `Filtered`) holds the callable itself:
+/// the pull hands it back to the builtin pulling, which applies it as a frame of the pulling
+/// process (`Interpreter.requestApply`). Those re-run for each holder that pulls.
 ///
-/// Take tracks both the original `n` (for introspection/printing) and
-/// a mutable `remaining` counter that decrements on each pull.
+/// IO is read once: `FromIO` reads through [StreamCell]s, each read the first time anyone
+/// needs it and kept, so two holders of one IO stream see the same elements.
 ///
-/// Concat's `streams` list is a mutable ref — drain pops exhausted
-/// heads so subsequent pulls skip over them without re-entering.
-/// TODO this is unsafe under shared access — two callers pulling from
-/// the same Concat impl would see torn views. Today the single-consumer
-/// invariant prevents that, but the type system doesn't enforce it.
-/// Fold this into the broader single-consumer enforcement work below.
-///
-/// Has a custom `Equals` that always returns false — `FromIO`'s pull
-/// fn is a closure, so there's no sensible structural-equality story,
-/// and we don't want `NoEquality` propagating up into Dval/CallFrame.
-/// Callers that need "same stream" semantics must compare by reference
-/// via the wrapping DStream's `lockObj`. Most callers shouldn't compare
-/// streams at all.
+/// Equality is by reference (`Dval.equals`); the custom `Equals` keeps `NoEquality` from
+/// spreading to Dval.
 and [<CustomEquality; NoComparison>] StreamImpl =
-  /// Lazy pull producer.
-  ///
-  /// `next` yields the next element or None on exhaustion. `disposer`,
-  /// when present, is invoked exactly once when the wrapping DStream
-  /// is disposed — either via `streamClose`, when drain-to-end trips
-  /// the `disposed` flag, or when the `StreamFinalizer` GCs the
-  /// unreachable DStream. Used by IO-backed sources (HttpClient.stream,
-  /// file reads) to release the underlying HttpResponseMessage /
-  /// FileStream / etc.
-  ///
-  /// Optional `nextChunk` lets byte-stream producers avoid per-byte
-  /// Dval boxing. `nextChunk maxBytes` fills up to `maxBytes` into
-  /// a fresh byte[] and returns it (or None on exhaustion). Consumers
-  /// that want bulk bytes (`streamToBytes`, SSE-byte accumulator) take
-  /// this path; byte-by-byte `next` stays authoritative for element-
-  /// wise pulls (`streamNext` on `Stream<UInt8>`). Non-byte streams
-  /// leave this `None`.
-  ///
-  /// TODO no backpressure: a producer faster than its consumer fills
-  /// memory. Today HTTP is network-bounded and in-process producers
-  /// (`streamFromList` over a huge list, `streamUnfold` with no
-  /// termination) are the only unbounded paths. Becomes load-bearing
-  /// if anyone adds a "buffer N elements ahead" or "merge multiple
-  /// streams" combinator.
-  ///
-  /// A node that runs Dark code (`Unfold`, `Mapped`, `Filtered`) holds the callable
-  /// itself, not a closure over it: the pull is a step machine (`Stream.pull`) that
-  /// hands the callable back to the builtin pulling, which asks the interpreter to
-  /// apply it as a frame of the pulling process (`Interpreter.requestApply`). So the
-  /// callback runs inside whoever is pulling, under that frame's access narrowed by
-  /// what the callable captured; the builder's own access is folded into the
-  /// callable when the transform is made. Native IO sources are plain closures.
-  | FromIO of
-    next : (unit -> System.Threading.Tasks.ValueTask<Option<Dval>>) *
-    elemType : ValueType *
-    disposer : (unit -> unit) option *
-    nextChunk : (int -> System.Threading.Tasks.ValueTask<Option<byte[]>>) option
+  | FromIO of cell : StreamCell * elemType : ValueType
+  /// The rest of a chunk an IO byte source read, from `offset`, then the cell after it.
+  | InChunk of chunk : byte[] * offset : int * rest : StreamCell
+  | FromList of items : List<Dval> * elemType : ValueType
   /// A producer written in Dark: the step takes the state and answers
   /// `Some (element, nextState)` or `None`.
-  | Unfold of step : Applicable * state : Dval ref * elemType : ValueType
+  | Unfold of step : Applicable * state : Dval * elemType : ValueType
   | Mapped of src : StreamImpl * fn : Applicable * elemType : ValueType
   | Filtered of src : StreamImpl * pred : Applicable
-  | Take of src : StreamImpl * n : int64 * remaining : int64 ref
-  | Concat of streams : StreamImpl list ref
+  | Take of src : StreamImpl * n : int64
+  | Concat of streams : List<StreamImpl>
 
   override this.Equals(_other : obj) : bool = false
   override this.GetHashCode() : int = 0
+
+/// One read of an IO source. `read` runs at most once, the first time a holder needs it, and
+/// every holder gets the same answer (a failed read fails the same way for each).
+and [<NoEquality; NoComparison>] StreamCell =
+  { source : StreamSource; read : Lazy<System.Threading.Tasks.Task<StreamRead>> }
+
+and [<NoEquality; NoComparison>] StreamRead =
+  | Item of Dval * StreamCell
+  | Chunk of byte[] * StreamCell
+  | Ended
+
+/// An IO source's release: run once, at its end, on `Stream.close`, or when the GC finds no
+/// cell left that could read it. Cells not read yet when it is released read as the end.
+and StreamSource(disposer : (unit -> unit) option) =
+  let mutable released = 0
+  member _.Released = released = 1
+  member _.Release() : unit =
+    if System.Threading.Interlocked.Exchange(&released, 1) = 0 then
+      match disposer with
+      | Some d ->
+        try
+          d ()
+        with _ ->
+          ()
+      | None -> ()
+  override this.Finalize() = this.Release()
 
 
 
@@ -3214,25 +3188,18 @@ module Captures =
 
 
 module StreamImpl =
-  /// The element type emitted by this stream. Walks the tree for
-  /// transforms that inherit from their source (Filtered, Take,
-  /// Concat) and reports the head element type for Mapped. Concat
-  /// over an empty list has no known element type.
-  ///
-  /// CLEANUP this walks the full transform tree on every call. Hot
-  /// for type-checking `streamMap` results and `toValueType` on
-  /// long pipelines. Cheap fix: cache at construction (the type is
-  /// invariant once the StreamImpl is built — Concat's head doesn't
-  /// change once frozen at construction). 🔧
+  /// The element type this stream emits. Concat over an empty list has no known one.
   let rec elemType (impl : StreamImpl) : ValueType =
     match impl with
-    | FromIO(_, t, _, _) -> t
-    | Unfold(_, _, t) -> t
+    | FromIO(_, t)
+    | FromList(_, t)
+    | Unfold(_, _, t)
     | Mapped(_, _, t) -> t
-    | Filtered(src, _) -> elemType src
-    | Take(src, _, _) -> elemType src
+    | InChunk _ -> ValueType.Known KTUInt8
+    | Filtered(src, _)
+    | Take(src, _) -> elemType src
     | Concat streams ->
-      match streams.Value with
+      match streams with
       | [] -> ValueType.Unknown
       | first :: _ -> elemType first
 
@@ -4466,7 +4433,7 @@ module Dval =
 
     | DBytes _ -> ValueType.Known KTBytes
 
-    | DStream(impl, _, _) -> ValueType.Known(KTStream(StreamImpl.elemType impl))
+    | DStream impl -> ValueType.Known(KTStream(StreamImpl.elemType impl))
 
     // Not known until the read lands: `Promise<t>` unifies with `t` by being unknown, which is
     // the only way the runtime checker ever meets one (a package fn returning a read it did not

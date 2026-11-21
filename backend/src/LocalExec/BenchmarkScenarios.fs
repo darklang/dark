@@ -178,15 +178,8 @@ let private streamToBytes () : List<Result> =
             yielded <- true
             System.Threading.Tasks.ValueTask<_>(Some payload)
         let stream = Stream.newChunked VT.uint8 nextChunk None
-        let collected = new System.IO.MemoryStream()
-        let rec drain () : unit =
-          match (Stream.readChunk 65536 stream).Result with
-          | Some bs ->
-            collected.Write(bs, 0, bs.Length)
-            drain ()
-          | None -> ()
-        drain ()
-        ignore<RT.Dval> (Bytes.newEphemeral (collected.ToArray())))
+        let bytes = (Option.get (Stream.readAllBytes stream)).Result
+        ignore<RT.Dval> (Bytes.newEphemeral bytes))
     mkResult "streamToBytes" size 1 "chunked-drain" sample)
 
 
