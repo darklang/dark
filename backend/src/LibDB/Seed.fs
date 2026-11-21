@@ -1,8 +1,7 @@
 /// Package seed: extract and grow.
 ///
-/// A seed is a copy of data.db with the projection tables emptied and none of its ops applied (it carries
-/// the full schema, so it works directly as a data.db). Export copies data.db, strips derived data, VACUUMs;
-/// grow folds the unapplied ops back into the projections and evaluates values. Grow runs on CLI startup,
+/// A seed is a store with main's committed ops and none of them applied (it carries the full schema, so it
+/// works directly as a data.db). Export builds it from the schema and copies the ops in; grow folds the unapplied ops back into the projections and evaluates values. Grow runs on CLI startup,
 /// and is a single lookup past the fold's mark when nothing is pending.
 ///
 /// The op log (`package_ops`) is canonical; the package tables are regenerable projections folded from it.
@@ -62,104 +61,125 @@ let checkpointWal (dbPath : string) : unit =
   conn.Close()
 
 
-/// Export a seed database to the given output path: copy the full source DB, then strip everything
-/// that belongs to the machine that built it rather than to the package set (see the DELETEs below).
-let export (outputPath : string) : unit =
-  LibExecution.PackageRefs.validate ()
+/// The schema a seed is built from: the CLI's embedded copy when the running program carries one,
+/// else `migrations/schema/` on disk. Concatenated in file-name order, as every other reader does.
+let private schemaSql () : string =
+  let embedded =
+    match Option.ofObj (System.Reflection.Assembly.GetEntryAssembly()) with
+    | None -> [||]
+    | Some assembly ->
+      assembly.GetManifestResourceNames()
+      |> Array.filter (fun n -> n.StartsWith "schema/" && n.EndsWith ".sql")
+      |> Array.sort
+      |> Array.map (fun name ->
+        use stream = assembly.GetManifestResourceStream name
+        use reader = new System.IO.StreamReader(stream)
+        reader.ReadToEnd())
 
-  let sourcePath = LibConfig.Config.dbPath
+  if not (Array.isEmpty embedded) then
+    String.concat "\n" embedded
+  else
+    System.IO.Directory.GetFiles(
+      System.IO.Path.Combine(LibConfig.Dirs.migrationsDir, "schema"),
+      "*.sql"
+    )
+    |> Array.sort
+    |> Array.map System.IO.File.ReadAllText
+    |> String.concat "\n"
 
+
+/// What a seed carries from the store it is built from: main's committed history and the content it
+/// points at. Everything else is the builder's own, or a projection the first run folds again.
+let private keptRows : List<string * string> =
+  [ "system_migrations_v0", ""
+    "accounts_v0", ""
+    "package_blobs", ""
+    "commits", "WHERE branch_id = '00000000-0000-0000-0000-000000000001'"
+    "package_ops",
+    "WHERE branch_id = '00000000-0000-0000-0000-000000000001' AND commit_hash IS NOT NULL" ]
+
+
+/// Build a seed at <param outputPath> from the store at <param sourcePath>: a new file made from the
+/// schema, with only `keptRows` copied in. Never a copy of the source file, whose tables keep the
+/// shape they were created with.
+let exportFrom (sourcePath : string) (outputPath : string) : unit =
   if System.IO.File.Exists outputPath then System.IO.File.Delete outputPath
 
   checkpointWal sourcePath
 
-  System.IO.File.Copy(sourcePath, outputPath)
-
-  let connStr = $"Data Source={outputPath};Mode=ReadWriteCreate;Cache=Private"
-
-  use conn = new SqliteConnection(connStr)
+  use conn =
+    new SqliteConnection(
+      $"Data Source={outputPath};Mode=ReadWriteCreate;Cache=Private"
+    )
   conn.Open()
 
-  use pragmaCmd = conn.CreateCommand()
-  pragmaCmd.CommandText <-
-    "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;"
-  Telemetry.count "sql.seed"
-  pragmaCmd.ExecuteNonQuery() |> ignore<int>
+  let run (sql : string) : unit =
+    use cmd = conn.CreateCommand()
+    cmd.CommandText <- sql
+    Telemetry.count "sql.seed"
+    cmd.ExecuteNonQuery() |> ignore<int>
 
-  use cleanCmd = conn.CreateCommand()
-  cleanCmd.CommandText <-
-    """
-      DELETE FROM locations;
-      DELETE FROM package_types;
-      DELETE FROM package_values;
-      DELETE FROM package_functions;
-      DELETE FROM package_traits;
-      DELETE FROM package_trait_impls;
-      DELETE FROM package_tests;
-      DELETE FROM package_dependencies;
-      DELETE FROM deprecations;
-      DELETE FROM location_docs;
+  let columns (schema : string) (table : string) : List<string> =
+    use cmd = conn.CreateCommand()
+    cmd.CommandText <- $"SELECT name FROM pragma_table_info('{table}', '{schema}')"
+    Telemetry.count "sql.seed"
+    use reader = cmd.ExecuteReader()
+    [ while reader.Read() do
+        yield reader.GetString 0 ]
 
-      -- The builder's BRANCHES are not canon. Otherwise every install grown from this seed opens with
-      -- somebody else's half-finished work in `dark branches`.
-      DELETE FROM package_ops WHERE branch_id <> '00000000-0000-0000-0000-000000000001';
-      DELETE FROM commits WHERE branch_id <> '00000000-0000-0000-0000-000000000001';
-      DELETE FROM branch_name_bases;
-      -- All of them: main is not a row here, so there is nothing to preserve.
-      DELETE FROM branches;
+  run "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;"
 
-      -- A conflict is a finding about two versions of one name. Inheriting the builder's would be
-      -- inheriting an argument you were not part of.
-      DELETE FROM conflicts;
+  // Indexes and triggers come after the rows: the triggers would journal every copied row, and an
+  // index is cheaper built once over a full table.
+  let isIndexOrTrigger (statement : string) =
+    let upper = statement.ToUpperInvariant()
+    upper.StartsWith "CREATE INDEX"
+    || upper.StartsWith "CREATE UNIQUE INDEX"
+    || upper.StartsWith "CREATE TRIGGER"
 
-      -- Execution traces are dev telemetry, never part of a seed. They dominate a dev store by size
-      -- (`trace_fn_calls` alone runs to hundreds of MB), so strip them and the seed is just canon.
-      DELETE FROM trace_fn_calls;
-      DELETE FROM trace_fns;
-      DELETE FROM trace_loops;
-      DELETE FROM trace_blobs;
-      DELETE FROM trace_cli_invocations;
-      DELETE FROM traces;
+  let addColumn =
+    System.Text.RegularExpressions.Regex(
+      @"^ALTER\s+TABLE\s+(\w+)\s+ADD\s+COLUMN\s+(\w+)\s",
+      System.Text.RegularExpressions.RegexOptions.IgnoreCase
+    )
 
-      -- ALL of it: `config_v0` is per-install by construction, and nothing in it is needed
-      -- to boot (every key has a default).
-      --
-      -- A deny-list can't work: the keys are not all knowable in advance. Costs if shipped: a
-      -- shared INSTANCE ID means two installs that cannot be told apart, and a CURRENT BRANCH
-      -- dangles.
-      DELETE FROM config_v0;
+  let statements = Releases.schemaStatements (schemaSql ())
 
-      -- The reload's trait-call cache is the builder's, keyed on the builder's build, and no
-      -- install reloads packages from source.
-      DELETE FROM trait_call_resolutions;
+  for statement in statements do
+    if not (isIndexOrTrigger statement) then
+      let m = addColumn.Match statement
+      if
+        not m.Success
+        || not (List.contains m.Groups[2].Value (columns "main" m.Groups[1].Value))
+      then
+        run statement
 
-      -- The builder's DRAFT: a seed is committed history by definition
-      -- (`check-seed-carries-refs` asserts it), and an uncommitted op is instance
-      -- state like the rows above. Stripped HERE rather than left to the guard: the
-      -- F# suite leaves fixtures in main's draft, so a release build would otherwise
-      -- refuse or not depending on what ran last. The bindings need no separate
-      -- delete; every projection went above.
-      DELETE FROM package_ops WHERE commit_hash IS NULL;
+  let quoted = sourcePath.Replace("'", "''")
+  run $"ATTACH DATABASE '{quoted}' AS src"
 
-      -- The builder's sync journal, last, because the deletes above write to it, and where the
-      -- builder's own machines stood with it. An install starts with neither.
-      DELETE FROM sync_journal;
-      DELETE FROM sync_peers;
+  for table, where in keptRows do
+    let source = columns "src" table
+    let shared =
+      columns "main" table
+      |> List.filter (fun c -> List.contains c source)
+      |> String.concat ", "
+    if shared <> "" then
+      run
+        $"INSERT OR IGNORE INTO main.{table} ({shared}) SELECT {shared} FROM src.{table} {where}"
 
-      -- A sync server's tokens are its own, and never go out in a seed.
-      DELETE FROM sync_tokens;
+  run "DETACH DATABASE src"
 
-      """
-    + AppliedOps.reset
-  Telemetry.count "sql.seed"
-  cleanCmd.ExecuteNonQuery() |> ignore<int>
+  for statement in statements do
+    if isIndexOrTrigger statement then run statement
 
-  use vacuumCmd = conn.CreateCommand()
-  vacuumCmd.CommandText <- "VACUUM;"
-  Telemetry.count "sql.seed"
-  vacuumCmd.ExecuteNonQuery() |> ignore<int>
-
+  run "VACUUM;"
   conn.Close()
+
+
+/// Export a seed of this store (`Config.dbPath`) to the given output path.
+let export (outputPath : string) : unit =
+  LibExecution.PackageRefs.validate ()
+  exportFrom LibConfig.Config.dbPath outputPath
 
 
 // ---------------------

@@ -211,7 +211,7 @@ let private alreadyRun () : Set<string> =
 ///
 /// Doing it in one pass fails exactly there: the schema indexes `package_ops(op_kind)`, and on a
 /// store predating that column the index cannot be created.
-let private schemaStatements (schemaSql : string) =
+let schemaStatements (schemaSql : string) =
   // Comments FIRST, then split. The schema's comments contain semicolons ("NULL = the branch's
   // draft."), so splitting first cuts statements in half and SQLite reports "incomplete input".
   // No `--` appears inside a string literal in that file, so truncating at one is safe here.

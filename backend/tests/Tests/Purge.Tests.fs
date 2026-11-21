@@ -183,46 +183,89 @@ let foldProjectionsArePurged =
   }
 
 
-/// `Seed.export`'s source, which the two tests below assert against rather than running it: `export`
-/// copies a whole store, and driving it here would need a second one.
-let private seedSource () : string =
-  System.IO.File.ReadAllText(
-    System.IO.Path.Combine("..", "backend", "src", "LibDB", "Seed.fs")
-  )
-
-
-/// The seed is a fresh install's starting store, and these tables are one install's own
-/// state: who it is and which branch it is on (`config_v0`), and what it argued with
-/// itself about (`conflicts`). A seed built from a developer's store would otherwise ship
-/// all of that to everyone. Reads the export's SQL rather than trusting a list, so a
-/// per-install table added later is not silently left in.
-let seedExportStripsPerInstallState =
-  test "Seed.export strips every per-install table" {
-    let source = seedSource ()
-    for t in [ "config_v0"; "conflicts" ] do
-      Expect.isTrue
-        (source.Contains $"DELETE FROM {t};")
-        $"`Seed.export` must strip `{t}`: it is one install's state, not the tree's"
-  }
-
-
-/// A seed is committed history. The builder's DRAFT is per-install state in the same way the tables
-/// above are, and shipping it puts whatever they were part-way through on a stranger's first run as
-/// "1 item changed" under a name nobody has heard of.
+/// `Seed.exportFrom` on a scratch store, whose tables are older than the schema: `sync_peers`
+/// predates `person`, as the builder's store did when the release seed shipped without it.
 ///
-/// The guard `check-seed-carries-refs` is the other half, and it is the one a release build trips:
-/// the F# suite leaves its own fixtures in main's draft, so without this strip whether a build
-/// succeeds depends on what you last ran.
-let seedExportStripsTheBuildersDraft =
-  test "Seed.export strips uncommitted main ops" {
-    // Whitespace-collapsed before matching: this pins WHAT the export deletes, and an assertion on
-    // Seed.fs's literal indentation would break on a reformat that changes nothing.
-    let source =
-      System.Text.RegularExpressions.Regex.Replace(seedSource (), @"\s+", " ")
+/// The seed must carry main's committed history and nothing of the builder's: not its draft, not
+/// its branches, not its config, and must have every table the schema declares, in today's shape.
+let seedExportBuildsFromTheSchema =
+  testTask
+    "Seed.exportFrom keeps main's commits, drops the builder's state, takes the schema's shape" {
+    let dir =
+      System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(),
+        $"dark-seed-export-{System.Guid.NewGuid()}"
+      )
+    System.IO.Directory.CreateDirectory dir |> ignore<System.IO.DirectoryInfo>
+    let sourcePath = System.IO.Path.Combine(dir, "source.db")
+    let seedPath = System.IO.Path.Combine(dir, "seed.db")
 
-    Expect.isTrue
-      (source.Contains "DELETE FROM package_ops WHERE commit_hash IS NULL")
-      "`Seed.export` must strip main's uncommitted ops: a seed is committed history"
+    let exec (path : string) (sql : string) : unit =
+      use conn = new SqliteConnection($"Data Source={path};Pooling=false")
+      conn.Open()
+      use cmd = conn.CreateCommand()
+      cmd.CommandText <- sql
+      cmd.ExecuteNonQuery() |> ignore<int>
+
+    let scalar (sql : string) : string =
+      use conn =
+        new SqliteConnection($"Data Source={seedPath};Mode=ReadOnly;Pooling=false")
+      conn.Open()
+      use cmd = conn.CreateCommand()
+      cmd.CommandText <- sql
+      string (cmd.ExecuteScalar())
+
+    let main = "00000000-0000-0000-0000-000000000001"
+    let other = "11111111-1111-1111-1111-111111111111"
+
+    try
+      exec
+        sourcePath
+        $"""
+        CREATE TABLE package_ops (seq INTEGER PRIMARY KEY, id TEXT, branch_id TEXT, authored_on TEXT,
+          op_blob BLOB, op_kind TEXT, commit_hash TEXT, source TEXT, created_at TEXT, origin_ts TEXT);
+        INSERT INTO package_ops VALUES
+          (1, 'op-committed', '{main}', '{main}', x'00', 'unknown', 'c1', 'op', '2026-01-01', 't1'),
+          (2, 'op-draft', '{main}', '{main}', x'00', 'unknown', NULL, 'op', '2026-01-01', 't2'),
+          (3, 'op-branch', '{other}', '{other}', x'00', 'unknown', 'c2', 'op', '2026-01-01', 't3');
+        CREATE TABLE commits (hash TEXT PRIMARY KEY, branch_id TEXT, message TEXT, origin_ts TEXT);
+        INSERT INTO commits VALUES ('c1', '{main}', 'kept', 't1'), ('c2', '{other}', 'dropped', 't3');
+        CREATE TABLE config_v0 (key TEXT PRIMARY KEY, value TEXT);
+        INSERT INTO config_v0 VALUES ('instance.id', 'the-builders');
+        CREATE TABLE sync_peers (id TEXT PRIMARY KEY, name TEXT, seen_at TEXT);
+        INSERT INTO sync_peers VALUES ('peer', 'the builder''s laptop', 'now');
+        """
+
+      LibDB.Seed.exportFrom sourcePath seedPath
+
+      Expect.equal
+        (scalar "SELECT group_concat(id) FROM package_ops")
+        "op-committed"
+        "only main's committed op: not the draft, not another branch's"
+      Expect.equal
+        (scalar "SELECT group_concat(hash) FROM commits")
+        "c1"
+        "only main's commits"
+      Expect.equal
+        (scalar "SELECT housekeeping FROM commits")
+        "0"
+        "a column the source lacks takes the schema's default"
+      for t in [ "config_v0"; "sync_peers"; "sync_journal"; "branches"; "conflicts" ] do
+        Expect.equal
+          (scalar $"SELECT COUNT(*) FROM {t}")
+          "0"
+          $"`{t}` is the builder's"
+      Expect.equal
+        (scalar
+          "SELECT COUNT(*) FROM pragma_table_info('sync_peers') WHERE name = 'person'")
+        "1"
+        "`sync_peers` has the schema's columns, not the source's"
+      Expect.equal
+        (scalar "SELECT seq FROM package_ops_applied_through")
+        "0"
+        "no op counts as applied"
+    finally
+      System.IO.Directory.Delete(dir, true)
   }
 
 
@@ -272,12 +315,6 @@ let everyDeclaredTableExists =
 /// The write is the test. A checkpoint on an EMPTY log has nothing to do and succeeds on a
 /// read-only connection as readily as on a writable one, so a version of this without the
 /// INSERT would pass against the very bug it exists to catch.
-///
-/// The only other test of `export` below reads
-/// `Seed.fs` as TEXT and asserts the source contains certain `DELETE FROM` strings, which is a
-/// real check on the strip list and cannot observe a runtime failure at all. `export` itself is
-/// never executed by the suite, because it copies `Config.dbPath` and in a test that is the
-/// store the whole suite shares.
 let seedExportFoldsANonEmptyWal =
   testTask "Seed.checkpointWal folds a non-empty write-ahead log" {
     let dir =
@@ -340,6 +377,5 @@ let tests =
       logStateProjectionsArePurged
       foldProjectionsArePurged
       seedExportFoldsANonEmptyWal
-      seedExportStripsPerInstallState
-      seedExportStripsTheBuildersDraft
+      seedExportBuildsFromTheSchema
       everyDeclaredTableExists ]
