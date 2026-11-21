@@ -259,12 +259,28 @@ let executionStateFor
   let state = { state with test = testContext }
   state
 
+/// A case's name with the characters XML cannot hold spelled out: a name is written into the
+/// JUnit report, and XML has no way to write a control character, a surrogate or U+FFFE, not
+/// even as a character reference.
+let private caseName (name : string) : string =
+  name
+  |> String.collect (fun c ->
+    if
+      System.Char.IsControl c
+      || System.Char.IsSurrogate c
+      || c = '\uFFFE'
+      || c = '\uFFFF'
+    then
+      $"\\u{int c:x4}"
+    else
+      string c)
+
 let testMany (name : string) (fn : 'a -> 'b) (values : List<'a * 'b>) =
   testList
     name
     (List.mapi
       (fun i (input, expected) ->
-        test $"{name}[{i}]: ({input}) -> {expected}" {
+        test (caseName $"{name}[{i}]: ({input}) -> {expected}") {
           Expect.equal (fn input) expected ""
         })
       values)
@@ -274,7 +290,7 @@ let testMany2 (name : string) (fn : 'a -> 'b -> 'c) (values : List<'a * 'b * 'c>
     name
     (List.mapi
       (fun i (input1, input2, expected) ->
-        test $"{name}[{i}]: ({input1}, {input2}) -> {expected}" {
+        test (caseName $"{name}[{i}]: ({input1}, {input2}) -> {expected}") {
           Expect.equal (fn input1 input2) expected ""
         })
       values)
@@ -299,7 +315,7 @@ let testMany2Task
     name
     (List.mapi
       (fun i (input1, input2, expected) ->
-        testTask $"{name}[{i}]: ({input1}, {input2}) -> {expected}" {
+        testTask (caseName $"{name}[{i}]: ({input1}, {input2}) -> {expected}") {
           let! result = fn input1 input2
           Expect.equal result expected ""
         })
