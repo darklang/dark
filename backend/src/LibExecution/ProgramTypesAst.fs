@@ -110,7 +110,8 @@ let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
 
   | EList(_, exprs) -> exprs |> List.map r |> Set.unionMany
 
-  | EDict(_, pairs) -> pairs |> List.map (fun (_k, v) -> r v) |> Set.unionMany
+  | EDict(_, pairs) ->
+    pairs |> List.map (fun (k, v) -> Set.union (r k) (r v)) |> Set.unionMany
 
 
   // variables
@@ -179,7 +180,8 @@ and symbolsUsedInPipeExpr (pipeExpr : PipeExpr) : Set<string> =
   | EPipeInfix(_, _, expr, _) -> r expr
   | EPipeFnCall(_, _, _, args, _) -> args |> List.map r |> Set.unionMany
   | EPipeEnum(_, _, _, fields) -> fields |> List.map r |> Set.unionMany
-  | EPipeVariable(_, _, args) -> args |> List.map r |> Set.unionMany
+  | EPipeVariable(_, varName, args) ->
+    args |> List.map r |> Set.unionMany |> Set.add varName
 
 
 /// Finds unqualified names in an expr that resolved to package fns or values.
@@ -221,7 +223,8 @@ let rec unqualifiedResolvedNamesInExpr (expr : Expr) : Set<string> =
 
   | EList(_, exprs) -> exprs |> List.map r |> Set.unionMany
 
-  | EDict(_, pairs) -> pairs |> List.map (fun (_k, v) -> r v) |> Set.unionMany
+  | EDict(_, pairs) ->
+    pairs |> List.map (fun (k, v) -> Set.union (r k) (r v)) |> Set.unionMany
 
 
   // variables

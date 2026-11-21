@@ -47,6 +47,13 @@ test capturedBindings =
    [ 1, 2, 3, 4 ] |> Stdlib.List.map(y))
   |> Stdlib.Test.equal([ 6, 7, 8, 9 ])
 
+// A lambda whose dict key is an outer variable captures it.
+test dictKeyCapturedInLambda =
+  (let k = "a"
+   let g = fun v -> Dict { k: v }
+   g(1))
+  |> Stdlib.Test.equal(Dict { "a": 1 })
+
 test stringJoinOfMap =
   (Stdlib.String.join(
     (Stdlib.List.map(Stdlib.String.toList("some string"), fun var ->
