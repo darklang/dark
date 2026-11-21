@@ -32,8 +32,9 @@
 # confusing link error several minutes in.
 #
 # The compiler: with --darkc-dir, each runtime darkc has a backend for embeds the matching
-# DIR/darkc-<linux-x64|linux-arm64|osx-arm64> (`scripts/compiler/fetch DIR` downloads them), and a
-# missing one is an error. linux-arm and osx-x64 have no backend and embed nothing. Without
+# DIR/darkc-<linux-x64|linux-arm64> (`scripts/compiler/fetch DIR` downloads them), and a
+# missing one is an error. The compiler's releases have no macOS build, and linux-arm has no
+# backend, so those embed nothing. Without
 # --darkc-dir, whatever rundir/compiler/<pin>/<runtime>/darkc.br holds is embedded.
 #
 # A runtime whose binary in clis/ was built from this exact input is not built again:
@@ -284,7 +285,6 @@ darkc_target_for() {
   case "$1" in
     linux-x64|linux-musl-x64) echo "linux-x64" ;;
     linux-arm64|linux-musl-arm64) echo "linux-arm64" ;;
-    osx-arm64) echo "osx-arm64" ;;
     *) echo "" ;;
   esac
 }

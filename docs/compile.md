@@ -74,13 +74,15 @@ The compiler runs on Linux x86-64 and arm64, and macOS arm64. Elsewhere,
 
 The compiler is `~/.darklang/compiler/<commit>/darkc`, where `<commit>` is the
 first 9 characters of the pinned darklang/compiler commit (`pinnedCommit` in
-`packages/darklang/compiler/darkc.dark`). A release CLI carries it and writes it
-there the first time it starts, and removes other pins' directories. In a dev
-build, `scripts/compiler/build` builds it there.
+`packages/darklang/compiler/darkc.dark`). A release CLI for Linux carries it and
+writes it there the first time it starts, and removes other pins' directories. In
+a dev build, `scripts/compiler/build` builds it there.
 
 A Release build embeds `rundir/compiler/<commit>/<runtime>/darkc.br` when it is
 there: `scripts/compiler/embed <static darkc> linux-x64 linux-musl-x64` writes it.
-linux-arm and osx-x64 have no compiler backend, so nothing is embedded for them.
+`scripts/compiler/fetch` downloads the static builds from the compiler's release
+`darkc-<commit>`, which has Linux x86-64 and arm64 builds. Nothing is embedded for
+macOS or linux-arm.
 
 The compiler's stdlib is prepared once: about a minute and 150 MB, in
 `~/.darklang/compiler/<commit>/cache`. The first `dark` at a terminal starts it in

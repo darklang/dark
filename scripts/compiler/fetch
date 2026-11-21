@@ -2,9 +2,9 @@
 # Download the pinned darkc release builds a release CLI embeds, and check them:
 #   scripts/compiler/fetch <dir>
 #
-# Writes <dir>/darkc-linux-x64, <dir>/darkc-linux-arm64 and <dir>/darkc-osx-arm64, the static
-# builds darklang/compiler attaches to the release for `pinnedCommit` in
-# packages/darklang/compiler/darkc.dark, each checked against the sha256 published beside it.
+# Writes <dir>/darkc-linux-x64 and <dir>/darkc-linux-arm64, the static builds darklang/compiler
+# attaches to the release darkc-<first 9 of `pinnedCommit`> (in
+# packages/darklang/compiler/darkc.dark), each checked against the release's SHA256SUMS.
 # `build-release-cli-exes.sh --darkc-dir=<dir>` embeds them.
 
 set -euo pipefail
@@ -32,13 +32,17 @@ sha256_of() {
 }
 
 mkdir -p "$OUT"
-for target in linux-x64 linux-arm64 osx-arm64; do
+sums=$(curl --fail --silent --show-error --location --retry 3 "$BASE/SHA256SUMS")
+# The release names each build after `uname -m` on the machine that built it.
+for pair in linux-x64:linux-x86_64 linux-arm64:linux-aarch64; do
+  target="${pair%%:*}"
+  asset="darkc-${pair#*:}"
   file="$OUT/darkc-$target"
-  curl --fail --silent --show-error --location --retry 3 -o "$file.partial" "$BASE/darkc-$target"
-  want=$(curl --fail --silent --show-error --location --retry 3 "$BASE/darkc-$target.sha256" | cut -d" " -f1)
+  curl --fail --silent --show-error --location --retry 3 -o "$file.partial" "$BASE/$asset"
+  want=$(echo "$sums" | awk -v a="$asset" '$2 == a { print $1 }')
   got=$(sha256_of "$file.partial")
-  if [[ "$want" != "$got" ]]; then
-    echo "darkc-$target: sha256 is $got, the release says $want" >&2
+  if [[ -z "$want" || "$want" != "$got" ]]; then
+    echo "$asset: sha256 is $got, the release's SHA256SUMS says ${want:-nothing}" >&2
     rm -f "$file.partial"
     exit 1
   fi

@@ -683,9 +683,6 @@ jobs:
       - run:
           name: Build SQLite static archives
           command: ./scripts/build/build-sqlite.sh --runtimes=osx-arm64
-      - run:
-          name: Fetch the pinned compiler
-          command: scripts/compiler/fetch darkc
       # Only osx-arm64 (Apple Silicon) is built here. osx-x64 (Intel) is built in
       # build-cli-r2r-extras, as R2R rather than AOT: CircleCI has no Intel Macs to test an
       # AOT build on.
@@ -695,19 +692,12 @@ jobs:
             ./scripts/build/build-release-cli-exes.sh \
               --mode=aot \
               --seed=seed.db \
-              --darkc-dir=darkc \
               --runtimes=osx-arm64
       - run:
           name: Validate the osx-arm64 artifact
           command: |
             ./scripts/testing/validate-cli-artifact \
               "$(ls clis/darklang-*-osx-arm64)"
-      - run:
-          name: The osx-arm64 artifact carries the compiler
-          command: |
-            export HOME="$(mktemp -d)"
-            "$(ls clis/darklang-*-osx-arm64)" version --local
-            "$HOME"/.darklang/compiler/*/darkc --version
       - package-clis
 
   publish-release-clis:
