@@ -229,7 +229,9 @@ let rec private wrapFrom
       cursor
       (i + 1)
   else
-    let plain = isPlainAscii text i
+    // a space is always its own cluster here, so it stays a break point before a non-ASCII char
+    let isSpace = text[i] = ' '
+    let plain = isSpace || isPlainAscii text i
     let cluster =
       if plain then
         ""
@@ -238,15 +240,20 @@ let rec private wrapFrom
     let charWidth = if plain then 1 else TextWidth.ofCluster cluster
     let shouldWrap =
       wrapPending || (currentWidth > 0 && currentWidth + charWidth > width)
+    // a space that would open the next row is the break itself, so it is dropped
+    let dropSpace = isSpace && shouldWrap
 
     let struct (completed, currentWidth, lastSpaceEnd, widthAtSpaceEnd, cursor) =
       if not shouldWrap then
         struct (completed, currentWidth, lastSpaceEnd, widthAtSpaceEnd, cursor)
-      // Break at the row's last space when one exists (and it is not the very end, which would
-      // carry nothing): the head keeps everything before the space, the tail moves down with the
-      // active styling restated. A row with no space -- one word wider than the pane -- still
-      // breaks at the column.
-      elif lastSpaceEnd > activeStyle.Length && lastSpaceEnd < current.Length then
+      // Break at the row's last space when one exists: the head keeps everything before the
+      // space, the tail (possibly empty) moves down with the active styling restated. A row with
+      // no space -- one word wider than the pane -- still breaks at the column.
+      elif
+        not dropSpace
+        && lastSpaceEnd > activeStyle.Length
+        && lastSpaceEnd <= current.Length
+      then
         let whole = current.ToString()
         let head = whole.Substring(0, lastSpaceEnd - 1) // drop the break space itself
         let tail = whole.Substring(lastSpaceEnd)
@@ -274,14 +281,13 @@ let rec private wrapFrom
       else
         cursor
 
-    if plain then
-      current.Append(text[i]) |> ignore<StringBuilder>
-    else
-      current.Append(cluster) |> ignore<StringBuilder>
+    if dropSpace then ()
+    elif plain then current.Append(text[i]) |> ignore<StringBuilder>
+    else current.Append(cluster) |> ignore<StringBuilder>
 
-    let currentWidth = currentWidth + charWidth
+    let currentWidth = if dropSpace then 0 else currentWidth + charWidth
     let struct (lastSpaceEnd, widthAtSpaceEnd) =
-      if plain && text[i] = ' ' then
+      if isSpace && not dropSpace then
         struct (current.Length, currentWidth)
       else
         struct (lastSpaceEnd, widthAtSpaceEnd)
