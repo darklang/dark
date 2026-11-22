@@ -197,7 +197,7 @@ let execute(state: AppState, args: List<String>): AppState =
   | ["set", key, _] ->
     printErr(unknownKeyMessage(key))
     { state with exitCode = 1 }
-  | ["list"] ->
+  | [] | ["list"] ->
     let lines =
       settings()
       |> Stdlib.List.map(fun s ->
@@ -233,7 +233,7 @@ let help(_state: AppState): String =
     "  config get <key>           - Get a configuration value"
     "  config set <key> <value>   - Set a configuration value"
     "  config unset <key>         - Go back to the default"
-    "  config list                - List common configuration keys"
+    "  config [list]              - List common configuration keys"
     ""
     "Examples:"
     "  config set trace.record on"

@@ -408,6 +408,7 @@ let private streamRows : List<List<string> * int * Stream * Stream> =
     [ "help"; "zzznope" ], 1, Silent, Says "No command called"
     [ "version"; "--local" ], 0, Says "Darklang CLI", Silent
     [ "config"; "list" ], 0, Says "exec.workers", Silent
+    [ "config" ], 0, Says "exec.workers", Silent
     [ "config"; "get"; "zzznope" ], 1, Silent, Says "not a config key"
     [ "permissions"; "show"; "Tests.Rows.f" ], 0, Says "Effects:", Silent
     [ "commit"; "-m"; "rows"; "--json" ], 1, Says "\"committed\":false", Any
