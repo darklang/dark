@@ -16,7 +16,10 @@ window.dark = (() => {
   worker.onmessage = ({ data }) => {
     if (data.status !== undefined) { onStatus(data.status); return; }
     if (data.event !== undefined) { window.dispatchEvent(new CustomEvent(data.event, { detail: data.detail })); return; }
+    // The runtime's own messages pass through here too (a threaded build posts some), and
+    // carry none of our ids.
     const p = pending.get(data.id);
+    if (!p) return;
     pending.delete(data.id);
     if (data.error !== undefined) p.reject(new Error(data.error)); else p.resolve(data.value);
   };

@@ -130,7 +130,7 @@ node backend/src/Wasm/headless-check.mjs <url> <script.js> [timeout-s] [screensh
 
 Drives playwright's chromium over CDP with Node's WebSocket. The script is evaluated in the page
 every 2 s until it returns a string starting `DONE` or `FAIL`; other returns are progress.
-Messages from the worker do not reach this driver's console.
+The worker's console comes through too, marked `worker`.
 
 ## Known gaps
 
