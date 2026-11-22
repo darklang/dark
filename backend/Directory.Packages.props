@@ -1,6 +1,6 @@
 <Project>
   <!-- Every package version, exact. Transitive packages are pinned too: NuGet takes the lowest
-       version a dependency allows, so without these Microsoft.Extensions.* would fall to 2.0. -->
+       version a dependency allows. -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
@@ -9,23 +9,13 @@
     <PackageVersion Include="Expecto" Version="11.1.1" />
     <PackageVersion Include="FSharp.Core" Version="11.0.101" />
     <PackageVersion Include="Fumble" Version="2.0.1" />
-    <PackageVersion Include="Legivel" Version="0.4.6" />
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="11.0.0" />
     <PackageVersion Include="NodaTime" Version="3.3.7" />
-    <PackageVersion Include="NReco.Logging.File" Version="1.4.0" />
-    <PackageVersion Include="SimpleBase" Version="5.6.4" />
-    <PackageVersion Include="System.IO.Hashing" Version="11.0.0" />
     <PackageVersion Include="Wcwidth" Version="4.0.1" />
   </ItemGroup>
   <!-- Transitive -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.Data.Sqlite.Core" Version="11.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="11.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="11.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="11.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="11.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Configuration" Version="11.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="11.0.0" />
     <PackageVersion Include="Mono.Cecil" Version="0.11.6" />
     <PackageVersion Include="SQLite" Version="3.53.4" />
     <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />

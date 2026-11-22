@@ -94,7 +94,6 @@
   <ItemGroup>
     <PackageReference Include="FSharp.Core" />
     <PackageReference Include="Expecto" />
-    <PackageReference Include="SimpleBase" />
     <PackageReference Include="Fumble" />
   </ItemGroup>
 </Project>

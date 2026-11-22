@@ -9,7 +9,6 @@
   <!-- dependencies and code -->
   <ItemGroup>
     <PackageReference Include="FSharp.Core" />
-    <PackageReference Include="Legivel" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />

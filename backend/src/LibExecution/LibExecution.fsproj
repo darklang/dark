@@ -9,7 +9,6 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="FSharp.Core" />
-    <PackageReference Include="System.IO.Hashing" />
   </ItemGroup>
   <!-- Create empty package-ref-hashes.txt if missing (fresh clone / CI before reload-packages) -->
   <Target Name="EnsurePackageRefHashes" BeforeTargets="PrepareForBuild">

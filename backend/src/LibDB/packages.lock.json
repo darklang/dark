@@ -46,8 +46,7 @@
         "type": "Project",
         "dependencies": {
           "FSharp.Core": "[11.0.101, )",
-          "Prelude": "[1.0.0, )",
-          "System.IO.Hashing": "[11.0.0, )"
+          "Prelude": "[1.0.0, )"
         }
       },
       "libserialization": {
@@ -120,12 +119,6 @@
         "dependencies": {
           "SQLitePCLRaw.core": "3.0.5"
         }
-      },
-      "System.IO.Hashing": {
-        "type": "CentralTransitive",
-        "requested": "[11.0.0, )",
-        "resolved": "11.0.0",
-        "contentHash": "U+Bv2qCYt6eONi+arSP0QIp4uTO6os6uceBsqiAwruZ+Wo2HrRhO/0tj38M9URJtS+4DhAtT3ka2TGNFYsnhyQ=="
       },
       "Wcwidth": {
         "type": "CentralTransitive",

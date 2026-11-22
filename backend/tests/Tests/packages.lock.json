@@ -28,12 +28,6 @@
           "Microsoft.Data.Sqlite": "9.0.4"
         }
       },
-      "SimpleBase": {
-        "type": "Direct",
-        "requested": "[5.6.4, )",
-        "resolved": "5.6.4",
-        "contentHash": "4z4S1zdoiE74e8gmdAesX9g6RUDPY+dE3VTFE1H8ueUHBgLHk/WVlFdt6iop3ZYKkbZrsr1ZH3/qxg+NF4CveQ=="
-      },
       "builtins.cli": {
         "type": "Project",
         "dependencies": {
@@ -148,8 +142,7 @@
         "type": "Project",
         "dependencies": {
           "FSharp.Core": "[11.0.101, )",
-          "Prelude": "[1.0.0, )",
-          "System.IO.Hashing": "[11.0.0, )"
+          "Prelude": "[1.0.0, )"
         }
       },
       "libparser": {
@@ -190,8 +183,7 @@
           "Expecto": "[11.1.1, )",
           "LibDB": "[1.0.0, )",
           "LibExecution": "[1.0.0, )",
-          "LibParser": "[1.0.0, )",
-          "NReco.Logging.File": "[1.4.0, )"
+          "LibParser": "[1.0.0, )"
         }
       },
       "Microsoft.Data.Sqlite": {
@@ -214,57 +206,6 @@
           "SQLitePCLRaw.core": "3.0.5"
         }
       },
-      "Microsoft.Extensions.Configuration": {
-        "type": "CentralTransitive",
-        "requested": "[11.0.0, )",
-        "resolved": "11.0.0",
-        "contentHash": "VQS/GkFU9oLQmXZv0AR/zluF0YAbEAoUQ5aYMqcRc2TWeKa6m2AjInAOnDhCcoWI5a6LQUCzTcl8B3DZZaPZLg=="
-      },
-      "Microsoft.Extensions.Configuration.Binder": {
-        "type": "CentralTransitive",
-        "requested": "[11.0.0, )",
-        "resolved": "11.0.0",
-        "contentHash": "3eoaKF4Stat1PSN+KFwqmy04sM9DwGuHM1o1lHwuNFM/TqwQ+PCIvaQHS4lcT3kJl5rwvDK4w/rIlR0wc024eQ==",
-        "dependencies": {
-          "Microsoft.Extensions.Configuration": "11.0.0"
-        }
-      },
-      "Microsoft.Extensions.DependencyInjection": {
-        "type": "CentralTransitive",
-        "requested": "[11.0.0, )",
-        "resolved": "11.0.0",
-        "contentHash": "KygQMITBDDPXw7+AAgdwQvVAaTXuDsc1iCAuvhO73ERxKX+d92cdbgZmpoYF7DIUq2hfs/yO2KD87uIreRy3MA=="
-      },
-      "Microsoft.Extensions.Logging": {
-        "type": "CentralTransitive",
-        "requested": "[11.0.0, )",
-        "resolved": "11.0.0",
-        "contentHash": "zsse8MOgo0bj2KAEsSkg9WtNAfZbHbTlGeqfhy5PGozomM3zQM0XzumSQzQ0451IWNSJWLqYaSIQEpCi2j1sCA==",
-        "dependencies": {
-          "Microsoft.Extensions.DependencyInjection": "11.0.0"
-        }
-      },
-      "Microsoft.Extensions.Logging.Configuration": {
-        "type": "CentralTransitive",
-        "requested": "[11.0.0, )",
-        "resolved": "11.0.0",
-        "contentHash": "zI04chEUw5Z14Jtfq4gWq/D3nnvWTqu1RMhdEMQb+gyRmMMNmeaBGL6kKvSNJ/C+lbsvhThKzYBjzdmhGn4rHg==",
-        "dependencies": {
-          "Microsoft.Extensions.Configuration": "11.0.0",
-          "Microsoft.Extensions.Configuration.Binder": "11.0.0",
-          "Microsoft.Extensions.Logging": "11.0.0",
-          "Microsoft.Extensions.Options.ConfigurationExtensions": "11.0.0"
-        }
-      },
-      "Microsoft.Extensions.Options.ConfigurationExtensions": {
-        "type": "CentralTransitive",
-        "requested": "[11.0.0, )",
-        "resolved": "11.0.0",
-        "contentHash": "s4JrxDPwxk8pE6LFVj+M5TrDHxOVIoCnQBy5lexs5uAYeggPYwAc/pSDNgVuZN14pCmZGCInygI/2ylCdLYShw==",
-        "dependencies": {
-          "Microsoft.Extensions.Configuration.Binder": "11.0.0"
-        }
-      },
       "Mono.Cecil": {
         "type": "CentralTransitive",
         "requested": "[0.11.6, )",
@@ -276,17 +217,6 @@
         "requested": "[3.3.7, )",
         "resolved": "3.3.7",
         "contentHash": "4Rc3zup1sZqtlcgkWZOsjoVbhm+RkDvxrFDJfIxi7nr32ZgzVW+zCTBr827+KG/4r5owpchUjqx8tO4K2ZtpOw=="
-      },
-      "NReco.Logging.File": {
-        "type": "CentralTransitive",
-        "requested": "[1.4.0, )",
-        "resolved": "1.4.0",
-        "contentHash": "CwL4LVI2DFynoWCgtegbR1jvPVFnJ0LiQmiqGMPJlHWrL4ooMdB6E2JLjcciPEMydQMOhNdwhh6xSjzYPxoZpQ==",
-        "dependencies": {
-          "Microsoft.Extensions.Logging": "10.0.10",
-          "Microsoft.Extensions.Logging.Configuration": "10.0.10",
-          "Microsoft.Extensions.Options.ConfigurationExtensions": "10.0.10"
-        }
       },
       "SQLite": {
         "type": "CentralTransitive",
@@ -327,12 +257,6 @@
         "dependencies": {
           "SQLitePCLRaw.core": "3.0.5"
         }
-      },
-      "System.IO.Hashing": {
-        "type": "CentralTransitive",
-        "requested": "[11.0.0, )",
-        "resolved": "11.0.0",
-        "contentHash": "U+Bv2qCYt6eONi+arSP0QIp4uTO6os6uceBsqiAwruZ+Wo2HrRhO/0tj38M9URJtS+4DhAtT3ka2TGNFYsnhyQ=="
       },
       "Wcwidth": {
         "type": "CentralTransitive",
