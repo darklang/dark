@@ -62,7 +62,7 @@
         "dependencies": {
           "FSharp.Core": "[11.0.101, )",
           "NodaTime": "[3.3.7, )",
-          "Wcwidth": "[4.0.1, )"
+          "Wcwidth": "[5.0.2, )"
         }
       },
       "Microsoft.Data.Sqlite.Core": {
@@ -122,9 +122,9 @@
       },
       "Wcwidth": {
         "type": "CentralTransitive",
-        "requested": "[4.0.1, )",
-        "resolved": "4.0.1",
-        "contentHash": "PMU8u3pGf9nUkee39KMrB8qqId7u7kyGWaZpOh9E4Mal3xChq+relS/hHQOicGAswyzi7F5DjXjac0mTnRBX8Q=="
+        "requested": "[5.0.2, )",
+        "resolved": "5.0.2",
+        "contentHash": "QdEuJpQoHlhHWaYjwlAaFerFcd4cmejvL41EV2ogQB7vIQxLrIKK9m37qN+24HlgyHw2ou+r/Y9rHoWxAsVBRQ=="
       }
     }
   }
