@@ -77,6 +77,10 @@
     "HOST_PWD=${localWorkspaceFolder}",
     "--security-opt",
     "seccomp=unconfined",
+    // Test stores live under /tmp and are thrown away: every CLI test instance is a whole
+    // copy of the store, and on disk those copies made parallel suites wait on each other.
+    // Capped so a leak fails with "No space left on device" rather than eating the host's RAM.
+    "--tmpfs=/tmp:rw,exec,size=12g",
     "--label",
     "dark-dev-container",
     "--workdir",

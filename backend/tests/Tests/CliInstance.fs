@@ -45,8 +45,18 @@ let private cliPath () : string =
 
   path
 
-let private instanceRoot () : string =
-  System.IO.Path.Combine(LibConfig.Config.runDir, "cli-instances")
+/// In the temp directory, not rundir: every instance is a whole copy of the store, and the
+/// dev container keeps /tmp in memory. One per process, removed when it exits.
+let private instanceRoot : Lazy<string> =
+  lazy
+    (let dir =
+      System.IO.Directory.CreateTempSubdirectory("dark-cli-instances-").FullName
+     System.AppDomain.CurrentDomain.ProcessExit.Add(fun _ ->
+       try
+         System.IO.Directory.Delete(dir, true)
+       with _ ->
+         ())
+     dir)
 
 let private backup (source : string) (dest : string) : unit =
   for suffix in [ ""; "-wal"; "-shm" ] do
@@ -64,13 +74,13 @@ let private backup (source : string) (dest : string) : unit =
   src.BackupDatabase dst
 
 let private pristineStore () : string =
-  System.IO.Path.Combine(instanceRoot (), "pristine.db")
+  System.IO.Path.Combine(instanceRoot.Value, "pristine.db")
 
 /// Copy the store before any test runs, and build the instance template from this copy. Built
 /// from the live store instead, it would include whatever earlier tests left behind, so every
 /// instance would start differently depending on which tests ran first.
 let snapshotStore () : unit =
-  System.IO.Directory.CreateDirectory(instanceRoot ())
+  System.IO.Directory.CreateDirectory(instanceRoot.Value)
   |> ignore<System.IO.DirectoryInfo>
   backup LibDB.Sqlite.currentDbPath (pristineStore ())
 
@@ -121,7 +131,7 @@ let private prepare (dir : string) (args : string list) : unit =
 /// touch the store.
 let private template : Lazy<string * string> =
   lazy
-    (let root = instanceRoot ()
+    (let root = instanceRoot.Value
      System.IO.Directory.CreateDirectory root |> ignore<System.IO.DirectoryInfo>
 
      let warm = freshDir (System.IO.Path.Combine(root, "template-warm"))
@@ -156,7 +166,7 @@ let rec private copyDir (source : string) (dest : string) : unit =
 let create () : T =
   let dir =
     System.IO.Path.Combine(
-      instanceRoot (),
+      instanceRoot.Value,
       System.Guid.NewGuid().ToString("N"),
       ".darklang"
     )
@@ -171,7 +181,7 @@ let dispose (i : T) : unit =
   try
     System.IO.Directory.Delete(homeOf i.dir, true)
   with _ ->
-    () // a leaked instance is under rundir, where it is visible and cheap to sweep
+    () // a leaked instance goes with the rest of instanceRoot when the process exits
 
 /// How long one command may take before the test says so, rather than hanging the run.
 /// Generous on purpose: one `test run` launches a CLI per test, one after another, and a
