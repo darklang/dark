@@ -6290,9 +6290,6 @@ type VMState =
   static member createWithoutTLID(instrs : Instructions) : VMState =
     VMState.create (None, instrs)
 
-  static member creatWithTLID (tlid : tlid) (instrs : Instructions) : VMState =
-    VMState.create (Some tlid, instrs)
-
 
 
 // -- Spreading (`LibExecution.Spread`) --
