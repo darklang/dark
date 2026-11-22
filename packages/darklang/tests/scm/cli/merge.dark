@@ -314,23 +314,89 @@ test aValueMadeOnABranchWorksAfterTheMerge =
 
 
 // A branch merged into a parent that is not main lands there, and `--dry-run` says so first.
-test aMergeIntoABranchLandsThereAndNotOnMain =
+test aMergeIntoABranchLandsThereAndNotOnMain = scenario(fun dark ->
+  let f = "Tests.CliMerge.landed"
+  let setup =
+    Stdlib.Test.all(
+      [ switch(dark, "parent")
+        switch(dark, "child")
+        saveNumber(dark, f, "7")
+        commit(dark, "merge fixture") ])
+
+  // --dry-run records nothing, so it has to answer the same question the merge does without doing it.
+  let dryRun =
+    Cli.Tests.Instance.output(dark, [ "merge", "child", "--dry-run" ])
+
+  [ setup
+    Cli.Tests.Instance.doesNotSay(dryRun, "ERROR:", "`merge --dry-run` runs")
+    Cli.Tests.Instance.says(
+      dryRun,
+      "parent",
+      "it names the parent it would merge into")
+
+    Cli.Tests.Instance.says(dryRun, f, "and the name that would land")
+    says(
+      dark,
+      [ "merge", "child", "-y" ],
+      "Merged",
+      "the merge reports what it merged")
+
+    evalsOn(dark, "parent", f + "()", "7", "the merged fn runs on the parent")
+    notFoundOn(dark, "main", f + "()", "and the merge did not reach main") ])
+
+
+/// A merge moves committed work onto main and there is no undo for it, so on a pipe it refuses
+/// without `-y`, and the refusal leaves the branch to merge.
+test aMergeOnAPipeAsksFirst =
   scenario(fun dark ->
-    let f = "Tests.CliMerge.landed"
-    let setup =
-      Stdlib.Test.all(
-        [ switch(dark, "parent")
-          switch(dark, "child")
-          saveNumber(dark, f, "7")
-          commit(dark, "merge fixture") ])
+    [ switch(dark, "askbr")
+      saveNumber(dark, "Tests.Ask.a", "31")
+      commit(dark, "ask work")
+      switch(dark, "main")
+      refuses(
+        dark,
+        [ "merge", "askbr" ],
+        "Merge not done",
+        "a piped merge with no -y refuses")
 
-    // --dry-run records nothing, so it has to answer the same question the merge does without doing it.
-    let dryRun = Cli.Tests.Instance.output(dark, [ "merge", "child", "--dry-run" ])
+      doesNotSay(
+        dark,
+        [ "merge", "askbr" ],
+        "Merged",
+        "and does not claim it merged")
 
-    [ setup
-      Cli.Tests.Instance.doesNotSay(dryRun, "ERROR:", "`merge --dry-run` runs")
-      Cli.Tests.Instance.says(dryRun, "parent", "it names the parent it would merge into")
-      Cli.Tests.Instance.says(dryRun, f, "and the name that would land")
-      says(dark, [ "merge", "child", "-y" ], "Merged", "the merge reports what it merged")
-      evalsOn(dark, "parent", f + "()", "7", "the merged fn runs on the parent")
-      notFoundOn(dark, "main", f + "()", "and the merge did not reach main") ])
+      notFound(dark, "Tests.Ask.a()", "main does not have the work")
+      says(
+        dark,
+        [ "merge", "askbr", "-y" ],
+        "Merged",
+        "-y merges the same branch")
+
+      evals(dark, "Tests.Ask.a()", "31", "and main has the work") ])
+
+
+test aBareMergeOrRebaseMeansTheBranchYouAreOn =
+  scenario(fun dark ->
+    [ refuses(
+        dark,
+        [ "rebase" ],
+        "no branch to rebase",
+        "on main a bare rebase has nothing to mean")
+
+      switch(dark, "barebr")
+      save(dark, "Tests.Bare.one", "(x: Int64): Int64 = x + 1")
+      commit(dark, "bare branch work")
+      says(
+        dark,
+        [ "rebase", "--dry-run" ],
+        "barebr",
+        "a bare rebase resolves to the branch you're on")
+
+      says(dark, [ "merge", "--dry-run" ], "barebr", "and so does a bare merge")
+      onBranch(dark, "barebr", "a dry run moves nothing")
+      notFoundOn(dark, "main", "Tests.Bare.one(1)", "and merges nothing")
+      refuses(
+        dark,
+        [ "merge", "nosuchbranch" ],
+        "no branch",
+        "a named branch is still looked up") ])

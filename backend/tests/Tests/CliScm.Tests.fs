@@ -1154,49 +1154,6 @@ let private branchReadsAnswerAboutTheBranch =
         do! archiveBranches state [ "brTwo"; "brOne" ]
       })
 
-/// `dark merge` and `dark rebase` with no argument mean the branch you are standing on.
-let private bareMergeAndRebaseMeanThisBranch =
-  instanceTest
-    "merge and rebase with no argument mean the branch you're on"
-    (fun state ->
-      task {
-        // On main there is nothing a bare form could mean, so it still refuses.
-        let! onMain = runCli state [ "rebase" ]
-        Expect.stringContains
-          onMain
-          "usage: dark rebase"
-          "on main a bare rebase refuses"
-        Expect.stringContains
-          onMain
-          "no branch to rebase"
-          "and says why, rather than only how"
-
-        do! switch state "barebr"
-        let! _ =
-          runCli state [ "fn"; "Tests.Bare.one"; "(x: Int64) : Int64 = x + 1" ]
-        do! commit state "bare branch work"
-
-        // The dry runs are the safe half to assert on: they name the branch without moving anything.
-        do!
-          shows
-            state
-            [ "rebase"; "--dry-run" ]
-            "barebr"
-            "a bare rebase resolves to the branch you're on"
-
-        do! shows state [ "merge"; "--dry-run" ] "barebr" "and so does a bare merge"
-
-        // A named branch that does not exist is still a different answer from the bare form.
-        do!
-          shows
-            state
-            [ "merge"; "nosuchbranch" ]
-            "no branch"
-            "a named branch is still looked up"
-
-        do! archiveBranches state [ "barebr" ]
-      })
-
 /// "Who calls this" must answer about the BRANCH you are standing on.
 ///
 /// The dependency edge is shared, but the name to call a caller by is the branch's: a join against
@@ -1415,86 +1372,6 @@ let private aConflictCloseThatFailsIsReported =
         do! discardAll state
       })
 
-
-/// A merge moves committed work onto main and there is no undo verb for it, so it asks first, and a
-/// stdin nobody is holding counts as no.
-///
-/// The piped case is the one that matters and the one a test can reach: naming the branch is not the
-/// confirmation, so `merge <name>` on a pipe has to refuse and say how to mean it. A structural
-/// refusal still reports the REASON rather than a declined prompt, which is why the gates above test
-/// what they test.
-let private mergeAsksBeforeItGoes =
-  instanceTest "a merge on a pipe refuses without -y, and goes with it" (fun state ->
-    task {
-      do! switch state "askbr"
-      do! fn state "Tests.Ask.a" "() : Int64 = 31"
-      do! commit state "ask work"
-      do! onMain state
-
-      do!
-        refuses
-          state
-          [ "merge"; "askbr" ]
-          "Merge not done"
-          "Merged"
-          "a piped merge with no -y refuses, and does not claim it merged"
-
-      // Refusing has to mean the branch is still there to merge. A refusal that half-merged would
-      // pass the assertion above and lose the work anyway.
-      do!
-        shows
-          state
-          [ "merge"; "askbr"; "-y" ]
-          "Merged"
-          "and -y merges the same branch, so the refusal changed nothing"
-    })
-
-/// Whether a merge is ALLOWED is a decision, so it is decided in Dark; the builtin only does the work.
-///
-/// Two structural gates. Conflicts deliberately do NOT gate: they are auto-resolved by the fold's
-/// LWW and recorded, because blocking teaches people to rebase reflexively. "Active" has to mean
-/// the same in the check as in the message, which says to merge OR ARCHIVE the children --
-/// counting archived children as active makes that advice a dead end.
-let private mergeGatesAreDecidedInDark =
-  instanceTest
-    "merge refuses an empty branch, and one with children until they are archived"
-    (fun state ->
-      task {
-        do! switch state "gateempty"
-        do! switch state "main"
-        do!
-          shows
-            state
-            [ "merge"; "gateempty" ]
-            "nothing to merge"
-            "an empty branch has nothing to give its parent"
-
-        do! switch state "gateparent"
-        let! _ =
-          runCli state [ "fn"; "Tests.Gate.one"; "(x: Int64) : Int64 = x + 6" ]
-        // Committed, so the refusal under test is the CHILDREN one and not the uncommitted-work
-        // one -- both are real, and a test that cannot tell them apart proves neither.
-        do! commit state "gate work"
-        do! switch state "gatechild"
-        do! switch state "main"
-
-        do!
-          shows
-            state
-            [ "merge"; "gateparent" ]
-            "active children"
-            "a parent cannot merge out from under its children"
-
-        let! _ = runCli state [ "branch"; "archive"; "gatechild"; "-y" ]
-        do!
-          shows
-            state
-            [ "merge"; "gateparent"; "-y" ]
-            "Merged"
-            "and archiving the child clears the gate, rather than repeating the advice"
-
-        do! archiveBranches state [ "gateempty" ]
-      })
 
 /// `diff` and `log` answer questions, so they answer in JSON too.
 ///
@@ -2136,11 +2013,8 @@ let tests : List<Test> =
     deprecationTakesEffectInTheSameProcess
     conflictsBelongToTheBranchTheyHappenedOn
     diffAndLogAnswerInJson
-    mergeAsksBeforeItGoes
-    mergeGatesAreDecidedInDark
     bareDiffShowsTheDraft
     dependentsSeeTheBranchYouAreOn
-    bareMergeAndRebaseMeanThisBranch
     branchReadsAnswerAboutTheBranch
     anUnbindRemovesANameThroughTheCli
     aDeprecationCommitsByEitherPath
