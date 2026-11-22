@@ -567,14 +567,14 @@ let private executeHandler
       ->
       return! notAResponse exeState answered
     | Some(Error(rte, _callStack)) ->
-      match p.stopReason with
-      | null ->
+      match p.stop with
+      | None ->
         let! errorStr = Execution.runtimeErrorMessage exeState rte
         // The terminal is where the 500 page sends you, so the error has to be there too.
         printErr $"[HttpServer] the handler failed: {errorStr}"
         return Direct(textResponse 500 $"The handler failed: {errorStr}")
-      | reason ->
-        return Direct(textResponse 503 $"The request was stopped: {reason}.")
+      | Some stop ->
+        return Direct(textResponse 503 $"The request was stopped: {stop.reason}.")
   }
 
 

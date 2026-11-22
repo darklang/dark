@@ -510,9 +510,9 @@ let private runChunks
 
   // Already asked to stop: no chunk is worth starting.
   match me with
-  | Some m when not (isNull m.stopReason) ->
+  | Some m when m.stop.IsSome ->
     slots.Release(List.length chunks) |> ignore<int>
-    RuntimeError.UncaughtException(m.stopReason, []) |> raiseRTE
+    RuntimeError.UncaughtException(m.stop.Value.reason, []) |> raiseRTE
   | _ -> ()
 
   state.spread.counts.Add SpreadCount.Spreads
@@ -650,9 +650,9 @@ let private runChunks
     // because they were stopped with it, and running the rest here would be doing exactly the
     // work the stop was for. So the stop is what this answers.
     match me, stop with
-    | Some m, FailedAt failedAt when not (isNull m.stopReason) ->
+    | Some m, FailedAt failedAt when m.stop.IsSome ->
       cancelFrom (failedAt + 1)
-      RuntimeError.UncaughtException(m.stopReason, []) |> raiseRTE
+      RuntimeError.UncaughtException(m.stop.Value.reason, []) |> raiseRTE
     | _ -> ()
 
     match stop with
@@ -667,7 +667,7 @@ let private runChunks
       // Stopped by a cap rather than refused: the body was dearer than it looked, not impure,
       // so it may be tried again.
       match me with
-      | Some m when isNull failed.stopReason || failed.stopAsked ->
+      | Some m when failed.stop |> Option.forall (fun s -> s.asked) ->
         m.spreadFellBack.Add(keyOf app) |> ignore<bool>
       | _ -> ()
       cancelFrom (failedAt + 1)
