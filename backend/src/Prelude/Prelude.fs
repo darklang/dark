@@ -476,10 +476,10 @@ let gid () : uint64 =
     let rand64 =
       System.BitConverter.ToUInt64(bytes, 0)
       ^^^ System.BitConverter.ToUInt64(bytes, 8)
-    // Dark only has 63 bits of positive numbers, so to make it easier to convert IDs
-    // to dark, we keep IDs in that range.
+    // Below bit 61: Dark reads an id with bit 61 set as one carrying a source position
+    // (`LanguageTools.WrittenTypesToProgramTypes.gidAt`), and these carry none.
     let mask =
-      0b0111_1111_1111_1111_1111_1111_1111_1111_0011_1111_1111_1111_1111_1111_1111_1111UL
+      0b0001_1111_1111_1111_1111_1111_1111_1111_0011_1111_1111_1111_1111_1111_1111_1111UL
     rand64 &&& mask
   with e ->
     Exception.raiseInternal $"gid failed" [ "message", e.Message; "inner", e ]
