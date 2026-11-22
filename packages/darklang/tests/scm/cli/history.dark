@@ -1,4 +1,5 @@
-/// `dark commits`, `dark log`, `dark show`, `dark ops`, `dark diff`: reading history and changes.
+/// `dark commits`, `dark log`, `dark show`, `dark ops`, `dark diff`: reading history and changes,
+/// and what `ops`, `undo` and `deps` answer on a branch.
 /// The helpers are in `helpers.dark`.
 module Darklang.SCM.Tests.Cli
 
@@ -91,12 +92,13 @@ test diffShowsTheDraftOrWhatABranchChanges =
     [ saveNumber(dark, "Tests.App.a", "1")
       commit(dark, "base")
       says(dark, [ "diff" ], "clean", "with nothing in the draft, diff says so")
+      doesNotSay(dark, [ "diff" ], "usage:", "and does not answer with usage")
       saveNumber(dark, "Tests.App.draftOnly", "2")
-      says(
+      saysAll(
         dark,
         [ "diff" ],
-        "Tests.App.draftOnly",
-        "diff on its own lists the draft")
+        [ "CHANGED", "Tests.App.draftOnly" ],
+        "diff on its own lists the draft as changes")
 
       run(dark, [ "discard", "-y" ])
       switch(dark, "feat")
@@ -126,3 +128,116 @@ test diffShowsTheDraftOrWhatABranchChanges =
         |> Stdlib.List.map(fun e -> $"{text(e, "change")} {text(e, "name")}"),
         [ "new Tests.App.c" ],
         "and lists what the draft changes") ])
+
+
+/// `diff` and `log` answer in JSON too, and `--json` can go either side of the branch name.
+test diffAndLogAnswerInJsonWithTheFlagOnEitherSide =
+  scenario(fun dark ->
+    [ switch(dark, "feat")
+      saveNumber(dark, "Tests.App.only", "1")
+      same(
+        rows(json(dark, [ "log", "--json" ]))
+        |> Stdlib.List.map(fun op -> number(op, "seq"))
+        |> Stdlib.List.head,
+        Stdlib.Option.Option.Some(0),
+        "on a branch, log --json numbers the ops from the start")
+
+      switch(dark, "main")
+      same(
+        rows(json(dark, [ "log", "--json" ]))
+        |> Stdlib.List.map(fun c -> text(c, "hash")),
+        rows(json(dark, [ "commits", "--json" ]))
+        |> Stdlib.List.map(fun c -> text(c, "hash")),
+        "on main, log --json is the commit history")
+
+      same(
+        rows(json(dark, [ "diff", "feat", "--json" ]))
+        |> Stdlib.List.map(fun e -> $"{text(e, "change")} {text(e, "name")}"),
+        [ "new Tests.App.only" ],
+        "diff --json names and classifies what the branch changed")
+
+      same(
+        json(dark, [ "diff", "--json", "feat" ]),
+        json(dark, [ "diff", "feat", "--json" ]),
+        "the flag is not positional") ])
+
+
+/// `ops`, `undo` and `deps` answer about the branch you are on: `ops` on a branch off a branch
+/// includes the branch between, `undo` steps back to what the branch forked from and not onto a
+/// version main made later, and `deps` lists the branch's version of a caller once.
+test opsUndoAndDepsAnswerAboutTheBranchYouAreOn =
+  scenario(fun dark ->
+    [ saveNumber(dark, "Tests.App.base", "1")
+      save(dark, "Tests.App.caller", "(): Int64 = Tests.App.base()")
+      commit(dark, "v1")
+      switch(dark, "one")
+      saveNumber(dark, "Tests.App.base", "2")
+      save(dark, "Tests.App.caller", "(): Int64 = (Tests.App.base()) + 0")
+      run(dark, [ "branch", "new", "two" ])
+      onBranch(dark, "two", "branch new moves onto the new branch")
+      saveNumber(dark, "Tests.App.deep", "3")
+      saysAll(
+        dark,
+        [ "ops" ],
+        [ "Tests.App.caller", "Tests.App.deep" ],
+        "ops lists the middle branch's op beside the child's own")
+
+      switch(dark, "main")
+      saveNumber(dark, "Tests.App.base", "3")
+      commit(dark, "v3")
+      switch(dark, "one")
+      evals(dark, "Tests.App.base()", "2", "the branch is at its own edit")
+      run(dark, [ "undo", "Tests.App.base" ])
+      evals(
+        dark,
+        "Tests.App.base()",
+        "1",
+        "undo steps back to the version the branch forked from")
+
+      saveNumber(dark, "Tests.App.base", "2")
+      says(
+        dark,
+        [ "deps", "usedby", "Tests.App.base" ],
+        "Found 1 dependents",
+        "the caller is listed once, the branch's version and not main's as well") ])
+
+
+/// "Who calls this" counts the callers on the branch you are on, and main's list leaves out a
+/// caller that only a branch has.
+test depsCountsTheCallersOnTheBranchYouAreOn =
+  scenario(fun dark ->
+    [ save(dark, "Tests.App.target", "(x: Int64): Int64 = x + 1")
+      save(
+        dark,
+        "Tests.App.mainCaller",
+        "(x: Int64): Int64 = (Tests.App.target(x)) + 10")
+      says(
+        dark,
+        [ "deps", "Tests.App.target" ],
+        "mainCaller",
+        "main's caller shows on main")
+
+      commit(dark, "target")
+      switch(dark, "feat")
+      save(
+        dark,
+        "Tests.App.branchCaller",
+        "(x: Int64): Int64 = (Tests.App.target(x)) + 99")
+      saysAll(
+        dark,
+        [ "deps", "Tests.App.target" ],
+        [ "branchCaller", "mainCaller" ],
+        "on the branch, its own caller and main's are both dependents")
+
+      switch(dark, "main")
+      says(
+        dark,
+        [ "deps", "Tests.App.target" ],
+        "mainCaller",
+        "main still sees its own caller")
+
+      doesNotSay(
+        dark,
+        [ "deps", "Tests.App.target" ],
+        "branchCaller",
+        "and not one that only exists on a branch") ])
