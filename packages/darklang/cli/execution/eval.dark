@@ -125,11 +125,15 @@ let execute(state: AppState, args: List<String>): AppState =
   | Ok(grants) -> executeUnder(state, args, harmful, wantStats, grants)
 
 
-/// The `--allow <rules>` at the front of <param args>, and what follows them.
+/// Every `--allow <rules>` in <param args>, before or after the expression, and the rest in order.
 let allowRules(rules: List<String>, args: List<String>): (List<String> * List<String>) =
   match args with
   | ["--allow", rule, ...rest] -> allowRules(Stdlib.List.append(rules, rule), rest)
-  | _ -> (rules, args)
+  | ["--", ...rest] -> (rules, rest)
+  | [arg, ...rest] ->
+    let (allRules, others) = allowRules(rules, rest)
+    (allRules, [ arg, ...others ])
+  | [] -> (rules, [])
 
 
 let executeUnder(
