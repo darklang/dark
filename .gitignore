@@ -13,6 +13,8 @@ config/local
 
 # F# / dotnet
 backend/packages/
+# Left by Paket restores from before the move to NuGet; nothing reads it now.
+backend/.paket/
 backend/Build/
 backend/src/**/obj
 backend/tests/**/obj
