@@ -478,6 +478,42 @@ let insertBundledOps (branch : PT.BranchId) (ops : List<PT.PackageOp>) =
   insertCheckedOps true branch ops
 
 
+/// <param ops>, with each `Add*` of <param ops0> that they leave out but still bind put back just
+/// before its first binding. Without it the log loses a body a name still points at: an alias whose
+/// `SetName` shares another declaration's `AddFn` keeps its hash when that declaration is refreshed,
+/// and a re-fold of the log would then bind the alias to nothing.
+let private keepBoundContent
+  (ops0 : List<PT.PackageOp>)
+  (ops : List<PT.PackageOp>)
+  : List<PT.PackageOp> =
+  let added = ops |> List.choose PT.declaredReference |> Set.ofList
+  let dropped =
+    ops0
+    |> List.choose (fun op ->
+      PT.declaredReference op
+      |> Option.filter (fun target -> not (Set.contains target added))
+      |> Option.map (fun target -> target, op))
+    |> Map.ofList
+  let bound (op : PT.PackageOp) =
+    PT.packageOpBindingEffects op
+    |> List.choose (fun effect ->
+      match effect with
+      | PT.PackageOp.SetName(_, target, _)
+      | PT.PackageOp.Decision(_, _, _, PT.DecisionKind.Override target) ->
+        Some target
+      | _ -> None)
+  ops
+  |> List.mapFold
+    (fun dropped op ->
+      let needed = bound op |> List.distinct
+      let restored =
+        needed |> List.choose (fun target -> Map.tryFind target dropped)
+      restored @ [ op ],
+      List.fold (fun dropped target -> Map.remove target dropped) dropped needed)
+    dropped
+  |> fst
+  |> List.concat
+
 /// Replace the ops <param ops0> of main's draft with <param ops>, but only if the draft still holds
 /// exactly the rows `draftAsRead` lists, checked under the write lock. A caller that read the draft, worked on it, and then deleted
 /// it would otherwise delete whatever another author added in between. `None` means the draft moved
@@ -512,7 +548,8 @@ let rewriteDraftIfUnchanged
             AND id IN (SELECT value FROM json_each($ids))"
         bindIds
       let inserted =
-        storeAndFoldOn ctx PT.BranchId.Main "op" tsFor (fun _ -> None) ops
+        keepBoundContent ops0 ops
+        |> storeAndFoldOn ctx PT.BranchId.Main "op" tsFor (fun _ -> None)
       Some(int64 (List.length inserted)))
 
 
