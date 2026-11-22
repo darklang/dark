@@ -361,7 +361,7 @@ let private unusedAllowlist : Set<string> =
 /// These are exclusion lists, and an exclusion nobody revisits is how a sweep quietly stops
 /// covering the thing it was written for: rename or retire a builtin and its name sits here
 /// forever, excusing nothing and hiding nothing, while the sweep it was carved out of no longer
-/// has a reason to skip anything. `notSweepable` in `CliSurface.Tests.fs` has had this check for
+/// has a reason to skip anything. `notSweepable` in `tests/cli/commandSweeps.dark` has had this check for
 /// the same reason.
 ///
 /// All four lists, not just `infixDispatched`, because a round of removals empties a builtin out
