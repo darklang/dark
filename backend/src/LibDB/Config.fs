@@ -82,11 +82,6 @@ let settings : List<string> =
 /// variables, never code Dark runs, whatever that code was granted.
 let personOnly : List<string> = [ "http.loopback"; "http.private"; "trace.record" ]
 
-/// What code that tried to change a `personOnly` key is told.
-let refusal (key : string) : string =
-  $"permission denied: code cannot change `{key}`, which decides what code may reach or "
-  + $"what traces record. To change it yourself: `dark config set {key} on|off`"
-
 /// Every key `dark config` answers for: the settings, and `instance.id`, which is read but
 /// never set.
 let readable : List<string> = settings @ [ "instance.id" ]

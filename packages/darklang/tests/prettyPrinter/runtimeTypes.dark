@@ -440,3 +440,31 @@ test selfCallOutsideAFunction =
     PrettyPrinter.ProgramTypes.Context.forBranch(SCM.Branch.mainBranchId),
     LanguageTools.ProgramTypes.Expr.ESelf(1))
   |> Stdlib.Test.equal("<self-call outside a function>")
+
+
+// Only the CLI itself may do these; code it runs is told which command to use, without
+// "Uncaught exception" in front.
+test trustedCommandRefusals =
+  let say = fun action ->
+    PrettyPrinter.RuntimeTypes.RuntimeError.toString(
+      SCM.Branch.mainBranchId,
+      LanguageTools.RuntimeTypes.RuntimeError.Error.TrustedCommandOnly(action))
+
+  Stdlib.Test.all(
+    [ say(LanguageTools.RuntimeTypes.RuntimeError.TrustedCommands.Action.RunApprovals)
+      |> Stdlib.Test.equal(
+        "permission denied: run approvals require the trusted `dark run` command")
+      say(LanguageTools.RuntimeTypes.RuntimeError.TrustedCommands.Action.EvalApprovals)
+      |> Stdlib.Test.equal(
+        "permission denied: eval approvals require the trusted `dark eval` command")
+      say(LanguageTools.RuntimeTypes.RuntimeError.TrustedCommands.Action.PolicyChanges)
+      |> Stdlib.Test.equal(
+        "permission denied: policy changes require the trusted `dark permissions` command")
+      say(LanguageTools.RuntimeTypes.RuntimeError.TrustedCommands.Action.StoreBackups)
+      |> Stdlib.Test.equal(
+        "permission denied: store backups require the trusted `dark backups` command")
+      say(
+        LanguageTools.RuntimeTypes.RuntimeError.TrustedCommands.Action.PersonOnlySetting(
+          "http.loopback"))
+      |> Stdlib.Test.equal(
+        "permission denied: code cannot change `http.loopback`, which decides what code may reach or what traces record. To change it yourself: `dark config set http.loopback on|off`") ])
