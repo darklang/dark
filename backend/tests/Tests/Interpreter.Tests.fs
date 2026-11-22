@@ -2733,6 +2733,40 @@ module NumOperators =
           tableMatchesReference t
           everyPathMatchesTheTable t ]
 
+module VMReuse =
+  let private rootFrameStartsClean =
+    test "a reused VM's root frame keeps nothing from the last run" {
+      let vm =
+        RT.VMState.createWithoutTLID
+          { registerCount = 1; instructions = []; resultIn = 0 }
+      let instrData = vm.currentFrame.instrData
+      let vm = RT.VMState.reuseFor (vm, None, instrData, 1)
+      let root = vm.currentFrame
+      root.boundImpls <- [ struct ("a", RT.Hash "type", "method", RT.Hash "fn") ]
+      root.expectedLambdaReturn <-
+        ValueSome
+          { fnName = RT.FQFnName.fqPackage "fn"
+            paramIndex = 0
+            paramName = "f"
+            returnType = RT.TUnit
+            typeSymbolTable = RT.TST.empty
+            runId = 0L
+            frameId = System.Guid.Empty
+            outer = ValueNone }
+
+      let again = RT.VMState.reuseFor (vm, None, instrData, 1)
+      Expect.isTrue
+        (obj.ReferenceEquals(root, again.currentFrame))
+        "the frame is reused"
+      Expect.isEmpty again.currentFrame.boundImpls "no bounds"
+      Expect.isTrue
+        again.currentFrame.expectedLambdaReturn.IsNone
+        "no lambda expectation"
+    }
+
+  let tests = testList "VM reuse" [ rootFrameStartsClean ]
+
+
 let tests =
   testList
     "Interpreter"
@@ -2753,4 +2787,5 @@ let tests =
       LambdaResultChecks.tests
       DebugText.tests
       IntOperators.tests
-      NumOperators.tests ]
+      NumOperators.tests
+      VMReuse.tests ]

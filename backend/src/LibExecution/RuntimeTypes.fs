@@ -6227,6 +6227,9 @@ type VMState =
         frame.executionPoint <- Source
         frame.instrData <- instrData
         frame.expectedReturnType <- ValueNone
+        frame.expectedLambdaReturn <- ValueNone
+        frame.boundImpls <- []
+        frame.appliedLambda <- ValueNone
         frame.programCounter <- 0
         frame.typeSymbolTable <- TST.empty
         frame.parent <- ValueNone
