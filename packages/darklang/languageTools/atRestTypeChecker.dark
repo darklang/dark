@@ -88,6 +88,8 @@ type IssueCode =
   | UnknownDeclaredTypeVariable
   | AmbiguousType
   | NonExhaustiveMatch
+  /// A match case that earlier cases already cover, so it never runs
+  | UnreachableMatchCase
   | UnsupportedConstruct
 
 
@@ -202,6 +204,7 @@ type Context =
   | TypeArity(ProgramTypes.Hash, Int64, Int64)
   | ArgumentIndex(Int64)
   | UncoveredPattern(Option<String>)
+  | UnreachableCase
   | InfixOperandUnsupported(ProgramTypes.InfixFnName)
   | RecordRequiredForConstruction
   | RecordRequiredForFieldAccess
@@ -435,6 +438,7 @@ let issueCodeToString(code: IssueCode): String =
   | UnknownDeclaredTypeVariable -> "UnknownDeclaredTypeVariable"
   | AmbiguousType -> "AmbiguousType"
   | NonExhaustiveMatch -> "NonExhaustiveMatch"
+  | UnreachableMatchCase -> "UnreachableMatchCase"
   | UnsupportedConstruct -> "UnsupportedConstruct"
 
 
@@ -655,6 +659,7 @@ let contextToStringWith(
     match witness with
     | Some(witness) -> $"Match is not exhaustive; an uncovered pattern is {witness}"
     | None -> "Match is not exhaustive; values outside the listed patterns are not covered"
+  | UnreachableCase -> "This case can never match; earlier cases already match every value it would"
   | InfixOperandUnsupported(operation) ->
     let symbol = PrettyPrinter.ProgramTypes.infixFnName(operation)
     $"Operator {symbol} does not accept this operand type"

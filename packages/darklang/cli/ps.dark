@@ -485,9 +485,6 @@ let execute(state: AppState, args: List<String>): AppState =
   | [unknown, ...] ->
     printErr($"ps has no `{unknown}`. `dark ps help` lists what it does have.")
     { state with exitCode = 1 }
-  | _ ->
-    Stdlib.printLine(help(state))
-    state
 
 
 let complete(_state: AppState, args: List<String>): List<Completion.CompletionItem> =

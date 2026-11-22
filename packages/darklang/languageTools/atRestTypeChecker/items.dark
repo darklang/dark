@@ -75,7 +75,8 @@ let toIssue(s: Solve.State, finding: Model.Finding): Issue =
       context = finding.context }
 
 
-/// Check match coverage after type inference and report gaps as warnings.
+/// Check match coverage after type inference and report gaps and cases that can
+/// never match as warnings.
 /// Skip a match if its input type contains an error or its patterns already have
 /// findings, since those problems can make coverage warnings misleading.
 let checkCoverage(s: Solve.State): Solve.State =
@@ -95,22 +96,32 @@ let checkCoverage(s: Solve.State): Solve.State =
       if skip then
         s
       else
-        match Coverage.uncovered(s.env, s.subst, scrutinee, cases) with
-        | None -> s
-        | Some(missing) ->
-          // Anything means coverage is incomplete but no specific example is
-          // available. Omit the example while retaining the coverage warning.
-          let witness =
-            match missing with
-            | Anything -> Option.None
-            | _ -> Option.Some(Coverage.render(missing))
+        let s =
+          match Coverage.uncovered(s.env, s.subst, scrutinee, cases) with
+          | None -> s
+          | Some(missing) ->
+            // Anything means coverage is incomplete but no specific example is
+            // available. Omit the example while retaining the coverage warning.
+            let witness =
+              match missing with
+              | Anything -> Option.None
+              | _ -> Option.Some(Coverage.render(missing))
 
+            Solve.addFinding(
+              s,
+              Types.warning(
+                IssueCode.NonExhaustiveMatch,
+                Option.Some(at),
+                Context.UncoveredPattern(witness)))
+
+        Coverage.unreachable(s.env, s.subst, scrutinee, cases)
+        |> Stdlib.List.fold(s, fun(s, case) ->
           Solve.addFinding(
             s,
             Types.warning(
-              IssueCode.NonExhaustiveMatch,
-              Option.Some(at),
-              Context.UncoveredPattern(witness)))
+              IssueCode.UnreachableMatchCase,
+              Stdlib.List.head(Generate.patternIds(case.pat)),
+              Context.UnreachableCase)))
     | _ -> s)
 
 

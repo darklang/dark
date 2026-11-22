@@ -152,7 +152,6 @@ module RuntimeError =
           |> Stdlib.String.join("")
         | FullValue(dv) -> dval(branchId, dv)
         | LetPattern(p) -> letPattern(p)
-        | segment -> $"(RTETODO segmentsToString parts {__json<ErrorSegment>(segment)})"
 
       Stdlib.List.prepend(prevSegments, newSegment))
 
@@ -790,11 +789,6 @@ module RuntimeError =
 
     // Its own sentence and nothing else: it is a refusal, written for whoever ran the command.
     | Condition(message) -> [ ES.String(message) ]
-
-    // Every case above has a message, so this only fires for a case added without one.
-    | unhandled ->
-      let serialized = __json<LanguageTools.RuntimeTypes.RuntimeError.Error>(unhandled)
-      [ ES.String($"A runtime error with no message written for it yet: {serialized}") ]
 
 
   let toString(branchId: Uuid, e: LanguageTools.RuntimeTypes.RuntimeError.Error): String =

@@ -120,8 +120,7 @@ module Request =
       queryParams(req)
       |> List.filterMap(fun pair ->
         match pair with
-        | k, v -> if k == key then Option.Some(v) else Option.None
-        | _ -> Option.None)
+        | k, v -> if k == key then Option.Some(v) else Option.None)
 
     match found with
     | [] -> Option.None

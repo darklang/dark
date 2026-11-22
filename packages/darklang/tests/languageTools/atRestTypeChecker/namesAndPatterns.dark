@@ -377,6 +377,103 @@ module Patterns =
         |> Stdlib.Test.equal("checked:") ])
 
 
+  // A case is unreachable when the unguarded cases above it already match every
+  // value it would. Report it as a warning, like a missed case.
+  let optionMatch(cases: List<String>): String =
+    src(
+      Stdlib.List.concat(
+        [ "let f(x: Stdlib.Option.Option<Bool>): Int64 =", "  match x with" ],
+        cases))
+
+
+  test unreachableCases =
+    Stdlib.Test.all(
+      [ check(optionMatch([ "  | _ -> 0", "  | Some(_) -> 1" ]), "f")
+        |> Stdlib.Test.equal("incomplete:UnreachableMatchCase")
+
+        issues(optionMatch([ "  | _ -> 0", "  | Some(_) -> 1" ]), "f")
+        |> Stdlib.Test.equal(
+          [ "UnreachableMatchCase: This case can never match; earlier cases already match every value it would" ])
+
+        check(
+          optionMatch(
+            [ "  | Some(true) -> 1"
+              "  | Some(false) -> 2"
+              "  | None -> 0"
+              "  | Some(_) -> 3" ]),
+          "f")
+        |> Stdlib.Test.equal("incomplete:UnreachableMatchCase")
+
+        check(optionMatch([ "  | Some(true) -> 1", "  | Some(_) -> 2", "  | None -> 0" ]), "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check("let f(x: Bool): Int64 = match x with | true -> 1 | false -> 0 | _ -> 2", "f")
+        |> Stdlib.Test.equal("incomplete:UnreachableMatchCase")
+
+        check("let f(x: Int64): Int64 = match x with | 1 -> 1 | 2 -> 2 | 1 -> 3 | _ -> 0", "f")
+        |> Stdlib.Test.equal("incomplete:UnreachableMatchCase")
+
+        check("let f(x: String): Int64 = match x with | \"a\" -> 1 | \"b\" -> 2 | _ -> 0", "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          "let f(x: List<Int64>): Int64 = match x with | [] -> 0 | [_, ...] -> 1 | [y] -> y",
+          "f")
+        |> Stdlib.Test.equal("incomplete:UnreachableMatchCase")
+
+        check(
+          "let f(x: (Bool * Bool)): Int64 = match x with | (true, _) -> 1 | (_, true) -> 2 | (false, false) -> 3",
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          "let f(x: (Bool * Bool)): Int64 = match x with | (true, _) -> 1 | (_, true) -> 2 | (false, true) -> 3 | _ -> 4",
+          "f")
+        |> Stdlib.Test.equal("incomplete:UnreachableMatchCase")
+
+        check(tree([ "  | Leaf -> 0", "  | Node(Leaf) -> 1", "  | Node(_) -> 2" ]), "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          account(
+            [ "  | { status = Active } -> 1"
+              "  | { status = Inactive } -> 2"
+              "  | { age } -> age" ],
+            "Int64"),
+          "f")
+        |> Stdlib.Test.equal("incomplete:UnreachableMatchCase")
+
+        // a case is still unreachable when only an or-pattern covers it
+        check(
+          src(
+            [ "type E = | A | B | C"
+              "let f(x: E): Int64 ="
+              "  match x with"
+              "  | A | B -> 1"
+              "  | B -> 2"
+              "  | C -> 3" ]),
+          "f")
+        |> Stdlib.Test.equal("incomplete:UnreachableMatchCase")
+
+        check(restrictive() + "\n  | A(true) -> 3", "f")
+        |> Stdlib.Test.equal("incomplete:NonExhaustiveMatch,UnreachableMatchCase") ])
+
+
+  // A guarded case above does not cover what follows it, but a guarded case can
+  // itself be unreachable.
+  test unreachableCasesAndGuards =
+    Stdlib.Test.all(
+      [ check(
+          "let f(x: Bool, y: Bool): Int64 = match x with | true when y -> 1 | true -> 2 | false -> 0",
+          "f")
+        |> Stdlib.Test.equal("checked:")
+
+        check(
+          "let f(x: Bool, y: Bool): Int64 = match x with | _ -> 0 | true when y -> 1",
+          "f")
+        |> Stdlib.Test.equal("incomplete:UnreachableMatchCase") ])
+
+
   // An Int64 is not a record: reject field access and record updates on it.
   test intIsNotRecord =
     Stdlib.Test.all(
