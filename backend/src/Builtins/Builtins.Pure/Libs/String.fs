@@ -77,16 +77,24 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "stringSplitPlainAscii" 0
       typeParams = []
       parameters = [ Param.make "text" TString "" ]
-      returnType = TTuple(TInt64, TList TString, [])
+      returnType = TTuple(TInt64, TList(TTuple(TString, TInt64, [])), [])
       description =
-        "How many characters of <param text> are printable ASCII that cannot start a longer grapheme cluster, and every other cluster in order. <fn String.displayWidth> counts the first as one cell each and measures the rest."
+        "How many characters of <param text> are printable ASCII that cannot start a longer grapheme cluster, and each other cluster with how many times it occurs, in the order first seen. <fn String.displayWidth> counts the first as one cell each and measures the rest."
       fn =
         (function
         | _, _, _, [| DString text |] ->
           let struct (plain, others) = splitPlainAscii text 0 0 []
           DTuple(
             Dval.dint64 (int64 plain),
-            DList(VT.string, Items(List.map DString others)),
+            DList(
+              VT.tuple VT.string VT.int64 [],
+              Items(
+                List.map
+                  (fun (cluster, count) ->
+                    DTuple(DString cluster, Dval.dint64 (int64 count), []))
+                  (others |> Seq.countBy (fun cluster -> cluster) |> List.ofSeq)
+              )
+            ),
             []
           )
         | _ -> incorrectArgs ())

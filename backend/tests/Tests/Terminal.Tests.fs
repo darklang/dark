@@ -16,9 +16,10 @@ let private red = "\u001b[31m"
 let private reset = "\u001b[0m"
 
 let terminalTextTests =
-  // The walks take each cluster's width from Dark; these are the widths `Stdlib.Wcwidth` gives.
-  let clip text maxWidth widths = TerminalText.clipToWidth text maxWidth widths
-  let wrap text maxWidth widths = TerminalText.wrapAtColumn text maxWidth widths
+  // The walks take each cluster's width from Dark; this is what `Stdlib.Wcwidth` gives for these.
+  let widthOf cluster = if cluster = "界" then 2 else 1
+  let clip text maxWidth = TerminalText.clipToWidth text maxWidth widthOf
+  let wrap text maxWidth = TerminalText.wrapAtColumn text maxWidth widthOf
   let visible text =
     let struct (plain, others) = TerminalText.visibleClusters text
     (plain, others)
@@ -33,9 +34,10 @@ let terminalTextTests =
           // a non-SGR escape is dropped whole, and so is a bare control character
           "before\u001b[2Jafter", (11, [])
           "a\tb", (2, [])
-          "界", (0, [ "界" ])
+          // each other cluster once, with how many times it shows
+          "界a界", (0, [ "界", 2; "a", 1 ])
           // an ASCII character before a combining mark is part of its cluster
-          "ae\u0301", (1, [ "e\u0301" ]) ]
+          "ae\u0301", (1, [ "e\u0301", 1 ]) ]
       testMany
         "stripSgr"
         TerminalText.stripSgr
@@ -47,51 +49,48 @@ let terminalTextTests =
           "abc\u001b[3", "abc" ]
       test "clipToWidth keeps styling, drops other escapes, never splits a cluster" {
         Expect.equal
-          (clip $"{red}abcdef" 3 [||])
+          (clip $"{red}abcdef" 3)
           $"{red}abc{reset}"
           "styling is retained and costs no columns"
         Expect.equal
-          (clip "界界" 3 [| 2; 2 |])
+          (clip "界界" 3)
           "界"
           "a double-width cluster that doesn't fit is dropped whole"
-        Expect.equal (clip "abc" 0 [||]) "" "a zero width clips everything"
+        Expect.equal (clip "abc" 0) "" "a zero width clips everything"
       }
       test "clipToWidth closes styling the cut left open" {
         Expect.equal
-          (clip $"\u001b[1mabc{reset}def" 3 [||])
+          (clip $"\u001b[1mabc{reset}def" 3)
           $"\u001b[1mabc{reset}"
           "a reset past the cut is still there"
         Expect.equal
-          (clip $"{red}ab{reset}cdef" 3 [||])
+          (clip $"{red}ab{reset}cdef" 3)
           $"{red}ab{reset}c"
           "styling already closed before the cut needs no second reset"
         Expect.equal
-          (clip $"{red}ab\u001b[mcdef" 3 [||])
+          (clip $"{red}ab\u001b[mcdef" 3)
           $"{red}ab\u001b[mc"
           "the short reset counts too"
         Expect.equal
-          (clip $"{red}abc" 5 [||])
+          (clip $"{red}abc" 5)
           $"{red}abc"
           "a row that fits is left as it is"
         Expect.equal
-          (clip $"{red}a界" 2 [| 1; 2 |])
+          (clip $"{red}a界" 2)
           $"{red}a{reset}"
           "a wide cluster that doesn't fit is a cut too"
       }
       test "wrapAtColumn reapplies active styling on each row" {
         Expect.equal
-          (wrap $"{red}abcd" 2 [||])
+          (wrap $"{red}abcd" 2)
           [ $"{red}ab"; $"{red}cd" ]
           "styling active at the wrap opens the next row"
-        Expect.equal (wrap "" 4 [||]) [ "" ] "empty input is one empty row"
-        Expect.equal
-          (wrap "界界" 2 [| 2; 2 |])
-          [ "界"; "界" ]
-          "a row holds whole clusters only"
+        Expect.equal (wrap "" 4) [ "" ] "empty input is one empty row"
+        Expect.equal (wrap "界界" 2) [ "界"; "界" ] "a row holds whole clusters only"
       }
       test "wrapWithCursor follows a word that moves down" {
         let withCursor before after width =
-          TerminalText.wrapWithCursor before after width [||]
+          TerminalText.wrapWithCursor before after width widthOf
         Expect.equal
           (withCursor "> echo hello world" "" 10)
           ([ "> echo"; "hello"; "world" ], 2, 5)
@@ -113,7 +112,7 @@ let terminalTextTests =
           ([ $"{red}ab"; $"{red}cd" ], 1, 0)
           "styling costs no columns"
         Expect.equal
-          (TerminalText.wrapWithCursor "界a界" "" 10 [| 2; 1; 2 |])
+          (TerminalText.wrapWithCursor "界a界" "" 10 widthOf)
           ([ "界a界" ], 0, 5)
           "a wide cluster counts its own width in the cursor column"
       } ]

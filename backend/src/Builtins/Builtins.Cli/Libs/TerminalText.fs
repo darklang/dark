@@ -1,8 +1,8 @@
 /// Measuring, clipping, wrapping and stripping rows that may carry SGR styling.
 ///
-/// Widths come from Dark (`Stdlib.Wcwidth`): `visibleClusters` hands it every cluster that is not
-/// plain ASCII, and the walks that need widths take them back as `widths`, one per such cluster,
-/// in the same order. A plain ASCII character is always one column and is never in the list.
+/// Widths come from Dark (`Stdlib.Wcwidth`): `visibleClusters` hands it each distinct cluster that
+/// is not plain ASCII, and the walks that need them look them up with `widthOf`. A plain ASCII
+/// character is always one column and never looked up.
 ///
 /// Also the CLI's escape-sanitizing boundary: rows are cleaned on the way out, so a package name
 /// can't move the cursor or reset the terminal.
@@ -73,10 +73,6 @@ let private skipEscape (text : string) (i : int) : struct (int * bool) =
     struct (i + 1, false)
 
 
-/// The width of the `k`th cluster that is not plain ASCII. A list that runs short counts as one.
-let inline private widthAt (widths : int[]) (k : int) : int =
-  if k < widths.Length then widths[k] else 1
-
 let rec private clustersFrom
   (text : string)
   (i : int)
@@ -95,10 +91,11 @@ let rec private clustersFrom
     let cluster = System.Globalization.StringInfo.GetNextTextElement(text, i)
     clustersFrom text (i + cluster.Length) plain (cluster :: others)
 
-/// How many plain ASCII characters a row shows, and every other cluster it shows, in order.
-/// Escapes and control characters are not shown.
-let visibleClusters (text : string) : struct (int * List<string>) =
-  clustersFrom text 0 0 []
+/// How many plain ASCII characters a row shows, and each other cluster it shows with how many
+/// times, in the order first seen. Escapes and control characters are not shown.
+let visibleClusters (text : string) : struct (int * List<string * int>) =
+  let struct (plain, others) = clustersFrom text 0 0 []
+  struct (plain, others |> Seq.countBy (fun cluster -> cluster) |> List.ofSeq)
 
 
 let rec private appendVisible
@@ -135,8 +132,7 @@ let private closeStyle (out : StringBuilder) (styled : bool) : unit =
 let rec private appendClipped
   (text : string)
   (out : StringBuilder)
-  (widths : int[])
-  (k : int)
+  (widthOf : string -> int)
   (i : int)
   (remaining : int)
   (styled : bool)
@@ -148,23 +144,22 @@ let rec private appendClipped
       let struct (next, sgr) = skipEscape text i
       if sgr then out.Append(text, i, next - i) |> ignore<StringBuilder>
       let styled = if sgr then not (isReset text i next) else styled
-      appendClipped text out widths k next remaining styled
+      appendClipped text out widthOf next remaining styled
     elif System.Char.IsControl text[i] then
-      appendClipped text out widths k (i + 1) remaining styled
+      appendClipped text out widthOf (i + 1) remaining styled
     elif isPlainAscii text i then
       out.Append(text[i]) |> ignore<StringBuilder>
-      appendClipped text out widths k (i + 1) (remaining - 1) styled
+      appendClipped text out widthOf (i + 1) (remaining - 1) styled
     else
       let cluster = System.Globalization.StringInfo.GetNextTextElement(text, i)
-      let width = widthAt widths k
+      let width = widthOf cluster
       // A cluster that doesn't fit ends the row: a double-width one is never split in half.
       if width <= remaining then
         out.Append(cluster) |> ignore<StringBuilder>
         appendClipped
           text
           out
-          widths
-          (k + 1)
+          widthOf
           (i + cluster.Length)
           (remaining - width)
           styled
@@ -176,12 +171,12 @@ let rec private appendClipped
 /// SGR costs no columns. Other escapes and control characters go, so dynamic content can't move the
 /// cursor, and a double-width cluster is never split in half. A cut row that still has styling open
 /// ends with a reset.
-let clipToWidth (text : string) (maxWidth : int) (widths : int[]) : string =
+let clipToWidth (text : string) (maxWidth : int) (widthOf : string -> int) : string =
   if maxWidth <= 0 then
     ""
   else
     let out = StringBuilder()
-    appendClipped text out widths 0 0 maxWidth false
+    appendClipped text out widthOf 0 maxWidth false
     out.ToString()
 
 
@@ -192,12 +187,11 @@ let clipToWidth (text : string) (maxWidth : int) (widths : int[]) : string =
 ///
 /// `cursor` is where text index `cursorIndex` landed, as a row, a builder index into that row and a
 /// column, or row -1 before the walk reaches it. A word break that moves the tail down moves the
-/// cursor with it. `k` counts the clusters that took their width from `widths`.
+/// cursor with it.
 let rec private wrapFrom
   (text : string)
   (width : int)
-  (widths : int[])
-  (k : int)
+  (widthOf : string -> int)
   (cursorIndex : int)
   (current : StringBuilder)
   (completed : string list)
@@ -230,8 +224,7 @@ let rec private wrapFrom
     wrapFrom
       text
       width
-      widths
-      k
+      widthOf
       cursorIndex
       current
       completed
@@ -246,8 +239,7 @@ let rec private wrapFrom
     wrapFrom
       text
       width
-      widths
-      k
+      widthOf
       cursorIndex
       current
       completed
@@ -265,7 +257,7 @@ let rec private wrapFrom
         ""
       else
         System.Globalization.StringInfo.GetNextTextElement(text, i)
-    let charWidth = if plain then 1 else widthAt widths k
+    let charWidth = if plain then 1 else widthOf cluster
     let shouldWrap =
       wrapPending || (currentWidth > 0 && currentWidth + charWidth > width)
 
@@ -321,8 +313,7 @@ let rec private wrapFrom
     wrapFrom
       text
       width
-      widths
-      (if plain then k else k + 1)
+      widthOf
       cursorIndex
       current
       completed
@@ -337,14 +328,13 @@ let rec private wrapFrom
 let private wrap
   (text : string)
   (maxWidth : int)
-  (widths : int[])
+  (widthOf : string -> int)
   (cursorIndex : int)
   =
   wrapFrom
     text
     (max 1 maxWidth)
-    widths
-    0
+    widthOf
     cursorIndex
     (StringBuilder())
     []
@@ -362,20 +352,24 @@ let private wrap
 /// one. Clusters are never split, and neither are WORDS when a space offers a break point: the wrap
 /// prefers the last space in the row, and falls back to the exact column only for a word wider than
 /// the whole row. Empty input yields one empty row.
-let wrapAtColumn (text : string) (maxWidth : int) (widths : int[]) : string list =
-  let struct (rows, _) = wrap text maxWidth widths System.Int32.MaxValue
+let wrapAtColumn
+  (text : string)
+  (maxWidth : int)
+  (widthOf : string -> int)
+  : string list =
+  let struct (rows, _) = wrap text maxWidth widthOf System.Int32.MaxValue
   rows
 
 /// `wrapAtColumn` over `before + after`, with the zero-based (row, column) of the cursor that sits
 /// between them. Both come from the one wrap, so the cursor is always where the rows put that text,
 /// even when a word break moves it down. A cursor exactly past a full last row is at column zero of
-/// the next row, matching what the terminal does. `widths` are for `before + after`.
+/// the next row, matching what the terminal does.
 let wrapWithCursor
   (before : string)
   (after : string)
   (maxWidth : int)
-  (widths : int[])
+  (widthOf : string -> int)
   : string list * int * int =
   let struct (rows, struct (row, _, column)) =
-    wrap (before + after) maxWidth widths before.Length
+    wrap (before + after) maxWidth widthOf before.Length
   (rows, row, column)

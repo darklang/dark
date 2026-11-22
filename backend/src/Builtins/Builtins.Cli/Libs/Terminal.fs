@@ -120,13 +120,12 @@ let private columns (maxWidth : int64) : int =
     )
   )
 
-/// Widths from Dark, clamped as `columns` clamps a width.
-let private widthsOf (widths : DvalList) : int[] =
-  widths
-  |> DvalList.toArray
-  |> Array.map (function
-    | DInt64 w -> columns w
-    | _ -> 1)
+/// A cluster's width from the ones Dark gave, clamped as `columns` clamps a width. One Dark was not
+/// asked about counts as one.
+let private widthOf (widths : DictMap) (cluster : string) : int =
+  match DictMap.tryFind (DString cluster) widths with
+  | Some(DInt64 w) -> columns w
+  | _ -> 1
 
 
 // The terminal probes declare no effect on purpose: they read the tty and its environment, and
@@ -228,16 +227,24 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "text" TString "One logical row, possibly carrying SGR styling" ]
-      returnType = TTuple(TInt64, TList TString, [])
+      returnType = TTuple(TInt64, TList(TTuple(TString, TInt64, [])), [])
       description =
-        "How many plain ASCII characters the row shows, one column each, and every other cluster it shows in order. Escapes and control characters are not shown."
+        "How many plain ASCII characters the row shows, one column each, and each other cluster it shows with how many times, in the order first seen. Escapes and control characters are not shown."
       fn =
         (function
         | _, _, _, [| DString text |] ->
           let struct (plain, others) = TerminalText.visibleClusters text
           DTuple(
             Dval.dint64 (int64 plain),
-            DList(VT.string, Items(List.map DString others)),
+            DList(
+              VT.tuple VT.string VT.int64 [],
+              Items(
+                List.map
+                  (fun (cluster, count) ->
+                    DTuple(DString cluster, Dval.dint64 (int64 count), []))
+                  others
+              )
+            ),
             []
           )
         | _ -> incorrectArgs ())
@@ -253,15 +260,15 @@ let fns () : List<BuiltInFn> =
           Param.make "maxWidth" TInt64 "Terminal columns to clip to"
           Param.make
             "widths"
-            (TList TInt64)
-            "The width of each cluster cliTerminalVisibleClusters returns, in order" ]
+            (TDict(TString, TInt64))
+            "The width of each cluster cliTerminalVisibleClusters returns" ]
       returnType = TString
       description =
         "Clip styled text to a column count, keeping SGR and dropping other escapes and control characters"
       fn =
         (function
-        | _, _, _, [| DString text; DInt64 maxWidth; DList(_, widths) |] ->
-          DString(TerminalText.clipToWidth text (columns maxWidth) (widthsOf widths))
+        | _, _, _, [| DString text; DInt64 maxWidth; DDict(_, _, widths) |] ->
+          DString(TerminalText.clipToWidth text (columns maxWidth) (widthOf widths))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -291,15 +298,15 @@ let fns () : List<BuiltInFn> =
           Param.make "maxWidth" TInt64 "Terminal columns to wrap at"
           Param.make
             "widths"
-            (TList TInt64)
-            "The width of each cluster cliTerminalVisibleClusters returns, in order" ]
+            (TDict(TString, TInt64))
+            "The width of each cluster cliTerminalVisibleClusters returns" ]
       returnType = TList TString
       description =
         "Break text into terminal-width rows at the column, restating styling across a wrap"
       fn =
         (function
-        | _, _, _, [| DString text; DInt64 maxWidth; DList(_, widths) |] ->
-          TerminalText.wrapAtColumn text (columns maxWidth) (widthsOf widths)
+        | _, _, _, [| DString text; DInt64 maxWidth; DDict(_, _, widths) |] ->
+          TerminalText.wrapAtColumn text (columns maxWidth) (widthOf widths)
           |> List.map DString
           |> fun rows -> DList(VT.string, Items(rows))
         | _ -> incorrectArgs ())
@@ -316,8 +323,8 @@ let fns () : List<BuiltInFn> =
           Param.make "maxWidth" TInt64 "Terminal columns to wrap at"
           Param.make
             "widths"
-            (TList TInt64)
-            "The width of each cluster cliTerminalVisibleClusters returns, in order" ]
+            (TDict(TString, TInt64))
+            "The width of each cluster cliTerminalVisibleClusters returns" ]
       returnType = TTuple(TList TString, TInt64, [ TInt64 ])
       description =
         "Wrap before + after as cliTerminalWrapAtColumn does, with the zero-based (row, column) of the cursor between them"
@@ -326,13 +333,13 @@ let fns () : List<BuiltInFn> =
         | _,
           _,
           _,
-          [| DString before; DString after; DInt64 maxWidth; DList(_, widths) |] ->
+          [| DString before; DString after; DInt64 maxWidth; DDict(_, _, widths) |] ->
           let (rows, row, column) =
             TerminalText.wrapWithCursor
               before
               after
               (columns maxWidth)
-              (widthsOf widths)
+              (widthOf widths)
           DTuple(
             DList(VT.string, Items(List.map DString rows)),
             Dval.dint64 (int64 row),

@@ -122,7 +122,8 @@ let codepointLength(s: String): Int64 =
 /// `Cli.Tui.Text` handles rows that carry them.
 let displayWidth(s: String): Int64 =
   let (plain, others) = Builtin.stringSplitPlainAscii(s)
-  others |> List.fold(plain, fun(total, cluster) -> total + Wcwidth.clusterWidth(cluster))
+  others
+  |> List.fold(plain, fun(total, (cluster, count)) -> total + count * Wcwidth.clusterWidth(cluster))
 
 
 /// Concatenates the two strings by appending <param s2> to <param s1> and returns the joined string.

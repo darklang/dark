@@ -196,9 +196,46 @@ val ranges =
     (917536u32, 0), (917632u32, 1), (917760u32, 0), (918000u32, 1) ]
 
 
+/// The widths below U+10000 that are not 1, built from `ranges` once, when the value is saved. Most
+/// text is in that plane, and one dictionary read is far cheaper than a search in Dark.
+val bmpWidths = __bmpWidthsFrom(0, Dict.empty)
+
+
+// Plain recursion rather than `List.map`: a value is worked out where it is saved, and a map that
+// big would spread across processes, which a save cannot wait for.
+let __bmpWidthsFrom(i: Int64, acc: Dict<UInt32, Int64>): Dict<UInt32, Int64> =
+  match List.getAt(ranges, i) with
+  | Some((start, width)) ->
+    if start >= 65536u32 then
+      acc
+    else
+      let next =
+        match List.getAt(ranges, i + 1) with
+        | Some((nextStart, _)) -> nextStart
+        | None -> 65536u32
+
+      let last = if next > 65536u32 then 65535u32 else next - 1u32
+      let acc = if width == 1 then acc else __setFrom(start, last, width, acc)
+      __bmpWidthsFrom(i + 1, acc)
+  | None -> acc
+
+
+let __setFrom(
+  codepoint: UInt32,
+  last: UInt32,
+  width: Int64,
+  acc: Dict<UInt32, Int64>)
+  : Dict<UInt32, Int64> =
+  let acc = Dict.set(acc, codepoint, width)
+  if codepoint >= last then acc else __setFrom(codepoint + 1u32, last, width, acc)
+
+
 /// The cells one codepoint takes: 0, 1 or 2.
 let codepointWidth(codepoint: UInt32): Int64 =
-  __widthFrom(codepoint, 0, List.length(ranges) - 1, 0)
+  if codepoint < 65536u32 then
+    Dict.get(bmpWidths, codepoint) |> Option.withDefault(1)
+  else
+    __widthFrom(codepoint, 0, List.length(ranges) - 1, 0)
 
 
 /// A binary search for the last range starting at or before <param codepoint>, among

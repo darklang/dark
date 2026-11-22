@@ -7,21 +7,24 @@
 /// or reset the terminal.
 ///
 /// The fitters are native; they walk a row a character at a time, and a Dark loop pays a builtin call
-/// per character. They take each cluster's width from `Stdlib.Wcwidth`, asking it only about the
-/// clusters that are not plain ASCII. `wrapAtWords` below stays in Dark because it measures whole
-/// words.
+/// per character. They take each cluster's width from `Stdlib.Wcwidth`, asking it once about each
+/// distinct cluster that is not plain ASCII. `wrapAtWords` below stays in Dark because it measures
+/// whole words.
 module Darklang.Stdlib.Cli.Tui.Text
 
 /// Terminal columns occupied by a row that may carry SGR styling.
 let styledWidth(text: String): Int64 =
   let (plain, others) = Builtin.cliTerminalVisibleClusters(text)
-  others |> List.fold(plain, fun(total, cluster) -> total + Wcwidth.clusterWidth(cluster))
+  others
+  |> List.fold(plain, fun(total, (cluster, count)) -> total + count * Wcwidth.clusterWidth(cluster))
 
 
-/// The width of every cluster in <param text> that is not plain ASCII, in order, for the fitters.
-let __widths(text: String): List<Int64> =
+/// The width of each distinct cluster in <param text> that is not plain ASCII, for the fitters.
+let __widths(text: String): Dict<String, Int64> =
   let (_, others) = Builtin.cliTerminalVisibleClusters(text)
-  others |> List.map(Wcwidth.clusterWidth)
+  others
+  |> List.map(fun((cluster, _)) -> (cluster, Wcwidth.clusterWidth(cluster)))
+  |> Dict.fromList
 
 
 /// Drop SGR styling, other escapes and control characters, leaving the visible text.
