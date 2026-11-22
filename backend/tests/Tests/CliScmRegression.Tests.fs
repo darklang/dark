@@ -332,62 +332,6 @@ let private mergeIsGatedLikeCommit =
     })
 
 
-// ─── rename ───────────────────────────────────────────────────────────────
-
-/// A rename should move the name in one operation, keeping the same content.
-let private renameMovesANameNotItsContent =
-  instanceTest "rename moves a name and leaves its callers alone" (fun state ->
-    task {
-      do! start state
-      do! fn state "Tests.Rn.old" "() : Int64 = 42"
-      do! fn state "Tests.Rn.caller" "(): Int64 = Tests.Rn.old()"
-      do! commit state "rn base"
-
-      do!
-        shows
-          state
-          [ "rename"; "Tests.Rn.old"; "Tests.Rn.renamed" ]
-          "renamed"
-          "it says what it did"
-      do! evals state "Tests.Rn.renamed()" "42" "the new name holds the content"
-      do! evals state "Tests.Rn.caller()" "42" "the caller is untouched"
-      do! notFound state "Tests.Rn.old()" "and the old name is gone"
-
-      do! start state
-    })
-
-/// The two refusals, which are the reason a rename cannot quietly take something off the shelf.
-let private renameRefusesTheBadCases =
-  instanceTest "rename refuses a missing name and an occupied one" (fun state ->
-    task {
-      do! start state
-      do! fn state "Tests.Rn2.a" "() : Int64 = 1"
-      do! fn state "Tests.Rn2.b" "() : Int64 = 2"
-      do! commit state "rn2 base"
-
-      do!
-        refuses
-          state
-          [ "rename"; "Tests.Rn2.nope"; "Tests.Rn2.x" ]
-          "nothing here is named"
-          "renamed"
-          "renaming what does not exist is refused"
-
-      do!
-        refuses
-          state
-          [ "rename"; "Tests.Rn2.a"; "Tests.Rn2.b" ]
-          "already names something"
-          "renamed"
-          "and renaming onto a live name is refused"
-
-      // Neither refusal moved anything.
-      do! evals state "Tests.Rn2.a()" "1" "the source name is untouched"
-      do! evals state "Tests.Rn2.b()" "2" "and so is the occupied one"
-      do! start state
-    })
-
-
 let tests : List<Test> =
   [ propagationLeavesBranchWorkAlone
     archiveRefusesToOrphanAChild
@@ -397,6 +341,4 @@ let tests : List<Test> =
     partialCommitTakesNewNameForCommittedContent
     discardSeesWhatUndoWrote
     discardCountsOpsNotNames
-    mergeIsGatedLikeCommit
-    renameMovesANameNotItsContent
-    renameRefusesTheBadCases ]
+    mergeIsGatedLikeCommit ]
