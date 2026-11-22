@@ -211,13 +211,10 @@ test afterSeveralEditsTheDependentLandsOnTheFinalVersion =
       |> Stdlib.Test.equal([]) ])
 
 
-// PINS CURRENT SEMANTICS, pending the by-hash vs by-name ("crosswire") decision.
-//
 // `sh1` and `sh2` have the same body, so they are ONE item at two names. Editing `sh1`
 // moves `d1`, which reached it by that name. `d2` reached the same content through
-// `sh2`, which still means what it meant, so today it does NOT move: the cascade follows
-// the name a caller wrote, not the hash. If the crosswire decision changes that, this is
-// the test that has to change with it.
+// `sh2`, which still means what it meant, so it does NOT move: the cascade follows
+// the name a caller wrote, not the hash.
 test identicalContentAtTwoNamesRepointsOnlyTheEditedNamesCallers =
   let m = "PropTestShared"
   let setup =
@@ -445,8 +442,7 @@ test aSetNameAtANewNameLeavesTheOldNameBound =
       Authoring.fnHash(m, "old") |> Stdlib.Test.equal(h) ])
 
 
-// PINS CURRENT SEMANTICS, pending the crosswire decision: callers are tracked by the NAME
-// they wrote.
+// Callers are tracked by the NAME they wrote.
 //
 // Two names, one body, one caller each, and the callers are the same content too, so the
 // second caller's Add is an op the log already holds. Its edge still has to be recorded
