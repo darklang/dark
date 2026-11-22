@@ -121,7 +121,8 @@ let codepointLength(s: String): Int64 =
 /// monospaced buffer or a fixed-width report. Plain text only: escape sequences aren't text, and
 /// `Cli.Tui.Text` handles rows that carry them.
 let displayWidth(s: String): Int64 =
-  Builtin.stringDisplayWidth(s)
+  let (plain, others) = Builtin.stringSplitPlainAscii(s)
+  others |> List.fold(plain, fun(total, cluster) -> total + Wcwidth.clusterWidth(cluster))
 
 
 /// Concatenates the two strings by appending <param s2> to <param s1> and returns the joined string.

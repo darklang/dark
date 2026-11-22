@@ -232,8 +232,9 @@ package manager" at dispatch.
 ## Measuring text, and what may go native
 
 Pretty-printing lives in Dark; `Execution.fs` looks the printers up through `PackageRefs` and
-calls them. **F# owns measurement, Dark owns layout.** How wide a character is, is a table lookup
-(`Prelude/TextWidth.fs`). Where a line breaks is not.
+calls them. How wide a character is, is a table lookup in Dark (`Stdlib.Wcwidth`). The native
+walks below skip escapes and plain ASCII themselves, and take the width of every other cluster
+from Dark.
 
 The trap: a Dark loop pays a builtin call per character. `Stdlib.Pretty` measures once per `Doc`
 node and is fine in Dark; the row fitters in `Builtins.Cli/Libs/TerminalText.fs` walked characters

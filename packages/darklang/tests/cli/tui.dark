@@ -161,6 +161,45 @@ test textCursorAfterFullRowWraps =
       $"Expected (1, 0), got ({Stdlib.display(row)}, {Stdlib.display(column)})")
 
 
+val wideAndStyledRows =
+  [ ""
+    "> echo hello world"
+    "> a bb ccc dddd eeeee ffffff"
+    "> two  spaces   here "
+    "> 界界 漢字 かな 界"
+    "> 🙂 👩‍💻 ok 🙂🙂 go"
+    "\u001b[31m> styled\u001b[0m words and 界 🙂 mixed" ]
+
+
+test textStyledWidthIsTheStrippedWidth =
+  // `fitToWidth` pads by the difference between these two, and they walk the row separately.
+  Stdlib.List.append(wideAndStyledRows, "cursor\u001b[2Jmoves")
+  |> Stdlib.List.map(fun row ->
+    Stdlib.Cli.Tui.Text.styledWidth(row)
+    |> Stdlib.Test.equal(Stdlib.String.displayWidth(Stdlib.Cli.Tui.Text.stripSgr(row))))
+  |> Stdlib.Test.all
+
+
+test textCursorAtEndOfInputIsEndOfLastRow =
+  [ 1, 2, 3, 4, 5, 7, 10, 13, 20, 80 ]
+  |> Stdlib.List.map(fun width ->
+    wideAndStyledRows
+    |> Stdlib.List.map(fun text ->
+      let (rows, row, column) = Stdlib.Cli.Tui.Text.wrapWithCursor(text, "", width)
+      let last =
+        Stdlib.List.last(rows)
+        |> Stdlib.Option.map(Stdlib.Cli.Tui.Text.styledWidth)
+        |> Stdlib.Option.withDefault(0)
+      let expected =
+        if last >= width then (Stdlib.List.length(rows), 0) else (Stdlib.List.length(rows) - 1, last)
+
+      Stdlib.Test.all(
+        [ (row, column) |> Stdlib.Test.equal(expected)
+          rows |> Stdlib.Test.equal(Stdlib.Cli.Tui.Text.wrapAtColumn(text, width)) ]))
+    |> Stdlib.Test.all)
+  |> Stdlib.Test.all
+
+
 test promptCursorFollowsWordWrap =
   // At 10 columns "> echo hello world" draws as "> echo", "hello", "world": the cursor belongs after
   // "world", not where a column wrap would have put it.

@@ -1,5 +1,8 @@
-/// Measuring, clipping, wrapping and stripping rows that may carry SGR styling. `TextWidth` does the
-/// plain text underneath.
+/// Measuring, clipping, wrapping and stripping rows that may carry SGR styling.
+///
+/// Widths come from Dark (`Stdlib.Wcwidth`): `visibleClusters` hands it every cluster that is not
+/// plain ASCII, and the walks that need widths take them back as `widths`, one per such cluster,
+/// in the same order. A plain ASCII character is always one column and is never in the list.
 ///
 /// Also the CLI's escape-sanitizing boundary: rows are cleaned on the way out, so a package name
 /// can't move the cursor or reset the terminal.
@@ -20,9 +23,8 @@ let inline private isCsiFinal (c : char) = c >= '@' && c <= '~'
 /// A printable ASCII character followed by another ASCII character cannot be part of a longer
 /// grapheme cluster, so it is exactly one column and needs no cluster extracted. The only
 /// multi-character ASCII cluster is CRLF, and both of its halves are control characters, which
-/// callers catch first. `TextWidth.ofCluster` already fast-paths the *width* of an ASCII cluster;
-/// this skips building the cluster at all, which `GetNextTextElement` does one allocation per
-/// character.
+/// callers catch first. Skipping it also skips building the cluster, which `GetNextTextElement`
+/// does one allocation per character.
 let inline private isPlainAscii (text : string) (i : int) =
   let c = text[i]
   c >= ' ' && c <= '~' && (i + 1 >= text.Length || text[i + 1] < '\u0080')
@@ -35,7 +37,7 @@ let rec private csiEnd (text : string) (j : int) : int =
   else csiEnd text (j + 1)
 
 /// Skip one escape or control character at `i`. Like `skipEscape` but without deciding whether the
-/// sequence is SGR: `styledWidth` and `stripSgr` discard it, so the per-character IsDigit scan is
+/// sequence is SGR: `visibleClusters` and `stripSgr` discard it, so the per-character IsDigit scan is
 /// wasted there. Returns the same index.
 let private skipEscapeOnly (text : string) (i : int) : int =
   if i + 1 < text.Length && text[i + 1] = '[' then csiEnd text (i + 2) else i + 1
@@ -71,23 +73,32 @@ let private skipEscape (text : string) (i : int) : struct (int * bool) =
     struct (i + 1, false)
 
 
-let rec private widthFrom (text : string) (i : int) (total : int) : int =
+/// The width of the `k`th cluster that is not plain ASCII. A list that runs short counts as one.
+let inline private widthAt (widths : int[]) (k : int) : int =
+  if k < widths.Length then widths[k] else 1
+
+let rec private clustersFrom
+  (text : string)
+  (i : int)
+  (plain : int)
+  (others : List<string>)
+  : struct (int * List<string>) =
   if i >= text.Length then
-    total
+    struct (plain, List.rev others)
   elif text[i] = '\u001b' then
-    widthFrom text (skipEscapeOnly text i) total
+    clustersFrom text (skipEscapeOnly text i) plain others
   elif System.Char.IsControl text[i] then
-    widthFrom text (i + 1) total
+    clustersFrom text (i + 1) plain others
   elif isPlainAscii text i then
-    widthFrom text (i + 1) (total + 1)
+    clustersFrom text (i + 1) (plain + 1) others
   else
     let cluster = System.Globalization.StringInfo.GetNextTextElement(text, i)
-    widthFrom text (i + cluster.Length) (total + TextWidth.ofCluster cluster)
+    clustersFrom text (i + cluster.Length) plain (cluster :: others)
 
-/// Terminal columns occupied by a row that may carry SGR styling.
-///
-/// `TextWidth.ofString` only means anything on control-free text; this skips the escapes for you.
-let styledWidth (text : string) : int = widthFrom text 0 0
+/// How many plain ASCII characters a row shows, and every other cluster it shows, in order.
+/// Escapes and control characters are not shown.
+let visibleClusters (text : string) : struct (int * List<string>) =
+  clustersFrom text 0 0 []
 
 
 let rec private appendVisible
@@ -124,6 +135,8 @@ let private closeStyle (out : StringBuilder) (styled : bool) : unit =
 let rec private appendClipped
   (text : string)
   (out : StringBuilder)
+  (widths : int[])
+  (k : int)
   (i : int)
   (remaining : int)
   (styled : bool)
@@ -135,16 +148,26 @@ let rec private appendClipped
       let struct (next, sgr) = skipEscape text i
       if sgr then out.Append(text, i, next - i) |> ignore<StringBuilder>
       let styled = if sgr then not (isReset text i next) else styled
-      appendClipped text out next remaining styled
+      appendClipped text out widths k next remaining styled
     elif System.Char.IsControl text[i] then
-      appendClipped text out (i + 1) remaining styled
+      appendClipped text out widths k (i + 1) remaining styled
+    elif isPlainAscii text i then
+      out.Append(text[i]) |> ignore<StringBuilder>
+      appendClipped text out widths k (i + 1) (remaining - 1) styled
     else
       let cluster = System.Globalization.StringInfo.GetNextTextElement(text, i)
-      let width = TextWidth.ofCluster cluster
+      let width = widthAt widths k
       // A cluster that doesn't fit ends the row: a double-width one is never split in half.
       if width <= remaining then
         out.Append(cluster) |> ignore<StringBuilder>
-        appendClipped text out (i + cluster.Length) (remaining - width) styled
+        appendClipped
+          text
+          out
+          widths
+          (k + 1)
+          (i + cluster.Length)
+          (remaining - width)
+          styled
       else
         closeStyle out styled
 
@@ -153,12 +176,12 @@ let rec private appendClipped
 /// SGR costs no columns. Other escapes and control characters go, so dynamic content can't move the
 /// cursor, and a double-width cluster is never split in half. A cut row that still has styling open
 /// ends with a reset.
-let clipToWidth (text : string) (maxWidth : int) : string =
+let clipToWidth (text : string) (maxWidth : int) (widths : int[]) : string =
   if maxWidth <= 0 then
     ""
   else
     let out = StringBuilder()
-    appendClipped text out 0 maxWidth false
+    appendClipped text out widths 0 0 maxWidth false
     out.ToString()
 
 
@@ -167,11 +190,14 @@ let clipToWidth (text : string) (maxWidth : int) : string =
 /// just past the last space, with `widthAtSpaceEnd` the display width up to and including it, and -1
 /// when the row has no space yet.
 ///
-/// `cursor` is where text index `cursorIndex` landed, as a row and a builder index into that row, or
-/// row -1 before the walk reaches it. A word break that moves the tail down moves the cursor with it.
+/// `cursor` is where text index `cursorIndex` landed, as a row, a builder index into that row and a
+/// column, or row -1 before the walk reaches it. A word break that moves the tail down moves the
+/// cursor with it. `k` counts the clusters that took their width from `widths`.
 let rec private wrapFrom
   (text : string)
   (width : int)
+  (widths : int[])
+  (k : int)
   (cursorIndex : int)
   (current : StringBuilder)
   (completed : string list)
@@ -180,16 +206,16 @@ let rec private wrapFrom
   (wrapPending : bool)
   (lastSpaceEnd : int)
   (widthAtSpaceEnd : int)
-  (cursor : struct (int * int))
+  (cursor : struct (int * int * int))
   (i : int)
-  : struct (string list * struct (int * int)) =
+  : struct (string list * struct (int * int * int)) =
   if i >= text.Length then
-    let struct (cursorRow, _) = cursor
+    let struct (cursorRow, _, _) = cursor
     let cursor =
       if cursorRow >= 0 || cursorIndex > text.Length then cursor
       // At the end, after a full row: the terminal puts the cursor at the start of the next one.
-      elif wrapPending then struct (List.length completed + 1, 0)
-      else struct (List.length completed, current.Length)
+      elif wrapPending then struct (List.length completed + 1, 0, 0)
+      else struct (List.length completed, current.Length, currentWidth)
     struct (List.rev (current.ToString() :: completed), cursor)
   elif text[i] = '\u001b' then
     let struct (next, sgr) = skipEscape text i
@@ -204,6 +230,8 @@ let rec private wrapFrom
     wrapFrom
       text
       width
+      widths
+      k
       cursorIndex
       current
       completed
@@ -218,6 +246,8 @@ let rec private wrapFrom
     wrapFrom
       text
       width
+      widths
+      k
       cursorIndex
       current
       completed
@@ -235,7 +265,7 @@ let rec private wrapFrom
         ""
       else
         System.Globalization.StringInfo.GetNextTextElement(text, i)
-    let charWidth = if plain then 1 else TextWidth.ofCluster cluster
+    let charWidth = if plain then 1 else widthAt widths k
     let shouldWrap =
       wrapPending || (currentWidth > 0 && currentWidth + charWidth > width)
 
@@ -251,14 +281,16 @@ let rec private wrapFrom
         let head = whole.Substring(0, lastSpaceEnd - 1) // drop the break space itself
         let tail = whole.Substring(lastSpaceEnd)
         current.Clear().Append(activeStyle).Append(tail) |> ignore<StringBuilder>
-        let struct (cursorRow, cursorAt) = cursor
+        let struct (cursorRow, cursorAt, cursorColumn) = cursor
         let cursor =
           if
             cursorRow >= 0
             && cursorAt >= lastSpaceEnd
             && cursorRow = List.length completed
           then
-            struct (cursorRow + 1, cursorAt - lastSpaceEnd + activeStyle.Length)
+            struct (cursorRow + 1,
+                    cursorAt - lastSpaceEnd + activeStyle.Length,
+                    cursorColumn - widthAtSpaceEnd)
           else
             cursor
         struct (head :: completed, currentWidth - widthAtSpaceEnd, -1, 0, cursor)
@@ -268,9 +300,9 @@ let rec private wrapFrom
         struct (row :: completed, 0, -1, 0, cursor)
 
     let cursor =
-      let struct (cursorRow, _) = cursor
+      let struct (cursorRow, _, _) = cursor
       if cursorRow < 0 && i >= cursorIndex then
-        struct (List.length completed, current.Length)
+        struct (List.length completed, current.Length, currentWidth)
       else
         cursor
 
@@ -289,6 +321,8 @@ let rec private wrapFrom
     wrapFrom
       text
       width
+      widths
+      (if plain then k else k + 1)
       cursorIndex
       current
       completed
@@ -300,10 +334,17 @@ let rec private wrapFrom
       cursor
       (i + (if plain then 1 else cluster.Length))
 
-let private wrap (text : string) (maxWidth : int) (cursorIndex : int) =
+let private wrap
+  (text : string)
+  (maxWidth : int)
+  (widths : int[])
+  (cursorIndex : int)
+  =
   wrapFrom
     text
     (max 1 maxWidth)
+    widths
+    0
     cursorIndex
     (StringBuilder())
     []
@@ -312,7 +353,7 @@ let private wrap (text : string) (maxWidth : int) (cursorIndex : int) =
     false
     -1
     0
-    (struct (-1, 0))
+    (struct (-1, 0, 0))
     0
 
 /// Break a row into terminal-width rows at the column, keeping any styling it carries.
@@ -321,23 +362,20 @@ let private wrap (text : string) (maxWidth : int) (cursorIndex : int) =
 /// one. Clusters are never split, and neither are WORDS when a space offers a break point: the wrap
 /// prefers the last space in the row, and falls back to the exact column only for a word wider than
 /// the whole row. Empty input yields one empty row.
-let wrapAtColumn (text : string) (maxWidth : int) : string list =
-  let struct (rows, _) = wrap text maxWidth System.Int32.MaxValue
+let wrapAtColumn (text : string) (maxWidth : int) (widths : int[]) : string list =
+  let struct (rows, _) = wrap text maxWidth widths System.Int32.MaxValue
   rows
 
 /// `wrapAtColumn` over `before + after`, with the zero-based (row, column) of the cursor that sits
 /// between them. Both come from the one wrap, so the cursor is always where the rows put that text,
 /// even when a word break moves it down. A cursor exactly past a full last row is at column zero of
-/// the next row, matching what the terminal does.
+/// the next row, matching what the terminal does. `widths` are for `before + after`.
 let wrapWithCursor
   (before : string)
   (after : string)
   (maxWidth : int)
+  (widths : int[])
   : string list * int * int =
-  let struct (rows, struct (row, at)) = wrap (before + after) maxWidth before.Length
-  let column =
-    if row >= List.length rows then
-      0
-    else
-      styledWidth ((List.item row rows).Substring(0, at))
+  let struct (rows, struct (row, _, column)) =
+    wrap (before + after) maxWidth widths before.Length
   (rows, row, column)

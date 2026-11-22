@@ -290,27 +290,6 @@ let stringTests =
           Some "\U0001F469\u200D\U0001F469\u200D\U0001F467" ]
       graphemeTests ]
 
-let textWidthTests =
-  testList
-    "TextWidth"
-    [ testMany
-        "ofString"
-        TextWidth.ofString
-        [ "", 0
-          "hello", 5
-          // a cluster is measured whole, however it's spelled
-          "é", 1
-          "e\u0301", 1
-          "界", 2
-          "🙂", 2
-          "👨‍👩‍👧‍👦", 2
-          "🇺🇸", 2
-          // VS16 asks for emoji presentation, so two columns
-          "♥️", 2
-          "·", 1
-          "A界🙂e\u0301", 6 ] ]
-
-
 let ansiTests =
   let esc = "\u001b"
   testList
@@ -397,6 +376,5 @@ let tests =
       floatTests
       dateTests
       stringTests
-      textWidthTests
       ansiTests
       assertions ]

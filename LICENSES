@@ -3,3 +3,9 @@ For a license for this repo, see the LICENSE.md file.
 The standard library is, in part, based on the Elm Standard Library, which
 is Copyright 2014-present Evan Czaplicki under the BSD 3-Clause "New" or
 "Revised" License. See https://github.com/elm/core/blob/1.0.5/LICENSE.
+
+`Stdlib.Wcwidth` (packages/darklang/stdlib/wcwidth.dark) is ported from Wcwidth
+(https://github.com/spectreconsole/wcwidth), Copyright Patrik Svensson and Phil
+Scott, itself a port of https://github.com/jquast/wcwidth, Copyright (c) 2014
+Jeff Quast, both under the MIT License, and of Markus Kuhn's wcwidth.c. The
+notices are at the top of that file.

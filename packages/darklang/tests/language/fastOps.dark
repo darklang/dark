@@ -74,13 +74,6 @@ test stringContains =
       check("contains half a cluster", yn(Stdlib.String.contains("éx", "e")), "n")
       check("contains whole cluster", yn(Stdlib.String.contains("aéx", "é")), "y") ])
 
-test stringDisplayWidth =
-  Stdlib.Test.all(
-    [ check("width ascii", Stdlib.display(Stdlib.String.displayWidth("abc")), "3")
-      check("width empty", Stdlib.display(Stdlib.String.displayWidth("")), "0")
-      check("width wide", Stdlib.display(Stdlib.String.displayWidth("世界")), "4")
-      check("width combining", Stdlib.display(Stdlib.String.displayWidth("é")), "1") ])
-
 // The tests above run at the top level, which never takes the quickened path. Inside a package
 // fn the interpreter answers the same operators from its quickened instructions.
 let quickened(unit: Unit): Stdlib.Test.Result =
@@ -99,7 +92,6 @@ let quickened(unit: Unit): Stdlib.Test.Result =
       check("int64 less than", (if 2 < 3 then "y" else "n"), "y")
       check("repeat negative", Stdlib.String.repeat("x", -2), "")
       check("list isEmpty no", (if Stdlib.List.isEmpty([ 1 ]) then "y" else "n"), "n")
-      check("contains half a cluster", (if Stdlib.String.contains("éx", "e") then "y" else "n"), "n")
-      check("width wide", Stdlib.display(Stdlib.String.displayWidth("世界")), "4") ])
+      check("contains half a cluster", (if Stdlib.String.contains("éx", "e") then "y" else "n"), "n") ])
 
 test insideAPackageFn = quickened()

@@ -54,17 +54,41 @@ let private utf8ByteAt (s : string) (index : int64) : byte option =
     found
 
 
+/// A printable ASCII character followed by another ASCII character is one cluster of its own, so
+/// it is counted without building it. The only longer ASCII cluster is CRLF, which is not printable.
+let rec private splitPlainAscii
+  (text : string)
+  (i : int)
+  (plain : int)
+  (others : List<string>)
+  : struct (int * List<string>) =
+  if i >= text.Length then
+    struct (plain, List.rev others)
+  else
+    let c = text[i]
+    if c >= ' ' && c <= '~' && (i + 1 >= text.Length || text[i + 1] < '\u0080') then
+      splitPlainAscii text (i + 1) (plain + 1) others
+    else
+      let cluster = StringInfo.GetNextTextElement(text, i)
+      splitPlainAscii text (i + cluster.Length) plain (cluster :: others)
+
+
 let fns () : List<BuiltInFn> =
-  [ { name = fn "stringDisplayWidth" 0
+  [ { name = fn "stringSplitPlainAscii" 0
       typeParams = []
-      parameters = [ Param.make "text" TString "Plain, single-line text" ]
-      returnType = TInt64
+      parameters = [ Param.make "text" TString "" ]
+      returnType = TTuple(TInt64, TList TString, [])
       description =
-        "Cells the text occupies in a fixed-width grid, over extended grapheme clusters"
+        "How many characters of <param text> are printable ASCII that cannot start a longer grapheme cluster, and every other cluster in order. <fn String.displayWidth> counts the first as one cell each and measures the rest."
       fn =
         (function
         | _, _, _, [| DString text |] ->
-          text |> TextWidth.ofString |> int64 |> Dval.dint64
+          let struct (plain, others) = splitPlainAscii text 0 0 []
+          DTuple(
+            Dval.dint64 (int64 plain),
+            DList(VT.string, Items(List.map DString others)),
+            []
+          )
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

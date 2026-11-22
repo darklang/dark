@@ -1,0 +1,123 @@
+module Darklang.Stdlib.Wcwidth.Tests
+
+let widths(cases: List<(String * Int64)>): Stdlib.Test.Result =
+  cases
+  |> Stdlib.List.map(fun((text, expected)) ->
+    Stdlib.String.displayWidth(text) |> Stdlib.Test.equal(expected))
+  |> Stdlib.Test.all
+
+
+test ascii =
+  widths([ ("", 0), ("a", 1), ("hello world", 11), ("~!@#", 4) ])
+
+
+test cjk =
+  widths(
+    [ ("界", 2)
+      ("日本語", 6)
+      // Hangul syllables, and leading jamo, are wide; the vowel jamo that follows is not
+      ("한국어", 6)
+      ("ᄀ", 2)
+      ("가", 2)
+      // fullwidth Latin is wide, halfwidth katakana narrow
+      ("ＡＢ", 4)
+      ("ｱ", 1)
+      // the ideographic space, and CJK extension planes 2 and 3
+      ("　", 2)
+      ("\U00020000", 2)
+      ("\U00030000", 2)
+      ("A界a", 4) ])
+
+
+test emoji =
+  widths(
+    [ ("🙂", 2)
+      ("\U0001F600", 2)
+      // a ZWJ family is one glyph
+      ("👨‍👩‍👧‍👦", 2)
+      // a skin tone joins the emoji before it
+      ("👍\U0001F3FD", 2)
+      // a pair of regional indicators is a flag; one alone is narrow
+      ("🇺🇸", 2)
+      ("\U0001F1FA", 1)
+      // VS16 asks for emoji presentation of a narrow character
+      ("♥", 1)
+      ("♥️", 2)
+      // a keycap: a digit, VS16 and the enclosing keycap
+      ("1️⃣", 2) ])
+
+
+test combiningMarks =
+  widths(
+    [ ("é", 1)
+      ("q̃", 1)
+      ("á̂̃", 1)
+      // a mark with nothing to sit on is a cluster of its own, and takes no cell
+      ("́", 0)
+      ("x⃝", 1) ])
+
+
+test zeroWidthCharacters =
+  widths(
+    [ ("​", 0)
+      ("a​b", 2)
+      ("‌", 0)
+      ("‍", 0)
+      ("⁠", 0)
+      ("﻿", 0)
+      ("‎‏", 0)
+      (" ", 0)
+      (" ", 0)
+      // the soft hyphen is visible where a line breaks, so it keeps its cell
+      ("­", 1) ])
+
+
+test controlCharacters =
+  widths(
+    [ ("\t", 0)
+      ("\n", 0)
+      ("a\r\nb", 2)
+      ("\u0007", 0)
+      ("\u001B", 0)
+      ("\u007F", 0)
+      ("\u0085", 0)
+      ("\u009F", 0)
+      (" ", 1) ])
+
+
+// Wcwidth 4.0.1 fills its tables lazily into a static Dictionary on first use, and two threads
+// measuring at once could corrupt it for the life of the process (spectreconsole/wcwidth#11).
+// Here the table is a value, so measuring from many processes at once agrees with measuring in
+// one.
+test measuringConcurrentlyAgrees =
+  let samples =
+    Stdlib.List.range(0, 63)
+    |> Stdlib.List.map(fun i -> Stdlib.String.repeat("界a🙂é", i))
+
+  let serial = samples |> Stdlib.List.map(Stdlib.String.displayWidth)
+  let concurrent = samples |> Stdlib.List.parallelMap(Stdlib.String.displayWidth)
+  concurrent |> Stdlib.Test.equal(serial)
+
+
+// The faster lookup proposed in spectreconsole/wcwidth#13 is one flat list of ranges and a single
+// binary search. Every range is found from its first codepoint, and the codepoint before it
+// belongs to the range before.
+test everyRangeIsFound =
+  let ranges = Stdlib.Wcwidth.ranges
+
+  ranges
+  |> Stdlib.List.indexedMap(fun(i, (start, width)) ->
+    let here = Stdlib.Wcwidth.codepointWidth(start) |> Stdlib.Test.equal(width)
+
+    match Stdlib.List.getAt(ranges, i - 1) with
+    | Some((_, before)) ->
+      Stdlib.Test.all(
+        [ here, Stdlib.Wcwidth.codepointWidth(start - 1u32) |> Stdlib.Test.equal(before) ])
+    | None -> here)
+  |> Stdlib.Test.all
+
+
+test lastCodepoint =
+  Stdlib.Test.all(
+    [ Stdlib.Wcwidth.codepointWidth(1114111u32) |> Stdlib.Test.equal(1)
+      Stdlib.Wcwidth.codepointWidth(0u32) |> Stdlib.Test.equal(0) ])

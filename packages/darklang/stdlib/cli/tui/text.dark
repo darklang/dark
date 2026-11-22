@@ -7,12 +7,21 @@
 /// or reset the terminal.
 ///
 /// The fitters are native; they walk a row a character at a time, and a Dark loop pays a builtin call
-/// per character. `wrapAtWords` below stays in Dark because it measures whole words.
+/// per character. They take each cluster's width from `Stdlib.Wcwidth`, asking it only about the
+/// clusters that are not plain ASCII. `wrapAtWords` below stays in Dark because it measures whole
+/// words.
 module Darklang.Stdlib.Cli.Tui.Text
 
 /// Terminal columns occupied by a row that may carry SGR styling.
 let styledWidth(text: String): Int64 =
-  Builtin.cliTerminalStyledWidth(text)
+  let (plain, others) = Builtin.cliTerminalVisibleClusters(text)
+  others |> List.fold(plain, fun(total, cluster) -> total + Wcwidth.clusterWidth(cluster))
+
+
+/// The width of every cluster in <param text> that is not plain ASCII, in order, for the fitters.
+let __widths(text: String): List<Int64> =
+  let (_, others) = Builtin.cliTerminalVisibleClusters(text)
+  others |> List.map(Wcwidth.clusterWidth)
 
 
 /// Drop SGR styling, other escapes and control characters, leaving the visible text.
@@ -22,7 +31,7 @@ let stripSgr(text: String): String =
 
 /// Clip a row to a column width, keeping SGR and dropping every other escape and control character.
 let clipToWidth(text: String, maxWidth: Int64): String =
-  Builtin.cliTerminalClipToWidth(text, maxWidth)
+  Builtin.cliTerminalClipToWidth(text, maxWidth, __widths(text))
 
 
 /// Clip to <param maxWidth>, marking the cut so a truncated line reads as truncated.
@@ -44,14 +53,14 @@ let clipMarked(text: String, maxWidth: Int64): String =
 /// Break a row at the column, restating styling that spans the wrap. To break at spaces where it
 /// can, use `wrapAtWords`.
 let wrapAtColumn(text: String, maxWidth: Int64): List<String> =
-  Builtin.cliTerminalWrapAtColumn(text, maxWidth)
+  Builtin.cliTerminalWrapAtColumn(text, maxWidth, __widths(text))
 
 
 /// `wrapAtColumn` over `before + after`, with the zero-based row and column of the cursor between
 /// them. Both come from the one wrap, so the cursor stays on the text when a word moves down. Exactly
 /// past a full last row reads as column zero of the next row, matching what the terminal does.
 let wrapWithCursor(before: String, after: String, maxWidth: Int64): (List<String> * Int64 * Int64) =
-  Builtin.cliTerminalWrapWithCursor(before, after, maxWidth)
+  Builtin.cliTerminalWrapWithCursor(before, after, maxWidth, __widths(before + after))
 
 
 /// Pad or clip text to exactly the requested terminal-column width.

@@ -19,8 +19,7 @@
         "type": "Project",
         "dependencies": {
           "FSharp.Core": "[11.0.101, )",
-          "NodaTime": "[3.3.7, )",
-          "Wcwidth": "[4.0.1, )"
+          "NodaTime": "[3.3.7, )"
         }
       },
       "NodaTime": {
@@ -28,12 +27,6 @@
         "requested": "[3.3.7, )",
         "resolved": "3.3.7",
         "contentHash": "4Rc3zup1sZqtlcgkWZOsjoVbhm+RkDvxrFDJfIxi7nr32ZgzVW+zCTBr827+KG/4r5owpchUjqx8tO4K2ZtpOw=="
-      },
-      "Wcwidth": {
-        "type": "CentralTransitive",
-        "requested": "[4.0.1, )",
-        "resolved": "4.0.1",
-        "contentHash": "PMU8u3pGf9nUkee39KMrB8qqId7u7kyGWaZpOh9E4Mal3xChq+relS/hHQOicGAswyzi7F5DjXjac0mTnRBX8Q=="
       }
     }
   }
