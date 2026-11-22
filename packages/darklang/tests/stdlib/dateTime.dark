@@ -1457,6 +1457,14 @@ test clockSyscalls =
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok()) ])
 
 
+// a delay of zero or less on the real clock returns at once
+test realDelayNotPositive =
+  Stdlib.Test.onRealClock(fun () ->
+    [ Builtin.runtimeDelayTicks(0)
+      Builtin.runtimeDelayTicks(-10000000)
+      Builtin.runtimeDelayTicks(-9223372036854775808) ])
+  |> Stdlib.Test.equal([ (), (), () ])
+
 test weekdayAndMonthDisplay =
   Stdlib.Test.all(
     [ Stdlib.display(Stdlib.DateTime.Weekday.Monday)

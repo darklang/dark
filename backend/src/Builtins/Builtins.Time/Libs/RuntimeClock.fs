@@ -19,6 +19,15 @@ let private make name parameters returnType body : BuiltInFn =
     callEffects = set [ Effect.Clock ]
     deprecated = NotDeprecated }
 
+// Task.Delay throws on a negative delay or one past ~49 days, so long ones wait a day at a time
+let rec private realDelay (ticks : int64) : System.Threading.Tasks.Task<unit> =
+  task {
+    if ticks > 0L then
+      let step = min ticks System.TimeSpan.TicksPerDay
+      do! System.Threading.Tasks.Task.Delay(System.TimeSpan.FromTicks step)
+      return! realDelay (ticks - step)
+  }
+
 let fns () =
   [ make "runtimeRealtimeTicks" [ Param.make "unit" TUnit "" ] TInt64 (function
       | state, _, _, [| DUnit |] ->
@@ -43,22 +52,19 @@ let fns () =
            | LibExecution.HostClock.Virtual v -> struct (v.Monotonic, 10_000_000L)
          DTuple(Dval.dint64 ticks, Dval.dint64 frequency, [])
        | _ -> incorrectArgs ())
-    // `Task.Delay` throws on a negative delay, or one past about 49 days.
-    { (make
-        "runtimeDelayTicks"
-        [ Param.make "ticks" TInt64 "100ns runtime timer ticks" ]
-        TUnit
-        (function
-         | state, _, _, [| DInt64 ticks |] ->
-           task {
-             match state.clock with
-             | LibExecution.HostClock.Real ->
-               do! System.Threading.Tasks.Task.Delay(System.TimeSpan.FromTicks ticks)
-             | LibExecution.HostClock.Virtual v -> do! v.Delay ticks
-             return DUnit
-           }
-           |> LibExecution.Pending.ofTask
-         | _ -> incorrectArgs ())) with
-        callEffects = set [ Effect.Clock; Effect.Raise ] } ]
+    make
+      "runtimeDelayTicks"
+      [ Param.make "ticks" TInt64 "100ns runtime timer ticks" ]
+      TUnit
+      (function
+       | state, _, _, [| DInt64 ticks |] ->
+         task {
+           match state.clock with
+           | LibExecution.HostClock.Real -> do! realDelay ticks
+           | LibExecution.HostClock.Virtual v -> do! v.Delay ticks
+           return DUnit
+         }
+         |> LibExecution.Pending.ofTask
+       | _ -> incorrectArgs ()) ]
 
 let builtins () = Builtin.make [] (fns ())
