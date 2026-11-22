@@ -581,6 +581,12 @@ module Registry =
 
 
   let executeCommandHelp(name: String, state: AppState): AppState =
+    Stdlib.printLine(commandHelpText(name, state))
+    state
+
+
+  /// What `dark <name> --help`, `dark <name> help` and `dark help <name>` all print.
+  let commandHelpText(name: String, state: AppState): String =
     let handler = findCommandIn(state.allCommandsCache, name)
     let helpFn = handler.help
     let aliasSuffix =
@@ -606,8 +612,7 @@ module Registry =
       && Stdlib.Bool.not(Stdlib.String.startsWith(firstLine, "dark "))
 
     let summarised = if alreadySummarised then body else $"{handler.description}\n{body}"
-    Stdlib.printLine(summarised + aliasSuffix)
-    state
+    summarised + aliasSuffix
 
 
   // Command groups organized by category, for `dark help`.
