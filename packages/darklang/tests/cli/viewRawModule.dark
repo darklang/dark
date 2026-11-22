@@ -39,7 +39,7 @@ test aModuleRoundTrips = Instance.withInstance(fun i ->
       Instance.says(raw, "\n\ntest shiftsOrigin", "then tests")
       Instance.exitedWith(redefined, 0, out)
       again |> Stdlib.Test.equal(raw)
-      Instance.says(shifted, "3", "the copy runs") ]))
+      Stdlib.String.trim(shifted) |> Stdlib.Test.equal("3") ]))
 
 
 // `dark module` puts an impl under its type's name, so it comes back with the type.
