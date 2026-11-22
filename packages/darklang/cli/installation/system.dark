@@ -99,5 +99,4 @@ let uninstallWithConfirmation(
     else if Stdlib.Cli.UI.Prompt.canAsk() then
       Result.Error("Uninstall cancelled")
     else
-      Result.Error(
-        "Uninstall cancelled: there's no terminal to confirm it. `dark uninstall --yes` skips the prompt.")
+      Result.Error(Prompt.refuseWithoutTerminal("Uninstall", "dark uninstall"))

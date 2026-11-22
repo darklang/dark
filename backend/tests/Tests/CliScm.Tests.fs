@@ -421,7 +421,7 @@ let private commitAsksAndNeedsAMessage =
           shows
             state
             [ "commit"; "gated" ]
-            "left as a draft"
+            "Commit not done: no terminal to confirm at"
             "nothing commits without an answer"
         do! shows state [ "status" ] "1 item changed" "and the draft is still there"
 
@@ -1435,7 +1435,7 @@ let private mergeAsksBeforeItGoes =
         refuses
           state
           [ "merge"; "askbr" ]
-          "not merged"
+          "Merge not done"
           "Merged"
           "a piped merge with no -y refuses, and does not claim it merged"
 

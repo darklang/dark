@@ -18,6 +18,12 @@ let confirmExplicit(confirm: Confirm, question: String): Bool =
       | _ -> false
 
 
+/// What a command says when its prompt has nobody at a terminal to answer it: what didn't happen,
+/// and the `-y` that does it without asking. One wording for every prompt.
+let refuseWithoutTerminal(what: String, cmd: String): String =
+  $"{what} not done: no terminal to confirm at. `{cmd} -y` does it without asking."
+
+
 /// State for prompt-specific fields (text, cursor, history)
 type State =
   { text: String

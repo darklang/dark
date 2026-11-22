@@ -166,7 +166,7 @@ gate_prompts_unattended() {
   out=$(pty "env CI=1 $CLI_ABS discard; echo EXIT=\$?")
   set -e
   grep -q 'EXIT=1' <<<"$out" || fail "discard under CI's pty did not refuse with exit 1 (a timeout means it waited): $out"
-  grep -q 'kept' <<<"$out" || fail "discard under CI's pty did not say it kept the draft"
+  grep -q 'Discard not done' <<<"$out" || fail "discard under CI's pty did not say the discard was not done"
   checked=$((checked + 1))
 
   "$CLI_ABS" discard -y >/dev/null 2>&1 < /dev/null || true

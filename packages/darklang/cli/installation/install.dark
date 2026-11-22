@@ -38,8 +38,11 @@ let execute(state: AppState, args: List<String>): AppState =
             Stdlib.printErrorLine(View.formatError(e))
             { state with exitCode = 1 }
         else
-          printErr("Nothing installed.")
-          printHint("  dark install --yes replaces it without asking")
+          if Stdlib.Cli.UI.Prompt.canAsk() then
+            printErr("Nothing installed.")
+          else
+            printErr(Prompt.refuseWithoutTerminal("Install", "dark install"))
+
           failed(state)
 
 

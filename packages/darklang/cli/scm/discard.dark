@@ -114,8 +114,10 @@ let execute(state: AppState, args: List<String>): AppState =
             confirm,
             Stdlib.Cli.UI.Colors.warning($"\n  Drop {dotted} from your draft? [y/N]: ")))
       then
-        Stderr.ok(
-          $"  kept. (`dark discard {dotted} -y` if you mean it -- a piped stdin can't answer this.)")
+        if Stdlib.Cli.UI.Prompt.canAsk() then
+          Stderr.ok("  kept.")
+        else
+          printErr(Prompt.refuseWithoutTerminal("Discard", $"dark discard {dotted}"))
 
         failed(state)
       else
@@ -195,7 +197,11 @@ let execute(state: AppState, args: List<String>): AppState =
         Stdlib.Bool.not(
           Prompt.confirmExplicit(confirm, Stdlib.Cli.UI.Colors.warning("\n  Drop these? [y/N]: ")))
       then
-        Stderr.ok("  kept. (`dark discard -y` if you mean it -- a piped stdin can't answer this.)")
+        if Stdlib.Cli.UI.Prompt.canAsk() then
+          Stderr.ok("  kept.")
+        else
+          printErr(Prompt.refuseWithoutTerminal("Discard", "dark discard"))
+
         failed(state)
       else
         match SCM.PackageOps.discardDraft() with

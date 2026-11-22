@@ -65,8 +65,10 @@ let executeRestore(state: AppState, name: String, confirm: Confirm): AppState =
       Prompt.confirmExplicit(confirm, Stdlib.Cli.UI.Colors.warning("\n  Restore it? [y/N]: "))
 
     if Stdlib.Bool.not(confirmed) then
-      Stderr.ok(
-        "  kept. (`dark backups restore <name> -y` if you mean it -- a piped stdin can't answer this.)")
+      if Stdlib.Cli.UI.Prompt.canAsk() then
+        Stderr.ok("  kept.")
+      else
+        printErr(Prompt.refuseWithoutTerminal("Restore", $"dark backups restore {name}"))
 
       failed(state)
     else
@@ -118,8 +120,10 @@ let executePrune(state: AppState, keepArg: String, confirm: Confirm): AppState =
           Prompt.confirmExplicit(confirm, Stdlib.Cli.UI.Colors.warning("\n  Delete them? [y/N]: "))
 
         if Stdlib.Bool.not(confirmed) then
-          Stderr.ok(
-            "  kept. (`dark backups prune <n> -y` if you mean it -- a piped stdin can't answer this.)")
+          if Stdlib.Cli.UI.Prompt.canAsk() then
+            Stderr.ok("  kept.")
+          else
+            printErr(Prompt.refuseWithoutTerminal("Prune", $"dark backups prune {keepArg}"))
 
           failed(state)
         else

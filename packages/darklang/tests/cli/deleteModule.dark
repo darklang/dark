@@ -15,7 +15,7 @@ test deleteModuleTakesEverything = Instance.withInstance(fun i ->
   let listed = Instance.said(i, [ "ls", "Me.Scratch" ])
   Stdlib.Test.all(
     [ Instance.exitedWith(refusedCode, 1, "no terminal, no --yes")
-      Instance.says(refused, "add --yes to delete Me.Scratch", "says how")
+      Instance.says(refused, "`dark delete Me.Scratch -y` does it without asking", "says how")
       Instance.exitedWith(code, 0, "deleted")
       Instance.doesNotSay(out, "Will deprecate", "confirmed delete prints just the result")
       Instance.says(out, "Deprecated 3 items in Me.Scratch", "names the count")
