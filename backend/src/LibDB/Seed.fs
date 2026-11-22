@@ -599,6 +599,17 @@ let evaluateAllValues
 ///
 /// Values are evaluated as every value is (`evaluateAllValues`), with no effects allowed, so a
 /// value folded in from elsewhere cannot do here what it could not do where it was saved.
+/// Whether <fn growIfNeeded> has anything to do: an op still to apply, or a value not yet
+/// evaluated. Asked before taking the upgrade lock, so a start with nothing to grow takes none.
+let needsGrowing () : bool =
+  let pending = AppliedOps.pending "1"
+  Sql.query
+    $"SELECT EXISTS({pending})
+       OR EXISTS(SELECT 1 FROM package_values WHERE rt_dval IS NULL) AS needed"
+  |> Sql.executeRow (fun read -> read.int64 "needed")
+  |> fun n -> n > 0L
+
+
 let growIfNeeded
   (getBuiltins : unit -> RT.Builtins)
   (pm : RT.PackageManager)

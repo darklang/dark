@@ -20,6 +20,18 @@ open Tests.CliDsl
 
 // ─── this instance ────────────────────────────────────────────────────────
 
+/// Give the instance's store something to grow, so its next dark takes the upgrade lock: a value
+/// not yet evaluated, as after an upgrade.
+let private needGrowing (i : CliInstance.T) : unit =
+  let db = System.IO.Path.Combine(i.dir, "data.db")
+  use conn =
+    new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={db};Pooling=False")
+  conn.Open()
+  use cmd = conn.CreateCommand()
+  cmd.CommandText <-
+    "UPDATE package_values SET rt_dval = NULL WHERE rowid = (SELECT MIN(rowid) FROM package_values)"
+  cmd.ExecuteNonQuery() |> ignore<int>
+
 /// Each retry of the upgrade lock used to recurse from inside its catch, so a dark kept waiting
 /// past about 530 retries (54 seconds at the real interval, while another folded a big upgrade on a
 /// busy box) died of a stack overflow. With no pause between retries, a second is thousands of them.
@@ -28,6 +40,7 @@ let waitingLongForTheUpgradeLock =
     "a dark kept waiting thousands of retries for the upgrade lock still runs"
     (fun i ->
       task {
+        needGrowing i
         use held =
           new System.IO.FileStream(
             System.IO.Path.Combine(i.dir, "data.db.upgrade-lock"),
@@ -53,6 +66,64 @@ let waitingLongForTheUpgradeLock =
           let! out = stdout
           do! p.WaitForExitAsync()
           Expect.equal p.ExitCode 0 $"it runs once the lock is free: {out}\n{err}"
+        finally
+          CliInstance.stop p
+      })
+
+/// A waiter names the dark it waits on, from the pid the holder wrote beside the lock.
+let aWaiterNamesTheHolder =
+  CliInstance.instanceTest
+    "a dark waiting for the upgrade lock names the pid that holds it"
+    (fun i ->
+      task {
+        needGrowing i
+        let lockPath = System.IO.Path.Combine(i.dir, "data.db.upgrade-lock")
+        use held =
+          new System.IO.FileStream(
+            lockPath,
+            System.IO.FileMode.OpenOrCreate,
+            System.IO.FileAccess.ReadWrite,
+            System.IO.FileShare.None
+          )
+        System.IO.File.WriteAllText(lockPath + ".pid", "4242")
+        let p = CliInstance.startUndrained i [ "branches" ]
+        try
+          let stdout = p.StandardOutput.ReadToEndAsync()
+          let! waiting = p.StandardError.ReadLineAsync()
+          Expect.equal
+            waiting
+            "Waiting for another dark (pid 4242) to finish upgrading the store..."
+            "it names the holder"
+          held.Dispose()
+          let! _ = p.StandardError.ReadToEndAsync()
+          let! _ = stdout
+          do! p.WaitForExitAsync()
+          Expect.equal p.ExitCode 0 "it runs once the lock is free"
+        finally
+          CliInstance.stop p
+      })
+
+/// A dark with nothing to grow takes no lock, so it does not queue behind one that holds it.
+let nothingToGrowDoesNotWait =
+  CliInstance.instanceTest
+    "a dark with nothing to grow does not wait for the upgrade lock"
+    (fun i ->
+      task {
+        use _held =
+          new System.IO.FileStream(
+            System.IO.Path.Combine(i.dir, "data.db.upgrade-lock"),
+            System.IO.FileMode.OpenOrCreate,
+            System.IO.FileAccess.ReadWrite,
+            System.IO.FileShare.None
+          )
+        let p = CliInstance.startUndrained i [ "branches" ]
+        try
+          let stdout = p.StandardOutput.ReadToEndAsync()
+          let! err = p.StandardError.ReadToEndAsync()
+          let! _ = stdout
+          do! p.WaitForExitAsync()
+          Expect.equal p.ExitCode 0 $"it runs: {err}"
+          Expect.isFalse (err.Contains "Waiting for another dark") "without waiting"
         finally
           CliInstance.stop p
       })
@@ -2336,6 +2407,8 @@ let private observeAndShow =
 
 let tests : List<Test> =
   [ waitingLongForTheUpgradeLock
+    aWaiterNamesTheHolder
+    nothingToGrowDoesNotWait
     versionAndStatusAnswer
     firstRunAtOnceSetsUpOneStore
     configRoundTrips
