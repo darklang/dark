@@ -82,7 +82,7 @@ val refusals: List<(List<String> * String)> =
     ([ "permissions", "unapprove", "Zzz.Nope.nope" ], "Zzz.Nope.nope has no remembered approval; `permissions approved` lists the ones that do")
     ([ "permissions", "profile", "zzznope" ], "unknown permission profile: zzznope")
     ([ "back" ], "No previous location in history")
-    ([ "traces", "delete", "--before", "1d" ], "Cancelled. (`--yes` deletes without the prompt -- a piped stdin can't answer it.)")
+    ([ "traces", "delete", "--before", "1d" ], "Delete not done: no terminal to confirm at. `dark traces delete --before 1d -y` does it without asking.")
     ([ "view", "Zzz.Nope.nope" ], "Cannot view: Not found: Zzz")
     ([ "deps", "Zzz.Nope.nope" ], "Cannot show deps for Zzz.Nope.nope: Not found: Zzz")
     ([ "undo", "Zzz.Nope.nope" ], "nothing named Zzz.Nope.nope.\n  `dark ls <module>` lists what's there; `dark status` shows what you've changed.")
