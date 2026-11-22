@@ -337,6 +337,8 @@ let tests =
              [],
              [ "x" ],
              "x |> Stdlib.Json.serialize<Bool>")
+            // a bare name with type args is a fn call on both sides, found or not
+            ("pipe-bare-fn-call-type-args", [ "M" ], [], [ "x" ], "x |> nope<Bool>")
             ("bare-some", [ "M" ], [], [], "Some(5)")
             ("bare-none", [ "M" ], [], [], "None")
             ("bare-ok", [ "M" ], [], [], "Ok(5)")
