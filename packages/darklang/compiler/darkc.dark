@@ -4,7 +4,7 @@ module Darklang.Compiler.Darkc
 
 /// The compiler commit this CLI is tested against. `scripts/compiler/build` and the release
 /// build read it from here.
-val pinnedCommit = "f93ad99aa421157738101851680716d35c09feff"
+val pinnedCommit = "edc9251939267bba015f8ceb2ef3f2d26fd0c72a"
 
 
 let shortPin(): String =
