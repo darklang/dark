@@ -752,30 +752,13 @@ let callStackString
 
 
 
-let rec rteToString
+let rteToString
   (rteToDval : RT.RuntimeError.Error -> RT.Dval)
   (state : RT.ExecutionState)
   (rte : RT.RuntimeError.Error)
   : Task<string> =
-  task {
-    let errorMessageFn =
-      RT.FQFnName.fqPackage (
-        PackageRefs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toErrorMessage ()
-      )
-
-    let rteDval = rteToDval rte
-
-    let! rteMessage =
-      executeFunction
-        state
-        errorMessageFn
-        []
-        (NEList.ofList (RT.DUuid state.branchId.Guid) [ rteDval ])
-
-    match rteMessage with
-    | Ok(RT.DString msg) -> return msg
-    | Ok(other) -> return prettyPrintFallback "rteToString" other rteMessage
-    | Error(rte, _cs) ->
-      debuG "Error converting RTE to string" rte
-      return! rteToString rteToDval state rte
-  }
+  callStringPrinter
+    state
+    (PackageRefs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toErrorMessage ())
+    "rteToString"
+    [ rteToDval rte ]
