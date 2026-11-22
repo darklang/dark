@@ -15,7 +15,6 @@ Dark code runs in a Web Worker, so the page stays live while it runs.
 
 ```
 backend/src/Wasm/build.sh                     # setup.sh, the publish and the store; ~6 min (AOT)
-backend/src/Wasm/build.sh -- -p:RunAOTCompilation=false   # about 3 minutes, runs the same
 backend/src/Wasm/build.sh --store-only        # just the store, when only packages changed
 
 ./scripts/run-cli permissions allow http-server 0.0.0.0 9090
@@ -46,9 +45,9 @@ generator for those attributes; every export passes straight through to `Lib/`, 
   answers `{ id, call, args }` messages by calling the exports.
 - `wwwroot/site.js` is the page side: `dark.boot`, `dark.run(argv)`, `dark.invoke(name, ...args)`.
 
-`RunAOTCompilation` is on for what ships, because it runs faster. A few big leaf assemblies stay
-interpreted in the AOT build; interpreting the BCL wholesale asserts when compiled F# generics
-call into it. `InvariantGlobalization` drops ICU.
+The site is built one way, AOT; the publish refuses `RunAOTCompilation=false`. A few big leaf
+assemblies stay interpreted in the AOT build; interpreting the BCL wholesale asserts when compiled
+F# generics call into it. `InvariantGlobalization` drops ICU.
 
 ## Keeping a tab's work
 

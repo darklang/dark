@@ -4,7 +4,6 @@
 #
 #   backend/src/Wasm/build.sh              everything
 #   backend/src/Wasm/build.sh --store-only  just the store, when only packages changed
-#   backend/src/Wasm/build.sh -- <args>     extra publish arguments (-p:RunAOTCompilation=false)
 #
 # This exists because the three steps had to be run by hand in the right order, and two of
 # them have a way to go wrong that costs more than the build does:
@@ -22,8 +21,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$ROOT"
 
 storeOnly=false
-[[ "${1:-}" == "--store-only" ]] && { storeOnly=true; shift; }
-[[ "${1:-}" == "--" ]] && shift
+[[ "${1:-}" == "--store-only" ]] && storeOnly=true
 
 OUT="rundir/wasm-repl"
 LOG="rundir/logs/wasm-publish.log"
@@ -38,7 +36,7 @@ if [[ "$storeOnly" == false ]]; then
 
   # Node reuse off, output to a file. See the note above: piping this is what hangs.
   if ! MSBUILDDISABLENODEREUSE=1 DOTNET_CLI_USE_MSBUILD_SERVER=0 dotnet publish \
-       backend/src/Wasm/Wasm.csproj -c Release -o "$OUT" -nodeReuse:false "$@" > "$LOG" 2>&1; then
+       backend/src/Wasm/Wasm.csproj -c Release -o "$OUT" -nodeReuse:false > "$LOG" 2>&1; then
     echo "the publish failed. Last lines of $LOG:" >&2
     tail -25 "$LOG" >&2
     exit 1

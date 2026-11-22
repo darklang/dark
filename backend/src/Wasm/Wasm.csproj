@@ -11,8 +11,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
     <PublishTrimmed>true</PublishTrimmed>
-    <!-- AOT: slower to build, faster to run. `-p:RunAOTCompilation=false` publishes in about two
-         minutes and runs the same (see README). -->
+    <!-- AOT only: one way to build the site, the one that ships. -->
     <RunAOTCompilation>true</RunAOTCompilation>
     <!-- No ICU: the CLI's string work is ordinal/invariant, and the ICU data is ~1 MB gz plus
          load time on every cold start. -->
@@ -44,5 +43,9 @@
       <LogicalName>package-ref-hashes.txt</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
+
+  <Target Name="DarkRequireAot" BeforeTargets="Publish" Condition="'$(RunAOTCompilation)' != 'true'">
+    <Error Text="The browser build is AOT only; leave RunAOTCompilation on." />
+  </Target>
 
 </Project>
