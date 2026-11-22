@@ -36,24 +36,7 @@ let complete(state: AppState, args: List<String>): List<Completion.CompletionIte
 
 
 let help(_state: AppState): String =
-  // CLEANUP I wanted this somewhere but couldn't decide where.
-  let swatches =
-    [ Stdlib.Cli.UI.Colors.purpleBg
-      Stdlib.Cli.UI.Colors.magentaBg
-      Stdlib.Cli.UI.Colors.lightPinkBg
-      Stdlib.Cli.UI.Colors.pinkBg
-      Stdlib.Cli.UI.Colors.blueBg
-      Stdlib.Cli.UI.Colors.greenBg
-      Stdlib.Cli.UI.Colors.yellowBg
-      Stdlib.Cli.UI.Colors.brownBg
-      Stdlib.Cli.UI.Colors.orangeBg
-      Stdlib.Cli.UI.Colors.peachBg
-      Stdlib.Cli.UI.Colors.salmonBg ]
-    |> Stdlib.List.map(fun color -> $"{color}  {Stdlib.Cli.UI.Colors.reset}")
-    |> Stdlib.String.join("")
-
-  [ swatches
-    Stdlib.Cli.UI.Colors.info("Usage: ") + Stdlib.Cli.UI.Colors.command("help [command]")
+  [ Stdlib.Cli.UI.Colors.info("Usage: ") + Stdlib.Cli.UI.Colors.command("help [command]")
     "Show general help or help for a specific command."
     ""
     Stdlib.Cli.UI.Colors.info("Examples:")

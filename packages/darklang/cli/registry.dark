@@ -477,7 +477,7 @@ module Registry =
       ("permissions", "Review effects and runtime permission policies", [ "perms" ], acceptsPermissions, Permissions.Command.execute, Permissions.Command.help, Permissions.Command.complete)
       ("ops", "Read this instance's op log", [], acceptsOps, Ops.execute, Ops.help, Ops.complete)
       ("ps", "What is running: this instance's processes, then other Darks on this machine", [ "processes" ], acceptsPs, Cli.Ps.execute, Cli.Ps.help, Cli.Ps.complete)
-      ("workbench", "Open the workbench -- a framed, navigable package tree (CLI-UX redesign)", [ "wb" ], acceptsWorkbench, Workbench.execute, Workbench.help, Workbench.complete) ]
+      ("workbench", "Open the workbench -- a framed, navigable package tree", [ "wb" ], acceptsWorkbench, Workbench.execute, Workbench.help, Workbench.complete) ]
     |> Stdlib.List.map((
       fun((name, desc, aliases, accepts, execute, help, complete)) ->
         CommandHandler
@@ -739,7 +739,17 @@ module Registry =
     let header =
       "Workflow: fn Me.Demo.f <body> → eval 'Me.Demo.f(2)' → status → commit\nhelp <command> for details. AI agents: docs for-ai"
 
-    header + "\n\n" + groupsText
+    let globalFlags =
+      [ "Global flags:"
+        "  --branch <name>       run on that branch, this time only"
+        "  --no-input            never prompt (same as DARK_NO_INPUT=1)"
+        "  --trace, --no-trace   record a trace of this run, or don't"
+        "  -h, --help            help for dark or any command"
+        "  -v, --version         print the version" ]
+      |> Stdlib.String.join("\n")
+
+    let footer = "More: `dark docs`. Report a bug: https://github.com/darklang/dark/issues"
+    header + "\n\n" + groupsText + "\n\n" + globalFlags + "\n\n" + footer
 
 
   /// Identifies what a completion request depends on, *ignoring* the partial token the user is mid-way
