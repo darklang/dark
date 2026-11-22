@@ -190,6 +190,61 @@ let fromUInt128(i: UInt128): Option<Int64> =
   BigInt.toInt64(BigInt.fromUInt128(i))
 
 
+/// Converts an <type Int64> to an <type Int8>. Returns {{None}} if it doesn't fit.
+let toInt8(a: Int64): Option<Int8> =
+  Int8.fromInt64(a)
+
+
+/// Converts an <type Int64> to a <type UInt8>. Returns {{None}} if it doesn't fit.
+let toUInt8(a: Int64): Option<UInt8> =
+  UInt8.fromInt64(a)
+
+
+/// Converts an <type Int64> to an <type Int16>. Returns {{None}} if it doesn't fit.
+let toInt16(a: Int64): Option<Int16> =
+  Int16.fromInt64(a)
+
+
+/// Converts an <type Int64> to a <type UInt16>. Returns {{None}} if it doesn't fit.
+let toUInt16(a: Int64): Option<UInt16> =
+  UInt16.fromInt64(a)
+
+
+/// Converts an <type Int64> to an <type Int32>. Returns {{None}} if it doesn't fit.
+let toInt32(a: Int64): Option<Int32> =
+  Int32.fromInt64(a)
+
+
+/// Converts an <type Int64> to a <type UInt32>. Returns {{None}} if it doesn't fit.
+let toUInt32(a: Int64): Option<UInt32> =
+  UInt32.fromInt64(a)
+
+
+/// Converts an <type Int64> to a <type UInt64>. Returns {{None}} if it doesn't fit.
+let toUInt64(a: Int64): Option<UInt64> =
+  UInt64.fromInt64(a)
+
+
+/// Converts an <type Int64> to an <type Int128>.
+let toInt128(a: Int64): Int128 =
+  Int128.fromInt64(a)
+
+
+/// Converts an <type Int64> to a <type UInt128>. Returns {{None}} if it doesn't fit.
+let toUInt128(a: Int64): Option<UInt128> =
+  UInt128.fromInt64(a)
+
+
+/// Converts an <type Int64> to a <type BigInt>.
+let toBigInt(a: Int64): BigInt =
+  BigInt.fromInt64(a)
+
+
+/// Converts a <type BigInt> to an <type Int64>. Returns {{None}} if it doesn't fit.
+let fromBigInt(a: BigInt): Option<Int64> =
+  BigInt.toInt64(a)
+
+
 impl BitwiseAnd for Int64 =
   /// Bitwise AND on two <type Int64> values
   let bitwiseAnd(a: Int64, b: Int64): Int64 =
