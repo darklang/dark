@@ -1860,6 +1860,52 @@ let private anOverrideOnABranchLeavesMainsConflictOpen =
       })
 
 
+/// An alias saved with the same code as another declaration shares its `AddFn`. When a later save
+/// resolves that code's forward reference, the draft refresh rewrites the `AddFn` and must keep the
+/// alias's body in the log: a re-fold of the log then still binds the alias to a body, and a
+/// dependents read that needs it finds it.
+let private aRefreshedDraftKeepsAnAliasBody =
+  instanceTest "a draft refresh keeps the body an alias still binds" (fun state ->
+    task {
+      do! fn state "Tests.Alias.helper" "(): Int64 = 40"
+      let body = "(): Int64 = Tests.Alias.helper() + Tests.Alias.later()"
+      do! fn state "Tests.Alias.f" body
+      do! fn state "Tests.Alias.g" body
+      do! fn state "Tests.Alias.later" "(): Int64 = 2"
+      // records the callers' reference names, which a dependents read checks against their bodies
+      do! run state [ "rename"; "Tests.Alias.helper"; "Tests.Alias.helper2" ]
+
+      let dir =
+        match state with
+        | Instance i -> i.dir
+        | InProcess _ -> failtest "needs an instance's store"
+      use conn =
+        new Microsoft.Data.Sqlite.SqliteConnection(
+          $"""Data Source={System.IO.Path.Combine(dir, "data.db")};Pooling=False"""
+        )
+      conn.Open()
+      use cmd = conn.CreateCommand()
+      // what a schema change does: drop the projections and fold the log again on the next start
+      cmd.CommandText <-
+        (LibDB.Seed.projectionTables
+         |> List.map (fun t -> $"DELETE FROM {t};")
+         |> String.concat "")
+        + LibDB.AppliedOps.reset
+      cmd.ExecuteNonQuery() |> ignore<int>
+      conn.Close()
+
+      let! (out, err, status) =
+        runCliStreams state [ "deps"; "usedby"; "Tests.Alias.helper2" ]
+      Expect.equal status 0 $"the dependents read succeeds, got: {out} / {err}"
+      Expect.stringContains (plain out) "f, g" "both callers are found"
+      do! evals state "Tests.Alias.g()" "42" "the alias runs after the re-fold"
+      let! status = runCliPlain state [ "status" ]
+      Expect.isFalse
+        (status.Contains "no content")
+        $"no name is bound to a missing body, got: {status}"
+    })
+
+
 /// `deps usedby` that cannot read a caller says so and exits 1, rather than raising. A second
 /// indexed name for the callee makes the caller's names ambiguous, so the read needs the caller's
 /// stored body, and the body is gone.
@@ -2044,6 +2090,7 @@ let tests : List<Test> =
     aConflictCloseThatFailsIsReported
     aCommitKeepsTheDraftOverAnOlderMergedEdit
     anOverrideOnABranchLeavesMainsConflictOpen
+    aRefreshedDraftKeepsAnAliasBody
     aDependentsReadThatFailsIsReported
     aDependencyReviewThatFailsIsReported
     aFailingDeprecationQueryIsAStoreError ]

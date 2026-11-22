@@ -1222,20 +1222,22 @@ let packageOpReferenceSnapshots (op : PackageOp) : List<ReferenceNamesSnapshot> 
     [ { location = location; target = target; names = names; restating = None } ]
   | _ -> []
 
+/// The content an `Add*` op stores.
+let declaredReference (op : PackageOp) : Option<Reference> =
+  match op with
+  | PackageOp.AddType item -> Some(PackageType item.hash)
+  | PackageOp.AddFn item -> Some(PackageFn item.hash)
+  | PackageOp.AddValue item -> Some(PackageValue item.hash)
+  | PackageOp.AddTrait item -> Some(PackageTrait item.hash)
+  | PackageOp.AddTraitImpl item -> Some(PackageTraitImpl item.hash)
+  | PackageOp.AddTest item -> Some(PackageTest item.hash)
+  | _ -> None
+
 /// Saving a function produces an `AddFn` followed by a `SetName`.
 /// The `AddFn` holds the declaration; the `SetName` binds its package name.
 /// Recognize that pair for any declaration kind and return its location and reference.
 let tryDeclarationBinding (declaration : PackageOp, binding : PackageOp) =
-  let target =
-    match declaration with
-    | PackageOp.AddType item -> Some(PackageType item.hash)
-    | PackageOp.AddFn item -> Some(PackageFn item.hash)
-    | PackageOp.AddValue item -> Some(PackageValue item.hash)
-    | PackageOp.AddTrait item -> Some(PackageTrait item.hash)
-    | PackageOp.AddTraitImpl item -> Some(PackageTraitImpl item.hash)
-    | PackageOp.AddTest item -> Some(PackageTest item.hash)
-    | _ -> None
-  match binding, target with
+  match binding, declaredReference declaration with
   | PackageOp.SetName(location, reference, _), Some expected when
     expected.kind = reference.kind
     ->
