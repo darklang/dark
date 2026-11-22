@@ -296,3 +296,13 @@ module EnumWithRecursiveTypeArgs =
   test recursiveAlias =
     Alias.B(Stdlib.Result.Result.Ok(Alias.A(5)))
     |> Stdlib.Test.equal(Inner.B(Stdlib.Result.Result.Ok(Inner.A(5))))
+
+// One generic alias at two types is two types: its parameter is bound per use, not once.
+module GenericAliasAtTwoTypes =
+  type MaybeT<'t> = Stdlib.Option.Option<'t>
+
+  type Both = { a: MaybeT<Float64>, b: MaybeT<String> }
+
+  test recordWithBoth =
+    (Both { a = Stdlib.Option.Option.Some(1.5), b = Stdlib.Option.Option.Some("x") }).b
+    |> Stdlib.Test.equal(Stdlib.Option.Option.Some("x"))

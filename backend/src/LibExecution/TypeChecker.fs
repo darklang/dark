@@ -372,12 +372,16 @@ let rec unifyValueType
         // if so, we can tidy this case quite a bit
         match Types.find types typeNameT with
         | None -> Error pathSoFar
-        | Some expected ->
-          match expected, actual with
-          | { definition = TypeDeclaration.Alias aliasType }, _ ->
-            let expected = TypeReference.unwrapAlias types aliasType
-            aliasTargets.TryAdd(typeNameT, expected) |> ignore<bool>
-            r tst pathSoFar expected actual
+        | Some declaration ->
+          match declaration, actual with
+          | { definition = TypeDeclaration.Alias _ }, _ ->
+            // Unwrapped with its type arguments: the alias's own parameters are not the
+            // caller's type variables, so one alias used at two types is two types.
+            let target = TypeReference.unwrapAlias types expected
+            // Keyed by name alone, so only an alias with no parameters is the same type each time.
+            if List.isEmpty declaration.typeParams then
+              aliasTargets.TryAdd(typeNameT, target) |> ignore<bool>
+            r tst pathSoFar target actual
 
           | _, ValueType.Known(KTCustomType(typeNameV, typeArgsV)) ->
             if typeNameV <> typeNameT then
