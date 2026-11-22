@@ -24,6 +24,5 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Expecto" />
-    <PackageReference Include="NReco.Logging.File" />
   </ItemGroup>
 </Project>

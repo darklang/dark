@@ -8,15 +8,6 @@
         "resolved": "11.0.101",
         "contentHash": "XL1wfb0gujXAtnJfO7rYfxKgwufCiT8aOKqGoqKB83oxRAZ9+yiNWXinHO4x9StYuunTl/AH8eERc0hv7UXJVQ=="
       },
-      "Legivel": {
-        "type": "Direct",
-        "requested": "[0.4.6, )",
-        "resolved": "0.4.6",
-        "contentHash": "t8I2WpnQCvxS46pwCZmHZmtJL+siUaLqsrStZLHy1/eY/rikLCmsXOoZLFULgHSCbfN4mauRpqVfRIuhn+KUqA==",
-        "dependencies": {
-          "FSharp.Core": "4.6.0"
-        }
-      },
       "builtins.cli": {
         "type": "Project",
         "dependencies": {
@@ -131,8 +122,7 @@
         "type": "Project",
         "dependencies": {
           "FSharp.Core": "[11.0.101, )",
-          "Prelude": "[1.0.0, )",
-          "System.IO.Hashing": "[11.0.0, )"
+          "Prelude": "[1.0.0, )"
         }
       },
       "libparser": {
@@ -173,8 +163,7 @@
           "Expecto": "[11.1.1, )",
           "LibDB": "[1.0.0, )",
           "LibExecution": "[1.0.0, )",
-          "LibParser": "[1.0.0, )",
-          "NReco.Logging.File": "[1.4.0, )"
+          "LibParser": "[1.0.0, )"
         }
       },
       "Expecto": {
@@ -229,12 +218,6 @@
         "resolved": "3.3.7",
         "contentHash": "4Rc3zup1sZqtlcgkWZOsjoVbhm+RkDvxrFDJfIxi7nr32ZgzVW+zCTBr827+KG/4r5owpchUjqx8tO4K2ZtpOw=="
       },
-      "NReco.Logging.File": {
-        "type": "CentralTransitive",
-        "requested": "[1.4.0, )",
-        "resolved": "1.4.0",
-        "contentHash": "CwL4LVI2DFynoWCgtegbR1jvPVFnJ0LiQmiqGMPJlHWrL4ooMdB6E2JLjcciPEMydQMOhNdwhh6xSjzYPxoZpQ=="
-      },
       "SQLite": {
         "type": "CentralTransitive",
         "requested": "[3.53.4, )",
@@ -274,12 +257,6 @@
         "dependencies": {
           "SQLitePCLRaw.core": "3.0.5"
         }
-      },
-      "System.IO.Hashing": {
-        "type": "CentralTransitive",
-        "requested": "[11.0.0, )",
-        "resolved": "11.0.0",
-        "contentHash": "U+Bv2qCYt6eONi+arSP0QIp4uTO6os6uceBsqiAwruZ+Wo2HrRhO/0tj38M9URJtS+4DhAtT3ka2TGNFYsnhyQ=="
       },
       "Wcwidth": {
         "type": "CentralTransitive",
