@@ -688,7 +688,6 @@ module Cli =
               $"Kept {List.length kept} of your edits that this version also ships.\r\n"
             )
         | _ -> ()
-        LibDB.PackageManager.preloadHarmful ()
         LibDB.PackageManager.selectBranch PT.BranchId.Main
         Browser.log "boot: done"
         booted <- true
