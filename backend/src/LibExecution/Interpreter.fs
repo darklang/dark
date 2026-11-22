@@ -2040,8 +2040,8 @@ let private completeBuiltin
     | FQFnName.Package hash when hasFnParam fn.parameters ->
       let mutable callData = Unchecked.defaultof<PackageFnCallData>
       if exeState.packageFnCallCache.TryGetValue(hash, &callData) then
-        let fnParams = System.Threading.Volatile.Read(&callData.fnParams)
-        if not (isNull fnParams) && fnParams.Length > 0 then
+        let fnParams = callData.fnParams
+        if fnParams.Length > 0 then
           expectLambdaReturns
             vm
             ctx.applicable.name
@@ -2731,25 +2731,19 @@ let private packageFnCallData
         freeTVars = FreeTVars.ofPackage fn
         paramList = FreeTVars.paramsOfPackage fn
         executionPoint = FreeTVars.packageExecutionPoint fn.hash
-        // The parameters that take a callback. If a parameter has a named type, like
-        // `Check`, it might be a function, so we leave this null and work it out
-        // on the first call instead.
+        // The parameters that take a callback. A named type, like `Check`, may be an
+        // alias of a function type.
         fnParams =
-          if
-            fn.parameters
-            |> NEList.toList
-            |> List.exists (fun p ->
+          fn.parameters
+          |> NEList.toList
+          |> List.indexed
+          |> List.choose (fun (i, p) ->
+            let typ =
               match p.typ with
-              | TCustomType _ -> true
-              | _ -> false)
-          then
-            null
-          else
-            fn.parameters
-            |> NEList.toList
-            |> List.indexed
-            |> List.choose (fun (i, p) -> callbackParam i p.name p.typ)
-            |> Array.ofList
+              | TCustomType _ -> TypeReference.unwrapAlias exeState.types p.typ
+              | t -> t
+            callbackParam i p.name typ)
+          |> Array.ofList
         thinWrapper = thinWrapper
         plainPure =
           match thinWrapper with
@@ -2850,8 +2844,8 @@ let private expectCallbackReturns
   (callData : PackageFnCallData)
   (frame : CallFrame)
   : unit =
-  let fnParams = System.Threading.Volatile.Read(&callData.fnParams)
-  if not (isNull fnParams) && fnParams.Length > 0 then
+  let fnParams = callData.fnParams
+  if fnParams.Length > 0 then
     let fnName =
       match callData.executionPoint with
       | Function n -> n
@@ -3315,36 +3309,16 @@ let private callPackageViaFrame
     paramCount
 
 
-/// Work out `PackageFnCallData.fnParams` for a fn with a parameter whose type might be an alias of
-/// a function type. Once per fn; every later call finds it set.
-let private resolveFnParams
-  (exeState : ExecutionState)
-  (fn : PackageFn.PackageFn)
-  (callData : PackageFnCallData)
-  : unit =
-  let found =
-    FreeTVars.paramsOfPackage fn
-    |> List.indexed
-    |> List.map (fun (i, p) ->
-      let typ =
-        match p.typ with
-        | TCustomType _ -> TypeReference.unwrapAlias exeState.types p.typ
-        | t -> t
-      callbackParam i p.name typ)
-  let resolved = found |> List.choose (fun x -> x) |> Array.ofList
-  System.Threading.Volatile.Write(&callData.fnParams, resolved)
-
-
-/// Run a package-fn call whose explicit type args are resolved, and whose `fnParams` are known.
-let private callPackageResolvedReady
+/// Run a package-fn call whose explicit type args are resolved.
+let private callPackageResolved
   (exeState : ExecutionState)
   (vm : VMState)
   (currentFrame : CallFrame)
   (ctx : ApplyContext)
-  (fn : PackageFn.PackageFn)
   (callData : PackageFnCallData)
   (resolvedExplicitTypeArgsVT : List<ValueType>)
   : PackageOutcome =
+  let fn = callData.fn
   // A bare forwarder to a builtin of the same signature runs that builtin here, instead of pushing a
   // frame whose whole job is to run the two instructions that would.
   match callData.thinWrapper with
@@ -3387,38 +3361,6 @@ let private callPackageResolvedReady
     |> Completed
   | _ ->
     callPackageViaFrame
-      exeState
-      vm
-      currentFrame
-      ctx
-      fn
-      callData
-      resolvedExplicitTypeArgsVT
-
-
-/// Run a package-fn call whose explicit type args are resolved. On the first call, work
-/// out which parameters take a callback, so their results can be checked.
-let private callPackageResolved
-  (exeState : ExecutionState)
-  (vm : VMState)
-  (currentFrame : CallFrame)
-  (ctx : ApplyContext)
-  (callData : PackageFnCallData)
-  (resolvedExplicitTypeArgsVT : List<ValueType>)
-  : PackageOutcome =
-  let fn = callData.fn
-  if isNull (System.Threading.Volatile.Read(&callData.fnParams)) then
-    resolveFnParams exeState fn callData
-    callPackageResolvedReady
-      exeState
-      vm
-      currentFrame
-      ctx
-      fn
-      callData
-      resolvedExplicitTypeArgsVT
-  else
-    callPackageResolvedReady
       exeState
       vm
       currentFrame
@@ -4651,10 +4593,8 @@ let private tryCallKnown
     false
   else
     let fn = callData.fn
-    let fnParams = System.Threading.Volatile.Read(&callData.fnParams)
     if
-      isNull fnParams
-      || fnParams.Length > 0
+      callData.fnParams.Length > 0
       || callData.thinWrapper.IsSome
       || not (List.isEmpty fn.bounds)
       || not (Set.isEmpty callData.freeTVars)
@@ -4819,7 +4759,6 @@ let private callPackageKnown
     && List.isEmpty fn.bounds
     && Set.isEmpty callData.freeTVars
     && callData.thinWrapper.IsNone
-    && not (isNull (System.Threading.Volatile.Read(&callData.fnParams)))
     && argsFitParams callData.paramList registers newArgRegs.head newArgRegs.tail
   then
     let n = NEList.length fn.parameters
@@ -4835,11 +4774,7 @@ let private callPackageKnown
       ctx.args
       n
       n
-  elif
-    List.isEmpty ctx.typeArgs
-    && callData.thinWrapper.IsNone
-    && not (isNull (System.Threading.Volatile.Read(&callData.fnParams)))
-  then
+  elif List.isEmpty ctx.typeArgs && callData.thinWrapper.IsNone then
     // Where `callPackageWith` arrives when there are no type args to resolve and no builtin
     // to hand the call to: a generic fn, or arguments that need the unifier.
     callPackageViaFrame exeState vm currentFrame ctx fn callData []
@@ -4901,11 +4836,7 @@ let private applyPackageFn
     then
       if known then
         match callData.thinWrapper with
-        // Also only once its callback parameters are known, which the long way does.
-        | ValueSome biFn when
-          not (isNull (System.Threading.Volatile.Read(&callData.fnParams)))
-          ->
-          ValueSome(struct (biFn, callData))
+        | ValueSome biFn -> ValueSome(struct (biFn, callData))
         | _ -> ValueNone
       else
         ValueNone
