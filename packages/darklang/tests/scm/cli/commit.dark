@@ -175,3 +175,258 @@ test aTypeErrorIsSavedButRefusesToCommit =
       run(dark, [ "commit", "bad", "-y", "--allow-type-errors" ])
       draftIsEmpty(dark, "--allow-type-errors commits it anyway")
       same(commits(dark), [ "bad" ], "as one commit") ])
+
+
+/// Write <param text> to <param path>, as a step.
+let writeSource(path: String, text: String): Stdlib.Test.Result =
+  match Stdlib.Cli.File.writeText(path, text) with
+  | Ok(_) -> Stdlib.Test.Result.Pass
+  | Error(e) -> Stdlib.Test.fail($"could not write {path}: {Stdlib.inspect(e)}")
+
+
+/// The first 8 characters of a commit id, which `show` prints as part of what a commit follows.
+let shortId(id: String): String =
+  Stdlib.String.first(id, 8)
+
+
+test aCommitFollowsTheOneBeforeIt = scenario(fun dark ->
+  let firstSteps =
+    [ saveNumber(dark, "Tests.Chain.one", "1"), commit(dark, "chain one") ]
+
+  let first = newestCommit(dark)
+  let secondSteps =
+    [ saveNumber(dark, "Tests.Chain.two", "2"), commit(dark, "chain two") ]
+
+  let second = newestCommit(dark)
+  Stdlib.List.flatten(
+    [ firstSteps
+      secondSteps
+      [ if first != "" && first != second then
+          Stdlib.Test.Result.Pass
+        else
+          Stdlib.Test.fail(
+            $"two commits of different work get different ids: {first} {second}")
+
+        says(
+          dark,
+          [ "show", second ],
+          $"follows {shortId(first)}",
+          "the second commit follows the first") ] ]))
+
+
+/// Commits made out of order still chain: C follows A, the commit made just before it, though A
+/// holds a name saved before B's.
+test aCommitFollowsTheCommitMadeBeforeItWhateverItHolds = scenario(fun dark ->
+  let setup =
+    [ saveNumber(dark, "Tests.Chain.a", "1")
+      saveNumber(dark, "Tests.Chain.b", "2")
+      run(dark, [ "commit", "B", "--include=Tests.Chain.b", "-y" ])
+      run(dark, [ "commit", "A", "--include=Tests.Chain.a", "-y" ]) ]
+
+  let a = newestCommit(dark)
+  let more = [ saveNumber(dark, "Tests.Chain.c", "3"), commit(dark, "C") ]
+  let c = newestCommit(dark)
+  Stdlib.List.flatten(
+    [ setup
+      more
+      [ same(
+          commits(dark),
+          [ "C", "A", "B" ],
+          "the commits are in the order they were made")
+
+        says(dark, [ "show", c ], $"follows {shortId(a)}", "C follows A") ] ]))
+
+
+test aCommitOnAPipeAsksAndNeedsAMessage = scenario(fun dark ->
+  [ saveNumber(dark, "Tests.CommitGate.f", "11")
+    // no -y, and stdin is a pipe: nobody can answer the prompt, so the answer is no
+    refuses(
+      dark,
+      [ "commit", "gated" ],
+      "Commit not done: no terminal to confirm at",
+      "nothing commits without an answer")
+
+    says(dark, [ "status" ], "1 item changed", "and the draft is still there")
+    refuses(
+      dark,
+      [ "commit", "-y" ],
+      "a commit needs a message",
+      "an empty message is refused, -y or not")
+
+    says(
+      dark,
+      [ "commit", "gated for real", "-y" ],
+      "-- 2 ops",
+      "with a message and -y it lands")
+
+    same(commits(dark), [ "gated for real" ], "as one commit") ])
+
+
+/// The refusal names the item and the error, and only live items are checked: once the broken
+/// function is fixed, the draft commits without the override, though the broken version is still
+/// in the draft's history.
+test aTypeErrorRefusalNamesTheItemAndAFixUnblocksIt = scenario(fun dark ->
+  let path = Cli.Tests.Instance.home(dark) + "/arity-gate.dark"
+  let source =
+    "type Wrapped = Wrap(Int64 * String)\n\nlet bad(value: Wrapped): Wrapped =\n  match value with\n  | Wrap((number, text)) -> Wrapped.Wrap(number, text)\n"
+
+  [ writeSource(path, source)
+    says(
+      dark,
+      [ "module", "Tests.ArityGate", path ],
+      "Type check failed",
+      "saving reports the error rather than hiding it")
+
+    saysAll(
+      dark,
+      [ "commit", "should not land", "-y" ],
+      [ "cannot commit", "expects 1 field", "Tests.ArityGate.bad" ],
+      "the refusal names the item and the error")
+
+    says(
+      dark,
+      [ "commit", "taking it", "-y", "--allow-type-errors" ],
+      "-- 4 ops",
+      "--allow-type-errors takes it")
+
+    says(
+      dark,
+      [ "fn"
+        "Tests.ArityGate.bad2"
+        "(x: Int64): Int64 = Stdlib.String.length(x)" ],
+      "[TypeMismatch]",
+      "a new type error is saved, with its error")
+
+    refuses(
+      dark,
+      [ "commit", "nope", "-y" ],
+      "cannot commit",
+      "a new type error refuses")
+
+    save(dark, "Tests.ArityGate.bad2", "(x: Int64): Int64 = x")
+    commit(dark, "fixed, no override")
+    same(
+      commits(dark),
+      [ "fixed, no override", "taking it" ],
+      "the fixed draft committed without the override") ])
+
+
+test aCommitRefusesAReferenceThatNeverResolvesButNotAForwardOne =
+  scenario(fun dark ->
+    let path = Cli.Tests.Instance.home(dark) + "/unres-fixed.dark"
+    let source(body: String): String =
+      $"let fixedLater(x: Int64): Int64 = {body}\nlet usesFixed(x: Int64): Int64 = fixedLater(x)\n"
+
+    [ says(
+        dark,
+        [ "fn"
+          "Tests.UnresT.bad"
+          "(x: Int64): Int64 = Tests.UnresT.missing(x)" ],
+        "will resolve when dependencies are added",
+        "an unresolved name is saved, with a warning")
+
+      saysAll(
+        dark,
+        [ "commit", "unresolved", "-y" ],
+        [ "don't resolve", "Tests.UnresT.missing" ],
+        "the commit is refused, naming what it could not find")
+
+      // -y alone must not wave it through; the escape hatch is typed
+      says(
+        dark,
+        [ "commit", "unresolved", "--allow-unresolved", "-y" ],
+        "-- 2 ops",
+        "--allow-unresolved records it as it is")
+
+      // the caller is saved first and resolves once the callee is saved, before commit looks
+      save(
+        dark,
+        "Tests.UnresT.caller",
+        "(x: Int64): Int64 = Tests.UnresT.callee(x)")
+
+      save(dark, "Tests.UnresT.callee", "(x: Int64): Int64 = x + 3")
+      commit(dark, "forward ref")
+      // saving a module again after fixing a name leaves the broken version in the draft's
+      // history, reachable from nothing live
+      writeSource(path, source("Tests.UnresFix.notThere(x)"))
+      says(
+        dark,
+        [ "module", "/Tests.UnresFix", path ],
+        "saved anyway",
+        "the broken module is saved")
+
+      writeSource(path, source("x + 1"))
+      run(dark, [ "module", "/Tests.UnresFix", path ])
+      commit(dark, "fixed")
+      same(
+        commits(dark),
+        [ "fixed", "forward ref", "unresolved" ],
+        "each commit that should land did") ])
+
+
+test commitsHidesArchiveMarkersUnlessAskedForAll =
+  scenario(fun dark ->
+    [ switch(dark, "hkeep")
+      saveNumber(dark, "Tests.HKeep.f", "1")
+      switch(dark, "main")
+      run(dark, [ "branch", "archive", "hkeep", "-y" ])
+      doesNotSay(
+        dark,
+        [ "commits" ],
+        "archived branch \"hkeep\"",
+        "the archive marker is hidden")
+
+      says(
+        dark,
+        [ "commits" ],
+        "housekeeping",
+        "and the listing says it hid something")
+
+      says(
+        dark,
+        [ "commits", "--all" ],
+        "archived branch \"hkeep\"",
+        "--all shows the marker") ])
+
+
+/// Main's draft is newer than the edits a merge brings in, so committing keeps the draft's body,
+/// doc and deprecation.
+test aCommitKeepsTheDraftOverAnOlderMergedEdit =
+  let p = "Tests.CommitLww"
+  scenario(fun dark ->
+    [ saveNumber(dark, $"{p}.f", "1")
+      saveNumber(dark, $"{p}.g", "1")
+      commit(dark, "commit lww: base")
+      switch(dark, "commit-lww")
+      saveNumber(dark, $"{p}.f", "2")
+      save(dark, $"{p}.g", "/// from the branch\nlet g(): Int64 =\n  1")
+      run(dark, [ "deprecate", "fn", $"{p}.g", "-y" ])
+      commit(dark, "commit lww: the older edits")
+      switch(dark, "main")
+      saveNumber(dark, $"{p}.f", "3")
+      save(dark, $"{p}.g", "/// from main's draft\nlet g(): Int64 =\n  1")
+      run(
+        dark,
+        [ "deprecate"
+          "fn"
+          $"{p}.g"
+          "--block-execution"
+          "-m"
+          "main's draft"
+          "-y" ])
+
+      merge(dark, "commit-lww")
+      evals(dark, $"{p}.f()", "3", "main's draft wins in its view")
+      commit(dark, "commit lww: main's draft")
+      evals(dark, $"{p}.f()", "3", "and still wins once committed")
+      says(
+        dark,
+        [ "view", $"{p}.g" ],
+        "from main's draft",
+        "the draft's doc is the one that stands")
+
+      says(
+        dark,
+        [ "eval", $"{p}.g()" ],
+        "Harmful",
+        "and so is the draft's deprecation") ])

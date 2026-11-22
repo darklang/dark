@@ -41,53 +41,6 @@ let private bareDiffShowsTheDraft =
       return ()
     })
 
-/// A commit id is derived from what the commit HOLDS and where it sits, not only from who typed what and
-/// when, and the graph is a chain rather than a flat list.
-let private commitsChainToTheirParent =
-  instanceTest "a commit names the one it follows" (fun state ->
-    task {
-      // `commit` prints `commit <8 hex> -- n op(s).`; `show` prints 16. So the short id from the first
-      // commit is a prefix of what the second one reports as its parent.
-      // Anchored on the word `commit`, not "the first 8 hex characters anywhere": the output also lists
-      // what changed, and a name can be all hex by coincidence.
-      let idFrom (output : string) : string =
-        let words =
-          output.Split([| ' '; '\n'; '\r' |]) |> Array.filter (fun w -> w <> "")
-        words
-        |> Array.tryFindIndex (fun w -> w = "commit")
-        |> Option.bind (fun i -> Array.tryItem (i + 1) words)
-        |> Option.defaultValue ""
-
-      do! fn state "Tests.Chain.one" "() : Int64 = 1"
-      let! first = runCli state [ "commit"; "chain one"; "-y" ]
-      let firstId = idFrom first
-      Expect.isFalse (firstId = "") $"the first commit printed an id, got: {first}"
-
-      do! fn state "Tests.Chain.two" "() : Int64 = 2"
-      let! second = runCli state [ "commit"; "chain two"; "-y" ]
-      let secondId = idFrom second
-      Expect.isFalse
-        (secondId = "")
-        $"the second commit printed an id, got: {second}"
-      Expect.notEqual
-        secondId
-        firstId
-        "two commits of different work get different ids"
-
-      let! shown = runCli state [ "show"; secondId ]
-      Expect.stringContains
-        shown
-        "follows"
-        "the second commit says it follows something"
-      Expect.stringContains
-        shown
-        firstId
-        $"and the thing it follows is the first commit, got: {shown}"
-
-      let! _ = runCli state [ "discard"; "--yes" ]
-      return ()
-    })
-
 /// An `Unbind` on a branch takes a main name away on that branch, shows in the draft as a removal, and
 /// takes it off main when the branch merges. Authored through `SCM.PackageOps.add`, since no verb writes
 /// one yet; the importer will, once the reload becomes a diff.
@@ -405,41 +358,6 @@ let private failuresExitNonzero =
         Expect.equal failed 1L "a failed eval exits 1"
       })
 
-/// The docs promise review-then-ask, and a pipe has nobody to ask: without `-y`, nothing commits.
-/// And a commit's message is the one sentence other machines get, so an empty one is refused
-/// rather than recorded forever.
-let private commitAsksAndNeedsAMessage =
-  instanceTest
-    "commit on a piped stdin stays a draft, and an empty message is refused"
-    (fun state ->
-      task {
-        do! discardAll state
-        do! fn state "Tests.CommitGate.f" "() : Int64 = 11"
-
-        // No -y: the harness's stdin is a pipe, so the prompt cannot be answered and the answer is no.
-        do!
-          shows
-            state
-            [ "commit"; "gated" ]
-            "Commit not done: no terminal to confirm at"
-            "nothing commits without an answer"
-        do! shows state [ "status" ] "1 item changed" "and the draft is still there"
-
-        do!
-          shows
-            state
-            [ "commit"; "-y" ]
-            "a commit needs a message"
-            "an empty message is refused, -y or not"
-
-        do!
-          shows
-            state
-            [ "commit"; "gated for real"; "-y" ]
-            "-- 2 ops"
-            "with a message and -y it lands"
-      })
-
 /// `--as` takes one value and `--why` swallows the rest of the line; neither is a target id.
 let private constraintFlagsAreNotTargets =
   instanceTest "constraint flag values are not read as finding ids" (fun state ->
@@ -485,78 +403,6 @@ let private aBranchDiscardLeavesNoDanglingTags =
           $"and store health stays quiet: {status}"
 
         do! archiveBranches state [ "dangletags" ]
-      })
-
-/// A commit refuses a draft with a definite at-rest type error, and `--allow-type-errors` is the way past.
-///
-/// The save path PRINTS "commit will refuse it until fixed", so the gate has to exist or the
-/// checker's report promises something the tool does not do, which is worse than saying nothing.
-/// `-y` deliberately does not wave it through, same as `--allow-unresolved`.
-let private commitRefusesDefiniteTypeErrors =
-  instanceTest
-    "commit refuses a definite type error, and --allow-type-errors takes it"
-    (fun state ->
-      task {
-        // This counts the ops its own commit carries, so it needs the draft to hold only
-        // what it put there. Anything an earlier test left behind is counted too, and the
-        // failure reads as a wrong op count rather than as pollution.
-        do! discardAll state
-
-        // A one-field enum case given two arguments. Definite, and cheap to state.
-        let source =
-          "type Wrapped = Wrap(Int64 * String)\n\nlet bad(value: Wrapped): Wrapped =\n  match value with\n  | Wrap((number, text)) -> Wrapped.Wrap(number, text)\n"
-          + ""
-          + ""
-          + ""
-
-        let file =
-          System.IO.Path.Combine(
-            System.IO.Path.GetTempPath(),
-            "dark-arity-gate.dark"
-          )
-        System.IO.File.WriteAllText(file, source)
-
-        do!
-          shows
-            state
-            [ "module"; "Tests.ArityGate"; file ]
-            "Type check failed"
-            "saving reports the error rather than hiding it"
-
-        let! refused = runCli state [ "commit"; "should not land"; "-y" ]
-        Expect.stringContains refused "cannot commit" "the commit is refused"
-        Expect.stringContains
-          refused
-          "expects 1 field"
-          "and says which error, not just that there was one"
-
-        let! taken =
-          runCli state [ "commit"; "taking it"; "-y"; "--allow-type-errors" ]
-        // The op count, not "commit": "nothing to commit -- your draft is empty" also contains "commit ".
-        Expect.stringContains
-          taken
-          "-- 4 ops"
-          $"the typed override takes it: {taken}"
-
-        // The refusal names its item, and FIXING an error unblocks a later commit without the
-        // override: the gate checks the draft's LIVE items, so a superseded broken version (kept in
-        // the draft as history) does not refuse forever.
-        Expect.stringContains
-          refused
-          "Tests.ArityGate.bad"
-          $"the refusal names the failing item: {refused}"
-        do!
-          author
-            state
-            "Tests.ArityGate.bad2"
-            "(x: Int64): Int64 = Stdlib.String.length(x)"
-        do! shows state [ "commit"; "nope"; "-y" ] "cannot commit" "broken refuses"
-        let! _ =
-          runCli state [ "fn"; "Tests.ArityGate.bad2"; "(x: Int64) : Int64 = x" ]
-        let! fixed_ = runCli state [ "commit"; "fixed, no override"; "-y" ]
-        Expect.isFalse
-          (fixed_.Contains "cannot commit")
-          $"a fixed draft commits without --allow-type-errors: {fixed_}"
       })
 
 /// What a person sees after a save that failed, on a fresh install: it says so with a failing exit,
@@ -1423,74 +1269,6 @@ let private diffAndLogAnswerInJson =
         do! archiveBranches state [ "jsonsurface" ]
       })
 
-/// A commit must not put a reference that cannot resolve into history: commits are what other
-/// machines pull. A draft is ALLOWED to be unresolved while you work, though -- writing a caller
-/// before its callee is ordinary, and `WipRefresh` re-resolves once the callee lands -- so the
-/// forward reference has to commit cleanly.
-let commitRefusesUnresolvedReferences =
-  instanceTest
-    "commit refuses a reference that never resolves, but not a forward one"
-    (fun state ->
-      task {
-        do! switch state "main"
-        do!
-          author
-            state
-            "Tests.UnresT.bad"
-            "(x: Int64): Int64 = Tests.UnresT.missing(x)"
-
-        let! refused = runCli state [ "commit"; "unresolved"; "-y" ]
-        Expect.stringContains refused "don't resolve" "the commit is refused"
-        Expect.stringContains
-          refused
-          "Tests.UnresT.missing"
-          "and it names the reference it could not find, which is the whole point"
-
-        // Live-on-write is deliberately permissive, so the gate has an escape hatch, and
-        // it has to be typed: `-y` alone must not wave it through.
-        let! allowed =
-          runCli state [ "commit"; "unresolved"; "--allow-unresolved"; "-y" ]
-        // The op count, not `commit`: the refusal this flag exists to get past is
-        // "cannot commit: these reference names that don't resolve", which contains "commit",
-        // so the obvious assertion passed whether the flag worked or not.
-        Expect.stringContains
-          allowed
-          "-- 2 ops"
-          $"--allow-unresolved records it as-is: {allowed}"
-
-        // A forward reference inside one draft: the caller is authored first and cannot
-        // resolve yet, and re-resolution fixes it before commit ever looks.
-        do!
-          author
-            state
-            "Tests.UnresT.caller"
-            "(x: Int64): Int64 = Tests.UnresT.callee(x)"
-        do! author state "Tests.UnresT.callee" "(x: Int64) : Int64 = x + 3"
-
-        let! forward = runCli state [ "commit"; "forward ref"; "-y" ]
-        Expect.isFalse
-          (forward.Contains "don't resolve")
-          $"a forward reference that resolved is not refused, got: {forward}"
-
-        // Saving a module again after fixing a name leaves the broken version in the draft,
-        // still referenced by its caller's earlier version. Nothing named reaches it.
-        let path =
-          System.IO.Path.Combine(System.IO.Path.GetTempPath(), "unres-fixed.dark")
-        let source (body : string) =
-          $"let fixedLater(x: Int64): Int64 = {body}\n"
-          + "let usesFixed(x: Int64): Int64 = fixedLater(x)\n"
-        System.IO.File.WriteAllText(path, source "Tests.UnresFix.notThere(x)")
-        let! _ = runCli state [ "module"; "/Tests.UnresFix"; path ]
-        System.IO.File.WriteAllText(path, source "x + 1")
-        let! _ = runCli state [ "module"; "/Tests.UnresFix"; path ]
-
-        let! fixedUp = runCli state [ "commit"; "fixed"; "-y" ]
-        Expect.isFalse
-          (fixedUp.Contains "don't resolve")
-          $"an earlier broken version is not refused, got: {fixedUp}"
-        ()
-      })
-
 let private conflictsBelongToTheBranchTheyHappenedOn =
   cliTestOnMain "a conflict is answered on the branch it happened on" (fun state ->
     task {
@@ -1550,36 +1328,6 @@ let private conflictsBelongToTheBranchTheyHappenedOn =
       let! _ = runCli state [ "conflicts"; "ack"; "cnfmain0001" ]
       do! archiveBranches state [ "confbr" ]
     })
-
-/// `dark commits` hides housekeeping (event-only commits: a branch archive or merge marker with no
-/// authored work) behind `--all`, and says how many it hid.
-let private commitsHideHousekeeping =
-  instanceTest
-    "commits hides archive markers by default; --all shows them"
-    (fun state ->
-      task {
-        do! switch state "hkeep"
-        do! fn state "Tests.HKeep.f" "() : Int64 = 1"
-        do! archiveBranches state [ "hkeep" ]
-
-        let! plain = runCli state [ "commits" ]
-        Expect.isFalse
-          (plain.Contains "archived branch \"hkeep\"")
-          "the archive marker is hidden by default"
-        Expect.stringContains
-          plain
-          "housekeeping"
-          "and the listing says it hid something"
-
-        do!
-          shows
-            state
-            [ "commits"; "--all" ]
-            "archived branch \"hkeep\""
-            "--all shows the marker"
-        ()
-      })
-
 
 /// Two branches authoring identical source hold the same op ids. Merging one must still commit what
 /// it landed, and the sibling's later archive must not make it reappear as draft work nobody typed.
@@ -1690,39 +1438,6 @@ let aPartialCommitTakesItsDependencysName =
       })
 
 
-/// Commit B, then A, then C: C's parent must be A, the commit that actually precedes it. Taking
-/// "the newest commit" by arrival instead put A on nobody's chain.
-let commitsFollowTheCommitBeforeThem =
-  instanceTest
-    "each commit follows the one before it, whatever order they were made in"
-    (fun state ->
-      task {
-        do! start state
-        do! fn state "Tests.Chain.a" "() : Int64 = 1"
-        do! fn state "Tests.Chain.b" "() : Int64 = 2"
-        do! commitOnly state "B" "Tests.Chain.b"
-        do! commitOnly state "A" "Tests.Chain.a"
-
-        let! afterA = runCliPlain state [ "commits"; "1" ]
-        let aHash =
-          System.Text.RegularExpressions.Regex.Match(afterA, @"[0-9a-f]{8}").Value
-
-        do! fn state "Tests.Chain.c" "() : Int64 = 3"
-        do! commit state "C"
-
-        let! newest = runCliPlain state [ "commits"; "1" ]
-        let cHash =
-          System.Text.RegularExpressions.Regex.Match(newest, @"[0-9a-f]{8}").Value
-
-        let! shown = runCliPlain state [ "show"; cHash ]
-        Expect.stringContains
-          shown
-          aHash
-          $"C ({cHash}) follows A ({aHash}), the commit before it, got: {shown}"
-        do! discardAll state
-      })
-
-
 /// `conflicts override <name>` answers the PENDING row for that name, the one the listing shows. With
 /// one name conflicted twice, it must not act on the settled conflict and leave the open one open.
 let overrideByNameAnswersThePendingConflict =
@@ -1758,62 +1473,6 @@ let overrideByNameAnswersThePendingConflict =
       do! onMain state
     })
 
-
-/// A merge writes the branch's rows into the parent's committed layer AFTER the parent's draft was
-/// written, so by insertion order an older merged edit would replace the draft's newer one when the
-/// draft commits. A layer's live row is the newest by stamp.
-let private aCommitKeepsTheDraftOverAnOlderMergedEdit =
-  instanceTest
-    "committing keeps the draft's edit over an older one a merge brought in"
-    (fun state ->
-      task {
-        do! start state
-        do! fn state "Tests.CommitLww.f" "(): Int64 = 1"
-        do! fn state "Tests.CommitLww.g" "(): Int64 = 1"
-        do! commit state "commit lww: base"
-
-        do! switch state "commit-lww"
-        do! fn state "Tests.CommitLww.f" "(): Int64 = 2"
-        do!
-          fn state "Tests.CommitLww.g" "/// from the branch\nlet g(): Int64 =\n  1"
-        do! deprecate state "Tests.CommitLww.g"
-        do! commit state "commit lww: the older edits"
-
-        do! onMain state
-        do! fn state "Tests.CommitLww.f" "(): Int64 = 3"
-        do!
-          fn
-            state
-            "Tests.CommitLww.g"
-            "/// from main's draft\nlet g(): Int64 =\n  1"
-        do!
-          run
-            state
-            [ "deprecate"
-              "fn"
-              "Tests.CommitLww.g"
-              "--block-execution"
-              "-m"
-              "main's draft"
-              "-y" ]
-        do! merge state "commit-lww"
-        do! evals state "Tests.CommitLww.f()" "3" "main's draft wins in its view"
-
-        do! commit state "commit lww: main's draft"
-        do! evals state "Tests.CommitLww.f()" "3" "and still wins once committed"
-        do!
-          shows
-            state
-            [ "view"; "Tests.CommitLww.g" ]
-            "from main's draft"
-            "the draft's doc is the one that stands"
-        do!
-          shows
-            state
-            [ "eval"; "Tests.CommitLww.g()" ]
-            "Harmful"
-            "and so is the draft's deprecation"
-      })
 
 /// An override settles the conflict on the branch it is authored on. Folded on a branch, it must
 /// leave a pending conflict on main alone.
@@ -2050,8 +1709,7 @@ let private aFailingDeprecationQueryIsAStoreError =
 
 
 let tests : List<Test> =
-  [ commitRefusesDefiniteTypeErrors
-    failedValueSaveLeavesNothingBehind false
+  [ failedValueSaveLeavesNothingBehind false
     failedValueSaveLeavesNothingBehind true
     deprecationIsReversible
     theWorkedExampleWorks
@@ -2070,7 +1728,6 @@ let tests : List<Test> =
     statusSeparatesTheDraftsConstraintsFromStandingOnes
     aMissingNameIsOneLineNotAStackHeader
     failuresExitNonzero
-    commitAsksAndNeedsAMessage
     constraintFlagsAreNotTargets
     aBranchDiscardLeavesNoDanglingTags
     aNameHoldsOneItemWhateverItsKind
@@ -2079,16 +1736,12 @@ let tests : List<Test> =
     allConsumersFollowAcrossOwners
     crossOwnerPropagationIsBranchLocal
     mergeCommitsWhatASiblingStillTags
-    commitsHideHousekeeping
-    commitsChainToTheirParent
     revertingToAnEarlierVersionTakesEffect
     revertingOnMainTakesEffect
     aPartialCommitTakesItsDependencysName
-    commitsFollowTheCommitBeforeThem
     overrideByNameAnswersThePendingConflict
     aFailedJsonCommitExitsNonzero
     aConflictCloseThatFailsIsReported
-    aCommitKeepsTheDraftOverAnOlderMergedEdit
     anOverrideOnABranchLeavesMainsConflictOpen
     aRefreshedDraftKeepsAnAliasBody
     aDependentsReadThatFailsIsReported

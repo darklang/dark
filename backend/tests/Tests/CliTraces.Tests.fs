@@ -516,16 +516,6 @@ let private testPermissionProfiles =
           System.IO.Directory.Delete(dir, true)
       })
 
-/// The case that dominates this file's time: it authors, resolves and commits real items (6s).
-/// Among the most valuable here too, so it is on by default and the lever skips it:
-///
-///     DARK_FAST_TESTS=1 ./scripts/run-fsharp-tests     # cheaper, and blind to it
-let private slowCliTests =
-  if System.Environment.GetEnvironmentVariable "DARK_FAST_TESTS" = "1" then
-    []
-  else
-    [ Tests.CliScm.commitRefusesUnresolvedReferences ]
-
 /// Tracing costs more than anything else these tests do: it records every call's ARGUMENTS,
 /// so an `eval` pays to write whatever it materialises, and a page of ops is 2000
 /// records carrying hex-encoded blobs.
@@ -553,5 +543,4 @@ let tests =
          testTracesLargeTraceListSurvives
          testTracesViewToleratesCorruptedRow
          testTracesTruncatedStillShowsRoot
-         testPermissionProfiles ]
-     @ slowCliTests)
+         testPermissionProfiles ])
