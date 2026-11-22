@@ -410,11 +410,11 @@ module ExecutionError =
   /// Permission denials already explain the resource and how to allow access.
   /// Keep their frames in the structured error for diagnostics, without printing
   /// an internal stack.
-  let printCallStack(branchId: Uuid, what: String, error: ExecutionError): Unit =
+  let printCallStack(branchId: Uuid, error: ExecutionError): Unit =
     match error with
     | Runtime(_, frames, lambdaLines) when hasReadableFrames(frames) ->
       let rendered = PrettyPrinter.RuntimeTypes.callStackAt(branchId, frames, lambdaLines)
-      Stdlib.printErrorLine($"Error when executing {what}. Call-stack:\n{rendered}\n")
+      Stdlib.printErrorLine($"{rendered}\n")
     | _ -> ()
 
 

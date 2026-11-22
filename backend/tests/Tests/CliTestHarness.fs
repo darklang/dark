@@ -621,7 +621,7 @@ and private runCliWithExitInProcess
       NonBlockingConsole.stopCapture () |> ignore<string>
   }
 
-/// swallowed. Not `Call-stack:`: `eval` prints that on a user error, which is a refusal, not a crash.
+/// swallowed. Not `Call stack`: `eval` prints that on a user error, which is a refusal, not a crash.
 let looksLikeARuntimeFailure (output : string) : Option<string> =
   let patterns =
     [ "Encountered a Runtime Error"

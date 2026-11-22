@@ -373,14 +373,14 @@ let private aMissingNameIsOneLineNotAStackHeader =
         let! missing = runCli state [ "eval"; "Tests.Nope.missing(1)" ]
         Expect.stringContains missing "not found" $"the error itself: {missing}"
         Expect.isFalse
-          (missing.Contains "Call-stack")
+          (missing.Contains "Call stack")
           $"and no stack header over an empty stack: {missing}"
 
         let! _ = runCli state [ "fn"; "Tests.Stk.boom"; "() : Int64 = 1 / 0" ]
         let! deep = runCli state [ "eval"; "Tests.Stk.boom()" ]
         Expect.stringContains
           deep
-          "Call-stack"
+          "Call stack"
           $"a failure inside a call still shows where: {deep}"
         Expect.stringContains deep "Stk.boom" $"naming the frame: {deep}"
         do! discardAll state
