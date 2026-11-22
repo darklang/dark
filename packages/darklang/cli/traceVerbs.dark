@@ -143,7 +143,7 @@ type TraceJson =
     answered: Option<String>
     status: String
     pinned: Bool
-    /// Wall clock for the whole trace. Absent for one still going.
+    /// Wall clock for the whole trace, once it has finished. A run under a millisecond is 0.
     durationMs: Option<Int64>
     forkedFrom: Option<ForkJson>
     created: String
@@ -276,7 +276,10 @@ let traceJson(branchId: Uuid, trace: Tracing.Trace): TraceJson =
         trace.result |> Stdlib.Option.map(fun dv -> Tracing.Format.compactDval(branchId, dv))
       status = statusText(trace.status)
       pinned = trace.pinned
-      durationMs = if trace.durationMs > 0 then Option.Some(trace.durationMs) else Option.None
+      durationMs =
+        match trace.status with
+        | Done | Failed -> Option.Some(trace.durationMs)
+        | Running | Suspended | Lost -> Option.None
       forkedFrom =
         trace.parent
         |> Stdlib.Option.map(fun p ->
