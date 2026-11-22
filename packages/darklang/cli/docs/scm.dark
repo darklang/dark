@@ -84,9 +84,9 @@ a `fix-auth` keep two branches rather than silently becoming one. `branches`
 prints both.
 
   branch                       which branch am I on (the prompt shows it too, as @<name>)
-  branch <name>                switch to it, starting it if it's new
+  branch create <name>         start one off this branch and switch to it
   branches                     list them (name, short id, parent, status)
-  switch <name>                same as `branch <name>`; `switch main` returns
+  switch <name>                move onto it (a new name starts it); `switch main` returns
   branch archive <name>        discard a branch and its unmerged work
   diff <name>                  everything it changes vs its parent
   log [<name>]                 its ops oldest-first (on main: the commits)

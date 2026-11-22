@@ -328,7 +328,8 @@ let help(_state: AppState): String =
     "  point at. `dark branches` shows both."
     ""
     "  dark branch                   show the current branch (or main)"
-    "  dark branch <name>            switch to a branch, starting it if it's new"
+    "  dark branch create <name>     start a branch off this one and switch to it"
+    "  dark branch switch <name>     switch to a branch"
     "  dark branch list              name (id) <- parent [status]"
     "  dark branch list --all        include the ones already merged"
     "  dark branch rename <old> <new>   give a branch a different name"
@@ -339,7 +340,7 @@ let help(_state: AppState): String =
     "  Also at the root, because you reach for them constantly:"
     "  dark branches                 same as `dark branch list`"
     "  dark branches --all           merged branches too (hidden by default)"
-    "  dark switch <name>            same as `dark branch <name>`"
+    "  dark switch <name>            same as `dark branch switch`; a new name starts it"
     "  dark merge <name>             merge a branch into its parent"
     "  dark merge <name> --allow-type-errors   even with type errors in it"
     "  dark rebase <name> [--dry-run]  accept the parent's changes into a branch"
@@ -356,8 +357,8 @@ let help(_state: AppState): String =
   |> Stdlib.String.join("\n")
 
 
-/// `dark branch ...`. Bare `dark branch <id>` switches (creating the branch if it's new), which is why
-/// the subcommand arms come first: a subcommand name can't also be a branch you switch to.
+/// `dark branch ...`. A word here is always a subcommand, never a branch name, so a typo can't start a
+/// branch and a branch can be called anything; `create` is how one starts.
 let execute(state: AppState, args: List<String>): AppState =
   // Flags come out before the words are matched, so they work anywhere on the line:
   // `archive -y x` is `archive x -y`. `Accepts` has already refused any a subcommand doesn't take.
@@ -368,14 +369,8 @@ let execute(state: AppState, args: List<String>): AppState =
   | ["list"] -> executeList(state, Merged.showIf(has("--all")))
   | ["current"] -> executeCurrent(state)
   | ["switch", id] -> executeSwitch(state, id)
-  | ["new", id] | ["create", id] when id == SCM.Branch.mainBranchName ->
-    printErr($"{id} already exists, so it can't be created.")
-    printHint($"  `dark switch {id}` goes to it.")
-    failed(state)
-  // `new` and `create` are the same thing as a bare switch: a branch is created by switching to a name
-  // nothing holds.
-  | ["new", id] -> executeSwitch(state, id)
-  | ["create", id] -> executeSwitch(state, id)
+  | ["new", id] -> executeCreate(state, id)
+  | ["create", id] -> executeCreate(state, id)
   | ["archive", id] -> executeArchive(state, id, Confirm.assumeIf(has("-y") || has("--yes")))
   | ["rename", id, newName] -> executeRename(state, id, newName)
   | ["diff", id] -> executeDiff(state, id, Source.showIf(has("--source")))
@@ -383,31 +378,15 @@ let execute(state: AppState, args: List<String>): AppState =
   | ["merge", id] -> executeMergeCmd(state, Stdlib.List.prepend(flags, id))
   | ["rebase", id] -> executeRebase(state, id)
   | ["resolve", id, name, choice] -> executeResolve(state, id, name, choice)
-  | [id] ->
-    if Stdlib.List.contains(knownSubcommands, id) then
-      // A subcommand with its arguments left off, which the typo check below deliberately does not catch
-      // (it excludes exact matches). Falling through to "switch to a branch called that" would CREATE a
-      // branch named "rename" and move you onto it: a mistake that leaves state behind, which is the one
-      // thing this arm must not do.
-      printErr($"`dark branch {id}` is missing its arguments.")
-      printHint($"  to start or switch to a branch actually named \"{id}\": dark switch {id}")
-      // Help because the arguments were wrong is the refusal; only help someone ASKED for is an answer.
-      Stdlib.printErrorLine(help(state))
-      failed(state)
-    else if Stdlib.List.contains(commandShapedWords, id) then
-      // A question-shaped word must not CHANGE STATE: `dark branch status` from a git reflex would
-      // otherwise start a branch named "status" and switch onto it.
-      printErr($"\"{id}\" reads like a command, not a branch name, so nothing was created.")
-      printHint("  the current branch:      dark branch")
-      printHint($"  really start \"{id}\":    dark switch {id}")
-      { state with exitCode = 1 }
+  | [word] ->
+    printErr($"`dark branch` does not take `{word}`.{Accepts.didYouMean(word, knownSubcommands)}")
+    if hasActiveBranchNamed(word) then
+      printHint($"  to switch to the branch `{word}`, run `dark switch {word}`")
     else
-      match looksLikeTypoedSubcommand(id) with
-      | Some(sub) ->
-        printErr($"`dark branch {id}` isn't a subcommand. Did you mean `dark branch {sub}`?")
-        printHint($"  to start or switch to a branch actually named \"{id}\": dark switch {id}")
-        failed(state)
-      | None -> executeSwitch(state, id)
+      printHint($"  to create a branch named `{word}`, run `dark branch create {word}`")
+
+    printHint("  `dark branch --help` shows what it takes.")
+    failed(state)
   | _ ->
     // Printing help alone reads as though nothing happened, so say what was not understood first.
     printErr($"`dark branch {Stdlib.String.join(args, " ")}` isn't a form of this command.")
@@ -415,7 +394,7 @@ let execute(state: AppState, args: List<String>): AppState =
     failed(state)
 
 
-/// Subcommands `dark branch` knows, for telling a typo from a branch name.
+/// Subcommands `dark branch` knows, for "did you mean".
 val knownSubcommands =
   [ "list"
     "current"
@@ -428,25 +407,24 @@ val knownSubcommands =
     "log"
     "merge"
     "rebase"
-    "resolve"
     "resolve" ]
 
 
-/// Words a git reflex types after `branch` that are questions or other tools' verbs, not names.
-/// (`switch`, `delete` and friends that ARE subcommands here live in `knownSubcommands` above.)
-val commandShapedWords = [ "status", "info", "show", "remove", "rm", "help", "checkout", "branch" ]
+/// Whether <param name> is main or an unmerged branch's name. A merged branch's name is free again.
+let hasActiveBranchNamed(name: String): Bool =
+  name == SCM.Branch.mainBranchName
+  || (SCM.Branches.list() |> Stdlib.List.any(fun b -> b.name == name && Stdlib.Bool.not(b.merged)))
 
 
-/// Whether <param arg> looks like a fumbled subcommand rather than a branch name.
-///
-/// `dark branch <name>` starts a branch if the name is new, so a mistyped subcommand -- `list-remote`,
-/// `puhs` -- silently CREATES one and switches onto it. A typo should not leave state behind. Prefix
-/// either way catches the realistic misses (a truncation, or a subcommand with something stuck on it)
-/// without refusing legitimate names that merely start with the same letters.
-let looksLikeTypoedSubcommand(arg: String): Option<String> =
-  knownSubcommands
-  |> Stdlib.List.findFirst(fun sub ->
-    sub != arg && (Stdlib.String.startsWith(arg, sub) || Stdlib.String.startsWith(sub, arg)))
+/// `dark branch create <name>`: start a branch off the current one and move onto it. A name a branch
+/// already has is refused rather than switched to.
+let executeCreate(state: AppState, name: String): AppState =
+  if hasActiveBranchNamed(name) then
+    printErr($"{name} already exists, so it can't be created.")
+    printHint($"  `dark switch {name}` goes to it.")
+    failed(state)
+  else
+    executeSwitch(state, name)
 
 
 /// `dark branches`
@@ -483,7 +461,7 @@ let executeSwitchCmd(state: AppState, args: List<String>): AppState =
 /// subcommands and let the prefix filter sort it out.
 let complete(state: AppState, args: List<String>): List<Completion.CompletionItem> =
   let branchTakingSubcommands = [ "switch", "archive", "diff", "log", "merge", "rebase", "resolve" ]
-  let subcommands = Stdlib.List.concat(branchTakingSubcommands, [ "list", "current", "new" ])
+  let subcommands = Stdlib.List.concat(branchTakingSubcommands, [ "list", "current", "create", "new", "rename" ])
   let branchNames =
     SCM.Branches.list()
     |> Stdlib.List.map(fun b -> b.name)

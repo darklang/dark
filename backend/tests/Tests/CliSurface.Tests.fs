@@ -1074,9 +1074,8 @@ let private aWordIsNotAMistake : Map<string, AWordIs> =
   Map.ofList
     [ "search", AQuery "the query: a word that matches nothing is a true answer"
       "builtins", AQuery "a filter, the same way"
-      "branch",
+      "switch",
       WhatItMakes "names a new branch, starts it and moves the store onto it"
-      "switch", WhatItMakes "ditto"
       "commit",
       WhatItMakes "the words are the commit message, and it commits the draft" ]
 
