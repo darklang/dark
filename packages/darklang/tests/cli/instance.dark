@@ -78,10 +78,17 @@ let create(): Stdlib.Result.Result<T, String> =
       // Then clear the copy's config. It would otherwise inherit the dev store's current
       // branch and identity, so if the dev store is on a branch, every test instance
       // starts there instead of on main. Clear all of it, not just the branch keys.
+      //
+      // And clear its traces: the source store holds other tests' runs, some still going,
+      // so an instance would otherwise start with traces it never made.
+      let db = $"{dir}/data.db"
+      let clearTraces =
+        $"sqlite3 {db} \"SELECT 'DELETE FROM ' || name || ';' FROM sqlite_master WHERE type = 'table' AND name LIKE 'trace%'\" | sqlite3 {db}"
+
       let copy =
         Stdlib.Cli.Unix.executeInDirectoryWithOutput(
           ".",
-          $"if [ -s {src}-wal ]; then sqlite3 -cmd '.timeout 10000' {src} '.backup {dir}/data.db'; else cp {src} {dir}/data.db && chmod u+w {dir}/data.db; fi && sqlite3 {dir}/data.db 'DELETE FROM config_v0;'")
+          $"if [ -s {src}-wal ]; then sqlite3 -cmd '.timeout 10000' {src} '.backup {db}'; else cp {src} {db} && chmod u+w {db}; fi && sqlite3 {db} 'DELETE FROM config_v0;' && {clearTraces}")
 
       if copy.exitCode != 0 then
         Stdlib.Result.Result.Error(

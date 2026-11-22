@@ -792,9 +792,8 @@ test testRunAnswersWithEveryTest = Instance.withInstance(fun i ->
         [ (fun j -> hasKeys(j, runKeys)), (fun j -> fieldIsArray(j, "tests")) ]) ]))
 
 
-/// Bare `traces --json` is the listing bare `traces` prints, as JSON. Only the eval's own row,
-/// the newest: the instance is a copy of the dev store, whose traces include runs still going,
-/// which have no answer yet.
+/// Bare `traces --json` is the listing bare `traces` prints, as JSON. A new instance has no
+/// traces, so the eval's is the only row.
 test bareTracesAnswersInJson =
   Instance.withInstance(fun i ->
     Stdlib.Test.all(
@@ -803,8 +802,8 @@ test bareTracesAnswersInJson =
           i,
           [ "traces", "--json" ],
           [ (fun j ->
-               hasKeys(
-                 Stdlib.List.head(rows(j)) |> Stdlib.Option.withDefault(Stdlib.AltJson.Json.Null),
+               rowsHaveKeys(
+                 j,
                  [ "id"
                    "entry"
                    "input"
@@ -813,7 +812,11 @@ test bareTracesAnswersInJson =
                    "pinned"
                    "durationMs"
                    "created"
-                   "updated" ])) ]) ]))
+                   "updated" ]))
+            (fun j ->
+               rows(j)
+               |> Stdlib.List.map(fun row -> string(row, "input"))
+               |> Stdlib.Test.equal([ "1 + 1" ])) ]) ]))
 
 
 /// `ps --json` says what a process runs and how it stands in the table's words, not in the
