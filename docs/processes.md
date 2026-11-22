@@ -606,22 +606,25 @@ cells rather than a closure per element. `Dict`, `Option`, `Result` and
 `String` take no callable in F# (they are Dark).
 
 Streams (`Stream.unfold`, `map`, `filter`; `Builtins.Pure/Libs/Stream.fs`):
-a transform node holds its callable, not a closure over it (`StreamImpl.
-Unfold/Mapped/Filtered`), and a pull is a step machine (`Stream.pull`):
-`Pulled` an element, `Apply` this callable to this element and continue, or
-`Wait` on native IO and continue. The pulling builtin (`next`, `toList`,
-`toBytes`) drives it: an `Apply` is a `requestApply`, so the transform runs
+a stream is an immutable value, and a transform node holds its callable, not a
+closure over it (`StreamImpl.Unfold/Mapped/Filtered`). A pull is a step machine
+(`Stream.pull`): `Pulled` an element and the rest of the stream, `Apply` this
+callable to this element and continue, or `Wait` on native IO and continue.
+Native IO is read once per cell (`StreamCell`) and kept, so two processes
+holding one stream see the same elements; the callables re-run for each. A
+byte source (an HTTP body) is a `Stream<Bytes>`, one element per read. The pulling builtin (`next`, `toList`) drives it: an `Apply` is a `requestApply`, so the transform runs
 as a frame of the pulling process and its answer handed back to the pull,
 waited for first (`withValue`) where the node looks at it (`filter`,
 `unfold`) and in flight where it does not (`map`), so a drained `map` of
-reads is a list of reads; `toBytes` waits for each byte. A `Wait` is waited
+reads is a list of reads. A `Wait` is waited
 for, and a request after it is the landing case above. The builder's active access is folded into the
 callable once, when the transform is built (`narrowedBy`), and the frame push
 narrows the puller's access by it, as `Apply` narrows any frame's. So a
 narrow producer's transform stays narrow under a wide consumer, and the
 deferred-execution matrix in `PermissionsGate` still holds. F# code that
 owns a native stream (the HTTP client's body, tests) pulls with
-`Stream.readNext`, which drives `Wait` and raises on `Apply`: a stream that
+`Stream.readNext` (the element and the rest), which drives `Wait` and raises
+on `Apply`: a stream that
 runs Dark code is pulled from a Dark process.
 
 Still through `Execution.executeApplicable`, on purpose: `Router.step` per

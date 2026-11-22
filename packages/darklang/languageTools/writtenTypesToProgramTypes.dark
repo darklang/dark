@@ -644,8 +644,9 @@ module Expr =
               argsUnresolvedNames |> Stdlib.List.flatten ])
 
         // Arguments and locals shadow package functions in pipe calls too.
-        // Unshadowed names resolve function-first. Mirrors the F# lowering.
-        if fn.modules |> Stdlib.List.isEmpty then
+        // Unshadowed names resolve function-first. Mirrors the F# lowering: a name
+        // with type args (`|> parse<T>`) is always a fn call.
+        if Stdlib.List.isEmpty(fn.modules) && Stdlib.List.isEmpty(typeArgs) then
           let isArgument =
             match Stdlib.Dict.get(context.argMap, fn.fn.name) with
             | Some(_) -> true

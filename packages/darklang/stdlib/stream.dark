@@ -1,3 +1,6 @@
+/// A stream is a lazy sequence: its elements are produced as they are read. It is a value:
+/// reading it does not change it, so every holder sees the same elements. Transforms give a
+/// new stream and leave their source as it was.
 module Darklang.Stdlib.Stream
 
 /// Builds a Stream that yields the elements of <param items> in order.
@@ -12,32 +15,31 @@ let unfold(seed: 's, step: 's -> Option<('a * 's)>): Stream<'a> =
   Builtin.streamUnfold<'s, 'a>(seed, step)
 
 
-/// Pulls the next element from <param stream>. Returns {{None}} when
-/// the stream is exhausted; subsequent calls stay {{None}}.
-let next(stream: Stream<'a>): Option<'a> =
+/// The first element of <param stream> and the rest of the stream, or
+/// {{None}} when it is empty. Calling it again on <param stream> answers the same.
+let next(stream: Stream<'a>): Option<('a * Stream<'a>)> =
   Builtin.streamNext<'a>(stream)
 
 
-/// Drains <param stream> into a List. Forces every element.
+/// All the elements of <param stream>, as a List.
 let toList(stream: Stream<'a>): List<'a> =
   Builtin.streamToList<'a>(stream)
 
 
-/// Drains a byte stream into a Bytes. Uses the chunked fast path when
-/// the source supports it (e.g. HttpClient.stream).
-let toBytes(stream: Stream<UInt8>): Bytes =
-  Builtin.streamToBytes(stream)
+/// All the chunks of <param stream> joined into one Bytes.
+let toBytes(stream: Stream<Bytes>): Bytes =
+  Bytes.concatAll(toList<Bytes>(stream))
 
 
-/// Closes <param stream>, releasing any IO resources its source held.
-/// Idempotent. Subsequent pulls return {{None}}.
+/// Releases the IO source behind <param stream> now, rather than at its
+/// end or when nothing holds it. What was already read stays; the rest
+/// ends here. Does nothing to a stream with no IO source.
 let close(stream: Stream<'a>): Unit =
   Builtin.streamClose<'a>(stream)
 
 
 /// Returns a new Stream that yields {{fn x}} for each element {{x}}
-/// pulled from <param stream>. Lazy; <param fn> runs once per element
-/// at drain time.
+/// of <param stream>. Lazy; <param fn> runs when an element is read.
 let map(stream: Stream<'a>, fn: 'a -> 'b): Stream<'b> =
   Builtin.streamMap<'a, 'b>(stream, fn)
 
@@ -49,13 +51,13 @@ let filter(stream: Stream<'a>, pred: 'a -> Bool): Stream<'a> =
 
 
 /// Returns a new Stream yielding at most <param n> elements from the
-/// front of <param stream>. Lazy; the source advances exactly <param n>
-/// times (or fewer, if the source exhausts first).
+/// front of <param stream>. Lazy; reads at most <param n> elements of
+/// the source.
 let take(stream: Stream<'a>, n: Int64): Stream<'a> =
   Builtin.streamTake<'a>(stream, n)
 
 
-/// Returns a new Stream that drains each of <param streams> in order,
-/// moving on once each is exhausted. Lazy.
+/// Returns a new Stream with the elements of each of <param streams>
+/// in order. Lazy.
 let concat(streams: List<Stream<'a>>): Stream<'a> =
   Builtin.streamConcat<'a>(streams)

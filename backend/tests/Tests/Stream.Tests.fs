@@ -1,8 +1,7 @@
 /// Tests for the Stream Dval.
 ///
-/// Covers pull-only FromIO streams, transform nodes
-/// (Mapped/Filtered/Take/Concat), drain helpers (toList/toBytes),
-/// disposal, and the chunked bulk-drain fast path.
+/// Covers IO-backed streams (read once, kept for every holder), what Dark can't see of
+/// the transform nodes, releasing IO sources, and a byte source's Bytes chunks.
 module Tests.Stream
 
 open Expecto
@@ -27,8 +26,7 @@ module StreamLog = TestUtils.LibTest.StreamLog
 // Helpers — stream construction, pulls, drains
 // ─────────────────────────────────────────────────────────────────────
 
-/// Pull-fn over a mutable list cell. Used to back streamOfList +
-/// streamImplOfList without duplicating the closure body.
+/// An IO-style source over a list: each call hands out the next item.
 let private listPullFn
   (items : List<RT.Dval>)
   : (unit -> System.Threading.Tasks.ValueTask<Option<RT.Dval>>) =
@@ -40,39 +38,27 @@ let private listPullFn
       System.Threading.Tasks.ValueTask<_>(Some head)
     | [] -> System.Threading.Tasks.ValueTask<_>(None)
 
-/// Build a DStream backed by an in-memory list (used at the FromIO
-/// leaf level). For composing transforms beneath a single root, use
-/// streamImplOfList instead.
+/// An IO stream over the items.
 let private streamOfList
   (items : List<RT.Dval>)
   (elemType : RT.ValueType)
   : RT.Dval =
   Stream.newFromIO elemType (listPullFn items) None
 
-/// Build a raw StreamImpl over a list (no DStream wrapper). Composed
-/// under a transform node + wrap.
-let private streamImplOfList
-  (items : List<RT.Dval>)
-  (elemType : RT.ValueType)
-  : RT.StreamImpl =
-  // Bound once: `listPullFn` holds the cursor; do not recreate it per pull.
-  let pull = listPullFn items
-  RT.FromIO(pull, elemType, None, None)
+/// The next element and the rest, or None.
+let private pull (s : RT.Dval) : Task<Option<RT.Dval * RT.Dval>> = Stream.readNext s
 
-let private wrap (impl : RT.StreamImpl) : RT.Dval = Stream.wrapImpl impl
-
-let private pull (s : RT.Dval) : Task<Option<RT.Dval>> = Stream.readNext s
-
-/// Drain a stream to a list. Pulls until None.
+/// Every element of a stream.
 let private drain (s : RT.Dval) : Task<List<RT.Dval>> =
   task {
     let acc = ResizeArray<RT.Dval>()
-    let mutable keepGoing = true
-    while keepGoing do
-      let! r = Stream.readNext s
-      match r with
-      | Some v -> acc.Add v
-      | None -> keepGoing <- false
+    let mutable rest = Some s
+    while rest.IsSome do
+      match! Stream.readNext rest.Value with
+      | Some(v, after) ->
+        acc.Add v
+        rest <- Some after
+      | None -> rest <- None
     return List.ofSeq acc
   }
 
@@ -104,21 +90,27 @@ let pullsElementsInOrder =
       "pulls in order then exhausts"
   }
 
-let staysDrainedAfterExhaustion =
-  testTask "stream: subsequent pulls after exhaustion keep returning None" {
-    let s = streamOfList [ RT.DInt64 42L ] VT.int64
-    let! first = pull s
-    let! afterExhaust = pull s
-    let! stillDone = pull s
-    Expect.equal first (Some(RT.DInt64 42L)) "first pull = 42"
-    Expect.equal afterExhaust None "pull past end = None"
-    Expect.equal stillDone None "still None on further pulls"
+let readingAgainAnswersTheSame =
+  testTask "stream: an IO stream read twice gives the same elements, read once" {
+    let pulls = ref 0
+    let next = listPullFn [ RT.DInt64 1L; RT.DInt64 2L ]
+    let counted () =
+      pulls.Value <- pulls.Value + 1
+      next ()
+    let s = Stream.newFromIO VT.int64 counted None
+    let! first = drain s
+    let! second = drain s
+    let! head = pull s
+    Expect.equal first [ RT.DInt64 1L; RT.DInt64 2L ] "first read"
+    Expect.equal second first "second read sees the same"
+    Expect.equal (head |> Option.map fst) (Some(RT.DInt64 1L)) "next still answers 1"
+    Expect.equal pulls.Value 3 "the source was read once: 1, 2, the end"
   }
 
 let emptyStreamImmediatelyDone =
   testTask "stream: empty FromIO returns None on first pull" {
     let! result = pull (streamOfList [] VT.int64)
-    Expect.equal result None "empty stream = None"
+    Expect.isNone result "empty stream = None"
   }
 
 let toValueTypeReflectsElemType =
@@ -221,19 +213,28 @@ let dstreamDarkBridgeStub =
 // Close
 // ─────────────────────────────────────────────────────────────────────
 
-let streamCloseMarksDisposed =
-  testTask "Stream.close flips disposed; subsequent next returns None" {
-    let s = streamOfList [ RT.DInt64 42L ] VT.int64
-    let setDisposed () =
+let closeEndsWhatWasNotRead =
+  testTask "Stream.close: what was read stays, the rest ends, the disposer runs once" {
+    let disposed = ref 0
+    let s =
+      Stream.newFromIO
+        VT.int64
+        (listPullFn [ RT.DInt64 1L; RT.DInt64 2L ])
+        (Some(fun () -> disposed.Value <- disposed.Value + 1))
+    let! head = pull s
+    let close () =
       match s with
-      | RT.DStream(_, disposed, _) -> disposed.Value <- true
+      | RT.DStream impl -> Stream.close impl
       | _ -> failtest "expected DStream"
-    setDisposed ()
-    let! after = pull s
-    Expect.equal after None "closed stream yields None on next"
-    setDisposed () // idempotent — second close shouldn't throw
-    let! stillNone = pull s
-    Expect.equal stillNone None "still None after second close"
+    close ()
+    close ()
+    let! again = drain s
+    Expect.equal
+      (head |> Option.map fst)
+      (Some(RT.DInt64 1L))
+      "read before the close"
+    Expect.equal again [ RT.DInt64 1L ] "1 stays; 2 was never read and ends"
+    Expect.equal disposed.Value 1 "released once"
   }
 
 
@@ -246,7 +247,7 @@ let streamCloseMarksDisposed =
 
 let toValueTypeWalksTransforms =
   test "stream: Dval.toValueType returns the transform's element type" {
-    let src = streamImplOfList [ RT.DInt64 1L ] VT.int64
+    let src = RT.FromList([ RT.DInt64 1L ], VT.int64)
     // Never applied: only the node's element type is asked.
     let toString =
       RT.AppNamedFn
@@ -257,7 +258,7 @@ let toValueTypeWalksTransforms =
           access = None
           argsSoFar = []
           boundImpls = [] }
-    let s = wrap (RT.Mapped(src, toString, VT.string))
+    let s = RT.DStream(RT.Mapped(src, toString, VT.string))
     Expect.equal
       (RT.Dval.toValueType s)
       (RT.ValueType.Known(RT.KTStream VT.string))
@@ -338,17 +339,13 @@ let concatClosesWhatItHolds =
 let b = Builtin.testTrackedStream("concat-b", [ 2, 3 ])
 let c = Builtin.testTrackedStream("concat-c", [ 4 ])
 let joined = Stdlib.Stream.concat([ a, b, c ])
-let first = Stdlib.Stream.next(joined)
-let second = Stdlib.Stream.next(joined)
+let (first, rest) = Builtin.unwrap(Stdlib.Stream.next(joined))
+let (second, _) = Builtin.unwrap(Stdlib.Stream.next(rest))
 let _ = Stdlib.Stream.close(joined)
 [ first, second ]"""
     match result with
     | RT.DList(_, RT.Items(items)) ->
-      Expect.equal
-        items
-        [ Dval.optionSome RT.KTInt64 (RT.DInt64 1L)
-          Dval.optionSome RT.KTInt64 (RT.DInt64 2L) ]
-        "1 from a, then 2 from b"
+      Expect.equal items [ RT.DInt64 1L; RT.DInt64 2L ] "1 from a, then 2 from b"
     | other -> failtest $"expected a list, got {other}"
     expectTracked
       (Map.findUnsafe "concat-a" seen)
@@ -365,11 +362,32 @@ let _ = Stdlib.Stream.close(joined)
   }
 
 
+let twoReadersShareOneRead =
+  testTask
+    "stream: two reads of one IO stream from Dark see the same, the source read once" {
+    let! (result, seen) =
+      runTracked
+        [ "shared" ]
+        """let s = Builtin.testTrackedStream("shared", [ 1, 2 ])
+let doubled = Stdlib.Stream.map(s, fun n -> n * 2)
+(Stdlib.Stream.toList(s), Stdlib.Stream.toList(doubled), Stdlib.Stream.toList(s))"""
+    let ints xs = RT.DList(VT.int64, RT.Items(List.map RT.DInt64 xs))
+    Expect.equal
+      result
+      (RT.DTuple(ints [ 1L; 2L ], ints [ 2L; 4L ], [ ints [ 1L; 2L ] ]))
+      "every reader sees 1, 2"
+    expectTracked
+      (Map.findUnsafe "shared" seen)
+      [ "pull"; "pull"; "pull"; "dispose" ]
+      "read once: 1, 2, the end"
+  }
+
+
 // ─────────────────────────────────────────────────────────────────────
 // Disposal via the GC-backed StreamFinalizer
 // ─────────────────────────────────────────────────────────────────────
-// The StreamFinalizer on each DStream's lockObj runs the disposer
-// chain when the DStream becomes unreachable. Tests force GC + flush
+// Each IO source's finalizer (`StreamSource`) runs its disposer once
+// nothing that could read it is left. Tests force GC + flush
 // pending finalizers; they use a WeakReference on the Dval so the
 // strong ref doesn't pin it in the test stack frame.
 
@@ -402,11 +420,11 @@ let gcFinalizesMidDrainStream =
       let next = listPullFn [ RT.DInt64 1L; RT.DInt64 2L; RT.DInt64 3L ]
       let disposer () = disposerRan.Value <- true
       let dv = Stream.newFromIO VT.int64 next (Some disposer)
-      // Pull 2 of 3 elements, then return the weak ref.
-      let pulled1 = (Stream.readNext dv).Result
-      let pulled2 = (Stream.readNext dv).Result
-      Expect.equal pulled1 (Some(RT.DInt64 1L)) "first pull"
-      Expect.equal pulled2 (Some(RT.DInt64 2L)) "second pull"
+      // Read 2 of 3 elements, then return the weak ref.
+      let (v1, rest) = Option.get (Stream.readNext dv).Result
+      let (v2, _) = Option.get (Stream.readNext rest).Result
+      Expect.equal v1 (RT.DInt64 1L) "first pull"
+      Expect.equal v2 (RT.DInt64 2L) "second pull"
       System.WeakReference<RT.Dval>(dv)
     let weakRef = makeWeakRef ()
     gcCycle ()
@@ -422,11 +440,8 @@ let gcSkipsFinalizerAfterStreamClose =
       let next () = System.Threading.Tasks.ValueTask<Option<RT.Dval>>(None)
       let disposer () = disposeCount.Value <- disposeCount.Value + 1
       let dv = Stream.newFromIO VT.int64 next (Some disposer)
-      // Replicate streamClose: flip disposed, walk impl chain.
       match dv with
-      | RT.DStream(impl, disposed, _) ->
-        disposed.Value <- true
-        Stream.disposeImpl impl
+      | RT.DStream impl -> Stream.close impl
       | _ -> failtest "expected DStream"
       Expect.equal disposeCount.Value 1 "close ran disposer once"
       System.WeakReference<RT.Dval>(dv)
@@ -434,19 +449,13 @@ let gcSkipsFinalizerAfterStreamClose =
     gcCycle ()
     let mutable dv : RT.Dval = Unchecked.defaultof<_>
     weakRef.TryGetTarget(&dv) |> ignore<bool>
-    Expect.equal
-      disposeCount.Value
-      1
-      "finalizer short-circuited because disposed was already true"
+    Expect.equal disposeCount.Value 1 "the finalizer does not release it again"
   }
 
 
 // ─────────────────────────────────────────────────────────────────────
-// Chunked bulk-drain fast path
+// A byte source: one Bytes element per read
 // ─────────────────────────────────────────────────────────────────────
-// newStreamChunked hands back whole buffers per pull; readStreamChunk
-// picks them up directly. Per-byte readStreamNext still works against
-// the same source via newStreamChunked's synthesised `next`.
 
 /// A nextChunk callback that yields each entry of `buffers` once, then None.
 let private chunkPullFn
@@ -460,42 +469,38 @@ let private chunkPullFn
       System.Threading.Tasks.ValueTask<_>(Some head)
     | [] -> System.Threading.Tasks.ValueTask<_>(None)
 
-let chunkedDrainMatchesByteDrain =
-  testTask
-    "chunked drain: readStreamChunk returns the same bytes readStreamNext would" {
-    let buf = [| 0x01uy; 0x02uy; 0x03uy; 0x04uy; 0x05uy; 0x06uy; 0x07uy; 0x08uy |]
-    let s = Stream.newChunked VT.uint8 (chunkPullFn [ buf ]) None
-    let! first = Stream.readChunk 4096 s
-    let! second = Stream.readChunk 4096 s
-    Expect.equal first (Some buf) "first chunk comes through intact"
-    Expect.equal second None "second call returns None on exhaustion"
+let private chunkBytes (dv : RT.Dval) : byte[] =
+  match dv with
+  | RT.DBytes(RT.Ephemeral b) -> b.ToArray()
+  | other -> Exception.raiseInternal "expected Bytes" [ "got", other ]
+
+let byteSourceYieldsOneBytesPerRead =
+  testTask "bytes: one Bytes element per read, and the same again" {
+    let s = Stream.newBytes (chunkPullFn [ [| 0x01uy; 0x02uy |]; [| 0x03uy |] ]) None
+    let! first = drain s
+    let! second = drain s
+    Expect.equal
+      (first |> List.map chunkBytes)
+      [ [| 0x01uy; 0x02uy |]; [| 0x03uy |] ]
+      "each read is one element"
+    Expect.equal
+      (second |> List.map chunkBytes)
+      (first |> List.map chunkBytes)
+      "the same again"
+    Expect.equal
+      (RT.Dval.toValueType s)
+      (RT.ValueType.Known(RT.KTStream VT.bytes))
+      "a Stream<Bytes>"
   }
 
-let chunkedDrainAlsoServesByteNext =
-  testTask "chunked drain: readStreamNext works on a chunked stream too" {
-    let s = Stream.newChunked VT.uint8 (chunkPullFn [ [| 0x10uy; 0x20uy |] ]) None
-    let! a = pull s
-    let! b = pull s
-    let! c = pull s
-    Expect.equal a (Some(RT.DUInt8 0x10uy)) "first byte"
-    Expect.equal b (Some(RT.DUInt8 0x20uy)) "second byte"
-    Expect.equal c None "exhausted"
-  }
-
-let chunkedDrainFallsBackToByteWise =
-  testTask
-    "chunked drain: readStreamChunk on a non-chunked stream falls back to byte pulls" {
-    // newStream (no nextChunk callback) — readStreamChunk falls back
-    // to per-byte accumulation.
-    let s =
-      Stream.newFromIO
-        VT.uint8
-        (listPullFn [ RT.DUInt8 0xAAuy; RT.DUInt8 0xBBuy; RT.DUInt8 0xCCuy ])
-        None
-    let! chunk = Stream.readChunk 4096 s
-    Expect.equal chunk (Some [| 0xAAuy; 0xBBuy; 0xCCuy |]) "all bytes collected"
-    let! after = Stream.readChunk 4096 s
-    Expect.equal after None "exhausted"
+let byteSourceEndsOnEmptyRead =
+  testTask "bytes: an empty read ends the stream" {
+    let s = Stream.newBytes (chunkPullFn [ [| 0x01uy |]; [||]; [| 0x02uy |] ]) None
+    let! chunks = drain s
+    Expect.equal
+      (chunks |> List.map chunkBytes)
+      [ [| 0x01uy |] ]
+      "stops at the empty read"
   }
 
 
@@ -503,7 +508,7 @@ let tests =
   testList
     "stream"
     [ pullsElementsInOrder
-      staysDrainedAfterExhaustion
+      readingAgainAnswersTheSame
       emptyStreamImmediatelyDone
       toValueTypeReflectsElemType
       dstreamBinarySerializeRaises
@@ -513,14 +518,14 @@ let tests =
       tstreamPtDarkBridge
       tstreamRtDarkBridge
       ktstreamRtDarkBridge
-      streamCloseMarksDisposed
+      closeEndsWhatWasNotRead
       dstreamDarkBridgeStub
       toValueTypeWalksTransforms
       closingATransformClosesItsSource
       concatClosesWhatItHolds
+      twoReadersShareOneRead
       gcFinalizesAbandonedStream
       gcFinalizesMidDrainStream
       gcSkipsFinalizerAfterStreamClose
-      chunkedDrainMatchesByteDrain
-      chunkedDrainAlsoServesByteNext
-      chunkedDrainFallsBackToByteWise ]
+      byteSourceYieldsOneBytesPerRead
+      byteSourceEndsOnEmptyRead ]

@@ -160,8 +160,7 @@ let private manyBytes () : List<Result> =
       sample)
 
 
-/// Drain a Stream<UInt8> into a Bytes via the chunked path — the bulk
-/// path that pulls 64 KB buffers instead of boxing one DUInt8 per byte.
+/// Drain a Stream<Bytes> off an IO source into one byte[], a chunk at a time.
 let private streamToBytes () : List<Result> =
   [ 100_000; 1_000_000; 10_000_000 ]
   |> List.map (fun size ->
@@ -177,15 +176,14 @@ let private streamToBytes () : List<Result> =
           else
             yielded <- true
             System.Threading.Tasks.ValueTask<_>(Some payload)
-        let stream = Stream.newChunked VT.uint8 nextChunk None
-        let collected = new System.IO.MemoryStream()
-        let rec drain () : unit =
-          match (Stream.readChunk 65536 stream).Result with
-          | Some bs ->
-            collected.Write(bs, 0, bs.Length)
-            drain ()
-          | None -> ()
-        drain ()
+        use collected = new System.IO.MemoryStream()
+        let mutable rest = Some(Stream.newBytes nextChunk None)
+        while rest.IsSome do
+          match (Stream.readNext rest.Value).Result with
+          | Some(RT.DBytes(RT.Ephemeral chunk), after) ->
+            collected.Write(chunk.buffer, chunk.offset, chunk.count)
+            rest <- Some after
+          | _ -> rest <- None
         ignore<RT.Dval> (Bytes.newEphemeral (collected.ToArray())))
     mkResult "streamToBytes" size 1 "chunked-drain" sample)
 

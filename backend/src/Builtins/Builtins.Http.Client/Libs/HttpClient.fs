@@ -3,8 +3,8 @@
 /// - `httpClientRequest` reads the whole response and returns a Response with
 ///   `body : Bytes`. A GET or HEAD is a read, handed back in flight
 ///   (`Interpreter.callReadsOnly`); any other method is a write, in program order.
-/// - `httpClientStream` returns a Response whose `body : Stream<UInt8>` is
-///   pulled as it arrives; for large bodies, server-sent events, etc.
+/// - `httpClientStream` returns a Response whose `body : Stream<Bytes>` is
+///   pulled a chunk at a time as it arrives; for large bodies, server-sent events, etc.
 ///
 /// Both answer the one generic `Stdlib.HttpClient.Response<'body>`, with the
 /// headers as the server sent them: names unchanged, values unchanged, a
@@ -515,32 +515,29 @@ let fns () : List<BuiltInFn> =
     // Streaming HTTP.
     //
     // The body is not buffered into a byte[]; the host opens the response and
-    // keeps it in its stream table, and the DStream pulls chunks through the
-    // host-issued handle. Bulk consumers (`streamToBytes`) pull whole buffers
-    // via `nextChunk`; byte-wise consumers (`streamNext`) see one `DUInt8` at
-    // a time synthesised from the same buffer.
+    // keeps it in its stream table, and the DStream reads chunks through the
+    // host-issued handle, each once, kept for every holder of the body. Each
+    // read is one Bytes element of up to 64 KB.
     //
-    // The disposer releases the host-side response when the consumer drains
-    // to EOF or calls `Builtin.streamClose`. Abandoning a stream mid-drain
-    // falls back to the GC-triggered finalizer on `Dval.StreamFinalizer`,
-    // which runs the same disposer chain when the DStream becomes
-    // unreachable. Chunk reads and the close go directly to `HostHttp` — the
+    // The disposer releases the host-side response when the body is read to
+    // its end, on `Builtin.streamClose`, or when the GC finds nothing left
+    // that could read it (`StreamSource`'s finalizer). Chunk reads and the close go directly to `HostHttp` — the
     // transfer was authorized when the stream was opened, and the handle is
     // host-issued, so no further policy decision is involved.
     // ——————————————————————————————————————————————————————————
     { name = fn "httpClientStream" 0
       typeParams = []
       parameters = parameters
-      returnType = resultTypeOf (TStream TUInt8)
+      returnType = resultTypeOf (TStream TBytes)
       description =
         "Make a streaming HTTP call to <param uri>, in program order. Returns a <type "
-        + "Response> whose `body` is a lazy <type Stream> that yields bytes "
-        + "as they arrive. Drain with `Builtin.streamToList`/`streamToBytes`, or "
+        + "Response> whose `body` is a lazy <type Stream> of <type Bytes> chunks, "
+        + "read as they arrive. Read with `Stdlib.Stream.toList`/`toBytes`, or "
         + "compose with `streamMap`/`streamFilter`/etc. The underlying HTTP "
-        + "response is released when the stream is drained to completion or "
+        + "response is released when the stream is read to its end or "
         + "`Builtin.streamClose`d."
       fn =
-        let streamOfBytes = ValueType.Known(KTStream VT.uint8)
+        let streamOfBytes = ValueType.Known(KTStream VT.bytes)
         let (resultOk, resultError) = resultOf streamOfBytes
         (fun (struct (state, vm, _, args)) ->
           run
@@ -565,7 +562,7 @@ let fns () : List<BuiltInFn> =
               let nextChunk (maxBytes : int) : ValueTask<Option<byte[]>> =
                 ValueTask<Option<byte[]>>(Host.httpStreamRead head.handle maxBytes)
               let disposer () = Host.httpStreamClose head.handle
-              let body = Stream.newChunked VT.uint8 nextChunk (Some disposer)
+              let body = Stream.newBytes nextChunk (Some disposer)
               responseOf streamOfBytes url head.statusCode head.headers body
               |> resultOk)
             resultError)

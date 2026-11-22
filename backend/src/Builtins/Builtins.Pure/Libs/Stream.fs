@@ -1,6 +1,6 @@
-/// Stream builtins. Surfaces the lazy, single-consumer `DStream`
-/// abstraction from `LibExecution.RuntimeTypes` to user code:
-/// `fromList`, `next`, `toList`, `toBytes`, `close`, and the transforms
+/// Stream builtins. Surfaces the lazy `DStream` value from `LibExecution.RuntimeTypes` to
+/// user code:
+/// `fromList`, `next`, `toList`, `close`, and the transforms
 /// `map` / `filter` / `take` / `concat`.
 ///
 /// Alternatives considered but not taken:
@@ -21,7 +21,6 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module Bytes = LibExecution.Bytes
 module Interpreter = LibExecution.Interpreter
 module Permissions = LibExecution.Permissions
 module Stream = LibExecution.Stream
@@ -39,15 +38,6 @@ let private resolveElemVT (state : ExecutionState) (t : TypeReference) : ValueTy
     state.types
     LibExecution.RuntimeTypes.TST.empty
     t
-
-
-/// Fallback-aware KnownType helper for callsites that need a
-/// KnownType directly (Dval.list, Dval.option). Unknown -> KTUnit.
-let private resolveElemKT (state : ExecutionState) (t : TypeReference) : KnownType =
-  let vt = resolveElemVT state t
-  match vt with
-  | ValueType.Known kt -> kt
-  | ValueType.Unknown -> KTUnit
 
 
 /// A transform's callable, with the access of the frame building the transform folded in.
@@ -76,7 +66,7 @@ let private narrowedBy
 /// `map`); native IO is waited for. `k` gets the pulled element, which can be a read in flight.
 let rec private drivePull
   (vm : VMState)
-  (k : Option<Dval> -> Dval)
+  (k : Option<Dval * StreamImpl> -> Dval)
   (step : Stream.PullStep)
   : Dval =
   match step with
@@ -100,14 +90,6 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, _, [ elemType ], [| DList(elemVT, Items(items)) |] ->
-          // A stream is consumed by pulling, so its position is state that each pull moves.
-          let remaining = ref items
-          let nextFn () : ValueTask<Option<Dval>> =
-            match remaining.Value with
-            | head :: tail ->
-              remaining.Value <- tail
-              ValueTask<_>(Some head)
-            | [] -> ValueTask<_>(None)
           // Prefer the runtime ValueType of the list elements; fall
           // back to the declared type parameter when the list was
           // empty (ValueType.Unknown). Goes through the full type
@@ -116,7 +98,7 @@ let fns () : List<BuiltInFn> =
             match elemVT with
             | ValueType.Unknown -> resolveElemVT state elemType
             | known -> known
-          Stream.newFromIO inferredElem nextFn None
+          DStream(FromList(items, inferredElem))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -150,7 +132,7 @@ let fns () : List<BuiltInFn> =
           // The step runs on later pulls, as a frame of whoever is pulling; the access this
           // frame holds now is folded into it (`narrowedBy`).
           let step = narrowedBy vm.activeAccess app
-          Stream.wrapImpl (Unfold(step, ref initialState, elemType))
+          DStream(Unfold(step, initialState, elemType))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -160,16 +142,21 @@ let fns () : List<BuiltInFn> =
     { name = fn "streamNext" 0
       typeParams = [ "a" ]
       parameters = [ Param.make "stream" (TStream varA) "" ]
-      returnType = TypeReference.option varA
+      returnType = TypeReference.option (TTuple(varA, TStream varA, []))
       description =
-        "Pulls the next element from <param stream>. Returns None when the stream is exhausted. Mutates the stream — subsequent calls after exhaustion keep returning None."
+        "The first element of <param stream> and the rest of it, or None when it is empty. Does not change <param stream>: calling again on it answers the same."
       fn =
         (function
         | state, vm, [ elemType ], [| s |] ->
           // The element type first: it can wait (a package type), and a request has to be the
           // body's first move or come after the pull's own wait, never after this one.
-          let elemKT = (resolveElemKT state elemType)
-          drivePull vm (fun r -> (Dval.option elemKT r)) (Stream.pullNext s)
+          let elemVT = resolveElemVT state elemType
+          let pairKT = KTTuple(elemVT, ValueType.Known(KTStream elemVT), [])
+          let answer r =
+            r
+            |> Option.map (fun (v, rest) -> DTuple(v, DStream rest, []))
+            |> Dval.option pairKT
+          drivePull vm answer (Stream.pullNext s)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -180,7 +167,7 @@ let fns () : List<BuiltInFn> =
       typeParams = [ "a" ]
       parameters = [ Param.make "stream" (TStream varA) "" ]
       returnType = TList varA
-      description = "Drains <param stream> into a List, consuming it entirely."
+      description = "All the elements of <param stream>, as a List."
       fn =
         (function
         | state, vm, [ elemType ], [| s |] ->
@@ -196,59 +183,12 @@ let fns () : List<BuiltInFn> =
             else
               let elemVT = resolveElemVT state elemType
               DList(elemVT, Items([]))
-          let rec onPulled (r : Option<Dval>) : Dval =
+          let rec onPulled (r : Option<Dval * StreamImpl>) : Dval =
             match r with
-            | Some item ->
+            | Some(item, rest) ->
               collected.Add item
-              drivePull vm onPulled (Stream.pullNext s)
+              drivePull vm onPulled (Stream.pull rest)
             | None -> finish ()
-          drivePull vm onPulled (Stream.pullNext s)
-        | _ -> incorrectArgs ())
-      previewable = Impure
-      callEffects = Set.empty
-      deprecated = NotDeprecated }
-
-
-    { name = fn "streamToBytes" 0
-      typeParams = []
-      parameters = [ Param.make "stream" (TStream TUInt8) "" ]
-      returnType = TBytes
-      description =
-        "Drains a byte stream into a single Bytes value, consuming <param stream>."
-      fn =
-        (function
-        | _, _, _, [| DStream(FromIO(_, _, _, Some _), _, _) as s |] ->
-          // An IO-backed byte stream (HttpClient.stream) hands back a whole buffer per
-          // pull instead of boxing one DUInt8 per byte.
-          task {
-            use collected = new System.IO.MemoryStream()
-            let mutable keepGoing = true
-            while keepGoing do
-              match! Stream.readChunk (64 * 1024) s with
-              | Some buf -> collected.Write(buf, 0, buf.Length)
-              | None -> keepGoing <- false
-            return Bytes.newEphemeral (collected.ToArray())
-          }
-          |> Pending.ofTask
-        | _, vm, _, [| DStream _ as s |] ->
-          // Anything else (a transform chain, an in-memory stream) is pulled a byte at a time;
-          // a transform's callable runs as a frame of this process.
-          let collected = new System.IO.MemoryStream()
-          let rec onPulled (r : Option<Dval>) : Dval =
-            match r with
-            | Some(DPromise _ as read) ->
-              Interpreter.withValue vm read (fun b -> onPulled (Some b))
-            | Some(DUInt8 b) ->
-              collected.WriteByte b
-              drivePull vm onPulled (Stream.pullNext s)
-            | Some _ ->
-              Exception.raiseInternal
-                "streamToBytes: expected Stream<UInt8> element"
-                []
-            | None ->
-              let bytes = collected.ToArray()
-              collected.Dispose()
-              (Bytes.newEphemeral bytes)
           drivePull vm onPulled (Stream.pullNext s)
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -261,23 +201,14 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "stream" (TStream varA) "" ]
       returnType = TUnit
       description =
-        "Marks <param stream> as fully consumed. Idempotent — calling on an "
-        + "already-closed stream is a no-op. Not strictly required (streams are "
-        + "GC-closed via their .NET finalizer), but useful when you want to "
-        + "release an IO source promptly."
+        "Releases the IO source behind <param stream> (an HTTP response, ...) now, rather "
+        + "than at its end or when nothing holds it any more. What was already read stays; "
+        + "the rest of the stream ends here. Does nothing to a stream with no IO source, "
+        + "and nothing the second time."
       fn =
         (function
-        | _, _, _, [| DStream(impl, disposed, _lockObj) |] ->
-          // Flip disposed and run the disposer chain on the first
-          // close so IO sources (HTTP response, file handle, ...) are
-          // released promptly. No Monitor: the Dark VM is single-
-          // threaded per pull, and concurrent streamClose+readStream
-          // races would fight thread-hopping task continuations
-          // (Monitor.Exit throws across threads). Idempotent via the
-          // disposed flag.
-          if not disposed.Value then
-            disposed.Value <- true
-            Stream.disposeImpl impl
+        | _, _, _, [| DStream impl |] ->
+          Stream.close impl
           DUnit
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -285,12 +216,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // Lazy transforms. Each wraps the corresponding StreamImpl
-    // constructor. The source DStream's impl is extracted and placed
-    // inside a new transform node under a fresh DStream — callers
-    // should not pull from the original DStream afterwards (single-
-    // consumer semantics; the shared impl underneath is unaware of
-    // which wrapper is pulling).
+    // Lazy transforms: each is a new node over its source, which stays as it was.
     { name = fn "streamMap" 0
       typeParams = [ "a"; "b" ]
       parameters =
@@ -307,11 +233,11 @@ let fns () : List<BuiltInFn> =
         + "returned stream is drained."
       fn =
         (function
-        | state, vm, [ _; outputType ], [| DStream(src, _, _); DApplicable app |] ->
+        | state, vm, [ _; outputType ], [| DStream src; DApplicable app |] ->
           let elemType = resolveElemVT state outputType
           // The callable runs as a frame of whoever drains; this frame's access is folded
           // into it now (`narrowedBy`).
-          Stream.wrapImpl (Mapped(src, narrowedBy vm.activeAccess app, elemType))
+          DStream(Mapped(src, narrowedBy vm.activeAccess app, elemType))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -334,9 +260,9 @@ let fns () : List<BuiltInFn> =
         + "result is drained, skipping rejected elements without buffering."
       fn =
         (function
-        | _, vm, _, [| DStream(src, _, _); DApplicable app |] ->
+        | _, vm, _, [| DStream src; DApplicable app |] ->
           // As `streamMap`.
-          Stream.wrapImpl (Filtered(src, narrowedBy vm.activeAccess app))
+          DStream(Filtered(src, narrowedBy vm.activeAccess app))
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
@@ -355,10 +281,7 @@ let fns () : List<BuiltInFn> =
         + "Terminates early without pulling the source past the limit."
       fn =
         (function
-        | _, _, _, [| DStream(src, _, _); DInt64 n |] ->
-          // A negative n becomes an empty stream; pullStreamImpl treats remaining<=0 as done.
-          let clamped = max 0L n
-          Stream.wrapImpl (Take(src, clamped, ref clamped))
+        | _, _, _, [| DStream src; DInt64 n |] -> DStream(Take(src, max 0L n))
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty
@@ -380,12 +303,12 @@ let fns () : List<BuiltInFn> =
             items
             |> List.map (fun dv ->
               match dv with
-              | DStream(impl, _, _) -> impl
+              | DStream impl -> impl
               | other ->
                 Exception.raiseInternal
                   "streamConcat: expected List<Stream>"
                   [ "got", other ])
-          Stream.wrapImpl (Concat(ref impls))
+          DStream(Concat impls)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = Set.empty

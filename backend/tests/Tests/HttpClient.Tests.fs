@@ -621,41 +621,27 @@ module StreamDvalTests =
   let private buildBodyStream
     (head : LibExecution.HostTypes.HttpStreamHead)
     : RT.Dval * bool ref =
-    let mutable buffered : byte[] = [||]
-    let mutable bufferPos = 0
-    let next () : ValueTask<Option<RT.Dval>> =
-      if bufferPos >= buffered.Length then
-        let pulled : Task<Option<RT.Dval>> =
-          task {
-            match! HostHttp.readChunk head.handle 8192 with
-            | None -> return None
-            | Some bytes ->
-              buffered <- bytes
-              bufferPos <- 1
-              return Some(RT.DUInt8 bytes[0])
-          }
-        ValueTask<Option<RT.Dval>>(pulled)
-      else
-        let b = buffered[bufferPos]
-        bufferPos <- bufferPos + 1
-        ValueTask<_>(Some(RT.DUInt8 b))
+    let nextChunk (maxBytes : int) : ValueTask<Option<byte[]>> =
+      ValueTask<Option<byte[]>>(HostHttp.readChunk head.handle maxBytes)
     let disposerRan = ref false
     let disposer () =
       disposerRan.Value <- true
       HostHttp.closeStream head.handle
-    Stream.newFromIO VT.uint8 next (Some disposer), disposerRan
+    Stream.newBytes nextChunk (Some disposer), disposerRan
 
 
   let drainToBytes (s : RT.Dval) : Task<byte[]> =
     task {
       use ms = new System.IO.MemoryStream()
-      let mutable keepGoing = true
-      while keepGoing do
-        let! pulled = Stream.readNext s
+      let mutable rest = Some s
+      while rest.IsSome do
+        let! pulled = Stream.readNext rest.Value
         match pulled with
-        | Some(RT.DUInt8 b) -> ms.WriteByte b
-        | Some _ -> Exception.raiseInternal "expected DUInt8" []
-        | None -> keepGoing <- false
+        | Some(RT.DBytes(RT.Ephemeral chunk), after) ->
+          ms.Write(chunk.buffer, chunk.offset, chunk.count)
+          rest <- Some after
+        | Some _ -> Exception.raiseInternal "expected Bytes" []
+        | None -> rest <- None
       return ms.ToArray()
     }
 
@@ -688,8 +674,8 @@ module StreamDvalTests =
         }
 
         testTask "large body drains cleanly across buffer refills" {
-          // 8 KB buffer * 3.5 -> forces multiple refills.
-          let body = String.replicate 28000 "x"
+          // 64 KB reads * 3.5 -> several chunks.
+          let body = String.replicate 224000 "x"
           let url =
             MockHelpers.registerTestCase "stream-dval-large" 200 "text/plain" body
           let! setup =
@@ -702,7 +688,7 @@ module StreamDvalTests =
             Expect.equal
               bytes.Length
               body.Length
-              "all 28k bytes pulled through multiple buffer refills"
+              "every byte read through several chunks"
         }
 
         testTask "empty body drains to zero bytes; disposer still runs" {
@@ -729,14 +715,11 @@ module StreamDvalTests =
           | Error e -> failtest $"expected Ok, got Error: {e}"
           | Ok head ->
             let (s, (disposerRan : bool ref)) = buildBodyStream head
-            // Replicate streamClose: flip disposed, walk impl chain.
             match s with
-            | RT.DStream(impl, disposed, _) ->
-              disposed.Value <- true
-              Stream.disposeImpl impl
+            | RT.DStream impl -> Stream.close impl
             | _ -> failtest "expected DStream"
             Expect.isTrue disposerRan.Value "disposer runs on explicit close"
-            // Subsequent pulls yield None.
+            // Nothing was read before the close, so the stream ends there.
             let! after = Stream.readNext s
             Expect.equal after None "closed stream yields None"
         } ]

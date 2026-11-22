@@ -1,10 +1,8 @@
 /// Runtime helpers for the `Stream<'a>` Dval type.
 ///
-/// Streams are lazy, single-consumer, non-persistable. This module
-/// owns the construction, drain, and disposal mechanics; the
-/// transform-tree shape (`StreamImpl`'s `Mapped` / `Filtered` /
-/// `Take` / `Concat`) is defined alongside the types in
-/// `RuntimeTypes.fs`.
+/// A stream is a value: a pull answers the element and the rest, and pulling the same stream
+/// again answers the same. This module owns construction, the pull, and releasing IO
+/// sources; the node shapes are in `RuntimeTypes.fs` (`StreamImpl`).
 module LibExecution.Stream
 
 open System.Threading.Tasks
@@ -14,140 +12,85 @@ open Prelude
 open LibExecution.RuntimeTypes
 
 
-/// Walk a StreamImpl tree invoking any IO-source disposers. Wrapped
-/// in try/with so a misbehaving disposer doesn't take the whole
-/// runtime down — best-effort cleanup. Safe to call multiple times:
-/// the disposers themselves must be idempotent (e.g. `response.Dispose()`
-/// on .NET HttpResponseMessage is a no-op if already disposed).
-let rec disposeImpl (impl : StreamImpl) : unit =
-  match impl with
-  | FromIO(_, _, Some d, _) ->
-    try
-      d ()
-    with _ ->
-      ()
-  | FromIO(_, _, None, _) -> ()
-  | Unfold _ -> ()
-  | Mapped(src, _, _) -> disposeImpl src
-  | Filtered(src, _) -> disposeImpl src
-  | Take(src, _, _) -> disposeImpl src
-  | Concat streams -> streams.Value |> List.iter disposeImpl
+/// How much a chunked source is asked for per read.
+let chunkSize = 64 * 1024
 
 
-/// GC-triggered cleanup for DStreams that callers never explicitly
-/// drain or close. Doubles as the DStream's lockObj so the lifetime
-/// tracks the DStream itself — the GC can only finalize this object
-/// when the DStream holding it is unreachable. On finalize, runs the
-/// full [disposeImpl] chain once (guarded by the shared `disposed`
-/// ref, so no double-fire if streamClose/drain-to-EOF already ran).
-///
-/// Swallows disposer exceptions — finalizers that throw crash the
-/// process, and we'd rather leak on the pathological case than take
-/// down everything.
-type Finalizer(impl : StreamImpl, disposed : bool ref) =
-  override this.Finalize() =
-    try
-      if not disposed.Value then
-        disposed.Value <- true
-        disposeImpl impl
-    with _ ->
-      ()
+let rec private cellOf
+  (source : StreamSource)
+  (read : unit -> ValueTask<'r>)
+  (landed : StreamCell -> 'r -> StreamRead)
+  : StreamCell =
+  { source = source
+    read =
+      lazy
+        (if source.Released then
+           Task.FromResult Ended
+         else
+           task {
+             let! r = read ()
+             match landed (cellOf source read landed) r with
+             | Ended ->
+               source.Release()
+               return Ended
+             | answer -> return answer
+           }) }
 
 
-/// Wrap a [StreamImpl] in a fresh DStream with its own disposed flag
-/// and a GC-backed finalizer. When the DStream becomes unreachable,
-/// the GC finalizes the Finalizer (which is also the lockObj) and
-/// the disposer chain runs once.
-///
-/// Used by `newFromIO` and by the Stream transform builtins
-/// (streamMap/streamFilter/streamTake/streamConcat) when they wrap a
-/// source's impl into a new DStream.
-let wrapImpl (impl : StreamImpl) : Dval =
-  let disposed = ref false
-  DStream(impl, disposed, Finalizer(impl, disposed) :> obj)
-
-
-/// [disposer], run at most once. A transform disposes its source without
-/// flipping the source DStream's flag, so its finalizer would run it again.
-let private once (disposer : (unit -> unit) option) : (unit -> unit) option =
-  disposer
-  |> Option.map (fun d ->
-    let ran = ref 0
-    fun () ->
-      if System.Threading.Interlocked.Exchange(&ran.contents, 1) = 0 then d ())
-
-
-/// Mint a fresh DStream from a pull function. Convenience wrapper
-/// over [wrapImpl] for the common FromIO case. [disposer], when
-/// `Some`, is called once when the stream is drained to completion,
-/// `streamClose`d, or finalized by the GC — used by IO-backed
-/// producers to release the underlying source (HttpResponseMessage,
-/// FileStream, etc.). Use [newChunked] for byte streams that can
-/// efficiently yield a whole chunk per pull.
+/// A stream over a native source. [disposer], when `Some`, runs once: when the source reaches
+/// its end, when a stream over it is closed, or when the GC finds nothing left that could read
+/// it.
 let newFromIO
   (elemType : ValueType)
   (next : unit -> ValueTask<Option<Dval>>)
   (disposer : (unit -> unit) option)
   : Dval =
-  wrapImpl (FromIO(next, elemType, once disposer, None))
+  let landed (after : StreamCell) (r : Option<Dval>) =
+    match r with
+    | Some v -> Item(v, after)
+    | None -> Ended
+  DStream(FromIO(cellOf (StreamSource disposer) next landed, elemType))
 
 
-/// Mint a DStream<UInt8> that can be drained bulk-wise via
-/// [readChunk]. The `nextChunk` callback fills up to `maxBytes` into
-/// a fresh byte[] and returns it (or None on exhaustion). Consumers
-/// that want full-chunk bytes — `streamToBytes`, SSE byte
-/// accumulators — bypass per-byte Dval boxing by calling
-/// `readChunk` instead of `readNext`. The `next` path stays
-/// available so `streamNext` returns one DUInt8 at a time — the
-/// implementation synthesises single-byte pulls from the chunk buffer.
-let newChunked
-  (elemType : ValueType)
+/// A `Stream<Bytes>` over a source that fills up to `maxBytes` into a fresh byte[] per read
+/// (or None at its end): one element per read.
+let newBytes
   (nextChunk : int -> ValueTask<Option<byte[]>>)
   (disposer : (unit -> unit) option)
   : Dval =
-  // Maintain a small carry buffer so single-byte `next` pulls can
-  // be served from the chunks that `nextChunk` returned.
-  let carry = ref [||]
-  let carryPos = ref 0
-  let fromCarry () =
-    let b = carry.Value[carryPos.Value]
-    carryPos.Value <- carryPos.Value + 1
-    Some(RuntimeTypes.Dval.duint8 b)
-  let refill (chunk : Option<byte[]>) =
-    match chunk with
-    | Some buf when buf.Length > 0 ->
-      carry.Value <- buf
-      carryPos.Value <- 0
-      fromCarry ()
-    | _ -> None
   let next () : ValueTask<Option<Dval>> =
-    if carryPos.Value < carry.Value.Length then
-      ValueTask<_>(fromCarry ())
-    else
-      // Refill from the underlying chunked producer. 8 KB mirrors
-      // the socket-read buffer size we use across the codebase.
-      let chunk = nextChunk 8192
-      if chunk.IsCompletedSuccessfully then
-        ValueTask<_>(refill chunk.Result)
-      else
-        let landed : Task<Option<Dval>> =
-          task {
-            let! chunk = chunk
-            return refill chunk
-          }
-        ValueTask<Option<Dval>>(landed)
-  wrapImpl (FromIO(next, elemType, once disposer, Some nextChunk))
+    let read : Task<Option<Dval>> =
+      task {
+        match! nextChunk chunkSize with
+        | Some buf when buf.Length > 0 ->
+          return Some(LibExecution.Bytes.newEphemeral buf)
+        | _ -> return None
+      }
+    ValueTask<Option<Dval>>(read)
+  newFromIO (ValueType.Known KTBytes) next disposer
+
+
+/// Release every IO source a stream would still read from. What was read stays readable;
+/// cells not read yet end. A step's state or captures are not looked into. Idempotent.
+let rec close (impl : StreamImpl) : unit =
+  match impl with
+  | FromIO(cell, _) -> cell.source.Release()
+  | FromList _
+  | Unfold _ -> ()
+  | Mapped(src, _, _)
+  | Filtered(src, _)
+  | Take(src, _) -> close src
+  | Concat streams -> streams |> List.iter close
 
 
 /// One pull through a stream, as far as it can go without the puller: what the puller has
-/// to do next. A node that runs Dark code (`Unfold`, `Mapped`, `Filtered`) cannot run it
-/// here; it hands the callable back, and the builtin pulling asks the interpreter to apply
-/// it as a frame of the pulling process (`Interpreter.requestApply`), then continues the
-/// pull with the answer. Native IO that has to wait is handed back as a wait for the same
-/// reason: the puller decides how to wait.
+/// to do next. A node that runs Dark code (`Unfold`, `Mapped`, `Filtered`) hands the callable
+/// back, and the builtin pulling asks the interpreter to apply it as a frame of the pulling
+/// process (`Interpreter.requestApply`), then continues the pull with the answer. Native IO
+/// that has to wait is handed back as a wait for the same reason: the puller decides how.
 type PullStep =
-  /// This pull is done: the element, or `None` for exhausted.
-  | Pulled of Option<Dval>
+  /// This pull is done: the element and the rest of the stream, or `None` at the end.
+  | Pulled of Option<Dval * StreamImpl>
   /// Apply the callable to the argument, then continue with what it answered. Where `looks`,
   /// `next` looks at the answer, so the puller waits for a read in flight first; otherwise
   /// `next` only carries it along (`Mapped`) and it stays in flight.
@@ -160,7 +103,10 @@ type PullStep =
   | Wait of Task<PullStep>
 
 /// Continue a step with what to do once its pull is done.
-let rec private andThen (step : PullStep) (k : Option<Dval> -> PullStep) : PullStep =
+let rec private andThen
+  (step : PullStep)
+  (k : Option<Dval * StreamImpl> -> PullStep)
+  : PullStep =
   match step with
   | Pulled r -> k r
   | Apply(app, arg, next, looks) ->
@@ -173,34 +119,46 @@ let rec private andThen (step : PullStep) (k : Option<Dval> -> PullStep) : PullS
       }
     )
 
-/// Pull one element through a [StreamImpl] tree, as a step.
-///
-/// A `Filtered` node's rejections and a `Concat` node's exhausted heads recurse here, but not
-/// on the F# stack for long: a rejection goes back to the puller as an `Apply` and comes back
-/// through the continuation, so each turn starts fresh.
-let rec private pull (impl : StreamImpl) : PullStep =
-  match impl with
-  | FromIO(next, _elemType, _disposer, _nextChunk) ->
-    let p = next ()
-    if p.IsCompletedSuccessfully then
-      Pulled p.Result
-    else
-      Wait(
-        task {
-          let! r = p
-          return Pulled r
-        }
-      )
 
-  | Unfold(step, state, _elemType) ->
+let private readCell (cell : StreamCell) (elemType : ValueType) : PullStep =
+  let landed (r : StreamRead) =
+    match r with
+    | Item(v, after) -> Pulled(Some(v, FromIO(after, elemType)))
+    | Ended -> Pulled None
+  let t = cell.read.Force()
+  if t.IsCompletedSuccessfully then
+    landed t.Result
+  else
+    Wait(
+      task {
+        let! r = t
+        return landed r
+      }
+    )
+
+
+/// Pull one element through a stream, as a step.
+///
+/// A `Filtered` node's rejections and a `Concat` node's ended heads recurse here, but not on
+/// the F# stack for long: a rejection goes back to the puller as an `Apply` and comes back
+/// through the continuation, so each turn starts fresh.
+let rec pull (impl : StreamImpl) : PullStep =
+  match impl with
+  | FromIO(cell, elemType) -> readCell cell elemType
+
+  | FromList(items, elemType) ->
+    match items with
+    | [] -> Pulled None
+    | head :: tail -> Pulled(Some(head, FromList(tail, elemType)))
+
+  | Unfold(step, state, elemType) ->
     Apply(
       step,
-      state.Value,
+      state,
       (fun result ->
         match result with
         | DEnum(_, _, _, "Some", [ DTuple(elem, newState, []) ]) ->
-          state.Value <- newState
-          Pulled(Some elem)
+          Pulled(Some(elem, Unfold(step, newState, elemType)))
         | DEnum(_, _, _, "None", _) -> Pulled None
         | other ->
           Exception.raiseInternal
@@ -209,24 +167,30 @@ let rec private pull (impl : StreamImpl) : PullStep =
       true
     )
 
-  | Mapped(src, fn, _elemType) ->
+  | Mapped(src, fn, elemType) ->
     andThen (pull src) (fun upstream ->
       match upstream with
       | None -> Pulled None
-      | Some v -> Apply(fn, v, (fun mapped -> Pulled(Some mapped)), false))
+      | Some(v, rest) ->
+        Apply(
+          fn,
+          v,
+          (fun mapped -> Pulled(Some(mapped, Mapped(rest, fn, elemType)))),
+          false
+        ))
 
   | Filtered(src, pred) ->
     andThen (pull src) (fun upstream ->
       match upstream with
       | None -> Pulled None
-      | Some v ->
+      | Some(v, rest) ->
         Apply(
           pred,
           v,
           (fun answer ->
             match answer with
-            | DBool true -> Pulled(Some v)
-            | DBool false -> pull impl
+            | DBool true -> Pulled(Some(v, Filtered(rest, pred)))
+            | DBool false -> pull (Filtered(rest, pred))
             | other ->
               Exception.raiseInternal
                 "stream filter predicate returned non-Bool"
@@ -234,60 +198,36 @@ let rec private pull (impl : StreamImpl) : PullStep =
           true
         ))
 
-  | Take(src, _n, remaining) ->
-    if remaining.Value <= 0L then
+  | Take(src, n) ->
+    if n <= 0L then
       Pulled None
     else
       andThen (pull src) (fun upstream ->
         match upstream with
-        | Some _ ->
-          remaining.Value <- remaining.Value - 1L
-          Pulled upstream
-        | None ->
-          // Source dried up before the limit; clamp so future pulls
-          // stay at zero and short-circuit without touching source.
-          remaining.Value <- 0L
-          Pulled None)
+        | Some(v, rest) -> Pulled(Some(v, Take(rest, n - 1L)))
+        | None -> Pulled None)
 
   | Concat streams ->
-    // Pull from the head stream; when it's exhausted, release it, drop
-    // it and try the next. Mutating the ref means future pulls don't
-    // re-enter a drained stream, and a close disposes only the rest.
-    match streams.Value with
+    match streams with
     | [] -> Pulled None
     | head :: tail ->
       andThen (pull head) (fun pulled ->
         match pulled with
-        | Some _ -> Pulled pulled
-        | None ->
-          disposeImpl head
-          streams.Value <- tail
-          pull impl)
+        | Some(v, rest) -> Pulled(Some(v, Concat(rest :: tail)))
+        | None -> pull (Concat tail))
 
 
-/// Pull the next element from a stream, as a step. `None` when the stream is exhausted, and
-/// from then on (single-consumer: once drained, stays drained); the first `None` runs the
-/// disposers.
+/// Pull the next element from a stream, as a step.
 let pullNext (dv : Dval) : PullStep =
   match dv with
-  | DStream(impl, disposed, _lockObj) ->
-    if disposed.Value then
-      Pulled None
-    else
-      andThen (pull impl) (fun result ->
-        match result with
-        | Some _ -> Pulled result
-        | None ->
-          disposed.Value <- true
-          disposeImpl impl
-          Pulled None)
+  | DStream impl -> pull impl
   | _ -> Exception.raiseInternal "pullNext: expected DStream" []
 
 
 /// A pull driven to its end here, for F# callers with no process to run Dark code in (tests,
-/// the benchmark scenarios, the HTTP client's own byte streams). Loud on a node that needs Dark
-/// code: that stream has to be pulled from a Dark process, through the stream builtins.
-let rec private runNative (step : PullStep) : Task<Option<Dval>> =
+/// the benchmark scenarios). Loud on a node that needs Dark code: that stream has to be pulled
+/// from a Dark process, through the stream builtins.
+let rec private runNative (step : PullStep) : Task<Option<Dval * StreamImpl>> =
   match step with
   | Pulled r -> Task.FromResult r
   | Wait t ->
@@ -301,60 +241,10 @@ let rec private runNative (step : PullStep) : Task<Option<Dval>> =
       []
 
 
-/// Pull the next element from a stream that runs no Dark code. Returns [None] when the
-/// stream is exhausted; subsequent calls after exhaustion return [None]. The stream
-/// builtins drive [pullNext] themselves; this is for F# code that owns a native stream.
-let readNext (dv : Dval) : Task<Option<Dval>> = runNative (pullNext dv)
-
-
-/// Pull up to `maxBytes` bytes from a byte stream as one chunk.
-/// Returns [None] when exhausted; subsequent calls stay [None].
-/// Prefers a FromIO's own `nextChunk` when present; falls back to
-/// byte-wise pulls for streams that were built via [newFromIO] or
-/// that walk transform nodes (Take/Concat) where a chunk semantic
-/// isn't well-defined. Like [readNext], for streams that run no Dark
-/// code; `streamToBytes` drives the transform case itself.
-///
-/// Used by `streamToBytes` and SSE byte accumulators to amortise the
-/// per-pull cost across whole chunks rather than paying it per byte.
-let readChunk (maxBytes : int) (dv : Dval) : Task<Option<byte[]>> =
+/// The next element of a stream that runs no Dark code, and the rest of the stream.
+let readNext (dv : Dval) : Task<Option<Dval * Dval>> =
   task {
-    match dv with
-    | DStream(impl, disposed, _) ->
-      if disposed.Value then
-        return None
-      else
-        match impl with
-        | FromIO(_, _, _, Some nextChunk) ->
-          let! chunk = nextChunk maxBytes
-          match chunk with
-          | Some buf when buf.Length > 0 -> return Some buf
-          | _ ->
-            disposed.Value <- true
-            disposeImpl impl
-            return None
-        | _ ->
-          // Fallback: pull byte-by-byte. Only pays off vs per-byte
-          // `readNext` if the caller really wants bulk bytes --
-          // transform chains lose the chunk optimisation but still
-          // drain correctly.
-          use collected = new System.IO.MemoryStream()
-          let mutable keepGoing = true
-          let mutable bytesSoFar = 0
-          while keepGoing && bytesSoFar < maxBytes do
-            let! pulled = runNative (pull impl)
-            match pulled with
-            | Some(DUInt8 b) ->
-              collected.WriteByte b
-              bytesSoFar <- bytesSoFar + 1
-            | Some _ ->
-              Exception.raiseInternal "readChunk: expected Stream<UInt8> element" []
-            | None -> keepGoing <- false
-          if bytesSoFar = 0 then
-            disposed.Value <- true
-            disposeImpl impl
-            return None
-          else
-            return Some(collected.ToArray())
-    | _ -> return Exception.raiseInternal "readChunk: expected DStream" []
+    match! runNative (pullNext dv) with
+    | Some(v, rest) -> return Some(v, DStream rest)
+    | None -> return None
   }
