@@ -3826,7 +3826,7 @@ let inline private pushLambdaFrame
     else if TST.isEmpty currentFrame.typeSymbolTable then
       appLambda.typeSymbolTable
     else
-      TST.mergeFavoringRight appLambda.typeSymbolTable currentFrame.typeSymbolTable
+      TST.mergeFavoringRight currentFrame.typeSymbolTable appLambda.typeSymbolTable
   recordStage vm ApplyStage.LambdaTst lambdaTstAlloc
 
   let lambdaEpAlloc = allocNow vm
@@ -4208,7 +4208,7 @@ let private refillLambdaForTailCall
   let tst =
     if TST.isEmpty appLambda.typeSymbolTable then frame.typeSymbolTable
     else if TST.isEmpty frame.typeSymbolTable then appLambda.typeSymbolTable
-    else TST.mergeFavoringRight appLambda.typeSymbolTable frame.typeSymbolTable
+    else TST.mergeFavoringRight frame.typeSymbolTable appLambda.typeSymbolTable
   // Out first, as in `refillForTailCall`: the arguments are in the registers about to be cleared.
   let args = ArgSeq.toArrayFor frame allArgs
   if exeState.tracing.collectFrames then
