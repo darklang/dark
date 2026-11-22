@@ -25,65 +25,90 @@ let soundsLikeMisuse(output: String): Bool =
   |> Stdlib.List.any(fun phrase -> Stdlib.String.contains(o, phrase))
 
 
-/// What is wrong with `dark <args>` as an answer to a request for help, if anything.
-let helpProblem(
-  i: Instance.T,
-  args: List<String>)
-  : Stdlib.Option.Option<String> =
-  let cmd = Stdlib.String.join(args, " ")
-  match Instance.run(i, args) with
-  | Error(e) -> Stdlib.Option.Option.Some($"dark {cmd} -> could not run: {e}")
-  | Ok(out) ->
-    let text = Stdlib.String.trim(out.stdout + out.stderr)
-    let first =
-      Stdlib.String.splitOnNewline(text)
-      |> Stdlib.List.head
-      |> Stdlib.Option.withDefault("")
-      |> Stdlib.String.trim
+/// What is wrong with <param text> as an answer to a request for help, if anything.
+let helpTextProblem(text: String): Stdlib.Option.Option<String> =
+  let text = Stdlib.String.trim(text)
+  let first =
+    Stdlib.String.splitOnNewline(text)
+    |> Stdlib.List.head
+    |> Stdlib.Option.withDefault("")
+    |> Stdlib.String.trim
 
-    let problem =
+  if text == "" then
+    Stdlib.Option.Option.Some("printed nothing")
+  else
+    match runtimeFailure(text) with
+    | Some(line) -> Stdlib.Option.Option.Some($"printed a runtime error: {line}")
+    | None ->
+      if soundsLikeMisuse(text) then
+        Stdlib.Option.Option.Some($"sounds like misuse: {first}")
+      // every help opens with what the command is, not with syntax or the name you typed
+      else if
+        Stdlib.String.startsWith(first, "Usage:")
+        || Stdlib.String.startsWith(first, "dark ")
+      then
+        Stdlib.Option.Option.Some($"does not start with a summary: {first}")
+      else
+        Stdlib.Option.Option.None
+
+
+/// What is wrong with `dark <args>` as an answer to a request for help, if anything.
+let helpProblem(i: Instance.T, args: List<String>): Stdlib.Option.Option<String> =
+  let cmd = Stdlib.String.join(args, " ")
+  let problem =
+    match Instance.run(i, args) with
+    | Error(e) -> Stdlib.Option.Option.Some($"could not run: {e}")
+    | Ok(out) ->
       if out.exitCode != 0 then
         Stdlib.Option.Option.Some($"exited {Stdlib.display(out.exitCode)}")
-      else if text == "" then
-        Stdlib.Option.Option.Some("printed nothing")
       else
-        match runtimeFailure(text) with
-        | Some(line) ->
-          Stdlib.Option.Option.Some($"printed a runtime error: {line}")
-        | None ->
-          if soundsLikeMisuse(text) then
-            Stdlib.Option.Option.Some($"sounds like misuse: {first}")
-          // every help opens with what the command is, not with syntax or the name you typed
-          else if
-            Stdlib.String.startsWith(first, "Usage:")
-            || Stdlib.String.startsWith(first, "dark ")
-          then
-            Stdlib.Option.Option.Some($"does not start with a summary: {first}")
-          else
-            Stdlib.Option.Option.None
+        helpTextProblem(out.stdout + out.stderr)
 
-    problem |> Stdlib.Option.map(fun why -> $"dark {cmd} -> {why}")
+  problem |> Stdlib.Option.map(fun why -> $"dark {cmd} -> {why}")
 
 
-/// Every registered command answers `--help`, and `help` as its first word, with help.
-test everyCommandAnswersHelp = Instance.withInstance(fun i ->
-  let names = Cli.Registry.allCommands() |> Stdlib.List.map(fun c -> c.name)
+/// Every registered command, by its name and by each alias, has help. `dark <cmd> --help`,
+/// `dark <cmd> help` and `dark help <cmd>` all print `commandHelpText`, so it is read directly
+/// rather than through a process per command.
+test everyCommandHasHelp =
+  let state = Cli.initState()
+  let commands = Cli.Registry.allCommands()
   let problems =
-    names
-    |> Stdlib.List.map(fun name ->
-      [ helpProblem(i, [ name, "--help" ]), helpProblem(i, [ name, "help" ]) ])
+    commands
+    |> Stdlib.List.map(fun c -> Stdlib.List.prepend(c.aliases, c.name))
     |> Stdlib.List.flatten
-    |> Stdlib.List.filterMap(fun p -> p)
+    |> Stdlib.List.filterMap(fun name ->
+      helpTextProblem(Cli.Registry.commandHelpText(name, state))
+      |> Stdlib.Option.map(fun why -> $"{name} -> {why}"))
 
   Stdlib.Test.all(
     [ Stdlib.Test.expect(
-        Stdlib.List.length(names) > 20,
-        $"the registry was read: {Stdlib.inspect(names)}")
+        Stdlib.List.length(commands) > 20,
+        $"the registry was read: {Stdlib.display(Stdlib.List.length(commands))} commands")
 
       Stdlib.Test.expect(
         problems == [],
-        "commands that don't answer help:\n"
-        + Stdlib.String.join(problems, "\n")) ]))
+        "commands without help:\n" + Stdlib.String.join(problems, "\n")) ])
+
+
+/// Each way of asking for help reaches the help text, end to end.
+test helpRoutesReachTheHelpText = Instance.withInstance(fun i ->
+  let state = Cli.initState()
+  let statusHelp = Stdlib.String.trim(Cli.Registry.commandHelpText("status", state))
+  let routes =
+    [ [ "status", "--help" ], [ "status", "help" ], [ "help", "status" ] ]
+    |> Stdlib.List.map(fun args ->
+      Stdlib.Test.expect(
+        Instance.output(i, args) == statusHelp,
+        $"dark {Stdlib.String.join(args, " ")} prints the status help"))
+
+  let general =
+    [ [ "--help" ], [ "help" ] ]
+    |> Stdlib.List.map(fun args ->
+      let problem = helpProblem(i, args)
+      Stdlib.Test.expect(problem == Stdlib.Option.Option.None, Stdlib.inspect(problem)))
+
+  Stdlib.Test.all(Stdlib.List.concat(routes, general)))
 
 
 // ─── the other sweeps ────────────────────────────────────────────────────────
