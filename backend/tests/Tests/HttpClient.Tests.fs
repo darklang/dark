@@ -1295,6 +1295,57 @@ module ProxyTests =
             }
         }
 
+        testTask "a refused proxy tunnel does not print the proxy's password" {
+          return!
+            task {
+              use listener = new Sockets.TcpListener(IPAddress.Loopback, 0)
+              listener.Start()
+              let port = (listener.LocalEndpoint :?> IPEndPoint).Port
+              let seen = System.Collections.Concurrent.ConcurrentQueue<string>()
+              // A proxy that refuses every CONNECT, asking for credentials.
+              let proxyServer =
+                task {
+                  for _ in 1..2 do
+                    use! client = listener.AcceptTcpClientAsync()
+                    use stream = client.GetStream()
+                    use reader = new StreamReader(stream)
+                    let mutable line = reader.ReadLine()
+                    while not (System.String.IsNullOrEmpty line) do
+                      seen.Enqueue line
+                      line <- reader.ReadLine()
+                    let answer =
+                      "HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic realm=\"p\"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                    do! stream.WriteAsync(System.Text.Encoding.ASCII.GetBytes answer)
+                }
+              let proxy =
+                new WebProxy(System.Uri $"http://alice:secret@127.0.0.1:{port}")
+              proxy.Credentials <- NetworkCredential("alice", "secret")
+              let profile = HostHttp.profileWithProxy HostHttp.defaultConfig proxy
+              use _client = profile.client
+              let! result =
+                (HostHttp.send
+                  profile
+                  "GET"
+                  "https://fixture.test/"
+                  []
+                  [||]
+                  None
+                  false)
+                  .WaitAsync(System.TimeSpan.FromSeconds 10.0)
+              match result with
+              | Error(HttpRequestError.NetworkError failure) ->
+                Expect.isFalse
+                  ((string failure).Contains "secret")
+                  $"the error names the proxy without its password: {failure}"
+              | other -> failtest $"expected a refused tunnel, got {other}"
+              do! proxyServer.WaitAsync(System.TimeSpan.FromSeconds 10.0)
+              Expect.contains
+                (List.ofSeq seen)
+                "Proxy-Authorization: Basic YWxpY2U6c2VjcmV0"
+                "the credentials still reach the proxy"
+            }
+        }
+
         testTask "streaming proxy connection failure names the proxy" {
           return!
             task {

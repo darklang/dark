@@ -219,11 +219,15 @@ module private BaseClient =
             match proxied.TryGetValue selected with
             | true, transport -> transport
             | false, _ ->
+              // Without its user and password: .NET names the proxy in its errors, and the
+              // credentials reach the proxy through `proxy.Credentials` anyway.
+              let address =
+                System.UriBuilder(selected, UserName = "", Password = "").Uri
               let transport =
                 new HttpMessageInvoker(
                   SocketBasedHandler.handler
                     config
-                    (Some(selected, proxy.Credentials))
+                    (Some(address, proxy.Credentials))
                 )
               proxied.Add(selected, transport)
               transport)
