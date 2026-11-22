@@ -211,13 +211,27 @@ let rec private isOutOfStack (ex : exn) : bool =
   | :? System.InsufficientExecutionStackException -> true
   | _ -> not (isNull ex.InnerException) && isOutOfStack ex.InnerException
 
-/// <param ex> as the runtime error it stands for, when it carries a store condition: something the
-/// person running the program can resolve once told. Not reported as an exception, since it is not a
-/// defect. Callers check `Exception.findStoreCondition` first.
-let storeCondition (ex : exn) : RTE.Error =
-  match Exception.findStoreCondition ex with
-  | Some condition -> RTE.Condition condition.Message
-  | None -> RTE.UncaughtException(ex.Message, [])
+/// <param ex>, thrown out of a run in <param vm>, as the runtime error it stands for.
+///
+/// A store condition is something the person running the program can resolve once told, and
+/// running out of stack is the program's own doing, so neither is reported as an exception.
+let errorOf (exeState : RT.ExecutionState) (vm : RT.VMState) (ex : exn) : RTE.Error =
+  match ex with
+  | RT.RuntimeErrorException rte -> rte
+  | ex when isOutOfStack ex -> RTE.UncaughtException(outOfStackMessage, [])
+  | ex ->
+    exitIfOutOfMemory ex
+    match Exception.findStoreCondition ex with
+    | Some condition -> RTE.Condition condition.Message
+    | None ->
+      let metadata : Metadata =
+        Exception.toMetadata ex |> List.map (fun (k, v) -> k, metadataValueString v)
+      try
+        exeState.reportException exeState vm metadata ex
+      with _ ->
+        ()
+      let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
+      RTE.UncaughtException(ex.Message, metadata)
 
 let execute
   (exeState : RT.ExecutionState)
@@ -230,25 +244,8 @@ let execute
         let! result = Pending.toTask (Interpreter.execute exeState vm)
         return Ok result
 
-      with
-      | RT.RuntimeErrorException(rte) ->
-        let callStack = callStackFromVM vm
-        return Error(rte, callStack)
-      | ex when isOutOfStack ex ->
-        return
-          Error(RTE.UncaughtException(outOfStackMessage, []), callStackFromVM vm)
-      | ex when (Exception.findStoreCondition ex).IsSome ->
-        return Error(storeCondition ex, callStackFromVM vm)
-      | ex ->
-        exitIfOutOfMemory ex
-        let metadata : Metadata =
-          Exception.toMetadata ex
-          |> List.map (fun (k, v) -> k, metadataValueString v)
-        exeState.reportException exeState vm metadata ex
-
-        let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
-        let callStack = callStackFromVM vm
-        return Error(RTE.UncaughtException(ex.Message, metadata), callStack)
+      with ex ->
+        return Error(errorOf exeState vm ex, callStackFromVM vm)
 
     finally
       // Does nothing in non-tests
@@ -428,26 +425,6 @@ let private loadApplyRegisters
   args.tail |> List.iteri (fun i arg -> registers[i + 3] <- arg)
 
 
-/// The cold path out of `executeApplicable`: something threw that was not a runtime error.
-///
-/// A top-level function rather than a local one, so it captures nothing and costs nothing on the
-/// applications that never throw, which is all but a vanishing few.
-let private uncaught
-  (exeState : RT.ExecutionState)
-  (vm : RT.VMState)
-  (ex : exn)
-  : RT.ExecutionResult =
-  exitIfOutOfMemory ex
-  match Exception.findStoreCondition ex with
-  | Some condition -> Error(RTE.Condition condition.Message, callStackFromVM vm)
-  | None ->
-    let metadata : Metadata =
-      Exception.toMetadata ex |> List.map (fun (k, v) -> k, metadataValueString v)
-    exeState.reportException exeState vm metadata ex
-    let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
-    Error(RTE.UncaughtException(ex.Message, metadata), callStackFromVM vm)
-
-
 /// A VM to apply `argCount` arguments in, borrowed from the thread's slot where one is going spare.
 ///
 /// See `VMState.reuseFor`: a lambda applied per element of a list would otherwise build one VM per
@@ -478,13 +455,8 @@ let private finished
       let result = run ()
       VMSlot.Return vm
       Ok result
-    with
-    | RT.RuntimeErrorException(rte) -> Error(rte, callStackFromVM vm)
-    // Return stack-depth failures to the caller as runtime errors.
-    // Skip reportException, which is reserved for unexpected internal failures.
-    | ex when isOutOfStack ex ->
-      Error(RTE.UncaughtException(outOfStackMessage, []), callStackFromVM vm)
-    | ex -> uncaught exeState vm ex
+    with ex ->
+      Error(errorOf exeState vm ex, callStackFromVM vm)
   finally
     exeState.test.postTestExecutionHook exeState.test
 

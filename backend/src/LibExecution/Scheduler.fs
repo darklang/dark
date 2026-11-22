@@ -951,31 +951,8 @@ type Scheduler(quantum : int64) =
       | _ -> this.StopChildrenOf(p.id, "its parent finished", false)
 
   member private this.Fail(p : Process, ex : exn) : unit =
-    match ex with
-    | RT.RuntimeErrorException(rte) ->
-      this.Finish(p, Error(rte, Execution.callStackFromVM p.vm))
-    | ex when (Exception.findStoreCondition ex).IsSome ->
-      this.Finish(
-        p,
-        Error(Execution.storeCondition ex, Execution.callStackFromVM p.vm)
-      )
-    | ex ->
-      Execution.exitIfOutOfMemory ex
-      let metadata : Metadata =
-        Exception.toMetadata ex
-        |> List.map (fun (k, v) -> k, Execution.metadataValueString v)
-      try
-        p.exeState.reportException p.exeState p.vm metadata ex
-      with _ ->
-        ()
-      let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
-      this.Finish(
-        p,
-        Error(
-          RTE.UncaughtException(ex.Message, metadata),
-          Execution.callStackFromVM p.vm
-        )
-      )
+    let error = Execution.errorOf p.exeState p.vm ex
+    this.Finish(p, Error(error, Execution.callStackFromVM p.vm))
 
   /// What the current frame is applying, for `ps`. Best effort: the instruction under the counter
   /// is an `Apply` whose callee register still holds the callable; anything else is a rare opcode.
