@@ -3493,9 +3493,8 @@ module Promises =
   /// At most this many reads in flight per OS process; past it a read is awaited in program order,
   /// so a map over a hundred thousand urls does not open a hundred thousand sockets.
   /// A fixed bound, not a setting: past it the program is already saturating whatever it reads
-  /// from, and a knob nobody would know how to set is not a knob. Mutable only so a test can
-  /// lower it to see the bound hold.
-  let mutable maxInflight = 256
+  /// from, and a knob nobody would know how to set is not a knob.
+  let maxInflight = 256
 
   let mutable private inflight = 0
 

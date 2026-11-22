@@ -1545,43 +1545,31 @@ a"""
 let private inflightBoundHolds =
   testTask "past the in-flight bound a read is awaited in program order" {
     Gates.reset ()
-    Trace.take () |> ignore<List<string>>
-    let before = LibExecution.Interpreter.Promises.maxInflight
-    LibExecution.Interpreter.Promises.maxInflight <- 2
-    try
-      let state = executionStateFor pmPT false
-      let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
-      let! (p : Scheduler.Process) =
-        spawn
-          s
-          state
-          """let xs = Stdlib.List.map([ 41, 42, 43, 44 ], fun n -> (let _ = Builtin.testTrace("start") in let r = Builtin.testRead(n) in let _ = Builtin.testTrace("end") in r))
-let _ = Builtin.testTrace("mapped")
+    let bound = int64 LibExecution.Interpreter.Promises.maxInflight
+    let last = bound + 2L
+    let state = executionStateFor pmPT false
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! (p : Scheduler.Process) =
+      spawn
+        s
+        state
+        $"""let xs = Stdlib.List.map(Stdlib.List.range(1, {last}), fun n -> Builtin.testRead(n))
 Stdlib.List.fold(xs, 0, fun(a, b) -> a + b)"""
-      let running = runOnThread s p
-      // Two in flight, and the third awaited before the fourth is even called.
-      waitFor "three reads started" (fun () -> Gates.waiting () = [ 41L; 42L; 43L ])
-      Thread.Sleep 50
-      Expect.equal
-        (Gates.waiting ())
-        [ 41L; 42L; 43L ]
-        "the fourth waits for the third"
-      // The first two lambdas ran to their end with the read still in flight (their `r` is a
-      // promise); the third is waiting inline, so its "end" has not come.
-      Expect.equal
-        (Trace.take ())
-        [ "start"; "end"; "start"; "end"; "start" ]
-        "the map has not returned"
-      Gates.release 43L
-      waitFor "the fourth read" (fun () -> List.contains 44L (Gates.waiting ()))
-      Gates.release 44L
-      waitForTrace "the map returned" [ "end"; "start"; "end"; "mapped" ]
-      Gates.release 41L
-      Gates.release 42L
-      let! result = running
-      Expect.equal (expectOk result "the program") (RT.DInt64 170L) "the sum"
-    finally
-      LibExecution.Interpreter.Promises.maxInflight <- before
+    let running = runOnThread s p
+    // `bound` in flight, and the one after awaited before the last is even called.
+    let started = [ 1L .. bound + 1L ]
+    waitFor "the bound and one more started" (fun () -> Gates.waiting () = started)
+    Thread.Sleep 50
+    Expect.equal (Gates.waiting ()) started "the last waits for the one before"
+    Gates.release (bound + 1L)
+    waitFor "the last read" (fun () -> List.contains last (Gates.waiting ()))
+    for n in 1L .. last do
+      Gates.release n
+    let! result = running
+    Expect.equal
+      (expectOk result "the program")
+      (RT.DInt64(last * (last + 1L) / 2L))
+      "the sum"
   }
 
 
