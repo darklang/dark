@@ -81,14 +81,19 @@ let create(): Stdlib.Result.Result<T, String> =
       //
       // And clear its traces: the source store holds other tests' runs, some still going,
       // so an instance would otherwise start with traces it never made.
+      //
+      // Unsynced, and switched to WAL here rather than by its first command: a sync on the
+      // copy's first write sends the whole fresh copy to disk, and an instance is thrown
+      // away anyway.
       let db = $"{dir}/data.db"
+      let unsynced = "sqlite3 -cmd 'PRAGMA synchronous=OFF'"
       let clearTraces =
-        $"sqlite3 {db} \"SELECT 'DELETE FROM ' || name || ';' FROM sqlite_master WHERE type = 'table' AND name LIKE 'trace%'\" | sqlite3 {db}"
+        $"sqlite3 {db} \"SELECT 'DELETE FROM ' || name || ';' FROM sqlite_master WHERE type = 'table' AND name LIKE 'trace%'\" | {unsynced} {db}"
 
       let copy =
         Stdlib.Cli.Unix.executeInDirectoryWithOutput(
           ".",
-          $"if [ -s {src}-wal ]; then sqlite3 -cmd '.timeout 10000' {src} '.backup {db}'; else cp {src} {db} && chmod u+w {db}; fi && sqlite3 {db} 'DELETE FROM config_v0;' && {clearTraces}")
+          $"if [ -s {src}-wal ]; then sqlite3 -cmd '.timeout 10000' {src} '.backup {db}'; else cp {src} {db} && chmod u+w {db}; fi && {unsynced} {db} 'PRAGMA journal_mode=WAL; DELETE FROM config_v0;' >/dev/null && {clearTraces}")
 
       if copy.exitCode != 0 then
         Stdlib.Result.Result.Error(
