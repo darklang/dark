@@ -210,14 +210,20 @@ version.
 module Darklang.Stdlib.Host
 type EventSpec = Key | StoreChanged | Timer(ms: Int64) | ExecDone(id: Uuid)
 type Event = Key(KeyRead) | StoreChanged(LanguageTools.Live.Change) | Timer | ExecDone(id: Uuid)
-let await(specs: List<EventSpec>): Event
+type Awaited = { watch: LanguageTools.Live.Watch; event: Event }
+let begin(): LanguageTools.Live.Watch
+let await(watch: LanguageTools.Live.Watch, specs: List<EventSpec>): Awaited
 ```
 
 Under the scheduler the calling process parks on the first spec to fire.
 Outside one (a plain `execute`) it blocks the thread, polling. A
 `StoreChanged` from the runtime carries nothing; `await` asks
-`LanguageTools.Live.poll` what landed and hands the loop the `Change`, and a move
-that carried no op (a config write) is absorbed. `Builtin.hostAwait` declares
+`LanguageTools.Live.poll` what landed since `watch` and hands the loop the
+`Change` with the watch moved past it, and a move that carried no op (a config
+write) is absorbed. Each loop keeps its own watch (from `begin()`) and passes the
+returned one to its next `await`, so two loops in one process, such as a view
+opened from the CLI, each see every change. A change the watch has not reported
+is answered before parking. `Builtin.hostAwait` declares
 `{Stdin; PackageRead}` statically, the union of what any spec could need.
 
 `readKey ()` is unchanged for users; under the scheduler its body is "park on

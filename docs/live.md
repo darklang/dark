@@ -181,27 +181,29 @@ Every TUI host is written against one contract, the scheduler's event queue behi
 `Stdlib.Host.await`:
 
 ```
-let rec loop model =
-  match Host.await([Key, StoreChanged]) with
+let rec loop(model, watch) =
+  let r = Host.await(watch, [Key, StoreChanged])
+  match r.event with
   | StoreChanged(c) when Live.affects(c.locations, entry) ->
       let model = reload(entry, model)    // last-good rule applies
-      loop(render(model))
-  | Key(k) -> loop(render(update(model, k)))
-  | _ -> loop(model)
+      loop(render(model), r.watch)
+  | Key(k) -> loop(render(update(model, k)), r.watch)
+  | _ -> loop(model, r.watch)
 ```
 
-`Stdlib.Host.await([Key, StoreChanged, Timer(ms), ExecDone(id)])` returns the first that
+`Stdlib.Host.await(watch, [Key, StoreChanged, Timer(ms), ExecDone(id)])` returns the first that
 fired: `Key(KeyRead)` (the runtime's read: a key, a paste, a burst with its repeat
 count), `StoreChanged(Live.Change)`, `Timer`, `ExecDone(id)` (a process finished; ask
 `Exec.await` how). It is `Builtin.hostAwait` (`docs/processes.md`: under the scheduler
 the calling process parks on the event queue, fed by a reader thread, timers and a
 store poll over `LibDB.Sqlite.DataVersion`; outside a scheduler the thread is held,
 polling) plus one thing the runtime cannot do: say which ops landed. The poll posts that
-the store MOVED; `await` describes it with `Live.poll` from a watch the runtime keeps in
-one slot (`Builtin.hostWatchGet/Set`, since `await` takes no state and a Dark value does
-not outlive the call that made it), and a move that carried no op (a config write) is
-absorbed and the wait goes on. `Host.begin()` starts the watch before a loop resolves
-its entries, so an edit during startup is not missed.
+the store MOVED; `await` describes it with `Live.poll` from the watch the loop passed in,
+and hands back the moved watch with the event (`Awaited { watch; event }`); a move that
+carried no op (a config write) is absorbed and the wait goes on. Each loop keeps its own
+watch in its state: `Host.begin()` makes one before the loop resolves its entries, so an
+edit during startup is not missed, and a view opened from the CLI does not take the
+CLI's changes.
 
 A view of something that moves on its own (`ps --watch`) sets `View.every = Some ms`;
 the host then adds `Timer ms` to every wait and hands the view an `Event.Tick`, which its
@@ -249,7 +251,7 @@ A save that puts a name back on a version it held before lands as a decision (a 
 ## Daemons
 
 A daemon that follows edits is a step, `step : 's -> 's`, run by `Cli.LiveView.Runner`:
-once per interval, waiting through `Host.await([StoreChanged, Timer])` in between, so an
+once per interval, waiting through `Host.await(watch, [StoreChanged, Timer])` in between, so an
 edit that reaches the step is resolved through `LastGood` before the next tick and a
 broken version is skipped with the reason in the log. A daemon written as one
 long-running fn cannot follow anything, scheduler or not: its frames call callees by

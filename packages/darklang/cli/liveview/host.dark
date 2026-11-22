@@ -58,6 +58,9 @@ type Session<'model, 'msg> =
     /// nothing on screen, which is what you want when the thing on screen is running and you are
     /// editing something else.
     updates: Updates
+    /// How far this view has looked at the op log, for `Stdlib.Host.await`. Its own, so a view
+    /// opened from the CLI does not take changes the CLI's loop has not seen yet.
+    watch: LanguageTools.Live.Watch
     terminal: Stdlib.Cli.Tui.TerminalSession.State
     exiting: Bool }
 
@@ -461,7 +464,9 @@ let step(s: Session<'model, 'msg>): Session<'model, 'msg> =
     | None, Some(_) -> Stdlib.List.append(watching, Stdlib.Host.EventSpec.Timer(toastMs))
     | None, None -> watching
 
-  match Stdlib.Host.await(specs) with
+  let awaited = Stdlib.Host.await(s.watch, specs)
+  let s = { s with watch = awaited.watch }
+  match awaited.event with
   | StoreChanged(change) ->
     // `Live.show` first: an agent that authored a view and pointed at it lands both in one
     // wake, and the view it named is the one the edit should be seen on.
@@ -543,7 +548,7 @@ let prepareWith(
   resume: Option<String>,
   updates: Updates)
   : Result<Session<'model, 'msg>, String> =
-  Stdlib.Host.begin()
+  let watch = Stdlib.Host.begin()
   match resolveAll(branchId, view) with
   | Error(e) -> Result.Error(e)
   | Ok(resolved) ->
@@ -575,6 +580,7 @@ let prepareWith(
               toast = Option.None
               scroll = 0
               updates = updates
+              watch = watch
               terminal = Stdlib.Cli.Tui.TerminalSession.init()
               exiting = false }))
 

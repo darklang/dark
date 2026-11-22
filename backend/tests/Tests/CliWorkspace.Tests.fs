@@ -1520,6 +1520,33 @@ let private treeRendersTheSameEverywhere =
 /// Demo 1, driven a turn at a time: a key reaches the view; an edit from elsewhere is on the next
 /// frame; a broken save keeps the frame and shows the diagnostic; the fix clears it. The model
 /// (what was typed) survives every swap.
+/// A view opened from the CLI runs in the CLI's process. Each loop keeps its own watch, so an
+/// edit the inner loop is woken for is still reported to the outer one when it waits again.
+let private nestedLoopsEachSeeAnEdit =
+  cliTest
+    "a loop inside another sees an edit, and so does the outer loop after it"
+    (fun target ->
+      task {
+        let state = executionState target
+        let author = author target
+
+        do! author "Tests.HostNest.leaf" "(): Int64 = 1"
+        // The timer only bounds a wait that would otherwise hang the test.
+        do!
+          author
+            "Tests.HostNest.twoLoops"
+            "(outer: Darklang.LanguageTools.Live.Watch, inner: Darklang.LanguageTools.Live.Watch): String = (let specs = [ Darklang.Stdlib.Host.EventSpec.StoreChanged, Darklang.Stdlib.Host.EventSpec.Timer(2000) ] in (let i = (Darklang.Stdlib.Host.await(inner, specs)).event in (let o = (Darklang.Stdlib.Host.await(outer, specs)).event in (match (i, o) with | (StoreChanged(_), StoreChanged(_)) -> \"both\" | (StoreChanged(_), _) -> \"inner only\" | _ -> \"neither\"))))"
+
+        let! outer = evalUnder state "Darklang.Stdlib.Host.begin()"
+        let! inner = evalUnder state "Darklang.Stdlib.Host.begin()"
+        do! author "Tests.HostNest.leaf" "(): Int64 = 2"
+
+        let driver = loopDriver state
+        let! seen = stepOn driver "Tests.HostNest.twoLoops" [ outer; inner ]
+        Expect.equal seen (RT.DString "both") "each loop was told about the edit"
+      })
+
+
 let private viewFollowsEdits =
   cliTest
     "a live view repaints on an edit and keeps the last good frame across a broken one"
@@ -2441,6 +2468,7 @@ let tests : List<Test> =
           pollAndAffects
           treeRendersTheSameEverywhere
           viewFollowsEdits
+          nestedLoopsEachSeeAnEdit
           modelSavesAndResumes
           pollIgnoresAnOpUntilItIsApplied
           pollOnABranchSeesTheBranchsOwnSaves

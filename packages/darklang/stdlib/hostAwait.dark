@@ -5,9 +5,10 @@
 /// calling process gives up the thread while it waits, so other processes keep running; outside
 /// one (a plain `execute`) the thread is held, polling. The loop knows neither.
 ///
-/// Nothing outside this file reads a key with a timeout, sleeps in slices, or remembers when it
-/// last looked at the store. If a loop needs any of that, it is asking for an `EventSpec` that does
-/// not exist yet, and the place to add it is here.
+/// Nothing outside this file reads a key with a timeout, sleeps in slices, or looks at the op log
+/// itself. A loop holds the `Watch` that `await` hands back and passes it to the next one. If a loop
+/// needs more, it is asking for an `EventSpec` that does not exist yet, and the place to add it is
+/// here.
 module Darklang.Stdlib.Host
 
 /// What a process can wait for. `Host.await` takes a list of these and parks the calling
@@ -57,50 +58,44 @@ type Event =
   | StdinClosed
 
 
-/// The watch behind `await`: where its last look at the op log left off. The runtime posts that
-/// the store MOVED (a data-version counter, from a timer under the scheduler); which ops landed is
-/// Dark's question, answered by `LanguageTools.Live.poll` from here. The watch lives in a slot the runtime
-/// keeps for this process (`Builtin.hostWatchGet`), because `await` takes no state and a Dark value
-/// does not outlive the call that made it.
-let remember(watch: LanguageTools.Live.Watch): LanguageTools.Live.Watch =
-  Builtin.hostWatchSet(watch)
-  watch
+/// What `await` came back with: the event, and the watch to pass to the next `await`.
+type Awaited =
+  { watch: LanguageTools.Live.Watch
+    event: Event }
 
 
-let currentWatch(): LanguageTools.Live.Watch =
-  match Builtin.hostWatchGet() with
-  | Some(w) -> w
-  | None -> remember(LanguageTools.Live.watch(SCM.PackageOps.currentBranch()))
-
-
-/// What landed since the last look. `None` when the store moved for a reason that is not an op (a
-/// config write, a trace).
-let describeChange(): Option<LanguageTools.Live.Change> =
-  let (next, change) = LanguageTools.Live.poll(currentWatch())
-  let _ = remember(next)
-  change
-
-
-/// Say that a loop is about to start: the watch starts here, so an edit that lands between now
-/// and the loop's first `await` (while its entries are being resolved, say) is reported by it.
-/// Call it once, before resolving what the loop will show.
-let begin(): Unit =
-  let _ = currentWatch()
-  ()
+/// A fresh watch for a loop that is about to start: where its first `await` starts looking at
+/// the op log, so an edit that lands between now and then (while its entries are being
+/// resolved, say) is reported by it. Each loop keeps its own and passes it to every `await`.
+let begin(): LanguageTools.Live.Watch =
+  LanguageTools.Live.watch(SCM.PackageOps.currentBranch())
 
 
 /// Park until one of `specs` happens, and say which.
 ///
-/// A store change the runtime reports is described before it is handed back; one that turns out
-/// to carry no op (the counter moves for a config write too) is not an event, and the wait goes on.
-let await(specs: List<EventSpec>): Event =
-  match Builtin.hostAwait(specs) with
-  | Key(k) -> Event.Key(k)
-  | Timer -> Event.Timer
-  | ExecDone(id) -> Event.ExecDone(id)
-  | Stdin(text) -> Event.Stdin(text)
-  | StdinClosed -> Event.StdinClosed
-  | StoreChanged ->
-    match describeChange() with
-    | Some(change) -> Event.StoreChanged(change)
-    | None -> await(specs)
+/// A store change is described from <param watch> before it is handed back; one that turns out
+/// to carry no op (the counter moves for a config write too) is not an event, and the wait goes
+/// on. A change the watch has not reported yet is answered without parking: another loop in this
+/// process (a view opened from the CLI) may have been woken for it already.
+let await(watch: LanguageTools.Live.Watch, specs: List<EventSpec>): Awaited =
+  let (watch, pending) =
+    if Stdlib.List.contains(specs, EventSpec.StoreChanged) then
+      LanguageTools.Live.poll(watch)
+    else
+      (watch, Option.None)
+
+  match pending with
+  | Some(change) -> Awaited { watch = watch, event = Event.StoreChanged(change) }
+  | None ->
+    let event =
+      match Builtin.hostAwait(specs) with
+      | Key(k) -> Option.Some(Event.Key(k))
+      | Timer -> Option.Some(Event.Timer)
+      | ExecDone(id) -> Option.Some(Event.ExecDone(id))
+      | Stdin(text) -> Option.Some(Event.Stdin(text))
+      | StdinClosed -> Option.Some(Event.StdinClosed)
+      | StoreChanged -> Option.None
+
+    match event with
+    | Some(e) -> Awaited { watch = watch, event = e }
+    | None -> await(watch, specs)
