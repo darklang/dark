@@ -400,3 +400,57 @@ test aBareMergeOrRebaseMeansTheBranchYouAreOn =
         [ "merge", "nosuchbranch" ],
         "no branch",
         "a named branch is still looked up") ])
+
+
+/// An unbind on a branch takes a main name away there, shows as a removal, and takes it off main
+/// when the branch merges. No verb writes one yet, so it is authored through `SCM.PackageOps.add`,
+/// which needs package-write.
+test anUnbindOnABranchTakesTheNameOffMainWhenItMerges =
+  scenario(fun dark ->
+    [ saveNumber(dark, "Tests.App.gone", "1")
+      commit(dark, "gone soon")
+      switch(dark, "feat")
+      run(dark, [ "permissions", "allow", "package-write" ])
+      says(
+        dark,
+        [ "eval"
+          "Darklang.SCM.PackageOps.add(Builtin.scmCurrentBranch(), [ Darklang.LanguageTools.ProgramTypes.PackageOp.Unbind(Darklang.LanguageTools.ProgramTypes.PackageLocation { owner = \"Tests\", modules = [ \"App\" ], name = \"gone\" }, Stdlib.Option.Option.None) ])" ],
+        "Ok",
+        "the unbind is authored on the branch")
+
+      notFound(dark, "Tests.App.gone()", "the name is gone on the branch")
+      says(dark, [ "status" ], "1 item removed", "status names the removal")
+      saysAll(
+        dark,
+        [ "commit", "remove gone", "-y" ],
+        [ "REMOVED (1)", "Tests.App.gone" ],
+        "commit's review lists it by name")
+
+      switch(dark, "main")
+      evals(dark, "Tests.App.gone()", "1", "main still has it before the merge")
+      merge(dark, "feat")
+      notFound(dark, "Tests.App.gone()", "and main no longer has the name")
+      same(
+        commits(dark),
+        [ "merged branch \"feat\"", "remove gone", "gone soon" ],
+        "the removal's commit travelled with the merge") ])
+
+
+/// Two branches that save identical code hold the same ops. Merging one commits what it landed,
+/// and archiving the other does not bring that work back as main's draft.
+test aMergeCommitsWorkASiblingBranchAlsoHolds =
+  scenario(fun dark ->
+    [ switch(dark, "one")
+      saveNumber(dark, "Tests.App.f", "99")
+      commit(dark, "one work")
+      switch(dark, "main")
+      switch(dark, "two")
+      saveNumber(dark, "Tests.App.f", "99")
+      commit(dark, "two work")
+      switch(dark, "main")
+      merge(dark, "one")
+      draftIsEmpty(dark, "everything the merge landed is committed by it")
+      run(dark, [ "branch", "archive", "two", "-y" ])
+      draftIsEmpty(
+        dark,
+        "and archiving the sibling does not bring the work back as draft") ])
