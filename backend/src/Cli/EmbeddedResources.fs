@@ -68,7 +68,7 @@ let private extractBrotliResource
     use fileStream = File.Create(targetPath)
     brotli.CopyTo(fileStream)
 
-let private hasEmbeddedResource (resourceName : string) : bool =
+let hasEmbeddedResource (resourceName : string) : bool =
   let assembly = Assembly.GetExecutingAssembly()
   assembly.GetManifestResourceNames() |> Array.contains resourceName
 
