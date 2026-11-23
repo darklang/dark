@@ -224,6 +224,7 @@ let main (args : string array) : int =
         Tests.BranchOverlay.tests
         Tests.OpsProjections.tests
         Tests.ReferenceNames.tests
+        Tests.TestBaseline.tests
         Tests.Stream.tests
         Tests.Permissions.tests
         Tests.PackagePermissions.tests

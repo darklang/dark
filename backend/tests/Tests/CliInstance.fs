@@ -161,7 +161,7 @@ let rec private copyDir (source : string) (dest : string) : unit =
     copyDir dir (System.IO.Path.Combine(dest, System.IO.Path.GetFileName dir))
 
 /// A fresh instance, seeded from the template.
-let create () : T =
+let private create () : T =
   let dir =
     System.IO.Path.Combine(
       instanceRoot.Value,
@@ -198,11 +198,30 @@ let checkBindings (i : T) : unit =
   if p.ExitCode <> 0 then
     Expecto.Tests.failtestf "the store's bindings are broken: %s%s" out.Result err
 
-let dispose (i : T) : unit =
+let private dispose (i : T) : unit =
   try
     System.IO.Directory.Delete(homeOf i.dir, true)
   with _ ->
     () // a leaked instance goes with the rest of instanceRoot when the process exits
+
+/// How many instances may exist at once. Expecto runs a test per core, and each instance is a
+/// whole copy of the store in the container's /tmp, which the package tests' instances share:
+/// one per core on a 48-core box was enough to fill it.
+let private live = new System.Threading.SemaphoreSlim(16)
+
+/// Run `body` against an instance of its own, disposed whatever happens.
+let withInstance (body : T -> Task<'a>) : Task<'a> =
+  task {
+    do! live.WaitAsync()
+    try
+      let i = create ()
+      try
+        return! body i
+      finally
+        dispose i
+    finally
+      live.Release() |> ignore<int>
+  }
 
 /// How long one command may take before the test says so, rather than hanging the run.
 /// Generous on purpose: one `test run` launches a CLI per test, one after another, and a
@@ -341,10 +360,10 @@ let stop (p : System.Diagnostics.Process) : unit =
 /// serialise against.
 let instanceTest (name : string) (body : T -> Task<unit>) : Expecto.Test =
   Expecto.Tests.testTask name {
-    let i = create ()
-    try
-      do! body i
-      checkBindings i
-    finally
-      dispose i
+    do!
+      withInstance (fun i ->
+        task {
+          do! body i
+          checkBindings i
+        })
   }

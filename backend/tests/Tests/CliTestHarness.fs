@@ -530,24 +530,18 @@ let cliTest (name : string) (body : Target -> Task<unit>) : Test =
 /// `cliTest`.
 let instanceTest (name : string) (body : Target -> Task<unit>) : Test =
   testTask name {
-    let i = Tests.CliInstance.create ()
-    try
-      do! body (Instance i)
-      Tests.CliInstance.checkBindings i
-    finally
-      Tests.CliInstance.dispose i
+    do!
+      Tests.CliInstance.withInstance (fun i ->
+        task {
+          do! body (Instance i)
+          Tests.CliInstance.checkBindings i
+        })
   }
 
 /// `instanceTest` for a test that breaks its own store by hand, so the bindings check at the end
 /// would only report the damage the test made.
 let damagedTest (name : string) (body : Target -> Task<unit>) : Test =
-  testTask name {
-    let i = Tests.CliInstance.create ()
-    try
-      do! body (Instance i)
-    finally
-      Tests.CliInstance.dispose i
-  }
+  testTask name { do! Tests.CliInstance.withInstance (fun i -> body (Instance i)) }
 
 /// `countSql`, against the store the target drives: an instance's own file, opened read-only
 /// through SQLite so whatever is still in its WAL counts, or this process's store.

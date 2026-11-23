@@ -52,12 +52,47 @@ module Backup =
     with e ->
       Error e.Message
 
+  /// Empty every trace table and give the space back.
+  let private dropTraces (path : string) : Result<unit, string> =
+    try
+      use connection = new SqliteConnection($"Data Source={path};Pooling=false")
+      connection.Open()
+      let command (sql : string) =
+        let command = connection.CreateCommand()
+        command.CommandText <- sql
+        command
+      let tables =
+        use names =
+          command
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'trace%'"
+        use reader = names.ExecuteReader()
+        [ while reader.Read() do
+            reader.GetString 0 ]
+      use sync = command "PRAGMA synchronous=OFF"
+      sync.ExecuteNonQuery() |> ignore<int>
+      let deleted =
+        tables
+        |> List.sumBy (fun table ->
+          use delete = command $"DELETE FROM \"{table}\""
+          delete.ExecuteNonQuery())
+      use free = command "PRAGMA freelist_count"
+      if deleted > 0 || (free.ExecuteScalar() :?> int64) > 0L then
+        use vacuum = command "VACUUM"
+        vacuum.ExecuteNonQuery() |> ignore<int>
+      Ok()
+    with e ->
+      Error e.Message
+
   /// Create a complete database file for tests: a test run's shared snapshot, or
   /// a nested test worker's own store.
   /// Disable connection pooling so closing the backup flushes any WAL
   /// contents into that file before returning.
+  ///
+  /// Without the store's traces: they can be most of a dev store, and every CLI instance a
+  /// test makes is a whole copy of this file.
   let toTestBaseline (target : string) : Result<unit, string> =
     copy connString $"Data Source={target};Mode=ReadWriteCreate;Pooling=false"
+    |> Result.bind (fun () -> dropTraces target)
 
 
 /// "Did the store change since I last asked?", for a process that stays up.
