@@ -1,0 +1,72 @@
+/// `config list` shows each setting's value and where it came from.
+module Darklang.Cli.Tests.ConfigList
+
+/// Run in the instance with one more environment variable.
+let ranWithEnv(i: Instance.T, name: String, value: String, args: List<String>): String =
+  let envArgs =
+    Stdlib.List.append(Instance.env(i), (name, value))
+    |> Stdlib.List.map(fun pair ->
+      let (k, v) = pair
+      $"{k}={v}")
+
+  let result =
+    Stdlib.Cli.Process.runWithTimeout(
+      Instance.commandTimeoutMs,
+      "/usr/bin/env",
+      Stdlib.List.concat(envArgs, Stdlib.List.prepend(args, i.cli)))
+
+  match result with
+  | Ok(out) -> out.stdout + out.stderr
+  | Error(e) -> $"could not run: {e}"
+
+
+/// The row for <param key>, its words split on runs of spaces.
+let rowOf(out: String, key: String): List<String> =
+  out
+  |> Stdlib.String.split("\n")
+  |> Stdlib.List.findFirst(fun line -> Stdlib.String.startsWith(line, $"  {key} "))
+  |> Stdlib.Option.map(fun line ->
+    line
+    |> Stdlib.String.split(" ")
+    |> Stdlib.List.filter(fun w -> w != ""))
+  |> Stdlib.Option.withDefault([])
+
+
+let field(json: Stdlib.AltJson.Json, name: String): String =
+  match json with
+  | Object(fields) ->
+    match Stdlib.List.findFirst(fields, fun((k, _)) -> k == name) with
+    | Some((_, String(s))) -> s
+    | _ -> ""
+  | _ -> ""
+
+
+test listShowsValueAndSource = Instance.withInstance(fun i ->
+  let before = Instance.said(i, [ "config", "list" ])
+  let _ = Instance.ran(i, [ "config", "set", "trace.keep", "50" ])
+  let after = Instance.said(i, [ "config", "list" ])
+  let fromEnv = ranWithEnv(i, "DARK_CONFIG_HTTP_PRIVATE", "on", [ "config", "list" ])
+  Stdlib.Test.all(
+    [ Stdlib.List.take(rowOf(before, "trace.keep"), 3)
+      |> Stdlib.Test.equal([ "trace.keep", "200", "default" ])
+      Stdlib.List.take(rowOf(after, "trace.keep"), 3)
+      |> Stdlib.Test.equal([ "trace.keep", "50", "set" ])
+      Stdlib.List.take(rowOf(fromEnv, "http.private"), 3)
+      |> Stdlib.Test.equal([ "http.private", "on", "env" ]) ]))
+
+
+test listJson = Instance.withInstance(fun i ->
+  let _ = Instance.ran(i, [ "config", "set", "trace.keep", "50" ])
+  let (code, out, err) = Instance.streams(i, [ "config", "list", "--json" ])
+  match Stdlib.AltJson.parse(out) with
+  | Error(_) -> Stdlib.Test.fail($"did not print JSON: {out}{err}")
+  | Ok(Array(rows)) ->
+    let keep =
+      rows
+      |> Stdlib.List.findFirst(fun r -> field(r, "key") == "trace.keep")
+      |> Stdlib.Option.map(fun r -> (field(r, "value"), field(r, "source")))
+
+    Stdlib.Test.all(
+      [ Instance.exitedWith(code, 0, "config list --json")
+        Stdlib.Test.equal(keep, Stdlib.Option.Option.Some(("50", "set"))) ])
+  | Ok(_) -> Stdlib.Test.fail($"expected an array, got {out}"))

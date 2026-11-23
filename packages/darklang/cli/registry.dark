@@ -34,8 +34,8 @@ module Registry =
       [ ("get", Accepts.between(1, 1, []))
         ("set", Accepts.textBetween(2, 2))
         ("unset", Accepts.between(1, 1, []))
-        ("list", Accepts.nothing()) ],
-      Accepts.nothing())
+        ("list", Accepts.flagsOnly([ "--json" ])) ],
+      Accepts.flagsOnly([ "--json" ]))
 
 
   let acceptsInstall(): Accepts.Accepts =
