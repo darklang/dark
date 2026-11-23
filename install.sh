@@ -168,7 +168,7 @@ main() {
   trap 'exit 1' HUP INT TERM
 
   # The checksum catches a download damaged or swapped on the way, or a binary replaced on the
-  # release without its checksums file. TODO SECURITY: it doesn't authenticate the release; a
+  # release without its checksums file. It doesn't authenticate the release; a
   # signature checked against a key pinned here would.
   download "$asset_url" "$tmpdir/dark.gz" || fail "download failed: $asset_url"
   download "$sums_url" "$tmpdir/sums.txt" || fail "download failed: $sums_url"

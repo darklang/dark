@@ -297,15 +297,6 @@ let rec private isFullyKnown (vt : ValueType) : bool =
       NEList.toList args |> List.forall isFullyKnown && isFullyKnown ret
 
 
-/// TODO richer error messages around type-variable resolution. When a
-/// `FnParameterNotExpectedType` fires after inference has bound some
-/// TVariables, the error currently shows the *resolved* expected type
-/// (e.g. "expects List<(String * Int64)>") which is more accurate than
-/// before but loses the fact that `Int64` came from inference and was
-/// reasoned-back-from a sibling argument. A "(inferred from arg N's
-/// VT)" annotation would help users understand why the type check
-/// fired the way it did. Touches RuntimeError formatting and the
-/// type-checker's binding trail. Not on fire today.
 /// Walk a TypeReference and a ValueType in lockstep, collecting
 /// `TVariable name -> VT` bindings. Used at function-call sites to
 /// infer type-variable values from actual arguments — so a wrapper

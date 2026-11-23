@@ -1033,8 +1033,6 @@ type Instruction =
     failJump : int
 
   /// Could not find matching case in a match expression
-  /// CLEANUP we probably need a way to reference back to PT so we can get useful RTEs
-  /// TODO probably better as a usage of a broader "Fail" error case.
   | MatchUnmatched of valueReg : Register
 
 
@@ -3799,22 +3797,6 @@ module RuntimeError =
 
 
   module Lets =
-    // TODO consider some kinda _path_ thing like with JSON errors:
-    // type Details =
-    //   /// Unit pattern does not match
-    //   | UnitPatternDoesNotMatch
-
-    //   /// Tuple pattern does not match
-    //   | TuplePatternDoesNotMatch
-
-    //   /// Tuple pattern has wrong number of elements
-    //   | TuplePatternWrongLength of expected: Int64 * actual: Int64
-
-    // maybe it'd be better to present:
-    // - top-level path we're matching against
-    // - the path to failure
-    // - (?) ??
-
     type Error =
       /// Could not decompose `{someFn dval}` with pattern `{someFn pat}` in `let` expression
       | PatternDoesNotMatch of dval : Dval * pat : LetPattern

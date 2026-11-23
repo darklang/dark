@@ -316,8 +316,6 @@ let checkedPower(base: Int128, exponent: Int128): Result<Int128, Math.PowerError
 
 // Division. `/` raises on a zero divisor and `%` on a modulus that is not positive;
 // these return the reason instead.
-// TODO: make `/` and `%` themselves checked by default; see the TODO on the `divide`
-// builtin in NoModule.fs.
 
 /// Divides <param a> by <param b>, rounding towards zero, or
 /// {{Error DivisionByZero}} where `/` raises, or {{Error Overflow}} for the

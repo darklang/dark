@@ -48,9 +48,6 @@ let toMetadata (e : exn) : Metadata =
   | _ -> []
 
 
-// CLEANUP reduce usages of all of these raiseInternal fns
-// and/or map them to an UncaughtException or something, not sure.
-
 let raiseInternal (msg : string) (tags : Metadata) =
   raise (InternalException(msg, tags))
 
