@@ -165,6 +165,18 @@ test stdlibSuggestionFindsTheRealName =
       suggest("Stdlib.String.substring")
       |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.String.slice"))
 
+      suggest("Stdlib.List.iteri")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.List.indexedMap"))
+
+      suggest("List.enumerate")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.List.indexedMap"))
+
+      suggest("Stdlib.Float64.format")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Decimal.round"))
+
+      suggest("Float64.roundTo")
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("Stdlib.Decimal.round"))
+
       suggest("Stdlib.Nope.zzz")
       |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 

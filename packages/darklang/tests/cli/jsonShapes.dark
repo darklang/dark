@@ -64,7 +64,7 @@ let hasKeys(
 
 /// The keys of `search --json`. The hint keys are there, empty, when something matched.
 val searchKeys =
-  [ "query", "results", "alsoSearched", "wordCounts", "didYouMean" ]
+  [ "query", "results", "alsoSearched", "wordCounts", "didYouMean", "partial" ]
 
 
 /// A list that answers `{}` or `null` when it is empty is the same break as a missing key.
@@ -228,6 +228,16 @@ test emptyAnswersKeepTheirShape = Instance.withInstance(fun i ->
                Stdlib.Bool.not(
                  Stdlib.List.isEmpty(rows(field(j, "didYouMean")))),
                "suggests a name")) ])
+
+      // A question in plain words: no item has every word, so the closest are offered.
+      check(
+        i,
+        [ "search", "run a shell command and get its output", "--json" ],
+        [ (fun j -> rowsHaveKeys(field(j, "partial"), [ "matched", "name" ]))
+          (fun j ->
+             isTrue(
+               Stdlib.Bool.not(Stdlib.List.isEmpty(rows(field(j, "partial")))),
+               "offers partial matches")) ])
 
       check(
         i,

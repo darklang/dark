@@ -141,6 +141,22 @@ let otherLanguageNames(): List<(String * List<String> * String)> =
       "Stdlib.List.flatten(Stdlib.List.map(xs, f))")
 
     ("List", [ "choose", "mapmaybe", "compactmap" ], "Stdlib.List.filterMap")
+    (
+      "List",
+      [ "iteri"
+        "mapi"
+        "enumerate"
+        "withindex"
+        "eachwithindex"
+        "mapindexed"
+        "foreachindexed" ],
+      "Stdlib.List.indexedMap")
+
+    (
+      "Float64",
+      [ "format", "tostringfixed", "toprecision", "formatfixed", "tofixed", "roundto" ],
+      "Stdlib.Decimal.round")
+
     ("List", [ "nth", "item", "at", "elementat", "get" ], "Stdlib.List.getAt")
     ("List", [ "reduce", "foldl", "foldleft", "inject", "aggregate" ], "Stdlib.List.fold")
     ("String", [ "toint", "parseint" ], "Stdlib.Int64.parse")
