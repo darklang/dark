@@ -215,8 +215,6 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
                 updates,
                 if bundled then Propagate.FollowerCheck.Skip else Propagate.FollowerCheck.Check)
 
-            if mode != SaveMode.Edit then Propagate.printFollowed(followed) else ()
-
             // A reload never leaves an edit's dependents behind, so the build fails over to one
             // when they could not follow.
             let state =
@@ -258,7 +256,7 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
             // line, both matching a single-item save in `core.dark`. A tick printed under the
             // reasons a save is broken is read as success by anybody who reads the last line.
             let glyph =
-              if parseFailed then
+              if parseFailed || Stdlib.Bool.not(Stdlib.List.isEmpty(followed.broken)) then
                 Stdlib.Cli.UI.Colors.warning("!")
               else
                 match report.verdict with
@@ -306,12 +304,9 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
             // so a type error is on screen before anything follows the change.
             AtRestCheck.printSaveReport(branchId, report)
 
-            if mode == SaveMode.Edit then
-              match (updatedName, report.verdict) with
-              | (Some(_), Checked) -> Propagate.printEditPropagation(followed)
-              | _ -> Propagate.printFollowed(followed)
-            else
-              ()
+            match (updatedName, report.verdict) with
+            | (Some(_), Checked) -> Propagate.printEditPropagation(followed)
+            | _ -> Propagate.printFollowed(followed)
 
             // Save the code so it can be fixed, and signal errors through the exit code.
             let state = if AtRestCheck.saveHasErrors(report) then failed(state) else state
