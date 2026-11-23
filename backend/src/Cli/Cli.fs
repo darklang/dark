@@ -971,8 +971,13 @@ let private runCli (args : string[]) : int =
               s.Contains "couldn't be found"
               && System.Text.RegularExpressions.Regex.IsMatch(s, "[0-9a-f]{32}")
             then
-              "\n\nThis usually means the store is older than the binary: package code was reloaded and the "
-              + "hashes moved.\n  Run `scripts/build/reload-packages` to bring the store up to this binary."
+              // A release binary carries its seed and brings the store up to itself on start.
+              if EmbeddedResources.hasEmbeddedResource "data.db.br" then
+                "\n\nThis usually means the store was last used by a different build of dark.\n"
+                + "  Run `dark update` to get the latest dark."
+              else
+                "\n\nThis usually means the store is older than the binary: package code was reloaded and the "
+                + "hashes moved.\n  Run `scripts/build/reload-packages` to bring the store up to this binary."
             else
               ""
 
