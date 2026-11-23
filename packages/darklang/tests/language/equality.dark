@@ -380,8 +380,8 @@ test uint16NotEqualsInt16Raises =
   (5u16 != 6s16) => raises "Cannot perform equality check on UInt16 and Int16"
 
 test leftOperandErrorRaisesFirst =
-  (Stdlib.Test.raiseRuntimeError("test")
-   != Stdlib.Test.raiseRuntimeError("different msg"))
+  (Darklang.Language.Tests.raiseRuntimeError("test")
+   != Darklang.Language.Tests.raiseRuntimeError("different msg"))
   => raises "Uncaught exception: test"
 
 test unitEqualsOptionRaises =

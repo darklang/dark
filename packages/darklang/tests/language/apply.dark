@@ -57,7 +57,7 @@ let returnsOptionNone(): Stdlib.Option.Option<Int64> = Stdlib.Option.Option.None
 let returnsResultOk(): Stdlib.Result.Result<Int64, 'err> =
   Stdlib.Result.Result.Ok(5)
 
-let derrorFn(msg: String): String = msg + Stdlib.Test.raiseRuntimeError(msg)
+let derrorFn(msg: String): String = msg + Darklang.Language.Tests.raiseRuntimeError(msg)
 
 let fnWithTypeArgs<'a, 'b>(a: 'a, b: 'b): 'a = a
 

@@ -713,21 +713,21 @@ module Errors =
       "No matching case found for value \"nothing matches\" in match expression"
 
   test subjectErrorRaises =
-    (match Stdlib.Test.raiseRuntimeError("cond is error") with
+    (match Darklang.Language.Tests.raiseRuntimeError("cond is error") with
      | 5 -> "fail"
      | 6 -> "pass"
      | var -> "fail")
     => raises "Uncaught exception: cond is error"
 
   test subjectErrorWithWildcardRaises =
-    (match Stdlib.Test.raiseRuntimeError("cond is error, wildcard") with
+    (match Darklang.Language.Tests.raiseRuntimeError("cond is error, wildcard") with
      | 5 -> 5
      | _ -> 6)
     => raises "Uncaught exception: cond is error, wildcard"
 
   test selectedFirstArmErrorRaises =
     (match 1 with
-     | 1 -> Stdlib.Test.raiseRuntimeError("a")
+     | 1 -> Darklang.Language.Tests.raiseRuntimeError("a")
      | 6 -> "pass"
      | var -> "fail")
     => raises "Uncaught exception: a"
@@ -735,27 +735,27 @@ module Errors =
   test unselectedArmErrorsSkipped =
     Stdlib.Test.all(
       [ (match 1 with
-         | 2 -> Stdlib.Test.raiseRuntimeError("Uncaught exception: a")
+         | 2 -> Darklang.Language.Tests.raiseRuntimeError("Uncaught exception: a")
          | 1 -> "pass"
          | var -> "fail")
         |> Stdlib.Test.equal("pass")
         (match 1 with
          | 1 -> "pass"
-         | 6 -> Stdlib.Test.raiseRuntimeError("a")
+         | 6 -> Darklang.Language.Tests.raiseRuntimeError("a")
          | var -> "fail")
         |> Stdlib.Test.equal("pass") ])
 
   test selectedLaterArmErrorRaises =
     (match 1 with
      | 2 -> "pass"
-     | 1 -> Stdlib.Test.raiseRuntimeError("a")
+     | 1 -> Darklang.Language.Tests.raiseRuntimeError("a")
      | var -> "fail")
     => raises "Uncaught exception: a"
 
   test fallbackArmSkipsError =
     (match 3 with
      | 2 -> "pass"
-     | 1 -> Stdlib.Test.raiseRuntimeError("a")
+     | 1 -> Darklang.Language.Tests.raiseRuntimeError("a")
      | var -> "pass")
     |> Stdlib.Test.equal("pass")
 

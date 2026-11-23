@@ -29,10 +29,7 @@ let private requireRunningPackageTest
   : unit =
   if not state.test.isPackageTest then
     raiseRTE (
-      RuntimeError.UncaughtException(
-        $"Stdlib.Test.{helper} requires a running package test",
-        []
-      )
+      RuntimeError.UncaughtException($"{helper} requires a running package test", [])
     )
 
 
@@ -570,7 +567,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | state, _, _, [| DBool increment |] ->
           requireRunningPackageTest
             state
-            (if increment then "incrementCounter" else "counterValue")
+            (if increment then
+               "Stdlib.Test.incrementCounter"
+             else
+               "Stdlib.Test.counterValue")
           // Atomic: spawned children share their test's counter.
           let count =
             if increment then
@@ -598,7 +598,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | state, vm, _, [| DApplicable f |] ->
-          requireRunningPackageTest state "onRealClock"
+          requireRunningPackageTest state "Stdlib.Test.onRealClock"
           task {
             match!
               Execution.executeApplicable1
@@ -628,7 +628,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         (function
         | state, _, _, [| DString message |] ->
-          requireRunningPackageTest state "raiseRuntimeError"
+          requireRunningPackageTest state "Darklang.Language.Tests.raiseRuntimeError"
           raiseRTE (RuntimeError.UncaughtException(message, []))
         | _ -> incorrectArgs ())
       // Pure: inside a test, the same message always raises the same error, so a test that

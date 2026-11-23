@@ -38,24 +38,24 @@ test and =
       (false |> (fun v -> v && false)) |> Stdlib.Test.equal(false) ])
 
 test andShortCircuits =
-  (false && Stdlib.Test.raiseRuntimeError("msg")) |> Stdlib.Test.equal(false)
+  (false && Darklang.Language.Tests.raiseRuntimeError("msg")) |> Stdlib.Test.equal(false)
 
 test andSkipsDivideByZero =
   (false && ((1 / 0) == 1)) |> Stdlib.Test.equal(false)
 
 test andShortCircuitsNested =
-  (false && (true && Stdlib.Test.raiseRuntimeError("msg")))
+  (false && (true && Darklang.Language.Tests.raiseRuntimeError("msg")))
   |> Stdlib.Test.equal(false)
 
 test andEvaluatesRightOperand =
-  (true && Stdlib.Test.raiseRuntimeError("msg"))
+  (true && Darklang.Language.Tests.raiseRuntimeError("msg"))
   => raises "Uncaught exception: msg"
 
 test andRejectsNonBooleanRight =
   (true && 5) => raises "`&&` only works on Bools, but its right side is an Int64"
 
 test andRaisesLeftOperandErrorFirst =
-  (Stdlib.Test.raiseRuntimeError("msg1") && Stdlib.Test.raiseRuntimeError("msg2"))
+  (Darklang.Language.Tests.raiseRuntimeError("msg1") && Darklang.Language.Tests.raiseRuntimeError("msg2"))
   => raises "Uncaught exception: msg1"
 
 test andRejectsNonBooleanLeft =
@@ -80,23 +80,23 @@ test orRejectsNonBooleanLeft =
   (5 || true) => raises "`||` only works on Bools, but its left side is an Int64"
 
 test orShortCircuits =
-  (true || Stdlib.Test.raiseRuntimeError("msg")) |> Stdlib.Test.equal(true)
+  (true || Darklang.Language.Tests.raiseRuntimeError("msg")) |> Stdlib.Test.equal(true)
 
 test orSkipsDivideByZero =
   (true || ((1 / 0) == 1)) |> Stdlib.Test.equal(true)
 
 test orShortCircuitsNested =
-  (true || (false || Stdlib.Test.raiseRuntimeError("msg")))
+  (true || (false || Darklang.Language.Tests.raiseRuntimeError("msg")))
   |> Stdlib.Test.equal(true)
 
 test orEvaluatesRightOperand =
-  (false || Stdlib.Test.raiseRuntimeError("msg"))
+  (false || Darklang.Language.Tests.raiseRuntimeError("msg"))
   => raises "Uncaught exception: msg"
 
 test orRaisesLeftOperandErrorFirst =
-  (Stdlib.Test.raiseRuntimeError("msg1") || Stdlib.Test.raiseRuntimeError("msg2"))
+  (Darklang.Language.Tests.raiseRuntimeError("msg1") || Darklang.Language.Tests.raiseRuntimeError("msg2"))
   => raises "Uncaught exception: msg1"
 
 test runtimeErrorRaises =
-  Stdlib.Test.raiseRuntimeError("runtime from syntax")
+  Darklang.Language.Tests.raiseRuntimeError("runtime from syntax")
   => raises "Uncaught exception: runtime from syntax"

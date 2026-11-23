@@ -964,10 +964,10 @@ test filterMapRejectsNonOptionResult =
 
 
 test fromEntriesPropagatesElementError =
-  Stdlib.Dict.fromEntries([ Stdlib.Test.raiseRuntimeError("err") ])
+  Stdlib.Dict.fromEntries([ Darklang.Language.Tests.raiseRuntimeError("err") ])
   => raises "Uncaught exception: err"
 
 
 test fromEntriesUniquePropagatesElementError =
-  Stdlib.Dict.fromEntriesUnique([ Stdlib.Test.raiseRuntimeError("err") ])
+  Stdlib.Dict.fromEntriesUnique([ Darklang.Language.Tests.raiseRuntimeError("err") ])
   => raises "Uncaught exception: err"

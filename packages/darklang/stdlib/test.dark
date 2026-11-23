@@ -19,12 +19,6 @@ let fail(message: String): Result =
   Result.Fail([ message ])
 
 
-/// Inject an uncaught runtime exception to test propagation and rendering.
-/// Available only inside a running package test; never returns a value.
-let raiseRuntimeError(message: String): Int64 =
-  Builtin.pmTestRaiseRuntimeError(message)
-
-
 /// This test's counter, after adding one to it if <param increment>. Callers
 /// use `incrementCounter` and `counterValue`.
 let counter(increment: Bool): Int64 =

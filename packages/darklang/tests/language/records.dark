@@ -12,7 +12,7 @@ test construction =
   |> Stdlib.Test.equal(Cols2 { col1 = 1, col2 = 3 })
 
 test fieldErrorRaises =
-  Cols2 { col1 = 2, col2 = Stdlib.Test.raiseRuntimeError("test") }
+  Cols2 { col1 = 2, col2 = Darklang.Language.Tests.raiseRuntimeError("test") }
   => raises "Uncaught exception: test"
 
 module WithTypeArgs =
@@ -209,7 +209,7 @@ module FieldAccess =
       (let x = MyRecord { col1 = 1 } in x.fieldName)
       => raises "Tried to access field `fieldName`, but it doesn't exist"
 
-    // `(Stdlib.Test.raiseRuntimeError("error")).fieldName` is in errorPropagation.dark.
+    // `(Darklang.Language.Tests.raiseRuntimeError("error")).fieldName` is in errorPropagation.dark.
 
     test accessOnInt64Raises =
       (let x = 6 in x.fieldName)
