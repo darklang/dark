@@ -131,32 +131,95 @@ let env(i: T): List<(String * String)> =
 val commandTimeoutMs = 120000
 
 
-/// Run one command in this instance and return everything it said.
+/// One command for an instance: its arguments, what to pipe into it, environment on top of the
+/// instance's own, and whether its streams are a terminal.
+type Call =
+  { args: List<String>
+    stdin: Stdlib.Option.Option<String>
+    env: List<(String * String)>
+    tty: Bool }
+
+
+/// `args` with nothing piped in, no extra environment and no terminal.
+let command(args: List<String>): Call =
+  Call
+    { args = args
+      stdin = Stdlib.Option.Option.None
+      env = []
+      tty = false }
+
+
+/// Run one command in this instance. `call` is the same with a failure to start folded in.
 ///
 /// Under a timeout, so a command that waits forever (on input, on a lock) fails as itself
-/// rather than leaving the whole suite to stop answering. `env` sets the environment, as in
-/// `Process.runWithEnv`, which has no timeout.
-let run(
+/// rather than leaving the whole suite to stop answering. A terminal is `script`, sized like a
+/// real one, so its stdout and stderr both come back as stdout.
+let tryCall(
   i: T,
-  args: List<String>)
+  c: Call)
   : Stdlib.Result.Result<Stdlib.Cli.Process.Output, String> =
-  let envArgs =
-    env(i)
-    |> Stdlib.List.map(fun pair ->
-      let (k, v) = pair
-      $"{k}={v}")
+  let terminal = if c.tty then [ ("TERM", "xterm-256color") ] else []
 
-  Stdlib.Cli.Process.runWithTimeout(
-    commandTimeoutMs,
-    "/usr/bin/env",
-    Stdlib.List.concat(envArgs, Stdlib.List.prepend(args, i.cli)))
+  let envArgs =
+    Stdlib.List.flatten([ terminal, env(i), c.env ])
+    |> Stdlib.List.map(fun((k, v)) -> $"{k}={v}")
+
+  let direct = Stdlib.List.flatten([ envArgs, [ i.cli ], c.args ])
+
+  let line =
+    Stdlib.List.prepend(direct, "/usr/bin/env")
+    |> Stdlib.List.map(Stdlib.Cli.Process.shellQuote)
+    |> Stdlib.String.join(" ")
+
+  let piped =
+    match c.stdin with
+    | Some(text) ->
+      "printf '%s' " + Stdlib.Cli.Process.shellQuote(text) + " | " + line
+    | None -> line
+
+  let (program, programArgs) =
+    if c.tty then
+      ("script", [ "-qec", $"stty cols 100 rows 30; {piped}", "/dev/null" ])
+    else
+      match c.stdin with
+      | Some(_) -> ("/bin/sh", [ "-c", piped ])
+      | None -> ("/usr/bin/env", direct)
+
+  Stdlib.Cli.Process.runWithTimeout(commandTimeoutMs, program, programArgs)
   |> Stdlib.Result.mapError(fun e ->
     if e == "Process timed out" then
-      let cmd = Stdlib.String.join(args, " ")
+      let cmd = Stdlib.String.join(c.args, " ")
       let seconds = Stdlib.display(commandTimeoutMs / 1000)
       $"`{cmd}` gave no answer in {seconds}s"
     else
       e)
+
+
+/// A command's exit code and both streams. `-1`, with the reason on stderr, when it could not
+/// start at all.
+let call(i: T, c: Call): Stdlib.Cli.Process.Output =
+  match tryCall(i, c) with
+  | Ok(out) -> out
+  | Error(e) ->
+    Stdlib.Cli.Process.Output
+      { exitCode = -1
+        stdout = ""
+        stderr = $"could not run: {e}" }
+
+
+let run(
+  i: T,
+  args: List<String>)
+  : Stdlib.Result.Result<Stdlib.Cli.Process.Output, String> =
+  tryCall(i, command(args))
+
+
+/// A command with `source` piped into it: its exit code and both streams. See `ran`.
+let runWithStdin(i: T, args: List<String>, source: String): (Int64 * String) =
+  let out =
+    call(i, { command(args) with stdin = Stdlib.Option.Option.Some(source) })
+
+  (out.exitCode, out.stdout + out.stderr)
 
 
 /// What a command printed: stdout, or stderr when stdout said nothing.
@@ -265,3 +328,47 @@ let exitedWith(code: Int64, expected: Int64, why: String): Stdlib.Test.Result =
     let got = Stdlib.display(code)
     let want = Stdlib.display(expected)
     Stdlib.Test.fail($"{why}: exited {got}, expected {want}")
+
+
+/// Both streams, for a failure message.
+let shown(out: Stdlib.Cli.Process.Output): String =
+  $"stdout: {Stdlib.inspect(out.stdout)}, stderr: {Stdlib.inspect(out.stderr)}"
+
+
+/// stdout mentions `needle`: the answer, not a hint or an error beside it.
+let stdoutSays(
+  out: Stdlib.Cli.Process.Output,
+  needle: String,
+  why: String)
+  : Stdlib.Test.Result =
+  if Stdlib.String.contains(out.stdout, needle) then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail($"{why}: expected '{needle}' on stdout. {shown(out)}")
+
+
+/// stderr mentions `needle`.
+let stderrSays(
+  out: Stdlib.Cli.Process.Output,
+  needle: String,
+  why: String)
+  : Stdlib.Test.Result =
+  if Stdlib.String.contains(out.stderr, needle) then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail($"{why}: expected '{needle}' on stderr. {shown(out)}")
+
+
+/// Nothing at all on stdout, not even a newline: `| jq` meets an empty input.
+let stdoutIsEmpty(out: Stdlib.Cli.Process.Output, why: String): Stdlib.Test.Result =
+  if out.stdout == "" then
+    Stdlib.Test.Result.Pass
+  else
+    Stdlib.Test.fail($"{why}: expected nothing on stdout. {shown(out)}")
+
+
+/// stdout is one JSON value and nothing else.
+let stdoutIsJson(out: Stdlib.Cli.Process.Output, why: String): Stdlib.Test.Result =
+  match Stdlib.AltJson.parse(Stdlib.String.trim(out.stdout)) with
+  | Ok(_) -> Stdlib.Test.Result.Pass
+  | Error(_) -> Stdlib.Test.fail($"{why}: expected JSON on stdout. {shown(out)}")

@@ -396,7 +396,7 @@ test conflictsWalkTakesTheOtherSideOnB =
         "one conflict is pending before the walk")
 
     let (walkCode, walked) =
-      Cli.Tests.Edit.runWithStdin(dark, [ "conflicts", "walk" ], "b\n")
+      Cli.Tests.Instance.runWithStdin(dark, [ "conflicts", "walk" ], "b\n")
 
     [ setup
       merged
