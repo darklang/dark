@@ -424,6 +424,128 @@ let subtractMilliseconds(d: DateTime, milliseconds: Int64): DateTime =
   __fromOffset(__ticks(d), -milliseconds, __ticksPerMillisecond())
 
 
+/// A part of a date and time, as <fn DateTime.fromParts> takes them.
+type Part =
+  | Year
+  | Month
+  | Day
+  | Hour
+  | Minute
+  | Second
+
+
+impl Display for Part =
+  /// The part's name in lowercase, {{year}}
+  let display(part: Part): String =
+    match part with
+    | Year -> "year"
+    | Month -> "month"
+    | Day -> "day"
+    | Hour -> "hour"
+    | Minute -> "minute"
+    | Second -> "second"
+
+
+/// Why <fn DateTime.fromParts> cannot build a date and time, or <fn DateTime.daysInMonth> has
+/// no month to measure.
+type FromPartsError =
+  /// <param part> is <param value>, outside {{min}} to {{max}}. For a day, {{max}} is the
+  /// last day of that month.
+  | OutOfRange(part: Part, value: Int64, min: Int64, max: Int64)
+
+
+impl Display for FromPartsError =
+  /// {{day 30 is out of range; it must be 1 to 29}}
+  let display(error: FromPartsError): String =
+    match error with
+    | OutOfRange(part, value, min, max) ->
+      Stdlib.display(part)
+      + " "
+      + Stdlib.display(value)
+      + " is out of range; it must be "
+      + Stdlib.display(min)
+      + " to "
+      + Stdlib.display(max)
+
+
+/// Whether <param year> has a February 29: {{true}} for 2000 and 2024, {{false}} for 1900 and 2023.
+let isLeapYear(year: Int64): Bool =
+  (__mod(year, 4) == 0 && __mod(year, 100) != 0) || __mod(year, 400) == 0
+
+
+/// The number of days in <param month> ({{1}} to {{12}}) of <param year>, such as {{29}} for
+/// February in a leap year. {{Error OutOfRange}} for a month outside {{1}} to {{12}}.
+let daysInMonth(year: Int64, month: Int64): Result<Int64, FromPartsError> =
+  if month < 1 || month > 12 then
+    Result.Error(FromPartsError.OutOfRange(Part.Month, month, 1, 12))
+  else if month == 2 then
+    Result.Ok(if isLeapYear(year) then 29 else 28)
+  else if month == 4 || month == 6 || month == 9 || month == 11 then
+    Result.Ok(30)
+  else
+    Result.Ok(31)
+
+
+/// The UTC <type DateTime> for <param year>, <param month> ({{1}} to {{12}}), <param day>,
+/// <param hour>, <param minute> and <param second>. {{Error OutOfRange}} names the first part
+/// out of range, such as day {{29}} of February in a year that is not a leap year, or a year
+/// outside {{-9998}} to {{9999}}.
+let fromParts(
+  year: Int64,
+  month: Int64,
+  day: Int64,
+  hour: Int64,
+  minute: Int64,
+  second: Int64)
+  : Result<DateTime, FromPartsError> =
+  let lastDay =
+    match daysInMonth(year, month) with
+    | Ok(days) -> days
+    | Error(_) -> 31
+
+  let limits =
+    [ (Part.Year, year, -9998, 9999)
+      (Part.Month, month, 1, 12)
+      (Part.Day, day, 1, lastDay)
+      (Part.Hour, hour, 0, 23)
+      (Part.Minute, minute, 0, 59)
+      (Part.Second, second, 0, 59) ]
+
+  let outOfRange = List.findFirst(limits, fun limit ->
+    let (_, value, min, max) = limit
+    value < min || value > max)
+
+  match outOfRange with
+  | Some((part, value, min, max)) -> Result.Error(FromPartsError.OutOfRange(part, value, min, max))
+  | None ->
+    let seconds = __daysFromCivil(year, month, day) * 86400 + hour * 3600 + minute * 60 + second
+    Result.Ok(fromSeconds(seconds))
+
+
+/// Returns a <type DateTime> <param days> days after <param d>, or before it for a negative
+/// <param days>
+let addDays(d: DateTime, days: Int64): DateTime =
+  __fromOffset(__ticks(d), days, __ticksPerDay())
+
+
+/// <param d> moved by <param months> calendar months, at the same time of day, or back for a
+/// negative <param months>. A day past the end of the new month becomes its last day: one month
+/// after January 31 is February 28, or 29 in a leap year.
+let addMonths(d: DateTime, months: Int64): DateTime =
+  let (year, month, day) = __civilFromDays(__daysSinceEpoch(d))
+  let total = year * 12 + month - 1 + months
+  let newYear = __floorDiv(total, 12)
+  let newMonth = __mod(total, 12) + 1
+
+  let lastDay =
+    match daysInMonth(newYear, newMonth) with
+    | Ok(days) -> days
+    | Error(_) -> 28
+
+  let newDay = if day > lastDay then lastDay else day
+  __fromOffset(__ticksWithinDay(d), __daysFromCivil(newYear, newMonth, newDay), __ticksPerDay())
+
+
 // Checked versions of the functions above that build a DateTime from a count. A DateTime runs
 // from -9998-01-01 to 9999-12-31; past either end those raise, and these return {{Error Overflow}}.
 
