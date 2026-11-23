@@ -1,0 +1,75 @@
+/// `--description` documents what an authoring command saves, as a `///` above it would.
+module Darklang.Cli.Tests.DescriptionFlag
+
+test theFlagDocumentsAFunction = Instance.withInstance(fun i ->
+  let _ =
+    Instance.ran(
+      i,
+      [ "fn"
+        "/Me.Docs.twice"
+        "(x: Int64): Int64 = x * 2 + 1"
+        "--description"
+        "Twice <param x>, plus one." ])
+
+  Instance.says(
+    Instance.said(i, [ "view", "/Me.Docs.twice", "--raw" ]),
+    "/// Twice <param x>, plus one.\nlet twice(x: Int64): Int64 =",
+    "the doc sits above the let"))
+
+
+test aParameterKeepsItsOwnDoc = Instance.withInstance(fun i ->
+  let _ =
+    Instance.ran(
+      i,
+      [ "fn"
+        "/Me.Docs.thrice"
+        "(\n  /// the number\n  x: Int64): Int64 = x * 3"
+        "--description"
+        "Three times." ])
+
+  Instance.says(
+    Instance.said(i, [ "view", "/Me.Docs.thrice", "--raw" ]),
+    "/// Three times.\nlet thrice(\n  /// the number\n  x: Int64)",
+    "the function's doc and x's doc each land on their own"))
+
+
+test aDocBeforeTheParensIsRefused = Instance.withInstance(fun i ->
+  let (code, out) =
+    Instance.ran(i, [ "fn", "/Me.Docs.once", "/// Once.\n(x: Int64): Int64 = x" ])
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 1, "nothing saved")
+      Instance.says(out, "--description", "the refusal points to the flag")
+      Instance.says(
+        Instance.said(i, [ "view", "/Me.Docs.once", "--raw" ]),
+        "Not found",
+        "no function was saved") ]))
+
+
+test aFullLetKeepsItsDoc = Instance.withInstance(fun i ->
+  let _ = Instance.ran(i, [ "fn", "/Me.Docs.d", "/// Doubles.\nlet d(x: Int64): Int64 = x * 2" ])
+
+  Instance.says(
+    Instance.said(i, [ "view", "/Me.Docs.d", "--raw" ]),
+    "/// Doubles.\nlet d(x: Int64): Int64 =",
+    "a /// above the let is the function's doc"))
+
+
+test theOtherAuthoringCommandsTakeTheFlag = Instance.withInstance(fun i ->
+  let _ = Instance.ran(i, [ "type", "/Me.Docs.Status", "| On | Off", "--description", "A switch." ])
+  let _ = Instance.ran(i, [ "val", "/Me.Docs.answer", "42", "--description", "The answer." ])
+  let _ =
+    Instance.ran(
+      i,
+      [ "trait", "/Me.Docs.Show", "<'a> = let show(v: 'a): String", "--description", "Shows a value." ])
+
+  let _ =
+    Instance.ran(
+      i,
+      [ "test", "add", "/Me.Docs.fortyTwo", "Stdlib.Test.equal(Me.Docs.answer, 42)", "--description", "It is 42." ])
+
+  Stdlib.Test.all(
+    [ Instance.says(Instance.said(i, [ "view", "/Me.Docs.Status", "--raw" ]), "/// A switch.\ntype Status", "type")
+      Instance.says(Instance.said(i, [ "view", "/Me.Docs.answer", "--raw" ]), "/// The answer.\nval answer", "val")
+      Instance.says(Instance.said(i, [ "view", "/Me.Docs.Show", "--raw" ]), "/// Shows a value.\ntrait Show", "trait")
+      Instance.says(Instance.said(i, [ "view", "/Me.Docs.fortyTwo", "--raw" ]), "/// It is 42.\ntest fortyTwo", "test") ]))

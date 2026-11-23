@@ -90,6 +90,32 @@ let definitionFromArgs(args: List<String>): Result<String, String> =
       Result.Ok(joined)
 
 
+/// <fn definitionFromArgs>, and the text of a `--description <text>` among <param args>: the doc
+/// `fn`, `type`, `val`, `trait` and `test add` give what they save.
+let definitionAndDescription(args: List<String>): Result<(String * Option<String>), String> =
+  match takeDescription(args) with
+  | Error(message) -> Result.Error(message)
+  | Ok((description, rest)) ->
+    match definitionFromArgs(rest) with
+    | Error(message) -> Result.Error(message)
+    | Ok(definition) -> Result.Ok((definition, description))
+
+
+/// The last `--description <text>` in <param args>, and the arguments without it.
+let takeDescription(args: List<String>): Result<(Option<String> * List<String>), String> =
+  match args with
+  | [] -> Result.Ok((Option.None, []))
+  | ["--description"] -> Result.Error("`--description` needs a value.")
+  | ["--description", text, ...rest] ->
+    match takeDescription(rest) with
+    | Ok((None, others)) -> Result.Ok((Option.Some(Stdlib.String.trim(text)), others))
+    | other -> other
+  | [arg, ...rest] ->
+    match takeDescription(rest) with
+    | Ok((description, others)) -> Result.Ok((description, Stdlib.List.prepend(others, arg)))
+    | Error(message) -> Result.Error(message)
+
+
 /// Where the code of <param definition> starts: past blank lines and `//` comment lines, so a
 /// declaration with a comment above it is still recognised as a whole declaration.
 let codeAfterComments(definition: String): String =
