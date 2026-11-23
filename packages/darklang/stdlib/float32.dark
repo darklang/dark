@@ -78,6 +78,24 @@ let sqrt(a: Float32): Float32 =
   fromFloat64(Float64.sqrt(toFloat64(a)))
 
 
+/// The natural logarithm of <param a>. {{-Infinity}} for zero, NaN for a negative
+/// number or NaN.
+let log(a: Float32): Float32 =
+  fromFloat64(Float64.log(toFloat64(a)))
+
+
+/// The base-10 logarithm of <param a>. {{-Infinity}} for zero, NaN for a negative
+/// number or NaN.
+let log10(a: Float32): Float32 =
+  fromFloat64(Float64.log10(toFloat64(a)))
+
+
+/// e raised to the power of <param a>. {{Infinity}} where the result is too large,
+/// {{0.0}} where it is too small.
+let exp(a: Float32): Float32 =
+  fromFloat64(Float64.exp(toFloat64(a)))
+
+
 impl Add for Float32 =
   /// Add <type Float32> <param a> to <type Float32> <param b>
   let add(a: Float32, b: Float32): Float32 =
