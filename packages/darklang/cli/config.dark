@@ -140,6 +140,44 @@ let settings(): List<Setting> =
         byDefault = "this machine's hostname" } ]
 
 
+/// The `DARK_CONFIG_*` name the runtime falls back to for <param key> while it is not set.
+let shellSettingOf(key: String): Option<String> =
+  match key with
+  | "http.loopback" -> Option.Some("DARK_CONFIG_HTTP_LOOPBACK")
+  | "http.private" -> Option.Some("DARK_CONFIG_HTTP_PRIVATE")
+  | _ -> Option.None
+
+
+/// One row of `config list`: the value in effect, and where it came from.
+type Current =
+  { key: String
+    value: String
+    /// `set`, `env` or `default`
+    source: String
+    what: String }
+
+
+let row(s: Setting, value: String, source: String): Current =
+  Current { key = s.key, value = value, source = source, what = s.what }
+
+
+let current(s: Setting): Current =
+  match LanguageTools.LocalStore.configGet(s.key) with
+  | Some(v) -> row(s, v, "set")
+  | None ->
+    let fromEnv =
+      match shellSettingOf(s.key) with
+      | Some(name) -> Stdlib.Cli.Env.get(name)
+      | None -> Option.None
+
+    match fromEnv with
+    | Some(v) when Stdlib.String.trim(v) != "" ->
+      // the runtime takes only `on`; anything else leaves it off
+      let on = Stdlib.String.toLowercase(Stdlib.String.trim(v)) == "on"
+      row(s, (if on then "on" else "off"), "env")
+    | _ -> row(s, s.byDefault, "default")
+
+
 /// What applies while <param key> is not set, when `config list` says.
 let defaultOf(key: String): Option<String> =
   settings()
@@ -157,6 +195,8 @@ let unknownKeyMessage(key: String): String =
 
 
 let execute(state: AppState, args: List<String>): AppState =
+  let wantsJson = Stdlib.List.contains(args, "--json")
+  let args = args |> Stdlib.List.filter(fun a -> a != "--json")
   match args with
   | ["get", key] when Stdlib.List.contains(knownKeys(), key) ->
     match LanguageTools.LocalStore.configGet(key) with
@@ -198,22 +238,37 @@ let execute(state: AppState, args: List<String>): AppState =
     printErr(unknownKeyMessage(key))
     { state with exitCode = 1 }
   | [] | ["list"] ->
-    let lines =
-      settings()
-      |> Stdlib.List.map(fun s ->
-        let key = Stdlib.Text.padEndToWidth(s.key, 25)
-        $"  {key}- {s.what} (default: {s.byDefault})")
+    let rows = settings() |> Stdlib.List.map(current)
+    if wantsJson then
+      if Cli.printJson(Stdlib.Json.checkedSerialize<List<Current>>(rows)) then
+        state
+      else
+        { state with exitCode = 1 }
+    else
+      let valueWidth =
+        rows
+        |> Stdlib.List.fold(0, fun(w, r) ->
+          let rw = Stdlib.String.displayWidth(r.value)
+          if rw > w then rw else w)
 
-    Stdlib.List.flatten(
-      [ [ "Common configuration keys:", "" ]
-        lines
-        [ ""
-          "Use 'config get <key>' to read a value"
-          "Use 'config set <key> <value>' to set a value"
-          "Use 'config unset <key>' to go back to the default" ] ])
-    |> Stdlib.printLines
+      let lines =
+        rows
+        |> Stdlib.List.map(fun r ->
+          let key = Stdlib.Text.padEndToWidth(r.key, 28)
+          let value = Stdlib.Text.padEndToWidth(r.value, valueWidth + 2)
+          let source = Stdlib.Text.padEndToWidth(r.source, 9)
+          $"  {key}{value}{source}{r.what}")
 
-    state
+      Stdlib.List.flatten(
+        [ [ "Common configuration keys:", "" ]
+          lines
+          [ ""
+            "Use 'config get <key>' to read a value"
+            "Use 'config set <key> <value>' to set a value"
+            "Use 'config unset <key>' to go back to the default" ] ])
+      |> Stdlib.printLines
+
+      state
   | _ ->
     printErr("Invalid arguments")
     Stdlib.printErrorLine("")
@@ -233,13 +288,14 @@ let help(_state: AppState): String =
     "  config get <key>           - Get a configuration value"
     "  config set <key> <value>   - Set a configuration value"
     "  config unset <key>         - Go back to the default"
-    "  config [list]              - List common configuration keys"
+    "  config [list] [--json]     - List common keys, each with its value and where it came from"
     ""
     "Examples:"
     "  config set trace.record on"
     "  config get exec.workers"
     "  config unset trace.record"
     ""
-    "`config list` names every key a person sets, with its default; any other key is refused."
+    "`config list` names every key a person sets: its value, and whether that was set, came from"
+    "the environment, or is the default. Any other key is refused."
     "http.loopback, http.private and trace.record are yours alone: code you run cannot change them." ]
   |> Stdlib.String.join("\n")
