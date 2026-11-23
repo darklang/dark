@@ -362,7 +362,8 @@ let __fits(hardEnds: Bool, room: Int64, items: List<(Int64 * Mode * Doc)>): Bool
 /// line has none.
 let __written(acc: List<String>, indentDue: Int64, s: String): List<String> =
   if indentDue > 0 then
-    List.prepend(List.prepend(acc, String.repeat(" ", indentDue)), s)
+    let indent = String.checkedRepeat(" ", indentDue) |> Result.withDefault("")
+    List.prepend(List.prepend(acc, indent), s)
   else
     List.prepend(acc, s)
 
@@ -395,12 +396,7 @@ let __renderLoop(
       if s == "" then
         __renderLoop(width, col, acc, indentDue, pending, rest)
       else
-        let written =
-          if indentDue > 0 then
-            List.prepend(List.prepend(acc, String.repeat(" ", indentDue)), s)
-          else
-            List.prepend(acc, s)
-
+        let written = __written(acc, indentDue, s)
         if w < 0 then
           let last =
             String.split(s, "\n")
