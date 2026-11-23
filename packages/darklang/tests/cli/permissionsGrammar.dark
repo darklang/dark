@@ -490,3 +490,34 @@ module PermissionsGrammar =
 
         LanguageTools.Permissions.parseRuleText("http GET https://u@h/p")
         |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+
+
+/// The wider rules a denial suggests: a web path with any query, and a file's whole folder.
+module DenialSuggestions =
+  test pathWideDropsTheQuery =
+    LanguageTools.Permissions.pathWideHttpRule(
+      "http GET 'https://api.github.com:443/search/issues?q=repo:a/b+type:pr'")
+    |> Stdlib.Test.equal(Option.Some("http GET 'https://api.github.com:443/search/issues'"))
+
+  test pathWideNeedsAQuery =
+    LanguageTools.Permissions.pathWideHttpRule("http GET 'https://api.github.com:443/repos'")
+    |> Stdlib.Test.equal(Option.None)
+
+  test folderOfOneFile =
+    LanguageTools.Permissions.folderFileRules("file read '/tmp/work/a.txt'", [])
+    |> Stdlib.Test.equal(Option.Some([ "file read '/tmp/work'" ]))
+
+  // A program that also writes gets both rules in one paste.
+  test folderAddsTheOtherFileAccess =
+    LanguageTools.Permissions.folderFileRules(
+      "file read '/tmp/work/a.txt'",
+      [ LanguageTools.Permissions.Effect.Stdout, LanguageTools.Permissions.Effect.FileWrite ])
+    |> Stdlib.Test.equal(Option.Some([ "file read '/tmp/work'", "file write '/tmp/work'" ]))
+
+  test noFolderForAFileAtTheRoot =
+    LanguageTools.Permissions.folderFileRules("file write '/a.txt'", [])
+    |> Stdlib.Test.equal(Option.None)
+
+  test noFolderForOtherRules =
+    LanguageTools.Permissions.folderFileRules("http GET 'https://x.com:443/a'", [])
+    |> Stdlib.Test.equal(Option.None)

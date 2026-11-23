@@ -337,10 +337,37 @@ module ExecutionError =
     anyArgsRule: Option<String>)
     : String =
     let approved = Permissions.Command.approvedVersionOf(accountID, name)
+    let quote = Stdlib.Cli.Process.shellQuote
+    // Allow any ?query, since the next web request usually has a different one.
+    let pathRule = LanguageTools.Permissions.pathWideHttpRule(rule)
+    // Everything else the function needs, so one denial can name it all.
+    let requirements =
+      match Permissions.Command.latestVersion(branchId, name) with
+      | Some(hash) ->
+        let (effects, _) = Permissions.Command.permissionRequirementsForHash(hash)
+        effects
+      | None -> []
+
+    let folderRules = LanguageTools.Permissions.folderFileRules(rule, requirements)
+    // A program that reads and writes needs both, so that is suggested first and alone.
+    let readAndWrite =
+      match folderRules with
+      | Some(rules) ->
+        if Stdlib.List.length(rules) > 1 then
+          Option.Some(Stdlib.String.join(rules, "; "))
+        else
+          Option.None
+      | None -> Option.None
+
+    let rememberRule =
+      match readAndWrite with
+      | Some(both) -> both
+      | None -> pathRule |> Stdlib.Option.withDefault(rule)
+
     let why =
       match approved with
       | None ->
-        $"`{name}` has no remembered approval. Remember this access:\n  dark permissions approve {name} {rule}"
+        $"`{name}` has no remembered approval. Remember this access:\n  dark permissions approve {name} {quote(rememberRule)}"
       | Some(version)
         when Option.Some(version) != Permissions.Command.latestVersion(branchId, name) ->
         $"`{name}` changed since it was approved. Review the new version:\n  dark permissions update {name}"
@@ -357,10 +384,41 @@ module ExecutionError =
     let wholeHost =
       match LanguageTools.Permissions.hostWideHttpRule(rule) with
       | Some(hostRule) ->
-        $"\n\nFor any path on that host:\n  dark run --allow {Stdlib.Cli.Process.shellQuote(hostRule)} …"
+        $"\n\nFor any path on that host:\n  dark run --allow {quote(hostRule)} …"
       | None -> ""
 
-    $"permission denied:\n  {resource} is not allowed.\n\n{why}\n\nFor one run:\n  dark run --allow {Stdlib.Cli.Process.shellQuote(rule)} …{anyArgs}{wholeHost}"
+    let oneRun =
+      match readAndWrite, pathRule with
+      | Some(both), _ ->
+        $"It reads and writes files. For one run, both in that folder:\n  dark run --allow {quote(both)} …"
+      | None, Some(pathRule) ->
+        $"For one run, this path with any query:\n  dark run --allow {quote(pathRule)} …"
+        + $"\n\nFor this exact request only:\n  dark run --allow {quote(rule)} …"
+      | None, None -> $"For one run:\n  dark run --allow {quote(rule)} …"
+
+    let folder =
+      match readAndWrite, folderRules with
+      | None, Some([ one ]) ->
+        $"\n\nFor everything in its folder:\n  dark run --allow {quote(one)} …"
+      | _ -> ""
+
+    // Other access it needs that these suggestions do not cover.
+    let others =
+      [ (LanguageTools.Permissions.Effect.Http, "http")
+        (LanguageTools.Permissions.Effect.Process, "process")
+        (LanguageTools.Permissions.Effect.HttpServer, "http-server") ]
+      |> Stdlib.List.filter(fun((effect, word)) ->
+        Stdlib.List.contains(requirements, effect)
+        && Stdlib.Bool.not(Stdlib.String.startsWith(rule, word + " ")))
+      |> Stdlib.List.map(fun((_, word)) -> word)
+
+    let alsoNeeds =
+      match others with
+      | [] -> ""
+      | words ->
+        $"\n\n`{name}` can also use {Stdlib.String.join(words, ", ")}; a run that reaches it will stop there too."
+
+    $"permission denied:\n  {resource} is not allowed.\n\n{why}\n\n{oneRun}{folder}{anyArgs}{wholeHost}{alsoNeeds}"
 
 
   let toString(accountID: Option<Uuid>, branchId: Uuid, err: ExecutionError): String =
