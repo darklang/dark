@@ -172,7 +172,7 @@ let unresolvedTraitCallsText(
         $"    {name}: {callNames}")
       |> Stdlib.String.join("\n")
 
-    "  Warning: could not choose implementations for these calls:\n"
+    "warning: could not choose implementations for these calls:\n"
     + which
     + "\n  Check for missing references or type annotations, then save again."
     + "\n  Until resolved, these calls use the newest matching implementation "
@@ -237,14 +237,14 @@ let printSaveReport(branchId: Uuid, report: LanguageTools.AtRestTypeChecker.Repo
   | Failed ->
     Stdlib.List.concat(
       [ ""
-        Stdlib.Cli.UI.Colors.error(
+        View.formatError(
           "Type check failed. Saved as a draft; "
           + "`dark commit` will refuse it until it is fixed:") ],
       saveReportDetails(branchId, report))
     |> Stderr.lines
   | Incomplete ->
     Stdlib.List.concat(
-      [ "", Stdlib.Cli.UI.Colors.warning("Type check was incomplete; saved anyway:") ],
+      [ "", View.formatWarning("Type check was incomplete; saved anyway:") ],
       saveReportDetails(branchId, report))
     |> Stderr.lines
 

@@ -115,7 +115,7 @@ let execute(state: AppState, args: List<String>): AppState =
   if Stdlib.Bool.not(Stdlib.List.isEmpty(flags)) then
     let f = Stdlib.String.join(flags, " ")
     printErr($"ops takes no flags, and doesn't understand {f}.")
-    printHint("  `dark ops help` says what it does.")
+    printHint("`dark ops help` says what it does.")
     failed(state)
   else
     // A count has to be a positive number: a count of -5 would print the whole log, and a refused
@@ -149,7 +149,7 @@ let execute(state: AppState, args: List<String>): AppState =
         | Ok(l) -> executeList(state, l)
         | Error(why) ->
           printErr(why)
-          printHint("  `dark ops help` says what it does.")
+          printHint("`dark ops help` says what it does.")
           failed(state)
 
 

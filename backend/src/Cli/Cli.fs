@@ -66,7 +66,7 @@ let state (packageManager : RT.PackageManager) =
     // error, which prints that sentence once.
     match exn with
     | :? Exception.StoreConditionException -> ()
-    | _ -> printException "Internal error" metadata exn
+    | _ -> printException "internal error" metadata exn
 
   Exe.createState
     (builtinsLazy.Force())

@@ -33,6 +33,6 @@ let cascadeAndForce(
           [ fromHash ],
           toHash) with
   | Error(e) ->
-    printErr($"  cascade failed: {e}")
+    printErr($"cascade failed: {e}")
     false
   | Ok(_) -> true

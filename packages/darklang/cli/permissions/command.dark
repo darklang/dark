@@ -363,7 +363,7 @@ let renderAccessReport(name: String, facts: AccessReportFacts): List<String> =
     if facts.complete then
       []
     else
-      [ "  Warning: analysis is incomplete; more permissions may be needed." ]
+      [ "  warning: analysis is incomplete; more permissions may be needed." ]
 
   let packageLines =
     if Stdlib.List.isEmpty(facts.approvals) then
@@ -609,7 +609,7 @@ let profile(args: List<String>): Bool =
           commitInstancePolicy(expected, policy)
           Stdlib.printLine(Stdlib.Cli.UI.Colors.success($"✓ applied profile {name}"))
         else
-          Stderr.hint("Preview only. Repeat with --yes to apply.")
+          Stderr.note("Preview only. Repeat with --yes to apply.")
 
         true
 
@@ -751,7 +751,7 @@ let approvalReviewReasonText(reason: LanguageTools.Permissions.ApprovalReviewRea
 
 let approvalFailureText(failure: LanguageTools.Permissions.ApprovalFailure): String =
   match failure with
-  | Refused(message) -> Stdlib.Cli.UI.Colors.error(message)
+  | Refused(message) -> Cli.View.formatError(message)
   | ContractChanged(diffs) ->
     Stdlib.Cli.UI.Colors.warning(
       "Review notes:\n"
@@ -842,7 +842,7 @@ let approveNamed(
         if complete && Stdlib.List.isEmpty(effects) then
           Stderr.line("This function needs no permissions, so no approval is necessary.")
         else
-          Stderr.hint($"Use `permissions requirements {name}` to inspect its requirements.")
+          printHint($"Use `permissions requirements {name}` to inspect its requirements.")
 
         false
       else
@@ -1071,7 +1071,7 @@ let removeNamedRules(
     match removeApprovalRules(policy, Stdlib.List.map(rules, canonicalRule)) with
     | Error(message) ->
       printErr(message)
-      Stderr.hint($"Use `permissions show {name}` to see its rules.")
+      printHint($"Use `permissions show {name}` to see its rules.")
       failed(state)
     | Ok(edited) ->
       removeSavedAccess(

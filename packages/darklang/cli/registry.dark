@@ -519,8 +519,8 @@ module Registry =
                  |> Stdlib.List.flatten
 
                let hint = Accepts.didYouMean(name, names)
-               Stdlib.printErrorLine(View.formatError($"Unknown command: {name}.{hint}"))
-               Stdlib.printErrorLine("Use 'help' to see available commands.")
+               printErr($"Unknown command: {name}.{hint}")
+               printHint("`dark help` lists the commands.")
                { state with exitCode = 1 })
           help = (fun _state -> $"No help available for command: {name}")
           complete = (fun(_state, _args) -> []) }
@@ -559,7 +559,7 @@ module Registry =
       match Accepts.check(name, accepts(), args) with
       | Some(why) ->
         printErr(why)
-        printHint($"  `dark {name} --help` shows what it takes.")
+        printHint($"`dark {name} --help` shows what it takes.")
         { state with exitCode = 1 }
       | None ->
         // A `--` with no flag-like word after it changes nothing, so it goes, and commands that

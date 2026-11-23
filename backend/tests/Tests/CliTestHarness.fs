@@ -627,7 +627,7 @@ let looksLikeARuntimeFailure (output : string) : Option<string> =
     [ "Encountered a Runtime Error"
       "No matching case found"
       "couldn't be found"
-      "Internal error:"
+      "internal error:"
       @"expects .* but got" ]
   output.Split('\n')
   |> Array.tryFind (fun line ->

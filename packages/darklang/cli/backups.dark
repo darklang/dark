@@ -23,8 +23,8 @@ let executeList(state: AppState): AppState =
   match list() with
   | [] ->
     printOk("no backups yet.")
-    printHint("  One is taken automatically before an upgrade folds a new seed.")
-    printHint("  `dark backups now` takes one on demand.")
+    Stderr.note("  One is taken automatically before an upgrade folds a new seed.")
+    printHint("`dark backups now` takes one on demand.")
     state
   | [first, ...] as backups ->
     printOk(
@@ -32,9 +32,9 @@ let executeList(state: AppState): AppState =
 
     backups |> Stdlib.List.iter(fun b -> Stdlib.printLine($"  {b.name}  ({Text.bytes(b.bytes)})"))
     Stdlib.printErrorLine("")
-    printHint("  dark backups now             take one now")
-    printHint("  dark backups restore <name>  put one in place of the store")
-    printHint("  dark backups prune <n>       keep the newest n, delete the rest")
+    Stderr.note("  dark backups now             take one now")
+    Stderr.note("  dark backups restore <name>  put one in place of the store")
+    Stderr.note("  dark backups prune <n>       keep the newest n, delete the rest")
     state
 
 
@@ -55,12 +55,12 @@ let executeNow(state: AppState): AppState =
 let executeRestore(state: AppState, name: String, confirm: Confirm): AppState =
   if Stdlib.Bool.not(Stdlib.List.contains(names(), name)) then
     printErr($"no backup named \"{name}\".")
-    printHint("  `dark backups` lists them.")
+    printHint("`dark backups` lists them.")
     failed(state)
   else
     // Warning like DISCARDING: green on "replaces the store" reads as "already fine".
     Stderr.line(Stdlib.Cli.UI.Colors.warning($"  RESTORING {name} replaces the store."))
-    Stderr.hint("  the store as it is now is copied aside first, so this is undoable.")
+    Stderr.note("  the store as it is now is copied aside first, so this is undoable.")
     let confirmed =
       Prompt.confirmExplicit(confirm, Stdlib.Cli.UI.Colors.warning("\n  Restore it? [y/N]: "))
 
@@ -81,7 +81,7 @@ let executeRestore(state: AppState, name: String, confirm: Confirm): AppState =
           |> Stdlib.String.join(", ")
 
         printOk($"restored {name}. The store as it was is at {aside}.")
-        printHint("  start `dark` again: this process is still holding the old store.")
+        printHint("start `dark` again: this process is still holding the old store.")
         state
       | Error(e) ->
         printErr($"{e}.")
@@ -134,7 +134,7 @@ let executePrune(state: AppState, keepArg: String, confirm: Confirm): AppState =
                       LanguageTools.LocalStore.BackupAction.Delete(name)) with
               | Ok(_) -> Option.Some(name)
               | Error(_) ->
-                printErr($"  couldn't delete {name}")
+                printErr($"couldn't delete {name}")
                 Option.None)
 
           printOk(
@@ -155,14 +155,14 @@ let execute(state: AppState, args: List<String>): AppState =
     executeRestore(state, name, Confirm.Assume)
   | ["restore"] ->
     printErr("restore needs a backup's name: `dark backups restore <name>`.")
-    printHint("  `dark backups` lists them.")
+    printHint("`dark backups` lists them.")
     failed(state)
   | ["prune"] ->
     printErr("prune needs how many to keep: `dark backups prune 3`.")
     failed(state)
   | _ ->
     printErr($"""`dark backups {Stdlib.String.join(args, " ")}` isn't a form of this command.""")
-    printHint(
+    Stderr.note(
       "  dark backups | dark backups now | dark backups restore <name> | dark backups prune <n>")
 
     failed(state)

@@ -152,7 +152,7 @@ let execute(state: AppState, args: List<String>): AppState =
 
       match startLocation with
       | Error(e) ->
-        Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot show a tree: {e}"))
+        printErr($"Cannot show a tree: {e}")
         failed(state)
       | Ok(startLocation) ->
         // Load deprecation sets once for the whole tree render.

@@ -106,7 +106,7 @@ let execute(state: AppState, args: List<String>): AppState =
 
       if Stdlib.List.isEmpty(inDraft) && Stdlib.Bool.not(isRenamed) then
         Stderr.ok($"{dotted} isn't in your draft on {scope} -- nothing to discard.")
-        printHint("  `dark status` lists what is.")
+        printHint("`dark status` lists what is.")
         state
       else if
         Stdlib.Bool.not(
@@ -144,7 +144,7 @@ let execute(state: AppState, args: List<String>): AppState =
             else
               Stderr.line(Stdlib.Cli.UI.Colors.warning($"  Callers still use another version of {dotted}:"))
               Stdlib.List.iter(affected, fun finding -> Stderr.line(ConstraintsCmd.line(finding)))
-              Stderr.hint("  `dark constraints` lists these references and how to resolve them.")
+              printHint("`dark constraints` lists these references and how to resolve them.")
           | Error(e) ->
             Stderr.line(Stdlib.Cli.UI.Colors.warning($"  Couldn't check callers of {dotted}: {e}"))
 
@@ -154,7 +154,7 @@ let execute(state: AppState, args: List<String>): AppState =
           failed(state)
   | [_, _, ...] ->
     printErr("dark discard takes at most one name.")
-    printHint("  `dark discard` drops the whole draft; `dark discard <name>` drops one item.")
+    printHint("`dark discard` drops the whole draft; `dark discard <name>` drops one item.")
     failed(state)
   | [] ->
     let changed = SCM.PackageOps.draftBindings()

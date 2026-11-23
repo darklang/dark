@@ -113,7 +113,7 @@ test badOptionsExitWithTheReasonOnStderr = Instance.withInstance(fun i ->
         mixed.stdout |> Stdlib.Test.equal("")
         Instance.says(
           mixed.stderr,
-          "Cannot view: `--include-tests` goes with the default view only",
+          "`--include-tests` goes with the default view only",
           "the reason")
         Instance.says(mixed.stderr, "Usage: view [path...]", "the help") ])
   | (Error(e), _) -> Stdlib.Test.fail(e)

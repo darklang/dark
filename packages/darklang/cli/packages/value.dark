@@ -13,7 +13,7 @@ let execute(state: AppState, args: List<String>): AppState =
       failed(state)
     | Ok(inlineDefinition) ->
       if Stdlib.String.isEmpty(inlineDefinition) then
-        [ Stdlib.Cli.UI.Colors.error("Error: Inline value expression required")
+        [ View.formatError("Inline value expression required")
           ""
           "Usage: val <location> <expression>"
           "       val <location> -    (read expression from stdin, for multi-line input)"
@@ -31,7 +31,7 @@ let execute(state: AppState, args: List<String>): AppState =
 
 let createValueInline(state: AppState, locationStr: String, expression: String): AppState =
   let hint =
-    [ Stdlib.Cli.UI.Colors.error("Failed to parse value expression")
+    [ View.formatError("Failed to parse value expression")
       ""
       "Make sure your syntax is correct. Examples:"
       "  dark val Me.Demo.answer '42'"

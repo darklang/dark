@@ -266,12 +266,12 @@ let execute(state: AppState, args: List<String>): AppState =
     Stdlib.printErrorLine(usage)
     failed(state)
   else if Stdlib.List.length(parsed.positionals) > 1 then
-    printErr("Error: typecheck takes at most one module to scope the audit to")
+    printErr("typecheck takes at most one module to scope the audit to")
     Stdlib.printErrorLine(usage)
     failed(state)
   else if parsed.conflictingFilters then
-    printErr("Error: --all cannot be combined with --failed or --incomplete")
-    printErr(usage)
+    printErr("--all cannot be combined with --failed or --incomplete")
+    Stdlib.printErrorLine(usage)
     failed(state)
   else
     // A module scopes the audit to that subtree. Without one it is the whole branch, which

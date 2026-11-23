@@ -440,13 +440,12 @@ let execute(state: AppState, args: List<String>): AppState =
             match topic.subtopics with
             | [] ->
               let noun = if plural then "topics" else "topic"
-              Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Unknown {noun}: {names}"))
+              printErr($"Unknown {noun}: {names}")
               Stdlib.printErrorLine("")
               Stdlib.printErrorLine(Topics.formatTopicList())
             | _ ->
               let noun = if plural then "parts" else "part"
-              Stdlib.printErrorLine(
-                Stdlib.Cli.UI.Colors.error($"Unknown {noun} of docs {topic.name}: {names}"))
+              printErr($"Unknown {noun} of docs {topic.name}: {names}")
 
               Stdlib.printErrorLine("")
 
@@ -456,7 +455,7 @@ let execute(state: AppState, args: List<String>): AppState =
 
             failed(state)
       | None ->
-        Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Unknown topic: {topicName}"))
+        printErr($"Unknown topic: {topicName}")
         Stdlib.printErrorLine("")
         Stdlib.printErrorLine(Topics.formatTopicList())
         failed(state)

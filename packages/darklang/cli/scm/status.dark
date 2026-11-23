@@ -133,8 +133,8 @@ let executePretty(state: AppState): AppState =
   match SCM.StoreHealth.problems() with
   | [] -> ()
   | problems ->
-    printErr("store problems:")
-    problems |> Stdlib.List.iter(fun p -> printErr($"  {p.text}"))
+    printWarning("store problems:")
+    problems |> Stdlib.List.iter(fun p -> Stderr.line($"  {p.text}"))
 
     // Two different remedies, and offering the wrong one is worse than offering none: a reload is a full
     // rebuild, and someone who runs it against a damaged LOG spends it to watch the same line come back.

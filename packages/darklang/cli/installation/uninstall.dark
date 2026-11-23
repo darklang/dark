@@ -49,7 +49,7 @@ let execute(state: AppState, args: List<String>): AppState =
       // Exit after successful uninstall since the executable is being removed
       { state with isExiting = true }
     | Error(e) ->
-      Stdlib.printErrorLine(View.formatError(e))
+      printErr(e)
       failed(state)
 
 

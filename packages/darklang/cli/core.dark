@@ -123,12 +123,11 @@ let printOk(msg: String): Unit =
   Stdlib.printLine(Stdlib.Cli.UI.Colors.success(msg))
 
 
-let printErr(msg: String): Unit =
-  Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error(msg))
+let printErr(msg: String): Unit = Stdlib.printErrorLine(View.formatError(msg))
 
+let printWarning(msg: String): Unit = Stdlib.printErrorLine(View.formatWarning(msg))
 
-let printHint(msg: String): Unit =
-  Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(msg))
+let printHint(msg: String): Unit = Stdlib.printErrorLine(View.formatHint(msg))
 
 
 /// Print <param json> on stdout, or say on stderr why the value has no JSON form. Whether it printed.
@@ -154,7 +153,10 @@ module Stderr =
 
   let ok(msg: String): Unit = Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.success(msg))
 
-  let hint(msg: String): Unit = Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(msg))
+
+  /// A dim line with no marker: a note, a list under a hint, the rest of a sentence.
+  let note(msg: String): Unit =
+    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.hint(msg))
 
 
 /// Whether a command asks before it does something it cannot take back, or has its yes already.
@@ -381,22 +383,23 @@ module ExecutionError =
     | Cancelled -> "Cancelled."
     | Unhandled(u) ->
       match u.metadata with
-      | [] -> $"Internal error: {u.message}"
+      | [] -> $"internal error: {u.message}"
       | _ ->
         let lines =
           u.metadata
           |> Stdlib.List.map(fun((k, v)) -> $"  {k}: {v}")
           |> Stdlib.String.join("\n")
 
-        $"Internal error: {u.message}\n{lines}"
+        $"internal error: {u.message}\n{lines}"
 
 
-  /// Format an error for the terminal, with colors for permission errors.
+  /// An error for the terminal. A parse error already starts with the parser's `error[CODE]`.
   let formatForTerminal(accountID: Option<Uuid>, branchId: Uuid, err: ExecutionError): String =
     let message = toString(accountID, branchId, err)
     match err with
+    | Parse(_) | Cancelled | Unhandled(_) -> message
     | Denied(_) -> Text.stylePermissionError(message)
-    | _ -> message
+    | _ -> View.formatError(message)
 
 
   /// Skip entry-only stacks: they add no useful detail to a missing-name error.
@@ -418,9 +421,20 @@ module ExecutionError =
     | _ -> ()
 
 
+/// Every line on stderr that is a problem says so in words, and colour only adds to that: under
+/// `NO_COLOR`, in a log or in an agent's transcript the words are all there is.
 module View =
   let formatError(message: String): String =
-    Stdlib.Cli.UI.Colors.error("Error: " + message)
+    Stdlib.Cli.UI.Colors.error("error: " + message)
+
+
+  let formatWarning(message: String): String =
+    Stdlib.Cli.UI.Colors.warning("warning: " + message)
+
+
+  /// What to run next, under the error or result it follows.
+  let formatHint(message: String): String =
+    Stdlib.Cli.UI.Colors.hint("  hint: " + message)
 
 
   let formatSuccess(message: String): String =

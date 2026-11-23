@@ -8,7 +8,7 @@ let runtimeFailure(output: String): Stdlib.Option.Option<String> =
     Stdlib.String.contains(line, "Encountered a Runtime Error")
     || Stdlib.String.contains(line, "No matching case found")
     || Stdlib.String.contains(line, "couldn't be found")
-    || Stdlib.String.contains(line, "Internal error:")
+    || Stdlib.String.contains(line, "internal error:")
     || Stdlib.String.contains(line, "expects ")
        && Stdlib.String.contains(line, " but got"))
 

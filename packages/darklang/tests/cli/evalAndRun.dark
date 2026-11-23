@@ -542,9 +542,9 @@ test runtimeChecksUseTheSelectedBranch = Instance.withInstance(fun i ->
       main
       switched
       // `text`: the branch's body is stored once with `String.Display.display`'s.
-      Stdlib.String.trim(rejected)
+      Stdlib.Cli.Tui.Text.stripSgr(Stdlib.String.trim(rejected))
       |> Stdlib.Test.equal(
-        "Error: ScriptChecking.accept's 1st parameter `text` expects String, but got Int64 (7). Try wrapping it with `Stdlib.display`.")
+        "error: ScriptChecking.accept's 1st parameter `text` expects String, but got Int64 (7). Try wrapping it with `Stdlib.display`.")
       accepted ]))
 
 
@@ -555,9 +555,9 @@ test runtimeErrorsDescribePackageArguments = Instance.withInstance(fun i ->
 
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "a runtime error exits nonzero")
-      Stdlib.String.trim(out)
+      Stdlib.Cli.Tui.Text.stripSgr(Stdlib.String.trim(out))
       |> Stdlib.Test.equal(
-        "Error: Darklang.Stdlib.List.length's 1st parameter `list` expects List<_>, but got String (\"not a list\")")
+        "error: Darklang.Stdlib.List.length's 1st parameter `list` expects List<_>, but got String (\"not a list\")")
       Instance.doesNotSay(out, "Static type check failed", "no static gate") ]))
 
 

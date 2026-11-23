@@ -52,7 +52,7 @@ test unknownPartIsRefused = Instance.withInstance(fun i ->
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "an unknown part fails")
       plain(out)
-      |> Stdlib.Test.equal("Unknown part of docs for-ai: zzz\n\n  docs for-ai packages - Saving and changing declarations, the type checker, a command-line tool\n  docs for-ai tests - Package tests in full\n  docs for-ai permissions - Rules, profiles and package approvals\n  docs for-ai traces - What a run did, and things that run at once\n  docs for-ai scm - Drafts, commits, branches, deprecation\n  docs for-ai syntax - The full syntax notes and name resolution\nAny other topic from `docs` can be added too.")
+      |> Stdlib.Test.equal("error: Unknown part of docs for-ai: zzz\n\n  docs for-ai packages - Saving and changing declarations, the type checker, a command-line tool\n  docs for-ai tests - Package tests in full\n  docs for-ai permissions - Rules, profiles and package approvals\n  docs for-ai traces - What a run did, and things that run at once\n  docs for-ai scm - Drafts, commits, branches, deprecation\n  docs for-ai syntax - The full syntax notes and name resolution\nAny other topic from `docs` can be added too.")
 
       Instance.says(
         Instance.said(i, [ "docs", "for-ai", "tests" ]),
@@ -122,7 +122,7 @@ test unknownPartsAreNamed = Instance.withInstance(fun i ->
     [ Instance.exitedWith(code, 1, "a call with an unknown part fails")
       // and prints none of the parts it does know
       plain(out)
-      |> Stdlib.Test.equal("Unknown parts of docs for-ai: zzz, yyy\n\n  docs for-ai packages - Saving and changing declarations, the type checker, a command-line tool\n  docs for-ai tests - Package tests in full\n  docs for-ai permissions - Rules, profiles and package approvals\n  docs for-ai traces - What a run did, and things that run at once\n  docs for-ai scm - Drafts, commits, branches, deprecation\n  docs for-ai syntax - The full syntax notes and name resolution\nAny other topic from `docs` can be added too.") ]))
+      |> Stdlib.Test.equal("error: Unknown parts of docs for-ai: zzz, yyy\n\n  docs for-ai packages - Saving and changing declarations, the type checker, a command-line tool\n  docs for-ai tests - Package tests in full\n  docs for-ai permissions - Rules, profiles and package approvals\n  docs for-ai traces - What a run did, and things that run at once\n  docs for-ai scm - Drafts, commits, branches, deprecation\n  docs for-ai syntax - The full syntax notes and name resolution\nAny other topic from `docs` can be added too.") ]))
 
 
 // `docs for-ai` says which values `Stdlib.display` takes, that interpolation falls back to
@@ -132,9 +132,9 @@ test displayAdviceHolds = Instance.withInstance(fun i ->
   let (code, out) = Instance.ran(i, [ "eval", "Stdlib.display([1, 2])" ])
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "a list has no Display")
-      Stdlib.String.trim(out)
+      plain(out)
       |> Stdlib.Test.equal(
-        "Error: List<Int64> has no implementation of Darklang.Stdlib.Display. Write `impl Display for List<Int64> = ...`, or run `dark impls Display` to see which types do. `Stdlib.inspect` shows any value")
+        "error: List<Int64> has no implementation of Darklang.Stdlib.Display. Write `impl Display for List<Int64> = ...`, or run `dark impls Display` to see which types do. `Stdlib.inspect` shows any value")
       Stdlib.display(Stdlib.Option.Option.Some(3))
       |> Stdlib.Test.equal("Some(3)")
 

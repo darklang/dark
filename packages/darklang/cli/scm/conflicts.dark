@@ -357,7 +357,7 @@ let executeOverride(state: AppState, idPrefix: String, choice: String): AppState
       printOk($"#{c.id}  {dotted} -- hand-authoring. Both wordings:")
       let _ = executeShow(state, idPrefix)
       Stderr.line("")
-      printHint($"  write the wording you want, then `dark conflicts ack {c.id}`.")
+      printHint($"write the wording you want, then `dark conflicts ack {c.id}`.")
       state
     else
       match pickCandidate(c, choice) with
@@ -370,7 +370,7 @@ let executeOverride(state: AppState, idPrefix: String, choice: String): AppState
         match SCM.Conflicts.settleWording(state.currentBranchId, c, cand.text) with
         | Ok(_) ->
           printOk($"overrode #{c.id}: {dotted} now says \"{cand.text}\".")
-          printHint("  it's an op, so the choice syncs and holds.")
+          Stderr.note("  it's an op, so the choice syncs and holds.")
           state
         | Error(e) ->
           printErr($"override failed: {e}")
@@ -384,7 +384,7 @@ let executeOverride(state: AppState, idPrefix: String, choice: String): AppState
       let _ = executeShow(state, idPrefix)
       Stderr.line("")
       printHint(
-        $"  write the merged version yourself (`dark {c.itemType} {dotted} ...`), then `dark conflicts ack {c.id}`.")
+        $"write the merged version yourself (`dark {c.itemType} {dotted} ...`), then `dark conflicts ack {c.id}`.")
 
       state
     else
@@ -407,7 +407,7 @@ let executeOverride(state: AppState, idPrefix: String, choice: String): AppState
           match SCM.PackageOps.settleConflictByRemoval(state.currentBranchId, c) with
           | Ok(_) ->
             printOk($"took {choice}; {dotted} is unbound again.")
-            printHint("  it's an op, so the removal syncs and holds.")
+            Stderr.note("  it's an op, so the removal syncs and holds.")
             state
           | Error(e) ->
             printErr($"override failed: {e}")
@@ -668,23 +668,23 @@ let executePretty(state: AppState, args: List<String>): AppState =
   // fix it should not be buried in `help`.
   | ["show"] ->
     printErr("show needs a conflict id.")
-    printHint("  `dark conflicts` lists them, ids first.")
+    printHint("`dark conflicts` lists them, ids first.")
     failed(state)
   | ["ack"] ->
     printErr("ack needs a conflict id.")
-    printHint("  `dark conflicts` lists them, ids first.")
+    printHint("`dark conflicts` lists them, ids first.")
     failed(state)
   | ["override", _id] ->
     printErr("override needs a side: A, B, or a hash prefix.")
-    printHint("  `dark conflicts show <id>` prints both versions with their hashes.")
+    printHint("`dark conflicts show <id>` prints both versions with their hashes.")
     failed(state)
   | ["override"] ->
     printErr("override needs a conflict id and a side.")
-    printHint("  `dark conflicts` lists them; `show <id>` prints both versions.")
+    printHint("`dark conflicts` lists them; `show <id>` prints both versions.")
     failed(state)
   | ["branch"] ->
     printErr("branch needs a branch to preview.")
-    printHint("  `dark branches` lists them.")
+    printHint("`dark branches` lists them.")
     failed(state)
   // Printing help alone reads as an answer: a typo would look exactly like `conflicts --help`, a
   // command that ran and found nothing.

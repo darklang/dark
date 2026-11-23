@@ -25,11 +25,12 @@ let execute(state: AppState, args: List<String>): AppState =
       if complete then
         ()
       else
-        printErr("Incomplete: some calls could not be resolved. More effects may occur.")
+        printWarning("some calls could not be resolved, so more effects may occur.")
 
       state
   | _ ->
-    printErr("Usage: effects <function>")
+    printErr("`dark effects` takes one function.")
+    Stderr.line("  usage: dark effects <function>")
     failed(state)
 
 

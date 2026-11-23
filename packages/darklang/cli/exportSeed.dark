@@ -14,10 +14,11 @@ let execute(state: AppState, args: List<String>): AppState =
       Stdlib.printLine($"Seed exported to {outputPath}")
       state
     | Error(err) ->
-      Stdlib.printErrorLine(View.formatError($"Export failed: {err}"))
+      printErr($"Export failed: {err}")
       failed(state)
   | _ ->
-    Stdlib.printErrorLine(View.formatError("Usage: export-seed <output-path>"))
+    printErr("`dark export-seed` takes an output path.")
+    Stderr.line("  usage: dark export-seed <output-path>")
     failed(state)
 
 

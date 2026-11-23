@@ -14,7 +14,7 @@ let execute(state: AppState, args: List<String>): AppState =
     let confirm = Confirm.assumeIf(hasFlag(args, "--yes", "-y"))
     match System.installedBinaryPath(host) with
     | Error(e) ->
-      Stdlib.printErrorLine(View.formatError(e))
+      printErr(e)
       failed(state)
     | Ok(target) ->
       if System.isRunningInstalled(target) then
@@ -35,7 +35,7 @@ let execute(state: AppState, args: List<String>): AppState =
             Stdlib.printLine(View.formatSuccess(message))
             state
           | Error(e) ->
-            Stdlib.printErrorLine(View.formatError(e))
+            printErr(e)
             { state with exitCode = 1 }
         else
           if Stdlib.Cli.UI.Prompt.canAsk() then

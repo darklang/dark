@@ -63,7 +63,7 @@ let refuseUnknownFlags(args: List<String>): Bool =
   | [] -> false
   | flags ->
     flags |> Stdlib.List.iter(fun f -> printErr($"unknown flag \"{f}\"."))
-    printHint("  `dark commit --help` lists what it takes.")
+    printHint("`dark commit --help` lists what it takes.")
     true
 
 
@@ -222,7 +222,7 @@ let propagateOne(
             LanguageTools.ProgramTypes.Hash.Hash(b.hash)) with
     | Ok(repoints) -> Stdlib.List.length(repoints)
     | Error(e) ->
-      printErr($"  propagation failed for {b.name}: {e}")
+      printErr($"propagation failed for {b.name}: {e}")
       0
 
 
@@ -485,7 +485,7 @@ let refuseUnresolved(parsed: Args): Bool =
         |> Stdlib.List.iter(fun n ->
           Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"    - {n}"))))
 
-      printHint("  author what's missing, or `dark commit --allow-unresolved` to record it as-is.")
+      printHint("author what's missing, or `dark commit --allow-unresolved` to record it as-is.")
       true
 
 
@@ -539,7 +539,7 @@ let refuseTypeErrors(parsed: Args): Bool =
         else
           ()
 
-      printHint("  fix them, or `dark commit --allow-type-errors` to record them as-is.")
+      printHint("fix them, or `dark commit --allow-type-errors` to record them as-is.")
       true
 
 
@@ -569,7 +569,7 @@ let executePretty(state: AppState, args: List<String>): AppState =
   then
     let unknown = Stdlib.String.join(SCM.PartialCommit.unknownNames(parsed.include), ", ")
     printErr($"--include names things not in your draft: {unknown}.")
-    printHint("  names are exact item names; `dark status` lists what the draft holds.")
+    printHint("names are exact item names; `dark status` lists what the draft holds.")
     { state with exitCode = 1 }
   else if refuseUnresolved(parsed) then
     { state with exitCode = 1 }
@@ -621,7 +621,7 @@ let executePretty(state: AppState, args: List<String>): AppState =
       if Stdlib.List.isEmpty(parsed.include) then
         ()
       else
-        Stderr.hint(
+        Stderr.note(
           $"""  --include: only {Stdlib.String.join(parsed.include, ", ")} (and what they pull in) will commit; the rest stays a draft.""")
 
     // `confirmExplicit`, so a piped stdin is a NO: docs promise a review-then-ask, and a script

@@ -36,7 +36,7 @@ let executeDiff(state: AppState, branchRef: String, source: Source): AppState =
       if SCM.PackageOps.branchIsMerged(branchId) then
         let n = Text.plural(Stdlib.List.length(SCM.PackageOps.mergedOpsOf(branchId)), "op")
         printOk($"\"{branchRef}\" is merged: its {n} are its parent's now.")
-        printHint($"  `dark log {branchRef}` lists them.")
+        printHint($"`dark log {branchRef}` lists them.")
       else
         printOk($"\"{branchRef}\" changes nothing vs its parent.")
 
@@ -73,7 +73,7 @@ let executeDiff(state: AppState, branchRef: String, source: Source): AppState =
 
       if source == Source.Hide then
         Stdlib.printErrorLine("")
-        printHint("  `dark diff <branch> --source` shows each definition.")
+        printHint("`dark diff <branch> --source` shows each definition.")
       else
         ()
 
@@ -139,13 +139,13 @@ let executeDiffCmd(state: AppState, args: List<String>): AppState =
         printOk(
           $"""{Text.plural(ops, "op")} to commit, no changed names (no new version: restores, deprecations, docs, acks)""")
 
-      printHint("  `dark diff <branch>` compares a branch with its parent.")
+      printHint("`dark diff <branch>` compares a branch with its parent.")
       state
     else
       let nameWidth = Commit.widest(r.items |> Stdlib.List.map(fun i -> i.name))
       printOk($"  CHANGED ({Stdlib.display(Stdlib.List.length(r.changed))})")
       r.items |> Stdlib.List.iter(fun item -> Stdlib.printLine(Commit.changedLine(nameWidth, item)))
-      printHint("  `dark commit` reviews and commits it; `dark diff <branch>` compares a branch.")
+      printHint("`dark commit` reviews and commits it; `dark diff <branch>` compares a branch.")
       state
   | [id] ->
     if ScmJson.wantsJson(args) then
@@ -158,8 +158,9 @@ let executeDiffCmd(state: AppState, args: List<String>): AppState =
     else
       executeDiff(state, id, Source.showIf(Stdlib.List.contains(args, "--source")))
   | _ ->
-    printErr("usage: dark diff <branch> [--source] [--json]")
-    printHint("  `dark branches` lists them.")
+    printErr("`dark diff` takes one branch.")
+    Stderr.line("  usage: dark diff <branch> [--source] [--json]")
+    printHint("`dark branches` lists them.")
     failed(state)
 
 
@@ -206,5 +207,6 @@ let executeLogCmd(state: AppState, args: List<String>): AppState =
       else
         executeLog(state, branchRef)
   | _ ->
-    printErr("usage: dark log [<branch>] [--json]")
+    printErr("`dark log` takes at most one branch.")
+    Stderr.line("  usage: dark log [<branch>] [--json]")
     failed(state)

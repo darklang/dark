@@ -218,24 +218,18 @@ let execute(state: AppState, args: List<String>): AppState =
   match parsedArguments with
   | Error(e) ->
     printErr(e)
-    Stdlib.printErrorLine(
-      Stdlib.Cli.UI.Colors.dimText(
-        "  `dark edit <name>` opens $EDITOR; with a <file> it applies that."))
-
+    printHint("`dark edit <name>` opens $EDITOR; with a <file> it applies that.")
     failed(state)
   | Ok((name, fileArg)) ->
     match Traversal.traverse(branchId, state.packageData.currentLocation, name) with
     | Error(e) ->
-      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot edit {name}: {e}"))
+      printErr($"Cannot edit {name}: {e}")
       failed(state)
     | Ok(location) ->
       match itemLocation(location) with
       | None ->
         printErr($"{name} is a module. `dark edit` takes one fn, type, value, trait, impl or test.")
-        Stdlib.printErrorLine(
-          Stdlib.Cli.UI.Colors.dimText(
-            "  `dark module /Some.Module <file>` edits a whole module at once."))
-
+        printHint("`dark module /Some.Module <file>` edits a whole module at once.")
         failed(state)
       | Some(loc) ->
         match fileArg with
@@ -257,32 +251,23 @@ let execute(state: AppState, args: List<String>): AppState =
           match Stdlib.Cli.Tui.TerminalSupport.current() with
           | Unavailable(reason) ->
             printErr($"Cannot open an editor: {reason}.")
-            Stdlib.printErrorLine(
-              Stdlib.Cli.UI.Colors.dimText(
-                $"  `dark view {name} --raw > f`, change f, then `dark edit {name} f`."))
-
+            printHint($"`dark view {name} --raw > f`, change f, then `dark edit {name} f`.")
             failed(state)
           | Available ->
             match View.rawSource(branchId, location) with
             | Error(e) ->
-              Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot edit {name}: {e}"))
+              printErr($"Cannot edit {name}: {e}")
               failed(state)
             | Ok(before) ->
               match Stdlib.Cli.Dir.createTemp() with
               | Error(e) ->
-                Stdlib.printErrorLine(
-                  Stdlib.Cli.UI.Colors.error(
-                    $"Cannot edit {name}: no temp directory ({Stdlib.display(e)})"))
-
+                printErr($"Cannot edit {name}: no temp directory ({Stdlib.display(e)})")
                 failed(state)
               | Ok(dir) ->
                 let path = $"{dir}/{loc.name}.dark"
                 match Stdlib.Cli.File.writeText(path, before) with
                 | Error(e) ->
-                  Stdlib.printErrorLine(
-                    Stdlib.Cli.UI.Colors.error(
-                      $"Cannot edit {name}: could not write {path} ({Stdlib.display(e)})"))
-
+                  printErr($"Cannot edit {name}: could not write {path} ({Stdlib.display(e)})")
                   failed(state)
                 | Ok(_) ->
                   let editor = editorCommand()

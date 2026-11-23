@@ -106,7 +106,8 @@ let execute(state: AppState, args: List<String>): AppState =
       printErr(e)
       { state with exitCode = 1 }
   | [] ->
-    printErr("Usage: format [--check] <file-or-directory>...")
+    printErr("`dark format` needs a file or directory.")
+    Stderr.line("  usage: dark format [--check] <file-or-directory>...")
     { state with exitCode = 1 }
   | paths ->
     match paths

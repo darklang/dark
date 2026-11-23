@@ -1379,7 +1379,7 @@ let failedSavesDoNotWarnAboutUnresolvedTraitCalls =
             System.IO.File.WriteAllText(path, source)
             return! runCliPlain state [ "module"; "/Tests." + name; path ]
           }
-        let warning = "Warning: could not choose implementations for these calls:"
+        let warning = "warning: could not choose implementations for these calls:"
         try
           let! incomplete = save "TraitWarningIncomplete" unresolved
           Expect.stringContains
@@ -1531,7 +1531,7 @@ let unresolvedTraitCallsKeepTheirSourceLocations =
                 "let second<'a: Stdlib.Display>(x: 'a): String ="
                 "  Stdlib.Display.display(x)" ]
           Expect.isFalse
-            (helpers.Contains "Warning: could not choose implementations")
+            (helpers.Contains "warning: could not choose implementations")
             $"valid generic deferrals do not warn: {helpers}"
 
           let! output =

@@ -34,7 +34,7 @@ let lookupRef(branchRef: String): Option<Uuid> =
   | NotFound -> Option.None
   | UnknownId(_) ->
     printErr($"no branch with id {branchRef} in this store.")
-    printHint("  `dark branches` lists the branches here.")
+    printHint("`dark branches` lists the branches here.")
     Option.None
   | Ambiguous ->
     printErr($"\"{branchRef}\" matches more than one branch -- use more of the id, or its name.")
@@ -49,7 +49,7 @@ let resolveRef(branchRef: String): Option<Uuid> =
   | Some(id) -> Option.Some(id)
   | None ->
     printErr($"no branch \"{branchRef}\".")
-    printHint("  `dark branches` lists them.")
+    printHint("`dark branches` lists them.")
     Option.None
 
 
@@ -133,7 +133,7 @@ let executeSwitch(state: AppState, branchRef: String): AppState =
     // arm `dark switch --help` starts a branch called "--help" and moves the store onto it.
     | ref when Stdlib.String.startsWith(ref, "-") ->
       let _ = printErr($"\"{ref}\" starts with a dash, so it's a flag rather than a branch name.")
-      let _ = printHint("  `dark switch <branch>`, and `dark branches` lists them.")
+      let _ = printHint("`dark switch <branch>`, and `dark branches` lists them.")
       SCM.PackageOps.currentBranch()
     | ref when ref == "" || ref == SCM.Branch.mainBranchName ->
       let _ = SCM.PackageOps.selectBranch(SCM.Branch.mainBranchId)
@@ -196,7 +196,7 @@ let executeSwitch(state: AppState, branchRef: String): AppState =
               |> Stdlib.List.any(fun b -> b.name == handle && b.merged && b.id != branchId)
 
             if namesake then
-              printHint(
+              Stderr.note(
                 $"  note: an earlier \"{handle}\" was merged; this one is fresh. `dark branches --all` shows both.")
             else
               ()
@@ -269,8 +269,8 @@ let executeArchive(state: AppState, branchRef: String, confirm: Confirm): AppSta
     printErr(
       $"cannot archive \"{branchRef}\": {Text.plural(Stdlib.List.length(kids), "branch")} still branch off it.")
 
-    kids |> Stdlib.List.iter(fun k -> printHint($"    - {k}"))
-    printHint("  merge or archive them first, and this one can go.")
+    kids |> Stdlib.List.iter(fun k -> Stderr.note($"    - {k}"))
+    Stderr.note("  merge or archive them first, and this one can go.")
     failed(state)
   | Some(branchId) ->
     let entries = SCM.PackageOps.branchDiffEntries(branchId)
@@ -288,7 +288,7 @@ let executeArchive(state: AppState, branchRef: String, confirm: Confirm): AppSta
         |> Stdlib.List.iter(fun e ->
           Stderr.line(Stdlib.Cli.UI.Colors.dimText($"    - {e.name}  [{e.kind}]")))
 
-        Stderr.hint("  `dark merge` first if you meant to keep them.")
+        printHint("`dark merge` first if you meant to keep them.")
         Prompt.confirmExplicit(confirm, Stdlib.Cli.UI.Colors.warning("\n  Archive it? [y/N]: "))
 
     if Stdlib.Bool.not(confirmed) then
@@ -383,11 +383,11 @@ let execute(state: AppState, args: List<String>): AppState =
   | [word] ->
     printErr($"`dark branch` does not take `{word}`.{Accepts.didYouMean(word, knownSubcommands)}")
     if hasActiveBranchNamed(word) then
-      printHint($"  to switch to the branch `{word}`, run `dark switch {word}`")
+      printHint($"to switch to the branch `{word}`, run `dark switch {word}`")
     else
-      printHint($"  to create a branch named `{word}`, run `dark branch create {word}`")
+      printHint($"to create a branch named `{word}`, run `dark branch create {word}`")
 
-    printHint("  `dark branch --help` shows what it takes.")
+    printHint("`dark branch --help` shows what it takes.")
     failed(state)
   | _ ->
     // Printing help alone reads as though nothing happened, so say what was not understood first.
@@ -423,7 +423,7 @@ let hasActiveBranchNamed(name: String): Bool =
 let executeCreate(state: AppState, name: String): AppState =
   if hasActiveBranchNamed(name) then
     printErr($"{name} already exists, so it can't be created.")
-    printHint($"  `dark switch {name}` goes to it.")
+    printHint($"`dark switch {name}` goes to it.")
     failed(state)
   else
     executeSwitch(state, name)
@@ -454,7 +454,8 @@ let executeSwitchCmd(state: AppState, args: List<String>): AppState =
   | [] -> executeCurrent(state)
   | [id] -> executeSwitch(state, id)
   | _ ->
-    printErr("usage: dark switch <branch>   (`dark switch main` returns to main)")
+    printErr("`dark switch` takes one branch.")
+    Stderr.line("  usage: dark switch <branch>   (`dark switch main` returns to main)")
     failed(state)
 
 

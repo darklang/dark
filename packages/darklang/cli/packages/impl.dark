@@ -34,7 +34,7 @@ let execute(state: AppState, args: List<String>): AppState =
       failed(state)
     | Ok(inlineDefinition) ->
       if Stdlib.String.isEmpty(inlineDefinition) then
-        [ Stdlib.Cli.UI.Colors.error("Error: Implementation required")
+        [ View.formatError("Implementation required")
           ""
           "Pass it inline, a file that holds it, or `-` to read from stdin:"
           "  impl <module> <Trait for Type = members>"
@@ -69,7 +69,7 @@ let implSource(definition: String): String =
 
 let createImplInline(state: AppState, modulePath: String, definition: String): AppState =
   let hint =
-    [ Stdlib.Cli.UI.Colors.error("Expected exactly one impl declaration")
+    [ View.formatError("Expected exactly one impl declaration")
       ""
       "Example:"
       "  dark impl Me.Demo 'Display for Point = let display(p: Point): String = Stdlib.display(p.x)'"
@@ -117,7 +117,7 @@ let saveImpl(
   match traitTakesTheName(state.currentBranchId, location) with
   | Some(fullName) ->
     [ ""
-      Stdlib.Cli.UI.Colors.error(
+      View.formatError(
         $"A trait is already called {fullName}, so this implementation cannot take that name.")
 
       ""
@@ -159,9 +159,8 @@ let saveImpl(
 
         if traitUnresolved then
           printErr($"There is no trait called {traitName}.")
-          Stdlib.printErrorLine(
-            Stdlib.Cli.UI.Colors.hint(
-              "  `dark search <name> --trait` finds one; `dark trait` writes one; `docs traits` explains them."))
+          printHint(
+            "`dark search <name> --trait` finds one; `dark trait` writes one; `docs traits` explains them.")
 
           Option.None
         else

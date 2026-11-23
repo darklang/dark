@@ -231,10 +231,8 @@ let executePackageFn(
     match deprecation with
     | Some((WithReplacement(reference), _)) ->
       let replacement = Packages.View.resolveReplacementName(branchId, reference)
-      Stdlib.printErrorLine(
-        Stdlib.Cli.UI.Colors.warning($"Warning: {fnName} is deprecated. Use {replacement} instead."))
-    | Some(_) ->
-      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.warning($"Warning: {fnName} is deprecated."))
+      printWarning($"{fnName} is deprecated. Use {replacement} instead.")
+    | Some(_) -> printWarning($"{fnName} is deprecated.")
     | None -> ()
 
     match LanguageTools.PackageManager.Function.getSignature(hash) with
@@ -342,7 +340,7 @@ let printScriptError(state: AppState, e: ExecutionError.ExecutionError): AppStat
   | _ ->
     ExecutionError.printCallStack(state.currentBranchId, e)
     let pretty = ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, e)
-    Stdlib.printErrorLine($"Script error: {pretty}")
+    Stdlib.printErrorLine(pretty)
 
   { state with exitCode = 1 }
 

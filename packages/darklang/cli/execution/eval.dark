@@ -177,7 +177,7 @@ let executeUnder(
           state
         | Ok(None) -> state
         | Error(message) ->
-          Stdlib.printErrorLine($"Error: {message}")
+          Stdlib.printErrorLine(message)
           { state with exitCode = 1 }
 
       match stats with

@@ -26,7 +26,7 @@ let execute(state: AppState, args: List<String>): AppState =
     let branchId = state.currentBranchId
     match Traversal.traverse(branchId, state.packageData.currentLocation, locationStr) with
     | Error(e) ->
-      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error(e))
+      printErr(e)
       { state with exitCode = 1 }
     | Ok(location) ->
       let found =
@@ -60,13 +60,11 @@ let execute(state: AppState, args: List<String>): AppState =
         match location with
         | Module(path) ->
           let dotted = Stdlib.String.join(path, ".")
-          Stdlib.printErrorLine(
-            Stdlib.Cli.UI.Colors.error($"{dotted} is a module, and a module has no hash."))
-
-          Stdlib.printErrorLine("  `dark ls` lists what is in it; each item has its own.")
+          printErr($"{dotted} is a module, and a module has no hash.")
+          printHint("`dark ls` lists what is in it; each item has its own.")
           { state with exitCode = 1 }
         | _ ->
-          Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Not found: {locationStr}"))
+          printErr($"Not found: {locationStr}")
           { state with exitCode = 1 }
 
 

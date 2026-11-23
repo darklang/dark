@@ -48,7 +48,7 @@ test anUnknownNameIsReported = Instance.withInstance(fun i ->
     [ Instance.exitedWith(code, 1, "one name is not there")
       Instance.says(
         out,
-        "Cannot view Zzz.Nope.f",
+        "Zzz.Nope.f: Not found",
         "the missing name is reported")
 
       Instance.says(out, "let head", "the other name is still shown") ]))

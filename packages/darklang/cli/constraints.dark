@@ -229,7 +229,7 @@ let onBranch(): Bool =
 let executeAck(state: AppState, args: List<String>): AppState =
   if onBranch() then
     printErr("constraints are a property of the store, not of a branch -- switch to main to ack.")
-    printHint(
+    Stderr.note(
       "  detection runs over main's bindings, so there's nothing branch-local here to answer.")
 
     Cli.failed(state)
@@ -256,8 +256,8 @@ let executeAck(state: AppState, args: List<String>): AppState =
             true)
 
       // Both lines are about REFERENCES, which is what every finding here describes.
-      printHint("  an ack comes back if that item later moves to some other old version.")
-      printHint("  Keep the current reference if the older version is deliberate.")
+      Stderr.note("  an ack comes back if that item later moves to some other old version.")
+      Stderr.note("  Keep the current reference if the older version is deliberate.")
       exitWith(state, Stdlib.List.isEmpty(missing) && Stdlib.List.isEmpty(failed))
 
 
@@ -349,7 +349,7 @@ let executeResolve(state: AppState, args: List<String>): AppState =
     printErr(
       "constraints are a property of the store, not of a branch -- switch to main to resolve.")
 
-    printHint(
+    Stderr.note(
       "  detection runs over main's bindings, so there's nothing branch-local here to answer.")
 
     failed(state)
@@ -366,7 +366,7 @@ let executeResolve(state: AppState, args: List<String>): AppState =
       match resolutionFor(targets, args) with
       | Error(e) ->
         printErr(e)
-        printHint("  `dark ack <id>...` leaves them for now, which needs no choice.")
+        printHint("`dark ack <id>...` leaves them for now, which needs no choice.")
         failed(state)
       | Ok(resolution) ->
         let results =
@@ -430,7 +430,7 @@ let executeAckCmd(state: AppState, args: List<String>): AppState =
   match args with
   | [] ->
     printErr("which findings? `dark ack <id>...`, or `dark ack --all`.")
-    printHint("  `dark constraints` lists them.")
+    printHint("`dark constraints` lists them.")
     failed(state)
   | _ -> executeAck(state, args)
 
@@ -456,7 +456,7 @@ let execute(state: AppState, args: List<String>): AppState =
   | _ ->
     if Stdlib.Bool.not(listingUnderstands(args)) then
       printErr($"`dark constraints` doesn't take \"{Stdlib.String.join(args, " ")}\".")
-      printHint("  dark constraints [--kind <kind>] [--json]   list; `resolve` and `ack` take ids")
+      Stderr.note("  dark constraints [--kind <kind>] [--json]   list; `resolve` and `ack` take ids")
       failed(state)
     else
       match kindArgChecked(args) with

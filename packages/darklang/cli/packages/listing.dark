@@ -219,7 +219,7 @@ let execute(state: AppState, args: List<String>): AppState =
   | [pathArg] ->
     match Traversal.traverse(branchId, state.packageData.currentLocation, pathArg) with
     | Error(errorMsg) ->
-      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot list {pathArg}: {errorMsg}"))
+      printErr($"Cannot list {pathArg}: {errorMsg}")
       failed(state)
     | Ok(newLocation) ->
       match newLocation with
@@ -238,7 +238,7 @@ let execute(state: AppState, args: List<String>): AppState =
       | Type(_) | Value(_) | Function(_) | Trait(_) | Test(_) ->
         let locationStr = formatLocation(newLocation)
         printErr($"'{locationStr}' is not a module.")
-        Stderr.line("`dark view` shows one item; `dark ls` lists a module.")
+        printHint("`dark view` shows one item; `dark ls` lists a module.")
 
         // A trait's own question is which types implement it, and `impls` is the only command that
         // answers it. Without this line you find that command in the docs or by accident.

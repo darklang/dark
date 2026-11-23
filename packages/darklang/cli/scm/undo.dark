@@ -10,7 +10,7 @@ let execute(state: AppState, args: List<String>): AppState =
   if Stdlib.Bool.not(Stdlib.List.isEmpty(flags)) then
     let f = Stdlib.String.join(flags, " ")
     printErr($"undo takes no flags, and {f} isn't a name.")
-    printHint("  usage: dark undo <name>")
+    Stderr.line("  usage: dark undo <name>")
     failed(state)
   else
     match args with
@@ -24,7 +24,7 @@ let execute(state: AppState, args: List<String>): AppState =
         | None ->
           printErr($"nothing named {PropagateCmd.dotted(loc)}.")
           printHint(
-            "  `dark ls <module>` lists what's there; `dark status` shows what you've changed.")
+            "`dark ls <module>` lists what's there; `dark status` shows what you've changed.")
 
           failed(state)
         | Some(_) ->
@@ -39,7 +39,7 @@ let execute(state: AppState, args: List<String>): AppState =
               $"{PropagateCmd.dotted(loc)} is at its first version -- nothing further to undo.")
 
             printHint(
-              $"  to remove it from your draft entirely: dark discard {PropagateCmd.dotted(loc)}")
+              $"to remove it from your draft entirely: dark discard {PropagateCmd.dotted(loc)}")
 
             failed(state)
           | Some((revision, snapshot)) ->
@@ -65,8 +65,9 @@ let execute(state: AppState, args: List<String>): AppState =
 
               exitWith(state, followed)
     | _ ->
-      printErr("usage: dark undo <name>")
-      printHint("  steps that item back to the version it had before your last change.")
+      printErr("`dark undo` takes one name.")
+      Stderr.line("  usage: dark undo <name>")
+      Stderr.note("  steps that item back to the version it had before your last change.")
       failed(state)
 
 

@@ -17,7 +17,7 @@ let execute(state: AppState, args: List<String>): AppState =
       failed(state)
     | Ok(inlineDefinition) ->
       if Stdlib.String.isEmpty(inlineDefinition) then
-        [ Stdlib.Cli.UI.Colors.error("Error: Trait definition required")
+        [ View.formatError("Trait definition required")
           ""
           "Pass the definition inline, a file that holds it, or `-` to read from stdin:"
           "  trait <location> <type params and methods>"
@@ -46,7 +46,7 @@ let traitSource(name: String, definition: String): String =
 
 let createTraitInline(state: AppState, locationStr: String, definition: String): AppState =
   let hint =
-    [ Stdlib.Cli.UI.Colors.error("Expected exactly one trait declaration")
+    [ View.formatError("Expected exactly one trait declaration")
       ""
       "Example:"
       "  dark trait Me.Demo.Show \"<'a> = let show(v: 'a): String\""

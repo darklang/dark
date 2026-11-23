@@ -17,7 +17,7 @@ let reportConflicts(conflicts: List<SCM.Conflicts.Conflict>): Unit =
 
     // The merge IS the moment; sending the reader through `status` to learn the next verb costs a
     // round trip at the point they most want it.
-    printHint($"  -> `dark conflicts` to review the {n} auto-pick(s)")
+    printHint($"`dark conflicts` to review the {n} auto-pick(s)")
 
 
 /// The branch's callers a merge repointed at the parent's version before landing them.
@@ -73,7 +73,7 @@ let executeMergePreview(state: AppState, branchRef: String, preview: Preview): A
       // Only when this IS the whole command. In the confirm flow the next line is the question, and
       // telling someone to run the thing they are being asked to approve reads as a non-sequitur.
       if preview == Preview.Alone then
-        printHint($"  `dark merge {branchRef}` to do it.")
+        printHint($"`dark merge {branchRef}` to do it.")
 
       state
 
@@ -110,7 +110,7 @@ let mergeRefusal(branchId: Uuid, branchRef: String, typeErrors: TypeErrors): Boo
   if uncommitted != 0 then
     printErr($"cannot merge \"{branchRef}\": it has {Text.plural(uncommitted, "uncommitted op")}.")
     printHint(
-      $"  commit them (`dark --branch {branchRef} commit \"<message>\"`) or drop them (`dark --branch {branchRef} discard`), then merge.")
+      $"commit them (`dark --branch {branchRef} commit \"<message>\"`) or drop them (`dark --branch {branchRef} discard`), then merge.")
 
     true
   else if typeErrors == TypeErrors.Allow then
@@ -123,8 +123,8 @@ let mergeRefusal(branchId: Uuid, branchRef: String, typeErrors: TypeErrors): Boo
     match (SCM.PackageOps.typeCheckOps(frontier)).verdict with
     | Failed ->
       printErr($"cannot merge \"{branchRef}\": the at-rest type check found definite errors in it.")
-      printHint("  `dark typecheck --failed` lists them; fix and commit on the branch, then merge.")
-      printHint("  `dark merge <branch> --allow-type-errors` merges anyway, deliberately.")
+      printHint("`dark typecheck --failed` lists them; fix and commit on the branch, then merge.")
+      printHint("`dark merge <branch> --allow-type-errors` merges anyway, deliberately.")
       true
     | Checked -> false
     | Incomplete -> false
@@ -183,7 +183,7 @@ let executeMerge(
           reportConflicts(outcome.conflicts)
 
           // The merge landed either way; this is what went wrong after it, so it does not change the exit.
-          let _ = if outcome.warning == "" then () else printErr($"  {outcome.warning}")
+          let _ = if outcome.warning == "" then () else printWarning(outcome.warning)
 
           // Standing on the branch you just merged is standing on finished work, and the stored name would
           // start resolving again the day someone reuses it. Move to the parent, and SAY so: changing where
@@ -234,12 +234,11 @@ let executeRebaseDryRun(state: AppState, branchRef: String): AppState =
         let dotted = SCM.Conflicts.fqn(c.owner, c.modules, c.name)
         Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"    ~ {dotted}  [{c.itemType}]")))
 
-    printHint(
+    Stderr.note(
       "  it also brings the parent's other changes, which are not listed here: a branch records bases")
 
-    printHint("  only for names it touched, so those arrive without a conflict.")
-
-    printHint($"  `dark rebase {branchRef}` to do it.")
+    Stderr.note("  only for names it touched, so those arrive without a conflict.")
+    printHint($"`dark rebase {branchRef}` to do it.")
     state
 
 
@@ -303,8 +302,9 @@ let mergeHelp(_state: AppState): String =
 let bareTargetBranch(verb: String): Result<String, Unit> =
   match SCM.PackageOps.currentBranch() with
   | id when SCM.Branch.isMain(id) ->
-    printErr($"usage: dark {verb} <branch>")
-    printHint($"  on main there is no branch to {verb}. `dark branches` lists them.")
+    printErr($"on main there is no branch to {verb}.")
+    Stderr.line($"  usage: dark {verb} <branch>")
+    printHint("`dark branches` lists them.")
     Result.Error()
   | id -> Result.Ok(SCM.PackageOps.branchName(id))
 
@@ -357,7 +357,7 @@ let executeMergeCmd(state: AppState, args: List<String>): AppState =
   match unknown with
   | [bad, ...] ->
     printErr($"unknown flag: {bad}")
-    printHint("usage: dark merge [branch] [-y] [--allow-type-errors] [--dry-run]")
+    Stderr.line("  usage: dark merge [branch] [-y] [--allow-type-errors] [--dry-run]")
     { state with exitCode = 1 }
   | [] ->
     match rest with
@@ -374,8 +374,9 @@ let executeMergeCmd(state: AppState, args: List<String>): AppState =
       else
         executeMerge(state, id, confirm, typeErrors)
     | _ ->
-      printErr("usage: dark merge <branch>")
-      printHint("  `dark branches` lists them.")
+      printErr("`dark merge` takes one branch.")
+      Stderr.line("  usage: dark merge <branch>")
+      printHint("`dark branches` lists them.")
       failed(state)
 
 
@@ -394,8 +395,9 @@ let executeRebaseCmd(state: AppState, args: List<String>): AppState =
   | [id, "--dry-run"] -> executeRebaseDryRun(state, id)
   | ["--dry-run", id] -> executeRebaseDryRun(state, id)
   | _ ->
-    printErr("usage: dark rebase <branch>")
-    printHint("  `dark branches` lists them.")
+    printErr("`dark rebase` takes one branch.")
+    Stderr.line("  usage: dark rebase <branch>")
+    printHint("`dark branches` lists them.")
     failed(state)
 
 
@@ -404,6 +406,7 @@ let executeResolveCmd(state: AppState, args: List<String>): AppState =
   match args with
   | [id, name, choice] -> executeResolve(state, id, name, choice)
   | _ ->
-    printErr("usage: dark resolve <branch> <name> mine|theirs")
-    printHint("  `dark conflicts branch <branch>` shows what's conflicted.")
+    printErr("`dark resolve` takes a branch, a name, and mine or theirs.")
+    Stderr.line("  usage: dark resolve <branch> <name> mine|theirs")
+    printHint("`dark conflicts branch <branch>` shows what's conflicted.")
     failed(state)

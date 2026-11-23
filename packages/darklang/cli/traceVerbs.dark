@@ -369,7 +369,7 @@ let executeScriptOrEval(state: AppState, input: Tracing.ScriptOrEvalInput): AppS
       state
     | Ok(None) -> state
     | Error(message) ->
-      printErr($"Error: {message}")
+      Stdlib.printErrorLine(message)
       { state with exitCode = 1 }
   | Script(filename, source, args, options) ->
     Run.runScript(state, filename, source, args, options, Run.Approval.Skip)

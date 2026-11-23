@@ -21,12 +21,12 @@ let execute(state: AppState, args: List<String>): AppState =
       let pinned = FlagParser.getOption(parsed, "--to")
       match System.installedBinaryPath(host) with
       | Error(e) ->
-        Stdlib.printErrorLine(View.formatError(e))
+        printErr(e)
         failed(state)
       | Ok(target) ->
         if Stdlib.Bool.not(System.isRunningInstalled(target)) then
           printErr($"This dark isn't the installed one ({target}), so there's nothing to update.")
-          printHint("  dark install installs this one; the installed dark updates itself")
+          Stderr.note("  dark install installs this one; the installed dark updates itself")
           failed(state)
         else
           let replace = fun () -> Download.installRelease(host, pinned)
@@ -36,7 +36,7 @@ let execute(state: AppState, args: List<String>): AppState =
             Stdlib.printLine(View.formatSuccess(message))
             state
           | Error(e) ->
-            Stdlib.printErrorLine(View.formatError(e))
+            printErr(e)
             failed(state)
 
 

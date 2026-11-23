@@ -1614,7 +1614,7 @@ let private aDependentsReadThatFailsIsReported =
         Expect.equal status 1 $"{ran} fails, got: {out} / {err}"
         Expect.stringContains (plain err) why $"{ran} names what it couldn't read"
         Expect.isFalse
-          (err.Contains "Internal error" || err.Contains "Uncaught exception")
+          (err.Contains "internal error" || err.Contains "Uncaught exception")
           $"{ran} reports rather than raising, got: {err}"
     })
 

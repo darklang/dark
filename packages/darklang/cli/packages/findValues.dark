@@ -29,7 +29,7 @@ let execute(state: AppState, args: List<String>): AppState =
   | [typePath] ->
     match resolveTypeHash(state.currentBranchId, state.packageData.currentLocation, typePath) with
     | Error(msg) ->
-      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error(msg))
+      printErr(msg)
       failed(state)
     | Ok(typeHash) ->
       let values =
@@ -44,7 +44,7 @@ let execute(state: AppState, args: List<String>): AppState =
   | [typePath, namespace_] ->
     match resolveTypeHash(state.currentBranchId, state.packageData.currentLocation, typePath) with
     | Error(msg) ->
-      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error(msg))
+      printErr(msg)
       failed(state)
     | Ok(typeHash) ->
       let values =

@@ -815,7 +815,7 @@ let printTraceHint(branchId: Uuid, location: PackageLocation): Unit =
 
 
 /// View one item: <param pathArg>, or the current location when there is none. <param failure>
-/// starts the line that says it is not there.
+/// goes before the line that says it is not there.
 let viewOne(
   state: AppState,
   pathArg: Option<String>,
@@ -835,7 +835,7 @@ let viewOne(
 
   match locationResult with
   | Error(errorMsg) ->
-    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"{failure}: {errorMsg}"))
+    printErr(failure + errorMsg)
     // Nonzero: `dark view X` in a script is asking a question whose answer here is "there is no
     // such thing", and a zero exit says the opposite to everything downstream of it.
     { state with exitCode = 1 }
@@ -862,7 +862,7 @@ let viewOne(
 let execute(state: AppState, args: List<String>): AppState =
   match parseArgs(args) with
   | Error(e) ->
-    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Cannot view: {e}"))
+    printErr(e)
     Stdlib.printErrorLine(help(state))
     { state with exitCode = 1 }
   | Ok(parsed) ->
@@ -876,11 +876,11 @@ let execute(state: AppState, args: List<String>): AppState =
       | Raw -> Stdlib.printLine($"// {p}")
       | _ -> Stdlib.printLine(Stdlib.Cli.UI.Colors.boldText($"# {p}"))
 
-      viewOne(acc, Option.Some(p), mode, includeTests, $"Cannot view {p}")
+      viewOne(acc, Option.Some(p), mode, includeTests, $"{p}: ")
 
     match paths with
-    | [] -> viewOne(state, Option.None, mode, includeTests, "Cannot view")
-    | [p] -> viewOne(state, Option.Some(p), mode, includeTests, "Cannot view")
+    | [] -> viewOne(state, Option.None, mode, includeTests, "")
+    | [p] -> viewOne(state, Option.Some(p), mode, includeTests, "")
     | [first, ...rest] ->
       rest
       |> Stdlib.List.fold(viewNamed(state, first), fun(acc, p) ->

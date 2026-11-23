@@ -394,7 +394,7 @@ let reportTrailing(sourceFile: LanguageTools.WrittenTypes.SourceFile.SourceFile)
   let extra = decls + Stdlib.List.length(sourceFile.exprsToEval) - 1
   if extra > 0 then
     printErr("There is something after the definition; nothing was saved.")
-    printHint("  Quote the whole definition as one argument, or pass `-` and pipe it in.")
+    printHint("Quote the whole definition as one argument, or pass `-` and pipe it in.")
     true
   else
     false
@@ -483,9 +483,7 @@ let reportUnresolvedNames(
   // Warnings for unresolved names (will be fixed by WipRefresh). On stderr: the save's answer is the
   // "Created" line, and a warning is never part of it.
   if Stdlib.List.isEmpty(notFoundNames) |> Stdlib.Bool.not then
-    Stdlib.printErrorLine(
-      Stdlib.Cli.UI.Colors.warning(
-        "Warning: Unresolved references (will resolve when dependencies are added)"))
+    printWarning("Unresolved references (will resolve when dependencies are added)")
 
     notFoundNames
     |> Stdlib.List.iter(fun((range, originalName, _err)) ->
@@ -503,12 +501,12 @@ let reportUnresolvedNames(
         | text -> " " + text
 
       let message = $"  - Not found: {nameStr} (line {lineNum}, column {colNum}).{suggestion}"
-      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.warning(message)))
+      Stderr.line(message))
 
     Stdlib.printErrorLine("")
 
   if Stdlib.List.isEmpty(reservedNames) |> Stdlib.Bool.not then
-    printErr("Error: Not in the standard library, so nothing was saved")
+    printErr("Not in the standard library, so nothing was saved")
     reservedNames
     |> Stdlib.List.iter(fun((range, originalName, _err)) ->
       let lineNum = range.start.row + 1 |> Stdlib.display
@@ -519,13 +517,13 @@ let reportUnresolvedNames(
         | "" -> ""
         | text -> " " + text
 
-      printErr($"  - Not found: {nameStr} (line {lineNum}, column {colNum}).{suggestion}"))
+      Stderr.line($"  - Not found: {nameStr} (line {lineNum}, column {colNum}).{suggestion}"))
 
     Stdlib.printErrorLine("")
 
   // Print errors for invalid names (these block creation)
   if Stdlib.List.isEmpty(invalidNames) |> Stdlib.Bool.not then
-    printErr("Error: Invalid names")
+    printErr("Invalid names")
     invalidNames
     |> Stdlib.List.iter(fun((range, originalName, _err)) ->
       let lineNum = range.start.row + 1 |> Stdlib.display
@@ -537,10 +535,10 @@ let reportUnresolvedNames(
           $"  - Invalid name: {nameStr} (line {lineNum}, column {colNum}). "
           + $"`PACKAGE.` is internal notation; write `{suggested}`."
 
-        printErr(message)
+        Stderr.line(message)
       else
         let message = $"  - Invalid name: {nameStr} (line {lineNum}, column {colNum})"
-        printErr(message))
+        Stderr.line(message))
 
     Stdlib.printErrorLine("")
     true

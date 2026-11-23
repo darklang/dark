@@ -14,7 +14,7 @@ let execute(state: AppState, args: List<String>): AppState =
     | Ok(inlineDefinition) ->
       if Stdlib.String.isEmpty(inlineDefinition) then
         // No body provided - show error
-        [ Stdlib.Cli.UI.Colors.error("Error: Function body required")
+        [ View.formatError("Function body required")
           ""
           "Pass the body inline, a file that holds it, or `-` to read from stdin:"
           "  fn <location> <parameters and body>"
@@ -50,7 +50,7 @@ let fnSource(name: String, definition: String): String =
 
 let createFnInline(state: AppState, locationStr: String, definition: String): AppState =
   let hint =
-    [ Stdlib.Cli.UI.Colors.error("Expected exactly one function declaration")
+    [ View.formatError("Expected exactly one function declaration")
       ""
       "Examples:"
       "  fn double(x: Int64): Int64 = (x * 2)"
@@ -118,9 +118,8 @@ let createFnInline(state: AppState, locationStr: String, definition: String): Ap
                     Stdlib.Cli.UI.Colors.hint(
                       $"  {name} is a type. A bound names a trait: `'a: Display`, not `'a: SomeType`."))
                 else
-                  Stdlib.printErrorLine(
-                    Stdlib.Cli.UI.Colors.hint(
-                      "  `dark search <name> --trait` finds one; `dark trait` writes one; `docs traits` explains them."))
+                  printHint(
+                    "`dark search <name> --trait` finds one; `dark trait` writes one; `docs traits` explains them.")
 
                 Stdlib.printLine(""))
 

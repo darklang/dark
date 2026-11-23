@@ -531,7 +531,8 @@ let executeUndeprecate(state: AppState, args: List<String>): AppState =
 
     state
   | [] ->
-    printErr("usage: dark undeprecate <name>   (also `dark restore <name>`)")
+    printErr("`dark undeprecate` needs a name.")
+    Stderr.line("  usage: dark undeprecate <name>   (also `dark restore <name>`)")
     Stdlib.printErrorLine(
       Stdlib.Cli.UI.Colors.hint(
         "  puts a deprecated fn, type, value, trait, impl or test back on the shelf. `dark ls --include-deprecated` finds them."))
@@ -550,7 +551,7 @@ let executeUndeprecate(state: AppState, args: List<String>): AppState =
 
     match resolved with
     | [] ->
-      Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"Could not resolve {target}"))
+      printErr($"Could not resolve {target}")
 
       Stdlib.printErrorLine(
         Stdlib.Cli.UI.Colors.hint(
@@ -618,7 +619,8 @@ let executeUndeprecate(state: AppState, args: List<String>): AppState =
           printErr($"Undeprecate failed: {e}")
           failed(state)
   | _ ->
-    printErr("usage: dark undeprecate <name>")
+    printErr("`dark undeprecate` takes one name.")
+    Stderr.line("  usage: dark undeprecate <name>")
     failed(state)
 
 

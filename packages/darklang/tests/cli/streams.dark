@@ -30,7 +30,7 @@ test anEvalErrorAndDebugGoToStderr = Instance.withInstance(fun i ->
   Stdlib.Test.all(
     [ Instance.exitedWith(failedCode, 1, "a raised eval exits 1")
       same(failedOut, "", "a failed eval has no answer on stdout")
-      Instance.says(failedErr, "Error: Cannot divide by 0", "the error is on stderr")
+      Instance.says(failedErr, "Cannot divide by 0", "the error is on stderr")
       Instance.exitedWith(debugCode, 0, "the eval succeeded")
       same(debugOut, "7", "stdout is the value alone")
       Instance.says(debugErr, "DEBUG: lbl: 5", "the debug line is on stderr") ]))

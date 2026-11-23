@@ -1231,7 +1231,7 @@ let private damagedPolicyIsARefusal =
           file
           $"and names the file where it actually is:\n{said}"
         Expect.isFalse
-          (said.Contains "Internal error")
+          (said.Contains "internal error")
           $"not as an internal error:\n{said}"
         Expect.isFalse
           (said.Contains "Call stack")

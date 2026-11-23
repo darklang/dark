@@ -386,7 +386,8 @@ let execute(state: AppState, args: List<String>): AppState =
   else
     match filteredArgs with
     | [] ->
-      [ Stdlib.Cli.UI.Colors.error("Usage: deps <subcommand> <path>")
+      [ Cli.View.formatError("`dark deps` needs a subcommand and a path.")
+        "  usage: dark deps <subcommand> <path>"
         ""
         "Subcommands:"
         "  uses <path>         - Show what the item uses (dependencies)"

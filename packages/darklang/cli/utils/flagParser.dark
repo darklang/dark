@@ -111,8 +111,8 @@ let getOptionOr(p: Parsed, name: String, default_: String): String =
 
 let parseErrorMessage(err: ParseError): String =
   match err with
-  | UnknownFlag(token) -> $"Error: unknown flag: {token}"
-  | MissingValue(token) -> $"Error: {token} requires a value"
+  | UnknownFlag(token) -> $"unknown flag: {token}"
+  | MissingValue(token) -> $"{token} requires a value"
 
 
 let parseErrorsMessage(errors: List<ParseError>): String =

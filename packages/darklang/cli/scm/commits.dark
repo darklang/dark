@@ -60,7 +60,7 @@ let executeList(state: AppState, limit: Int64, housekeeping: Housekeeping): AppS
     printOk(header)
     Stdlib.Cli.UI.Table.print([ "commit", "ops", "message" ], commits |> Stdlib.List.map(commitRow))
     if hidden > 0 then
-      printHint(
+      Stderr.note(
         $"  {Stdlib.display(hidden)} housekeeping commit(s) (branch archives) hidden -- `dark commits --all` shows them")
 
     state
@@ -97,7 +97,7 @@ let executeDetailed(state: AppState, limit: Int64, housekeeping: Housekeeping): 
           $"    {PrettyPrinter.ProgramTypes.PackageOp.packageOp(state.currentBranchId, op)}"))
 
       if n > 50 then
-        printHint($"    ... {Stdlib.display(n - 50)} more -- `dark ops` walks the log in full."))
+        Stderr.note($"    ... {Stdlib.display(n - 50)} more -- `dark ops` walks the log in full."))
 
     state
 
@@ -146,8 +146,8 @@ let execute(state: AppState, args: List<String>): AppState =
     failed(state)
   | [n], None ->
     printErr("`dark commits` takes a count, not a branch name.")
-    printHint("  this branch's commits:  dark commits")
-    printHint($"  that branch's history:  dark log {n}")
+    Stderr.note("  this branch's commits:  dark commits")
+    Stderr.note($"  that branch's history:  dark log {n}")
     failed(state)
   | _, _ ->
     let limit = limit |> Stdlib.Option.withDefault(20)
@@ -198,7 +198,8 @@ let showCommit(state: AppState, c: SCM.Commits.Commit): Unit =
 
   if n > 50 then
     Stdlib.printErrorLine("")
-    printHint($"  showing the first 50 of {Stdlib.display(n)} -- `dark ops` walks the log in full.")
+    Stderr.note(
+      $"  showing the first 50 of {Stdlib.display(n)} -- `dark ops` walks the log in full.")
 
 
 let helpShow(_state: AppState): String =
@@ -232,9 +233,9 @@ let executeShow(state: AppState, args: List<String>): AppState =
         // Answering only with the commit/op vocabulary sends them to two listings that cannot hold
         // what they asked for.
         if Stdlib.String.contains(prefix, ".") then
-          printHint($"  looks like an item name -- try `dark view {prefix}`.")
+          printHint($"looks like an item name -- try `dark view {prefix}`.")
         else
-          printHint("  `dark commits` lists commits, `dark ops` lists ops.")
+          printHint("`dark commits` lists commits, `dark ops` lists ops.")
 
         failed(state)
       | ops ->

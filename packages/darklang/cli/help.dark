@@ -21,13 +21,11 @@ let execute(state: AppState, args: List<String>): AppState =
 
       let hint = Accepts.didYouMean(commandName, names)
       printErr($"No command called `{commandName}`.{hint}")
-      printHint("  `dark help` lists them.")
+      printHint("`dark help` lists them.")
       failed(state)
   | _ ->
-    printErr("Usage: help [command]")
-    Stdlib.printErrorLine(
-      "Too many arguments. Use 'help' for general help or 'help <command>' for specific help.")
-
+    printErr("`dark help` takes at most one command.")
+    Stderr.line("  usage: dark help [command]")
     failed(state)
 
 

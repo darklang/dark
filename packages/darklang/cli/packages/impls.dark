@@ -263,9 +263,7 @@ let execute(state: AppState, args: List<String>): AppState =
       if json then
         ()
       else
-        Stdlib.printErrorLine(
-          Stdlib.Cli.UI.Colors.dimText(
-            $"  `dark search {traitPath} --trait` looks for a trait by name"))
+        printHint($"`dark search {traitPath} --trait` looks for a trait by name")
 
       { state with exitCode = 1 }
     | Ok(traitHash) ->
@@ -322,12 +320,13 @@ let execute(state: AppState, args: List<String>): AppState =
 
       state
   | _ ->
-    printErr("Usage: impls <trait> [--json]          e.g. `dark impls Display`")
+    printErr("`dark impls` takes one trait.")
+    Stderr.line("  usage: dark impls <trait> [--json]          e.g. `dark impls Display`")
     if json then
       ()
     else
       printHint(
-        "  `dark ls Stdlib` has a Traits section; `dark search <name> --trait` finds one anywhere")
+        "`dark ls Stdlib` has a Traits section; `dark search <name> --trait` finds one anywhere")
 
     { state with exitCode = 1 }
 

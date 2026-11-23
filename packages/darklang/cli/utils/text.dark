@@ -2,14 +2,14 @@ module Darklang.Cli.Text
 
 // Small text helpers shared across CLI commands, so counters and summaries read the same everywhere.
 
-/// Add colors to a permission error and make its section headings bold.
+/// A permission error's lines: the first marked as the error, the headings bold.
 /// The console handles NO_COLOR, pipes and TERM=dumb.
 let stylePermissionError(message: String): String =
   message
   |> Stdlib.String.splitOnNewline
   |> Stdlib.List.indexedMap(fun(index, line) ->
     if index == 0 then
-      Stdlib.Cli.UI.Colors.error(line)
+      View.formatError(line)
     else if Stdlib.String.startsWith(line, "  dark ") then
       Stdlib.Cli.UI.Colors.cyanText(line)
     else if

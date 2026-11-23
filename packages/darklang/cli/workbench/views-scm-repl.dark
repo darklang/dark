@@ -59,7 +59,7 @@ let evalToString(state: State, expr: String): String =
   match evalRaw(state, Repl.withBindings(state.repl.bindings, expr)) with
   | Ok(Some(s)) -> Stdlib.String.trim(s)
   | Ok(None) -> ""
-  | Error(message) -> "Error: " + message
+  | Error(message) -> message
 
 
 /// Bind `name` to `rhs` for the rest of the session. Evaluates it once now: if the value has a literal form

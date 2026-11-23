@@ -65,7 +65,7 @@ let execute(state: AppState, args: List<String>): AppState =
         match referenceAt(state.currentBranchId, oldLoc) with
         | None ->
           printErr($"nothing here is named {dotted(oldLoc)}.")
-          printHint("  `dark ls` lists what is; `dark search <text>` looks wider.")
+          printHint("`dark ls` lists what is; `dark search <text>` looks wider.")
           { state with exitCode = 1 }
         | Some(reference) ->
           // Refused rather than silently rebound: one name holds one item, so binding over a live
@@ -73,14 +73,14 @@ let execute(state: AppState, args: List<String>): AppState =
           match referenceAt(state.currentBranchId, newLoc) with
           | Some(_) ->
             printErr($"{dotted(newLoc)} already names something.")
-            printHint("  pick another name, or retire that one first (`dark delete`).")
+            printHint("pick another name, or retire that one first (`dark delete`).")
             { state with exitCode = 1 }
           | None ->
             let changes = ops(state.currentBranchId, oldLoc, newLoc, reference)
             match SCM.PackageOps.add(state.currentBranchId, changes) with
             | Ok(_) ->
               printOk($"renamed {dotted(oldLoc)} -> {dotted(newLoc)}.")
-              printHint(
+              Stderr.note(
                 "  callers now use the new name; content hashes are unchanged. `dark status` shows the change.")
 
               state
@@ -88,8 +88,9 @@ let execute(state: AppState, args: List<String>): AppState =
               printErr($"couldn't rename: {e}")
               { state with exitCode = 1 }
   | _ ->
-    printErr("usage: dark rename <name> <new-name>")
-    printHint("  both names are relative to where you are (`dark nav` moves).")
+    printErr("`dark rename` takes a name and a new name.")
+    Stderr.line("  usage: dark rename <name> <new-name>")
+    Stderr.note("  both names are relative to where you are (`dark nav` moves).")
     { state with exitCode = 1 }
 
 

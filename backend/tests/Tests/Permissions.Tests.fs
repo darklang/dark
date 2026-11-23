@@ -687,7 +687,7 @@ let fileDenialOffersTheFolderAndTheProfile =
         Expect.equal stdout "" "errors go to stderr"
         Expect.stringStarts
           before
-          "Error: permission denied by instance policy:\n"
+          "error: permission denied by instance policy:\n"
           "permission errors have a heading without an exception prefix"
         Expect.isFalse
           (before.Contains '\u001b')
@@ -979,7 +979,7 @@ let private httpDenialOffersTheHost =
         Expect.equal code 0L saved
         let! out = CliInstance.run i [ "run"; "Tests.Fetch.get" ]
         Expect.isTrue
-          (out.StartsWith "permission denied")
+          (out.StartsWith "error: permission denied")
           $"no script prefix:\n{out}"
         Expect.stringContains
           out

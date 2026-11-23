@@ -72,7 +72,7 @@ module PermissionsDisplay =
     |> Stdlib.Test.equal(
       [ "Acme.Client.fetch"
         "  Effects: not fully known"
-        "  Warning: analysis is incomplete; more permissions may be needed."
+        "  warning: analysis is incomplete; more permissions may be needed."
         "  Remembered approval: none" ])
 
 
@@ -148,9 +148,9 @@ module Denials =
     Stdlib.Test.all(
       [ saved |> Stdlib.Test.equal(0)
         deny(i, [ "eval", call ])
-        |> Stdlib.Test.equal((1, "Error: " + packageRemedy))
+        |> Stdlib.Test.equal((1, "error: " + packageRemedy))
         runScript(i, $"Stdlib.printLine({call})")
-        |> Stdlib.Test.equal((1, packageRemedy)) ]))
+        |> Stdlib.Test.equal((1, "error: " + packageRemedy)) ]))
 
 
   // An instance-policy denial gives the exact allow command and tells agents to submit
@@ -158,7 +158,7 @@ module Denials =
   test instanceDenialGivesTheAllowCommandAndRunnerHint = Instance.withInstance(fun i ->
     Stdlib.Test.all(
       [ deny(i, [ "eval", readAtRuntime ])
-        |> Stdlib.Test.equal((1, "Error: " + instanceRemedy))
+        |> Stdlib.Test.equal((1, "error: " + instanceRemedy))
         runScript(i, $"let _ = {readAtRuntime}\n()")
-        |> Stdlib.Test.equal((1, instanceRemedy)) ]))
+        |> Stdlib.Test.equal((1, "error: " + instanceRemedy)) ]))
 
