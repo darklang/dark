@@ -99,6 +99,7 @@ let createState
 
     spreadChild = false
     spread = RT.SpreadSettings.defaults ()
+    exec = RT.ExecSettings.defaults ()
 
     fnPurity = fun _ -> RT.Purity.Unknown
 

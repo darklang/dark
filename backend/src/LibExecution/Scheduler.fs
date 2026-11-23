@@ -157,43 +157,23 @@ type ProcessSummary =
 /// several hundred times a second and an ordinary program almost never does.
 let defaultQuantum = 10_000L
 
-/// How often the store is polled for a change (`PRAGMA data_version`) while a process waits on
-/// `StoreChanged`: the ceiling on how long a saved edit takes to REACH a live view, which is
-/// about half of how long it takes to repaint one (the other half is the reload, which drops
-/// every name cache and so pays for a cold render).
-///
-/// A poll is cheap, so this is not a cost decision, and the timer only runs while something is
-/// actually watching. A save lands as several ops, but `StorePoll` settles for one quiet tick, so
-/// a save arrives once however many ops it took, and the interval decides only how soon you hear
-/// about it.
-///
-/// `exec.storePollMs` in the store's config overrides it (`Cli.fs` reads it).
-// Host settings: `Cli.fs` writes these once at startup from the store's config.
-let mutable storePollMs = 25
-
 /// Test-only: called by `Subscribe` with the waiting process and the one it waits on, after
 /// the `ExecDone` watcher is registered and before the check for a process already over, so
 /// a test can finish the awaited process in exactly that gap.
 // A test hook, installed by the test that needs it.
 let mutable betweenWatchAndCheck : ProcessId -> ProcessId -> unit = fun _ _ -> ()
 
-/// How many worker schedulers a group starts: one per core unless the host says otherwise
-/// (`exec.workers` in the store's config; `Cli.fs` reads it).
-let mutable defaultWorkers : int = max 1 System.Environment.ProcessorCount
-
-/// Per-process caps, expert settings (`exec.maxInstructions`, `exec.maxBytes`); 0 is no cap. A
-/// process over either is finished with a plain reason before its next slice, the way a cancel
-/// ends it, so a runaway loop or an allocation storm cannot take the box; `ps` shows what each
-/// has used.
-let mutable maxInstructions : int64 = 0L
-let mutable maxBytes : int64 = 0L
+/// How many worker schedulers a group starts unless its process's state says otherwise
+/// (`RT.ExecSettings.workers`).
+let defaultWorkers : int = (RT.ExecSettings.defaults ()).workers
 
 /// Why `p` is over a cap it runs under, or null.
 let overCap (p : Process) : string =
-  if maxInstructions > 0L && p.instructionsTaken >= maxInstructions then
-    $"over {maxInstructions} instructions (exec.maxInstructions)"
-  elif maxBytes > 0L && p.allocated >= maxBytes then
-    $"over {maxBytes} bytes allocated (exec.maxBytes)"
+  let caps = p.exeState.exec
+  if caps.maxInstructions > 0L && p.instructionsTaken >= caps.maxInstructions then
+    $"over {caps.maxInstructions} instructions (exec.maxInstructions)"
+  elif caps.maxBytes > 0L && p.allocated >= caps.maxBytes then
+    $"over {caps.maxBytes} bytes allocated (exec.maxBytes)"
   elif p.capInstructions > 0L && p.instructionsTaken >= p.capInstructions then
     $"over its own {p.capInstructions} instructions"
   elif p.capBytes > 0L && p.allocated >= p.capBytes then
@@ -211,10 +191,6 @@ type Policy =
   /// calls a Dark function (`exec.policy`); a test installs its own. Asked only when there is
   /// a choice (two or more runnable), so an ordinary run never pays for it.
   | Chooser of (list<ProcessSummary> -> Option<ProcessId>)
-
-/// The policy every scheduler consults. Process-wide, set by the host before it starts running.
-// Mutable so the host can install its chooser after startup.
-let mutable policy : Policy = RoundRobin
 
 
 /// The `ExecutionState` a process runs under: the spawner's, with the pieces that are one
@@ -236,7 +212,8 @@ let stateForProcess
     state
 
 
-type Scheduler(quantum : int64) =
+/// `policy` is what this scheduler and its workers consult.
+type Scheduler(quantum : int64, policy : Policy) =
   /// Who is waiting on `ExecDone` for which process, across every scheduler in the process:
   /// registered at subscribe time, taken at finish or when the subscription is dropped. So a
   /// finish posts to the schedulers that asked, not to every worker in the group, which would
@@ -374,9 +351,11 @@ type Scheduler(quantum : int64) =
     with get () = group
     and internal set (g : Option<Workers>) = group <- g
 
+  new(quantum : int64) = Scheduler(quantum, RoundRobin)
+
   /// The workers this scheduler can hand processes to, started on first use with
-  /// `defaultWorkers` of them. A worker asked for its workers answers with its own group.
-  member this.Workers : Workers =
+  /// `exec.workers` of them. A worker asked for its workers answers with its own group.
+  member this.WorkersFor(exec : RT.ExecSettings) : Workers =
     match group with
     | Some g -> g
     | None ->
@@ -384,9 +363,12 @@ type Scheduler(quantum : int64) =
         match group with
         | Some g -> g
         | None ->
-          let g = Workers(this, quantum, defaultWorkers)
+          let g = Workers(this, quantum, exec.workers, policy)
           g.Start()
           g)
+
+  /// `WorkersFor`, started with `defaultWorkers` if it is not running yet.
+  member this.Workers : Workers = this.WorkersFor(RT.ExecSettings.defaults ())
 
   // -- Spawning --
 
@@ -513,16 +495,18 @@ type Scheduler(quantum : int64) =
         ?caps = caps
       )
     else
-      this.Workers.Spawn(
-        exeState,
-        instrs,
-        entry,
-        parent,
-        ?stats = stats,
-        ?runId = runId,
-        ?keepResult = keepResult,
-        ?caps = caps
-      )
+      this
+        .WorkersFor(exeState.exec)
+        .Spawn(
+          exeState,
+          instrs,
+          entry,
+          parent,
+          ?stats = stats,
+          ?runId = runId,
+          ?keepResult = keepResult,
+          ?caps = caps
+        )
 
   /// A new process that applies `applicable` to `arg` (`Exec.spawn f` runs `f ()`), starting from
   /// `access` rather than the state's own: the spawner's, at the moment of the spawn, exactly as
@@ -744,7 +728,8 @@ type Scheduler(quantum : int64) =
           for spec in specs do
             match spec with
             | HE.EventSpec.Key -> HE.Shared.requestKey queue
-            | HE.EventSpec.StoreChanged -> HE.Shared.watchStore queue storePollMs
+            | HE.EventSpec.StoreChanged ->
+              HE.Shared.watchStore queue p.exeState.exec.storePollMs
             | HE.EventSpec.Timer ms ->
               let id = Interlocked.Increment &nextTimerId
               let timer =
@@ -1321,8 +1306,8 @@ type Scheduler(quantum : int64) =
 /// processes spawned on them run on N cores. Started lazily by the root's `Workers`; every one is
 /// a background thread, so a CLI that exits does not wait on them, and `Stop` ends them for a
 /// host that wants to (tests).
-and Workers(root : Scheduler, quantum : int64, count : int) =
-  let workers = List.init (max 1 count) (fun _ -> Scheduler(quantum))
+and Workers(root : Scheduler, quantum : int64, count : int, policy : Policy) =
+  let workers = List.init (max 1 count) (fun _ -> Scheduler(quantum, policy))
   let byIndex = Array.ofList workers
   /// Which workers have a thread. A worker's starts the first time a spawn picks it, so a spread
   /// of four chunks starts four threads rather than one per core: each has a 16 MB stack, and
@@ -1414,11 +1399,12 @@ and Workers(root : Scheduler, quantum : int64, count : int) =
 /// Run a named function as the root process of a fresh scheduler on the calling thread, and return
 /// its result when it finishes. What the CLI's `main` calls instead of `executeFunction`.
 let executeFunction
+  (policy : Policy)
   (exeState : RT.ExecutionState)
   (name : RT.FQFnName.FQFnName)
   (typeArgs : list<RT.TypeReference>)
   (args : NEList<RT.Dval>)
   : RT.ExecutionResult =
-  let s = Scheduler(defaultQuantum)
+  let s = Scheduler(defaultQuantum, policy)
   let p = s.SpawnFunction(exeState, name, typeArgs, args, None)
   s.RunUntil p

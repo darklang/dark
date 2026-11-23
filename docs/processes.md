@@ -178,7 +178,7 @@ process-wide (`HostEvents.Shared`) and deliver to whichever queue asked:
 - `Timer id`: a one-shot `System.Threading.Timer` armed per `Timer ms` spec,
   disposed when something else satisfies the subscription; a late fire posts
   an id nobody wants and is dropped.
-- `StoreChanged`: a poll of `PRAGMA data_version` every `Scheduler.storePollMs`
+- `StoreChanged`: a poll of `PRAGMA data_version` every `exec.storePollMs`
   (25 ms) on a connection of its own (the pragma answers per connection),
   posted to every queue watching. It carries nothing: which ops landed is
   Dark's question, answered by `LanguageTools.Live.poll` inside `Stdlib.Host.await`
@@ -236,8 +236,8 @@ root plus N more schedulers, each looping on a background thread of its own
 (`dark-worker-<i>`), started the first time anything asks for them. N is
 `exec.workers` in the store's config (`dark config set exec.workers 4`), or
 one per core, which is the default nobody needs to set; `Cli.fs` reads it
-into `Scheduler.defaultWorkers` before the root starts. No environment
-variable shadows it.
+into the run's `ExecutionState` (`exec.workers`), and the group takes its size
+from the first state that asks for it. No environment variable shadows it.
 
 - `root.SpawnOn(...)` spawns on the least loaded worker (fewest runnable or
   parked processes); the process runs there for its whole life. `Spawn`
