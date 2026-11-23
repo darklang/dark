@@ -1976,7 +1976,7 @@ let deleteAndRestore =
         showsAnyCase
           state
           [ "delete"; "Tests.Retire.f"; "-y" ]
-          "deprecated"
+          "deleted"
           "delete says what it did"
       do!
         showsAnyCase

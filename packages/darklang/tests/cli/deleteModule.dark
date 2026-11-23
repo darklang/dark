@@ -18,7 +18,7 @@ test deleteModuleTakesEverything = Instance.withInstance(fun i ->
       Instance.says(refused, "`dark delete Me.Scratch -y` does it without asking", "says how")
       Instance.exitedWith(code, 0, "deleted")
       Instance.doesNotSay(out, "Will deprecate", "confirmed delete prints just the result")
-      Instance.says(out, "Deprecated 3 items in Me.Scratch", "names the count")
+      Instance.says(out, "Deleted 3 items in Me.Scratch", "names the count")
       Instance.says(out, "  Me.Scratch.make", "lists declarations in the result")
       Instance.exitedWith(againCode, 1, "nothing left to deprecate")
       Instance.says(again, "All items in Me.Scratch are already deprecated.", "explains the repeat")
@@ -80,6 +80,23 @@ test deleteModuleByShortNameKeepsWhatOthersUse = Instance.withInstance(fun i ->
     [ Instance.exitedWith(code, 1, "used from outside")
       Instance.says(out, "Used from outside Stdlib.List", "says so")
       Instance.doesNotSay(out, "Deprecated ", "claims no deprecation") ]))
+
+
+// Without a terminal, the flag the refusal names is the one that gets through.
+test deleteWithDependentsRefusesOnce = Instance.withInstance(fun i ->
+  let _ = Instance.ran(i, [ "fn", "Me.Held.leaf", "(): Int64 = 7" ])
+  let _ = Instance.ran(i, [ "fn", "Me.Holder.caller", "(): Int64 = Me.Held.leaf()" ])
+  let (itemCode, item) = Instance.ran(i, [ "delete", "Me.Held.leaf" ])
+  let (moduleCode, moduleOut) = Instance.ran(i, [ "delete", "Me.Held" ])
+  let (forcedCode, forced) = Instance.ran(i, [ "delete", "Me.Held.leaf", "--force" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(itemCode, 1, "the item has a caller")
+      Instance.says(item, "or pass `--force`.", "names the flag that works")
+      Instance.doesNotSay(item, "--ignore-dependents", "which alone would stop at the prompt")
+      Instance.exitedWith(moduleCode, 1, "the module has a caller outside it")
+      Instance.says(moduleOut, "Pass `--force` to delete it anyway.", "names the flag that works")
+      Instance.exitedWith(forcedCode, 0, "--force gets through")
+      Instance.says(forced, "Deleted Me.Held.leaf (still callable).", "says it was deleted") ]))
 
 
 test deleteModuleRefusesAnOwner = Instance.withInstance(fun i ->
@@ -183,7 +200,7 @@ test deprecatedModuleDiscoveryAndResave = Instance.withInstance(fun i ->
       Instance.doesNotSay(before, "no name matches", "no docs-only hint")
       Instance.says(
         deletion,
-        "Deprecated Me.DeleteRepro.main (still callable).",
+        "Deleted Me.DeleteRepro.main (still callable).",
         "the confirmation names the function and explains the effect")
       Instance.doesNotSay(deletion, "Will deprecate", "confirmed delete skips the preview")
       Instance.doesNotSay(listed, "DeleteRepro/", "hidden in ls")

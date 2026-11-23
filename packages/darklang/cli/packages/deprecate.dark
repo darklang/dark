@@ -308,8 +308,8 @@ let printReport(state: AppState, report: DeprecateJson): AppState =
 /// A confirmed deletion leaves the item available by name.
 let deletedItemMessage(name: String, kind: LanguageTools.ProgramTypes.ItemKind): String =
   match kind with
-  | Fn -> $"Deprecated {name} (still callable)."
-  | _ -> $"Deprecated {name}. It can still be used by name."
+  | Fn -> $"Deleted {name} (still callable)."
+  | _ -> $"Deleted {name}. It can still be used by name."
 
 
 let execute(state: AppState, args: List<String>): AppState =
@@ -477,10 +477,12 @@ let executeWithVerb(state: AppState, args: List<String>, verb: String): AppState
                     report(false)
                   else
                     let message =
-                      if verb == "delete" && parsed.autoConfirm then
+                      if verb != "delete" then
+                        $"Deprecated {itemTypeStr} {fullPath}"
+                      else if parsed.autoConfirm then
                         deletedItemMessage(fullPath, itemKind)
                       else
-                        $"Deprecated {itemTypeStr} {fullPath}"
+                        $"Deleted {itemTypeStr} {fullPath}"
 
                     Stdlib.printLine(Stdlib.Cli.UI.Colors.success(message))
 
