@@ -6,7 +6,7 @@ let content(): String =
 """
   + SyntaxAtAGlance.content()
   + """
-Code lives in a persistent package tree, not in files. Put your code in your own
+Saved code lives in a persistent package tree, not in files. Put your code in your own
 namespace; `Darklang` is reserved.
 
 ## Build, run, test
@@ -34,6 +34,16 @@ namespace; `Darklang` is reserved.
   search --batch --exact --fn --brief Stdlib.List.map Stdlib.Json.parse
   search --fn --limit 3 "get a value from a dictionary"
   docs signatures Stdlib.String          # every function in a module
+
+For a one-off, write a script: plain statements, no module and no `main`. It saves
+nothing, gets the command-line words as `args`, and its last value is the exit code
+(Unit is 0). `docs scripts` has more.
+
+  run - Ada <<'EOF'                      # `-`: the script comes from stdin
+  Stdlib.printLine("Hello, " + Stdlib.String.join(args, " "))
+  EOF
+
+Use a module when the code will be run again, tested, edited or served.
 
 ## Permissions
 
