@@ -96,6 +96,48 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "float64Log" 0
+      typeParams = []
+      parameters = [ Param.make "a" TFloat64 "" ]
+      returnType = TFloat64
+      description = "The natural logarithm of a float"
+      fn =
+        (function
+        | _, _, _, [| DFloat64 a |] -> DFloat64(System.Math.Log a)
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    { name = fn "float64Log10" 0
+      typeParams = []
+      parameters = [ Param.make "a" TFloat64 "" ]
+      returnType = TFloat64
+      description = "The base-10 logarithm of a float"
+      fn =
+        (function
+        | _, _, _, [| DFloat64 a |] -> DFloat64(System.Math.Log10 a)
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    { name = fn "float64Exp" 0
+      typeParams = []
+      parameters = [ Param.make "a" TFloat64 "" ]
+      returnType = TFloat64
+      description = "e raised to the power of a float"
+      fn =
+        (function
+        | _, _, _, [| DFloat64 a |] -> DFloat64(System.Math.Exp a)
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
     { name = fn "float64Parse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]

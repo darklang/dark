@@ -370,6 +370,25 @@ test nanAndInfinities =
       |> Stdlib.Test.equal(true) ])
 
 
+test logAndExp =
+  Stdlib.Test.all(
+    [ Stdlib.Float32.log(1.0f32) |> Stdlib.Test.equal(0.0f32)
+      Stdlib.Float32.log(2.7182817f32) |> Stdlib.Test.equal(0.99999994f32)
+      Stdlib.Float32.log(0.0f32) |> Stdlib.Test.equal(negativeInfinity())
+      Stdlib.Float32.log(infinity()) |> Stdlib.Test.equal(infinity())
+      Stdlib.Float32.isNaN(Stdlib.Float32.log(-1.0f32)) |> Stdlib.Test.equal(true)
+      Stdlib.Float32.isNaN(Stdlib.Float32.log(nan())) |> Stdlib.Test.equal(true)
+      Stdlib.Float32.log10(100.0f32) |> Stdlib.Test.equal(2.0f32)
+      Stdlib.Float32.log10(0.0f32) |> Stdlib.Test.equal(negativeInfinity())
+      Stdlib.Float32.isNaN(Stdlib.Float32.log10(-1.0f32)) |> Stdlib.Test.equal(true)
+      Stdlib.Float32.exp(0.0f32) |> Stdlib.Test.equal(1.0f32)
+      Stdlib.Float32.exp(1.0f32) |> Stdlib.Test.equal(2.7182817f32)
+      // e^100 fits a Float64 but not a Float32
+      Stdlib.Float32.exp(100.0f32) |> Stdlib.Test.equal(infinity())
+      Stdlib.Float32.exp(negativeInfinity()) |> Stdlib.Test.equal(0.0f32)
+      Stdlib.Float32.isNaN(Stdlib.Float32.exp(nan())) |> Stdlib.Test.equal(true) ])
+
+
 test truncateRejectsNan =
   Stdlib.Float32.truncate(nan())
   => raises "Float64 has no integer value: NaN"

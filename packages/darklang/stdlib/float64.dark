@@ -59,6 +59,24 @@ let sqrt(a: Float64): Float64 =
   Builtin.float64Sqrt(a)
 
 
+/// The natural logarithm of <param a>. {{-Infinity}} for zero, NaN for a negative
+/// number or NaN.
+let log(a: Float64): Float64 =
+  Builtin.float64Log(a)
+
+
+/// The base-10 logarithm of <param a>. {{-Infinity}} for zero, NaN for a negative
+/// number or NaN.
+let log10(a: Float64): Float64 =
+  Builtin.float64Log10(a)
+
+
+/// e raised to the power of <param a>. {{Infinity}} where the result is too large,
+/// {{0.0}} where it is too small.
+let exp(a: Float64): Float64 =
+  Builtin.float64Exp(a)
+
+
 impl Add for Float64 =
   /// Add <type Float64> <param a> to <type Float64> <param b>
   let add(a: Float64, b: Float64): Float64 =
