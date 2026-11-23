@@ -336,7 +336,7 @@ let private reseedFromEmbedded (dbPath : string) : bool * List<HeldBinding> =
 type Extracted =
   {
     /// Sub-timings for `extract`, in Stopwatch ticks. Returned rather than logged because `extract` runs
-    /// before telemetry has an output path: it's what chooses the store directory, where the log lives.
+    /// before telemetry has an output path.
     /// `Cli.Main` logs them once telemetry is up.
     timings : List<string * int64>
 
@@ -413,11 +413,6 @@ let extract () : Extracted =
     { timings = [ hasResourceTiming ]; locallyAuthored = [] }
   else
     let darklangDir = LibConfig.StoreLocation.defaultDirectory ()
-
-    // Straight to `LibConfig`, not through the environment: a variable set here is inherited
-    // by every process this one starts, and another `dark` among them would open THIS store.
-    LibConfig.StoreLocation.set darklangDir
-
     let dbPath = Path.Combine(darklangDir, "data.db")
 
     // Asked ONCE, and it decides everything below.
