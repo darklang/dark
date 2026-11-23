@@ -5,6 +5,18 @@ type ParseError =
   | OutOfRange
 
 
+/// The smallest <type UInt32>: {{0}}
+val minValue = 0u32
+
+
+/// The largest <type UInt32>: {{4294967295}}
+val maxValue = 4294967295u32
+
+
+/// How many bits a <type UInt32> holds: {{32}}
+val bitWidth = 32
+
+
 impl Modulo for UInt32 =
   /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
   /// The modulus <param b> must be greater than 0.

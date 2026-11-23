@@ -5,6 +5,18 @@ type ParseError =
   | OutOfRange
 
 
+/// The smallest <type Int16>: {{-32768}}
+val minValue = -32768s16
+
+
+/// The largest <type Int16>: {{32767}}
+val maxValue = 32767s16
+
+
+/// How many bits a <type Int16> holds: {{16}}
+val bitWidth = 16
+
+
 impl Modulo for Int16 =
   /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
   /// The modulus <param b> must be greater than 0.

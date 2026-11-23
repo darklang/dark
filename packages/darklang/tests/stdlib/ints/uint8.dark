@@ -558,3 +558,11 @@ test divisionResults =
       Stdlib.UInt8.checkedMod(5u8, 0u8)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.ModulusError.ZeroModulus)) ])
+
+
+test limits =
+  Stdlib.Test.all(
+    [ Stdlib.UInt8.minValue |> Stdlib.Test.equal(0u8)
+      Stdlib.UInt8.maxValue |> Stdlib.Test.equal(255u8)
+      Stdlib.UInt8.bitWidth |> Stdlib.Test.equal(8)
+      Stdlib.UInt8.maxValue + 1u8 |> Stdlib.Test.equal(Stdlib.UInt8.minValue) ])

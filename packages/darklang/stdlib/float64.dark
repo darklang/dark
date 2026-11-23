@@ -4,6 +4,19 @@ type ParseError =
   | BadFormat
 
 
+/// Not a number, the result of {{0.0 / 0.0}}. It is not equal to anything, itself
+/// included; test for it with <fn Float64.isNaN>.
+val nan = 0.0 / 0.0
+
+
+/// Positive infinity, the result of {{1.0 / 0.0}}
+val infinity = 1.0 / 0.0
+
+
+/// Negative infinity, the result of {{-1.0 / 0.0}}
+val negativeInfinity = -1.0 / 0.0
+
+
 /// Round up to an integer value. Raises for NaN, infinity, or a result past Int64;
 /// <fn Int64.fromFloatCeiling> returns an {{Error}} instead.
 let ceiling(a: Float64): Int64 =

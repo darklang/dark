@@ -5,6 +5,18 @@ type ParseError =
   | OutOfRange
 
 
+/// The smallest <type Int64>: {{-9223372036854775808}}
+val minValue = -9223372036854775808
+
+
+/// The largest <type Int64>: {{9223372036854775807}}
+val maxValue = 9223372036854775807
+
+
+/// How many bits a <type Int64> holds: {{64}}
+val bitWidth = 64
+
+
 impl Modulo for Int64 =
   /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
   /// The modulus <param b> must be greater than 0

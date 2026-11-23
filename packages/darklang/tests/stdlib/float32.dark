@@ -577,3 +577,12 @@ test checkedFromFloat64 =
       Stdlib.Float32.checkedFromFloat64(-1e300)
       |> Stdlib.Test.equal(
         Stdlib.Result.Result.Error(Stdlib.Math.Overflow.Overflow)) ])
+
+
+test namedValues =
+  Stdlib.Test.all(
+    [ Stdlib.Float32.isNaN(Stdlib.Float32.nan) |> Stdlib.Test.equal(true)
+      Stdlib.Float32.infinity |> Stdlib.Test.equal(infinity())
+      Stdlib.Float32.negativeInfinity |> Stdlib.Test.equal(negativeInfinity())
+      Stdlib.Float32.isFinite(Stdlib.Float32.infinity) |> Stdlib.Test.equal(false)
+      -Stdlib.Float32.infinity |> Stdlib.Test.equal(Stdlib.Float32.negativeInfinity) ])
