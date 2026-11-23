@@ -242,6 +242,26 @@ test aMergeLeavesMainsOwnDraftAlone =
         "its diff says it is merged") ])
 
 
+// The branch saved the same code main's draft holds, so both carry its body. The merge lands the
+// branch's committed copy, so discarding main's draft afterwards leaves the merged name its body.
+test aMergeLandsABodyMainsDraftAlsoHolds =
+  scenario(fun dark ->
+    [ save(dark, "Tests.App.f", "(): Int64 = 7 + 35")
+      switch(dark, "feat")
+      save(dark, "Tests.App.g", "(): Int64 = 7 + 35")
+      commit(dark, "feat work")
+      switch(dark, "main")
+      merge(dark, "feat")
+      says(
+        dark,
+        [ "log", "feat" ],
+        "2 ops merged from branch \"feat\"",
+        "the merge carried the body with the name")
+
+      run(dark, [ "discard", "-y" ])
+      evals(dark, "Tests.App.g()", "42", "the merged name still runs") ])
+
+
 test docsAndDeprecationsMadeOnABranchArriveWithTheMerge =
   scenario(fun dark ->
     [ saveNumber(dark, "Tests.App.f", "1")

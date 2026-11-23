@@ -730,6 +730,28 @@ let registryCoversProjections =
       "the registry's tables are exactly Seed.export's stripped projections (incl. deprecations)"
   }
 
+/// `scripts/testing/check-store-bindings` re-folds a store with its own copy of the registry.
+let bindingsCheckClearsEveryProjection =
+  test "the bindings check re-folds every projection" {
+    let script =
+      System.IO.File.ReadAllText(
+        System.IO.Path.Combine(
+          LibConfig.Dirs.sourceRootDir,
+          "scripts/testing/check-store-bindings"
+        )
+      )
+    let from = script.IndexOf("PROJECTIONS=\"") + "PROJECTIONS=\"".Length
+    let listed =
+      script
+        .Substring(from, script.IndexOf('"', from) - from)
+        .Split([| ' '; '\n' |], System.StringSplitOptions.RemoveEmptyEntries)
+      |> List.ofArray
+    Expect.equal
+      (List.sort listed)
+      (List.sort Seed.projectionTables)
+      "the same tables"
+  }
+
 let noCanonicalInDropSet =
   // A schema change keeps your work: the bootstrap drops ONLY `projectionTables` and re-folds the op log, so
   // the authored, canonical data must NEVER appear in that drop-set. If it did, a schema bump would delete it.
@@ -833,5 +855,6 @@ let tests =
       unreadableReferenceMetadataIsRetained
       appliedMarkCoversOnlyWhatFolded
       registryCoversProjections
+      bindingsCheckClearsEveryProjection
       noCanonicalInDropSet
       everyPackageOpCaseIsPrintable ]

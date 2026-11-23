@@ -220,6 +220,30 @@ test authoringOnAMergedBranchIsRefused =
       isMerged() |> Stdlib.Test.equal(true) ])
 
 
+// A name bound to content nobody stored would resolve and find nothing, so the store refuses it.
+test bindingANameToContentNobodyStoredIsRefused =
+  let ghost =
+    LanguageTools.ProgramTypes.Reference.PackageFn(
+      LanguageTools.ProgramTypes.Hash.Hash(Stdlib.String.repeat("a", 64)))
+
+  let added =
+    SCM.PackageOps.add(
+      Authoring.main(),
+      [ LanguageTools.ProgramTypes.PackageOp.SetName(
+          Authoring.loc("Ghost", "f"),
+          ghost,
+          Stdlib.Option.Option.None) ])
+
+  let refused =
+    match added with
+    | Ok(_) -> "accepted"
+    | Error(e) -> if Stdlib.String.contains(e, "no such content") then "refused" else e
+
+  Stdlib.Test.all(
+    [ refused |> Stdlib.Test.equal("refused")
+      SCM.StoreHealth.counts().danglingBindings |> Stdlib.Test.equal(0) ])
+
+
 // `liveBindingFor` is THE branch-aware binding read: the chain first, then main. A plain
 // read of main's projection answers about main from a branch, plausibly and wrongly.
 test liveBindingForReadsTheBranchThenMain =
