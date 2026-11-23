@@ -98,7 +98,7 @@ let serial(): Int64 =
   |> Stdlib.List.map(fun n -> fib(n))
   |> Stdlib.List.length
 
-/// The same eight, one scheduler per core. Needs the `concurrency` permission.
+/// The same eight, one scheduler per core.
 let cores(): Int64 =
   Stdlib.List.repeat(8, 24)
   |> Stdlib.List.parallelMap(fun n -> fib(n))

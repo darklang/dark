@@ -60,6 +60,7 @@ type Effect =
   | TraceRead
   | TraceWrite
   /// Starting a process beside this one (`Exec.spawn`); it runs under the spawner's access.
+  /// Not a permission: no rule grants or denies it.
   | Concurrency
   /// This process's own in-memory state: its package caches and store watch.
   | Runtime
@@ -460,7 +461,7 @@ let parseRule(args: List<String>): Option<List<Rule>> =
   // rule text names exactly one Rule value and `renderRule` round-trips.
   | [name] ->
     match effectOfName(name) with
-    | Some(Raise) -> Option.None
+    | Some(Raise) | Some(Concurrency) -> Option.None
     | found -> found |> Stdlib.Option.map(fun effect -> [ Rule.Effect(effect) ])
   | _ -> Option.None
 
