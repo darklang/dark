@@ -6313,6 +6313,36 @@ type SpreadSettings =
       predict = false
       counts = SpreadCounts() }
 
+/// The scheduler's host settings (`exec.*`), set once per run by the host (`Cli.fs`).
+type ExecSettings =
+  {
+    /// How many worker schedulers a group starts: one per core unless the host says otherwise
+    /// (`exec.workers`).
+    workers : int
+    /// Per-process caps, expert settings (`exec.maxInstructions`, `exec.maxBytes`); 0 is no cap.
+    /// A process over either is finished with a plain reason before its next slice, the way a
+    /// cancel ends it, so a runaway loop or an allocation storm cannot take the box; `ps` shows
+    /// what each has used.
+    maxInstructions : int64
+    maxBytes : int64
+    /// How often the store is polled for a change (`PRAGMA data_version`) while a process waits
+    /// on `StoreChanged` (`exec.storePollMs`): the ceiling on how long a saved edit takes to
+    /// REACH a live view, which is about half of how long it takes to repaint one (the other half
+    /// is the reload, which drops every name cache and so pays for a cold render).
+    ///
+    /// A poll is cheap, so this is not a cost decision, and the timer only runs while something
+    /// is actually watching. A save lands as several ops, but `StorePoll` settles for one quiet
+    /// tick, so a save arrives once however many ops it took, and the interval decides only how
+    /// soon you hear about it.
+    storePollMs : int
+  }
+
+  static member defaults() : ExecSettings =
+    { workers = max 1 System.Environment.ProcessorCount
+      maxInstructions = 0L
+      maxBytes = 0L
+      storePollMs = 25 }
+
 /// A callable a spread fell back from: a lambda by its expression, a named fn by its name.
 [<Struct>]
 type SpreadCallable =
@@ -6566,6 +6596,8 @@ and ExecutionState =
     spreadChild : bool
 
     spread : SpreadSettings
+
+    exec : ExecSettings
 
     /// Whether a package fn is pure in the sense of `Purity`, over everything it can reach.
     /// Supplied by the host, which can read the store (`LibDB.PackagePermissions.purity`);

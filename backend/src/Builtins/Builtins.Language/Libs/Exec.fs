@@ -319,7 +319,7 @@ let fns () : List<BuiltInFn> =
         + "count)."
       fn =
         (function
-        | _, _, _, [| DUnit |] -> Dval.dint64 (int64 Scheduler.defaultWorkers)
+        | state, _, _, [| DUnit |] -> Dval.dint64 (int64 state.exec.workers)
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty

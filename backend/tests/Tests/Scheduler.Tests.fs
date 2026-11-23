@@ -490,21 +490,18 @@ let private editDoesNotReachAParkedProcess =
 
 // -- Cores --
 
-/// A root scheduler with `n` workers, for the tests below; `Scheduler.defaultWorkers` is
-/// process-wide, so it is set and put back around each.
+/// A root scheduler with `n` workers, for the tests below.
 let private withWorkers
   (n : int)
   (body : Scheduler.Scheduler -> Task<unit>)
   : Task<unit> =
   task {
-    let before = Scheduler.defaultWorkers
-    Scheduler.defaultWorkers <- n
     let root = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let workers = root.WorkersFor { RT.ExecSettings.defaults () with workers = n }
     try
       do! body root
     finally
-      Scheduler.defaultWorkers <- before
-      root.Workers.Stop()
+      workers.Stop()
   }
 
 /// A Dark loop that costs about as much as it says: `spin n` runs `n` iterations in this VM's
@@ -2644,9 +2641,9 @@ let private darkPolicyOrders =
             let total = spin(20000, 0)
             let _ = Builtin.testTrace("{tag}")
             total)"""
-    let runBoth () =
+    let runBoth (policy : Scheduler.Policy) =
       task {
-        let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+        let s = Scheduler.Scheduler(Scheduler.defaultQuantum, policy)
         let! (older : Scheduler.Process) = spawn s state (spinner "older")
         let! (younger : Scheduler.Process) = spawn s state (spinner "younger")
         // Whichever finishes first ends the loop; a second run until the other one takes it
@@ -2657,7 +2654,7 @@ let private darkPolicyOrders =
         expectOk result "the younger spinner" |> ignore<RT.Dval>
         return Trace.take ()
       }
-    let! (plain : List<string>) = runBoth ()
+    let! (plain : List<string>) = runBoth Scheduler.RoundRobin
     Expect.equal plain [ "older"; "younger" ] "round robin: the older finishes first"
     let location : PT.PackageLocation =
       { owner = "Darklang"
@@ -2670,16 +2667,12 @@ let private darkPolicyOrders =
       | None ->
         failtest
           "Darklang.LanguageTools.Exec.Policy.youngestFirst is not in the store"
-    Scheduler.policy <-
-      Scheduler.Chooser(Builtins.Language.Libs.Exec.chooserFor state fn)
-    try
-      let! (chosen : List<string>) = runBoth ()
-      Expect.equal
-        chosen
-        [ "younger"; "older" ]
-        "youngestFirst: the younger runs to the end before the older gets a slice"
-    finally
-      Scheduler.policy <- Scheduler.RoundRobin
+    let! (chosen : List<string>) =
+      runBoth (Scheduler.Chooser(Builtins.Language.Libs.Exec.chooserFor state fn))
+    Expect.equal
+      chosen
+      [ "younger"; "older" ]
+      "youngestFirst: the younger runs to the end before the older gets a slice"
   }
 
 
@@ -3002,36 +2995,36 @@ let private capsEndARunaway =
   testTask
     "a process over exec.maxInstructions ends with the reason; ps shows what it ran" {
     let state = executionStateFor pmPT false
-    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
-    let before = Scheduler.maxInstructions
     // Three slices' worth, so the cap is crossed after three refills. A slice the budget ends is
     // charged one less than the quantum, for the turn the next spends re-entering its frame.
-    Scheduler.maxInstructions <- 3L * (Scheduler.defaultQuantum - 1L)
-    try
-      let! (loop : Scheduler.Process) =
-        spawn
-          s
-          state
-          """(let spin(n: Int64, acc: Int64): Int64 =
-                if n == 0 then acc else spin(n - 1, acc + n)
-              spin(2000000, 0))"""
-      let! result = runOnThread s loop
-      match result with
-      | Ok dv -> failtest $"the runaway finished: {dv}"
-      | Error(rte, _) ->
-        Expect.stringContains
-          (string rte)
-          "over 29997 instructions"
-          "the reason names the cap"
-      Expect.equal loop.slices 3L "it got its three slices"
-      let summary = s.SummaryOf loop
-      Expect.isGreaterThanOrEqual
-        summary.instructionsTaken
-        (3L * (Scheduler.defaultQuantum - 1L))
-        "and the instructions it ran are counted"
-      Expect.isGreaterThan summary.allocated 0L "allocation was accounted per slice"
-    finally
-      Scheduler.maxInstructions <- before
+    let state =
+      { state with
+          exec =
+            { state.exec with
+                maxInstructions = 3L * (Scheduler.defaultQuantum - 1L) } }
+    let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
+    let! (loop : Scheduler.Process) =
+      spawn
+        s
+        state
+        """(let spin(n: Int64, acc: Int64): Int64 =
+              if n == 0 then acc else spin(n - 1, acc + n)
+            spin(2000000, 0))"""
+    let! result = runOnThread s loop
+    match result with
+    | Ok dv -> failtest $"the runaway finished: {dv}"
+    | Error(rte, _) ->
+      Expect.stringContains
+        (string rte)
+        "over 29997 instructions"
+        "the reason names the cap"
+    Expect.equal loop.slices 3L "it got its three slices"
+    let summary = s.SummaryOf loop
+    Expect.isGreaterThanOrEqual
+      summary.instructionsTaken
+      (3L * (Scheduler.defaultQuantum - 1L))
+      "and the instructions it ran are counted"
+    Expect.isGreaterThan summary.allocated 0L "allocation was accounted per slice"
   }
 
 
@@ -3078,27 +3071,20 @@ let private registryListsAndForgets =
 let private byteCapEndsARunaway =
   testTask "a process over exec.maxBytes ends with a reason that names the cap" {
     let state = executionStateFor pmPT false
+    let state = { state with exec = { state.exec with maxBytes = 1L } }
     let s = Scheduler.Scheduler(Scheduler.defaultQuantum)
-    let before = Scheduler.maxBytes
-    Scheduler.maxBytes <- 1L
-    try
-      let! (loop : Scheduler.Process) =
-        spawn
-          s
-          state
-          """(let spin(n: Int64, acc: Int64): Int64 =
-                if n == 0 then acc else spin(n - 1, acc + n)
-              spin(2000000, 0))"""
-      let! result = runOnThread s loop
-      match result with
-      | Ok dv -> failtest $"the runaway finished: {dv}"
-      | Error(rte, _) ->
-        Expect.stringContains
-          (string rte)
-          "bytes allocated"
-          "the reason names the cap"
-    finally
-      Scheduler.maxBytes <- before
+    let! (loop : Scheduler.Process) =
+      spawn
+        s
+        state
+        """(let spin(n: Int64, acc: Int64): Int64 =
+              if n == 0 then acc else spin(n - 1, acc + n)
+            spin(2000000, 0))"""
+    let! result = runOnThread s loop
+    match result with
+    | Ok dv -> failtest $"the runaway finished: {dv}"
+    | Error(rte, _) ->
+      Expect.stringContains (string rte) "bytes allocated" "the reason names the cap"
   }
 
 
