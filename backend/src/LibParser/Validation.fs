@@ -230,6 +230,7 @@ let rec private exprIssues (insideFunction : bool) (expr : WT.Expr) : List<Issue
   match expr with
   | WT.EError range ->
     [ issue range RecoveryHole "A recovered expression cannot be lowered" ]
+  | WT.EExtern _ -> []
   | WT.ELambda(range, patterns, body, _, _) ->
     let required =
       if List.isEmpty patterns then

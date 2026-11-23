@@ -90,7 +90,7 @@ let find
   let direct (names : List<PT.FQFnName.FQFnName>) : Set<string> =
     names
     |> List.choose (function
-      | PT.FQFnName.Builtin b when builtinRaises b -> Some $"Builtin.{b.name}"
+      | PT.FQFnName.Builtin b when builtinRaises b -> Some(PT.Expr.builtinPathName b)
       | _ -> None)
     |> Set.ofList
 
@@ -138,7 +138,7 @@ let find
         names
         |> List.choose (function
           | PT.FQFnName.Builtin b when builtinRaises b ->
-            Some { caller = caller; callee = $"Builtin.{b.name}" }
+            Some { caller = caller; callee = PT.Expr.builtinPathName b }
           | PT.FQFnName.Package p when raises p && isLibrary (nameOf p) ->
             Some { caller = caller; callee = nameOf p }
           | _ -> None))

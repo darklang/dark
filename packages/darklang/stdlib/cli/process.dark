@@ -336,7 +336,7 @@ let __childRead(fd: Posix.Fd, eof: Bool): Result<(Bytes * Bool), Posix.Error> =
   if eof then
     Ok((Bytes.empty, true))
   else
-    match Builtin.syscallRead(fd.__fd, 65536) |> Result.mapError(Posix.__fromErrno) with
+    match Posix.fdRead(fd, 65536) with
     | Error(e) ->
       match Posix.Error.kind(e) with
       | Interrupted -> __childRead(fd, false)

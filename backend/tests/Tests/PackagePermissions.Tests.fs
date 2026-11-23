@@ -713,10 +713,12 @@ let preflightCollectsOnlyCertainRequests =
     Expect.equal (List.length stopped) 1 "a possible early return stops preflight"
 
     let openPath flags =
-      eApply
-        (eBuiltinFn "syscallOpen" 0)
-        []
+      PT.EExtern(
+        gid (),
+        "kernel",
+        "open",
         [ eStr [ strText "/tmp/report" ]; eInt64 flags; eInt64 0L ]
+      )
     for flag in
       [ LibExecution.HostPosix.O_CREAT
         LibExecution.HostPosix.O_TRUNC
@@ -794,13 +796,15 @@ module OpenEffects =
     set [ Effect.Effect.FileRead; Effect.Effect.FileWrite; Effect.Effect.Raise ]
 
   let private classify (name, _version) =
-    if name = "syscallOpen" then Some effects else testEffects (name, _version)
+    if name = "kernel.open" then Some effects else testEffects (name, _version)
 
   let private openWith flags =
-    eApply
-      (eBuiltinFn "syscallOpen" 0)
-      []
+    PT.EExtern(
+      gid (),
+      "kernel",
+      "open",
       [ eStr [ strText "/tmp/report" ]; flags; eInt64 0L ]
+    )
 
   let private wrapper =
     { unitFn "open-wrapper" (openWith (eArg 0)) with
@@ -972,7 +976,14 @@ module OpenEffects =
         check
           []
           (eApply
-            (eBuiltinFn "syscallOpen" 1)
+            (PT.EFnName(
+              gid (),
+              PT.NameResolution.ok (
+                PT.FQFnName.Builtin { name = "kernel.open"; version = 1 }
+              ),
+              [],
+              []
+            ))
             []
             [ eStr [ strText "/tmp/report" ]; eInt64 0L; eInt64 0L ])
           effects) ]

@@ -411,6 +411,8 @@ and Expr =
     keywordWith : Range
   | EPipe of Range * Expr * List<Range * PipeExpr> // each item is (`|>` range, segment)
   | EStatement of Range * first : Expr * next : Expr // `e1 ⏎ e2` (sequence)
+  /// The body of `extern name(…): T from "library"`: the call the declaration binds.
+  | EExtern of Range * library : string * symbol : string
   /// Recovery hole where an expression was expected but could not be parsed. The
   /// parse has a diagnostic at this range, and execution paths reject files with
   /// diagnostics before lowering.
@@ -687,6 +689,7 @@ let exprRange (e : Expr) : Range =
   | EMatch(r, _, _, _, _)
   | EPipe(r, _, _)
   | EStatement(r, _, _)
+  | EExtern(r, _, _)
   | EError r -> r
 
 let typeReferenceRange (t : TypeReference) : Range =

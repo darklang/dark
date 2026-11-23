@@ -46,6 +46,7 @@ let rec subExprs (expr : Expr) : List<Expr> =
   | EPipe(_, lhs, parts) -> lhs :: List.collect pipeSubExprs parts
   | ELet(_, _, value, body) -> [ value; body ]
   | EStatement(_, first, next) -> [ first; next ]
+  | EExtern(_, _, _, args) -> args
 
   | EList(_, items) -> items
   // Keys are expressions too. Visiting only the values hid a call made in a
@@ -171,6 +172,7 @@ let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
   | EUnwrap(_, operand) -> r operand
   | EStatement(_, expr, next) -> Set.union (r expr) (r next)
   | ESelf _ -> Set.empty
+  | EExtern(_, _, _, args) -> args |> List.map r |> Set.unionMany
 
 and symbolsUsedInPipeExpr (pipeExpr : PipeExpr) : Set<string> =
   let r = symbolsUsedInExpr
@@ -288,6 +290,7 @@ let rec unqualifiedResolvedNamesInExpr (expr : Expr) : Set<string> =
   | EUnwrap(_, operand) -> r operand
   | EStatement(_, expr, next) -> Set.union (r expr) (r next)
   | ESelf _ -> Set.empty
+  | EExtern(_, _, _, args) -> args |> List.map r |> Set.unionMany
 
 and unqualifiedResolvedNamesInPipeExpr (pipeExpr : PipeExpr) : Set<string> =
   let r = unqualifiedResolvedNamesInExpr

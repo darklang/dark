@@ -19,7 +19,7 @@ let clockCall () =
 
 // Host derives Native from the raw OS number and denies before the kernel call.
 let nativeCall () =
-  eApply (eBuiltinFn "syscallClose" 0) [] [ PT.EBigInt(gid (), -1I) ]
+  PT.EExtern(gid (), "kernel", "close", [ PT.EBigInt(gid (), -1I) ])
   |> PT2RT.Expr.toRT Map.empty 0 None
 
 let private denyAllAccess =

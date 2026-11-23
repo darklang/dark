@@ -323,6 +323,8 @@ let private extract (roots : List<Work>) : List<Dependency> =
         work.Push(Expr next)
         work.Push(Expr first)
 
+      | PT.EExtern(_, _, _, args) -> pushExprsInOrder args
+
   List.rev dependencies
 
 

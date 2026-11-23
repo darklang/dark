@@ -1371,6 +1371,9 @@ module Expr =
     | PT.ELambda(id, pats, body) ->
       compileLambda symbols rc id pats body None Set.empty
 
+    | PT.EExtern(id, library, symbol, args) ->
+      toRT symbols rc currentFnName (PT.Expr.externCall id library symbol args)
+
     | PT.EStatement(_id, expr, next) ->
       let firstExpr = toRT symbols rc currentFnName expr
       let nextExpr = toRT symbols firstExpr.registerCount currentFnName next

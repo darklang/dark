@@ -20,11 +20,21 @@ let darwin(code: Int64): Stdlib.Cli.Posix.Errno =
 // Raw syscalls refuse bad descriptors and arguments with their errno
 test syscallErrnos =
   Stdlib.Test.all(
-    [ Builtin.syscallRead(-1z, 1) |> Stdlib.Test.equal(Error(9))
-      Builtin.syscallRead(-1z, -1) |> Stdlib.Test.equal(Error(22))
-      Builtin.syscallClose(-1z) |> Stdlib.Test.equal(Error(9))
-      Builtin.syscallLseek(-1z, 0, 0) |> Stdlib.Test.equal(Error(9))
-      Builtin.syscallFlock(-1z, 2) |> Stdlib.Test.equal(Error(9))
+    [ Stdlib.Cli.Posix.read(-1z, 1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(9))
+
+      Stdlib.Cli.Posix.read(-1z, -1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(22))
+
+      Stdlib.Cli.Posix.close(-1z)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(9))
+
+      Builtin.syscallLseek(-1z, 0, 0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(9))
+
+      Builtin.syscallFlock(-1z, 2)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(9))
+
       Stdlib.Test.expect(Builtin.syscallGetpid() > 0, "getpid is positive")
       Stdlib.Test.expect(Builtin.syscallGetuid() >= 0, "getuid is not negative")
       Builtin.syscallUnlinkAt("/dark-syscall-missing-entry", 0)

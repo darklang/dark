@@ -230,6 +230,8 @@ module Hashing =
     | PT.EDict(id, pairs) -> PT.EDict(id, List.map (fun (k, ex) -> (k, r ex)) pairs)
     | PT.EUnwrap(id, operand) -> PT.EUnwrap(id, r operand)
     | PT.EStatement(id, first, next) -> PT.EStatement(id, r first, r next)
+    | PT.EExtern(id, library, symbol, args) ->
+      PT.EExtern(id, library, symbol, List.map r args)
     | PT.EPipe(id, expr, pipes) ->
       PT.EPipe(id, r expr, List.map (normPipe c env) pipes)
 

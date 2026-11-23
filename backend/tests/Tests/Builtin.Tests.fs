@@ -396,6 +396,8 @@ let everyBuiltinIsReferenced =
       |> Seq.filter (fun name ->
         not (Set.contains name unusedAllowlist)
         && not (Set.contains name infixDispatched)
+        // an extern's provider is called by its declaration, never by name
+        && not (name.Contains '.')
         && not (Map.containsKey name repoRefCounts.Value))
       |> List.ofSeq
 
@@ -574,10 +576,10 @@ let private hiddenStateBuiltins : Set<string> =
   set
     [ "syscallGetpid"
       "syscallGetuid"
-      "syscallRead"
+      "kernel.read"
       "syscallWrite"
       "syscallLseek"
-      "syscallClose"
+      "kernel.close"
       "syscallGetdents"
       "syscallFlock"
       "interpreterStatsReset"

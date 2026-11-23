@@ -279,17 +279,28 @@ module OpenFlags =
   let append(): Int64 = __abiOpenAppend()
 
 
+/// Kernel open(): a descriptor for <param path>, or the error number
+extern open(path: String, flags: Int64, mode: Int64): Result<BigInt, Int64>
+  from "kernel"
+
+/// Kernel read(): up to <param count> bytes from <param fd>, or the error number
+extern read(fd: BigInt, count: Int64): Result<Bytes, Int64> from "kernel"
+
+/// Kernel close(): closes <param fd>, or gives the error number
+extern close(fd: BigInt): Result<Unit, Int64> from "kernel"
+
+
 /// Open a file. Read-only opens follow symlinks when the target is permitted; writes do not.
 /// Returns a file descriptor or an I/O error. Permission denials raise.
 let openFile(path: String, flags: Int64, mode: FileMode): Result<Fd, Error> =
-  Builtin.syscallOpen(path, flags, mode.__mode)
+  open(path, flags, mode.__mode)
   |> Result.map(fun fd -> Fd { __fd = fd })
   |> Result.mapError(__fromErrno)
 
 
 /// Read up to `count` bytes from an open file descriptor.
 let fdRead(fd: Fd, count: Int64): Result<Bytes, Error> =
-  Builtin.syscallRead(fd.__fd, count) |> Result.mapError(__fromErrno)
+  read(fd.__fd, count) |> Result.mapError(__fromErrno)
 
 
 /// Write <param bytes> to an open file descriptor. Returns the number
@@ -303,7 +314,7 @@ let fdWrite(fd: Fd, bytes: Bytes): Result<Int64, Error> =
 
 /// Close an open file descriptor.
 let fdClose(fd: Fd): Result<Unit, Error> =
-  Builtin.syscallClose(fd.__fd) |> Result.mapError(__fromErrno)
+  close(fd.__fd) |> Result.mapError(__fromErrno)
 
 
 /// Read all bytes from a file descriptor until EOF.
@@ -848,11 +859,11 @@ let __pathPathText(bytes: Bytes): String =
 let __pathGetCwd(): Result<String, Error> =
   let bytes =
     if __abiMac() then
-      match Builtin.syscallOpen(".", __abiOpenDirectory(), 0) with
-      | Error(e) -> Error(__fromErrno(e))
+      match open(".", __abiOpenDirectory(), 0) with
+      | Error(e) -> Result.Error(__fromErrno(e))
       | Ok(fd) ->
         let result = Builtin.syscallFcntlGetPath(fd)
-        let closed = Builtin.syscallClose(fd)
+        let closed = close(fd)
         match result with
         | Error(e) -> Error(__fromErrno(e))
         | Ok(bytes) ->

@@ -51,7 +51,7 @@ let preflight
       add entry (P.Request.file P.AccessKind.Read path)
     | ("syscallMkdir" | "syscallUnlinkAt" | "syscallChmod"), Known.Text path :: _ ->
       add entry (P.Request.file P.AccessKind.Write path)
-    | "syscallOpen", Known.Text path :: Known.Number flags :: _ ->
+    | "kernel.open", Known.Text path :: Known.Number flags :: _ ->
       if
         flags >= int64 System.Int32.MinValue && flags <= int64 System.Int32.MaxValue
       then
@@ -143,6 +143,8 @@ let preflight
               walk entry (Set.add hash stack) bindings values fn.body
             | None -> Known.Unknown, false
           | _ -> Known.Unknown, false
+      | PT.EExtern(id, library, symbol, arguments) ->
+        walk entry stack env args (PT.Expr.externCall id library symbol arguments)
       | PT.EApply(_, callee, _, arguments) ->
         let _, continues = walk entry stack env args callee
         if continues then

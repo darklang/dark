@@ -68,7 +68,7 @@ file, the result includes FileRead even when the returned function is never
 called; the same goes for streams whose values are never read. The list is review
 information, not an authorization check.
 
-For `syscallOpen`, the analysis carries small sets of possible integer arguments
+For the kernel's `open`, the analysis carries small sets of possible integer arguments
 through bindings, wrappers and return values. Known read-only flags contribute
 only FileRead; create, truncate and append flags also need FileWrite, and unknown
 flags keep both. Branches are combined without running code, and value sets and

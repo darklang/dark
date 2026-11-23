@@ -1165,7 +1165,8 @@ let private rangeInvariantTests =
     | WT.EChar _
     | WT.EVariable _
     | WT.EFnName _
-    | WT.EError _ -> []
+    | WT.EError _
+    | WT.EExtern _ -> []
     | WT.EString(_, _, contents, _, _) ->
       contents
       |> List.choose (function
@@ -1653,6 +1654,94 @@ let tests =
             [ "Me.Probe.f"; "Me.Probe.g" ]
             "f is declared as a fn twice, and g as a fn and a val; h is declared once"
         | Error e -> failtest $"did not parse: {e}")
+      testCase "extern declares a fn whose body is a native call" (fun _ ->
+        let result =
+          P.parse
+            """extern open(path: String, flags: Int64): Int64 from "kernel" """
+        Expect.isEmpty result.diagnostics "parses cleanly"
+        match result.parsed with
+        | Some(WT.SourceFile { declarations = [ WT.DFunction f ] }) ->
+          Expect.equal f.name.name "open" "the fn is named for the symbol"
+          Expect.equal (List.length f.parameters) 2 "both parameters"
+          match f.body with
+          | WT.EExtern(_, "kernel", "open") -> ()
+          | other -> failtest $"expected an extern body, got {other}"
+        | other -> failtest $"expected one fn, got {other}")
+
+      testCase "a second string names a different symbol" (fun _ ->
+        match
+          (P.parse """extern openFile(path: String): Int64 from "kernel" "open" """)
+            .parsed
+        with
+        | Some(WT.SourceFile { declarations = [ WT.DFunction f ] }) ->
+          match f.body with
+          | WT.EExtern(_, "kernel", "open") -> ()
+          | other -> failtest $"expected the symbol open, got {other}"
+        | other -> failtest $"expected one fn, got {other}")
+
+      testCase "an extern needs a library" (fun _ ->
+        Expect.isNonEmpty
+          (P.parse "extern open(path: String): Int64").diagnostics
+          "no from")
+
+      testCase "an extern passes its parameters to the call in order" (fun _ ->
+        let ops =
+          LibParser.Package.parse
+            (LibExecution.Builtin.make [] [])
+            PT.PackageManager.empty
+            NR.OnMissing.Allow
+            """module Me.Native =
+  extern read(fd: BigInt, count: Int64): Int64 from "kernel" """
+        match ops with
+        | Ok ops ->
+          let bodies =
+            ops
+            |> List.choose (function
+              | PT.PackageOp.AddFn fn -> Some fn.body
+              | _ -> None)
+          match bodies with
+          | [ PT.EExtern(_, "kernel", "read", [ PT.EArg(_, 0); PT.EArg(_, 1) ]) ] ->
+            ()
+          | other -> failtest $"expected one extern, got {other}"
+        | Error e -> failtest $"did not parse: {e}")
+
+      testCase "only the package that declares an extern calls it" (fun _ ->
+        let ops (caller : string) =
+          let source =
+            $"""module Me.Native =
+  extern close(fd: BigInt): Int64 from "kernel"
+
+  let shut(fd: BigInt): Int64 = Me.Native.close(fd)
+
+module {caller} =
+  let f(fd: BigInt): Int64 = Me.Native.close(fd)"""
+          let parse pm =
+            LibParser.Package.parse
+              (LibExecution.Builtin.make [] [])
+              pm
+              NR.OnMissing.Allow
+              source
+            |> Result.defaultWith (fun e -> failtest $"did not parse: {e}")
+          // the second parse resolves calls to the fns the first one found, as a reload does
+          let first =
+            parse PT.PackageManager.empty
+            |> LibDB.HashStabilization.computeRealHashes
+          let pm = LibDB.PackageManager.withExtraOps PT.PackageManager.empty first
+          LibDB.HashStabilization.remapSetNames (parse pm) first
+          |> LibDB.HashStabilization.computeRealHashes
+        let violation caller =
+          LibDB.OpValidation.externCallViolation (fun _ -> false) (ops caller)
+        Expect.equal
+          (violation "Me.Other")
+          (Some
+            "Me.Other.f calls Me.Native.close, an extern of another package; call the fns in Me.Native that wrap it")
+          "another module cannot call it"
+        Expect.equal (violation "Me.Native.Inner") None "a module inside it can"
+        Expect.equal
+          (LibDB.OpValidation.externDeclarationViolation (ops "Me.Native.Inner"))
+          (Some "extern declarations are only allowed in bundled packages")
+          "only bundled packages declare one")
+
       testTask "a reload refuses package code that calls a missing fn" {
         let! (code, output) =
           reloadOf

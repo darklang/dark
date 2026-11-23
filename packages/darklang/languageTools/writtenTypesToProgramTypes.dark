@@ -1080,6 +1080,11 @@ module Expr =
       let (next, nextUnresolvedNames) = toPT(ctx, context, next)
       let unresolvedNames = Stdlib.List.flatten([ firstUnresolvedNames, nextUnresolvedNames ])
       (ProgramTypes.Expr.EStatement(gid(), first, next), unresolvedNames)
+    | EExtern(_, library, symbol) ->
+      let args =
+        Stdlib.Dict.values(context.argMap)
+        |> Stdlib.List.indexedMap(fun(i, _) -> ProgramTypes.Expr.EArg(gid(), i))
+      (ProgramTypes.Expr.EExtern(gid(), library, symbol, args), [])
 
 
 module ModuleDeclaration =

@@ -214,7 +214,7 @@ let path
         callEffectsFor (b.name, b.version)
         |> Option.exists (Set.contains Effects.Effect.Raise)
         ->
-        Some $"Builtin.{b.name}"
+        Some(PT.Expr.builtinPathName b)
       | _ -> None)
   let callees (names : List<PT.FQFnName.FQFnName>) =
     names

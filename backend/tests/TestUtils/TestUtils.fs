@@ -847,6 +847,10 @@ module Expect =
 
       | ESelf _, ESelf _ -> ()
 
+      | EExtern(_, library, symbol, args), EExtern(_, library', symbol', args') ->
+        check path (library, symbol) (library', symbol')
+        eqList ("args" :: path) args args'
+
       | EPipe(_, lhs, parts), EPipe(_, lhs', parts') ->
         eq ("lhs" :: path) lhs lhs'
         check path (List.length parts) (List.length parts')
@@ -895,7 +899,8 @@ module Expect =
       | EMatch _, _
       | EUnwrap _, _
       | EStatement _, _
-      | ESelf _, _ -> check path actual expected
+      | ESelf _, _
+      | EExtern _, _ -> check path actual expected
 
 
 let interestingStrings : List<string * string> =

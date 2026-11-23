@@ -59,6 +59,11 @@ let private fileWriteEffect = set [ Effect.FileWrite ]
 /// a file's owner) is a read of that path, checked at the boundary.
 let private nativeEffects = set [ Effect.Native ]
 
+/// What an `extern … from "kernel"` declaration in the Posix package calls.
+let private kernel (symbol : string) : FQFnName.Builtin =
+  let provider = LibExecution.ProgramTypes.Expr.externProvider "kernel" symbol
+  { name = provider.name; version = provider.version }
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "runtimeTargetOS" 0
       typeParams = []
@@ -320,7 +325,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "syscallRead" 0
+    { name = kernel "read"
       typeParams = []
       parameters =
         [ Param.make "fd" TBigInt "File descriptor to read from"
@@ -390,7 +395,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "syscallClose" 0
+    { name = kernel "close"
       typeParams = []
       parameters = [ Param.make "fd" TBigInt "File descriptor to close" ]
       returnType = TypeReference.result TUnit TInt64
@@ -406,7 +411,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "syscallOpen" 0
+    { name = kernel "open"
       typeParams = []
       parameters =
         [ Param.make "path" TString "File path to open"

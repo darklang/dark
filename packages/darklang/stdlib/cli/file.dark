@@ -621,7 +621,7 @@ let __watchEvents(
 
 
 let __watchDrain(fd: Posix.Fd): Result<(Bool * Bool), Posix.Error> =
-  match Builtin.syscallRead(fd.__fd, 65536) |> Result.mapError(Posix.__fromErrno) with
+  match Posix.fdRead(fd, 65536) with
   | Error(e) ->
     match Posix.Error.kind(e) with
     | Interrupted -> __watchDrain(fd)
@@ -678,7 +678,7 @@ let __watchLinux(
         |> Result.mapError(Posix.__fromErrno)
         |> Result.andThen(fun _ -> __watchLoop(fd, intervalMs, shouldStop, fn))
 
-      let closed = Builtin.syscallClose(raw) |> Result.mapError(Posix.__fromErrno)
+      let closed = Posix.fdClose(fd)
       match result with
       | Error(e) -> Error(e)
       | Ok(rearm) ->
@@ -740,11 +740,11 @@ let __watchVnodeLoop(
 
 
 let __watchCloseBoth(queue: BigInt, source: BigInt): Result<Unit, Posix.Error> =
-  let first = Builtin.syscallClose(queue)
-  let second = Builtin.syscallClose(source)
+  let first = Posix.fdClose(Posix.Fd { __fd = queue })
+  let second = Posix.fdClose(Posix.Fd { __fd = source })
   match first with
-  | Error(e) -> Error(Posix.__fromErrno(e))
-  | Ok(()) -> second |> Result.mapError(Posix.__fromErrno)
+  | Error(e) -> Result.Error(e)
+  | Ok(()) -> second
 
 
 let __watchDarwin(
@@ -758,13 +758,14 @@ let __watchDarwin(
   else
     // O_EVTONLY holds the vnode without needing data-access permission. The
     // trusted open boundary supplies no-follow and scoped read authorization.
-    match Builtin.syscallOpen(path, 32768, 0) with
-    | Error(e) -> Error(Posix.__fromErrno(e))
-    | Ok(source) ->
+    match Posix.openFile(path, 32768, Posix.FileMode { __mode = 0 }) with
+    | Error(e) -> Result.Error(e)
+    | Ok(sourceFd) ->
+      let source = sourceFd.__fd
       match Builtin.syscallKqueue() with
       | Error(e) ->
-        let _ = Builtin.syscallClose(source)
-        Error(Posix.__fromErrno(e))
+        let _ = Posix.fdClose(sourceFd)
+        Result.Error(Posix.__fromErrno(e))
       | Ok(queue) ->
         let result =
           // EV_ADD | EV_ENABLE | EV_CLEAR; seven vnode-change notes.

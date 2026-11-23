@@ -738,6 +738,7 @@ let exprRefsInto(
     Stdlib.List.fold(updates, exprRefsInto(env, record, acc), fun(acc, (_, v)) ->
       exprRefsInto(env, v, acc))
   | EStatement(_, first, next) -> exprRefsInto(env, next, exprRefsInto(env, first, acc))
+  | EExtern(_, _, _, _) -> acc
   | EUnwrap(_, operand) ->
     // ? has no explicit type name in the syntax. Add Option and Result so the
     // solver can check its operand and the enclosing function's return type.
