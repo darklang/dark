@@ -44,7 +44,7 @@ let executeList(state: AppState, limit: Int64, housekeeping: Housekeeping): AppS
       (Stdlib.List.take(kept, limit), hiddenCount)
 
   if Stdlib.List.isEmpty(commits) then
-    printOk("no commits yet -- `dark commit` makes one from your draft.")
+    Stderr.ok("no commits yet -- `dark commit` makes one from your draft.")
     state
   else
     let shown = Stdlib.List.length(commits)
@@ -81,7 +81,7 @@ let executeDetailed(state: AppState, limit: Int64, housekeeping: Housekeeping): 
       |> (fun kept -> Stdlib.List.take(kept, limit))
 
   if Stdlib.List.isEmpty(commits) then
-    printOk("no commits yet -- `dark commit` makes one from your draft.")
+    Stderr.ok("no commits yet -- `dark commit` makes one from your draft.")
     state
   else
     commits

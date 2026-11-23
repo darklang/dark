@@ -171,7 +171,7 @@ let indentBlock(s: String): String =
 let executeList(state: AppState): AppState =
   match SCM.Conflicts.pending() with
   | [] ->
-    printOk("no conflicts pending.")
+    Stderr.ok("no conflicts pending.")
     state
   | cs ->
     let n = Stdlib.display(Stdlib.List.length(cs))
@@ -615,7 +615,7 @@ let walkOne(state: AppState, c: SCM.Conflicts.Conflict, n: Int64, total: Int64):
 let executeWalk(state: AppState): AppState =
   match SCM.Conflicts.pending() with
   | [] ->
-    printOk("no conflicts pending.")
+    Stderr.ok("no conflicts pending.")
     state
   | cs ->
     let total = Stdlib.List.length(cs)

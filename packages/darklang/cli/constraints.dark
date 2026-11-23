@@ -132,9 +132,9 @@ let executeList(state: AppState, args: List<String>): AppState =
   | [] ->
     // Says what was CHECKED, not just that nothing turned up, and short enough for a narrow terminal.
     if Stdlib.List.isEmpty(detected.blocked) then
-      printOk("no constraints: nothing has drifted off its current version.")
+      Stderr.ok("no constraints: nothing has drifted off its current version.")
     else
-      printOk("nothing found by the checks that DID run.")
+      Stderr.ok("nothing found by the checks that DID run.")
 
     state
   | findings ->
@@ -240,7 +240,7 @@ let executeAck(state: AppState, args: List<String>): AppState =
     // A skipped id fails the command, once the rest of the batch has run.
     match targets with
     | [] ->
-      if Stdlib.List.isEmpty(missing) then printOk("nothing to ack.") else ()
+      if Stdlib.List.isEmpty(missing) then Stderr.ok("nothing to ack.") else ()
       exitWith(state, Stdlib.List.isEmpty(missing))
     | _ ->
       let failed =
@@ -359,7 +359,7 @@ let executeResolve(state: AppState, args: List<String>): AppState =
     // A skipped id fails the command, once the rest of the batch has run.
     match targets with
     | [] ->
-      if Stdlib.List.isEmpty(missing) then printOk("nothing to resolve.") else ()
+      if Stdlib.List.isEmpty(missing) then Stderr.ok("nothing to resolve.") else ()
       exitWith(state, Stdlib.List.isEmpty(missing))
     | _ ->
       match resolutionFor(targets, args) with

@@ -384,110 +384,51 @@ val streamRows: List<(List<String> * Int64 * Stream * Stream)> =
     ([ "commits", "1", "--json" ], 0, Stream.Says("\"hash\""), Stream.Silent)
     ([ "log" ], 0, Stream.Says("commits"), Stream.Silent)
     ([ "ops", "1" ], 0, Stream.Says("ops on main"), Stream.Silent)
-    (
-      [ "show", "zzznope" ],
-      1,
-      Stream.Silent,
-      Stream.Says("nothing matching zzznope"))
-
-    ([ "constraints" ], 0, Stream.Says("no constraints"), Stream.Silent)
-    ([ "conflicts" ], 0, Stream.Says("no conflicts"), Stream.Silent)
-    (
-      [ "backups" ],
-      0,
-      Stream.Says("no backups yet"),
-      Stream.Says("`dark backups now`"))
-
+    ([ "show", "zzznope" ], 1, Stream.Silent, Stream.Says("nothing matching zzznope"))
+    ([ "constraints" ], 0, Stream.Silent, Stream.Says("no constraints"))
+    ([ "conflicts" ], 0, Stream.Silent, Stream.Says("no conflicts"))
+    ([ "backups" ], 0, Stream.Silent, Stream.Says("no backups yet"))
+    ([ "backups", "now" ], 0, Stream.Says("copied the store"), Stream.Silent)
+    ([ "backups", "prune", "0" ], 1, Stream.Says("PRUNING"), Stream.Says("Prune not done"))
+    ([ "backups", "prune", "0", "-y" ], 0, Stream.Says("PRUNING"), Stream.Says("deleted 1 backup"))
     ([ "ps", "--json" ], 0, Stream.Says("thisInstance"), Stream.Silent)
-    ([ "ack", "--all" ], 0, Stream.Says("nothing to ack"), Stream.Silent)
-    (
-      [ "branch", "create", "main" ],
-      1,
-      Stream.Silent,
-      Stream.Says("main already exists"))
-
-    (
-      [ "branch", "create", "rows-b" ],
-      0,
-      Stream.Says("started branch"),
-      Stream.Silent)
-
-    (
-      [ "fn", "Tests.Rows.h", "(): Int64 = 2" ],
-      0,
-      Stream.Says("Created function"),
-      Stream.Silent)
-
+    ([ "ack", "--all" ], 0, Stream.Silent, Stream.Says("nothing to ack"))
+    ([ "branch", "create", "main" ], 1, Stream.Silent, Stream.Says("main already exists"))
+    ([ "branch", "create", "rows-b" ], 0, Stream.Says("started branch"), Stream.Silent)
+    ([ "fn", "Tests.Rows.h", "(): Int64 = 2" ],
+     0,
+     Stream.Says("Created function"),
+     Stream.Silent)
     ([ "diff" ], 0, Stream.Says("Tests.Rows.h"), Stream.Says("`dark commit`"))
     ([ "switch", "main" ], 0, Stream.Says("switched to main"), Stream.Silent)
     ([ "branches" ], 0, Stream.Says("rows-b"), Stream.Silent)
-    (
-      [ "diff", "rows-b" ],
-      0,
-      Stream.Says("changes 1 name"),
-      Stream.Says("--source"))
-
-    (
-      [ "merge", "rows-b", "--dry-run" ],
-      0,
-      Stream.Says("would merge"),
-      Stream.Says("`dark merge rows-b`"))
-
-    (
-      [ "merge", "rows-b" ],
-      1,
-      Stream.Silent,
-      Stream.Says("cannot merge \"rows-b\""))
-
-    (
-      [ "rename", "Tests.Rows.g", "Tests.Rows.g2" ],
-      0,
-      Stream.Says("renamed"),
-      Stream.Says("callers now use"))
-
-    (
-      [ "delete", "Tests.Rows.g2", "--dry-run" ],
-      0,
-      Stream.Says("Would deprecate"),
-      Stream.Says("dry-run"))
-
-    (
-      [ "delete", "Tests.Rows.g2" ],
-      1,
-      Stream.Silent,
-      Stream.Says("Delete not done"))
-
-    (
-      [ "delete", "Tests.Rows.g2", "-y" ],
-      0,
-      Stream.Says("Deleted Tests.Rows.g2 (still callable)."),
-      Stream.Silent)
-
-    (
-      [ "undeprecate", "Tests.Rows.g2" ],
-      0,
-      Stream.Says("Undeprecated"),
-      Stream.Silent)
-
-    (
-      [ "fn", "Tests.Rows.f", "(x: Int64): Int64 = x + 2" ],
-      0,
-      Stream.Says("Updated function"),
-      Stream.Silent)
-
-    (
-      [ "undo", "Tests.Rows.f" ],
-      0,
-      Stream.Says("back on the version"),
-      Stream.Silent)
-
-    ([ "discard" ], 1, Stream.Silent, Stream.Says("DISCARDING"))
-    (
-      [ "discard", "-y" ],
-      0,
-      Stream.Says("discarded"),
-      Stream.Says("DISCARDING"))
-
+    ([ "diff", "rows-b" ], 0, Stream.Says("changes 1 name"), Stream.Says("--source"))
+    ([ "merge", "rows-b", "--dry-run" ],
+     0,
+     Stream.Says("would merge"),
+     Stream.Says("`dark merge rows-b`"))
+    ([ "merge", "rows-b" ], 1, Stream.Silent, Stream.Says("cannot merge \"rows-b\""))
+    ([ "rename", "Tests.Rows.g", "Tests.Rows.g2" ],
+     0,
+     Stream.Says("renamed"),
+     Stream.Says("callers now use"))
+    ([ "delete", "Tests.Rows.g2", "--dry-run" ],
+     0,
+     Stream.Says("Would deprecate"),
+     Stream.Says("dry-run"))
+    ([ "delete", "Tests.Rows.g2" ], 1, Stream.Silent, Stream.Says("Delete not done"))
+    ([ "delete", "Tests.Rows.g2", "-y" ],
+     0,
+     Stream.Says("Deleted Tests.Rows.g2 (still callable)."),
+     Stream.Silent)
+    ([ "undeprecate", "Tests.Rows.g2" ], 0, Stream.Says("Undeprecated"), Stream.Silent)
+    ([ "fn", "Tests.Rows.f", "(x: Int64): Int64 = x + 2" ],
+     0,
+     Stream.Says("Updated function"),
+     Stream.Silent)
+    ([ "undo", "Tests.Rows.f" ], 0, Stream.Says("back on the version"), Stream.Silent)
+    ([ "discard" ], 1, Stream.Says("DISCARDING"), Stream.Says("Discard not done"))
+    ([ "discard", "-y" ], 0, Stream.Says("DISCARDING"), Stream.Says("discarded"))
     ([ "ack" ], 1, Stream.Silent, Stream.Says("dark ack --all"))
     ([ "module" ], 1, Stream.Silent, Stream.Says("needs 2 arguments"))
     ([ "export-seed" ], 1, Stream.Silent, Stream.Says("needs an argument"))
