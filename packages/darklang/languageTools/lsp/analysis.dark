@@ -1,0 +1,291 @@
+/// What a document's text means: parsed, names resolved, checked, and what the editor should
+/// underline.
+module Darklang.LanguageTools.Lsp.Analysis
+
+type Json = Stdlib.AltJson.Json
+
+
+type Analysis =
+  { parsed: Option<WrittenTypes.ParsedFile>
+    /// LSP `Diagnostic`s, ready to publish.
+    diagnostics: List<Json>
+    /// The type the checker gave each `let` and lambda parameter, and where to show it: just
+    /// after the name.
+    typeHints: List<(Parser.Point * String)> }
+
+
+// --- positions ---
+
+let position(p: Parser.Point): Json =
+  Json.Object([ ("line", Json.Integer(p.row)), ("character", Json.Integer(p.column)) ])
+
+
+let range(r: Parser.Range): Json =
+  Json.Object([ ("start", position(r.start)), ("end", position(r.end_)) ])
+
+
+/// LSP severities: 1 error, 2 warning.
+let diagnostic(severity: Int64, r: Parser.Range, code: Option<String>, message: String): Json =
+  let codeField =
+    match code with
+    | Some(c) -> [ ("code", Json.String(c)) ]
+    | None -> []
+
+  Json.Object(
+    Stdlib.List.flatten(
+      [ [ ("range", range(r)), ("severity", Json.Integer(severity)), ("source", Json.String("dark")) ]
+        codeField
+        [ ("message", Json.String(message)) ] ]))
+
+
+// --- the checker's findings, placed on the items they are about ---
+
+/// Where one declaration's source is, by the hash its lowered form got.
+type ItemSource =
+  { hash: String
+    range: Parser.Range }
+
+
+/// One kind of declaration in a module, as the lowering lists it: the module's own first, then
+/// each submodule's, depth first.
+let rangesIn(
+  m: WrittenTypes.ModuleDeclaration.ModuleDeclaration,
+  pick: WrittenTypes.ModuleDeclaration.Declaration -> Option<Parser.Range>)
+  : List<Parser.Range> =
+  let direct = Stdlib.List.filterMap(m.declarations, pick)
+  let nested =
+    m.declarations
+    |> Stdlib.List.filterMap(fun d ->
+      match d with
+      | SubModule(sub) -> Option.Some(rangesIn(sub, pick))
+      | _ -> Option.None)
+    |> Stdlib.List.flatten
+
+  Stdlib.List.concat(direct, nested)
+
+
+let fnRange(d: WrittenTypes.ModuleDeclaration.Declaration): Option<Parser.Range> =
+  match d with
+  | Function(f) -> Option.Some(WrittenTypes.Expr.range(f.body))
+  | _ -> Option.None
+
+
+let valueRange(d: WrittenTypes.ModuleDeclaration.Declaration): Option<Parser.Range> =
+  match d with
+  | Value(v) -> Option.Some(WrittenTypes.Expr.range(v.body))
+  | _ -> Option.None
+
+
+let typeRange(d: WrittenTypes.ModuleDeclaration.Declaration): Option<Parser.Range> =
+  match d with
+  | Type(t) -> Option.Some(t.range)
+  | _ -> Option.None
+
+
+/// The written declarations and their lowered forms pair up in order, kind by kind.
+let pairSources(written: List<Parser.Range>, hashes: List<ProgramTypes.Hash>): List<ItemSource> =
+  Stdlib.List.zipShortest(written, hashes)
+  |> Stdlib.List.map(fun((r, h)) -> ItemSource { hash = ProgramTypes.hashToString(h), range = r })
+
+
+let definitionSources(
+  m: WrittenTypes.ModuleDeclaration.ModuleDeclaration,
+  d: ProgramTypes.Definitions)
+  : List<ItemSource> =
+  Stdlib.List.flatten(
+    [ pairSources(rangesIn(m, fnRange), Stdlib.List.map(d.fns, fun f -> f.hash))
+      pairSources(rangesIn(m, valueRange), Stdlib.List.map(d.values, fun v -> v.hash))
+      pairSources(rangesIn(m, typeRange), Stdlib.List.map(d.types, fun t -> t.hash)) ])
+
+
+let sources(
+  written: Parser.CliScript.WTCliScriptModule,
+  program: Parser.CliScript.PTCliScriptModule)
+  : List<ItemSource> =
+  let subs =
+    Stdlib.List.zipShortest(written.submodules, program.submodules)
+    |> Stdlib.List.map(fun((m, d)) -> definitionSources(m, d))
+    |> Stdlib.List.flatten
+
+  Stdlib.List.flatten(
+    [ pairSources(
+        Stdlib.List.map(written.fns, fun f -> WrittenTypes.Expr.range(f.body)),
+        Stdlib.List.map(program.fns, fun f -> f.hash))
+      pairSources(
+        Stdlib.List.map(written.values, fun v -> WrittenTypes.Expr.range(v.body)),
+        Stdlib.List.map(program.values, fun v -> v.hash))
+      pairSources(
+        Stdlib.List.map(written.types, fun t -> t.range),
+        Stdlib.List.map(program.types, fun t -> t.hash))
+      subs ])
+
+
+let opsOf(program: Parser.CliScript.PTCliScriptModule): List<ProgramTypes.PackageOp> =
+  let defs(
+    types: List<ProgramTypes.PackageType.PackageType>,
+    values: List<ProgramTypes.PackageValue.PackageValue>,
+    fns: List<ProgramTypes.PackageFn.PackageFn>,
+    traits: List<ProgramTypes.Trait.Trait>,
+    impls: List<ProgramTypes.TraitImpl.TraitImpl>)
+    : List<ProgramTypes.PackageOp> =
+    Stdlib.List.flatten(
+      [ Stdlib.List.map(types, fun t -> ProgramTypes.PackageOp.AddType(t))
+        Stdlib.List.map(values, fun v -> ProgramTypes.PackageOp.AddValue(v))
+        Stdlib.List.map(fns, fun f -> ProgramTypes.PackageOp.AddFn(f))
+        Stdlib.List.map(traits, fun t -> ProgramTypes.PackageOp.AddTrait(t))
+        Stdlib.List.map(impls, fun i -> ProgramTypes.PackageOp.AddTraitImpl(i)) ])
+
+  let top = defs(program.types, program.values, program.fns, program.traits, program.impls)
+  let subs =
+    program.submodules
+    |> Stdlib.List.map(fun d -> defs(d.types, d.values, d.fns, d.traits, d.impls))
+    |> Stdlib.List.flatten
+
+  Stdlib.List.concat(top, subs)
+
+
+/// Unresolved names are already reported where they are written, by the name resolver.
+let reportedElsewhere(issue: AtRestTypeChecker.Issue): Bool =
+  match issue.code with
+  | UnresolvedTypeName
+  | UnresolvedFunctionName
+  | UnresolvedValueName
+  | UnresolvedTraitName -> true
+  | _ -> false
+
+
+/// A checker finding as a diagnostic. A match that misses a case carries the case it misses, for
+/// the quick fix that adds it.
+let issueDiagnostic(severity: Int64, r: Parser.Range, issue: AtRestTypeChecker.Issue): Json =
+  let d =
+    diagnostic(
+      severity,
+      r,
+      Option.Some(AtRestTypeChecker.issueCodeToString(issue.code)),
+      AtRestTypeChecker.issueToString(issue))
+
+  match d, issue.context with
+  | Object(fields), UncoveredPattern(Some(missing)) ->
+    Json.Object(Stdlib.List.append(fields, ("data", Json.Object([ ("missing", Json.String(missing)) ]))))
+  | _ -> d
+
+
+/// The at-rest checker's findings for the document's declarations, each on the declaration it
+/// is about (or the whole file when no declaration matches).
+let checkerDiagnostics(
+  whole: Parser.Range,
+  srcs: List<ItemSource>,
+  report: AtRestTypeChecker.Report)
+  : List<Json> =
+  let rangesFor(reference: ProgramTypes.Reference): List<Parser.Range> =
+    let hash = ProgramTypes.hashToString(ProgramTypes.Reference.hash(reference))
+    match srcs |> Stdlib.List.filter(fun s -> s.hash == hash) with
+    | [] -> [ whole ]
+    | found -> Stdlib.List.map(found, fun s -> s.range)
+
+  let onItem(item: AtRestTypeChecker.ItemReport): List<Json> =
+    let place(severity: Int64, issues: List<AtRestTypeChecker.Issue>): List<Json> =
+      issues
+      |> Stdlib.List.filter(fun i -> Stdlib.Bool.not(reportedElsewhere(i)))
+      |> Stdlib.List.map(fun i ->
+        rangesFor(item.item) |> Stdlib.List.map(fun r -> issueDiagnostic(severity, r, i)))
+      |> Stdlib.List.flatten
+
+    Stdlib.List.concat(place(1, item.diagnostics), place(2, item.warnings))
+
+  let itemFindings = report.items |> Stdlib.List.map(onItem) |> Stdlib.List.flatten
+  let fileWarnings =
+    if Stdlib.List.isEmpty(report.items) then
+      Stdlib.List.map(report.warnings, fun i -> issueDiagnostic(2, whole, i))
+    else
+      []
+
+  Stdlib.List.concat(itemFindings, fileWarnings)
+
+
+// --- the types of locals ---
+
+/// A type as the editor shows it, a package type by its short name. None while the checker could
+/// not work it out.
+let typeText(branchId: Uuid, t: AtRestTypeChecker.StaticType): Option<String> =
+  let text =
+    AtRestTypeChecker.staticTypeToStringWith(
+      (fun hash -> PackageManager.Type.locations(branchId, hash) |> Stdlib.List.head |> Stdlib.Option.map(fun l -> l.name)),
+      t)
+
+  if Stdlib.String.contains(text, "'") then Option.None else Option.Some(text)
+
+
+/// The checker's binding types placed on the written names. The two sides list a body's locals in
+/// the same order, so the n-th local named `x` in the source is the n-th the checker bound.
+let typeHints(
+  branchId: Uuid,
+  file: WrittenTypes.ParsedFile,
+  srcs: List<ItemSource>,
+  report: AtRestTypeChecker.Report)
+  : List<(Parser.Point * String)> =
+  let bodies = Syntax.bodies(file)
+  srcs
+  |> Stdlib.List.map(fun src ->
+    let item = report.items |> Stdlib.List.findFirst(fun i -> ProgramTypes.hashToString(ProgramTypes.Reference.hash(i.item)) == src.hash)
+    let body = bodies |> Stdlib.List.findFirst(fun b -> WrittenTypes.Expr.range(b.body) == src.range)
+    match item, body with
+    | Some(item), Some(body) ->
+      let checked(name: String, n: Int64): Option<AtRestTypeChecker.StaticType> =
+        item.bindings
+        |> Stdlib.List.filter(fun b -> b.name == name)
+        |> Stdlib.List.getAt(n)
+        |> Stdlib.Option.map(fun b -> b.typ)
+
+      let (hints, _) =
+        Syntax.bindsIn(Syntax.Node.E(body.body))
+        |> Stdlib.List.fold(([], Stdlib.Dict.empty), fun((hints, seen), (name, r, shown)) ->
+          let n = Stdlib.Dict.get(seen, name) |> Stdlib.Option.withDefault(0)
+          let hint =
+            match shown, checked(name, n) |> Stdlib.Option.andThen(fun t -> typeText(branchId, t)) with
+            | Shows, Some(text) -> [ (r.end_, ": " + text) ]
+            | _ -> []
+
+          (Stdlib.List.concat(hints, hint), Stdlib.Dict.set(seen, name, n + 1)))
+
+      hints
+    | _ -> [])
+  |> Stdlib.List.flatten
+
+
+// --- the whole analysis ---
+
+/// Parse, resolve and check <param text>, with names resolved as <param ctx> says.
+///
+/// Syntax errors come from the parser; names that resolve to nothing are warnings at the name;
+/// type errors come from the at-rest checker, and only for a syntax-clean document, since the
+/// parser's recovery holes would read as errors of their own.
+let analyse(ctx: NameResolver.NRContext, text: String): Analysis =
+  let (parsed, syntax) = Parser.Parse.parse(Parser.FileKind.Script, text)
+  let syntaxDiagnostics =
+    Stdlib.List.map(syntax, fun((r, message)) -> diagnostic(1, r, Option.None, message))
+
+  match parsed with
+  | None -> Analysis { parsed = Option.None, diagnostics = syntaxDiagnostics, typeHints = [] }
+  | Some(SourceFile(sf)) ->
+    let file = WrittenTypes.ParsedFile.SourceFile(sf)
+    let (unresolved, checked, hints) =
+      match Parser.CliScript.parseFromWT(ctx, "", syntax, file) with
+      | Ok((program, unresolved)) ->
+        match Parser.CliScript.parseDecls(ctx.owner, "", syntax, file) with
+        | Ok(written) ->
+          let srcs = sources(written, program)
+          let report = AtRestTypeChecker.checkPackageOps(opsOf(program))
+          (unresolved, checkerDiagnostics(sf.range, srcs, report), typeHints(ctx.branchId, file, srcs, report))
+        | Error(_) -> (unresolved, [], [])
+      | Error(_) -> ([], [], [])
+
+    let nameDiagnostics =
+      unresolved
+      |> Stdlib.List.map(fun((r, name, err)) ->
+        diagnostic(2, r, Option.None, PrettyPrinter.ProgramTypes.NameResolutionError.error(name, err)))
+
+    Analysis
+      { parsed = Option.Some(file)
+        diagnostics = Stdlib.List.flatten([ syntaxDiagnostics, nameDiagnostics, checked ])
+        typeHints = hints }

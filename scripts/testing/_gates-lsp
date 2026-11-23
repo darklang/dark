@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# _gates-lsp: the language server, driven over stdio as an editor drives it
+#
+# Sourced by scripts/testing/gates -- not run directly.
+# shellcheck disable=SC2329  # the functions are invoked by the runner, not from this file
+
+# --- lsp: `dark lsp` over stdio ------------------------------------------------------------------
+# Gate, not an F#/.dark test: a protocol loop over stdio is a subprocess by nature, and the loop
+# (framing, waking for a store change, stopping on EOF) is where a server breaks. The checks are
+# in _lsp-gate.py; this gives them a throwaway home with a copy of the store.
+gate_lsp() {
+  set -euo pipefail
+
+  CLI=${CLI:-backend/Build/out/Cli/Debug/net11.0/Cli}
+  HOME=$(realpath -m rundir/lsp-test); export HOME; WORK="$HOME/.darklang"
+
+  [[ -x "$PWD/$CLI" ]] || {
+    echo "lsp: no CLI at $CLI" >&2
+    echo "  scripts/dev/build, and note that --optimize leaves no debug tree" >&2
+    exit 2
+  }
+
+  rm -rf "$WORK"
+  mkdir -p "$WORK"
+  scripts/testing/_copy-store "$WORK/data.db"
+  sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
+
+  python3 scripts/testing/_lsp-gate.py "$PWD/$CLI"
+  rm -rf "$WORK"
+}
+
+# --- vscode-extension: the VS Code extension type-checks, bundles and packs ---------------------
+# Gate, not a test: it is a node build. It installs the locked dependencies, so a lockfile that
+# drifted from package.json fails here rather than on someone's machine.
+gate_vscode_extension() {
+  set -euo pipefail
+
+  command -v npm >/dev/null || { echo "vscode-extension: no npm" >&2; exit 2; }
+  cd vscode-extension
+  rm -f ./*.vsix
+  log=$(mktemp)
+  if ! { npm ci --no-audit --no-fund --loglevel=error && npm run --silent package; } >"$log" 2>&1; then
+    cat "$log" >&2
+    exit 1
+  fi
+  vsix=$(ls ./*.vsix)
+  echo "vscode-extension: built and packed $vsix ($(du -k "$vsix" | cut -f1) KB)."
+  rm -rf node_modules out ./*.vsix
+}

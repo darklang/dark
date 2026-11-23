@@ -1,0 +1,411 @@
+/// The requests that only read: each is answered from the open documents and the store, and
+/// changes nothing.
+module Darklang.LanguageTools.Lsp.Requests
+
+type Json = Stdlib.AltJson.Json
+
+
+type Document =
+  { uri: String
+    text: String
+    /// The analysis of exactly `text`, or None until the quiet period ends. A change makes a
+    /// new Document with this empty, so an analysis is never read against other text.
+    analysis: Option<Analysis.Analysis>
+    /// For a store function's document: the values its newest run gave each call.
+    live: Option<Lens.Live> }
+
+
+/// What a request reads: the branch, and the open documents by URI.
+type View =
+  { branchId: Uuid
+    documents: Dict<String, Document> }
+
+
+// --- reading params ---
+
+let field(params: Json, key: String): Option<Json> =
+  match params with
+  | Object(fields) -> Stdlib.AltJson.Helpers.getValue(key, fields)
+  | _ -> Option.None
+
+
+let at(params: Json, path: List<String>): Option<Json> =
+  match path with
+  | [] -> Option.Some(params)
+  | [ key, ...rest ] -> field(params, key) |> Stdlib.Option.andThen(fun j -> at(j, rest))
+
+
+let stringAt(params: Json, path: List<String>): Option<String> =
+  match at(params, path) with
+  | Some(String(s)) -> Option.Some(s)
+  | _ -> Option.None
+
+
+let intAt(params: Json, path: List<String>): Option<Int64> =
+  match at(params, path) with
+  | Some(Integer(n)) -> Option.Some(n)
+  | _ -> Option.None
+
+
+let boolAt(params: Json, path: List<String>): Option<Bool> =
+  match at(params, path) with
+  | Some(Bool(b)) -> Option.Some(b)
+  | _ -> Option.None
+
+
+let point(json: Json): Option<(Int64 * Int64)> =
+  match intAt(json, [ "line" ]), intAt(json, [ "character" ]) with
+  | Some(line), Some(character) -> Option.Some((line, character))
+  | _ -> Option.None
+
+
+/// The open document a request names, and the position in it when it names one.
+let document(view: View, params: Json): Option<Document> =
+  stringAt(params, [ "textDocument", "uri" ]) |> Stdlib.Option.andThen(fun uri -> Stdlib.Dict.get(view.documents, uri))
+
+
+let parsed(doc: Document): Option<WrittenTypes.ParsedFile> =
+  match doc.analysis with
+  | Some(a) -> a.parsed
+  | None -> Parser.Parse.toWrittenTypes(doc.text)
+
+
+let context(view: View, doc: Document): NameResolver.NRContext =
+  Names.context(view.branchId, doc.uri)
+
+
+/// The package item named under the position <param params> gives.
+let itemAt(view: View, params: Json): Option<Names.Item> =
+  match document(view, params), at(params, [ "position" ]) |> Stdlib.Option.andThen(point) with
+  | Some(doc), Some((line, character)) ->
+    Names.at(doc.text, line, character)
+    |> Stdlib.Option.andThen(fun name -> Names.resolve(context(view, doc), name.parts))
+  | _ -> Option.None
+
+
+/// The local under the position <param params> gives: where it is bound, and every place it
+/// occurs.
+let localAt(view: View, params: Json): Option<(Document * Parser.Range * List<Syntax.Occurrence>)> =
+  match document(view, params), at(params, [ "position" ]) |> Stdlib.Option.andThen(point) with
+  | Some(doc), Some((line, character)) ->
+    parsed(doc)
+    |> Stdlib.Option.andThen(fun file -> Syntax.localAt(file, line, character))
+    |> Stdlib.Option.map(fun((binding, occurrences)) -> (doc, binding, occurrences))
+  | _ -> Option.None
+
+
+let atPosition(view: View, params: Json, answer: (NameResolver.NRContext, String, Int64, Int64) -> Json): Json =
+  match document(view, params), at(params, [ "position" ]) |> Stdlib.Option.andThen(point) with
+  | Some(doc), Some((line, character)) -> answer(context(view, doc), doc.text, line, character)
+  | _ -> Json.Null
+
+
+let openDocs(view: View): List<(String * String)> =
+  view.documents |> Stdlib.Dict.values |> Stdlib.List.map(fun d -> (d.uri, d.text))
+
+
+// --- answers ---
+
+let definition(view: View, params: Json): Json =
+  match localAt(view, params) with
+  | Some((doc, binding, _)) -> Navigation.location(doc.uri, Analysis.range(binding))
+  | None -> atPosition(view, params, Hover.definition)
+
+
+let highlights(view: View, params: Json): Json =
+  match localAt(view, params) with
+  | Some((_, binding, occurrences)) ->
+    occurrences
+    |> Stdlib.List.map(fun o ->
+      // 3: write, where it is bound; 2: read
+      let kind = if o.range == binding then 3 else 2
+      Json.Object([ ("range", Analysis.range(o.range)), ("kind", Json.Integer(kind)) ]))
+    |> Json.Array
+  | None ->
+    match itemAt(view, params), document(view, params) with
+    | Some(item), Some(doc) ->
+      Navigation.namedIn(context(view, doc), doc.text, item)
+      |> Stdlib.List.map(fun r -> Json.Object([ ("range", Analysis.range(r)), ("kind", Json.Integer(1)) ]))
+      |> Json.Array
+    | _ -> Json.Array([])
+
+
+let references(view: View, params: Json): Json =
+  let includeDeclaration = boolAt(params, [ "context", "includeDeclaration" ]) |> Stdlib.Option.withDefault(true)
+  match localAt(view, params) with
+  | Some((doc, binding, occurrences)) ->
+    occurrences
+    |> Stdlib.List.filter(fun o -> includeDeclaration || o.range != binding)
+    |> Stdlib.List.map(fun o -> Navigation.location(doc.uri, Analysis.range(o.range)))
+    |> Json.Array
+  | None ->
+    match itemAt(view, params) with
+    | Some(item) -> Json.Array(Navigation.references(view.branchId, item, openDocs(view), includeDeclaration))
+    | None -> Json.Null
+
+
+let foldingRanges(view: View, params: Json): Json =
+  match document(view, params) with
+  | None -> Json.Array([])
+  | Some(doc) ->
+    Syntax.folds(parsed(doc), doc.text)
+    |> Stdlib.List.map(fun f ->
+      let kind = if f.comment then [ ("kind", Json.String("comment")) ] else []
+      Json.Object(
+        Stdlib.List.concat([ ("startLine", Json.Integer(f.startLine)), ("endLine", Json.Integer(f.endLine)) ], kind)))
+    |> Json.Array
+
+
+let selectionRanges(view: View, params: Json): Json =
+  let positions =
+    match at(params, [ "positions" ]) with
+    | Some(Array(ps)) -> Stdlib.List.filterMap(ps, point)
+    | _ -> []
+
+  let file = document(view, params) |> Stdlib.Option.andThen(parsed)
+  positions
+  |> Stdlib.List.map(fun((line, character)) ->
+    let here = Parser.Point { row = line, column = character }
+    let ranges =
+      match file with
+      | Some(file) -> Syntax.around(file, line, character)
+      | None -> []
+
+    Stdlib.List.append(ranges, Parser.Range { start = here, end_ = here })
+    |> Stdlib.List.fold(Json.Null, fun(parent, r) ->
+      match parent with
+      | Null -> Json.Object([ ("range", Analysis.range(r)) ])
+      | _ -> Json.Object([ ("range", Analysis.range(r)), ("parent", parent) ])))
+  |> Json.Array
+
+
+let prepareCallHierarchy(view: View, params: Json): Json =
+  match itemAt(view, params) with
+  | Some(Fn(found)) -> Json.Array([ Navigation.hierarchyItem(found.location, ProgramTypes.ItemKind.Fn) ])
+  | _ -> Json.Null
+
+
+let implementation(view: View, params: Json): Json =
+  match itemAt(view, params) with
+  | Some(item) -> Json.Array(Navigation.implementations(view.branchId, item))
+  | None -> Json.Null
+
+
+let outline(view: View, params: Json): Json =
+  document(view, params)
+  |> Stdlib.Option.andThen(parsed)
+  |> Stdlib.Option.map(fun file -> Symbols.outline(file))
+  |> Stdlib.Option.withDefault(Json.Array([]))
+
+
+/// A store document's text. `?trace=<id>` on a function's URI asks for that run's document: the
+/// function with the value each call gave beside it.
+let read(view: View, params: Json): Json =
+  let text =
+    match stringAt(params, [ "uri" ]) |> Stdlib.Option.map(fun uri -> Stdlib.String.split(uri, "?trace=")) with
+    | Some([ uri ]) -> Names.source(view.branchId, uri)
+    | Some([ uri, traceId ]) ->
+      match Names.parseUri(uri) with
+      | Some(Item(loc, Fn)) -> Lens.traceDocument(view.branchId, loc, traceId)
+      | _ -> Option.None
+    | _ -> Option.None
+
+  match text with
+  | Some(text) -> Json.String(text)
+  | None -> Json.Null
+
+
+/// Inlay hints: the type of each `let` and lambda parameter, and in a store function the value
+/// each call gave in its newest run.
+let inlayHints(view: View, params: Json): Json =
+  match document(view, params) with
+  | None -> Json.Array([])
+  | Some(doc) ->
+    let types =
+      match doc.analysis with
+      | Some(a) ->
+        a.typeHints
+        |> Stdlib.List.map(fun((at, label)) ->
+          // 1: a type
+          Json.Object([ ("position", Analysis.position(at)), ("label", Json.String(label)), ("kind", Json.Integer(1)) ]))
+      | None -> []
+
+    let values =
+      match doc.live with
+      | Some(live) ->
+        match Lens.inlayHints(live) with
+        | Array(hints) -> hints
+        | _ -> []
+      | None -> []
+
+    Json.Array(Stdlib.List.concat(types, values))
+
+
+let storeFnOf(uri: String): Option<ProgramTypes.PackageLocation> =
+  match Names.parseUri(uri) with
+  | Some(Item(loc, Fn)) -> Option.Some(loc)
+  | _ -> Option.None
+
+
+let codeLenses(view: View, params: Json): Json =
+  match stringAt(params, [ "textDocument", "uri" ]) with
+  | Some(uri) ->
+    match storeFnOf(uri) with
+    | Some(loc) -> Lens.codeLenses(view.branchId, uri, loc)
+    | None -> Json.Array([])
+  | None -> Json.Array([])
+
+
+let traces(view: View, params: Json): Json =
+  match stringAt(params, [ "uri" ]) |> Stdlib.Option.andThen(storeFnOf) with
+  | Some(loc) -> Lens.runs(view.branchId, loc)
+  | None -> Json.Array([])
+
+
+let tree(view: View, params: Json): Json =
+  let path =
+    match at(params, [ "path" ]) with
+    | Some(Array(segments)) ->
+      Stdlib.List.filterMap(segments, fun s ->
+        match s with
+        | String(s) -> Option.Some(s)
+        | _ -> Option.None)
+    | _ -> []
+
+  Tree.children(view.branchId, path)
+
+
+let completion(view: View, params: Json): Json =
+  match document(view, params), at(params, [ "position" ]) |> Stdlib.Option.andThen(point) with
+  | Some(doc), Some((line, character)) ->
+    Completion.complete(context(view, doc), doc.text, parsed(doc), line, character)
+  | _ -> Json.Null
+
+
+let semanticTokens(view: View, params: Json): Json =
+  let from = intAt(params, [ "range", "start", "line" ]) |> Stdlib.Option.withDefault(0)
+  let to = intAt(params, [ "range", "end", "line" ]) |> Stdlib.Option.withDefault(1000000000)
+  match document(view, params) with
+  | Some(doc) ->
+    match parsed(doc) with
+    | Some(file) -> Tokens.encode(Tokens.tokens(file, doc.text, from, to))
+    | None -> Tokens.encode([])
+  | None -> Json.Null
+
+
+/// <param text> laid out as `dark format` lays out a module file. `dark format` keeps loose
+/// declarations as written, so a document without a `module` header is formatted as one.
+let format(branchId: Uuid, text: String): Result<String, String> =
+  let header = "module Formatting\n\n"
+  let hasHeader =
+    match Text.lines(text) |> Stdlib.List.head with
+    | Some(first) -> Stdlib.String.startsWith(first, "module ") && Stdlib.Bool.not(Stdlib.String.contains(first, "="))
+    | None -> false
+
+  if hasHeader then
+    Formatter.source(branchId, PrettyPrinter.ProgramTypes.sourceWidth, text) |> Stdlib.Result.map(fun f -> f.text)
+  else
+    Formatter.source(branchId, PrettyPrinter.ProgramTypes.sourceWidth, header + text)
+    |> Stdlib.Result.map(fun f -> Stdlib.String.stripPrefix(f.text, header) |> Stdlib.Option.withDefault(f.text))
+
+
+/// The whole document, laid out as `dark format` lays it out: one edit, or none when it is
+/// already formatted or does not parse.
+let formatting(view: View, params: Json): Json =
+  match document(view, params) with
+  | None -> Json.Null
+  | Some(doc) ->
+    match format(view.branchId, doc.text) with
+    | Ok(formatted) ->
+      if formatted == doc.text then
+        Json.Array([])
+      else
+        let lineCount = Stdlib.List.length(Text.lines(doc.text))
+        let whole =
+          Parser.Range
+            { start = Parser.Point { row = 0, column = 0 }
+              end_ = Parser.Point { row = lineCount, column = 0 } }
+
+        Json.Array([ Json.Object([ ("range", Analysis.range(whole)), ("newText", Json.String(formatted)) ]) ])
+    | Error(e) ->
+      Rpc.log($"not formatted: {e}")
+      Json.Array([])
+
+
+/// Where a rename would apply: the local or the name under the cursor, the last segment of a
+/// dotted name.
+let prepareRename(view: View, params: Json): Json =
+  match localAt(view, params) with
+  | Some((_, _, occurrences)) ->
+    match at(params, [ "position" ]) |> Stdlib.Option.andThen(point) with
+    | Some((line, character)) ->
+      occurrences
+      |> Stdlib.List.findFirst(fun o -> Syntax.contains(o.range, line, character))
+      |> Stdlib.Option.map(fun o -> Analysis.range(o.range))
+      |> Stdlib.Option.withDefault(Json.Null)
+    | None -> Json.Null
+  | None ->
+    match itemAt(view, params), document(view, params), at(params, [ "position" ]) |> Stdlib.Option.andThen(point) with
+    | Some(item), Some(doc), Some((line, character)) ->
+      match Names.at(doc.text, line, character) with
+      | Some(name) ->
+        let short = (Names.itemLocation(item)).name
+        if Stdlib.List.last(name.parts) == Option.Some(short) then
+          Analysis.range(
+            Parser.Range
+              { start = Parser.Point { row = line, column = name.end - Text.width(short) }
+                end_ = Parser.Point { row = line, column = name.end } })
+        else
+          Json.Null
+      | None -> Json.Null
+    | _ -> Json.Null
+
+
+/// The answer to a read-only request, or None when this server does not know <param method>.
+let answer(view: View, method: String, params: Json): Option<Json> =
+  match method with
+  | "textDocument/hover" ->
+    match document(view, params), at(params, [ "position" ]) |> Stdlib.Option.andThen(point) with
+    | Some(doc), Some((line, character)) -> Option.Some(Hover.hover(context(view, doc), doc.text, parsed(doc), line, character))
+    | _ -> Option.Some(Json.Null)
+  | "textDocument/definition" -> Option.Some(definition(view, params))
+  | "textDocument/documentSymbol" -> Option.Some(outline(view, params))
+  | "textDocument/documentHighlight" -> Option.Some(highlights(view, params))
+  | "textDocument/references" -> Option.Some(references(view, params))
+  | "textDocument/foldingRange" -> Option.Some(foldingRanges(view, params))
+  | "textDocument/selectionRange" -> Option.Some(selectionRanges(view, params))
+  | "textDocument/implementation" -> Option.Some(implementation(view, params))
+  | "textDocument/prepareCallHierarchy" -> Option.Some(prepareCallHierarchy(view, params))
+  | "callHierarchy/incomingCalls" ->
+    Option.Some(Navigation.incoming(view.branchId, stringAt(params, [ "item", "uri" ]) |> Stdlib.Option.withDefault("")))
+  | "callHierarchy/outgoingCalls" ->
+    Option.Some(Navigation.outgoing(view.branchId, stringAt(params, [ "item", "uri" ]) |> Stdlib.Option.withDefault("")))
+  | "workspace/symbol" ->
+    Option.Some(Symbols.workspace(view.branchId, stringAt(params, [ "query" ]) |> Stdlib.Option.withDefault("")))
+  | "textDocument/completion" -> Option.Some(completion(view, params))
+  | "completionItem/resolve" -> Option.Some(Completion.resolve(view.branchId, params))
+  | "textDocument/signatureHelp" -> Option.Some(atPosition(view, params, Completion.signatureHelp))
+  | "textDocument/semanticTokens/full" -> Option.Some(semanticTokens(view, params))
+  | "textDocument/semanticTokens/range" -> Option.Some(semanticTokens(view, params))
+  | "textDocument/formatting" -> Option.Some(formatting(view, params))
+  | "dark/fs/read" -> Option.Some(read(view, params))
+  | "dark/tree" -> Option.Some(tree(view, params))
+  | "dark/traces" -> Option.Some(traces(view, params))
+  | "dark/status" -> Option.Some(Scm.status(view.branchId))
+  | "dark/branches" -> Option.Some(Scm.branches(view.branchId))
+  | "textDocument/inlayHint" -> Option.Some(inlayHints(view, params))
+  | "textDocument/codeLens" -> Option.Some(codeLenses(view, params))
+  | "textDocument/codeAction" -> Option.Some(Actions.codeActions(view, params))
+  | "textDocument/documentLink" ->
+    match document(view, params) with
+    | Some(doc) -> Option.Some(Json.Array(Navigation.links(context(view, doc), doc.text)))
+    | None -> Option.Some(Json.Array([]))
+  | "textDocument/prepareRename" -> Option.Some(prepareRename(view, params))
+  | _ -> Option.None
+
+
+/// <fn answer> as one argument, for `dark lsp --live`, which calls whatever version the store
+/// has now.
+let answerLive(args: (View * String * Json)): Option<Json> =
+  let (view, method, params) = args
+  answer(view, method, params)

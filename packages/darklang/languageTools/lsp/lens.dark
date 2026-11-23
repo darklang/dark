@@ -1,0 +1,218 @@
+/// What a store function's document shows from its runs: the value beside each call (inlay
+/// hints), and above it how often it ran and how long it took, what it can do to the world, and
+/// its tests (code lenses).
+module Darklang.LanguageTools.Lsp.Lens
+
+type Json = Stdlib.AltJson.Json
+
+
+/// The live values of one document: the run they come from, and each hint as (line, column,
+/// label).
+type Live =
+  { runId: String
+    hints: List<(Int64 * Int64 * String)>
+    /// Why there are no values when the run was too large to replay; empty otherwise.
+    note: String }
+
+
+/// The longest recorded run whose values are shown. A replay costs several times the run, and
+/// it happens when a document opens and when a new run lands, not on a keystroke; a run in a
+/// Debug build spends most of its time starting.
+val replayLimitMs = 1000
+
+
+let printContext(branchId: Uuid, loc: ProgramTypes.PackageLocation): PrettyPrinter.ProgramTypes.Context =
+  { PrettyPrinter.ProgramTypes.Context.forModule(branchId, Stdlib.List.prepend(loc.modules, loc.owner)) with
+      width = PrettyPrinter.ProgramTypes.sourceWidth
+      preferredLocation = Option.Some(loc) }
+
+
+/// The newest run through the function at <param loc>, by id: what decides whether its
+/// values are stale.
+let newestRunId(branchId: Uuid, loc: ProgramTypes.PackageLocation): Option<String> =
+  Live.Values.newestRun(branchId, loc) |> Stdlib.Option.map(fun run -> run.id)
+
+
+/// The function at <param loc> printed with the values <param run> gave each call, as
+/// `// = value` comments: what a trace document shows.
+let printedWithValues(branchId: Uuid, loc: ProgramTypes.PackageLocation, run: Tracing.Trace): Option<(String * String)> =
+  match PackageManager.Function.find(branchId, loc) |> Stdlib.Option.andThen(fun h -> PackageManager.Function.get(h)) with
+  | None -> Option.None
+  | Some(fn) ->
+    let values = Live.Values.replayWithin(replayLimitMs, 500, Option.None, branchId, run)
+    let rendered = Stdlib.Dict.map(values.byExpr, fun(_, dv) -> PrettyPrinter.RuntimeTypes.dvalOneLine(branchId, 40, dv))
+    let ctx = printContext(branchId, loc)
+    let plain = PrettyPrinter.ProgramTypes.packageFn(ctx, fn)
+    let annotated = PrettyPrinter.ProgramTypes.packageFn({ ctx with liveValues = rendered }, fn)
+    let note =
+      match values.skipped, values.problem with
+      | Some(why), _ -> why
+      | _, Some(why) -> why
+      | None, None -> ""
+
+    Option.Some((plain, if note == "" then annotated else annotated + "\n// " + note))
+
+
+/// The live values for the document of the function at <param loc>, when <param text> is the
+/// function as the store has it: the two prints are zipped line by line, and what the one with
+/// values adds at the end of a line becomes a hint there.
+let live(branchId: Uuid, loc: ProgramTypes.PackageLocation, text: String): Option<Live> =
+  match Live.Values.newestRun(branchId, loc) with
+  | None -> Option.None
+  | Some(run) ->
+    match printedWithValues(branchId, loc, run) with
+    | None -> Option.None
+    | Some((plain, annotated)) ->
+      if Stdlib.String.trimEnd(plain) != Stdlib.String.trimEnd(text) then
+        Option.None
+      else
+        let hints =
+          Stdlib.List.zipShortest(Text.lines(plain), Text.lines(annotated))
+          |> Stdlib.List.indexedMap(fun(i, (before, after)) ->
+            if before != after && Stdlib.String.startsWith(after, before) then
+              let added = Stdlib.String.dropFirst(after, Stdlib.String.length(before)) |> Stdlib.String.trim
+              let label = Stdlib.String.stripPrefix(added, "// ") |> Stdlib.Option.withDefault(added)
+              [ (i, Text.width(before), label) ]
+            else
+              [])
+          |> Stdlib.List.flatten
+
+        let note =
+          Text.lines(annotated)
+          |> Stdlib.List.drop(Stdlib.List.length(Text.lines(plain)))
+          |> Stdlib.String.join(" ")
+
+        let noteHint =
+          match note, Text.lines(plain) with
+          | "", _ -> []
+          | _, [ first, ..._ ] -> [ (0, Text.width(first), note) ]
+          | _, [] -> []
+
+        Option.Some(Live { runId = run.id, hints = Stdlib.List.concat(hints, noteHint), note = note })
+
+
+let inlayHints(live: Live): Json =
+  live.hints
+  |> Stdlib.List.map(fun((line, column, label)) ->
+    Json.Object(
+      [ ("position", Json.Object([ ("line", Json.Integer(line)), ("character", Json.Integer(column)) ]))
+        // The editor's own padding is narrow; a space keeps `* 2` and `= 40` apart.
+        ("label", Json.String(" " + label))
+        ("paddingLeft", Json.Bool(true)) ]))
+  |> Json.Array
+
+
+// --- code lenses ---
+
+let microsText(us: Int64): String =
+  if us < 1000 then
+    Stdlib.display(us) + " µs"
+  else if us < 10000 then
+    let tenths = us / 100
+    Stdlib.display(tenths / 10) + "." + Stdlib.display(tenths % 10) + " ms"
+  else
+    Stdlib.display(us / 1000) + " ms"
+
+
+/// "12 runs · last 1.2 ms · median 0.9 ms", from the time each recorded run spent in the
+/// function; None when nothing recorded ran it.
+let timing(branchId: Uuid, loc: ProgramTypes.PackageLocation): Option<String> =
+  let runs = Tracing.Store.timeInNamed(branchId, Live.entryName(loc), 40)
+  match runs with
+  | [] -> Option.None
+  | [ last, ..._ ] ->
+    let sorted = runs |> Stdlib.List.sortBy(fun r -> r.totalUs) |> Stdlib.List.map(fun r -> r.totalUs)
+    let median = Stdlib.List.getAt(sorted, Stdlib.List.length(sorted) / 2) |> Stdlib.Option.withDefault(0)
+    let count = Stdlib.List.length(runs)
+    let countText = if count == 40 then "40+ runs" else if count == 1 then "1 run" else Stdlib.display(count) + " runs"
+    Option.Some($"{countText} · last {microsText(last.totalUs)} · median {microsText(median)}")
+
+
+/// "pure", or the effects it may have: what `dark effects` says.
+let effects(hash: ProgramTypes.Hash): String =
+  let (complete, reasons) = Permissions.effectReasons(ProgramTypes.hashToString(hash))
+  match reasons with
+  | [] -> if complete then "pure" else "no effects found"
+  | _ ->
+    let names =
+      reasons
+      |> Stdlib.List.map(fun((effect, _)) -> Permissions.effectName(effect))
+      |> Stdlib.List.unique
+      |> Stdlib.String.join(", ")
+
+    "effects: " + names
+
+
+let lens(title: String, command: String, arguments: List<Json>): Json =
+  let zero = Json.Object([ ("line", Json.Integer(0)), ("character", Json.Integer(0)) ])
+  Json.Object(
+    [ ("range", Json.Object([ ("start", zero), ("end", zero) ]))
+      ("command",
+       Json.Object(
+         [ ("title", Json.String(title)), ("command", Json.String(command)), ("arguments", Json.Array(arguments)) ])) ])
+
+
+/// The tests that call the function, by name.
+let tests(branchId: Uuid, loc: ProgramTypes.PackageLocation): List<String> =
+  match SCM.Deps.dependents(branchId, [ (loc, ProgramTypes.ItemKind.Fn) ]) with
+  | Ok(found) ->
+    found
+    |> Stdlib.List.filter(fun((_, _, kind)) -> kind == ProgramTypes.ItemKind.Test)
+    |> Stdlib.List.map(fun((_, l, _)) -> Live.entryName(l))
+  | Error(_) -> []
+
+
+/// The code lenses over the function at <param loc>: run it (when it takes no arguments), its
+/// recorded runs and their timing, its effects, and its tests.
+let codeLenses(branchId: Uuid, uri: String, loc: ProgramTypes.PackageLocation): Json =
+  match PackageManager.Function.find(branchId, loc) |> Stdlib.Option.andThen(fun h -> PackageManager.Function.get(h)) with
+  | None -> Json.Array([])
+  | Some(fn) ->
+    let name = Live.entryName(loc)
+    let run =
+      match fn.parameters with
+      | [] -> [ lens("▶ run", "darklang.run", [ Json.String(name) ]) ]
+      | _ -> []
+
+    let runs =
+      match timing(branchId, loc) with
+      | Some(text) -> [ lens(text, "darklang.showTraces", [ Json.String(uri) ]) ]
+      | None -> []
+
+    let testLens =
+      match tests(branchId, loc) with
+      | [] -> []
+      | found ->
+        let count = Stdlib.List.length(found)
+        let title = if count == 1 then "▶ 1 test" else "▶ " + Stdlib.display(count) + " tests"
+        [ lens(title, "darklang.runTests", Stdlib.List.map(found, fun t -> Json.String(t))) ]
+
+    Stdlib.List.flatten([ run, runs, [ lens(effects(fn.hash), "", []) ], testLens ]) |> Json.Array
+
+
+/// The recorded runs through the function at <param loc>, newest first, for the editor to
+/// pick one to open.
+let runs(branchId: Uuid, loc: ProgramTypes.PackageLocation): Json =
+  let times = Tracing.Store.timeInNamed(branchId, Live.entryName(loc), 40)
+  Tracing.Store.wentThroughNamed(branchId, Live.entryName(loc), 40)
+  |> Stdlib.List.map(fun run ->
+    let inFn =
+      times
+      |> Stdlib.List.findFirst(fun t -> t.traceId == run.id)
+      |> Stdlib.Option.map(fun t -> microsText(t.totalUs))
+      |> Stdlib.Option.withDefault("")
+
+    Json.Object(
+      [ ("id", Json.String(run.id))
+        ("entry", Json.String(run.entry))
+        ("created", Json.String(run.created))
+        ("inFunction", Json.String(inFn))
+        ("totalMs", Json.Integer(run.durationMs)) ]))
+  |> Json.Array
+
+
+/// The document a trace opens as: the function with each call's value from that run beside it.
+let traceDocument(branchId: Uuid, loc: ProgramTypes.PackageLocation, traceId: String): Option<String> =
+  Tracing.Store.get(traceId)
+  |> Stdlib.Option.andThen(fun run -> printedWithValues(branchId, loc, run))
+  |> Stdlib.Option.map(fun((_, annotated)) -> annotated)

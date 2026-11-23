@@ -63,6 +63,8 @@ module Registry =
 
   let acceptsClear(): Accepts.Accepts = Accepts.nothing()
 
+  let acceptsLsp(): Accepts.Accepts = Accepts.flagsOnly([ "--stdio", "--live" ])
+
   let acceptsFormat(): Accepts.Accepts = Accepts.freeText(1, [ "--check", "--as-written" ])
 
   let acceptsRunScript(): Accepts.Accepts = Accepts.text(1)
@@ -940,32 +942,20 @@ module Registry =
         Permissions.Command.complete)
 
       ("ops", "Read this instance's op log", [], acceptsOps, Ops.execute, Ops.help, Ops.complete)
-      (
-        "ps",
-        "What is running: this instance's processes, then other Darks on this machine",
-        [ "processes" ],
-        acceptsPs,
-        Ps.execute,
-        Ps.help,
-        Ps.complete)
-
-      (
-        "workbench",
-        "Open the workbench -- a framed, navigable package tree",
-        [ "wb" ],
-        acceptsWorkbench,
-        Workbench.execute,
-        Workbench.help,
-        Workbench.complete) ]
-    |> Stdlib.List.map(fun((name, desc, aliases, accepts, execute, help, complete)) ->
-      CommandHandler
-        { name = name
-          description = desc
-          aliases = aliases
-          accepts = accepts
-          execute = execute
-          help = help
-          complete = complete })
+      ("ps", "What is running: this instance's processes, then other Darks on this machine", [ "processes" ], acceptsPs, Cli.Ps.execute, Cli.Ps.help, Cli.Ps.complete)
+      ("lsp", "Run the language server, for an editor to start", [], acceptsLsp, Cli.Lsp.execute, Cli.Lsp.help, Cli.Lsp.complete)
+      ("workbench", "Open the workbench -- a framed, navigable package tree", [ "wb" ], acceptsWorkbench, Workbench.execute, Workbench.help, Workbench.complete) ]
+    |> Stdlib.List.map((
+      fun((name, desc, aliases, accepts, execute, help, complete)) ->
+        CommandHandler
+          { name = name
+            description = desc
+            aliases = aliases
+            accepts = accepts
+            execute = execute
+            help = help
+            complete = complete }
+      ))
 
 
   let findCommandIn(commands: List<CommandHandler>, name: String): CommandHandler =
@@ -1159,7 +1149,7 @@ module Registry =
       ("Security", [ "effects", "permissions" ])
       (
         "Utilities",
-        [ "clear", "help", "docs", "quit", "builtins", "workbench", "backups", "config" ]) ]
+        [ "clear", "help", "docs", "quit", "builtins", "workbench", "backups", "config", "lsp" ]) ]
 
 
   let formatCommandGroup(

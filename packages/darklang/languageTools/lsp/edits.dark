@@ -1,0 +1,110 @@
+/// The requests that change the store: saving a store document, and renaming.
+module Darklang.LanguageTools.Lsp.Edits
+
+type Json = Stdlib.AltJson.Json
+
+
+let withoutColour(text: String): String =
+  Stdlib.Regex.replaceAll(text, "\\x1b\\[[0-9;]*m", "") |> Stdlib.Result.withDefault(text)
+
+
+/// Run a CLI command's code in this process, with what it prints collected instead of written:
+/// stdout is the protocol channel.
+let quietly(f: Unit -> Cli.AppState): (Bool * String) =
+  let (state, printed) = Cli.Workbench.captureOutputAnd(f)
+  (state.exitCode == 0, printed |> withoutColour |> Stdlib.String.trim)
+
+
+/// `dark/fs/write`: save a store document the way `dark edit` (one item) or `dark module` (a
+/// module) does, with the same checks. Answers whether it saved, and what the command said.
+let save(branchId: Uuid, uri: String, text: String): Json =
+  let state = { Cli.initState() with currentBranchId = branchId, nonInteractive = true }
+  let outcome =
+    match Names.parseUri(uri) with
+    | Some(Item(loc, _)) ->
+      Option.Some(quietly(fun () -> Cli.Packages.ModuleCommand.saveEdit(state, Cli.Packages.Edit.moduleArgFor(loc), text)))
+    | Some(Module(path)) ->
+      Option.Some(
+        quietly(fun () ->
+          Cli.Packages.ModuleCommand.save(state, "/" + Stdlib.String.join(path, "."), text, Cli.Packages.ModuleCommand.SaveMode.Module)))
+    | None -> Option.None
+
+  match outcome with
+  | Some((saved, said)) -> Json.Object([ ("saved", Json.Bool(saved)), ("message", Json.String(said)) ])
+  | None -> Json.Object([ ("saved", Json.Bool(false)), ("message", Json.String($"{uri} is not a store document")) ])
+
+
+// --- rename ---
+
+let textEdit(r: Parser.Range, newText: String): Json =
+  Json.Object([ ("range", Analysis.range(r)), ("newText", Json.String(newText)) ])
+
+
+let workspaceEdit(byUri: List<(String * List<Json>)>): Json =
+  let changes =
+    byUri
+    |> Stdlib.List.filter(fun((_, edits)) -> Stdlib.Bool.not(Stdlib.List.isEmpty(edits)))
+    |> Stdlib.List.map(fun((uri, edits)) -> (uri, Json.Array(edits)))
+
+  Json.Object([ ("changes", Json.Object(changes)) ])
+
+
+/// The last segment of each place <param range> covers a dotted name: what a rename replaces.
+let lastSegment(r: Parser.Range, short: String): Parser.Range =
+  { r with start = Parser.Point { row = r.end_.row, column = r.end_.column - Text.width(short) } }
+
+
+let isIdentifier(name: String): Bool =
+  Stdlib.Regex.isMatch(name, "^[A-Za-z_][A-Za-z0-9_']*$") |> Stdlib.Result.withDefault(false)
+
+
+/// Rename the package item <param item> to <param newName>, in its own module: the store binds
+/// the new name, callers keep their hashes and follow it (`dark rename`). The open documents
+/// that name it are edited to match.
+let renameItem(
+  branchId: Uuid,
+  item: Names.Item,
+  newName: String,
+  openDocs: List<(String * String)>)
+  : Result<Json, String> =
+  let old = Names.itemLocation(item)
+  let renamed = { old with name = newName }
+  if Stdlib.Bool.not(isIdentifier(newName)) then
+    Result.Error($"{newName} is not a name")
+  else
+    match Cli.Packages.Rename.referenceAt(branchId, renamed) with
+    | Some(_) -> Result.Error($"{Live.entryName(renamed)} already names something")
+    | None ->
+      match Cli.Packages.Rename.referenceAt(branchId, old) with
+      | None -> Result.Error($"nothing is named {Live.entryName(old)}")
+      | Some(reference) ->
+        let inDocs =
+          openDocs
+          |> Stdlib.List.map(fun((uri, text)) ->
+            let edits =
+              Navigation.namedIn(Names.context(branchId, uri), text, item)
+              |> Stdlib.List.map(fun r -> textEdit(lastSegment(r, old.name), newName))
+
+            (uri, edits))
+
+        match SCM.PackageOps.add(branchId, Cli.Packages.Rename.ops(branchId, old, renamed, reference)) with
+        | Ok(_) -> Result.Ok(workspaceEdit(inDocs))
+        | Error(e) -> Result.Error($"could not rename: {e}")
+
+
+let renameLocal(uri: String, occurrences: List<Syntax.Occurrence>, newName: String): Result<Json, String> =
+  if isIdentifier(newName) then
+    Result.Ok(workspaceEdit([ (uri, Stdlib.List.map(occurrences, fun o -> textEdit(o.range, newName))) ]))
+  else
+    Result.Error($"{newName} is not a name")
+
+
+/// `textDocument/rename`: a local within its document, or a package item store-wide.
+let rename(view: Requests.View, params: Json): Result<Json, String> =
+  let newName = Requests.stringAt(params, [ "newName" ]) |> Stdlib.Option.withDefault("")
+  match Requests.localAt(view, params) with
+  | Some((doc, _, occurrences)) -> renameLocal(doc.uri, occurrences, newName)
+  | None ->
+    match Requests.itemAt(view, params) with
+    | Some(item) -> renameItem(view.branchId, item, newName, Requests.openDocs(view))
+    | None -> Result.Error("there is no name here to rename")

@@ -1,0 +1,322 @@
+/// `textDocument/completion` and `textDocument/signatureHelp`.
+module Darklang.LanguageTools.Lsp.Completion
+
+type Json = Stdlib.AltJson.Json
+
+
+/// LSP `CompletionItemKind`s.
+module Kind =
+  val function = 3
+  val variable = 6
+  val module_ = 9
+  val keyword = 14
+  val enumMember = 20
+  val constant = 21
+  val struct = 22
+  val interface = 8
+
+
+val keywords =
+  [ "let", "val", "type", "trait", "impl", "for", "module", "test", "fun", "if", "then", "else", "match", "with", "when", "as", "true", "false" ]
+
+
+/// What is typed before the cursor, as a dotted name: `Stdlib.List.ma` is (["Stdlib", "List"],
+/// "ma"), and `Stdlib.` is (["Stdlib"], "").
+let typed(before: String): (List<String> * String) =
+  let atEnd =
+    Stdlib.Regex.findAllMatches(before, Stdlib.Regex.ofPattern("[A-Za-z_][A-Za-z0-9_']*(\\.[A-Za-z_][A-Za-z0-9_']*)*\\.?"))
+    |> Stdlib.Result.withDefault([])
+    |> Stdlib.List.last
+    |> Stdlib.Option.andThen(fun m -> if m.range.end == Text.width(before) then Option.Some(m.text) else Option.None)
+
+  match atEnd |> Stdlib.Option.map(fun t -> Stdlib.String.split(t, ".")) |> Stdlib.Option.andThen(Stdlib.List.splitLast) with
+  | Some((modules, partial)) -> (modules, partial)
+  | None -> ([], "")
+
+
+let item(label: String, kind: Int64, sort: String, data: Json): Json =
+  Json.Object(
+    [ ("label", Json.String(label))
+      ("kind", Json.Integer(kind))
+      ("sortText", Json.String(sort + label))
+      ("data", data) ])
+
+
+let snippetParam(i: Int64, name: String): String =
+  "${" + Stdlib.display(i + 1) + ":" + name + "}"
+
+
+/// A function as a completion: `map(${1:list}, ${2:fn})`, its parameters and return type
+/// beside the name.
+let fnItem(branchId: Uuid, loc: ProgramTypes.PackageLocation, hash: ProgramTypes.Hash): Json =
+  let uri = Names.uriOf(loc, ProgramTypes.ItemKind.Fn)
+  let data = Json.Object([ ("uri", Json.String(uri)) ])
+  match PackageManager.Function.get(hash) with
+  | None -> item(loc.name, Kind.function, "2", data)
+  | Some(fn) ->
+    let ctx = PrettyPrinter.ProgramTypes.Context.forModule(branchId, Stdlib.List.prepend(loc.modules, loc.owner))
+    let params =
+      fn.parameters
+      |> Stdlib.List.map(fun p -> p.name + ": " + PrettyPrinter.ProgramTypes.typeReference(ctx, p.typ))
+    let snippet =
+      fn.parameters
+      |> Stdlib.List.indexedMap(fun(i, p) -> snippetParam(i, p.name))
+      |> Stdlib.String.join(", ")
+
+    Json.Object(
+      [ ("label", Json.String(loc.name))
+        ("labelDetails",
+         Json.Object(
+           [ ("detail", Json.String("(" + Stdlib.String.join(params, ", ") + ")"))
+             ("description", Json.String(PrettyPrinter.ProgramTypes.typeReference(ctx, fn.returnType))) ]))
+        ("kind", Json.Integer(Kind.function))
+        ("sortText", Json.String("2" + loc.name))
+        ("insertText", Json.String(loc.name + "(" + snippet + ")"))
+        ("insertTextFormat", Json.Integer(2))
+        ("command", Json.Object([ ("title", Json.String("")), ("command", Json.String("editor.action.triggerParameterHints")) ]))
+        ("data", data) ])
+
+
+/// Everything directly in the module at <param path>, as completions: submodules, functions,
+/// types, values and traits, without what `dark ls` hides. An enum's cases when <param path>
+/// names an enum type.
+let inModule(branchId: Uuid, path: List<String>): List<Json> =
+  let (subs, types, values, fns, traits, impls, _) =
+    Cli.Packages.Query.allDirectDescendantNamesAndHashes(branchId, path)
+
+  let sets = Cli.Packages.Query.loadDeprecationSets(branchId)
+  let shown(items: List<(String * ProgramTypes.Hash)>): List<(String * ProgramTypes.Hash)> =
+    Cli.Packages.Query.filterHiddenPairs(
+      path,
+      items,
+      sets,
+      Cli.Packages.Query.Deprecated.Hide,
+      Cli.Packages.Query.Internal.Hide)
+
+  match path with
+  | [] -> subs |> Stdlib.List.map(fun name -> item(name, Kind.module_, "4", Json.Null))
+  | [ owner, ...modules ] ->
+    let loc(name: String): ProgramTypes.PackageLocation =
+      ProgramTypes.PackageLocation { owner = owner, modules = modules, name = name }
+
+    let at(name: String, kind: ProgramTypes.ItemKind): Json =
+      Json.Object([ ("uri", Json.String(Names.uriOf(loc(name), kind))) ])
+
+    let implNames = Stdlib.List.map(impls, fun((name, _)) -> name)
+    let submodules =
+      subs
+      |> Stdlib.List.filter(fun name -> Stdlib.Bool.not(Stdlib.List.contains(implNames, name)))
+      |> Cli.Packages.Query.withoutInternalNames
+      |> Stdlib.List.map(fun name -> item(name, Kind.module_, "4", Json.Null))
+
+    let cases =
+      match PackageManager.Type.find(branchId, ProgramTypes.PackageLocation { owner = owner, modules = Stdlib.List.dropLast(modules), name = Stdlib.List.last(path) |> Stdlib.Option.withDefault("") }) |> Stdlib.Option.andThen(fun h -> PackageManager.Type.get(h)) with
+      | Some(t) ->
+        match t.declaration.definition with
+        | Enum(cases) -> cases |> Stdlib.List.map(fun c -> item(c.name, Kind.enumMember, "1", Json.Null))
+        | _ -> []
+      | None -> []
+
+    Stdlib.List.flatten(
+      [ cases
+        shown(fns) |> Stdlib.List.map(fun((name, hash)) -> fnItem(branchId, loc(name), hash))
+        shown(values) |> Stdlib.List.map(fun((name, _)) -> item(name, Kind.constant, "3", at(name, ProgramTypes.ItemKind.Value)))
+        shown(types) |> Stdlib.List.map(fun((name, _)) -> item(name, Kind.struct, "3", at(name, ProgramTypes.ItemKind.Type)))
+        shown(traits) |> Stdlib.List.map(fun((name, _)) -> item(name, Kind.interface, "3", at(name, ProgramTypes.ItemKind.Trait)))
+        submodules ])
+
+
+/// The modules a written prefix can mean from where the document is, most specific first:
+/// `List` inside `Darklang.Stdlib` is `Darklang.Stdlib.List`, then `Darklang.List`, then `List`.
+let candidates(ctx: NameResolver.NRContext, modules: List<String>): List<List<String>> =
+  NameResolver.namesToTry(ctx.owner, ctx.currentModule, NameResolver.GenericName { modules = modules, name = "x", version = 0s32 })
+  |> Stdlib.List.map(fun n -> n.modules)
+  |> Stdlib.List.unique
+
+
+/// The top-level declarations of the document itself.
+let declared(file: Option<WrittenTypes.ParsedFile>): List<Json> =
+  let names =
+    match file with
+    | None -> []
+    | Some(file) ->
+      Syntax.declarations(file)
+      |> Stdlib.List.filterMap(fun d ->
+        match d with
+        | Function(f) -> Option.Some((f.name.name, Kind.function))
+        | Value(v) -> Option.Some((v.name.name, Kind.constant))
+        | Type(t) -> Option.Some((t.name.name, Kind.struct))
+        | SubModule(m) -> Option.Some((Stdlib.Tuple2.second(m.name), Kind.module_))
+        | _ -> Option.None)
+
+  names |> Stdlib.List.map(fun((name, kind)) -> item(name, kind, "1", Json.Null))
+
+
+/// Two completions are the same when they have the same label and kind.
+let keyOf(completion: Json): (String * Int64) =
+  match completion with
+  | Object(fields) ->
+    let label = Stdlib.AltJson.Helpers.getString("label", fields) |> Stdlib.Option.withDefault("")
+    match Stdlib.AltJson.Helpers.getValue("kind", fields) with
+    | Some(Integer(k)) -> (label, k)
+    | _ -> (label, 0)
+  | _ -> ("", 0)
+
+
+/// The completions at <param line>:<param character>.
+let complete(
+  ctx: NameResolver.NRContext,
+  text: String,
+  file: Option<WrittenTypes.ParsedFile>,
+  line: Int64,
+  character: Int64)
+  : Json =
+  let (modules, _) = typed(Text.before(text, line, character, 0))
+  let items =
+    match modules with
+    | [] ->
+      let locals =
+        match file with
+        | Some(file) ->
+          Syntax.scopeAt(file, line, character)
+          |> Stdlib.List.map(fun((name, _)) -> name)
+          |> Stdlib.List.unique
+          |> Stdlib.List.map(fun name -> item(name, Kind.variable, "0", Json.Null))
+        | None -> []
+
+      let around =
+        // what bare names resolve to: the document's module and those around it
+        candidates(ctx, [])
+        |> Stdlib.List.filter(fun path -> Stdlib.Bool.not(Stdlib.List.isEmpty(path)))
+        |> Stdlib.List.map(fun path -> inModule(ctx.branchId, path))
+        |> Stdlib.List.flatten
+
+      Stdlib.List.flatten(
+        [ locals
+          declared(file)
+          around
+          [ item("Stdlib", Kind.module_, "4", Json.Null) ]
+          inModule(ctx.branchId, [])
+          keywords |> Stdlib.List.map(fun k -> item(k, Kind.keyword, "5", Json.Null)) ])
+    | [ first, ..._ ] ->
+      let isLocal =
+        match file with
+        | Some(file) -> Stdlib.List.any(Syntax.scopeAt(file, line, character), fun((name, _)) -> name == first)
+        | None -> false
+
+      if isLocal then
+        []
+      else
+        candidates(ctx, modules)
+        |> Stdlib.List.map(fun path -> inModule(ctx.branchId, path))
+        |> Stdlib.List.flatten
+
+  let unique = Stdlib.List.uniqueBy(items, keyOf)
+  Json.Object([ ("isIncomplete", Json.Bool(false)), ("items", Json.Array(unique)) ])
+
+
+/// `completionItem/resolve`: the item's signature and docs, read when the editor shows it.
+let resolve(branchId: Uuid, completion: Json): Json =
+  let uri =
+    match completion with
+    | Object(fields) ->
+      match Stdlib.AltJson.Helpers.getValue("data", fields) with
+      | Some(Object(data)) -> Stdlib.AltJson.Helpers.getString("uri", data)
+      | _ -> Option.None
+    | _ -> Option.None
+
+  let item =
+    match uri |> Stdlib.Option.andThen(Names.parseUri) with
+    | Some(Item(loc, kind)) ->
+      let parts = Stdlib.List.flatten([ [ loc.owner ], loc.modules, [ loc.name ] ])
+      Names.resolve(Names.context(branchId, ""), parts)
+      |> Stdlib.Option.andThen(fun found -> if Names.itemKind(found) == kind then Option.Some(found) else Option.None)
+    | _ -> Option.None
+
+  match completion, item with
+  | Object(fields), Some(found) ->
+    Json.Object(
+      Stdlib.List.append(
+        fields,
+        ("documentation", Json.Object([ ("kind", Json.String("markdown")), ("value", Json.String(Hover.describe(branchId, found))) ]))))
+  | _ -> completion
+
+
+// --- signature help ---
+
+/// The call the cursor is in, from the text before it: the function's name, which argument the
+/// cursor is on, and whether a pipe gives the first. Strings are skipped, so their commas and
+/// parentheses do not count.
+let callAt(before: String): Option<(String * Int64 * Bool)> =
+  let chars = before |> Stdlib.String.toList |> Stdlib.List.reverse
+  callIn(chars, 0, 0)
+
+
+let callIn(chars: List<Char>, depth: Int64, commas: Int64): Option<(String * Int64 * Bool)> =
+  match chars with
+  | [] -> Option.None
+  | [ c, ...rest ] ->
+    match Stdlib.String.fromChar(c) with
+    | "\"" -> inString(rest, depth, commas)
+    | ")" | "]" | "}" -> callIn(rest, depth + 1, commas)
+    | "[" | "{" -> if depth == 0 then Option.None else callIn(rest, depth - 1, commas)
+    | "(" ->
+      if depth > 0 then
+        callIn(rest, depth - 1, commas)
+      else
+        let before = rest |> Stdlib.List.reverse |> Stdlib.String.fromList
+        let (modules, name) = typed(before)
+        if name == "" then
+          Option.None
+        else
+          let full = Stdlib.String.join(Stdlib.List.append(modules, name), ".")
+          let prior = Stdlib.String.dropLast(before, Stdlib.String.length(full)) |> Stdlib.String.trimEnd
+          Option.Some((full, commas, Stdlib.String.endsWith(prior, "|>")))
+    | "," -> callIn(rest, depth, (if depth == 0 then commas + 1 else commas))
+    | _ -> callIn(rest, depth, commas)
+
+
+/// Inside a string, read backwards: skip to its opening quote.
+let inString(chars: List<Char>, depth: Int64, commas: Int64): Option<(String * Int64 * Bool)> =
+  match chars with
+  | [] -> Option.None
+  | [ c, ...rest ] -> if Stdlib.String.fromChar(c) == "\"" then callIn(rest, depth, commas) else inString(rest, depth, commas)
+
+
+let signatureHelp(ctx: NameResolver.NRContext, text: String, line: Int64, character: Int64): Json =
+  match callAt(Text.before(text, line, character, 30)) with
+  | None -> Json.Null
+  | Some((name, commas, piped)) ->
+    match Names.resolve(ctx, Stdlib.String.split(name, ".")) with
+    | Some(Fn(found)) ->
+      let fn = found.entity
+      let pctx = PrettyPrinter.ProgramTypes.Context.forModule(ctx.branchId, Stdlib.List.prepend(found.location.modules, found.location.owner))
+      let shown = fn.parameters |> Stdlib.List.map(fun p -> p.name + ": " + PrettyPrinter.ProgramTypes.typeReference(pctx, p.typ))
+      let prefix = found.location.name + "("
+      // each parameter's [start, end) in the label, in UTF-16 units
+      let (offsets, _) =
+        shown
+        |> Stdlib.List.fold(([], Text.width(prefix)), fun((acc, at), p) ->
+          let w = Text.width(p)
+          (Stdlib.List.append(acc, (at, at + w)), at + w + 2))
+
+      let label = prefix + Stdlib.String.join(shown, ", ") + "): " + PrettyPrinter.ProgramTypes.typeReference(pctx, fn.returnType)
+      let params =
+        Stdlib.List.zipShortest(offsets, fn.parameters)
+        |> Stdlib.List.map(fun(((s, e), p)) ->
+          Json.Object(
+            Stdlib.List.flatten(
+              [ [ ("label", Json.Array([ Json.Integer(s), Json.Integer(e) ])) ]
+                (if p.description == "" then [] else [ ("documentation", Json.String(Hover.markdownOfDoc(p.description))) ]) ])))
+
+      let active = if piped then commas + 1 else commas
+      Json.Object(
+        [ ("signatures",
+           Json.Array(
+             [ Json.Object(
+                 [ ("label", Json.String(label))
+                   ("documentation", Json.Object([ ("kind", Json.String("markdown")), ("value", Json.String(Hover.markdownOfDoc(fn.description))) ]))
+                   ("parameters", Json.Array(params)) ]) ]))
+          ("activeSignature", Json.Integer(0))
+          ("activeParameter", Json.Integer(active)) ])
+    | _ -> Json.Null

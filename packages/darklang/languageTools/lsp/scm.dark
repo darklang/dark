@@ -1,0 +1,47 @@
+/// The branch you are on and what your draft holds, for the editor's status bar and its Changes
+/// view: what `dark status` and `dark branches` say.
+module Darklang.LanguageTools.Lsp.Scm
+
+type Json = Stdlib.AltJson.Json
+
+
+let strings(xs: List<String>): Json =
+  Json.Array(Stdlib.List.map(xs, fun x -> Json.String(x)))
+
+
+/// `dark/status`: the branch, and each item the draft changes, with the document it opens as.
+let status(branchId: Uuid): Json =
+  let s = Cli.Status.statusJson({ Cli.initState() with currentBranchId = branchId })
+  let changed =
+    s.changed
+    |> Stdlib.List.map(fun c ->
+      let uri =
+        match ProgramTypes.ItemKind.fromString(c.kind) with
+        | Some(kind) -> Names.uriOf(ProgramTypes.parsePackageLocation(c.name), kind)
+        | None -> ""
+
+      Json.Object(
+        [ ("name", Json.String(c.name))
+          ("kind", Json.String(c.kind))
+          ("change", Json.String(c.change))
+          ("followed", Json.Bool(c.followed))
+          ("uri", Json.String(uri)) ]))
+
+  Json.Object(
+    [ ("branch", Json.String(s.branch))
+      ("draftOps", Json.Integer(s.draftOps))
+      ("changed", Json.Array(changed))
+      ("removed", strings(s.removed))
+      ("conflicts", Json.Integer(Stdlib.List.length(s.conflicts))) ])
+
+
+/// `dark/branches`: the branches you can switch to, main first, and the one you are on.
+let branches(branchId: Uuid): Json =
+  let names =
+    SCM.Branch.list()
+    |> Stdlib.List.filter(fun b -> Stdlib.Bool.not(b.merged))
+    |> Stdlib.List.map(fun b -> b.name)
+
+  Json.Object(
+    [ ("current", Json.String(SCM.PackageOps.branchName(branchId)))
+      ("branches", strings(Stdlib.List.prepend(names, SCM.Branch.mainBranchName))) ])

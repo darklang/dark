@@ -1,0 +1,51 @@
+module Darklang.LanguageTools.AtRestTypeChecker.Tests
+
+// ----------------------------------------------------------------------------------
+// The type each local was bound with, as the report gives it (`ItemReport.bindings`)
+// ----------------------------------------------------------------------------------
+
+module Bindings =
+  /// `name: type` for each local the named declaration binds, in the order the checker met them.
+  /// Parameters are not among them: their types are written.
+  let boundIn(source: String, name: String): List<String> =
+    match parsePackageOps(source) with
+    | Error(e) -> [ e ]
+    | Ok(ops) ->
+      let report = LanguageTools.AtRestTypeChecker.checkPackageOps(ops)
+      match itemNamed(ops, name) with
+      | None -> [ "no such declaration" ]
+      | Some(target) ->
+        match Stdlib.List.findFirst(report.items, fun i -> i.item == target) with
+        | Some(i) ->
+          i.bindings
+          |> Stdlib.List.map(fun b -> b.name + ": " + LanguageTools.AtRestTypeChecker.staticTypeToString(b.typ))
+        | None -> [ "no report for the declaration" ]
+
+
+  test letsAndLambdas =
+    boundIn(
+      src(
+        [ "let f(xs: List<Int64>): String ="
+          "  let doubled = Stdlib.List.map(xs, fun x -> x * 2)"
+          "  let (a, b) = (1, \"one\")"
+          "  b" ]),
+      "f")
+    |> Stdlib.Test.equal([ "x: Int64", "doubled: List<Int64>", "a: Int64", "b: String" ])
+
+
+  test matchCases =
+    boundIn(
+      src(
+        [ "let g(o: Stdlib.Option.Option<String>): Int64 ="
+          "  match o with"
+          "  | Some(s) -> Stdlib.String.length(s)"
+          "  | None -> 0" ]),
+      "g")
+    |> Stdlib.Test.equal([ "s: String" ])
+
+
+  // A local the checker could not finish typing is still listed, with what it knows.
+  test unknownStaysListed =
+    boundIn(src([ "let h(): Int64 =", "  let y = nowhere", "  1" ]), "h")
+    |> Stdlib.List.map(fun line -> Stdlib.String.startsWith(line, "y: "))
+    |> Stdlib.Test.equal([ true ])

@@ -1,0 +1,190 @@
+/// The package item a name in a document refers to, and the `darkfs:` documents the store is
+/// shown as.
+module Darklang.LanguageTools.Lsp.Names
+
+/// A dotted name in the text, cut at the segment the cursor is in: on `List` in
+/// `Stdlib.List.map` it is `Stdlib.List`. `whole` is the name as written, uncut.
+type NameAt =
+  { parts: List<String>
+    whole: String
+    line: Int64
+    start: Int64
+    end: Int64 }
+
+
+val namePattern = "[A-Za-z_][A-Za-z0-9_']*(\\.[A-Za-z_][A-Za-z0-9_']*)*"
+
+
+let lineOf(text: String, line: Int64): String =
+  text |> Stdlib.String.splitOnNewline |> Stdlib.List.getAt(line) |> Stdlib.Option.withDefault("")
+
+
+/// Every dotted name on <param lineText>, with where it starts and ends.
+let namesOn(lineText: String): List<Stdlib.Regex.Match> =
+  Stdlib.Regex.findAllMatches(lineText, Stdlib.Regex.ofPattern(namePattern))
+  |> Stdlib.Result.withDefault([])
+
+
+/// The name under <param character> on <param line> of <param text>.
+let at(text: String, line: Int64, character: Int64): Option<NameAt> =
+  let matches = namesOn(lineOf(text, line))
+  match Stdlib.List.findFirst(matches, fun m -> m.range.start <= character && character <= m.range.end) with
+  | None -> Option.None
+  | Some(m) ->
+    // Keep the segments that start at or before the cursor.
+    let segments = Stdlib.String.split(m.text, ".")
+    let starts =
+      segments
+      |> Stdlib.List.fold(([], m.range.start), fun((acc, pos), seg) ->
+        (Stdlib.List.append(acc, (seg, pos)), pos + Stdlib.String.length(seg) + 1))
+      |> Stdlib.Tuple2.first
+    let kept = Stdlib.List.filter(starts, fun((_, pos)) -> pos <= character)
+    let parts = Stdlib.List.map(kept, fun((seg, _)) -> seg)
+    let end =
+      match Stdlib.List.last(kept) with
+      | Some((seg, pos)) -> pos + Stdlib.String.length(seg)
+      | None -> m.range.end
+
+    Option.Some(NameAt { parts = parts, whole = m.text, line = line, start = m.range.start, end = end })
+
+
+/// What a name can be bound to.
+type Item =
+  | Fn(ProgramTypes.LocatedItem<ProgramTypes.PackageFn.PackageFn>)
+  | Type(ProgramTypes.LocatedItem<ProgramTypes.PackageType.PackageType>)
+  | Value(ProgramTypes.LocatedItem<ProgramTypes.PackageValue.PackageValue>)
+  | Trait(ProgramTypes.LocatedItem<ProgramTypes.Trait.Trait>)
+
+
+let itemLocation(item: Item): ProgramTypes.PackageLocation =
+  match item with
+  | Fn(i) -> i.location
+  | Type(i) -> i.location
+  | Value(i) -> i.location
+  | Trait(i) -> i.location
+
+
+let itemKind(item: Item): ProgramTypes.ItemKind =
+  match item with
+  | Fn(_) -> ProgramTypes.ItemKind.Fn
+  | Type(_) -> ProgramTypes.ItemKind.Type
+  | Value(_) -> ProgramTypes.ItemKind.Value
+  | Trait(_) -> ProgramTypes.ItemKind.Trait
+
+
+let itemHash(item: Item): ProgramTypes.Hash =
+  match item with
+  | Fn(i) -> i.entity.hash
+  | Type(i) -> i.entity.hash
+  | Value(i) -> i.entity.hash
+  | Trait(i) -> i.entity.hash
+
+
+/// A document the store serves: one item, `darkfs:/Owner/Module/name.fn.dark`, or every
+/// declaration directly in a module, `darkfs:/Owner/Module.dark`.
+type StoreDoc =
+  | Item(location: ProgramTypes.PackageLocation, kind: ProgramTypes.ItemKind)
+  | Module(path: List<String>)
+
+
+let uriOf(location: ProgramTypes.PackageLocation, kind: ProgramTypes.ItemKind): String =
+  let path = Stdlib.List.flatten([ [ location.owner ], location.modules, [ location.name ] ])
+  "darkfs:/" + Stdlib.String.join(path, "/") + "." + ProgramTypes.ItemKind.toString(kind) + ".dark"
+
+
+let moduleUri(path: List<String>): String =
+  "darkfs:/" + Stdlib.String.join(path, "/") + ".dark"
+
+
+let parseUri(uri: String): Option<StoreDoc> =
+  match Stdlib.String.stripPrefix(uri, "darkfs:/") |> Stdlib.Option.andThen(fun p -> Stdlib.String.stripSuffix(p, ".dark")) with
+  | None -> Option.None
+  | Some(path) ->
+    match Stdlib.String.splitLast(path, ".") with
+    | None ->
+      match Stdlib.String.split(path, "/") with
+      | [ "" ] -> Option.None
+      | segments -> Option.Some(StoreDoc.Module(segments))
+    | Some((path, ext)) ->
+      match ProgramTypes.ItemKind.fromString(ext), Stdlib.String.split(path, "/") with
+      | Some(kind), [ owner, ...rest ] ->
+        match Stdlib.List.splitLast(rest) with
+        | Some((modules, name)) ->
+          Option.Some(
+            StoreDoc.Item(ProgramTypes.PackageLocation { owner = owner, modules = modules, name = name }, kind))
+        | None -> Option.None
+      | _ -> Option.None
+
+
+/// The module a store document's names resolve from, owner first. An impl is stored under its
+/// type's name but written in the type's module.
+let moduleOf(doc: StoreDoc): List<String> =
+  match doc with
+  | Module(path) -> path
+  | Item(location, kind) ->
+    let path = Stdlib.List.prepend(location.modules, location.owner)
+    if kind == ProgramTypes.ItemKind.TraitImpl then Stdlib.List.dropLast(path) else path
+
+
+/// Names in a store document resolve from its own module; names in a file, from the top.
+let context(branchId: Uuid, uri: String): NameResolver.NRContext =
+  let (owner, modules) =
+    match parseUri(uri) |> Stdlib.Option.map(moduleOf) with
+    | Some([ owner, ...modules ]) -> (owner, modules)
+    | _ -> ("Script", [])
+
+  NameResolver.NRContext
+    { onMissing = NameResolver.OnMissing.Allow
+      pm = PackageManager.pm()
+      branchId = branchId
+      owner = owner
+      currentModule = modules }
+
+
+let located(location: Option<ProgramTypes.PackageLocation>, entity: Option<'a>): Option<ProgramTypes.LocatedItem<'a>> =
+  match location, entity with
+  | Some(location), Some(entity) -> Option.Some(ProgramTypes.LocatedItem { entity = entity, location = location })
+  | _ -> Option.None
+
+
+/// The package item <param parts> names, trying a function, then a type, a value and a trait,
+/// as the parser does where a name could be any of them.
+let resolve(ctx: NameResolver.NRContext, parts: List<String>): Option<Item> =
+  let nowhere = Parser.Point { row = 0, column = 0 }
+  let name = WrittenTypes.Name.Unresolved(Parser.Range { start = nowhere, end_ = nowhere }, parts)
+  let fn =
+    match (NameResolver.FnName.resolve(ctx, name)).resolved with
+    | Ok(r) ->
+      match r.name with
+      | Package(hash) -> located(r.location, PackageManager.Function.get(hash)) |> Stdlib.Option.map(fun i -> Item.Fn(i))
+      | _ -> Option.None
+    | Error(_) -> Option.None
+
+  match fn with
+  | Some(_) -> fn
+  | None ->
+    match (NameResolver.TypeName.resolve(ctx, name)).resolved with
+    | Ok(r) ->
+      match r.name with
+      | Package(hash) -> located(r.location, PackageManager.Type.get(hash)) |> Stdlib.Option.map(fun i -> Item.Type(i))
+    | Error(_) ->
+      match (NameResolver.ValueName.resolve(ctx, name)).resolved with
+      | Ok(r) ->
+        match r.name with
+        | Package(hash) -> located(r.location, PackageManager.Value.get(hash)) |> Stdlib.Option.map(fun i -> Item.Value(i))
+        | _ -> Option.None
+      | Error(_) ->
+        match (NameResolver.TraitName.resolve(ctx, name)).resolved with
+        | Ok(r) ->
+          match r.name with
+          | Package(hash) -> located(r.location, PackageManager.Trait.get(hash)) |> Stdlib.Option.map(fun i -> Item.Trait(i))
+        | Error(_) -> Option.None
+
+
+/// The source of the store document at <param uri>, printed as `dark view --raw` prints it.
+let source(branchId: Uuid, uri: String): Option<String> =
+  match parseUri(uri) with
+  | None -> Option.None
+  | Some(Module(path)) -> Cli.Packages.View.moduleSource(branchId, path) |> Stdlib.Result.toOption
+  | Some(Item(loc, kind)) ->
+    Cli.Packages.View.moduleDecl(branchId, Stdlib.List.prepend(loc.modules, loc.owner), kind, loc.name)

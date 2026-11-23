@@ -246,7 +246,17 @@ type ItemReport =
     /// It is on the item rather than on the Report because pinning rewrites one stored
     /// item at a time, and a resolution is only meaningful against the node ids of the
     /// item it came from.
-    resolutions: List<Model.Resolution> }
+    resolutions: List<Model.Resolution>
+    /// The type each local in this item was bound with: what an editor shows beside a `let`
+    /// or a lambda parameter. In the order the checker met them.
+    bindings: List<Binding> }
+
+
+/// A local and the type the checker gave it. `nodeId` is the binding pattern's.
+type Binding =
+  { nodeId: UInt64
+    name: String
+    typ: StaticType }
 
 
 type Report =

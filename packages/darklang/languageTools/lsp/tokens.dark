@@ -1,0 +1,105 @@
+/// `textDocument/semanticTokens`: what each name in a document is, from the parsed file
+/// (`LanguageTools.SemanticTokens`), so modules, types, functions, parameters and enum cases
+/// each get their own colour.
+module Darklang.LanguageTools.Lsp.Tokens
+
+type Json = Stdlib.AltJson.Json
+type TokenType = SemanticTokens.TokenType
+
+
+/// The legend: a token's type is its index here. Punctuation is left to the grammar.
+val legend =
+  [ "keyword"
+    "namespace"
+    "type"
+    "operator"
+    "string"
+    "number"
+    "parameter"
+    "variable"
+    "function"
+    "comment"
+    "typeParameter"
+    "enumMember"
+    "property"
+    "method"
+    "regexp" ]
+
+
+let index(t: TokenType): Option<Int64> =
+  match t with
+  | Symbol -> Option.None
+  | Keyword -> Option.Some(0)
+  | ModuleName -> Option.Some(1)
+  | TypeName -> Option.Some(2)
+  | Operator -> Option.Some(3)
+  | String -> Option.Some(4)
+  | Number -> Option.Some(5)
+  | ParameterName -> Option.Some(6)
+  | VariableName -> Option.Some(7)
+  | FunctionName -> Option.Some(8)
+  | Comment -> Option.Some(9)
+  | TypeParameter -> Option.Some(10)
+  | EnumMember -> Option.Some(11)
+  | Property -> Option.Some(12)
+  | Method -> Option.Some(13)
+  | RegularExpression -> Option.Some(14)
+
+
+/// One token on one line: (line, start, length, type). A token over several lines, a
+/// multi-line string, becomes one per line.
+let pieces(lineWidths: List<Int64>, r: Parser.Range, t: Int64): List<(Int64 * Int64 * Int64 * Int64)> =
+  if r.start.row == r.end_.row then
+    [ (r.start.row, r.start.column, r.end_.column - r.start.column, t) ]
+  else
+    let widthOf(line: Int64): Int64 = Stdlib.List.getAt(lineWidths, line) |> Stdlib.Option.withDefault(0)
+    let middle =
+      Stdlib.List.checkedRange(r.start.row + 1, r.end_.row - 1)
+      |> Stdlib.Result.withDefault([])
+      |> Stdlib.List.map(fun line -> (line, 0, widthOf(line), t))
+
+    Stdlib.List.flatten(
+      [ [ (r.start.row, r.start.column, widthOf(r.start.row) - r.start.column, t) ]
+        middle
+        [ (r.end_.row, 0, r.end_.column, t) ] ])
+
+
+/// The tokens of <param file>, by line then column, from <param fromLine> to <param toLine>.
+let tokens(
+  file: WrittenTypes.ParsedFile,
+  text: String,
+  fromLine: Int64,
+  toLine: Int64)
+  : List<(Int64 * Int64 * Int64 * Int64)> =
+  let widths = Text.lines(text) |> Stdlib.List.map(Text.width)
+  SemanticTokens.ParsedFile.tokenize(file)
+  |> Stdlib.List.filterMap(fun tok ->
+    index(tok.tokenType) |> Stdlib.Option.map(fun t -> pieces(widths, tok.range, t)))
+  |> Stdlib.List.flatten
+  |> Stdlib.List.filter(fun((line, _, length, _)) -> length > 0 && line >= fromLine && line <= toLine)
+  |> Stdlib.List.sortBy(fun((line, start, _, _)) -> (line, start))
+  |> Stdlib.List.uniqueBy(fun((line, start, _, _)) -> (line, start))
+
+
+/// The protocol's encoding: five numbers a token, its line and start relative to the token
+/// before it.
+let encode(tokens: List<(Int64 * Int64 * Int64 * Int64)>): Json =
+  let (data, _, _) =
+    tokens
+    |> Stdlib.List.fold(([], 0, 0), fun((acc, lastLine, lastStart), (line, start, length, t)) ->
+      let deltaLine = line - lastLine
+      let deltaStart = if deltaLine == 0 then start - lastStart else start
+      let numbers = [ deltaLine, deltaStart, length, t, 0 ] |> Stdlib.List.map(fun n -> Json.Integer(n))
+      (Stdlib.List.prepend(acc, numbers), line, start))
+
+  Json.Object([ ("data", Json.Array(data |> Stdlib.List.reverse |> Stdlib.List.flatten)) ])
+
+
+let capability(): Json =
+  Json.Object(
+    [ ("legend",
+       Json.Object(
+         [ ("tokenTypes", Json.Array(Stdlib.List.map(legend, fun t -> Json.String(t))))
+           ("tokenModifiers", Json.Array([])) ]))
+      ("full", Json.Bool(true))
+      ("range", Json.Bool(true)) ])

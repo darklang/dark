@@ -12,7 +12,7 @@
 #     gates all         every gate except gates-are-clean, which re-runs the rest itself
 #     gates --final ... the last run before a merge: ahead of the other waiters for a test slot
 #
-# The gates live beside this file in _gates-ui, _gates-store and _gates-meta, one
+# The gates live beside this file in _gates-ui, _gates-store, _gates-meta and _gates-lsp, one
 # bash function each. `all` and `ci` give every gate its own PROCESS by re-invoking this
 # script, so a gate keeps its own `set -e`, its own traps and its own exit -- the same
 # isolation the standalone files had.
@@ -52,6 +52,8 @@ GATES=(
   prompts-unattended
   shipped-tree-typechecks
   perf-probes-run
+  lsp
+  vscode-extension
   gates-are-clean
 )
 
@@ -66,7 +68,7 @@ CI_GATES=(workbench-scm workbench-views old-store-resets backups-restore
           trait-choice-survives-rival trait-choice-any-batching trait-checker-vs-dispatch
           trait-deprecation-is-per-branch trait-pin-across-branches
           shipped-tree-typechecks perf-probes-run prompts-unattended dark-format
-          package-edits-apply)
+          package-edits-apply lsp vscode-extension)
 
 describe() {
   # shellcheck disable=SC2016  # the backticks are prose, not expansion
@@ -88,6 +90,8 @@ describe() {
     shipped-tree-typechecks) echo 'production packages pass the at-rest checker; package-tests checks test sources' ;;
     perf-probes-run)        echo 'every perf probe still starts; they have no other caller' ;;
     prompts-unattended)     echo 'a question nobody can answer is refused, never waited on' ;;
+    lsp)                    echo 'the language server over stdio, driven the way an editor drives it' ;;
+    vscode-extension)       echo 'the VS Code extension type-checks, bundles and packs a .vsix' ;;
     gates-are-clean)        echo 'no gate touches the shared dev store (slow: re-runs the rest)' ;;
     *)                      echo '?' ;;
   esac
@@ -116,6 +120,8 @@ run_gate() {
   . scripts/testing/_gates-store
   # shellcheck source=scripts/testing/_gates-meta
   . scripts/testing/_gates-meta
+  # shellcheck source=scripts/testing/_gates-lsp
+  . scripts/testing/_gates-lsp
   "gate_${name//-/_}" "$@"
 }
 

@@ -19,7 +19,9 @@ type Outcome =
     /// That gate is deliberate and predates this field under another name. Relaxing it so
     /// that Incomplete declarations pin too would make the checker's own uncertainty
     /// permanent, which is the opposite of what pinning is for.
-    resolutions: List<Model.Resolution> }
+    resolutions: List<Model.Resolution>
+    /// Each local and its type, whatever the verdict.
+    bindings: List<Binding> }
 
 
 /// Wrap a type in a scheme without making any of its unknowns generic.
@@ -36,7 +38,8 @@ let checkerFailureOutcome(at: Option<Int64>, failure: CheckFailure): Outcome =
       diagnostics = []
       warnings = [ failureIssue(Stdlib.Option.map(at, fun id -> toUInt64(id)), failure) ]
       scheme = Option.None
-      resolutions = [] }
+      resolutions = []
+      bindings = [] }
 
 
 /// Catch errors from checking one declaration so the rest of the batch can continue.
@@ -205,7 +208,12 @@ let finish(s: Solve.State, itemAt: Option<Int64>, scheme: Model.Scheme): Outcome
       diagnostics = Stdlib.List.map(diagnostics, fun f -> toIssue(s, f))
       warnings = Stdlib.List.map(warnings, fun f -> toIssue(s, f))
       scheme = checkedScheme
-      resolutions = resolutions }
+      resolutions = resolutions
+      bindings =
+        s.bound
+        |> Stdlib.List.reverse
+        |> Stdlib.List.map(fun((at, name, t)) ->
+          Binding { nodeId = toUInt64(at), name = name, typ = Types.toStatic(Solve.zonk(s, t)) }) }
 
 
 // --------------------

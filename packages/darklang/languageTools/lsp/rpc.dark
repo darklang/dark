@@ -1,0 +1,104 @@
+/// JSON-RPC over stdio, framed the way the Language Server Protocol frames it: a `Content-Length`
+/// header in bytes, a blank line, then the body.
+module Darklang.LanguageTools.Lsp.Rpc
+
+type Json = Stdlib.AltJson.Json
+
+
+/// One message from the client. A request has an `id` and wants an answer; a notification has
+/// none. A reply to a request the server sent has an `id` and no `method`.
+type Message =
+  { id: Option<Json>
+    method: Option<String>
+    params: Json }
+
+
+/// Where the reader is in the stream: reading header lines (with the length, once one is seen),
+/// or waiting for a body of that many bytes.
+type Reader =
+  | Header(length: Option<Int64>)
+  | Body(length: Int64)
+
+
+/// What the reader asks stdin for next. A wait that something else beat must ask for the same
+/// thing again (`Host.EventSpec.StdinBytes`), which it does, since the reader has not moved.
+let wants(reader: Reader): Stdlib.Host.EventSpec =
+  match reader with
+  | Header(_) -> Stdlib.Host.EventSpec.StdinLine
+  | Body(length) -> Stdlib.Host.EventSpec.StdinBytes(length)
+
+
+/// What one read from stdin moved the reader to, and the body when it completed one. Other
+/// headers (`Content-Type`) are skipped. A blank line before any length leaves the reader
+/// where it was.
+let step(reader: Reader, text: String): (Reader * Option<String>) =
+  match reader with
+  | Body(_) -> (Reader.Header(Option.None), Option.Some(text))
+  | Header(length) ->
+    if text == "" then
+      match length with
+      | Some(n) -> (Reader.Body(n), Option.None)
+      | None -> (reader, Option.None)
+    else if Stdlib.String.startsWith(text, "Content-Length:") then
+      let n = Stdlib.String.dropFirst(text, 15) |> Stdlib.String.trim |> Stdlib.Int64.parse
+      match n with
+      | Ok(n) -> (Reader.Header(Option.Some(n)), Option.None)
+      | Error(_) -> (reader, Option.None)
+    else
+      (reader, Option.None)
+
+
+/// <param text> as a message, or None when it is not a JSON object.
+let parse(text: String): Option<Message> =
+  match Stdlib.Json.parse<Json>(text) with
+  | Ok(Object(fields)) ->
+    Option.Some(
+      Message
+        { id = Stdlib.AltJson.Helpers.getValue("id", fields)
+          method = Stdlib.AltJson.Helpers.getString("method", fields)
+          params =
+            Stdlib.AltJson.Helpers.getValue("params", fields)
+            |> Stdlib.Option.withDefault(Json.Null) })
+  | _ -> Option.None
+
+
+/// Write one framed message to stdout, the protocol channel. Nothing else may write there.
+let send(message: Json): Unit =
+  let body = Stdlib.AltJson.format(message)
+  let length = Stdlib.Bytes.length(Stdlib.Utf8.encode(body))
+  Stdlib.print($"Content-Length: {length}\r\n\r\n{body}")
+
+
+let respond(id: Json, result: Json): Unit =
+  send(Json.Object([ ("jsonrpc", Json.String("2.0")), ("id", id), ("result", result) ]))
+
+
+let respondError(id: Json, code: Int64, message: String): Unit =
+  send(
+    Json.Object(
+      [ ("jsonrpc", Json.String("2.0"))
+        ("id", id)
+        ("error", Json.Object([ ("code", Json.Integer(code)), ("message", Json.String(message)) ])) ]))
+
+
+let notify(method: String, params: Json): Unit =
+  send(
+    Json.Object(
+      [ ("jsonrpc", Json.String("2.0")), ("method", Json.String(method)), ("params", params) ]))
+
+
+/// The error codes this server answers with.
+module Code =
+  val parseError = -32700
+  val invalidRequest = -32600
+  val methodNotFound = -32601
+  val invalidParams = -32602
+  val internalError = -32603
+  val requestFailed = -32803
+  val requestCancelled = -32800
+
+
+/// The server's log. Stdout is the protocol channel, so it goes to stderr, which an editor
+/// shows as the server's output.
+let log(line: String): Unit =
+  Stdlib.printErrorLine(line)

@@ -1,0 +1,54 @@
+/// `dark/tree`: the package tree, one module at a time, for the editor's Packages view. It lists
+/// what `dark ls` lists: deprecated items and `__` helpers are left out.
+module Darklang.LanguageTools.Lsp.Tree
+
+type Json = Stdlib.AltJson.Json
+
+
+let entry(name: String, kind: String, uri: String): Json =
+  Json.Object([ ("name", Json.String(name)), ("kind", Json.String(kind)), ("uri", Json.String(uri)) ])
+
+
+/// What sits directly in the module at <param path> (owner first; empty for the owners):
+/// submodules, then types, traits, values, functions, impls and tests, each by name.
+let children(branchId: Uuid, path: List<String>): Json =
+  let (subs, types, values, fns, traits, impls, tests) =
+    Cli.Packages.Query.allDirectDescendantNamesAndHashes(branchId, path)
+
+  let sets = Cli.Packages.Query.loadDeprecationSets(branchId)
+  let shown(items: List<(String * ProgramTypes.Hash)>): List<String> =
+    Cli.Packages.Query.filterHiddenPairs(
+      path,
+      items,
+      sets,
+      Cli.Packages.Query.Deprecated.Hide,
+      Cli.Packages.Query.Internal.Hide)
+    |> Stdlib.List.map(fun((name, _)) -> name)
+
+  let implNames = Stdlib.List.map(impls, fun((name, _)) -> name)
+  let modules =
+    subs
+    |> Stdlib.List.filter(fun name -> Stdlib.Bool.not(Stdlib.List.contains(implNames, name)))
+    |> Cli.Packages.Query.withoutInternalNames
+    |> Stdlib.List.map(fun name ->
+      let at = Stdlib.List.append(path, name)
+      entry(name, "module", Names.moduleUri(at)))
+
+  let items(names: List<String>, kind: ProgramTypes.ItemKind): List<Json> =
+    match path with
+    | [] -> []
+    | [ owner, ...modules ] ->
+      names
+      |> Stdlib.List.map(fun name ->
+        let loc = ProgramTypes.PackageLocation { owner = owner, modules = modules, name = name }
+        entry(name, ProgramTypes.ItemKind.toString(kind), Names.uriOf(loc, kind)))
+
+  Stdlib.List.flatten(
+    [ modules
+      items(shown(types), ProgramTypes.ItemKind.Type)
+      items(shown(traits), ProgramTypes.ItemKind.Trait)
+      items(shown(values), ProgramTypes.ItemKind.Value)
+      items(shown(fns), ProgramTypes.ItemKind.Fn)
+      items(shown(impls), ProgramTypes.ItemKind.TraitImpl)
+      items(shown(tests), ProgramTypes.ItemKind.Test) ])
+  |> Json.Array

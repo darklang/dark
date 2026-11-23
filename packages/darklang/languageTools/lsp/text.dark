@@ -1,0 +1,55 @@
+/// Document text the way the protocol addresses it: lines, and columns counted in UTF-16 units.
+/// The parser counts columns the same way.
+module Darklang.LanguageTools.Lsp.Text
+
+/// How many UTF-16 units <param s> takes: one per code point, two above U+FFFF.
+let width(s: String): Int64 =
+  s
+  |> Stdlib.String.toCodepoints
+  |> Stdlib.List.map(fun cp -> if cp > 65535u32 then 2 else 1)
+  |> Stdlib.List.fold(0, fun(sum, n) -> sum + n)
+
+
+/// <param line> cut at UTF-16 column <param column>: what is before it and what is after.
+let splitAt(line: String, column: Int64): (String * String) =
+  let (before, after, _) =
+    line
+    |> Stdlib.String.toList
+    |> Stdlib.List.fold(("", "", 0), fun((before, after, at), c) ->
+      let s = Stdlib.String.fromChar(c)
+      if at < column then (before + s, after, at + width(s)) else (before, after + s, at))
+
+  (before, after)
+
+
+let lines(text: String): List<String> =
+  Stdlib.String.split(text, "\n")
+
+
+/// <param text> with the UTF-16 range from (<param startLine>, <param startColumn>) to
+/// (<param endLine>, <param endColumn>) replaced by <param replacement>: one change of an
+/// incremental `didChange`.
+let replace(
+  text: String,
+  startLine: Int64,
+  startColumn: Int64,
+  endLine: Int64,
+  endColumn: Int64,
+  replacement: String)
+  : String =
+  let all = lines(text)
+  let lineAt(n: Int64): String = Stdlib.List.getAt(all, n) |> Stdlib.Option.withDefault("")
+  let (head, _) = splitAt(lineAt(startLine), startColumn)
+  let (_, tail) = splitAt(lineAt(endLine), endColumn)
+  let before = Stdlib.List.take(all, startLine)
+  let after = Stdlib.List.drop(all, endLine + 1)
+  Stdlib.String.join(Stdlib.List.flatten([ before, [ head + replacement + tail ], after ]), "\n")
+
+
+/// The text before (<param line>, <param column>), up to <param limit> lines back.
+let before(text: String, line: Int64, column: Int64, limit: Int64): String =
+  let all = lines(text)
+  let first = Stdlib.max(0, line - limit)
+  let whole = all |> Stdlib.List.drop(first) |> Stdlib.List.take(line - first)
+  let (head, _) = splitAt(Stdlib.List.getAt(all, line) |> Stdlib.Option.withDefault(""), column)
+  Stdlib.String.join(Stdlib.List.append(whole, head), "\n")

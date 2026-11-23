@@ -196,7 +196,8 @@ let check(
         diagnostics = []
         warnings = []
         scheme = none
-        resolutions = [] }
+        resolutions = []
+        bindings = [] }
   | Some(named) ->
     // Not `Some(a, b)`: that pattern never matches an Option holding a pair.
     let (traitHash, trait_) = named
@@ -304,4 +305,5 @@ let check(
           |> Stdlib.List.reverse
           |> Stdlib.List.map(fun f -> Items.toIssue(s, f))
         scheme = none
-        resolutions = [] }
+        resolutions = []
+        bindings = [] }

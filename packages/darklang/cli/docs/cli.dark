@@ -98,6 +98,10 @@ Your edits are LIVE as soon as you write them. There is no build step.
                               (alias: http-server; --bind defaults to 127.0.0.1; --port to 8080;
                               --live follows your edits)
 
+## Editors
+  lsp               the language server, over stdin and stdout. An editor starts it;
+                    you don't. It follows your edits from any terminal.
+
 ## The full-screen experience (`dark` with no args opens it)
   workbench         the framed, navigable workbench (alias: wb)
 

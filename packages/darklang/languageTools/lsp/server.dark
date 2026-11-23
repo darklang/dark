@@ -1,0 +1,457 @@
+/// Dark's language server: `dark lsp`, started by an editor and spoken to over stdio.
+///
+/// One loop reads messages and writes every reply. It waits on stdin, a store change, a timer
+/// and the requests being answered beside it at once (`Host.await`):
+/// - a keystroke (`didChange`) only stores the text. The analysis runs once the typing stops,
+///   so ten keystrokes cost one analysis, not ten.
+/// - a store change (an edit in a terminal, an agent's commit) makes the open documents it
+///   touches stale, so their diagnostics and values follow code they did not change themselves.
+/// - a read-only request runs in a process of its own; the loop sends its answer when it is done.
+/// - while nothing happens, the timer looks for new runs and a switch of branch.
+/// - stdin closing ends the server. An editor holds stdin open for the whole session, so EOF
+///   means it is gone, and reading on would spin forever.
+module Darklang.LanguageTools.Lsp.Server
+
+type Json = Stdlib.AltJson.Json
+
+
+type State =
+  { reader: Rpc.Reader
+    watch: LanguageTools.Live.Watch
+    branchId: Uuid
+    /// The branch `dark switch` last stored for this instance, as stored: a switch in a terminal
+    /// changes it, and the server follows.
+    storedBranch: String
+    /// The open documents, by URI.
+    documents: Dict<String, Requests.Document>
+    /// What the editor said it can do, in `initialize`.
+    client: Json
+    /// The documents changed under the editor since it last asked for hints, lenses and
+    /// tokens: once they are analysed again, it is told to ask again.
+    refresh: Bool
+    /// The read-only requests being answered beside the loop, by request id.
+    inFlight: List<(Json * Stdlib.Exec.Handle<Result<Option<Json>, String>>)>
+    /// Under `dark lsp --live`: the version of the request handler each request runs, followed
+    /// as the store changes and kept on the last one that type-checks.
+    handler: Option<LanguageTools.Live.LastGood>
+    /// `shutdown` was asked for; only `exit` is answered now.
+    shuttingDown: Bool
+    /// `exit` arrived, or stdin ended: the exit code to stop with.
+    stopped: Option<Int64> }
+
+
+/// How long the typing must pause before the open documents are analysed.
+val quietMs = 250
+
+
+/// How often, while nothing happens, to look for new runs and for a switch of branch. Neither is a
+/// store change, so nothing else wakes the server for them.
+val idleCheckMs = 2000
+
+
+let initialState(live: Bool): State =
+  State
+    { reader = Rpc.Reader.Header(Option.None)
+      watch = Stdlib.Host.begin()
+      branchId = SCM.PackageOps.currentBranch()
+      storedBranch = storedBranch()
+      documents = Stdlib.Dict.empty
+      client = Json.Null
+      refresh = false
+      inFlight = []
+      handler =
+        if live then
+          Option.Some(LanguageTools.Live.refresh(SCM.PackageOps.currentBranch(), LanguageTools.Live.start(handlerLocation)))
+        else
+          Option.None
+      shuttingDown = false
+      stopped = Option.None }
+
+
+/// Serve the editor on stdin and stdout until it goes. The exit code is 0 after `shutdown` then
+/// `exit`, and 1 when the editor left without `shutdown`, as the protocol says.
+let run(live: Bool): Int64 =
+  Rpc.log(if live then "dark language server started; requests follow edits to its code" else "dark language server started")
+  loop(initialState(live))
+
+
+/// What `--live` runs for each read-only request.
+val handlerLocation =
+  ProgramTypes.PackageLocation
+    { owner = "Darklang", modules = [ "LanguageTools", "Lsp", "Requests" ], name = "answerLive" }
+
+
+let loop(state: State): Int64 =
+  match state.stopped with
+  | Some(code) -> code
+  | None -> loop(wake(state))
+
+
+/// Wait for the next thing that happens and deal with it.
+let wake(state: State): State =
+  let docs = Stdlib.Dict.values(state.documents)
+  let pending = Stdlib.List.any(docs, fun d -> Stdlib.Option.isNone(d.analysis))
+  let timer = Stdlib.Host.EventSpec.Timer(if pending then quietMs else idleCheckMs)
+
+  let answering = Stdlib.List.map(state.inFlight, fun((_, h)) -> Stdlib.Host.EventSpec.ExecDone(h.id))
+  let specs = Stdlib.List.flatten([ [ Rpc.wants(state.reader), Stdlib.Host.EventSpec.StoreChanged, timer ], answering ])
+
+  let awaited = Stdlib.Host.await(state.watch, specs)
+  let state = { state with watch = awaited.watch }
+  match awaited.event with
+  | Stdin(text) ->
+    let (reader, body) = Rpc.step(state.reader, text)
+    let state = { state with reader = reader }
+    match body with
+    | Some(body) -> received(state, body)
+    | None -> state
+  | StdinClosed ->
+    Rpc.log("stdin closed; stopping")
+    { state with stopped = Option.Some(if state.shuttingDown then 0 else 1) }
+  | Timer -> if pending then analysePending(state) else newRuns(branchMoved(state))
+  | StoreChanged(change) -> storeChanged(state, change)
+  | ExecDone(done) -> answered(state, done)
+  | _ -> state
+
+
+// --- documents ---
+
+let setDocument(state: State, uri: String, text: String): State =
+  let doc = Requests.Document { uri = uri, text = text, analysis = Option.None, live = Option.None }
+  { state with documents = Stdlib.Dict.set(state.documents, uri, doc) }
+
+
+let publish(uri: String, diagnostics: List<Json>): Unit =
+  Rpc.notify(
+    "textDocument/publishDiagnostics",
+    Json.Object([ ("uri", Json.String(uri)), ("diagnostics", Json.Array(diagnostics)) ]))
+
+
+/// Analyse every open document that has none, and publish what each one found. A store
+/// function's document gets its live values again too.
+let analysePending(state: State): State =
+  let documents =
+    state.documents
+    |> Stdlib.Dict.mapValues(fun doc ->
+      match doc.analysis with
+      | Some(_) -> doc
+      | None ->
+        let analysis = analyseSafely(state.branchId, doc)
+        Rpc.log($"analysed {doc.uri}")
+        publish(doc.uri, analysis.diagnostics)
+        { doc with analysis = Option.Some(analysis), live = liveSafely(state.branchId, doc) })
+
+  if state.refresh then askToRefresh(state) else ()
+  { state with documents = documents, refresh = false }
+
+
+/// <param doc> analysed. An analysis that fails is a diagnostic saying so, not the end of the
+/// server.
+let analyseSafely(branchId: Uuid, doc: Requests.Document): Analysis.Analysis =
+  match LanguageTools.Live.apply(fun text -> Analysis.analyse(Names.context(branchId, doc.uri), text), doc.text) with
+  | Ok(analysis) -> analysis
+  | Error(e) ->
+    Rpc.log($"analysing {doc.uri} failed: {e}")
+    let start = Parser.Point { row = 0, column = 0 }
+    Analysis.Analysis
+      { parsed = Option.None
+        diagnostics = [ Analysis.diagnostic(1, Parser.Range { start = start, end_ = start }, Option.None, $"The analysis failed: {e}") ]
+        typeHints = [] }
+
+
+/// The live values for <param doc>, when it shows a store function; none when working them out
+/// fails.
+let liveSafely(branchId: Uuid, doc: Requests.Document): Option<Lens.Live> =
+  match Requests.storeFnOf(doc.uri) with
+  | None -> Option.None
+  | Some(loc) ->
+    match LanguageTools.Live.apply(fun text -> Lens.live(branchId, loc, text), doc.text) with
+    | Ok(live) -> live
+    | Error(e) ->
+      Rpc.log($"live values for {doc.uri} failed: {e}")
+      Option.None
+
+
+/// Whether the editor said it takes the server's `<param what>/refresh` request.
+let refreshes(state: State, what: String): Bool =
+  Requests.boolAt(state.client, [ "workspace", what, "refreshSupport" ]) |> Stdlib.Option.withDefault(false)
+
+
+/// Ask the editor to fetch hints, lenses and tokens again: what they show came from the store
+/// or the runs, which moved.
+let askToRefresh(state: State): Unit =
+  [ ("inlayHint", "workspace/inlayHint/refresh")
+    ("codeLens", "workspace/codeLens/refresh")
+    ("semanticTokens", "workspace/semanticTokens/refresh") ]
+  |> Stdlib.List.iter(fun((what, method)) ->
+    if refreshes(state, what) then
+      Rpc.send(
+        Json.Object(
+          [ ("jsonrpc", Json.String("2.0"))
+            ("id", Json.String("refresh-" + Stdlib.display(Stdlib.Uuid.generate())))
+            ("method", Json.String(method)) ])))
+
+
+let storedBranch(): String =
+  LanguageTools.LocalStore.configGet("current_branch") |> Stdlib.Option.withDefault("")
+
+
+/// Another process switched branches (`dark switch` in a terminal): the server switches too, and
+/// every document now reads against the other branch.
+let branchMoved(state: State): State =
+  let stored = storedBranch()
+  if stored == state.storedBranch then
+    state
+  else
+    let wanted = Stdlib.Uuid.parse(stored) |> Stdlib.Result.withDefault(SCM.Branch.mainBranchId)
+    let branchId = SCM.PackageOps.selectBranch(wanted)
+    Rpc.log($"following the switch to {SCM.PackageOps.branchName(branchId)}")
+    Rpc.notify("dark/storeChanged", Json.Object([ ("names", Json.Array([])) ]))
+    let documents = Stdlib.Dict.mapValues(state.documents, fun doc -> { doc with analysis = Option.None })
+    { state with branchId = branchId, storedBranch = stored, documents = documents, refresh = true }
+
+
+/// A run went through a function whose document is open: its values and lenses are stale.
+let newRuns(state: State): State =
+  let stale =
+    state.documents
+    |> Stdlib.Dict.values
+    |> Stdlib.List.filter(fun doc ->
+      match Requests.storeFnOf(doc.uri) with
+      | Some(loc) ->
+        let shown = doc.live |> Stdlib.Option.map(fun l -> l.runId)
+        Lens.newestRunId(state.branchId, loc) != shown
+      | None -> false)
+
+  match stale with
+  | [] -> state
+  | _ ->
+    let documents =
+      stale
+      |> Stdlib.List.fold(state.documents, fun(docs, doc) ->
+        Stdlib.Dict.set(docs, doc.uri, { doc with live = liveSafely(state.branchId, doc) }))
+
+    askToRefresh(state)
+    { state with documents = documents }
+
+
+/// Whether <param change> can change what <param doc> means: its own item or something it
+/// uses moved. A file is judged by the names in its text.
+let touches(change: LanguageTools.Live.Change, doc: Requests.Document): Bool =
+  if change.unknown then
+    true
+  else
+    match Names.parseUri(doc.uri) with
+    | Some(Item(loc, _)) -> LanguageTools.Live.affects(change, loc)
+    | Some(Module(path)) ->
+      Stdlib.List.any(change.touched, fun t ->
+        Stdlib.List.prepend(t.location.modules, t.location.owner) == path
+        || Stdlib.String.contains(doc.text, t.location.name))
+    | None -> Stdlib.List.any(change.touched, fun t -> Stdlib.String.contains(doc.text, t.location.name))
+
+
+/// The store moved under the open documents: names they use may resolve differently now, a
+/// checker finding may have gone, and the values beside a call may be different. The documents
+/// it touches are analysed again once things are quiet, and the editor is told what moved, so it
+/// reloads the store documents it shows.
+let storeChanged(state: State, change: LanguageTools.Live.Change): State =
+  Rpc.notify(
+    "dark/storeChanged",
+    Json.Object([ ("names", Json.Array(LanguageTools.Live.touchedNames(change) |> Stdlib.List.map(fun n -> Json.String(n)))) ]))
+
+  let branchId = SCM.PackageOps.currentBranch()
+  let moved = branchId != state.branchId
+  let documents =
+    Stdlib.Dict.mapValues(state.documents, fun doc ->
+      if moved || touches(change, doc) then { doc with analysis = Option.None } else doc)
+
+  let handler = state.handler |> Stdlib.Option.map(fun lg -> LanguageTools.Live.refresh(branchId, lg))
+  match handler |> Stdlib.Option.andThen(fun lg -> lg.report) with
+  | Some(report) -> Rpc.log($"the request handler's newest version does not check, so the last good one answers: {LanguageTools.Live.reportText(report)}")
+  | None -> ()
+
+  { state with branchId = branchId, documents = documents, refresh = true, handler = handler }
+
+
+// --- messages ---
+
+let received(state: State, body: String): State =
+  match Rpc.parse(body) with
+  | None ->
+    Rpc.log($"not a JSON-RPC message: {body}")
+    Rpc.respondError(Json.Null, Rpc.Code.parseError, "Parse error")
+    state
+  | Some(message) ->
+    match message.method, message.id with
+    | Some(method), Some(id) -> request(state, method, id, message.params)
+    | Some(method), None -> notification(state, method, message.params)
+    // A reply to something the server asked. Nothing the server asks needs the answer.
+    | None, _ -> state
+
+
+let stringAt(params: Json, path: List<String>): Option<String> =
+  Requests.stringAt(params, path)
+
+
+let field(params: Json, key: String): Option<Json> =
+  Requests.field(params, key)
+
+
+let view(state: State): Requests.View =
+  Requests.View { branchId = state.branchId, documents = state.documents }
+
+
+let request(state: State, method: String, id: Json, params: Json): State =
+  if state.shuttingDown then
+    Rpc.respondError(id, Rpc.Code.invalidRequest, "The server is shutting down")
+    state
+  else
+    match method with
+    | "initialize" ->
+      Rpc.respond(id, initializeResult())
+      { state with client = Requests.field(params, "capabilities") |> Stdlib.Option.withDefault(Json.Null) }
+    | "shutdown" ->
+      Rpc.respond(id, Json.Null)
+      { state with shuttingDown = true }
+    | "dark/fs/write" ->
+      let uri = stringAt(params, [ "uri" ]) |> Stdlib.Option.withDefault("")
+      let text = stringAt(params, [ "text" ]) |> Stdlib.Option.withDefault("")
+      Rpc.respond(id, Edits.save(state.branchId, uri, text))
+      state
+    | "textDocument/rename" ->
+      match Edits.rename(view(state), params) with
+      | Ok(edit) -> Rpc.respond(id, edit)
+      | Error(e) -> Rpc.respondError(id, Rpc.Code.requestFailed, e)
+
+      state
+    | _ ->
+      // Answered beside the loop, so a slow one (the references of `List.map`) holds up neither
+      // the typing nor the other requests. A failure comes back as a value.
+      let view = view(state)
+      let handler = state.handler
+      let handle =
+        Stdlib.Exec.spawn(fun () ->
+          let builtIn() = LanguageTools.Live.apply(fun v -> Requests.answer(v, method, params), view)
+          match handler with
+          | None -> builtIn()
+          | Some(lg) ->
+            // The store's version runs under the instance policy, like any stored code; what it
+            // is refused, the built-in version answers.
+            match LanguageTools.Live.call(lg, (view, method, params)) with
+            | Ok(answer) -> Result.Ok(answer)
+            | Error(e) ->
+              Rpc.log($"the store's handler failed, so the built-in one answers: {e}")
+              builtIn())
+      { state with inFlight = Stdlib.List.append(state.inFlight, (id, handle)) }
+
+
+/// A request answered beside the loop has its answer.
+let answered(state: State, done: Uuid): State =
+  match Stdlib.List.findFirst(state.inFlight, fun((_, h)) -> h.id == done) with
+  | None -> state
+  | Some((id, handle)) ->
+    match Stdlib.Exec.await(handle) with
+    | Ok(Some(result)) -> Rpc.respond(id, result)
+    | Ok(None) -> Rpc.respondError(id, Rpc.Code.methodNotFound, "not supported")
+    | Error(e) ->
+      Rpc.log($"a request failed: {e}")
+      Rpc.respondError(id, Rpc.Code.internalError, e)
+
+    { state with inFlight = Stdlib.List.filter(state.inFlight, fun((_, h)) -> h.id != done) }
+
+
+/// `$/cancelRequest`: stop answering it. The editor still gets a reply, saying it was cancelled.
+let cancel(state: State, id: Json): State =
+  match Stdlib.List.findFirst(state.inFlight, fun((i, _)) -> i == id) with
+  | None -> state
+  | Some((_, handle)) ->
+    let _ = Stdlib.Exec.cancel(handle)
+    Rpc.respondError(id, Rpc.Code.requestCancelled, "cancelled")
+    { state with inFlight = Stdlib.List.filter(state.inFlight, fun((i, _)) -> i != id) }
+
+
+let notification(state: State, method: String, params: Json): State =
+  match method with
+  | "exit" -> { state with stopped = Option.Some(if state.shuttingDown then 0 else 1) }
+  | "$/cancelRequest" ->
+    match field(params, "id") with
+    | Some(id) -> cancel(state, id)
+    | None -> state
+  | "textDocument/didOpen" ->
+    match stringAt(params, [ "textDocument", "uri" ]), stringAt(params, [ "textDocument", "text" ]) with
+    | Some(uri), Some(text) ->
+      // Analysed at once: the editor wants the squiggles as the file opens.
+      analysePending(setDocument(state, uri, text))
+    | _ -> state
+  | "textDocument/didChange" ->
+    match stringAt(params, [ "textDocument", "uri" ]) |> Stdlib.Option.andThen(fun uri -> Stdlib.Dict.get(state.documents, uri)), field(params, "contentChanges") with
+    | Some(doc), Some(Array(changes)) -> setDocument(state, doc.uri, Stdlib.List.fold(changes, doc.text, applyChange))
+    | _ -> state
+  | "textDocument/didSave" ->
+    match stringAt(params, [ "textDocument", "uri" ]), stringAt(params, [ "text" ]) with
+    | Some(uri), Some(text) -> analysePending(setDocument(state, uri, text))
+    | _ -> state
+  | "textDocument/didClose" ->
+    match stringAt(params, [ "textDocument", "uri" ]) with
+    | Some(uri) ->
+      // An empty list clears the closed document's squiggles.
+      publish(uri, [])
+      { state with documents = Stdlib.Dict.remove(state.documents, uri) }
+    | None -> state
+  // `initialized`, `$/setTrace` and the rest need nothing from this server.
+  | _ -> state
+
+
+/// One change of a `didChange`: a range and its new text, or the whole text.
+let applyChange(text: String, change: Json): String =
+  let int(path: List<String>): Int64 = Requests.intAt(change, path) |> Stdlib.Option.withDefault(0)
+  match stringAt(change, [ "text" ]), field(change, "range") with
+  | Some(newText), Some(_) ->
+    Text.replace(
+      text,
+      int([ "range", "start", "line" ]),
+      int([ "range", "start", "character" ]),
+      int([ "range", "end", "line" ]),
+      int([ "range", "end", "character" ]),
+      newText)
+  | Some(newText), None -> newText
+  | None, _ -> text
+
+
+let initializeResult(): Json =
+  Json.Object(
+    [ ("capabilities",
+       Json.Object(
+         [ ("positionEncoding", Json.String("utf-16"))
+           ("textDocumentSync",
+            Json.Object(
+              [ ("openClose", Json.Bool(true))
+                // 2: each change sends only what changed
+                ("change", Json.Integer(2))
+                ("save", Json.Object([ ("includeText", Json.Bool(true)) ])) ]))
+           ("hoverProvider", Json.Bool(true))
+           ("definitionProvider", Json.Bool(true))
+           ("documentSymbolProvider", Json.Bool(true))
+           ("workspaceSymbolProvider", Json.Bool(true))
+           ("documentHighlightProvider", Json.Bool(true))
+           ("referencesProvider", Json.Bool(true))
+           ("foldingRangeProvider", Json.Bool(true))
+           ("selectionRangeProvider", Json.Bool(true))
+           ("implementationProvider", Json.Bool(true))
+           ("callHierarchyProvider", Json.Bool(true))
+           ("completionProvider",
+            Json.Object(
+              [ ("triggerCharacters", Json.Array([ Json.String(".") ]))
+                ("resolveProvider", Json.Bool(true)) ]))
+           ("signatureHelpProvider",
+            Json.Object(
+              [ ("triggerCharacters", Json.Array([ Json.String("("), Json.String(",") ]))
+                ("retriggerCharacters", Json.Array([ Json.String(" ") ])) ]))
+           ("semanticTokensProvider", Tokens.capability())
+           ("documentFormattingProvider", Json.Bool(true))
+           ("inlayHintProvider", Json.Bool(true))
+           ("codeLensProvider", Json.Object([ ("resolveProvider", Json.Bool(false)) ]))
+           ("codeActionProvider", Json.Object([ ("codeActionKinds", Json.Array([ Json.String("quickfix") ])) ]))
+           ("renameProvider", Json.Object([ ("prepareProvider", Json.Bool(true)) ]))
+           ("documentLinkProvider", Json.Object([ ("resolveProvider", Json.Bool(false)) ])) ]))
+      ("serverInfo", Json.Object([ ("name", Json.String("dark")) ])) ])

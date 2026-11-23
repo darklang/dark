@@ -1,0 +1,235 @@
+/// `textDocument/hover` and `textDocument/definition`.
+module Darklang.LanguageTools.Lsp.Hover
+
+type Json = Stdlib.AltJson.Json
+
+
+/// A doc comment's markup, as Markdown: `<param x>`, `<fn X>`, `{{Some}}` become code.
+let markdownOfDoc(doc: String): String =
+  let asCode = fun m ->
+    match Stdlib.List.head(m.captures) with
+    | Some(Some(c)) -> "`" + c.text + "`"
+    | _ -> m.text
+
+  let tagged =
+    Stdlib.Regex.replaceAllWith(doc, "<(?:param|fn|type|typeParam|var|value|trait) ([^>]+)>", asCode)
+    |> Stdlib.Result.withDefault(doc)
+
+  Stdlib.Regex.replaceAllWith(tagged, "\\{\\{([^}]+)\\}\\}", asCode)
+  |> Stdlib.Result.withDefault(tagged)
+
+
+let locationName(loc: ProgramTypes.PackageLocation): String =
+  Stdlib.String.join(Stdlib.List.flatten([ [ loc.owner ], loc.modules, [ loc.name ] ]), ".")
+
+
+/// What a function does to the world, from its calls: "effect-free", or each effect and the
+/// call path that reaches it.
+let effectsLine(hash: ProgramTypes.Hash): String =
+  let (complete, reasons) = Permissions.effectReasons(ProgramTypes.hashToString(hash))
+  match reasons with
+  | [] -> if complete then "**effect-free**" else "**effects:** none found; some of its calls are decided only when it runs"
+  | _ ->
+    let names =
+      reasons
+      |> Stdlib.List.map(fun((effect, _)) -> Permissions.effectName(effect))
+      |> Stdlib.List.unique
+      |> Stdlib.String.join(", ")
+
+    let suffix = if complete then "" else ", and maybe more: some of its calls are decided only when it runs"
+    $"**effects:** {names}{suffix}"
+
+
+let codeBlock(code: String): String =
+  "```darklang\n" + code + "\n```"
+
+
+/// The hover text for <param item>.
+let describe(branchId: Uuid, item: Names.Item): String =
+  match item with
+  | Fn(found) ->
+    let ctx = PrettyPrinter.ProgramTypes.Context.forModule(branchId, [])
+    let fn = found.entity
+    let params =
+      fn.parameters
+      |> Stdlib.List.map(fun p -> p.name + ": " + PrettyPrinter.ProgramTypes.typeReference(ctx, p.typ))
+      |> Stdlib.String.join(", ")
+
+    let signature =
+      locationName(found.location) + "(" + params + "): " + PrettyPrinter.ProgramTypes.typeReference(ctx, fn.returnType)
+
+    Stdlib.String.join(
+      [ codeBlock(signature), markdownOfDoc(fn.description), effectsLine(fn.hash) ]
+      |> Stdlib.List.filter(fun s -> s != ""),
+      "\n\n")
+  | Type(found) ->
+    let ctx = PrettyPrinter.ProgramTypes.Context.forModule(branchId, Stdlib.List.prepend(found.location.modules, found.location.owner))
+    let printed = PrettyPrinter.ProgramTypes.packageType(ctx, found.entity)
+    Stdlib.String.join([ codeBlock(printed), markdownOfDoc(found.entity.description) ] |> Stdlib.List.filter(fun s -> s != ""), "\n\n")
+  | Value(found) ->
+    let ctx = PrettyPrinter.ProgramTypes.Context.forModule(branchId, Stdlib.List.prepend(found.location.modules, found.location.owner))
+    let printed = PrettyPrinter.ProgramTypes.packageValue(ctx, found.entity)
+    Stdlib.String.join([ codeBlock(printed), markdownOfDoc(found.entity.description) ] |> Stdlib.List.filter(fun s -> s != ""), "\n\n")
+  | Trait(found) ->
+    let ctx = PrettyPrinter.ProgramTypes.Context.forModule(branchId, Stdlib.List.prepend(found.location.modules, found.location.owner))
+    let printed = PrettyPrinter.ProgramTypes.packageTrait(ctx, found.entity)
+    Stdlib.String.join([ codeBlock(printed), markdownOfDoc(found.entity.description) ] |> Stdlib.List.filter(fun s -> s != ""), "\n\n")
+
+
+let markdown(value: String, r: Parser.Range): Json =
+  Json.Object(
+    [ ("contents", Json.Object([ ("kind", Json.String("markdown")), ("value", Json.String(value)) ]))
+      ("range", Analysis.range(r)) ])
+
+
+/// The built-in types, and where their functions are.
+val builtinTypes =
+  [ ("Unit", "The type of `()`, the one value that says nothing.")
+    ("Bool", "`true` or `false`. Functions: `Stdlib.Bool`.")
+    ("Int8", "An 8-bit signed integer, `-128` to `127`. Functions: `Stdlib.Int8`.")
+    ("UInt8", "An 8-bit unsigned integer, `0` to `255`. Functions: `Stdlib.UInt8`.")
+    ("Int16", "A 16-bit signed integer. Functions: `Stdlib.Int16`.")
+    ("UInt16", "A 16-bit unsigned integer. Functions: `Stdlib.UInt16`.")
+    ("Int32", "A 32-bit signed integer. Functions: `Stdlib.Int32`.")
+    ("UInt32", "A 32-bit unsigned integer. Functions: `Stdlib.UInt32`.")
+    ("Int64", "A 64-bit signed integer: what a plain `1` is. Functions: `Stdlib.Int64`.")
+    ("UInt64", "A 64-bit unsigned integer. Functions: `Stdlib.UInt64`.")
+    ("Int128", "A 128-bit signed integer. Functions: `Stdlib.Int128`.")
+    ("UInt128", "A 128-bit unsigned integer. Functions: `Stdlib.UInt128`.")
+    ("BigInt", "An integer of any size. Functions: `Stdlib.BigInt`.")
+    ("Float64", "A 64-bit floating-point number. Functions: `Stdlib.Float64`.")
+    ("Float32", "A 32-bit floating-point number. Functions: `Stdlib.Float32`.")
+    ("Decimal", "An exact decimal number, for money and the like. Functions: `Stdlib.Decimal`.")
+    ("Char", "One character as a person sees it (a grapheme cluster). Functions: `Stdlib.Char`.")
+    ("String", "Text. Functions: `Stdlib.String`.")
+    ("DateTime", "A moment in time, in UTC. Functions: `Stdlib.DateTime`.")
+    ("Uuid", "A UUID. Functions: `Stdlib.Uuid`.")
+    ("Bytes", "Raw bytes. Functions: `Stdlib.Bytes`.")
+    ("List", "`List<'a>`: values of one type, in order. Functions: `Stdlib.List`.")
+    ("Dict", "`Dict<'v>`: values by `String` key. Functions: `Stdlib.Dict`.")
+    ("Stream", "`Stream<'a>`: values that arrive one at a time. Functions: `Stdlib.Stream`.") ]
+
+
+/// What a local is: a parameter with its type, or the line that binds it.
+let describeLocal(text: String, file: WrittenTypes.ParsedFile, binding: Parser.Range): String =
+  let param =
+    Syntax.declarations(file)
+    |> Stdlib.List.map(fun d ->
+      match d with
+      | Function(f) -> f.parameters
+      | _ -> [])
+    |> Stdlib.List.flatten
+    |> Stdlib.List.findFirst(fun p ->
+      match p with
+      | Normal(p) -> p.name.range == binding
+      | Unit(_) -> false)
+
+  match param with
+  | Some(Normal(p)) ->
+    let typ = Actions.textAt(text, Parser.Range { start = p.name.range.start, end_ = p.symbolRightParen.start })
+    let doc = if p.description == "" then "" else "\n\n" + markdownOfDoc(p.description)
+    codeBlock("(parameter) " + Stdlib.String.trim(typ)) + doc
+  | _ -> codeBlock(Stdlib.String.trim(Names.lineOf(text, binding.start.row)))
+
+
+/// A declaration of the document itself, by name: its first line and its doc comment.
+let describeDeclared(text: String, file: WrittenTypes.ParsedFile, name: String): Option<String> =
+  Syntax.declarations(file)
+  |> Stdlib.List.filterMap(fun d ->
+    match d with
+    | Function(f) -> if f.name.name == name then Option.Some((f.range, f.description)) else Option.None
+    | Value(v) -> if v.name.name == name then Option.Some((v.range, v.description)) else Option.None
+    | Type(t) -> if t.name.name == name then Option.Some((t.range, t.description)) else Option.None
+    | _ -> Option.None)
+  |> Stdlib.List.head
+  |> Stdlib.Option.map(fun((r, description)) ->
+    let first = Names.lineOf(text, r.start.row) |> Stdlib.String.trimEnd
+    let header = Stdlib.String.stripSuffix(first, " =") |> Stdlib.Option.withDefault(first)
+    Stdlib.String.join([ codeBlock(header), markdownOfDoc(description) ] |> Stdlib.List.filter(fun s -> s != ""), "\n\n"))
+
+
+/// What the members of the module <param path> are, counted.
+let describeModule(branchId: Uuid, path: List<String>): Option<String> =
+  let (subs, types, values, fns, traits, _, _) = Cli.Packages.Query.allDirectDescendantNames(branchId, path)
+  let count(n: Int64, what: String): List<String> =
+    if n == 0 then [] else [ Stdlib.display(n) + " " + what ]
+
+  let parts =
+    Stdlib.List.flatten(
+      [ count(Stdlib.List.length(fns), "functions")
+        count(Stdlib.List.length(types), "types")
+        count(Stdlib.List.length(values), "values")
+        count(Stdlib.List.length(traits), "traits")
+        count(Stdlib.List.length(subs), "modules") ])
+
+  match parts with
+  | [] -> Option.None
+  | _ -> Option.Some(codeBlock("module " + Stdlib.String.join(path, ".")) + "\n\n" + Stdlib.String.join(parts, ", "))
+
+
+/// The hover at <param line>:<param character>: a local, a package item, one of the document's own
+/// declarations, a module, or a built-in type.
+let hover(ctx: NameResolver.NRContext, text: String, file: Option<WrittenTypes.ParsedFile>, line: Int64, character: Int64): Json =
+  let local =
+    file
+    |> Stdlib.Option.andThen(fun f ->
+      Syntax.localAt(f, line, character)
+      |> Stdlib.Option.map(fun((binding, all)) ->
+        let here = Stdlib.List.findFirst(all, fun o -> Syntax.contains(o.range, line, character))
+        let r = here |> Stdlib.Option.map(fun o -> o.range) |> Stdlib.Option.withDefault(binding)
+        markdown(describeLocal(text, f, binding), r)))
+
+  match local with
+  | Some(found) -> found
+  | None ->
+    match Names.at(text, line, character) with
+    | None -> Json.Null
+    | Some(name) ->
+      let r = Parser.Range { start = Parser.Point { row = line, column = name.start }, end_ = Parser.Point { row = line, column = name.end } }
+      match Names.resolve(ctx, name.parts) with
+      | Some(item) -> markdown(describe(ctx.branchId, item), r)
+      | None ->
+        let declared =
+          match file, name.parts with
+          | Some(f), [ only ] -> describeDeclared(text, f, only)
+          | _ -> Option.None
+
+        let builtin =
+          match name.parts with
+          | [ only ] ->
+            builtinTypes
+            |> Stdlib.List.findFirst(fun((n, _)) -> n == only)
+            |> Stdlib.Option.map(fun((n, d)) -> codeBlock(n) + "\n\n" + d)
+          | _ -> Option.None
+
+        let modules() =
+          let (owners, _, _, _, _, _, _) = Cli.Packages.Query.allDirectDescendantNames(ctx.branchId, [])
+          Completion.candidates(ctx, name.parts)
+          |> Stdlib.List.filter(fun path ->
+            match path with
+            | [ owner, ..._ ] -> Stdlib.List.contains(owners, owner)
+            | [] -> false)
+          |> Stdlib.List.filterMap(fun path -> describeModule(ctx.branchId, path))
+          |> Stdlib.List.head
+
+        match declared, builtin with
+        | Some(d), _ -> markdown(d, r)
+        | _, Some(b) -> markdown(b, r)
+        | None, None ->
+          match modules() with
+          | Some(m) -> markdown(m, r)
+          | None -> Json.Null
+
+
+/// A store item opens as its own document (`Names.uriOf`), so a definition is its first line.
+let definition(ctx: NameResolver.NRContext, text: String, line: Int64, character: Int64): Json =
+  let start = Json.Object([ ("line", Json.Integer(0)), ("character", Json.Integer(0)) ])
+  let at(uri: String): Json =
+    Json.Object([ ("uri", Json.String(uri)), ("range", Json.Object([ ("start", start), ("end", start) ])) ])
+
+  match Names.at(text, line, character) with
+  | None -> Json.Null
+  | Some(name) ->
+    match Names.resolve(ctx, name.parts) with
+    | Some(item) -> at(Names.uriOf(Names.itemLocation(item), Names.itemKind(item)))
+    | None -> Json.Null

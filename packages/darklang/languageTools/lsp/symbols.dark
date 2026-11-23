@@ -1,0 +1,85 @@
+/// `textDocument/documentSymbol`: the outline of a document, from its parsed declarations.
+module Darklang.LanguageTools.Lsp.Symbols
+
+type Json = Stdlib.AltJson.Json
+
+
+/// LSP `SymbolKind`s.
+module Kind =
+  val module_ = 2
+  val function = 12
+  val variable = 13
+  val struct = 23
+  val interface = 11
+  val class = 5
+  val method = 6
+
+
+let symbol(name: String, kind: Int64, range: Parser.Range, selection: Parser.Range, children: List<Json>): Json =
+  Json.Object(
+    [ ("name", Json.String(name))
+      ("kind", Json.Integer(kind))
+      ("range", Analysis.range(range))
+      ("selectionRange", Analysis.range(selection))
+      ("children", Json.Array(children)) ])
+
+
+let ofDeclaration(d: WrittenTypes.ModuleDeclaration.Declaration): Option<Json> =
+  match d with
+  | Function(f) -> Option.Some(symbol(f.name.name, Kind.function, f.range, f.name.range, []))
+  | Type(t) -> Option.Some(symbol(t.name.name, Kind.struct, t.range, t.name.range, []))
+  | Value(v) -> Option.Some(symbol(v.name.name, Kind.variable, v.range, v.name.range, []))
+  | Test(t) -> Option.Some(symbol(t.name.name, Kind.method, t.range, t.name.range, []))
+  | Trait(t) -> Option.Some(symbol(t.name.name, Kind.interface, t.range, t.name.range, []))
+  | Impl(i) -> Option.Some(symbol("impl", Kind.class, i.range, i.keywordImpl, []))
+  | SubModule(m) ->
+    let (nameRange, name) = m.name
+    Option.Some(symbol(name, Kind.module_, m.range, nameRange, Stdlib.List.filterMap(m.declarations, ofDeclaration)))
+  | Expr(_) -> Option.None
+
+
+let outline(parsed: WrittenTypes.ParsedFile): Json =
+  match parsed with
+  | SourceFile(sf) ->
+    sf.declarations
+    |> Stdlib.List.filterMap(fun d -> ofDeclaration(Parser.Parse.toModuleDeclaration(d)))
+    |> Json.Array
+
+
+/// At most this many answers to a workspace search: an editor shows a short list as you type.
+val workspaceLimit = 100
+
+
+/// `workspace/symbol`: package items whose names match <param query>, anywhere in the tree,
+/// each at its store document.
+let workspace(branchId: Uuid, query: String): Json =
+  let found =
+    PackageManager.Search.search(
+      branchId,
+      ProgramTypes.Search.SearchQuery
+        { currentModule = []
+          text = query
+          searchDepth = ProgramTypes.Search.SearchDepth.AllDescendants
+          entityTypes =
+            [ ProgramTypes.Search.EntityType.Fn
+              ProgramTypes.Search.EntityType.Type
+              ProgramTypes.Search.EntityType.Value ]
+          exactMatch = false })
+
+  let start = Json.Object([ ("line", Json.Integer(0)), ("character", Json.Integer(0)) ])
+  let entry(loc: ProgramTypes.PackageLocation, kind: ProgramTypes.ItemKind, symbolKind: Int64): Json =
+    Json.Object(
+      [ ("name", Json.String(loc.name))
+        ("kind", Json.Integer(symbolKind))
+        ("containerName", Json.String(Stdlib.String.join(Stdlib.List.prepend(loc.modules, loc.owner), ".")))
+        ("location",
+         Json.Object(
+           [ ("uri", Json.String(Names.uriOf(loc, kind)))
+             ("range", Json.Object([ ("start", start), ("end", start) ])) ])) ])
+
+  Stdlib.List.flatten(
+    [ Stdlib.List.map(found.fns, fun i -> entry(i.location, ProgramTypes.ItemKind.Fn, Kind.function))
+      Stdlib.List.map(found.types, fun i -> entry(i.location, ProgramTypes.ItemKind.Type, Kind.struct))
+      Stdlib.List.map(found.values, fun i -> entry(i.location, ProgramTypes.ItemKind.Value, Kind.variable)) ])
+  |> Stdlib.List.take(workspaceLimit)
+  |> Json.Array

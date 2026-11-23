@@ -1,0 +1,165 @@
+/// `textDocument/codeAction`: quick fixes for what the analysis reported.
+module Darklang.LanguageTools.Lsp.Actions
+
+type Json = Stdlib.AltJson.Json
+
+
+/// Whether the editor applies a fix on its own ("Fix all", the lightbulb's first choice).
+type Preference =
+  | Preferred
+  | Offered
+
+
+let quickFix(title: String, uri: String, edits: List<Json>, diagnostic: Json, preference: Preference): Json =
+  Json.Object(
+    [ ("title", Json.String(title))
+      ("kind", Json.String("quickfix"))
+      ("diagnostics", Json.Array([ diagnostic ]))
+      ("isPreferred", Json.Bool(preference == Preference.Preferred))
+      ("edit", Edits.workspaceEdit([ (uri, edits) ])) ])
+
+
+let rangeOf(json: Json): Option<Parser.Range> =
+  match Requests.at(json, [ "start" ]) |> Stdlib.Option.andThen(Requests.point), Requests.at(json, [ "end" ]) |> Stdlib.Option.andThen(Requests.point) with
+  | Some((sl, sc)), Some((el, ec)) ->
+    Option.Some(
+      Parser.Range
+        { start = Parser.Point { row = sl, column = sc }
+          end_ = Parser.Point { row = el, column = ec } })
+  | _ -> Option.None
+
+
+/// The text <param r> covers on its line.
+let textAt(text: String, r: Parser.Range): String =
+  let (_, from) = Text.splitAt(Names.lineOf(text, r.start.row), r.start.column)
+  let (inside, _) = Text.splitAt(from, r.end_.column - r.start.column)
+  inside
+
+
+// --- an unresolved name: the package items it could mean ---
+
+/// The shortest way to write <param loc> that resolves to it from where the document is.
+let shortest(ctx: NameResolver.NRContext, loc: ProgramTypes.PackageLocation): String =
+  let full = Stdlib.List.flatten([ [ loc.owner ], loc.modules, [ loc.name ] ])
+  let n = Stdlib.List.length(full)
+  let fits(parts: List<String>): Bool =
+    match Names.resolve(ctx, parts) with
+    | Some(found) -> Names.itemLocation(found) == loc
+    | None -> false
+
+  Stdlib.List.checkedRange(1, n)
+  |> Stdlib.Result.withDefault([])
+  |> Stdlib.List.map(fun k -> Stdlib.List.drop(full, n - k))
+  |> Stdlib.List.findFirst(fits)
+  |> Stdlib.Option.withDefault(full)
+  |> Stdlib.String.join(".")
+
+
+let qualify(view: Requests.View, doc: Requests.Document, diagnostic: Json, r: Parser.Range): List<Json> =
+  // The range can be the whole call (`padStart(s, ' ', 3)` reads as an unknown local applied):
+  // the name is what it starts with.
+  let written =
+    Stdlib.Regex.find(textAt(doc.text, r), "^" + Names.namePattern)
+    |> Stdlib.Result.toOption
+    |> Stdlib.Option.join
+    |> Stdlib.Option.withDefault("")
+
+  let r = { r with end_ = Parser.Point { row = r.start.row, column = r.start.column + Text.width(written) } }
+  let name = Stdlib.String.split(written, ".") |> Stdlib.List.last |> Stdlib.Option.withDefault(written)
+  let found =
+    PackageManager.Search.search(
+      view.branchId,
+      ProgramTypes.Search.SearchQuery
+        { currentModule = []
+          text = name
+          searchDepth = ProgramTypes.Search.SearchDepth.AllDescendants
+          entityTypes =
+            [ ProgramTypes.Search.EntityType.Fn
+              ProgramTypes.Search.EntityType.Type
+              ProgramTypes.Search.EntityType.Value ]
+          exactMatch = true })
+
+  let ctx = Requests.context(view, doc)
+  Stdlib.List.flatten(
+    [ Stdlib.List.map(found.fns, fun i -> i.location)
+      Stdlib.List.map(found.types, fun i -> i.location)
+      Stdlib.List.map(found.values, fun i -> i.location) ])
+  |> Stdlib.List.filter(fun loc -> Stdlib.Bool.not(Stdlib.String.startsWith(loc.name, "__")))
+  |> Stdlib.List.take(5)
+  |> Stdlib.List.map(fun loc ->
+    let replacement = shortest(ctx, loc)
+    quickFix($"Use {replacement}", doc.uri, [ Edits.textEdit(r, replacement) ], diagnostic, Preference.Offered))
+
+
+// --- a match that misses a case ---
+
+let matchesIn(n: Syntax.Node): List<WrittenTypes.Expr> =
+  let own =
+    match n with
+    | E(e) ->
+      match e with
+      | EMatch(_, _, _, _, _) -> [ e ]
+      | _ -> []
+    | _ -> []
+
+  Stdlib.List.concat(own, Syntax.children(n) |> Stdlib.List.map(matchesIn) |> Stdlib.List.flatten)
+
+
+/// A case for <param missing> after the last case of the match the diagnostic is about: the
+/// innermost one around the cursor, or the only one in the declaration.
+let addCase(doc: Requests.Document, diagnostic: Json, r: Parser.Range, cursor: Parser.Range, missing: String): List<Json> =
+  let matches =
+    match Requests.parsed(doc) with
+    | Some(file) ->
+      Syntax.bodies(file)
+      |> Stdlib.List.filter(fun b -> Syntax.contains(b.range, r.start.row, r.start.column))
+      |> Stdlib.List.map(fun b -> matchesIn(Syntax.Node.E(b.body)))
+      |> Stdlib.List.flatten
+    | None -> []
+
+  let around =
+    matches
+    |> Stdlib.List.filter(fun m -> Syntax.contains(WrittenTypes.Expr.range(m), cursor.start.row, cursor.start.column))
+    |> Stdlib.List.last
+
+  let chosen =
+    match around, matches with
+    | Some(m), _ -> Option.Some(m)
+    | None, [ only ] -> Option.Some(only)
+    | _ -> Option.None
+
+  match chosen with
+  | Some(EMatch(_, _, cases, _, _)) ->
+    match Stdlib.List.last(cases) with
+    | Some(last) ->
+      let (bar, _, _) = last.pat
+      let at = (WrittenTypes.Expr.range(last.rhs)).end_
+      let (indent, _) = Text.splitAt(Names.lineOf(doc.text, bar.start.row), bar.start.column)
+      let insert = "\n" + indent + "| " + missing + " -> ()"
+      [ quickFix($"Add a case for {missing}", doc.uri, [ Edits.textEdit(Parser.Range { start = at, end_ = at }, insert) ], diagnostic, Preference.Preferred) ]
+    | None -> []
+  | _ -> []
+
+
+/// The fixes for the diagnostics the editor sends with the request.
+let codeActions(view: Requests.View, params: Json): Json =
+  match Requests.document(view, params), rangeOf(Requests.at(params, [ "range" ]) |> Stdlib.Option.withDefault(Json.Null)) with
+  | Some(doc), Some(cursor) ->
+    let diagnostics =
+      match Requests.at(params, [ "context", "diagnostics" ]) with
+      | Some(Array(ds)) -> ds
+      | _ -> []
+
+    diagnostics
+    |> Stdlib.List.map(fun d ->
+      let message = Requests.stringAt(d, [ "message" ]) |> Stdlib.Option.withDefault("")
+      match rangeOf(Requests.at(d, [ "range" ]) |> Stdlib.Option.withDefault(Json.Null)) with
+      | None -> []
+      | Some(r) ->
+        match Requests.stringAt(d, [ "code" ]), Requests.stringAt(d, [ "data", "missing" ]) with
+        | Some("NonExhaustiveMatch"), Some(missing) -> addCase(doc, d, r, cursor, missing)
+        | Some("UnknownVariable"), _ -> qualify(view, doc, d, r)
+        | _ -> if Stdlib.String.endsWith(message, "not found") then qualify(view, doc, d, r) else [])
+    |> Stdlib.List.flatten
+    |> Json.Array
+  | _ -> Json.Array([])

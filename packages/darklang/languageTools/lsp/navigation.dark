@@ -1,0 +1,202 @@
+/// Who uses what: references, the call hierarchy and implementations, from the store's
+/// dependency edges (`dark deps usedby`).
+module Darklang.LanguageTools.Lsp.Navigation
+
+type Json = Stdlib.AltJson.Json
+
+
+let zero(): Json =
+  let p = Json.Object([ ("line", Json.Integer(0)), ("character", Json.Integer(0)) ])
+  Json.Object([ ("start", p), ("end", p) ])
+
+
+let location(uri: String, range: Json): Json =
+  Json.Object([ ("uri", Json.String(uri)), ("range", range) ])
+
+
+/// A store item's document, at its top.
+let itemLocation(loc: ProgramTypes.PackageLocation, kind: ProgramTypes.ItemKind): Json =
+  location(Names.uriOf(loc, kind), zero())
+
+
+/// At most this many answers from the store: `Stdlib.List.map` has thousands of callers.
+val limit = 500
+
+
+/// The store items that use <param item>.
+let dependents(
+  branchId: Uuid,
+  item: Names.Item)
+  : List<(ProgramTypes.Hash * ProgramTypes.PackageLocation * ProgramTypes.ItemKind)> =
+  match SCM.Deps.dependents(branchId, [ (Names.itemLocation(item), Names.itemKind(item)) ]) with
+  | Ok(found) -> Stdlib.List.take(found, limit)
+  | Error(e) ->
+    Rpc.log($"could not read the dependents of {Names.itemLocation(item).name}: {e}")
+    []
+
+
+/// Where <param item> is named in <param text>: every name on a line that resolves to it.
+let namedIn(ctx: NameResolver.NRContext, text: String, item: Names.Item): List<Parser.Range> =
+  let target = Names.itemHash(item)
+  let short = (Names.itemLocation(item)).name
+  text
+  |> Stdlib.String.splitOnNewline
+  |> Stdlib.List.indexedMap(fun(line, lineText) ->
+    Names.namesOn(lineText)
+    |> Stdlib.List.filter(fun m -> Stdlib.String.endsWith(m.text, short))
+    |> Stdlib.List.filter(fun m ->
+      match Names.resolve(ctx, Stdlib.String.split(m.text, ".")) with
+      | Some(found) -> Names.itemHash(found) == target
+      | None -> false)
+    |> Stdlib.List.map(fun m ->
+      Parser.Range
+        { start = Parser.Point { row = line, column = m.range.start }
+          end_ = Parser.Point { row = line, column = m.range.end } }))
+  |> Stdlib.List.flatten
+
+
+/// `textDocument/references` for a package item: the places the open documents name it, and the
+/// store items that use it.
+let references(
+  branchId: Uuid,
+  item: Names.Item,
+  openDocs: List<(String * String)>,
+  includeDeclaration: Bool)
+  : List<Json> =
+  let inDocs =
+    openDocs
+    |> Stdlib.List.map(fun((uri, text)) ->
+      namedIn(Names.context(branchId, uri), text, item)
+      |> Stdlib.List.map(fun r -> location(uri, Analysis.range(r))))
+    |> Stdlib.List.flatten
+
+  let declaration =
+    if includeDeclaration then [ itemLocation(Names.itemLocation(item), Names.itemKind(item)) ] else []
+
+  let users = dependents(branchId, item) |> Stdlib.List.map(fun((_, loc, kind)) -> itemLocation(loc, kind))
+  Stdlib.List.flatten([ declaration, inDocs, users ]) |> Stdlib.List.unique
+
+
+// --- call hierarchy ---
+
+let symbolKind(kind: ProgramTypes.ItemKind): Int64 =
+  match kind with
+  | Fn -> Symbols.Kind.function
+  | Type -> Symbols.Kind.struct
+  | Value -> Symbols.Kind.variable
+  | Trait -> Symbols.Kind.interface
+  | TraitImpl -> Symbols.Kind.class
+  | Test -> Symbols.Kind.method
+
+
+let hierarchyItem(loc: ProgramTypes.PackageLocation, kind: ProgramTypes.ItemKind): Json =
+  Json.Object(
+    [ ("name", Json.String(loc.name))
+      ("kind", Json.Integer(symbolKind(kind)))
+      ("detail", Json.String(Stdlib.String.join(Stdlib.List.prepend(loc.modules, loc.owner), ".")))
+      ("uri", Json.String(Names.uriOf(loc, kind)))
+      ("range", zero())
+      ("selectionRange", zero()) ])
+
+
+/// The function a call hierarchy item stands for, read back from its `darkfs:` URI.
+let itemOfUri(branchId: Uuid, uri: String): Option<Names.Item> =
+  match Names.parseUri(uri) with
+  | Some(Item(loc, Fn)) ->
+    PackageManager.Function.find(branchId, loc)
+    |> Stdlib.Option.andThen(fun h -> PackageManager.Function.get(h))
+    |> Stdlib.Option.map(fun fn -> Names.Item.Fn(ProgramTypes.LocatedItem { entity = fn, location = loc }))
+  | _ -> Option.None
+
+
+/// `callHierarchy/incomingCalls`: what calls the function.
+let incoming(branchId: Uuid, uri: String): Json =
+  match itemOfUri(branchId, uri) with
+  | None -> Json.Array([])
+  | Some(item) ->
+    dependents(branchId, item)
+    |> Stdlib.List.map(fun((_, loc, kind)) ->
+      Json.Object([ ("from", hierarchyItem(loc, kind)), ("fromRanges", Json.Array([ zero() ])) ]))
+    |> Json.Array
+
+
+/// `callHierarchy/outgoingCalls`: the package functions the function calls.
+let outgoing(branchId: Uuid, uri: String): Json =
+  match itemOfUri(branchId, uri) with
+  | None -> Json.Array([])
+  | Some(item) ->
+    let called =
+      SCM.Deps.dependenciesOf(Names.itemHash(item))
+      |> Stdlib.List.filter(fun((_, kind)) -> kind == "fn")
+      |> Stdlib.List.map(fun((h, _)) -> h)
+
+    SCM.Deps.resolveLocations(called)
+    |> Stdlib.List.map(fun((_, loc)) ->
+      Json.Object(
+        [ ("to", hierarchyItem(loc, ProgramTypes.ItemKind.Fn)), ("fromRanges", Json.Array([ zero() ])) ]))
+    |> Json.Array
+
+
+// --- implementations ---
+
+/// `textDocument/implementation`: a trait's impls, or the impls written for a type.
+let implementations(branchId: Uuid, item: Names.Item): List<Json> =
+  let at(hash: ProgramTypes.Hash): List<Json> =
+    PackageManager.TraitImpl.locations(branchId, hash)
+    |> Stdlib.List.take(1)
+    |> Stdlib.List.map(fun loc -> itemLocation(loc, ProgramTypes.ItemKind.TraitImpl))
+
+  match item with
+  | Trait(t) ->
+    PackageManager.Trait.impls(branchId, t.entity.hash)
+    |> Stdlib.List.map(fun c -> at(c.source))
+    |> Stdlib.List.flatten
+  | Type(t) ->
+    let loc = t.location
+    let typePath = Stdlib.List.flatten([ [ loc.owner ], loc.modules, [ loc.name ] ])
+    let (_, _, _, _, _, impls, _) =
+      PackageManager.Search.searchNames(
+        branchId,
+        ProgramTypes.Search.SearchQuery
+          { currentModule = typePath
+            text = ""
+            searchDepth = ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+            entityTypes = [ ProgramTypes.Search.EntityType.TraitImpl ]
+            exactMatch = false })
+
+    impls
+    |> Stdlib.List.map(fun name ->
+      itemLocation(
+        ProgramTypes.PackageLocation { owner = loc.owner, modules = Stdlib.List.append(loc.modules, loc.name), name = name },
+        ProgramTypes.ItemKind.TraitImpl))
+  | _ -> []
+
+
+// --- links in doc comments ---
+
+/// `textDocument/documentLink`: each `<fn X>`, `<type X>`, `<value X>` and `<trait X>` in a `///`
+/// comment, linked to the item's store document.
+let links(ctx: NameResolver.NRContext, text: String): List<Json> =
+  text
+  |> Stdlib.String.splitOnNewline
+  |> Stdlib.List.indexedMap(fun(line, lineText) ->
+    if Stdlib.String.startsWith(Stdlib.String.trimStart(lineText), "///") then
+      Stdlib.Regex.findAllMatches(lineText, Stdlib.Regex.ofPattern("<(?:fn|type|value|trait) ([A-Za-z0-9_.']+)>"))
+      |> Stdlib.Result.withDefault([])
+      |> Stdlib.List.filterMap(fun m ->
+        match Stdlib.List.head(m.captures) with
+        | Some(Some(name)) ->
+          Names.resolve(ctx, Stdlib.String.split(name.text, "."))
+          |> Stdlib.Option.map(fun item ->
+            let r =
+              Parser.Range
+                { start = Parser.Point { row = line, column = name.range.start }
+                  end_ = Parser.Point { row = line, column = name.range.end } }
+
+            Json.Object(
+              [ ("range", Analysis.range(r))
+                ("target", Json.String(Names.uriOf(Names.itemLocation(item), Names.itemKind(item)))) ]))
+        | _ -> Option.None)
+    else
+      [])
+  |> Stdlib.List.flatten
