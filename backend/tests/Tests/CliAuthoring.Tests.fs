@@ -1434,6 +1434,15 @@ let failedSavesDoNotWarnAboutUnresolvedTraitCalls =
           Expect.isFalse
             (valueError.Contains warning)
             $"the failed save has no trait-call warning: {valueError}"
+
+          // Putting a list in a string, like `$"{xs}"`, is fine, so it gets no warning.
+          let! listInterpolation =
+            save
+              "TraitWarningInterpolation"
+              "let show(xs: List<Int64>): String = $\"items: {xs}\""
+          Expect.isFalse
+            (listInterpolation.Contains warning)
+            $"interpolating a type with no Display does not warn: {listInterpolation}"
         finally
           System.IO.File.Delete path
       })
