@@ -99,7 +99,7 @@ let lsNamesWhatIsThere =
         showsAll
           state
           [ "ls"; "Darklang.Stdlib.Option" ]
-          [ "Contents of"; "Option" ]
+          [ "type    Darklang.Stdlib.Option.Option" ]
           "ls lists the module it was given"
       do!
         shows
@@ -116,7 +116,7 @@ let treeShowsDescendants =
         showsAll
           state
           [ "tree"; "Darklang.Stdlib.Option" ]
-          [ "Package tree"; "Option" ]
+          [ "module  Darklang.Stdlib.Option.Tests" ]
           "tree roots at what it was given"
     })
 
@@ -1889,7 +1889,7 @@ let navIsHonestAboutHowLongItLasts =
         shows
           state
           [ "ls"; "Darklang.Stdlib.List" ]
-          "Contents of"
+          "fn      Darklang.Stdlib.List.map"
           "ls reads anywhere by path"
     })
 

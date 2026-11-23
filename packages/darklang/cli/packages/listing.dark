@@ -131,75 +131,147 @@ let listModule(
     || implEntries != []
     || Stdlib.List.any([ types, values, fns, traits, tests ], fun items -> items != [])
 
-  if hasItems then
-    Stdlib.printLine($"Contents of {formatLocation(location)}:")
-    Stdlib.printLine("")
-  else
+  let forPerson = Listing.forPerson()
+
+  if Stdlib.Bool.not(hasItems) then
     let path = "/" + Stdlib.String.join(modulePath, ".")
-    Stdlib.printLine($"No visible items in {path}.")
+    if forPerson then
+      Stdlib.printLine($"No visible items in {path}.")
+    else
+      Stderr.line($"No visible items in {path}.")
+
     if deprecated == Query.Deprecated.Hide
        && Query.moduleHasVisibleItems(
          branchId, modulePath, depSets, Query.Deprecated.Show, internal) then
       Stderr.line($"Use `dark ls {path} --include-deprecated` to show deprecated items.")
 
-  if submodules != [] then
-    Stdlib.printLine(Display.getSectionHeader("module"))
-    submodules
-    |> Stdlib.List.iter(fun name ->
-      let path = Stdlib.List.append(modulePath, name)
-      let mark =
-        if deprecated == Query.Deprecated.Show
-           && Stdlib.Bool.not(Query.moduleHasActiveItems(branchId, path, depSets)) then
-          " (deprecated)"
-        else
-          ""
+  if forPerson then
+    if hasItems then
+      Stdlib.printLine($"Contents of {formatLocation(location)}:")
+      Stdlib.printLine("")
 
-      Stdlib.printLine($"  {name}/{mark}"))
-    Stdlib.printLine("")
+    if submodules != [] then
+      Stdlib.printLine(Display.getSectionHeader("module"))
+      submodules
+      |> Stdlib.List.iter(fun name ->
+        let path = Stdlib.List.append(modulePath, name)
+        let mark =
+          if deprecated == Query.Deprecated.Show
+             && Stdlib.Bool.not(Query.moduleHasActiveItems(branchId, path, depSets)) then
+            " (deprecated)"
+          else
+            ""
 
-  let printSection(header: String, items: List<(String * LanguageTools.ProgramTypes.Hash)>): Unit =
-    if Stdlib.Bool.not(Stdlib.List.isEmpty(items)) then
-      Stdlib.printLine(Display.getSectionHeader(header))
+        Stdlib.printLine($"  {name}/{mark}"))
+      Stdlib.printLine("")
+
+    let printSection(header: String, items: List<(String * LanguageTools.ProgramTypes.Hash)>): Unit =
+      if Stdlib.Bool.not(Stdlib.List.isEmpty(items)) then
+        Stdlib.printLine(Display.getSectionHeader(header))
+        items
+        |> Stdlib.List.iter(fun((name, hash)) ->
+          let mark = Query.deprecationMarker(depSets, modulePath, name, hash)
+          Stdlib.printLine($"  {name}{mark}")
+
+          // A listing names what a name MEANS, which is one version; `--versions` adds what it
+          // has meant.
+          if showVersions then printVersionLines(modulePath, name, hash))
+
+        Stdlib.printLine("")
+
+    // Its own printer: an implementation entry names the trait AND the type, because at the module
+    // level the type is no longer implied by where you are standing, and one form everywhere beats
+    // a short one here and a long one there.
+    let printImplSection(
+      entries: List<(String * String * LanguageTools.ProgramTypes.Hash * List<String>)>)
+      : Unit =
+      if Stdlib.Bool.not(Stdlib.List.isEmpty(entries)) then
+        Stdlib.printLine(Display.getSectionHeader("impl"))
+        entries
+        |> Stdlib.List.iter(fun entry ->
+          let (traitName, typeName, hash, versionsPath) = entry
+          let mark = Query.deprecationMarker(depSets, versionsPath, traitName, hash)
+          Stdlib.printLine($"  implementation of trait \"{traitName}\" for type \"{typeName}\"{mark}")
+          if showVersions then printVersionLines(versionsPath, traitName, hash))
+
+        Stdlib.printLine("")
+
+    // Driven by the one kind order, so this list cannot drift from `tree` or the workbench.
+    Glyphs.kindOrder
+    |> Stdlib.List.iter(fun kind ->
+      match kind with
+      | "module" -> ()
+      | "type" -> printSection("type", types)
+      | "fn" -> printSection("fn", fns)
+      | "val" -> printSection("val", values)
+      | "trait" -> printSection("trait", traits)
+      | "impl" -> printImplSection(implEntries)
+      | "test" -> printSection("test", tests)
+      | _ -> ())
+  else
+    let versionRows(
+      path: List<String>,
+      name: String,
+      hash: LanguageTools.ProgramTypes.Hash)
+      : List<String> =
+      if showVersions then
+        let live = LanguageTools.ProgramTypes.hashToString(hash)
+        match versionsOf(path, name) with
+        | [] | [_] -> []
+        | versions ->
+          versions
+          |> Stdlib.List.map(fun v ->
+            let tag = if v == live then "  live" else ""
+            let full = Listing.qualified(path, name)
+            Listing.plainRow("version", $"{full}  {Stdlib.String.first(v, 8)}{tag}"))
+      else
+        []
+
+    let itemRows(
+      path: List<String>,
+      kind: String,
+      name: String,
+      hash: LanguageTools.ProgramTypes.Hash)
+      : List<String> =
+      let deprecatedHere = Query.isDeprecatedAt(depSets, path, name, hash)
+      Stdlib.List.prepend(
+        versionRows(path, name, hash),
+        Listing.itemRow(kind, Listing.qualified(path, name), deprecatedHere))
+
+    let rowsOf(
+      kind: String,
+      items: List<(String * LanguageTools.ProgramTypes.Hash)>)
+      : List<String> =
       items
-      |> Stdlib.List.iter(fun((name, hash)) ->
-        let mark = Query.deprecationMarker(depSets, modulePath, name, hash)
-        Stdlib.printLine($"  {name}{mark}")
+      |> Stdlib.List.map(fun((name, hash)) -> itemRows(modulePath, kind, name, hash))
+      |> Stdlib.List.flatten
 
-        // A listing names what a name MEANS, which is one version; `--versions` adds what it
-        // has meant.
-        if showVersions then printVersionLines(modulePath, name, hash))
+    Glyphs.kindOrder
+    |> Stdlib.List.map(fun kind ->
+      match kind with
+      | "module" ->
+        submodules
+        |> Stdlib.List.map(fun name ->
+          let path = Stdlib.List.append(modulePath, name)
+          let unused =
+            deprecated == Query.Deprecated.Show
+            && Stdlib.Bool.not(Query.moduleHasActiveItems(branchId, path, depSets))
 
-      Stdlib.printLine("")
-
-  // Its own printer: an implementation entry names the trait AND the type, because at the module
-  // level the type is no longer implied by where you are standing, and one form everywhere beats
-  // a short one here and a long one there.
-  let printImplSection(
-    entries: List<(String * String * LanguageTools.ProgramTypes.Hash * List<String>)>)
-    : Unit =
-    if Stdlib.Bool.not(Stdlib.List.isEmpty(entries)) then
-      Stdlib.printLine(Display.getSectionHeader("impl"))
-      entries
-      |> Stdlib.List.iter(fun entry ->
-        let (traitName, typeName, hash, versionsPath) = entry
-        let mark = Query.deprecationMarker(depSets, versionsPath, traitName, hash)
-        Stdlib.printLine($"  implementation of trait \"{traitName}\" for type \"{typeName}\"{mark}")
-        if showVersions then printVersionLines(versionsPath, traitName, hash))
-
-      Stdlib.printLine("")
-
-  // Driven by the one kind order, so this list cannot drift from `tree` or the workbench.
-  Glyphs.kindOrder
-  |> Stdlib.List.iter(fun kind ->
-    match kind with
-    | "module" -> ()
-    | "type" -> printSection("type", types)
-    | "fn" -> printSection("fn", fns)
-    | "val" -> printSection("val", values)
-    | "trait" -> printSection("trait", traits)
-    | "impl" -> printImplSection(implEntries)
-    | "test" -> printSection("test", tests)
-    | _ -> ())
+          Listing.itemRow("module", Stdlib.String.join(path, "."), unused))
+      | "type" -> rowsOf("type", types)
+      | "fn" -> rowsOf("fn", fns)
+      | "val" -> rowsOf("val", values)
+      | "trait" -> rowsOf("trait", traits)
+      | "impl" ->
+        implEntries
+        |> Stdlib.List.map(fun entry ->
+          let (traitName, _typeName, hash, versionsPath) = entry
+          itemRows(versionsPath, "impl", traitName, hash))
+        |> Stdlib.List.flatten
+      | "test" -> rowsOf("test", tests)
+      | _ -> [])
+    |> Stdlib.List.flatten
+    |> Stdlib.List.iter(fun row -> Stdlib.printLine(row))
 
 
 let execute(state: AppState, args: List<String>): AppState =
@@ -266,6 +338,7 @@ let complete(state: AppState, args: List<String>): List<Completion.CompletionIte
 let help(_state: AppState): String =
   [ "Usage: ls [path] [--include-deprecated] [--include-internal] [--versions]"
     "List contents of the current location or specified path with icons."
+    "Piped or redirected, it prints one `kind  full.name` row per item instead."
     ""
     "Shows modules, types, functions, values, traits, trait implementations and tests, by kind."
     "Deprecated items with no live callers are hidden by default; pass"

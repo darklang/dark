@@ -1,0 +1,41 @@
+/// `ls` and `tree` into a pipe print one `kind  full.name` row per item, for `grep` and `awk`.
+module Darklang.Cli.Tests.ListingPiped
+
+let authored(i: Instance.T): Unit =
+  let _ = Instance.ran(i, [ "type", "Tests.Piped.T", "= { x: Int64 }" ])
+  let _ = Instance.ran(i, [ "val", "Tests.Piped.v", "= 42" ])
+  let _ = Instance.ran(i, [ "fn", "Tests.Piped.f", "(x: Int64): Int64 = x" ])
+  let _ = Instance.ran(i, [ "fn", "Tests.Piped.Inner.g", "(x: Int64): Int64 = x" ])
+  ()
+
+
+test lsPrintsRows = Instance.withInstance(fun i ->
+  let _ = authored(i)
+  let (code, out, _) = Instance.streams(i, [ "ls", "Tests.Piped" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "ls")
+      Stdlib.Test.equal(
+        out,
+        Stdlib.String.join(
+          [ "module  Tests.Piped.Inner"
+            "type    Tests.Piped.T"
+            "fn      Tests.Piped.f"
+            "val     Tests.Piped.v" ],
+          "\n")) ]))
+
+
+test treePrintsRows = Instance.withInstance(fun i ->
+  let _ = authored(i)
+  let (code, out, _) = Instance.streams(i, [ "tree", "Tests.Piped" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "tree")
+      Stdlib.Test.equal(
+        out,
+        Stdlib.String.join(
+          [ "module  Tests.Piped.Inner"
+            "fn      Tests.Piped.Inner.g"
+            "type    Tests.Piped.T"
+            "val     Tests.Piped.v"
+            "fn      Tests.Piped.f" ],
+          "\n")) ]))
+

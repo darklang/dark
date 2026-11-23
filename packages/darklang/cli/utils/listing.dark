@@ -14,11 +14,32 @@ val defaultLimit = 20
 val allFlag = "--all"
 
 
+/// Whether a person reads the listing: stdout is a terminal. On a pipe or a file the reader is
+/// `grep` or `wc`, so a listing prints whole rows and nothing else.
+let forPerson(): Bool =
+  (Stdlib.Cli.Tui.TerminalSupport.currentFacts()).outputIsTerminal
+
+
 /// Whether to cap at all: only for a person at a terminal, never under `--all`, never when stdout is
-/// a pipe or file -- there the reader is `grep` or `wc`, and a silent cut is data loss. Commands call
-/// this once and pass the answer down, so the helpers below stay pure.
+/// a pipe or file, where a silent cut is data loss. Commands call this once and pass the answer
+/// down, so the helpers below stay pure.
 let shouldCap(all: Bool): Bool =
-  Stdlib.Bool.not(all) && (Stdlib.Cli.Tui.TerminalSupport.currentFacts()).outputIsTerminal
+  Stdlib.Bool.not(all) && forPerson()
+
+
+/// One item as a row for a pipe: `kind  full.name`.
+let plainRow(kind: String, name: String): String =
+  $"{Stdlib.Text.padEndToWidth(kind, 6)}  {name}"
+
+
+/// `plainRow`, with `deprecated` as a third column when it is.
+let itemRow(kind: String, name: String, deprecated: Bool): String =
+  if deprecated then plainRow(kind, name) + "  deprecated" else plainRow(kind, name)
+
+
+/// <param name> under <param modulePath>, dotted.
+let qualified(modulePath: List<String>, name: String): String =
+  Stdlib.String.join(Stdlib.List.append(modulePath, name), ".")
 
 
 /// The footer under a capped listing: how many were left out, and how to see them.

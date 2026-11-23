@@ -157,10 +157,23 @@ let execute(state: AppState, args: List<String>): AppState =
       | Ok(startLocation) ->
         // Load deprecation sets once for the whole tree render.
         let depSets = Query.loadDeprecationSets(branchId)
-        let locationStr = formatLocation(startLocation)
-        Stdlib.printLine($"Package tree from {locationStr}:")
-        Stdlib.printLine("")
-        displayTree(branchId, startLocation, maxDepth, 0, "", depSets, deprecated, internal)
+        let forPerson = Listing.forPerson()
+        if forPerson then
+          let locationStr = formatLocation(startLocation)
+          Stdlib.printLine($"Package tree from {locationStr}:")
+          Stdlib.printLine("")
+
+        displayTree(
+          branchId,
+          startLocation,
+          maxDepth,
+          0,
+          "",
+          depSets,
+          deprecated,
+          internal,
+          forPerson)
+
         state
 
 
@@ -177,7 +190,8 @@ let displayTree(
   prefix: String,
   depSets: Query.DeprecationSets,
   deprecated: Query.Deprecated,
-  internal: Query.Internal)
+  internal: Query.Internal,
+  forPerson: Bool)
   : Unit =
   if remainingDepth <= 0 then
     ()
@@ -252,21 +266,32 @@ let displayTree(
       let (name, entityType, hash) = entry
       let isLast = index == entitiesCount - 1
       let treeBranch = if isLast then "└── " else "├── "
-      let fullPrefix = prefix + treeBranch
-      let icon = Display.getIcon(entityType) + " "
-      let mark =
-        if entityType == EntityType.Module then
-          ""
-        else
-          Query.deprecationMarker(depSets, modulePath, name, hash)
+      if forPerson then
+        let fullPrefix = prefix + treeBranch
+        let icon = Display.getIcon(entityType) + " "
+        let mark =
+          if entityType == EntityType.Module then
+            ""
+          else
+            Query.deprecationMarker(depSets, modulePath, name, hash)
 
-      let requirements =
-        if entityType == EntityType.Function then
-          "  " + Stdlib.Cli.UI.Colors.dimText(Permissions.Command.requirementBadge(hash))
-        else
-          ""
+        let requirements =
+          if entityType == EntityType.Function then
+            "  " + Stdlib.Cli.UI.Colors.dimText(Permissions.Command.requirementBadge(hash))
+          else
+            ""
 
-      Stdlib.printLine($"{fullPrefix}{icon}{name}{mark}{requirements}")
+        Stdlib.printLine($"{fullPrefix}{icon}{name}{mark}{requirements}")
+      else
+        let deprecatedHere =
+          entityType != EntityType.Module
+          && Query.isDeprecatedAt(depSets, modulePath, name, hash)
+
+        Stdlib.printLine(
+          Listing.itemRow(
+            Display.kindWord(entityType),
+            Listing.qualified(modulePath, name),
+            deprecatedHere))
 
       // Into submodules, and into an impl, whose methods are a module named for the trait.
       if
@@ -283,7 +308,8 @@ let displayTree(
           newPrefix,
           depSets,
           deprecated,
-          internal))
+          internal,
+          forPerson))
     |> Stdlib.List.iter(fun _ -> ())
 
 
@@ -305,6 +331,7 @@ let help(_state: AppState): String =
     "       packages [path] [--depth=N] [--toc]"
     ""
     "Display package hierarchy in tree format."
+    "Piped or redirected, it prints one `kind  full.name` row per item instead."
     "Deprecated items with no live callers are hidden by default."
     "Pass --include-deprecated to show them; visible deprecations are marked ⚠."
     "Internal helpers (names starting with __) are hidden too; --include-internal shows them."

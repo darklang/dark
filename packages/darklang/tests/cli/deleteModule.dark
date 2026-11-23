@@ -63,13 +63,13 @@ test deleteModuleTakesImpls = Instance.withInstance(fun i ->
   Stdlib.Test.all(
     [ Instance.says(
         before,
-        "implementation of trait \"Display\"",
+        "impl    Me.ImplCheck.Point.Display",
         "the impl was saved")
 
       Instance.exitedWith(code, 0, "deleted")
       Instance.doesNotSay(
         after,
-        "implementation of trait",
+        "impl ",
         "the impl is gone too") ]))
 
 
@@ -186,11 +186,13 @@ test deprecatedModuleDiscoveryAndResave = Instance.withInstance(fun i ->
         "Deprecated Me.DeleteRepro.main (still callable).",
         "the confirmation names the function and explains the effect")
       Instance.doesNotSay(deletion, "Will deprecate", "confirmed delete skips the preview")
-      Instance.doesNotSay(listed, "DeleteRepro/", "hidden in ls")
+      Instance.doesNotSay(listed, "Me.DeleteRepro", "hidden in ls")
       Instance.says(listed, "No visible items in /Me.", "explains the empty listing")
       Instance.says(listed, "dark ls /Me --include-deprecated", "shows how to reveal the module")
       Instance.says(
-        listedWithDeprecated, "DeleteRepro/ (deprecated)", "labels the fully deprecated module")
+        listedWithDeprecated,
+        "module  Me.DeleteRepro  deprecated",
+        "labels the fully deprecated module")
       Instance.doesNotSay(searched, "Me.DeleteRepro", "hidden in search")
       Instance.says(
         searched, "Matching deprecated modules are hidden.", "explains the missing name match")
@@ -208,8 +210,8 @@ test deprecatedModuleDiscoveryAndResave = Instance.withInstance(fun i ->
       Instance.says(
         sameFn, "is unchanged and still deprecated", "fn explains an identical save")
       Instance.says(changed, "is active", "fn explains a different save")
-      Instance.says(after, "DeleteRepro/", "the module is listed")
-      Instance.doesNotSay(after, "DeleteRepro/ (deprecated)", "the module has active code again") ]))
+      Instance.says(after, "module  Me.DeleteRepro", "the module is listed")
+      Instance.doesNotSay(after, "Me.DeleteRepro  deprecated", "the module has active code again") ]))
 
 
 test deletesRelativeToCurrentModule = Instance.withInstance(fun i ->

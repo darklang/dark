@@ -480,7 +480,12 @@ let private deprecationIsReversible =
           "Undeprecated"
           "undeprecate reports what it did"
 
-      do! shows state [ "ls"; "Tests.Undep" ] "  item" "the item appears again"
+      do!
+        shows
+          state
+          [ "ls"; "Tests.Undep" ]
+          "fn      Tests.Undep.item"
+          "the item appears again"
 
       do! shows state [ "eval"; "Tests.Undep.item(1)" ] "4243" "and it still runs"
     })
@@ -902,19 +907,12 @@ let private aNameHoldsOneItemWhateverItsKind =
       Expect.stringContains listing "thing" "the name is still there"
       Expect.stringContains listing "other" "and the untouched value still is too"
 
-      // The value section must hold `other` and NOT `thing`: one live binding per name, so the
+      // The value rows must hold `other` and NOT `thing`: one live binding per name, so the
       // displaced value is gone from the listing rather than sitting beside the fn.
-      //
-      // Sliced by "the lines under Values: until the next section header", not by a fixed pair
-      // of headers: the listing's section ORDER is a UI decision.
       let valuesSection =
-        let lines = listing.Split '\n'
-        match lines |> Array.tryFindIndex (fun l -> l.Contains "Values:") with
-        | None -> ""
-        | Some i ->
-          lines[i + 1 ..]
-          |> Array.takeWhile (fun l -> not (l.TrimEnd().EndsWith ":"))
-          |> String.concat "\n"
+        listing.Split '\n'
+        |> Array.filter (fun l -> l.StartsWith "val ")
+        |> String.concat "\n"
 
       Expect.stringContains
         valuesSection
