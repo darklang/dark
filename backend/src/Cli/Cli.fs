@@ -207,10 +207,6 @@ let execute
               LibDB.PackagePermissions.Load.fromStore
               state.fns.builtIn
               state.spread.counts }
-    // `--no-input` becomes `DARK_NO_INPUT`, one switch with one spelling.
-    if List.contains "--no-input" args then
-      System.Environment.SetEnvironmentVariable("DARK_NO_INPUT", "1")
-    let args = args |> List.filter (fun a -> a <> "--no-input")
     // A leading override applies only to this invocation; nothing is stored, so there is
     // nothing to restore afterwards. The test runner spawns its parallel workers this way
     // (`LibDB.TestProcess`), by exact hash.
@@ -791,9 +787,17 @@ let private runCli (args : string[]) : int =
             $"current branch '{label}' is gone (archived or merged); now on main")
         selection.branchId
 
+    // `--no-input` and `--no-color` become `DARK_NO_INPUT` and `NO_COLOR`, one switch each.
+    // Set before the console's first write, which is when it reads `NO_COLOR`.
+    if Array.contains "--no-input" args then
+      System.Environment.SetEnvironmentVariable("DARK_NO_INPUT", "1")
+    if Array.contains "--no-color" args then
+      System.Environment.SetEnvironmentVariable("NO_COLOR", "1")
+
     // Strip the boot flags so none of them reaches the entry-point fn as a positional
     // argument. `--branch` takes a value in its space form, so it goes by index and width;
-    // the recording flags are bare and go by name.
+    // the rest are bare and go by name. `--json` belongs to the command, so it moves after
+    // it: `dark --json status` is `dark status --json`.
     let args =
       let withoutBranch =
         match branchFlag with
@@ -802,11 +806,17 @@ let private runCli (args : string[]) : int =
             (Array.sub args 0 i)
             (Array.sub args (i + width) (args.Length - i - width))
         | None -> args
-      Array.append
-        (withoutBranch
-         |> Array.filter (fun a ->
-           a <> "--trace" && a <> "--no-trace" && a <> "--no-spread"))
-        scriptTail
+      let rest =
+        withoutBranch
+        |> Array.filter (fun a ->
+          a <> "--trace"
+          && a <> "--no-trace"
+          && a <> "--no-spread"
+          && a <> "--no-input"
+          && a <> "--no-color"
+          && a <> "--json")
+      let json = if Array.contains "--json" args then [| "--json" |] else [||]
+      Array.concat [ rest; json; scriptTail ]
 
     LibDB.PackageManager.selectBranch (
       branchId |> Option.defaultValue PT.BranchId.Main
