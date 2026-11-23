@@ -169,7 +169,7 @@ let select (candidates : List<ImplCandidate>) (self : KnownType) : Selection =
     // added it and the rule the op-fold uses for two bindings of one name. Both stay in the
     // store; `dark constraints` reports the pair, and deprecating one settles it.
     //
-    // TODO: nothing stops the later one belonging to somebody who owns neither the trait nor the
+    // Nothing stops the later one belonging to somebody who owns neither the trait nor the
     // type. Writing `impl Stdlib.Display for Int64` in your own package is allowed, the save says
     // only `Created`, and from then on `Stdlib.display 42L` answers what you wrote, for all new
     // code; saved calls keep what they resolved to, so the exposure is to what is written next.

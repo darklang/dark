@@ -422,7 +422,7 @@ let rec unifyValueType
 
       | TFn(argTypes, returnType), ValueType.Known(KTFn(vArgs, vRet)) ->
         if NEList.length argTypes <> NEList.length vArgs then
-          Error pathSoFar // CLEANUP include the lengths in the path
+          Error pathSoFar
         else
           List.zip
             (returnType :: (NEList.toList argTypes))
@@ -1965,7 +1965,6 @@ module DvalCreator =
 
           match unify types tst fieldDef.typ fieldValue with
           | Error _path ->
-            // CLEANUP involve path, somehow
             // Resolved here rather than before the check that almost always passes.
             let expected = TypeReference.toVT types tst fieldDef.typ
             RTE.Records.UpdateFieldOfWrongType(
