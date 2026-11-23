@@ -392,6 +392,7 @@ let addTest(state: AppState, locationStr: String, definition: String): AppState 
               location,
               LanguageTools.ProgramTypes.ItemKind.Test,
               "test",
+              fullSource,
               0,
               fun ctx ->
                 let (packageTest, unresolvedNames) =

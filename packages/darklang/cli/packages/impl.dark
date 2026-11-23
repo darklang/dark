@@ -85,14 +85,15 @@ let createImplInline(state: AppState, modulePath: String, definition: String): A
     hint,
     fun(baseLocation, declaration) ->
       match declaration with
-      | Impl(implDecl) -> Option.Some(saveImpl(state, baseLocation, implDecl))
+      | Impl(implDecl) -> Option.Some(saveImpl(state, baseLocation, implDecl, implSource(definition)))
       | _ -> Option.None)
 
 
 let saveImpl(
   state: AppState,
   baseLocation: LanguageTools.ProgramTypes.PackageLocation,
-  implDecl: LanguageTools.WrittenTypes.ImplDeclaration.ImplDeclaration)
+  implDecl: LanguageTools.WrittenTypes.ImplDeclaration.ImplDeclaration,
+  given: String)
   : AppState =
   // The item's own location: the member path's last segment is the trait.
   let memberPath =
@@ -139,6 +140,7 @@ let saveImpl(
       location,
       LanguageTools.ProgramTypes.ItemKind.TraitImpl,
       "implementation",
+      given,
       0,
       fun ctx ->
         // Lower from the MODULE the impl is written in; `implWithOps` builds

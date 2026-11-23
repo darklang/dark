@@ -83,6 +83,7 @@ let createFnInline(state: AppState, locationStr: String, definition: String): Ap
             location,
             LanguageTools.ProgramTypes.ItemKind.Fn,
             "function",
+            wrapped,
             shift,
             fun ctx ->
               let (packageFn, unresolvedNames) =

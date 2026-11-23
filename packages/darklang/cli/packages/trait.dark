@@ -74,6 +74,7 @@ let createTraitInline(state: AppState, locationStr: String, definition: String):
             location,
             LanguageTools.ProgramTypes.ItemKind.Trait,
             "trait",
+            traitSource(location.name, definition),
             0,
             fun ctx ->
               let (packageTrait, ops, unresolvedNames) =

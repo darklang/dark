@@ -1,0 +1,81 @@
+/// A save that reformats the code prints what it stored, on stdout, so the next edit can start
+/// from it.
+module Darklang.Cli.Tests.SaveReformatted
+
+test fnPrintsTheStoredForm = Instance.withInstance(fun i ->
+  let (code, out, _) =
+    Instance.streams(i, [ "fn", "Me.Fmt.double", "(x: Int64): Int64 = (x * 2)" ])
+
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "the save")
+      Instance.says(out, "stored as:", "the label")
+      Instance.says(out, "let double(x: Int64): Int64 =\n  x * 2", "the stored declaration") ]))
+
+
+test fnAlreadyFormattedPrintsNothingMore = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/triple.dark"
+  let _ =
+    Stdlib.Cli.File.writeAtomic(path, "let triple(x: Int64): Int64 =\n  x * 3\n")
+    |> Builtin.unwrap
+
+  let (code, out, _) = Instance.streams(i, [ "fn", "Me.Fmt.triple", path ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "the save")
+      Instance.doesNotSay(out, "stored as", "the text was stored as given")
+      Instance.doesNotSay(out, "x * 3", "nothing reprinted") ]))
+
+
+test modulePrintsOnlyWhatItReformatted = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/mod.dark"
+  let source =
+    "let same(x: Int64): Int64 =\n  x + 1\n\nlet squeezed(x: Int64): Int64 = x+2\n"
+
+  let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
+  let (code, out, _) = Instance.streams(i, [ "module", "/Me.Fmt", path ])
+  let (againCode, again, _) = Instance.streams(i, [ "module", "/Me.Fmt", path ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "the save")
+      Instance.says(out, "let squeezed(x: Int64): Int64 =\n  x + 2", "the reformatted one")
+      Instance.doesNotSay(out, "let same", "a declaration stored as written")
+      Instance.exitedWith(againCode, 0, "the second save")
+      Instance.doesNotSay(again, "stored as", "a resend that changed nothing") ]))
+
+
+test editPrintsTheStoredForm = Instance.withInstance(fun i ->
+  let _ = Instance.ran(i, [ "fn", "Me.Fmt.inc", "(x: Int64): Int64 = x + 1" ])
+  let path = Instance.home(i) + "/inc.dark"
+  let _ =
+    Stdlib.Cli.File.writeAtomic(path, "let inc(x: Int64): Int64 = (x + 10)\n")
+    |> Builtin.unwrap
+
+  let (code, out, _) = Instance.streams(i, [ "edit", "Me.Fmt.inc", path ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "the edit")
+      Instance.says(out, "Updated Me.Fmt.inc", "the summary")
+      Instance.says(out, "let inc(x: Int64): Int64 =\n  x + 10", "the stored declaration") ]))
+
+
+test aSubmoduleDeclarationKeepsItsModule = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/sub.dark"
+  let source = "let top(x: Int64): Int64 =\n  x\n\nmodule Sub =\n  let c(x: Int64): Int64 = x+3\n"
+  let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
+  let (code, out, _) = Instance.streams(i, [ "module", "/Me.Fmt", path ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 0, "the save")
+      Instance.says(
+        out,
+        "module Sub =\n  let c(x: Int64): Int64 =\n    x + 3",
+        "inside its submodule") ]))
+
+
+test aPatchWithATypeErrorShowsTheDeclarationOnce = Instance.withInstance(fun i ->
+  let _ = Instance.ran(i, [ "fn", "Me.Fmt.inc", "(x: Int64): Int64 = x + 1" ])
+  let patch =
+    "@@\n let inc(x: Int64): Int64 =\n-  x + 1\n+  (x + \"one\")\n"
+
+  let (code, out) = Edit.runWithStdin(i, [ "edit", "Me.Fmt.inc", "--patch", "-" ], patch)
+  let shown = Stdlib.String.split(out, "let inc(x: Int64): Int64 =") |> Stdlib.List.length
+  Stdlib.Test.all(
+    [ Instance.exitedWith(code, 1, out)
+      Instance.says(out, "x + \"one\"", "the stored declaration")
+      shown |> Stdlib.Test.equal(2) ]))
