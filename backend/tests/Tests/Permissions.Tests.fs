@@ -359,6 +359,29 @@ let retiredDatastoreRulesAreRejected =
         "unsupported rules never silently disappear"
   }
 
+let savedConcurrencyRulesAreIgnored =
+  test "a saved policy naming concurrency loads, without that rule" {
+    use stream = new System.IO.MemoryStream()
+    use writer = new System.IO.BinaryWriter(stream)
+    let effectRules names =
+      Bin.List.write
+        writer
+        (fun w (name : string) ->
+          w.Write 1uy
+          Bin.String.write w name)
+        names
+    effectRules [ "concurrency"; "clock" ]
+    effectRules [ "concurrency" ]
+    writer.Flush()
+    stream.Position <- 0L
+    use reader = new System.IO.BinaryReader(stream)
+    let policy = LibSerialization.Binary.Serializers.Permissions.read reader
+    Expect.equal
+      (Permission.Policy.rules policy)
+      ([ Permission.Rule.Effect Effect.Effect.Clock ], [])
+      "only the clock grant is left"
+  }
+
 let bulkEnvironmentHonorsDenies =
   test "an environment enumeration cannot bypass a denied variable" {
     let deny = Permission.Rule.Env(Permission.AccessKind.Read, only "SECRET")
@@ -1587,6 +1610,7 @@ let tests =
       processRulesPreserveArgumentOrder
       coverableEffectsFollowTheRules
       retiredDatastoreRulesAreRejected
+      savedConcurrencyRulesAreIgnored
       bulkEnvironmentHonorsDenies
       httpRulesNormalizeLikeRequests
       suggestRuleIsActionable

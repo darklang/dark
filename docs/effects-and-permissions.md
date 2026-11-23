@@ -30,7 +30,7 @@ These are the effects Dark tracks:
 - Process: start external programs and communicate with them.
 - TraceRead: read recordings of earlier runs.
 - TraceWrite: write, change or delete those recordings.
-- Concurrency: start Dark background work with Stdlib.Exec.spawn.
+- Concurrency: start Dark background work with Stdlib.Exec.spawn. Shown, but not a permission: that work keeps the restrictions of the code that started it.
 - Native: use broad system access, such as stopping a process by its ID.
 - Clock: read the time or use timers.
 - Random: generate random values.
@@ -73,7 +73,6 @@ A new Dark installation allows these without asking:
 - Reading the time, using timers and generating random values.
 - Reading the local package store.
 - Reading and writing traces.
-- Starting Dark background work with Stdlib.Exec.spawn. That work keeps the restrictions of the code that started it.
 
 You can remove or deny any of these default permissions.
 

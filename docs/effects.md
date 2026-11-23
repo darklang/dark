@@ -120,6 +120,12 @@ listed in `LibDB.Raises.cannotRaise`, and the path does not go through them.
 `Builtin.Tests.raisingBuiltinsDeclareRaise` holds every builtin with a raise site
 in its source to it.
 
+`Concurrency` marks `Exec.spawn`: the call starts a process that runs beside this
+one. It is information, not a permission, like `Raise`. The child runs under the
+spawner's access, so a grant would give it nothing. `view` and `effects` show it;
+policies, prompts and approvals leave it out. A saved rule that names it is
+ignored.
+
 ## Storage
 
 The protected, atomic policy file is `~/.darklang/policy/policies.bin`. Named

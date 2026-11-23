@@ -541,14 +541,12 @@ its error raised again with the child's frames kept below the caller's;
 process running; `Exec.select(hs)` is the first to finish with its value.
 `Exec.cancel(h)` asks it to stop (cancel and kill, and what reaches children:
 the "`dark ps`" section). `spawn` carries the
-`Concurrency` effect, ambient and allowed by the default instance policy: a
-spawned process can do nothing the spawner could not. An install whose policy
-was seeded before this effect existed needs `dark permissions allow
-concurrency` once. `List.parallelMap` is `spawn` per element then `await` in
-order, and is the way to overlap writes. For computation and reads it adds
-nothing: plain `List.map` spreads computation by itself (above), in chunks
-rather than a process per element, and reads run concurrently under it
-already.
+`Concurrency` effect, which is information and not a permission: a spawned
+process can do nothing the spawner could not. `List.parallelMap` is `spawn`
+per element then `await` in order, and is the way to overlap writes. For
+computation and reads it adds nothing: plain `List.map` spreads computation
+by itself (above), in chunks rather than a process per element, and reads run
+concurrently under it already.
 
 From a trace nobody scheduled (a test's `execute`, an HTTP handler)
 `spawn` uses a process-wide scheduler with workers of its own

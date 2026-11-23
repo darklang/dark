@@ -1760,13 +1760,11 @@ let private spawnedErrorReachesAwait =
   testTask "a spawned process that fails raises at await, under the spawner's access" {
     Trace.take () |> ignore<List<string>>
     let state = executionStateFor pmPT false
-    // Spawning is allowed and nothing else is, so the spawn itself goes through and the
+    // Nothing is allowed. Spawning needs no grant, so the spawn itself goes through and the
     // child's read is what gets denied: the child inherits the spawner's access.
     let spawnOnly =
       LibExecution.Execution.restrictRun
-        (LibExecution.Permissions.Policy.allowEffects (
-          Set.singleton LibExecution.Effects.Effect.Concurrency
-        ))
+        LibExecution.Permissions.Policy.denyAll
         state
     do!
       withWorkers 2 (fun root ->

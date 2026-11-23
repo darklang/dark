@@ -29,7 +29,8 @@ read, an HTTP GET or HEAD). Anything else runs in order.
   Stdlib.List.parallelMap(urls, post)                    // writes at once, results in order
 
 A process spawned this way dies with its parent.
-Spawning is the `concurrency` effect; a policy can forbid it.
+Spawning is the `concurrency` effect. It is not a permission: the spawned
+process runs under the spawner's access.
 
 ## See what is running
 

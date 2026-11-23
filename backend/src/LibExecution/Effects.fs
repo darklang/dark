@@ -26,9 +26,8 @@ type Effect =
   | PackageWrite
   | TraceRead
   | TraceWrite
-  /// Starting a process that runs beside this one (`Exec.spawn`). Ambient: the child runs under
-  /// the spawner's access, so what it may do is already decided; this names only that it runs at
-  /// all, on another core if one is free.
+  /// Starting a process that runs beside this one (`Exec.spawn`). Information, not a permission:
+  /// the child runs under the spawner's access, so a grant would give it nothing.
   | Concurrency
   /// Changing this process's own in-memory state: dropping its package caches, arming its store
   /// watch. Nothing persistent, nothing another process sees, but it is what a live host does to
@@ -137,9 +136,12 @@ let fromName (wanted : string) : Option<Effect> =
 let performsAny (effects : Set<Effect>) : bool =
   Set.exists (fun effect -> effect <> Effect.Raise) effects
 
-/// The effects a permission policy decides on: all but `Raise`.
+/// Effects shown to a reader that no policy grants or denies.
+let informationOnly : Set<Effect> = set [ Effect.Raise; Effect.Concurrency ]
+
+/// The effects a permission policy decides on: all but the information-only ones.
 let permissionEffects (effects : Set<Effect>) : Set<Effect> =
-  Set.remove Effect.Raise effects
+  Set.difference effects informationOnly
 
 /// A read effect observes the world without changing it, so calls whose effects are all reads
 /// may run concurrently and complete in any order; the interpreter hands such a call back as a

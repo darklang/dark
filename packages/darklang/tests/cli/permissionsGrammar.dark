@@ -302,6 +302,14 @@ module PermissionsGrammar =
     |> Stdlib.Test.equal(true)
 
 
+  // `raise` and `concurrency` are shown but never granted or denied, so no rule names them.
+  test informationEffectsAreNotRules =
+    ([ "raise", "concurrency" ]
+     |> Stdlib.List.all(fun name ->
+       Stdlib.Option.isNone(LanguageTools.Permissions.parseRuleText(name))))
+    |> Stdlib.Test.equal(true)
+
+
   // `*` is the wildcard executable, not an executable literally named `*`.
   test wildcardExecutable =
     Stdlib.Test.all(
