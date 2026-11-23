@@ -981,3 +981,24 @@ test aKilledRunShowsAsLost = withTraces(fun i ->
   Stdlib.Test.all(
     [ Instance.says(out, "lost", "the killed run is lost")
       Instance.doesNotSay(out, "running", "and not still running") ]))
+
+
+// `find` over a run that has not finished: listed as running, beside the finished ones.
+test findListsARunStillGoing = withTraces(fun i ->
+  let _ = step(i, [ "eval", "Stdlib.Cli.Posix.sleep(1.0)" ])
+  let env =
+    Instance.env(i)
+    |> Stdlib.List.map(fun((k, v)) -> $"{k}={v}")
+    |> Stdlib.String.join(" ")
+
+  let db = $"{i.dir}/data.db"
+  // Search while the run is still going, then stop it.
+  let script =
+    $"env {env} {i.cli} eval 'Stdlib.Cli.Posix.sleep(60000.0)' >/dev/null 2>&1 & pid=$!; for n in $(seq 300); do [ \"$(sqlite3 {db} \"SELECT COUNT(*) FROM traces WHERE status = 'running'\")\" = 1 ] && break; sleep 0.1; done; env {env} {i.cli} traces find Posix.sleep 2>&1; echo \"exit $?\"; kill -TERM $pid; wait $pid; true"
+
+  let out = (Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", script)).stdout
+  Stdlib.Test.all(
+    [ Instance.says(out, "exit 0", "find succeeds")
+      Instance.says(out, "running", "the unfinished run is listed as running")
+      Instance.says(out, "done", "beside the finished one")
+      Instance.doesNotSay(out, "Internal error", "and nothing broke") ]))

@@ -290,6 +290,20 @@ let private runsSql (query : Query) =
   | _ -> Exception.raiseInternal "not a run query" []
 
 
+/// Whether any of <param items> passes <param pred>, asking in order and stopping at the first.
+let private anyAsync
+  (pred : 'a -> System.Threading.Tasks.Task<bool>)
+  (items : seq<'a>)
+  : System.Threading.Tasks.Task<bool> =
+  task {
+    use e = items.GetEnumerator()
+    let mutable found = false
+    while not found && e.MoveNext() do
+      let! hit = pred e.Current
+      found <- hit
+    return found
+  }
+
 // TODO (perf, foot-gun): we walk every trace + its fn_calls in
 // F#-land, deserialize each Dval to a string repr, then substring-
 // match. The previous shape was SQL `LIKE` over JSON columns —
@@ -304,86 +318,59 @@ let private containing
   (exeState : ExecutionState)
   (pattern : string)
   (limit : int64)
-  : List<Dval> =
+  : System.Threading.Tasks.Task<List<Dval>> =
   // Newest-first, deserializing each run's input and then, only if that misses, its
   // calls; stop at `limit` matches. Bounded at both ends on purpose: the scan window
   // keeps a store with retention turned off from loading every input blob it has, and
   // `limit` keeps the deserializing short. A match older than the window is not found,
   // which is what the description says.
-  let containsPattern (dv : Dval) : bool =
-    // A stored input holds no read in flight, so its printing never waits.
-    let repr = Execution.now (Execution.dvalToRepr exeState dv)
-    repr.Contains(pattern)
+  let containsPattern (dv : Dval) : System.Threading.Tasks.Task<bool> =
+    task {
+      let! repr = Execution.dvalToRepr exeState dv
+      return repr.Contains(pattern)
+    }
+
+  let callsOf (traceId : string) =
+    Sql.query
+      "SELECT c.args, r.bytes AS result
+       FROM trace_fn_calls c
+       JOIN trace_blobs r
+         ON r.trace_id = c.trace_id AND r.hash = c.result
+       WHERE c.trace_id = @traceId"
+    |> Sql.parameters [ "traceId", Sql.string traceId ]
+    |> Sql.executeRows (fun read -> read.bytes "args", read.bytes "result")
+
+  // The run's input, what it answered (a pure computation logs no calls, so its result is
+  // the only place its value appears), then each logged call's args and result. Lazy, so
+  // the calls are only read when the input and result miss.
+  let valuesOf (id : string, inputBytes : byte[], resultBytes : Option<byte[]>) =
+    seq {
+      yield BinarySer.RT.Dval.deserialize "traces.input_value" inputBytes
+      match resultBytes with
+      | Some bytes -> yield BinarySer.RT.Dval.deserialize "traces.result_value" bytes
+      | None -> ()
+      for (args, result) in callsOf id do
+        yield BinarySer.RT.Dval.deserialize "trace_fn_calls.args" args
+        yield BinarySer.RT.Dval.deserialize "trace_fn_calls.result" result
+    }
 
   let traces =
     Sql.query
       $"SELECT {traceColumns} {fromTraces}
         ORDER BY t.timestamp DESC, t.rowid DESC LIMIT 2000"
     |> Sql.executeRows (fun read ->
-      {| id = read.string "id"
-         row = traceRowToDT read
-         inputBytes = read.bytes "input_value"
-         resultBytes = read.bytesOrNone "result_value" |})
+      traceRowToDT read,
+      (read.string "id", read.bytes "input_value", read.bytesOrNone "result_value"))
 
-  let (_, hits) =
-    traces
-    |> List.fold
-      (fun (count : int64, hits : List<Dval>) t ->
-        if count >= limit then
-          ((count, hits))
-        else
-          let inputDval =
-            BinarySer.RT.Dval.deserialize "traces.input_value" t.inputBytes
-          let inputHit = containsPattern inputDval
-          // What the run answered counts as the run's own text too: a pure computation
-          // logs no calls, so its result is the only place its value appears.
-          let resultHit =
-            match t.resultBytes with
-            | Some bytes ->
-              containsPattern (
-                BinarySer.RT.Dval.deserialize "traces.result_value" bytes
-              )
-            | None -> (false)
-          let inputMatches = inputHit || resultHit
-
-          let matchesViaCalls =
-            if inputMatches then
-              (true)
-            else
-              let callRows =
-                Sql.query
-                  "SELECT c.args, r.bytes AS result
-                   FROM trace_fn_calls c
-                   JOIN trace_blobs r
-                     ON r.trace_id = c.trace_id AND r.hash = c.result
-                   WHERE c.trace_id = @traceId"
-                |> Sql.parameters [ "traceId", Sql.string t.id ]
-                |> Sql.executeRows (fun read ->
-                  {| argsBytes = read.bytes "args"
-                     resultBytes = read.bytes "result" |})
-
-              callRows
-              |> List.fold
-                (fun found row ->
-                  if found then
-                    (true)
-                  else
-                    let argsDval =
-                      BinarySer.RT.Dval.deserialize
-                        "trace_fn_calls.args"
-                        row.argsBytes
-                    let resultDval =
-                      BinarySer.RT.Dval.deserialize
-                        "trace_fn_calls.result"
-                        row.resultBytes
-                    let argsMatch = containsPattern argsDval
-                    if argsMatch then true else containsPattern resultDval)
-                false
-
-          if matchesViaCalls then (count + 1L, t.row :: hits) else (count, hits))
-      (0L, [])
-
-  List.rev hits
+  task {
+    let hits = ResizeArray<Dval>()
+    use e = (traces :> seq<_>).GetEnumerator()
+    while int64 hits.Count < limit && e.MoveNext() do
+      let (row, stored) = e.Current
+      let! hit = anyAsync containsPattern (valuesOf stored)
+      if hit then hits.Add row
+    return List.ofSeq hits
+  }
 
 
 /// One run with its inputs and its calls, as a `Tracing.TraceData`.
@@ -609,7 +596,7 @@ let private answerToDT (a : Answer) : Dval =
         "totals", Dval.list totalsKT a.totals ]
   )
 
-let private answer (exeState : ExecutionState) (query : Query) : Answer =
+let private answer (query : Query) : Answer =
   match query with
   | Newest _
   | Calling _
@@ -618,9 +605,8 @@ let private answer (exeState : ExecutionState) (query : Query) : Answer =
     let sql, ps = runsSql query
     let rows = Sql.query sql |> Sql.parameters ps |> Sql.executeRows traceRowToDT
     { noAnswer with runs = rows }
-  | Containing(pattern, limit) ->
-    let rows = containing exeState pattern limit
-    { noAnswer with runs = rows }
+  | Containing _ ->
+    Exception.raiseInternal "a search waits, so tracesQuery answers it" []
   | Detail traceID ->
     let d = detail traceID
     { noAnswer with detail = d }
@@ -735,8 +721,15 @@ let fns () : List<BuiltInFn> =
         (function
         | exeState, _, _, [| q |] ->
           LibDB.Traces.markLost ()
-          let a = answer exeState (queryFromDT q)
-          answerToDT a
+          match queryFromDT q with
+          // Printing each stored value runs the printer, which can wait like any other run.
+          | Containing(pattern, limit) ->
+            task {
+              let! rows = containing exeState pattern limit
+              return answerToDT { noAnswer with runs = rows }
+            }
+            |> LibExecution.Pending.ofTask
+          | query -> answerToDT (answer query)
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.TraceRead ]
