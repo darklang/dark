@@ -1,0 +1,6 @@
+module Darklang.Language.Tests
+
+/// Inject an uncaught runtime exception to test propagation and rendering.
+/// Available only inside a running package test; never returns a value.
+let raiseRuntimeError(message: String): Int64 =
+  Builtin.pmTestRaiseRuntimeError(message)

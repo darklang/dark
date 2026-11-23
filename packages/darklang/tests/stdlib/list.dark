@@ -1329,23 +1329,23 @@ test uniqueByRejectsFunctionElementsAsKeys =
 
 
 test headEvaluatesElements =
-  Stdlib.List.head([ Stdlib.Test.raiseRuntimeError("test") ])
+  Stdlib.List.head([ Darklang.Language.Tests.raiseRuntimeError("test") ])
   => raises "Uncaught exception: test"
 
 
 test lastEvaluatesElements =
-  Stdlib.List.last([ Stdlib.Test.raiseRuntimeError("test") ])
+  Stdlib.List.last([ Darklang.Language.Tests.raiseRuntimeError("test") ])
   => raises "Uncaught exception: test"
 
 
 test randomElementEvaluatesElements =
-  Stdlib.List.randomElement([ Stdlib.Test.raiseRuntimeError("test") ])
+  Stdlib.List.randomElement([ Darklang.Language.Tests.raiseRuntimeError("test") ])
   => raises "Uncaught exception: test"
 
 
 test zipEvaluatesElements =
   Stdlib.List.zip(
-    [ Stdlib.Test.raiseRuntimeError("msg") ],
+    [ Darklang.Language.Tests.raiseRuntimeError("msg") ],
     [ Stdlib.Option.Option.Some("") ])
   => raises "Uncaught exception: msg"
 

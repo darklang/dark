@@ -10,13 +10,13 @@ test construction =
       |> Stdlib.Test.equal((1, 2, 3, 4, 5, 6, 7, 8, 9)) ])
 
 test elementErrorRaises =
-  (1, Stdlib.Test.raiseRuntimeError("test"), 3)
+  (1, Darklang.Language.Tests.raiseRuntimeError("test"), 3)
   => raises "Uncaught exception: test"
 
 test firstElementErrorRaises =
   (1,
-   Stdlib.Test.raiseRuntimeError("error1"),
-   Stdlib.Test.raiseRuntimeError("error2"))
+   Darklang.Language.Tests.raiseRuntimeError("error1"),
+   Darklang.Language.Tests.raiseRuntimeError("error2"))
   => raises "Uncaught exception: error1"
 
 // Tuple indices start at 1.
