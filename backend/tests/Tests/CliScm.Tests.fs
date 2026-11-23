@@ -333,9 +333,8 @@ let private aMissingNameIsOneLineNotAStackHeader =
         let! deep = runCli state [ "eval"; "Tests.Stk.boom()" ]
         Expect.stringContains
           deep
-          "Call stack"
+          "\n  in Stdlib.Int64.Divide.divide\n  called from Stk.boom"
           $"a failure inside a call still shows where: {deep}"
-        Expect.stringContains deep "Stk.boom" $"naming the frame: {deep}"
         do! discardAll state
         ()
       })

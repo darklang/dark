@@ -775,7 +775,21 @@ test processDenialHintsPasteIntoRun = Instance.withInstance(fun i ->
       Instance.says(widerOut, "it's a c", "and the program ran") ]))
 
 
-/// Two nested lambdas in a script stay two frames, each named by the line it starts on.
+/// A crash shows the Darklang function it happened in, then the user's code that called it.
+/// With none of the user's code, it shows the Darklang function alone.
+test aCrashShowsTheDarklangFunctionItHappenedIn = Instance.withInstance(fun i ->
+  let path = script(i, "half.dark", "let half(n: Int64): Int64 = 10 / n\nhalf(0)\n")
+  let (_, fromScript) = Instance.ran(i, [ "run", path ])
+  let (_, fromEval) = Instance.ran(i, [ "eval", "10 / 0" ])
+  Stdlib.Test.all(
+    [ Instance.says(
+        fromScript,
+        "  in Stdlib.Int64.Divide.divide\n  called from half\n  called from line 2 of the script",
+        "the Darklang function, then the user's code")
+      Instance.says(fromEval, "  in Stdlib.Int64.Divide.divide", "no user code: Darklang's") ]))
+
+
+/// Two nested lambdas in a script stay two lines, each named by the line it starts on.
 test scriptLambdaFramesGiveTheirLines = Instance.withInstance(fun i ->
   let path = $"{Instance.home(i)}/lambdas.dark"
   let source =
@@ -785,15 +799,12 @@ test scriptLambdaFramesGiveTheirLines = Instance.withInstance(fun i ->
   let (code, out) = Instance.ran(i, [ "run", path ])
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "boom fails")
-      Instance.says(
-        out,
-        "- Lambda in Source (line 2)\n",
-        "the top-level expression")
-
-      Instance.says(out, "- Lambda in Source (line 4)\n", "the outer lambda")
-
-      Instance.says(out, "- Lambda in Source (line 5)\n", "the inner lambda")
-      Instance.doesNotSay(out, "(×", "no lambdas merged") ]))
+      Instance.says(out, "Script error: Cannot unwrap None\n  in boom\n", "the error, then where")
+      Instance.says(out, "  called from line 5 of the script\n", "the inner lambda")
+      Instance.says(out, "  called from line 4 of the script\n", "the outer lambda")
+      Instance.says(out, "  called from line 2 of the script", "the top-level expression")
+      Instance.doesNotSay(out, "(×", "no lambdas merged")
+      Instance.doesNotSay(out, "Call stack", "no raw stack") ]))
 
 
 /// `eval --allow` grants access for that one evaluation, as `run --allow` does.

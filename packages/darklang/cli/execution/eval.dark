@@ -68,12 +68,7 @@ let evaluateRawUnder(
       let (width, _rows) = Terminal.getSize()
       let color = Stdlib.Cli.Sys.isTerminal(1)
       Result.Ok(Option.Some(Terminal.renderValue(branchId, width, color, currentModule, dv)))
-  | Error(error) ->
-    match error with
-    | Runtime(_, _, _) -> ExecutionError.printCallStack(branchId, error)
-    | _ -> ()
-
-    Result.Error(error)
+  | Error(error) -> Result.Error(error)
 
 
 /// Evaluate `expr` and hand back what it produced: `Ok (Some printed)` for a value, `Ok None` for something
@@ -101,7 +96,11 @@ let evaluateUnder(
           grants) with
   | Ok(result) -> Result.Ok(result)
   | Error(err) ->
-    Result.Error(ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, err))
+    let message = ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, err)
+    let lines =
+      ExecutionError.whereLines(state.currentBranchId, err, ExecutionError.Entry.Call)
+
+    Result.Error(Stdlib.String.join(Stdlib.List.prepend(lines, message), "\n"))
 
 
 let execute(state: AppState, args: List<String>): AppState =
