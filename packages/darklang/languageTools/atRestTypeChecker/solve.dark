@@ -1781,6 +1781,88 @@ let tupleIndexOfFieldName(field: String): Option<Int64> =
       Option.None
 
 
+/// `x.display` where x has no field `display`: a call to the trait method of that name, with x
+/// as its first argument, as the runtime runs it. Only when exactly one trait has that method
+/// and an implementation for x's type; otherwise None, and the caller reports the field error.
+let receiverCall(
+  s: State,
+  at: Int64,
+  subject: Model.Ty,
+  field: String,
+  result: Model.Ty)
+  : Option<State> =
+  let nodeId = Option.Some(at)
+  let (visible, env) = Environment.withVisibleTraits(s.env)
+  let hashes =
+    Stdlib.List.concat(
+      Stdlib.Dict.values(visible),
+      Stdlib.Dict.values(env.batchTraits) |> Stdlib.List.map(fun t -> t.hash))
+    |> Stdlib.List.unique
+
+  let (matching, env) =
+    hashes
+    |> Stdlib.List.fold(([], env), fun((found, env), hash) ->
+      let declares =
+        match Environment.traitFor(env, hash) with
+        | Some(trait_) -> Stdlib.List.any(trait_.methods, fun m -> m.name == field)
+        | None -> false
+
+      if declares then
+        match subject with
+        // `v.display` where `v: 'a`: the caller picks the type, so leave the implementation to
+        // them, as `Stdlib.display(v)` does.
+        | TRigid(_) -> (Stdlib.List.prepend(found, hash), env)
+        | _ ->
+          let (impls, env) = Environment.implsOfTrait(env, hash)
+          if Stdlib.List.any(impls, fun((self, _)) -> Types.headMatches(self, subject)) then
+            (Stdlib.List.prepend(found, hash), env)
+          else
+            (found, env)
+      else
+        (found, env))
+
+  let s = { s with env = env }
+  match matching with
+  | [traitHash] ->
+    let method =
+      ProgramTypes.FQFnName.TraitMethod
+        { trait_ = traitHash, method_ = field, implFn = ProgramTypes.FQFnName.ImplChoice.Unknown }
+
+    let (callable, env) = Environment.traitCallable(s.env, method)
+    let s = { s with env = env }
+    match callable with
+    | Declared(t) ->
+      match t.parameters with
+      | [self, ...rest] ->
+        let (_, mapping, s) = instantiateParams(s, nodeId, t.typeParams, [])
+        let self = Types.substituteRigid(mapping, self)
+        let returnType = Types.substituteRigid(mapping, t.returnType)
+        let s = unify(s, nodeId, Site.Expression, self, subject)
+        match rest with
+        | [] -> Option.Some(unify(s, nodeId, Site.Expression, returnType, result))
+        | _ ->
+          let rest = rest |> Stdlib.List.map(fun p -> Types.substituteRigid(mapping, p))
+          Option.Some(unify(s, nodeId, Site.Expression, Model.Ty.TFn(rest, returnType), result))
+      | [] -> Option.None
+    | _ -> Option.None
+  | _ -> Option.None
+
+
+/// No field by that name: try it as a method call (<fn receiverCall>), else report
+/// <param finding>.
+let fieldOrReceiver(
+  s: State,
+  at: Int64,
+  subject: Model.Ty,
+  field: String,
+  result: Model.Ty,
+  finding: Model.Finding)
+  : Option<State> =
+  match receiverCall(s, at, subject, field, result) with
+  | Some(s) -> Option.Some(s)
+  | None -> Option.Some(markUnknownsAsError(addFinding(s, finding), result))
+
+
 /// Resolve a tuple position or declared record field and connect its type to result.
 /// Return None only while the receiver is an inference variable. Invalid access
 /// reports a finding and marks the result unavailable to dependent checks.
@@ -1802,17 +1884,18 @@ let getField(
           |> Stdlib.Option.andThen(fun n -> Stdlib.List.getAt(elements, n - 1)) with
     | Some(element) -> Option.Some(unify(s, nodeId, Site.RecordFieldAccess, element, result))
     | None ->
-      Option.Some(
-        markUnknownsAsError(
-          addFinding(
-            s,
-            Types.definiteError(
-              IssueCode.UnknownTupleElement,
-              nodeId,
-              none(),
-              some(record),
-              Context.Identifier(field))),
-          result))
+      fieldOrReceiver(
+        s,
+        at,
+        subject,
+        field,
+        result,
+        Types.definiteError(
+          IssueCode.UnknownTupleElement,
+          nodeId,
+          none(),
+          some(record),
+          Context.Identifier(field)))
   | _ ->
     let (found, s) = declarationFor(s, nodeId, subject)
     match found with
@@ -1824,44 +1907,47 @@ let getField(
           let (t, s) = fieldType(s, nodeId, decl.typeParams, args, declared.typ)
           Option.Some(unify(s, nodeId, Site.RecordFieldAccess, t, result))
         | None ->
-          Option.Some(
-            markUnknownsAsError(
-              addFinding(
-                s,
-                Types.definiteError(
-                  IssueCode.UnknownRecordField,
-                  nodeId,
-                  none(),
-                  some(record),
-                  Context.Identifier(field))),
-              result))
+          fieldOrReceiver(
+            s,
+            at,
+            subject,
+            field,
+            result,
+            Types.definiteError(
+              IssueCode.UnknownRecordField,
+              nodeId,
+              none(),
+              some(record),
+              Context.Identifier(field)))
       | _ ->
-        Option.Some(
-          markUnknownsAsError(
-            addFinding(
-              s,
-              Types.definiteError(
-                IssueCode.TypeMismatch,
-                nodeId,
-                none(),
-                some(record),
-                Context.RecordRequiredForFieldAccess)),
-            result))
+        fieldOrReceiver(
+          s,
+          at,
+          subject,
+          field,
+          result,
+          Types.definiteError(
+            IssueCode.TypeMismatch,
+            nodeId,
+            none(),
+            some(record),
+            Context.RecordRequiredForFieldAccess))
     | None ->
       // A declared generic parameter must work for every allowed caller type,
       // so it cannot assume record fields exist. Only inference variables can
       // wait for a more specific type, and they were handled above.
-      Option.Some(
-        markUnknownsAsError(
-          addFinding(
-            s,
-            Types.definiteError(
-              IssueCode.TypeMismatch,
-              nodeId,
-              none(),
-              some(record),
-              Context.RecordRequiredForFieldAccess)),
-          result))
+      fieldOrReceiver(
+        s,
+        at,
+        subject,
+        field,
+        result,
+        Types.definiteError(
+          IssueCode.TypeMismatch,
+          nodeId,
+          none(),
+          some(record),
+          Context.RecordRequiredForFieldAccess))
 
 
 /// Require a record and check each updated field against its declared type.

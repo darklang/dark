@@ -327,6 +327,41 @@ module ThroughADependency =
     |> Stdlib.Test.equal("failed:MissingImpl")
 
 
+  // `x.display` is a method call when x has no field `display`, as at run time.
+  test acceptsReceiverCall =
+    check("let f(x: Int64): String = x.display", "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  test acceptsReceiverCallWithArguments =
+    check("let f(x: Int64, y: Int64): Int64 = x.add(y)", "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  test checksReceiverCallResult =
+    check("let f(x: Int64): Int64 = x.display", "f")
+    |> Stdlib.Test.equal("failed:TypeMismatch")
+
+
+  test acceptsReceiverCallOnBoundedGeneric =
+    check("let f<'a: Display>(v: 'a): String = v.display", "f")
+    |> Stdlib.Test.equal("checked:")
+
+
+  test acceptsReceiverCallOnRecordWithoutThatField =
+    let source =
+      "type P = { x: Int64 }\n"
+      + "impl Display for P = let display(p: P): String = \"p\"\n"
+      + "let f(p: P): String = p.display"
+
+    check(source, "f") |> Stdlib.Test.equal("checked:")
+
+
+  test rejectsReceiverCallWithNoImpl =
+    check("let f(xs: List<Int64>): String = xs.display", "f")
+    |> Stdlib.Test.equal("failed:TypeMismatch")
+
+
 module StringInterpolation =
   test conversionResultMessage =
     LanguageTools.AtRestTypeChecker.issueToString(

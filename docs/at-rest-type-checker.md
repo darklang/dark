@@ -204,9 +204,10 @@ signature at the self type (`ImplMethodSignature`). `AmbiguousImpl` and
   `Show List<X>` against `impl<'a: Show> Show for List<'a>` saves clean when `X` has no
   `Show`, and the bound is enforced when the call runs (`MissingImpl` then).
 - `x.m`, where `x` has no field `m`, is a receiver call at run time (the one visible impl
-  carrying a method `m` for `x`'s type), and the checker has no rule for it yet: `getField`
-  reports `UnknownRecordField` on a record and a field-access `TypeMismatch` on anything
-  else, so the save is a draft that `commit` refuses.
+  carrying a method `m` for `x`'s type), and the checker checks it the same way
+  (`receiverCall`). When no trait or more than one has such a method for `x`'s type, `getField`
+  still reports `UnknownRecordField` on a record and a field-access `TypeMismatch` on anything
+  else.
 - Visible means in `Environment.traitImpls`: every implementation bound on the branch in the
   store, plus the batch's own (`Environment.withBatch`). A trait the batch declares is read
   from the batch too (`batchTraits`), so a trait, its implementations and their callers can be
