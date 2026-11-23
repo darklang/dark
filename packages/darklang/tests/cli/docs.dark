@@ -42,3 +42,15 @@ test logsNameEveryFile =
         && Stdlib.String.contains(text, "host-audit.jsonl")
         && Stdlib.String.contains(text, "DARK_TELEMETRY"),
         "the docs name cli.log, host-audit.jsonl and DARK_TELEMETRY")))
+
+
+// `dark docs` is read by people with no checkout of the repository.
+test docsNameNoRepoPaths =
+  Stdlib.Test.all(
+    Cli.Tests.DocsExamples.pages()
+    |> Stdlib.List.map(fun((name, text)) ->
+      Stdlib.Test.expect(
+        Stdlib.Bool.not(Stdlib.String.contains(text, "packages/"))
+        && Stdlib.Bool.not(Stdlib.String.contains(text, "backend/"))
+        && Stdlib.Bool.not(Stdlib.String.contains(text, ".md`")),
+        $"docs {name} names no repo paths")))
