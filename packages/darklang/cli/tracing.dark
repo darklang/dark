@@ -243,6 +243,43 @@ let executeShow(
     showCode(state, arg, run, iteration, wantsJson, wantsFull)
 
 
+/// The fn a trace was a call of, when it can be named. A served request records which handler
+/// answered it (`entryHash`), which is exact. An `eval` or a `run` records its own source as
+/// `input`, and the entry is named in it, so a function the trace went through whose name appears
+/// there is the one that was called rather than one it called.
+let rootFn(branchId: Uuid, trace: Tracing.Trace): Option<String> =
+  let named = Tracing.Store.fnsOf(trace.id)
+  match trace.entryHash with
+  | Some(hash) ->
+    named
+    |> Stdlib.List.findFirst(fun fn ->
+      match LanguageTools.PackageManager.Function.find(
+              branchId,
+              LanguageTools.ProgramTypes.parsePackageLocation(fn)) with
+      | Some(h) -> LanguageTools.ProgramTypes.hashToString(h) == hash
+      | None -> false)
+  | None ->
+    named
+    |> Stdlib.List.findFirst(fun fn ->
+      Stdlib.String.contains(Tracing.Format.inputText(trace), fn))
+
+
+/// Under a failed `eval` or `run`: the trace it left and how to look at it. Nothing when
+/// recording is off, since then there is no trace.
+let printFailedTrace(branchId: Uuid, traceId: Uuid): Unit =
+  let id = Stdlib.display(traceId)
+  match Tracing.Store.get(id) with
+  | None -> ()
+  | Some(trace) ->
+    let short = Text.shortIdText(id)
+    let command =
+      match rootFn(branchId, trace) with
+      | Some(fn) -> $"dark traces show {fn} {short}"
+      | None -> $"dark traces show {short}"
+
+    Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText($"trace {short}: {command}"))
+
+
 /// `traces show <trace>`: the same question from the other end.
 ///
 /// You do not always have a function name in your hand. You have a trace -- it is what `dark traces`
@@ -270,29 +307,10 @@ let showFromTrace(
     // The ROOT first, when we can name it. A trace that went through eight functions has one
     // top-level thing that was called, and that is what you asked to see; a list of eight
     // commands makes you pick before you have looked at anything.
-    //
-    // Two ways to know it, in order. A served request records which handler answered it
-    // (`entryHash`), which is exact. An `eval` or a `run` records its own source as `input`, and
-    // the entry is named in it, so a function the trace went through whose name appears there is
-    // the one that was called rather than one it called. Neither applies, and it lists.
     let root =
       match Tracing.Store.get(id) with
       | None -> Option.None
-      | Some(trace) ->
-        let named = Tracing.Store.fnsOf(id)
-        match trace.entryHash with
-        | Some(hash) ->
-          named
-          |> Stdlib.List.findFirst(fun fn ->
-            match LanguageTools.PackageManager.Function.find(
-                    state.currentBranchId,
-                    LanguageTools.ProgramTypes.parsePackageLocation(fn)) with
-            | Some(h) -> LanguageTools.ProgramTypes.hashToString(h) == hash
-            | None -> false)
-        | None ->
-          named
-          |> Stdlib.List.findFirst(fun fn ->
-            Stdlib.String.contains(Tracing.Format.inputText(trace), fn))
+      | Some(trace) -> rootFn(state.currentBranchId, trace)
 
     let show(state: AppState, fn: String): AppState =
       showCode(state, fn, Option.Some(arg), iteration, wantsJson, wantsFull)

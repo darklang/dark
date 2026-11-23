@@ -533,7 +533,8 @@ test runtimeChecksUseTheSelectedBranch = Instance.withInstance(fun i ->
 
   let main = prints(i, [ "eval", "Tests.ScriptChecking.accept(7)" ], "7")
   let switched = ok([ "switch", "script-check" ])
-  let rejected = Instance.said(i, [ "eval", "Tests.ScriptChecking.accept(7)" ])
+  let rejected =
+    Instance.said(i, [ "--no-trace", "eval", "Tests.ScriptChecking.accept(7)" ])
   let accepted =
     prints(i, [ "eval", "Tests.ScriptChecking.accept(\"branch\")" ], "branch")
 
@@ -552,7 +553,7 @@ test runtimeChecksUseTheSelectedBranch = Instance.withInstance(fun i ->
 /// Runtime argument checking still rejects a call with the wrong type.
 test runtimeErrorsDescribePackageArguments = Instance.withInstance(fun i ->
   let (code, out) =
-    Instance.ran(i, [ "eval", "Stdlib.List.length(\"not a list\")" ])
+    Instance.ran(i, [ "--no-trace", "eval", "Stdlib.List.length(\"not a list\")" ])
 
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "a runtime error exits nonzero")
@@ -880,3 +881,32 @@ test getAtNoneIsStillNone = Instance.withInstance(fun i ->
   Stdlib.Test.all(
     [ Instance.says(eq, "true", "out-of-bounds None equals None")
       Instance.says(dflt, "0", "and withDefault sees it as None") ]))
+
+
+/// While recording, a failed `eval` or `run` names the trace it left, on stderr, with the
+/// command that shows it.
+test failedRunsNameTheirTrace = Darklang.Cli.Tests.Traces.withTraces(fun i ->
+  let (evalCode, evalOut, evalErr) = Instance.streams(i, [ "eval", "1 / 0" ])
+  let evalId = Darklang.Cli.Tests.Traces.short(Darklang.Cli.Tests.Traces.latestId(i))
+  let path = script(i, "boom.dark", "let boom(n: Int64): Int64 = n / 0\nboom(1)")
+  let (runCode, runOut, runErr) = Instance.streams(i, [ "run", path ])
+  let runId = Darklang.Cli.Tests.Traces.short(Darklang.Cli.Tests.Traces.latestId(i))
+  Stdlib.Test.all(
+    [ Instance.exitedWith(evalCode, 1, "the eval failed")
+      Stdlib.Test.expect(evalId != "" && evalId != runId, "each run left its own trace")
+      Instance.says(evalErr, $"trace {evalId}: dark traces show {evalId}", "eval names it")
+      Instance.doesNotSay(evalOut, "trace ", "stdout keeps only the answer")
+      Instance.exitedWith(runCode, 1, "the run failed")
+      Instance.says(runErr, $"trace {runId}: dark traces show", "run names it")
+      Instance.says(runErr, runId, "with its id")
+      Instance.doesNotSay(runOut, "trace ", "stdout keeps only what it printed") ]))
+
+
+test failedRunsNameNoTraceWhenNotRecording = Instance.withInstance(fun i ->
+  let (_, _, evalErr) = Instance.streams(i, [ "--no-trace", "eval", "1 / 0" ])
+  let path = script(i, "boom.dark", "1 / 0")
+  let (_, _, runErr) = Instance.streams(i, [ "--no-trace", "run", path ])
+  Stdlib.Test.all(
+    [ Instance.says(evalErr, "Cannot divide by 0", "the error is still there")
+      Instance.doesNotSay(evalErr, "dark traces show", "eval names no trace")
+      Instance.doesNotSay(runErr, "dark traces show", "run names no trace") ]))

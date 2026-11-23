@@ -15,23 +15,25 @@ let evaluateValue(
   expr: String,
   harmful: Harmful)
   : Result<'a, ExecutionError.ExecutionError> =
-  evaluateValueUnder(accountID, branchId, expr, harmful, noGrants())
+  evaluateValueUnder(accountID, branchId, expr, harmful, noGrants(), Option.None)
 
 
-/// <fn evaluateValue> with <param grants> allowed for this evaluation only (`eval --allow`).
+/// <fn evaluateValue> with <param grants> allowed for this evaluation only (`eval --allow`),
+/// recorded as <param traceId> when recording is on (None picks an id).
 let evaluateValueUnder(
   accountID: Option<Uuid>,
   branchId: Uuid,
   expr: String,
   harmful: Harmful,
-  grants: LanguageTools.Permissions.Policy)
+  grants: LanguageTools.Permissions.Policy,
+  traceId: Option<Uuid>)
   : Result<'a, ExecutionError.ExecutionError> =
   let allowHarmful =
     match harmful with
     | Allow -> true
     | Halt -> false
 
-  Builtin.cliEvaluateExpression(accountID, branchId, expr, allowHarmful, grants)
+  Builtin.cliEvaluateExpression(accountID, branchId, expr, allowHarmful, grants, traceId)
 
 
 let noGrants(): LanguageTools.Permissions.Policy =
@@ -46,7 +48,14 @@ let evaluateRaw(
   currentModule: List<String>,
   harmful: Harmful)
   : Result<Option<String>, ExecutionError.ExecutionError> =
-  evaluateRawUnder(accountID, branchId, expr, currentModule, harmful, noGrants())
+  evaluateRawUnder(
+    accountID,
+    branchId,
+    expr,
+    currentModule,
+    harmful,
+    noGrants(),
+    Option.None)
 
 
 /// <fn evaluateRaw> with <param grants> allowed for this evaluation only.
@@ -56,9 +65,10 @@ let evaluateRawUnder(
   expr: String,
   currentModule: List<String>,
   harmful: Harmful,
-  grants: LanguageTools.Permissions.Policy)
+  grants: LanguageTools.Permissions.Policy,
+  traceId: Option<Uuid>)
   : Result<Option<String>, ExecutionError.ExecutionError> =
-  match evaluateValueUnder(accountID, branchId, expr, harmful, grants) with
+  match evaluateValueUnder(accountID, branchId, expr, harmful, grants, traceId) with
   | Ok(value) ->
     // Unit has no output, and a string prints without its quotes.
     match LanguageTools.RuntimeTypes.reflect(value) with
@@ -81,14 +91,15 @@ let evaluateRawUnder(
 /// what this returns, and the workbench REPL keeps it as state. Takes the whole expression as one string,
 /// so a multi-line let-chain survives.
 let evaluate(state: AppState, expr: String, harmful: Harmful): Result<Option<String>, String> =
-  evaluateUnder(state, expr, harmful, noGrants())
+  evaluateUnder(state, expr, harmful, noGrants(), Option.None)
 
 
 let evaluateUnder(
   state: AppState,
   expr: String,
   harmful: Harmful,
-  grants: LanguageTools.Permissions.Policy)
+  grants: LanguageTools.Permissions.Policy,
+  traceId: Option<Uuid>)
   : Result<Option<String>, String> =
   // Where the user is standing, so the printed value spells names the way they would.
   let currentModule = Packages.Traversal.getCurrentModulePath(state.packageData.currentLocation)
@@ -98,7 +109,8 @@ let evaluateUnder(
           expr,
           currentModule,
           harmful,
-          grants) with
+          grants,
+          traceId) with
   | Ok(result) -> Result.Ok(result)
   | Error(err) ->
     Result.Error(ExecutionError.formatForTerminal(state.accountID, state.currentBranchId, err))
@@ -160,15 +172,17 @@ let executeUnder(
       printErr(message)
       failed(state)
     | Ok(expr) ->
+      let traceId = Stdlib.Uuid.generate()
       let (stats, outcome) =
         if wantStats then
           let harness = LanguageTools.Perf.floor()
           let (raw, result) =
-            LanguageTools.Perf.measure(fun () -> evaluateUnder(state, expr, harmful, grants))
+            LanguageTools.Perf.measure(fun () ->
+              evaluateUnder(state, expr, harmful, grants, Option.Some(traceId)))
 
           (Option.Some(LanguageTools.Perf.minus(raw, harness)), result)
         else
-          (Option.None, evaluateUnder(state, expr, harmful, grants))
+          (Option.None, evaluateUnder(state, expr, harmful, grants, Option.Some(traceId)))
 
       let newState =
         match outcome with
@@ -178,6 +192,7 @@ let executeUnder(
         | Ok(None) -> state
         | Error(message) ->
           Stdlib.printErrorLine($"Error: {message}")
+          Cli.Tracing.printFailedTrace(state.currentBranchId, traceId)
           { state with exitCode = 1 }
 
       match stats with

@@ -37,7 +37,8 @@ let parseAndExecute(
   code: String,
   args: List<String>,
   options: Options,
-  approval: Approval)
+  approval: Approval,
+  traceId: Uuid)
   : Result<Int64, ExecutionError.ExecutionError> =
   let result =
     Builtin.cliParseAndExecuteScript(
@@ -52,7 +53,8 @@ let parseAndExecute(
       (match approval with
        | Offer when Stdlib.Bool.not(options.sandbox) && Stdlib.Cli.UI.Prompt.canAsk() ->
          Option.Some(askPermission)
-       | _ -> Option.None))
+       | _ -> Option.None),
+      Option.Some(traceId))
 
   match result with
   | Ok(value) -> exitCode(value)
@@ -382,6 +384,7 @@ let runScriptMeasured(
   approval: Approval,
   stats: Bool)
   : AppState =
+  let traceId = Stdlib.Uuid.generate()
   let run = fun () ->
     parseAndExecute(
       state.accountID,
@@ -390,7 +393,8 @@ let runScriptMeasured(
       code,
       args,
       options,
-      approval)
+      approval,
+      traceId)
 
   let (measurement, result) =
     if stats then
@@ -402,6 +406,10 @@ let runScriptMeasured(
       (Option.None, run())
 
   let newState = handleResult(state, result)
+  match result with
+  | Error(Cancelled) | Ok(_) -> ()
+  | Error(_) -> Cli.Tracing.printFailedTrace(state.currentBranchId, traceId)
+
   noteMisplacedAllow(newState, scriptPath, args)
   match measurement with
   | Some(m) ->
