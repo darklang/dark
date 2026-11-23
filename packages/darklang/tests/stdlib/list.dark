@@ -325,6 +325,37 @@ test removeAt =
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([])) ])
 
 
+test insertAt =
+  Stdlib.Test.all(
+    [ Stdlib.List.insertAt([], 0, 1)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 1 ]))
+
+      Stdlib.List.insertAt([ 1, 2, 3 ], 0, 0)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 0, 1, 2, 3 ]))
+
+      Stdlib.List.insertAt([ 1, 2, 3 ], 1, 9)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 1, 9, 2, 3 ]))
+
+      Stdlib.List.insertAt([ "a", "b" ], 2, "c")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ "a", "b", "c" ]))
+
+      Stdlib.List.insertAt([], 1, 1)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+
+      Stdlib.List.insertAt([ 1, 2, 3 ], -1, 0)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+
+      Stdlib.List.insertAt([ 1, 2, 3 ], 4, 0)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds))
+
+      Stdlib.List.insertAt([ 1, 2, 3 ], 9223372036854775807, 0)
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.List.IndexError.IndexOutOfBounds)) ])
+
+
 test flatten =
   Stdlib.Test.all(
     [ Stdlib.List.flatten([ [ 1 ], [ 2 ], [ 3 ] ])

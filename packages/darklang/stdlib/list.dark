@@ -393,6 +393,17 @@ let removeAt(list: List<'a>, index: Int64): Result<List<'a>, IndexError> =
     Result.Ok(flatten([ take(list, index), drop(list, index + 1) ]))
 
 
+/// Returns {{Ok}} <param list> with <param value> inserted at zero-based <param index>,
+/// shifting later values along. An <param index> equal to the length appends.
+/// Returns {{Error IndexOutOfBounds}} if <param index> is negative or past the end.
+/// Takes O(n) time.
+let insertAt(list: List<'a>, index: Int64, value: 'a): Result<List<'a>, IndexError> =
+  if index < 0 || index > length(list) then
+    Result.Error(IndexError.IndexOutOfBounds)
+  else
+    Result.Ok(flatten([ take(list, index), [ value ], drop(list, index) ]))
+
+
 /// Drops the first <param count> values from <param list>
 /// Takes O(n) time (O(1) in the interpreter).
 let drop(list: List<'a>, count: Int64): List<'a> =
