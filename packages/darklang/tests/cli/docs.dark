@@ -24,9 +24,21 @@ test scriptsOpensWithSyntax =
 
 test logsAreUnderTheStore =
   Stdlib.Test.all(
-    [ Cli.Docs.ForAI.content(), Cli.Docs.CLI.content() ]
+    [ Cli.Docs.ForAI.content(), Cli.Docs.CLI.content(), Cli.Docs.Errors.content() ]
     |> Stdlib.List.map(fun text ->
       Stdlib.Test.expect(
-        Stdlib.String.contains(text, "~/.darklang/logs/cli.log")
+        Stdlib.String.contains(text, "~/.darklang/logs/")
         && Stdlib.Bool.not(Stdlib.String.contains(text, "rundir/logs")),
         "the logs are under ~/.darklang/logs")))
+
+
+// cli.log has only the errors that ended a command, so each page names the other logs too.
+test logsNameEveryFile =
+  Stdlib.Test.all(
+    [ Cli.Docs.ForAI.content(), Cli.Docs.CLI.content(), Cli.Docs.Errors.content() ]
+    |> Stdlib.List.map(fun text ->
+      Stdlib.Test.expect(
+        Stdlib.String.contains(text, "cli.log")
+        && Stdlib.String.contains(text, "host-audit.jsonl")
+        && Stdlib.String.contains(text, "DARK_TELEMETRY"),
+        "the docs name cli.log, host-audit.jsonl and DARK_TELEMETRY")))
