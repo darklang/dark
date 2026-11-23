@@ -106,10 +106,10 @@ module PermissionsDisplay =
 /// internal call stack. The path is worked out at runtime, so the denial comes from
 /// inside the call rather than from the check before the run.
 module Denials =
-  /// Exit code and both streams, without colors. Line by line, since `stripSgr` also
-  /// drops newlines.
+  /// Exit code and both streams, without colors, and unrecorded so no trace line follows the
+  /// denial. Line by line, since `stripSgr` also drops newlines.
   let deny(i: Instance.T, args: List<String>): (Int64 * String) =
-    let (code, out) = Instance.ran(i, args)
+    let (code, out) = Instance.ran(i, [ "--no-trace", ...args ])
     let lines =
       Stdlib.String.split(out, "\n")
       |> Stdlib.List.map(fun line -> Stdlib.Cli.Tui.Text.stripSgr(line))
