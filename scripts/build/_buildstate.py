@@ -240,34 +240,31 @@ def _pid_alive(pid):
 def check(root="."):
   """Is it safe to run something that depends on the build?
 
-  Returns (ready, fatal, lines). `fatal` means don't run at all; a stale tree is
-  reported but not fatal, since editing and then running is a normal thing to do.
+  Returns (ready, fatal, lines), with at most one line: run-cli puts it on stderr
+  ahead of every answer. `fatal` means don't run at all; a stale tree is reported
+  but not fatal, since editing and then running is a normal thing to do.
   """
   state = read()
   if state is None:
-    return (False, False, ["Build state unknown (no rundir/build-state.json)."
-                           " Run: scripts/dev/build"])
+    return (False, False, ["build state unknown (no rundir/build-state.json);"
+                           " run scripts/dev/build"])
 
   status = state.get("status")
 
   if status == RUNNING:
     if _pid_alive(state.get("pid")):
-      started = state.get("startedAt")
       return (False, True, [
-        f"A build is in flight (started {started}, pid {state.get('pid')}).",
-        f"Watch it: {state.get('log') or 'rundir/logs/build.log'}",
+        f"a build is running (pid {state.get('pid')}, since {state.get('startedAt')});"
+        f" log: {state.get('log') or 'rundir/logs/build.log'}"
       ])
     return (False, True, [
-      "The last build didn't finish: its process is gone and it never recorded an"
-      " outcome.",
-      "Run: scripts/dev/build",
+      "the last build didn't finish (its process is gone); run scripts/dev/build"
     ])
 
   gone = missing_outputs(root)
   if gone:
     return (False, True, [
-      f"The build output is missing ({gone[0]}).",
-      "Something removed backend/Build. Run: scripts/dev/build",
+      f"the build output is missing ({gone[0]}); run scripts/dev/build"
     ])
 
   changed = stale(state, root=root)
@@ -282,20 +279,18 @@ def check(root="."):
   # `changed` is None when there's no index to compare against, which is "we don't
   # know", not "nothing outstanding". Only a positively empty list clears a failure.
   if status == FAILED and changed != []:
-    lines = ["The last build failed."]
-    if state.get("failedAction"):
-      lines.append(f"Failed at: {state['failedAction']}")
-    if state.get("log"):
-      lines.append(f"Log: {state['log']}")
-    lines.append("Run: scripts/dev/build")
-    return (False, True, lines)
+    at = f" at {state['failedAction']}" if state.get("failedAction") else ""
+    log = f" (log: {state['log']})" if state.get("log") else ""
+    return (False, True, [f"the last build failed{at}{log}; run scripts/dev/build"])
 
-  if changed:
-    shown = ", ".join(changed[:3])
-    more = f" (+{len(changed) - 3} more)" if len(changed) > 3 else ""
+  # A test fixture or a doc under backend/ changes nothing the CLI runs.
+  import _buildplan
+  behind = [f for f in changed or [] if _buildplan.actions_for(f)]
+  if behind:
+    shown = ", ".join(behind[:3])
+    more = f" +{len(behind) - 3} more" if len(behind) > 3 else ""
     return (False, False, [
-      f"{len(changed)} file(s) changed since the last build: {shown}{more}",
-      "The build is behind the tree. Run: scripts/dev/build",
+      f"the build is behind the tree ({shown}{more}); run scripts/dev/build"
     ])
 
   return (True, False, [])

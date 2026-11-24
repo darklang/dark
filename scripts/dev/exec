@@ -100,6 +100,9 @@ case "$PWD/" in
   "$DIR"/*) WORKDIR="/home/dark/app${PWD#"$DIR"}" ;;
 esac
 
+# No -t, so the command never writes to a terminal: say so to anything that colours by env.
+ENV_FLAGS=(-e NO_COLOR=1 ${ENV_FLAGS[@]+"${ENV_FLAGS[@]}"})
+
 CMD=("$@")
 if [[ -n "$TIMEOUT" ]]; then
   # Without --foreground, timeout puts the command in a process group of its own and
