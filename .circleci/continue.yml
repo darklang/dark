@@ -304,9 +304,6 @@ jobs:
           name: Lint, formatting and the CI scripts' tests (beside the next steps)
           background: true
           command: .circleci/beside start quick-checks -- .circleci/quick-checks
-      # There are currently no yaml files
-      # - run: scripts/linting/yamllinter
-
       - show-large-files-and-directories
       - run: ./scripts/build/_dotnet-wrapper restore --locked-mode fsdark.sln
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/

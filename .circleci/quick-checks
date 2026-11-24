@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # The build job's checks that need no build: lint, formatting, and the CI scripts' own tests.
+# `scripts/dev/pre-push` runs it too.
 # About half a minute, and the likeliest to fail. The job runs this beside the restore and the
 # first compile (`.circleci/beside`), which leave a CPU free, and fails at the wait after it.
 #
@@ -33,8 +34,10 @@ format_check() {
   else
     local format_status=$?
   fi
-  # On failure, format the CI copy and print the diff for diagnosis, then put the sources back.
-  # Still fail, so formatting errors cannot pass silently.
+  # On failure in CI, format the CI copy and print the diff for diagnosis, then put the sources
+  # back. Not locally, where putting them back would throw away uncommitted work.
+  echo "fix with: scripts/formatting/format format, then build again"
+  [[ "${CIRCLECI:-}" == "true" ]] || return "$format_status"
   scripts/formatting/format format --fsharp-only
   git diff -- '*.fs' '*.fsi'
   git checkout -- '*.fs' '*.fsi'
@@ -42,11 +45,13 @@ format_check() {
 }
 
 check "Lint the shell scripts" scripts/linting/shellchecker
+check "Lint the yaml files" scripts/linting/yamllinter
 check "Check formatting" format_check
 check "No thread blocks on a task" scripts/linting/blocking-waits
 check "Builtins draw random values from the run's source" scripts/linting/random-sources
 check "Code cites no issue or PR numbers" scripts/linting/issue-refs
 check "Test the build's planning and readiness logic" scripts/testing/test-build-planning.py
+check "Test the test-slot queue" scripts/testing/test-suite-slot
 check "Test CI diagnostic collection" python3 .circleci/test_collect_diagnostics.py
 check "Test artifact validation timeouts" python3 .circleci/test_artifact_validation.py
 check "Test the check for a superseded main commit" python3 .circleci/test_ci_superseded.py
