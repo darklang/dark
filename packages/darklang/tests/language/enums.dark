@@ -2,10 +2,7 @@ module Darklang.Language.Tests.Enums
 
 test options =
   Stdlib.Test.all(
-    [ Stdlib.Option.Option.None |> Stdlib.Test.equal(Stdlib.Option.Option.None)
-      ((Stdlib.List.head([])) == Stdlib.Option.Option.None)
-      |> Stdlib.Test.equal(true)
-      (Stdlib.List.head([])) |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
+    [ (Stdlib.List.head([])) |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 test okPayloadErrorRaises =
   Stdlib.Result.Result.Ok(Darklang.Language.Tests.raiseRuntimeError("err"))

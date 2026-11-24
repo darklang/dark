@@ -158,16 +158,6 @@ test mapReplacesEveryCharacter =
       |> Stdlib.Test.equal("cccc") ])
 
 
-// test mapRejectsNonCharResult =
-//   Stdlib.String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x -> 5)
-//   => raises
-//     """Darklang.Stdlib.String.fromList's 1st argument (`lst`) should be a List<Char>. However, a List<Int64> ([  5, 5, ...) was passed instead.
-//
-// Expected: (lst: List<Char>)
-// Actual: a List<Int64>: [
-//   5, 5, 5, 5
-// ]"""
-
 test appendOperator =
   Stdlib.Test.all(
     [ "" + "" |> Stdlib.Test.equal("")

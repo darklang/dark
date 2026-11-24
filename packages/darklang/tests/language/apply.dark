@@ -21,12 +21,6 @@ test callbackGivenTooFewArguments =
   ([ 1, 2 ] |> Stdlib.List.map(fun(x, y) -> x))
   => raises "Lambda expects 2 arguments, but got 1 argument"
 
-// ---------------------------
-// DarkInternal tests are internal
-// ---------------------------
-// module DarkInternal =
-//   test schedulingRuleListRaises =
-//     Builtin.darkInternalInfraSchedulingRuleList () => raises "Unknown error"
 
 // The extra binding gives this function a distinct content hash, so runtime errors
 // consistently name this function rather than another name for the same body.

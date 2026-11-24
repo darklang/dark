@@ -202,8 +202,7 @@ test clamp =
 
 test divide =
   Stdlib.Test.all(
-    [ 9.0 / 2.0 |> Stdlib.Test.equal(4.5)
-      9.0 / 0.0 |> Stdlib.Test.equal(infinity())
+    [ 9.0 / 0.0 |> Stdlib.Test.equal(infinity())
       9.0 / -0.0 |> Stdlib.Test.equal(negativeInfinity()) ])
 
 

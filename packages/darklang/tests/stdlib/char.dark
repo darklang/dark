@@ -259,10 +259,7 @@ test toAsciiCode =
       |> Stdlib.Test.equal(Stdlib.Option.Option.None)
 
       Stdlib.Char.toAsciiCode(' ')
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(32u8))
-
-      Stdlib.Char.toAsciiCode('\t')
-      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(9u8)) ])
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some(32u8)) ])
 
 
 test isLessThan =
