@@ -25,7 +25,8 @@ By default, a deprecated item can still be used by name. Use
 `--block-execution` to block calls to a function. Choose at most one.
 
 `delete` deprecates items and requires `--ignore-dependents` when there
-are live dependents.
+are live dependents. An item that was never committed is discarded instead,
+as `discard <name>` does; its `--json` reports `"kind": "discarded"`.
 
 ## Options
 

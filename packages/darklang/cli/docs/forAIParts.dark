@@ -471,7 +471,8 @@ committed can be rewritten, only superseded.
 ## Deprecation
   deprecate <name> [options]                  # the name still resolves
     options: --replacement <name> or --block-execution (functions only)
-  delete <name> [options]                     # deprecate with a live-dependents check
+  delete <name> [options]                     # deprecate with a live-dependents check;
+                                              # never-committed items are discarded
     options: --ignore-dependents; --force = --ignore-dependents + --yes
   deprecate/delete ... --json                 # one object; without --yes, a dry run
   undeprecate <name>                          # clear it, any kind, harmful included
