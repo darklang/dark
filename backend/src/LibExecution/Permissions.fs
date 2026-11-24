@@ -830,7 +830,14 @@ module Access =
     if System.Object.ReferenceEquals(constraints, restrictions) then
       current
     else
-      Access(constraints @ restrictions, caller)
+      // Skip restrictions that are already here: adding one twice changes nothing.
+      // Without this, deep recursion through callbacks added another copy at every
+      // level, so the list grew with the depth of the stack.
+      let present (c : Restriction) =
+        restrictions |> List.exists (fun r -> System.Object.ReferenceEquals(c, r))
+      match constraints |> List.filter (fun c -> not (present c)) with
+      | [] -> current
+      | added -> Access(added @ restrictions, caller)
 
   /// For code the caller of a named approval chose rather than the approved function, such as
   /// the trait implementation a type argument picks: like a callback, it is limited by the
