@@ -63,7 +63,7 @@ let executeDiff(state: AppState, branchRef: String, source: Source): AppState =
             else
               $" (was {SCM.Conflicts.shortHash(e.parentHash)})"
 
-          Stdlib.printLine($"    {mark} {leaf}  [{e.kind}] {short}{was}")
+          Stdlib.printLine($"    {mark} {leaf}  [{e.kind}] {short}{was}{Effects.entryNote(e)}")
           if source == Source.Show then
             Stdlib.printLine(
               Stdlib.Cli.UI.Colors.dimText(

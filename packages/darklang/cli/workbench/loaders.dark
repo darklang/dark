@@ -271,11 +271,20 @@ let loadChangedItems(branchId: Uuid): List<BodyItem> =
           paint(Stdlib.Cli.UI.Colors.yellow, "edited")
 
       let stat = diffStat(bindingDiff(branchId, b, previous))
+      let newEffects =
+        match previous with
+        | [prev, ...] when b.itemType == "fn" ->
+          match Effects.added(LanguageTools.ProgramTypes.hashToString(prev), b.hash) with
+          | [] -> ""
+          | names ->
+            "  " + Stdlib.Cli.UI.Colors.warning("now also " + Stdlib.String.join(names, ", "))
+        | _ -> ""
+
       BodyItem
         { name = fqn
           kind = b.itemType
           isModule = false
-          desc = change + (if stat == "" then "" else "  " + stat) })
+          desc = change + (if stat == "" then "" else "  " + stat) + newEffects })
 
   let removed =
     (SCM.Draft.read()).removed

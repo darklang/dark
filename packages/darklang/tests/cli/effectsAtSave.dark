@@ -1,0 +1,66 @@
+/// A save says what a fn's effects are, and a review flags a fn that does more than before.
+module Darklang.Cli.Tests.EffectsAtSave
+
+val pureFn: String = "(path: String): String = path + \"/fx-7731\""
+
+val readsFn: String = "(path: String): String = Stdlib.Cli.File.readText(path + \"/fx-7731\") |> Stdlib.Result.withDefault(\"\")"
+
+
+test aPureFnSaysNone = Instance.withInstance(fun i ->
+  let (_, out, _) = Instance.streams(i, [ "fn", "Me.Fx.f", pureFn ])
+  Instance.says(out, "\n  effects: none", "on stdout, under the save line"))
+
+
+test anEffectfulFnNamesThem = Instance.withInstance(fun i ->
+  let (_, out, _) = Instance.streams(i, [ "fn", "Me.Fx.f", readsFn ])
+  Instance.says(out, "\n  effects: file-read", "the effect it has"))
+
+
+test aSaveSaysWhatChanged = Instance.withInstance(fun i ->
+  let _ = Instance.ran(i, [ "fn", "Me.Fx.f", pureFn ])
+  let (_, impure, _) = Instance.streams(i, [ "fn", "Me.Fx.f", readsFn ])
+  let (_, pureAgain, _) = Instance.streams(i, [ "fn", "Me.Fx.f", pureFn ])
+  Stdlib.Test.all(
+    [ Instance.says(impure, "(was none)", "it had none before")
+      Instance.says(pureAgain, "effects: none (no longer file-read", "and dropped it") ]))
+
+
+test aModuleSaveNamesEachFn = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/fx.dark"
+  let source = $"let f{pureFn}\nlet g{readsFn}"
+  let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
+  let (_, out, _) = Instance.streams(i, [ "module", "/Me.Fx", path ])
+  Stdlib.Test.all(
+    [ Instance.says(out, "effects of f: none", "the pure one")
+      Instance.says(out, "effects of g: file-read", "the one that reads") ]))
+
+
+test aReviewFlagsNewEffects = Instance.withInstance(fun i ->
+  let _ = Instance.ran(i, [ "fn", "Me.Fx.f", pureFn ])
+  let _ = Instance.ran(i, [ "commit", "pure", "-y" ])
+  let _ = Instance.ran(i, [ "fn", "Me.Fx.f", readsFn ])
+  Stdlib.Test.all(
+    [ Instance.says(
+        Instance.said(i, [ "diff" ]),
+        "updated, now also file-read",
+        "the draft diff")
+
+      Instance.says(
+        Instance.said(i, [ "diff", "--json" ]),
+        "\"newEffects\":[\"file-read\"",
+        "and its JSON") ]))
+
+
+test aBranchDiffFlagsNewEffects = Instance.withInstance(fun i ->
+  let _ = Instance.ran(i, [ "fn", "Me.Fx.f", pureFn ])
+  let _ = Instance.ran(i, [ "commit", "pure", "-y" ])
+  let _ = Instance.ran(i, [ "switch", "-c", "fx" ])
+  let _ = Instance.ran(i, [ "fn", "Me.Fx.f", readsFn ])
+  let _ = Instance.ran(i, [ "commit", "reads", "-y" ])
+  let _ = Instance.ran(i, [ "switch", "main" ])
+  Stdlib.Test.all(
+    [ Instance.says(Instance.said(i, [ "diff", "fx" ]), "now also file-read", "the branch diff")
+      Instance.says(
+        Instance.said(i, [ "merge", "fx", "--dry-run" ]),
+        "now also file-read",
+        "the merge preview") ]))

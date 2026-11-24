@@ -21,7 +21,9 @@ type ChangedItem =
     /// True when PROPAGATION moved this, not you. Without it, an entry that followed your edit is
     /// indistinguishable from one you made -- which is the thing automatic propagation most needs to be
     /// able to say about itself.
-    followed: Bool }
+    followed: Bool
+    /// Effects a fn has that the version it replaces did not, such as `http` or `raise`.
+    newEffects: List<String> }
 
 
 /// What `dark status` knows. `propagates` is what WOULD repoint if you committed now.
@@ -239,12 +241,20 @@ let changedItem(
   previous: List<LanguageTools.ProgramTypes.Hash>)
   : ChangedItem =
   let name = SCM.Conflicts.fqn(b.owner, b.modules, b.name)
+  let change = changeKind(branchId, b, existed, previous)
+  let newEffects =
+    match previous with
+    | [prev, ...] when b.itemType == "fn" && change != "new" ->
+      Effects.added(LanguageTools.ProgramTypes.hashToString(prev), b.hash)
+    | _ -> []
+
   ChangedItem
     { kind = b.itemType
       name = name
       hash = b.hash
-      change = changeKind(branchId, b, existed, previous)
-      followed = Stdlib.List.contains(propagated, name) }
+      change = change
+      followed = Stdlib.List.contains(propagated, name)
+      newEffects = newEffects }
 
 
 /// Work out whether each item is new, updated, or has a changed signature.
@@ -285,10 +295,15 @@ let changeNote(change: String): String =
 
 /// The same, plus who did it. "followed" is the word for a change you didn't make.
 let changeNoteFor(item: ChangedItem): String =
-  if item.followed then
-    $"{changeNote(item.change)}, followed"
-  else
-    changeNote(item.change)
+  let note =
+    if item.followed then
+      $"{changeNote(item.change)}, followed"
+    else
+      changeNote(item.change)
+
+  match item.newEffects with
+  | [] -> note
+  | names -> note + ", now also " + Stdlib.String.join(names, ", ")
 
 
 let statusJson(s: StatusJson): JsonText =

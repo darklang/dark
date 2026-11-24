@@ -291,6 +291,44 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
             deprecationNotes
             |> Stdlib.List.iter(fun((_, message)) -> Stdlib.printLine(message))
 
+            let savedFns =
+              if bundled then
+                []
+              else
+                ops
+                |> Stdlib.List.filterMap(fun op ->
+                  match op with
+                  | SetName(location, PackageFn(_), _) ->
+                    let previous =
+                      updates
+                      |> Stdlib.List.findFirst(fun u -> u.location == location)
+                      |> Stdlib.Option.andThen(fun u -> Stdlib.List.head(u.previous))
+
+                    match LanguageTools.PackageManager.Function.find(branchId, location) with
+                    | Some(now) when previous != Option.Some(now) ->
+                      Option.Some((location, previous, now))
+                    | _ -> Option.None
+                  | _ -> Option.None)
+
+            savedFns
+            |> Stdlib.List.iter(fun((location, previous, now)) ->
+              let summary =
+                Effects.saveSummary(
+                  previous |> Stdlib.Option.map(LanguageTools.ProgramTypes.hashToString),
+                  LanguageTools.ProgramTypes.hashToString(now))
+
+              match (updatedName, savedFns) with
+              | (Some(_), [_]) -> Stdlib.printLine($"  effects: {summary}")
+              | _ ->
+                // named below the module just saved, which the line above names
+                let below =
+                  Stdlib.List.drop(
+                    Stdlib.List.prepend(location.modules, location.owner),
+                    Stdlib.List.length(home))
+
+                let name = Stdlib.String.join(Stdlib.List.append(below, location.name), ".")
+                Stdlib.printLine($"  effects of {name}: {summary}"))
+
             if parseFailed then
               printHint("  Fix and resend only the declarations that failed to parse.")
               printHint("  Use `module` for one or more declarations or `fn` for a function.")

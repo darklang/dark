@@ -585,6 +585,7 @@ let saveAuthored(
       failed(state)
     else
       let previouslyDeprecated = deprecatedHashBeforeSave(state.currentBranchId, location, kind)
+      let previousHash = SCM.Propagation.hashOn(state.currentBranchId, location, kind)
       match commitAuthored(state.currentBranchId, location, kind, hash, ops) with
       | Ok(committed) ->
         let isUpdate = committed.isUpdate
@@ -624,6 +625,13 @@ let saveAuthored(
         else if deprecationNote == Option.None then
           Stdlib.printLine(
             Stdlib.Cli.UI.Colors.hint($"= {kindWord} {fullPath} is unchanged; nothing was saved"))
+
+        if landed && kind == LanguageTools.ProgramTypes.ItemKind.Fn then
+          Stdlib.printLine(
+            "  effects: "
+            + Effects.saveSummary(
+              previousHash |> Stdlib.Option.map(LanguageTools.ProgramTypes.hashToString),
+              LanguageTools.ProgramTypes.hashToString(committed.boundHash)))
 
         deprecationNote
         |> Stdlib.Option.toList

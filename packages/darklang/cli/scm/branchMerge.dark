@@ -60,7 +60,8 @@ let executeMergePreview(state: AppState, branchRef: String, preview: Preview): A
         entries
         |> Stdlib.List.iter(fun e ->
           let mark = if e.change == "new" then "+" else "~"
-          Stdlib.printLine(Stdlib.Cli.UI.Colors.dimText($"    {mark} {e.name}  [{e.kind}]")))
+          Stdlib.printLine(
+            Stdlib.Cli.UI.Colors.dimText($"    {mark} {e.name}  [{e.kind}]{Effects.entryNote(e)}")))
 
       // The conflicts a merge WOULD auto-resolve. Nothing is recorded by looking, which is the whole
       // point of asking first.
