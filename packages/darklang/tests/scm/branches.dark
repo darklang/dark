@@ -237,11 +237,12 @@ test bindingANameToContentNobodyStoredIsRefused =
   let refused =
     match added with
     | Ok(_) -> "accepted"
-    | Error(e) -> if Stdlib.String.contains(e, "no such content") then "refused" else e
+    | Error(e) ->
+      if Stdlib.String.contains(e, "no such content") then "refused" else e
 
   Stdlib.Test.all(
     [ refused |> Stdlib.Test.equal("refused")
-      SCM.StoreHealth.counts().danglingBindings |> Stdlib.Test.equal(0) ])
+      (SCM.StoreHealth.counts()).danglingBindings |> Stdlib.Test.equal(0) ])
 
 
 // `liveBindingFor` is THE branch-aware binding read: the chain first, then main. A plain

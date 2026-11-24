@@ -246,7 +246,8 @@ let checkBindings(i: T): Stdlib.Test.Result =
   if out.exitCode == 0 then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"the store's bindings are broken: {out.stdout}{out.stderr}")
+    Stdlib.Test.fail(
+      $"the store's bindings are broken: {out.stdout}{out.stderr}")
 
 
 /// Runs `f` against a fresh instance and disposes it, whatever `f` decided. A store that `f`
@@ -262,6 +263,7 @@ let withInstance(f: T -> Stdlib.Test.Result): Stdlib.Test.Result =
       match f(i) with
       | Pass -> checkBindings(i)
       | failed -> failed
+
     let _ = dispose(i)
     result
 
