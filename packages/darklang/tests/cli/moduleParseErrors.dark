@@ -121,6 +121,9 @@ test damagedDeclarationDoesNotReplaceAnExistingItem =
     let (setupCode, _) =
       Instance.ran(i, [ "fn", "/Me.StraySyntax.bad", "(): Int64 = 7" ])
 
+    let source =
+      "#let bad(): Int64 = 1\nlet alsoBad(): Int64 = 1)\nlet ok(): Int64 = 2\n"
+
     let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
     let (code, out) = Instance.ran(i, [ "module", "/Me.StraySyntax", path ])
 
