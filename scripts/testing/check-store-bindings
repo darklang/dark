@@ -5,6 +5,8 @@
 # op that was lost. <base> is the store <store> was copied from: while its log is still the start of
 # <store>'s, its projections are that part's fold and only the rest needs folding.
 #
+# The re-fold rewrites <store> in place, so it must be a throwaway <home>/.darklang/data.db.
+#
 # Usage: check-store-bindings <store.db> <base.db> <cli>
 set -euo pipefail
 
@@ -36,13 +38,9 @@ if [[ -n "$live" ]]; then
   exit 1
 fi
 
-home=$(mktemp -d)
-trap 'rm -rf "$home"' EXIT
-mkdir "$home/.darklang"
-db="$home/.darklang/data.db"
-sqlite3 -cmd ".timeout 10000" "$STORE" ".backup '$db'"
+home=$(dirname "$(dirname "$STORE")")
 
-changed=$(sqlite3 -cmd ".timeout 10000" "$db" "ATTACH '$BASE' AS base;
+changed=$(sqlite3 -cmd ".timeout 10000" "$STORE" "ATTACH '$BASE' AS base;
   SELECT count(*) FROM base.package_ops b
   WHERE NOT EXISTS (SELECT 1 FROM package_ops p
     WHERE p.seq = b.seq AND p.id = b.id AND p.branch_id = b.branch_id AND p.commit_hash IS b.commit_hash
@@ -62,7 +60,7 @@ changed=$(sqlite3 -cmd ".timeout 10000" "$db" "ATTACH '$BASE' AS base;
     done
     echo "DELETE FROM package_ops_unapplied; UPDATE package_ops_applied_through SET seq = 0;"
   fi
-} | sqlite3 -cmd ".timeout 10000" "$db"
+} | sqlite3 -cmd ".timeout 10000" "$STORE"
 
 if ! out=$(HOME="$home" USERPROFILE="$home" DARK_CONFIG_DB_NAME=data.db \
   DARK_CONFIG_TELEMETRY_EXPORTER=none "$CLI" branches 2>&1); then
@@ -70,7 +68,7 @@ if ! out=$(HOME="$home" USERPROFILE="$home" DARK_CONFIG_DB_NAME=data.db \
   exit 1
 fi
 
-refolded=$(dangling "$db")
+refolded=$(dangling "$STORE")
 if [[ -n "$refolded" ]]; then
   printf 'after a re-fold of the log, names bound to a hash with no body:\n%s\n' "$refolded" >&2
   exit 1
