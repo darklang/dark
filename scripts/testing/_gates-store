@@ -263,9 +263,9 @@ gate_backups_restore() {
   echo "== a wiped store comes back from it"
   # Wipe: the fn is gone. Then restore, and it is back. `-y`, since a piped stdin cannot answer.
   x discard -y > /dev/null
-  want "the fn is gone after the wipe" "not found" "$(x eval 'BK.T.kept()' | tail -1)"
+  want "the fn is gone after the wipe" "not found" "$(x eval 'BK.T.kept()')"
   want "restore asks first" "Restore not done" "$(x backups restore "$name" < /dev/null)"
-  want "the store is still the wiped one" "not found" "$(x eval 'BK.T.kept()' | tail -1)"
+  want "the store is still the wiped one" "not found" "$(x eval 'BK.T.kept()')"
   want "restore with -y" "^restored $name" "$(x backups restore "$name" -y)"
   want "and the fn is back" "^4242$" "$(x eval 'BK.T.kept()' | tail -1)"
   want "and the wiped store was put aside, not lost" "pre-restore" "$(x backups)"
