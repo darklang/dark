@@ -228,7 +228,9 @@ type Source =
   { cps: List<UInt32>
     length: Int64
     /// the Chars, when each is one codepoint, so text can be cut from them directly
-    chars: Option<List<Char>> }
+    chars: Option<List<Char>>
+    /// whether a codepoint takes two UTF-16 units, so a column isn't just a count
+    astral: Bool }
 
 
 let source(text: String): Source =
@@ -238,7 +240,8 @@ let source(text: String): Source =
   Source
     { cps = cps
       length = length
-      chars = if Stdlib.List.length(chars) == length then Stdlib.Option.Option.Some(chars) else Stdlib.Option.Option.None }
+      chars = if Stdlib.List.length(chars) == length then Stdlib.Option.Option.Some(chars) else Stdlib.Option.Option.None
+      astral = Stdlib.List.any(cps, fun c -> c > 65535u32) }
 
 
 /// The codepoint at <param i>, or 0 past the end.
@@ -346,8 +349,16 @@ let scanWhile(src: Source, i: Int64, keep: UInt32 -> Bool): Int64 =
   if i < src.length && keep(at(src, i)) then scanWhile(src, i + 1, keep) else i
 
 
+/// Past the identifier characters from <param i>. The hot loop of lexing, so ASCII is
+/// tested inline.
 let identEnd(src: Source, i: Int64): Int64 =
-  if i < src.length && isIdentChar(at(src, i)) then identEnd(src, i + 1) else i
+  let c = at(src, i)
+  if (c >= 97u32 && c <= 122u32) || (c >= 65u32 && c <= 90u32) || (c >= 48u32 && c <= 57u32) || c == 95u32 || c == 39u32 then
+    identEnd(src, i + 1)
+  else if c >= 128u32 && i < src.length && Stdlib.Codepoint.isAlphanumeric(c) then
+    identEnd(src, i + 1)
+  else
+    i
 
 
 let lineEnd(src: Source, i: Int64): Int64 =
@@ -762,7 +773,19 @@ let problem(st: State, range: Range, p: Problem): State =
 
 /// Emit a token over [st.index, <param endIndex>), taking the pending trivia and doc comment.
 let emit(src: Source, st: State, kind: TokenKind, endIndex: Int64): State =
-  let endPos = advance(src, st.pos, st.index, endIndex)
+  emitEndingAt(src, st, kind, endIndex, advance(src, st.pos, st.index, endIndex))
+
+
+/// `emit` for a token that can't hold a line break.
+let emitInLine(src: Source, st: State, kind: TokenKind, endIndex: Int64): State =
+  emitEndingAt(src, st, kind, endIndex, sameLineEnd(src, st.pos, st.index, endIndex))
+
+
+let sameLineEnd(src: Source, pos: Point, from: Int64, to: Int64): Point =
+  if src.astral then advance(src, pos, from, to) else Point { row = pos.row, column = pos.column + to - from }
+
+
+let emitEndingAt(src: Source, st: State, kind: TokenKind, endIndex: Int64, endPos: Point): State =
   let token =
     Token
       { kind = kind
@@ -810,10 +833,10 @@ let skipTrivia(src: Source, st: State): State =
     if c == 32u32 || c == 9u32 || c == 13u32 || c == nl then
       let (e, pos) = skipSpaces(src, i, st.pos.row, st.pos.column)
       skipTrivia(src, { st with index = e, pos = pos })
-    else if at(src, i) == cSlash && at(src, i + 1) == cSlash then
+    else if c == cSlash && at(src, i + 1) == cSlash then
       let e = lineEnd(src, i)
       let isDoc = at(src, i + 2) == cSlash && Stdlib.Bool.not(at(src, i + 3) == cSlash)
-      let endPos = advance(src, st.pos, i, e)
+      let endPos = sameLineEnd(src, st.pos, i, e)
       let trivia =
         Trivia
           { kind = if isDoc then TriviaKind.DocComment else TriviaKind.LineComment
@@ -829,7 +852,7 @@ let skipTrivia(src: Source, st: State): State =
         else
           st.doc
       skipTrivia(src, { st with index = e, pos = endPos, triviaRev = [ trivia, ...st.triviaRev ], doc = doc })
-    else if at(src, i) == cLParen
+    else if c == cLParen
             && at(src, i + 1) == cStar
             && Stdlib.Bool.not(at(src, i + 2) == cRParen)
             && Stdlib.Bool.not(at(src, i + 2) == cStar && at(src, i + 3) == cRParen) then
@@ -883,7 +906,7 @@ let go(src: Source, st0: State): State =
 
 let step(src: Source, st: State, i: Int64): State =
   let c = at(src, i)
-  if at(src, i) == cEquals && at(src, i + 1) == cGt then
+  if c == cEquals && at(src, i + 1) == cGt then
     // `=>` lexes as `=` then `>`, for the parser to refuse
     emit(src, st, TokenKind.TEquals, i + 1)
   else if c == backtick then
@@ -896,7 +919,7 @@ let step(src: Source, st: State, i: Int64): State =
       if Stdlib.String.contains(name, " ") || Stdlib.String.contains(name, "\t") then
         emitBad(src, st, TokenKind.TIdent(name), close + 1, Problem.SpacedName(words))
       else
-        emit(src, st, TokenKind.TIdent(name), close + 1)
+        emitInLine(src, st, TokenKind.TIdent(name), close + 1)
     else
       let e = lineEnd(src, i + 1)
       emitBad(src, st, TokenKind.TIdent(text(src, i + 1, e)), e, Problem.UnterminatedBacktick)
@@ -905,13 +928,13 @@ let step(src: Source, st: State, i: Int64): State =
     let word = text(src, i, e)
     let kind =
       keywordKind(word)
-    emit(src, st, kind, e)
+    emitInLine(src, st, kind, e)
   else if isDigit(c) then
     let (kind, e, p) = numberToken(src, i)
     match p with
     | Some(p) -> emitBad(src, st, kind, e, p)
-    | None -> emit(src, st, kind, e)
-  else if isTripleQuote(src, i) then
+    | None -> emitInLine(src, st, kind, e)
+  else if c == quote && isTripleQuote(src, i) then
     match findTripleQuote(src, i + 3) with
     | Some(e) -> emit(src, st, TokenKind.TStringLit(text(src, i + 3, e - 3)), e)
     | None ->
@@ -935,7 +958,7 @@ let step(src: Source, st: State, i: Int64): State =
          || (gEnd < src.length && at(src, gEnd) == apostrophe) then
         charLiteral(src, st, i + 1)
       else
-        emit(src, st, TokenKind.TIdent(text(src, i + 1, varEnd)), varEnd)
+        emitInLine(src, st, TokenKind.TIdent(text(src, i + 1, varEnd)), varEnd)
     else if i + 1 < src.length && at(src, i + 1) == backslash then
       charLiteral(src, st, i + 1)
     else
@@ -945,7 +968,7 @@ let step(src: Source, st: State, i: Int64): State =
       else
         let e = minI(src.length, maxI(i + 1, contentEnd))
         emitBad(src, st, TokenKind.TCharLit(unescape(src, i + 1, e)), e, Problem.UnterminatedChar)
-  else if at(src, i) == cDollar && at(src, i + 1) == quote then
+  else if c == cDollar && at(src, i + 1) == quote then
     match interpEnd(src, i) with
     | Some(e) -> emit(src, st, TokenKind.TInterpString, e)
     | None ->
@@ -971,7 +994,7 @@ let step(src: Source, st: State, i: Int64): State =
       emitBad(src, st, TokenKind.TPlus, i + Stdlib.String.length(s), Problem.RefusedOperator(s))
     | None ->
       match operatorAt(src, i) with
-      | Some((length, kind)) -> emit(src, st, kind, i + length)
+      | Some((length, kind)) -> emitInLine(src, st, kind, i + length)
       | None ->
         let endPos = advance(src, st.pos, i, i + 1)
         let range = Range { start = st.pos, end_ = endPos }
