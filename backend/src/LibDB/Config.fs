@@ -87,8 +87,8 @@ let personOnly : List<string> = [ "http.loopback"; "http.private"; "trace.record
 let readable : List<string> = settings @ [ "instance.id" ]
 
 /// Keys Dark code keeps for itself, with any value: which live view is showing, which function
-/// `traces watch` follows. Nobody types these.
-let private internalKeys = [ "live.show"; "traces.watch.fn" ]
+/// `traces watch` follows, the day a failed run last said how to record. Nobody types these.
+let private internalKeys = [ "live.show"; "traces.watch.fn"; "trace.offHintShown" ]
 
 /// Scratch keys for tests. Nothing in the product reads a key under this prefix.
 let private testPrefix = "test."

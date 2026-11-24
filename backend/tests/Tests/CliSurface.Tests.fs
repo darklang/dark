@@ -208,7 +208,7 @@ let private runStopsWhenStdoutCloses =
           + "  if n >= 3000 then 0 else tick(n + 1)\n"
           + "tick(1)\n"
         )
-        let p = Tests.CliInstance.startUndrained i [ "run"; script ]
+        let p = Tests.CliInstance.startUndrained i [ "--no-trace"; "run"; script ]
         try
           let! first = p.StandardOutput.ReadLineAsync()
           Expect.equal first "1" "the run prints"

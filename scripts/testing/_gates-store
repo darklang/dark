@@ -263,9 +263,9 @@ gate_backups_restore() {
   echo "== a wiped store comes back from it"
   # Wipe: the fn is gone. Then restore, and it is back. `-y`, since a piped stdin cannot answer.
   x discard -y > /dev/null
-  want "the fn is gone after the wipe" "not found" "$(x eval 'BK.T.kept()' | tail -1)"
+  want "the fn is gone after the wipe" "not found" "$(x eval 'BK.T.kept()')"
   want "restore asks first" "Restore not done" "$(x backups restore "$name" < /dev/null)"
-  want "the store is still the wiped one" "not found" "$(x eval 'BK.T.kept()' | tail -1)"
+  want "the store is still the wiped one" "not found" "$(x eval 'BK.T.kept()')"
   want "restore with -y" "^restored $name" "$(x backups restore "$name" -y)"
   want "and the fn is back" "^4242$" "$(x eval 'BK.T.kept()' | tail -1)"
   want "and the wiped store was put aside, not lost" "pre-restore" "$(x backups)"
@@ -563,7 +563,7 @@ DARK
 
   # Dispatch's answer, first, so the rest of the gate is measuring a real retirement and not a
   # deprecate that did nothing.
-  dispatch=$($CLI eval 'Stdlib.Add.add(Stachu.Dep.Dt { gateDeprecatedOnly = 1 }, Stachu.Dep.Dt { gateDeprecatedOnly = 2 })' 2>&1 | clean || true)
+  dispatch=$($CLI --no-trace eval 'Stdlib.Add.add(Stachu.Dep.Dt { gateDeprecatedOnly = 1 }, Stachu.Dep.Dt { gateDeprecatedOnly = 2 })' 2>&1 | clean || true)
   if [[ "$dispatch" != *"no implementation"* ]]; then
     echo "trait-checker-vs-dispatch: deprecating the implementation did not retire it at"
     echo "  dispatch, so nothing was tested. A fresh call answered: $dispatch"
@@ -649,7 +649,7 @@ DARK
       exit 1
     fi
 
-    got=$($CLI eval 'Stachu.Fit.callIt()' 2>&1 | clean || true)
+    got=$($CLI --no-trace eval 'Stachu.Fit.callIt()' 2>&1 | clean || true)
     if [[ "$got" != INT ]]; then
       echo "trait-checker-vs-dispatch: a saved call was resolved to an implementation that does not"
       echo "  fit its type arguments, with the implementations authored $order."

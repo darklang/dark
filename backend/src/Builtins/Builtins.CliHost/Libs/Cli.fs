@@ -1017,6 +1017,29 @@ let rec private runInOrder
       | Ok _ -> return! runInOrder executeExpression rest
   }
 
+/// Write a recorded run's log as it goes, once a second, so `dark traces follow` and
+/// `traces show` can read a long run before it ends. A run under a second writes nothing until
+/// it ends. Answers what stops it, which waits for a write in progress.
+let private flushWhileRunning (tracer : Tracing.T) : unit -> Task =
+  let flushing = new System.Threading.CancellationTokenSource()
+  let rec flushEverySecond (from : int) : Task =
+    Task
+      .Delay(1000, flushing.Token)
+      .ContinueWith(
+        (fun (waited : Task) ->
+          if waited.IsCanceled then
+            Task.CompletedTask
+          else
+            flushEverySecond (tracer.flushSoFar from)),
+        TaskContinuationOptions.ExecuteSynchronously
+      )
+      .Unwrap()
+  let flusher = flushEverySecond 0
+  fun () ->
+    flushing.Cancel()
+    flusher
+
+
 /// `execute`, with the tracer handed in rather than chosen here.
 ///
 /// A view supplies one (`cliViewTrace`): it answers every effect from a recorded trace's log,
@@ -1027,6 +1050,7 @@ let executeWith
   (parentState : RT.ExecutionState)
   (mod' : Utils.CliScript.PTCliScriptModule)
   (input : LibDB.Traces.ScriptOrEvalInput)
+  (traceID : AT.TraceID.T)
   (suppliedTracer : Option<Tracing.T>)
   : Task<RT.ExecutionResult> =
   task {
@@ -1094,7 +1118,6 @@ let executeWith
              | _ -> None)
           tracer, Some e.id, Some e.status
         | None ->
-          let traceID = AT.TraceID.create ()
           let tracer =
             Tracing.createCliTracer
               parentState.traceCaps
@@ -1148,6 +1171,11 @@ let executeWith
     |> Option.iter (fun id ->
       LibDB.Traces.Foreground.set
         { id = id; flush = fun () -> tracer.storeTraceResults state })
+
+    let stopFlushing =
+      match executionId with
+      | Some _ -> flushWhileRunning tracer
+      | None -> fun () -> Task.CompletedTask
 
     match mod'.exprs with
     | [] ->
@@ -1235,6 +1263,7 @@ let executeWith
             | Error _ as failed -> return failed
             | Ok _ -> return! runInOrder runEntry exprInstrs
           with ex ->
+            do! stopFlushing ()
             executionId
             |> Option.iter (fun id ->
               if LibDB.Traces.Foreground.clear id then
@@ -1248,6 +1277,7 @@ let executeWith
                 LibDB.Traces.setStatus id status)
             return raise ex
         }
+      do! stopFlushing ()
       // A run a suspend took out of the foreground stores nothing more: the log and the row are
       // what the suspend left, for `resume`. A resume refused at a step it cannot reproduce is
       // left as it was too, log and status: storing would write the replayed prefix over the
@@ -1283,7 +1313,7 @@ let execute
   (mod' : Utils.CliScript.PTCliScriptModule)
   (input : LibDB.Traces.ScriptOrEvalInput)
   : Task<RT.ExecutionResult> =
-  executeWith parentState mod' input None
+  executeWith parentState mod' input (AT.TraceID.create ()) None
 
 /// Create a branch-specific execution state for parsing.
 ///
@@ -1434,6 +1464,7 @@ let private runGuest
   (input : LibDB.Traces.ScriptOrEvalInput)
   (resultOk : Dval -> Dval)
   (resultError : Dval -> Dval)
+  (traceID : AT.TraceID.T)
   (mod' : Utils.CliScript.PTCliScriptModule)
   : Task<Dval> =
   let guest = createGuestState exeState callerAccess mod' input
@@ -1472,10 +1503,16 @@ let private runGuest
     if cancelled () then
       return cancelledResult
     else
-      let! execResult = execute exeState mod' input
+      let! execResult = executeWith exeState mod' input traceID None
       return finish cancelled execResult
   }
 
+
+/// The id a caller asked a run to be recorded under, or a fresh one.
+let private traceIDOf (requested : Dval) : AT.TraceID.T =
+  match C2DT.Option.fromDT D.uuid requested with
+  | Some id -> AT.TraceID.fromUUID id
+  | None -> AT.TraceID.create ()
 
 /// The body of `cliParseAndExecuteScript`.
 let private runScript
@@ -1492,6 +1529,7 @@ let private runScript
   (sandbox : bool)
   (runGrantsValue : Dval)
   (askValue : Dval)
+  (traceIDValue : Dval)
   : Task<Dval> =
   task {
     let ask =
@@ -1573,6 +1611,7 @@ let private runScript
                 input
                 resultOk
                 resultError
+                (traceIDOf traceIDValue)
                 mod'
           | Error pe -> return resultError (ExecutionError.toDT pe)
         })
@@ -1694,7 +1733,8 @@ let replayRun
     | Error _ -> Task.FromResult(Error ReplayStop.InputNoLongerParses)
     | Ok mod' ->
       let viewState = createGuestState exeState callerAccess mod' input
-      finish (fun () -> executeWith viewState mod' input (Some tracer))
+      finish (fun () ->
+        executeWith viewState mod' input (AT.TraceID.create ()) (Some tracer))
   | None ->
     // A served request: its input is a record, so there is no source to re-run. The handler
     // that served it was recorded on the row, so the replay applies that to the request.
@@ -1808,7 +1848,11 @@ let fns () : List<BuiltInFn> =
             (TypeReference.option (
               TFn(NEList.singleton (TTuple(TString, TList TString, [])), TInt64)
             ))
-            "Trusted UI callback: cancel, allow this run, or remember" ]
+            "Trusted UI callback: cancel, allow this run, or remember"
+          Param.make
+            "traceID"
+            (TypeReference.option TUuid)
+            "the id to record this run under; None picks one" ]
       returnType =
         TypeReference.result
           (TCustomType(NR.ok (RT2DT.Dval.typeName ()), []))
@@ -1831,7 +1875,8 @@ let fns () : List<BuiltInFn> =
              DBool allowHarmful
              DBool sandbox
              runGrantsValue
-             askValue |] ->
+             askValue
+             traceID |] ->
           runScript
             exeState
             callerVM.activeAccess
@@ -1846,6 +1891,7 @@ let fns () : List<BuiltInFn> =
             sandbox
             runGrantsValue
             askValue
+            traceID
           |> LibExecution.Pending.ofTask
         | _ -> incorrectArgs ())
       previewable = Impure
@@ -2128,7 +2174,11 @@ let fns () : List<BuiltInFn> =
           Param.make
             "runGrants"
             (TCustomType(NR.ok (PolicyDT.Policy.typeName ()), []))
-            "Access approved by the user for this evaluation only" ]
+            "Access approved by the user for this evaluation only"
+          Param.make
+            "traceID"
+            (TypeReference.option TUuid)
+            "the id to record this run under; None picks one" ]
       // Any type: the value is only known once the expression has run.
       returnType = TypeReference.result (TVariable "a") (ExecutionError.typeRef ())
       description =
@@ -2154,7 +2204,8 @@ let fns () : List<BuiltInFn> =
              DUuid branchId
              DString expression
              DBool allowHarmful
-             runGrantsValue |] ->
+             runGrantsValue
+             traceID |] ->
           let runGrants = PolicyDT.Policy.fromDT runGrantsValue
           let grants, denies = Permission.Policy.rules runGrants
           if
@@ -2207,7 +2258,9 @@ let fns () : List<BuiltInFn> =
                           deniedRequests = denied
                           runGrants = runGrants
                           access = Permission.Access.grantRun runGrants guest.access }
-                    match! execute exeState mod' input with
+                    match!
+                      executeWith exeState mod' input (traceIDOf traceID) None
+                    with
                     // A bare package fn name escaped the guest's frame, so it captured the
                     // guest's access. It carries nothing else from the guest: drop the capture,
                     // and whoever applies it supplies the access, as for any fn reference it

@@ -991,6 +991,48 @@ let private loopbackAnswersBothNames =
       listener.Close()
   }
 
+/// While recording, a served request answers with the id of the trace it left, a failed one
+/// included; with recording off there is no trace and no header.
+let private responsesNameTheirTrace =
+  testSequenced
+  <| testTask "a recorded request answers with its trace id" {
+    let traceIds (r : Http.T) =
+      r.headers
+      |> List.filter (fun (k, _) -> String.toLowercase k = HttpServer.traceIdHeader)
+      |> List.map snd
+    let requests = [ "/fast", [||]; "/boom", [||] ]
+    try
+      LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.On
+      let! recorded =
+        runParsedRequestsAgainst
+          HttpServer.defaultMaxBodyBytes
+          HttpServer.defaultRequestTimeoutMs
+          pathRouter
+          "GET"
+          requests
+      for r in recorded do
+        match traceIds r with
+        | [ id ] ->
+          Expect.isSome
+            (LibDB.Traces.get (System.Guid.Parse id))
+            $"{r.status}: the header names a kept trace"
+        | other ->
+          failtestf "%s: expected one trace id header, got %A" r.status other
+      LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.Off
+      let! unrecorded =
+        runParsedRequestsAgainst
+          HttpServer.defaultMaxBodyBytes
+          HttpServer.defaultRequestTimeoutMs
+          pathRouter
+          "GET"
+          requests
+      for r in unrecorded do
+        Expect.isEmpty (traceIds r) $"{r.status}: no header without a trace"
+    finally
+      LibDB.Tracing.TraceDetail.set LibDB.Tracing.TraceDetail.Off
+  }
+
+
 let tests =
   let t rootDir (filename : string) =
     testTask $"Http files: {filename}" {
@@ -1022,6 +1064,7 @@ let tests =
   testList
     "HttpServer"
     (serveRejectsNegativeMaxBodyBytes
+     :: responsesNameTheirTrace
      :: middlewareEffectsAreWhatItReaches
      :: serverResponsesFollowTheMiddleware
      :: bindRetriesATakenPort

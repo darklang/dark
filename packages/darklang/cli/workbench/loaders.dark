@@ -934,7 +934,11 @@ let refreshLiveValues(next: State): State =
                   v.byExpr
                   |> Stdlib.Dict.map(fun(_, dv) ->
                     PrettyPrinter.RuntimeTypes.dvalOneLine(next.branchId, 40, dv))
-                note = Stdlib.Option.withDefault(v.skipped, "") }
+                // Which run the values are from, since nothing else on the page says so.
+                note =
+                  match v.skipped with
+                  | Some(why) -> why
+                  | None -> $"values from trace {Text.shortIdText(run.id)}" }
 
         { next with
             liveValues = live.values

@@ -705,7 +705,8 @@ let fileDenialOffersTheFolderAndTheProfile =
         let second = write project "b.csv"
         let outside = write (dir "elsewhere") "c.csv"
 
-        let! code, stdout, before = CliInstance.runRaw i [ "eval"; first ]
+        let! code, stdout, before =
+          CliInstance.runRaw i [ "--no-trace"; "eval"; first ]
         Expect.equal code 1 "a permission refusal exits nonzero"
         Expect.equal stdout "" "errors go to stderr"
         Expect.stringStarts
@@ -746,9 +747,9 @@ let fileDenialOffersTheFolderAndTheProfile =
           (denied saved)
           $"pasting `{folderRule}` is accepted:\n{saved}"
         for call in [ first; second ] do
-          let! out = CliInstance.run i [ "eval"; call ]
+          let! out = CliInstance.run i [ "--no-trace"; "eval"; call ]
           Expect.isFalse (denied out) $"the folder rule allows `{call}`:\n{out}"
-        let! other = CliInstance.run i [ "eval"; outside ]
+        let! other = CliInstance.run i [ "--no-trace"; "eval"; outside ]
         Expect.isTrue (denied other) $"and nothing outside the folder:\n{other}"
 
         // The profile, from a policy that allows none of it.
@@ -761,11 +762,11 @@ let fileDenialOffersTheFolderAndTheProfile =
           applied
           "applied profile"
           $"the profile applies:\n{applied}"
-        let! afterProfile = CliInstance.run i [ "eval"; second ]
+        let! afterProfile = CliInstance.run i [ "--no-trace"; "eval"; second ]
         Expect.isFalse
           (denied afterProfile)
           $"the profile covers the folder:\n{afterProfile}"
-        let! otherAfterProfile = CliInstance.run i [ "eval"; outside ]
+        let! otherAfterProfile = CliInstance.run i [ "--no-trace"; "eval"; outside ]
         Expect.isTrue
           (denied otherAfterProfile)
           $"and only it:\n{otherAfterProfile}"
@@ -1058,7 +1059,7 @@ let private httpDenialOffersTheHost =
               "Tests.Fetch.get"
               "(): Unit =\n  let _ = Stdlib.HttpClient.get(\"https://api.example.com/search?q=abc\", [])\n  ()" ]
         Expect.equal code 0L saved
-        let! out = CliInstance.run i [ "run"; "Tests.Fetch.get" ]
+        let! out = CliInstance.run i [ "--no-trace"; "run"; "Tests.Fetch.get" ]
         Expect.isTrue
           (out.StartsWith "permission denied")
           $"no script prefix:\n{out}"
@@ -1118,15 +1119,15 @@ let private approvalsDoNotPinCode =
         let! _ = run [ "fn"; name; "(): Int64 = 1" ]
         let! _ = run [ "permissions"; "approve"; name; "deny all"; "--yes" ]
         let! _ = run [ "fn"; name; "(): Int64 = 2" ]
-        let! edited = run [ "eval"; name + "()" ]
+        let! edited = run [ "--no-trace"; "eval"; name + "()" ]
         Expect.equal (edited.Trim()) "2" "the edit runs without reapproval"
         let! _ = run [ "commit"; "current code"; "-y" ]
         let! _ = run [ "branch"; "create"; "approval-branch" ]
         let! _ = run [ "fn"; name; "(): Int64 = 3" ]
-        let! branched = run [ "eval"; name + "()" ]
+        let! branched = run [ "--no-trace"; "eval"; name + "()" ]
         Expect.equal (branched.Trim()) "3" "approval cannot override branch code"
         let! _ = run [ "permissions"; "unapprove"; name ]
-        let! removed = run [ "eval"; name + "()" ]
+        let! removed = run [ "--no-trace"; "eval"; name + "()" ]
         Expect.equal (removed.Trim()) "3" "removal does not change code"
       })
 
@@ -1177,7 +1178,7 @@ let private approvalsRequireExplicitRules =
             output
             "no approval is necessary"
             "effect-free function explained"
-        let! pureResult = run [ "eval"; name + "()" ]
+        let! pureResult = run [ "--no-trace"; "eval"; name + "()" ]
         Expect.equal (pureResult.Trim()) "1" "a pure function runs without approval"
         let! _ = run [ "fn"; name; "(): Option<String> = Stdlib.Env.get(\"HOME\")" ]
         let! missing = reject [ "--for"; name; "--yes" ]
@@ -1444,11 +1445,12 @@ let private editedCodeNeedsFreshApproval =
           "(): String =\n  let _ = Stdlib.Env.get(\"HOME\")\n  " + helper + "()"
         let! _ = run [ "fn"; name; body ]
         let! _ = run [ "permissions"; "approve"; name; "env read HOME"; "--yes" ]
-        let! before = run [ "eval"; name + "()" ]
+        let! before = run [ "--no-trace"; "eval"; name + "()" ]
         Expect.equal (before.Trim()) "before" "reviewed code has access"
 
         let! _ = run [ "fn"; helper; "(): String = \"after\"" ]
-        let! denied, code = CliInstance.runWithExit i [ "eval"; name + "()" ]
+        let! denied, code =
+          CliInstance.runWithExit i [ "--no-trace"; "eval"; name + "()" ]
         Expect.notEqual code 0L denied
         Expect.stringContains
           denied
@@ -1457,12 +1459,14 @@ let private editedCodeNeedsFreshApproval =
 
         let script = System.IO.Path.Combine(i.dir, "current.dark")
         System.IO.File.WriteAllText(script, "Stdlib.printLine(" + name + "())\n")
-        let! temporary = run [ "run"; "--allow"; "env read HOME"; script ]
+        let! temporary =
+          run [ "--no-trace"; "run"; "--allow"; "env read HOME"; script ]
         Expect.equal
           (temporary.Trim())
           "after"
           "script calls use the edited dependency"
-        let! stillDenied, code = CliInstance.runWithExit i [ "eval"; name + "()" ]
+        let! stillDenied, code =
+          CliInstance.runWithExit i [ "--no-trace"; "eval"; name + "()" ]
         Expect.notEqual code 0L stillDenied
         Expect.stringContains
           stillDenied
@@ -1470,17 +1474,18 @@ let private editedCodeNeedsFreshApproval =
           "run grant stays temporary"
 
         let! _ = run [ "permissions"; "update"; name; "--yes" ]
-        let! after = run [ "eval"; name + "()" ]
+        let! after = run [ "--no-trace"; "eval"; name + "()" ]
         Expect.equal (after.Trim()) "after" "update approves current code"
 
         let editedBody =
           "(): String =\n  let _ = Stdlib.Env.get(\"HOME\")\n  \"edited\""
         let! _ = run [ "fn"; name; editedBody ]
-        let! denied, code = CliInstance.runWithExit i [ "eval"; name + "()" ]
+        let! denied, code =
+          CliInstance.runWithExit i [ "--no-trace"; "eval"; name + "()" ]
         Expect.notEqual code 0L denied
         Expect.stringContains denied "permission denied" "root edit loses approval"
         let! _ = run [ "permissions"; "approve"; name; "env read HOME"; "--yes" ]
-        let! edited = run [ "eval"; name + "()" ]
+        let! edited = run [ "--no-trace"; "eval"; name + "()" ]
         Expect.equal (edited.Trim()) "edited" "approve also reviews current code"
       })
 
@@ -1532,13 +1537,14 @@ let private callerChosenImplsKeepCallerAccess =
         for call in
           [ "Tests.Approved.describe(Tests.Caller.Zork { x = 1 })"
             "Tests.Caller.go()" ] do
-          let! denied, code = CliInstance.runWithExit i [ "eval"; call ]
+          let! denied, code =
+            CliInstance.runWithExit i [ "--no-trace"; "eval"; call ]
           Expect.notEqual code 0L denied
           Expect.stringContains denied "permission denied" call
 
-        let! plain = run [ "eval"; "Tests.Approved.describe(5)" ]
+        let! plain = run [ "--no-trace"; "eval"; "Tests.Approved.describe(5)" ]
         Expect.equal (plain.Trim()) "value: 5" "a pure implementation still runs"
-        let! own = run [ "eval"; "Tests.Approved.own()" ]
+        let! own = run [ "--no-trace"; "eval"; "Tests.Approved.own()" ]
         Expect.stringContains own "/" "the approved fn's own choice keeps access"
       })
 

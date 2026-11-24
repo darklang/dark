@@ -266,7 +266,7 @@ let now (running : Task<'a>) : 'a =
   if running.IsCompleted then
     running.Result
   else
-    Exception.raiseInternal "a run that cannot wait had to wait" []
+    Exception.raiseInternal "a value was read before it was ready" []
 
 
 /// What a package `val` may do while it is evaluated: nothing with an effect. Whatever the

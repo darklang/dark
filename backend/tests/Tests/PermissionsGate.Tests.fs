@@ -397,7 +397,8 @@ let guestCannotGrantRunAccess =
          RT.DBool false
          RT.DBool false
          LibExecution.PermissionsToDarkTypes.Policy.toDT P.Policy.allowAll
-         LibExecution.Dval.optionNone RT.KTUnit |]
+         LibExecution.Dval.optionNone RT.KTUnit
+         LibExecution.Dval.optionNone RT.KTUuid |]
     let mutable refused = false
     try
       let! _ =
@@ -422,7 +423,8 @@ let guestCannotGrantEvalAccess =
          RT.DUuid(System.Guid.NewGuid())
          RT.DString "1"
          RT.DBool false
-         LibExecution.PermissionsToDarkTypes.Policy.toDT P.Policy.allowAll |]
+         LibExecution.PermissionsToDarkTypes.Policy.toDT P.Policy.allowAll
+         LibExecution.Dval.optionNone RT.KTUuid |]
     let mutable refused = false
     try
       let! _ =

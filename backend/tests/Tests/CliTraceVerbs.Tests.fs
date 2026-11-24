@@ -343,6 +343,8 @@ let private suspendThenResume =
           // The log ends inside the pause, so the resume reads on live and finds the gate open.
           let! resumed = runCli state [ "exec"; "resume"; prefixOf e ]
           let last = resumed.Split('\n') |> Array.last
+          // The eval's output is its `trace <id>` line, then its answer.
+          let first = first.Split('\n') |> Array.last
           match words first, words last with
           | [ a1; _ ], [ a2; b2 ] ->
             Expect.equal a2 a1 "the first uuid came from the log"

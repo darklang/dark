@@ -228,7 +228,12 @@ val streamRows: List<(List<String> * Int64 * Stream * Stream)> =
       Stream.Says("\"branch\":\"main\""),
       Stream.Silent)
 
-    ([ "eval", "Tests.Rows.f(1)" ], 0, Stream.Says("2"), Stream.Silent)
+    (
+      [ "--no-trace", "eval", "Tests.Rows.f(1)" ],
+      0,
+      Stream.Says("2"),
+      Stream.Silent)
+
     ([ "eval", "1 / 0" ], 1, Stream.Silent, Stream.Says("Cannot divide by 0"))
     (
       [ "test", "run", "--verbose", "Tests.Rows.t" ],
