@@ -200,6 +200,23 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       previewable = Pure
       callEffects = Set.empty
+      deprecated = NotDeprecated }
+
+
+    { name = fn "float64FromBits" 0
+      typeParams = []
+      parameters = [ Param.make "bits" TUInt64 "" ]
+      returnType = TFloat64
+      description =
+        "The Float64 whose IEEE 754 binary64 bit pattern is <param bits>, the inverse of "
+        + "float64ToBits"
+      fn =
+        (function
+        | _, _, _, [| DUInt64 bits |] ->
+          System.BitConverter.UInt64BitsToDouble bits |> DFloat64
+        | _ -> incorrectArgs ())
+      previewable = Pure
+      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())
