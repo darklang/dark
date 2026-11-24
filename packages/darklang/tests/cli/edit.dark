@@ -344,3 +344,35 @@ test editReportsUpdatedFunctionAndDependents = Instance.withInstance(fun instanc
     [ Instance.exitedWith(code, 0, out)
       report
       Instance.doesNotSay(out, "from an earlier save", "siblings are expected") ]))
+
+
+/// A return type change saves the new version and reports each incompatible caller.
+test editReportsBrokenCallers = Instance.withInstance(fun instance ->
+  let (setupCode, setup) =
+    runWithStdin(
+      instance,
+      [ "module", "/Me.BrokenCallers", "-" ],
+      "let helper(): Int64 = 1\n"
+      + "let first(): Int64 = helper()\n"
+      + "let second(): Int64 = helper()\n"
+      + "let independent(): Int64 = 2\n")
+
+  let (code, out) =
+    runWithStdin(
+      instance,
+      [ "edit", "Me.BrokenCallers.helper", "-" ],
+      "let helper(): String = \"updated\"\n")
+
+  let saved = Instance.output(instance, [ "eval", "Me.BrokenCallers.helper()" ])
+  Stdlib.Test.all(
+    [ Instance.exitedWith(setupCode, 0, setup)
+      Instance.exitedWith(code, 0, out)
+      Instance.says(out, "Updated Me.BrokenCallers.helper", "reports the saved update")
+      Instance.says(out, "!", "marks the save with a warning")
+      Instance.doesNotSay(out, "✓", "does not mark the save as checked")
+      Instance.says(out, "2 dependents no longer type-check:", "counts the broken callers")
+      Instance.says(out, "- Me.BrokenCallers.first", "names the first caller")
+      Instance.says(out, "- Me.BrokenCallers.second", "names the second caller")
+      Instance.says(out, "expected Int64, got String (return value)", "shows the checker error")
+      Instance.doesNotSay(out, "Me.BrokenCallers.independent", "omits unaffected functions")
+      Instance.says(saved, "updated", "the new return value is available") ]))
