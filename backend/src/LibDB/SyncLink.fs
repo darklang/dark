@@ -40,6 +40,24 @@ let private iterate (step : 's -> Choice<'s, 'r>) (start : 's) : 'r =
     | Choice2Of2 r -> Some r
     | Choice1Of2 _ -> None)
 
+/// `iterate` for a step that waits: each step is awaited, so the loop holds no thread between them.
+let private iterateTask (step : 's -> Task<Choice<'s, 'r>>) (start : 's) : Task<'r> =
+  task {
+    let mutable at = Choice1Of2 start
+    while (match at with
+           | Choice1Of2 _ -> true
+           | Choice2Of2 _ -> false) do
+      match at with
+      | Choice1Of2 s ->
+        let! next = step s
+        at <- next
+      | Choice2Of2 _ -> ()
+    match at with
+    | Choice2Of2 r -> return r
+    | Choice1Of2 _ ->
+      return Exception.raiseInternal "the loop ended without a result" []
+  }
+
 
 // ------------------
 // How the link stands
@@ -459,7 +477,7 @@ let private session
   (input : Stream)
   (output : Stream)
   (once : bool)
-  : Ended =
+  : Task<Ended> =
   Directory.CreateDirectory side.workDir |> ignore<DirectoryInfo>
   let haveOut = fileIn side "have-out"
   let haveIn = fileIn side "have-in"
@@ -483,7 +501,8 @@ let private session
         | Closed _ -> Choice2Of2()
         | _ -> Choice1Of2())
       ()
-  use conn =
+  // Closed when the session ends, in the `finally` below.
+  let conn =
     new SqliteConnection($"Data Source={side.store};Mode=ReadOnly;Pooling=false")
   conn.Open()
 
@@ -493,7 +512,7 @@ let private session
 
   // A write the other end is not reading blocks, so it runs aside and is waited on in slices: turning
   // sync off still stops the session at once, and an end that stopped reading is given up on.
-  let send (frame : Frame) : Option<Ended> =
+  let send (frame : Frame) : Task<Option<Ended>> =
     // A thread of its own rather than the pool's: a write must start even when every pool thread
     // is blocked elsewhere in the process.
     let written = TaskCompletionSource<Option<string>>()
@@ -510,17 +529,21 @@ let private session
     writer.Start()
     let deadline = System.DateTime.UtcNow.AddSeconds 60.0
     let rec wait () =
-      if written.Task.Wait 200 then
-        written.Task.Result |> Option.map PeerGone
-      elif not (side.keepGoing ()) then
-        Some Stopped
-      elif System.DateTime.UtcNow > deadline then
-        Some(PeerGone "the other end stopped reading")
-      else
-        wait ()
+      task {
+        let! first = Task.WhenAny(written.Task :> Task, Task.Delay 200)
+        if obj.ReferenceEquals(first, written.Task) then
+          let! failed = written.Task
+          return failed |> Option.map PeerGone
+        elif not (side.keepGoing ()) then
+          return Some Stopped
+        elif System.DateTime.UtcNow > deadline then
+          return Some(PeerGone "the other end stopped reading")
+        else
+          return! wait ()
+      }
     wait ()
 
-  let sendBundle (counts : OpSync.Counts) (what : string) : Option<Ended> =
+  let sendBundle (counts : OpSync.Counts) (what : string) : Task<Option<Ended>> =
     let bytes = File.ReadAllBytes bundleOut
     side.log
       $"sent {what}: {counts.ops} ops, {counts.journal} entries, {counts.commits} commits, {bytes.Length} bytes"
@@ -532,28 +555,30 @@ let private session
     (since : OpSync.Cursor)
     (peerId : string)
     (what : string)
-    : Result<Option<OpSync.Cursor>, Ended> =
-    let now = standing conn
-    if now.journal <= since.journal && now.blobs <= since.blobs then
-      match send (UpToDate now) with
-      | Some ended -> Error ended
-      | None -> Ok(Some now)
-    else
-      match OpSync.exportSinceFor scope side.store since peerId bundleOut with
-      | Error reason -> Error(Refused reason)
-      | Ok counts when carries counts ->
-        match sendBundle counts what with
-        | Some ended -> Error ended
-        | None -> Ok(Some counts.upTo)
-      | Ok counts ->
-        match send (UpToDate counts.upTo) with
-        | Some ended -> Error ended
-        | None -> Ok(Some counts.upTo)
+    : Task<Result<Option<OpSync.Cursor>, Ended>> =
+    task {
+      let now = standing conn
+      if now.journal <= since.journal && now.blobs <= since.blobs then
+        match! send (UpToDate now) with
+        | Some ended -> return Error ended
+        | None -> return Ok(Some now)
+      else
+        match OpSync.exportSinceFor scope side.store since peerId bundleOut with
+        | Error reason -> return Error(Refused reason)
+        | Ok counts when carries counts ->
+          match! sendBundle counts what with
+          | Some ended -> return Error ended
+          | None -> return Ok(Some counts.upTo)
+        | Ok counts ->
+          match! send (UpToDate counts.upTo) with
+          | Some ended -> return Error ended
+          | None -> return Ok(Some counts.upTo)
+    }
 
-  let sendHave () : Option<Ended> =
+  let sendHave () : Task<Option<Ended>> =
     let clock = System.Diagnostics.Stopwatch.StartNew()
     match OpSync.writeHave side.store haveOut with
-    | Error reason -> Some(Refused reason)
+    | Error reason -> Task.FromResult(Some(Refused reason))
     | Ok() ->
       let bytes = File.ReadAllBytes haveOut
       side.log
@@ -562,17 +587,20 @@ let private session
 
   /// This end now holds everything of the other's up to <param upTo>: remember it, so the next
   /// session starts there, and say so.
-  let holds (st : State) (upTo : OpSync.Cursor) : Result<State, Ended> =
-    match st.peer with
-    | None -> Error(Refused "the other end sent changes before saying who it is")
-    | Some(id, name) ->
-      OpSync.recordReceived side.store id name upTo
-      match send (Ack upTo) with
-      | Some ended -> Error ended
+  let holds (st : State) (upTo : OpSync.Cursor) : Task<Result<State, Ended>> =
+    task {
+      match st.peer with
       | None ->
-        if not st.caughtUp then
-          side.note (fun s -> { s with caughtUp = Some System.DateTime.UtcNow })
-        Ok { st with caughtUp = true }
+        return Error(Refused "the other end sent changes before saying who it is")
+      | Some(id, name) ->
+        OpSync.recordReceived side.store id name upTo
+        match! send (Ack upTo) with
+        | Some ended -> return Error ended
+        | None ->
+          if not st.caughtUp then
+            side.note (fun s -> { s with caughtUp = Some System.DateTime.UtcNow })
+          return Ok { st with caughtUp = true }
+    }
 
   /// On a server, why a bundle is stamped too far past this end's clock to take, if it is.
   let aheadOfClock () : Option<string> =
@@ -598,7 +626,7 @@ let private session
           $"this machine's changes are stamped about {howFar} ahead of the server's clock; they wait until that time comes. Is this machine's clock right?"
       | _ -> None
 
-  let receive (st : State) (bytes : byte[]) : Result<State, Ended> =
+  let receive (st : State) (bytes : byte[]) : Task<Result<State, Ended>> =
     File.WriteAllBytes(bundleIn, bytes)
     let started = System.Diagnostics.Stopwatch.StartNew()
     let imported =
@@ -622,7 +650,7 @@ let private session
             if changed counts then side.afterImport counts
             Ok(counts, importMs))
     match imported with
-    | Error reason -> Error(Refused reason)
+    | Error reason -> Task.FromResult(Error(Refused reason))
     | Ok(counts, importMs) ->
       if changed counts then
         side.log
@@ -647,16 +675,33 @@ let private session
     | Error ended -> Choice2Of2 ended
     | Ok cursor -> Choice1Of2 { st with cursor = Option.orElse st.cursor cursor }
 
-  let step (st : State) : Choice<State, Ended> =
+  let answeredBy
+    (st : State)
+    (sending : Task<Result<Option<OpSync.Cursor>, Ended>>)
+    =
+    task {
+      let! sent = sending
+      return answered st sent
+    }
+
+  /// Whether <param sending> ended the session, or the session goes on as <param st>.
+  let goOnAfter (st : State) (sending : Task<Option<Ended>>) =
+    task {
+      match! sending with
+      | Some ended -> return Choice2Of2 ended
+      | None -> return Choice1Of2 st
+    }
+
+  let step (st : State) : Task<Choice<State, Ended>> =
     if
       once
       && st.caughtUp
       && (st.readOnly || (Option.isSome st.cursor && Option.isSome st.acked))
     then
-      Choice2Of2 Exchanged
+      Task.FromResult(Choice2Of2 Exchanged)
     // Turned off: nothing more is taken, even what already arrived.
     elif not (side.keepGoing ()) then
-      Choice2Of2 Stopped
+      Task.FromResult(Choice2Of2 Stopped)
     else
       match frames.Reader.TryRead() with
       | true, frame ->
@@ -671,13 +716,15 @@ let private session
           else
             st
         match frame with
-        | Closed reason -> Choice2Of2(PeerGone reason)
-        | Bye reason -> Choice2Of2(Refused reason)
-        | Ping -> Choice1Of2 st
+        | Closed reason -> Task.FromResult(Choice2Of2(PeerGone reason))
+        | Bye reason -> Task.FromResult(Choice2Of2(Refused reason))
+        | Ping -> Task.FromResult(Choice1Of2 st)
         | Hello h when h.version <> OpSync.formatVersion ->
-          Choice2Of2(
-            Refused
-              $"{h.name} runs a dark that speaks sync format {h.version}; this one speaks {OpSync.formatVersion}"
+          Task.FromResult(
+            Choice2Of2(
+              Refused
+                $"{h.name} runs a dark that speaks sync format {h.version}; this one speaks {OpSync.formatVersion}"
+            )
           )
         | Hello h ->
           let bound =
@@ -688,7 +735,7 @@ let private session
               |> Result.mapError (fun owner ->
                 $"the store on {h.name} syncs as {owner}; {a.person}'s token can't use it")
           match bound with
-          | Error reason -> Choice2Of2(Refused reason)
+          | Error reason -> Task.FromResult(Choice2Of2(Refused reason))
           | Ok() ->
             let who =
               match side.account with
@@ -713,31 +760,22 @@ let private session
             let st = { st with peer = Some(h.id, h.name); readOnly = h.readOnly }
             // From the point the two last agreed on, or from scratch. Nothing is asked of an end
             // whose token only reads.
-            let asked, fromScratch =
-              if readOnlyAccount then
-                None, false
-              else
-                match OpSync.receivedFrom side.store h.id with
-                | Some c ->
-                  side.log $"resuming from {c.journal}/{c.blobs}"
-                  send (Resume c), false
-                | None -> sendHave (), true
-            match asked with
-            | Some ended -> Choice2Of2 ended
-            | None -> Choice1Of2 { st with fromScratch = fromScratch }
+            if readOnlyAccount then
+              Task.FromResult(Choice1Of2 { st with fromScratch = false })
+            else
+              match OpSync.receivedFrom side.store h.id with
+              | Some c ->
+                side.log $"resuming from {c.journal}/{c.blobs}"
+                goOnAfter { st with fromScratch = false } (send (Resume c))
+              | None -> goOnAfter { st with fromScratch = true } (sendHave ())
         | Resume c ->
           if OpSync.reaches side.store c then
-            answered st (sendSince c (peerIdOf st) "catch-up")
+            answeredBy st (sendSince c (peerIdOf st) "catch-up")
           else
             side.log
               $"asked to resume from {c.journal}/{c.blobs}, which this store never reached"
-            match send Rehave with
-            | Some ended -> Choice2Of2 ended
-            | None -> Choice1Of2 st
-        | Rehave ->
-          match sendHave () with
-          | Some ended -> Choice2Of2 ended
-          | None -> Choice1Of2 { st with fromScratch = true }
+            goOnAfter st (send Rehave)
+        | Rehave -> goOnAfter { st with fromScratch = true } (sendHave ())
         | Have bytes ->
           File.WriteAllBytes(haveIn, bytes)
           let clock = System.Diagnostics.Stopwatch.StartNew()
@@ -745,37 +783,47 @@ let private session
           side.log
             $"have of {bytes.Length} bytes answered in {clock.ElapsedMilliseconds} ms"
           match exported with
-          | Error reason -> Choice2Of2(Refused reason)
-          | Ok counts when carries counts ->
-            answered
-              st
-              (match sendBundle counts "catch-up" with
-               | Some ended -> Error ended
-               | None -> Ok(Some counts.upTo))
+          | Error reason -> Task.FromResult(Choice2Of2(Refused reason))
           | Ok counts ->
-            answered
-              st
-              (match send (UpToDate counts.upTo) with
-               | Some ended -> Error ended
-               | None -> Ok(Some counts.upTo))
+            let sending =
+              if carries counts then
+                sendBundle counts "catch-up"
+              else
+                send (UpToDate counts.upTo)
+            task {
+              match! sending with
+              | Some ended -> return answered st (Error ended)
+              | None -> return answered st (Ok(Some counts.upTo))
+            }
         | Bundle bytes ->
-          match receive st bytes with
-          | Error ended -> Choice2Of2 ended
-          | Ok st -> Choice1Of2 st
+          task {
+            match! receive st bytes with
+            | Error ended -> return Choice2Of2 ended
+            | Ok st -> return Choice1Of2 st
+          }
         | UpToDate c ->
-          match holds st c with
-          | Error ended -> Choice2Of2 ended
-          | Ok st -> Choice1Of2 st
+          task {
+            match! holds st c with
+            | Error ended -> return Choice2Of2 ended
+            | Ok st -> return Choice1Of2 st
+          }
         | Ack c ->
           match st.peer with
           | None ->
-            Choice2Of2(Refused "the other end acknowledged before saying who it is")
+            Task.FromResult(
+              Choice2Of2(
+                Refused "the other end acknowledged before saying who it is"
+              )
+            )
           | Some(id, name) ->
             OpSync.recordAcked side.store id name c.journal false |> ignore<int64>
-            Choice1Of2
-              { st with
-                  acked = Some c.journal
-                  trimming = if Option.isNone st.acked then Some 0L else st.trimming }
+            Task.FromResult(
+              Choice1Of2
+                { st with
+                    acked = Some c.journal
+                    trimming =
+                      if Option.isNone st.acked then Some 0L else st.trimming }
+            )
       | _ ->
         match st.trimming with
         // Nothing to read: the trim goes on, a window at a time.
@@ -783,99 +831,121 @@ let private session
           let dropped, next = OpSync.trimStep side.store after
           if dropped > 0L then
             side.log $"trimmed {dropped} journal entries every peer holds"
-          Choice1Of2 { st with trimming = next }
+          Task.FromResult(Choice1Of2 { st with trimming = next })
         | _ ->
-          if frames.Reader.WaitToReadAsync().AsTask().Wait(side.pollMs) then
-            Choice1Of2 st
-          elif not (side.keepGoing ()) then
-            Choice2Of2 Stopped
-          elif
-            (System.DateTime.UtcNow - st.heard).TotalMilliseconds > float
-              side.quietMs
-          then
-            Choice2Of2 Unanswered
-          else
-            match st.cursor with
-            | Some c when not st.readOnly ->
-              let now = standing conn
-              if now.journal > c.journal || now.blobs > c.blobs then
-                match
-                  OpSync.exportSinceFor scope side.store c (peerIdOf st) bundleOut
-                with
-                | Error reason -> Choice2Of2(Refused reason)
-                | Ok counts ->
-                  let sent =
-                    if carries counts then sendBundle counts "change" else None
-                  match sent with
-                  | Some ended -> Choice2Of2 ended
-                  | None -> Choice1Of2 { st with cursor = Some counts.upTo }
-              else
-                Choice1Of2 st
-            | _ -> Choice1Of2 st
+          task {
+            let ready = frames.Reader.WaitToReadAsync().AsTask()
+            let! first = Task.WhenAny(ready :> Task, Task.Delay side.pollMs)
+            if obj.ReferenceEquals(first, ready) then
+              return Choice1Of2 st
+            elif not (side.keepGoing ()) then
+              return Choice2Of2 Stopped
+            elif
+              (System.DateTime.UtcNow - st.heard).TotalMilliseconds > float
+                side.quietMs
+            then
+              return Choice2Of2 Unanswered
+            else
+              match st.cursor with
+              | Some c when not st.readOnly ->
+                let now = standing conn
+                if now.journal > c.journal || now.blobs > c.blobs then
+                  match
+                    OpSync.exportSinceFor scope side.store c (peerIdOf st) bundleOut
+                  with
+                  | Error reason -> return Choice2Of2(Refused reason)
+                  | Ok counts ->
+                    let! sent =
+                      if carries counts then
+                        sendBundle counts "change"
+                      else
+                        Task.FromResult None
+                    match sent with
+                    | Some ended -> return Choice2Of2 ended
+                    | None -> return Choice1Of2 { st with cursor = Some counts.upTo }
+                else
+                  return Choice1Of2 st
+              | _ -> return Choice1Of2 st
+          }
 
   // Pings go out on a timer of their own, not between steps: a step can be a long import, and the
-  // other end must not take that for silence.
-  use finished = new System.Threading.ManualResetEventSlim(false)
-  let pinger =
-    System.Threading.Thread(
-      (fun () ->
-        while not (finished.Wait(side.quietMs / 4)) do
+  // other end must not take that for silence. Off the session's thread (`ConfigureAwait(false)`),
+  // since a ping to an end that stopped reading blocks its writer.
+  let pinging (stop : System.Threading.CancellationToken) : Task =
+    task {
+      try
+        while true do
+          do! Task.Delay(side.quietMs / 4, stop).ConfigureAwait(false)
           try
             write Ping
           with _ ->
-            ()),
-      IsBackground = true
-    )
+            ()
+      with :? System.OperationCanceledException ->
+        ()
+    }
 
-  try
-    // Reading starts before anything is sent.
-    Task.Factory.StartNew(pump, TaskCreationOptions.LongRunning) |> ignore<Task>
-    let hello =
-      { version = OpSync.formatVersion
-        name = selfName
-        id = selfId
-        readOnly = readOnlyAccount
-        clock = Some System.DateTime.UtcNow }
-    match send (Hello hello) with
-    | Some ended -> ended
-    | None ->
-      pinger.Start()
-      let ended, why =
-        try
-          let ended =
-            iterate
-              step
-              { cursor = None
-                peer = None
-                caughtUp = false
-                acked = None
-                heard = System.DateTime.UtcNow
-                readOnly = false
-                trimming = None
-                fromScratch = false }
-          match ended with
-          | Refused reason -> ended, Some reason
-          | _ -> ended, None
-        with e ->
-          PeerGone e.Message, Some $"{selfName} failed: {e.Message}"
-      // Say why, so the other end can tell its person rather than retry in silence.
-      match why with
-      | Some reason ->
-        try
-          write (Bye reason)
-        with _ ->
-          ()
-      | None -> ()
-      ended
-  finally
-    finished.Set()
-    for path in [ haveOut; haveIn; bundleOut; bundleIn ] do
-      removeFile path
+  task {
+    use stopPinging = new System.Threading.CancellationTokenSource()
+    try
+      // Reading starts before anything is sent.
+      Task.Factory.StartNew(pump, TaskCreationOptions.LongRunning) |> ignore<Task>
+      let hello =
+        { version = OpSync.formatVersion
+          name = selfName
+          id = selfId
+          readOnly = readOnlyAccount
+          clock = Some System.DateTime.UtcNow }
+      match! send (Hello hello) with
+      | Some ended -> return ended
+      | None ->
+        Task.Run(fun () -> pinging stopPinging.Token) |> ignore<Task>
+        let! ended, why =
+          task {
+            try
+              let! ended =
+                iterateTask
+                  step
+                  { cursor = None
+                    peer = None
+                    caughtUp = false
+                    acked = None
+                    heard = System.DateTime.UtcNow
+                    readOnly = false
+                    trimming = None
+                    fromScratch = false }
+              match ended with
+              | Refused reason -> return ended, Some reason
+              | _ -> return ended, None
+            with e ->
+              return PeerGone e.Message, Some $"{selfName} failed: {e.Message}"
+          }
+        // Say why, so the other end can tell its person rather than retry in silence.
+        match why with
+        | Some reason ->
+          try
+            write (Bye reason)
+          with _ ->
+            ()
+        | None -> ()
+        return ended
+    finally
+      stopPinging.Cancel()
+      conn.Dispose()
+      for path in [ haveOut; haveIn; bundleOut; bundleIn ] do
+        removeFile path
+  }
 
 
-let run (side : Side) (input : Stream) (output : Stream) (once : bool) : Ended =
-  use greeted = new System.Threading.ManualResetEventSlim(false)
-  session greeted side input output once
+let run
+  (side : Side)
+  (input : Stream)
+  (output : Stream)
+  (once : bool)
+  : Task<Ended> =
+  task {
+    use greeted = new System.Threading.ManualResetEventSlim(false)
+    return! session greeted side input output once
+  }
 
 
 // ------------------
@@ -986,7 +1056,7 @@ let private connectProgram
   (program : string)
   (arguments : List<string>)
   (once : bool)
-  : Ended * Option<Failure> * bool =
+  : Task<Ended * Option<Failure> * bool> =
   let psi = System.Diagnostics.ProcessStartInfo(program)
   for a in arguments do
     psi.ArgumentList.Add a
@@ -1000,45 +1070,54 @@ let private connectProgram
     with e ->
       Error e.Message
   match started with
-  | Error reason -> PeerGone reason, Some(Unreachable reason), false
+  | Error reason -> Task.FromResult(PeerGone reason, Some(Unreachable reason), false)
   | Ok proc ->
-    use proc = proc
-    use greeted = new System.Threading.ManualResetEventSlim(false)
-    let stderr = proc.StandardError.ReadToEndAsync()
-    let ended =
+    task {
+      use proc = proc
+      use greeted = new System.Threading.ManualResetEventSlim(false)
+      let stderr = proc.StandardError.ReadToEndAsync()
+      let! ended =
+        task {
+          try
+            return!
+              session
+                greeted
+                side
+                proc.StandardOutput.BaseStream
+                proc.StandardInput.BaseStream
+                once
+          with e ->
+            return PeerGone e.Message
+        }
+      let kill () =
+        try
+          proc.Kill true
+        with _ ->
+          ()
+      // Closing its stdin is how the other end learns the session is over. Sync turned off does not
+      // wait for that, nor does an end that stopped answering, which would never close its side; a
+      // write still blocked on a pipe nobody reads ends when the child does.
+      if ended = Stopped || ended = Unanswered then kill ()
       try
-        session
-          greeted
-          side
-          proc.StandardOutput.BaseStream
-          proc.StandardInput.BaseStream
-          once
-      with e ->
-        PeerGone e.Message
-    let kill () =
-      try
-        proc.Kill true
+        proc.StandardInput.Close()
       with _ ->
         ()
-    // Closing its stdin is how the other end learns the session is over. Sync turned off does not
-    // wait for that, nor does an end that stopped answering, which would never close its side; a
-    // write still blocked on a pipe nobody reads ends when the child does.
-    if ended = Stopped || ended = Unanswered then kill ()
-    (try
-      proc.StandardInput.Close()
-     with _ ->
-       ())
-    if not (proc.WaitForExit 10000) then kill ()
-    proc.WaitForExit()
-    let said = if stderr.Wait 1000 then stderr.Result else ""
-    let failure =
-      match ended with
-      | PeerGone _ when proc.ExitCode <> 0 -> Some(classify proc.ExitCode said)
-      | PeerGone reason -> Some(Unreachable reason)
-      | Unanswered -> Some(Unreachable "the other end stopped answering")
-      | Refused reason -> Some(NotSpoken reason)
-      | _ -> None
-    ended, failure, greeted.IsSet
+      let exited = proc.WaitForExitAsync()
+      let! first = Task.WhenAny(exited, Task.Delay 10000)
+      if not (obj.ReferenceEquals(first, exited)) then kill ()
+      do! exited
+      let! first = Task.WhenAny(stderr :> Task, Task.Delay 1000)
+      let! said =
+        if obj.ReferenceEquals(first, stderr) then stderr else Task.FromResult ""
+      let failure =
+        match ended with
+        | PeerGone _ when proc.ExitCode <> 0 -> Some(classify proc.ExitCode said)
+        | PeerGone reason -> Some(Unreachable reason)
+        | Unanswered -> Some(Unreachable "the other end stopped answering")
+        | Refused reason -> Some(NotSpoken reason)
+        | _ -> None
+      return ended, failure, greeted.IsSet
+    }
 
 /// The header a server answers a refused connection with: why, as a word (`ServerRefusal`).
 let refusalHeader = "Dark-Sync-Refusal"
@@ -1050,88 +1129,104 @@ let formatHeader = "Dark-Sync-Format"
 /// Where on a server sessions are opened.
 let sessionPath = "/sync"
 
+let rec private innermost (e : exn) : string =
+  match e.InnerException with
+  | null -> e.Message
+  | inner -> innermost inner
+
+/// Say goodbye on <param ws>, waiting at most 2 s for the other end to take it.
+let closeQuickly (ws : System.Net.WebSockets.WebSocket) : Task =
+  task {
+    try
+      use cts = new System.Threading.CancellationTokenSource(2000)
+      do!
+        ws.CloseOutputAsync(
+          System.Net.WebSockets.WebSocketCloseStatus.NormalClosure,
+          "",
+          cts.Token
+        )
+    with _ ->
+      ()
+  }
+
 /// Open a session to the sync server at <param url> with <param token>, over a WebSocket, and run it.
 let private connectServer
   (side : Side)
   (url : System.Uri)
   (token : string)
   (once : bool)
-  : Ended * Option<Failure> * bool =
-  let target =
-    let b = System.UriBuilder(url)
-    b.Scheme <- if url.Scheme = "https" then "wss" else "ws"
-    b.Path <- b.Path.TrimEnd('/') + sessionPath
-    b.Uri
-  let ws = new System.Net.WebSockets.ClientWebSocket()
-  ws.Options.SetRequestHeader("Authorization", $"Bearer {token}")
-  ws.Options.SetRequestHeader(formatHeader, OpSync.formatVersion)
-  ws.Options.CollectHttpResponseDetails <- true
-  ws.Options.KeepAliveInterval <- System.TimeSpan.FromSeconds 15.0
-  let opened =
-    try
-      use cts =
-        new System.Threading.CancellationTokenSource(
-          System.TimeSpan.FromSeconds 15.0
+  : Task<Ended * Option<Failure> * bool> =
+  task {
+    let target =
+      let b = System.UriBuilder(url)
+      b.Scheme <- if url.Scheme = "https" then "wss" else "ws"
+      b.Path <- b.Path.TrimEnd('/') + sessionPath
+      b.Uri
+    let ws = new System.Net.WebSockets.ClientWebSocket()
+    ws.Options.SetRequestHeader("Authorization", $"Bearer {token}")
+    ws.Options.SetRequestHeader(formatHeader, OpSync.formatVersion)
+    ws.Options.CollectHttpResponseDetails <- true
+    ws.Options.KeepAliveInterval <- System.TimeSpan.FromSeconds 15.0
+    let! opened =
+      task {
+        try
+          use cts =
+            new System.Threading.CancellationTokenSource(
+              System.TimeSpan.FromSeconds 15.0
+            )
+          do! ws.ConnectAsync(target, cts.Token)
+          return Ok()
+        with e ->
+          let refusal =
+            match ws.HttpResponseHeaders with
+            | null -> ""
+            | headers ->
+              match headers.TryGetValue refusalHeader with
+              | true, values -> values |> Seq.tryHead |> Option.defaultValue ""
+              | _ -> ""
+          return
+            match int ws.HttpStatusCode, refusal with
+            | _, "revoked" -> Error(TokenRefused true)
+            | 401, _
+            | _, "unknown-token" -> Error(TokenRefused false)
+            | _, "format" ->
+              Error(
+                NotSpoken "the server runs a dark that speaks another sync format"
+              )
+            | 0, _ -> Error(Unreachable(innermost e))
+            | 404, _ ->
+              Error(NotSpoken $"{url} answers, but isn't a dark sync server")
+            | code, _ -> Error(Unreachable $"the server answered HTTP {code}")
+      }
+    match opened with
+    | Error failure ->
+      ws.Dispose()
+      return PeerGone "not connected", Some failure, false
+    | Ok() ->
+      use stream =
+        System.Net.WebSockets.WebSocketStream.Create(
+          ws,
+          System.Net.WebSockets.WebSocketMessageType.Binary,
+          true
         )
-      ws.ConnectAsync(target, cts.Token).Wait()
-      Ok()
-    with e ->
-      let refusal =
-        match ws.HttpResponseHeaders with
-        | null -> ""
-        | headers ->
-          match headers.TryGetValue refusalHeader with
-          | true, values -> values |> Seq.tryHead |> Option.defaultValue ""
-          | _ -> ""
-      let rec innermost (e : exn) =
-        match e.InnerException with
-        | null -> e.Message
-        | inner -> innermost inner
-      match int ws.HttpStatusCode, refusal with
-      | _, "revoked" -> Error(TokenRefused true)
-      | 401, _
-      | _, "unknown-token" -> Error(TokenRefused false)
-      | _, "format" ->
-        Error(NotSpoken "the server runs a dark that speaks another sync format")
-      | 0, _ -> Error(Unreachable(innermost e))
-      | 404, _ -> Error(NotSpoken $"{url} answers, but isn't a dark sync server")
-      | code, _ -> Error(Unreachable $"the server answered HTTP {code}")
-  match opened with
-  | Error failure ->
-    ws.Dispose()
-    PeerGone "not connected", Some failure, false
-  | Ok() ->
-    use stream =
-      System.Net.WebSockets.WebSocketStream.Create(
-        ws,
-        System.Net.WebSockets.WebSocketMessageType.Binary,
-        true
-      )
-    use greeted = new System.Threading.ManualResetEventSlim(false)
-    let ended =
-      try
-        session greeted side stream stream once
-      with e ->
-        PeerGone e.Message
-    // A closing handshake the other end may never answer is not waited on for long.
-    (try
-      use cts = new System.Threading.CancellationTokenSource(2000)
-      ws
-        .CloseOutputAsync(
-          System.Net.WebSockets.WebSocketCloseStatus.NormalClosure,
-          "",
-          cts.Token
-        )
-        .Wait()
-     with _ ->
-       ())
-    let failure =
-      match ended with
-      | PeerGone reason -> Some(Unreachable reason)
-      | Unanswered -> Some(Unreachable "the server stopped answering")
-      | Refused reason -> Some(NotSpoken reason)
-      | _ -> None
-    ended, failure, greeted.IsSet
+      use greeted = new System.Threading.ManualResetEventSlim(false)
+      let! ended =
+        task {
+          try
+            return! session greeted side stream stream once
+          with e ->
+            return PeerGone e.Message
+        }
+      // A closing handshake the other end may never answer is not waited on for long.
+      do! closeQuickly ws
+      let failure =
+        match ended with
+        | PeerGone reason -> Some(Unreachable reason)
+        | Unanswered -> Some(Unreachable "the server stopped answering")
+        | Refused reason -> Some(NotSpoken reason)
+        | _ -> None
+      return ended, failure, greeted.IsSet
+  }
 
 /// Reach the other end over <param transport> and run a session: how it ended, why it failed if it
 /// did, and whether the other end said hello first.
@@ -1139,7 +1234,7 @@ let connect
   (side : Side)
   (transport : Transport)
   (once : bool)
-  : Ended * Option<Failure> * bool =
+  : Task<Ended * Option<Failure> * bool> =
   match transport with
   | Program(program, arguments) -> connectProgram side program arguments once
   | Server(url, token) -> connectServer side url token once
@@ -1172,111 +1267,119 @@ type private Watching =
 let clock (t : System.DateTime) : string = t.ToLocalTime().ToString "HH:mm"
 
 /// Sleep about <param ms>, waking early when sync is turned off. True when it was.
-let private nap (watch : Watch) (ms : int) : bool =
+let private nap (watch : Watch) (ms : int) : Task<bool> =
   let deadline = System.DateTime.UtcNow.AddMilliseconds(float ms)
   let rec go () =
-    if not (watch.side.keepGoing ()) then
-      true
-    elif System.DateTime.UtcNow >= deadline then
-      false
-    else
-      System.Threading.Thread.Sleep 200
-      go ()
+    task {
+      if not (watch.side.keepGoing ()) then
+        return true
+      elif System.DateTime.UtcNow >= deadline then
+        return false
+      else
+        do! Task.Delay 200
+        return! go ()
+    }
   go ()
 
 /// Keep a session open to the other machine until sync is turned off, reconnecting with backoff, at
 /// most 10 s apart. Waits are on the wall clock, so the first try after this machine wakes is at
 /// once. What needs the person (a refused key, no dark there) is said, and again at most hourly
 /// while it lasts; out of reach for longer than the patience is mentioned once an outage.
-let watch (watch : Watch) : unit =
+let watch (watch : Watch) : Task<unit> =
   let fresh = { failingSince = None; lastSaid = None; backoffMs = 500 }
   let offline (reason : string) = watch.side.note (Standing.into "offline" reason)
-  let step (w : Watching) : Choice<Watching, unit> =
-    if not (watch.side.keepGoing ()) then
-      Choice2Of2()
-    else
-      let started = System.DateTime.UtcNow
-      if Option.isNone w.failingSince then
-        watch.side.note (Standing.into "connecting" "")
-      let ended, failure, greeted = connect watch.side watch.transport false
-      let now = System.DateTime.UtcNow
-      // A session that got going was a success, whatever ended it: the connection dropped, or
-      // the other end went away. Try again soon.
-      let lasted =
-        match failure with
-        | Some(Unreachable _) ->
-          greeted || now - started > System.TimeSpan.FromSeconds 20.0
-        | _ -> false
-      match ended, failure with
-      | Stopped, _ -> Choice2Of2()
-      | _, None ->
-        watch.side.log $"session ended: {ended}"
-        Choice1Of2 fresh
-      | _, Some _ when lasted ->
-        watch.side.log
-          $"session ended after {int (now - started).TotalSeconds} s: {ended}"
-        offline $"lost the connection to {watch.peer}"
-        if nap watch 100 then
-          Choice2Of2()
-        else
-          Choice1Of2 { fresh with failingSince = Some now; backoffMs = 1000 }
-      | _, Some failure ->
-        let since = w.failingSince |> Option.defaultValue now
-        let hourly =
-          match w.lastSaid with
-          | None -> true
-          | Some t -> now - t > System.TimeSpan.FromHours 1.0
-        let line, reason =
+  let step (w : Watching) : Task<Choice<Watching, unit>> =
+    task {
+      if not (watch.side.keepGoing ()) then
+        return Choice2Of2()
+      else
+        let started = System.DateTime.UtcNow
+        if Option.isNone w.failingSince then
+          watch.side.note (Standing.into "connecting" "")
+        let! ended, failure, greeted = connect watch.side watch.transport false
+        let now = System.DateTime.UtcNow
+        // A session that got going was a success, whatever ended it: the connection dropped, or
+        // the other end went away. Try again soon.
+        let lasted =
           match failure with
-          | NotAllowed reason ->
-            Some
-              $"sync: {watch.peer} refused this machine's ssh key ({reason}). Nothing syncs until `ssh {watch.peer}` works without a prompt.",
-            reason
-          | TokenRefused revoked ->
-            let what = if revoked then "was revoked" else "isn't one it knows"
-            Some
-              $"sync: {watch.peer} refused this machine's token: it {what}. Nothing syncs until `dark sync add {watch.peer} --token <new token>`.",
-            tokenRefusedDetail
-          | NoDark reason ->
-            Some
-              $"sync: there is no dark to run on {watch.peer} ({reason}). `dark sync add {watch.peer} --command <path>` says where it is.",
-            reason
-          | NotSpoken reason ->
-            let advice =
-              if reason.Contains "sync format" then " Update dark on both ends."
-              elif reason.EndsWith "." || reason.EndsWith "?" then ""
-              else "."
-            Some $"sync: {reason}{advice}", reason
-          | Unreachable reason ->
-            (if now - since >= watch.patience then
-               Some
-                 $"sync: can't reach {watch.peer} since {clock since}; your work is kept here and goes when it's back."
-             else
-               None),
-            reason
-        watch.side.log $"connection failed: {reason}"
-        offline reason
-        let said =
-          match line, failure with
-          | Some l, Unreachable _ when Option.isNone w.lastSaid ->
-            watch.mention l
-            Some now
-          | Some l, NotAllowed _
-          | Some l, TokenRefused _
-          | Some l, NoDark _
-          | Some l, NotSpoken _ when hourly ->
-            watch.side.say l
-            Some now
-          | _ -> w.lastSaid
-        if nap watch w.backoffMs then
-          Choice2Of2()
-        else
-          Choice1Of2
-            { failingSince = Some since
-              lastSaid = said
-              backoffMs = min 10000 (w.backoffMs * 2) }
-  iterate step fresh
-  watch.side.note (Standing.into "off" "")
+          | Some(Unreachable _) ->
+            greeted || now - started > System.TimeSpan.FromSeconds 20.0
+          | _ -> false
+        match ended, failure with
+        | Stopped, _ -> return Choice2Of2()
+        | _, None ->
+          watch.side.log $"session ended: {ended}"
+          return Choice1Of2 fresh
+        | _, Some _ when lasted ->
+          watch.side.log
+            $"session ended after {int (now - started).TotalSeconds} s: {ended}"
+          offline $"lost the connection to {watch.peer}"
+          match! nap watch 100 with
+          | true -> return Choice2Of2()
+          | false ->
+            return
+              Choice1Of2 { fresh with failingSince = Some now; backoffMs = 1000 }
+        | _, Some failure ->
+          let since = w.failingSince |> Option.defaultValue now
+          let hourly =
+            match w.lastSaid with
+            | None -> true
+            | Some t -> now - t > System.TimeSpan.FromHours 1.0
+          let line, reason =
+            match failure with
+            | NotAllowed reason ->
+              Some
+                $"sync: {watch.peer} refused this machine's ssh key ({reason}). Nothing syncs until `ssh {watch.peer}` works without a prompt.",
+              reason
+            | TokenRefused revoked ->
+              let what = if revoked then "was revoked" else "isn't one it knows"
+              Some
+                $"sync: {watch.peer} refused this machine's token: it {what}. Nothing syncs until `dark sync add {watch.peer} --token <new token>`.",
+              tokenRefusedDetail
+            | NoDark reason ->
+              Some
+                $"sync: there is no dark to run on {watch.peer} ({reason}). `dark sync add {watch.peer} --command <path>` says where it is.",
+              reason
+            | NotSpoken reason ->
+              let advice =
+                if reason.Contains "sync format" then " Update dark on both ends."
+                elif reason.EndsWith "." || reason.EndsWith "?" then ""
+                else "."
+              Some $"sync: {reason}{advice}", reason
+            | Unreachable reason ->
+              (if now - since >= watch.patience then
+                 Some
+                   $"sync: can't reach {watch.peer} since {clock since}; your work is kept here and goes when it's back."
+               else
+                 None),
+              reason
+          watch.side.log $"connection failed: {reason}"
+          offline reason
+          let said =
+            match line, failure with
+            | Some l, Unreachable _ when Option.isNone w.lastSaid ->
+              watch.mention l
+              Some now
+            | Some l, NotAllowed _
+            | Some l, TokenRefused _
+            | Some l, NoDark _
+            | Some l, NotSpoken _ when hourly ->
+              watch.side.say l
+              Some now
+            | _ -> w.lastSaid
+          match! nap watch w.backoffMs with
+          | true -> return Choice2Of2()
+          | false ->
+            return
+              Choice1Of2
+                { failingSince = Some since
+                  lastSaid = said
+                  backoffMs = min 10000 (w.backoffMs * 2) }
+    }
+  task {
+    do! iterateTask step fresh
+    watch.side.note (Standing.into "off" "")
+  }
 
 
 // ------------------

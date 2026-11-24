@@ -175,7 +175,9 @@ let private side
 let private serveStdio (fold : unit -> unit) : int =
   let input = System.Console.OpenStandardInput()
   let output = System.Console.OpenStandardOutput()
-  let ended = SyncLink.run (side fold (fun () -> true) false log) input output false
+  let ended =
+    LibExecution.HostEvents.runHere (fun () ->
+      SyncLink.run (side fold (fun () -> true) false log) input output false)
   log $"serve ended: {ended}"
   0
 
@@ -239,12 +241,13 @@ let private watch (fold : unit -> unit) : int =
       let token = storedToken ()
       let keepGoing () = config peerKey = Some host && storedToken () = token
       log $"watching {host}"
-      SyncLink.watch
-        { side = side fold keepGoing true say
-          transport = transport
-          peer = host
-          patience = System.TimeSpan.FromMinutes 10.0
-          mention = fun line -> say $"\u001b[2m{line}\u001b[0m" }
+      LibExecution.HostEvents.runHere (fun () ->
+        SyncLink.watch
+          { side = side fold keepGoing true say
+            transport = transport
+            peer = host
+            patience = System.TimeSpan.FromMinutes 10.0
+            mention = fun line -> say $"\u001b[2m{line}\u001b[0m" })
       log "watcher stopped"
       0
   | Some lock, None ->
@@ -313,7 +316,10 @@ let private connectFirst
     1
   | _ ->
     let clock = System.Diagnostics.Stopwatch.StartNew()
-    match SyncLink.connect (side fold (fun () -> true) true say) transport true with
+    match
+      LibExecution.HostEvents.runHere (fun () ->
+        SyncLink.connect (side fold (fun () -> true) true say) transport true)
+    with
     | SyncLink.Exchanged, _, _ ->
       keep ()
       LibDB.Config.set peerKey peer
@@ -460,7 +466,7 @@ let private serveListening (fold : unit -> unit) (args : List<string>) : int =
         quietMs = 20000
         maxFrame = options.maxFrame
         account = Some account }
-    SyncServer.run store options makeSide
+    LibExecution.HostEvents.runHere (fun () -> SyncServer.run store options makeSide)
 
 let private parseTokenOptions (args : List<string>) : Result<bool * string, string> =
   let rec go (readOnly : bool) (label : string) (rest : List<string>) =

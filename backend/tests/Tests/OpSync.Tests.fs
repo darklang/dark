@@ -526,7 +526,7 @@ let private linked
     : Task<SyncLink.Ended> =
     Task.Factory.StartNew(
       (fun () ->
-        let ended = SyncLink.run side input output false
+        let ended = (SyncLink.run side input output false).Result
         // As a process exiting does: the other end reads the end of its stream.
         output.Dispose()
         ended),
@@ -557,6 +557,8 @@ let private linked
       $"{e.Message}\nA ended {endedA}:\n  {lines saidA}\nB ended {endedB}:\n  {lines saidB}"
 
 let private noStop () = new System.Threading.ManualResetEventSlim(false)
+
+let private watchToEnd (w : SyncLink.Watch) : unit = (SyncLink.watch w).Wait()
 
 let private bindingOn (store : string) (name : string) : string =
   textIn
@@ -743,7 +745,7 @@ let peerDown =
         let watcher =
           Task.Factory.StartNew(
             (fun () ->
-              SyncLink.watch
+              watchToEnd
                 { side = sideOf dir what a (fun () -> not stop.IsSet) said
                   transport = transport
                   peer = "peer"
@@ -1136,7 +1138,7 @@ let firstCommandOutOfReach =
         let watcher =
           Task.Factory.StartNew(
             (fun () ->
-              SyncLink.watch
+              watchToEnd
                 { side = sideOf dir what a (fun () -> not stop.IsSet) said
                   transport = transport
                   peer = "peer"
@@ -1201,7 +1203,7 @@ let quietPeer =
       let said = System.Collections.Concurrent.ConcurrentQueue<string>()
       let side = { sideOf dir "quiet" a (fun () -> true) said with quietMs = 400 }
       let clock = System.Diagnostics.Stopwatch.StartNew()
-      let ended = SyncLink.run side fromPeer toPeer false
+      let ended = (SyncLink.run side fromPeer toPeer false).Result
       // The pipe's write end first, so the session's reader sees it end.
       silent.Dispose()
       Expect.equal ended SyncLink.Unanswered "the session ends"
@@ -1219,7 +1221,7 @@ let quietPeer =
       let watcher =
         Task.Factory.StartNew(
           (fun () ->
-            SyncLink.watch
+            watchToEnd
               { side = side
                 transport =
                   SyncLink.Program("sh", [ "-c"; $"exec sleep {marker}" ])
@@ -1636,7 +1638,7 @@ let serverOverWebSocket =
           maxFrame = SyncLink.defaultMaxFrame }
       let server =
         Task.Factory.StartNew(
-          (fun () -> LibDB.SyncServer.serve srv options makeSide stopping),
+          (fun () -> (LibDB.SyncServer.serve srv options makeSide stopping).Result),
           TaskCreationOptions.LongRunning
         )
       use http = new System.Net.Http.HttpClient()
@@ -1655,7 +1657,7 @@ let serverOverWebSocket =
             (fun () -> true)
             (System.Collections.Concurrent.ConcurrentQueue())
         let connectWith (t : string) =
-          SyncLink.connect client (SyncLink.Server(url, t)) true
+          (SyncLink.connect client (SyncLink.Server(url, t)) true).Result
 
         let ids = authorOn a "module Tests.OpSync\nlet overTheWire(): Int64 = 31"
         match connectWith token with

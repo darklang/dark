@@ -15,6 +15,7 @@ module LibDB.SyncServer
 
 open System.IO
 open System.Net
+open System.Threading.Tasks
 
 open Prelude
 
@@ -182,100 +183,137 @@ let private session
   (makeSide : SyncTokens.Account -> string -> (unit -> bool) -> SyncLink.Side)
   (running : Running)
   (ctx : HttpListenerContext)
-  : unit =
-  let remote = string ctx.Request.RemoteEndPoint
-  if not ctx.Request.IsWebSocketRequest then
-    reply ctx 400 [] [ "error", "websocket-required" ]
-  elif ctx.Request.Headers[SyncLink.formatHeader] <> OpSync.formatVersion then
-    log
-      "refused"
-      [ "remote", remote
-        "why", "format"
-        "theirs",
-        box (
-          ctx.Request.Headers[SyncLink.formatHeader]
-          |> Option.ofObj
-          |> Option.defaultValue ""
-        ) ]
-    reply
-      ctx
-      426
-      [ SyncLink.refusalHeader, "format" ]
-      [ "error", "format"; "format", OpSync.formatVersion ]
-  elif running.stopping.IsSet then
-    reply ctx 503 [] [ "error", "stopping" ]
-  else
-    match SyncTokens.check storePath (bearer ctx) with
-    | Error refusal ->
-      let why, person =
-        match refusal with
-        | SyncTokens.Unknown -> "unknown-token", ""
-        | SyncTokens.Revoked person -> "revoked", person
-      log "refused" [ "remote", remote; "why", why; "person", person ]
-      reply ctx 401 [ SyncLink.refusalHeader, why ] [ "error", why ]
-    | Ok account ->
-      let id = System.Guid.NewGuid()
-      let workDir = Path.Combine(SyncLink.dir (), "sessions", string id)
-      let ws =
+  : Task =
+  task {
+    let remote = string ctx.Request.RemoteEndPoint
+    if not ctx.Request.IsWebSocketRequest then
+      reply ctx 400 [] [ "error", "websocket-required" ]
+    elif ctx.Request.Headers[SyncLink.formatHeader] <> OpSync.formatVersion then
+      log
+        "refused"
+        [ "remote", remote
+          "why", "format"
+          "theirs",
+          box (
+            ctx.Request.Headers[SyncLink.formatHeader]
+            |> Option.ofObj
+            |> Option.defaultValue ""
+          ) ]
+      reply
         ctx
-          .AcceptWebSocketAsync(null, 64 * 1024, System.TimeSpan.FromSeconds 15.0)
-          .Result.WebSocket
-      running.sessions[id] <- account.person
-      log
-        "session-start"
-        [ "session", string id
-          "person", account.person
-          "token", account.tokenId
-          "readOnly", account.readOnly
-          "remote", remote ]
-      let clock = System.Diagnostics.Stopwatch.StartNew()
-      let ended =
+        426
+        [ SyncLink.refusalHeader, "format" ]
+        [ "error", "format"; "format", OpSync.formatVersion ]
+    elif running.stopping.IsSet then
+      reply ctx 503 [] [ "error", "stopping" ]
+    else
+      match SyncTokens.check storePath (bearer ctx) with
+      | Error refusal ->
+        let why, person =
+          match refusal with
+          | SyncTokens.Unknown -> "unknown-token", ""
+          | SyncTokens.Revoked person -> "revoked", person
+        log "refused" [ "remote", remote; "why", why; "person", person ]
+        reply ctx 401 [ SyncLink.refusalHeader, why ] [ "error", why ]
+      | Ok account ->
+        let id = System.Guid.NewGuid()
+        let workDir = Path.Combine(SyncLink.dir (), "sessions", string id)
+        let! accepted =
+          ctx.AcceptWebSocketAsync(null, 64 * 1024, System.TimeSpan.FromSeconds 15.0)
+        let ws = accepted.WebSocket
+        running.sessions[id] <- account.person
+        log
+          "session-start"
+          [ "session", string id
+            "person", account.person
+            "token", account.tokenId
+            "readOnly", account.readOnly
+            "remote", remote ]
+        let clock = System.Diagnostics.Stopwatch.StartNew()
+        let! ended =
+          task {
+            try
+              use stream =
+                System.Net.WebSockets.WebSocketStream.Create(
+                  ws,
+                  System.Net.WebSockets.WebSocketMessageType.Binary,
+                  true
+                )
+              // A token revoked while its session is open ends the session within half a minute.
+              let lastCheck = ref System.DateTime.UtcNow
+              let stillValid = ref true
+              let keepGoing () =
+                if
+                  System.DateTime.UtcNow - lastCheck.Value > System.TimeSpan.FromSeconds
+                    30.0
+                then
+                  lastCheck.Value <- System.DateTime.UtcNow
+                  stillValid.Value <- SyncTokens.isLive storePath account.tokenId
+                not running.stopping.IsSet && stillValid.Value
+              let side = makeSide account workDir keepGoing
+              let! ended = SyncLink.run side stream stream false
+              // A closing handshake, so the other end reads an end rather than a broken stream.
+              do! SyncLink.closeQuickly ws
+              return ended
+            with e ->
+              return SyncLink.PeerGone e.Message
+          }
+        running.sessions.TryRemove id |> ignore<bool * string>
         try
-          use stream =
-            System.Net.WebSockets.WebSocketStream.Create(
-              ws,
-              System.Net.WebSockets.WebSocketMessageType.Binary,
-              true
-            )
-          // A token revoked while its session is open ends the session within half a minute.
-          let lastCheck = ref System.DateTime.UtcNow
-          let stillValid = ref true
-          let keepGoing () =
-            if
-              System.DateTime.UtcNow - lastCheck.Value > System.TimeSpan.FromSeconds
-                30.0
-            then
-              lastCheck.Value <- System.DateTime.UtcNow
-              stillValid.Value <- SyncTokens.isLive storePath account.tokenId
-            not running.stopping.IsSet && stillValid.Value
-          let side = makeSide account workDir keepGoing
-          let ended = SyncLink.run side stream stream false
-          // A closing handshake, so the other end reads an end rather than a broken stream.
-          (try
-            use cts = new System.Threading.CancellationTokenSource(2000)
-            ws
-              .CloseOutputAsync(
-                System.Net.WebSockets.WebSocketCloseStatus.NormalClosure,
-                "",
-                cts.Token
-              )
-              .Wait()
-           with _ ->
-             ())
-          ended
-        with e ->
-          SyncLink.PeerGone e.Message
-      running.sessions.TryRemove id |> ignore<bool * string>
-      try
-        Directory.Delete(workDir, true)
-      with _ ->
-        ()
-      log
-        "session-end"
-        [ "session", string id
-          "person", account.person
-          "ended", string ended
-          "seconds", clock.Elapsed.TotalSeconds ]
+          Directory.Delete(workDir, true)
+        with _ ->
+          ()
+        log
+          "session-end"
+          [ "session", string id
+            "person", account.person
+            "ended", string ended
+            "seconds", clock.Elapsed.TotalSeconds ]
+  }
+
+/// Fold the WAL into the store, so a copy of the file alone holds everything.
+let private checkpoint (storePath : string) : unit =
+  try
+    use conn =
+      new Microsoft.Data.Sqlite.SqliteConnection(
+        $"Data Source={storePath};Pooling=false"
+      )
+    conn.Open()
+    use cmd = conn.CreateCommand()
+    cmd.CommandText <- "PRAGMA wal_checkpoint(TRUNCATE)"
+    cmd.ExecuteNonQuery() |> ignore<int>
+  with _ ->
+    ()
+
+/// A backup every <c>options.backupEvery</c> until <param stopped> lands.
+let rec private backupsUntil
+  (stopped : Task)
+  (storePath : string)
+  (dir : string)
+  (options : Options)
+  : Task =
+  task {
+    let! first = Task.WhenAny(stopped, Task.Delay options.backupEvery)
+    if not (obj.ReferenceEquals(first, stopped)) then
+      backupNow storePath dir options.keep
+      do! backupsUntil stopped storePath dir options
+  }
+
+/// A task that lands once <param stopping> is set, holding no thread meanwhile.
+let private whenSet (stopping : System.Threading.ManualResetEventSlim) : Task =
+  let landed = TaskCompletionSource()
+  let registered =
+    System.Threading.ThreadPool.RegisterWaitForSingleObject(
+      stopping.WaitHandle,
+      (fun _ _ -> landed.TrySetResult() |> ignore<bool>),
+      null,
+      System.Threading.Timeout.Infinite,
+      true
+    )
+  landed.Task.ContinueWith(fun (_ : Task) ->
+    registered.Unregister null |> ignore<bool>)
+  |> ignore<Task>
+  landed.Task
 
 /// Serve until <param stopping> is set. <param makeSide> makes one session's end, for a person, in a
 /// directory of its own, that stops when told.
@@ -284,121 +322,111 @@ let serve
   (options : Options)
   (makeSide : SyncTokens.Account -> string -> (unit -> bool) -> SyncLink.Side)
   (stopping : System.Threading.ManualResetEventSlim)
-  : int =
-  match prefixOf options.listen with
-  | Error reason ->
-    System.Console.Error.WriteLine reason
-    2
-  | Ok prefix ->
-    let lockPath = Path.Combine(SyncLink.dir (), "serve.lock")
-    Directory.CreateDirectory(SyncLink.dir ()) |> ignore<DirectoryInfo>
-    let held =
-      try
-        Some(
-          new FileStream(
-            lockPath,
-            FileMode.OpenOrCreate,
-            FileAccess.ReadWrite,
-            FileShare.None
-          )
-        )
-      with :? IOException ->
-        None
-    match held with
-    | None ->
-      System.Console.Error.WriteLine
-        "a sync server is already running on this store; one store takes one server."
-      1
-    | Some held ->
-      use _held = held
-      let running =
-        { sessions = System.Collections.Concurrent.ConcurrentDictionary()
-          stopping = stopping
-          started = System.DateTime.UtcNow }
-      let listener = new HttpListener()
-      listener.Prefixes.Add prefix
-      let startedListening =
+  : Task<int> =
+  task {
+    match prefixOf options.listen with
+    | Error reason ->
+      System.Console.Error.WriteLine reason
+      return 2
+    | Ok prefix ->
+      let lockPath = Path.Combine(SyncLink.dir (), "serve.lock")
+      Directory.CreateDirectory(SyncLink.dir ()) |> ignore<DirectoryInfo>
+      let held =
         try
-          listener.Start()
-          Ok()
-        with e ->
-          Error e.Message
-      match startedListening with
-      | Error reason ->
-        System.Console.Error.WriteLine $"can't listen on {options.listen}: {reason}"
-        1
-      | Ok() ->
-        let (id, name) = OpSync.identityOf storePath
-        log
-          "listening"
-          [ "prefix", prefix
-            "store", id
-            "name", name
-            "format", OpSync.formatVersion
-            "build", LibConfig.Config.buildHash
-            "tokens",
-            List.length (
-              SyncTokens.list storePath
-              |> List.filter (fun t -> Option.isNone t.revokedAt)
+          Some(
+            new FileStream(
+              lockPath,
+              FileMode.OpenOrCreate,
+              FileAccess.ReadWrite,
+              FileShare.None
             )
-            "backupDir", box (options.backupDir |> Option.defaultValue "") ]
-        match options.backupDir with
-        | Some dir ->
-          let backups =
-            System.Threading.Thread(
-              (fun () ->
-                while not (running.stopping.Wait options.backupEvery) do
-                  backupNow storePath dir options.keep),
-              IsBackground = true
-            )
-          backups.Start()
-        | None -> ()
-        let accept () =
-          while not running.stopping.IsSet do
-            match
-              (try
-                Some(listener.GetContext())
-               with _ ->
-                 None)
-            with
-            | None -> ()
-            | Some ctx ->
-              let handle () =
-                try
-                  match ctx.Request.Url.AbsolutePath with
-                  | "/health" -> health storePath running ctx
-                  | path when path = SyncLink.sessionPath ->
-                    session storePath makeSide running ctx
-                  | _ -> reply ctx 404 [] [ "error", "not-found" ]
-                with e ->
-                  log "request-failed" [ "error", e.Message ]
-              System.Threading.Thread(handle, IsBackground = true).Start()
-        let acceptor = System.Threading.Thread(accept, IsBackground = true)
-        acceptor.Start()
-        running.stopping.Wait()
-        log "stopping" [ "sessions", running.sessions.Count ]
-        // Each session sees `stopping` within a poll and ends between imports.
-        let deadline = System.DateTime.UtcNow.AddSeconds 25.0
-        while running.sessions.Count > 0 && System.DateTime.UtcNow < deadline do
-          System.Threading.Thread.Sleep 50
-        // Only now: stopping the listener drops the connections it still holds, mid-frame.
-        (try
-          listener.Stop()
-         with _ ->
-           ())
-        (try
-          use conn =
-            new Microsoft.Data.Sqlite.SqliteConnection(
-              $"Data Source={storePath};Pooling=false"
-            )
-          conn.Open()
-          use cmd = conn.CreateCommand()
-          cmd.CommandText <- "PRAGMA wal_checkpoint(TRUNCATE)"
-          cmd.ExecuteNonQuery() |> ignore<int>
-         with _ ->
-           ())
-        log "stopped" [ "sessions", running.sessions.Count ]
-        0
+          )
+        with :? IOException ->
+          None
+      match held with
+      | None ->
+        System.Console.Error.WriteLine
+          "a sync server is already running on this store; one store takes one server."
+        return 1
+      | Some held ->
+        use _held = held
+        let running =
+          { sessions = System.Collections.Concurrent.ConcurrentDictionary()
+            stopping = stopping
+            started = System.DateTime.UtcNow }
+        let listener = new HttpListener()
+        listener.Prefixes.Add prefix
+        let startedListening =
+          try
+            listener.Start()
+            Ok()
+          with e ->
+            Error e.Message
+        match startedListening with
+        | Error reason ->
+          System.Console.Error.WriteLine
+            $"can't listen on {options.listen}: {reason}"
+          return 1
+        | Ok() ->
+          let (id, name) = OpSync.identityOf storePath
+          log
+            "listening"
+            [ "prefix", prefix
+              "store", id
+              "name", name
+              "format", OpSync.formatVersion
+              "build", LibConfig.Config.buildHash
+              "tokens",
+              List.length (
+                SyncTokens.list storePath
+                |> List.filter (fun t -> Option.isNone t.revokedAt)
+              )
+              "backupDir", box (options.backupDir |> Option.defaultValue "") ]
+          let stopped = whenSet running.stopping
+          match options.backupDir with
+          | Some dir ->
+            Task.Run(fun () -> backupsUntil stopped storePath dir options)
+            |> ignore<Task>
+          | None -> ()
+          let accept () =
+            while not running.stopping.IsSet do
+              match
+                (try
+                  Some(listener.GetContext())
+                 with _ ->
+                   None)
+              with
+              | None -> ()
+              | Some ctx ->
+                let handle () : Task =
+                  task {
+                    try
+                      match ctx.Request.Url.AbsolutePath with
+                      | "/health" -> health storePath running ctx
+                      | path when path = SyncLink.sessionPath ->
+                        do! session storePath makeSide running ctx
+                      | _ -> reply ctx 404 [] [ "error", "not-found" ]
+                    with e ->
+                      log "request-failed" [ "error", e.Message ]
+                  }
+                Task.Run(fun () -> handle ()) |> ignore<Task>
+          let acceptor = System.Threading.Thread(accept, IsBackground = true)
+          acceptor.Start()
+          do! stopped
+          log "stopping" [ "sessions", running.sessions.Count ]
+          // Each session sees `stopping` within a poll and ends between imports.
+          let deadline = System.DateTime.UtcNow.AddSeconds 25.0
+          while running.sessions.Count > 0 && System.DateTime.UtcNow < deadline do
+            do! Task.Delay 50
+          // Only now: stopping the listener drops the connections it still holds, mid-frame.
+          try
+            listener.Stop()
+          with _ ->
+            ()
+          checkpoint storePath
+          log "stopped" [ "sessions", running.sessions.Count ]
+          return 0
+  }
 
 
 /// Run the server until SIGTERM or SIGINT.
@@ -406,20 +434,22 @@ let run
   (storePath : string)
   (options : Options)
   (makeSide : SyncTokens.Account -> string -> (unit -> bool) -> SyncLink.Side)
-  : int =
-  use stopping = new System.Threading.ManualResetEventSlim(false)
-  let stop (signal : System.Runtime.InteropServices.PosixSignalContext) =
-    signal.Cancel <- true
-    log "signal" [ "signal", string signal.Signal ]
-    stopping.Set()
-  use _term =
-    System.Runtime.InteropServices.PosixSignalRegistration.Create(
-      System.Runtime.InteropServices.PosixSignal.SIGTERM,
-      stop
-    )
-  use _int =
-    System.Runtime.InteropServices.PosixSignalRegistration.Create(
-      System.Runtime.InteropServices.PosixSignal.SIGINT,
-      stop
-    )
-  serve storePath options makeSide stopping
+  : Task<int> =
+  task {
+    use stopping = new System.Threading.ManualResetEventSlim(false)
+    let stop (signal : System.Runtime.InteropServices.PosixSignalContext) =
+      signal.Cancel <- true
+      log "signal" [ "signal", string signal.Signal ]
+      stopping.Set()
+    use _term =
+      System.Runtime.InteropServices.PosixSignalRegistration.Create(
+        System.Runtime.InteropServices.PosixSignal.SIGTERM,
+        stop
+      )
+    use _int =
+      System.Runtime.InteropServices.PosixSignalRegistration.Create(
+        System.Runtime.InteropServices.PosixSignal.SIGINT,
+        stop
+      )
+    return! serve storePath options makeSide stopping
+  }
