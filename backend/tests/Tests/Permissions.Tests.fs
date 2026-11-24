@@ -817,7 +817,15 @@ let private listeningOnAFreshPort
       p.ErrorDataReceived.Add(ignore<System.Diagnostics.DataReceivedEventArgs>)
       p.BeginErrorReadLine()
       use cts = new System.Threading.CancellationTokenSource(60_000)
-      let! listening = saysListening p port cts.Token
+      let! listening =
+        task {
+          try
+            return! saysListening p port cts.Token
+          with _ ->
+            CliInstance.stop p
+            return
+              failtest $"nothing said it was listening on {port} within a minute"
+        }
       if listening then
         p.StandardOutput.ReadToEndAsync() |> ignore<Task<string>>
         return (port, p)
@@ -934,7 +942,6 @@ let private runAllowCoversItsServer =
         System.IO.Directory.CreateDirectory data |> ignore<System.IO.DirectoryInfo>
         let note = System.IO.Path.Combine(data, "note.txt")
         System.IO.File.WriteAllText(note, "from the file")
-        let port = Tests.HttpServer.allocateFreePort ()
         let author (name : string) (body : string) =
           task {
             let! (out, code) = CliInstance.runWithExit i [ "fn"; name; body ]
@@ -944,17 +951,21 @@ let private runAllowCoversItsServer =
           author
             "Tests.RunAllow.handler"
             $"(req: Stdlib.Http.Request): Stdlib.Http.Response =\n  Stdlib.Http.responseWithText(200, Stdlib.Result.withDefault(Stdlib.Cli.FileSystem.readFileAsString(\"{note}\"), \"unreadable\"))"
-        do!
-          author
-            "Tests.RunAllow.main"
-            $"(): Unit =\n  match Stdlib.Net.Port.fromInt64({port}) with\n  | Ok(p) ->\n    let config = {{ Stdlib.HttpServer.Config.defaults(p) with middleware = [] }}\n    let _ = Stdlib.HttpServer.serve(config, Tests.RunAllow.handler, fun _ -> ())\n    ()\n  | Error(_) -> ()"
-        let server =
-          CliInstance.start
-            i
-            [ "run"
-              "--allow"
-              $"http-server 127.0.0.1 {port}; file read '{data}'"
-              "Tests.RunAllow.main" ]
+        let! port, server =
+          listeningOnAFreshPort (fun port ->
+            task {
+              do!
+                author
+                  "Tests.RunAllow.main"
+                  $"(): Unit =\n  match Stdlib.Net.Port.fromInt64({port}) with\n  | Ok(p) ->\n    let config = {{ Stdlib.HttpServer.Config.defaults(p) with middleware = [] }}\n    let _ = Stdlib.HttpServer.serve(config, Tests.RunAllow.handler, fun _ -> Stdlib.printLine(\"Listening on http://127.0.0.1:{port}\"))\n    ()\n  | Error(_) -> ()"
+              return
+                CliInstance.startUndrained
+                  i
+                  [ "run"
+                    "--allow"
+                    $"http-server 127.0.0.1 {port}; file read '{data}'"
+                    "Tests.RunAllow.main" ]
+            })
         try
           let! (status, body) = getWhenUp port
           Expect.equal
