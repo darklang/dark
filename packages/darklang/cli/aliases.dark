@@ -296,10 +296,10 @@ let executeAdd(state: AppState, name: String, fnName: String, pin: Bool): AppSta
             Stdlib.Cli.Unix.ensureDirectoryExists(dir)
             |> Stdlib.Result.andThen(fun _ ->
               Stdlib.Cli.File.writeText(file, script(darkFor(dir), target))
-              |> Stdlib.Result.mapError(fun e -> e.message))
+              |> Stdlib.Result.mapError(fun e -> Stdlib.display(e)))
             |> Stdlib.Result.andThen(fun _ ->
               Stdlib.Cli.File.setPermissions(file, Stdlib.Cli.Posix.Modes.defaultDir)
-              |> Stdlib.Result.mapError(fun e -> e.message))
+              |> Stdlib.Result.mapError(fun e -> Stdlib.display(e)))
 
           match written with
           | Error(e) ->
@@ -455,7 +455,7 @@ let executeRemoveAll(state: AppState): AppState =
           let (name, _) = pair
           match Stdlib.Cli.File.delete($"{dir}/{name}") with
           | Ok(_) -> Option.None
-          | Error(e) -> Option.Some($"{name}: {e.message}"))
+          | Error(e) -> Option.Some($"{name}: {Stdlib.display(e)}"))
 
       match failed with
       | [] ->
@@ -489,7 +489,7 @@ let executeRemove(state: AppState, name: String): AppState =
         printOk($"removed {name}")
         state
       | Error(e) ->
-        printErr($"couldn't remove {file}: {e.message}")
+        printErr($"couldn't remove {file}: {Stdlib.display(e)}")
         exitWith(state, false)
 
 
