@@ -266,7 +266,6 @@ let initState(): AppState =
 
 
 type Msg =
-  | ProcessInput(String)
   | KeyPressed(
     key: Stdlib.Cli.Stdin.Key.Key,
     modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers,

@@ -158,30 +158,6 @@ let renderBody(state: State, region: Stdlib.Cli.UI.Layout.Region): List<Stdlib.C
         renderViewBody(state, region)
 
 
-/// A view's purpose and data caveat. An empty caveat means real data.
-let viewBlurb(idx: Int64): (String * String) =
-  if idx == vMatter then
-    ("browse and edit the package tree", "")
-  else if idx == vScratch then
-    ("evaluate expressions -- ⏎ to start typing, esc to stop; `let` binds for the session", "")
-  else if idx == vSCM then
-    ("changes, commits, branches, conflicts", "")
-  else if idx == vTraces then
-    ("what ran recently - samples until something does", "")
-  else if idx == vDocs then
-    ("the CLI's docs, read without leaving", "")
-  else
-    match extensionViewAt(idx) with
-    | Some(vd) ->
-      if vd.id == "errors" then
-        ("unresolved conflicts", "")
-      else if vd.id == "builtins" then
-        ("every builtin, searchable", "")
-      else
-        ("", "")
-    | None -> ("", "")
-
-
 /// Key hints for the focused pane, followed by global shortcuts.
 ///
 /// Fitted to `width` rather than concatenated and clipped: clipping one long string loses the hints at the

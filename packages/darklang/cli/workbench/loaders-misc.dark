@@ -85,18 +85,6 @@ let loadBranchItems(currentBranchId: Uuid): List<BodyItem> =
   Stdlib.List.prepend(others, mainRow)
 
 
-/// The branch list as reader text.
-let branchListText(currentBranchId: Uuid): String =
-  let rows =
-    loadBranchItems(currentBranchId)
-    |> Stdlib.List.map(fun it ->
-      "  " + Stdlib.Text.padEndToWidth(it.name, 30) + Stdlib.Cli.UI.Colors.dimText(it.desc))
-
-  Stdlib.String.join(
-    Stdlib.List.flatten([ [ Stdlib.Cli.UI.Colors.boldText("Branches"), "" ], rows ]),
-    "\n")
-
-
 /// The two-character lead on a branch row: filled for the one you're on.
 let branchMarker(current: Bool): String =
   if current then "● " else "○ "

@@ -2717,12 +2717,6 @@ let expr(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
   Stdlib.Pretty.render(ctx.width, exprDoc(ctx, e))
 
 
-/// `expr`, for a function's whole body: the body's last expression ends a line, so a live value
-/// for it is shown.
-let bodyExpr(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
-  Stdlib.Pretty.render(ctx.width, lineDoc(ctx, e))
-
-
 /// The original string-building printer, still handling every construct the Doc layer hasn't taken over.
 let exprString(ctx: Context, e: LanguageTools.ProgramTypes.Expr): String =
   match e with

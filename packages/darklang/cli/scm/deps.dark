@@ -13,13 +13,6 @@ module Darklang.Cli.Deps
 type Item = (LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)
 
 
-/// An `Item` plus the content hash the query resolved it to.
-type HashedItem =
-  (LanguageTools.ProgramTypes.Hash *
-   LanguageTools.ProgramTypes.PackageLocation *
-   LanguageTools.ProgramTypes.ItemKind)
-
-
 /// Resolve item hashes to display names, as a hash-string -> name dict, each spelled from
 /// <param currentModule>.
 ///

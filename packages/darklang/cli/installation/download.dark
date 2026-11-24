@@ -183,8 +183,3 @@ let installRelease(host: Stdlib.Cli.Host.Host, pinned: Option<String>): Result<S
             $"Couldn't add {binDir} to your PATH ({e}). Add it in your shell's config to run `dark` from anywhere.")
 
         Result.Ok(release.tag)
-
-
-/// <fn installRelease> for the latest release.
-let installOrUpdateLatestRelease(host: Stdlib.Cli.Host.Host): Result<String, String> =
-  installRelease(host, Option.None)

@@ -55,15 +55,6 @@ let log(label: String, startMs: Int64): Unit =
   logWithContext(label, startMs, [])
 
 
-/// Log a raw message (not a timing span) — useful for one-off markers
-let logMessage(label: String, message: String): Unit =
-  let wall = Stdlib.display(Stdlib.DateTime.now())
-  let escaped = Stdlib.String.replaceAll(message, "\"", "\\\"")
-  let line = $"{{\"event\":\"{label}\",\"msg\":\"{escaped}\",\"wall\":\"{wall}\"}}"
-  let _ = Stdlib.Cli.FileSystem.appendToFile(logFilePath(), line + "\n")
-  ()
-
-
 /// Log the start of a session so we can separate runs in the log
 let logSessionStart(): Unit =
   let wall = Stdlib.display(Stdlib.DateTime.now())
