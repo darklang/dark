@@ -73,7 +73,7 @@ test aPatchWithATypeErrorShowsTheDeclarationOnce = Instance.withInstance(fun i -
   let patch =
     "@@\n let inc(x: Int64): Int64 =\n-  x + 1\n+  (x + \"one\")\n"
 
-  let (code, out) = Edit.runWithStdin(i, [ "edit", "Me.Fmt.inc", "--patch", "-" ], patch)
+  let (code, out) = Instance.runWithStdin(i, [ "edit", "Me.Fmt.inc", "--patch", "-" ], patch)
   let shown = Stdlib.String.split(out, "let inc(x: Int64): Int64 =") |> Stdlib.List.length
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, out)
