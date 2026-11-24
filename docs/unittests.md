@@ -32,8 +32,9 @@ one per 16 hardware threads, at least 1, so 3 on a 48-thread box and 1 on a
 laptop: on a shared box a running suite averaged 6 to 10 busy cores. A filtered run
 (`--filter`, `--filter-test-list`, a single gate other than package-tests) skips the queue, and
 a suite started by another (`run-tests` starts three) runs under its parent's
-slot. The slots are files in a host directory every container mounts at
-`/home/dark/.suite-slots`; a container made before that mount says so and runs
+slot. The slots are files in `~/.cache/darklang/suite-slots` on the host, which
+every container mounts at `/home/dark/.suite-slots`, so a heavy job started from
+the host waits in the same queue; a container made before that mount says so and runs
 without waiting (`scripts/dev/start --recreate` adds it). CI has a machine per
 job and never waits.
 
