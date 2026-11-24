@@ -449,7 +449,7 @@ let __request(
 
 
 let __response(
-  status: Int64,
+  status: Stdlib.Http.Status,
   headers: List<(String * String)>,
   body: String)
   : Stdlib.Result.Result<
@@ -475,7 +475,10 @@ let __echo(
     | Some(ms) -> Stdlib.display(ms)
     | None -> "none"
 
-  __response(200, req.headers, req.method + " " + req.url + " " + timeout)
+  __response(
+    Stdlib.Http.Status.ok,
+    req.headers,
+    req.method + " " + req.url + " " + timeout)
 
 
 let __body(
@@ -514,7 +517,7 @@ let __through(
 test responseHeaderIsCaseInsensitive =
   let r =
     Stdlib.HttpClient.Response
-      { statusCode = 200
+      { statusCode = Stdlib.Http.Status.ok
         headers =
           [ ("ETag", "\"AbC\""), ("Set-Cookie", "a=1"), ("set-cookie", "b=2") ]
         body = Stdlib.Bytes.empty
@@ -536,14 +539,14 @@ test responseHeaderIsCaseInsensitive =
 
 test responseText =
   Stdlib.Test.all(
-    [ (match __response(200, [], "héllo") with
+    [ (match __response(Stdlib.Http.Status.ok, [], "héllo") with
        | Ok(r) -> Stdlib.HttpClient.Response.text(r)
        | Error(e) -> Stdlib.Result.Result.Error(e))
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok("héllo"))
 
       Stdlib.HttpClient.Response.text(
         Stdlib.HttpClient.Response
-          { statusCode = 200
+          { statusCode = Stdlib.Http.Status.ok
             headers = []
             body = Stdlib.Bytes.fromList([ 255u8 ])
             url = "https://a.test/" })
@@ -560,7 +563,7 @@ type User =
 
 test responseJson =
   let user = fun body ->
-    match __response(200, [], body) with
+    match __response(Stdlib.Http.Status.ok, [], body) with
     | Ok(r) -> Stdlib.HttpClient.Response.json<User>(r)
     | Error(e) -> Stdlib.Result.Result.Error(e)
 
@@ -578,7 +581,7 @@ test responseJson =
 
 test jsonMiddlewareDecodesEveryResponse =
   let json = Stdlib.HttpClient.Middleware.json<List<Int64>>()
-  let send = json(fun _ -> __response(200, [], "[1, 2, 3]"))
+  let send = json(fun _ -> __response(Stdlib.Http.Status.ok, [], "[1, 2, 3]"))
   send(__request("https://a.test/", []))
   |> Stdlib.Result.map(fun r -> r.body)
   |> Stdlib.Test.equal(Stdlib.Result.Result.Ok([ 1, 2, 3 ]))
@@ -606,10 +609,12 @@ test emptyStackIsTheSendItself =
 test onResponseRewritesTheResponse =
   __through(
     [ Stdlib.HttpClient.Middleware.onResponse(fun r ->
-        { r with statusCode = 299 }) ],
+        { r with
+            statusCode =
+              Stdlib.Http.Status.fromInt64(299) |> Builtin.unwrap }) ],
     __echo,
     __request("https://a.test/", []))
-  |> Stdlib.Result.map(fun r -> r.statusCode)
+  |> Stdlib.Result.map(fun r -> Stdlib.Http.Status.toInt64(r.statusCode))
   |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(299))
 
 
@@ -628,7 +633,7 @@ test decodeChangesTheBodyType =
   Stdlib.Test.all(
     [ lengthSend(req)
       |> Stdlib.Result.map(fun r -> (r.statusCode, r.body))
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((200, 24)))
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok((Stdlib.Http.Status.ok, 24)))
 
       refuseSend(req)
       |> Stdlib.Result.map(fun r -> r.body)
@@ -641,7 +646,7 @@ test tapAnswersAsItCame =
   let seen = Stdlib.HttpClient.Middleware.tap(fun(_req, _result) -> ())
   __through([ seen ], __echo, __request("https://a.test/", []))
   |> Stdlib.Result.map(fun r -> r.statusCode)
-  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(200))
+  |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Stdlib.Http.Status.ok))
 
 
 test trimNames =
@@ -676,7 +681,7 @@ test lowercaseNamesKeepsValues =
     [ Stdlib.HttpClient.Middleware.lowercaseNames() ],
     (fun _ ->
        __response(
-         200,
+         Stdlib.Http.Status.ok,
          [ ("ETag", "\"AbC123\"")
            ("Set-Cookie", "a=1")
            ("Set-Cookie", "b=2") ],
@@ -739,7 +744,11 @@ test decompressAsksUnlessTheRequestDoes =
 
       __through(
         [ Stdlib.HttpClient.Middleware.decompress() ],
-        (fun req -> __response(200, [], Stdlib.display(req.decompress))),
+        (fun req ->
+           __response(
+             Stdlib.Http.Status.ok,
+             [],
+             Stdlib.display(req.decompress))),
         __request("https://a.test/", []))
       |> __body
       |> Stdlib.Test.equal("true") ])
@@ -914,7 +923,10 @@ let __policy(
       Stdlib.display(r.attempts) + " from " + Stdlib.display(r.delayMs) + "ms"
     | None -> "none"
 
-  __response(200, [], "redirects " + redirects + ", retry " + retry)
+  __response(
+    Stdlib.Http.Status.ok,
+    [],
+    "redirects " + redirects + ", retry " + retry)
 
 
 /// `__defaults`, as a send: what `get` does before it sends, beside the stack it stands for.

@@ -203,7 +203,7 @@ let navbarFocused(state: State): Bool =
 /// size handed to them.
 let navFitsNow(): Bool =
   let (w, _h) = Terminal.getSize()
-  navFits(w)
+  navFits(Stdlib.Int64.fromUInt16(w))
 
 
 // ── Moving ──

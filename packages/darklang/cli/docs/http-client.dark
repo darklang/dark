@@ -13,7 +13,7 @@ let content(): String =
 Each answers `Result<Response<'body>, RequestError>`:
 
   type Stdlib.HttpClient.Response<'body> =
-    { statusCode: Int64, headers: List<String * String>, body: 'body, url: String }
+    { statusCode: Stdlib.Http.Status, headers: List<String * String>, body: 'body, url: String }
 
 `body` is Bytes from `request`, `get` and the rest, and a lazy `Stream<Bytes>`
 from `stream`, one chunk of up to 64 KB per read (`Stdlib.Stream.toBytes`

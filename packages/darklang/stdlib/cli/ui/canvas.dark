@@ -155,6 +155,6 @@ let compose(width: Int64, height: Int64, spans: List<Layout.Span>): List<String>
 /// Compose spans into a full-screen `Tui.View`.
 let toView(size: Tui.Size, spans: List<Layout.Span>): Tui.View =
   Tui.View
-    { rows = compose(size.width, size.height, spans)
+    { rows = compose(Int64.fromUInt16(size.width), Int64.fromUInt16(size.height), spans)
       cursor = Tui.Cursor.Hidden
       mode = Tui.ViewMode.Fullscreen }

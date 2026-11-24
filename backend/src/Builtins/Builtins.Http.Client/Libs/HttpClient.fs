@@ -18,6 +18,7 @@
 /// operation (`LibExecution.HostHttp`), so the grants and the network guard apply to every hop.
 module Builtins.Http.Client.Libs.HttpClient
 
+open System.Net
 open System.Threading.Tasks
 
 open Prelude
@@ -37,6 +38,13 @@ let responseOKType () =
   FQTypeName.fqPackage (PackageRefs.Type.Stdlib.HttpClient.response ())
 let responseErrorType () =
   FQTypeName.fqPackage (PackageRefs.Type.Stdlib.HttpClient.requestError ())
+
+/// The response's status as an `Http.Status`. RFC 9110 has a client read a status outside
+/// 100-599 as a 5xx, so such a status is 500.
+let private statusOf (code : int) : Dval =
+  let code = if code >= 100 && code <= 599 then code else 500
+  let typ = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Http.status ())
+  DRecord(typ, typ, [], RecordFields.ofList [ "__status", Dval.dint64 (int64 code) ])
 
 
 module BadHeader =
@@ -159,7 +167,7 @@ let private responseOf
   : Dval =
   let typ = responseOKType ()
   let fields =
-    [ ("statusCode", Dval.dint64 (int64 statusCode))
+    [ ("statusCode", statusOf statusCode)
       ("headers", headersToDval headers)
       ("body", body)
       ("url", DString url) ]
@@ -235,17 +243,26 @@ let redirectOf
   (status : int)
   (headers : List<string * string>)
   : Option<Hop> =
-  match status, headerValue "Location" headers with
-  | (301 | 302 | 303 | 307 | 308), Some location ->
+  let status = enum<HttpStatusCode> status
+  let followed =
+    match status with
+    | HttpStatusCode.MovedPermanently
+    | HttpStatusCode.Found
+    | HttpStatusCode.SeeOther
+    | HttpStatusCode.TemporaryRedirect
+    | HttpStatusCode.PermanentRedirect -> true
+    | _ -> false
+  match headerValue "Location" headers with
+  | Some location when followed ->
     match System.Uri.TryCreate(hop.uri, System.UriKind.Absolute) with
     | true, from ->
       match System.Uri.TryCreate(from, location) with
       | true, next ->
         let asGet =
           match status with
-          | 301
-          | 302 -> String.equalsCaseInsensitive hop.method "POST"
-          | 303 ->
+          | HttpStatusCode.MovedPermanently
+          | HttpStatusCode.Found -> String.equalsCaseInsensitive hop.method "POST"
+          | HttpStatusCode.SeeOther ->
             not (
               String.equalsCaseInsensitive hop.method "GET"
               || String.equalsCaseInsensitive hop.method "HEAD"
@@ -284,7 +301,12 @@ let private isIdempotent (method : string) : bool =
   |> List.exists (String.equalsCaseInsensitive method)
 
 let private retryableStatus (status : int) : bool =
-  status = 429 || status = 502 || status = 503 || status = 504
+  match enum<HttpStatusCode> status with
+  | HttpStatusCode.TooManyRequests
+  | HttpStatusCode.BadGateway
+  | HttpStatusCode.ServiceUnavailable
+  | HttpStatusCode.GatewayTimeout -> true
+  | _ -> false
 
 let private retryableError (err : HostTypes.HttpRequestError) : bool =
   match err with

@@ -209,7 +209,7 @@ module Request =
 /// Header names and values are as the server sent them, and a header sent twice is two pairs.
 /// <fn Response.header> looks one up whatever its case.
 type Response<'body> =
-  { statusCode: Int64
+  { statusCode: Http.Status
     headers: List<(String * String)>
     body: 'body
     /// Where the response came from: the request's url, or where its redirects led.

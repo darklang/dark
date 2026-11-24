@@ -614,7 +614,7 @@ let private concurrentEphemeralBytesRequests =
     let! results =
       runRequestsAgainst
         HttpServer.defaultRequestTimeoutMs
-        "Darklang.Stdlib.Http.response(200, request.body)"
+        "Darklang.Stdlib.Http.response(Darklang.Stdlib.Http.Status.ok, request.body)"
         "POST"
         ([ 1..64 ] |> List.map (fun i -> "/", bodyFor i))
     results
@@ -636,10 +636,10 @@ let private pathRouter =
   """(match request.url with
       | url when Darklang.Stdlib.String.contains(url, "/slow") ->
         let _ = Darklang.Stdlib.Cli.Posix.sleep(400.0)
-        Darklang.Stdlib.Http.responseWithText(200, "slow done")
+        Darklang.Stdlib.Http.responseWithText(Darklang.Stdlib.Http.Status.ok, "slow done")
       | url when Darklang.Stdlib.String.contains(url, "/boom") ->
-        Darklang.Stdlib.Http.responseWithText(200, Darklang.Stdlib.display(1 / 0))
-      | _ -> Darklang.Stdlib.Http.responseWithText(200, "fast"))"""
+        Darklang.Stdlib.Http.responseWithText(Darklang.Stdlib.Http.Status.ok, Darklang.Stdlib.display(1 / 0))
+      | _ -> Darklang.Stdlib.Http.responseWithText(Darklang.Stdlib.Http.Status.ok, "fast"))"""
 
 /// `pathRouter` with the answer stamped with the millisecond it was made: `slow <ms>` or
 /// `fast <ms>`, so a test can tell which finished first.
@@ -648,11 +648,11 @@ let private stampedRouter =
       | url when Darklang.Stdlib.String.contains(url, "/slow") ->
         let _ = Darklang.Stdlib.Cli.Posix.sleep(400.0)
         Darklang.Stdlib.Http.responseWithText(
-          200,
+          Darklang.Stdlib.Http.Status.ok,
           "slow " + Darklang.Stdlib.display(Darklang.Stdlib.DateTime.toMilliseconds(Darklang.Stdlib.DateTime.now())))
       | _ ->
         Darklang.Stdlib.Http.responseWithText(
-          200,
+          Darklang.Stdlib.Http.Status.ok,
           "fast " + Darklang.Stdlib.display(Darklang.Stdlib.DateTime.toMilliseconds(Darklang.Stdlib.DateTime.now()))))"""
 
 let private requestsAreProcesses =
@@ -725,13 +725,13 @@ let private noResponseNamesDotNet =
       """(match request.url with
           | url when Darklang.Stdlib.String.contains(url, "/slow") ->
             let _ = Darklang.Stdlib.Cli.Posix.sleep(400.0)
-            Darklang.Stdlib.Http.responseWithText(200, "slow done")
+            Darklang.Stdlib.Http.responseWithText(Darklang.Stdlib.Http.Status.ok, "slow done")
           | url when Darklang.Stdlib.String.contains(url, "/boom") ->
-            Darklang.Stdlib.Http.responseWithText(200, Darklang.Stdlib.display(1 / 0))
+            Darklang.Stdlib.Http.responseWithText(Darklang.Stdlib.Http.Status.ok, Darklang.Stdlib.display(1 / 0))
           | url when Darklang.Stdlib.String.contains(url, "/int") -> 13
           | url when Darklang.Stdlib.String.contains(url, "/own") ->
-            Darklang.Stdlib.Http.responseWithHeaders(200, [ ("server", "mine") ], Darklang.Stdlib.Utf8.encode("own"))
-          | _ -> Darklang.Stdlib.Http.responseWithText(200, "fast"))"""
+            Darklang.Stdlib.Http.responseWithHeaders(Darklang.Stdlib.Http.Status.ok, [ ("server", "mine") ], Darklang.Stdlib.Utf8.encode("own"))
+          | _ -> Darklang.Stdlib.Http.responseWithText(Darklang.Stdlib.Http.Status.ok, "fast"))"""
     let! answered =
       runParsedRequestsAgainst
         4L
@@ -787,7 +787,8 @@ let private postWithNoLengthSkipsTheHandler =
           [ { version = Http
               route = "/"
               method = "POST"
-              code = "Darklang.Stdlib.Http.responseWithText(200, \"ran\")" } ]
+              code =
+                "Darklang.Stdlib.Http.responseWithText(Stdlib.Http.Status.ok, \"ran\")" } ]
         request = [||]
         expectedResponse = [||] }
     let! handler = buildRouterForTest exeState test

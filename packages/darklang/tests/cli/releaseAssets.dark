@@ -271,14 +271,18 @@ module Checksums =
 module ReleaseErrors =
   test notFoundIsItsOwnError =
     Stdlib.Test.all(
-      [ GitHub.Releases.statusError("v0.0.1", 404)
+      [ GitHub.Releases.statusError("v0.0.1", Stdlib.Http.Status.notFound)
         |> Stdlib.Test.equal(GitHub.ReleaseError.ReleaseNotFound("v0.0.1"))
 
-        GitHub.Releases.statusError("v0.0.1", 500)
-        |> Stdlib.Test.equal(GitHub.ReleaseError.BadStatus(500))
+        GitHub.Releases.statusError(
+          "v0.0.1",
+          Stdlib.Http.Status.internalServerError)
+        |> Stdlib.Test.equal(
+          GitHub.ReleaseError.BadStatus(Stdlib.Http.Status.internalServerError))
 
-        GitHub.Releases.statusError("v0.0.1", 403)
-        |> Stdlib.Test.equal(GitHub.ReleaseError.BadStatus(403)) ])
+        GitHub.Releases.statusError("v0.0.1", Stdlib.Http.Status.forbidden)
+        |> Stdlib.Test.equal(
+          GitHub.ReleaseError.BadStatus(Stdlib.Http.Status.forbidden)) ])
 
 
   test messages =
@@ -288,7 +292,8 @@ module ReleaseErrors =
             Stdlib.HttpClient.RequestError.Timeout))
         |> Stdlib.Test.equal("Couldn't reach the GitHub API: Timeout")
 
-        GitHub.releaseErrorMessage(GitHub.ReleaseError.BadStatus(500))
+        GitHub.releaseErrorMessage(
+          GitHub.ReleaseError.BadStatus(Stdlib.Http.Status.internalServerError))
         |> Stdlib.Test.equal("The GitHub API answered with status 500")
 
         GitHub.releaseErrorMessage(GitHub.ReleaseError.UnexpectedResponse)
