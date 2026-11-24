@@ -411,6 +411,10 @@ module Registry =
         Accepts.flagsOnly([ "--watch" ])))
 
 
+  let acceptsMcp(): Accepts.Accepts =
+    Accepts.nothing()
+
+
   let acceptsWorkbench(): Accepts.Accepts =
     Accepts.flagsOnly([ "--live" ])
 
@@ -963,6 +967,15 @@ module Registry =
         Ps.complete)
 
       (
+        "mcp",
+        "Serve this CLI to an AI client over MCP (stdio)",
+        [],
+        acceptsMcp,
+        Mcp.execute,
+        Mcp.help,
+        Mcp.complete)
+
+      (
         "workbench",
         "Open the workbench -- a framed, navigable package tree",
         [ "wb" ],
@@ -1167,7 +1180,7 @@ module Registry =
           "ops" ])
 
       ("Branches", [ "branch", "branches", "switch", "merge", "rebase", "diff", "log", "resolve" ])
-      ("Execution", [ "run-script", "eval", "ps", "traces", "serve", "format" ])
+      ("Execution", [ "run-script", "eval", "ps", "traces", "serve", "mcp", "format" ])
       ("Installation", [ "install", "update", "uninstall", "version", "install-status" ])
       ("Security", [ "effects", "permissions" ])
       (

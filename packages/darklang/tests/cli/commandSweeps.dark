@@ -136,6 +136,7 @@ val notSweepable: List<String> =
     "serve"  // binds a port and blocks; its refusals are in refusals.dark
     "typecheck"  // audits every declaration; swept with a module in jsonShapes.dark
     "export-seed"  // takes its argument as a path and writes a multi-MB database there
+    "mcp"  // serves MCP over stdin until it closes, so bare it says nothing; mcp.dark drives a session
     "clear" ]  // clears the screen, taking the sweep's own output with it
 
 

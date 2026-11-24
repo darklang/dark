@@ -128,6 +128,47 @@ let run(program: String, args: List<String>): Result<Output, Posix.Error> =
   runBytes(program, args) |> Result.map(fun output -> outputText(output))
 
 
+/// Run <param program> with <param input> on its stdin, wait for it, and capture its output.
+/// Its stdin is closed once the input is written. With a timeout the child is killed when it
+/// elapses and the call fails with <type Posix.Error> {{ProcessTimedOut}}.
+let runWithInput(
+  program: String,
+  args: List<String>,
+  input: Bytes,
+  timeoutMs: Option<Int64>)
+  : Result<BytesOutput, Posix.Error> =
+  __childStart(program, args, Stdio.Capture)
+  |> Result.andThen(fun child ->
+    let result =
+      Builtin.runtimeChildDescriptors(child)
+      |> Result.mapError(Posix.__fromErrno)
+      |> Result.andThen(fun ports ->
+        match ports with
+        | [stdin, stdout, stderr] ->
+          let deadline =
+            match timeoutMs with
+            | None -> Option.None
+            | Some(ms) -> Option.Some(DateTime.__monotonicMilliseconds() + ms)
+
+          __childFeed(
+            child,
+            Posix.Fd { __fd = stdin },
+            Posix.Fd { __fd = stdout },
+            Posix.Fd { __fd = stderr },
+            input,
+            deadline,
+            __childEmpty(),
+            __childEmpty(),
+            false,
+            false)
+        | _ -> Result.Error(Posix.Error.BadKernelReply))
+
+    __childFinish(child, result))
+  |> Result.map(fun result ->
+    let (code, output, error) = result
+    BytesOutput { exitCode = code, stdout = output, stderr = error })
+
+
 /// Run a program ON THIS TERMINAL and return its exit code.
 ///
 /// Inherits stdin, stdout and stderr instead of capturing them, which is what
@@ -490,6 +531,77 @@ let __childRun(
         | _ -> Result.Error(Posix.Error.BadKernelReply))
 
     __childFinish(child, result))
+
+
+/// Write <param pending> to the child a chunk per turn while draining its output, then close
+/// its stdin and capture the rest. A child that exits without reading drops what is left.
+let __childFeed(
+  child: BigInt,
+  stdin: Posix.Fd,
+  stdout: Posix.Fd,
+  stderr: Posix.Fd,
+  pending: Bytes,
+  deadline: Option<Int64>,
+  output: __ChildBuffer,
+  error: __ChildBuffer,
+  outEOF: Bool,
+  errEOF: Bool)
+  : Result<(Int64 * Bytes * Bytes), Posix.Error> =
+  if Bytes.length(pending) == 0 then
+    let closed =
+      match Builtin.runtimeChildClosePort(child, 0) with
+      | Error(4) -> Result.Ok()
+      | result -> result |> Result.mapError(Posix.__fromErrno)
+
+    closed
+    |> Result.andThen(fun _ ->
+      __childCapture(child, stdout, stderr, deadline, output, error, outEOF, errEOF))
+  else
+    let expired =
+      match deadline with
+      | None -> false
+      | Some(end_) -> end_ <= DateTime.__monotonicMilliseconds()
+
+    if expired then
+      let _ = __childKillChild(child)
+      Result.Error(Posix.Error.ProcessTimedOut)
+    else
+      let written =
+        match __childWrite(stdin, pending) with
+        | Error(e) when Posix.Error.kind(e) == Posix.ErrorKind.BrokenPipe -> Result.Ok(Bytes.empty)
+        | result -> result
+
+      written
+      |> Result.andThen(fun pending ->
+        __childRead(stdout, outEOF)
+        |> Result.andThen(fun out ->
+          let (outChunk, outEOF) = out
+          __childRead(stderr, errEOF)
+          |> Result.andThen(fun err ->
+            let (errChunk, errEOF) = err
+            let output = __childAppend(output, outChunk)
+            let error = __childAppend(error, errChunk)
+            let polled =
+              if Bytes.length(pending) == 0 then
+                Result.Ok()
+              else
+                __childPoll(
+                  __childDescriptors(Option.Some(stdin), stdout, stderr, pending, outEOF, errEOF),
+                  100)
+
+            polled
+            |> Result.andThen(fun _ ->
+              __childFeed(
+                child,
+                stdin,
+                stdout,
+                stderr,
+                pending,
+                deadline,
+                output,
+                error,
+                outEOF,
+                errEOF)))))
 
 
 let __childInteractive(program: String, args: List<String>): Result<Int64, Posix.Error> =

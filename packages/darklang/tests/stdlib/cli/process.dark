@@ -264,3 +264,55 @@ test closedStdinReturnsFailure =
   let response = Stdlib.Cli.Process.communicate(handle, "input")
   let _ = Stdlib.Cli.Process.terminate(handle)
   response.exitCode |> Stdlib.Test.equal(-1)
+
+
+test runWithInputFeedsStdin =
+  (match Stdlib.Cli.Process.runWithInput(
+           "/bin/sh",
+           [ "-c", "tr a-z A-Z; echo done >&2; exit 3" ],
+           Stdlib.Utf8.encode("hello\nthere\n"),
+           Stdlib.Option.Option.None) with
+   | Ok(o) ->
+     (
+       o.exitCode,
+       Stdlib.Utf8.decodeWithReplacement(o.stdout),
+       Stdlib.Utf8.decodeWithReplacement(o.stderr))
+   | Error(_) -> (-1, "", ""))
+  |> Stdlib.Test.equal((3, "HELLO\nTHERE\n", "done\n"))
+
+
+// more than one pipe buffer each way, so writing and reading have to interleave
+test runWithInputLargeInput =
+  let line = Stdlib.String.repeat("x", 99) + "\n"
+  let input = Stdlib.String.repeat(line, 3000)
+  (match Stdlib.Cli.Process.runWithInput(
+           "/bin/cat",
+           [],
+           Stdlib.Utf8.encode(input),
+           Stdlib.Option.Option.None) with
+   | Ok(o) -> Stdlib.Bytes.length(o.stdout)
+   | Error(_) -> -1)
+  |> Stdlib.Test.equal(300000)
+
+
+test runWithInputChildIgnoresStdin =
+  (match Stdlib.Cli.Process.runWithInput(
+           "/bin/true",
+           [],
+           Stdlib.Utf8.encode(Stdlib.String.repeat("y", 200000)),
+           Stdlib.Option.Option.None) with
+   | Ok(o) -> o.exitCode
+   | Error(_) -> -1)
+  |> Stdlib.Test.equal(0)
+
+
+test runWithInputTimesOut =
+  Stdlib.Test.onRealClock(fun () ->
+    match Stdlib.Cli.Process.runWithInput(
+            "/bin/sh",
+            [ "-c", "sleep 2" ],
+            Stdlib.Utf8.encode("x"),
+            Stdlib.Option.Option.Some(50)) with
+    | Error(ProcessTimedOut) -> true
+    | _ -> false)
+  |> Stdlib.Test.equal(true)
