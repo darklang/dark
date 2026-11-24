@@ -369,7 +369,7 @@ let deleteRefusesWhileSomethingStillCallsIt =
             state
             [ "delete"; "Tests.Auth.leaf"; "-y" ]
             "live dependent"
-            "Deprecated"
+            "Deleted"
             "delete refuses while a caller still references it"
 
         do! evals state "Tests.Auth.caller()" "7407" "and the caller still runs"
@@ -378,7 +378,7 @@ let deleteRefusesWhileSomethingStillCallsIt =
           shows
             state
             [ "delete"; "Tests.Auth.leaf"; "--ignore-dependents"; "-y" ]
-            "Deprecated"
+            "Deleted"
             "--ignore-dependents is the documented way past it"
 
         // The caller keeps working: it references CONTENT, and retiring a name does not remove the
@@ -611,7 +611,7 @@ let traitsAreAuthoredListedAndDisambiguated =
           shows
             state
             [ "delete"; "Tests.Tr.Point.Describe"; "-y" ]
-            "Deprecated Tests.Tr.Point.Describe."
+            "Deleted Tests.Tr.Point.Describe."
             "delete infers the impl kind"
         do! discardAll state
       })

@@ -262,7 +262,7 @@ val streamRows: List<(List<String> * Int64 * Stream * Stream)> =
     ([ "delete", "Tests.Rows.g2" ], 1, Stream.Silent, Stream.Says("Delete not done"))
     ([ "delete", "Tests.Rows.g2", "-y" ],
      0,
-     Stream.Says("Deprecated Tests.Rows.g2 (still callable)."),
+     Stream.Says("Deleted Tests.Rows.g2 (still callable)."),
      Stream.Silent)
     ([ "undeprecate", "Tests.Rows.g2" ], 0, Stream.Says("Undeprecated"), Stream.Silent)
     ([ "fn", "Tests.Rows.f", "(x: Int64): Int64 = x + 2" ],

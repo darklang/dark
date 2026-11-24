@@ -56,6 +56,15 @@ let countLiveDependents(
   |> Stdlib.List.length
 
 
+/// The flags that get past live dependents. Without a terminal `--ignore-dependents` alone
+/// would only stop again at the prompt.
+let dependentsOverride(parsed: ParsedArgs): String =
+  if parsed.autoConfirm || Stdlib.Cli.UI.Prompt.canAsk() then
+    "`--ignore-dependents` / `--force`"
+  else
+    "`--force`"
+
+
 /// Forward the shared options to `deprecate`.
 let toDeprecateArgs(parsed: ParsedArgs, itemTypeStr: String, target: String): List<String> =
   let baseArgs = [ itemTypeStr, target ]
@@ -135,7 +144,7 @@ let deleteItem(
             $"""{Text.plural(depCount, "live dependent")} still {if depCount == 1 then "references" else "reference"} this item.""")
 
           Stdlib.printErrorLine(
-            "Use `deprecate` to give them time to migrate, or pass `--ignore-dependents` / `--force`.")
+            $"Use `deprecate` to give them time to migrate, or pass {dependentsOverride(parsed)}.")
 
           failed(state)
         else
@@ -258,7 +267,7 @@ let deleteModuleItems(
   let count = Text.plural(total, "item")
   if Stdlib.Bool.not(Stdlib.List.isEmpty(outside)) && Stdlib.Bool.not(parsed.ignoreDependents) then
     printErr($"Used from outside {shown}: " + Stdlib.String.join(outside, ", "))
-    Stdlib.printErrorLine("Pass `--ignore-dependents` / `--force` to delete it anyway.")
+    Stdlib.printErrorLine($"Pass {dependentsOverride(parsed)} to delete it anyway.")
     failed(state)
   else
     let names =
@@ -283,7 +292,7 @@ let deleteModuleItems(
     let printItems(printLine: String -> Unit, action: String): Unit =
       printLine($"{action} {count} in {shown}:")
       names |> Stdlib.List.iter(fun name -> printLine($"  {name}"))
-      printLine("Deprecated items can still be used by name.")
+      printLine("They can still be used by name.")
 
     if Stdlib.Bool.not(parsed.json) then
       if dryRun then
@@ -319,8 +328,8 @@ let deleteModuleItems(
         | true, [name], [(_, reference)] ->
           let kind = LanguageTools.ProgramTypes.Reference.kind(reference)
           printOk(Deprecate.deletedItemMessage(name, kind))
-        | true, _, _ -> printItems(Stdlib.printLine, "Deprecated")
-        | false, _, _ -> printOk($"Deprecated {count} in {shown}")
+        | true, _, _ -> printItems(Stdlib.printLine, "Deleted")
+        | false, _, _ -> printOk($"Deleted {count} in {shown}")
 
         state
       | Error(e) ->
