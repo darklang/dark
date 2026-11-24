@@ -3,15 +3,16 @@ module Darklang.Cli.Installation.Version
 let execute(state: AppState, args: List<String>): AppState =
   // Named, not ignored: a mistyped `--locl` would otherwise fall through to the update
   // check, which is the one thing the caller was trying to skip.
-  let unknown = args |> Stdlib.List.filter(fun a -> a != "--local")
+  let unknown = args |> Stdlib.List.filter(fun a -> a != "--local" && a != "--check")
   match unknown with
   | [bad, ...] ->
     printErr($"version: unknown option `{bad}`")
     Stdlib.printErrorLine(help(state))
     failed(state)
   | [] ->
-    // Checks GitHub for a newer release, which dominates the command. Deliberate: knowing you're out of
-    // date is the point of the command, not a side errand.
+    // Says whether a newer release exists, from GitHub's answer of the last day (`Helpers.versionInfo`).
+    // Asking GitHub is a round trip that costs ten times the rest of the command, so it happens once a
+    // day, and `--check` asks now.
     //
     // `--local` answers from the binary alone. It is for callers that want to know WHICH binary this is
     // rather than whether it is current: a test, a script, a machine with no egress, where the check buys
@@ -21,7 +22,7 @@ let execute(state: AppState, args: List<String>): AppState =
       if Stdlib.List.contains(args, "--local") then
         $"Darklang CLI {Helpers.cliVersion()}"
       else
-        Helpers.versionInfoWithUpdateCheck()
+        Helpers.versionInfo(Stdlib.List.contains(args, "--check"))
 
     Stdlib.printLine(line)
     // No store-format line: an op log needs no format coordinate. Ops are content-addressed and a binary
@@ -34,11 +35,13 @@ let complete(_state: AppState, _args: List<String>): List<Completion.CompletionI
 
 
 let help(_state: AppState): String =
-  [ "Usage: version [--local]"
+  [ "Usage: version [--local|--check]"
     "Display the CLI version."
     ""
-    "Shows the current version, and whether a newer release exists."
+    "Shows the current version, and whether a newer release exists. GitHub is"
+    "asked once a day; an older answer says how old it is."
     ""
+    "  --check    Ask GitHub for the latest release now."
     "  --local    Skip the check for a newer release, which needs the network."
     "             Answers immediately, and says nothing about updates." ]
   |> Stdlib.String.join("\n")

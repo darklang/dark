@@ -6,7 +6,7 @@ let execute(state: AppState, args: List<String>): AppState =
     Stdlib.printErrorLine(e)
     failed(state)
   | Ok(host) ->
-    let version = Helpers.versionInfoWithUpdateCheck()
+    let version = Helpers.versionInfo(false)
     let installationStatus =
       match System.installedBinaryPath(host) with
       | Error(e) -> Stdlib.Cli.UI.Colors.warning("Status: ") + $"Unknown ({e})"
