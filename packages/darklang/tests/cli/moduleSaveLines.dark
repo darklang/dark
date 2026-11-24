@@ -90,3 +90,45 @@ test valTypeIsADependency = Instance.withInstance(fun i ->
   Stdlib.Test.all(
     [ Instance.exitedWith(code, 1, "refused")
       Instance.says(out, "1 live dependent", "the val depends on its type") ]))
+
+
+/// A case of your own enum written alone names the enum, here and in `typecheck`.
+test bareEnumCaseNamesItsEnum = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/units.dark"
+  let source =
+    [ "type Scale ="
+      "  | Celsius"
+      "  | Fahrenheit"
+      "let hot(s: Scale): Bool = s == Fahrenheit" ]
+    |> Stdlib.String.join("\n")
+
+  let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
+  let (_, out) = Instance.ran(i, [ "module", "/Me.Units", path ])
+  let (_, audit) = Instance.ran(i, [ "typecheck", "Me.Units" ])
+  let hint =
+    "`Fahrenheit` is a case of Me.Units.Scale; write `Scale.Fahrenheit`"
+
+  Stdlib.Test.all(
+    [ Instance.says(out, hint, "the save")
+      Instance.says(audit, hint, "the audit")
+      Instance.doesNotSay(out, "Local variable", "not a variable") ]))
+
+
+/// A value whose save was refused is not named by a hash in its callers' errors.
+test refusedValueIsNotAHash = Instance.withInstance(fun i ->
+  let path = Instance.home(i) + "/refused.dark"
+  let source =
+    [ "val empty: Missing.Thing = Missing.Thing { n = 0 }"
+      "let total(xs: List<Int64>): Int64 = Stdlib.List.fold(xs, empty, fun(t, x) -> t)" ]
+    |> Stdlib.String.join("\n")
+
+  let _ = Stdlib.Cli.File.writeAtomic(path, source) |> Builtin.unwrap
+  let _ = Instance.ran(i, [ "module", "/Me.Refused", path ])
+  let (_, audit) = Instance.ran(i, [ "typecheck", "Me.Refused" ])
+  Stdlib.Test.all(
+    [ Instance.says(
+        audit,
+        "The value used here is not on this branch",
+        "the value")
+
+      Instance.doesNotSay(audit, "#", "no hash") ]))

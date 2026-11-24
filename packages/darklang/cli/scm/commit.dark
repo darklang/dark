@@ -523,9 +523,7 @@ let refuseTypeErrors(parsed: Args): Bool =
         | Failed ->
           let label = Packages.Typecheck.itemLabel(branchId, item.item)
           Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"    {label}:"))
-          Stdlib.List.concat(
-            Packages.AtRestCheck.issueLines(branchId, item.diagnostics),
-            Packages.AtRestCheck.issueLines(branchId, item.warnings))
+          Packages.AtRestCheck.itemIssueLines(branchId, item, [])
           |> Stdlib.List.iter(fun line ->
             Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.error($"    {line}")))
         | _ -> ())
