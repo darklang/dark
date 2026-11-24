@@ -93,7 +93,7 @@ let testJson(name: String, outcome: Outcome, cached: Bool): TestJson =
 
 
 val usage =
-  "Usage: test run [--force] [--brief | --verbose] [--json] [--jobs <count>] [--seed <n>] [name-or-module ... | <script>.dark]\n       test count [--for <item>] [module]\n       test add <location> <body> | <source-file> | - [--description <text>]"
+  "Usage: test run [--force] [--brief | --verbose] [--json] [--jobs <count>] [--seed <n>] [name-or-module ... | <script>.dark]\n       test count [--for <item>] [module]\n       test add <location> <body> | <source-file> | - [--description <text>]\n       test from-trace <trace>... | -"
 
 
 let fullPath(
@@ -414,6 +414,68 @@ let addTest(
         | _ -> addFailed(state, "Expected exactly one test declaration")
 
 
+/// The test `test from-trace` writes for <param trace>: its location and its body. The trace has
+/// to be an `eval` of one line that finished, made no impure call and answered a value with a
+/// literal form; the test is that line, expected to answer the same again. It goes beside the
+/// function the eval called, named after it and the trace.
+let testFromTrace(branchId: Uuid, trace: Tracing.Trace): Result<(String * String), String> =
+  let short = Text.shortIdText(trace.id)
+  let effects =
+    match Tracing.Store.view(trace.id) with
+    | Some(data) ->
+      data.functionCalls
+      |> Stdlib.List.filter(fun c -> c.ord >= 0 && c.fnName != TraceVerbs.logBuiltin)
+    | None -> []
+
+  match (trace.scriptOrEvalInput, trace.status, trace.result) with
+  | (Some(Eval(source, _)), Done, Some(answer)) ->
+    match effects with
+    | [first, ...] ->
+      Result.Error(
+        $"{short} made impure calls ({first.fnName} first), so a test of it would make them again")
+    | [] ->
+      if Stdlib.String.contains(Stdlib.String.trim(source), "\n") then
+        Result.Error($"{short} evaluated more than one line; a test takes one call")
+      else
+        match Tracing.rootFn(branchId, trace) with
+        | None -> Result.Error($"{short} called no package function to name the test after")
+        | Some(fn) ->
+          match LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr(branchId, answer) with
+          | Error(why) -> Result.Error($"{short} answered a value with no literal form: {why}")
+          | Ok(expr) ->
+            let expected =
+              PrettyPrinter.ProgramTypes.expr(
+                PrettyPrinter.ProgramTypes.Context.forBranch(branchId),
+                expr)
+
+            Result.Ok(
+              ($"/{fn}Trace{short}",
+               $"({Stdlib.String.trim(source)}) |> Stdlib.Test.equal({expected})"))
+  | (Some(Eval(_, _)), Done, None) -> Result.Error($"{short} answered nothing to check")
+  | (Some(Eval(_, _)), status, _) ->
+    Result.Error($"{short} is {TraceVerbs.statusText(status)}; only a finished run becomes a test")
+  | (Some(Script(_, _, _, _)), _, _) ->
+    Result.Error($"{short} ran a script; a test is made from an `eval` of one call")
+  | (None, _, _) -> Result.Error($"{short} was a served request; a test is made from an `eval`")
+
+
+/// `test from-trace <id>`: one trace, as a test.
+let addFromTrace(state: AppState, ref: String): AppState =
+  let found =
+    TraceVerbs.find(ref)
+    |> Stdlib.Result.andThen(fun trace ->
+      testFromTrace(state.currentBranchId, trace) |> Stdlib.Result.map(fun t -> (trace, t)))
+
+  match found with
+  | Error(e) ->
+    printErr(e)
+    { state with exitCode = 1 }
+  | Ok((trace, (location, body))) ->
+    let from = $"From trace {trace.id}."
+    let added = addTest({ state with exitCode = 0 }, location, body, Option.Some(from))
+    if state.exitCode != 0 then { added with exitCode = state.exitCode } else added
+
+
 let execute(state: AppState, args: List<String>): AppState =
   match args with
   | ["add"] -> addFailed(state, "test add needs a location and a body")
@@ -425,6 +487,13 @@ let execute(state: AppState, args: List<String>): AppState =
         addFailed(state, "test add needs a body after the location")
       else
         addTest(state, location, definition, description)
+  | ["from-trace"] -> addFailed(state, "test from-trace needs a trace id, or - to read them from stdin")
+  | ["from-trace", ...refs] ->
+    match References.read(refs) with
+    | Error(e) -> addFailed(state, e)
+    | Ok([]) -> addFailed(state, "test from-trace was handed no trace ids")
+    | Ok(ids) ->
+      ids |> Stdlib.List.fold(state, fun(st, id) -> addFromTrace(st, id))
   | ["run", ...runArgs] -> runTests(state, runArgs)
   | ["count", ...countArgs] -> countTests(state, countArgs)
   | [] ->
@@ -1268,7 +1337,15 @@ let help(_state: AppState): String =
     "  EOF"
     "The body may be given alone or as a whole `test name = ...` declaration;"
     "it lands in your draft like `fn` and `val`. --description <text> documents it:"
-    "  test add MyApp.Math.Tests.doubles 'MyApp.Math.double(4) |> Stdlib.Test.equal(8)' --description \"Doubling four gives eight.\"" ]
+    "  test add MyApp.Math.Tests.doubles 'MyApp.Math.double(4) |> Stdlib.Test.equal(8)' --description \"Doubling four gives eight.\""
+    ""
+    "A test from a recorded run:"
+    "  test from-trace 0123abcd"
+    "  dark traces list --plain | head -3 | dark test from-trace -"
+    "An `eval` of one call that made no impure call becomes a test of that call,"
+    "expecting the answer it gave, beside the function it called:"
+    "`MyApp.Math.doubleTrace0123abcd`. `-` reads trace ids from stdin, the first"
+    "word of each line." ]
   |> Stdlib.String.join("\n")
 
 

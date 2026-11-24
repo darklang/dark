@@ -838,6 +838,24 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       previewable = Impure
       callEffects = set [ Effect.TraceWrite ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "tracingLog" 0
+      typeParams = [ "a" ]
+      parameters =
+        [ Param.make "field" TString ""; Param.make "value" (TVariable "a") "" ]
+      returnType = TUnit
+      description =
+        "Add a field to this run's trace. Does nothing else: the trace's log keeps the call, "
+        + "with its arguments, like any impure call."
+      fn =
+        (function
+        | _, _, _, [| DString _; _ |] -> DUnit
+        | _ -> incorrectArgs ())
+      // Impure so it is logged; a replay answers it from the log like any other.
+      previewable = Impure
+      callEffects = Set.empty
       deprecated = NotDeprecated } ]
 
 

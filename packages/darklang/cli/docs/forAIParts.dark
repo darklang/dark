@@ -350,8 +350,21 @@ The loop, then:
   dark traces record on            keep a record of every run (off by default)
   dark run thing.dark              ... so this run is kept, with what it did
   dark traces                      the runs, newest first
-  dark traces show <fn>            that function's code, with the values from
-                                   the newest run that went through it
+  dark traces show <fn> <id>       that function's code, with the values from
+                                   that run (without <id>, the newest one)
+
+While recording, every `eval` and `run` prints `trace <id>` on stderr as it
+starts. A failed run prints its trace id with the command that shows it: run
+it before guessing at the cause. A served request answers with the id in its
+`x-darklang-trace-id` header. `dark traces follow <id>` prints a long run's
+calls as it makes them, and `traces show` works on a run that is still going.
+
+`Stdlib.Tracing.log("user", id)` adds a field to the run's trace: `traces inspect`
+lists it under `logged`, and `traces find` searches it.
+
+`dark test from-trace <id>` turns a recorded `eval` of one pure call into a
+test expecting the same answer; `dark traces list --plain | head -3 | dark test
+from-trace -` does it for several.
 
 `traces show` is the one that replaces a print statement. It replays the run
 with every impure call answered from what was recorded, so nothing is performed

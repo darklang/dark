@@ -202,6 +202,31 @@ let private testReplayGivesBackTheRecordedAnswer =
             System.IO.Path.GetTempPath(),
             $"dark-replay-{System.Guid.NewGuid()}"
           )
+        // A local origin that answers every request with something new, so a replay that
+        // made the request again, or served the wrong answer, gives back a different body.
+        let port =
+          let probe =
+            new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0)
+          probe.Start()
+          let port = (probe.LocalEndpoint :?> System.Net.IPEndPoint).Port
+          probe.Stop()
+          port
+        let origin = new System.Net.HttpListener()
+        origin.Prefixes.Add $"http://127.0.0.1:{port}/"
+        origin.Start()
+        let answering =
+          task {
+            try
+              while origin.IsListening do
+                let! ctx = origin.GetContextAsync()
+                let body = UTF8.toBytes (string (System.Guid.NewGuid()))
+                ctx.Response.ContentLength64 <- int64 body.Length
+                do! ctx.Response.OutputStream.WriteAsync(body, 0, body.Length)
+                ctx.Response.Close()
+            with _ ->
+              ()
+          }
+        let url = $"http://127.0.0.1:{port}/fresh"
         let runs =
           [ "Stdlib.printLine(\"x\")"
             "Stdlib.DateTime.now()"
@@ -210,19 +235,23 @@ let private testReplayGivesBackTheRecordedAnswer =
             $"let _ = Stdlib.Cli.File.writeText(\"{file}\", Stdlib.display(Stdlib.Uuid.generate()))\nStdlib.Cli.File.readText(\"{file}\")"
             "Stdlib.Cli.Process.run(\"/usr/bin/date\", [ \"+%N\" ])"
             "Stdlib.Exec.await(Stdlib.Exec.spawn(fun () -> Stdlib.Uuid.generate()))"
-            "Stdlib.List.map([ 1, 0 ], fun d -> 10 / d)" ]
+            "Stdlib.List.map([ 1, 0 ], fun d -> 10 / d)"
+            $"Stdlib.HttpClient.get(\"{url}\", []) |> Stdlib.Result.map(fun r -> Stdlib.Base16.encode(r.body))" ]
         let! _ =
           runCli
             state
             [ "permissions"
               "allow"
-              $"file read+write {file}; process /usr/bin/date" ]
+              $"file read+write {file}; process /usr/bin/date; http GET {url}" ]
+        let! _ = runCli state [ "config"; "set"; "http.loopback"; "on" ]
         try
           for code in runs do
             let! _ = runCli state [ "eval"; code ]
             ()
         finally
           System.IO.File.Delete file
+          origin.Stop()
+          answering.Wait()
         let recorded = Traces.list 50
         Expect.equal
           (List.length recorded)
@@ -250,7 +279,28 @@ let private testReplayGivesBackTheRecordedAnswer =
               PT.BranchId.Main
               run
               tracer
+          // A replay that runs out of recorded answers serves the last one again. Every uuid
+          // these runs made is distinct, so an answer that passes was not served that way.
+          let uuids =
+            let seen = System.Collections.Generic.List<System.Guid>()
+            run.result
+            |> Option.iter (fun answer ->
+              answer
+              |> RT.Dval.rewriteWith (fun dv ->
+                match dv with
+                | RT.DUuid id ->
+                  seen.Add id
+                  None
+                | _ -> None)
+              |> ignore<RT.Dval>)
+            List.ofSeq seen
+          Expect.equal
+            (List.distinct uuids)
+            uuids
+            $"{run.entry}: every uuid it made is its own"
           match run.result, replayed with
+          | Some(RT.DEnum(_, _, _, "Error", _) as answer), _ ->
+            failtestf "%s: the request itself failed: %A" run.entry answer
           | Some answer, Ok again -> Expect.equal again answer run.entry
           | None, Error(Builtins.CliHost.Libs.Cli.ReplayStop.Raised _) -> ()
           | answer, again ->

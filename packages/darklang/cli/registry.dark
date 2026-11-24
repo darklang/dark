@@ -117,7 +117,8 @@ module Registry =
             Accepts.freeText(0, [ "--force", "--brief", "--verbose", "--json" ])))
 
         ("count", Accepts.withValues([ "--for" ], Accepts.freeText(0, [])))
-        ("add", Accepts.text(2)) ],
+        ("add", Accepts.text(2))
+        ("from-trace", Accepts.freeText(1, [])) ],
       Accepts.nothing())
 
 
@@ -315,11 +316,11 @@ module Registry =
 
   let acceptsTraces(): Accepts.Accepts =
     Accepts.everywhere(
-      [ "-y", "--yes", "--json", "--inspect", "--full" ],
+      [ "-y", "--yes", "--json", "--inspect", "--full", "--plain" ],
       [ "--iteration" ],
       Accepts.subcommands(
         [ ("list", Accepts.withValues([ "--fn", "--route" ], Accepts.upTo(1, [])))
-          ("follow", Accepts.withValues([ "--route" ], Accepts.nothing()))
+          ("follow", Accepts.withValues([ "--route" ], Accepts.upTo(1, [])))
           ("stats", Accepts.upTo(1, []))
           ("tail", Accepts.withValues([ "--route" ], Accepts.upTo(1, [])))
           ("find", Accepts.text(1))

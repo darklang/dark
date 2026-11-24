@@ -1,0 +1,20 @@
+/// References a command is handed: names or ids, on the command line or piped in.
+///
+/// A pipe carries references, not values, one per line, the first word of each: so the rows a
+/// listing prints can go straight into a command that takes what they name.
+module Darklang.Cli.References
+
+/// <param args>, or with `-` the references on stdin. Blank lines are skipped.
+let read(args: List<String>): Result<List<String>, String> =
+  match args with
+  | ["-"] ->
+    match Stdlib.Cli.Stdin.readAll() with
+    | Error(e) -> Result.Error(e)
+    | Ok(text) ->
+      Stdlib.String.split(text, "\n")
+      |> Stdlib.List.filterMap(fun line ->
+        Stdlib.String.split(Stdlib.String.trim(line), " ")
+        |> Stdlib.List.head
+        |> Stdlib.Option.andThen(fun w -> if w == "" then Option.None else Option.Some(w)))
+      |> Result.Ok
+  | _ -> Result.Ok(args)

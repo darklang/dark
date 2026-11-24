@@ -1,0 +1,8 @@
+/// What a program adds to its own trace.
+module Darklang.Stdlib.Tracing
+
+/// Add <param field> to this run's trace, with <param value>. `dark traces inspect` lists a
+/// trace's fields under `logged`, and `dark traces find` searches them. Nothing is kept when
+/// recording is off.
+let log<'a>(field: String, value: 'a): Unit =
+  Builtin.tracingLog<'a>(field, value)

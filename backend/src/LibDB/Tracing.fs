@@ -101,6 +101,10 @@ type T =
 
     /// Whether this run gets a row of its own. A view does not: looking at a run is not a run.
     enabled : bool
+
+    /// Write the calls from position n on that are not stored yet, so the trace can be read
+    /// while the run goes on. Answers the position to start from next time.
+    flushSoFar : int -> int
   }
 
 
@@ -1026,6 +1030,160 @@ module TraceStorage =
   let private serializeDval (id : string) (dv : RT.Dval) : byte[] =
     BinarySer.RT.Dval.serialize id dv
 
+  /// Each call's arguments, and the hash of its result, with the results themselves by hash.
+  ///
+  /// Every result lives in the trace's blobs, once per distinct value, and its row holds the
+  /// value's hash. A type check reads the same items and gets the same small answers over and
+  /// over, so most rows of a heavy trace share a handful of values.
+  let private serializeEvents
+    (events : List<CompletedEvent>)
+    : List<CompletedEvent * byte[] * string> * List<string * byte[]> =
+    let results = System.Collections.Generic.Dictionary<string, byte[]>()
+    // A by-hash read that found its item is serialized once per hash asked: an item IS its
+    // hash, so a later `Some` for the same hash is the same item. Anything else is serialized
+    // every time, since a `None` can turn into the item later in the run.
+    let foundByAsk = System.Collections.Generic.Dictionary<string, string>()
+    let keep (ev : CompletedEvent) : string =
+      let bytes = serializeDval "trace_fn_calls.result" ev.result
+      let hash = Bytes.sha256Hex bytes
+      results[hash] <- bytes
+      hash
+    let serialized =
+      events
+      |> List.map (fun ev ->
+        let argsBytes = serializeArgs ev.args
+        let hash =
+          match ev.result with
+          | RT.DEnum(_, _, _, "Some", [ _ ]) when
+            Set.contains ev.fnName Redact.fromTheStore
+            ->
+            let ask = ev.fnName + ":" + System.Convert.ToBase64String argsBytes
+            match foundByAsk.TryGetValue ask with
+            | true, hash -> hash
+            | _ ->
+              let hash = keep ev
+              foundByAsk[ask] <- hash
+              hash
+          | _ -> keep ev
+        (ev, argsBytes, hash))
+    serialized, results |> Seq.map (fun kv -> kv.Key, kv.Value) |> List.ofSeq
+
+  // Skip the INSERT when empty: fumble rejects zero-param-row prepared statements, hit when a
+  // trace errors before any call fires.
+  //
+  // `parent_call_id` and `lambda_expr_id` stay NULL and `kind` stays 'builtin': the log is a
+  // sequence of impure calls, not a tree of frames. The columns stay because `08-traces.sql`
+  // has merged and is frozen.
+  let private eventStatements
+    (insert : string)
+    (traceIdStr : string)
+    (serializedEvents : List<CompletedEvent * byte[] * string>)
+    =
+    match serializedEvents with
+    | [] -> []
+    | _ ->
+      [ $"{insert} INTO trace_fn_calls
+          (trace_id, call_id, parent_call_id, kind, fn_hash,
+           lambda_expr_id, args, result, duration_ms, process_id, seq, ord)
+         VALUES
+          (@traceId, @callId, NULL, 'builtin', @fnHash,
+           NULL, @args, @result, @durationMs, @processId, @seq, @ord)",
+        serializedEvents
+        |> List.map (fun (ev, argsBytes, resultHash) ->
+          [ "traceId", Sql.string traceIdStr
+            "callId", Sql.string ev.callId
+            "fnHash", Sql.string ev.fnName
+            "args", Sql.bytes argsBytes
+            // The hash of the result, which is in `trace_blobs`.
+            "result", Sql.string resultHash
+            "durationMs", Sql.int64 ev.durationMs
+            "processId",
+            (if ev.processId = System.Guid.Empty then
+               Sql.string ""
+             else
+               Sql.string (string ev.processId))
+            "seq", Sql.int64 ev.seq
+            "ord", Sql.int64 ev.ord ]) ]
+
+  let private blobStatements (traceIdStr : string) (blobs : List<string * byte[]>) =
+    match blobs with
+    | [] -> []
+    | _ ->
+      [ "INSERT OR REPLACE INTO trace_blobs (trace_id, hash, bytes)
+         VALUES (@traceId, @hash, @bytes)",
+        blobs
+        |> List.map (fun (hash, bytes) ->
+          [ "traceId", Sql.string traceIdStr
+            "hash", Sql.string hash
+            "bytes", Sql.bytes bytes ]) ]
+
+  // HOW MANY TIMES EACH LOOP WENT ROUND. One row per loop, not per pass.
+  //
+  // This is the whole of what anyone asks of a recorded run's shape, and it is asked for one
+  // reason: a view recomputes values by replaying, so it can only show the passes it REACHES.
+  // Without this a run whose log was capped, or which was suspended mid-loop, reports "pass 3
+  // of 3" about a loop that went round five times. A row per frame would be 8,523 of them for a
+  // 2000-iteration loop.
+  let private loopStatements
+    (traceIdStr : string)
+    (loopPasses : System.Collections.Generic.Dictionary<int64, int>)
+    =
+    match List.ofSeq loopPasses with
+    | [] -> []
+    | passes ->
+      [ "INSERT OR REPLACE INTO trace_loops (trace_id, call_site, passes)
+         VALUES (@traceId, @callSite, @passes)",
+        passes
+        |> List.map (fun (KeyValue(callSite, n)) ->
+          [ "traceId", Sql.string traceIdStr
+            "callSite", Sql.string (string callSite)
+            "passes", Sql.int64 (int64 n) ]) ]
+
+  // Which functions the run went through (`trace_fns`), by name AND by the hash the run actually
+  // went through, with what it spent in each. `INSERT OR REPLACE`, not IGNORE: a resume rewrites
+  // its trace in place, and its live half may have gone through a newer hash for a name already
+  // there.
+  let private fnStatements (traceIdStr : string) (fns : List<RT.Hash * FnCost>) =
+    let micros (ticks : int64) : int64 =
+      int64 (
+        float ticks * 1_000_000.0 / float System.Diagnostics.Stopwatch.Frequency
+      )
+    match fns with
+    | [] -> []
+    | _ ->
+      [ "INSERT OR REPLACE INTO trace_fns
+           (trace_id, fn_name, fn_hash, calls, total_us, slowest_us)
+         VALUES (@traceId, @fnName, @fnHash, @calls, @totalUs, @slowestUs)",
+        fns
+        |> List.map (fun (hash, cost) ->
+          [ "traceId", Sql.string traceIdStr
+            "fnName", Sql.string (fnNameToSimpleString (RT.FQFnName.Package hash))
+            "fnHash", Sql.string (string hash)
+            "calls", Sql.int64 cost.calls
+            "totalUs", Sql.int64 (micros cost.ticks)
+            "slowestUs", Sql.int64 (micros cost.slowest) ]) ]
+
+  /// Add the calls a running trace made since its last write, and where it stands in its
+  /// functions and loops, to what is stored already. The row is the one the run made at its
+  /// start; `store` rewrites the whole trace when the run ends. A call already stored is left
+  /// alone, so a write that lands after a suspend's `store` changes nothing.
+  let append
+    (traceID : AT.TraceID.T)
+    (blobs : List<string * byte[]>)
+    (events : List<CompletedEvent>)
+    (fns : List<RT.Hash * FnCost>)
+    (loopPasses : System.Collections.Generic.Dictionary<int64, int>)
+    : unit =
+    let traceIdStr = string traceID
+    let (serializedEvents, results) = serializeEvents events
+    Sql.executeTransactionSync (
+      eventStatements "INSERT OR IGNORE" traceIdStr serializedEvents
+      @ fnStatements traceIdStr fns
+      @ loopStatements traceIdStr loopPasses
+      @ blobStatements traceIdStr (blobs @ results)
+    )
+    |> ignore<List<int>>
+
   let store
     (traceID : AT.TraceID.T)
     (handlerDesc : string)
@@ -1053,39 +1211,8 @@ module TraceStorage =
 
       let inputBytes = serializeDval "traces.input_value" inputDval
 
-      // Every result lives in the trace's blobs, once per distinct value, and its row holds
-      // the value's hash. A type check reads the same items and gets the same small answers
-      // over and over, so most rows of a heavy trace share a handful of values.
-      let results = System.Collections.Generic.Dictionary<string, byte[]>()
-      // A by-hash read that found its item is serialized once per hash asked: an item IS its
-      // hash, so a later `Some` for the same hash is the same item. Anything else is serialized
-      // every time, since a `None` can turn into the item later in the run.
-      let foundByAsk = System.Collections.Generic.Dictionary<string, string>()
-      let keep (ev : CompletedEvent) : string =
-        let bytes = serializeDval "trace_fn_calls.result" ev.result
-        let hash = Bytes.sha256Hex bytes
-        results[hash] <- bytes
-        hash
-      let serializedEvents =
-        events
-        |> List.map (fun ev ->
-          let argsBytes = serializeArgs ev.args
-          let hash =
-            match ev.result with
-            | RT.DEnum(_, _, _, "Some", [ _ ]) when
-              Set.contains ev.fnName Redact.fromTheStore
-              ->
-              let ask = ev.fnName + ":" + System.Convert.ToBase64String argsBytes
-              match foundByAsk.TryGetValue ask with
-              | true, hash -> hash
-              | _ ->
-                let hash = keep ev
-                foundByAsk[ask] <- hash
-                hash
-            | _ -> keep ev
-          (ev, argsBytes, hash))
-      let blobs =
-        blobs @ (results |> Seq.map (fun kv -> kv.Key, kv.Value) |> List.ofSeq)
+      let (serializedEvents, results) = serializeEvents events
+      let blobs = blobs @ results
 
       // Count input, calls and blobs here. The upsert adds the saved CLI input.
       let weight =
@@ -1140,101 +1267,13 @@ module TraceStorage =
           "DELETE FROM trace_loops WHERE trace_id = @traceId", [ traceIdParam ]
           "DELETE FROM trace_blobs WHERE trace_id = @traceId", [ traceIdParam ] ]
 
-      let bytesStmt =
-        match blobs with
-        | [] -> []
-        | _ ->
-          [ "INSERT OR REPLACE INTO trace_blobs (trace_id, hash, bytes)
-             VALUES (@traceId, @hash, @bytes)",
-            blobs
-            |> List.map (fun (hash, bytes) ->
-              [ "traceId", Sql.string traceIdStr
-                "hash", Sql.string hash
-                "bytes", Sql.bytes bytes ]) ]
-
-      // Skip the events INSERT when empty: fumble rejects zero-param-row
-      // prepared statements, hit when a trace errors before any call fires.
-      // The DELETE above still runs.
-      let eventStmt =
-        match events with
-        | [] -> []
-        | _ ->
-          // `parent_call_id` and `lambda_expr_id` stay NULL and `kind` stays 'builtin': the log
-          // is a sequence of impure calls, not a tree of frames. The columns stay because
-          // `08-traces.sql` has merged and is frozen.
-          [ "INSERT INTO trace_fn_calls
-            (trace_id, call_id, parent_call_id, kind, fn_hash,
-             lambda_expr_id, args, result, duration_ms, process_id, seq, ord)
-           VALUES
-            (@traceId, @callId, NULL, 'builtin', @fnHash,
-             NULL, @args, @result, @durationMs, @processId, @seq, @ord)",
-            serializedEvents
-            |> List.map (fun (ev, argsBytes, resultHash) ->
-              [ "traceId", Sql.string traceIdStr
-                "callId", Sql.string ev.callId
-                "fnHash", Sql.string ev.fnName
-                "args", Sql.bytes argsBytes
-                // The hash of the result, which is in `trace_blobs`.
-                "result", Sql.string resultHash
-                "durationMs", Sql.int64 ev.durationMs
-                "processId",
-                (if ev.processId = System.Guid.Empty then
-                   Sql.string ""
-                 else
-                   Sql.string (string ev.processId))
-                "seq", Sql.int64 ev.seq
-                "ord", Sql.int64 ev.ord ]) ]
-
-      // HOW MANY TIMES EACH LOOP WENT ROUND. One row per loop, not per pass.
-      //
-      // This is the whole of what anyone asks of a recorded run's shape, and it is asked for
-      // one reason: a view recomputes values by replaying, so it can only show the passes it
-      // REACHES. Without this a run whose log was capped, or which was suspended mid-loop,
-      // reports "pass 3 of 3" about a loop that went round five times.
-      //
-      // One number per loop rather than a row per frame: the only question anyone asks of a
-      // recorded run's shape is how many times a loop went round, and a row per frame is 8,523
-      // of them for a 2000-iteration loop.
-      let loopStmt =
-        match List.ofSeq loopPasses with
-        | [] -> []
-        | passes ->
-          [ "INSERT OR REPLACE INTO trace_loops (trace_id, call_site, passes)
-             VALUES (@traceId, @callSite, @passes)",
-            passes
-            |> List.map (fun (KeyValue(callSite, n)) ->
-              [ "traceId", Sql.string traceIdStr
-                "callSite", Sql.string (string callSite)
-                "passes", Sql.int64 (int64 n) ]) ]
-
-      // Which functions the run went through (`trace_fns`), by name AND by the hash the run
-      // actually went through, with what it spent in each. `INSERT OR REPLACE`, not IGNORE: a
-      // resume rewrites its trace in place, and its live half may have gone through a newer hash
-      // for a name already there.
-      let micros (ticks : int64) : int64 =
-        int64 (
-          float ticks * 1_000_000.0 / float System.Diagnostics.Stopwatch.Frequency
-        )
-      let fnStmt =
-        match fns with
-        | [] -> []
-        | _ ->
-          [ "INSERT OR REPLACE INTO trace_fns
-               (trace_id, fn_name, fn_hash, calls, total_us, slowest_us)
-             VALUES (@traceId, @fnName, @fnHash, @calls, @totalUs, @slowestUs)",
-            fns
-            |> List.map (fun (hash, cost) ->
-              [ "traceId", Sql.string traceIdStr
-                "fnName",
-                Sql.string (fnNameToSimpleString (RT.FQFnName.Package hash))
-                "fnHash", Sql.string (string hash)
-                "calls", Sql.int64 cost.calls
-                "totalUs", Sql.int64 (micros cost.ticks)
-                "slowestUs", Sql.int64 (micros cost.slowest) ]) ]
-
       let _ =
         Sql.executeTransactionSync (
-          baseStatements @ eventStmt @ fnStmt @ loopStmt @ bytesStmt
+          baseStatements
+          @ eventStatements "INSERT" traceIdStr serializedEvents
+          @ fnStatements traceIdStr fns
+          @ loopStatements traceIdStr loopPasses
+          @ blobStatements traceIdStr blobs
         )
       TraceRetention.run caps |> ignore<int>
 
@@ -1360,6 +1399,29 @@ let private storeTrace
           "message", ex.Message ]
 
 
+/// Write what <param state> has recorded from call <param from> on, beside what is stored.
+/// Answers where the next write starts. A failed write is reported and retried next time.
+let private flushSoFar
+  (traceID : AT.TraceID.T)
+  (state : TracerState)
+  (from : int)
+  : int =
+  let struct (events, fns, loopPasses) =
+    lock state.sync (fun () ->
+      struct (state.events.GetRange(from, state.events.Count - from).ToArray(),
+              addedUpByFunction state.fns,
+              System.Collections.Generic.Dictionary(state.loopPasses)))
+  try
+    let (_, blobs) = prepareTraceForStorage RT.DUnit events
+    TraceStorage.append traceID blobs (List.ofArray events) fns loopPasses
+    from + events.Length
+  with ex ->
+    Telemetry.event
+      "trace.flushFailed"
+      [ "traceId", string traceID; "message", ex.Message ]
+    from
+
+
 let createCliTracer
   (caps : RT.Tracing.Caps)
   (traceID : AT.TraceID.T)
@@ -1378,13 +1440,15 @@ let createCliTracer
   if TraceDetail.current () = TraceDetail.Off then
     { enabled = false
       executionTracing = Exe.noTracing
-      storeTraceResults = fun _ -> () }
+      storeTraceResults = fun _ -> ()
+      flushSoFar = fun from -> from }
   else
     { enabled = true
       executionTracing = executionTracingFor state System.Guid.Empty
       storeTraceResults =
         fun exeState ->
-          storeTrace caps traceID description inputVarName inputDval state exeState }
+          storeTrace caps traceID description inputVarName inputDval state exeState
+      flushSoFar = flushSoFar traceID state }
 
 
 /// A CLI tracer that replays a stored log: every effectful call whose `(process, ordinal)` the
@@ -1468,7 +1532,10 @@ let createReplayTracer
           forProcess = tracingFor System.Guid.Empty }
     storeTraceResults =
       fun exeState ->
-        storeTrace caps traceID description inputVarName inputDval state exeState }
+        storeTrace caps traceID description inputVarName inputDval state exeState
+    // A resume's stored log is the recorded run's until the resume ends and rewrites it, so
+    // nothing is added to it on the way.
+    flushSoFar = fun from -> from }
 
 
 /// One frame the replay walked: what made it, what it runs, and what it was given.
@@ -1782,4 +1849,5 @@ let createViewTracer
   // its own, and what makes the store a no-op.
   { enabled = false
     storeTraceResults = fun _ -> ()
+    flushSoFar = fun from -> from
     executionTracing = viewTracing () }

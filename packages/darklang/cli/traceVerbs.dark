@@ -162,10 +162,32 @@ type CallJson =
     process: Option<String> }
 
 
-/// What `traces inspect --json` hands back: the trace, and the impure calls it logged.
+/// A field a program added to its trace with `Stdlib.Tracing.log`.
+type LoggedJson =
+  { field: String
+    value: String }
+
+
+/// What `traces inspect --json` hands back: the trace, the fields it logged, and the impure calls
+/// it made.
 type TraceWithCallsJson =
   { trace: TraceJson
+    logged: List<LoggedJson>
     calls: List<CallJson> }
+
+
+/// The builtin behind `Stdlib.Tracing.log`, as the log names it.
+val logBuiltin = "tracingLog"
+
+
+/// The fields a trace's `Stdlib.Tracing.log` calls added, in the order they were logged.
+let loggedFields(branchId: Uuid, calls: List<Darklang.Tracing.FnCall>): List<LoggedJson> =
+  calls
+  |> Stdlib.List.filterMap(fun c ->
+    match (c.fnName == logBuiltin, c.args) with
+    | (true, [ DString(field), value ]) ->
+      Option.Some(LoggedJson { field = field, value = Tracing.Format.compactDval(branchId, value) })
+    | _ -> Option.None)
 
 
 /// One iteration of a loop, for `--json`.
@@ -219,6 +241,13 @@ type ProblemJson =
     advice: Option<String> }
 
 
+/// Is the run still going? Then its stored log is only the part written so far.
+let isRunning(traceId: String): Bool =
+  match Tracing.Store.get(traceId) with
+  | Some(t) -> t.status == Tracing.Status.Running
+  | None -> false
+
+
 /// The ONE place a stopped replay becomes words, for both readers. `show` prints the message and
 /// the advice; `--json` sends the same three fields, so the two cannot disagree.
 let problemJson(
@@ -238,14 +267,23 @@ let problemJson(
     // so it still has what the run answered. `rerun` is second and says "tries", because a
     // drifted trace usually fails there too -- which is itself the answer to whether the code
     // still runs, but it is not a fix, and advice that implies one is advice that misleads.
+    let short = Text.shortIdText(traceId)
     let advice =
       why
       |> Stdlib.Option.map(fun _ ->
-        let short = Text.shortIdText(traceId)
         $"`dark traces inspect {short}` still has what it did; `dark traces rerun {short}` tries it against the store as it is now")
 
-    ProblemJson
-      { message = message, drift = Tracing.ReplayStop.isDrift(stop), why = why, advice = advice })
+    // A run still going has written only part of its log, so a replay runs out of answers where
+    // the run has got to. That is not a problem with the code or the store.
+    if isRunning(traceId) then
+      ProblemJson
+        { message = message
+          drift = false
+          why = Option.Some("the run is still going, and its log so far ends here")
+          advice = Option.Some($"`dark traces follow {short}` shows its calls as it makes them") }
+    else
+      ProblemJson
+        { message = message, drift = Tracing.ReplayStop.isDrift(stop), why = why, advice = advice })
 
 
 /// What `traces show --json` hands back: which trace was read, and what each expression in the
@@ -314,17 +352,22 @@ let printInspectJson(branchId: Uuid, prefix: String): Bool =
     printErr(e)
     false
   | Ok(trace) ->
-    let calls =
+    let all =
       match Tracing.Store.view(trace.id) with
-      | Some(data) ->
-        data.functionCalls
-        |> Stdlib.List.filter(fun c -> c.ord >= 0)
-        |> Stdlib.List.map(fun c -> callJson(branchId, c))
+      | Some(data) -> data.functionCalls
       | None -> []
+
+    let calls =
+      all
+      |> Stdlib.List.filter(fun c -> c.ord >= 0 && c.fnName != logBuiltin)
+      |> Stdlib.List.map(fun c -> callJson(branchId, c))
 
     printJson(
       Stdlib.Json.checkedSerialize<TraceWithCallsJson>(
-        TraceWithCallsJson { trace = traceJson(branchId, trace), calls = calls }))
+        TraceWithCallsJson
+          { trace = traceJson(branchId, trace)
+            logged = loggedFields(branchId, all)
+            calls = calls }))
 
 
 /// Run the trace's input again, replaying its log. `eval` and `run <file>` go through the paths
@@ -563,6 +606,14 @@ let printCallsJson(branchId: Uuid, fnName: String): Bool =
   printJson(Stdlib.Json.checkedSerialize<List<TraceInFnJson>>(rows))
 
 
+/// When `traces show <fn>` was given no trace: which one it took, and how to take another.
+let printPicked(fnName: String, traceId: String): Unit =
+  let short = Text.shortIdText(traceId)
+  Stdlib.printErrorLine(
+    Stdlib.Cli.UI.Colors.dimText(
+      $"the newest trace through {fnName}, {short}; `dark traces calls {fnName}` lists the others"))
+
+
 /// The values `traces show` would print beside the code, as JSON: the ids and the values,
 /// with no source. What an agent wants, since it can read the code already.
 let showCodeJson(
@@ -583,7 +634,9 @@ let showCodeJson(
     | Some(prefix) -> find(prefix)
     | None ->
       match Tracing.Store.wentThroughNamed(branchId, fnName, 1) with
-      | [newest] -> Result.Ok(newest)
+      | [newest] ->
+        printPicked(fnName, newest.id)
+        Result.Ok(newest)
       | _ -> Result.Error($"no recorded trace went through {fnName}")
 
   match chosen with
@@ -691,7 +744,7 @@ let showCodeJson(
                 problem = problemJson(branchId, trace.id, problem) }))
 
       match problem with
-      | Some(_) -> false
+      | Some(_) -> printed && isRunning(trace.id)
       | None -> printed
 
 
@@ -1107,7 +1160,9 @@ let showCode(
         Stdlib.Option.Option.None
     | None ->
       match Darklang.Tracing.Store.wentThroughNamed(branchId, fnName, 1) with
-      | [ newest ] -> Stdlib.Option.Option.Some(newest)
+      | [ newest ] ->
+        printPicked(fnName, newest.id)
+        Stdlib.Option.Option.Some(newest)
       | _ ->
         Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText($"no recorded trace went through {fnName}"))
 
@@ -1184,8 +1239,8 @@ let showCode(
 
         let state =
           match problem with
-          | Some(_) -> { state with exitCode = 1 }
-          | None -> state
+          | Some(_) when Stdlib.Bool.not(isRunning(trace.id)) -> { state with exitCode = 1 }
+          | _ -> state
 
         // WHICH ITERATION OF EACH LOOP YOU ARE LOOKING AT: `--iteration map:2,fold:2`.
         //

@@ -1017,6 +1017,29 @@ let rec private runInOrder
       | Ok _ -> return! runInOrder executeExpression rest
   }
 
+/// Write a recorded run's log as it goes, once a second, so `dark traces follow` and
+/// `traces show` can read a long run before it ends. A run under a second writes nothing until
+/// it ends. Answers what stops it, which waits for a write in progress.
+let private flushWhileRunning (tracer : Tracing.T) : unit -> unit =
+  let flushing = new System.Threading.CancellationTokenSource()
+  let rec flushEverySecond (from : int) : Task =
+    Task
+      .Delay(1000, flushing.Token)
+      .ContinueWith(
+        (fun (waited : Task) ->
+          if waited.IsCanceled then
+            Task.CompletedTask
+          else
+            flushEverySecond (tracer.flushSoFar from)),
+        TaskContinuationOptions.ExecuteSynchronously
+      )
+      .Unwrap()
+  let flusher = flushEverySecond 0
+  fun () ->
+    flushing.Cancel()
+    flusher.Wait()
+
+
 /// `execute`, with the tracer handed in rather than chosen here.
 ///
 /// A view supplies one (`cliViewTrace`): it answers every effect from a recorded trace's log,
@@ -1149,6 +1172,11 @@ let executeWith
       LibDB.Traces.Foreground.set
         { id = id; flush = fun () -> tracer.storeTraceResults state })
 
+    let stopFlushing =
+      match executionId with
+      | Some _ -> flushWhileRunning tracer
+      | None -> fun () -> ()
+
     match mod'.exprs with
     | [] ->
       return RuntimeError.CLIs.NoExpressionsToExecute |> RuntimeError.CLI |> raiseRTE
@@ -1235,6 +1263,7 @@ let executeWith
             | Error _ as failed -> return failed
             | Ok _ -> return! runInOrder runEntry exprInstrs
           with ex ->
+            stopFlushing ()
             executionId
             |> Option.iter (fun id ->
               if LibDB.Traces.Foreground.clear id then
@@ -1248,6 +1277,7 @@ let executeWith
                 LibDB.Traces.setStatus id status)
             return raise ex
         }
+      stopFlushing ()
       // A run a suspend took out of the foreground stores nothing more: the log and the row are
       // what the suspend left, for `resume`. A resume refused at a step it cannot reproduce is
       // left as it was too, log and status: storing would write the replayed prefix over the

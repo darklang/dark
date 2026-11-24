@@ -170,6 +170,7 @@ let executeUnder(
       failed(state)
     | Ok(expr) ->
       let traceId = Stdlib.Uuid.generate()
+      Cli.Tracing.printStartedTrace(traceId)
       let (stats, outcome) =
         if wantStats then
           let harness = LanguageTools.Perf.floor()

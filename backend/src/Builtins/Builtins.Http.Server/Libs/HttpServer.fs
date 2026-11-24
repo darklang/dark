@@ -458,6 +458,10 @@ let servesStandardHeaders (middleware : Dval) : bool =
 
 /// What a response the server writes itself (413, 500, 503, 504) adds to its own headers: HSTS,
 /// when the middleware gives every other response it. `Server` is on every response anyway.
+/// The response header naming the trace a served request left, while recording.
+let traceIdHeader = "x-darklang-trace-id"
+
+
 let private serverHeaders (middleware : Dval) : List<string * string> =
   if servesStandardHeaders middleware then
     [ "Strict-Transport-Security", hstsHeaderValue ]
@@ -863,6 +867,10 @@ let private handleRequest
               ctx.Response.Headers.Remove HttpResponseHeader.Server
             for (key, value) in respHeaders do
               ctx.Response.Headers.Add(key, value)
+            // Which trace this request left, so a caller can report it and `dark traces show`
+            // can open it.
+            if tracer.enabled then
+              ctx.Response.Headers.Set(traceIdHeader, string traceID)
 
             let body, encoding =
               if alreadyEncoded then body, None else maybeCompress ctx.Request body
@@ -884,6 +892,10 @@ let private handleRequest
         for (key, value) in serverHeaders middleware do
           ctx.Response.Headers.Set(key, value)
         logRequest ctx 500 started
+        match recording with
+        | Some(traceID, tracer, _) when tracer.enabled ->
+          ctx.Response.Headers.Set(traceIdHeader, string traceID)
+        | _ -> ()
         let errorBytes = UTF8.toBytes "Internal server error"
         ctx.Response.ContentLength64 <- int64 errorBytes.Length
         do! ctx.Response.OutputStream.WriteAsync(errorBytes, 0, errorBytes.Length)
