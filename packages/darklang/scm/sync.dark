@@ -18,14 +18,18 @@ type Standing =
 
 
 /// How sync stands, or None when it is off.
-let standing(): Option<Standing> = Builtin.scmSyncStanding()
+let standing(): Option<Standing> =
+  Builtin.scmSyncStanding()
 
 
 /// A span of <param seconds>, the way a person says it.
 let span(seconds: Int64): String =
-  if seconds < 3600 then $"{Stdlib.display(seconds / 60)} min"
-  else if seconds < 86400 then $"{Stdlib.display(seconds / 3600)} h"
-  else $"{Stdlib.display(seconds / 86400)} days"
+  if seconds < 3600 then
+    $"{Stdlib.display(seconds / 60)} min"
+  else if seconds < 86400 then
+    $"{Stdlib.display(seconds / 3600)} h"
+  else
+    $"{Stdlib.display(seconds / 86400)} days"
 
 
 /// The one line `dark status` prints about sync.
@@ -34,13 +38,16 @@ let line(s: Standing): String =
     match s.lastContactSecondsAgo with
     | Some(secs) -> if secs < 60 then "last contact just now" else $"last contact {span(secs)} ago"
     | None -> "no contact yet"
+
   let changes = if s.behind == 1 then "1 change" else $"{Stdlib.display(s.behind)} changes"
   let lasting =
     match s.stateSecondsAgo with
     | Some(secs) -> if secs < 60 then "" else $" for {span(secs)}"
     | None -> ""
+
   match s.state with
-  | "refused" -> $"sync: {s.peer} refused this machine's token. `dark sync add {s.peer} --token -` with a new one."
+  | "refused" ->
+    $"sync: {s.peer} refused this machine's token. `dark sync add {s.peer} --token -` with a new one."
   | "connected" ->
     if s.readOnly then
       $"sync: up to date with {s.peer}, read-only: what you change stays on this machine ({contact})."
@@ -49,7 +56,12 @@ let line(s: Standing): String =
     else
       $"sync: {changes} on their way to {s.peer} ({contact})."
   | "offline" ->
-    let held = if s.behind == 0 then $"nothing here that {s.peer} lacks" else $"{changes} not on {s.peer} yet"
+    let held =
+      if s.behind == 0 then
+        $"nothing here that {s.peer} lacks"
+      else
+        $"{changes} not on {s.peer} yet"
+
     $"sync: can't reach {s.peer}{lasting}; {held} ({contact})."
   | _ ->
     if s.behind == 0 then

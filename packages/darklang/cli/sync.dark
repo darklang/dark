@@ -12,8 +12,9 @@ let execute(state: AppState, _args: List<String>): AppState =
 
 let complete(_state: AppState, args: List<String>): List<Completion.CompletionItem> =
   match args with
-  | [] -> [ "add", "off", "token", "serve", "backup", "restore" ] |> Stdlib.List.map(Completion.simple)
-  | [ "token" ] -> [ "new", "add", "list", "revoke" ] |> Stdlib.List.map(Completion.simple)
+  | [] ->
+    [ "add", "off", "token", "serve", "backup", "restore" ] |> Stdlib.List.map(Completion.simple)
+  | ["token"] -> [ "new", "add", "list", "revoke" ] |> Stdlib.List.map(Completion.simple)
   | _ -> []
 
 
