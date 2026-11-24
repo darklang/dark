@@ -1144,6 +1144,11 @@ test subtractSeconds =
       sub("2020-11-26T04:37:46Z", -10)
       |> Stdlib.Test.equal(d("2020-11-26T04:37:56Z")) ])
 
+test sleepMillisecondsReturnsAtOnceForNoWait =
+  Stdlib.Test.all(
+    [ Stdlib.DateTime.__sleepMilliseconds(-5.0) |> Stdlib.Test.equal(())
+      Stdlib.DateTime.__sleepMilliseconds(0.0 / 0.0) |> Stdlib.Test.equal(())
+      Stdlib.DateTime.__sleepMilliseconds(0.5) |> Stdlib.Test.equal(()) ])
 
 test subtract =
   Stdlib.Test.all(

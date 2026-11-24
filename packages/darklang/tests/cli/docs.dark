@@ -54,3 +54,19 @@ test docsNameNoRepoPaths =
         && Stdlib.Bool.not(Stdlib.String.contains(text, "backend/"))
         && Stdlib.Bool.not(Stdlib.String.contains(text, ".md`")),
         $"docs {name} names no repo paths")))
+
+
+test docsListsItsTopicsAndPrintsOne = Instance.withInstance(fun i ->
+  let (syntaxCode, syntax) = Instance.ran(i, [ "docs", "syntax" ])
+  Stdlib.Test.all(
+    [ Instance.says(Instance.said(i, [ "docs" ]), "for-ai", "docs lists its topics")
+      Instance.exitedWith(syntaxCode, 0, "and prints one")
+      Instance.says(syntax, "## Keywords", "which lists the keywords")
+      Instance.says(
+        Instance.said(i, [ "docs", "escapes" ]),
+        "\"\"\"a\\nb\"\"\"",
+        "the escapes page shows a raw string with its quotes")
+      Instance.says(
+        Instance.said(i, [ "docs", "nosuchtopic" ]),
+        "nosuchtopic",
+        "an unknown topic names itself back") ]))

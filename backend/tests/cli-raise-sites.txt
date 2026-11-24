@@ -51,8 +51,6 @@
 1 Darklang.Cli.Run.executeScript Darklang.Stdlib.Cli.FileSystem.readFile
 1 Darklang.Cli.Telemetry.logSessionStart Darklang.Stdlib.Cli.FileSystem.appendToFile
 1 Darklang.Cli.Telemetry.logWithContext Darklang.Stdlib.Cli.FileSystem.appendToFile
-1 Darklang.Cli.Tracing.executeClearBefore Darklang.Stdlib.DateTime.subtractSeconds
-1 Darklang.Cli.Tracing.followLoop Darklang.Stdlib.Cli.Posix.sleep
 1 Darklang.Cli.Workbench.execute Darklang.Stdlib.Cli.Sys.hostname
 1 Darklang.Cli.Workbench.loadBuiltinItems Darklang.Stdlib.List.sort
 1 Darklang.Cli.runInteractiveLoop Darklang.Stdlib.Host.await
