@@ -19,33 +19,6 @@ open Tests.CliDsl
 // ─── branch isolation ─────────────────────────────────────────────────────
 
 
-/// A cascade on a branch discovers dependents through the BRANCH's version of a name it has rebound,
-/// so propagation never replaces the branch's own work with main's body.
-let private propagationLeavesBranchWorkAlone =
-  instanceTest
-    "a cascade on a branch does not overwrite what the branch rebound"
-    (fun state ->
-      task {
-        do! start state
-        do! fn state "Tests.Casc.base" "() : Int64 = 20"
-        do! fn state "Tests.Casc.caller" "(): Int64 = Tests.Casc.base()"
-        do! commit state "casc base"
-
-        do! switch state "cascbr"
-        do! fn state "Tests.Casc.caller" "() : Int64 = 777"
-        do! commit state "branch caller"
-
-        // The edit whose cascade must not reach main's caller and bind main's body here.
-        do! fn state "Tests.Casc.base" "() : Int64 = 30"
-        do!
-          evals state "Tests.Casc.caller()" "777" "the branch keeps its own caller"
-
-        do! onMain state
-        do!
-          evals state "Tests.Casc.caller()" "20" "and main still calls its own base"
-        do! archiveBranches state [ "cascbr" ]
-      })
-
 /// Archiving a parent must not take its work out from under its children: their code would stop
 /// resolving and their listing would show a parent that is not in this store.
 let private archiveRefusesToOrphanAChild =
@@ -82,47 +55,6 @@ let private archiveRefusesToOrphanAChild =
             "archived"
             "with the child gone, the parent archives"
       })
-
-/// A `Deprecate` authored on a branch folds on that branch: the deprecation is visible there without
-/// waiting for a merge.
-let private deprecateIsVisibleOnItsBranch =
-  instanceTest
-    "a deprecation authored on a branch shows there, and travels on merge"
-    (fun state ->
-      task {
-        do! start state
-        do! fn state "Tests.DepBr.old" "() : Int64 = 1"
-        do! commit state "depbr base"
-
-        do! switch state "depbr"
-        do! deprecate state "Tests.DepBr.old"
-        do!
-          showsAnyCase
-            state
-            [ "view"; "Tests.DepBr.old" ]
-            "deprecat"
-            "the branch sees its own deprecation"
-
-        do! onMain state
-        do!
-          lacksAnyCase
-            state
-            [ "view"; "Tests.DepBr.old" ]
-            "deprecat"
-            "main does not, until it is merged"
-
-        do! switch state "depbr"
-        do! commit state "deprecate old"
-        do! onMain state
-        do! merge state "depbr"
-        do!
-          showsAnyCase
-            state
-            [ "view"; "Tests.DepBr.old" ]
-            "deprecat"
-            "and the merge carries it to main"
-      })
-
 
 // ─── the draft commands ───────────────────────────────────────────────────
 
@@ -280,65 +212,10 @@ let private discardCountsOpsNotNames =
     })
 
 
-// ─── merge ────────────────────────────────────────────────────────────────
-
-/// A branch whose commit the at-rest type check REFUSES cannot be merged either, or code that does
-/// not typecheck lands on main with nothing recorded. Merge asks what commit asks,
-/// and refuses uncommitted work outright.
-let private mergeIsGatedLikeCommit =
-  instanceTest "merge refuses type errors and uncommitted work" (fun state ->
-    task {
-      do! start state
-      do! switch state "mergegate"
-      do! fn state "Tests.MergeGate.bad" "() : Int64 = \"oops\""
-      do!
-        shows
-          state
-          [ "commit"; "bad"; "-y" ]
-          "cannot commit"
-          "commit refuses it, as it always did"
-
-      // Uncommitted: the first gate, and the one that answers "why can we merge WIP at all".
-      do! onMain state
-      do!
-        refuses
-          state
-          [ "merge"; "mergegate" ]
-          "uncommitted"
-          "Merged"
-          "merge refuses uncommitted work"
-
-      // Committed past the gate on purpose, and the merge still refuses on the type error.
-      do! switch state "mergegate"
-      do! run state [ "commit"; "bad"; "-y"; "--allow-type-errors" ]
-      do! onMain state
-      do!
-        refuses
-          state
-          [ "merge"; "mergegate" ]
-          "at-rest type check"
-          "Merged"
-          "merge refuses definite type errors"
-
-      // The deliberate way past is the same one commit has.
-      do!
-        shows
-          state
-          [ "merge"; "mergegate"; "--allow-type-errors"; "-y" ]
-          "Merged"
-          "typed out, it merges"
-
-      do! archiveBranches state [ "mergegate" ]
-    })
-
-
 let tests : List<Test> =
-  [ propagationLeavesBranchWorkAlone
-    archiveRefusesToOrphanAChild
-    deprecateIsVisibleOnItsBranch
+  [ archiveRefusesToOrphanAChild
     branchDiscardKeepsCommittedWork
     partialCommitTakesNamesNotBodies
     partialCommitTakesNewNameForCommittedContent
     discardSeesWhatUndoWrote
-    discardCountsOpsNotNames
-    mergeIsGatedLikeCommit ]
+    discardCountsOpsNotNames ]

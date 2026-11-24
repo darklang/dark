@@ -26,6 +26,10 @@ use; it was a fifth name for `item`.
 ## Global flags
   --branch <name>   run ONE command on a branch, without switching to it
   --json            on any command that answers a question
+  --no-input        never prompt (same as DARK_NO_INPUT=1)
+  --no-color        no colour (same as NO_COLOR=1)
+
+These go anywhere: `dark --json status` is `dark status --json`.
 
 Branch context DOES persist: `dark switch <name>` moves you and the next `dark`
 starts there. `--branch` is for a one-off.
@@ -74,7 +78,8 @@ Your edits are LIVE as soon as you write them. There is no build step.
   branch            which branch am I on
   branch create <name>  start one off this branch and switch to it
   branches          list them (name, short id, parent, status)
-  switch <name>     move onto it (a new name starts it); `switch main` returns
+  switch <name>     move onto it; `switch main` returns
+  switch -c <name>  same as `branch create <name>`
   diff <name>       what it changes vs its parent
   log [<name>]      its ops (on main: the commits)
   rebase <name>     take the parent's current state
@@ -99,6 +104,8 @@ Your edits are LIVE as soon as you write them. There is no build step.
   help [cmd] / docs [topic] / clear / quit
 
 ## Troubleshooting
-If something hangs or behaves unexpectedly, check the logs:
-  ~/.darklang/logs/cli.log    # main CLI log
-  ~/.darklang/logs/           # other logs (parser, etc.)"""
+Logs live in ~/.darklang/logs/:
+  cli.log             errors that ended a command
+  host-audit.jsonl    one JSON line per file, network, environment or process
+                      access, and whether it was allowed, denied or failed
+  telemetry.jsonl     timings, written only when DARK_TELEMETRY=1 is set"""

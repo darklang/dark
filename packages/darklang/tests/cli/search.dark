@@ -55,3 +55,29 @@ test batchSearchKeepsQueriesIndependent = Instance.withInstance(fun i ->
   else
     Stdlib.Test.fail(
       $"Expected three independent batch search results, got: {output}"))
+
+
+/// A test is usually named after what it tests, so a plain search leaves tests out. Left out is not
+/// hidden: the output counts them, so a search with only test hits never reads as empty.
+test searchLeavesTestsOutUnlessAsked = Instance.withInstance(fun i ->
+  let seen(args: List<String>): String =
+    Stdlib.Cli.Tui.Text.stripSgr(Instance.said(i, args))
+
+  let nanTest = "Darklang.Stdlib.Float64.Tests.ceilingRejectsNan"
+  Stdlib.Test.all(
+    [ Instance.doesNotSay(
+        seen([ "search", "ceiling" ]),
+        "Float64.Tests.ceiling",
+        "a plain search lists no tests")
+      Instance.says(
+        seen([ "search", "ceilingRejectsNan" ]),
+        "1 test matched; --include-tests shows them",
+        "and says what it left out")
+      Instance.says(
+        seen([ "search", "ceiling", "--include-tests" ]),
+        nanTest,
+        "--include-tests lists them")
+      Instance.says(
+        seen([ "search", "ceiling", "--test" ]),
+        nanTest,
+        "and --test asks for them by itself") ]))

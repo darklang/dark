@@ -21,19 +21,19 @@ test mapAndApply =
       |> Stdlib.Test.equal([ 2, 3, 4, 5 ])
       (let y = (fun(a, b) -> a + b) in y(2, 3)) |> Stdlib.Test.equal(5)
       (let y = (fun((a, b)) -> a + b) in y((2, 3))) |> Stdlib.Test.equal(5)
-      (let y = (fun msg -> Stdlib.Test.raiseRuntimeError(msg))
+      (let y = (fun msg -> Darklang.Language.Tests.raiseRuntimeError(msg))
        Stdlib.List.map([], y))
       |> Stdlib.Test.equal([])
       (let y = (fun(a, b) -> a * b) in Stdlib.List.fold([ 1, 2, 3, 4 ], 1, y))
       |> Stdlib.Test.equal(24) ])
 
 test mapRaisesFirstCallbackError =
-  (let y = (fun msg -> Stdlib.Test.raiseRuntimeError(msg))
+  (let y = (fun msg -> Darklang.Language.Tests.raiseRuntimeError(msg))
    Stdlib.List.map([ "1", "2", "3", "4" ], y))
   => raises "Uncaught exception: 1"
 
 test foldRaisesCallbackArgError =
-  (Stdlib.List.fold([ 4 ], 1, Stdlib.Test.raiseRuntimeError("test")))
+  (Stdlib.List.fold([ 4 ], 1, Darklang.Language.Tests.raiseRuntimeError("test")))
   => raises "Uncaught exception: test"
 
 // An error inside the fold callback's body propagates.
@@ -62,12 +62,12 @@ test stringJoinOfMap =
   |> Stdlib.Test.equal("SOME STRING")
 
 test mapRaisesWhenCallbackErrors =
-  (let y = (fun c -> if c > 2 then Stdlib.Test.raiseRuntimeError("err") else 18)
+  (let y = (fun c -> if c > 2 then Darklang.Language.Tests.raiseRuntimeError("err") else 18)
    [ 1, 2, 3, 4 ] |> Stdlib.List.map(y))
   => raises "Uncaught exception: err"
 
 test mapSkipsErrorBranch =
-  (let y = (fun c -> if c > 2 then Stdlib.Test.raiseRuntimeError("err") else 18)
+  (let y = (fun c -> if c > 2 then Darklang.Language.Tests.raiseRuntimeError("err") else 18)
    [ 1, 2 ] |> Stdlib.List.map(y))
   |> Stdlib.Test.equal([ 18, 18 ])
 

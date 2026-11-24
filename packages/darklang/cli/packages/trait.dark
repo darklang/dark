@@ -11,11 +11,11 @@ let execute(state: AppState, args: List<String>): AppState =
     Stdlib.printLine(help(state))
     state
   | [location, ...definitionParts] ->
-    match definitionFromArgs(definitionParts) with
+    match definitionAndDescription(definitionParts) with
     | Error(message) ->
       printErr(message)
       failed(state)
-    | Ok(inlineDefinition) ->
+    | Ok((inlineDefinition, description)) ->
       if Stdlib.String.isEmpty(inlineDefinition) then
         [ Stdlib.Cli.UI.Colors.error("Error: Trait definition required")
           ""
@@ -31,7 +31,7 @@ let execute(state: AppState, args: List<String>): AppState =
 
         { state with exitCode = 1 }
       else
-        createTraitInline(state, location, inlineDefinition)
+        createTraitInline(state, location, inlineDefinition, description)
 
 
 /// The source to parse for <param definition>: a complete `trait Name<'a> = ...` declaration (doc
@@ -44,7 +44,12 @@ let traitSource(name: String, definition: String): String =
     $"trait {name}{definition}"
 
 
-let createTraitInline(state: AppState, locationStr: String, definition: String): AppState =
+let createTraitInline(
+  state: AppState,
+  locationStr: String,
+  definition: String,
+  description: Option<String>)
+  : AppState =
   let hint =
     [ Stdlib.Cli.UI.Colors.error("Expected exactly one trait declaration")
       ""
@@ -68,6 +73,10 @@ let createTraitInline(state: AppState, locationStr: String, definition: String):
 
         Option.Some(failed(state))
       | Trait(t) ->
+        let t =
+          { t with
+              description = Stdlib.Option.withDefault(description, t.description) }
+
         Option.Some(
           saveAuthored(
             state,
@@ -96,7 +105,7 @@ let help(_state: AppState): String =
     "implementations with `impls <trait>`, and see `docs traits`."
     ""
     "Examples:"
-    "  dark trait Me.Demo.Show \"<'a> = let show(v: 'a): String\""
+    "  dark trait Me.Demo.Show \"<'a> = let show(v: 'a): String\" --description \"Shows a value.\""
     ""
     "  # Several methods, from stdin:"
     "  dark trait Me.Demo.Shape - <<'EOF'"

@@ -178,7 +178,7 @@ process-wide (`HostEvents.Shared`) and deliver to whichever queue asked:
 - `Timer id`: a one-shot `System.Threading.Timer` armed per `Timer ms` spec,
   disposed when something else satisfies the subscription; a late fire posts
   an id nobody wants and is dropped.
-- `StoreChanged`: a poll of `PRAGMA data_version` every `Scheduler.storePollMs`
+- `StoreChanged`: a poll of `PRAGMA data_version` every `exec.storePollMs`
   (25 ms) on a connection of its own (the pragma answers per connection),
   posted to every queue watching. It carries nothing: which ops landed is
   Dark's question, answered by `LanguageTools.Live.poll` inside `Stdlib.Host.await`
@@ -236,8 +236,8 @@ root plus N more schedulers, each looping on a background thread of its own
 (`dark-worker-<i>`), started the first time anything asks for them. N is
 `exec.workers` in the store's config (`dark config set exec.workers 4`), or
 one per core, which is the default nobody needs to set; `Cli.fs` reads it
-into `Scheduler.defaultWorkers` before the root starts. No environment
-variable shadows it.
+into the run's `ExecutionState` (`exec.workers`), and the group takes its size
+from the first state that asks for it. No environment variable shadows it.
 
 - `root.SpawnOn(...)` spawns on the least loaded worker (fewest runnable or
   parked processes); the process runs there for its whole life. `Spawn`
@@ -541,14 +541,12 @@ its error raised again with the child's frames kept below the caller's;
 process running; `Exec.select(hs)` is the first to finish with its value.
 `Exec.cancel(h)` asks it to stop (cancel and kill, and what reaches children:
 the "`dark ps`" section). `spawn` carries the
-`Concurrency` effect, ambient and allowed by the default instance policy: a
-spawned process can do nothing the spawner could not. An install whose policy
-was seeded before this effect existed needs `dark permissions allow
-concurrency` once. `List.parallelMap` is `spawn` per element then `await` in
-order, and is the way to overlap writes. For computation and reads it adds
-nothing: plain `List.map` spreads computation by itself (above), in chunks
-rather than a process per element, and reads run concurrently under it
-already.
+`Concurrency` effect, which is information and not a permission: a spawned
+process can do nothing the spawner could not. `List.parallelMap` is `spawn`
+per element then `await` in order, and is the way to overlap writes. For
+computation and reads it adds nothing: plain `List.map` spreads computation
+by itself (above), in chunks rather than a process per element, and reads run
+concurrently under it already.
 
 From a trace nobody scheduled (a test's `execute`, an HTTP handler)
 `spawn` uses a process-wide scheduler with workers of its own

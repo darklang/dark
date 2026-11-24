@@ -13,6 +13,19 @@ type ParseError =
   | BadFormat
 
 
+/// Not a number, the result of {{0.0 / 0.0}}. It is not equal to anything, itself
+/// included; test for it with <fn Float32.isNaN>.
+val nan = 0.0f32 / 0.0f32
+
+
+/// Positive infinity, the result of {{1.0 / 0.0}}
+val infinity = 1.0f32 / 0.0f32
+
+
+/// Negative infinity, the result of {{-1.0 / 0.0}}
+val negativeInfinity = -1.0f32 / 0.0f32
+
+
 /// Round <param a> to the nearest <type Float32>, ties to even. A value too large
 /// for a Float32 becomes an infinity, and one too small becomes zero.
 let fromFloat64(a: Float64): Float32 =
@@ -76,6 +89,36 @@ impl Negate for Float32 =
 /// Get the square root of a float, correctly rounded
 let sqrt(a: Float32): Float32 =
   fromFloat64(Float64.sqrt(toFloat64(a)))
+
+
+/// The natural logarithm of <param a>. {{-Infinity}} for zero, NaN for a negative
+/// number or NaN.
+let log(a: Float32): Float32 =
+  fromFloat64(Float64.log(toFloat64(a)))
+
+
+/// The base-10 logarithm of <param a>. {{-Infinity}} for zero, NaN for a negative
+/// number or NaN.
+let log10(a: Float32): Float32 =
+  fromFloat64(Float64.log10(toFloat64(a)))
+
+
+/// e raised to the power of <param a>. {{Infinity}} where the result is too large,
+/// {{0.0}} where it is too small.
+let exp(a: Float32): Float32 =
+  fromFloat64(Float64.exp(toFloat64(a)))
+
+
+/// <param x> rounded to <param places> decimal places as <fn Float64.roundTo> does, then
+/// read back as the nearest Float32. Rounds the exact value held, so
+/// {{Float32.roundTo(1.15f32, 1) == 1.1f32}}: 1.15f32 is 1.14999997615814208984375.
+let roundTo(x: Float32, places: Int64): Float32 =
+  if isFinite(x) then
+    match parse(Float64.__roundToText(toFloat64(x), places)) with
+    | Ok(r) -> r
+    | Error(_) -> x
+  else
+    x
 
 
 impl Add for Float32 =

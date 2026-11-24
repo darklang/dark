@@ -523,7 +523,7 @@ test runtimeChecksUseTheSelectedBranch = Instance.withInstance(fun i ->
             "(value: Int64) : Int64 = value" ])
 
         ok([ "commit", "script checker branch fixture", "-y" ])
-        ok([ "switch", "script-check" ])
+        ok([ "switch", "-c", "script-check" ])
         ok(
           [ "fn"
             "Tests.ScriptChecking.accept"

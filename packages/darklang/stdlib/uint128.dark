@@ -5,6 +5,18 @@ type ParseError =
   | OutOfRange
 
 
+/// The smallest <type UInt128>: {{0}}
+val minValue = 0u128
+
+
+/// The largest <type UInt128>: {{340282366920938463463374607431768211455}}
+val maxValue = 340282366920938463463374607431768211455u128
+
+
+/// How many bits a <type UInt128> holds: {{128}}
+val bitWidth = 128
+
+
 impl Modulo for UInt128 =
   /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
   /// The modulus <param b> must be greater than 0.
@@ -289,8 +301,6 @@ let checkedPower(base: UInt128, exponent: UInt128): Result<UInt128, Math.PowerEr
 
 // Division. `/` raises on a zero divisor and `%` on a modulus that is not positive;
 // these return the reason instead.
-// TODO: make `/` and `%` themselves checked by default; see the TODO on the `divide`
-// builtin in NoModule.fs.
 
 /// Divides <param a> by <param b>, rounding towards zero, or
 /// {{Error DivisionByZero}} where `/` raises.

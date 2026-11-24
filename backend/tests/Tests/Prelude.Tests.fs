@@ -36,6 +36,18 @@ let floatTests =
           82.10, (Positive, "82", "099999999999994315658113919198513031005859375")
           -180.0, (Negative, "180", "0") ] ]
 
+let gidTests =
+  testList
+    "gid"
+    [ testCase "never mints an id Dark reads as a source position"
+      <| fun () ->
+        let positioned =
+          List.init 10000 (fun _ -> gid ())
+          |> List.filter (fun id -> id >= (1UL <<< 61))
+        Expect.isEmpty
+          positioned
+          "ids at or above bit 61 decode as a line and column" ]
+
 let dateTests =
   testList
     "DateTime"
@@ -395,6 +407,7 @@ let tests =
     [ outputCaptureTests
       mapTests
       floatTests
+      gidTests
       dateTests
       stringTests
       textWidthTests

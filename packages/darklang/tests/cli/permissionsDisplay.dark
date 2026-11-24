@@ -127,7 +127,7 @@ module Denials =
 
 
   val packageRemedy =
-    "permission denied:\n  reading `/denied/secret.txt` is not allowed.\n\n`Tests.Denied.readAt` has no remembered approval. Remember this access:\n  dark permissions approve Tests.Denied.readAt file read '/denied/secret.txt'\n\nFor one run:\n  dark run --allow \"file read '/denied/secret.txt'\" …"
+    "permission denied:\n  reading `/denied/secret.txt` is not allowed.\n\n`Tests.Denied.readAt` has no remembered approval. Remember this access:\n  dark permissions approve Tests.Denied.readAt \"file read '/denied/secret.txt'\"\n\nFor one run:\n  dark run --allow \"file read '/denied/secret.txt'\" …\n\nFor everything in its folder:\n  dark run --allow \"file read '/denied'\" …"
 
 
   val instanceRemedy =
@@ -151,6 +151,44 @@ module Denials =
         |> Stdlib.Test.equal((1, "Error: " + packageRemedy))
         runScript(i, $"Stdlib.printLine({call})")
         |> Stdlib.Test.equal((1, packageRemedy)) ]))
+
+
+  // A function that reads one file and writes another is offered read and write together,
+  // first, so following the suggestion does not lead to a second denial.
+  test readAndWriteAreSuggestedTogetherFirst = Instance.withInstance(fun i ->
+    let source = $"{Instance.home(i)}/copy-module.dark"
+    let _ =
+      Stdlib.Cli.File.writeText(
+        source,
+        "let copy(path: String): Unit =\n  match Stdlib.Cli.File.readText(path) with\n  | Ok(t) ->\n    let _ = Stdlib.Cli.File.writeText(path + \".out\", t)\n    ()\n  | Error(_) -> ()\n")
+
+    let (saved, _) = Instance.ran(i, [ "module", "Tests.Copy", source ])
+    let (_, out) =
+      deny(i, [ "eval", "Tests.Copy.copy(Stdlib.String.reverse(\"txt.terces/deined/\"))" ])
+
+    let both = "\"file read '/denied'; file write '/denied'\""
+    // The remember command, pasted: the same two rules as one argument.
+    let (approvedCode, approved) =
+      Instance.ran(
+        i,
+        [ "permissions"
+          "approve"
+          "Tests.Copy.copy"
+          "file read '/denied'; file write '/denied'"
+          "--yes" ])
+
+    Stdlib.Test.all(
+      [ saved |> Stdlib.Test.equal(0)
+        Instance.says(
+          out,
+          $"Remember this access:\n  dark permissions approve Tests.Copy.copy {both}",
+          "remembering covers both")
+        Instance.says(
+          out,
+          $"It reads and writes files. For one run, both in that folder:\n  dark run --allow {both}",
+          "and so does one run")
+        Instance.doesNotSay(out, "For one run:\n", "with no read-only suggestion before it")
+        Instance.exitedWith(approvedCode, 0, $"and the remember command works: {approved}") ]))
 
 
   // An instance-policy denial gives the exact allow command and tells agents to submit

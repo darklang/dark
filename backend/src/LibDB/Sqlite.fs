@@ -25,6 +25,17 @@ let mutable currentDbPath = LibConfig.Config.dbPath
 // the fold -- at the instance store.
 let mutable connString = defaultConnString
 
+/// this process's writers to a store queue here, not in SQLite. SQLite's waiters poll (busy handler
+/// up to 100 ms apart, Microsoft.Data.Sqlite's retry 150 ms) and a newcomer tries at once, so under
+/// the parallel tests' stream of short writes a waiter could lose every round for 30 s and fail
+/// with "database is locked". reentrant, so a write inside a turn goes ahead
+module WriteGate =
+  let private gates =
+    System.Collections.Concurrent.ConcurrentDictionary<string, obj>()
+
+  let hold (f : unit -> 'a) : 'a =
+    lock (gates.GetOrAdd(connString, (fun _ -> obj ()))) f
+
 /// Copy the live store for the test runner's baseline.
 ///
 /// Through SQLite's online-backup API, never a file copy: recent writes sit in `data.db-wal`. Every
@@ -258,7 +269,8 @@ module Sql =
 
   /// A statement's count of rows changed.
   let executeCount props : int =
-    timedSync "sql.nonQuery" (fun () -> Sql.executeNonQuery props)
+    timedSync "sql.nonQuery" (fun () ->
+      WriteGate.hold (fun () -> Sql.executeNonQuery props))
     |> unwrapDb (fun err -> $"Database statement failed: {err}")
 
   let executeRow (reader : RowReader -> 't) (props : Sql.SqlProps) : 't =
@@ -299,7 +311,8 @@ module Sql =
       Exception.raiseInternal "Too many results, expected 1" [ "actual", result ]
 
   let executeStatement (props : Sql.SqlProps) : unit =
-    timedSync "sql.statement" (fun () -> Sql.executeNonQuery props)
+    timedSync "sql.statement" (fun () ->
+      WriteGate.hold (fun () -> Sql.executeNonQuery props))
     |> unwrapDb (fun err -> $"Database statement failed in executeStatement: {err}")
     |> ignore<int>
 
@@ -320,29 +333,30 @@ module Sql =
       (statements |> List.sumBy (fun (_, ps) -> max 1 ps.Length) |> int64)
     try
       timedSync "sql.transactionSync" (fun () ->
-        use conn = new SqliteConnection(connString)
-        conn.Open()
-        use pragma = conn.CreateCommand()
-        pragma.CommandText <- "PRAGMA busy_timeout=5000;"
-        pragma.ExecuteNonQuery() |> ignore<int>
-        use tx = conn.BeginTransaction(deferred = false)
-        let run (sql : string) (ps : List<string * SqliteParameter>) : int =
-          use cmd = conn.CreateCommand()
-          cmd.Transaction <- tx
-          cmd.CommandText <- sql
-          for (name, p) in ps do
-            let copy = SqliteParameter(name, p.Value)
-            copy.SqliteType <- p.SqliteType
-            cmd.Parameters.Add copy |> ignore<SqliteParameter>
-          cmd.ExecuteNonQuery()
-        let counts =
-          statements
-          |> List.map (fun (sql, paramSets) ->
-            match paramSets with
-            | [] -> run sql []
-            | sets -> sets |> List.sumBy (run sql))
-        tx.Commit()
-        counts)
+        WriteGate.hold (fun () ->
+          use conn = new SqliteConnection(connString)
+          conn.Open()
+          use pragma = conn.CreateCommand()
+          pragma.CommandText <- "PRAGMA busy_timeout=5000;"
+          pragma.ExecuteNonQuery() |> ignore<int>
+          use tx = conn.BeginTransaction(deferred = false)
+          let run (sql : string) (ps : List<string * SqliteParameter>) : int =
+            use cmd = conn.CreateCommand()
+            cmd.Transaction <- tx
+            cmd.CommandText <- sql
+            for (name, p) in ps do
+              let copy = SqliteParameter(name, p.Value)
+              copy.SqliteType <- p.SqliteType
+              cmd.Parameters.Add copy |> ignore<SqliteParameter>
+            cmd.ExecuteNonQuery()
+          let counts =
+            statements
+            |> List.map (fun (sql, paramSets) ->
+              match paramSets with
+              | [] -> run sql []
+              | sets -> sets |> List.sumBy (run sql))
+          tx.Commit()
+          counts))
     with e ->
       raiseIfStoreCondition e
       Exception.raiseInternal

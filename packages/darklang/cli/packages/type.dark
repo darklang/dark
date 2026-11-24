@@ -7,11 +7,11 @@ let execute(state: AppState, args: List<String>): AppState =
     state
   // type SomeModule.myType = definition
   | [location, ...definitionParts] ->
-    match definitionFromArgs(definitionParts) with
+    match definitionAndDescription(definitionParts) with
     | Error(message) ->
       printErr(message)
       failed(state)
-    | Ok(inlineDefinition) ->
+    | Ok((inlineDefinition, description)) ->
       if Stdlib.String.isEmpty(inlineDefinition) then
         [ Stdlib.Cli.UI.Colors.error("Error: Inline type definition required")
           ""
@@ -26,10 +26,15 @@ let execute(state: AppState, args: List<String>): AppState =
 
         failed(state)
       else
-        createTypeInline(state, location, inlineDefinition)
+        createTypeInline(state, location, inlineDefinition, description)
 
 
-let createTypeInline(state: AppState, locationStr: String, definition: String): AppState =
+let createTypeInline(
+  state: AppState,
+  locationStr: String,
+  definition: String,
+  description: Option<String>)
+  : AppState =
   let hint =
     [ Stdlib.Cli.UI.Colors.error("Failed to parse type definition")
       ""
@@ -46,6 +51,10 @@ let createTypeInline(state: AppState, locationStr: String, definition: String): 
     fun(location, declaration) ->
       match declaration with
       | Type(writtenType) ->
+        let writtenType =
+          { writtenType with
+              description = Stdlib.Option.withDefault(description, writtenType.description) }
+
         Option.Some(
           saveAuthored(
             state,
@@ -97,6 +106,9 @@ let help(_state: AppState): String =
     "    balance: Int64"
     "  }"
     "  EOF"
+    ""
+    "--description <text> documents the type:"
+    "  dark type Me.Demo.Status '| Active | Inactive' --description \"Whether a user can sign in.\""
     ""
     "A leading `/` makes a name absolute (`/Me.Demo.User`); without one it is"
     "relative to the module `nav` put you in."

@@ -24,9 +24,49 @@ test scriptsOpensWithSyntax =
 
 test logsAreUnderTheStore =
   Stdlib.Test.all(
-    [ Cli.Docs.ForAI.content(), Cli.Docs.CLI.content() ]
+    [ Cli.Docs.ForAI.content(), Cli.Docs.CLI.content(), Cli.Docs.Errors.content() ]
     |> Stdlib.List.map(fun text ->
       Stdlib.Test.expect(
-        Stdlib.String.contains(text, "~/.darklang/logs/cli.log")
+        Stdlib.String.contains(text, "~/.darklang/logs/")
         && Stdlib.Bool.not(Stdlib.String.contains(text, "rundir/logs")),
         "the logs are under ~/.darklang/logs")))
+
+
+// cli.log has only the errors that ended a command, so each page names the other logs too.
+test logsNameEveryFile =
+  Stdlib.Test.all(
+    [ Cli.Docs.ForAI.content(), Cli.Docs.CLI.content(), Cli.Docs.Errors.content() ]
+    |> Stdlib.List.map(fun text ->
+      Stdlib.Test.expect(
+        Stdlib.String.contains(text, "cli.log")
+        && Stdlib.String.contains(text, "host-audit.jsonl")
+        && Stdlib.String.contains(text, "DARK_TELEMETRY"),
+        "the docs name cli.log, host-audit.jsonl and DARK_TELEMETRY")))
+
+
+// `dark docs` is read by people with no checkout of the repository.
+test docsNameNoRepoPaths =
+  Stdlib.Test.all(
+    Cli.Tests.DocsExamples.pages()
+    |> Stdlib.List.map(fun((name, text)) ->
+      Stdlib.Test.expect(
+        Stdlib.Bool.not(Stdlib.String.contains(text, "packages/"))
+        && Stdlib.Bool.not(Stdlib.String.contains(text, "backend/"))
+        && Stdlib.Bool.not(Stdlib.String.contains(text, ".md`")),
+        $"docs {name} names no repo paths")))
+
+
+test docsListsItsTopicsAndPrintsOne = Instance.withInstance(fun i ->
+  let (syntaxCode, syntax) = Instance.ran(i, [ "docs", "syntax" ])
+  Stdlib.Test.all(
+    [ Instance.says(Instance.said(i, [ "docs" ]), "for-ai", "docs lists its topics")
+      Instance.exitedWith(syntaxCode, 0, "and prints one")
+      Instance.says(syntax, "## Keywords", "which lists the keywords")
+      Instance.says(
+        Instance.said(i, [ "docs", "escapes" ]),
+        "\"\"\"a\\nb\"\"\"",
+        "the escapes page shows a raw string with its quotes")
+      Instance.says(
+        Instance.said(i, [ "docs", "nosuchtopic" ]),
+        "nosuchtopic",
+        "an unknown topic names itself back") ]))

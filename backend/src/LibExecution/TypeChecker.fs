@@ -422,7 +422,7 @@ let rec unifyValueType
 
       | TFn(argTypes, returnType), ValueType.Known(KTFn(vArgs, vRet)) ->
         if NEList.length argTypes <> NEList.length vArgs then
-          Error pathSoFar // CLEANUP include the lengths in the path
+          Error pathSoFar
         else
           List.zip
             (returnType :: (NEList.toList argTypes))
@@ -963,6 +963,23 @@ let tryUnifyWithAliases
     | _ -> ValueNone
 
 
+/// `expected` unified against `actual`, the shared body of `checkFnParam` and `checkFnResult`. A
+/// mismatch carries the expected type as a value type, resolved only then: it exists only to
+/// describe the failure, and this runs on every parameter and result of every call.
+let private unifyDeclared
+  (types : Types)
+  (tst : TypeSymbolTable)
+  (expected : TypeReference)
+  (actual : Dval)
+  : Result<TypeSymbolTable, ValueType> =
+  let unwrapped = TypeReference.unwrapAlias types expected
+  match unify types tst unwrapped actual with
+  | Ok updatedTst -> Ok updatedTst
+  | Error _path -> Error(TypeReference.toVT types tst unwrapped)
+
+
+// The errors carry the reference as written, from before `unwrapAlias`, so an alias reports the
+// alias.
 let checkFnParam
   (types : Types)
   (fnName : FQFnName.FQFnName)
@@ -972,19 +989,13 @@ let checkFnParam
   (expected : TypeReference)
   (actual : Dval)
   : Result<TypeSymbolTable, RTE.Error> =
-  let unwrapped = TypeReference.unwrapAlias types expected
-  match unify types tst unwrapped actual with
+  match unifyDeclared types tst expected actual with
   | Ok updatedTst -> Ok updatedTst
-  | Error _path ->
-    let expectedVT = TypeReference.toVT types tst unwrapped
+  | Error expectedVT ->
     RTE.Applications.FnParameterNotExpectedType(
       fnName,
       paramIndex,
       paramName,
-      // The reference as written, from before `unwrapAlias`, so an alias
-      // reports the alias. Built here rather than above the unify: it exists
-      // only to describe the failure, and this runs on every parameter of
-      // every call.
       Some expected,
       expectedVT,
       Dval.toValueType actual,
@@ -1001,15 +1012,9 @@ let checkFnResult
   (expected : TypeReference)
   (actual : Dval)
   : Result<TypeSymbolTable, RTE.Error> =
-  let unwrapped = TypeReference.unwrapAlias types expected
-  match unify types tst unwrapped actual with
+  match unifyDeclared types tst expected actual with
   | Ok updatedTst -> Ok updatedTst
-  | Error _path ->
-    // Resolved here rather than before the unify: it exists only to render the error, and computing it
-    // eagerly meant every successful return -- which is nearly all of them -- paid a full type
-    // resolution (`toVT` walks the reference and can hit `Types.find`) to build a message nobody sees.
-    // `Some expected` is built here for the same reason, and is pre-unwrap so an alias reports the alias.
-    let expectedVT = TypeReference.toVT types tst unwrapped
+  | Error expectedVT ->
     RTE.Applications.FnResultNotExpectedType(
       fnName,
       Some expected,
@@ -1368,9 +1373,12 @@ module DvalCreator =
       | ValueSome known -> ValueSome known
       | ValueNone -> ValueSome vt
     | known ->
-      match ValueType.merge known vt with
-      | Ok merged -> ValueSome merged
-      | Error() -> ValueNone
+      match TST.tryFind paramName newTST with
+      | ValueNone -> ValueSome known
+      | ValueSome bound ->
+        match ValueType.merge known bound with
+        | Ok merged -> ValueSome merged
+        | Error() -> ValueNone
 
   /// The type-argument walk from the checked-field slow path, without building an error path.
   ///
@@ -1537,7 +1545,12 @@ module DvalCreator =
                   | ValueNone -> ((paramName, vt))
 
                 | known ->
-                  match ValueType.merge known vt with
+                  match
+                    ValueType.merge
+                      known
+                      (TST.tryFind paramName newTST
+                       |> ValueOption.defaultValue known)
+                  with
                   | Ok merged -> ((paramName, merged))
                   | Error() ->
                     let expected = TypeReference.toVT types tst fieldDef
@@ -1866,7 +1879,12 @@ module DvalCreator =
                       | ValueNone -> ((paramName, vt))
 
                     | known ->
-                      match ValueType.merge known vt with
+                      match
+                        ValueType.merge
+                          known
+                          (TST.tryFind paramName newTST
+                           |> ValueOption.defaultValue known)
+                      with
                       | Ok merged -> ((paramName, merged))
                       | Error() ->
                         let expected = TypeReference.toVT types newTST fieldDef.typ
@@ -1965,7 +1983,6 @@ module DvalCreator =
 
           match unify types tst fieldDef.typ fieldValue with
           | Error _path ->
-            // CLEANUP involve path, somehow
             // Resolved here rather than before the check that almost always passes.
             let expected = TypeReference.toVT types tst fieldDef.typ
             RTE.Records.UpdateFieldOfWrongType(
@@ -1993,7 +2010,12 @@ module DvalCreator =
                       | ValueNone -> ((paramName, vt))
 
                     | known ->
-                      match ValueType.merge known vt with
+                      match
+                        ValueType.merge
+                          known
+                          (TST.tryFind paramName newTST
+                           |> ValueOption.defaultValue known)
+                      with
                       | Ok merged -> ((paramName, merged))
                       | Error() ->
                         let expected = TypeReference.toVT types newTST fieldDef.typ

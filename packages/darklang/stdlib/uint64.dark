@@ -5,6 +5,18 @@ type ParseError =
   | OutOfRange
 
 
+/// The smallest <type UInt64>: {{0}}
+val minValue = 0u64
+
+
+/// The largest <type UInt64>: {{18446744073709551615}}
+val maxValue = 18446744073709551615u64
+
+
+/// How many bits a <type UInt64> holds: {{64}}
+val bitWidth = 64
+
+
 impl Modulo for UInt64 =
   /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
   /// The modulus <param b> must be greater than 0
@@ -334,8 +346,6 @@ let checkedPower(base: UInt64, exponent: UInt64): Result<UInt64, Math.PowerError
 
 // Division. `/` raises on a zero divisor and `%` on a modulus that is not positive;
 // these return the reason instead.
-// TODO: make `/` and `%` themselves checked by default; see the TODO on the `divide`
-// builtin in NoModule.fs.
 
 /// Divides <param a> by <param b>, rounding towards zero, or
 /// {{Error DivisionByZero}} where `/` raises.

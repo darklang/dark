@@ -97,7 +97,7 @@ let testJson(name: String, outcome: Outcome, cached: Bool): TestJson =
 
 
 val usage =
-  "Usage: test run [--force] [--brief] [--json] [--jobs <count>] [--seed <n>] [name-or-module ... | <script>.dark]\n       test count [--for <item>] [module]\n       test add <location> <body> | <source-file> | -"
+  "Usage: test run [--force] [--brief] [--json] [--jobs <count>] [--seed <n>] [name-or-module ... | <script>.dark]\n       test count [--for <item>] [module]\n       test add <location> <body> | <source-file> | - [--description <text>]"
 
 
 let fullPath(
@@ -346,7 +346,7 @@ let isPassed(outcome: Outcome): Bool =
   | Rows(rows) -> Stdlib.List.all(rows, fun((_, row)) -> isPassed(row))
 
 
-val addUsage = "Usage: test add <location> <body> | <source-file> | -"
+val addUsage = "Usage: test add <location> <body> | <source-file> | - [--description <text>]"
 
 
 /// Print why `test add` saved nothing, with its usage, and fail the command.
@@ -360,7 +360,12 @@ let addFailed(state: AppState, message: String): AppState =
 /// the body alone (`Foo.double 4 |> Stdlib.Test.equal 8`) or a whole
 /// declaration, `test name = ...` with an optional doc comment, which is what
 /// a file or stdin usually holds.
-let addTest(state: AppState, locationStr: String, definition: String): AppState =
+let addTest(
+  state: AppState,
+  locationStr: String,
+  definition: String,
+  description: Option<String>)
+  : AppState =
   match Location.parseRelativeTo(state.packageData.currentLocation, locationStr) with
   | Error(msg) -> addFailed(state, $"Invalid location: {msg}")
   | Ok(location) ->
@@ -382,6 +387,10 @@ let addTest(state: AppState, locationStr: String, definition: String): AppState 
       else
         match sourceFile.declarations with
         | [Test(written)] ->
+          let written =
+            { written with
+                description = Stdlib.Option.withDefault(description, written.description) }
+
           if written.name.name != location.name then
             addFailed(
               state,
@@ -415,13 +424,13 @@ let execute(state: AppState, args: List<String>): AppState =
   match args with
   | ["add"] -> addFailed(state, "test add needs a location and a body")
   | ["add", location, ...definitionParts] ->
-    match definitionFromArgs(definitionParts) with
+    match definitionAndDescription(definitionParts) with
     | Error(message) -> addFailed(state, message)
-    | Ok(definition) ->
+    | Ok((definition, description)) ->
       if Stdlib.String.isEmpty(Stdlib.String.trim(definition)) then
         addFailed(state, "test add needs a body after the location")
       else
-        addTest(state, location, definition)
+        addTest(state, location, definition, description)
   | ["run", ...runArgs] -> runTests(state, runArgs)
   | ["count", ...countArgs] -> countTests(state, countArgs)
   | [] ->
@@ -1256,7 +1265,8 @@ let help(_state: AppState): String =
     "  test keyLength = Stdlib.Uuid.generate() |> Stdlib.display |> Stdlib.String.length |> Stdlib.Test.equal(36)"
     "  EOF"
     "The body may be given alone or as a whole `test name = ...` declaration;"
-    "it lands in your draft like `fn` and `val`." ]
+    "it lands in your draft like `fn` and `val`. --description <text> documents it:"
+    "  test add MyApp.Math.Tests.doubles 'MyApp.Math.double(4) |> Stdlib.Test.equal(8)' --description \"Doubling four gives eight.\"" ]
   |> Stdlib.String.join("\n")
 
 

@@ -352,7 +352,7 @@ test aNameSavedTwiceIsStillNew = Instance.withInstance(fun i ->
 test branchListingsAreArrays =
   Instance.withInstance(fun i ->
     Stdlib.Test.all(
-      [ step(i, [ "switch", "jsonbr" ])
+      [ step(i, [ "switch", "-c", "jsonbr" ])
         step(i, [ "switch", "main" ])
         check(
           i,
@@ -610,19 +610,13 @@ let refusesQuietly(
   args: List<String>,
   reason: String)
   : Stdlib.Test.Result =
-  let cmd = Stdlib.String.join(args, " ")
-  match Instance.run(i, args) with
-  | Error(e) -> Stdlib.Test.fail($"`dark {cmd}` could not run: {e}")
-  | Ok(out) ->
-    about(
-      cmd,
-      Stdlib.Test.all(
-        [ out.stdout |> Stdlib.Test.equal("")
-          isTrue(
-            Stdlib.String.contains(out.stderr, reason),
-            $"should say '{reason}' on stderr. It said: {out.stderr}")
-
-          out.exitCode |> Stdlib.Test.equal(1) ]))
+  let out = Instance.call(i, Instance.command(args))
+  about(
+    Stdlib.String.join(args, " "),
+    Stdlib.Test.all(
+      [ Instance.stdoutIsEmpty(out, "a refusal is not a payload")
+        Instance.stderrSays(out, reason, "it says why")
+        Instance.exitedWith(out.exitCode, 1, "a refusal") ]))
 
 
 /// `deprecate --json` and `delete --json` answer one object. A dry run, and `--json` without

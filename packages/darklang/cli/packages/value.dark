@@ -7,11 +7,11 @@ let execute(state: AppState, args: List<String>): AppState =
     state
   // val SomeModule.myValue = expression
   | [location, ...definitionParts] ->
-    match definitionFromArgs(definitionParts) with
+    match definitionAndDescription(definitionParts) with
     | Error(message) ->
       printErr(message)
       failed(state)
-    | Ok(inlineDefinition) ->
+    | Ok((inlineDefinition, description)) ->
       if Stdlib.String.isEmpty(inlineDefinition) then
         [ Stdlib.Cli.UI.Colors.error("Error: Inline value expression required")
           ""
@@ -26,10 +26,15 @@ let execute(state: AppState, args: List<String>): AppState =
 
         failed(state)
       else
-        createValueInline(state, location, inlineDefinition)
+        createValueInline(state, location, inlineDefinition, description)
 
 
-let createValueInline(state: AppState, locationStr: String, expression: String): AppState =
+let createValueInline(
+  state: AppState,
+  locationStr: String,
+  expression: String,
+  description: Option<String>)
+  : AppState =
   let hint =
     [ Stdlib.Cli.UI.Colors.error("Failed to parse value expression")
       ""
@@ -46,6 +51,10 @@ let createValueInline(state: AppState, locationStr: String, expression: String):
     fun(location, declaration) ->
       match declaration with
       | Value(writtenValue) ->
+        let writtenValue =
+          { writtenValue with
+              description = Stdlib.Option.withDefault(description, writtenValue.description) }
+
         Option.Some(
           saveAuthored(
             state,
@@ -94,6 +103,9 @@ let help(_state: AppState): String =
     "  [ 11, 13,"
     "    17, 19 ]"
     "  EOF"
+    ""
+    "--description <text> documents the value:"
+    "  dark val Me.Demo.answer '42' --description \"The answer.\""
     ""
     "A leading `/` makes a name absolute (`/Me.Demo.answer`); without one it is"
     "relative to the module `nav` put you in."

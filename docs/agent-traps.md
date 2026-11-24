@@ -603,7 +603,7 @@ the stored link target: .NET file-read APIs normalize `..` in their path argumen
 
 **Permissions are runtime authorization, not OS isolation.** Host effects cross
 `Host.perform` and are checked against policy; this does not confine a compromised
-runtime or limit resources. OS sandboxing remains future work in `docs/permissions-todos.md`.
+runtime or limit resources (see `docs/effects.md`).
 
 **Instance policy.** First run seeds `~/.darklang/policy/policies.bin` with a safe
 default: package loading, computation, local storage, and printing work, while

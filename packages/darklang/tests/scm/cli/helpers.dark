@@ -84,9 +84,10 @@ let commit(dark: Cli.Tests.Instance.T, message: String): Stdlib.Test.Result =
   run(dark, [ "commit", message, "-y" ])
 
 
-/// `dark switch <branch>`: move onto a branch, starting it if it is new.
+/// `dark switch <branch>`: move onto a branch, or `dark switch -c <branch>` when it is new.
 let switch(dark: Cli.Tests.Instance.T, branch: String): Stdlib.Test.Result =
-  run(dark, [ "switch", branch ])
+  let (code, _, _) = exec(dark, [ "switch", branch ])
+  if code == 0 then Stdlib.Test.Result.Pass else run(dark, [ "switch", "-c", branch ])
 
 
 /// `dark merge <branch> -y`: merge a branch into its parent without asking.

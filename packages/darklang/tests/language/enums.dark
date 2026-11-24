@@ -8,15 +8,15 @@ test options =
       (Stdlib.List.head([])) |> Stdlib.Test.equal(Stdlib.Option.Option.None) ])
 
 test okPayloadErrorRaises =
-  Stdlib.Result.Result.Ok(Stdlib.Test.raiseRuntimeError("err"))
+  Stdlib.Result.Result.Ok(Darklang.Language.Tests.raiseRuntimeError("err"))
   => raises "Uncaught exception: err"
 
 test somePayloadErrorRaises =
-  Stdlib.Option.Option.Some(Stdlib.Test.raiseRuntimeError("err"))
+  Stdlib.Option.Option.Some(Darklang.Language.Tests.raiseRuntimeError("err"))
   => raises "Uncaught exception: err"
 
 test errorPayloadErrorRaises =
-  Stdlib.Result.Result.Error(Stdlib.Test.raiseRuntimeError("err"))
+  Stdlib.Result.Result.Error(Darklang.Language.Tests.raiseRuntimeError("err"))
   => raises "Uncaught exception: err"
 
 module Errors =
@@ -131,8 +131,8 @@ module MixedCases =
   // Test ordering of evaluation
   test firstPayloadErrorRaises =
     EnumOfMixedCases.Z(
-      Stdlib.Test.raiseRuntimeError("1"),
-      Stdlib.Test.raiseRuntimeError("2")
+      Darklang.Language.Tests.raiseRuntimeError("1"),
+      Darklang.Language.Tests.raiseRuntimeError("2")
     )
     => raises "Uncaught exception: 1"
 
@@ -252,3 +252,12 @@ module Polymorphism =
      ([ 1, -2, 5, 3 ] |> ofList(intCmp) |> toList)
      == ([ 3, 5, -2, 1 ] |> ofList(intCmp) |> toList))
     |> Stdlib.Test.equal(true)
+
+// A type argument the first field leaves partial is filled in by a later one.
+type BothSides<'a> = Sides('a, 'a)
+
+let takesStringListSides(s: BothSides<List<String>>): Int64 = 1
+
+test laterFieldFillsInPartialTypeArg =
+  takesStringListSides(BothSides.Sides([], [ 1 ])) => raises
+    "Darklang.Language.Tests.Enums.takesStringListSides's 1st parameter `s` expects Darklang.Language.Tests.Enums.BothSides<List<String>>, but got Darklang.Language.Tests.Enums.BothSides<List<Int64>> (Darklang.Language.Tests.Enums.BothSides<List<Int64>>.Sides(List<_> [], [1]))"

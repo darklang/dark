@@ -48,7 +48,7 @@ let eligible (state : ExecutionState) : bool =
   && not state.spreadChild
   && not state.tracing.collectExprValues
   && Option.isNone state.tracing.viewEffect
-  && Sched.defaultWorkers > 1
+  && state.exec.workers > 1
 
 let private keyOf (app : Applicable) : SpreadCallable =
   match app with
@@ -485,8 +485,8 @@ let private capsFor
   let bytes = 8L * bytesPerElement * int64 size + 1_000_000L
   match me with
   | Some m ->
-    struct (left Sched.maxInstructions m.instructionsTaken instructions,
-            left Sched.maxBytes m.allocated bytes)
+    struct (left m.exeState.exec.maxInstructions m.instructionsTaken instructions,
+            left m.exeState.exec.maxBytes m.allocated bytes)
   | None -> struct (instructions, bytes)
 
 let private runChunks
@@ -501,7 +501,7 @@ let private runChunks
   : Task<Outcome> =
   let count = DvalList.length items
   let sched = Sched.Scheduler.CurrentOrShared
-  let slots = sched.Workers.ChunkSlots
+  let slots = sched.WorkersFor(state.exec).ChunkSlots
   let me = Sched.Scheduler.CurrentProcess
   let parent = me |> Option.map (fun p -> p.id)
   let builtin = FQFnName.Builtin(FQFnName.builtin builtinName 0)
@@ -691,7 +691,7 @@ let private spreadOver
   let settings = state.spread
   let count = DvalList.length items
   let sched = Sched.Scheduler.CurrentOrShared
-  let workers = sched.Workers
+  let workers = sched.WorkersFor(state.exec)
   let me = Sched.Scheduler.CurrentProcess
   let perElement = probe.PerElement
   // No more chunks than the work is worth, the idle workers take, or the group has room for.

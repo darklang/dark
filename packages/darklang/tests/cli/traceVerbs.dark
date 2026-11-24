@@ -474,7 +474,7 @@ test showServesASpawnedChildFromTheLog = Traces.withTraces(fun i ->
       i,
       "Tests.Prev.conc",
       "(): String =\n  let h = Stdlib.Exec.spawn(fun () -> Stdlib.display(Stdlib.Uuid.generate()))\n  Stdlib.Exec.await(h)",
-      "concurrency; random")
+      "random")
 
   let recorded =
     lines(Instance.output(i, [ "eval", "Tests.Prev.conc()" ]))

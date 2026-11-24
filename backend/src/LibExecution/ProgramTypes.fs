@@ -950,8 +950,8 @@ type PackageOp =
   /// `restating` matters MORE here than on `Deprecate`: this op carries only its target, so
   /// without a stamp there is exactly one possible `Undeprecate` per item for all time.
   ///
-  /// TODO: merge-into-main needs a permission axis once ACLs land (a branch
-  ///   shouldn't silently un-Harmful on merge).
+  /// Merging into main doesn't check permissions, so a branch's `Undeprecate` can silently
+  /// un-Harmful an item.
   | Undeprecate of
     location : PackageLocation *
     target : Reference *

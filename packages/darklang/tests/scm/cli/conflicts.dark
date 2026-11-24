@@ -396,7 +396,7 @@ test conflictsWalkTakesTheOtherSideOnB =
         "one conflict is pending before the walk")
 
     let (walkCode, walked) =
-      Cli.Tests.Edit.runWithStdin(dark, [ "conflicts", "walk" ], "b\n")
+      Cli.Tests.Instance.runWithStdin(dark, [ "conflicts", "walk" ], "b\n")
 
     [ setup
       merged
@@ -413,3 +413,130 @@ test conflictsWalkTakesTheOtherSideOnB =
         "main",
         f + "()",
         "a conflict settled between two branches does not reach main") ])
+
+
+/// The conflict ids a `--json` command reports, the first one or "".
+let firstConflictId(dark: Cli.Tests.Instance.T, args: List<String>): String =
+  conflictIds(dark, args) |> Stdlib.List.head |> Stdlib.Option.withDefault("")
+
+
+/// Each branch lists and answers its own conflicts: one recorded by a rebase on `feat`, one by a
+/// merge on main. An ack given on the branch closes the branch's, and main's id does nothing there.
+test aConflictIsAnsweredOnTheBranchItHappenedOn =
+  scenario(fun dark ->
+    let setup =
+      Stdlib.Test.all(
+        [ saveNumber(dark, "Tests.App.a", "1")
+          saveNumber(dark, "Tests.App.b", "1")
+          commit(dark, "base")
+          switch(dark, "feat")
+          saveNumber(dark, "Tests.App.a", "2")
+          commit(dark, "feat edits")
+          switch(dark, "main")
+          switch(dark, "other")
+          saveNumber(dark, "Tests.App.b", "2")
+          commit(dark, "other edits")
+          switch(dark, "main")
+          saveNumber(dark, "Tests.App.a", "3")
+          saveNumber(dark, "Tests.App.b", "3")
+          commit(dark, "main edits")
+          merge(dark, "other")
+          switch(dark, "feat")
+          run(dark, [ "rebase" ]) ])
+
+    let featId = firstConflictId(dark, [ "conflicts", "--json" ])
+
+    let mainId =
+      firstConflictId(dark, [ "--branch", "main", "conflicts", "--json" ])
+
+    [ setup
+      same(
+        conflicts(dark),
+        [ "Tests.App.a: main kept over feat (later-origin-ts)" ],
+        "the branch lists its own conflict and not main's")
+
+      same(
+        featId != "" && mainId != "" && featId != mainId,
+        true,
+        $"each conflict has an id of its own: {featId}, {mainId}")
+
+      says(
+        dark,
+        [ "conflicts", "ack", featId ],
+        "acked",
+        "it is answered from the branch it is on")
+
+      says(
+        dark,
+        [ "conflicts", "ack", mainId ],
+        "no conflict matching",
+        "an id copied from main's list does nothing here")
+
+      switch(dark, "main")
+      same(
+        conflicts(dark),
+        [ "Tests.App.b: main kept over other (later-origin-ts)" ],
+        "main still has its own, unanswered, and not the branch's") ])
+
+
+/// One name conflicted twice, the first already acked: answering by name answers the open one.
+test answeringAConflictByNameAnswersTheOpenOne =
+  scenario(fun dark ->
+    let setup =
+      Stdlib.Test.all(
+        [ saveNumber(dark, "Tests.App.a", "1")
+          commit(dark, "base")
+          switch(dark, "one")
+          saveNumber(dark, "Tests.App.a", "2")
+          commit(dark, "one edits")
+          switch(dark, "main")
+          switch(dark, "two")
+          saveNumber(dark, "Tests.App.a", "4")
+          commit(dark, "two edits")
+          switch(dark, "main")
+          saveNumber(dark, "Tests.App.a", "3")
+          commit(dark, "main edits")
+          merge(dark, "one")
+          run(dark, [ "conflicts", "ack", "Tests.App.a" ])
+          merge(dark, "two") ])
+
+    let openId = firstConflictId(dark, [ "conflicts", "--json" ])
+
+    [ setup
+      same(
+        conflicts(dark),
+        [ "Tests.App.a: main kept over two (later-origin-ts)" ],
+        "only the second conflict is open")
+
+      same(openId != "", true, "and it has an id")
+
+      says(
+        dark,
+        [ "conflicts", "ack", "Tests.App.a" ],
+        openId,
+        "by name, the open conflict is the one answered")
+
+      same(conflicts(dark), [], "and it is closed afterwards") ])
+
+
+/// Keeping a branch's version is an override folded on the branch, so main's pending conflict on
+/// the same name stays open.
+test anOverrideOnABranchLeavesMainsConflictOpen =
+  scenario(fun dark ->
+    [ saveNumber(dark, "Tests.App.x", "1")
+      commit(dark, "base")
+      featThenMainEdit(dark, "Tests.App.x", "2", "3")
+      merge(dark, "feat")
+      switch(dark, "scope")
+      saveNumber(dark, "Tests.App.x", "4")
+      says(
+        dark,
+        [ "branch", "resolve", "scope", "Tests.App.x", "mine" ],
+        "kept the branch",
+        "the branch keeps its version")
+
+      switch(dark, "main")
+      same(
+        conflicts(dark),
+        [ "Tests.App.x: main kept over feat (later-origin-ts)" ],
+        "main's conflict is still pending") ])

@@ -191,34 +191,35 @@ let repointNow(
         |> Stdlib.List.map(nameOf)
         |> Stdlib.List.unique
 
-      // The one thing worth saying at the SAVE that nothing else says in the same breath: some of
-      // what just followed you is now broken. The draft check already covers the items; this only
-      // takes the repointed ones among its failures, asked on this branch.
-      let byHash =
-        repoints |> Stdlib.List.map(fun r -> (SCM.Draft.referenceHash(r.toRef), nameOf(r)))
-
-      let checked =
-        match followerCheck with
-        | Check -> (SCM.PackageOps.typeCheckDraft(branchId)).items
-        | Skip -> []
-
+      // Check updated callers on this branch, including ones that reuse a stored version.
       let broken =
-        checked
-        |> Stdlib.List.filterMap(fun ir ->
-          let h = SCM.Draft.referenceHash(ir.item)
-          match ir.verdict with
-          | Failed ->
-            byHash
-            |> Stdlib.List.findFirst(fun pair -> Stdlib.Tuple2.first(pair) == h)
-            |> Stdlib.Option.map(fun pair ->
-              let issues = Stdlib.List.concat(ir.warnings, ir.diagnostics)
-              let text =
-                match issues with
-                | [issue, ...] -> LanguageTools.Live.issueText(issue)
-                | [] -> "it failed the type check"
+        match followerCheck with
+        | Skip -> []
+        | Check ->
+          let report =
+            LanguageTools.AtRestTypeChecker.Run.checkReferences(
+              branchId,
+              LanguageTools.AtRestTypeChecker.Run.loadCandidate,
+              Stdlib.List.map(repoints, fun r -> r.toRef))
 
-              (Stdlib.Tuple2.second(pair), text))
-          | _ -> Option.None)
+          let issuesByRef =
+            report.items
+            |> Stdlib.List.fold(Dict {}, fun(found, ir) ->
+              match ir.verdict with
+              | Failed ->
+                let why =
+                  match Stdlib.List.concat(ir.diagnostics, ir.warnings) with
+                  | [issue, ...] -> LanguageTools.Live.issueText(issue)
+                  | [] -> "it failed the type check"
+
+                Stdlib.Dict.set(found, ir.item, why)
+              | _ -> found)
+
+          repoints
+          |> Stdlib.List.filterMap(fun r ->
+            Stdlib.Dict.get(issuesByRef, r.toRef)
+            |> Stdlib.Option.map(fun why -> (nameOf(r), why)))
+          |> Stdlib.List.unique
 
       Followed { names = names, broken = broken, failure = Option.None }
     | Error(e) -> Followed { names = [], broken = [], failure = Option.Some(e) }
@@ -285,7 +286,7 @@ let repointSaved(
         failure = failure })
 
 
-/// The save's second line, if it has one: who follows, or who broke. Wrapped at 80, indented.
+/// Report which dependents followed the save or failed their type check.
 let printFollowed(followed: Followed): Unit =
   match followed.failure with
   | Some(e) -> Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "  ", $"propagation failed: {e}")
@@ -307,15 +308,16 @@ let printFollowed(followed: Followed): Unit =
           Stdlib.Cli.UI.Colors.hint,
           "  ",
           $"{Stdlib.display(count)} dependents follow: {shown}{rest}")
+    | [(name, why)] ->
+      Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "  ", $"{name} no longer type-checks")
+      Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "    ", why)
     | broken ->
+      let count = Stdlib.display(Stdlib.List.length(broken))
+      Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "  ", $"{count} dependents no longer type-check:")
       broken
-      |> Stdlib.List.iter(fun pair ->
-        let (name, why) = pair
-        let line = $"{name} no longer type-checks: {why}"
-        let withHint = line + "; `dark typecheck --failed` lists them"
-        // The way to the full list only when it fits; the diagnostic is the part that matters.
-        let text = if Stdlib.String.length(withHint) + 2 <= 80 then withHint else line
-        Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "  ", text))
+      |> Stdlib.List.iter(fun((name, why)) ->
+        Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "  ", $"- {name}")
+        Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "    ", why))
 
 
 /// Report the propagation result for a single declaration edit.

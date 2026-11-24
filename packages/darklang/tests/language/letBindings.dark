@@ -1,11 +1,11 @@
 module Darklang.Language.Tests.LetBindings
 
 test unusedBindingIsEvaluated =
-  (let x = Stdlib.Test.raiseRuntimeError("a") in 5)
+  (let x = Darklang.Language.Tests.raiseRuntimeError("a") in 5)
   => raises "Uncaught exception: a"
 
 test bindingErrorSkipsBody =
-  (let x = Stdlib.Test.raiseRuntimeError("a") in Stdlib.Test.raiseRuntimeError("b"))
+  (let x = Darklang.Language.Tests.raiseRuntimeError("a") in Darklang.Language.Tests.raiseRuntimeError("b"))
   => raises "Uncaught exception: a"
 
 test variables =
@@ -50,14 +50,14 @@ test tuples =
       |> Stdlib.Test.equal((3, 4)) ])
 
 test tupleEvaluatesIgnoredElements =
-  (let (_, _, _) = (1, 2, Stdlib.Test.raiseRuntimeError("test")) in 2)
+  (let (_, _, _) = (1, 2, Darklang.Language.Tests.raiseRuntimeError("test")) in 2)
   => raises "Uncaught exception: test"
 
 test tupleRaisesFirstElementError =
   (let (_, _, _) =
-    (Stdlib.Test.raiseRuntimeError("test1"),
+    (Darklang.Language.Tests.raiseRuntimeError("test1"),
      2,
-     Stdlib.Test.raiseRuntimeError("test2"))
+     Darklang.Language.Tests.raiseRuntimeError("test2"))
    2)
   => raises "Uncaught exception: test1"
 
@@ -126,7 +126,7 @@ test wildcard =
 
 // Wildcard with side effects - the value should still be evaluated
 test wildcardValueIsEvaluated =
-  (let _ = Stdlib.Test.raiseRuntimeError("test") in 10)
+  (let _ = Darklang.Language.Tests.raiseRuntimeError("test") in 10)
   => raises "Uncaught exception: test"
 
 // The parser rejects _ in expression position because a wildcard does not bind a variable.

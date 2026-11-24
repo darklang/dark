@@ -213,7 +213,6 @@ let main (args : string array) : int =
         // the shared process or store marks itself sequenced.
         testList "CliAuthoring" Tests.CliAuthoring.tests
         testList "CliRename" Tests.CliRename.tests
-        testList "CliPartialCommit" Tests.CliPartialCommit.tests
         testList "CliWorkspace" Tests.CliWorkspace.tests
         testList "CliScmRegression" Tests.CliScmRegression.tests
         testList "CliPackages" Tests.CliPackages.tests
