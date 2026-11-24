@@ -217,6 +217,7 @@ module Hashing =
     | PT.EApply(id, fn, typeArgs, args) ->
       PT.EApply(id, r fn, typeArgs, NEList.map r args)
     | PT.EList(id, exprs) -> PT.EList(id, List.map r exprs)
+    | PT.ESet(id, exprs) -> PT.ESet(id, List.map r exprs)
     | PT.ERecord(id, typeName, typeArgs, fields) ->
       PT.ERecord(id, typeName, typeArgs, List.map (fun (n, ex) -> (n, r ex)) fields)
     | PT.ERecordUpdate(id, record, updates) ->

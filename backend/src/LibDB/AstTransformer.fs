@@ -217,6 +217,7 @@ let rec private transformTypeRef
 
   | PT.TList inner -> PT.TList(r inner)
   | PT.TDict(key, value) -> PT.TDict(r key, r value)
+  | PT.TSet inner -> PT.TSet(r inner)
   | PT.TTuple(first, second, rest) ->
     PT.TTuple(r first, r second, rest |> List.map r)
 
@@ -354,6 +355,7 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
     PT.ELet(id, pat, transformExpr mapping value, transformExpr mapping body)
 
   | PT.EList(id, items) -> PT.EList(id, items |> List.map (transformExpr mapping))
+  | PT.ESet(id, items) -> PT.ESet(id, items |> List.map (transformExpr mapping))
 
   | PT.EDict(id, pairs) ->
     PT.EDict(

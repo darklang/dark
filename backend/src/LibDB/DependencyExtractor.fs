@@ -106,7 +106,8 @@ let private extract (roots : List<Work>) : List<Dependency> =
       | PT.TVariable _ -> ()
 
       | PT.TStream inner
-      | PT.TList inner -> work.Push(TypeRef inner)
+      | PT.TList inner
+      | PT.TSet inner -> work.Push(TypeRef inner)
 
       | PT.TDict(key, value) ->
         work.Push(TypeRef key)
@@ -246,7 +247,8 @@ let private extract (roots : List<Work>) : List<Dependency> =
         work.Push(Expr body)
         work.Push(Expr value)
 
-      | PT.EList(_, items) -> pushExprsInOrder items
+      | PT.EList(_, items)
+      | PT.ESet(_, items) -> pushExprsInOrder items
 
       | PT.EDict(_, pairs) ->
         // Track dependencies in both dictionary keys and values.

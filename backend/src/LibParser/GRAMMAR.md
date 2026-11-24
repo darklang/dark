@@ -227,6 +227,7 @@ Expression forms include:
 - lists `[a, b]`, separated by `,` or newlines
 - dicts `Dict { k: v }`, where both halves are expressions -- `:` rather than the
   record literal's `=`, since a dict key is a value, not a field name
+- sets `Set { a, b }`, separated as a list's elements are; `Set { }` is empty
 - named records `Type { f = v }`; anonymous records are rejected until they
   have a real inferred/represented type
 - record updates `{ r with f = v }`
@@ -244,7 +245,7 @@ Expression forms include:
 - statement sequences, separated by newlines; `;` is an error, not a separator
 
 Adjacent same-line items never imply a separator. Lists, list patterns, dicts,
-records, record updates, and record-type fields use `,`; a `;` is an error.
+sets, records, record updates, and record-type fields use `,`; a `;` is an error.
 Constructor fields and constructor-pattern fields also use `,`. A newline
 separates items in all of these forms.
 
@@ -374,8 +375,8 @@ that does not name a trait is `PARSE-BOUND`.
 
 Primitive types are `Unit Bool BigInt Int8…UInt128 Float64 Float32 Decimal Char String DateTime Uuid
 Bytes` (from `WrittenTypes.primTypes`). `Int` is read as `Int64` and `Float` as `Float64`
-(`WrittenTypes.primTypeAliases`); printing writes the full name. `List<T>` and `Dict<K, V>` have special
-syntax. Other uppercase names, including `Stream<T>`, are custom
+(`WrittenTypes.primTypeAliases`); printing writes the full name. `List<T>`, `Dict<K, V>` and `Set<T>` have
+special syntax. Other uppercase names, including `Stream<T>`, are custom
 types with optional type arguments.
 
 Type variables are `'a` or bare lowercase names. Tuples use `A * B`. A function

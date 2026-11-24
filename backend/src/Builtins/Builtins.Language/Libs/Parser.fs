@@ -217,6 +217,14 @@ module WrittenTypesToDarkTypes =
           rangeToDT comma
           typeReferenceToDT value
           rangeToDT closeB ]
+    | WT.TSet(r, kw, openB, inner, closeB) ->
+      builtin
+        "TSet"
+        [ rangeToDT r
+          rangeToDT kw
+          rangeToDT openB
+          typeReferenceToDT inner
+          rangeToDT closeB ]
     | WT.TVariable(r, tick, (nameR, nm)) ->
       builtin "TVariable" [ rangeToDT r; rangeToDT tick; rangedString nameR nm ]
     | WT.TTuple(r, first, star1, second, rest, openP, closeP) ->
@@ -848,6 +856,18 @@ module WrittenTypesToDarkTypes =
         [ rangeToDT r
           contentsDval
           rangeToDT keywordDict
+          rangeToDT openB
+          rangeToDT closeB ]
+      )
+    | WT.ESet(r, contents, keywordSet, openB, closeB) ->
+      DEnum(
+        t,
+        t,
+        [],
+        "ESet",
+        [ rangeToDT r
+          DList(VT.customType (tn WTRefs.expr) [], Items(List.map exprToDT contents))
+          rangeToDT keywordSet
           rangeToDT openB
           rangeToDT closeB ]
       )

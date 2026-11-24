@@ -61,6 +61,7 @@ let variablesIn(typ: ProgramTypes.TypeReference): List<String> =
   | TVariable(name) -> [ name ]
   | TStream(inner) -> variablesIn(inner)
   | TList(inner) -> variablesIn(inner)
+  | TSet(inner) -> variablesIn(inner)
   | TDict(key, value) -> Stdlib.List.concat(variablesIn(key), variablesIn(value))
   | TTuple(first, second, rest) ->
     Stdlib.List.flatten(Stdlib.List.map(Stdlib.List.concat([ first, second ], rest), variablesIn))

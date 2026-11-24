@@ -51,6 +51,7 @@ let fromRuntimeType(typ: RuntimeTypes.TypeReference): ProgramTypes.TypeReference
   | TBytes -> ProgramTypes.TypeReference.TBytes
   | TStream(inner) -> ProgramTypes.TypeReference.TStream(fromRuntimeType(inner))
   | TList(inner) -> ProgramTypes.TypeReference.TList(fromRuntimeType(inner))
+  | TSet(inner) -> ProgramTypes.TypeReference.TSet(fromRuntimeType(inner))
   | TTuple(first, second, rest) ->
     ProgramTypes.TypeReference.TTuple(
       fromRuntimeType(first),
@@ -86,6 +87,7 @@ let runtimeVariables(typ: RuntimeTypes.TypeReference): List<String> =
   | TVariable(name) -> [ name ]
   | TStream(inner) -> runtimeVariables(inner)
   | TList(inner) -> runtimeVariables(inner)
+  | TSet(inner) -> runtimeVariables(inner)
   | TDict(key, value) -> Stdlib.List.concat(runtimeVariables(key), runtimeVariables(value))
   | TTuple(first, second, rest) ->
     Stdlib.List.flatten(
@@ -630,6 +632,7 @@ let typeRefs(typ: ProgramTypes.TypeReference): List<ProgramTypes.Reference> =
   match typ with
   | TStream(inner) -> typeRefs(inner)
   | TList(inner) -> typeRefs(inner)
+  | TSet(inner) -> typeRefs(inner)
   | TDict(key, value) -> Stdlib.List.concat(typeRefs(key), typeRefs(value))
   | TTuple(first, second, rest) ->
     Stdlib.List.flatten(Stdlib.List.map(Stdlib.List.concat([ first, second ], rest), typeRefs))
@@ -696,6 +699,7 @@ let exprRefsInto(
       | StringText(_) -> acc
       | StringInterpolation(e) -> exprRefsInto(env, e, acc))
   | EList(_, elements) -> manyRefsInto(env, elements, acc)
+  | ESet(_, elements) -> manyRefsInto(env, elements, acc)
   | EDict(_, entries) ->
     Stdlib.List.fold(entries, acc, fun(acc, (k, v)) ->
       exprRefsInto(env, v, exprRefsInto(env, k, acc)))

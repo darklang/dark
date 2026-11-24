@@ -382,6 +382,7 @@ type TypeReference =
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TDict of key : TypeReference * value : TypeReference
+  | TSet of element : TypeReference
 
   /// A type defined by a standard library module or a package
   /// e.g. `Result<Int64, String>` is represented as `TCustomType("Result", [TInt64, TString])`
@@ -481,6 +482,8 @@ type Expr =
   // -- Basic structures --
   | EList of id * List<Expr>
   | EDict of id * List<Expr * Expr>
+  /// `Set { a, b }`: a repeated element is kept once
+  | ESet of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
 
   // -- "Applying" args to things, such as fns and lambdas --
@@ -684,6 +687,7 @@ module Expr =
     | EApply(id, _, _, _)
     | EList(id, _)
     | EDict(id, _)
+    | ESet(id, _)
     | ETuple(id, _, _, _)
     | EPipe(id, _, _)
     | ERecord(id, _, _, _)

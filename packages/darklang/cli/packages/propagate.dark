@@ -87,6 +87,7 @@ let typeReferenceEqual(
   | TBytes, TBytes -> true
   | TStream(innerA), TStream(innerB) -> typeReferenceEqual(branchId, innerA, innerB)
   | TList(innerA), TList(innerB) -> typeReferenceEqual(branchId, innerA, innerB)
+  | TSet(innerA), TSet(innerB) -> typeReferenceEqual(branchId, innerA, innerB)
   | TDict(keyA, valueA), TDict(keyB, valueB) ->
     typeReferenceEqual(branchId, keyA, keyB) && typeReferenceEqual(branchId, valueA, valueB)
   | TTuple(firstA, secondA, restA), TTuple(firstB, secondB, restB) ->

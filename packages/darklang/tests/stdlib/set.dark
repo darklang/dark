@@ -1,0 +1,244 @@
+module Darklang.Stdlib.Set.Tests
+
+// Field names unique to this file: a record type is content-addressed, so a shape shared with
+// another test file would share its name too.
+type SetPoint =
+  { spx: Int64
+    spy: Int64 }
+
+
+val valSet = Set { 3, 1, 2 }
+
+
+test literalKeepsOneOfEach =
+  Stdlib.Test.all(
+    [ Set { 1, 1, 2 } |> Stdlib.Test.equal(Set { 1, 2 })
+
+      Stdlib.Set.size(Set { "a", "a", "a" }) |> Stdlib.Test.equal(1)
+
+      (let one = 1
+       let alsoOne = 0 + 1
+       Stdlib.Set.size(Set { one, alsoOne }))
+      |> Stdlib.Test.equal(1) ])
+
+
+test literalIsOrdered =
+  Stdlib.Test.all(
+    [ Stdlib.Set.toList(valSet) |> Stdlib.Test.equal([ 1, 2, 3 ])
+
+      Stdlib.Set.toList(Set { "b", "c", "a" })
+      |> Stdlib.Test.equal([ "a", "b", "c" ]) ])
+
+
+test equalityIgnoresWrittenOrder =
+  Stdlib.Test.all(
+    [ Set { 1, 2, 3 } == Set { 3, 2, 1 } |> Stdlib.Test.equal(true)
+      Set { 1, 2 } == Set { 1, 2, 3 } |> Stdlib.Test.equal(false)
+      Set {} == Stdlib.Set.empty |> Stdlib.Test.equal(true) ])
+
+
+test literalRejectsMixedTypes =
+  Set { 1s32, 2s32, "three" }
+  => raises "Cannot add a String (\"three\") to a set of Int32."
+
+
+test literalRejectsFunctions =
+  Set { (fun x -> x) }
+  => raises "Cannot put (lambda) in a set. Functions, streams, and values containing them cannot be set elements."
+
+
+test emptyAndSingleton =
+  Stdlib.Test.all(
+    [ Stdlib.Set.isEmpty(Stdlib.Set.empty) |> Stdlib.Test.equal(true)
+      Stdlib.Set.isEmpty(Set { 1 }) |> Stdlib.Test.equal(false)
+      Stdlib.Set.size(Stdlib.Set.empty) |> Stdlib.Test.equal(0)
+      Stdlib.Set.singleton("x") |> Stdlib.Test.equal(Set { "x" })
+      Stdlib.Set.size(Stdlib.Set.singleton(5)) |> Stdlib.Test.equal(1) ])
+
+
+test fromListAndToList =
+  Stdlib.Test.all(
+    [ Stdlib.Set.fromList([ 3, 1, 3, 2 ]) |> Stdlib.Test.equal(Set { 1, 2, 3 })
+
+      Stdlib.Set.fromList([]) |> Stdlib.Test.equal(Set {})
+
+      Stdlib.Set.toList(Stdlib.Set.fromList([ "z", "a" ]))
+      |> Stdlib.Test.equal([ "a", "z" ]) ])
+
+
+test containsAddRemove =
+  Stdlib.Test.all(
+    [ Stdlib.Set.contains(valSet, 2) |> Stdlib.Test.equal(true)
+      Stdlib.Set.contains(valSet, 4) |> Stdlib.Test.equal(false)
+      Stdlib.Set.add(valSet, 4) |> Stdlib.Test.equal(Set { 1, 2, 3, 4 })
+      Stdlib.Set.add(valSet, 1) |> Stdlib.Test.equal(valSet)
+      Stdlib.Set.add(Stdlib.Set.empty, "a") |> Stdlib.Test.equal(Set { "a" })
+      Stdlib.Set.remove(valSet, 2) |> Stdlib.Test.equal(Set { 1, 3 })
+      Stdlib.Set.remove(valSet, 9) |> Stdlib.Test.equal(valSet) ])
+
+
+test addRejectsWrongType =
+  Stdlib.Set.add(valSet, "four")
+  => raises "Darklang.Stdlib.Set.add's 2nd parameter `element` expects Int64, but got String (\"four\")"
+
+
+test unionIntersectionDifference =
+  Stdlib.Test.all(
+    [ Stdlib.Set.union(Set { 1, 2 }, Set { 2, 3 })
+      |> Stdlib.Test.equal(Set { 1, 2, 3 })
+
+      Stdlib.Set.union(Set {}, Set { 1 }) |> Stdlib.Test.equal(Set { 1 })
+
+      Stdlib.Set.intersection(Set { 1, 2, 3 }, Set { 2, 3, 4 })
+      |> Stdlib.Test.equal(Set { 2, 3 })
+
+      Stdlib.Set.intersection(Set { 1 }, Set { 2 }) |> Stdlib.Test.equal(Set {})
+
+      Stdlib.Set.difference(Set { 1, 2, 3 }, Set { 2, 9 })
+      |> Stdlib.Test.equal(Set { 1, 3 })
+
+      Stdlib.Set.difference(Set { 1 }, Set {})
+      |> Stdlib.Test.equal(Set { 1 }) ])
+
+
+// Past 24 elements a set is kept as a tree rather than a sorted array; the operations
+// mean the same either way.
+test largeSets =
+  let evens =
+    Stdlib.Set.fromList(
+      Stdlib.List.map(Stdlib.List.range(0, 99), fun i -> i * 2))
+
+  let threes =
+    Stdlib.Set.fromList(
+      Stdlib.List.map(Stdlib.List.range(0, 66), fun i -> i * 3))
+
+  Stdlib.Test.all(
+    [ Stdlib.Set.size(evens) |> Stdlib.Test.equal(100)
+
+      Stdlib.Set.size(Stdlib.Set.union(evens, threes)) |> Stdlib.Test.equal(133)
+
+      Stdlib.Set.size(Stdlib.Set.intersection(evens, threes))
+      |> Stdlib.Test.equal(34)
+
+      Stdlib.Set.contains(Stdlib.Set.remove(evens, 100), 100)
+      |> Stdlib.Test.equal(false)
+
+      Stdlib.Set.toList(evens)
+      |> Stdlib.List.take(3)
+      |> Stdlib.Test.equal([ 0, 2, 4 ]) ])
+
+
+test subsetAndDisjoint =
+  Stdlib.Test.all(
+    [ Stdlib.Set.isSubset(Set { 1 }, Set { 1, 2 }) |> Stdlib.Test.equal(true)
+
+      Stdlib.Set.isSubset(Set { 1, 2 }, Set { 1, 2 }) |> Stdlib.Test.equal(true)
+
+      Stdlib.Set.isSubset(Set {}, Set { 1 }) |> Stdlib.Test.equal(true)
+
+      Stdlib.Set.isSubset(Set { 1, 3 }, Set { 1, 2 })
+      |> Stdlib.Test.equal(false)
+
+      Stdlib.Set.isDisjoint(Set { 1 }, Set { 2 }) |> Stdlib.Test.equal(true)
+
+      Stdlib.Set.isDisjoint(Set { 1, 2 }, Set { 2 })
+      |> Stdlib.Test.equal(false) ])
+
+
+test mapFilterPartition =
+  Stdlib.Test.all(
+    [ Stdlib.Set.map(Set { 1, 2, 3, 4 }, fun x -> x % 2)
+      |> Stdlib.Test.equal(Set { 0, 1 })
+
+      Stdlib.Set.map(Set { 1, 2 }, fun x -> Stdlib.display(x))
+      |> Stdlib.Test.equal(Set { "1", "2" })
+
+      Stdlib.Set.filter(Set { 1, 2, 3, 4 }, fun x -> x > 2)
+      |> Stdlib.Test.equal(Set { 3, 4 })
+
+      Stdlib.Set.partition(Set { 1, 2, 3, 4 }, fun x -> x % 2 == 0)
+      |> Stdlib.Test.equal((Set { 2, 4 }, Set { 1, 3 })) ])
+
+
+test foldAndIterGoInOrder =
+  Stdlib.Test.all(
+    [ Stdlib.Set.fold(Set { 3, 1, 2 }, 0, fun(acc, x) -> acc + x)
+      |> Stdlib.Test.equal(6)
+
+      Stdlib.Set.fold(Set { "c", "a", "b" }, "", fun(acc, x) -> acc + x)
+      |> Stdlib.Test.equal("abc") ])
+
+
+test displayAndPrinting =
+  Stdlib.Test.all(
+    [ Stdlib.Set.display(Set { 2, 1 }) |> Stdlib.Test.equal("Set { 1, 2 }")
+
+      Stdlib.Set.display(Stdlib.Set.remove(Set { 1 }, 1))
+      |> Stdlib.Test.equal("Set { }")
+
+      Stdlib.display(Set { "b", "a" }) |> Stdlib.Test.equal("Set { a, b }")
+
+      Stdlib.inspect(Set { "b", "a" })
+      |> Stdlib.Test.equal("Set { \"a\", \"b\" }")
+
+      Stdlib.inspect(Set {}) |> Stdlib.Test.equal("Set { }") ])
+
+
+test zero = Zero.zero<Set<Int64>>() |> Stdlib.Test.equal(Set {})
+
+
+test compoundElements =
+  Stdlib.Test.all(
+    [ Stdlib.Set.toList(Set { (2, "b"), (1, "z"), (1, "a") })
+      |> Stdlib.Test.equal([ (1, "a"), (1, "z"), (2, "b") ])
+
+      Stdlib.Set.contains(
+        Set { SetPoint { spx = 1, spy = 2 } },
+        SetPoint { spx = 1, spy = 2 })
+      |> Stdlib.Test.equal(true)
+
+      Stdlib.Set.size(Set { Set { 1, 2 }, Set { 2, 1 } })
+      |> Stdlib.Test.equal(1)
+
+      Stdlib.Dict.get(Dict { Set { 1 }: "one" }, Set { 1 })
+      |> Stdlib.Test.equal(Stdlib.Option.Option.Some("one")) ])
+
+
+test json =
+  Stdlib.Test.all(
+    [ Stdlib.Json.serialize<Set<Int64>>(Set { 3, 1, 2 })
+      |> Stdlib.Test.equal("[1,2,3]")
+
+      Stdlib.Json.serialize<Set<String>>(Set {}) |> Stdlib.Test.equal("[]")
+
+      Stdlib.Json.parse<Set<Int64>>("[3,1,2]")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Set { 1, 2, 3 }))
+
+      // a repeated element is kept once, as `fromList` keeps it
+      Stdlib.Json.parse<Set<Int64>>("[1,1]")
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(Set { 1 }))
+
+      Stdlib.Result.isError(Stdlib.Json.parse<Set<Int64>>("{}"))
+      |> Stdlib.Test.equal(true) ])
+
+
+test dictBridges =
+  Stdlib.Test.all(
+    [ Stdlib.Dict.keySet(Dict { "b": 1, "a": 2 })
+      |> Stdlib.Test.equal(Set { "a", "b" })
+
+      Stdlib.Dict.intersectKeys(Dict { "a": 1, "b": 2 }, Set { "b" })
+      |> Stdlib.Test.equal(Dict { "b": 2 })
+
+      Stdlib.Dict.differenceKeys(Dict { "a": 1, "b": 2 }, Set { "b" })
+      |> Stdlib.Test.equal(Dict { "a": 1 }) ])
+
+
+let sumOfSet(s: Set<Int64>): Int64 =
+  Stdlib.Set.fold(s, 0, fun(acc, x) -> acc + x)
+
+
+test typedParameters =
+  Stdlib.Test.all(
+    [ sumOfSet(Set { 1, 2, 3 }) |> Stdlib.Test.equal(6)
+      sumOfSet(Stdlib.Set.empty) |> Stdlib.Test.equal(0) ])

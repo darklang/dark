@@ -373,6 +373,14 @@ and private writeValue
       | _ -> unknownType
     w.writeArray (fun () -> List.iter (r itemType) items)
 
+  // An array, in the set's order.
+  | DSet(_, elements) ->
+    let elementType =
+      match typ with
+      | TSet t -> t
+      | _ -> unknownType
+    w.writeArray (fun () -> elements |> DictMap.iter (fun e _ -> r elementType e))
+
   | DDict(_, _, fields) ->
     let valueType =
       match typ with
@@ -916,6 +924,14 @@ let parse
       |> (fun items ->
         build (fun () -> TypeChecker.DvalCreator.list threadID VT.unknownTODO items))
 
+    // An array; a repeated element is kept once, as `Set.fromList` keeps it.
+    | TSet nested, JsonValueKind.Array ->
+      j.EnumerateArray()
+      |> Seq.mapi (fun i v -> convert nested (JsonPath.Part.Index i :: pathSoFar) v)
+      |> Seq.toList
+      |> (fun items ->
+        build (fun () -> TypeChecker.DvalCreator.set threadID VT.unknownTODO items))
+
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let values = j.EnumerateArray() |> Seq.toList
       let types = t1 :: t2 :: rest
@@ -1015,6 +1031,7 @@ let parse
     | TTuple _, _
     | TList _, _
     | TDict _, _
+    | TSet _, _
     | TCustomType _, _ -> raiseCantMatchWithType typ j pathSoFar
 
   /// A custom type, with an `Option` read in the tagged form.

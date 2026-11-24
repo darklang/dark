@@ -52,6 +52,7 @@ let rec subExprs (expr : Expr) : List<Expr> =
   // key from the permission analysis, which then reported the fn complete and
   // effect-free.
   | EDict(_, pairs) -> pairs |> List.collect (fun (key, value) -> [ key; value ])
+  | ESet(_, items) -> items
   | ETuple(_, first, second, rest) -> first :: second :: rest
   | EEnum(_, _, _, _, fields) -> fields
   | ERecord(_, _, _, fields) -> List.map snd fields
@@ -112,6 +113,8 @@ let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
 
   | EDict(_, pairs) ->
     pairs |> List.map (fun (k, v) -> Set.union (r k) (r v)) |> Set.unionMany
+
+  | ESet(_, items) -> items |> List.map r |> Set.unionMany
 
 
   // variables
@@ -225,6 +228,8 @@ let rec unqualifiedResolvedNamesInExpr (expr : Expr) : Set<string> =
 
   | EDict(_, pairs) ->
     pairs |> List.map (fun (k, v) -> Set.union (r k) (r v)) |> Set.unionMany
+
+  | ESet(_, items) -> items |> List.map r |> Set.unionMany
 
 
   // variables

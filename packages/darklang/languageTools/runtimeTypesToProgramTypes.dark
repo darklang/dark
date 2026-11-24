@@ -103,6 +103,13 @@ let dvalToExpr(branchId: Uuid, dval: RuntimeTypes.Dval): Result<ProgramTypes.Exp
           |> Stdlib.Result.collect with
     | Ok(exprs) -> Result.Ok(ProgramTypes.Expr.EList(gid(), exprs))
     | Error(e) -> Result.Error(e)
+  | DSet(_elementType, elements) ->
+    match elements
+          |> Stdlib.Set.toList
+          |> Stdlib.List.map(fun d -> dvalToExpr(branchId, d))
+          |> Stdlib.Result.collect with
+    | Ok(exprs) -> Result.Ok(ProgramTypes.Expr.ESet(gid(), exprs))
+    | Error(e) -> Result.Error(e)
   | DTuple(first, second, rest) ->
     match dvalToExpr(branchId, first) with
     | Error(e) -> Result.Error(e)
