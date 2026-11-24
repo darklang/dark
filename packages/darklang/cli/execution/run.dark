@@ -241,6 +241,10 @@ let executePackageFn(
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.warning($"Warning: {fnName} is deprecated."))
     | None -> ()
 
+    match Permissions.Command.carryApprovalForward(state.accountID, branchId, fnName) with
+    | Some(note) -> Stdlib.printErrorLine(note)
+    | None -> ()
+
     match LanguageTools.PackageManager.Function.getSignature(hash) with
     | Some(fn) ->
       match fn.parameters |> Stdlib.List.map(fun p -> p.typ) with

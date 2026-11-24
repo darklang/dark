@@ -524,6 +524,55 @@ let approvedVersionOf(accountID: Option<Uuid>, name: String): Option<String> =
     hash)
 
 
+/// Whether two versions need the same permissions: the same effects, in any order.
+let sameRequirements(
+  a: (List<LanguageTools.Permissions.Effect> * Bool),
+  b: (List<LanguageTools.Permissions.Effect> * Bool))
+  : Bool =
+  let (aEffects, aComplete) = a
+  let (bEffects, bComplete) = b
+  aComplete == bComplete
+  && Stdlib.List.all(aEffects, fun e -> Stdlib.List.contains(bEffects, e))
+  && Stdlib.List.all(bEffects, fun e -> Stdlib.List.contains(aEffects, e))
+
+
+/// After an edit, keep the function's approval if the new version needs the same permissions.
+/// It still allows only what you approved before. Returns the message to show if kept.
+let carryApprovalForward(accountID: Option<Uuid>, branchId: Uuid, name: String): Option<String> =
+  let (expected, named) = approvalSnapshot(accountID)
+  let previous = named |> Stdlib.List.findFirst(fun approval -> approval.name == Option.Some(name))
+  match previous, latestVersion(branchId, name) with
+  | Some(approval), Some(latest) when approval.hash != latest ->
+    let rules = approval.explicitRules
+    let unchanged(reason: LanguageTools.Permissions.ApprovalReviewReason): Bool =
+      match reason with
+      // Incomplete analysis is no difference when both versions are incomplete in the same way.
+      | PermissionAnalysisIncomplete ->
+        sameRequirements(
+          permissionRequirementsForHash(approval.hash),
+          permissionRequirementsForHash(latest))
+      | _ -> false
+
+    match reviewVersionFor(accountID, name, expected, latest, rules, Incomplete.Acknowledge) with
+    | Ok((_, reasons)) when Stdlib.List.all(reasons, unchanged) ->
+      let saved =
+        approveVersionFor(
+          accountID,
+          name,
+          expected,
+          latest,
+          rules,
+          Incomplete.Acknowledge,
+          ContractChange.Acknowledge)
+
+      match saved with
+      | Ok(_) ->
+        Option.Some($"Kept the approval for {name}: the edited version needs the same permissions.")
+      | Error(_) -> Option.None
+    | _ -> Option.None
+  | _ -> Option.None
+
+
 /// `requirements`/`show` accept a logical name (resolved to its latest version)
 /// or a raw hash for diagnostics.
 let resolveVersionArg(state: AppState, arg: String): Option<String> =
