@@ -491,17 +491,14 @@ let guestStatesCannotManagePolicies =
 
 let guestFileApiCannotReachPolicyStore =
   testTask "guest filesystem access cannot reach host policy state" {
-    let exeState = executionStateFor TestValues.pm false
-    let vm = dummyVM ()
     match LibDB.LocalFile.path "policies.bin" with
     | Error message -> Expect.equal 1 2 message
     | Ok policyPath ->
       let assertDenied (path : string) (explanation : string) : unit =
-        try
-          LibExecution.PermissionCheck.requireFileWrite exeState vm path
-          Expect.equal 1 2 "expected the protected-path denial"
-        with RT.RuntimeErrorException(RTE.Error.UncaughtException(message, _)) ->
+        match LibExecution.Host.fileGuard true path with
+        | Some message ->
           Expect.stringContains message "protected host policy state" explanation
+        | None -> Expect.equal 1 2 "expected the protected-path denial"
       assertDenied
         policyPath
         "instance allow-all cannot authorize writing its own policy"

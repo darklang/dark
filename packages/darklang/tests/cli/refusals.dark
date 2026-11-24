@@ -116,10 +116,6 @@ val refusals: List<(List<String> * String)> =
       "Could not resolve Zzz.Nope.nope\n  deprecated items are hidden; `dark ls --include-deprecated` shows them.")
 
     (
-      [ "export-seed", "/zzznope/dir/seed.db" ],
-      "Error: Export failed: IO_PathNotFound_Path, /zzznope/dir/seed.db")
-
-    (
       [ "conflicts", "show", "zzznope", "--json" ],
       "no conflict matching \"zzznope\" -- `dark conflicts` to list them.")
 

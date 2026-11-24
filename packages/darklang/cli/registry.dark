@@ -313,10 +313,6 @@ module Registry =
         [ "-y", "--yes", "--ignore-dependents", "--force", "--dry-run", "--json" ]))
 
 
-  let acceptsExportSeed(): Accepts.Accepts =
-    Accepts.between(1, 1, [])
-
-
   let acceptsTraces(): Accepts.Accepts =
     Accepts.everywhere(
       [ "-y", "--yes", "--json", "--inspect", "--full" ],
@@ -908,15 +904,6 @@ module Registry =
         Packages.Delete.complete)
 
       (
-        "export-seed",
-        "Export minimal seed.db from current database",
-        [],
-        acceptsExportSeed,
-        ExportSeed.execute,
-        ExportSeed.help,
-        ExportSeed.complete)
-
-      (
         "traces",
         "The runs this instance has kept: what ran, what it did, and resuming one",
         [ "trace", "exec", "runs" ],
@@ -1172,15 +1159,7 @@ module Registry =
       ("Security", [ "effects", "permissions" ])
       (
         "Utilities",
-        [ "clear"
-          "help"
-          "docs"
-          "quit"
-          "builtins"
-          "export-seed"
-          "workbench"
-          "backups"
-          "config" ]) ]
+        [ "clear", "help", "docs", "quit", "builtins", "workbench", "backups", "config" ]) ]
 
 
   let formatCommandGroup(

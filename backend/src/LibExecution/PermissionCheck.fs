@@ -117,28 +117,6 @@ let raiseDenial
 let private raiseRejected (message : string) : 'a =
   RuntimeError.UncaughtException(message, []) |> raiseRTE
 
-/// Check one exact request against the access the running builtin was
-/// applied under (`vm.activeAccess`: the frame's, narrowed by the callee's
-/// capture). `resource` is only rendered on denial, so allowed calls pay
-/// nothing for the description.
-let private checkRequest
-  (state : ExecutionState)
-  (vm : VMState)
-  (resource : unit -> string)
-  (request : Permission.Request)
-  : unit =
-  match
-    Permission.Access.decide request (state.permissionAccess vm.activeAccess)
-  with
-  | None -> ()
-  | Some denial ->
-    raiseDenial
-      state
-      (resource ())
-      denial.reason
-      denial.layer
-      (Permission.Request.suggestRule request)
-
 let private checkRequestWithAccess
   (state : ExecutionState)
   (_vm : VMState)
@@ -155,18 +133,6 @@ let private checkRequestWithAccess
       denial.reason
       denial.layer
       (Permission.Request.suggestRule request)
-
-/// `checkRequest` for a request built from guest input. Invalid requests are
-/// always errors; audit mode cannot turn malformed input into a wildcard.
-let private check
-  (state : ExecutionState)
-  (vm : VMState)
-  (resource : unit -> string)
-  (request : Result<Permission.Request, string>)
-  : unit =
-  match request with
-  | Error message -> raiseRejected $"permission request rejected: {message}"
-  | Ok request -> checkRequest state vm resource request
 
 /// Perform one host operation through the single checked boundary
 /// (`Host.perform`), under the running builtin's access. Malformed requests
@@ -257,20 +223,3 @@ let requireBuiltinEffects
   (builtinName : string)
   : unit =
   requireBuiltinEffectsWithAccess state vm vm.activeAccess effects builtinName
-
-// ── filesystem ────────────────────────────────────────────────────────────────
-// For the seed-export store builtin, which takes a path but does not go through
-// a host `Operation`. Same guards as the boundary's file arms.
-
-let private guardFile (write : bool) (path : string) : unit =
-  match Host.fileGuard write path with
-  | Some message -> raiseRejected message
-  | None -> ()
-
-let requireFileWrite (state : ExecutionState) (vm : VMState) (path : string) : unit =
-  guardFile true path
-  check
-    state
-    vm
-    (fun () -> $"writing `{path}`")
-    (Permission.Request.file Permission.AccessKind.Write path)

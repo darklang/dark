@@ -181,7 +181,7 @@ else
       cp "$SEED_PATH" "$DB_PATH"
     else
       echo "ERROR: No seed.db found at $SEED_PATH"
-      echo "Run: ./scripts/run-cli export-seed /home/dark/app/rundir/seed.db"
+      echo "Run: ./scripts/run-local-exec export-seed /home/dark/app/rundir/seed.db"
       echo "Or:  ./scripts/fetch-seed"
       exit 1
     fi
