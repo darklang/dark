@@ -708,6 +708,7 @@ let writeType
   (t : PT.PackageType.PackageType)
   =
   w.Write(0uy) // tag: type
+  Common.Option.write w Common.Guid.write t.id
   writeTypeDeclaration mode w t.declaration
 
 /// Write a PackageFn's hash-relevant content: everything a caller can observe, and nothing else.

@@ -20,6 +20,7 @@ let private makeType
   (def : PT.TypeDeclaration.Definition)
   : PT.PackageType.PackageType =
   { hash = PT.Hash ""
+    id = None
     declaration = { typeParams = []; bounds = []; definition = def }
     description = "" }
 

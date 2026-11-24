@@ -54,17 +54,76 @@ let private parseAll
     |> Task.map List.flatten)
 
 
-/// Every package source a reload reads, as (path, contents).
-let files () : List<string * string> =
+let private packagesDir () : string =
   System.IO.Path.Combine(
     LibConfig.ConfigDsl.absoluteDir "DARK_CONFIG_ROOT_DIR",
     "packages"
   )
+
+/// Every package source a reload reads, as (path, contents).
+let files () : List<string * string> =
+  packagesDir ()
   |> listDirectoryRecursive
   |> List.filter (String.contains "_" >> not)
   |> List.filter (fun x -> x |> String.endsWith ".dark")
   |> List.map (fun fileName -> (fileName, System.IO.File.ReadAllText fileName))
 
+
+// The repo's own types are rebuilt from source on every machine, so a new id each time would make
+// them different types everywhere. Their ids are checked in instead, one `<id> <name>` per line.
+let private typeIdsPath () : string =
+  System.IO.Path.Combine(packagesDir (), "type-ids.txt")
+
+let private readTypeIds () : List<string * System.Guid> =
+  let path = typeIdsPath ()
+  if System.IO.File.Exists path then
+    System.IO.File.ReadAllLines path
+    |> List.ofArray
+    |> List.choose (fun line ->
+      match line.Split(' ', System.StringSplitOptions.RemoveEmptyEntries) with
+      | [| id; name |] -> Some(name, System.Guid.Parse id)
+      | _ -> None)
+  else
+    []
+
+let private parseFirstPass
+  (builtins : RT.Builtins)
+  (filesWithContents : List<string * string>)
+  : List<PT.PackageOp> =
+  filesWithContents
+  |> parseAll (fun path contents ->
+    try
+      debuG "  parsing" path
+      parsePackageFile
+        builtins
+        PT.PackageManager.empty
+        NR.OnMissing.Allow
+        path
+        contents
+    with _ex ->
+      debuG "  FAILED to parse" path
+      reraise ())
+
+/// Rewrite `packages/type-ids.txt`: a new id for each type it lacks, and no line for a type that
+/// is gone.
+let writeTypeIds (builtins : RT.Builtins) : Result<unit, string> =
+  let ops = parseFirstPass builtins (files ())
+  let names =
+    HS.typesWithoutIds ops |> List.map PackageLocation.toFQN |> List.distinct
+  let existing = readTypeIds ()
+  let known = existing |> List.map fst |> Set.ofList
+  let kept = existing |> List.filter (fun (name, _) -> List.contains name names)
+  let added =
+    names
+    |> List.filter (fun name -> not (Set.contains name known))
+    |> List.map (fun name -> (name, System.Guid.NewGuid()))
+  System.IO.File.WriteAllLines(
+    typeIdsPath (),
+    kept @ added |> List.map (fun (name, id) -> $"{id} {name}")
+  )
+  let removed = List.length existing - List.length kept
+  print $"{List.length added} type id(s) added, {removed} removed"
+  Ok()
 
 /// Parse <param filesWithContents> (`files`) and fail on parse or name-resolution errors.
 let load
@@ -77,22 +136,28 @@ let load
   debuG "phase 1" $"parsing {fileCount} files (unresolved names allowed)"
   let parseTimer = System.Diagnostics.Stopwatch()
   parseTimer.Start()
-  let (firstPassOps : List<PT.PackageOp>) =
-    filesWithContents
-    |> parseAll (fun path contents ->
-      try
-        debuG "  parsing" path
-        parsePackageFile
-          builtins
-          PT.PackageManager.empty
-          NR.OnMissing.Allow
-          path
-          contents
-      with _ex ->
-        debuG "  FAILED to parse" path
-        reraise ())
+  let (firstPassOps : List<PT.PackageOp>) = parseFirstPass builtins filesWithContents
   parseTimer.Stop()
   debuG "phase 1" $"done, {List.length firstPassOps} ops"
+
+  let knownIds = readTypeIds () |> Map.ofList
+  let typeLocations = HS.typesWithoutIds firstPassOps
+  match
+    typeLocations
+    |> List.map PackageLocation.toFQN
+    |> List.filter (fun name -> not (Map.containsKey name knownIds))
+  with
+  | [] -> ()
+  | missing ->
+    let listed = missing |> List.truncate 10 |> String.concat ", "
+    Exception.raiseInternal
+      $"{List.length missing} type(s) have no id in packages/type-ids.txt ({listed}); add them with `scripts/run-local-exec type-ids --write`"
+      [ "count", List.length missing ]
+  let typeIds =
+    typeLocations
+    |> List.map (fun loc -> (loc, knownIds[PackageLocation.toFQN loc]))
+    |> Map.ofList
+  let firstPassOps = HS.withTypeIds typeIds firstPassOps
 
   // -- Phase 2: Iterative re-parse until hashes converge --
   // Each pass resolves names using the previous pass's PM, then
@@ -117,7 +182,7 @@ let load
         filesWithContents
         |> parseAll (parsePackageFile builtins pm NR.OnMissing.ThrowError)
       parseTimer.Stop()
-      let remapped = HS.remapSetNames newRawOps currentOps
+      let remapped = HS.remapSetNames (HS.withTypeIds typeIds newRawOps) currentOps
       let newOps = HS.computeRealHashes remapped
       let newHashes = HS.extractAllHashes newOps
       let converged = newHashes = prevHashes

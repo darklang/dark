@@ -108,12 +108,31 @@ test scriptDeclarationsKeepTheirIdentity = Instance.withInstance(fun i ->
           "let isEven(n: Int64): Bool = if n == 0 then true else isOdd(n - 1)\nlet isOdd(n: Int64): Bool = if n == 0 then false else isEven(n - 1)\nisEven(10)" ],
         "true")
 
-      // A script type with the same shape as a package type IS that type.
+      // A script type with the same shape as a package type is still a different type.
       prints(
         i,
         [ "eval"
-          "type MyErr = | BadFormat\nlet f(e: Darklang.Stdlib.BigInt.ParseError): Int64 = 1\nf(MyErr.BadFormat)" ],
-        "1") ]))
+          "type MyErr = | BadFormat\nlet f(e: Darklang.Stdlib.BigInt.ParseError): Int64 = 41\nf(MyErr.BadFormat)" ],
+        "ERROR: Error: f's 1st parameter `e` expects Darklang.Stdlib.BigInt.ParseError, but got MyErr (MyErr.BadFormat)")
+
+      // So are two script types of the same shape.
+      prints(
+        i,
+        [ "eval"
+          "type Width = { pixels: Int64 }\ntype Height = { pixels: Int64 }\nHeight { pixels = 3 }" ],
+        "Height { pixels: 3 }")
+
+      // A script type shaped like a stored one keeps its own name and its own impls.
+      prints(
+        i,
+        [ "eval"
+          "type Point = { x: Int64, y: Int64 }\nimpl Display for Point =\n  let display(p: Point): String = \"mine\"\n$\"{Point { x = 1, y = 2 }} {Stdlib.inspect(Point { x = 1, y = 2 })}\"" ],
+        "mine Point { x: 1, y: 2 }")
+
+      prints(
+        i,
+        [ "eval", "type Person = { name: String }\nPerson { name = \"Ada\" }" ],
+        "Person { name: \"Ada\" }") ]))
 
 
 /// Script arguments, runner options and exit codes.

@@ -31,24 +31,50 @@ let private sourceTreePath =
   |> System.IO.Path.GetFullPath
 
 
-/// The `fqn -> hash` pairs already on disk, or empty if the file is missing or unreadable.
-let private readExistingFile () : Map<string, string> =
+/// The pin file's first line. A pin file without this exact line was written under another hash scheme.
+let private schemeLine = $"# hash scheme {LibSerialization.Hashing.Hashing.scheme}"
+
+
+let private readExistingLines () : string[] =
   try
     if System.IO.File.Exists(sourceTreePath) then
       System.IO.File.ReadAllLines(sourceTreePath)
-      |> Array.choose (fun line ->
-        let line = line.Trim()
-        if line = "" then
-          None
-        else
-          match line.Split('|') with
-          | [| fqn; hash |] -> Some(fqn, hash)
-          | _ -> None)
-      |> Map.ofArray
     else
-      Map.empty
+      [||]
   with _ ->
-    Map.empty
+    [||]
+
+let private parsePins (lines : string[]) : Map<string, string> =
+  lines
+  |> Array.choose (fun line ->
+    match line.Trim().Split('|') with
+    | [| fqn; hash |] -> Some(fqn, hash)
+    | _ -> None)
+  |> Map.ofArray
+
+/// The `fqn -> hash` pairs already on disk, or empty if the file is missing or unreadable.
+let private readExistingFile () : Map<string, string> =
+  readExistingLines () |> parsePins
+
+
+/// The hardened pins in <param merged> that moved from <param existingLines>, as (key, old, new).
+/// None move when the existing pins were written under another hash scheme: every hash moved then.
+let movedHardenedPins
+  (existingLines : string[])
+  (merged : List<string * string>)
+  : List<string * string * string> =
+  if not (Array.contains schemeLine existingLines) then
+    []
+  else
+    let existing = parsePins existingLines
+    merged
+    |> List.choose (fun (key, hash) ->
+      if PackageRefs.hardened |> Set.contains key then
+        match Map.tryFind key existing with
+        | Some old when old <> hash -> Some(key, old, hash)
+        | _ -> None
+      else
+        None)
 
 
 /// Keep aliases without locations only if their content is still in the store.
@@ -121,7 +147,8 @@ let generate (writeSourceFile : bool) : unit =
   let dbMap = dbRows |> Map.ofList
 
   // Keep stored aliases, but drop pins to content removed by the reload.
-  let existingMap = readExistingFile ()
+  let existingLines = readExistingLines ()
+  let existingMap = parsePins existingLines
   let storedAliases =
     existingMap
     |> Map.filterWithIndex (fun key _ -> not (Map.containsKey key dbMap))
@@ -147,16 +174,9 @@ let generate (writeSourceFile : bool) : unit =
   //
   // The escape hatch is deliberate and deliberately awkward. Sometimes the move IS
   // correct (the type genuinely changed), and then re-running with the variable
-  // set is the way to say so on purpose.
-  let hardenedMoves =
-    merged
-    |> List.choose (fun (key, hash) ->
-      if PackageRefs.hardened |> Set.contains key then
-        match Map.tryFind key existingMap with
-        | Some old when old <> hash -> Some(key, old, hash)
-        | _ -> None
-      else
-        None)
+  // set is the way to say so on purpose. A change to hashing itself bumps `Hashing.scheme` instead,
+  // so every checkout re-pins on its own.
+  let hardenedMoves = movedHardenedPins existingLines merged
 
   let repinAllowed =
     match System.Environment.GetEnvironmentVariable "DARK_REPIN_HARDENED" with
@@ -176,7 +196,7 @@ let generate (writeSourceFile : bool) : unit =
        + detail)
       []
 
-  let lines = merged |> List.map (fun (key, hash) -> $"{key}|{hash}")
+  let lines = schemeLine :: (merged |> List.map (fun (key, hash) -> $"{key}|{hash}"))
 
   // Always set the in-memory cache so PackageRefs lookups work
   let hashMap = merged |> Map.ofList
@@ -197,21 +217,14 @@ let generate (writeSourceFile : bool) : unit =
   let dir = System.IO.Path.GetDirectoryName(sourceTreePath)
   if writeSourceFile && System.IO.Directory.Exists(dir) then
     let newLines = lines |> Array.ofList
-    let existingLines =
-      try
-        if System.IO.File.Exists(sourceTreePath) then
-          System.IO.File.ReadAllLines(sourceTreePath)
-        else
-          [||]
-      with _ ->
-        [||]
     if existingLines = newLines then
-      print $"  {newLines.Length} package ref hashes unchanged in {sourceTreePath}"
+      print
+        $"  {List.length merged} package ref hashes unchanged in {sourceTreePath}"
     else
       let tmp = $"{sourceTreePath}.{System.Environment.ProcessId}.tmp"
       System.IO.File.WriteAllLines(tmp, newLines)
       System.IO.File.Move(tmp, sourceTreePath, true)
-      print $"  Wrote {newLines.Length} package ref hashes to {sourceTreePath}"
+      print $"  Wrote {List.length merged} package ref hashes to {sourceTreePath}"
 
   // Report any items referenced but not found anywhere
   let foundKeys = merged |> List.map fst |> Set.ofList

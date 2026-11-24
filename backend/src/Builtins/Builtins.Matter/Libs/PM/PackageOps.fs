@@ -68,6 +68,25 @@ let private failureText (failures : List<LibDB.Seed.ValueEvaluationError>) : str
   |> String.concat "\n"
 
 
+/// An edit keeps the id of the type it replaces; a type with nothing at its name gets a new one.
+let private withTypeIds
+  (random : LibExecution.HostRandom.Random)
+  (branchId : PT.BranchId)
+  (ops : List<PT.PackageOp>)
+  : List<PT.PackageOp> =
+  let pm = LibDB.PackageManager.ptForBranch branchId
+  let ids =
+    LibDB.HashStabilization.typesWithoutIds ops
+    |> List.map (fun location ->
+      let id =
+        pm.findType location
+        |> Option.bind pm.getType
+        |> Option.bind (fun t -> t.id)
+        |> Option.defaultWith (fun () -> LibExecution.HostRandom.uuidV4 random)
+      (location, id))
+  LibDB.HashStabilization.withTypeIds (Map.ofList ids) ops
+
+
 /// Author <param ops> onto <param branchId>, uncommitted: THE authoring path, behind `scmAddOps` and
 /// behind every SCM action that authors an op of its own (settling a conflict). Ok is how many ops were
 /// newly stored (an op the branch already holds counts 0); Error is why nothing, or not everything,
@@ -100,6 +119,7 @@ let private authorOpsWith
 
     // Stabilize before inserting. Raw ops carry provisional hashes, so their SetName targets would
     // too, and the only thing that repairs those is `WipRefresh.refresh` rewriting the draft.
+    let ops = withTypeIds exeState.random branchId ops
     let stabilizedOps = LibDB.HashStabilization.computeRealHashes ops
     // The store keeps one body per content hash. Two callers with that hash can still use
     // different aliases, such as `double` and `twice`. Save each caller's reference names before
@@ -187,16 +207,21 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         [ Param.make "ops" (TList(TCustomType(NR.ok (packageOpTypeName ()), []))) "" ]
       returnType = TList(TCustomType(NR.ok (packageOpTypeName ()), []))
       description =
-        "Compute real content-addressed hashes for package ops (SCC-aware)."
+        "Compute real content-addressed hashes for package ops (SCC-aware). A type with no id "
+        + "takes the id of the type already at its name, or a new one."
       fn =
         (function
-        | _, _, _, [| DList(_vt, Items(ops)) |] ->
-          let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
+        | exeState, _, _, [| DList(_vt, Items(ops)) |] ->
+          let ptOps =
+            ops
+            |> List.choose PT2DT.PackageOp.fromDT
+            |> withTypeIds exeState.random exeState.branchId
           let stabilized = LibDB.HashStabilization.computeRealHashes ptOps
           Dval.list (packageOpKT ()) (stabilized |> List.map PT2DT.PackageOp.toDT)
         | _ -> incorrectArgs ())
-      previewable = Pure
-      callEffects = Set.empty
+      // Reads the store: a type saved over another keeps that one's id.
+      previewable = Impure
+      callEffects = set [ Effect.PackageRead ]
       deprecated = NotDeprecated }
 
 

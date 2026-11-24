@@ -90,7 +90,7 @@ def mark(should, f):
   elif f.startswith("backend/tests/"):
     should.backend_test = True
 
-  elif f.startswith("packages/") and f.endswith(".dark"):
+  elif f == "packages/type-ids.txt" or (f.startswith("packages/") and f.endswith(".dark")):
     if packages_from_seed():
       should.unrouted.append(f)  # packages come from the seed DB, not from disk
     else:

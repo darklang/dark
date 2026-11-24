@@ -804,7 +804,7 @@ let private hashReadsAreKeptOnceAndOutliveTheStore =
 
         Expect.stringContains
           inspected
-          "pmGet(Darklang.LanguageTools.ProgramTypes.ItemKind.Fn, Hash("
+          "pmGet(Darklang.LanguageTools.ProgramTypes.ItemKind.Fn, Darklang.LanguageTools.ProgramTypes.Hash.Hash("
           "the read is in the log, with what it was asked for"
         Expect.stringContains
           viewed

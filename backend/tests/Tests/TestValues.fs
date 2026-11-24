@@ -17,6 +17,7 @@ module PM =
   module Types =
     let make hash definition : PT.PackageType.PackageType =
       { hash = PT.Hash hash
+        id = None
         declaration = { typeParams = []; bounds = []; definition = definition }
         description = "" }
 

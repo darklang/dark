@@ -1244,6 +1244,7 @@ module TypeDeclaration =
     (
       ProgramTypes.PackageType.PackageType
         { hash = ProgramTypes.Hash.Hash("")
+          id = Option.None
           description = d.description
           declaration = declaration },
       unresolvedNames)

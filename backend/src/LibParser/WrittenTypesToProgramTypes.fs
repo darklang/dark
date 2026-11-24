@@ -1047,7 +1047,10 @@ module PackageType =
     (pt : WT.PackageType.PackageType)
     : PT.PackageType.PackageType =
     let declaration = TypeDeclaration.toPT pm onMissing currentModule pt.declaration
-    { hash = Hash ""; description = pt.description; declaration = declaration }
+    { hash = Hash ""
+      id = None
+      description = pt.description
+      declaration = declaration }
 
 module Trait =
   module Name =

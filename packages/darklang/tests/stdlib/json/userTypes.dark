@@ -303,9 +303,7 @@ module UserDefinedRecords =
   module Errors =
     test parseErrors =
       Stdlib.Test.all(
-        [ // Person shares its content hash with UserDefinedAliases.Person2 (identical structure),
-          // but pickLocation now prefers the shorter path.
-          Stdlib.Json.parse<Person>("[]")
+        [ Stdlib.Json.parse<Person>("[]")
           |> err
           |> Stdlib.Test.equal(
             Result.Error(
@@ -339,11 +337,6 @@ module UserDefinedAliases =
         Stdlib.Json.serialize<MyPrettyLikely>(
           UserDefinedEnums.PrettyLikely.Enh("printer broke", 7))
         |> Stdlib.Test.equal("{\"Enh\":[\"printer broke\",7]}")
-
-        // With content-addressed hashing, Person1 and Person2 are structurally
-        // identical and share the same Hash, so they're the same type.
-        Stdlib.Json.serialize<Person2>(Person1 { Name = "Bob", Age = 42 })
-        |> Stdlib.Test.equal("""{"Name":"Bob","Age":42}""")
 
         Stdlib.Json.serialize<StringResult<Int64>>(Result.Ok(1))
         |> Stdlib.Test.equal("{\"Ok\":[1]}")

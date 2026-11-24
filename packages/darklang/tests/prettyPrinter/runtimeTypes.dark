@@ -323,12 +323,12 @@ test enumTypeNames =
       |> Stdlib.Test.equal(
         "Error(Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)")
 
-      // Unless the type has several names and nothing says which.
-      // `Stdlib.BigInt.ParseError`, `Stdlib.Float64.ParseError` and
-      // `Stdlib.Uuid.ParseError` are all `| BadFormat`, so content-addressing
-      // makes them one type with three names; naming one is guessing. The case
-      // alone is honest.
-      pp(Stdlib.Int64.parse("abc")) |> Stdlib.Test.equal("Error(BadFormat)") ])
+      // Types of the same shape are still different types, each with its own name.
+      pp(Stdlib.Int64.parse("abc"))
+      |> Stdlib.Test.equal("Error(Stdlib.Int64.ParseError.BadFormat)")
+
+      pp(Stdlib.Uuid.parse("abc"))
+      |> Stdlib.Test.equal("Error(Stdlib.Uuid.ParseError.BadFormat)") ])
 
 
 // `dvalOneLine` renders only as much as it can show

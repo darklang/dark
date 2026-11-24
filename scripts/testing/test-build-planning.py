@@ -445,6 +445,7 @@ class TestReloadStamp(unittest.TestCase):
     self.addCleanup(env.__exit__)
     t.write("backend/Build/out/LocalExec/Debug/net11.0/LocalExec.dll", "builtins v1")
     t.write("packages/darklang/stdlib/list.dark", "let length (l: List<'a>): Int64 = 0")
+    t.write("packages/type-ids.txt", "00000000-0000-0000-0000-000000000001 Darklang.Stdlib.List.T")
     t.write("backend/migrations/schema/00-initial-schema.sql", "CREATE TABLE package_ops (id)")
     t.write("scripts/build/reload-packages", "#!/usr/bin/env bash")
     t.write("scripts/run-local-exec", "#!/usr/bin/env bash")

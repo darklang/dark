@@ -732,6 +732,11 @@ let main (args : string[]) : int =
         $"writing the CLI's raise sites to {path}"
         (HandleCommand.raiseSites (Some path))
 
+    | [ "type-ids"; "--write" ] ->
+      handleCommand
+        "writing the ids of the packages' types to packages/type-ids.txt"
+        (LoadPackagesFromDisk.writeTypeIds (Builtins.all ()))
+
     | [ "bool-flag-sites" ] ->
       handleCommand
         "listing bare true/false calls to Bool parameters"
@@ -769,6 +774,7 @@ let main (args : string[]) : int =
       print "  reachability"
       print "  raise-sites [--write <baseline>]"
       print "  bool-flag-sites [--write <baseline>]"
+      print "  type-ids --write"
       print "  bench"
       print "  bench-render"
       NonBlockingConsole.wait ()

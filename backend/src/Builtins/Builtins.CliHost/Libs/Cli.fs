@@ -197,8 +197,13 @@ let private declarationsToModule
   // they mention would hash the same and the graft would keep one of them.
   let stampFn (f : PT.PackageFn.PackageFn) loc =
     { f with hash = PackageLocation.placeholderHash loc }
-  let stampType (t : PT.PackageType.PackageType) loc =
-    { t with hash = PackageLocation.placeholderHash loc }
+  // A script's types are made anew on every run, so each gets a new id.
+  let typeIds =
+    typeLocations |> List.map (fun _ -> LibExecution.HostRandom.uuidV4 state.random)
+  let stampType (t : PT.PackageType.PackageType) (loc, id) =
+    HashStabilization.withTypeId
+      id
+      { t with hash = PackageLocation.placeholderHash loc }
   let stampValue (v : PT.PackageValue.PackageValue) loc =
     { v with hash = PackageLocation.placeholderHash loc }
   let stampTrait (t : PT.Trait.Trait) loc =
@@ -214,7 +219,9 @@ let private declarationsToModule
   // Approvals authorize an exact version; they never select which code runs.
   let pm0 = LibDB.PackageManager.ptForBranch state.branchId
   let fns1 = lowerFns None pm0 |> (fun fns -> List.map2 stampFn fns fnLocations)
-  let types1 = lowerTypes pm0 |> (fun ts -> List.map2 stampType ts typeLocations)
+  let types1 =
+    lowerTypes pm0
+    |> (fun ts -> List.map2 stampType ts (List.zip typeLocations typeIds))
   let values1 = lowerValues pm0 |> (fun vs -> List.map2 stampValue vs valueLocations)
   let traits1 = lowerTraits pm0 |> (fun ts -> List.map2 stampTrait ts traitLocations)
   let impls1 = lowerImpls pm0 |> (fun is -> List.map2 stampImpl is implLocations)
@@ -233,14 +240,16 @@ let private declarationsToModule
   let fns2 =
     lowerFns (Some sourceRanges) pm1
     |> (fun fns -> List.map2 stampFn fns fnLocations)
-  let types2 = lowerTypes pm1 |> (fun ts -> List.map2 stampType ts typeLocations)
+  let types2 =
+    lowerTypes pm1
+    |> (fun ts -> List.map2 stampType ts (List.zip typeLocations typeIds))
   let values2 = lowerValues pm1 |> (fun vs -> List.map2 stampValue vs valueLocations)
   let traits2 = lowerTraits pm1 |> (fun ts -> List.map2 stampTrait ts traitLocations)
   let impls2 = lowerImpls pm1 |> (fun is -> List.map2 stampImpl is implLocations)
 
   // References are resolved now, so hash for real. That keeps script
-  // declarations content-addressed: one structurally identical to a package
-  // declaration lands on the same hash, and a rename changes nothing.
+  // declarations content-addressed: a fn identical to a package fn lands on
+  // the same hash, and a rename changes nothing.
   //
   // Pass-2 bodies still reference siblings by placeholder, so the hashes have
   // to be computed in dependency order with each sibling's real hash

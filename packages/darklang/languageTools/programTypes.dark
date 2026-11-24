@@ -535,6 +535,8 @@ module TypeDeclaration =
 module PackageType =
   type PackageType =
     { hash: FQTypeName.Package
+      /// Made up when the type is first saved under a name, and kept through edits and renames.
+      id: Option<Uuid>
       declaration: TypeDeclaration.TypeDeclaration
       description: String }
 

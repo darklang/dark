@@ -423,6 +423,7 @@ let t
 let person : (PT.PackageType.PackageType * PT.PackageLocation) =
   let packageType : PT.PackageType.PackageType =
     { hash = PT.Hash ""
+      id = None
       description = ""
       declaration =
         { typeParams = []
@@ -444,6 +445,7 @@ let person : (PT.PackageType.PackageType * PT.PackageLocation) =
 let myEnum : (PT.PackageType.PackageType * PT.PackageLocation) =
   let packageType : PT.PackageType.PackageType =
     { hash = PT.Hash ""
+      id = None
       description = ""
       declaration =
         { typeParams = []
