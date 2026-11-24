@@ -7,7 +7,10 @@
 module Darklang.Cli.Mcp
 
 let intro(cwd: String): String =
-  [ "Dark's CLI as tools. Each tool runs one `dark` command, in " + cwd + ", against this instance's store, and returns its stdout, stderr and exit code apart. Nothing goes through a shell: source, patches and arguments need no quoting or heredocs."
+  [ "Dark's CLI as tools. Each tool runs one `dark` command, in "
+    + cwd
+    + ", against this instance's store, and returns its stdout, stderr and exit code apart. Nothing goes through a shell: source, patches and arguments need no quoting or heredocs."
+
     ""
     "The shell forms in the reference below map to tools:"
     "  module /Me.X - <<'EOF' ... EOF    save {module: \"Me.X\", source}   (also runs Me.X's tests)"
@@ -33,20 +36,26 @@ let instructions(runner: Tools.Runner): String =
   intro(Stdlib.Cli.FileSystem.currentDirectory()) + "\n" + reference
 
 
-let initialize(params: List<(String * Stdlib.AltJson.Json)>, runner: Tools.Runner): Stdlib.AltJson.Json =
+let initialize(
+  params: List<(String * Stdlib.AltJson.Json)>,
+  runner: Tools.Runner)
+  : Stdlib.AltJson.Json =
   let requested = Stdlib.AltJson.Helpers.getString("protocolVersion", params)
-
   Stdlib.AltJson.Json.Object(
     [ ("protocolVersion", Stdlib.AltJson.Json.String(Protocol.version(requested)))
       (
         "capabilities",
         Stdlib.AltJson.Json.Object(
-          [ ("tools", Stdlib.AltJson.Json.Object([ ("listChanged", Stdlib.AltJson.Json.Bool(false)) ])) ]))
+          [ (
+              "tools",
+              Stdlib.AltJson.Json.Object([ ("listChanged", Stdlib.AltJson.Json.Bool(false)) ])) ]))
+
       (
         "serverInfo",
         Stdlib.AltJson.Json.Object(
           [ ("name", Stdlib.AltJson.Json.String("dark"))
             ("version", Stdlib.AltJson.Json.String(Installation.Helpers.cliVersion())) ]))
+
       ("instructions", Stdlib.AltJson.Json.String(instructions(runner))) ])
 
 
@@ -65,20 +74,20 @@ let respond(
   | "tools/call" ->
     let name = Stdlib.AltJson.Helpers.getString("name", params) |> Stdlib.Option.withDefault("")
     let arguments = Stdlib.AltJson.Helpers.getObject("arguments", params)
-
     match Tools.find(name) with
     | None -> Protocol.error(id, Protocol.invalidParams, $"Unknown tool: {name}")
-    | Some(tool) -> Protocol.result(id, Tools.replyJson(Tools.checked(tool.call(arguments, runner))))
+    | Some(tool) ->
+      Protocol.result(id, Tools.replyJson(Tools.checked(tool.call(arguments, runner))))
   | _ -> Protocol.error(id, Protocol.methodNotFound, $"Method not found: {method}")
 
 
 /// The reply to one line, if it wants one.
 let handle(line: String, runner: Tools.Runner): Option<String> =
   match Protocol.parse(line) with
-  | Request(id, method, params) -> Some(respond(id, method, params, runner))
-  | Invalid(id, code, message) -> Some(Protocol.error(id, code, message))
-  | Notification(_) -> None
-  | Response -> None
+  | Request(id, method, params) -> Option.Some(respond(id, method, params, runner))
+  | Invalid(id, code, message) -> Option.Some(Protocol.error(id, code, message))
+  | Notification(_) -> Option.None
+  | Response -> Option.None
 
 
 /// A child's output as text, without colour: `CLICOLOR_FORCE` would otherwise reach the model.
@@ -92,24 +101,18 @@ let unstyled(bytes: Bytes): String =
 /// Runs each call in a child of this same binary.
 let childRunner(): Tools.Runner =
   let self = Stdlib.Cli.Sys.currentExecutablePath()
-
   Tools.Runner
     { run =
-        fun call ->
-          match
-            Stdlib.Cli.Process.runWithInput(
-              self,
-              call.args,
-              Stdlib.Utf8.encode(call.stdin),
-              Some(call.timeoutMs))
-          with
-          | Ok(output) ->
-            Tools.Outcome.Exited(
-              output.exitCode,
-              unstyled(output.stdout),
-              unstyled(output.stderr))
-          | Error(ProcessTimedOut) -> Tools.Outcome.TimedOut(call.timeoutMs)
-          | Error(e) -> Tools.Outcome.NotStarted(e) }
+        (fun call ->
+           match Stdlib.Cli.Process.runWithInput(
+                   self,
+                   call.args,
+                   Stdlib.Utf8.encode(call.stdin),
+                   Option.Some(call.timeoutMs)) with
+           | Ok(output) ->
+             Tools.Outcome.Exited(output.exitCode, unstyled(output.stdout), unstyled(output.stderr))
+           | Error(ProcessTimedOut) -> Tools.Outcome.TimedOut(call.timeoutMs)
+           | Error(e) -> Tools.Outcome.NotStarted(e)) }
 
 
 let serve(runner: Tools.Runner): Unit =

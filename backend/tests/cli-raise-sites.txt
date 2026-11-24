@@ -28,6 +28,9 @@
 1 Darklang.Cli.Installation.Uninstall.runUninstall Darklang.Stdlib.Cli.Unix.getHomeDirectory
 1 Darklang.Cli.Installation.Uninstall.runUninstall Darklang.Stdlib.Cli.Unix.removeDirectory
 1 Darklang.Cli.LiveView.Host.step Darklang.Stdlib.Host.await
+1 Darklang.Cli.Mcp.childRunner Darklang.Stdlib.Cli.Process.runWithInput
+1 Darklang.Cli.Mcp.instructions Darklang.Stdlib.Cli.FileSystem.currentDirectory
+1 Darklang.Cli.Mcp.serve Darklang.Stdlib.Cli.Stdin.readLineOrEnd
 1 Darklang.Cli.Packages.Edit.execute Darklang.Stdlib.Cli.Dir.createTemp
 1 Darklang.Cli.Packages.Edit.execute Darklang.Stdlib.Cli.File.readText
 1 Darklang.Cli.Packages.Edit.execute Darklang.Stdlib.Cli.File.writeText

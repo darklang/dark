@@ -4,8 +4,11 @@
 module Darklang.Cli.Mcp.Protocol
 
 val parseError = -32700
+
 val invalidRequest = -32600
+
 val methodNotFound = -32601
+
 val invalidParams = -32602
 
 
@@ -27,7 +30,6 @@ let parse(line: String): Message =
   | Ok(Object(fields)) ->
     let id = Stdlib.AltJson.Helpers.getValue("id", fields)
     let idOrNull = Stdlib.Option.withDefault(id, Stdlib.AltJson.Json.Null)
-
     match Stdlib.AltJson.Helpers.getValue("method", fields) with
     | Some(String(method)) ->
       let params =
@@ -38,7 +40,8 @@ let parse(line: String): Message =
       match id with
       | None -> Message.Notification(method)
       | Some(i) -> Message.Request(i, method, params)
-    | Some(_) -> Message.Invalid(idOrNull, invalidRequest, "Invalid request: method must be a string")
+    | Some(_) ->
+      Message.Invalid(idOrNull, invalidRequest, "Invalid request: method must be a string")
     | None ->
       let answers =
         Stdlib.Option.isSome(Stdlib.AltJson.Helpers.getValue("result", fields))
@@ -49,8 +52,12 @@ let parse(line: String): Message =
       else
         Message.Invalid(idOrNull, invalidRequest, "Invalid request: no method")
   | Ok(Array(_)) ->
-    Message.Invalid(Stdlib.AltJson.Json.Null, invalidRequest, "Invalid request: batches are not supported")
-  | Ok(_) -> Message.Invalid(Stdlib.AltJson.Json.Null, invalidRequest, "Invalid request: not an object")
+    Message.Invalid(
+      Stdlib.AltJson.Json.Null,
+      invalidRequest,
+      "Invalid request: batches are not supported")
+  | Ok(_) ->
+    Message.Invalid(Stdlib.AltJson.Json.Null, invalidRequest, "Invalid request: not an object")
 
 
 let result(id: Stdlib.AltJson.Json, value: Stdlib.AltJson.Json): String =

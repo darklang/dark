@@ -19,7 +19,8 @@ type Outcome =
 
 
 /// How calls reach a `dark`: the server's own binary, or a stand-in under test.
-type Runner = { run: Call -> Outcome }
+type Runner =
+  { run: Call -> Outcome }
 
 
 /// What a tool call gives back: what the model reads, whether it failed, and the data behind it
@@ -54,6 +55,7 @@ type Tool =
 
 
 val defaultTimeoutMs = 120000
+
 val maxTimeoutMs = 600000
 
 
@@ -61,62 +63,66 @@ val maxTimeoutMs = 600000
 
 let text(args: List<(String * Stdlib.AltJson.Json)>, key: String): Result<Option<String>, String> =
   match Stdlib.AltJson.Helpers.getValue(key, args) with
-  | None -> Ok(None)
-  | Some(Null) -> Ok(None)
-  | Some(String(s)) -> Ok(Some(s))
-  | Some(_) -> Error($"`{key}` must be a string")
+  | None -> Result.Ok(Option.None)
+  | Some(Null) -> Result.Ok(Option.None)
+  | Some(String(s)) -> Result.Ok(Option.Some(s))
+  | Some(_) -> Result.Error($"`{key}` must be a string")
 
 
 let requiredText(args: List<(String * Stdlib.AltJson.Json)>, key: String): Result<String, String> =
   match text(args, key) with
-  | Ok(Some(s)) when Stdlib.String.trim(s) != "" -> Ok(s)
-  | Ok(_) -> Error($"`{key}` is required")
-  | Error(e) -> Error(e)
+  | Ok(Some(s)) when Stdlib.String.trim(s) != "" -> Result.Ok(s)
+  | Ok(_) -> Result.Error($"`{key}` is required")
+  | Error(e) -> Result.Error(e)
 
 
 /// A list of strings; a single string counts as a list of one.
 let texts(args: List<(String * Stdlib.AltJson.Json)>, key: String): Result<List<String>, String> =
   match Stdlib.AltJson.Helpers.getValue(key, args) with
-  | None -> Ok([])
-  | Some(Null) -> Ok([])
-  | Some(String(s)) -> Ok([ s ])
+  | None -> Result.Ok([])
+  | Some(Null) -> Result.Ok([])
+  | Some(String(s)) -> Result.Ok([ s ])
   | Some(Array(items)) ->
     let strings =
       items
       |> Stdlib.List.filterMap(fun item ->
         match item with
-        | String(s) -> Some(s)
-        | _ -> None)
+        | String(s) -> Option.Some(s)
+        | _ -> Option.None)
 
     if Stdlib.List.length(strings) == Stdlib.List.length(items) then
-      Ok(strings)
+      Result.Ok(strings)
     else
-      Error($"`{key}` must be a list of strings")
-  | Some(_) -> Error($"`{key}` must be a list of strings")
+      Result.Error($"`{key}` must be a list of strings")
+  | Some(_) -> Result.Error($"`{key}` must be a list of strings")
 
 
-let flag(args: List<(String * Stdlib.AltJson.Json)>, key: String, default_: Bool): Result<Bool, String> =
+let flag(
+  args: List<(String * Stdlib.AltJson.Json)>,
+  key: String,
+  default_: Bool)
+  : Result<Bool, String> =
   match Stdlib.AltJson.Helpers.getValue(key, args) with
-  | None -> Ok(default_)
-  | Some(Null) -> Ok(default_)
-  | Some(Bool(b)) -> Ok(b)
-  | Some(_) -> Error($"`{key}` must be true or false")
+  | None -> Result.Ok(default_)
+  | Some(Null) -> Result.Ok(default_)
+  | Some(Bool(b)) -> Result.Ok(b)
+  | Some(_) -> Result.Error($"`{key}` must be true or false")
 
 
 let number(args: List<(String * Stdlib.AltJson.Json)>, key: String): Result<Option<Int64>, String> =
   match Stdlib.AltJson.Helpers.getValue(key, args) with
-  | None -> Ok(None)
-  | Some(Null) -> Ok(None)
-  | Some(Integer(n)) -> Ok(Some(n))
-  | Some(_) -> Error($"`{key}` must be an integer")
+  | None -> Result.Ok(Option.None)
+  | Some(Null) -> Result.Ok(Option.None)
+  | Some(Integer(n)) -> Result.Ok(Option.Some(n))
+  | Some(_) -> Result.Error($"`{key}` must be an integer")
 
 
 let timeout(args: List<(String * Stdlib.AltJson.Json)>): Result<Int64, String> =
   match number(args, "timeoutMs") with
-  | Ok(None) -> Ok(defaultTimeoutMs)
-  | Ok(Some(ms)) when ms > 0 && ms <= maxTimeoutMs -> Ok(ms)
-  | Ok(Some(_)) -> Error($"`timeoutMs` must be between 1 and {maxTimeoutMs}")
-  | Error(e) -> Error(e)
+  | Ok(None) -> Result.Ok(defaultTimeoutMs)
+  | Ok(Some(ms)) when ms > 0 && ms <= maxTimeoutMs -> Result.Ok(ms)
+  | Ok(Some(_)) -> Result.Error($"`timeoutMs` must be between 1 and {maxTimeoutMs}")
+  | Error(e) -> Result.Error(e)
 
 
 /// `--allow` for a run: the rules joined the way `run --allow "a; b"` takes them.
@@ -133,10 +139,7 @@ let call(args: List<String>): Call =
 // ── replies ──
 
 let refused(message: String): Reply =
-  Reply
-    { text = message
-      isError = true
-      data = None }
+  Reply { text = message, isError = true, data = Option.None }
 
 
 /// The rule a permission denial suggests, as `allow` takes it.
@@ -158,8 +161,8 @@ let trimEnd(s: String): String =
 let plainText(code: Int64, stdout: String, stderr: String): String =
   let parts =
     [ trimEnd(stdout)
-      (if Stdlib.String.trim(stderr) == "" then "" else "[stderr]\n" + trimEnd(stderr))
-      (if code == 0 then "" else $"[exit {code}]") ]
+      if Stdlib.String.trim(stderr) == "" then "" else "[stderr]\n" + trimEnd(stderr)
+      if code == 0 then "" else $"[exit {code}]" ]
     |> Stdlib.List.filter(fun part -> part != "")
 
   match parts with
@@ -187,10 +190,7 @@ let plain(outcome: Outcome): Reply =
         $"\n[to allow this for one call, retry with allow: [\"{rule}\"]]"
       | _ -> ""
 
-    Reply
-      { text = plainText(code, stdout, stderr) + hint
-        isError = code != 0
-        data = None }
+    Reply { text = plainText(code, stdout, stderr) + hint, isError = code != 0, data = Option.None }
   | _ -> notRun(outcome)
 
 
@@ -221,13 +221,14 @@ type TestReport =
 let testText(report: TestReport): String =
   let count = Stdlib.List.length(report.tests)
   let summary = $"{count} tests: {report.passed} passed, {report.failed} failed"
-
   let failures =
     report.tests
     |> Stdlib.List.filter(fun row -> row.status != "passed")
     |> Stdlib.List.map(fun row ->
       let messages =
-        row.messages |> Stdlib.List.map(fun m -> "  " + m) |> Stdlib.String.join("\n")
+        row.messages
+        |> Stdlib.List.map(fun m -> "  " + m)
+        |> Stdlib.String.join("\n")
 
       let head = $"{Stdlib.String.toUppercase(row.status)} {row.name}"
       if messages == "" then head else head + "\n" + messages)
@@ -243,8 +244,8 @@ let testReply(outcome: Outcome): Reply =
       jsonLine(stdout)
       |> Stdlib.Option.andThen(fun line ->
         match Stdlib.Json.parse<TestReport>(line) with
-        | Ok(report) -> Some((line, report))
-        | Error(_) -> None)
+        | Ok(report) -> Option.Some((line, report))
+        | Error(_) -> Option.None)
 
     match parsed with
     | Some((_, report)) ->
@@ -255,18 +256,22 @@ let testReply(outcome: Outcome): Reply =
           Stdlib.AltJson.Json.Object(
             [ ("name", Stdlib.AltJson.Json.String(row.name))
               ("status", Stdlib.AltJson.Json.String(row.status))
-              ("messages", Stdlib.AltJson.Json.Array(row.messages |> Stdlib.List.map(fun m -> Stdlib.AltJson.Json.String(m)))) ]))
+              (
+                "messages",
+                Stdlib.AltJson.Json.Array(
+                  row.messages |> Stdlib.List.map(fun m -> Stdlib.AltJson.Json.String(m)))) ]))
 
       Reply
         { text = testText(report)
           isError = report.failed > 0 || code != 0
           data =
-            Some(Stdlib.AltJson.Json.Object(
-              [ ("exitCode", Stdlib.AltJson.Json.Integer(code))
-                ("tests", Stdlib.AltJson.Json.Integer(Stdlib.List.length(report.tests)))
-                ("passed", Stdlib.AltJson.Json.Integer(report.passed))
-                ("failed", Stdlib.AltJson.Json.Integer(report.failed))
-                ("failures", Stdlib.AltJson.Json.Array(failures)) ])) }
+            Option.Some(
+              Stdlib.AltJson.Json.Object(
+                [ ("exitCode", Stdlib.AltJson.Json.Integer(code))
+                  ("tests", Stdlib.AltJson.Json.Integer(Stdlib.List.length(report.tests)))
+                  ("passed", Stdlib.AltJson.Json.Integer(report.passed))
+                  ("failed", Stdlib.AltJson.Json.Integer(report.failed))
+                  ("failures", Stdlib.AltJson.Json.Array(failures)) ])) }
     | None -> plain(outcome)
   | _ -> notRun(outcome)
 
@@ -292,8 +297,8 @@ let typecheckReply(outcome: Outcome): Reply =
       jsonLine(stdout)
       |> Stdlib.Option.andThen(fun line ->
         match Stdlib.Json.parse<TypecheckReport>(line) with
-        | Ok(report) -> Some((line, report))
-        | Error(_) -> None)
+        | Ok(report) -> Option.Some((line, report))
+        | Error(_) -> Option.None)
 
     match parsed with
     | Some((_, report)) ->
@@ -304,13 +309,20 @@ let typecheckReply(outcome: Outcome): Reply =
           Stdlib.AltJson.Json.Object(
             [ ("name", Stdlib.AltJson.Json.String(item.name))
               ("verdict", Stdlib.AltJson.Json.String(item.verdict))
-              ("issues", Stdlib.AltJson.Json.Array(item.issues |> Stdlib.List.map(fun i -> Stdlib.AltJson.Json.String(i)))) ]))
+              (
+                "issues",
+                Stdlib.AltJson.Json.Array(
+                  item.issues |> Stdlib.List.map(fun i -> Stdlib.AltJson.Json.String(i)))) ]))
 
       let items =
         report.items
         |> Stdlib.List.filter(fun item -> item.verdict != "passed")
         |> Stdlib.List.map(fun item ->
-          Stdlib.String.join(Stdlib.List.prepend(item.issues |> Stdlib.List.map(fun i -> "  " + i), $"{item.name}: {item.verdict}"), "\n"))
+          Stdlib.String.join(
+            Stdlib.List.prepend(
+              item.issues |> Stdlib.List.map(fun i -> "  " + i),
+              $"{item.name}: {item.verdict}"),
+            "\n"))
 
       let summary =
         $"{report.verdict}: {report.checked} checked, {report.failed} failed, {report.incomplete} incomplete"
@@ -319,13 +331,14 @@ let typecheckReply(outcome: Outcome): Reply =
         { text = Stdlib.String.join(Stdlib.List.append(items, summary), "\n")
           isError = report.failed > 0 || code != 0
           data =
-            Some(Stdlib.AltJson.Json.Object(
-              [ ("exitCode", Stdlib.AltJson.Json.Integer(code))
-                ("verdict", Stdlib.AltJson.Json.String(report.verdict))
-                ("checked", Stdlib.AltJson.Json.Integer(report.checked))
-                ("failed", Stdlib.AltJson.Json.Integer(report.failed))
-                ("incomplete", Stdlib.AltJson.Json.Integer(report.incomplete))
-                ("problems", Stdlib.AltJson.Json.Array(problems)) ])) }
+            Option.Some(
+              Stdlib.AltJson.Json.Object(
+                [ ("exitCode", Stdlib.AltJson.Json.Integer(code))
+                  ("verdict", Stdlib.AltJson.Json.String(report.verdict))
+                  ("checked", Stdlib.AltJson.Json.Integer(report.checked))
+                  ("failed", Stdlib.AltJson.Json.Integer(report.failed))
+                  ("incomplete", Stdlib.AltJson.Json.Integer(report.incomplete))
+                  ("problems", Stdlib.AltJson.Json.Array(problems)) ])) }
     | None -> plain(outcome)
   | _ -> notRun(outcome)
 
@@ -343,192 +356,203 @@ let modulePath(name: String): String =
   if Stdlib.String.startsWith(name, "/") then name else "/" + name
 
 
-
-
 let p(name: String, kind: ParamKind, required: Bool, description: String): Param =
-  Param
-    { name = name
-      kind = kind
-      required = required
-      description = description }
+  Param { name = name, kind = kind, required = required, description = description }
 
 
 let docsCall(args: List<(String * Stdlib.AltJson.Json)>, runner: Runner): Result<Reply, String> =
-  let topics = texts(args, "topics")?
-  let modules = texts(args, "signatures")?
-
+  let topics = (texts(args, "topics"))?
+  let modules = (texts(args, "signatures"))?
   let words =
     if modules == [] then
       Stdlib.List.concat([ "docs", "for-ai" ], topics)
     else
       Stdlib.List.concat([ "docs", "signatures" ], modules)
 
-  Ok(plain(runner.run(call(words))))
+  Result.Ok(plain(runner.run(call(words))))
 
 
 let searchCall(args: List<(String * Stdlib.AltJson.Json)>, runner: Runner): Result<Reply, String> =
-  let queries = texts(args, "queries")?
-  let kind = text(args, "kind")?
-  let withDocs = flag(args, "withDocs", false)?
-  let limit = number(args, "limit")?
-
+  let queries = (texts(args, "queries"))?
+  let kind = (text(args, "kind"))?
+  let withDocs = (flag(args, "withDocs", false))?
+  let limit = (number(args, "limit"))?
   if queries == [] then
-    Error("`queries` needs at least one search")
+    Result.Error("`queries` needs at least one search")
   else
     let kindWords =
       match kind with
-      | None -> Ok([])
-      | Some("fn") -> Ok([ "--fn" ])
-      | Some("type") -> Ok([ "--type" ])
-      | Some("val") -> Ok([ "--val" ])
-      | Some("value") -> Ok([ "--val" ])
-      | Some("trait") -> Ok([ "--trait" ])
-      | Some("impl") -> Ok([ "--impl" ])
-      | Some("test") -> Ok([ "--test" ])
-      | Some(other) -> Error($"`kind` is fn, type, val, trait, impl or test, not `{other}`")
+      | None -> Result.Ok([])
+      | Some("fn") -> Result.Ok([ "--fn" ])
+      | Some("type") -> Result.Ok([ "--type" ])
+      | Some("val") -> Result.Ok([ "--val" ])
+      | Some("value") -> Result.Ok([ "--val" ])
+      | Some("trait") -> Result.Ok([ "--trait" ])
+      | Some("impl") -> Result.Ok([ "--impl" ])
+      | Some("test") -> Result.Ok([ "--test" ])
+      | Some(other) -> Result.Error($"`kind` is fn, type, val, trait, impl or test, not `{other}`")
 
     let kindWords = kindWords?
     let docsWords = if withDocs then [ "--with-docs" ] else []
-
     let limitWords =
       match limit with
       | Some(n) -> [ "--limit", Stdlib.display(n) ]
       | None -> []
 
     let batch = if Stdlib.List.length(queries) > 1 then [ "--batch" ] else []
-
     let words =
       Stdlib.List.flatten([ [ "search" ], batch, queries, kindWords, docsWords, limitWords ])
 
-    Ok(plain(runner.run(call(words))))
+    Result.Ok(plain(runner.run(call(words))))
 
 
 let viewCall(args: List<(String * Stdlib.AltJson.Json)>, runner: Runner): Result<Reply, String> =
-  let names = texts(args, "names")?
-  let raw = flag(args, "raw", true)?
-
+  let names = (texts(args, "names"))?
+  let raw = (flag(args, "raw", true))?
   if names == [] then
-    Error("`names` needs at least one name")
+    Result.Error("`names` needs at least one name")
   else
-    let words =
-      Stdlib.List.flatten([ [ "view" ], names, (if raw then [ "--raw" ] else []) ])
-
-    Ok(plain(runner.run(call(words))))
+    let words = Stdlib.List.flatten([ [ "view" ], names, if raw then [ "--raw" ] else [] ])
+    Result.Ok(plain(runner.run(call(words))))
 
 
 let saveCall(args: List<(String * Stdlib.AltJson.Json)>, runner: Runner): Result<Reply, String> =
-  let name = requiredText(args, "module")?
-  let source = requiredText(args, "source")?
-  let test = flag(args, "test", true)?
+  let name = (requiredText(args, "module"))?
+  let source = (requiredText(args, "source"))?
+  let test = (flag(args, "test", true))?
   let path = modulePath(name)
-
   let saved =
-    runner.run(Call { args = [ "module", path, "-" ], stdin = source, timeoutMs = defaultTimeoutMs })
+    runner.run(
+      Call { args = [ "module", path, "-" ], stdin = source, timeoutMs = defaultTimeoutMs })
 
   let reply = plain(saved)
-
   match saved with
   | Exited(code, stdout, _) when test && code <= 1 && Stdlib.String.contains(stdout, "Defined") ->
     let target = Stdlib.String.dropFirst(path, 1)
     let tested = testReply(runner.run(call([ "test", "run", target, "--json" ])))
-
     let fields =
       match tested.data with
       | Some(Object(fields)) -> fields
       | _ -> []
 
-    let count = Stdlib.AltJson.Helpers.getInt64Option("tests", fields) |> Stdlib.Option.withDefault(0)
+    let count =
+      Stdlib.AltJson.Helpers.getInt64Option("tests", fields) |> Stdlib.Option.withDefault(0)
 
     match tested.data with
     | Some(_) when count > 0 ->
-      Ok(
+      Result.Ok(
         Reply
           { text = reply.text + "\n\n[tests]\n" + tested.text
             isError = reply.isError || tested.isError
             data =
-              Some(
+              Option.Some(
                 Stdlib.AltJson.Json.Object(
                   [ ("save", Stdlib.AltJson.Json.String(reply.text))
                     ("tests", Stdlib.AltJson.Json.Object(fields)) ])) })
-    | _ -> Ok(reply)
-  | _ -> Ok(reply)
+    | _ -> Result.Ok(reply)
+  | _ -> Result.Ok(reply)
 
 
 let editCall(args: List<(String * Stdlib.AltJson.Json)>, runner: Runner): Result<Reply, String> =
-  let name = requiredText(args, "name")?
-  let patch = text(args, "patch")?
-  let source = text(args, "source")?
-
-  match (patch, source) with
-  | (Some(patch), None) ->
-    Ok(plain(runner.run(Call { args = [ "edit", name, "--patch", "-" ], stdin = patch, timeoutMs = defaultTimeoutMs })))
-  | (None, Some(source)) ->
-    Ok(plain(runner.run(Call { args = [ "edit", name, "-" ], stdin = source, timeoutMs = defaultTimeoutMs })))
-  | _ -> Error("give `patch` or `source`, not both")
+  let name = (requiredText(args, "name"))?
+  let patch = (text(args, "patch"))?
+  let source = (text(args, "source"))?
+  match patch, source with
+  | Some(patch), None ->
+    Result.Ok(
+      plain(
+        runner.run(
+          Call
+            { args = [ "edit", name, "--patch", "-" ]
+              stdin = patch
+              timeoutMs = defaultTimeoutMs })))
+  | None, Some(source) ->
+    Result.Ok(
+      plain(
+        runner.run(
+          Call { args = [ "edit", name, "-" ], stdin = source, timeoutMs = defaultTimeoutMs })))
+  | _ -> Result.Error("give `patch` or `source`, not both")
 
 
 let runCall(args: List<(String * Stdlib.AltJson.Json)>, runner: Runner): Result<Reply, String> =
-  let fn = requiredText(args, "fn")?
-  let programArgs = texts(args, "args")?
-  let stdin = text(args, "stdin")?
-  let allow = texts(args, "allow")?
-  let ms = timeout(args)?
-
-  let words =
-    Stdlib.List.flatten([ [ "run" ], allowWords(allow), [ "--", fn ], programArgs ])
-
-  Ok(plain(runner.run(Call { args = words, stdin = Stdlib.Option.withDefault(stdin, ""), timeoutMs = ms })))
+  let fn = (requiredText(args, "fn"))?
+  let programArgs = (texts(args, "args"))?
+  let stdin = (text(args, "stdin"))?
+  let allow = (texts(args, "allow"))?
+  let ms = (timeout(args))?
+  let words = Stdlib.List.flatten([ [ "run" ], allowWords(allow), [ "--", fn ], programArgs ])
+  Result.Ok(
+    plain(
+      runner.run(
+        Call { args = words, stdin = Stdlib.Option.withDefault(stdin, ""), timeoutMs = ms })))
 
 
 let evalCall(args: List<(String * Stdlib.AltJson.Json)>, runner: Runner): Result<Reply, String> =
-  let expr = requiredText(args, "expr")?
-  let allow = texts(args, "allow")?
-  let ms = timeout(args)?
+  let expr = (requiredText(args, "expr"))?
+  let allow = (texts(args, "allow"))?
+  let ms = (timeout(args))?
   let words = Stdlib.List.flatten([ [ "eval" ], allowWords(allow), [ "--", expr ] ])
-  Ok(plain(runner.run(Call { args = words, stdin = "", timeoutMs = ms })))
+  Result.Ok(plain(runner.run(Call { args = words, stdin = "", timeoutMs = ms })))
 
 
 let testCall(args: List<(String * Stdlib.AltJson.Json)>, runner: Runner): Result<Reply, String> =
-  let target = requiredText(args, "target")?
-  let force = flag(args, "force", false)?
-  let words = Stdlib.List.flatten([ [ "test", "run", target, "--json" ], (if force then [ "--force" ] else []) ])
-  Ok(testReply(runner.run(call(words))))
+  let target = (requiredText(args, "target"))?
+  let force = (flag(args, "force", false))?
+  let words =
+    Stdlib.List.flatten(
+      [ [ "test", "run", target, "--json" ], if force then [ "--force" ] else [] ])
+
+  Result.Ok(testReply(runner.run(call(words))))
 
 
-let typecheckCall(args: List<(String * Stdlib.AltJson.Json)>, runner: Runner): Result<Reply, String> =
-  let target = requiredText(args, "target")?
-  Ok(typecheckReply(runner.run(call([ "typecheck", target, "--json" ]))))
+let typecheckCall(
+  args: List<(String * Stdlib.AltJson.Json)>,
+  runner: Runner)
+  : Result<Reply, String> =
+  let target = (requiredText(args, "target"))?
+  Result.Ok(typecheckReply(runner.run(call([ "typecheck", target, "--json" ]))))
 
 
 let statusCall(_args: List<(String * Stdlib.AltJson.Json)>, runner: Runner): Result<Reply, String> =
-  Ok(plain(runner.run(call([ "status" ]))))
+  Result.Ok(plain(runner.run(call([ "status" ]))))
 
 
 let commitCall(args: List<(String * Stdlib.AltJson.Json)>, runner: Runner): Result<Reply, String> =
-  let message = requiredText(args, "message")?
-  Ok(plain(runner.run(call([ "commit", message, "-y" ]))))
+  let message = (requiredText(args, "message"))?
+  Result.Ok(plain(runner.run(call([ "commit", message, "-y" ]))))
 
 
 /// `permissions` subcommands that change what code may do. The server never grants; a person or
 /// the runner's own review does, through the CLI.
 val policyEdits =
-  [ "allow", "deny", "set", "profile", "approve", "update", "clear", "remove", "unapprove", "revoke-package" ]
+  [ "allow"
+    "deny"
+    "set"
+    "profile"
+    "approve"
+    "update"
+    "clear"
+    "remove"
+    "unapprove"
+    "revoke-package" ]
 
 
 let darkCall(args: List<(String * Stdlib.AltJson.Json)>, runner: Runner): Result<Reply, String> =
-  let words = texts(args, "args")?
-  let stdin = text(args, "stdin")?
-  let ms = timeout(args)?
-
+  let words = (texts(args, "args"))?
+  let stdin = (text(args, "stdin"))?
+  let ms = (timeout(args))?
   match words with
-  | [] -> Error("`args` needs a command, e.g. [\"traces\", \"list\"]")
-  | [ "mcp", ..._ ] -> Error("`mcp` is this server")
-  | [ command, sub, ..._ ] when
-    (command == "permissions" || command == "perms") && Stdlib.List.contains(policyEdits, sub) ->
-    Error(
+  | [] -> Result.Error("`args` needs a command, e.g. [\"traces\", \"list\"]")
+  | ["mcp", ...] -> Result.Error("`mcp` is this server")
+  | [command, sub, ...]
+    when (command == "permissions" || command == "perms") && Stdlib.List.contains(policyEdits, sub) ->
+    Result.Error(
       $"This server does not change permissions. Run `dark {command} {sub} ...` from a shell, where it is reviewed, or pass `allow` to `run` or `eval` for one call.")
   | _ ->
-    Ok(plain(runner.run(Call { args = words, stdin = Stdlib.Option.withDefault(stdin, ""), timeoutMs = ms })))
+    Result.Ok(
+      plain(
+        runner.run(
+          Call { args = words, stdin = Stdlib.Option.withDefault(stdin, ""), timeoutMs = ms })))
 
 
 let all(): List<Tool> =
@@ -541,6 +565,7 @@ let all(): List<Tool> =
             p("signatures", ParamKind.Texts, false, "modules whose fns to list") ]
         readOnly = true
         call = docsCall }
+
     Tool
       { name = "search"
         description =
@@ -552,6 +577,7 @@ let all(): List<Tool> =
             p("limit", ParamKind.Number, false, "results per section") ]
         readOnly = true
         call = searchCall }
+
     Tool
       { name = "view"
         description =
@@ -561,6 +587,7 @@ let all(): List<Tool> =
             p("raw", ParamKind.Flag, false, "source only (default true)") ]
         readOnly = true
         call = viewCall }
+
     Tool
       { name = "save"
         description =
@@ -571,6 +598,7 @@ let all(): List<Tool> =
             p("test", ParamKind.Flag, false, "run the module's tests after saving (default true)") ]
         readOnly = false
         call = saveCall }
+
     Tool
       { name = "edit"
         description =
@@ -581,6 +609,7 @@ let all(): List<Tool> =
             p("source", ParamKind.Text, false, "the whole new declaration") ]
         readOnly = false
         call = editCall }
+
     Tool
       { name = "run"
         description =
@@ -593,6 +622,7 @@ let all(): List<Tool> =
             p("timeoutMs", ParamKind.Number, false, "stop after this long") ]
         readOnly = false
         call = runCall }
+
     Tool
       { name = "eval"
         description =
@@ -603,6 +633,7 @@ let all(): List<Tool> =
             p("timeoutMs", ParamKind.Number, false, "stop after this long") ]
         readOnly = false
         call = evalCall }
+
     Tool
       { name = "test"
         description =
@@ -612,24 +643,28 @@ let all(): List<Tool> =
             p("force", ParamKind.Flag, false, "ignore cached passes") ]
         readOnly = true
         call = testCall }
+
     Tool
       { name = "typecheck"
         description = "Type check saved declarations under `target` without changing them."
         params = [ p("target", ParamKind.Text, true, "e.g. Me") ]
         readOnly = true
         call = typecheckCall }
+
     Tool
       { name = "status"
         description = "What the draft changes since the last commit, and on which branch."
         params = []
         readOnly = true
         call = statusCall }
+
     Tool
       { name = "commit"
         description = "Commit the draft with `message`. Refuses definite type errors."
         params = [ p("message", ParamKind.Text, true, "the commit message") ]
         readOnly = false
         call = commitCall }
+
     Tool
       { name = "dark"
         description =
@@ -679,6 +714,7 @@ let toJson(tool: Tool): Stdlib.AltJson.Json =
             ("properties", Stdlib.AltJson.Json.Object(properties))
             ("required", Stdlib.AltJson.Json.Array(required))
             ("additionalProperties", Stdlib.AltJson.Json.Bool(false)) ]))
+
       (
         "annotations",
         Stdlib.AltJson.Json.Object(
@@ -695,7 +731,7 @@ let replyJson(reply: Reply): Stdlib.AltJson.Json =
             ("text", Stdlib.AltJson.Json.String(reply.text)) ]) ])
 
   let fields = [ ("content", content), ("isError", Stdlib.AltJson.Json.Bool(reply.isError)) ]
-
   match reply.data with
-  | Some(data) -> Stdlib.AltJson.Json.Object(Stdlib.List.append(fields, ("structuredContent", data)))
+  | Some(data) ->
+    Stdlib.AltJson.Json.Object(Stdlib.List.append(fields, ("structuredContent", data)))
   | None -> Stdlib.AltJson.Json.Object(fields)

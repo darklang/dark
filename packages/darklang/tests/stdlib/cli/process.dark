@@ -273,9 +273,10 @@ test runWithInputFeedsStdin =
            Stdlib.Utf8.encode("hello\nthere\n"),
            Stdlib.Option.Option.None) with
    | Ok(o) ->
-     (o.exitCode,
-      Stdlib.Utf8.decodeWithReplacement(o.stdout),
-      Stdlib.Utf8.decodeWithReplacement(o.stderr))
+     (
+       o.exitCode,
+       Stdlib.Utf8.decodeWithReplacement(o.stdout),
+       Stdlib.Utf8.decodeWithReplacement(o.stderr))
    | Error(_) -> (-1, "", ""))
   |> Stdlib.Test.equal((3, "HELLO\nTHERE\n", "done\n"))
 
@@ -312,6 +313,6 @@ test runWithInputTimesOut =
             [ "-c", "sleep 2" ],
             Stdlib.Utf8.encode("x"),
             Stdlib.Option.Option.Some(50)) with
-    | Error(Stdlib.Cli.Posix.Error.ProcessTimedOut) -> true
+    | Error(ProcessTimedOut) -> true
     | _ -> false)
   |> Stdlib.Test.equal(true)
