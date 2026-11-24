@@ -382,6 +382,35 @@ let save(state: AppState, modulePath: String, source: String, mode: SaveMode): A
                   $"  still in {shown} from an earlier save: {names}\n"
                   + $"  `delete {kind} {shown}.{name} --yes` takes one out"))
 
+            // Only what this save changed: a resent module is otherwise reprinted whole.
+            (if bundled then [] else ops)
+            |> Stdlib.List.filterMap(fun op ->
+              match op with
+              | SetName(location, reference, _) ->
+                let kind = LanguageTools.ProgramTypes.Reference.kind(reference)
+                let previous =
+                  updates
+                  |> Stdlib.List.findFirst(fun u -> u.location == location)
+                  |> Stdlib.Option.map(fun u -> u.previous)
+                  |> Stdlib.Option.withDefault([])
+
+                match SCM.Propagation.hashOn(branchId, location, kind) with
+                | Some(now) when Stdlib.Bool.not(Stdlib.List.contains(previous, now)) ->
+                  let path = Stdlib.List.prepend(location.modules, location.owner)
+                  // an impl sits under its type's name but is written in the type's module
+                  let writtenIn =
+                    if kind == LanguageTools.ProgramTypes.ItemKind.TraitImpl then
+                      Stdlib.List.dropLast(path)
+                    else
+                      path
+
+                  View.moduleDecl(branchId, path, kind, location.name)
+                  |> Stdlib.Option.map(fun text ->
+                    (Stdlib.List.drop(writtenIn, Stdlib.List.length(home)), text))
+                | _ -> Option.None
+              | _ -> Option.None)
+            |> printReformatted(source)
+
             if Stdlib.List.isEmpty(missing) then
               state
             else

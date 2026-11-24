@@ -546,15 +546,88 @@ let deprecationSaveNote(
     | _ -> Option.None
 
 
+/// Whether <param given> holds <param stored> as written, at any one indent. Trailing spaces and
+/// blank lines don't count.
+let holdsAsWritten(given: String, stored: String): Bool =
+  let lines(text: String): List<String> =
+    Stdlib.String.split(text, "\n")
+    |> Stdlib.List.map(Stdlib.String.trimEnd)
+    |> Stdlib.List.filter(fun line -> line != "")
+
+  let givenText = "\n" + Stdlib.String.join(lines(given), "\n") + "\n"
+  let storedLines = lines(stored)
+  match Stdlib.List.head(storedLines) with
+  | None -> true
+  | Some(first) ->
+    lines(given)
+    |> Stdlib.List.any(fun line ->
+      let indent =
+        Stdlib.String.dropLast(line, Stdlib.String.length(Stdlib.String.trimStart(line)))
+
+      Stdlib.String.trimStart(line) == first
+      && Stdlib.String.contains(
+        givenText,
+        "\n"
+        + (storedLines
+           |> Stdlib.List.map(fun l -> indent + l)
+           |> Stdlib.String.join("\n"))
+        + "\n"))
+
+
+/// Declarations as one source, each under the submodule path it is paired with, one `module`
+/// block per submodule.
+let inModules(entries: List<(List<String> * String)>): String =
+  // (submodule, entries below it), or (None, a declaration here), in order of first mention
+  entries
+  |> Stdlib.List.fold([], fun(groups, (path, text)) ->
+    match path with
+    | [] -> Stdlib.List.append(groups, (Option.None, [ ([], text) ]))
+    | [name, ...rest] ->
+      if Stdlib.List.any(groups, fun((g, _)) -> g == Option.Some(name)) then
+        groups
+        |> Stdlib.List.map(fun((g, inside)) ->
+          if g == Option.Some(name) then
+            (g, Stdlib.List.append(inside, (rest, text)))
+          else
+            (g, inside))
+      else
+        Stdlib.List.append(groups, (Option.Some(name), [ (rest, text) ])))
+  |> Stdlib.List.map(fun((g, inside)) ->
+    match (g, inside) with
+    | (Some(name), _) ->
+      let body =
+        Stdlib.String.split(inModules(inside), "\n")
+        |> Stdlib.List.map(fun line -> if line == "" then line else "  " + line)
+        |> Stdlib.String.join("\n")
+
+      $"module {name} =\n{body}"
+    | (None, [(_, text)]) -> text
+    | (None, _) -> "")
+  |> Stdlib.String.join("\n\n")
+
+
+/// Print the declarations of <param stored> that the save reformatted from <param given>, so the
+/// next edit can start from them without a `view`. Each comes with the submodule path it sits
+/// in below the saved module, and is printed inside that submodule so it can be sent back.
+let printReformatted(stored: List<(List<String> * String)>, given: String): Unit =
+  match stored |> Stdlib.List.filter(fun((_, s)) -> Stdlib.Bool.not(holdsAsWritten(given, s))) with
+  | [] -> ()
+  | changed ->
+    printQuiet("stored as:")
+    Stdlib.printLine(inModules(changed))
+
+
 /// Shared tail of the authoring flow: build the name-resolution context, convert the written
 /// declaration, check unresolved names, take the previous hashes, save, report, and repoint
-/// dependents. `kindWord` fills the output lines ("function" | "type" | "value"). `convert`
-/// answers None to refuse, having said why; nothing is written, and the command fails.
+/// dependents. `kindWord` fills the output lines ("function" | "type" | "value"). <param given> is
+/// the source that was parsed. `convert` answers None to refuse, having said why; nothing is
+/// written, and the command fails.
 let saveAuthored(
   state: AppState,
   location: LanguageTools.ProgramTypes.PackageLocation,
   kind: LanguageTools.ProgramTypes.ItemKind,
   kindWord: String,
+  given: String,
   firstLineShift: Int64,
   convert:
     LanguageTools.NameResolver.NRContext ->
@@ -658,6 +731,19 @@ let saveAuthored(
         | None -> ()
 
         Propagate.printFollowed(followed)
+
+        if landed then
+          View.moduleDecl(
+            state.currentBranchId,
+            Stdlib.List.prepend(location.modules, location.owner),
+            kind,
+            location.name)
+          |> Stdlib.Option.toList
+          |> Stdlib.List.map(fun text -> ([], text))
+          |> printReformatted(given)
+        else
+          ()
+
         if Stdlib.Option.isSome(ownIssue) then failed(state) else state
       | Error(msg) ->
         let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation(location)

@@ -61,6 +61,7 @@ let createTypeInline(
             location,
             LanguageTools.ProgramTypes.ItemKind.Type,
             "type",
+            $"type {location.name} = {definition}",
             0,
             fun ctx ->
               let (packageType, unresolvedNames) =

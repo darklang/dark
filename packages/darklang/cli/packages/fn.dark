@@ -110,6 +110,7 @@ let createFnInline(
             location,
             LanguageTools.ProgramTypes.ItemKind.Fn,
             "function",
+            wrapped,
             shift,
             fun ctx ->
               let (packageFn, unresolvedNames) =
