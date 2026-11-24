@@ -100,18 +100,6 @@ module Shortcuts =
         )
       outOfRange kind (DBigInt i)
 
-  /// Like `bigIntToInt64`, but narrows to a native `int` (Int32).
-  let bigIntToInt32 (i : DarkBigInt) : int =
-    match DarkBigInt.toInt32 i with
-    | Some v -> v
-    | None ->
-      outOfRange
-        (RuntimeError.BigInts.BigIntToInt32(
-          int64 System.Int32.MinValue,
-          int64 System.Int32.MaxValue
-        ))
-        (DBigInt i)
-
   /// Narrow an `Int64` to a native `int` (Int32), raising a Dark `OutOfRange` error
   /// when the value doesn't fit.
   let int64ToInt32 (i : int64) : int =
@@ -125,13 +113,21 @@ module Shortcuts =
     else
       int i
 
-  /// Capability tokens cannot be narrowed to OS descriptor numbers.
-  let bigIntToDescriptor (i : DarkBigInt) : HostTypes.FileDescriptor =
+  /// An `Int64` the kernel's `int` holds.
+  let (|KernelInt|_|) (i : int64) : Option<int> =
+    if i < int64 System.Int32.MinValue || i > int64 System.Int32.MaxValue then
+      None
+    else
+      Some(int i)
+
+  /// A capability token, or a descriptor number the kernel's `int` holds. Capability tokens
+  /// cannot be narrowed to OS descriptor numbers.
+  let (|KernelFd|_|) (i : DarkBigInt) : Option<HostTypes.FileDescriptor> =
     let value = DarkBigInt.toBigInt i
     if value >= HostDescriptors.tokenFloor then
-      HostTypes.FileDescriptor.Scoped value
+      Some(HostTypes.FileDescriptor.Scoped value)
     else
-      HostTypes.FileDescriptor.Raw(bigIntToInt32 i)
+      DarkBigInt.toInt32 i |> Option.map HostTypes.FileDescriptor.Raw
 
   /// Converts a `float` to a `DBigInt`, truncating toward zero. NaN/Infinity have
   /// no BigInt representation, so `bigint f` would throw a host exception — surface
