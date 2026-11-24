@@ -30,18 +30,25 @@ let pages(): List<(String * String)> =
   |> Stdlib.List.flatten
 
 
-let isBlank(line: String): Bool = Stdlib.String.trim(line) == ""
+let isBlank(line: String): Bool =
+  Stdlib.String.trim(line) == ""
 
 
 let inHeredoc(reversed: List<String>): Bool =
   let opened =
-    reversed |> Stdlib.List.filter(fun l -> Stdlib.String.contains(l, "<<'EOF'"))
+    reversed
+    |> Stdlib.List.filter(fun l -> Stdlib.String.contains(l, "<<'EOF'"))
 
-  let closed = reversed |> Stdlib.List.filter(fun l -> Stdlib.String.trim(l) == "EOF")
+  let closed =
+    reversed |> Stdlib.List.filter(fun l -> Stdlib.String.trim(l) == "EOF")
+
   Stdlib.List.length(opened) > Stdlib.List.length(closed)
 
 
-let closeBlock(done: List<List<String>>, reversed: List<String>): List<List<String>> =
+let closeBlock(
+  done: List<List<String>>,
+  reversed: List<String>)
+  : List<List<String>> =
   match reversed |> Stdlib.List.dropWhile(fun l -> isBlank(l)) with
   | [] -> done
   | lines -> [ Stdlib.List.reverse(lines), ...done ]
@@ -79,25 +86,47 @@ let blocks(text: String): List<List<String>> =
 
 let looksLikeDark(text: String): Bool =
   let line = Stdlib.String.trim(text)
-  let word = (Stdlib.String.split(line, " ") |> Stdlib.List.head) |> Stdlib.Option.withDefault("")
-  let keywords = [ "let", "val", "type", "module", "match", "|", "fun", "trait", "impl", "//" ]
-  let quoted = Stdlib.String.startsWith(word, "(") || Stdlib.String.startsWith(word, "`")
+  let word =
+    (Stdlib.String.split(line, " ") |> Stdlib.List.head)
+    |> Stdlib.Option.withDefault("")
+
+  let keywords =
+    [ "let"
+      "val"
+      "type"
+      "module"
+      "match"
+      "|"
+      "fun"
+      "trait"
+      "impl"
+      "//" ]
+
+  let quoted =
+    Stdlib.String.startsWith(word, "(") || Stdlib.String.startsWith(word, "`")
+
   let capital =
     match Stdlib.String.toList(word) |> Stdlib.List.head with
     | Some(c) -> Stdlib.Char.isUppercase(c)
     | None -> false
 
   Stdlib.List.contains(keywords, word)
-  || (Stdlib.Bool.not(quoted) && Stdlib.String.contains(word, "("))
-  || (capital
-      && (word == line
-          || Stdlib.String.startsWith(Stdlib.String.dropFirst(line, Stdlib.String.length(word)), " {")
-          || (Stdlib.String.contains(word, ".") && Stdlib.Bool.not(startsAWord(line, word)))))
+  || Stdlib.Bool.not(quoted) && Stdlib.String.contains(word, "(")
+  || capital
+     && (word == line
+         || Stdlib.String.startsWith(
+           Stdlib.String.dropFirst(line, Stdlib.String.length(word)),
+           " {")
+         || Stdlib.String.contains(word, ".")
+            && Stdlib.Bool.not(startsAWord(line, word)))
 
 
 /// Whether <param word> is followed by a plain word, as in prose: "Zero.zero has no ...".
 let startsAWord(line: String, word: String): Bool =
-  let rest = Stdlib.String.trimStart(Stdlib.String.dropFirst(line, Stdlib.String.length(word)))
+  let rest =
+    Stdlib.String.trimStart(
+      Stdlib.String.dropFirst(line, Stdlib.String.length(word)))
+
   match Stdlib.String.toList(rest) |> Stdlib.List.head with
   | Some(c) -> Stdlib.Char.isLowercase(c)
   | None -> false
@@ -113,7 +142,8 @@ let code(line: String): String =
 /// A table lines up columns with two or more spaces between them.
 let isTable(lines: List<String>): Bool =
   lines
-  |> Stdlib.List.any(fun l -> Stdlib.String.contains(Stdlib.String.trim(code(l)), "  "))
+  |> Stdlib.List.any(fun l ->
+    Stdlib.String.contains(Stdlib.String.trim(code(l)), "  "))
 
 
 /// A line's first column. A `#` comment after it stays, so it is reported: Dark comments are `//`.
@@ -124,7 +154,8 @@ let firstColumn(line: String): String =
     |> Stdlib.List.filter(fun c -> c != "")
 
   match columns with
-  | [first, second, ...] when Stdlib.String.startsWith(second, "#") -> first + "  " + second
+  | [first, second, ...] when Stdlib.String.startsWith(second, "#") ->
+    first + "  " + second
   | [first, ...] -> first
   | [] -> ""
 
@@ -137,10 +168,15 @@ let heredocs(lines: List<String>): List<String> =
       let (bodies, open) = acc
       match open with
       | None ->
-        if Stdlib.String.contains(line, "<<'EOF'") then (bodies, Option.Some([])) else acc
+        if Stdlib.String.contains(line, "<<'EOF'") then
+          (bodies, Option.Some([]))
+        else
+          acc
       | Some(body) ->
         if Stdlib.String.trim(line) == "EOF" then
-          ([ Stdlib.String.join(Stdlib.List.reverse(body), "\n"), ...bodies ], Option.None)
+          (
+            [ Stdlib.String.join(Stdlib.List.reverse(body), "\n"), ...bodies ],
+            Option.None)
         else
           (bodies, Option.Some([ line, ...body ])))
 
@@ -158,20 +194,30 @@ let asScript(source: String): String =
     |> Stdlib.String.replaceAll(", ... ]", " ]")
 
   let source =
-    if Stdlib.String.startsWith(source, "|") then "match x with\n" + source else source
+    if Stdlib.String.startsWith(source, "|") then
+      "match x with\n" + source
+    else
+      source
 
   source + "\n()"
 
 
 /// The Dark in <param block>, each with how to parse it.
-let sources(block: List<String>): List<(LanguageTools.Parser.FileKind * String)> =
+let sources(
+  block: List<String>)
+  : List<(LanguageTools.Parser.FileKind * String)> =
   match block with
   | [] -> []
   | [first, ...] ->
-    if Stdlib.List.any(block, fun l -> Stdlib.String.contains(l, "<<'EOF'")) then
-      heredocs(block) |> Stdlib.List.map(fun b -> (LanguageTools.Parser.FileKind.Package, b))
-    else if Stdlib.List.contains(notCode, first)
-            || Stdlib.String.startsWith(first, "type Stdlib.") then
+    if
+      Stdlib.List.any(block, fun l -> Stdlib.String.contains(l, "<<'EOF'"))
+    then
+      heredocs(block)
+      |> Stdlib.List.map(fun b -> (LanguageTools.Parser.FileKind.Package, b))
+    else if
+      Stdlib.List.contains(notCode, first)
+      || Stdlib.String.startsWith(first, "type Stdlib.")
+    then
       // `type Stdlib.X` shows a library type's shape.
       []
     else if Stdlib.Bool.not(looksLikeDark(first)) then
@@ -180,14 +226,23 @@ let sources(block: List<String>): List<(LanguageTools.Parser.FileKind * String)>
       block
       |> Stdlib.List.map(fun l -> firstColumn(l))
       |> Stdlib.List.filter(fun c -> looksLikeDark(c))
-      |> Stdlib.List.map(fun c -> (LanguageTools.Parser.FileKind.Script, asScript(c)))
+      |> Stdlib.List.map(fun c ->
+        (LanguageTools.Parser.FileKind.Script, asScript(c)))
     else
-      [ (LanguageTools.Parser.FileKind.Script, asScript(Stdlib.String.join(block, "\n"))) ]
+      [ (
+          LanguageTools.Parser.FileKind.Script,
+          asScript(Stdlib.String.join(block, "\n"))) ]
 
 
-let check(page: String, kind: LanguageTools.Parser.FileKind, source: String): Option<String> =
+let check(
+  page: String,
+  kind: LanguageTools.Parser.FileKind,
+  source: String)
+  : Option<String> =
   let (_, diagnostics) = LanguageTools.Parser.Parse.parse(kind, source)
-  let wrong = Stdlib.String.contains(Stdlib.String.toLowercase(source), "// wrong")
+  let wrong =
+    Stdlib.String.contains(Stdlib.String.toLowercase(source), "// wrong")
+
   match diagnostics, wrong with
   | [], false -> Option.None
   | [_, ...], true -> Option.None
@@ -210,30 +265,49 @@ test everyDarkExampleParses =
     |> Stdlib.List.map(fun((page, text)) -> failures(page, text))
     |> Stdlib.List.flatten
 
-  Stdlib.Test.expect(Stdlib.List.isEmpty(found), Stdlib.String.join(found, "\n\n"))
+  Stdlib.Test.expect(
+    Stdlib.List.isEmpty(found),
+    Stdlib.String.join(found, "\n\n"))
 
 
 test theCheckFindsBrokenExamples =
   let page(lines: List<String>): String =
-    lines |> Stdlib.List.map(fun l -> "  " + l) |> Stdlib.String.join("\n")
+    lines
+    |> Stdlib.List.map(fun l -> "  " + l)
+    |> Stdlib.String.join("\n")
 
   Stdlib.Test.all(
     [ Stdlib.Test.expect(
-        Stdlib.List.length(failures("t", page([ "let x = [1; 2]  # a list" ]))) == 1,
+        Stdlib.List.length(failures("t", page([ "let x = [1; 2]  # a list" ])))
+        == 1,
         "a broken example is reported")
+
       Stdlib.Test.expect(
-        Stdlib.List.isEmpty(failures("t", page([ "let x = [1; 2]  // wrong" ]))),
+        Stdlib.List.isEmpty(
+          failures("t", page([ "let x = [1; 2]  // wrong" ]))),
         "a broken one marked wrong is not")
+
       Stdlib.Test.expect(
-        Stdlib.List.length(failures("t", page([ "let x = [1, 2]  // wrong" ]))) == 1,
+        Stdlib.List.length(failures("t", page([ "let x = [1, 2]  // wrong" ])))
+        == 1,
         "one marked wrong that parses is reported")
-      Stdlib.Test.expect(
-        Stdlib.List.length(failures("t", page([ "| Some x -> x", "| None -> 0" ]))) == 1,
-        "match arms are checked inside a match")
-      Stdlib.Test.expect(
-        Stdlib.List.isEmpty(failures("t", page([ "run Me.Greet.main Ada   # shell" ]))),
-        "a shell line is left alone")
+
       Stdlib.Test.expect(
         Stdlib.List.length(
-          failures("t", page([ "module /Me.A - <<'EOF'", "let f(): Int64 = 1 # x", "EOF" ]))) == 1,
+          failures("t", page([ "| Some x -> x", "| None -> 0" ])))
+        == 1,
+        "match arms are checked inside a match")
+
+      Stdlib.Test.expect(
+        Stdlib.List.isEmpty(
+          failures("t", page([ "run Me.Greet.main Ada   # shell" ]))),
+        "a shell line is left alone")
+
+      Stdlib.Test.expect(
+        Stdlib.List.length(
+          failures(
+            "t",
+            page(
+              [ "module /Me.A - <<'EOF'", "let f(): Int64 = 1 # x", "EOF" ])))
+        == 1,
         "a heredoc's body is checked") ])

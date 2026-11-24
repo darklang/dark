@@ -527,7 +527,8 @@ test stringKeysSortByCodePoint =
   let large =
     Stdlib.Dict.fromList(
       Stdlib.List.concat(
-        Stdlib.List.map(Stdlib.List.range(1, 30), fun i -> ("k" + Stdlib.display(i), i)),
+        Stdlib.List.map(Stdlib.List.range(1, 30), fun i ->
+          ("k" + Stdlib.display(i), i)),
         [ ("😀", 0), ("ｱ", 0), ("é", 0) ]))
 
   Stdlib.Test.all(
@@ -964,10 +965,10 @@ test filterMapRejectsNonOptionResult =
 
 
 test fromEntriesPropagatesElementError =
-  Stdlib.Dict.fromEntries([ Darklang.Language.Tests.raiseRuntimeError("err") ])
+  Stdlib.Dict.fromEntries([ Language.Tests.raiseRuntimeError("err") ])
   => raises "Uncaught exception: err"
 
 
 test fromEntriesUniquePropagatesElementError =
-  Stdlib.Dict.fromEntriesUnique([ Darklang.Language.Tests.raiseRuntimeError("err") ])
+  Stdlib.Dict.fromEntriesUnique([ Language.Tests.raiseRuntimeError("err") ])
   => raises "Uncaught exception: err"

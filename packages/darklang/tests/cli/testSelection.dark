@@ -12,7 +12,8 @@ let selectedPaths(filters: List<String>): List<String> =
   |> Stdlib.List.map(Cli.Packages.Test.groupedPath)
 
 
-let segments(path: String): List<String> = Stdlib.String.split(path, ".")
+let segments(path: String): List<String> =
+  Stdlib.String.split(path, ".")
 
 
 test runSelectsWhatFilteringEveryTestWould =
@@ -29,23 +30,48 @@ test runSelectsWhatFilteringEveryTestWould =
       |> Stdlib.List.isEmpty
       |> Stdlib.Test.equal(false)
 
-      [ "Darklang.Stdlib.Bool" ] |> selectedPaths |> Stdlib.Test.equal(expected([ "Darklang.Stdlib.Bool" ]))
-      [ "Stdlib.Bool" ] |> selectedPaths |> Stdlib.Test.equal(expected([ "Stdlib.Bool" ]))
-      [ "Float64.Tests" ] |> selectedPaths |> Stdlib.Test.equal(expected([ "Float64.Tests" ]))
-      [ "WbTests.R" ] |> selectedPaths |> Stdlib.Test.equal(expected([ "WbTests.R" ]))
+      [ "Darklang.Stdlib.Bool" ]
+      |> selectedPaths
+      |> Stdlib.Test.equal(expected([ "Darklang.Stdlib.Bool" ]))
+
+      [ "Stdlib.Bool" ]
+      |> selectedPaths
+      |> Stdlib.Test.equal(expected([ "Stdlib.Bool" ]))
+
+      [ "Float64.Tests" ]
+      |> selectedPaths
+      |> Stdlib.Test.equal(expected([ "Float64.Tests" ]))
+
+      [ "WbTests.R" ]
+      |> selectedPaths
+      |> Stdlib.Test.equal(expected([ "WbTests.R" ]))
+
       [ "Darklang.Stdlib.Bool", "Stdlib.Float64" ]
       |> selectedPaths
-      |> Stdlib.Test.equal(expected([ "Darklang.Stdlib.Bool", "Stdlib.Float64" ]))
-      [ "Stdlib.Bool", "Bool" ] |> selectedPaths |> Stdlib.Test.equal(expected([ "Stdlib.Bool", "Bool" ]))
+      |> Stdlib.Test.equal(
+        expected([ "Darklang.Stdlib.Bool", "Stdlib.Float64" ]))
+
+      [ "Stdlib.Bool", "Bool" ]
+      |> selectedPaths
+      |> Stdlib.Test.equal(expected([ "Stdlib.Bool", "Bool" ]))
+
       // A filter can name a group, which the search does not know.
       [ "Duration.Tests.errors" ]
       |> selectedPaths
       |> Stdlib.Test.equal(expected([ "Duration.Tests.errors" ]))
+
       [ "Duration.Tests › units" ]
       |> selectedPaths
       |> Stdlib.Test.equal(expected([ "Duration.Tests.units" ]))
-      [ "Duration.Tests.errors" ] |> selectedPaths |> Stdlib.List.length |> Stdlib.Test.equal(3)
-      [] |> selectedPaths |> Stdlib.Test.equal(expected([])) ])
+
+      [ "Duration.Tests.errors" ]
+      |> selectedPaths
+      |> Stdlib.List.length
+      |> Stdlib.Test.equal(3)
+
+      []
+      |> selectedPaths
+      |> Stdlib.Test.equal(expected([])) ])
 
 
 test countFindsWhatFilteringEveryTestWould =
@@ -67,11 +93,20 @@ test countFindsWhatFilteringEveryTestWould =
     |> Stdlib.Option.withDefault([])
 
   Stdlib.Test.all(
-    [ under([ "Darklang", "Stdlib" ]) |> Stdlib.Test.equal(expected([ "Darklang", "Stdlib" ]))
+    [ under([ "Darklang", "Stdlib" ])
+      |> Stdlib.Test.equal(expected([ "Darklang", "Stdlib" ]))
+
       under([ "Darklang" ]) |> Stdlib.Test.equal(expected([ "Darklang" ]))
+
       under(oneTest) |> Stdlib.Test.equal(expected(oneTest))
-      under(oneTest) |> Stdlib.List.length |> Stdlib.Test.equal(1)
-      under([ "Stdlib", "Bool" ]) |> Stdlib.Test.equal(expected([ "Stdlib", "Bool" ]))
+
+      under(oneTest)
+      |> Stdlib.List.length
+      |> Stdlib.Test.equal(1)
+
+      under([ "Stdlib", "Bool" ])
+      |> Stdlib.Test.equal(expected([ "Stdlib", "Bool" ]))
+
       under([]) |> Stdlib.Test.equal(expected([])) ])
 
 
@@ -80,20 +115,33 @@ test tableRowsShowAsAGroup =
     "Demo.Tests.halves",
     Cli.Packages.Test.Outcome.Rows(
       [ ("(4, 2)", Cli.Packages.Test.Outcome.Passed)
-        ("(6, 4)", Cli.Packages.Test.Outcome.Failed([ "expected 4, got 3" ])) ]))
+        (
+          "(6, 4)",
+          Cli.Packages.Test.Outcome.Failed([ "expected 4, got 3" ])) ]))
   |> Stdlib.List.map(fun((name, _)) -> name)
-  |> Stdlib.Test.equal([ "Demo.Tests.halves › (4, 2)", "Demo.Tests.halves › (6, 4)" ])
+  |> Stdlib.Test.equal(
+    [ "Demo.Tests.halves › (4, 2)", "Demo.Tests.halves › (6, 4)" ])
 
 
 test aFilterWithArgumentsPicksOneRow =
   let path = "Darklang.Demo.Tests.lengths"
   let picks = fun filter ->
     [ path + " › (\"a\", 1)", path + " › (\"b\", 2)" ]
-    |> Stdlib.List.filter(fun name -> Cli.Packages.Test.rowSelected([ filter ], path, name))
+    |> Stdlib.List.filter(fun name ->
+      Cli.Packages.Test.rowSelected([ filter ], path, name))
 
   Stdlib.Test.all(
-    [ picks("Demo.Tests.lengths") |> Stdlib.List.length |> Stdlib.Test.equal(2)
-      picks("lengths › (\"b\", 2)") |> Stdlib.Test.equal([ path + " › (\"b\", 2)" ])
-      picks("lengths(\"b\", 2)") |> Stdlib.Test.equal([ path + " › (\"b\", 2)" ])
+    [ picks("Demo.Tests.lengths")
+      |> Stdlib.List.length
+      |> Stdlib.Test.equal(2)
+
+      picks("lengths › (\"b\", 2)")
+      |> Stdlib.Test.equal([ path + " › (\"b\", 2)" ])
+
+      picks("lengths(\"b\", 2)")
+      |> Stdlib.Test.equal([ path + " › (\"b\", 2)" ])
+
       picks("lengths › (\"c\", 3)") |> Stdlib.Test.equal([])
-      Cli.Packages.Test.selects("Tests.lengths(\"a.b\", 1)", path) |> Stdlib.Test.equal(true) ])
+
+      Cli.Packages.Test.selects("Tests.lengths(\"a.b\", 1)", path)
+      |> Stdlib.Test.equal(true) ])

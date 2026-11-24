@@ -750,4 +750,5 @@ test limits =
     [ Stdlib.Int16.minValue |> Stdlib.Test.equal(-32768s16)
       Stdlib.Int16.maxValue |> Stdlib.Test.equal(32767s16)
       Stdlib.Int16.bitWidth |> Stdlib.Test.equal(16)
-      Stdlib.Int16.maxValue + 1s16 |> Stdlib.Test.equal(Stdlib.Int16.minValue) ])
+      Stdlib.Int16.maxValue + 1s16
+      |> Stdlib.Test.equal(Stdlib.Int16.minValue) ])

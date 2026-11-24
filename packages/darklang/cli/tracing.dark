@@ -1556,13 +1556,12 @@ let executeClearBefore(state: AppState, durationStr: String): AppState =
   | Ok(duration) ->
     // A cutoff before the earliest DateTime has no trace older than it.
     let count =
-      match
-        Stdlib.DateTime.checkedSubtractSeconds(
-          Stdlib.DateTime.now(),
-          Stdlib.Duration.toSeconds(duration))
-      with
+      match Stdlib.DateTime.checkedSubtractSeconds(
+              Stdlib.DateTime.now(),
+              Stdlib.Duration.toSeconds(duration)) with
       | Ok(cutoff) -> Tracing.Store.clearBefore(Stdlib.display(cutoff))
       | Error(_) -> 0
+
     match count with
     | 0 ->
       Stderr.line($"no kept trace is older than {durationStr}")

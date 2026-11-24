@@ -79,7 +79,8 @@ test helpersTakeAwkwardNames =
 // chmod would read a leading dash as an option; the name goes in as ./-name.
 test grantExecutePermissionOnARelativeDashName =
   Stdlib.Cli.Unix.grantExecutePermission("-no-such-file")
-  |> Stdlib.Result.mapError(fun err -> Stdlib.String.contains(err, "./-no-such-file"))
+  |> Stdlib.Result.mapError(fun err ->
+    Stdlib.String.contains(err, "./-no-such-file"))
   |> Stdlib.Test.equal(Stdlib.Result.Result.Error(true))
 
 

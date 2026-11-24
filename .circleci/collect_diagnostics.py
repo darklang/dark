@@ -58,6 +58,7 @@ CHECK_DATABASES = {
   "gate-package-tests": homes("package-tests"),
   "gate-shipped-tree-typechecks": homes("shipped-tree-typechecks"),
   "gate-prompts-unattended": homes("prompts-unattended-test"),
+  "gate-dark-format": homes("dark-format"),
 }
 
 

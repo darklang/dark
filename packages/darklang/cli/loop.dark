@@ -494,9 +494,7 @@ let runInteractiveLoop(state: AppState, watch: LanguageTools.Live.Watch): Int64 
       // `Stdlib.Host.await`'s business; this loop only says what it is waiting for.
       let tReadKey = if renderedState.telemetryEnabled then Telemetry.now() else 0
       let awaited =
-        Stdlib.Host.await(
-          watch,
-          [ Stdlib.Host.EventSpec.Key, Stdlib.Host.EventSpec.StoreChanged ])
+        Stdlib.Host.await(watch, [ Stdlib.Host.EventSpec.Key, Stdlib.Host.EventSpec.StoreChanged ])
 
       let newState =
         match awaited.event with

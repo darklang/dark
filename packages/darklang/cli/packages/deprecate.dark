@@ -206,8 +206,7 @@ let selectKind(
   | Some(r) -> Result.Ok(LanguageTools.ProgramTypes.DeprecationKind.WithReplacement(r))
   | None when parsed.blockExecution && itemKind == LanguageTools.ProgramTypes.ItemKind.Fn ->
     Result.Ok(LanguageTools.ProgramTypes.DeprecationKind.Harmful)
-  | None when parsed.blockExecution ->
-    Result.Error("--block-execution only applies to functions.")
+  | None when parsed.blockExecution -> Result.Error("--block-execution only applies to functions.")
   | None -> Result.Ok(LanguageTools.ProgramTypes.DeprecationKind.Deprecated)
 
 
@@ -251,9 +250,7 @@ let sayShared(
   | _ ->
     let n = Stdlib.List.length(twins)
     let share = if n == 1 then "shares" else "share"
-
     let are = if n == 1 then "is" else "are"
-
     let names =
       match detail with
       | ListNames ->
@@ -410,7 +407,8 @@ let executeWithVerb(state: AppState, args: List<String>, verb: String): AppState
                     |> Stdlib.Option.withDefault("")
                   message = parsed.reason
                   names =
-                    marked |> Stdlib.List.map(PrettyPrinter.ProgramTypes.PackageLocation.packageLocation)
+                    marked
+                    |> Stdlib.List.map(PrettyPrinter.ProgramTypes.PackageLocation.packageLocation)
                   dryRun = dryRun })
 
           // Under --dry-run the preview is the answer, so it goes to stdout. Otherwise it is what the
@@ -485,7 +483,6 @@ let executeWithVerb(state: AppState, args: List<String>, verb: String): AppState
                         $"Deleted {itemTypeStr} {fullPath}"
 
                     Stdlib.printLine(Stdlib.Cli.UI.Colors.success(message))
-
                     state
                 | None ->
                   printErr(

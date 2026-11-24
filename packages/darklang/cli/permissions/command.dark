@@ -494,9 +494,7 @@ let editRules(
 
 /// `set a; deny b; c` replaces the whole policy.
 let replacePolicy(specs: List<String>): Result<LanguageTools.Permissions.Policy, String> =
-  let specs =
-    LanguageTools.Permissions.splitRuleSpecs(Stdlib.String.join(specs, " "))
-
+  let specs = LanguageTools.Permissions.splitRuleSpecs(Stdlib.String.join(specs, " "))
   match LanguageTools.Permissions.parse(specs) with
   | Ok(policy) -> Result.Ok(policy)
   | Error(bad) -> Result.Error(invalidRuleText(bad))

@@ -403,7 +403,13 @@ test showReplaysAFunctionWithoutPerforming = Traces.withTraces(fun i ->
       "(name: String): String =\n  let upper = Stdlib.String.toUppercase(name)\n  let shouted = Stdlib.String.append(upper, \"!\")\n  let _ = Stdlib.printLine(shouted)\n  shouted",
       "stdout")
 
-  let ran = evals(i, "Tests.Prev.greet(\"bob\")", "BOB!\nBOB!", "the run printed for real")
+  let ran =
+    evals(
+      i,
+      "Tests.Prev.greet(\"bob\")",
+      "BOB!\nBOB!",
+      "the run printed for real")
+
   // The index knows which runs went through the function, where the call itself is
   // not recorded at all.
   let listed = Instance.said(i, [ "traces", "calls", "Tests.Prev.greet" ])
@@ -411,7 +417,6 @@ test showReplaysAFunctionWithoutPerforming = Traces.withTraces(fun i ->
   Stdlib.Test.all(
     [ defined
       ran
-
       Instance.says(listed, "eval", "the run that went through it")
 
       Instance.says(
@@ -584,7 +589,6 @@ test recursionIsALoopAndEmptyIterationsStaySilent = Traces.withTraces(fun i ->
       "deny all")
 
   let ran = evals(i, "Tests.Prev.fact(5)", "120", "the run went five deep")
-
   let viewed = Instance.said(i, [ "traces", "show", "Tests.Prev.fact" ])
 
   // The second call is `fact 4`: its sub is 6 and its product is 24.
@@ -602,7 +606,6 @@ test recursionIsALoopAndEmptyIterationsStaySilent = Traces.withTraces(fun i ->
   Stdlib.Test.all(
     [ defined
       ran
-
       Instance.says(
         viewed,
         "fact: showing iteration 5 of 5",
@@ -645,7 +648,8 @@ test everyIterationOfALoopIsReachable = Traces.withTraces(fun i ->
       "(n: Int64): Int64 =\n  Stdlib.List.range(1, n)\n  |> Stdlib.List.map(fun i ->\n    let big = i * 100\n    big)\n  |> Stdlib.List.length",
       "deny all")
 
-  let ran = evals(i, "Tests.Prev.scaled(30)", "30", "the loop went round thirty times")
+  let ran =
+    evals(i, "Tests.Prev.scaled(30)", "30", "the loop went round thirty times")
 
   // In the head, in the tail, and the ones in between, outside the window at both
   // ends.
@@ -708,7 +712,6 @@ test fnsNamesWhatRunsWentThrough = Traces.withTraces(fun i ->
   Stdlib.Test.all(
     [ defined
       ran
-
       Instance.says(
         listed,
         "Tests.Prev.counted",
@@ -759,7 +762,6 @@ test viewAndEditPointAtTheRunsThatWentThrough = Traces.withTraces(fun i ->
   Stdlib.Test.all(
     [ defined
       ran
-
       Instance.says(
         viewed,
         "1 trace went through this: dark traces show Tests.Prev.doubled",
@@ -801,7 +803,6 @@ test twoNamesForOneFunctionFindTheSameRuns = Traces.withTraces(fun i ->
   Stdlib.Test.all(
     [ defined
       ran
-
       Instance.says(
         other,
         "eval",
@@ -900,4 +901,7 @@ test callsCountsEverySelfTailCall = Traces.withTraces(fun i ->
   Stdlib.Test.all(
     [ defined
       ran
-      Instance.says(asJson, "\"calls\":101", "one call for each of 100 down to 0") ]))
+      Instance.says(
+        asJson,
+        "\"calls\":101",
+        "one call for each of 100 down to 0") ]))

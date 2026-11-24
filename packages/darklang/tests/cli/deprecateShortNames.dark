@@ -33,9 +33,7 @@ test deleteTakesTheShortName = Instance.withInstance(fun i ->
 
 test deprecateAndUndeprecateTakeTheShortName = Instance.withInstance(fun i ->
   let (deprecatedCode, deprecated) =
-    Instance.ran(
-      i,
-      [ "deprecate", "Stdlib.String.trim", "--yes" ])
+    Instance.ran(i, [ "deprecate", "Stdlib.String.trim", "--yes" ])
 
   let (restoredCode, restored) =
     Instance.ran(i, [ "undeprecate", "Stdlib.String.trim" ])

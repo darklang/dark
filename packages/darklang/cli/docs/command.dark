@@ -423,7 +423,10 @@ let execute(state: AppState, args: List<String>): AppState =
             // A topic with parts (for-ai) was read on its own first; another topic prints too.
             let found = pages |> Stdlib.List.filterMap(fun((_, page)) -> page)
             let shown =
-              if Stdlib.List.isEmpty(topic.subtopics) then [ (false, topic), ...found ] else found
+              if Stdlib.List.isEmpty(topic.subtopics) then
+                [ (false, topic), ...found ]
+              else
+                found
 
             shown
             |> Stdlib.List.uniqueBy(fun((isPart, t)) -> (isPart, t.name))

@@ -38,7 +38,8 @@ let helpTextProblem(text: String): Stdlib.Option.Option<String> =
     Stdlib.Option.Option.Some("printed nothing")
   else
     match runtimeFailure(text) with
-    | Some(line) -> Stdlib.Option.Option.Some($"printed a runtime error: {line}")
+    | Some(line) ->
+      Stdlib.Option.Option.Some($"printed a runtime error: {line}")
     | None ->
       if soundsLikeMisuse(text) then
         Stdlib.Option.Option.Some($"sounds like misuse: {first}")
@@ -53,7 +54,10 @@ let helpTextProblem(text: String): Stdlib.Option.Option<String> =
 
 
 /// What is wrong with `dark <args>` as an answer to a request for help, if anything.
-let helpProblem(i: Instance.T, args: List<String>): Stdlib.Option.Option<String> =
+let helpProblem(
+  i: Instance.T,
+  args: List<String>)
+  : Stdlib.Option.Option<String> =
   let cmd = Stdlib.String.join(args, " ")
   let problem =
     match Instance.run(i, args) with
@@ -94,7 +98,9 @@ test everyCommandHasHelp =
 /// Each way of asking for help reaches the help text, end to end.
 test helpRoutesReachTheHelpText = Instance.withInstance(fun i ->
   let state = Cli.initState()
-  let statusHelp = Stdlib.String.trim(Cli.Registry.commandHelpText("status", state))
+  let statusHelp =
+    Stdlib.String.trim(Cli.Registry.commandHelpText("status", state))
+
   let routes =
     [ [ "status", "--help" ], [ "status", "help" ], [ "help", "status" ] ]
     |> Stdlib.List.map(fun args ->
@@ -106,7 +112,9 @@ test helpRoutesReachTheHelpText = Instance.withInstance(fun i ->
     [ [ "--help" ], [ "help" ] ]
     |> Stdlib.List.map(fun args ->
       let problem = helpProblem(i, args)
-      Stdlib.Test.expect(problem == Stdlib.Option.Option.None, Stdlib.inspect(problem)))
+      Stdlib.Test.expect(
+        problem == Stdlib.Option.Option.None,
+        Stdlib.inspect(problem)))
 
   Stdlib.Test.all(Stdlib.List.concat(routes, general)))
 

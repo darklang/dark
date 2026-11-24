@@ -8,7 +8,9 @@ let row(name: String, tests: Int64): Cli.Packages.Test.CountRow =
 test rowsPerSubmoduleOrPerTest =
   let one = fun path -> (path, 1)
   Stdlib.Test.all(
-    [ Cli.Packages.Test.countRows([ "A" ], [ one([ "A", "y" ]), one([ "A", "x" ]) ])
+    [ Cli.Packages.Test.countRows(
+        [ "A" ],
+        [ one([ "A", "y" ]), one([ "A", "x" ]) ])
       |> Stdlib.Test.equal([ row("x", 1), row("y", 1) ])
 
       Cli.Packages.Test.countRows(
@@ -17,9 +19,12 @@ test rowsPerSubmoduleOrPerTest =
           one([ "A", "B", "y" ])
           one([ "A", "B", "z" ])
           one([ "A", "C", "D", "w" ]) ])
-      |> Stdlib.Test.equal([ row("B", 2), row("C", 1), row("(tests in this module)", 1) ])
+      |> Stdlib.Test.equal(
+        [ row("B", 2), row("C", 1), row("(tests in this module)", 1) ])
 
-      Cli.Packages.Test.countRows([ "A" ], [ ([ "A", "B", "t" ], 3), one([ "A", "B", "u" ]) ])
+      Cli.Packages.Test.countRows(
+        [ "A" ],
+        [ ([ "A", "B", "t" ], 3), one([ "A", "B", "u" ]) ])
       |> Stdlib.Test.equal([ row("B", 4) ])
 
       Cli.Packages.Test.deepestShared(
@@ -27,7 +32,9 @@ test rowsPerSubmoduleOrPerTest =
         [ one([ "A", "T", "x" ]), one([ "A", "T", "U", "y" ]) ])
       |> Stdlib.Test.equal([ "A", "T" ])
 
-      Cli.Packages.Test.deepestShared([ "A" ], [ one([ "A", "x" ]), one([ "A", "T", "y" ]) ])
+      Cli.Packages.Test.deepestShared(
+        [ "A" ],
+        [ one([ "A", "x" ]), one([ "A", "T", "y" ]) ])
       |> Stdlib.Test.equal([ "A" ]) ])
 
 
@@ -79,12 +86,18 @@ test countForKeepsTheTestsThatUseIt = Instance.withInstance(fun i ->
 
 test aDeletedTestIsNotCountedOrRun = Instance.withInstance(fun i ->
   let _ = define(i)
-  let (deleted, out) = Instance.ran(i, [ "delete", "Me.Counted.plain", "--yes" ])
+  let (deleted, out) =
+    Instance.ran(i, [ "delete", "Me.Counted.plain", "--yes" ])
+
   let counted = Instance.output(i, [ "test", "count", "Me.Counted" ])
   let (ran, runOut) = Instance.ran(i, [ "test", "run", "Me.Counted" ])
   Stdlib.Test.all(
     [ Instance.exitedWith(deleted, 0, out)
-      Instance.says(counted, "Me.Counted: 3 tests", "the deleted test is not counted")
+      Instance.says(
+        counted,
+        "Me.Counted: 3 tests",
+        "the deleted test is not counted")
+
       Instance.exitedWith(ran, 0, runOut)
       Instance.says(runOut, "usesF", "a live test runs")
       Instance.doesNotSay(runOut, "plain", "the deleted test does not") ]))

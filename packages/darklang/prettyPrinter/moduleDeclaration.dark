@@ -288,8 +288,7 @@ let moduleDeclaration(ctx: ProgramTypes.Context, m: ModuleDeclaration.Module): S
     |> Stdlib.List.filterMap(fun s -> s)
 
   match parts with
-  | [] ->
-    "Error - module defined somehow without parts"
+  | [] -> "Error - module defined somehow without parts"
   | parts ->
     let bodyPart = Stdlib.String.join(parts, "\n\n") |> indent
     $"module {m.name} =\n{bodyPart}"
@@ -297,7 +296,6 @@ let moduleDeclaration(ctx: ProgramTypes.Context, m: ModuleDeclaration.Module): S
 
 let definitions(ctx: ProgramTypes.Context, p: LanguageTools.ProgramTypes.Definitions): String =
   let modules = ModuleDeclaration.toModules(ctx.branchId, p)
-
   modules
   |> Stdlib.List.map(fun m -> moduleDeclaration(ctx, m))
   |> Stdlib.String.join("\n\n")

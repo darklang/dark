@@ -439,7 +439,7 @@ test sqrt =
   Stdlib.Test.all(
     [ Stdlib.BigInt.sqrt(100z) |> Stdlib.Test.equal(10.0)
       Stdlib.BigInt.sqrt(86z) |> Stdlib.Test.equal(9.273618495495704)
-      Stdlib.BigInt.sqrt(10z ** 40z) |> Stdlib.Test.equal(100000000000000000000.0) ])
+      Stdlib.BigInt.sqrt(10z ** 40z) |> Stdlib.Test.equal(1e20) ])
 
 
 test checkedSqrt =

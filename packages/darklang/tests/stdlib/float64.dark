@@ -359,18 +359,27 @@ test log =
       Stdlib.Float64.log(-0.0) |> Stdlib.Test.equal(negativeInfinity())
       Stdlib.Float64.log(infinity()) |> Stdlib.Test.equal(infinity())
       Stdlib.Float64.isNaN(Stdlib.Float64.log(-1.0)) |> Stdlib.Test.equal(true)
-      Stdlib.Float64.isNaN(Stdlib.Float64.log(nan())) |> Stdlib.Test.equal(true) ])
+      Stdlib.Float64.isNaN(Stdlib.Float64.log(nan()))
+      |> Stdlib.Test.equal(true) ])
 
 
 test log10 =
   Stdlib.Test.all(
     [ Stdlib.Float64.log10(1.0) |> Stdlib.Test.equal(0.0)
+
       Stdlib.Float64.log10(1000.0) |> Stdlib.Test.equal(3.0)
+
       Stdlib.Float64.log10(0.01) |> Stdlib.Test.equal(-2.0)
+
       Stdlib.Float64.log10(0.0) |> Stdlib.Test.equal(negativeInfinity())
+
       Stdlib.Float64.log10(infinity()) |> Stdlib.Test.equal(infinity())
-      Stdlib.Float64.isNaN(Stdlib.Float64.log10(-1.0)) |> Stdlib.Test.equal(true)
-      Stdlib.Float64.isNaN(Stdlib.Float64.log10(nan())) |> Stdlib.Test.equal(true) ])
+
+      Stdlib.Float64.isNaN(Stdlib.Float64.log10(-1.0))
+      |> Stdlib.Test.equal(true)
+
+      Stdlib.Float64.isNaN(Stdlib.Float64.log10(nan()))
+      |> Stdlib.Test.equal(true) ])
 
 
 test exp =
@@ -381,7 +390,8 @@ test exp =
       Stdlib.Float64.exp(-1000.0) |> Stdlib.Test.equal(0.0)
       Stdlib.Float64.exp(infinity()) |> Stdlib.Test.equal(infinity())
       Stdlib.Float64.exp(negativeInfinity()) |> Stdlib.Test.equal(0.0)
-      Stdlib.Float64.isNaN(Stdlib.Float64.exp(nan())) |> Stdlib.Test.equal(true) ])
+      Stdlib.Float64.isNaN(Stdlib.Float64.exp(nan()))
+      |> Stdlib.Test.equal(true) ])
 
 
 test subtract = 1.0 - 0.2 |> Stdlib.Test.equal(0.8)
@@ -719,59 +729,98 @@ test checkedParse =
 test namedValues =
   Stdlib.Test.all(
     [ Stdlib.Float64.isNaN(Stdlib.Float64.nan) |> Stdlib.Test.equal(true)
+
       Stdlib.Float64.infinity |> Stdlib.Test.equal(infinity())
+
       Stdlib.Float64.negativeInfinity |> Stdlib.Test.equal(negativeInfinity())
-      Stdlib.Float64.isFinite(Stdlib.Float64.infinity) |> Stdlib.Test.equal(false)
-      -Stdlib.Float64.infinity |> Stdlib.Test.equal(Stdlib.Float64.negativeInfinity) ])
+
+      Stdlib.Float64.isFinite(Stdlib.Float64.infinity)
+      |> Stdlib.Test.equal(false)
+
+      -Stdlib.Float64.infinity
+      |> Stdlib.Test.equal(Stdlib.Float64.negativeInfinity) ])
 
 
 test roundTo =
   Stdlib.Test.all(
     [ Stdlib.Float64.roundTo(37.777777, 2) |> Stdlib.Test.equal(37.78)
+
       Stdlib.Float64.roundTo(-37.777777, 2) |> Stdlib.Test.equal(-37.78)
+
       Stdlib.Float64.roundTo(3.14159, 0) |> Stdlib.Test.equal(3.0)
 
       // the exact value is rounded: 2.675 is held as 2.67499999999999982...
       Stdlib.Float64.roundTo(2.675, 2) |> Stdlib.Test.equal(2.67)
+
       Stdlib.Float64.roundTo(1.005, 2) |> Stdlib.Test.equal(1.0)
 
       // ties to even, as Float64.round does
       Stdlib.Float64.roundTo(0.125, 2) |> Stdlib.Test.equal(0.12)
+
       Stdlib.Float64.roundTo(0.375, 2) |> Stdlib.Test.equal(0.38)
+
       Stdlib.Float64.roundTo(2.5, 0) |> Stdlib.Test.equal(2.0)
+
       Stdlib.Float64.roundTo(3.5, 0) |> Stdlib.Test.equal(4.0)
+
       Stdlib.Float64.roundTo(-2.5, 0) |> Stdlib.Test.equal(-2.0)
 
       // negative places round to tens, hundreds, ...
       Stdlib.Float64.roundTo(1234.5, -1) |> Stdlib.Test.equal(1230.0)
+
       Stdlib.Float64.roundTo(1250.0, -2) |> Stdlib.Test.equal(1200.0)
+
       Stdlib.Float64.roundTo(1350.0, -2) |> Stdlib.Test.equal(1400.0)
+
       Stdlib.Float64.roundTo(-1250.0, -2) |> Stdlib.Test.equal(-1200.0)
+
       Stdlib.Float64.roundTo(49.0, -2) |> Stdlib.Test.equal(0.0)
+
       Stdlib.Float64.roundTo(1e300, -400) |> Stdlib.Test.equal(0.0)
-      Stdlib.Float64.roundTo(1.5, -9223372036854775807) |> Stdlib.Test.equal(0.0)
+
+      Stdlib.Float64.roundTo(1.5, -9223372036854775807)
+      |> Stdlib.Test.equal(0.0)
 
       // more places than the value has leaves it alone
       Stdlib.Float64.roundTo(0.1, 30) |> Stdlib.Test.equal(0.1)
-      Stdlib.Float64.roundTo(5e-324, 2000) |> Stdlib.Test.equal(5e-324)
+
+      Stdlib.Float64.roundTo(
+        0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005,
+        2000)
+      |> Stdlib.Test.equal(
+        0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005)
+
       Stdlib.Float64.roundTo(1.5, 9223372036854775807) |> Stdlib.Test.equal(1.5)
 
       // no Int64 limit, unlike Float64.round
       Stdlib.Float64.roundTo(1e20, 2) |> Stdlib.Test.equal(1e20)
+
       Stdlib.Float64.roundTo(1.2345678901234568e20, -15)
       |> Stdlib.Test.equal(1.23457e20)
 
-      Stdlib.Float64.roundTo(5e-324, 2) |> Stdlib.Test.equal(0.0)
+      Stdlib.Float64.roundTo(
+        0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005,
+        2)
+      |> Stdlib.Test.equal(0.0)
+
       Stdlib.Float64.roundTo(1.7976931348623157e308, -308)
       |> Stdlib.Test.equal(infinity())
 
       // the sign of a zero is kept
-      (1.0 / Stdlib.Float64.roundTo(-0.001, 2)) |> Stdlib.Test.equal(negativeInfinity())
-      (1.0 / Stdlib.Float64.roundTo(-0.0, 2)) |> Stdlib.Test.equal(negativeInfinity())
-      (1.0 / Stdlib.Float64.roundTo(-1e300, -400))
+      1.0 / Stdlib.Float64.roundTo(-0.001, 2)
       |> Stdlib.Test.equal(negativeInfinity())
 
-      Stdlib.Float64.roundTo(nan(), 2) |> Stdlib.Float64.isNaN |> Stdlib.Test.equal(true)
+      1.0 / Stdlib.Float64.roundTo(-0.0, 2)
+      |> Stdlib.Test.equal(negativeInfinity())
+
+      1.0 / Stdlib.Float64.roundTo(-1e300, -400)
+      |> Stdlib.Test.equal(negativeInfinity())
+
+      Stdlib.Float64.roundTo(nan(), 2)
+      |> Stdlib.Float64.isNaN
+      |> Stdlib.Test.equal(true)
+
       Stdlib.Float64.roundTo(infinity(), 2) |> Stdlib.Test.equal(infinity())
+
       Stdlib.Float64.roundTo(negativeInfinity(), -2)
       |> Stdlib.Test.equal(negativeInfinity()) ])

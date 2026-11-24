@@ -498,8 +498,7 @@ let jsonSuccess(id: String, status: String, resolvedTo: String): Bool =
 /// The typed conflict list, as both listing arms answer it.
 let conflictList(cs: List<SCM.Conflicts.Conflict>): ScmJson.ConflictListJson =
   ScmJson.ConflictListJson
-    { pending = Stdlib.List.length(cs)
-      conflicts = cs |> Stdlib.List.map(ScmJson.conflictWithFqn) }
+    { pending = Stdlib.List.length(cs), conflicts = cs |> Stdlib.List.map(ScmJson.conflictWithFqn) }
 
 
 let failureUnknown(state: AppState): AppState =

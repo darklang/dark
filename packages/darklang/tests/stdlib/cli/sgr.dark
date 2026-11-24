@@ -33,9 +33,11 @@ test wrapAtColumn =
 // No row is wider than Int32's limit, so a wider width clips and wraps as that limit does.
 test widthsPastInt32 =
   Stdlib.Test.all(
-    [ Stdlib.Cli.Tui.Text.clipToWidth("abc", 9999999999) |> Stdlib.Test.equal("abc")
+    [ Stdlib.Cli.Tui.Text.clipToWidth("abc", 9999999999)
+      |> Stdlib.Test.equal("abc")
 
-      Stdlib.Cli.Tui.Text.clipToWidth("abc", -9999999999) |> Stdlib.Test.equal("")
+      Stdlib.Cli.Tui.Text.clipToWidth("abc", -9999999999)
+      |> Stdlib.Test.equal("")
 
       Stdlib.Cli.Tui.Text.wrapAtColumn("abc def", 9999999999)
       |> Stdlib.Test.equal([ "abc def" ])

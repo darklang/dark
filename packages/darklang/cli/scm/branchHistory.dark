@@ -121,40 +121,38 @@ let executeDiffCmd(state: AppState, args: List<String>): AppState =
   // not what `diff` asks for.
   | [] ->
     let r = Commit.review(state)
-    let pretty =
-      fun () ->
-        if Stdlib.List.isEmpty(r.changed) then
-          // Ops that bind no name (a deprecation, a restore, an ack) have nothing to show in a per-name
-          // listing, but "clean" about them is a lie: they are uncommitted. Same fix as `status`.
-          let ops = (SCM.Draft.counts()).ops
-          if ops == 0 then
-            printOk("clean: nothing changed since your last commit.")
-          else
-            printOk(
-              $"""{Text.plural(ops, "op")} to commit, no changed names (no new version: restores, deprecations, docs, acks)""")
-
-          printHint("  `dark diff <branch>` compares a branch with its parent.")
-          state
+    let pretty = fun () ->
+      if Stdlib.List.isEmpty(r.changed) then
+        // Ops that bind no name (a deprecation, a restore, an ack) have nothing to show in a per-name
+        // listing, but "clean" about them is a lie: they are uncommitted. Same fix as `status`.
+        let ops = (SCM.Draft.counts()).ops
+        if ops == 0 then
+          printOk("clean: nothing changed since your last commit.")
         else
-          let nameWidth = Commit.widest(r.items |> Stdlib.List.map(fun i -> i.name))
-          printOk($"  CHANGED ({Stdlib.display(Stdlib.List.length(r.changed))})")
-          r.items |> Stdlib.List.iter(fun item -> Stdlib.printLine(Commit.changedLine(nameWidth, item)))
-          printHint("  `dark commit` reviews and commits it; `dark diff <branch>` compares a branch.")
-          state
+          printOk(
+            $"""{Text.plural(ops, "op")} to commit, no changed names (no new version: restores, deprecations, docs, acks)""")
 
-    Output.answer(
-      state,
-      pretty,
-      fun () ->
-        ScmJson.DraftDiffJson
-          { draftOps = (SCM.Draft.counts()).ops, changed = r.items, removed = r.removed })
+        printHint("  `dark diff <branch>` compares a branch with its parent.")
+        state
+      else
+        let nameWidth = Commit.widest(r.items |> Stdlib.List.map(fun i -> i.name))
+        printOk($"  CHANGED ({Stdlib.display(Stdlib.List.length(r.changed))})")
+        r.items
+        |> Stdlib.List.iter(fun item -> Stdlib.printLine(Commit.changedLine(nameWidth, item)))
+
+        printHint("  `dark commit` reviews and commits it; `dark diff <branch>` compares a branch.")
+        state
+
+    Output.answer(state, pretty, fun () ->
+      ScmJson.DraftDiffJson
+        { draftOps = (SCM.Draft.counts()).ops, changed = r.items, removed = r.removed })
   | [id] ->
     match resolveRef(id) with
     | None -> failed(state)
     | Some(branchId) ->
       Output.answer(
         state,
-        fun () -> executeDiff(state, id, Source.showIf(Stdlib.List.contains(args, "--source"))),
+        (fun () -> executeDiff(state, id, Source.showIf(Stdlib.List.contains(args, "--source")))),
         fun () -> SCM.PackageOps.branchDiffEntries(branchId))
   | _ ->
     printErr("usage: dark diff <branch> [--source] [--json]")
@@ -176,7 +174,7 @@ let logOf(state: AppState, branchRef: String): AppState =
   match resolveRef(branchRef) with
   | None -> failed(state)
   | Some(branchId) ->
-    Output.answer(state, fun () -> executeLog(state, branchRef), fun () -> branchOps(branchId))
+    Output.answer(state, (fun () -> executeLog(state, branchRef)), fun () -> branchOps(branchId))
 
 
 /// `dark log [<id>]` -- history, meaning whichever history you're standing in. On a BRANCH that's the
@@ -191,7 +189,7 @@ let executeLogCmd(state: AppState, args: List<String>): AppState =
     | id when SCM.Branch.isMain(id) ->
       Output.answer(
         state,
-        fun () -> Commits.executeList(state, 20, Commits.Housekeeping.Hide),
+        (fun () -> Commits.executeList(state, 20, Commits.Housekeeping.Hide)),
         fun () -> Commits.commitRows(20))
     // By NAME, because `executeLog` echoes back whatever it was handed and everything else the CLI
     // prints about a branch is its name. `resolveRef` turns it straight back into this id.

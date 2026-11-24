@@ -275,7 +275,12 @@ test aDraftThroughCommitKeepsItsShape =
           [ (fun j ->
                rowsHaveKeys(
                  field(j, "changed"),
-                 [ "change", "followed", "hash", "kind", "name", "newEffects" ]))
+                 [ "change"
+                   "followed"
+                   "hash"
+                   "kind"
+                   "name"
+                   "newEffects" ]))
 
             (fun j ->
                isTrue(int(j, "draftOps") > 0, "counts the draft's ops")) ])
@@ -685,7 +690,12 @@ test deprecateAndDeleteAnswerInJson = Instance.withInstance(fun i ->
 
       check(
         i,
-        [ "delete", "Tests.JsonDep.alone", "--reason", "unused", "--json", "--yes" ],
+        [ "delete"
+          "Tests.JsonDep.alone"
+          "--reason"
+          "unused"
+          "--json"
+          "--yes" ],
         [ (fun j -> hasKeys(j, keys))
           (fun j -> string(j, "kind") |> Stdlib.Test.equal("deprecated"))
           (fun j -> string(j, "message") |> Stdlib.Test.equal("unused"))
@@ -703,10 +713,7 @@ test deprecateAndDeleteAnswerInJson = Instance.withInstance(fun i ->
 
       refusesQuietly(
         i,
-        [ "deprecate"
-          "Tests.JsonDep.nothing"
-          "--json"
-          "--yes" ],
+        [ "deprecate", "Tests.JsonDep.nothing", "--json", "--yes" ],
         "Could not resolve")
 
       refusesQuietly(
@@ -722,22 +729,33 @@ test deleteModuleAnswersInJson = Instance.withInstance(fun i ->
         Stdlib.AltJson.Json.String("Tests.JsonDeleteBatch.first") ])
 
   let dryRun = fun expected ->
-    (fun j -> field(j, "dryRun") |> Stdlib.Test.equal(Stdlib.AltJson.Json.Bool(expected)))
+    (fun j ->
+       field(j, "dryRun")
+       |> Stdlib.Test.equal(Stdlib.AltJson.Json.Bool(expected)))
 
   Stdlib.Test.all(
     [ step(i, [ "fn", "Tests.JsonDeleteBatch.first", "(): Int64 = 2573" ])
-      step(i, [ "fn", "Tests.JsonDeleteBatch.Nested.second", "(): Int64 = 2574" ])
+
+      step(
+        i,
+        [ "fn", "Tests.JsonDeleteBatch.Nested.second", "(): Int64 = 2574" ])
+
       check(
         i,
         [ "delete", "Tests.JsonDeleteBatch", "--json" ],
-        [ (fun j -> string(j, "deprecated") |> Stdlib.Test.equal("Tests.JsonDeleteBatch"))
+        [ (fun j ->
+             string(j, "deprecated")
+             |> Stdlib.Test.equal("Tests.JsonDeleteBatch"))
+
           (fun j -> string(j, "itemType") |> Stdlib.Test.equal("module"))
           (fun j -> field(j, "names") |> Stdlib.Test.equal(names))
           dryRun(true) ])
+
       check(
         i,
         [ "delete", "Tests.JsonDeleteBatch", "--json", "--dry-run", "--yes" ],
         [ dryRun(true) ])
+
       Instance.says(
         Instance.said(i, [ "restore", "Tests.JsonDeleteBatch.first" ]),
         "is not deprecated",
@@ -745,11 +763,17 @@ test deleteModuleAnswersInJson = Instance.withInstance(fun i ->
 
       check(
         i,
-        [ "delete", "Tests.JsonDeleteBatch", "--json", "--yes", "--reason", "unused" ],
+        [ "delete"
+          "Tests.JsonDeleteBatch"
+          "--json"
+          "--yes"
+          "--reason"
+          "unused" ],
         [ (fun j -> string(j, "kind") |> Stdlib.Test.equal("deprecated"))
           (fun j -> string(j, "message") |> Stdlib.Test.equal("unused"))
           (fun j -> field(j, "names") |> Stdlib.Test.equal(names))
           dryRun(false) ])
+
       Instance.says(
         Instance.said(i, [ "restore", "Tests.JsonDeleteBatch.first" ]),
         "Undeprecated",
@@ -767,50 +791,61 @@ test testRunAnswersWithEveryTest = Instance.withInstance(fun i ->
 
   Stdlib.Test.all(
     [ step(i, [ "test", "add", "Tests.JsonRun.passes", "Stdlib.Test.pass()" ])
-      step(i, [ "test", "add", "Tests.JsonRun.fails", "Stdlib.Test.fail(\"nope\")" ])
+
+      step(
+        i,
+        [ "test", "add", "Tests.JsonRun.fails", "Stdlib.Test.fail(\"nope\")" ])
+
       check(
         i,
         [ "test", "run", "--json", "Tests.JsonRun" ],
         [ (fun j -> hasKeys(j, runKeys))
-          (fun j -> rowsHaveKeys(field(j, "tests"), [ "name", "status", "messages", "cached" ]))
+          (fun j ->
+             rowsHaveKeys(
+               field(j, "tests"),
+               [ "name", "status", "messages", "cached" ]))
+
           (fun j ->
              statuses(j)
              |> Stdlib.Test.equal(
-               [ ("Tests.JsonRun.fails", "failed"), ("Tests.JsonRun.passes", "passed") ]))
+               [ ("Tests.JsonRun.fails", "failed")
+                 ("Tests.JsonRun.passes", "passed") ]))
+
           (fun j -> int(j, "passed") |> Stdlib.Test.equal(1))
           (fun j -> int(j, "failed") |> Stdlib.Test.equal(1)) ])
 
       check(
         i,
         [ "test", "run", "--json", "Tests.JsonRunNothing" ],
-        [ (fun j -> hasKeys(j, runKeys)), (fun j -> fieldIsArray(j, "tests")) ]) ]))
+        [ (fun j -> hasKeys(j, runKeys))
+          (fun j -> fieldIsArray(j, "tests")) ]) ]))
 
 
 /// Bare `traces --json` is the listing bare `traces` prints, as JSON. A new instance has no
 /// traces, so the eval's is the only row.
-test bareTracesAnswersInJson =
-  Instance.withInstance(fun i ->
-    Stdlib.Test.all(
-      [ step(i, [ "eval", "1 + 1" ])
-        check(
-          i,
-          [ "traces", "--json" ],
-          [ (fun j ->
-               rowsHaveKeys(
-                 j,
-                 [ "id"
-                   "entry"
-                   "input"
-                   "answered"
-                   "status"
-                   "pinned"
-                   "durationMs"
-                   "created"
-                   "updated" ]))
-            (fun j ->
-               rows(j)
-               |> Stdlib.List.map(fun row -> string(row, "input"))
-               |> Stdlib.Test.equal([ "1 + 1" ])) ]) ]))
+test bareTracesAnswersInJson = Instance.withInstance(fun i ->
+  Stdlib.Test.all(
+    [ step(i, [ "eval", "1 + 1" ])
+      check(
+        i,
+        [ "traces", "--json" ],
+        [ (fun j ->
+             rowsHaveKeys(
+               j,
+               [ "id"
+                 "entry"
+                 "input"
+                 "answered"
+                 "status"
+                 "pinned"
+                 "durationMs"
+                 "created"
+                 "updated" ]))
+
+          (fun j ->
+             rows(j)
+             |> Stdlib.List.map(fun row -> string(row, "input"))
+             |> Stdlib.Test.equal([ "1 + 1" ])) ]) ]))
 
 
 /// `ps --json` says what a process runs and how it stands in the table's words, not in the

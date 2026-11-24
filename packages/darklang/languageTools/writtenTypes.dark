@@ -489,7 +489,7 @@ module ModuleDeclaration =
     | Trait(TraitDeclaration.TraitDeclaration)
     | Impl(ImplDeclaration.ImplDeclaration)
     | Test(TestDeclaration.TestDeclaration)
-    | SubModule(ModuleDeclaration.ModuleDeclaration)
+    | SubModule(ModuleDeclaration)
     | Expr(Expr)
 
 

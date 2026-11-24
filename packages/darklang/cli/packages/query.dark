@@ -330,7 +330,8 @@ let moduleHasMatchingItems(
   let here =
     Stdlib.List.any([ types, values, fns, traits, impls, tests ], fun items -> matches(path, items))
 
-  here || Stdlib.List.any(subs, fun sub ->
+  here
+  || Stdlib.List.any(subs, fun sub ->
     moduleHasMatchingItems(branchId, Stdlib.List.append(path, sub), matches))
 
 

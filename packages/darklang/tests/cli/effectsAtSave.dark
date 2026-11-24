@@ -3,7 +3,9 @@ module Darklang.Cli.Tests.EffectsAtSave
 
 val pureFn: String = "(path: String): String = path + \"/fx-7731\""
 
-val readsFn: String = "(path: String): String = Stdlib.Cli.File.readText(path + \"/fx-7731\") |> Stdlib.Result.withDefault(\"\")"
+
+val readsFn: String =
+  "(path: String): String = Stdlib.Cli.File.readText(path + \"/fx-7731\") |> Stdlib.Result.withDefault(\"\")"
 
 
 test aPureFnSaysNone = Instance.withInstance(fun i ->
@@ -22,7 +24,11 @@ test aSaveSaysWhatChanged = Instance.withInstance(fun i ->
   let (_, pureAgain, _) = Instance.streams(i, [ "fn", "Me.Fx.f", pureFn ])
   Stdlib.Test.all(
     [ Instance.says(impure, "(was none)", "it had none before")
-      Instance.says(pureAgain, "effects: none (no longer file-read", "and dropped it") ]))
+
+      Instance.says(
+        pureAgain,
+        "effects: none (no longer file-read",
+        "and dropped it") ]))
 
 
 test aModuleSaveNamesEachFn = Instance.withInstance(fun i ->
@@ -59,7 +65,11 @@ test aBranchDiffFlagsNewEffects = Instance.withInstance(fun i ->
   let _ = Instance.ran(i, [ "commit", "reads", "-y" ])
   let _ = Instance.ran(i, [ "switch", "main" ])
   Stdlib.Test.all(
-    [ Instance.says(Instance.said(i, [ "diff", "fx" ]), "now also file-read", "the branch diff")
+    [ Instance.says(
+        Instance.said(i, [ "diff", "fx" ]),
+        "now also file-read",
+        "the branch diff")
+
       Instance.says(
         Instance.said(i, [ "merge", "fx", "--dry-run" ]),
         "now also file-read",

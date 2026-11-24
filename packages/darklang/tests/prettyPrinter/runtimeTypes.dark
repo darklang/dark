@@ -451,18 +451,26 @@ test trustedCommandRefusals =
       LanguageTools.RuntimeTypes.RuntimeError.Error.TrustedCommandOnly(action))
 
   Stdlib.Test.all(
-    [ say(LanguageTools.RuntimeTypes.RuntimeError.TrustedCommands.Action.RunApprovals)
+    [ say(
+        LanguageTools.RuntimeTypes.RuntimeError.TrustedCommands.Action.RunApprovals)
       |> Stdlib.Test.equal(
         "permission denied: run approvals require the trusted `dark run` command")
-      say(LanguageTools.RuntimeTypes.RuntimeError.TrustedCommands.Action.EvalApprovals)
+
+      say(
+        LanguageTools.RuntimeTypes.RuntimeError.TrustedCommands.Action.EvalApprovals)
       |> Stdlib.Test.equal(
         "permission denied: eval approvals require the trusted `dark eval` command")
-      say(LanguageTools.RuntimeTypes.RuntimeError.TrustedCommands.Action.PolicyChanges)
+
+      say(
+        LanguageTools.RuntimeTypes.RuntimeError.TrustedCommands.Action.PolicyChanges)
       |> Stdlib.Test.equal(
         "permission denied: policy changes require the trusted `dark permissions` command")
-      say(LanguageTools.RuntimeTypes.RuntimeError.TrustedCommands.Action.StoreBackups)
+
+      say(
+        LanguageTools.RuntimeTypes.RuntimeError.TrustedCommands.Action.StoreBackups)
       |> Stdlib.Test.equal(
         "permission denied: store backups require the trusted `dark backups` command")
+
       say(
         LanguageTools.RuntimeTypes.RuntimeError.TrustedCommands.Action.PersonOnlySetting(
           "http.loopback"))

@@ -645,7 +645,17 @@ test messagesSayWhatToWrite =
 
 // An unknown or retired suffix is one bad literal, named whole.
 test badNumberSuffixes =
-  [ "1Q", "1Z", "1e5m", "123abc", "1s7", "1u256", "1f16", "1.5f16", "1.5s8", "1e5z", "1zz" ]
+  [ "1Q"
+    "1Z"
+    "1e5m"
+    "123abc"
+    "1s7"
+    "1u256"
+    "1f16"
+    "1.5f16"
+    "1.5s8"
+    "1e5z"
+    "1zz" ]
   |> Stdlib.List.map(fun source ->
     golden(source, [ $"invalid number literal: {source}" ]))
   |> Stdlib.Test.all
@@ -677,11 +687,14 @@ test numberLiterals =
 
       // a literal's range is checked against its type
       golden("256u8", [ "out of range for UInt8: 256u8" ])
+
       golden(
         "18446744073709551616u",
         [ "out of range for UInt64: 18446744073709551616u" ])
+
       golden(
         "18446744073709551616",
         [ "out of range for Int64: 18446744073709551616" ])
+
       clean("18446744073709551615u")
       clean("-9223372036854775808s64") ])

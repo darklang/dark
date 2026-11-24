@@ -226,13 +226,17 @@ let executePackageFn(
   | Some(hash) ->
     let deprecation =
       LanguageTools.PackageManager.currentDeprecation(
-        branchId, location, hash, LanguageTools.ProgramTypes.ItemKind.Fn)
+        branchId,
+        location,
+        hash,
+        LanguageTools.ProgramTypes.ItemKind.Fn)
 
     match deprecation with
     | Some((WithReplacement(reference), _)) ->
       let replacement = Packages.View.resolveReplacementName(branchId, reference)
       Stdlib.printErrorLine(
-        Stdlib.Cli.UI.Colors.warning($"Warning: {fnName} is deprecated. Use {replacement} instead."))
+        Stdlib.Cli.UI.Colors.warning(
+          $"Warning: {fnName} is deprecated. Use {replacement} instead."))
     | Some(_) ->
       Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.warning($"Warning: {fnName} is deprecated."))
     | None -> ()

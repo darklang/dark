@@ -73,10 +73,7 @@ let createTraitInline(
 
         Option.Some(failed(state))
       | Trait(t) ->
-        let t =
-          { t with
-              description = Stdlib.Option.withDefault(description, t.description) }
-
+        let t = { t with description = Stdlib.Option.withDefault(description, t.description) }
         Option.Some(
           saveAuthored(
             state,

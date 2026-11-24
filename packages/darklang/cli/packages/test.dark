@@ -89,11 +89,7 @@ let testJson(name: String, outcome: Outcome, cached: Bool): TestJson =
     | RuntimeFailed(message) -> ("error", [ message ])
     | Rows(_) -> if isPassed(outcome) then ("passed", []) else ("failed", [])
 
-  TestJson
-    { name = name
-      status = status
-      messages = messages
-      cached = cached }
+  TestJson { name = name, status = status, messages = messages, cached = cached }
 
 
 val usage =
@@ -177,8 +173,7 @@ let rowSelected(filters: List<String>, path: String, name: String): Bool =
   || Stdlib.List.any(filters, fun f ->
     let test = testPart(f)
     selects(test, path)
-    && (test == f
-        || name == $"{path} › {Stdlib.String.dropFirst(f, Stdlib.String.length(test))}"))
+    && (test == f || name == $"{path} › {Stdlib.String.dropFirst(f, Stdlib.String.length(test))}"))
 
 
 /// The actual judging function, including its followed dependencies, and the
@@ -300,9 +295,10 @@ let runFresh(
       if Stdlib.Test.passed(result) then
         (args, Outcome.Passed)
       else
-        (args,
-         Outcome.Failed(
-           LanguageTools.PackageManager.Test.rowFailureLines(ctx(), test.body, result))))
+        (
+          args,
+          Outcome.Failed(
+            LanguageTools.PackageManager.Test.rowFailureLines(ctx(), test.body, result))))
     |> Outcome.Rows
   | Ok(result) ->
     Outcome.Failed(LanguageTools.PackageManager.Test.failureLines(ctx(), test.body, result))
@@ -371,7 +367,6 @@ let addTest(
   | Ok(location) ->
     let trimmed = Stdlib.String.trim(definition)
     let isFullDeclaration = Stdlib.String.startsWith(codeAfterComments(definition), "test ")
-
     let fullSource =
       if isFullDeclaration then definition else $"test {location.name} = {definition}"
 
@@ -477,7 +472,8 @@ let runTests(state: AppState, args: List<String>): AppState =
 
 
 /// Whether <param arg> names a script rather than a test: test names never end in `.dark`.
-let isScript(arg: String): Bool = Stdlib.String.endsWith(arg, ".dark")
+let isScript(arg: String): Bool =
+  Stdlib.String.endsWith(arg, ".dark")
 
 
 /// The module a script's tests are saved under while they run.
@@ -495,13 +491,13 @@ let runScriptTests(state: AppState, options: RunOptions, path: String): AppState
     { state with exitCode = 1 }
   | Ok(source) ->
     match LanguageTools.Parser.Parse.parse(LanguageTools.Parser.FileKind.Script, source) with
-    | (Some(SourceFile(sourceFile)), []) ->
+    | Some(SourceFile(sourceFile)), [] ->
       match LanguageTools.ScriptTests.belowLet(sourceFile) with
       | [] -> runScriptTestsIn(state, options, sourceFile)
       | belowLet ->
         Stdlib.List.iter(belowLet, fun b -> Stdlib.printErrorLine(belowLetText(b)))
         { state with exitCode = 1 }
-    | (_, diagnostics) ->
+    | _, diagnostics ->
       let _ = Errors.reportParseErrors(diagnostics)
       { state with exitCode = 1 }
 
@@ -539,8 +535,7 @@ let runScriptTestsIn(
       { range = sourceFile.range
         name = (sourceFile.range, scriptModule)
         declarations =
-          sourceFile.declarations
-          |> Stdlib.List.map(LanguageTools.Parser.Parse.toModuleDeclaration)
+          sourceFile.declarations |> Stdlib.List.map(LanguageTools.Parser.Parse.toModuleDeclaration)
         keywordModule = sourceFile.range }
 
   let ctx =
@@ -561,7 +556,8 @@ let runScriptTestsIn(
 
   let taken =
     locations
-    |> Stdlib.List.filter(fun location -> Stdlib.Option.isSome(Rename.referenceAt(branchId, location)))
+    |> Stdlib.List.filter(fun location ->
+      Stdlib.Option.isSome(Rename.referenceAt(branchId, location)))
 
   if Stdlib.Bool.not(Stdlib.List.isEmpty(taken)) then
     printErr($"`{scriptModule}` already holds names on this branch; a script's tests run under it")
@@ -569,9 +565,7 @@ let runScriptTestsIn(
   else if Errors.reportUnresolvedNames(branchId, [ scriptModule ], unresolvedNames) then
     { state with exitCode = 1 }
   else
-    let draftBefore =
-      SCM.PackageOps.draftEntriesFor(branchId) |> Stdlib.List.map(fun e -> e.id)
-
+    let draftBefore = SCM.PackageOps.draftEntriesFor(branchId) |> Stdlib.List.map(fun e -> e.id)
     let result =
       match SCM.PackageOps.addAuthored(branchId, ops) with
       | Error(message) ->
@@ -589,6 +583,7 @@ let runScriptTestsIn(
               liveTests(branchId, [ scriptModule ], "")
               |> Stdlib.List.filter(fun item -> Stdlib.List.contains(locations, item.location))
               |> Stdlib.List.sortBy(groupedPath)
+
             runTestsInRun(run, state, options, selected))
 
     let added =
@@ -695,7 +690,11 @@ let finishTest(
       counts.results
 
   let n = Stdlib.List.length(tests)
-  let passed = tests |> Stdlib.List.filter(fun((_, o)) -> isPassed(o)) |> Stdlib.List.length
+  let passed =
+    tests
+    |> Stdlib.List.filter(fun((_, o)) -> isPassed(o))
+    |> Stdlib.List.length
+
   Counts
     { passed = counts.passed + passed
       failed = counts.failed + n - passed
@@ -768,6 +767,7 @@ let runSelected(
       // Progress, not a result: stderr, so the answer on stdout is the PASS/FAIL lines and the verdict.
       if Stdlib.Bool.not(options.brief) then
         Stdlib.printErrorLine($"Running: {shownName(item)}")
+
       let handle = Stdlib.Exec.spawn(fun () ->
         let started = Stdlib.DateTime.__monotonicMilliseconds()
         let outcome = runFresh(run, branchId, item)
@@ -931,8 +931,9 @@ let runTestsInRun(
   run: LanguageTools.PackageManager.Test.Run,
   state: AppState,
   options: RunOptions,
-  selected: List<
-    LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>>)
+  selected:
+    List<
+      LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>>)
   : AppState =
   // One analysis for the whole run: the tests share most of what they call.
   let cacheSafe =
@@ -979,6 +980,7 @@ let runTestsInRun(
       if Stdlib.Bool.not(options.brief) then
         printSlowest(counts.timings)
         Stdlib.printLine("")
+
       // Said only when it happened, so a run where every test started writing
       // shows up here rather than only as a slower run.
       let reranNote =
@@ -1019,9 +1021,7 @@ let countRows(prefix: List<String>, tests: List<(List<String> * Int64)>): List<C
     Stdlib.List.partition(tests, fun((path, _)) -> Stdlib.List.length(path) == depth + 1)
 
   let row(name: String, group: List<(List<String> * Int64)>): CountRow =
-    CountRow
-      { name = name
-        tests = total(group) }
+    CountRow { name = name, tests = total(group) }
 
   let modules =
     nested
@@ -1088,6 +1088,7 @@ let printCounts(
         { r with name = $"› {r.name}" }
       else
         r)
+
   let below = if shared == prefix then "" else $" (all in {Stdlib.String.join(shared, ".")})"
   Stdlib.printLine($"{heading}: {countLine(total(tests))}{below}")
   let width = Stdlib.List.fold(rows, 0, fun(w, r) ->
@@ -1104,8 +1105,8 @@ let printCounts(
 let countGroups(
   items:
     List<
-    (List<String> *
-     LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>)>)
+      (List<String> *
+       LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageTest.PackageTest>)>)
   : List<List<String>> =
   items
   |> Stdlib.List.map(fun((path, item)) ->
@@ -1156,7 +1157,6 @@ let countTests(state: AppState, args: List<String>): AppState =
         (path, LanguageTools.PackageManager.Test.testCount(item.entity.body)))
 
     let groups = countGroups(items)
-
     let place = if depth == 0 then "All tests" else Stdlib.String.join(prefix, ".")
     match forItem with
     | None ->

@@ -217,8 +217,7 @@ let repointNow(
 
           repoints
           |> Stdlib.List.filterMap(fun r ->
-            Stdlib.Dict.get(issuesByRef, r.toRef)
-            |> Stdlib.Option.map(fun why -> (nameOf(r), why)))
+            Stdlib.Dict.get(issuesByRef, r.toRef) |> Stdlib.Option.map(fun why -> (nameOf(r), why)))
           |> Stdlib.List.unique
 
       Followed { names = names, broken = broken, failure = Option.None }
@@ -313,7 +312,11 @@ let printFollowed(followed: Followed): Unit =
       Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "    ", why)
     | broken ->
       let count = Stdlib.display(Stdlib.List.length(broken))
-      Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "  ", $"{count} dependents no longer type-check:")
+      Text.printWrappedErr(
+        Stdlib.Cli.UI.Colors.error,
+        "  ",
+        $"{count} dependents no longer type-check:")
+
       broken
       |> Stdlib.List.iter(fun((name, why)) ->
         Text.printWrappedErr(Stdlib.Cli.UI.Colors.error, "  ", $"- {name}")
@@ -322,15 +325,17 @@ let printFollowed(followed: Followed): Unit =
 
 /// Report the propagation result for a single declaration edit.
 let printEditPropagation(followed: Followed): Unit =
-  let names =
-    Stdlib.List.sortWith(followed.names, fun(a, b) ->
-      let order = Stdlib.String.compare(a, b)
-      if order < 0 then Stdlib.Ordering.Less
-      else if order > 0 then Stdlib.Ordering.Greater
-      else Stdlib.Ordering.Equal)
+  let names = Stdlib.List.sortWith(followed.names, fun(a, b) ->
+    let order = Stdlib.String.compare(a, b)
+    if order < 0 then
+      Stdlib.Ordering.Less
+    else if order > 0 then
+      Stdlib.Ordering.Greater
+    else
+      Stdlib.Ordering.Equal)
 
-  match (followed.failure, followed.broken, names) with
-  | (None, [], [first, ...rest]) ->
+  match followed.failure, followed.broken, names with
+  | None, [], [first, ...rest] ->
     let message =
       match rest with
       | [] -> $"{first} now uses the new version"

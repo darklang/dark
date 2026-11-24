@@ -113,6 +113,7 @@ module Denials =
     let lines =
       Stdlib.String.split(out, "\n")
       |> Stdlib.List.map(fun line -> Stdlib.Cli.Tui.Text.stripSgr(line))
+
     (code, Stdlib.String.trim(Stdlib.String.join(lines, "\n")))
 
 
@@ -123,7 +124,8 @@ module Denials =
     deny(i, [ "run", path ])
 
 
-  val readAtRuntime = "Stdlib.Cli.File.readText(Stdlib.String.reverse(\"txt.terces/deined/\"))"
+  val readAtRuntime =
+    "Stdlib.Cli.File.readText(Stdlib.String.reverse(\"txt.terces/deined/\"))"
 
 
   val packageRemedy =
@@ -144,11 +146,15 @@ module Denials =
         "let readAt(path: String): String =\n  match Stdlib.Cli.File.readText(path) with\n  | Ok(t) -> t\n  | Error(e) -> Stdlib.display(e)\n")
 
     let (saved, _) = Instance.ran(i, [ "module", "Tests.Denied", source ])
-    let call = "Tests.Denied.readAt(Stdlib.String.reverse(\"txt.terces/deined/\"))"
+    let call =
+      "Tests.Denied.readAt(Stdlib.String.reverse(\"txt.terces/deined/\"))"
+
     Stdlib.Test.all(
       [ saved |> Stdlib.Test.equal(0)
+
         deny(i, [ "eval", call ])
         |> Stdlib.Test.equal((1, "Error: " + packageRemedy))
+
         runScript(i, $"Stdlib.printLine({call})")
         |> Stdlib.Test.equal((1, packageRemedy)) ]))
 
@@ -164,7 +170,10 @@ module Denials =
 
     let (saved, _) = Instance.ran(i, [ "module", "Tests.Copy", source ])
     let (_, out) =
-      deny(i, [ "eval", "Tests.Copy.copy(Stdlib.String.reverse(\"txt.terces/deined/\"))" ])
+      deny(
+        i,
+        [ "eval"
+          "Tests.Copy.copy(Stdlib.String.reverse(\"txt.terces/deined/\"))" ])
 
     let both = "\"file read '/denied'; file write '/denied'\""
     // The remember command, pasted: the same two rules as one argument.
@@ -183,20 +192,30 @@ module Denials =
           out,
           $"Remember this access:\n  dark permissions approve Tests.Copy.copy {both}",
           "remembering covers both")
+
         Instance.says(
           out,
           $"It reads and writes files. For one run, both in that folder:\n  dark run --allow {both}",
           "and so does one run")
-        Instance.doesNotSay(out, "For one run:\n", "with no read-only suggestion before it")
-        Instance.exitedWith(approvedCode, 0, $"and the remember command works: {approved}") ]))
+
+        Instance.doesNotSay(
+          out,
+          "For one run:\n",
+          "with no read-only suggestion before it")
+
+        Instance.exitedWith(
+          approvedCode,
+          0,
+          $"and the remember command works: {approved}") ]))
 
 
   // An instance-policy denial gives the exact allow command and tells agents to submit
   // it through their runner's approval.
-  test instanceDenialGivesTheAllowCommandAndRunnerHint = Instance.withInstance(fun i ->
-    Stdlib.Test.all(
-      [ deny(i, [ "eval", readAtRuntime ])
-        |> Stdlib.Test.equal((1, "Error: " + instanceRemedy))
-        runScript(i, $"let _ = {readAtRuntime}\n()")
-        |> Stdlib.Test.equal((1, instanceRemedy)) ]))
+  test instanceDenialGivesTheAllowCommandAndRunnerHint =
+    Instance.withInstance(fun i ->
+      Stdlib.Test.all(
+        [ deny(i, [ "eval", readAtRuntime ])
+          |> Stdlib.Test.equal((1, "Error: " + instanceRemedy))
 
+          runScript(i, $"let _ = {readAtRuntime}\n()")
+          |> Stdlib.Test.equal((1, instanceRemedy)) ]))

@@ -1,41 +1,48 @@
 module Darklang.Cli.Tests.Telemetry
 
 // `logFilePath` must be worked out per process, not baked in when the package store is built.
-test telemetryLogsToTheRunningCLIsLogDir = Instance.withInstance(fun i ->
-  Instance.output(i, [ "eval", "Darklang.Cli.Telemetry.logFilePath()" ])
-  |> Stdlib.Test.equal($"{i.dir}/logs/telemetry.jsonl"))
+test telemetryLogsToTheRunningCLIsLogDir =
+  Instance.withInstance(fun i ->
+    Instance.output(i, [ "eval", "Darklang.Cli.Telemetry.logFilePath()" ])
+    |> Stdlib.Test.equal($"{i.dir}/logs/telemetry.jsonl"))
 
 
 // Past 64 MB the log moves to telemetry.jsonl.1, replacing the one there, and starts again.
-test telemetryLogRotatesPast64MB =
-  Instance.withInstance(fun i ->
-    let log = i.dir + "/logs/telemetry.jsonl"
-    let sizeOf(path: String): String =
-      (Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", $"wc -c < {Stdlib.Cli.Unix.quote(path)}")).stdout
-      |> Stdlib.String.trim
+test telemetryLogRotatesPast64MB = Instance.withInstance(fun i ->
+  let log = i.dir + "/logs/telemetry.jsonl"
+  let sizeOf(path: String): String =
+    (Stdlib.Cli.Unix.executeInDirectoryWithOutput(
+       ".",
+       $"wc -c < {Stdlib.Cli.Unix.quote(path)}")).stdout
+    |> Stdlib.String.trim
 
-    let prepared =
-      Stdlib.Cli.Unix.executeInDirectoryWithOutput(
-        ".",
-        $"mkdir -p {Stdlib.Cli.Unix.quote(i.dir)}/logs && dd if=/dev/zero of={Stdlib.Cli.Unix.quote(log)} bs=1 count=0 seek=67108865 2>/dev/null && printf old > {Stdlib.Cli.Unix.quote(log + ".1")}")
+  let prepared =
+    Stdlib.Cli.Unix.executeInDirectoryWithOutput(
+      ".",
+      $"mkdir -p {Stdlib.Cli.Unix.quote(i.dir)}/logs && dd if=/dev/zero of={Stdlib.Cli.Unix.quote(log)} bs=1 count=0 seek=67108865 2>/dev/null && printf old > {Stdlib.Cli.Unix.quote(log + ".1")}")
 
-    let envArgs =
-      Stdlib.List.concat(Instance.env(i), [ ("DARK_TELEMETRY", "1") ])
-      |> Stdlib.List.map(fun pair ->
-        let (k, v) = pair
-        $"{k}={v}")
+  let envArgs =
+    Stdlib.List.concat(Instance.env(i), [ ("DARK_TELEMETRY", "1") ])
+    |> Stdlib.List.map(fun pair ->
+      let (k, v) = pair
+      $"{k}={v}")
 
-    let ran =
-      Stdlib.Cli.Process.runWithTimeout(
-        Instance.commandTimeoutMs,
-        "/usr/bin/env",
-        Stdlib.List.concat(envArgs, [ i.cli, "eval", "1" ]))
+  let ran =
+    Stdlib.Cli.Process.runWithTimeout(
+      Instance.commandTimeoutMs,
+      "/usr/bin/env",
+      Stdlib.List.concat(envArgs, [ i.cli, "eval", "1" ]))
 
-    Stdlib.Test.all(
-      [ prepared.exitCode |> Stdlib.Test.equal(0)
-        ran |> Stdlib.Result.map(fun o -> o.exitCode) |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0))
-        sizeOf(log + ".1") |> Stdlib.Test.equal("67108865")
-        (match Stdlib.Int64.parse(sizeOf(log)) with
-         | Ok(n) -> n > 0 && n < 1048576
-         | Error(_) -> false)
-        |> Stdlib.Test.equal(true) ]))
+  Stdlib.Test.all(
+    [ prepared.exitCode |> Stdlib.Test.equal(0)
+
+      ran
+      |> Stdlib.Result.map(fun o -> o.exitCode)
+      |> Stdlib.Test.equal(Stdlib.Result.Result.Ok(0))
+
+      sizeOf(log + ".1") |> Stdlib.Test.equal("67108865")
+
+      (match Stdlib.Int64.parse(sizeOf(log)) with
+       | Ok(n) -> n > 0 && n < 1048576
+       | Error(_) -> false)
+      |> Stdlib.Test.equal(true) ]))

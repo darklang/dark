@@ -847,6 +847,7 @@ let issueToStringWith(customTypeName: ProgramTypes.Hash -> Option<String>, issue
       stringExpectedHint(expected, actual)
       + tupleParameterHint(expected, actual)
       + unwrapHint(customTypeName, expected, actual)
+
     match issue.code, issue.context with
     | TypeMismatch, At(FunctionArgument(1, Some(callee))) ->
       typeHint + appendListHint(callee, expected, actual)

@@ -56,10 +56,9 @@ module Resolution =
       LanguageTools.PackageManager.pm(),
       SCM.Branch.mainBranchId,
       LanguageTools.NameResolver.GenericName
-        { modules = [ "Builtin" ]
-          name = name
-          version = version })
+        { modules = [ "Builtin" ], name = name, version = version })
     |> Stdlib.Result.isOk
+
 
   // A builtin resolves by its name and version, not by its name alone.
   test builtinResolvesOnlyAtItsVersion =

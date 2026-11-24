@@ -92,7 +92,8 @@ test stdlibSuggestionCandidatesWalkUpWithinStdlib =
       |> Stdlib.Test.equal([ "Stdlib.Me.Utils.render" ])
 
       suggestionCandidates("Stdlib.Int64.toString")
-      |> Stdlib.Test.equal([ "Stdlib.toString", "Stdlib.String.fromInt64", "Stdlib.display" ])
+      |> Stdlib.Test.equal(
+        [ "Stdlib.toString", "Stdlib.String.fromInt64", "Stdlib.display" ])
 
       suggestionCandidates("Stdlib.UInt8.toInt64")
       |> Stdlib.Test.equal([ "Stdlib.toInt64", "Stdlib.Int64.fromUInt8" ])
@@ -117,7 +118,9 @@ test stdlibSuggestionCandidatesWalkUpWithinStdlib =
 
 
 test didYouMeanLooksOneModuleDown =
-  Cli.Packages.Errors.didYouMean(SCM.Branch.mainBranchId, [ "Stdlib", "Http", "queryParam" ])
+  Cli.Packages.Errors.didYouMean(
+    SCM.Branch.mainBranchId,
+    [ "Stdlib", "Http", "queryParam" ])
   |> Stdlib.Test.equal([ "Stdlib.Http.Request.queryParam" ])
 
 
@@ -282,7 +285,8 @@ test int64AddSuggestsCheckedToo = Instance.withInstance(fun i ->
   then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"Expected `a + b` and checkedAdd; eval={evaluated.stderr}"))
+    Stdlib.Test.fail(
+      $"Expected `a + b` and checkedAdd; eval={evaluated.stderr}"))
 
 
 test didYouMeanText =
@@ -300,7 +304,6 @@ test didYouMeanText =
 test notFoundSuggestsNamesSpelledNear = Instance.withInstance(fun i ->
   let evaluated = evalOutcome(i, "Stdlib.List.lenght([1])")
   let branchName = "cli-did-you-mean-test"
-
   let _ = Instance.output(i, [ "branch", "create", branchName ])
   let saved =
     Instance.said(

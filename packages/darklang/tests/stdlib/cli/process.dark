@@ -49,8 +49,19 @@ test shellQuote =
 // whichever quotes it picks, the shell reads the word back unchanged
 test shellQuoteRoundTrips =
   let words =
-    [ "plain", "it's", "file read '/x/y.json'", "a'b'c", "it's $HOME", "say \"it's\"",
-      "it's!", "back\\slash's", "`cmd`'s", "", "two  spaces", "'" ]
+    [ "plain"
+      "it's"
+      "file read '/x/y.json'"
+      "a'b'c"
+      "it's $HOME"
+      "say \"it's\""
+      "it's!"
+      "back\\slash's"
+      "`cmd`'s"
+      ""
+      "two  spaces"
+      "'" ]
+
   words
   |> Stdlib.List.map(fun w ->
     let script = "printf %s " + Stdlib.Cli.Process.shellQuote(w)
@@ -233,7 +244,11 @@ test reportsRuntimeHost =
 
 
 /// Read <param handle>'s output until it has printed "ready", for at most <param turns> 10 ms turns.
-let readUntilReady(handle: Stdlib.Cli.Process.ProcessHandle, seen: String, turns: Int64): String =
+let readUntilReady(
+  handle: Stdlib.Cli.Process.ProcessHandle,
+  seen: String,
+  turns: Int64)
+  : String =
   if turns <= 0 || Stdlib.String.contains(seen, "ready") then
     seen
   else

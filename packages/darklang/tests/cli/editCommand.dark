@@ -22,14 +22,19 @@ test editRoundTripsThroughRaw = Instance.withInstance(fun i ->
         "/" + name
         "let tripled(n: Int64): Int64 = (n * 3)" ])
 
-  let before = Instance.output(i, [ "--branch", branchName, "view", name, "--raw" ])
+  let before =
+    Instance.output(i, [ "--branch", branchName, "view", name, "--raw" ])
 
   // The hash, not the op count: an apply that changes nothing still records that the
   // name was set, so the log grows either way. What must not change is the item.
   let hashBefore = Instance.output(i, [ "--branch", branchName, "hash", name ])
   let _ = Stdlib.Cli.File.writeAtomic(sourcePath, before) |> Builtin.unwrap
-  let _ = Instance.output(i, [ "--branch", branchName, "edit", name, sourcePath ])
-  let after = Instance.output(i, [ "--branch", branchName, "view", name, "--raw" ])
+  let _ =
+    Instance.output(i, [ "--branch", branchName, "edit", name, sourcePath ])
+
+  let after =
+    Instance.output(i, [ "--branch", branchName, "view", name, "--raw" ])
+
   let hashAfter = Instance.output(i, [ "--branch", branchName, "hash", name ])
 
   // And a real change still lands, so the assertion above is not passing because
@@ -40,7 +45,8 @@ test editRoundTripsThroughRaw = Instance.withInstance(fun i ->
       "let tripled(n: Int64): Int64 = (n * 30)")
     |> Builtin.unwrap
 
-  let _ = Instance.output(i, [ "--branch", branchName, "edit", name, changedPath ])
+  let _ =
+    Instance.output(i, [ "--branch", branchName, "edit", name, changedPath ])
 
   let evaluated =
     Instance.output(i, [ "--branch", branchName, "eval", name + "(2)" ])
@@ -97,7 +103,8 @@ test editRoundTripsTypesAndValues = Instance.withInstance(fun i ->
 
   let _ = Stdlib.Cli.File.writeAtomic(typePath, typeBefore) |> Builtin.unwrap
   let _ = Stdlib.Cli.File.writeAtomic(valuePath, valueBefore) |> Builtin.unwrap
-  let _ = Instance.output(i, [ "--branch", branchName, "edit", typeName, typePath ])
+  let _ =
+    Instance.output(i, [ "--branch", branchName, "edit", typeName, typePath ])
 
   let _ =
     Instance.output(i, [ "--branch", branchName, "edit", valueName, valuePath ])
@@ -155,7 +162,8 @@ test editLeavesTheItemAloneOnABadFile = Instance.withInstance(fun i ->
   let refused =
     Instance.output(i, [ "--branch", branchName, "edit", name, badPath ])
 
-  let hashAfterBad = Instance.output(i, [ "--branch", branchName, "hash", name ])
+  let hashAfterBad =
+    Instance.output(i, [ "--branch", branchName, "hash", name ])
 
   // A path that is not there at all takes the same route, and must also change
   // nothing.

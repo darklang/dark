@@ -106,7 +106,11 @@ let execute(state: AppState, args: List<String>): AppState =
       | [] -> deleteModule(state, first, parsed)
       | [(kind, word)] -> deleteItem(state, word, kind, first, parsed)
       | several ->
-        let kinds = several |> Stdlib.List.map(Stdlib.Tuple2.second) |> Stdlib.String.join("|")
+        let kinds =
+          several
+          |> Stdlib.List.map(Stdlib.Tuple2.second)
+          |> Stdlib.String.join("|")
+
         printErr($"More than one item is named {first}. Use `dark delete <{kinds}> {first}`.")
         failed(state)
 
@@ -172,7 +176,8 @@ let moduleItems(
       items
       |> Stdlib.List.filterMap(fun((name, _)) ->
         let location =
-          LanguageTools.ProgramTypes.PackageLocation { owner = owner, modules = modules, name = name }
+          LanguageTools.ProgramTypes.PackageLocation
+            { owner = owner, modules = modules, name = name }
 
         // Search also matches paths with the owner omitted. Verify the binding at this exact path.
         Deprecate.findAt(branchId, kind, location)
@@ -181,8 +186,7 @@ let moduleItems(
 
   let below =
     subs
-    |> Stdlib.List.map(fun sub ->
-      moduleItems(branchId, owner, Stdlib.List.append(modules, sub)))
+    |> Stdlib.List.map(fun sub -> moduleItems(branchId, owner, Stdlib.List.append(modules, sub)))
     |> Stdlib.List.flatten
 
   Stdlib.List.concat(here, below)
@@ -213,10 +217,12 @@ let deleteModule(state: AppState, name: String, parsed: ParsedArgs): AppState =
 
   match modulePath(state, name) with
   | Some([owner, first, ...rest]) ->
-    let shown = Stdlib.String.join([owner, first, ...rest], ".")
+    let shown = Stdlib.String.join([ owner, first, ...rest ], ".")
     let (owner, modules) =
-      if owner == "Stdlib" then ("Darklang", ["Stdlib", first, ...rest])
-      else (owner, [first, ...rest])
+      if owner == "Stdlib" then
+        ("Darklang", [ "Stdlib", first, ...rest ])
+      else
+        (owner, [ first, ...rest ])
 
     match moduleItems(branchId, owner, modules) with
     | [] -> notFound()
@@ -234,7 +240,7 @@ let deleteModule(state: AppState, name: String, parsed: ParsedArgs): AppState =
         failed(state)
       | _ ->
         deleteModuleItems(state, shown, Stdlib.List.prepend(modules, owner), pending, sets, parsed)
-  | Some([owner]) when moduleExists(branchId, [owner]) ->
+  | Some([owner]) when moduleExists(branchId, [ owner ]) ->
     printErr($"Won't delete all of {owner} at once; delete one module: delete {owner}.<module>")
     failed(state)
   | _ -> notFound()
@@ -244,8 +250,7 @@ let deleteModuleItems(
   state: AppState,
   shown: String,
   path: List<String>,
-  items:
-    List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.Reference)>,
+  items: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.Reference)>,
   sets: Query.DeprecationSets,
   parsed: ParsedArgs)
   : AppState =
@@ -254,7 +259,8 @@ let deleteModuleItems(
   let outside =
     SCM.Deps.dependentsFor(
       SCM.PackageOps.currentBranch(),
-      items |> Stdlib.List.map(fun((location, reference)) ->
+      items
+      |> Stdlib.List.map(fun((location, reference)) ->
         (location, LanguageTools.ProgramTypes.Reference.kind(reference))))
     |> Stdlib.List.filter(fun((hash, location, _)) ->
       let home = Stdlib.List.prepend(location.modules, location.owner)

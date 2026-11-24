@@ -61,7 +61,8 @@ let restoreCallers(
             Option.None)
         |> Stdlib.List.unique
         |> Stdlib.List.iter(fun caller ->
-          Stderr.line(Stdlib.Cli.UI.Colors.warning($"  {caller} still uses the discarded {dotted}.")))
+          Stderr.line(
+            Stdlib.Cli.UI.Colors.warning($"  {caller} still uses the discarded {dotted}.")))
       | Error(e) ->
         Stderr.line(Stdlib.Cli.UI.Colors.warning($"  Couldn't check callers of {dotted}: {e}"))
     else
@@ -127,7 +128,8 @@ let execute(state: AppState, args: List<String>): AppState =
             match entry.op with
             | SetName(location, target, _)
             | Decision(_, location, _, Override(target))
-            | Decision(_, location, _, Restore(_, target, _)) when location == loc ->
+            | Decision(_, location, _, Restore(_, target, _))
+              when location == loc ->
               Option.Some(target)
             | Rename(_, location, target, _, _) when location == loc -> Option.Some(target)
             | _ -> Option.None)
@@ -142,7 +144,9 @@ let execute(state: AppState, args: List<String>): AppState =
             if Stdlib.List.isEmpty(affected) then
               ()
             else
-              Stderr.line(Stdlib.Cli.UI.Colors.warning($"  Callers still use another version of {dotted}:"))
+              Stderr.line(
+                Stdlib.Cli.UI.Colors.warning($"  Callers still use another version of {dotted}:"))
+
               Stdlib.List.iter(affected, fun finding -> Stderr.line(ConstraintsCmd.line(finding)))
               Stderr.hint("  `dark constraints` lists these references and how to resolve them.")
           | Error(e) ->

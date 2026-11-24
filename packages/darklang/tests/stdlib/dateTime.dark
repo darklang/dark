@@ -1030,9 +1030,13 @@ test fromTicksPastInstantRangeRaises =
 
 
 // The first and last DateTimes: -9998-01-01T00:00:00Z and 9999-12-31T23:59:59.9999999Z
-let first(): DateTime = Stdlib.DateTime.__fromTicks(-3776735808000000000)
+let first(): DateTime =
+  Stdlib.DateTime.__fromTicks(-3776735808000000000)
 
-let last(): DateTime = Stdlib.DateTime.__fromTicks(2534023007999999999)
+
+let last(): DateTime =
+  Stdlib.DateTime.__fromTicks(2534023007999999999)
+
 
 let ok(date: DateTime): Stdlib.Result.Result<DateTime, Stdlib.Math.Overflow> =
   Stdlib.Result.Result.Ok(date)
@@ -1044,30 +1048,47 @@ test checkedInRange =
   Stdlib.Test.all(
     [ Stdlib.DateTime.checkedAddSeconds(date, 1000000)
       |> Stdlib.Test.equal(ok(Stdlib.DateTime.addSeconds(date, 1000000)))
+
       Stdlib.DateTime.checkedAddSeconds(date, -10)
       |> Stdlib.Test.equal(ok(Stdlib.DateTime.addSeconds(date, -10)))
+
       Stdlib.DateTime.checkedSubtractSeconds(date, 1000000)
       |> Stdlib.Test.equal(ok(Stdlib.DateTime.subtractSeconds(date, 1000000)))
+
       Stdlib.DateTime.checkedFromSeconds(1095379198)
       |> Stdlib.Test.equal(ok(Stdlib.DateTime.fromSeconds(1095379198)))
+
       Stdlib.DateTime.checkedFromSeconds(-1)
       |> Stdlib.Test.equal(ok(Stdlib.DateTime.fromSeconds(-1)))
+
       Stdlib.DateTime.checkedAddMilliseconds(date, 1500)
       |> Stdlib.Test.equal(ok(Stdlib.DateTime.addMilliseconds(date, 1500)))
+
       Stdlib.DateTime.checkedSubtractMilliseconds(date, 1500)
       |> Stdlib.Test.equal(ok(Stdlib.DateTime.subtractMilliseconds(date, 1500)))
+
       Stdlib.DateTime.checkedFromMilliseconds(1095379198123)
       |> Stdlib.Test.equal(ok(Stdlib.DateTime.fromMilliseconds(1095379198123)))
+
       // the edges themselves
-      Stdlib.DateTime.checkedFromSeconds(-377673580800) |> Stdlib.Test.equal(ok(first()))
+      Stdlib.DateTime.checkedFromSeconds(-377673580800)
+      |> Stdlib.Test.equal(ok(first()))
+
       Stdlib.DateTime.checkedFromSeconds(253402300799)
       |> Stdlib.Test.equal(ok(Stdlib.DateTime.fromSeconds(253402300799)))
+
       Stdlib.DateTime.checkedFromMilliseconds(-377673580800000)
       |> Stdlib.Test.equal(ok(first()))
+
       Stdlib.DateTime.checkedFromMilliseconds(253402300799999)
-      |> Stdlib.Test.equal(ok(Stdlib.DateTime.fromMilliseconds(253402300799999)))
-      Stdlib.DateTime.checkedAddSeconds(first(), 0) |> Stdlib.Test.equal(ok(first()))
-      Stdlib.DateTime.checkedSubtractMilliseconds(last(), 0) |> Stdlib.Test.equal(ok(last())) ])
+      |> Stdlib.Test.equal(
+        ok(Stdlib.DateTime.fromMilliseconds(253402300799999)))
+
+      Stdlib.DateTime.checkedAddSeconds(first(), 0)
+      |> Stdlib.Test.equal(ok(first()))
+
+      Stdlib.DateTime.checkedSubtractMilliseconds(last(), 0)
+      |> Stdlib.Test.equal(ok(last())) ])
 
 
 /// ... and {{Error Overflow}} past either end, where the unchecked ones raise
@@ -1076,26 +1097,61 @@ test checkedPastTheRange =
   let biggest = 9223372036854775807
   let smallest = -9223372036854775808
   Stdlib.Test.all(
-    [ Stdlib.DateTime.checkedFromSeconds(-377673580801) |> Stdlib.Test.equal(overflow)
-      Stdlib.DateTime.checkedFromSeconds(253402300800) |> Stdlib.Test.equal(overflow)
+    [ Stdlib.DateTime.checkedFromSeconds(-377673580801)
+      |> Stdlib.Test.equal(overflow)
+
+      Stdlib.DateTime.checkedFromSeconds(253402300800)
+      |> Stdlib.Test.equal(overflow)
+
       Stdlib.DateTime.checkedFromSeconds(2 ** 62) |> Stdlib.Test.equal(overflow)
+
       Stdlib.DateTime.checkedFromSeconds(biggest) |> Stdlib.Test.equal(overflow)
-      Stdlib.DateTime.checkedFromSeconds(smallest) |> Stdlib.Test.equal(overflow)
-      Stdlib.DateTime.checkedFromMilliseconds(-377673580800001) |> Stdlib.Test.equal(overflow)
-      Stdlib.DateTime.checkedFromMilliseconds(253402300800000) |> Stdlib.Test.equal(overflow)
-      Stdlib.DateTime.checkedFromMilliseconds(biggest) |> Stdlib.Test.equal(overflow)
-      Stdlib.DateTime.checkedFromMilliseconds(smallest) |> Stdlib.Test.equal(overflow)
-      Stdlib.DateTime.checkedAddSeconds(last(), 1) |> Stdlib.Test.equal(overflow)
-      Stdlib.DateTime.checkedAddSeconds(first(), -1) |> Stdlib.Test.equal(overflow)
+
+      Stdlib.DateTime.checkedFromSeconds(smallest)
+      |> Stdlib.Test.equal(overflow)
+
+      Stdlib.DateTime.checkedFromMilliseconds(-377673580800001)
+      |> Stdlib.Test.equal(overflow)
+
+      Stdlib.DateTime.checkedFromMilliseconds(253402300800000)
+      |> Stdlib.Test.equal(overflow)
+
+      Stdlib.DateTime.checkedFromMilliseconds(biggest)
+      |> Stdlib.Test.equal(overflow)
+
+      Stdlib.DateTime.checkedFromMilliseconds(smallest)
+      |> Stdlib.Test.equal(overflow)
+
+      Stdlib.DateTime.checkedAddSeconds(last(), 1)
+      |> Stdlib.Test.equal(overflow)
+
+      Stdlib.DateTime.checkedAddSeconds(first(), -1)
+      |> Stdlib.Test.equal(overflow)
+
       Stdlib.DateTime.checkedAddSeconds(Stdlib.DateTime.fromSeconds(0), biggest)
       |> Stdlib.Test.equal(overflow)
-      Stdlib.DateTime.checkedAddSeconds(last(), smallest) |> Stdlib.Test.equal(overflow)
-      Stdlib.DateTime.checkedSubtractSeconds(first(), 1) |> Stdlib.Test.equal(overflow)
-      Stdlib.DateTime.checkedSubtractSeconds(last(), -1) |> Stdlib.Test.equal(overflow)
-      Stdlib.DateTime.checkedSubtractSeconds(first(), smallest) |> Stdlib.Test.equal(overflow)
-      Stdlib.DateTime.checkedAddMilliseconds(last(), 1) |> Stdlib.Test.equal(overflow)
-      Stdlib.DateTime.checkedAddMilliseconds(first(), -1) |> Stdlib.Test.equal(overflow)
-      Stdlib.DateTime.checkedSubtractMilliseconds(first(), 1) |> Stdlib.Test.equal(overflow)
+
+      Stdlib.DateTime.checkedAddSeconds(last(), smallest)
+      |> Stdlib.Test.equal(overflow)
+
+      Stdlib.DateTime.checkedSubtractSeconds(first(), 1)
+      |> Stdlib.Test.equal(overflow)
+
+      Stdlib.DateTime.checkedSubtractSeconds(last(), -1)
+      |> Stdlib.Test.equal(overflow)
+
+      Stdlib.DateTime.checkedSubtractSeconds(first(), smallest)
+      |> Stdlib.Test.equal(overflow)
+
+      Stdlib.DateTime.checkedAddMilliseconds(last(), 1)
+      |> Stdlib.Test.equal(overflow)
+
+      Stdlib.DateTime.checkedAddMilliseconds(first(), -1)
+      |> Stdlib.Test.equal(overflow)
+
+      Stdlib.DateTime.checkedSubtractMilliseconds(first(), 1)
+      |> Stdlib.Test.equal(overflow)
+
       Stdlib.DateTime.checkedSubtractMilliseconds(last(), smallest)
       |> Stdlib.Test.equal(overflow) ])
 
@@ -1144,11 +1200,13 @@ test subtractSeconds =
       sub("2020-11-26T04:37:46Z", -10)
       |> Stdlib.Test.equal(d("2020-11-26T04:37:56Z")) ])
 
+
 test sleepMillisecondsReturnsAtOnceForNoWait =
   Stdlib.Test.all(
     [ Stdlib.DateTime.__sleepMilliseconds(-5.0) |> Stdlib.Test.equal(())
       Stdlib.DateTime.__sleepMilliseconds(0.0 / 0.0) |> Stdlib.Test.equal(())
       Stdlib.DateTime.__sleepMilliseconds(0.5) |> Stdlib.Test.equal(()) ])
+
 
 test subtract =
   Stdlib.Test.all(
@@ -1520,7 +1578,8 @@ test clockSyscalls =
       |> Stdlib.Test.equal(Stdlib.Result.Result.Ok())
 
       Stdlib.DateTime.__sleepNanoseconds(0, -1)
-      |> Stdlib.Test.equal(Stdlib.Result.Result.Error(Stdlib.Cli.Posix.__fromErrno(22)))
+      |> Stdlib.Test.equal(
+        Stdlib.Result.Result.Error(Stdlib.Cli.Posix.__fromErrno(22)))
 
       Stdlib.DateTime.__realtimeNanoseconds()
       |> Stdlib.Result.map(fun pair ->
@@ -1540,6 +1599,7 @@ test realDelayNotPositive =
       Builtin.runtimeDelayTicks(-10000000)
       Builtin.runtimeDelayTicks(-9223372036854775808) ])
   |> Stdlib.Test.equal([ (), (), () ])
+
 
 test weekdayAndMonthDisplay =
   Stdlib.Test.all(

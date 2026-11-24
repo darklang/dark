@@ -386,8 +386,7 @@ module ExecutionError =
 
     let wholeHost =
       match LanguageTools.Permissions.hostWideHttpRule(rule) with
-      | Some(hostRule) ->
-        $"\n\nFor any path on that host:\n  dark run --allow {quote(hostRule)} …"
+      | Some(hostRule) -> $"\n\nFor any path on that host:\n  dark run --allow {quote(hostRule)} …"
       | None -> ""
 
     let oneRun =
@@ -401,8 +400,7 @@ module ExecutionError =
 
     let folder =
       match readAndWrite, folderRules with
-      | None, Some([ one ]) ->
-        $"\n\nFor everything in its folder:\n  dark run --allow {quote(one)} …"
+      | None, Some([one]) -> $"\n\nFor everything in its folder:\n  dark run --allow {quote(one)} …"
       | _ -> ""
 
     // Other access it needs that these suggestions do not cover.

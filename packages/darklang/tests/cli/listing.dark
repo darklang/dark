@@ -24,8 +24,17 @@ test notFoundNamesThePath = Instance.withInstance(fun i ->
 
   Stdlib.Test.all(
     [ Instance.says(viewed, expected, "view names the path")
-      Instance.says(Instance.output(i, [ "ls", missing ]), expected, "ls names it")
-      Instance.says(Instance.output(i, [ "nav", missing ]), expected, "nav names it")
+
+      Instance.says(
+        Instance.output(i, [ "ls", missing ]),
+        expected,
+        "ls names it")
+
+      Instance.says(
+        Instance.output(i, [ "nav", missing ]),
+        expected,
+        "nav names it")
+
       Stdlib.Test.expect(
         Stdlib.Bool.not(twice),
         $"view names the path once: {viewed}") ]))
@@ -35,7 +44,9 @@ test notFoundNamesThePath = Instance.withInstance(fun i ->
 /// and an unresolvable path must not fall back to where you stand.
 test treeRefusesWhatItCannotShow = Instance.withInstance(fun i ->
   let badFlag = Instance.output(i, [ "tree", "--zzbogus" ])
+
   let badPath = Instance.output(i, [ "tree", "Zz.NoSuchThing" ])
+
   let twoPaths =
     Instance.output(i, [ "tree", "Darklang.Stdlib", "Darklang.Cli" ])
 
@@ -45,22 +56,32 @@ test treeRefusesWhatItCannotShow = Instance.withInstance(fun i ->
   // The header the render prints. Seeing it in a refusal means it showed a tree anyway.
   let header = "Package tree from"
   Stdlib.Test.all(
-    [ Instance.says(badFlag, "does not take `--zzbogus`", "an unknown flag is refused")
+    [ Instance.says(
+        badFlag,
+        "does not take `--zzbogus`",
+        "an unknown flag is refused")
+
       Instance.doesNotSay(badFlag, header, "with no tree")
       Instance.says(badPath, "Not found", "an unknown path is refused")
       Instance.doesNotSay(badPath, header, "with no tree")
-      Instance.says(twoPaths, "does not take `Darklang.Cli`", "a second path is refused")
+      Instance.says(
+        twoPaths,
+        "does not take `Darklang.Cli`",
+        "a second path is refused")
+
       Instance.says(withDepth, header, "--depth=1 shows a tree") ]))
 
 
 /// The reference listings answer: `builtins` by module, `commands` from the registry.
-test referenceListingsAnswer = Instance.withInstance(fun i ->
-  Stdlib.Test.all(
-    [ Instance.says(
-        Stdlib.Cli.Tui.Text.stripSgr(Instance.said(i, [ "builtins" ])),
-        "Int64:",
-        "builtins lists them by module")
-      Instance.says(
-        Stdlib.Cli.Tui.Text.stripSgr(Instance.said(i, [ "commands" ])),
-        "nav",
-        "commands lists the registry") ]))
+test referenceListingsAnswer =
+  Instance.withInstance(fun i ->
+    Stdlib.Test.all(
+      [ Instance.says(
+          Stdlib.Cli.Tui.Text.stripSgr(Instance.said(i, [ "builtins" ])),
+          "Int64:",
+          "builtins lists them by module")
+
+        Instance.says(
+          Stdlib.Cli.Tui.Text.stripSgr(Instance.said(i, [ "commands" ])),
+          "nav",
+          "commands lists the registry") ]))

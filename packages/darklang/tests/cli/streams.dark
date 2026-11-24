@@ -19,21 +19,30 @@ let same(actual: String, expected: String, why: String): Stdlib.Test.Result =
   if actual == expected then
     Stdlib.Test.Result.Pass
   else
-    Stdlib.Test.fail($"{why}: expected {Stdlib.inspect(expected)}, got {Stdlib.inspect(actual)}")
+    Stdlib.Test.fail(
+      $"{why}: expected {Stdlib.inspect(expected)}, got {Stdlib.inspect(actual)}")
 
 
 test anEvalErrorAndDebugGoToStderr = Instance.withInstance(fun i ->
   let (failedCode, failedOut, failedErr) = plainStreams(i, [ "eval", "1 / 0" ])
+
   let (debugCode, debugOut, debugErr) =
     plainStreams(i, [ "eval", "let _ = Stdlib.debug(\"lbl\", 5) in 7" ])
 
   Stdlib.Test.all(
     [ Instance.exitedWith(failedCode, 1, "a raised eval exits 1")
       same(failedOut, "", "a failed eval has no answer on stdout")
-      Instance.says(failedErr, "Error: Cannot divide by 0", "the error is on stderr")
+      Instance.says(
+        failedErr,
+        "Error: Cannot divide by 0",
+        "the error is on stderr")
+
       Instance.exitedWith(debugCode, 0, "the eval succeeded")
       same(debugOut, "7", "stdout is the value alone")
-      Instance.says(debugErr, "DEBUG: lbl: 5", "the debug line is on stderr") ]))
+      Instance.says(
+        debugErr,
+        "DEBUG: lbl: 5",
+        "the debug line is on stderr") ]))
 
 
 test logLinesAndHintsGoToStderr = Instance.withInstance(fun i ->
@@ -49,41 +58,65 @@ test logLinesAndHintsGoToStderr = Instance.withInstance(fun i ->
       Instance.says(logErr, "[WARN] careful", "the log line is on stderr")
       Instance.exitedWith(searchCode, 0, "the search answered")
       Instance.says(searchOut, "map", "stdout has the results")
-      Instance.doesNotSay(searchOut, "--with-docs", "but not the hint about another flag")
+      Instance.doesNotSay(
+        searchOut,
+        "--with-docs",
+        "but not the hint about another flag")
+
       Instance.says(searchErr, "--with-docs", "which is on stderr") ]))
 
 
 /// A save's answer is the line that says what it saved. A warning about it, the note that a dry
 /// run wrote nothing, and the preview a prompt asks about go to stderr, so `dark fn ... | next`
 /// gets the one line, and a delete nobody could confirm leaves stdout empty.
-test saveWarningsDryRunNotesAndPreviewsGoToStderr = Instance.withInstance(fun i ->
-  let (saveCode, saveOut, saveErr) =
-    plainStreams(
-      i,
-      [ "fn", "Tests.Streams.f", "(x: Int64): Int64 = Zzz.Streams.nope(x) + 41" ])
+test saveWarningsDryRunNotesAndPreviewsGoToStderr =
+  Instance.withInstance(fun i ->
+    let (saveCode, saveOut, saveErr) =
+      plainStreams(
+        i,
+        [ "fn"
+          "Tests.Streams.f"
+          "(x: Int64): Int64 = Zzz.Streams.nope(x) + 41" ])
 
-  let (dryCode, dryOut, dryErr) =
-    plainStreams(i, [ "delete", "Tests.Streams.f", "--dry-run" ])
+    let (dryCode, dryOut, dryErr) =
+      plainStreams(i, [ "delete", "Tests.Streams.f", "--dry-run" ])
 
-  let (deleteCode, deleteOut, deleteErr) =
-    plainStreams(i, [ "delete", "Tests.Streams.f" ])
+    let (deleteCode, deleteOut, deleteErr) =
+      plainStreams(i, [ "delete", "Tests.Streams.f" ])
 
-  Stdlib.Test.all(
-    [ Instance.exitedWith(saveCode, 0, "the fn saved")
-      Instance.says(saveOut, "Created function Tests.Streams.f", "stdout says what was saved")
-      Instance.doesNotSay(saveOut, "Unresolved", "but not the warning")
-      Instance.says(saveErr, "Not found: Zzz.Streams.nope", "which is on stderr")
-      Instance.exitedWith(dryCode, 0, "the dry run answered")
-      Instance.says(dryOut, "Would deprecate fn Tests.Streams.f", "the preview is the answer")
-      Instance.doesNotSay(dryOut, "dry-run", "the dry-run note is not")
-      Instance.says(dryErr, "no op emitted", "it is on stderr")
-      Instance.exitedWith(deleteCode, 1, "nobody could confirm, so it refused")
-      same(deleteOut, "", "and stdout is empty")
-      Instance.says(deleteErr, "Will deprecate", "the preview is on stderr")
-      Instance.says(
-        deleteErr,
-        "`dark delete Tests.Streams.f -y` does it without asking",
-        "with the flag that gets past the prompt") ]))
+    Stdlib.Test.all(
+      [ Instance.exitedWith(saveCode, 0, "the fn saved")
+        Instance.says(
+          saveOut,
+          "Created function Tests.Streams.f",
+          "stdout says what was saved")
+
+        Instance.doesNotSay(saveOut, "Unresolved", "but not the warning")
+        Instance.says(
+          saveErr,
+          "Not found: Zzz.Streams.nope",
+          "which is on stderr")
+
+        Instance.exitedWith(dryCode, 0, "the dry run answered")
+        Instance.says(
+          dryOut,
+          "Would deprecate fn Tests.Streams.f",
+          "the preview is the answer")
+
+        Instance.doesNotSay(dryOut, "dry-run", "the dry-run note is not")
+        Instance.says(dryErr, "no op emitted", "it is on stderr")
+        Instance.exitedWith(
+          deleteCode,
+          1,
+          "nobody could confirm, so it refused")
+
+        same(deleteOut, "", "and stdout is empty")
+        Instance.says(deleteErr, "Will deprecate", "the preview is on stderr")
+
+        Instance.says(
+          deleteErr,
+          "`dark delete Tests.Streams.f -y` does it without asking",
+          "with the flag that gets past the prompt") ]))
 
 
 /// What one stream of a command holds: nothing at all, a line with this text in it, or whatever it
@@ -137,84 +170,185 @@ let streamFault(
 /// `deps` and `rename` name later.
 val streamRows: List<(List<String> * Int64 * Stream * Stream)> =
   [ ([ "branches" ], 0, Stream.Silent, Stream.Says("no branches"))
-    ([ "fn", "Tests.Rows.f", "(x: Int64): Int64 = x + 1" ],
-     0,
-     Stream.Says("Created function Tests.Rows.f"),
-     Stream.Silent)
-    ([ "undo", "Tests.Rows.f" ], 1, Stream.Silent, Stream.Says("nothing further to undo"))
+    (
+      [ "fn", "Tests.Rows.f", "(x: Int64): Int64 = x + 1" ],
+      0,
+      Stream.Says("Created function Tests.Rows.f"),
+      Stream.Silent)
+
+    (
+      [ "undo", "Tests.Rows.f" ],
+      1,
+      Stream.Silent,
+      Stream.Says("nothing further to undo"))
+
     // Before anything runs, so there is no trace yet: an empty answer is empty stdout.
     ([ "traces", "list" ], 0, Stream.Silent, Stream.Says("nothing has run yet"))
-    ([ "traces", "find", "zzzqqq" ], 0, Stream.Silent, Stream.Says("no kept trace matches"))
-    ([ "traces", "calls", "Tests.Rows.f" ], 0, Stream.Silent, Stream.Says("no recorded trace"))
-    ([ "traces", "show", "Tests.Rows.f" ], 0, Stream.Silent, Stream.Says("no recorded trace"))
-    ([ "traces", "fns" ], 0, Stream.Silent, Stream.Says("no runs have been kept yet"))
+    (
+      [ "traces", "find", "zzzqqq" ],
+      0,
+      Stream.Silent,
+      Stream.Says("no kept trace matches"))
+
+    (
+      [ "traces", "calls", "Tests.Rows.f" ],
+      0,
+      Stream.Silent,
+      Stream.Says("no recorded trace"))
+
+    (
+      [ "traces", "show", "Tests.Rows.f" ],
+      0,
+      Stream.Silent,
+      Stream.Says("no recorded trace"))
+
+    (
+      [ "traces", "fns" ],
+      0,
+      Stream.Silent,
+      Stream.Says("no runs have been kept yet"))
+
     ([ "traces", "hotspots" ], 0, Stream.Silent, Stream.Says("No fn-call data"))
-    ([ "fn", "Tests.Rows.g", "(x: Int64): Int64 = Tests.Rows.f(x)" ],
-     0,
-     Stream.Says("Created function Tests.Rows.g"),
-     Stream.Silent)
-    ([ "test", "add", "Tests.Rows.t", "Stdlib.Test.pass()" ],
-     0,
-     Stream.Says("Created test Tests.Rows.t"),
-     Stream.Silent)
+    (
+      [ "fn", "Tests.Rows.g", "(x: Int64): Int64 = Tests.Rows.f(x)" ],
+      0,
+      Stream.Says("Created function Tests.Rows.g"),
+      Stream.Silent)
+
+    (
+      [ "test", "add", "Tests.Rows.t", "Stdlib.Test.pass()" ],
+      0,
+      Stream.Says("Created test Tests.Rows.t"),
+      Stream.Silent)
+
     ([ "status" ], 0, Stream.Says("draft:"), Stream.Says("`dark commit`"))
-    ([ "status", "--json" ], 0, Stream.Says("\"branch\":\"main\""), Stream.Silent)
+    (
+      [ "status", "--json" ],
+      0,
+      Stream.Says("\"branch\":\"main\""),
+      Stream.Silent)
+
     ([ "eval", "Tests.Rows.f(1)" ], 0, Stream.Says("2"), Stream.Silent)
     ([ "eval", "1 / 0" ], 1, Stream.Silent, Stream.Says("Cannot divide by 0"))
-    ([ "test", "run", "Tests.Rows.t" ],
-     0,
-     Stream.Says("PASS Tests.Rows.t"),
-     Stream.Says("Running: Tests.Rows.t"))
-    ([ "test", "run", "Zzz.Nope" ], 1, Stream.Silent, Stream.Says("No package tests matched"))
+    (
+      [ "test", "run", "Tests.Rows.t" ],
+      0,
+      Stream.Says("PASS Tests.Rows.t"),
+      Stream.Says("Running: Tests.Rows.t"))
+
+    (
+      [ "test", "run", "Zzz.Nope" ],
+      1,
+      Stream.Silent,
+      Stream.Says("No package tests matched"))
+
     ([ "view", "Tests.Rows.f" ], 0, Stream.Says("let f(x: Int64)"), Stream.Any)
     ([ "view", "Zzz.Nope.f" ], 1, Stream.Silent, Stream.Says("Not found"))
-    ([ "view", "Darklang.Stdlib.Float64.round" ],
-     0,
-     Stream.Says("can raise a runtime error"),
-     Stream.Any)
-    ([ "effects", "Darklang.Stdlib.Float64.round" ],
-     0,
-     Stream.Says("via Builtin.float64Round"),
-     Stream.Silent)
+    (
+      [ "view", "Darklang.Stdlib.Float64.round" ],
+      0,
+      Stream.Says("can raise a runtime error"),
+      Stream.Any)
+
+    (
+      [ "effects", "Darklang.Stdlib.Float64.round" ],
+      0,
+      Stream.Says("via Builtin.float64Round"),
+      Stream.Silent)
+
     // Its `/` declares `Raise`, but it tests for every case where `/` raises.
-    ([ "effects", "Darklang.Stdlib.Int64.checkedDivide" ],
-     0,
-     Stream.Says("effect-free"),
-     Stream.Silent)
-    ([ "effects", "Darklang.Stdlib.DateTime.weekday" ],
-     0,
-     Stream.Says("effect-free"),
-     Stream.Silent)
+    (
+      [ "effects", "Darklang.Stdlib.Int64.checkedDivide" ],
+      0,
+      Stream.Says("effect-free"),
+      Stream.Silent)
+
+    (
+      [ "effects", "Darklang.Stdlib.DateTime.weekday" ],
+      0,
+      Stream.Says("effect-free"),
+      Stream.Silent)
+
     ([ "hash", "Tests.Rows.f" ], 0, Stream.Says("fn "), Stream.Silent)
-    ([ "deps", "Tests.Rows.f" ], 0, Stream.Says("dependencies of Tests.Rows.f"), Stream.Any)
-    ([ "deps", "Tests.Rows.g" ],
-     0,
-     Stream.Says("dependencies of Tests.Rows.g"),
-     Stream.Says("No dependents"))
-    ([ "nav" ], 1, Stream.Silent, Stream.Says("Interactive terminal UI unavailable"))
-    ([ "search" ], 1, Stream.Silent, Stream.Says("Interactive terminal UI unavailable"))
-    ([ "builtins", "zzzqqq" ], 0, Stream.Silent, Stream.Says("Showing 0 functions"))
-    ([ "ls", "Darklang.Stdlib.Bool" ], 0, Stream.Says("Contents of"), Stream.Silent)
-    ([ "nav", "Darklang.Stdlib.Bool" ],
-     0,
-     Stream.Says("Changed to"),
-     Stream.Says("only for this command"))
-    ([ "tree", "Darklang.Stdlib", "--depth", "1" ],
-     0,
-     Stream.Says("Package tree"),
-     Stream.Silent)
-    ([ "search", "Stdlib.List.map" ],
-     0,
-     Stream.Says("Darklang.Stdlib.List.map"),
-     Stream.Says("--with-docs"))
+    (
+      [ "deps", "Tests.Rows.f" ],
+      0,
+      Stream.Says("dependencies of Tests.Rows.f"),
+      Stream.Any)
+
+    (
+      [ "deps", "Tests.Rows.g" ],
+      0,
+      Stream.Says("dependencies of Tests.Rows.g"),
+      Stream.Says("No dependents"))
+
+    (
+      [ "nav" ],
+      1,
+      Stream.Silent,
+      Stream.Says("Interactive terminal UI unavailable"))
+
+    (
+      [ "search" ],
+      1,
+      Stream.Silent,
+      Stream.Says("Interactive terminal UI unavailable"))
+
+    (
+      [ "builtins", "zzzqqq" ],
+      0,
+      Stream.Silent,
+      Stream.Says("Showing 0 functions"))
+
+    (
+      [ "ls", "Darklang.Stdlib.Bool" ],
+      0,
+      Stream.Says("Contents of"),
+      Stream.Silent)
+
+    (
+      [ "nav", "Darklang.Stdlib.Bool" ],
+      0,
+      Stream.Says("Changed to"),
+      Stream.Says("only for this command"))
+
+    (
+      [ "tree", "Darklang.Stdlib", "--depth", "1" ],
+      0,
+      Stream.Says("Package tree"),
+      Stream.Silent)
+
+    (
+      [ "search", "Stdlib.List.map" ],
+      0,
+      Stream.Says("Darklang.Stdlib.List.map"),
+      Stream.Says("--with-docs"))
+
     ([ "search", "zzzqqq" ], 0, Stream.Silent, Stream.Says("No results found"))
-    ([ "find-values", "Darklang.Stdlib.Option.Option", "Zzz" ],
-     0,
-     Stream.Silent,
-     Stream.Says("No values of type"))
-    ([ "builtins", "listMap" ], 0, Stream.Says("List: listMap"), Stream.Says("--with-sigs"))
-    ([ "typecheck", "Darklang.Stdlib.Bool" ], 0, Stream.Says("failed 0"), Stream.Silent)
-    ([ "impls", "Darklang.Stdlib.Add" ], 0, Stream.Says("Darklang.Stdlib.Add"), Stream.Silent)
+    (
+      [ "find-values", "Darklang.Stdlib.Option.Option", "Zzz" ],
+      0,
+      Stream.Silent,
+      Stream.Says("No values of type"))
+
+    (
+      [ "builtins", "listMap" ],
+      0,
+      Stream.Says("List: listMap"),
+      Stream.Says("--with-sigs"))
+
+    (
+      [ "typecheck", "Darklang.Stdlib.Bool" ],
+      0,
+      Stream.Says("failed 0"),
+      Stream.Silent)
+
+    (
+      [ "impls", "Darklang.Stdlib.Add" ],
+      0,
+      Stream.Says("Darklang.Stdlib.Add"),
+      Stream.Silent)
+
     ([ "docs", "scm" ], 0, Stream.Says("# Source control"), Stream.Silent)
     ([ "docs", "zzznope" ], 1, Stream.Silent, Stream.Says("Unknown topic"))
     ([ "help" ], 0, Stream.Says("Packages:"), Stream.Silent)
@@ -223,55 +357,137 @@ val streamRows: List<(List<String> * Int64 * Stream * Stream)> =
     ([ "version", "--local" ], 0, Stream.Says("Darklang CLI"), Stream.Silent)
     ([ "config", "list" ], 0, Stream.Says("exec.workers"), Stream.Silent)
     ([ "config" ], 0, Stream.Says("exec.workers"), Stream.Silent)
-    ([ "config", "get", "zzznope" ], 1, Stream.Silent, Stream.Says("not a config key"))
-    ([ "permissions", "show", "Tests.Rows.f" ], 0, Stream.Says("Effects:"), Stream.Silent)
-    ([ "commit", "-m", "rows", "--json" ], 1, Stream.Says("\"committed\":false"), Stream.Any)
-    ([ "commit", "-m", "rows", "-y" ], 0, Stream.Says("commit "), Stream.Says("CHANGED"))
+    (
+      [ "config", "get", "zzznope" ],
+      1,
+      Stream.Silent,
+      Stream.Says("not a config key"))
+
+    (
+      [ "permissions", "show", "Tests.Rows.f" ],
+      0,
+      Stream.Says("Effects:"),
+      Stream.Silent)
+
+    (
+      [ "commit", "-m", "rows", "--json" ],
+      1,
+      Stream.Says("\"committed\":false"),
+      Stream.Any)
+
+    (
+      [ "commit", "-m", "rows", "-y" ],
+      0,
+      Stream.Says("commit "),
+      Stream.Says("CHANGED"))
+
     ([ "commits", "1", "--json" ], 0, Stream.Says("\"hash\""), Stream.Silent)
     ([ "log" ], 0, Stream.Says("commits"), Stream.Silent)
     ([ "ops", "1" ], 0, Stream.Says("ops on main"), Stream.Silent)
-    ([ "show", "zzznope" ], 1, Stream.Silent, Stream.Says("nothing matching zzznope"))
+    (
+      [ "show", "zzznope" ],
+      1,
+      Stream.Silent,
+      Stream.Says("nothing matching zzznope"))
+
     ([ "constraints" ], 0, Stream.Says("no constraints"), Stream.Silent)
     ([ "conflicts" ], 0, Stream.Says("no conflicts"), Stream.Silent)
-    ([ "backups" ], 0, Stream.Says("no backups yet"), Stream.Says("`dark backups now`"))
+    (
+      [ "backups" ],
+      0,
+      Stream.Says("no backups yet"),
+      Stream.Says("`dark backups now`"))
+
     ([ "ps", "--json" ], 0, Stream.Says("thisInstance"), Stream.Silent)
     ([ "ack", "--all" ], 0, Stream.Says("nothing to ack"), Stream.Silent)
-    ([ "branch", "create", "main" ], 1, Stream.Silent, Stream.Says("main already exists"))
-    ([ "branch", "create", "rows-b" ], 0, Stream.Says("started branch"), Stream.Silent)
-    ([ "fn", "Tests.Rows.h", "(): Int64 = 2" ],
-     0,
-     Stream.Says("Created function"),
-     Stream.Silent)
+    (
+      [ "branch", "create", "main" ],
+      1,
+      Stream.Silent,
+      Stream.Says("main already exists"))
+
+    (
+      [ "branch", "create", "rows-b" ],
+      0,
+      Stream.Says("started branch"),
+      Stream.Silent)
+
+    (
+      [ "fn", "Tests.Rows.h", "(): Int64 = 2" ],
+      0,
+      Stream.Says("Created function"),
+      Stream.Silent)
+
     ([ "diff" ], 0, Stream.Says("Tests.Rows.h"), Stream.Says("`dark commit`"))
     ([ "switch", "main" ], 0, Stream.Says("switched to main"), Stream.Silent)
     ([ "branches" ], 0, Stream.Says("rows-b"), Stream.Silent)
-    ([ "diff", "rows-b" ], 0, Stream.Says("changes 1 name"), Stream.Says("--source"))
-    ([ "merge", "rows-b", "--dry-run" ],
-     0,
-     Stream.Says("would merge"),
-     Stream.Says("`dark merge rows-b`"))
-    ([ "merge", "rows-b" ], 1, Stream.Silent, Stream.Says("cannot merge \"rows-b\""))
-    ([ "rename", "Tests.Rows.g", "Tests.Rows.g2" ],
-     0,
-     Stream.Says("renamed"),
-     Stream.Says("callers now use"))
-    ([ "delete", "Tests.Rows.g2", "--dry-run" ],
-     0,
-     Stream.Says("Would deprecate"),
-     Stream.Says("dry-run"))
-    ([ "delete", "Tests.Rows.g2" ], 1, Stream.Silent, Stream.Says("Delete not done"))
-    ([ "delete", "Tests.Rows.g2", "-y" ],
-     0,
-     Stream.Says("Deleted Tests.Rows.g2 (still callable)."),
-     Stream.Silent)
-    ([ "undeprecate", "Tests.Rows.g2" ], 0, Stream.Says("Undeprecated"), Stream.Silent)
-    ([ "fn", "Tests.Rows.f", "(x: Int64): Int64 = x + 2" ],
-     0,
-     Stream.Says("Updated function"),
-     Stream.Silent)
-    ([ "undo", "Tests.Rows.f" ], 0, Stream.Says("back on the version"), Stream.Silent)
+    (
+      [ "diff", "rows-b" ],
+      0,
+      Stream.Says("changes 1 name"),
+      Stream.Says("--source"))
+
+    (
+      [ "merge", "rows-b", "--dry-run" ],
+      0,
+      Stream.Says("would merge"),
+      Stream.Says("`dark merge rows-b`"))
+
+    (
+      [ "merge", "rows-b" ],
+      1,
+      Stream.Silent,
+      Stream.Says("cannot merge \"rows-b\""))
+
+    (
+      [ "rename", "Tests.Rows.g", "Tests.Rows.g2" ],
+      0,
+      Stream.Says("renamed"),
+      Stream.Says("callers now use"))
+
+    (
+      [ "delete", "Tests.Rows.g2", "--dry-run" ],
+      0,
+      Stream.Says("Would deprecate"),
+      Stream.Says("dry-run"))
+
+    (
+      [ "delete", "Tests.Rows.g2" ],
+      1,
+      Stream.Silent,
+      Stream.Says("Delete not done"))
+
+    (
+      [ "delete", "Tests.Rows.g2", "-y" ],
+      0,
+      Stream.Says("Deleted Tests.Rows.g2 (still callable)."),
+      Stream.Silent)
+
+    (
+      [ "undeprecate", "Tests.Rows.g2" ],
+      0,
+      Stream.Says("Undeprecated"),
+      Stream.Silent)
+
+    (
+      [ "fn", "Tests.Rows.f", "(x: Int64): Int64 = x + 2" ],
+      0,
+      Stream.Says("Updated function"),
+      Stream.Silent)
+
+    (
+      [ "undo", "Tests.Rows.f" ],
+      0,
+      Stream.Says("back on the version"),
+      Stream.Silent)
+
     ([ "discard" ], 1, Stream.Silent, Stream.Says("DISCARDING"))
-    ([ "discard", "-y" ], 0, Stream.Says("discarded"), Stream.Says("DISCARDING"))
+    (
+      [ "discard", "-y" ],
+      0,
+      Stream.Says("discarded"),
+      Stream.Says("DISCARDING"))
+
     ([ "ack" ], 1, Stream.Silent, Stream.Says("dark ack --all"))
     ([ "module" ], 1, Stream.Silent, Stream.Says("needs 2 arguments"))
     ([ "export-seed" ], 1, Stream.Silent, Stream.Says("needs an argument"))
@@ -279,7 +495,12 @@ val streamRows: List<(List<String> * Int64 * Stream * Stream)> =
     ([], 1, Stream.Silent, Stream.Says("unavailable"))
     ([ "uninstall" ], 1, Stream.Silent, Stream.Says("`dark uninstall -y`"))
     ([ "quit" ], 0, Stream.Silent, Stream.Says("Goodbye!"))
-    ([ "run-script", "/zzznope/x.dark" ], 1, Stream.Silent, Stream.Says("Script not found"))
+    (
+      [ "run-script", "/zzznope/x.dark" ],
+      1,
+      Stream.Silent,
+      Stream.Says("Script not found"))
+
     ([ "zzznope" ], 1, Stream.Silent, Stream.Says("Unknown command")) ]
 
 

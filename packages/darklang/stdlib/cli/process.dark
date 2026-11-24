@@ -81,8 +81,8 @@ let outputText(output: BytesOutput): Output =
 /// `'\''`.
 let shellQuote(s: String): String =
   let expands =
-    String.toList(s)
-    |> List.any(fun c -> c == '"' || c == '$' || c == '`' || c == '\\' || c == '!')
+    String.toList(s) |> List.any(fun c -> c == '"' || c == '$' || c == '`' || c == '\\' || c == '!')
+
   if String.contains(s, "'") && Bool.not(expands) then
     "\"" + s + "\""
   else

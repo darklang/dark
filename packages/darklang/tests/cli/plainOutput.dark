@@ -4,19 +4,34 @@ module Darklang.Cli.Tests.PlainOutput
 
 let authored(i: Instance.T): Unit =
   let _ = Instance.ran(i, [ "type", "Tests.Plain.T", "= { x: Int64 }" ])
+
   let _ = Instance.ran(i, [ "val", "Tests.Plain.v", "= 42" ])
+
   let _ = Instance.ran(i, [ "fn", "Tests.Plain.f", "(x: Int64): Int64 = x" ])
-  let _ = Instance.ran(i, [ "fn", "Tests.Plain.Inner.g", "(x: Int64): Int64 = Tests.Plain.f(x)" ])
+
+  let _ =
+    Instance.ran(
+      i,
+      [ "fn", "Tests.Plain.Inner.g", "(x: Int64): Int64 = Tests.Plain.f(x)" ])
+
   let _ = Instance.ran(i, [ "commit", "plain", "-y" ])
+
   let _ = Instance.ran(i, [ "branch", "create", "feature" ])
-  let _ = Instance.ran(i, [ "fn", "Tests.Plain.f", "(x: Int64): Int64 = x + 1" ])
+
+  let _ =
+    Instance.ran(i, [ "fn", "Tests.Plain.f", "(x: Int64): Int64 = x + 1" ])
+
   let _ = Instance.ran(i, [ "switch", "main" ])
   ()
 
 
 /// What a program sees when it runs `args` with no flag: stdout is a pipe.
 let piped(i: Instance.T, args: List<String>): (Int64 * String * String) =
-  let out = Instance.call(i, { Instance.command(args) with env = [ ("DARK_OUTPUT", "") ] })
+  let out =
+    Instance.call(
+      i,
+      { Instance.command(args) with env = [ ("DARK_OUTPUT", "") ] })
+
   (out.exitCode, Stdlib.String.trim(out.stdout), Stdlib.String.trim(out.stderr))
 
 
@@ -26,7 +41,8 @@ let atTerminal(i: Instance.T, args: List<String>): (Int64 * String) =
     Instance.call(
       i,
       { Instance.command(args) with
-          env = [ ("DARK_OUTPUT", ""), ("NO_COLOR", ""), ("CLICOLOR_FORCE", "") ]
+          env =
+            [ ("DARK_OUTPUT", ""), ("NO_COLOR", ""), ("CLICOLOR_FORCE", "") ]
           tty = true })
 
   (out.exitCode, Stdlib.String.replaceAll(out.stdout, "\r\n", "\n"))
@@ -72,12 +88,15 @@ test everyAnswerInThreeModes = Instance.withInstance(fun i ->
       commands
       |> Stdlib.List.any(fun cmd ->
         let accepts = cmd.accepts
-        cmd.name == name && Stdlib.List.contains(CommandHelp.Help.flagsOf(accepts()), "--json"))
+        cmd.name == name
+        && Stdlib.List.contains(CommandHelp.Help.flagsOf(accepts()), "--json"))
 
     let (prettyCode, _) = atTerminal(i, args)
     let (plainCode, plain) = atTerminal(i, Stdlib.List.append(args, "--plain"))
     let (pipedCode, pipedOut, _) = piped(i, args)
-    let (jsonCode, json, _) = Instance.streams(i, Stdlib.List.append(args, "--json"))
+    let (jsonCode, json, _) =
+      Instance.streams(i, Stdlib.List.append(args, "--json"))
+
     let parsed =
       match Stdlib.Json.parse<Stdlib.AltJson.Json>(json) with
       | Ok(_) -> Stdlib.Test.Result.Pass
@@ -92,8 +111,10 @@ test everyAnswerInThreeModes = Instance.withInstance(fun i ->
             Instance.exitedWith(jsonCode, 0, $"{line} --json")
             parsed
             Stdlib.String.trim(plain) |> Stdlib.Test.equal(pipedOut) ]
+
           decoration
-          |> Stdlib.List.map(fun d -> Instance.doesNotSay(plain, d, $"{line} --plain")) ])))
+          |> Stdlib.List.map(fun d ->
+            Instance.doesNotSay(plain, d, $"{line} --plain")) ])))
   |> Stdlib.Test.all)
 
 
@@ -110,6 +131,7 @@ test lsAndTreePrintRows = Instance.withInstance(fun i ->
             "fn\tTests.Plain.f"
             "val\tTests.Plain.v" ],
           "\n"))
+
       tree
       |> Stdlib.Test.equal(
         Stdlib.String.join(
@@ -135,9 +157,13 @@ test theFlagsGoAnywhere = Instance.withInstance(fun i ->
   let pretty =
     Instance.call(
       i,
-      { Instance.command([ "--pretty", "status" ]) with env = [ ("DARK_OUTPUT", "plain") ] })
+      { Instance.command([ "--pretty", "status" ]) with
+          env = [ ("DARK_OUTPUT", "plain") ] })
 
   Stdlib.Test.all(
     [ Instance.says(after, "branch\tmain", "--plain after the command")
       before |> Stdlib.Test.equal(after)
-      Instance.says(pretty.stdout, "On branch main", "--pretty over DARK_OUTPUT=plain") ]))
+      Instance.says(
+        pretty.stdout,
+        "On branch main",
+        "--pretty over DARK_OUTPUT=plain") ]))

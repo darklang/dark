@@ -545,6 +545,7 @@ test runtimeChecksUseTheSelectedBranch = Instance.withInstance(fun i ->
       Stdlib.String.trim(rejected)
       |> Stdlib.Test.equal(
         "Error: ScriptChecking.accept's 1st parameter `text` expects String, but got Int64 (7). Try wrapping it with `Stdlib.display`.")
+
       accepted ]))
 
 
@@ -558,6 +559,7 @@ test runtimeErrorsDescribePackageArguments = Instance.withInstance(fun i ->
       Stdlib.String.trim(out)
       |> Stdlib.Test.equal(
         "Error: Darklang.Stdlib.List.length's 1st parameter `list` expects List<_>, but got String (\"not a list\")")
+
       Instance.doesNotSay(out, "Static type check failed", "no static gate") ]))
 
 
@@ -811,14 +813,24 @@ test evalAllowGrantsForOneEvaluation = Instance.withInstance(fun i ->
   let _ = Instance.ran(i, [ "module", "/Me.Reader", source ])
   let call = $"Me.Reader.size(\"{target}\")"
   let (deniedCode, _) = Instance.ran(i, [ "eval", call ])
-  let (code, out) = Instance.ran(i, [ "eval", "--allow", $"file read {dir}", call ])
+
+  let (code, out) =
+    Instance.ran(i, [ "eval", "--allow", $"file read {dir}", call ])
+
   let (againCode, _) = Instance.ran(i, [ "eval", call ])
-  let (afterCode, afterOut) = Instance.ran(i, [ "eval", call, "--allow", $"file read {dir}" ])
+
+  let (afterCode, afterOut) =
+    Instance.ran(i, [ "eval", call, "--allow", $"file read {dir}" ])
+
   Stdlib.Test.all(
     [ Instance.exitedWith(deniedCode, 1, "denied without --allow")
       Instance.exitedWith(code, 0, "allowed for this evaluation")
       Instance.says(out, "5", "read the file")
-      Instance.exitedWith(afterCode, 0, "--allow after the expression counts too")
+      Instance.exitedWith(
+        afterCode,
+        0,
+        "--allow after the expression counts too")
+
       Instance.says(afterOut, "5", "and reads the file")
       Instance.exitedWith(againCode, 1, "nothing remembered") ]))
 

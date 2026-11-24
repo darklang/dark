@@ -262,7 +262,11 @@ let shell(command: String): Stdlib.Test.Result =
 /// What the instance's store file weighs, once its log is folded in.
 let storeSize(i: Instance.T): Int64 =
   let db = $"{i.dir}/data.db"
-  let _ = Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", $"sqlite3 {db} 'PRAGMA wal_checkpoint(TRUNCATE);'")
+  let _ =
+    Stdlib.Cli.Unix.executeInDirectoryWithOutput(
+      ".",
+      $"sqlite3 {db} 'PRAGMA wal_checkpoint(TRUNCATE);'")
+
   Stdlib.Cli.File.size(db) |> Stdlib.Result.withDefault(0)
 
 
@@ -298,9 +302,13 @@ test evalOnAReadOnlyStoreAnswersAndRecordsNothing = withTraces(fun i ->
   let sealed =
     shell($"sqlite3 {db} 'PRAGMA journal_mode = DELETE;' && chmod a-w {db}")
 
-  let sumBefore = Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", $"cksum < {db}")
+  let sumBefore =
+    Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", $"cksum < {db}")
+
   let (code, out) = Instance.ran(i, [ "eval", "40 + 2" ])
-  let sumAfter = Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", $"cksum < {db}")
+  let sumAfter =
+    Stdlib.Cli.Unix.executeInDirectoryWithOutput(".", $"cksum < {db}")
+
   let unsealed = shell($"chmod u+w {db}")
   Stdlib.Test.all(
     [ ran
@@ -311,6 +319,7 @@ test evalOnAReadOnlyStoreAnswersAndRecordsNothing = withTraces(fun i ->
       Stdlib.Test.expect(
         sumBefore.stdout == sumAfter.stdout,
         "the store file is unchanged")
+
       Stdlib.List.length(listed(i, 10)) |> Stdlib.Test.equal(1) ]))
 
 
@@ -349,9 +358,11 @@ test rerunEvaluatesTheRecordedInputAgain = withTraces(fun i ->
     [ ran
       Instance.exitedWith(code, 0, "the rerun")
       out |> Stdlib.Test.equal("3")
+
       err
       |> Stdlib.Test.equal(
         $"rerunning {short(id)}: 1 + 2\n\n\nrerun complete; it was kept as a trace of its own (`dark traces` lists it)")
+
       // A rerun is a trace of its own.
       Stdlib.List.length(listed(i, 10)) |> Stdlib.Test.equal(2) ]))
 
@@ -532,7 +543,6 @@ test recordingIsOneKeyWithTwoDoors = Instance.withInstance(fun i ->
       Instance.says(shownOn, "recording: on", "and reading it back says so")
       off
       Stdlib.String.trim(storedOff) |> Stdlib.Test.equal("trace.record = off")
-
       Instance.says(shownOff, "recording: off", "and `traces record` reads it")
 
       Instance.says(json, "\"stored\"", "--json says what is stored")

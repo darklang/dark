@@ -785,8 +785,7 @@ module Values =
     branchId: Uuid,
     entry: ProgramTypes.PackageLocation)
     : Option<Values> =
-    newestRun(branchId, entry)
-    |> Stdlib.Option.map(fun run -> replayRun(accountID, branchId, run))
+    newestRun(branchId, entry) |> Stdlib.Option.map(fun run -> replayRun(accountID, branchId, run))
 
 
   /// The newest recorded run that went through <param entry>: the one `replay` shows.

@@ -113,17 +113,20 @@ let roundTo(x: Float64, places: Int64): Float64 =
 /// as text the parsers read back, such as {{"-3778e-2"}}
 let __roundToText(x: Float64, places: Int64): String =
   // past 1074 places every Float64 is exact, and past -309 every one rounds to zero
-  let places = if places > 1074 then 1074 else if places < -309 then -309 else places
+  let places =
+    if places > 1074 then
+      1074
+    else if places < -309 then
+      -309
+    else
+      places
+
   let bits = BigInt.fromUInt64(toBits(x))
   let unit = 2z ** 52z
   let biased = bits / unit % 2048z
   let fraction = bits % unit
-
   let (mantissa, exponent) =
-    if biased == 0z then
-      (fraction, -1074z)
-    else
-      (fraction + unit, biased - 1075z)
+    if biased == 0z then (fraction, -1074z) else (fraction + unit, biased - 1075z)
 
   // x * 10^places as the fraction num / den
   let p = BigInt.fromInt64(places)
@@ -133,15 +136,9 @@ let __roundToText(x: Float64, places: Int64): String =
   let den10 = if p < 0z then 10z ** (0z - p) else 1z
   let num = mantissa * num2 * num10
   let den = den2 * den10
-
   let kept = num / den
   let twice = num % den * 2z
-  let kept =
-    if twice > den || twice == den && kept % 2z == 1z then
-      kept + 1z
-    else
-      kept
-
+  let kept = if twice > den || twice == den && kept % 2z == 1z then kept + 1z else kept
   let sign = if bits >= 2z ** 63z then "-" else ""
   $"{sign}{kept}e{0 - places}"
 

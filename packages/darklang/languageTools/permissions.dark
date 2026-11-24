@@ -140,7 +140,12 @@ type TokenMode =
 /// Split policy text at bare semicolons, preserving the syntax of each rule for tokens().
 let splitRuleSpecs(text: String): List<String> =
   let finish(current: List<Char>, specs: List<String>): List<String> =
-    let spec = current |> Stdlib.List.reverse |> Stdlib.String.fromList |> Stdlib.String.trim
+    let spec =
+      current
+      |> Stdlib.List.reverse
+      |> Stdlib.String.fromList
+      |> Stdlib.String.trim
+
     if spec == "" then specs else Stdlib.List.prepend(specs, spec)
 
   let walk(
