@@ -4050,9 +4050,12 @@ module TypingAWholeBody =
         Stdlib.Test.equal(
           TypingAWholeBody.check(
             "match n with\n| 0 -> if a then b else c\n| _ -> d"),
-          "")
+          "") ])
 
-        Stdlib.Test.equal(
+
+  test typingAWholeBodyPart2 =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
           TypingAWholeBody.check(
             "let s = Stdlib.Cli.Tui.Size { width = 1, height = 2 }\ns.width"),
           "")

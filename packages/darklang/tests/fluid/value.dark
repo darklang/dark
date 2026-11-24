@@ -2,6 +2,12 @@ module Darklang.Fluid.Tests.Value
 
 // Fluid edits package values too: a PackageValue (name + body expression) as one document.
 
+/// A stored record for the grid and lookup tests: a number and a message.
+type Error =
+  { errno: Int64
+    message: String }
+
+
 module Fixtures =
   let reg(): Fluid.Registry =
     Fluid.Registry.ofList(
@@ -15,7 +21,8 @@ module Fixtures =
     LanguageTools.ProgramTypes.PackageValue.PackageValue
       { hash = LanguageTools.ProgramTypes.Hash.Hash("cafe")
         body = body
-        description = "" }
+        description = ""
+        typ = Option.None }
 
 
   let strVal(): LanguageTools.ProgramTypes.PackageValue.PackageValue =
@@ -412,14 +419,15 @@ module StoredTypesGoBack =
     match LanguageTools.PackageManager.Type.find(
             AValueIsADocument.bid(),
             LanguageTools.ProgramTypes.parsePackageLocation(
-              "Darklang.Stdlib.Cli.Posix.Error")) with
+              "Darklang.Fluid.Tests.Value.Error")) with
     | Some(h) ->
       LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(
         LanguageTools.RuntimeTypes.Hash.Hash(
           LanguageTools.ProgramTypes.hashToString(h)))
     | None ->
       LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(
-        LanguageTools.RuntimeTypes.Hash.Hash("Posix.Error is not in the store"))
+        LanguageTools.RuntimeTypes.Hash.Hash(
+          "Fluid.Tests.Value.Error is not in the store"))
 
 
   test storedTypesGoBack =
@@ -986,14 +994,15 @@ module AListOfRecordsIsAGrid =
     match LanguageTools.PackageManager.Type.find(
             AListOfRecordsIsAGrid.bid(),
             LanguageTools.ProgramTypes.parsePackageLocation(
-              "Darklang.Stdlib.Cli.Posix.Error")) with
+              "Darklang.Fluid.Tests.Value.Error")) with
     | Some(h) ->
       LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(
         LanguageTools.RuntimeTypes.Hash.Hash(
           LanguageTools.ProgramTypes.hashToString(h)))
     | None ->
       LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(
-        LanguageTools.RuntimeTypes.Hash.Hash("Posix.Error is not in the store"))
+        LanguageTools.RuntimeTypes.Hash.Hash(
+          "Fluid.Tests.Value.Error is not in the store"))
 
 
   let row(n: Int64, m: String): LanguageTools.RuntimeTypes.Dval =

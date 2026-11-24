@@ -322,7 +322,7 @@ let builtinFromHash(hash: String): Option<(String * Int32)> =
     let body = Stdlib.String.dropFirst(hash, 8)
     match Stdlib.String.lastIndexOf(body, "_v") with
     | Some(i) ->
-      let name = Stdlib.String.slice(body, 0, i)
+      let name = Stdlib.String.first(body, i)
       let versionText = Stdlib.String.dropFirst(body, i + 2)
       match Stdlib.Int32.parse(versionText) with
       | Ok(v) -> Option.Some((name, v))
@@ -345,7 +345,7 @@ let stripDocMarkup(s: String): String =
       | Some(t) ->
         let rest = Stdlib.String.dropFirst(part, Stdlib.String.length(t))
         match Stdlib.String.indexOf(rest, ">") with
-        | Some(j) -> Stdlib.String.slice(rest, 0, j) + Stdlib.String.dropFirst(rest, j + 1)
+        | Some(j) -> Stdlib.String.first(rest, j) + Stdlib.String.dropFirst(rest, j + 1)
         | None -> rest
       | None -> "<" + part)
   |> Stdlib.String.join("")

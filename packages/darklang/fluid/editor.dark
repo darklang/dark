@@ -2450,7 +2450,7 @@ let handleStringI(st: State, c: String): Option<State> =
             Node.text(segNode |> Stdlib.Option.withDefault(eNode), seg.textSlot)
             |> Stdlib.Option.withDefault("")
 
-          let before = Stdlib.String.slice(text, 0, caret.offset)
+          let before = Stdlib.String.first(text, caret.offset)
           let after = Stdlib.String.dropFirst(text, caret.offset)
           let interp =
             Node.make(
@@ -6223,7 +6223,7 @@ let onKeyPalette(st: State, kp: Stdlib.Cli.UI.Widget.KeyPress): Outcome =
     let f = st.paletteFilter
     let trimmed =
       if Stdlib.String.length(f) > 0 then
-        Stdlib.String.slice(f, 0, Stdlib.String.length(f) - 1)
+        Stdlib.String.first(f, Stdlib.String.length(f) - 1)
       else
         f
 

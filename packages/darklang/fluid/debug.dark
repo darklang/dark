@@ -14,7 +14,7 @@ let insertAt(rows: List<String>, row: Int64, col: Int64, mark: String): List<Str
   rows
   |> Stdlib.List.indexedMap(fun(r, line) ->
     if r == row then
-      let before = Stdlib.String.slice(line, 0, col)
+      let before = Stdlib.String.first(line, col)
       let after = Stdlib.String.dropFirst(line, col)
       before + mark + after
     else

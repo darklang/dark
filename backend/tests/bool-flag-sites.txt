@@ -34,6 +34,7 @@
 1 Darklang.Stdlib.Url.parse Darklang.Stdlib.Url.__parseWith
 1 Darklang.Stdlib.Url.parseLenient Darklang.Stdlib.Url.__parseWith
 1 Darklang.Stdlib.Url.parseReference Darklang.Stdlib.Url.__parseWith
+2 Darklang.Fluid.Editor.moveRight Darklang.Fluid.Editor.caretForCell
 2 Darklang.Stdlib.Cli.Process.__childDrain Darklang.Stdlib.Cli.Process.__childRead
 2 Darklang.Stdlib.Pretty.__breaksLoop Darklang.Stdlib.Pretty.__fits
 2 Darklang.Stdlib.Pretty.__renderLoop Darklang.Stdlib.Pretty.__fits

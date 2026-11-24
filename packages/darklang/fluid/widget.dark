@@ -459,10 +459,7 @@ let treeRows(theme: Theme.Theme, st: Editor.State): List<String> =
         // A value long enough to run off the panel tells you less than one you can read the end of: the
         // panel is a fixed third of the screen and cannot wrap a dotted name at anything.
         let clip(t: String): String =
-          if Stdlib.String.length(t) > 18 then
-            Stdlib.String.slice(t, 0, 15) + "..."
-          else
-            t
+          if Stdlib.String.length(t) > 18 then Stdlib.String.first(t, 15) + "..." else t
 
         let describe(sl: Slot): String =
           match sl with

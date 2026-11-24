@@ -5103,9 +5103,12 @@ module RealisticProgramsTypeStraightThrough =
             Stdlib.List.concat(
               Fixtures.chars("$\"count: {Stdlib.List.length(xs)}\""),
               [ "<Esc>", "<Esc>" ])),
-          "$\"count: {Stdlib.List.length(xs)}\"")
+          "$\"count: {Stdlib.List.length(xs)}\"") ])
 
-        Stdlib.Test.equal(
+
+  test realisticProgramsTypeStraightThroughPart2 =
+    Stdlib.Test.all(
+      [ Stdlib.Test.equal(
           Fixtures.program(
             Stdlib.List.concat(Fixtures.chars("-1 + 2"), [ "<Esc>", "<Esc>" ])),
           "-1 + 2")

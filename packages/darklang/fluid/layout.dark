@@ -312,7 +312,7 @@ let rowWidth(row: Row): Int64 =
 let graphemeAtWidth(s: String, col: Int64): Int64 =
   let n = Stdlib.String.length(s)
   Stdlib.List.range(0, n)
-  |> Stdlib.List.filter(fun k -> Stdlib.String.displayWidth(Stdlib.String.slice(s, 0, k)) <= col)
+  |> Stdlib.List.filter(fun k -> Stdlib.String.displayWidth(Stdlib.String.first(s, k)) <= col)
   |> Stdlib.List.last
   |> Stdlib.Option.withDefault(0)
 
@@ -332,7 +332,7 @@ let dropCols(n: Int64, row: Row): Row =
         (left - c.width, out)
       else
         let idx = graphemeAtWidth(c.text, left)
-        let tail = Stdlib.String.slice(c.text, idx, Stdlib.String.length(c.text))
+        let tail = Stdlib.String.dropFirst(c.text, idx)
         (
           0,
           Stdlib.List.prepend(
@@ -359,7 +359,7 @@ let takeCols(n: Int64, row: Row): Row =
         (left - c.width, Stdlib.List.prepend(out, c))
       else
         let idx = graphemeAtWidth(c.text, left)
-        let head = Stdlib.String.slice(c.text, 0, idx)
+        let head = Stdlib.String.first(c.text, idx)
         (
           0,
           Stdlib.List.prepend(
@@ -381,7 +381,7 @@ let colOfCell(row: Row, idx: Int64): Int64 =
 /// Width of the first `graphemes` graphemes of `s`, clamped to the whole string.
 let widthOfPrefix(s: String, graphemes: Int64): Int64 =
   let n = Stdlib.min(graphemes, Stdlib.String.length(s))
-  Stdlib.String.displayWidth(Stdlib.String.slice(s, 0, n))
+  Stdlib.String.displayWidth(Stdlib.String.first(s, n))
 
 
 /// Does this tag display the caret's (node, part)? `OnNode` matches the first cell of anything under

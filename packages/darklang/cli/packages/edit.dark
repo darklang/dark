@@ -218,6 +218,7 @@ let execute(state: AppState, args: List<String>): AppState =
   let wantsText = Stdlib.List.contains(args, "--text")
   let positionalArgs =
     Stdlib.List.filter(args, fun argument -> argument != "--patch" && argument != "--text")
+
   let parsedArguments =
     match usePatch, positionalArgs with
     | false, [name] -> Result.Ok((name, Option.None))
@@ -298,8 +299,7 @@ let editInEditor(
     match Stdlib.Cli.Dir.createTemp() with
     | Error(e) ->
       Stdlib.printErrorLine(
-        Stdlib.Cli.UI.Colors.error(
-          $"Cannot edit {name}: no temp directory ({Stdlib.display(e)})"))
+        Stdlib.Cli.UI.Colors.error($"Cannot edit {name}: no temp directory ({Stdlib.display(e)})"))
 
       failed(state)
     | Ok(dir) ->
@@ -325,12 +325,8 @@ let editInEditor(
           // A non-zero editor is how you say "forget it" in most of them. The store
           // is left alone and so is the file, so a long edit is not thrown away on a
           // stray exit code.
-          Stdlib.printErrorLine(
-            $"`{editor}` exited {Stdlib.display(code)}; nothing applied.")
-
-          Stdlib.printErrorLine(
-            Stdlib.Cli.UI.Colors.dimText($"  Your edit is still at {path}."))
-
+          Stdlib.printErrorLine($"`{editor}` exited {Stdlib.display(code)}; nothing applied.")
+          Stdlib.printErrorLine(Stdlib.Cli.UI.Colors.dimText($"  Your edit is still at {path}."))
           state
         | Ok(_) ->
           match Stdlib.Cli.File.readText(path) with
@@ -365,8 +361,7 @@ let editInEditor(
                   Stdlib.Cli.Dir.deleteRecursive(dir) |> Stdlib.Result.toOption
                 else
                   Stdlib.printErrorLine(
-                    Stdlib.Cli.UI.Colors.dimText(
-                      $"  nothing landed; your edit is still at {path}"))
+                    Stdlib.Cli.UI.Colors.dimText($"  nothing landed; your edit is still at {path}"))
 
                   Option.None
 

@@ -392,7 +392,8 @@ let newValueTarget(location: LanguageTools.ProgramTypes.PackageLocation): (Slot 
     LanguageTools.ProgramTypes.PackageValue.PackageValue
       { hash = LanguageTools.ProgramTypes.Hash.Hash("")
         body = LanguageTools.ProgramTypes.Expr.EUnit(0)
-        description = "" }
+        description = ""
+        typ = Option.None }
 
   (Slot.Filled(PT.Value.emptyDocFor(location.name)), Target.ValueDef(blank, location))
 
@@ -847,7 +848,7 @@ let view(st: State, size: Stdlib.Cli.Tui.Size): Stdlib.Cli.Tui.View =
           cols = Stdlib.max(1, boxInner.cols - 3) }
 
     let lines = Stdlib.String.split(buf, "\n")
-    let before = Stdlib.String.slice(buf, 0, caret)
+    let before = Stdlib.String.first(buf, caret)
     let bls = Stdlib.String.split(before, "\n")
     let crow = Stdlib.List.length(bls) - 1
     let ccol =
@@ -1216,7 +1217,7 @@ let textModeKey(
   // A multi-line buffer needs vertical and line-wise motion. Without it the caret could only walk one
   // character at a time, so anything the printer wrapped over several lines was unusable.
   let lineStartOf(c: Int64): Int64 =
-    let bls = Stdlib.String.split(Stdlib.String.slice(buf, 0, c), "\n")
+    let bls = Stdlib.String.split(Stdlib.String.first(buf, c), "\n")
     let col =
       Stdlib.List.last(bls)
       |> Stdlib.Option.map(fun s -> Stdlib.String.length(s))
@@ -1262,9 +1263,9 @@ let textModeKey(
     if caret <= 0 then
       stay(buf, caret)
     else
-      stay(Stdlib.String.slice(buf, 0, caret - 1) + Stdlib.String.dropFirst(buf, caret), caret - 1)
+      stay(Stdlib.String.first(buf, caret - 1) + Stdlib.String.dropFirst(buf, caret), caret - 1)
   | Enter ->
-    stay(Stdlib.String.slice(buf, 0, caret) + "\n" + Stdlib.String.dropFirst(buf, caret), caret + 1)
+    stay(Stdlib.String.first(buf, caret) + "\n" + Stdlib.String.dropFirst(buf, caret), caret + 1)
   | _ ->
     if modifiers.ctrl then
       match key with
@@ -1300,13 +1301,15 @@ let textModeKey(
         | Error(e) ->
           Cli.Component.Step.Stay(
             { st with
-                editor = { st.editor with message = $"could not make a temp file: {e.message}" } })
+                editor =
+                  { st.editor with message = $"could not make a temp file: {Stdlib.display(e)}" } })
         | Ok(tmp) ->
           match Stdlib.Cli.File.writeText(tmp, buf) with
           | Error(e) ->
             Cli.Component.Step.Stay(
               { st with
-                  editor = { st.editor with message = $"could not write {tmp}: {e.message}" } })
+                  editor =
+                    { st.editor with message = $"could not write {tmp}: {Stdlib.display(e)}" } })
           | Ok(_) ->
             // `Step.Launch` would have been wrong: it looks its string up in the CLI's COMMAND TABLE, so
             // `vi /tmp/x` is a command named `vi /tmp/x` that does not exist. `RunProgram` spawns a real
@@ -1321,7 +1324,7 @@ let textModeKey(
       match keyChar with
       | Some(c) ->
         stay(
-          Stdlib.String.slice(buf, 0, caret) + c + Stdlib.String.dropFirst(buf, caret),
+          Stdlib.String.first(buf, caret) + c + Stdlib.String.dropFirst(buf, caret),
           caret + Stdlib.String.length(c))
       | None -> Cli.Component.Step.Stay(st)
 
@@ -1566,7 +1569,7 @@ let refresh(prev: State, next: State): State =
     match Stdlib.Cli.File.readText(path) with
     | Error(e) ->
       { cleared with
-          editor = { cleared.editor with message = $"could not read {path}: {e.message}" } }
+          editor = { cleared.editor with message = $"could not read {path}: {Stdlib.display(e)}" } }
     | Ok(text) ->
       match cleared.textMode with
       | Some((_buf, _caret, p)) ->

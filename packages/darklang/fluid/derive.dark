@@ -274,7 +274,7 @@ let tableKindFor(typeName: String): Kind =
 /// `Darklang.Acme.Log` back out of `[Darklang.Acme.Log]`, so the row type's own spec gets derived too.
 let tableRowTypeName(typeName: String): Option<String> =
   if Stdlib.String.startsWith(typeName, "[") && Stdlib.String.endsWith(typeName, "]") then
-    Option.Some(Stdlib.String.slice(typeName, 1, Stdlib.String.length(typeName) - 1))
+    Option.Some(Stdlib.String.dropLast(Stdlib.String.dropFirst(typeName, 1), 1))
   else
     Option.None
 
