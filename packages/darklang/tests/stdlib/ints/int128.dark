@@ -37,6 +37,8 @@ test negate =
 
       -(5s128) |> Stdlib.Test.equal(-5s128)
 
+      0s128 |> Stdlib.Test.equal(0s128)
+
       -(0s128) |> Stdlib.Test.equal(0s128)
 
       -(-170141183460469231731687303715884105728s128)

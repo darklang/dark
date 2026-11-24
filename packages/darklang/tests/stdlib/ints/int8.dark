@@ -24,6 +24,7 @@ test negate =
   Stdlib.Test.all(
     [ -(-5s8) |> Stdlib.Test.equal(5s8)
       -(5s8) |> Stdlib.Test.equal(-5s8)
+      0s8 |> Stdlib.Test.equal(0s8)
       -(0s8) |> Stdlib.Test.equal(0s8)
       -(-128s8) |> Stdlib.Test.equal(-128s8) ])
 

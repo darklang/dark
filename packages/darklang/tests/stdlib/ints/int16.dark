@@ -107,6 +107,7 @@ test negate =
   Stdlib.Test.all(
     [ -(-5s16) |> Stdlib.Test.equal(5s16)
       -(5s16) |> Stdlib.Test.equal(-5s16)
+      0s16 |> Stdlib.Test.equal(0s16)
       -(0s16) |> Stdlib.Test.equal(0s16)
       -(-32768s16) |> Stdlib.Test.equal(-32768s16) ])
 

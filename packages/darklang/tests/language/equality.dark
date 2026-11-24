@@ -107,6 +107,53 @@ test bytesDatesAndUuids =
        != Stdlib.Uuid.parse("3700adbc-7a46-4ff4-81d3-45afb03f6e2d"))
       |> Stdlib.Test.equal(true) ])
 
+// TODO revisit these
+//(fun x -> y) |> Stdlib.Test.equal (fun x -> y)
+// ((fun x -> let y = 1s128 in y) == (fun x -> let y = 1s128 in y))
+// |> Stdlib.Test.equal true
+// ((fun x -> let y = 1s128 in y) != (fun x -> let y = 2s128 in x))
+// |> Stdlib.Test.equal false
+//
+// ((fun x -> let y = 1u128 in y) == (fun x -> let y = 1u128 in y))
+// |> Stdlib.Test.equal true
+// ((fun x -> let y = 1u128 in y) != (fun x -> let y = 2u128 in x))
+// |> Stdlib.Test.equal false
+//
+// ((fun x -> let y = 1 in y) == (fun x -> let y = 1 in y))
+// |> Stdlib.Test.equal true
+// ((fun x -> let y = 1 in y) != (fun x -> let y = 2 in x))
+// |> Stdlib.Test.equal false
+//
+// ((fun x -> let y = 1s32 in y) == (fun x -> let y = 1s32 in y))
+// |> Stdlib.Test.equal true
+// ((fun x -> let y = 1s32 in y) != (fun x -> let y = 2s32 in x))
+// |> Stdlib.Test.equal false
+//
+// ((fun x -> let y = 1u32 in y) == (fun x -> let y = 1u32 in y))
+// |> Stdlib.Test.equal true
+// ((fun x -> let y = 1u32 in y) != (fun x -> let y = 2u32 in x))
+// |> Stdlib.Test.equal false
+//
+// ((fun x -> let y = 1s16 in y) == (fun x -> let y = 1s16 in y))
+// |> Stdlib.Test.equal true
+// ((fun x -> let y = 1s16 in y) != (fun x -> let y = 2s16 in x))
+// |> Stdlib.Test.equal false
+//
+// ((fun x -> let y = 1u16 in y) == (fun x -> let y = 1u16 in y))
+// |> Stdlib.Test.equal true
+// ((fun x -> let y = 1u16 in y) != (fun x -> let y = 2u16 in x))
+// |> Stdlib.Test.equal false
+//
+// ((fun x -> let y = 1s8 in y) == (fun x -> let y = 1s8 in y))
+// |> Stdlib.Test.equal true
+// ((fun x -> let y = 1s8 in y) != (fun x -> let y = 2s8 in x))
+// |> Stdlib.Test.equal false
+//
+// ((fun x -> let y = 1u8 in y) == (fun x -> let y = 1u8 in y))
+// |> Stdlib.Test.equal true
+// ((fun x -> let y = 1u8 in y) != (fun x -> let y = 2u8 in x))
+// |> Stdlib.Test.equal false
+
 // Separately written lambdas are unequal. Comparing them does not execute their bodies.
 test lambdas =
   Stdlib.Test.all(

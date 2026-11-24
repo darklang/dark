@@ -27,6 +27,7 @@ test negate =
   Stdlib.Test.all(
     [ -(-5) |> Stdlib.Test.equal(5)
       -(5) |> Stdlib.Test.equal(-5)
+      0 |> Stdlib.Test.equal(0)
       -(0) |> Stdlib.Test.equal(0)
       -(-9223372036854775808) |> Stdlib.Test.equal(-9223372036854775808) ])
 
