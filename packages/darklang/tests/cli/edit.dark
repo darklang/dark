@@ -349,7 +349,7 @@ test editReportsUpdatedFunctionAndDependents = Instance.withInstance(fun instanc
 /// A return type change saves the new version and reports each incompatible caller.
 test editReportsBrokenCallers = Instance.withInstance(fun instance ->
   let (setupCode, setup) =
-    runWithStdin(
+    Instance.runWithStdin(
       instance,
       [ "module", "/Me.BrokenCallers", "-" ],
       "let helper(): Int64 = 1\n"
@@ -358,7 +358,7 @@ test editReportsBrokenCallers = Instance.withInstance(fun instance ->
       + "let independent(): Int64 = 2\n")
 
   let (code, out) =
-    runWithStdin(
+    Instance.runWithStdin(
       instance,
       [ "edit", "Me.BrokenCallers.helper", "-" ],
       "let helper(): String = \"updated\"\n")
