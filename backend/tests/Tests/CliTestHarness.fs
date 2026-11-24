@@ -169,6 +169,26 @@ let runWithTimeout
       timer.Cancel()
   }
 
+/// The CLI dispatch for <param args>. On a virtual clock, as a process on a scheduler of its
+/// own, the way the CLI's main runs it: that clock only moves from a scheduler loop.
+let private executeCliCommand
+  (state : RT.ExecutionState)
+  (args : string list)
+  : Task<RT.ExecutionResult> =
+  let argsDval = args |> List.map RT.DString |> Dval.list RT.KTString
+  let fnName =
+    RT.FQFnName.fqPackage (LibExecution.PackageRefs.Fn.Cli.executeCliCommand ())
+  if state.clock.IsVirtual then
+    Task.Run(fun () ->
+      LibExecution.Scheduler.executeFunction
+        LibExecution.Scheduler.RoundRobin
+        state
+        fnName
+        []
+        (NEList.singleton argsDval))
+  else
+    Exe.executeFunction state fnName [] (NEList.singleton argsDval)
+
 /// Invoke the CLI dispatch with the given args (e.g. `["traces"; "list"]`) and return the
 /// trimmed captured stdout.
 ///
@@ -224,9 +244,6 @@ and private runCliInProcess
   (args : string list)
   : Task<string * string * string * int> =
   task {
-    let argsDval = args |> List.map RT.DString |> Dval.list RT.KTString
-    let fnName =
-      RT.FQFnName.fqPackage (LibExecution.PackageRefs.Fn.Cli.executeCliCommand ())
 
     // Drain prior work queued in NonBlockingConsole, so it stays out of our capture.
     NonBlockingConsole.wait ()
@@ -236,8 +253,7 @@ and private runCliInProcess
 
     try
       let! completed =
-        runWithTimeout runCliTimeout (fun () ->
-          Exe.executeFunction state fnName [] (NEList.singleton argsDval))
+        runWithTimeout runCliTimeout (fun () -> executeCliCommand state args)
 
       match completed with
       | None ->
@@ -601,16 +617,13 @@ and private runCliWithExitInProcess
   (args : string list)
   : Task<string * int64> =
   task {
-    let argsDval = args |> List.map RT.DString |> Dval.list RT.KTString
-    let fnName =
-      RT.FQFnName.fqPackage (LibExecution.PackageRefs.Fn.Cli.executeCliCommand ())
     NonBlockingConsole.wait ()
 
     if not (NonBlockingConsole.startCapture ()) then
       Tests.failtestf "runCliWithExit: a capture was already open"
 
     try
-      let! result = Exe.executeFunction state fnName [] (NEList.singleton argsDval)
+      let! result = executeCliCommand state args
       NonBlockingConsole.wait ()
       let printed = (NonBlockingConsole.stopCapture ()).Trim()
       match result with

@@ -401,12 +401,20 @@ let private aChildLoggedBeforeItsSpawnStillReplays =
 
 /// A resume answers a child's sleep from the log, so it finishes at once, and a race the run
 /// lost to time would now go the other way. The log says how the run came out of it, and the
-/// resume comes out the same.
+/// resume comes out the same. On a virtual clock, so the run's own race goes one way however
+/// slowly a loaded machine runs `busy`.
 let private aResumeComesOutOfARaceAsTheRunDid =
   cliTestWithFreshTraces
     "a resume comes out of awaitWithin and select the way the run did"
     (fun state ->
       task {
+        let state =
+          InProcess
+            { executionState state with
+                clock =
+                  LibExecution.HostClock.startingAt (
+                    NodaTime.SystemClock.Instance.GetCurrentInstant()
+                  ) }
         let awaitWithin =
           "let slow = Stdlib.Exec.spawn(fun () -> (let _ = Stdlib.Cli.Posix.sleep(500.0) in 1))\nlet early = Stdlib.Exec.awaitWithin(50, slow)\nlet _ = Stdlib.Exec.await(slow)\nStdlib.display(early)"
         let select =
