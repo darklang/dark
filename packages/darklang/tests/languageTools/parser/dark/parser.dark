@@ -242,3 +242,22 @@ module DeclsTests =
       "let f(x: Int64, x: Int64): Int64 = x\nval ok = 1"
       "module M =\n  val a = 1\n  val b = (\nval c = 3" ]
     |> Stdlib.Test.table(partial)
+
+
+module FixTests =
+  let fixes(source: String): List<String> =
+    (LanguageTools.Parser.Dark.parseWith(LanguageTools.Parser.FileKind.Script, source)).diagnostics
+    |> Stdlib.List.filterMap(fun d -> d.fix)
+    |> Stdlib.List.map(fun e -> $"{e.range.start.column}-{e.range.end_.column}: {e.text}")
+
+
+  test slipFixes =
+    [ ("f x y", [ "0-5: f(x, y)" ])
+      ("Stdlib.List.map xs g", [ "0-20: Stdlib.List.map(xs, g)" ])
+      ("Ok 5", [ "0-4: Ok(5)" ])
+      ("[1; 2]", [ "2-3: ," ])
+      ("let rec f(x: Int64): Int64 = x\nf(1)", [ "4-8: " ])
+      ("1L", [ "0-2: 1" ])
+      ("\"a\" ++ \"b\"", [ "4-6: +" ])
+      ("f (g x) y", [ "3-6: g(x)" ]) ]
+    |> Stdlib.Test.table(fun((source, expected)) -> fixes(source) |> Stdlib.Test.equal(expected))

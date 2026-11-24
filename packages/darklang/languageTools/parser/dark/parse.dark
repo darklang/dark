@@ -10,13 +10,22 @@ type Parsed =
     diagnostics: List<Core.Diagnostic> }
 
 
+/// The Dark spelling, for a slip the lexer knows one for.
+let lexFix(d: Lexer.Diagnostic): Option<Core.Edit> =
+  match d.problem with
+  | InvalidNumber(_, Some((_, dark))) -> Stdlib.Option.Option.Some(Core.Edit { range = d.range, text = dark })
+  | RefusedOperator("++") -> Stdlib.Option.Option.Some(Core.Edit { range = d.range, text = "+" })
+  | _ -> Stdlib.Option.Option.None
+
+
 let lexDiagnostic(d: Lexer.Diagnostic): Core.Diagnostic =
   Core.Diagnostic
     { code = Core.Code.Lex
       range = d.range
       message = Lexer.problemMessage(d.problem)
       related = []
-      hint = Stdlib.Option.Option.None }
+      hint = Stdlib.Option.Option.None
+      fix = lexFix(d) }
 
 
 let parseWith(kind: LanguageTools.Parser.FileKind, code: String): Parsed =

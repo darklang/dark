@@ -29,12 +29,20 @@ type Code =
   | Validation
 
 
+/// Replace <param range> with <param text>.
+type Edit =
+  { range: Range
+    text: String }
+
+
 type Diagnostic =
   { code: Code
     range: Range
     message: String
     related: List<(Range * String)>
-    hint: Option<String> }
+    hint: Option<String>
+    /// the Dark form, when the slip has exactly one and rewriting to it is safe
+    fix: Option<Edit> }
 
 
 /// One offside scope: the column a statement is anchored at (-1 for none), and whether only
@@ -174,7 +182,8 @@ let errFull(
         range = rng(inp, i)
         message = message
         related = related
-        hint = hint })
+        hint = hint
+        fix = Stdlib.Option.Option.None })
 
 
 let err(inp: Input, st: St, code: Code, i: Int64, message: String): St =
@@ -189,7 +198,8 @@ let errAt(st: St, code: Code, range: Range, message: String, hint: Option<String
         range = range
         message = message
         related = []
-        hint = hint })
+        hint = hint
+        fix = Stdlib.Option.Option.None })
 
 
 /// What the parser is looking at, for "expected X, found Y".
@@ -549,7 +559,7 @@ val escapeForms =
 let validateLiterals(inp: Input): List<Diagnostic> =
   Stdlib.List.indexedMap(inp.tokens, fun(i, t) ->
     let diag = fun(code, message) ->
-      Diagnostic { code = code, range = t.range, message = message, related = [], hint = Stdlib.Option.Option.None }
+      Diagnostic { code = code, range = t.range, message = message, related = [], hint = Stdlib.Option.Option.None, fix = Stdlib.Option.Option.None }
     match t.kind with
     | TStringLit(_) ->
       if Stdlib.Bool.not(Stdlib.String.startsWith(t.text, "\"\"\""))
@@ -586,3 +596,47 @@ let validateLiterals(inp: Input): List<Diagnostic> =
              []))
     | _ -> [])
   |> Stdlib.List.flatten
+
+
+/// The last diagnostic, with <param edit> as its fix.
+let withFix(st: St, edit: Edit): St =
+  match st.diagnosticsRev with
+  | [ d, ...rest ] -> { st with diagnosticsRev = [ { d with fix = Stdlib.Option.Option.Some(edit) }, ...rest ] }
+  | [] -> st
+
+
+/// A fix that writes <param name>(a, b) for `name a b`, when every item is one token.
+let spacedFix(range: Range, name: String, inp: Input, ranges: List<Range>): Option<Edit> =
+  let shown = writtenOrPlaceholders(inp, ranges)
+  let placeholder = placeholders(Stdlib.List.length(ranges))
+  if Stdlib.List.any(Stdlib.List.indexedMap(shown, fun(i, s) -> (i, s)), fun((i, s)) -> Stdlib.List.getAt(placeholder, i) == Stdlib.Option.Option.Some(s)) then
+    Stdlib.Option.Option.None
+  else
+    Stdlib.Option.Option.Some(Edit { range = range, text = $"{name}({Stdlib.String.join(shown, ", ")})" })
+
+
+/// What was written across <param range>, token by token, when nothing but the tokens' own
+/// text lies between them.
+let sourceText(inp: Input, range: Range): Option<String> =
+  let inside =
+    Stdlib.List.filter(inp.tokens, fun t ->
+      pointAtOrAfter(t.range.start, range.start) && pointAtOrAfter(range.end_, t.range.end_) && t.kind != TokenKind.TEOF)
+  let gapless =
+    Stdlib.List.all(Stdlib.List.zipShortest(inside, Stdlib.List.drop(inside, 1)), fun((a, b)) -> a.range.end_ == b.range.start)
+  if gapless && Stdlib.Bool.not(Stdlib.List.isEmpty(inside)) then
+    Stdlib.Option.Option.Some(Stdlib.String.join(Stdlib.List.map(inside, fun t -> t.text), ""))
+  else
+    Stdlib.Option.Option.None
+
+
+/// `name a b` written as `name(a, b)`, when the name and each item are written plainly.
+let spacedCallFix(inp: Input, whole: Range, name: Range, items: List<Range>): Option<Edit> =
+  match sourceText(inp, name) with
+  | Some(n) -> spacedFix(whole, n, inp, items)
+  | None -> Stdlib.Option.Option.None
+
+
+let attachFix(st: St, fix: Option<Edit>): St =
+  match fix with
+  | Some(e) -> withFix(st, e)
+  | None -> st

@@ -245,7 +245,7 @@ let recordDefFields(inp: Input, st: St, fieldsRev: List<RecordField>): (List<Rec
       if Core.tok(inp, k2) == TokenKind.TComma then
         recordDefFields(inp, Core.at(st1, k2 + 1), [ (field, Stdlib.Option.Option.Some(Core.rng(inp, k2))), ...fieldsRev ])
       else if Core.tok(inp, k2) == TokenKind.TSemicolon then
-        let st2 = Core.err(inp, st1, Core.Code.Expected, k2, "Dark separates record fields with commas: `{ x: Int64, y: Int64 }`")
+        let st2 = Core.withFix(Core.err(inp, st1, Core.Code.Expected, k2, "Dark separates record fields with commas: `{ x: Int64, y: Int64 }`"), Core.Edit { range = Core.rng(inp, k2), text = "," })
         recordDefFields(inp, Core.at(st2, k2 + 1), [ (field, Stdlib.Option.Option.Some(Core.rng(inp, k2))), ...fieldsRev ])
       else if k2 > k then
         let st2 =
@@ -757,7 +757,7 @@ let partialSaveCheck(
       let earlierRev = Stdlib.List.filter(newRev, fun d -> Core.pointBefore(d.range.start, resumeAt))
       let kept =
         match earlierRev with
-        | [] -> [ Core.Diagnostic { code = Core.Code.Expected, range = Core.rng(inp, k), message = "Incomplete declaration before the next item", related = [], hint = Stdlib.Option.Option.None } ]
+        | [] -> [ Core.Diagnostic { code = Core.Code.Expected, range = Core.rng(inp, k), message = "Incomplete declaration before the next item", related = [], hint = Stdlib.Option.Option.None, fix = Stdlib.Option.Option.None } ]
         | _ -> earlierRev
       let st2 =
         { st1 with

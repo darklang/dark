@@ -24,7 +24,8 @@ let detailed(range: Range, message: String, related: List<(Range * String)>, hin
       range = range
       message = message
       related = related
-      hint = hint }
+      hint = hint
+      fix = Stdlib.Option.Option.None }
 
 
 let isIgnoredName(name: String): Bool =

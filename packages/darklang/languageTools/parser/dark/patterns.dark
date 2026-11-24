@@ -554,7 +554,7 @@ let listPatternElems(
     else if Core.tok(inp, k2) == TokenKind.TComma then
       listPatternElems(inp, Core.at(st2, k2 + 1), [ (p, Stdlib.Option.Option.Some(Core.rng(inp, k2))), ...elemsRev ], rest, restAt)
     else if Core.tok(inp, k2) == TokenKind.TSemicolon then
-      let st3 = Core.err(inp, st2, Core.Code.Expected, k2, "Dark separates list items with commas: `[a, b]`")
+      let st3 = Core.withFix(Core.err(inp, st2, Core.Code.Expected, k2, "Dark separates list items with commas: `[a, b]`"), Core.Edit { range = Core.rng(inp, k2), text = "," })
       listPatternElems(inp, Core.at(st3, k2 + 1), [ (p, Stdlib.Option.Option.Some(Core.rng(inp, k2))), ...elemsRev ], rest, restAt)
     else
       let st3 =
@@ -648,7 +648,7 @@ let recordPatternFields(inp: Input, st: St, fieldsRev: List<RecordPatternField>)
       if Core.tok(inp, k2) == TokenKind.TComma then
         recordPatternFields(inp, Core.at(st1, k2 + 1), fieldsRev)
       else if Core.tok(inp, k2) == TokenKind.TSemicolon then
-        let st2 = Core.err(inp, st1, Core.Code.Expected, k2, "Dark separates record fields with commas: `{ x = a, y = b }`")
+        let st2 = Core.withFix(Core.err(inp, st1, Core.Code.Expected, k2, "Dark separates record fields with commas: `{ x = a, y = b }`"), Core.Edit { range = Core.rng(inp, k2), text = "," })
         recordPatternFields(inp, Core.at(st2, k2 + 1), fieldsRev)
       else if k2 > k then
         let st2 =
@@ -707,6 +707,8 @@ let enumPattern(inp: Input, st: St): (MatchPattern * St) =
           Core.span(Core.rng(inp, i), endR),
           "a constructor pattern's fields go in parentheses, separated by commas",
           Stdlib.Option.Option.Some(Core.spacedHint(final.name, shown)))
+        |> Core.attachFix(
+          Core.spacedCallFix(inp, Core.span(Core.rng(inp, i), endR), final.range, Stdlib.List.map(Stdlib.List.reverse(fieldPatsRev), mpRange)))
       (WrittenTypes.MatchPattern.MPEnum(Core.span(Core.rng(inp, i), endR), (final.range, final.name), Stdlib.List.reverse(fieldPatsRev)),
        st3)
     | [] ->

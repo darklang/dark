@@ -284,7 +284,8 @@ let skipRec(inp: Input, st: St): St =
         i,
         "Dark functions can call themselves; there's no `rec` keyword",
         [],
-        Stdlib.Option.Option.Some("remove `rec`")),
+        Stdlib.Option.Option.Some("remove `rec`"))
+      |> Core.withFix(Core.Edit { range = Range { start = (Core.rng(inp, i)).start, end_ = (Core.rng(inp, i + 1)).start }, text = "" }),
       i + 1)
   | _ -> st
 
@@ -545,6 +546,7 @@ let spacedApp(inp: Input, st: St, callee: Expr, argsRev: List<Expr>): (Expr * St
         Core.span(er, endR),
         "a constructor's fields go in parentheses, separated by commas",
         Stdlib.Option.Option.Some(Core.spacedHint(cn, shown)))
+      |> Core.attachFix(Core.spacedCallFix(inp, Core.span(er, endR), er, Stdlib.List.map(args, exprRange)))
     (WrittenTypes.Expr.EEnum(Core.span(er, endR), tname, (cr, cn), args, dot), st1)
   | _ ->
     let calleeText =
@@ -560,6 +562,7 @@ let spacedApp(inp: Input, st: St, callee: Expr, argsRev: List<Expr>): (Expr * St
         Core.span(exprRange(callee), endR),
         "arguments go in parentheses, separated by commas",
         Stdlib.Option.Option.Some(Core.spacedHint(calleeText, shown)))
+      |> Core.attachFix(Core.spacedCallFix(inp, Core.span(exprRange(callee), endR), exprRange(callee), Stdlib.List.map(args, exprRange)))
     match callee with
     | EApply(cr, fn, typeArgs, []) -> (WrittenTypes.Expr.EApply(Core.span(cr, endR), fn, typeArgs, args), st1)
     | _ ->
@@ -1123,7 +1126,7 @@ let listElems(
     else if Core.tok(inp, k2) == TokenKind.TComma then
       listElems(inp, Core.at(st1, k2 + 1), [ (e, Stdlib.Option.Option.Some(Core.rng(inp, k2))), ...elemsRev ], count + 1, spreads, firstDots)
     else if Core.tok(inp, k2) == TokenKind.TSemicolon then
-      let st2 = Core.err(inp, st1, Core.Code.Expected, k2, "Dark separates list items with commas: `[a, b]`")
+      let st2 = Core.withFix(Core.err(inp, st1, Core.Code.Expected, k2, "Dark separates list items with commas: `[a, b]`"), Core.Edit { range = Core.rng(inp, k2), text = "," })
       listElems(inp, Core.at(st2, k2 + 1), [ (e, Stdlib.Option.Option.Some(Core.rng(inp, k2))), ...elemsRev ], count + 1, spreads, firstDots)
     else
       let st2 =
@@ -1207,7 +1210,7 @@ let recordFields(inp: Input, st: St, fieldsRev: List<(Range * (Range * String) *
       if Core.tok(inp, k2) == TokenKind.TComma then
         recordFields(inp, Core.at(st1, k2 + 1), fieldsRev)
       else if Core.tok(inp, k2) == TokenKind.TSemicolon then
-        let st2 = Core.err(inp, st1, Core.Code.Expected, k2, "Dark separates record fields with commas: `Point { x = 1, y = 2 }`")
+        let st2 = Core.withFix(Core.err(inp, st1, Core.Code.Expected, k2, "Dark separates record fields with commas: `Point { x = 1, y = 2 }`"), Core.Edit { range = Core.rng(inp, k2), text = "," })
         recordFields(inp, Core.at(st2, k2 + 1), fieldsRev)
       else if k2 > k then
         let st2 =
@@ -1261,7 +1264,7 @@ let dictEntries(inp: Input, st: St, entriesRev: List<(Range * Expr * Range * Exp
       if Core.tok(inp, k2) == TokenKind.TComma then
         dictEntries(inp, Core.at(st3, k2 + 1), entriesRev)
       else if Core.tok(inp, k2) == TokenKind.TSemicolon then
-        let st4 = Core.err(inp, st3, Core.Code.Expected, k2, "Dark separates dict entries with commas: `Dict { \"a\": 1, \"b\": 2 }`")
+        let st4 = Core.withFix(Core.err(inp, st3, Core.Code.Expected, k2, "Dark separates dict entries with commas: `Dict { \"a\": 1, \"b\": 2 }`"), Core.Edit { range = Core.rng(inp, k2), text = "," })
         dictEntries(inp, Core.at(st4, k2 + 1), entriesRev)
       else if k2 > kAfterKey then
         let st4 =
@@ -1312,7 +1315,7 @@ let recordUpdateFields(inp: Input, st: St, updatesRev: List<((Range * String) * 
       if Core.tok(inp, k2) == TokenKind.TComma then
         recordUpdateFields(inp, Core.at(st1, k2 + 1), updatesRev)
       else if Core.tok(inp, k2) == TokenKind.TSemicolon then
-        let st2 = Core.err(inp, st1, Core.Code.Expected, k2, "Dark separates record fields with commas: `{ p with x = 1, y = 2 }`")
+        let st2 = Core.withFix(Core.err(inp, st1, Core.Code.Expected, k2, "Dark separates record fields with commas: `{ p with x = 1, y = 2 }`"), Core.Edit { range = Core.rng(inp, k2), text = "," })
         recordUpdateFields(inp, Core.at(st2, k2 + 1), updatesRev)
       else if k2 > k then
         let st2 =
